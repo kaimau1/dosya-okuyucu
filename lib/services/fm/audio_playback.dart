@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:audioplayers/audioplayers.dart';
+import 'package:video_player/video_player.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:path/path.dart' as p;
@@ -16,7 +16,7 @@ import 'notification_hub.dart';
 import '../../core/user_error.dart';
 
 /// Tekrar kipi (kapalı / tek parça / liste).
-enum RepeatMode { off, one, all }
+enum AudioRepeatMode { off, one, all }
 
 /// **Arka planda çalan ses servisi.**
 ///
@@ -52,53 +52,47 @@ class AudioPlayback extends ChangeNotifier {
   @visibleForTesting
   static bool engineEnabled = true;
 
-  /// **Oynatıcı GEÇ kuruluyor.** `AudioPlayer()` kurucusu platform kanalına
-  /// dokunuyor; testte (kanal yokken) bu bile `MissingPluginException`
-  /// fırlatıyordu ve servise dokunan her test düşüyordu. Artık ilk çalma
-  /// isteğinde kuruluyor.
-  AudioPlayer? _engine;
-  final _subs = <StreamSubscription<dynamic>>[];
+  /// **Oynatıcı GEÇ kuruluyor** (testte platform kanalı yok).
+  ///
+  /// **Tek oynatma motoru (Faz 10):** ses de video gibi ExoPlayer/Media3'te
+  /// (`video_player`) çalıyor; `audioplayers` kalktı. Tek motor = tek ses
+  /// odağı (audio focus) davranışı, tek kodek kümesi, bir paket eksik.
+  _AudioEngine? _engine;
 
-  AudioPlayer get _player {
-    final existing = _engine;
-    if (existing != null) return existing;
-    final created = AudioPlayer();
-    _engine = created;
-    _subs.addAll([
-      created.onPositionChanged.listen((d) {
-        if (_dragging) return;
-        position = d;
-        // **Kaldığı yerden devam** (2026-09-03): uzun kayıtlarda (sesli
-        // kitap, ders, podcast) baştan başlamak en çok konuşulan eksikti.
-        // Kural `PlaybackPositions`ta; kısa parçalar kaydedilmiyor.
-        PlaybackPositions.record(current, d, duration);
-        // Bütün dinleyicilere DEĞİL: konum saniyede ~5 kez geliyor ve
-        // eskiden her gelişte müzik ekranının tamamı + mini çubuk yeniden
-        // kuruluyordu. Konumu gösteren parçalar [positionListenable]'ı
-        // dinliyor (2026-10-17 CPU turu).
-      }),
-      created.onDurationChanged.listen((d) {
-        final changed = d != duration;
-        duration = d;
-        // Süre çoğu zaman çalma başladıktan SONRA geliyor; çubuğun sağ ucu
-        // buradan çiziliyor (eskiden saniyelik tazeleme bunu örtüyordu).
-        if (changed) unawaited(_refreshNotification());
-        notifyListeners();
-      }),
-      created.onPlayerStateChanged.listen((s) {
-        playing = s == PlayerState.playing;
-        if (playing) {
-          _startTicker();
-        } else {
-          _stopTicker();
-        }
-        unawaited(_refreshNotification());
-        notifyListeners();
-      }),
-      created.onPlayerComplete.listen((_) => unawaited(onComplete())),
-    ]);
-    return created;
-  }
+  _AudioEngine get _player => _engine ??= _AudioEngine(
+        onPosition: (d) {
+          if (_dragging) return;
+          position = d;
+          // **Kaldığı yerden devam** (2026-09-03): uzun kayıtlarda (sesli
+          // kitap, ders, podcast) baştan başlamak en çok konuşulan eksikti.
+          // Kural `PlaybackPositions`ta; kısa parçalar kaydedilmiyor.
+          PlaybackPositions.record(current, d, duration);
+          // Bütün dinleyicilere DEĞİL: konumu gösteren parçalar
+          // [positionListenable]'ı dinliyor (2026-10-17 CPU turu).
+        },
+        onDuration: (d) {
+          final changed = d != duration;
+          duration = d;
+          // Süre çoğu zaman çalma başladıktan SONRA geliyor.
+          if (changed) unawaited(_refreshNotification());
+          notifyListeners();
+        },
+        onPlaying: (on) {
+          playing = on;
+          if (playing) {
+            _startTicker();
+          } else {
+            _stopTicker();
+          }
+          unawaited(_refreshNotification());
+          notifyListeners();
+        },
+        onComplete: () => unawaited(onComplete()),
+        onError: (message) {
+          error = AppStrings.current.t('mp.audio_failed', {'error': message});
+          notifyListeners();
+        },
+      );
 
   List<String> playlist = const [];
   int index = 0;
@@ -113,7 +107,7 @@ class AudioPlayback extends ChangeNotifier {
   Duration duration = Duration.zero;
   bool playing = false;
   double speed = 1.0;
-  RepeatMode repeat = RepeatMode.off;
+  AudioRepeatMode repeat = AudioRepeatMode.off;
   bool shuffle = false;
 
   /// Bu parça kayıtlı bir konumdan mı başladı? (Ekran kısaca yazıyor.)
@@ -175,12 +169,8 @@ class AudioPlayback extends ChangeNotifier {
   /// nesnesi ARTIK KULLANILAMAZ; yenisini kurmak gerekiyor. Hata kaydı
   /// 2026-09-02: bu olduğunda çalma sessizce ölüyordu.
   Future<void> _recreateEngine() async {
-    for (final s in _subs) {
-      unawaited(s.cancel());
-    }
-    _subs.clear();
     try {
-      await _engine?.dispose();
+      await _engine?.stop();
     } catch (_) {}
     _engine = null;
   }
@@ -196,13 +186,10 @@ class AudioPlayback extends ChangeNotifier {
     if (!engineEnabled) return;
     unawaited(_loadTags(path));
     try {
-      await _player.stop();
-      await _player.play(DeviceFileSource(path));
-      await _player.setPlaybackRate(speed);
       final resume = PlaybackPositions.positionOf(path);
+      await _player.play(path, speed: speed, at: resume);
       if (resume != null) {
         resumedFrom = resume;
-        await _player.seek(resume);
         position = resume;
         // Bildirim çubuğu 0'dan değil kalınan yerden aksın.
         unawaited(_refreshNotification());
@@ -214,8 +201,7 @@ class AudioPlayback extends ChangeNotifier {
       if ('$e'.contains('SERVER_DIED')) {
         await _recreateEngine();
         try {
-          await _player.play(DeviceFileSource(path));
-          await _player.setPlaybackRate(speed);
+          await _player.play(path, speed: speed);
           return;
         } catch (_) {
           // ikinci deneme de olmadı — aşağıdaki mesaja düş
@@ -237,7 +223,7 @@ class AudioPlayback extends ChangeNotifier {
   /// Parça bitti — tekrar/karışık kipine göre sıradakine geç.
   @visibleForTesting
   Future<void> onComplete() async {
-    if (repeat == RepeatMode.one) return _play(current);
+    if (repeat == AudioRepeatMode.one) return _play(current);
     if (shuffle && playlist.length > 1) {
       final rnd = Random(DateTime.now().microsecondsSinceEpoch);
       var next = index;
@@ -247,7 +233,7 @@ class AudioPlayback extends ChangeNotifier {
       return skipTo(next);
     }
     if (index < playlist.length - 1) return skipTo(index + 1);
-    if (repeat == RepeatMode.all) return skipTo(0);
+    if (repeat == AudioRepeatMode.all) return skipTo(0);
     // Liste bitti: çalma durdu, bildirimi ve servisi bırak.
     await stop();
   }
@@ -326,7 +312,7 @@ class AudioPlayback extends ChangeNotifier {
 
   Future<void> setSpeed(double value) async {
     speed = value;
-    if (engineEnabled) await _guard(() => _player.setPlaybackRate(value));
+    if (engineEnabled) await _guard(() => _player.setRate(value));
     // Hız, sistemin konumu ilerletme hızıdır — değişince bildirilmeli.
     unawaited(_refreshNotification());
     notifyListeners();
@@ -340,7 +326,7 @@ class AudioPlayback extends ChangeNotifier {
   /// takılıyor.
   static void Function(bool shuffle, int repeat)? persistModes;
 
-  void setRepeat(RepeatMode mode) {
+  void setRepeat(AudioRepeatMode mode) {
     repeat = mode;
     persistModes?.call(shuffle, mode.index);
     notifyListeners();
@@ -358,8 +344,8 @@ class AudioPlayback extends ChangeNotifier {
   /// değeri diske yeniden yazmanın anlamı yok.
   void restoreModes({required bool shuffle, required int repeat}) {
     this.shuffle = shuffle;
-    if (repeat >= 0 && repeat < RepeatMode.values.length) {
-      this.repeat = RepeatMode.values[repeat];
+    if (repeat >= 0 && repeat < AudioRepeatMode.values.length) {
+      this.repeat = AudioRepeatMode.values[repeat];
     }
     notifyListeners();
   }
@@ -667,10 +653,101 @@ class AudioPlayback extends ChangeNotifier {
   @override
   void dispose() {
     _stopTicker();
-    for (final s in _subs) {
-      unawaited(s.cancel());
-    }
-    unawaited(_engine?.dispose());
+    unawaited(_engine?.stop());
     super.dispose();
+  }
+}
+
+/// `audioplayers`ın yerine ince bir ExoPlayer sarmalayıcısı (Faz 10).
+/// `VideoPlayerController` kaynağa bağlı → her parça yeni denetleyici.
+/// `allowBackgroundPlayback`: ekran kapansa/uygulama arkaya geçse de çalsın
+/// (eklenti varsayılanda arka planda duraklatıyor).
+class _AudioEngine {
+  _AudioEngine({
+    required this.onPosition,
+    required this.onDuration,
+    required this.onPlaying,
+    required this.onComplete,
+    required this.onError,
+  });
+
+  final void Function(Duration) onPosition, onDuration;
+  final void Function(bool) onPlaying;
+  final VoidCallback onComplete;
+  final void Function(String) onError;
+
+  VideoPlayerController? _c;
+  Duration _duration = Duration.zero;
+  bool _playing = false, _completed = false, _errored = false;
+
+  Future<void> play(String path, {double speed = 1, Duration? at}) async {
+    await stop();
+    final c = VideoPlayerController.file(
+      File(path),
+      videoPlayerOptions: VideoPlayerOptions(allowBackgroundPlayback: true),
+    );
+    _c = c;
+    _completed = _errored = false;
+    _duration = Duration.zero;
+    c.addListener(_onValue);
+    await c.initialize();
+    if (_c != c) return; // bu arada başka parçaya geçildi
+    await c.setPlaybackSpeed(speed);
+    if (at != null) await c.seekTo(at);
+    await c.play();
+  }
+
+  void _onValue() {
+    final v = _c?.value;
+    if (v == null) return;
+    if (v.hasError && !_errored) {
+      _errored = true;
+      onError(v.errorDescription ?? '');
+    }
+    if (v.duration != _duration) {
+      _duration = v.duration;
+      onDuration(_duration);
+    }
+    onPosition(v.position);
+    if (v.isPlaying != _playing) {
+      _playing = v.isPlaying;
+      onPlaying(_playing);
+    }
+    if (v.isCompleted && !_completed) {
+      _completed = true;
+      onComplete();
+    }
+  }
+
+  Future<void> pause() async => _c?.pause();
+
+  Future<void> resume() async {
+    final c = _c;
+    if (c == null) return;
+    if (_completed) {
+      _completed = false;
+      await c.seekTo(Duration.zero);
+    }
+    await c.play();
+  }
+
+  Future<void> seek(Duration d) async {
+    _completed = false;
+    await _c?.seekTo(d);
+  }
+
+  Future<void> setRate(double r) async => _c?.setPlaybackSpeed(r);
+
+  Future<void> stop() async {
+    final c = _c;
+    _c = null;
+    if (c != null) {
+      c.removeListener(_onValue);
+      await c.dispose();
+    }
+    if (_playing) {
+      _playing = false;
+      onPlaying(false);
+    }
   }
 }

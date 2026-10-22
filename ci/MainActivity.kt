@@ -1,6 +1,8 @@
 package com.dosyaokuyucu.dosya_okuyucu
 
+import android.annotation.TargetApi
 import android.app.AppOpsManager
+import android.app.PictureInPictureParams
 import android.app.usage.StorageStatsManager
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStats
@@ -10,6 +12,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
 import android.graphics.BitmapFactory
@@ -25,6 +28,7 @@ import android.hardware.usb.UsbManager
 import android.os.storage.StorageManager
 import android.provider.DocumentsContract
 import android.provider.Settings
+import android.util.Rational
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -86,7 +90,9 @@ class MainActivity : FlutterActivity() {
     private var mediaChannel: MethodChannel? = null
 
     /** Yüzen oynatıcı kanalı (pencere → Dart olayları). */
-    private var floatingChannel: MethodChannel? = null
+    private var pipChannel: MethodChannel? = null
+    private var pipAuto = false
+    private var pipRatio = Rational(16, 9)
 
     /** Widget/bildirimden gelen, Dart'ın henüz almadığı bağlantı. */
     private var pendingLink: String? = null
@@ -718,117 +724,103 @@ class MainActivity : FlutterActivity() {
                 }
             }
         configureMediaChannel(flutterEngine)
-        configureFloatingChannel(flutterEngine)
+        configurePipChannel(flutterEngine)
+        MediaTranscodeBridge.configure(flutterEngine.dartExecutor.binaryMessenger, this)
     }
 
     /**
-     * **Ekran üstünde yüzen oynatıcı köprüsü** (kullanıcı isteği 2026-09-03:
-     * *"ekran üstünde ekran video oynatıcı sistemi yapalım"*).
+     * **Resim içinde resim (PiP) köprüsü** (Faz 10 — eski yüzen pencerenin
+     * yerine). Uygulamanın kendisi küçük pencereye geçer; video Flutter'daki
+     * aynı oynatıcıda sürer, `SYSTEM_ALERT_WINDOW` izni gerekmez.
      *
-     * Dart "şu videoyu şu konumdan yüzen pencerede aç" der; pencere kapanınca
-     * ya da kullanıcı "uygulamaya dön" deyince konum geri gelir ve video
-     * uygulamada kaldığı yerden sürer. Pencereyi çizen ve MediaPlayer'ı süren
-     * `ci/FloatingPlayer.kt`; burası yalnız kanal.
+     * - `enter`: hemen geç (oynatıcıdaki düğme).
+     * - `auto`: video oynarken uygulamadan çıkılınca kendiliğinden geç —
+     *   Android 12+ `setAutoEnterEnabled`, daha eskisinde `onUserLeaveHint`.
+     * - Kip değişince Dart'a `changed(bool)`: küçük pencerede yalnız video çizilir.
      */
-    private fun configureFloatingChannel(flutterEngine: FlutterEngine) {
-        val floating = MethodChannel(
-            flutterEngine.dartExecutor.binaryMessenger, FLOATING_CHANNEL
+    private fun configurePipChannel(flutterEngine: FlutterEngine) {
+        val channel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger, PIP_CHANNEL
         )
-        floatingChannel = floating
-        FloatingBridge.onEvent = { event, position ->
-            Handler(Looper.getMainLooper()).post {
-                try {
-                    floatingChannel?.invokeMethod(
-                        "event",
-                        mapOf("event" to event, "position" to position)
-                    )
-                } catch (e: Exception) {
-                    // Dart ölmüşse olay `takePending` ile sorulacak.
-                }
-            }
-        }
-        floating.setMethodCallHandler { call, result ->
+        pipChannel = channel
+        channel.setMethodCallHandler { call, result ->
             when (call.method) {
-                // İzin verilmiş mi? ("Diğer uygulamaların üzerinde göster")
-                "permission" -> result.success(canDrawOverlays())
-
-                // İzin ekranını aç (kullanıcı elle verir; geri dönüş yok,
-                // Dart öne gelince yeniden soruyor).
-                "requestPermission" -> {
-                    try {
-                        val intent = Intent(
-                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                            Uri.parse("package:$packageName")
-                        )
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        startActivity(intent)
-                        result.success(true)
-                    } catch (e: Exception) {
-                        result.success(false)
-                    }
+                "supported" -> result.success(pipSupported())
+                "enter" -> {
+                    pipRatio = ratioOf(call.argument<Int>("w"), call.argument<Int>("h"))
+                    result.success(enterPip())
                 }
-
-                "open" -> {
-                    val path = call.argument<String>("path")
-                    if (path.isNullOrEmpty() || !canDrawOverlays()) {
-                        result.success(false)
-                    } else {
-                        val intent = Intent(this, FloatingPlayerService::class.java)
-                        intent.action = FloatingBridge.ACTION_OPEN
-                        intent.putExtra(FloatingBridge.EXTRA_PATH, path)
-                        intent.putExtra(
-                            FloatingBridge.EXTRA_TITLE,
-                            call.argument<String>("title") ?: ""
-                        )
-                        intent.putExtra(
-                            FloatingBridge.EXTRA_SUBTITLE,
-                            call.argument<String>("subtitle") ?: ""
-                        )
-                        intent.putExtra(
-                            FloatingBridge.EXTRA_POSITION,
-                            (call.argument<Number>("position") ?: 0).toLong()
-                        )
+                "auto" -> {
+                    pipAuto = call.argument<Boolean>("on") == true
+                    pipRatio = ratioOf(call.argument<Int>("w"), call.argument<Int>("h"))
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && pipSupported()) {
                         try {
-                            // Ön plan servisi: uygulama arkaya alınınca ses
-                            // kesilmesin. Android 8+ ayrı çağrı istiyor.
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                startForegroundService(intent)
-                            } else {
-                                startService(intent)
-                            }
-                            result.success(true)
+                            setPictureInPictureParams(pipParams())
                         } catch (e: Exception) {
-                            result.success(false)
                         }
-                    }
-                }
-
-                "close" -> {
-                    try {
-                        stopService(Intent(this, FloatingPlayerService::class.java))
-                    } catch (e: Exception) {
                     }
                     result.success(true)
                 }
-
-                "running" -> result.success(FloatingBridge.running)
-
-                // Uygulama kapalıyken kapanan pencerenin son konumu.
-                "takePending" -> result.success(FloatingBridge.takePending())
-
                 else -> result.notImplemented()
             }
         }
     }
 
-    private fun canDrawOverlays(): Boolean = try {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Settings.canDrawOverlays(this)
-        } else {
-            true
+    private fun pipSupported(): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
+
+    /** Android PiP oranı 1:2.39 ile 2.39:1 arasında olmalı; dışı istisna atar. */
+    private fun ratioOf(w: Int?, h: Int?): Rational {
+        val ww = (w ?: 16).coerceAtLeast(1)
+        val hh = (h ?: 9).coerceAtLeast(1)
+        val r = ww.toDouble() / hh
+        return when {
+            r > 2.39 -> Rational(239, 100)
+            r < 1 / 2.39 -> Rational(100, 239)
+            else -> Rational(ww, hh)
         }
-    } catch (e: Exception) {
-        false
+    }
+
+    // Yalnız pipSupported() (API 26+) sonrası çağrılır.
+    @TargetApi(Build.VERSION_CODES.O)
+    private fun pipParams(): PictureInPictureParams {
+        val b = PictureInPictureParams.Builder().setAspectRatio(pipRatio)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            b.setAutoEnterEnabled(pipAuto)
+            b.setSeamlessResizeEnabled(true)
+        }
+        return b.build()
+    }
+
+    // Yalnız pipSupported() (API 26+) sonrası çağrılır.
+    @TargetApi(Build.VERSION_CODES.O)
+    private fun enterPip(): Boolean {
+        if (!pipSupported()) return false
+        return try {
+            enterPictureInPictureMode(pipParams())
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        // Android 12+ bunu setAutoEnterEnabled ile kendisi yapıyor.
+        if (pipAuto && Build.VERSION.SDK_INT < Build.VERSION_CODES.S) enterPip()
+    }
+
+    // Yalnız pipSupported() (API 26+) sonrası çağrılır.
+    @TargetApi(Build.VERSION_CODES.O)
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: Configuration
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        try {
+            pipChannel?.invokeMethod("changed", isInPictureInPictureMode)
+        } catch (e: Exception) {
+        }
     }
 
     /**
@@ -1705,7 +1697,7 @@ class MainActivity : FlutterActivity() {
         /** Tek `mediaScan` isteğinde taranacak en fazla dosya. */
         const val MEDIA_SCAN_LIMIT = 2000
         const val MEDIA_CHANNEL = "dosya_okuyucu/media_session"
-        const val FLOATING_CHANNEL = "dosya_okuyucu/floating"
+        const val PIP_CHANNEL = "dosya_okuyucu/pip"
         const val REQ_PICK_TREE = 7301
 
         /** androidx.pdf'in kalem düğmesinin eylemi (SDK'da sabiti yok). */

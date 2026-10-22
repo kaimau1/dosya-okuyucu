@@ -287,8 +287,8 @@ class _ZoomableImageState extends State<_ZoomableImage> {
     if (position == null) return;
     // Dokunulan noktayı merkeze alarak 2.5x yakınlaştır.
     _tx.value = Matrix4.identity()
-      ..translate(-position.dx * 1.5, -position.dy * 1.5)
-      ..scale(2.5);
+      ..translateByDouble(-position.dx * 1.5, -position.dy * 1.5, 0, 1)
+      ..scaleByDouble(2.5, 2.5, 1, 1);
   }
 
   @override

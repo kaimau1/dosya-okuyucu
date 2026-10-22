@@ -21,7 +21,7 @@ void main() {
     player = AudioPlayback.instance
       ..playlist = ['a.mp3', 'b.mp3', 'c.mp3']
       ..index = 0
-      ..repeat = RepeatMode.off
+      ..repeat = AudioRepeatMode.off
       ..shuffle = false
       ..position = Duration.zero;
   });
@@ -60,7 +60,7 @@ void main() {
   test('tekrar KAPALI iken son parçadan sonra durur', () async {
     player
       ..index = 2
-      ..repeat = RepeatMode.off;
+      ..repeat = AudioRepeatMode.off;
     await player.onComplete();
     expect(player.playing, isFalse);
     expect(player.playlist, isEmpty, reason: 'liste bitti, oynatıcı bırakıldı');
@@ -69,7 +69,7 @@ void main() {
   test('tekrar TÜMÜ iken son parçadan başa döner', () async {
     player
       ..index = 2
-      ..repeat = RepeatMode.all;
+      ..repeat = AudioRepeatMode.all;
     await player.onComplete();
     expect(player.index, 0);
   });
@@ -113,25 +113,25 @@ void main() {
       AudioPlayback.persistModes = (s, r) => calls.add((s, r));
 
       player.setShuffle(true);
-      player.setRepeat(RepeatMode.one);
+      player.setRepeat(AudioRepeatMode.one);
 
-      expect(calls, [(true, 0), (true, RepeatMode.one.index)]);
+      expect(calls, [(true, 0), (true, AudioRepeatMode.one.index)]);
     });
 
     test('geri yükleme kancayı ÇAĞIRMAZ (aynı değeri yeniden yazma)', () {
       var calls = 0;
       AudioPlayback.persistModes = (_, __) => calls++;
 
-      player.restoreModes(shuffle: true, repeat: RepeatMode.all.index);
+      player.restoreModes(shuffle: true, repeat: AudioRepeatMode.all.index);
 
       expect(player.shuffle, isTrue);
-      expect(player.repeat, RepeatMode.all);
+      expect(player.repeat, AudioRepeatMode.all);
       expect(calls, 0);
     });
 
     test('bozuk kayıtlı değer kipi bozmaz', () {
       player.restoreModes(shuffle: false, repeat: 99);
-      expect(player.repeat, RepeatMode.off);
+      expect(player.repeat, AudioRepeatMode.off);
     });
   });
 

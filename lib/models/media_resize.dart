@@ -274,9 +274,9 @@ double jpegBytesPerPixel(int quality) {
 
 /// Video sıkıştırma sertliğinin **piksel başına bit** karşılığı.
 ///
-/// `FfmpegVideo` donanım kodlayıcıya bit hızını bu katsayıyla veriyor
-/// (CRF 20 → 0.11, CRF 32 → 0.04); tahmin de aynı sayıları kullanmalı, yoksa
-/// "tahmini boyut" ile çıkan dosya sistematik olarak ayrışır.
+/// `VideoTranscoder.bitrateFor` donanım kodlayıcıya bit hızını bu katsayıyla
+/// veriyor; tahmin de aynı sayıları kullanır, yoksa "tahmini boyut" ile
+/// çıkan dosya sistematik olarak ayrışır.
 double videoBitsPerPixel(VideoQualityChoice quality) => switch (quality) {
       VideoQualityChoice.high => 0.11,
       VideoQualityChoice.medium => 0.08,
@@ -333,7 +333,7 @@ class MediaSourceInfo {
       : null;
 
   /// Bu ayarlarla çıkacak kare sayısı. Kaynaktan yüksek istenirse kaynağınki
-  /// geçerlidir (ffmpeg kare kopyalar, dosya şişer — bkz.
+  /// geçerlidir (kodlayıcı kare kopyalar, dosya şişer — bkz.
   /// `VideoTranscoder.cappedFps`).
   int? targetFps(MediaResizeOptions options) {
     final wanted = options.frameRate;

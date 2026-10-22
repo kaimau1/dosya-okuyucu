@@ -7,7 +7,7 @@ import 'package:video_player/video_player.dart';
 
 import '../../core/l10n/app_strings.dart';
 import '../../core/screen_awake.dart';
-import 'floating_video.dart';
+import 'pip.dart';
 import 'media_session.dart';
 import 'playback_positions.dart';
 import 'thumbnail_cache.dart';
@@ -60,10 +60,6 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
   /// ediliyor" diye kısa bir bilgi gösteriyor; kullanıcı baştan başlamak
   /// isterse tek dokunuşla dönebilsin.)
   Duration? resumedFrom;
-
-  /// Yüzen pencere açıkken uygulama içi oynatıcı susar; kapanınca konum
-  /// buradan geri geliyor.
-  bool floatingActive = false;
 
   /// **A-B tekrar** — işaretlenen iki nokta arası sürekli döner.
   ///
@@ -211,8 +207,9 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
       case AppLifecycleState.paused:
       case AppLifecycleState.hidden:
       case AppLifecycleState.detached:
-        // Kullanıcı bildirimden "Çal" dediyse arka planda çalmayı SEÇMİŞTİR.
-        if (backgroundAllowed) return;
+        // Kullanıcı bildirimden "Çal" dediyse arka planda çalmayı SEÇMİŞTİR;
+        // küçük pencerede (PiP) video zaten görünür ve sürmeli.
+        if (backgroundAllowed || Pip.active.value) return;
         if (c.value.isPlaying) {
           _pausedByLifecycle = true;
           unawaited(c.pause());
@@ -340,10 +337,8 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
       PlaybackPositions.record(current, c.value.position, c.value.duration);
       unawaited(PlaybackPositions.save());
     }
-    if (floatingActive) {
-      floatingActive = false;
-      unawaited(FloatingVideo.close());
-    }
+    _autoPip = false;
+    unawaited(Pip.setAuto(false));
     _controller = null;
     playlist = const [];
     index = 0;
@@ -381,64 +376,32 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  // ── Ekran üstünde yüzen pencere ────────────────────────────────────────
+  // ── Resim içinde resim (PiP) ─────────────────────────────────────────
 
-  /// **Videoyu ekran üstüne al** (kullanıcı isteği 2026-09-03).
-  ///
-  /// Uygulama içi oynatıcı duraklatılır ve video, başka uygulamaların
-  /// üstünde duran küçük bir pencerede AYNI KONUMDAN sürer. İki oynatıcının
-  /// aynı anda ses vermesi kullanıcının duyacağı ilk hata olurdu.
-  ///
-  /// İzin yoksa false döner — çağıran ekranı kullanıcıyı izin ayarına
-  /// yönlendiriyor.
-  Future<bool> popOut() async {
+  /// Videonun en/boy oranı (PiP penceresi bu orana göre açılır).
+  Size get _aspect {
+    final v = _controller?.value.size ?? Size.zero;
+    return v.isEmpty ? const Size(16, 9) : v;
+  }
+
+  /// **Küçük pencereye al** (Faz 10: eski yüzen pencerenin yerine). Video
+  /// AYNI oynatıcıda sürer — konum taşıma, ikinci oynatıcı yok.
+  Future<bool> enterPip() async {
     if (!hasVideo) return false;
-    final path = current;
-    final at = position;
-    final ok = await FloatingVideo.open(
-      path: path,
-      position: at,
-      title: title,
-      subtitle: AppStrings.current.t('mp.float_window'),
-    );
-    if (!ok) return false;
-    floatingActive = true;
-    _listenFloating();
-    await _controller?.pause();
-    // Bildirim/oturum da susmalı: çalan şey artık pencere.
-    await _clearSession();
-    notifyListeners();
-    return true;
+    return Pip.enter(_aspect);
   }
 
-  /// Pencere olaylarını bir kez bağlar.
-  void _listenFloating() {
-    FloatingVideo.setHandler((event, at) {
-      floatingActive = false;
-      // Pencere kapandı ya da "uygulamaya dön" denildi: konumu al, kaydet
-      // ve uygulama içi oynatıcıyı oraya taşı.
-      PlaybackPositions.record(current, at, duration);
-      unawaited(seek(at));
-      if (event == 'expand') unawaited(_controller?.play());
-      // Bildirim/oturum geri gelsin: pencereye geçerken susturulmuştu.
-      unawaited(_refreshSession());
-      notifyListeners();
-    });
+  /// Oynatıcı ekranı açıkken: video oynuyorsa uygulamadan çıkınca
+  /// kendiliğinden küçük pencereye geç.
+  void armAutoPip(bool on) {
+    final visual = !(_controller?.value.size.isEmpty ?? true); // ses değil
+    final want = on && visual && playing;
+    if (want == _autoPip) return; // her karede kanala gitmesin
+    _autoPip = want;
+    unawaited(Pip.setAuto(want, _aspect));
   }
 
-  /// Uygulama açılırken: pencere biz kapalıyken kapandıysa konumu al.
-  Future<void> syncFloating() async {
-    _listenFloating();
-    final pending = await FloatingVideo.takePending();
-    if (pending == null) return;
-    floatingActive = false;
-    final (_, at) = pending;
-    if (current.isNotEmpty) {
-      PlaybackPositions.record(current, at, duration);
-      await seek(at);
-    }
-    notifyListeners();
-  }
+  bool _autoPip = false;
 
   // ── Medya oturumu ───────────────────────────────────────────────────────
 
@@ -516,7 +479,6 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     _cover = null;
     _wasPlaying = false;
     resumedFrom = null;
-    floatingActive = false;
     loopStart = null;
     loopEnd = null;
     c?.removeListener(_onTick);

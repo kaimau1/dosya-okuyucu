@@ -69,6 +69,6 @@ class SheetTextMeasure {
   /// Anahtar yalnız **ölçüyü etkileyen** alanlardan kurulur; renk değişince
   /// yeniden ölçmek boşuna olurdu.
   static String _key(String text, TextStyle style) =>
-      '${style.fontSize}|${style.fontWeight?.index}|${style.fontStyle?.index}|'
+      '${style.fontSize}|${style.fontWeight?.value}|${style.fontStyle?.index}|'
       '${style.fontFamily}|${style.height}|$text';
 }

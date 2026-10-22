@@ -51,7 +51,7 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
         // Görüntü matrisi işaretçinin TERS yönüne itilir (alt kenar →
         // içerik yukarı). Ayarlayıcı güvenli aralığa kıstırır.
         _pdfController.value = _pdfController.value.clone()
-          ..leftTranslate(-delta.dx, -delta.dy);
+          ..leftTranslateByDouble(-delta.dx, -delta.dy, 0, 1);
       } catch (_) {
         // Görüntüleyici henüz hazır değilse (yarış) itme sessizce atlanır.
       }

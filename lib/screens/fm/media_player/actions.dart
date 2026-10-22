@@ -220,41 +220,10 @@ extension _MediaPlayerScreenActionsPart on _MediaPlayerScreenState {
     );
   }
 
-  /// **Ekran üstüne al** — video başka uygulamaların üstünde sürsün.
-  ///
-  /// İzin yoksa kullanıcı ayara yönlendiriliyor: "olmadı" deyip bırakmak,
-  /// kullanıcının elinde yapacak bir şey bırakmamak demek olurdu.
+  /// **Küçük pencere (PiP)** — video uygulamadan çıkınca da sürsün.
+  /// Eski yüzen pencere gibi izin istemez (Faz 10).
   Future<void> _popOut() async {
-    if (!await FloatingVideo.hasPermission()) {
-      if (!mounted) return;
-      final go = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(ctx.t('mp.float_window')),
-          content: Text(ctx.t('mp.float_permission')),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: Text(ctx.t('common.cancel'))),
-            FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: Text(ctx.t('common.open'))),
-          ],
-        ),
-      );
-      if (go != true) return;
-      await FloatingVideo.requestPermission();
-      return;
-    }
-    final ok = await _p.popOut();
-    if (!mounted) return;
-    if (!ok) {
-      _toast(context.t('mp.float_failed'));
-      return;
-    }
-    // Pencere açıldı: tam ekran oynatıcıdan çık, kullanıcı istediği
-    // uygulamaya geçebilsin.
-    Navigator.of(context).maybePop();
+    if (!await _p.enterPip() && mounted) _toast(context.t('mp.float_failed'));
   }
 
   Future<void> _setSpeed(double speed) => _p.setSpeed(speed);

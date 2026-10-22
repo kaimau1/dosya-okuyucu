@@ -399,8 +399,7 @@ class _AboutTileState extends State<AboutTile> {
                   style: Theme.of(context).textTheme.bodySmall),
             ),
           ),
-          // LGPL v3 ATIF YÜKÜMLÜLÜĞÜ: uygulama FFmpeg kütüphanelerini
-          // dağıtıyor; lisans atfın kullanıcıya erişilebilir olmasını istiyor.
+          // Atıf yükümlülükleri (BSD/MIT/Apache, OFL fontlar, Syncfusion).
           SettingTile(
             icon: Icons.balance_outlined,
             title: context.t('settings.oss'),
@@ -413,13 +412,9 @@ class _AboutTileState extends State<AboutTile> {
 
 /// Açık kaynak bileşen ve lisans bilgisi.
 ///
-/// **Niye bir ekran gerekiyor:** uygulama FFmpeg kütüphanelerini (LGPL v3)
-/// dağıtıyor ve lisans, atfın ve kaynak kodun nereden alınacağının kullanıcıya
-/// ulaşmasını gerektiriyor. Depodaki `LICENSES.md` tek başına yetmez —
-/// uygulamayı mağazadan kuran kullanıcı depoyu görmez.
-///
-/// GPL'li kodlayıcıların (x264/x265) bilinçli olarak DAĞITILMADIĞI da burada
-/// yazılı: "neden bazı videolar mpeg4 çıkıyor" sorusunun dürüst cevabı bu.
+/// **Niye bir ekran gerekiyor:** atıf yükümlülükleri (fontlar, JS, PDFium,
+/// Syncfusion Community şartı) mağazadan kuran kullanıcıya da ulaşmalı;
+/// depodaki `LICENSES.md` tek başına yetmez.
 Future<void> showOpenSourceLicenses(BuildContext context) => showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(

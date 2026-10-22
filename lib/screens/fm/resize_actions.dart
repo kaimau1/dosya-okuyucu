@@ -8,14 +8,13 @@ import 'package:path/path.dart' as p;
 import '../../models/fs_entry.dart';
 import '../../models/media_resize.dart';
 import '../../services/fm/activity_log.dart';
-import '../../services/fm/ffmpeg_video.dart';
+import '../../services/fm/video_transcode.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/image_resize.dart';
 import '../../services/fm/job_queue.dart';
 import '../../services/fm/path_side_index.dart';
-import '../../services/fm/video_transcode.dart';
 import '../../widgets/fm/media_resize_sheet.dart';
 import '../../core/snack.dart';
 import '../../core/app_navigator.dart';
@@ -154,7 +153,7 @@ Future<List<MediaSourceInfo>> _describeSources(List<FsEntry> media) async {
     ({int width, int height})? photo;
     if (isVideo) {
       try {
-        probe = await FfmpegVideo.probe(entry.path);
+        probe = await VideoTranscoder.probe(entry.path);
       } catch (_) {
         // ffprobe yoksa/düşerse ölçüsüz devam: boyut yine gösterilir.
       }
@@ -283,7 +282,7 @@ Future<void> _run(
       // **0 >= 200 MB yanlış** olduğu için BOŞ/BOZUK çıktı en büyük başarı
       // sayılıyordu: "200 MB kazanıldı" yazıp, "Özgün dosyayı çöp kutusuna at"
       // açıkken 200 MB'lık aslı çöpe atıyordu. Kaydı yarıda kesilmiş (moov
-      // bozuk) bir videoda ffmpeg 0 dönüş koduyla 3 saniyelik dosya bırakabilir
+      // bozuk) bir videoda kodlayıcı "bitti" deyip 3 saniyelik dosya bırakabilir
       // — bu senaryo cihazda çok sık (2026-07-29 sadakat denetimi, 2. tur).
       //
       // Küçültme işe yaramadıysa (çıktı daha büyük) çıktıyı BIRAKMA: kullanıcı

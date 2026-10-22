@@ -4,7 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
-import 'package:video_compress/video_compress.dart';
+import 'video_transcode.dart';
 
 import 'fm_env.dart';
 
@@ -84,8 +84,8 @@ abstract final class MediaDuration {
   static Future<Duration?> _measure(String path, String key) async {
     await _acquire();
     try {
-      final info = await VideoCompress.getMediaInfo(path);
-      final ms = info.duration;
+      // Media3 köprüsü (MediaMetadataRetriever) — video_compress kalktı.
+      final ms = (await VideoTranscoder.probe(path))?.durationMs;
       if (ms == null || ms <= 0) return null;
       final seconds = (ms / 1000).round();
       _remember(key, seconds);

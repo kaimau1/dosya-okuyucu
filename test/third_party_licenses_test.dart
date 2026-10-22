@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('fontlar, Word JS, FFmpeg, PDFium, Syncfusion, ML Kit kayıtlı', () async {
+  test('fontlar, Word JS, PDFium, Syncfusion, ML Kit kayıtlı', () async {
     registerThirdPartyLicenses();
     final packages = <String>{};
     final texts = StringBuffer();
@@ -23,7 +23,6 @@ void main() {
       'JetBrains Mono',
       'docx-preview',
       'JSZip',
-      'FFmpeg',
       'PDFium',
       'syncfusion_flutter_pdf',
       'Google ML Kit',
@@ -33,6 +32,5 @@ void main() {
     final all = texts.toString();
     expect(all, contains('SIL OPEN FONT LICENSE'));
     expect(all, contains('Community License'));
-    expect(all, contains('lgpl-3.0'));
   });
 }

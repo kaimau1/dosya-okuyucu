@@ -45,7 +45,8 @@ dependencies:
 
   # Başka uygulamalardan "Birlikte aç" / paylaş ile gelen dosyaları yakalama
   # (WhatsApp/Gmail'den atılan dosya doğrudan uygulamada açılır).
-  receive_sharing_intent: ^1.8.1
+  # 1.9.0 compileSdk 37 istiyor (AGP 9.0.1 en çok 36) — Flutter 3.44 onu çözüyordu.
+  receive_sharing_intent: 1.8.1
 
   # Görüntüleyiciler
   # PDF: pdfium tabanlı pdfrx — sayfa üzerinde METİN SEÇME/kopyalama destekler
@@ -133,14 +134,8 @@ dependencies:
   video_player: 2.10.1
   video_player_android: 2.8.15
 
-  # Ses çalar (müzik deneyimi): video_player ses dosyasını da açar ama ekrandan
-  # çıkınca durur ve tekrar/karışık gibi çalar işlevleri yoktur. audioplayers
-  # native MediaPlayer/ExoPlayer'ı doğrudan sürer → ekran kapansa da çalmaya
-  # devam eder ve manifest'e servis eklemek gerekmez.
-  # SÜRÜM SABİT: 6.6.0 + audioplayers_android 5.2.1, Flutter 3.29 uyumlu SON
-  # sürümler (6.7.0 / 5.3.0 flutter >=3.35 ister). pubspec.lock gitignore'da.
-  audioplayers: 6.6.0
-  audioplayers_android: 5.2.1
+  # Ses de video_player'da (ExoPlayer) çalıyor — Faz 10 tek oynatma motoru;
+  # audioplayers kalktı. Arka planda çalma: VideoPlayerOptions(allowBackgroundPlayback).
 
   # Video küçük resmi (native MediaMetadataRetriever) — listelerde film karesi.
   # 2.2.0: sdk >=2.18.6 <4.0.0, flutter >=3.7 → CI 3.29.3 uyumlu (3.0.0 ise
@@ -186,36 +181,10 @@ dependencies:
   # kullanabilmek için bildiriliyor.
   image: 4.3.0
 
-  # Video sıkıştırma (native MediaCodec — ffmpeg YOK).
-  # ffmpeg_kit_flutter KULLANILAMAZ: paket dağıtımdan kaldırıldı, ikili
-  # dosyaları artık barındırılmıyor → derleme indirme hatasıyla çöker.
-  # video_compress: kalite/çözünürlük kademesi + kare sayısı (fps) + sesi at.
-  video_compress: 3.1.4
-  # Birebir çözünürlük + kare sayısı (kullanıcı isteği 2026-07-29): FFmpeg.
-  # `ffmpeg_kit_flutter` (özgün) dağıtımdan kaldırıldı — ikilileri artık
-  # barındırılmıyor. Bu ÇATAL ikilileri Maven Central'da yeniden yayımlıyor
-  # (`com.antonkarpenko:ffmpeg-kit-min-gpl`), Android modülünde `namespace`
-  # var, compileSdk 35 / minSdk 24 (bizimkiyle aynı).
-  # **`min` varyantı (LGPL v3) SEÇİLDİ — `min_gpl` DEĞİL.** Kullanıcı isteği:
-  # "lisans kısmını hallet, Google Play'de sorun yaşamayalım".
-  #  • `min_gpl` x264/x265/xvid taşıyor; bunlar GPL v3 → uygulamanın TAMAMI
-  #    GPL v3'e girerdi (tüm kaynağı bu lisansla yayımlama zorunluluğu) ve
-  #    GPL v3'ün "ek kısıtlama koyulamaz" maddesinin mağaza dağıtım
-  #    şartlarıyla çakışması bilinen bir sorun.
-  #  • `min` LGPL v3: dinamik bağlı .so olarak dağıtıldığı için yükümlülük
-  #    atıf + kütüphane kaynağını sunma + yeniden bağlamaya izin vermekle
-  #    sınırlı; uygulamanın kendi kodu etkilenmiyor (bkz. LICENSES.md).
-  # Birebir çözünürlük KAYBEDİLMEDİ: ölçekleme/kare sayısı süzgeçleri FFmpeg'in
-  # çekirdeğinde, GPL kütüphanelerde değil. H.264 yazmak için x264 yerine
-  # cihazın **donanım kodlayıcısı** (`h264_mediacodec`) kullanılıyor — paket
-  # FFmpeg 8.1.2 taşıyor, MediaCodec kodlayıcıları 6.1'den beri var. Yan
-  # faydası: H.264 patent lisansı cihaz üreticisinde kalıyor ve kodlama
-  # yazılım x264'ten kat kat hızlı.
-  # Boyut: min (38.9 MB AAR) min_gpl'den (48.6 MB) ~10 MB küçük.
-  # NOT: paket kotlin-stdlib 2.2.0 taşıyor → CI'daki Kotlin eklentisi 2.1.0'dan
-  # 2.2.0'a çekildi (yeni derleyici eski metadata'yı okur; ters yön kırılır,
-  # bkz. HAFIZA build 119).
-  ffmpeg_kit_flutter_new_min: 3.6.0
+  # Video küçültme: Media3 Transformer (ci/MediaTranscode.kt, Faz 10/K2 (b)).
+  # FFmpeg (ffmpeg_kit_flutter_new_min, LGPL, ~15 MB) ve video_compress
+  # 2026-10-21'de kalktı — donanım H.264 kodlayıcı, birebir ölçü, kare düşürme
+  # Media3'te; Gradle bağımlılığı ci/prepare_android.sh'de (1.5.1, ExoPlayer'la aynı).
 
   # `light_compressor` (serbest en×boy) DENENDİ ve EKLENMEDİ — 2026-07-29.
   # Paketin 2.2.0 Android modülü modern derleme zinciriyle uyumsuz, üç

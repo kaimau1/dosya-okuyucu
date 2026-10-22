@@ -208,9 +208,27 @@ const Map<String, (String, String, String)> _t9 = {
   'uix.no_text': ('Okunacak metin yok', 'Nothing to read', 'لا يوجد نص للقراءة'),
   // ── Açık kaynak lisansları penceresi (Faz 5, I3) ──────────────────────────
   'oss.body': (
-    'FFmpeg 8.1.2 — GNU Lesser General Public License v3.0 (LGPL v3)\nVideo boyut düşürme, çözünürlük ve kare sayısı değiştirmede kullanılır.\n\nKaynak kodu:\n• https://ffmpeg.org/download.html\n• https://github.com/arthenica/ffmpeg-kit\n\nKütüphane değiştirilmeden, dinamik bağlı paylaşımlı kütüphane (.so) olarak dağıtılır; APK içinden çıkarılıp uyumlu başka bir sürümle değiştirilebilir.\n\nGPL lisanslı kodlayıcılar (x264, x265, xvidcore) bilinçli olarak DAĞITILMIYOR. Bu yüzden H.264 çıktısı cihazın donanım kodlayıcısıyla üretilir; donanım kodlayıcısı yoksa FFmpeg\'in mpeg4 kodlayıcısına düşülür.\n\nSyncfusion Flutter PDF — Syncfusion Community License (izin verici DEĞİL; ücretsiz kullanım koşullara bağlıdır).\n\nDiğer bileşenler (Flutter, PDFium/pdfrx, Google ML Kit, archive, image, video_player, audioplayers, flutter_local_notifications …) BSD/MIT/Apache 2.0 lisanslıdır. Tam liste: "Tüm lisanslar".',
-    'FFmpeg 8.1.2 — GNU Lesser General Public License v3.0 (LGPL v3)\nUsed for video downsizing, resolution and frame-rate changes.\n\nSource code:\n• https://ffmpeg.org/download.html\n• https://github.com/arthenica/ffmpeg-kit\n\nThe library is distributed unmodified as a dynamically linked shared library (.so); it can be extracted from the APK and replaced with a compatible version.\n\nGPL-licensed encoders (x264, x265, xvidcore) are deliberately NOT distributed. H.264 output therefore uses the device\'s hardware encoder; without one, FFmpeg\'s mpeg4 encoder is used.\n\nSyncfusion Flutter PDF — Syncfusion Community License (NOT permissive; free use is subject to conditions).\n\nOther components (Flutter, PDFium/pdfrx, Google ML Kit, archive, image, video_player, audioplayers, flutter_local_notifications …) are BSD/MIT/Apache 2.0 licensed. Full list: "All licenses".',
-    'FFmpeg 8.1.2 — رخصة GNU العمومية الصغرى الإصدار 3.0 (LGPL v3)\nتُستخدم لتصغير الفيديو وتغيير الدقة ومعدل الإطارات.\n\nالشيفرة المصدرية:\n• https://ffmpeg.org/download.html\n• https://github.com/arthenica/ffmpeg-kit\n\nتُوزَّع المكتبة دون تعديل كمكتبة مشتركة مرتبطة ديناميكيًا (.so)؛ ويمكن استخراجها من APK واستبدالها بإصدار متوافق.\n\nالمرمّزات المرخّصة بـ GPL (x264 وx265 وxvidcore) لا تُوزَّع عمدًا. لذلك يُنتَج H.264 بمرمّز العتاد في الجهاز؛ وإن لم يوجد يُستخدم مرمّز mpeg4 في FFmpeg.\n\nSyncfusion Flutter PDF — رخصة Syncfusion المجتمعية (ليست متساهلة؛ الاستخدام المجاني مشروط).\n\nالمكونات الأخرى (Flutter وPDFium/pdfrx وGoogle ML Kit وarchive وimage وvideo_player وaudioplayers وflutter_local_notifications …) مرخّصة بـ BSD/MIT/Apache 2.0. القائمة الكاملة: "كل التراخيص".',
+    'Video küçültme ve oynatma Android Media3 (Apache 2.0) ile yapılır; '
+        'H.264 için cihazın donanım kodlayıcısı kullanılır.\n\n'
+        'Syncfusion Flutter PDF — Syncfusion Community License (açık kaynak '
+        'DEĞİL; ücretsiz kullanım şartlara bağlıdır).\n\n'
+        'Diğer bileşenler (Flutter, PDFium/pdfrx, Google ML Kit, archive, image, '
+        'video_player, flutter_local_notifications …) BSD/MIT/Apache 2.0 '
+        'lisanslıdır. Tam liste: "Tüm lisanslar".',
+    'Video downsizing and playback use Android Media3 (Apache 2.0); H.264 '
+        'uses the device\'s hardware encoder.\n\n'
+        'Syncfusion Flutter PDF — Syncfusion Community License (NOT open '
+        'source; free use is subject to conditions).\n\n'
+        'Other components (Flutter, PDFium/pdfrx, Google ML Kit, archive, '
+        'image, video_player, flutter_local_notifications …) are BSD/MIT/'
+        'Apache 2.0 licensed. Full list: "All licenses".',
+    'يتم تصغير الفيديو وتشغيله باستخدام Android Media3 (Apache 2.0)؛ ويُستخدم '
+        'مرمّز العتاد في الجهاز لـ H.264.\n\n'
+        'Syncfusion Flutter PDF — رخصة Syncfusion المجتمعية (ليست مفتوحة '
+        'المصدر؛ الاستخدام المجاني مشروط).\n\n'
+        'المكونات الأخرى (Flutter وPDFium/pdfrx وGoogle ML Kit وarchive وimage '
+        'وvideo_player وflutter_local_notifications …) مرخّصة بـ BSD/MIT/'
+        'Apache 2.0. القائمة الكاملة: "كل التراخيص".',
   ),
   'oss.all': ('Tüm lisanslar', 'All licenses', 'كل التراخيص'),
 };

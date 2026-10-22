@@ -56,7 +56,7 @@ void main() {
     }
 
     final back = await vault.restore(vault.items.single);
-    expect(back, f.path);
+    expect(p.normalize(back), p.normalize(f.path));
     expect(File(back).readAsStringSync(), 'TC-gizli-icerik');
   });
 

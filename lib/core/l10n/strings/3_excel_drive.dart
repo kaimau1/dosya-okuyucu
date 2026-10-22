@@ -915,24 +915,14 @@ const Map<String, (String, String, String)> _t3 = {
   ),
   'mp.loop_cleared': ('A-B tekrar kapatıldı', 'A-B repeat cleared', 'أُلغي تكرار A-B'),
   'mp.float_window': (
-    'Ekran üstünde oynat',
-    'Play in a floating window',
-    'تشغيل في نافذة عائمة',
-  ),
-  'mp.float_permission': (
-    'Video başka uygulamaların üstünde küçük bir pencerede oynayabilir. '
-    'Bunun için Android\'in "Diğer uygulamaların üzerinde göster" iznini '
-    'vermeniz gerekiyor; ayar ekranını şimdi açalım mı?',
-    'The video can keep playing in a small window on top of other apps. '
-    'Android needs the "Display over other apps" permission for that — '
-    'shall we open the settings screen?',
-    'يمكن تشغيل الفيديو في نافذة صغيرة فوق التطبيقات الأخرى. يتطلب ذلك إذن '
-    '"العرض فوق التطبيقات الأخرى". هل نفتح الإعدادات؟',
+    'Küçük pencerede oynat',
+    'Play in picture-in-picture',
+    'تشغيل في نافذة صغيرة',
   ),
   'mp.float_failed': (
-    'Yüzen pencere açılamadı.',
-    'The floating window could not be opened.',
-    'تعذّر فتح النافذة العائمة.',
+    'Bu cihaz küçük pencere (resim içinde resim) desteklemiyor.',
+    'This device does not support picture-in-picture.',
+    'هذا الجهاز لا يدعم نافذة الصورة داخل الصورة.',
   ),
   'mp.zoom_fill': ('Ekranı doldur', 'Fill the screen', 'ملء الشاشة'),
   'mp.zoom_fit': ('Ekrana sığdır', 'Fit to screen', 'ملاءمة الشاشة'),

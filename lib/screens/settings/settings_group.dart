@@ -67,30 +67,32 @@ class SettingsGroup extends StatelessWidget {
                 ],
               ),
             ),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerLow,
+          // Material (DecoratedBox değil): satırların dokunma dalgası ve
+          // seçili zemini kartın ÜSTÜNDE çizilsin. Zemin boyalı bir
+          // DecoratedBox bunları örtüyordu (Flutter 3.44 bunu assert ediyor).
+          Material(
+            color: scheme.surfaceContainerLow,
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(Radii.card + 2),
-              border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.45)),
+              side: BorderSide(
+                  color: scheme.outlineVariant.withValues(alpha: 0.45)),
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(Radii.card + 2),
-              child: Column(
-                children: [
-                  for (var i = 0; i < children.length; i++) ...[
-                    if (i > 0)
-                      // Ayraç simgenin hizasından başlar: satırın solundaki
-                      // simge sütunu görsel olarak kesilmesin.
-                      Divider(
-                        height: 1,
-                        thickness: 1,
-                        indent: 56,
-                        color: scheme.outlineVariant.withValues(alpha: 0.35),
-                      ),
-                    children[i],
-                  ],
+            child: Column(
+              children: [
+                for (var i = 0; i < children.length; i++) ...[
+                  if (i > 0)
+                    // Ayraç simgenin hizasından başlar: satırın solundaki
+                    // simge sütunu görsel olarak kesilmesin.
+                    Divider(
+                      height: 1,
+                      thickness: 1,
+                      indent: 56,
+                      color: scheme.outlineVariant.withValues(alpha: 0.35),
+                    ),
+                  children[i],
                 ],
-              ),
+              ],
             ),
           ),
         ],
@@ -180,8 +182,7 @@ class _SettingsAdvancedGroupState extends State<SettingsAdvancedGroup>
           ),
           AnimatedCrossFade(
             firstChild: const SizedBox(width: double.infinity),
-            secondChild:
-                SettingsGroup(inset: false, children: widget.children),
+            secondChild: SettingsGroup(inset: false, children: widget.children),
             crossFadeState:
                 _open ? CrossFadeState.showSecond : CrossFadeState.showFirst,
             duration: const Duration(milliseconds: 180),

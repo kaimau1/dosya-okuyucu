@@ -240,7 +240,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
           padding: const EdgeInsets.symmetric(
               horizontal: Gap.sm + 4, vertical: Gap.sm + 2),
           itemCount: _pages.length,
-          onReorder: _busy ? (_, __) {} : _reorder,
+          onReorderItem: _busy ? (_, __) {} : _reorder,
           proxyDecorator: (child, _, animation) => AnimatedBuilder(
             animation: animation,
             builder: (_, __) => Transform.scale(

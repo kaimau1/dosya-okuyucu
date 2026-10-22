@@ -15,8 +15,6 @@ void main() {
     final builders = AppTheme.light().pageTransitionsTheme.builders;
     expect(builders[TargetPlatform.android], isA<FastPageTransitionsBuilder>());
     expect(builders[TargetPlatform.windows], isA<FastPageTransitionsBuilder>());
-    // iOS'ta sistemin kendi kenardan geri hareketi korunuyor.
-    expect(builders[TargetPlatform.iOS], isA<CupertinoPageTransitionsBuilder>());
     // Koyu tema da aynı: ayar tek yerde.
     expect(AppTheme.dark().pageTransitionsTheme.builders[TargetPlatform.android],
         isA<FastPageTransitionsBuilder>());

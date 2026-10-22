@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dosya_okuyucu/services/fm/storage_stats.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 /// **USB belleği SD karttan ayırmak** — kullanıcı isteği 2026-09-01:
 /// *"harici USB taktığımda göremiyorum onu uygulamamızda görebilmeliyiz."*
@@ -15,8 +16,8 @@ void main() {
       const mounts = [
         '/dev/block/vold/public:8,1 /storage/1A2B-3C4D vfat rw,dirsync 0 0',
       ];
-      expect(StorageStats.kindOf('/storage/1A2B-3C4D', mounts),
-          StorageKind.usb);
+      expect(
+          StorageStats.kindOf('/storage/1A2B-3C4D', mounts), StorageKind.usb);
     });
 
     test('vold public:179 (MMC) → SD kart', () {
@@ -54,8 +55,7 @@ void main() {
     });
 
     test('hiçbir ipucu yoksa SD kart varsayılır (eski davranış)', () {
-      expect(StorageStats.kindOf('/storage/XYZ', const []),
-          StorageKind.sdCard);
+      expect(StorageStats.kindOf('/storage/XYZ', const []), StorageKind.sdCard);
     });
 
     test('bozuk satırlar çökertmez', () {
@@ -124,8 +124,8 @@ void main() {
       Directory('${b.path}/Download').createSync();
 
       final folders = StorageStats.hotFoldersForAll([a.path, b.path]);
-      expect(folders, contains('${a.path}/DCIM'));
-      expect(folders, contains('${b.path}/Download'));
+      expect(folders.map(p.normalize), contains(p.join(a.path, 'DCIM')));
+      expect(folders.map(p.normalize), contains(p.join(b.path, 'Download')));
     });
 
     test('standart klasörü olmayan birimde KÖK sıcak klasör sayılır', () {
@@ -140,7 +140,7 @@ void main() {
       addTearDown(() => a.deleteSync(recursive: true));
       Directory('${a.path}/DCIM').createSync();
       final folders = StorageStats.hotFoldersForAll([a.path, a.path]);
-      expect(folders.where((f) => f.endsWith('/DCIM')), hasLength(1));
+      expect(folders.where((f) => p.basename(f) == 'DCIM'), hasLength(1));
     });
 
     test('var olmayan birim çökertmez', () {
@@ -190,10 +190,14 @@ void main() {
     test('aynı ETİKETLİ iki USB de ayrılır', () {
       final out = StorageStats.disambiguate(const [
         StorageVolume(
-            path: '/storage/AAAA', isPrimary: false, label: 'SAMSUNG',
+            path: '/storage/AAAA',
+            isPrimary: false,
+            label: 'SAMSUNG',
             kind: StorageKind.usb),
         StorageVolume(
-            path: '/storage/BBBB', isPrimary: false, label: 'SAMSUNG',
+            path: '/storage/BBBB',
+            isPrimary: false,
+            label: 'SAMSUNG',
             kind: StorageKind.usb),
       ]);
       expect(out[0].displayLabel((k) => k), 'SAMSUNG (AAAA)');
@@ -203,11 +207,15 @@ void main() {
     test('USB ile SD kart karışmaz (farklı ad, ek yok)', () {
       final out = StorageStats.disambiguate(const [
         StorageVolume(
-            path: '/storage/AAAA', isPrimary: false,
-            labelKey: 'fm.vol_usb', kind: StorageKind.usb),
+            path: '/storage/AAAA',
+            isPrimary: false,
+            labelKey: 'fm.vol_usb',
+            kind: StorageKind.usb),
         StorageVolume(
-            path: '/storage/BBBB', isPrimary: false,
-            labelKey: 'fm.vol_sdcard', kind: StorageKind.sdCard),
+            path: '/storage/BBBB',
+            isPrimary: false,
+            labelKey: 'fm.vol_sdcard',
+            kind: StorageKind.sdCard),
       ]);
       expect(out.every((v) => v.nameSuffix.isEmpty), isTrue);
     });
@@ -215,7 +223,8 @@ void main() {
 
   group('StorageVolume', () {
     test('takılabilir birim ana bellekten ayrılır', () {
-      const internal = StorageVolume(path: '/storage/emulated/0', isPrimary: true);
+      const internal =
+          StorageVolume(path: '/storage/emulated/0', isPrimary: true);
       const usb = StorageVolume(
           path: '/storage/1A2B-3C4D', isPrimary: false, kind: StorageKind.usb);
       expect(internal.isRemovable, isFalse);
@@ -227,8 +236,8 @@ void main() {
     test('copyWith türü korur', () {
       const usb = StorageVolume(
           path: '/storage/X', isPrimary: false, kind: StorageKind.usb);
-      expect(usb.copyWith(totalBytes: 100, freeBytes: 50).kind,
-          StorageKind.usb);
+      expect(
+          usb.copyWith(totalBytes: 100, freeBytes: 50).kind, StorageKind.usb);
     });
   });
 }

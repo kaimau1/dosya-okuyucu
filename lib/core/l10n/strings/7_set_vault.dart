@@ -192,22 +192,6 @@ const Map<String, (String, String, String)> _t7 = {
 
   // ── Video dönüştürme ──────────────────────────────────────────────────────
   'vt.hw_encoder': ('donanım kodlayıcı', 'hardware encoder', 'مرمّز عتادي'),
-  'vt.sw_encoder': ('yazılım kodlayıcı', 'software encoder', 'مرمّز برمجي'),
-  'vt.sw_encoder_slow': (
-    'yazılım kodlayıcı (yavaş)',
-    'software encoder (slow)',
-    'مرمّز برمجي (بطيء)',
-  ),
-  'vt.fallback_engine': (
-    'yedek motor (kademeli ölçü)',
-    'fallback engine (stepped size)',
-    'محرّك احتياطي (مقاس متدرّج)',
-  ),
-  'vt.fallback_preparing': (
-    'yedek motor hazırlanıyor…',
-    'preparing the fallback engine…',
-    'جارٍ تحضير المحرّك الاحتياطي…',
-  ),
   'vt.engine_preparing': ('{engine} hazırlanıyor…', 'preparing the {engine}…', 'جارٍ تحضير {engine}…'),
   'vt.failed': (
     'Video dönüştürülemedi: {error}',

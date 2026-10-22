@@ -30,14 +30,15 @@ List<FmPathSegment> fmPathSegments(
       break;
     }
   }
-  rootPath ??= '/';
+  // Birim bulunamazsa dosya sisteminin kökü (Android'de '/').
+  rootPath ??= p.rootPrefix(remainder).isEmpty ? '/' : p.rootPrefix(remainder);
   final segments = <FmPathSegment>[(label: label, path: rootPath)];
   if (remainder.length > rootPath.length) {
     var acc = rootPath;
-    for (final s in remainder
-        .substring(rootPath.length)
-        .split('/')
-        .where((s) => s.isNotEmpty)) {
+    // p.split: ayırıcı platformun (Android'de '/'; Windows'taki testte '\').
+    for (final s in p
+        .split(remainder.substring(rootPath.length))
+        .where((s) => s.isNotEmpty && s != p.separator)) {
       acc = p.join(acc, s);
       segments.add((label: s, path: acc));
     }

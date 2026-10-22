@@ -173,15 +173,19 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
                 Text(context.t('org.by_what'),
                     style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: Gap.sm),
-                for (final by in OrganizeBy.values)
-                  RadioListTile<OrganizeBy>(
-                    value: by,
-                    groupValue: _by,
-                    onChanged: (v) => setState(() => _by = v ?? _by),
-                    title: Text(by.label),
-                    subtitle: Text(by.description),
-                    contentPadding: EdgeInsets.zero,
-                  ),
+                RadioGroup<OrganizeBy>(
+                  groupValue: _by,
+                  onChanged: (v) => setState(() => _by = v ?? _by),
+                  child: Column(children: [
+                    for (final by in OrganizeBy.values)
+                      RadioListTile<OrganizeBy>(
+                        value: by,
+                        title: Text(by.label),
+                        subtitle: Text(by.description),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                  ]),
+                ),
                 SwitchListTile(
                   value: !_onlyTopLevel,
                   onChanged: (v) {

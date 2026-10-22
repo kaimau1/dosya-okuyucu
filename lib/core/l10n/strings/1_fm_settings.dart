@@ -397,9 +397,9 @@ const Map<String, (String, String, String)> _t1 = {
   ),
   'settings.oss': ('Açık kaynak bileşenler', 'Open-source components', 'المكوّنات مفتوحة المصدر'),
   'settings.oss_sub': (
-    'FFmpeg (LGPL v3) ve diğer lisanslar',
-    'FFmpeg (LGPL v3) and other licenses',
-    'FFmpeg (LGPL v3) وتراخيص أخرى',
+    'Media3, Syncfusion ve diğer lisanslar',
+    'Media3, Syncfusion and other licenses',
+    'Media3 وSyncfusion وتراخيص أخرى',
   ),
 
   // ── Dosya yöneticisi: pano ────────────────────────────────────────────────

@@ -527,10 +527,6 @@ class AppTheme {
           TargetPlatform.fuchsia: FastPageTransitionsBuilder(),
           TargetPlatform.linux: FastPageTransitionsBuilder(),
           TargetPlatform.windows: FastPageTransitionsBuilder(),
-          // iOS/macOS'ta sistemin kendi kenardan geri hareketi korunuyor:
-          // orada Cupertino geçişi bir alışkanlık, değiştirmek yabancı durur.
-          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
         },
       ),
     );

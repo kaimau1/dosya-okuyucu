@@ -35,7 +35,6 @@ import '../../services/fm/tool_usage.dart';
 import '../../services/fm/remote/saf_fs.dart';
 import '../../services/fm/remote/usb_fs.dart';
 import '../../services/fm/usb/usb_host.dart';
-import '../../services/fm/video_playback.dart';
 import '../../services/fm/volume_watcher.dart';
 import 'remote/remote_browser_screen.dart';
 import 'usb_diagnostics_screen.dart';
@@ -249,9 +248,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       // çalışmaz — eylemi burada da soruyoruz. Eylem okununca native
       // tarafta temizlendiği için iki kez tetiklenmez.
       unawaited(_openUsbIfLaunchedByIt());
-      // Yüzen video penceresi uygulama kapalıyken kapatılmış olabilir:
-      // konumu al ki uygulama içi oynatıcı kaldığı yerden sürsün.
-      unawaited(VideoPlayback.instance.syncFloating());
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
       _wentBackground = true;

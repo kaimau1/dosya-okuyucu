@@ -5,6 +5,7 @@ import 'package:dosya_okuyucu/services/office_reader.dart';
 import 'package:dosya_okuyucu/widgets/legacy_banner.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 /// Faz 9 — eski .doc/.ppt: salt okunur rozeti + "dönüştür ve düzenle".
 void main() {
@@ -38,7 +39,7 @@ void main() {
     final src = File('${dir.path}/rapor.doc')..writeAsBytesSync([1, 2, 3]);
     File('${dir.path}/rapor.docx').writeAsStringSync('eski');
     final out = await LegacyConvert.convert(src.path, text);
-    expect(out, '${dir.path}/rapor (2).docx');
+    expect(p.normalize(out), p.join(dir.path, 'rapor (2).docx'));
     expect(File('${dir.path}/rapor.docx').readAsStringSync(), 'eski');
     expect(src.readAsBytesSync(), [1, 2, 3]);
   });
@@ -50,7 +51,8 @@ void main() {
     var tapped = 0;
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
-        body: LegacyBanner(ext: 'doc', target: 'docx', onConvert: () => tapped++),
+        body:
+            LegacyBanner(ext: 'doc', target: 'docx', onConvert: () => tapped++),
       ),
     ));
     expect(find.text('SALT OKUNUR'), findsOneWidget);

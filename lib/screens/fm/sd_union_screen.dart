@@ -191,20 +191,24 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
         SettingsGroup(
           title: context.t('sdu.sec_target'),
           children: [
-            for (final card in _cards)
-              RadioListTile<String>(
-                value: card.path,
-                groupValue: settings.sdPath,
-                onChanged: (v) {
-                  if (v != null) _update(settings.copyWith(sdPath: v));
-                },
-                secondary: const Icon(Icons.sd_card_outlined),
-                title: Text(card.displayLabel(context.t)),
-                subtitle: Text(context.t('sdu.card_free', {
-                  'free': FsPaths.humanSize(card.freeBytes),
-                  'total': FsPaths.humanCapacity(card.capacityBytes),
-                })),
-              ),
+            RadioGroup<String>(
+              groupValue: settings.sdPath,
+              onChanged: (v) {
+                if (v != null) _update(settings.copyWith(sdPath: v));
+              },
+              child: Column(children: [
+                for (final card in _cards)
+                  RadioListTile<String>(
+                    value: card.path,
+                    secondary: const Icon(Icons.sd_card_outlined),
+                    title: Text(card.displayLabel(context.t)),
+                    subtitle: Text(context.t('sdu.card_free', {
+                      'free': FsPaths.humanSize(card.freeBytes),
+                      'total': FsPaths.humanCapacity(card.capacityBytes),
+                    })),
+                  ),
+              ]),
+            ),
             _modeTile(settings),
           ],
         ),

@@ -66,7 +66,7 @@ Future<void> main() async {
   // uygulamayı öldürmek zorunda kalır. Yerine ne olduğunu söyleyen ve GERİ
   // DÖNME yolu veren bir kart konuyor (hata yine `CrashLog`a yazılıyor).
   ErrorWidget.builder = (details) => AppErrorScreen(details: details);
-  // Paket dışı gömülü bileşenlerin lisansları (fontlar, JS, FFmpeg…) —
+  // Paket dışı gömülü bileşenlerin lisansları (fontlar, JS, PDFium…) —
   // "Tüm lisanslar" sayfasında görünsün (Faz 7 / N2).
   registerThirdPartyLicenses();
   // **Görsel önbelleği 100 → 160 MB** (2026-09-26 galeri turu). Galeride

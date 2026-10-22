@@ -1,4 +1,4 @@
-// Ekran ölçüsü taslağı — bkz. `view_stubs.kt` başlığı.
+// Ekran ölçüsü taslağı — bkz. `android_stubs.kt` başlığı.
 package android.util
 
 class DisplayMetrics {

@@ -35,15 +35,19 @@ Future<FmLayout?> showFmLayoutSheet(
             padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.sm),
             child: Text(title ?? ctx.t('uix.view'), style: Theme.of(ctx).textTheme.titleMedium),
           ),
-          for (final l in options)
-            RadioListTile<FmLayout>(
-              value: l,
-              groupValue: current,
-              onChanged: (v) => Navigator.pop(ctx, v),
-              secondary: Icon(fmLayoutIcon(l)),
-              title: Text(l.label),
-              subtitle: Text(l.description),
-            ),
+          RadioGroup<FmLayout>(
+            groupValue: current,
+            onChanged: (v) => Navigator.pop(ctx, v),
+            child: Column(children: [
+              for (final l in options)
+                RadioListTile<FmLayout>(
+                  value: l,
+                  secondary: Icon(fmLayoutIcon(l)),
+                  title: Text(l.label),
+                  subtitle: Text(l.description),
+                ),
+            ]),
+          ),
           const SizedBox(height: Gap.sm),
         ],
       ),

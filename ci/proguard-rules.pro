@@ -11,3 +11,18 @@
 -dontwarn com.google.mlkit.vision.text.devanagari.**
 -dontwarn com.google.mlkit.vision.text.japanese.**
 -dontwarn com.google.mlkit.vision.text.korean.**
+
+# Flutter 3.44 / AGP 9'un R8'i WorkManager'ın Room veritabanını kırıyordu:
+# Room `<Sınıf>_Impl`i adla (yansımayla) arıyor; sınıf adı küçültülünce açılışta
+# "Failed to create an instance of class androidx.work.impl.WorkDatabase" ile
+# ÇÖKÜYOR (2026-10-22 telefonda ölçüldü; 3.29'un R8'i dokunmuyordu).
+-keep class * extends androidx.room.RoomDatabase { *; }
+-keep class androidx.work.impl.WorkDatabase_Impl { *; }
+
+# AGP 9 R8'i varsayılan TAM kipte: Gson'un TypeToken jenerik imzası siliniyor →
+# flutter_local_notifications "Missing type parameter" atıyor, Dart açılışı
+# takılıp ekran SİYAH kalıyordu (2026-10-22 telefonda). Eklentinin önerdiği kurallar.
+-keepattributes Signature
+-keep class com.dexterous.** { *; }
+-keep class com.google.gson.reflect.TypeToken { *; }
+-keep class * extends com.google.gson.reflect.TypeToken

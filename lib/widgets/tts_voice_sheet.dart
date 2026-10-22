@@ -96,29 +96,33 @@ class _TtsVoiceSheetState extends State<TtsVoiceSheet> {
             else
               ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 260),
-                child: ListView(
-                  shrinkWrap: true,
-                  children: [
-                    RadioListTile<String>(
-                      value: '',
-                      groupValue: _prefs.voiceName,
-                      dense: true,
-                      title: Text(context.t('tts.default_voice')),
-                      onChanged: (_) => _save(
-                          _prefs.copyWith(voiceName: '', voiceLocale: '')),
-                    ),
-                    for (final voice in voices)
+                child: RadioGroup<String>(
+                  groupValue: _prefs.voiceName,
+                  onChanged: (name) {
+                    final voice =
+                        voices.where((v) => v.name == name).firstOrNull;
+                    _save(_prefs.copyWith(
+                        voiceName: voice?.name ?? '',
+                        voiceLocale: voice?.locale ?? ''));
+                  },
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: [
                       RadioListTile<String>(
-                        value: voice.name,
-                        groupValue: _prefs.voiceName,
+                        value: '',
                         dense: true,
-                        title: Text(voice.label,
-                            maxLines: 1, overflow: TextOverflow.ellipsis),
-                        subtitle: Text(voice.locale),
-                        onChanged: (_) => _save(_prefs.copyWith(
-                            voiceName: voice.name, voiceLocale: voice.locale)),
+                        title: Text(context.t('tts.default_voice')),
                       ),
-                  ],
+                      for (final voice in voices)
+                        RadioListTile<String>(
+                          value: voice.name,
+                          dense: true,
+                          title: Text(voice.label,
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                          subtitle: Text(voice.locale),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             const Divider(),

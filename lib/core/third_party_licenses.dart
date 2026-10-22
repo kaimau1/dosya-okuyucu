@@ -8,7 +8,6 @@ import 'package:flutter/services.dart' show rootBundle;
 /// dosyalarını gösteriyor. Uygulamanın içinde dağıtılan ama paket OLMAYAN
 /// şeyler — gömülü fontlar (OFL 1.1 metnin dağıtımla birlikte verilmesini
 /// şart koşar), Word görüntüleyicinin JS dosyaları (MIT/Apache atıf ister),
-/// FFmpeg'in yerel kütüphaneleri (LGPL v3 atıf + kaynak bağlantısı ister) ve
 /// Syncfusion'ın Community License'ı — hiçbir yerde görünmüyordu.
 ///
 /// Metinler tembel yüklenir: sayfa açılmadan hiçbir varlık okunmaz.
@@ -27,7 +26,6 @@ Stream<LicenseEntry> _entries() async* {
     const ['docx-preview', 'JSZip'],
     await _asset('assets/word/LICENSES.txt'),
   );
-  yield const LicenseEntryWithLineBreaks(['FFmpeg'], _ffmpeg);
   yield const LicenseEntryWithLineBreaks(['PDFium'], _pdfium);
   yield const LicenseEntryWithLineBreaks(
       ['syncfusion_flutter_pdf', 'syncfusion_flutter_core'], _syncfusion);
@@ -42,14 +40,6 @@ Future<String> _asset(String path) async {
     return path;
   }
 }
-
-const _ffmpeg = '''FFmpeg 8.1.2 (libavcodec, libavformat, libavfilter, libavutil, libswscale, libswresample) — ffmpeg-kit "min" yapılandırması (com.antonkarpenko:ffmpeg-kit-min), GPL bileşenleri olmadan derlenmiştir.
-
-GNU Lesser General Public License v3.0 — https://www.gnu.org/licenses/lgpl-3.0.html
-
-Kaynak kodu: https://ffmpeg.org/download.html · https://github.com/arthenica/ffmpeg-kit
-
-Kütüphaneler değiştirilmeden, dinamik bağlı paylaşımlı kütüphaneler (.so) olarak dağıtılır; APK içindeki lib/<abi>/ dizininden kullanıcının derlediği uyumlu bir sürümle değiştirilebilir. Ayrıntı: depodaki LICENSES.md.''';
 
 const _pdfium = '''PDFium — Copyright 2014 The PDFium Authors. BSD 3-Clause License (+ Apache 2.0 parçalar). https://pdfium.googlesource.com/pdfium/+/main/LICENSE
 

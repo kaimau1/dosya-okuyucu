@@ -5,6 +5,7 @@ import 'package:dosya_okuyucu/services/fm/remote/ftp_server.dart';
 import 'package:dosya_okuyucu/services/fm/remote/ftp_tree.dart';
 import 'package:dosya_okuyucu/services/fm/remote/share_scope.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'support/temp_dir.dart';
 
 /// **Paylaşım kapsamı** (kullanıcı isteği 2026-08-31): *"ağ paylaşımında hangi
@@ -102,8 +103,7 @@ void main() {
       expect(tree().rootItems().map((i) => i.name),
           isNot(contains(ShareScope.sharedBox)));
       expect(await FtpTree.ensureSharedFolder(root.path), isTrue);
-      expect(
-          tree().rootItems().map((i) => i.name).first, ShareScope.sharedBox);
+      expect(tree().rootItems().map((i) => i.name).first, ShareScope.sharedBox);
     });
 
     test('ensureSharedFolder klasörü kurar ve ikinci kez bozmaz', () async {
@@ -131,12 +131,12 @@ void main() {
     test('kapsam dışı gerçek klasör kutusu', () async {
       final t = tree(scope: const ShareScope(boxes: {'Indirilenler'}));
       // "Telefon" kapalıyken telefonun tamamına giden kapı da kapalı.
-      expect((await t.resolve('/${FtpTree.storageFolder}/DCIM')).relative,
-          isNull);
+      expect(
+          (await t.resolve('/${FtpTree.storageFolder}/DCIM')).relative, isNull);
       expect((await t.resolve('/Kamera')).relative, isNull);
       // Seçili kutu çalışmaya devam ediyor.
-      expect((await t.resolve('/Indirilenler/a.pdf')).relative,
-          'Download/a.pdf');
+      expect(
+          (await t.resolve('/Indirilenler/a.pdf')).relative, 'Download/a.pdf');
     });
 
     test('yalnız-Paylaşılan kipinde yalnız o klasör çözülüyor', () async {
@@ -169,7 +169,8 @@ void main() {
       expect(files.keys, ['a.jpg']);
       // Kök hapsi aynı yerde kalıyor: kutunun içindeki dosya yine kökün içi.
       final node = await server.tree.resolve('/Resimler/a.jpg');
-      expect(server.realPathOf(node), '${root.path}/DCIM/a.jpg');
+      expect(p.normalize(server.realPathOf(node)!),
+          p.join(root.path, 'DCIM', 'a.jpg'));
     });
   });
 }

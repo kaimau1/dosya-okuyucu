@@ -278,9 +278,9 @@ extension _PdfInkScreenInputPart on _PdfInkScreenState {
     final scale = (_g0Scale * dist / _g0Dist).clamp(1.0, 6.0);
     final ratio = scale / _g0Scale;
     final next = (Matrix4.identity()
-          ..translate(focal.dx, focal.dy)
-          ..scale(ratio, ratio)
-          ..translate(-_g0Focal.dx, -_g0Focal.dy)) *
+          ..translateByDouble(focal.dx, focal.dy, 0, 1)
+          ..scaleByDouble(ratio, ratio, 1, 1)
+          ..translateByDouble(-_g0Focal.dx, -_g0Focal.dy, 0, 1)) *
         start;
     _tx.value = _clampToViewport(next);
     if (_flipArmed) {

@@ -121,6 +121,8 @@ class _LayoutSheetState extends State<_LayoutSheet> {
                 padding: withNavInset(
                     context, const EdgeInsets.only(bottom: 24)),
                 itemCount: ids.length,
+                // onReorderItem'a geçiş: dizin anlamı değişiyor, ayrı iş (KALANLAR).
+                // ignore: deprecated_member_use
                 onReorder: (from, to) {
                   // Görünen alt kümede sürükleniyor; tam listedeki dizine çevir.
                   final full =

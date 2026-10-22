@@ -1,4 +1,4 @@
-// Kaynak/ekran ölçüsü taslakları — bkz. `view_stubs.kt` başlığı.
+// Kaynak/ekran ölçüsü taslakları — bkz. `android_stubs.kt` başlığı.
 package android.content.res
 
 class Resources {

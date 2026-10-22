@@ -3,7 +3,6 @@ import 'package:dosya_okuyucu/services/fm/image_resize.dart';
 import 'package:dosya_okuyucu/services/fm/similar_finder.dart';
 import 'package:dosya_okuyucu/services/fm/video_transcode.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:video_compress/video_compress.dart';
 
 /// **Niye bu test var:** boyut düşürmede en/boy oranı ve çift sayı kuralı
 /// gözle görülmez ama bozulduğunda video kayar (H.264 tek sayılı ölçüyü
@@ -199,35 +198,6 @@ void main() {
 
     test('özgün dosya varsayılan olarak KORUNUR', () {
       expect(const MediaResizeOptions().replaceOriginal, isFalse);
-    });
-  });
-
-  group('YEDEK video motorunun kademe eşlemesi', () {
-    // Birincil motor (FFmpeg) birebir ölçü veriyor; bu eşleme yalnız FFmpeg
-    // çalışmadığında devreye giren yedek motor (MediaCodec) için. Hedef ölçü
-    // en yakın ALT kademeye iner: yukarı yuvarlamak "küçült" isteğine rağmen
-    // daha büyük dosya üretirdi — bu testin tek işi o yönü kilitlemek.
-    test('hedef kısa kenar kademeye AŞAĞI yuvarlanır', () {
-      expect(VideoTranscoder.qualityForShortEdge(1080),
-          VideoQuality.Res1920x1080Quality);
-      expect(VideoTranscoder.qualityForShortEdge(900),
-          VideoQuality.Res1280x720Quality);
-      expect(VideoTranscoder.qualityForShortEdge(720),
-          VideoQuality.Res1280x720Quality);
-      expect(VideoTranscoder.qualityForShortEdge(700),
-          VideoQuality.Res960x540Quality);
-      expect(VideoTranscoder.qualityForShortEdge(540),
-          VideoQuality.Res960x540Quality);
-    });
-
-    test('en küçük kademenin altı yine en küçük kademedir', () {
-      expect(VideoTranscoder.qualityForShortEdge(120),
-          VideoQuality.Res640x480Quality);
-    });
-
-    test('4K kaynak 1080p’nin üstünde kalmaz', () {
-      expect(VideoTranscoder.qualityForShortEdge(2160),
-          VideoQuality.Res1920x1080Quality);
     });
   });
 

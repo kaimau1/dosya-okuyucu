@@ -349,30 +349,18 @@ const Map<String, (String, String, String)> _t5 = {
   'rs.keep': ('Değiştirme', 'Keep as is', 'دون تغيير'),
   'rs.video_note': (
     'Video her durumda yeniden kodlanır (kalite ya da ses değişse de): '
-        'istediğin ölçüye birebir dönüştürülür (FFmpeg). Öncelik cihazın '
-        'donanım kodlayıcısında; o kullanılamazsa yazılım kodlayıcıya düşülür '
-        've işlem belirgin biçimde yavaşlar. Hangi motorun çalıştığı, yüzde ve '
-        'kalan süre işlem satırında yazar. Uzun bir videoda bu dakikalar '
-        'sürebilir; işlem arka planda koşar. Cihaz bu videoyu hiç çeviremezse '
-        'yedek motora düşülür: orada kare sayısı seçimi uygulanamaz ve '
-        '“Değiştirme” dışındaki çözünürlükler en yakın kademeye yuvarlanır.',
+        'istediğin ölçüye birebir dönüştürülür, cihazın donanım kodlayıcısıyla '
+        '(Android Media3). Yüzde ve kalan süre işlem satırında yazar. Uzun bir '
+        'videoda bu dakikalar sürebilir; işlem arka planda koşar.',
     'Video is always re-encoded (even if only the quality or audio changes): '
-        'it is converted exactly to the size you asked for (FFmpeg). The '
-        'device’s hardware encoder is preferred; if it is unavailable the '
-        'software encoder is used and the job gets noticeably slower. Which '
-        'engine is running, the percentage and the remaining time are shown on '
-        'the job row. On a long video this can take minutes; the job runs in '
-        'the background. If the device cannot convert the video at all, a '
-        'fallback engine is used: there the frame-rate choice cannot be '
-        'applied and resolutions other than “Keep as is” are rounded to the '
-        'nearest step.',
+        'it is converted exactly to the size you asked for, using the '
+        'device’s hardware encoder (Android Media3). The percentage and '
+        'remaining time are shown on the job row. On a long video this can '
+        'take minutes; the job runs in the background.',
     'يُعاد ترميز الفيديو دائمًا (حتى لو تغيّرت الجودة أو الصوت فقط): يُحوَّل '
-        'تمامًا إلى المقاس المطلوب (FFmpeg). تُفضَّل وحدة الترميز العتادية في '
-        'الجهاز؛ وإن لم تتوفر يُستخدم المرمّز البرمجي وتصبح العملية أبطأ بوضوح. '
-        'يظهر المحرّك العامل والنسبة والوقت المتبقي في سطر العملية. قد يستغرق '
-        'ذلك دقائق في فيديو طويل؛ وتعمل العملية في الخلفية. وإن تعذّر على '
-        'الجهاز تحويل الفيديو إطلاقًا يُستخدم محرّك احتياطي: هناك لا يمكن تطبيق '
-        'اختيار معدّل الإطارات وتُقرَّب الدقات غير «دون تغيير» إلى أقرب درجة.',
+        'تمامًا إلى المقاس المطلوب باستخدام المرمّز العتادي في الجهاز '
+        '(Android Media3). تظهر النسبة والوقت المتبقي في سطر العملية. قد يستغرق '
+        'ذلك دقائق في فيديو طويل؛ وتعمل العملية في الخلفية.',
   ),
   'rs.strip_audio': ('Sesi çıkar', 'Remove the audio', 'إزالة الصوت'),
   'rs.strip_audio_sub': (

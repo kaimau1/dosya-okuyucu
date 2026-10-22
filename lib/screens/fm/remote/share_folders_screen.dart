@@ -108,8 +108,8 @@ class _ShareFoldersScreenState extends State<ShareFoldersScreen> {
     } else {
       next.remove(box);
     }
-    await _service.setShareScope(
-        ShareScope(mode: ShareMode.boxes, boxes: next));
+    await _service
+        .setShareScope(ShareScope(mode: ShareMode.boxes, boxes: next));
   }
 
   /// "Tümünü seç" / "Seçimi kaldır" — kullanıcının açıkça istediği tek
@@ -128,56 +128,60 @@ class _ShareFoldersScreenState extends State<ShareFoldersScreen> {
     final allSelected = selected.length == all.length;
     return Scaffold(
       appBar: AppBar(title: Text(context.t('ftpd.folders_title'))),
-      body: ListView(
-        padding: withNavInset(context, const EdgeInsets.only(bottom: Gap.lg)),
-        children: [
-          _modeTile(
-            context,
-            mode: ShareMode.boxes,
-            title: context.t('ftpd.mode_boxes'),
-            subtitle: context.t('ftpd.mode_boxes_desc'),
-          ),
-          _modeTile(
-            context,
-            mode: ShareMode.sharedOnly,
-            title: context.t('ftpd.mode_shared'),
-            subtitle: context.t('ftpd.mode_shared_desc'),
-          ),
-          const Divider(height: 1),
-          // Toptan seçim: üç durumlu kutu — hepsi / hiçbiri / bir kısmı.
-          CheckboxListTile(
-            value: allSelected ? true : (selected.isEmpty ? false : null),
-            tristate: true,
-            onChanged: sharedOnly ? null : (_) => _selectAll(!allSelected),
-            controlAffinity: ListTileControlAffinity.leading,
-            title: Text(
-              context.t(allSelected ? 'ftpd.clear_all' : 'ftpd.select_all'),
-              style: const TextStyle(fontWeight: FontWeight.w600),
+      body: RadioGroup<ShareMode>(
+        groupValue: _scope.mode,
+        onChanged: (v) => v == null ? null : _setMode(v),
+        child: ListView(
+          padding: withNavInset(context, const EdgeInsets.only(bottom: Gap.lg)),
+          children: [
+            _modeTile(
+              context,
+              mode: ShareMode.boxes,
+              title: context.t('ftpd.mode_boxes'),
+              subtitle: context.t('ftpd.mode_boxes_desc'),
             ),
-          ),
-          const Divider(height: 1),
-          for (final box in all)
-            _boxTile(context, box,
-                enabled: !sharedOnly, value: selected.contains(box)),
-          if (!sharedOnly && selected.isEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, 0),
-              child: Text(
-                context.t('ftpd.folders_none_warning'),
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: scheme.error),
+            _modeTile(
+              context,
+              mode: ShareMode.sharedOnly,
+              title: context.t('ftpd.mode_shared'),
+              subtitle: context.t('ftpd.mode_shared_desc'),
+            ),
+            const Divider(height: 1),
+            // Toptan seçim: üç durumlu kutu — hepsi / hiçbiri / bir kısmı.
+            CheckboxListTile(
+              value: allSelected ? true : (selected.isEmpty ? false : null),
+              tristate: true,
+              onChanged: sharedOnly ? null : (_) => _selectAll(!allSelected),
+              controlAffinity: ListTileControlAffinity.leading,
+              title: Text(
+                context.t(allSelected ? 'ftpd.clear_all' : 'ftpd.select_all'),
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
-          Padding(
-            padding: const EdgeInsets.all(Gap.md),
-            child: Text(
-              context.t('ftpd.shared_folder_hint'),
-              style: Theme.of(context).textTheme.bodySmall,
+            const Divider(height: 1),
+            for (final box in all)
+              _boxTile(context, box,
+                  enabled: !sharedOnly, value: selected.contains(box)),
+            if (!sharedOnly && selected.isEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, 0),
+                child: Text(
+                  context.t('ftpd.folders_none_warning'),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: scheme.error),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.all(Gap.md),
+              child: Text(
+                context.t('ftpd.shared_folder_hint'),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -190,8 +194,6 @@ class _ShareFoldersScreenState extends State<ShareFoldersScreen> {
   }) =>
       RadioListTile<ShareMode>(
         value: mode,
-        groupValue: _scope.mode,
-        onChanged: (v) => v == null ? null : _setMode(v),
         title: Text(title),
         subtitle: Text(subtitle),
         controlAffinity: ListTileControlAffinity.leading,

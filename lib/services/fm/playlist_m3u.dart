@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:path/path.dart' as p;
+import 'package:path/path.dart' as path;
 
 /// **M3U çalma listesi** — okuma ve yazma.
 ///
@@ -37,6 +37,10 @@ class PlaylistEntry {
   });
 }
 
+// Liste içindeki yollar Android (posix) yolu — uygulama yalnız Android (K10);
+// platform bağlamı Windows'ta testleri ters bölüyle bozuyordu.
+final _p = path.posix;
+
 abstract final class PlaylistM3u {
   static const extension = '.m3u8';
 
@@ -65,14 +69,14 @@ abstract final class PlaylistM3u {
         continue;
       }
       // `file://` ön eki bazı masaüstü oynatıcılarının yazdığı biçim.
-      final cleaned =
-          line.startsWith('file://') ? line.substring(7) : line;
-      final absolute =
-          p.isAbsolute(cleaned) ? cleaned : p.normalize(p.join(baseDir, cleaned));
+      final cleaned = line.startsWith('file://') ? line.substring(7) : line;
+      final absolute = _p.isAbsolute(cleaned)
+          ? cleaned
+          : _p.normalize(_p.join(baseDir, cleaned));
       out.add(PlaylistEntry(
         path: absolute,
         title: (pendingTitle == null || pendingTitle.isEmpty)
-            ? p.basenameWithoutExtension(absolute)
+            ? _p.basenameWithoutExtension(absolute)
             : pendingTitle,
         seconds: pendingSeconds,
       ));
@@ -95,7 +99,7 @@ abstract final class PlaylistM3u {
   /// Dosyayı okur (UTF-8; bozuk baytlara takılmadan).
   static Future<List<PlaylistEntry>> read(String path) async {
     final content = await File(path).readAsString();
-    return parse(content, baseDir: p.dirname(path));
+    return parse(content, baseDir: _p.dirname(path));
   }
 
   /// Listeyi diske yazar ve yolu döner.
@@ -105,7 +109,7 @@ abstract final class PlaylistM3u {
   ) async {
     final file = File(path);
     await file.parent.create(recursive: true);
-    await file.writeAsString(build(entries, baseDir: p.dirname(path)),
+    await file.writeAsString(build(entries, baseDir: _p.dirname(path)),
         flush: true);
     return path;
   }
@@ -116,7 +120,7 @@ abstract final class PlaylistM3u {
   /// bellekteyse `../../..` zinciri hiçbir yere çıkmaz.
   static String _relativeIfPossible(String path, String baseDir) {
     try {
-      final relative = p.relative(path, from: baseDir);
+      final relative = _p.relative(path, from: baseDir);
       // `..` ile başlayan uzun zincirler (birim değişimi) taşınabilir değil.
       if (relative.startsWith('../../..')) return path;
       return relative;

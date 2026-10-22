@@ -38,9 +38,9 @@ on:
         type: boolean
         default: false
       flutter_version:
-        description: 'Denenecek Flutter sürümü (varsayılan 3.29.3)'
+        description: 'Denenecek Flutter sürümü (varsayılan 3.44.6)'
         type: string
-        default: '3.29.3'
+        default: '3.44.6'
 
 permissions:
   contents: write
@@ -53,9 +53,9 @@ concurrency:
 
 # SÜRÜM DUVARI DENEMESİ (2026-08-28): Flutter sürümü tek yerde ve elle
 # tetiklemede DEĞİŞTİRİLEBİLİR (targetSdk/Flutter yükseltmesini main'i
-# kırmadan ölçmek için). Push'ta `inputs` boştur → 3.29.3.
+# kırmadan ölçmek için). Push'ta `inputs` boştur → 3.44.6 (Faz 7, 2026-10-21; yerel geliştirme sürümüyle aynı).
 env:
-  FLUTTER_VERSION: ${{ inputs.flutter_version || '3.29.3' }}
+  FLUTTER_VERSION: ${{ inputs.flutter_version || '3.44.6' }}
 
 jobs:
   # ── Ne değişti? (C8/C11) ─────────────────────────────────────────────────
@@ -117,7 +117,7 @@ jobs:
       # çıkar — bu adım "hiç uyarı yok" demektir. Başka bir Flutter sürümü
       # denenirken kullanımdan kaldırma uyarıları BEKLENİR → bağlayıcı değil.
       - name: Statik çözümleme (analyze)
-        continue-on-error: ${{ env.FLUTTER_VERSION != '3.29.3' }}
+        continue-on-error: ${{ env.FLUTTER_VERSION != '3.44.6' }}
         run: flutter analyze
 
       - name: Birim ve widget testleri

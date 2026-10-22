@@ -7,8 +7,8 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
     } else {
       final pos = _doubleTapDetails?.localPosition ?? Offset.zero;
       _imgTx.value = Matrix4.identity()
-        ..translate(-pos.dx * 2, -pos.dy * 2)
-        ..scale(3.0);
+        ..translateByDouble(-pos.dx * 2, -pos.dy * 2, 0, 1)
+        ..scaleByDouble(3.0, 3.0, 1, 1);
     }
   }
 
@@ -17,7 +17,7 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
     final current = _imgTx.value.getMaxScaleOnAxis();
     final target = (current * factor).clamp(1.0, 6.0);
     if (target == current) return;
-    _imgTx.value = _imgTx.value.clone()..scale(target / current);
+    _imgTx.value = _imgTx.value.clone()..scaleByDouble(target / current, target / current, 1, 1);
   }
 
   Future<void> _save() async {

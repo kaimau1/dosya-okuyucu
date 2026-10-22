@@ -142,7 +142,7 @@ class _RemoteEditScreenState extends State<RemoteEditScreen> {
         padding: withNavInset(context, const EdgeInsets.all(16)),
         children: [
           DropdownButtonFormField<RemoteProtocol>(
-            value: _protocol,
+            initialValue: _protocol,
             decoration:
                 InputDecoration(labelText: context.t('nas.protocol')),
             items: [

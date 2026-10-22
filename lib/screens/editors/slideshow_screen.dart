@@ -91,8 +91,8 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
     }
     const scale = 2.5;
     _zoom.value = Matrix4.identity()
-      ..translate(-pos.dx * (scale - 1), -pos.dy * (scale - 1))
-      ..scale(scale);
+      ..translateByDouble(-pos.dx * (scale - 1), -pos.dy * (scale - 1), 0, 1)
+      ..scaleByDouble(scale, scale, 1, 1);
     setState(() => _zoomed = true);
   }
 

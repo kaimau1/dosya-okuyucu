@@ -240,8 +240,8 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     _scheduleSave();
   }
 
+  /// `onReorderItem`: [to] zaten çıkarılan öğeye göre düzeltilmiş gelir.
   void _reorder(int from, int to) {
-    if (to > from) to -= 1;
     if (from == to) return;
     final next = [..._pages];
     final page = next.removeAt(from);

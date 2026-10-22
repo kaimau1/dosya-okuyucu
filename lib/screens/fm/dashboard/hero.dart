@@ -48,7 +48,7 @@ class _NewFolderDialogState extends State<_NewFolderDialog> {
             ),
             const SizedBox(height: Gap.md),
             DropdownButtonFormField<String>(
-              value: _parent,
+              initialValue: _parent,
               isExpanded: true,
               decoration:
                   InputDecoration(labelText: context.t('common.location')),

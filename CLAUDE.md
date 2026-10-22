@@ -42,11 +42,11 @@ Art arda push → önceki koşu iptal.
   Bulut oturumu (`claude/*`, `ccr-*`) dal açtıysa iş main'e girince o uzak dal silinir.
   APK yalnız **main**'e push'ta derlenir (feature dalında sadece `flutter test`).
 - **Doğrulama döngüsü:** önce yerelde `C:\src\flutter\bin\flutter.bat test` + `analyze`
-  (sürüm 3.44 — uyarılar CI'nin 3.29.3'üyle farklı, bkz. HAFIZA), sonra push → Actions
-  logunu izle, kırmızıysa sormadan düzelt. APK derlemesi yalnızca CI'da doğrulanır.
-  **Bulut (Linux) oturumunda da doğrulama yapılabilir:** Flutter 3.29.3 (CI ile aynı
-  sürüm) indirilip `pub get / analyze / test` koşturulur — ayrıntı ve tuzaklar
-  HAFIZA 2026-07-25 §F. Kör push etme.
+  (2026-10-21'den beri yerel ve CI AYNI sürüm: **3.44.6**), sonra push → Actions logunu
+  izle, kırmızıysa sormadan düzelt. Yerel APK: temiz kopyada `bash ci/prepare_android.sh`
+  + `flutter build apk` (Git Bash'te `python3` yoksa `python`a yönlendiren bir kabuk
+  betiği PATH'e). **Bulut (Linux) oturumunda** Flutter 3.44.6 indirilip
+  `pub get / analyze / test` koşturulur — tuzaklar HAFIZA 2026-07-25 §F. Kör push etme.
   **`ci/*.kt` değiştiyse `tool/check_kotlin.sh` koştur** (kotlinc + Android
   taslakları; yoksa sessizce atlar). Kotlin yalnız CI'da derleniyordu ve tek
   satırlık bir tür hatası 13 dakikalık bir derleme turunu yakıyordu — bkz.

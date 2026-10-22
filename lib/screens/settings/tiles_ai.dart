@@ -176,7 +176,10 @@ class _AiAccessTileState extends State<AiAccessTile> {
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: model,
+                  // initialValue yalnız ilk kurulumda okunur: model dışarıdan
+                  // değişince (liste çekildi) alan yeniden kurulsun.
+                  key: ValueKey(model),
+                  initialValue: model,
                   decoration: InputDecoration(
                     labelText: context.t(_fetchedModels != null
                         ? 'settings.model_fetched'

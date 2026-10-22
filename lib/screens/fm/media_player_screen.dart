@@ -11,7 +11,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
-import '../../services/fm/floating_video.dart';
+import '../../services/fm/pip.dart';
 import '../../services/fm/playback_positions.dart';
 import '../../services/fm/subtitles.dart';
 import '../../services/fm/subtitle_delays.dart';
@@ -90,6 +90,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   void _onService() {
     if (!mounted) return;
     setState(() {});
+    _p.armAutoPip(true);
     if (_p.playing) _scheduleHide();
     _maybeShowResumeNote();
     // Yeni dosyaya geçildiyse altyazılar da yenilenmeli.
@@ -159,6 +160,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     super.initState();
     _unhideBar = MiniPlayerBar.hide();
     _p.addListener(_onService);
+    Pip.active.addListener(_onPip);
     _subtitlesFor = widget.path;
     // Aynı dosya zaten açıksa baştan başlatma: kullanıcı mini çubuktan ya da
     // bildirimden ekrana döndüğünde video sıfırlanmamalı.
@@ -172,6 +174,8 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   void dispose() {
     _unhideBar?.call();
     _p.removeListener(_onService);
+    Pip.active.removeListener(_onPip);
+    _p.armAutoPip(false);
     _hideTimer?.cancel();
     _volumeTimer?.cancel();
     // **Oynatıcı KAPATILMIYOR** — ekran altı mini çubuk onu sürdürüyor.
@@ -196,10 +200,25 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     return h > 0 ? '$h:$m:$s' : '$m:$s';
   }
 
+  void _onPip() {
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = _controller;
     final value = c?.value;
+    // Küçük pencerede (PiP) yalnız görüntü: düğmeler orada okunmaz,
+    // dokunuşları sistem kendi denetimleriyle karşılıyor.
+    if (Pip.active.value && c != null && value!.isInitialized) {
+      return ColoredBox(
+        color: Colors.black,
+        child: Center(
+          child: AspectRatio(
+              aspectRatio: value.aspectRatio, child: VideoPlayer(c)),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: Colors.black,

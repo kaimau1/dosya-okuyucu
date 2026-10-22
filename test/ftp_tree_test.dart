@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dosya_okuyucu/models/fs_entry.dart';
 import 'package:dosya_okuyucu/services/fm/remote/ftp_tree.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'support/temp_dir.dart';
 
 /// PC'de görünen **kategorili kök** (kullanıcı isteği 2026-08-29:
@@ -50,33 +51,42 @@ void main() {
     test('telefondaki kutuları listeler', () {
       final names = tree().rootItems().map((i) => i.name).toList();
       expect(names.first, FtpTree.storageFolder);
-      expect(names, containsAll(['Indirilenler', 'Kamera', 'Belgeler',
-          'Resimler', 'Videolar', 'Ses', 'Arsivler', 'Uygulamalar']));
+      expect(
+          names,
+          containsAll([
+            'Indirilenler',
+            'Kamera',
+            'Belgeler',
+            'Resimler',
+            'Videolar',
+            'Ses',
+            'Arsivler',
+            'Uygulamalar'
+          ]));
     });
 
-    test('EKRAN GÖRÜNTÜLERİ kendi kutusunda (kullanıcı isteği 2026-08-29)',
-        () {
+    test('EKRAN GÖRÜNTÜLERİ kendi kutusunda (kullanıcı isteği 2026-08-29)', () {
       // Klasör yokken kutu da yok.
       expect(tree().rootItems().map((i) => i.name),
           isNot(contains('Ekran Goruntuleri')));
 
       Directory('${root.path}/Pictures/Screenshots')
           .createSync(recursive: true);
-      final item = tree()
-          .rootItems()
-          .firstWhere((i) => i.name == 'Ekran Goruntuleri');
+      final item =
+          tree().rootItems().firstWhere((i) => i.name == 'Ekran Goruntuleri');
       // GERÇEK klasör: her listelemede diskten okunur, yani bir saniye önce
       // alınan ekran görüntüsü anında görünür (sanal kutuların tersine).
-      expect(item.realPath, '${root.path}/Pictures/Screenshots');
+      expect(p.normalize(item.realPath!),
+          p.join(root.path, 'Pictures', 'Screenshots'));
       expect(item.category, isNull);
     });
 
     test('ekran görüntüsü klasörü ROM\'a göre DCIM altında da olabilir', () {
       Directory('${root.path}/DCIM/Screenshots').createSync(recursive: true);
-      final item = tree()
-          .rootItems()
-          .firstWhere((i) => i.name == 'Ekran Goruntuleri');
-      expect(item.realPath, '${root.path}/DCIM/Screenshots');
+      final item =
+          tree().rootItems().firstWhere((i) => i.name == 'Ekran Goruntuleri');
+      expect(p.normalize(item.realPath!),
+          p.join(root.path, 'DCIM', 'Screenshots'));
     });
 
     test('cihazda OLMAYAN klasör kutusu listelenmez', () {
@@ -107,8 +117,7 @@ void main() {
     });
 
     test('kutu altındaki gerçek yol köke GÖRE veriliyor', () async {
-      final node =
-          await tree().resolve('/${FtpTree.storageFolder}/DCIM/a.jpg');
+      final node = await tree().resolve('/${FtpTree.storageFolder}/DCIM/a.jpg');
       expect(node.relative, 'DCIM/a.jpg');
     });
 
@@ -163,8 +172,8 @@ void main() {
       ]);
       final files = await t.categoryEntries('Resimler');
       expect(files.length, 3);
-      expect(files.keys, containsAll(['IMG_1.jpg', 'IMG_1 (2).jpg',
-          'IMG_1 (3).jpg']));
+      expect(files.keys,
+          containsAll(['IMG_1.jpg', 'IMG_1 (2).jpg', 'IMG_1 (3).jpg']));
       expect((await t.resolve('/Resimler/IMG_1 (2).jpg')).realPath,
           '${root.path}/Pictures/IMG_1.jpg');
     });

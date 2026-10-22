@@ -26,12 +26,9 @@ import '../../core/user_error.dart';
 /// Müzik çalar: klasördeki ses dosyalarını çalar, sıradakine geçer,
 /// tekrar/karışık destekler.
 ///
-/// **Niye ayrı motor (audioplayers), video oynatıcıdan farklı:** `video_player`
-/// bir görüntü yüzeyine bağlıdır; ekran kapanınca/uygulama arkaya alınınca
-/// çalma durur ve çalar işlevleri (tekrar, karışık, hız) yoktur. audioplayers
-/// native çalıcıyı doğrudan sürer → **ekran kapansa da müzik devam eder** ve
-/// manifest'e servis/etkinlik eklemeyi gerektirmez (bildirim/kilit ekranı
-/// kontrolleri için ileride audio_service gerekir — bkz. KALANLAR).
+/// Motor (Faz 10): video ile AYNI — ExoPlayer/Media3 (`video_player`),
+/// `allowBackgroundPlayback` ile ekran kapansa da çalar; tekrar/karışık/hız
+/// `AudioPlayback` servisinde. Bildirim/kilit ekranı: `media_session.dart`.
 class AudioPlayerScreen extends StatefulWidget {
   final String path;
 
@@ -92,7 +89,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
   Duration get _duration => _p.duration;
   bool get _playing => _p.playing;
   double get _speed => _p.speed;
-  RepeatMode get _repeat => _p.repeat;
+  AudioRepeatMode get _repeat => _p.repeat;
   bool get _shuffle => _p.shuffle;
   String? get _error => _p.error;
   AudioTags get _tags => _p.tags;
@@ -407,24 +404,24 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                   ),
                   IconButton(
                     tooltip: switch (_repeat) {
-                      RepeatMode.off => context.t('mp.repeat_off'),
-                      RepeatMode.one => context.t('mp.repeat_one'),
-                      RepeatMode.all => context.t('mp.repeat_all'),
+                      AudioRepeatMode.off => context.t('mp.repeat_off'),
+                      AudioRepeatMode.one => context.t('mp.repeat_one'),
+                      AudioRepeatMode.all => context.t('mp.repeat_all'),
                     },
-                    isSelected: _repeat != RepeatMode.off,
-                    icon: Icon(_repeat == RepeatMode.one
+                    isSelected: _repeat != AudioRepeatMode.off,
+                    icon: Icon(_repeat == AudioRepeatMode.one
                         ? Icons.repeat_one
                         : Icons.repeat),
                     selectedIcon: Icon(
-                      _repeat == RepeatMode.one
+                      _repeat == AudioRepeatMode.one
                           ? Icons.repeat_one
                           : Icons.repeat,
                       color: scheme.primary,
                     ),
                     onPressed: () => _p.setRepeat(switch (_repeat) {
-                      RepeatMode.off => RepeatMode.all,
-                      RepeatMode.all => RepeatMode.one,
-                      RepeatMode.one => RepeatMode.off,
+                      AudioRepeatMode.off => AudioRepeatMode.all,
+                      AudioRepeatMode.all => AudioRepeatMode.one,
+                      AudioRepeatMode.one => AudioRepeatMode.off,
                     }),
                   ),
                 ],

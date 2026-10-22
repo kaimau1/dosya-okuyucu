@@ -11,6 +11,7 @@ import 'package:dosya_okuyucu/widgets/fm/fm_path_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -116,7 +117,8 @@ void main() {
         volumes: [(path: '/storage/emulated/0', label: 'Ana bellek')],
         rootLabel: 'Kök');
     expect(segs.map((s) => s.label), ['Ana bellek', 'Download', 'PDF']);
-    expect(segs.last.path, '/storage/emulated/0/Download/PDF');
+    expect(p.normalize(segs.last.path),
+        p.normalize('/storage/emulated/0/Download/PDF'));
     final bare = fmPathSegments('/a/b', volumes: const [], rootLabel: 'Kök');
     expect(bare.map((s) => s.label), ['Kök', 'a', 'b']);
   });
@@ -175,8 +177,8 @@ void main() {
     testWidgets('yol hapı yığını BÜYÜTMEZ: üst klasöre geri gider',
         (tester) async {
       final (_, counter, nav) = await pump(tester);
-      for (final sub in ['', '/Alfa', '/Alfa/Beta']) {
-        nav.currentState!.push(browserRoute(BrowserScreen(path: '${dir.path}$sub')));
+      for (final sub in ['', 'Alfa', p.join('Alfa', 'Beta')]) {
+        nav.currentState!.push(browserRoute(BrowserScreen(path: p.join(dir.path, sub))));
         await settle(tester);
       }
       final before = counter.stack.length;
@@ -188,7 +190,7 @@ void main() {
       expect(counter.stack.length, before - 1,
           reason: 'Alfa yığında vardı → oraya GERİ dönülmeli, yeni sayfa yok');
       expect(
-          (counter.stack.last.settings.arguments as String).endsWith('/Alfa'),
+          (counter.stack.last.settings.arguments as String).endsWith('${p.separator}Alfa'),
           isTrue);
     });
 
@@ -196,7 +198,7 @@ void main() {
         (tester) async {
       final (_, counter, nav) = await pump(tester);
       nav.currentState!
-          .push(browserRoute(BrowserScreen(path: '${dir.path}/Alfa/Beta')));
+          .push(browserRoute(BrowserScreen(path: p.join(dir.path, 'Alfa', 'Beta'))));
       await settle(tester);
       expect(counter.stack.length, 2);
       await tester.tap(find.descendant(
@@ -204,14 +206,14 @@ void main() {
       await settle(tester);
       expect(counter.stack.length, 2, reason: 'yığın büyümemeli');
       expect(
-          (counter.stack.last.settings.arguments as String).endsWith('/Alfa'),
+          (counter.stack.last.settings.arguments as String).endsWith('${p.separator}Alfa'),
           isTrue);
     });
 
     testWidgets('sıralama ve öğe sayısı ekranda; tür çipi süzer',
         (tester) async {
       final (_, _, nav) = await pump(tester);
-      nav.currentState!.push(browserRoute(BrowserScreen(path: '${dir.path}/Alfa')));
+      nav.currentState!.push(browserRoute(BrowserScreen(path: p.join(dir.path, 'Alfa'))));
       await settle(tester);
       expect(find.byType(FmListToolbar), findsOneWidget);
       expect(find.text('13 öğe · 66 B'), findsOneWidget);
@@ -228,7 +230,7 @@ void main() {
     testWidgets('360 dp ve 1,4× yazıda taşma yok (liste + seçim)',
         (tester) async {
       final (_, _, nav) = await pump(tester, textScale: 1.4);
-      nav.currentState!.push(browserRoute(BrowserScreen(path: '${dir.path}/Alfa')));
+      nav.currentState!.push(browserRoute(BrowserScreen(path: p.join(dir.path, 'Alfa'))));
       await settle(tester);
       expect(tester.takeException(), isNull);
       await tester.longPress(find.byType(FmEntryRow).first);
@@ -240,7 +242,7 @@ void main() {
     testWidgets('tablet (≥ 840 dp) iki bölme', (tester) async {
       final (_, _, nav) =
           await pump(tester, size: const Size(1200, 800));
-      nav.currentState!.push(browserRoute(BrowserScreen(path: '${dir.path}/Alfa')));
+      nav.currentState!.push(browserRoute(BrowserScreen(path: p.join(dir.path, 'Alfa'))));
       await settle(tester);
       expect(find.text('Konumlar'), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -249,7 +251,7 @@ void main() {
     testWidgets('boş klasörde FmEmptyState', (tester) async {
       final (_, _, nav) = await pump(tester);
       nav.currentState!
-          .push(browserRoute(BrowserScreen(path: '${dir.path}/Alfa/Beta')));
+          .push(browserRoute(BrowserScreen(path: p.join(dir.path, 'Alfa', 'Beta'))));
       await settle(tester);
       expect(find.text('Bu klasör boş'), findsOneWidget);
     });

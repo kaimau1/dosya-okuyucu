@@ -255,7 +255,7 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: Gap.xs),
           child: DropdownButtonFormField<String>(
-            value: field.options.contains(value) ? value : null,
+            initialValue: field.options.contains(value) ? value : null,
             isExpanded: true,
             decoration: InputDecoration(
               labelText: field.label,

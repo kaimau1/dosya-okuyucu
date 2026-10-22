@@ -13,6 +13,7 @@ part 'strings/7_set_vault.dart';
 part 'strings/8_enum_aih.dart';
 part 'strings/9_perf_err.dart';
 part 'strings/10_list_office.dart';
+part 'strings/11_media.dart';
 
 /// Uygulama metinleri — Türkçe / İngilizce / Arapça.
 ///
@@ -125,4 +126,5 @@ const Map<String, (String, String, String)> _table = {
   ..._t8,
   ..._t9,
   ..._t10,
+  ..._t11,
 };

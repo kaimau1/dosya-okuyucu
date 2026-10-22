@@ -131,10 +131,6 @@ class _MiniPlayerHostState extends State<_MiniPlayerHost> {
 
   bool get _wanted {
     if (MiniPlayerBar.hidden.value > 0) return false;
-    // **Video ekran üstündeki yüzen penceredeyse çubuk gizli** (2026-09-03):
-    // çubuktaki "oynat" ikinci bir oynatıcıyı başlatır ve iki ses üst üste
-    // binerdi — kullanıcının duyacağı ilk hata bu olurdu.
-    if (_video.floatingActive && !_audio.hasTrack) return false;
     return _video.hasVideo || _audio.hasTrack;
   }
 

@@ -462,9 +462,9 @@ class _GeometryPainter extends CustomPainter {
         : PptxPresetShape.build(s.preset, size, s.adjust);
     if (path == null || (!s.flipH && !s.flipV)) return path;
     final m = Matrix4.identity()
-      ..translate(size.width / 2, size.height / 2)
-      ..scale(s.flipH ? -1.0 : 1.0, s.flipV ? -1.0 : 1.0)
-      ..translate(-size.width / 2, -size.height / 2);
+      ..translateByDouble(size.width / 2, size.height / 2, 0, 1)
+      ..scaleByDouble(s.flipH ? -1.0 : 1.0, s.flipV ? -1.0 : 1.0, 1, 1)
+      ..translateByDouble(-size.width / 2, -size.height / 2, 0, 1);
     return path.transform(m.storage);
   }
 

@@ -40,13 +40,13 @@ grep -E "INTERNET|launchMode|action.VIEW|action.SEND|label=" \
 # derleme "class not found" / "unresolved reference" ile kırılır:
 #   DosyaProvider (SAF "Şuradan aç"), PickerActivity (seçici kipi),
 #   UsbMass (ham USB SCSI/BBB), MediaSession (bildirim + ön plan servisi),
-#   FloatingPlayer (yüzen oynatıcı), SdUnion (SD birleşik depolama işi),
+#   SdUnion (SD birleşik depolama işi),
 #   Extras (widget'lar, günlük iş, biyometri, Keystore, Geocoder).
 say "Kotlin kaynakları"
 DIR=android/app/src/main/kotlin/com/dosyaokuyucu/dosya_okuyucu
 mkdir -p "$DIR"
-for kt in MainActivity DosyaProvider PickerActivity UsbMass MediaSession \
-          FloatingPlayer SdUnion Extras; do
+for kt in MainActivity DosyaProvider PickerActivity UsbMass MediaSession MediaTranscode \
+          SdUnion Extras; do
   cp "ci/$kt.kt" "$DIR/$kt.kt"
 done
 # `cp -r ci/res/.` mevcut res/ dosyalarını SİLMEZ, yalnız ekler.
@@ -107,11 +107,20 @@ for name in ('android/app/build.gradle.kts', 'android/app/build.gradle'):
             r'(compileOptions\s*\{)', r'\1\n        ' + flag, text, count=1)
         if count == 0:
             raise SystemExit(f'compileOptions bloğu bulunamadı: {name}')
+        # Media3 Transformer (ci/MediaTranscode.kt, Faz 10/K2): sürüm
+        # video_player_android'in ExoPlayer'ıyla AYNI olmalı (1.5.1) — iki
+        # farklı media3 sürümü sınıf çakışması verir.
+        libs = ['androidx.media3:media3-transformer:1.5.1',
+                'androidx.media3:media3-effect:1.5.1',
+                'androidx.media3:media3-common:1.5.1',
+                'androidx.annotation:annotation-experimental:1.4.1']
         dep = ('dependencies {\n    coreLibraryDesugaring('
-               '"com.android.tools:desugar_jdk_libs:2.1.4")\n}\n'
+               '"com.android.tools:desugar_jdk_libs:2.1.4")\n'
+               + ''.join(f'    implementation("{l}")\n' for l in libs) + '}\n'
                if kts else
                'dependencies {\n    coreLibraryDesugaring '
-               "'com.android.tools:desugar_jdk_libs:2.1.4'\n}\n")
+               "'com.android.tools:desugar_jdk_libs:2.1.4'\n"
+               + ''.join(f"    implementation '{l}'\n" for l in libs) + '}\n')
         new_text = new_text.rstrip() + '\n\n' + dep
         path.write_text(new_text)
         patched = True
@@ -167,6 +176,83 @@ if not patched:
     raise SystemExit('build.gradle bulunamadı')
 PY
 echo "android.suppressUnsupportedCompileSdk=36" >> android/gradle.properties
+
+# ── 6b) Eklentiler de compileSdk 36 (Flutter 3.44 / AGP 9, 2026-10-21) ─────
+# AGP 9 her eklentinin AAR metadata'sını denetliyor: eski compileSdk ile gelen
+# eklenti (cunning_document_scanner 33, androidx.fragment 34 ister) derlemeyi
+# düşürüyor. Bütün alt projeler uygulamayla aynı SDK'ya çekilir. Blok
+# `evaluationDependsOn(":app")`dan ÖNCE durmalı: sonra gelirse alt projeler
+# çoktan değerlendirilmiş olur ve afterEvaluate hata verir.
+say "Eklentiler compileSdk 36"
+python3 - <<'PY'
+import pathlib
+for name in ('android/build.gradle.kts', 'android/build.gradle'):
+    path = pathlib.Path(name)
+    if not path.exists():
+        continue
+    text = path.read_text()
+    block = ('subprojects {\n'
+             '    afterEvaluate {\n'
+             '        extensions.findByName("android")?.let { ext ->\n'
+             '            ext.withGroovyBuilder { setProperty("compileSdk", 36) }\n'
+             # receive_sharing_intent 1.8.1: Java 11 + Kotlin 21 (araç zinciri).
+             # 3.44 şablonunda 8. adımdaki validation.mode=warning ETKİSİZ —
+             # yalnız bu eklentide Java hedefi Kotlin'inkine (21) çekilir.
+             '            if (project.name == "receive_sharing_intent") {\n'
+             '                ext.withGroovyBuilder { getProperty("compileOptions") }\n'
+             '                    .withGroovyBuilder {\n'
+             '                        setProperty("sourceCompatibility", JavaVersion.VERSION_21)\n'
+             '                        setProperty("targetCompatibility", JavaVersion.VERSION_21)\n'
+             '                    }\n'
+             '            }\n'
+             '        }\n'
+             '    }\n'
+             '}\n' if name.endswith('.kts') else
+             'subprojects {\n'
+             '    afterEvaluate { p ->\n'
+             '        if (p.extensions.findByName("android") != null) {\n'
+             '            p.android.compileSdk = 36\n'
+             '        }\n'
+             '    }\n'
+             '}\n')
+    anchor = 'subprojects {\n    project.evaluationDependsOn'
+    if anchor not in text:
+        raise SystemExit(f'{name}: evaluationDependsOn bloğu bulunamadı')
+    path.write_text(text.replace(anchor, block + anchor, 1))
+    print(f'{name}: eklentiler compileSdk 36')
+    break
+else:
+    raise SystemExit('kök build.gradle bulunamadı')
+PY
+
+# ── 6c) R8 kod küçültme KAPALI (Flutter 3.44 / AGP 9, 2026-10-22) ─────────
+# AGP 9'un R8'i yansımayla bulunan sınıfları kırıyor: WorkManager (Room
+# `_Impl`) açılışta ÇÖKÜYOR, flutter_local_notifications (Gson TypeToken)
+# hata atıyor ve Dart açılışı takılıp ekran SİYAH kalıyor, ML Kit kayıt
+# sınıfı yüklenemiyor. Kütüphanelerin kendi koruma kuralları uygulanmıyor gibi
+# (tahmin — ayrı inceleme, KALANLAR). Telefonda ölçüldü: küçültme kapalıyken
+# açılış normal; bedel arm64 APK 57 → 66 MB (bütçe 80). proguard-rules.pro
+# yerinde kalıyor (R8 yeniden açılınca gerekecek kurallar).
+say "R8 küçültme kapalı"
+python3 - <<'PY'
+import pathlib, re
+for name in ('android/app/build.gradle.kts', 'android/app/build.gradle'):
+    path = pathlib.Path(name)
+    if not path.exists():
+        continue
+    text = path.read_text()
+    kts = name.endswith('.kts')
+    line = ('            isMinifyEnabled = false\n            isShrinkResources = false\n'
+            if kts else '            minifyEnabled false\n            shrinkResources false\n')
+    text, n = re.subn(r'(\n(\s*)release\s*\{\n)', lambda m: m.group(1) + line, text, count=1)
+    if n != 1:
+        raise SystemExit(f'{name}: release bloğu bulunamadı')
+    path.write_text(text)
+    print(f'{name}: R8 küçültme kapalı')
+    break
+else:
+    raise SystemExit('app build.gradle bulunamadı')
+PY
 
 # ── 7) Kotlin eklentisi ≥ 2.2.0 (yalnız YÜKSELTİR) ───────────────────────
 # flutter_tts / ffmpeg-kit kotlin-stdlib 2.2 metadata'sı taşıyor; eski

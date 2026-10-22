@@ -11,9 +11,9 @@ import '../../core/theme.dart';
 import '../../models/document.dart';
 import '../../models/fs_entry.dart';
 import '../../models/photo_group.dart';
-import '../../services/fm/image_rotate.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/fm/fm_file_image.dart';
+import '../image_edit_screen.dart';
 import '../viewer_screen.dart';
 import 'entry_actions.dart';
 
@@ -225,13 +225,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     ));
   }
 
-  Future<void> _rotate() async {
-    // Yan çekilmiş fotoğrafı düzeltmenin uygulama içinde hiçbir yolu yoktu
-    // (2026-09-06 denetim turu).
-    if (await rotateImageEntry(context, _currentEntry)) {
-      _statCache.remove(_current);
-      if (mounted) setState(() {});
-    }
+  /// Faz 10: döndürme artık düzenleyicinin içinde (kırp/ayarla/işaretle ile).
+  Future<void> _edit() async {
+    final written = await ImageEditScreen.open(context, _current);
+    if (written == null || !mounted) return;
+    _statCache.remove(_current);
+    setState(() {});
   }
 
   Future<void> _otherActions() async {
@@ -439,12 +438,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                               label: context.t('common.share'),
                               onTap: () => shareEntriesFrom(context, [_current]),
                             ),
-                            if (ImageRotate.canRotate(_current))
-                              _GalleryAction(
-                                icon: Icons.rotate_right,
-                                label: context.t('ea.rotate'),
-                                onTap: _rotate,
-                              ),
+                            _GalleryAction(
+                              icon: Icons.tune,
+                              label: context.t('ied.title'),
+                              onTap: _edit,
+                            ),
                             _GalleryAction(
                               icon: Icons.document_scanner_outlined,
                               label: context.t('gal.tools'),
