@@ -57,34 +57,126 @@ class _ResizeSheet extends StatefulWidget {
 }
 
 class _ResizeSheetState extends State<_ResizeSheet> {
-  late MediaResizeOptions _options = widget.initial;
+  late MediaResizeOptions _options = _normalized(widget.initial);
   final _widthController = TextEditingController();
   final _heightController = TextEditingController();
+  final _percentController = TextEditingController();
+  final _longEdgeController = TextEditingController();
+  final _kbController = TextEditingController();
+  final _aspectWController = TextEditingController();
+  final _aspectHController = TextEditingController();
+
+  /// Kilit açıkken kullanıcının YAZDIĞI alan ('w' / 'h'); öteki alan ondan
+  /// hesaplanıp gösterilir ama modele yazılmaz — çoklu seçimde her dosya
+  /// kendi oranını korusun.
+  String? _driver;
+
+  /// Seçimde video yoksa fotoğraf kipleri (uzun kenar, oran, dosya boyutu)
+  /// sunulur; video kademeleri (480p…) fotoğrafta anlamsız (G4f).
+  bool get _photoOnly => widget.hasImages && !widget.hasVideos;
+
+  List<ResolutionChoice> get _modes => _photoOnly
+      ? const [
+          ResolutionChoice.keep,
+          ResolutionChoice.percent,
+          ResolutionChoice.custom,
+          ResolutionChoice.longEdge,
+          ResolutionChoice.aspect,
+          ResolutionChoice.fileSize,
+        ]
+      : const [
+          ResolutionChoice.keep,
+          ResolutionChoice.p480,
+          ResolutionChoice.p540,
+          ResolutionChoice.p720,
+          ResolutionChoice.p1080,
+          ResolutionChoice.percent,
+          ResolutionChoice.custom,
+        ];
+
+  /// Hatırlanan ayar bu seçime uymuyorsa (fotoğrafa video kademesi, videoya
+  /// fotoğraf kipi) en yakın karşılığa çevrilir.
+  MediaResizeOptions _normalized(MediaResizeOptions o) {
+    var r = o;
+    if (_photoOnly && r.resolution.shortEdge != null) {
+      r = r.copyWith(resolution: ResolutionChoice.longEdge);
+    } else if (!_photoOnly && r.resolution.photoOnly) {
+      r = r.copyWith(resolution: ResolutionChoice.p1080);
+    }
+    final maxPercent = _photoOnly ? 400 : 100;
+    if (r.percent > maxPercent) r = r.copyWith(percent: maxPercent);
+    if (!_photoOnly && r.fit != ResizeFit.stretch) {
+      // Video motoru yalnız sığdır/esnet yapabiliyor (14b'ye kadar).
+      r = r.copyWith(fit: ResizeFit.contain);
+    }
+    return r;
+  }
 
   @override
   void initState() {
     super.initState();
-    if (widget.initial.customWidth != null) {
-      _widthController.text = '${widget.initial.customWidth}';
+    final o = _options;
+    if (o.customWidth != null) _widthController.text = '${o.customWidth}';
+    if (o.customHeight != null) _heightController.text = '${o.customHeight}';
+    if (o.lockAspect) {
+      _driver = o.customWidth != null ? 'w' : (o.customHeight != null ? 'h' : null);
+      _syncLocked();
     }
-    if (widget.initial.customHeight != null) {
-      _heightController.text = '${widget.initial.customHeight}';
-    }
+    _percentController.text = '${o.percent}';
+    _longEdgeController.text = '${o.longEdgePx}';
+    _kbController.text = '${o.targetKb}';
   }
 
   @override
   void dispose() {
-    _widthController.dispose();
-    _heightController.dispose();
+    for (final c in [
+      _widthController,
+      _heightController,
+      _percentController,
+      _longEdgeController,
+      _kbController,
+      _aspectWController,
+      _aspectHController,
+    ]) {
+      c.dispose();
+    }
     super.dispose();
+  }
+
+  /// Ölçüsü bilinen ilk dosya (kilitli alanın canlı karşılığı için).
+  MediaSourceInfo? get _sized {
+    for (final s in widget.sources) {
+      if (s.hasSize) return s;
+    }
+    return null;
+  }
+
+  /// Kilit açıkken yazılmayan alanı ilk dosyanın oranından doldurur
+  /// ("1600" yazınca yükseklik alanında anında "1200").
+  void _syncLocked() {
+    final src = _sized;
+    if (src == null || !_options.lockAspect) return;
+    final w = _options.customWidth;
+    final h = _options.customHeight;
+    if (_driver == 'w' && w != null) {
+      _heightController.text = '${(w * src.height / src.width).round()}';
+    } else if (_driver == 'h' && h != null) {
+      _widthController.text = '${(h * src.width / src.height).round()}';
+    }
   }
 
   /// Serbest ölçüde en az bir alan dolu olmalı, yoksa "Uygula" hiçbir şey
   /// yapmayan bir düğme olurdu.
-  bool get _valid {
-    if (_options.resolution != ResolutionChoice.custom) return true;
-    return _options.customWidth != null || _options.customHeight != null;
-  }
+  bool get _valid => switch (_options.resolution) {
+        ResolutionChoice.custom =>
+          _options.customWidth != null || _options.customHeight != null,
+        ResolutionChoice.longEdge => _options.longEdgePx >= 16,
+        ResolutionChoice.fileSize => _options.targetKb >= 10,
+        ResolutionChoice.percent => _options.percent >= 1,
+        ResolutionChoice.aspect =>
+          _options.aspectW > 0 && _options.aspectH > 0,
+        _ => true,
+      };
 
   /// Video yeniden kodlanacak mı? Kullanıcı bunu bilmeli: kodlama uzun sürer
   /// (uzun bir videoda dakikalar) ve kaynaktan bir tur kalite kaybı olur.
@@ -96,22 +188,57 @@ class _ResizeSheetState extends State<_ResizeSheet> {
   /// hiç uyarılmadan başlatıyordu (2026-07-29 sadakat denetimi, 2. tur).
   bool get _videoNotice => widget.hasVideos;
 
-  void _readCustom() {
-    final w = int.tryParse(_widthController.text.trim());
-    final h = int.tryParse(_heightController.text.trim());
-    setState(() => _options = MediaResizeOptions(
-          resolution: _options.resolution,
-          percent: _options.percent,
-          customWidth: w != null && w > 0 ? w : null,
-          customHeight: h != null && h > 0 ? h : null,
-          imageQuality: _options.imageQuality,
-          imageFormat: _options.imageFormat,
-          videoQuality: _options.videoQuality,
-          frameRate: _options.frameRate,
-          removeAudio: _options.removeAudio,
-          replaceOriginal: _options.replaceOriginal,
-        ));
+  /// Alan yazıldı. Kilit açıkken YALNIZ yazılan alan modele girer, öteki
+  /// alan hesaplanıp gösterilir; kilit kapalıyken ikisi de girer.
+  void _readCustom(String field) {
+    int? read(TextEditingController c) {
+      final v = int.tryParse(c.text.trim());
+      return v != null && v > 0 ? v : null;
+    }
+
+    setState(() {
+      if (_options.lockAspect) {
+        _driver = field;
+        final w = field == 'w' ? read(_widthController) : null;
+        final h = field == 'h' ? read(_heightController) : null;
+        _options = _options.copyWith(clearCustom: true).copyWith(
+            customWidth: w, customHeight: h);
+        if (w == null && h == null) {
+          (field == 'w' ? _heightController : _widthController).clear();
+        }
+        _syncLocked();
+      } else {
+        _options = _options.copyWith(clearCustom: true).copyWith(
+            customWidth: read(_widthController),
+            customHeight: read(_heightController));
+      }
+    });
   }
+
+  void _toggleLock() {
+    setState(() {
+      final locked = !_options.lockAspect;
+      _options = _options.copyWith(lockAspect: locked);
+      if (locked) {
+        // Kilitlenince genişlik sürücü olur, yükseklik ondan hesaplanır.
+        _driver = _options.customWidth != null ? 'w' : 'h';
+        _options = _driver == 'w'
+            ? _options.copyWith(clearCustom: true)
+                .copyWith(customWidth: _options.customWidth)
+            : _options.copyWith(clearCustom: true)
+                .copyWith(customHeight: _options.customHeight);
+        _syncLocked();
+      } else {
+        // Kilit açılınca ekranda görünen İKİ değer de modele geçer.
+        final w = int.tryParse(_widthController.text.trim());
+        final h = int.tryParse(_heightController.text.trim());
+        _options = _options.copyWith(clearCustom: true).copyWith(
+            customWidth: w, customHeight: h);
+      }
+    });
+  }
+
+  void _set(MediaResizeOptions o) => setState(() => _options = o);
 
   @override
   Widget build(BuildContext context) {
@@ -140,82 +267,11 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                 padding: const EdgeInsets.symmetric(horizontal: Gap.md),
                 children: [
                   if (widget.sources.isNotEmpty) _sourceCard(context),
-                  _label(context.t('rs.resolution')),
-                  Wrap(
-                    spacing: Gap.sm,
-                    runSpacing: Gap.xs,
-                    children: [
-                      for (final r in ResolutionChoice.values)
-                        ChoiceChip(
-                          label: Text(context.t(r.labelKey)),
-                          selected: _options.resolution == r,
-                          onSelected: (_) => setState(
-                              () => _options = _options.copyWith(resolution: r)),
-                        ),
-                    ],
-                  ),
-                  if (_options.resolution == ResolutionChoice.percent) ...[
-                    const SizedBox(height: Gap.sm),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Slider(
-                            value: _options.percent.toDouble(),
-                            min: 10,
-                            max: 95,
-                            divisions: 17,
-                            label: '%${_options.percent}',
-                            onChanged: (v) => setState(() => _options =
-                                _options.copyWith(percent: v.round())),
-                          ),
-                        ),
-                        SizedBox(
-                          width: 52,
-                          child: Text('%${_options.percent}',
-                              textAlign: TextAlign.end),
-                        ),
-                      ],
-                    ),
-                  ],
-                  if (_options.resolution == ResolutionChoice.custom) ...[
-                    const SizedBox(height: Gap.sm),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _widthController,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              labelText: context.t('rs.width'),
-                              border: const OutlineInputBorder(),
-                            ),
-                            onChanged: (_) => _readCustom(),
-                          ),
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: Gap.sm),
-                          child: Text('×'),
-                        ),
-                        Expanded(
-                          child: TextField(
-                            controller: _heightController,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              labelText: context.t('rs.height'),
-                              border: const OutlineInputBorder(),
-                            ),
-                            onChanged: (_) => _readCustom(),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: Gap.xs),
-                    Text(
-                      context.t('rs.custom_note'),
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  ],
-                  if (widget.hasImages) ...[
+                  ..._resolutionSection(context),
+                  // Dosya boyutu kipinde kalite ve biçim KENDİLİĞİNDEN seçilir
+                  // (JPEG, ikili arama) — elle kalite kaydırıcısı çelişirdi.
+                  if (widget.hasImages &&
+                      _options.resolution != ResolutionChoice.fileSize) ...[
                     const SizedBox(height: Gap.md),
                     _label(context.t('rs.jpeg_quality')),
                     Row(
@@ -362,6 +418,344 @@ class _ResizeSheetState extends State<_ResizeSheet> {
         ),
       ),
     );
+  }
+
+  /// Hazır ayarlar (Faz 14, G4g) — yalnız fotoğraf seçiminde. Kalite, biçim
+  /// ve "özgünü çöpe at" gibi öteki ayarlara dokunmaz.
+  static const _presets = <(String, MediaResizeOptions)>[
+    (
+      'rs.preset_profile',
+      MediaResizeOptions(
+          resolution: ResolutionChoice.custom,
+          customWidth: 640,
+          customHeight: 640,
+          lockAspect: false,
+          fit: ResizeFit.cover),
+    ),
+    (
+      'rs.preset_form',
+      MediaResizeOptions(resolution: ResolutionChoice.fileSize, targetKb: 200),
+    ),
+    (
+      'rs.preset_share',
+      MediaResizeOptions(
+          resolution: ResolutionChoice.custom,
+          customWidth: 1080,
+          customHeight: 1350,
+          lockAspect: false,
+          fit: ResizeFit.cover),
+    ),
+    (
+      'rs.preset_web',
+      MediaResizeOptions(
+          resolution: ResolutionChoice.longEdge, longEdgePx: 1600),
+    ),
+  ];
+
+  void _applyPreset(MediaResizeOptions p) {
+    setState(() {
+      _options = _options.copyWith(clearCustom: true).copyWith(
+            resolution: p.resolution,
+            customWidth: p.customWidth,
+            customHeight: p.customHeight,
+            lockAspect: p.lockAspect,
+            fit: p.fit,
+            longEdgePx: p.longEdgePx,
+            targetKb: p.targetKb,
+          );
+      _widthController.text = p.customWidth?.toString() ?? '';
+      _heightController.text = p.customHeight?.toString() ?? '';
+      _longEdgeController.text = '${p.longEdgePx}';
+      _kbController.text = '${p.targetKb}';
+      _driver = null;
+    });
+  }
+
+  bool _isPreset(MediaResizeOptions p) =>
+      _options.resolution == p.resolution &&
+      switch (p.resolution) {
+        ResolutionChoice.custom => _options.customWidth == p.customWidth &&
+            _options.customHeight == p.customHeight &&
+            _options.effectiveFit == p.effectiveFit,
+        ResolutionChoice.fileSize => _options.targetKb == p.targetKb,
+        ResolutionChoice.longEdge => _options.longEdgePx == p.longEdgePx,
+        _ => false,
+      };
+
+  Widget _chips(List<Widget> children) => Wrap(
+        spacing: Gap.sm,
+        runSpacing: Gap.xs,
+        children: children,
+      );
+
+  Widget _choice(String label, bool selected, VoidCallback onTap,
+          {Key? key}) =>
+      ChoiceChip(
+        key: key,
+        label: Text(label),
+        selected: selected,
+        onSelected: (_) => onTap(),
+      );
+
+  Widget _numberField(TextEditingController c, String label,
+          ValueChanged<String> onChanged,
+          {String? suffix, Key? key, double width = 110}) =>
+      SizedBox(
+        width: width,
+        child: TextField(
+          key: key,
+          controller: c,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            labelText: label,
+            suffixText: suffix,
+            isDense: true,
+            border: const OutlineInputBorder(),
+          ),
+          onChanged: onChanged,
+        ),
+      );
+
+  Widget _note(String text, {bool warn = false}) {
+    final theme = Theme.of(context);
+    final color =
+        warn ? theme.colorScheme.error : theme.colorScheme.onSurfaceVariant;
+    return Padding(
+      padding: const EdgeInsets.only(top: Gap.xs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(warn ? Icons.warning_amber_rounded : Icons.info_outline,
+              size: 16, color: color),
+          const SizedBox(width: Gap.xs),
+          Expanded(
+            child: Text(text,
+                style: theme.textTheme.bodySmall?.copyWith(color: color)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Kenar boşluğu rengi çipleri (saydam yalnız PNG çıktısında anlamlı).
+  Widget _padColors() => _chips([
+        for (final c in PadColor.values)
+          if (c != PadColor.transparent ||
+              _options.imageFormat == ImageOutputFormat.png)
+            _choice(context.t(c.labelKey), _options.padColor == c,
+                () => _set(_options.copyWith(padColor: c))),
+      ]);
+
+  /// Çözünürlük bölümü: kip seçici + seçili kipin denetimleri (Faz 14).
+  List<Widget> _resolutionSection(BuildContext context) {
+    final o = _options;
+    final src = _sized;
+    final upscale = widget.hasImages &&
+        o.upscales(sourceWidth: src?.width, sourceHeight: src?.height);
+    return [
+      if (_photoOnly) ...[
+        _label(context.t('rs.presets')),
+        _chips([
+          for (final (key, preset) in _presets)
+            _choice(context.t(key), _isPreset(preset),
+                () => _applyPreset(preset),
+                key: ValueKey('preset-$key')),
+        ]),
+        const SizedBox(height: Gap.md),
+      ],
+      _label(context.t('rs.resolution')),
+      _chips([
+        for (final r in _modes)
+          _choice(context.t(r.labelKey), o.resolution == r,
+              () => _set(o.copyWith(resolution: r)),
+              key: ValueKey('mode-${r.name}')),
+      ]),
+      const SizedBox(height: Gap.sm),
+      ...switch (o.resolution) {
+        ResolutionChoice.percent => _percentControls(),
+        ResolutionChoice.custom => _pixelControls(),
+        ResolutionChoice.longEdge => _longEdgeControls(),
+        ResolutionChoice.aspect => _aspectControls(),
+        ResolutionChoice.fileSize => _fileSizeControls(),
+        _ => const <Widget>[],
+      },
+      if (upscale) _note(context.t('rs.upscale_warning'), warn: true),
+    ];
+  }
+
+  List<Widget> _percentControls() {
+    final max = _photoOnly ? 400 : 100;
+    final p = _options.percent.clamp(1, max);
+    void setPercent(int v) {
+      _percentController.text = '$v';
+      _set(_options.copyWith(percent: v.clamp(1, max)));
+    }
+
+    return [
+      Row(
+        children: [
+          Expanded(
+            child: Slider(
+              value: p.toDouble(),
+              min: 1,
+              max: max.toDouble(),
+              label: '%$p',
+              onChanged: (v) => setPercent(v.round()),
+            ),
+          ),
+          _numberField(_percentController, '%', (v) {
+            final n = int.tryParse(v.trim());
+            if (n != null) _set(_options.copyWith(percent: n.clamp(1, max)));
+          }, key: const ValueKey('percent-field'), width: 76),
+        ],
+      ),
+      _chips([
+        for (final v in [25, 50, 75, if (_photoOnly) ...[150, 200]])
+          _choice('%$v', p == v, () => setPercent(v)),
+      ]),
+    ];
+  }
+
+  List<Widget> _pixelControls() {
+    final o = _options;
+    final locked = o.lockAspect;
+    final both = o.customWidth != null && o.customHeight != null;
+    final fits = _photoOnly
+        ? ResizeFit.values
+        : const [ResizeFit.contain, ResizeFit.stretch];
+    return [
+      Row(
+        children: [
+          Expanded(
+            child: TextField(
+              key: const ValueKey('width-field'),
+              controller: _widthController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: context.t('rs.width'),
+                border: const OutlineInputBorder(),
+              ),
+              onChanged: (_) => _readCustom('w'),
+            ),
+          ),
+          IconButton(
+            key: const ValueKey('lock-aspect'),
+            tooltip: context.t(locked ? 'rs.lock_on' : 'rs.lock_off'),
+            isSelected: locked,
+            icon: const Icon(Icons.link_off),
+            selectedIcon: const Icon(Icons.link),
+            onPressed: _toggleLock,
+          ),
+          Expanded(
+            child: TextField(
+              key: const ValueKey('height-field'),
+              controller: _heightController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: context.t('rs.height'),
+                border: const OutlineInputBorder(),
+              ),
+              onChanged: (_) => _readCustom('h'),
+            ),
+          ),
+        ],
+      ),
+      _note(context.t(locked ? 'rs.lock_note' : 'rs.unlock_note')),
+      if (!locked && both) ...[
+        const SizedBox(height: Gap.sm),
+        _label(context.t('rs.fit')),
+        _chips([
+          for (final f in fits)
+            _choice(context.t(f.labelKey), o.fit == f,
+                () => _set(o.copyWith(fit: f)),
+                key: ValueKey('fit-${f.name}')),
+        ]),
+        if (o.fit == ResizeFit.pad) ...[
+          const SizedBox(height: Gap.sm),
+          _padColors(),
+        ],
+      ],
+    ];
+  }
+
+  List<Widget> _longEdgeControls() => [
+        _chips([
+          for (final v in longEdgeChoices)
+            _choice('$v px', _options.longEdgePx == v, () {
+              _longEdgeController.text = '$v';
+              _set(_options.copyWith(longEdgePx: v));
+            }),
+        ]),
+        const SizedBox(height: Gap.sm),
+        _numberField(_longEdgeController, context.t('rs.custom_value'), (v) {
+          final n = int.tryParse(v.trim());
+          if (n != null && n > 0) _set(_options.copyWith(longEdgePx: n));
+        }, suffix: 'px', width: 160),
+        _note(context.t('rs.long_edge_note')),
+      ];
+
+  List<Widget> _aspectControls() {
+    final o = _options;
+    void readCustom() {
+      final w = double.tryParse(_aspectWController.text.replaceAll(',', '.'));
+      final h = double.tryParse(_aspectHController.text.replaceAll(',', '.'));
+      if (w != null && h != null && w > 0 && h > 0) {
+        _set(_options.copyWith(aspectW: w, aspectH: h));
+      }
+    }
+
+    return [
+      _chips([
+        for (final (label, w, h) in aspectChoices)
+          _choice(label, o.aspectW == w && o.aspectH == h,
+              () => _set(o.copyWith(aspectW: w, aspectH: h)),
+              key: ValueKey('aspect-$label')),
+      ]),
+      const SizedBox(height: Gap.sm),
+      Row(
+        children: [
+          _numberField(_aspectWController, context.t('rs.aspect_w'),
+              (_) => readCustom(), width: 90),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: Gap.sm),
+            child: Text(':'),
+          ),
+          _numberField(_aspectHController, context.t('rs.aspect_h'),
+              (_) => readCustom(), width: 90),
+        ],
+      ),
+      const SizedBox(height: Gap.sm),
+      _chips([
+        for (final f in const [ResizeFit.cover, ResizeFit.pad])
+          _choice(context.t('rs.aspect_${f.name}'),
+              (o.fit == ResizeFit.pad) == (f == ResizeFit.pad),
+              () => _set(o.copyWith(fit: f)),
+              key: ValueKey('aspect-fit-${f.name}')),
+      ]),
+      if (o.fit == ResizeFit.pad) ...[
+        const SizedBox(height: Gap.sm),
+        _padColors(),
+      ],
+    ];
+  }
+
+  List<Widget> _fileSizeControls() {
+    String label(int kb) => kb >= 1024 ? '≤ ${kb ~/ 1024} MB' : '≤ $kb KB';
+    return [
+      _chips([
+        for (final kb in fileSizeChoicesKb)
+          _choice(label(kb), _options.targetKb == kb, () {
+            _kbController.text = '$kb';
+            _set(_options.copyWith(targetKb: kb));
+          }, key: ValueKey('kb-$kb')),
+      ]),
+      const SizedBox(height: Gap.sm),
+      _numberField(_kbController, context.t('rs.custom_value'), (v) {
+        final n = int.tryParse(v.trim());
+        if (n != null && n > 0) _set(_options.copyWith(targetKb: n));
+      }, suffix: 'KB', width: 160),
+      _note(context.t('rs.file_size_note')),
+    ];
   }
 
   /// **Şu an → sonra** kartı.

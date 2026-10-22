@@ -16,6 +16,7 @@ import '../../widgets/fm/fm_file_image.dart';
 import '../image_edit_screen.dart';
 import '../viewer_screen.dart';
 import 'entry_actions.dart';
+import 'resize_actions.dart';
 
 part 'image_gallery/widgets.dart';
 
@@ -442,6 +443,15 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                               icon: Icons.tune,
                               label: context.t('ied.title'),
                               onTap: _edit,
+                            ),
+                            // Faz 14 (G4i): boyutlandırma eskiden yalnız ⋮ →
+                            // eylem sayfasındaydı; "fotoğrafı küçült" galerinin
+                            // en sık işlerinden biri.
+                            _GalleryAction(
+                              icon: Icons.photo_size_select_large,
+                              label: context.t('gal.resize'),
+                              onTap: () =>
+                                  startResizeJob(context, [_currentEntry]),
                             ),
                             _GalleryAction(
                               icon: Icons.document_scanner_outlined,

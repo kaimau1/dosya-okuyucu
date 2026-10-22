@@ -526,3 +526,39 @@ Kullanıcı: *"Fazlara devam, 13'le başla, sonra 1-2 faz daha, main'e birleşti
 - Duman testi `test/media_fixture_smoke_test.dart` (14): yön okuma, B11 × 4 yön, probeSize,
   PNG/WebP/GIF boyutlandırma çıktısı açılıyor, 3 ses etiketi + kapak, SRT + yan dosya bulma.
   Görsel düzenleyici (`dart:ui` + platform çözücü) ve Media3 bulutta koşmuyor → cihaz listesi.
+
+## 2026-10-22 (5) — Faz 14a: görsel boyutlandırma 2.0 (Dart tarafı)
+
+Kullanıcı şikâyeti: *"kolay biçimde ve istediğim oranda görüntü boyutlarını değiştiremiyorum"*.
+
+- **Model (`models/media_resize.dart`):** yeni kipler `longEdge` (720…3840 px, "en çok" —
+  büyütmez), `aspect` (1:1 · 4:5 · 5:4 · 3:2 · 2:3 · 4:3 · 3:4 · 16:9 · 9:16 · 21:9 · A4 +
+  özel; Kırp / Kenar boşluğu), `fileSize` (≤ 100/200/500 KB · 1/2 MB + özel). Serbest
+  ölçüde `lockAspect` (varsayılan AÇIK) + `ResizeFit` contain/cover/pad/stretch +
+  `PadColor` beyaz/siyah/bulanık/saydam. `targetSize(video:)`: çift sayı ve büyütme yasağı
+  YALNIZ videoda (G4k, G4c); fotoğrafta yüzde 1–400 (K14 (b), uyarılı).
+- **Göç:** `lockAspect` alanı olmayan ESKİ iş tarifinde iki ölçü birden varsa
+  `stretch`e çevrilir (yarıda kalan eski iş aynı çıktıyı versin). Eski "iki alan →
+  esnet" testi bilerek değiştirildi (G4b'nin kendisiydi).
+- **Motor (`ImageResizer.render` / `fitToBytes`):** doldur-kırp ortadan (çapa seçimi
+  yok — 14b), boşluk zemini; **bulanık zemin** küçük kopyada `gaussianBlur` (yarıçap
+  kısa kenarın ¼'ü, en çok 6 — küçük görüntüde sabit 6 RangeError veriyordu). Dosya
+  boyutu: q95 sığarsa biter; q40 sığarsa ikili arama; sığmazsa ölçek √(hedef/boyut)·0,92
+  (en çok 0,85, en az 16 px), en çok 8 kodlama, ulaşılamazsa EN KÜÇÜK döner. Dosya
+  boyutu kipi hep JPEG (`outputExtension`).
+- **TUZAK — iş "kazanç yok" diye büyük çıktıyı SİLİYORDU** (`resize_actions._run`):
+  büyütme, kenar boşluğu, "Profil 640×640" gibi ölçü hedefli işlerde çıktı kaynaktan büyük
+  olabilir → `MediaResizeOptions.dimensionsAreGoal` (piksel/oran/%100 üstü) iken kural
+  uygulanmıyor; kazanç toplamına yalnız pozitifler giriyor.
+- **Levha:** fotoğraf seçiminde kip çipleri Değiştirme · Yüzde · Piksel · Uzun kenar ·
+  En-boy oranı · Dosya boyutu; videoda eski kademeler (fotoğraf kipleri gizli, yerleşim
+  yalnız Sığdır/Esnet — Media3 düzen kipleri 14b). Kilitliyken YALNIZ yazılan alan modele
+  girer, öteki ilk dosyanın oranından hesaplanıp gösterilir (çoklu seçimde her dosya kendi
+  oranında). Hazır ayarlar: Profil 640×640 · Başvuru ≤ 200 KB · Paylaşım 4:5·1080 · Web
+  1600 px. **Son ayar** `ResizeMemory` (`resize.last`) — "özgünü çöpe at" BİLEREK
+  hatırlanmaz. Başlık "Boyutlandır". Galeri alt çubuğunda **"Boyut"** (G4i).
+- **14b'ye kalanlar:** `ci/ImageCodec.kt` (WebP yazma, HEIC okuma, EXIF kopyası,
+  `inSampleSize`), Media3 `LAYOUT_SCALE_TO_FIT(_WITH_CROP)`, düzenleyicide Boyut sekmesi +
+  genişletilmiş kırpma oranları, canlı önizleme küçük resmi, kullanıcı ön ayarı kaydetme,
+  kırpma çapası. Testler: `fm_resize_modes_test` (23), `fm_resize_sheet_test` (7);
+  PNG'ler `docs/design/faz14/`.

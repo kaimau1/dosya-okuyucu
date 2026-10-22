@@ -291,9 +291,9 @@ const Map<String, (String, String, String)> _t5 = {
 
   // ── Boyut düşürme ─────────────────────────────────────────────────────────
   'rs.title': (
-    'Boyut düşür ({n} dosya)',
-    'Reduce size ({n} files)',
-    'تصغير الحجم ({n} ملف)',
+    'Boyutlandır ({n} dosya)',
+    'Resize ({n} files)',
+    'تغيير الحجم ({n} ملف)',
   ),
   'rs.now': ('Şu an', 'Now', 'الآن'),
   'rs.after': ('Sonra', 'After', 'بعد'),

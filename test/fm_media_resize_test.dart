@@ -90,7 +90,9 @@ void main() {
       expect(r.width, 960);
     });
 
-    test('ikisi de verilirse oran KORUNMAZ (kullanıcı açıkça istedi)', () {
+    // Faz 14 (G4b): iki alan birden dolu → eskiden SESSİZCE esniyordu.
+    // Artık kilit açıkken (varsayılan) oran korunur, esnetmek açık seçim.
+    test('ikisi de verilirse ve kilit açıksa oran KORUNUR (kutuya sığar)', () {
       final r = size(
           1920,
           1080,
@@ -98,6 +100,21 @@ void main() {
               resolution: ResolutionChoice.custom,
               customWidth: 800,
               customHeight: 800));
+      expect(r.width, 800);
+      expect(r.height, 450);
+    });
+
+    test('kilit kapalı + "Esnet" → tam istenen kutu (oran bilerek bozulur)',
+        () {
+      final r = size(
+          1920,
+          1080,
+          const MediaResizeOptions(
+              resolution: ResolutionChoice.custom,
+              customWidth: 800,
+              customHeight: 800,
+              lockAspect: false,
+              fit: ResizeFit.stretch));
       expect(r.width, 800);
       expect(r.height, 800);
     });
@@ -269,7 +286,7 @@ void main() {
   // Arayüz bu kuralı tam serbest ölçü alanlarının ALTINDA yazıyor, oysa kural
   // yalnız kademelerde uygulanıyordu: 1000 px bir fotoğrafa 2000 yazmak dosyayı
   // büyütüyor, çıktı kaynaktan büyük çıkıyor ve iş "küçültülemedi" diye bitiyor.
-  group('serbest ölçü kaynaktan büyütmez', () {
+  group('VİDEODA serbest ölçü kaynaktan büyütmez (fotoğrafta K14: izinli)', () {
     test('genişlik kaynaktan büyükse kaynağa çekilir', () {
       final r = size(
           1000,
@@ -309,7 +326,9 @@ void main() {
           const MediaResizeOptions(
               resolution: ResolutionChoice.custom,
               customWidth: 1234,
-              customHeight: 568));
+              customHeight: 568,
+              lockAspect: false,
+              fit: ResizeFit.stretch));
       expect(r.width, 1234);
       expect(r.height, 568);
     });

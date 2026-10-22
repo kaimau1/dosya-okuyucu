@@ -116,8 +116,8 @@ const Map<String, (String, String, String)> _t8 = {
   'enum.res_540': ('540p', '540p', '540p'),
   'enum.res_720': ('720p (HD)', '720p (HD)', '720p (HD)'),
   'enum.res_1080': ('1080p (Full HD)', '1080p (Full HD)', '1080p (Full HD)'),
-  'enum.res_percent': ('Yüzdeyle küçült', 'Scale by percent', 'تصغير بنسبة مئوية'),
-  'enum.res_custom': ('Serbest en × boy', 'Custom width × height', 'عرض × ارتفاع مخصص'),
+  'enum.res_percent': ('Yüzde', 'Percent', 'نسبة مئوية'),
+  'enum.res_custom': ('Piksel (en × boy)', 'Pixels (width × height)', 'بكسل (عرض × ارتفاع)'),
 
   'enum.imgfmt_keep': ('Aynı kalsın', 'Keep the same', 'إبقاء كما هو'),
   'enum.imgfmt_jpeg': ('JPEG (küçük)', 'JPEG (small)', 'JPEG (صغير)'),

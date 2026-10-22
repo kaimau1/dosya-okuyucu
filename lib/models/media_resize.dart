@@ -9,7 +9,25 @@
 library;
 
 /// Hedef çözünürlük seçimi.
-enum ResolutionChoice { keep, p480, p540, p720, p1080, percent, custom }
+///
+/// Faz 14 (2026-10-22) — kullanıcı: *"kolay biçimde ve istediğim oranda
+/// görüntü boyutlarını değiştiremiyorum"*. Fotoğrafa özel üç kip eklendi:
+/// [longEdge] (fotoğrafın doğal dili: "uzun kenar 1600 px" — 480p/720p video
+/// kademeleri fotoğrafta anlamsızdı), [aspect] (1:1, 4:5, 16:9… kırp ya da
+/// kenar boşluğu ekle) ve [fileSize] ("en çok 200 KB" — resmî başvuru
+/// formlarının tipik şartı). Kademeler ve [percent]/[custom] videoda da geçer.
+enum ResolutionChoice {
+  keep,
+  p480,
+  p540,
+  p720,
+  p1080,
+  percent,
+  custom,
+  longEdge,
+  aspect,
+  fileSize,
+}
 
 extension ResolutionChoiceLabel on ResolutionChoice {
   /// Çeviri anahtarı (bkz. `FmCategoryLabel.labelKey`).
@@ -21,6 +39,19 @@ extension ResolutionChoiceLabel on ResolutionChoice {
         ResolutionChoice.p1080 => 'enum.res_1080',
         ResolutionChoice.percent => 'enum.res_percent',
         ResolutionChoice.custom => 'enum.res_custom',
+        ResolutionChoice.longEdge => 'enum.res_long_edge',
+        ResolutionChoice.aspect => 'enum.res_aspect',
+        ResolutionChoice.fileSize => 'enum.res_file_size',
+      };
+
+  /// Yalnız fotoğrafta uygulanabilen kip mi? (Video motoru bunları
+  /// yapmıyor; seçimde video varsa levha bunları göstermez.)
+  bool get photoOnly => switch (this) {
+        ResolutionChoice.longEdge ||
+        ResolutionChoice.aspect ||
+        ResolutionChoice.fileSize =>
+          true,
+        _ => false,
       };
 
   String get label => switch (this) {
@@ -31,6 +62,9 @@ extension ResolutionChoiceLabel on ResolutionChoice {
         ResolutionChoice.p1080 => '1080p (Full HD)',
         ResolutionChoice.percent => 'Yüzdeyle küçült',
         ResolutionChoice.custom => 'Serbest en × boy',
+        ResolutionChoice.longEdge => 'Uzun kenar',
+        ResolutionChoice.aspect => 'En-boy oranı',
+        ResolutionChoice.fileSize => 'Dosya boyutu',
       };
 
   /// Kademenin kısa kenarı (piksel); kademe değilse null.
@@ -42,6 +76,57 @@ extension ResolutionChoiceLabel on ResolutionChoice {
         _ => null,
       };
 }
+
+/// Serbest en × boy'da (oran kilidi KAPALIYKEN) ve en-boy oranı kipinde
+/// görüntünün kutuya nasıl yerleşeceği.
+///
+/// KÖK NEDEN (G4b): iki alan birden yazılınca görüntü sessizce **esniyordu**.
+/// Artık esnetmek açık etiketli bir seçim; varsayılan oranı korur.
+enum ResizeFit {
+  /// Oran korunur, görüntü kutunun İÇİNE sığar (çıktı kutudan küçük olabilir).
+  contain,
+
+  /// Kutuyu doldurur, taşan kısım ortadan kırpılır (çıktı tam kutu).
+  cover,
+
+  /// Oran korunur, kalan yer kenar boşluğuyla doldurulur (çıktı tam kutu).
+  pad,
+
+  /// Oranı bilerek bozar (çıktı tam kutu).
+  stretch,
+}
+
+extension ResizeFitLabel on ResizeFit {
+  String get labelKey => 'rs.fit_$name';
+}
+
+/// Kenar boşluğu rengi ([ResizeFit.pad]).
+enum PadColor { white, black, blur, transparent }
+
+extension PadColorLabel on PadColor {
+  String get labelKey => 'rs.pad_$name';
+}
+
+/// Fotoğrafa uygun **uzun kenar** kademeleri (px).
+const List<int> longEdgeChoices = [720, 1080, 1280, 1600, 2048, 3840];
+
+/// Hazır **en-boy oranları** (genişlik, yükseklik). A4 = 1:√2 (210×297).
+const List<(String, double, double)> aspectChoices = [
+  ('1:1', 1, 1),
+  ('4:5', 4, 5),
+  ('5:4', 5, 4),
+  ('3:2', 3, 2),
+  ('2:3', 2, 3),
+  ('4:3', 4, 3),
+  ('3:4', 3, 4),
+  ('16:9', 16, 9),
+  ('9:16', 9, 16),
+  ('21:9', 21, 9),
+  ('A4', 210, 297),
+];
+
+/// Hazır **dosya boyutu** hedefleri (KB).
+const List<int> fileSizeChoicesKb = [100, 200, 500, 1024, 2048];
 
 /// Görüntü çıktı biçimi. WebP yok: `image` paketi WebP **yazamıyor** (yalnız
 /// okuyor); seçeneği göstermek dokunulduğunda hata veren bir düğme olurdu.
@@ -94,7 +179,8 @@ const List<int?> frameRateChoices = [null, 60, 30, 24, 15];
 class MediaResizeOptions {
   final ResolutionChoice resolution;
 
-  /// [ResolutionChoice.percent] için 10..95.
+  /// [ResolutionChoice.percent] için 1..400 (fotoğraf; %100 üstü büyütür —
+  /// K14) ya da 10..100 (video).
   final int percent;
 
   /// [ResolutionChoice.custom] için hedef ölçüler (biri verilirse diğeri
@@ -116,6 +202,25 @@ class MediaResizeOptions {
   /// düşürmek geri alınamaz bir kayıptır, kullanıcı açıkça istemeli.
   final bool replaceOriginal;
 
+  /// Serbest en × boy'da **oran kilidi** (varsayılan AÇIK): iki alan birden
+  /// dolu olsa da oran korunur ([ResizeFit.contain]). Kapalıyken [fit] geçer.
+  final bool lockAspect;
+
+  /// Kilit kapalı serbest ölçüde ve [ResolutionChoice.aspect]'te yerleşim
+  /// (oran kipinde yalnız [ResizeFit.cover] = kırp ve [ResizeFit.pad]).
+  final ResizeFit fit;
+  final PadColor padColor;
+
+  /// [ResolutionChoice.longEdge] hedefi (px).
+  final int longEdgePx;
+
+  /// [ResolutionChoice.aspect] oranı (genişlik : yükseklik).
+  final double aspectW;
+  final double aspectH;
+
+  /// [ResolutionChoice.fileSize] hedefi (KB, 1 KB = 1024 bayt).
+  final int targetKb;
+
   const MediaResizeOptions({
     this.resolution = ResolutionChoice.p1080,
     this.percent = 50,
@@ -127,6 +232,13 @@ class MediaResizeOptions {
     this.frameRate,
     this.removeAudio = false,
     this.replaceOriginal = false,
+    this.lockAspect = true,
+    this.fit = ResizeFit.contain,
+    this.padColor = PadColor.white,
+    this.longEdgePx = 1600,
+    this.aspectW = 1,
+    this.aspectH = 1,
+    this.targetKb = 200,
   });
 
   /// Diske yazılabilir hâli — **yarıda kalan işi yeniden başlatmak** için
@@ -143,6 +255,13 @@ class MediaResizeOptions {
         if (frameRate != null) 'frameRate': frameRate,
         'removeAudio': removeAudio,
         'replaceOriginal': replaceOriginal,
+        'lockAspect': lockAspect,
+        'fit': fit.name,
+        'padColor': padColor.name,
+        'longEdgePx': longEdgePx,
+        'aspectW': aspectW,
+        'aspectH': aspectH,
+        'targetKb': targetKb,
       };
 
   /// Kayıttan okur; tanınmayan/eksik alanlar varsayılana düşer (eski sürümün
@@ -157,6 +276,13 @@ class MediaResizeOptions {
     }
 
     int? asInt(Object? v) => v is num ? v.toInt() : null;
+    double? asDouble(Object? v) => v is num ? v.toDouble() : null;
+    // **Eski tarif göçü (Faz 14):** `lockAspect` alanı yokken iki ölçü birden
+    // verilmişse eski davranış ESNETMEKTİ — yarıda kalan eski bir iş devam
+    // ettirildiğinde aynı çıktıyı üretsin.
+    final legacyBoth = !raw.containsKey('lockAspect') &&
+        raw['customWidth'] is num &&
+        raw['customHeight'] is num;
     return MediaResizeOptions(
       resolution:
           pick(ResolutionChoice.values, raw['resolution'], ResolutionChoice.p1080),
@@ -171,6 +297,15 @@ class MediaResizeOptions {
       frameRate: asInt(raw['frameRate']),
       removeAudio: raw['removeAudio'] == true,
       replaceOriginal: raw['replaceOriginal'] == true,
+      lockAspect: legacyBoth ? false : raw['lockAspect'] != false,
+      fit: legacyBoth
+          ? ResizeFit.stretch
+          : pick(ResizeFit.values, raw['fit'], ResizeFit.contain),
+      padColor: pick(PadColor.values, raw['padColor'], PadColor.white),
+      longEdgePx: asInt(raw['longEdgePx']) ?? 1600,
+      aspectW: asDouble(raw['aspectW']) ?? 1,
+      aspectH: asDouble(raw['aspectH']) ?? 1,
+      targetKb: asInt(raw['targetKb']) ?? 200,
     );
   }
 
@@ -187,6 +322,13 @@ class MediaResizeOptions {
     bool clearFrameRate = false,
     bool? removeAudio,
     bool? replaceOriginal,
+    bool? lockAspect,
+    ResizeFit? fit,
+    PadColor? padColor,
+    int? longEdgePx,
+    double? aspectW,
+    double? aspectH,
+    int? targetKb,
   }) =>
       MediaResizeOptions(
         resolution: resolution ?? this.resolution,
@@ -199,7 +341,35 @@ class MediaResizeOptions {
         frameRate: clearFrameRate ? null : (frameRate ?? this.frameRate),
         removeAudio: removeAudio ?? this.removeAudio,
         replaceOriginal: replaceOriginal ?? this.replaceOriginal,
+        lockAspect: lockAspect ?? this.lockAspect,
+        fit: fit ?? this.fit,
+        padColor: padColor ?? this.padColor,
+        longEdgePx: longEdgePx ?? this.longEdgePx,
+        aspectW: aspectW ?? this.aspectW,
+        aspectH: aspectH ?? this.aspectH,
+        targetKb: targetKb ?? this.targetKb,
       );
+
+  /// Serbest ölçüde GERÇEKTE uygulanan yerleşim: kilit açıkken hep
+  /// [ResizeFit.contain] (oran korunur).
+  ResizeFit get effectiveFit => lockAspect ? ResizeFit.contain : fit;
+
+  /// Fotoğrafta istenen şey bir **ölçü/oran** mı (küçültme değil)? O zaman
+  /// kaynaktan büyük çıktı da geçerli sonuçtur (bkz. `resize_actions._run`).
+  bool get dimensionsAreGoal =>
+      resolution == ResolutionChoice.custom ||
+      resolution == ResolutionChoice.aspect ||
+      (resolution == ResolutionChoice.percent && percent > 100);
+
+  /// Seçilen ayar fotoğrafı **büyütüyor** mu (K14: izinli ama uyarılı)?
+  /// Kaynak ölçüsü bilinmiyorsa yalnız yüzdeye bakılır.
+  bool upscales({int? sourceWidth, int? sourceHeight}) {
+    if (resolution == ResolutionChoice.percent) return percent > 100;
+    if (resolution != ResolutionChoice.custom) return false;
+    if (sourceWidth == null || sourceHeight == null) return false;
+    return (customWidth ?? 0) > sourceWidth ||
+        (customHeight ?? 0) > sourceHeight;
+  }
 
   /// Çözünürlük gerçekten değişiyor mu? (Yalnız kalite/fps değişiyorsa video
   /// motoru seçimi farklı olur.)
@@ -231,11 +401,35 @@ class MediaResizeOptions {
         frameRate ?? '-',
         removeAudio ? 'sessiz' : 'sesli',
         replaceOriginal ? 'degistir' : 'kopya',
+        lockAspect ? 'kilit' : fit.name,
+        padColor.name,
+        longEdgePx,
+        '${aspectW}x$aspectH',
+        targetKb,
       ].join('/');
+
+  /// Oran etiketi ("4:5", "A4" ya da "3.5:2").
+  String get aspectLabel {
+    for (final (label, w, h) in aspectChoices) {
+      if (w == aspectW && h == aspectH) return label;
+    }
+    String n(double v) =>
+        v == v.roundToDouble() ? '${v.round()}' : v.toStringAsFixed(1);
+    return '${n(aspectW)}:${n(aspectH)}';
+  }
 
   /// Dosya adına eklenecek ek ("_720p", "_1280x720", "_%50", "_kucuk").
   String get suffix {
     if (resolution == ResolutionChoice.percent) return '%$percent';
+    if (resolution == ResolutionChoice.longEdge) return '${longEdgePx}px';
+    if (resolution == ResolutionChoice.fileSize) {
+      return targetKb >= 1024 && targetKb % 1024 == 0
+          ? '${targetKb ~/ 1024}mb'
+          : '${targetKb}kb';
+    }
+    if (resolution == ResolutionChoice.aspect) {
+      return aspectLabel.replaceAll(':', '-').replaceAll('.', '_');
+    }
     if (resolution == ResolutionChoice.custom) {
       final w = customWidth;
       final h = customHeight;
@@ -329,7 +523,10 @@ class MediaSourceInfo {
   /// Bu ayarlarla çıkacak ölçü (kaynak bilinmiyorsa null).
   ({int width, int height})? targetFor(MediaResizeOptions options) => hasSize
       ? targetSize(
-          sourceWidth: width, sourceHeight: height, options: options)
+          sourceWidth: width,
+          sourceHeight: height,
+          options: options,
+          video: isVideo)
       : null;
 
   /// Bu ayarlarla çıkacak kare sayısı. Kaynaktan yüksek istenirse kaynağınki
@@ -363,7 +560,12 @@ class MediaSourceInfo {
   int? estimatedBytes(MediaResizeOptions options) {
     final estimate = isVideo ? _videoEstimate(options) : _imageEstimate(options);
     if (estimate == null || estimate <= 0) return null;
-    if (sizeBytes > 0 && estimate > sizeBytes) return sizeBytes;
+    // Büyütmede (K14) çıktı kaynaktan büyük olur — o zaman tavan yok.
+    final growing =
+        options.upscales(sourceWidth: width, sourceHeight: height) ||
+            (options.resolution == ResolutionChoice.aspect &&
+                options.fit == ResizeFit.pad);
+    if (sizeBytes > 0 && estimate > sizeBytes && !growing) return sizeBytes;
     return estimate;
   }
 
@@ -382,6 +584,11 @@ class MediaSourceInfo {
   }
 
   int? _imageEstimate(MediaResizeOptions options) {
+    // Dosya boyutu hedefi: motor hedefin ALTINA iner (ulaşamazsa en yakını
+    // raporlar) — tahmin hedefin kendisi.
+    if (options.resolution == ResolutionChoice.fileSize) {
+      return options.targetKb * 1024;
+    }
     // Ölçü oranı: piksel sayısı ne kadar azalıyor?
     final double? ratio;
     if (hasSize) {
@@ -391,7 +598,7 @@ class MediaSourceInfo {
     } else if (options.resolution == ResolutionChoice.keep) {
       ratio = 1;
     } else if (options.resolution == ResolutionChoice.percent) {
-      final s = options.percent.clamp(10, 100) / 100;
+      final s = options.percent.clamp(1, 400) / 100;
       ratio = s * s;
     } else {
       // Kaynağın ölçüsü bilinmeden "480p'ye inince ne olur" denemez.
@@ -475,62 +682,83 @@ class MediaSourceInfo {
   return (before: before, after: after.round());
 }
 
-/// Kaynak ölçüden hedef ölçüyü hesaplar (en/boy oranı korunur, çift sayıya
-/// yuvarlanır).
+/// Kaynak ölçüden hedef ölçüyü hesaplar.
 ///
-/// Çift sayı şart: H.264 kodlayıcıları tek sayılı en/boy ile ya hata verir ya
-/// da sessizce yuvarlar (video kayar). Görüntülerde de zararsız.
-/// Kaynaktan **büyütme yapılmaz**: 720p bir videoyu "1080p" seçilse bile
-/// büyütmek dosyayı şişirir, kalite katmaz.
+/// [video] (varsayılan `true` — eski çağıranlar video yolundaydı):
+/// * **Çift sayı** yalnız videoda: H.264 kodlayıcıları tek sayılı en/boy ile
+///   ya hata verir ya da sessizce yuvarlar (video kayar). Fotoğrafta bu kural
+///   yanlıştı — 1081 yazan 1080 alıyordu (G4k, Faz 14).
+/// * **Büyütme** videoda yok (dosya şişer, kalite katmaz). Fotoğrafta yüzde
+///   (%100 üstü) ve serbest ölçüde İZİNLİ (K14 (b), Faz 14: kullanıcı
+///   "istediğim oranda" diyor; levha "büyütmek netlik eklemez" diye uyarır).
+///   Eskiden fazlası sessizce kaynağa kırpılıyordu (G4c). Kademeler ve uzun
+///   kenar "en çok" anlamındadır — onlarda büyütme yok.
+///
+/// Fotoğraf ölçüleri **görünen yönde** verilmelidir (EXIF yönü uygulanmış —
+/// `ImageResizer.probeSize` ve çözücü bunu yapıyor; B11, Faz 10b).
 ({int width, int height}) targetSize({
   required int sourceWidth,
   required int sourceHeight,
   required MediaResizeOptions options,
+  bool video = true,
 }) {
   if (sourceWidth <= 0 || sourceHeight <= 0) {
     return (width: sourceWidth, height: sourceHeight);
   }
-  int even(int v) => v < 2 ? 2 : (v - (v % 2));
+  int fix(num v) {
+    final r = v.round();
+    if (!video) return r < 1 ? 1 : r;
+    return r < 2 ? 2 : (r - (r % 2));
+  }
+
+  ({int width, int height}) scaled(double scale) =>
+      (width: fix(sourceWidth * scale), height: fix(sourceHeight * scale));
 
   switch (options.resolution) {
     case ResolutionChoice.keep:
-      return (width: even(sourceWidth), height: even(sourceHeight));
+    case ResolutionChoice.fileSize:
+      // Dosya boyutu hedefi ölçüyü motor içinde (kalite yetmezse) düşürür;
+      // tahmin için başlangıç ölçüsü kaynağınki.
+      return (width: fix(sourceWidth), height: fix(sourceHeight));
     case ResolutionChoice.percent:
-      final scale = options.percent.clamp(10, 100) / 100;
-      return (
-        width: even((sourceWidth * scale).round()),
-        height: even((sourceHeight * scale).round()),
-      );
+      final max = video ? 100 : 400;
+      return scaled(options.percent.clamp(1, max) / 100);
+    case ResolutionChoice.longEdge:
+      final long = sourceWidth > sourceHeight ? sourceWidth : sourceHeight;
+      if (long <= options.longEdgePx) return scaled(1);
+      return scaled(options.longEdgePx / long);
+    case ResolutionChoice.aspect:
+      final ratio = options.aspectW / options.aspectH;
+      if (ratio <= 0 || ratio.isNaN || ratio.isInfinite) return scaled(1);
+      final srcRatio = sourceWidth / sourceHeight;
+      final crop = options.fit != ResizeFit.pad;
+      // Kırp: kaynağın İÇİNDEKİ en büyük oranlı dikdörtgen. Boşluk: kaynağı
+      // İÇİNE alan en küçük oranlı dikdörtgen.
+      final wider = srcRatio > ratio;
+      if (crop == wider) {
+        return (width: fix(sourceHeight * ratio), height: fix(sourceHeight));
+      }
+      return (width: fix(sourceWidth), height: fix(sourceWidth / ratio));
     case ResolutionChoice.custom:
-      // "Kaynaktan büyütme yapılmaz" kuralı BURADA da geçerli — arayüz bunu
-      // tam bu alanların altında yazıyor, oysa serbest ölçüde hiç
-      // uygulanmıyordu: 1000x750 bir fotoğrafa 2000 yazmak dosyayı büyütüyor,
-      // çıktı kaynaktan büyük çıkıyor ve iş "küçültülemedi" diye bitiyordu —
-      // kullanıcı nedenini hiç öğrenmiyordu (2026-07-29 denetimi, 2. tur).
-      final w = options.customWidth == null
-          ? null
-          : (options.customWidth! > sourceWidth
-              ? sourceWidth
-              : options.customWidth!);
-      final h = options.customHeight == null
-          ? null
-          : (options.customHeight! > sourceHeight
-              ? sourceHeight
-              : options.customHeight!);
-      if (w != null && h != null) return (width: even(w), height: even(h));
-      if (w != null) {
-        return (
-          width: even(w),
-          height: even((w * sourceHeight / sourceWidth).round()),
-        );
+      var w = options.customWidth;
+      var h = options.customHeight;
+      if (video) {
+        // Videoda büyütme yok (yukarıdaki not).
+        if (w != null && w > sourceWidth) w = sourceWidth;
+        if (h != null && h > sourceHeight) h = sourceHeight;
       }
-      if (h != null) {
-        return (
-          width: even((h * sourceWidth / sourceHeight).round()),
-          height: even(h),
-        );
+      if (w != null && h != null) {
+        return switch (options.effectiveFit) {
+          ResizeFit.contain => scaled(
+              (w / sourceWidth) < (h / sourceHeight)
+                  ? w / sourceWidth
+                  : h / sourceHeight),
+          _ => (width: fix(w), height: fix(h)),
+        };
       }
-      return (width: even(sourceWidth), height: even(sourceHeight));
+      if (w != null) return (width: fix(w), height: fix(w * sourceHeight / sourceWidth));
+      if (h != null) return (width: fix(h * sourceWidth / sourceHeight), height: fix(h));
+      return scaled(1);
     case ResolutionChoice.p480:
     case ResolutionChoice.p540:
     case ResolutionChoice.p720:
@@ -539,13 +767,7 @@ class MediaSourceInfo {
       final shortSide =
           sourceWidth < sourceHeight ? sourceWidth : sourceHeight;
       // Kaynak zaten hedeften küçükse dokunma (büyütme yok).
-      if (shortSide <= edge) {
-        return (width: even(sourceWidth), height: even(sourceHeight));
-      }
-      final scale = edge / shortSide;
-      return (
-        width: even((sourceWidth * scale).round()),
-        height: even((sourceHeight * scale).round()),
-      );
+      if (shortSide <= edge) return scaled(1);
+      return scaled(edge / shortSide);
   }
 }

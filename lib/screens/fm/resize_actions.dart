@@ -15,6 +15,7 @@ import '../../services/fm/fs_scan.dart';
 import '../../services/fm/image_resize.dart';
 import '../../services/fm/job_queue.dart';
 import '../../services/fm/path_side_index.dart';
+import '../../services/fm/resize_memory.dart';
 import '../../widgets/fm/media_resize_sheet.dart';
 import '../../core/snack.dart';
 import '../../core/app_navigator.dart';
@@ -50,6 +51,10 @@ Future<bool> startResizeJob(
   // Kaynak özellikleri ÖLÇÜLÜR (çözünürlük/kare sayısı/süre) — ayar sayfası
   // "şu an ne var, sonra ne olacak" diyebilsin (kullanıcı isteği 2026-08-07).
   final sources = await _describeSources(media);
+  // **Son kullanılan ayar** (Faz 14, G4g): her seferinde 1080p varsayılanıyla
+  // başlamak, aynı işi tekrar eden kullanıcıya her sefer aynı dokunuşları
+  // yaptırıyordu.
+  final last = await ResizeMemory.load();
   if (!context.mounted) return false;
   final options = await showMediaResizeSheet(
     context,
@@ -57,8 +62,10 @@ Future<bool> startResizeJob(
     hasVideos: hasVideos,
     fileCount: media.length,
     sources: sources,
+    initial: last ?? const MediaResizeOptions(),
   );
   if (options == null) return false;
+  unawaited(ResizeMemory.save(options));
 
   // Kimlik **tüm yollara + tüm ayarlara** bağlı: iki farklı seçim (ya da aynı
   // seçimin iki farklı ayarı) aynı anda kuyrukta durabilir, ama birebir aynı iş
@@ -292,8 +299,14 @@ Future<void> _run(
       // kullanıcı hiç görmedi ve işe yaramadığını ölçtük. Çöpe atmak kullanıcının
       // hiç bilmediği dosyalarla çöp kutusunu doldurmak olurdu (özgün dosyaya
       // ise dokunulmuyor — o hep yerinde).
+        // Faz 14: ÖLÇÜNÜN kendisi hedefse (piksel/oran/büyütme — "profil
+        // 640×640", "4:5 kenar boşluklu") çıktı kaynaktan büyük olabilir ve
+        // yine İSTENEN dosyadır; "kazanç yok" diye silinmesi işi boşa
+        // çıkarırdı. Videoda ve küçültme kiplerinde eski kural geçer.
+        final sizeIsGoal = entry.category != FmCategory.video &&
+            options.dimensionsAreGoal;
         if (result.afterBytes <= 0 ||
-            result.afterBytes >= result.beforeBytes) {
+            (!sizeIsGoal && result.afterBytes >= result.beforeBytes)) {
           try {
             final useless = File(result.outputPath);
             if (useless.existsSync()) useless.deleteSync();
@@ -302,7 +315,7 @@ Future<void> _run(
           }
           failed++;
         } else {
-          savedBytes += result.savedBytes;
+          if (result.savedBytes > 0) savedBytes += result.savedBytes;
           // Çıktı KAYDEDİLDİ → kullanıcı onu bulabilsin. İşlemler ekranı bu
           // listeyi gösterir, dosya oradan tek dokunuşla açılır (kullanıcı
           // hatası 2026-07-30: "nereye gitti, nereden açacağım bilinmiyor").

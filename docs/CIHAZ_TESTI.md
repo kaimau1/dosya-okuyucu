@@ -118,6 +118,23 @@ Telefona kopyalarken klasöre `.nomedia` KOY ve iş bitince SİL (HAFIZA 2026-10
       ve turuncu kapak görünüyor mu (FLAC etiketleri bu turda eklendi).
 - [ ] **Galeri 2.000 fotoğraf RSS** (Ek D) — Faz 4 ölçümüyle birlikte.
 
+## Faz 14a — görsel boyutlandırma 2.0 (2026-10-22)
+
+- [ ] **Galeri → "Boyut"** (alt çubukta, Düzenle'nin yanında) levhayı açıyor mu; başlık
+      "Boyutlandır (1 dosya)".
+- [ ] **Piksel + kilit:** genişliğe 1600 yaz → yükseklik alanı anında doluyor mu; kilidi aç →
+      1080 × 1080 → "Doldur ve kırp" / "Kenar boşluğu ekle (Bulanık)" / "Esnet" → çıktılar
+      galeride beklenen gibi mi (kırpılmış kare, bulanık zeminli kare, esnemiş kare).
+- [ ] **%150:** kırmızı "netlik artmaz" uyarısı; çıktı 1,5 kat ve iş "küçültülemedi" diye
+      SİLMİYOR (büyük çıktı istenen sonuç).
+- [ ] **Uzun kenar 1600:** dikey telefon fotoğrafında (EXIF 6) çıktı 1200×1600 DİK mi.
+- [ ] **En-boy oranı 4:5 + kenar boşluğu, 16:9 + kırp** çıktıları doğru mu.
+- [ ] **Dosya boyutu "Başvuru ≤ 200 KB":** 3-5 MB kamera fotoğrafı → çıktı ≤ 200 KB mi, süre
+      makul mü (en çok 8 kodlama; düşük cihazda ölç). İş özetinde boyut yazıyor mu.
+- [ ] **Son ayar hatırlanıyor mu:** bir ayarla başlat → başka fotoğrafta levha aynı ayarla
+      açılıyor mu; "Özgünü çöpe at" ise HER ZAMAN kapalı açılmalı.
+- [ ] **Video seçiminde** fotoğraf kipleri görünmüyor, 480p…1080p duruyor.
+
 ## Faz 13 — ortak tür süzgeci + Son açılanlar (2026-10-22)
 
 - [ ] **Son açılanlar:** Ayarlar/pano → Geçmiş → Açılanlar → üstte `Tümü · PDF · Word …`
