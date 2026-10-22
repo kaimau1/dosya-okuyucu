@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/playlist_m3u.dart';
@@ -101,7 +102,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
   Widget _coverFallback(ColorScheme scheme) => Container(
         color: scheme.primaryContainer,
         child:
-            Icon(Icons.music_note, size: 84, color: scheme.onPrimaryContainer),
+            Icon(AppIcons.audio, size: 84, color: scheme.onPrimaryContainer),
       );
 
   void _skipTo(int index) => unawaited(_p.skipTo(index));
@@ -173,7 +174,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
         actions: [
           PopupMenuButton<double>(
             tooltip: context.t('mp.speed'),
-            icon: const Icon(Icons.speed),
+            icon: const Icon(Icons.speed_rounded),
             onSelected: _setSpeed,
             itemBuilder: (_) => [
               for (final s in const [0.5, 0.75, 1.0, 1.25, 1.5, 2.0])
@@ -189,7 +190,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
             tooltip: context.t('mp.sleep_timer'),
             icon: Icon(_p.sleepRemaining == null
                 ? Icons.bedtime_outlined
-                : Icons.bedtime),
+                : Icons.bedtime_rounded),
             onSelected: (minutes) => setState(() => _p.setSleepTimer(
                 minutes <= 0 ? null : Duration(minutes: minutes))),
             itemBuilder: (_) => [
@@ -211,7 +212,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
           // teybi, hepsi okuyor.
           PopupMenuButton<String>(
             tooltip: context.t('mp.playlist_save'),
-            icon: const Icon(Icons.playlist_play),
+            icon: const Icon(Icons.playlist_play_rounded),
             onSelected: (value) async {
               if (value == 'save') {
                 await _savePlaylist();
@@ -231,14 +232,14 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
           ),
           IconButton(
             tooltip: context.t('mp.open_with'),
-            icon: const Icon(Icons.apps),
+            icon: const Icon(Icons.apps_rounded),
             onPressed: () => EntryOpener.openExternally(context, _current),
           ),
           // Dinlerken dosyayı taşımak/kopyalamak için ekranı terk etmek
           // gerekmesin (istek 2026-07-29: "her türlü dosyada bu olmalı").
           IconButton(
             tooltip: context.t('mp.file_ops'),
-            icon: const Icon(Icons.more_vert),
+            icon: const Icon(AppIcons.more),
             onPressed: () => showEntryActions(
               context,
               FsEntry.fromEntity(File(_current)),
@@ -368,36 +369,36 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                   IconButton(
                     tooltip: context.t('mp.shuffle'),
                     isSelected: _shuffle,
-                    icon: const Icon(Icons.shuffle),
-                    selectedIcon: Icon(Icons.shuffle, color: scheme.primary),
+                    icon: const Icon(Icons.shuffle_rounded),
+                    selectedIcon: Icon(Icons.shuffle_rounded, color: scheme.primary),
                     onPressed: () => _p.setShuffle(!_shuffle),
                   ),
                   IconButton(
                     tooltip: context.t('common.previous'),
-                    icon: const Icon(Icons.skip_previous),
+                    icon: const Icon(Icons.skip_previous_rounded),
                     onPressed: _index > 0 ? () => _skipTo(_index - 1) : null,
                   ),
                   IconButton(
                     tooltip: context.t('mp.back10'),
-                    icon: const Icon(Icons.replay_10),
+                    icon: const Icon(Icons.replay_10_rounded),
                     onPressed: () => _seekBy(-10),
                   ),
                   IconButton(
                     tooltip: context.t(_playing ? 'mp.pause' : 'mp.play'),
                     iconSize: 56,
                     icon:
-                        Icon(_playing ? Icons.pause_circle : Icons.play_circle),
+                        Icon(_playing ? Icons.pause_circle_rounded : Icons.play_circle_rounded),
                     color: scheme.primary,
                     onPressed: _toggle,
                   ),
                   IconButton(
                     tooltip: context.t('mp.forward10'),
-                    icon: const Icon(Icons.forward_10),
+                    icon: const Icon(Icons.forward_10_rounded),
                     onPressed: () => _seekBy(10),
                   ),
                   IconButton(
                     tooltip: context.t('common.next'),
-                    icon: const Icon(Icons.skip_next),
+                    icon: const Icon(Icons.skip_next_rounded),
                     onPressed: _index < _playlist.length - 1
                         ? () => _skipTo(_index + 1)
                         : null,
@@ -410,12 +411,12 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                     },
                     isSelected: _repeat != AudioRepeatMode.off,
                     icon: Icon(_repeat == AudioRepeatMode.one
-                        ? Icons.repeat_one
-                        : Icons.repeat),
+                        ? Icons.repeat_one_rounded
+                        : Icons.repeat_rounded),
                     selectedIcon: Icon(
                       _repeat == AudioRepeatMode.one
-                          ? Icons.repeat_one
-                          : Icons.repeat,
+                          ? Icons.repeat_one_rounded
+                          : Icons.repeat_rounded,
                       color: scheme.primary,
                     ),
                     onPressed: () => _p.setRepeat(switch (_repeat) {
@@ -528,7 +529,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
               dense: true,
               selected: active,
               leading:
-                  Icon(active ? Icons.equalizer : Icons.music_note, size: 20),
+                  Icon(active ? Icons.equalizer_rounded : AppIcons.audio, size: 20),
               title: Text(p.basenameWithoutExtension(path),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
               trailing: Text(

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:dosya_okuyucu/core/app_icons.dart';
 import 'package:dosya_okuyucu/screens/pdf_form_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -58,7 +59,7 @@ void main() {
     expect(find.byType(TextField), findsOneWidget);
     expect(find.byType(CheckboxListTile), findsOneWidget);
     // Salt-okunur alan düzenlenebilir olarak DEĞİL, kilit simgesiyle çizilir.
-    expect(find.byIcon(Icons.lock_outline), findsOneWidget);
+    expect(find.byIcon(AppIcons.lock), findsOneWidget);
     // Kaydet çubuğu var (doldurulabilir alan olduğu için).
     expect(find.text('Doldur ve kaydet'), findsOneWidget);
     // Kilitleme varsayılan KAPALI (geri alınamaz bir iş).

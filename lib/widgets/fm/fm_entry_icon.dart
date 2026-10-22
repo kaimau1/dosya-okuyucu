@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -138,7 +139,7 @@ abstract final class FmColors {
   /// indirme oku çizmek yanıltıcı olurdu.
   static IconData? forFolderName(String name) => switch (name.toLowerCase()) {
         'download' || 'downloads' || 'indirilenler' =>
-          Icons.download_rounded,
+          AppIcons.download,
         'dcim' || 'camera' || 'kamera' => Icons.photo_camera_rounded,
         'pictures' || 'images' || 'resimler' || 'görüntüler' =>
           Icons.photo_library_rounded,
@@ -147,7 +148,7 @@ abstract final class FmColors {
         'music' || 'müzik' || 'audio' || 'ses' => Icons.library_music_rounded,
         'documents' || 'belgeler' => Icons.folder_copy_rounded,
         'whatsapp' || 'telegram' || 'signal' => Icons.forum_rounded,
-        'android' || 'system' || 'data' => Icons.settings_rounded,
+        'android' || 'system' || 'data' => AppIcons.settings,
         'screenshots' || 'ekran görüntüleri' => Icons.screenshot_rounded,
         'backup' || 'backups' || 'yedek' => Icons.backup_rounded,
         'fonts' => Icons.font_download_rounded,
@@ -467,7 +468,7 @@ class FmSelectableIcon extends StatelessWidget {
               end: 0,
               bottom: 0,
               child: Icon(
-                selected ? Icons.check_circle : Icons.circle_outlined,
+                selected ? AppIcons.checkCircle : Icons.circle_rounded,
                 size: badge,
                 color: selected ? scheme.primary : Colors.white,
                 shadows: const [Shadow(blurRadius: 4, color: Colors.black54)],
@@ -867,7 +868,7 @@ class _VideoBadge extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.play_arrow_rounded, size: icon, color: Colors.white),
+            Icon(AppIcons.play, size: icon, color: Colors.white),
             if (text != null) ...[
               const SizedBox(width: 1),
               Text(
@@ -896,7 +897,7 @@ class _VideoBadge extends StatelessWidget {
 /// bir USB bellek SD kart simgesiyle görünüyordu (kullanıcı bulgusu
 /// 2026-09-01).
 IconData volumeIcon(StorageVolume volume) => switch (volume.iconName) {
-      'smartphone' => Icons.smartphone,
-      'usb' => Icons.usb,
-      _ => Icons.sd_card,
+      'smartphone' => Icons.smartphone_rounded,
+      'usb' => AppIcons.external,
+      _ => AppIcons.sdCard,
     };

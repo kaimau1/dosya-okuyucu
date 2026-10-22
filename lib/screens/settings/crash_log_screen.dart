@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../services/crash_log.dart';
@@ -62,12 +63,12 @@ class _CrashLogScreenState extends State<CrashLogScreen> {
           if (records != null && records.isNotEmpty) ...[
             IconButton(
               tooltip: context.t('common.share'),
-              icon: const Icon(Icons.share_outlined),
+              icon: const Icon(AppIcons.share),
               onPressed: _share,
             ),
             IconButton(
               tooltip: context.t('common.clear'),
-              icon: const Icon(Icons.delete_outline),
+              icon: const Icon(AppIcons.delete),
               onPressed: _clear,
             ),
           ],
@@ -133,7 +134,7 @@ class _CrashCard extends StatelessWidget {
                 IconButton(
                   tooltip: context.t('common.copy'),
                   visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.copy_outlined, size: 18),
+                  icon: const Icon(AppIcons.clipCopy, size: 18),
                   onPressed: () => Clipboard.setData(
                       ClipboardData(text: record.asText())),
                 ),

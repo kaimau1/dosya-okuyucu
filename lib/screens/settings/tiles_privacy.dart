@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../services/fm/fm_env.dart';
@@ -20,7 +21,7 @@ class PinTile extends StatelessWidget {
     return Column(
       children: [
         SettingTile(
-          icon: Icons.lock_outline,
+          icon: AppIcons.lock,
           title: context
               .t(appState.fmHasLockPin ? 'fmset.pin_change' : 'fmset.pin_set'),
           subtitle: appState.fmHasLockPin
@@ -32,7 +33,7 @@ class PinTile extends StatelessWidget {
         ),
         if (appState.fmHasLockPin)
           SettingTile(
-            icon: Icons.lock_open,
+            icon: AppIcons.unlock,
             title: context.t('fmset.pin_remove'),
             subtitle: context.t('fmset.pin_remove_sub'),
             onTap: () async {
@@ -58,7 +59,7 @@ class AppLockTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SwitchListTile(
-      secondary: const Icon(Icons.phonelink_lock_outlined),
+      secondary: const Icon(Icons.phonelink_lock_rounded),
       title: Text(context.t('lock.app_title')),
       subtitle: Text(
         !appState.fmHasLockPin
@@ -93,12 +94,12 @@ class LockedFoldersTile extends StatelessWidget {
         for (final path in appState.fmLockedFolders)
           ListTile(
             dense: true,
-            leading: const Icon(Icons.folder_off_outlined),
+            leading: const Icon(Icons.folder_off_rounded),
             title: Text(p.basename(path)),
             subtitle: Text(path, maxLines: 1, overflow: TextOverflow.ellipsis),
             trailing: IconButton(
               tooltip: context.t('fmset.unlock'),
-              icon: const Icon(Icons.lock_open),
+              icon: const Icon(AppIcons.unlock),
               onPressed: () async {
                 if (!await askPin(context)) return;
                 if (!context.mounted) return;
@@ -135,7 +136,7 @@ class _FullAccessTileState extends State<FullAccessTile> {
 
   @override
   Widget build(BuildContext context) => SettingTile(
-        icon: _granted ? Icons.lock_open : Icons.lock_outline,
+        icon: _granted ? AppIcons.unlock : AppIcons.lock,
         title: context.t('fmset.full_access'),
         subtitle: context
             .t(_granted ? 'fmset.full_access_on' : 'fmset.full_access_off'),
@@ -177,7 +178,7 @@ class _UsageAccessTileState extends State<UsageAccessTile> {
 
   @override
   Widget build(BuildContext context) => SettingTile(
-        icon: Icons.query_stats,
+        icon: Icons.query_stats_rounded,
         title: context.t('fmset.usage_access'),
         subtitle: context
             .t(_granted ? 'fmset.usage_access_on' : 'fmset.usage_access_off'),

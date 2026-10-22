@@ -26,7 +26,7 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
           Expanded(
             child: _StatBox(
               icon: Icons.apps_rounded,
-              color: const Color(0xFF3A9A4A),
+              color: AppHues.leaf,
               value: total > 0 ? FsPaths.humanSize(total) : '${_apps.length}',
               label: total > 0
                   ? context.t('apps.count', {'n': _apps.length})
@@ -37,7 +37,7 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
           Expanded(
             child: _StatBox(
               icon: Icons.cleaning_services_rounded,
-              color: const Color(0xFF12998A),
+              color: AppHues.sea,
               value: cache > 0 ? FsPaths.humanSize(cache) : '—',
               label: context.t('apps.stat_cache'),
             ),
@@ -46,7 +46,7 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
           Expanded(
             child: _StatBox(
               icon: Icons.bedtime_rounded,
-              color: unused > 0 ? const Color(0xFFEF6C00) : scheme.primary,
+              color: unused > 0 ? AppHues.orange : scheme.primary,
               value: '$unused',
               label: unusedBytes > 0
                   ? context.t('apps.stat_unused_size',
@@ -73,7 +73,7 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.query_stats),
+                    const Icon(Icons.query_stats_rounded),
                     const SizedBox(width: Gap.sm),
                     Expanded(
                       child: Text(context.t('apps.usage_needed'),
@@ -89,7 +89,7 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
                   alignment: AlignmentDirectional.centerEnd,
                   child: FilledButton.tonalIcon(
                     onPressed: _grant,
-                    icon: const Icon(Icons.settings),
+                    icon: const Icon(AppIcons.settings),
                     label: Text(context.t('fm.permission_grant')),
                   ),
                 ),
@@ -180,17 +180,17 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
     final scheme = Theme.of(context).colorScheme;
     return switch (level) {
       AppIdleLevel.active => (
-          const Color(0xFF2E7D32),
+          AppHues.green,
           idle == 0
               ? context.t('apps.today')
               : context.t('apps.days_ago', {'n': idle})
         ),
       AppIdleLevel.quiet => (
-          const Color(0xFF827717),
+          AppHues.olive,
           context.t('apps.days_ago', {'n': idle})
         ),
       AppIdleLevel.stale => (
-          const Color(0xFFEF6C00),
+          AppHues.orange,
           context.t('apps.days_ago', {'n': idle})
         ),
       AppIdleLevel.forgotten => (
@@ -255,12 +255,12 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
             ),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.open_in_new),
+              leading: const Icon(AppIcons.open),
               title: Text(context.t('common.open')),
               onTap: () => Navigator.pop(ctx, 'open'),
             ),
             ListTile(
-              leading: const Icon(Icons.info_outline),
+              leading: const Icon(AppIcons.info),
               title: Text(context.t('apps.app_info')),
               onTap: () => Navigator.pop(ctx, 'settings'),
             ),
@@ -270,7 +270,7 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
               onTap: () => Navigator.pop(ctx, 'storage'),
             ),
             ListTile(
-              leading: const Icon(Icons.copy_rounded),
+              leading: const Icon(AppIcons.clipCopy),
               title: Text(context.t('apps.copy_package')),
               onTap: () => Navigator.pop(ctx, 'copy'),
             ),
@@ -278,17 +278,17 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
             // zaten APK olarak duruyor; yaptığımız iş onu bulup okunur bir
             // adla paylaşmak — yeniden paketleme yok, imza bozulmuyor.
             ListTile(
-              leading: const Icon(Icons.share_outlined),
+              leading: const Icon(AppIcons.share),
               title: Text(context.t('apk.share')),
               onTap: () => Navigator.pop(ctx, 'apk_share'),
             ),
             ListTile(
-              leading: const Icon(Icons.download_outlined),
+              leading: const Icon(AppIcons.download),
               title: Text(context.t('apk.save')),
               onTap: () => Navigator.pop(ctx, 'apk_save'),
             ),
             ListTile(
-              leading: Icon(Icons.delete_outline,
+              leading: Icon(AppIcons.delete,
                   color: Theme.of(ctx).colorScheme.error),
               title: Text(context.t('apps.uninstall'),
                   style: TextStyle(color: Theme.of(ctx).colorScheme.error)),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
@@ -221,7 +222,7 @@ class _TrashScreenState extends State<TrashScreen> {
           ? AppBar(
               leading: IconButton(
                 tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-                icon: const Icon(Icons.arrow_back),
+                icon: const Icon(AppIcons.back),
                 onPressed: () => setState(() {
                   _searching = false;
                   _query = '';
@@ -240,14 +241,14 @@ class _TrashScreenState extends State<TrashScreen> {
                 if (_items.isNotEmpty)
                   IconButton(
                     tooltip: context.t('trash.search'),
-                    icon: const Icon(Icons.search),
+                    icon: const Icon(AppIcons.search),
                     onPressed: () => setState(() => _searching = true),
                   ),
                 // "Boşalt" DOLU KIRMIZI: yıkıcı eylem TextButton olarak
                 // sıradan bir metin gibi duruyordu.
                 if (_items.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(right: Gap.sm),
+                    padding: const EdgeInsetsDirectional.only(end: Gap.sm),
                     child: FilledButton(
                       onPressed: _empty,
                       style: FilledButton.styleFrom(
@@ -267,7 +268,7 @@ class _TrashScreenState extends State<TrashScreen> {
       body: _loading
           ? const FmListSkeleton()
           : _items.isEmpty
-              ? FmEmptyState(icon: Icons.delete_outline, title: context.t('trash.empty'))
+              ? FmEmptyState(icon: AppIcons.delete, title: context.t('trash.empty'))
               : Column(
                   children: [
                     _summaryBand(total, shown.length),
@@ -293,8 +294,8 @@ class _TrashScreenState extends State<TrashScreen> {
                           final item = shown[i];
                           return ListTile(
                             leading: Icon(item.isDir
-                                ? Icons.folder_outlined
-                                : Icons.insert_drive_file_outlined),
+                                ? AppIcons.folder
+                                : Icons.insert_drive_file_rounded),
                             title: Text(item.name,
                                 maxLines: 1, overflow: TextOverflow.ellipsis),
                             subtitle: MonoText(
@@ -305,14 +306,14 @@ class _TrashScreenState extends State<TrashScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 _rowAction(
-                                  Icons.restore,
+                                  Icons.restore_rounded,
                                   context.t('trash.restore'),
                                   Paper.success(context),
                                   () => _restore(item),
                                 ),
                                 const SizedBox(width: Gap.xs),
                                 _rowAction(
-                                  Icons.delete_forever,
+                                  Icons.delete_forever_rounded,
                                   context.t('trash.delete_forever'),
                                   Theme.of(context).colorScheme.error,
                                   () => _delete(item),
@@ -343,7 +344,7 @@ class _TrashScreenState extends State<TrashScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.delete_sweep_outlined, size: 20),
+              const Icon(Icons.delete_sweep_rounded, size: 20),
               const SizedBox(width: Gap.sm),
               Expanded(
                 child: Text(_query.trim().isEmpty && _types.isEmpty
@@ -361,7 +362,7 @@ class _TrashScreenState extends State<TrashScreen> {
           const SizedBox(height: Gap.xs),
           Row(
             children: [
-              Icon(Icons.schedule, size: 14, color: Paper.faint(context)),
+              Icon(Icons.schedule_rounded, size: 14, color: Paper.faint(context)),
               const SizedBox(width: Gap.xs),
               Expanded(
                 child: Text(
@@ -386,7 +387,7 @@ class _TrashScreenState extends State<TrashScreen> {
               alignment: AlignmentDirectional.centerStart,
               child: OutlinedButton.icon(
                 onPressed: _restoreAll,
-                icon: const Icon(Icons.restore, size: 18),
+                icon: const Icon(Icons.restore_rounded, size: 18),
                 label: Text(context.t('trash.restore_all')),
               ),
             ),

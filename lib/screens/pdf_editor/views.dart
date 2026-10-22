@@ -164,7 +164,7 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
-          const Icon(Icons.info_outline, size: 18),
+          const Icon(AppIcons.info, size: 18),
           const SizedBox(width: 8),
           Expanded(child: Text(text, style: const TextStyle(fontSize: 13))),
           if (_pageCount > 0)
@@ -190,16 +190,16 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
         },
         destinations: [
           NavigationDestination(
-              icon: const Icon(Icons.text_fields),
+              icon: const Icon(AppIcons.textFields),
               label: context.t('pe.mode_text')),
           NavigationDestination(
-              icon: const Icon(Icons.image_outlined),
+              icon: const Icon(AppIcons.image),
               label: context.t('pe.mode_image')),
           NavigationDestination(
-              icon: const Icon(Icons.layers_clear),
+              icon: const Icon(Icons.layers_clear_rounded),
               label: context.t('pe.mode_watermark')),
           NavigationDestination(
-              icon: const Icon(Icons.rotate_90_degrees_cw),
+              icon: const Icon(Icons.rotate_90_degrees_cw_rounded),
               label: context.t('pe.mode_page')),
         ],
       );
@@ -227,7 +227,7 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.lock_outline, size: 18),
+              const Icon(AppIcons.lock, size: 18),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(context.t('pe.object_locked'),
@@ -263,10 +263,10 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                turn(Icons.rotate_90_degrees_ccw, 'pe.rot_left', turns: -1),
-                turn(Icons.rotate_90_degrees_cw, 'pe.rot_right', turns: 1),
-                turn(Icons.flip, 'pe.mirror_h', h: true),
-                turn(Icons.flip_camera_android_outlined, 'pe.mirror_v',
+                turn(Icons.rotate_90_degrees_ccw_rounded, 'pe.rot_left', turns: -1),
+                turn(Icons.rotate_90_degrees_cw_rounded, 'pe.rot_right', turns: 1),
+                turn(Icons.flip_rounded, 'pe.mirror_h', h: true),
+                turn(Icons.flip_camera_android_rounded, 'pe.mirror_v',
                     v: true),
               ],
             ),
@@ -275,12 +275,12 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
               children: [
                 TextButton.icon(
                   onPressed: _busy ? null : () => _deleteObject(index),
-                  icon: const Icon(Icons.delete_outline),
+                  icon: const Icon(AppIcons.delete),
                   label: Text(context.t('common.delete')),
                 ),
                 TextButton.icon(
                   onPressed: () => _partSetState(() => _selectedObject = null),
-                  icon: const Icon(Icons.close),
+                  icon: const Icon(AppIcons.close),
                   label: Text(context.t('pe.clear_selection')),
                 ),
               ],
@@ -303,12 +303,12 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
             children: [
               TextButton.icon(
                 onPressed: _busy ? null : () => _fixScannedPage(withAi: false),
-                icon: const Icon(Icons.auto_fix_high),
+                icon: const Icon(Icons.auto_fix_high_rounded),
                 label: Text(context.t('pe.fix_page')),
               ),
               TextButton.icon(
                 onPressed: _busy ? null : () => _fixScannedPage(withAi: true),
-                icon: const Icon(Icons.auto_awesome),
+                icon: const Icon(AppIcons.ai),
                 label: Text(context.t('pe.fix_page_ai')),
               ),
               _addTextButton(),
@@ -322,7 +322,7 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
         onPressed: _busy
             ? null
             : () => _partSetState(() => _placingText = !_placingText),
-        icon: Icon(_placingText ? Icons.close : Icons.post_add),
+        icon: Icon(_placingText ? AppIcons.close : Icons.post_add_rounded),
         label: Text(context.t(_placingText ? 'common.cancel' : 'pe.add_text')),
       );
 
@@ -346,12 +346,12 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
             children: [
               TextButton.icon(
                 onPressed: _busy ? null : () => _rotate(-1),
-                icon: const Icon(Icons.rotate_90_degrees_ccw),
+                icon: const Icon(Icons.rotate_90_degrees_ccw_rounded),
                 label: Text(context.t('pe.rot_left')),
               ),
               TextButton.icon(
                 onPressed: _busy ? null : () => _rotate(1),
-                icon: const Icon(Icons.rotate_90_degrees_cw),
+                icon: const Icon(Icons.rotate_90_degrees_cw_rounded),
                 label: Text(context.t('pe.rot_right')),
               ),
             ],
@@ -390,7 +390,7 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                   }
                 }),
                 secondary:
-                    Icon(item.isImage ? Icons.image_outlined : Icons.title),
+                    Icon(item.isImage ? AppIcons.image : Icons.title_rounded),
                 title: Text(item.label,
                     maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: Text(item.detail),
@@ -404,7 +404,7 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
             width: double.infinity,
             child: FilledButton.icon(
               onPressed: _busy ? null : _removeBackground,
-              icon: const Icon(Icons.layers_clear),
+              icon: const Icon(Icons.layers_clear_rounded),
               label: Text(context
                   .t('pe.remove_picked', {'n': _backgroundPicked.length})),
             ),
@@ -498,12 +498,12 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                     const SizedBox(width: 8),
                     IconButton(
                       tooltip: ctx.t('pe.font_smaller'),
-                      icon: const Icon(Icons.text_decrease),
+                      icon: const Icon(Icons.text_decrease_rounded),
                       onPressed: () => _nudgeSize(sizeController, -0.5),
                     ),
                     IconButton(
                       tooltip: ctx.t('pe.font_bigger'),
-                      icon: const Icon(Icons.text_increase),
+                      icon: const Icon(Icons.text_increase_rounded),
                       onPressed: () => _nudgeSize(sizeController, 0.5),
                     ),
                   ],
@@ -540,21 +540,11 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
     c.text = _PdfEditorScreenState._trimZero((next * 10).roundToDouble() / 10);
   }
 
-  Future<bool?> _confirm(String title, String message) => showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(title),
-          content: Text(message),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: Text(ctx.t('common.cancel'))),
-            FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: Text(ctx.t('common.delete'))),
-          ],
-        ),
-      );
+  Future<bool?> _confirm(String title, String message) => showAppConfirm(
+      context,
+      title: title,
+      message: message,
+      destructive: true);
 
   void _snack(String message) {
     if (!mounted) return;

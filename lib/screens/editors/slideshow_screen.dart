@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/app_colors.dart';
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/motion.dart';
 import '../../services/pptx_render.dart';
 import '../../widgets/slide_canvas.dart';
 
@@ -72,11 +75,7 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
   void _go(int delta) {
     final next = _index + delta;
     if (next < 0 || next >= widget.slides.length) return;
-    _pages.animateToPage(
-      next,
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOut,
-    );
+    Motion.toPage(context, _pages, next);
   }
 
   void _resetZoom() {
@@ -99,7 +98,7 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.mediaSurface,
       body: Stack(
         children: [
           PageView.builder(
@@ -142,7 +141,7 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
             right: 8,
             child: SafeArea(
               child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white70),
+                icon: const Icon(AppIcons.close, color: AppColors.onMediaSoft),
                 tooltip: context.t('ss.exit'),
                 onPressed: () => Navigator.of(context).pop(),
               ),
@@ -169,7 +168,7 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
                           'step': _step,
                           'max': _maxStep,
                         }),
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  style: const TextStyle(color: AppColors.onMediaSoft, fontSize: 12),
                 ),
               ),
             ),

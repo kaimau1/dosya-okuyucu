@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_mlkit_translation/google_mlkit_translation.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../core/app_icons.dart';
 import '../core/busy_dialog.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/doc_translate.dart';
@@ -352,7 +353,7 @@ class TranslateFlow {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Align(
-                    alignment: Alignment.centerLeft,
+                    alignment: AlignmentDirectional.centerStart,
                     child: Text(ctx.t('tf.source_lang'))),
                 DropdownButton<TranslateLanguage?>(
                   value: from,
@@ -362,7 +363,7 @@ class TranslateFlow {
                       value: null,
                       child: Row(
                         children: [
-                          const Icon(Icons.auto_awesome_rounded, size: 18),
+                          const Icon(AppIcons.ai, size: 18),
                           const SizedBox(width: 8),
                           Flexible(
                               child: Text(autoLabel,
@@ -379,7 +380,7 @@ class TranslateFlow {
                 const SizedBox(height: 8),
                 IconButton(
                   tooltip: ctx.t('tf.swap'),
-                  icon: const Icon(Icons.swap_vert),
+                  icon: const Icon(Icons.swap_vert_rounded),
                   onPressed: () => setLocal(() {
                     final t = from ?? guess ?? initialFrom;
                     from = to;
@@ -387,7 +388,7 @@ class TranslateFlow {
                   }),
                 ),
                 Align(
-                    alignment: Alignment.centerLeft,
+                    alignment: AlignmentDirectional.centerStart,
                     child: Text(ctx.t('tf.target_lang'))),
                 DropdownButton<TranslateLanguage>(
                   value: to,
@@ -521,7 +522,7 @@ class TranslateFlow {
                   ),
                   IconButton(
                     tooltip: ctx.t('common.share'),
-                    icon: const Icon(Icons.share_outlined, size: 20),
+                    icon: const Icon(AppIcons.share, size: 20),
                     onPressed: () => Share.share(text, subject: title),
                   ),
                   TextButton.icon(
@@ -532,7 +533,7 @@ class TranslateFlow {
                         _snack(context, context.t('tf.copied'));
                       }
                     },
-                    icon: const Icon(Icons.copy, size: 18),
+                    icon: const Icon(AppIcons.clipCopy, size: 18),
                     label: Text(ctx.t('common.copy')),
                   ),
                 ],

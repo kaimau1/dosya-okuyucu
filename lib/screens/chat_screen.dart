@@ -6,9 +6,11 @@ import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../core/app_icons.dart';
 import '../core/app_state.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/markdown.dart';
+import '../core/motion.dart';
 import '../core/theme.dart';
 import '../services/conversion_service.dart';
 import '../services/file_service.dart';
@@ -149,11 +151,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void _scrollToEnd() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scroll.hasClients) {
-        _scroll.animateTo(
-          _scroll.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-        );
+        Motion.scrollTo(context, _scroll, _scroll.position.maxScrollExtent);
       }
     });
   }
@@ -226,7 +224,7 @@ class _ChatScreenState extends State<ChatScreen> {
         actions: [
           IconButton(
             tooltip: context.t('aih.card_title'),
-            icon: const Icon(Icons.auto_awesome),
+            icon: const Icon(AppIcons.ai),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const AiHubScreen()),
             ),
@@ -240,14 +238,14 @@ class _ChatScreenState extends State<ChatScreen> {
             padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.sm),
             child: Row(
               children: [
-                _badge(context, Icons.smart_toy_outlined,
+                _badge(context, Icons.smart_toy_rounded,
                     context.watch<AppState>().model),
                 if (_ctxName != null) ...[
                   const SizedBox(width: Gap.sm),
                   Flexible(
                     child: _badge(
                       context,
-                      Icons.attach_file,
+                      Icons.attach_file_rounded,
                       context.t('chat.context_badge', {'f': _ctxName}),
                     ),
                   ),
@@ -358,9 +356,9 @@ class _QuickBar extends StatelessWidget {
           children: [
             if (pageLabel != null) ...[
               Padding(
-                padding: const EdgeInsets.only(right: Gap.sm),
+                padding: const EdgeInsetsDirectional.only(end: Gap.sm),
                 child: ActionChip(
-                  avatar: const Icon(Icons.article_outlined, size: 18),
+                  avatar: const Icon(Icons.article_rounded, size: 18),
                   label: Text(context.t('chat.quick_page_summary')),
                   onPressed: enabled
                       ? () => onQuick(context.t('chat.quick_page_summary_prompt',
@@ -369,7 +367,7 @@ class _QuickBar extends StatelessWidget {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.only(right: Gap.sm),
+                padding: const EdgeInsetsDirectional.only(end: Gap.sm),
                 child: ActionChip(
                   avatar: const Icon(Icons.lightbulb_outline_rounded, size: 18),
                   label: Text(context.t('chat.quick_page_explain')),
@@ -382,7 +380,7 @@ class _QuickBar extends StatelessWidget {
             ],
             for (final q in quick)
               Padding(
-                padding: const EdgeInsets.only(right: Gap.sm),
+                padding: const EdgeInsetsDirectional.only(end: Gap.sm),
                 child: ActionChip(
                   label: Text(context.t(q.$1)),
                   onPressed: enabled ? () => onQuick(context.t(q.$2)) : null,
@@ -405,7 +403,7 @@ class _ChatHint extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.smart_toy_outlined,
+            Icon(Icons.smart_toy_rounded,
                 size: 64, color: Theme.of(context).colorScheme.primary),
             const SizedBox(height: 12),
             Text(
@@ -443,7 +441,7 @@ class _Bubble extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final isUser = turn.fromUser;
     return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: isUser ? AlignmentDirectional.centerEnd : AlignmentDirectional.centerStart,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: Gap.xs),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -484,7 +482,7 @@ class _Bubble extends StatelessWidget {
               const SizedBox(height: Gap.sm),
               Divider(height: 1, color: scheme.outlineVariant),
               Align(
-                alignment: Alignment.centerRight,
+                alignment: AlignmentDirectional.centerEnd,
                 child: Wrap(
                   spacing: 4,
                   crossAxisAlignment: WrapCrossAlignment.center,
@@ -502,7 +500,7 @@ class _Bubble extends StatelessWidget {
                           child: ListTile(
                             dense: true,
                             contentPadding: EdgeInsets.zero,
-                            leading: Icon(Icons.description_outlined),
+                            leading: Icon(Icons.description_rounded),
                             title: Text('Word (.docx)'),
                           ),
                         ),
@@ -511,7 +509,7 @@ class _Bubble extends StatelessWidget {
                           child: ListTile(
                             dense: true,
                             contentPadding: EdgeInsets.zero,
-                            leading: Icon(Icons.table_chart_outlined),
+                            leading: Icon(Icons.table_chart_rounded),
                             title: Text('Excel (.xlsx)'),
                           ),
                         ),
@@ -520,7 +518,7 @@ class _Bubble extends StatelessWidget {
                           child: ListTile(
                             dense: true,
                             contentPadding: EdgeInsets.zero,
-                            leading: Icon(Icons.grid_on_outlined),
+                            leading: Icon(Icons.grid_on_rounded),
                             title: Text('CSV (.csv)'),
                           ),
                         ),
@@ -529,7 +527,7 @@ class _Bubble extends StatelessWidget {
                           child: ListTile(
                             dense: true,
                             contentPadding: EdgeInsets.zero,
-                            leading: const Icon(Icons.slideshow_outlined),
+                            leading: const Icon(Icons.slideshow_rounded),
                             title: Text(context.t('chat.export_slides')),
                           ),
                         ),
@@ -540,12 +538,12 @@ class _Bubble extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.ios_share, size: 16),
+                            const Icon(Icons.ios_share_rounded, size: 16),
                             const SizedBox(width: 4),
                             // İpucu uzun ('Dışa aktar'), düğme etiketi kısa:
                             // satır dar ve dört öğe yan yana duruyor.
                             Text(context.t('chat.export_short')),
-                            const Icon(Icons.arrow_drop_down, size: 18),
+                            const Icon(AppIcons.dropDown, size: 18),
                           ],
                         ),
                       ),
@@ -553,14 +551,14 @@ class _Bubble extends StatelessWidget {
                     TextButton.icon(
                       style: _actionStyle,
                       onPressed: () => onCopy(turn.text),
-                      icon: const Icon(Icons.copy_outlined, size: 16),
+                      icon: const Icon(AppIcons.clipCopy, size: 16),
                       label: Text(context.t('common.copy')),
                     ),
                     TextButton.icon(
                       style: _actionStyle,
                       // Hafızaya düz metin yaz (işaretsiz).
                       onPressed: () => onSaveMemory(stripMarkdown(turn.text)),
-                      icon: const Icon(Icons.bookmark_add_outlined, size: 16),
+                      icon: const Icon(Icons.bookmark_add_rounded, size: 16),
                       label: Text(context.t('chat.save_to_memory')),
                     ),
                   ],
@@ -597,7 +595,7 @@ class _Composer extends StatelessWidget {
             IconButton(
               tooltip: context.t('chat.pick_context'),
               onPressed: enabled ? onAttach : null,
-              icon: const Icon(Icons.add),
+              icon: const Icon(AppIcons.add),
             ),
             Expanded(
               child: TextField(
@@ -620,7 +618,7 @@ class _Composer extends StatelessWidget {
                 shape: const CircleBorder(),
                 padding: const EdgeInsets.all(14),
               ),
-              child: const Icon(Icons.send),
+              child: const Icon(AppIcons.send),
             ),
           ],
         ),

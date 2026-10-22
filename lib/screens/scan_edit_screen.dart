@@ -5,7 +5,10 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart' show compute, listEquals;
 import 'package:flutter/material.dart';
 
+import '../core/app_colors.dart';
+import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
+import '../core/motion.dart';
 import '../core/snack.dart';
 import '../core/theme.dart' show OverlayBar;
 import '../services/doc_edges.dart';
@@ -216,7 +219,7 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
       backgroundColor: const Color(0xFF0E0F12),
       appBar: AppBar(
         backgroundColor: const Color(0xFF0E0F12),
-        foregroundColor: Colors.white,
+        foregroundColor: AppColors.onMedia,
         surfaceTintColor: Colors.transparent,
         // Temanın başlık stili KOYU renk taşır; koyu çubukta okunmazdı
         // (bkz. `OverlayBar`). Temanın cetvel çizgisi de siyah zeminde beyaz
@@ -225,7 +228,7 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
         shape: const Border(),
         leading: IconButton(
           tooltip: context.t('common.cancel'),
-          icon: const Icon(Icons.close),
+          icon: const Icon(AppIcons.close),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(context.t('se.crop_title')),
@@ -235,7 +238,7 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Text(context.t('se.open_failed', {'error': _error}),
-                    style: const TextStyle(color: Colors.white)),
+                    style: const TextStyle(color: AppColors.onMedia)),
               ),
             )
           : img == null
@@ -264,14 +267,14 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
             Text(
               context.t('se.crop_hint'),
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70, fontSize: 13),
+              style: const TextStyle(color: AppColors.onMediaSoft, fontSize: 13),
             ),
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   child: _PillButton(
-                    icon: Icons.fit_screen_outlined,
+                    icon: Icons.fit_screen_rounded,
                     label: context.t('se.full_page'),
                     selected: _isFull,
                     onPressed: () => setState(() => _corners = _full(img)),
@@ -280,7 +283,7 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: _PillButton(
-                    icon: Icons.auto_fix_high,
+                    icon: Icons.auto_fix_high_rounded,
                     label: context.t('se.find_edges'),
                     busy: _detecting,
                     onPressed: _detecting ? null : _findEdges,
@@ -294,7 +297,7 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
               child: FilledButton.icon(
                 style: FilledButton.styleFrom(
                   backgroundColor: _accent,
-                  foregroundColor: Colors.white,
+                  foregroundColor: AppColors.onMedia,
                   // Temanın stilinden türetilir: düz `TextStyle` yazı
                   // ailesini düşürüp düğmeyi Roboto'ya çeviriyordu.
                   textStyle: Theme.of(context)
@@ -306,7 +309,7 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
                 ),
                 onPressed: () => Navigator.of(context)
                     .pop(_isFull ? null : List<Offset>.of(_corners)),
-                icon: const Icon(Icons.check_rounded),
+                icon: const Icon(AppIcons.check),
                 label: Text(context.t('se.apply_crop')),
               ),
             ),
@@ -379,7 +382,7 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
           magnificationScale: 1.8,
           decoration: MagnifierDecoration(
             shape: CircleBorder(
-              side: BorderSide(color: Colors.white, width: 2.5),
+              side: BorderSide(color: AppColors.onMedia, width: 2.5),
             ),
             shadows: [
               BoxShadow(
@@ -421,14 +424,14 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
           height: touch,
           child: Center(
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 120),
+              duration: Motion.of(context, Motion.short),
               width: active ? 28 : 24,
               height: active ? 28 : 24,
               decoration: BoxDecoration(
-                color: active ? _accent : Colors.white,
+                color: active ? _accent : AppColors.onMedia,
                 shape: BoxShape.circle,
                 border: Border.all(
-                    color: active ? Colors.white : _accent, width: 3),
+                    color: active ? AppColors.onMedia : _accent, width: 3),
                 boxShadow: const [
                   BoxShadow(color: Color(0x66000000), blurRadius: 6),
                 ],
@@ -472,10 +475,10 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
                 width: 30,
                 height: 10,
                 decoration: BoxDecoration(
-                  color: active ? _accent : Colors.white,
+                  color: active ? _accent : AppColors.onMedia,
                   borderRadius: BorderRadius.circular(5),
                   border: Border.all(
-                      color: active ? Colors.white : _accent, width: 2),
+                      color: active ? AppColors.onMedia : _accent, width: 2),
                   boxShadow: const [
                     BoxShadow(color: Color(0x66000000), blurRadius: 5),
                   ],
@@ -510,11 +513,11 @@ class _PillButton extends StatelessWidget {
     return OutlinedButton.icon(
       style: OutlinedButton.styleFrom(
         minimumSize: const Size.fromHeight(46),
-        foregroundColor: Colors.white,
+        foregroundColor: AppColors.onMedia,
         backgroundColor:
-            selected ? Colors.white.withValues(alpha: 0.14) : Colors.transparent,
+            selected ? AppColors.onMedia.withValues(alpha: 0.14) : Colors.transparent,
         side: BorderSide(
-            color: Colors.white.withValues(alpha: selected ? 0.7 : 0.3)),
+            color: AppColors.onMedia.withValues(alpha: selected ? 0.7 : 0.3)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       onPressed: onPressed,
@@ -523,7 +526,7 @@ class _PillButton extends StatelessWidget {
               width: 18,
               height: 18,
               child: CircularProgressIndicator(
-                  strokeWidth: 2, color: Colors.white),
+                  strokeWidth: 2, color: AppColors.onMedia),
             )
           : Icon(icon, size: 20),
       label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -573,13 +576,13 @@ class _QuadPainter extends CustomPainter {
         Path()..addRect(Offset.zero & size),
         path,
       ),
-      Paint()..color = Colors.black.withValues(alpha: 0.6),
+      Paint()..color = AppColors.mediaSurface.withValues(alpha: 0.6),
     );
 
     // Sürüklerken üçte bir ızgarası: satırların düz durup durmadığı görülür.
     if (showGrid) {
       final grid = Paint()
-        ..color = Colors.white.withValues(alpha: 0.45)
+        ..color = AppColors.onMedia.withValues(alpha: 0.45)
         ..strokeWidth = 1;
       Offset lerp(Offset a, Offset b, double t) => a + (b - a) * t;
       for (final t in const [1 / 3, 2 / 3]) {

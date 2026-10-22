@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
@@ -195,7 +196,7 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
         leading: _searching
             ? IconButton(
                 tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-                icon: const Icon(Icons.arrow_back),
+                icon: const Icon(AppIcons.back),
                 onPressed: () => setState(() {
                   _searching = false;
                   _query = '';
@@ -214,12 +215,12 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
           if (!_searching)
             IconButton(
               tooltip: context.t('common.search'),
-              icon: const Icon(Icons.search),
+              icon: const Icon(AppIcons.search),
               onPressed: () => setState(() => _searching = true),
             ),
           IconButton(
             tooltip: context.t('common.rescan'),
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(AppIcons.refresh),
             onPressed: _scanning ? null : _scan,
           ),
         ],
@@ -244,14 +245,14 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
               ),
             )
           : _groups.isEmpty
-              ? FmEmptyState(icon: Icons.verified_outlined, title: context.t('dup.none'))
+              ? FmEmptyState(icon: Icons.verified_rounded, title: context.t('dup.none'))
               : Column(
                   children: [
                     Padding(
                       padding: const EdgeInsets.all(Gap.md),
                       child: Row(
                         children: [
-                          const Icon(Icons.cleaning_services_outlined),
+                          const Icon(Icons.cleaning_services_rounded),
                           const SizedBox(width: Gap.sm),
                           Expanded(
                             child: Text(
@@ -291,7 +292,7 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
                 padding: const EdgeInsets.all(Gap.md),
                 child: FilledButton.icon(
                   onPressed: _deleteSelected,
-                  icon: const Icon(Icons.delete_outline),
+                  icon: const Icon(AppIcons.delete),
                   label: Text('${deleteActionText(
                     useTrash: context.watch<AppState>().fmUseTrash,
                     what: context.t('dup.n_copies', {'n': selectedFiles.length}),
@@ -353,7 +354,7 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
           ),
           if (keep && !selected)
             Padding(
-              padding: const EdgeInsets.only(left: Gap.sm),
+              padding: const EdgeInsetsDirectional.only(start: Gap.sm),
               child: Text(context.t('common.oldest'),
                   style: Theme.of(context).textTheme.bodySmall),
             ),

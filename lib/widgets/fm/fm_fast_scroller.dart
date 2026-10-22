@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 
 import '../../core/l10n/app_strings.dart';
+import '../../core/motion.dart';
 
 /// Kaydırma çubuğundaki bir işaret (ör. yıl başlangıcı): [offset] kaydırma
 /// ekseninde (ScrollPosition.pixels cinsinden) nerede başladığı.
@@ -206,7 +207,7 @@ class _FmFastScrollerState extends State<FmFastScroller> {
               ignoring: !shown,
               child: AnimatedOpacity(
                 opacity: shown ? 1 : 0,
-                duration: const Duration(milliseconds: 180),
+                duration: Motion.of(context, Motion.short),
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onVerticalDragStart: (d) {
@@ -230,7 +231,7 @@ class _FmFastScrollerState extends State<FmFastScroller> {
                       width: _thumbWidth + 18,
                       height: _thumbHeight,
                       child: Align(
-                        alignment: Alignment.centerRight,
+                        alignment: AlignmentDirectional.centerEnd,
                         child: Container(
                           width: _thumbWidth,
                           height: _thumbHeight,
@@ -250,7 +251,7 @@ class _FmFastScrollerState extends State<FmFastScroller> {
                             ],
                           ),
                           child: Icon(
-                            Icons.unfold_more,
+                            Icons.unfold_more_rounded,
                             size: 20,
                             color: _dragging
                                 ? scheme.onPrimary

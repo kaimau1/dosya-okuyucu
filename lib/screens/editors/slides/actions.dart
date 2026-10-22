@@ -223,11 +223,7 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
     final index = (number - 1).clamp(0, _slideCount - 1);
     final target = _slideOffset(index)
         .clamp(0.0, _vCtrl.position.maxScrollExtent);
-    await _vCtrl.animateTo(
-      target,
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOut,
-    );
+    await Motion.scrollTo(context, _vCtrl, target);
     if (mounted) _partSetState(() => _currentSlide = index + 1);
   }
 

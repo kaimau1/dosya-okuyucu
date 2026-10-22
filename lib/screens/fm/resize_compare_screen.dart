@@ -3,7 +3,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/app_colors.dart';
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/motion.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -148,8 +151,7 @@ class _ResizeCompareScreenState extends State<ResizeCompareScreen> {
 
   void _next() {
     if (_page + 1 < _items.length) {
-      _controller.nextPage(
-          duration: const Duration(milliseconds: 220), curve: Curves.easeOut);
+      Motion.toPage(context, _controller, _page + 1);
     } else {
       Navigator.of(context).maybePop();
     }
@@ -180,7 +182,7 @@ class _ResizeCompareScreenState extends State<ResizeCompareScreen> {
         ),
       ),
       body: _items.isEmpty
-          ? FmEmptyState(icon: Icons.compare_outlined, title: context.t('rc.empty'))
+          ? FmEmptyState(icon: Icons.compare_rounded, title: context.t('rc.empty'))
           : PageView.builder(
               controller: _controller,
               itemCount: _items.length,
@@ -200,7 +202,7 @@ class _ResizeCompareScreenState extends State<ResizeCompareScreen> {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        icon: const Icon(Icons.delete_sweep_outlined),
+                        icon: const Icon(Icons.delete_sweep_rounded),
                         label: Text(context.t('rc.trash_all_old')),
                         onPressed: _trashAllOld,
                       ),
@@ -208,7 +210,7 @@ class _ResizeCompareScreenState extends State<ResizeCompareScreen> {
                     const SizedBox(width: Gap.sm),
                     Expanded(
                       child: FilledButton.icon(
-                        icon: const Icon(Icons.check),
+                        icon: const Icon(AppIcons.check),
                         label: Text(context.t('rc.keep_all')),
                         onPressed: () => Navigator.of(context).maybePop(),
                       ),
@@ -284,18 +286,18 @@ class _PairPage extends StatelessWidget {
           children: [
             if (!item.oldGone && !item.newGone)
               FilledButton.icon(
-                icon: const Icon(Icons.delete_outline),
+                icon: const Icon(AppIcons.delete),
                 label: Text(context.t('rc.trash_old')),
                 onPressed: onTrashOld,
               ),
             if (!item.newGone)
               OutlinedButton.icon(
-                icon: const Icon(Icons.delete_outline),
+                icon: const Icon(AppIcons.delete),
                 label: Text(context.t('rc.trash_new')),
                 onPressed: onTrashNew,
               ),
             OutlinedButton.icon(
-              icon: const Icon(Icons.check),
+              icon: const Icon(AppIcons.check),
               label: Text(context.t('rc.keep_both')),
               onPressed: onNext,
             ),
@@ -341,7 +343,7 @@ class _SingleImage extends StatelessWidget {
             image: FmFileImage(path, cacheWidth: 1200),
             fit: BoxFit.contain,
             errorBuilder: (_, __, ___) =>
-                const Center(child: Icon(Icons.broken_image_outlined)),
+                const Center(child: Icon(Icons.broken_image_rounded)),
           ),
         ),
       );
@@ -367,7 +369,7 @@ class _BeforeAfterState extends State<_BeforeAfter> {
         width: double.infinity,
         height: double.infinity,
         errorBuilder: (_, __, ___) =>
-            const Center(child: Icon(Icons.broken_image_outlined)),
+            const Center(child: Icon(Icons.broken_image_rounded)),
       );
 
   @override
@@ -412,7 +414,7 @@ class _BeforeAfterState extends State<_BeforeAfter> {
                         color: scheme.primary,
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(Icons.swap_horiz,
+                      child: Icon(Icons.swap_horiz_rounded,
                           size: 20, color: scheme.onPrimary),
                     ),
                   ),
@@ -453,7 +455,7 @@ class _Tag extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(text,
-            style: const TextStyle(color: Colors.white, fontSize: 11)),
+            style: const TextStyle(color: AppColors.onMedia, fontSize: 11)),
       );
 }
 
@@ -486,9 +488,9 @@ class _VideoSideBySide extends StatelessWidget {
                       ),
                     Center(
                       child: Icon(
-                          gone ? Icons.delete_outline : Icons.play_circle_fill,
+                          gone ? AppIcons.delete : Icons.play_circle_fill_rounded,
                           size: 44,
-                          color: Colors.white70),
+                          color: AppColors.onMediaSoft),
                     ),
                     Positioned(left: 8, top: 8, child: _Tag(label)),
                   ],

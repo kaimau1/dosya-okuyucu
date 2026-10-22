@@ -22,7 +22,7 @@ class _TagsTabState extends State<_TagsTab> with AutomaticKeepAliveClientMixin {
       builder: (context, _, __) {
         if (AiIndex.count == 0) {
           return _EmptyHint(
-            icon: Icons.label_outline,
+            icon: Icons.label_outline_rounded,
             title: context.t('aih.tags_empty'),
             body: context.t('aih.tags_empty_sub'),
           );
@@ -52,7 +52,7 @@ class _TagsTabState extends State<_TagsTab> with AutomaticKeepAliveClientMixin {
                 padding: const EdgeInsets.symmetric(horizontal: Gap.md),
                 children: [
                   Padding(
-                    padding: const EdgeInsets.only(right: Gap.xs, top: Gap.xs),
+                    padding: const EdgeInsetsDirectional.only(end: Gap.xs, top: Gap.xs),
                     child: FilterChip(
                       label: Text(context.t('aih.filter_important')),
                       selected: _onlyImportant,
@@ -62,7 +62,7 @@ class _TagsTabState extends State<_TagsTab> with AutomaticKeepAliveClientMixin {
                   for (final entry in counts)
                     Padding(
                       padding:
-                          const EdgeInsets.only(right: Gap.xs, top: Gap.xs),
+                          const EdgeInsetsDirectional.only(end: Gap.xs, top: Gap.xs),
                       child: FilterChip(
                         label: Text(
                             '${AiBuckets.label(entry.key)} (${entry.value})'),
@@ -142,7 +142,7 @@ class _SuggestionsTab extends StatelessWidget {
                     ),
                   ),
                   FilledButton.icon(
-                    icon: const Icon(Icons.auto_fix_high),
+                    icon: const Icon(Icons.auto_fix_high_rounded),
                     label: Text(
                         context.t('aih.apply_all', {'n': suggestions.length})),
                     onPressed: () => _applyAll(context, suggestions),
@@ -198,7 +198,7 @@ class _ReportTab extends StatelessWidget {
         ];
         if (analyzed.isEmpty) {
           return _EmptyHint(
-            icon: Icons.insights_outlined,
+            icon: Icons.insights_rounded,
             title: context.t('aih.report_empty'),
             body: context.t('aih.report_empty_sub'),
           );
@@ -218,7 +218,7 @@ class _ReportTab extends StatelessWidget {
             // ── Yapılacak işler ──────────────────────────────────────────
             if (suggestions.isNotEmpty)
               _ActionCard(
-                icon: Icons.auto_fix_high,
+                icon: Icons.auto_fix_high_rounded,
                 title:
                     context.t('aih.card_sug_title', {'n': suggestions.length}),
                 body: context.t('aih.card_sug_body'),
@@ -228,7 +228,7 @@ class _ReportTab extends StatelessWidget {
               ),
             if (disposable.isNotEmpty)
               _ActionCard(
-                icon: Icons.cleaning_services_outlined,
+                icon: Icons.cleaning_services_rounded,
                 title: context.t('aih.card_junk_title', {
                   'n': disposable.length,
                   'size': FsPaths.humanSize(AiBuckets.totalBytes(disposable)),
@@ -242,7 +242,7 @@ class _ReportTab extends StatelessWidget {
             const SizedBox(height: Gap.sm),
             // ── Kovalar (hepsi tıklanabilir) ─────────────────────────────
             _ReportRow(
-              icon: Icons.folder_open,
+              icon: Icons.folder_open_rounded,
               label: context.t('aih.report_analyzed'),
               value: '${analyzed.length}',
               sub: FsPaths.humanSize(AiBuckets.totalBytes(analyzed)),
@@ -250,14 +250,14 @@ class _ReportTab extends StatelessWidget {
                   context, AiBucket.all, context.t('aih.report_analyzed')),
             ),
             _ReportRow(
-              icon: Icons.star_outline,
+              icon: Icons.star_outline_rounded,
               label: context.t('aih.report_important'),
               value: '${important.length}',
               onTap: () => _openBucket(context, AiBucket.important,
                   context.t('aih.report_important')),
             ),
             _ReportRow(
-              icon: Icons.delete_outline,
+              icon: AppIcons.delete,
               label: context.t('aih.report_junk'),
               value: '${disposable.length}',
               sub: FsPaths.humanSize(AiBuckets.totalBytes(disposable)),
@@ -265,7 +265,7 @@ class _ReportTab extends StatelessWidget {
                   context, AiBucket.disposable, context.t('aih.report_junk')),
             ),
             _ReportRow(
-              icon: Icons.inbox_outlined,
+              icon: Icons.inbox_rounded,
               label: context.t('aih.report_low'),
               value: '${lowValue.length}',
               sub: FsPaths.humanSize(AiBuckets.totalBytes(lowValue)),
@@ -294,7 +294,7 @@ class _ReportTab extends StatelessWidget {
                   children: [
                     Text('${entry.value}'),
                     const SizedBox(width: Gap.xs),
-                    const Icon(Icons.chevron_right, size: 18),
+                    const Icon(AppIcons.chevron, size: 18),
                   ],
                 ),
                 onTap: () => _openBucket(
@@ -340,15 +340,15 @@ class _AnalysisStats extends StatelessWidget {
     final suggestions = AiBuckets.of(AiBucket.suggestions, source: analyzed);
     final tiles = [
       _StatTile(
-        icon: Icons.star_rounded,
-        color: const Color(0xFFE39B2E),
+        icon: AppIcons.star,
+        color: AppHues.honey,
         value: '${important.length}',
         label: context.t('aih.report_important'),
         onTap: () => onOpenTab(2),
       ),
       _StatTile(
         icon: Icons.delete_sweep_rounded,
-        color: const Color(0xFFD9433B),
+        color: AppHues.red,
         value: '${disposable.length}',
         label: disposable.isEmpty
             ? context.t('aih.report_junk')
@@ -358,14 +358,14 @@ class _AnalysisStats extends StatelessWidget {
       ),
       _StatTile(
         icon: Icons.auto_fix_high_rounded,
-        color: const Color(0xFF8B4FD1),
+        color: AppHues.purple,
         value: '${suggestions.length}',
         label: context.t('aih.report_suggestions'),
         onTap: () => onOpenTab(3),
       ),
       _StatTile(
         icon: Icons.forum_rounded,
-        color: const Color(0xFF12998A),
+        color: AppHues.sea,
         value: '${analyzed.length}',
         label: context.t('aih.ask_files'),
         onTap: () => onOpenTab(1),
@@ -527,7 +527,7 @@ class _ReportRow extends StatelessWidget {
             Text(value,
                 style:
                     const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-            if (onTap != null) const Icon(Icons.chevron_right),
+            if (onTap != null) const Icon(AppIcons.chevron),
           ],
         ),
         onTap: onTap,

@@ -84,7 +84,7 @@ extension _SpreadsheetEditorScreenFindReplacePart on _SpreadsheetEditorScreenSta
         color: scheme.surface,
         border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
       ),
-      padding: const EdgeInsets.fromLTRB(8, 0, 4, 6),
+      padding: const EdgeInsetsDirectional.fromSTEB(8, 0, 4, 6),
       child: Row(
         children: [
           Expanded(
@@ -94,7 +94,7 @@ extension _SpreadsheetEditorScreenFindReplacePart on _SpreadsheetEditorScreenSta
               decoration: DocFindBar.decoration(
                 context,
                 hint: context.t('excel.replace_with'),
-                icon: Icons.find_replace,
+                icon: Icons.find_replace_rounded,
               ),
             ),
           ),

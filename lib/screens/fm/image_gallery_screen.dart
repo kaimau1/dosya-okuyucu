@@ -4,9 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/app_colors.dart';
+import '../../core/app_icons.dart';
 import '../../core/busy_dialog.dart';
 import '../../core/image_budget.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/motion.dart';
 import '../../core/theme.dart';
 import '../../models/document.dart';
 import '../../models/fs_entry.dart';
@@ -37,8 +40,8 @@ Route<void> imageGalleryRoute({
 }) =>
     PageRouteBuilder<void>(
       opaque: false,
-      transitionDuration: const Duration(milliseconds: 260),
-      reverseTransitionDuration: const Duration(milliseconds: 220),
+      transitionDuration: Motion.long,
+      reverseTransitionDuration: Motion.medium,
       pageBuilder: (_, __, ___) =>
           ImageGalleryScreen(paths: paths, initialIndex: initialIndex),
       transitionsBuilder: (_, animation, __, child) => FadeTransition(
@@ -93,7 +96,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     super.initState();
     _snap = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 200),
+      duration: Motion.medium,
     )..addListener(() {
         final t = Curves.easeOutCubic.transform(_snap.value);
         setState(() => _dragDy = _snapFrom * (1 - t));
@@ -275,7 +278,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           ignoring: chromeOpacity == 0,
           child: AnimatedOpacity(
             opacity: chromeOpacity,
-            duration: const Duration(milliseconds: 180),
+            duration: Motion.of(context, Motion.short),
             child: child,
           ),
         );
@@ -296,7 +299,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           children: [
             Positioned.fill(
               child: ColoredBox(
-                color: Colors.black.withValues(alpha: 1 - progress),
+                color: AppColors.mediaSurface.withValues(alpha: 1 - progress),
               ),
             ),
             Positioned.fill(
@@ -358,7 +361,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                     padding: EdgeInsets.fromLTRB(4, padding.top + 4, 4, 28),
                     child: Row(
                       children: [
-                        const BackButton(color: Colors.white),
+                        const BackButton(color: AppColors.onMedia),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Column(
@@ -383,7 +386,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                           ),
                         ),
                         PopupMenuButton<String>(
-                          icon: const Icon(Icons.more_vert, color: Colors.white),
+                          icon: const Icon(AppIcons.more, color: AppColors.onMedia),
                           onSelected: (v) async {
                             switch (v) {
                               case 'viewer':
@@ -435,12 +438,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                         Row(
                           children: [
                             _GalleryAction(
-                              icon: Icons.share_outlined,
+                              icon: AppIcons.share,
                               label: context.t('common.share'),
                               onTap: () => shareEntriesFrom(context, [_current]),
                             ),
                             _GalleryAction(
-                              icon: Icons.tune,
+                              icon: AppIcons.tune,
                               label: context.t('ied.title'),
                               onTap: _edit,
                             ),
@@ -448,24 +451,24 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                             // eylem sayfasındaydı; "fotoğrafı küçült" galerinin
                             // en sık işlerinden biri.
                             _GalleryAction(
-                              icon: Icons.photo_size_select_large,
+                              icon: Icons.photo_size_select_large_rounded,
                               label: context.t('gal.resize'),
                               onTap: () =>
                                   startResizeJob(context, [_currentEntry]),
                             ),
                             _GalleryAction(
-                              icon: Icons.document_scanner_outlined,
+                              icon: AppIcons.ocr,
                               label: context.t('gal.tools'),
                               onTap: _openInViewer,
                             ),
                             _GalleryAction(
-                              icon: Icons.info_outline,
+                              icon: AppIcons.info,
                               label: context.t('gal.info'),
                               onTap: () =>
                                   showProperties(context, _currentEntry),
                             ),
                             _GalleryAction(
-                              icon: Icons.delete_outline,
+                              icon: AppIcons.delete,
                               label: context.t('common.delete'),
                               onTap: _delete,
                             ),

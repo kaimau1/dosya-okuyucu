@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/safe_insets.dart';
@@ -49,7 +50,7 @@ class _SmartFoldersScreenState extends State<SmartFoldersScreen> {
       appBar: AppBar(title: Text(context.t('smart.title'))),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _create,
-        icon: const Icon(Icons.create_new_folder_outlined),
+        icon: const Icon(AppIcons.newFolder),
         label: Text(context.t('smart.create')),
       ),
       body: ListenableBuilder(

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_colors.dart';
+import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_language.dart';
 import '../../core/l10n/app_strings.dart';
@@ -127,7 +129,7 @@ class SettingsCategory {
   const SettingsCategory({
     required this.id,
     required this.icon,
-    this.color = const Color(0xFF3E6FD8),
+    this.color = AppHues.royal,
     required this.titleKey,
     required this.subtitleKey,
     required this.sections,
@@ -145,8 +147,8 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
       // ── 1. GÖRÜNÜM VE DİL ────────────────────────────────────────────────
       SettingsCategory(
         id: 'appearance',
-        color: const Color(0xFF8B4FD1),
-        icon: Icons.palette_outlined,
+        color: AppHues.purple,
+        icon: Icons.palette_rounded,
         titleKey: 'set.cat_appearance',
         subtitleKey: 'set.cat_appearance_sub',
         summary: (context) {
@@ -214,8 +216,8 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
       // ── 2. DOSYA LİSTELERİ ───────────────────────────────────────────────
       SettingsCategory(
         id: 'browsing',
-        color: const Color(0xFFE39B2E),
-        icon: Icons.view_list_outlined,
+        color: AppHues.honey,
+        icon: Icons.view_list_rounded,
         titleKey: 'set.cat_browsing',
         subtitleKey: 'set.cat_browsing_sub',
         summary: (context) {
@@ -285,8 +287,8 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
       // kullanıcı bir belge açmadan sesini seçemiyordu.
       SettingsCategory(
         id: 'reading',
-        color: const Color(0xFF12998A),
-        icon: Icons.record_voice_over_outlined,
+        color: AppHues.sea,
+        icon: Icons.record_voice_over_rounded,
         titleKey: 'set.cat_reading',
         subtitleKey: 'set.cat_reading_sub',
         summary: (context) {
@@ -315,8 +317,8 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
       // ── 4. YAPAY ZEKÂ ────────────────────────────────────────────────────
       SettingsCategory(
         id: 'ai',
-        color: const Color(0xFF3E6FD8),
-        icon: Icons.auto_awesome_outlined,
+        color: AppHues.royal,
+        icon: AppIcons.ai,
         titleKey: 'set.cat_ai',
         subtitleKey: 'set.cat_ai_sub',
         summary: (context) {
@@ -393,8 +395,8 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
       // erişiyor" (birleştirme, 2026-08-29).
       SettingsCategory(
         id: 'privacy',
-        color: const Color(0xFF3A9A4A),
-        icon: Icons.shield_outlined,
+        color: AppHues.leaf,
+        icon: Icons.shield_rounded,
         titleKey: 'set.cat_privacy',
         subtitleKey: 'set.cat_privacy_sub',
         summary: (context) {
@@ -451,8 +453,8 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
       // bakım işleri (dizin, önbellek, birimler) Gelişmiş'e indi.
       SettingsCategory(
         id: 'storage',
-        color: const Color(0xFFD9433B),
-        icon: Icons.speed_outlined,
+        color: AppHues.red,
+        icon: Icons.speed_rounded,
         titleKey: 'set.cat_storage',
         subtitleKey: 'set.cat_storage_sub',
         summary: (context) {
@@ -557,8 +559,8 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
       // ── 7. HAKKINDA ──────────────────────────────────────────────────────
       SettingsCategory(
         id: 'about',
-        color: const Color(0xFF76808C),
-        icon: Icons.info_outline,
+        color: AppHues.gray,
+        icon: AppIcons.info,
         titleKey: 'settings.about',
         subtitleKey: 'settings.about_sub',
         summary: (context) => 'v$appVersionName',
@@ -586,7 +588,7 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
         SettingsCategory(
           id: 'developer',
           color: const Color(0xFF5B6470),
-          icon: Icons.developer_mode_outlined,
+          icon: Icons.developer_mode_rounded,
           titleKey: 'dev.title',
           subtitleKey: 'dev.sub',
           summary: (context) => context.t('dev.on'),

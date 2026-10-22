@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/app_icons.dart';
 import '../../../core/app_state.dart';
 import '../../../core/l10n/app_strings.dart';
 import '../../../models/remote_connection.dart';
@@ -143,7 +144,7 @@ class _RemoteConnectionsScreenState extends State<RemoteConnectionsScreen> {
           // kapısı bu köşe değil.
           IconButton(
             tooltip: context.t('ftpd.title'),
-            icon: const Icon(Icons.phonelink_outlined),
+            icon: const Icon(Icons.phonelink_rounded),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const FtpServerScreen()),
             ),
@@ -157,7 +158,7 @@ class _RemoteConnectionsScreenState extends State<RemoteConnectionsScreen> {
               padding: const EdgeInsets.fromLTRB(24, 32, 24, 16),
               child: Column(
                 children: [
-                  const Icon(Icons.dns_outlined, size: 48),
+                  const Icon(Icons.dns_rounded, size: 48),
                   const SizedBox(height: 12),
                   Text(context.t('nas.empty'), textAlign: TextAlign.center),
                 ],
@@ -166,7 +167,7 @@ class _RemoteConnectionsScreenState extends State<RemoteConnectionsScreen> {
           else
             for (final connection in remotes)
               ListTile(
-                leading: const Icon(Icons.dns_outlined),
+                leading: const Icon(Icons.dns_rounded),
                 title: Text(connection.name,
                     maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: Text(connection.summary,
@@ -194,7 +195,7 @@ class _RemoteConnectionsScreenState extends State<RemoteConnectionsScreen> {
                 Expanded(
                   child: FilledButton.icon(
                     onPressed: () => _add(),
-                    icon: const Icon(Icons.add),
+                    icon: const Icon(AppIcons.add),
                     label: Text(context.t('nas.add')),
                   ),
                 ),
@@ -207,7 +208,7 @@ class _RemoteConnectionsScreenState extends State<RemoteConnectionsScreen> {
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.wifi_find),
+                        : const Icon(Icons.wifi_find_rounded),
                     label: Text(context
                         .t(_scanning ? 'nas.scanning' : 'nas.scan')),
                   ),
@@ -225,10 +226,10 @@ class _RemoteConnectionsScreenState extends State<RemoteConnectionsScreen> {
             ),
             for (final host in _found.values)
               ListTile(
-                leading: const Icon(Icons.lan_outlined),
+                leading: const Icon(Icons.lan_rounded),
                 title: Text('${host.name}  ·  ${host.protocol.label}'),
                 subtitle: Text('${host.host}:${host.port}'),
-                trailing: const Icon(Icons.add_circle_outline),
+                trailing: const Icon(Icons.add_circle_outline_rounded),
                 onTap: () => _add(
                   prefill: RemoteConnection(
                     id: '',

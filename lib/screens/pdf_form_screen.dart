@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:path/path.dart' as p;
 
+import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
 import '../services/pdf/pdf_form.dart';
@@ -165,7 +166,7 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
                               width: 16,
                               height: 16,
                               child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.save_outlined),
+                          : const Icon(AppIcons.save),
                       label: Text(context.t('pf.save')),
                     ),
                   ],
@@ -181,7 +182,7 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.article_outlined,
+              Icon(Icons.article_rounded,
                   size: 48, color: Paper.faint(context)),
               const SizedBox(height: Gap.md),
               Text(context.t('pf.no_fields'), textAlign: TextAlign.center),
@@ -234,7 +235,7 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
         subtitle: Text(field.value.isEmpty
             ? context.t('pf.read_only')
             : '${field.value} · ${context.t('pf.read_only')}'),
-        leading: const Icon(Icons.lock_outline),
+        leading: const Icon(AppIcons.lock),
       );
     }
     switch (field.kind) {

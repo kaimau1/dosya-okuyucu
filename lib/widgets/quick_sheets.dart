@@ -4,8 +4,10 @@ import 'package:google_mlkit_translation/google_mlkit_translation.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../core/app_icons.dart';
 import '../core/app_state.dart';
 import '../core/l10n/app_strings.dart';
+import '../core/motion.dart';
 import '../services/gemini_service.dart';
 import '../services/lang_detect.dart';
 import '../services/translate_service.dart';
@@ -69,7 +71,7 @@ class _CardHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 6, 4),
+      padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 6, 4),
       child: Row(
         children: [
           Container(
@@ -91,7 +93,7 @@ class _CardHeader extends StatelessWidget {
           IconButton(
             tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
             onPressed: () => Navigator.maybePop(context),
-            icon: const Icon(Icons.close_rounded, size: 20),
+            icon: const Icon(AppIcons.close, size: 20),
           ),
         ],
       ),
@@ -244,7 +246,7 @@ class _QuickTranslateState extends State<_QuickTranslate> {
                       .labelLarge
                       ?.copyWith(fontWeight: FontWeight.w600)),
             ),
-            const Icon(Icons.arrow_drop_down_rounded, size: 20),
+            const Icon(AppIcons.dropDown, size: 20),
           ],
         ),
       ),
@@ -261,7 +263,7 @@ class _QuickTranslateState extends State<_QuickTranslate> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _CardHeader(
-          icon: Icons.translate_rounded,
+          icon: AppIcons.translate,
           title: widget.title ?? context.t('tf.title'),
         ),
         Padding(
@@ -335,12 +337,12 @@ class _QuickTranslateState extends State<_QuickTranslate> {
                         await Clipboard.setData(ClipboardData(text: result));
                         if (context.mounted) Navigator.maybePop(context);
                       },
-                icon: const Icon(Icons.copy_rounded, size: 18),
+                icon: const Icon(AppIcons.clipCopy, size: 18),
                 label: Text(context.t('common.copy')),
               ),
               TextButton.icon(
                 onPressed: result == null ? null : () => Share.share(result),
-                icon: const Icon(Icons.share_rounded, size: 18),
+                icon: const Icon(AppIcons.share, size: 18),
                 label: Text(context.t('common.share')),
               ),
             ],
@@ -471,7 +473,7 @@ class _QuickAiState extends State<_QuickAi> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _CardHeader(
-          icon: Icons.auto_awesome_rounded,
+          icon: AppIcons.ai,
           title: context.t('vw.ask_ai_selection'),
         ),
         Padding(
@@ -505,7 +507,7 @@ class _QuickAiState extends State<_QuickAi> {
         ),
         Flexible(
           child: AnimatedSize(
-            duration: const Duration(milliseconds: 200),
+            duration: Motion.of(context, Motion.medium),
             alignment: Alignment.topCenter,
             child: SingleChildScrollView(
               padding: withNavInset(
@@ -559,14 +561,14 @@ class _QuickAiState extends State<_QuickAi> {
                         final q = _question.text.trim();
                         if (q.isNotEmpty) _ask(q);
                       },
-                icon: const Icon(Icons.arrow_upward_rounded),
+                icon: const Icon(AppIcons.arrowUp),
               ),
               if (_answer != null)
                 IconButton(
                   tooltip: context.t('common.copy'),
                   onPressed: () =>
                       Clipboard.setData(ClipboardData(text: _answer!)),
-                  icon: const Icon(Icons.copy_rounded),
+                  icon: const Icon(AppIcons.clipCopy),
                 ),
             ],
           ),

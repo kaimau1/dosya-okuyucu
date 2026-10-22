@@ -489,7 +489,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
   PreferredSizeWidget _searchBar() => AppBar(
         leading: IconButton(
           tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(AppIcons.back),
           onPressed: _closeSearch,
         ),
         title: FmSearchField(
@@ -501,7 +501,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
           if (_query.isNotEmpty)
             IconButton(
               tooltip: context.t('common.clear'),
-              icon: const Icon(Icons.clear),
+              icon: const Icon(AppIcons.close),
               onPressed: () => setState(() {
                 _query = '';
                 _searchController.clear();
@@ -520,7 +520,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
       AppBar(
         leading: IconButton(
           tooltip: context.t('common.clear_selection'),
-          icon: const Icon(Icons.close),
+          icon: const Icon(AppIcons.close),
           onPressed: () => setState(_selected.clear),
         ),
         // Sayaç EYLEMLE aynı kümeyi sayar (bkz. [_selectedEntries]).

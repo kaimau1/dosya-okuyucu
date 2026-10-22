@@ -35,6 +35,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -371,7 +372,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(
-            icon: Icon(_atRoot ? Icons.close : Icons.arrow_back),
+            icon: Icon(_atRoot ? AppIcons.close : AppIcons.back),
             tooltip: context.t('common.cancel'),
             onPressed: _onBack,
           ),
@@ -383,7 +384,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
               TextButton.icon(
                 key: const ValueKey('pick-other-sources'),
                 onPressed: PickerBridge.otherSources,
-                icon: const Icon(Icons.apps_outlined, size: 18),
+                icon: const Icon(Icons.apps_rounded, size: 18),
                 label: Text(context.t('pick.other_sources')),
               ),
           ],
@@ -443,12 +444,12 @@ class _PickFileScreenState extends State<PickFileScreen> {
                           _request.kindLabel.isNotEmpty
                       ? context.t('pick.filter_hint', {'kind': _request.kindLabel})
                       : context.t('pick.search_hint'),
-                  prefixIcon: const Icon(Icons.search),
+                  prefixIcon: const Icon(AppIcons.search),
                   suffixIcon: _search.text.isEmpty
                       ? null
                       : IconButton(
                           tooltip: context.t('common.clear'),
-                          icon: const Icon(Icons.clear),
+                          icon: const Icon(AppIcons.close),
                           onPressed: () {
                             _search.clear();
                             if (_view == _PickView.matches) {
@@ -469,7 +470,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
                 child: Padding(
                   padding: const EdgeInsets.all(Gap.md),
                   child: FilledButton.icon(
-                    icon: const Icon(Icons.check),
+                    icon: const Icon(AppIcons.check),
                     label: Text(
                         context.t('pick.select_n', {'n': _selected.length})),
                     onPressed: _selected.isEmpty
@@ -498,7 +499,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
     if (_view == _PickView.matches) return _matchesView();
     if (_entries.isEmpty) {
       return FmEmptyState(
-        icon: Icons.folder_off_outlined,
+        icon: Icons.folder_off_rounded,
         title: context.t('pick.empty'),
       );
     }
@@ -581,12 +582,12 @@ class _PickFileScreenState extends State<PickFileScreen> {
             ],
             _chip(
               label: context.t(_byName ? 'pick.sort_name' : 'pick.sort_newest'),
-              icon: Icons.swap_vert,
+              icon: Icons.swap_vert_rounded,
               onTap: () => setState(() => _byName = !_byName),
             ),
             _chip(
               label: context.t('pick.browse_folders'),
-              icon: Icons.folder_open_outlined,
+              icon: Icons.folder_open_rounded,
               onTap: () {
                 _search.clear();
                 _loadHome();
@@ -619,7 +620,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
                 _search.clear();
                 _loadHome();
               },
-              icon: const Icon(Icons.folder_open_outlined),
+              icon: const Icon(Icons.folder_open_rounded),
               label: Text(context.t('pick.browse_folders')),
             ),
           ),
@@ -703,13 +704,13 @@ class _PickFileScreenState extends State<PickFileScreen> {
             children: [
               for (final folder in folders)
                 ActionChip(
-                  avatar: const Icon(Icons.folder_outlined, size: 18),
+                  avatar: const Icon(AppIcons.folder, size: 18),
                   label: Text(folder.label),
                   onPressed: () => _openFolder(folder.path),
                 ),
               for (final root in FmEnv.volumeRoots)
                 ActionChip(
-                  avatar: const Icon(Icons.sd_storage_outlined, size: 18),
+                  avatar: const Icon(Icons.sd_storage_rounded, size: 18),
                   label: Text(p.basename(root)),
                   onPressed: () => _openFolder(root),
                 ),
@@ -718,9 +719,9 @@ class _PickFileScreenState extends State<PickFileScreen> {
         ),
         const SizedBox(height: Gap.md),
         ListTile(
-          leading: const Icon(Icons.storage_outlined),
+          leading: const Icon(Icons.storage_rounded),
           title: Text(context.t('fm.all_files')),
-          trailing: const Icon(Icons.chevron_right),
+          trailing: const Icon(AppIcons.chevron),
           onTap: () => _openFolder(FmEnv.primaryRoot),
         ),
       ],
@@ -740,10 +741,10 @@ class _PickFileScreenState extends State<PickFileScreen> {
   }
 
   static IconData _iconFor(FmCategory category) => switch (category) {
-        FmCategory.image => Icons.image_outlined,
-        FmCategory.video => Icons.movie_outlined,
-        FmCategory.audio => Icons.audiotrack_outlined,
-        _ => Icons.description_outlined,
+        FmCategory.image => AppIcons.image,
+        FmCategory.video => AppIcons.video,
+        FmCategory.audio => Icons.audiotrack_rounded,
+        _ => Icons.description_rounded,
       };
 
   /// Ortak satır ([FmEntryRow], Faz 6): seçici de gezginle AYNI satırı

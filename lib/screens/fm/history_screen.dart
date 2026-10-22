@@ -71,11 +71,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
             label: context.t('hist.opened'),
           ),
           NavigationDestination(
-            icon: const Icon(Icons.history_edu_outlined),
+            icon: const Icon(Icons.history_edu_rounded),
             label: context.t('hist.produced'),
           ),
           NavigationDestination(
-            icon: const Icon(Icons.playlist_add_check_circle_outlined),
+            icon: const Icon(Icons.playlist_add_check_circle_rounded),
             label: context.t('hist.jobs'),
           ),
           NavigationDestination(

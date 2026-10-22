@@ -37,6 +37,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'l10n/app_strings.dart';
+import 'motion.dart';
 
 /// Bilgi bildiriminin ömrü.
 const Duration kSnackInfo = Duration(seconds: 3);
@@ -45,7 +46,7 @@ const Duration kSnackInfo = Duration(seconds: 3);
 const Duration kSnackAction = Duration(seconds: 6);
 
 /// Giriş/çıkış canlandırması.
-const Duration _kFade = Duration(milliseconds: 200);
+const Duration _kFade = Motion.medium;
 
 /// Gösterilen bildirimin verisi.
 class _Toast {
@@ -85,6 +86,24 @@ abstract final class _ToastCenter {
 
   /// Ağaçta kaç [ToastLayer] var (uygulamada 1; testte / özel ağaçta 0).
   static int layers = 0;
+
+  /// Ekranın altındaki kalıcı çubukların (seçim çubuğu, alt gezinme) ekran
+  /// altından yüksekliği — kart bunların ÜSTÜNE oturur (bkz. [ToastAvoider]).
+  static final Map<Object, double> _avoid = {};
+  static final avoidLift = ValueNotifier<double>(0);
+
+  static void setAvoid(Object owner, double? lift) {
+    if (lift == null || lift <= 0) {
+      _avoid.remove(owner);
+    } else {
+      _avoid[owner] = lift;
+    }
+    var max = 0.0;
+    for (final v in _avoid.values) {
+      if (v > max) max = v;
+    }
+    avoidLift.value = max;
+  }
 
   static ToastHandle show(_Toast Function(int id) build,
       {required bool isSticky}) {
@@ -231,10 +250,21 @@ class _ToastLayerState extends State<ToastLayer> {
 
   @override
   Widget build(BuildContext context) {
+    return ValueListenableBuilder<double>(
+      valueListenable: _ToastCenter.avoidLift,
+      builder: (context, lift, _) => _build(context, lift),
+    );
+  }
+
+  Widget _build(BuildContext context, double lift) {
     final media = MediaQuery.maybeOf(context);
-    final bottom = (media?.viewInsets.bottom ?? 0) > 0
+    var bottom = (media?.viewInsets.bottom ?? 0) > 0
         ? media!.viewInsets.bottom + 8
         : (media?.viewPadding.bottom ?? 0) + 10;
+    // Seçim çubuğu / alt gezinme açıksa kart onların ÜSTÜNDE durur
+    // (kullanıcı 2026-10-22: "işlem bildirimi alttaki menü düğmelerini
+    // kapatıyor" — 324 dosya çöpe taşınırken seçim çubuğu görünmüyordu).
+    if (lift + 8 > bottom) bottom = lift + 8;
     return Stack(
       children: [
         Positioned.fill(child: widget.child),
@@ -450,6 +480,67 @@ class _ToastCardState extends State<_ToastCard>
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Ekranın altına yapışan bir çubuğu (seçim çubuğu, alt gezinme, belge
+/// dock'u) sarar; çubuk görünürken bildirim kartları onun ÜSTÜNE kalkar.
+///
+/// KÖK NEDEN (2026-10-22): kart `MaterialApp.builder` katmanında ekranın en
+/// altına sabitti (2026-09-27 kararı: SnackBar gibi ekranın ortasına
+/// tırmanmasın). Ama alt çubuğun ne kadar yer kapladığını bilmiyordu; uzun
+/// bir işin kalıcı kartı ("Çöp kutusuna taşınıyor · 18 / 324") seçim
+/// çubuğunun düğmelerini işin sonuna dek örtüyordu. Artık çubuk kendi
+/// yüksekliğini bildirir; yalnız EN ÜSTTEKİ rotadaki çubuk sayılır.
+class ToastAvoider extends StatefulWidget {
+  final Widget child;
+
+  const ToastAvoider({super.key, required this.child});
+
+  @override
+  State<ToastAvoider> createState() => _ToastAvoiderState();
+}
+
+class _ToastAvoiderState extends State<ToastAvoider> {
+  final _key = GlobalKey();
+  double? _reported;
+
+  void _measure() {
+    if (!mounted) return;
+    final box = _key.currentContext?.findRenderObject() as RenderBox?;
+    final current = ModalRoute.of(context)?.isCurrent ?? true;
+    double? lift;
+    if (current && box != null && box.attached && box.hasSize) {
+      final top = box.localToGlobal(Offset.zero).dy;
+      final screen = MediaQuery.sizeOf(context).height;
+      lift = screen - top;
+    }
+    if (lift != _reported) {
+      _reported = lift;
+      _ToastCenter.setAvoid(this, lift);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ToastCenter.setAvoid(this, null);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Rota üstte/altta kaldığında yeniden ölç (bağımlılık kurulur).
+    ModalRoute.of(context);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measure());
+    return NotificationListener<SizeChangedLayoutNotification>(
+      onNotification: (_) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _measure());
+        return false;
+      },
+      child: SizeChangedLayoutNotifier(
+        child: KeyedSubtree(key: _key, child: widget.child),
       ),
     );
   }

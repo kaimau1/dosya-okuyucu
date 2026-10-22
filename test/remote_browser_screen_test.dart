@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:dosya_okuyucu/core/app_icons.dart';
 import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/models/remote_connection.dart';
 import 'package:dosya_okuyucu/screens/fm/remote/remote_browser_screen.dart';
@@ -167,7 +168,7 @@ void main() {
     await _pump(tester, fs);
     await tester.longPress(find.text('rapor.pdf'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.tap(find.byIcon(AppIcons.delete));
     await tester.pumpAndSettle();
     // Onay penceresi: onaylanmadan silinmemeli.
     expect(fs.deleted, isEmpty);
@@ -183,13 +184,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('1'), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.select_all));
+    await tester.tap(find.byIcon(AppIcons.selectAll));
     await tester.pumpAndSettle();
     expect(find.text('1'), findsNothing, reason: 'hepsi seçildi, sayı arttı');
 
-    await tester.tap(find.byIcon(Icons.close));
+    await tester.tap(find.byIcon(AppIcons.close));
     await tester.pumpAndSettle();
-    expect(find.byIcon(Icons.select_all), findsNothing);
+    expect(find.byIcon(AppIcons.selectAll), findsNothing);
   });
 
   testWidgets('SALT OKUNUR bellekte de seçim ve "telefona kopyala" var',
@@ -199,15 +200,15 @@ void main() {
     await _pump(tester, fs);
     await tester.longPress(find.text('rapor.pdf'));
     await tester.pumpAndSettle();
-    expect(find.byIcon(Icons.download), findsOneWidget);
-    expect(find.byIcon(Icons.delete_outline), findsNothing,
+    expect(find.byIcon(AppIcons.download), findsOneWidget);
+    expect(find.byIcon(AppIcons.delete), findsNothing,
         reason: 'yazma yok: silme düğmesi de olmamalı');
   });
 
   testWidgets('klasörde süzme listeyi daraltır', (tester) async {
     final fs = FakeFs(_connection);
     await _pump(tester, fs);
-    await tester.tap(find.byIcon(Icons.search));
+    await tester.tap(find.byIcon(AppIcons.search));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, 'rapor');
     await tester.pumpAndSettle();

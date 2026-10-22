@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../services/fm/chat_junk.dart';
@@ -135,7 +136,7 @@ class _ChatCleanupScreenState extends State<ChatCleanupScreen> {
         actions: [
           IconButton(
             tooltip: context.t('cj.rescan'),
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(AppIcons.refresh),
             onPressed: _loading ? null : _scan,
           ),
         ],
@@ -253,7 +254,7 @@ class _ChatCleanupScreenState extends State<ChatCleanupScreen> {
           ],
         ),
         isThreeLine: true,
-        trailing: const Icon(Icons.chevron_right),
+        trailing: const Icon(AppIcons.chevron),
         onTap: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => ChatJunkBucketScreen(bucket: bucket),
         )),
@@ -264,10 +265,10 @@ class _ChatCleanupScreenState extends State<ChatCleanupScreen> {
   /// Kovaların ulaşamadığı yığın: aynı anın birden çok karesi.
   Widget _similarCard() => Card(
         child: ListTile(
-          leading: const Icon(Icons.burst_mode_outlined),
+          leading: const Icon(Icons.burst_mode_rounded),
           title: Text(context.t('cj.similar_title')),
           subtitle: Text(context.t('cj.similar_body')),
-          trailing: const Icon(Icons.chevron_right),
+          trailing: const Icon(AppIcons.chevron),
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
             builder: (_) => SimilarScreen(
               scopeId: 'chat',
@@ -285,13 +286,13 @@ class _ChatCleanupScreenState extends State<ChatCleanupScreen> {
       );
 
   IconData _iconFor(ChatJunkKind kind) => switch (kind) {
-        ChatJunkKind.duplicate => Icons.copy_all_outlined,
-        ChatJunkKind.sticker => Icons.emoji_emotions_outlined,
-        ChatJunkKind.gif => Icons.gif_box_outlined,
-        ChatJunkKind.profilePhoto => Icons.account_circle_outlined,
-        ChatJunkKind.tiny => Icons.photo_size_select_small_outlined,
-        ChatJunkKind.sent => Icons.send_outlined,
-        ChatJunkKind.stale => Icons.history_toggle_off,
+        ChatJunkKind.duplicate => Icons.copy_all_rounded,
+        ChatJunkKind.sticker => Icons.emoji_emotions_rounded,
+        ChatJunkKind.gif => Icons.gif_box_rounded,
+        ChatJunkKind.profilePhoto => Icons.account_circle_rounded,
+        ChatJunkKind.tiny => Icons.photo_size_select_small_rounded,
+        ChatJunkKind.sent => AppIcons.send,
+        ChatJunkKind.stale => Icons.history_toggle_off_rounded,
       };
 }
 

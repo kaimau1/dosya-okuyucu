@@ -52,7 +52,7 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
     final pending = _hasPendingInput;
     return Container(
       color: scheme.surfaceContainerHigh,
-      padding: const EdgeInsets.fromLTRB(6, 2, 2, 2),
+      padding: const EdgeInsetsDirectional.fromSTEB(6, 2, 2, 2),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -111,7 +111,7 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
           if (_validationOptions().isNotEmpty)
             PopupMenuButton<String>(
               tooltip: context.t('excel.pick_from_list'),
-              icon: const Icon(Icons.arrow_drop_down_circle_outlined, size: 20),
+              icon: const Icon(Icons.arrow_drop_down_circle_rounded, size: 20),
               padding: EdgeInsets.zero,
               onSelected: (v) {
                 _cellField.text = v;
@@ -129,7 +129,7 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
               tooltip: context.t('common.cancel'),
               visualDensity: VisualDensity.compact,
               iconSize: 20,
-              icon: const Icon(Icons.close),
+              icon: const Icon(AppIcons.close),
               onPressed: () {
                 _editing = false;
                 _syncField();
@@ -141,7 +141,7 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
               visualDensity: VisualDensity.compact,
               iconSize: 20,
               color: OfficeColors.excel,
-              icon: const Icon(Icons.check),
+              icon: const Icon(AppIcons.check),
               onPressed: () {
                 _editing = false;
                 _applyCell(_cellField.text);
@@ -153,7 +153,7 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
             visualDensity: VisualDensity.compact,
             iconSize: 20,
             icon: Icon(
-                _ribbonOpen ? Icons.expand_less : Icons.expand_more),
+                _ribbonOpen ? Icons.expand_less_rounded : Icons.expand_more_rounded),
             onPressed: () => _partSetState(() => _ribbonOpen = !_ribbonOpen),
           ),
         ],
@@ -179,14 +179,14 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
     return Container(
       width: double.infinity,
       color: scheme.surfaceContainerHigh,
-      padding: const EdgeInsets.only(left: 68, right: 8, bottom: 4),
+      padding: const EdgeInsetsDirectional.only(start: 68, end: 8, bottom: 4),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
             for (final name in names)
               Padding(
-                padding: const EdgeInsets.only(right: 6),
+                padding: const EdgeInsetsDirectional.only(end: 6),
                 child: ActionChip(
                   visualDensity: VisualDensity.compact,
                   labelStyle: const TextStyle(fontSize: 12),
@@ -253,7 +253,7 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
     return Container(
       width: double.infinity,
       color: scheme.surfaceContainerHigh,
-      padding: const EdgeInsets.fromLTRB(70, 0, 12, 4),
+      padding: const EdgeInsetsDirectional.fromSTEB(70, 0, 12, 4),
       child: Text(
         '= $result',
         style: TextStyle(

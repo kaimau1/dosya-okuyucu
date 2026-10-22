@@ -153,7 +153,7 @@ class _AiRewriteSheetState extends State<_AiRewriteSheet> {
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.auto_fix_high),
+                      : const Icon(Icons.auto_fix_high_rounded),
                   label: Text(
                       context.t(_busy ? 'aw.working' : 'common.apply')),
                 ),

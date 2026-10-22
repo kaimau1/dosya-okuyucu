@@ -253,9 +253,7 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
   void _goTo(int index) {
     _partSetState(() => _index = index);
     if (_pager.hasClients) {
-      _pager.animateToPage(index,
-          duration: const Duration(milliseconds: 260),
-          curve: Curves.easeOutCubic);
+      Motion.toPage(context, _pager, index);
     }
   }
 
@@ -273,13 +271,13 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const _SheetIcon(Icons.document_scanner_outlined),
+                leading: const _SheetIcon(AppIcons.ocr),
                 title: Text(ctx.t('ss.add_camera')),
                 subtitle: Text(ctx.t('ss.add_camera_sub')),
                 onTap: () => Navigator.pop(ctx, 'camera'),
               ),
               ListTile(
-                leading: const _SheetIcon(Icons.photo_library_outlined),
+                leading: const _SheetIcon(Icons.photo_library_rounded),
                 title: Text(ctx.t('ss.add_gallery')),
                 subtitle: Text(ctx.t('ss.add_gallery_sub')),
                 onTap: () => Navigator.pop(ctx, 'gallery'),

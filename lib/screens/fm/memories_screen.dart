@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/safe_insets.dart';
 import '../../core/theme.dart';
@@ -131,7 +132,7 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
   Widget _dayTab(BuildContext context, PhotoInsights ins) {
     final byYear = ins.onThisDay();
     if (byYear.isEmpty) {
-      return _empty(context, Icons.cake_outlined,
+      return _empty(context, Icons.cake_rounded,
           ins.busy ? context.t('mem.loading') : context.t('mem.day_empty'));
     }
     final now = DateTime.now();
@@ -158,7 +159,7 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
   Widget _placesTab(BuildContext context, PhotoInsights ins) {
     final places = ins.places();
     if (places.isEmpty) {
-      return _empty(context, Icons.place_outlined,
+      return _empty(context, Icons.place_rounded,
           ins.busy ? context.t('mem.loading') : context.t('mem.places_empty'));
     }
     return ListView.separated(
@@ -199,7 +200,7 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
                       ],
                     ),
                   ),
-                  const Icon(Icons.chevron_right),
+                  const Icon(AppIcons.chevron),
                 ],
               ),
             ),

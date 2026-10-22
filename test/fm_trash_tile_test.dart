@@ -1,3 +1,4 @@
+import 'package:dosya_okuyucu/core/app_icons.dart';
 import 'package:dosya_okuyucu/widgets/fm/fm_category_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,7 +16,7 @@ Widget _wrap(Widget child, {bool disableAnimations = false}) => MaterialApp(
     );
 
 FmTileData _tile({required bool pulse}) => FmTileData(
-      icon: pulse ? Icons.delete : Icons.delete_outline,
+      icon: pulse ? Icons.delete : AppIcons.delete,
       color: const Color(0xFFE65100),
       label: 'Çöp kutusu',
       subtitle: pulse ? '3 öğe' : 'Boş',
@@ -70,7 +71,7 @@ void main() {
 
     expect(find.byKey(FmCategoryTile.pulseKey), findsNothing);
     expect(find.text('Boş'), findsOneWidget);
-    expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+    expect(find.byIcon(AppIcons.delete), findsOneWidget);
   });
 
   /// Hareket duyarlılığı olan kullanıcıya sürekli titreyen bir kutu

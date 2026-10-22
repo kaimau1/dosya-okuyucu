@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
 import '../screens/settings/crash_log_screen.dart';
@@ -67,10 +68,10 @@ class _CrashNoticeBannerState extends State<CrashNoticeBanner> {
           borderRadius: BorderRadius.circular(Radii.card),
           onTap: _open,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.sm, Gap.sm),
+            padding: const EdgeInsetsDirectional.fromSTEB(Gap.md, Gap.sm, Gap.sm, Gap.sm),
             child: Row(
               children: [
-                Icon(Icons.bug_report_outlined,
+                Icon(Icons.bug_report_rounded,
                     color: theme.colorScheme.onErrorContainer),
                 const SizedBox(width: Gap.sm),
                 Expanded(
@@ -82,7 +83,7 @@ class _CrashNoticeBannerState extends State<CrashNoticeBanner> {
                 ),
                 IconButton(
                   tooltip: context.t('common.close'),
-                  icon: Icon(Icons.close,
+                  icon: Icon(AppIcons.close,
                       size: 18, color: theme.colorScheme.onErrorContainer),
                   onPressed: _dismiss,
                 ),

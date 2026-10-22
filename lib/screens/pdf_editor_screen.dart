@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:provider/provider.dart';
 
+import '../core/app_icons.dart';
 import '../core/app_state.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/gemini_service.dart';
@@ -16,6 +17,7 @@ import '../services/pdf_reload.dart';
 import '../services/pdf_tools.dart';
 import '../services/scan_ai_fix.dart';
 import '../services/scan_text_fix.dart';
+import '../widgets/app_dialog.dart';
 import '../widgets/pdf_edit_overlay.dart';
 import '../widgets/pdf_save_dialog.dart';
 import '../core/snack.dart';
@@ -176,12 +178,12 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
           actions: [
             IconButton(
               tooltip: context.t('common.undo'),
-              icon: const Icon(Icons.undo),
+              icon: const Icon(AppIcons.undo),
               onPressed: _undo.isEmpty || _busy ? null : _undoLast,
             ),
             IconButton(
               tooltip: context.t('common.save'),
-              icon: const Icon(Icons.save_outlined),
+              icon: const Icon(AppIcons.save),
               onPressed: !_dirty || _busy
                   ? null
                   : () async {

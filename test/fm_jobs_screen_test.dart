@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:dosya_okuyucu/core/app_icons.dart';
 import 'package:dosya_okuyucu/screens/fm/history_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/jobs_screen.dart';
 import 'package:dosya_okuyucu/services/fm/job_queue.dart';
@@ -75,7 +76,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Dönüştürme yarıda kalmış'), findsOneWidget);
-    expect(find.byIcon(Icons.error_outline), findsWidgets);
+    expect(find.byIcon(AppIcons.error), findsWidgets);
   });
 
   testWidgets('süren iş durdurulabilir', (tester) async {
@@ -128,7 +129,7 @@ void main() {
     expect(find.text('Göster'), findsOneWidget);
 
     // Kapatılınca şerit boşalır ama iş İşlemler ekranında kalır.
-    await tester.tap(find.byIcon(Icons.close));
+    await tester.tap(find.byIcon(AppIcons.close));
     await tester.pumpAndSettle();
     expect(find.text('Biten iş'), findsNothing);
     expect(JobQueue.instance.find('ui_bar'), isNotNull);

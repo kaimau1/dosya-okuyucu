@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
@@ -326,7 +327,7 @@ class _SearchScreenState extends State<SearchScreen> {
           if (_controller.text.isNotEmpty)
             IconButton(
               tooltip: context.t('common.clear'),
-              icon: const Icon(Icons.clear),
+              icon: const Icon(AppIcons.close),
               onPressed: () {
                 _controller.clear();
                 _run('');
@@ -396,7 +397,7 @@ class _SearchScreenState extends State<SearchScreen> {
       appBar: AppBar(
         leading: IconButton(
           tooltip: context.t('common.clear_selection'),
-          icon: const Icon(Icons.close),
+          icon: const Icon(AppIcons.close),
           onPressed: () => setState(_selected.clear),
         ),
         title: Text(context.t('ph.selected_of',
@@ -469,7 +470,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           if (smart.text.trim().isNotEmpty)
             Chip(
-              avatar: const Icon(Icons.abc, size: 18),
+              avatar: const Icon(Icons.abc_rounded, size: 18),
               label: Text('“${smart.text}”'),
               visualDensity: VisualDensity.compact,
             ),
@@ -549,7 +550,7 @@ class _SearchScreenState extends State<SearchScreen> {
           // **Dosya içinde ara** çipi en başta: kullanıcı adı bulamayınca
           // ilk buraya bakıyor.
           FmChip(
-            icon: Icons.manage_search,
+            icon: Icons.manage_search_rounded,
             label: context.t('srch.in_content'),
             selected: _inContent,
             onTap: () {
@@ -613,7 +614,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 for (final q in history)
                   InputChip(
                     label: Text(q),
-                    avatar: const Icon(Icons.history, size: 18),
+                    avatar: const Icon(Icons.history_rounded, size: 18),
                     onPressed: () {
                       _controller.text = q;
                       unawaited(SearchHistory.record(q));

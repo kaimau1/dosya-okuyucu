@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
@@ -156,7 +157,7 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
                 )
               : _cards.isEmpty && settings.sdPath.isEmpty
                   ? FmEmptyState(
-                      icon: Icons.sd_card_alert_outlined,
+                      icon: Icons.sd_card_alert_rounded,
                       title: context.t('sdu.no_card'),
                       hint: context.t('sdu.no_card_hint'),
                     )
@@ -171,9 +172,9 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
       children: [
         _hero(settings),
         if (!cardPresent && settings.sdPath.isNotEmpty)
-          _warning(Icons.sd_card_alert_outlined, context.t('sdu.card_missing')),
+          _warning(Icons.sd_card_alert_rounded, context.t('sdu.card_missing')),
         if (_status.lastError == 'sd_readonly')
-          _warning(Icons.lock_outline, context.t('sdu.err_readonly')),
+          _warning(AppIcons.lock, context.t('sdu.err_readonly')),
         SettingsGroup(
           children: [
             SettingSwitch(
@@ -459,7 +460,7 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
                   ),
                   ButtonSegment(
                     value: SdUnionMode.copy,
-                    icon: const Icon(Icons.copy_all_outlined),
+                    icon: const Icon(Icons.copy_all_rounded),
                     label: Text(context.t('sdu.mode_copy')),
                   ),
                 ],
@@ -596,16 +597,16 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
   }
 
   static IconData _folderIcon(String folder) => switch (folder) {
-        'DCIM' => Icons.photo_camera_outlined,
-        'Pictures' => Icons.image_outlined,
-        'Movies' => Icons.movie_outlined,
-        'Music' => Icons.music_note_outlined,
-        'Download' => Icons.download_outlined,
-        'Documents' => Icons.description_outlined,
-        'Recordings' => Icons.mic_none_outlined,
-        'Podcasts' => Icons.podcasts_outlined,
-        'Audiobooks' => Icons.menu_book_outlined,
-        _ => Icons.folder_outlined,
+        'DCIM' => Icons.photo_camera_rounded,
+        'Pictures' => AppIcons.image,
+        'Movies' => AppIcons.video,
+        'Music' => AppIcons.audio,
+        'Download' => AppIcons.download,
+        'Documents' => Icons.description_rounded,
+        'Recordings' => Icons.mic_none_rounded,
+        'Podcasts' => Icons.podcasts_rounded,
+        'Audiobooks' => Icons.menu_book_rounded,
+        _ => AppIcons.folder,
       };
 
   String _folderLabel(String folder) => switch (folder) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../services/fm/dashboard_layout.dart';
 import '../../core/safe_insets.dart';
@@ -64,7 +65,7 @@ class _LayoutSheetState extends State<_LayoutSheet> {
         return Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 12, 8),
+              padding: const EdgeInsetsDirectional.fromSTEB(20, 0, 12, 8),
               child: Row(
                 children: [
                   Expanded(
@@ -91,7 +92,7 @@ class _LayoutSheetState extends State<_LayoutSheet> {
                   ),
                   ButtonSegment(
                     value: false,
-                    icon: const Icon(Icons.view_agenda_outlined),
+                    icon: const Icon(Icons.view_agenda_rounded),
                     label: Text(context.t('dash.sections')),
                   ),
                 ],
@@ -102,10 +103,10 @@ class _LayoutSheetState extends State<_LayoutSheet> {
             // Alt çubuk da ana ekranın parçası (2026-10-18): kullanıcı onu
             // "ana ekranı düzenle"de de arar.
             ListTile(
-              leading: const Icon(Icons.space_dashboard_outlined),
+              leading: const Icon(Icons.space_dashboard_rounded),
               title: Text(context.t('nav.edit_title')),
               subtitle: Text(context.t('nav.settings_sub')),
-              trailing: const Icon(Icons.chevron_right),
+              trailing: const Icon(AppIcons.chevron),
               onTap: () => showNavTabsSheet(context),
             ),
             Padding(

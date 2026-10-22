@@ -122,7 +122,7 @@ class _VolumeCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),
+              Icon(AppIcons.chevron, color: scheme.onSurfaceVariant),
             ],
           ),
               if (volume.hasStats) ...[
@@ -286,7 +286,7 @@ class _QuickDock extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final full = trashCount > 0;
     final trashIcon = Icon(
-      full ? Icons.delete_rounded : Icons.delete_outline_rounded,
+      full ? AppIcons.delete : AppIcons.delete,
       color: full ? _trashFull : scheme.onSurfaceVariant,
     );
     return Material(
@@ -301,7 +301,7 @@ class _QuickDock extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             AnimatedSize(
-              duration: const Duration(milliseconds: 200),
+              duration: Motion.of(context, Motion.medium),
               curve: Curves.easeOutCubic,
               child: expanded
                   ? Row(
@@ -326,7 +326,7 @@ class _QuickDock extends StatelessWidget {
                         IconButton(
                           tooltip: context.t('fm.new_folder'),
                           onPressed: onNewFolder,
-                          icon: Icon(Icons.create_new_folder_outlined,
+                          icon: Icon(AppIcons.newFolder,
                               color: scheme.onSurfaceVariant),
                         ),
                         Container(
@@ -351,9 +351,9 @@ class _QuickDock extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.document_scanner_rounded, size: 22),
+                    const Icon(AppIcons.ocr, size: 22),
                     AnimatedSize(
-                      duration: const Duration(milliseconds: 200),
+                      duration: Motion.of(context, Motion.medium),
                       curve: Curves.easeOutCubic,
                       child: expanded
                           ? Padding(

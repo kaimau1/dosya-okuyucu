@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/app_colors.dart';
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/text_search.dart';
 import '../../core/theme.dart';
@@ -174,12 +176,12 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen>
         actions: [
           IconButton(
             tooltip: context.t('common.refresh'),
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(AppIcons.refresh),
             onPressed: _loading ? null : _load,
           ),
           PopupMenuButton<String>(
             tooltip: context.t('apps.sort_menu'),
-            icon: const Icon(Icons.sort),
+            icon: const Icon(AppIcons.sort),
             onSelected: (v) async {
               switch (v) {
                 case 'size':
@@ -246,7 +248,7 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen>
                             decoration: InputDecoration(
                               isDense: true,
                               hintText: context.t('fm.search_apps'),
-                              prefixIcon: const Icon(Icons.search),
+                              prefixIcon: const Icon(AppIcons.search),
                             ),
                             onChanged: (v) => setState(() => _query = v),
                           ),
@@ -341,7 +343,7 @@ class _AppIcon extends StatelessWidget {
                 color: scheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(Radii.control),
               ),
-              child: const Icon(Icons.android),
+              child: const Icon(Icons.android_rounded),
             ),
     );
   }

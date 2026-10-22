@@ -83,7 +83,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
           if (_records.isNotEmpty)
             IconButton(
               tooltip: context.t('act.clear'),
-              icon: const Icon(Icons.delete_sweep_outlined),
+              icon: const Icon(Icons.delete_sweep_rounded),
               onPressed: _confirmClear,
             ),
         ],

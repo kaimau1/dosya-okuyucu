@@ -344,14 +344,14 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
             children: [
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.picture_as_pdf_outlined),
+                leading: const Icon(AppIcons.pdf),
                 title: Text(ctx.t('tf.mode_inplace')),
                 subtitle: Text(ctx.t('tf.mode_inplace_hint')),
                 onTap: () => Navigator.pop(ctx, true),
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.subject),
+                leading: const Icon(Icons.subject_rounded),
                 title: Text(ctx.t('tf.mode_text')),
                 subtitle: Text(ctx.t('tf.mode_text_hint')),
                 onTap: () => Navigator.pop(ctx, false),

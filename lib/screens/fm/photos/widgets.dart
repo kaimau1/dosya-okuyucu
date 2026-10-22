@@ -122,7 +122,7 @@ class _PackedLabel extends StatelessWidget {
         children: [
           if (selecting) ...[
             Icon(
-              allSelected ? Icons.check_circle : Icons.radio_button_unchecked,
+              allSelected ? AppIcons.checkCircle : Icons.radio_button_unchecked_rounded,
               size: 18,
               color: allSelected ? scheme.primary : scheme.onSurfaceVariant,
             ),
@@ -179,7 +179,7 @@ class _PhotoTile extends StatelessWidget {
           children: [
             AnimatedScale(
               scale: selected ? 0.84 : 1,
-              duration: const Duration(milliseconds: 160),
+              duration: Motion.of(context, Motion.short),
               curve: Curves.easeOutCubic,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(selected ? 14 : 0),
@@ -210,17 +210,17 @@ class _CheckBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 140),
+      duration: Motion.of(context, Motion.short),
       width: 22,
       height: 22,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: selected ? scheme.primary : Colors.black.withValues(alpha: 0.12),
-        border: Border.all(color: Colors.white, width: 2),
+        color: selected ? scheme.primary : AppColors.mediaSurface.withValues(alpha: 0.12),
+        border: Border.all(color: AppColors.onMedia, width: 2),
         boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 3)],
       ),
       child: selected
-          ? Icon(Icons.check_rounded, size: 14, color: scheme.onPrimary)
+          ? Icon(AppIcons.check, size: 14, color: scheme.onPrimary)
           : null,
     );
   }

@@ -190,7 +190,7 @@ extension _MediaPlayerScreenActionsPart on _MediaPlayerScreenState {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.6),
+          color: AppColors.mediaSurface.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(Radii.sheet),
         ),
         child: Row(
@@ -198,9 +198,9 @@ extension _MediaPlayerScreenActionsPart on _MediaPlayerScreenState {
           children: [
             Icon(
               value == 0
-                  ? Icons.volume_off
-                  : (value < 0.5 ? Icons.volume_down : Icons.volume_up),
-              color: Colors.white,
+                  ? Icons.volume_off_rounded
+                  : (value < 0.5 ? Icons.volume_down_rounded : Icons.volume_up_rounded),
+              color: AppColors.onMedia,
             ),
             const SizedBox(width: Gap.sm),
             SizedBox(
@@ -208,12 +208,12 @@ extension _MediaPlayerScreenActionsPart on _MediaPlayerScreenState {
               child: LinearProgressIndicator(
                 value: value,
                 backgroundColor: Colors.white24,
-                color: Colors.white,
+                color: AppColors.onMedia,
               ),
             ),
             const SizedBox(width: Gap.sm),
             Text('${(value * 100).round()}%',
-                style: const TextStyle(color: Colors.white)),
+                style: const TextStyle(color: AppColors.onMedia)),
           ],
         ),
       ),

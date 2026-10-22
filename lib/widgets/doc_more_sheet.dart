@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../core/app_icons.dart';
+
 /// Belge araç çubuklarının **"Daha fazla"** sayfası: etiketli, gruplu eylemler.
 ///
 /// **Neden gerekiyor:** biçim çubukları yalnız İKONDAN oluşuyordu ve telefonda
@@ -191,7 +193,7 @@ class _Tile extends StatelessWidget {
                           color: scheme.surface,
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(Icons.check_circle,
+                        child: Icon(AppIcons.checkCircle,
                             size: 18, color: scheme.primary),
                       ),
                     ),

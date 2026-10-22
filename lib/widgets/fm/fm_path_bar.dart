@@ -79,12 +79,12 @@ class FmPathBar extends StatelessWidget {
 
     return Container(
       height: 48,
-      alignment: Alignment.centerLeft,
+      alignment: AlignmentDirectional.centerStart,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         reverse: true, // uzun yolda son klasör görünür kalsın
         shrinkWrap: true,
-        padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
         itemCount: segments.length,
         itemBuilder: (context, i) {
           final seg = segments[segments.length - 1 - i];
@@ -96,40 +96,55 @@ class FmPathBar extends StatelessWidget {
               if (!isRoot)
                 Icon(AppIcons.chevron,
                     size: 18, color: scheme.onSurfaceVariant),
+              // Hap 34 dp görünür ama dokunma alanı şeridin tam boyu (48 dp,
+              // Faz 16 — `androidTapTargetGuideline`): üst/alt 7 dp'lik pay
+              // da dokunuşu alır. TalkBack adı TEK kez okur (eskiden etiket +
+              // metin: "tmp, tmp").
               Semantics(
                 button: !isLast,
+                selected: isLast,
                 label: seg.label,
-                child: Material(
-                  color: isLast
-                      ? scheme.primaryContainer
-                      : scheme.surfaceContainerHigh,
-                  shape: const StadiumBorder(),
-                  clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    onTap: isLast ? null : () => onTap(seg.path),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (isRoot) ...[
-                            Icon(AppIcons.device,
-                                size: 15,
-                                color: isLast
-                                    ? scheme.onPrimaryContainer
-                                    : scheme.onSurfaceVariant),
-                            const SizedBox(width: 4),
-                          ],
-                          Text(
-                            seg.label,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight:
-                                  isLast ? FontWeight.w700 : FontWeight.w500,
-                              color: fg,
-                            ),
+                excludeSemantics: true,
+                onTap: isLast ? null : () => onTap(seg.path),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: isLast ? null : () => onTap(seg.path),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 7),
+                    child: Material(
+                      color: isLast
+                          ? scheme.primaryContainer
+                          : scheme.surfaceContainerHigh,
+                      shape: const StadiumBorder(),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: isLast ? null : () => onTap(seg.path),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isRoot) ...[
+                                Icon(AppIcons.device,
+                                    size: 15,
+                                    color: isLast
+                                        ? scheme.onPrimaryContainer
+                                        : scheme.onSurfaceVariant),
+                                const SizedBox(width: 4),
+                              ],
+                              Text(
+                                seg.label,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: isLast
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  color: fg,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ),

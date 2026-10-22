@@ -43,8 +43,8 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
         'downloads',
         SwipePage(
           label: context.t('fm.downloads'),
-          icon: Icons.download_rounded,
-          color: const Color(0xFF2F6FE0),
+          icon: AppIcons.download,
+          color: AppHues.blue,
           builder: (_) => DownloadsScreen(path: downloads),
         ),
       ));
@@ -53,8 +53,8 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
       'important',
       SwipePage(
         label: ImportantScreen.folderName,
-        icon: Icons.star_rounded,
-        color: const Color(0xFFF2A600),
+        icon: AppIcons.star,
+        color: AppHues.amber,
         builder: (_) => const ImportantScreen(),
       ),
     ));
@@ -80,7 +80,7 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
       SwipePage(
         label: context.t('fm.apk_files'),
         icon: Icons.install_mobile_rounded,
-        color: const Color(0xFF0E9C8A),
+        color: AppHues.teal,
         builder: (context) => CategoryScreen(
           title: context.t('fm.apk_files'),
           files: _index.files(FmCategory.apk),
@@ -92,7 +92,7 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
       SwipePage(
         label: context.t('fm.new_files'),
         icon: Icons.move_to_inbox_rounded,
-        color: const Color(0xFFE8742A),
+        color: AppHues.tangerine,
         builder: (_) => const NewFilesScreen(),
       ),
     ));
@@ -148,7 +148,7 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
         for (final f in folders)
           ActionChip(
             avatar: Icon(
-                f.volume.isEmpty ? Icons.folder_outlined : Icons.sd_storage,
+                f.volume.isEmpty ? AppIcons.folder : Icons.sd_storage_rounded,
                 size: 18),
             label: Text(
               [

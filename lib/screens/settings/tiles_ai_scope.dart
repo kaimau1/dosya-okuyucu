@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
@@ -35,7 +36,7 @@ class AiExcludedFoldersTile extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SettingTile(
-          icon: Icons.folder_off_outlined,
+          icon: Icons.folder_off_rounded,
           title: context.t('aiset.excluded'),
           subtitle: context.t('aiset.excluded_sub'),
           wrapSubtitle: true,
@@ -44,7 +45,7 @@ class AiExcludedFoldersTile extends StatelessWidget {
         for (final path in excluded)
           ListTile(
             dense: true,
-            contentPadding: const EdgeInsets.only(left: 56, right: Gap.sm),
+            contentPadding: const EdgeInsetsDirectional.only(start: 56, end: Gap.sm),
             leading: null,
             title: Text(p.basename(path), maxLines: 1),
             subtitle: Text(
@@ -54,17 +55,17 @@ class AiExcludedFoldersTile extends StatelessWidget {
               style: TextStyle(fontSize: 11, color: Paper.faint(context)),
             ),
             trailing: IconButton(
-              icon: const Icon(Icons.close),
+              icon: const Icon(AppIcons.close),
               tooltip: context.t('aiset.include_again'),
               onPressed: () => _remove(context, path),
             ),
           ),
         Padding(
-          padding: const EdgeInsets.only(left: 56, bottom: Gap.sm),
+          padding: const EdgeInsetsDirectional.only(start: 56, bottom: Gap.sm),
           child: Align(
             alignment: AlignmentDirectional.centerStart,
             child: OutlinedButton.icon(
-              icon: const Icon(Icons.add),
+              icon: const Icon(AppIcons.add),
               label: Text(context.t('aiset.exclude_add')),
               onPressed: () => _add(context),
             ),
@@ -127,7 +128,7 @@ class AiScopeTypesTile extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.filter_alt_outlined,
+              Icon(Icons.filter_alt_rounded,
                   size: 20, color: Theme.of(context).colorScheme.primary),
               const SizedBox(width: Gap.md),
               Expanded(
@@ -188,7 +189,7 @@ class AiPrivacyTile extends StatelessWidget {
     return Column(
       children: [
         SettingSwitch(
-          icon: Icons.notes_outlined,
+          icon: Icons.notes_rounded,
           title: context.t('aiset.send_text'),
           subtitle: context.t('aiset.send_text_sub', {'kb': scope.excerptKb}),
           value: scope.sendText,
@@ -196,7 +197,7 @@ class AiPrivacyTile extends StatelessWidget {
               context.read<AppState>().setAiScope(scope.copyWith(sendText: v)),
         ),
         SettingSwitch(
-          icon: Icons.image_outlined,
+          icon: AppIcons.image,
           title: context.t('aiset.send_images'),
           subtitle: context.t('aiset.send_images_sub'),
           value: scope.sendImages,
@@ -205,7 +206,7 @@ class AiPrivacyTile extends StatelessWidget {
               .setAiScope(scope.copyWith(sendImages: v)),
         ),
         SettingSwitch(
-          icon: Icons.visibility_off_outlined,
+          icon: Icons.visibility_off_rounded,
           title: context.t('aiset.hidden'),
           subtitle: context.t('aiset.hidden_sub'),
           value: scope.includeHidden,
@@ -214,7 +215,7 @@ class AiPrivacyTile extends StatelessWidget {
               .setAiScope(scope.copyWith(includeHidden: v)),
         ),
         SettingChoice<int>(
-          icon: Icons.data_usage_outlined,
+          icon: Icons.data_usage_rounded,
           title: context.t('aiset.excerpt'),
           subtitle: context.t('aiset.excerpt_sub'),
           options: const [(2, '2 KB'), (6, '6 KB'), (12, '12 KB')],
@@ -246,7 +247,7 @@ class AiBudgetTile extends StatelessWidget {
     return Column(
       children: [
         SettingChoice<int>(
-          icon: Icons.speed_outlined,
+          icon: Icons.speed_rounded,
           title: context.t('aiset.budget'),
           subtitle: context.t('aiset.budget_sub'),
           // **Varsayılan sınırsız** (kullanıcı 2026-08-10: *"anahtarımda hâlâ
@@ -261,7 +262,7 @@ class AiBudgetTile extends StatelessWidget {
         ValueListenableBuilder<int>(
           valueListenable: AiIndex.revision,
           builder: (context, _, __) => SettingTile(
-            icon: Icons.delete_sweep_outlined,
+            icon: Icons.delete_sweep_rounded,
             title: context.t('aiset.forget'),
             subtitle: context.t('aiset.forget_sub'),
             wrapSubtitle: true,

@@ -86,7 +86,7 @@ class _Thumb extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
+        duration: Motion.of(context, Motion.short),
         width: 54,
         padding: const EdgeInsets.all(2),
         decoration: BoxDecoration(
@@ -243,7 +243,7 @@ class _FilterSheetState extends State<_FilterSheet> {
             const Divider(height: Gap.lg),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.straighten, color: scheme.primary),
+              leading: Icon(Icons.straighten_rounded, color: scheme.primary),
               title: Text(context.t('sr.straighten')),
               subtitle: Text(context.t('ss.straighten_sub')),
               onTap: () => Navigator.pop(context,

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -158,7 +159,7 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
         actions: [
           IconButton(
             tooltip: context.t('org.open_folder'),
-            icon: const Icon(Icons.folder_open),
+            icon: const Icon(Icons.folder_open_rounded),
             onPressed: () => Navigator.of(context).push(browserRoute(BrowserScreen(path: widget.path),
             )),
           ),
@@ -222,7 +223,7 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
                       dense: true,
                       contentPadding: EdgeInsets.zero,
                       leading:
-                          Icon(Icons.folder, color: context.fmFolderColor ?? FmColors.folder),
+                          Icon(AppIcons.folder, color: context.fmFolderColor ?? FmColors.folder),
                       title: Text(entry.key),
                       trailing: Text(
                           context.t('count.files', {'n': entry.value})),
@@ -235,7 +236,7 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
           padding: const EdgeInsets.all(Gap.md),
           child: FilledButton.icon(
             onPressed: plan.isEmpty ? null : _apply,
-            icon: const Icon(Icons.auto_awesome_motion),
+            icon: const Icon(Icons.auto_awesome_motion_rounded),
             label: Text(plan.isEmpty
                 ? context.t('org.nothing')
                 : context.t('org.action', {'n': plan.fileCount})),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_colors.dart';
+import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_language.dart';
 import '../../core/l10n/app_strings.dart';
@@ -18,7 +20,7 @@ class ThemeTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingChoice<ThemeMode>(
-      icon: Icons.contrast,
+      icon: Icons.contrast_rounded,
       title: context.t('settings.theme'),
       options: [
         (ThemeMode.system, context.t('settings.theme_system')),
@@ -46,7 +48,7 @@ class UiFontTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingTile(
-      icon: Icons.text_fields,
+      icon: AppIcons.textFields,
       title: context.t('settings.ui_font'),
       value: labelOf(appState.uiFont),
       onTap: () async {
@@ -72,7 +74,7 @@ class UiFontTile extends StatelessWidget {
                       style: TextStyle(fontFamily: f.$2),
                     ),
                     trailing: f.$2 == appState.uiFont
-                        ? const Icon(Icons.check)
+                        ? const Icon(AppIcons.check)
                         : null,
                     onTap: () => Navigator.pop(ctx, f.$2),
                   ),
@@ -112,7 +114,7 @@ class UiTextSizeTile extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SettingChoice<double>(
-          icon: Icons.format_size,
+          icon: Icons.format_size_rounded,
           title: context.t('settings.ui_text_size'),
           subtitle: context.t('settings.ui_text_size_note'),
           options: [
@@ -130,8 +132,11 @@ class UiTextSizeTile extends StatelessWidget {
                 child: Slider(
                   value: appState.uiTextScale,
                   min: 0.85,
-                  max: 1.4,
-                  divisions: 11,
+                  // 2,0×: Android 14+ doğrusal olmayan yazı ölçeğinin üst
+                  // ucu (Faz 16). Hazır kademeler 1,3'te kalır; büyük yazı
+                  // gereken kullanıcı kaydırıcıyla devam eder.
+                  max: 2.0,
+                  divisions: 23,
                   label: '%${(appState.uiTextScale * 100).round()}',
                   onChanged: appState.setUiTextScale,
                 ),
@@ -160,7 +165,7 @@ class LanguageTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingChoice<AppLanguage>(
-      icon: Icons.translate,
+      icon: AppIcons.translate,
       title: context.t('settings.language'),
       subtitle: context.t('settings.language_note'),
       options: [
@@ -195,7 +200,7 @@ class AppSkinTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingTile(
-      icon: Icons.style_outlined,
+      icon: Icons.style_rounded,
       title: context.t('skin.title'),
       value: context.t(appState.appSkin.labelKey),
       onTap: () async {
@@ -223,7 +228,7 @@ class AppSkinTile extends StatelessWidget {
                           : ctx.t(skin.descriptionKey),
                     ),
                     trailing: skin == appState.appSkin
-                        ? const Icon(Icons.check)
+                        ? const Icon(AppIcons.check)
                         : null,
                     onTap: () => Navigator.pop(ctx, skin),
                   ),
@@ -252,7 +257,7 @@ class _SkinSwatch extends StatelessWidget {
     final metrics = SkinMetrics.of(skin);
     // Önizleme ailenin SİMGE DİLİNİ de gösterir (2026-10-18): tema artık
     // simgeleri de değiştiriyor; seçmeden önce görülmeli.
-    final folder = metrics.folderColor ?? const Color(0xFFE39B2E);
+    final folder = metrics.folderColor ?? AppHues.honey;
     return Container(
       width: 44,
       height: 44,
@@ -310,7 +315,7 @@ class BackgroundColorTile extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SettingTile(
-          icon: Icons.format_color_fill,
+          icon: Icons.format_color_fill_rounded,
           title: context.t('bgc.title'),
           value: context.t(current.labelKey),
         ),
@@ -357,8 +362,8 @@ class _BackgroundDot extends StatelessWidget {
         onTap: onTap,
         customBorder: const CircleBorder(),
         child: Container(
-          width: 44,
-          height: 44,
+          width: 48,
+          height: 48,
           decoration: BoxDecoration(
             color: color,
             shape: BoxShape.circle,
@@ -370,10 +375,10 @@ class _BackgroundDot extends StatelessWidget {
           child: background.isDefault
               // "Temanın kendi"nin rengi yok — eğik çizgi onu renkli
               // seçeneklerden ayırır, yoksa 12. bir renk sanılıyordu.
-              ? Icon(Icons.format_color_reset,
+              ? Icon(Icons.format_color_reset_rounded,
                   size: 18, color: scheme.onSurfaceVariant)
               : (selected
-                  ? Icon(Icons.check,
+                  ? Icon(AppIcons.check,
                       size: 20,
                       color: color.computeLuminance() < 0.5
                           ? Colors.white
@@ -392,7 +397,7 @@ class NavTabsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SettingTile(
-        icon: Icons.space_dashboard_outlined,
+        icon: Icons.space_dashboard_rounded,
         title: context.t('nav.edit_title'),
         subtitle: context.t('nav.settings_sub'),
         onTap: () => showNavTabsSheet(context),

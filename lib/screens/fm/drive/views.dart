@@ -10,10 +10,10 @@ extension _DriveScreenViewsPart on _DriveScreenState {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+          padding: const EdgeInsetsDirectional.fromSTEB(14, 8, 8, 8),
           child: Row(
             children: [
-              Icon(clip.cut ? Icons.content_cut : Icons.copy_outlined),
+              Icon(clip.cut ? AppIcons.cut : Icons.copy_outlined),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -32,7 +32,7 @@ extension _DriveScreenViewsPart on _DriveScreenState {
               ),
               FilledButton.icon(
                 onPressed: _busy ? null : _paste,
-                icon: const Icon(Icons.content_paste),
+                icon: const Icon(AppIcons.paste),
                 label: Text(context.t('fm.paste')),
               ),
             ],
@@ -57,7 +57,7 @@ extension _DriveScreenViewsPart on _DriveScreenState {
           children: [
             for (var i = 0; i < _path.length; i++) ...[
               if (i > 0)
-                Icon(Icons.chevron_right,
+                Icon(AppIcons.chevron,
                     size: 16, color: scheme.onSurfaceVariant),
               TextButton(
                 style: TextButton.styleFrom(
@@ -163,7 +163,7 @@ extension _DriveScreenViewsPart on _DriveScreenState {
         ),
         IconButton(
           tooltip: context.t('common.copy'),
-          icon: const Icon(Icons.copy, size: 18),
+          icon: const Icon(Icons.copy_rounded, size: 18),
           onPressed: () async {
             // Yalnız DEĞER kopyalanır: Cloud formu "Paket adı: com…" gibi
             // etiketli bir yapıştırmayı reddederdi.
@@ -183,13 +183,13 @@ extension _DriveScreenViewsPart on _DriveScreenState {
           decoration: InputDecoration(
             isDense: true,
             hintText: context.t('drive.search_hint'),
-            prefixIcon: const Icon(Icons.search),
+            prefixIcon: const Icon(AppIcons.search),
             // Aramayı bitirmenin görünür bir yolu olmalı: yoksa kullanıcı
             // metni tek tek silmeden bulunduğu klasöre dönemezdi.
             suffixIcon: _searching
                 ? IconButton(
                     tooltip: context.t('common.clear'),
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(AppIcons.close),
                     onPressed: () {
                       _searchController.clear();
                       _partSetState(() => _query = '');
@@ -214,14 +214,14 @@ extension _DriveScreenViewsPart on _DriveScreenState {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.cloud_outlined, size: 56),
+              const Icon(Icons.cloud_rounded, size: 56),
               const SizedBox(height: 16),
               Text(context.t('drive.sign_in_prompt'),
                   textAlign: TextAlign.center),
               const SizedBox(height: 16),
               FilledButton.icon(
                 onPressed: _signIn,
-                icon: const Icon(Icons.login),
+                icon: const Icon(Icons.login_rounded),
                 label: Text(context.t('drive.sign_in')),
               ),
               const SizedBox(height: 24),
@@ -234,7 +234,7 @@ extension _DriveScreenViewsPart on _DriveScreenState {
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: _openViaSystemPicker,
-                icon: const Icon(Icons.folder_open_outlined),
+                icon: const Icon(Icons.folder_open_rounded),
                 label: Text(context.t('drive.open_via_system')),
               ),
             ],
@@ -270,7 +270,7 @@ extension _DriveScreenViewsPart on _DriveScreenState {
             title: Row(
               children: [
                 if (f.starred) ...[
-                  const Icon(Icons.star, size: 16, color: Color(0xFFF9A825)),
+                  const Icon(AppIcons.star, size: 16, color: Color(0xFFF9A825)),
                   const SizedBox(width: 4),
                 ],
                 Expanded(

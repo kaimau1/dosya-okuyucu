@@ -132,7 +132,7 @@ void main() {
     await tester.pump();
 
     // Kullanıcı duraklatır.
-    await tester.tap(find.byIcon(Icons.pause_circle), warnIfMissed: false);
+    await tester.tap(find.byIcon(Icons.pause_circle_rounded), warnIfMissed: false);
     await tester.pump();
     expect(platform.playing, isFalse);
 

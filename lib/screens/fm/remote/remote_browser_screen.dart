@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../core/app_icons.dart';
 import '../../../core/busy_dialog.dart';
 import '../../../core/l10n/app_strings.dart';
 import '../../../models/fs_entry.dart';
@@ -15,6 +16,7 @@ import '../../../services/fm/fs_scan.dart';
 import '../../../services/fm/remote/remote_fs.dart';
 import '../../../services/fm/remote/remote_fs_factory.dart';
 import '../../../services/fm/remote/usb_fs.dart';
+import '../../../widgets/app_dialog.dart';
 import '../../../widgets/fm/fm_entry_icon.dart';
 import '../browser_screen.dart';
 import 'remote_edit_screen.dart';
@@ -155,7 +157,7 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
           actions: [
             IconButton(
               tooltip: context.t('nas.filter_hint'),
-              icon: Icon(_searching ? Icons.search_off : Icons.search),
+              icon: Icon(_searching ? Icons.search_off_rounded : AppIcons.search),
               onPressed: () => setState(() {
                 _searching = !_searching;
                 if (!_searching) _filter = '';
@@ -163,7 +165,7 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
             ),
             IconButton(
               tooltip: context.t('common.refresh'),
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(AppIcons.refresh),
               onPressed: _busy ? null : () => _load(_path),
             ),
             PopupMenuButton<String>(

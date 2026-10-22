@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/snack.dart';
@@ -108,7 +109,7 @@ class _HiddenFilesScreenState extends State<HiddenFilesScreen> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.visibility_off_outlined,
+                          Icon(Icons.visibility_off_rounded,
                               color: scheme.onSecondaryContainer),
                           const SizedBox(width: Gap.sm),
                           Expanded(
@@ -164,7 +165,7 @@ class _HiddenFilesScreenState extends State<HiddenFilesScreen> {
                         ),
                         IconButton(
                           tooltip: context.t('common.delete'),
-                          icon: Icon(Icons.delete_outline, color: scheme.error),
+                          icon: Icon(AppIcons.delete, color: scheme.error),
                           onPressed: () => _delete(item),
                         ),
                       ],

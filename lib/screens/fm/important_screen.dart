@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
@@ -207,7 +208,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
           if (_exists)
             IconButton(
               tooltip: context.t('important.search'),
-              icon: const Icon(Icons.search),
+              icon: const Icon(AppIcons.search),
               onPressed: () => _push(SearchScreen(
                 root: _root,
                 rootLabel: ImportantScreen.folderName,
@@ -215,13 +216,13 @@ class _ImportantScreenState extends State<ImportantScreen> {
             ),
           IconButton(
             tooltip: context.t('common.refresh'),
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(AppIcons.refresh),
             onPressed: _loading ? null : _load,
           ),
           if (_exists)
             IconButton(
               tooltip: context.t('important.open_in_browser'),
-              icon: const Icon(Icons.folder_open),
+              icon: const Icon(Icons.folder_open_rounded),
               onPressed: () => _push(BrowserScreen(
                 path: _root,
                 title: ImportantScreen.folderName,
@@ -253,7 +254,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
                   ),
                   TextButton.icon(
                     onPressed: _newSubFolder,
-                    icon: const Icon(Icons.create_new_folder_outlined),
+                    icon: const Icon(AppIcons.newFolder),
                     label: Text(context.t('common.new')),
                   ),
                 ],
@@ -266,14 +267,14 @@ class _ImportantScreenState extends State<ImportantScreen> {
               for (final f in _subFolders)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.folder, color: context.fmFolderColor ?? FmColors.folder),
+                  leading: Icon(AppIcons.folder, color: context.fmFolderColor ?? FmColors.folder),
                   title: Text(f.name,
                       maxLines: 1, overflow: TextOverflow.ellipsis),
                   subtitle: Text(
                     '${context.t('count.files', {'n': _countIn(f.path)})} · '
                     '${FsPaths.humanSize(_bytesIn(f.path))}',
                   ),
-                  trailing: const Icon(Icons.chevron_right),
+                  trailing: const Icon(AppIcons.chevron),
                   onTap: () => _push(BrowserScreen(path: f.path)),
                 ),
             ],
@@ -285,13 +286,13 @@ class _ImportantScreenState extends State<ImportantScreen> {
           : (appState.hasClipboard
               ? FloatingActionButton.extended(
                   onPressed: _paste,
-                  icon: const Icon(Icons.content_paste),
+                  icon: const Icon(AppIcons.paste),
                   label: Text(appState.clipboardCut ? context.t('fm.move') : context.t('fm.paste')),
                 )
               : FloatingActionButton(
                   onPressed: _newSubFolder,
                   tooltip: context.t('important.new_subfolder'),
-                  child: const Icon(Icons.create_new_folder_outlined),
+                  child: const Icon(AppIcons.newFolder),
                 )),
     );
   }
@@ -308,7 +309,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
           padding: const EdgeInsets.all(Gap.md),
           child: Row(
             children: [
-              const Icon(Icons.star, color: FmColors.folder, size: 32),
+              const Icon(AppIcons.star, color: FmColors.folder, size: 32),
               const SizedBox(width: Gap.md),
               Expanded(
                 child: Column(
@@ -348,10 +349,10 @@ class _ImportantScreenState extends State<ImportantScreen> {
               ),
               const SizedBox(height: Gap.sm),
               Align(
-                alignment: Alignment.centerRight,
+                alignment: AlignmentDirectional.centerEnd,
                 child: FilledButton.icon(
                   onPressed: _createRoot,
-                  icon: const Icon(Icons.create_new_folder_outlined),
+                  icon: const Icon(AppIcons.newFolder),
                   label: Text(context.t('important.create_folder')),
                 ),
               ),

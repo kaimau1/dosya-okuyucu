@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 
+import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/markdown.dart';
 
@@ -60,7 +61,7 @@ class MarkdownText extends StatelessWidget {
 
       case MdBlockType.quote:
         return Container(
-          padding: const EdgeInsets.only(left: 12),
+          padding: const EdgeInsetsDirectional.only(start: 12),
           decoration: BoxDecoration(
             border: Border(
               left: BorderSide(
@@ -121,7 +122,7 @@ class MarkdownText extends StatelessWidget {
                     tooltip: context.t('common.copy'),
                     visualDensity: VisualDensity.compact,
                     iconSize: 16,
-                    icon: const Icon(Icons.copy_outlined),
+                    icon: const Icon(AppIcons.clipCopy),
                     onPressed: () => Clipboard.setData(
                         ClipboardData(text: block.rawCode)),
                   ),

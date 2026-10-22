@@ -358,7 +358,7 @@ class AppState extends ChangeNotifier {
   /// Ölçek 0,85–1,40 arasına kısılır: altında dokunma hedefleri okunmaz
   /// küçüklüğe, üstünde çubuk/etiketler taşmaya başlıyor.
   Future<void> setUiTextScale(double value) async {
-    _uiTextScale = value.clamp(0.85, 1.4);
+    _uiTextScale = value.clamp(0.85, 2.0);
     await _prefs.setDouble(_kUiTextScale, _uiTextScale);
     _notifyAppearance();
   }
@@ -654,7 +654,7 @@ class AppState extends ChangeNotifier {
     _background = AppBackground.byId(_prefs.getString(_kBackground)).id;
     _language = AppLanguageInfo.byCode(_prefs.getString(_kLanguage));
     _uiFont = AppTheme.migrateUiFont(_prefs.getString(_kUiFont));
-    _uiTextScale = (_prefs.getDouble(_kUiTextScale) ?? 1.0).clamp(0.85, 1.4);
+    _uiTextScale = (_prefs.getDouble(_kUiTextScale) ?? 1.0).clamp(0.85, 2.0);
     _highRefreshRate = _prefs.getBool(_kHighRefresh);
     _autoRescan = _prefs.getBool(_kAutoRescan);
     _perfMode = PerfMode.values.firstWhere(

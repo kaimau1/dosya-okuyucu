@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/display_mode.dart';
 import '../../core/l10n/app_strings.dart';
@@ -35,7 +36,7 @@ class HighRefreshTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingSwitch(
-      icon: Icons.speed,
+      icon: Icons.speed_rounded,
       title: context.t('settings.perf_high_refresh'),
       subtitle: context.t('settings.perf_high_refresh_sub'),
       value: appState.highRefreshRate,
@@ -69,14 +70,14 @@ class PerfModeTile extends StatelessWidget {
       DeviceTier.high => context.t('perf.tier_high'),
     };
     return SettingTile(
-      icon: Icons.memory_outlined,
+      icon: Icons.memory_rounded,
       title: context.t('perf.mode'),
       subtitle: context.t('perf.mode_sub'),
       value: mode == PerfMode.auto
           ? context.t('perf.auto_is', {'tier': detected})
           : _label(context, mode),
       trailing: PopupMenuButton<PerfMode>(
-        icon: const Icon(Icons.arrow_drop_down),
+        icon: const Icon(AppIcons.dropDown),
         tooltip: context.t('perf.mode'),
         onSelected: (m) async {
           await appState.setPerfMode(m);
@@ -102,7 +103,7 @@ class AutoRescanTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingSwitch(
-      icon: Icons.autorenew,
+      icon: Icons.autorenew_rounded,
       title: context.t('settings.perf_auto_rescan'),
       subtitle: context.t('settings.perf_auto_rescan_sub'),
       value: appState.autoRescan,
@@ -154,7 +155,7 @@ class _SearchIndexTileState extends State<SearchIndexTile> {
 
   @override
   Widget build(BuildContext context) => SettingTile(
-        icon: Icons.manage_search,
+        icon: Icons.manage_search_rounded,
         title: context.t('fmset.index'),
         subtitle: _subtitle(),
         wrapSubtitle: true,
@@ -181,7 +182,7 @@ class AppFootprintTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SettingTile(
-        icon: Icons.pie_chart_outline,
+        icon: Icons.pie_chart_outline_rounded,
         title: context.t('foot.title'),
         subtitle: context.t('foot.tile_sub'),
         wrapSubtitle: true,
@@ -196,7 +197,7 @@ class SdUnionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SettingTile(
-        icon: Icons.sd_card_outlined,
+        icon: AppIcons.sdCard,
         title: context.t('sdu.title'),
         subtitle: context.t('sdu.tile_sub'),
         wrapSubtitle: true,
@@ -224,7 +225,7 @@ class _VolumesTileState extends State<VolumesTile> {
 
   @override
   Widget build(BuildContext context) => SettingTile(
-        icon: Icons.storage,
+        icon: Icons.storage_rounded,
         title: context.t('fmset.volumes'),
         subtitle: FmEnv.volumes.isEmpty
             ? context.t('fmset.volumes_none')
@@ -232,7 +233,7 @@ class _VolumesTileState extends State<VolumesTile> {
         wrapSubtitle: true,
         trailing: IconButton(
           tooltip: context.t('common.refresh'),
-          icon: const Icon(Icons.refresh),
+          icon: const Icon(AppIcons.refresh),
           onPressed: () async {
             await FmEnv.ensureInit(force: true);
             if (mounted) setState(() {});
@@ -253,7 +254,7 @@ class UsbDiagnosticsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SettingTile(
-        icon: Icons.usb,
+        icon: AppIcons.external,
         title: context.t('usb.diag_title'),
         subtitle: context.t('usb.diag_sub'),
         wrapSubtitle: true,
@@ -269,7 +270,7 @@ class DeveloperOffTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SettingTile(
-        icon: Icons.close,
+        icon: AppIcons.close,
         title: context.t('dev.turn_off'),
         onTap: () async {
           await context.read<AppState>().setDeveloperMode(false);
@@ -290,7 +291,7 @@ class HelpTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SettingTile(
-        icon: Icons.help_outline,
+        icon: AppIcons.help,
         title: context.t('help.title'),
         subtitle: context.t('help.tile_sub'),
         wrapSubtitle: true,
@@ -305,7 +306,7 @@ class PrivacyPolicyTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SettingTile(
-        icon: Icons.privacy_tip_outlined,
+        icon: Icons.privacy_tip_rounded,
         title: context.t('settings.privacy_policy'),
         subtitle: context.t('settings.privacy_policy_sub'),
         wrapSubtitle: true,
@@ -344,7 +345,7 @@ class _CrashLogTileState extends State<CrashLogTile> {
 
   @override
   Widget build(BuildContext context) => SettingTile(
-        icon: Icons.bug_report_outlined,
+        icon: Icons.bug_report_rounded,
         title: context.t('settings.crash_log'),
         subtitle: context.t('settings.crash_log_sub'),
         wrapSubtitle: true,
@@ -401,7 +402,7 @@ class _AboutTileState extends State<AboutTile> {
           ),
           // Atıf yükümlülükleri (BSD/MIT/Apache, OFL fontlar, Syncfusion).
           SettingTile(
-            icon: Icons.balance_outlined,
+            icon: Icons.balance_rounded,
             title: context.t('settings.oss'),
             subtitle: context.t('settings.oss_sub'),
             onTap: () => showOpenSourceLicenses(context),
@@ -462,7 +463,7 @@ class _WeeklyCleanupTileState extends State<WeeklyCleanupTile> {
 
   @override
   Widget build(BuildContext context) => SettingSwitch(
-        icon: Icons.cleaning_services_outlined,
+        icon: Icons.cleaning_services_rounded,
         title: context.t('nx.weekly'),
         subtitle: context.t('nx.weekly_sub'),
         value: _on,

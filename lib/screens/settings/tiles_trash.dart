@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../services/fm/file_ops.dart';
@@ -18,7 +19,7 @@ class UseTrashTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingSwitch(
-      icon: Icons.delete_outline,
+      icon: AppIcons.delete,
       title: context.t('fmset.use_trash'),
       subtitle: context.t('fmset.use_trash_sub'),
       value: appState.fmUseTrash,
@@ -35,7 +36,7 @@ class ConfirmDeleteTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingSwitch(
-      icon: Icons.help_outline,
+      icon: AppIcons.help,
       title: context.t('fmset.confirm_delete'),
       value: appState.fmConfirmDelete,
       onChanged: appState.setFmConfirmDelete,
@@ -52,7 +53,7 @@ class TrashAutoTile extends StatelessWidget {
     final appState = context.watch<AppState>();
     final off = appState.fmTrashAutoDays == 0;
     return SettingTile(
-      icon: Icons.auto_delete_outlined,
+      icon: Icons.auto_delete_rounded,
       title: context.t('fmset.trash_auto'),
       subtitle: off
           ? context.t('fmset.trash_auto_off')
@@ -61,7 +62,7 @@ class TrashAutoTile extends StatelessWidget {
           ? context.t('fmset.off')
           : context.t('fmset.days', {'n': appState.fmTrashAutoDays}),
       trailing: PopupMenuButton<int>(
-        icon: const Icon(Icons.arrow_drop_down),
+        icon: const Icon(AppIcons.dropDown),
         onSelected: appState.setFmTrashAutoDays,
         itemBuilder: (ctx) => [
           PopupMenuItem(value: 0, child: Text(ctx.t('fmset.off'))),
@@ -147,7 +148,7 @@ class _EmptyTrashTileState extends State<EmptyTrashTile> {
 
   @override
   Widget build(BuildContext context) => SettingTile(
-        icon: Icons.delete_sweep_outlined,
+        icon: Icons.delete_sweep_rounded,
         title: context.t('fmset.empty_trash_now'),
         subtitle: _count == 0
             ? context.t('fmset.trash_empty')

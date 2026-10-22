@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 
 import '../../core/app_icons.dart';
+import '../../core/bidi.dart';
+import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fm_layout.dart';
+import '../../models/fm_type.dart';
 import '../../models/fs_entry.dart';
 import 'fm_entry_icon.dart';
 import '../motion.dart';
@@ -71,7 +75,10 @@ class FmEntryRow extends StatelessWidget {
     return Semantics(
       selected: selected,
       button: true,
-      label: entry.name,
+      // TalkBack: "PDF, Kira sözleşmesi, 117 KB · dün" (Faz 16 / madde 4).
+      // Ad ve alt satır metinleri aşağıda ayrıca okunmasın diye dışlanır.
+      label: fmEntrySemanticsLabel(context, entry, subtitle),
+      customSemanticsActions: fmSelectAction(context, selected, onCheck),
       child: Material(
         color: selected
             ? scheme.primaryContainer.withValues(alpha: 0.4)
@@ -83,8 +90,8 @@ class FmEntryRow extends StatelessWidget {
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 56),
             child: Padding(
-              padding: EdgeInsetsDirectional.fromSTEB(
-                  Gap.md, vPad, more == null && badge == null ? Gap.md : Gap.xs, vPad),
+              padding: EdgeInsetsDirectional.fromSTEB(Gap.md, vPad,
+                  more == null && badge == null ? Gap.md : Gap.xs, vPad),
               child: Row(
                 children: [
                   FmSelectableIcon(
@@ -96,30 +103,34 @@ class FmEntryRow extends StatelessWidget {
                   ),
                   const SizedBox(width: 14),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          entry.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            fontWeight: FontWeight.w500,
-                            color: selected ? scheme.primary : null,
+                    child: ExcludeSemantics(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            entry.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w500,
+                              color: selected ? scheme.primary : null,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          subtitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            fontFeatures: const [FontFeature.tabularFigures()],
+                          const SizedBox(height: 2),
+                          Text(
+                            bidiParts(context, subtitle),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures()
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                   if (badge != null) ...[
@@ -193,75 +204,103 @@ class FmEntryCard extends StatelessWidget {
     return Semantics(
       selected: selected,
       button: true,
-      label: entry.name,
+      label: fmEntrySemanticsLabel(context, entry, null),
+      // Ad şeridi bir kez okunsun; dokunma eylemi burada yeniden verilir
+      // (dışlanan InkWell'in eylemi düğümden düşer).
+      excludeSemantics: true,
+      onTap: onTap,
       child: PressScale(
-      enabled: !selecting,
-      scale: 0.96,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(Radii.card),
-        child: Container(
-          decoration: BoxDecoration(
-            color:
-                selected
-                    ? scheme.primaryContainer.withValues(alpha: 0.5)
-                    : null,
-            borderRadius: BorderRadius.circular(Radii.card),
-          ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              // Hücrenin boyu ikon + ad şeridi kadar; tema ölçeği ikonu
-              // BÜYÜTÜRSE üst sınır yine hücrenin kendisi olmalı, yoksa
-              // "Modern" ailesinde ızgara satırı taşardı.
-              final room = constraints.maxHeight - _labelHeight;
-              final iconSize = (room * context.fmIconScale).clamp(
-                16.0,
-                constraints.maxWidth < room ? constraints.maxWidth : room,
-              );
-              return Stack(
-                children: [
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      FmEntryIcon(
-                        entry: entry,
-                        size: iconSize,
-                        // Hücre büyüdükçe köşe yarıçapı da büyür (küçük kutuda
-                        // 12 dp yuvarlaklık, 140 dp'lik kutuda ezik duruyordu).
-                        radius: (iconSize * 0.12).clamp(6.0, 20.0),
-                      ),
-                      SizedBox(
-                        height: _labelHeight,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 2),
-                          child: Text(
-                            entry.name,
-                            maxLines: 2,
-                            textAlign: TextAlign.center,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodySmall,
+        enabled: !selecting,
+        scale: 0.96,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(Radii.card),
+          child: Container(
+            decoration: BoxDecoration(
+              color: selected
+                  ? scheme.primaryContainer.withValues(alpha: 0.5)
+                  : null,
+              borderRadius: BorderRadius.circular(Radii.card),
+            ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // Hücrenin boyu ikon + ad şeridi kadar; tema ölçeği ikonu
+                // BÜYÜTÜRSE üst sınır yine hücrenin kendisi olmalı, yoksa
+                // "Modern" ailesinde ızgara satırı taşardı.
+                final room = constraints.maxHeight - _labelHeight;
+                final iconSize = (room * context.fmIconScale).clamp(
+                  16.0,
+                  constraints.maxWidth < room ? constraints.maxWidth : room,
+                );
+                return Stack(
+                  children: [
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        FmEntryIcon(
+                          entry: entry,
+                          size: iconSize,
+                          // Hücre büyüdükçe köşe yarıçapı da büyür (küçük kutuda
+                          // 12 dp yuvarlaklık, 140 dp'lik kutuda ezik duruyordu).
+                          radius: (iconSize * 0.12).clamp(6.0, 20.0),
+                        ),
+                        SizedBox(
+                          height: _labelHeight,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 2),
+                            child: Text(
+                              entry.name,
+                              maxLines: 2,
+                              textAlign: TextAlign.center,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  if (selecting)
-                    Positioned(
-                      top: 0,
-                      right: 0,
-                      child: Icon(
-                        selected ? AppIcons.checkCircle : AppIcons.circle,
-                        size: 20,
-                        color: selected ? scheme.primary : scheme.outline,
-                      ),
+                      ],
                     ),
-                ],
-              );
-            },
+                    if (selecting)
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        child: Icon(
+                          selected ? AppIcons.checkCircle : AppIcons.circle,
+                          size: 20,
+                          color: selected ? scheme.primary : scheme.outline,
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
           ),
         ),
       ),
-    ),
     );
   }
+}
+
+/// Dosya satırının TalkBack metni: tür, ad ve (varsa) alt satır.
+/// Klasörde tür söylenmez — simge ve "›" zaten klasör olduğunu anlatıyor,
+/// "Klasörler, Faturalar" kulağa yanlış geliyordu.
+String fmEntrySemanticsLabel(
+    BuildContext context, FsEntry entry, String? subtitle) {
+  final type = FmType.of(entry);
+  final parts = [
+    if (type != FmType.folder && type != FmType.other) context.t(type.labelKey),
+    entry.name,
+    if (subtitle != null && subtitle.isNotEmpty) subtitle,
+  ];
+  return parts.join(', ');
+}
+
+/// Sürükleyerek/uzun basarak seçmenin erişilebilir karşılığı: TalkBack
+/// menüsünde "Seç" / "Seçimden çıkar" eylemi.
+Map<CustomSemanticsAction, VoidCallback>? fmSelectAction(
+    BuildContext context, bool selected, VoidCallback? onCheck) {
+  if (onCheck == null) return null;
+  return {
+    CustomSemanticsAction(
+        label: context.t(selected ? 'a11y.deselect' : 'a11y.select')): onCheck,
+  };
 }

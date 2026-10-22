@@ -1,3 +1,4 @@
+import 'package:dosya_okuyucu/core/app_icons.dart';
 import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/screens/fm/drive_screen.dart';
 import 'package:dosya_okuyucu/services/fm/app_signature.dart';
@@ -186,9 +187,9 @@ void main() {
     // olmalı; şu an hepsi aynı belge işareti var".
     await http.runWithClient(() async {
       await _pump(tester, _signedIn());
-      expect(find.byIcon(Icons.picture_as_pdf), findsOneWidget);
-      expect(find.byIcon(Icons.table_chart), findsNWidgets(2)); // .xls + Google E-Tablo
-      expect(find.byIcon(Icons.description), findsOneWidget); // Word
+      expect(find.byIcon(AppIcons.pdf), findsOneWidget);
+      expect(find.byIcon(Icons.table_chart_rounded), findsNWidgets(2)); // .xls + Google E-Tablo
+      expect(find.byIcon(Icons.description_rounded), findsOneWidget); // Word
       expect(find.byIcon(Icons.android_rounded), findsOneWidget); // APK
     },
         () => MockClient((_) async => http.Response(

@@ -141,7 +141,7 @@ void main() {
       // turu); eskiden ⋮ menüsündeydi.
       await tester.tap(find.text('Görünüm'));
       await tester.pumpAndSettle();
-      final rtlButton = find.byIcon(Icons.format_textdirection_r_to_l);
+      final rtlButton = find.byIcon(Icons.format_textdirection_r_to_l_rounded);
       await tester.ensureVisible(rtlButton);
       await tester.pumpAndSettle();
       await tester.tap(rtlButton);

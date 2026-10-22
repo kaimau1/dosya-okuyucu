@@ -15,6 +15,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -147,11 +148,11 @@ class _AiFileListState extends State<AiFileList> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (record.importance >= AiImportance.important)
-                  Icon(Icons.star,
+                  Icon(AppIcons.star,
                       size: 18, color: Theme.of(context).colorScheme.primary),
                 IconButton(
                   tooltip: context.t('fm.actions'),
-                  icon: const Icon(Icons.more_vert),
+                  icon: const Icon(AppIcons.more),
                   onPressed: () => _openActions(entry),
                 ),
               ],
@@ -198,7 +199,7 @@ class _AiFileListState extends State<AiFileList> {
                 children: [
                   IconButton(
                     tooltip: context.t('common.cancel'),
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(AppIcons.close),
                     onPressed: () => setState(_selected.clear),
                   ),
                   Expanded(
@@ -230,24 +231,24 @@ class _AiFileListState extends State<AiFileList> {
                   children: [
                     if (widget.onApply != null)
                       _barButton(
-                        Icons.auto_fix_high,
+                        Icons.auto_fix_high_rounded,
                         context.t('aif.apply'),
                         () async {
                           await widget.onApply!(selected);
                           if (mounted) setState(_selected.clear);
                         },
                       ),
-                    _barButton(Icons.share_outlined, context.t('aif.share'),
+                    _barButton(AppIcons.share, context.t('aif.share'),
                         () => shareEntriesFrom(context, _selected.toList())),
                     _barButton(
-                      Icons.drive_file_move_outlined,
+                      Icons.drive_file_move_rounded,
                       context.t('aif.move'),
                       () async => _afterFileOp(await moveOrCopyEntries(
                           context, _selected.toList(),
                           move: true)),
                     ),
                     _barButton(
-                      Icons.delete_outline,
+                      AppIcons.delete,
                       context.t('common.delete'),
                       () async => _afterFileOp(await deleteEntries(
                         context,

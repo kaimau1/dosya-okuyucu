@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/app_icons.dart';
 import '../core/app_state.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/fm/folder_lock.dart';
@@ -102,7 +103,7 @@ class _AppLockGateState extends State<AppLockGate> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.lock_outline,
+                Icon(AppIcons.lock,
                     size: 56, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(height: 16),
                 Text(context.t('lock.app_title'),

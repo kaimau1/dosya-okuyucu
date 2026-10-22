@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/ai_buckets.dart';
@@ -81,7 +82,7 @@ class AiPreviewCard extends StatelessWidget {
                           shape: BoxShape.circle,
                         ),
                         padding: const EdgeInsets.all(4),
-                        child: const Icon(Icons.play_arrow_rounded,
+                        child: const Icon(AppIcons.play,
                             color: Colors.white, size: 26),
                       ),
                   ],

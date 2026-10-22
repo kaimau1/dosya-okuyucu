@@ -4,6 +4,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../core/app_colors.dart';
+import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/snack.dart';
 import '../core/theme.dart' show OverlayBar;
@@ -301,7 +303,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.add_photo_alternate_outlined),
+              leading: const Icon(Icons.add_photo_alternate_rounded),
               title: Text(ctx.t('ied.save_copy')),
               subtitle: Text(sameFormat
                   ? ctx.t('ied.save_copy_sub')
@@ -310,7 +312,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
             ),
             if (sameFormat)
               ListTile(
-                leading: const Icon(Icons.save_outlined),
+                leading: const Icon(AppIcons.save),
                 title: Text(ctx.t('ied.overwrite')),
                 subtitle: Text(ctx.t('ied.overwrite_sub')),
                 onTap: () => Navigator.pop(ctx, true),
@@ -374,16 +376,16 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: AppColors.mediaSurface,
         appBar: AppBar(
-          backgroundColor: Colors.black,
-          foregroundColor: Colors.white,
+          backgroundColor: AppColors.mediaSurface,
+          foregroundColor: AppColors.onMedia,
           title: Text(context.t('ied.title'),
               style: OverlayBar.title(context)),
           actions: [
             IconButton(
               tooltip: context.t('common.undo'),
-              icon: const Icon(Icons.undo),
+              icon: const Icon(AppIcons.undo),
               onPressed: _undo.isEmpty
                   ? null
                   : () => setState(() => _e = _undo.removeLast()),
@@ -411,11 +413,11 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
               onDestinationSelected: (i) => setState(() => _tab = _Tab.values[i]),
               destinations: [
                 NavigationDestination(
-                    icon: const Icon(Icons.crop), label: context.t('ied.crop')),
+                    icon: const Icon(Icons.crop_rounded), label: context.t('ied.crop')),
                 NavigationDestination(
-                    icon: const Icon(Icons.tune), label: context.t('ied.adjust')),
+                    icon: const Icon(AppIcons.tune), label: context.t('ied.adjust')),
                 NavigationDestination(
-                    icon: const Icon(Icons.draw_outlined),
+                    icon: const Icon(Icons.draw_rounded),
                     label: context.t('ied.markup')),
               ],
             ),
@@ -430,7 +432,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
     if (_error != null) {
       return Center(
         child: Text(userErrorText(_error!),
-            style: const TextStyle(color: Colors.white70)),
+            style: const TextStyle(color: AppColors.onMediaSoft)),
       );
     }
     if (src == null) return const Center(child: CircularProgressIndicator());
@@ -481,7 +483,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
   Widget _panel(ColorScheme scheme) {
     final chipTheme = ChipTheme.of(context);
     return Material(
-      color: Colors.black,
+      color: AppColors.mediaSurface,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
         child: switch (_tab) {
@@ -503,10 +505,10 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
                 ]),
               ),
               Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-                _toolButton(Icons.rotate_right, 'ied.rotate',
+                _toolButton(Icons.rotate_right_rounded, 'ied.rotate',
                     () => _push(_e.rotated())),
-                _toolButton(Icons.flip, 'ied.flip', () => _push(_e.flipped())),
-                _toolButton(Icons.restart_alt, 'ied.reset', () {
+                _toolButton(Icons.flip_rounded, 'ied.flip', () => _push(_e.flipped())),
+                _toolButton(Icons.restart_alt_rounded, 'ied.reset', () {
                   setState(() => _ratio = null);
                   _push(const ImageEdits());
                 }),
@@ -523,9 +525,9 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
           _Tab.markup => Column(mainAxisSize: MainAxisSize.min, children: [
               Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 for (final (kind, icon, key) in const [
-                  (MarkKind.pen, Icons.edit, 'ied.pen'),
-                  (MarkKind.arrow, Icons.north_east, 'ied.arrow'),
-                  (MarkKind.text, Icons.text_fields, 'ied.text'),
+                  (MarkKind.pen, AppIcons.edit, 'ied.pen'),
+                  (MarkKind.arrow, Icons.north_east_rounded, 'ied.arrow'),
+                  (MarkKind.text, AppIcons.textFields, 'ied.text'),
                 ])
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 3),
@@ -556,7 +558,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
                           border: Border.all(
                             color: color == _color
                                 ? scheme.primary
-                                : Colors.white38,
+                                : AppColors.onMediaFaint,
                             width: color == _color ? 3 : 1,
                           ),
                         ),
@@ -567,7 +569,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
               if (_tool == MarkKind.text)
                 Text(context.t('ied.tap_for_text'),
                     style: chipTheme.labelStyle
-                        ?.copyWith(color: Colors.white70)),
+                        ?.copyWith(color: AppColors.onMediaSoft)),
             ]),
         },
       ),
@@ -576,7 +578,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
 
   Widget _toolButton(IconData icon, String key, VoidCallback onTap) => TextButton.icon(
         style: TextButton.styleFrom(
-            foregroundColor: Colors.white, minimumSize: const Size(48, 48)),
+            foregroundColor: AppColors.onMedia, minimumSize: const Size(48, 48)),
         onPressed: onTap,
         icon: Icon(icon),
         label: Text(context.t(key)),
@@ -588,7 +590,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
       SizedBox(
         width: 96,
         child: Text(context.t(key),
-            style: const TextStyle(color: Colors.white70)),
+            style: const TextStyle(color: AppColors.onMediaSoft)),
       ),
       Expanded(
         child: Slider(
@@ -603,7 +605,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
         width: 40,
         child: Text('${(value * 100).round()}',
             textAlign: TextAlign.end,
-            style: const TextStyle(color: Colors.white70)),
+            style: const TextStyle(color: AppColors.onMediaSoft)),
       ),
     ]);
   }
@@ -638,7 +640,7 @@ class _EditPainter extends CustomPainter {
       Paint()..color = const Color(0x99000000),
     );
     final line = Paint()
-      ..color = Colors.white
+      ..color = AppColors.onMedia
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     canvas.drawRect(r, line);
@@ -652,7 +654,7 @@ class _EditPainter extends CustomPainter {
           Offset(r.right, r.top + r.height * f), line);
     }
     final handle = Paint()
-      ..color = Colors.white
+      ..color = AppColors.onMedia
       ..strokeWidth = 4
       ..strokeCap = StrokeCap.round;
     const l = 18.0;

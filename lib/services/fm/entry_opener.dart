@@ -6,6 +6,7 @@ import 'package:open_filex/open_filex.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/busy_dialog.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
@@ -377,14 +378,14 @@ class _MediaChoiceDialogState extends State<_MediaChoiceDialog> {
           children: [
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.play_circle_outline),
+              leading: const Icon(Icons.play_circle_outline_rounded),
               title: Text(context.t('open.in_app_player')),
               subtitle: Text(context.t('open.in_app_hint')),
               onTap: () => _pick(MediaOpenWith.inApp),
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.open_in_new),
+              leading: const Icon(AppIcons.open),
               title: Text(context.t('open.other_app')),
               subtitle: Text(context.t('open.other_app_hint')),
               onTap: () => _pick(MediaOpenWith.external),

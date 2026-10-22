@@ -6,9 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart' show PdfPageFormat;
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/busy_dialog.dart';
 import '../../core/doc_fonts.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/motion.dart';
 import '../../core/text_search.dart';
 import '../../models/document.dart';
 import '../../services/fm/safe_write.dart';
@@ -168,13 +170,13 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
           if (editing)
             IconButton(
               tooltip: context.t('common.save'),
-              icon: const Icon(Icons.save_outlined),
+              icon: const Icon(AppIcons.save),
               onPressed: editor == null ? null : _save,
             ),
           if (!editing)
             IconButton(
               tooltip: context.t('common.search'),
-              icon: const Icon(Icons.search),
+              icon: const Icon(AppIcons.search),
               onPressed: editor == null ? null : _toggleFind,
             ),
         ],
@@ -217,23 +219,23 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
         bottomBar: editing
             ? null
             : DocActionBar([
-                DocAction(Icons.play_arrow, context.t('sl.play'),
+                DocAction(AppIcons.play, context.t('sl.play'),
                     editor == null ? null : () => _play(0)),
-                DocAction(Icons.summarize_outlined, context.t('ai.summarize'),
+                DocAction(Icons.summarize_rounded, context.t('ai.summarize'),
                     editor == null ? null : _summarize),
-                DocAction(Icons.save_outlined, context.t('common.save'),
+                DocAction(AppIcons.save, context.t('common.save'),
                     editor == null ? null : _save),
-                DocAction(Icons.picture_as_pdf_outlined, context.t('sl.to_pdf'),
+                DocAction(AppIcons.pdf, context.t('sl.to_pdf'),
                     editor == null ? null : _exportPdf),
-                DocAction(Icons.share_outlined, context.t('common.share'),
+                DocAction(AppIcons.share, context.t('common.share'),
                     editor == null ? null : _export),
                 // Başka uygulamadan açıldıysa dosya özel önbellekte: doğrudan
                 // İndirilenler'e (bkz. [SaveToDownloads]).
                 if (showDownloadAction(widget.path))
-                  DocAction(Icons.download_outlined, context.t('common.download'),
+                  DocAction(AppIcons.download, context.t('common.download'),
                       editor == null ? null : _download),
                 DocAction(
-                  Icons.translate,
+                  AppIcons.translate,
                   context.t('common.translate'),
                   () => TranslateFlow.run(context, widget.plainText,
                       title: widget.name),

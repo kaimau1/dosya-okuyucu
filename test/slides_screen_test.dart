@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:dosya_okuyucu/core/app_icons.dart';
 import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/screens/editors/slides_editor_screen.dart';
 import 'package:flutter/material.dart';
@@ -141,7 +142,7 @@ void main() {
 
   testWidgets('arama eşleşmeyi bulur ve sayacı gösterir', (tester) async {
     await pump(tester);
-    await tester.tap(find.byIcon(Icons.search));
+    await tester.tap(find.byIcon(AppIcons.search));
     await settle(tester);
 
     await tester.enterText(find.byType(TextField).first, 'bütçe');
@@ -154,7 +155,7 @@ void main() {
 
   testWidgets('eşleşme yoksa açıkça yazar', (tester) async {
     await pump(tester);
-    await tester.tap(find.byIcon(Icons.search));
+    await tester.tap(find.byIcon(AppIcons.search));
     await settle(tester);
 
     await tester.enterText(find.byType(TextField).first, 'zzzz');
@@ -165,16 +166,16 @@ void main() {
   testWidgets('geri tuşu önce arama çubuğunu kapatır, ekrandan ÇIKMAZ',
       (tester) async {
     await pump(tester);
-    await tester.tap(find.byIcon(Icons.search));
+    await tester.tap(find.byIcon(AppIcons.search));
     await settle(tester);
-    expect(find.byIcon(Icons.close), findsOneWidget);
+    expect(find.byIcon(AppIcons.close), findsOneWidget);
 
     // Sistem geri tuşu.
     await tester.binding.handlePopRoute();
     await settle(tester);
 
     // Arama kapandı ama ekran hâlâ ayakta.
-    expect(find.byIcon(Icons.close), findsNothing);
+    expect(find.byIcon(AppIcons.close), findsNothing);
     expect(find.byType(SlidesEditorScreen), findsOneWidget);
   });
 

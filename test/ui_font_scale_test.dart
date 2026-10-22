@@ -117,8 +117,43 @@ void main() {
     await state.init();
     expect(state.uiTextScale, 1.0);
     await state.setUiTextScale(5);
-    expect(state.uiTextScale, 1.4);
+    // Faz 16: üst sınır 1,4 → 2,0 (Android 14+ doğrusal olmayan ölçeğin ucu).
+    expect(state.uiTextScale, 2.0);
     await state.setUiTextScale(0.1);
     expect(state.uiTextScale, 0.85);
+  });
+
+  testWidgets('uygulama ölçeği TÜM TextTheme rollerine eşit uygulanır',
+      (tester) async {
+    // Faz 15 / madde 3: punto ekranda sabit yazılınca ölçek ayarı her yere
+    // eşit yansımıyordu. Rollerin hepsi aynı oranda büyür.
+    final theme = AppTheme.light();
+    final roles = <String, TextStyle?>{
+      'displaySmall': theme.textTheme.displaySmall,
+      'headlineSmall': theme.textTheme.headlineSmall,
+      'titleLarge': theme.textTheme.titleLarge,
+      'titleMedium': theme.textTheme.titleMedium,
+      'titleSmall': theme.textTheme.titleSmall,
+      'bodyLarge': theme.textTheme.bodyLarge,
+      'bodyMedium': theme.textTheme.bodyMedium,
+      'bodySmall': theme.textTheme.bodySmall,
+      'labelLarge': theme.textTheme.labelLarge,
+      'labelMedium': theme.textTheme.labelMedium,
+      'labelSmall': theme.textTheme.labelSmall,
+    };
+    for (final scale in [0.85, 1.0, 1.4, 2.0]) {
+      for (final MapEntry(key: role, value: style) in roles.entries) {
+        if (style?.fontSize == null) continue; // tema tanımlamıyorsa
+        await tester.pumpWidget(MediaQuery(
+          data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: Text('Merhaba', style: style),
+          ),
+        ));
+        expect(_renderedSize(tester), closeTo(style!.fontSize! * scale, 0.01),
+            reason: '$role × $scale');
+      }
+    }
   });
 }

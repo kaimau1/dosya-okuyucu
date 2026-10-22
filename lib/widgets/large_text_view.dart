@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
 import '../core/user_error.dart';
@@ -133,7 +134,7 @@ class _LargeTextViewState extends State<LargeTextView> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
             children: [
-              const Icon(Icons.lock_outline, size: 16),
+              const Icon(AppIcons.lock, size: 16),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -156,7 +157,7 @@ class _LargeTextViewState extends State<LargeTextView> {
               thumbVisibility: true,
               child: ListView.builder(
                 controller: _scroll,
-                padding: const EdgeInsets.fromLTRB(12, 8, 16, 24),
+                padding: const EdgeInsetsDirectional.fromSTEB(12, 8, 16, 24),
                 itemCount: file.lineCount,
                 itemBuilder: (context, i) {
                   final text = _line(i);

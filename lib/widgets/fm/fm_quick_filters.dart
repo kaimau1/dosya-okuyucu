@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/motion.dart';
 import '../../core/theme.dart';
 import '../../models/fm_filter.dart';
 import '../../models/fs_entry.dart';
@@ -73,7 +75,7 @@ class FmChip extends StatelessWidget {
         button: true,
         selected: selected,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
+          duration: Motion.of(context, Motion.short),
           curve: Curves.easeOut,
           height: kFmChipHeight,
           decoration: ShapeDecoration(
@@ -158,7 +160,7 @@ class _ChipBody extends StatelessWidget {
           ),
           if (dropdown) ...[
             const SizedBox(width: 2),
-            Icon(Icons.arrow_drop_down, size: 20, color: fg),
+            Icon(AppIcons.dropDown, size: 20, color: fg),
           ],
         ],
       ),

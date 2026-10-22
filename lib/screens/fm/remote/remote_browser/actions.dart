@@ -231,20 +231,8 @@ extension _RemoteBrowserScreenActionsPart on _RemoteBrowserScreenState {
     }
   }
 
-  Future<bool?> _confirm(String message) => showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          content: Text(message),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: Text(ctx.t('common.cancel'))),
-            FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: Text(ctx.t('common.ok'))),
-          ],
-        ),
-      );
+  Future<bool?> _confirm(String message) =>
+      showAppConfirm(context, message: message);
 
   Future<String?> _prompt(String title, String label, String initial) {
     final controller = TextEditingController(text: initial);

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/app_colors.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/file_age.dart';
@@ -190,7 +191,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
           ? AppBar(
               leading: IconButton(
                 tooltip: context.t('common.clear_selection'),
-                icon: const Icon(Icons.close),
+                icon: const Icon(AppIcons.close),
                 onPressed: () => setState(_selected.clear),
               ),
               title: Text(context.t('downloads.selected', {'n': _selected.length, 'total': files.length})),
@@ -200,8 +201,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                       ? context.t('fm.select_none')
                       : context.t('fm.select_all'),
                   icon: Icon(files.every((e) => _selected.contains(e.path))
-                      ? Icons.deselect
-                      : Icons.select_all),
+                      ? Icons.deselect_rounded
+                      : AppIcons.selectAll),
                   onPressed: () => setState(() {
                     if (files.every((e) => _selected.contains(e.path))) {
                       _selected.removeAll(files.map((e) => e.path));
@@ -216,7 +217,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
               ? AppBar(
                   leading: IconButton(
                     tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-                    icon: const Icon(Icons.arrow_back),
+                    icon: const Icon(AppIcons.back),
                     onPressed: () => setState(() {
                       _searching = false;
                       _query = '';
@@ -248,12 +249,12 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                   actions: [
                     IconButton(
                       tooltip: context.t('downloads.search'),
-                      icon: const Icon(Icons.search),
+                      icon: const Icon(AppIcons.search),
                       onPressed: () => setState(() => _searching = true),
                     ),
                     IconButton(
                       tooltip: context.t('downloads.folder_view'),
-                      icon: const Icon(Icons.account_tree_outlined),
+                      icon: const Icon(Icons.account_tree_rounded),
                       onPressed: () => Navigator.of(context).push(
                         browserRoute(BrowserScreen(
                               path: widget.path, title: context.t('downloads.title')),
@@ -262,7 +263,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                     ),
                     PopupMenuButton<_DlSort>(
                       tooltip: context.t('downloads.sort'),
-                      icon: const Icon(Icons.sort),
+                      icon: const Icon(AppIcons.sort),
                       onSelected: _setSort,
                       itemBuilder: (_) => [
                         PopupMenuItem(
@@ -444,9 +445,9 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   Widget _ageBadge(FsEntry entry) {
     final days = _ageDays(entry);
     final color = switch (ageLevelFor(days)) {
-      AgeLevel.fresh => const Color(0xFF2E7D32),
-      AgeLevel.recent => const Color(0xFF827717),
-      AgeLevel.old => const Color(0xFFEF6C00),
+      AgeLevel.fresh => AppHues.green,
+      AgeLevel.recent => AppHues.olive,
+      AgeLevel.old => AppHues.orange,
       AgeLevel.ancient => Theme.of(context).colorScheme.error,
       AgeLevel.unknown => Theme.of(context).colorScheme.onSurfaceVariant,
     };

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_colors.dart';
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/safe_insets.dart';
 import '../../core/theme.dart';
@@ -36,8 +38,8 @@ class TransferScreen extends StatelessWidget {
             padding: withNavInset(context, const EdgeInsets.all(Gap.md)),
             children: [
               _Row(
-                icon: sharing ? Icons.wifi_tethering : Icons.computer_outlined,
-                color: const Color(0xFF00897B),
+                icon: sharing ? Icons.wifi_tethering_rounded : Icons.computer_rounded,
+                color: AppHues.jade,
                 title: context.t('xfer.computer'),
                 note: sharing
                     ? context.t('ftpd.running')
@@ -46,22 +48,22 @@ class TransferScreen extends StatelessWidget {
                 screen: const FtpServerScreen(),
               ),
               _Row(
-                icon: Icons.send_to_mobile_outlined,
-                color: const Color(0xFF00838F),
+                icon: Icons.send_to_mobile_rounded,
+                color: AppHues.cyan,
                 title: context.t('xfer.phone'),
                 note: context.t('xfer.phone_note'),
                 screen: const PeerShareScreen(),
               ),
               _Row(
-                icon: Icons.dns_outlined,
-                color: const Color(0xFF5E35B1),
+                icon: Icons.dns_rounded,
+                color: AppHues.violet,
                 title: context.t('fm.network_storage'),
                 note: context.t('xfer.nas_note'),
                 screen: const RemoteConnectionsScreen(),
               ),
               _Row(
-                icon: Icons.download_for_offline_outlined,
-                color: const Color(0xFF1565C0),
+                icon: Icons.download_for_offline_rounded,
+                color: AppHues.navy,
                 title: context.t('xfer.downloads'),
                 note: downloading > 0
                     ? context.t('fm.jobs_running', {'n': downloading})
@@ -113,7 +115,7 @@ class _Row extends StatelessWidget {
           note,
           style: live ? TextStyle(color: Paper.success(context)) : null,
         ),
-        trailing: Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),
+        trailing: Icon(AppIcons.chevron, color: scheme.onSurfaceVariant),
         onTap: () => Navigator.of(context)
             .push(MaterialPageRoute(builder: (_) => screen)),
       ),

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 
+import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/pdf_tools.dart';
 import '../widgets/pdf_save_dialog.dart';
@@ -120,14 +121,14 @@ class _PdfSignScreenState extends State<PdfSignScreen> {
             actions: [
               IconButton(
                 tooltip: context.t('sg.redraw'),
-                icon: const Icon(Icons.gesture),
+                icon: const Icon(Icons.gesture_rounded),
                 onPressed: _busy ? null : _drawSignature,
               ),
               TextButton.icon(
                 onPressed: pages == null || _signature == null || _busy
                     ? null
                     : () => _stamp(pages[_page]),
-                icon: const Icon(Icons.check),
+                icon: const Icon(AppIcons.check),
                 label: Text(context.t('sg.stamp')),
               ),
             ],
@@ -219,20 +220,20 @@ class _PdfSignScreenState extends State<PdfSignScreen> {
           children: [
             IconButton(
               tooltip: context.t('sg.prev_page'),
-              icon: const Icon(Icons.chevron_left),
+              icon: const Icon(Icons.chevron_left_rounded),
               onPressed:
                   _page == 0 ? null : () => setState(() => _page -= 1),
             ),
             Text('${_page + 1} / $pageCount'),
             IconButton(
               tooltip: context.t('mp.next_page'),
-              icon: const Icon(Icons.chevron_right),
+              icon: const Icon(AppIcons.chevron),
               onPressed: _page >= pageCount - 1
                   ? null
                   : () => setState(() => _page += 1),
             ),
             const SizedBox(width: 8),
-            const Icon(Icons.photo_size_select_small, size: 18),
+            const Icon(Icons.photo_size_select_small_rounded, size: 18),
             Expanded(
               child: Slider(
                 value: _widthFraction,

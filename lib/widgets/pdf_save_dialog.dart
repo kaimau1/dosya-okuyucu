@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/fm/entry_opener.dart';
 import '../services/fm/activity_log.dart';
@@ -131,21 +132,21 @@ Future<_SaveChoice?> _askSaveChoice(
           ],
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.save_outlined),
+            leading: const Icon(AppIcons.save),
             title: Text(ctx.t('ps.overwrite')),
             subtitle: Text(ctx.t('ps.overwrite_sub', {'name': name})),
             onTap: () => Navigator.pop(ctx, _SaveChoice.overwrite),
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.copy_all_outlined),
+            leading: const Icon(Icons.copy_all_rounded),
             title: Text(ctx.t('ps.copy')),
             subtitle: Text(ctx.t('ps.copy_sub')),
             onTap: () => Navigator.pop(ctx, _SaveChoice.copy),
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.folder_open_outlined),
+            leading: const Icon(Icons.folder_open_rounded),
             title: Text(ctx.t('ps.pick_folder')),
             subtitle: Text(ctx.t('ps.pick_folder_sub')),
             onTap: () => Navigator.pop(ctx, _SaveChoice.chooseFolder),

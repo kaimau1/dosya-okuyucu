@@ -22,7 +22,7 @@ class TtsVoiceTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final prefs = context.watch<AppState>().ttsPrefs;
     return SettingTile(
-      icon: Icons.record_voice_over_outlined,
+      icon: Icons.record_voice_over_rounded,
       title: context.t('set.tts_voice'),
       subtitle: context.t('set.tts_voice_sub'),
       wrapSubtitle: true,
@@ -53,7 +53,7 @@ class TtsAiReadTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     return SettingSwitch(
-      icon: Icons.campaign_outlined,
+      icon: Icons.campaign_rounded,
       title: context.t('set.tts_ai_read'),
       subtitle: context.t('set.tts_ai_read_sub'),
       value: state.ttsAiRead,

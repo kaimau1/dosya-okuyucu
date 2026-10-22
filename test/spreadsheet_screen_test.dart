@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:dosya_okuyucu/core/app_icons.dart';
 import 'package:dosya_okuyucu/screens/editors/spreadsheet_editor_screen.dart';
 import 'package:dosya_okuyucu/services/xlsx_editor.dart';
 import 'package:dosya_okuyucu/widgets/sheet_cell.dart';
@@ -156,7 +157,7 @@ void main() {
       // turu); eskiden ⋮ menüsündeydi.
       await tester.tap(find.text('Görünüm'));
       await tester.pumpAndSettle();
-      final freeze = find.byIcon(Icons.push_pin_outlined);
+      final freeze = find.byIcon(Icons.push_pin_rounded);
       expect(freeze, findsOneWidget);
       await tester.ensureVisible(freeze);
       await tester.tap(freeze);
@@ -197,7 +198,7 @@ void main() {
   testWidgets('Bul çubuğu eşleşmeyi bulup seçimi oraya taşır', (tester) async {
     await pump(tester);
 
-    await tester.tap(find.byIcon(Icons.search));
+    await tester.tap(find.byIcon(AppIcons.search));
     await tester.pump();
     expect(find.text('Bu sayfada ara'), findsOneWidget);
 
@@ -212,7 +213,7 @@ void main() {
     await tester.pump();
     expect(find.text('Sonuç yok'), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.close));
+    await tester.tap(find.byIcon(AppIcons.close));
     await tester.pump();
     expect(find.text('Bu sayfada ara'), findsNothing);
   });
@@ -259,8 +260,8 @@ void main() {
     IconButton buttonFor(IconData icon) => tester.widget<IconButton>(
         find.ancestor(of: find.byIcon(icon), matching: find.byType(IconButton))
             .first);
-    expect(buttonFor(Icons.undo).onPressed, isNull);
-    expect(buttonFor(Icons.redo).onPressed, isNull);
+    expect(buttonFor(AppIcons.undo).onPressed, isNull);
+    expect(buttonFor(AppIcons.redo).onPressed, isNull);
 
     await tapCell(tester, '%15');
     await tester.enterText(find.byType(TextField).first, '42');
@@ -271,13 +272,13 @@ void main() {
     // yazılan metin değil ALT hücrenin değeri durur.
     expect(find.text('%15'), findsNothing);
 
-    expect(buttonFor(Icons.undo).onPressed, isNotNull);
-    await tester.tap(find.byIcon(Icons.undo));
+    expect(buttonFor(AppIcons.undo).onPressed, isNotNull);
+    await tester.tap(find.byIcon(AppIcons.undo));
     await tester.pump();
     // Eski değer geri geldi (yüzde biçimiyle çizilir).
     expect(find.text('%15'), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.redo));
+    await tester.tap(find.byIcon(AppIcons.redo));
     await tester.pump();
     expect(find.text('%15'), findsNothing);
   });
@@ -290,7 +291,7 @@ void main() {
     await tapMore(tester, 'İçeriği temizle');
     expect(find.text('%15'), findsNothing);
 
-    await tester.tap(find.byIcon(Icons.undo));
+    await tester.tap(find.byIcon(AppIcons.undo));
     await tester.pump();
     expect(find.text('%15'), findsOneWidget);
   });
@@ -300,7 +301,7 @@ void main() {
       tester
           .widget<IconButton>(find
               .ancestor(
-                  of: find.byIcon(Icons.undo), matching: find.byType(IconButton))
+                  of: find.byIcon(AppIcons.undo), matching: find.byType(IconButton))
               .first)
           .onPressed !=
       null;
@@ -326,7 +327,7 @@ void main() {
     // hedef hücrede yüzde biçimi olmadığı için "%15" değil ham 0,15 çizilir.
     expect(formulaBar(tester), '0.15');
 
-    await tester.tap(find.byIcon(Icons.undo));
+    await tester.tap(find.byIcon(AppIcons.undo));
     await tester.pump();
     expect(formulaBar(tester), 'Ürün');
   });
@@ -335,14 +336,14 @@ void main() {
     await pump(tester);
     await tapCell(tester, '1.234,50 ₺');
     // Şerit yatay kayar: düğme dar ekranda görünür alanın dışında kalabilir.
-    await tester.ensureVisible(find.byIcon(Icons.functions));
+    await tester.ensureVisible(find.byIcon(Icons.functions_rounded));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.functions));
+    await tester.tap(find.byIcon(Icons.functions_rounded));
     await tester.pumpAndSettle();
     // Izgara sonucu gösterir; formülün kendisi formül çubuğundadır.
     expect(formulaBar(tester), startsWith('=TOPLA('));
 
-    await tester.tap(find.byIcon(Icons.undo));
+    await tester.tap(find.byIcon(AppIcons.undo));
     await tester.pump();
     expect(find.text('1.234,50 ₺'), findsOneWidget);
     expect(formulaBar(tester), '1234.5');
@@ -374,7 +375,7 @@ void main() {
     expect(undoEnabled(tester), isTrue, reason: 'sürükleme doldurmaya dönmedi');
     expect(find.textContaining('Toplam'), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.undo));
+    await tester.tap(find.byIcon(AppIcons.undo));
     await tester.pump();
     expect(undoEnabled(tester), isFalse);
   });
@@ -382,7 +383,7 @@ void main() {
   testWidgets('Bul çubuğunda Tümünü değiştir çalışır ve geri alınır',
       (tester) async {
     await pump(tester);
-    await tester.tap(find.byIcon(Icons.search));
+    await tester.tap(find.byIcon(AppIcons.search));
     await tester.pump();
 
     await tester.enterText(find.byType(TextField).first, 'Ürün');
@@ -400,7 +401,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(malCells, findsWidgets);
 
-    await tester.tap(find.byIcon(Icons.undo));
+    await tester.tap(find.byIcon(AppIcons.undo));
     await tester.pump();
     expect(malCells, findsNothing);
     expect(

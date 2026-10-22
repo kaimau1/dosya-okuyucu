@@ -6,6 +6,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 
+import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/snack.dart';
 import '../services/fm/entry_opener.dart';

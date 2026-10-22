@@ -30,7 +30,7 @@ class SettingsBackupTile extends StatelessWidget {
     // Yedekle ve geri yükle TEK satır (2026-10-21, Faz 2 ayar sadeleşmesi):
     // iki satır aynı dosyanın iki yönüydü.
     return SettingTile(
-      icon: Icons.backup_outlined,
+      icon: Icons.backup_rounded,
       title: context.t('backup.title'),
       subtitle: context.t('backup.sub'),
       wrapSubtitle: true,
@@ -47,13 +47,13 @@ class SettingsBackupTile extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.backup_outlined),
+              leading: const Icon(Icons.backup_rounded),
               title: Text(ctx.t('backup.title')),
               subtitle: Text(ctx.t('backup.sub')),
               onTap: () => Navigator.pop(ctx, 'export'),
             ),
             ListTile(
-              leading: const Icon(Icons.settings_backup_restore),
+              leading: const Icon(Icons.settings_backup_restore_rounded),
               title: Text(ctx.t('backup.restore')),
               subtitle: Text(ctx.t('backup.restore_sub')),
               onTap: () => Navigator.pop(ctx, 'restore'),

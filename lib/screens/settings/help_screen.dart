@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../widgets/permission_gate.dart';
 
@@ -30,7 +31,7 @@ class HelpScreen extends StatelessWidget {
         children: [
           for (final id in topics)
             ExpansionTile(
-              leading: const Icon(Icons.help_outline),
+              leading: const Icon(AppIcons.help),
               title: Text(context.t('help.${id}_q')),
               childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               expandedCrossAxisAlignment: CrossAxisAlignment.start,

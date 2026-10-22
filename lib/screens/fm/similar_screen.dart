@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
@@ -279,7 +280,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
         actions: [
           IconButton(
             tooltip: context.t('common.rescan'),
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(AppIcons.refresh),
             onPressed: running ? null : _start,
           ),
         ],
@@ -342,7 +343,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
                 padding: const EdgeInsets.all(Gap.md),
                 child: FilledButton.icon(
                   onPressed: _deleteSelected,
-                  icon: const Icon(Icons.delete_outline),
+                  icon: const Icon(AppIcons.delete),
                   // Etiket ayarı okur: çöp kutusu kapalıyken "çöpe taşı" demek
                   // kullanıcıya geri alabileceğini söylemek olurdu.
                   label: Text('${deleteActionText(
@@ -425,7 +426,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
                   ),
                   TextButton.icon(
                     onPressed: () => _askGemini(group),
-                    icon: const Icon(Icons.smart_toy_outlined, size: 18),
+                    icon: const Icon(Icons.smart_toy_rounded, size: 18),
                     label: Text(context.t('fm.ask_gemini')),
                   ),
                 ],
@@ -495,7 +496,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
                             onTap: () => EntryOpener.open(context, file.path),
                             child: const Padding(
                               padding: EdgeInsets.all(6),
-                              child: Icon(Icons.play_arrow,
+                              child: Icon(AppIcons.play,
                                   color: Colors.white, size: 20),
                             ),
                           ),
@@ -506,8 +507,8 @@ class _SimilarScreenState extends State<SimilarScreen> {
                       right: 2,
                       child: Icon(
                         selected
-                            ? Icons.delete_forever
-                            : Icons.circle_outlined,
+                            ? Icons.delete_forever_rounded
+                            : Icons.circle_rounded,
                         size: 18,
                         color: selected ? scheme.error : Colors.white,
                         shadows: const [

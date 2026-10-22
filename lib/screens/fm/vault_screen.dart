@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/safe_insets.dart';
@@ -213,18 +214,18 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.open_in_new),
+              leading: const Icon(AppIcons.open),
               title: Text(ctx.t('common.open')),
               onTap: () => Navigator.pop(ctx, 'open'),
             ),
             ListTile(
-              leading: const Icon(Icons.lock_open_outlined),
+              leading: const Icon(AppIcons.unlock),
               title: Text(ctx.t('vault.restore')),
               subtitle: Text(ctx.t('vault.restore_sub')),
               onTap: () => Navigator.pop(ctx, 'restore'),
             ),
             ListTile(
-              leading: Icon(Icons.delete_forever_outlined,
+              leading: Icon(Icons.delete_forever_rounded,
                   color: Theme.of(ctx).colorScheme.error),
               title: Text(ctx.t('vault.delete')),
               onTap: () => Navigator.pop(ctx, 'delete'),
@@ -277,7 +278,7 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
               if (vault.unlocked)
                 IconButton(
                   tooltip: context.t('vault.lock'),
-                  icon: const Icon(Icons.lock_outline),
+                  icon: const Icon(AppIcons.lock),
                   onPressed: () => vault.lock(),
                 ),
             ],
@@ -285,7 +286,7 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
           floatingActionButton: vault.unlocked
               ? FloatingActionButton.extended(
                   onPressed: _add,
-                  icon: const Icon(Icons.add),
+                  icon: const Icon(AppIcons.add),
                   label: Text(context.t('vault.add')),
                 )
               : null,
@@ -308,7 +309,7 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
           height: 72,
           decoration: BoxDecoration(
               color: scheme.primaryContainer, shape: BoxShape.circle),
-          child: Icon(Icons.shield_outlined,
+          child: Icon(Icons.shield_rounded,
               size: 36, color: scheme.onPrimaryContainer),
         ),
         const SizedBox(height: Gap.md),
@@ -363,7 +364,7 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
           const SizedBox(height: Gap.md),
           FilledButton.icon(
             onPressed: _busy ? null : _create,
-            icon: const Icon(Icons.shield_outlined),
+            icon: const Icon(Icons.shield_rounded),
             label: Text(context.t('vault.create')),
           ),
           const SizedBox(height: Gap.md),
@@ -398,7 +399,7 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
             const SizedBox(height: Gap.sm),
             OutlinedButton.icon(
               onPressed: _unlockBio,
-              icon: const Icon(Icons.fingerprint),
+              icon: const Icon(Icons.fingerprint_rounded),
               label: Text(context.t('vault.unlock_bio')),
             ),
           ],
@@ -422,13 +423,13 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
           child: Column(
             children: [
               ListTile(
-                leading: const Icon(Icons.enhanced_encryption_outlined),
+                leading: const Icon(Icons.enhanced_encryption_rounded),
                 title: Text(context.t('vault.summary', {'n': all.length})),
                 subtitle: Text(context.t('vault.encrypted_note')),
               ),
               if (_canBio)
                 SwitchListTile(
-                  secondary: const Icon(Icons.fingerprint),
+                  secondary: const Icon(Icons.fingerprint_rounded),
                   title: Text(context.t('vault.bio_toggle')),
                   value: _bioOn,
                   onChanged: _toggleBio,
@@ -456,7 +457,7 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
                     children: [
                       FilledButton.icon(
                         onPressed: _importLegacy,
-                        icon: const Icon(Icons.enhanced_encryption_outlined),
+                        icon: const Icon(Icons.enhanced_encryption_rounded),
                         label: Text(context.t('vault.legacy_move')),
                       ),
                       TextButton(
@@ -507,7 +508,7 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
             onTap: () => _open(item),
             trailing: IconButton(
               tooltip: context.t('common.more'),
-              icon: const Icon(Icons.more_vert),
+              icon: const Icon(AppIcons.more),
               onPressed: () => _itemMenu(item),
             ),
           ),
@@ -660,7 +661,7 @@ class _VaultFilePickerState extends State<_VaultFilePicker> {
             ? null
             : FloatingActionButton.extended(
                 onPressed: () => Navigator.pop(context, _picked.toList()),
-                icon: const Icon(Icons.enhanced_encryption_outlined),
+                icon: const Icon(Icons.enhanced_encryption_rounded),
                 label: Text(context.t('vault.move_n', {'n': _picked.length})),
               ),
         body: _loading
@@ -674,7 +675,7 @@ class _VaultFilePickerState extends State<_VaultFilePicker> {
                     return ListTile(
                       leading: FmEntryIcon(entry: e, size: 40),
                       title: Text(e.name),
-                      trailing: const Icon(Icons.chevron_right),
+                      trailing: const Icon(AppIcons.chevron),
                       onTap: () => _go(e.path),
                     );
                   }

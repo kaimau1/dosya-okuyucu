@@ -391,7 +391,7 @@ class _OpenHistoryScreenState extends State<OpenHistoryScreen> {
   PreferredSizeWidget _searchBar() => AppBar(
         leading: IconButton(
           tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(AppIcons.back),
           onPressed: _closeSearch,
         ),
         title: FmSearchField(
@@ -408,7 +408,7 @@ class _OpenHistoryScreenState extends State<OpenHistoryScreen> {
       AppBar(
         leading: IconButton(
           tooltip: context.t('common.clear_selection'),
-          icon: const Icon(Icons.close),
+          icon: const Icon(AppIcons.close),
           onPressed: () => setState(_selected.clear),
         ),
         title: Text(context.t('ph.selected_of',
@@ -417,7 +417,7 @@ class _OpenHistoryScreenState extends State<OpenHistoryScreen> {
           FmSelectionActions(
             extra: [
               (
-                icon: Icons.history_toggle_off,
+                icon: Icons.history_toggle_off_rounded,
                 label: context.t('oh.remove'),
                 onTap: () => _removeFromHistory(selectedEntries),
               ),

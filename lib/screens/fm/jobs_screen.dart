@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -47,7 +48,7 @@ class JobsScreen extends StatelessWidget {
             // kutusu, 2026-10-21'de Geçmiş > İşlemler'e katıldı).
             IconButton(
               tooltip: context.t('oph.title'),
-              icon: const Icon(Icons.undo_rounded),
+              icon: const Icon(AppIcons.undo),
               onPressed: () => Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => const OpHistoryScreen())),
             ),
@@ -169,7 +170,7 @@ class _JobCard extends StatelessWidget {
                 // Ok yalnız GİDİLECEK bir yer varken: her karta ok koymak,
                 // dokununca hiçbir şey olmayan kartlarda yalan olurdu.
                 else if (destination)
-                  Icon(Icons.chevron_right,
+                  Icon(AppIcons.chevron,
                       size: 20, color: scheme.onSurfaceVariant),
               ],
             ),
@@ -240,12 +241,12 @@ class _JobCard extends StatelessWidget {
   }
 
   IconData get _icon => switch (job.status) {
-        JobStatus.running => Icons.autorenew,
-        JobStatus.queued => Icons.schedule,
-        JobStatus.done => Icons.check_circle,
-        JobStatus.failed => Icons.error_outline,
-        JobStatus.cancelled => Icons.block,
-        JobStatus.interrupted => Icons.power_settings_new,
+        JobStatus.running => Icons.autorenew_rounded,
+        JobStatus.queued => Icons.schedule_rounded,
+        JobStatus.done => AppIcons.checkCircle,
+        JobStatus.failed => AppIcons.error,
+        JobStatus.cancelled => Icons.block_rounded,
+        JobStatus.interrupted => Icons.power_settings_new_rounded,
       };
 
   Color? _color(ColorScheme scheme) => switch (job.status) {
@@ -273,7 +274,7 @@ class _JobCard extends StatelessWidget {
               onPressed: () => Navigator.of(context).push(
                 browserRoute(BrowserScreen(path: dir)),
               ),
-              icon: const Icon(Icons.folder_open, size: 18),
+              icon: const Icon(Icons.folder_open_rounded, size: 18),
               label: Text(context.t('jb.open_folder')),
             ),
           ],

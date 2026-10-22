@@ -6,6 +6,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../../core/app_icons.dart';
 import '../../../core/app_state.dart';
 import '../../../core/l10n/app_strings.dart';
 import '../../../core/snack.dart';
@@ -408,12 +409,12 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
               segments: [
                 ButtonSegment(
                   value: true,
-                  icon: const Icon(Icons.upload_outlined),
+                  icon: const Icon(Icons.upload_rounded),
                   label: Text(context.t('peer.tab_send')),
                 ),
                 ButtonSegment(
                   value: false,
-                  icon: const Icon(Icons.download_outlined),
+                  icon: const Icon(AppIcons.download),
                   label: Text(context.t('peer.tab_receive')),
                 ),
               ],
@@ -477,7 +478,7 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
             ),
             TextButton.icon(
               onPressed: _startScan,
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(AppIcons.refresh),
               label: Text(context.t('peer.search_again')),
             ),
           ],
@@ -486,10 +487,10 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
           Card(
             margin: const EdgeInsets.only(bottom: Gap.xs),
             child: ListTile(
-              leading: const Icon(Icons.smartphone),
+              leading: const Icon(Icons.smartphone_rounded),
               title: Text(peer.name),
               subtitle: Text('${peer.host}:${peer.port}'),
-              trailing: Icon(peer.needsCode ? Icons.password : Icons.send),
+              trailing: Icon(peer.needsCode ? Icons.password_rounded : AppIcons.send),
               onTap: (_files.isEmpty && _folders.isEmpty)
                   ? null
                   : () => _sendTo(peer),
@@ -503,10 +504,10 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
               Card(
                 margin: const EdgeInsets.only(bottom: Gap.xs),
                 child: ListTile(
-                  leading: const Icon(Icons.history),
+                  leading: const Icon(Icons.history_rounded),
                   title: Text(peer.name),
                   subtitle: Text('${peer.host}:${peer.port}'),
-                  trailing: const Icon(Icons.send),
+                  trailing: const Icon(AppIcons.send),
                   onTap: (_files.isEmpty && _folders.isEmpty)
                       ? null
                       : () => _sendToRecent(peer),
@@ -589,7 +590,7 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
         Row(
           children: [
             Icon(
-              running ? Icons.wifi_tethering : Icons.wifi_tethering_off,
+              running ? Icons.wifi_tethering_rounded : Icons.wifi_tethering_off_rounded,
               color: running ? scheme.primary : scheme.onSurfaceVariant,
             ),
             const SizedBox(width: Gap.sm),
@@ -617,23 +618,23 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
         const SizedBox(height: Gap.md),
         ListTile(
           contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.badge_outlined),
+          leading: const Icon(Icons.badge_rounded),
           title: Text(context.t('peer.this_device', {'name': _deviceName})),
-          trailing: const Icon(Icons.edit_outlined),
+          trailing: const Icon(AppIcons.edit),
           onTap: _editDeviceName,
         ),
         ListTile(
           contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.folder_outlined),
+          leading: const Icon(AppIcons.folder),
           title: Text(context.t('peer.save_to', {'path': _saveDir})),
-          trailing: const Icon(Icons.chevron_right),
+          trailing: const Icon(AppIcons.chevron),
           onTap: _pickSaveDir,
         ),
         // **Eşleştirme kodu**: ekran açıkken aynı ağdaki herkesin dosya
         // gönderebilmesi ev ağında sorun değil ama yurtta/ofiste değil.
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          secondary: const Icon(Icons.password),
+          secondary: const Icon(Icons.password_rounded),
           title: Text(context.t('peer.code_on')),
           value: _requireCode,
           onChanged: (value) async {
@@ -674,7 +675,7 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
         for (final (path, from) in _received)
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.insert_drive_file_outlined),
+            leading: const Icon(Icons.insert_drive_file_rounded),
             title: Text(p.basename(path)),
             subtitle: Text(context.t(
               'peer.received_from',
@@ -683,7 +684,7 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
             // Gelen dosyaya dokununca AÇILIYOR (2026-09-06): kullanıcı
             // "geldi" yazısını görüp dosyayı bulmak için ekranı kapatıp
             // İndirilenler'e gitmek zorunda kalmasın.
-            trailing: const Icon(Icons.open_in_new, size: 18),
+            trailing: const Icon(AppIcons.open, size: 18),
             onTap: () => EntryOpener.open(context, path),
           ),
         if (_received.isEmpty && _incoming == null)
@@ -724,13 +725,13 @@ Future<bool> showShareChoice(BuildContext context, List<String> paths) async {
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
-            leading: const Icon(Icons.wifi_tethering),
+            leading: const Icon(Icons.wifi_tethering_rounded),
             title: Text(ctx.t('peer.send_action')),
             subtitle: Text(ctx.t('peer.send_hint')),
             onTap: () => Navigator.pop(ctx, true),
           ),
           ListTile(
-            leading: const Icon(Icons.ios_share),
+            leading: const Icon(Icons.ios_share_rounded),
             title: Text(ctx.t('common.share')),
             subtitle: Text(ctx.t('peer.other_apps')),
             onTap: () => Navigator.pop(ctx, false),

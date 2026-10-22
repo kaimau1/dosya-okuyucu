@@ -1,3 +1,4 @@
+import 'package:dosya_okuyucu/core/app_icons.dart';
 import 'package:dosya_okuyucu/core/app_state.dart';
 import 'package:dosya_okuyucu/models/fm_layout.dart';
 import 'package:dosya_okuyucu/models/fs_entry.dart';
@@ -135,7 +136,7 @@ void main() {
     await tester.pumpWidget(harness(files));
     await tester.pump();
     double thumbOpacity() {
-      final thumb = find.byIcon(Icons.unfold_more);
+      final thumb = find.byIcon(Icons.unfold_more_rounded);
       if (thumb.evaluate().isEmpty) return 0;
       return tester
           .widget<AnimatedOpacity>(find
@@ -149,7 +150,7 @@ void main() {
 
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -800));
     await tester.pump();
-    expect(find.byIcon(Icons.unfold_more), findsOneWidget);
+    expect(find.byIcon(Icons.unfold_more_rounded), findsOneWidget);
     expect(thumbOpacity(), 1);
 
     // Tutamaç sürüklenince liste doğrudan o noktaya atlar ve balonda ay
@@ -157,7 +158,7 @@ void main() {
     final scrollable = tester.state<ScrollableState>(find.byType(Scrollable).first);
     final before = scrollable.position.pixels;
     final gesture =
-        await tester.startGesture(tester.getCenter(find.byIcon(Icons.unfold_more)));
+        await tester.startGesture(tester.getCenter(find.byIcon(Icons.unfold_more_rounded)));
     await gesture.moveBy(const Offset(0, 40));
     await gesture.moveBy(const Offset(0, 120));
     await tester.pump();
@@ -182,7 +183,7 @@ void main() {
 
     // Pil o anki ölçeği YAZAR; öteki ikisi menüde.
     expect(find.text('Gün'), findsOneWidget);
-    expect(find.byIcon(Icons.search), findsOneWidget);
+    expect(find.byIcon(AppIcons.search), findsOneWidget);
     await tester.tap(find.text('Gün'));
     await tester.pumpAndSettle();
     expect(find.text('Ay'), findsOneWidget);
@@ -379,9 +380,9 @@ void main() {
       (tester) async {
     await tester.pumpWidget(harness([photo('a.jpg', DateTime(2026, 3, 4))]));
     await tester.pump();
-    expect(find.byIcon(Icons.tune), findsOneWidget);
+    expect(find.byIcon(AppIcons.tune), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.tune));
+    await tester.tap(find.byIcon(AppIcons.tune));
     await tester.pumpAndSettle();
     expect(find.text('Filtrele ve sırala'), findsOneWidget);
     expect(find.text('Son 7 gün'), findsOneWidget);
@@ -474,7 +475,7 @@ void main() {
     expect(find.text('3 / 5 seçildi'), findsOneWidget);
 
     // Seçimi temizle, tekrar ortadakini seç, bu kez altını seç.
-    await tester.tap(find.byIcon(Icons.close));
+    await tester.tap(find.byIcon(AppIcons.close));
     await tester.pump();
     await tester.longPress(icons.at(2));
     await tester.pump();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -232,7 +233,7 @@ class _BatchRenameSheetState extends State<_BatchRenameSheet> {
                               height: 16,
                               child:
                                   CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.check),
+                          : const Icon(AppIcons.check),
                       label: Text(context.t('common.apply')),
                     ),
                   ],
@@ -257,7 +258,7 @@ class _BatchRenameSheetState extends State<_BatchRenameSheet> {
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodySmall),
           ),
-          const Icon(Icons.arrow_right_alt, size: 16),
+          const Icon(Icons.arrow_right_alt_rounded, size: 16),
           Expanded(
             child: Text(
               item.problem ?? item.newName,

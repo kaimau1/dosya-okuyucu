@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/app_icons.dart';
 import '../core/app_state.dart';
 import '../core/l10n/app_strings.dart';
 import '../screens/settings_screen.dart';
@@ -26,7 +27,7 @@ Future<bool> ensureAiKey(BuildContext context) async {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(children: [
-              Icon(Icons.auto_awesome_outlined,
+              Icon(AppIcons.ai,
                   color: Theme.of(ctx).colorScheme.primary),
               const SizedBox(width: 12),
               Expanded(
@@ -51,7 +52,7 @@ Future<bool> ensureAiKey(BuildContext context) async {
                 const SizedBox(width: 8),
                 FilledButton.icon(
                   onPressed: () => Navigator.of(ctx).pop(true),
-                  icon: const Icon(Icons.key_outlined),
+                  icon: const Icon(Icons.key_rounded),
                   label: Text(ctx.t('aikey.add')),
                 ),
               ],

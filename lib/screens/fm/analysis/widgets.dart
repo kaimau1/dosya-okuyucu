@@ -241,7 +241,7 @@ class _TrendRow extends StatelessWidget {
     final scheme = theme.colorScheme;
     return Row(
       children: [
-        Icon(grew ? Icons.trending_up : Icons.trending_down,
+        Icon(grew ? Icons.trending_up_rounded : Icons.trending_down_rounded,
             size: 18, color: grew ? scheme.error : scheme.primary),
         const SizedBox(width: Gap.sm),
         Expanded(
@@ -331,7 +331,7 @@ class _ToolRow extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: Paper.faint(context)),
+            Icon(AppIcons.chevron, color: Paper.faint(context)),
           ],
         ),
       ),
@@ -424,7 +424,7 @@ class _CategoryBar extends StatelessWidget {
                   Text(' · $count',
                       style: small?.copyWith(color: Paper.faint(context))),
                 if (onTap != null)
-                  Icon(Icons.chevron_right,
+                  Icon(AppIcons.chevron,
                       size: 18, color: Paper.faint(context)),
               ],
             ),

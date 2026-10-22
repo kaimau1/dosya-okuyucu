@@ -35,6 +35,9 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../core/app_icons.dart';
+import '../core/motion.dart';
+
 /// Ortak kap: tema yüzeyi, katmanlı yumuşak gölge, ince kenarlık.
 class PdfFloatingCard extends StatelessWidget {
   final Widget child;
@@ -276,7 +279,7 @@ class PdfSelectionBar extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     return PdfFloatingCard(
       child: AnimatedSize(
-        duration: const Duration(milliseconds: 180),
+        duration: Motion.of(context, Motion.short),
         curve: Curves.easeOutCubic,
         alignment: Alignment.bottomCenter,
         child: Column(
@@ -320,7 +323,7 @@ class PdfSelectionBar extends StatelessWidget {
                   if (moreItems.isNotEmpty && !marking)
                     PopupMenuButton<int>(
                       tooltip: moreTooltip.isEmpty ? null : moreTooltip,
-                      icon: Icon(Icons.more_horiz_rounded,
+                      icon: Icon(AppIcons.moreHoriz,
                           size: 20, color: scheme.onSurfaceVariant),
                       style: IconButton.styleFrom(
                           visualDensity: VisualDensity.compact),
@@ -345,7 +348,7 @@ class PdfSelectionBar extends StatelessWidget {
                     IconButton(
                       tooltip: closeTooltip.isEmpty ? null : closeTooltip,
                       onPressed: onClose,
-                      icon: const Icon(Icons.close_rounded, size: 20),
+                      icon: const Icon(AppIcons.close, size: 20),
                       visualDensity: VisualDensity.compact,
                       style: IconButton.styleFrom(
                         foregroundColor: scheme.onSurfaceVariant,
@@ -369,7 +372,7 @@ class PdfSelectionBar extends StatelessWidget {
               Row(
                 children: [
                   PdfBarAction(
-                      icon: Icons.content_copy_rounded,
+                      icon: AppIcons.clipCopy,
                       label: copyLabel,
                       onPressed: onCopy),
                   PdfBarAction(
@@ -379,12 +382,12 @@ class PdfSelectionBar extends StatelessWidget {
                     accent: Color(selectedColor),
                   ),
                   PdfBarAction(
-                      icon: Icons.edit_rounded,
+                      icon: AppIcons.edit,
                       label: editLabel,
                       onPressed: onEdit,
                       emphasized: true),
                   PdfBarAction(
-                      icon: Icons.translate_rounded,
+                      icon: AppIcons.translate,
                       label: translateLabel,
                       onPressed: onTranslate),
                 ],
@@ -453,7 +456,7 @@ class _MarkingRow extends StatelessWidget {
         IconButton.filledTonal(
           tooltip: undoLabel,
           onPressed: onUndo,
-          icon: const Icon(Icons.undo_rounded),
+          icon: const Icon(AppIcons.undo),
         ),
         const SizedBox(width: 4),
         FilledButton(
@@ -500,7 +503,7 @@ class _Swatch extends StatelessWidget {
             height: 44,
             child: Center(
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
+                duration: Motion.of(context, Motion.short),
                 width: selected ? 30 : 24,
                 height: selected ? 30 : 24,
                 decoration: BoxDecoration(
@@ -514,7 +517,7 @@ class _Swatch extends StatelessWidget {
                   ),
                 ),
                 child: selected
-                    ? const Icon(Icons.check_rounded,
+                    ? const Icon(AppIcons.check,
                         size: 16, color: Colors.black87)
                     : null,
               ),

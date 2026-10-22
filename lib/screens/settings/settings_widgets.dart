@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/theme.dart';
 
 /// Ayarların **tek satır biçimi**.
@@ -68,7 +69,7 @@ class SettingTile extends StatelessWidget {
             ),
       trailing: trailing ??
           (value == null
-              ? (onTap == null ? null : const Icon(Icons.chevron_right))
+              ? (onTap == null ? null : const Icon(AppIcons.chevron))
               : Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -86,7 +87,7 @@ class SettingTile extends StatelessWidget {
                       ),
                     ),
                     if (onTap != null)
-                      Icon(Icons.chevron_right, color: faint, size: 20),
+                      Icon(AppIcons.chevron, color: faint, size: 20),
                   ],
                 )),
       onTap: onTap,

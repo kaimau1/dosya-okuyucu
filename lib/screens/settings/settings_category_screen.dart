@@ -47,8 +47,10 @@ class SettingsCategoryScreen extends StatelessWidget {
                   Expanded(
                     child: Text(
                       context.t(category.subtitleKey),
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(color: Paper.faint(context)),
+                      // Renkli kart üstünde "soluk" mürekkep 4,3:1'e
+                      // düşüyordu (Faz 16 kontrast kılavuzu) → ikincil.
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant),
                     ),
                   ),
                 ],

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../core/motion.dart';
 import '../core/theme.dart';
 import '../core/safe_insets.dart';
 import '../core/device_profile.dart';
@@ -119,7 +120,7 @@ class PopIn extends StatelessWidget {
   const PopIn({
     super.key,
     required this.child,
-    this.duration = const Duration(milliseconds: 240),
+    this.duration = Motion.medium,
     this.from = 0.96,
     this.rise = 8,
     this.animate = true,

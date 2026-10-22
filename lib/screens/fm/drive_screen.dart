@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../models/drive_file.dart';
 import '../../models/fs_entry.dart' show FmCategory, FmCategoryLabel;
@@ -152,13 +153,13 @@ class _DriveScreenState extends State<DriveScreen> {
             if (_signedIn)
               IconButton(
                 tooltip: context.t('drive.new_folder'),
-                icon: const Icon(Icons.create_new_folder_outlined),
+                icon: const Icon(AppIcons.newFolder),
                 onPressed: _busy || _searching ? null : _newFolder,
               ),
             if (_signedIn)
               IconButton(
                 tooltip: context.t('drive.upload_action'),
-                icon: const Icon(Icons.upload_file),
+                icon: const Icon(Icons.upload_file_rounded),
                 onPressed: _busy || _searching ? null : _uploadHere,
               ),
             // Sıralama: tarih sütunu eklendikten sonra "en yeni üstte" istemek
@@ -166,7 +167,7 @@ class _DriveScreenState extends State<DriveScreen> {
             if (_signedIn)
               PopupMenuButton<DriveSort>(
                 tooltip: context.t('drive.sort'),
-                icon: const Icon(Icons.sort),
+                icon: const Icon(AppIcons.sort),
                 enabled: !_busy,
                 initialValue: _sort,
                 onSelected: (value) {
@@ -192,13 +193,13 @@ class _DriveScreenState extends State<DriveScreen> {
             if (_signedIn)
               IconButton(
                 tooltip: context.t('common.refresh'),
-                icon: const Icon(Icons.refresh),
+                icon: const Icon(AppIcons.refresh),
                 onPressed: _busy ? null : _refresh,
               ),
             if (_signedIn)
               IconButton(
                 tooltip: context.t('drive.sign_out'),
-                icon: const Icon(Icons.logout),
+                icon: const Icon(Icons.logout_rounded),
                 onPressed: _busy ? null : _signOut,
               ),
           ],

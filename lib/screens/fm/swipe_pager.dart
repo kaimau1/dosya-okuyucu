@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
+import '../../core/app_icons.dart';
+import '../../core/motion.dart';
+
 /// Kaydırmalı gezginin bir sayfası.
 class SwipePage {
   final String label;
@@ -144,7 +147,7 @@ class _SwipePagerState extends State<SwipePager> {
           child: IgnorePointer(
             child: AnimatedOpacity(
               opacity: _hintVisible ? 1 : 0,
-              duration: const Duration(milliseconds: 220),
+              duration: Motion.of(context, Motion.medium),
               child: Center(
                 child: Material(
                   color: scheme.inverseSurface.withValues(alpha: 0.9),
@@ -183,7 +186,7 @@ class _SwipePagerState extends State<SwipePager> {
                                   fontSize: 12,
                                   color: scheme.onInverseSurface
                                       .withValues(alpha: 0.6))),
-                          Icon(Icons.chevron_right_rounded,
+                          Icon(AppIcons.chevron,
                               size: 16,
                               color: scheme.onInverseSurface
                                   .withValues(alpha: 0.6)),

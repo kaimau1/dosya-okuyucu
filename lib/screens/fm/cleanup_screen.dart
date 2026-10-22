@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../services/fm/cleanup_advisor.dart';
@@ -282,7 +283,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
         actions: [
           IconButton(
             tooltip: context.t('clean.reanalyze'),
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(AppIcons.refresh),
             onPressed: _loading ? null : _analyze,
           ),
         ],
@@ -325,7 +326,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
                 padding: const EdgeInsets.all(Gap.md),
                 child: FilledButton.icon(
                   onPressed: chosen.isEmpty ? null : _apply,
-                  icon: const Icon(Icons.cleaning_services_outlined),
+                  icon: const Icon(Icons.cleaning_services_rounded),
                   label: Text(chosen.isEmpty
                       ? context.t('clean.pick_one')
                       : context.t('clean.free_amount', {
@@ -357,7 +358,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
                     child: Icon(Icons.warning_amber_rounded,
                         color: Theme.of(context).colorScheme.error),
                   )
-                : const Icon(Icons.verified_outlined),
+                : const Icon(Icons.verified_rounded),
           ),
           if (s.files.isNotEmpty)
             ExpansionTile(
@@ -386,7 +387,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
             ),
           if (s.id == 'trash')
             Align(
-              alignment: Alignment.centerRight,
+              alignment: AlignmentDirectional.centerEnd,
               child: TextButton(
                 onPressed: () => Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => const TrashScreen(),

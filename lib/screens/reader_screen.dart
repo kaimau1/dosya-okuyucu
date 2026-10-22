@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:provider/provider.dart';
 
+import '../core/app_icons.dart';
 import '../core/app_state.dart';
 import '../core/copy_text.dart';
 import '../core/l10n/app_strings.dart';
@@ -194,13 +195,13 @@ class _ReaderScreenState extends State<ReaderScreen> {
           IconButton(
             tooltip: context.t('vw.speak'),
             icon: Icon(_speaking
-                ? Icons.pause_circle_outline
-                : Icons.headphones_outlined),
+                ? Icons.pause_circle_outline_rounded
+                : Icons.headphones_rounded),
             onPressed: _toggleSpeech,
           ),
           IconButton(
             tooltip: context.t('vw.text_smaller'),
-            icon: const Icon(Icons.text_decrease),
+            icon: const Icon(Icons.text_decrease_rounded),
             onPressed: _fontSize <= _minFont
                 ? null
                 : () => setState(() => _fontSize =
@@ -208,7 +209,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
           ),
           IconButton(
             tooltip: context.t('vw.text_bigger'),
-            icon: const Icon(Icons.text_increase),
+            icon: const Icon(Icons.text_increase_rounded),
             onPressed: _fontSize >= _maxFont
                 ? null
                 : () => setState(() => _fontSize =
@@ -216,7 +217,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
           ),
           PopupMenuButton<_ReaderTheme>(
             tooltip: context.t('reader.theme'),
-            icon: const Icon(Icons.palette_outlined),
+            icon: const Icon(Icons.palette_rounded),
             onSelected: (t) => setState(() => _theme = t),
             itemBuilder: (_) => [
               _themeItem(_ReaderTheme.light, context.t('reader.theme_light')),
@@ -227,13 +228,13 @@ class _ReaderScreenState extends State<ReaderScreen> {
           // Sesli okuma ayarları: ses seçimi (kalitenin asıl kaynağı) ve
           // "AI ile oku" anahtarı.
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
+            icon: const Icon(AppIcons.more),
             onSelected: _onMenu,
             itemBuilder: (_) => [
               PopupMenuItem(
                 value: 'voice',
                 child: Row(children: [
-                  const Icon(Icons.record_voice_over_outlined, size: 18),
+                  const Icon(Icons.record_voice_over_rounded, size: 18),
                   const SizedBox(width: 8),
                   Text(context.t('tts.voice_settings')),
                 ]),
@@ -262,7 +263,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.graphic_eq, size: 16, color: fg),
+                    Icon(Icons.graphic_eq_rounded, size: 16, color: fg),
                     const SizedBox(width: 8),
                     Text(
                       '${context.t('tf.page_header', {'n': _speakPage})}'
@@ -303,7 +304,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
         value: value,
         child: Row(
           children: [
-            Icon(_theme == value ? Icons.check : null, size: 18),
+            Icon(_theme == value ? AppIcons.check : null, size: 18),
             const SizedBox(width: 8),
             Text(label),
           ],

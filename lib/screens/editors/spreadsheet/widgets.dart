@@ -235,14 +235,14 @@ class _ColumnFilterSheetState extends State<_ColumnFilterSheet> {
               Expanded(
                 child: TextButton.icon(
                   onPressed: () => widget.onSort(true),
-                  icon: const Icon(Icons.arrow_upward, size: 18),
+                  icon: const Icon(AppIcons.arrowUp, size: 18),
                   label: Text(t.t('excel.sort_asc')),
                 ),
               ),
               Expanded(
                 child: TextButton.icon(
                   onPressed: () => widget.onSort(false),
-                  icon: const Icon(Icons.arrow_downward, size: 18),
+                  icon: const Icon(AppIcons.arrowDown, size: 18),
                   label: Text(t.t('excel.sort_desc')),
                 ),
               ),

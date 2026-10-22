@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
 
 /// Belge ekranlarının **ortak arama çubuğu** (PDF/metin, Word, Slayt, Excel).
@@ -48,7 +49,7 @@ class DocFindBar extends StatelessWidget {
   static InputDecoration decoration(
     BuildContext context, {
     required String hint,
-    IconData icon = Icons.search,
+    IconData icon = AppIcons.search,
     Widget? suffix,
   }) {
     final scheme = Theme.of(context).colorScheme;
@@ -82,7 +83,7 @@ class DocFindBar extends StatelessWidget {
     return Material(
       color: scheme.surface,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 6, 4, 6),
+        padding: const EdgeInsetsDirectional.fromSTEB(8, 6, 4, 6),
         child: Row(
           children: [
             ...leading,
@@ -99,7 +100,7 @@ class DocFindBar extends StatelessWidget {
                   hint: hint,
                   suffix: hasCount
                       ? Padding(
-                          padding: const EdgeInsets.only(right: 6),
+                          padding: const EdgeInsetsDirectional.only(end: 6),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 3),
@@ -128,13 +129,13 @@ class DocFindBar extends StatelessWidget {
             IconButton(
               tooltip: context.t('common.previous'),
               visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.keyboard_arrow_up),
+              icon: const Icon(Icons.keyboard_arrow_up_rounded),
               onPressed: onPrev,
             ),
             IconButton(
               tooltip: context.t('common.next'),
               visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.keyboard_arrow_down),
+              icon: const Icon(Icons.keyboard_arrow_down_rounded),
               onPressed: onNext,
             ),
             ...trailing,
@@ -142,7 +143,7 @@ class DocFindBar extends StatelessWidget {
               IconButton(
                 tooltip: context.t('common.close'),
                 visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.close),
+                icon: const Icon(AppIcons.close),
                 onPressed: onClose,
               ),
           ],

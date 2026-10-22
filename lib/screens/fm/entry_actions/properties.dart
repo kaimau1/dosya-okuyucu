@@ -342,7 +342,7 @@ Future<void> addHomeShortcut(BuildContext context, FsEntry entry) async {
   final IconData icon;
   final Color color;
   if (entry.isDir) {
-    icon = FmColors.forFolderName(entry.name) ?? Icons.folder_rounded;
+    icon = FmColors.forFolderName(entry.name) ?? AppIcons.folder;
     color = FmColors.folder;
   } else {
     final ext = entry.extension.toLowerCase();
@@ -353,7 +353,7 @@ Future<void> addHomeShortcut(BuildContext context, FsEntry entry) async {
       final kind = FileService.iconKindForExtension(ext);
       color = OfficeColors.forKind(kind);
       icon = switch (ext) {
-        'pdf' => Icons.picture_as_pdf_rounded,
+        'pdf' => AppIcons.pdf,
         'doc' || 'docx' || 'odt' || 'rtf' => Icons.article_rounded,
         'xls' || 'xlsx' || 'csv' || 'ods' => Icons.table_chart_rounded,
         'ppt' || 'pptx' || 'odp' => Icons.slideshow_rounded,

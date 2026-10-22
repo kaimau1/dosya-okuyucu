@@ -84,17 +84,17 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
           onTap: _removeHighlight,
         ),
         PdfBarMenuItem(
-          icon: Icons.auto_awesome_rounded,
+          icon: AppIcons.ai,
           label: context.t('vw.ask_ai_selection'),
           onTap: _askAiAboutSelection,
         ),
         PdfBarMenuItem(
-          icon: Icons.search_rounded,
+          icon: AppIcons.search,
           label: context.t('vw.find_selection'),
           onTap: _findSelection,
         ),
         PdfBarMenuItem(
-          icon: Icons.share_rounded,
+          icon: AppIcons.share,
           label: context.t('common.share'),
           onTap: () {
             final text = cleanPdfCopyText(_pdfSelection);
@@ -299,7 +299,7 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
             return ListTile(
               dense: true,
               contentPadding:
-                  EdgeInsets.only(left: 16.0 + depth * 16, right: 16),
+                  EdgeInsetsDirectional.only(start: 16.0 + depth * 16, end: 16),
               title: Text(node.title,
                   maxLines: 2, overflow: TextOverflow.ellipsis),
               onTap: node.dest == null
@@ -380,13 +380,13 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
             mainAxisSize: MainAxisSize.min,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(8, 6, 4, 4),
+                padding: const EdgeInsetsDirectional.fromSTEB(8, 6, 4, 4),
                 child: Row(
                   children: [
                     IconButton.filled(
                       tooltip: context
                           .t(_ttsPlaying ? 'common.pause' : 'common.resume'),
-                      icon: Icon(_ttsPlaying ? Icons.pause : Icons.play_arrow),
+                      icon: Icon(_ttsPlaying ? AppIcons.pause : AppIcons.play),
                       onPressed: _toggleSpeech,
                     ),
                     const SizedBox(width: 8),
@@ -411,7 +411,7 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
                     ),
                     IconButton(
                       tooltip: context.t('tts.voice_settings'),
-                      icon: const Icon(Icons.tune),
+                      icon: const Icon(AppIcons.tune),
                       onPressed: () async {
                         await TtsVoiceSheet.show(context);
                         // Okuma sürerken ses değiştirilebilsin: yeni tercih

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/app_icons.dart';
 import '../core/busy_dialog.dart';
 import '../core/safe_insets.dart';
 import '../core/l10n/app_strings.dart';
@@ -214,7 +215,7 @@ class ScanFlow {
                     color: scheme.primaryContainer,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.document_scanner_outlined,
+                  child: Icon(AppIcons.ocr,
                       color: scheme.onPrimaryContainer, size: 28),
                 ),
                 const SizedBox(height: 16),
@@ -304,7 +305,7 @@ class _ScanTipsSheet extends StatelessWidget {
                 color: scheme.primaryContainer,
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.document_scanner_outlined,
+              child: Icon(AppIcons.ocr,
                   color: scheme.onPrimaryContainer, size: 28),
             ),
             context.t('sf.tip1_title'),
@@ -323,7 +324,7 @@ class _ScanTipsSheet extends StatelessWidget {
                     color: mlDeep.withValues(alpha: 0.85),
                     borderRadius: BorderRadius.circular(18),
                   ),
-                  child: const Icon(Icons.note_add_outlined,
+                  child: const Icon(Icons.note_add_rounded,
                       color: Colors.white, size: 30),
                 ),
                 const Positioned(
@@ -356,7 +357,7 @@ class _ScanTipsSheet extends StatelessWidget {
             style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(50)),
             onPressed: () => Navigator.pop(context, _TipsResult.start),
-            icon: const Icon(Icons.document_scanner_outlined),
+            icon: const Icon(AppIcons.ocr),
             label: Text(context.t('sf.tips_start')),
           ),
           const SizedBox(height: 4),

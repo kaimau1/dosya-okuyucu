@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -117,7 +118,7 @@ class _FolderMapScreenState extends State<FolderMapScreen> {
         actions: [
           IconButton(
             tooltip: context.t('important.open_in_browser'),
-            icon: const Icon(Icons.folder_open),
+            icon: const Icon(Icons.folder_open_rounded),
             onPressed: () async {
               await Navigator.of(context).push(browserRoute(BrowserScreen(path: widget.path),
               ));
@@ -126,7 +127,7 @@ class _FolderMapScreenState extends State<FolderMapScreen> {
           ),
           IconButton(
             tooltip: context.t('common.refresh'),
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(AppIcons.refresh),
             onPressed: _loading ? null : _load,
           ),
         ],
@@ -237,7 +238,7 @@ class _UsageRow extends StatelessWidget {
               ),
             ),
             if (child.isDir)
-              Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),
+              Icon(AppIcons.chevron, color: scheme.onSurfaceVariant),
           ],
         ),
       ),

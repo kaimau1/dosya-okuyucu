@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/app_state.dart';
 import '../services/conversion_service.dart';
@@ -156,7 +157,7 @@ class _PdfAiEditScreenState extends State<PdfAiEditScreen> {
         actions: [
           IconButton(
             tooltip: context.t('pa.save_pdf'),
-            icon: const Icon(Icons.save_outlined),
+            icon: const Icon(AppIcons.save),
             onPressed: _hasResult && !_busy ? _save : null,
           ),
         ],
@@ -208,7 +209,7 @@ class _PdfAiEditScreenState extends State<PdfAiEditScreen> {
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.auto_fix_high),
+                      : const Icon(Icons.auto_fix_high_rounded),
                   label: Text(
                       context.t(_busy ? 'pa.working' : 'vw.ai_edit')),
                 ),

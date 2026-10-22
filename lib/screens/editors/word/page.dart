@@ -38,7 +38,7 @@ extension _WordEditorScreenPagePart on _WordEditorScreenState {
                       alignment: Alignment.centerLeft,
                       child: TextButton.icon(
                         onPressed: () => _addParagraph(null),
-                        icon: const Icon(Icons.add, size: 18),
+                        icon: const Icon(AppIcons.add, size: 18),
                         label: Text(context.t('word.add_paragraph')),
                       ),
                     ),
@@ -164,7 +164,7 @@ extension _WordEditorScreenPagePart on _WordEditorScreenState {
               tooltip: context.t('word.add_paragraph_below'),
               visualDensity: VisualDensity.compact,
               iconSize: 20,
-              icon: const Icon(Icons.playlist_add),
+              icon: const Icon(Icons.playlist_add_rounded),
               onPressed: enabled ? () => _addParagraph(sel) : null,
             ),
             IconButton(

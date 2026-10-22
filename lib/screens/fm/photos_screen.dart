@@ -5,8 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:provider/provider.dart';
 
+import '../../core/app_colors.dart';
+import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/motion.dart';
 import '../../core/theme.dart';
 import '../../models/chat_media.dart';
 import '../../models/fm_filter.dart';
@@ -227,7 +230,7 @@ class _PhotosScreenState extends State<PhotosScreen>
     super.initState();
     _zoomAnim = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 240),
+      duration: Motion.medium,
     )..addListener(() {
         final t = Curves.easeOutCubic.transform(_zoomAnim.value);
         _zoomScale.value = lerpDouble(_zoomFrom, 1, t)!;

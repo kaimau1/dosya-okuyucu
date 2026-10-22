@@ -31,7 +31,7 @@ class LegacyBanner extends StatelessWidget {
     return Material(
       color: scheme.secondaryContainer,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 8, 6),
+        padding: const EdgeInsetsDirectional.fromSTEB(16, 10, 8, 6),
         // İki satır: dar ekranda (320 dp) uzun çeviri düğmeyi taşırmasın.
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

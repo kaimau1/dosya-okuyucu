@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
@@ -120,7 +121,7 @@ class _AppFootprintScreenState extends State<AppFootprintScreen> {
         actions: [
           IconButton(
             tooltip: context.t('common.refresh'),
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(AppIcons.refresh),
             onPressed: _busy ? null : _measure,
           ),
         ],
@@ -191,7 +192,7 @@ class _AppFootprintScreenState extends State<AppFootprintScreen> {
                   width: 18,
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2))
-              : const Icon(Icons.cleaning_services_outlined),
+              : const Icon(Icons.cleaning_services_rounded),
           label: Text(context.t(
               'foot.clean', {'size': FsPaths.humanSize(cleanable)})),
         ),
@@ -202,7 +203,7 @@ class _AppFootprintScreenState extends State<AppFootprintScreen> {
           const SizedBox(height: Gap.md),
           OutlinedButton.icon(
             onPressed: _busy ? null : _deleteModels,
-            icon: const Icon(Icons.translate),
+            icon: const Icon(AppIcons.translate),
             label: Text(context.t('foot.delete_models')),
           ),
         ],
@@ -215,7 +216,7 @@ class _AppFootprintScreenState extends State<AppFootprintScreen> {
           child: TextButton.icon(
             onPressed: () => AppStorageService.openAppStorageSettings(
                 AppSignature.packageName),
-            icon: const Icon(Icons.open_in_new),
+            icon: const Icon(AppIcons.open),
             label: Text(context.t('foot.system_settings')),
           ),
         ),
@@ -262,7 +263,7 @@ class _BucketRow extends StatelessWidget {
                     style: theme.textTheme.bodyMedium
                         ?.copyWith(fontWeight: FontWeight.w600)),
                 if (onTap != null)
-                  Icon(Icons.chevron_right, color: faint, size: 20),
+                  Icon(AppIcons.chevron, color: faint, size: 20),
               ],
             ),
             const SizedBox(height: Gap.xs),

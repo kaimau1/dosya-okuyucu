@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../services/fm/archive_ops.dart';
@@ -70,12 +71,12 @@ class _CompressSheetState extends State<_CompressSheet> {
                 ButtonSegment(
                   value: CompressFormat.zip,
                   label: Text('ZIP'),
-                  icon: Icon(Icons.folder_zip_outlined),
+                  icon: Icon(AppIcons.archiveView),
                 ),
                 ButtonSegment(
                   value: CompressFormat.sevenZip,
                   label: Text('7z'),
-                  icon: Icon(Icons.compress),
+                  icon: Icon(Icons.compress_rounded),
                 ),
               ],
               selected: {_format},
@@ -123,7 +124,7 @@ class _CompressSheetState extends State<_CompressSheet> {
             ],
             const SizedBox(height: Gap.md),
             Align(
-              alignment: Alignment.centerRight,
+              alignment: AlignmentDirectional.centerEnd,
               child: FilledButton.icon(
                 onPressed: _protect && _password.text.isEmpty
                     ? null
@@ -135,7 +136,7 @@ class _CompressSheetState extends State<_CompressSheet> {
                             hideNames: _hideNames,
                           ),
                         ),
-                icon: const Icon(Icons.archive_outlined),
+                icon: const Icon(Icons.archive_rounded),
                 label: Text(context.t('cmp.title')),
               ),
             ),

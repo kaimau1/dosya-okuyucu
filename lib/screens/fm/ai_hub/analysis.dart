@@ -63,20 +63,20 @@ class _StatusBar extends StatelessWidget {
                       ? 'aih.resume'
                       : 'aih.pause'),
                   icon: Icon(progress.phase == AiRunPhase.paused
-                      ? Icons.play_arrow
-                      : Icons.pause),
+                      ? AppIcons.play
+                      : AppIcons.pause),
                   onPressed: () => progress.phase == AiRunPhase.paused
                       ? AiAnalyzer.resume()
                       : AiAnalyzer.pause(),
                 ),
                 IconButton(
                   tooltip: context.t('aih.stop'),
-                  icon: const Icon(Icons.stop),
+                  icon: const Icon(Icons.stop_rounded),
                   onPressed: AiAnalyzer.cancel,
                 ),
               ] else
                 FilledButton.icon(
-                  icon: const Icon(Icons.auto_awesome),
+                  icon: const Icon(AppIcons.ai),
                   label: Text(context
                       .t(AiIndex.count == 0 ? 'aih.start' : 'aih.continue')),
                   onPressed: () => _start(context, reanalyze: false),
@@ -168,8 +168,8 @@ class _AnalysisTab extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(Radii.card + 4),
             gradient: LinearGradient(
-              begin: AlignmentDirectional.topStart,
-              end: AlignmentDirectional.bottomEnd,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
               colors: [
                 theme.colorScheme.primary.withValues(alpha: 0.16),
                 theme.colorScheme.tertiary.withValues(alpha: 0.10),
@@ -191,7 +191,7 @@ class _AnalysisTab extends StatelessWidget {
                       color: theme.colorScheme.primary,
                       borderRadius: BorderRadius.circular(Radii.control),
                     ),
-                    child: Icon(Icons.auto_awesome,
+                    child: Icon(AppIcons.ai,
                         size: 24, color: theme.colorScheme.onPrimary),
                   ),
                   const SizedBox(width: Gap.md),
@@ -210,8 +210,8 @@ class _AnalysisTab extends StatelessWidget {
                 children: [
                   Icon(
                       state.hasApiKey
-                          ? Icons.cloud_done_outlined
-                          : Icons.offline_bolt_outlined,
+                          ? Icons.cloud_done_rounded
+                          : Icons.offline_bolt_rounded,
                       size: 16,
                       color: faint),
                   const SizedBox(width: Gap.xs),
@@ -265,8 +265,8 @@ class _AnalysisTab extends StatelessWidget {
               Expanded(
                 child: OutlinedButton.icon(
                   icon: Icon(progress.phase == AiRunPhase.paused
-                      ? Icons.play_arrow
-                      : Icons.pause),
+                      ? AppIcons.play
+                      : AppIcons.pause),
                   label: Text(context.t(progress.phase == AiRunPhase.paused
                       ? 'aih.resume'
                       : 'aih.pause')),
@@ -278,7 +278,7 @@ class _AnalysisTab extends StatelessWidget {
               const SizedBox(width: Gap.sm),
               Expanded(
                 child: OutlinedButton.icon(
-                  icon: const Icon(Icons.stop),
+                  icon: const Icon(Icons.stop_rounded),
                   label: Text(context.t('aih.stop')),
                   onPressed: AiAnalyzer.cancel,
                 ),
@@ -289,7 +289,7 @@ class _AnalysisTab extends StatelessWidget {
           SizedBox(
             height: 56,
             child: FilledButton.icon(
-              icon: const Icon(Icons.auto_awesome),
+              icon: const Icon(AppIcons.ai),
               label: Text(
                   context.t(AiIndex.count == 0 ? 'aih.start' : 'aih.continue')),
               onPressed: () => _start(context, reanalyze: false),
@@ -322,7 +322,7 @@ class _AnalysisTab extends StatelessWidget {
         // Kapsam: "hangi klasörler okunuyor" — başlatmadan önce sorulan soru.
         ListTile(
           contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.tune),
+          leading: const Icon(AppIcons.tune),
           title: Text(context.t('aih.analysis_scope')),
           subtitle: Text(context.t('aih.scope_summary',
               {'n': state.aiScope.excludedFolders.length})),

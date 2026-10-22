@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'motion.dart';
+
 /// **Hızlı sayfa geçişi** — Flutter'ın M3 varsayılanı [ZoomPageTransitionsBuilder]
 /// yerine.
 ///
@@ -31,7 +33,7 @@ class FastPageTransitionsBuilder extends PageTransitionsBuilder {
   const FastPageTransitionsBuilder();
 
   @override
-  Duration get transitionDuration => const Duration(milliseconds: 220);
+  Duration get transitionDuration => Motion.medium;
 
   /// Geri dönüş daha kısa: kullanıcı geri gittiğinde **zaten gördüğü** bir
   /// sayfaya dönüyor, orada bekletmenin bir karşılığı yok.
@@ -46,6 +48,9 @@ class FastPageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
+    // "Animasyonları kaldır" açıkken sayfa yerinde belirir (Faz 15/16):
+    // kaydırma yok, ilk karede tam konumda.
+    if (Motion.reduced(context)) return child;
     return _FastPageTransition(
       animation: animation,
       secondaryAnimation: secondaryAnimation,

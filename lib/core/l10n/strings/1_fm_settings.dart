@@ -540,6 +540,8 @@ const Map<String, (String, String, String)> _t1 = {
   'fm.sort_asc': ('Artan sırala', 'Ascending', 'تصاعدي'),
   'fm.sort_desc': ('Azalan sırala', 'Descending', 'تنازلي'),
   'fm.select_all': ('Tümünü seç', 'Select all', 'تحديد الكل'),
+  'a11y.select': ('Seç', 'Select', 'تحديد'),
+  'a11y.deselect': ('Seçimden çıkar', 'Deselect', 'إلغاء تحديد'),
   'fm.select_none': ('Seçimi kaldır', 'Clear selection', 'إلغاء التحديد'),
   'fm.select_invert': ('Seçimi tersine çevir', 'Invert selection', 'عكس التحديد'),
   'fm.select_above': ('Üstündekileri de seç', 'Also select above', 'حدّد ما فوقه أيضًا'),

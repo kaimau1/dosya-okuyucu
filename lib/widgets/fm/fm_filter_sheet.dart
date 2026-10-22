@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/chat_media.dart';
@@ -162,7 +163,7 @@ class _FilterSheetState extends State<_FilterSheet> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.sm, 0),
+              padding: const EdgeInsetsDirectional.fromSTEB(Gap.md, 0, Gap.sm, 0),
               child: Row(
                 children: [
                   Expanded(
@@ -201,12 +202,12 @@ class _FilterSheetState extends State<_FilterSheet> {
                       segments: [
                         ButtonSegment(
                           value: true,
-                          icon: const Icon(Icons.arrow_downward),
+                          icon: const Icon(AppIcons.arrowDown),
                           label: Text(context.t('flt.desc')),
                         ),
                         ButtonSegment(
                           value: false,
-                          icon: const Icon(Icons.arrow_upward),
+                          icon: const Icon(AppIcons.arrowUp),
                           label: Text(context.t('flt.asc')),
                         ),
                       ],
@@ -485,7 +486,7 @@ class FmFilterButton extends StatelessWidget {
       icon: Badge(
         isLabelVisible: count > 0,
         label: Text('$count'),
-        child: const Icon(Icons.tune),
+        child: const Icon(AppIcons.tune),
       ),
     );
   }

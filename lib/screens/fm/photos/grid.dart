@@ -21,8 +21,8 @@ extension _PhotosScreenGridPart on _PhotosScreenState {
             else
               Icon(
                 filtered
-                    ? Icons.filter_alt_off_outlined
-                    : Icons.photo_library_outlined,
+                    ? Icons.filter_alt_off_rounded
+                    : Icons.photo_library_rounded,
                 size: 56,
                 color: muted.withValues(alpha: 0.6),
               ),
@@ -47,7 +47,7 @@ extension _PhotosScreenGridPart on _PhotosScreenState {
               FilledButton.tonalIcon(
                 onPressed: () => _partSetState(() => _filter =
                     FmFilter(hideDuplicates: _filter.hideDuplicates)),
-                icon: const Icon(Icons.filter_alt_off_outlined, size: 18),
+                icon: const Icon(Icons.filter_alt_off_rounded, size: 18),
                 label: Text(context.t('ph.clear_filters')),
               ),
             ],

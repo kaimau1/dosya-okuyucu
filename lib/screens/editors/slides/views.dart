@@ -6,7 +6,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
     return DocPill(
       tapKey: SlidesEditorScreen.badgeKey,
       text: context.t('sl.slide_of', {'n': _currentSlide, 'total': total}),
-      icon: Icons.unfold_more,
+      icon: Icons.unfold_more_rounded,
       onTap: _showGoToSlide,
     );
   }
@@ -149,12 +149,12 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
             height: 40 * _zoom,
             child: FittedBox(
               fit: BoxFit.fitHeight,
-              alignment: Alignment.centerLeft,
+              alignment: AlignmentDirectional.centerStart,
               child: SizedBox(
                 width: baseW,
                 height: 40,
                 child: Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 2),
+                  padding: const EdgeInsetsDirectional.only(start: 4, bottom: 2),
                   child: Row(
                     children: [
                       // Toplam da yazılır (2026-08-01 kullanıcı isteği):
@@ -171,7 +171,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
                       IconButton(
                         tooltip: context.t('sl.fullscreen'),
                         visualDensity: VisualDensity.compact,
-                        icon: const Icon(Icons.fullscreen, size: 20),
+                        icon: const Icon(Icons.fullscreen_rounded, size: 20),
                         onPressed: () => _play(i),
                       ),
                       _slideMenu(slide),
@@ -238,7 +238,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
       height: height * _zoom,
       child: FittedBox(
         fit: BoxFit.fitHeight,
-        alignment: Alignment.centerLeft,
+        alignment: AlignmentDirectional.centerStart,
         child: SizedBox(
           width: baseW,
           height: height,
@@ -259,7 +259,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.sticky_note_2_outlined,
+                  Icon(Icons.sticky_note_2_rounded,
                       size: 14, color: scheme.onSurfaceVariant),
                   const SizedBox(width: 6),
                   Expanded(
@@ -271,7 +271,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
                           fontSize: 12, color: scheme.onSurfaceVariant),
                     ),
                   ),
-                  Icon(expanded ? Icons.expand_less : Icons.expand_more,
+                  Icon(expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
                       size: 16, color: scheme.onSurfaceVariant),
                 ],
               ),
@@ -288,7 +288,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
     final structural = editor?.canEditStructure ?? false;
     return PopupMenuButton<String>(
       tooltip: context.t('sl.actions'),
-      icon: const Icon(Icons.more_vert, size: 20),
+      icon: const Icon(AppIcons.more, size: 20),
       onSelected: (v) => _onSlideAction(slide, v),
       itemBuilder: (_) => [
         PopupMenuItem(
@@ -296,7 +296,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
           enabled: structural,
           child: ListTile(
             dense: true,
-            leading: const Icon(Icons.copy_all_outlined),
+            leading: const Icon(Icons.copy_all_rounded),
             title: Text(context.t('sl.duplicate')),
             contentPadding: EdgeInsets.zero,
           ),
@@ -306,7 +306,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
           enabled: structural && slide.index > 1,
           child: ListTile(
             dense: true,
-            leading: const Icon(Icons.arrow_upward),
+            leading: const Icon(AppIcons.arrowUp),
             title: Text(context.t('sl.move_up')),
             contentPadding: EdgeInsets.zero,
           ),
@@ -317,7 +317,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
               structural && slide.index < (editor?.slides.length ?? 0),
           child: ListTile(
             dense: true,
-            leading: const Icon(Icons.arrow_downward),
+            leading: const Icon(AppIcons.arrowDown),
             title: Text(context.t('sl.move_down')),
             contentPadding: EdgeInsets.zero,
           ),
@@ -327,7 +327,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
           enabled: structural && (editor?.slides.length ?? 0) > 1,
           child: ListTile(
             dense: true,
-            leading: const Icon(Icons.delete_outline),
+            leading: const Icon(AppIcons.delete),
             title: Text(context.t('sl.delete')),
             contentPadding: EdgeInsets.zero,
           ),
@@ -543,7 +543,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
             for (final f in kDocFonts)
               ListTile(
                 title: Text(f.name, style: TextStyle(fontFamily: f.render)),
-                trailing: f.name == _fFont ? const Icon(Icons.check) : null,
+                trailing: f.name == _fFont ? const Icon(AppIcons.check) : null,
                 onTap: () => Navigator.pop(ctx, f.name),
               ),
           ],
@@ -568,7 +568,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
               ListTile(
                 title: Text('${s.round()}'),
                 trailing: (s - _fSize).abs() < 0.25
-                    ? const Icon(Icons.check)
+                    ? const Icon(AppIcons.check)
                     : null,
                 onTap: () => Navigator.pop(ctx, s),
               ),
@@ -652,12 +652,12 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
                         })),
                 const RibbonSep(),
                 // Seçili metni çevir (Faz 9 / Y4 — Word ve PDF'te vardı).
-                RibbonButton(Icons.translate, context.t('common.translate'),
+                RibbonButton(AppIcons.translate, context.t('common.translate'),
                     onTap: _translateEditing),
               ]),
             ],
             trailing: Padding(
-              padding: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsetsDirectional.only(end: 8),
               child: FilledButton(
                 onPressed: _finishEdit,
                 child: Text(context.t('sl.done')),

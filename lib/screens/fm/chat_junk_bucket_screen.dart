@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -74,7 +75,7 @@ class _ChatJunkBucketScreenState extends State<ChatJunkBucketScreen> {
           const Divider(height: 1),
           Expanded(
             child: _files.isEmpty
-                ? FmEmptyState(icon: Icons.cleaning_services_outlined, title: context.t('cj.bucket_empty'))
+                ? FmEmptyState(icon: Icons.cleaning_services_rounded, title: context.t('cj.bucket_empty'))
                 : GridView.builder(
                     padding: withNavInset(
                         context, const EdgeInsets.all(Gap.sm)),
@@ -125,7 +126,7 @@ class _ChatJunkBucketScreenState extends State<ChatJunkBucketScreen> {
               if (_selected.length == 1)
                 IconButton(
                   tooltip: context.t('common.open'),
-                  icon: const Icon(Icons.open_in_new),
+                  icon: const Icon(AppIcons.open),
                   onPressed: () => EntryOpener.open(
                     context,
                     _selected.first,
@@ -135,7 +136,7 @@ class _ChatJunkBucketScreenState extends State<ChatJunkBucketScreen> {
               const SizedBox(width: Gap.sm),
               FilledButton.icon(
                 onPressed: _selected.isEmpty ? null : _delete,
-                icon: const Icon(Icons.delete_outline),
+                icon: const Icon(AppIcons.delete),
                 label: Text(context.t('common.delete')),
               ),
             ],

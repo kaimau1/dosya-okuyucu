@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../core/app_icons.dart';
 import '../core/app_navigator.dart';
 import '../core/l10n/app_strings.dart';
 
@@ -55,7 +56,7 @@ class AppErrorScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, color: dim, size: 40),
+              const Icon(AppIcons.error, color: dim, size: 40),
               const SizedBox(height: 12),
               Text(
                 str.t('err.render_failed'),

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../screens/fm/job_navigation.dart';
@@ -88,7 +89,7 @@ class _RunningBarState extends State<_RunningBar> {
             LinearProgressIndicator(value: job.progress, minHeight: 3),
             Padding(
               padding:
-                  const EdgeInsets.fromLTRB(Gap.md, Gap.xs, Gap.xs, Gap.xs),
+                  const EdgeInsetsDirectional.fromSTEB(Gap.md, Gap.xs, Gap.xs, Gap.xs),
               child: Row(
                 children: [
                   Expanded(
@@ -127,7 +128,7 @@ class _RunningBarState extends State<_RunningBar> {
                   ),
                   IconButton(
                     tooltip: context.t('jb.title'),
-                    icon: const Icon(Icons.list_alt, size: 20),
+                    icon: const Icon(Icons.list_alt_rounded, size: 20),
                     onPressed: () => openJobsScreen(context),
                   ),
                   TextButton(
@@ -180,14 +181,14 @@ class _ResultBar extends StatelessWidget {
       child: InkWell(
         onTap: () => openJobTarget(context, job),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(Gap.md, Gap.xs, Gap.xs, Gap.xs),
+          padding: const EdgeInsetsDirectional.fromSTEB(Gap.md, Gap.xs, Gap.xs, Gap.xs),
           child: Row(
             children: [
               Icon(
                 switch (job.status) {
-                  JobStatus.failed => Icons.error_outline,
-                  JobStatus.cancelled => Icons.block,
-                  _ => Icons.check_circle,
+                  JobStatus.failed => AppIcons.error,
+                  JobStatus.cancelled => Icons.block_rounded,
+                  _ => AppIcons.checkCircle,
                 },
                 size: 20,
                 color: failed ? scheme.onErrorContainer : Paper.success(context),
@@ -218,7 +219,7 @@ class _ResultBar extends StatelessWidget {
                 ),
               IconButton(
                 tooltip: context.t('common.close'),
-                icon: const Icon(Icons.close, size: 20),
+                icon: const Icon(AppIcons.close, size: 20),
                 onPressed: () => JobQueue.instance.dismiss(job.id),
               ),
             ],

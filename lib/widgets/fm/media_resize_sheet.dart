@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/media_resize.dart';
@@ -254,7 +255,7 @@ class _ResizeSheetState extends State<_ResizeSheet> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Gap.md),
               child: Align(
-                alignment: Alignment.centerLeft,
+                alignment: AlignmentDirectional.centerStart,
                 child: Text(
                     context.t('rs.title', {'n': widget.fileCount}),
                     style: theme.textTheme.titleMedium),
@@ -347,7 +348,7 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                       const SizedBox(height: Gap.sm),
                       Row(
                         children: [
-                          Icon(Icons.info_outline,
+                          Icon(AppIcons.info,
                               size: 18,
                               color: theme.colorScheme.onSurfaceVariant),
                           const SizedBox(width: Gap.xs),
@@ -525,7 +526,7 @@ class _ResizeSheetState extends State<_ResizeSheet> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(warn ? Icons.warning_amber_rounded : Icons.info_outline,
+          Icon(warn ? Icons.warning_amber_rounded : AppIcons.info,
               size: 16, color: color),
           const SizedBox(width: Gap.xs),
           Expanded(
@@ -642,8 +643,8 @@ class _ResizeSheetState extends State<_ResizeSheet> {
             key: const ValueKey('lock-aspect'),
             tooltip: context.t(locked ? 'rs.lock_on' : 'rs.lock_off'),
             isSelected: locked,
-            icon: const Icon(Icons.link_off),
-            selectedIcon: const Icon(Icons.link),
+            icon: const Icon(Icons.link_off_rounded),
+            selectedIcon: const Icon(Icons.link_rounded),
             onPressed: _toggleLock,
           ),
           Expanded(
@@ -838,7 +839,7 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.info_outline,
+                    Icon(AppIcons.info,
                         size: 16, color: theme.colorScheme.error),
                     const SizedBox(width: Gap.xs),
                     Expanded(
@@ -876,7 +877,7 @@ class _ResizeSheetState extends State<_ResizeSheet> {
         children: [
           Row(
             children: [
-              Icon(Icons.compress,
+              Icon(Icons.compress_rounded,
                   size: 16, color: theme.colorScheme.primary),
               const SizedBox(width: Gap.xs),
               Expanded(

@@ -8,10 +8,10 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
     return Material(
       color: scheme.primaryContainer,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(Gap.md, Gap.xs, Gap.xs, Gap.xs),
+        padding: const EdgeInsetsDirectional.fromSTEB(Gap.md, Gap.xs, Gap.xs, Gap.xs),
         child: Row(
           children: [
-            Icon(Icons.auto_awesome, size: 20, color: scheme.onPrimaryContainer),
+            Icon(Icons.auto_awesome_rounded, size: 20, color: scheme.onPrimaryContainer),
             const SizedBox(width: Gap.sm),
             Expanded(
               child: Text(
@@ -28,7 +28,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
             ),
             IconButton(
               tooltip: context.t('common.close'),
-              icon: const Icon(Icons.close, size: 18),
+              icon: const Icon(AppIcons.close, size: 18),
               onPressed: () => _partSetState(() => _classGuess = null),
             ),
           ],
@@ -46,12 +46,12 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
     final (IconData? icon, Color color, String text) = switch (_saveState) {
       _SaveState.saving => (null, faint, context.t('ss.saving')),
       _SaveState.failed => (
-          Icons.error_outline,
+          AppIcons.error,
           theme.colorScheme.error,
           context.t('ss.save_failed')
         ),
       _SaveState.saved => (
-          Icons.check_circle,
+          AppIcons.checkCircle,
           Paper.success(context),
           context.t('ss.saved', {'folder': p.basename(_folder)})
         ),
@@ -276,7 +276,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.note_add_outlined,
+                        Icon(Icons.note_add_rounded,
                             color: scheme.onPrimaryContainer, size: 24),
                         const SizedBox(height: 2),
                         Text(
@@ -341,7 +341,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
                     highlight: true,
                   ),
                   _ToolButton(
-                    icon: Icons.rotate_90_degrees_cw_outlined,
+                    icon: Icons.rotate_90_degrees_cw_rounded,
                     label: context.t('ss.tool_rotate'),
                     onTap: enabled ? _rotate : null,
                   ),
@@ -351,12 +351,12 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
                     onTap: enabled ? _filter : null,
                   ),
                   _ToolButton(
-                    icon: Icons.camera_alt_outlined,
+                    icon: Icons.camera_alt_rounded,
                     label: context.t('ss.tool_retake'),
                     onTap: enabled ? _retake : null,
                   ),
                   _ToolButton(
-                    icon: Icons.delete_outline_rounded,
+                    icon: AppIcons.delete,
                     label: context.t('ss.tool_delete'),
                     onTap: enabled ? _delete : null,
                   ),
@@ -372,7 +372,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
                       style: OutlinedButton.styleFrom(
                           minimumSize: const Size.fromHeight(48)),
                       onPressed: _busy ? null : _share,
-                      icon: const Icon(Icons.share_outlined, size: 20),
+                      icon: const Icon(AppIcons.share, size: 20),
                       label: Text(context.t('common.share'),
                           maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
@@ -383,7 +383,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
                       style: FilledButton.styleFrom(
                           minimumSize: const Size.fromHeight(48)),
                       onPressed: _busy ? null : _openPdf,
-                      icon: const Icon(Icons.picture_as_pdf_outlined, size: 20),
+                      icon: const Icon(AppIcons.pdf, size: 20),
                       label: Text(context.t('scr.open_pdf'),
                           maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
@@ -410,7 +410,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
               const SizedBox(height: Gap.md),
               FilledButton.icon(
                 onPressed: _busy ? null : _recognize,
-                icon: const Icon(Icons.document_scanner_outlined),
+                icon: const Icon(AppIcons.ocr),
                 label: Text(context.t('vw.ocr_short')),
               ),
             ],
@@ -474,7 +474,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
                                   ClipboardData(text: _plainText(context)));
                               if (mounted) _snack(copied);
                             },
-                      icon: const Icon(Icons.copy, size: 20),
+                      icon: const Icon(AppIcons.clipCopy, size: 20),
                       label: Text(context.t('common.copy'),
                           maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
@@ -485,7 +485,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
                       style: FilledButton.styleFrom(
                           minimumSize: const Size.fromHeight(48)),
                       onPressed: _busy ? null : _translate,
-                      icon: const Icon(Icons.translate, size: 20),
+                      icon: const Icon(AppIcons.translate, size: 20),
                       label: Text(context.t('common.translate'),
                           maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),

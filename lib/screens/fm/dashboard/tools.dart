@@ -24,7 +24,7 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
                 padding: const EdgeInsets.all(Gap.sm),
                 child: Row(
                   children: [
-                    Icon(Icons.wifi_tethering,
+                    Icon(Icons.wifi_tethering_rounded,
                         color: scheme.onPrimaryContainer),
                     const SizedBox(width: Gap.sm),
                     Expanded(
@@ -83,9 +83,9 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
       // Alt yazı gerçek sayaç: sürüyor mu, bitmiş iş var mı.
       FmTileData(
         icon: runningJobs > 0
-            ? Icons.autorenew
-            : Icons.playlist_add_check_circle_outlined,
-        color: const Color(0xFF2E7D32),
+            ? Icons.autorenew_rounded
+            : Icons.playlist_add_check_circle_rounded,
+        color: AppHues.green,
         id: 'jobs',
         label: context.t('fm.jobs'),
         subtitle: runningJobs > 0
@@ -107,9 +107,9 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
       // paylaşım açıksa ya da indirme sürüyorsa yazar.
       FmTileData(
         icon: FtpService.instance.running
-            ? Icons.wifi_tethering
+            ? Icons.wifi_tethering_rounded
             : Icons.swap_horiz_rounded,
-        color: const Color(0xFF00897B),
+        color: AppHues.jade,
         id: 'transfer',
         label: context.t('xfer.title'),
         subtitle: FtpService.instance.running
@@ -127,7 +127,7 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
       // gezinme çubuğundan kalkınca akış buraya alındı. Kaldırılan şey
       // belgelerin LİSTESİYDİ, oluşturma değil.
       FmTileData(
-        icon: Icons.note_add_outlined,
+        icon: Icons.note_add_rounded,
         color: OfficeColors.word,
         id: 'new_document',
         label: context.t('home.new_document_title'),
@@ -138,8 +138,8 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
       // ızgarasına, ilk sıraya taşındı. Buradaki "İndir" kutusu farklı bir
       // şey: indirme YÖNETİCİSİ — süren indirmeler ve kuyruk.)
       FmTileData(
-        icon: Icons.cleaning_services_outlined,
-        color: const Color(0xFF00838F),
+        icon: Icons.cleaning_services_rounded,
+        color: AppHues.cyan,
         id: 'free_space',
         label: context.t('fm.free_space'),
         // CANLI bilgi (2026-09-26): bu oturumda çözümleme yapıldıysa bulduğu
@@ -153,7 +153,7 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
       // Anılar (2026-10-18): bu gün, yerler, insanlar — cihazda.
       FmTileData(
         icon: Icons.auto_awesome_mosaic_rounded,
-        color: const Color(0xFFE0668F),
+        color: AppHues.pink,
         id: 'memories',
         label: context.t('mem.title'),
         subtitle: '',
@@ -163,7 +163,7 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
       // şifreli klasör — kimlik, tapu, sözleşme taramaları için.
       FmTileData(
         icon: Icons.enhanced_encryption_rounded,
-        color: const Color(0xFF37474F),
+        color: AppHues.slate,
         id: 'vault',
         label: context.t('vault.title'),
         subtitle: '',
@@ -174,8 +174,8 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
       // (Sohbet medyası ve Benzer görseller 2026-10-21'de Depolama
       // analizine — "Depolama merkezi" — taşındı.)
       FmTileData(
-        icon: Icons.auto_awesome_motion,
-        color: const Color(0xFF5E35B1),
+        icon: Icons.auto_awesome_motion_rounded,
+        color: AppHues.violet,
         id: 'organize',
         label: context.t('fm.organize'),
         subtitle: '',
@@ -238,10 +238,10 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
     return FmTileData(
       icon: !anything
           ? Icons.sd_card_outlined
-          : (usb > 0 || externals.isEmpty ? Icons.usb : Icons.sd_card),
+          : (usb > 0 || externals.isEmpty ? AppIcons.external : Icons.sd_card_rounded),
       color: !anything
-          ? const Color(0xFF9E9E9E)
-          : const Color(0xFFEF6C00),
+          ? AppHues.silver
+          : AppHues.orange,
       id: 'external_storage',
       label: context.t('fm.external_storage'),
       // Alt yazı CANLI bilgi (ızgaranın kuralı): tek birimde adı ve boş alanı,

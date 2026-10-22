@@ -98,7 +98,7 @@ class _TagSheetState extends State<_TagSheet> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: Gap.md),
                 child: Align(
-                  alignment: Alignment.centerLeft,
+                  alignment: AlignmentDirectional.centerStart,
                   child: Text(
                     widget.paths.length == 1
                         ? 'Etiketle'

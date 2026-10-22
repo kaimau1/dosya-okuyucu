@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/document.dart';
+import 'app_colors.dart';
 import 'page_transitions.dart';
 import 'skin.dart';
 
@@ -30,7 +31,7 @@ abstract final class Paper {
   static const edge = Color(0xFFD9D2C4); // ikincil kenarlık, çubuk zemini
   static const ink = Color(0xFF262219); // başlık ve gövde
   static const inkSoft = Color(0xFF6E6555); // alt satır, ikincil metin
-  static const inkFaint = Color(0xFF8A8071); // yol, sayaç, zaman damgası
+  static const inkFaint = Color(0xFF786F61); // yol, sayaç, zaman damgası
   static const accent = Color(0xFF2E5AA8); // seçili sekme, FAB, birincil eylem
   static const accentWell = Color(0xFFE3E9F5); // seçili pil, kullanıcı balonu
   static const danger = Color(0xFFB23A2E); // kalıcı sil, başarısız iş
@@ -297,6 +298,7 @@ class AppTheme {
       extensions: [
         AppFonts(body: body, heading: heading, mono: mono),
         AppSkinData(skin: skin, palette: palette, metrics: metrics),
+        AppColors.fromPalette(palette, effective),
       ],
       scaffoldBackgroundColor: scheme.surface,
       // Yoğunluk ailenin kimliğinin yarısı: aynı palet sıkı satırda "iş

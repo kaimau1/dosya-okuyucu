@@ -40,7 +40,7 @@ class _TextEditor extends StatelessWidget {
     return Container(
       color: Paper.docSurface(context),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(0, 12, 16, 16),
+        padding: const EdgeInsetsDirectional.fromSTEB(0, 12, 16, 16),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -52,8 +52,8 @@ class _TextEditor extends StatelessWidget {
                 // düzenleyicilerinin "gutter"ı).
                 final scheme = Theme.of(context).colorScheme;
                 return Container(
-                  margin: const EdgeInsets.only(right: 12),
-                  padding: const EdgeInsets.only(left: 12, right: 10),
+                  margin: const EdgeInsetsDirectional.only(end: 12),
+                  padding: const EdgeInsetsDirectional.only(start: 12, end: 10),
                   decoration: BoxDecoration(
                     border:
                         Border(right: BorderSide(color: scheme.outlineVariant)),
@@ -233,7 +233,7 @@ class _SpreadsheetView extends StatelessWidget {
     Widget dataCell(String text, double w) => Container(
           width: w,
           height: cellH,
-          alignment: Alignment.centerLeft,
+          alignment: AlignmentDirectional.centerStart,
           padding: const EdgeInsets.symmetric(horizontal: 6),
           decoration:
               BoxDecoration(border: Border.all(color: divider, width: 0.5)),

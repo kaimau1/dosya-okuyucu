@@ -106,11 +106,7 @@ class _ChatTabState extends State<_ChatTab> with AutomaticKeepAliveClientMixin {
   void _scrollToEnd() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scroll.hasClients) return;
-      _scroll.animateTo(
-        _scroll.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
-      );
+      Motion.scrollTo(context, _scroll, _scroll.position.maxScrollExtent);
     });
   }
 
@@ -147,7 +143,7 @@ class _ChatTabState extends State<_ChatTab> with AutomaticKeepAliveClientMixin {
                 if (_messages.isNotEmpty)
                   IconButton(
                     tooltip: context.t('aih.chat_clear'),
-                    icon: const Icon(Icons.delete_sweep_outlined),
+                    icon: const Icon(Icons.delete_sweep_rounded),
                     onPressed: _busy ? null : () => setState(_messages.clear),
                   ),
                 Expanded(
@@ -177,7 +173,7 @@ class _ChatTabState extends State<_ChatTab> with AutomaticKeepAliveClientMixin {
                 IconButton.filled(
                   tooltip: context.t('common.send'),
                   onPressed: _busy ? null : _send,
-                  icon: const Icon(Icons.send),
+                  icon: const Icon(AppIcons.send),
                 ),
               ],
             ),
@@ -198,7 +194,7 @@ class _ChatTabState extends State<_ChatTab> with AutomaticKeepAliveClientMixin {
       padding: withNavInset(context, const EdgeInsets.all(Gap.lg)),
       children: [
         const SizedBox(height: Gap.lg),
-        Icon(Icons.forum_outlined, size: 48, color: faint),
+        Icon(Icons.forum_rounded, size: 48, color: faint),
         const SizedBox(height: Gap.md),
         Text(context.t('aih.chat_empty'),
             textAlign: TextAlign.center, style: theme.textTheme.titleMedium),
@@ -212,7 +208,7 @@ class _ChatTabState extends State<_ChatTab> with AutomaticKeepAliveClientMixin {
         if (noIndex)
           Center(
             child: FilledButton.tonalIcon(
-              icon: const Icon(Icons.auto_awesome),
+              icon: const Icon(AppIcons.ai),
               label: Text(context.t('aih.tab_analysis')),
               onPressed: widget.onOpenAnalysis,
             ),
@@ -230,7 +226,7 @@ class _ChatTabState extends State<_ChatTab> with AutomaticKeepAliveClientMixin {
                 'aih.ex4'
               ])
                 ActionChip(
-                  avatar: const Icon(Icons.chat_bubble_outline, size: 16),
+                  avatar: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
                   label: Text(context.t(key)),
                   onPressed: _busy ? null : () => _send(context.t(key)),
                 ),
@@ -317,7 +313,7 @@ class _Bubble extends StatelessWidget {
             if (message.error)
               Padding(
                 padding: const EdgeInsets.only(bottom: Gap.xs),
-                child: Icon(Icons.error_outline,
+                child: Icon(AppIcons.error,
                     size: 18, color: scheme.onErrorContainer),
               ),
             SelectableText(
@@ -359,7 +355,7 @@ class _Bubble extends StatelessWidget {
                         visualDensity: VisualDensity.compact,
                         padding: EdgeInsets.zero),
                     onPressed: onSaveSmart,
-                    icon: const Icon(Icons.create_new_folder_outlined,
+                    icon: const Icon(AppIcons.newFolder,
                         size: 18),
                     label: Text(context.t('smart.save')),
                   ),

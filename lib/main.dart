@@ -386,7 +386,7 @@ class _DosyaOkuyucuAppState extends State<DosyaOkuyucuApp> {
       // konuyor — büyütmek isteyen Ayarlar > Görünüm'den büyütür.
       //
       // (Bilinçli ödün: sistemden büyük yazı seçmiş kullanıcı bizim
-      // ekranlarımızda bunu görmez; bu yüzden uygulama içi ölçek 1,4'e kadar
+      // ekranlarımızda bunu görmez; bu yüzden uygulama içi ölçek 2,0'a kadar
       // çıkıyor ve Ayarlar'ın en üstünde duruyor.)
       builder: (context, child) => MediaQuery(
         // `copyWith(textScaler:)` sistemden gelen ölçeğin YERİNE geçer —

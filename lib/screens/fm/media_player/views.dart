@@ -14,13 +14,13 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
           text,
           textAlign: TextAlign.center,
           style: const TextStyle(
-            color: Colors.white,
+            color: AppColors.onMedia,
             fontSize: 18,
             height: 1.25,
             fontWeight: FontWeight.w600,
             shadows: [
-              Shadow(color: Colors.black, blurRadius: 3),
-              Shadow(color: Colors.black, blurRadius: 6),
+              Shadow(color: AppColors.mediaSurface, blurRadius: 3),
+              Shadow(color: AppColors.mediaSurface, blurRadius: 6),
             ],
           ),
         ),
@@ -32,8 +32,8 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
   Widget _subtitleMenu() => PopupMenuButton<String>(
         tooltip: context.t('mp.subtitles'),
         icon: Icon(_subtitlePath == null
-            ? Icons.closed_caption_off_outlined
-            : Icons.closed_caption),
+            ? Icons.closed_caption_off_rounded
+            : Icons.closed_caption_rounded),
         onSelected: (value) async {
           switch (value) {
             case '_off':
@@ -107,8 +107,8 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Colors.black.withValues(alpha: 0.88),
-            Colors.black.withValues(alpha: 0.45),
+            AppColors.mediaSurface.withValues(alpha: 0.88),
+            AppColors.mediaSurface.withValues(alpha: 0.45),
             Colors.transparent,
           ],
           stops: const [0, 0.65, 1],
@@ -123,7 +123,7 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
           // Temanın çubuk altı cetveli burada YANLIŞ: videonun üstünde yüzen
           // saydam bir çubuğu ikiye bölen açık gri bir çizgi çiziyordu.
           shape: const Border(),
-          foregroundColor: Colors.white,
+          foregroundColor: AppColors.onMedia,
           titleSpacing: 0,
           toolbarHeight: 64,
           title: Column(
@@ -151,7 +151,7 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
                   _ => 'mp.loop_off',
                 }),
                 icon: Icon(
-                  _p.loopStage == 0 ? Icons.repeat_outlined : Icons.repeat_on,
+                  _p.loopStage == 0 ? Icons.repeat_rounded : Icons.repeat_on_rounded,
                   color: _p.loopStage == 0 ? null : Colors.amberAccent,
                 ),
                 onPressed: () {
@@ -166,19 +166,19 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
               ),
               IconButton(
                 tooltip: context.t('mp.float_window'),
-                icon: const Icon(Icons.picture_in_picture_alt),
+                icon: const Icon(Icons.picture_in_picture_alt_rounded),
                 onPressed: _popOut,
               ),
               IconButton(
                 tooltip: context.t(_zoomFill ? 'mp.zoom_fit' : 'mp.zoom_fill'),
-                icon: Icon(_zoomFill ? Icons.fit_screen : Icons.crop_free),
+                icon: Icon(_zoomFill ? Icons.fit_screen_rounded : Icons.crop_free_rounded),
                 onPressed: () => _partSetState(() => _zoomFill = !_zoomFill),
               ),
             ],
             if (!_isAudio) _subtitleMenu(),
             PopupMenuButton<double>(
               tooltip: context.t('mp.play_speed'),
-              icon: const Icon(Icons.speed),
+              icon: const Icon(Icons.speed_rounded),
               onSelected: _setSpeed,
               itemBuilder: (_) => [
                 for (final s in const [0.5, 0.75, 1.0, 1.25, 1.5, 2.0])
@@ -190,7 +190,7 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
             ),
             IconButton(
               tooltip: context.t('mp.open_with'),
-              icon: const Icon(Icons.apps),
+              icon: const Icon(Icons.apps_rounded),
               onPressed: () => EntryOpener.openExternally(context, _current),
             ),
             // İzlerken "bunu Önemli'ye taşıyayım" demek için oynatıcıyı
@@ -198,7 +198,7 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
             // "her türlü dosyada bu olmalı").
             IconButton(
               tooltip: context.t('mp.file_ops'),
-              icon: const Icon(Icons.more_vert),
+              icon: const Icon(AppIcons.more),
               onPressed: () => showEntryActions(
                 context,
                 FsEntry.fromEntity(File(_current)),
@@ -221,15 +221,15 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, color: Colors.white70, size: 48),
+              const Icon(AppIcons.error, color: AppColors.onMediaSoft, size: 48),
               const SizedBox(height: Gap.md),
               Text(_error!,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white70)),
+                  style: const TextStyle(color: AppColors.onMediaSoft)),
               const SizedBox(height: Gap.md),
               FilledButton.tonalIcon(
                 onPressed: () => EntryOpener.openExternally(context, _current),
-                icon: const Icon(Icons.apps),
+                icon: const Icon(Icons.apps_rounded),
                 label: Text(context.t('mp.open_with')),
               ),
             ],
@@ -249,11 +249,11 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
               width: 140,
               height: 140,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.08),
+                color: AppColors.onMedia.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(Radii.sheet),
               ),
-              child: const Icon(Icons.music_note,
-                  size: 72, color: Colors.white70),
+              child: const Icon(AppIcons.audio,
+                  size: 72, color: AppColors.onMediaSoft),
             ),
             const SizedBox(height: Gap.lg),
             Padding(
@@ -263,7 +263,7 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white, fontSize: 18),
+                style: const TextStyle(color: AppColors.onMedia, fontSize: 18),
               ),
             ),
           ],
@@ -306,7 +306,7 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
           end: Alignment.bottomCenter,
           colors: [
             Colors.transparent,
-            Colors.black.withValues(alpha: 0.75),
+            AppColors.mediaSurface.withValues(alpha: 0.75),
           ],
         ),
       ),
@@ -316,7 +316,7 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
           Row(
             children: [
               Text(_MediaPlayerScreenState._fmt(value.position),
-                  style: const TextStyle(color: Colors.white70)),
+                  style: const TextStyle(color: AppColors.onMediaSoft)),
               Expanded(
                 child: Slider(
                   value: value.position.inMilliseconds
@@ -333,7 +333,7 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
                 ),
               ),
               Text(_MediaPlayerScreenState._fmt(value.duration),
-                  style: const TextStyle(color: Colors.white70)),
+                  style: const TextStyle(color: AppColors.onMediaSoft)),
             ],
           ),
           // OYNATMA DÜĞMELERİ GERÇEKTEN ORTADA (kullanıcı hatası 2026-07-30:
@@ -353,35 +353,35 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
                 children: [
                   IconButton(
                     tooltip: context.t('common.previous'),
-                    color: Colors.white,
-                    icon: const Icon(Icons.skip_previous),
+                    color: AppColors.onMedia,
+                    icon: const Icon(Icons.skip_previous_rounded),
                     onPressed: _index > 0 ? () => _skip(-1) : null,
                   ),
                   IconButton(
                     tooltip: context.t('mp.back10'),
-                    color: Colors.white,
-                    icon: const Icon(Icons.replay_10),
+                    color: AppColors.onMedia,
+                    icon: const Icon(Icons.replay_10_rounded),
                     onPressed: () => _seekBy(-10),
                   ),
                   IconButton(
                     tooltip: context.t(value.isPlaying ? 'mp.pause' : 'mp.play'),
                     iconSize: 48,
-                    color: Colors.white,
+                    color: AppColors.onMedia,
                     icon: Icon(value.isPlaying
-                        ? Icons.pause_circle
-                        : Icons.play_circle),
+                        ? Icons.pause_circle_rounded
+                        : Icons.play_circle_rounded),
                     onPressed: _togglePlay,
                   ),
                   IconButton(
                     tooltip: context.t('mp.forward10'),
-                    color: Colors.white,
-                    icon: const Icon(Icons.forward_10),
+                    color: AppColors.onMedia,
+                    icon: const Icon(Icons.forward_10_rounded),
                     onPressed: () => _seekBy(10),
                   ),
                   IconButton(
                     tooltip: context.t('common.next'),
-                    color: Colors.white,
-                    icon: const Icon(Icons.skip_next),
+                    color: AppColors.onMedia,
+                    icon: const Icon(Icons.skip_next_rounded),
                     onPressed:
                         _index < _playlist.length - 1 ? () => _skip(1) : null,
                   ),
@@ -394,9 +394,9 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
                   end: 0,
                   child: IconButton(
                     tooltip: context.t(_landscape ? 'mp.portrait' : 'mp.fullscreen'),
-                    color: Colors.white,
+                    color: AppColors.onMedia,
                     icon: Icon(
-                        _landscape ? Icons.fullscreen_exit : Icons.fullscreen),
+                        _landscape ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded),
                     onPressed: _toggleLandscape,
                   ),
                 ),

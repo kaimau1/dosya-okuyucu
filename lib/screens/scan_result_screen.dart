@@ -8,8 +8,10 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart';
 
+import '../core/app_icons.dart';
 import '../core/busy_dialog.dart';
 import '../core/l10n/app_strings.dart';
+import '../core/motion.dart';
 import '../core/snack.dart';
 import '../core/theme.dart';
 import '../services/document_scanner.dart';
@@ -248,12 +250,12 @@ class _ScanResultScreenState extends State<ScanResultScreen>
             if (_history.isNotEmpty)
               IconButton(
                 tooltip: context.t('common.undo'),
-                icon: const Icon(Icons.undo_rounded),
+                icon: const Icon(AppIcons.undo),
                 onPressed: _busy ? null : _undo,
               ),
             IconButton(
               tooltip: context.t('common.share'),
-              icon: const Icon(Icons.share_outlined),
+              icon: const Icon(AppIcons.share),
               onPressed: _busy ? null : _share,
             ),
             PopupMenuButton<String>(
@@ -270,7 +272,7 @@ class _ScanResultScreenState extends State<ScanResultScreen>
                   value: 'open',
                   child: ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.picture_as_pdf_outlined),
+                    leading: const Icon(AppIcons.pdf),
                     title: Text(ctx.t('scr.open_pdf')),
                   ),
                 ),
@@ -278,7 +280,7 @@ class _ScanResultScreenState extends State<ScanResultScreen>
                   value: 'rename',
                   child: ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.edit_outlined),
+                    leading: const Icon(AppIcons.edit),
                     title: Text(ctx.t('scr.rename')),
                   ),
                 ),
@@ -286,7 +288,7 @@ class _ScanResultScreenState extends State<ScanResultScreen>
                   value: 'move',
                   child: ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.drive_file_move_outlined),
+                    leading: const Icon(Icons.drive_file_move_rounded),
                     title: Text(ctx.t('scr.change_location')),
                   ),
                 ),
@@ -307,13 +309,13 @@ class _ScanResultScreenState extends State<ScanResultScreen>
                     segments: [
                       ButtonSegment(
                         value: 0,
-                        icon: const Icon(Icons.description_outlined, size: 18),
+                        icon: const Icon(Icons.description_rounded, size: 18),
                         label: Text(
                             context.t('ss.pages_tab', {'n': _pages.length})),
                       ),
                       ButtonSegment(
                         value: 1,
-                        icon: const Icon(Icons.subject, size: 18),
+                        icon: const Icon(Icons.subject_rounded, size: 18),
                         label: Text(context.t('scr.tab_text')),
                       ),
                     ],

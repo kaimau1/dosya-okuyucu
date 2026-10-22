@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/safe_insets.dart';
 import '../../core/snack.dart';
@@ -20,7 +21,7 @@ NavTabSpec navTabSpec(BuildContext context, String id) => switch (id) {
         ),
       'new' => (
           icon: Icons.move_to_inbox_outlined,
-          selected: Icons.move_to_inbox,
+          selected: Icons.move_to_inbox_rounded,
           label: context.t('fm.new_files'),
         ),
       'image' => (
@@ -55,7 +56,7 @@ NavTabSpec navTabSpec(BuildContext context, String id) => switch (id) {
         ),
       'important' => (
           icon: Icons.star_outline_rounded,
-          selected: Icons.star_rounded,
+          selected: AppIcons.star,
           label: context.t('nav.important'),
         ),
       'recent' => (
@@ -64,13 +65,13 @@ NavTabSpec navTabSpec(BuildContext context, String id) => switch (id) {
           label: context.t('fm.recent_opened'),
         ),
       'search' => (
-          icon: Icons.search_outlined,
+          icon: AppIcons.search,
           selected: Icons.saved_search_rounded,
           label: context.t('common.search'),
         ),
       'ai' => (
           icon: Icons.auto_awesome_outlined,
-          selected: Icons.auto_awesome,
+          selected: Icons.auto_awesome_rounded,
           label: context.t('nav.ai'),
         ),
       'smart' => (
@@ -94,13 +95,13 @@ NavTabSpec navTabSpec(BuildContext context, String id) => switch (id) {
           label: context.t('mem.title'),
         ),
       'jobs' => (
-          icon: Icons.playlist_add_check_outlined,
+          icon: Icons.playlist_add_check_rounded,
           selected: Icons.playlist_add_check_circle_rounded,
           label: context.t('fm.jobs'),
         ),
       'trash' => (
-          icon: Icons.delete_outline_rounded,
-          selected: Icons.delete_rounded,
+          icon: AppIcons.delete,
+          selected: AppIcons.delete,
           label: context.t('fm.trash'),
         ),
       'drive' => (
@@ -115,7 +116,7 @@ NavTabSpec navTabSpec(BuildContext context, String id) => switch (id) {
         ),
       _ => (
           icon: Icons.folder_outlined,
-          selected: Icons.folder,
+          selected: Icons.folder_rounded,
           label: context.t('home.tab_files'),
         ),
     };
@@ -190,7 +191,7 @@ class _NavTabsEditor extends StatelessWidget {
               child: _row(context, NavTabs.home,
                   trailing: Tooltip(
                     message: context.t('nav.home_locked'),
-                    child: Icon(Icons.lock_outline_rounded,
+                    child: Icon(AppIcons.lock,
                         size: 20, color: scheme.onSurfaceVariant),
                   )),
             ),

@@ -10,6 +10,7 @@ import 'package:pdf/pdf.dart' show PdfPageFormat;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../core/app_icons.dart';
 import '../core/busy_dialog.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/conversion_service.dart';
@@ -144,8 +145,8 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
                     ? 'pt.select_all'
                     : 'pt.invert_selection'),
                 icon: Icon(selection.isEmpty
-                    ? Icons.select_all
-                    : Icons.flip_to_back),
+                    ? AppIcons.selectAll
+                    : Icons.flip_to_back_rounded),
                 onPressed: _busy
                     ? null
                     : () => unawaited(
@@ -154,12 +155,12 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
             ),
             IconButton(
               tooltip: context.t('common.undo'),
-              icon: const Icon(Icons.undo),
+              icon: const Icon(AppIcons.undo),
               onPressed: _undo.isEmpty ? null : _undoLast,
             ),
             IconButton(
               tooltip: context.t('common.save'),
-              icon: const Icon(Icons.save_outlined),
+              icon: const Icon(AppIcons.save),
               onPressed: _dirty ? _save : null,
             ),
             PopupMenuButton<String>(

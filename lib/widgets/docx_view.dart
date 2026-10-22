@@ -438,9 +438,9 @@ class DocxViewState extends State<DocxView> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _ZoomBtn(icon: Icons.zoom_in, onTap: () => _zoomBy(1.25)),
+                _ZoomBtn(icon: Icons.zoom_in_rounded, onTap: () => _zoomBy(1.25)),
                 const SizedBox(height: 8),
-                _ZoomBtn(icon: Icons.zoom_out, onTap: () => _zoomBy(1 / 1.25)),
+                _ZoomBtn(icon: Icons.zoom_out_rounded, onTap: () => _zoomBy(1 / 1.25)),
               ],
             ),
           ),

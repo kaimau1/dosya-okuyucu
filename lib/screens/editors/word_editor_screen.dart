@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/doc_fonts.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/list_prefix.dart';

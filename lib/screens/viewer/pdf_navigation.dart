@@ -90,7 +90,7 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
                       if (ctx.mounted) Navigator.pop(ctx);
                       _snack(copiedAll);
                     },
-                    icon: const Icon(Icons.copy, size: 18),
+                    icon: const Icon(AppIcons.clipCopy, size: 18),
                     label: Text(context.t('vw.copy_all')),
                   ),
                 ],
@@ -332,7 +332,7 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
     try {
       await _pdfController.goToPage(
         pageNumber: target,
-        duration: animate ? const Duration(milliseconds: 200) : Duration.zero,
+        duration: animate ? Motion.of(context, Motion.medium) : Duration.zero,
       );
       return true;
     } catch (_) {
@@ -460,7 +460,7 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
                   color: scheme.errorContainer,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.broken_image_outlined,
+                child: Icon(Icons.broken_image_rounded,
                     size: 32, color: scheme.onErrorContainer),
               ),
               const SizedBox(height: 16),
@@ -488,13 +488,13 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
                     ),
                   FilledButton.tonalIcon(
                     onPressed: _reloadPdf,
-                    icon: const Icon(Icons.refresh_rounded),
+                    icon: const Icon(AppIcons.refresh),
                     label: Text(context.t('common.retry')),
                   ),
                   OutlinedButton.icon(
                     onPressed: () =>
                         EntryOpener.openExternally(context, widget.doc.path),
-                    icon: const Icon(Icons.open_in_new_rounded),
+                    icon: const Icon(AppIcons.open),
                     label: Text(context.t('fm.open_with_other')),
                   ),
                 ],

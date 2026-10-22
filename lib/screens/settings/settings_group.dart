@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/motion.dart';
 import '../../core/theme.dart';
 
 /// **Ayar bölümü — tek bir kart.**
@@ -50,7 +52,7 @@ class SettingsGroup extends StatelessWidget {
         children: [
           if (title != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(Gap.sm + 4, 0, Gap.sm, Gap.sm),
+              padding: const EdgeInsetsDirectional.fromSTEB(Gap.sm + 4, 0, Gap.sm, Gap.sm),
               child: Row(
                 children: [
                   Expanded(
@@ -144,7 +146,7 @@ class _SettingsAdvancedGroupState extends State<SettingsAdvancedGroup>
                     horizontal: Gap.sm + 4, vertical: Gap.sm),
                 child: Row(
                   children: [
-                    Icon(Icons.tune, size: 18, color: scheme.primary),
+                    Icon(AppIcons.tune, size: 18, color: scheme.primary),
                     const SizedBox(width: Gap.sm),
                     Expanded(
                       child: Column(
@@ -171,9 +173,9 @@ class _SettingsAdvancedGroupState extends State<SettingsAdvancedGroup>
                     // 150 ms'de, `Transform` üzerinden — yeniden yerleşim yok.
                     AnimatedRotation(
                       turns: _open ? 0.5 : 0,
-                      duration: const Duration(milliseconds: 150),
+                      duration: Motion.of(context, Motion.short),
                       curve: Curves.easeInOut,
-                      child: Icon(Icons.expand_more, color: scheme.primary),
+                      child: Icon(Icons.expand_more_rounded, color: scheme.primary),
                     ),
                   ],
                 ),
@@ -185,7 +187,7 @@ class _SettingsAdvancedGroupState extends State<SettingsAdvancedGroup>
             secondChild: SettingsGroup(inset: false, children: widget.children),
             crossFadeState:
                 _open ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-            duration: const Duration(milliseconds: 180),
+            duration: Motion.of(context, Motion.short),
             sizeCurve: Curves.easeOutCubic,
           ),
         ],

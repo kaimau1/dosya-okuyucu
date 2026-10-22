@@ -11,6 +11,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../core/motion.dart';
+
 /// Çubuktaki tek düğme. [onTap] null ise düğme sönük görünür (işlem şu an
 /// yapılamıyor demektir — gizlemek yerine sönük bırakmak yeri sabit tutar).
 ///
@@ -104,7 +106,7 @@ class _DockButton extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
+                duration: Motion.of(context, Motion.short),
                 width: 52,
                 height: 30,
                 decoration: BoxDecoration(

@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:path/path.dart' as p;
 import 'package:video_player/video_player.dart';
 
+import '../core/app_icons.dart';
 import '../core/app_navigator.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
@@ -259,7 +260,7 @@ class _MiniPlayerBarState extends State<MiniPlayerBar> {
         height: 44,
         color: scheme.primaryContainer,
         child: Icon(
-          _isVideo ? Icons.movie_outlined : Icons.music_note,
+          _isVideo ? AppIcons.video : AppIcons.audio,
           size: 22,
           color: scheme.onPrimaryContainer,
         ),
@@ -314,7 +315,7 @@ class _MiniPlayerBarState extends State<MiniPlayerBar> {
             InkWell(
               onTap: _openFull,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(Gap.sm, 6, Gap.xs, 6),
+                padding: const EdgeInsetsDirectional.fromSTEB(Gap.sm, 6, Gap.xs, 6),
                 child: Row(
                   children: [
                     ClipRRect(
@@ -355,7 +356,7 @@ class _MiniPlayerBarState extends State<MiniPlayerBar> {
                       button: true,
                       child: IconButton(
                         icon: Icon(
-                          _playing ? Icons.pause : Icons.play_arrow,
+                          _playing ? AppIcons.pause : AppIcons.play,
                           size: 30,
                         ),
                         onPressed: () => unawaited(_toggle()),
@@ -365,7 +366,7 @@ class _MiniPlayerBarState extends State<MiniPlayerBar> {
                       label: context.t('common.close'),
                       button: true,
                       child: IconButton(
-                        icon: const Icon(Icons.close),
+                        icon: const Icon(AppIcons.close),
                         onPressed: () => unawaited(_close()),
                       ),
                     ),

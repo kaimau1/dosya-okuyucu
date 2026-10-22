@@ -1,3 +1,4 @@
+import 'package:dosya_okuyucu/core/app_icons.dart';
 import 'package:dosya_okuyucu/widgets/motion.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -56,7 +57,7 @@ void main() {
     await tester.pumpWidget(const MaterialApp(
       home: Scaffold(
         body: FmEmptyState(
-          icon: Icons.delete_outline,
+          icon: AppIcons.delete,
           title: 'Çöp kutusu boş',
           hint: 'Silinenler 30 gün burada durur',
         ),

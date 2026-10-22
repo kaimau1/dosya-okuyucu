@@ -1,3 +1,4 @@
+import 'package:dosya_okuyucu/core/app_icons.dart';
 import 'package:dosya_okuyucu/screens/pdf_ink_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -43,11 +44,11 @@ void main() {
     await drawLine(tester, c, c + const Offset(80, 40));
     expect(strokeCount(tester), 1);
 
-    await tester.tap(find.byIcon(Icons.undo));
+    await tester.tap(find.byIcon(AppIcons.undo));
     await tester.pump();
     expect(strokeCount(tester), 0);
 
-    await tester.tap(find.byIcon(Icons.redo));
+    await tester.tap(find.byIcon(AppIcons.redo));
     await tester.pump();
     expect(strokeCount(tester), 1);
   });
@@ -77,19 +78,19 @@ void main() {
     await drawLine(tester, c + const Offset(-60, 150), c + const Offset(60, 150));
     expect(strokeCount(tester), 2);
 
-    await tester.tap(find.byIcon(Icons.auto_fix_normal_outlined));
+    await tester.tap(find.byIcon(Icons.auto_fix_normal_rounded));
     await tester.pump();
     await drawLine(tester, c + const Offset(0, -30), c + const Offset(0, 30));
     expect(strokeCount(tester), 1);
 
-    await tester.tap(find.byIcon(Icons.undo));
+    await tester.tap(find.byIcon(AppIcons.undo));
     await tester.pump();
     expect(strokeCount(tester), 2);
   });
 
   testWidgets('yazı aracı: dokun, yaz, sayfada görünür', (tester) async {
     await pump(tester);
-    await tester.tap(find.byIcon(Icons.text_fields));
+    await tester.tap(find.byIcon(AppIcons.textFields));
     await tester.pump();
     await tester.tapAt(pageCenter(tester));
     await tester.pumpAndSettle();
@@ -104,11 +105,11 @@ void main() {
     final c = pageCenter(tester);
     await drawLine(tester, c, c + const Offset(50, 50));
     expect(strokeCount(tester), 1);
-    await tester.tap(find.byIcon(Icons.chevron_right));
+    await tester.tap(find.byIcon(AppIcons.chevron));
     await tester.pump();
     expect(find.text('2 / 2'), findsOneWidget);
     expect(strokeCount(tester), 0);
-    await tester.tap(find.byIcon(Icons.chevron_left));
+    await tester.tap(find.byIcon(Icons.chevron_left_rounded));
     await tester.pump();
     expect(strokeCount(tester), 1);
   });
@@ -125,11 +126,11 @@ void main() {
     ));
     await tester.pump();
     for (final icon in [
-      Icons.border_color_outlined,
-      Icons.text_fields,
-      Icons.auto_fix_normal_outlined,
-      Icons.pan_tool_outlined,
-      Icons.edit_outlined,
+      Icons.border_color_rounded,
+      AppIcons.textFields,
+      Icons.auto_fix_normal_rounded,
+      Icons.pan_tool_rounded,
+      AppIcons.edit,
     ]) {
       await tester.tap(find.byIcon(icon));
       await tester.pump();

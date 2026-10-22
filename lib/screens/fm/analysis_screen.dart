@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_colors.dart';
+import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
@@ -145,7 +147,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
           ? AppBar(
               leading: IconButton(
                 tooltip: context.t('common.clear_selection'),
-                icon: const Icon(Icons.close),
+                icon: const Icon(AppIcons.close),
                 onPressed: () => setState(_selected.clear),
               ),
               // Seçilenlerin TOPLAM boyutu başlıkta: bu ekranın sorusu "ne
@@ -162,8 +164,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                 IconButton(
                   tooltip: context.t('ph.select_all'),
                   icon: Icon(_selected.length >= visible.length
-                      ? Icons.deselect
-                      : Icons.select_all),
+                      ? Icons.deselect_rounded
+                      : AppIcons.selectAll),
                   onPressed: () => _toggleSelectAll(visible),
                 ),
               ],
@@ -226,8 +228,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                     child: Column(
                       children: [
                         _ToolRow(
-                          icon: Icons.auto_fix_high,
-                          color: const Color(0xFF00838F),
+                          icon: Icons.auto_fix_high_rounded,
+                          color: AppHues.cyan,
                           title: context.t('ana.free_space'),
                           note: context.t('ana.free_space_note'),
                           onTap: () =>
@@ -237,8 +239,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                         ),
                         const Divider(height: 1),
                         _ToolRow(
-                          icon: Icons.cleaning_services_outlined,
-                          color: const Color(0xFF2E7D32),
+                          icon: Icons.cleaning_services_rounded,
+                          color: AppHues.green,
                           title: context.t('ana.find_dupes'),
                           note: context.t('ana.find_dupes_note'),
                           onTap: () =>
@@ -252,16 +254,16 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                         // ikisi de "yer aç" sorusunun parçası, burada durur.
                         const Divider(height: 1),
                         _ToolRow(
-                          icon: Icons.auto_awesome_motion_outlined,
-                          color: const Color(0xFF00897B),
+                          icon: Icons.auto_awesome_motion_rounded,
+                          color: AppHues.jade,
                           title: context.t('fm.similar_images'),
                           note: context.t('ana.similar_note'),
                           onTap: _openSimilar,
                         ),
                         const Divider(height: 1),
                         _ToolRow(
-                          icon: Icons.forum_outlined,
-                          color: const Color(0xFF2E7D32),
+                          icon: Icons.forum_rounded,
+                          color: AppHues.green,
                           title: context.t('cj.title'),
                           note: context.t('ana.chat_note'),
                           onTap: () => openChatCleanupScreen(context),
@@ -272,8 +274,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                         // hangi klasörü temizleyeceğini söylemiyor. Harita
                         // klasörleri boyuta göre sıralar ve içine inilir.
                         _ToolRow(
-                          icon: Icons.donut_large,
-                          color: const Color(0xFF6A4C93),
+                          icon: Icons.donut_large_rounded,
+                          color: AppHues.plum,
                           title: context.t('fmap.title'),
                           note: context.t('fmap.note'),
                           onTap: () =>
@@ -446,7 +448,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                         : IconButton(
                             tooltip: MaterialLocalizations.of(context)
                                 .moreButtonTooltip,
-                            icon: const Icon(Icons.more_vert),
+                            icon: const Icon(AppIcons.more),
                             onPressed: () async {
                               await showEntryActions(
                                 context,
@@ -565,7 +567,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       if (rest > 0) {
         out.add(_Slice(
             bytes: rest,
-            color: const Color(0xFF9E9E9E),
+            color: AppHues.silver,
             label: context.t('an.other_used')));
       }
     }
@@ -577,12 +579,12 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         textInputAction: TextInputAction.search,
         decoration: InputDecoration(
           hintText: context.t('ana.search_all'),
-          prefixIcon: const Icon(Icons.search),
+          prefixIcon: const Icon(AppIcons.search),
           suffixIcon: _query.isEmpty
               ? null
               : IconButton(
                   tooltip: context.t('common.clear'),
-                  icon: const Icon(Icons.clear),
+                  icon: const Icon(AppIcons.close),
                   onPressed: () {
                     _searchController.clear();
                     _onQueryChanged('');

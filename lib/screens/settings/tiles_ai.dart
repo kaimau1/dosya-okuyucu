@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
@@ -128,7 +129,7 @@ class _AiAccessTileState extends State<AiAccessTile> {
               hintText: 'AIza...',
               suffixIcon: IconButton(
                 tooltip: context.t('settings.api_key'),
-                icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
+                icon: Icon(_obscure ? Icons.visibility_rounded : Icons.visibility_off_rounded),
                 onPressed: () => setState(() => _obscure = !_obscure),
               ),
             ),
@@ -144,10 +145,10 @@ class _AiAccessTileState extends State<AiAccessTile> {
               children: [
                 Icon(
                   _fetchedModels != null
-                      ? Icons.check_circle_outline
+                      ? Icons.check_circle_outline_rounded
                       : (modelsError != null
-                          ? Icons.error_outline
-                          : Icons.hourglass_empty),
+                          ? AppIcons.error
+                          : Icons.hourglass_empty_rounded),
                   size: 16,
                   color: _fetchedModels != null
                       ? Paper.success(context)
@@ -204,7 +205,7 @@ class _AiAccessTileState extends State<AiAccessTile> {
               else
                 IconButton(
                   tooltip: context.t('settings.model_refresh'),
-                  icon: const Icon(Icons.refresh),
+                  icon: const Icon(AppIcons.refresh),
                   onPressed: appState.hasApiKey
                       ? () {
                           _fetchedForKey = null; // zorla yeniden çek
@@ -247,11 +248,11 @@ class MemoryTile extends StatelessWidget {
         for (final e in appState.memory.asMap().entries)
           ListTile(
             dense: true,
-            leading: const Icon(Icons.sticky_note_2_outlined),
+            leading: const Icon(Icons.sticky_note_2_rounded),
             title: Text(e.value, maxLines: 3, overflow: TextOverflow.ellipsis),
             trailing: IconButton(
               tooltip: context.t('common.delete'),
-              icon: const Icon(Icons.delete_outline),
+              icon: const Icon(AppIcons.delete),
               onPressed: () => appState.removeMemory(e.key),
             ),
           ),

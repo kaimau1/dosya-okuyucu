@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/safe_insets.dart';
@@ -87,7 +88,7 @@ class _BillsScreenState extends State<BillsScreen> {
             actions: [
               IconButton(
                 tooltip: context.t('bills.refresh'),
-                icon: const Icon(Icons.refresh),
+                icon: const Icon(AppIcons.refresh),
                 onPressed: bills.busy ? null : _refresh,
               ),
             ],
@@ -151,7 +152,7 @@ class _BillsScreenState extends State<BillsScreen> {
                 const SizedBox(height: Gap.sm),
                 FilledButton.tonalIcon(
                   onPressed: bills.busy ? null : _refresh,
-                  icon: const Icon(Icons.receipt_long_outlined),
+                  icon: const Icon(Icons.receipt_long_rounded),
                   label: Text(context.t('bills.read_pending', {'n': pending})),
                 ),
               ],
@@ -165,7 +166,7 @@ class _BillsScreenState extends State<BillsScreen> {
               ],
               if (months.isEmpty && _progress == null) ...[
                 const SizedBox(height: Gap.xl),
-                Icon(Icons.receipt_long_outlined,
+                Icon(Icons.receipt_long_rounded,
                     size: 56, color: scheme.onSurfaceVariant),
                 const SizedBox(height: Gap.sm),
                 Text(context.t('bills.empty'),
@@ -216,7 +217,7 @@ class _BillsScreenState extends State<BillsScreen> {
       child: ListTile(
         onTap: () => EntryOpener.open(context, b.path),
         leading: entry == null
-            ? const Icon(Icons.receipt_long_outlined)
+            ? const Icon(Icons.receipt_long_rounded)
             : FmEntryIcon(entry: entry, size: 44),
         title: Text(b.issuer.isEmpty ? context.t('bills.unknown') : b.issuer,
             maxLines: 1, overflow: TextOverflow.ellipsis),

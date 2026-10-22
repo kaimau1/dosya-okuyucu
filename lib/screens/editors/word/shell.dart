@@ -16,12 +16,12 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
         // paragraf silmenin geri dönüşü yoktu.
         IconButton(
           tooltip: context.t('word.undo'),
-          icon: const Icon(Icons.undo),
+          icon: const Icon(AppIcons.undo),
           onPressed: !_undo.canUndo ? null : _undoStep,
         ),
         IconButton(
           tooltip: context.t('word.redo'),
-          icon: const Icon(Icons.redo),
+          icon: const Icon(AppIcons.redo),
           onPressed: !_undo.canRedo ? null : _redoStep,
         ),
         // Belge içi arama: slaytta ve Excel'de zaten vardı, Word'de yoktu.
@@ -29,13 +29,13 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
           IconButton(
             tooltip: context.t('common.search'),
             isSelected: _finding,
-            icon: const Icon(Icons.search),
+            icon: const Icon(AppIcons.search),
             onPressed: editor == null ? null : _toggleFind,
           ),
         if (_editing)
           IconButton(
             tooltip: context.t('common.save'),
-            icon: const Icon(Icons.save_outlined),
+            icon: const Icon(AppIcons.save),
             onPressed: editor == null ? null : _save,
           ),
         PopupMenuButton<String>(
@@ -70,25 +70,25 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
           ? null
           : DocActionBar([
               if (!_plainMode)
-                DocAction(Icons.edit_outlined, context.t('common.edit'),
+                DocAction(AppIcons.edit, context.t('common.edit'),
                     editor == null ? null : _toggleEdit),
               if (!_plainMode)
                 DocAction(
-                  _flow ? Icons.description_outlined : Icons.smartphone,
+                  _flow ? Icons.description_rounded : Icons.smartphone_rounded,
                   context.t(_flow ? 'word.page_layout' : 'word.mobile_flow'),
                   editor == null ? null : _toggleFlow,
                 ),
-              DocAction(Icons.save_outlined, context.t('common.save'),
+              DocAction(AppIcons.save, context.t('common.save'),
                   editor == null ? null : _save),
-              DocAction(Icons.share_outlined, context.t('common.share'),
+              DocAction(AppIcons.share, context.t('common.share'),
                   editor == null ? null : _export),
               // Başka uygulamadan açıldıysa dosya özel önbellekte: doğrudan
               // İndirilenler'e (bkz. [SaveToDownloads]).
               if (showDownloadAction(widget.path))
-                DocAction(Icons.download_outlined, context.t('common.download'),
+                DocAction(AppIcons.download, context.t('common.download'),
                     editor == null ? null : _download),
               DocAction(
-                Icons.translate,
+                AppIcons.translate,
                 context.t('common.translate'),
                 () => TranslateFlow.run(context, widget.plainText,
                     title: widget.name),
@@ -98,13 +98,13 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
               // editöründe seçim Flutter'da olduğu için bu yol kapalı.
               if (!_plainMode)
                 DocAction(
-                  Icons.auto_fix_high,
+                  Icons.auto_fix_high_rounded,
                   context.t('word.rewrite_selection'),
                   editor == null ? null : _rewriteSelection,
                 ),
               if (!_plainMode)
                 DocAction(
-                  Icons.g_translate,
+                  Icons.g_translate_rounded,
                   context.t('word.translate_selection'),
                   editor == null ? null : _translateSelection,
                 ),
@@ -203,7 +203,7 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
   Widget _pageBadge() {
     return DocPill(
       text: context.t('word.page_of', {'n': _page, 'total': _pageCount}),
-      icon: Icons.unfold_more,
+      icon: Icons.unfold_more_rounded,
       onTap: _showGoToPage,
     );
   }
@@ -257,10 +257,10 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
             const RibbonSep(),
             // Resim (Faz 9 / Y1): imlecin altına satır içi resim; imleçteki
             // paragrafın resimlerini sil.
-            RibbonButton(Icons.add_photo_alternate_outlined,
+            RibbonButton(Icons.add_photo_alternate_rounded,
                 context.t('word.insert_image'),
                 onTap: _insertImage),
-            RibbonButton(Icons.hide_image_outlined,
+            RibbonButton(Icons.hide_image_rounded,
                 context.t('word.delete_image'),
                 onTap: _deleteImage),
           ]),
@@ -268,14 +268,14 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
         // "Bitti" kaydırmanın DIŞINDA kalır — dar ekranda düzenlemeden çıkış
         // düğmesi kaybolmamalı.
         trailing: Padding(
-          padding: const EdgeInsets.only(right: 8),
+          padding: const EdgeInsetsDirectional.only(end: 8),
           child: FilledButton.tonalIcon(
             style: FilledButton.styleFrom(
               minimumSize: const Size(0, 36),
               padding: const EdgeInsets.symmetric(horizontal: 12),
             ),
             onPressed: _toggleEdit,
-            icon: const Icon(Icons.check, size: 18),
+            icon: const Icon(AppIcons.check, size: 18),
             label: Text(context.t('word.done')),
           ),
         ),
@@ -316,7 +316,7 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
           value: 'none',
           child: Row(
             children: [
-              const Icon(Icons.format_color_reset, size: 20),
+              const Icon(Icons.format_color_reset_rounded, size: 20),
               const SizedBox(width: 10),
               Text(context.t('excel.color_none')),
             ],
@@ -364,14 +364,14 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                 tooltip: context.t('excel.replace'),
                 visualDensity: VisualDensity.compact,
                 isSelected: _replacing,
-                icon: const Icon(Icons.find_replace),
+                icon: const Icon(Icons.find_replace_rounded),
                 onPressed: () => _partSetState(() => _replacing = !_replacing),
               ),
             ],
           ),
           if (_replacing)
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 0, 4, 6),
+              padding: const EdgeInsetsDirectional.fromSTEB(8, 0, 4, 6),
               child: Row(
                 children: [
                   Expanded(
@@ -380,7 +380,7 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                       decoration: DocFindBar.decoration(
                         context,
                         hint: context.t('excel.replace_with'),
-                        icon: Icons.find_replace,
+                        icon: Icons.find_replace_rounded,
                       ),
                     ),
                   ),

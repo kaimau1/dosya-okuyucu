@@ -93,6 +93,28 @@ abstract final class AppIcons {
   static const IconData cleanEmpty = Icons.cleaning_services_rounded;
   static const IconData exportList = Icons.playlist_add_check_rounded;
 
+  // ── genel eylemler (Faz 15, 2026-10-22) ──────────────────────────────
+  static const IconData save = Icons.save_rounded;
+  static const IconData download = Icons.download_rounded;
+  static const IconData edit = Icons.edit_rounded;
+  static const IconData undo = Icons.undo_rounded;
+  static const IconData redo = Icons.redo_rounded;
+  static const IconData play = Icons.play_arrow_rounded;
+  static const IconData pause = Icons.pause_rounded;
+  static const IconData translate = Icons.translate_rounded;
+  static const IconData tune = Icons.tune_rounded;
+  static const IconData settings = Icons.settings_rounded;
+  static const IconData send = Icons.send_rounded;
+  static const IconData textFields = Icons.text_fields_rounded;
+  static const IconData error = Icons.error_outline_rounded;
+  static const IconData help = Icons.help_outline_rounded;
+
+  // ── içerik türleri (eylem düğmesinde; liste satırı FmEntryIcon'dan) ───
+  static const IconData image = Icons.image_rounded;
+  static const IconData video = Icons.movie_rounded;
+  static const IconData audio = Icons.music_note_rounded;
+  static const IconData pdf = Icons.picture_as_pdf_rounded;
+
   // ── oluşturma ("+" levhası) ──────────────────────────────────────────
   static const IconData newFolder = Icons.create_new_folder_rounded;
   static const IconData newWord = Icons.description_rounded;

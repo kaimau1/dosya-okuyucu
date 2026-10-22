@@ -12,6 +12,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
 import 'doc_more_sheet.dart';
 
@@ -27,11 +28,11 @@ List<DocMoreItem> pdfEditModeItems(
   DocMoreItem item(PdfEditMode mode, IconData icon, String key) =>
       DocMoreItem(icon, context.t(key), () => onPick(mode));
   return [
-    item(PdfEditMode.text, Icons.text_fields_rounded, 'pdfm.text'),
-    item(PdfEditMode.pen, Icons.draw_outlined, 'pdfm.pen'),
+    item(PdfEditMode.text, AppIcons.textFields, 'pdfm.text'),
+    item(PdfEditMode.pen, Icons.draw_rounded, 'pdfm.pen'),
     item(PdfEditMode.sign, Icons.history_edu_rounded, 'pdfm.sign'),
-    item(PdfEditMode.form, Icons.assignment_outlined, 'pdfm.form'),
-    item(PdfEditMode.pages, Icons.auto_stories_outlined, 'pdfm.pages'),
+    item(PdfEditMode.form, Icons.assignment_rounded, 'pdfm.form'),
+    item(PdfEditMode.pages, Icons.auto_stories_rounded, 'pdfm.pages'),
     item(PdfEditMode.ai, Icons.auto_fix_high_rounded, 'pdfm.ai'),
   ];
 }

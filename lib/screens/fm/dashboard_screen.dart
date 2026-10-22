@@ -9,9 +9,12 @@ import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/app_colors.dart';
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/device_profile.dart';
+import '../../core/motion.dart';
 import '../../core/startup_queue.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -325,7 +328,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.search,
+                    Icon(AppIcons.search,
                         size: 20, color: scheme.onSurfaceVariant),
                     const SizedBox(width: Gap.sm),
                     Text(
@@ -351,14 +354,14 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
           IconButton(
             tooltip: context.t('common.rescan'),
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(AppIcons.refresh),
             onPressed: _scanning ? null : _scan,
           ),
           IconButton(
             // Ayrı bir "dosya yöneticisi ayarları" ekranı KALMADI (2026-08-09):
             // ayarlar tek ekranda, sekiz kategoride toplandı.
             tooltip: context.t('common.settings'),
-            icon: const Icon(Icons.settings_outlined),
+            icon: const Icon(AppIcons.settings),
             onPressed: () async {
               await _push(const SettingsScreen());
               if (mounted) await _loadTrash();
@@ -415,7 +418,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             Center(
               child: TextButton.icon(
                 onPressed: _editLayout,
-                icon: const Icon(Icons.dashboard_customize_outlined, size: 18),
+                icon: const Icon(Icons.dashboard_customize_rounded, size: 18),
                 label: Text(context.t('dash.title')),
               ),
             ),

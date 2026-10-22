@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../core/app_icons.dart';
 import '../core/app_state.dart';
 import '../core/l10n/app_language.dart';
 import '../core/l10n/app_strings.dart';
@@ -135,13 +136,13 @@ class AiSlidesFlow {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.auto_awesome),
+              leading: const Icon(AppIcons.ai),
               title: Text(ctx.t('ais.with_ai')),
               subtitle: Text(ctx.t('ais.with_ai_hint')),
               onTap: () => Navigator.pop(ctx, true),
             ),
             ListTile(
-              leading: const Icon(Icons.bolt_outlined),
+              leading: const Icon(Icons.bolt_rounded),
               title: Text(ctx.t('ais.quick')),
               subtitle: Text(ctx.t('ais.quick_hint')),
               onTap: () => Navigator.pop(ctx, false),
@@ -161,13 +162,13 @@ class AiSlidesFlow {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.slideshow_outlined),
+              leading: const Icon(Icons.slideshow_rounded),
               title: Text(ctx.t('ais.as_pptx')),
               subtitle: Text(ctx.t('ais.as_pptx_hint')),
               onTap: () => Navigator.pop(ctx, SlidesFormat.pptx),
             ),
             ListTile(
-              leading: const Icon(Icons.picture_as_pdf_outlined),
+              leading: const Icon(AppIcons.pdf),
               title: Text(ctx.t('ais.as_pdf')),
               subtitle: Text(ctx.t('ais.as_pdf_hint')),
               onTap: () => Navigator.pop(ctx, SlidesFormat.pdf),

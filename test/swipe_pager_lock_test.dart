@@ -1,3 +1,4 @@
+import 'package:dosya_okuyucu/core/app_icons.dart';
 import 'package:dosya_okuyucu/screens/fm/swipe_pager.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,7 +13,7 @@ void main() {
           pages: [
             SwipePage(
               label: 'Bir',
-              icon: Icons.image,
+              icon: AppIcons.image,
               color: Colors.blue,
               builder: (_) => Scaffold(
                 body: ValueListenableBuilder<bool>(

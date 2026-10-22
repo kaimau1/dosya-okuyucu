@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/app_icons.dart';
 import '../../../core/l10n/app_strings.dart';
 import '../../../core/theme.dart';
 import '../../../services/fm/remote/ftp_service.dart';
@@ -61,17 +62,17 @@ class _ShareFoldersScreenState extends State<ShareFoldersScreen> {
   };
 
   static const _icons = <String, IconData>{
-    ShareScope.sharedBox: Icons.folder_shared_outlined,
-    FtpTree.storageFolder: Icons.smartphone,
-    'Indirilenler': Icons.download_outlined,
-    'Kamera': Icons.photo_camera_outlined,
-    'Ekran Goruntuleri': Icons.screenshot_outlined,
-    'Resimler': Icons.image_outlined,
-    'Videolar': Icons.movie_outlined,
-    'Ses': Icons.audiotrack_outlined,
-    'Belgeler': Icons.description_outlined,
-    'Arsivler': Icons.folder_zip_outlined,
-    'Uygulamalar': Icons.android_outlined,
+    ShareScope.sharedBox: Icons.folder_shared_rounded,
+    FtpTree.storageFolder: Icons.smartphone_rounded,
+    'Indirilenler': AppIcons.download,
+    'Kamera': Icons.photo_camera_rounded,
+    'Ekran Goruntuleri': Icons.screenshot_rounded,
+    'Resimler': AppIcons.image,
+    'Videolar': AppIcons.video,
+    'Ses': Icons.audiotrack_rounded,
+    'Belgeler': Icons.description_rounded,
+    'Arsivler': AppIcons.archiveView,
+    'Uygulamalar': Icons.android_rounded,
   };
 
   @override
@@ -206,7 +207,7 @@ class _ShareFoldersScreenState extends State<ShareFoldersScreen> {
       value: value,
       onChanged: enabled ? (v) => _toggleBox(box, v ?? false) : null,
       controlAffinity: ListTileControlAffinity.leading,
-      secondary: Icon(_icons[box] ?? Icons.folder_outlined),
+      secondary: Icon(_icons[box] ?? AppIcons.folder),
       title: Text(label == null ? box : context.t(label)),
       subtitle: Text(context.t('ftpd.box_on_pc', {'name': box})),
     );

@@ -15,6 +15,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
@@ -73,7 +74,7 @@ class _AiBackupKeysTileState extends State<AiBackupKeysTile> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SettingTile(
-          icon: Icons.vpn_key_outlined,
+          icon: Icons.vpn_key_rounded,
           title: context.t('aipool.backup_keys'),
           subtitle: context.t('aipool.backup_keys_sub'),
           wrapSubtitle: true,
@@ -100,12 +101,12 @@ class _AiBackupKeysTileState extends State<AiBackupKeysTile> {
                 IconButton(
                   tooltip: context.t('aipool.show_keys'),
                   icon: Icon(
-                      _obscure ? Icons.visibility : Icons.visibility_off),
+                      _obscure ? Icons.visibility_rounded : Icons.visibility_off_rounded),
                   onPressed: () => setState(() => _obscure = !_obscure),
                 ),
                 IconButton(
                   tooltip: context.t('common.delete'),
-                  icon: const Icon(Icons.close),
+                  icon: const Icon(AppIcons.close),
                   onPressed: () async {
                     setState(() => _controllers.removeAt(i).dispose());
                     await _save();
@@ -116,11 +117,11 @@ class _AiBackupKeysTileState extends State<AiBackupKeysTile> {
           ),
         if (canAdd)
           Padding(
-            padding: const EdgeInsets.only(left: Gap.md, bottom: Gap.sm),
+            padding: const EdgeInsetsDirectional.only(start: Gap.md, bottom: Gap.sm),
             child: Align(
               alignment: AlignmentDirectional.centerStart,
               child: OutlinedButton.icon(
-                icon: const Icon(Icons.add),
+                icon: const Icon(AppIcons.add),
                 label: Text(context.t('aipool.add_key')),
                 onPressed: () =>
                     setState(() => _controllers.add(TextEditingController())),
@@ -193,7 +194,7 @@ class _AiModelChainTileState extends State<AiModelChainTile> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SettingTile(
-          icon: Icons.layers_outlined,
+          icon: Icons.layers_rounded,
           title: context.t('aipool.model_chain'),
           subtitle: context.t('aipool.model_chain_sub'),
           wrapSubtitle: true,
@@ -215,7 +216,7 @@ class _AiModelChainTileState extends State<AiModelChainTile> {
                 (_available != null && !_available!.contains(chain[i]));
             return ListTile(
             dense: true,
-            contentPadding: const EdgeInsets.only(left: 56, right: Gap.sm),
+            contentPadding: const EdgeInsetsDirectional.only(start: 56, end: Gap.sm),
             leading: null,
             title: Text('${i + 1}. ${chain[i]}',
                 maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -233,7 +234,7 @@ class _AiModelChainTileState extends State<AiModelChainTile> {
               children: [
                 IconButton(
                   tooltip: context.t('aipool.move_up'),
-                  icon: const Icon(Icons.arrow_upward, size: 20),
+                  icon: const Icon(AppIcons.arrowUp, size: 20),
                   onPressed: i == 0
                       ? null
                       : () {
@@ -245,7 +246,7 @@ class _AiModelChainTileState extends State<AiModelChainTile> {
                 ),
                 IconButton(
                   tooltip: context.t('common.delete'),
-                  icon: const Icon(Icons.close, size: 20),
+                  icon: const Icon(AppIcons.close, size: 20),
                   // Son model silinemez: modelsiz bir havuz hiçbir iş yapamaz.
                   onPressed: chain.length == 1
                       ? null
@@ -259,7 +260,7 @@ class _AiModelChainTileState extends State<AiModelChainTile> {
           );
           }),
         Padding(
-          padding: const EdgeInsets.only(left: 56, bottom: Gap.sm),
+          padding: const EdgeInsetsDirectional.only(start: 56, bottom: Gap.sm),
           child: Align(
             alignment: AlignmentDirectional.centerStart,
             child: PopupMenuButton<String>(
@@ -271,7 +272,7 @@ class _AiModelChainTileState extends State<AiModelChainTile> {
                   PopupMenuItem(value: model, child: Text(model)),
               ],
               child: OutlinedButton.icon(
-                icon: const Icon(Icons.add),
+                icon: const Icon(AppIcons.add),
                 label: Text(context.t('aipool.add_model')),
                 // Menüyü sarmalayan PopupMenuButton açar; düğmenin kendi
                 // onPressed'i olursa dokunuş orada tükenir ve menü açılmaz.
@@ -308,7 +309,7 @@ class _AiPoolStatusTileState extends State<AiPoolStatusTile> {
     final slots = state.aiCredentials.slotCount;
     final cooling = AiPool.coolingCount;
     return SettingTile(
-      icon: Icons.battery_charging_full_outlined,
+      icon: Icons.battery_charging_full_rounded,
       title: context.t('aipool.status'),
       subtitle: context.t('aipool.status_sub', {
         'total': slots,

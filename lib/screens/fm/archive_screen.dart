@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/text_search.dart';
 import '../../core/theme.dart';
@@ -216,7 +217,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
         actions: [
           IconButton(
             tooltip: context.t('fm.open_with_other'),
-            icon: const Icon(Icons.apps),
+            icon: const Icon(Icons.apps_rounded),
             onPressed: () => EntryOpener.openExternally(context, widget.path),
           ),
         ],
@@ -225,7 +226,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
           ? null
           : FloatingActionButton.extended(
               onPressed: _extractAll,
-              icon: const Icon(Icons.unarchive_outlined),
+              icon: const Icon(Icons.unarchive_rounded),
               label: Text(context.t('arc.extract_all')),
             ),
       body: _loading
@@ -239,7 +240,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                     const Divider(height: 1),
                     Expanded(
                       child: items.isEmpty
-                          ? FmEmptyState(icon: Icons.search_off, title: context.t('arc.no_match'))
+                          ? FmEmptyState(icon: Icons.search_off_rounded, title: context.t('arc.no_match'))
                           : ListView.builder(
                               padding: withNavInset(
                                   context, const EdgeInsets.only(bottom: 96)),
@@ -258,7 +259,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.folder_zip_outlined,
+              Icon(AppIcons.archiveView,
                   size: 56, color: Theme.of(context).colorScheme.outline),
               const SizedBox(height: Gap.md),
               Text(_error!, textAlign: TextAlign.center),
@@ -332,7 +333,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
           decoration: InputDecoration(
             isDense: true,
             hintText: context.t('arc.search'),
-            prefixIcon: const Icon(Icons.search),
+            prefixIcon: const Icon(AppIcons.search),
           ),
           onChanged: (v) => setState(() => _query = v),
         ),
@@ -362,10 +363,10 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
         overflow: TextOverflow.ellipsis,
       ),
       trailing: item.isEncrypted
-          ? const Icon(Icons.lock_outline, size: 18)
+          ? const Icon(AppIcons.lock, size: 18)
           : IconButton(
               tooltip: context.t('arc.extract_one'),
-              icon: const Icon(Icons.download_outlined),
+              icon: const Icon(AppIcons.download),
               onPressed: () => _extractOne(item),
             ),
       onTap: () => _preview(item),

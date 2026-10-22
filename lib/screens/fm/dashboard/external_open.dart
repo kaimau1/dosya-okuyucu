@@ -55,12 +55,12 @@ extension _DashboardScreenExternalOpenPart on _DashboardScreenState {
             children: [
               for (final r in roots)
                 ListTile(
-                  leading: const Icon(Icons.folder_special_outlined),
+                  leading: const Icon(Icons.folder_special_rounded),
                   title: Text(r.name),
                   onTap: () => Navigator.pop(ctx, r),
                 ),
               ListTile(
-                leading: const Icon(Icons.add),
+                leading: const Icon(AppIcons.add),
                 title: Text(ctx.t('saf.pick')),
                 onTap: () => Navigator.pop(ctx),
               ),
@@ -165,27 +165,27 @@ extension _DashboardScreenExternalOpenPart on _DashboardScreenState {
                 ),
               for (final r in saf)
                 ListTile(
-                  leading: const Icon(Icons.folder_special_outlined),
+                  leading: const Icon(Icons.folder_special_rounded),
                   title: Text(r.name),
                   subtitle: Text(ctx.t('saf.granted')),
                   onTap: () => Navigator.pop(ctx, r),
                 ),
               ListTile(
-                leading: const Icon(Icons.add),
+                leading: const Icon(AppIcons.add),
                 title: Text(ctx.t('saf.pick')),
                 onTap: () => Navigator.pop(ctx, 'pick'),
               ),
               // Android bağlamadıysa: belleği doğrudan sür (salt okunur).
               for (final d in drivable)
                 ListTile(
-                  leading: const Icon(Icons.usb),
+                  leading: const Icon(AppIcons.external),
                   title: Text(d.displayName),
                   subtitle: Text(ctx.t('usb.open_raw')),
                   onTap: () => Navigator.pop(ctx, 'raw:${d.name}'),
                 ),
               // Bellek görünmüyorsa tahmin yürütmek yerine ÖLÇ.
               ListTile(
-                leading: const Icon(Icons.troubleshoot),
+                leading: const Icon(Icons.troubleshoot_rounded),
                 title: Text(ctx.t('usb.diag_title')),
                 onTap: () => Navigator.pop(ctx, 'diag'),
               ),
@@ -231,12 +231,12 @@ extension _DashboardScreenExternalOpenPart on _DashboardScreenState {
             ),
             const Divider(height: 1),
             ListTile(
-              leading: const Icon(Icons.folder_open),
+              leading: const Icon(Icons.folder_open_rounded),
               title: Text(ctx.t('common.open')),
               onTap: () => Navigator.pop(ctx, 'open'),
             ),
             ListTile(
-              leading: const Icon(Icons.donut_small),
+              leading: const Icon(Icons.donut_small_rounded),
               title: Text(ctx.t('fm.memory_analysis')),
               onTap: () => Navigator.pop(ctx, 'analysis'),
             ),
@@ -244,7 +244,7 @@ extension _DashboardScreenExternalOpenPart on _DashboardScreenState {
             // menüsünde — kullanıcı "kartı nasıl kullanırım" diye burada arar.
             if (volume.isRemovable)
               ListTile(
-                leading: const Icon(Icons.eject),
+                leading: const Icon(Icons.eject_rounded),
                 title: Text(ctx.t('usb.eject')),
                 onTap: () => Navigator.pop(ctx, 'eject'),
               ),
@@ -341,7 +341,7 @@ extension _DashboardScreenExternalOpenPart on _DashboardScreenState {
             SimpleDialogOption(
               onPressed: () => Navigator.pop(ctx, v.index),
               child: ListTile(
-                leading: const Icon(Icons.usb),
+                leading: const Icon(AppIcons.external),
                 title: Text(v.label),
                 subtitle: Text('${v.format} · @${v.firstLba}'),
                 contentPadding: EdgeInsets.zero,

@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:video_player/video_player.dart';
 
+import '../../core/app_colors.dart';
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -212,7 +214,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     // dokunuşları sistem kendi denetimleriyle karşılıyor.
     if (Pip.active.value && c != null && value!.isInitialized) {
       return ColoredBox(
-        color: Colors.black,
+        color: AppColors.mediaSurface,
         child: Center(
           child: AspectRatio(
               aspectRatio: value.aspectRatio, child: VideoPlayer(c)),
@@ -221,7 +223,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.mediaSurface,
       // ÖNEMLİ: üst bar Scaffold'un `appBar` slotuna verilmez. Verilseydi
       // kontroller açılıp kapandıkça body'nin yüksekliği değişir, ortalanmış
       // video her dokunuşta küçülüp kayardı. Bar da alt kontroller gibi

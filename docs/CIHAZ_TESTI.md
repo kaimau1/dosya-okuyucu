@@ -153,6 +153,37 @@ Telefona kopyalarken klasöre `.nomedia` KOY ve iş bitince SİL (HAFIZA 2026-10
 - [ ] **Büyük yazı (Ayarlar → yazı boyutu en büyük + sistem yazı 200 %):** Son açılanlar
       ve Yeni gelenlerde taşma (sarı-siyah şerit) yok mu.
 
+## Faz 15–16 — görsel dil birliği + erişilebilirlik/RTL (2026-10-22)
+
+- [ ] **İş bildirimi alt çubuğu örtmüyor (kullanıcı bildirimi 2026-10-22):** çok
+      dosya seçip Sil → "Çöp kutusuna taşınıyor · n / N" kartı seçim çubuğunun
+      ÜSTÜNDE duruyor mu, düğmeler basılabiliyor mu. Aynısı ana ekran alt
+      gezinmesi ve belge dock'u (Word/Excel alt çubuğu) için. Başka sayfa
+      açılınca kart yine ekranın altına iniyor mu.
+- [ ] **Simge ailesi:** gezgin, pano, ayarlar, oynatıcı, PDF/Word araç
+      çubuklarında çizgi (outlined) + dolu glif karışımı kalmadı mı; "İş
+      programı/Gece" ailesinde kategori simgeleri hâlâ çizgi mi (bilinçli).
+- [ ] **Soluk metin okunurluğu:** yol, sayaç, zaman damgası (inkFaint koyulaştı,
+      4 tema × açık/koyu) gözü yormadan okunuyor mu; Modern açık temada yeşil
+      "başarılı" rengi.
+- [ ] **Animasyonları kaldır:** Geliştirici seçenekleri → animasyon ölçekleri
+      kapalı ya da Erişilebilirlik → "Animasyonları kaldır" → sayfa geçişi anında
+      mı; galeri küçük resim şeridi, slayt gösterisi, sohbet kaydırması
+      atlayarak mı gidiyor (çökme/takılma yok).
+- [ ] **TalkBack:** dosya satırı "PDF, Kira sözleşmesi, 117 KB · dün" gibi TEK
+      kez okunuyor mu; TalkBack menüsünde (üç parmak/yerel bağlam menüsü)
+      **"Seç"** eylemi var ve seçim kipini açıyor mu; yol çubuğu hapı adı bir
+      kez okuyor mu; listede etiketsiz "uzun bas" düğümü kalmadı mı.
+- [ ] **Uygulama başına dil (Android 13+):** Ayarlar → Uygulamalar → Dosya
+      Okuyucu → Dil listesinde Türkçe/English/العربية var mı; uygulama içi dil
+      "Sistem"deyken buradan seçilen dil uygulamaya yansıyor mu.
+- [ ] **Arapça:** gezgin/kategori/Son açılanlar/ayarlar aynalanmış mı; alt satır
+      "117 KB · 22 …" sırası doğru mu (sayı/birim karışmıyor); Excel hücre
+      hizası ve PDF çıktısı AYNALANMAMIŞ mı (belge içeriği bilinçli fiziksel).
+- [ ] **Büyük yazı 2,0×:** Ayarlar → Görünüm → yazı boyutu kaydırıcısı %200'e
+      çıkıyor mu; 360 dp'lik telefonda gezgin, Son açılanlar, ayarlar, arama,
+      çöp kutusu taşma şeridi göstermeden kullanılabiliyor mu.
+
 ## KALANLAR'dan taşınanlar (Faz 0, 2026-10-21 — kelimesi kelimesine)
 
 ### (başlıksız)

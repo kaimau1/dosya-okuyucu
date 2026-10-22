@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pdfrx/pdfrx.dart';
 
+import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/safe_insets.dart';
 
@@ -56,7 +57,7 @@ class PdfPageChip extends StatelessWidget {
             onTap: onTap,
             onLongPress: onLongPress,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 6, 14, 6),
+              padding: const EdgeInsetsDirectional.fromSTEB(8, 6, 14, 6),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -264,7 +265,7 @@ class _PdfPageNavigatorState extends State<PdfPageNavigator> {
                   tooltip: context.t(marked ? 'pn.unstar' : 'pn.star'),
                   isSelected: marked,
                   onPressed: _toggle,
-                  icon: const Icon(Icons.bookmark_add_outlined),
+                  icon: const Icon(Icons.bookmark_add_rounded),
                   selectedIcon: const Icon(Icons.bookmark_rounded),
                 ),
               ],
@@ -328,7 +329,7 @@ class _PdfPageNavigatorState extends State<PdfPageNavigator> {
                   ),
                 ),
                 _StepButton(
-                  icon: Icons.chevron_right_rounded,
+                  icon: AppIcons.chevron,
                   tooltip: context.t('pn.next'),
                   onDown: () => _startRepeat(1),
                   onUp: _stopRepeat,
@@ -383,7 +384,7 @@ class _PdfPageNavigatorState extends State<PdfPageNavigator> {
                 ),
                 if (previous != null && previous != widget.current)
                   ActionChip(
-                    avatar: const Icon(Icons.undo_rounded, size: 18),
+                    avatar: const Icon(AppIcons.undo, size: 18),
                     label: Text(context.t('pn.back_to', {'n': previous})),
                     onPressed: () => _go(previous),
                   ),
@@ -392,7 +393,7 @@ class _PdfPageNavigatorState extends State<PdfPageNavigator> {
             const SizedBox(height: 16),
             Row(
               children: [
-                Icon(Icons.bookmarks_outlined,
+                Icon(Icons.bookmarks_rounded,
                     size: 18, color: scheme.onSurfaceVariant),
                 const SizedBox(width: 8),
                 Expanded(

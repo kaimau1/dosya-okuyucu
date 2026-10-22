@@ -1,3 +1,4 @@
+import 'package:dosya_okuyucu/core/app_icons.dart';
 import 'package:dosya_okuyucu/core/app_navigator.dart';
 import 'package:dosya_okuyucu/screens/fm/audio_player_screen.dart';
 import 'package:dosya_okuyucu/services/fm/audio_playback.dart';
@@ -60,7 +61,7 @@ void main() {
     await tester.pumpWidget(harness());
     expect(find.byType(MiniPlayerBar), findsOneWidget);
     expect(find.text('parca'), findsOneWidget);
-    expect(find.byIcon(Icons.pause), findsOneWidget);
+    expect(find.byIcon(AppIcons.pause), findsOneWidget);
     // İçerik hâlâ ekranda: çubuk üstüne binmiyor, altına ekleniyor.
     expect(find.text('içerik'), findsOneWidget);
   });
@@ -70,10 +71,10 @@ void main() {
       ..playlist = ['/depo/Müzik/parca.mp3']
       ..playing = true;
     await tester.pumpWidget(harness());
-    await tester.tap(find.byIcon(Icons.pause));
+    await tester.tap(find.byIcon(AppIcons.pause));
     await tester.pump();
     expect(AudioPlayback.instance.playing, isFalse);
-    expect(find.byIcon(Icons.play_arrow), findsOneWidget);
+    expect(find.byIcon(AppIcons.play), findsOneWidget);
   });
 
   testWidgets('kapat düğmesi çalmayı bitirir ve çubuk kalkar', (tester) async {
@@ -81,7 +82,7 @@ void main() {
       ..playlist = ['/depo/Müzik/parca.mp3']
       ..playing = true;
     await tester.pumpWidget(harness());
-    await tester.tap(find.byIcon(Icons.close));
+    await tester.tap(find.byIcon(AppIcons.close));
     await tester.pump();
     expect(AudioPlayback.instance.hasTrack, isFalse);
     expect(find.byType(MiniPlayerBar), findsNothing);

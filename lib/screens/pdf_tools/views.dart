@@ -174,7 +174,7 @@ extension _PdfToolsScreenViewsPart on _PdfToolsScreenState {
                       // ancak kaydedip yeniden açarak cevaplanıyordu.
                       if (document.pages[index].rotation.index != 0)
                         Align(
-                          alignment: Alignment.topLeft,
+                          alignment: AlignmentDirectional.topStart,
                           child: Padding(
                             padding: const EdgeInsets.all(4),
                             child: Container(
@@ -194,10 +194,10 @@ extension _PdfToolsScreenViewsPart on _PdfToolsScreenState {
                         ),
                       if (selected)
                         Align(
-                          alignment: Alignment.topRight,
+                          alignment: AlignmentDirectional.topEnd,
                           child: Padding(
                             padding: const EdgeInsets.all(4),
-                            child: Icon(Icons.check_circle,
+                            child: Icon(AppIcons.checkCircle,
                                 color: scheme.primary, size: 22),
                           ),
                         ),
@@ -233,16 +233,16 @@ extension _PdfToolsScreenViewsPart on _PdfToolsScreenState {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _barButton(
-                  Icons.rotate_right,
+                  Icons.rotate_right_rounded,
                   context.t(has ? 'vw.rotate' : 'pt.rotate_all'),
                   _busy ? null : _rotate),
-              _barButton(Icons.delete_outline, context.t('common.delete'),
+              _barButton(AppIcons.delete, context.t('common.delete'),
                   has && !_busy ? _deleteSelected : null),
-              _barButton(Icons.call_split, context.t('pt.extract'),
+              _barButton(Icons.call_split_rounded, context.t('pt.extract'),
                   has && !_busy ? _extractSelected : null),
-              _barButton(Icons.arrow_upward, context.t('pt.forward'),
+              _barButton(AppIcons.arrowUp, context.t('pt.forward'),
                   single && !_busy ? () => _move(-1) : null),
-              _barButton(Icons.arrow_downward, context.t('pt.backward'),
+              _barButton(AppIcons.arrowDown, context.t('pt.backward'),
                   single && !_busy ? () => _move(1) : null),
             ],
           ),

@@ -20,8 +20,11 @@ library;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_colors.dart';
+import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/motion.dart';
 import '../../core/theme.dart';
 import '../../services/fm/ai_analyzer.dart';
 import '../../services/fm/ai_apply.dart';
@@ -91,7 +94,7 @@ class _AiHubScreenState extends State<AiHubScreen>
           // Akıllı klasörler (2026-10-18): kayıtlı AI aramaları.
           IconButton(
             tooltip: context.t('smart.title'),
-            icon: const Icon(Icons.folder_special_outlined),
+            icon: const Icon(Icons.folder_special_rounded),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const SmartFoldersScreen()),
             ),
@@ -100,7 +103,7 @@ class _AiHubScreenState extends State<AiHubScreen>
           // AI Merkezi'nin bir bölümü — veri zaten AI analizinden geliyor.
           IconButton(
             tooltip: context.t('bills.title'),
-            icon: const Icon(Icons.receipt_long_outlined),
+            icon: const Icon(Icons.receipt_long_rounded),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const BillsScreen()),
             ),
@@ -115,7 +118,7 @@ class _AiHubScreenState extends State<AiHubScreen>
           ),
           IconButton(
             tooltip: context.t('aih.scope_settings'),
-            icon: const Icon(Icons.tune),
+            icon: const Icon(AppIcons.tune),
             onPressed: () => openSettingsCategory(context, 'ai'),
           ),
         ],
@@ -140,7 +143,7 @@ class _AiHubScreenState extends State<AiHubScreen>
           AnimatedBuilder(
             animation: _tabs,
             builder: (context, _) => AnimatedSize(
-              duration: const Duration(milliseconds: 180),
+              duration: Motion.of(context, Motion.short),
               curve: Curves.easeOutCubic,
               alignment: Alignment.topCenter,
               child: _tabs.index == 0

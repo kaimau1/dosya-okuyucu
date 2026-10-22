@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
+import '../core/app_icons.dart';
 import '../services/pdf/pdf_scanned_retype.dart' show ScannedLine;
 import '../services/pdf_page_edit.dart';
 
@@ -258,7 +259,7 @@ class _MovableObjectState extends State<_MovableObject> {
                   ),
                   child: Center(
                     child: Icon(
-                        widget.movable ? Icons.open_with : Icons.lock_outline,
+                        widget.movable ? Icons.open_with_rounded : AppIcons.lock,
                         color: widget.color.withValues(alpha: 0.8),
                         size: 20),
                   ),
@@ -281,7 +282,7 @@ class _MovableObjectState extends State<_MovableObject> {
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 2),
                     ),
-                    child: const Icon(Icons.open_in_full,
+                    child: const Icon(Icons.open_in_full_rounded,
                         color: Colors.white, size: 14),
                   ),
                 ),

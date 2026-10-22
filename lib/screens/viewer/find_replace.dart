@@ -169,7 +169,7 @@ extension _ViewerScreenFindReplacePart on _ViewerScreenState {
                 visualDensity: VisualDensity.compact,
                 isSelected: _replaceOpen,
                 icon: Icon(_replaceOpen
-                    ? Icons.find_replace
+                    ? Icons.find_replace_rounded
                     : Icons.find_replace_outlined),
                 onPressed: () => _partSetState(() => _replaceOpen = !_replaceOpen),
               ),
@@ -179,7 +179,7 @@ extension _ViewerScreenFindReplacePart on _ViewerScreenState {
               IconButton(
                 tooltip: context.t('vw.goto_page_short'),
                 visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.numbers),
+                icon: const Icon(Icons.numbers_rounded),
                 onPressed: _askGoToPage,
               ),
           ],
@@ -211,7 +211,7 @@ extension _ViewerScreenFindReplacePart on _ViewerScreenState {
               decoration: DocFindBar.decoration(
                 context,
                 hint: context.t('vw.replace_with'),
-                icon: Icons.edit_outlined,
+                icon: AppIcons.edit,
               ),
             ),
           ),

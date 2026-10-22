@@ -27,7 +27,7 @@ Future<void> showNewDocumentSheet(BuildContext context) {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
             child: Align(
-              alignment: Alignment.centerLeft,
+              alignment: AlignmentDirectional.centerStart,
               child: Text(ctx.t('home.new_document_title'),
                   style: Theme.of(ctx).textTheme.titleMedium),
             ),

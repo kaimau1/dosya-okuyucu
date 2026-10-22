@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../services/fm/folder_size_cache.dart';
 import '../../core/l10n/app_strings.dart';
@@ -20,7 +21,7 @@ class ListLayoutTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingTile(
-      icon: Icons.view_list_outlined,
+      icon: Icons.view_list_rounded,
       title: context.t('fmset.list_layout'),
       subtitle: context.t(appState.fmLayout.descriptionKey),
       value: context.t(appState.fmLayout.labelKey),
@@ -41,7 +42,7 @@ class PhotoGridTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingTile(
-      icon: Icons.grid_view_outlined,
+      icon: Icons.grid_view_rounded,
       title: context.t('fmset.photo_grid'),
       subtitle: context.t('fmset.grid_density'),
       value: context.t(appState.fmPhotoLayout.labelKey),
@@ -68,7 +69,7 @@ class PhotoGroupTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingChoice<PhotoGroup>(
-      icon: Icons.calendar_month_outlined,
+      icon: Icons.calendar_month_rounded,
       title: context.t('fmset.group_photos'),
       subtitle: context
           .t('fmset.group_photos_sub', {'unit': context.t('fmset.grouping')}),
@@ -89,12 +90,12 @@ class DefaultSortTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingTile(
-      icon: Icons.sort,
+      icon: AppIcons.sort,
       title: context.t('fmset.default_sort'),
       value: '${context.t(appState.fmSort.labelKey)} '
           '${appState.fmSortDesc ? '↓' : '↑'}',
       trailing: PopupMenuButton<String>(
-        icon: const Icon(Icons.arrow_drop_down),
+        icon: const Icon(AppIcons.dropDown),
         onSelected: (v) {
           if (v == 'dir') {
             appState.setFmSort(appState.fmSort,
@@ -122,7 +123,7 @@ class ShowHiddenTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingSwitch(
-      icon: Icons.visibility_outlined,
+      icon: Icons.visibility_rounded,
       title: context.t('fmset.show_hidden'),
       subtitle: context.t('fmset.show_hidden_sub'),
       value: appState.fmShowHidden,
@@ -139,7 +140,7 @@ class ThumbnailsTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingSwitch(
-      icon: Icons.image_outlined,
+      icon: AppIcons.image,
       title: context.t('fmset.thumbnails'),
       subtitle: context.t('fmset.thumbnails_sub'),
       value: appState.fmThumbnails,
@@ -160,7 +161,7 @@ class FolderSizesTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingSwitch(
-      icon: Icons.folder_open_outlined,
+      icon: Icons.folder_open_rounded,
       title: context.t('fmset.folder_sizes'),
       subtitle: context.t('fmset.folder_sizes_sub'),
       value: appState.fmFolderSizes,
@@ -180,7 +181,7 @@ class ResumePositionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingSwitch(
-      icon: Icons.play_circle_outline,
+      icon: Icons.play_circle_outline_rounded,
       title: context.t('fmset.resume'),
       subtitle: context.t('fmset.resume_sub'),
       value: appState.resumePosition,
@@ -197,12 +198,12 @@ class MediaOpenWithTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingTile(
-      icon: Icons.play_circle_outline,
+      icon: Icons.play_circle_outline_rounded,
       title: context.t('fmset.media_open_with'),
       subtitle: context.t(appState.fmMediaOpenWith.descriptionKey),
       value: context.t(appState.fmMediaOpenWith.labelKey),
       trailing: PopupMenuButton<MediaOpenWith>(
-        icon: const Icon(Icons.arrow_drop_down),
+        icon: const Icon(AppIcons.dropDown),
         onSelected: appState.setFmMediaOpenWith,
         itemBuilder: (ctx) => [
           for (final v in MediaOpenWith.values)
@@ -225,17 +226,17 @@ class StartFolderTile extends StatelessWidget {
     final appState = context.watch<AppState>();
     final set = appState.fmStartFolder.isNotEmpty;
     return SettingTile(
-      icon: Icons.home_outlined,
+      icon: Icons.home_rounded,
       title: context.t('fmset.start_folder'),
       subtitle: set
           ? appState.fmStartFolder
           : context.t('fmset.start_folder_none'),
       wrapSubtitle: true,
       trailing: !set
-          ? const Icon(Icons.chevron_right)
+          ? const Icon(AppIcons.chevron)
           : IconButton(
               tooltip: context.t('fmset.start_folder_clear'),
-              icon: const Icon(Icons.close),
+              icon: const Icon(AppIcons.close),
               onPressed: () => appState.setFmStartFolder(''),
             ),
       onTap: () async {

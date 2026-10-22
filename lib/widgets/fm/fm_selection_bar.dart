@@ -63,56 +63,60 @@ class FmSelectionBar extends StatelessWidget {
     // kullanıcı: "seçim yapılırken sağa sola kaydırıp sayfalar arasında
     // geçiş olmamalı") — bkz. `SwipePager`.
     return SwipeHold(
-      child: Material(
-        elevation: 8,
-        color: theme.colorScheme.surfaceContainerHigh,
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: Gap.xs),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _action(
-                  context,
-                  AppIcons.move,
-                  context.t('fm.move'),
-                  () async {
-                    if (await moveOrCopyEntries(context, _paths, move: true)) {
-                      await onChanged();
-                    }
-                  },
-                ),
-                _action(
-                  context,
-                  AppIcons.copy,
-                  context.t('fm.copy'),
-                  () async {
-                    if (await moveOrCopyEntries(context, _paths, move: false)) {
-                      await onChanged();
-                    }
-                  },
-                ),
-                if (!_anyDir)
+      child: ToastAvoider(
+        child: Material(
+          elevation: 8,
+          color: theme.colorScheme.surfaceContainerHigh,
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
                   _action(
                     context,
-                    AppIcons.share,
-                    context.t('common.share'),
-                    () => shareEntriesFrom(context, _paths),
+                    AppIcons.move,
+                    context.t('fm.move'),
+                    () async {
+                      if (await moveOrCopyEntries(context, _paths,
+                          move: true)) {
+                        await onChanged();
+                      }
+                    },
                   ),
-                _action(
-                  context,
-                  AppIcons.delete,
-                  context.t('common.delete'),
-                  () async {
-                    if (await deleteEntries(context, selected)) {
-                      await onChanged();
-                    }
-                  },
-                  danger: true,
-                ),
-                _more(context),
-              ],
+                  _action(
+                    context,
+                    AppIcons.copy,
+                    context.t('fm.copy'),
+                    () async {
+                      if (await moveOrCopyEntries(context, _paths,
+                          move: false)) {
+                        await onChanged();
+                      }
+                    },
+                  ),
+                  if (!_anyDir)
+                    _action(
+                      context,
+                      AppIcons.share,
+                      context.t('common.share'),
+                      () => shareEntriesFrom(context, _paths),
+                    ),
+                  _action(
+                    context,
+                    AppIcons.delete,
+                    context.t('common.delete'),
+                    () async {
+                      if (await deleteEntries(context, selected)) {
+                        await onChanged();
+                      }
+                    },
+                    danger: true,
+                  ),
+                  _more(context),
+                ],
+              ),
             ),
           ),
         ),

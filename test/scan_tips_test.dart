@@ -1,3 +1,4 @@
+import 'package:dosya_okuyucu/core/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -30,8 +31,8 @@ void main() {
       (tester) async {
     SharedPreferences.setMockInitialValues({});
     await open(tester);
-    expect(find.byIcon(Icons.note_add_outlined), findsOneWidget);
-    final start = find.byIcon(Icons.document_scanner_outlined).last;
+    expect(find.byIcon(Icons.note_add_rounded), findsOneWidget);
+    final start = find.byIcon(AppIcons.ocr).last;
     await tester.ensureVisible(start);
     await tester.pumpAndSettle();
     await tester.tap(start);
@@ -48,7 +49,7 @@ void main() {
     await tester.tap(find.byType(TextButton).last);
     await tester.pumpAndSettle();
     final result = await open(tester);
-    expect(find.byIcon(Icons.note_add_outlined), findsNothing);
+    expect(find.byIcon(Icons.note_add_rounded), findsNothing);
     expect(result, isTrue, reason: 'rehber atlanınca tarama sürer');
   });
 
@@ -56,7 +57,7 @@ void main() {
     SharedPreferences.setMockInitialValues(
         {'scan_tips_shown': ScanFlow.tipsAutoShowLimit});
     final result = await open(tester);
-    expect(find.byIcon(Icons.note_add_outlined), findsNothing);
+    expect(find.byIcon(Icons.note_add_rounded), findsNothing);
     expect(result, isTrue);
   });
 }

@@ -1,3 +1,4 @@
+import 'package:dosya_okuyucu/core/app_icons.dart';
 import 'package:dosya_okuyucu/core/snack.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -126,7 +127,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
         floatingActionButton:
-            FloatingActionButton(onPressed: () {}, child: const Icon(Icons.add)),
+            FloatingActionButton(onPressed: () {}, child: const Icon(AppIcons.add)),
         bottomNavigationBar: const SizedBox(height: 80),
         body: Builder(
           builder: (context) => TextButton(

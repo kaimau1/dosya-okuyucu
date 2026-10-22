@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../core/app_icons.dart';
 import '../core/app_state.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/gemini_service.dart';
@@ -111,13 +112,13 @@ class AiSummaryFlow {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.short_text),
+              leading: const Icon(Icons.short_text_rounded),
               title: Text(ctx.t('ai.sum_short')),
               subtitle: Text(ctx.t('ai.sum_short_hint')),
               onTap: () => Navigator.pop(ctx, SummaryLength.short),
             ),
             ListTile(
-              leading: const Icon(Icons.notes),
+              leading: const Icon(Icons.notes_rounded),
               title: Text(ctx.t('ai.sum_detailed')),
               subtitle: Text(ctx.t('ai.sum_detailed_hint')),
               onTap: () => Navigator.pop(ctx, SummaryLength.detailed),
@@ -161,7 +162,7 @@ class AiSummaryFlow {
                   ),
                   IconButton(
                     tooltip: ctx.t('common.share'),
-                    icon: const Icon(Icons.share_outlined, size: 20),
+                    icon: const Icon(AppIcons.share, size: 20),
                     onPressed: () => Share.share(summary, subject: title),
                   ),
                   TextButton.icon(
@@ -172,7 +173,7 @@ class AiSummaryFlow {
                         _snack(context, context.t('tf.copied'));
                       }
                     },
-                    icon: const Icon(Icons.copy, size: 18),
+                    icon: const Icon(AppIcons.clipCopy, size: 18),
                     label: Text(ctx.t('common.copy')),
                   ),
                 ],

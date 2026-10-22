@@ -19,7 +19,7 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
         toolbarHeight: _PhotosScreenState._toolbarHeight,
         leading: IconButton(
           tooltip: context.t('common.clear_selection'),
-          icon: const Icon(Icons.close),
+          icon: const Icon(AppIcons.close),
           onPressed: () => _partSetState(_selected.clear),
         ),
         // Sayaç EYLEMLE aynı kümeyi sayar (bkz. [_selectedEntries]): görünen
@@ -34,12 +34,12 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
           if (_selected.length == 1) ...[
             IconButton(
               tooltip: context.t('ph.select_above'),
-              icon: const Icon(Icons.expand_less),
+              icon: const Icon(Icons.expand_less_rounded),
               onPressed: () => _selectFromAnchor(visible, above: true),
             ),
             IconButton(
               tooltip: context.t('ph.select_below'),
-              icon: const Icon(Icons.expand_more),
+              icon: const Icon(Icons.expand_more_rounded),
               onPressed: () => _selectFromAnchor(visible, above: false),
             ),
           ],
@@ -48,8 +48,8 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
                 ? 'ph.clear_selection'
                 : 'ph.select_all'),
             icon: Icon(visible.every((e) => _selected.contains(e.path))
-                ? Icons.deselect
-                : Icons.select_all),
+                ? Icons.deselect_rounded
+                : AppIcons.selectAll),
             onPressed: () => _toggleSelectAll(visible),
           ),
         ],
@@ -62,7 +62,7 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
         toolbarHeight: _PhotosScreenState._toolbarHeight,
         leading: IconButton(
           tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(AppIcons.back),
           onPressed: _clearSearchAndSelection,
         ),
         title: FmSearchField(
@@ -74,7 +74,7 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
           if (_query.isNotEmpty)
             IconButton(
               tooltip: context.t('common.clear'),
-              icon: const Icon(Icons.clear),
+              icon: const Icon(AppIcons.close),
               onPressed: () => _partSetState(() {
                 _query = '';
                 _searchController.clear();
@@ -122,7 +122,7 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
       actions: [
         IconButton(
           tooltip: context.t('ph.search_in', {'title': widget.title}),
-          icon: const Icon(Icons.search),
+          icon: const Icon(AppIcons.search),
           onPressed: () => _partSetState(() => _searching = true),
         ),
         FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
@@ -130,7 +130,7 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
         // dört simge + iki satırlı başlık sığmak için yarışıyordu).
         PopupMenuButton<String>(
           tooltip: context.t('fm.more_actions'),
-          icon: const Icon(Icons.more_vert),
+          icon: const Icon(AppIcons.more),
           onSelected: (v) {
             switch (v) {
               case 'view':
@@ -143,10 +143,10 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
           },
           itemBuilder: (ctx) => [
             _menuItem(ctx, 'view', Icons.grid_view_rounded, ctx.t('ph.view')),
-            _menuItem(ctx, 'similar', Icons.auto_awesome_motion_outlined,
+            _menuItem(ctx, 'similar', Icons.auto_awesome_motion_rounded,
                 ctx.t('ph.similar_short')),
             if (visible.isNotEmpty)
-              _menuItem(ctx, 'select', Icons.select_all, ctx.t('ph.select_all')),
+              _menuItem(ctx, 'select', AppIcons.selectAll, ctx.t('ph.select_all')),
           ],
         ),
         const SizedBox(width: 4),
@@ -233,7 +233,7 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
         // `FmChip` DEĞİL `FmPill`: çipin kendi dokunma tanıyıcısı menü
         // düğmesinin dokunuşunu yutar ve menü hiç açılmazdı.
         child: FmPill(
-          icon: Icons.calendar_month_outlined,
+          icon: Icons.calendar_month_rounded,
           label: context.t(group.labelKey),
           dropdown: true,
         ),
@@ -242,7 +242,7 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
   /// Tarih dışı sıralamada ölçek yerine sıralamanın kendisi yazar
   /// ("Ada göre ↑"); dokununca süzgeç ve sıralama sayfası açılır.
   Widget _sortChip() => FmChip(
-        icon: Icons.sort,
+        icon: AppIcons.sort,
         label: '${context.t(_sort.labelKey)} ${_desc ? '↓' : '↑'}',
         selected: false,
         onTap: _openFilterSheet,
@@ -396,7 +396,7 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
                   const SizedBox(height: Gap.md),
                   Row(
                     children: [
-                      Icon(Icons.pinch_outlined,
+                      Icon(Icons.pinch_rounded,
                           size: 20, color: theme.colorScheme.onSurfaceVariant),
                       const SizedBox(width: Gap.sm),
                       Expanded(

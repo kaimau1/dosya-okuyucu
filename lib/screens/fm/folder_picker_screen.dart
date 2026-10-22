@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
@@ -134,7 +135,7 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
   ) {
     final out = <({IconData icon, String label, String path, bool create})>[
       (
-        icon: Icons.star_outline,
+        icon: Icons.star_outline_rounded,
         label: ImportantScreen.folderName,
         path: ImportantScreen.pathIn(FmEnv.primaryRoot),
         create: true,
@@ -152,7 +153,7 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
       if (out.any((s) => s.path == path)) continue;
       if (!Directory(path).existsSync()) continue;
       out.add((
-        icon: Icons.history,
+        icon: Icons.history_rounded,
         label: p.basename(path),
         path: path,
         create: false,
@@ -162,7 +163,7 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
       if (out.any((s) => s.path == path)) continue;
       if (!Directory(path).existsSync()) continue;
       out.add((
-        icon: Icons.star,
+        icon: AppIcons.star,
         label: p.basename(path),
         path: path,
         create: false,
@@ -172,13 +173,13 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
   }
 
   static IconData _iconForShortcut(String key) => switch (key) {
-        'download' => Icons.download_outlined,
-        'document' => Icons.description_outlined,
-        'camera' => Icons.photo_camera_outlined,
-        'image' => Icons.image_outlined,
-        'audio' => Icons.music_note_outlined,
-        'video' => Icons.movie_outlined,
-        'chat' => Icons.chat_outlined,
+        'download' => AppIcons.download,
+        'document' => Icons.description_rounded,
+        'camera' => Icons.photo_camera_rounded,
+        'image' => AppIcons.image,
+        'audio' => AppIcons.audio,
+        'video' => AppIcons.video,
+        'chat' => Icons.chat_rounded,
         _ => Icons.folder_outlined,
       };
 
@@ -223,7 +224,7 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
         actions: [
           IconButton(
             tooltip: context.t('fm.new_folder'),
-            icon: const Icon(Icons.create_new_folder_outlined),
+            icon: const Icon(AppIcons.newFolder),
             onPressed: _newFolder,
           ),
         ],
@@ -239,7 +240,7 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
                 children: [
                   for (final s in shortcuts)
                     Padding(
-                      padding: const EdgeInsets.only(right: Gap.sm, top: Gap.sm),
+                      padding: const EdgeInsetsDirectional.only(end: Gap.sm, top: Gap.sm),
                       child: ActionChip(
                         avatar: Icon(s.icon, size: 18),
                         label: Text(s.label),
@@ -271,7 +272,7 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
                   FilledButton.icon(
                     onPressed:
                         canPickHere ? () => Navigator.pop(context, _path) : null,
-                    icon: const Icon(Icons.check),
+                    icon: const Icon(AppIcons.check),
                     label: Text(widget.actionLabel),
                   ),
                 ],
@@ -295,7 +296,7 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
       children: [
         IconButton(
           tooltip: context.t('picker.parent'),
-          icon: const Icon(Icons.arrow_upward),
+          icon: const Icon(AppIcons.arrowUp),
           onPressed: atTop ? null : () => _enter(parent),
         ),
         Expanded(
@@ -343,10 +344,10 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
         final allowed = _allowed(dir.path);
         return ListTile(
           enabled: allowed,
-          leading: Icon(Icons.folder, color: context.fmFolderColor ?? FmColors.folder),
+          leading: Icon(Icons.folder_rounded, color: context.fmFolderColor ?? FmColors.folder),
           title: Text(dir.name, maxLines: 1, overflow: TextOverflow.ellipsis),
           subtitle: allowed ? null : Text(context.t('picker.source_itself')),
-          trailing: const Icon(Icons.chevron_right),
+          trailing: const Icon(AppIcons.chevron),
           onTap: allowed ? () => _enter(dir.path) : null,
         );
       },

@@ -238,7 +238,7 @@ class _RemoteEditScreenState extends State<RemoteEditScreen> {
                     width: 16,
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.network_check),
+                : const Icon(Icons.network_check_rounded),
             label: Text(context.t(_testing ? 'nas.connecting' : 'nas.test')),
           ),
         ],

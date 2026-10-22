@@ -93,12 +93,12 @@ class _SafCard extends StatelessWidget {
         onTap: onTap,
         leading: CircleAvatar(
           backgroundColor: scheme.surfaceContainerHighest,
-          child: Icon(Icons.usb, color: scheme.onSurfaceVariant),
+          child: Icon(AppIcons.external, color: scheme.onSurfaceVariant),
         ),
         title: Text(root.name,
             maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text(context.t('saf.granted')),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: const Icon(AppIcons.chevron),
       ),
     );
   }
@@ -123,12 +123,12 @@ class _RawUsbCard extends StatelessWidget {
         onTap: onTap,
         leading: CircleAvatar(
           backgroundColor: scheme.tertiaryContainer,
-          child: Icon(Icons.usb, color: scheme.onTertiaryContainer),
+          child: Icon(AppIcons.external, color: scheme.onTertiaryContainer),
         ),
         title: Text(device.displayName,
             maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text(context.t('usb.open_raw')),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: const Icon(AppIcons.chevron),
       ),
     );
   }
@@ -252,7 +252,7 @@ class _StorageHero extends StatelessWidget {
                   BorderRadius.vertical(top: Radius.circular(radius)),
               child: Padding(
                 padding:
-                    const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.sm, Gap.sm),
+                    const EdgeInsetsDirectional.fromSTEB(Gap.md, Gap.md, Gap.sm, Gap.sm),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -348,7 +348,7 @@ class _StorageHero extends StatelessWidget {
                             ],
                           ),
                         ),
-                        Icon(Icons.chevron_right,
+                        Icon(AppIcons.chevron,
                             color: scheme.onSurfaceVariant),
                       ],
                     ),

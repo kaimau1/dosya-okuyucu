@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/app_icons.dart';
 import '../core/theme.dart';
 
 /// **Üç Office editörünün ortak simge dili.**
@@ -10,63 +11,63 @@ import '../core/theme.dart';
 /// buradan alır — yeni bir ekran eklendiğinde de dil kendiliğinden tutar.
 abstract final class OfficeIcons {
   // Yazı biçimi
-  static const bold = Icons.format_bold;
-  static const italic = Icons.format_italic;
-  static const underline = Icons.format_underlined;
-  static const strike = Icons.strikethrough_s;
-  static const fontFamily = Icons.text_fields;
-  static const fontSize = Icons.format_size;
-  static const fontGrow = Icons.text_increase;
-  static const fontShrink = Icons.text_decrease;
-  static const textColor = Icons.format_color_text;
-  static const fillColor = Icons.format_color_fill;
-  static const highlight = Icons.border_color_outlined;
+  static const bold = Icons.format_bold_rounded;
+  static const italic = Icons.format_italic_rounded;
+  static const underline = Icons.format_underlined_rounded;
+  static const strike = Icons.strikethrough_s_rounded;
+  static const fontFamily = AppIcons.textFields;
+  static const fontSize = Icons.format_size_rounded;
+  static const fontGrow = Icons.text_increase_rounded;
+  static const fontShrink = Icons.text_decrease_rounded;
+  static const textColor = Icons.format_color_text_rounded;
+  static const fillColor = Icons.format_color_fill_rounded;
+  static const highlight = Icons.border_color_rounded;
 
   // Hizalama ve akış
-  static const alignLeft = Icons.format_align_left;
-  static const alignCenter = Icons.format_align_center;
-  static const alignRight = Icons.format_align_right;
-  static const alignJustify = Icons.format_align_justify;
-  static const wrapText = Icons.wrap_text;
-  static const bullets = Icons.format_list_bulleted;
-  static const numbering = Icons.format_list_numbered;
+  static const alignLeft = Icons.format_align_left_rounded;
+  static const alignCenter = Icons.format_align_center_rounded;
+  static const alignRight = Icons.format_align_right_rounded;
+  static const alignJustify = Icons.format_align_justify_rounded;
+  static const wrapText = Icons.wrap_text_rounded;
+  static const bullets = Icons.format_list_bulleted_rounded;
+  static const numbering = Icons.format_list_numbered_rounded;
 
   // Tablo / hücre
-  static const borders = Icons.border_all;
-  static const merge = Icons.merge_type;
-  static const numberFormat = Icons.tag;
-  static const autoSum = Icons.functions;
-  static const condFormat = Icons.rule;
-  static const insertRow = Icons.table_rows_outlined;
-  static const insertColumn = Icons.view_column_outlined;
-  static const deleteCells = Icons.delete_outline;
-  static const rowHeight = Icons.height;
-  static const columnWidth = Icons.straighten;
-  static const sortAsc = Icons.arrow_upward;
-  static const sortDesc = Icons.arrow_downward;
-  static const filter = Icons.filter_alt_outlined;
-  static const freeze = Icons.push_pin_outlined;
-  static const sheetAdd = Icons.post_add;
+  static const borders = Icons.border_all_rounded;
+  static const merge = Icons.merge_type_rounded;
+  static const numberFormat = Icons.tag_rounded;
+  static const autoSum = Icons.functions_rounded;
+  static const condFormat = Icons.rule_rounded;
+  static const insertRow = Icons.table_rows_rounded;
+  static const insertColumn = Icons.view_column_rounded;
+  static const deleteCells = AppIcons.delete;
+  static const rowHeight = Icons.height_rounded;
+  static const columnWidth = Icons.straighten_rounded;
+  static const sortAsc = AppIcons.arrowUp;
+  static const sortDesc = AppIcons.arrowDown;
+  static const filter = Icons.filter_alt_rounded;
+  static const freeze = Icons.push_pin_rounded;
+  static const sheetAdd = Icons.post_add_rounded;
 
   // Pano
-  static const cut = Icons.content_cut;
-  static const copy = Icons.content_copy;
-  static const paste = Icons.content_paste;
-  static const clearContents = Icons.backspace_outlined;
+  static const cut = AppIcons.cut;
+  static const copy = AppIcons.clipCopy;
+  static const paste = AppIcons.paste;
+  static const clearContents = Icons.backspace_rounded;
 
   // Genel
-  static const undo = Icons.undo;
-  static const redo = Icons.redo;
-  static const search = Icons.search;
-  static const save = Icons.save_outlined;
-  static const share = Icons.share_outlined;
-  static const translate = Icons.translate;
-  static const ai = Icons.auto_awesome;
-  static const zoomIn = Icons.zoom_in;
-  static const zoomOut = Icons.zoom_out;
-  static const goTo = Icons.my_location;
-  static const more = Icons.more_horiz;
-  static const done = Icons.check;
+  static const undo = AppIcons.undo;
+  static const redo = AppIcons.redo;
+  static const search = AppIcons.search;
+  static const save = AppIcons.save;
+  static const share = AppIcons.share;
+  static const translate = AppIcons.translate;
+  static const ai = AppIcons.ai;
+  static const zoomIn = Icons.zoom_in_rounded;
+  static const zoomOut = Icons.zoom_out_rounded;
+  static const goTo = Icons.my_location_rounded;
+  static const more = AppIcons.moreHoriz;
+  static const done = AppIcons.check;
 }
 
 /// Şeritteki tek bir sekme: adı ve içindeki öğeler.
@@ -154,7 +155,7 @@ class _OfficeRibbonState extends State<OfficeRibbon> {
                         ? Colors.white
                         : scheme.onPrimaryContainer;
                     return Padding(
-                      padding: const EdgeInsets.only(right: 4),
+                      padding: const EdgeInsetsDirectional.only(end: 4),
                       child: Material(
                         color: active ? activeBg : Colors.transparent,
                         shape: const StadiumBorder(),

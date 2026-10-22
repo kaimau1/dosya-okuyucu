@@ -2,7 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
+import '../core/motion.dart';
+import '../core/snack.dart';
 import '../core/theme.dart';
 import '../models/document.dart';
 import 'file_type_icon.dart';
@@ -72,12 +75,15 @@ class OfficeShell extends StatelessWidget {
       body: body,
       bottomNavigationBar: bottomBar == null
           ? null
-          : DecoratedBox(
-              decoration: BoxDecoration(
-                color: scheme.surface,
-                border: Border(top: BorderSide(color: scheme.outlineVariant)),
+          // Bildirim kartı dock'un üstüne kalksın (bkz. ToastAvoider).
+          : ToastAvoider(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: scheme.surface,
+                  border: Border(top: BorderSide(color: scheme.outlineVariant)),
+                ),
+                child: SafeArea(top: false, child: bottomBar!),
               ),
-              child: SafeArea(top: false, child: bottomBar!),
             ),
       floatingActionButton: fab,
     );
@@ -203,7 +209,7 @@ class DocPill extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final fg = scheme.onInverseSurface;
     final content = Padding(
-      padding: EdgeInsets.fromLTRB(14, 7, icon == null ? 14 : 10, 7),
+      padding: EdgeInsetsDirectional.fromSTEB(14, 7, icon == null ? 14 : 10, 7),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -301,7 +307,7 @@ class DocAiButton extends StatelessWidget {
               child: const SizedBox(
                 width: 56,
                 height: 56,
-                child: Icon(Icons.auto_awesome, color: Colors.white, size: 24),
+                child: Icon(AppIcons.ai, color: Colors.white, size: 24),
               ),
             ),
           ),
@@ -334,7 +340,7 @@ class ZoomBadge extends StatelessWidget {
     return IgnorePointer(
       child: AnimatedOpacity(
         opacity: visible ? 1 : 0,
-        duration: const Duration(milliseconds: 150),
+        duration: Motion.of(context, Motion.short),
         child: DocPill(
           text: page == null
               ? '%${(zoom * 100).round()}'

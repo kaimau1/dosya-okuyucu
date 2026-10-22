@@ -1,3 +1,4 @@
+import 'package:dosya_okuyucu/core/app_icons.dart';
 import 'package:dosya_okuyucu/core/app_state.dart';
 import 'package:dosya_okuyucu/models/fm_layout.dart';
 import 'package:dosya_okuyucu/models/fs_entry.dart';
@@ -63,14 +64,14 @@ void main() {
     // Eski davranışın nöbetçisi: düz onay kutusu önizlemeyi yutmamalı.
     expect(find.byType(Checkbox), findsNothing);
     // Seçilmemiş rozet: boş halka.
-    expect(find.byIcon(Icons.circle_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.circle_rounded), findsOneWidget);
   });
 
   testWidgets('seçiliyken dolu rozet çizilir, önizleme yine durur',
       (tester) async {
     await tester.pumpWidget(harness(selecting: true, selected: true));
     expect(find.byType(FmEntryIcon), findsOneWidget);
-    expect(find.byIcon(Icons.check_circle), findsOneWidget);
+    expect(find.byIcon(AppIcons.checkCircle), findsOneWidget);
   });
 
   testWidgets('rozete dokunmak seçimi değiştirir', (tester) async {

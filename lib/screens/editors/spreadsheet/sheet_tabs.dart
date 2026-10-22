@@ -47,7 +47,7 @@ extension _SpreadsheetEditorScreenSheetTabsPart on _SpreadsheetEditorScreenState
           IconButton(
             tooltip: context.t('excel.add_sheet'),
             visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.add, size: 20),
+            icon: const Icon(AppIcons.add, size: 20),
             onPressed: _addSheet,
           ),
         ],
@@ -66,7 +66,7 @@ extension _SpreadsheetEditorScreenSheetTabsPart on _SpreadsheetEditorScreenState
     final count = _editor?.sheets.length ?? 0;
     DocMoreSheet.show(context, [
       DocMoreGroup(sheet.name, [
-        DocMoreItem(Icons.arrow_back_rounded, context.t('excel.move_sheet_left'),
+        DocMoreItem(AppIcons.back, context.t('excel.move_sheet_left'),
             index > 0 ? () => _moveSheet(sheet, index - 1) : null),
         DocMoreItem(
             Icons.arrow_forward_rounded,
@@ -74,9 +74,9 @@ extension _SpreadsheetEditorScreenSheetTabsPart on _SpreadsheetEditorScreenState
             index >= 0 && index < count - 1
                 ? () => _moveSheet(sheet, index + 1)
                 : null),
-        DocMoreItem(Icons.drive_file_rename_outline,
+        DocMoreItem(Icons.drive_file_rename_outline_rounded,
             context.t('excel.rename_sheet'), () => _renameSheet(sheet)),
-        DocMoreItem(Icons.delete_outline, context.t('excel.delete_sheet'),
+        DocMoreItem(AppIcons.delete, context.t('excel.delete_sheet'),
             () => _deleteSheet(sheet),
             danger: true),
       ]),

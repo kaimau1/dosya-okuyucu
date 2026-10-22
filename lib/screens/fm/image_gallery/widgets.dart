@@ -28,14 +28,14 @@ class _GalleryAction extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, color: Colors.white, size: 24),
+                Icon(icon, color: AppColors.onMedia, size: 24),
                 const SizedBox(height: 4),
                 Text(
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: AppColors.onMedia,
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
                     shadows: [Shadow(color: Color(0x99000000), blurRadius: 4)],
@@ -102,8 +102,7 @@ class _FilmStripState extends State<_FilmStrip> {
     if (jump) {
       _scroll.jumpTo(target);
     } else {
-      _scroll.animateTo(target,
-          duration: const Duration(milliseconds: 220), curve: Curves.easeOut);
+      Motion.scrollTo(context, _scroll, target);
     }
   }
 
@@ -123,13 +122,13 @@ class _FilmStripState extends State<_FilmStrip> {
           return GestureDetector(
             onTap: () => widget.onPick(i),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 160),
+              duration: Motion.of(context, Motion.short),
               width: _item,
               height: _item,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: active ? Colors.white : Colors.transparent,
+                  color: active ? AppColors.onMedia : Colors.transparent,
                   width: 2,
                 ),
               ),
@@ -314,7 +313,7 @@ class _ZoomableImageState extends State<_ZoomableImage> {
               : child,
       errorBuilder: (_, __, ___) => Center(
         child: Text(context.t('vw.image_failed'),
-            style: const TextStyle(color: Colors.white70)),
+            style: const TextStyle(color: AppColors.onMediaSoft)),
       ),
     );
     final tag = widget.heroTag;

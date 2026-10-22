@@ -17,19 +17,19 @@ extension _PdfInkScreenViewsPart on _PdfInkScreenState {
         actions: [
           IconButton(
             tooltip: context.t('common.undo'),
-            icon: const Icon(Icons.undo),
+            icon: const Icon(AppIcons.undo),
             onPressed: _undo.isEmpty || _busy ? null : _undoLast,
           ),
           IconButton(
             tooltip: context.t('ink.redo'),
-            icon: const Icon(Icons.redo),
+            icon: const Icon(AppIcons.redo),
             onPressed: _redo.isEmpty || _busy ? null : _redoLast,
           ),
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: FilledButton.icon(
               onPressed: _busy || pages == null ? null : _save,
-              icon: const Icon(Icons.save_outlined, size: 18),
+              icon: const Icon(AppIcons.save, size: 18),
               label: Text(context.t('common.save')),
             ),
           ),
@@ -270,13 +270,13 @@ extension _PdfInkScreenViewsPart on _PdfInkScreenState {
                 children: [
                   IconButton(
                     tooltip: context.t('sg.prev_page'),
-                    icon: const Icon(Icons.chevron_left),
+                    icon: const Icon(Icons.chevron_left_rounded),
                     onPressed: _page == 0 ? null : () => _setPage(_page - 1),
                   ),
                   Text('${_page + 1} / $pageCount'),
                   IconButton(
                     tooltip: context.t('mp.next_page'),
-                    icon: const Icon(Icons.chevron_right),
+                    icon: const Icon(AppIcons.chevron),
                     onPressed: _page >= pageCount - 1
                         ? null
                         : () => _setPage(_page + 1),
@@ -340,13 +340,13 @@ extension _PdfInkScreenViewsPart on _PdfInkScreenState {
             ),
             Row(
               children: [
-                tool(InkTool.pen, Icons.edit_outlined, context.t('ink.pen')),
-                tool(InkTool.highlighter, Icons.border_color_outlined,
+                tool(InkTool.pen, AppIcons.edit, context.t('ink.pen')),
+                tool(InkTool.highlighter, Icons.border_color_rounded,
                     context.t('ink.highlighter')),
-                tool(InkTool.text, Icons.text_fields, context.t('ink.text')),
-                tool(InkTool.eraser, Icons.auto_fix_normal_outlined,
+                tool(InkTool.text, AppIcons.textFields, context.t('ink.text')),
+                tool(InkTool.eraser, Icons.auto_fix_normal_rounded,
                     context.t('ink.eraser')),
-                tool(InkTool.hand, Icons.pan_tool_outlined,
+                tool(InkTool.hand, Icons.pan_tool_rounded,
                     context.t('ink.hand')),
               ],
             ),

@@ -915,7 +915,7 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
                       ),
                     )
                   else
-                    Icon(Icons.search_off,
+                    Icon(Icons.search_off_rounded,
                         size: 14, color: scheme.onInverseSurface),
                   const SizedBox(width: 7),
                   Text(

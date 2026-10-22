@@ -287,7 +287,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.insert_drive_file_outlined,
+                Icon(Icons.insert_drive_file_rounded,
                     size: 64, color: Theme.of(context).colorScheme.outline),
                 const SizedBox(height: 12),
                 Text(
@@ -303,13 +303,13 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                   // açmak isterken paylaşım listesiyle karşılaşıyordu).
                   onPressed: () =>
                       EntryOpener.openExternally(context, widget.doc.path),
-                  icon: const Icon(Icons.open_in_new),
+                  icon: const Icon(AppIcons.open),
                   label: Text(context.t('fm.open_with_other')),
                 ),
                 const SizedBox(height: 8),
                 TextButton.icon(
                   onPressed: _share,
-                  icon: const Icon(Icons.share_outlined),
+                  icon: const Icon(AppIcons.share),
                   label: Text(context.t('common.share')),
                 ),
               ],

@@ -94,6 +94,7 @@
         android:label="Dosya Okuyucu"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
+        android:localeConfig="@xml/locales_config"
         android:enableOnBackInvokedCallback="false"
         android:requestLegacyExternalStorage="true">
         <activity

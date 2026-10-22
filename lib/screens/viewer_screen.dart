@@ -12,7 +12,9 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../core/app_icons.dart';
 import '../core/line_endings.dart';
+import '../core/motion.dart';
 import '../core/pretty_format.dart';
 import '../core/text_replace.dart';
 import '../core/doc_fonts.dart';

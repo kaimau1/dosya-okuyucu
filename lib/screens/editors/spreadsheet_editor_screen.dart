@@ -12,6 +12,7 @@ import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/excel_format.dart';
 import '../../core/doc_fonts.dart';
 import '../../core/l10n/app_strings.dart';
@@ -363,19 +364,19 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         children: [
           if (visibleSheets.length >= 2) _sheetTabs(visibleSheets),
           DocActionBar([
-            DocAction(Icons.save_outlined, context.t('common.save'),
+            DocAction(AppIcons.save, context.t('common.save'),
                 editor == null ? null : _save),
-            DocAction(Icons.share_outlined, context.t('common.share'),
+            DocAction(AppIcons.share, context.t('common.share'),
                 editor == null ? null : _export),
             // Başka uygulamadan açıldıysa dosya özel önbellekte: doğrudan
             // İndirilenler'e (bkz. [SaveToDownloads]).
             if (showDownloadAction(widget.savePath ?? widget.path))
-              DocAction(Icons.download_outlined, context.t('common.download'),
+              DocAction(AppIcons.download, context.t('common.download'),
                   editor == null ? null : _download),
-            DocAction(Icons.table_view_outlined, 'CSV',
+            DocAction(Icons.table_view_rounded, 'CSV',
                 editor == null ? null : _exportCsv),
             DocAction(
-              Icons.translate,
+              AppIcons.translate,
               context.t('common.translate'),
               // Aralık seçiliyse YALNIZ seçim çevrilir (Faz 9 / Y4), yoksa
               // belgenin tamamı.

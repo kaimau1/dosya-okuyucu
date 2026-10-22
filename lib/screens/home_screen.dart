@@ -117,7 +117,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _openShortcut(String path) async {
     if (!mounted) return;
     if (Directory(path).existsSync()) {
-      await Navigator.of(context).push(browserRoute(BrowserScreen(path: path),
+      await Navigator.of(context).push(browserRoute(
+        BrowserScreen(path: path),
       ));
     } else if (File(path).existsSync()) {
       await EntryOpener.open(context, path);
@@ -136,10 +137,10 @@ class _HomeScreenState extends State<HomeScreen> {
     _startFolderOpened = true;
     final path = context.read<AppState>().fmStartFolder;
     if (path.isEmpty || !Directory(path).existsSync()) return;
-    await Navigator.of(context).push(browserRoute(BrowserScreen(path: path),
+    await Navigator.of(context).push(browserRoute(
+      BrowserScreen(path: path),
     ));
   }
-
 
   /// Açık sekme çubuktan çıkarıldıysa panoya dönülür; kurulmuş ama artık
   /// çubukta olmayan sekmeler bırakılır (bellekte boşuna durmasın).
@@ -271,34 +272,36 @@ class _HomeScreenState extends State<HomeScreen> {
           if (tabs.length > 1)
             // **Basılı tut = düzenle**: kullanıcı kısayolu çubuğun
             // kendisinde arar.
-            GestureDetector(
-              onLongPress: () => showNavTabsSheet(context),
-              child: NavigationBar(
-                selectedIndex: index < 0 ? 0 : index,
-                // 5-6 sekmede etiketler sıkışıyor: yalnız seçilinin adı
-                // yazılır (Material'ın kendi önerisi).
-                labelBehavior: tabs.length > 4
-                    ? NavigationDestinationLabelBehavior.onlyShowSelected
-                    : NavigationDestinationLabelBehavior.alwaysShow,
-                onDestinationSelected: (i) => setState(() {
-                  _tab = tabs[i];
-                  _built.add(_tab);
-                }),
-                destinations: [
-                  for (final id in tabs)
-                    () {
-                      final spec = navTabSpec(context, id);
-                      return NavigationDestination(
-                        icon: Icon(spec.icon),
-                        selectedIcon: Icon(spec.selected),
-                        label: spec.label,
-                        // Boş ipucu: hedefin kendi ipucu da basılı tutmayı
-                        // dinliyor ve çubuğun "basılı tut = düzenle"sini
-                        // yutuyordu.
-                        tooltip: '',
-                      );
-                    }(),
-                ],
+            ToastAvoider(
+              child: GestureDetector(
+                onLongPress: () => showNavTabsSheet(context),
+                child: NavigationBar(
+                  selectedIndex: index < 0 ? 0 : index,
+                  // 5-6 sekmede etiketler sıkışıyor: yalnız seçilinin adı
+                  // yazılır (Material'ın kendi önerisi).
+                  labelBehavior: tabs.length > 4
+                      ? NavigationDestinationLabelBehavior.onlyShowSelected
+                      : NavigationDestinationLabelBehavior.alwaysShow,
+                  onDestinationSelected: (i) => setState(() {
+                    _tab = tabs[i];
+                    _built.add(_tab);
+                  }),
+                  destinations: [
+                    for (final id in tabs)
+                      () {
+                        final spec = navTabSpec(context, id);
+                        return NavigationDestination(
+                          icon: Icon(spec.icon),
+                          selectedIcon: Icon(spec.selected),
+                          label: spec.label,
+                          // Boş ipucu: hedefin kendi ipucu da basılı tutmayı
+                          // dinliyor ve çubuğun "basılı tut = düzenle"sini
+                          // yutuyordu.
+                          tooltip: '',
+                        );
+                      }(),
+                  ],
+                ),
               ),
             ),
         ],

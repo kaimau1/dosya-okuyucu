@@ -49,14 +49,14 @@ extension _RemoteBrowserScreenViewsPart on _RemoteBrowserScreenState {
   AppBar _selectionAppBar() => AppBar(
         leading: IconButton(
           tooltip: context.t('common.clear_selection'),
-          icon: const Icon(Icons.close),
+          icon: const Icon(AppIcons.close),
           onPressed: () => _partSetState(_selected.clear),
         ),
         title: Text('${_selected.length}'),
         actions: [
           IconButton(
             tooltip: context.t('fm.select_all'),
-            icon: const Icon(Icons.select_all),
+            icon: const Icon(AppIcons.selectAll),
             onPressed: () => _partSetState(() {
               final all = _visible.map((e) => e.path).toSet();
               if (_selected.containsAll(all)) {
@@ -68,21 +68,21 @@ extension _RemoteBrowserScreenViewsPart on _RemoteBrowserScreenState {
           ),
           IconButton(
             tooltip: context.t('nas.copy_to_phone'),
-            icon: const Icon(Icons.download),
+            icon: const Icon(AppIcons.download),
             onPressed: _busy ? null : () => unawaited(_copyToPhone()),
           ),
           if (_fs.canWrite) ...[
             if (_selected.length == 1)
               IconButton(
                 tooltip: context.t('nas.rename'),
-                icon: const Icon(Icons.drive_file_rename_outline),
+                icon: const Icon(Icons.drive_file_rename_outline_rounded),
                 onPressed: _busy
                     ? null
                     : () => _rename(_entryOf(_selected.first)!),
               ),
             IconButton(
               tooltip: context.t('common.delete'),
-              icon: const Icon(Icons.delete_outline),
+              icon: const Icon(AppIcons.delete),
               onPressed: _busy ? null : () => unawaited(_deleteSelected()),
             ),
           ],
@@ -216,7 +216,7 @@ extension _RemoteBrowserScreenViewsPart on _RemoteBrowserScreenState {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.cloud_off_outlined, size: 48),
+              const Icon(Icons.cloud_off_rounded, size: 48),
               const SizedBox(height: 12),
               Text(_error!, textAlign: TextAlign.center),
               const SizedBox(height: 16),
@@ -273,7 +273,7 @@ extension _RemoteBrowserScreenViewsPart on _RemoteBrowserScreenState {
                     itemBuilder: (_, i) {
                       if (!_atRoot && i == 0) {
                         return ListTile(
-                          leading: const Icon(Icons.arrow_upward),
+                          leading: const Icon(AppIcons.arrowUp),
                           title: const Text('..'),
                           onTap: _selecting ? null : _up,
                         );
@@ -289,7 +289,7 @@ extension _RemoteBrowserScreenViewsPart on _RemoteBrowserScreenState {
                       return ListTile(
                         selected: selected,
                         leading: selected
-                            ? const Icon(Icons.check_circle)
+                            ? const Icon(AppIcons.checkCircle)
                             : Icon(FmColors.iconFor(category),
                                 color: FmColors.forCategory(category)),
                         title: Text(entry.name,

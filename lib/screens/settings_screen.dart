@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/app_icons.dart';
 import '../core/app_state.dart';
 
 import '../core/l10n/app_strings.dart';
@@ -72,7 +73,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 fillColor:
                     Theme.of(context).colorScheme.surfaceContainerHighest,
                 hintText: context.t('set.search_all'),
-                prefixIcon: const Icon(Icons.search),
+                prefixIcon: const Icon(AppIcons.search),
                 // Kenarlık yok, dolgulu ve tam yuvarlak: arama kutusu bir
                 // "form alanı" değil, dokunulası bir hap gibi dursun.
                 border: OutlineInputBorder(
@@ -85,7 +86,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ? null
                     : IconButton(
                         tooltip: context.t('common.clear'),
-                        icon: const Icon(Icons.clear),
+                        icon: const Icon(AppIcons.close),
                         onPressed: () => setState(() {
                           _query = '';
                           _search.clear();
@@ -138,7 +139,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.search_off, size: 48, color: Paper.faint(context)),
+              Icon(Icons.search_off_rounded, size: 48, color: Paper.faint(context)),
               const SizedBox(height: Gap.sm),
               Text(context.t('set.no_match'), textAlign: TextAlign.center),
             ],
@@ -151,7 +152,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       padding: withNavInset(context, const EdgeInsets.only(bottom: Gap.xl)),
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(Gap.md + 4, Gap.md, Gap.md, 0),
+          padding: const EdgeInsetsDirectional.fromSTEB(Gap.md + 4, Gap.md, Gap.md, 0),
           child: Text(
             context.t('set.results_count', {'n': hits.length}),
             style: Theme.of(context)
@@ -284,7 +285,7 @@ class _CategoryCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                Icon(Icons.chevron_right, color: Paper.faint(context)),
+                Icon(AppIcons.chevron, color: Paper.faint(context)),
               ],
             ),
           ),
@@ -310,21 +311,24 @@ class _QuickHeader extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: Gap.sm + 2),
       child: SegmentedButton<ThemeMode>(
         showSelectedIcon: false,
-        style: const ButtonStyle(visualDensity: VisualDensity.compact),
+        // Dokunma alanı en az 48 dp (Faz 16, `androidTapTargetGuideline`;
+        // sıkı yoğunlukta 40 dp'ye iniyordu).
+        style: const ButtonStyle(
+            minimumSize: WidgetStatePropertyAll(Size(0, 48))),
         segments: [
           ButtonSegment(
             value: ThemeMode.light,
-            icon: const Icon(Icons.light_mode_outlined, size: 18),
+            icon: const Icon(Icons.light_mode_rounded, size: 18),
             label: Text(context.t('settings.theme_light')),
           ),
           ButtonSegment(
             value: ThemeMode.dark,
-            icon: const Icon(Icons.dark_mode_outlined, size: 18),
+            icon: const Icon(Icons.dark_mode_rounded, size: 18),
             label: Text(context.t('settings.theme_dark')),
           ),
           ButtonSegment(
             value: ThemeMode.system,
-            icon: const Icon(Icons.brightness_auto_outlined, size: 18),
+            icon: const Icon(Icons.brightness_auto_rounded, size: 18),
             label: Text(context.t('set.theme_auto')),
           ),
         ],

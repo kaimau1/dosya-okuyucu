@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/app_icons.dart';
 import '../../../core/app_state.dart';
 import '../../../core/l10n/app_strings.dart';
 import '../../../core/theme.dart';
@@ -144,7 +145,7 @@ class _FtpServerScreenState extends State<FtpServerScreen> {
     final empty = scope.isEmpty;
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: const Icon(Icons.folder_shared_outlined),
+      leading: const Icon(Icons.folder_shared_rounded),
       title: Text(context.t('ftpd.folders_title')),
       subtitle: Text(
         _scopeSummary(context, scope),
@@ -152,7 +153,7 @@ class _FtpServerScreenState extends State<FtpServerScreen> {
             ? TextStyle(color: Theme.of(context).colorScheme.error)
             : null,
       ),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: const Icon(AppIcons.chevron),
       onTap: () => Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => const ShareFoldersScreen(),
       )),

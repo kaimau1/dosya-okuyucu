@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 
+import '../../core/app_icons.dart';
 import '../../core/busy_dialog.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
@@ -132,18 +133,18 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
         actions: [
           IconButton(
             tooltip: context.t('dl.clipboard_download'),
-            icon: const Icon(Icons.content_paste_go),
+            icon: const Icon(Icons.content_paste_go_rounded),
             onPressed: _addFromClipboard,
           ),
           IconButton(
             tooltip: context.t('dl.how_to'),
-            icon: const Icon(Icons.help_outline),
+            icon: const Icon(AppIcons.help),
             onPressed: () => showDownloadHelp(context),
           ),
           if (tasks.any((t) => !t.state.isActive))
             IconButton(
               tooltip: context.t('dl.clear_finished'),
-              icon: const Icon(Icons.clear_all),
+              icon: const Icon(Icons.clear_all_rounded),
               onPressed: _service.clearFinished,
             ),
         ],
@@ -154,7 +155,7 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
       ]),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _addManual,
-        icon: const Icon(Icons.add_link),
+        icon: const Icon(Icons.add_link_rounded),
         label: Text(context.t('dl.link')),
       ),
     );
@@ -166,10 +167,10 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
     return Material(
       color: Theme.of(context).colorScheme.secondaryContainer,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.sm, Gap.sm),
+        padding: const EdgeInsetsDirectional.fromSTEB(Gap.md, Gap.sm, Gap.sm, Gap.sm),
         child: Row(
           children: [
-            const Icon(Icons.link, size: 20),
+            const Icon(Icons.link_rounded, size: 20),
             const SizedBox(width: Gap.sm),
             Expanded(
               child: Column(
@@ -193,7 +194,7 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
             ),
             IconButton(
               tooltip: context.t('common.close'),
-              icon: const Icon(Icons.close, size: 18),
+              icon: const Icon(AppIcons.close, size: 18),
               onPressed: () => setState(() => _clipboardUrl = null),
             ),
           ],
@@ -486,7 +487,7 @@ Future<GithubAsset?> _pickAsset(
                 children: [
                   for (final asset in release.assets)
                     ListTile(
-                      leading: const Icon(Icons.download_outlined),
+                      leading: const Icon(AppIcons.download),
                       title: Text(asset.name,
                           maxLines: 1, overflow: TextOverflow.ellipsis),
                       subtitle: Text(asset.sizeBytes > 0
@@ -537,12 +538,12 @@ class _HowToCard extends StatelessWidget {
             Text(context.t('dl.how_to'), style: text.titleSmall),
             const SizedBox(height: Gap.sm),
             _Step(
-              icon: Icons.share_outlined,
+              icon: AppIcons.share,
               title: context.t('dl.step1_title'),
               body: context.t('dl.step1_body'),
             ),
             _Step(
-              icon: Icons.content_paste_go,
+              icon: Icons.content_paste_go_rounded,
               title: context.t('dl.step2_title'),
               body: context.t('dl.step2_body'),
             ),
@@ -551,7 +552,7 @@ class _HowToCard extends StatelessWidget {
             // Bu yüzden aşağıdaki düğme doğrudan uygulama bilgisi ekranını
             // açıyor ve metin oradan sonrasını marka marka anlatıyor.
             _Step(
-              icon: Icons.settings_outlined,
+              icon: AppIcons.settings,
               title: context.t('dl.step3_title'),
               body: context.t('dl.step3_body'),
             ),
@@ -559,10 +560,10 @@ class _HowToCard extends StatelessWidget {
             Text(context.t('dl.how_to_note'), style: text.bodySmall),
             const SizedBox(height: Gap.sm),
             Align(
-              alignment: Alignment.centerRight,
+              alignment: AlignmentDirectional.centerEnd,
               child: OutlinedButton.icon(
                 onPressed: StoragePermission.openSettings,
-                icon: const Icon(Icons.open_in_new),
+                icon: const Icon(AppIcons.open),
                 label: Text(context.t('dl.open_app_info')),
               ),
             ),

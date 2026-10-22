@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:dosya_okuyucu/core/app_icons.dart';
 import 'package:dosya_okuyucu/services/fm/fm_env.dart';
 import 'package:dosya_okuyucu/services/fm/hidden_vault.dart';
 import 'package:dosya_okuyucu/services/fm/home_shortcuts.dart';
@@ -67,7 +68,7 @@ void main() {
 
   testWidgets('kısayol simgesi PNG olarak çizilir', (tester) async {
     final png = await tester.runAsync(() => HomeShortcuts.renderIcon(
-        Icons.picture_as_pdf_rounded, const Color(0xFFC50F1F)));
+        AppIcons.pdf, const Color(0xFFC50F1F)));
     expect(png, isNotNull);
     // PNG imzası.
     expect(png!.sublist(0, 4), [0x89, 0x50, 0x4E, 0x47]);

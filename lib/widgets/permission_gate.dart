@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../core/app_icons.dart';
 import '../core/app_navigator.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/snack.dart';
@@ -171,11 +172,11 @@ class PermissionCard extends StatelessWidget {
       };
 
   static IconData iconOf(AppPermission p) => switch (p) {
-        AppPermission.allFiles => Icons.folder_open_outlined,
-        AppPermission.notifications => Icons.notifications_none_outlined,
-        AppPermission.camera => Icons.photo_camera_outlined,
-        AppPermission.location => Icons.place_outlined,
-        AppPermission.overlay => Icons.picture_in_picture_alt_outlined,
+        AppPermission.allFiles => Icons.folder_open_rounded,
+        AppPermission.notifications => Icons.notifications_none_rounded,
+        AppPermission.camera => Icons.photo_camera_rounded,
+        AppPermission.location => Icons.place_rounded,
+        AppPermission.overlay => Icons.picture_in_picture_alt_rounded,
       };
 
   @override
@@ -209,8 +210,8 @@ class PermissionCard extends StatelessWidget {
               child: FilledButton.icon(
                 onPressed: onAsk,
                 icon: Icon(permanentlyDenied
-                    ? Icons.settings_outlined
-                    : Icons.check_circle_outline),
+                    ? AppIcons.settings
+                    : Icons.check_circle_outline_rounded),
                 label: Text(context.t(permanentlyDenied
                     ? 'perm.open_settings'
                     : 'perm.allow')),

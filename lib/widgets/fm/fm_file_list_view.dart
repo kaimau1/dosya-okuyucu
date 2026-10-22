@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_icons.dart';
+import '../../core/bidi.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/safe_insets.dart';
 import '../../core/theme.dart';
@@ -305,7 +306,7 @@ class FmListToolbar extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-              summary,
+              bidiParts(context, summary),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodySmall?.copyWith(

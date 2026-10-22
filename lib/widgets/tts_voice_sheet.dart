@@ -145,7 +145,7 @@ class _TtsVoiceSheetState extends State<TtsVoiceSheet> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: _tryVoice,
-                    icon: const Icon(Icons.volume_up_outlined),
+                    icon: const Icon(Icons.volume_up_rounded),
                     label: Text(context.t('tts.try')),
                   ),
                 ),

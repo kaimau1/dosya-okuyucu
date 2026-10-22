@@ -193,6 +193,10 @@ class _DragSelectAreaState extends State<DragSelectArea> {
       onLongPressMoveUpdate: _move,
       onLongPressEnd: (_) => _finish(),
       onLongPressCancel: _finish,
+      // TalkBack'te bu alan etiketsiz, liste boyu bir "uzun bas" düğümü
+      // olarak okunuyordu (Faz 16, `labeledTapTargetGuideline`). Erişilebilir
+      // karşılığı her satırın kendi "Seç" eylemi (`FmEntryRow`).
+      excludeFromSemantics: true,
       child: widget.child,
     );
   }

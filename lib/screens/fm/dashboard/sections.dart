@@ -51,10 +51,10 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
               ),
               const SizedBox(height: Gap.sm),
               Align(
-                alignment: Alignment.centerRight,
+                alignment: AlignmentDirectional.centerEnd,
                 child: FilledButton.icon(
                   onPressed: _requestAccess,
-                  icon: const Icon(Icons.lock_open),
+                  icon: const Icon(AppIcons.unlock),
                   label: Text(context.t('fm.permission_grant')),
                 ),
               ),
@@ -200,14 +200,14 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
           for (final path in appState.bookmarks)
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.star, color: FmColors.folder),
+              leading: const Icon(Icons.star_rounded, color: FmColors.folder),
               title: Text(p.basename(path)),
               subtitle:
                   Text(path, maxLines: 1, overflow: TextOverflow.ellipsis),
               onTap: () => _push(BrowserScreen(path: path)),
               trailing: IconButton(
                 tooltip: context.t('common.remove_bookmark'),
-                icon: const Icon(Icons.close),
+                icon: const Icon(AppIcons.close),
                 onPressed: () => appState.toggleBookmark(path),
               ),
             ),
@@ -241,8 +241,8 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
       // birincisi. Boyut ölçülmüşse alt satırda yazar.
       FmTileData(
         id: 'downloads',
-        icon: Icons.download_rounded,
-        color: const Color(0xFF2F6FE0),
+        icon: AppIcons.download,
+        color: AppHues.blue,
         label: context.t('fm.downloads'),
         subtitle: _folderSizes[download] != null
             ? FsPaths.humanSize(_folderSizes[download]!)
@@ -259,7 +259,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
       FmTileData(
         id: 'important',
         icon: Icons.star_rounded,
-        color: const Color(0xFFF2A600),
+        color: AppHues.amber,
         label: ImportantScreen.folderName,
         subtitle: importantStat == null
             ? context.t('fm.create')
@@ -281,7 +281,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
       FmTileData(
         id: 'apk',
         icon: Icons.install_mobile_rounded,
-        color: const Color(0xFF0E9C8A),
+        color: AppHues.teal,
         label: context.t('fm.apk_files'),
         subtitle: _index.stat(FmCategory.apk).count == 0
             ? (_scanning ? context.t('fm.scanning') : context.t('fm.none'))
@@ -297,7 +297,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
       FmTileData(
         id: 'new',
         icon: Icons.move_to_inbox_rounded,
-        color: const Color(0xFFE8742A),
+        color: AppHues.tangerine,
         label: context.t('fm.new_files'),
         subtitle: context.t('fm.new_files_note'),
         onTap: () => _openSwipe('new'),
@@ -313,7 +313,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
       FmTileData(
         id: 'recent',
         icon: Icons.history_rounded,
-        color: const Color(0xFF5A5FD6),
+        color: AppHues.indigo,
         label: context.t('hist.title'),
         subtitle: context.t('hist.tile_sub'),
         onTap: () => HistoryScreen.open(context),
@@ -327,7 +327,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
       FmTileData(
         id: 'drive',
         icon: Icons.cloud_rounded,
-        color: const Color(0xFF1FA463),
+        color: AppHues.mint,
         label: 'Google Drive',
         subtitle: context.t('fm.drive_subtitle'),
         onTap: () => _push(const DriveScreen()),
@@ -367,22 +367,22 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
         'storage': (
           label: context.t('dash.sec_storage'),
           icon: Icons.sd_storage_rounded,
-          color: const Color(0xFF5B6670),
+          color: AppHues.steel,
         ),
         'categories': (
           label: context.t('dash.sec_categories'),
           icon: Icons.grid_view_rounded,
-          color: const Color(0xFF2F6FE0),
+          color: AppHues.blue,
         ),
         'tools': (
           label: context.t('fm.tools'),
           icon: Icons.handyman_rounded,
-          color: const Color(0xFF2E7D32),
+          color: AppHues.green,
         ),
         'favorites': (
           label: context.t('dash.sec_favorites'),
           icon: Icons.star_rounded,
-          color: const Color(0xFFF2A600),
+          color: AppHues.amber,
         ),
         'quick': (
           label: context.t('fm.quick_folders'),

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
@@ -136,12 +137,12 @@ class _UsbDiagnosticsScreenState extends State<UsbDiagnosticsScreen> {
           IconButton(
             tooltip: context.t('common.refresh'),
             onPressed: _loading ? null : () => unawaited(_load()),
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(AppIcons.refresh),
           ),
           IconButton(
             tooltip: context.t('fm.copy'),
             onPressed: report == null ? null : () => unawaited(_copy(report)),
-            icon: const Icon(Icons.copy_all),
+            icon: const Icon(Icons.copy_all_rounded),
           ),
         ],
       ),
@@ -163,7 +164,7 @@ class _UsbDiagnosticsScreenState extends State<UsbDiagnosticsScreen> {
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.usb),
+                        : const Icon(AppIcons.external),
                     label: Text(context.t('usb.open_raw')),
                   ),
                   Padding(
@@ -237,8 +238,8 @@ class _UsbDiagnosticsScreenState extends State<UsbDiagnosticsScreen> {
             Row(
               children: [
                 Icon(ok
-                    ? Icons.check_circle
-                    : (needsDriver ? Icons.error_outline : Icons.info_outline)),
+                    ? AppIcons.checkCircle
+                    : (needsDriver ? AppIcons.error : AppIcons.info)),
                 const SizedBox(width: Gap.sm),
                 Expanded(
                   child: Text(

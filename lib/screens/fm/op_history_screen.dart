@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../services/fm/file_ops.dart';
@@ -73,13 +74,13 @@ class _OpHistoryScreenState extends State<OpHistoryScreen> {
         actions: [
           IconButton(
             tooltip: context.t('common.refresh'),
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(AppIcons.refresh),
             onPressed: _loading ? null : _load,
           ),
           if (_records.isNotEmpty)
             IconButton(
               tooltip: context.t('oph.clear'),
-              icon: const Icon(Icons.delete_sweep_outlined),
+              icon: const Icon(Icons.delete_sweep_rounded),
               onPressed: () async {
                 // Geçmişi silmek DOSYALARA dokunmaz; yalnız kayıt listesi
                 // temizlenir — kullanıcıya da böyle söylenir.
@@ -132,10 +133,10 @@ class _OpHistoryScreenState extends State<OpHistoryScreen> {
     return ListTile(
       leading: Icon(switch (record.kind) {
         OpKind.move => Icons.drive_file_move_outline,
-        OpKind.copy => Icons.folder_copy_outlined,
-        OpKind.delete => Icons.delete_outline,
-        OpKind.rename => Icons.drive_file_rename_outline,
-        OpKind.organize => Icons.auto_awesome_motion,
+        OpKind.copy => Icons.folder_copy_rounded,
+        OpKind.delete => AppIcons.delete,
+        OpKind.rename => Icons.drive_file_rename_outline_rounded,
+        OpKind.organize => Icons.auto_awesome_motion_rounded,
       }),
       title: Text(record.summary,
           maxLines: 2, overflow: TextOverflow.ellipsis),
