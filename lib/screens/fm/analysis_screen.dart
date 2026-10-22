@@ -35,6 +35,7 @@ import 'installed_apps_screen.dart';
 import 'similar_screen.dart';
 import 'entry_actions.dart';
 import '../../core/safe_insets.dart';
+import 'smart_cleanup_screen.dart';
 
 part 'analysis/actions.dart';
 part 'analysis/widgets.dart';
@@ -267,6 +268,16 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                           title: context.t('cj.title'),
                           note: context.t('ana.chat_note'),
                           onTap: () => openChatCleanupScreen(context),
+                        ),
+                        const Divider(height: 1),
+                        _ToolRow(
+                          icon: AppIcons.ai,
+                          color: AppHues.violet,
+                          title: context.t('sa.title'),
+                          note: context.t('sa.card_sub'),
+                          onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                  builder: (_) => const SmartCleanupScreen())),
                         ),
                         const Divider(height: 1),
                         // **Klasör haritası** (kullanıcı isteği 2026-08-17,

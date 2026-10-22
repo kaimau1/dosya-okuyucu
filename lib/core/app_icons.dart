@@ -43,6 +43,10 @@ abstract final class AppIcons {
   static const IconData voice = Icons.record_voice_over_rounded;
   static const IconData audiobook = Icons.headphones_rounded;
   static const IconData qr = Icons.qr_code_2_rounded;
+  static const IconData greeting = Icons.local_florist_rounded;
+  static const IconData blur = Icons.blur_on_rounded;
+  static const IconData dark = Icons.dark_mode_rounded;
+  static const IconData screenshot = Icons.screenshot_rounded;
   static const IconData openFull = Icons.open_in_full_rounded;
   static const IconData slideshow = Icons.slideshow_rounded;
   static const IconData fullscreen = Icons.fullscreen_rounded;

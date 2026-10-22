@@ -18,21 +18,39 @@ import '../../core/safe_insets.dart';
 /// Yine de her karo görünür ve dokununca büyür — kullanıcı silmeden önce
 /// gözüyle bakabilmeli, çünkü "gereksiz" bir tahmin (bkz. `chat_junk.dart`).
 class ChatJunkBucketScreen extends StatefulWidget {
-  final ChatJunkBucket bucket;
+  final List<FsEntry> files;
+  final String titleKey;
+  final String reasonKey;
 
-  const ChatJunkBucketScreen({super.key, required this.bucket});
+  /// Hepsi seçili gelsin mi? (Yalnız bir kopyanın kesin kaldığı kovalar.)
+  final bool safeByDefault;
+
+  ChatJunkBucketScreen({super.key, required ChatJunkBucket bucket})
+      : files = bucket.files,
+        titleKey = bucket.kind.labelKey,
+        reasonKey = bucket.kind.reasonKey,
+        safeByDefault = bucket.kind.safeByDefault;
+
+  /// Akıllı analiz kovaları da aynı ekranı kullanır (2026-10-22).
+  const ChatJunkBucketScreen.custom({
+    super.key,
+    required this.files,
+    required this.titleKey,
+    required this.reasonKey,
+    this.safeByDefault = false,
+  });
 
   @override
   State<ChatJunkBucketScreen> createState() => _ChatJunkBucketScreenState();
 }
 
 class _ChatJunkBucketScreenState extends State<ChatJunkBucketScreen> {
-  late List<FsEntry> _files = List.of(widget.bucket.files);
+  late List<FsEntry> _files = List.of(widget.files);
 
   /// Seçili yollar. Güvenli kovada (birebir kopyalar — bir kopya korunuyor)
   /// hepsi açık gelir; fotoğraf içeren kovalarda HİÇBİRİ seçili gelmez.
   /// Yanlışlıkla silinen anı geri gelmez; bu kural projede sabit.
-  late final Set<String> _selected = widget.bucket.kind.safeByDefault
+  late final Set<String> _selected = widget.safeByDefault
       ? {for (final e in _files) e.path}
       : <String>{};
 
@@ -46,7 +64,7 @@ class _ChatJunkBucketScreenState extends State<ChatJunkBucketScreen> {
         _files.isNotEmpty && _files.every((e) => _selected.contains(e.path));
     return Scaffold(
       appBar: AppBar(
-        title: Text(context.t(widget.bucket.kind.labelKey)),
+        title: Text(context.t(widget.titleKey)),
         actions: [
           TextButton(
             onPressed: _files.isEmpty
@@ -68,7 +86,7 @@ class _ChatJunkBucketScreenState extends State<ChatJunkBucketScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.sm),
             child: Text(
-              context.t(widget.bucket.kind.reasonKey),
+              context.t(widget.reasonKey),
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),

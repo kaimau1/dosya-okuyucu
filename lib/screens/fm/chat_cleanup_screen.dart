@@ -12,6 +12,7 @@ import '../../services/fm/open_history.dart';
 import 'chat_junk_bucket_screen.dart';
 import 'similar_screen.dart';
 import '../../core/safe_insets.dart';
+import 'smart_cleanup_screen.dart';
 
 /// **Sohbet medyası temizliği** — "WhatsApp'tan 10 bin fotoğraf var, %90'ı
 /// gereksiz" sorusunun karşılığı (kullanıcı 2026-07-31).
@@ -170,6 +171,7 @@ class _ChatCleanupScreenState extends State<ChatCleanupScreen> {
             ),
           for (final bucket in report.buckets) _bucketCard(bucket),
           const SizedBox(height: Gap.md),
+          _smartCard(),
           _similarCard(),
         ],
       ),
@@ -263,6 +265,19 @@ class _ChatCleanupScreenState extends State<ChatCleanupScreen> {
   }
 
   /// Kovaların ulaşamadığı yığın: aynı anın birden çok karesi.
+  /// İçeriğe bakan akıllı analiz (selamlaşma görselleri, yazılı mem, bulanık).
+  Widget _smartCard() => Card(
+        child: ListTile(
+          key: const ValueKey('cj-smart'),
+          leading: const Icon(AppIcons.ai),
+          title: Text(context.t('sa.title')),
+          subtitle: Text(context.t('sa.card_sub')),
+          trailing: const Icon(AppIcons.chevron),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const SmartCleanupScreen())),
+        ),
+      );
+
   Widget _similarCard() => Card(
         child: ListTile(
           leading: const Icon(Icons.burst_mode_rounded),
