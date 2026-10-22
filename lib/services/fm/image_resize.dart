@@ -6,6 +6,7 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
 import '../../models/media_resize.dart';
+import 'exif_reader.dart';
 import 'file_ops.dart';
 
 /// Boyut düşürme sonucu.
@@ -136,6 +137,12 @@ abstract final class ImageResizer {
       if (decoder == null) return null;
       final info = decoder.startDecode(bytes);
       if (info == null || info.width <= 0 || info.height <= 0) return null;
+      // **Görünen yön** (Faz 10b, B11): telefonun dikey fotoğrafı yatay
+      // pikselle + EXIF Orientation 6/8 yazılır. Çözücü yönü uyguladığı için
+      // ÇIKTI doğruydu, ama bu başlık ölçüsü ham kalıyordu → ayar sayfası
+      // dikey fotoğrafa "4000×3000" diyor, "sonra" tahmini yan çıkıyordu.
+      final o = ExifReader.parse(bytes).orientation ?? 1;
+      if (o >= 5 && o <= 8) return (width: info.height, height: info.width);
       return (width: info.width, height: info.height);
     } catch (_) {
       return null;

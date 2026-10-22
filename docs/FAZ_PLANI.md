@@ -71,10 +71,10 @@
 | 7 | Bağımlılık diyeti, Flutter yükseltmesi, lisans uyumu, APK boyutu | 2, K1–K5 | ✅ 2026-10-21 — `dc9e613` excel/lisans/font + (5): **Flutter 3.44.6** (CI varsayılanı), kullanımdan kaldırmalar, AGP 9 yamaları, `receive_sharing_intent` 1.8.1; K2 Media3 → Faz 10'da yapıldı |
 | 8 | PDF akışı (tek çatı) | 6, 7 | ✅ 2026-10-21 — tek "Düzenle" kapısı (6 kip), eski yol silindi (K12), "yazı ekle" yedeği, Aa levhası, örnek set + duman; vurgu+CropBox cihazda (bkz. HAFIZA (4)) |
 | 9 | Office ve metin akışları (Word, Excel, Slayt, Metin/CSV/MD) | 6, 7 | ✅ 2026-10-21 — Y1 (tablo hücresi, seçime punto, resim ekle/sil), Y2 (grafik, köşegen, sayfa taşı), Y4, büyük metin, eski Office dönüştür; Word yazım köprüsü hatası bulundu-düzeltildi; 10 bin satır ölçümü cihazda |
-| 10 | Medya akışları (görsel, video, ses, galeri) + temel görsel düzenleyici | 6, 7 | 🟡 2026-10-21 — görsel düzenleyici, PiP (`SYSTEM_ALERT_WINDOW` kalktı), tek motor (`audioplayers` kalktı), Media3 Transformer (FFmpeg + `video_compress` kalktı); örnek medya seti ve cihaz turu bekliyor (bkz. HAFIZA (5)) → **10b** (☁️, yürütme sırası 2) + cihaz turu |
+| 10 | Medya akışları (görsel, video, ses, galeri) + temel görsel düzenleyici | 6, 7 | 🟡 2026-10-21 — görsel düzenleyici, PiP (`SYSTEM_ALERT_WINDOW` kalktı), tek motor (`audioplayers` kalktı), Media3 Transformer (FFmpeg + `video_compress` kalktı); örnek medya seti ve cihaz turu bekliyor (bkz. HAFIZA (5)) → **10b** (☁️, yürütme sırası 2) + cihaz turu | · **10b ✅ 2026-10-22** — örnek set `test/fixtures/media/` + `media_fixture_smoke_test`; B11: çıktı doğru, `probeSize` ham ölçüyordu → düzeltildi; FLAC etiketleri eklendi
 | 11 | Ticari yayın hazırlığı (Play politikaları, ilk açılış, gelir modeli, mağaza) — 2026-10-22: **11a** bulut kısmı · **11b** hesap/cihaz kısmı | 8–10 | ⬜ |
 | 12 | Kapanış — uçtan uca hata avı, cihaz doğrulama turu, sürüm adayı — 2026-10-22: **12a** betikli hata avı (bulut) · **12b** cihaz turu · **12c** RC | 11 | ⬜ |
-| 13 | **Ortak tür süzgeci** — her listede PDF/Word/Excel… ayrı seçilir; Son açılanlar'a süzgeç, sıralama, gruplama, çoklu seçim | 6 | ⬜ |
+| 13 | **Ortak tür süzgeci** — her listede PDF/Word/Excel… ayrı seçilir; Son açılanlar'a süzgeç, sıralama, gruplama, çoklu seçim | 6 | ✅ 2026-10-22 (cihaz maddeleri bekliyor) — `FmType` + `FmFilter.types` + `FmTypeChips`; 10 ekran; Son açılanlar yenilendi; K17 (c) `ListMemory`; PNG `docs/design/faz13/`; sapmalar HAFIZA 2026-10-22 (3) |
 | 14 | **Görsel boyutlandırma 2.0** — oran kilidi; yüzde/piksel/uzun kenar/en-boy oranı/hedef dosya boyutu; ön ayarlar; WebP/HEIC; düzenleyicide "Boyut" | 10b | ⬜ |
 | 15 | **Görsel dil birliği** — simge, renk, yazı, hareket tokenları + bekçi testler + kontrast | 6 | ⬜ |
 | 16 | **Erişilebilirlik + Arapça (RTL) + büyük yazı** | 15 | ⬜ |
@@ -607,7 +607,7 @@ ve **duman testi** ister: aç → kaydet → yeniden aç → içerik aynı mı.
 | G4i | **Giriş noktası gizli:** galeri alt çubuğunda "Boyut" yok (yalnız ⋮ → eylem sayfası); görsel düzenleyicide boyut sekmesi yok — kırp ve boyutlandır iki ayrı akış. | `image_gallery_screen.dart:434-460` |
 | G4j | Kırpma oranları 6 tane (serbest, 1:1, 4:3, 3:4, 16:9, 9:16): **Orijinal, 4:5, 5:4, 3:2, 2:3, 21:9, A4, özel a:b yok**; kırpma kutusunun piksel ölçüsü yazmıyor. | `screens/image_edit_screen.dart:52-59` |
 | G4k | **Fotoğrafa da çift sayı yuvarlaması** uygulanıyor (`even()` video kodlayıcı şartı): 1081 yazan 1080 alıyor. | `models/media_resize.dart:493` |
-| G4l | **Şüphe — doğrulanacak (B11):** `image` paketi EXIF yönünü uygulamadan ölçüyor; dikey çekilmiş (Orientation = 6/8) fotoğrafta "genişlik 1080" ham (yatay) kenara uygulanabilir → çıktı beklenenden küçük/yan. Faz 10b örnek setindeki EXIF yönlü JPEG ile test edilecek. | `image_resize.dart` `_resizeSync` |
+| G4l | **Şüphe — doğrulanacak (B11):** `image` paketi EXIF yönünü uygulamadan ölçüyor; dikey çekilmiş (Orientation = 6/8) fotoğrafta "genişlik 1080" ham (yatay) kenara uygulanabilir → çıktı beklenenden küçük/yan. Faz 10b örnek setindeki EXIF yönlü JPEG ile test edilecek. **→ 2026-10-22 (10b) sonuç:** çıktı DOĞRU (`image` 4.3 çözücüsü yönü uyguluyor, piksel testiyle); hatalı olan `ImageResizer.probeSize`'dı (ham başlık ölçüsü → levha dikey fotoğrafa "400×300" diyordu) — düzeltildi. | `image_resize.dart` `_resizeSync` |
 
 #### 3.14.3 Görsel dil tutarlılığı (ölçüldü)
 
@@ -676,7 +676,7 @@ yoksa "Öneri" uygulanır.
 | K14 | **Boyutlandırmada büyütme** (2026-10-22) | (a) yasak (bugün; sessizce kaynağa kırpılıyor) · (b) izinli + "büyütmek netlik eklemez" uyarısı | **(b)** — kullanıcı "istediğim oranda" diyor; uyarı dürüstlüğü korur | 14 |  |
 | K15 | **Görsel çıktı motoru** (2026-10-22) | (a) saf Dart `image` paketi (bugün) · (b) Android yerel (BitmapFactory + ExifInterface + `Bitmap.compress`) birincil, Dart yedek | **(b)** — HEIC okuma (Android 9+), WebP yazma, EXIF'i koruma, `inSampleSize` ile düşük cihazda hız ve bellek; Dart yolu test referansı ve yedek kalır | 14 |  |
 | K16 | **Panoya "Son açılanlar" şeridi** (2026-10-22) | (a) varsayılan görünür · (b) eklenir ama varsayılan gizli ("Ana ekranı düzenle"den açılır) · (c) eklenmez | **(b)** — pano tasarımı 2026-10-18 kararıyla korunuyor; mevcut kullanıcının ekranı kendiliğinden değişmez (`DashboardLayout` "yeni kimlik görünür eklenir" kuralına bilinçli istisna) | 17 |  |
-| K17 | **Süzgeç/sıralama hafızası** (2026-10-22) | (a) her ekran son süzgecini kalıcı hatırlar · (b) her açılışta temiz · (c) karışık | **(c)** sıralama + yerleşim ekran başına **kalıcı**; tür/tarih süzgeci **oturum boyunca** (uygulama yeniden açılınca temiz) — "liste neden boş?" şaşkınlığı olmasın | 13, 17 |  |
+| K17 | **Süzgeç/sıralama hafızası** (2026-10-22) | (a) her ekran son süzgecini kalıcı hatırlar · (b) her açılışta temiz · (c) karışık | **(c)** sıralama + yerleşim ekran başına **kalıcı**; tür/tarih süzgeci **oturum boyunca** (uygulama yeniden açılınca temiz) — "liste neden boş?" şaşkınlığı olmasın | 13, 17 | (c) — cevap yok, öneri uygulandı (Faz 13) |
 
 ---
 

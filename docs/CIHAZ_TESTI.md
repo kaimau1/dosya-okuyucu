@@ -97,6 +97,45 @@ bunun için.
       akıyor, çıktı 1280x720 (dikey videoda 720x1280), süre aynı; "sesi çıkar" sessiz;
       serbest ölçü 1234x568 birebir; iptal → yarım dosya kalmıyor.
 
+## Faz 10b — örnek medya seti (2026-10-22)
+
+Set: `test/fixtures/media/` (`python3 tool/make_media_fixtures.py` yeniden üretir).
+Telefona kopyalarken klasöre `.nomedia` KOY ve iş bitince SİL (HAFIZA 2026-10-22 ölçüm tuzağı).
+
+- [ ] **EXIF yönü (B11):** `orient_6.jpg` ve `orient_8.jpg` galeride DİK görünüyor mu (sol üst
+      kırmızı). Boyutlandır → "Şu an" satırı **300×400** yazıyor mu (eskiden 400×300).
+- [ ] **Görsel düzenleyici:** `orient_6.jpg` → Düzenle → kırp 1:1 + döndür → kopya; kopya dik ve
+      kırmızı kare doğru köşede mi.
+- [ ] **HEIC:** telefonda çekilmiş bir HEIC → Boyutlandır: "Görüntü çözülemedi" mi, çalışıyor mu
+      (Dart `image` paketi HEIC çözemiyor — beklenen: hata; Faz 14b yerel motorla kapanır).
+      Görsel düzenleyici HEIC'i açıyor mu.
+- [ ] **WebP / GIF:** `photo.webp`, `anim.gif` → Boyutlandır → JPEG kopya açılıyor mu; GIF'te
+      "özgünü çöpe at" uygulanmıyor (kare kaybı uyarısı).
+- [ ] **Video:** `clip.mp4` ve `clip.mkv` oynuyor; `clip.srt` altyazı olarak kendiliğinden
+      bulunuyor ("Merhaba dünya", Türkçe karakterler bozulmadan). `clip.mkv` → küçült (Media3)
+      → MP4 çıktı oynuyor mu.
+- [ ] **Ses:** `tagged.mp3`, `tagged.m4a`, `tagged.flac` → başlık "Örnek Şarkı", sanatçı, albüm
+      ve turuncu kapak görünüyor mu (FLAC etiketleri bu turda eklendi).
+- [ ] **Galeri 2.000 fotoğraf RSS** (Ek D) — Faz 4 ölçümüyle birlikte.
+
+## Faz 13 — ortak tür süzgeci + Son açılanlar (2026-10-22)
+
+- [ ] **Son açılanlar:** Ayarlar/pano → Geçmiş → Açılanlar → üstte `Tümü · PDF · Word …`
+      çipleri; "PDF"e dokun → yalnız PDF'ler, sayı çipteki sayıyla aynı mı. PDF + Word
+      birlikte seçilebiliyor mu.
+- [ ] **Son açılanlar sıralama/gruplar:** "Tarihe göre" = AÇILMA zamanı (Bugün / Bu hafta
+      başlıkları); "Ada göre" seç → uygulamayı kapat-aç → ada göre açılıyor mu (kalıcı).
+      PDF süzgeci ise uygulama yeniden açılınca TEMİZ olmalı (K17).
+- [ ] **Geçmişten kaldır:** uzun bas → 2 dosya seç → ⋮ → "Geçmişten kaldır" → satırlar
+      gidiyor, dosyalar diskte duruyor mu; snackbar "Geri al" → eski yerlerine dönüyor mu.
+- [ ] **Yeni gelenler / İndirilenler / Belgeler / Önemli:** PDF çipi var ve tek dokunuşla
+      süzüyor mu; çipler tek satır, kaydırılabilir; boş sonuçta "Filtreyi temizle".
+- [ ] **Arama:** bir sorgu yaz → tür çipleri SONUÇTAN çıkıyor mu (PDF/Word ayrı).
+- [ ] **Gezgin:** süzgeç düğmesi → PDF/Word/… + Tarih ▾ + Boyut ▾ aynı satırda.
+- [ ] **Çöp kutusu, Kasa, Üretilenler:** karışık içerikte tür çipleri çıkıyor ve süzüyor mu.
+- [ ] **Büyük yazı (Ayarlar → yazı boyutu en büyük + sistem yazı 200 %):** Son açılanlar
+      ve Yeni gelenlerde taşma (sarı-siyah şerit) yok mu.
+
 ## KALANLAR'dan taşınanlar (Faz 0, 2026-10-21 — kelimesi kelimesine)
 
 ### (başlıksız)

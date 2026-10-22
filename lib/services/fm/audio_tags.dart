@@ -73,6 +73,7 @@ abstract final class AudioTagReader {
   static AudioTags parse(Uint8List bytes) {
     try {
       if (_startsWith(bytes, 'ID3')) return _parseId3(bytes);
+      if (_startsWith(bytes, 'fLaC')) return _parseFlac(bytes);
       final mp4 = _parseMp4(bytes);
       if (mp4 != null) return mp4;
     } catch (_) {
@@ -227,6 +228,74 @@ abstract final class AudioTagReader {
     final tags =
         AudioTags(title: title, artist: artist, album: album, cover: cover);
     return tags.isEmpty ? null : tags;
+  }
+
+  // ── FLAC (Vorbis yorumları + PICTURE bloğu) ────────────────────────────
+
+  /// FLAC etiketleri (Faz 10b, 2026-10-22 — örnek setle bulundu: FLAC
+  /// dosyalarında başlık/kapak HİÇ okunmuyor, liste dosya adına düşüyordu).
+  ///
+  /// `fLaC` imzasından sonra meta veri blokları: 1 bayt (son-blok biti + tür),
+  /// 3 bayt büyük-endian uzunluk. Tür 4 = VORBIS_COMMENT (küçük-endian
+  /// uzunluklu `ANAHTAR=değer` UTF-8 dizeleri), tür 6 = PICTURE (büyük-endian:
+  /// tür, MIME, açıklama, 4×4 bayt ölçü, veri).
+  static AudioTags _parseFlac(Uint8List b) {
+    var title = '', artist = '', album = '';
+    Uint8List? cover;
+    var offset = 4;
+    while (offset + 4 <= b.length) {
+      final header = b[offset];
+      final type = header & 0x7F;
+      final length = (b[offset + 1] << 16) | (b[offset + 2] << 8) | b[offset + 3];
+      final start = offset + 4;
+      final end = start + length;
+      if (end > b.length) break;
+      if (type == 4) {
+        var i = start;
+        int le32() {
+          final v = b[i] | (b[i + 1] << 8) | (b[i + 2] << 16) | (b[i + 3] << 24);
+          i += 4;
+          return v;
+        }
+
+        // `i += le32()` YAZILMAZ: sol taraf çağrıdan ÖNCE okunur, le32'nin
+        // ilerlettiği 4 bayt kaybolurdu.
+        final vendor = le32(); // üretici dizesi
+        i += vendor;
+        final count = le32();
+        for (var n = 0; n < count && i + 4 <= end; n++) {
+          final len = le32();
+          if (i + len > end) break;
+          final text = utf8.decode(Uint8List.sublistView(b, i, i + len),
+              allowMalformed: true);
+          i += len;
+          final eq = text.indexOf('=');
+          if (eq <= 0) continue;
+          final value = text.substring(eq + 1);
+          switch (text.substring(0, eq).toUpperCase()) {
+            case 'TITLE':
+              title = value;
+            case 'ARTIST':
+              artist = value;
+            case 'ALBUM':
+              album = value;
+          }
+        }
+      } else if (type == 6 && cover == null) {
+        var i = start + 4; // resim türü
+        final mime = _uint32(b, i);
+        i += 4 + mime;
+        final desc = _uint32(b, i);
+        i += 4 + desc;
+        i += 16; // genişlik, yükseklik, renk derinliği, palet
+        final len = _uint32(b, i);
+        i += 4;
+        if (i + len <= end) cover = Uint8List.sublistView(b, i, i + len);
+      }
+      offset = end;
+      if (header & 0x80 != 0) break; // son blok
+    }
+    return AudioTags(title: title, artist: artist, album: album, cover: cover);
   }
 
   // ── yardımcılar ────────────────────────────────────────────────────────

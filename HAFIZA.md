@@ -459,3 +459,70 @@ filtreleyemiyorum; kolay biçimde ve istediğim oranda görüntü boyutlarını 
   özellik açıyorsa, onu yeniden kullanan ekranlar (Yeni gelenler) özelliği sessizce
   kaybeder — özellik bayrağı değil, veriden türeyen davranış olmalı (Faz 13: alt tür
   çipleri listede birden çok alt tür varsa kendiliğinden çıkar).
+
+## 2026-10-22 (3) — Faz 13: ortak tür süzgeci + Son açılanlar
+
+Bulut oturumu (Flutter 3.44.6 Linux; `git config --global --add safe.directory '*'`).
+Kullanıcı: *"Fazlara devam, 13'le başla, sonra 1-2 faz daha, main'e birleştir."*
+
+- **Karar — tek tür modeli `models/fm_type.dart` (`FmType`):** üst tür
+  `FsEntry.categoryForExtension`'dan (tek kaynak, testte birebir denetleniyor); yalnız
+  belgeler alt türe bölünür (PDF · Word · Excel · Slayt · Metin · E-kitap · Diğer belge).
+  `FileService.kindForExtension` BİLEREK ayrı kaldı: o "hangi düzenleyici açar" sorusu ve
+  .doc/.xls'i "bilinmeyen" sayar; listede .xls Excel'dir.
+  **Plandan sapma:** "Eski Office" ayrı alt tür YAPILMADI (.doc → Word, .xls → Excel —
+  kullanıcı ".xls Excel değil mi?" der); "belgeler tek alt türdeyse 'Belgeler' tek çip"
+  kuralı da yapılmadı — alt türler hep düz çip, çünkü kabul ölçütü "liste PDF içeriyorsa
+  PDF çipi" ve tek alt türlü listede (hepsi PDF) çip zaten çizilmiyor.
+- **`FmFilter.types`** (çoklu; boş = tümü) — `signature`/`activeCount`/`matches` içinde.
+  **`FmTypeChips`** (`widgets/fm/fm_type_chips.dart`) bir `List<Widget>` üretir →
+  `FmQuickFilters.leading`'e ya da `FmFilterBar`'a (tek satır kuralı korunur). Sayılar
+  seçili türlerden BAĞIMSIZ, öteki ölçütlere bağlı (`countsFor`, `Expando` önbelleği):
+  seçim yokken çipe dokununca kalan = çipteki sayı. PDF seçiliyken "Word · 2" Word'ün
+  kendi sayısıdır (birleşim değil) — bilinçli.
+- **Ekranlar:** Kategori (Belgeler/Önemli/analiz kutuları + Yeni gelenler — `showDocKinds`
+  bayrağı SİLİNDİ, davranış veriden), Gezgin (`_kind` kalktı; tür + Tarih ▾ + Boyut ▾),
+  Arama (sabit 8 kategori çipi yerine sonuçtan türeyen çipler), İndirilenler, Son açılanlar,
+  Çöp, Kasa, Üretilenler (`ActivityScreen` — işlem türü çiplerine EK olarak). Çöp/Kasa/
+  Üretilenler `FsEntry` değil → `FmType.ofName` + `FmTypeChips.build(counts:)`.
+- **Son açılanlar yenilendi:** tür çipleri, `FmListToolbar` (Tarih = AÇILMA zamanı),
+  açılma tarihine göre gruplar (`groupEntries(timeOf:)`, `FmFileListView.groupTimeOf`),
+  liste/ızgara, çoklu seçim + ortak alt çubuk, ⋮ → "Geçmişten kaldır" + snackbar "Geri al"
+  (`OpenHistory.removeAll/restoreAll`, eski zamanlarla), "Tümünü temizle" ⋮ menüsünde.
+  Test kancası `entriesForTest` (sahte saatte disk/compute tamamlanmıyor — §F tuzağı).
+- **K17 (c) — `services/fm/list_memory.dart`:** sıralama + yerleşim `list.<ekran>.*`
+  SharedPreferences'ta kalıcı; süzgeç bellekte (oturum). Uygulandığı yer: Son açılanlar
+  (`recent`), İndirilenler (`downloads`), Yeni gelenler (`CategoryScreen.memoryId`).
+  Kategori kutuları hafızasız (aynı ekran farklı kategorilerle açılıyor).
+- **G13:** İndirilenler `_sorted` önbellekli (anahtar: liste kimliği + sorgu + süzgeç + sıra).
+- **TUZAK — 360 dp + 2,0× yazı:** ortak `FmListToolbar`'ın "Tarihe göre ↓" düğmesi taşıyordu
+  (Faz 6'dan beri; test 1,4×'te koşuyordu) → `Flexible` + üç nokta. Seçim çubuğuna simge
+  eklemek de taşırdı → `FmSelectionActions.extra` (⋮ içinde metinli ek eylemler).
+- **TUZAK — tasarım PNG'si için girdiler diskte olmalı:** `CategoryScreen` `FsEvents`'te
+  `pruneMissing` çalıştırıyor; olmayan yollar ilk karede listeden düşüyor → araç geçici
+  dosyalar yazıyor (`tool/design_shots_faz13_test.dart` → `docs/design/faz13/`).
+- **Test edilmeyenler (dürüst not):** İndirilenler/Arama/Gezgin/Çöp/Kasa/Üretilenler için
+  ekran başına widget testi YAZILMADI — yüklemeleri disk/`compute` ile, sahte saatte
+  tamamlanmıyor. Ortak bileşen + model testleri ve derleme duman testi kapsıyor; cihaz
+  maddeleri `docs/CIHAZ_TESTI.md` Faz 13'te. Fotoğraflar/galeri kendi kaynak satırını
+  koruyor (alt türler eklenmedi).
+
+## 2026-10-22 (4) — Faz 10b: örnek medya seti + duman testleri
+
+- **Set:** `test/fixtures/media/` (13 dosya, 111 KB) — `tool/make_media_fixtures.py`
+  (Pillow + ffmpeg, deterministik). `orient_{1,3,6,8}.jpg` AYNI sahne: görünen hâl hep
+  300×400 dikey, sol üst kırmızı / sağ alt mavi; depolanan pikseller yöne göre döndürülmüş.
+  + saydam PNG, WebP, hareketli GIF, MP4/MKV (H.264/AAC 3 sn) + SRT (Türkçe), etiketli +
+  kapaklı MP3/FLAC/M4A. HEIC bulutta üretilemedi → cihaz maddesi.
+- **B11 sonucu (FAZ_PLANI G4l):** şüphe YANLIŞ çıktı — `image` 4.3.0 `decodeImage` EXIF
+  yönünü uyguluyor; boyutlandırma çıktısı dik ve ölçü görünen kenara gidiyor (piksel
+  testi: sol üst kırmızı, yön etiketi 1). **Asıl hata `ImageResizer.probeSize`:** başlıktan
+  HAM ölçü okuyordu → levhanın "Şu an / Sonra" kartı ve tahmin dikey fotoğrafta yan
+  (400×300). Düzeltme: `ExifReader.parse` yönü 5–8 ise genişlik/yükseklik takas.
+- **FLAC etiketleri hiç okunmuyordu** (`AudioTagReader` yalnız ID3 + MP4) → Vorbis yorumu
+  (tür 4) + PICTURE (tür 6) çözücüsü eklendi.
+  **TUZAK (Dart):** `i += le32()` — `le32` closure'u `i`'yi ilerletiyorsa sol taraf
+  çağrıdan ÖNCE okunduğu için ilerleme KAYBOLUR; sonucu önce değişkene al.
+- Duman testi `test/media_fixture_smoke_test.dart` (14): yön okuma, B11 × 4 yön, probeSize,
+  PNG/WebP/GIF boyutlandırma çıktısı açılıyor, 3 ses etiketi + kapak, SRT + yan dosya bulma.
+  Görsel düzenleyici (`dart:ui` + platform çözücü) ve Media3 bulutta koşmuyor → cihaz listesi.
