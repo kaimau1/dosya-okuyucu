@@ -210,6 +210,31 @@ void main() {
           isTrue);
     });
 
+    testWidgets('focusPath: uzak dosyaya kaydırır, vurgular, vurgu söner',
+        (tester) async {
+      final many = Directory(p.join(dir.path, 'Cok'))..createSync();
+      for (var i = 0; i < 80; i++) {
+        File(p.join(many.path, 'f_${i.toString().padLeft(2, '0')}.pdf'))
+            .writeAsStringSync('x');
+      }
+      final (_, _, nav) = await pump(tester);
+      nav.currentState!.push(browserRoute(BrowserScreen(
+          path: many.path, focusPath: p.join(many.path, 'f_75.pdf'))));
+      await settle(tester);
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump(const Duration(milliseconds: 500));
+      final y = tester.getRect(find.text('f_75.pdf')).center.dy;
+      expect(y, inInclusiveRange(150, 450),
+          reason: '80 dosyalık listede 75. dosya ekranın üst-ortasına gelmeli');
+      final ring = find.ancestor(
+          of: find.text('f_75.pdf'),
+          matching: find.byWidgetPredicate(
+              (w) => w is Container && w.foregroundDecoration != null));
+      expect(ring, findsOneWidget);
+      await tester.pump(const Duration(seconds: 5));
+      expect(ring, findsNothing, reason: 'vurgu birkaç saniyede söner');
+    });
+
     testWidgets('sıralama ve öğe sayısı ekranda; tür çipi süzer',
         (tester) async {
       final (_, _, nav) = await pump(tester);

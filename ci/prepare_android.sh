@@ -41,12 +41,13 @@ grep -E "INTERNET|launchMode|action.VIEW|action.SEND|label=" \
 #   DosyaProvider (SAF "Şuradan aç"), PickerActivity (seçici kipi),
 #   UsbMass (ham USB SCSI/BBB), MediaSession (bildirim + ön plan servisi),
 #   SdUnion (SD birleşik depolama işi),
-#   Extras (widget'lar, günlük iş, biyometri, Keystore, Geocoder).
+#   Extras (widget'lar, günlük iş, biyometri, Keystore, Geocoder),
+#   QrTransfer (QR ile paylaş: kod tarayıcı + yerel hotspot).
 say "Kotlin kaynakları"
 DIR=android/app/src/main/kotlin/com/dosyaokuyucu/dosya_okuyucu
 mkdir -p "$DIR"
 for kt in MainActivity DosyaProvider PickerActivity UsbMass MediaSession MediaTranscode \
-          SdUnion Extras; do
+          SdUnion Extras QrTransfer; do
   cp "ci/$kt.kt" "$DIR/$kt.kt"
 done
 # `cp -r ci/res/.` mevcut res/ dosyalarını SİLMEZ, yalnız ekler.
@@ -113,7 +114,10 @@ for name in ('android/app/build.gradle.kts', 'android/app/build.gradle'):
         libs = ['androidx.media3:media3-transformer:1.5.1',
                 'androidx.media3:media3-effect:1.5.1',
                 'androidx.media3:media3-common:1.5.1',
-                'androidx.annotation:annotation-experimental:1.4.1']
+                'androidx.annotation:annotation-experimental:1.4.1',
+                # QR ile paylaş: Google kod tarayıcısı (kamera izni yok,
+                # model Play Hizmetleri'nden — APK'ya ~0 MB).
+                'com.google.android.gms:play-services-code-scanner:16.1.0']
         dep = ('dependencies {\n    coreLibraryDesugaring('
                '"com.android.tools:desugar_jdk_libs:2.1.4")\n'
                + ''.join(f'    implementation("{l}")\n' for l in libs) + '}\n'
@@ -223,35 +227,6 @@ for name in ('android/build.gradle.kts', 'android/build.gradle'):
     break
 else:
     raise SystemExit('kök build.gradle bulunamadı')
-PY
-
-# ── 6c) R8 kod küçültme KAPALI (Flutter 3.44 / AGP 9, 2026-10-22) ─────────
-# AGP 9'un R8'i yansımayla bulunan sınıfları kırıyor: WorkManager (Room
-# `_Impl`) açılışta ÇÖKÜYOR, flutter_local_notifications (Gson TypeToken)
-# hata atıyor ve Dart açılışı takılıp ekran SİYAH kalıyor, ML Kit kayıt
-# sınıfı yüklenemiyor. Kütüphanelerin kendi koruma kuralları uygulanmıyor gibi
-# (tahmin — ayrı inceleme, KALANLAR). Telefonda ölçüldü: küçültme kapalıyken
-# açılış normal; bedel arm64 APK 57 → 66 MB (bütçe 80). proguard-rules.pro
-# yerinde kalıyor (R8 yeniden açılınca gerekecek kurallar).
-say "R8 küçültme kapalı"
-python3 - <<'PY'
-import pathlib, re
-for name in ('android/app/build.gradle.kts', 'android/app/build.gradle'):
-    path = pathlib.Path(name)
-    if not path.exists():
-        continue
-    text = path.read_text()
-    kts = name.endswith('.kts')
-    line = ('            isMinifyEnabled = false\n            isShrinkResources = false\n'
-            if kts else '            minifyEnabled false\n            shrinkResources false\n')
-    text, n = re.subn(r'(\n(\s*)release\s*\{\n)', lambda m: m.group(1) + line, text, count=1)
-    if n != 1:
-        raise SystemExit(f'{name}: release bloğu bulunamadı')
-    path.write_text(text)
-    print(f'{name}: R8 küçültme kapalı')
-    break
-else:
-    raise SystemExit('app build.gradle bulunamadı')
 PY
 
 # ── 7) Kotlin eklentisi ≥ 2.2.0 (yalnız YÜKSELTİR) ───────────────────────

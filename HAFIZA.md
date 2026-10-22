@@ -361,3 +361,22 @@
   Android WebView'da cihaz turu bekliyor. QR paylaşım ağsız (metin QR'ın içinde,
   üçüncü taraf yükleme reddedildi: gizlilik). Hata kaydı artık kayıt başına sürüm
   yazar (eski kayıtlar güncel sürüme aitmiş gibi okunuyordu).
+
+- **2026-10-22 (10) — QR ile dosya paylaş, İndirilenlerde göster, R8 geri açıldı, cihaz ölçümleri:**
+  QR paylaşım artık DOSYA (metin QR'ı alt yol): gönderen ekran açıkken `QrShareServer`
+  (dart:io, jetonlu `/q/<jeton>/`), karşı tarafın kamerası tarayıcıda İndir sayfası açar;
+  Dosya Okuyucu'lu alıcı Al → "QR kodu tara" (Google kod tarayıcısı — kamera izni yok,
+  `ci/QrTransfer.kt`). Ortak Wi-Fi yoksa `LocalOnlyHotspot` + `WIFI:` QR; alıcı uygulama
+  `WifiNetworkSpecifier` + `bindProcessToNetwork` (internetsiz ağda bağlamadan 192.168.x'e
+  gidilemez — tarayıcı yolunda bu risk açık, CIHAZ_TESTI). Üçüncü taraf yükleme YOK (gizlilik).
+  **R8 hipotezi YANLIŞ çıktı:** AGP 9 kütüphane koruma kurallarını UYGULUYOR
+  (`build/app/outputs/mapping/release/configuration.txt` kaynak listesi); tam kip
+  `ComponentRegistrar` boş yapıcılarını siliyordu → kural eklendi, 6c (R8 kapalı) silindi.
+  **TUZAK — yerel APK telefona kurulamaz** (CI anahtarı ≠ debug anahtarı, veri silinir):
+  temiz kopyada `applicationIdSuffix = ".r8test"` + sabit `documents` authority'sini
+  `${applicationId}`e çevirip YAN YANA kur. **TUZAK — Git Bash'te adb:** `MSYS_NO_PATHCONV=1`
+  `uiautomator dump /sdcard/...` için şart (yoksa "/Files/Git/sdcard"a yazar, bayat döküm
+  okunur) ama aynı oturumda Windows yolları `C:/` biçiminde verilmeli; SF `--latency`
+  katman adı `#id` ekiyle. İndirilenlerde göster: `BrowserScreen(focusPath:)` — oranla atla,
+  satır kurulunca `getOffsetToReveal`; `ensureVisible` satırı alt çubuğun arkasında bıraktı.
+

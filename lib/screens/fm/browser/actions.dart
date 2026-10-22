@@ -50,6 +50,47 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
     }
   }
 
+  /// Vurgulanan dosyayı görünür alana getirir. Liste tembel kurulduğu için
+  /// satır ekranın dışındaysa henüz yoktur: önce sıradaki yerine oranla
+  /// atlanır (sabit satır yüksekliğinde birebir, ızgarada yakın), satır
+  /// kurulunca `ensureVisible` tam ortalar. Vurgu birkaç saniye sonra söner.
+  void _revealFocus() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Liste ilk karelerde henüz yerleşmemiş olabilir (yükleme iskeleti,
+      // tahmini kaydırma boyu): birkaç kare boyunca yeniden denenir.
+      for (var tries = 0; tries < 6; tries++) {
+        if (!mounted || _focus == null) return;
+        final target = _focusKey.currentContext;
+        final box = target?.findRenderObject();
+        if (box != null && _scroll.hasClients) {
+          // Kendi denetleyicimizle: `ensureVisible` en yakın Scrollable'ı
+          // arıyor ve satır alt çubuğun arkasında kalıyordu (test ölçtü).
+          final pos = _scroll.position;
+          final want = RenderAbstractViewport.of(box)
+              .getOffsetToReveal(box, 0.3)
+              .offset
+              .clamp(pos.minScrollExtent, pos.maxScrollExtent);
+          await Motion.scrollTo(context, _scroll, want);
+          break;
+        }
+        final entries = _visible(_sorted(context.read<AppState>()));
+        final i = entries.indexWhere((e) => e.path == _focus);
+        if (i < 0) return; // dosya yok/süzgeçte gizli
+        if (_scroll.hasClients) {
+          final max = _scroll.position.maxScrollExtent;
+          _scroll.jumpTo((max * i / entries.length).clamp(0.0, max));
+        }
+        final frame = Completer<void>();
+        WidgetsBinding.instance
+          ..addPostFrameCallback((_) => frame.complete())
+          ..scheduleFrame();
+        await frame.future;
+      }
+      await Future<void>.delayed(const Duration(seconds: 4));
+      if (mounted) _partSetState(() => _focus = null);
+    });
+  }
+
   Future<void> _load() async {
     _partSetState(() {
       _loading = true;
@@ -66,6 +107,7 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
         // Silinen/taşınan öğeler seçimde kalmasın.
         _selected.removeWhere((s) => !list.any((e) => e.path == s));
       });
+      if (_focus != null) _revealFocus();
     } catch (e) {
       if (!mounted) return;
       _partSetState(() {

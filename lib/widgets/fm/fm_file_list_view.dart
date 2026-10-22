@@ -85,7 +85,28 @@ class FmFileListView extends StatelessWidget {
     this.showChevron = false,
     this.badge,
     this.onLayoutChange,
+    this.focusPath,
+    this.focusKey,
   });
+
+  /// Vurgulanacak öğe ("İndirilenlerde göster", 2026-10-22) — satırı
+  /// [focusKey] ile işaretlenir ki çağıran onu görünür alana kaydırabilsin.
+  final String? focusPath;
+  final GlobalKey? focusKey;
+
+  Widget _focus(BuildContext context, FsEntry entry, Widget child) {
+    if (focusPath == null || entry.path != focusPath) return child;
+    final primary = Theme.of(context).colorScheme.primary;
+    return Container(
+      key: focusKey,
+      foregroundDecoration: BoxDecoration(
+        color: primary.withValues(alpha: 0.10),
+        border: Border.all(color: primary, width: 2),
+        borderRadius: BorderRadius.circular(Radii.card),
+      ),
+      child: child,
+    );
+  }
 
   bool get _selecting => selected.isNotEmpty;
 
@@ -173,7 +194,8 @@ class FmFileListView extends StatelessWidget {
         itemBuilder: (context, i) => switch (items[i]) {
           FmHeaderItem(:final labelKey, :final count) =>
             FmGroupHeader(label: context.t(labelKey), count: count),
-          FmEntryItem() => _row(items[i] as FmEntryItem),
+          FmEntryItem(:final entry) =>
+            _focus(context, entry, _row(items[i] as FmEntryItem)),
         },
       );
   }
@@ -231,7 +253,7 @@ class FmFileListView extends StatelessWidget {
                 itemCount: cells.length,
                 itemBuilder: (context, i) {
                   final c = cells[i];
-                  return DragSelectItem(
+                  return _focus(context, c.entry, DragSelectItem(
                     index: c.index,
                     child: FmEntryCard(
                       entry: c.entry,
@@ -240,7 +262,7 @@ class FmFileListView extends StatelessWidget {
                       selecting: _selecting,
                       onTap: () => _tap(c.entry),
                     ),
-                  );
+                  ));
                 },
               ),
             ),

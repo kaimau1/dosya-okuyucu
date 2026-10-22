@@ -307,6 +307,15 @@ class MainActivity : FlutterActivity() {
     // menüde olsun."* Kısayol bizim aktivitemizi [ACTION_OPEN_PATH] + yol ile
     // açar; Dart tarafı yolu dosyaysa görüntüleyicide, klasörse gezginde açar.
     private var shortcutChannel: MethodChannel? = null
+
+    /** QR ile paylaş: hotspot/ağ bağı motor yıkılınca bırakılır. */
+    private var qrTransfer: QrTransfer? = null
+
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        qrTransfer?.dispose()
+        qrTransfer = null
+        super.cleanUpFlutterEngine(flutterEngine)
+    }
     private var pendingShortcutPath: String? = null
 
     private fun rememberShortcut(intent: Intent?): String? {
@@ -627,6 +636,11 @@ class MainActivity : FlutterActivity() {
         setupShortcutChannel(flutterEngine)
         setupSdUnionChannel(flutterEngine)
         setupExtrasChannel(flutterEngine)
+        QrTransfer(this).also {
+            qrTransfer = it
+            MethodChannel(flutterEngine.dartExecutor.binaryMessenger, QrTransfer.CHANNEL)
+                .setMethodCallHandler(it)
+        }
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
         channel!!
             .setMethodCallHandler { call, result ->

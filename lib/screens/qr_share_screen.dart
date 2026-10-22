@@ -7,7 +7,6 @@ import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/motion.dart';
 import '../core/theme.dart';
-import '../widgets/app_dialog.dart';
 import '../widgets/qr_code.dart';
 
 /// **Notu QR kodla paylaş** (2026-10-22, kullanıcı: *"paylaşa basılır, QR
@@ -170,41 +169,5 @@ class _QrShareScreenState extends State<QrShareScreen> {
         ],
       ),
     );
-  }
-}
-
-/// Paylaş düğmesinin seçeneği: dosya olarak mı, QR kodla mı?
-/// QR yalnız metin içeriği olan belgede sunulur.
-Future<void> showShareChoice(
-  BuildContext context, {
-  required String title,
-  required String text,
-  required Future<void> Function() shareFile,
-}) async {
-  final choice = await showAppSheet<String>(
-    context,
-    builder: (ctx) => Column(mainAxisSize: MainAxisSize.min, children: [
-      ListTile(
-        key: const ValueKey('share-file'),
-        leading: const Icon(AppIcons.share),
-        title: Text(ctx.t('qr.as_file')),
-        subtitle: Text(ctx.t('qr.as_file_sub')),
-        onTap: () => Navigator.pop(ctx, 'file'),
-      ),
-      ListTile(
-        key: const ValueKey('share-qr'),
-        leading: const Icon(AppIcons.qr),
-        title: Text(ctx.t('qr.as_qr')),
-        subtitle: Text(ctx.t('qr.as_qr_sub')),
-        onTap: () => Navigator.pop(ctx, 'qr'),
-      ),
-    ]),
-  );
-  if (!context.mounted) return;
-  if (choice == 'file') {
-    await shareFile();
-  } else if (choice == 'qr') {
-    await Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => QrShareScreen(title: title, text: text)));
   }
 }

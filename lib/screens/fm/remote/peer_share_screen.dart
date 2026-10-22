@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
@@ -18,8 +19,10 @@ import '../../../services/fm/notification_hub.dart';
 import '../../../services/fm/fm_env.dart';
 import '../../../services/fm/fs_scan.dart';
 import '../../../services/fm/remote/peer_share.dart';
+import '../../../services/fm/remote/qr_transfer.dart';
 import '../../../widgets/fm/fm_progress_dialog.dart';
 import '../folder_picker_screen.dart';
+import 'qr_file_share_screen.dart';
 import '../../../core/safe_insets.dart';
 import '../../../core/user_error.dart';
 
@@ -349,6 +352,61 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
     setState(() => _receiver = receiver);
   }
 
+  Future<void> _scanQr() async {
+    final strings = AppStrings.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final String? raw;
+    try {
+      raw = await QrNative.scan();
+    } on PlatformException {
+      showSnackOn(messenger, strings.t('qrf.scan_unavailable'));
+      return;
+    }
+    if (raw == null || !mounted) return; // vazgeçildi
+    final payload = QrPayload.parse(raw);
+    if (payload == null) {
+      showSnackOn(messenger, strings.t('qrf.scan_unknown'));
+      return;
+    }
+    if (payload.url == null) {
+      showSnackOn(messenger, strings.t('qrf.scan_wifi_only'));
+      return;
+    }
+    var joined = false;
+    if (payload.ssid != null) {
+      setState(() => _incoming = payload.ssid);
+      joined = await QrNative.joinWifi(
+          payload.ssid!, payload.pass ?? '', payload.sec);
+      if (!joined) {
+        if (mounted) setState(() => _incoming = null);
+        showSnackOn(messenger, strings.t('qrf.join_failed'));
+        return;
+      }
+    }
+    try {
+      final paths = await QrReceiver.download(payload.url!, _saveDir,
+          onProgress: (name, received, total) {
+        if (!mounted) return;
+        final label = total > 0
+            ? '$name · ${FsPaths.humanSize(received)} / '
+                '${FsPaths.humanSize(total)}'
+            : name;
+        if (_incoming != label) setState(() => _incoming = label);
+      });
+      if (!mounted) return;
+      setState(() {
+        for (final path in paths) {
+          _received.insert(0, (path, 'QR'));
+        }
+      });
+    } catch (e) {
+      showSnackOn(messenger, userErrorText(e));
+    } finally {
+      if (joined) await QrNative.leaveWifi();
+      if (mounted) setState(() => _incoming = null);
+    }
+  }
+
   Future<void> _pickSaveDir() async {
     final dest = await Navigator.of(context).push<String>(MaterialPageRoute(
       builder: (_) => FolderPickerScreen(
@@ -616,6 +674,22 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
               ?.copyWith(color: scheme.error),
         ),
         const SizedBox(height: Gap.md),
+        // **QR ile al** (2026-10-22): gönderen "QR ile paylaş"ı açtıysa kod
+        // okunur, dosyalar aşağıdaki klasöre iner (aynı Wi-Fi ya da
+        // gönderenin geçici ağı — bağlantıyı uygulama kurar).
+        FilledButton.tonalIcon(
+          key: const ValueKey('peer-scan-qr'),
+          onPressed: _incoming == null ? _scanQr : null,
+          icon: const Icon(AppIcons.qr),
+          label: Text(context.t('qrf.scan')),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: Gap.xs),
+          child: Text(context.t('qrf.scan_sub'),
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall),
+        ),
+        const SizedBox(height: Gap.sm),
         ListTile(
           contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.badge_rounded),
@@ -715,9 +789,10 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
 /// Kullanıcı isteği (2026-09-06): *"paylaş dendiğinde iki dosya okuyucusu
 /// arasında hızlı dosya paylaşımı özelliği yapalım."* Sistem paylaşımı
 /// kaldırılmadı — WhatsApp'a bir fotoğraf yollamak hâlâ en sık yapılan şey.
-/// İki yol yan yana duruyor ve hızlı olan **üstte**.
+/// Yollar yan yana duruyor ve hızlı olan **üstte**. `true` = iş burada
+/// bitti (ya da vazgeçildi); `false` = çağıran sistem paylaşımını açsın.
 Future<bool> showShareChoice(BuildContext context, List<String> paths) async {
-  final wantsPeer = await showModalBottomSheet<bool>(
+  final choice = await showModalBottomSheet<String>(
     context: context,
     showDragHandle: true,
     builder: (ctx) => SafeArea(
@@ -728,23 +803,36 @@ Future<bool> showShareChoice(BuildContext context, List<String> paths) async {
             leading: const Icon(Icons.wifi_tethering_rounded),
             title: Text(ctx.t('peer.send_action')),
             subtitle: Text(ctx.t('peer.send_hint')),
-            onTap: () => Navigator.pop(ctx, true),
+            onTap: () => Navigator.pop(ctx, 'peer'),
           ),
           ListTile(
             leading: const Icon(Icons.ios_share_rounded),
             title: Text(ctx.t('common.share')),
             subtitle: Text(ctx.t('peer.other_apps')),
-            onTap: () => Navigator.pop(ctx, false),
+            onTap: () => Navigator.pop(ctx, 'system'),
+          ),
+          // **QR ile paylaş** (2026-10-22): karşı tarafın kamerası yeter;
+          // Dosya Okuyucu'su varsa "Al → QR tara" ile doğrudan iner.
+          ListTile(
+            key: const ValueKey('share-qr'),
+            leading: const Icon(AppIcons.qr),
+            title: Text(ctx.t('qrf.title')),
+            subtitle: Text(ctx.t('qrf.choice_sub')),
+            onTap: () => Navigator.pop(ctx, 'qr'),
           ),
           const SizedBox(height: Gap.sm),
         ],
       ),
     ),
   );
-  if (wantsPeer == null || !context.mounted) return false;
-  if (!wantsPeer) return false;
+  // Pencere kapatıldıysa hiçbir şey yapılmaz (eskiden sistem paylaşımı
+  // açılıyordu — kullanıcı vazgeçmişti).
+  if (choice == null || !context.mounted) return true;
+  if (choice == 'system') return false;
   await Navigator.of(context).push(MaterialPageRoute(
-    builder: (_) => PeerShareScreen(sendPaths: paths),
+    builder: (_) => choice == 'qr'
+        ? QrFileShareScreen(paths: paths)
+        : PeerShareScreen(sendPaths: paths),
   ));
   return true;
 }

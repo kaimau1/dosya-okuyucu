@@ -31,5 +31,11 @@
 # Dart'tan JNI ile ADIYLA çağırıyor; R8 açıkken `getAll` silinip/yeniden
 # adlandırılınca "NoSuchMethodError … SharedPreferencesApiRegistrar.getAll"
 # (kullanıcı hata kaydı 2026-10-22, R8'li yerel derleme). R8 şu an kapalı
-# (prepare_android.sh 6c) — yeniden açılınca gerekli.
+# — R8 2026-10-22 yeniden açıldı.
 -keep class io.flutter.plugins.sharedpreferences.** { *; }
+
+# ML Kit / Firebase bileşen kayıtları (`ComponentRegistrar`) manifest meta-data'sından
+# ADLA bulunup BOŞ YAPICIYLA yansımayla kuruluyor. AGP 9 R8'i (tam kip) sınıf adını
+# koruyup yapıcıyı siliyordu → "NoSuchMethodException: TextRegistrar.<init>" — OCR,
+# çeviri ve kod tarayıcı kayıtsız kalıyordu (2026-10-22, R8'li test APK'sında logcat).
+-keep class * implements com.google.firebase.components.ComponentRegistrar { <init>(); }

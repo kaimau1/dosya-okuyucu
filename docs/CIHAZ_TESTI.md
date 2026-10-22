@@ -530,7 +530,23 @@ Telefona kopyalarken klasöre `.nomedia` KOY ve iş bitince SİL (HAFIZA 2026-10
 - [ ] Yapay zekâ sesleri: Antalia/EMA indir → sesli kitap üret (Android WebView'da ONNX çalışıyor mu, süre)
 - [ ] Sesli kitap M4A'ya dönüşüyor mu (Media3 yalnız-ses), Müzik/Sesli Kitaplar'da görünüyor mu
 - [ ] Akıllı analiz: WhatsApp "günaydın" görselleri OCR ile bulunuyor mu, süre (1.500 görsel)
-- [ ] QR paylaşım: başka telefonun kamerası Türkçe metni doğru gösteriyor mu
+- [ ] QR paylaşım (metin alt yolu): Paylaş → QR ile paylaş → "Metni QR'ın içine koy" → başka telefonun kamerası Türkçe metni doğru gösteriyor mu
+
+### QR ile dosya paylaş (2026-10-22 — İKİ telefon gerekir)
+- [ ] **Aynı Wi-Fi, uygulamasız alıcı:** bir PDF → Paylaş → 3. seçenek "QR ile paylaş" → karşı
+      telefonun KAMERASI kodu okuyor, tarayıcıda dosya adı + "İndir" sayfası açılıyor, iniyor;
+      gönderende "İndirildi: 1".
+- [ ] **Aynı Wi-Fi, Dosya Okuyucu'lu alıcı:** Aktar → Telefonla → Al → "QR kodu tara" (kamera
+      izni SORULMAMALI, Google tarayıcısı açılır) → dosya "Kaydet" klasörüne iniyor, listede görünüyor.
+- [ ] **Ortak Wi-Fi yok (hotspot):** gönderenin Wi-Fi'si kapalıyken ekran kendiliğinden geçici
+      ağ kuruyor (Android 13+ "Yakındaki cihazlar" izni sorulur) → 1. kod kamerayla okutulunca
+      karşı telefon ağa bağlanıyor → 2. kod tarayıcıda açılıyor ve iniyor.
+      **Risk (tahmin):** internetsiz ağda alıcının tarayıcısı mobil veriden gitmeye çalışabilir —
+      açılmazsa alıcının mobil verisini kapatıp dene ve sonucu yaz.
+- [ ] **Hotspot + uygulamalı alıcı:** "QR kodu tara" → 2. kod → sistem "ağa bağlan" onayı → dosya
+      iniyor; iş bitince alıcı telefon eski Wi-Fi'sine/mobil veriye dönüyor.
+- [ ] Ekrandan çıkınca geçici ağ kapanıyor (Wi-Fi listesinde DIRECT-/AndroidShare ağı kalmıyor).
+- [ ] Klasör paylaşımı ZIP olarak iniyor.
 - [ ] Tahminli geri (Android 14+): geri jesti önizlemesi, düzenlemeden çıkarken sorma
 - [ ] Açılış ekranı açık/koyu, başlatıcı kısayolları, Sistem rengi teması (Android 12+)
 - [ ] Video: parlaklık kaydırması, uzun basış 2×, kilit, yatay sarma; galeri slayt gösterisi, Farklı kullan

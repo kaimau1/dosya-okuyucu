@@ -15,7 +15,7 @@ bool showDownloadAction(String path) =>
     SaveToDownloads.isPrivateCopy(path, FmEnv.volumeRoots);
 
 /// [save]'i koşturur ve sonucu şeritle söyler; "Göster" İndirilenler
-/// klasörünü açar. Görüntüleyici ve üç editör aynı akışı kullanıyor.
+/// klasörünü açar ve kaydedilen dosyayı kaydırıp vurgular. Görüntüleyici ve üç editör aynı akışı kullanıyor.
 Future<void> runDownloadAction(
   BuildContext context,
   Future<SavedDownload> Function() save,
@@ -32,7 +32,8 @@ Future<void> runDownloadAction(
           {'name': name}),
       action: SnackBarAction(
         label: strings.t('dl.show'),
-        onPressed: () => navigator.push(browserRoute(BrowserScreen(path: p.dirname(saved.path)),
+        onPressed: () => navigator.push(browserRoute(BrowserScreen(
+            path: p.dirname(saved.path), focusPath: saved.path),
         )),
       ),
     );

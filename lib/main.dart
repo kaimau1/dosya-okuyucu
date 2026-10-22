@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/scheduler.dart' show SchedulerBinding, TimingsCallback;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -72,6 +73,7 @@ Future<void> main() async {
   // uygulamayı öldürmek zorunda kalır. Yerine ne olduğunu söyleyen ve GERİ
   // DÖNME yolu veren bir kart konuyor (hata yine `CrashLog`a yazılıyor).
   ErrorWidget.builder = (details) => AppErrorScreen(details: details);
+  _logSlowStartupFrames();
   // Paket dışı gömülü bileşenlerin lisansları (fontlar, JS, PDFium…) —
   // "Tüm lisanslar" sayfasında görünsün (Faz 7 / N2).
   registerThirdPartyLicenses();
@@ -210,6 +212,30 @@ Future<void> main() async {
       child: const DosyaOkuyucuApp(),
     ),
   );
+}
+
+/// **Açılış kare ölçümü** (2026-10-22, kullanıcı: *"açılışta donma"*).
+/// Telefonda SurfaceFlinger ilk ~0,5 sn'de 83-183 ms'lik kareler gösterdi;
+/// yayın derlemesinde zaman çizelgesi yok. İlk 6 sn'deki yavaş karelerin
+/// Dart (build) mı çizim (raster) mi olduğu logcat'e yazılır:
+/// `adb logcat -s flutter | grep KARE`. Sonra kanca kendini söker.
+void _logSlowStartupFrames() {
+  final until = DateTime.now().add(const Duration(seconds: 6));
+  late final TimingsCallback cb;
+  cb = (timings) {
+    for (final t in timings) {
+      if (t.totalSpan.inMilliseconds < 25) continue;
+      // ignore: avoid_print
+      print('KARE toplam=${t.totalSpan.inMilliseconds} '
+          'build=${t.buildDuration.inMilliseconds} '
+          'raster=${t.rasterDuration.inMilliseconds} '
+          'vsync_gecikme=${t.vsyncOverhead.inMilliseconds}');
+    }
+    if (DateTime.now().isAfter(until)) {
+      SchedulerBinding.instance.removeTimingsCallback(cb);
+    }
+  };
+  SchedulerBinding.instance.addTimingsCallback(cb);
 }
 
 /// Görsel önbelleği tavanını etkin başarım profiline göre ayarlar.

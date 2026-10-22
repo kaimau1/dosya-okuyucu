@@ -26,6 +26,22 @@
          sistem işi kurmayı reddediyor. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 
+    <!-- **QR ile paylaş** (2026-10-22, `ci/QrTransfer.kt`): ortak Wi-Fi yoksa
+         gönderen internetsiz geçici ağ (LocalOnlyHotspot) kurar, alıcı
+         uygulama o ağa WifiNetworkSpecifier ile bağlanır. Android 13+
+         "Yakındaki cihazlar" (konum İÇİN DEĞİL), öncesi yalnız bu iş için
+         konum izni ister — izin hotspot düğmesine basılınca sorulur. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:usesPermissionFlags="neverForLocation"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="32"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"
+        android:maxSdkVersion="32"/>
+
 
     <!-- ── Dosya yöneticisi izinleri ───────────────────────────────────────
          Android 11+ (API 30): bir dosya yöneticisinin tüm depolamayı

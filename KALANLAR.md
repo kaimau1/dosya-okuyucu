@@ -21,21 +21,22 @@
       `dashboard_layout_sheet.dart` (alt küme → tam liste eşlemesi) ve `nav_tabs_sheet.dart`
       (`nav.move`) `// ignore` ile bırakıldı; yeni API `newIndex`i önceden düzeltiyor —
       eşleme ve `move` mantığı buna göre değiştirilip testle sabitlenmeli.
-- [ ] **[Sıra 2 ☁️ = Faz 10b; RSS ölçümü sıra 12 📱] Faz 10 kalan:** örnek medya seti + duman testleri (EXIF yönlü JPEG, HEIC, WebP,
-      MP4/MKV/altyazı, MP3/FLAC/M4A); galeride 2.000 fotoğraf RSS ölçümü (telefon).
+- [ ] **[Sıra 2 ☁️ = Faz 10b] Faz 10 kalan:** örnek medya seti + duman testleri (EXIF yönlü JPEG, HEIC, WebP,
+      MP4/MKV/altyazı, MP3/FLAC/M4A). (Galeri RSS 2026-10-22 ölçüldü: PSS 948 MB → aşağıdaki GPU maddesi.)
 
-- [ ] **[Sıra 8 ☁️ kurallar + 12 📱 açılış denemesi] R8 kod küçültmeyi geri aç (2026-10-22):** Flutter 3.44 / AGP 9'da R8 yansımalı
-      sınıfları kırdı (WorkManager Room `_Impl` → açılışta çökme; Gson TypeToken →
-      flutter_local_notifications → siyah ekran; ML Kit kayıt sınıfı). Şimdilik
-      `prepare_android.sh` 6c'de kapalı (APK +~6-9 MB). Yapılacak: kütüphanelerin
-      consumer kurallarının neden uygulanmadığını bul (AGP 9 `android.newDsl=false`?),
-      `proguard-rules.pro` ile aç, telefonda soğuk açılış + bildirim + OCR dene.
-- [ ] **[Faz 17 madde 4 ☁️ + ölçüm sıra 12 📱] Yukarı kaydırmada takılma (Faz 4, 2026-10-22 telefonda ölçüldü):** 5.000 öğeli
-      klasörde AŞAĞI kaydırma kusursuz (p99 8,5 ms, 120 Hz), listenin ortasında YUKARI
-      kaydırmada p90 33 ms / p99 50 ms. Hipotez: `FmFileListView` `ListView.builder`ı
-      sabit yükseklik vermiyor, yukarıdan giren satırlar ölçülüyor. Ayıracak ölçüm:
-      `flutter run --profile` + DevTools zaman çizelgesi (build/layout payı). Düzeltme
-      adayı `itemExtentBuilder` (başlık/satır yüksekliği).
+- [ ] **[📱 ölçüm turu] Foto klasörlerinde kaydırma takılması + GPU belleği (2026-10-22 ölçüldü,
+      `docs/perf/2026-10-21.md` sonu):** sabit satır yüksekliği (G14) geldi ama foto ağırlıklı
+      listede yukarı p99 50 ms, iki yönde ara ara 180–250 ms kare; galeride GL mtrack 500–580 MB
+      ve uygulama ön plandayken GERİ VERİLMİYOR (bellek-baskısı sinyali GL'i düşürmüyor; Skia'da
+      da 326 MB). Hipotezler (tahmin): (a) küçük resim yüklemeleri raster izleğinde, (b) sürücü/
+      çizim motoru doku havuzu tepe kullanımı tutuyor, (c) görsel önbelleği sayı tavanı (1000)
+      çok yüksek. Ayıracak ölçüm: `flutter run --profile` (ayrı paket adıyla, bkz. HAFIZA) +
+      DevTools; önbellek tavanı 1000 → 300 A/B'si GL'i orantılı düşürüyor mu.
+- [ ] **[📱] Açılışın ilk 0,5 sn'si:** ilk kare raster 218–309 ms (Impeller ve Skia), sonra pano
+      build 45–49 ms. `_logSlowStartupFrames` logcat'e yazıyor; pano ilk kurulumunda ertelenebilecek
+      iş var mı bakılacak.
+- [ ] **[Windows] `audiobook_test` iki test yalnız Windows'ta kırmızı** (yol ayırıcısı `\` —
+      beklenen ad yerine tam yol); Linux CI yeşil.
 
 > **Bu liste nasıl okunur (2026-08-08 sınıflandırması).** Açık maddelerin
 > çoğunluğu benim kapatabileceğim işler DEĞİL; hangisinin kimde olduğu

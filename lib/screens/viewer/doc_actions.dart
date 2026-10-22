@@ -154,17 +154,14 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
         context, () => SaveToDownloads.saveFile(widget.doc.path));
   }
 
+  /// Dosya yöneticisindeki Paylaş'la aynı seçim: yakındaki cihaz, diğer
+  /// uygulamalar, QR ile (2026-10-22). Kaydedilmemiş metin önce yazılır —
+  /// karşıya giden diskteki dosya.
   Future<void> _share() async {
-    Future<void> asFile() => Share.shareXFiles([XFile(widget.doc.path)]);
-    // Not/metin belgesinde "QR kodla" seçeneği de var (2026-10-22): karşı
-    // tarafta uygulama, ortak ağ ya da internet gerekmez.
-    final text = _textController?.text ?? widget.doc.plainText;
-    if (widget.doc.kind != DocKind.text || text.trim().isEmpty) {
-      await asFile();
-      return;
-    }
-    await showShareChoice(context,
-        title: widget.doc.name, text: text, shareFile: asFile);
+    if (_dirty && widget.doc.isEditableText) await _save();
+    if (!mounted) return;
+    if (await showShareChoice(context, [widget.doc.path])) return;
+    await Share.shareXFiles([XFile(widget.doc.path)]);
   }
 
   Future<void> _print() async {

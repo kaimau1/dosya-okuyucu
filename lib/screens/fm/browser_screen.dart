@@ -1,12 +1,15 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderAbstractViewport;
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
+import '../../core/motion.dart';
 import '../../core/theme.dart';
 import '../../models/fm_layout.dart';
 import '../../models/fs_entry.dart';
@@ -69,7 +72,13 @@ class BrowserScreen extends StatefulWidget {
   /// Başlıkta klasör adı yerine gösterilecek etiket (ör. "Ana bellek").
   final String? title;
 
-  const BrowserScreen({super.key, required this.path, this.title});
+  /// Açılınca görünür alana kaydırılıp birkaç saniye vurgulanacak dosya
+  /// (İndir → "Göster", indirme yöneticisi → "Göster"; 2026-10-22 kullanıcı:
+  /// *"indirilenlerde göster dediğimde focus yapılmıyor"*).
+  final String? focusPath;
+
+  const BrowserScreen(
+      {super.key, required this.path, this.title, this.focusPath});
 
   /// [browserRoute] ile açılan gezgin rotalarının adı.
   static const routeName = 'fm.browser';
@@ -144,6 +153,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
   final ScrollController _scroll = ScrollController();
 
   bool get _selecting => _selected.isNotEmpty;
+
+  /// Vurgulanan dosya ([BrowserScreen.focusPath]); süre dolunca null.
+  late String? _focus = widget.focusPath;
+  final GlobalKey _focusKey = GlobalKey();
 
   int get _filterCount => _filter.activeCount;
 
