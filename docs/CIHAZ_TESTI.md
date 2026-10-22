@@ -523,3 +523,17 @@ Telefona kopyalarken klasöre `.nomedia` KOY ve iş bitince SİL (HAFIZA 2026-10
       tipinde taşma var mı, (b) koyu temada kart kenarlıkları görünüyor mu,
       (c) Arapça (RTL) düzende cetvel çizgileri ve sağdaki özet değerler doğru
       yönde mi, (d) serif başlık + sans gövde okunaklı mı.
+
+## 2026-10-22 — Faz 17–19, 11a, sesli kitap, QR, akıllı analiz (cihazda bakılacak)
+- [ ] Seçici (başka uygulamadan "dosya seç") açılıp kapandıktan sonra ayarlar kaydediliyor mu (shared_preferences çökmesi)
+- [ ] Excel hücresinde yazarken mavi çerçeve YOK; Word/slayt kutusunda da
+- [ ] Yapay zekâ sesleri: Antalia/EMA indir → sesli kitap üret (Android WebView'da ONNX çalışıyor mu, süre)
+- [ ] Sesli kitap M4A'ya dönüşüyor mu (Media3 yalnız-ses), Müzik/Sesli Kitaplar'da görünüyor mu
+- [ ] Akıllı analiz: WhatsApp "günaydın" görselleri OCR ile bulunuyor mu, süre (1.500 görsel)
+- [ ] QR paylaşım: başka telefonun kamerası Türkçe metni doğru gösteriyor mu
+- [ ] Tahminli geri (Android 14+): geri jesti önizlemesi, düzenlemeden çıkarken sorma
+- [ ] Açılış ekranı açık/koyu, başlatıcı kısayolları, Sistem rengi teması (Android 12+)
+- [ ] Video: parlaklık kaydırması, uzun basış 2×, kilit, yatay sarma; galeri slayt gösterisi, Farklı kullan
+- [ ] Okuma kipi: PDF/Word'de çubuklar kaydırınca gizleniyor mu; Tam ekran
+- [ ] HEIC fotoğraf boyutlandırma, WebP çıktı
+- [ ] Gemini anahtarı güncellemeden sonra kayıtlı kalıyor mu (Keystore göçü)

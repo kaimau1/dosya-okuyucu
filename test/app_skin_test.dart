@@ -75,13 +75,15 @@ void main() {
   });
 
   group('sadeleşme göçü (2026-10-21)', () {
-    test('dört aile kalır', () {
+    test('dört aile kalır (+ Faz 19 "Sistem rengi", yalnız Android 12+)', () {
       expect(AppSkin.values, [
         AppSkin.paper,
         AppSkin.light,
         AppSkin.modern,
         AppSkin.night,
+        AppSkin.system,
       ]);
+      expect(AppSkin.system.available, isFalse, reason: 'testte renk yok');
     });
 
     test('kaldırılan aile en yakın karşılığa taşınır, seçim sıfırlanmaz', () {

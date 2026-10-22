@@ -369,7 +369,7 @@ class _OpenHistoryScreenState extends State<OpenHistoryScreen> {
             icon: Icon(fmLayoutIcon(_layout)),
             onPressed: () async {
               final picked = await showFmLayoutSheet(context, current: _layout);
-              if (picked == null) return;
+              if (picked == null || !mounted) return;
               setState(() => _layout = picked);
               ListMemory.saveLayout(OpenHistoryScreen.memoryId, picked);
             },

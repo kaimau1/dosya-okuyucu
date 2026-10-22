@@ -1,6 +1,6 @@
 # Privacy Policy — Dosya Okuyucu
 
-**Last updated:** 26 September 2026 · **Version:** 0.1.0
+**Last updated:** 22 October 2026 · **Version:** 0.1.0
 
 ## Summary
 
@@ -35,9 +35,14 @@ Uninstalling the app deletes all of it.
 | **Download manager** | The address you enter | The download request |
 | **Translation** (ML Kit) | Google | Only while the language model is downloaded **for the first time**. Translation itself runs offline, on the device. |
 | **Share / Print** | The app you choose | The file you share |
+| **AI voices** (Antalia-2 Mini, EMA Lightning) | Hugging Face — `huggingface.co` | Only while **you download** a voice: the request for the model files. Your text is never sent — speech is generated on the device, offline. |
 
-**Text recognition (OCR), document scanning and translation run on the
+**Text recognition (OCR), smart cleanup analysis, audiobook creation,
+document scanning and translation run on the
 device** — your document contents are not uploaded for these features.
+
+**QR code sharing** uses no network: the note is inside the QR code read by
+the other person's camera and is not uploaded anywhere.
 
 ## 3. Crash reports
 

@@ -347,3 +347,17 @@
 5. Masaüstü (Windows/macOS/Linux) build hedefleri + iOS.
 
 
+
+- **2026-10-22 (9) — Faz 14b/15b/17/18/19/11a(bulut)/12a + yeni istekler:**
+  ÇÖKME kök nedeni: `shared_preferences_android` 2.5.x JNI kaydı SÜREÇ başına
+  tek ve her motorun detach'i siliyor → `PickerActivity` kapanınca ana uygulama
+  "No instance with no name has been registered" → 2.4.28'e sabit (2.4.29
+  yayımlanmamış). TUZAK: temanın `focusedBorder/enabledBorder/filled`'ı
+  `border: InputBorder.none` alanlara sızar (Excel hücresi mavi çerçeve) — dört
+  anahtar birlikte; bekçi `bare_input_guard_test`. Yapay zekâ sesleri (Antalia,
+  EMA): APK'ya 0 MB — HF Space'lerin ONNX Runtime Web dosyaları ilk kullanımda
+  iner, WebView + yerel 127.0.0.1 sunucu (COOP/COEP), çıktı POST ile; ağ güvenliği
+  yalnız loopback cleartext. Chromium'da doğrulandı (`tool/voice_engine_check.mjs`);
+  Android WebView'da cihaz turu bekliyor. QR paylaşım ağsız (metin QR'ın içinde,
+  üçüncü taraf yükleme reddedildi: gizlilik). Hata kaydı artık kayıt başına sürüm
+  yazar (eski kayıtlar güncel sürüme aitmiş gibi okunuyordu).

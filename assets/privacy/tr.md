@@ -1,6 +1,6 @@
 # Gizlilik Politikası — Dosya Okuyucu
 
-**Son güncelleme:** 26 Eylül 2026 · **Sürüm:** 0.1.0
+**Son güncelleme:** 22 Ekim 2026 · **Sürüm:** 0.1.0
 
 ## Özet
 
@@ -36,9 +36,14 @@ Uygulamayı kaldırdığınızda bunların hepsi silinir.
 | **İndirme yöneticisi** | Girdiğiniz adres | İndirme isteği |
 | **Çeviri** (ML Kit) | Google | Yalnız **dil modeli ilk kez indirilirken**. Çevirinin kendisi cihazda, çevrimdışı yapılır. |
 | **Paylaş / Yazdır** | Seçtiğiniz uygulama | Paylaştığınız dosya |
+| **Yapay zekâ sesleri** (Antalia-2 Mini, EMA Lightning) | Hugging Face — `huggingface.co` | Yalnız sesi **siz indirirken**: model dosyalarının indirme isteği. Metniniz gönderilmez — seslendirme cihazda, internetsiz yapılır. |
 
-**Metin tanıma (OCR), belge tarama ve çeviri motorları cihazda çalışır** —
+**Metin tanıma (OCR), akıllı temizlik analizi, sesli kitap üretimi, belge
+tarama ve çeviri motorları cihazda çalışır** —
 belgelerinizin içeriği bu işlemler için internete gönderilmez.
+
+**QR kodla paylaşım** ağ kullanmaz: not, karşı tarafın kamerasıyla okunan
+QR kodun içindedir ve hiçbir sunucuya yüklenmez.
 
 ## 3. Hata (çökme) kayıtları
 
