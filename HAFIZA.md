@@ -410,3 +410,9 @@ Yerel Windows oturumu (Flutter 3.44.6), telefon USB'de (Xiaomi 13T, Android 14+)
   ayarları)" açık olmalı. Git Bash'te adb'ye `/sdcard` yolu için `MSYS_NO_PATHCONV=1`.
 - **Sürüm numarası tuzağı:** kullanıcı arada CI nightly'yi (388) kurmuştu; yerel 380
   "sürüm düşürme" olurdu → 389 verildi. Kurmadan önce telefondaki sürüme bak.
+- **TUZAK — ölçüm verisini kullanıcının ortak depolamasına koymak:** `make_test_tree.py`
+  çıktısı (2.000 tek renk PNG + 5.000 txt) `/sdcard/DosyaOkuyucuOlcum`a itildi; telefonun
+  galerisi ve uygulamanın Belgeler'i bunlarla doldu, kullanıcı "görüntüler bozulmuş, yüzlerce
+  ölçüm dosyası" diye fark etti. Silindi + `content call --uri content://media --method
+  scan_volume` + uygulamada "Yeniden tara". Bir dahaki sefere: içine `.nomedia` koy (galeri
+  görmesin), ölçüm biter bitmez sil ve kullanıcıya ÖNCEDEN söyle.
