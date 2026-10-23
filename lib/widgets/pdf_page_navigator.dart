@@ -93,7 +93,7 @@ class PdfPageChip extends StatelessWidget {
                   ),
                   if (bookmarked) ...[
                     const SizedBox(width: 6),
-                    Icon(AppIcons.preset,
+                    Icon(AppIcons.bookmark,
                         size: 15, color: scheme.inversePrimary),
                   ],
                 ],
@@ -268,7 +268,7 @@ class _PdfPageNavigatorState extends State<PdfPageNavigator> {
                   isSelected: marked,
                   onPressed: _toggle,
                   icon: const Icon(AppIcons.important),
-                  selectedIcon: const Icon(AppIcons.preset),
+                  selectedIcon: const Icon(AppIcons.bookmark),
                 ),
               ],
             ),

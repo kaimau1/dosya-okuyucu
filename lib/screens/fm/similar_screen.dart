@@ -503,9 +503,9 @@ class _SimilarScreenState extends State<SimilarScreen> {
                           ),
                         ),
                       ),
-                    Positioned(
+                    PositionedDirectional(
                       top: 2,
-                      right: 2,
+                      end: 2,
                       child: Icon(
                         selected
                             ? AppIcons.deleteForever
@@ -518,8 +518,8 @@ class _SimilarScreenState extends State<SimilarScreen> {
                       ),
                     ),
                     if (best)
-                      Positioned(
-                        left: 2,
+                      PositionedDirectional(
+                        start: 2,
                         bottom: 2,
                         child: Container(
                           padding: const EdgeInsets.symmetric(

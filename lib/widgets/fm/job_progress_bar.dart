@@ -8,6 +8,7 @@ import '../../core/theme.dart';
 import '../../screens/fm/job_navigation.dart';
 import '../../screens/fm/jobs_screen.dart';
 import '../../services/fm/job_queue.dart';
+import '../live_progress.dart';
 
 /// Süren işi ve **son sonucu** gösteren kalıcı şerit — her sekmenin altında,
 /// gezinme çubuğunun üstünde durur.
@@ -86,7 +87,11 @@ class _RunningBarState extends State<_RunningBar> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            LinearProgressIndicator(value: job.progress, minHeight: 3),
+            LiveProgress(
+              label: job.title,
+              progress: job.progress,
+              child: LinearProgressIndicator(value: job.progress, minHeight: 3),
+            ),
             Padding(
               padding:
                   const EdgeInsetsDirectional.fromSTEB(Gap.md, Gap.xs, Gap.xs, Gap.xs),

@@ -484,7 +484,7 @@ class _VideoSideBySide extends StatelessWidget {
                           size: 44,
                           color: AppColors.onMediaSoft),
                     ),
-                    Positioned(left: 8, top: 8, child: _Tag(label)),
+                    PositionedDirectional(start: 8, top: 8, child: _Tag(label)),
                   ],
                 ),
               ),

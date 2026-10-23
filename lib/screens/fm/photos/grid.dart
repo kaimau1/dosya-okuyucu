@@ -80,8 +80,8 @@ extension _PhotosScreenGridPart on _PhotosScreenState {
       child = Stack(
         children: [
           for (final seg in segments)
-            Positioned(
-              left: seg.column * (cell + _PhotosScreenState._spacing),
+            PositionedDirectional(
+              start: seg.column * (cell + _PhotosScreenState._spacing),
               width: seg.span * cell + (seg.span - 1) * _PhotosScreenState._spacing,
               top: 0,
               bottom: 0,

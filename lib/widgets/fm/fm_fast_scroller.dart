@@ -168,8 +168,8 @@ class _FmFastScrollerState extends State<FmFastScroller> {
           if (y - lastY < 28) continue;
           if ((y - (thumbTop + _thumbHeight / 2)).abs() < 22) continue;
           lastY = y;
-          children.add(Positioned(
-            right: _thumbWidth + 10,
+          children.add(PositionedDirectional(
+            end: _thumbWidth + 10,
             top: y - 11,
             child: _TickLabel(text: tick.label),
           ));
@@ -178,8 +178,8 @@ class _FmFastScrollerState extends State<FmFastScroller> {
 
       // ── Balon: o anki ay ────────────────────────────────────────────────
       if (label != null) {
-        children.add(Positioned(
-          right: _thumbWidth + 14,
+        children.add(PositionedDirectional(
+          end: _thumbWidth + 14,
           top: thumbTop + _thumbHeight / 2 - 20,
           child: Material(
             elevation: 3,
@@ -202,8 +202,8 @@ class _FmFastScrollerState extends State<FmFastScroller> {
       return Stack(
         children: [
           Positioned.fill(child: IgnorePointer(child: Stack(children: children))),
-          Positioned(
-            right: 0,
+          PositionedDirectional(
+            end: 0,
             top: thumbTop,
             child: IgnorePointer(
               ignoring: !shown,
@@ -241,8 +241,9 @@ class _FmFastScrollerState extends State<FmFastScroller> {
                             color: _dragging
                                 ? scheme.primary
                                 : scheme.surfaceContainerHighest,
-                            borderRadius: const BorderRadius.horizontal(
-                              left: Radius.circular(_thumbHeight / 2),
+                            borderRadius:
+                                const BorderRadiusDirectional.horizontal(
+                              start: Radius.circular(_thumbHeight / 2),
                             ),
                             boxShadow: const [
                               BoxShadow(

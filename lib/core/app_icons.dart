@@ -129,7 +129,7 @@ abstract final class AppIcons {
   static const IconData editNote = Icons.edit_note_rounded;
 
   // ── boyutlandırma / görsel düzenleyici (Faz 14b, 2026-10-23) ─────────
-  static const IconData preset = Icons.bookmark_rounded;
+  static const IconData bookmark = Icons.bookmark_rounded;
   static const IconData link = Icons.link_rounded;
   static const IconData linkOff = Icons.link_off_rounded;
   static const IconData crop = Icons.crop_rounded;

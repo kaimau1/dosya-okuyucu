@@ -280,8 +280,8 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
                     children: [
                       Icon(AppIcons.sdCard,
                           size: 28, color: scheme.primary),
-                      Positioned(
-                        right: 8,
+                      PositionedDirectional(
+                        end: 8,
                         bottom: 8,
                         child: Icon(AppIcons.bolt,
                             size: 18, color: scheme.tertiary),

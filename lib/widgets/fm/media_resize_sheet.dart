@@ -639,7 +639,7 @@ class _ResizeSheetState extends State<_ResizeSheet> {
               key: ValueKey('user-preset-${up.name}'),
               onLongPress: () => _deletePreset(up),
               child: ChoiceChip(
-                avatar: const Icon(AppIcons.preset, size: 16),
+                avatar: const Icon(AppIcons.bookmark, size: 16),
                 label: Text(up.name),
                 selected: _isPreset(up.options),
                 onSelected: (_) => _applyPreset(up.options, full: true),

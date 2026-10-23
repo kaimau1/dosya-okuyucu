@@ -545,7 +545,7 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
       top: 0,
       right: w,
       child: IgnorePointer(
-        child: Icon(AppIcons.preset,
+        child: Icon(AppIcons.bookmark,
             size: w * 1.6,
             color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.85)),
       ),

@@ -183,8 +183,8 @@ class _Tile extends StatelessWidget {
                     child: Icon(item.icon, size: 22, color: iconFg),
                   ),
                   if (selected)
-                    Positioned(
-                      right: -4,
+                    PositionedDirectional(
+                      end: -4,
                       top: -4,
                       child: Container(
                         width: 18,

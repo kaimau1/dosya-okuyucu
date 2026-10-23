@@ -328,8 +328,8 @@ class _ScanTipsSheet extends StatelessWidget {
                   child: const Icon(AppIcons.noteAdd,
                       color: AppColors.onMedia, size: 30),
                 ),
-                const Positioned(
-                  right: -10,
+                const PositionedDirectional(
+                  end: -10,
                   bottom: -10,
                   child: Icon(AppIcons.touchApp,
                       size: 30, color: Color(0xFFF57C00)),

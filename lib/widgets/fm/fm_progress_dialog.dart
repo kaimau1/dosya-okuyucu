@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/job_queue.dart' show FmJobTarget;
 import '../../services/fm/tracked_task.dart';
+import '../live_progress.dart';
 
 /// Uzun süren bir dosya işlemini ilerleme penceresiyle çalıştırır.
 ///
@@ -164,9 +165,13 @@ Future<T> showFmProgress<T>(
                 // Flutter sürümüne duyarlı, CI 3.29.3'te riske girmiyoruz.
                 ClipRRect(
                   borderRadius: BorderRadius.circular(Radii.control),
-                  child: LinearProgressIndicator(
-                    value: value.total > 0 ? value.fraction : null,
-                    minHeight: 6,
+                  child: LiveProgress(
+                    label: title,
+                    progress: value.total > 0 ? value.fraction : null,
+                    child: LinearProgressIndicator(
+                      value: value.total > 0 ? value.fraction : null,
+                      minHeight: 6,
+                    ),
                   ),
                 ),
                 const SizedBox(height: Gap.sm),

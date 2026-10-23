@@ -149,9 +149,9 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
               },
             ),
           ),
-          Positioned(
+          PositionedDirectional(
             top: 8,
-            right: 8,
+            end: 8,
             child: SafeArea(
               child: IconButton(
                 icon: const Icon(AppIcons.close, color: AppColors.onMediaSoft),
@@ -161,9 +161,9 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
             ),
           ),
           if (widget.notes.any((n) => n.trim().isNotEmpty))
-            Positioned(
+            PositionedDirectional(
               top: 8,
-              left: 8,
+              start: 8,
               child: SafeArea(
                 child: IconButton(
                   key: const ValueKey('ss-notes'),

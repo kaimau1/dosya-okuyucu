@@ -265,9 +265,9 @@ class FmEntryCard extends StatelessWidget {
                       ],
                     ),
                     if (selecting)
-                      Positioned(
+                      PositionedDirectional(
                         top: 0,
-                        right: 0,
+                        end: 0,
                         child: Icon(
                           selected ? AppIcons.checkCircle : AppIcons.circle,
                           size: 20,

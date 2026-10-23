@@ -17,6 +17,7 @@ import 'job_navigation.dart';
 import 'op_history_screen.dart';
 import '../../core/snack.dart';
 import '../../core/safe_insets.dart';
+import '../../widgets/live_progress.dart';
 
 /// **İşlemler ekranı** — uzun süren her işin nerede olduğu, başarılı mı
 /// olduğu ve **ne ürettiği** tek yerde.
@@ -178,7 +179,11 @@ class _JobCard extends StatelessWidget {
             Text(subtitle, style: theme.textTheme.bodySmall),
             if (job.status == JobStatus.running) ...[
               const SizedBox(height: Gap.sm),
-              LinearProgressIndicator(value: job.progress),
+              LiveProgress(
+                label: job.title,
+                progress: job.progress,
+                child: LinearProgressIndicator(value: job.progress),
+              ),
               // "%42 · ~2 dk kaldı" — geçen süre aşağıdaki satırda.
               if (job.progress != null || job.remaining != null)
                 Padding(
