@@ -19,11 +19,13 @@ import '../../widgets/fm/fm_file_list_view.dart';
 import '../../widgets/motion.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
 import '../../widgets/fm/fm_layout_sheet.dart';
+import '../../widgets/fm/fm_list_controls.dart';
 import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import '../../widgets/fm/fm_type_chips.dart';
 import 'browser_screen.dart';
+import 'category_tools.dart';
 import 'entry_actions.dart';
 
 /// Bir kategorinin (Görüntüler / Videolar / Ses / Belgeler / Uygulamalar /
@@ -375,14 +377,21 @@ class _CategoryScreenState extends State<CategoryScreen> {
               openedAtOf: OpenHistory.forPath,
               cacheSalt: '${OpenHistory.revision}',
             ),
+            // Etiket çipleri (2026-10-23): etiketlenmiş dosya varsa en sık
+            // altı etiket aynı satırda — "#Fatura" tek dokunuş.
+            trailing: _tagChips(),
           ),
-          FmListToolbar(
-            count: files.length,
+          // **Yeni denetim şeridi** (2026-10-23): Sırala · Süzgeç · Analiz
+          // hapları + görünmeyen etkin ölçütlerin kaldırılabilir özeti.
+          // Sayı başlığın altında (bkz. [_normalBar]).
+          FmListControls(
             sort: _sort,
             descending: _desc,
             onSort: _setSort,
-            filterCount: _filter.activeCount,
-            onFilter: _openFilterSheet,
+            filter: _filter,
+            onFilterChanged: _setFilter,
+            onOpenFilter: _openFilterSheet,
+            onTools: _openTools,
           ),
           Expanded(
             child: FmFileListView(
@@ -450,26 +459,100 @@ class _CategoryScreenState extends State<CategoryScreen> {
     );
   }
 
-  PreferredSizeWidget _normalBar() => AppBar(
-        // Sayı ve sıralama artık listenin üstündeki araç şeridinde
-        // ([FmListToolbar], Faz 6) — başlık altındaki özet satırı kalktı.
-        title: Text(widget.title),
-        actions: [
-          IconButton(
-            tooltip: context.t('ph.search_in', {'title': widget.title}),
-            icon: const Icon(AppIcons.search),
-            onPressed: () => setState(() => _searching = true),
-          ),
-          IconButton(
-            tooltip: context.t('ph.layout', {'name': context.t(_layout.labelKey)}),
-            icon: Icon(fmLayoutIcon(_layout)),
-            onPressed: () async {
-              final picked = await showFmLayoutSheet(context, current: _layout);
-              if (picked != null) _setLayout(picked);
-            },
+  PreferredSizeWidget _normalBar() {
+    final shown = _sorted;
+    final theme = Theme.of(context);
+    final bytes = _bytesOf(shown);
+    final count = shown.length == _files.length
+        ? context.t('lc.count', {'n': shown.length})
+        : context.t('lc.count_of', {'n': shown.length, 'total': _files.length});
+    return AppBar(
+      // Başlık + **özet satırı** (2026-10-23 yeniden tasarım): "161 öğe ·
+      // 220 MB"; süzgeç açıksa "42 / 161 öğe · 33 MB" — sayı artık listenin
+      // üstündeki şeritte soluk bir yazı değil, ekranın kimliğinin parçası.
+      titleSpacing: 0,
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(widget.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w700)),
+          Text(
+            bytes > 0 ? '$count · ${FsPaths.humanSize(bytes)}' : count,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
           ),
         ],
+      ),
+      actions: [
+        IconButton(
+          tooltip: context.t('ph.search_in', {'title': widget.title}),
+          icon: const Icon(AppIcons.search),
+          onPressed: () => setState(() => _searching = true),
+        ),
+        IconButton(
+          tooltip: context.t('ph.layout', {'name': context.t(_layout.labelKey)}),
+          icon: Icon(fmLayoutIcon(_layout)),
+          onPressed: () async {
+            final picked = await showFmLayoutSheet(context, current: _layout);
+            if (picked != null) _setLayout(picked);
+          },
+        ),
+      ],
+    );
+  }
+
+  /// Görünen listenin toplam boyutu (liste değişmedikçe yeniden toplanmaz).
+  int _bytesOf(List<FsEntry> shown) {
+    final key = identityHashCode(shown);
+    if (_bytesKey == key) return _bytesCache;
+    _bytesKey = key;
+    return _bytesCache = shown.fold<int>(0, (s, e) => s + e.sizeBytes);
+  }
+
+  int? _bytesKey;
+  int _bytesCache = 0;
+
+  /// "Analiz ve düzenle" levhası — görünen (süzülmüş) listeye uygulanır.
+  Future<void> _openTools() => showCategoryTools(
+        context,
+        title: widget.title,
+        visible: _sorted,
+        onChanged: () async {
+          if (mounted) setState(() => _sortedCache = null);
+        },
       );
+
+  /// En sık altı etiketin çipi (yalnız bu listede etiketli dosya varsa).
+  List<Widget> _tagChips() {
+    final counts = <String, int>{};
+    for (final e in _files) {
+      for (final t in FileTags.forPath(e.path)) {
+        counts[t] = (counts[t] ?? 0) + 1;
+      }
+    }
+    if (counts.isEmpty) return const [];
+    final top = (counts.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value)))
+        .take(6);
+    return [
+      for (final e in top)
+        FmChip(
+          icon: AppIcons.tag,
+          label: e.key,
+          count: e.value,
+          selected: _filter.tags.contains(e.key),
+          onTap: () => _setFilter(_filter.toggleTag(e.key)),
+        ),
+    ];
+  }
 
   /// Süzgeç ve sıralama sayfası (tarih aralığı, boyut, kaynak, tür).
   Future<void> _openFilterSheet() async {

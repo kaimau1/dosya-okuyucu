@@ -176,8 +176,7 @@ abstract final class FileTags {
     await _save();
   }
 
-  /// Etiketi her yerden siler (etiket yönetimi).
-  @visibleForTesting
+  /// Etiketi her yerden siler (etiket yönetimi — `showTagManager`).
   static Future<void> deleteTag(String tag) async {
     await ensureLoaded();
     for (final path in _byPath.keys.toList()) {
@@ -187,8 +186,7 @@ abstract final class FileTags {
     await _save();
   }
 
-  /// Etiketi yeniden adlandırır.
-  @visibleForTesting
+  /// Etiketi yeniden adlandırır (etiket yönetimi).
   static Future<void> renameTag(String from, String to) async {
     final clean = to.trim();
     if (clean.isEmpty || clean == from) return;

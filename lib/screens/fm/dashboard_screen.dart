@@ -18,6 +18,7 @@ import '../../core/motion.dart';
 import '../../core/startup_queue.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
+import '../../services/fm/chat_junk.dart';
 import '../../services/fm/download_service.dart';
 import '../../services/fm/ai_index.dart';
 import '../../services/fm/app_storage_service.dart';
@@ -43,6 +44,7 @@ import 'usb_diagnostics_screen.dart';
 import '../../widgets/crash_notice.dart';
 import '../../widgets/fm/fm_category_tile.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/fm/smart_inbox.dart';
 import '../../widgets/new_document_sheet.dart';
 import '../../widgets/scan_flow.dart';
 import '../../widgets/section_header.dart';
@@ -56,6 +58,7 @@ import 'remote/ftp_server_screen.dart';
 import 'transfer_screen.dart';
 import 'browser_screen.dart';
 import 'category_screen.dart';
+import 'chat_cleanup_screen.dart';
 import 'cleanup_screen.dart';
 import 'downloads_screen.dart';
 import 'drive_screen.dart';
@@ -371,12 +374,56 @@ class _DashboardScreenState extends State<DashboardScreen>
                     Icon(AppIcons.search,
                         size: 20, color: scheme.onSurfaceVariant),
                     const SizedBox(width: Gap.sm),
-                    Text(
-                      context.t('fm.search_all'),
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: Paper.faint(context)),
+                    Expanded(
+                      child: Text(
+                        context.t('fm.search_all'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(color: Paper.faint(context)),
+                      ),
+                    ),
+                    // **Anlamla ara (AI)** (2026-10-23, kullanıcı: *"tüm
+                    // dosyalarda ara seçeneğine anlam ile ara AI butonu
+                    // gelmeli"*) — kutunun içinde, tek dokunuş.
+                    Tooltip(
+                      message: context.t('srch.meaning'),
+                      child: Material(
+                        color: scheme.primaryContainer,
+                        shape: const StadiumBorder(),
+                        child: InkWell(
+                          key: const ValueKey('dash-meaning-search'),
+                          customBorder: const StadiumBorder(),
+                          onTap: () => _push(SearchScreen(
+                            rootLabel: context.t('fm.all_files'),
+                            meaning: true,
+                          )),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(AppIcons.ai,
+                                    size: 16,
+                                    color: scheme.onPrimaryContainer),
+                                const SizedBox(width: 4),
+                                Text(
+                                  context.t('srch.meaning_short'),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelMedium
+                                      ?.copyWith(
+                                          color: scheme.onPrimaryContainer,
+                                          fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -441,7 +488,15 @@ class _DashboardScreenState extends State<DashboardScreen>
             // isteği 2026-08-29: *"çalışırken uygulama içinde … görülmeli"*).
             // Bildirim paneli telefonun dışı; bu şerit uygulamanın içi. Telefonu
             // ağa açık bırakmak bir daha "unutulacak" bir şey olmasın.
-            _networkShareBanner(),
+            // **Akıllı bildirim alanı** (2026-10-23): süren işler, önemli
+            // olaylar (bellek dolu, çöp şişti, ağdan erişim açık) ve bitmiş
+            // sonuçlar TEK kartta, en üstte. Boşken hiç çizilmez. Eski ağ
+            // paylaşımı şeridi de buraya katıldı (tek tip).
+            AnimatedBuilder(
+              animation: FtpService.instance,
+              builder: (context, _) =>
+                  SmartInbox(events: _inboxEvents(volumes)),
+            ),
             if (!_hasAccess) _permissionCard(),
             if (_scanning)
               _ScanProgress(

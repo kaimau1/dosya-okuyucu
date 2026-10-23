@@ -32,7 +32,9 @@ import '../../widgets/fm/fm_selection_bar.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import 'entry_actions.dart';
 import 'image_gallery_screen.dart' show fmMediaHeroTag;
+import 'category_tools.dart';
 import 'similar_screen.dart';
+import '../../widgets/app_action_sheet.dart';
 import '../../core/snack.dart';
 
 import '../../core/app_haptics.dart';

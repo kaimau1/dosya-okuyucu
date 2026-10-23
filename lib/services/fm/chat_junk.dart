@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import '../../models/chat_media.dart';
 import '../../models/fs_entry.dart';
 
@@ -116,6 +118,41 @@ class ChatJunkReport {
   /// gereksiz" iddiası ekranda bir sayıyla karşılanabilsin.
   int get junkPercent =>
       scannedFiles == 0 ? 0 : (junkFiles * 100 / scannedFiles).round();
+
+  /// Kovalardaki tüm dosyalar (yol başına bir kez — bir dosya iki kovada
+  /// olabilir: hem kopya hem eski).
+  Map<String, FsEntry> get junkEntries => {
+        for (final b in buckets)
+          for (final f in b.files) f.path: f,
+      };
+
+  /// Yalnız [alive] dosyaları kalan rapor — silinenler kovalardan VE taranan
+  /// toplamdan düşer, boşalan kova kalkar.
+  ///
+  /// KÖK NEDEN (2026-10-23, kullanıcı: *"temizliyorum, bitiyor ama hâlâ
+  /// temizlenmesi gerekenler arasında görülüyor; yenileyince düzeliyor"*):
+  /// rapor taramanın anlık fotoğrafıydı ve silme onu hiç değiştirmiyordu.
+  ChatJunkReport keepOnly(bool Function(String path) alive) {
+    var goneFiles = 0;
+    var goneBytes = 0;
+    for (final e in junkEntries.values) {
+      if (!alive(e.path)) {
+        goneFiles++;
+        goneBytes += e.sizeBytes;
+      }
+    }
+    if (goneFiles == 0) return this;
+    return ChatJunkReport(
+      buckets: [
+        for (final b in buckets)
+          if (b.files.any((f) => alive(f.path)))
+            ChatJunkBucket(
+                b.kind, [for (final f in b.files) if (alive(f.path)) f]),
+      ],
+      scannedFiles: math.max(0, scannedFiles - goneFiles),
+      scannedBytes: math.max(0, scannedBytes - goneBytes),
+    );
+  }
 }
 
 /// Bir dosya sohbet uygulamasından mı geldi? (WhatsApp / Telegram klasörleri.)

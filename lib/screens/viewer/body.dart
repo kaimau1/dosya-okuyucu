@@ -71,14 +71,9 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         // Kullanıcı kendisi kaydırmaya başladı: "gidilen sayfa"
                         // tercihi artık geçerli değil.
                         onInteractionStart: (_) => _pdfJumpTarget = null,
-                        // Okuma kipi: pdfrx kaydırma bildirimi yaymıyor; tek
-                        // parmak dikey hareketi çubuklara elle iletilir
-                        // (parmak yukarı = belge aşağı akar = gizle).
-                        onInteractionUpdate: (d) {
-                          if (d.pointerCount == 1) {
-                            _readingBars.scrolled(-d.focalPointDelta.dy);
-                          }
-                        },
+                        // (Okuma kipi çubukları PDF'te kapalı — görünüm boyu
+                        // değişince pdfrx sayfa başına atlıyor; bkz.
+                        // `_buildShell`.)
                         // Arama eşleşmelerini sayfada vurgula: metin katmanı
                         // (pdfrx, Faz 1) + taranmış sayfaların OCR eşleşmeleri
                         // (Faz 2) — renkler aynı, kullanıcı fark görmez.

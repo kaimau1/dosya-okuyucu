@@ -266,7 +266,13 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const JobProgressBar(),
+          // Panoda şerit YOK: süren/biten işler panonun en üstündeki akıllı
+          // bildirim alanında (2026-10-23, kullanıcı: *"bildirim işlerinin tek
+          // alanda toplanması, tek tip olması"*) — aynı iş iki yerde
+          // görünmesin. Öteki sekmelerde şerit durur.
+          JobProgressBar(
+              hidden: (tabs.isEmpty ? NavTabs.home : tabs[index < 0 ? 0 : index]) ==
+                  NavTabs.home),
           // Tek sekme kaldıysa çubuk çizilmez (Material en az iki ister) —
           // düzenleme sayfası Ayarlar'dan ve "Ana ekranı düzenle"den açılır.
           if (tabs.length > 1)

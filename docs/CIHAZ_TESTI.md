@@ -589,3 +589,25 @@ Telefona kopyalarken klasöre `.nomedia` KOY ve iş bitince SİL (HAFIZA 2026-10
 - [ ] **Arapça (RTL) — 16:** hızlı kaydırıcı balonu ve tutamacı SOL kenarda; benzer fotoğraflar
       ve fotoğraf ızgarası grup etiketleri hücrelerin üstünde hizalı; rozetler aynalanmış.
 
+
+### 2026-10-23 (14) — üst alan yeniden tasarımı / bildirim alanı / çöp / PDF
+- [ ] **PDF kaydırma:** uzun PDF'te hızlı aşağı-yukarı kaydır + savur → belge parmağı izliyor,
+      sayfa başına geri ÇEKİLMİYOR; üst/alt çubuk sabit kalıyor.
+- [ ] **Dolu çöp (≥ 3 bin öğe):** açılış < 1 sn, kaydırma akıcı; "Boşalt" sırasında pano/kategori
+      ekranı takılmıyor; bitince sayı doğru; tek öğe sil/geri yükle anında listeden düşüyor.
+- [ ] **Sohbet temizliği:** kovadan sil → geri dön → kova sayısı ve "N dosya · X MB" (panodaki
+      kartta da) yenile'ye basmadan güncel.
+- [ ] **Akıllı bildirim alanı:** büyük kopyalama başlat → panonun en üstünde halka + kalan süre;
+      bitince "✓ … · şimdi" satırı, × ile kapanıyor; panodayken alt şerit YOK, Dosyalar dışındaki
+      sekmede şerit VAR; bellek ≥ %90'da uyarı satırı; FTP açıkken kapatılamaz satır + "Kapat".
+- [ ] **Bellek kartı:** eskisinden ~%25 alçak; 2,0× yazıda taşma yok.
+- [ ] **Kategori üst alanı (Belgeler):** başlık altında "161 öğe · 220 MB"; Sırala/Süzgeç/Analiz
+      hapları; süzgeçte tarih/etiket seçince hapların altında × çipleri, "Temizle" hepsini kaldırıyor.
+- [ ] **Analiz ve düzenle:** Özet, Genel analiz (ay çubukları, "uzun süredir açılmamış" → liste),
+      AI analizi (anahtar yoksa etkinleştir penceresi), AI ile kategorilere ayır → öneri levhası →
+      uygula → çip satırında "#Fatura · 12"; Etiketleri yönet → yeniden adlandır/sil.
+- [ ] **Seçim › Daha fazla:** alttan gruplu levha (Düzenle / Kopyala ve gönder / Diğer), "AI ile
+      etiketle" mavi; galeri ⋮ da aynı levha.
+- [ ] **Anlamla ara:** panodaki "✦ Anlamla" → "geçen kışki elektrik faturası" → Ara → "Aranan:"
+      çipleri + ilgili dosyalar; düğmeye tekrar basınca normal ad aramasına dönüyor.
+- [ ] **Araçlar:** ilk sıra Harici bellek, sonra Yer aç, Sohbet temizliği, Aktar, Kasa…

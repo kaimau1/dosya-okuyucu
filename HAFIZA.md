@@ -429,3 +429,36 @@
   **Office:** "Word liste düğmesi" ve "Excel formül önizlemesi" zaten vardı (yol haritası
   bayattı); slayta görsel ekleme yazıldı (`PptxEditor.addImage`, `PptxRender.forget`).
   Cihaz maddeleri `docs/CIHAZ_TESTI.md` en alt. Sıradaki: cihaz turu (FAZ_PLANI §0.1 sıra 12).
+
+- **2026-10-23 (14) — üst alan yeniden tasarımı, akıllı bildirim alanı, çöp donması, PDF "zorla
+  kaydırma", AI etiket/anlamla arama:** Kullanıcı (4 ekran görüntüsü): kategori üst alanı baştan,
+  "Analiz ve düzenle" menüsü, panoda %25 alçak bellek kartı + bildirim alanı, çöp donması, PDF,
+  tek tip bildirim, sohbet temizliği sayıları, araç sırası, menüler, anlamla ara.
+  **Kök neden — PDF "zorla kaydırılıyor":** okuma kipi (Faz 18/G20) çubukları kaydırırken çekince
+  gövde her animasyon karesinde büyüyor; pdfrx 1.3.5 `_updateLayout` görünüm boyu her değiştiğinde
+  `_goToPage(güncel sayfa)` çağırıp SAYFA BAŞINA atlıyor. PDF'te okuma kipi kapatıldı
+  (`readingBars: null`). **TUZAK:** pdfrx görüntüleyicisinin boyunu jest sırasında asla değiştirme.
+  **Kök neden — dolu çöpte donma/çökme:** `TrashService.list()` her kayıt için ana izlekte
+  `existsSync`×2; `empty()` öğe başına `deleteForever` → 5 bin kez tüm `index.json` yazımı +
+  5 bin `FsEvents.changed()` (açık ekranlar disk taramalı tazelemeye giriyordu). Artık var olma
+  denetimi `compute`ta (≥200), dizin JSON'u damgalı (boy+mtime) bellek önbelleğinde, toplu silme
+  200'lük gruplarla tek yazma + TEK sinyal (`_deleteMany`, purge de). Çöp ekranı süzme/sayım
+  önbellekli, tek silme/geri yükleme yerelden düşer.
+  **Kök neden — sohbet temizliği "temizledim ama hâlâ sayıyor":** rapor taramanın anlık fotoğrafıydı.
+  `ChatJunkLive` (süreç başına tek FsEvents dinleyicisi) silineni kovalardan/toplamdan düşürür,
+  `job.detail`i yeniler, `JobQueue.refreshFinished` şeridi/kutuyu tazeler.
+  **Yeni:** `SmartInbox` (pano en üstü; süren işler → olaylar [bellek ≥%90, çöp ≥300, ağdan erişim
+  — kapatılamaz] → 24 sa içindeki kapatılmamış sonuçlar; en çok 3 satır; boşken çizilmez). Panoda
+  alt `JobProgressBar(hidden:)` gizli (aynı iş iki yerde olmasın); ağ şeridi inbox'a katıldı.
+  Bellek kartı kompakt (halka 52, titleLarge). `showAppActionSheet` (gruplu, simgeli levha —
+  `showAppSheet` üstünde; tasarım bekçisi `showModalBottomSheet`i yeni dosyada YASAKLIYOR) →
+  seçim "Daha fazla" ve galeri ⋮; açılır menü teması gölgeli/ferah. Kategori ekranı: başlık altında
+  "N öğe · X MB", `FmListControls` (Sırala·Süzgeç·Analiz hapları + çip satırında GÖRÜNMEYEN etkin
+  ölçütlerin kaldırılabilir çipleri), etiket çipleri. `category_tools.dart`: Özet / Genel analiz
+  (`CollectionInsights`, cihazda) / AI analizi (sayılar + ≤150 ad) / AI ile kategorilere ayır
+  (`AiTagger`: önce AI dizini, kalanlar için ad+klasör ADI+boyut+ay; öneri levhada onaylanır) /
+  toplu etiket / etiket yönetimi (ilk kez arayüz; `renameTag/deleteTag` artık @visibleForTesting
+  değil). Anlamla ara (`AiMeaningSearch`): YALNIZ sorgu AI'ya, sözcük planı arama dizini + AI
+  dizininde cihazda puanlanır; panodaki arama kutusunda "✦ Anlamla" + arama ekranında düğme.
+  Araçlar varsayılan sırası güç sırası (Yer aç, Sohbet temizliği [yeni kutu], Aktar, Kasa…);
+  harici bellek yine hep başta. graphify bu ortamda yok — `graphify update .` yerelde.

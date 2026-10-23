@@ -5,6 +5,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../services/fm/chat_junk.dart';
 import '../../services/fm/duplicate_finder.dart';
+import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/job_queue.dart';
 import '../../services/fm/media_library.dart';
@@ -33,7 +34,7 @@ class ChatCleanupScreen extends StatefulWidget {
 }
 
 class _ChatCleanupScreenState extends State<ChatCleanupScreen> {
-  static const _jobId = 'chat_junk_scan';
+  static const _jobId = ChatJunkLive.jobId;
 
   /// Kullanıcının seçtiği "küçük görüntü" eşiği. Değişince tarama tekrarlanır
   /// — eşik tahminin can alıcı parçası ve sabit bir sayı dayatmak yanlış olurdu.
@@ -42,6 +43,9 @@ class _ChatCleanupScreenState extends State<ChatCleanupScreen> {
   @override
   void initState() {
     super.initState();
+    ChatJunkLive.ensure();
+    // Ekran kapalıyken (ör. kova ekranından, panodan) silinenler de düşsün.
+    ChatJunkLive.prune();
     JobQueue.instance.addListener(_onQueue);
     final job = JobQueue.instance.find(_jobId);
     final hasResult = job?.result is ChatJunkReport;
@@ -115,14 +119,8 @@ class _ChatCleanupScreenState extends State<ChatCleanupScreen> {
           wasOpened: (path) => OpenHistory.forPath(path) != null,
         );
         handle.result = report;
-        handle.report(
-          detail: report.junkFiles == 0
-              ? strings.t('cj.step_clean')
-              : strings.t('cj.step_summary', {
-                  'n': report.junkFiles,
-                  'size': FsPaths.humanSize(report.junkBytes),
-                }),
-        );
+        handle.report(detail: ChatJunkLive.summary(report, strings));
+        ChatJunkLive.ensure();
       },
     );
     setState(() {});
@@ -309,6 +307,69 @@ class _ChatCleanupScreenState extends State<ChatCleanupScreen> {
         ChatJunkKind.sent => AppIcons.send,
         ChatJunkKind.stale => AppIcons.historyToggleOff,
       };
+}
+
+/// Sohbet temizliği sonucunu **canlı** tutar: dosya silinince/taşınınca
+/// kovalar, sayılar ve pano şeridindeki "N dosya · X MB geri kazanılabilir"
+/// satırı kendiliğinden güncellenir (yenile'ye basmadan).
+///
+/// Süreç başına tek dinleyici; ekran kapalıyken de çalışır (şerit panoda).
+/// Var olma denetimi arka izlekte ([FsScan.pruneMissing]); art arda gelen
+/// sinyaller tek tura iner.
+abstract final class ChatJunkLive {
+  static const jobId = 'chat_junk_scan';
+  static bool _listening = false;
+  static bool _busy = false;
+  static bool _again = false;
+
+  static void ensure() {
+    if (_listening) return;
+    _listening = true;
+    FsEvents.version.addListener(prune);
+  }
+
+  static String summary(ChatJunkReport report, AppStrings strings) =>
+      report.junkFiles == 0
+          ? strings.t('cj.step_clean')
+          : strings.t('cj.step_summary', {
+              'n': report.junkFiles,
+              'size': FsPaths.humanSize(report.junkBytes),
+            });
+
+  static Future<void> prune() async {
+    if (_busy) {
+      _again = true;
+      return;
+    }
+    _busy = true;
+    try {
+      do {
+        _again = false;
+        final job = JobQueue.instance.find(jobId);
+        final report = job?.result;
+        if (job == null ||
+            job.status.isActive ||
+            report is! ChatJunkReport ||
+            report.junkFiles == 0) {
+          return;
+        }
+        final all = report.junkEntries;
+        final alive = await FsScan.pruneMissing(all.values.toList());
+        if (alive.length == all.length) continue;
+        final keep = {for (final e in alive) e.path};
+        // Tarama arada yenilendiyse eski sonucu yeninin üstüne yazma.
+        if (!identical(job.result, report)) continue;
+        final next = report.keepOnly(keep.contains);
+        job.result = next;
+        job.detail = summary(next, AppStrings.current);
+        JobQueue.instance.refreshFinished(job);
+      } while (_again);
+    } catch (_) {
+      // Bilinçli: canlı budama bir kolaylık; başarısızsa "Yeniden tara" var.
+    } finally {
+      _busy = false;
+    }
+  }
 }
 
 /// Sohbet temizliği ekranını açar (pano kutusu ve iş hedefi buradan geçer).

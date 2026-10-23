@@ -128,10 +128,44 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
         FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
         // Nadir işler menüde: çubuk Google Foto'daki gibi sade kalsın (eskiden
         // dört simge + iki satırlı başlık sığmak için yarışıyordu).
-        PopupMenuButton<String>(
+        // Nadir işler levhada (2026-10-23: ortada açılan menü yerine gruplu
+        // eylem levhası — bkz. `showAppActionSheet`); "Analiz ve düzenle"
+        // kategori ekranlarıyla aynı.
+        IconButton(
+          key: const ValueKey('ph-more'),
           tooltip: context.t('fm.more_actions'),
           icon: const Icon(AppIcons.more),
-          onSelected: (v) {
+          onPressed: () async {
+            final v = await showAppActionSheet<String>(
+              context,
+              title: widget.title,
+              groups: [
+                AppActionGroup(title: context.t('ph.view'), actions: [
+                  AppAction(
+                      value: 'view',
+                      icon: AppIcons.layoutGrid,
+                      label: context.t('ph.view')),
+                  if (visible.isNotEmpty)
+                    AppAction(
+                        value: 'select',
+                        icon: AppIcons.selectAll,
+                        label: context.t('ph.select_all')),
+                ]),
+                AppActionGroup(title: context.t('ct.group_analysis'), actions: [
+                  AppAction(
+                      value: 'tools',
+                      icon: AppIcons.insights,
+                      accent: true,
+                      label: context.t('ct.title'),
+                      hint: context.t('ct.menu_hint')),
+                  AppAction(
+                      value: 'similar',
+                      icon: AppIcons.autoAwesomeMotion,
+                      label: context.t('ph.similar_short')),
+                ]),
+              ],
+            );
+            if (!mounted) return;
             switch (v) {
               case 'view':
                 _showViewSheet();
@@ -139,34 +173,23 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
                 _openSimilar();
               case 'select':
                 _toggleSelectAll(visible);
+              case 'tools':
+                await showCategoryTools(
+                  context,
+                  title: widget.title,
+                  visible: visible,
+                  onChanged: () async {
+                    if (mounted) _partSetState(() {});
+                  },
+                );
             }
           },
-          itemBuilder: (ctx) => [
-            _menuItem(ctx, 'view', AppIcons.layoutGrid, ctx.t('ph.view')),
-            _menuItem(ctx, 'similar', AppIcons.autoAwesomeMotion,
-                ctx.t('ph.similar_short')),
-            if (visible.isNotEmpty)
-              _menuItem(ctx, 'select', AppIcons.selectAll, ctx.t('ph.select_all')),
-          ],
         ),
         const SizedBox(width: 4),
       ],
       bottom: strip,
     );
   }
-
-  PopupMenuItem<String> _menuItem(
-          BuildContext ctx, String value, IconData icon, String label) =>
-      PopupMenuItem(
-        value: value,
-        child: Row(
-          children: [
-            Icon(icon, size: 20),
-            const SizedBox(width: 14),
-            Flexible(child: Text(label)),
-          ],
-        ),
-      );
 
   void _openSimilar() {
     Navigator.of(context).push(MaterialPageRoute(

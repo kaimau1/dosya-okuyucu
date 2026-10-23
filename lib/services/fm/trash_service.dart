@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show compute;
 import 'package:path/path.dart' as p;
 
 import 'file_ops.dart';
@@ -264,18 +265,45 @@ class TrashService {
 
   /// Çöpteki tüm kayıtlar (en yeni önce). Diskte karşılığı kalmamış kayıtlar
   /// (kullanıcı klasörü elle silmişse) listeden düşer.
+  ///
+  /// **Var olma denetimi arka izlekte** (2026-10-23, kullanıcı: *"çöp kutusu
+  /// çok dolu olduğunda açılırken donma kasma oluyor, bazen çökme"*). KÖK
+  /// NEDEN: her kayıt için ana izlekte `File.existsSync` + `Directory.
+  /// existsSync` — 5 bin kayıtta 10 bin eşzamanlı disk çağrısı, ekran ve
+  /// panonun çöp sayacı (her dönüşte) saniyelerce kilitleniyordu.
   Future<List<TrashItem>> list() async {
-    final out = <TrashItem>[];
+    final all = <TrashItem>[];
     for (final dir in _allTrashDirs) {
-      for (final item in await _readIndex(dir)) {
-        if (File(item.storedPath).existsSync() ||
-            Directory(item.storedPath).existsSync()) {
-          out.add(item);
-        }
-      }
+      all.addAll(await _readIndex(dir));
     }
+    if (all.isEmpty) return all;
+    final paths = [for (final i in all) i.storedPath];
+    final alive = paths.length < _isolateFrom
+        ? _existing(paths)
+        : await _inBackground(_existing, paths);
+    final out = [
+      for (var i = 0; i < all.length; i++)
+        if (alive[i]) all[i],
+    ];
     out.sort((a, b) => b.deletedAtMs.compareTo(a.deletedAtMs));
     return out;
+  }
+
+  /// Bu sayının altında arka izleğe geçmek (ileti kopyası + izlek açılışı)
+  /// denetimin kendisinden pahalı.
+  static const _isolateFrom = 200;
+
+  static List<bool> _existing(List<String> paths) => [
+        for (final path in paths)
+          File(path).existsSync() || Directory(path).existsSync(),
+      ];
+
+  static Future<R> _inBackground<A, R>(R Function(A) fn, A arg) async {
+    try {
+      return await compute(fn, arg);
+    } catch (_) {
+      return fn(arg);
+    }
   }
 
   /// Kaydı eski yerine geri yükler. Eski yol doluysa `" (1)"` ekiyle.
@@ -325,6 +353,13 @@ class TrashService {
   ///
   /// Dosya ZATEN yoksa hata değildir: kayıt düşer (kullanıcı elle silmiş olabilir).
   Future<void> deleteForever(TrashItem item) async {
+    await _deleteStored(item);
+    await _removeFromIndex(item);
+    FsEvents.changed();
+  }
+
+  /// Dosyanın kendisini siler (kayda dokunmaz). Hata YUKARI çıkar.
+  Future<void> _deleteStored(TrashItem item) async {
     final entity = item.isDir
         ? Directory(item.storedPath) as FileSystemEntity
         : File(item.storedPath);
@@ -340,9 +375,67 @@ class TrashService {
         throw FileSystemException('silinemedi', item.storedPath);
       }
     }
-    await _removeFromIndex(item);
-    FsEvents.changed();
   }
+
+  /// Birden çok kaydı **tek yazmayla** düşürür (dizin başına bir kez).
+  Future<void> _removeManyFromIndex(Iterable<TrashItem> gone) =>
+      _withIndexLock(() async {
+        final byDir = <String, Set<String>>{};
+        for (final i in gone) {
+          (byDir[i.trashDir] ??= {}).add(i.storedPath);
+        }
+        for (final e in byDir.entries) {
+          final items = [...await _readIndex(e.key)]
+            ..removeWhere((i) => e.value.contains(i.storedPath));
+          await _writeIndex(e.key, items);
+        }
+      });
+
+  /// Toplu kalıcı silme: dosyalar tek tek, kayıtlar ve değişiklik sinyali
+  /// **toplu**.
+  ///
+  /// KÖK NEDEN (2026-10-23, "çöp kutusu dolu → donma, bazen çökme"): boşaltma
+  /// her öğe için [deleteForever] çağırıyordu — 5 bin öğede 5 bin kez tüm
+  /// `index.json`ı yeniden yazmak VE 5 bin kez `FsEvents.changed()`: her sinyal
+  /// açık kategori ekranlarını, panoyu ve sohbet temizliğini disk taramalı
+  /// tazelemeye sokuyordu. Kayıtlar [_flushEvery] öğede bir düşer; arada
+  /// kesilirse dosyası gitmiş kayıtları [list] zaten göstermez.
+  Future<FmOpResult> _deleteMany(
+    List<TrashItem> items, {
+    void Function(FmProgress)? onProgress,
+    bool Function()? isCancelled,
+  }) async {
+    final errors = <String>[];
+    final pending = <TrashItem>[];
+    var ok = 0;
+    var done = 0;
+    var cancelled = false;
+    for (final item in items) {
+      if (isCancelled?.call() ?? false) {
+        cancelled = true;
+        break;
+      }
+      onProgress?.call(FmProgress(done, items.length, item.name));
+      try {
+        await _deleteStored(item);
+        pending.add(item);
+        ok++;
+      } catch (e) {
+        errors.add('${item.name}: $e');
+      }
+      done++;
+      if (pending.length >= _flushEvery) {
+        await _removeManyFromIndex(pending);
+        pending.clear();
+      }
+    }
+    if (pending.isNotEmpty) await _removeManyFromIndex(pending);
+    if (ok > 0) FsEvents.changed();
+    onProgress?.call(FmProgress(done, items.length, ''));
+    return FmOpResult(succeeded: ok, errors: errors, cancelled: cancelled);
+  }
+
+  static const _flushEvery = 200;
 
   /// [days] günden eski kayıtları kalıcı siler (ayarlardaki otomatik
   /// temizleme). Silinen öğe sayısını döndürür.
@@ -350,14 +443,12 @@ class TrashService {
     if (days <= 0) return 0;
     final cutoff =
         DateTime.now().subtract(Duration(days: days)).millisecondsSinceEpoch;
-    var removed = 0;
-    for (final item in await list()) {
-      if (item.deletedAtMs > 0 && item.deletedAtMs < cutoff) {
-        await deleteForever(item);
-        removed++;
-      }
-    }
-    return removed;
+    final old = [
+      for (final item in await list())
+        if (item.deletedAtMs > 0 && item.deletedAtMs < cutoff) item,
+    ];
+    if (old.isEmpty) return 0;
+    return (await _deleteMany(old)).succeeded;
   }
 
   /// Çöp kutusunu boşaltır. [onProgress] verilirse her öğede ilerleme
@@ -371,24 +462,8 @@ class TrashService {
     bool Function()? isCancelled,
   }) async {
     final items = await list();
-    final errors = <String>[];
-    var ok = 0;
-    var done = 0;
-    for (final item in items) {
-      if (isCancelled?.call() ?? false) {
-        return FmOpResult(succeeded: ok, errors: errors, cancelled: true);
-      }
-      onProgress?.call(FmProgress(done, items.length, item.name));
-      try {
-        await deleteForever(item);
-        ok++;
-      } catch (e) {
-        errors.add('${item.name}: $e');
-      }
-      done++;
-    }
-    onProgress?.call(FmProgress(done, items.length, ''));
-    return FmOpResult(succeeded: ok, errors: errors);
+    return _deleteMany(items,
+        onProgress: onProgress, isCancelled: isCancelled);
   }
 
   /// Çöpteki toplam boyut (kayıtlardan okunur; klasörler çöpe atılırken
@@ -403,20 +478,54 @@ class TrashService {
 
   // ── index.json ─────────────────────────────────────────────────────────
 
+  /// Çözülmüş `index.json` önbelleği: dizin → (dosya damgası, kayıtlar).
+  ///
+  /// Her geri yükleme/silme/çöpe atma "oku → değiştir → yaz" yapıyor; dolu bir
+  /// çöpte (5 bin kayıt ≈ 1 MB JSON) her adımda dosyayı baştan okuyup çözmek
+  /// 600 dosyalık bir sohbet temizliğini dakikalara uzatıyordu. Damga (boy +
+  /// değişme zamanı) dışarıdan bir yazmayı da yakalar.
+  static final Map<String, ({String stamp, List<TrashItem> items})>
+      _indexCache = {};
+
+  static String _stampOf(File file) {
+    final st = file.statSync();
+    return '${st.size}|${st.modified.millisecondsSinceEpoch}';
+  }
+
   Future<List<TrashItem>> _readIndex(String trashDir) async {
     final file = File(p.join(trashDir, _indexFile));
-    if (!file.existsSync()) return const [];
+    if (!file.existsSync()) {
+      _indexCache.remove(trashDir);
+      return const [];
+    }
     try {
-      final raw = jsonDecode(await file.readAsString());
-      if (raw is! List) return const [];
-      return raw
-          .whereType<Map>()
-          .map((m) => TrashItem.fromMap(m.cast<String, dynamic>(), trashDir))
+      final stamp = _stampOf(file);
+      final cached = _indexCache[trashDir];
+      if (cached != null && cached.stamp == stamp) return cached.items;
+      final text = await file.readAsString();
+      // Büyük dizin JSON'u arka izlekte çözülür (ana izlekte 1 MB çözmek
+      // tek başına birkaç kare yutuyor).
+      final rows = text.length < 64 * 1024
+          ? _decodeRows(text)
+          : await _inBackground(_decodeRows, text);
+      final items = rows
+          .map((m) => TrashItem.fromMap(m, trashDir))
           .whereType<TrashItem>()
           .toList();
+      _indexCache[trashDir] = (stamp: stamp, items: List.unmodifiable(items));
+      return items;
     } catch (_) {
       return const [];
     }
+  }
+
+  static List<Map<String, dynamic>> _decodeRows(String text) {
+    final raw = jsonDecode(text);
+    if (raw is! List) return const [];
+    return [
+      for (final m in raw)
+        if (m is Map) m.cast<String, dynamic>(),
+    ];
   }
 
   /// Kaydı **atomik** yazar: geçici dosyaya yaz, sonra `rename`.
@@ -438,6 +547,12 @@ class TrashService {
     await tmp.writeAsString(jsonEncode(items.map((i) => i.toMap()).toList()),
         flush: true);
     await tmp.rename(file.path);
+    try {
+      _indexCache[trashDir] =
+          (stamp: _stampOf(file), items: List.unmodifiable(items));
+    } catch (_) {
+      _indexCache.remove(trashDir);
+    }
   }
 
   /// Kayıt değişikliklerinin **sırayla** koşmasını sağlayan zincir.

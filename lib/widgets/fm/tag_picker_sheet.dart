@@ -101,8 +101,8 @@ class _TagSheetState extends State<_TagSheet> {
                   alignment: AlignmentDirectional.centerStart,
                   child: Text(
                     widget.paths.length == 1
-                        ? 'Etiketle'
-                        : 'Etiketle (${widget.paths.length} dosya)',
+                        ? context.t('tp.title')
+                        : context.t('tp.title_n', {'n': widget.paths.length}),
                     style: theme.textTheme.titleMedium,
                   ),
                 ),

@@ -9,6 +9,8 @@ import '../../models/fs_entry.dart';
 import '../../screens/fm/entry_actions.dart';
 import '../../screens/fm/resize_actions.dart';
 import '../../screens/fm/swipe_pager.dart';
+import '../app_action_sheet.dart';
+import 'ai_tag_flow.dart';
 import 'batch_rename_sheet.dart';
 import 'tag_picker_sheet.dart';
 import '../../core/snack.dart';
@@ -159,110 +161,148 @@ class FmSelectionBar extends StatelessWidget {
     );
   }
 
-  Widget _more(BuildContext context) {
+  /// "Daha fazla" — gruplu, simgeli **eylem levhası** (2026-10-23; eskiden
+  /// ekranın ortasında açılan simgesiz on satırlık metin menüsüydü).
+  Widget _more(BuildContext context) => _action(
+        context,
+        AppIcons.moreHoriz,
+        context.t('fm.more'),
+        () async {
+          final n = selected.length;
+          final v = await showAppActionSheet<String>(
+            context,
+            title: context.t('sel.sheet_title', {'n': n}),
+            subtitle: n == 1 ? selected.first.name : null,
+            groups: [
+              AppActionGroup(title: context.t('sel.group_organize'), actions: [
+                AppAction(
+                    value: 'tag',
+                    icon: AppIcons.tag,
+                    label: context.t('fm.tag')),
+                AppAction(
+                    value: 'ai_tag',
+                    icon: AppIcons.ai,
+                    accent: true,
+                    label: context.t('tagai.action'),
+                    hint: context.t('tagai.action_hint')),
+                if (_anyMedia)
+                  AppAction(
+                      value: 'resize',
+                      icon: AppIcons.resize,
+                      label: context.t('fm.resize')),
+                if (n == 1)
+                  AppAction(
+                      value: 'rename',
+                      icon: AppIcons.rename,
+                      label: context.t('fm.rename')),
+                if (n > 1)
+                  AppAction(
+                      value: 'batch_rename',
+                      icon: AppIcons.rename,
+                      label: context.t('fm.batch_rename')),
+                if (zipDestDir != null)
+                  AppAction(
+                      value: 'zip',
+                      icon: AppIcons.compress,
+                      label: context.t('fm.compress')),
+              ]),
+              AppActionGroup(title: context.t('sel.group_copy'), actions: [
+                AppAction(
+                    value: 'important',
+                    icon: AppIcons.star,
+                    label: context.t('fm.copy_to_important')),
+                AppAction(
+                    value: 'shared',
+                    icon: AppIcons.shareFolder,
+                    label: context.t('fm.copy_to_shared')),
+                AppAction(
+                    value: 'clip_copy',
+                    icon: AppIcons.clipCopy,
+                    label: context.t('fm.clip_copy')),
+                AppAction(
+                    value: 'clip_cut',
+                    icon: AppIcons.cut,
+                    label: context.t('fm.clip_cut')),
+              ]),
+              AppActionGroup(title: context.t('sel.group_more'), actions: [
+                AppAction(
+                    value: 'hide',
+                    icon: AppIcons.hidden,
+                    label: context.t('ea.hide'),
+                    hint: context.t('sel.hide_hint')),
+                if (n == 2 && !_anyDir)
+                  AppAction(
+                      value: 'compare',
+                      icon: AppIcons.compare,
+                      label: context.t('fm.compare_digest')),
+                if (n == 1)
+                  AppAction(
+                      value: 'properties',
+                      icon: AppIcons.info,
+                      label: context.t('fm.properties')),
+              ]),
+            ],
+          );
+          if (v != null && context.mounted) await _run(context, v);
+        },
+      );
+
+  Future<void> _run(BuildContext context, String value) async {
     final appState = context.read<AppState>();
     final messenger = ScaffoldMessenger.of(context);
     // Asenkron boşluktan sonra `context` kullanılamaz → metinler şimdi alınır.
     final clipCopied = context.t('fm.clipboard_copied');
     final clipCut = context.t('fm.clipboard_cut');
-    return Expanded(
-      child: PopupMenuButton<String>(
-        tooltip: context.t('fm.more_actions'),
-        onSelected: (value) async {
-          switch (value) {
-            case 'important':
-              if (await copyToImportant(context, _paths)) await onChanged();
-            case 'shared':
-              // Çoklu seçimde de var: kullanıcı PC'ye birden çok dosya
-              // göndermek isterse tek tek ⋮ açması saçma olurdu.
-              if (await copyToShared(context, _paths)) await onChanged();
-            case 'clip_copy':
-              appState.setClipboard(_paths, cut: false);
-              showSnackOn(messenger, clipCopied);
-              await onChanged();
-            case 'clip_cut':
-              appState.setClipboard(_paths, cut: true);
-              showSnackOn(messenger, clipCut);
-              await onChanged();
-            case 'zip':
-              final dest = zipDestDir;
-              if (dest != null && await zipEntries(context, _paths, dest)) {
-                await onChanged();
-              }
-            case 'rename':
-              if (selected.length == 1 &&
-                  await renameEntry(context, selected.first)) {
-                await onChanged();
-              }
-            case 'batch_rename':
-              if (await showBatchRenameSheet(context, selected)) {
-                await onChanged();
-              }
-            case 'resize':
-              // İş kuyruğa gider; liste tazelemeyi FsEvents üstleniyor.
-              await startResizeJob(context, selected);
-            case 'tag':
-              if (await showTagPicker(context, _paths)) await onChanged();
-            case 'hide':
-              if (await hideEntries(context, _paths)) await onChanged();
-            case 'properties':
-              if (selected.length == 1 && context.mounted) {
-                await showProperties(context, selected.first);
-              }
-            case 'compare':
-              // **İki dosya aynı mı?** (2026-09-06 denetim turu.) Aynı adı
-              // taşıyan iki kopya ("rapor.pdf" ve "rapor (1).pdf") gerçekten
-              // aynı mı, yoksa biri güncel mi — kullanıcının bunu anlamasının
-              // hiçbir yolu yoktu; boyut eşitliği yeterli değil.
-              if (selected.length == 2 && context.mounted) {
-                await compareTwoFiles(context, _paths);
-              }
-          }
-        },
-        itemBuilder: (_) => [
-          if (selected.length == 2 && !_anyDir)
-            PopupMenuItem(
-                value: 'compare', child: Text(context.t('fm.compare_digest'))),
-          if (_anyMedia)
-            PopupMenuItem(value: 'resize', child: Text(context.t('fm.resize'))),
-          PopupMenuItem(value: 'tag', child: Text(context.t('fm.tag'))),
-          PopupMenuItem(value: 'hide', child: Text(context.t('ea.hide'))),
-          PopupMenuItem(
-              value: 'important',
-              child: Text(context.t('fm.copy_to_important'))),
-          PopupMenuItem(
-              value: 'shared', child: Text(context.t('fm.copy_to_shared'))),
-          PopupMenuItem(
-              value: 'clip_copy', child: Text(context.t('fm.clip_copy'))),
-          PopupMenuItem(
-              value: 'clip_cut', child: Text(context.t('fm.clip_cut'))),
-          if (zipDestDir != null)
-            PopupMenuItem(value: 'zip', child: Text(context.t('fm.compress'))),
-          if (selected.length == 1)
-            PopupMenuItem(value: 'rename', child: Text(context.t('fm.rename'))),
-          if (selected.length > 1)
-            PopupMenuItem(
-                value: 'batch_rename',
-                child: Text(context.t('fm.batch_rename'))),
-          if (selected.length == 1)
-            PopupMenuItem(
-                value: 'properties', child: Text(context.t('fm.properties'))),
-        ],
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: Gap.sm),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(AppIcons.moreHoriz),
-              const SizedBox(height: 2),
-              Text(context.t('fm.more'),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelSmall),
-            ],
-          ),
-        ),
-      ),
-    );
+    switch (value) {
+      case 'important':
+        if (await copyToImportant(context, _paths)) await onChanged();
+      case 'shared':
+        // Çoklu seçimde de var: kullanıcı PC'ye birden çok dosya
+        // göndermek isterse tek tek ⋮ açması saçma olurdu.
+        if (await copyToShared(context, _paths)) await onChanged();
+      case 'clip_copy':
+        appState.setClipboard(_paths, cut: false);
+        showSnackOn(messenger, clipCopied);
+        await onChanged();
+      case 'clip_cut':
+        appState.setClipboard(_paths, cut: true);
+        showSnackOn(messenger, clipCut);
+        await onChanged();
+      case 'zip':
+        final dest = zipDestDir;
+        if (dest != null && await zipEntries(context, _paths, dest)) {
+          await onChanged();
+        }
+      case 'rename':
+        if (selected.length == 1 &&
+            await renameEntry(context, selected.first)) {
+          await onChanged();
+        }
+      case 'batch_rename':
+        if (await showBatchRenameSheet(context, selected)) {
+          await onChanged();
+        }
+      case 'resize':
+        // İş kuyruğa gider; liste tazelemeyi FsEvents üstleniyor.
+        await startResizeJob(context, selected);
+      case 'tag':
+        if (await showTagPicker(context, _paths)) await onChanged();
+      case 'ai_tag':
+        if (await showAiTagFlow(context, selected)) await onChanged();
+      case 'hide':
+        if (await hideEntries(context, _paths)) await onChanged();
+      case 'properties':
+        if (selected.length == 1 && context.mounted) {
+          await showProperties(context, selected.first);
+        }
+      case 'compare':
+        // **İki dosya aynı mı?** (2026-09-06 denetim turu.) Aynı adı
+        // taşıyan iki kopya ("rapor.pdf" ve "rapor (1).pdf") gerçekten
+        // aynı mı, yoksa biri güncel mi — kullanıcının bunu anlamasının
+        // hiçbir yolu yoktu; boyut eşitliği yeterli değil.
+        if (selected.length == 2 && context.mounted) {
+          await compareTwoFiles(context, _paths);
+        }
+    }
   }
 }

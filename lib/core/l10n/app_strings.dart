@@ -15,6 +15,7 @@ part 'strings/9_perf_err.dart';
 part 'strings/10_list_office.dart';
 part 'strings/11_media.dart';
 part 'strings/12_ux.dart';
+part 'strings/13_smart.dart';
 
 /// Uygulama metinleri — Türkçe / İngilizce / Arapça.
 ///
@@ -129,4 +130,5 @@ const Map<String, (String, String, String)> _table = {
   ..._t10,
   ..._t11,
   ..._t12,
+  ..._t13,
 };

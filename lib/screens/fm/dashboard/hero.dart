@@ -180,20 +180,24 @@ class _StorageHero extends StatelessWidget {
               borderRadius:
                   BorderRadius.vertical(top: Radius.circular(radius)),
               child: Padding(
-                padding:
-                    const EdgeInsetsDirectional.fromSTEB(Gap.md, Gap.md, Gap.sm, Gap.sm),
+                // **Kompakt** (2026-10-23, kullanıcı: *"üst alan ~%25 daha
+                // alçak olmalı"*): halka 68 → 52, büyük sayı headlineSmall →
+                // titleLarge, iç boşluklar ve eylem hapları inceldi; kazanılan
+                // yer akıllı bildirim alanına ([SmartInbox]) gitti.
+                padding: const EdgeInsetsDirectional.fromSTEB(
+                    Gap.md, Gap.sm + 2, Gap.sm, Gap.xs + 2),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Row(
                       children: [
                         SizedBox.square(
-                          dimension: 68,
+                          dimension: 52,
                           child: Stack(
                             alignment: Alignment.center,
                             children: [
                               CustomPaint(
-                                size: const Size.square(68),
+                                size: const Size.square(52),
                                 painter: _RingPainter(
                                   slices: [
                                     for (final p in parts)
@@ -201,14 +205,14 @@ class _StorageHero extends StatelessWidget {
                                   ],
                                   total: has ? volume.capacityBytes : 1,
                                   trackColor: scheme.surfaceContainerHighest,
-                                  strokeWidth: 7,
+                                  strokeWidth: 5.5,
                                 ),
                               ),
                               has
                                   ? Text(
                                       context.t('fm.hero_percent',
                                           {'n': (ratio * 100).round()}),
-                                      style: theme.textTheme.titleSmall
+                                      style: theme.textTheme.labelMedium
                                           ?.copyWith(
                                         fontWeight: FontWeight.w800,
                                         color: full
@@ -217,7 +221,7 @@ class _StorageHero extends StatelessWidget {
                                       ),
                                     )
                                   : Icon(volumeIcon(volume),
-                                      size: 24,
+                                      size: 20,
                                       color: scheme.onSurfaceVariant),
                             ],
                           ),
@@ -246,7 +250,6 @@ class _StorageHero extends StatelessWidget {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 2),
                               Text(
                                 has
                                     ? context.t('fm.free_bytes', {
@@ -257,7 +260,7 @@ class _StorageHero extends StatelessWidget {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: (has
-                                        ? theme.textTheme.headlineSmall
+                                        ? theme.textTheme.titleLarge
                                         : theme.textTheme.bodySmall)
                                     ?.copyWith(fontWeight: FontWeight.w800),
                               ),
@@ -282,13 +285,13 @@ class _StorageHero extends StatelessWidget {
                       ],
                     ),
                     if (has) ...[
-                      const SizedBox(height: Gap.sm + 4),
+                      const SizedBox(height: Gap.sm),
                       Padding(
                         padding: const EdgeInsetsDirectional.only(end: Gap.sm),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(4),
                           child: SizedBox(
-                            height: 8,
+                            height: 6,
                             child: Row(
                               children: [
                                 for (final part in parts)
@@ -319,7 +322,7 @@ class _StorageHero extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(Gap.sm, 0, Gap.sm, Gap.sm),
+              padding: const EdgeInsets.fromLTRB(Gap.sm, 0, Gap.sm, Gap.xs + 2),
               child: Row(
                 children: [
                   Expanded(
@@ -385,7 +388,7 @@ class _HeroAction extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(radius),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [

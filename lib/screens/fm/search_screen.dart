@@ -13,6 +13,7 @@ import '../../models/fm_filter.dart';
 import '../../models/fs_entry.dart';
 import '../../models/media_bucket.dart';
 import '../../services/fm/entry_opener.dart';
+import '../../services/fm/ai_meaning_search.dart';
 import '../../services/fm/content_search.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/file_tags.dart';
@@ -51,7 +52,13 @@ class SearchScreen extends StatefulWidget {
   /// dosyalar sonuçlara HİÇ girmiyordu (kullanıcı 2026-09-02).
   final String? root;
   final String? rootLabel;
-  const SearchScreen({super.key, this.root, this.rootLabel});
+
+  /// Ekran **anlamla ara** (AI) kipinde mi açılsın? (Panodaki arama kutusunun
+  /// ✦ düğmesi.)
+  final bool meaning;
+
+  const SearchScreen(
+      {super.key, this.root, this.rootLabel, this.meaning = false});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -81,6 +88,14 @@ class _SearchScreenState extends State<SearchScreen> {
   /// dosyaları OKUMAK demek ve saniyeler sürebiliyor. Kullanıcı bunu
   /// bilerek istemeli.
   bool _inContent = false;
+
+  /// **Anlamla ara** kipi (2026-10-23): sorgu AI ile eş anlamlı/ilgili
+  /// sözcüklere genişletilir, sonuçlar cihazda sıralanır (bkz.
+  /// [AiMeaningSearch]). Her tuşta değil, "Ara"ya basınca çalışır — istek
+  /// başına kota harcanır.
+  late bool _meaning = widget.meaning;
+  MeaningPlan? _plan;
+  Map<String, List<String>> _meaningMatched = const {};
   List<ContentHit> _contentHits = const [];
   FmSort _sort = FmSort.date;
   bool _desc = true;
@@ -169,6 +184,11 @@ class _SearchScreenState extends State<SearchScreen> {
 
   void _onChanged(String value) {
     _debounce?.cancel();
+    if (_meaning) {
+      // Yazarken AI'ya gidilmez; eski planın çipleri yeni metinle çelişmesin.
+      if (_plan != null) setState(() => _plan = null);
+      return;
+    }
     // 250 ms: dizin sayesinde arama ucuzladı, eskisi (400 ms) fazla bekletiyor.
     _debounce = Timer(const Duration(milliseconds: 250), () => _run(value));
   }
@@ -252,6 +272,10 @@ class _SearchScreenState extends State<SearchScreen> {
   /// boyut ve klasör.
   String _subtitleFor(FsEntry e) {
     if (e.isDir) return p.dirname(e.path);
+    final terms = _meaning ? _meaningMatched[e.path] : null;
+    if (terms != null && terms.isNotEmpty) {
+      return '≈ ${terms.join(', ')} · ${FmLocation.subtitle(e.path, e.sizeBytes, e.modifiedMs, AppStrings.of(context).t, volumes: FmEnv.volumes)}';
+    }
     final hit = _inContent ? _contentHitOf(e.path) : null;
     if (hit != null) {
       final head = AppStrings.of(context)
@@ -264,6 +288,15 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   List<FsEntry> get _filtered {
+    // Anlamla aramada sıra = İLGİ (puan); tarih/ad sıralaması uygulanmaz.
+    if (_meaning && _plan != null) {
+      return [
+        for (final e in _results)
+          if (_filter.matches(e,
+              tagsOf: FileTags.forPath, openedAtOf: OpenHistory.forPath))
+            e,
+      ];
+    }
     final smart = _smart;
     final smartCategory = smart?.category;
     final list = [
@@ -309,7 +342,7 @@ class _SearchScreenState extends State<SearchScreen> {
           autofocus: true,
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
-            hintText: context.t('srch.in_hint',
+            hintText: _meaning ? context.t('srch.meaning_hint') : context.t('srch.in_hint',
                 {
                   'name': (_everywhere ? null : widget.rootLabel) ??
                       (_root == null
@@ -328,7 +361,7 @@ class _SearchScreenState extends State<SearchScreen> {
             // düğmesi ya da bir sonucu açmak): her tuş vuruşunu kaydetmek
             // listeyi "f", "fa", "fat" gibi ön eklerle doldururdu.
             unawaited(SearchHistory.record(q));
-            unawaited(_run(q));
+            unawaited(_meaning ? _runMeaning(q) : _run(q));
           },
         ),
         actions: [
@@ -341,6 +374,21 @@ class _SearchScreenState extends State<SearchScreen> {
                 _run('');
               },
             ),
+          // **Anlamla ara** (AI) — görünür düğme, menünün içinde değil.
+          IconButton(
+            key: const ValueKey('srch-meaning'),
+            tooltip: context.t(_meaning ? 'srch.meaning_off' : 'srch.meaning'),
+            isSelected: _meaning,
+            style: _meaning
+                ? IconButton.styleFrom(
+                    backgroundColor:
+                        Theme.of(context).colorScheme.primaryContainer,
+                    foregroundColor:
+                        Theme.of(context).colorScheme.onPrimaryContainer)
+                : null,
+            icon: const Icon(AppIcons.ai),
+            onPressed: _toggleMeaning,
+          ),
           FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
           PopupMenuButton<String>(
             tooltip: context.t('srch.options'),
@@ -380,7 +428,8 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
       body: Column(
         children: [
-          if (_smart != null) _smartChips(),
+          if (_meaning) _meaningBanner(),
+          if (_smart != null && !_meaning) _smartChips(),
           _filterChips(),
           if (_searching || _aiBusy || SearchIndex.isBuilding)
             const LinearProgressIndicator(minHeight: 2),
@@ -491,6 +540,105 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
+  void _toggleMeaning() {
+    setState(() {
+      _meaning = !_meaning;
+      _plan = null;
+      _meaningMatched = const {};
+      if (_meaning) {
+        _inContent = false;
+        _smart = null;
+      }
+    });
+    final q = _controller.text.trim();
+    if (q.length >= 2) {
+      unawaited(_meaning ? _runMeaning(q) : _run(q));
+    }
+  }
+
+  /// Anlamla arama: sorgu (yalnız sorgu) AI'ya, sıralama cihazda.
+  Future<void> _runMeaning(String query) async {
+    final q = query.trim();
+    if (q.length < 2) return;
+    final appState = context.read<AppState>();
+    final str = AppStrings.of(context);
+    if (!await ensureAiKey(context) || !mounted) return;
+    final token = ++_queryToken;
+    setState(() {
+      _aiBusy = true;
+      _searching = true;
+    });
+    try {
+      final (plan, hits) = await AiMeaningSearch.search(
+        q,
+        gemini: appState.gemini,
+        root: _root,
+        scope: appState.aiScopeRules,
+      );
+      if (!mounted || token != _queryToken) return;
+      setState(() {
+        _aiBusy = false;
+        _searching = false;
+        _searched = true;
+        _plan = plan;
+        _results = [for (final h in hits) h.entry];
+        _meaningMatched = {for (final h in hits) h.entry.path: h.matched};
+      });
+    } catch (e) {
+      if (!mounted || token != _queryToken) return;
+      setState(() {
+        _aiBusy = false;
+        _searching = false;
+      });
+      showSnack(context, str.t('srch.ai_error', {'error': userErrorText(e)}));
+    }
+  }
+
+  /// Anlamla arama şeridi: ne yapıldığını söyler; arama sonrası AI'nın
+  /// hangi sözcüklerle aradığını çip olarak yazar ("neden bu sonuç?").
+  Widget _meaningBanner() {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final plan = _plan;
+    return Container(
+      key: const ValueKey('srch-meaning-banner'),
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(Gap.sm, Gap.xs, Gap.sm, 0),
+      padding: const EdgeInsetsDirectional.fromSTEB(Gap.md, Gap.sm, Gap.sm, Gap.sm),
+      decoration: BoxDecoration(
+        color: scheme.primaryContainer.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(Radii.control),
+      ),
+      child: plan == null
+          ? Row(
+              children: [
+                Icon(AppIcons.ai, size: 18, color: scheme.primary),
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: Text(context.t('srch.meaning_intro'),
+                      style: theme.textTheme.bodySmall),
+                ),
+              ],
+            )
+          : Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Icon(AppIcons.ai, size: 16, color: scheme.primary),
+                Text(context.t('srch.meaning_terms'),
+                    style: theme.textTheme.labelMedium),
+                for (final t in plan.terms)
+                  Chip(
+                    label: Text(t),
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+              ],
+            ),
+    );
+  }
+
   /// Sorguyu Gemini'ye yorumlatır. **Yerel çözümleme yine geçerlidir**: AI
   /// başarısız olursa ya da anlamsız yanıt dönerse arama bozulmaz.
   Future<void> _askAi() async {
@@ -578,6 +726,11 @@ class _SearchScreenState extends State<SearchScreen> {
               setState(() {
                 _inContent = !_inContent;
                 _contentHits = const [];
+                // İçerik araması ile anlamla arama aynı anda olmaz.
+                if (_inContent) {
+                  _meaning = false;
+                  _plan = null;
+                }
               });
               _run(_controller.text);
             },

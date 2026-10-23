@@ -7,7 +7,12 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
       title: doc.name,
       dirty: _dirty || _hasUnsaved,
       tabBar: _findOpen ? _findBar() : null,
-      readingBars: _readingBars,
+      // **PDF'te okuma kipi YOK** (2026-10-23, kullanıcı: *"pdfler sanki zorla
+      // kaydırılıyor"*). KÖK NEDEN: çubuklar kaydırırken çekilince gövde her
+      // animasyon karesinde büyüyor; pdfrx görünüm boyutu her değiştiğinde
+      // `_goToPage(güncel sayfa)` çağırıp sayfanın BAŞINA atlıyor — parmak
+      // aşağı iterken belge geri çekiliyordu. Gövde boyu sabit kalmalı.
+      readingBars: doc.kind == DocKind.pdf ? null : _readingBars,
       subtitle: _isPdf && _pageCount > 0
           ? context.t('shell.pages', {'n': _pageCount})
           : null,

@@ -23,10 +23,16 @@ import '../live_progress.dart';
 /// simgesi ve özet ("18,2 MB kazanıldı · Kaydedildi: Camera") — kullanıcı
 /// kapatana kadar durur. Kapatılan sonuç kaybolmuyor, İşlemler ekranında kalıyor.
 class JobProgressBar extends StatelessWidget {
-  const JobProgressBar({super.key});
+  /// Şerit gizli mi? (Panoda işler üstteki bildirim alanında — bkz.
+  /// `SmartInbox`.)
+  final bool hidden;
+
+  const JobProgressBar({super.key, this.hidden = false});
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
+  Widget build(BuildContext context) => hidden
+      ? const SizedBox.shrink()
+      : AnimatedBuilder(
         animation: JobQueue.instance,
         builder: (context, _) {
           final queue = JobQueue.instance;

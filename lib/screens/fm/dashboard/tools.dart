@@ -1,69 +1,58 @@
 part of '../dashboard_screen.dart';
 
 extension _DashboardScreenToolsPart on _DashboardScreenState {
-  /// Ağ paylaşımı açıkken panonun en üstünde duran şerit. Kapalıyken hiç
-  /// çizilmez (boş bir "kapalı" satırı yer israfı olurdu).
-  Widget _networkShareBanner() {
-    return AnimatedBuilder(
-      animation: FtpService.instance,
-      builder: (context, _) {
-        final service = FtpService.instance;
-        if (!service.running) return const SizedBox.shrink();
-        final scheme = Theme.of(context).colorScheme;
-        final address =
-            service.addresses.isEmpty ? '' : service.addresses.first;
-        return Padding(
-          padding: const EdgeInsets.only(bottom: Gap.sm),
-          child: Material(
-            color: scheme.primaryContainer,
-            borderRadius: BorderRadius.circular(context.fmCardRadius),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(context.fmCardRadius),
-              onTap: () => _push(const FtpServerScreen()),
-              child: Padding(
-                padding: const EdgeInsets.all(Gap.sm),
-                child: Row(
-                  children: [
-                    Icon(AppIcons.hotspot,
-                        color: scheme.onPrimaryContainer),
-                    const SizedBox(width: Gap.sm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            context.t('ftpd.open_action'),
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
-                                ?.copyWith(color: scheme.onPrimaryContainer),
-                          ),
-                          if (address.isNotEmpty)
-                            Text(
-                              address,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(color: scheme.onPrimaryContainer),
-                            ),
-                        ],
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () => service.stop(),
-                      child: Text(context.t('common.close')),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
+  /// Akıllı bildirim alanının **olayları** — yalnız gerçekten yapılacak bir
+  /// şey varsa (bellek ≥ %90, çöpte ≥ 300 öğe, ağdan erişim açık). Kimlikler
+  /// eşik basamağını taşır: kapatılan uyarı durum kötüleşince yeniden gelir.
+  List<InboxEvent> _inboxEvents(List<StorageVolume> volumes) {
+    final out = <InboxEvent>[];
+    final ftp = FtpService.instance;
+    if (ftp.running) {
+      out.add(InboxEvent(
+        id: 'ftp',
+        icon: AppIcons.hotspot,
+        title: context.t('ftpd.open_action'),
+        subtitle: ftp.addresses.isEmpty ? '' : ftp.addresses.first,
+        actionLabel: context.t('common.close'),
+        dismissible: false,
+        onTap: () => _push(const FtpServerScreen()),
+        onAction: () => ftp.stop(),
+      ));
+    }
+    for (final v in volumes) {
+      if (!v.isPrimary || !v.hasStats || v.capacityBytes <= 0) continue;
+      final pct = (v.usedBytes * 100 / v.capacityBytes).round();
+      if (pct < 90) continue;
+      out.add(InboxEvent(
+        id: 'storage_${pct >= 95 ? 95 : 90}',
+        icon: AppIcons.warning,
+        warning: true,
+        title: context.t('inbox.storage_full', {'n': pct}),
+        subtitle: context.t('fm.free_bytes',
+            {'v': FsPaths.humanCapacity(v.freeBytes)}),
+        actionLabel: context.t('fm.free_space'),
+        onTap: () {
+          unawaited(ToolUsage.record('free_space'));
+          _push(CleanupScreen(index: _index));
+        },
+      ));
+    }
+    if (_trashCount >= 300) {
+      out.add(InboxEvent(
+        id: 'trash_${_trashCount ~/ 500}',
+        icon: AppIcons.deleteSweep,
+        title: context.t('inbox.trash_full', {'n': _trashCount}),
+        subtitle: context.t('inbox.trash_hint'),
+        actionLabel: context.t('inbox.open'),
+        onTap: () async {
+          await _push(const TrashScreen());
+          if (mounted) await _loadTrash();
+        },
+      ));
+    }
+    return out;
   }
+
 
   /// **Araçlar** — küçük, kartsız simgeler. Alt yazı yalnız gerçek bilgi
   /// taşıdığında yazılır ("3 sürüyor"), dolgu metin konmaz.
@@ -206,8 +195,48 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
       // 2026-07-31'de "çöp kutusunu bulmak çok zor" dedi. Araçlar ızgarası
       // küçük ve kartsız; 12 küçük simgenin arasında geri alma kapısının
       // kaybolması, silinen dosyayı kurtaramamak demekti.
+      // **Sohbet temizliği** araçlarda da (2026-10-23, kullanıcı: *"araçlar
+      // alanı en güçlü olduğumuz ve en sık kullanılacak şeylerle dolu
+      // başlamalı"*). WhatsApp yığını en çok yer açan tek iş; Yer aç'ın
+      // içinde iki dokunuş derindeydi. Alt yazı süren/biten taramanın özeti.
+      FmTileData(
+        icon: AppIcons.forum,
+        color: AppHues.green,
+        id: 'chat_cleanup',
+        label: context.t('cj.title'),
+        subtitle: switch (queue.find(ChatJunkLive.jobId)) {
+          final job? when job.status.isActive =>
+            context.t('fm.jobs_running', {'n': 1}),
+          final job? when job.result is ChatJunkReport =>
+            (job.result as ChatJunkReport).junkFiles == 0
+                ? ''
+                : FsPaths.humanSize((job.result as ChatJunkReport).junkBytes),
+          _ => '',
+        },
+        onTap: () => openChatCleanupScreen(context),
+      ),
     ];
-    return tools;
+    // **Varsayılan sıra = güç sırası** (2026-10-23): hiç dokunulmamış bir
+    // kurulumda ızgara en çok işe yarayanla başlar; kullanım sayacı yine
+    // üstüne biner ([_rankedTools]). İşlemler sona yakın: süren/biten işler
+    // artık panonun en üstündeki bildirim alanında.
+    const order = [
+      'free_space',
+      'chat_cleanup',
+      'transfer',
+      'vault',
+      'organize',
+      'new_document',
+      'jobs',
+      'memories',
+      'audiobooks',
+    ];
+    int rank(FmTileData t) {
+      final i = order.indexOf(t.id);
+      return i < 0 ? order.length : i;
+    }
+
+    return [...tools]..sort((a, b) => rank(a).compareTo(rank(b)));
   }
 
   /// **Araçlar kullanıma göre sıralı** (kullanıcı isteği 2026-08-29: *"araçlar

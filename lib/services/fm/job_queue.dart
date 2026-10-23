@@ -796,6 +796,14 @@ class JobQueue extends ChangeNotifier {
     _persist();
   }
 
+  /// Bitmiş bir işin sonucu/ayrıntısı **sonradan** değişti (ör. sohbet
+  /// temizliğinde kovadaki dosyalar silindi) — şerit ve ekranlar tazelensin.
+  void refreshFinished(FmJob job) {
+    if (job.status.isActive) return;
+    notifyListeners();
+    _persist();
+  }
+
   /// Kimliğe göre iş (bitmiş olanlar dahil) — ekran geri dönünce sonucu bulur.
   FmJob? find(String id) {
     for (var i = _jobs.length - 1; i >= 0; i--) {

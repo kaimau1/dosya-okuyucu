@@ -507,13 +507,23 @@ class AppTheme {
         trackOutlineColor: WidgetStateProperty.all(scheme.outline),
       ),
 
+      // **Açılır menüler** (2026-10-23, kullanıcı: *"bu tür menüler UI olarak
+      // baştan tasarlanmalı, hepsi"*): düz, gölgesiz, sıkışık kutu → yumuşak
+      // gölgeli yüzen kart, satırlar daha ferah ve okunaklı (bodyLarge),
+      // üstte/altta nefes payı. Gruplu eylemler artık `showAppActionSheet`
+      // levhasında; burada kalan kısa seçim menüleri (sırala, görünüm…).
       popupMenuTheme: PopupMenuThemeData(
-        elevation: 0,
+        elevation: 6,
+        shadowColor: scheme.shadow.withValues(alpha: 0.28),
         color: scheme.surfaceContainerLow,
         surfaceTintColor: Colors.transparent,
+        menuPadding: const EdgeInsets.symmetric(vertical: 6),
+        labelTextStyle: WidgetStatePropertyAll(
+          text.bodyLarge?.copyWith(color: scheme.onSurface),
+        ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(metrics.radiusCard),
-          side: BorderSide(color: scheme.outlineVariant),
+          side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6)),
         ),
       ),
       // **Sayfa geçişi** artık M3 varsayılanı (ZoomPageTransitions) DEĞİL:

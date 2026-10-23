@@ -48,12 +48,62 @@ class _TrashScreenState extends State<TrashScreen> {
       _query.trim().isEmpty || fmMatches(i.name, _query);
 
   /// Çöpteki kayıtlar bellektedir → arama anlıktır, disk okunmaz.
-  List<TrashItem> get _filtered => [
-        for (final i in _items)
-          if (_matchesQuery(i) &&
-              (_types.isEmpty || _types.contains(_typeOf(i))))
-            i,
-      ];
+  ///
+  /// **Önbellekli** (2026-10-23, dolu çöpte donma): `build` her karede
+  /// süzme + tür sayımı + toplam boyut için listeyi üç kez geziyordu; 5 bin
+  /// kayıtta her dokunuş kare kaçırıyordu. Liste/sorgu/tür değişmedikçe
+  /// sonuç yeniden hesaplanmaz.
+  List<TrashItem> get _filtered {
+    final key = (identityHashCode(_items), _items.length, _query,
+        Object.hashAllUnordered(_types));
+    if (_filteredKey == key) return _filteredCache;
+    _filteredKey = key;
+    _typeOfCache.clear();
+    return _filteredCache = [
+      for (final i in _items)
+        if (_matchesQuery(i) &&
+            (_types.isEmpty || _types.contains(_typeOfCached(i))))
+          i,
+    ];
+  }
+
+  Object? _filteredKey;
+  List<TrashItem> _filteredCache = const [];
+  final Map<String, FmType> _typeOfCache = {};
+  FmType _typeOfCached(TrashItem i) =>
+      _typeOfCache[i.storedPath] ??= _typeOf(i);
+
+  int get _total {
+    final key = (identityHashCode(_items), _items.length);
+    if (_totalKey == key) return _totalCache;
+    _totalKey = key;
+    return _totalCache = _items.fold<int>(0, (sum, i) => sum + i.sizeBytes);
+  }
+
+  Object? _totalKey;
+  int _totalCache = 0;
+
+  Map<FmType, int> get _typeCounts {
+    final key = (identityHashCode(_items), _items.length, _query);
+    if (_countsKey == key) return _countsCache;
+    _countsKey = key;
+    return _countsCache = fmTypeCounts([
+      for (final i in _items)
+        if (_matchesQuery(i)) _typeOfCached(i),
+    ]);
+  }
+
+  Object? _countsKey;
+  Map<FmType, int> _countsCache = const {};
+
+  /// Tek kaydı ekrandan düşürür — tüm çöpü diskten yeniden okumadan.
+  void _dropLocal(TrashItem item) {
+    if (!mounted) return;
+    setState(() => _items = [
+          for (final i in _items)
+            if (i.storedPath != item.storedPath) i,
+        ]);
+  }
 
   @override
   void dispose() {
@@ -84,10 +134,11 @@ class _TrashScreenState extends State<TrashScreen> {
       if (!mounted) return;
       _snack(context.t('tr.restored',
           {'name': item.name, 'folder': target.split('/').last}));
+      _dropLocal(item);
     } catch (e) {
       _snack(context.t('trash.restore_failed', {'error': userErrorText(e)}));
+      _load();
     }
-    _load();
   }
 
   Future<void> _delete(TrashItem item) async {
@@ -99,10 +150,16 @@ class _TrashScreenState extends State<TrashScreen> {
         destructive: true,
     );
     if (ok != true) return;
-    await FmEnv.trash.deleteForever(item);
+    try {
+      await FmEnv.trash.deleteForever(item);
+    } catch (e) {
+      _snack(userErrorText(e));
+      _load();
+      return;
+    }
     if (!mounted) return;
     _snack(context.t('trash.deleted_one', {'name': item.name}));
-    _load();
+    _dropLocal(item);
   }
 
   /// Çöp kutusunu boşaltır — **ilerleme penceresiyle**.
@@ -113,7 +170,7 @@ class _TrashScreenState extends State<TrashScreen> {
   /// çubuk ve dosya adı görünür, sonunda özet bildirilir.
   Future<void> _empty() async {
     final count = _items.length;
-    final total = _items.fold<int>(0, (sum, i) => sum + i.sizeBytes);
+    final total = _total;
     final ok = await showAppConfirm(
         context,
         title: context.t('trash.empty_confirm_title'),
@@ -202,7 +259,7 @@ class _TrashScreenState extends State<TrashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final total = _items.fold<int>(0, (sum, i) => sum + i.sizeBytes);
+    final total = _total;
     final shown = _filtered;
     return Scaffold(
       appBar: _searching
@@ -263,10 +320,7 @@ class _TrashScreenState extends State<TrashScreen> {
                     FmFilterBar(
                       children: FmTypeChips.build(
                         context,
-                        counts: fmTypeCounts([
-                          for (final i in _items)
-                            if (_matchesQuery(i)) _typeOf(i),
-                        ]),
+                        counts: _typeCounts,
                         selected: _types,
                         onChanged: (t) => setState(() => _types = t),
                       ),
