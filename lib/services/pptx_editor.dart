@@ -232,6 +232,135 @@ class PptxEditor {
     return true;
   }
 
+  // ── Görsel ekleme ───────────────────────────────────────────────────────
+
+  static const _nsA = 'http://schemas.openxmlformats.org/drawingml/2006/main';
+  static const _nsR =
+      'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  static const _relsNs =
+      'http://schemas.openxmlformats.org/package/2006/relationships';
+
+  /// Slaytın ölçüsü (EMU); sunumda yoksa 16:9 varsayılanı.
+  (int, int) get _slideSizeEmu {
+    final sz = _firstOrNull(
+        _presentation?.findAllElements('p:sldSz') ?? const <XmlElement>[]);
+    final cx = int.tryParse(sz?.getAttribute('cx') ?? '') ?? 12192000;
+    final cy = int.tryParse(sz?.getAttribute('cy') ?? '') ?? 6858000;
+    return (cx, cy);
+  }
+
+  /// [slide]'ın ortasına bir **görsel** ekler (eski yol haritası: "slayta
+  /// görsel ekleme"). Görsel oranı korunarak slaytın %60'ına sığdırılır;
+  /// PowerPoint'te taşınıp boyutlandırılabilir bir `p:pic` olur. [ext]
+  /// `png` | `jpg` | `jpeg` | `gif`.
+  ///
+  /// Dokunulan parçalar: yeni medya dosyası, slaytın ilişki tablosu, içerik
+  /// türleri (uzantı ilk kez geliyorsa) ve slayt XML'i. Çizim modeli hemen
+  /// yeniden kurulur — görsel düzenleyicide anında görünür.
+  void addImage(
+    PptxSlide slide,
+    List<int> bytes, {
+    required String ext,
+    required int widthPx,
+    required int heightPx,
+  }) {
+    final e = ext.toLowerCase().replaceFirst('.', '');
+    final mime = switch (e) {
+      'png' => 'image/png',
+      'jpg' || 'jpeg' => 'image/jpeg',
+      'gif' => 'image/gif',
+      _ => throw ArgumentError('Desteklenmeyen resim türü: $ext'),
+    };
+    final spTree = _firstOrNull(slide.doc.findAllElements('p:spTree'));
+    if (spTree == null) throw StateError('Slaytta şekil ağacı yok');
+
+    // Medya: pakette kullanılmayan ilk numara.
+    final names = {for (final f in _archive.files) f.name};
+    var n = 1;
+    while (names.contains('ppt/media/fkimage$n.$e')) {
+      n++;
+    }
+    final media = 'ppt/media/fkimage$n.$e';
+    _archive.addFile(ArchiveFile(media, bytes.length, bytes));
+    _removed.remove(media);
+    _ensureDefault(e, mime);
+
+    // Slaytın ilişki tablosuna görsel ilişkisi.
+    final relsName = _relsPathOf(slide.fileName);
+    final relsBytes = _fileByName(_archive, relsName);
+    final rels = relsBytes != null
+        ? XmlDocument.parse(utf8.decode(relsBytes, allowMalformed: true))
+        : XmlDocument.parse('<?xml version="1.0" encoding="UTF-8" '
+            'standalone="yes"?>\n<Relationships xmlns="$_relsNs"/>');
+    var maxRid = 0;
+    for (final r in rels.rootElement.childElements) {
+      final m = RegExp(r'^rId(\d+)$').firstMatch(r.getAttribute('Id') ?? '');
+      if (m != null) maxRid = maxRid < int.parse(m[1]!) ? int.parse(m[1]!) : maxRid;
+    }
+    final rid = 'rId${maxRid + 1}';
+    rels.rootElement.children.add(XmlElement(XmlName('Relationship'))
+      ..setAttribute('Id', rid)
+      ..setAttribute('Type', '$_nsR/image')
+      ..setAttribute('Target', '../media/fkimage$n.$e'));
+    _addFile(relsName, rels.toXmlString());
+
+    // Ölçü: piksel → EMU (96 dpi), slaytın %60'ına sığdır, ortala.
+    final (sw, sh) = _slideSizeEmu;
+    var cx = (widthPx <= 0 ? 400 : widthPx) * 9525.0;
+    var cy = (heightPx <= 0 ? 300 : heightPx) * 9525.0;
+    final fit = [sw * 0.6 / cx, sh * 0.6 / cy, 1.0].reduce((a, b) => a < b ? a : b);
+    cx *= fit;
+    cy *= fit;
+    final x = ((sw - cx) / 2).round(), y = ((sh - cy) / 2).round();
+
+    var id = 1;
+    for (final el in slide.doc.findAllElements('p:cNvPr')) {
+      final v = int.tryParse(el.getAttribute('id') ?? '') ?? 0;
+      if (v >= id) id = v + 1;
+    }
+    final root = slide.doc.rootElement;
+    if (root.getAttribute('xmlns:r') == null) {
+      root.setAttribute('xmlns:r', _nsR);
+    }
+    final pic = XmlDocumentFragment.parse(
+      '<p:pic xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" '
+      'xmlns:a="$_nsA" xmlns:r="$_nsR">'
+      '<p:nvPicPr><p:cNvPr id="$id" name="Görsel $id"/>'
+      '<p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/>'
+      '</p:nvPicPr>'
+      '<p:blipFill><a:blip r:embed="$rid"/><a:stretch><a:fillRect/></a:stretch>'
+      '</p:blipFill>'
+      '<p:spPr><a:xfrm><a:off x="$x" y="$y"/>'
+      '<a:ext cx="${cx.round()}" cy="${cy.round()}"/></a:xfrm>'
+      '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>'
+      '</p:pic>',
+    ).firstElementChild!;
+    // Fragmanın kendi ad alanı bildirimleri kopyada gereksiz — köke bırak.
+    final node = pic.copy();
+    node.removeAttribute('xmlns:p');
+    node.removeAttribute('xmlns:a');
+    node.removeAttribute('xmlns:r');
+    spTree.children.add(node);
+
+    _render.forget(slide.fileName);
+    slide.view = _tryRender(_render, slide.fileName, slide.doc);
+  }
+
+  /// İçerik türlerinde uzantı için `Default` yoksa ekler.
+  void _ensureDefault(String ext, String mime) {
+    final ct = _contentTypes;
+    if (ct == null) return;
+    final has = ct.rootElement.childElements.any((el) =>
+        el.name.qualified == 'Default' &&
+        (el.getAttribute('Extension') ?? '').toLowerCase() == ext);
+    if (has) return;
+    ct.rootElement.children.insert(
+        0,
+        XmlElement(XmlName('Default'))
+          ..setAttribute('Extension', ext)
+          ..setAttribute('ContentType', mime));
+  }
+
   void _reindex() {
     for (var i = 0; i < slides.length; i++) {
       slides[i].index = i + 1;

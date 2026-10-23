@@ -53,6 +53,8 @@ void main() {
   Future<void> shot(WidgetTester tester, String name,
       {MediaResizeOptions initial = const MediaResizeOptions(),
       Brightness brightness = Brightness.light,
+      List<MediaSourceInfo> sources = const [_photo],
+      bool hasVideos = false,
       Future<void> Function(WidgetTester)? act}) async {
     const size = Size(400, 860);
     tester.view.physicalSize = size * 2;
@@ -72,11 +74,11 @@ void main() {
             body: Center(
               child: TextButton(
                 onPressed: () => showMediaResizeSheet(context,
-                    hasImages: true,
-                    hasVideos: false,
-                    fileCount: 1,
+                    hasImages: sources.any((s) => !s.isVideo),
+                    hasVideos: hasVideos,
+                    fileCount: sources.length,
                     initial: initial,
-                    sources: const [_photo]),
+                    sources: sources),
                 child: const Text('aç'),
               ),
             ),
@@ -86,6 +88,8 @@ void main() {
     ));
     await tester.tap(find.text('aç'));
     await tester.pumpAndSettle();
+    // Not: canlı önizlemenin küçük resmi widget testinde çözülmez (gerçek
+    // G/Ç); çerçeve oranı ve ölçü etiketi görünür.
     if (act != null) {
       await act(tester);
       await tester.pumpAndSettle();
@@ -121,4 +125,44 @@ void main() {
           brightness: Brightness.dark,
           initial: const MediaResizeOptions(
               resolution: ResolutionChoice.percent, percent: 150)));
+
+  // ── Faz 14b (2026-10-23) ──────────────────────────────────────────────
+  const real = MediaSourceInfo(
+      name: 'orient_1.jpg',
+      path: 'test/fixtures/media/orient_1.jpg',
+      sizeBytes: 2400000,
+      isVideo: false,
+      width: 400,
+      height: 300);
+  testWidgets('14b kırp + çapa + önizleme', (t) => shot(t, 'kirp_ust_onizleme_acik',
+      sources: const [real],
+      initial: const MediaResizeOptions(
+          resolution: ResolutionChoice.aspect,
+          aspectW: 1,
+          aspectH: 1,
+          fit: ResizeFit.cover,
+          anchor: CropAnchor.start)));
+  testWidgets('14b boşluk önizleme koyu', (t) => shot(t, 'bosluk_onizleme_koyu',
+      sources: const [real],
+      brightness: Brightness.dark,
+      initial: const MediaResizeOptions(
+          resolution: ResolutionChoice.aspect,
+          aspectW: 9,
+          aspectH: 16,
+          fit: ResizeFit.pad,
+          padColor: PadColor.blur)));
+  testWidgets('14b video oran', (t) => shot(t, 'video_oran_acik',
+      hasVideos: true,
+      sources: const [
+        MediaSourceInfo(
+            name: 'tatil.mp4',
+            sizeBytes: 80 * 1024 * 1024,
+            isVideo: true,
+            width: 1920,
+            height: 1080,
+            fps: 30,
+            durationMs: 60000),
+      ],
+      initial: const MediaResizeOptions(
+          resolution: ResolutionChoice.aspect, aspectW: 1, aspectH: 1)));
 }

@@ -286,6 +286,16 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
       onSelected: (v) => _onSlideAction(slide, v),
       itemBuilder: (_) => [
         PopupMenuItem(
+          value: 'img',
+          enabled: structural,
+          child: ListTile(
+            dense: true,
+            leading: const Icon(AppIcons.addPhoto),
+            title: Text(context.t('sl.insert_image')),
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
+        PopupMenuItem(
           value: 'dup',
           enabled: structural,
           child: ListTile(
@@ -338,6 +348,9 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
       return;
     }
     switch (action) {
+      case 'img':
+        _insertImage(slide);
+        break;
       case 'dup':
         final added = editor.duplicateSlide(slide);
         if (added != null) {
@@ -362,6 +375,45 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
         _confirmDeleteSlide(slide);
         break;
     }
+  }
+
+  /// **Görsel ekle** (eski yol haritası "slayta görsel ekleme"): seçilen
+  /// resim slaytın ortasına, oranı korunarak eklenir; PowerPoint'te taşınıp
+  /// boyutlandırılabilir. Değişiklik "Kaydet"e kadar yalnız bellekte.
+  Future<void> _insertImage(PptxSlide slide) async {
+    final editor = _editor;
+    if (editor == null) return;
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['png', 'jpg', 'jpeg', 'gif'],
+      withData: true,
+    );
+    final file = picked?.files.single;
+    final data = file?.bytes;
+    if (file == null || data == null || !mounted) return;
+    var size = (0, 0);
+    try {
+      final codec = await ui.instantiateImageCodec(data);
+      final frame = await codec.getNextFrame();
+      size = (frame.image.width, frame.image.height);
+      frame.image.dispose();
+      codec.dispose();
+    } catch (_) {
+      // Bilinçli en iyi çaba: ölçü bilinmezse servis makul varsayılanı alır.
+    }
+    if (!mounted) return;
+    try {
+      editor.addImage(slide, data,
+          ext: (file.extension ?? 'png').toLowerCase(),
+          widthPx: size.$1,
+          heightPx: size.$2);
+    } catch (e) {
+      showUserError(context, e);
+      return;
+    }
+    _dirty = true;
+    _partSetState(() {});
+    _snack(context.t('sl.image_added'));
   }
 
   Future<void> _confirmDeleteSlide(PptxSlide slide) async {

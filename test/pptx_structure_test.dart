@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:dosya_okuyucu/services/pptx_editor.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:xml/xml.dart';
 
 /// Yapısal olarak geçerli (content-types + sunum + ilişkiler + 2 slayt) küçük
 /// bir .pptx üretir. Slayt ekle/sil/taşı işlemleri bunun üzerinde denenir.
@@ -160,5 +161,45 @@ void main() {
     e.formatParagraph(slide, slide.paragraphs.first, bold: true);
     expect(slide.doc.toXmlString(), isNot(contains('a:latin')));
     expect(PptxEditor.fontOfParagraph(slide.paragraphs.first), isNull);
+  });
+
+  test('slayta görsel: medya + ilişki + içerik türü + p:pic; kaydet/aç sonrası çizilir',
+      () {
+    final editor = PptxEditor.parse(_structuredPptx());
+    final slide = editor.slides.first;
+    final shapesBefore = slide.view?.shapes.length ?? 0;
+    // 2×1 kırmızı PNG (1×1 yeterli değil: oran sınanıyor).
+    final png = base64Decode(
+        'iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAAEElEQVR4nGP4z8DAwMDAAAAZ/AL+'
+        'pK6jvwAAAABJRU5ErkJggg==');
+    editor.addImage(slide, png, ext: 'png', widthPx: 200, heightPx: 100);
+    // Çizim modeli hemen güncel.
+    expect(slide.view!.shapes.length, shapesBefore + 1);
+    final pic = slide.view!.shapes.last;
+    expect(pic.image, isNotNull);
+    // 16:9 slaytın %60'ı: 2:1 görsel genişlikten sınırlanır, ortalanır.
+    expect(pic.w / pic.h, closeTo(2, 0.01));
+    expect(pic.x + pic.w / 2, closeTo(960 / 2, 1)); // 12192000 EMU = 960 pt
+
+    final reopened = PptxEditor.parse(editor.save());
+    final s1 = reopened.slides.first;
+    expect(s1.doc.findAllElements('p:pic'), hasLength(1));
+    expect(s1.view!.shapes.last.image, isNotNull);
+    final out = ZipDecoder().decodeBytes(editor.save());
+    expect(out.files.any((f) => f.name == 'ppt/media/fkimage1.png'), isTrue);
+    final ct = utf8.decode(
+        out.files.firstWhere((f) => f.name == '[Content_Types].xml').content
+            as List<int>);
+    expect(ct, contains('Extension="png"'));
+    // İkinci görsel yeni ad ve yeni rId alır.
+    reopened.addImage(s1, png, ext: 'png', widthPx: 10, heightPx: 10);
+    final rels = utf8.decode(ZipDecoder()
+        .decodeBytes(reopened.save())
+        .files
+        .firstWhere((f) => f.name == 'ppt/slides/_rels/slide1.xml.rels')
+        .content as List<int>);
+    expect(rels, contains('fkimage2.png'));
+    expect(() => reopened.addImage(s1, png, ext: 'tiff', widthPx: 1, heightPx: 1),
+        throwsArgumentError);
   });
 }

@@ -92,4 +92,7 @@ const Map<String, (String, String, String)> _t12 = {
   'ied.size_original': ('Olduğu gibi', 'As is', 'كما هو'),
   'rs.strip_location': ('Konum bilgisini kaldır', 'Remove location', 'إزالة معلومات الموقع'),
   'rs.strip_location_sub': ('Tarih ve kamera bilgisi korunur. (WebP çıktıda meta veri yazılmaz.)', 'Date and camera info are kept. (WebP output carries no metadata.)', 'يُحتفظ بالتاريخ ومعلومات الكاميرا. (مخرجات WebP بلا بيانات وصفية.)'),
+  // ── Slayta görsel ekleme (2026-10-23) ─────────────────────────────────────
+  'sl.insert_image': ('Görsel ekle', 'Insert picture', 'إدراج صورة'),
+  'sl.image_added': ('Görsel eklendi — taşımak/boyutlandırmak için PowerPoint\'te açabilirsiniz. Kaydetmeyi unutmayın.', 'Picture added — move or resize it in PowerPoint. Don\'t forget to save.', 'أُضيفت الصورة — يمكنك نقلها أو تغيير حجمها في PowerPoint. لا تنسَ الحفظ.'),
 };

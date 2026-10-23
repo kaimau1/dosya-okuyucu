@@ -1538,6 +1538,16 @@ class PptxRender {
     return doc;
   }
 
+  /// [file] ve ilişki tablosunun önbelleğini unutur — düzenleyici parçayı
+  /// değiştirdiğinde (slayta görsel eklendi) yeniden okunsun diye.
+  void forget(String file) {
+    final dir = _dir(file);
+    final relsPath = '${dir}_rels/${file.substring(dir.length)}.rels';
+    _relsCache.remove(file);
+    _xmlCache.remove(relsPath);
+    _xmlCache.remove(file);
+  }
+
   /// `<file>` için ilişki tablosu: rId -> hedef dosyanın arşiv içindeki tam yolu.
   Map<String, String> _rels(String file) {
     final cached = _relsCache[file];
