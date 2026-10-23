@@ -404,3 +404,28 @@
   düşer. Sesli kitap üretimi `AudiobookJob` (ekrandan bağımsız, `TrackedTask` eşiksiz →
   ön plan servisi + bildirim "Durdur", hedef `FmJobTargetKind.audiobook`).
   CIHAZ_TESTI: WebView'ın uygulama alttayken JS/Worker'ı kısıp kısmadığı doğrulanmadı.
+
+- **2026-10-23 (13) — bulut işlerinin sonu: Faz 14b, 15b, 16 kalanı, slayta görsel:**
+  Kullanıcı: *"bulutta yapılabilecek hepsini tek oturumda yap, main'e merge et, APK derlensin"*.
+  **14b:** video da dört yerleşimi yapıyor — Media3 `Presentation` `LAYOUT_SCALE_TO_FIT` (siyah
+  boşluk) / `_WITH_CROP` (ortadan kırp); Dart `VideoLayout` adı kanalla gider. Videoda dosya
+  boyutu hedefi = hedef×8/süre − ses (taban 150 kbit/s; düşükse ölçü de iner, piksel başına
+  en az "en küçük" kalitenin bpp'si). `CropAnchor` (fotoğraf; video motoru yalnız orta).
+  **Ölçüldü:** `image` paketi `decodeJpg` yön etiketini piksele uygulayıp SİLİYOR, tarih/kamera
+  EXIF'ini çıktıya yazıyor → "EXIF kopyası" zaten vardı; yalnız `stripLocation` eklendi
+  (`exif.imageIfd.sub.directories.remove('gps')`). WebP (Android kodlayıcı) meta veri taşımaz.
+  Düzenleyici: `ImageEdits.scale` (kırpılmış bölgeye uygulanır, isIdentity'ye dahil).
+  **15b:** `AppType` (`context.type.small` …) — **TUZAK:** `textTheme.bodySmall` RENK de
+  taşır; düğme/çip/perde içindeki beyaz yazıyı koyuya çevirir → `AppType` yalnız BOY verir.
+  Renk tokenları değerleri birebir korur (görünüm değişmez). Simge/`Colors.*` bekçisi artık
+  tavan değil kural (0). **TUZAK — `dart format` KOŞTURMA:** depo dart format'lı değil; tek
+  dosyada bile yüzlerce satırlık gürültü üretir (bu turda 172 dosyayı biçimlendirip geri
+  almak zorunda kalındı — betikler HEAD'den yeniden uygulandı). Elle kurulan ad sorma
+  pencerelerinde `controller.dispose()` `await`ten hemen sonra → kapanış animasyonunda
+  "used after disposed" yarışı; `showAppPrompt` denetleyiciyi pencerenin durumunda tutar.
+  **16:** asimetrik `Positioned` → `PositionedDirectional` (bilinçli fiziksel: PDF sayfası
+  üstü imza/kurdele, önce/sonra bölme çizgisi — bekçide izinli). `LiveProgress`: canlı
+  bölge yalnız %10 basamağında değişir (her saniye konuşmasın).
+  **Office:** "Word liste düğmesi" ve "Excel formül önizlemesi" zaten vardı (yol haritası
+  bayattı); slayta görsel ekleme yazıldı (`PptxEditor.addImage`, `PptxRender.forget`).
+  Cihaz maddeleri `docs/CIHAZ_TESTI.md` en alt. Sıradaki: cihaz turu (FAZ_PLANI §0.1 sıra 12).

@@ -134,6 +134,8 @@ Telefona kopyalarken klasöre `.nomedia` KOY ve iş bitince SİL (HAFIZA 2026-10
 - [ ] **Son ayar hatırlanıyor mu:** bir ayarla başlat → başka fotoğrafta levha aynı ayarla
       açılıyor mu; "Özgünü çöpe at" ise HER ZAMAN kapalı açılmalı.
 - [ ] **Video seçiminde** fotoğraf kipleri görünmüyor, 480p…1080p duruyor.
+      → **2026-10-23 (14b) güncellendi:** videoda uzun kenar / en-boy oranı / dosya boyutu
+      DA var (aşağıdaki 14b maddeleri).
 
 ## Faz 13 — ortak tür süzgeci + Son açılanlar (2026-10-22)
 
@@ -553,3 +555,37 @@ Telefona kopyalarken klasöre `.nomedia` KOY ve iş bitince SİL (HAFIZA 2026-10
 - [ ] Okuma kipi: PDF/Word'de çubuklar kaydırınca gizleniyor mu; Tam ekran
 - [ ] HEIC fotoğraf boyutlandırma, WebP çıktı
 - [ ] Gemini anahtarı güncellemeden sonra kayıtlı kalıyor mu (Keystore göçü)
+
+## Faz 14b + 15b + 16 devamı + slayt görseli (2026-10-23 — bulut turu, cihazda bakılacak)
+- [ ] **Video oran kipi (Media3 düzen):** yatay 1920×1080 video → En-boy oranı 1:1 + Kırp →
+      çıktı 1080×1080, görüntü ORTADAN kırpılmış, esneme YOK; aynı video 1:1 + Kenar boşluğu →
+      1920×1920, üst/alt SİYAH şerit. (Eskiden kilit kapalı ölçü videoyu sessizce esnetiyordu.)
+- [ ] **Video piksel kilit kapalı 1080×1080:** Sığdır / Doldur ve kırp / Kenar boşluğu / Esnet
+      dört farklı ve doğru çıktı.
+- [ ] **Video dosya boyutu hedefi:** 1 dk 1080p video → "≤ 10 MB" → çıktı ~10 MB (±%15);
+      "≤ 2 MB" seçince çözünürlük de iniyor mu (iş özetinde ölçü), ses duruyor mu.
+- [ ] **Kırpma çapası (fotoğraf):** dikey portre → 1:1 + Kırp + "Üst" → yüz korunuyor mu;
+      "Sol/Sağ" yatay fotoğrafta doğru kenarı tutuyor mu (Arapça arayüzde de "Sol" görüntünün solu).
+- [ ] **Canlı önizleme:** levhanın üstündeki küçük resim oran/kırp/boşluk seçtikçe anında
+      değişiyor mu; bulanık zemin görünüyor mu; 50 fotoğraflık seçimde levha açılışı gecikmiyor mu.
+- [ ] **Ön ayar kaydet/sil:** "Ayarı kaydet" → ad ver → çip görünüyor; uygulamayı kapat-aç →
+      çip duruyor; basılı tut → sil onayı → gidiyor. "Özgünü çöpe at" ön ayarla gelmiyor.
+- [ ] **Konum bilgisini kaldır:** konumlu kamera fotoğrafı → anahtar açık → çıktıyı galeri
+      bilgisinde aç: konum YOK, tarih/kamera VAR; anahtar kapalı → konum duruyor.
+- [ ] **Görsel düzenleyici "Boyut" sekmesi:** 4. sekme; %50 / 1080 px çipleri, en yazınca boy
+      anında; kırp → boyut → Kaydet → dosya beklenen ölçüde mi. Kırpma kutusunda "1080 × 1350"
+      etiketi; yeni oranlar (4:5, 3:2, 21:9, A4, Orijinal, Özel "4:5"); üstteki karşılaştırma
+      simgesine BASILI TUT → özgün görünüyor, bırakınca düzenlenmiş.
+- [ ] **Slayta görsel ekle:** slayt ⋮ → "Görsel ekle" → galeriden resim → slaytın ortasında,
+      oranı doğru; Kaydet → dosyayı PowerPoint/Google Slaytlar'da aç → görsel orada, taşınabiliyor.
+- [ ] **Görsel dil taşıması (15b — görünüm DEĞİŞMEMELİ):** simgeler, Office şeridi (marka zemini
+      üstü beyaz yazı/simge), PDF sayfa küçük resimleri (beyaz kâğıt), galeri/video perde yazıları,
+      kırpma kılavuzları, bulma vurgusu (sarı/turuncu) önceki sürümle aynı mı. Yazı boyutları:
+      ayarlar, AI merkezi, çöp kutusu alt satırları aynı boyda mı (13 pt'lik satırlar 13 kaldı).
+- [ ] **Onay pencereleri (15b):** silme/boşaltma pencerelerinde "Sil" artık kırmızı dolgulu düğme,
+      vazgeç solda; yeniden adlandır / yeni klasör adı penceresinde uzantı seçimin dışında.
+- [ ] **TalkBack — iş ilerlemesi (16):** büyük kopyalamada şerit %10 adımlarla duyuruluyor mu
+      (her saniye konuşmamalı); İşlemler ekranında ve ilerleme penceresinde de.
+- [ ] **Arapça (RTL) — 16:** hızlı kaydırıcı balonu ve tutamacı SOL kenarda; benzer fotoğraflar
+      ve fotoğraf ızgarası grup etiketleri hücrelerin üstünde hizalı; rozetler aynalanmış.
+
