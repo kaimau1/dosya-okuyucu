@@ -105,6 +105,9 @@ void main() {
   late String path;
 
   setUp(() async {
+    // Paralel test yükünde izolat yanıtı bekleme turlarını aşıyor: ana
+    // izlekte çöz (Faz 28; ekran testleri Excel'de de böyle).
+    SlidesEditorScreen.parseInIsolate = false;
     // TUZAK (HAFIZA 2026-07-25 §F): geçici dosya `testWidgets` gövdesinde
     // oluşturulursa test sonsuza kadar asılı kalır — setUp'ta üretilmeli.
     dir = await Directory.systemTemp.createTemp('slides_test');
@@ -112,7 +115,10 @@ void main() {
     await File(path).writeAsBytes(_deck());
   });
 
-  tearDown(() => removeTempDir(dir));
+  tearDown(() {
+    SlidesEditorScreen.parseInIsolate = true;
+    removeTempDir(dir);
+  });
 
   /// TUZAK (HAFIZA 2026-07-25 §F): ekran dosyayı `await readAsBytes()` ile
   /// okuyor; sahte saat zonunda bu future İLERLEMEZ, o yüzden `pumpAndSettle`
