@@ -82,8 +82,23 @@ class DocxParagraph {
   final XmlElement _element;
 
   /// true ise çalıştırmalar [DocxEditor.setRuns] ile XML'e zaten yazıldı;
-  /// [DocxEditor.save] bu paragrafa bir daha dokunmaz.
-  bool rich = false;
+  /// [DocxEditor.save] bu paragrafın run'larını yalnız o yazımdan SONRA
+  /// (yedek editörde) değiştiyse yeniden yazar.
+  bool get rich => _richText != null;
+
+  /// setRuns anındaki metin + B/I/U — Faz 20 / W11: canlı kipte yazılmış
+  /// paragraf sonra yedek editörde değiştirilince kayıtta ATLANIYORDU.
+  String? _richText;
+  (bool, bool, bool)? _richBiu;
+
+  void _markRich() {
+    _richText = text;
+    _richBiu = (bold, italic, underline);
+  }
+
+  bool get _richTextChanged => _richText != null && text != _richText;
+  bool get _richBiuChanged =>
+      _richBiu != null && (bold, italic, underline) != _richBiu;
 
   // Açılıştaki değerler: save() yalnız DEĞİŞEN paragrafa dokunur, böylece
   // el değmeyen paragrafların run yapısı/biçimi olduğu gibi korunur.
@@ -310,7 +325,7 @@ class DocxEditor {
     }
 
     para.text = segs.map((s) => s.text).join();
-    para.rich = true;
+    para._markRich();
   }
 
   /// [ref] paragrafından sonra boş bir paragraf ekler (ref null ise belge sonuna,
@@ -441,7 +456,7 @@ class DocxEditor {
     el.children
       ..clear()
       ..add(run);
-    para.rich = true;
+    para._markRich();
     return para;
   }
 
@@ -544,9 +559,13 @@ class DocxEditor {
   Uint8List save() {
     for (final para in paragraphs) {
       if (!para.rich) {
-        // rich: çalıştırmalar setRuns ile zaten yazıldı (metin + B/I/U).
         if (para._textChanged) _writeText(para);
         if (para._biuChanged) _applyRunFormat(para);
+      } else {
+        // rich: çalıştırmalar setRuns ile zaten yazıldı; yalnız o yazımdan
+        // sonra (yedek editörde) değişen metin/biçim yeniden yazılır.
+        if (para._richTextChanged) _writeText(para);
+        if (para._richBiuChanged) _applyRunFormat(para);
       }
       // Hizalama pPr'de durur; rich paragrafta da ayrıca uygulanmalı
       // (canlı görünümdeki hizalama düğmesi buradan kalıcılaşır).

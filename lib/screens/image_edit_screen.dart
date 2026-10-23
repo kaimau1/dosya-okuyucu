@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 import '../core/app_colors.dart';
 import '../core/app_icons.dart';
+import '../core/edit/edit_history.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/snack.dart';
 import '../core/theme.dart' show OverlayBar;
@@ -42,7 +43,8 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
   ui.Image? _src;
   Object? _error;
   ImageEdits _e = const ImageEdits();
-  final _undo = <ImageEdits>[];
+  /// Faz 20 / IM4: bütün yollar tek geçmişten (sınır 30) — yinele dahil.
+  final _history = SnapshotHistory<ImageEdits>(limit: 30);
   _Tab _tab = _Tab.crop;
   double? _ratio; // genişlik/yükseklik (piksel); null = serbest
   String _ratioKey = 'ied.free';
@@ -100,8 +102,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
   }
 
   void _push(ImageEdits next) {
-    _undo.add(_e);
-    if (_undo.length > 30) _undo.removeAt(0);
+    _history.push(_e);
     setState(() => _e = next);
   }
 
@@ -178,7 +179,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
     final cropped = croppedSize(_src!, _e);
     final scale = v / (width ? cropped.width : cropped.height);
     final clamped = scale.clamp(0.0, 1.0);
-    _undo.add(_e);
+    _history.push(_e);
     setState(() => _e = _e.copyWith(scale: clamped));
     // Oran hep kilitli: öteki alan anında hesaplanır.
     final out = outputSize(_src!, _e);
@@ -278,7 +279,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
       }
     });
     if (_drag == _Drag.none && r.contains(local)) _drag = _Drag.move;
-    if (_drag != _Drag.none) _undo.add(_e);
+    if (_drag != _Drag.none) _history.push(_e);
   }
 
   void _cropUpdate(Offset local, Offset delta) {
@@ -480,7 +481,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
       out.dispose();
       if (!mounted) return;
       showSnack(context, context.t('ied.saved', {'name': p.basename(written)}));
-      _undo.clear();
+      _history.clear();
       _e = const ImageEdits();
       Navigator.of(context).pop(written);
     } catch (e) {
@@ -540,9 +541,16 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
             IconButton(
               tooltip: context.t('common.undo'),
               icon: const Icon(AppIcons.undo),
-              onPressed: _undo.isEmpty
-                  ? null
-                  : () => setState(() => _e = _undo.removeLast()),
+              onPressed: _history.canUndo
+                  ? () => setState(() => _e = _history.undo(_e)!)
+                  : null,
+            ),
+            IconButton(
+              tooltip: context.t('common.redo'),
+              icon: const Icon(AppIcons.redo),
+              onPressed: _history.canRedo
+                  ? () => setState(() => _e = _history.redo(_e)!)
+                  : null,
             ),
             Padding(
               padding: const EdgeInsetsDirectional.only(end: 8),
@@ -765,7 +773,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
           value: value,
           min: -1,
           max: 1,
-          onChangeStart: (_) => _undo.add(_e),
+          onChangeStart: (_) => _history.push(_e),
           onChanged: (v) => setState(() => _e = apply(v)),
         ),
       ),

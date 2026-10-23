@@ -47,34 +47,9 @@ class _TextEditor extends StatelessWidget {
             ValueListenableBuilder<TextEditingValue>(
               valueListenable: controller,
               builder: (_, value, __) {
-                final count = value.text.split('\n').length;
-                // Numara şeridi metinden ince bir cetvelle ayrılır (kod
-                // düzenleyicilerinin "gutter"ı).
-                final scheme = Theme.of(context).colorScheme;
-                return Container(
-                  margin: const EdgeInsetsDirectional.only(end: 12),
-                  padding: const EdgeInsetsDirectional.only(start: 12, end: 10),
-                  decoration: BoxDecoration(
-                    border:
-                        Border(right: BorderSide(color: scheme.outlineVariant)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      for (var i = 1; i <= count; i++)
-                        Text(
-                          '\$i',
-                          style: TextStyle(
-                            fontSize: fontSize,
-                            height: 1.5,
-                            // Tek aralıklı yazı tipi: numaralar sağa hizalı
-                            // olsa bile orantılı yazıda basamaklar oynuyor.
-                            fontFamily: 'monospace',
-                            color: scheme.outline,
-                          ),
-                        ),
-                    ],
-                  ),
+                return LineNumberGutter(
+                  count: value.text.split('\n').length,
+                  fontSize: fontSize,
                 );
               },
             ),
@@ -322,5 +297,48 @@ class _PendingMark {
       }
     }
     return false;
+  }
+}
+
+/// Metin düzenleyicinin satır numarası şeridi ("gutter").
+///
+/// Faz 20 / TX1: numaralar `'\$i'` kaçış hatası yüzünden her satırda düz
+/// "\$i" yazıyordu; ayrı sınıf, widget testinin numaraları görebilmesi için.
+class LineNumberGutter extends StatelessWidget {
+  final int count;
+  final double fontSize;
+
+  const LineNumberGutter(
+      {super.key, required this.count, required this.fontSize});
+
+  @override
+  Widget build(BuildContext context) {
+    // Numara şeridi metinden ince bir cetvelle ayrılır (kod
+    // düzenleyicilerinin "gutter"ı).
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsetsDirectional.only(end: 12),
+      padding: const EdgeInsetsDirectional.only(start: 12, end: 10),
+      decoration: BoxDecoration(
+        border: Border(right: BorderSide(color: scheme.outlineVariant)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (var i = 1; i <= count; i++)
+            Text(
+              '$i',
+              style: TextStyle(
+                fontSize: fontSize,
+                height: 1.5,
+                // Tek aralıklı yazı tipi: numaralar sağa hizalı
+                // olsa bile orantılı yazıda basamaklar oynuyor.
+                fontFamily: 'monospace',
+                color: scheme.outline,
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }

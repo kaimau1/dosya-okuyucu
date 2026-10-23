@@ -899,6 +899,9 @@ class XlsxEditor {
         cells[key] = cell;
         return;
       }
+      // Silmede silinen satırın kaydı düşer — yoksa bir ÜSTTEKİ satıra
+      // yazılır (Faz 20 / X2).
+      if (_inDeleted(r, at, delta)) return;
       final nr = r + delta;
       if (nr < 0) return;
       cells[cellKey(nr, c)] = XlsxCell(
@@ -932,6 +935,7 @@ class XlsxEditor {
         cells[key] = cell;
         return;
       }
+      if (_inDeleted(c, at, delta)) return;
       final nc = c + delta;
       if (nc < 0) return;
       cells[cellKey(r, nc)] = XlsxCell(
@@ -956,11 +960,17 @@ class XlsxEditor {
     if (layout.maxCol < -1) layout.maxCol = -1;
   }
 
+  /// Silme ([delta] < 0) sırasında [k] silinen aralıkta mı (`at … at-delta-1`).
+  static bool _inDeleted(int k, int at, int delta) =>
+      delta < 0 && k >= at && k < at - delta;
+
   static void _shiftKeys<T>(Map<int, T> map, int at, int delta) {
     final copy = <int, T>{};
     map.forEach((k, v) {
       if (k < at) {
         copy[k] = v;
+      } else if (_inDeleted(k, at, delta)) {
+        // silinen satır/sütunun kaydı düşer
       } else if (k + delta >= 0) {
         copy[k + delta] = v;
       }
@@ -975,6 +985,8 @@ class XlsxEditor {
     for (final k in set) {
       if (k < at) {
         copy.add(k);
+      } else if (_inDeleted(k, at, delta)) {
+        continue;
       } else if (k + delta >= 0) {
         copy.add(k + delta);
       }

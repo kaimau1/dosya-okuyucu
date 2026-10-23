@@ -259,6 +259,20 @@ extension _ParserParserPart on _Parser {
     while (_i < s.length && (_Parser._isDigit(s[_i]) || s[_i] == '.')) {
       _i++;
     }
+    var text = s.substring(start, _i);
+    if (_decimalComma &&
+        !text.contains('.') &&
+        _i + 1 < s.length &&
+        s[_i] == ',' &&
+        _Parser._isDigit(s[_i + 1])) {
+      _i++;
+      final fracStart = _i;
+      while (_i < s.length && _Parser._isDigit(s[_i])) {
+        _i++;
+      }
+      text = '$text.${s.substring(fracStart, _i)}';
+    }
+    final mantissaEnd = _i;
     if (_i < s.length && (s[_i] == 'e' || s[_i] == 'E')) {
       final save = _i;
       _i++;
@@ -271,7 +285,7 @@ extension _ParserParserPart on _Parser {
         _i = save;
       }
     }
-    final d = double.tryParse(s.substring(start, _i));
+    final d = double.tryParse(text + s.substring(mantissaEnd, _i));
     if (d == null) throw const FormulaError('#DEĞER!');
     return d;
   }

@@ -80,6 +80,30 @@ String _part(Uint8List bytes, String name) {
 }
 
 void main() {
+  // --- W11 (Faz 20): canlı düzenlenmiş paragraf yedek editörde değişince ---
+  test('canlı kipte yazılmış (rich) paragraf yedek editörde değişirse kaydedilir', () {
+    final editor = DocxEditor.parse(_richSampleDocx());
+    editor.setRuns(0, const [
+      RunSeg('Canlı ', false, false, false),
+      RunSeg('kalın', true, false, false),
+    ]);
+    // Kullanıcı yedek editöre geçip aynı paragrafı değiştirir.
+    editor.paragraphs[0].text = 'Yedekte değişti';
+    final back = DocxEditor.parse(editor.save());
+    expect(back.paragraphs[0].text, 'Yedekte değişti');
+  });
+
+  test('rich paragraf yedek editörde DEĞİŞMEDİYSE setRuns biçimi korunur', () {
+    final editor = DocxEditor.parse(_richSampleDocx());
+    editor.setRuns(0, const [
+      RunSeg('Canlı ', false, false, false),
+      RunSeg('kalın', true, false, false),
+    ]);
+    final xml = _part(editor.save(), 'word/document.xml');
+    expect(RegExp('<w:b/>').allMatches(xml).length, 1);
+    expect(DocxEditor.parse(editor.save()).paragraphs[0].text, 'Canlı kalın');
+  });
+
   // --- Yazı rengi / vurgu ---------------------------------------------------
   test('setRuns yazı rengini ve ADLANDIRILMIŞ vurguyu yazar', () {
     final editor = DocxEditor.parse(_richSampleDocx());

@@ -10,7 +10,13 @@ import 'pptx_render.dart';
 class PptxParagraph {
   String text;
   final XmlElement element; // <a:p>
-  PptxParagraph(this.text, this.element);
+
+  /// XML'e en son yazılan (ya da okunan) metin — kaydetme yalnız DEĞİŞEN
+  /// paragrafa dokunur; yoksa el değmemiş paragrafların karışık biçimi
+  /// (ikinci run'daki kalın kelime) her kayıtta ilk run'a toplanırdı.
+  String _written;
+
+  PptxParagraph(this.text, this.element) : _written = text;
 }
 
 class PptxSlide {
@@ -108,8 +114,7 @@ class PptxEditor {
   static List<PptxParagraph> _paragraphsOf(XmlDocument doc) {
     final paras = <PptxParagraph>[];
     for (final p in doc.findAllElements('a:p')) {
-      final text = p.findAllElements('a:t').map((e) => e.innerText).join();
-      paras.add(PptxParagraph(text, p));
+      paras.add(PptxParagraph(_textOf(p), p));
     }
     return paras;
   }
@@ -467,15 +472,82 @@ class PptxEditor {
     return null;
   }
 
-  void _writeText(PptxParagraph para) {
-    final tNodes = para.element.findAllElements('a:t').toList();
-    if (tNodes.isEmpty) return;
-    tNodes.first.children
-      ..clear()
-      ..add(XmlText(para.text));
-    for (final extra in tNodes.skip(1)) {
-      extra.children.clear();
+  /// Paragraf metni: `a:t`'ler sırayla, `a:br` (satır sonu) `\n` olarak.
+  static String _textOf(XmlElement p) {
+    final sb = StringBuffer();
+    for (final e in p.descendantElements) {
+      switch (e.name.qualified) {
+        case 'a:t':
+          sb.write(e.innerText);
+        case 'a:br':
+          sb.write('\n');
+      }
     }
+    return sb.toString();
+  }
+
+  /// Paragraf metnini XML'e yazar (Faz 20 / SL1, 2026-10-23).
+  ///
+  /// Eskiden `\n` `a:t` içine ham yazılıyordu (PowerPoint satır sonu
+  /// göstermez) ve `a:t`'si olmayan boş paragrafa yazılan metin hiç
+  /// kaydedilmiyordu. Şimdi: tek satırlık değişiklik ilk `a:t`'ye (run
+  /// yapısı korunur); çok satırlı ya da `a:t`'siz paragrafta run'lar
+  /// yeniden kurulur — satır arası `a:br`, biçim ilk run'ın `a:rPr`'inden,
+  /// yoksa `a:endParaRPr`'den.
+  void _writeText(PptxParagraph para) {
+    if (para.text == para._written) return;
+    final el = para.element;
+    final tNodes = el.findAllElements('a:t').toList();
+    if (!para.text.contains('\n') &&
+        tNodes.isNotEmpty &&
+        !el.findElements('a:br').any((_) => true)) {
+      tNodes.first.children
+        ..clear()
+        ..add(XmlText(para.text));
+      for (final extra in tNodes.skip(1)) {
+        extra.children.clear();
+      }
+      para._written = para.text;
+      return;
+    }
+    XmlElement? template;
+    for (final r in el.findElements('a:r')) {
+      template = _firstOrNull(r.findElements('a:rPr'));
+      if (template != null) break;
+    }
+    final end = _firstOrNull(el.findElements('a:endParaRPr'));
+    XmlElement makeRPr() {
+      if (template != null) return template.copy();
+      final rPr = XmlElement(XmlName('a:rPr'));
+      if (end != null) {
+        for (final a in end.attributes) {
+          rPr.setAttribute(a.name.qualified, a.value);
+        }
+        for (final c in end.childElements) {
+          rPr.children.add(c.copy());
+        }
+      }
+      return rPr;
+    }
+
+    el.children.removeWhere((n) =>
+        n is XmlElement &&
+        const {'a:r', 'a:br', 'a:fld'}.contains(n.name.qualified));
+    final nodes = <XmlNode>[];
+    final lines = para.text.split('\n');
+    for (var k = 0; k < lines.length; k++) {
+      if (k > 0) {
+        nodes.add(XmlElement(XmlName('a:br'), [], [makeRPr()]));
+      }
+      if (lines[k].isEmpty) continue;
+      nodes.add(XmlElement(XmlName('a:r'), [], [
+        makeRPr(),
+        XmlElement(XmlName('a:t'), [], [XmlText(lines[k])]),
+      ]));
+    }
+    final at = end == null ? el.children.length : el.children.indexOf(end);
+    el.children.insertAll(at, nodes);
+    para._written = para.text;
   }
 
   /// Düzenlenmiş metinleri ve yapısal değişiklikleri geri yazıp yeni .pptx

@@ -99,6 +99,7 @@ const Map<String, (String, String, String)> _t1 = {
   // artık kullanıcıya görünen çevrilmemiş dize YOK (`l10n_literals_test`
   // yenisini eklemeyi derleme değil TEST hatası yapar).
   'common.undo': ('Geri al', 'Undo', 'تراجع'),
+  'common.redo': ('Yinele', 'Redo', 'إعادة'),
   'common.retry': ('Yeniden dene', 'Retry', 'إعادة المحاولة'),
   'common.rescan': ('Yeniden tara', 'Rescan', 'إعادة الفحص'),
   'common.clear': ('Temizle', 'Clear', 'مسح'),

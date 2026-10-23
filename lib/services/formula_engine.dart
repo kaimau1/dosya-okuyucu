@@ -6,6 +6,7 @@ part 'formula/functions.dart';
 part 'formula/lookup_stats.dart';
 part 'formula/date_finance.dart';
 part 'formula/parser.dart';
+part 'formula/locale.dart';
 
 /// Cihaz-içi Excel formül motoru (saf Dart).
 ///
@@ -28,6 +29,12 @@ class FormulaEngine {
   /// [prefix] ile başlayan (yoksa içinde geçen) işlev adları.
   static List<String> completionsFor(String prefix, {int limit = 8}) =>
       _Parser.completionsFor(prefix, limit: limit);
+
+  /// Formülü (başında `=` OLMADAN) dosya biçimine çevirir: İngilizce işlev
+  /// adı, `,` ayırıcı, `.` ondalık, yeni işlevlere `_xlfn.` — bkz.
+  /// `formula/locale.dart`.
+  static String toFileFormula(String formula) =>
+      _FormulaLocalePart.toFile(formula);
 
   final List<List<String>> grid;
 
@@ -258,6 +265,10 @@ class _Parser {
   final int selfC;
   int _i = 0;
 
+  /// Formül Türkçe yazımla mı (`;` ayırıcı) — öyleyse rakam arasındaki `,`
+  /// ondalık ayırıcıdır (`0,5`), argüman ayırıcı değil.
+  late final bool _decimalComma = _FormulaLocalePart._hasTopSemicolon(s);
+
   _Parser(this.s, this.eng, this.visiting, {this.selfR = 0, this.selfC = 0});
 
   /// Aralık/referans değerini tek değere indirir (dosya dışına açılan API).
@@ -296,6 +307,7 @@ class _Parser {
 
   /// Türkçe/İngilizce fonksiyon adını tek biçime indirger.
   static String _canonical(String word) {
+    word = _FormulaLocalePart._stripPrefix(word);
     final up = word.toUpperCase();
     return _aliases[up] ?? _aliases[_trUpper(word)] ?? up;
   }

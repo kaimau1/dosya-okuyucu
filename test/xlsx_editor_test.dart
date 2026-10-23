@@ -192,6 +192,38 @@ void main() {
     expect(e.sheets.first.rows[1][0], '42');
   });
 
+  test('satır silme silinen satırın biçimini ÜSTTEKİ satıra yazmaz (X2)', () {
+    final e = XlsxEditor.parse(_sampleXlsx());
+    final name = e.sheets.first.name;
+    final sheet = e.sheets.first;
+    sheet.layout.rowHeights[1] = 33;
+    sheet.layout.hiddenRows.add(1);
+    sheet.layout.rowStyles[1] = 1;
+    final headerHeight = sheet.layout.rowHeights[0];
+    final headerFmt = sheet.styleAt(0, 2)?.numFmtCode;
+
+    e.deleteRow(name, 1);
+    final after = e.sheets.first;
+    expect(after.layout.rowHeights[0], headerHeight);
+    expect(after.layout.hiddenRows.contains(0), isFalse);
+    expect(after.layout.rowStyles.containsKey(0), isFalse);
+    expect(after.styleAt(0, 2)?.numFmtCode, headerFmt,
+        reason: 'C2\'nin tarih biçimi C1\'e geçmemeli');
+    expect(after.rawAt(0, 0), 'Başlık');
+  });
+
+  test('sütun silme silinen sütunun genişliğini SOLDAKİNE yazmaz (X2)', () {
+    final e = XlsxEditor.parse(_sampleXlsx());
+    final name = e.sheets.first.name;
+    final sheet = e.sheets.first;
+    sheet.layout.colWidths[1] = 99;
+    sheet.layout.hiddenCols.add(1);
+    final firstWidth = sheet.layout.colWidths[0];
+    e.deleteColumn(name, 1);
+    expect(e.sheets.first.layout.colWidths[0], firstWidth);
+    expect(e.sheets.first.layout.hiddenCols.contains(0), isFalse);
+  });
+
   test('satır silmenin TERSİ içeriği de geri getirir (geri alma)', () {
     // Geri almanın en kırılgan yeri: `deleteRow`un tersi düz `insertRow`
     // DEĞİLDİR — satırın değerleri, biçimleri ve yüksekliği de geri konmalı.

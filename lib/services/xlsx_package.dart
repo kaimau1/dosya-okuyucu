@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
 
+import 'formula_engine.dart';
 import 'xlsx_reader.dart';
 
 /// Bir sayfanın kaydedilecek içeriği — [XlsxPackageWriter]'ın girdisi.
@@ -562,7 +563,7 @@ class XlsxPackageWriter {
           continue;
         }
         if (raw.length > 1 && raw.startsWith('=')) {
-          b.write('><${prefix}f>${_esc(raw.substring(1))}</${prefix}f></${prefix}c>');
+          b.write('><${prefix}f>${_esc(FormulaEngine.toFileFormula(raw.substring(1)))}</${prefix}f></${prefix}c>');
           continue;
         }
         if (cell?.boolean != null && (raw == 'DOĞRU' || raw == 'YANLIŞ' ||
