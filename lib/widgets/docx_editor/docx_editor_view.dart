@@ -85,6 +85,11 @@ class DocxEditorViewState extends State<DocxEditorView> {
   final _spell = Expando<List<SuggestionSpan>>('docxSpell');
   Timer? _spellTimer;
 
+  // İmleç yanıp sönmesi (EditableText gibi 500 ms); her değişiklikte görünür
+  // başlar, yalnız klavye bağlıyken ve seçim yokken çalışır.
+  final _caretOn = ValueNotifier<bool>(true);
+  Timer? _blinkTimer;
+
   DocxEditController get c => widget.controller;
 
   @override
@@ -106,6 +111,8 @@ class DocxEditorViewState extends State<DocxEditorView> {
   void dispose() {
     c.removeListener(_changed);
     _spellTimer?.cancel();
+    _blinkTimer?.cancel();
+    _caretOn.dispose();
     _scroll.dispose();
     _focus.dispose();
     super.dispose();
@@ -114,11 +121,26 @@ class DocxEditorViewState extends State<DocxEditorView> {
   void _changed() {
     if (!mounted) return;
     setState(() {});
+    _restartBlink();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _measureOverlay();
       _revealCaret();
     });
     _scheduleSpell();
+  }
+
+  void _restartBlink() {
+    _blinkTimer?.cancel();
+    _caretOn.value = true;
+    if (!c.attached || !c.collapsed) return;
+    _blinkTimer = Timer.periodic(Motion.caretBlink, (_) {
+      if (!mounted || !c.attached) {
+        _blinkTimer?.cancel();
+        _caretOn.value = true;
+        return;
+      }
+      _caretOn.value = !_caretOn.value;
+    });
   }
 
   // ── bloklar ──────────────────────────────────────────────────────────────
@@ -216,12 +238,14 @@ class DocxEditorViewState extends State<DocxEditorView> {
       }
     }
     c.attach(autocorrect: widget.spellcheck);
+    _restartBlink(); // bağlantı select'ten sonra kuruldu
   }
 
   void _onLongPressStart(LongPressStartDetails d) {
     final p = hitTest(d.globalPosition);
     if (p == null || c.paras[p.para].opaque) return;
     AppHaptics.selection();
+    _focus.requestFocus();
     c.selectWord(p);
     c.attach(autocorrect: widget.spellcheck);
   }
@@ -438,7 +462,8 @@ class DocxEditorViewState extends State<DocxEditorView> {
     };
     final textW = math.max(40.0, maxW - indent - (label.isEmpty ? 0 : 28));
     Widget body = CustomPaint(
-      foregroundPainter: _ParaPainter(c, i, _key(i), _spell[p]),
+      foregroundPainter: _ParaPainter(c, i, _key(i), _spell[p],
+          i == c.extent.para ? _caretOn : null),
       child: RichText(
         key: _key(i),
         text: _span(p, textW),
@@ -693,7 +718,9 @@ class _ParaPainter extends CustomPainter {
   final int i;
   final GlobalKey key;
   final List<SuggestionSpan>? spell;
-  _ParaPainter(this.c, this.i, this.key, this.spell);
+  final ValueNotifier<bool>? caretOn;
+  _ParaPainter(this.c, this.i, this.key, this.spell, this.caretOn)
+      : super(repaint: caretOn);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -723,6 +750,7 @@ class _ParaPainter extends CustomPainter {
     final s = c.start, e = c.end;
     if (c.collapsed) {
       if (i != c.extent.para || !c.attached) return;
+      if (caretOn != null && !caretOn!.value) return;
       final off = c.extent.offset.clamp(0, len);
       final at = ro.getOffsetForCaret(TextPosition(offset: off), Rect.zero);
       final h = ro.getFullHeightForCaret(TextPosition(offset: off));

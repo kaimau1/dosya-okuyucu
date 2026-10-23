@@ -165,6 +165,52 @@ void main() {
     expect(back.paras.where((p) => p.cell != null), hasLength(4));
   });
 
+  testWidgets('klavyenin Geri sil / Sil TUŞ olayı modelde uygulanır; imleç yanıp söner',
+      (t) async {
+    // Android'de yazılım klavyesinin geri silmesi çoğu zaman KEYCODE_DEL tuş
+    // olayıdır; motor bunu editable'a uygulamaz (kullanıcı: "siliyorum hiçbir
+    // şey olmuyor ama yazılıyor").
+    final c = await open(t);
+    final target = find.textContaining('Son paragraf', findRichText: true);
+    await t.scrollUntilVisible(target, 300,
+        scrollable: find.byType(Scrollable).first);
+    await t.pump(const Duration(seconds: 2));
+    await tapText(t, 'Son paragraf');
+    final i = c.extent.para;
+    c.select(DocPos(i, 13), DocPos(i, 13));
+    await t.sendKeyEvent(LogicalKeyboardKey.backspace);
+    await t.pump();
+    expect(c.paras[i].text, 'Son paragraf');
+    expect(c.extent, DocPos(i, 12));
+    await t.sendKeyEvent(LogicalKeyboardKey.backspace);
+    await t.pump();
+    expect(c.paras[i].text, 'Son paragra');
+    // Sil (ileri).
+    c.select(DocPos(i, 0), DocPos(i, 0));
+    await t.sendKeyEvent(LogicalKeyboardKey.delete);
+    await t.pump();
+    expect(c.paras[i].text, 'on paragra');
+    // Paragraf başında geri sil → öncekine katılır.
+    final prevLen = c.paras[i - 1].length;
+    final prevText = c.paras[i - 1].text;
+    if (!c.paras[i - 1].opaque &&
+        identical(c.paras[i - 1].container, c.paras[i].container) &&
+        c.paras[i].look.numId == null) {
+      await t.sendKeyEvent(LogicalKeyboardKey.backspace);
+      await t.pump();
+      expect(c.paras[i - 1].text, '${prevText}on paragra');
+      expect(c.extent, DocPos(i - 1, prevLen));
+    }
+    // Geri al tek tek geri getirir.
+    c.undo();
+    await t.pump();
+    expect(c.paras.map((p) => p.text), isNot(contains('${prevText}on paragra')));
+    // Yanıp sönme: 500 ms aralıkla imleç kaybolup geri gelir.
+    expect(c.attached, isTrue);
+    await t.pump(const Duration(milliseconds: 510));
+    await t.pump(const Duration(milliseconds: 510));
+  });
+
   testWidgets('uzun bas → kelime seçilir, bağlam çubuğu; K seçime uygulanır',
       (t) async {
     final c = await open(t);

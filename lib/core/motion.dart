@@ -20,6 +20,9 @@ abstract final class Motion {
   /// Büyük yüzey: tam ekran geçiş, galeri açılışı.
   static const long = Duration(milliseconds: 320);
 
+  /// Metin imlecinin yarım yanıp sönme süresi (EditableText ile aynı).
+  static const caretBlink = Duration(milliseconds: 500);
+
   /// Giren öğe (yavaşlayarak durur).
   static const Curve enter = Curves.easeOutCubic;
 

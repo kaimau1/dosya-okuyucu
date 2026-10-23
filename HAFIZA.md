@@ -611,3 +611,18 @@
   `tool/make_word_fixtures.py` (stiller/listeler/tablo/resim/Arapça). **Kalan (Faz 22):** büyüteç,
   kendi panomuzdan biçimli yapıştırma, köprü METNİNİ düzenleme (bugün atom), ilk 50 paragrafı
   önce açma (3000 paragraf zaten ~0,4 s).
+- **2026-10-23 (19) — Word Mobil görünüm: geri silme çalışmıyordu + imleç yanıp sönmüyordu:**
+  Kullanıcı (telefon, ekran görüntüsü): *"siliyorum hiçbir şey olmuyor ama yazılıyor, imleç yanıp
+  sönmüyor"*. **Bug kökü:** Android'de yazılım klavyesinin geri silmesi çoğu zaman
+  `sendKeyEvent(KEYCODE_DEL)`; Flutter motoru bu tuşu editable'a UYGULAMAZ — normal `TextField`'da
+  silmeyi framework'te `EditableText`'in `DeleteCharacterIntent` eylemi yapar. Kendi
+  `DeltaTextInputClient`'ımızda (Faz 22) tuş olayı `handleKey`'de yalnız okları tanıyordu → silme
+  düşüyordu; testler yalnız delta (deleteSurroundingText) benzetiyordu, o yol çalışıyordu.
+  **Düzeltme:** `DocxEditController.deleteBackward/deleteForward` (Backspace/Delete tuşu; vekil
+  çift bütün silinir; paragraf başında öncekine katılır, sonunda sonrakini katar; ardından IME
+  yeniden eşitlenir — motorun metni değişmediği için ŞART). Uzun basışta da odak istenir (tuş
+  olayı odak düğümüne gelir). İmleç: `Motion.caretBlink` (500 ms) ile yanıp söner; yalnız imlecin
+  paragrafının boyacısı `repaint: _caretOn` dinler; her değişiklikte görünür başlar.
+  **TUZAK:** özel `TextInputClient` yazan her editör (slayt/Excel kendi TextField'ını kullanıyor,
+  etkilenmez) Backspace/Delete TUŞ olayını kendisi işlemeli; testte `t.sendKeyEvent(backspace)`
+  ile sına, yalnız delta yetmez.
