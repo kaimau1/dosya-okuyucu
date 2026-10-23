@@ -18,6 +18,13 @@
 > davranış değişiklikleri ve rakip uygulama araştırması). Bulgular **§3.14**
 > (G1–G21), yeni kararlar **K13–K17**, yeni fazlar **Faz 13–19** ve kalan
 > fazlarla birlikte **bulutta yapılabilenleri öne alan yürütme sırası §0.1**.
+>
+> **Ek (2026-10-23) — düzenleme turu ("telefonda Office gibi düzenleme"):**
+> `main` @ `525f24b` üzerinde altı editörün (Word, Excel, Slayt, PDF, metin,
+> görsel) denetimi + M365/Google/Apple mobil düzenleme dili + Android klavye ve
+> editör motoru araştırması. Ayrı belge: **`docs/DUZENLEME_PLANI.md`** — bulgular
+> (ED/W/X/SL/PD/TX/IM), kararlar **K18–K25**, fazlar **Faz 20–33**, kendi
+> yürütme sırası (D1–D14) ve her fazın açılış istemi.
 
 ---
 
@@ -81,6 +88,20 @@
 | 17 | **Liste ve gezinme cilası** — kalan ~10 liste ekranı ortak bileşene, klasör başına hafıza, iki parmakla sütun, panoda "Son açılanlar" şeridi, eylem sayfası | 13, 15 | ✅ 2026-10-22 (bulut; kaydırma ölçümü cihazda) |
 | 18 | **Görüntüleyici ve medya deneyimi** — okuma kipi, video jestleri, galeri, geniş ekran | 15 | ✅ 2026-10-22 (bulut; jest hissi/parlaklık cihazda) |
 | 19 | **Sistem entegrasyonu ve ilk izlenim** — açılış ekranı, başlatıcı kısayolları, pencere öğeleri, sistem rengi (K13), dokunsal geri bildirim | 15 | ✅ 2026-10-22 (bulut; görünüş cihazda) |
+| 20 | **Ortak düzenleme çekirdeği** (geri al/yinele, taslak + otomatik kaydetme, klavye üstü çubuk, Aa paneli) + doğrulanmış 6 hata — ayrıntı `docs/DUZENLEME_PLANI.md` | — | ⬜ |
+| 21 | **Word: canlı düzenlemenin acil onarımı + motor denemesi** (K18) — `DUZENLEME_PLANI.md` | 20 | ⬜ |
+| 22 | **Word Mobil görünüm editörü I** (model, yazma, seçim) — `DUZENLEME_PLANI.md` | 21 | ⬜ |
+| 23 | **Word II** (biçim, şerit, Aa paneli, stiller) — `DUZENLEME_PLANI.md` | 22 | ⬜ |
+| 24 | **Word III** (Ekle, tablo, resim, Düzen, üst/alt bilgi, Gözden Geçir) — `DUZENLEME_PLANI.md` | 23 | ⬜ |
+| 25 | **Excel I** (veri girişi, sayı/formül tuş takımı, işaret kipi, tutamaklar, doğruluk) — `DUZENLEME_PLANI.md` | 20 | ⬜ |
+| 26 | **Excel II** (bağımlılık grafiği, ızgara çizimi, büyük sayfa) — `DUZENLEME_PLANI.md` | 25 | ⬜ |
+| 27 | **Excel III** (Hücreleri biçimlendir, Veri, Görünüm, form görünümü, CSV) — `DUZENLEME_PLANI.md` | 26 | ⬜ |
+| 28 | **Slayt I** (yerinde metin, kutuya yakınlaş, anahat, notlar) — `DUZENLEME_PLANI.md` | 20 | ⬜ |
+| 29 | **Slayt II** (taşı/boyutlandır, şekil/tablo, düzenden yeni slayt, şerit) — `DUZENLEME_PLANI.md` | 28 | ⬜ |
+| 30 | **Metin / kod / Markdown düzenleyici** — `DUZENLEME_PLANI.md` | 20 | ⬜ |
+| 31 | **PDF düzenleme deneyimi** (yerinde metin, nesne katmanı, ortak kabuk) — `DUZENLEME_PLANI.md` | 20 | ⬜ |
+| 32 | **Görsel düzenleyici 2.0** — `DUZENLEME_PLANI.md` | 20 | ⬜ |
+| 33 | **Düzenleme turu kapanışı** (tablet, klavye, erişilebilirlik, Office uyumluluğu, cihaz turu) — `DUZENLEME_PLANI.md` | 20–32 | ⬜ |
 
 ### 0.1 Yürütme sırası (2026-10-22) — bulutta yapılabilenler önce
 
@@ -115,6 +136,13 @@ hesabı/kararı gerekir (Play Console, Billing, depo ayarı).
 > dahil). Bulutta kalan isteğe bağlı iş: 56 levhanın `showAppSheet`e taşınması (görünüm
 > farkı riskli; levha başına bakılarak yapılmalı) ve 53 özel pencerenin (seçenek listesi,
 > çok alanlı form) ortak bileşene alınması.
+>
+> **Ek 2026-10-23 — düzenleme turu:** kullanıcı Word/Excel/slayt/PDF/metin/görsel
+> düzenlemeyi "telefonda Office gibi, kasmadan" istedi → **`docs/DUZENLEME_PLANI.md`**
+> (Faz 20–33). Bu fazlar neredeyse tamamen ☁️; cihaz turundan (sıra 12) **önce**
+> yürütülebilir. Kendi sırası: **D1 = Faz 20 → D2 = Faz 21 (+ kısa 📱 kontrol
+> noktası) → Faz 25 → 26 → 22 → 23 → 28 → 30 → 24 → 27 → 29 → 32 → 31 → 33**.
+> Faz 33'ün cihaz kısmı sıra 12 cihaz turuyla birleştirilirse telefon oturumu bir kez yapılır.
 
 **Bulut oturumu ne yapabilir / ne yapamaz** (HAFIZA 2026-07-25 §F, 2026-10-21 (5)):
 

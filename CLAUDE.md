@@ -20,6 +20,8 @@ paylaşım. (Firebase senkronu 2026-09-26'da kaldırıldı — HAFIZA.) Piyasada
 > **Faz planı (2026-10-21; 2026-10-22 ek: görsel/UX Faz 13–19) → `docs/FAZ_PLANI.md`** —
 > sıradaki iş, kararlar (K1–K17) ve her fazın açılış istemi orada; yeni bir oturum işe
 > **§0.1 yürütme sırası**ndan başlar (bulutta yapılabilenler önce, telefon işleri tek cihaz turunda).
+> **Düzenleme turu (2026-10-23; Word/Excel/Slayt/PDF/metin/görsel "telefonda Office gibi") →
+> `docs/DUZENLEME_PLANI.md`** — Faz 20–33, kararlar K18–K25, kendi yürütme sırası (§0) ve açılış istemleri.
 
 ## 2) Mimari / Dosya Haritası
 `graphify-out/GRAPH_REPORT.md` — 16.323 düğüm, 23.141 kenar, 573 topluluk (2026-10-21) (App State Management,

@@ -462,3 +462,34 @@
   dizininde cihazda puanlanır; panodaki arama kutusunda "✦ Anlamla" + arama ekranında düğme.
   Araçlar varsayılan sırası güç sırası (Yer aç, Sohbet temizliği [yeni kutu], Aktar, Kasa…);
   harici bellek yine hep başta. graphify bu ortamda yok — `graphify update .` yerelde.
+
+- **2026-10-23 (15) — düzenleme turu planı (`docs/DUZENLEME_PLANI.md`, Faz 20–33; kod değişmedi):**
+  Kullanıcı: *"Word, Excel, PDF, slayt, metin, görsel düzenleme — özellikle Word'de yazı, Excel'de
+  giriş — telefonda rahat, canlı, kasmadan, alışık olunan Office'e benzer olsun; detaylı fazlar, kod
+  değiştirme, main'e merge et."* Altı editör denetlendi + M365/Google/Numbers mobil dili + Android IME
+  araştırması. **Doğrulanmış bulgular (kodda yeniden okundu, henüz düzeltilmedi → Faz 20/21):**
+  **W1** docx-preview `splitBySection`, `breakPages:true` + `ignoreLastRenderedPageBreak:false` iken
+  `w:lastRenderedPageBreak` içeren paragrafı iki `<p>`'ye bölüyor → indeks eşlemesinin sayım sigortası
+  canlı düzenlemeyi kapatıyor; Word bu işareti her kayıtta yazdığı için çok sayfalı gerçek belgelerde
+  "Düzenle" büyük olasılıkla çalışmıyor (köprü testi tek sayfalık örnekle koştuğu için yakalanmadı).
+  Çözüm planı: WebView'a giden kopyada her `w:p`'ye `w:bookmarkStart _fkp<i>` (docx-preview
+  `<span id>` çiziyor), işaretsiz `<p>` = önceki paragrafın devamı. **X1** Türkçe işlev adı/`;` formül
+  dosyaya ham yazılıyor (`xlsx_package.dart:564`) → masaüstü Excel `#AD?`. **X2** satır/sütun silmede
+  `_shiftLayoutRows/_shiftKeys/_shiftSet` `k == at`'i düşürmüyor → silinen satırın stil/yükseklik/gizli
+  bilgisi ÜST satıra yazılıyor. **SL1** slaytta `\n` `a:t` içine ham; `a:t`'siz paragrafa yazı
+  kaydedilmiyor. **TX1** metin editörü satır numarası `'\$i'` → her satırda "$i". Ayrıca: Word'de
+  Enter yeni paragraf açmıyor (`w:br`), `setRuns` köprü/alan/dipnot başvurusunu siliyor, yazı ~0,5
+  ölçekte düzenleniyor; Excel'de %100'de hücre içi düzenleme hiç açılmıyor (30×72 dp eşiği), her
+  setState'te 3 yeni `FormulaEngine`, ekle/silde formül başvurusu kaymıyor; slaytta ~0,37 ölçek.
+  **Mimari öneri (K18, karar Faz 21 ölçümü + 📱 kontrol noktasıyla):** Word'ün kalıcı yazma yüzeyi
+  WebView `contenteditable` DEĞİL, Flutter-yerel **Mobil görünüm** editörü + kendi DOCX modeli (M365
+  telefonda da Mobil görünümde düzenletiyor); motor super_editor ya da kendi ince `DeltaTextInputClient`
+  çekirdeğimiz. *Niye:* Android IME + contenteditable sorunları bitmiyor (ProseMirror 2025'te hâlâ
+  Android klavye düzeltmesi yayımlıyor), Flutter yolu bulutta `flutter test`le simüle edilebiliyor.
+  **REDDEDİLEN:** gömülü LibreOffice/Collabora (APK +70–75 MB), WebView'da ProseMirror (yine
+  contenteditable), paragraf başına ayrı TextField (paragraflar arası seçim yok, boş paragrafta geri
+  silme klavyeye göre olay üretmiyor). Sayfa görünümü okuma/önizleme için WebView'da kalır (K19).
+  Diğer öneriler: Excel'e uygulama içi sayı/formül tuş takımı (K20), taslak günlüğü + varsayılan açık
+  otomatik kaydetme (K21), Türkçe arayüzde Türkçe formül dili ama dosyaya İngilizce (K22), Excel ızgara
+  çiziminde ölçümlü deneme (K23). Yürütme: Faz 20 → 21 → 25 → 26 → 22 → 23 → 28 → 30 → 24 → 27 → 29 →
+  32 → 31 → 33; cihaz turu (FAZ_PLANI sıra 12) Faz 33 ile birleştirilebilir.

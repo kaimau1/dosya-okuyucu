@@ -77,6 +77,8 @@
       (g) ~~`flutter analyze` CI kapısı~~ **BİTTİ** (2026-08-28).
 
 ## Word "gerçek mobil Word gibi olsun" — kalan yol haritası
+> **2026-10-23:** bu bölümün devamı ve yeni bulgular (W1 sayfa kırmada paragraf bölünmesi,
+> Enter = `w:br`, `setRuns` köprü/alan kaybı …) → `docs/DUZENLEME_PLANI.md` Faz 20–24.
 2026-08-02'de yapısal geri al/yinele geldi. Kalanlar:
 - [x] ~~**Belge içinde bul / değiştir yok**~~ → **YAPILDI 2026-08-04:** JS
       köprüsü (`findAll`/`findGo`/`replaceHit`/`replaceAll`). Arama DOM'a hiç
@@ -93,6 +95,8 @@
 - [ ] Harf harf yazma geri alma yığınına girmiyor (bilinçli — HAFIZA 4. tur).
 
 ## Excel "gerçek mobil Excel gibi olsun" — kalan yol haritası
+> **2026-10-23:** devamı ve yeni bulgular (X1 Türkçe formül dosyaya ham yazılıyor, X2 satır
+> silmede üst satırın biçimi eziliyor, X3 başvuru kaydırma …) → `docs/DUZENLEME_PLANI.md` Faz 20, 25–27.
 2026-08-02'de düzenleme çekirdeği geldi (geri al/yinele, kes/kopyala/yapıştır,
 doldurma tutamağı, Σ, bul-değiştir). Excel mobilden hâlâ ayıranlar, **etkiye
 göre sıralı**:
