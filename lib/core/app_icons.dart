@@ -125,6 +125,20 @@ abstract final class AppIcons {
   static const IconData textSnippet = Icons.text_snippet_rounded;
   static const IconData error = Icons.error_outline_rounded;
   static const IconData help = Icons.help_outline_rounded;
+  static const IconData warning = Icons.warning_amber_rounded;
+
+  // ── boyutlandırma / görsel düzenleyici (Faz 14b, 2026-10-23) ─────────
+  static const IconData preset = Icons.bookmark_rounded;
+  static const IconData link = Icons.link_rounded;
+  static const IconData linkOff = Icons.link_off_rounded;
+  static const IconData crop = Icons.crop_rounded;
+  static const IconData compare = Icons.compare_rounded;
+  static const IconData draw = Icons.draw_rounded;
+  static const IconData rotateRight = Icons.rotate_right_rounded;
+  static const IconData reset = Icons.restart_alt_rounded;
+  static const IconData arrowTool = Icons.north_east_rounded;
+  static const IconData addPhoto = Icons.add_photo_alternate_rounded;
+  static const IconData shrink = Icons.compress_rounded;
 
   // ── içerik türleri (eylem düğmesinde; liste satırı FmEntryIcon'dan) ───
   static const IconData image = Icons.image_rounded;

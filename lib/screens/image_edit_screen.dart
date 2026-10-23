@@ -10,10 +10,13 @@ import '../core/l10n/app_strings.dart';
 import '../core/snack.dart';
 import '../core/theme.dart' show OverlayBar;
 import '../core/user_error.dart';
+import '../models/media_resize.dart' show aspectChoices, longEdgeChoices;
 import '../services/image_edit.dart';
+import '../widgets/app_dialog.dart';
 
 /// **Temel görsel düzenleyici** (Faz 10, N7). Kırp (oran ön ayarlı) ·
-/// döndür/çevir · parlaklık/kontrast/doygunluk · işaretle (kalem/ok/yazı).
+/// döndür/çevir · parlaklık/kontrast/doygunluk · işaretle (kalem/ok/yazı) ·
+/// boyut (Faz 14b: kırp → boyut → kaydet tek akış).
 /// Kaydetme varsayılanı KOPYA; özgüne dokunmak ayrı ve açık bir seçim.
 /// Çizim ve kayıt `services/image_edit.dart`taki tek yoldan geçer.
 class ImageEditScreen extends StatefulWidget {
@@ -31,7 +34,7 @@ class ImageEditScreen extends StatefulWidget {
   State<ImageEditScreen> createState() => _ImageEditScreenState();
 }
 
-enum _Tab { crop, adjust, markup }
+enum _Tab { crop, adjust, markup, size }
 
 enum _Drag { none, move, tl, tr, br, bl }
 
@@ -42,6 +45,12 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
   final _undo = <ImageEdits>[];
   _Tab _tab = _Tab.crop;
   double? _ratio; // genişlik/yükseklik (piksel); null = serbest
+  String _ratioKey = 'ied.free';
+
+  /// Basılı tutulan "özgünü gör" düğmesi (Faz 14b): düzenlemesiz hâl.
+  bool _showOriginal = false;
+  final _widthCtl = TextEditingController();
+  final _heightCtl = TextEditingController();
   MarkKind _tool = MarkKind.pen;
   Color _color = const Color(0xFFE53935);
   ImageMark? _drawing;
@@ -51,13 +60,13 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
   // Son yerleşim (jest → normalleştirilmiş koordinat çevirisi için).
   Rect _box = Rect.zero;
 
-  static const _ratios = <(String, double?)>[
+  /// Kırpma oranları — boyutlandırma levhasıyla AYNI liste (Faz 14b, G4i).
+  /// "Orijinal" ve "Özel" ayrı ele alınır ([_setRatioKey]).
+  static final _ratios = <(String, double?)>[
     ('ied.free', null),
-    ('1:1', 1),
-    ('4:3', 4 / 3),
-    ('3:4', 3 / 4),
-    ('16:9', 16 / 9),
-    ('9:16', 9 / 16),
+    ('ied.original', null),
+    for (final (label, w, h) in aspectChoices) (label, w / h),
+    ('ied.custom_ratio', null),
   ];
   static const _colors = [
     Color(0xFFE53935),
@@ -85,6 +94,8 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
   @override
   void dispose() {
     _src?.dispose();
+    _widthCtl.dispose();
+    _heightCtl.dispose();
     super.dispose();
   }
 
@@ -102,18 +113,21 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
   /// [avail] içine sığdırılır; dönen: tüm yönlendirilmiş görselin tuvaldeki
   /// kutusu ve görünen bölgenin ekrandaki dikdörtgeni.
   (Rect, Rect) _layout(Size avail) {
-    final region =
-        _tab == _Tab.crop ? const Rect.fromLTWH(0, 0, 1, 1) : _e.crop;
-    final rw = region.width * _full.width, rh = region.height * _full.height;
+    final whole = _tab == _Tab.crop || _showOriginal;
+    final full = _showOriginal
+        ? Size(_src!.width.toDouble(), _src!.height.toDouble())
+        : _full;
+    final region = whole ? const Rect.fromLTWH(0, 0, 1, 1) : _e.crop;
+    final rw = region.width * full.width, rh = region.height * full.height;
     final pad = _tab == _Tab.crop ? 28.0 : 12.0;
     final s = math.min((avail.width - 2 * pad) / rw, (avail.height - 2 * pad) / rh);
     final visible = Rect.fromCenter(
         center: avail.center(Offset.zero), width: rw * s, height: rh * s);
     final box = Rect.fromLTWH(
-      visible.left - region.left * _full.width * s,
-      visible.top - region.top * _full.height * s,
-      _full.width * s,
-      _full.height * s,
+      visible.left - region.left * full.width * s,
+      visible.top - region.top * full.height * s,
+      full.width * s,
+      full.height * s,
     );
     return (box, visible);
   }
@@ -129,6 +143,120 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
         _box.left + _e.crop.right * _box.width,
         _box.top + _e.crop.bottom * _box.height,
       );
+
+  /// Kırpma kutusundaki canlı ölçü etiketi ("1080 × 1350").
+  String _cropLabel() {
+    final c = croppedSize(_src!, _e);
+    return '${c.width.round()} × ${c.height.round()}';
+  }
+
+  // ── boyut (Faz 14b) ─────────────────────────────────────────────────────────
+
+  void _syncSizeFields() {
+    final out = outputSize(_src!, _e);
+    _widthCtl.text = '${out.width.round()}';
+    _heightCtl.text = '${out.height.round()}';
+  }
+
+  void _setScale(double scale) {
+    final cropped = croppedSize(_src!, _e);
+    // En az 16 px kısa kenar; büyütme yok (netlik katmaz, boyutlandırma
+    // levhasında %100 üstü uyarılı ayrı yol).
+    final minScale = 16 / math.min(cropped.width, cropped.height);
+    final clamped = scale.clamp(math.min(minScale, 1.0), 1.0).toDouble();
+    if ((clamped - _e.scale).abs() < 1e-6) {
+      _syncSizeFields();
+      return;
+    }
+    _push(_e.copyWith(scale: clamped));
+    _syncSizeFields();
+  }
+
+  void _readSizeField(bool width) {
+    final v = int.tryParse((width ? _widthCtl : _heightCtl).text.trim());
+    if (v == null || v <= 0) return;
+    final cropped = croppedSize(_src!, _e);
+    final scale = v / (width ? cropped.width : cropped.height);
+    final clamped = scale.clamp(0.0, 1.0);
+    _undo.add(_e);
+    setState(() => _e = _e.copyWith(scale: clamped));
+    // Oran hep kilitli: öteki alan anında hesaplanır.
+    final out = outputSize(_src!, _e);
+    (width ? _heightCtl : _widthCtl).text =
+        '${(width ? out.height : out.width).round()}';
+  }
+
+  Widget _sizePanel() {
+    final cropped = croppedSize(_src!, _e);
+    final out = outputSize(_src!, _e);
+    final longSide = math.max(cropped.width, cropped.height);
+    const soft = TextStyle(color: AppColors.onMediaSoft);
+    InputDecoration deco(String key) => InputDecoration(
+          labelText: context.t(key),
+          labelStyle: soft,
+          isDense: true,
+          border: const OutlineInputBorder(),
+          enabledBorder: const OutlineInputBorder(
+              borderSide: BorderSide(color: AppColors.onMediaFaint)),
+        );
+    Widget chip(String label, double scale, {Key? key}) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3),
+          child: ChoiceChip(
+            key: key,
+            label: Text(label),
+            selected: (_e.scale - scale).abs() < 0.002,
+            onSelected: (_) => _setScale(scale),
+          ),
+        );
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      Text(
+        context.t('ied.size_now', {
+          'from': '${cropped.width.round()} × ${cropped.height.round()}',
+          'to': '${out.width.round()} × ${out.height.round()}',
+        }),
+        style: soft,
+      ),
+      const SizedBox(height: 6),
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(children: [
+          chip(context.t('ied.size_original'), 1),
+          for (final p in const [75, 50, 25]) chip('%$p', p / 100),
+          for (final edge in longEdgeChoices.reversed)
+            if (edge < longSide)
+              chip('$edge px', edge / longSide, key: ValueKey('edge-$edge')),
+        ]),
+      ),
+      const SizedBox(height: 8),
+      Row(children: [
+        Expanded(
+          child: TextField(
+            key: const ValueKey('ied-width'),
+            controller: _widthCtl,
+            keyboardType: TextInputType.number,
+            style: const TextStyle(color: AppColors.onMedia),
+            decoration: deco('rs.width'),
+            onChanged: (_) => _readSizeField(true),
+          ),
+        ),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 8),
+          child: Icon(AppIcons.link, color: AppColors.onMediaSoft),
+        ),
+        Expanded(
+          child: TextField(
+            key: const ValueKey('ied-height'),
+            controller: _heightCtl,
+            keyboardType: TextInputType.number,
+            style: const TextStyle(color: AppColors.onMedia),
+            decoration: deco('rs.height'),
+            onChanged: (_) => _readSizeField(false),
+          ),
+        ),
+      ]),
+      const SizedBox(height: 4),
+    ]);
+  }
 
   // ── kırpma ────────────────────────────────────────────────────────────────
 
@@ -205,6 +333,29 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
       w,
       h,
     );
+  }
+
+  /// Oran çipi seçildi. "Orijinal" görselin kendi oranı, "Özel" a:b sorar.
+  Future<void> _setRatioKey(String key, double? ratio) async {
+    if (key == 'ied.original') {
+      ratio = _full.width / _full.height;
+    } else if (key == 'ied.custom_ratio') {
+      final text = await showAppPrompt(context,
+          title: context.t('ied.custom_ratio'),
+          label: context.t('ied.ratio_hint'),
+          initial: '4:5');
+      if (text == null || !mounted) return;
+      final parts = text.replaceAll(',', '.').split(RegExp(r'[:x×/ ]+'));
+      final a = parts.isNotEmpty ? double.tryParse(parts.first) : null;
+      final b = parts.length > 1 ? double.tryParse(parts[1]) : null;
+      if (a == null || b == null || a <= 0 || b <= 0) {
+        showSnack(context, context.t('ied.ratio_invalid'));
+        return;
+      }
+      ratio = a / b;
+    }
+    setState(() => _ratioKey = key);
+    _setRatio(ratio);
   }
 
   void _setRatio(double? ratio) {
@@ -303,7 +454,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.add_photo_alternate_rounded),
+              leading: const Icon(AppIcons.addPhoto),
               title: Text(ctx.t('ied.save_copy')),
               subtitle: Text(sameFormat
                   ? ctx.t('ied.save_copy_sub')
@@ -383,6 +534,21 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
           title: Text(context.t('ied.title'),
               style: OverlayBar.title(context)),
           actions: [
+            // Basılı tut → özgünü gör (Faz 14b). Bırakınca düzenlenmiş hâl.
+            if (!_e.isIdentity)
+              Tooltip(
+                message: context.t('ied.hold_original'),
+                child: GestureDetector(
+                  key: const ValueKey('hold-original'),
+                  onTapDown: (_) => setState(() => _showOriginal = true),
+                  onTapUp: (_) => setState(() => _showOriginal = false),
+                  onTapCancel: () => setState(() => _showOriginal = false),
+                  child: const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Icon(AppIcons.compare),
+                  ),
+                ),
+              ),
             IconButton(
               tooltip: context.t('common.undo'),
               icon: const Icon(AppIcons.undo),
@@ -410,15 +576,21 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
             if (_src != null) _panel(scheme),
             NavigationBar(
               selectedIndex: _tab.index,
-              onDestinationSelected: (i) => setState(() => _tab = _Tab.values[i]),
+              onDestinationSelected: (i) {
+                setState(() => _tab = _Tab.values[i]);
+                if (_tab == _Tab.size) _syncSizeFields();
+              },
               destinations: [
                 NavigationDestination(
-                    icon: const Icon(Icons.crop_rounded), label: context.t('ied.crop')),
+                    icon: const Icon(AppIcons.crop), label: context.t('ied.crop')),
                 NavigationDestination(
                     icon: const Icon(AppIcons.tune), label: context.t('ied.adjust')),
                 NavigationDestination(
-                    icon: const Icon(Icons.draw_rounded),
+                    icon: const Icon(AppIcons.draw),
                     label: context.t('ied.markup')),
+                NavigationDestination(
+                    icon: const Icon(AppIcons.resize),
+                    label: context.t('gal.resize')),
               ],
             ),
           ],
@@ -439,10 +611,12 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
     return LayoutBuilder(builder: (context, c) {
       final (box, visible) = _layout(c.biggest);
       _box = box;
-      final edits = _drawing == null
-          ? _e
-          : _e.copyWith(marks: [..._e.marks, _drawing!]);
-      final crop = _tab == _Tab.crop;
+      final edits = _showOriginal
+          ? const ImageEdits()
+          : _drawing == null
+              ? _e
+              : _e.copyWith(marks: [..._e.marks, _drawing!]);
+      final crop = _tab == _Tab.crop && !_showOriginal;
       final markup = _tab == _Tab.markup;
       return GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -473,6 +647,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
               box: box,
               clip: visible,
               cropRect: crop ? _cropOnScreen() : null,
+              cropLabel: crop ? _cropLabel() : null,
             ),
           ),
         ),
@@ -498,18 +673,21 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
                         label: Text(label.startsWith('ied.')
                             ? context.t(label)
                             : label),
-                        selected: _ratio == ratio,
-                        onSelected: (_) => _setRatio(ratio),
+                        selected: _ratioKey == label,
+                        onSelected: (_) => _setRatioKey(label, ratio),
                       ),
                     ),
                 ]),
               ),
               Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-                _toolButton(Icons.rotate_right_rounded, 'ied.rotate',
+                _toolButton(AppIcons.rotateRight, 'ied.rotate',
                     () => _push(_e.rotated())),
                 _toolButton(AppIcons.selectInvert, 'ied.flip', () => _push(_e.flipped())),
-                _toolButton(Icons.restart_alt_rounded, 'ied.reset', () {
-                  setState(() => _ratio = null);
+                _toolButton(AppIcons.reset, 'ied.reset', () {
+                  setState(() {
+                    _ratio = null;
+                    _ratioKey = 'ied.free';
+                  });
                   _push(const ImageEdits());
                 }),
               ]),
@@ -522,11 +700,12 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
               _slider('ied.saturation', _e.saturation,
                   (v) => _e.copyWith(saturation: v)),
             ]),
+          _Tab.size => _sizePanel(),
           _Tab.markup => Column(mainAxisSize: MainAxisSize.min, children: [
               Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 for (final (kind, icon, key) in const [
                   (MarkKind.pen, AppIcons.edit, 'ied.pen'),
-                  (MarkKind.arrow, Icons.north_east_rounded, 'ied.arrow'),
+                  (MarkKind.arrow, AppIcons.arrowTool, 'ied.arrow'),
                   (MarkKind.text, AppIcons.textFields, 'ied.text'),
                 ])
                   Padding(
@@ -618,12 +797,16 @@ class _EditPainter extends CustomPainter {
     required this.box,
     required this.clip,
     this.cropRect,
+    this.cropLabel,
   });
 
   final ui.Image src;
   final ImageEdits edits;
   final Rect box, clip;
   final Rect? cropRect;
+
+  /// Kırpma kutusunun piksel ölçüsü — kutunun üst ortasında rozet.
+  final String? cropLabel;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -667,6 +850,27 @@ class _EditPainter extends CustomPainter {
       canvas.drawLine(o, o + Offset(l * dx, 0), handle);
       canvas.drawLine(o, o + Offset(0, l * dy), handle);
     }
+    final label = cropLabel;
+    if (label != null) {
+      final tp = TextPainter(
+        text: TextSpan(
+          text: label,
+          style: const TextStyle(
+              color: AppColors.onMedia,
+              fontSize: 12,
+              fontWeight: FontWeight.w600),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final pill = Rect.fromCenter(
+        center: Offset(r.center.dx, r.top + 8 + tp.height / 2 + 4),
+        width: tp.width + 16,
+        height: tp.height + 8,
+      );
+      canvas.drawRRect(RRect.fromRectAndRadius(pill, const Radius.circular(12)),
+          Paint()..color = AppColors.mediaChrome);
+      tp.paint(canvas, pill.center - Offset(tp.width / 2, tp.height / 2));
+    }
   }
 
   @override
@@ -675,5 +879,6 @@ class _EditPainter extends CustomPainter {
       old.src != src ||
       old.box != box ||
       old.clip != clip ||
-      old.cropRect != cropRect;
+      old.cropRect != cropRect ||
+      old.cropLabel != cropLabel;
 }

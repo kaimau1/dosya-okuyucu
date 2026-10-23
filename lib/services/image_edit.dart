@@ -35,6 +35,7 @@ class ImageEdits {
     this.contrast = 0,
     this.saturation = 0,
     this.marks = const [],
+    this.scale = 1,
   });
 
   /// Saat yönünde 90° adım sayısı (0..3).
@@ -48,6 +49,11 @@ class ImageEdits {
   final double brightness, contrast, saturation;
   final List<ImageMark> marks;
 
+  /// Çıktı ölçeği (Faz 14b — düzenleyicide "Boyut" sekmesi): kırpılmış
+  /// bölgenin piksel ölçüsü bununla çarpılır. 1 = olduğu gibi. Kırp → boyut
+  /// → kaydet tek akış: ayrı bir boyutlandırma işi gerekmez.
+  final double scale;
+
   bool get isIdentity =>
       quarterTurns == 0 &&
       !flipH &&
@@ -55,7 +61,8 @@ class ImageEdits {
       brightness == 0 &&
       contrast == 0 &&
       saturation == 0 &&
-      marks.isEmpty;
+      marks.isEmpty &&
+      scale == 1;
 
   bool get hasColor => brightness != 0 || contrast != 0 || saturation != 0;
 
@@ -67,6 +74,7 @@ class ImageEdits {
     double? contrast,
     double? saturation,
     List<ImageMark>? marks,
+    double? scale,
   }) =>
       ImageEdits(
         quarterTurns: quarterTurns ?? this.quarterTurns,
@@ -76,6 +84,7 @@ class ImageEdits {
         contrast: contrast ?? this.contrast,
         saturation: saturation ?? this.saturation,
         marks: marks ?? this.marks,
+        scale: scale ?? this.scale,
       );
 
   /// Saat yönünde 90° daha: kırpma ve işaretler de döner.
@@ -234,12 +243,25 @@ void paintMarks(Canvas canvas, List<ImageMark> marks, Rect box) {
   }
 }
 
-/// Düzenlenmiş görseli tam çözünürlükte üretir (kırpılmış).
-Future<ui.Image> renderEdits(ui.Image src, ImageEdits e) async {
+/// Kırpılmış bölgenin piksel ölçüsü (ölçek uygulanmadan).
+Size croppedSize(ui.Image src, ImageEdits e) {
   final full = orientedSize(src, e);
+  return Size((e.crop.width * full.width).roundToDouble().clamp(1, 1e5),
+      (e.crop.height * full.height).roundToDouble().clamp(1, 1e5));
+}
+
+/// Kaydedilecek dosyanın piksel ölçüsü (kırpma + ölçek).
+Size outputSize(ui.Image src, ImageEdits e) {
+  final c = croppedSize(src, e);
+  return Size((c.width * e.scale).roundToDouble().clamp(1, 1e5),
+      (c.height * e.scale).roundToDouble().clamp(1, 1e5));
+}
+
+/// Düzenlenmiş görseli üretir (kırpılmış, [ImageEdits.scale] ölçeğinde).
+Future<ui.Image> renderEdits(ui.Image src, ImageEdits e) async {
+  final full = orientedSize(src, e) * e.scale;
   final c = e.crop;
-  final out = Size((c.width * full.width).roundToDouble().clamp(1, 1e5),
-      (c.height * full.height).roundToDouble().clamp(1, 1e5));
+  final out = outputSize(src, e);
   final rec = ui.PictureRecorder();
   final canvas = Canvas(rec);
   canvas.clipRect(Offset.zero & out);

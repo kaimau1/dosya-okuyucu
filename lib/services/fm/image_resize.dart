@@ -261,6 +261,9 @@ abstract final class ImageResizer {
     }
     final ext = p.extension(args.outputPath).replaceFirst('.', '').toLowerCase();
     final options = args.options;
+    // EXIF: çözücü yön etiketini piksele uygulayıp siler; tarih/kamera kalır
+    // ve kodlayıcı onları yazar. Konum yalnız istenirse silinir (Faz 14b).
+    if (options.stripLocation) stripGps(decoded);
     final List<int> encoded;
     final img.Image out;
     if (options.resolution == ResolutionChoice.fileSize) {
@@ -294,6 +297,10 @@ abstract final class ImageResizer {
     return (width: out.width, height: out.height);
   }
 
+  /// Konum (GPS) alt dizinini EXIF'ten siler.
+  static void stripGps(img.Image image) =>
+      image.exif.imageIfd.sub.directories.remove('gps');
+
   /// Ayarlara göre çıktı görüntüsü (saf; testler doğrudan çağırır).
   ///
   /// [alpha]: çıktı biçimi saydamlık taşıyabiliyor mu (PNG/TGA) — saydam kenar
@@ -319,8 +326,13 @@ abstract final class ImageResizer {
         // Kutuyu dolduracak ölçek, sonra ortadan kırp.
         final scale = _max(size.width / src.width, size.height / src.height);
         final scaled = aspect && scale == 1 ? src : _scale(src, scale);
-        final x = ((scaled.width - size.width) / 2).round();
-        final y = ((scaled.height - size.height) / 2).round();
+        // Çapa (Faz 14b): taşan payın ne kadarı baştan kesilecek.
+        final x = ((scaled.width - size.width) *
+                options.anchor.fraction(horizontal: true))
+            .round();
+        final y = ((scaled.height - size.height) *
+                options.anchor.fraction(horizontal: false))
+            .round();
         return img.copyCrop(scaled,
             x: x < 0 ? 0 : x,
             y: y < 0 ? 0 : y,

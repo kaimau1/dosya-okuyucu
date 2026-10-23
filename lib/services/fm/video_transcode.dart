@@ -149,12 +149,26 @@ abstract final class VideoTranscoder {
     if (probe == null) {
       throw VideoTranscodeException(AppStrings.current.t('vt.unsupported'));
     }
-    final wanted = targetSize(
+    final fps = cappedFps(options.frameRate, probe.fps);
+    var wanted = targetSize(
       sourceWidth: probe.width,
       sourceHeight: probe.height,
       options: options,
     );
-    final fps = cappedFps(options.frameRate, probe.fps);
+    // Dosya boyutu hedefi (Faz 14b): bit hızı süreden; düşükse ölçü de iner.
+    var bitrate =
+        bitrateFor(wanted.width, wanted.height, options.videoQuality, fps);
+    if (options.resolution == ResolutionChoice.fileSize) {
+      final target = videoBitrateForTarget(options, probe.durationMs);
+      if (target == null) {
+        throw VideoTranscodeException(AppStrings.current.t('vt.unsupported'));
+      }
+      bitrate = target;
+      wanted = scaleEven(
+          wanted,
+          videoScaleForBitrate(wanted.width, wanted.height,
+              (fps ?? probe.fps ?? 30).toDouble(), target));
+    }
     handle?.report(
         detail: _line(progressPrefix, [
       AppStrings.current
@@ -186,9 +200,9 @@ abstract final class VideoTranscoder {
         'width': wanted.width,
         'height': wanted.height,
         if (fps != null) 'fps': fps,
-        'bitrate': bitrateFor(
-            wanted.width, wanted.height, options.videoQuality, fps),
+        'bitrate': bitrate,
         'removeAudio': options.removeAudio,
+        'layout': videoLayoutFor(options).name,
       });
       if (started != true) {
         throw VideoTranscodeException(AppStrings.current.t('vt.unsupported'));

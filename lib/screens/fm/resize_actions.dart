@@ -171,6 +171,7 @@ Future<List<MediaSourceInfo>> _describeSources(List<FsEntry> media) async {
     }
     out.add(MediaSourceInfo(
       name: entry.name,
+      path: entry.path,
       sizeBytes: entry.sizeBytes,
       isVideo: isVideo,
       width: probe?.width ?? photo?.width ?? 0,
@@ -303,8 +304,11 @@ Future<void> _run(
         // 640×640", "4:5 kenar boşluklu") çıktı kaynaktan büyük olabilir ve
         // yine İSTENEN dosyadır; "kazanç yok" diye silinmesi işi boşa
         // çıkarırdı. Videoda ve küçültme kiplerinde eski kural geçer.
-        final sizeIsGoal = entry.category != FmCategory.video &&
-            options.dimensionsAreGoal;
+        // Faz 14b: videoda en-boy oranı da hedeftir (boşlukla kare yapılan
+        // yatay video kaynaktan büyük çıkabilir).
+        final sizeIsGoal = entry.category != FmCategory.video
+            ? options.dimensionsAreGoal
+            : options.resolution == ResolutionChoice.aspect;
         if (result.afterBytes <= 0 ||
             (!sizeIsGoal && result.afterBytes >= result.beforeBytes)) {
           try {

@@ -77,4 +77,31 @@ void main() {
     expect(e.crop, const Rect.fromLTWH(0, 0, 1, 0.5));
     expect(e.marks.single.points.single, const Offset(1, 0));
   });
+
+  testWidgets('Boyut (14b): ölçek kırpılmış bölgeye uygulanır, döndürmede kalır',
+      (tester) async {
+    await tester.runAsync(() async {
+      // 40×20 düz görsel: sol yarı kırmızı, sağ yarı mavi.
+      final rec = ui.PictureRecorder();
+      Canvas(rec)
+        ..drawRect(const Rect.fromLTWH(0, 0, 20, 20), Paint()..color = red)
+        ..drawRect(const Rect.fromLTWH(20, 0, 20, 20), Paint()..color = blue);
+      final src = await rec.endRecording().toImage(40, 20);
+      const half = ImageEdits(scale: 0.5);
+      expect(half.isIdentity, isFalse);
+      expect(outputSize(src, half), const Size(20, 10));
+      final out = await renderEdits(src, half);
+      expect((out.width, out.height), (20, 10));
+      final px = await pixels(out);
+      expect(px.first, 16711680); // sol üst hâlâ kırmızı
+      expect(px[19], 255); // sağ üst mavi
+      // Kırp (sağ yarı) + ölçek: 20×20 → 10×10.
+      const cropped = ImageEdits(crop: Rect.fromLTWH(0.5, 0, 0.5, 1), scale: 0.5);
+      expect(croppedSize(src, cropped), const Size(20, 20));
+      expect(outputSize(src, cropped), const Size(10, 10));
+      expect((await pixels(await renderEdits(src, cropped))).toSet(), {255});
+      expect(half.rotated().scale, 0.5);
+      expect(outputSize(src, half.rotated()), const Size(10, 20));
+    });
+  });
 }

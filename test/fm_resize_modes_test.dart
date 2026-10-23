@@ -291,4 +291,156 @@ void main() {
           200 * 1024);
     });
   });
+
+  group('Faz 14b', () {
+    test('çapa: 4×2 → 2×2 kırpmada sol/orta/sağ farklı sütunları korur', () {
+      // Sütunlar: 0 kırmızı, 1 yeşil, 2 mavi, 3 beyaz.
+      final src = img.Image(width: 4, height: 2);
+      const cols = [
+        [255, 0, 0],
+        [0, 255, 0],
+        [0, 0, 255],
+        [255, 255, 255],
+      ];
+      for (var x = 0; x < 4; x++) {
+        for (var y = 0; y < 2; y++) {
+          src.setPixelRgb(x, y, cols[x][0], cols[x][1], cols[x][2]);
+        }
+      }
+      int firstRed(CropAnchor a) => ImageResizer.render(
+              src,
+              MediaResizeOptions(
+                  resolution: ResolutionChoice.aspect, anchor: a))
+          .getPixel(0, 0)
+          .r
+          .toInt();
+      int firstBlue(CropAnchor a) => ImageResizer.render(
+              src,
+              MediaResizeOptions(
+                  resolution: ResolutionChoice.aspect, anchor: a))
+          .getPixel(0, 0)
+          .b
+          .toInt();
+      expect(firstRed(CropAnchor.start), 255); // sol: kırmızı başta
+      expect(firstBlue(CropAnchor.center), 0); // orta: yeşil başta
+      expect(firstBlue(CropAnchor.end), 255); // sağ: mavi başta
+    });
+
+    test('çapa JSON\'da gidip gelir; eski kayıtta orta', () {
+      const o = MediaResizeOptions(anchor: CropAnchor.bottom);
+      expect(MediaResizeOptions.fromJson(o.toJson()).anchor, CropAnchor.bottom);
+      expect(MediaResizeOptions.fromJson(const {'resolution': 'aspect'}).anchor,
+          CropAnchor.center);
+      expect(o.signature, isNot(const MediaResizeOptions().signature));
+    });
+
+    test('video düzen kipi: kırp/boşluk/esnet doğru eşlenir', () {
+      MediaResizeOptions box(ResizeFit f, {bool lock = false}) =>
+          MediaResizeOptions(
+              resolution: ResolutionChoice.custom,
+              customWidth: 1080,
+              customHeight: 1080,
+              lockAspect: lock,
+              fit: f);
+      expect(videoLayoutFor(box(ResizeFit.cover)), VideoLayout.crop);
+      expect(videoLayoutFor(box(ResizeFit.pad)), VideoLayout.fit);
+      expect(videoLayoutFor(box(ResizeFit.stretch)), VideoLayout.stretch);
+      // Kilitliyken hedef zaten oranlı → esnet (bozulma yok).
+      expect(videoLayoutFor(box(ResizeFit.cover, lock: true)),
+          VideoLayout.stretch);
+      expect(
+          videoLayoutFor(const MediaResizeOptions(
+              resolution: ResolutionChoice.aspect, fit: ResizeFit.pad)),
+          VideoLayout.fit);
+      expect(
+          videoLayoutFor(
+              const MediaResizeOptions(resolution: ResolutionChoice.aspect)),
+          VideoLayout.crop);
+      expect(videoLayoutFor(const MediaResizeOptions()), VideoLayout.stretch);
+    });
+
+    test('video oran kipi: 1920×1080 → 1:1 kırp 1080×1080, boşluk 1920×1920',
+        () {
+      expect(
+          targetSize(
+              sourceWidth: 1920,
+              sourceHeight: 1080,
+              options:
+                  const MediaResizeOptions(resolution: ResolutionChoice.aspect)),
+          (width: 1080, height: 1080));
+      expect(
+          targetSize(
+              sourceWidth: 1920,
+              sourceHeight: 1080,
+              options: const MediaResizeOptions(
+                  resolution: ResolutionChoice.aspect, fit: ResizeFit.pad)),
+          (width: 1920, height: 1920));
+    });
+
+    test('video dosya boyutu: 60 sn, 10 MB → ~1,2 Mbit/s video; ölçü korunur',
+        () {
+      const o = MediaResizeOptions(
+          resolution: ResolutionChoice.fileSize, targetKb: 10 * 1024);
+      final bitrate = videoBitrateForTarget(o, 60000)!;
+      // 10 MB × 8 / 60 sn = 1,398 Mbit/s; %3 pay ve 128 kbit/s ses düşülür.
+      expect(bitrate, inInclusiveRange(1200000, 1260000));
+      expect(videoBitrateForTarget(o.copyWith(removeAudio: true), 60000)!,
+          greaterThan(bitrate));
+      expect(videoBitrateForTarget(o, 0), isNull);
+      const src = MediaSourceInfo(
+          name: 'a.mp4',
+          sizeBytes: 80 * 1024 * 1024,
+          isVideo: true,
+          width: 1280,
+          height: 720,
+          fps: 30,
+          durationMs: 60000);
+      expect(src.targetFor(o), (width: 1280, height: 720));
+      expect(src.estimatedBytes(o), 10 * 1024 * 1024);
+      expect(src.noVisualChangeWith(o), isFalse);
+    });
+
+    test('video dosya boyutu: hedef çok düşükse ölçü de iner (çift sayı)', () {
+      const o =
+          MediaResizeOptions(resolution: ResolutionChoice.fileSize, targetKb: 2048);
+      const src = MediaSourceInfo(
+          name: '4k.mp4',
+          sizeBytes: 900 * 1024 * 1024,
+          isVideo: true,
+          width: 3840,
+          height: 2160,
+          fps: 30,
+          durationMs: 120000);
+      final t = src.targetFor(o)!;
+      expect(t.width, lessThan(3840));
+      expect(t.width.isEven && t.height.isEven, isTrue);
+      expect(t.width / t.height, closeTo(16 / 9, 0.02));
+    });
+
+    test('EXIF: tarih/kamera korunur, konum yalnız istenirse silinir', () async {
+      final tmp = Directory.systemTemp.createTempSync('exif');
+      addTearDown(() => tmp.deleteSync(recursive: true));
+      final im = img.Image(width: 40, height: 30);
+      im.exif.imageIfd['Make'] = img.IfdValueAscii('TestCam');
+      im.exif.imageIfd.sub['gps']['GPSLatitudeRef'] = img.IfdValueAscii('N');
+      final src = File('${tmp.path}/p.jpg')
+        ..writeAsBytesSync(img.encodeJpg(im));
+      Future<img.Image> out(bool strip) async {
+        final r = await ImageResizer.run(
+            src.path,
+            MediaResizeOptions(
+                resolution: ResolutionChoice.percent,
+                percent: 50,
+                stripLocation: strip));
+        return img.decodeJpg(File(r.outputPath).readAsBytesSync())!;
+      }
+
+      final kept = await out(false);
+      expect(kept.exif.imageIfd['Make']?.toString(), 'TestCam');
+      expect(kept.exif.imageIfd.sub.containsKey('gps'), isTrue);
+      final stripped = await out(true);
+      expect(stripped.exif.imageIfd['Make']?.toString(), 'TestCam');
+      expect(stripped.exif.imageIfd.sub.containsKey('gps'), isFalse);
+    });
+  });
 }

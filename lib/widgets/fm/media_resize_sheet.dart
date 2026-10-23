@@ -1,12 +1,19 @@
+import 'dart:io' show File, Platform;
+
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 
+import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
+import '../app_dialog.dart';
+import '../../core/snack.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/media_resize.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/job_queue.dart' show humanDuration;
-import 'dart:io' show Platform;
+import '../../services/fm/resize_memory.dart';
 
 /// Boyut düşürme ayarları sayfası.
 ///
@@ -94,6 +101,10 @@ class _ResizeSheetState extends State<_ResizeSheet> {
           ResolutionChoice.p1080,
           ResolutionChoice.percent,
           ResolutionChoice.custom,
+          // Faz 14b: Media3 düzen kipleri ve bit hızı hedefiyle videoda da.
+          ResolutionChoice.longEdge,
+          ResolutionChoice.aspect,
+          ResolutionChoice.fileSize,
         ];
 
   /// Hatırlanan ayar bu seçime uymuyorsa (fotoğrafa video kademesi, videoya
@@ -102,15 +113,9 @@ class _ResizeSheetState extends State<_ResizeSheet> {
     var r = o;
     if (_photoOnly && r.resolution.shortEdge != null) {
       r = r.copyWith(resolution: ResolutionChoice.longEdge);
-    } else if (!_photoOnly && r.resolution.photoOnly) {
-      r = r.copyWith(resolution: ResolutionChoice.p1080);
     }
     final maxPercent = _photoOnly ? 400 : 100;
     if (r.percent > maxPercent) r = r.copyWith(percent: maxPercent);
-    if (!_photoOnly && r.fit != ResizeFit.stretch) {
-      // Video motoru yalnız sığdır/esnet yapabiliyor (14b'ye kadar).
-      r = r.copyWith(fit: ResizeFit.contain);
-    }
     return r;
   }
 
@@ -127,7 +132,13 @@ class _ResizeSheetState extends State<_ResizeSheet> {
     _percentController.text = '${o.percent}';
     _longEdgeController.text = '${o.longEdgePx}';
     _kbController.text = '${o.targetKb}';
+    ResizeMemory.presets().then((list) {
+      if (mounted) setState(() => _userPresets = list);
+    });
   }
+
+  /// Kullanıcının kaydettiği ön ayarlar (Faz 14b).
+  List<ResizePreset> _userPresets = const [];
 
   @override
   void dispose() {
@@ -269,6 +280,7 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                 padding: const EdgeInsets.symmetric(horizontal: Gap.md),
                 children: [
                   if (widget.sources.isNotEmpty) _sourceCard(context),
+                  if (_previewSource case final src?) _preview(context, src),
                   ..._resolutionSection(context),
                   // Dosya boyutu kipinde kalite ve biçim KENDİLİĞİNDEN seçilir
                   // (JPEG, ikili arama) — elle kalite kaydırıcısı çelişirdi.
@@ -312,7 +324,19 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                       ],
                     ),
                   ],
+                  if (widget.hasImages)
+                    SwitchListTile(
+                      key: const ValueKey('strip-location'),
+                      contentPadding: EdgeInsets.zero,
+                      value: _options.stripLocation,
+                      onChanged: (v) => setState(() =>
+                          _options = _options.copyWith(stripLocation: v)),
+                      title: Text(context.t('rs.strip_location')),
+                      subtitle: Text(context.t('rs.strip_location_sub')),
+                    ),
                   if (widget.hasVideos) ...[
+                    // Dosya boyutu kipinde bit hızı hedeften hesaplanır.
+                    if (_options.resolution != ResolutionChoice.fileSize) ...[
                     const SizedBox(height: Gap.md),
                     _label(context.t('rs.video_quality')),
                     Wrap(
@@ -328,6 +352,7 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                           ),
                       ],
                     ),
+                    ],
                     const SizedBox(height: Gap.md),
                     _label(context.t('rs.fps')),
                     Wrap(
@@ -455,17 +480,27 @@ class _ResizeSheetState extends State<_ResizeSheet> {
     ),
   ];
 
-  void _applyPreset(MediaResizeOptions p) {
+  void _applyPreset(MediaResizeOptions p, {bool full = false}) {
     setState(() {
-      _options = _options.copyWith(clearCustom: true).copyWith(
+      // Kullanıcı ön ayarı ([full]) kalite/biçim/kare/ses dahil her şeyi
+      // getirir; "özgünü çöpe at" hiçbir zaman (bkz. ResizeMemory).
+      final base = full
+          ? _normalized(p).copyWith(replaceOriginal: _options.replaceOriginal)
+          : _options;
+      _options = base.copyWith(clearCustom: true).copyWith(
             resolution: p.resolution,
             customWidth: p.customWidth,
             customHeight: p.customHeight,
             lockAspect: p.lockAspect,
             fit: p.fit,
+            anchor: p.anchor,
             longEdgePx: p.longEdgePx,
             targetKb: p.targetKb,
+            aspectW: p.aspectW,
+            aspectH: p.aspectH,
+            percent: p.percent,
           );
+      _percentController.text = '${_options.percent}';
       _widthController.text = p.customWidth?.toString() ?? '';
       _heightController.text = p.customHeight?.toString() ?? '';
       _longEdgeController.text = '${p.longEdgePx}';
@@ -482,8 +517,41 @@ class _ResizeSheetState extends State<_ResizeSheet> {
             _options.effectiveFit == p.effectiveFit,
         ResolutionChoice.fileSize => _options.targetKb == p.targetKb,
         ResolutionChoice.longEdge => _options.longEdgePx == p.longEdgePx,
-        _ => false,
+        ResolutionChoice.percent => _options.percent == p.percent,
+        ResolutionChoice.aspect => _options.aspectW == p.aspectW &&
+            _options.aspectH == p.aspectH &&
+            (_options.fit == ResizeFit.pad) == (p.fit == ResizeFit.pad),
+        _ => p.resolution.shortEdge != null || p.resolution == ResolutionChoice.keep,
       };
+
+  /// Şu anki ayarı adlandırıp kaydeder (Faz 14b).
+  Future<void> _savePreset() async {
+    final name = await showAppPrompt(context,
+        title: context.t('rs.save_preset'),
+        label: context.t('rs.preset_name'),
+        maxLength: 32);
+    if (name == null || !mounted) return;
+    final list = await ResizeMemory.addPreset(name, _options);
+    if (!mounted) return;
+    setState(() => _userPresets = list);
+    showSnack(context, context.t('rs.preset_saved', {'name': name}));
+  }
+
+  Future<void> _deletePreset(ResizePreset preset) async {
+    final ok = await showAppConfirm(context,
+        message: context.t('rs.preset_delete', {'name': preset.name}),
+        destructive: true);
+    if (!ok || !mounted) return;
+    final list = await ResizeMemory.removePreset(preset.name);
+    if (!mounted) return;
+    setState(() => _userPresets = list);
+    showSnack(context, context.t('rs.preset_deleted', {'name': preset.name}));
+  }
+
+  /// Kullanıcı ön ayarı bu seçime uyuyor mu? Fotoğrafa video kademesi
+  /// (480p…) anlamsız; geri kalan her kip ikisinde de geçer.
+  bool _presetFits(ResizePreset p) =>
+      !(_photoOnly && p.options.resolution.shortEdge != null);
 
   Widget _chips(List<Widget> children) => Wrap(
         spacing: Gap.sm,
@@ -528,7 +596,7 @@ class _ResizeSheetState extends State<_ResizeSheet> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(warn ? Icons.warning_amber_rounded : AppIcons.info,
+          Icon(warn ? AppIcons.warning : AppIcons.info,
               size: 16, color: color),
           const SizedBox(width: Gap.xs),
           Expanded(
@@ -556,16 +624,34 @@ class _ResizeSheetState extends State<_ResizeSheet> {
     final upscale = widget.hasImages &&
         o.upscales(sourceWidth: src?.width, sourceHeight: src?.height);
     return [
-      if (_photoOnly) ...[
-        _label(context.t('rs.presets')),
-        _chips([
+      _label(context.t('rs.presets')),
+      _chips([
+        if (_photoOnly)
           for (final (key, preset) in _presets)
             _choice(context.t(key), _isPreset(preset),
                 () => _applyPreset(preset),
                 key: ValueKey('preset-$key')),
-        ]),
-        const SizedBox(height: Gap.md),
-      ],
+        for (final up in _userPresets)
+          if (_presetFits(up))
+            GestureDetector(
+              key: ValueKey('user-preset-${up.name}'),
+              onLongPress: () => _deletePreset(up),
+              child: ChoiceChip(
+                avatar: const Icon(AppIcons.preset, size: 16),
+                label: Text(up.name),
+                selected: _isPreset(up.options),
+                onSelected: (_) => _applyPreset(up.options, full: true),
+              ),
+            ),
+        ActionChip(
+          key: const ValueKey('save-preset'),
+          avatar: const Icon(AppIcons.add, size: 16),
+          label: Text(context.t('rs.save_preset')),
+          onPressed: _valid ? _savePreset : null,
+        ),
+      ]),
+      if (_userPresets.isNotEmpty) _note(context.t('rs.preset_hint')),
+      const SizedBox(height: Gap.md),
       _label(context.t('rs.resolution')),
       _chips([
         for (final r in _modes)
@@ -623,9 +709,8 @@ class _ResizeSheetState extends State<_ResizeSheet> {
     final o = _options;
     final locked = o.lockAspect;
     final both = o.customWidth != null && o.customHeight != null;
-    final fits = _photoOnly
-        ? ResizeFit.values
-        : const [ResizeFit.contain, ResizeFit.stretch];
+    // Faz 14b: video da dört yerleşimi yapar (Media3 düzen kipleri).
+    const fits = ResizeFit.values;
     return [
       Row(
         children: [
@@ -645,8 +730,8 @@ class _ResizeSheetState extends State<_ResizeSheet> {
             key: const ValueKey('lock-aspect'),
             tooltip: context.t(locked ? 'rs.lock_on' : 'rs.lock_off'),
             isSelected: locked,
-            icon: const Icon(Icons.link_off_rounded),
-            selectedIcon: const Icon(Icons.link_rounded),
+            icon: const Icon(AppIcons.linkOff),
+            selectedIcon: const Icon(AppIcons.link),
             onPressed: _toggleLock,
           ),
           Expanded(
@@ -673,11 +758,36 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                 () => _set(o.copyWith(fit: f)),
                 key: ValueKey('fit-${f.name}')),
         ]),
-        if (o.fit == ResizeFit.pad) ...[
-          const SizedBox(height: Gap.sm),
-          _padColors(),
-        ],
+        ..._fitDetails(),
       ],
+    ];
+  }
+
+  /// Seçili yerleşimin ayrıntısı: kırpmada korunacak kısım, boşlukta renk;
+  /// videoda motorun sınırı açıkça yazılır (orta kırpma, siyah boşluk).
+  List<Widget> _fitDetails() {
+    final o = _options;
+    // Oran kipinde "pad dışı her şey" kırpmadır (bkz. ImageResizer.render).
+    final cover = o.resolution == ResolutionChoice.aspect
+        ? o.fit != ResizeFit.pad
+        : o.fit == ResizeFit.cover;
+    return [
+      if (cover && widget.hasImages) ...[
+        const SizedBox(height: Gap.sm),
+        _label(context.t('rs.anchor')),
+        _chips([
+          for (final a in CropAnchor.values)
+            _choice(context.t(a.labelKey), o.anchor == a,
+                () => _set(o.copyWith(anchor: a)),
+                key: ValueKey('anchor-${a.name}')),
+        ]),
+      ],
+      if (o.fit == ResizeFit.pad && widget.hasImages) ...[
+        const SizedBox(height: Gap.sm),
+        _padColors(),
+      ],
+      if (widget.hasVideos && (cover || o.fit == ResizeFit.pad))
+        _note(context.t('rs.video_layout_note')),
     ];
   }
 
@@ -735,10 +845,7 @@ class _ResizeSheetState extends State<_ResizeSheet> {
               () => _set(o.copyWith(fit: f)),
               key: ValueKey('aspect-fit-${f.name}')),
       ]),
-      if (o.fit == ResizeFit.pad) ...[
-        const SizedBox(height: Gap.sm),
-        _padColors(),
-      ],
+      ..._fitDetails(),
     ];
   }
 
@@ -757,7 +864,8 @@ class _ResizeSheetState extends State<_ResizeSheet> {
         final n = int.tryParse(v.trim());
         if (n != null && n > 0) _set(_options.copyWith(targetKb: n));
       }, suffix: 'KB', width: 160),
-      _note(context.t('rs.file_size_note')),
+      if (widget.hasImages) _note(context.t('rs.file_size_note')),
+      if (widget.hasVideos) _note(context.t('rs.video_file_size_note')),
     ];
   }
 
@@ -860,6 +968,94 @@ class _ResizeSheetState extends State<_ResizeSheet> {
     );
   }
 
+  /// Canlı önizleme için ilk ölçülü fotoğraf (videonun küçük resmi yok).
+  MediaSourceInfo? get _previewSource {
+    for (final s in widget.sources) {
+      if (!s.isVideo && s.hasSize && s.path != null) return s;
+    }
+    return null;
+  }
+
+  /// **Canlı önizleme küçük resmi** (Faz 14b): çıktının oranında bir çerçeve,
+  /// içinde fotoğraf seçilen yerleşimle (kırp/boşluk/esnet) — "kare yap"
+  /// dendiğinde neyin kesileceği iş başlamadan görülür. Küçük resim
+  /// `cacheWidth` ile çözülür; 12 MP'yi tam açmaz.
+  Widget _preview(BuildContext context, MediaSourceInfo src) {
+    final o = _options;
+    final t = src.targetFor(o);
+    if (t == null || t.width <= 0 || t.height <= 0) {
+      return const SizedBox.shrink();
+    }
+    final scheme = Theme.of(context).colorScheme;
+    final custom = o.resolution == ResolutionChoice.custom &&
+        o.customWidth != null &&
+        o.customHeight != null;
+    final fit = o.resolution == ResolutionChoice.aspect
+        ? (o.fit == ResizeFit.pad ? ResizeFit.pad : ResizeFit.cover)
+        : custom
+            ? o.effectiveFit
+            : ResizeFit.stretch;
+    final boxFit = switch (fit) {
+      ResizeFit.cover => BoxFit.cover,
+      ResizeFit.pad => BoxFit.contain,
+      _ => BoxFit.fill,
+    };
+    // Kırpma piksel uzayında: "sol" görüntünün solu, arayüz yönünden bağımsız.
+    final alignment = fit == ResizeFit.cover
+        ? Alignment(o.anchor.fraction(horizontal: true) * 2 - 1,
+            o.anchor.fraction(horizontal: false) * 2 - 1)
+        : Alignment.center;
+    final image = Image.file(File(src.path!),
+        fit: boxFit,
+        alignment: alignment,
+        cacheWidth: 360,
+        gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => const SizedBox.shrink());
+    final background = fit != ResizeFit.pad
+        ? null
+        : switch (o.padColor) {
+            PadColor.white => const ColoredBox(color: AppColors.onMedia),
+            PadColor.black => const ColoredBox(color: AppColors.mediaSurface),
+            PadColor.transparent => ColoredBox(color: scheme.surfaceContainerHighest),
+            PadColor.blur => ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                child: Image.file(File(src.path!),
+                    fit: BoxFit.cover, cacheWidth: 120,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+              ),
+          };
+    return Padding(
+      key: const ValueKey('resize-preview'),
+      padding: const EdgeInsets.only(bottom: Gap.md),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 132,
+            child: Center(
+              child: AspectRatio(
+                aspectRatio: t.width / t.height,
+                child: DecoratedBox(
+                  position: DecorationPosition.foreground,
+                  decoration: BoxDecoration(
+                      border: Border.all(color: scheme.primary, width: 1.5)),
+                  child: ClipRect(
+                    child: Stack(fit: StackFit.expand, children: [
+                      if (background != null) background,
+                      image,
+                    ]),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: Gap.xs),
+          Text('${context.t('rs.preview')} · ${t.width} × ${t.height}',
+              style: Theme.of(context).textTheme.labelSmall),
+        ],
+      ),
+    );
+  }
+
   /// **Tahmini boyut** satırı: `48 MB → ≈ 12 MB · ≈ %75 kazanç`.
   ///
   /// Sayı "≈" ile yazılır ve altında tek satırlık uyarı durur: gerçek boyut
@@ -879,7 +1075,7 @@ class _ResizeSheetState extends State<_ResizeSheet> {
         children: [
           Row(
             children: [
-              Icon(Icons.compress_rounded,
+              Icon(AppIcons.shrink,
                   size: 16, color: theme.colorScheme.primary),
               const SizedBox(width: Gap.xs),
               Expanded(

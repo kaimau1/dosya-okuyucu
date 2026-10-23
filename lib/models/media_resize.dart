@@ -8,6 +8,8 @@
 /// hesaplarda tek pikselli yanlışlar gözle görülmez ama en/boy oranını bozar.
 library;
 
+import 'dart:math' as math;
+
 /// Hedef çözünürlük seçimi.
 ///
 /// Faz 14 (2026-10-22) — kullanıcı: *"kolay biçimde ve istediğim oranda
@@ -44,15 +46,13 @@ extension ResolutionChoiceLabel on ResolutionChoice {
         ResolutionChoice.fileSize => 'enum.res_file_size',
       };
 
-  /// Yalnız fotoğrafta uygulanabilen kip mi? (Video motoru bunları
-  /// yapmıyor; seçimde video varsa levha bunları göstermez.)
-  bool get photoOnly => switch (this) {
-        ResolutionChoice.longEdge ||
-        ResolutionChoice.aspect ||
-        ResolutionChoice.fileSize =>
-          true,
-        _ => false,
-      };
+  /// Yalnız fotoğrafta uygulanabilen kip mi?
+  ///
+  /// Faz 14b (2026-10-23): uzun kenar, en-boy oranı ve dosya boyutu videoda
+  /// da geçer — Media3 `Presentation` düzen kipleri kırp/boşluk yapıyor,
+  /// dosya boyutu hedefi bit hızına çevriliyor ([videoBitrateForTarget]).
+  /// Artık hiçbir kip yalnız fotoğrafa ait değil; alan eski çağıranlar için.
+  bool get photoOnly => false;
 
   String get label => switch (this) {
         ResolutionChoice.keep => 'Değiştirme',
@@ -98,6 +98,26 @@ enum ResizeFit {
 
 extension ResizeFitLabel on ResizeFit {
   String get labelKey => 'rs.fit_$name';
+}
+
+/// "Doldur ve kırp"ta ([ResizeFit.cover]) görüntünün hangi kısmının
+/// **korunacağı** (Faz 14b). Varsayılan orta; portrede yüz genelde üstte,
+/// manzarada ufuk ortada — kullanıcı seçebilsin.
+enum CropAnchor { center, top, bottom, start, end }
+
+extension CropAnchorLabel on CropAnchor {
+  String get labelKey => 'rs.anchor_$name';
+
+  /// Taşan payın ne kadarının baştan kesileceği (0 = baş korunur, 1 = son
+  /// korunur). [horizontal] true ise yatay eksen. "start" = görüntünün
+  /// solu: kırpma piksel uzayında, arayüz yönünden bağımsız.
+  double fraction({required bool horizontal}) => switch (this) {
+        CropAnchor.center => 0.5,
+        CropAnchor.top => horizontal ? 0.5 : 0,
+        CropAnchor.bottom => horizontal ? 0.5 : 1,
+        CropAnchor.start => horizontal ? 0 : 0.5,
+        CropAnchor.end => horizontal ? 1 : 0.5,
+      };
 }
 
 /// Kenar boşluğu rengi ([ResizeFit.pad]).
@@ -216,6 +236,9 @@ class MediaResizeOptions {
   final ResizeFit fit;
   final PadColor padColor;
 
+  /// [ResizeFit.cover]'da korunacak kısım (Faz 14b).
+  final CropAnchor anchor;
+
   /// [ResolutionChoice.longEdge] hedefi (px).
   final int longEdgePx;
 
@@ -225,6 +248,12 @@ class MediaResizeOptions {
 
   /// [ResolutionChoice.fileSize] hedefi (KB, 1 KB = 1024 bayt).
   final int targetKb;
+
+  /// Fotoğraftaki **konum (GPS) bilgisi** silinsin mi (Faz 14b)? Tarih ve
+  /// kamera bilgisi her durumda korunur; yön etiketi sıfırlanır çünkü
+  /// pikseller zaten döndürülmüş yazılır. Varsayılan hayır: kullanıcının
+  /// albüm uygulaması konumdan "yerler" kuruyor olabilir.
+  final bool stripLocation;
 
   const MediaResizeOptions({
     this.resolution = ResolutionChoice.p1080,
@@ -240,10 +269,12 @@ class MediaResizeOptions {
     this.lockAspect = true,
     this.fit = ResizeFit.contain,
     this.padColor = PadColor.white,
+    this.anchor = CropAnchor.center,
     this.longEdgePx = 1600,
     this.aspectW = 1,
     this.aspectH = 1,
     this.targetKb = 200,
+    this.stripLocation = false,
   });
 
   /// Diske yazılabilir hâli — **yarıda kalan işi yeniden başlatmak** için
@@ -263,10 +294,12 @@ class MediaResizeOptions {
         'lockAspect': lockAspect,
         'fit': fit.name,
         'padColor': padColor.name,
+        'anchor': anchor.name,
         'longEdgePx': longEdgePx,
         'aspectW': aspectW,
         'aspectH': aspectH,
         'targetKb': targetKb,
+        'stripLocation': stripLocation,
       };
 
   /// Kayıttan okur; tanınmayan/eksik alanlar varsayılana düşer (eski sürümün
@@ -307,10 +340,12 @@ class MediaResizeOptions {
           ? ResizeFit.stretch
           : pick(ResizeFit.values, raw['fit'], ResizeFit.contain),
       padColor: pick(PadColor.values, raw['padColor'], PadColor.white),
+      anchor: pick(CropAnchor.values, raw['anchor'], CropAnchor.center),
       longEdgePx: asInt(raw['longEdgePx']) ?? 1600,
       aspectW: asDouble(raw['aspectW']) ?? 1,
       aspectH: asDouble(raw['aspectH']) ?? 1,
       targetKb: asInt(raw['targetKb']) ?? 200,
+      stripLocation: raw['stripLocation'] == true,
     );
   }
 
@@ -330,10 +365,12 @@ class MediaResizeOptions {
     bool? lockAspect,
     ResizeFit? fit,
     PadColor? padColor,
+    CropAnchor? anchor,
     int? longEdgePx,
     double? aspectW,
     double? aspectH,
     int? targetKb,
+    bool? stripLocation,
   }) =>
       MediaResizeOptions(
         resolution: resolution ?? this.resolution,
@@ -349,10 +386,12 @@ class MediaResizeOptions {
         lockAspect: lockAspect ?? this.lockAspect,
         fit: fit ?? this.fit,
         padColor: padColor ?? this.padColor,
+        anchor: anchor ?? this.anchor,
         longEdgePx: longEdgePx ?? this.longEdgePx,
         aspectW: aspectW ?? this.aspectW,
         aspectH: aspectH ?? this.aspectH,
         targetKb: targetKb ?? this.targetKb,
+        stripLocation: stripLocation ?? this.stripLocation,
       );
 
   /// Serbest ölçüde GERÇEKTE uygulanan yerleşim: kilit açıkken hep
@@ -408,9 +447,11 @@ class MediaResizeOptions {
         replaceOriginal ? 'degistir' : 'kopya',
         lockAspect ? 'kilit' : fit.name,
         padColor.name,
+        anchor.name,
         longEdgePx,
         '${aspectW}x$aspectH',
         targetKb,
+        stripLocation ? 'konumsuz' : 'konumlu',
       ].join('/');
 
   /// Oran etiketi ("4:5", "A4" ya da "3.5:2").
@@ -496,6 +537,10 @@ const int _audioBitrate = 128000;
 /// gördükten sonra anlıyordu.
 class MediaSourceInfo {
   final String name;
+
+  /// Dosyanın yolu — levhanın canlı önizleme küçük resmi için (Faz 14b).
+  /// Testlerde ve ölçülemeyen dosyalarda null.
+  final String? path;
   final int sizeBytes;
   final bool isVideo;
 
@@ -509,6 +554,7 @@ class MediaSourceInfo {
 
   const MediaSourceInfo({
     required this.name,
+    this.path,
     required this.sizeBytes,
     required this.isVideo,
     this.width = 0,
@@ -526,13 +572,23 @@ class MediaSourceInfo {
       : null;
 
   /// Bu ayarlarla çıkacak ölçü (kaynak bilinmiyorsa null).
-  ({int width, int height})? targetFor(MediaResizeOptions options) => hasSize
-      ? targetSize(
-          sourceWidth: width,
-          sourceHeight: height,
-          options: options,
-          video: isVideo)
-      : null;
+  ({int width, int height})? targetFor(MediaResizeOptions options) {
+    if (!hasSize) return null;
+    final t = targetSize(
+        sourceWidth: width,
+        sourceHeight: height,
+        options: options,
+        video: isVideo);
+    // Videoda dosya boyutu hedefi bit hızı düşükse ölçüyü de indirir
+    // (motorla aynı hesap — `VideoTranscoder.run`).
+    if (isVideo && options.resolution == ResolutionChoice.fileSize) {
+      final bitrate = videoBitrateForTarget(options, durationMs);
+      if (bitrate == null) return t;
+      return scaleEven(t, videoScaleForBitrate(t.width, t.height,
+          targetFps(options)?.toDouble() ?? 30, bitrate));
+    }
+    return t;
+  }
 
   /// Bu ayarlarla çıkacak kare sayısı. Kaynaktan yüksek istenirse kaynağınki
   /// geçerlidir (kodlayıcı kare kopyalar, dosya şişer — bkz.
@@ -575,6 +631,9 @@ class MediaSourceInfo {
   }
 
   int? _videoEstimate(MediaResizeOptions options) {
+    if (options.resolution == ResolutionChoice.fileSize) {
+      return durationMs > 0 ? options.targetKb * 1024 : null;
+    }
     final target = targetFor(options);
     if (target == null || durationMs <= 0) return null;
     final fpsOut = targetFps(options) ?? 30;
@@ -642,6 +701,8 @@ class MediaSourceInfo {
   /// değiştiği için yalnız videoda anlamlı.
   bool noVisualChangeWith(MediaResizeOptions options) {
     if (!isVideo || !hasSize) return false;
+    // Dosya boyutu hedefi ölçü değişmese de bit hızını düşürür.
+    if (options.resolution == ResolutionChoice.fileSize) return false;
     final target = targetFor(options);
     if (target == null) return false;
     final sameSize = target.width >= width && target.height >= height;
@@ -777,4 +838,75 @@ class MediaSourceInfo {
       if (shortSide <= edge) return scaled(1);
       return scaled(edge / shortSide);
   }
+}
+
+/// Videoda hedef kutunun kaynağa nasıl uygulanacağı — Media3 `Presentation`
+/// düzen kipleri (Faz 14b). Kotlin tarafı adı birebir okur (`ci/MediaTranscode.kt`).
+enum VideoLayout {
+  /// `LAYOUT_STRETCH_TO_FIT`: hedef ölçü birebir. Hedef zaten kaynağın
+  /// oranındaysa (kademe, yüzde, uzun kenar, kilitli ölçü) bozulma olmaz.
+  stretch,
+
+  /// `LAYOUT_SCALE_TO_FIT`: oran korunur, kalan yer SİYAH şerit.
+  fit,
+
+  /// `LAYOUT_SCALE_TO_FIT_WITH_CROP`: kutuyu doldurur, taşanı ortadan keser.
+  crop,
+}
+
+/// Seçilen ayarın video düzen kipi. Eskiden (14b öncesi) her zaman
+/// [VideoLayout.stretch] gidiyordu: kilit kapalı 1080×1080 bir yatay videoyu
+/// sessizce sıkıştırıyordu (G4d).
+VideoLayout videoLayoutFor(MediaResizeOptions o) {
+  if (o.resolution == ResolutionChoice.aspect) {
+    return o.fit == ResizeFit.pad ? VideoLayout.fit : VideoLayout.crop;
+  }
+  if (o.resolution == ResolutionChoice.custom &&
+      o.customWidth != null &&
+      o.customHeight != null) {
+    return switch (o.effectiveFit) {
+      ResizeFit.cover => VideoLayout.crop,
+      ResizeFit.pad => VideoLayout.fit,
+      // contain: targetSize zaten oranlı kutuyu verdi.
+      ResizeFit.contain || ResizeFit.stretch => VideoLayout.stretch,
+    };
+  }
+  return VideoLayout.stretch;
+}
+
+/// **Videoda dosya boyutu hedefi** (Faz 14b): hedef bayt × 8 / süre − ses.
+/// Taban 150 kbit/s — altında görüntü kare kare blok olur; o zaman hedef
+/// tutmaz ve iş sonucu gerçek boyutu raporlar (fotoğraftaki "en yakın" gibi).
+/// Süre bilinmiyorsa null (hedef hesaplanamaz).
+int? videoBitrateForTarget(MediaResizeOptions o, int durationMs) {
+  if (durationMs <= 0) return null;
+  final seconds = durationMs / 1000;
+  final total = o.targetKb * 1024 * 8 / seconds;
+  final audio = o.removeAudio ? 0 : _audioBitrate;
+  // Konteyner payı ~%3.
+  final video = (total * 0.97 - audio).round();
+  return video < 150000 ? 150000 : video;
+}
+
+/// Dosya boyutu hedefinde bit hızı düşükse ölçü de iner: piksel başına en az
+/// [videoBitsPerPixel] (en küçük kalite) düşsün — yoksa 4K'yı 300 kbit/s'e
+/// sıkıştırmak bulamaç üretir. Ölçek 1'i geçmez.
+double videoScaleForBitrate(int width, int height, double fps, int bitrate) {
+  if (width <= 0 || height <= 0) return 1;
+  final need = width * height * (fps > 0 ? fps : 30) *
+      videoBitsPerPixel(VideoQualityChoice.veryLow);
+  if (bitrate >= need) return 1;
+  final s = math.sqrt(bitrate / need);
+  return s < 0.1 ? 0.1 : s;
+}
+
+/// Ölçüyü [scale] ile küçültür, video kuralıyla çift sayıya yuvarlar.
+({int width, int height}) scaleEven(({int width, int height}) t, double scale) {
+  if (scale >= 1) return t;
+  int even(num v) {
+    final r = v.round();
+    return r < 2 ? 2 : r - r % 2;
+  }
+
+  return (width: even(t.width * scale), height: even(t.height * scale));
 }

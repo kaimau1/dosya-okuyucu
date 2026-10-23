@@ -96,3 +96,80 @@ Future<T?> showAppSheet<T>(
     },
   );
 }
+
+/// Tek satırlık metin sorusu (ad ver, yeniden adlandır…). Vazgeçme, boş ya
+/// da yalnız boşluk yanıt `null` döner. Denetleyiciyi pencerenin kendi
+/// durumu tutar: `await` sonrası elle `dispose` kapanış animasyonu sürerken
+/// alanı çökertir ("used after being disposed").
+Future<String?> showAppPrompt(
+  BuildContext context, {
+  String? title,
+  String? label,
+  String initial = '',
+  String? confirmLabel,
+  int? maxLength,
+}) async {
+  final text = await showDialog<String>(
+    context: context,
+    builder: (_) => _PromptDialog(
+      title: title,
+      label: label,
+      initial: initial,
+      confirmLabel: confirmLabel,
+      maxLength: maxLength,
+    ),
+  );
+  final clean = text?.trim();
+  return clean == null || clean.isEmpty ? null : clean;
+}
+
+class _PromptDialog extends StatefulWidget {
+  const _PromptDialog({
+    this.title,
+    this.label,
+    required this.initial,
+    this.confirmLabel,
+    this.maxLength,
+  });
+
+  final String? title, label, confirmLabel;
+  final String initial;
+  final int? maxLength;
+
+  @override
+  State<_PromptDialog> createState() => _PromptDialogState();
+}
+
+class _PromptDialogState extends State<_PromptDialog> {
+  late final _controller = TextEditingController(text: widget.initial)
+    ..selection =
+        TextSelection(baseOffset: 0, extentOffset: widget.initial.length);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: widget.title == null ? null : Text(widget.title!),
+        content: TextField(
+          controller: _controller,
+          autofocus: true,
+          maxLength: widget.maxLength,
+          decoration: InputDecoration(labelText: widget.label),
+          onSubmitted: (v) => Navigator.pop(context, v),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(context.t('common.cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, _controller.text),
+            child: Text(widget.confirmLabel ?? context.t('common.ok')),
+          ),
+        ],
+      );
+}

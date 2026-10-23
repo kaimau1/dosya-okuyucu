@@ -4,6 +4,7 @@ import 'package:dosya_okuyucu/widgets/fm/media_resize_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// **Faz 14 — boyutlandırma levhası.** Kabul ölçütü: "1600 yazınca yükseklik
 /// alanı anında doluyor"; kilit kapalıyken dört yerleşim; %150'de büyütme
@@ -23,11 +24,13 @@ const _photo = MediaSourceInfo(
     height: 3000);
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   /// Levhayı açar; "Başlat" dönüşü [result]'a yazılır.
   Future<ValueNotifier<MediaResizeOptions?>> open(WidgetTester tester,
       {MediaResizeOptions initial = const MediaResizeOptions(),
       bool hasVideos = false}) async {
-    tester.view.physicalSize = const Size(420, 1400);
+    tester.view.physicalSize = const Size(420, 2000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final result = ValueNotifier<MediaResizeOptions?>(null);
@@ -80,10 +83,16 @@ void main() {
         isTrue);
   });
 
-  testWidgets('video seçiminde fotoğraf kipleri yok', (tester) async {
+  testWidgets('video seçiminde kademeler + (14b) uzun kenar/oran/dosya boyutu',
+      (tester) async {
     await open(tester, hasVideos: true);
     expect(find.byKey(const ValueKey('mode-p720')), findsOneWidget);
-    expect(find.byKey(const ValueKey('mode-fileSize')), findsNothing);
+    for (final m in ['longEdge', 'aspect', 'fileSize']) {
+      expect(find.byKey(ValueKey('mode-$m')), findsOneWidget, reason: m);
+    }
+    // Videoda dört yerleşim de var; kırpma/boşlukta motorun sınırı yazılır.
+    await tapKey(tester, 'mode-aspect');
+    expect(find.textContaining('kenar boşluğu siyahtır'), findsOneWidget);
   });
 
   testWidgets('kilitli: 1600 yazınca yükseklik ANINDA 1200', (tester) async {
@@ -152,5 +161,38 @@ void main() {
     await tester.pumpAndSettle();
     final o = result.value!;
     expect((o.aspectW, o.aspectH, o.fit), (4.0, 5.0, ResizeFit.pad));
+  });
+
+  testWidgets('doldur ve kırp → korunacak kısım seçilir (14b çapa)',
+      (tester) async {
+    final result = await open(tester);
+    await tapKey(tester, 'mode-aspect');
+    await tapKey(tester, 'aspect-1:1');
+    await tapKey(tester, 'anchor-top');
+    // Canlı önizleme yolu olmayan kaynakta çizilmez (test kaynağı yolsuz).
+    expect(find.byKey(const ValueKey('resize-preview')), findsNothing);
+    await tester.tap(find.text('Başlat'));
+    await tester.pumpAndSettle();
+    expect(result.value!.anchor, CropAnchor.top);
+  });
+
+  testWidgets('ayarı kaydet → ön ayar çipi; basılı tut → sil (14b)',
+      (tester) async {
+    await open(tester);
+    await tapKey(tester, 'mode-longEdge');
+    await tapKey(tester, 'save-preset');
+    await tester.enterText(find.byType(TextField).last, 'Blog');
+    await tester.tap(find.text('Tamam'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('user-preset-Blog')), findsOneWidget);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('resize.presets'), contains('Blog'));
+
+    await tester.longPress(find.byKey(const ValueKey('user-preset-Blog')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sil'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('user-preset-Blog')), findsNothing);
+    expect(prefs.getString('resize.presets'), isNot(contains('Blog')));
   });
 }

@@ -35,7 +35,7 @@ import java.io.File
  *
  * Kanal `dosya_okuyucu/transcode`:
  * - `probe(path)` → gösterim ölçüsü (döndürme uygulanmış), süre, kare hızı.
- * - `start(path, target, width, height, fps?, bitrate, removeAudio)` →
+ * - `start(path, target, width, height, fps?, bitrate, removeAudio, layout?)` →
  *   bitince `done` / `failed` olayı; arada `progress` (0..100).
  * - `cancel()`.
  * Aynı anda tek iş (iş kuyruğu zaten sırayla veriyor).
@@ -124,11 +124,19 @@ object MediaTranscodeBridge {
         val fps = (a["fps"] as? Number)?.toFloat()
         val bitrate = (a["bitrate"] as? Number)?.toInt() ?: 0
         val removeAudio = a["removeAudio"] == true
+        // Faz 14b: kutuya yerleşim — Dart `VideoLayout` adı. "fit" = oran
+        // korunur + siyah şerit, "crop" = doldur + ortadan kırp, diğeri esnet
+        // (hedef zaten kaynağın oranındaysa bozulma olmaz).
+        val layout = when (a["layout"] as? String) {
+            "fit" -> Presentation.LAYOUT_SCALE_TO_FIT
+            "crop" -> Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP
+            else -> Presentation.LAYOUT_STRETCH_TO_FIT
+        }
         transformer?.cancel()
 
         val videoEffects = mutableListOf<androidx.media3.common.Effect>(
-            // Hedef ölçü Dart'ta orana göre hesaplandı; tam o ölçü üretilir.
-            Presentation.createForWidthAndHeight(width, height, Presentation.LAYOUT_STRETCH_TO_FIT)
+            // Hedef ölçü Dart'ta hesaplandı; tam o ölçü üretilir.
+            Presentation.createForWidthAndHeight(width, height, layout)
         )
         if (fps != null && fps > 0) {
             videoEffects.add(FrameDropEffect.createDefaultFrameDropEffect(fps))
