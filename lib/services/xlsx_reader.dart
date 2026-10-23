@@ -18,8 +18,12 @@ import '../core/excel_format.dart';
 /// Yazma tarafı `excel` paketinde KALIR (xlsx_editor.dart) — burada yalnız
 /// okuma var, dosya bozma riski yok.
 class XlsxReader {
-  /// Bir sayfada en çok bu kadar sütun/satır çözümlenir (bozuk dosyada
-  /// 16384×1048576 hücrelik boş ızgara belleği doldurmasın).
+  /// Bir sayfada en çok bu kadar sütun/satır çözümlenir (bozuk ya da dev
+  /// dosyada boş ızgara belleği doldurmasın). Excel'in kendi sınırı 16384
+  /// sütun × 1048576 satırdır; bu sınırın ötesindeki veri **okunmaz** —
+  /// sayfa [XlsxSheetLayout.truncated] olarak işaretlenir, ekran şerit
+  /// gösterir ve kaydetme kapanır (Faz 26b: eskiden sessizce kesiliyordu ve
+  /// kaydedince kesilen hücreler dosyadan SİLİNİYORDU).
   static const int maxColumns = 1024;
   static const int maxRows = 200000;
 
@@ -669,7 +673,13 @@ class XlsxReader {
     for (final row in el.childElements) {
       if (row.name.local != 'row') continue;
       final rIdx = (int.tryParse(row.getAttribute('r') ?? '') ?? 0) - 1;
-      if (rIdx < 0 || rIdx >= maxRows) continue;
+      if (rIdx >= maxRows) {
+        if (row.childElements.any((c) => c.name.local == 'c')) {
+          layout.truncated = true;
+        }
+        continue;
+      }
+      if (rIdx < 0) continue;
       final ht = double.tryParse(row.getAttribute('ht') ?? '');
       if (ht != null) layout.rowHeights[rIdx] = ht;
       if (row.getAttribute('hidden') == '1' ||
@@ -696,7 +706,11 @@ class XlsxReader {
             col = parsed.$2;
           }
         }
-        if (col < 0 || col >= maxColumns) continue;
+        if (col >= maxColumns) {
+          layout.truncated = true;
+          continue;
+        }
+        if (col < 0) continue;
         final cell = _readCell(c, rr, col, shared, sharedFormulas);
         if (cell == null) continue;
         layout.cells[cellKey(rr, col)] = cell;
@@ -1408,6 +1422,11 @@ class XlsxSheetLayout {
 
   int frozenRows = 0;
   int frozenCols = 0;
+
+  /// Okuma sınırı ([XlsxReader.maxRows] / [XlsxReader.maxColumns]) ötesinde
+  /// hücre vardı ve okunmadı. Böyle bir sayfa kaydedilirse o hücreler
+  /// kaybolur — bu yüzden kaydetme kapalıdır (bkz. [XlsxEditor.truncated]).
+  bool truncated = false;
   bool showGridLines = true;
   bool rightToLeft = false;
   double zoomScale = 1;

@@ -709,6 +709,11 @@ class XlsxEditor {
 
   XlsxEditor._(this._source, this.sheets, this.workbook);
 
+  /// Bir sayfası okuma sınırında kesildi mi (Faz 26b). Kesik kitap
+  /// kaydedilmez: yazıcı `sheetData`yı modelden baştan kurduğu için okunmayan
+  /// satır/sütunlar dosyadan silinirdi.
+  bool get truncated => sheets.any((s) => s.layout.truncated);
+
   /// Kalıcı formül motoru için değişiklik günlüğü (Faz 26) — bkz. [CalcLog].
   final CalcLog calcLog = CalcLog();
 
@@ -1404,13 +1409,22 @@ class XlsxEditor {
   }
 
   /// Dosyayı UI izleğinde üretir (testler, küçük dosyalar, dışa aktarım).
-  Uint8List save() => _runSave(_saveJob());
+  Uint8List save() {
+    _guardTruncated();
+    return _runSave(_saveJob());
+  }
+
+  void _guardTruncated() {
+    if (truncated) throw const XlsxTruncatedException();
+  }
 
   /// Dosyayı ayrı izolatta üretir (Faz 20 / ED3): paket yazımı, yamalar ve
   /// zip sıkıştırma UI izleğini dondurmaz. Model gönderim anında kopyalanır;
   /// kayıt sürerken yapılan düzenleme bir sonraki kayda kalır.
-  Future<Uint8List> saveAsync() =>
-      SaveIsolate.run<_XlsxSaveJob, Uint8List>(_runSave, _saveJob());
+  Future<Uint8List> saveAsync() async {
+    _guardTruncated();
+    return SaveIsolate.run<_XlsxSaveJob, Uint8List>(_runSave, _saveJob());
+  }
 
   static Uint8List _runSave(_XlsxSaveJob job) {
     // Önce değerler ve yapı (özgün paket korunarak), sonra görünüm
@@ -1472,6 +1486,14 @@ String? applyNumberFormat(String code, double value) {
   final trimmed = code.trim();
   if (trimmed == '@') return null;
   return fmt.format(value).text;
+}
+
+/// Okuma sınırında kesilmiş kitabı kaydetme girişimi (veri kaybı olurdu).
+class XlsxTruncatedException implements Exception {
+  const XlsxTruncatedException();
+
+  @override
+  String toString() => 'xlsx: sayfa okuma sınırında kesildi; kaydetme kapalı';
 }
 
 /// [XlsxEditor.saveAsync]'in izolata giden girdisi.

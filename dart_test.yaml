@@ -8,3 +8,5 @@
 tags:
   live:
     description: Gerçek FTP/SFTP/WebDAV/SMB sunucusu ister; yoksa atlanır.
+  perf:
+    description: Kıyas testleri (test/perf/) — DUZENLEME_PLANI §7; eşikler debug/JIT için gevşek.

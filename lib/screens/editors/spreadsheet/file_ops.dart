@@ -4,6 +4,10 @@ extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
   Future<void> _save() async {
     _endEdit();
     if (_editor == null) return;
+    if (_editor!.truncated) {
+      _snack(context.t('excel.truncated_no_save'));
+      return;
+    }
     final target = widget.savePath ?? widget.path;
     final ok = await _session.saveNow();
     if (!mounted) return;
@@ -57,16 +61,57 @@ extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
     final name = widget.savePath == null
         ? widget.name
         : p.basename(widget.savePath!);
-    await runDownloadAction(
-        context, () => SaveToDownloads.saveBytes(name, editor.save()));
+    if (editor.truncated) {
+      _snack(context.t('excel.truncated_no_save'));
+      return;
+    }
+    // Faz 26b: paket yazımı + zip izolatta (eskiden `save()` UI izleğinde
+    // büyük kitapta saniyelerce donduruyordu).
+    await runDownloadAction(context,
+        () async => SaveToDownloads.saveBytes(name, await editor.saveAsync()));
   }
 
   Future<void> _export() async {
     final editor = _editor;
     if (editor == null) return;
+    if (editor.truncated) {
+      _snack(context.t('excel.truncated_no_save'));
+      return;
+    }
     final f = File('${Directory.systemTemp.path}/${widget.name}');
-    await f.writeAsBytes(editor.save());
+    await f.writeAsBytes(await editor.saveAsync());
     await Share.shareXFiles([XFile(f.path)], text: widget.name);
+  }
+
+  /// Okuma sınırı şeridi (Faz 26b, plan madde 6): sayfa 200 bin satır /
+  /// 1024 sütun ötesinde veri taşıyordu ve o kısım okunmadı.
+  Widget _truncatedBanner() {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      key: const ValueKey('excel-truncated'),
+      color: scheme.errorContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            Icon(AppIcons.warning, size: 20, color: scheme.onErrorContainer),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                context.t('excel.truncated', {
+                  'rows': XlsxReader.maxRows,
+                  'cols': XlsxReader.maxColumns,
+                }),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: scheme.onErrorContainer),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   /// Etkin sayfayı CSV olarak dışa aktarır — hücreler **ekranda göründüğü

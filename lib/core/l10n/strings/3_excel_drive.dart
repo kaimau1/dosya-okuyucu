@@ -631,6 +631,21 @@ const Map<String, (String, String, String)> _t3 = {
     'لم يتّسع الجزء المجمّد في الملف للشاشة، لذا أصبحت تلك الأعمدة قابلة للتمرير. '
         'يمكنك إيقافه تمامًا عبر ⋮ > إلغاء تجميد الأجزاء.',
   ),
+  'excel.truncated': (
+    'Bu kitap çok büyük: yalnız ilk {rows} satır ve {cols} sütun açıldı. '
+        'Kalan veri kaybolmasın diye kaydetme kapalı — okuyabilir ya da '
+        'CSV olarak dışa aktarabilirsiniz.',
+    'This workbook is too large: only the first {rows} rows and {cols} '
+        'columns were opened. Saving is off so the rest is not lost — you can '
+        'read it, or export CSV.',
+    'هذا المصنف كبير جدًا: فُتحت أول {rows} صف و{cols} عمود فقط. '
+        'الحفظ معطّل حتى لا تضيع بقية البيانات — يمكنك القراءة أو التصدير إلى CSV.',
+  ),
+  'excel.truncated_no_save': (
+    'Kaydetme kapalı: kitap okuma sınırında kesildi, kaydetmek kalan veriyi silerdi.',
+    'Saving is off: the workbook was cut at the read limit; saving would delete the rest.',
+    'الحفظ معطّل: قُطع المصنف عند حد القراءة، والحفظ كان سيحذف الباقي.',
+  ),
   'excel.sheet_rtl': (
     'Sayfa sağdan sola',
     'Right-to-left sheet',

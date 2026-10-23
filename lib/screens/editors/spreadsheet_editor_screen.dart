@@ -156,7 +156,9 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
     sourcePath: widget.savePath ?? widget.path,
     editor: 'excel',
     save: _writeFile,
-    snapshot: () async => _editor?.saveAsync(),
+    // Kesik kitabın taslağı da yazılamaz (bkz. XlsxEditor.truncated).
+    snapshot: () async =>
+        _editor?.truncated == true ? null : _editor?.saveAsync(),
   );
 
   int _selRow = 0;
@@ -419,6 +421,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
               ? const Center(child: CircularProgressIndicator())
               : Column(
                   children: [
+                    if (editor.truncated) _truncatedBanner(),
                     if (_finding) ...[_findBar(), _replaceBar()],
                     _cellBar(),
                     _formulaSuggestions(),

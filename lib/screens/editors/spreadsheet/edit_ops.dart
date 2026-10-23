@@ -103,6 +103,9 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     }
     if (mounted) _partSetState(() {});
     // Ekran açılmayı BEKLEMEZ: kaynak damgası + taslak araması arkada.
+    // Okuma sınırında kesilmiş kitap kaydedilemez (Faz 26b): otomatik
+    // kaydetme kapanır, kullanıcı şeritten nedenini okur.
+    if (_editor?.truncated == true) _session.autoSaveForDoc = false;
     if (_editor != null) {
       unawaited(_warmCalc());
       unawaited(_session.captureSource());
@@ -314,17 +317,22 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
       final style = sheet.styleAt(r, c);
       final align = style?.alignFor(view.numeric, rightToLeft: rtl) ??
           (rtl ? TextAlign.right : TextAlign.left);
+      final merged = sheet.mergeAt(r, c) != null;
+      final wrap = style?.wrap ?? false;
       cells.add(SheetSpillCell(
         col: c,
         text: view.text,
         columnWidth: sheet.colWidth(c),
-        textWidth: view.text.isEmpty
+        // Faz 26b: sayı / kaydırılan / birleşik hücre hiç taşmaz
+        // (`planRowSpill` onları atlar) — ölçmek kaydırmada kare başına
+        // yüzlerce boşa metin düzeni demekti.
+        textWidth: view.text.isEmpty || view.numeric || wrap || merged
             ? 0
             : _measure.widthOf(view.text,
                     SheetCell.metricsStyle(style, numeric: view.numeric)) +
                 SheetCell.horizontalPadding(style),
-        wrap: style?.wrap ?? false,
-        merged: sheet.mergeAt(r, c) != null,
+        wrap: wrap,
+        merged: merged,
         numeric: view.numeric,
         align: switch (align) {
           TextAlign.right => SheetSpillAlign.right,

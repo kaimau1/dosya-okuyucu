@@ -79,7 +79,16 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
       return Stack(
         key: _overlayKey,
         children: [
-          Positioned.fill(child: Container(
+          // Hücreye dokunma TEK tanıyıcıyla (Faz 26b / K23): dokunulan hücre
+          // `SheetCellPos` işaretinden bulunur. Başlıkların ve tutamakların
+          // kendi tanıyıcıları içte olduğu için arenayı onlar kazanır.
+          Positioned.fill(child: Builder(builder: (tapContext) => GestureDetector(
+            onTapUp: (d) {
+              final pos = _cellAtGlobal(tapContext, d.globalPosition,
+                  clamp: false);
+              if (pos != null) _select(pos.$1, pos.$2);
+            },
+            child: Container(
         // Izgaranın zemini BEYAZ: kağıt teması uygulamanın kabuğuna ait,
         // belgenin içine değil (2026-08-07 kullanıcı isteği).
         color: Paper.docSurface(context),
@@ -218,7 +227,7 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
         ),
       ),
       ),
-      )),
+      )))),
           if (_editing) _floatingEditor(constraints),
           ..._selectionHandles(),
         ],
@@ -280,14 +289,21 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
       );
 
   /// Ekran koordinatındaki hücreyi bulur (MetaData işaretleriyle, ölçüm yok).
-  (int, int)? _cellAtGlobal(BuildContext areaContext, Offset globalPos) {
+  /// [clamp]: sürüklemede parmak alanın dışına çıksa da kenardaki hücre
+  /// bulunsun; dokunuşta kapalı (alan dışı = hücre yok).
+  (int, int)? _cellAtGlobal(BuildContext areaContext, Offset globalPos,
+      {bool clamp = true}) {
     final box = areaContext.findRenderObject();
     if (box is! RenderBox || !box.hasSize) return null;
     var local = box.globalToLocal(globalPos);
-    local = Offset(
-      local.dx.clamp(0.5, box.size.width - 0.5),
-      local.dy.clamp(0.5, box.size.height - 0.5),
-    );
+    if (clamp) {
+      local = Offset(
+        local.dx.clamp(0.5, box.size.width - 0.5),
+        local.dy.clamp(0.5, box.size.height - 0.5),
+      );
+    } else if (!(Offset.zero & box.size).contains(local)) {
+      return null;
+    }
     final result = BoxHitTestResult();
     box.hitTest(result, position: local);
     for (final entry in result.path) {

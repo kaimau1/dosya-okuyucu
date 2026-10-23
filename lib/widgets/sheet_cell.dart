@@ -77,7 +77,12 @@ class SheetCell extends StatelessWidget {
   final double spillLeft;
   final double spillRight;
   final TextEditingController controller;
-  final VoidCallback onTap;
+
+  /// Hücre başına dokunma dinleyicisi. Izgara bunu VERMEZ (Faz 26b / K23):
+  /// dokunuş ızgara düzeyinde tek bir tanıyıcıyla [SheetCellPos]'tan
+  /// çözülür — hücre başına `GestureDetector` kaydırmada kare başına yüzlerce
+  /// tanıyıcı kurmak demekti (debug ölçümünde karenin ~%15'i).
+  final VoidCallback? onTap;
   final VoidCallback onSubmitted;
   final VoidCallback onEditingComplete;
 
@@ -107,7 +112,7 @@ class SheetCell extends StatelessWidget {
     this.spillLeft = 0,
     this.spillRight = 0,
     required this.controller,
-    required this.onTap,
+    this.onTap,
     required this.onSubmitted,
     required this.onEditingComplete,
     this.cond,
@@ -236,9 +241,9 @@ class SheetCell extends StatelessWidget {
     return MetaData(
       metaData: SheetCellPos(row, col),
       behavior: HitTestBehavior.opaque,
-      child: GestureDetector(
-        onTap: onTap,
-        child: CustomPaint(
+      child: _tappable(
+        onTap,
+        CustomPaint(
           painter: _CellBorderPainter(
             border: s?.border,
             background: background,
@@ -263,6 +268,9 @@ class SheetCell extends StatelessWidget {
       ),
     );
   }
+
+  static Widget _tappable(VoidCallback? onTap, Widget child) =>
+      onTap == null ? child : GestureDetector(onTap: onTap, child: child);
 
   /// Hücre metninin **ÖLÇÜ taşıyan** stili (renk/altçizgi dışında her şey).
   ///
