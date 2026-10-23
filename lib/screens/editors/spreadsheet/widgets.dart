@@ -46,11 +46,15 @@ class _RenderContext {
   final double zoom;
   final Map<XlsxCondRule, _CondStats> condCache;
 
+  /// Formül yazılırken başvurulan aralıklar + renkleri (Faz 25).
+  final List<(XlsxRange, Color)> refs;
+
   _RenderContext({
     required this.sheet,
     required this.engine,
     required this.zoom,
     required this.condCache,
+    this.refs = const [],
   });
 
   /// Hücrede uygulanacak koşullu biçim sonucu (yoksa null).

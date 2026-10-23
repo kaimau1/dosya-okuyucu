@@ -611,3 +611,38 @@ Telefona kopyalarken klasöre `.nomedia` KOY ve iş bitince SİL (HAFIZA 2026-10
 - [ ] **Anlamla ara:** panodaki "✦ Anlamla" → "geçen kışki elektrik faturası" → Ara → "Aranan:"
       çipleri + ilgili dosyalar; düğmeye tekrar basınca normal ad aramasına dönüyor.
 - [ ] **Araçlar:** ilk sıra Harici bellek, sonra Yer aç, Sohbet temizliği, Aktar, Kasa…
+
+## Düzenleme turu Faz 20–26 (2026-10-23 — bulut turu, cihazda bakılacak)
+
+### Faz 21 — K18 kontrol noktası (Word yazma motoru; KARAR BU TESTE BAĞLI)
+Ayarlar → Geliştirici → "Deneysel Word editörü" açılır; Word'de ⋮ → Deneysel editör.
+Hem eski "Düzenle" (WebView) hem deneysel editörde, **Gboard ve Samsung klavyede** ayrı ayrı:
+- [ ] ğ ü ş ı ö ç İ yazılıyor, harf kaybolmuyor/çiftlenmiyor
+- [ ] kaydırarak yazma (swipe) kelimeyi doğru koyuyor
+- [ ] sesle yazma metni ekliyor
+- [ ] öneri çubuğuna dokunmak kelimeyi değiştiriyor
+- [ ] Enter yeni paragraf açıyor, boş paragrafta geri silme önceki paragrafla birleştiriyor
+- [ ] uzun basınca seçim, kopyala/yapıştır çalışıyor
+- [ ] akıcılık puanı 1–5 (eski / deneysel): ___ / ___ — hangisi daha iyi?
+- [ ] çok sayfalı, Word'de kaydedilmiş gerçek bir .docx'te "Düzenle" açılıyor (W1 onarımı)
+
+### Faz 20 — ortak düzenleme çekirdeği
+- [ ] klavye açılıp kapanırken klavye üstü çubuk klavyeyle birlikte kayıyor (takılma/zıplama yok)
+- [ ] otomatik kaydetme: düzenleyip 3 sn bekle → başlıkta "Kaydedildi"; uygulamayı zorla kapat →
+      yeniden aç → taslak şeridi "Geri yükle" çıkıyor
+- [ ] çıkışta kaydedilmemiş değişiklik sorusu (Kaydet / Atma / Vazgeç)
+
+### Faz 25 — Excel veri girişi
+- [ ] %100 yakınlaştırmada seçili hücreye ikinci dokunuş hücre üstünde editör açıyor
+- [ ] ✓ ↵ ⇥ oklar; ⇥ ile satır girip ↵ satır başı sütununa dönüyor
+- [ ] sayı hücresinde uygulama tuş takımı açılıyor, "ABC" sistem klavyesine geçiyor
+- [ ] `=` yazıp hücreye dokununca başvuru ekleniyor, renkli çerçeve görünüyor
+- [ ] seçim tutamaklarını sürükleyerek aralık genişliyor; hızlı fırlatma veri sonuna gidiyor
+- [ ] uzun bas → bağlam menüsü (yalnız değerleri / biçimi yapıştır, devrik yapıştır)
+- [ ] `1.234,56`, `%15`, `₺100`, `23.10.2026`, `14:30` doğru tür ve biçimle giriliyor
+- [ ] Türkçe formül (`=TOPLA(A1;A2)`) kaydedilen dosyada masaüstü Excel'de doğru açılıyor
+
+### Faz 26 (kısmen) — hesap motoru
+- [ ] büyük (10 bin satır, formüllü) sayfada yazarken/kaydırırken takılma (önce/sonra izlenim)
+- [ ] kaydedilen .xlsx'i dosya yöneticisi/Drive önizlemesinde açınca formül SONUÇLARI görünüyor
+

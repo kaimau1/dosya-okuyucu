@@ -33,7 +33,7 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
 
   /// Alandaki metin hücrenin değerinden farklı mı (onaylanmamış giriş var mı)?
   bool get _hasPendingInput =>
-      _cellField.text != _valueAt(_selRow, _selCol);
+      _cellField.text != _displayAt(_selRow, _selCol);
 
   /// **Formül çubuğu** — tek satır, sıkışık.
   ///
@@ -132,11 +132,7 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
               visualDensity: VisualDensity.compact,
               iconSize: 20,
               icon: const Icon(AppIcons.close),
-              onPressed: () {
-                _editing = false;
-                _syncField();
-                _partSetState(() {});
-              },
+              onPressed: _cancelEdit,
             ),
             IconButton(
               tooltip: context.t('common.apply'),
@@ -176,6 +172,31 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
   /// yazma ritmini bozmadan çalışıyor.
   Widget _formulaSuggestions() {
     final names = _currentCompletions();
+    final completion = _textCompletion();
+    if (names.isEmpty && completion != null) {
+      // Metin otomatik tamamlama (madde 10): sütunda yazılmış değer.
+      final scheme = Theme.of(context).colorScheme;
+      return Container(
+        width: double.infinity,
+        color: scheme.surfaceContainerHigh,
+        padding: const EdgeInsetsDirectional.only(start: 68, end: 8, bottom: 4),
+        child: Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: ActionChip(
+            key: const ValueKey('text-completion'),
+            visualDensity: VisualDensity.compact,
+            avatar: const Icon(AppIcons.keyboardArrowRight, size: 16),
+            label: Text(completion, style: context.type.small),
+            onPressed: () {
+              _cellField.value = TextEditingValue(
+                  text: completion,
+                  selection: TextSelection.collapsed(offset: completion.length));
+              _partSetState(() {});
+            },
+          ),
+        ),
+      );
+    }
     if (names.isEmpty) return const SizedBox.shrink();
     final scheme = Theme.of(context).colorScheme;
     return Container(
@@ -249,7 +270,7 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
     if (sheet == null || !text.startsWith('=') || text.length < 2) {
       return const SizedBox.shrink();
     }
-    final result = _engineFor(sheet).preview(text, _selRow, _selCol);
+    final result = _engineFor(sheet).preview(_toModel(text).raw, _selRow, _selCol);
     if (result.isEmpty) return const SizedBox.shrink();
     final scheme = Theme.of(context).colorScheme;
     return Container(

@@ -225,6 +225,23 @@ class WordSpellcheckTile extends StatelessWidget {
   }
 }
 
+/// Excel: formülleri İngilizce göster (Faz 25 / K22).
+class FormulaEnglishTile extends StatelessWidget {
+  const FormulaEnglishTile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
+    return SettingSwitch(
+      icon: AppIcons.functions,
+      title: context.t('excel.formula_english'),
+      subtitle: context.t('excel.formula_english_sub'),
+      value: appState.formulaEnglish,
+      onChanged: appState.setFormulaEnglish,
+    );
+  }
+}
+
 /// Medyanın uygulama içinde mi, sistem oynatıcısında mı açılacağı.
 class MediaOpenWithTile extends StatelessWidget {
   const MediaOpenWithTile({super.key});

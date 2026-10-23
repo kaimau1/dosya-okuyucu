@@ -41,7 +41,31 @@ extension _SpreadsheetEditorScreenCellsPart on _SpreadsheetEditorScreenState {
         !_editing && r == range.bottom && c == range.right && !hideContent;
 
     final spillHere = spill.spillAt(c);
+    // Aralığın TEK dış çerçevesi (X8) ve formül başvurularının renkli
+    // çerçeveleri (X7): kenar bit maskesi.
+    var rangeEdges = 0;
+    if (_hasRange && range.contains(r, c)) {
+      if (r == range.top) rangeEdges |= SheetCell.edgeTop;
+      if (r == range.bottom) rangeEdges |= SheetCell.edgeBottom;
+      if (c == range.left) rangeEdges |= SheetCell.edgeLeft;
+      if (c == range.right) rangeEdges |= SheetCell.edgeRight;
+    }
+    var refEdges = 0;
+    Color? refColor;
+    for (final (ref, color) in ctx.refs) {
+      if (!ref.contains(r, c)) continue;
+      refColor = color;
+      if (r == ref.r1) refEdges |= SheetCell.edgeTop;
+      if (r == ref.r2) refEdges |= SheetCell.edgeBottom;
+      if (c == ref.c1) refEdges |= SheetCell.edgeLeft;
+      if (c == ref.c2) refEdges |= SheetCell.edgeRight;
+      break;
+    }
+    final GlobalKey? key = isCursor
+        ? _cursorKey
+        : null;
     final cell = SheetCell(
+      key: key,
       row: r,
       col: c,
       width: width,
@@ -54,7 +78,11 @@ extension _SpreadsheetEditorScreenCellsPart on _SpreadsheetEditorScreenState {
       cond: hideContent ? null : ctx.condFor(r, c),
       selected: selected,
       cursor: isCursor,
-      editing: isCursor && _editing,
+      // Düzenleme hücrenin İÇİNDE değil, üstündeki yüzer editörde.
+      editing: false,
+      rangeEdges: rangeEdges,
+      refEdges: refEdges,
+      refColor: refColor,
       spillLeft: spillHere.left * _zoom,
       spillRight: spillHere.right * _zoom,
       // Sarkan metnin ALTINDAKİ hücre kendi ızgara çizgisini çizmez: çizerse
@@ -68,14 +96,41 @@ extension _SpreadsheetEditorScreenCellsPart on _SpreadsheetEditorScreenState {
     // Hücre notu (Excel'in "Açıklama"sı): sağ ÜST köşede küçük kırmızı üçgen,
     // dokununca metni gösterir. Excel'in kendi işareti de budur.
     final note = hideContent ? null : sheet.commentAt(r, c);
-    if (!showHandle && note == null) return cell;
+    // Seçim tutamaklarının yeri: aralığın sol-üst ve sağ-alt hücreleri.
+    final tl = r == range.top && c == range.left;
+    final br = r == range.bottom && c == range.right;
+    final listArrow = isCursor && !_editing && _validationOptions().isNotEmpty;
+    if (!showHandle && note == null && !tl && !br && !listArrow) return cell;
     return SizedBox(
+      key: tl && !isCursor ? _tlKey : (br && !isCursor && !tl ? _brKey : null),
       width: width,
       height: height,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           Positioned.fill(child: cell),
+          // İmleç hücresi de köşe olabilir: anahtarı kendi katmanında.
+          if (isCursor && tl)
+            Positioned.fill(child: IgnorePointer(child: SizedBox(key: _tlKey))),
+          if (isCursor && br && !tl)
+            Positioned.fill(child: IgnorePointer(child: SizedBox(key: _brKey))),
+          if (isCursor && br && tl)
+            Positioned.fill(child: IgnorePointer(child: SizedBox(key: _brKey))),
+          if (listArrow)
+            PositionedDirectional(
+              end: 0,
+              top: 0,
+              bottom: 0,
+              child: GestureDetector(
+                key: const ValueKey('validation-arrow'),
+                onTap: _pickFromValidation,
+                child: Container(
+                  width: 22,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  child: const Icon(AppIcons.arrowDropDown, size: 18),
+                ),
+              ),
+            ),
           if (note != null)
             Positioned(
               right: 0,

@@ -175,6 +175,7 @@ abstract final class AppIcons {
   static const IconData analytics = Icons.analytics_rounded;
   static const IconData android = Icons.android_rounded;
   static const IconData arrowDropDownCircle = Icons.arrow_drop_down_circle_rounded;
+  static const IconData arrowDropDown = Icons.arrow_drop_down_rounded;
   static const IconData arrowForward = Icons.arrow_forward_rounded;
   static const IconData arrowRightAlt = Icons.arrow_right_alt_rounded;
   static const IconData assignment = Icons.assignment_rounded;
@@ -187,6 +188,8 @@ abstract final class AppIcons {
   static const IconData autoStories = Icons.auto_stories_rounded;
   static const IconData autorenew = Icons.autorenew_rounded;
   static const IconData backspace = Icons.backspace_rounded;
+  static const IconData keyboardTab = Icons.keyboard_tab_rounded;
+  static const IconData keyboardReturn = Icons.keyboard_return_rounded;
   static const IconData backup = Icons.backup_rounded;
   static const IconData badge = Icons.badge_rounded;
   static const IconData balance = Icons.balance_rounded;
@@ -268,6 +271,8 @@ abstract final class AppIcons {
   static const IconData formatAlignLeft = Icons.format_align_left_rounded;
   static const IconData formatAlignRight = Icons.format_align_right_rounded;
   static const IconData formatBold = Icons.format_bold_rounded;
+  static const IconData formatPaint = Icons.format_paint_rounded;
+  static const IconData formatClear = Icons.format_clear_rounded;
   static const IconData formatColorFill = Icons.format_color_fill_rounded;
   static const IconData formatColorReset = Icons.format_color_reset_rounded;
   static const IconData formatColorText = Icons.format_color_text_rounded;

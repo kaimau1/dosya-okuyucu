@@ -365,17 +365,18 @@ extension _ParserParserPart on _Parser {
       }
       final second = _parseRef(s.substring(start2, _i));
       if (second == null) throw const FormulaError('#AD?');
-      return _RangeValue(
+      return eng._noted(_RangeValue(
         math.min(first.$1, second.$1),
         math.min(first.$2, second.$2),
         math.max(first.$1, second.$1),
         math.max(first.$2, second.$2),
-        sheet,
-      );
+        sheet ?? this.sheet,
+      ));
     }
     // Tek hücre de REFERANS olarak taşınır; değere ihtiyaç duyan her yol
     // `_single` üzerinden geçiyor (bkz. FormulaEngine._eval).
-    return _RangeValue(first.$1, first.$2, first.$1, first.$2, sheet);
+    return eng._noted(
+        _RangeValue(first.$1, first.$2, first.$1, first.$2, sheet ?? this.sheet));
   }
 
   /// "A1"/"$A$1" → (satır, sütun) 0 tabanlı; değilse null.

@@ -171,6 +171,13 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
           (fmt == 'General' ? '' : '  ·  $fmt');
     } else {
       final engine = _engineFor(sheet);
+      // Seçim ve hesap değişmediyse toplam yeniden taranmaz (Faz 26).
+      final memoKey = (sheet.name, _anchorRow, _anchorCol, _selRow, _selCol,
+          _calcStamp, context.language);
+      final memo = _statusMemo;
+      if (memo != null && memo.$1 == memoKey) {
+        return _statusText(memo.$2, scheme);
+      }
       final r1 = math.min(_anchorRow, _selRow);
       final r2 = math.max(_anchorRow, _selRow);
       final c1 = math.min(_anchorCol, _selCol);
@@ -204,6 +211,7 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
               'count': count,
               'sum': generalNumber(sum),
             });
+      _statusMemo = (memoKey, text);
     }
     return _statusText(text, scheme);
   }

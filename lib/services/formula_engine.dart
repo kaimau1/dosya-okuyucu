@@ -7,6 +7,7 @@ part 'formula/lookup_stats.dart';
 part 'formula/date_finance.dart';
 part 'formula/parser.dart';
 part 'formula/locale.dart';
+part 'formula/calc_state.dart';
 
 /// Cihaz-içi Excel formül motoru (saf Dart).
 ///
@@ -33,8 +34,16 @@ class FormulaEngine {
   /// Formülü (başında `=` OLMADAN) dosya biçimine çevirir: İngilizce işlev
   /// adı, `,` ayırıcı, `.` ondalık, yeni işlevlere `_xlfn.` — bkz.
   /// `formula/locale.dart`.
-  static String toFileFormula(String formula) =>
-      _FormulaLocalePart.toFile(formula);
+  static String toFileFormula(String formula, {bool turkish = false}) =>
+      _FormulaLocalePart.toFile(formula, turkish: turkish);
+
+  /// Türkçe/İngilizce işlev adının kanonik (İngilizce) hâli.
+  static String canonicalName(String name) => _Parser._canonical(name);
+
+  /// Dosya biçimindeki formülü (başında `=` OLMADAN) Türkçe Excel yazımına
+  /// çevirir (gösterim — Faz 25 / K22).
+  static String toTurkishFormula(String formula) =>
+      _FormulaDisplayPart.toTurkish(formula);
 
   final List<List<String>> grid;
 
@@ -46,25 +55,58 @@ class FormulaEngine {
   /// döngü tespiti doğru çalışsın diye).
   final String sheetName;
 
-  /// Hesaplanmış hücre önbelleği — aynı hücreye onlarca formül bakabilir.
-  final Map<String, Object> _cache = {};
+  /// Hesap önbelleği + bağımlılık grafiği. Verilirse motorlar arasında
+  /// (her çizimde yeni motor) KALICIDIR — bkz. [CalcState] (Faz 26).
+  final CalcState state;
 
-  FormulaEngine(this.grid, {this.sheets, this.sheetName = ''});
+  FormulaEngine(this.grid, {this.sheets, this.sheetName = '', CalcState? state})
+      : state = state ?? CalcState();
 
-  /// (r,c) hücresinin görüntülenecek değeri — formülse hesaplanır.
+  /// (r,c) hücresinin görüntülenecek değeri — formülse hesaplanır (ya da
+  /// kalıcı önbellekten gelir).
   String displayValue(int r, int c) {
     final raw = _rawAt(grid, r, c);
     if (raw.length < 2 || !raw.startsWith('=')) return raw;
-    return fmt(_evalGuarded(raw.substring(1), {_key(sheetName, r, c)},
-        selfR: r, selfC: c));
+    try {
+      return fmt(cellValue(r, c, const <String>{}));
+    } on _CycleError {
+      return '#DÖNGÜ';
+    }
   }
 
   /// Formül çubuğunda YAZILMAKTA olan formülün canlı önizlemesi.
   String preview(String formula, int selfR, int selfC) {
     if (formula.length < 2 || !formula.startsWith('=')) return '';
-    return fmt(_evalGuarded(
-        formula.substring(1), {_key(sheetName, selfR, selfC)},
-        selfR: selfR, selfC: selfC));
+    // Önizleme kaydedilmez: toplayıcı atılır.
+    state._collect.add(<_Dep>[]);
+    try {
+      return fmt(_evalGuarded(
+          formula.substring(1), {_key(sheetName, selfR, selfC)},
+          selfR: selfR, selfC: selfC, sheet: sheetName));
+    } finally {
+      state._collect.removeLast();
+    }
+  }
+
+  /// Başvurudaki sayfa adının modeldeki yazımı (büyük/küçük harf duyarsız;
+  /// boş = bu motorun sayfası) — önbellek ve bağımlılık anahtarları tek
+  /// biçimde olsun.
+  String _sheetKey(String? sheet) {
+    if (sheet == null || sheet.isEmpty || sheet == sheetName) return sheetName;
+    final all = sheets;
+    if (all == null || all.containsKey(sheet)) return sheet;
+    for (final k in all.keys) {
+      if (k.toLowerCase() == sheet.toLowerCase()) return k;
+    }
+    return sheet;
+  }
+
+  /// Formülün okuduğu aralığı bağımlılık olarak kaydeder.
+  _RangeValue _noted(_RangeValue v) {
+    if (state._collect.isNotEmpty) {
+      state._note(_sheetKey(v.sheet), v.r1, v.c1, v.r2, v.c2);
+    }
+    return v;
   }
 
   /// Bir hücrenin HAM metni (formül dahil) — `EFORMÜLSE`/`FORMÜLMETNİ` için.
@@ -75,9 +117,9 @@ class FormulaEngine {
   }
 
   Object _evalGuarded(String src, Set<String> visiting,
-      {int selfR = 0, int selfC = 0}) {
+      {int selfR = 0, int selfC = 0, String? sheet}) {
     try {
-      return _eval(src, visiting, selfR: selfR, selfC: selfC);
+      return _eval(src, visiting, selfR: selfR, selfC: selfC, sheet: sheet);
     } on _CycleError {
       return const FormulaError('#DÖNGÜ');
     } on FormulaError catch (e) {
@@ -114,7 +156,7 @@ class FormulaEngine {
   Object cellValue(int r, int c, Set<String> visiting, [String? sheet]) {
     final g = _gridFor(sheet);
     if (g == null) return const FormulaError('#BAŞV!');
-    final name = (sheet == null || sheet.isEmpty) ? sheetName : sheet;
+    final name = _sheetKey(sheet);
     final raw = _rawAt(g, r, c);
     if (raw.isEmpty) return '';
     if (raw.startsWith('#') && _isErrorCode(raw)) return FormulaError(raw);
@@ -122,19 +164,27 @@ class FormulaEngine {
 
     final k = _key(name, r, c);
     if (visiting.contains(k)) throw const _CycleError();
-    final cached = _cache[k];
+    final st = state;
+    final cached = st._cache[k];
     if (cached != null) return cached;
     Object value;
+    final deps = <_Dep>[];
+    st._collect.add(deps);
+    st.evaluations++;
     try {
-      value = _eval(raw.substring(1), {...visiting, k}, selfR: r, selfC: c);
+      value = _eval(raw.substring(1), {...visiting, k},
+          selfR: r, selfC: c, sheet: name);
     } on _CycleError {
       rethrow;
     } on FormulaError catch (e) {
       value = e;
     } catch (_) {
       value = const FormulaError('#DEĞER!');
+    } finally {
+      st._collect.removeLast();
     }
-    _cache[k] = value;
+    st._cache[k] = value;
+    st._register(k, name, r, c, deps, CalcState._isVolatile(raw));
     return value;
   }
 
@@ -156,8 +206,9 @@ class FormulaEngine {
       ].contains(s.trim());
 
   Object _eval(String src, Set<String> visiting,
-      {int selfR = 0, int selfC = 0}) {
-    final p = _Parser(src, this, visiting, selfR: selfR, selfC: selfC);
+      {int selfR = 0, int selfC = 0, String? sheet}) {
+    final p = _Parser(src, this, visiting,
+        selfR: selfR, selfC: selfC, sheet: sheet ?? sheetName);
     final v = p.parseExpr();
     p.expectEnd();
     // Tek hücre referansı da aralık olarak taşınır (SATIR/SÜTUN/KAYDIR gibi
@@ -269,7 +320,13 @@ class _Parser {
   /// ondalık ayırıcıdır (`0,5`), argüman ayırıcı değil.
   late final bool _decimalComma = _FormulaLocalePart._hasTopSemicolon(s);
 
-  _Parser(this.s, this.eng, this.visiting, {this.selfR = 0, this.selfC = 0});
+  /// Formülün BULUNDUĞU sayfa: sayfasız başvurular (`C1`) bu sayfaya
+  /// gider. Eskiden etkin sayfaya gidiyordu — Sayfa1'deki `=Sayfa2!B1`,
+  /// B1'in `=C1*2` formülünü Sayfa1'in C1'iyle hesaplıyordu (Faz 26).
+  final String sheet;
+
+  _Parser(this.s, this.eng, this.visiting,
+      {this.selfR = 0, this.selfC = 0, this.sheet = ''});
 
   /// Aralık/referans değerini tek değere indirir (dosya dışına açılan API).
   Object resolve(Object v) => _single(v);
@@ -791,10 +848,10 @@ class _Parser {
   /// Kaynak, motorun KENDİ takma ad tablosu: Türkçe adlar (kullanıcının
   /// yazdığı) ve İngilizce karşılıkları (dosyada duran). Ayrı bir liste
   /// tutmak, motor yeni bir işlev öğrendiğinde listeyi eskitirdi.
-  static List<String> get functionNames {
-    final out = <String>{..._aliases.keys, ..._aliases.values}.toList()..sort();
-    return List.unmodifiable(out);
-  }
+  /// Bir kez kurulup sıralanır (Faz 26: her tuşta yüzlerce adı yeniden
+  /// sıralıyordu).
+  static final List<String> functionNames = List.unmodifiable(
+      <String>{..._aliases.keys, ..._aliases.values}.toList()..sort());
 
   /// [prefix] ile başlayan işlev adları (büyük/küçük harf duyarsız, Türkçe
   /// katlamalı — `i` yazan `İ`li adı da bulmalı).

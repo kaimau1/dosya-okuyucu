@@ -14,9 +14,11 @@ part of '../formula_engine.dart';
 /// `;` varsa (Türkçe yazım) rakam arasındaki `,` ondalıktır → `.`.
 /// Excel 2010+ işlevleri dosyada `_xlfn.` önekiyle durur.
 extension _FormulaLocalePart on _Parser {
-  static String toFile(String formula) {
+  /// [turkish]: formül Türkçe yazımla girildi (arayüz Türkçe) — o zaman
+  /// tırnak dışındaki HER `,` ondalıktır (ayırıcı `;`).
+  static String toFile(String formula, {bool turkish = false}) {
     final s = formula;
-    final tr = _hasTopSemicolon(s);
+    final tr = turkish || _hasTopSemicolon(s);
     final out = StringBuffer();
     var i = 0;
     while (i < s.length) {
@@ -41,10 +43,11 @@ extension _FormulaLocalePart on _Parser {
       }
       if (ch == ',' &&
           tr &&
-          i > 0 &&
-          i + 1 < s.length &&
-          _Parser._isDigit(s[i - 1]) &&
-          _Parser._isDigit(s[i + 1])) {
+          (turkish ||
+              (i > 0 &&
+                  i + 1 < s.length &&
+                  _Parser._isDigit(s[i - 1]) &&
+                  _Parser._isDigit(s[i + 1])))) {
         out.write('.');
         i++;
         continue;
@@ -167,4 +170,115 @@ extension _FormulaLocalePart on _Parser {
     'ISOWEEKNUM', 'ISFORMULA', 'FORMULATEXT', 'SHEET', 'SHEETS',
     'FILTER', 'SORT', 'UNIQUE', 'SEQUENCE', 'LET',
   };
+}
+
+/// Dosya biçimindeki formülü **Türkçe gösterime** çevirir (Faz 25 / K22):
+/// İngilizce ad → Türkçe Excel adı, `,` → `;`, `.` ondalık → `,`,
+/// `TRUE/FALSE` → `DOĞRU/YANLIŞ`, `_xlfn.` öneki kalkar. Tırnak içi metne,
+/// sayfa adına ve tablo başvurusuna dokunulmaz.
+extension _FormulaDisplayPart on _Parser {
+  static String toTurkish(String formula) {
+    final s = formula;
+    final out = StringBuffer();
+    var i = 0;
+    while (i < s.length) {
+      final ch = s[i];
+      if (ch == '"' || ch == "'") {
+        final end = _FormulaLocalePart._quotedEnd(s, i, ch);
+        out.write(s.substring(i, end));
+        i = end;
+        continue;
+      }
+      if (ch == '[') {
+        final end = s.indexOf(']', i);
+        final stop = end < 0 ? s.length : end + 1;
+        out.write(s.substring(i, stop));
+        i = stop;
+        continue;
+      }
+      if (ch == ',') {
+        out.write(';');
+        i++;
+        continue;
+      }
+      if (ch == '.' &&
+          i > 0 &&
+          i + 1 < s.length &&
+          _Parser._isDigit(s[i - 1]) &&
+          _Parser._isDigit(s[i + 1]) &&
+          !_inName(s, i)) {
+        out.write(',');
+        i++;
+        continue;
+      }
+      if (_Parser._isAlpha(ch) || ch == '_') {
+        var j = i;
+        while (j < s.length &&
+            (_Parser._isAlpha(s[j]) ||
+                _Parser._isDigit(s[j]) ||
+                s[j] == '_' ||
+                s[j] == '.' ||
+                s[j] == r'$')) {
+          j++;
+        }
+        final word = s.substring(i, j);
+        final next = j < s.length ? s[j] : '';
+        if (next == '(') {
+          out.write(_trName(word));
+        } else if (next != '!' && !word.contains(r'$')) {
+          final up = word.toUpperCase();
+          out.write(up == 'TRUE'
+              ? 'DOĞRU'
+              : up == 'FALSE'
+                  ? 'YANLIŞ'
+                  : word);
+        } else {
+          out.write(word);
+        }
+        i = j;
+        continue;
+      }
+      out.write(ch);
+      i++;
+    }
+    return out.toString();
+  }
+
+  /// `.` bir adın içinde mi (`STDEV.S`, `A1.5` değil).
+  static bool _inName(String s, int at) {
+    var k = at - 1;
+    while (k >= 0 && _Parser._isDigit(s[k])) {
+      k--;
+    }
+    return k >= 0 && (_Parser._isAlpha(s[k]) || s[k] == '_');
+  }
+
+  static String _trName(String word) {
+    final bare = _FormulaLocalePart._stripPrefix(word).toUpperCase();
+    return _turkishOf[bare] ?? bare;
+  }
+
+  /// İngilizce → tercih edilen Türkçe ad (Türkçe Excel'in kendi adları).
+  static final Map<String, String> _turkishOf = () {
+    final out = <String, String>{};
+    _Parser._aliases.forEach((tr, en) {
+      if (_FormulaLocalePart._englishNames.contains(tr)) return;
+      if (tr == en) return;
+      out.putIfAbsent(en, () => tr);
+    });
+    // Birden çok Türkçe karşılığı olanlarda Türkçe Excel'in seçtiği.
+    out.addAll(const {
+      'SMALL': 'KÜÇÜK',
+      'LARGE': 'BÜYÜK',
+      'EDATE': 'SERİTARİH',
+      'ISEVEN': 'ÇİFTMİ',
+      'ISODD': 'TEKMİ',
+      'IRR': 'İÇ_VERİM_ORANI',
+      'STDEV': 'STDSAPMA',
+      'PERCENTILE': 'YÜZDEBİRLİK',
+      'QUARTILE': 'DÖRTTEBİRLİK',
+      'PERCENTRANK': 'YÜZDERANK',
+    });
+    return out;
+  }();
 }

@@ -71,13 +71,13 @@
 
 | Faz | Konu | Ön koşul | Ortam | Durum |
 |---|---|---|---|---|
-| 20 | **Ortak düzenleme çekirdeği** — geri al/yinele, taslak + otomatik kaydetme, klavye üstü çubuk, Aa paneli, kısayollar, ölçüm + **doğrulanmış 6 hata** | — | ☁️ | ⬜ |
-| 21 | **Word: canlı düzenlemenin acil onarımı + motor denemesi** (K18 kapısı) | 20 | ☁️ + 📱 kısa | ⬜ |
+| 20 | **Ortak düzenleme çekirdeği** — geri al/yinele, taslak + otomatik kaydetme, klavye üstü çubuk, Aa paneli, kısayollar, ölçüm + **doğrulanmış 6 hata** | — | ☁️ | ✅ 2026-10-23 |
+| 21 | **Word: canlı düzenlemenin acil onarımı + motor denemesi** (K18 kapısı) | 20 | ☁️ + 📱 kısa | ✅ 2026-10-23 (21a + 21b ölçüm; **K18 📱 kontrol noktası bekliyor**) |
 | 22 | **Word Mobil görünüm editörü I** — belge modeli, yazma, seçim, yazım denetimi | 21 (K18) | ☁️ | ⬜ |
 | 23 | **Word II** — biçimlendirme, Office şeridi, klavye üstü çubuk, Aa paneli, stiller | 22 | ☁️ | ⬜ |
 | 24 | **Word III** — Ekle (tablo, resim, bağlantı), Düzen, üst/alt bilgi, Gözden Geçir | 23 | ☁️ | ⬜ |
-| 25 | **Excel I** — veri girişi: hücre içi düzenleme, sayı/formül tuş takımı, işaret kipi, seçim tutamakları + doğruluk hataları | 20 | ☁️ | ⬜ |
-| 26 | **Excel II** — hesap motoru (bağımlılık grafiği) + büyük sayfa akıcılığı (ızgara çizimi) | 25 | ☁️ | ⬜ |
+| 25 | **Excel I** — veri girişi: hücre içi düzenleme, sayı/formül tuş takımı, işaret kipi, seçim tutamakları + doğruluk hataları | 20 | ☁️ | ✅ 2026-10-23 |
+| 26 | **Excel II** — hesap motoru (bağımlılık grafiği) + büyük sayfa akıcılığı (ızgara çizimi) | 25 | ☁️ | 🟡 2026-10-23 26a kısmen (kalıcı motor + bağımlılık grafiği, `<v>`, O(n) düzeltmeleri); **kalan:** K23 ızgara denemesi, okuma sınırı şeridi, `test/perf` kıyasları, paylaş/indir kaydetmesi isolate'e |
 | 27 | **Excel III** — Hücreleri biçimlendir, Veri, Görünüm, form görünümü, CSV düzenleme | 26 | ☁️ | ⬜ |
 | 28 | **Slayt I** — yerinde metin düzenleme (kutuya yakınlaş), zengin metin, anahat, notlar | 20 | ☁️ | ⬜ |
 | 29 | **Slayt II** — taşı/boyutlandır/döndür, şekil/metin kutusu/tablo ekle, düzenden yeni slayt, küçük resim şeridi | 28 | ☁️ | ⬜ |

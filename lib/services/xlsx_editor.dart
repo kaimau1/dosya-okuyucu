@@ -9,6 +9,7 @@ import 'xlsx_reader.dart';
 import 'xlsx_save_patch.dart';
 import 'xlsx_chart.dart';
 import 'sheet_structure.dart';
+import 'calc_log.dart';
 import '../core/app_colors.dart';
 import '../core/edit/save_coordinator.dart';
 
@@ -179,9 +180,39 @@ class XlsxSheet {
 
   int get maxCols {
     final fromCells = layout.colCount;
+    // Her `build`de bütün satırları taramak 10 bin satırda kare başına
+    // milisaniyeler yakıyordu (Faz 26): satır sayısı + yazım sayacıyla önbellek.
+    final memo = _maxColsMemo;
+    if (memo != null && memo.$1 == rows.length && memo.$2 == _writes) {
+      return fromCells > memo.$3 ? fromCells : memo.$3;
+    }
     final fromRows = rows.fold<int>(0, (m, r) => r.length > m ? r.length : m);
+    _maxColsMemo = (rows.length, _writes, fromRows);
     return fromCells > fromRows ? fromCells : fromRows;
   }
+
+  (int, int, int)? _maxColsMemo;
+
+  /// Model yazım sayacı: hücre/sütun yazımı ve yapısal işlemlerde artar;
+  /// [maxCols], [mergeAt] ve [condRuleAt] dizinleri bununla geçersiz olur.
+  int _writes = 0;
+  void _touched() {
+    _writes++;
+    _mergeIndex = null;
+    _condIndex = null;
+  }
+
+  // ── O(1)'e yakın aramalar (Faz 26) ────────────────────────────────────────
+  // Eskiden her hücre çiziminde birleştirme ve koşullu biçim listeleri baştan
+  // sona taranıyordu (binlerce birleştirmeli sayfada hücre × birleştirme).
+
+  /// Satır → o satırı kapsayan birleştirmeler (çok uzun olanlar `-1`de).
+  Map<int, List<XlsxMerge>>? _mergeIndex;
+  int _mergeIndexLen = -1;
+
+  /// Sütun → o sütunu kapsayan kurallar (çok geniş olanlar `-1`de).
+  Map<int, List<XlsxCondRule>>? _condIndex;
+  int _condIndexLen = -1;
 
   int get maxRows => rows.length > layout.rowCount ? rows.length : layout.rowCount;
 
@@ -204,7 +235,26 @@ class XlsxSheet {
 
   /// Bu hücreyi kapsayan birleştirme (yoksa null).
   XlsxMerge? mergeAt(int r, int c) {
-    for (final m in merges) {
+    if (merges.isEmpty) return null;
+    var index = _mergeIndex;
+    if (index == null || _mergeIndexLen != merges.length) {
+      index = {};
+      for (final m in merges) {
+        if (m.rowEnd - m.rowStart > 4096) {
+          (index[-1] ??= []).add(m);
+          continue;
+        }
+        for (var row = m.rowStart; row <= m.rowEnd; row++) {
+          (index[row] ??= []).add(m);
+        }
+      }
+      _mergeIndex = index;
+      _mergeIndexLen = merges.length;
+    }
+    for (final m in index[r] ?? const <XlsxMerge>[]) {
+      if (m.covers(r, c)) return m;
+    }
+    for (final m in index[-1] ?? const <XlsxMerge>[]) {
       if (m.covers(r, c)) return m;
     }
     return null;
@@ -219,9 +269,13 @@ class XlsxSheet {
         o.colStart <= m.colEnd &&
         o.colEnd >= m.colStart);
     merges.add(m);
+    _touched();
   }
 
-  void removeMerge(XlsxMerge m) => merges.remove(m);
+  void removeMerge(XlsxMerge m) {
+    merges.remove(m);
+    _touched();
+  }
 
   /// Otomatik süzgeçle **gizlenen** satırlar, sütun başına. Kullanıcının elle
   /// gizlediği satırlardan ayrı tutulur: süzgeci kaldırmak yalnız süzgecin
@@ -274,6 +328,7 @@ class XlsxSheet {
       dxfId: dxfId,
     );
     layout.condFormats.insert(0, rule);
+    _touched();
     condRuleEdits.add(XlsxCondRuleWrite(
       sqref: _rangeRef(range),
       type: type,
@@ -296,6 +351,7 @@ class XlsxSheet {
     final at = layout.condFormats.indexOf(rule);
     if (at < 0) return;
     layout.condFormats.removeAt(at);
+    _touched();
     final dxfId = rule.dxfId;
     if (dxfId != null && dxfId == styles.dxfs.length - 1) {
       // Yalnız SON dxf sökülebilir; ortadakini silmek kalan kuralların
@@ -565,10 +621,41 @@ class XlsxSheet {
 
   /// Bu hücrede geçerli koşullu biçim kuralı (en yüksek öncelikli).
   XlsxCondRule? condRuleAt(int r, int c) {
+    final all = layout.condFormats;
+    if (all.isEmpty) return null;
+    var index = _condIndex;
+    if (index == null || _condIndexLen != all.length) {
+      index = {};
+      for (final rule in all) {
+        final cols = <int>{};
+        var wide = false;
+        for (final range in rule.ranges) {
+          if (range.c2 - range.c1 > 256) {
+            wide = true;
+            break;
+          }
+          for (var col = range.c1; col <= range.c2; col++) {
+            cols.add(col);
+          }
+        }
+        if (wide) {
+          (index[-1] ??= []).add(rule);
+        } else {
+          for (final col in cols) {
+            (index[col] ??= []).add(rule);
+          }
+        }
+      }
+      _condIndex = index;
+      _condIndexLen = all.length;
+    }
     XlsxCondRule? best;
-    for (final rule in layout.condFormats) {
-      if (!rule.covers(r, c)) continue;
-      if (best == null || rule.priority < best.priority) best = rule;
+    for (final list in [index[c], index[-1]]) {
+      if (list == null) continue;
+      for (final rule in list) {
+        if (!rule.covers(r, c)) continue;
+        if (best == null || rule.priority < best.priority) best = rule;
+      }
     }
     return best;
   }
@@ -621,6 +708,9 @@ class XlsxEditor {
   final XlsxWorkbook workbook;
 
   XlsxEditor._(this._source, this.sheets, this.workbook);
+
+  /// Kalıcı formül motoru için değişiklik günlüğü (Faz 26) — bkz. [CalcLog].
+  final CalcLog calcLog = CalcLog();
 
   /// Bu oturumda eklenen grafikler (Faz 9 / Y2). Kaydetme her seferinde
   /// özgün paketin üstüne kurulduğu için liste MODEL durumudur: kaydetmeden
@@ -726,7 +816,9 @@ class XlsxEditor {
     while (row.length <= colIndex) {
       row.add('');
     }
+    if (row[colIndex] != value) calcLog.cell(sheet.name, rowIndex, colIndex);
     row[colIndex] = value;
+    sheet._touched();
 
     // Görünüm modeli de güncellensin (biçim/hizalama hücrenin kendi stilinden
     // gelmeye devam eder — yalnız değer değişir).
@@ -887,6 +979,7 @@ class XlsxEditor {
     for (final row in model.rows) {
       if (at <= row.length) row.insert(at, '');
     }
+    model._touched();
     _shiftLayoutCols(model.layout, at, 1);
     _applyStructural(model, SheetShift(rows: false, at: at, delta: 1));
   }
@@ -898,6 +991,7 @@ class XlsxEditor {
     for (final row in model.rows) {
       if (colIndex < row.length) row.removeAt(colIndex);
     }
+    model._touched();
     _shiftLayoutCols(model.layout, colIndex, -1);
     _applyStructural(model, SheetShift(rows: false, at: colIndex, delta: -1));
   }
@@ -1173,6 +1267,7 @@ class XlsxEditor {
       date1904: workbook.date1904,
     );
     sheets.add(sheet);
+    calcLog.bulk();
     return sheet;
   }
 
@@ -1183,6 +1278,7 @@ class XlsxEditor {
     final model = _modelSheet(name);
     if (model == null) return false;
     sheets.remove(model);
+    calcLog.bulk();
     return true;
   }
 
@@ -1197,6 +1293,7 @@ class XlsxEditor {
     if (hasSheet(clean)) return false;
     model.name = clean;
     model.layout.name = clean;
+    calcLog.bulk();
     // Eklenen grafiklerin sayfa adı da (formül başvuruları adla yazılır).
     for (var i = 0; i < charts.length; i++) {
       final c = charts[i];
@@ -1231,6 +1328,7 @@ class XlsxEditor {
     sheets
       ..removeAt(from)
       ..insert(target, model);
+    calcLog.bulk();
     return true;
   }
 

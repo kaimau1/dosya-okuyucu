@@ -13,6 +13,15 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
   }
 
   void _onVScroll() {
+    // Kenara yaklaşınca ızgara büyür (Faz 25 / madde 12).
+    if (_vBody.hasClients && _vBody.position.extentAfter < 400 &&
+        _vBody.position.maxScrollExtent > 0) {
+      _extraRows += 100;
+      _gridVersion++;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _partSetState(() {});
+      });
+    }
     if (_syncing || !_vLeft.hasClients) return;
     _syncing = true;
     final target = _vBody.offset.clamp(
@@ -95,6 +104,7 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     if (mounted) _partSetState(() {});
     // Ekran açılmayı BEKLEMEZ: kaynak damgası + taslak araması arkada.
     if (_editor != null) {
+      unawaited(_warmCalc());
       unawaited(_session.captureSource());
       unawaited(lookForDraft(widget.savePath ?? widget.path));
     }
@@ -109,20 +119,92 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
   }
 
   /// Formül motoru: tüm sayfalar görünür (çapraz sayfa referansı çalışsın).
-  FormulaEngine _engineFor(XlsxSheet sheet) => FormulaEngine(
-        sheet.rows,
-        sheetName: sheet.name,
-        sheets: {
-          for (final s in _editor?.sheets ?? const <XlsxSheet>[])
-            s.name: s.rows,
-        },
-      );
+  /// Motor ucuz bir görünümdür; hesap durumu ([_calc]) KALICIDIR — Faz 26.
+  FormulaEngine _engineFor(XlsxSheet sheet) {
+    _syncCalc();
+    return FormulaEngine(
+      sheet.rows,
+      sheetName: sheet.name,
+      sheets: {
+        for (final s in _editor?.sheets ?? const <XlsxSheet>[]) s.name: s.rows,
+      },
+      state: _calc,
+    );
+  }
+
+  /// Modelin değişiklik günlüğünü hesap durumuna işler: toplu değişiklikte
+  /// (yapısal işlem, sayfa kümesi) baştan, hücre yazımında yalnız
+  /// bağımlılar geçersiz.
+  void _syncCalc() {
+    final editor = _editor;
+    if (editor == null) return;
+    final log = editor.calcLog;
+    // Güvenlik ağı: günlüğe uğramayan bir yol sayfa kümesini/boyunu
+    // değiştirdiyse yine baştan kur.
+    final shape = [
+      for (final s in editor.sheets) '${s.name}:${s.rows.length}',
+    ].join('|');
+    if (!identical(editor, _calcEditor) ||
+        log.generation != _calcGen ||
+        shape != _calcShape) {
+      _calc.reset();
+      _calcEditor = editor;
+      _calcGen = log.generation;
+      _calcShape = shape;
+      log.cells.clear();
+      _calcChanged();
+      return;
+    }
+    if (log.cells.isEmpty) return;
+    for (final (s, r, c) in log.cells) {
+      _calc.invalidate(s, r, c);
+    }
+    log.cells.clear();
+    _calc.invalidateVolatile();
+    _calcChanged();
+  }
+
+  /// Çok formüllü kitapta (≥ [CalcState.isolateThreshold]) ilk hesap
+  /// isolate'te; bitince sonuç alınır — arada model değiştiyse atılır.
+  Future<void> _warmCalc() async {
+    final editor = _editor;
+    if (editor == null || !SpreadsheetEditorScreen.parseInIsolate) return;
+    final sheets = {for (final s in editor.sheets) s.name: s.rows};
+    if (CalcState.formulaCount(sheets) < CalcState.isolateThreshold) return;
+    _syncCalc();
+    final stamp = _calcStamp;
+    final gen = editor.calcLog.generation;
+    final CalcState warmed;
+    try {
+      warmed = await compute(_SpreadsheetEditorScreenState._warmUp, sheets);
+    } catch (_) {
+      return; // isolate kurulamadı: tembel hesap sürer
+    }
+    if (!mounted ||
+        !identical(_editor, editor) ||
+        editor.calcLog.generation != gen ||
+        editor.calcLog.cells.isNotEmpty ||
+        _calcStamp != stamp) {
+      return;
+    }
+    _calc = warmed;
+    _calcChanged();
+    _partSetState(() {});
+  }
+
+  void _calcChanged() {
+    _calcStamp++;
+    _condCache.clear();
+    _statusMemo = null;
+  }
 
   int _rowCount(XlsxSheet sheet) => math.max(
-      math.max(sheet.rows.length, sheet.layout.rowCount), _SpreadsheetEditorScreenState._minRows);
+      math.max(sheet.rows.length, sheet.layout.rowCount) + _extraRows,
+      _SpreadsheetEditorScreenState._minRows);
 
   int _colCount(XlsxSheet sheet) =>
-      math.max(sheet.maxCols, _SpreadsheetEditorScreenState._minCols).clamp(1, _SpreadsheetEditorScreenState._maxCols);
+      math.max(sheet.maxCols + _extraCols, _SpreadsheetEditorScreenState._minCols)
+          .clamp(1, _SpreadsheetEditorScreenState._maxCols);
 
   /// Dosyadaki dondurulmuş satır/sütun sayısı (kullanıcı bölmeleri çözdüyse 0).
   int _frozenColsWanted(XlsxSheet sheet) =>
@@ -258,9 +340,19 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
 
   String _valueAt(int r, int c) => _sheet?.rawAt(r, c) ?? '';
 
-  void _syncField() => _cellField.text = _valueAt(_selRow, _selCol);
+  void _syncField() => _cellField.text = _displayAt(_selRow, _selCol);
 
   void _select(int r, int c, {bool extend = false}) {
+    // İşaret kipi: formül yazarken hücreye dokunmak başvuru EKLER.
+    if (!extend && _pointInsertable()) {
+      _insertPointRef(r, c);
+      return;
+    }
+    // Seçili ARALIĞA ikinci dokunuş → bağlam menüsü.
+    if (!extend && _hasRange && !_editing && _range.contains(r, c)) {
+      _showCellMenu();
+      return;
+    }
     if (extend) {
       _partSetState(() {
         _selRow = r;
@@ -279,18 +371,10 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     _jumpTo(r, c);
   }
 
-  void _beginEdit(int r, int c) {
-    final sheet = _sheet;
-    final tooSmall = sheet == null ||
-        sheet.rowHeight(r) * _zoom < _SpreadsheetEditorScreenState._inCellMinHeight ||
-        sheet.colWidth(c) * _zoom < _SpreadsheetEditorScreenState._inCellMinWidth;
-    if (tooSmall) {
-      _partSetState(() => _editing = false);
-      _barFocus.requestFocus();
-      return;
-    }
-    _partSetState(() => _editing = true);
-  }
+  /// Faz 25: düzenleme HER yakınlaştırmada hücrenin üstündeki yüzer
+  /// editörde açılır (eski 30×72 dp eşiği kalktı — 100 %'de hücre ~20×64 dp
+  /// olduğundan düzenleme hep formül çubuğuna kaçıyordu).
+  void _beginEdit(int r, int c, {bool caret = true}) => _openEditor(caret: caret);
 
   /// Seçimi taşır — [_select]'in aksine aynı hücreye ikinci kez gelince
   /// düzenlemeye GEÇMEZ (Hücreye git / Bul bunu istemez).
@@ -343,7 +427,8 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
   /// bayraktan bağımsız olarak, alandaki metin hücrenin değerinden FARKLIYSA
   /// yazılır; Excel'in davranışı da budur (imleci taşımak girişi onaylar).
   void _endEdit() {
-    final changed = _cellField.text != _valueAt(_selRow, _selCol);
+    final changed = _cellField.text != _displayAt(_selRow, _selCol);
+    _pointSpan = null;
     final wasEditing = _editing;
     _editing = false;
     if (changed) {
@@ -360,14 +445,26 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
   /// (kullanıcı 2026-08-17: *"karelere veri girişi çok zor"*) bu yüzden her
   /// satırda iki fazladan dokunuş istiyordu. Excel'de Enter zinciri kesmez.
   void _commitAndMoveDown(int rowCount) {
+    final wasEditing = _editing;
     _endEdit();
-    if (_selRow + 1 >= rowCount) return;
+    _growTo(_selRow + 1, _selCol);
     _jumpTo(_selRow + 1, _selCol);
-    _beginEdit(_selRow, _selCol);
+    if (wasEditing || _barFocus.hasFocus) _beginEdit(_selRow, _selCol, caret: false);
   }
 
-  void _applyCell(String value) =>
-      _editCells('excel.undo_typing', {CellRef(_selRow, _selCol): value});
+  /// Girilen metni yazar: formül Türkçe gösterimden dosya biçimine, sayı /
+  /// para / yüzde / tarih akıllı girişle (Faz 25 / madde 7, 11).
+  void _applyCell(String value) {
+    final sheet = _sheet;
+    final m = _toModel(value);
+    final at = CellRef(_selRow, _selCol);
+    final code = sheet?.numFmtCode(_selRow, _selCol).trim() ?? 'General';
+    final fmt = m.numberFormat != null && (code.isEmpty || code == 'General')
+        ? {at: m.numberFormat!}
+        : null;
+    _editCells('excel.undo_typing', {at: m.raw}, numberFormats: fmt);
+    if (m.noteKey != null) _snack(context.t(m.noteKey!));
+  }
 
   /// Seçili aralık (tek hücrede de geçerli).
   CellRange get _range =>
@@ -383,7 +480,8 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
   /// çekilir (yapıştırma). Değer ve biçim TEK adımda kaydedilir — ayrı iki
   /// adım olsaydı kullanıcı "geri al"a iki kez basmak zorunda kalırdı.
   void _editCells(String label, Map<CellRef, String> values,
-      {Map<CellRef, CellRef>? formatSources}) {
+      {Map<CellRef, CellRef>? formatSources,
+      Map<CellRef, String>? numberFormats}) {
     final sheet = _sheet;
     final editor = _editor;
     if (sheet == null || editor == null || values.isEmpty) return;
@@ -395,10 +493,16 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
       write: (at, v) => editor.setCell(name, at.row, at.col, v),
     );
     final formats = formatSources ?? const <CellRef, CellRef>{};
+    final numFmts = numberFormats ?? const <CellRef, String>{};
     if (valueStep.isNoop && formats.isEmpty) return;
 
     final stylesBefore = <CellRef, XlsxCellStyle?>{
-      for (final at in formats.keys) at: sheet.overrideAt(at.row, at.col),
+      for (final at in {...formats.keys, ...numFmts.keys})
+        at: sheet.overrideAt(at.row, at.col),
+    };
+    final numFmtBefore = <CellRef, String?>{
+      for (final at in numFmts.keys)
+        at: sheet.numberFormatEdits[(at.row, at.col)],
     };
     final step = _CallbackStep(
       label,
@@ -406,10 +510,18 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
         valueStep.apply();
         formats.forEach((at, src) =>
             editor.copyCellFormat(name, src.row, src.col, at.row, at.col));
+        numFmts.forEach((at, code) => sheet.setNumberFormat(at.row, at.col, code));
       },
       () {
         valueStep.revert();
         stylesBefore.forEach((at, s) => sheet.patchStyle(at.row, at.col, s));
+        numFmtBefore.forEach((at, code) {
+          if (code == null) {
+            sheet.numberFormatEdits.remove((at.row, at.col));
+          } else {
+            sheet.numberFormatEdits[(at.row, at.col)] = code;
+          }
+        });
         // Kaydetmeye giden iz de silinir; yoksa geri alınmış bir yapıştırmanın
         // biçimi dosyaya yine yazılırdı.
         for (final at in formats.keys) {

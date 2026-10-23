@@ -79,6 +79,7 @@ class AppState extends ChangeNotifier {
   static const _kAutoSave = 'doc_auto_save';
   static const _kWordSpell = 'word_spellcheck';
   static const _kLabWord = 'lab_word_editor';
+  static const _kFormulaEn = 'excel_formula_english';
   static const _kFmFolderSizes = 'fm_folder_sizes';
   static const _kMediaShuffle = 'media_shuffle';
   static const _kMediaRepeat = 'media_repeat';
@@ -393,6 +394,7 @@ class AppState extends ChangeNotifier {
   bool _autoSave = true;
   bool _wordSpell = true;
   bool _labWord = false;
+  bool _formulaEn = false;
   bool _fmFolderSizes = false;
   bool _mediaShuffle = false;
   int _mediaRepeat = 0;
@@ -500,6 +502,16 @@ class AppState extends ChangeNotifier {
   Future<void> setLabWordEditor(bool value) async {
     _labWord = value;
     await _prefs.setBool(_kLabWord, value);
+    notifyListeners();
+  }
+
+  /// Belgeler > Excel: formülleri İngilizce göster (Faz 25 / K22).
+  bool get formulaEnglish => _formulaEn;
+
+  Future<void> setFormulaEnglish(bool value) async {
+    _formulaEn = value;
+    EditPrefs.formulaEnglish = value;
+    await _prefs.setBool(_kFormulaEn, value);
     notifyListeners();
   }
 
@@ -767,6 +779,8 @@ class AppState extends ChangeNotifier {
     _wordSpell = _prefs.getBool(_kWordSpell) ?? true;
     EditPrefs.wordSpellcheck = _wordSpell;
     _labWord = _prefs.getBool(_kLabWord) ?? false;
+    _formulaEn = _prefs.getBool(_kFormulaEn) ?? false;
+    EditPrefs.formulaEnglish = _formulaEn;
     // Servisler `AppState`i tanımıyor; anahtar oraya buradan geçiyor.
     PlaybackPositions.enabled = _resumePosition;
     ReadingPositions.enabled = _resumePosition;

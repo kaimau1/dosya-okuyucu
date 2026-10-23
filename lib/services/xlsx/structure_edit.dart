@@ -132,6 +132,8 @@ extension XlsxStructureEdit on XlsxEditor {
     }
     if (!op.rows) sheet.filterHidden.clear();
     sheet.structuralOps.add(op);
+    sheet._touched();
+    calcLog.bulk();
   }
 
   static (int, int)? _shiftPair((int, int) k, SheetShift op) {
@@ -195,6 +197,7 @@ extension XlsxStructureEdit on XlsxEditor {
   /// UYGULANDIKTAN sonra çağrılır).
   void restoreStructure(StructureSnapshot snap) {
     final sheet = _modelSheet(snap.sheet);
+    calcLog.bulk();
     for (final s in sheets) {
       final m = snap.formulas[s.name];
       if (m == null) continue;
@@ -212,6 +215,7 @@ extension XlsxStructureEdit on XlsxEditor {
       });
     }
     if (sheet == null) return;
+    sheet._touched();
     sheet.merges
       ..clear()
       ..addAll(snap.merges);

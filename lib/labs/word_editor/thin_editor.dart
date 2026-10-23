@@ -22,6 +22,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/app_haptics.dart';
+
 /// Harf biçimi bit maskesi.
 abstract final class ThinStyle {
   static const bold = 1;
@@ -514,7 +516,7 @@ class _ThinEditorState extends State<ThinEditor> {
       onLongPressStart: (d) {
         final p = _hit(d.globalPosition);
         if (p != null) c.selectWord(p);
-        HapticFeedback.selectionClick();
+        AppHaptics.selection();
       },
       onLongPressMoveUpdate: (d) {
         final p = _hit(d.globalPosition);

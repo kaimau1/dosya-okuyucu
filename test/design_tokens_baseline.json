@@ -1,4 +1,7 @@
 {
+ "lib/core/edit/edit_session.dart": {
+  "dialogs": 1
+ },
  "lib/core/page_transitions.dart": {
   "durations": 1
  },
@@ -18,6 +21,9 @@
  "lib/screens/editors/spreadsheet/dialogs.dart": {
   "hex_colors": 1,
   "dialogs": 1
+ },
+ "lib/screens/editors/spreadsheet/entry.dart": {
+  "font_size": 1
  },
  "lib/screens/editors/spreadsheet/file_ops.dart": {
   "dialogs": 1
@@ -410,8 +416,5 @@
  },
  "lib/widgets/tts_voice_sheet.dart": {
   "sheets": 1
- },
- "lib/core/edit/edit_session.dart": {
-  "dialogs": 1
  }
 }

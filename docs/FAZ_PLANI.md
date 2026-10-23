@@ -143,6 +143,10 @@ hesabı/kararı gerekir (Play Console, Billing, depo ayarı).
 > yürütülebilir. Kendi sırası: **D1 = Faz 20 → D2 = Faz 21 (+ kısa 📱 kontrol
 > noktası) → Faz 25 → 26 → 22 → 23 → 28 → 30 → 24 → 27 → 29 → 32 → 31 → 33**.
 > Faz 33'ün cihaz kısmı sıra 12 cihaz turuyla birleştirilirse telefon oturumu bir kez yapılır.
+>
+> **Durum 2026-10-23:** Faz 20 ✅ · Faz 21 ✅ (K18 📱 kontrol noktası bekliyor) · Faz 25 ✅ ·
+> Faz 26 🟡 kısmen (kalanı `DUZENLEME_PLANI.md` durum tablosunda). Sıradaki: Faz 26'nın kalanı,
+> sonra K18 kararıyla Faz 22.
 
 **Bulut oturumu ne yapabilir / ne yapamaz** (HAFIZA 2026-07-25 §F, 2026-10-21 (5)):
 

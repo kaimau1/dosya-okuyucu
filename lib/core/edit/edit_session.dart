@@ -33,6 +33,10 @@ class EditPrefs {
   /// Word canlı düzenlemede yazım denetimi + otomatik düzeltme + cümle başı
   /// büyük harf (Faz 21 / W8, varsayılan AÇIK).
   static bool wordSpellcheck = true;
+
+  /// Excel: Türkçe arayüzde de formülleri İngilizce ad + `,` ile göster
+  /// (Faz 25 / K22, varsayılan KAPALI).
+  static bool formulaEnglish = false;
 }
 
 /// Çıkış sorusunun cevabı.

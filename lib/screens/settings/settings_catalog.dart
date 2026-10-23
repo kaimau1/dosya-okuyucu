@@ -276,6 +276,11 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                 titleKey: 'word.spellcheck',
                 subtitleKey: 'word.spellcheck_sub',
                 builder: _wordSpellTile),
+            SettingRow(
+                id: 'excel_formula_english',
+                titleKey: 'excel.formula_english',
+                subtitleKey: 'excel.formula_english_sub',
+                builder: _formulaEnTile),
           ]),
           SettingsSection('set.sec_photos', [
             SettingRow(
@@ -725,6 +730,7 @@ Widget _usbDiagnosticsTile(BuildContext _) => const UsbDiagnosticsTile();
 Widget _developerOffTile(BuildContext _) => const DeveloperOffTile();
 Widget _autoSaveTile(BuildContext _) => const AutoSaveTile();
 Widget _wordSpellTile(BuildContext _) => const WordSpellcheckTile();
+Widget _formulaEnTile(BuildContext _) => const FormulaEnglishTile();
 Widget _editorPerfTile(BuildContext _) => const EditorPerfTile();
 Widget _labWordTile(BuildContext _) => const LabWordEditorTile();
 Widget _aboutTile(BuildContext _) => const AboutTile();

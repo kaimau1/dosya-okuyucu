@@ -268,7 +268,7 @@ extension _ParserLookupStatsPart on _Parser {
     final r1 = ref.r1 + dr;
     final c1 = ref.c1 + dc;
     if (r1 < 0 || c1 < 0) return const FormulaError('#BAŞV!');
-    return _RangeValue(r1, c1, r1 + h - 1, c1 + w - 1, ref.sheet);
+    return eng._noted(_RangeValue(r1, c1, r1 + h - 1, c1 + w - 1, ref.sheet));
   }
 
   Object _indirect(List<Object> args) {
@@ -284,17 +284,17 @@ extension _ParserLookupStatsPart on _Parser {
     final a = _parseRef(parts.first.trim());
     if (a == null) return const FormulaError('#BAŞV!');
     if (parts.length == 1) {
-      return _RangeValue(a.$1, a.$2, a.$1, a.$2, sheet);
+      return eng._noted(_RangeValue(a.$1, a.$2, a.$1, a.$2, sheet ?? this.sheet));
     }
     final b = _parseRef(parts[1].trim());
     if (b == null) return const FormulaError('#BAŞV!');
-    return _RangeValue(
+    return eng._noted(_RangeValue(
       math.min(a.$1, b.$1),
       math.min(a.$2, b.$2),
       math.max(a.$1, b.$1),
       math.max(a.$2, b.$2),
-      sheet,
-    );
+      sheet ?? this.sheet,
+    ));
   }
 
   bool _compareSafe(String op, Object a, Object b) {

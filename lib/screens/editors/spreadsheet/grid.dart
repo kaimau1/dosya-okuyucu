@@ -10,7 +10,8 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
       sheet: sheet,
       engine: engine,
       zoom: _zoom,
-      condCache: {},
+      condCache: _condCache,
+      refs: _formulaRefColors(),
     );
 
     return LayoutBuilder(builder: (context, constraints) {
@@ -75,7 +76,10 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
       // konumu (`_hBody.offset`) her iki yönde de BAŞLANGIÇTAN ölçüldüğü için
       // sanallaştırma (`cols.startAt`) ve `_ensureVisible` matematiği aynen
       // geçerli kalır.
-      return Container(
+      return Stack(
+        key: _overlayKey,
+        children: [
+          Positioned.fill(child: Container(
         // Izgaranın zemini BEYAZ: kağıt teması uygulamanın kabuğuna ait,
         // belgenin içine değil (2026-08-07 kullanıcı isteği).
         color: Paper.docSurface(context),
@@ -214,6 +218,10 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
         ),
       ),
       ),
+      )),
+          if (_editing) _floatingEditor(constraints),
+          ..._selectionHandles(),
+        ],
       );
     });
   }
@@ -227,6 +235,14 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
           onLongPressStart: (d) {
             final pos = _cellAtGlobal(areaContext, d.globalPosition);
             if (pos == null) return;
+            _longPressMoved = false;
+            if (_pointInsertable()) {
+              // İşaret kipi: uzun bas + sürükle = aralık başvurusu.
+              _pointAnchor = pos;
+              _insertPointRef(pos.$1, pos.$2);
+              return;
+            }
+            _pointAnchor = null;
             _endEdit();
             _partSetState(() {
               _anchorRow = pos.$1;
@@ -239,11 +255,25 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
           onLongPressMoveUpdate: (d) {
             final pos = _cellAtGlobal(areaContext, d.globalPosition);
             if (pos == null) return;
+            final anchor = _pointAnchor;
+            if (anchor != null) {
+              _insertPointRef(anchor.$1, anchor.$2, pos.$1, pos.$2);
+              return;
+            }
             if (pos.$1 == _selRow && pos.$2 == _selCol) return;
+            _longPressMoved = true;
             _partSetState(() {
               _selRow = pos.$1;
               _selCol = pos.$2;
             });
+          },
+          // Uzun basıp SÜRÜKLEMEDEN bırakmak → bağlam menüsü (madde 9).
+          onLongPressEnd: (_) {
+            if (_pointAnchor != null) {
+              _pointAnchor = null;
+              return;
+            }
+            if (!_longPressMoved) _showCellMenu();
           },
           child: child,
         ),

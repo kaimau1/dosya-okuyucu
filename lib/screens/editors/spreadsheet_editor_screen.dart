@@ -17,7 +17,9 @@ import '../../core/app_icons.dart';
 import '../../core/excel_format.dart';
 import '../../core/doc_fonts.dart';
 import '../../core/edit/edit_session.dart';
+import '../../core/edit/editor_chrome.dart';
 import '../../core/edit/editor_shortcuts.dart';
+import '../../core/l10n/app_language.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/sheet_metrics.dart';
 import '../../core/sheet_overflow.dart';
@@ -30,7 +32,10 @@ import '../../services/fm/save_to_downloads.dart';
 import '../../services/csv_codec.dart';
 import '../../services/text_decode.dart';
 import '../../services/formula_engine.dart';
+import '../../services/formula_help.dart';
 import '../../services/sheet_edit.dart';
+import '../../services/sheet_input.dart';
+import '../../services/xlsx_save_patch.dart' show XlsxStyleEdit;
 import '../../services/xlsx_editor.dart';
 import '../../widgets/doc_action_bar.dart';
 import '../../widgets/doc_find_bar.dart';
@@ -61,6 +66,7 @@ part 'spreadsheet/grid.dart';
 part 'spreadsheet/headers.dart';
 part 'spreadsheet/cells.dart';
 part 'spreadsheet/widgets.dart';
+part 'spreadsheet/entry.dart';
 
 /// Excel görünümü — hedef: dosya telefonda **Excel'deki gibi** görünsün.
 ///
@@ -126,6 +132,22 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
   int _sheetIndex = 0;
   String? _error;
 
+  /// Faz 26: kalıcı hesap durumu (değer önbelleği + bağımlılık grafiği) ve
+  /// hangi model/günlük kuşağına ait olduğu. Bkz. [_engineFor].
+  CalcState _calc = CalcState();
+
+  static CalcState _warmUp(Map<String, List<List<String>>> sheets) =>
+      CalcState()..warmUp(sheets);
+  XlsxEditor? _calcEditor;
+  int _calcGen = -1;
+  String _calcShape = '';
+
+  /// Hesap değiştikçe artar: durum çubuğu ve koşullu biçim min/max
+  /// önbellekleri bununla geçersiz olur.
+  int _calcStamp = 0;
+  final Map<XlsxCondRule, _CondStats> _condCache = {};
+  (Object, String)? _statusMemo;
+
   /// Faz 20: kirli durum, kaydetme durumu, taslak ve otomatik kaydetme.
   /// Kaynak = kaydetme HEDEFİ (eski .xls açıldıysa yeni .xlsx; o dosya henüz
   /// yoksa yazılabilir sayılmaz → otomatik kaydetme ilk elle kayda kadar
@@ -144,8 +166,37 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
   int _anchorRow = 0;
   int _anchorCol = 0;
 
-  final _cellField = TextEditingController();
+  final _cellField = _FormulaFieldController();
   bool _editing = false;
+
+  // ── Faz 25: veri girişi ────────────────────────────────────────────────
+  /// Yüzer hücre editörünün odağı (formül çubuğununki [_barFocus]).
+  final _cellFocus = FocusNode();
+
+  /// Düzenleme imleç kipinde mi (ikinci dokunuş) — değilse "Giriş" kipi:
+  /// metin seçili açılır, yazmak değiştirir, oklar hücre değiştirir.
+  bool _caretMode = false;
+
+  /// Uygulama içi sayı/formül tuş takımı açık mı (K20).
+  bool _keypad = false;
+  final _keypadPanel = FormatPanelController();
+
+  /// ⇥ ile girilmeye başlanan satırın ilk sütunu (Enter oraya döner).
+  int? _tabStartCol;
+
+  /// İşaret kipinde son eklenen başvurunun metindeki yeri.
+  (int, int)? _pointSpan;
+
+  /// Kenara yaklaşınca büyüyen boş ızgara payı (madde 12).
+  int _extraRows = 40;
+  int _extraCols = 0;
+
+  final _cursorKey = GlobalKey();
+  final _tlKey = GlobalKey();
+  final _brKey = GlobalKey();
+  final _overlayKey = GlobalKey();
+  bool _longPressMoved = false;
+  (int, int)? _pointAnchor;
 
   /// Formül çubuğunun odağı. Hücre parmakla yazılamayacak kadar küçükse
   /// düzenleme HÜCREDE değil burada açılır (bkz. [_select]).
@@ -244,12 +295,20 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
     super.initState();
     _hBody.addListener(_onHScroll);
     _vBody.addListener(_onVScroll);
+    // Panelin ⌨ düğmesi tuş takımını kapatınca durum eşitlensin.
+    _keypadPanel.addListener(() {
+      if (!_keypadPanel.isOpen && _keypad && mounted) {
+        setState(() => _keypad = false);
+      }
+    });
     _load();
   }
 
   @override
   void dispose() {
     _session.dispose();
+    _cellFocus.dispose();
+    _keypadPanel.dispose();
     _cellField.dispose();
     _barFocus.dispose();
     _findField.dispose();
@@ -291,19 +350,9 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
 
   // ── seçim / düzenleme ─────────────────────────────────────────────────────
 
-  /// Bir hücreye **yazmaya** başlar.
-  ///
-  /// Kullanıcı 2026-08-17: *"karelere veri girişi çok zor"*, *"yazarken çıkan
-  /// mavi alan gereksiz ve çok dar"*. Sebebi: 15 puntoluk (≈20 dp) bir satırda
-  /// hücrenin İÇİNE açılan yazı alanı parmakla imleç konulamayacak kadar
-  /// inceydi ve seçim tutamakları hücrenin dışına taşıyordu.
-  ///
-  /// Çözüm Excel Mobile'ınkiyle aynı: hücre yazmak için yeterince büyükse
-  /// yerinde düzenlenir; küçükse düzenleme **formül çubuğuna** taşınır (orası
-  /// gerektiğinde üç satıra kadar büyür). İki durumda da hedef hücre seçili
-  /// kalır, kullanıcı nereye yazdığını görür.
-  static const double _inCellMinHeight = 30;
-  static const double _inCellMinWidth = 72;
+  // Faz 25 (2026-10-23): eski "hücre küçükse formül çubuğuna kaç" eşiği
+  // (30×72 dp) kalktı — düzenleme hücrenin ÜSTÜNDE büyüyen yüzer editörde
+  // (en az 16 sp) açılıyor; bkz. `spreadsheet/entry.dart`.
 
   // ── geri alınabilir düzenleme ───────────────────────────────────────────
 
@@ -355,7 +404,15 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
           onPressed: editor == null ? null : _toggleFind,
         ),
       ],
-      body: withDraftBanner(restore: _restoreDraft, _error != null
+      body: withDraftBanner(restore: _restoreDraft, EditorChrome(
+        editing: _editing,
+        accessory: _excelAccessory(),
+        panel: _keypadPanel,
+        panelTabs: [
+          FormatPanelTab(
+              label: context.t('excel.keyboard_123'), builder: (_) => _keypadGrid()),
+        ],
+        body: _error != null
           ? Center(
               child: Text(context.t('common.open_failed', {'error': _error})))
           : editor == null
@@ -366,6 +423,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
                     _cellBar(),
                     _formulaSuggestions(),
                     _formulaPreview(),
+                    if (_argumentHint() case final hint?) hint,
                     if (_ribbonOpen) _ribbon(),
                     Expanded(
                       child: PinchZoomArea(
@@ -381,11 +439,12 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
                     ),
                     _statusBar(),
                   ],
-                )),
+                ))),
       // Sayfa sekmeleri + etiketli eylem çubuğu (2026-07-28 kullanıcı isteği —
       // PDF'teki gibi). Sekmeler üstte kalır: hangi sayfadasınız bilgisi
       // eylemlerden önce gelir.
-      bottomBar: Column(
+      // Yazarken alt çubuk gizli: klavye üstü çubuk + klavye yeri kaplıyor.
+      bottomBar: _editing ? null : Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (visibleSheets.length >= 2) _sheetTabs(visibleSheets),
@@ -411,7 +470,8 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
           ]),
         ],
       ),
-      fab: DocAiButton(
+      // Yazarken AI düğmesi gizli: klavye üstü çubuğun üstüne biniyordu.
+      fab: _editing ? null : DocAiButton(
         kind: DocKind.spreadsheet,
         onPressed: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => ChatScreen(

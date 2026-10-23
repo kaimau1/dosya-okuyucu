@@ -198,6 +198,11 @@ class XlsxPackageWriter {
     final newSheetEls = <XmlElement>[];
     final oldToNew = <int, int>{};
     final keptParts = <String>{};
+    // `<v>` önbellek değerleri için tek, paylaşılan hesap (Faz 26): Excel
+    // dışı önizleyiciler (dosya yöneticisi, e-posta, Drive) formülün
+    // sonucunu görsün. `fullCalcOnLoad` yine açık — Excel kendisi hesaplar.
+    final calcSheets = {for (final s in sheets) s.name: s.rows};
+    final calc = CalcState();
     for (var i = 0; i < sheets.length; i++) {
       final s = sheets[i];
       var part = s.partPath;
@@ -245,7 +250,9 @@ class XlsxPackageWriter {
         sheetXml = _shiftSheetXml(sheetXml, s.shifts, s.name);
         _shiftSheetSideParts(part, s.shifts, text, put);
       }
-      put(part, _rewriteSheet(sheetXml, s, sst));
+      final engine =
+          FormulaEngine(s.rows, sheetName: s.name, sheets: calcSheets, state: calc);
+      put(part, _rewriteSheet(sheetXml, s, sst, engine));
     }
     sheetsEl.children
       ..clear()
@@ -598,11 +605,11 @@ class XlsxPackageWriter {
     return parts.join('/');
   }
 
-  static String _rewriteSheet(
-      String xml, XlsxPackageSheet s, int Function(String, List<XlsxRichRun>?) sst) {
+  static String _rewriteSheet(String xml, XlsxPackageSheet s,
+      int Function(String, List<XlsxRichRun>?) sst, FormulaEngine engine) {
     final m = _sheetDataRe.firstMatch(xml);
     final prefix = m?[1] ?? '';
-    final data = _sheetData(s, prefix, sst);
+    final data = _sheetData(s, prefix, sst, engine);
     var out = m == null
         ? xml.replaceFirst(RegExp(r'</((?:\w+:)?)worksheet>'), '$data</${prefix}worksheet>')
         : xml.replaceRange(m.start, m.end, data);
@@ -715,8 +722,8 @@ class XlsxPackageWriter {
     return b.toString();
   }
 
-  static String _sheetData(XlsxPackageSheet s,
-      String prefix, int Function(String, List<XlsxRichRun>?) sst) {
+  static String _sheetData(XlsxPackageSheet s, String prefix,
+      int Function(String, List<XlsxRichRun>?) sst, FormulaEngine engine) {
     final l = s.layout;
     // Satır → (sütun → yazılacak) birleşimi: modeldeki değerler + boş ama
     // biçimli hücre kayıtları.
@@ -765,7 +772,8 @@ class XlsxPackageWriter {
           continue;
         }
         if (raw.length > 1 && raw.startsWith('=')) {
-          b.write('><${prefix}f>${_esc(FormulaEngine.toFileFormula(raw.substring(1)))}</${prefix}f></${prefix}c>');
+          final f = '<${prefix}f>${_esc(FormulaEngine.toFileFormula(raw.substring(1)))}</${prefix}f>';
+          b.write(_cachedValue(engine.displayValue(r, c), f, prefix));
           continue;
         }
         if (cell?.boolean != null && (raw == 'DOĞRU' || raw == 'YANLIŞ' ||
@@ -791,6 +799,25 @@ class XlsxPackageWriter {
     }
     b.write('</${prefix}sheetData>');
     return b.toString();
+  }
+
+  /// Formül hücresinin gövdesi: `<f>` + hesaplanmış `<v>` (tür özniteliğiyle).
+  /// Motorun Türkçe sonuç metinleri (DOĞRU, #SAYI/0!) dosyaya İngilizce
+  /// kodla yazılır.
+  static String _cachedValue(String v, String f, String prefix) {
+    if (v.isEmpty) return '>$f</${prefix}c>';
+    if (v == 'DOĞRU' || v == 'YANLIŞ') {
+      return ' t="b">$f<${prefix}v>${v == 'DOĞRU' ? 1 : 0}</${prefix}v></${prefix}c>';
+    }
+    final err = _errorCode(v);
+    if (err != null) {
+      return ' t="e">$f<${prefix}v>${_esc(err)}</${prefix}v></${prefix}c>';
+    }
+    // Döngü: Excel'in kodu yok (0 gösterir) — değer yazılmaz.
+    if (v == '#DÖNGÜ') return '>$f</${prefix}c>';
+    final n = double.tryParse(v);
+    if (n != null && n.isFinite) return '>$f<${prefix}v>$v</${prefix}v></${prefix}c>';
+    return ' t="str">$f<${prefix}v>${_esc(v)}</${prefix}v></${prefix}c>';
   }
 
   /// "007", "0123" gibi baştaki sıfırı önemli olan diziler metin kalır.

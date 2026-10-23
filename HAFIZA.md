@@ -493,3 +493,38 @@
   otomatik kaydetme (K21), Türkçe arayüzde Türkçe formül dili ama dosyaya İngilizce (K22), Excel ızgara
   çiziminde ölçümlü deneme (K23). Yürütme: Faz 20 → 21 → 25 → 26 → 22 → 23 → 28 → 30 → 24 → 27 → 29 →
   32 → 31 → 33; cihaz turu (FAZ_PLANI sıra 12) Faz 33 ile birleştirilebilir.
+- **2026-10-23 (16) — düzenleme turu D1–D4: Faz 20 ✅, 21 ✅ (K18 bekliyor), 25 ✅, 26 🟡 kısmen:**
+  Kullanıcı: *"Faz 20'ye başla, 4 faz bitir, main'e merge et, APK derlensin"*; bağlam dolunca
+  *"daha fazla faza geçme, bitir, rapor sun"* → Faz 26'nın bir kısmı sonraki oturuma.
+  **Faz 20:** X1 (`FormulaEngine.toFileFormula`: İngilizce ad + `,` + `.` + `_xlfn.`), X2
+  (`_inDeleted`), W11 (zengin metin korunur), SL1 (`a:br`; el değmeyen paragraf artık yazılmıyor —
+  eskiden HER kayıtta ilk `a:t`'ye toplanıyordu), TX1, IM4. `lib/core/edit/`: EditHistory,
+  EditSession (otomatik kaydetme K21 varsayılan açık), DraftJournal, SaveIsolate, EditorChrome
+  (klavye üstü çubuk + Aa paneli), EditorShortcuts, EditorPerf. **Faz 21a:** W1 kökü
+  `w:lastRenderedPageBreak` bölmesi → WebView kopyasında `_fkp<i>` yer imleri; kanıt: Word'de
+  kaydedilmiş örnek Dart 31 / DOM 32 → şimdi 31. Enter/geri silme paragraf böl/birleştir, ada
+  (köprü/alan/dipnot/resim) korunur, JS tarafı geri al. **Faz 21b ölçüm (flutter test, debug):**
+  super_editor 1000 paragraf ilk pump 2223 ms, 8 harf IME 1177 ms; ince çekirdek 52 ms / 9 harf
+  112 ms. super_editor 43 paket ekliyor ve package_config 3.0.0→2.2.0 düşürüyor → ana pubspec'e
+  EKLENMEDİ; ince çekirdek (`lib/labs/word_editor/`) geliştirici bayrağıyla. **K18 kararı
+  kullanıcının 📱 kontrol noktasına bağlı** (CIHAZ_TESTI "Faz 21"). **Faz 25:** yüzer hücre
+  editörü (%100'de de), ✓↵⇥ oklar, K20 tuş takımı, işaret kipi + renkli başvurular, tutamaklar,
+  bağlam menüsü (özel yapıştır), akıllı giriş (`sheet_input.dart`), K22 Türkçe formül dili
+  (Ayarlar'da "Formülleri İngilizce göster"), ekle/silde başvuru kaydırma (`sheet_structure.dart`).
+  **Faz 26 (yapılan):** `CalcState` (kalıcı değer önbelleği + hesapta kaydedilen bağımlılık
+  grafiği; hücre değişince yalnız bağımlılar; uçucu işlevler her değişiklikte; ≥5 bin formülde ilk
+  hesap isolate'te), `CalcLog` (model günlüğü: setCell hücre, yapısal/sayfa işlemi toplu),
+  kaydette `<v>` önbellek değeri, `maxCols`/`mergeAt`/`condRuleAt` dizinleri, durum çubuğu ve
+  koşullu biçim min/max önbelleği, `functionNames` bir kez sıralı. AST önbelleği YOK (ayrıştırıcı
+  yorumlayıcı; değer önbelleği sayesinde formül değişiklik başına bir kez ayrıştırılıyor).
+  **Faz 26 kalan:** K23 ızgara denemesi, okuma sınırı (1024 sütun/200 bin satır) şeridi — DİKKAT
+  bugün kesilen hücreler kaydedince SİLİNİR —, `test/perf` kıyasları, paylaş/indir'in `save()`'i
+  hâlâ ana izlekte (`file_ops.dart`).
+  **Bug kökleri:** (a) çapraz sayfa formülü: `=Sayfa2!B1` hesaplanırken B1'in `=C1*2`'si etkin
+  sayfanın C1'ini okuyordu (ayrıştırıcının sayfa bağlamı yoktu) → `_Parser.sheet`. (b) Excel AI
+  düğmesi düzenlerken klavye üstü çubuğun üstüne biniyordu → yazarken gizli.
+  **Tuzaklar:** testWidgets içinde gerçek dosya G/Ç sahte saatte bitmez (captureSource/lookForDraft
+  unawaited, DraftJournal.find senkron); Scaffold gövdesinin MediaQuery'si viewInsets'i siler →
+  EditorChrome `View.of`; flutter_test gölgeleri düz siyah çizer (`debugDisableShadows`), tasarım
+  görüntüsünde gövde içinde kapatıp aç; Carlito'da ⇥↵⌫ yok → ikon; LibreOffice dipnot başvurusu
+  olup `footnotes.xml` yoksa dosyayı açmıyor; soffice UTF-8 metin filtresi `txt:Text (encoded):UTF8`.

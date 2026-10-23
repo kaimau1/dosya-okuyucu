@@ -81,6 +81,16 @@ class SheetCell extends StatelessWidget {
   final VoidCallback onSubmitted;
   final VoidCallback onEditingComplete;
 
+  /// Seçili ARALIĞIN dış kenarları bu hücreden geçiyorsa (bit: 1 üst,
+  /// 2 sağ, 4 alt, 8 sol) — aralığa TEK dış çerçeve (Faz 25 / X8; eskiden
+  /// her seçili hücre kendi çerçevesini çiziyordu).
+  final int rangeEdges;
+
+  /// Formül yazarken başvurulan aralığın kenarları + rengi (Excel'in renkli
+  /// başvuruları — Faz 25 / X7).
+  final int refEdges;
+  final Color? refColor;
+
   const SheetCell({
     super.key,
     required this.row,
@@ -101,7 +111,12 @@ class SheetCell extends StatelessWidget {
     required this.onSubmitted,
     required this.onEditingComplete,
     this.cond,
+    this.rangeEdges = 0,
+    this.refEdges = 0,
+    this.refColor,
   });
+
+  static const edgeTop = 1, edgeRight = 2, edgeBottom = 4, edgeLeft = 8;
 
   @override
   Widget build(BuildContext context) {
@@ -230,14 +245,16 @@ class SheetCell extends StatelessWidget {
             gridColor: showGridLines
                 ? Theme.of(context).dividerColor.withValues(alpha: 0.55)
                 : null,
-            selection: cursor
-                ? OfficeColors.excel
-                : (selected
-                    ? OfficeColors.excel.withValues(alpha: 0.55)
-                    : null),
+            // Aralık seçiliyken çerçeve aralığın DIŞINDA (rangeEdges);
+            // tek hücrede imleç hücresi kendi çerçevesini çizer.
+            selection: cursor && rangeEdges == 0 ? OfficeColors.excel : null,
             selectionFill: selected && !cursor
                 ? OfficeColors.excel.withValues(alpha: 0.10)
                 : null,
+            rangeEdges: rangeEdges,
+            rangeColor: OfficeColors.excel,
+            refEdges: refEdges,
+            refColor: refColor,
             barRatio: cond?.barRatio,
             barColor: cond?.barColor,
           ),
@@ -328,8 +345,16 @@ class _CellBorderPainter extends CustomPainter {
   final Color? selectionFill;
   final double? barRatio;
   final Color? barColor;
+  final int rangeEdges;
+  final Color rangeColor;
+  final int refEdges;
+  final Color? refColor;
 
   _CellBorderPainter({
+    this.rangeEdges = 0,
+    this.rangeColor = OfficeColors.excel,
+    this.refEdges = 0,
+    this.refColor,
     required this.border,
     required this.background,
     required this.gridColor,
@@ -402,6 +427,31 @@ class _CellBorderPainter extends CustomPainter {
           ..strokeWidth = 2,
       );
     }
+    _edges(canvas, size, rangeEdges, rangeColor, 2);
+    if (refColor != null) _edges(canvas, size, refEdges, refColor!, 2);
+  }
+
+  /// Aralığın dış kenarı bu hücreden geçiyorsa çizgi (içe yaslı).
+  static void _edges(Canvas canvas, Size size, int edges, Color color, double w) {
+    if (edges == 0) return;
+    final p = Paint()
+      ..color = color
+      ..strokeWidth = w;
+    final h = w / 2;
+    if (edges & SheetCell.edgeTop != 0) {
+      canvas.drawLine(Offset(0, h), Offset(size.width, h), p);
+    }
+    if (edges & SheetCell.edgeBottom != 0) {
+      canvas.drawLine(
+          Offset(0, size.height - h), Offset(size.width, size.height - h), p);
+    }
+    if (edges & SheetCell.edgeLeft != 0) {
+      canvas.drawLine(Offset(h, 0), Offset(h, size.height), p);
+    }
+    if (edges & SheetCell.edgeRight != 0) {
+      canvas.drawLine(
+          Offset(size.width - h, 0), Offset(size.width - h, size.height), p);
+    }
   }
 
   static void _dashed(Canvas canvas, Offset p1, Offset p2, Paint paint) {
@@ -425,5 +475,8 @@ class _CellBorderPainter extends CustomPainter {
       old.barRatio != barRatio ||
       old.barColor != barColor ||
       old.gridColor != gridColor ||
-      old.border != border;
+      old.border != border ||
+      old.rangeEdges != rangeEdges ||
+      old.refEdges != refEdges ||
+      old.refColor != refColor;
 }
