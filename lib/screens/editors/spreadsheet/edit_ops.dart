@@ -485,10 +485,14 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     if (sheet == null || editor == null) return;
     final name = sheet.name;
     final at = below ? _selRow + 1 : _selRow;
+    final struct = editor.captureStructure(name);
     editor.insertRow(name, at);
-    // Eklemenin tersi düz silmedir (eklenen satır boştur, içerik kaybı yok).
-    _recordStep('excel.undo_insert_row', () => editor.insertRow(name, at),
-        () => editor.deleteRow(name, at));
+    // Eklemenin tersi silme + yapı anlık görüntüsü (kaydırılan formüller,
+    // birleştirmeler, koşullu biçim … tam olarak geri gelsin).
+    _recordStep('excel.undo_insert_row', () => editor.insertRow(name, at), () {
+      editor.deleteRow(name, at);
+      editor.restoreStructure(struct);
+    });
     if (below) _selRow += 1;
     _afterStructural();
   }
@@ -502,10 +506,12 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     // Silmenin tersi "ekle" DEĞİL, "ekle + içeriği geri koy": satırın
     // değerleri, biçimleri ve yüksekliği yakalanmadan geri alma veri kaybeder.
     final snap = editor.captureRow(name, at);
+    final struct = editor.captureStructure(name);
     editor.deleteRow(name, at);
     _recordStep('excel.undo_delete_row', () => editor.deleteRow(name, at), () {
       editor.insertRow(name, at);
       editor.restoreRow(name, at, snap);
+      editor.restoreStructure(struct);
     });
     _afterStructural();
   }
@@ -516,9 +522,13 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     if (sheet == null || editor == null) return;
     final name = sheet.name;
     final at = right ? _selCol + 1 : _selCol;
+    final struct = editor.captureStructure(name);
     editor.insertColumn(name, at);
     _recordStep('excel.undo_insert_col', () => editor.insertColumn(name, at),
-        () => editor.deleteColumn(name, at));
+        () {
+      editor.deleteColumn(name, at);
+      editor.restoreStructure(struct);
+    });
     if (right) _selCol += 1;
     _afterStructural();
   }
@@ -530,11 +540,13 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     final name = sheet.name;
     final at = _selCol;
     final snap = editor.captureColumn(name, at);
+    final struct = editor.captureStructure(name);
     editor.deleteColumn(name, at);
     _recordStep('excel.undo_delete_col', () => editor.deleteColumn(name, at),
         () {
       editor.insertColumn(name, at);
       editor.restoreColumn(name, at, snap);
+      editor.restoreStructure(struct);
     });
     _afterStructural();
   }

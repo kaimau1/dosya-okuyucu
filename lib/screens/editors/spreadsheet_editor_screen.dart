@@ -514,18 +514,6 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
   /// sütunu seçmeyi zorlaştırırdı.
   static const double _resizeGrip = 18;
 
-  /// Sayılar sayısal, gerisi metin olarak karşılaştırılır (Excel de böyle
-  /// sıralar: "10" metin sıralamasında "9"dan önce gelirdi).
-  static int _compareCellText(String a, String b) {
-    final na = double.tryParse(a);
-    final nb = double.tryParse(b);
-    if (na != null && nb != null) return na.compareTo(nb);
-    if (na != null) return -1;
-    if (nb != null) return 1;
-    return a.toLowerCase().compareTo(b.toLowerCase());
-  }
-
-
   /// Parça dosyalarındaki uzantılar `setState`i (korumalı) buradan çağırır.
   void _partSetState(VoidCallback fn) => setState(fn);
 }

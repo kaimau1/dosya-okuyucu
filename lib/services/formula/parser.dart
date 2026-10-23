@@ -195,13 +195,34 @@ extension _ParserParserPart on _Parser {
   }
 
   Object _parseErrorLiteral() {
-    final start = _i;
-    while (_i < s.length && s[_i] != ',' && s[_i] != ';' && s[_i] != ')') {
-      _i++;
+    // Bilinen kodlardan en uzun ön ek (kodlar `/`, `?`, `!` içerir; işleçte
+    // durmak için ayırıcı aramak `#REF!*2`'yi bozuyordu).
+    const tr = {
+      '#REF!': '#BAŞV!',
+      '#DIV/0!': '#SAYI/0!',
+      '#VALUE!': '#DEĞER!',
+      '#NAME?': '#AD?',
+      '#N/A': '#YOK',
+      '#NUM!': '#SAYI!',
+      '#NULL!': '#BOŞ!',
+    };
+    const codes = [
+      '#SAYI/0!', '#DEĞER!', '#BAŞV!', '#AD?', '#YOK', '#SAYI!', '#BOŞ!',
+      '#DIV/0!', '#VALUE!', '#REF!', '#NAME?', '#N/A', '#NUM!', '#NULL!',
+    ];
+    String? best;
+    for (final c in codes) {
+      if (s.length - _i >= c.length &&
+          s.substring(_i, _i + c.length).toUpperCase() == c.toUpperCase() &&
+          (best == null || c.length > best.length)) {
+        best = c;
+      }
     }
-    final code = s.substring(start, _i).trim();
-    if (FormulaEngine._isErrorCode(code)) return FormulaError(code);
-    throw const FormulaError('#AD?');
+    if (best == null) throw const FormulaError('#AD?');
+    _i += best.length;
+    // Dosya biçimi (İngilizce): satır silinince formüle `#REF!` yazılır
+    // (Faz 25 / X3) — ekranda Türkçe karşılığı.
+    return FormulaError(tr[best] ?? best);
   }
 
   String _parseString() {

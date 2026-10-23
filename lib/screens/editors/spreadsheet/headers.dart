@@ -103,7 +103,7 @@ extension _SpreadsheetEditorScreenHeadersPart on _SpreadsheetEditorScreenState {
     for (var r = firstData; r <= lastData; r++) {
       values.add(sheet.rawAt(r, c));
     }
-    final sorted = values.toList()..sort(_SpreadsheetEditorScreenState._compareCellText);
+    final sorted = values.toList()..sort(compareCellText);
     final hidden = {...(sheet.filterHidden[c] ?? const <int>{})};
     // Gizli satırların değerleri "işaretsiz" gelmeli.
     final unchecked = <String>{
@@ -165,14 +165,23 @@ extension _SpreadsheetEditorScreenHeadersPart on _SpreadsheetEditorScreenState {
     final editor = _editor;
     if (editor == null || lastData <= firstData) return;
     final name = sheet.name;
+    // Satır genişliği bir kez (eskiden her satırda bütün satırlar taranıyordu
+    // → 10 bin satırda ~100 M işlem, X4).
+    final width = sheet.maxCols;
     final before = [
-      for (var r = firstData; r <= lastData; r++) editor.captureRow(name, r),
+      for (var r = firstData; r <= lastData; r++)
+        editor.captureRow(name, r, width: width),
     ];
-    final order = [for (var r = firstData; r <= lastData; r++) r]
-      ..sort((a, b) {
-        final cmp = _SpreadsheetEditorScreenState._compareCellText(sheet.rawAt(a, c), sheet.rawAt(b, c));
-        return ascending ? cmp : -cmp;
-      });
+    // Formül hücresi SONUCUYLA karşılaştırılır (X4: eskiden formül METNİYLE
+    // — "=A1*2" metin olarak sıralanıyordu). Anahtar satır başına bir kez.
+    final engine = _engineFor(sheet);
+    final keys = <int, String>{
+      for (var r = firstData; r <= lastData; r++)
+        r: sheet.rawAt(r, c).startsWith('=')
+            ? engine.displayValue(r, c)
+            : sheet.rawAt(r, c),
+    };
+    final order = sortRowOrder(keys, ascending: ascending);
     final after = [
       for (final r in order) before[r - firstData],
     ];

@@ -790,3 +790,31 @@ Map<CellRef, String> fillDiagonal(
   }
   return values;
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Sıralama (Faz 25 / X4)
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Sayılar sayısal, gerisi metin olarak karşılaştırılır (Excel de böyle
+/// sıralar: "10" metin sıralamasında "9"dan önce gelirdi); sayılar metinden
+/// önce.
+int compareCellText(String a, String b) {
+  final na = double.tryParse(a);
+  final nb = double.tryParse(b);
+  if (na != null && nb != null) return na.compareTo(nb);
+  if (na != null) return -1;
+  if (nb != null) return 1;
+  return a.toLowerCase().compareTo(b.toLowerCase());
+}
+
+/// Satırların sıralanmış düzeni. [keys] satır → sıralama anahtarı (formül
+/// hücresinde SONUÇ — çağıran hesaplar). Kararlı: eşitler özgün sırada.
+List<int> sortRowOrder(Map<int, String> keys, {required bool ascending}) {
+  final rows = keys.keys.toList()..sort();
+  rows.sort((a, b) {
+    final cmp = compareCellText(keys[a]!, keys[b]!);
+    final out = ascending ? cmp : -cmp;
+    return out != 0 ? out : a.compareTo(b);
+  });
+  return rows;
+}

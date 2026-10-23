@@ -5,6 +5,7 @@ import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
 
 import 'formula_engine.dart';
+import 'sheet_structure.dart';
 import 'xlsx_reader.dart';
 
 /// Bir sayfanın kaydedilecek içeriği — [XlsxPackageWriter]'ın girdisi.
@@ -26,6 +27,10 @@ class XlsxPackageSheet {
   /// Sekme gizli mi (`<sheet state="hidden">`).
   final bool hidden;
 
+  /// Bu oturumdaki satır/sütun ekle-sil işlemleri (Faz 25): özgün XML'deki
+  /// koşullu biçim, doğrulama, köprü, not ve tanımlı adlar da kaydırılır.
+  final List<SheetShift> shifts;
+
   const XlsxPackageSheet({
     required this.name,
     required this.partPath,
@@ -33,6 +38,7 @@ class XlsxPackageSheet {
     required this.layout,
     required this.merges,
     this.hidden = false,
+    this.shifts = const [],
   });
 }
 
@@ -234,7 +240,12 @@ class XlsxPackageWriter {
       }
       keptParts.add(part);
       newSheetEls.add(el);
-      put(part, _rewriteSheet(text(part)!, s, sst));
+      var sheetXml = text(part)!;
+      if (s.shifts.isNotEmpty) {
+        sheetXml = _shiftSheetXml(sheetXml, s.shifts, s.name);
+        _shiftSheetSideParts(part, s.shifts, text, put);
+      }
+      put(part, _rewriteSheet(sheetXml, s, sst));
     }
     sheetsEl.children
       ..clear()
@@ -252,6 +263,21 @@ class XlsxPackageWriter {
     }
 
     _remapDefinedNames(wbDoc, oldToNew);
+    for (final s in sheets) {
+      if (s.shifts.isEmpty) continue;
+      for (final dn in wbDoc.findAllElements('definedName')) {
+        var f = dn.innerText;
+        for (final op in s.shifts) {
+          f = shiftFormulaStructural(f, op,
+              currentSheet: '\u0000', targetSheet: s.name);
+        }
+        if (f != dn.innerText) {
+          dn.children
+            ..clear()
+            ..add(XmlText(f));
+        }
+      }
+    }
     _fixWorkbookView(wbDoc, sheets.length);
     _forceRecalc(wbDoc);
 
@@ -395,6 +421,182 @@ class XlsxPackageWriter {
 
   static final _sheetDataRe = RegExp(
       r'<((?:\w+:)?)sheetData\b[^>]*?(?:/>|>[\s\S]*?</\1sheetData>)');
+
+  /// Satır/sütun ekle-sil sonrası özgün sayfa XML'indeki aralıklı nesneler
+  /// (Faz 25 / X3): koşullu biçim (x14 uzantısı dahil), veri doğrulama,
+  /// köprüler. Tamamı silinen nesne kalkar.
+  static String _shiftSheetXml(String xml, List<SheetShift> ops, String name) {
+    final doc = XmlDocument.parse(xml);
+    String? sq(String? v) {
+      if (v == null) return null;
+      String? cur = v;
+      for (final op in ops) {
+        if (cur == null) break;
+        cur = shiftSqref(cur, op);
+      }
+      return cur;
+    }
+
+    void setText(XmlElement e, String t) {
+      if (e.innerText == t) return;
+      e.children
+        ..clear()
+        ..add(XmlText(t));
+    }
+
+    // Koşullu biçim / doğrulama formülleri çapalarına göre (bkz.
+    // shiftAnchoredFormula); önce formüller, sonra aralıklar.
+    String anchored(String v, String? sqrefBefore) {
+      var cur = v;
+      var ref = sqrefBefore;
+      for (final op in ops) {
+        final a = ref == null ? null : sqrefAnchor(ref);
+        cur = a == null
+            ? shiftFormulaStructural(cur, op, currentSheet: name, targetSheet: name)
+            : shiftAnchoredFormula(cur, a.$1, a.$2, op, name);
+        ref = ref == null ? null : shiftSqref(ref, op);
+      }
+      return cur;
+    }
+
+    String? ownerSqref(XmlElement e) {
+      for (XmlNode? n = e.parent; n is XmlElement; n = n.parent) {
+        final v = n.getAttribute('sqref');
+        if (v != null) return v;
+        final x = n.childElements.where((c) => c.name.local == 'sqref').firstOrNull;
+        if (x != null) return x.innerText;
+      }
+      return null;
+    }
+
+    for (final e in doc.descendantElements.toList()) {
+      switch (e.name.local) {
+        case 'formula':
+        case 'formula1':
+        case 'formula2':
+        case 'f':
+          final par = e.parent;
+          // Hücre formülleri sheetData'yla baştan yazılıyor.
+          if (par is XmlElement && par.name.local == 'c') break;
+          setText(e, anchored(e.innerText, ownerSqref(e)));
+      }
+    }
+    for (final e in doc.descendantElements.toList()) {
+      switch (e.name.local) {
+        case 'conditionalFormatting':
+        case 'dataValidation':
+        case 'hyperlink':
+          final attr = e.name.local == 'hyperlink' ? 'ref' : 'sqref';
+          final v = e.getAttribute(attr);
+          if (v != null) {
+            final n = sq(v);
+            if (n == null) {
+              e.parent?.children.remove(e);
+              continue;
+            }
+            e.setAttribute(attr, n);
+          }
+        case 'sqref':
+          // x14 uzantısı: <xm:sqref>A1:B2</xm:sqref>
+          final n = sq(e.innerText);
+          if (n == null) {
+            final owner = e.parent;
+            owner?.parent?.children.remove(owner);
+          } else {
+            setText(e, n);
+          }
+      }
+    }
+    for (final c in doc.descendantElements
+        .where((e) => const {'dataValidations', 'hyperlinks'}.contains(e.name.local))
+        .toList()) {
+      final n = c.childElements.length;
+      if (n == 0) {
+        c.parent?.children.remove(c);
+      } else if (c.getAttribute('count') != null) {
+        c.setAttribute('count', '$n');
+      }
+    }
+    return doc.toXmlString();
+  }
+
+  /// Sayfanın notları (`commentsN.xml` + eski VML çizimi) da kaydırılır.
+  static void _shiftSheetSideParts(String part, List<SheetShift> ops,
+      String? Function(String) text, void Function(String, String) put) {
+    final slash = part.lastIndexOf('/');
+    final rels = '${part.substring(0, slash)}/_rels/${part.substring(slash + 1)}.rels';
+    final relXml = text(rels);
+    if (relXml == null) return;
+    final base = part.substring(0, slash);
+    for (final r in XmlDocument.parse(relXml).findAllElements('Relationship')) {
+      final type = r.getAttribute('Type') ?? '';
+      final target = r.getAttribute('Target') ?? '';
+      if (r.getAttribute('TargetMode') == 'External') continue;
+      final path = _resolve(base, target);
+      final xml = text(path);
+      if (xml == null) continue;
+      if (type.endsWith('/comments')) {
+        final doc = XmlDocument.parse(xml);
+        for (final c in doc.findAllElements('comment').toList()) {
+          String? ref = c.getAttribute('ref');
+          for (final op in ops) {
+            if (ref == null) break;
+            ref = shiftSqref(ref, op);
+          }
+          if (ref == null) {
+            c.parent?.children.remove(c);
+          } else {
+            c.setAttribute('ref', ref);
+          }
+        }
+        put(path, doc.toXmlString());
+      } else if (type.endsWith('/vmlDrawing')) {
+        final doc = XmlDocument.parse(xml);
+        for (final cd in doc.descendantElements
+            .where((e) => e.name.local == 'ClientData')
+            .toList()) {
+          final row = cd.childElements.where((e) => e.name.local == 'Row').firstOrNull;
+          final col = cd.childElements.where((e) => e.name.local == 'Column').firstOrNull;
+          if (row == null || col == null) continue;
+          int? rv = int.tryParse(row.innerText.trim());
+          int? cv = int.tryParse(col.innerText.trim());
+          for (final op in ops) {
+            if (rv == null || cv == null) break;
+            if (op.rows) {
+              rv = op.point(rv);
+            } else {
+              cv = op.point(cv);
+            }
+          }
+          if (rv == null || cv == null) {
+            final shape = cd.parent;
+            shape?.parent?.children.remove(shape);
+            continue;
+          }
+          row.children
+            ..clear()
+            ..add(XmlText('$rv'));
+          col.children
+            ..clear()
+            ..add(XmlText('$cv'));
+        }
+        put(path, doc.toXmlString());
+      }
+    }
+  }
+
+  static String _resolve(String base, String target) {
+    if (target.startsWith('/')) return target.substring(1);
+    final parts = base.split('/');
+    for (final seg in target.split('/')) {
+      if (seg == '..') {
+        if (parts.isNotEmpty) parts.removeLast();
+      } else if (seg != '.') {
+        parts.add(seg);
+      }
+    }
+    return parts.join('/');
+  }
 
   static String _rewriteSheet(
       String xml, XlsxPackageSheet s, int Function(String, List<XlsxRichRun>?) sst) {

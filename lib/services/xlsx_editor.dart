@@ -8,6 +8,7 @@ import 'xlsx_package.dart';
 import 'xlsx_reader.dart';
 import 'xlsx_save_patch.dart';
 import 'xlsx_chart.dart';
+import 'sheet_structure.dart';
 import '../core/app_colors.dart';
 import '../core/edit/save_coordinator.dart';
 
@@ -15,6 +16,9 @@ import '../core/edit/save_coordinator.dart';
 // ekranlara buradan açılır — ad çakışması yok.
 export 'xlsx_reader.dart';
 export 'xlsx_chart.dart';
+export 'sheet_structure.dart' show SheetShift;
+
+part 'xlsx/structure_edit.dart';
 
 /// Bir hücrenin Excel'deki görünümü.
 ///
@@ -231,6 +235,11 @@ class XlsxSheet {
 
   /// Bu oturumda eklenen koşullu biçimlendirme kuralları (kaydetmede yazılır).
   final List<XlsxCondRuleWrite> condRuleEdits = [];
+
+  /// Bu oturumdaki satır/sütun ekle-sil işlemleri, sırayla (Faz 25 / X3):
+  /// kaydetmede özgün XML'deki koşullu biçim, doğrulama, köprü ve notlar
+  /// aynı kaydırmayı görür.
+  final List<SheetShift> structuralOps = [];
 
   /// Koşullu biçimlendirme kuralı ekler: ekranda ANINDA uygulanır, kaydetmede
   /// `<cfRule>` + `<dxf>` olarak yazılır.
@@ -769,12 +778,12 @@ class XlsxEditor {
   ///
   /// Silme işlemini geri alabilmek için gerekir: `deleteRow`un tersi yalnız
   /// `insertRow` değildir — silinen satırın İÇERİĞİ de geri konmalıdır.
-  SheetLineSnapshot captureRow(String sheetName, int rowIndex) {
+  SheetLineSnapshot captureRow(String sheetName, int rowIndex, {int? width}) {
     final sheet = _modelSheet(sheetName);
     if (sheet == null || rowIndex < 0) {
       return const SheetLineSnapshot(values: [], cells: {}, overrides: {});
     }
-    final width = sheet.maxCols;
+    width ??= sheet.maxCols;
     return SheetLineSnapshot(
       values: [for (var c = 0; c < width; c++) sheet.rawAt(rowIndex, c)],
       cells: {
@@ -859,6 +868,7 @@ class XlsxEditor {
     final at = rowIndex.clamp(0, model.rows.length);
     model.rows.insert(at, <String>[]);
     _shiftLayoutRows(model.layout, at, 1);
+    _applyStructural(model, SheetShift(rows: true, at: at, delta: 1));
   }
 
   void deleteRow(String sheetName, int rowIndex) {
@@ -867,6 +877,7 @@ class XlsxEditor {
     if (rowIndex < 0 || rowIndex >= model.rows.length) return;
     model.rows.removeAt(rowIndex);
     _shiftLayoutRows(model.layout, rowIndex, -1);
+    _applyStructural(model, SheetShift(rows: true, at: rowIndex, delta: -1));
   }
 
   void insertColumn(String sheetName, int colIndex) {
@@ -877,6 +888,7 @@ class XlsxEditor {
       if (at <= row.length) row.insert(at, '');
     }
     _shiftLayoutCols(model.layout, at, 1);
+    _applyStructural(model, SheetShift(rows: false, at: at, delta: 1));
   }
 
   void deleteColumn(String sheetName, int colIndex) {
@@ -887,6 +899,7 @@ class XlsxEditor {
       if (colIndex < row.length) row.removeAt(colIndex);
     }
     _shiftLayoutCols(model.layout, colIndex, -1);
+    _applyStructural(model, SheetShift(rows: false, at: colIndex, delta: -1));
   }
 
   /// Satır ekleme/silme sonrası görünüm modelini (hücre stilleri, yükseklikler)
@@ -1259,6 +1272,7 @@ class XlsxEditor {
               XlsxRange(m.rowStart, m.colStart, m.rowEnd, m.colEnd),
           ],
           hidden: s.layout.hidden,
+          shifts: List.of(s.structuralOps),
         ),
     ];
     final patches = [
