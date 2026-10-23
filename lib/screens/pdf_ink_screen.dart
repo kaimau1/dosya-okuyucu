@@ -15,6 +15,7 @@ import '../services/pdf/pdf_markup.dart';
 import '../widgets/download_action.dart';
 import '../widgets/pdf_save_dialog.dart';
 import '../core/user_error.dart';
+import '../core/app_colors.dart';
 
 part 'pdf_ink/input.dart';
 part 'pdf_ink/views.dart';
@@ -205,7 +206,7 @@ class _PdfInkScreenState extends State<PdfInkScreen> {
                   (i) => PdfPageView(
                     document: document,
                     pageNumber: i + 1,
-                    decoration: const BoxDecoration(color: Colors.white),
+                    decoration: const BoxDecoration(color: AppColors.page),
                   ),
                 );
               },

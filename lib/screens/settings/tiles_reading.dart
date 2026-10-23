@@ -7,6 +7,7 @@ import '../../services/tts_service.dart';
 import '../../services/voice/neural_voices.dart';
 import '../../widgets/tts_voice_sheet.dart';
 import 'settings_widgets.dart';
+import '../../core/app_icons.dart';
 
 /// **Sesli okuma ayarları — Ayarlar'da (2026-08-29).**
 ///
@@ -23,7 +24,7 @@ class TtsVoiceTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final prefs = context.watch<AppState>().ttsPrefs;
     return SettingTile(
-      icon: Icons.record_voice_over_rounded,
+      icon: AppIcons.voice,
       title: context.t('set.tts_voice'),
       subtitle: context.t('set.tts_voice_sub'),
       wrapSubtitle: true,
@@ -55,7 +56,7 @@ class TtsAiReadTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     return SettingSwitch(
-      icon: Icons.campaign_rounded,
+      icon: AppIcons.campaign,
       title: context.t('set.tts_ai_read'),
       subtitle: context.t('set.tts_ai_read_sub'),
       value: state.ttsAiRead,

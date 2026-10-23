@@ -2,37 +2,18 @@ part of '../entry_actions.dart';
 
 /// Yeniden adlandırma penceresi. Değiştiyse `true`.
 Future<bool> renameEntry(BuildContext context, FsEntry entry) async {
-  final controller = TextEditingController(text: entry.name);
   // Uzantıyı seçimin dışında bırak: kullanıcı adı düzeltirken ".pdf"i
   // yanlışlıkla silmesin.
   final dot = entry.isDir ? -1 : entry.name.lastIndexOf('.');
-  controller.selection = TextSelection(
-    baseOffset: 0,
-    extentOffset: dot > 0 ? dot : entry.name.length,
+  final newName = await showAppPrompt(
+    context,
+    title: context.t('fm.rename'),
+    label: context.t('fm.new_name'),
+    initial: entry.name,
+    selectEnd: dot > 0 ? dot : entry.name.length,
+    confirmLabel: context.t('common.save'),
   );
-
-  final newName = await showDialog<String>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(context.t('fm.rename')),
-      content: TextField(
-        controller: controller,
-        autofocus: true,
-        decoration: InputDecoration(labelText: ctx.t('fm.new_name')),
-        onSubmitted: (v) => Navigator.pop(ctx, v),
-      ),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(ctx), child: Text(context.t('common.cancel'))),
-        FilledButton(
-          onPressed: () => Navigator.pop(ctx, controller.text),
-          child: Text(ctx.t('common.save')),
-        ),
-      ],
-    ),
-  );
-  controller.dispose();
-  if (newName == null || newName.trim().isEmpty) return false;
+  if (newName == null) return false;
   if (!context.mounted) return false;
   // **Uzantı değişiyorsa sor** (2026-09-06 denetim turu). Uzantıyı silmek ya
   // da değiştirmek dosyayı "bilinmeyen tür" yapıyor: uygulama onu bir daha
@@ -149,26 +130,16 @@ Future<bool> deleteEntries(
     confirmSetting: appState.fmConfirmDelete,
     askAllowed: confirm,
   )) {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(useTrash
+    final confirmed = await showAppConfirm(
+        context,
+        title: useTrash
             ? context.t('fm.delete_trash_title')
-            : context.t('fm.delete_permanent_title')),
-        content: Text(useTrash
-            ? ctx.t('fm.delete_trash_body', {'label': label})
-            : ctx.t('fm.delete_permanent_body', {'label': label})),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(context.t('common.cancel'))),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(
-                ctx.t(useTrash ? 'fm.move' : 'common.delete')),
-          ),
-        ],
-      ),
+            : context.t('fm.delete_permanent_title'),
+        message: useTrash
+            ? context.t('fm.delete_trash_body', {'label': label})
+            : context.t('fm.delete_permanent_body', {'label': label}),
+        confirmLabel: context.t(useTrash ? 'fm.move' : 'common.delete'),
+        destructive: true,
     );
     if (confirmed != true || !context.mounted) return false;
   }
@@ -257,21 +228,12 @@ void showUndoToast(ScaffoldMessengerState messenger, AppStrings strings,
 
 /// Kalıcı silme (çöp kutusunu atlar) — çöp ekranında kullanılır.
 Future<bool> deleteForever(BuildContext context, List<String> paths) async {
-  final confirmed = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(context.t('fm.delete_permanent_title')),
-      content: Text(ctx.t('fm.irreversible')),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(context.t('common.cancel'))),
-        FilledButton(
-          onPressed: () => Navigator.pop(ctx, true),
-          child: Text(ctx.t('common.delete')),
-        ),
-      ],
-    ),
+  final confirmed = await showAppConfirm(
+      context,
+      title: context.t('fm.delete_permanent_title'),
+      message: context.t('fm.irreversible'),
+      confirmLabel: context.t('common.delete'),
+      destructive: true,
   );
   if (confirmed != true || !context.mounted) return false;
   AppHaptics.destructive();

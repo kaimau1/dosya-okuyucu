@@ -19,7 +19,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
                   'type': context.t(guess.type.labelKey),
                   'folder': guess.type.folder,
                 }),
-                style: TextStyle(color: scheme.onPrimaryContainer, fontSize: 13),
+                style: context.type.compact.copyWith(color: scheme.onPrimaryContainer),
               ),
             ),
             TextButton(
@@ -133,11 +133,11 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
                     Gap.lg, Gap.md, Gap.lg, Gap.xl + Gap.sm),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.page,
                     borderRadius: BorderRadius.circular(3),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.16),
+                        color: AppColors.shade.withValues(alpha: 0.16),
                         blurRadius: 18,
                         offset: const Offset(0, 6),
                       ),
@@ -186,9 +186,8 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
                         ? ''
                         : '${_index + 1} / ${_pages.length}'
                             '${_pages[_index].filter == ScanFilter.original ? '' : ' · ${context.t(_pages[_index].filter.labelKey)}'}',
-                    style: TextStyle(
+                    style: context.type.small.copyWith(
                       color: scheme.onInverseSurface,
-                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -276,7 +275,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.note_add_rounded,
+                        Icon(AppIcons.noteAdd,
                             color: scheme.onPrimaryContainer, size: 24),
                         const SizedBox(height: 2),
                         Text(
@@ -335,7 +334,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
               child: Row(
                 children: [
                   _ToolButton(
-                    icon: Icons.crop_rounded,
+                    icon: AppIcons.crop,
                     label: context.t('ss.tool_crop'),
                     onTap: enabled ? _crop : null,
                     highlight: true,
@@ -346,12 +345,12 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
                     onTap: enabled ? _rotate : null,
                   ),
                   _ToolButton(
-                    icon: Icons.auto_awesome_outlined,
+                    icon: AppIcons.ai,
                     label: context.t('ss.tool_filter'),
                     onTap: enabled ? _filter : null,
                   ),
                   _ToolButton(
-                    icon: Icons.camera_alt_rounded,
+                    icon: AppIcons.cameraAlt,
                     label: context.t('ss.tool_retake'),
                     onTap: enabled ? _retake : null,
                   ),
@@ -438,7 +437,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
                     ),
                   const SizedBox(height: Gap.xs),
                   SelectableText(page.text,
-                      style: const TextStyle(fontSize: 14, height: 1.45)),
+                      style: context.type.body.copyWith(height: 1.45)),
                 ],
               ),
             ),

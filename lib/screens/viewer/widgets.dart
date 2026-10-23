@@ -236,7 +236,7 @@ class _SpreadsheetView extends StatelessWidget {
           ),
           child: Text(text,
               style:
-                  const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                  context.type.small.copyWith(fontWeight: FontWeight.w600)),
         );
 
     Widget dataCell(String text, double w) => Container(

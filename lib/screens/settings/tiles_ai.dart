@@ -137,7 +137,7 @@ class _AiAccessTileState extends State<AiAccessTile> {
           ),
           const SizedBox(height: Gap.xs),
           Text(context.t('settings.api_key_note'),
-              style: TextStyle(fontSize: 12, color: Paper.faint(context))),
+              style: context.type.small.copyWith(color: Paper.faint(context))),
           // **Doğrulama satırı** — anahtarın hemen altında.
           if (appState.hasApiKey) ...[
             const SizedBox(height: Gap.xs),
@@ -145,10 +145,10 @@ class _AiAccessTileState extends State<AiAccessTile> {
               children: [
                 Icon(
                   _fetchedModels != null
-                      ? Icons.check_circle_outline_rounded
+                      ? AppIcons.checkCircleOutline
                       : (modelsError != null
                           ? AppIcons.error
-                          : Icons.hourglass_empty_rounded),
+                          : AppIcons.hourglassEmpty),
                   size: 16,
                   color: _fetchedModels != null
                       ? Paper.success(context)
@@ -166,7 +166,7 @@ class _AiAccessTileState extends State<AiAccessTile> {
                             ? context.t('set.key_invalid')
                             : context.t('settings.model_refresh')),
                     style:
-                        TextStyle(fontSize: 12, color: Paper.faint(context)),
+                        context.type.small.copyWith(color: Paper.faint(context)),
                   ),
                 ),
               ],
@@ -219,8 +219,9 @@ class _AiAccessTileState extends State<AiAccessTile> {
             const SizedBox(height: Gap.xs),
             Text(
               context.t('settings.model_error', {'error': modelsError}),
-              style: TextStyle(
-                  color: Theme.of(context).colorScheme.error, fontSize: 12),
+              style: context.type.small.copyWith(
+                  color: Theme.of(context).colorScheme.error,
+                ),
             ),
           ],
         ],
@@ -240,7 +241,7 @@ class MemoryTile extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.sm),
         child: Text(context.t('settings.memory_empty'),
-            style: TextStyle(fontSize: 12, color: Paper.faint(context))),
+            style: context.type.small.copyWith(color: Paper.faint(context))),
       );
     }
     return Column(
@@ -248,7 +249,7 @@ class MemoryTile extends StatelessWidget {
         for (final e in appState.memory.asMap().entries)
           ListTile(
             dense: true,
-            leading: const Icon(Icons.sticky_note_2_rounded),
+            leading: const Icon(AppIcons.notes),
             title: Text(e.value, maxLines: 3, overflow: TextOverflow.ellipsis),
             trailing: IconButton(
               tooltip: context.t('common.delete'),

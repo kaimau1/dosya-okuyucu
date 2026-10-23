@@ -111,7 +111,6 @@ class _PackedLabel extends StatelessWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: theme.textTheme.titleSmall?.copyWith(
-        fontSize: 15,
         fontWeight: FontWeight.w700,
         letterSpacing: -0.1,
       ),
@@ -217,7 +216,7 @@ class _CheckBadge extends StatelessWidget {
         shape: BoxShape.circle,
         color: selected ? scheme.primary : AppColors.mediaSurface.withValues(alpha: 0.12),
         border: Border.all(color: AppColors.onMedia, width: 2),
-        boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 3)],
+        boxShadow: const [BoxShadow(color: AppColors.shadowStrong, blurRadius: 3)],
       ),
       child: selected
           ? Icon(AppIcons.check, size: 14, color: scheme.onPrimary)

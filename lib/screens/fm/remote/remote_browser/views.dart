@@ -178,20 +178,12 @@ extension _RemoteBrowserScreenViewsPart on _RemoteBrowserScreenState {
       if (mounted) _partSetState(_selected.clear);
       return;
     }
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.t('common.delete')),
-        content: Text(ctx.t('nas.delete_many', {'n': '${entries.length}'})),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(ctx.t('common.cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(ctx.t('common.delete'))),
-        ],
-      ),
+    final ok = await showAppConfirm(
+        context,
+        title: context.t('common.delete'),
+        message: context.t('nas.delete_many', {'n': '${entries.length}'}),
+        confirmLabel: context.t('common.delete'),
+        destructive: true,
     );
     if (ok != true || !mounted) return;
     _partSetState(() => _busy = true);
@@ -216,7 +208,7 @@ extension _RemoteBrowserScreenViewsPart on _RemoteBrowserScreenState {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.cloud_off_rounded, size: 48),
+              const Icon(AppIcons.cloudOff, size: 48),
               const SizedBox(height: 12),
               Text(_error!, textAlign: TextAlign.center),
               const SizedBox(height: 16),

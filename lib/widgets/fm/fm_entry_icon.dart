@@ -18,6 +18,7 @@ import '../../services/fm/thumbnail_cache.dart';
 import 'fm_file_image.dart';
 import 'fm_glyph.dart';
 import '../../services/fm/storage_stats.dart';
+import '../../core/app_colors.dart';
 
 /// Dosya yöneticisi ikon paleti. Office dörtlüsü [OfficeColors]'tan gelir
 /// (liste ve şerit aynı tonu kullansın diye — bkz. HAFIZA 2026-07-24 tutarsızlık
@@ -70,20 +71,20 @@ abstract final class FmColors {
         FmCategory.video => AppIcons.video,
         FmCategory.audio => AppIcons.audio,
         FmCategory.archive => AppIcons.archiveView,
-        FmCategory.apk => Icons.android_rounded,
+        FmCategory.apk => AppIcons.android,
         FmCategory.document => AppIcons.newWord,
-        FmCategory.other => Icons.insert_drive_file_rounded,
+        FmCategory.other => AppIcons.insertDriveFile,
       };
 
   static IconData _outlined(FmCategory c) => switch (c) {
-        FmCategory.folder => Icons.folder_outlined,
-        FmCategory.image => Icons.image_outlined,
-        FmCategory.video => Icons.movie_outlined,
-        FmCategory.audio => Icons.music_note_outlined,
-        FmCategory.archive => Icons.folder_zip_outlined,
-        FmCategory.apk => Icons.android_outlined,
-        FmCategory.document => Icons.description_outlined,
-        FmCategory.other => Icons.insert_drive_file_outlined,
+        FmCategory.folder => AppIcons.folder,
+        FmCategory.image => AppIcons.image,
+        FmCategory.video => AppIcons.video,
+        FmCategory.audio => AppIcons.audio,
+        FmCategory.archive => AppIcons.archiveView,
+        FmCategory.apk => AppIcons.android,
+        FmCategory.document => AppIcons.newWord,
+        FmCategory.other => AppIcons.insertDriveFile,
       };
 
   // ── uzantıya ve klasör adına özel simgeler ────────────────────────────────
@@ -105,7 +106,7 @@ abstract final class FmColors {
 
   /// Uzantıya özel glif + renk (yoksa null → kategori glifi kullanılır).
   static (IconData, Color)? forExtension(String ext) => switch (ext) {
-        'apk' || 'xapk' || 'apks' || 'aab' => (Icons.android_rounded, apk),
+        'apk' || 'xapk' || 'apks' || 'aab' => (AppIcons.android, apk),
         // Arşivler biçime göre renk alır (2026-09-27): hepsi aynı toprak
         // rengindeydi, ZIP ile RAR ayırt edilmiyordu.
         'zip' => (AppIcons.archiveView, zip),
@@ -114,21 +115,21 @@ abstract final class FmColors {
         'tar' || 'gz' || 'tgz' || 'bz2' || 'xz' || 'zst' =>
           (AppIcons.archiveView, tarball),
         'epub' || 'mobi' || 'azw' || 'azw3' || 'fb2' =>
-          (Icons.menu_book_rounded, const Color(0xFF8D5524)),
+          (AppIcons.menuBook, const Color(0xFF8D5524)),
         'ttf' || 'otf' || 'woff' || 'woff2' =>
-          (Icons.font_download_rounded, const Color(0xFF5C4B8A)),
+          (AppIcons.fontDownload, const Color(0xFF5C4B8A)),
         'json' || 'xml' || 'yaml' || 'yml' || 'html' || 'htm' || 'css' ||
         'js' || 'ts' || 'dart' || 'py' || 'java' || 'kt' || 'c' || 'cpp' ||
         'sh' =>
-          (Icons.code_rounded, const Color(0xFF3A6EA5)),
-        'iso' || 'img' || 'dmg' => (Icons.album_rounded, const Color(0xFF5B6670)),
-        'torrent' => (Icons.swap_vert_circle_rounded, const Color(0xFF2E7D5B)),
+          (AppIcons.code, const Color(0xFF3A6EA5)),
+        'iso' || 'img' || 'dmg' => (AppIcons.album, const Color(0xFF5B6670)),
+        'torrent' => (AppIcons.swapVertCircle, const Color(0xFF2E7D5B)),
         'db' || 'sqlite' || 'sql' =>
-          (Icons.storage_rounded, const Color(0xFF6E6555)),
+          (AppIcons.database, const Color(0xFF6E6555)),
         'log' || 'ini' || 'cfg' || 'conf' =>
-          (Icons.receipt_long_rounded, other),
-        'vcf' => (Icons.contact_page_rounded, const Color(0xFF3A6EA5)),
-        'ics' => (Icons.event_note_rounded, const Color(0xFFB07C2A)),
+          (AppIcons.receiptLong, other),
+        'vcf' => (AppIcons.contactPage, const Color(0xFF3A6EA5)),
+        'ics' => (AppIcons.eventNote, const Color(0xFFB07C2A)),
         _ => null,
       };
 
@@ -140,18 +141,18 @@ abstract final class FmColors {
   static IconData? forFolderName(String name) => switch (name.toLowerCase()) {
         'download' || 'downloads' || 'indirilenler' =>
           AppIcons.download,
-        'dcim' || 'camera' || 'kamera' => Icons.photo_camera_rounded,
+        'dcim' || 'camera' || 'kamera' => AppIcons.photoCamera,
         'pictures' || 'images' || 'resimler' || 'görüntüler' =>
           AppIcons.layoutGallery,
         'movies' || 'video' || 'videos' || 'videolar' =>
-          Icons.video_library_rounded,
-        'music' || 'müzik' || 'audio' || 'ses' => Icons.library_music_rounded,
-        'documents' || 'belgeler' => Icons.folder_copy_rounded,
-        'whatsapp' || 'telegram' || 'signal' => Icons.forum_rounded,
+          AppIcons.videoLibrary,
+        'music' || 'müzik' || 'audio' || 'ses' => AppIcons.libraryMusic,
+        'documents' || 'belgeler' => AppIcons.folderCopy,
+        'whatsapp' || 'telegram' || 'signal' => AppIcons.forum,
         'android' || 'system' || 'data' => AppIcons.settings,
-        'screenshots' || 'ekran görüntüleri' => Icons.screenshot_rounded,
-        'backup' || 'backups' || 'yedek' => Icons.backup_rounded,
-        'fonts' => Icons.font_download_rounded,
+        'screenshots' || 'ekran görüntüleri' => AppIcons.screenshot,
+        'backup' || 'backups' || 'yedek' => AppIcons.backup,
+        'fonts' => AppIcons.fontDownload,
         _ => null,
       };
 
@@ -474,10 +475,10 @@ class FmSelectableIcon extends StatelessWidget {
               end: 0,
               bottom: 0,
               child: Icon(
-                selected ? AppIcons.checkCircle : Icons.circle_rounded,
+                selected ? AppIcons.checkCircle : AppIcons.dot,
                 size: badge,
-                color: selected ? scheme.primary : Colors.white,
-                shadows: const [Shadow(blurRadius: 4, color: Colors.black54)],
+                color: selected ? scheme.primary : AppColors.onMedia,
+                shadows: const [Shadow(blurRadius: 4, color: AppColors.mediaScrim)],
               ),
             ),
           ],
@@ -686,7 +687,7 @@ class _PdfThumbState extends State<_PdfThumb> {
       child: Center(
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.onMedia,
             borderRadius: BorderRadius.circular(4),
             border: Border.all(color: scheme.outlineVariant, width: 0.8),
             boxShadow: const [
@@ -863,7 +864,7 @@ class _VideoBadge extends StatelessWidget {
     final text = duration;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.55),
+        color: AppColors.shade.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Padding(
@@ -874,7 +875,7 @@ class _VideoBadge extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(AppIcons.play, size: icon, color: Colors.white),
+            Icon(AppIcons.play, size: icon, color: AppColors.onMedia),
             if (text != null) ...[
               const SizedBox(width: 1),
               Text(
@@ -882,7 +883,7 @@ class _VideoBadge extends StatelessWidget {
                 // Kullanıcının uygulama içi yazı ölçeği rozeti taşırmasın.
                 textScaler: TextScaler.noScaling,
                 style: TextStyle(
-                  color: Colors.white,
+                  color: AppColors.onMedia,
                   fontSize: font,
                   fontWeight: FontWeight.w600,
                   height: 1.2,

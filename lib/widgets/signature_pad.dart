@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/app_colors.dart';
 
 /// Parmakla çizilmiş imza — noktalar **0..1 aralığında normalize** tutulur
 /// (kendi sınır kutusuna göre). Böylece imza her boyutta bozulmadan basılır ve
@@ -114,7 +115,7 @@ class _SignaturePadState extends State<SignaturePad> {
         height: 200,
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.page,
             border: Border.all(color: scheme.outlineVariant),
             borderRadius: BorderRadius.circular(8),
           ),
@@ -170,7 +171,7 @@ class _StrokePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.black
+      ..color = AppColors.pageInk
       ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
@@ -193,7 +194,7 @@ class _StrokePainter extends CustomPainter {
 /// Normalize edilmiş (0..1) imzayı verilen kutuya çizer — yerleştirme
 /// önizlemesi ile PDF'e basılan şey aynı noktalardan gelir.
 class SignaturePainter extends CustomPainter {
-  const SignaturePainter(this.signature, {this.color = Colors.black});
+  const SignaturePainter(this.signature, {this.color = AppColors.pageInk});
 
   final Signature signature;
   final Color color;

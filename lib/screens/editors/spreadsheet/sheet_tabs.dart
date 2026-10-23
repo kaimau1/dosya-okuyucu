@@ -69,7 +69,7 @@ extension _SpreadsheetEditorScreenSheetTabsPart on _SpreadsheetEditorScreenState
         DocMoreItem(AppIcons.back, context.t('excel.move_sheet_left'),
             index > 0 ? () => _moveSheet(sheet, index - 1) : null),
         DocMoreItem(
-            Icons.arrow_forward_rounded,
+            AppIcons.arrowForward,
             context.t('excel.move_sheet_right'),
             index >= 0 && index < count - 1
                 ? () => _moveSheet(sheet, index + 1)
@@ -142,20 +142,12 @@ extension _SpreadsheetEditorScreenSheetTabsPart on _SpreadsheetEditorScreenState
       _snack(context.t('excel.last_sheet'));
       return;
     }
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.t('excel.delete_sheet')),
-        content: Text(ctx.t('excel.delete_sheet_confirm', {'name': sheet.name})),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(ctx.t('common.cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(ctx.t('common.delete'))),
-        ],
-      ),
+    final ok = await showAppConfirm(
+        context,
+        title: context.t('excel.delete_sheet'),
+        message: context.t('excel.delete_sheet_confirm', {'name': sheet.name}),
+        confirmLabel: context.t('common.delete'),
+        destructive: true,
     );
     if (ok != true || !mounted) return;
     if (!editor.deleteSheet(sheet.name)) return;

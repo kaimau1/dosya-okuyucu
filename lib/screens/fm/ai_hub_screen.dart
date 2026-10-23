@@ -94,7 +94,7 @@ class _AiHubScreenState extends State<AiHubScreen>
           // Akıllı klasörler (2026-10-18): kayıtlı AI aramaları.
           IconButton(
             tooltip: context.t('smart.title'),
-            icon: const Icon(Icons.folder_special_rounded),
+            icon: const Icon(AppIcons.folderSpecial),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const SmartFoldersScreen()),
             ),
@@ -103,7 +103,7 @@ class _AiHubScreenState extends State<AiHubScreen>
           // AI Merkezi'nin bir bölümü — veri zaten AI analizinden geliyor.
           IconButton(
             tooltip: context.t('bills.title'),
-            icon: const Icon(Icons.receipt_long_rounded),
+            icon: const Icon(AppIcons.receiptLong),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const BillsScreen()),
             ),
@@ -111,7 +111,7 @@ class _AiHubScreenState extends State<AiHubScreen>
           // Serbest sohbet (eskiden alt çubuğun AI sekmesiydi, 2026-09-27).
           IconButton(
             tooltip: context.t('chat.title'),
-            icon: const Icon(Icons.chat_bubble_outline_rounded),
+            icon: const Icon(AppIcons.chatBubbleOutline),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const ChatScreen()),
             ),

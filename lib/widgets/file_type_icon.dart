@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/app_icons.dart';
 import '../core/theme.dart';
 import '../models/document.dart';
+import '../core/app_colors.dart';
 
 /// Dosya türüne göre renkli ikon.
 ///
@@ -29,7 +30,7 @@ class FileTypeIcon extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     // Koyu temada marka renkleri koyu zeminde söner → ikon biraz açılır
     // (her iki temada da 3:1 glif kontrastı korunur).
-    final tint = dark ? Color.lerp(color, Colors.white, 0.25)! : color;
+    final tint = dark ? Color.lerp(color, AppColors.mixLight, 0.25)! : color;
     if (!framed) {
       return SizedBox(
         width: size,
@@ -71,7 +72,7 @@ class FileTypeIcon extends StatelessWidget {
       case DocKind.image:
         return (AppIcons.image, const Color(0xFF8E24AA));
       case DocKind.unknown:
-        return (Icons.insert_drive_file_rounded, const Color(0xFF757575));
+        return (AppIcons.insertDriveFile, const Color(0xFF757575));
     }
   }
 }

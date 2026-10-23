@@ -10,7 +10,7 @@ import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/motion.dart';
 import '../core/snack.dart';
-import '../core/theme.dart' show OverlayBar;
+import '../core/theme.dart' show AppTypeContext, OverlayBar;
 import '../services/doc_edges.dart';
 import '../services/perspective.dart';
 import '../core/user_error.dart';
@@ -267,14 +267,14 @@ class _ScanEditScreenState extends State<ScanEditScreen> {
             Text(
               context.t('se.crop_hint'),
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.onMediaSoft, fontSize: 13),
+              style: context.type.compact.copyWith(color: AppColors.onMediaSoft),
             ),
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   child: _PillButton(
-                    icon: Icons.fit_screen_rounded,
+                    icon: AppIcons.fitScreen,
                     label: context.t('se.full_page'),
                     selected: _isFull,
                     onPressed: () => setState(() => _corners = _full(img)),

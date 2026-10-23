@@ -152,7 +152,7 @@ class _BillsScreenState extends State<BillsScreen> {
                 const SizedBox(height: Gap.sm),
                 FilledButton.tonalIcon(
                   onPressed: bills.busy ? null : _refresh,
-                  icon: const Icon(Icons.receipt_long_rounded),
+                  icon: const Icon(AppIcons.receiptLong),
                   label: Text(context.t('bills.read_pending', {'n': pending})),
                 ),
               ],
@@ -166,7 +166,7 @@ class _BillsScreenState extends State<BillsScreen> {
               ],
               if (months.isEmpty && _progress == null) ...[
                 const SizedBox(height: Gap.xl),
-                Icon(Icons.receipt_long_rounded,
+                Icon(AppIcons.receiptLong,
                     size: 56, color: scheme.onSurfaceVariant),
                 const SizedBox(height: Gap.sm),
                 Text(context.t('bills.empty'),
@@ -217,7 +217,7 @@ class _BillsScreenState extends State<BillsScreen> {
       child: ListTile(
         onTap: () => EntryOpener.open(context, b.path),
         leading: entry == null
-            ? const Icon(Icons.receipt_long_rounded)
+            ? const Icon(AppIcons.receiptLong)
             : FmEntryIcon(entry: entry, size: 44),
         title: Text(b.issuer.isEmpty ? context.t('bills.unknown') : b.issuer,
             maxLines: 1, overflow: TextOverflow.ellipsis),

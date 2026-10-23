@@ -417,20 +417,12 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
   /// kullanıcı kaydetmezse hiçbir iz kalmaz.
   Future<bool> _unlockAndRetry(Future<void> Function() body) async {
     if (!mounted) return false;
-    final unlock = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.t('pe.protected_title')),
-        content: Text(ctx.t('pe.protected_body')),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(ctx.t('common.cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(ctx.t('pe.remove_protection'))),
-        ],
-      ),
+    final unlock = await showAppConfirm(
+        context,
+        title: context.t('pe.protected_title'),
+        message: context.t('pe.protected_body'),
+        confirmLabel: context.t('pe.remove_protection'),
+        destructive: true,
     );
     if (unlock != true) return false;
 

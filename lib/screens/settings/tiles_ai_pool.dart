@@ -74,7 +74,7 @@ class _AiBackupKeysTileState extends State<AiBackupKeysTile> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SettingTile(
-          icon: Icons.vpn_key_rounded,
+          icon: AppIcons.vpnKey,
           title: context.t('aipool.backup_keys'),
           subtitle: context.t('aipool.backup_keys_sub'),
           wrapSubtitle: true,
@@ -194,7 +194,7 @@ class _AiModelChainTileState extends State<AiModelChainTile> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SettingTile(
-          icon: Icons.layers_rounded,
+          icon: AppIcons.layers,
           title: context.t('aipool.model_chain'),
           subtitle: context.t('aipool.model_chain_sub'),
           wrapSubtitle: true,
@@ -224,8 +224,7 @@ class _AiModelChainTileState extends State<AiModelChainTile> {
                 ? null
                 : Text(
                     context.t('aipool.model_gone'),
-                    style: TextStyle(
-                      fontSize: 11,
+                    style: context.type.caption.copyWith(
                       color: Theme.of(context).colorScheme.error,
                     ),
                   ),
@@ -309,7 +308,7 @@ class _AiPoolStatusTileState extends State<AiPoolStatusTile> {
     final slots = state.aiCredentials.slotCount;
     final cooling = AiPool.coolingCount;
     return SettingTile(
-      icon: Icons.battery_charging_full_rounded,
+      icon: AppIcons.batteryChargingFull,
       title: context.t('aipool.status'),
       subtitle: context.t('aipool.status_sub', {
         'total': slots,

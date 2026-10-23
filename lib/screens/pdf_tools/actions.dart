@@ -221,23 +221,13 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
   Future<bool> _confirmAnnotationLoss(String action) async {
     final count = await PdfTools.annotationCount(_bytes!, password: _password);
     if (count == 0 || !mounted) return count == 0;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.t('pt.annot_title')),
-        content:
-            Text(ctx.t('pt.annot_body', {'n': count, 'action': action})),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(ctx.t('common.cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(ctx.t('pt.continue'))),
-        ],
-      ),
+    final ok = await showAppConfirm(
+        context,
+        title: context.t('pt.annot_title'),
+        message: context.t('pt.annot_body', {'n': count, 'action': action}),
+        confirmLabel: context.t('pt.continue'),
     );
-    return ok ?? false;
+    return ok;
   }
 
   /// Seçili sayfaları **yeni bir PDF** olarak paylaşır (böl / sayfa çıkar).
@@ -469,20 +459,11 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
   /// taranmış belgede kazanç küçüktür, kullanıcı bunu beklemeden bilmeli.
   Future<void> _compress() async {
     final before = _bytes!.length;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.t('pt.compress_title')),
-        content: Text(ctx.t('pt.compress_body', {'size': _kb(before)})),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(ctx.t('common.cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(ctx.t('pt.compress'))),
-        ],
-      ),
+    final ok = await showAppConfirm(
+        context,
+        title: context.t('pt.compress_title'),
+        message: context.t('pt.compress_body', {'size': _kb(before)}),
+        confirmLabel: context.t('pt.compress'),
     );
     if (ok != true || !mounted) return;
     final pw = _password;

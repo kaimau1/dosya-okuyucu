@@ -43,6 +43,8 @@ import '../../widgets/download_action.dart';
 import '../chat_screen.dart';
 import '../../core/snack.dart';
 import '../../core/user_error.dart';
+import '../../core/app_colors.dart';
+import '../../widgets/app_dialog.dart';
 
 part 'spreadsheet/edit_ops.dart';
 part 'spreadsheet/file_ops.dart';
@@ -373,7 +375,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
             if (showDownloadAction(widget.savePath ?? widget.path))
               DocAction(AppIcons.download, context.t('common.download'),
                   editor == null ? null : _download),
-            DocAction(Icons.table_view_rounded, 'CSV',
+            DocAction(AppIcons.tableView, 'CSV',
                 editor == null ? null : _exportCsv),
             DocAction(
               AppIcons.translate,

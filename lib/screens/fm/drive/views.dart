@@ -13,7 +13,7 @@ extension _DriveScreenViewsPart on _DriveScreenState {
           padding: const EdgeInsetsDirectional.fromSTEB(14, 8, 8, 8),
           child: Row(
             children: [
-              Icon(clip.cut ? AppIcons.cut : Icons.copy_outlined),
+              Icon(clip.cut ? AppIcons.cut : AppIcons.copyPlain),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -107,9 +107,9 @@ extension _DriveScreenViewsPart on _DriveScreenState {
             const SizedBox(height: 6),
             SelectableText(
               detail,
-              style: TextStyle(
-                  fontSize: 11,
-                  color: scheme.onErrorContainer.withValues(alpha: 0.8)),
+              style: context.type.caption.copyWith(
+                  color: scheme.onErrorContainer.withValues(alpha: 0.8),
+                ),
             ),
           ],
         ],
@@ -158,12 +158,12 @@ extension _DriveScreenViewsPart on _DriveScreenState {
         Expanded(
           child: SelectableText(
             '$label: $value',
-            style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+            style: context.type.small.copyWith(fontFamily: 'monospace'),
           ),
         ),
         IconButton(
           tooltip: context.t('common.copy'),
-          icon: const Icon(Icons.copy_rounded, size: 18),
+          icon: const Icon(AppIcons.copyPlain, size: 18),
           onPressed: () async {
             // Yalnız DEĞER kopyalanır: Cloud formu "Paket adı: com…" gibi
             // etiketli bir yapıştırmayı reddederdi.
@@ -214,14 +214,14 @@ extension _DriveScreenViewsPart on _DriveScreenState {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.cloud_rounded, size: 56),
+              const Icon(AppIcons.cloud, size: 56),
               const SizedBox(height: 16),
               Text(context.t('drive.sign_in_prompt'),
                   textAlign: TextAlign.center),
               const SizedBox(height: 16),
               FilledButton.icon(
                 onPressed: _signIn,
-                icon: const Icon(Icons.login_rounded),
+                icon: const Icon(AppIcons.login),
                 label: Text(context.t('drive.sign_in')),
               ),
               const SizedBox(height: 24),
@@ -384,7 +384,7 @@ extension _DriveScreenViewsPart on _DriveScreenState {
       child: Icon(
         FmColors.iconFor(f.category),
         // Koyu temada marka renkleri sönüyor — gezgindeki aynı düzeltme.
-        color: dark ? Color.lerp(base, Colors.white, 0.25) : base,
+        color: dark ? Color.lerp(base, AppColors.mixLight, 0.25) : base,
         size: size * 0.92,
       ),
     );

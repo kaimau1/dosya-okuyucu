@@ -38,6 +38,7 @@ import 'package:flutter/services.dart';
 
 import 'l10n/app_strings.dart';
 import 'motion.dart';
+import 'app_colors.dart';
 
 /// Bilgi bildiriminin ömrü.
 const Duration kSnackInfo = Duration(seconds: 3);
@@ -416,7 +417,7 @@ class _ToastCardState extends State<_ToastCard>
           child: Material(
             color: scheme.inverseSurface,
             elevation: 6,
-            shadowColor: Colors.black38,
+            shadowColor: AppColors.shadowStrong,
             borderRadius: BorderRadius.circular(16),
             clipBehavior: Clip.antiAlias,
             child: Column(

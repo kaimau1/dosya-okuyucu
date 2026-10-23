@@ -21,7 +21,7 @@ class ThemeTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingChoice<ThemeMode>(
-      icon: Icons.contrast_rounded,
+      icon: AppIcons.contrast,
       title: context.t('settings.theme'),
       options: [
         (ThemeMode.system, context.t('settings.theme_system')),
@@ -69,7 +69,7 @@ class UiFontTile extends StatelessWidget {
                 for (final f in AppTheme.uiFonts)
                   ListTile(
                     title: Text(f.$1,
-                        style: TextStyle(fontFamily: f.$2, fontSize: 17)),
+                        style: context.type.heading.copyWith(fontFamily: f.$2)),
                     subtitle: Text(
                       ctx.t('settings.font_sample'),
                       style: TextStyle(fontFamily: f.$2),
@@ -115,7 +115,7 @@ class UiTextSizeTile extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SettingChoice<double>(
-          icon: Icons.format_size_rounded,
+          icon: AppIcons.formatSize,
           title: context.t('settings.ui_text_size'),
           subtitle: context.t('settings.ui_text_size_note'),
           options: [
@@ -143,7 +143,7 @@ class UiTextSizeTile extends StatelessWidget {
                 ),
               ),
               Text('%${(appState.uiTextScale * 100).round()}',
-                  style: TextStyle(fontSize: 12, color: Paper.faint(context))),
+                  style: context.type.small.copyWith(color: Paper.faint(context))),
             ],
           ),
         ),
@@ -200,7 +200,7 @@ class AppSkinTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingTile(
-      icon: Icons.style_rounded,
+      icon: AppIcons.style,
       title: context.t('skin.title'),
       value: context.t(appState.appSkin.labelKey),
       onTap: () async {
@@ -272,7 +272,7 @@ class _SkinSwatch extends StatelessWidget {
           Center(
             child: FmTintedIcon(
               icon: metrics.outlinedIcons
-                  ? Icons.folder_outlined
+                  ? AppIcons.folder
                   : AppIcons.folder,
               color: folder,
               size: 26,
@@ -316,7 +316,7 @@ class BackgroundColorTile extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SettingTile(
-          icon: Icons.format_color_fill_rounded,
+          icon: AppIcons.formatColorFill,
           title: context.t('bgc.title'),
           value: context.t(current.labelKey),
         ),
@@ -376,14 +376,14 @@ class _BackgroundDot extends StatelessWidget {
           child: background.isDefault
               // "Temanın kendi"nin rengi yok — eğik çizgi onu renkli
               // seçeneklerden ayırır, yoksa 12. bir renk sanılıyordu.
-              ? Icon(Icons.format_color_reset_rounded,
+              ? Icon(AppIcons.formatColorReset,
                   size: 18, color: scheme.onSurfaceVariant)
               : (selected
                   ? Icon(AppIcons.check,
                       size: 20,
                       color: color.computeLuminance() < 0.5
-                          ? Colors.white
-                          : Colors.black)
+                          ? AppColors.onMedia
+                          : AppColors.pageInk)
                   : null),
         ),
       ),
@@ -401,7 +401,7 @@ class HapticsTile extends StatelessWidget {
   Widget build(BuildContext context) => ValueListenableBuilder<bool>(
         valueListenable: AppHaptics.enabled,
         builder: (context, on, _) => SettingSwitch(
-          icon: Icons.vibration_rounded,
+          icon: AppIcons.vibration,
           title: context.t('set.haptics'),
           subtitle: context.t('set.haptics_sub'),
           value: on,
@@ -415,7 +415,7 @@ class NavTabsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SettingTile(
-        icon: Icons.space_dashboard_rounded,
+        icon: AppIcons.spaceDashboard,
         title: context.t('nav.edit_title'),
         subtitle: context.t('nav.settings_sub'),
         onTap: () => showNavTabsSheet(context),

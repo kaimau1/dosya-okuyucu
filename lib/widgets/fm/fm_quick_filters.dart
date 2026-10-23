@@ -122,8 +122,7 @@ class _ChipBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = TextStyle(
-      fontSize: 13,
+    final style = context.type.compact.copyWith(
       height: 1.1,
       color: fg,
       fontWeight: bold ? FontWeight.w700 : FontWeight.w500,

@@ -347,8 +347,8 @@ extension _MediaPlayerScreenActionsPart on _MediaPlayerScreenState {
           children: [
             Icon(
               value == 0
-                  ? Icons.volume_off_rounded
-                  : (value < 0.5 ? Icons.volume_down_rounded : Icons.volume_up_rounded),
+                  ? AppIcons.volumeOff
+                  : (value < 0.5 ? AppIcons.volumeDown : AppIcons.volumeUp),
               color: AppColors.onMedia,
             ),
             const SizedBox(width: Gap.sm),
@@ -356,7 +356,7 @@ extension _MediaPlayerScreenActionsPart on _MediaPlayerScreenState {
               width: 90,
               child: LinearProgressIndicator(
                 value: value,
-                backgroundColor: Colors.white24,
+                backgroundColor: AppColors.onMediaWell,
                 color: AppColors.onMedia,
               ),
             ),

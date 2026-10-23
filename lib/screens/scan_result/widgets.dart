@@ -51,9 +51,8 @@ class _ToolButton extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         color: fg,
-                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
                 ),
@@ -95,7 +94,7 @@ class _Thumb extends StatelessWidget {
             color: selected ? scheme.primary : scheme.outlineVariant,
             width: selected ? 2.2 : 1,
           ),
-          color: Colors.white,
+          color: AppColors.onMedia,
         ),
         child: Stack(
           fit: StackFit.expand,
@@ -117,7 +116,7 @@ class _Thumb extends StatelessWidget {
               bottom: 2,
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: selected ? scheme.primary : Colors.black54,
+                  color: selected ? scheme.primary : AppColors.mediaScrim,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Padding(
@@ -125,9 +124,8 @@ class _Thumb extends StatelessWidget {
                       const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                   child: Text(
                     '$number',
-                    style: TextStyle(
-                      color: selected ? scheme.onPrimary : Colors.white,
-                      fontSize: 10,
+                    style: context.type.micro.copyWith(
+                      color: selected ? scheme.onPrimary : AppColors.onMedia,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -243,7 +241,7 @@ class _FilterSheetState extends State<_FilterSheet> {
             const Divider(height: Gap.lg),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.straighten_rounded, color: scheme.primary),
+              leading: Icon(AppIcons.straighten, color: scheme.primary),
               title: Text(context.t('sr.straighten')),
               subtitle: Text(context.t('ss.straighten_sub')),
               onTap: () => Navigator.pop(context,

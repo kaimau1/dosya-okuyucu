@@ -143,7 +143,7 @@ class _ChatTabState extends State<_ChatTab> with AutomaticKeepAliveClientMixin {
                 if (_messages.isNotEmpty)
                   IconButton(
                     tooltip: context.t('aih.chat_clear'),
-                    icon: const Icon(Icons.delete_sweep_rounded),
+                    icon: const Icon(AppIcons.deleteSweep),
                     onPressed: _busy ? null : () => setState(_messages.clear),
                   ),
                 Expanded(
@@ -155,7 +155,7 @@ class _ChatTabState extends State<_ChatTab> with AutomaticKeepAliveClientMixin {
                     onSubmitted: (_) => _send(),
                     decoration: InputDecoration(
                       hintText: context.t('aih.chat_hint'),
-                      hintStyle: TextStyle(color: faint, fontSize: 13),
+                      hintStyle: context.type.compact.copyWith(color: faint),
                       filled: true,
                       fillColor:
                           Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -194,7 +194,7 @@ class _ChatTabState extends State<_ChatTab> with AutomaticKeepAliveClientMixin {
       padding: withNavInset(context, const EdgeInsets.all(Gap.lg)),
       children: [
         const SizedBox(height: Gap.lg),
-        Icon(Icons.forum_rounded, size: 48, color: faint),
+        Icon(AppIcons.forum, size: 48, color: faint),
         const SizedBox(height: Gap.md),
         Text(context.t('aih.chat_empty'),
             textAlign: TextAlign.center, style: theme.textTheme.titleMedium),
@@ -202,7 +202,7 @@ class _ChatTabState extends State<_ChatTab> with AutomaticKeepAliveClientMixin {
         Text(
           context.t(noIndex ? 'aih.chat_need_analysis' : 'aih.chat_try'),
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 12, color: faint),
+          style: context.type.small.copyWith(color: faint),
         ),
         const SizedBox(height: Gap.md),
         if (noIndex)
@@ -226,7 +226,7 @@ class _ChatTabState extends State<_ChatTab> with AutomaticKeepAliveClientMixin {
                 'aih.ex4'
               ])
                 ActionChip(
-                  avatar: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
+                  avatar: const Icon(AppIcons.chatBubbleOutline, size: 16),
                   label: Text(context.t(key)),
                   onPressed: _busy ? null : () => _send(context.t(key)),
                 ),
@@ -266,7 +266,7 @@ class _TypingBubble extends StatelessWidget {
             ),
             const SizedBox(width: Gap.sm),
             Text(context.t('aih.thinking'),
-                style: TextStyle(fontSize: 13, color: Paper.faint(context))),
+                style: context.type.compact.copyWith(color: Paper.faint(context))),
           ],
         ),
       ),
@@ -326,7 +326,7 @@ class _Bubble extends StatelessWidget {
               const SizedBox(height: Gap.sm),
               Text(
                 context.t('aih.sources'),
-                style: TextStyle(fontSize: 11, color: Paper.faint(context)),
+                style: context.type.caption.copyWith(color: Paper.faint(context)),
               ),
               const SizedBox(height: Gap.xs),
               // **Önizlemeli kaynaklar** (2026-10-18, kullanıcı ekran

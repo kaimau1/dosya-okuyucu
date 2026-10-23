@@ -139,7 +139,7 @@ Future<_SaveChoice?> _askSaveChoice(
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.copy_all_rounded),
+            leading: const Icon(AppIcons.copyAll),
             title: Text(ctx.t('ps.copy')),
             subtitle: Text(ctx.t('ps.copy_sub')),
             onTap: () => Navigator.pop(ctx, _SaveChoice.copy),

@@ -36,10 +36,10 @@ class SectionHeader extends StatelessWidget {
         children: [
           Text(
             title.toUpperCase(),
-            style: TextStyle(
-              fontSize: 11,
+            style: context.type.caption.copyWith(
               height: 1.2,
-              letterSpacing: 1.1, // ~.1em
+              letterSpacing: 1.1,
+              // ~.1em
               fontWeight: FontWeight.w600,
               color: faint,
             ),
@@ -55,8 +55,7 @@ class SectionHeader extends StatelessWidget {
             const SizedBox(width: Gap.sm),
             Text(
               count!,
-              style: TextStyle(
-                fontSize: 11,
+              style: context.type.caption.copyWith(
                 letterSpacing: .5,
                 color: faint,
                 fontFeatures: const [FontFeature.tabularFigures()],

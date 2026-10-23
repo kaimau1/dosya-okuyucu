@@ -12,6 +12,7 @@ import '../widgets/pdf_save_dialog.dart';
 import '../widgets/signature_pad.dart';
 import '../core/snack.dart';
 import '../core/user_error.dart';
+import '../core/app_colors.dart';
 
 /// **PDF imzalama** — imzayı sayfa üzerinde sürükleyip boyutlandır, bas.
 ///
@@ -121,7 +122,7 @@ class _PdfSignScreenState extends State<PdfSignScreen> {
             actions: [
               IconButton(
                 tooltip: context.t('sg.redraw'),
-                icon: const Icon(Icons.gesture_rounded),
+                icon: const Icon(AppIcons.gesture),
                 onPressed: _busy ? null : _drawSignature,
               ),
               TextButton.icon(
@@ -171,7 +172,7 @@ class _PdfSignScreenState extends State<PdfSignScreen> {
                   child: PdfPageView(
                     document: document,
                     pageNumber: _page + 1,
-                    decoration: const BoxDecoration(color: Colors.white),
+                    decoration: const BoxDecoration(color: AppColors.page),
                   ),
                 ),
                 if (sig != null)
@@ -220,7 +221,7 @@ class _PdfSignScreenState extends State<PdfSignScreen> {
           children: [
             IconButton(
               tooltip: context.t('sg.prev_page'),
-              icon: const Icon(Icons.chevron_left_rounded),
+              icon: const Icon(AppIcons.chevronLeft),
               onPressed:
                   _page == 0 ? null : () => setState(() => _page -= 1),
             ),
@@ -233,7 +234,7 @@ class _PdfSignScreenState extends State<PdfSignScreen> {
                   : () => setState(() => _page += 1),
             ),
             const SizedBox(width: 8),
-            const Icon(Icons.photo_size_select_small_rounded, size: 18),
+            const Icon(AppIcons.photoSizeSelectSmall, size: 18),
             Expanded(
               child: Slider(
                 value: _widthFraction,

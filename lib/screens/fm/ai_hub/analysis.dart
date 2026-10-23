@@ -51,7 +51,7 @@ class _StatusBar extends StatelessWidget {
                                   .t('aih.scope_summary', {'n': excluded})),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: faint),
+                      style: context.type.small.copyWith(color: faint),
                     ),
                   ],
                 ),
@@ -71,7 +71,7 @@ class _StatusBar extends StatelessWidget {
                 ),
                 IconButton(
                   tooltip: context.t('aih.stop'),
-                  icon: const Icon(Icons.stop_rounded),
+                  icon: const Icon(AppIcons.stop),
                   onPressed: AiAnalyzer.cancel,
                 ),
               ] else
@@ -95,7 +95,7 @@ class _StatusBar extends StatelessWidget {
               padding: const EdgeInsets.only(top: Gap.xs),
               child: Text(
                 context.t('aih.no_key_note'),
-                style: TextStyle(fontSize: 11, color: faint),
+                style: context.type.caption.copyWith(color: faint),
               ),
             ),
           if (!progress.isBusy && AiIndex.count > 0)
@@ -210,8 +210,8 @@ class _AnalysisTab extends StatelessWidget {
                 children: [
                   Icon(
                       state.hasApiKey
-                          ? Icons.cloud_done_rounded
-                          : Icons.offline_bolt_rounded,
+                          ? AppIcons.cloudDone
+                          : AppIcons.offlineBolt,
                       size: 16,
                       color: faint),
                   const SizedBox(width: Gap.xs),
@@ -220,13 +220,13 @@ class _AnalysisTab extends StatelessWidget {
                         context.t(state.hasApiKey
                             ? 'aih.mode_cloud'
                             : 'aih.mode_local'),
-                        style: TextStyle(fontSize: 12, color: faint)),
+                        style: context.type.small.copyWith(color: faint)),
                   ),
                 ],
               ),
               const SizedBox(height: Gap.xs),
               Text(context.t('aih.analysis_manual'),
-                  style: TextStyle(fontSize: 12, color: faint)),
+                  style: context.type.small.copyWith(color: faint)),
             ],
           ),
         ),
@@ -252,7 +252,7 @@ class _AnalysisTab extends StatelessWidget {
                 : progress.currentName,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 12, color: faint),
+            style: context.type.small.copyWith(color: faint),
           ),
         ],
         const SizedBox(height: Gap.md),
@@ -278,7 +278,7 @@ class _AnalysisTab extends StatelessWidget {
               const SizedBox(width: Gap.sm),
               Expanded(
                 child: OutlinedButton.icon(
-                  icon: const Icon(Icons.stop_rounded),
+                  icon: const Icon(AppIcons.stop),
                   label: Text(context.t('aih.stop')),
                   onPressed: AiAnalyzer.cancel,
                 ),
@@ -305,7 +305,7 @@ class _AnalysisTab extends StatelessWidget {
         if (!progress.isBusy && !state.hasApiKey) ...[
           const SizedBox(height: Gap.sm),
           Text(context.t('aih.no_key_note'),
-              style: TextStyle(fontSize: 12, color: faint)),
+              style: context.type.small.copyWith(color: faint)),
         ],
         const SizedBox(height: Gap.md),
 

@@ -280,7 +280,7 @@ class _ChatCleanupScreenState extends State<ChatCleanupScreen> {
 
   Widget _similarCard() => Card(
         child: ListTile(
-          leading: const Icon(Icons.burst_mode_rounded),
+          leading: const Icon(AppIcons.burstMode),
           title: Text(context.t('cj.similar_title')),
           subtitle: Text(context.t('cj.similar_body')),
           trailing: const Icon(AppIcons.chevron),
@@ -301,13 +301,13 @@ class _ChatCleanupScreenState extends State<ChatCleanupScreen> {
       );
 
   IconData _iconFor(ChatJunkKind kind) => switch (kind) {
-        ChatJunkKind.duplicate => Icons.copy_all_rounded,
-        ChatJunkKind.sticker => Icons.emoji_emotions_rounded,
-        ChatJunkKind.gif => Icons.gif_box_rounded,
-        ChatJunkKind.profilePhoto => Icons.account_circle_rounded,
-        ChatJunkKind.tiny => Icons.photo_size_select_small_rounded,
+        ChatJunkKind.duplicate => AppIcons.copyAll,
+        ChatJunkKind.sticker => AppIcons.emojiEmotions,
+        ChatJunkKind.gif => AppIcons.gifBox,
+        ChatJunkKind.profilePhoto => AppIcons.accountCircle,
+        ChatJunkKind.tiny => AppIcons.photoSizeSelectSmall,
         ChatJunkKind.sent => AppIcons.send,
-        ChatJunkKind.stale => Icons.history_toggle_off_rounded,
+        ChatJunkKind.stale => AppIcons.historyToggleOff,
       };
 }
 

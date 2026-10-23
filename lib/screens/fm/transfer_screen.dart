@@ -38,7 +38,7 @@ class TransferScreen extends StatelessWidget {
             padding: withNavInset(context, const EdgeInsets.all(Gap.md)),
             children: [
               _Row(
-                icon: sharing ? Icons.wifi_tethering_rounded : Icons.computer_rounded,
+                icon: sharing ? AppIcons.hotspot : AppIcons.computer,
                 color: AppHues.jade,
                 title: context.t('xfer.computer'),
                 note: sharing
@@ -48,21 +48,21 @@ class TransferScreen extends StatelessWidget {
                 screen: const FtpServerScreen(),
               ),
               _Row(
-                icon: Icons.send_to_mobile_rounded,
+                icon: AppIcons.sendToMobile,
                 color: AppHues.cyan,
                 title: context.t('xfer.phone'),
                 note: context.t('xfer.phone_note'),
                 screen: const PeerShareScreen(),
               ),
               _Row(
-                icon: Icons.dns_rounded,
+                icon: AppIcons.dns,
                 color: AppHues.violet,
                 title: context.t('fm.network_storage'),
                 note: context.t('xfer.nas_note'),
                 screen: const RemoteConnectionsScreen(),
               ),
               _Row(
-                icon: Icons.download_for_offline_rounded,
+                icon: AppIcons.downloadForOffline,
                 color: AppHues.navy,
                 title: context.t('xfer.downloads'),
                 note: downloading > 0

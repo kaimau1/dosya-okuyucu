@@ -21,6 +21,7 @@ import '../../widgets/mini_player_bar.dart';
 import 'entry_actions.dart';
 import '../../core/snack.dart';
 import '../../core/user_error.dart';
+import '../../widgets/app_dialog.dart';
 
 /// Çalma sırası davranışı.
 
@@ -174,7 +175,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
         actions: [
           PopupMenuButton<double>(
             tooltip: context.t('mp.speed'),
-            icon: const Icon(Icons.speed_rounded),
+            icon: const Icon(AppIcons.speed),
             onSelected: _setSpeed,
             itemBuilder: (_) => [
               for (final s in const [0.5, 0.75, 1.0, 1.25, 1.5, 2.0])
@@ -189,8 +190,8 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
           PopupMenuButton<int>(
             tooltip: context.t('mp.sleep_timer'),
             icon: Icon(_p.sleepRemaining == null
-                ? Icons.bedtime_outlined
-                : Icons.bedtime_rounded),
+                ? AppIcons.bedtime
+                : AppIcons.bedtime),
             onSelected: (minutes) => setState(() => _p.setSleepTimer(
                 minutes <= 0 ? null : Duration(minutes: minutes))),
             itemBuilder: (_) => [
@@ -212,7 +213,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
           // teybi, hepsi okuyor.
           PopupMenuButton<String>(
             tooltip: context.t('mp.playlist_save'),
-            icon: const Icon(Icons.playlist_play_rounded),
+            icon: const Icon(AppIcons.playlistPlay),
             onSelected: (value) async {
               if (value == 'save') {
                 await _savePlaylist();
@@ -369,36 +370,36 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                   IconButton(
                     tooltip: context.t('mp.shuffle'),
                     isSelected: _shuffle,
-                    icon: const Icon(Icons.shuffle_rounded),
-                    selectedIcon: Icon(Icons.shuffle_rounded, color: scheme.primary),
+                    icon: const Icon(AppIcons.shuffle),
+                    selectedIcon: Icon(AppIcons.shuffle, color: scheme.primary),
                     onPressed: () => _p.setShuffle(!_shuffle),
                   ),
                   IconButton(
                     tooltip: context.t('common.previous'),
-                    icon: const Icon(Icons.skip_previous_rounded),
+                    icon: const Icon(AppIcons.skipPrevious),
                     onPressed: _index > 0 ? () => _skipTo(_index - 1) : null,
                   ),
                   IconButton(
                     tooltip: context.t('mp.back10'),
-                    icon: const Icon(Icons.replay_10_rounded),
+                    icon: const Icon(AppIcons.replay10),
                     onPressed: () => _seekBy(-10),
                   ),
                   IconButton(
                     tooltip: context.t(_playing ? 'mp.pause' : 'mp.play'),
                     iconSize: 56,
                     icon:
-                        Icon(_playing ? Icons.pause_circle_rounded : Icons.play_circle_rounded),
+                        Icon(_playing ? AppIcons.pauseCircle : AppIcons.playCircle),
                     color: scheme.primary,
                     onPressed: _toggle,
                   ),
                   IconButton(
                     tooltip: context.t('mp.forward10'),
-                    icon: const Icon(Icons.forward_10_rounded),
+                    icon: const Icon(AppIcons.forward10),
                     onPressed: () => _seekBy(10),
                   ),
                   IconButton(
                     tooltip: context.t('common.next'),
-                    icon: const Icon(Icons.skip_next_rounded),
+                    icon: const Icon(AppIcons.skipNext),
                     onPressed: _index < _playlist.length - 1
                         ? () => _skipTo(_index + 1)
                         : null,
@@ -411,12 +412,12 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                     },
                     isSelected: _repeat != AudioRepeatMode.off,
                     icon: Icon(_repeat == AudioRepeatMode.one
-                        ? Icons.repeat_one_rounded
-                        : Icons.repeat_rounded),
+                        ? AppIcons.repeatOne
+                        : AppIcons.repeat),
                     selectedIcon: Icon(
                       _repeat == AudioRepeatMode.one
-                          ? Icons.repeat_one_rounded
-                          : Icons.repeat_rounded,
+                          ? AppIcons.repeatOne
+                          : AppIcons.repeat,
                       color: scheme.primary,
                     ),
                     onPressed: () => _p.setRepeat(switch (_repeat) {
@@ -444,29 +445,13 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
   Future<void> _savePlaylist() async {
     final strings = AppStrings.of(context);
     final messenger = ScaffoldMessenger.of(context);
-    final controller =
-        TextEditingController(text: p.basename(p.dirname(_current)));
-    final name = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.t('mp.playlist_save')),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(labelText: ctx.t('mp.playlist_name')),
-          onSubmitted: (v) => Navigator.pop(ctx, v),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(ctx.t('common.cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, controller.text),
-              child: Text(ctx.t('common.save'))),
-        ],
-      ),
+    final name = await showAppPrompt(
+        context,
+        title: context.t('mp.playlist_save'),
+        label: context.t('mp.playlist_name'),
+        initial: p.basename(p.dirname(_current)),
+        confirmLabel: context.t('common.save'),
     );
-    controller.dispose();
     if (name == null || name.trim().isEmpty) return;
     try {
       final dir = p.dirname(_current);
@@ -529,7 +514,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
               dense: true,
               selected: active,
               leading:
-                  Icon(active ? Icons.equalizer_rounded : AppIcons.audio, size: 20),
+                  Icon(active ? AppIcons.equalizer : AppIcons.audio, size: 20),
               title: Text(p.basenameWithoutExtension(path),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
               trailing: Text(

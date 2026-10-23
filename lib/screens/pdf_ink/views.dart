@@ -94,7 +94,7 @@ extension _PdfInkScreenViewsPart on _PdfInkScreenState {
             child: Stack(
               children: [
                 Positioned.fill(
-                  child: ColoredBox(color: Colors.white, child: pageView),
+                  child: ColoredBox(color: AppColors.page, child: pageView),
                 ),
                 Positioned.fill(
                   child: IgnorePointer(
@@ -270,7 +270,7 @@ extension _PdfInkScreenViewsPart on _PdfInkScreenState {
                 children: [
                   IconButton(
                     tooltip: context.t('sg.prev_page'),
-                    icon: const Icon(Icons.chevron_left_rounded),
+                    icon: const Icon(AppIcons.chevronLeft),
                     onPressed: _page == 0 ? null : () => _setPage(_page - 1),
                   ),
                   Text('${_page + 1} / $pageCount'),
@@ -341,12 +341,12 @@ extension _PdfInkScreenViewsPart on _PdfInkScreenState {
             Row(
               children: [
                 tool(InkTool.pen, AppIcons.edit, context.t('ink.pen')),
-                tool(InkTool.highlighter, Icons.border_color_rounded,
+                tool(InkTool.highlighter, AppIcons.borderColor,
                     context.t('ink.highlighter')),
                 tool(InkTool.text, AppIcons.textFields, context.t('ink.text')),
-                tool(InkTool.eraser, Icons.auto_fix_normal_rounded,
+                tool(InkTool.eraser, AppIcons.autoFixNormal,
                     context.t('ink.eraser')),
-                tool(InkTool.hand, Icons.pan_tool_rounded,
+                tool(InkTool.hand, AppIcons.panTool,
                     context.t('ink.hand')),
               ],
             ),

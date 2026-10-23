@@ -10,6 +10,7 @@ import '../../services/fm/fs_scan.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import 'settings_widgets.dart';
 import '../../core/snack.dart';
+import '../../widgets/app_dialog.dart';
 
 /// Silinen dosya çöp kutusuna mı gitsin?
 class UseTrashTile extends StatelessWidget {
@@ -53,7 +54,7 @@ class TrashAutoTile extends StatelessWidget {
     final appState = context.watch<AppState>();
     final off = appState.fmTrashAutoDays == 0;
     return SettingTile(
-      icon: Icons.auto_delete_rounded,
+      icon: AppIcons.autoDelete,
       title: context.t('fmset.trash_auto'),
       subtitle: off
           ? context.t('fmset.trash_auto_off')
@@ -108,21 +109,13 @@ class _EmptyTrashTileState extends State<EmptyTrashTile> {
   Future<void> _empty() async {
     // Metinler await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
     final str = AppStrings.of(context);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(str.t('fmset.empty_confirm_title')),
-        content: Text(str.t('fmset.empty_confirm_body',
-            {'n': _count, 'size': FsPaths.humanSize(_bytes)})),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(str.t('common.cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(str.t('fmset.empty'))),
-        ],
-      ),
+    final ok = await showAppConfirm(
+        context,
+        title: str.t('fmset.empty_confirm_title'),
+        message: str.t('fmset.empty_confirm_body',
+            {'n': _count, 'size': FsPaths.humanSize(_bytes)}),
+        confirmLabel: str.t('fmset.empty'),
+        destructive: true,
     );
     if (ok != true || !mounted) return;
     final freed = _bytes;
@@ -148,7 +141,7 @@ class _EmptyTrashTileState extends State<EmptyTrashTile> {
 
   @override
   Widget build(BuildContext context) => SettingTile(
-        icon: Icons.delete_sweep_rounded,
+        icon: AppIcons.deleteSweep,
         title: context.t('fmset.empty_trash_now'),
         subtitle: _count == 0
             ? context.t('fmset.trash_empty')

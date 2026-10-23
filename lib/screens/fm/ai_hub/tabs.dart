@@ -22,7 +22,7 @@ class _TagsTabState extends State<_TagsTab> with AutomaticKeepAliveClientMixin {
       builder: (context, _, __) {
         if (AiIndex.count == 0) {
           return _EmptyHint(
-            icon: Icons.label_outline_rounded,
+            icon: AppIcons.labelOutline,
             title: context.t('aih.tags_empty'),
             body: context.t('aih.tags_empty_sub'),
           );
@@ -106,7 +106,7 @@ class _SuggestionsTab extends StatelessWidget {
         final suggestions = AiBuckets.of(AiBucket.suggestions);
         if (suggestions.isEmpty) {
           return _EmptyHint(
-            icon: Icons.auto_fix_high_outlined,
+            icon: AppIcons.organize,
             title: context.t('aih.sug_empty'),
             body: context.t('aih.sug_empty_sub'),
           );
@@ -125,8 +125,9 @@ class _SuggestionsTab extends StatelessWidget {
                           'ok': result.changed,
                           'fail': result.failed,
                         }),
-                        style: TextStyle(
-                            fontSize: 12, color: Paper.faint(context)),
+                        style: context.type.small.copyWith(
+                            color: Paper.faint(context),
+                          ),
                       ),
                     ),
             ),
@@ -138,7 +139,7 @@ class _SuggestionsTab extends StatelessWidget {
                     child: Text(
                       context.t('aih.sug_hint'),
                       style:
-                          TextStyle(fontSize: 12, color: Paper.faint(context)),
+                          context.type.small.copyWith(color: Paper.faint(context)),
                     ),
                   ),
                   FilledButton.icon(
@@ -198,7 +199,7 @@ class _ReportTab extends StatelessWidget {
         ];
         if (analyzed.isEmpty) {
           return _EmptyHint(
-            icon: Icons.insights_rounded,
+            icon: AppIcons.insights,
             title: context.t('aih.report_empty'),
             body: context.t('aih.report_empty_sub'),
           );
@@ -250,7 +251,7 @@ class _ReportTab extends StatelessWidget {
                   context, AiBucket.all, context.t('aih.report_analyzed')),
             ),
             _ReportRow(
-              icon: Icons.star_outline_rounded,
+              icon: AppIcons.starOutline,
               label: context.t('aih.report_important'),
               value: '${important.length}',
               onTap: () => _openBucket(context, AiBucket.important,
@@ -265,7 +266,7 @@ class _ReportTab extends StatelessWidget {
                   context, AiBucket.disposable, context.t('aih.report_junk')),
             ),
             _ReportRow(
-              icon: Icons.inbox_rounded,
+              icon: AppIcons.inbox,
               label: context.t('aih.report_low'),
               value: '${lowValue.length}',
               sub: FsPaths.humanSize(AiBuckets.totalBytes(lowValue)),
@@ -273,7 +274,7 @@ class _ReportTab extends StatelessWidget {
                   context, AiBucket.lowValue, context.t('aih.report_low')),
             ),
             _ReportRow(
-              icon: Icons.auto_fix_high_outlined,
+              icon: AppIcons.organize,
               label: context.t('aih.report_suggestions'),
               value: '${suggestions.length}',
               onTap: () => _openBucket(context, AiBucket.suggestions,
@@ -347,7 +348,7 @@ class _AnalysisStats extends StatelessWidget {
         onTap: () => onOpenTab(2),
       ),
       _StatTile(
-        icon: Icons.delete_sweep_rounded,
+        icon: AppIcons.deleteSweep,
         color: AppHues.red,
         value: '${disposable.length}',
         label: disposable.isEmpty
@@ -364,7 +365,7 @@ class _AnalysisStats extends StatelessWidget {
         onTap: () => onOpenTab(3),
       ),
       _StatTile(
-        icon: Icons.forum_rounded,
+        icon: AppIcons.forum,
         color: AppHues.sea,
         value: '${analyzed.length}',
         label: context.t('aih.ask_files'),
@@ -479,7 +480,7 @@ class _ActionCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(body,
                       style:
-                          TextStyle(fontSize: 12, color: Paper.faint(context))),
+                          context.type.small.copyWith(color: Paper.faint(context))),
                   const SizedBox(height: Gap.xs),
                   Align(
                     alignment: AlignmentDirectional.centerEnd,
@@ -520,13 +521,13 @@ class _ReportRow extends StatelessWidget {
         subtitle: sub == null
             ? null
             : Text(sub!,
-                style: TextStyle(fontSize: 12, color: Paper.faint(context))),
+                style: context.type.small.copyWith(color: Paper.faint(context))),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(value,
                 style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                    context.type.heading.copyWith(fontWeight: FontWeight.w600)),
             if (onTap != null) const Icon(AppIcons.chevron),
           ],
         ),
@@ -562,7 +563,7 @@ class _EmptyHint extends StatelessWidget {
               Text(
                 body,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: faint),
+                style: context.type.small.copyWith(color: faint),
               ),
             ],
           ],

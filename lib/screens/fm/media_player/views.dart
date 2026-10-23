@@ -13,12 +13,11 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
         child: Text(
           text,
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: context.type.heading.copyWith(
             color: AppColors.onMedia,
-            fontSize: 18,
             height: 1.25,
             fontWeight: FontWeight.w600,
-            shadows: [
+            shadows: const [
               Shadow(color: AppColors.mediaSurface, blurRadius: 3),
               Shadow(color: AppColors.mediaSurface, blurRadius: 6),
             ],
@@ -32,8 +31,8 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
   Widget _subtitleMenu() => PopupMenuButton<String>(
         tooltip: context.t('mp.subtitles'),
         icon: Icon(_subtitlePath == null
-            ? Icons.closed_caption_off_rounded
-            : Icons.closed_caption_rounded),
+            ? AppIcons.closedCaptionOff
+            : AppIcons.closedCaption),
         onSelected: (value) async {
           switch (value) {
             case '_off':
@@ -90,7 +89,7 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
   ///
   /// **Dosya adı** (kullanıcı 2026-08-29, işaretli ekran görüntüsü: *"video ve
   /// görsellerde dosya adı zor görülüyor"*):
-  /// - Rengi [OverlayBar.title]'dan gelir — `foregroundColor: Colors.white`
+  /// - Rengi [OverlayBar.title]'dan gelir — `foregroundColor: AppColors.onMedia`
   ///   başlığı beyaz YAPMIYORDU (kök neden orada yazılı).
   /// - Perde koyulaştı ve aşağı uzatıldı: yarı saydam siyahın altında kalan
   ///   parlak bir video karesi adı yutuyordu.
@@ -151,8 +150,8 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
                   _ => 'mp.loop_off',
                 }),
                 icon: Icon(
-                  _p.loopStage == 0 ? Icons.repeat_rounded : Icons.repeat_on_rounded,
-                  color: _p.loopStage == 0 ? null : Colors.amberAccent,
+                  _p.loopStage == 0 ? AppIcons.repeat : AppIcons.repeatOn,
+                  color: _p.loopStage == 0 ? null : AppHues.amberBright,
                 ),
                 onPressed: () {
                   _p.markLoopPoint();
@@ -166,19 +165,19 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
               ),
               IconButton(
                 tooltip: context.t('mp.float_window'),
-                icon: const Icon(Icons.picture_in_picture_alt_rounded),
+                icon: const Icon(AppIcons.pictureInPictureAlt),
                 onPressed: _popOut,
               ),
               IconButton(
                 tooltip: context.t(_zoomFill ? 'mp.zoom_fit' : 'mp.zoom_fill'),
-                icon: Icon(_zoomFill ? Icons.fit_screen_rounded : Icons.crop_free_rounded),
+                icon: Icon(_zoomFill ? AppIcons.fitScreen : AppIcons.cropFree),
                 onPressed: () => _partSetState(() => _zoomFill = !_zoomFill),
               ),
             ],
             if (!_isAudio) _subtitleMenu(),
             PopupMenuButton<double>(
               tooltip: context.t('mp.play_speed'),
-              icon: const Icon(Icons.speed_rounded),
+              icon: const Icon(AppIcons.speed),
               onSelected: _setSpeed,
               itemBuilder: (_) => [
                 for (final s in const [0.5, 0.75, 1.0, 1.25, 1.5, 2.0])
@@ -263,7 +262,7 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: AppColors.onMedia, fontSize: 18),
+                style: context.type.heading.copyWith(color: AppColors.onMedia),
               ),
             ),
           ],
@@ -354,13 +353,13 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
                   IconButton(
                     tooltip: context.t('common.previous'),
                     color: AppColors.onMedia,
-                    icon: const Icon(Icons.skip_previous_rounded),
+                    icon: const Icon(AppIcons.skipPrevious),
                     onPressed: _index > 0 ? () => _skip(-1) : null,
                   ),
                   IconButton(
                     tooltip: context.t('mp.back10'),
                     color: AppColors.onMedia,
-                    icon: const Icon(Icons.replay_10_rounded),
+                    icon: const Icon(AppIcons.replay10),
                     onPressed: () => _seekBy(-10),
                   ),
                   IconButton(
@@ -368,20 +367,20 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
                     iconSize: 48,
                     color: AppColors.onMedia,
                     icon: Icon(value.isPlaying
-                        ? Icons.pause_circle_rounded
-                        : Icons.play_circle_rounded),
+                        ? AppIcons.pauseCircle
+                        : AppIcons.playCircle),
                     onPressed: _togglePlay,
                   ),
                   IconButton(
                     tooltip: context.t('mp.forward10'),
                     color: AppColors.onMedia,
-                    icon: const Icon(Icons.forward_10_rounded),
+                    icon: const Icon(AppIcons.forward10),
                     onPressed: () => _seekBy(10),
                   ),
                   IconButton(
                     tooltip: context.t('common.next'),
                     color: AppColors.onMedia,
-                    icon: const Icon(Icons.skip_next_rounded),
+                    icon: const Icon(AppIcons.skipNext),
                     onPressed:
                         _index < _playlist.length - 1 ? () => _skip(1) : null,
                   ),
@@ -396,7 +395,7 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
                     tooltip: context.t(_landscape ? 'mp.portrait' : 'mp.fullscreen'),
                     color: AppColors.onMedia,
                     icon: Icon(
-                        _landscape ? Icons.fullscreen_exit_rounded : AppIcons.fullscreen),
+                        _landscape ? AppIcons.fullscreenExit : AppIcons.fullscreen),
                     onPressed: _toggleLandscape,
                   ),
                 ),

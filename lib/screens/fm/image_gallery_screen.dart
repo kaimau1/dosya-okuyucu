@@ -424,7 +424,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [Color(0xCC000000), Color(0x00000000)],
+                      colors: [Color(0xCC000000), AppColors.none],
                     ),
                   ),
                   child: Padding(
@@ -510,7 +510,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                     gradient: LinearGradient(
                       begin: Alignment.bottomCenter,
                       end: Alignment.topCenter,
-                      colors: [Color(0xE6000000), Color(0x00000000)],
+                      colors: [Color(0xE6000000), AppColors.none],
                     ),
                   ),
                   child: Padding(

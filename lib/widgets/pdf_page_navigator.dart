@@ -8,6 +8,8 @@ import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/safe_insets.dart';
 import '../core/app_haptics.dart';
+import '../core/theme.dart';
+import '../core/app_colors.dart';
 
 /// **Sayfa rozeti** — belgenin altında yüzen "5 / 1272".
 ///
@@ -46,7 +48,7 @@ class PdfPageChip extends StatelessWidget {
           borderRadius: BorderRadius.all(Radius.circular(40)),
           boxShadow: [
             BoxShadow(
-                color: Color(0x33000000), blurRadius: 12, offset: Offset(0, 3)),
+                color: AppColors.shadow, blurRadius: 12, offset: Offset(0, 3)),
           ],
         ),
         child: Material(
@@ -84,15 +86,14 @@ class PdfPageChip extends StatelessWidget {
                         style: TextStyle(color: fg.withValues(alpha: 0.7)),
                       ),
                     ]),
-                    style: TextStyle(
+                    style: context.type.compact.copyWith(
                       color: fg,
-                      fontSize: 13,
                       fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
                   if (bookmarked) ...[
                     const SizedBox(width: 6),
-                    Icon(Icons.bookmark_rounded,
+                    Icon(AppIcons.preset,
                         size: 15, color: scheme.inversePrimary),
                   ],
                 ],
@@ -152,7 +153,7 @@ class PdfPageNavigator extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      barrierColor: Colors.black.withValues(alpha: 0.2),
+      barrierColor: AppColors.shade.withValues(alpha: 0.2),
       builder: (_) => PdfPageNavigator(
         document: document,
         current: current,
@@ -267,7 +268,7 @@ class _PdfPageNavigatorState extends State<PdfPageNavigator> {
                   isSelected: marked,
                   onPressed: _toggle,
                   icon: const Icon(AppIcons.important),
-                  selectedIcon: const Icon(Icons.bookmark_rounded),
+                  selectedIcon: const Icon(AppIcons.preset),
                 ),
               ],
             ),
@@ -280,7 +281,7 @@ class _PdfPageNavigatorState extends State<PdfPageNavigator> {
                   aspectRatio: _aspect(),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.page,
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(color: scheme.outlineVariant),
                       boxShadow: const [
@@ -296,14 +297,14 @@ class _PdfPageNavigatorState extends State<PdfPageNavigator> {
                           ? Center(
                               child: Text('$_target',
                                   style: text.headlineMedium
-                                      ?.copyWith(color: Colors.black54)))
+                                      ?.copyWith(color: AppColors.mediaScrim)))
                           : PdfPageView(
                               key: ValueKey(_target),
                               document: widget.document,
                               pageNumber: _target,
                               maximumDpi: 72,
                               decoration:
-                                  const BoxDecoration(color: Colors.white),
+                                  const BoxDecoration(color: AppColors.page),
                             ),
                     ),
                   ),
@@ -314,7 +315,7 @@ class _PdfPageNavigatorState extends State<PdfPageNavigator> {
             Row(
               children: [
                 _StepButton(
-                  icon: Icons.chevron_left_rounded,
+                  icon: AppIcons.chevronLeft,
                   tooltip: context.t('pn.prev'),
                   onDown: () => _startRepeat(-1),
                   onUp: _stopRepeat,
@@ -363,7 +364,7 @@ class _PdfPageNavigatorState extends State<PdfPageNavigator> {
                 FilledButton.icon(
                   key: const ValueKey('pn-go'),
                   onPressed: () => _go(_target),
-                  icon: const Icon(Icons.arrow_forward_rounded),
+                  icon: const Icon(AppIcons.arrowForward),
                   label: Text(context.t('common.go')),
                 ),
               ],
@@ -374,12 +375,12 @@ class _PdfPageNavigatorState extends State<PdfPageNavigator> {
               runSpacing: 8,
               children: [
                 ActionChip(
-                  avatar: const Icon(Icons.first_page_rounded, size: 18),
+                  avatar: const Icon(AppIcons.firstPage, size: 18),
                   label: Text(context.t('pn.first')),
                   onPressed: () => _go(1),
                 ),
                 ActionChip(
-                  avatar: const Icon(Icons.last_page_rounded, size: 18),
+                  avatar: const Icon(AppIcons.lastPage, size: 18),
                   label: Text(context.t('pn.last')),
                   onPressed: () => _go(count),
                 ),
@@ -394,7 +395,7 @@ class _PdfPageNavigatorState extends State<PdfPageNavigator> {
             const SizedBox(height: 16),
             Row(
               children: [
-                Icon(Icons.bookmarks_rounded,
+                Icon(AppIcons.bookmarks,
                     size: 18, color: scheme.onSurfaceVariant),
                 const SizedBox(width: 8),
                 Expanded(
@@ -429,7 +430,7 @@ class _PdfPageNavigatorState extends State<PdfPageNavigator> {
                             Expanded(
                               child: DecoratedBox(
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
+                                  color: AppColors.page,
                                   borderRadius: BorderRadius.circular(4),
                                   border: Border.all(
                                       color: page == widget.current
@@ -446,7 +447,7 @@ class _PdfPageNavigatorState extends State<PdfPageNavigator> {
                                           pageNumber: page,
                                           maximumDpi: 36,
                                           decoration: const BoxDecoration(
-                                              color: Colors.white),
+                                              color: AppColors.page),
                                         ),
                                 ),
                               ),

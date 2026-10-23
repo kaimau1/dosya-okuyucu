@@ -357,7 +357,7 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.subject_rounded),
+                leading: const Icon(AppIcons.subject),
                 title: Text(ctx.t('tf.mode_text')),
                 subtitle: Text(ctx.t('tf.mode_text_hint')),
                 onTap: () => Navigator.pop(ctx, false),

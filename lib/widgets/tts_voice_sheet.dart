@@ -157,7 +157,7 @@ class _TtsVoiceSheetState extends State<TtsVoiceSheet> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: _tryVoice,
-                    icon: const Icon(Icons.volume_up_rounded),
+                    icon: const Icon(AppIcons.volumeUp),
                     label: Text(context.t('tts.try')),
                   ),
                 ),
@@ -223,7 +223,7 @@ class _TtsVoiceSheetState extends State<TtsVoiceSheet> {
         children: [
           SizedBox(
               width: 64,
-              child: Text(label, style: const TextStyle(fontSize: 13))),
+              child: Text(label, style: context.type.compact)),
           Expanded(
             child: Slider(
               value: value.clamp(0.5, 2.0),
@@ -240,7 +240,7 @@ class _TtsVoiceSheetState extends State<TtsVoiceSheet> {
           SizedBox(
             width: 44,
             child: Text('${value.toStringAsFixed(1)}×',
-                style: const TextStyle(fontSize: 12)),
+                style: context.type.small),
           ),
         ],
       );

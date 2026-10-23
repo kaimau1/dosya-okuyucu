@@ -65,14 +65,14 @@ class _ShareFoldersScreenState extends State<ShareFoldersScreen> {
     ShareScope.sharedBox: AppIcons.shareFolder,
     FtpTree.storageFolder: AppIcons.device,
     'Indirilenler': AppIcons.download,
-    'Kamera': Icons.photo_camera_rounded,
-    'Ekran Goruntuleri': Icons.screenshot_rounded,
+    'Kamera': AppIcons.photoCamera,
+    'Ekran Goruntuleri': AppIcons.screenshot,
     'Resimler': AppIcons.image,
     'Videolar': AppIcons.video,
-    'Ses': Icons.audiotrack_rounded,
+    'Ses': AppIcons.audiotrack,
     'Belgeler': AppIcons.newWord,
     'Arsivler': AppIcons.archiveView,
-    'Uygulamalar': Icons.android_rounded,
+    'Uygulamalar': AppIcons.android,
   };
 
   @override

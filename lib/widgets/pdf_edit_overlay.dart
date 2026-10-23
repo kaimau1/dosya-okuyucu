@@ -4,6 +4,7 @@ import 'package:pdfrx/pdfrx.dart';
 import '../core/app_icons.dart';
 import '../services/pdf/pdf_scanned_retype.dart' show ScannedLine;
 import '../services/pdf_page_edit.dart';
+import '../core/app_colors.dart';
 
 /// PDF sayfasının üstünde **düzenlenebilir öğeleri gösteren katman**:
 /// paragraf kutuları ve görsel (resim/logo/QR) kutuları.
@@ -259,7 +260,7 @@ class _MovableObjectState extends State<_MovableObject> {
                   ),
                   child: Center(
                     child: Icon(
-                        widget.movable ? Icons.open_with_rounded : AppIcons.lock,
+                        widget.movable ? AppIcons.dragMove : AppIcons.lock,
                         color: widget.color.withValues(alpha: 0.8),
                         size: 20),
                   ),
@@ -280,10 +281,10 @@ class _MovableObjectState extends State<_MovableObject> {
                     decoration: BoxDecoration(
                       color: widget.color,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
+                      border: Border.all(color: AppColors.onMedia, width: 2),
                     ),
-                    child: const Icon(Icons.open_in_full_rounded,
-                        color: Colors.white, size: 14),
+                    child: const Icon(AppIcons.openFull,
+                        color: AppColors.onMedia, size: 14),
                   ),
                 ),
               ),

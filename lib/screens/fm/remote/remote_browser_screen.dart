@@ -161,7 +161,7 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
           actions: [
             IconButton(
               tooltip: context.t('nas.filter_hint'),
-              icon: Icon(_searching ? Icons.search_off_rounded : AppIcons.search),
+              icon: Icon(_searching ? AppIcons.searchOff : AppIcons.search),
               onPressed: () => setState(() {
                 _searching = !_searching;
                 if (!_searching) _filter = '';

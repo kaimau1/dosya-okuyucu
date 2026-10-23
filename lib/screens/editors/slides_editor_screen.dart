@@ -38,6 +38,8 @@ import 'slideshow_screen.dart';
 import '../../core/snack.dart';
 import '../../core/safe_insets.dart';
 import '../../core/user_error.dart';
+import '../../core/app_colors.dart';
+import '../../widgets/app_dialog.dart';
 
 part 'slides/actions.dart';
 part 'slides/views.dart';
@@ -221,7 +223,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
             : DocActionBar([
                 DocAction(AppIcons.play, context.t('sl.play'),
                     editor == null ? null : () => _play(0)),
-                DocAction(Icons.summarize_rounded, context.t('ai.summarize'),
+                DocAction(AppIcons.summarize, context.t('ai.summarize'),
                     editor == null ? null : _summarize),
                 DocAction(AppIcons.save, context.t('common.save'),
                     editor == null ? null : _save),

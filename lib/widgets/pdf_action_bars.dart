@@ -6,7 +6,7 @@
 /// ## Niye yeniden yazıldı (2026-08-29)
 /// Kullanıcı: *"düzenlerken vs açılan araç menüleri çok zarif yetersiz ve kötü
 /// görünüyor, üzerlerine çalış."* Eski hâl:
-/// - zemin `Colors.black.withValues(alpha: 0.78)` — her temada aynı, kağıt
+/// - zemin `AppColors.shade.withValues(alpha: 0.78)` — her temada aynı, kağıt
 ///   temanın üstünde yabancı duran bir blok;
 /// - dört `TextButton.icon` tek bir `Wrap` içinde: dar ekranda alt satıra
 ///   taşıyor, renk noktaları düğmelerin arasında kayboluyordu;
@@ -37,6 +37,7 @@ import 'package:flutter/material.dart';
 
 import '../core/app_icons.dart';
 import '../core/motion.dart';
+import '../core/app_colors.dart';
 
 /// Ortak kap: tema yüzeyi, katmanlı yumuşak gölge, ince kenarlık.
 class PdfFloatingCard extends StatelessWidget {
@@ -61,12 +62,12 @@ class PdfFloatingCard extends StatelessWidget {
               Border.all(color: scheme.outlineVariant.withValues(alpha: 0.6)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: dark ? 0.45 : 0.10),
+              color: AppColors.shade.withValues(alpha: dark ? 0.45 : 0.10),
               blurRadius: 24,
               offset: const Offset(0, 8),
             ),
             BoxShadow(
-              color: Colors.black.withValues(alpha: dark ? 0.30 : 0.06),
+              color: AppColors.shade.withValues(alpha: dark ? 0.30 : 0.06),
               blurRadius: 4,
               offset: const Offset(0, 1),
             ),
@@ -301,10 +302,10 @@ class PdfSelectionBar extends StatelessWidget {
                     ),
                     child: Icon(
                         marking
-                            ? Icons.border_color_rounded
-                            : Icons.format_quote_rounded,
+                            ? AppIcons.borderColor
+                            : AppIcons.formatQuote,
                         size: 16,
-                        color: marking ? Colors.black87 : scheme.primary),
+                        color: marking ? AppColors.inkStrong : scheme.primary),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -376,7 +377,7 @@ class PdfSelectionBar extends StatelessWidget {
                       label: copyLabel,
                       onPressed: onCopy),
                   PdfBarAction(
-                    icon: Icons.border_color_rounded,
+                    icon: AppIcons.borderColor,
                     label: highlightLabel,
                     onPressed: onHighlight,
                     accent: Color(selectedColor),
@@ -512,13 +513,13 @@ class _Swatch extends StatelessWidget {
                   border: Border.all(
                     color: selected
                         ? scheme.primary
-                        : Colors.black.withValues(alpha: 0.08),
+                        : AppColors.shade.withValues(alpha: 0.08),
                     width: selected ? 2.5 : 1,
                   ),
                 ),
                 child: selected
                     ? const Icon(AppIcons.check,
-                        size: 16, color: Colors.black87)
+                        size: 16, color: AppColors.inkStrong)
                     : null,
               ),
             ),

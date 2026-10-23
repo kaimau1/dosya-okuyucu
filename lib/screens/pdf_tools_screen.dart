@@ -22,6 +22,9 @@ import '../widgets/pdf_save_dialog.dart';
 import '../core/snack.dart';
 import '../services/fm/tracked_task.dart';
 import '../core/user_error.dart';
+import '../core/theme.dart';
+import '../core/app_colors.dart';
+import '../widgets/app_dialog.dart';
 
 part 'pdf_tools/actions.dart';
 part 'pdf_tools/views.dart';
@@ -146,7 +149,7 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
                     : 'pt.invert_selection'),
                 icon: Icon(selection.isEmpty
                     ? AppIcons.selectAll
-                    : Icons.flip_to_back_rounded),
+                    : AppIcons.flipToBack),
                 onPressed: _busy
                     ? null
                     : () => unawaited(

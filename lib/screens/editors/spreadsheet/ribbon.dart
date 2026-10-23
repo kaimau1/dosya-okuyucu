@@ -97,22 +97,22 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
           ),
           RibbonButton(AppIcons.add, context.t('excel.decimal_more'),
               onTap: () => _applyNumberFormat((c) => bumpDecimals(c, 1))),
-          RibbonButton(Icons.remove_rounded, context.t('excel.decimal_less'),
+          RibbonButton(AppIcons.remove, context.t('excel.decimal_less'),
               onTap: () => _applyNumberFormat((c) => bumpDecimals(c, -1))),
           RibbonButton(OfficeIcons.autoSum, context.t('excel.autosum'),
               onTap: _autoSum),
         ]),
         RibbonTab(context.t('excel.tab_insert'), [
-          RibbonButton(Icons.keyboard_arrow_up_rounded,
+          RibbonButton(AppIcons.keyboardArrowUp,
               context.t('excel.insert_row_above'),
               onTap: () => _insertRow(below: false)),
-          RibbonButton(Icons.keyboard_arrow_down_rounded,
+          RibbonButton(AppIcons.keyboardArrowDown,
               context.t('excel.insert_row_below'),
               onTap: () => _insertRow(below: true)),
-          RibbonButton(Icons.keyboard_arrow_left_rounded,
+          RibbonButton(AppIcons.keyboardArrowLeft,
               context.t('excel.insert_col_left'),
               onTap: () => _insertColumn(right: false)),
-          RibbonButton(Icons.keyboard_arrow_right_rounded,
+          RibbonButton(AppIcons.keyboardArrowRight,
               context.t('excel.insert_col_right'),
               onTap: () => _insertColumn(right: true)),
           const RibbonSep(),
@@ -175,7 +175,7 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
                     : 'excel.freeze_panes'),
                 active: _freeze,
                 onTap: _toggleFreeze),
-          RibbonButton(Icons.format_textdirection_r_to_l_rounded,
+          RibbonButton(AppIcons.formatTextdirectionRToL,
               context.t('excel.sheet_rtl'),
               active: _sheet?.rightToLeft ?? false,
               onTap: _toggleSheetDirection),
@@ -302,10 +302,10 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
   }
 
   IconData _alignIcon(XlsxHAlign? align) => switch (align) {
-        XlsxHAlign.center => Icons.format_align_center_rounded,
-        XlsxHAlign.right => Icons.format_align_right_rounded,
-        XlsxHAlign.justify => Icons.format_align_justify_rounded,
-        _ => Icons.format_align_left_rounded,
+        XlsxHAlign.center => AppIcons.formatAlignCenter,
+        XlsxHAlign.right => AppIcons.formatAlignRight,
+        XlsxHAlign.justify => AppIcons.formatAlignJustify,
+        _ => AppIcons.formatAlignLeft,
       };
 
   /// Çubuğa sığmayan eylemler — hepsi ETİKETLİ ve konusuna göre gruplu.
@@ -318,61 +318,61 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
         DocMoreItem(
             AppIcons.clipCopy, context.t('common.copy'), _copySelection),
         DocMoreItem(AppIcons.paste, context.t('excel.paste'), _paste),
-        DocMoreItem(Icons.backspace_rounded,
+        DocMoreItem(AppIcons.backspace,
             context.t('excel.clear_contents'), _clearSelection),
       ]),
       DocMoreGroup(context.t('excel.group_number'), [
         DocMoreItem(AppIcons.add, context.t('excel.decimal_more'),
             () => _applyNumberFormat((c) => bumpDecimals(c, 1))),
-        DocMoreItem(Icons.remove_rounded, context.t('excel.decimal_less'),
+        DocMoreItem(AppIcons.remove, context.t('excel.decimal_less'),
             () => _applyNumberFormat((c) => bumpDecimals(c, -1))),
       ]),
       DocMoreGroup(context.t('excel.group_format'), [
-        DocMoreItem(Icons.format_color_fill_rounded, context.t('excel.fill_color'),
+        DocMoreItem(AppIcons.formatColorFill, context.t('excel.fill_color'),
             () => _pickColor(context.t('excel.fill_color'), _applyFillColor)),
-        DocMoreItem(Icons.format_color_text_rounded, context.t('excel.font_color'),
+        DocMoreItem(AppIcons.formatColorText, context.t('excel.font_color'),
             () => _pickColor(context.t('excel.font_color'), _applyFontColor)),
-        DocMoreItem(Icons.border_all_rounded, context.t('excel.borders'), _showBorders),
+        DocMoreItem(AppIcons.borderAll, context.t('excel.borders'), _showBorders),
         DocMoreItem(
-          Icons.wrap_text_rounded,
+          AppIcons.wrapText,
           context.t('excel.wrap_text'),
           () => _applyWrap(!(_sheet?.styleAt(_selRow, _selCol)?.wrap ?? false)),
           selected: _sheet?.styleAt(_selRow, _selCol)?.wrap ?? false,
         ),
         DocMoreItem(
-          Icons.merge_type_rounded,
+          AppIcons.mergeType,
           context.t(_sheet?.mergeAt(_selRow, _selCol) != null
               ? 'excel.unmerge'
               : 'excel.merge'),
           _toggleMerge,
         ),
-        DocMoreItem(Icons.rule_rounded, context.t('excel.cond_format'),
+        DocMoreItem(AppIcons.rule, context.t('excel.cond_format'),
             _showCondFormat),
       ]),
       DocMoreGroup(context.t('chart.group_insert'), [
         DocMoreItem(
-            Icons.insert_chart_rounded, context.t('chart.insert'), _insertChart),
+            AppIcons.insertChart, context.t('chart.insert'), _insertChart),
       ]),
       DocMoreGroup(context.t('excel.row'), [
-        DocMoreItem(Icons.keyboard_arrow_up_rounded,
+        DocMoreItem(AppIcons.keyboardArrowUp,
             context.t('excel.insert_row_above'), () => _insertRow(below: false)),
-        DocMoreItem(Icons.keyboard_arrow_down_rounded,
+        DocMoreItem(AppIcons.keyboardArrowDown,
             context.t('excel.insert_row_below'), () => _insertRow(below: true)),
         DocMoreItem(
             AppIcons.delete, context.t('excel.delete_row'), _deleteRow,
             danger: true),
-        DocMoreItem(Icons.height_rounded, context.t('excel.row_height'),
+        DocMoreItem(AppIcons.height, context.t('excel.row_height'),
             () => _showSizeDialog(row: _selRow)),
       ]),
       DocMoreGroup(context.t('excel.column'), [
-        DocMoreItem(Icons.keyboard_arrow_left_rounded, context.t('excel.insert_col_left'),
+        DocMoreItem(AppIcons.keyboardArrowLeft, context.t('excel.insert_col_left'),
             () => _insertColumn(right: false)),
-        DocMoreItem(Icons.keyboard_arrow_right_rounded,
+        DocMoreItem(AppIcons.keyboardArrowRight,
             context.t('excel.insert_col_right'), () => _insertColumn(right: true)),
         DocMoreItem(
             AppIcons.delete, context.t('excel.delete_col'), _deleteColumn,
             danger: true),
-        DocMoreItem(Icons.straighten_rounded, context.t('excel.column_width'),
+        DocMoreItem(AppIcons.straighten, context.t('excel.column_width'),
             () => _showSizeDialog(col: _selCol)),
       ]),
     ]);

@@ -10,6 +10,7 @@ import '../core/snack.dart';
 import '../core/theme.dart';
 import '../models/document.dart';
 import 'file_type_icon.dart';
+import '../core/app_colors.dart';
 
 /// Tüm belge ekranlarının ortak Office kabuğu.
 ///
@@ -294,7 +295,6 @@ class DocTitle extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
-                  fontSize: 16,
                   height: 1.2,
                   color: scheme.onSurface,
                 ),
@@ -344,7 +344,7 @@ class DocTitle extends StatelessWidget {
 /// Belgenin üstünde yüzen **hap rozeti** — sayfa numarası ("4 / 28"),
 /// yakınlaştırma yüzdesi, slayt konumu.
 ///
-/// Eskiden üç ekranda üç ayrı siyah kutu vardı (`Colors.black54`, kağıdın
+/// Eskiden üç ekranda üç ayrı siyah kutu vardı (`AppColors.mediaScrim`, kağıdın
 /// mürekkep tonu, farklı yarıçaplar). Tek bileşen: ters yüzey rengi (açık
 /// temada koyu, koyu temada açık — her iki temada da belgeden ayrışır),
 /// tam yuvarlak uçlar, yumuşak gölge. [onTap] varsa dokunulabilir olduğunu
@@ -376,9 +376,8 @@ class DocPill extends StatelessWidget {
         children: [
           Text(
             text,
-            style: TextStyle(
+            style: context.type.compact.copyWith(
               color: fg,
-              fontSize: 13,
               fontWeight: FontWeight.w600,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
@@ -395,7 +394,7 @@ class DocPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(40),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x33000000),
+            color: AppColors.shadow,
             blurRadius: 14,
             offset: Offset(0, 4),
           ),
@@ -468,7 +467,7 @@ class DocAiButton extends StatelessWidget {
               child: const SizedBox(
                 width: 56,
                 height: 56,
-                child: Icon(AppIcons.ai, color: Colors.white, size: 24),
+                child: Icon(AppIcons.ai, color: AppColors.onBrand, size: 24),
               ),
             ),
           ),

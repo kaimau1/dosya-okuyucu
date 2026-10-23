@@ -142,7 +142,7 @@ class AiSlidesFlow {
               onTap: () => Navigator.pop(ctx, true),
             ),
             ListTile(
-              leading: const Icon(Icons.bolt_rounded),
+              leading: const Icon(AppIcons.bolt),
               title: Text(ctx.t('ais.quick')),
               subtitle: Text(ctx.t('ais.quick_hint')),
               onTap: () => Navigator.pop(ctx, false),

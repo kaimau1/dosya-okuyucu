@@ -478,7 +478,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           if (smart.text.trim().isNotEmpty)
             Chip(
-              avatar: const Icon(Icons.abc_rounded, size: 18),
+              avatar: const Icon(AppIcons.abc, size: 18),
               label: Text('“${smart.text}”'),
               visualDensity: VisualDensity.compact,
             ),
@@ -571,7 +571,7 @@ class _SearchScreenState extends State<SearchScreen> {
           // **Dosya içinde ara** çipi en başta: kullanıcı adı bulamayınca
           // ilk buraya bakıyor.
           FmChip(
-            icon: Icons.manage_search_rounded,
+            icon: AppIcons.manageSearch,
             label: context.t('srch.in_content'),
             selected: _inContent,
             onTap: () {

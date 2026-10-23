@@ -128,14 +128,13 @@ class _AiFileListState extends State<AiFileList> {
           Text(subtitle,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12, color: faint)),
+              style: context.type.small.copyWith(color: faint)),
           if (widget.showSuggestion && record.hasSuggestion)
             Text(
               _suggestionLine(record),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12,
+              style: context.type.small.copyWith(
                 color: Theme.of(context).colorScheme.primary,
               ),
             ),

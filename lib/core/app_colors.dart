@@ -62,6 +62,57 @@ class AppColors extends ThemeExtension<AppColors> {
   /// Görünmez dolgu (kenarlık/zemin "yok").
   static const none = Color(0x00000000);
 
+  // ── Faz 15b (2026-10-23): ekranlardaki `Colors.*` taşımasının tokenları.
+  // Değerler taşınan sabitlerle BİREBİR aynı — görünüm değişmedi.
+
+  /// Perde üstünde pasif dolgu (ilerleme çubuğu izi).
+  static const onMediaWell = Color(0x3DFFFFFF);
+
+  /// Perde üstünde kılavuz çizgisi (kırpma üçte biri).
+  static const onMediaGuide = Color(0x8AFFFFFF);
+
+  /// Görüntü üstündeki rozet/oynat düğmesi zemini.
+  static const mediaScrim = Color(0x8A000000);
+
+  /// Görüntü üstündeki hafif karartma (seçim kutusu zemini).
+  static const mediaScrimLight = Color(0x73000000);
+
+  /// Belge **sayfası** — PDF/Word/slayt/QR/imza her temada beyaz kâğıttır.
+  static const page = Color(0xFFFFFFFF);
+
+  /// Belge mürekkebi (imza, QR modülü, açık zemin üstü kontrast yazı).
+  static const pageInk = Color(0xFF000000);
+
+  /// Açık vurgu (fosforlu kalem) üstündeki koyu simge.
+  static const inkStrong = Color(0xDD000000);
+
+  /// Dolu marka renginin (Office kabuğu) üstündeki yazı/simge.
+  static const onBrand = Color(0xFFFFFFFF);
+
+  /// Marka zemininde pasif yazı.
+  static const onBrandMuted = Color(0x61FFFFFF);
+
+  /// Marka zemininde seçili/basılı dolgu.
+  static const onBrandWell = Color(0x3DFFFFFF);
+
+  /// Rengi açmak/koyulaştırmak için karışım uçları (`Color.lerp`).
+  static const mixLight = Color(0xFFFFFFFF);
+  static const mixDark = Color(0xFF000000);
+
+  /// Gölge/karartma tabanı — saydamlık çağıranda (`withValues(alpha:)`).
+  static const shade = Color(0xFF000000);
+
+  /// Menü/levha arkasındaki hafif ve orta karartma.
+  static const barrierLight = Color(0x1F000000);
+  static const barrier = Color(0x42000000);
+
+  /// Yüzen öğe gölgesi (koyu).
+  static const shadowStrong = Color(0x61000000);
+
+  /// Belgede bulunan eşleşme ve etkin eşleşme vurgusu.
+  static const findMatch = Color(0x7FFFEB3B);
+  static const findActive = Color(0x7FFF9800);
+
   /// Palet → tokenlar. Uyarı ve bilgi tonları paletin parlaklığına göre
   /// seçilir: açık zeminde koyu kehribar/mavi, koyu zeminde açık.
   factory AppColors.fromPalette(SkinPalette p, Brightness b) {
@@ -148,4 +199,5 @@ abstract final class AppHues {
   static const steel = Color(0xFF5B6670);
   static const gray = Color(0xFF76808C);
   static const silver = Color(0xFF9E9E9E);
+  static const amberBright = Color(0xFFFFD740);
 }

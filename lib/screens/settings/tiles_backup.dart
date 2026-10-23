@@ -13,6 +13,7 @@ import '../../services/fm/fm_env.dart';
 import '../../services/settings_backup.dart';
 import 'settings_widgets.dart';
 import '../../core/user_error.dart';
+import '../../core/app_icons.dart';
 
 /// **Ayar yedeği** — dışa aktar / geri yükle.
 ///
@@ -30,7 +31,7 @@ class SettingsBackupTile extends StatelessWidget {
     // Yedekle ve geri yükle TEK satır (2026-10-21, Faz 2 ayar sadeleşmesi):
     // iki satır aynı dosyanın iki yönüydü.
     return SettingTile(
-      icon: Icons.backup_rounded,
+      icon: AppIcons.backup,
       title: context.t('backup.title'),
       subtitle: context.t('backup.sub'),
       wrapSubtitle: true,
@@ -47,13 +48,13 @@ class SettingsBackupTile extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.backup_rounded),
+              leading: const Icon(AppIcons.backup),
               title: Text(ctx.t('backup.title')),
               subtitle: Text(ctx.t('backup.sub')),
               onTap: () => Navigator.pop(ctx, 'export'),
             ),
             ListTile(
-              leading: const Icon(Icons.settings_backup_restore_rounded),
+              leading: const Icon(AppIcons.settingsBackupRestore),
               title: Text(ctx.t('backup.restore')),
               subtitle: Text(ctx.t('backup.restore_sub')),
               onTap: () => Navigator.pop(ctx, 'restore'),

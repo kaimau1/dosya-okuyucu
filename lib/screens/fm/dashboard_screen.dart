@@ -456,7 +456,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             Center(
               child: TextButton.icon(
                 onPressed: _editLayout,
-                icon: const Icon(Icons.dashboard_customize_rounded, size: 18),
+                icon: const Icon(AppIcons.dashboardCustomize, size: 18),
                 label: Text(context.t('dash.title')),
               ),
             ),

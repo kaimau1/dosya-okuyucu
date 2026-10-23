@@ -32,6 +32,8 @@ import 'fm/folder_picker_screen.dart';
 import 'fm/important_screen.dart';
 import 'scan_edit_screen.dart';
 import '../core/user_error.dart';
+import '../core/app_colors.dart';
+import '../widgets/app_dialog.dart';
 
 part 'scan_result/actions.dart';
 part 'scan_result/views.dart';
@@ -315,7 +317,7 @@ class _ScanResultScreenState extends State<ScanResultScreen>
                       ),
                       ButtonSegment(
                         value: 1,
-                        icon: const Icon(Icons.subject_rounded, size: 18),
+                        icon: const Icon(AppIcons.subject, size: 18),
                         label: Text(context.t('scr.tab_text')),
                       ),
                     ],

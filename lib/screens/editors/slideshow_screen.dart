@@ -7,6 +7,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
 import '../../services/pptx_render.dart';
 import '../../widgets/slide_canvas.dart';
+import '../../core/theme.dart';
 
 /// Tam ekran sunum modu — PowerPoint'in "Slayt Gösterisi"nin karşılığı.
 /// Yatay + tam ekran, kaydırarak veya sağ/sol yarıya dokunarak geçiş,
@@ -214,7 +215,7 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.black54,
+                  color: AppColors.mediaScrim,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -226,7 +227,7 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
                           'step': _step,
                           'max': _maxStep,
                         }),
-                  style: const TextStyle(color: AppColors.onMediaSoft, fontSize: 12),
+                  style: context.type.small.copyWith(color: AppColors.onMediaSoft),
                 ),
               ),
             ),

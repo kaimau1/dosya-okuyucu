@@ -102,7 +102,7 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
                   padding: withNavInset(
                       ctx, const EdgeInsets.only(top: 12)),
                   child: SelectableText(text,
-                      style: const TextStyle(fontSize: 14, height: 1.4)),
+                      style: context.type.body.copyWith(height: 1.4)),
                 ),
               ),
             ],
@@ -115,7 +115,7 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
   /// Gece modu açıksa çocuğu renk-tersleyen matrisle sarar.
   ///
   /// Matris: R'=255-R, G'=255-G, B'=255-B (alfa aynı). Beyaz kağıt siyah,
-  /// siyah yazı beyaz olur — karanlıkta göz yormaz. `Colors.white` yerine
+  /// siyah yazı beyaz olur — karanlıkta göz yormaz. `AppColors.onMedia` yerine
   /// matris kullanılıyor çünkü sayfadaki resim/grafikler de terslenmeli.
   Widget _nightFilter({required Widget child}) {
     if (!_pdfNight) return child;
@@ -399,7 +399,7 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
     return Material(
       color: scheme.surfaceContainerHighest.withValues(alpha: 0.92),
       elevation: 2,
-      shadowColor: Colors.black26,
+      shadowColor: AppColors.barrier,
       shape: RoundedRectangleBorder(
         borderRadius: const BorderRadius.horizontal(
           left: Radius.circular(14),
@@ -410,13 +410,12 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.unfold_more_rounded, size: 16, color: scheme.primary),
+          Icon(AppIcons.unfoldMore, size: 16, color: scheme.primary),
           Text(
             '${pageNumber ?? _pdfPage}',
             maxLines: 1,
-            style: TextStyle(
+            style: context.type.micro.copyWith(
               color: scheme.onSurface,
-              fontSize: 10,
               fontWeight: FontWeight.w700,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
@@ -460,7 +459,7 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
                   color: scheme.errorContainer,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.broken_image_rounded,
+                child: Icon(AppIcons.brokenImage,
                     size: 32, color: scheme.onErrorContainer),
               ),
               const SizedBox(height: 16),
@@ -483,7 +482,7 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
                         PdfEditJournal.recover(only: widget.doc.path);
                         await _reloadPdf();
                       },
-                      icon: const Icon(Icons.restore_rounded),
+                      icon: const Icon(AppIcons.restore),
                       label: Text(context.t('vw.pdf_error_restore')),
                     ),
                   FilledButton.tonalIcon(
@@ -546,7 +545,7 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
       top: 0,
       right: w,
       child: IgnorePointer(
-        child: Icon(Icons.bookmark_rounded,
+        child: Icon(AppIcons.preset,
             size: w * 1.6,
             color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.85)),
       ),

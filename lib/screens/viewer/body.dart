@@ -217,7 +217,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
 
       case DocKind.image:
         return Container(
-          color: Colors.black,
+          color: AppColors.pageInk,
           child: GestureDetector(
             onDoubleTapDown: (d) => _doubleTapDetails = d,
             onDoubleTap: _handleImgDoubleTap,
@@ -237,7 +237,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                     gaplessPlayback: true,
                     errorBuilder: (_, __, ___) => Text(
                       context.t('vw.image_failed'),
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(color: AppColors.onMedia),
                     ),
                   ),
                 ),
@@ -295,7 +295,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.insert_drive_file_rounded,
+                Icon(AppIcons.insertDriveFile,
                     size: 64, color: Theme.of(context).colorScheme.outline),
                 const SizedBox(height: 12),
                 Text(

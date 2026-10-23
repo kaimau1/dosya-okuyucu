@@ -23,6 +23,7 @@ import '../../core/snack.dart';
 import '../../core/safe_insets.dart';
 import '../../core/user_error.dart';
 import '../../widgets/ai_key_gate.dart';
+import '../../core/app_colors.dart';
 
 /// **Benzer fotoğraf/videolar** — algısal parmak iziyle bulunan kümeler.
 ///
@@ -426,7 +427,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
                   ),
                   TextButton.icon(
                     onPressed: () => _askGemini(group),
-                    icon: const Icon(Icons.smart_toy_rounded, size: 18),
+                    icon: const Icon(AppIcons.smartToy, size: 18),
                     label: Text(context.t('fm.ask_gemini')),
                   ),
                 ],
@@ -489,7 +490,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
                     if (isVideo)
                       Center(
                         child: Material(
-                          color: Colors.black45,
+                          color: AppColors.mediaScrimLight,
                           shape: const CircleBorder(),
                           child: InkWell(
                             customBorder: const CircleBorder(),
@@ -497,7 +498,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
                             child: const Padding(
                               padding: EdgeInsets.all(6),
                               child: Icon(AppIcons.play,
-                                  color: Colors.white, size: 20),
+                                  color: AppColors.onMedia, size: 20),
                             ),
                           ),
                         ),
@@ -507,12 +508,12 @@ class _SimilarScreenState extends State<SimilarScreen> {
                       right: 2,
                       child: Icon(
                         selected
-                            ? Icons.delete_forever_rounded
-                            : Icons.circle_rounded,
+                            ? AppIcons.deleteForever
+                            : AppIcons.dot,
                         size: 18,
-                        color: selected ? scheme.error : Colors.white,
+                        color: selected ? scheme.error : AppColors.onMedia,
                         shadows: const [
-                          Shadow(blurRadius: 4, color: Colors.black54)
+                          Shadow(blurRadius: 4, color: AppColors.mediaScrim)
                         ],
                       ),
                     ),
@@ -525,9 +526,9 @@ class _SimilarScreenState extends State<SimilarScreen> {
                               horizontal: 4, vertical: 1),
                           color: scheme.primary,
                           child: Text(context.t('common.best'),
-                              style: TextStyle(
-                                  fontSize: 10,
-                                  color: scheme.onPrimary)),
+                              style: context.type.micro.copyWith(
+                                  color: scheme.onPrimary,
+                                )),
                         ),
                       ),
                   ],

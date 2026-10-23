@@ -11,6 +11,7 @@ import '../../../services/fm/remote/lan_discovery.dart';
 import 'ftp_server_screen.dart';
 import 'remote_browser_screen.dart';
 import 'remote_edit_screen.dart';
+import '../../../widgets/app_dialog.dart';
 
 /// Ağ depolama girişi: kayıtlı bağlantılar, ağ taraması ve "PC'den eriş".
 class RemoteConnectionsScreen extends StatefulWidget {
@@ -113,20 +114,11 @@ class _RemoteConnectionsScreenState extends State<RemoteConnectionsScreen> {
   }
 
   Future<void> _delete(RemoteConnection connection) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        content:
-            Text(ctx.t('nas.delete_confirm', {'name': connection.name})),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(ctx.t('common.cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(ctx.t('common.delete'))),
-        ],
-      ),
+    final ok = await showAppConfirm(
+        context,
+        message: context.t('nas.delete_confirm', {'name': connection.name}),
+        confirmLabel: context.t('common.delete'),
+        destructive: true,
     );
     if (ok != true || !mounted) return;
     await context.read<AppState>().removeRemote(connection.id);
@@ -144,7 +136,7 @@ class _RemoteConnectionsScreenState extends State<RemoteConnectionsScreen> {
           // kapısı bu köşe değil.
           IconButton(
             tooltip: context.t('ftpd.title'),
-            icon: const Icon(Icons.phonelink_rounded),
+            icon: const Icon(AppIcons.phonelink),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const FtpServerScreen()),
             ),
@@ -158,7 +150,7 @@ class _RemoteConnectionsScreenState extends State<RemoteConnectionsScreen> {
               padding: const EdgeInsets.fromLTRB(24, 32, 24, 16),
               child: Column(
                 children: [
-                  const Icon(Icons.dns_rounded, size: 48),
+                  const Icon(AppIcons.dns, size: 48),
                   const SizedBox(height: 12),
                   Text(context.t('nas.empty'), textAlign: TextAlign.center),
                 ],
@@ -167,7 +159,7 @@ class _RemoteConnectionsScreenState extends State<RemoteConnectionsScreen> {
           else
             for (final connection in remotes)
               ListTile(
-                leading: const Icon(Icons.dns_rounded),
+                leading: const Icon(AppIcons.dns),
                 title: Text(connection.name,
                     maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: Text(connection.summary,
@@ -208,7 +200,7 @@ class _RemoteConnectionsScreenState extends State<RemoteConnectionsScreen> {
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.wifi_find_rounded),
+                        : const Icon(AppIcons.wifiFind),
                     label: Text(context
                         .t(_scanning ? 'nas.scanning' : 'nas.scan')),
                   ),
@@ -226,10 +218,10 @@ class _RemoteConnectionsScreenState extends State<RemoteConnectionsScreen> {
             ),
             for (final host in _found.values)
               ListTile(
-                leading: const Icon(Icons.lan_rounded),
+                leading: const Icon(AppIcons.lan),
                 title: Text('${host.name}  ·  ${host.protocol.label}'),
                 subtitle: Text('${host.host}:${host.port}'),
-                trailing: const Icon(Icons.add_circle_outline_rounded),
+                trailing: const Icon(AppIcons.addCircleOutline),
                 onTap: () => _add(
                   prefill: RemoteConnection(
                     id: '',

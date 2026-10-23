@@ -1,5 +1,6 @@
 import 'package:barcode/barcode.dart';
 import 'package:flutter/material.dart';
+import '../core/app_colors.dart';
 
 /// **QR kodu** (2026-10-18): ağ paylaşımının adresini başka bir cihazın
 /// kamerasıyla okutmak için. Matris `barcode` paketinden (saf Dart, `pdf`
@@ -17,7 +18,7 @@ class QrCode extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.page,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Semantics(
@@ -36,7 +37,7 @@ class _QrPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.black;
+    final paint = Paint()..color = AppColors.pageInk;
     final elements = Barcode.qrCode()
         .make(data, width: size.width, height: size.height, drawText: false);
     for (final e in elements) {

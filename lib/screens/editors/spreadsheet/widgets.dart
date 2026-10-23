@@ -178,7 +178,7 @@ class _RenderContext {
   }
 
   static Color _scaleColor(List<int> colors, double t) {
-    if (colors.isEmpty) return const Color(0x00000000);
+    if (colors.isEmpty) return AppColors.none;
     if (colors.length == 1) return Color(colors.first);
     final segment = 1.0 / (colors.length - 1);
     final idx = (t / segment).floor().clamp(0, colors.length - 2);

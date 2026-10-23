@@ -417,7 +417,7 @@ class _ResultSheet extends StatelessWidget {
                                 Navigator.pop(context);
                               }
                             },
-                            icon: const Icon(Icons.drive_file_move_outline),
+                            icon: const Icon(AppIcons.move),
                             label: Text(context.t('aia.target_folder',
                                 {'folder': g.type.folder})),
                           ),

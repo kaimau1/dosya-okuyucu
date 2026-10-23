@@ -106,7 +106,7 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                 ),
               if (!_plainMode)
                 DocAction(
-                  Icons.g_translate_rounded,
+                  AppIcons.gTranslate,
                   context.t('word.translate_selection'),
                   editor == null ? null : _translateSelection,
                 ),
@@ -210,7 +210,7 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
   Widget _pageBadge() {
     return DocPill(
       text: context.t('word.page_of', {'n': _page, 'total': _pageCount}),
-      icon: Icons.unfold_more_rounded,
+      icon: AppIcons.unfoldMore,
       onTap: _showGoToPage,
     );
   }
@@ -264,10 +264,10 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
             const RibbonSep(),
             // Resim (Faz 9 / Y1): imlecin altına satır içi resim; imleçteki
             // paragrafın resimlerini sil.
-            RibbonButton(Icons.add_photo_alternate_rounded,
+            RibbonButton(AppIcons.addPhoto,
                 context.t('word.insert_image'),
                 onTap: _insertImage),
-            RibbonButton(Icons.hide_image_rounded,
+            RibbonButton(AppIcons.hideImage,
                 context.t('word.delete_image'),
                 onTap: _deleteImage),
           ]),
@@ -323,7 +323,7 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
           value: 'none',
           child: Row(
             children: [
-              const Icon(Icons.format_color_reset_rounded, size: 20),
+              const Icon(AppIcons.formatColorReset, size: 20),
               const SizedBox(width: 10),
               Text(context.t('excel.color_none')),
             ],
@@ -371,7 +371,7 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                 tooltip: context.t('excel.replace'),
                 visualDensity: VisualDensity.compact,
                 isSelected: _replacing,
-                icon: const Icon(Icons.find_replace_rounded),
+                icon: const Icon(AppIcons.findReplace),
                 onPressed: () => _partSetState(() => _replacing = !_replacing),
               ),
             ],
@@ -387,7 +387,7 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                       decoration: DocFindBar.decoration(
                         context,
                         hint: context.t('excel.replace_with'),
-                        icon: Icons.find_replace_rounded,
+                        icon: AppIcons.findReplace,
                       ),
                     ),
                   ),

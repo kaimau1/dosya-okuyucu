@@ -7,6 +7,7 @@ import '../../../models/remote_connection.dart';
 import '../../../services/fm/remote/remote_fs.dart';
 import '../../../services/fm/remote/remote_fs_factory.dart';
 import '../../../core/safe_insets.dart';
+import '../../../core/app_icons.dart';
 
 /// Uzak bağlantı ekleme/düzenleme formu.
 class RemoteEditScreen extends StatefulWidget {
@@ -238,7 +239,7 @@ class _RemoteEditScreenState extends State<RemoteEditScreen> {
                     width: 16,
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.network_check_rounded),
+                : const Icon(AppIcons.networkCheck),
             label: Text(context.t(_testing ? 'nas.connecting' : 'nas.test')),
           ),
         ],

@@ -88,7 +88,7 @@ class _HiddenFilesScreenState extends State<HiddenFilesScreen> {
           if (items != null && items.isNotEmpty)
             TextButton.icon(
               onPressed: () => _restore(items),
-              icon: const Icon(Icons.restore_rounded),
+              icon: const Icon(AppIcons.restore),
               label: Text(context.t('hv.restore')),
             ),
         ],
@@ -149,7 +149,7 @@ class _HiddenFilesScreenState extends State<HiddenFilesScreen> {
                       children: [
                         IconButton(
                           tooltip: context.t('hv.restore'),
-                          icon: const Icon(Icons.restore_rounded),
+                          icon: const Icon(AppIcons.restore),
                           onPressed: () => _restore([item]),
                         ),
                         IconButton(

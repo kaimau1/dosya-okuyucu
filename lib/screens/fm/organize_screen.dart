@@ -18,6 +18,7 @@ import '../../core/snack.dart';
 import '../../widgets/motion.dart';
 import '../../core/safe_insets.dart';
 import '../../core/user_error.dart';
+import '../../widgets/app_dialog.dart';
 
 /// **Otomatik düzenle** — dağınık bir klasörü tek dokunuşla türe/tarihe/kaynağa
 /// göre alt klasörlere ayırır.
@@ -69,23 +70,14 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
   Future<void> _apply() async {
     final plan = _plan;
     if (plan.isEmpty) return;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(context.t('org.confirm_title')),
-        content: Text(ctx.t('org.confirm_body', {
+    final ok = await showAppConfirm(
+        context,
+        title: context.t('org.confirm_title'),
+        message: context.t('org.confirm_body', {
           'files': plan.fileCount,
           'folders': plan.folderCount,
-        })),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(context.t('common.cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(context.t('fm.organize'))),
-        ],
-      ),
+        }),
+        confirmLabel: context.t('fm.organize'),
     );
     if (ok != true || !mounted) return;
 
@@ -236,7 +228,7 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
           padding: const EdgeInsets.all(Gap.md),
           child: FilledButton.icon(
             onPressed: plan.isEmpty ? null : _apply,
-            icon: const Icon(Icons.auto_awesome_motion_rounded),
+            icon: const Icon(AppIcons.autoAwesomeMotion),
             label: Text(plan.isEmpty
                 ? context.t('org.nothing')
                 : context.t('org.action', {'n': plan.fileCount})),

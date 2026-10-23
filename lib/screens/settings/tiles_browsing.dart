@@ -69,7 +69,7 @@ class PhotoGroupTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingChoice<PhotoGroup>(
-      icon: Icons.calendar_month_rounded,
+      icon: AppIcons.calendarMonth,
       title: context.t('fmset.group_photos'),
       subtitle: context
           .t('fmset.group_photos_sub', {'unit': context.t('fmset.grouping')}),
@@ -181,7 +181,7 @@ class ResumePositionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingSwitch(
-      icon: Icons.play_circle_outline_rounded,
+      icon: AppIcons.playCircleOutline,
       title: context.t('fmset.resume'),
       subtitle: context.t('fmset.resume_sub'),
       value: appState.resumePosition,
@@ -198,7 +198,7 @@ class MediaOpenWithTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingTile(
-      icon: Icons.play_circle_outline_rounded,
+      icon: AppIcons.playCircleOutline,
       title: context.t('fmset.media_open_with'),
       subtitle: context.t(appState.fmMediaOpenWith.descriptionKey),
       value: context.t(appState.fmMediaOpenWith.labelKey),
@@ -226,7 +226,7 @@ class StartFolderTile extends StatelessWidget {
     final appState = context.watch<AppState>();
     final set = appState.fmStartFolder.isNotEmpty;
     return SettingTile(
-      icon: Icons.home_rounded,
+      icon: AppIcons.home,
       title: context.t('fmset.start_folder'),
       subtitle: set
           ? appState.fmStartFolder

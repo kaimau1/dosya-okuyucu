@@ -61,7 +61,7 @@ class _AiFilesScreenState extends State<AiFilesScreen> {
               child: Text(
                 '${_records.length} · ${FsPaths.humanSize(bytes)}',
                 style:
-                    TextStyle(fontSize: 12, color: Paper.faint(context)),
+                    context.type.small.copyWith(color: Paper.faint(context)),
               ),
             ),
           ),

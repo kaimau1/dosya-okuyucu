@@ -493,23 +493,11 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
 
   Future<bool> _confirmLeave() async {
     if (_e.isIdentity) return true;
-    final leave = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        content: Text(ctx.t('ied.discard')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(ctx.t('common.cancel')),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(ctx.t('ied.leave')),
-          ),
-        ],
-      ),
+    return showAppConfirm(
+        context,
+        message: context.t('ied.discard'),
+        confirmLabel: context.t('ied.leave'),
     );
-    return leave ?? false;
   }
 
   // ── arayüz ────────────────────────────────────────────────────────────────
@@ -648,6 +636,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
               clip: visible,
               cropRect: crop ? _cropOnScreen() : null,
               cropLabel: crop ? _cropLabel() : null,
+              labelStyle: Theme.of(context).textTheme.labelMedium,
             ),
           ),
         ),
@@ -798,6 +787,7 @@ class _EditPainter extends CustomPainter {
     required this.clip,
     this.cropRect,
     this.cropLabel,
+    this.labelStyle,
   });
 
   final ui.Image src;
@@ -807,6 +797,7 @@ class _EditPainter extends CustomPainter {
 
   /// Kırpma kutusunun piksel ölçüsü — kutunun üst ortasında rozet.
   final String? cropLabel;
+  final TextStyle? labelStyle;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -829,7 +820,7 @@ class _EditPainter extends CustomPainter {
     canvas.drawRect(r, line);
     line
       ..strokeWidth = 0.6
-      ..color = Colors.white54;
+      ..color = AppColors.onMediaGuide;
     for (final f in [1 / 3, 2 / 3]) {
       canvas.drawLine(Offset(r.left + r.width * f, r.top),
           Offset(r.left + r.width * f, r.bottom), line);
@@ -855,10 +846,8 @@ class _EditPainter extends CustomPainter {
       final tp = TextPainter(
         text: TextSpan(
           text: label,
-          style: const TextStyle(
-              color: AppColors.onMedia,
-              fontSize: 12,
-              fontWeight: FontWeight.w600),
+          style: (labelStyle ?? const TextStyle()).copyWith(
+              color: AppColors.onMedia, fontWeight: FontWeight.w600),
         ),
         textDirection: TextDirection.ltr,
       )..layout();

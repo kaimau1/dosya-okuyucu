@@ -16,6 +16,7 @@ import '../../services/fm/native_extras.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import 'trash_screen.dart';
 import '../../core/safe_insets.dart';
+import '../../widgets/app_dialog.dart';
 
 /// **Yer açma asistanı** — "3 GB yer aç" isteğinin karşılığı.
 ///
@@ -206,26 +207,16 @@ class _CleanupScreenState extends State<CleanupScreen> {
     final chosen = _chosen;
     if (chosen.isEmpty) return;
     final total = cleanupTotal(chosen);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(context.t('clean.confirm_title')),
-        content: Text(
-          '${context.t('clean.confirm_lead', {
+    final ok = await showAppConfirm(
+        context,
+        title: context.t('clean.confirm_title'),
+        message: '${context.t('clean.confirm_lead', {
                 'n': chosen.length,
                 'size': FsPaths.humanSize(total),
               })}'
           '${context.t('clean.confirm_tail')}',
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(context.t('common.cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(context.t('common.clear'))),
-        ],
-      ),
+        confirmLabel: context.t('common.clear'),
+        destructive: true,
     );
     if (ok != true || !mounted) return;
 
@@ -355,10 +346,10 @@ class _CleanupScreenState extends State<CleanupScreen> {
             secondary: !s.safeByDefault
                 ? Tooltip(
                     message: context.t('clean.personal_warning'),
-                    child: Icon(Icons.warning_amber_rounded,
+                    child: Icon(AppIcons.warning,
                         color: Theme.of(context).colorScheme.error),
                   )
-                : const Icon(Icons.verified_rounded),
+                : const Icon(AppIcons.verified),
           ),
           if (s.files.isNotEmpty)
             ExpansionTile(

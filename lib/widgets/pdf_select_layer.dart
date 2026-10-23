@@ -11,6 +11,9 @@ import '../services/pdf/ocr_page_text.dart' show OcrPageText;
 import '../services/pdf/pdf_ocr_text.dart';
 import '../services/pdf/selection_rects.dart';
 import '../core/app_haptics.dart';
+import '../core/app_icons.dart';
+import '../core/theme.dart';
+import '../core/app_colors.dart';
 
 // Seçim geometrisi 2026-08-05'te servise taşındı (OCR araması da kullanıyor);
 // eski adresten içe aktaran dosyalar/testler kırılmasın diye yeniden sunulur.
@@ -915,16 +918,15 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
                       ),
                     )
                   else
-                    Icon(Icons.search_off_rounded,
+                    Icon(AppIcons.searchOff,
                         size: 14, color: scheme.onInverseSurface),
                   const SizedBox(width: 7),
                   Text(
                     _ocrRunning
                         ? context.t('vw.select_ocr_running')
                         : context.t('vw.select_ocr_none'),
-                    style: TextStyle(
+                    style: context.type.small.copyWith(
                       color: scheme.onInverseSurface,
-                      fontSize: 12,
                     ),
                   ),
                 ],
@@ -978,10 +980,10 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
               decoration: BoxDecoration(
                 color: color,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
+                border: Border.all(color: AppColors.onMedia, width: 2),
                 boxShadow: [
                   BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
+                      color: AppColors.shade.withValues(alpha: 0.3),
                       blurRadius: 3),
                 ],
               ),

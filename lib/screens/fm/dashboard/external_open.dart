@@ -55,7 +55,7 @@ extension _DashboardScreenExternalOpenPart on _DashboardScreenState {
             children: [
               for (final r in roots)
                 ListTile(
-                  leading: const Icon(Icons.folder_special_rounded),
+                  leading: const Icon(AppIcons.folderSpecial),
                   title: Text(r.name),
                   onTap: () => Navigator.pop(ctx, r),
                 ),
@@ -165,7 +165,7 @@ extension _DashboardScreenExternalOpenPart on _DashboardScreenState {
                 ),
               for (final r in saf)
                 ListTile(
-                  leading: const Icon(Icons.folder_special_rounded),
+                  leading: const Icon(AppIcons.folderSpecial),
                   title: Text(r.name),
                   subtitle: Text(ctx.t('saf.granted')),
                   onTap: () => Navigator.pop(ctx, r),
@@ -185,7 +185,7 @@ extension _DashboardScreenExternalOpenPart on _DashboardScreenState {
                 ),
               // Bellek görünmüyorsa tahmin yürütmek yerine ÖLÇ.
               ListTile(
-                leading: const Icon(Icons.troubleshoot_rounded),
+                leading: const Icon(AppIcons.troubleshoot),
                 title: Text(ctx.t('usb.diag_title')),
                 onTap: () => Navigator.pop(ctx, 'diag'),
               ),
@@ -236,7 +236,7 @@ extension _DashboardScreenExternalOpenPart on _DashboardScreenState {
               onTap: () => Navigator.pop(ctx, 'open'),
             ),
             ListTile(
-              leading: const Icon(Icons.donut_small_rounded),
+              leading: const Icon(AppIcons.donutSmall),
               title: Text(ctx.t('fm.memory_analysis')),
               onTap: () => Navigator.pop(ctx, 'analysis'),
             ),
@@ -244,7 +244,7 @@ extension _DashboardScreenExternalOpenPart on _DashboardScreenState {
             // menüsünde — kullanıcı "kartı nasıl kullanırım" diye burada arar.
             if (volume.isRemovable)
               ListTile(
-                leading: const Icon(Icons.eject_rounded),
+                leading: const Icon(AppIcons.eject),
                 title: Text(ctx.t('usb.eject')),
                 onTap: () => Navigator.pop(ctx, 'eject'),
               ),

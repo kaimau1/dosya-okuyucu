@@ -36,7 +36,7 @@ class HighRefreshTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingSwitch(
-      icon: Icons.speed_rounded,
+      icon: AppIcons.speed,
       title: context.t('settings.perf_high_refresh'),
       subtitle: context.t('settings.perf_high_refresh_sub'),
       value: appState.highRefreshRate,
@@ -70,7 +70,7 @@ class PerfModeTile extends StatelessWidget {
       DeviceTier.high => context.t('perf.tier_high'),
     };
     return SettingTile(
-      icon: Icons.memory_rounded,
+      icon: AppIcons.memory,
       title: context.t('perf.mode'),
       subtitle: context.t('perf.mode_sub'),
       value: mode == PerfMode.auto
@@ -103,7 +103,7 @@ class AutoRescanTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SettingSwitch(
-      icon: Icons.autorenew_rounded,
+      icon: AppIcons.autorenew,
       title: context.t('settings.perf_auto_rescan'),
       subtitle: context.t('settings.perf_auto_rescan_sub'),
       value: appState.autoRescan,
@@ -155,7 +155,7 @@ class _SearchIndexTileState extends State<SearchIndexTile> {
 
   @override
   Widget build(BuildContext context) => SettingTile(
-        icon: Icons.manage_search_rounded,
+        icon: AppIcons.manageSearch,
         title: context.t('fmset.index'),
         subtitle: _subtitle(),
         wrapSubtitle: true,
@@ -182,7 +182,7 @@ class AppFootprintTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SettingTile(
-        icon: Icons.pie_chart_outline_rounded,
+        icon: AppIcons.pieChartOutline,
         title: context.t('foot.title'),
         subtitle: context.t('foot.tile_sub'),
         wrapSubtitle: true,
@@ -225,7 +225,7 @@ class _VolumesTileState extends State<VolumesTile> {
 
   @override
   Widget build(BuildContext context) => SettingTile(
-        icon: Icons.storage_rounded,
+        icon: AppIcons.database,
         title: context.t('fmset.volumes'),
         subtitle: FmEnv.volumes.isEmpty
             ? context.t('fmset.volumes_none')
@@ -306,7 +306,7 @@ class PrivacyPolicyTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SettingTile(
-        icon: Icons.privacy_tip_rounded,
+        icon: AppIcons.privacyTip,
         title: context.t('settings.privacy_policy'),
         subtitle: context.t('settings.privacy_policy_sub'),
         wrapSubtitle: true,
@@ -345,7 +345,7 @@ class _CrashLogTileState extends State<CrashLogTile> {
 
   @override
   Widget build(BuildContext context) => SettingTile(
-        icon: Icons.bug_report_rounded,
+        icon: AppIcons.bugReport,
         title: context.t('settings.crash_log'),
         subtitle: context.t('settings.crash_log_sub'),
         wrapSubtitle: true,
@@ -402,7 +402,7 @@ class _AboutTileState extends State<AboutTile> {
           ),
           // Atıf yükümlülükleri (BSD/MIT/Apache, OFL fontlar, Syncfusion).
           SettingTile(
-            icon: Icons.balance_rounded,
+            icon: AppIcons.balance,
             title: context.t('settings.oss'),
             subtitle: context.t('settings.oss_sub'),
             onTap: () => showOpenSourceLicenses(context),

@@ -28,6 +28,9 @@ import 'folder_picker_screen.dart';
 import '../../core/snack.dart';
 import '../../widgets/motion.dart';
 import '../../core/user_error.dart';
+import '../../core/theme.dart';
+import '../../core/app_colors.dart';
+import '../../widgets/app_dialog.dart';
 
 part 'drive/actions.dart';
 part 'drive/views.dart';
@@ -159,7 +162,7 @@ class _DriveScreenState extends State<DriveScreen> {
             if (_signedIn)
               IconButton(
                 tooltip: context.t('drive.upload_action'),
-                icon: const Icon(Icons.upload_file_rounded),
+                icon: const Icon(AppIcons.uploadFile),
                 onPressed: _busy || _searching ? null : _uploadHere,
               ),
             // Sıralama: tarih sütunu eklendikten sonra "en yeni üstte" istemek
@@ -199,7 +202,7 @@ class _DriveScreenState extends State<DriveScreen> {
             if (_signedIn)
               IconButton(
                 tooltip: context.t('drive.sign_out'),
-                icon: const Icon(Icons.logout_rounded),
+                icon: const Icon(AppIcons.logout),
                 onPressed: _busy ? null : _signOut,
               ),
           ],

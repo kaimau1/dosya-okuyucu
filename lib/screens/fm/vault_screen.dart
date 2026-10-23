@@ -28,6 +28,7 @@ import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_type_chips.dart';
 import 'hidden_files_screen.dart';
 import '../../core/user_error.dart';
+import '../../widgets/app_dialog.dart';
 
 /// **Şifreli kasa** ekranı (bkz. [SecureVault]): kurulum → kilit → içerik.
 ///
@@ -226,7 +227,7 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
               onTap: () => Navigator.pop(ctx, 'restore'),
             ),
             ListTile(
-              leading: Icon(Icons.delete_forever_rounded,
+              leading: Icon(AppIcons.deleteForever,
                   color: Theme.of(ctx).colorScheme.error),
               title: Text(ctx.t('vault.delete')),
               onTap: () => Navigator.pop(ctx, 'delete'),
@@ -247,20 +248,12 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
           if (mounted) showSnack(context, context.t('vault.open_failed', {'error': userErrorText(e)}));
         }
       case 'delete':
-        final ok = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: Text(ctx.t('vault.delete')),
-            content: Text(ctx.t('vault.delete_body', {'name': item.name})),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: Text(ctx.t('common.cancel'))),
-              FilledButton(
-                  onPressed: () => Navigator.pop(ctx, true),
-                  child: Text(ctx.t('vault.delete'))),
-            ],
-          ),
+        final ok = await showAppConfirm(
+            context,
+            title: context.t('vault.delete'),
+            message: context.t('vault.delete_body', {'name': item.name}),
+            confirmLabel: context.t('vault.delete'),
+            destructive: true,
         );
         if (ok == true) await SecureVault.instance.delete(item);
     }
@@ -310,7 +303,7 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
           height: 72,
           decoration: BoxDecoration(
               color: scheme.primaryContainer, shape: BoxShape.circle),
-          child: Icon(Icons.shield_rounded,
+          child: Icon(AppIcons.shield,
               size: 36, color: scheme.onPrimaryContainer),
         ),
         const SizedBox(height: Gap.md),
@@ -365,7 +358,7 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
           const SizedBox(height: Gap.md),
           FilledButton.icon(
             onPressed: _busy ? null : _create,
-            icon: const Icon(Icons.shield_rounded),
+            icon: const Icon(AppIcons.shield),
             label: Text(context.t('vault.create')),
           ),
           const SizedBox(height: Gap.md),
@@ -400,7 +393,7 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
             const SizedBox(height: Gap.sm),
             OutlinedButton.icon(
               onPressed: _unlockBio,
-              icon: const Icon(Icons.fingerprint_rounded),
+              icon: const Icon(AppIcons.fingerprint),
               label: Text(context.t('vault.unlock_bio')),
             ),
           ],
@@ -430,7 +423,7 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
               ),
               if (_canBio)
                 SwitchListTile(
-                  secondary: const Icon(Icons.fingerprint_rounded),
+                  secondary: const Icon(AppIcons.fingerprint),
                   title: Text(context.t('vault.bio_toggle')),
                   value: _bioOn,
                   onChanged: _toggleBio,

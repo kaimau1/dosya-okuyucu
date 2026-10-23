@@ -29,10 +29,10 @@ List<DocMoreItem> pdfEditModeItems(
       DocMoreItem(icon, context.t(key), () => onPick(mode));
   return [
     item(PdfEditMode.text, AppIcons.textFields, 'pdfm.text'),
-    item(PdfEditMode.pen, Icons.draw_rounded, 'pdfm.pen'),
-    item(PdfEditMode.sign, Icons.history_edu_rounded, 'pdfm.sign'),
-    item(PdfEditMode.form, Icons.assignment_rounded, 'pdfm.form'),
-    item(PdfEditMode.pages, Icons.auto_stories_rounded, 'pdfm.pages'),
+    item(PdfEditMode.pen, AppIcons.draw, 'pdfm.pen'),
+    item(PdfEditMode.sign, AppIcons.historyEdu, 'pdfm.sign'),
+    item(PdfEditMode.form, AppIcons.assignment, 'pdfm.form'),
+    item(PdfEditMode.pages, AppIcons.autoStories, 'pdfm.pages'),
     item(PdfEditMode.ai, AppIcons.organize, 'pdfm.ai'),
   ];
 }

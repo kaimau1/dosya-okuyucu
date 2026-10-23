@@ -8,6 +8,7 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import '../services/docx_editor.dart' show RunSeg;
 import 'office_shell.dart' show ZoomBadge, ZoomBadgeController;
+import '../core/app_icons.dart';
 
 /// .docx belgesini **Word'deki sayfa görünümüyle** çizer: sayfa kenarları,
 /// stiller, tablolar, gömülü görseller, sütunlar. Canlı düzenleme modunda
@@ -446,9 +447,9 @@ class DocxViewState extends State<DocxView> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _ZoomBtn(icon: Icons.zoom_in_rounded, onTap: () => _zoomBy(1.25)),
+                _ZoomBtn(icon: AppIcons.zoomIn, onTap: () => _zoomBy(1.25)),
                 const SizedBox(height: 8),
-                _ZoomBtn(icon: Icons.zoom_out_rounded, onTap: () => _zoomBy(1 / 1.25)),
+                _ZoomBtn(icon: AppIcons.zoomOut, onTap: () => _zoomBy(1 / 1.25)),
               ],
             ),
           ),

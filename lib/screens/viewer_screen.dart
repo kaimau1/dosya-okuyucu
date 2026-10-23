@@ -86,6 +86,8 @@ import '../core/user_error.dart';
 import '../core/app_haptics.dart';
 import 'audiobook/audiobook_screen.dart';
 import 'fm/remote/peer_share_screen.dart' show showShareChoice;
+import '../core/app_colors.dart';
+import '../widgets/app_dialog.dart';
 part 'viewer/pending_save.dart';
 part 'viewer/find_replace.dart';
 part 'viewer/doc_actions.dart';

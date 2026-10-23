@@ -490,20 +490,13 @@ extension _DriveScreenActionsPart on _DriveScreenState {
 
   Future<void> _delete(DriveFile file) async {
     final title = context.t('drive.delete_confirm', {'name': file.name});
-    final cancel = context.t('common.cancel');
     final del = context.t('common.delete');
     final failed = context.t('drive.delete_failed');
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        content: Text(title),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false), child: Text(cancel)),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true), child: Text(del)),
-        ],
-      ),
+    final ok = await showAppConfirm(
+        context,
+        message: title,
+        confirmLabel: del,
+        destructive: true,
     );
     if (ok != true) return;
     try {

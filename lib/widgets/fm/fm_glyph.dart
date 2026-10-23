@@ -38,6 +38,7 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../../core/app_colors.dart';
 
 /// Bir dosya/klasör simgesinin çizim reçetesi. Widget'lar bunu [FmGlyph]'e
 /// verir; boyayıcı burada tanımlı alanların dışına çıkmaz.
@@ -235,7 +236,7 @@ class _FmGlyphPainter extends CustomPainter {
     // 1) Sekme — gövdeden bir kademe koyu: arkada durduğu anlaşılsın.
     canvas.drawPath(
       tab,
-      Paint()..color = Color.lerp(spec.color, Colors.black, 0.22)!,
+      Paint()..color = Color.lerp(spec.color, AppColors.mixDark, 0.22)!,
     );
 
     // 2) Kağıt ucu: sekme ile gövde arasından görünen açık şerit. Klasörün
@@ -259,9 +260,9 @@ class _FmGlyphPainter extends CustomPainter {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Color.lerp(spec.color, Colors.white, 0.24)!,
+            Color.lerp(spec.color, AppColors.mixLight, 0.24)!,
             spec.color,
-            Color.lerp(spec.color, Colors.black, 0.12)!,
+            Color.lerp(spec.color, AppColors.mixDark, 0.12)!,
           ],
           stops: const [0, 0.55, 1],
         ).createShader(rect),
@@ -271,10 +272,10 @@ class _FmGlyphPainter extends CustomPainter {
     canvas.drawRRect(
       RRect.fromLTRBR(_l + 0.045, _bodyTop + 0.028, _r - 0.045,
           _bodyTop + 0.052, const Radius.circular(0.012)),
-      Paint()..color = Colors.white.withValues(alpha: 0.32),
+      Paint()..color = AppColors.onMedia.withValues(alpha: 0.32),
     );
 
-    _paintOverlay(canvas, side, Colors.white.withValues(alpha: 0.94),
+    _paintOverlay(canvas, side, AppColors.onMedia.withValues(alpha: 0.94),
         const Offset(0.5, 0.575), 0.34);
   }
 
@@ -328,7 +329,7 @@ class _FmGlyphPainter extends CustomPainter {
       Paint()
         ..color = spec.dark
             ? Color.lerp(spec.color, const Color(0xFF14120E), 0.80)!
-            : Color.lerp(spec.color, Colors.white, 0.92)!,
+            : Color.lerp(spec.color, AppColors.mixLight, 0.92)!,
     );
     canvas.drawPath(
       page,
@@ -384,7 +385,7 @@ class _FmGlyphPainter extends CustomPainter {
         text: TextSpan(
           text: label,
           style: TextStyle(
-            color: Colors.white,
+            color: AppColors.onMedia,
             fontWeight: FontWeight.w800,
             // Uzantı uzadıkça küçülür (3 harf: 0.20 · 4 harf: 0.155).
             fontSize: FmGlyphMetrics.labelFontSize(label, side),
@@ -444,7 +445,7 @@ class _FmGlyphPainter extends CustomPainter {
       Paint()
         ..color = spec.dark
             ? const Color(0xFF14120E)
-            : Colors.white.withValues(alpha: 0.9),
+            : AppColors.onMedia.withValues(alpha: 0.9),
     );
   }
 

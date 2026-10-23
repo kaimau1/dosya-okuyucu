@@ -6,7 +6,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
     return DocPill(
       tapKey: SlidesEditorScreen.badgeKey,
       text: context.t('sl.slide_of', {'n': _currentSlide, 'total': total}),
-      icon: Icons.unfold_more_rounded,
+      icon: AppIcons.unfoldMore,
       onTap: _showGoToSlide,
     );
   }
@@ -192,7 +192,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
                 border: Border.all(color: scheme.outlineVariant),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.10),
+                    color: AppColors.shade.withValues(alpha: 0.10),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -290,7 +290,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
           enabled: structural,
           child: ListTile(
             dense: true,
-            leading: const Icon(Icons.copy_all_rounded),
+            leading: const Icon(AppIcons.copyAll),
             title: Text(context.t('sl.duplicate')),
             contentPadding: EdgeInsets.zero,
           ),
@@ -367,20 +367,12 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
   Future<void> _confirmDeleteSlide(PptxSlide slide) async {
     final editor = _editor;
     if (editor == null) return;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.t('sl.delete')),
-        content: Text(ctx.t('sl.delete_body', {'n': slide.index})),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(ctx.t('common.cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(ctx.t('common.delete'))),
-        ],
-      ),
+    final ok = await showAppConfirm(
+        context,
+        title: context.t('sl.delete'),
+        message: context.t('sl.delete_body', {'n': slide.index}),
+        confirmLabel: context.t('common.delete'),
+        destructive: true,
     );
     if (ok == true && editor.deleteSlide(slide)) {
       _dirty = true;

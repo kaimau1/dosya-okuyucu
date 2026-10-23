@@ -151,7 +151,7 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
       SettingsCategory(
         id: 'appearance',
         color: AppHues.purple,
-        icon: Icons.palette_rounded,
+        icon: AppIcons.palette,
         titleKey: 'set.cat_appearance',
         subtitleKey: 'set.cat_appearance_sub',
         summary: (context) {
@@ -296,7 +296,7 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
       SettingsCategory(
         id: 'reading',
         color: AppHues.sea,
-        icon: Icons.record_voice_over_rounded,
+        icon: AppIcons.voice,
         titleKey: 'set.cat_reading',
         subtitleKey: 'set.cat_reading_sub',
         summary: (context) {
@@ -414,7 +414,7 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
       SettingsCategory(
         id: 'privacy',
         color: AppHues.leaf,
-        icon: Icons.shield_rounded,
+        icon: AppIcons.shield,
         titleKey: 'set.cat_privacy',
         subtitleKey: 'set.cat_privacy_sub',
         summary: (context) {
@@ -472,7 +472,7 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
       SettingsCategory(
         id: 'storage',
         color: AppHues.red,
-        icon: Icons.speed_rounded,
+        icon: AppIcons.speed,
         titleKey: 'set.cat_storage',
         subtitleKey: 'set.cat_storage_sub',
         summary: (context) {
@@ -606,7 +606,7 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
         SettingsCategory(
           id: 'developer',
           color: const Color(0xFF5B6470),
-          icon: Icons.developer_mode_rounded,
+          icon: AppIcons.developerMode,
           titleKey: 'dev.title',
           subtitleKey: 'dev.sub',
           summary: (context) => context.t('dev.on'),

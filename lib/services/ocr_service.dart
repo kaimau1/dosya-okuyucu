@@ -8,6 +8,7 @@ import 'package:pdfrx/pdfrx.dart';
 
 import '../core/l10n/app_strings.dart';
 import 'pdf/ocr_page_text.dart' show OcrWordBox;
+import '../core/app_colors.dart';
 
 /// Cihaz-içi OCR (Google ML Kit, Latin alfabesi — Türkçe karakterler dahil).
 ///
@@ -246,7 +247,7 @@ class OcrService {
     final img = await page.render(
       fullWidth: page.width * scale,
       fullHeight: page.height * scale,
-      backgroundColor: const ui.Color(0xFFFFFFFF),
+      backgroundColor: AppColors.page,
     );
     if (img == null) return null;
     try {

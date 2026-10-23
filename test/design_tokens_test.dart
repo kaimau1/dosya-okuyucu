@@ -115,6 +115,19 @@ void main() {
             'TextTheme rolleri, Motion. (bkz. test/design_tokens_test.dart)');
   });
 
+  test('ham simge ve Colors.* hiçbir dosyada yok (Faz 15b — sıfıra indi)', () {
+    // 2026-10-23: 547 ham `Icons.*` ve 98 `Colors.*` taşındı. Artık tavan
+    // değil KURAL: yeni simge `AppIcons`a, yeni renk `AppColors`/`AppHues`a
+    // adıyla eklenir.
+    final offenders = <String>[];
+    _measure().forEach((path, c) {
+      for (final k in const ['icons', 'glyph_family', 'material_colors']) {
+        if ((c[k] ?? 0) > 0) offenders.add('$path $k: ${c[k]}');
+      }
+    });
+    expect(offenders, isEmpty);
+  });
+
   test('toplam sayımlar raporu (Faz 15 / §3.14.3)', () {
     final totals = <String, int>{};
     for (final c in _measure().values) {

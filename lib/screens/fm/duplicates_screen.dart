@@ -245,7 +245,7 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
               ),
             )
           : _groups.isEmpty
-              ? FmEmptyState(icon: Icons.verified_rounded, title: context.t('dup.none'))
+              ? FmEmptyState(icon: AppIcons.verified, title: context.t('dup.none'))
               : Column(
                   children: [
                     Padding(

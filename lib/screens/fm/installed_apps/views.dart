@@ -45,7 +45,7 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
           const SizedBox(width: Gap.sm),
           Expanded(
             child: _StatBox(
-              icon: Icons.bedtime_rounded,
+              icon: AppIcons.bedtime,
               color: unused > 0 ? AppHues.orange : scheme.primary,
               value: '$unused',
               label: unusedBytes > 0
@@ -73,7 +73,7 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.query_stats_rounded),
+                    const Icon(AppIcons.queryStats),
                     const SizedBox(width: Gap.sm),
                     Expanded(
                       child: Text(context.t('apps.usage_needed'),
@@ -162,7 +162,7 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
           IconButton(
             tooltip: context.t('apps.storage_settings'),
             visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.cleaning_services_outlined, size: 20),
+            icon: const Icon(AppIcons.cleanEmpty, size: 20),
             onPressed: () =>
                 AppStorageService.openAppStorageSettings(app.packageName),
           ),
@@ -265,7 +265,7 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
               onTap: () => Navigator.pop(ctx, 'settings'),
             ),
             ListTile(
-              leading: const Icon(Icons.cleaning_services_outlined),
+              leading: const Icon(AppIcons.cleanEmpty),
               title: Text(context.t('apps.storage_settings')),
               onTap: () => Navigator.pop(ctx, 'storage'),
             ),

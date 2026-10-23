@@ -288,20 +288,12 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
       showSnackOn(messenger, strings.t('fm.empty_none'));
       return;
     }
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.t('fm.empty_folders')),
-        content: Text(strings.t('fm.empty_found', {'n': found.length})),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(ctx.t('common.cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(ctx.t('common.delete'))),
-        ],
-      ),
+    final confirm = await showAppConfirm(
+        context,
+        title: context.t('fm.empty_folders'),
+        message: strings.t('fm.empty_found', {'n': found.length}),
+        confirmLabel: context.t('common.delete'),
+        destructive: true,
     );
     if (confirm != true) return;
     final deleted = await EmptyFolders.deleteAll(found);
@@ -442,33 +434,15 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
   }
 
   Future<String?> _askName(String title, String label, String initial) async {
-    final controller = TextEditingController(text: initial);
     final dot = initial.lastIndexOf('.');
-    controller.selection = TextSelection(
-        baseOffset: 0, extentOffset: dot > 0 ? dot : initial.length);
-    final value = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(labelText: label),
-          onSubmitted: (v) => Navigator.pop(ctx, v),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: Text(context.t('common.cancel'))),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
-            child: Text(context.t('fm.create')),
-          ),
-        ],
-      ),
+    return showAppPrompt(
+      context,
+      title: title,
+      label: label,
+      initial: initial,
+      selectEnd: dot > 0 ? dot : initial.length,
+      confirmLabel: context.t('fm.create'),
     );
-    controller.dispose();
-    final trimmed = value?.trim();
-    return (trimmed == null || trimmed.isEmpty) ? null : trimmed;
   }
 
   void _snack(String message) {

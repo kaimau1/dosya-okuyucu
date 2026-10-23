@@ -79,7 +79,7 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
       onTranslate: _translateSelection,
       moreItems: [
         PdfBarMenuItem(
-          icon: Icons.format_color_reset_rounded,
+          icon: AppIcons.formatColorReset,
           label: context.t('vw.highlight_remove'),
           onTap: _removeHighlight,
         ),
@@ -238,20 +238,11 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
     }
     final url = link.url;
     if (url == null) return;
-    final go = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(context.t('vw.link_title')),
-        content: Text(context.t('vw.link_body', {'url': url})),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(context.t('common.cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(context.t('common.open'))),
-        ],
-      ),
+    final go = await showAppConfirm(
+        context,
+        title: context.t('vw.link_title'),
+        message: context.t('vw.link_body', {'url': url}),
+        confirmLabel: context.t('common.open'),
     );
     if (go != true) return;
     try {
@@ -370,7 +361,7 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
         child: Material(
           color: scheme.surfaceContainerHigh,
           elevation: 4,
-          shadowColor: Colors.black26,
+          shadowColor: AppColors.barrier,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
             side: BorderSide(color: scheme.outlineVariant),
@@ -423,7 +414,7 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
                     ),
                     IconButton(
                       tooltip: context.t('common.stop'),
-                      icon: const Icon(Icons.stop_rounded),
+                      icon: const Icon(AppIcons.stop),
                       onPressed: _stopSpeech,
                     ),
                   ],

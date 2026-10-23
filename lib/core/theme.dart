@@ -722,3 +722,50 @@ class OverlayBar {
         shadows: const [Shadow(color: Color(0xCC000000), blurRadius: 6)],
       );
 }
+
+/// **Arayüz yazı ölçeği** (Faz 15b / madde 3, 2026-10-23) — ekran kodunda
+/// sabit `fontSize:` yerine.
+///
+/// Boylar temanın `TextTheme`inden okunur ([caption] = `labelSmall`,
+/// [small] = `bodySmall`, [body] = `bodyMedium`, [large] = `bodyLarge`);
+/// Material'de karşılığı olmayan üç ara boy ([micro], [compact], [heading])
+/// komşu rolden türetilir. Böylece yazı ölçeği tek yerden değişir.
+///
+/// Dönen stil **yalnız boy taşır** — renk, aile ve kalınlık çevredeki
+/// `DefaultTextStyle`tan gelir. Bilerek: `textTheme.bodySmall` rengini de
+/// getirir; dolu düğmenin, medya perdesinin ya da çipin içindeki beyaz
+/// yazıyı koyuya çevirirdi (taşıma sırasında görünüm birebir korunsun diye).
+/// Gerisi `copyWith` ile: `context.type.small.copyWith(color: faint)`.
+class AppType {
+  const AppType(this._t);
+  final TextTheme _t;
+
+  TextStyle _size(double? s, double fallback) =>
+      TextStyle(fontSize: s ?? fallback);
+
+  /// 10 — rozet, sayaç (labelSmall − 1).
+  TextStyle get micro => _size((_t.labelSmall?.fontSize ?? 11) - 1, 10);
+
+  /// 11 — dipnot, ikincil etiket (labelSmall).
+  TextStyle get caption => _size(_t.labelSmall?.fontSize, 11);
+
+  /// 12 — alt satır, açıklama (bodySmall).
+  TextStyle get small => _size(_t.bodySmall?.fontSize, 12);
+
+  /// 13 — sık satır gövdesi (bodySmall + 1).
+  TextStyle get compact => _size((_t.bodySmall?.fontSize ?? 12) + 1, 13);
+
+  /// 14 — gövde (bodyMedium).
+  TextStyle get body => _size(_t.bodyMedium?.fontSize, 14);
+
+  /// 16 — vurgulu gövde (bodyLarge).
+  TextStyle get large => _size(_t.bodyLarge?.fontSize, 16);
+
+  /// 18 — kart/boş durum başlığı (bodyLarge + 2).
+  TextStyle get heading => _size((_t.bodyLarge?.fontSize ?? 16) + 2, 18);
+}
+
+extension AppTypeContext on BuildContext {
+  /// Arayüz yazı ölçeği — bkz. [AppType].
+  AppType get type => AppType(Theme.of(this).textTheme);
+}

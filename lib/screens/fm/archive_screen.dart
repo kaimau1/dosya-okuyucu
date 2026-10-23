@@ -240,7 +240,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                     const Divider(height: 1),
                     Expanded(
                       child: items.isEmpty
-                          ? FmEmptyState(icon: Icons.search_off_rounded, title: context.t('arc.no_match'))
+                          ? FmEmptyState(icon: AppIcons.searchOff, title: context.t('arc.no_match'))
                           : ListView.builder(
                               padding: withNavInset(
                                   context, const EdgeInsets.only(bottom: 96)),

@@ -98,9 +98,10 @@ Future<T?> showAppSheet<T>(
 }
 
 /// Tek satırlık metin sorusu (ad ver, yeniden adlandır…). Vazgeçme, boş ya
-/// da yalnız boşluk yanıt `null` döner. Denetleyiciyi pencerenin kendi
-/// durumu tutar: `await` sonrası elle `dispose` kapanış animasyonu sürerken
-/// alanı çökertir ("used after being disposed").
+/// da yalnız boşluk yanıt `null` döner; yanıt kırpılmış gelir.
+/// Denetleyiciyi pencerenin kendi durumu tutar: `await` sonrası elle
+/// `dispose` kapanış animasyonu sürerken alanı çökertir ("used after being
+/// disposed") — elle kurulan eski pencerelerin ortak hatası.
 Future<String?> showAppPrompt(
   BuildContext context, {
   String? title,
@@ -108,6 +109,7 @@ Future<String?> showAppPrompt(
   String initial = '',
   String? confirmLabel,
   int? maxLength,
+  int? selectEnd,
 }) async {
   final text = await showDialog<String>(
     context: context,
@@ -117,6 +119,7 @@ Future<String?> showAppPrompt(
       initial: initial,
       confirmLabel: confirmLabel,
       maxLength: maxLength,
+      selectEnd: selectEnd,
     ),
   );
   final clean = text?.trim();
@@ -130,11 +133,15 @@ class _PromptDialog extends StatefulWidget {
     required this.initial,
     this.confirmLabel,
     this.maxLength,
+    this.selectEnd,
   });
 
   final String? title, label, confirmLabel;
   final String initial;
   final int? maxLength;
+
+  /// Seçimin sonu (ad değiştirirken uzantı seçilmesin); null = tümü.
+  final int? selectEnd;
 
   @override
   State<_PromptDialog> createState() => _PromptDialogState();
@@ -142,8 +149,10 @@ class _PromptDialog extends StatefulWidget {
 
 class _PromptDialogState extends State<_PromptDialog> {
   late final _controller = TextEditingController(text: widget.initial)
-    ..selection =
-        TextSelection(baseOffset: 0, extentOffset: widget.initial.length);
+    ..selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: (widget.selectEnd ?? widget.initial.length)
+            .clamp(0, widget.initial.length));
 
   @override
   void dispose() {

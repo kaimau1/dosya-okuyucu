@@ -21,6 +21,7 @@ import '../settings_screen.dart';
 import '../../core/snack.dart';
 import '../../widgets/motion.dart';
 import '../../core/user_error.dart';
+import '../../widgets/app_dialog.dart';
 
 /// Geri Dönüşüm Kutusu: silinen dosyaları geri yükle ya da kalıcı sil.
 class TrashScreen extends StatefulWidget {
@@ -90,20 +91,12 @@ class _TrashScreenState extends State<TrashScreen> {
   }
 
   Future<void> _delete(TrashItem item) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(context.t('fm.delete_permanent_title')),
-        content: Text(context.t('trash.delete_one_body', {'name': item.name})),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(context.t('common.cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(context.t('common.delete'))),
-        ],
-      ),
+    final ok = await showAppConfirm(
+        context,
+        title: context.t('fm.delete_permanent_title'),
+        message: context.t('trash.delete_one_body', {'name': item.name}),
+        confirmLabel: context.t('common.delete'),
+        destructive: true,
     );
     if (ok != true) return;
     await FmEnv.trash.deleteForever(item);
@@ -121,21 +114,13 @@ class _TrashScreenState extends State<TrashScreen> {
   Future<void> _empty() async {
     final count = _items.length;
     final total = _items.fold<int>(0, (sum, i) => sum + i.sizeBytes);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(context.t('trash.empty_confirm_title')),
-        content: Text(ctx.t('tr.delete_body',
-            {'n': count, 'size': FsPaths.humanSize(total)})),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(context.t('common.cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(context.t('trash.empty_action'))),
-        ],
-      ),
+    final ok = await showAppConfirm(
+        context,
+        title: context.t('trash.empty_confirm_title'),
+        message: context.t('tr.delete_body',
+            {'n': count, 'size': FsPaths.humanSize(total)}),
+        confirmLabel: context.t('trash.empty_action'),
+        destructive: true,
     );
     if (ok != true || !mounted) return;
     // Pencere "Arka plana al" ile kapatılabildiği için kullanıcı bu ekrandan
@@ -313,14 +298,14 @@ class _TrashScreenState extends State<TrashScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 _rowAction(
-                                  Icons.restore_rounded,
+                                  AppIcons.restore,
                                   context.t('trash.restore'),
                                   Paper.success(context),
                                   () => _restore(item),
                                 ),
                                 const SizedBox(width: Gap.xs),
                                 _rowAction(
-                                  Icons.delete_forever_rounded,
+                                  AppIcons.deleteForever,
                                   context.t('trash.delete_forever'),
                                   Theme.of(context).colorScheme.error,
                                   () => _delete(item),
@@ -351,7 +336,7 @@ class _TrashScreenState extends State<TrashScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.delete_sweep_rounded, size: 20),
+              const Icon(AppIcons.deleteSweep, size: 20),
               const SizedBox(width: Gap.sm),
               Expanded(
                 child: Text(_query.trim().isEmpty && _types.isEmpty
@@ -369,7 +354,7 @@ class _TrashScreenState extends State<TrashScreen> {
           const SizedBox(height: Gap.xs),
           Row(
             children: [
-              Icon(Icons.schedule_rounded, size: 14, color: Paper.faint(context)),
+              Icon(AppIcons.schedule, size: 14, color: Paper.faint(context)),
               const SizedBox(width: Gap.xs),
               Expanded(
                 child: Text(
@@ -377,7 +362,7 @@ class _TrashScreenState extends State<TrashScreen> {
                       ? context.t('trash.auto_days', {'n': days})
                       : context.t('trash.auto_off'),
                   style:
-                      TextStyle(fontSize: 12, color: Paper.faint(context)),
+                      context.type.small.copyWith(color: Paper.faint(context)),
                 ),
               ),
               if (days <= 0)
@@ -394,7 +379,7 @@ class _TrashScreenState extends State<TrashScreen> {
               alignment: AlignmentDirectional.centerStart,
               child: OutlinedButton.icon(
                 onPressed: _restoreAll,
-                icon: const Icon(Icons.restore_rounded, size: 18),
+                icon: const Icon(AppIcons.restore, size: 18),
                 label: Text(context.t('trash.restore_all')),
               ),
             ),

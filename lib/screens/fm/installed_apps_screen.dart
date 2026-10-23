@@ -343,7 +343,7 @@ class _AppIcon extends StatelessWidget {
                 color: scheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(Radii.control),
               ),
-              child: const Icon(Icons.android_rounded),
+              child: const Icon(AppIcons.android),
             ),
     );
   }

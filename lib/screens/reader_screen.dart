@@ -12,6 +12,8 @@ import '../services/tts_service.dart';
 import '../widgets/tts_voice_sheet.dart';
 import '../core/snack.dart';
 import '../core/safe_insets.dart';
+import '../core/theme.dart';
+import '../core/app_colors.dart';
 
 /// **Okuma görünümü** — PDF'i (taranmış olsa bile) bir e-kitap gibi sunar
 /// (2026-08-06 kullanıcı isteği: *"tarandıktan sonra PDF'i okutmak
@@ -171,7 +173,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
   }
 
   (Color bg, Color fg) get _colors => switch (_theme) {
-        _ReaderTheme.light => (Colors.white, const Color(0xFF1F1F1F)),
+        _ReaderTheme.light => (AppColors.page, const Color(0xFF1F1F1F)),
         _ReaderTheme.sepia =>
           (const Color(0xFFF6EFDF), const Color(0xFF453A28)),
         _ReaderTheme.dark =>
@@ -195,13 +197,13 @@ class _ReaderScreenState extends State<ReaderScreen> {
           IconButton(
             tooltip: context.t('vw.speak'),
             icon: Icon(_speaking
-                ? Icons.pause_circle_outline_rounded
-                : Icons.headphones_rounded),
+                ? AppIcons.pauseCircleOutline
+                : AppIcons.audiobook),
             onPressed: _toggleSpeech,
           ),
           IconButton(
             tooltip: context.t('vw.text_smaller'),
-            icon: const Icon(Icons.text_decrease_rounded),
+            icon: const Icon(AppIcons.textDecrease),
             onPressed: _fontSize <= _minFont
                 ? null
                 : () => setState(() => _fontSize =
@@ -209,7 +211,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
           ),
           IconButton(
             tooltip: context.t('vw.text_bigger'),
-            icon: const Icon(Icons.text_increase_rounded),
+            icon: const Icon(AppIcons.textIncrease),
             onPressed: _fontSize >= _maxFont
                 ? null
                 : () => setState(() => _fontSize =
@@ -217,7 +219,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
           ),
           PopupMenuButton<_ReaderTheme>(
             tooltip: context.t('reader.theme'),
-            icon: const Icon(Icons.palette_rounded),
+            icon: const Icon(AppIcons.palette),
             onSelected: (t) => setState(() => _theme = t),
             itemBuilder: (_) => [
               _themeItem(_ReaderTheme.light, context.t('reader.theme_light')),
@@ -234,7 +236,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
               PopupMenuItem(
                 value: 'voice',
                 child: Row(children: [
-                  const Icon(Icons.record_voice_over_rounded, size: 18),
+                  const Icon(AppIcons.voice, size: 18),
                   const SizedBox(width: 8),
                   Text(context.t('tts.voice_settings')),
                 ]),
@@ -263,12 +265,12 @@ class _ReaderScreenState extends State<ReaderScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.graphic_eq_rounded, size: 16, color: fg),
+                    Icon(AppIcons.graphicEq, size: 16, color: fg),
                     const SizedBox(width: 8),
                     Text(
                       '${context.t('tf.page_header', {'n': _speakPage})}'
                       '${(_tts?.total ?? 0) > 0 ? '  ·  ${(_tts!.index) + 1} / ${_tts!.total}' : ''}',
-                      style: TextStyle(color: fg, fontSize: 13),
+                      style: context.type.compact.copyWith(color: fg),
                     ),
                   ],
                 ),
@@ -321,8 +323,9 @@ class _ReaderScreenState extends State<ReaderScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Text(
               context.t('tf.page_header', {'n': pageNumber}),
-              style: TextStyle(
-                  color: fg.withValues(alpha: 0.55), fontSize: 12),
+              style: context.type.small.copyWith(
+                  color: fg.withValues(alpha: 0.55),
+                ),
             ),
           ),
           Expanded(child: Divider(color: fg.withValues(alpha: 0.25))),

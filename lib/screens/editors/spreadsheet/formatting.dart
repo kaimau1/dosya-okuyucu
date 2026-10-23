@@ -176,7 +176,7 @@ extension _SpreadsheetEditorScreenFormattingPart on _SpreadsheetEditorScreenStat
             ),
             TextButton.icon(
               onPressed: () => Navigator.pop(ctx, 'none'),
-              icon: const Icon(Icons.format_color_reset_rounded),
+              icon: const Icon(AppIcons.formatColorReset),
               label: Text(ctx.t('excel.color_none')),
             ),
             const SizedBox(height: 8),

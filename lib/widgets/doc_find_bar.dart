@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
+import '../core/theme.dart';
 
 /// Belge ekranlarının **ortak arama çubuğu** (PDF/metin, Word, Slayt, Excel).
 ///
@@ -110,8 +111,7 @@ class DocFindBar extends StatelessWidget {
                             ),
                             child: Text(
                               countLabel,
-                              style: TextStyle(
-                                fontSize: 12,
+                              style: context.type.small.copyWith(
                                 fontWeight: FontWeight.w600,
                                 color: scheme.onSurfaceVariant,
                                 fontFeatures: const [
@@ -129,13 +129,13 @@ class DocFindBar extends StatelessWidget {
             IconButton(
               tooltip: context.t('common.previous'),
               visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.keyboard_arrow_up_rounded),
+              icon: const Icon(AppIcons.keyboardArrowUp),
               onPressed: onPrev,
             ),
             IconButton(
               tooltip: context.t('common.next'),
               visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.keyboard_arrow_down_rounded),
+              icon: const Icon(AppIcons.keyboardArrowDown),
               onPressed: onNext,
             ),
             ...trailing,

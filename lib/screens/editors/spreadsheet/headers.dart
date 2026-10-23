@@ -53,7 +53,7 @@ extension _SpreadsheetEditorScreenHeadersPart on _SpreadsheetEditorScreenState {
                         onTap: () => _showColumnFilter(sheet, c),
                         child: Icon(
                           sheet.isColFiltered(c)
-                              ? Icons.filter_alt_rounded
+                              ? AppIcons.filterAlt
                               : AppIcons.dropDown,
                           size: 12 * _zoom,
                         ),

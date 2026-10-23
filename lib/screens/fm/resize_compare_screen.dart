@@ -20,6 +20,7 @@ import '../../services/fm/thumbnail_cache.dart';
 import '../../widgets/fm/fm_file_image.dart';
 import '../../widgets/motion.dart';
 import '../../core/safe_insets.dart';
+import '../../widgets/app_dialog.dart';
 
 /// Boyut düşürme sonucu: bir (eski → yeni) çifti.
 class ResizePair {
@@ -126,20 +127,11 @@ class _ResizeCompareScreenState extends State<ResizeCompareScreen> {
   Future<void> _trashAllOld() async {
     final targets = [for (final i in _items) if (!i.oldGone && !i.newGone) i];
     if (targets.isEmpty) return;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.t('rc.trash_all_old')),
-        content: Text(ctx.t('rc.confirm_all', {'n': targets.length})),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(ctx.t('pd.cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(ctx.t('rc.trash_all_old'))),
-        ],
-      ),
+    final ok = await showAppConfirm(
+        context,
+        title: context.t('rc.trash_all_old'),
+        message: context.t('rc.confirm_all', {'n': targets.length}),
+        confirmLabel: context.t('rc.trash_all_old'),
     );
     if (ok != true || !mounted) return;
     for (final item in targets) {
@@ -175,14 +167,14 @@ class _ResizeCompareScreenState extends State<ResizeCompareScreen> {
               child: Text(
                 '${_items.isEmpty ? 0 : _page + 1} / ${_items.length}'
                 ' · ${context.t('ra.saved_bytes', {'size': FsPaths.humanSize(saved)})}',
-                style: TextStyle(fontSize: 12, color: Paper.faint(context)),
+                style: context.type.small.copyWith(color: Paper.faint(context)),
               ),
             ),
           ),
         ),
       ),
       body: _items.isEmpty
-          ? FmEmptyState(icon: Icons.compare_rounded, title: context.t('rc.empty'))
+          ? FmEmptyState(icon: AppIcons.compare, title: context.t('rc.empty'))
           : PageView.builder(
               controller: _controller,
               itemCount: _items.length,
@@ -202,7 +194,7 @@ class _ResizeCompareScreenState extends State<ResizeCompareScreen> {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        icon: const Icon(Icons.delete_sweep_rounded),
+                        icon: const Icon(AppIcons.deleteSweep),
                         label: Text(context.t('rc.trash_all_old')),
                         onPressed: _trashAllOld,
                       ),
@@ -326,7 +318,7 @@ class _Note extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.symmetric(vertical: Gap.sm),
         child: Text(text,
-            style: TextStyle(fontSize: 12, color: Paper.faint(context))),
+            style: context.type.small.copyWith(color: Paper.faint(context))),
       );
 }
 
@@ -343,7 +335,7 @@ class _SingleImage extends StatelessWidget {
             image: FmFileImage(path, cacheWidth: 1200),
             fit: BoxFit.contain,
             errorBuilder: (_, __, ___) =>
-                const Center(child: Icon(Icons.broken_image_rounded)),
+                const Center(child: Icon(AppIcons.brokenImage)),
           ),
         ),
       );
@@ -369,7 +361,7 @@ class _BeforeAfterState extends State<_BeforeAfter> {
         width: double.infinity,
         height: double.infinity,
         errorBuilder: (_, __, ___) =>
-            const Center(child: Icon(Icons.broken_image_rounded)),
+            const Center(child: Icon(AppIcons.brokenImage)),
       );
 
   @override
@@ -414,7 +406,7 @@ class _BeforeAfterState extends State<_BeforeAfter> {
                         color: scheme.primary,
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(Icons.swap_horiz_rounded,
+                      child: Icon(AppIcons.swapHoriz,
                           size: 20, color: scheme.onPrimary),
                     ),
                   ),
@@ -451,11 +443,11 @@ class _Tag extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
-          color: Colors.black54,
+          color: AppColors.mediaScrim,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(text,
-            style: const TextStyle(color: AppColors.onMedia, fontSize: 11)),
+            style: context.type.caption.copyWith(color: AppColors.onMedia)),
       );
 }
 
@@ -478,7 +470,7 @@ class _VideoSideBySide extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    Container(color: Colors.black26),
+                    Container(color: AppColors.barrier),
                     if (!gone)
                       FutureBuilder<String?>(
                         future: ThumbnailCache.forVideo(path, size: 480),
@@ -488,7 +480,7 @@ class _VideoSideBySide extends StatelessWidget {
                       ),
                     Center(
                       child: Icon(
-                          gone ? AppIcons.delete : Icons.play_circle_fill_rounded,
+                          gone ? AppIcons.delete : AppIcons.playCircleFill,
                           size: 44,
                           color: AppColors.onMediaSoft),
                     ),

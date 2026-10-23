@@ -396,31 +396,11 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
   Future<void> _rename() async {
     await _flush();
     if (!mounted) return;
-    final controller =
-        TextEditingController(text: p.basenameWithoutExtension(_pdfPath));
-    final name = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.t('scr.rename')),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          textInputAction: TextInputAction.done,
-          onSubmitted: (v) => Navigator.pop(ctx, v),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(ctx.t('common.cancel')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
-            child: Text(ctx.t('common.ok')),
-          ),
-        ],
-      ),
+    final name = await showAppPrompt(
+        context,
+        title: context.t('scr.rename'),
+        initial: p.basenameWithoutExtension(_pdfPath),
     );
-    controller.dispose();
     final clean = name?.trim();
     if (clean == null || clean.isEmpty || !mounted) return;
     try {

@@ -36,6 +36,7 @@ import 'similar_screen.dart';
 import '../../core/snack.dart';
 
 import '../../core/app_haptics.dart';
+import '../../widgets/app_dialog.dart';
 part 'photos/data.dart';
 part 'photos/toolbar.dart';
 part 'photos/grid.dart';
@@ -419,9 +420,9 @@ class _PhotosScreenState extends State<PhotosScreen>
 
   static IconData _columnsIcon(int columns) => switch (columns) {
         2 => AppIcons.layoutGrid,
-        3 => Icons.grid_on_rounded,
+        3 => AppIcons.gridOn,
         4 => AppIcons.openWith,
-        _ => Icons.view_comfy_rounded,
+        _ => AppIcons.viewComfy,
       };
 
   // ── Izgara ────────────────────────────────────────────────────────────────

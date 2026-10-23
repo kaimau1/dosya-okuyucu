@@ -25,6 +25,7 @@ import '../folder_picker_screen.dart';
 import 'qr_file_share_screen.dart';
 import '../../../core/safe_insets.dart';
 import '../../../core/user_error.dart';
+import '../../../widgets/app_dialog.dart';
 
 /// **Yakındaki cihaz** — iki Dosya Okuyucu arasında doğrudan dosya aktarımı.
 ///
@@ -422,30 +423,12 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
 
   Future<void> _editDeviceName() async {
     final appState = context.read<AppState>();
-    final controller = TextEditingController(text: appState.peerName);
-    final name = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.t('peer.device_name')),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          textInputAction: TextInputAction.done,
-          onSubmitted: (v) => Navigator.pop(ctx, v),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(ctx.t('common.cancel')),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
-            child: Text(ctx.t('common.save')),
-          ),
-        ],
-      ),
+    final name = await showAppPrompt(
+        context,
+        title: context.t('peer.device_name'),
+        initial: appState.peerName,
+        confirmLabel: context.t('common.save'),
     );
-    controller.dispose();
     if (name == null || !mounted) return;
     await appState.setPeerName(name);
     if (!mounted) return;
@@ -467,7 +450,7 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
               segments: [
                 ButtonSegment(
                   value: true,
-                  icon: const Icon(Icons.upload_rounded),
+                  icon: const Icon(AppIcons.uploadArrow),
                   label: Text(context.t('peer.tab_send')),
                 ),
                 ButtonSegment(
@@ -548,7 +531,7 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
               leading: const Icon(AppIcons.device),
               title: Text(peer.name),
               subtitle: Text('${peer.host}:${peer.port}'),
-              trailing: Icon(peer.needsCode ? Icons.password_rounded : AppIcons.send),
+              trailing: Icon(peer.needsCode ? AppIcons.password : AppIcons.send),
               onTap: (_files.isEmpty && _folders.isEmpty)
                   ? null
                   : () => _sendTo(peer),
@@ -648,7 +631,7 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
         Row(
           children: [
             Icon(
-              running ? Icons.wifi_tethering_rounded : Icons.wifi_tethering_off_rounded,
+              running ? AppIcons.hotspot : AppIcons.wifiTetheringOff,
               color: running ? scheme.primary : scheme.onSurfaceVariant,
             ),
             const SizedBox(width: Gap.sm),
@@ -692,7 +675,7 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
         const SizedBox(height: Gap.sm),
         ListTile(
           contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.badge_rounded),
+          leading: const Icon(AppIcons.badge),
           title: Text(context.t('peer.this_device', {'name': _deviceName})),
           trailing: const Icon(AppIcons.edit),
           onTap: _editDeviceName,
@@ -708,7 +691,7 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
         // gönderebilmesi ev ağında sorun değil ama yurtta/ofiste değil.
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          secondary: const Icon(Icons.password_rounded),
+          secondary: const Icon(AppIcons.password),
           title: Text(context.t('peer.code_on')),
           value: _requireCode,
           onChanged: (value) async {
@@ -749,7 +732,7 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
         for (final (path, from) in _received)
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.insert_drive_file_rounded),
+            leading: const Icon(AppIcons.insertDriveFile),
             title: Text(p.basename(path)),
             subtitle: Text(context.t(
               'peer.received_from',
@@ -800,13 +783,13 @@ Future<bool> showShareChoice(BuildContext context, List<String> paths) async {
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
-            leading: const Icon(Icons.wifi_tethering_rounded),
+            leading: const Icon(AppIcons.hotspot),
             title: Text(ctx.t('peer.send_action')),
             subtitle: Text(ctx.t('peer.send_hint')),
             onTap: () => Navigator.pop(ctx, 'peer'),
           ),
           ListTile(
-            leading: const Icon(Icons.ios_share_rounded),
+            leading: const Icon(AppIcons.iosShare),
             title: Text(ctx.t('common.share')),
             subtitle: Text(ctx.t('peer.other_apps')),
             onTap: () => Navigator.pop(ctx, 'system'),

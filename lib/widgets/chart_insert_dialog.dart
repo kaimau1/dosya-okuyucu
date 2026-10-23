@@ -4,6 +4,8 @@ import '../core/l10n/app_strings.dart';
 import '../services/pptx_render.dart' show ChartSeries, ChartType, ChartVM;
 import '../services/xlsx_chart.dart';
 import 'chart_painter.dart';
+import '../core/app_icons.dart';
+import '../core/app_colors.dart';
 
 /// Excel'de **grafik ekle** penceresi (Faz 9 / Y2): tür seçimi + başlık +
 /// CANLI önizleme. Önizleme slayt grafiklerini çizen [ChartPainter] ile
@@ -69,10 +71,10 @@ class _ChartInsertDialogState extends State<_ChartInsertDialog> {
   }
 
   static const _kinds = [
-    (XlsxChartKind.column, Icons.bar_chart_rounded, 'chart.column'),
-    (XlsxChartKind.bar, Icons.align_horizontal_left_rounded, 'chart.bar'),
-    (XlsxChartKind.line, Icons.show_chart_rounded, 'chart.line'),
-    (XlsxChartKind.pie, Icons.pie_chart_outline_rounded, 'chart.pie'),
+    (XlsxChartKind.column, AppIcons.barChart, 'chart.column'),
+    (XlsxChartKind.bar, AppIcons.alignHorizontalLeft, 'chart.bar'),
+    (XlsxChartKind.line, AppIcons.showChart, 'chart.line'),
+    (XlsxChartKind.pie, AppIcons.pieChartOutline, 'chart.pie'),
   ];
 
   @override
@@ -116,7 +118,7 @@ class _ChartInsertDialogState extends State<_ChartInsertDialog> {
                 height: 200,
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.page,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: scheme.outlineVariant),
                 ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../core/l10n/app_strings.dart';
 import '../services/pptx_render.dart';
+import '../core/app_colors.dart';
 
 /// [ChartVM]'i çizer: sütun/çubuk/pasta/çizgi + lejant. Veri, seri renkleri ve
 /// kategoriler PowerPoint'le aynıdır; eksen/lejant stili sadeleştirilmiştir
@@ -124,7 +125,7 @@ class ChartPainter extends CustomPainter {
     final c = area.center;
     final inner = chart.doughnut ? r * 0.55 : 0.0;
     final edge = Paint()
-      ..color = Colors.white
+      ..color = AppColors.page
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
     var start = -math.pi / 2;

@@ -128,7 +128,7 @@ class _RunningBarState extends State<_RunningBar> {
                   ),
                   IconButton(
                     tooltip: context.t('jb.title'),
-                    icon: const Icon(Icons.list_alt_rounded, size: 20),
+                    icon: const Icon(AppIcons.listAlt, size: 20),
                     onPressed: () => openJobsScreen(context),
                   ),
                   TextButton(

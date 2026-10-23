@@ -15,88 +15,88 @@ typedef NavTabSpec = ({IconData icon, IconData selected, String label});
 /// ama çubuk boş simgeyle çizilmesin).
 NavTabSpec navTabSpec(BuildContext context, String id) => switch (id) {
       'downloads' => (
-          icon: Icons.download_outlined,
+          icon: AppIcons.download,
           selected: AppIcons.download,
           label: context.t('fm.downloads'),
         ),
       'new' => (
-          icon: Icons.move_to_inbox_outlined,
-          selected: Icons.move_to_inbox_rounded,
+          icon: AppIcons.moveToInbox,
+          selected: AppIcons.moveToInbox,
           label: context.t('fm.new_files'),
         ),
       'image' => (
-          icon: Icons.image_outlined,
+          icon: AppIcons.image,
           selected: AppIcons.image,
           label: FmCategory.image.label,
         ),
       'video' => (
-          icon: Icons.movie_outlined,
+          icon: AppIcons.video,
           selected: AppIcons.video,
           label: FmCategory.video.label,
         ),
       'document' => (
-          icon: Icons.description_outlined,
+          icon: AppIcons.newWord,
           selected: AppIcons.newWord,
           label: FmCategory.document.label,
         ),
       'audio' => (
-          icon: Icons.music_note_outlined,
+          icon: AppIcons.audio,
           selected: AppIcons.audio,
           label: FmCategory.audio.label,
         ),
       'archive' => (
-          icon: Icons.folder_zip_outlined,
+          icon: AppIcons.archiveView,
           selected: AppIcons.archiveView,
           label: FmCategory.archive.label,
         ),
       'apk' => (
-          icon: Icons.install_mobile_outlined,
-          selected: Icons.install_mobile_rounded,
+          icon: AppIcons.installMobile,
+          selected: AppIcons.installMobile,
           label: context.t('fm.apk_files'),
         ),
       'important' => (
-          icon: Icons.star_outline_rounded,
+          icon: AppIcons.starOutline,
           selected: AppIcons.star,
           label: context.t('nav.important'),
         ),
       'recent' => (
-          icon: Icons.history_outlined,
+          icon: AppIcons.history,
           selected: AppIcons.history,
           label: context.t('fm.recent_opened'),
         ),
       'search' => (
           icon: AppIcons.search,
-          selected: Icons.saved_search_rounded,
+          selected: AppIcons.savedSearch,
           label: context.t('common.search'),
         ),
       'ai' => (
-          icon: Icons.auto_awesome_outlined,
+          icon: AppIcons.ai,
           selected: AppIcons.ai,
           label: context.t('nav.ai'),
         ),
       'smart' => (
-          icon: Icons.folder_special_outlined,
-          selected: Icons.folder_special_rounded,
+          icon: AppIcons.folderSpecial,
+          selected: AppIcons.folderSpecial,
           label: context.t('smart.title'),
         ),
       'bills' => (
-          icon: Icons.receipt_long_outlined,
-          selected: Icons.receipt_long_rounded,
+          icon: AppIcons.receiptLong,
+          selected: AppIcons.receiptLong,
           label: context.t('nav.bills'),
         ),
       'vault' => (
-          icon: Icons.enhanced_encryption_outlined,
+          icon: AppIcons.vault,
           selected: AppIcons.vault,
           label: context.t('nav.vault'),
         ),
       'memories' => (
-          icon: Icons.auto_awesome_mosaic_outlined,
-          selected: Icons.auto_awesome_mosaic_rounded,
+          icon: AppIcons.autoAwesomeMosaic,
+          selected: AppIcons.autoAwesomeMosaic,
           label: context.t('mem.title'),
         ),
       'jobs' => (
           icon: AppIcons.exportList,
-          selected: Icons.playlist_add_check_circle_rounded,
+          selected: AppIcons.playlistAddCheckCircle,
           label: context.t('fm.jobs'),
         ),
       'trash' => (
@@ -105,17 +105,17 @@ NavTabSpec navTabSpec(BuildContext context, String id) => switch (id) {
           label: context.t('fm.trash'),
         ),
       'drive' => (
-          icon: Icons.cloud_outlined,
-          selected: Icons.cloud_rounded,
+          icon: AppIcons.cloud,
+          selected: AppIcons.cloud,
           label: 'Drive',
         ),
       'apps' => (
-          icon: Icons.android_outlined,
-          selected: Icons.android_rounded,
+          icon: AppIcons.android,
+          selected: AppIcons.android,
           label: context.t('fm.apps'),
         ),
       _ => (
-          icon: Icons.folder_outlined,
+          icon: AppIcons.folder,
           selected: AppIcons.folder,
           label: context.t('home.tab_files'),
         ),
@@ -211,7 +211,7 @@ class _NavTabsEditor extends StatelessWidget {
                       children: [
                         IconButton(
                           tooltip: context.t('nav.remove'),
-                          icon: Icon(Icons.remove_circle_outline_rounded,
+                          icon: Icon(AppIcons.removeCircleOutline,
                               color: scheme.error),
                           onPressed: () => nav.remove(rest[i]),
                         ),
@@ -219,7 +219,7 @@ class _NavTabsEditor extends StatelessWidget {
                           index: i,
                           child: Padding(
                             padding: const EdgeInsets.all(Gap.sm),
-                            child: Icon(Icons.drag_handle_rounded,
+                            child: Icon(AppIcons.dragHandle,
                                 color: scheme.onSurfaceVariant),
                           ),
                         ),
@@ -250,7 +250,7 @@ class _NavTabsEditor extends StatelessWidget {
                 faded: nav.isFull,
                 trailing: IconButton(
                   tooltip: context.t('nav.add'),
-                  icon: Icon(Icons.add_circle_outline_rounded,
+                  icon: Icon(AppIcons.addCircleOutline,
                       color: nav.isFull
                           ? scheme.onSurfaceVariant
                           : scheme.primary),
@@ -273,7 +273,7 @@ class _NavTabsEditor extends StatelessWidget {
                   alignment: AlignmentDirectional.centerStart,
                   child: TextButton.icon(
                     onPressed: nav.isDefault ? null : nav.reset,
-                    icon: const Icon(Icons.restart_alt_rounded),
+                    icon: const Icon(AppIcons.reset),
                     label: Text(context.t('nav.reset')),
                   ),
                 ),

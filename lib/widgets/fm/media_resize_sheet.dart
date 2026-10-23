@@ -538,9 +538,11 @@ class _ResizeSheetState extends State<_ResizeSheet> {
   }
 
   Future<void> _deletePreset(ResizePreset preset) async {
-    final ok = await showAppConfirm(context,
+    final ok = await showAppConfirm(
+        context,
         message: context.t('rs.preset_delete', {'name': preset.name}),
-        destructive: true);
+        destructive: true,
+    );
     if (!ok || !mounted) return;
     final list = await ResizeMemory.removePreset(preset.name);
     if (!mounted) return;
@@ -940,7 +942,7 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                     'n': widget.sources.length - 1,
                     'size': FsPaths.humanSize(totalBytes),
                   }),
-                  style: TextStyle(fontSize: 12, color: Paper.faint(context)),
+                  style: context.type.small.copyWith(color: Paper.faint(context)),
                 ),
               ),
             if (noChange)
@@ -955,8 +957,9 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                     Expanded(
                       child: Text(
                         context.t('rs.no_change_warning'),
-                        style: TextStyle(
-                            fontSize: 12, color: theme.colorScheme.error),
+                        style: context.type.small.copyWith(
+                            color: theme.colorScheme.error,
+                          ),
                       ),
                     ),
                   ],
@@ -1084,8 +1087,7 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                     'before': FsPaths.humanSize(estimate.before),
                     'after': FsPaths.humanSize(estimate.after),
                   }),
-                  style: TextStyle(
-                    fontSize: 13,
+                  style: context.type.compact.copyWith(
                     fontWeight: FontWeight.w700,
                     color: theme.colorScheme.primary,
                   ),
@@ -1094,10 +1096,10 @@ class _ResizeSheetState extends State<_ResizeSheet> {
               if (percent > 0)
                 Text(
                   context.t('rs.estimate_gain', {'n': percent}),
-                  style: TextStyle(
-                      fontSize: 13,
+                  style: context.type.compact.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: theme.colorScheme.primary),
+                      color: theme.colorScheme.primary,
+                    ),
                 ),
             ],
           ),
@@ -1105,7 +1107,7 @@ class _ResizeSheetState extends State<_ResizeSheet> {
             padding: const EdgeInsets.only(top: 2),
             child: Text(
               context.t('rs.estimate_note'),
-              style: TextStyle(fontSize: 11, color: Paper.faint(context)),
+              style: context.type.caption.copyWith(color: Paper.faint(context)),
             ),
           ),
         ],
@@ -1123,13 +1125,12 @@ class _ResizeSheetState extends State<_ResizeSheet> {
             SizedBox(
               width: 62,
               child: Text(label,
-                  style: TextStyle(fontSize: 12, color: Paper.faint(context))),
+                  style: context.type.small.copyWith(color: Paper.faint(context))),
             ),
             Expanded(
               child: Text(
                 parts.join(' · '),
-                style: TextStyle(
-                  fontSize: 13,
+                style: context.type.compact.copyWith(
                   fontWeight: bold ? FontWeight.w600 : FontWeight.w400,
                 ),
               ),

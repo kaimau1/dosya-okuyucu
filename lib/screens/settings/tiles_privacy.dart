@@ -59,7 +59,7 @@ class AppLockTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     return SwitchListTile(
-      secondary: const Icon(Icons.phonelink_lock_rounded),
+      secondary: const Icon(AppIcons.phonelinkLock),
       title: Text(context.t('lock.app_title')),
       subtitle: Text(
         !appState.fmHasLockPin
@@ -94,7 +94,7 @@ class LockedFoldersTile extends StatelessWidget {
         for (final path in appState.fmLockedFolders)
           ListTile(
             dense: true,
-            leading: const Icon(Icons.folder_off_rounded),
+            leading: const Icon(AppIcons.folderOff),
             title: Text(p.basename(path)),
             subtitle: Text(path, maxLines: 1, overflow: TextOverflow.ellipsis),
             trailing: IconButton(
@@ -178,7 +178,7 @@ class _UsageAccessTileState extends State<UsageAccessTile> {
 
   @override
   Widget build(BuildContext context) => SettingTile(
-        icon: Icons.query_stats_rounded,
+        icon: AppIcons.queryStats,
         title: context.t('fmset.usage_access'),
         subtitle: context
             .t(_granted ? 'fmset.usage_access_on' : 'fmset.usage_access_off'),

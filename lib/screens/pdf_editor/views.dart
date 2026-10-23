@@ -166,11 +166,11 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
         children: [
           const Icon(AppIcons.info, size: 18),
           const SizedBox(width: 8),
-          Expanded(child: Text(text, style: const TextStyle(fontSize: 13))),
+          Expanded(child: Text(text, style: context.type.compact)),
           if (_pageCount > 0)
             Text('$_page / $_pageCount',
                 style:
-                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    context.type.compact.copyWith(fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -196,7 +196,7 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
               icon: const Icon(AppIcons.image),
               label: context.t('pe.mode_image')),
           NavigationDestination(
-              icon: const Icon(Icons.layers_clear_rounded),
+              icon: const Icon(AppIcons.layersClear),
               label: context.t('pe.mode_watermark')),
           NavigationDestination(
               icon: const Icon(AppIcons.rotate),
@@ -231,7 +231,7 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(context.t('pe.object_locked'),
-                    style: const TextStyle(fontSize: 13)),
+                    style: context.type.compact),
               ),
               TextButton(
                 onPressed: () => _partSetState(() => _selectedObject = null),
@@ -263,10 +263,10 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                turn(Icons.rotate_90_degrees_ccw_rounded, 'pe.rot_left', turns: -1),
+                turn(AppIcons.rotate90DegreesCcw, 'pe.rot_left', turns: -1),
                 turn(AppIcons.rotate, 'pe.rot_right', turns: 1),
                 turn(AppIcons.selectInvert, 'pe.mirror_h', h: true),
-                turn(Icons.flip_camera_android_rounded, 'pe.mirror_v',
+                turn(AppIcons.flipCameraAndroid, 'pe.mirror_v',
                     v: true),
               ],
             ),
@@ -322,7 +322,7 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
         onPressed: _busy
             ? null
             : () => _partSetState(() => _placingText = !_placingText),
-        icon: Icon(_placingText ? AppIcons.close : Icons.post_add_rounded),
+        icon: Icon(_placingText ? AppIcons.close : AppIcons.postAdd),
         label: Text(context.t(_placingText ? 'common.cancel' : 'pe.add_text')),
       );
 
@@ -346,7 +346,7 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
             children: [
               TextButton.icon(
                 onPressed: _busy ? null : () => _rotate(-1),
-                icon: const Icon(Icons.rotate_90_degrees_ccw_rounded),
+                icon: const Icon(AppIcons.rotate90DegreesCcw),
                 label: Text(context.t('pe.rot_left')),
               ),
               TextButton.icon(
@@ -390,7 +390,7 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                   }
                 }),
                 secondary:
-                    Icon(item.isImage ? AppIcons.image : Icons.title_rounded),
+                    Icon(item.isImage ? AppIcons.image : AppIcons.title),
                 title: Text(item.label,
                     maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: Text(item.detail),
@@ -404,7 +404,7 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
             width: double.infinity,
             child: FilledButton.icon(
               onPressed: _busy ? null : _removeBackground,
-              icon: const Icon(Icons.layers_clear_rounded),
+              icon: const Icon(AppIcons.layersClear),
               label: Text(context
                   .t('pe.remove_picked', {'n': _backgroundPicked.length})),
             ),
@@ -460,8 +460,7 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(original,
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: context.type.small.copyWith(
                         color: Theme.of(ctx).colorScheme.onSurfaceVariant,
                       )),
                 ),
@@ -498,12 +497,12 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                     const SizedBox(width: 8),
                     IconButton(
                       tooltip: ctx.t('pe.font_smaller'),
-                      icon: const Icon(Icons.text_decrease_rounded),
+                      icon: const Icon(AppIcons.textDecrease),
                       onPressed: () => _nudgeSize(sizeController, -0.5),
                     ),
                     IconButton(
                       tooltip: ctx.t('pe.font_bigger'),
-                      icon: const Icon(Icons.text_increase_rounded),
+                      icon: const Icon(AppIcons.textIncrease),
                       onPressed: () => _nudgeSize(sizeController, 0.5),
                     ),
                   ],
@@ -544,7 +543,8 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
       context,
       title: title,
       message: message,
-      destructive: true);
+      destructive: true,
+  );
 
   void _snack(String message) {
     if (!mounted) return;

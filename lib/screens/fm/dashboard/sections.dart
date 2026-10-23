@@ -37,7 +37,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.folder_special_outlined),
+                  const Icon(AppIcons.folderSpecial),
                   const SizedBox(width: Gap.sm),
                   Expanded(
                     child: Text(context.t('fm.permission_title'),
@@ -287,7 +287,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
       // Kurulum dosyaları ayrı kutuda (kullanıcı isteği 2026-07-25).
       FmTileData(
         id: 'apk',
-        icon: Icons.install_mobile_rounded,
+        icon: AppIcons.installMobile,
         color: AppHues.teal,
         label: context.t('fm.apk_files'),
         subtitle: _index.stat(FmCategory.apk).count == 0
@@ -303,7 +303,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
       // düştü" fikrini glifle anlatıyor.
       FmTileData(
         id: 'new',
-        icon: Icons.move_to_inbox_rounded,
+        icon: AppIcons.moveToInbox,
         color: AppHues.tangerine,
         label: context.t('fm.new_files'),
         subtitle: context.t('fm.new_files_note'),
@@ -333,7 +333,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
       // birinin bildiği bir yer; Drive ise herkesin aradığı.
       FmTileData(
         id: 'drive',
-        icon: Icons.cloud_rounded,
+        icon: AppIcons.cloud,
         color: AppHues.mint,
         label: 'Google Drive',
         subtitle: context.t('fm.drive_subtitle'),
@@ -349,7 +349,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
       // sayı UYDURULMAZ, alt satır boş bırakılır.
       FmTileData(
         id: 'apps',
-        icon: Icons.android_rounded,
+        icon: AppIcons.android,
         color: FmColors.apk,
         label: context.t('fm.apps'),
         subtitle: _appsBytes == null
@@ -388,7 +388,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
         ),
         'tools': (
           label: context.t('fm.tools'),
-          icon: Icons.handyman_rounded,
+          icon: AppIcons.handyman,
           color: AppHues.green,
         ),
         'favorites': (
@@ -398,7 +398,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
         ),
         'quick': (
           label: context.t('fm.quick_folders'),
-          icon: Icons.folder_special_rounded,
+          icon: AppIcons.folderSpecial,
           color: FmColors.folder,
         ),
       },

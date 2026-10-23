@@ -22,7 +22,7 @@ extension _WordEditorScreenPagePart on _WordEditorScreenState {
                   borderRadius: BorderRadius.circular(4),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.12),
+                      color: AppColors.shade.withValues(alpha: 0.12),
                       blurRadius: 10,
                       offset: const Offset(0, 2),
                     ),
@@ -164,7 +164,7 @@ extension _WordEditorScreenPagePart on _WordEditorScreenState {
               tooltip: context.t('word.add_paragraph_below'),
               visualDensity: VisualDensity.compact,
               iconSize: 20,
-              icon: const Icon(Icons.playlist_add_rounded),
+              icon: const Icon(AppIcons.playlistAdd),
               onPressed: enabled ? () => _addParagraph(sel) : null,
             ),
             IconButton(

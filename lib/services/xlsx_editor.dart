@@ -8,6 +8,7 @@ import 'xlsx_package.dart';
 import 'xlsx_reader.dart';
 import 'xlsx_save_patch.dart';
 import 'xlsx_chart.dart';
+import '../core/app_colors.dart';
 
 // Görünüm modelinin tamamı (aralık, kenarlık, hizalama, koşullu biçim…)
 // ekranlara buradan açılır — ad çakışması yok.
@@ -1047,7 +1048,7 @@ class XlsxEditor {
     model.recordStyleEdit(
       r,
       c,
-      XlsxStyleEdit(fontArgb: _argbOf(color ?? const Color(0xFF000000))),
+      XlsxStyleEdit(fontArgb: _argbOf(color ?? AppColors.pageInk)),
     );
   }
 

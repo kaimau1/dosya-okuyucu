@@ -241,7 +241,7 @@ class _TrendRow extends StatelessWidget {
     final scheme = theme.colorScheme;
     return Row(
       children: [
-        Icon(grew ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+        Icon(grew ? AppIcons.trendingUp : AppIcons.trendingDown,
             size: 18, color: grew ? scheme.error : scheme.primary),
         const SizedBox(width: Gap.sm),
         Expanded(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/app_icons.dart';
 import '../core/theme.dart';
+import '../core/app_colors.dart';
 
 /// **Üç Office editörünün ortak simge dili.**
 ///
@@ -11,49 +12,49 @@ import '../core/theme.dart';
 /// buradan alır — yeni bir ekran eklendiğinde de dil kendiliğinden tutar.
 abstract final class OfficeIcons {
   // Yazı biçimi
-  static const bold = Icons.format_bold_rounded;
-  static const italic = Icons.format_italic_rounded;
-  static const underline = Icons.format_underlined_rounded;
-  static const strike = Icons.strikethrough_s_rounded;
+  static const bold = AppIcons.formatBold;
+  static const italic = AppIcons.formatItalic;
+  static const underline = AppIcons.formatUnderlined;
+  static const strike = AppIcons.strikethroughS;
   static const fontFamily = AppIcons.textFields;
-  static const fontSize = Icons.format_size_rounded;
-  static const fontGrow = Icons.text_increase_rounded;
-  static const fontShrink = Icons.text_decrease_rounded;
-  static const textColor = Icons.format_color_text_rounded;
-  static const fillColor = Icons.format_color_fill_rounded;
-  static const highlight = Icons.border_color_rounded;
+  static const fontSize = AppIcons.formatSize;
+  static const fontGrow = AppIcons.textIncrease;
+  static const fontShrink = AppIcons.textDecrease;
+  static const textColor = AppIcons.formatColorText;
+  static const fillColor = AppIcons.formatColorFill;
+  static const highlight = AppIcons.borderColor;
 
   // Hizalama ve akış
-  static const alignLeft = Icons.format_align_left_rounded;
-  static const alignCenter = Icons.format_align_center_rounded;
-  static const alignRight = Icons.format_align_right_rounded;
-  static const alignJustify = Icons.format_align_justify_rounded;
-  static const wrapText = Icons.wrap_text_rounded;
-  static const bullets = Icons.format_list_bulleted_rounded;
-  static const numbering = Icons.format_list_numbered_rounded;
+  static const alignLeft = AppIcons.formatAlignLeft;
+  static const alignCenter = AppIcons.formatAlignCenter;
+  static const alignRight = AppIcons.formatAlignRight;
+  static const alignJustify = AppIcons.formatAlignJustify;
+  static const wrapText = AppIcons.wrapText;
+  static const bullets = AppIcons.formatListBulleted;
+  static const numbering = AppIcons.formatListNumbered;
 
   // Tablo / hücre
-  static const borders = Icons.border_all_rounded;
-  static const merge = Icons.merge_type_rounded;
+  static const borders = AppIcons.borderAll;
+  static const merge = AppIcons.mergeType;
   static const numberFormat = AppIcons.hashtag;
-  static const autoSum = Icons.functions_rounded;
-  static const condFormat = Icons.rule_rounded;
-  static const insertRow = Icons.table_rows_rounded;
-  static const insertColumn = Icons.view_column_rounded;
+  static const autoSum = AppIcons.functions;
+  static const condFormat = AppIcons.rule;
+  static const insertRow = AppIcons.tableRows;
+  static const insertColumn = AppIcons.viewColumn;
   static const deleteCells = AppIcons.delete;
-  static const rowHeight = Icons.height_rounded;
-  static const columnWidth = Icons.straighten_rounded;
+  static const rowHeight = AppIcons.height;
+  static const columnWidth = AppIcons.straighten;
   static const sortAsc = AppIcons.arrowUp;
   static const sortDesc = AppIcons.arrowDown;
-  static const filter = Icons.filter_alt_rounded;
-  static const freeze = Icons.push_pin_rounded;
-  static const sheetAdd = Icons.post_add_rounded;
+  static const filter = AppIcons.filterAlt;
+  static const freeze = AppIcons.pushPin;
+  static const sheetAdd = AppIcons.postAdd;
 
   // Pano
   static const cut = AppIcons.cut;
   static const copy = AppIcons.clipCopy;
   static const paste = AppIcons.paste;
-  static const clearContents = Icons.backspace_rounded;
+  static const clearContents = AppIcons.backspace;
 
   // Genel
   static const undo = AppIcons.undo;
@@ -63,8 +64,8 @@ abstract final class OfficeIcons {
   static const share = AppIcons.share;
   static const translate = AppIcons.translate;
   static const ai = AppIcons.ai;
-  static const zoomIn = Icons.zoom_in_rounded;
-  static const zoomOut = Icons.zoom_out_rounded;
+  static const zoomIn = AppIcons.zoomIn;
+  static const zoomOut = AppIcons.zoomOut;
   static const goTo = AppIcons.reveal;
   static const more = AppIcons.moreHoriz;
   static const done = AppIcons.check;
@@ -120,7 +121,7 @@ class _OfficeRibbonState extends State<OfficeRibbon> {
     final scheme = Theme.of(context).colorScheme;
     final tabs = widget.tabs.isEmpty ? const [RibbonTab('', [])] : widget.tabs;
     final index = _tab < tabs.length ? _tab : 0;
-    final fg = widget.onBrand ? Colors.white : scheme.onSurface;
+    final fg = widget.onBrand ? AppColors.onBrand : scheme.onSurface;
 
     // 2026-09-23 tasarım turu: sekmeler alt çizgili düz metin değil, HAP
     // (M3 "segmented" dili): etkin sekme vurgu dolgusuyla okunur, parmakla
@@ -149,10 +150,10 @@ class _OfficeRibbonState extends State<OfficeRibbon> {
                   itemBuilder: (_, i) {
                     final active = i == index;
                     final activeBg = widget.onBrand
-                        ? Colors.white24
+                        ? AppColors.onBrandWell
                         : scheme.primaryContainer;
                     final activeFg = widget.onBrand
-                        ? Colors.white
+                        ? AppColors.onBrand
                         : scheme.onPrimaryContainer;
                     return Padding(
                       padding: const EdgeInsetsDirectional.only(end: 4),
@@ -204,7 +205,7 @@ class _OfficeRibbonState extends State<OfficeRibbon> {
                       width: 1,
                       height: 24,
                       color: widget.onBrand
-                          ? Colors.white38
+                          ? AppColors.onBrandMuted
                           : scheme.outlineVariant,
                     ),
                     widget.trailing!,
@@ -257,7 +258,7 @@ class RibbonButton extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 1),
       decoration: active
           ? BoxDecoration(
-              color: onBrand ? Colors.white24 : scheme.primaryContainer,
+              color: onBrand ? AppColors.onBrandWell : scheme.primaryContainer,
               borderRadius: BorderRadius.circular(12),
             )
           : null,
@@ -266,7 +267,7 @@ class RibbonButton extends StatelessWidget {
         visualDensity: VisualDensity.compact,
         iconSize: 20,
         color: onBrand
-            ? Colors.white
+            ? AppColors.onBrand
             : (active ? scheme.onPrimaryContainer : scheme.onSurface),
         icon: Icon(icon),
         onPressed: onTap,
@@ -295,7 +296,7 @@ class RibbonMenu<T> extends StatelessWidget {
     final onBrand = RibbonStyle.of(context);
     return PopupMenuButton<T>(
       tooltip: tooltip,
-      icon: Icon(icon, size: 20, color: onBrand ? Colors.white : null),
+      icon: Icon(icon, size: 20, color: onBrand ? AppColors.onBrand : null),
       onSelected: onSelected,
       itemBuilder: itemBuilder,
     );
@@ -322,7 +323,7 @@ class RibbonChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final onBrand = RibbonStyle.of(context);
     final scheme = Theme.of(context).colorScheme;
-    final fg = onBrand ? Colors.white : scheme.onSurface;
+    final fg = onBrand ? AppColors.onBrand : scheme.onSurface;
     // [onTap] null ise HİÇ jest kurulmaz: bu çip çoğu zaman bir
     // `PopupMenuButton`ın çocuğudur ve araya giren bir `InkWell` dokunuşu
     // yutup menüyü açtırmazdı (Word'ün yazı tipi/punto menüleri).
@@ -340,7 +341,7 @@ class RibbonChip extends StatelessWidget {
           margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
           padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
-            color: onBrand ? Colors.white24 : scheme.surfaceContainerHigh,
+            color: onBrand ? AppColors.onBrandWell : scheme.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(10),
             border: onBrand ? null : Border.all(color: scheme.outlineVariant),
           ),
@@ -354,8 +355,10 @@ class RibbonChip extends StatelessWidget {
                 child: Text(
                   label,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w600, color: fg),
+                  style: context.type.compact.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: fg,
+                    ),
                 ),
               ),
             ],
@@ -378,7 +381,7 @@ class RibbonSep extends StatelessWidget {
       height: 22,
       margin: const EdgeInsets.symmetric(horizontal: 5),
       color: onBrand
-          ? Colors.white38
+          ? AppColors.onBrandMuted
           : Theme.of(context).colorScheme.outlineVariant,
     );
   }

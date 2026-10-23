@@ -16,6 +16,7 @@ import '../core/snack.dart';
 import '../core/safe_insets.dart';
 import '../services/fm/tracked_task.dart';
 import '../core/user_error.dart';
+import '../core/theme.dart';
 
 /// Akış sırasında ilerlemeyi yazan ve **iptal isteğini taşıyan** tutamak.
 ///
@@ -380,7 +381,7 @@ class TranslateFlow {
                 const SizedBox(height: 8),
                 IconButton(
                   tooltip: ctx.t('tf.swap'),
-                  icon: const Icon(Icons.swap_vert_rounded),
+                  icon: const Icon(AppIcons.swapVert),
                   onPressed: () => setLocal(() {
                     final t = from ?? guess ?? initialFrom;
                     from = to;
@@ -557,7 +558,7 @@ class TranslateFlow {
                   padding: withNavInset(
                       ctx, const EdgeInsets.only(top: 12)),
                   child: SelectableText(text,
-                      style: const TextStyle(fontSize: 14, height: 1.4)),
+                      style: context.type.body.copyWith(height: 1.4)),
                 ),
               ),
             ],

@@ -23,6 +23,7 @@ import '../../models/fs_entry.dart';
 import '../../services/fm/ai_index.dart';
 import '../fm/folder_picker_screen.dart';
 import 'settings_widgets.dart';
+import '../../widgets/app_dialog.dart';
 
 /// Kapsam dışı klasörler — ekle/çıkar.
 class AiExcludedFoldersTile extends StatelessWidget {
@@ -36,7 +37,7 @@ class AiExcludedFoldersTile extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SettingTile(
-          icon: Icons.folder_off_rounded,
+          icon: AppIcons.folderOff,
           title: context.t('aiset.excluded'),
           subtitle: context.t('aiset.excluded_sub'),
           wrapSubtitle: true,
@@ -52,7 +53,7 @@ class AiExcludedFoldersTile extends StatelessWidget {
               path,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 11, color: Paper.faint(context)),
+              style: context.type.caption.copyWith(color: Paper.faint(context)),
             ),
             trailing: IconButton(
               icon: const Icon(AppIcons.close),
@@ -128,7 +129,7 @@ class AiScopeTypesTile extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.filter_alt_rounded,
+              Icon(AppIcons.filterAlt,
                   size: 20, color: Theme.of(context).colorScheme.primary),
               const SizedBox(width: Gap.md),
               Expanded(
@@ -138,8 +139,9 @@ class AiScopeTypesTile extends StatelessWidget {
                     Text(context.t('aiset.types')),
                     Text(
                       context.t('aiset.types_sub'),
-                      style: TextStyle(
-                          fontSize: 12, color: Paper.faint(context)),
+                      style: context.type.small.copyWith(
+                          color: Paper.faint(context),
+                        ),
                     ),
                   ],
                 ),
@@ -189,7 +191,7 @@ class AiPrivacyTile extends StatelessWidget {
     return Column(
       children: [
         SettingSwitch(
-          icon: Icons.notes_rounded,
+          icon: AppIcons.lines,
           title: context.t('aiset.send_text'),
           subtitle: context.t('aiset.send_text_sub', {'kb': scope.excerptKb}),
           value: scope.sendText,
@@ -215,7 +217,7 @@ class AiPrivacyTile extends StatelessWidget {
               .setAiScope(scope.copyWith(includeHidden: v)),
         ),
         SettingChoice<int>(
-          icon: Icons.data_usage_rounded,
+          icon: AppIcons.dataUsage,
           title: context.t('aiset.excerpt'),
           subtitle: context.t('aiset.excerpt_sub'),
           options: const [(2, '2 KB'), (6, '6 KB'), (12, '12 KB')],
@@ -247,7 +249,7 @@ class AiBudgetTile extends StatelessWidget {
     return Column(
       children: [
         SettingChoice<int>(
-          icon: Icons.speed_rounded,
+          icon: AppIcons.speed,
           title: context.t('aiset.budget'),
           subtitle: context.t('aiset.budget_sub'),
           // **Varsayılan sınırsız** (kullanıcı 2026-08-10: *"anahtarımda hâlâ
@@ -262,7 +264,7 @@ class AiBudgetTile extends StatelessWidget {
         ValueListenableBuilder<int>(
           valueListenable: AiIndex.revision,
           builder: (context, _, __) => SettingTile(
-            icon: Icons.delete_sweep_rounded,
+            icon: AppIcons.deleteSweep,
             title: context.t('aiset.forget'),
             subtitle: context.t('aiset.forget_sub'),
             wrapSubtitle: true,
@@ -281,22 +283,12 @@ class AiBudgetTile extends StatelessWidget {
   }
 
   Future<void> _confirmForget(BuildContext context) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.t('aiset.forget')),
-        content: Text(ctx.t('aiset.forget_confirm')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(ctx.t('common.cancel')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(ctx.t('common.delete')),
-          ),
-        ],
-      ),
+    final ok = await showAppConfirm(
+        context,
+        title: context.t('aiset.forget'),
+        message: context.t('aiset.forget_confirm'),
+        confirmLabel: context.t('common.delete'),
+        destructive: true,
     );
     if (ok == true) await AiIndex.clear();
   }

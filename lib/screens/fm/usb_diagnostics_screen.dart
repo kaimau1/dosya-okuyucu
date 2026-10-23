@@ -142,7 +142,7 @@ class _UsbDiagnosticsScreenState extends State<UsbDiagnosticsScreen> {
           IconButton(
             tooltip: context.t('fm.copy'),
             onPressed: report == null ? null : () => unawaited(_copy(report)),
-            icon: const Icon(Icons.copy_all_rounded),
+            icon: const Icon(AppIcons.copyAll),
           ),
         ],
       ),

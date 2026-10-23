@@ -51,7 +51,7 @@ extension _AnalysisScreenActionsPart on _AnalysisScreenState {
     if (apps == null) return const SizedBox.shrink();
     return _CategoryBar(
       label: context.t('fm.apps'),
-      icon: Icons.android_rounded,
+      icon: AppIcons.android,
       bytes: apps.totalBytes,
       // Sayaç yerine en büyük uygulamalar yazıyor: "kaç uygulama" bir yer açma
       // kararına katkı vermiyor, "hangisi büyük" veriyor.

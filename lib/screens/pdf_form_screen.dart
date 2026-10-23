@@ -190,7 +190,7 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
               // Yol GÖSTERİLİR: "form alanı yok" tek başına çıkmaz sokak.
               Text(context.t('pf.no_fields_hint'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: Paper.faint(context))),
+                  style: context.type.small.copyWith(color: Paper.faint(context))),
             ],
           ),
         ),

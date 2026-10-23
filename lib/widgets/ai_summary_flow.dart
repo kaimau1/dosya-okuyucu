@@ -125,13 +125,13 @@ class AiSummaryFlow {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.short_text_rounded),
+              leading: const Icon(AppIcons.shortText),
               title: Text(ctx.t('ai.sum_short')),
               subtitle: Text(ctx.t('ai.sum_short_hint')),
               onTap: () => Navigator.pop(ctx, SummaryLength.short),
             ),
             ListTile(
-              leading: const Icon(Icons.notes_rounded),
+              leading: const Icon(AppIcons.lines),
               title: Text(ctx.t('ai.sum_detailed')),
               subtitle: Text(ctx.t('ai.sum_detailed_hint')),
               onTap: () => Navigator.pop(ctx, SummaryLength.detailed),

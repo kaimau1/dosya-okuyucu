@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../core/app_colors.dart';
 
 /// **Telefonun ana ekranına kısayol** (2026-09-27).
 ///
@@ -105,7 +106,7 @@ abstract final class HomeShortcuts {
           fontSize: size * 0.40,
           fontFamily: icon.fontFamily,
           package: icon.fontPackage,
-          color: Colors.white,
+          color: AppColors.onMedia,
         ),
       ),
       textDirection: TextDirection.ltr,

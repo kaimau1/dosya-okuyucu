@@ -20,7 +20,7 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
         if (doc.kind == DocKind.pdf) ...[
           IconButton(
             tooltip: context.t('vw.toc'),
-            icon: const Icon(Icons.toc_rounded),
+            icon: const Icon(AppIcons.toc),
             onPressed: _showOutline,
           ),
           if (_hasUnsaved)
@@ -34,20 +34,20 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
           IconButton(
             tooltip: context.t('vw.find_in_doc_short'),
             isSelected: _findOpen,
-            icon: Icon(_findOpen ? Icons.search_off_rounded : AppIcons.search),
+            icon: Icon(_findOpen ? AppIcons.searchOff : AppIcons.search),
             onPressed: _toggleFind,
           ),
         if (doc.kind == DocKind.image)
           IconButton(
             tooltip: context.t('vw.rotate'),
-            icon: const Icon(Icons.rotate_right_rounded),
+            icon: const Icon(AppIcons.rotateRight),
             onPressed: () =>
                 _partSetState(() => _imgQuarterTurns = (_imgQuarterTurns + 1) % 4),
           ),
         if (_textController != null || doc.kind == DocKind.pdf)
           IconButton(
             tooltip: context.t('vw.reading_settings'),
-            icon: const Icon(Icons.text_format_rounded),
+            icon: const Icon(AppIcons.textFormat),
             onPressed: doc.kind == DocKind.pdf
                 ? _showPdfReadingSettings
                 : _showReadingSettings,
@@ -117,7 +117,7 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
             // "Sayfaya git" üç yerde birden: burada (etiketli, bulunabilir),
             // arama çubuğunda ve alttaki sayfa rozetine dokununca (2026-07-26:
             // "nerede olduğu anlaşılmıyor, kişiler bulamaz").
-            DocMoreItem(Icons.numbers_rounded, context.t('vw.goto_page'), _askGoToPage),
+            DocMoreItem(AppIcons.numbers, context.t('vw.goto_page'), _askGoToPage),
             // Bu sayfayı yıldızla (2026-09-27) — rozete basılı tutmakla aynı.
             DocMoreItem(
               AppIcons.important,
@@ -131,9 +131,9 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
           ]),
         if (isPdf)
           DocMoreGroup(context.t('dm.page'), [
-            DocMoreItem(Icons.rotate_left_rounded, context.t('vw.rotate_left'),
+            DocMoreItem(AppIcons.rotateLeft, context.t('vw.rotate_left'),
                 _pdfBusy ? null : () => _rotateCurrentPage(-1)),
-            DocMoreItem(Icons.rotate_right_rounded, context.t('vw.rotate_right'),
+            DocMoreItem(AppIcons.rotateRight, context.t('vw.rotate_right'),
                 _pdfBusy ? null : () => _rotateCurrentPage(1)),
           ]),
         // "Düzenle ve imzala" grubu Faz 8'de kalktı: AI düzenleme, imza ve
@@ -142,11 +142,11 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
         if (isImage)
           DocMoreGroup(context.t('dm.view'), [
             DocMoreItem(
-                Icons.zoom_in_rounded, context.t('vw.zoom_in'), () => _zoomImg(1.4)),
-            DocMoreItem(Icons.zoom_out_rounded, context.t('vw.zoom_out'),
+                AppIcons.zoomIn, context.t('vw.zoom_in'), () => _zoomImg(1.4)),
+            DocMoreItem(AppIcons.zoomOut, context.t('vw.zoom_out'),
                 () => _zoomImg(1 / 1.4)),
             DocMoreItem(
-                Icons.rotate_right_rounded,
+                AppIcons.rotateRight,
                 context.t('vw.rotate'),
                 () => _partSetState(
                     () => _imgQuarterTurns = (_imgQuarterTurns + 1) % 4)),
@@ -156,28 +156,28 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
             // **Satıra git / satır numaraları** (2026-09-06 denetim turu):
             // uzun bir kayıt ya da kod dosyasında "347. satır" demenin bir
             // yolu yoktu; tek çare parmakla kaydırmaktı.
-            DocMoreItem(Icons.low_priority_rounded, context.t('vw.goto_line'),
+            DocMoreItem(AppIcons.lowPriority, context.t('vw.goto_line'),
                 () => unawaited(_askGoToLine())),
             DocMoreItem(
-                Icons.format_list_numbered_rounded,
+                AppIcons.formatListNumbered,
                 context.t('vw.line_numbers'),
                 () => _partSetState(() => _lineNumbers = !_lineNumbers),
                 selected: _lineNumbers),
-            DocMoreItem(Icons.wrap_text_rounded, context.t('vw.wrap_on'),
+            DocMoreItem(AppIcons.wrapText, context.t('vw.wrap_on'),
                 () => _partSetState(() => _wrapLines = !_wrapLines),
                 selected: _wrapLines),
             // **JSON/XML biçimlendirme**: bu dosyalar gerçek hayatta tek
             // satır geliyor (API cevabı, yedek dökümü).
             if (PrettyFormat.supports(p.extension(doc.path)))
               DocMoreItem(
-                  Icons.data_object_rounded, context.t('vw.prettify'), _prettify),
+                  AppIcons.dataObject, context.t('vw.prettify'), _prettify),
             if (_hasText)
-              DocMoreItem(Icons.analytics_rounded, context.t('vw.word_count'),
+              DocMoreItem(AppIcons.analytics, context.t('vw.word_count'),
                   _showStats),
           ]),
         DocMoreGroup(context.t('dm.convert'), [
           if (_ttsTotal == 0)
-            DocMoreItem(Icons.record_voice_over_rounded, context.t('vw.speak'),
+            DocMoreItem(AppIcons.voice, context.t('vw.speak'),
                 _toggleSpeech),
           // Sesli kitap (2026-10-22): başlıklı bölüm dosyaları, kaydedilir.
           if (canMakeAudiobook(doc.path))
@@ -196,14 +196,14 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
           DocMoreItem(AppIcons.slideshow, context.t('vw.to_slides'),
               _exportSlides),
           if (_hasText && !isTextLike)
-            DocMoreItem(Icons.analytics_rounded, context.t('vw.word_count'),
+            DocMoreItem(AppIcons.analytics, context.t('vw.word_count'),
                 _showStats),
         ]),
         // Belgeyi okurken "bunu Önemli Dosyalar'a taşıyayım" demek için
         // görüntüleyiciyi kapatıp dosyayı listede aramak gerekmesin
         // (2026-07-29: "her türlü dosyada bu olmalı").
         DocMoreGroup(context.t('dm.file'), [
-          DocMoreItem(Icons.drive_file_move_outline, context.t('vw.file_ops'),
+          DocMoreItem(AppIcons.move, context.t('vw.file_ops'),
               _fileActions),
           // Telefonun ana ekranına kısayol (2026-09-27).
           if (Platform.isAndroid)
@@ -229,7 +229,7 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
       showDragHandle: true,
       isScrollControlled: true,
       // Sayfa açıkken belge görünür kalsın: değişiklik arkada canlı izlenir.
-      barrierColor: Colors.black12,
+      barrierColor: AppColors.barrierLight,
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setSheet) {
           void apply(VoidCallback f) {
@@ -338,13 +338,13 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                     child: Column(
                       children: [
                         SwitchListTile(
-                          secondary: const Icon(Icons.format_list_numbered_rounded),
+                          secondary: const Icon(AppIcons.formatListNumbered),
                           title: Text(context.t('vw.line_numbers')),
                           value: _lineNumbers,
                           onChanged: (v) => apply(() => _lineNumbers = v),
                         ),
                         SwitchListTile(
-                          secondary: const Icon(Icons.wrap_text_rounded),
+                          secondary: const Icon(AppIcons.wrapText),
                           title: Text(context.t('vw.wrap_on')),
                           value: _wrapLines,
                           onChanged: (v) => apply(() => _wrapLines = v),
@@ -386,9 +386,9 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
       if (doc.kind == DocKind.pdf) ...[
         // Faz 8 — tek düzenleme kapısı: Metin · Kalem · İmza · Form ·
         // Sayfalar · AI (bkz. [showPdfEditModes]).
-        DocAction(Icons.edit_document, context.t('common.edit'),
+        DocAction(AppIcons.editNote, context.t('common.edit'),
             _showPdfEditModes),
-        DocAction(Icons.construction_rounded, context.t('vw.tools'), _openPdfTools),
+        DocAction(AppIcons.construction, context.t('vw.tools'), _openPdfTools),
       ],
       if (isImage) ...[
         DocAction(AppIcons.ocr, context.t('vw.ocr_short'),
@@ -410,7 +410,7 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
         DocAction(
             AppIcons.download, context.t('common.download'), _download),
       if (!isImage)
-        DocAction(Icons.print_rounded, context.t('vw.print'), _print),
+        DocAction(AppIcons.print, context.t('vw.print'), _print),
     ]);
   }
 
@@ -443,7 +443,7 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
-      barrierColor: Colors.black12,
+      barrierColor: AppColors.barrierLight,
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setSheet) {
           void apply(VoidCallback f) {
@@ -485,7 +485,7 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                             ReaderScreen.open(this.context,
                                 document: _pdfDoc!, title: widget.doc.name);
                           },
-                    icon: const Icon(Icons.chrome_reader_mode_rounded),
+                    icon: const Icon(AppIcons.chromeReaderMode),
                     label: Text(context.t('reader.open')),
                   ),
                   label(context.t('vw.layout')),
@@ -497,7 +497,7 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                           label: Text(context.t('vw.one_column'))),
                       ButtonSegment(
                           value: 2,
-                          icon: const Icon(Icons.view_column_rounded),
+                          icon: const Icon(AppIcons.viewColumn),
                           label: Text(context.t('vw.two_columns'))),
                       ButtonSegment(
                           value: 4,
@@ -520,13 +520,13 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                     child: Column(
                       children: [
                         SwitchListTile(
-                          secondary: const Icon(Icons.dark_mode_rounded),
+                          secondary: const Icon(AppIcons.dark),
                           title: Text(context.t('vw.night_on')),
                           value: _pdfNight,
                           onChanged: (v) => apply(() => _pdfNight = v),
                         ),
                         SwitchListTile(
-                          secondary: const Icon(Icons.bookmark_outline_rounded),
+                          secondary: const Icon(AppIcons.bookmarkOutline),
                           title: Text(context.t('pdfm.resume')),
                           value: app.resumePosition,
                           onChanged: (v) async {

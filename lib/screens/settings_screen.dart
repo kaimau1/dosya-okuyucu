@@ -175,7 +175,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.search_off_rounded, size: 48, color: Paper.faint(context)),
+              Icon(AppIcons.searchOff, size: 48, color: Paper.faint(context)),
               const SizedBox(height: Gap.sm),
               Text(context.t('set.no_match'), textAlign: TextAlign.center),
             ],
@@ -362,17 +362,17 @@ class _QuickHeader extends StatelessWidget {
         segments: [
           ButtonSegment(
             value: ThemeMode.light,
-            icon: const Icon(Icons.light_mode_rounded, size: 18),
+            icon: const Icon(AppIcons.lightMode, size: 18),
             label: Text(context.t('settings.theme_light')),
           ),
           ButtonSegment(
             value: ThemeMode.dark,
-            icon: const Icon(Icons.dark_mode_rounded, size: 18),
+            icon: const Icon(AppIcons.dark, size: 18),
             label: Text(context.t('settings.theme_dark')),
           ),
           ButtonSegment(
             value: ThemeMode.system,
-            icon: const Icon(Icons.brightness_auto_rounded, size: 18),
+            icon: const Icon(AppIcons.brightnessAuto, size: 18),
             label: Text(context.t('set.theme_auto')),
           ),
         ],

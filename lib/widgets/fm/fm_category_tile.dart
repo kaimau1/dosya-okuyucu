@@ -6,6 +6,7 @@ import '../../core/skin.dart';
 import '../../core/theme.dart';
 import '../motion.dart';
 import '../../core/device_profile.dart';
+import '../../core/app_colors.dart';
 
 /// Pano kutusunun verisi (ikon, renk, başlık, alt satır, dokunma).
 class FmTileData {
@@ -144,9 +145,9 @@ class _GradientGlyphPainter extends CustomPainter {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color.lerp(color, Colors.white, 0.28)!,
+              Color.lerp(color, AppColors.mixLight, 0.28)!,
               color,
-              Color.lerp(color, Colors.black, 0.18)!,
+              Color.lerp(color, AppColors.mixDark, 0.18)!,
             ],
             stops: const [0, 0.5, 1],
           ).createShader(Rect.fromLTWH(0, 0, extent, extent)),
@@ -259,7 +260,7 @@ class FmCategoryTile extends StatelessWidget {
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
     final tint =
-        dark ? Color.lerp(data.color, Colors.white, 0.25)! : data.color;
+        dark ? Color.lerp(data.color, AppColors.mixLight, 0.25)! : data.color;
     // **Çerçevesiz, büyük simge** (kullanıcı 2026-08-17: *"dashboard
     // simgelerin çerçevesini kaldır, büyük sade simgeler haline gelsinler"*).
     // Eskiden 44 dp'lik yuvarlak köşeli renkli bir kutunun içinde 24 dp'lik
@@ -305,10 +306,9 @@ class FmCategoryTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontSize: 10,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
+                  style: theme.textTheme.labelSmall
+                      ?.merge(context.type.micro)
+                      .copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),
             ],
           ),
@@ -411,7 +411,7 @@ class FmToolGrid extends StatelessWidget {
           itemBuilder: (context, i) {
             final tool = tools[i];
             final tint =
-                dark ? Color.lerp(tool.color, Colors.white, 0.3)! : tool.color;
+                dark ? Color.lerp(tool.color, AppColors.mixLight, 0.3)! : tool.color;
             return PressScale(
               child: InkWell(
                 onTap: tool.onTap,
@@ -443,10 +443,8 @@ class FmToolGrid extends StatelessWidget {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            height: 1.15,
-                            fontSize: 11,
-                          ),
+                          style: theme.textTheme.labelSmall
+                              ?.copyWith(height: 1.15),
                         ),
                       ),
                       // Alt yazı yalnız BİLGİ taşıyorsa yazılır ("3 sürüyor",
@@ -458,10 +456,10 @@ class FmToolGrid extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.center,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                              fontSize: 10,
-                            ),
+                            style: theme.textTheme.labelSmall
+                                ?.merge(context.type.micro)
+                                .copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant),
                           ),
                         ),
                     ],

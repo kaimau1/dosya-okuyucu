@@ -152,12 +152,12 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
           ? const FmListSkeleton()
           : !SdUnion.supported
               ? FmEmptyState(
-                  icon: Icons.sd_card_outlined,
+                  icon: AppIcons.sdCard,
                   title: context.t('sdu.android_only'),
                 )
               : _cards.isEmpty && settings.sdPath.isEmpty
                   ? FmEmptyState(
-                      icon: Icons.sd_card_alert_rounded,
+                      icon: AppIcons.sdCardAlert,
                       title: context.t('sdu.no_card'),
                       hint: context.t('sdu.no_card_hint'),
                     )
@@ -172,13 +172,13 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
       children: [
         _hero(settings),
         if (!cardPresent && settings.sdPath.isNotEmpty)
-          _warning(Icons.sd_card_alert_rounded, context.t('sdu.card_missing')),
+          _warning(AppIcons.sdCardAlert, context.t('sdu.card_missing')),
         if (_status.lastError == 'sd_readonly')
           _warning(AppIcons.lock, context.t('sdu.err_readonly')),
         SettingsGroup(
           children: [
             SettingSwitch(
-              icon: Icons.battery_charging_full_rounded,
+              icon: AppIcons.batteryChargingFull,
               title: context.t('sdu.enable'),
               subtitle: context.t('sdu.enable_sub'),
               value: settings.enabled,
@@ -201,7 +201,7 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
                 for (final card in _cards)
                   RadioListTile<String>(
                     value: card.path,
-                    secondary: const Icon(Icons.sd_card_outlined),
+                    secondary: const Icon(AppIcons.sdCard),
                     title: Text(card.displayLabel(context.t)),
                     subtitle: Text(context.t('sdu.card_free', {
                       'free': FsPaths.humanSize(card.freeBytes),
@@ -224,7 +224,7 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
         SettingsGroup(
           children: [
             SettingSwitch(
-              icon: Icons.notifications_none_rounded,
+              icon: AppIcons.notificationsNone,
               title: context.t('sdu.notify'),
               value: settings.notify,
               onChanged: (v) => _update(settings.copyWith(notify: v)),
@@ -283,7 +283,7 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
                       Positioned(
                         right: 8,
                         bottom: 8,
-                        child: Icon(Icons.bolt_rounded,
+                        child: Icon(AppIcons.bolt,
                             size: 18, color: scheme.tertiary),
                       ),
                     ],
@@ -382,8 +382,8 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
       lines.add(context.t('sdu.never'));
     }
     final chip = status.charging
-        ? (Icons.battery_charging_full_rounded, context.t('sdu.charging'))
-        : (Icons.battery_std_rounded, context.t('sdu.not_charging'));
+        ? (AppIcons.batteryChargingFull, context.t('sdu.charging'))
+        : (AppIcons.batteryStd, context.t('sdu.not_charging'));
     return SettingsGroup(
       title: context.t('sdu.sec_status'),
       children: [
@@ -422,7 +422,7 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
                 child: status.running
                     ? OutlinedButton.icon(
                         onPressed: _stop,
-                        icon: const Icon(Icons.stop_rounded),
+                        icon: const Icon(AppIcons.stop),
                         label: Text(context.t('common.stop')),
                       )
                     : FilledButton.tonalIcon(
@@ -455,12 +455,12 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
                 segments: [
                   ButtonSegment(
                     value: SdUnionMode.move,
-                    icon: const Icon(Icons.drive_file_move_outlined),
+                    icon: const Icon(AppIcons.move),
                     label: Text(context.t('sdu.mode_move')),
                   ),
                   ButtonSegment(
                     value: SdUnionMode.copy,
-                    icon: const Icon(Icons.copy_all_rounded),
+                    icon: const Icon(AppIcons.copyAll),
                     label: Text(context.t('sdu.mode_copy')),
                   ),
                 ],
@@ -579,7 +579,7 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
               width: 24,
               height: 24,
               child: CircularProgressIndicator(strokeWidth: 2.5))
-          : Icon(Icons.insights_rounded, color: theme.colorScheme.primary),
+          : Icon(AppIcons.insights, color: theme.colorScheme.primary),
       title: Text(
         preview == null
             ? context.t('sdu.preview_wait')
@@ -597,15 +597,15 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
   }
 
   static IconData _folderIcon(String folder) => switch (folder) {
-        'DCIM' => Icons.photo_camera_rounded,
+        'DCIM' => AppIcons.photoCamera,
         'Pictures' => AppIcons.image,
         'Movies' => AppIcons.video,
         'Music' => AppIcons.audio,
         'Download' => AppIcons.download,
         'Documents' => AppIcons.newWord,
-        'Recordings' => Icons.mic_none_rounded,
-        'Podcasts' => Icons.podcasts_rounded,
-        'Audiobooks' => Icons.menu_book_rounded,
+        'Recordings' => AppIcons.micNone,
+        'Podcasts' => AppIcons.podcasts,
+        'Audiobooks' => AppIcons.menuBook,
         _ => AppIcons.folder,
       };
 

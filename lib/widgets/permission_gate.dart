@@ -173,10 +173,10 @@ class PermissionCard extends StatelessWidget {
 
   static IconData iconOf(AppPermission p) => switch (p) {
         AppPermission.allFiles => AppIcons.emptyFolder,
-        AppPermission.notifications => Icons.notifications_none_rounded,
-        AppPermission.camera => Icons.photo_camera_rounded,
-        AppPermission.location => Icons.place_rounded,
-        AppPermission.overlay => Icons.picture_in_picture_alt_rounded,
+        AppPermission.notifications => AppIcons.notificationsNone,
+        AppPermission.camera => AppIcons.photoCamera,
+        AppPermission.location => AppIcons.place,
+        AppPermission.overlay => AppIcons.pictureInPictureAlt,
       };
 
   @override
@@ -211,7 +211,7 @@ class PermissionCard extends StatelessWidget {
                 onPressed: onAsk,
                 icon: Icon(permanentlyDenied
                     ? AppIcons.settings
-                    : Icons.check_circle_outline_rounded),
+                    : AppIcons.checkCircleOutline),
                 label: Text(context.t(permanentlyDenied
                     ? 'perm.open_settings'
                     : 'perm.allow')),

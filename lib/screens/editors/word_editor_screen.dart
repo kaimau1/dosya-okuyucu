@@ -30,6 +30,7 @@ import '../../widgets/download_action.dart';
 import '../chat_screen.dart';
 import '../../core/snack.dart';
 import '../../core/user_error.dart';
+import '../../core/app_colors.dart';
 
 part 'word/actions.dart';
 part 'word/shell.dart';

@@ -332,7 +332,7 @@ class _StorageHero extends StatelessWidget {
                   const SizedBox(width: Gap.xs + 2),
                   Expanded(
                     child: _HeroAction(
-                      icon: Icons.donut_large_rounded,
+                      icon: AppIcons.donutLarge,
                       label: context.t('fm.hero_analysis'),
                       onTap: onAnalysis,
                     ),

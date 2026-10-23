@@ -400,7 +400,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
                         _path,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 11, color: faint),
+                        style: context.type.caption.copyWith(color: faint),
                       ),
                     ),
                   ),
@@ -499,7 +499,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
     if (_view == _PickView.matches) return _matchesView();
     if (_entries.isEmpty) {
       return FmEmptyState(
-        icon: Icons.folder_off_rounded,
+        icon: AppIcons.folderOff,
         title: context.t('pick.empty'),
       );
     }
@@ -529,7 +529,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
           parts.join(' · '),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 12, color: faint),
+          style: context.type.small.copyWith(color: faint),
         ),
       ],
     );
@@ -582,7 +582,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
             ],
             _chip(
               label: context.t(_byName ? 'pick.sort_name' : 'pick.sort_newest'),
-              icon: Icons.swap_vert_rounded,
+              icon: AppIcons.swapVert,
               onTap: () => setState(() => _byName = !_byName),
             ),
             _chip(
@@ -719,7 +719,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
         ),
         const SizedBox(height: Gap.md),
         ListTile(
-          leading: const Icon(Icons.storage_rounded),
+          leading: const Icon(AppIcons.database),
           title: Text(context.t('fm.all_files')),
           trailing: const Icon(AppIcons.chevron),
           onTap: () => _openFolder(FmEnv.primaryRoot),
@@ -743,7 +743,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
   static IconData _iconFor(FmCategory category) => switch (category) {
         FmCategory.image => AppIcons.image,
         FmCategory.video => AppIcons.video,
-        FmCategory.audio => Icons.audiotrack_rounded,
+        FmCategory.audio => AppIcons.audiotrack,
         _ => AppIcons.newWord,
       };
 

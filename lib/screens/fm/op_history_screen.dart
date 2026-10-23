@@ -10,6 +10,7 @@ import '../../services/fm/op_history.dart';
 import 'browser_screen.dart';
 import '../../core/snack.dart';
 import '../../widgets/motion.dart';
+import '../../widgets/app_dialog.dart';
 
 /// **Son işlemler** — "neyi nereye taşımıştım?" ve toplu geri alma.
 ///
@@ -80,24 +81,15 @@ class _OpHistoryScreenState extends State<OpHistoryScreen> {
           if (_records.isNotEmpty)
             IconButton(
               tooltip: context.t('oph.clear'),
-              icon: const Icon(Icons.delete_sweep_rounded),
+              icon: const Icon(AppIcons.deleteSweep),
               onPressed: () async {
                 // Geçmişi silmek DOSYALARA dokunmaz; yalnız kayıt listesi
                 // temizlenir — kullanıcıya da böyle söylenir.
-                final ok = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: Text(ctx.t('oph.clear_title')),
-                    content: Text(ctx.t('oph.clear_body')),
-                    actions: [
-                      TextButton(
-                          onPressed: () => Navigator.pop(ctx, false),
-                          child: Text(ctx.t('common.cancel'))),
-                      FilledButton(
-                          onPressed: () => Navigator.pop(ctx, true),
-                          child: Text(ctx.t('ph.clean'))),
-                    ],
-                  ),
+                final ok = await showAppConfirm(
+                    context,
+                    title: context.t('oph.clear_title'),
+                    message: context.t('oph.clear_body'),
+                    confirmLabel: context.t('ph.clean'),
                 );
                 if (ok == true) {
                   await OpHistory.clear();
@@ -132,11 +124,11 @@ class _OpHistoryScreenState extends State<OpHistoryScreen> {
         : p.dirname(record.transfers.first.dest);
     return ListTile(
       leading: Icon(switch (record.kind) {
-        OpKind.move => Icons.drive_file_move_outline,
-        OpKind.copy => Icons.folder_copy_rounded,
+        OpKind.move => AppIcons.move,
+        OpKind.copy => AppIcons.folderCopy,
         OpKind.delete => AppIcons.delete,
         OpKind.rename => AppIcons.rename,
-        OpKind.organize => Icons.auto_awesome_motion_rounded,
+        OpKind.organize => AppIcons.autoAwesomeMotion,
       }),
       title: Text(record.summary,
           maxLines: 2, overflow: TextOverflow.ellipsis),

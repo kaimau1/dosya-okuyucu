@@ -23,6 +23,7 @@ import 'search_screen.dart';
 import '../../core/snack.dart';
 import '../../core/safe_insets.dart';
 import '../../core/user_error.dart';
+import '../../widgets/app_dialog.dart';
 
 /// **Önemli Dosyalar** — kullanıcının kendi seçtiği dosyaların toplandığı
 /// klasör, ana sayfadaki kategorizasyonun aynısıyla.
@@ -402,31 +403,13 @@ Future<String?> promptForName(
   required String label,
   required String initial,
 }) async {
-  final controller = TextEditingController(text: initial);
   final dot = initial.lastIndexOf('.');
-  controller.selection = TextSelection(
-      baseOffset: 0, extentOffset: dot > 0 ? dot : initial.length);
-  final value = await showDialog<String>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(title),
-      content: TextField(
-        controller: controller,
-        autofocus: true,
-        decoration: InputDecoration(labelText: label),
-        onSubmitted: (v) => Navigator.pop(ctx, v),
-      ),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(ctx), child: Text(context.t('common.cancel'))),
-        FilledButton(
-          onPressed: () => Navigator.pop(ctx, controller.text),
-          child: Text(context.t('fm.create')),
-        ),
-      ],
-    ),
+  return showAppPrompt(
+    context,
+    title: title,
+    label: label,
+    initial: initial,
+    selectEnd: dot > 0 ? dot : initial.length,
+    confirmLabel: context.t('fm.create'),
   );
-  controller.dispose();
-  final trimmed = value?.trim();
-  return (trimmed == null || trimmed.isEmpty) ? null : trimmed;
 }

@@ -61,14 +61,14 @@ Future<FmConflict?> showPasteConflictSheet(
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.skip_next_rounded),
+                leading: const Icon(AppIcons.skipNext),
                 title: Text(ctx.t('paste.skip')),
                 subtitle: Text(ctx.t('paste.skip_sub')),
                 onTap: () => Navigator.pop(ctx, FmConflict.skip),
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.warning_amber_rounded,
+                leading: Icon(AppIcons.warning,
                     color: theme.colorScheme.error),
                 title: Text(ctx.t('paste.overwrite'),
                     style: TextStyle(color: theme.colorScheme.error)),

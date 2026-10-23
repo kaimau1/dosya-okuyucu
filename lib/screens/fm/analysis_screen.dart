@@ -255,7 +255,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                         // ikisi de "yer aç" sorusunun parçası, burada durur.
                         const Divider(height: 1),
                         _ToolRow(
-                          icon: Icons.auto_awesome_motion_rounded,
+                          icon: AppIcons.autoAwesomeMotion,
                           color: AppHues.jade,
                           title: context.t('fm.similar_images'),
                           note: context.t('ana.similar_note'),
@@ -263,7 +263,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                         ),
                         const Divider(height: 1),
                         _ToolRow(
-                          icon: Icons.forum_rounded,
+                          icon: AppIcons.forum,
                           color: AppHues.green,
                           title: context.t('cj.title'),
                           note: context.t('ana.chat_note'),
@@ -285,7 +285,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                         // hangi klasörü temizleyeceğini söylemiyor. Harita
                         // klasörleri boyuta göre sıralar ve içine inilir.
                         _ToolRow(
-                          icon: Icons.donut_large_rounded,
+                          icon: AppIcons.donutLarge,
                           color: AppHues.plum,
                           title: context.t('fmap.title'),
                           note: context.t('fmap.note'),

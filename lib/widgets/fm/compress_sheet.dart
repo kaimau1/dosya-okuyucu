@@ -76,7 +76,7 @@ class _CompressSheetState extends State<_CompressSheet> {
                 ButtonSegment(
                   value: CompressFormat.sevenZip,
                   label: Text('7z'),
-                  icon: Icon(Icons.compress_rounded),
+                  icon: Icon(AppIcons.shrink),
                 ),
               ],
               selected: {_format},

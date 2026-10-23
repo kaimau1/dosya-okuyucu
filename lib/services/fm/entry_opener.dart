@@ -378,7 +378,7 @@ class _MediaChoiceDialogState extends State<_MediaChoiceDialog> {
           children: [
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.play_circle_outline_rounded),
+              leading: const Icon(AppIcons.playCircleOutline),
               title: Text(context.t('open.in_app_player')),
               subtitle: Text(context.t('open.in_app_hint')),
               onTap: () => _pick(MediaOpenWith.inApp),

@@ -126,7 +126,6 @@ class _DockButton extends StatelessWidget {
                   textAlign: TextAlign.center,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.labelSmall?.copyWith(
-                    fontSize: 11.5,
                     height: 1.15,
                     letterSpacing: 0,
                     fontWeight:

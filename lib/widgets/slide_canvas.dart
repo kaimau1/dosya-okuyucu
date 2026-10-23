@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../services/pptx_render.dart';
 import 'chart_painter.dart';
+import '../core/app_colors.dart';
 
 /// Slayt görsellerinin çözüleceği en uzun kenar (piksel).
 ///
@@ -73,7 +74,7 @@ class SlideCanvas extends StatelessWidget {
                 child: Container(
                   decoration: BoxDecoration(
                     color: slide.backgroundGradient == null
-                        ? (slide.background ?? Colors.white)
+                        ? (slide.background ?? AppColors.page)
                         : null,
                     gradient: slide.backgroundGradient,
                   ),
@@ -591,7 +592,7 @@ class _LinePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final color = s.stroke ?? const Color(0xFF000000);
+    final color = s.stroke ?? AppColors.pageInk;
     final sw = s.strokeWidth <= 0 ? 1.0 : s.strokeWidth;
     final start = Offset(s.flipH ? size.width : 0, s.flipV ? size.height : 0);
     final end = Offset(s.flipH ? 0 : size.width, s.flipV ? 0 : size.height);

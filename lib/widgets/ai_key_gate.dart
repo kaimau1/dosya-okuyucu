@@ -52,7 +52,7 @@ Future<bool> ensureAiKey(BuildContext context) async {
                 const SizedBox(width: 8),
                 FilledButton.icon(
                   onPressed: () => Navigator.of(ctx).pop(true),
-                  icon: const Icon(Icons.key_rounded),
+                  icon: const Icon(AppIcons.key),
                   label: Text(ctx.t('aikey.add')),
                 ),
               ],

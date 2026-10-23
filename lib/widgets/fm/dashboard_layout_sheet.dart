@@ -5,6 +5,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../services/fm/dashboard_layout.dart';
 import '../../core/safe_insets.dart';
 import 'nav_tabs_sheet.dart';
+import '../../core/app_colors.dart';
 
 /// Düzen sayfasındaki bir satırın görünümü.
 typedef LayoutRowInfo = ({String label, IconData icon, Color color});
@@ -20,7 +21,7 @@ Future<void> showDashboardLayoutSheet(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    barrierColor: Colors.black26,
+    barrierColor: AppColors.barrier,
     builder: (_) => DraggableScrollableSheet(
       expand: false,
       initialChildSize: 0.75,
@@ -75,7 +76,7 @@ class _LayoutSheetState extends State<_LayoutSheet> {
                   if (layout.isCustomized)
                     TextButton.icon(
                       onPressed: layout.reset,
-                      icon: const Icon(Icons.restart_alt_rounded, size: 18),
+                      icon: const Icon(AppIcons.reset, size: 18),
                       label: Text(context.t('dash.reset')),
                     ),
                 ],
@@ -103,7 +104,7 @@ class _LayoutSheetState extends State<_LayoutSheet> {
             // Alt çubuk da ana ekranın parçası (2026-10-18): kullanıcı onu
             // "ana ekranı düzenle"de de arar.
             ListTile(
-              leading: const Icon(Icons.space_dashboard_rounded),
+              leading: const Icon(AppIcons.spaceDashboard),
               title: Text(context.t('nav.edit_title')),
               subtitle: Text(context.t('nav.settings_sub')),
               trailing: const Icon(AppIcons.chevron),
@@ -166,7 +167,7 @@ class _LayoutSheetState extends State<_LayoutSheet> {
                           index: i,
                           child: const Padding(
                             padding: EdgeInsets.all(8),
-                            child: Icon(Icons.drag_indicator_rounded),
+                            child: Icon(AppIcons.dragIndicator),
                           ),
                         ),
                       ],

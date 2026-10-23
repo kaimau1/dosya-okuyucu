@@ -132,7 +132,7 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
   Widget _dayTab(BuildContext context, PhotoInsights ins) {
     final byYear = ins.onThisDay();
     if (byYear.isEmpty) {
-      return _empty(context, Icons.cake_rounded,
+      return _empty(context, AppIcons.cake,
           ins.busy ? context.t('mem.loading') : context.t('mem.day_empty'));
     }
     final now = DateTime.now();
@@ -159,7 +159,7 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
   Widget _placesTab(BuildContext context, PhotoInsights ins) {
     final places = ins.places();
     if (places.isEmpty) {
-      return _empty(context, Icons.place_rounded,
+      return _empty(context, AppIcons.place,
           ins.busy ? context.t('mem.loading') : context.t('mem.places_empty'));
     }
     return ListView.separated(

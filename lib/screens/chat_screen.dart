@@ -238,14 +238,14 @@ class _ChatScreenState extends State<ChatScreen> {
             padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.sm),
             child: Row(
               children: [
-                _badge(context, Icons.smart_toy_rounded,
+                _badge(context, AppIcons.smartToy,
                     context.watch<AppState>().model),
                 if (_ctxName != null) ...[
                   const SizedBox(width: Gap.sm),
                   Flexible(
                     child: _badge(
                       context,
-                      Icons.attach_file_rounded,
+                      AppIcons.attachFile,
                       context.t('chat.context_badge', {'f': _ctxName}),
                     ),
                   ),
@@ -316,7 +316,7 @@ class _ChatScreenState extends State<ChatScreen> {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 11, color: Paper.faint(context)),
+              style: context.type.caption.copyWith(color: Paper.faint(context)),
             ),
           ),
         ],
@@ -369,7 +369,7 @@ class _QuickBar extends StatelessWidget {
               Padding(
                 padding: const EdgeInsetsDirectional.only(end: Gap.sm),
                 child: ActionChip(
-                  avatar: const Icon(Icons.lightbulb_outline_rounded, size: 18),
+                  avatar: const Icon(AppIcons.lightbulbOutline, size: 18),
                   label: Text(context.t('chat.quick_page_explain')),
                   onPressed: enabled
                       ? () => onQuick(context.t('chat.quick_page_explain_prompt',
@@ -403,7 +403,7 @@ class _ChatHint extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.smart_toy_rounded,
+            Icon(AppIcons.smartToy,
                 size: 64, color: Theme.of(context).colorScheme.primary),
             const SizedBox(height: 12),
             Text(
@@ -518,7 +518,7 @@ class _Bubble extends StatelessWidget {
                           child: ListTile(
                             dense: true,
                             contentPadding: EdgeInsets.zero,
-                            leading: Icon(Icons.grid_on_rounded),
+                            leading: Icon(AppIcons.gridOn),
                             title: Text('CSV (.csv)'),
                           ),
                         ),
@@ -538,7 +538,7 @@ class _Bubble extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.ios_share_rounded, size: 16),
+                            const Icon(AppIcons.iosShare, size: 16),
                             const SizedBox(width: 4),
                             // İpucu uzun ('Dışa aktar'), düğme etiketi kısa:
                             // satır dar ve dört öğe yan yana duruyor.

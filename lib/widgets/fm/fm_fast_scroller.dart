@@ -6,6 +6,9 @@ import 'package:flutter/scheduler.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
 import '../../core/app_haptics.dart';
+import '../../core/app_icons.dart';
+import '../../core/theme.dart';
+import '../../core/app_colors.dart';
 
 /// Kaydırma çubuğundaki bir işaret (ör. yıl başlangıcı): [offset] kaydırma
 /// ekseninde (ScrollPosition.pixels cinsinden) nerede başladığı.
@@ -186,9 +189,8 @@ class _FmFastScrollerState extends State<FmFastScroller> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
               child: Text(
                 label,
-                style: TextStyle(
+                style: context.type.large.copyWith(
                   color: scheme.onInverseSurface,
-                  fontSize: 15,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -244,14 +246,14 @@ class _FmFastScrollerState extends State<FmFastScroller> {
                             ),
                             boxShadow: const [
                               BoxShadow(
-                                color: Color(0x33000000),
+                                color: AppColors.shadow,
                                 blurRadius: 6,
                                 offset: Offset(0, 1),
                               ),
                             ],
                           ),
                           child: Icon(
-                            Icons.unfold_more_rounded,
+                            AppIcons.unfoldMore,
                             size: 20,
                             color: _dragging
                                 ? scheme.onPrimary
@@ -293,8 +295,7 @@ class _TickLabel extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         child: Text(
           text,
-          style: TextStyle(
-            fontSize: 12,
+          style: context.type.small.copyWith(
             fontWeight: FontWeight.w700,
             color: scheme.onSurface,
           ),

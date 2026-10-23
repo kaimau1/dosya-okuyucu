@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../core/app_icons.dart';
 import '../core/app_navigator.dart';
 import '../core/l10n/app_strings.dart';
+import '../core/theme.dart';
 
 /// Bir widget çizilirken hata olduğunda ekrana konan **kurtarma kartı**.
 ///
@@ -61,14 +62,16 @@ class AppErrorScreen extends StatelessWidget {
               Text(
                 str.t('err.render_failed'),
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                    color: fg, fontSize: 18, fontWeight: FontWeight.w600),
+                style: context.type.heading.copyWith(
+                    color: fg,
+                    fontWeight: FontWeight.w600,
+                  ),
               ),
               const SizedBox(height: 8),
               Text(
                 str.t('err.render_logged'),
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: dim, fontSize: 13),
+                style: context.type.compact.copyWith(color: dim),
               ),
               if (kDebugMode) ...[
                 const SizedBox(height: 12),
@@ -77,7 +80,7 @@ class AppErrorScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                   maxLines: 6,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: dim, fontSize: 11),
+                  style: context.type.caption.copyWith(color: dim),
                 ),
               ],
               const SizedBox(height: 20),

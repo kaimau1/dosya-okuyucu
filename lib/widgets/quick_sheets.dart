@@ -15,6 +15,7 @@ import 'markdown_text.dart';
 import 'translate_flow.dart';
 import '../core/safe_insets.dart';
 import '../core/user_error.dart';
+import '../core/app_colors.dart';
 
 /// Belgenin üstünde açılan **kısa, yüzen kart** — hızlı çeviri ve "AI'ya
 /// sor" ortak kabı.
@@ -30,7 +31,7 @@ Future<void> _showCard(BuildContext context, Widget child) {
     isScrollControlled: true,
     showDragHandle: false,
     // Hafif perde: belge arkada okunur kalsın.
-    barrierColor: Colors.black.withValues(alpha: 0.12),
+    barrierColor: AppColors.shade.withValues(alpha: 0.12),
     backgroundColor: Colors.transparent,
     elevation: 0,
     builder: (ctx) => SafeArea(
@@ -48,7 +49,7 @@ Future<void> _showCard(BuildContext context, Widget child) {
             child: Material(
               color: Theme.of(ctx).colorScheme.surfaceContainerLow,
               elevation: 6,
-              shadowColor: Colors.black38,
+              shadowColor: AppColors.shadowStrong,
               borderRadius: BorderRadius.circular(24),
               clipBehavior: Clip.antiAlias,
               child: child,
@@ -284,7 +285,7 @@ class _QuickTranslateState extends State<_QuickTranslate> {
                         });
                         _translate();
                       },
-                icon: const Icon(Icons.swap_horiz_rounded),
+                icon: const Icon(AppIcons.swapHoriz),
               ),
               Flexible(child: _langButton(_to, source: false)),
             ],
@@ -445,25 +446,25 @@ class _QuickAiState extends State<_QuickAi> {
     final presets = <(String, IconData, String, String)>[
       (
         'explain',
-        Icons.lightbulb_outline_rounded,
+        AppIcons.lightbulbOutline,
         context.t('ai.q_explain'),
         context.t('ai.q_explain_prompt'),
       ),
       (
         'simplify',
-        Icons.child_care_rounded,
+        AppIcons.childCare,
         context.t('ai.q_simplify'),
         context.t('ai.q_simplify_prompt'),
       ),
       (
         'summary',
-        Icons.short_text_rounded,
+        AppIcons.shortText,
         context.t('ai.q_summary'),
         context.t('ai.q_summary_prompt'),
       ),
       (
         'terms',
-        Icons.menu_book_rounded,
+        AppIcons.menuBook,
         context.t('ai.q_terms'),
         context.t('ai.q_terms_prompt'),
       ),

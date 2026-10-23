@@ -2,212 +2,89 @@
  "lib/core/page_transitions.dart": {
   "durations": 1
  },
- "lib/core/snack.dart": {
-  "material_colors": 1
- },
  "lib/core/user_error.dart": {
   "dialogs": 1
- },
- "lib/screens/chat_screen.dart": {
-  "icons": 6,
-  "font_size": 1
  },
  "lib/screens/editors/slides/actions.dart": {
   "dialogs": 1,
   "sheets": 1
  },
  "lib/screens/editors/slides/views.dart": {
-  "icons": 5,
-  "material_colors": 1,
-  "font_size": 1,
-  "dialogs": 1,
   "sheets": 2
- },
- "lib/screens/editors/slides_editor_screen.dart": {
-  "icons": 1
- },
- "lib/screens/editors/slideshow_screen.dart": {
-  "material_colors": 1,
-  "font_size": 1
  },
  "lib/screens/editors/spreadsheet/cells.dart": {
   "dialogs": 1
  },
  "lib/screens/editors/spreadsheet/dialogs.dart": {
-  "icons": 8,
   "hex_colors": 1,
-  "font_size": 1,
   "dialogs": 1
  },
  "lib/screens/editors/spreadsheet/file_ops.dart": {
   "dialogs": 1
  },
  "lib/screens/editors/spreadsheet/find_replace.dart": {
-  "icons": 1,
-  "font_size": 2,
   "dialogs": 1
  },
  "lib/screens/editors/spreadsheet/formatting.dart": {
-  "icons": 1,
   "sheets": 1
  },
- "lib/screens/editors/spreadsheet/formula_bar.dart": {
-  "icons": 3,
-  "font_size": 4
- },
  "lib/screens/editors/spreadsheet/headers.dart": {
-  "icons": 1,
   "font_size": 2,
   "sheets": 1
  },
  "lib/screens/editors/spreadsheet/ribbon.dart": {
-  "icons": 25,
   "sheets": 2
  },
  "lib/screens/editors/spreadsheet/sheet_tabs.dart": {
-  "icons": 1,
-  "dialogs": 3
+  "dialogs": 2
  },
  "lib/screens/editors/spreadsheet/widgets.dart": {
-  "hex_colors": 2
- },
- "lib/screens/editors/spreadsheet_editor_screen.dart": {
-  "icons": 1
+  "hex_colors": 1
  },
  "lib/screens/editors/word/actions.dart": {
   "dialogs": 1
  },
  "lib/screens/editors/word/page.dart": {
-  "icons": 1,
-  "material_colors": 1,
   "font_size": 1
- },
- "lib/screens/editors/word/shell.dart": {
-  "icons": 7
- },
- "lib/screens/fm/activity_screen.dart": {
-  "icons": 1,
-  "dialogs": 1
  },
  "lib/screens/fm/ai_actions.dart": {
-  "icons": 1,
-  "glyph_family": 1,
   "sheets": 2
  },
- "lib/screens/fm/ai_files_screen.dart": {
-  "font_size": 1
- },
- "lib/screens/fm/ai_hub/analysis.dart": {
-  "icons": 4,
-  "font_size": 6
- },
- "lib/screens/fm/ai_hub/chat.dart": {
-  "icons": 3,
-  "font_size": 4
- },
- "lib/screens/fm/ai_hub/tabs.dart": {
-  "icons": 8,
-  "glyph_family": 2,
-  "font_size": 6
- },
- "lib/screens/fm/ai_hub_screen.dart": {
-  "icons": 3
- },
  "lib/screens/fm/analysis/actions.dart": {
-  "icons": 1,
   "durations": 1
  },
  "lib/screens/fm/analysis/widgets.dart": {
-  "icons": 2,
   "hex_colors": 1
  },
- "lib/screens/fm/analysis_screen.dart": {
-  "icons": 3
- },
- "lib/screens/fm/archive_screen.dart": {
-  "icons": 1
- },
- "lib/screens/fm/audio_player_screen.dart": {
-  "icons": 17,
-  "glyph_family": 1,
-  "dialogs": 1
- },
- "lib/screens/fm/bills_screen.dart": {
-  "icons": 3
- },
  "lib/screens/fm/browser/actions.dart": {
-  "dialogs": 2,
   "sheets": 1
  },
  "lib/screens/fm/browser/views.dart": {
   "sheets": 1
  },
- "lib/screens/fm/chat_cleanup_screen.dart": {
-  "icons": 7
- },
- "lib/screens/fm/cleanup_screen.dart": {
-  "icons": 2,
-  "dialogs": 1
- },
  "lib/screens/fm/dashboard/cards.dart": {
-  "hex_colors": 1,
-  "material_colors": 1
+  "hex_colors": 1
  },
  "lib/screens/fm/dashboard/external_open.dart": {
-  "icons": 5,
   "dialogs": 3,
   "sheets": 3
- },
- "lib/screens/fm/dashboard/hero.dart": {
-  "icons": 1
- },
- "lib/screens/fm/dashboard/scan.dart": {
-  "dialogs": 1
- },
- "lib/screens/fm/dashboard/sections.dart": {
-  "icons": 7,
-  "glyph_family": 1
- },
- "lib/screens/fm/dashboard/tiles.dart": {
-  "icons": 2
- },
- "lib/screens/fm/dashboard/tools.dart": {
-  "icons": 9,
-  "glyph_family": 1
  },
  "lib/screens/fm/dashboard/volume_watch.dart": {
   "durations": 2,
   "dialogs": 1
  },
- "lib/screens/fm/dashboard_screen.dart": {
-  "icons": 1
- },
  "lib/screens/fm/download_manager_screen.dart": {
-  "icons": 5,
   "dialogs": 2,
   "sheets": 2
  },
- "lib/screens/fm/downloads_screen.dart": {
-  "icons": 1
- },
  "lib/screens/fm/drive/actions.dart": {
-  "dialogs": 3
+  "dialogs": 2
  },
  "lib/screens/fm/drive/views.dart": {
-  "icons": 4,
-  "glyph_family": 1,
-  "hex_colors": 1,
-  "material_colors": 1,
-  "font_size": 2
- },
- "lib/screens/fm/drive_screen.dart": {
-  "icons": 2
- },
- "lib/screens/fm/duplicates_screen.dart": {
-  "icons": 1
+  "hex_colors": 1
  },
  "lib/screens/fm/entry_actions/file_ops.dart": {
-  "dialogs": 4,
+  "dialogs": 1,
   "sheets": 1
  },
  "lib/screens/fm/entry_actions/properties.dart": {
@@ -216,320 +93,125 @@
  "lib/screens/fm/entry_actions/sheet.dart": {
   "sheets": 2
  },
- "lib/screens/fm/folder_picker_screen.dart": {
-  "icons": 4,
-  "glyph_family": 1
- },
- "lib/screens/fm/hidden_files_screen.dart": {
-  "icons": 2
- },
- "lib/screens/fm/history_screen.dart": {
-  "icons": 3
- },
  "lib/screens/fm/image_gallery/widgets.dart": {
-  "hex_colors": 2,
-  "font_size": 1
+  "hex_colors": 2
  },
  "lib/screens/fm/image_gallery_screen.dart": {
-  "hex_colors": 4
- },
- "lib/screens/fm/important_screen.dart": {
-  "dialogs": 1
+  "hex_colors": 2
  },
  "lib/screens/fm/installed_apps/views.dart": {
-  "icons": 4,
-  "glyph_family": 2,
   "dialogs": 1,
   "sheets": 1
- },
- "lib/screens/fm/installed_apps_screen.dart": {
-  "icons": 1
- },
- "lib/screens/fm/jobs_screen.dart": {
-  "icons": 3
  },
  "lib/screens/fm/media_player/actions.dart": {
-  "icons": 3,
-  "material_colors": 1,
   "durations": 2
  },
- "lib/screens/fm/media_player/views.dart": {
-  "icons": 15,
-  "material_colors": 1,
-  "font_size": 2
- },
- "lib/screens/fm/memories_screen.dart": {
-  "icons": 2
- },
- "lib/screens/fm/op_history_screen.dart": {
-  "icons": 4,
-  "glyph_family": 1,
-  "dialogs": 1
- },
- "lib/screens/fm/open_history_screen.dart": {
-  "icons": 1,
-  "dialogs": 1
- },
- "lib/screens/fm/organize_screen.dart": {
-  "icons": 1,
-  "dialogs": 1
- },
  "lib/screens/fm/photos/toolbar.dart": {
-  "icons": 6,
-  "dialogs": 1,
   "sheets": 1
  },
- "lib/screens/fm/photos/widgets.dart": {
-  "material_colors": 1,
-  "font_size": 1
- },
- "lib/screens/fm/photos_screen.dart": {
-  "icons": 2
- },
- "lib/screens/fm/pick_file_screen.dart": {
-  "icons": 4,
-  "font_size": 2
- },
  "lib/screens/fm/remote/peer_share_screen.dart": {
-  "icons": 9,
-  "dialogs": 2,
+  "dialogs": 1,
   "sheets": 1
  },
  "lib/screens/fm/remote/remote_browser/actions.dart": {
   "dialogs": 2
  },
- "lib/screens/fm/remote/remote_browser/views.dart": {
-  "icons": 1,
-  "dialogs": 1
- },
- "lib/screens/fm/remote/remote_browser_screen.dart": {
-  "icons": 1
- },
  "lib/screens/fm/remote/remote_connections_screen.dart": {
-  "icons": 6,
-  "dialogs": 2
- },
- "lib/screens/fm/remote/remote_edit_screen.dart": {
-  "icons": 1
- },
- "lib/screens/fm/remote/share_folders_screen.dart": {
-  "icons": 4
- },
- "lib/screens/fm/resize_compare_screen.dart": {
-  "icons": 6,
-  "material_colors": 2,
-  "font_size": 3,
   "dialogs": 1
  },
  "lib/screens/fm/sd_union_screen.dart": {
-  "icons": 17,
-  "glyph_family": 3,
   "durations": 4
  },
  "lib/screens/fm/search_screen.dart": {
-  "icons": 2,
   "durations": 1
  },
  "lib/screens/fm/similar_screen.dart": {
-  "icons": 3,
-  "material_colors": 4,
-  "font_size": 1,
   "dialogs": 1
  },
  "lib/screens/fm/smart_folders_screen.dart": {
-  "icons": 2,
-  "glyph_family": 1,
-  "dialogs": 2
+  "dialogs": 1
  },
  "lib/screens/fm/swipe_pager.dart": {
-  "icons": 1,
-  "font_size": 3,
   "durations": 2
  },
- "lib/screens/fm/transfer_screen.dart": {
-  "icons": 5
- },
- "lib/screens/fm/trash_screen.dart": {
-  "icons": 5,
-  "font_size": 1,
-  "dialogs": 2
- },
  "lib/screens/fm/usb_diagnostics_screen.dart": {
-  "icons": 1,
   "dialogs": 1
  },
  "lib/screens/fm/vault_screen.dart": {
-  "icons": 5,
-  "dialogs": 1,
   "sheets": 1
  },
  "lib/screens/image_edit_screen.dart": {
-  "icons": 6,
   "hex_colors": 8,
-  "material_colors": 1,
-  "dialogs": 2,
+  "dialogs": 1,
   "sheets": 1
  },
  "lib/screens/pdf_editor/actions.dart": {
-  "dialogs": 2
- },
- "lib/screens/pdf_editor/views.dart": {
-  "icons": 9,
-  "font_size": 4,
   "dialogs": 1
  },
- "lib/screens/pdf_form_screen.dart": {
-  "font_size": 1
+ "lib/screens/pdf_editor/views.dart": {
+  "dialogs": 1
  },
  "lib/screens/pdf_ink/input.dart": {
   "dialogs": 2
  },
  "lib/screens/pdf_ink/views.dart": {
-  "icons": 4,
-  "material_colors": 1,
   "font_size": 1
- },
- "lib/screens/pdf_ink_screen.dart": {
-  "material_colors": 1
- },
- "lib/screens/pdf_sign_screen.dart": {
-  "icons": 3,
-  "material_colors": 1
  },
  "lib/screens/pdf_tools/actions.dart": {
-  "dialogs": 7,
+  "dialogs": 5,
   "sheets": 1
  },
- "lib/screens/pdf_tools/views.dart": {
-  "icons": 1,
-  "material_colors": 4,
+ "lib/screens/reader_screen.dart": {
+  "hex_colors": 5,
   "font_size": 2
  },
- "lib/screens/pdf_tools_screen.dart": {
-  "icons": 1
- },
- "lib/screens/reader_screen.dart": {
-  "icons": 7,
-  "hex_colors": 5,
-  "material_colors": 1,
-  "font_size": 4
- },
  "lib/screens/scan_edit_screen.dart": {
-  "icons": 1,
-  "hex_colors": 6,
-  "font_size": 1
+  "hex_colors": 6
  },
  "lib/screens/scan_result/actions.dart": {
   "durations": 1,
-  "dialogs": 1,
   "sheets": 2
  },
- "lib/screens/scan_result/views.dart": {
-  "icons": 4,
-  "glyph_family": 1,
-  "material_colors": 2,
-  "font_size": 3
- },
- "lib/screens/scan_result/widgets.dart": {
-  "icons": 1,
-  "material_colors": 3,
-  "font_size": 2
- },
- "lib/screens/scan_result_screen.dart": {
-  "icons": 1
- },
  "lib/screens/settings/settings_catalog.dart": {
-  "icons": 5,
   "hex_colors": 1
  },
- "lib/screens/settings/settings_group.dart": {
-  "icons": 1
- },
  "lib/screens/settings/tiles_ai.dart": {
-  "icons": 3,
-  "font_size": 4,
   "durations": 1
  },
- "lib/screens/settings/tiles_ai_pool.dart": {
-  "icons": 3,
-  "font_size": 1
- },
- "lib/screens/settings/tiles_ai_scope.dart": {
-  "icons": 6,
-  "font_size": 2,
-  "dialogs": 1
- },
  "lib/screens/settings/tiles_appearance.dart": {
-  "icons": 8,
-  "glyph_family": 1,
-  "material_colors": 2,
-  "font_size": 2,
   "sheets": 2
  },
  "lib/screens/settings/tiles_backup.dart": {
-  "icons": 3,
   "sheets": 1
  },
- "lib/screens/settings/tiles_browsing.dart": {
-  "icons": 4
- },
- "lib/screens/settings/tiles_privacy.dart": {
-  "icons": 3
- },
- "lib/screens/settings/tiles_reading.dart": {
-  "icons": 2
- },
  "lib/screens/settings/tiles_system.dart": {
-  "icons": 9,
   "dialogs": 1
- },
- "lib/screens/settings/tiles_trash.dart": {
-  "icons": 2,
-  "dialogs": 1
- },
- "lib/screens/settings_screen.dart": {
-  "icons": 4
  },
  "lib/screens/viewer/body.dart": {
-  "icons": 1,
-  "material_colors": 2,
   "font_size": 2
  },
  "lib/screens/viewer/doc_actions.dart": {
-  "icons": 1,
   "dialogs": 3
  },
  "lib/screens/viewer/find_replace.dart": {
-  "icons": 3,
-  "glyph_family": 1,
-  "material_colors": 2,
   "dialogs": 1
  },
  "lib/screens/viewer/pdf_navigation.dart": {
-  "icons": 4,
-  "material_colors": 1,
-  "font_size": 2,
   "durations": 3,
   "sheets": 1
  },
  "lib/screens/viewer/pdf_selection.dart": {
-  "icons": 2,
-  "material_colors": 1,
   "durations": 1,
-  "dialogs": 1,
   "sheets": 1
  },
  "lib/screens/viewer/pending_save.dart": {
   "dialogs": 1
  },
  "lib/screens/viewer/shell_menus.dart": {
-  "icons": 27,
-  "glyph_family": 2,
-  "material_colors": 2,
   "sheets": 2
  },
  "lib/screens/viewer/widgets.dart": {
-  "font_size": 5
+  "font_size": 4
  },
  "lib/services/conversion_service.dart": {
   "font_size": 6
@@ -538,18 +220,13 @@
   "durations": 1
  },
  "lib/services/fm/entry_opener.dart": {
-  "icons": 1,
   "dialogs": 1
  },
  "lib/services/fm/home_shortcuts.dart": {
-  "material_colors": 1,
   "font_size": 1
  },
  "lib/services/fm/job_queue.dart": {
   "durations": 1
- },
- "lib/services/fm/pdf_thumbnail.dart": {
-  "hex_colors": 1
  },
  "lib/services/fm/remote/lan_discovery.dart": {
   "durations": 2
@@ -567,9 +244,6 @@
   "hex_colors": 1,
   "font_size": 1
  },
- "lib/services/ocr_service.dart": {
-  "hex_colors": 1
- },
  "lib/services/pdf/pdf_paragraph.dart": {
   "font_size": 3
  },
@@ -586,110 +260,70 @@
   "font_size": 1
  },
  "lib/services/xlsx_editor.dart": {
-  "hex_colors": 1,
   "font_size": 4
  },
  "lib/services/xlsx_save_patch.dart": {
   "font_size": 1
  },
  "lib/widgets/ai_key_gate.dart": {
-  "icons": 1,
   "sheets": 1
  },
  "lib/widgets/ai_rewrite_sheet.dart": {
   "sheets": 1
  },
  "lib/widgets/ai_slides_flow.dart": {
-  "icons": 1,
   "sheets": 2
  },
  "lib/widgets/ai_summary_flow.dart": {
-  "icons": 2,
   "sheets": 2
  },
  "lib/widgets/app_error_screen.dart": {
-  "hex_colors": 5,
-  "font_size": 3
+  "hex_colors": 5
  },
  "lib/widgets/chart_insert_dialog.dart": {
-  "icons": 4,
   "hex_colors": 1,
-  "material_colors": 1,
   "dialogs": 1
  },
  "lib/widgets/chart_painter.dart": {
   "hex_colors": 4,
-  "material_colors": 1,
-  "font_size": 1
- },
- "lib/widgets/crash_notice.dart": {
-  "icons": 1
- },
- "lib/widgets/doc_action_bar.dart": {
-  "font_size": 1
- },
- "lib/widgets/doc_find_bar.dart": {
-  "icons": 2,
   "font_size": 1
  },
  "lib/widgets/doc_more_sheet.dart": {
   "sheets": 1
  },
  "lib/widgets/docx_view.dart": {
-  "icons": 2,
   "hex_colors": 1
  },
  "lib/widgets/file_type_icon.dart": {
-  "icons": 1,
-  "hex_colors": 3,
-  "material_colors": 1
- },
- "lib/widgets/fm/ai_file_list.dart": {
-  "font_size": 2
+  "hex_colors": 3
  },
  "lib/widgets/fm/ai_preview_card.dart": {
-  "hex_colors": 1,
-  "material_colors": 1
- },
- "lib/widgets/fm/ai_status_icon.dart": {
-  "icons": 1,
-  "glyph_family": 1
+  "hex_colors": 1
  },
  "lib/widgets/fm/archive_password_dialog.dart": {
   "dialogs": 1
  },
  "lib/widgets/fm/batch_rename_sheet.dart": {
-  "icons": 1,
   "sheets": 1
  },
  "lib/widgets/fm/compress_sheet.dart": {
-  "icons": 1,
   "sheets": 1
  },
  "lib/widgets/fm/dashboard_layout_sheet.dart": {
-  "icons": 3,
-  "material_colors": 1,
   "sheets": 1
  },
  "lib/widgets/fm/drag_select.dart": {
   "durations": 1
  },
  "lib/widgets/fm/fm_category_tile.dart": {
-  "material_colors": 4,
-  "font_size": 4,
+  "font_size": 1,
   "durations": 2
  },
  "lib/widgets/fm/fm_entry_icon.dart": {
-  "icons": 29,
-  "glyph_family": 8,
   "hex_colors": 20,
-  "material_colors": 6,
   "font_size": 1
  },
  "lib/widgets/fm/fm_fast_scroller.dart": {
-  "icons": 1,
-  "hex_colors": 1,
-  "font_size": 2,
   "durations": 1
  },
  "lib/widgets/fm/fm_filter_sheet.dart": {
@@ -697,33 +331,18 @@
  },
  "lib/widgets/fm/fm_glyph.dart": {
   "hex_colors": 4,
-  "material_colors": 8,
   "font_size": 2
  },
  "lib/widgets/fm/fm_layout_sheet.dart": {
   "sheets": 1
  },
- "lib/widgets/fm/fm_path_bar.dart": {
-  "font_size": 1
- },
- "lib/widgets/fm/fm_quick_filters.dart": {
-  "font_size": 1
- },
- "lib/widgets/fm/job_progress_bar.dart": {
-  "icons": 1
- },
  "lib/widgets/fm/media_resize_sheet.dart": {
-  "icons": 4,
-  "font_size": 7,
   "sheets": 1
  },
  "lib/widgets/fm/nav_tabs_sheet.dart": {
-  "icons": 31,
-  "glyph_family": 17,
   "sheets": 1
  },
  "lib/widgets/fm/paste_conflict_sheet.dart": {
-  "icons": 2,
   "sheets": 1
  },
  "lib/widgets/fm/pin_dialog.dart": {
@@ -745,89 +364,51 @@
   "sheets": 1
  },
  "lib/widgets/office_ribbon.dart": {
-  "icons": 31,
-  "material_colors": 10,
-  "font_size": 2
+  "font_size": 1
  },
  "lib/widgets/office_shell.dart": {
-  "hex_colors": 2,
-  "material_colors": 1,
-  "font_size": 2,
+  "hex_colors": 1,
   "durations": 1
  },
- "lib/widgets/pdf_action_bars.dart": {
-  "icons": 3,
-  "material_colors": 5
- },
- "lib/widgets/pdf_edit_modes.dart": {
-  "icons": 4
- },
- "lib/widgets/pdf_edit_overlay.dart": {
-  "icons": 2,
-  "material_colors": 2
- },
  "lib/widgets/pdf_page_navigator.dart": {
-  "icons": 7,
-  "hex_colors": 2,
-  "material_colors": 6,
-  "font_size": 1,
+  "hex_colors": 1,
   "durations": 1,
   "sheets": 1
  },
  "lib/widgets/pdf_save_dialog.dart": {
-  "icons": 1,
   "dialogs": 1
  },
  "lib/widgets/pdf_select_layer.dart": {
-  "icons": 1,
   "hex_colors": 1,
-  "material_colors": 2,
-  "font_size": 1,
   "durations": 5
  },
- "lib/widgets/permission_gate.dart": {
-  "icons": 5
- },
- "lib/widgets/qr_code.dart": {
-  "material_colors": 2
- },
  "lib/widgets/quick_sheets.dart": {
-  "icons": 5,
-  "material_colors": 2,
   "sheets": 1
  },
  "lib/widgets/scan_flow.dart": {
-  "icons": 2,
   "hex_colors": 4,
-  "material_colors": 1,
   "sheets": 1
  },
  "lib/widgets/section_header.dart": {
-  "font_size": 3
+  "font_size": 1
  },
  "lib/widgets/sheet_cell.dart": {
   "hex_colors": 2,
   "font_size": 1
  },
  "lib/widgets/signature_pad.dart": {
-  "material_colors": 3,
   "dialogs": 1
  },
  "lib/widgets/slide_canvas.dart": {
-  "hex_colors": 3,
-  "material_colors": 1,
+  "hex_colors": 2,
   "font_size": 3,
   "durations": 2
  },
  "lib/widgets/translate_flow.dart": {
-  "icons": 1,
-  "font_size": 1,
   "dialogs": 1,
   "sheets": 1
  },
  "lib/widgets/tts_voice_sheet.dart": {
-  "icons": 1,
-  "font_size": 2,
   "sheets": 1
  }
 }

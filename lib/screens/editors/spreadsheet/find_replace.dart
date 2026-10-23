@@ -90,11 +90,11 @@ extension _SpreadsheetEditorScreenFindReplacePart on _SpreadsheetEditorScreenSta
           Expanded(
             child: TextField(
               controller: _replaceField,
-              style: const TextStyle(fontSize: 14),
+              style: context.type.body,
               decoration: DocFindBar.decoration(
                 context,
                 hint: context.t('excel.replace_with'),
-                icon: Icons.find_replace_rounded,
+                icon: AppIcons.findReplace,
               ),
             ),
           ),
@@ -184,8 +184,9 @@ extension _SpreadsheetEditorScreenFindReplacePart on _SpreadsheetEditorScreenSta
                     ? context.t('excel.hidden')
                     : '${value.toStringAsFixed(2)} '
                         '${context.t(isCol ? 'excel.unit_chars' : 'excel.unit_points')}',
-                style: const TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.w600),
+                style: context.type.heading.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
               ),
               Slider(
                 value: value,

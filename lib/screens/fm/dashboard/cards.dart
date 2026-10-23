@@ -293,7 +293,7 @@ class _QuickDock extends StatelessWidget {
     return Material(
       color: scheme.surfaceContainerHigh,
       elevation: 6,
-      shadowColor: Colors.black.withValues(alpha: 0.35),
+      shadowColor: AppColors.shade.withValues(alpha: 0.35),
       shape: StadiumBorder(side: BorderSide(color: scheme.outlineVariant)),
       clipBehavior: Clip.antiAlias,
       child: Padding(

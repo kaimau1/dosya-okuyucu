@@ -258,7 +258,7 @@ class _BatchRenameSheetState extends State<_BatchRenameSheet> {
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodySmall),
           ),
-          const Icon(Icons.arrow_right_alt_rounded, size: 16),
+          const Icon(AppIcons.arrowRightAlt, size: 16),
           Expanded(
             child: Text(
               item.problem ?? item.newName,

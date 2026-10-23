@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 
 import '../../core/app_icons.dart';
 import '../../core/motion.dart';
+import '../../core/theme.dart';
 
 /// Kaydırmalı gezginin bir sayfası.
 class SwipePage {
@@ -160,32 +161,32 @@ class _SwipePagerState extends State<SwipePager> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         if (_index > 0) ...[
-                          Icon(Icons.chevron_left_rounded,
+                          Icon(AppIcons.chevronLeft,
                               size: 16,
                               color: scheme.onInverseSurface
                                   .withValues(alpha: 0.6)),
                           Text(pages[_index - 1].label,
-                              style: TextStyle(
-                                  fontSize: 12,
+                              style: context.type.small.copyWith(
                                   color: scheme.onInverseSurface
-                                      .withValues(alpha: 0.6))),
+                                      .withValues(alpha: 0.6),
+                                )),
                           const SizedBox(width: 10),
                         ],
                         Icon(pages[_index].icon,
                             size: 16, color: pages[_index].color),
                         const SizedBox(width: 6),
                         Text(pages[_index].label,
-                            style: TextStyle(
-                                fontSize: 13,
+                            style: context.type.compact.copyWith(
                                 fontWeight: FontWeight.w700,
-                                color: scheme.onInverseSurface)),
+                                color: scheme.onInverseSurface,
+                              )),
                         if (_index < pages.length - 1) ...[
                           const SizedBox(width: 10),
                           Text(pages[_index + 1].label,
-                              style: TextStyle(
-                                  fontSize: 12,
+                              style: context.type.small.copyWith(
                                   color: scheme.onInverseSurface
-                                      .withValues(alpha: 0.6))),
+                                      .withValues(alpha: 0.6),
+                                )),
                           Icon(AppIcons.chevron,
                               size: 16,
                               color: scheme.onInverseSurface

@@ -8,6 +8,7 @@ import 'package:pdfrx/pdfrx.dart';
 
 import 'disk_housekeeping.dart';
 import 'thumbnail_cache.dart';
+import '../../core/app_colors.dart';
 
 /// PDF'in **ilk sayfasını** küçük resim olarak üretir ve diskte önbelleğe alır.
 ///
@@ -98,7 +99,7 @@ abstract final class PdfThumbnail {
         fullWidth: width.toDouble(),
         fullHeight: height.toDouble(),
         // Beyaz zemin: saydam çizim koyu temada okunmaz bir leke olurdu.
-        backgroundColor: const ui.Color(0xFFFFFFFF),
+        backgroundColor: AppColors.page,
       );
       if (rendered == null) {
         _markFailed(path);

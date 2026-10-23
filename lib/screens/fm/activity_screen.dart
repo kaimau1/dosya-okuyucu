@@ -14,6 +14,8 @@ import '../../widgets/fm/fm_type_chips.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/motion.dart';
 import '../../core/safe_insets.dart';
+import '../../core/app_icons.dart';
+import '../../widgets/app_dialog.dart';
 
 /// **Yaptıklarım** — üretilen dosyaların türe göre gruplanmış defteri.
 ///
@@ -83,7 +85,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
           if (_records.isNotEmpty)
             IconButton(
               tooltip: context.t('act.clear'),
-              icon: const Icon(Icons.delete_sweep_rounded),
+              icon: const Icon(AppIcons.deleteSweep),
               onPressed: _confirmClear,
             ),
         ],
@@ -177,19 +179,11 @@ class _ActivityScreenState extends State<ActivityScreen> {
   }
 
   Future<void> _confirmClear() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        content: Text(ctx.t('act.clear_confirm')),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(ctx.t('common.cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(ctx.t('common.delete'))),
-        ],
-      ),
+    final ok = await showAppConfirm(
+        context,
+        message: context.t('act.clear_confirm'),
+        confirmLabel: context.t('common.delete'),
+        destructive: true,
     );
     if (ok != true) return;
     // **Yalnız defter silinir, dosyalar DURUR.** Onay metni de bunu yazıyor:

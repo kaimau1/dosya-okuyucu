@@ -34,12 +34,12 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
           if (_selected.length == 1) ...[
             IconButton(
               tooltip: context.t('ph.select_above'),
-              icon: const Icon(Icons.expand_less_rounded),
+              icon: const Icon(AppIcons.expandLess),
               onPressed: () => _selectFromAnchor(visible, above: true),
             ),
             IconButton(
               tooltip: context.t('ph.select_below'),
-              icon: const Icon(Icons.expand_more_rounded),
+              icon: const Icon(AppIcons.expandMore),
               onPressed: () => _selectFromAnchor(visible, above: false),
             ),
           ],
@@ -143,7 +143,7 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
           },
           itemBuilder: (ctx) => [
             _menuItem(ctx, 'view', AppIcons.layoutGrid, ctx.t('ph.view')),
-            _menuItem(ctx, 'similar', Icons.auto_awesome_motion_rounded,
+            _menuItem(ctx, 'similar', AppIcons.autoAwesomeMotion,
                 ctx.t('ph.similar_short')),
             if (visible.isNotEmpty)
               _menuItem(ctx, 'select', AppIcons.selectAll, ctx.t('ph.select_all')),
@@ -233,7 +233,7 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
         // `FmChip` DEĞİL `FmPill`: çipin kendi dokunma tanıyıcısı menü
         // düğmesinin dokunuşunu yutar ve menü hiç açılmazdı.
         child: FmPill(
-          icon: Icons.calendar_month_rounded,
+          icon: AppIcons.calendarMonth,
           label: context.t(group.labelKey),
           dropdown: true,
         ),
@@ -284,24 +284,16 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
     // kutusu kapalıyken bu doğrudan yanlıştı ve dosyalar kalıcı siliniyordu
     // (2026-07-29 sadakat denetimi, 2. tur — `deleteEntries`teki nota bak).
     final useTrash = context.read<AppState>().fmUseTrash;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.t('ph.delete_dupes_title')),
-        content: Text(ctx.t('ph.delete_dupes_body', {
+    final ok = await showAppConfirm(
+        context,
+        title: context.t('ph.delete_dupes_title'),
+        message: context.t('ph.delete_dupes_body', {
           'n': extras.length,
           'size': FsPaths.humanSize(bytes),
-          'fate': ctx.t(useTrash ? 'ph.fate_trash' : 'ph.fate_permanent'),
-        })),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(ctx.t('common.cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(ctx.t('common.delete'))),
-        ],
-      ),
+          'fate': context.t(useTrash ? 'ph.fate_trash' : 'ph.fate_permanent'),
+        }),
+        confirmLabel: context.t('common.delete'),
+        destructive: true,
     );
     if (ok != true || !mounted) return;
     if (await deleteEntries(context, extras, confirm: false)) {
@@ -333,7 +325,7 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
         // `FmChip` DEĞİL `FmPill`: çipin kendi jest tanıyıcısı menü düğmesinin
         // dokunuşunu yutar ve menü hiç açılmazdı.
         child: FmPill(
-          icon: Icons.filter_none_rounded,
+          icon: AppIcons.filterNone,
           label: context.t('ph.hidden_dupes_short', {'n': _hiddenDuplicates}),
           disabled: _selecting,
           highlighted: !_selecting,
@@ -396,7 +388,7 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
                   const SizedBox(height: Gap.md),
                   Row(
                     children: [
-                      Icon(Icons.pinch_rounded,
+                      Icon(AppIcons.pinch,
                           size: 20, color: theme.colorScheme.onSurfaceVariant),
                       const SizedBox(width: Gap.sm),
                       Expanded(

@@ -134,8 +134,7 @@ class FmPathBar extends StatelessWidget {
                               ],
                               Text(
                                 seg.label,
-                                style: TextStyle(
-                                  fontSize: 13,
+                                style: context.type.compact.copyWith(
                                   fontWeight: isLast
                                       ? FontWeight.w700
                                       : FontWeight.w500,

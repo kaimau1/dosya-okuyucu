@@ -135,7 +135,7 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
   ) {
     final out = <({IconData icon, String label, String path, bool create})>[
       (
-        icon: Icons.star_outline_rounded,
+        icon: AppIcons.starOutline,
         label: ImportantScreen.folderName,
         path: ImportantScreen.pathIn(FmEnv.primaryRoot),
         create: true,
@@ -175,12 +175,12 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
   static IconData _iconForShortcut(String key) => switch (key) {
         'download' => AppIcons.download,
         'document' => AppIcons.newWord,
-        'camera' => Icons.photo_camera_rounded,
+        'camera' => AppIcons.photoCamera,
         'image' => AppIcons.image,
         'audio' => AppIcons.audio,
         'video' => AppIcons.video,
-        'chat' => Icons.chat_rounded,
-        _ => Icons.folder_outlined,
+        'chat' => AppIcons.chat,
+        _ => AppIcons.folder,
       };
 
   /// Kısayola dokunma: klasörü (gerekirse oluşturup) **doğrudan hedef seçer**.

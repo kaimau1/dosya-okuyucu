@@ -133,7 +133,7 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
         actions: [
           IconButton(
             tooltip: context.t('dl.clipboard_download'),
-            icon: const Icon(Icons.content_paste_go_rounded),
+            icon: const Icon(AppIcons.contentPasteGo),
             onPressed: _addFromClipboard,
           ),
           IconButton(
@@ -144,7 +144,7 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
           if (tasks.any((t) => !t.state.isActive))
             IconButton(
               tooltip: context.t('dl.clear_finished'),
-              icon: const Icon(Icons.clear_all_rounded),
+              icon: const Icon(AppIcons.clearAll),
               onPressed: _service.clearFinished,
             ),
         ],
@@ -155,7 +155,7 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
       ]),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _addManual,
-        icon: const Icon(Icons.add_link_rounded),
+        icon: const Icon(AppIcons.addLink),
         label: Text(context.t('dl.link')),
       ),
     );
@@ -170,7 +170,7 @@ class _DownloadManagerScreenState extends State<DownloadManagerScreen> {
         padding: const EdgeInsetsDirectional.fromSTEB(Gap.md, Gap.sm, Gap.sm, Gap.sm),
         child: Row(
           children: [
-            const Icon(Icons.link_rounded, size: 20),
+            const Icon(AppIcons.link, size: 20),
             const SizedBox(width: Gap.sm),
             Expanded(
               child: Column(
@@ -544,7 +544,7 @@ class _HowToCard extends StatelessWidget {
               body: context.t('dl.step1_body'),
             ),
             _Step(
-              icon: Icons.content_paste_go_rounded,
+              icon: AppIcons.contentPasteGo,
               title: context.t('dl.step2_title'),
               body: context.t('dl.step2_body'),
             ),

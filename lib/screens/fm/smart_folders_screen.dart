@@ -12,6 +12,7 @@ import '../../services/fm/fs_scan.dart';
 import '../../services/fm/smart_folders.dart';
 import '../../widgets/fm/ai_preview_card.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/app_dialog.dart';
 
 /// **Akıllı klasörler listesi** — her biri kayıtlı bir AI araması (bkz.
 /// [SmartFolders]). Satırda klasörün o anki dosya sayısı, yeni gelen sayısı ve
@@ -64,7 +65,7 @@ class _SmartFoldersScreenState extends State<SmartFoldersScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.folder_special_outlined,
+                    Icon(AppIcons.folderSpecial,
                         size: 56, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(height: Gap.md),
                     Text(context.t('smart.empty'),
@@ -129,7 +130,7 @@ class _FolderRow extends StatelessWidget {
                   color: scheme.primaryContainer,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(Icons.folder_special_rounded,
+                child: Icon(AppIcons.folderSpecial,
                     color: scheme.onPrimaryContainer),
               ),
               const SizedBox(width: Gap.md),
@@ -216,20 +217,12 @@ class _SmartFolderScreenState extends State<SmartFolderScreen> {
   }
 
   Future<void> _delete(SmartFolder folder) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.t('smart.delete')),
-        content: Text(ctx.t('smart.delete_body')),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(ctx.t('common.cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(ctx.t('smart.delete'))),
-        ],
-      ),
+    final ok = await showAppConfirm(
+        context,
+        title: context.t('smart.delete'),
+        message: context.t('smart.delete_body'),
+        confirmLabel: context.t('smart.delete'),
+        destructive: true,
     );
     if (ok != true) return;
     await SmartFolders.instance.remove(folder.id);

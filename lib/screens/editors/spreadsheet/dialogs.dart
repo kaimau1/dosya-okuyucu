@@ -10,11 +10,11 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
     _endEdit();
     DocMoreSheet.show(context, [
       DocMoreGroup(context.t('excel.cond_format'), [
-        DocMoreItem(Icons.trending_up_rounded, context.t('excel.cond_greater'),
+        DocMoreItem(AppIcons.trendingUp, context.t('excel.cond_greater'),
             () => _askCondRule('cellIs', operator: 'greaterThan')),
-        DocMoreItem(Icons.trending_down_rounded, context.t('excel.cond_less'),
+        DocMoreItem(AppIcons.trendingDown, context.t('excel.cond_less'),
             () => _askCondRule('cellIs', operator: 'lessThan')),
-        DocMoreItem(Icons.drag_handle_rounded, context.t('excel.cond_equal'),
+        DocMoreItem(AppIcons.dragHandle, context.t('excel.cond_equal'),
             () => _askCondRule('cellIs', operator: 'equal')),
         DocMoreItem(AppIcons.textFields, context.t('excel.cond_contains'),
             () => _askCondRule('containsText')),
@@ -92,20 +92,20 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
     const thin = 'thin';
     DocMoreSheet.show(context, [
       DocMoreGroup(context.t('excel.borders'), [
-        DocMoreItem(Icons.border_all_rounded, context.t('excel.border_all'),
+        DocMoreItem(AppIcons.borderAll, context.t('excel.border_all'),
             () => _applyBorder(const {
                   'left': thin,
                   'right': thin,
                   'top': thin,
                   'bottom': thin,
                 })),
-        DocMoreItem(Icons.border_outer_rounded, context.t('excel.border_outline'),
+        DocMoreItem(AppIcons.borderOuter, context.t('excel.border_outline'),
             _applyOutlineBorder),
-        DocMoreItem(Icons.border_bottom_rounded, context.t('excel.border_bottom'),
+        DocMoreItem(AppIcons.borderBottom, context.t('excel.border_bottom'),
             () => _applyBorder(const {'bottom': thin})),
-        DocMoreItem(Icons.border_top_rounded, context.t('excel.border_top'),
+        DocMoreItem(AppIcons.borderTop, context.t('excel.border_top'),
             () => _applyBorder(const {'top': thin})),
-        DocMoreItem(Icons.border_clear_rounded, context.t('excel.border_none'),
+        DocMoreItem(AppIcons.borderClear, context.t('excel.border_none'),
             () => _applyBorder(const {
                   'left': null,
                   'right': null,
@@ -216,7 +216,7 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
     final sheets =
         _editor?.sheets.where((s) => !s.layout.hidden).toList() ?? const [];
     final at = _sheet == null ? -1 : sheets.indexWhere((s) => s.name == _sheet!.name);
-    final style = TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant);
+    final style = context.type.caption.copyWith(color: scheme.onSurfaceVariant);
     return Container(
       width: double.infinity,
       color: scheme.surfaceContainerHigh,

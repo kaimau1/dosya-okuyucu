@@ -71,7 +71,7 @@ class _CrashNoticeBannerState extends State<CrashNoticeBanner> {
             padding: const EdgeInsetsDirectional.fromSTEB(Gap.md, Gap.sm, Gap.sm, Gap.sm),
             child: Row(
               children: [
-                Icon(Icons.bug_report_rounded,
+                Icon(AppIcons.bugReport,
                     color: theme.colorScheme.onErrorContainer),
                 const SizedBox(width: Gap.sm),
                 Expanded(

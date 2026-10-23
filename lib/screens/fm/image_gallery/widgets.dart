@@ -34,11 +34,10 @@ class _GalleryAction extends StatelessWidget {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: context.type.caption.copyWith(
                     color: AppColors.onMedia,
-                    fontSize: 11.5,
                     fontWeight: FontWeight.w600,
-                    shadows: [Shadow(color: Color(0x99000000), blurRadius: 4)],
+                    shadows: const [Shadow(color: Color(0x99000000), blurRadius: 4)],
                   ),
                 ),
               ],

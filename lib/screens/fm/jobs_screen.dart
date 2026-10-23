@@ -241,12 +241,12 @@ class _JobCard extends StatelessWidget {
   }
 
   IconData get _icon => switch (job.status) {
-        JobStatus.running => Icons.autorenew_rounded,
-        JobStatus.queued => Icons.schedule_rounded,
+        JobStatus.running => AppIcons.autorenew,
+        JobStatus.queued => AppIcons.schedule,
         JobStatus.done => AppIcons.checkCircle,
         JobStatus.failed => AppIcons.error,
         JobStatus.cancelled => AppIcons.unreadable,
-        JobStatus.interrupted => Icons.power_settings_new_rounded,
+        JobStatus.interrupted => AppIcons.powerSettingsNew,
       };
 
   Color? _color(ColorScheme scheme) => switch (job.status) {

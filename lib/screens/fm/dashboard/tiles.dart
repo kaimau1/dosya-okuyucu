@@ -79,7 +79,7 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
       'apk',
       SwipePage(
         label: context.t('fm.apk_files'),
-        icon: Icons.install_mobile_rounded,
+        icon: AppIcons.installMobile,
         color: AppHues.teal,
         builder: (context) => CategoryScreen(
           title: context.t('fm.apk_files'),
@@ -91,7 +91,7 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
       'new',
       SwipePage(
         label: context.t('fm.new_files'),
-        icon: Icons.move_to_inbox_rounded,
+        icon: AppIcons.moveToInbox,
         color: AppHues.tangerine,
         builder: (_) => const NewFilesScreen(),
       ),

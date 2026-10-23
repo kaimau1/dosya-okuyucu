@@ -7,6 +7,7 @@ import '../../services/fm/ai_buckets.dart';
 import '../../services/fm/ai_index.dart';
 import '../../services/fm/entry_opener.dart';
 import 'fm_entry_icon.dart';
+import '../../core/app_colors.dart';
 
 /// AI'nın bulduğu bir dosyanın **önizleme kartı** — küçük resim + ad.
 ///
@@ -83,7 +84,7 @@ class AiPreviewCard extends StatelessWidget {
                         ),
                         padding: const EdgeInsets.all(4),
                         child: const Icon(AppIcons.play,
-                            color: Colors.white, size: 26),
+                            color: AppColors.onMedia, size: 26),
                       ),
                   ],
                 ),

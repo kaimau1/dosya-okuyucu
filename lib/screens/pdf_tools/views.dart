@@ -79,7 +79,7 @@ extension _PdfToolsScreenViewsPart on _PdfToolsScreenState {
   Widget _busyOverlay() {
     return Positioned.fill(
       child: ColoredBox(
-        color: Colors.black.withValues(alpha: 0.35),
+        color: AppColors.shade.withValues(alpha: 0.35),
         child: Center(
           child: Card(
             child: Padding(
@@ -181,13 +181,14 @@ extension _PdfToolsScreenViewsPart on _PdfToolsScreenState {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 5, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.55),
+                                color: AppColors.shade.withValues(alpha: 0.55),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
                                 '${document.pages[index].rotation.index * 90}°',
-                                style: const TextStyle(
-                                    color: Colors.white, fontSize: 10),
+                                style: context.type.micro.copyWith(
+                                    color: AppColors.page,
+                                  ),
                               ),
                             ),
                           ),
@@ -217,7 +218,7 @@ extension _PdfToolsScreenViewsPart on _PdfToolsScreenState {
         pageNumber: index + 1,
         // Küçük resim: 300 DPI gereksiz bellek yer.
         maximumDpi: 96,
-        decoration: const BoxDecoration(color: Colors.white),
+        decoration: const BoxDecoration(color: AppColors.page),
       ),
     );
   }
@@ -233,7 +234,7 @@ extension _PdfToolsScreenViewsPart on _PdfToolsScreenState {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _barButton(
-                  Icons.rotate_right_rounded,
+                  AppIcons.rotateRight,
                   context.t(has ? 'vw.rotate' : 'pt.rotate_all'),
                   _busy ? null : _rotate),
               _barButton(AppIcons.delete, context.t('common.delete'),
@@ -263,8 +264,7 @@ extension _PdfToolsScreenViewsPart on _PdfToolsScreenState {
               Icon(icon, size: 22, color: onTap == null ? Theme.of(context)
                   .disabledColor : null),
               Text(label,
-                  style: TextStyle(
-                    fontSize: 11,
+                  style: context.type.caption.copyWith(
                     color: onTap == null ? Theme.of(context).disabledColor : null,
                   )),
             ],

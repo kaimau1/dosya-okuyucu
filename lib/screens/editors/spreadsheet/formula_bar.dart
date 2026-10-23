@@ -74,7 +74,7 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style:
-                    const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                    context.type.small.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
           ),
@@ -95,7 +95,7 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
               textInputAction: TextInputAction.done,
               minLines: 1,
               maxLines: pending ? 3 : 1,
-              style: const TextStyle(fontSize: 14),
+              style: context.type.body,
               decoration: InputDecoration(
                 isDense: true,
                 border: InputBorder.none,
@@ -113,7 +113,7 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
           if (_validationOptions().isNotEmpty)
             PopupMenuButton<String>(
               tooltip: context.t('excel.pick_from_list'),
-              icon: const Icon(Icons.arrow_drop_down_circle_rounded, size: 20),
+              icon: const Icon(AppIcons.arrowDropDownCircle, size: 20),
               padding: EdgeInsets.zero,
               onSelected: (v) {
                 _cellField.text = v;
@@ -155,7 +155,7 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
             visualDensity: VisualDensity.compact,
             iconSize: 20,
             icon: Icon(
-                _ribbonOpen ? Icons.expand_less_rounded : Icons.expand_more_rounded),
+                _ribbonOpen ? AppIcons.expandLess : AppIcons.expandMore),
             onPressed: () => _partSetState(() => _ribbonOpen = !_ribbonOpen),
           ),
         ],
@@ -191,7 +191,7 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
                 padding: const EdgeInsetsDirectional.only(end: 6),
                 child: ActionChip(
                   visualDensity: VisualDensity.compact,
-                  labelStyle: const TextStyle(fontSize: 12),
+                  labelStyle: context.type.small,
                   label: Text(name),
                   onPressed: () => _completeFunction(name),
                 ),
@@ -258,8 +258,7 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
       padding: const EdgeInsetsDirectional.fromSTEB(70, 0, 12, 4),
       child: Text(
         '= $result',
-        style: TextStyle(
-          fontSize: 12,
+        style: context.type.small.copyWith(
           color: scheme.primary,
           fontWeight: FontWeight.w600,
         ),

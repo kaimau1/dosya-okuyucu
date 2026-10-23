@@ -255,7 +255,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                     ),
                     IconButton(
                       tooltip: context.t('downloads.folder_view'),
-                      icon: const Icon(Icons.account_tree_rounded),
+                      icon: const Icon(AppIcons.accountTree),
                       onPressed: () => Navigator.of(context).push(
                         browserRoute(BrowserScreen(
                               path: widget.path, title: context.t('downloads.title')),

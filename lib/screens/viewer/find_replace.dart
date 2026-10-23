@@ -104,8 +104,8 @@ extension _ViewerScreenFindReplacePart on _ViewerScreenState {
   void _paintOcrSearchMatches(Canvas canvas, Rect pageRect, PdfPage page) {
     final o = _ocrSearch;
     if (o == null || o.matches.isEmpty) return;
-    final normal = Paint()..color = Colors.yellow.withAlpha(127);
-    final active = Paint()..color = Colors.orange.withAlpha(127);
+    final normal = Paint()..color = AppColors.findMatch;
+    final active = Paint()..color = AppColors.findActive;
     for (var i = 0; i < o.matches.length; i++) {
       final m = o.matches[i];
       if (m.pageNumber != page.pageNumber) continue;
@@ -169,8 +169,8 @@ extension _ViewerScreenFindReplacePart on _ViewerScreenState {
                 visualDensity: VisualDensity.compact,
                 isSelected: _replaceOpen,
                 icon: Icon(_replaceOpen
-                    ? Icons.find_replace_rounded
-                    : Icons.find_replace_outlined),
+                    ? AppIcons.findReplace
+                    : AppIcons.findReplace),
                 onPressed: () => _partSetState(() => _replaceOpen = !_replaceOpen),
               ),
             // "Sayfaya git" arama çubuğunun içinde (2026-07-26 kullanıcı
@@ -179,7 +179,7 @@ extension _ViewerScreenFindReplacePart on _ViewerScreenState {
               IconButton(
                 tooltip: context.t('vw.goto_page_short'),
                 visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.numbers_rounded),
+                icon: const Icon(AppIcons.numbers),
                 onPressed: _askGoToPage,
               ),
           ],

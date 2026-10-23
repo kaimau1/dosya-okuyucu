@@ -21,6 +21,7 @@ import '../../widgets/fm/fm_selection_bar.dart';
 import '../../widgets/fm/fm_type_chips.dart';
 import 'entry_actions.dart';
 import '../../widgets/motion.dart';
+import '../../widgets/app_dialog.dart';
 
 /// **Son açılanlar** — uygulamada açılan HER dosya (tür fark etmez), en son
 /// açılma zamanına göre sıralı.
@@ -219,20 +220,11 @@ class _OpenHistoryScreenState extends State<OpenHistoryScreen> {
   }
 
   Future<void> _clearAll() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.t('oh.clear_title')),
-        content: Text(ctx.t('oh.clear_body')),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(ctx.t('common.cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(ctx.t('ph.clean'))),
-        ],
-      ),
+    final ok = await showAppConfirm(
+        context,
+        title: context.t('oh.clear_title'),
+        message: context.t('oh.clear_body'),
+        confirmLabel: context.t('ph.clean'),
     );
     if (ok != true) return;
     await OpenHistory.clearAll();
@@ -417,7 +409,7 @@ class _OpenHistoryScreenState extends State<OpenHistoryScreen> {
           FmSelectionActions(
             extra: [
               (
-                icon: Icons.history_toggle_off_rounded,
+                icon: AppIcons.historyToggleOff,
                 label: context.t('oh.remove'),
                 onTap: () => _removeFromHistory(selectedEntries),
               ),

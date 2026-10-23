@@ -24,7 +24,7 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
                 padding: const EdgeInsets.all(Gap.sm),
                 child: Row(
                   children: [
-                    Icon(Icons.wifi_tethering_rounded,
+                    Icon(AppIcons.hotspot,
                         color: scheme.onPrimaryContainer),
                     const SizedBox(width: Gap.sm),
                     Expanded(
@@ -83,8 +83,8 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
       // Alt yazı gerçek sayaç: sürüyor mu, bitmiş iş var mı.
       FmTileData(
         icon: runningJobs > 0
-            ? Icons.autorenew_rounded
-            : Icons.playlist_add_check_circle_rounded,
+            ? AppIcons.autorenew
+            : AppIcons.playlistAddCheckCircle,
         color: AppHues.green,
         id: 'jobs',
         label: context.t('fm.jobs'),
@@ -107,8 +107,8 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
       // paylaşım açıksa ya da indirme sürüyorsa yazar.
       FmTileData(
         icon: FtpService.instance.running
-            ? Icons.wifi_tethering_rounded
-            : Icons.swap_horiz_rounded,
+            ? AppIcons.hotspot
+            : AppIcons.swapHoriz,
         color: AppHues.jade,
         id: 'transfer',
         label: context.t('xfer.title'),
@@ -127,7 +127,7 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
       // gezinme çubuğundan kalkınca akış buraya alındı. Kaldırılan şey
       // belgelerin LİSTESİYDİ, oluşturma değil.
       FmTileData(
-        icon: Icons.note_add_rounded,
+        icon: AppIcons.noteAdd,
         color: OfficeColors.word,
         id: 'new_document',
         label: context.t('home.new_document_title'),
@@ -152,7 +152,7 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
       ),
       // Anılar (2026-10-18): bu gün, yerler, insanlar — cihazda.
       FmTileData(
-        icon: Icons.auto_awesome_mosaic_rounded,
+        icon: AppIcons.autoAwesomeMosaic,
         color: AppHues.pink,
         id: 'memories',
         label: context.t('mem.title'),
@@ -183,7 +183,7 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
       // (Sohbet medyası ve Benzer görseller 2026-10-21'de Depolama
       // analizine — "Depolama merkezi" — taşındı.)
       FmTileData(
-        icon: Icons.auto_awesome_motion_rounded,
+        icon: AppIcons.autoAwesomeMotion,
         color: AppHues.violet,
         id: 'organize',
         label: context.t('fm.organize'),
@@ -246,7 +246,7 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
     final anything = externals.isNotEmpty || granted > 0;
     return FmTileData(
       icon: !anything
-          ? Icons.sd_card_outlined
+          ? AppIcons.sdCard
           : (usb > 0 || externals.isEmpty ? AppIcons.external : AppIcons.sdCard),
       color: !anything
           ? AppHues.silver

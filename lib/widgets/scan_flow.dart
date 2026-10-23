@@ -18,6 +18,7 @@ import '../services/scan_prepare.dart' show ScanPage;
 import '../services/scan_title.dart';
 import '../core/snack.dart';
 import '../core/user_error.dart';
+import '../core/app_colors.dart';
 
 /// Belge tarama akışı: tarayıcı → OCR (hep) → akıllı ad → tek PDF →
 /// Belgeler dizinine **doğrudan kaydet** → tarama stüdyosu.
@@ -324,13 +325,13 @@ class _ScanTipsSheet extends StatelessWidget {
                     color: mlDeep.withValues(alpha: 0.85),
                     borderRadius: BorderRadius.circular(18),
                   ),
-                  child: const Icon(Icons.note_add_rounded,
-                      color: Colors.white, size: 30),
+                  child: const Icon(AppIcons.noteAdd,
+                      color: AppColors.onMedia, size: 30),
                 ),
                 const Positioned(
                   right: -10,
                   bottom: -10,
-                  child: Icon(Icons.touch_app_rounded,
+                  child: Icon(AppIcons.touchApp,
                       size: 30, color: Color(0xFFF57C00)),
                 ),
               ],

@@ -175,7 +175,7 @@ class _SettingsAdvancedGroupState extends State<SettingsAdvancedGroup>
                       turns: _open ? 0.5 : 0,
                       duration: Motion.of(context, Motion.short),
                       curve: Curves.easeInOut,
-                      child: Icon(Icons.expand_more_rounded, color: scheme.primary),
+                      child: Icon(AppIcons.expandMore, color: scheme.primary),
                     ),
                   ],
                 ),

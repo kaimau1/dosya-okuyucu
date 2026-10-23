@@ -18,7 +18,7 @@ class AiStatusIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final icon =
-        Icon(selected ? AppIcons.ai : Icons.auto_awesome_outlined);
+        Icon(selected ? AppIcons.ai : AppIcons.ai);
     return ValueListenableBuilder<AiProgress>(
       valueListenable: AiAnalyzer.progress,
       builder: (context, progress, _) => ValueListenableBuilder<int>(
