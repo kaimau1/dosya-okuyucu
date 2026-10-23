@@ -152,7 +152,7 @@ extension _SpreadsheetEditorScreenHeadersPart on _SpreadsheetEditorScreenState {
 
     write(after);
     _recordStep('excel.undo_filter', () => write(after), () => write(before));
-    _dirty = true;
+    _session.changed();
     _gridVersion++;
     _partSetState(() {});
   }
@@ -184,7 +184,7 @@ extension _SpreadsheetEditorScreenHeadersPart on _SpreadsheetEditorScreenState {
 
     write(after);
     _recordStep('excel.undo_sort', () => write(after), () => write(before));
-    _dirty = true;
+    _session.changed();
     _gridVersion++;
     _partSetState(() {});
   }

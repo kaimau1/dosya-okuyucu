@@ -48,9 +48,7 @@ class _TextEditor extends StatelessWidget {
               valueListenable: controller,
               builder: (_, value, __) {
                 return LineNumberGutter(
-                  count: value.text.split('\n').length,
-                  fontSize: fontSize,
-                );
+                    count: value.text.split('\n').length, size: fontSize);
               },
             ),
             Expanded(child: _field(context, scrollable: false)),
@@ -306,10 +304,11 @@ class _PendingMark {
 /// "\$i" yazıyordu; ayrı sınıf, widget testinin numaraları görebilmesi için.
 class LineNumberGutter extends StatelessWidget {
   final int count;
-  final double fontSize;
 
-  const LineNumberGutter(
-      {super.key, required this.count, required this.fontSize});
+  /// Metnin yazı boyutu — numaralar aynı satır yüksekliğinde dursun.
+  final double size;
+
+  const LineNumberGutter({super.key, required this.count, required this.size});
 
   @override
   Widget build(BuildContext context) {
@@ -329,7 +328,7 @@ class LineNumberGutter extends StatelessWidget {
             Text(
               '$i',
               style: TextStyle(
-                fontSize: fontSize,
+                fontSize: size,
                 height: 1.5,
                 // Tek aralıklı yazı tipi: numaralar sağa hizalı
                 // olsa bile orantılı yazıda basamaklar oynuyor.

@@ -21,22 +21,38 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
       _error = userErrorText(e);
     }
     if (mounted) _partSetState(() {});
+    // Ekran açılmayı BEKLEMEZ: kaynak damgası + taslak araması arkada.
+    if (_editor != null) {
+      unawaited(_session.captureSource());
+      unawaited(lookForDraft(widget.path));
+    }
+  }
+
+  /// [EditSession]'ın yazma işi — zip izolatta (Faz 20 / ED3).
+  Future<void> _writeFile() async {
+    final editor = _editor;
+    if (editor == null) return;
+    final bytes = await editor.saveAsync();
+    await SafeWrite.bytes(widget.path, bytes);
+    unawaited(ActivityLog.add(ActivityKind.documentEdit, widget.path));
+  }
+
+  /// Taslaktan geri yükleme (Faz 20).
+  Future<void> _restoreDraft(Uint8List bytes) async {
+    _partSetState(() => _editor = PptxEditor.parse(bytes));
+    _session.changed();
   }
 
   Future<void> _save() async {
-    final editor = _editor;
-    if (editor == null) return;
-    try {
-      final bytes = editor.save();
-      await SafeWrite.bytes(widget.path, bytes);
-      unawaited(ActivityLog.add(ActivityKind.documentEdit, widget.path));
-      _dirty = false;
-      if (mounted) {
-        showSnack(context, context.t('common.saved_hint'));
-        _partSetState(() {});
-      }
-    } catch (e) {
-      _snack(AppStrings.current.t('common.save_failed', {'error': userErrorText(e)}));
+    if (_editor == null) return;
+    final ok = await _session.saveNow();
+    if (!mounted) return;
+    if (ok) {
+      showSnack(context, context.t('common.saved_hint'));
+      _partSetState(() {});
+    } else {
+      _snack(AppStrings.current.t('common.save_failed',
+          {'error': userErrorText(_session.coordinator.lastError ?? '')}));
     }
   }
 

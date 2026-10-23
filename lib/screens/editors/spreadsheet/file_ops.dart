@@ -3,32 +3,49 @@ part of '../spreadsheet_editor_screen.dart';
 extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
   Future<void> _save() async {
     _endEdit();
+    if (_editor == null) return;
+    final target = widget.savePath ?? widget.path;
+    final ok = await _session.saveNow();
+    if (!mounted) return;
+    if (ok) {
+      showSnack(context, widget.savePath == null
+            ? context.t('common.saved_hint')
+            : context.t('excel.saved_as_xlsx',
+                {'name': p.basename(target)}));
+      _partSetState(() {});
+    } else {
+      _snack(AppStrings.current.t('common.save_failed',
+          {'error': userErrorText(_session.coordinator.lastError ?? '')}));
+    }
+  }
+
+  /// [EditSession]'ın yazma işi — paket yazımı + zip izolatta (Faz 20 / ED3).
+  Future<void> _writeFile() async {
     final editor = _editor;
     if (editor == null) return;
     final target = widget.savePath ?? widget.path;
-    try {
-      final bytes = editor.save();
-      await SafeWrite.bytes(target, bytes);
-      // Çevrilmiş dosyada çalışma kopyası da tazelenir: kullanıcı kaydettikten
-      // sonra düzenlemeye devam edip yine kaydedebilsin.
-      if (widget.savePath != null) {
-        await SafeWrite.bytes(widget.path, bytes);
-      }
-      // "Yaptıklarım" defteri: kaydedilen HEDEF yazılır (.xls açıldıysa
-      // kullanıcının elindeki dosya .xlsx olan odur).
-      unawaited(ActivityLog.add(ActivityKind.documentEdit, target));
-      _dirty = false;
-      if (mounted) {
-        showSnack(context, widget.savePath == null
-              ? context.t('common.saved_hint')
-              : context.t('excel.saved_as_xlsx',
-                  {'name': p.basename(target)}));
-        _partSetState(() {});
-      }
-    } catch (e) {
-      _snack(AppStrings.current
-          .t('common.save_failed', {'error': userErrorText(e)}));
+    final bytes = await editor.saveAsync();
+    await SafeWrite.bytes(target, bytes);
+    // Çevrilmiş dosyada çalışma kopyası da tazelenir: kullanıcı kaydettikten
+    // sonra düzenlemeye devam edip yine kaydedebilsin.
+    if (widget.savePath != null) {
+      await SafeWrite.bytes(widget.path, bytes);
     }
+    // "Yaptıklarım" defteri: kaydedilen HEDEF yazılır (.xls açıldıysa
+    // kullanıcının elindeki dosya .xlsx olan odur).
+    unawaited(ActivityLog.add(ActivityKind.documentEdit, target));
+  }
+
+  /// Taslaktan geri yükleme (Faz 20): model taslağın baytlarından kurulur.
+  Future<void> _restoreDraft(Uint8List bytes) async {
+    _endEdit();
+    _undoBySheet.clear();
+    _partSetState(() {
+      _editor = XlsxEditor.parse(bytes);
+      _gridVersion++;
+    });
+    _syncField();
+    _session.changed();
   }
 
   /// Editörün o anki içeriğini İndirilenler'e yazar (bkz. [SaveToDownloads]).
@@ -139,7 +156,7 @@ extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
     final next = !sheet.rightToLeft;
     _partSetState(() {
       sheet.setRightToLeft(next);
-      _dirty = true;
+      _session.changed();
       // Sanallaştırma penceresi ve kaydırma konumu yön değişince anlamsızlaşır.
       _firstCol = 0;
       _lastCol = 0;

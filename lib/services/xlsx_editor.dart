@@ -9,6 +9,7 @@ import 'xlsx_reader.dart';
 import 'xlsx_save_patch.dart';
 import 'xlsx_chart.dart';
 import '../core/app_colors.dart';
+import '../core/edit/save_coordinator.dart';
 
 // Görünüm modelinin tamamı (aralık, kenarlık, hizalama, koşullu biçim…)
 // ekranlara buradan açılır — ad çakışması yok.
@@ -1240,11 +1241,13 @@ class XlsxEditor {
       ((c.g * 255).round() << 8) |
       (c.b * 255).round();
 
-  Uint8List save() {
+  /// Kaydetmenin girdisi: o anki model, paket yazıcısının ve yamaların
+  /// beklediği biçimde. Saf veri — izolata kopyalanabilir.
+  _XlsxSaveJob _saveJob() {
     // Önce değerler ve yapı (özgün paket korunarak), sonra görünüm
     // düzenlemeleri, dondurulmuş bölme, sayfa yönü, ızgara çizgisi, süzgeç
     // (XML yaması — `styles.xml` yalnız değişen biçimler için genişler).
-    final bytes = XlsxPackageWriter.write(_source, [
+    final sheetsOut = [
       for (final s in sheets)
         XlsxPackageSheet(
           name: s.name,
@@ -1257,8 +1260,8 @@ class XlsxEditor {
           ],
           hidden: s.layout.hidden,
         ),
-    ]);
-    final patched = XlsxSavePatch.apply(bytes, [
+    ];
+    final patches = [
       for (final s in sheets)
         XlsxSheetPatch(
           name: s.name,
@@ -1281,13 +1284,31 @@ class XlsxEditor {
           styleCopies: s.styleCopies,
           condRules: s.condRuleEdits,
         ),
-    ]);
-    // Grafikler en son: sayfa XML'ine `<drawing>` ekler, öncekiler onu
-    // korur ama yazmaz.
-    return XlsxChartWriter.apply(patched, [
+    ];
+    return _XlsxSaveJob(_source, sheetsOut, patches, [
       for (final c in charts)
         if (hasSheet(c.sheetName)) c,
     ]);
+  }
+
+  /// Dosyayı UI izleğinde üretir (testler, küçük dosyalar, dışa aktarım).
+  Uint8List save() => _runSave(_saveJob());
+
+  /// Dosyayı ayrı izolatta üretir (Faz 20 / ED3): paket yazımı, yamalar ve
+  /// zip sıkıştırma UI izleğini dondurmaz. Model gönderim anında kopyalanır;
+  /// kayıt sürerken yapılan düzenleme bir sonraki kayda kalır.
+  Future<Uint8List> saveAsync() =>
+      SaveIsolate.run<_XlsxSaveJob, Uint8List>(_runSave, _saveJob());
+
+  static Uint8List _runSave(_XlsxSaveJob job) {
+    // Önce değerler ve yapı (özgün paket korunarak), sonra görünüm
+    // düzenlemeleri, dondurulmuş bölme, sayfa yönü, ızgara çizgisi, süzgeç
+    // (XML yaması — `styles.xml` yalnız değişen biçimler için genişler).
+    final bytes = XlsxPackageWriter.write(job.source, job.sheets);
+    final patched = XlsxSavePatch.apply(bytes, job.patches);
+    // Grafikler en son: sayfa XML'ine `<drawing>` ekler, öncekiler onu
+    // korur ama yazmaz.
+    return XlsxChartWriter.apply(patched, job.charts);
   }
 
   static bool _isEmptyRow(XlsxSheet sheet, int r) {
@@ -1339,4 +1360,13 @@ String? applyNumberFormat(String code, double value) {
   final trimmed = code.trim();
   if (trimmed == '@') return null;
   return fmt.format(value).text;
+}
+
+/// [XlsxEditor.saveAsync]'in izolata giden girdisi.
+class _XlsxSaveJob {
+  final Uint8List source;
+  final List<XlsxPackageSheet> sheets;
+  final List<XlsxSheetPatch> patches;
+  final List<XlsxChartSpec> charts;
+  const _XlsxSaveJob(this.source, this.sheets, this.patches, this.charts);
 }

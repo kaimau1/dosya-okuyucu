@@ -77,7 +77,7 @@ extension _WordEditorScreenPagePart on _WordEditorScreenState {
       if (p == null) return;
       _partSetState(() {
         p.align = a;
-        _dirty = true;
+        _session.changed();
       });
     }
 
@@ -86,7 +86,7 @@ extension _WordEditorScreenPagePart on _WordEditorScreenState {
       if (p == null) return;
       _partSetState(() {
         apply(p);
-        _dirty = true;
+        _session.changed();
       });
     }
 
@@ -116,7 +116,7 @@ extension _WordEditorScreenPagePart on _WordEditorScreenState {
         } else {
           p.text = toggleBullet(p.text);
         }
-        _dirty = true;
+        _session.changed();
       });
     }
 
@@ -198,7 +198,7 @@ extension _WordEditorScreenPagePart on _WordEditorScreenState {
     ));
     _partSetState(() {
       _sel = para;
-      _dirty = true;
+      _session.changed();
     });
   }
 
@@ -216,7 +216,7 @@ extension _WordEditorScreenPagePart on _WordEditorScreenState {
     ));
     _partSetState(() {
       if (identical(_sel, para)) _sel = null;
-      _dirty = true;
+      _session.changed();
     });
   }
 
@@ -235,7 +235,8 @@ extension _WordEditorScreenPagePart on _WordEditorScreenState {
   void _afterHistory(String label, {required bool undone}) {
     final paras = _editor?.paragraphs ?? const <DocxParagraph>[];
     if (_sel != null && !paras.any((p) => identical(p, _sel))) _sel = null;
-    _partSetState(() => _dirty = true);
+    _session.changed();
+    _partSetState(() {});
     _snack(context
         .t(undone ? 'word.undone' : 'word.redone', {'what': context.t(label)}));
   }
@@ -292,7 +293,7 @@ extension _WordEditorScreenPagePart on _WordEditorScreenState {
           },
           onChanged: (v) {
             para.text = v;
-            if (!_dirty) _partSetState(() => _dirty = true);
+            _session.changed();
           },
           style: style,
           textAlign: _textAlign(para),

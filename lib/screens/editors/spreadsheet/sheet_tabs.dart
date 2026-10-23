@@ -107,7 +107,7 @@ extension _SpreadsheetEditorScreenSheetTabsPart on _SpreadsheetEditorScreenState
       _selCol = 0;
       _anchorRow = 0;
       _anchorCol = 0;
-      _dirty = true;
+      _session.changed();
       _gridVersion++;
     });
     _syncField();
@@ -118,7 +118,7 @@ extension _SpreadsheetEditorScreenSheetTabsPart on _SpreadsheetEditorScreenState
     if (editor == null || !editor.moveSheet(sheet.name, to)) return;
     _partSetState(() {
       _sheetIndex = editor.sheets.indexOf(sheet);
-      _dirty = true;
+      _session.changed();
     });
   }
 
@@ -132,7 +132,8 @@ extension _SpreadsheetEditorScreenSheetTabsPart on _SpreadsheetEditorScreenState
       return;
     }
     if (!editor.renameSheet(sheet.name, name)) return;
-    _partSetState(() => _dirty = true);
+    _session.changed();
+    _partSetState(() {});
   }
 
   Future<void> _deleteSheet(XlsxSheet sheet) async {
@@ -157,7 +158,7 @@ extension _SpreadsheetEditorScreenSheetTabsPart on _SpreadsheetEditorScreenState
       _selCol = 0;
       _anchorRow = 0;
       _anchorCol = 0;
-      _dirty = true;
+      _session.changed();
       _gridVersion++;
     });
     _syncField();

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
@@ -13,6 +14,8 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/app_icons.dart';
 import '../../core/busy_dialog.dart';
 import '../../core/doc_fonts.dart';
+import '../../core/edit/edit_session.dart';
+import '../../core/edit/editor_shortcuts.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
 import '../../core/text_search.dart';
@@ -76,10 +79,17 @@ class SlidesEditorScreen extends StatefulWidget {
 /// zorlar; düşürmek başlıkları bulanıklaştırır.
 const _pdfPixelRatio = 2.0;
 
-class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
+class _SlidesEditorScreenState extends State<SlidesEditorScreen>
+    with DraftRecoveryMixin<SlidesEditorScreen> {
   PptxEditor? _editor;
   String? _error;
-  bool _dirty = false;
+  /// Faz 20: kirli durum, kaydetme durumu, taslak ve otomatik kaydetme.
+  late final EditSession _session = EditSession(
+    sourcePath: widget.path,
+    editor: 'slides',
+    save: _writeFile,
+    snapshot: () async => _editor?.saveAsync(),
+  );
 
   // Tüm slaytlar alt alta akar (kullanıcı kararı 2026-07-22: sayfa sayfa değil);
   // pinch zoom ortak PinchZoomArea'dan (Excel'le aynı his). Zoom > 1'de yatay
@@ -130,6 +140,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
 
   @override
   void dispose() {
+    _session.dispose();
     for (final c in _editCtrls) {
       c?.dispose();
     }
@@ -150,20 +161,23 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
     // tuşu düzenlemeyi kapatmalı, direk geri gidiyor"*). Metin kutusu açıkken
     // geri, yazılanı kaydedip düzenlemeyi kapatır; ekrandan çıkmaz. Aynısı
     // arama çubuğu için de geçerli — geri tuşu en üstteki katmanı kapatır.
-    return PopScope(
-      canPop: !editing && !_finding,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
+    return EditExitGuard(
+      session: _session,
+      hasOpenLayer: editing || _finding,
+      closeLayer: () {
         if (editing) {
           _finishEdit();
         } else if (_finding) {
           _toggleFind();
         }
       },
+      child: EditorShortcuts(
+      save: editor == null ? null : _save,
+      find: editor == null ? null : _toggleFind,
       child: OfficeShell(
         kind: DocKind.slides,
         title: widget.name,
-        dirty: _dirty,
+        session: _session,
         subtitle: (editor?.slides.length ?? 0) > 0
             ? context.t('shell.slides', {'n': editor!.slides.length})
             : null,
@@ -185,7 +199,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
               onPressed: editor == null ? null : _toggleFind,
             ),
         ],
-        body: _error != null
+        body: withDraftBanner(restore: _restoreDraft, _error != null
             ? Center(child: Text(context.t('sl.open_failed', {'error': _error})))
             : editor == null
                 ? const Center(child: CircularProgressIndicator())
@@ -218,7 +232,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
                       ),
                       if (editing) _formatBar(),
                     ],
-                  ),
+                  )),
         // Etiketli eylem çubuğu (2026-07-28 kullanıcı isteği — PDF'teki gibi).
         // Metin kutusu düzenlenirken gizli: altta zaten biçim çubuğu var.
         bottomBar: editing
@@ -259,7 +273,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen> {
                 tooltip: context.t('common.ai'),
               ),
       ),
-    );
+    ));
   }
 
 

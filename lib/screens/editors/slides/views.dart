@@ -354,20 +354,20 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
       case 'dup':
         final added = editor.duplicateSlide(slide);
         if (added != null) {
-          _dirty = true;
+          _session.changed();
           _partSetState(() {});
           _snack(context.t('sl.duplicated'));
         }
         break;
       case 'up':
         if (editor.moveSlide(slide, -1)) {
-          _dirty = true;
+          _session.changed();
           _partSetState(() {});
         }
         break;
       case 'down':
         if (editor.moveSlide(slide, 1)) {
-          _dirty = true;
+          _session.changed();
           _partSetState(() {});
         }
         break;
@@ -411,7 +411,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
       showUserError(context, e);
       return;
     }
-    _dirty = true;
+    _session.changed();
     _partSetState(() {});
     _snack(context.t('sl.image_added'));
   }
@@ -427,7 +427,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
         destructive: true,
     );
     if (ok == true && editor.deleteSlide(slide)) {
-      _dirty = true;
+      _session.changed();
       if (mounted) _partSetState(() {});
     }
   }
@@ -471,7 +471,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
                 initialValue: para.text,
                 onChanged: (v) {
                   para.text = v;
-                  if (!_dirty) _partSetState(() => _dirty = true);
+                  _session.changed();
                 },
                 maxLines: null,
                 decoration: const InputDecoration(
@@ -561,7 +561,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
         );
       }
     }
-    _dirty = true;
+    _session.changed();
     for (final c in _editCtrls) {
       c?.dispose();
     }

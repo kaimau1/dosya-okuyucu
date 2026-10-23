@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import '../core/app_colors.dart';
 import '../core/app_icons.dart';
 import '../core/edit/edit_history.dart';
+import '../core/edit/edit_session.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/snack.dart';
 import '../core/theme.dart' show OverlayBar;
@@ -492,13 +493,22 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
     }
   }
 
+  /// Altı editörün ortak çıkış sorusu (Faz 20): Kaydet · Kaydetme · İptal.
+  /// "Kaydet" kaydetme akışını açar; o akış başarıyla bitince ekranı kendisi
+  /// kapatır, bu yüzden burada false döner.
   Future<bool> _confirmLeave() async {
     if (_e.isIdentity) return true;
-    return showAppConfirm(
-        context,
-        message: context.t('ied.discard'),
-        confirmLabel: context.t('ied.leave'),
-    );
+    final choice = await showUnsavedChanges(context);
+    if (!mounted) return false;
+    switch (choice) {
+      case UnsavedChoice.save:
+        await _save();
+        return false;
+      case UnsavedChoice.discard:
+        return true;
+      case UnsavedChoice.cancel:
+        return false;
+    }
   }
 
   // ── arayüz ────────────────────────────────────────────────────────────────

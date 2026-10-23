@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
 
+import '../core/edit/save_coordinator.dart';
+
 import 'pptx_render.dart';
 
 /// Bir slayttaki düzenlenebilir paragraf (a:p) — orijinal XML düğümüne bağlı.
@@ -552,7 +554,7 @@ class PptxEditor {
 
   /// Düzenlenmiş metinleri ve yapısal değişiklikleri geri yazıp yeni .pptx
   /// byte'larını üretir.
-  Uint8List save() {
+  Archive buildArchive() {
     final updated = <String, String>{};
     for (final slide in slides) {
       for (final para in slide.paragraphs) {
@@ -579,9 +581,18 @@ class PptxEditor {
         out.addFile(f);
       }
     }
-    final List<int>? encoded = ZipEncoder().encode(out);
+    return out;
+  }
+
+  /// Dosyayı UI izleğinde üretir (testler, dışa aktarım).
+  Uint8List save() {
+    final List<int>? encoded = ZipEncoder().encode(buildArchive());
     return Uint8List.fromList(encoded ?? const <int>[]);
   }
+
+  /// Faz 20 / ED3: XML serileştirme UI izleğinde (hızlı), zip sıkıştırma
+  /// (asıl yük) ayrı izolatta.
+  Future<Uint8List> saveAsync() => SaveIsolate.encodeZip(buildArchive());
 
   // ── Yardımcılar ─────────────────────────────────────────────────────────
 

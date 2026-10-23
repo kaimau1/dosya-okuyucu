@@ -1,3 +1,4 @@
+import 'edit/edit_session.dart' show EditPrefs;
 import 'dart:async';
 import 'dart:convert';
 
@@ -75,6 +76,7 @@ class AppState extends ChangeNotifier {
   static const _kAppLock = 'app_lock_on';
   static const _kPeerRecent = 'peer_recent_devices';
   static const _kResumePosition = 'resume_position';
+  static const _kAutoSave = 'doc_auto_save';
   static const _kFmFolderSizes = 'fm_folder_sizes';
   static const _kMediaShuffle = 'media_shuffle';
   static const _kMediaRepeat = 'media_repeat';
@@ -386,6 +388,7 @@ class AppState extends ChangeNotifier {
   bool _clipboardCut = false;
   bool _fmThumbnails = true;
   bool _resumePosition = true;
+  bool _autoSave = true;
   bool _fmFolderSizes = false;
   bool _mediaShuffle = false;
   int _mediaRepeat = 0;
@@ -466,6 +469,16 @@ class AppState extends ChangeNotifier {
 
   /// Medya oynatıcının tekrar kipi: 0 kapalı, 1 liste, 2 tek parça.
   int get mediaRepeat => _mediaRepeat;
+
+  /// Belgeler > Otomatik kaydet (Faz 20 / K21, varsayılan AÇIK).
+  bool get autoSave => _autoSave;
+
+  Future<void> setAutoSave(bool value) async {
+    _autoSave = value;
+    EditPrefs.autoSave = value;
+    await _prefs.setBool(_kAutoSave, value);
+    notifyListeners();
+  }
 
   Future<void> setResumePosition(bool value) async {
     _resumePosition = value;
@@ -726,6 +739,8 @@ class AppState extends ChangeNotifier {
     _fmShowHidden = _prefs.getBool(_kFmHidden) ?? false;
     _fmThumbnails = _prefs.getBool(_kFmThumbs) ?? true;
     _resumePosition = _prefs.getBool(_kResumePosition) ?? true;
+    _autoSave = _prefs.getBool(_kAutoSave) ?? true;
+    EditPrefs.autoSave = _autoSave;
     // Servisler `AppState`i tanımıyor; anahtar oraya buradan geçiyor.
     PlaybackPositions.enabled = _resumePosition;
     ReadingPositions.enabled = _resumePosition;

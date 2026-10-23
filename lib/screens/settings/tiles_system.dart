@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/display_mode.dart';
+import '../../core/edit/editor_perf.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../services/fm/native_extras.dart';
@@ -261,6 +262,24 @@ class UsbDiagnosticsTile extends StatelessWidget {
         onTap: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => const UsbDiagnosticsScreen(),
         )),
+      );
+}
+
+/// Düzenleme gecikme sayacı (Faz 20 / madde 9): editörlerin köşesinde
+/// tuş → kare süresi.
+class EditorPerfTile extends StatelessWidget {
+  const EditorPerfTile({super.key});
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<bool>(
+        valueListenable: EditorPerf.overlayEnabled,
+        builder: (context, on, _) => SettingSwitch(
+          icon: AppIcons.developerMode,
+          title: context.t('edit.perf_overlay'),
+          subtitle: context.t('edit.perf_overlay_sub'),
+          value: on,
+          onChanged: (v) => EditorPerf.overlayEnabled.value = v,
+        ),
       );
 }
 

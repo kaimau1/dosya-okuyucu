@@ -182,24 +182,13 @@ extension _ViewerScreenPendingSavePart on _ViewerScreenState {
       return false;
     }
     if (!_hasUnsaved) return true;
-    final choice = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(context.t('vw.unsaved_title')),
-        content: Text(context.t('vw.unsaved_body')),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, 'cancel'),
-              child: Text(context.t('common.cancel'))),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, 'discard'),
-              child: Text(context.t('vw.dont_save'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, 'save'),
-              child: Text(context.t('common.save'))),
-        ],
-      ),
-    );
+    // Altı editörün ortak çıkış sorusu (Faz 20).
+    final picked = await showUnsavedChanges(context);
+    final choice = switch (picked) {
+      UnsavedChoice.save => 'save',
+      UnsavedChoice.discard => 'discard',
+      UnsavedChoice.cancel => 'cancel',
+    };
     if (choice == 'save') return _savePendingPdf();
     if (choice == 'discard') {
       await _discardPending();

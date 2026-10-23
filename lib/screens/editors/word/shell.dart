@@ -5,7 +5,7 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
     return OfficeShell(
       kind: DocKind.word,
       title: widget.name,
-      dirty: _dirty,
+      session: _session,
       // Okuma kipi yalnız düzenleme KAPALIYKEN: yazarken çubuk kaybolmamalı.
       readingBars: _editing || _plainMode ? null : _readingBars,
       subtitle:
@@ -111,7 +111,7 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                   editor == null ? null : _translateSelection,
                 ),
             ]),
-      body: _error != null
+      body: withDraftBanner(restore: _restoreDraft, _error != null
           ? Center(
               child: Text(context.t('common.open_failed', {'error': _error})))
           : editor == null || bytes == null
@@ -189,7 +189,7 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                           Positioned(
                               top: 0, left: 0, right: 0, child: _findBar()),
                       ],
-                    ),
+                    )),
       // Klavye/biçim çubuğu varken FAB araya girmesin.
       fab: _editing
           ? null

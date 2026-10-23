@@ -10,29 +10,51 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
       _error = userErrorText(e);
     }
     if (mounted) _partSetState(() {});
+    // Ekran açılmayı BEKLEMEZ: kaynak damgası + taslak araması arkada.
+    if (_editor != null) {
+      unawaited(_session.captureSource());
+      unawaited(lookForDraft(widget.path));
+    }
+  }
+
+  /// Taslaktan geri yükleme: belge taslağın baytlarıyla yeniden kurulur ve
+  /// kirli sayılır (kaydedilene kadar dosya değişmez).
+  Future<void> _restoreDraft(Uint8List bytes) async {
+    _undo.clear();
+    _partSetState(() {
+      _editor = DocxEditor.parse(bytes);
+      _bytes = bytes;
+      _editing = false;
+    });
+    _session.changed();
+  }
+
+  /// [EditSession]'ın yazma işi: zip izolatta, yazım güvenli.
+  Future<void> _writeFile() async {
+    final editor = _editor;
+    if (editor == null) return;
+    final bytes = await editor.saveAsync();
+    await SafeWrite.bytes(widget.path, bytes);
+    // "Yaptıklarım" defteri (istek 2026-08-07): düzenlenen belge orada
+    // görünsün. Beklenmez — kaydetmenin hızını defter yavaşlatmamalı.
+    unawaited(ActivityLog.add(ActivityKind.documentEdit, widget.path));
+    _bytes = bytes;
   }
 
   Future<void> _save() async {
-    final editor = _editor;
-    if (editor == null) return;
+    if (_editor == null) return;
     // Hata metni await'ten önce çevrilir (asenkron boşluktan sonra `context`
     // kullanılamaz).
     final saveFailed = context.t('word.save_failed');
-    try {
-      final bytes = editor.save();
-      await SafeWrite.bytes(widget.path, bytes);
-      // "Yaptıklarım" defteri (istek 2026-08-07): düzenlenen belge orada
-      // görünsün. Beklenmez — kaydetmenin hızını defter yavaşlatmamalı.
-      unawaited(ActivityLog.add(ActivityKind.documentEdit, widget.path));
-      _bytes = bytes;
-      _dirty = false;
-      // Canlı görünüm DOM'da zaten güncel — yeniden çizim yok, imleç kaybolmaz.
-      if (mounted) {
-        showSnack(context, context.t('common.saved_hint'));
-        _partSetState(() {});
-      }
-    } catch (e) {
-      _snack(saveFailed.replaceAll('{error}', userErrorText(e)));
+    final ok = await _session.saveNow();
+    // Canlı görünüm DOM'da zaten güncel — yeniden çizim yok, imleç kaybolmaz.
+    if (!mounted) return;
+    if (ok) {
+      showSnack(context, context.t('common.saved_hint'));
+      _partSetState(() {});
+    } else {
+      _snack(saveFailed.replaceAll(
+          '{error}', userErrorText(_session.coordinator.lastError ?? '')));
     }
   }
 
@@ -84,7 +106,7 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
 
   void _onEdited(int i, List<RunSeg> segs) {
     _editor?.setRuns(i, segs);
-    if (!_dirty) _partSetState(() => _dirty = true);
+    _session.changed();
   }
 
   /// Canlı görünümdeki hizalama düğmesinden gelir; kaydetmede `w:jc` yazılır.
@@ -92,7 +114,7 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
     final paras = _editor?.paragraphs;
     if (paras == null || i < 0 || i >= paras.length) return;
     paras[i].align = align;
-    if (!_dirty) _partSetState(() => _dirty = true);
+    _session.changed();
   }
 
   void _onSelection(bool b, bool i, bool u, String font, double size) {
@@ -127,7 +149,7 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
           _toggleEdit();
         }
         _viewKey.currentState?.replaceSelectionText(result);
-        if (!_dirty) _partSetState(() => _dirty = true);
+        _session.changed();
       });
 
   /// Seçili metni çevirir — sayfanın üstünde açılan kartta, dil
@@ -139,7 +161,7 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
   /// Canlı görünümden gelen madde/numara işareti; kaydetmede `w:numPr` olur.
   void _onListStyle(int i, String kind) {
     _editor?.setListStyle(i, kind);
-    if (!_dirty) _partSetState(() => _dirty = true);
+    _session.changed();
   }
 
   /// Seçili metin geldi — bekleyen işi (AI / çeviri) çalıştır.
@@ -217,7 +239,7 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
       _hitCount = 0;
       _hitIndex = -1;
     });
-    if (!_dirty) _partSetState(() => _dirty = true);
+    _session.changed();
   }
 
   /// "Sayfaya git" — canlı görünümdeki sayfa rozetine dokununca.
@@ -311,10 +333,10 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
     // Geri alma adımları ESKİ modelin paragraflarına bağlı; yeni modelde
     // anlamsızlar (yanlış paragrafa dokunurlardı).
     _undo.clear();
+    _session.changed();
     _partSetState(() {
       _editor = DocxEditor.parse(bytes);
       _bytes = bytes;
-      _dirty = true;
       _resumeEditing = _editing;
       _editing = false;
     });

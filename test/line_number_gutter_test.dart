@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   testWidgets('satır numarası şeridi gerçek numaraları yazar', (t) async {
     await t.pumpWidget(const MaterialApp(
-        home: Scaffold(body: LineNumberGutter(count: 3, fontSize: 14))));
+        home: Scaffold(body: LineNumberGutter(count: 3, size: 14))));
     expect(find.text('1'), findsOneWidget);
     expect(find.text('2'), findsOneWidget);
     expect(find.text('3'), findsOneWidget);

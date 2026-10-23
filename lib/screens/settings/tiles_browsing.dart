@@ -190,6 +190,24 @@ class ResumePositionTile extends StatelessWidget {
   }
 }
 
+/// **Otomatik kaydet** (Faz 20 / K21): belgeler birkaç saniye içinde dosyaya
+/// yazılır; taslak günlüğü bundan bağımsız her zaman çalışır.
+class AutoSaveTile extends StatelessWidget {
+  const AutoSaveTile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
+    return SettingSwitch(
+      icon: AppIcons.save,
+      title: context.t('edit.autosave'),
+      subtitle: context.t('edit.autosave_sub'),
+      value: appState.autoSave,
+      onChanged: appState.setAutoSave,
+    );
+  }
+}
+
 /// Medyanın uygulama içinde mi, sistem oynatıcısında mı açılacağı.
 class MediaOpenWithTile extends StatelessWidget {
   const MediaOpenWithTile({super.key});

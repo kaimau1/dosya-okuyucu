@@ -330,7 +330,7 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
               _resizeStart =
                   (_resizeStart + d.delta.dx / (7 * _zoom)).clamp(0.0, 255.0);
               sheet.setColWidthChars(col, _resizeStart);
-              _dirty = true;
+              _session.changed();
               _gridVersion++;
               _partSetState(() {});
             },
@@ -351,7 +351,7 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
               _resizeStart =
                   (_resizeStart + d.delta.dy * 0.75 / _zoom).clamp(0.0, 409.0);
               sheet.setRowHeightPt(row!, _resizeStart);
-              _dirty = true;
+              _session.changed();
               _gridVersion++;
               _partSetState(() {});
             },

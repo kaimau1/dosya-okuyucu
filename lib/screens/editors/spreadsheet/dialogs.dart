@@ -81,7 +81,7 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
         final rule = added;
         if (rule != null) sheet.removeCondRule(rule);
       });
-      _dirty = true;
+      _session.changed();
       _gridVersion++;
       _partSetState(() {});
     });
@@ -154,7 +154,7 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
             'bottom': b.bottom.visible ? b.bottom.style : null,
           }));
     });
-    _dirty = true;
+    _session.changed();
     _partSetState(() {});
   }
 

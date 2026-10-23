@@ -9,6 +9,8 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../core/app_icons.dart';
 import '../../core/doc_fonts.dart';
+import '../../core/edit/edit_session.dart';
+import '../../core/edit/editor_shortcuts.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/list_prefix.dart';
 import '../../core/theme.dart';
@@ -55,11 +57,20 @@ class WordEditorScreen extends StatefulWidget {
   State<WordEditorScreen> createState() => _WordEditorScreenState();
 }
 
-class _WordEditorScreenState extends State<WordEditorScreen> {
+class _WordEditorScreenState extends State<WordEditorScreen>
+    with DraftRecoveryMixin<WordEditorScreen> {
   DocxEditor? _editor;
   Uint8List? _bytes;
   String? _error;
-  bool _dirty = false;
+
+  /// Faz 20: kirli durum, kaydetme durumu, taslak ve otomatik kaydetme.
+  late final EditSession _session = EditSession(
+    sourcePath: widget.path,
+    editor: 'word',
+    save: _writeFile,
+    snapshot: () async => _editor?.saveAsync(),
+  );
+  bool get _dirty => _session.isDirty;
 
   /// true → yedek düz metin editörü (sayfa görünümü açılamadı veya kullanıcı seçti).
   bool _plainMode = false;
@@ -141,6 +152,7 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
 
   @override
   void dispose() {
+    _session.dispose();
     _readingBars.dispose();
     super.dispose();
   }
@@ -153,12 +165,17 @@ class _WordEditorScreenState extends State<WordEditorScreen> {
     final bytes = _bytes;
     // Geri tuşu önce DÜZENLEMEYİ kapatır (slaytlarla aynı kural, 2026-08-01):
     // yazarken yanlışlıkla ekrandan çıkmak yazılanı görünmez kılıyordu.
-    return PopScope(
-      canPop: !_editing,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && _editing) _toggleEdit();
-      },
-      child: _buildShell(editor, bytes),
+    return EditExitGuard(
+      session: _session,
+      hasOpenLayer: _editing,
+      closeLayer: _toggleEdit,
+      child: EditorShortcuts(
+        undo: _undo.canUndo ? _undoStep : null,
+        redo: _undo.canRedo ? _redoStep : null,
+        save: editor == null ? null : _save,
+        find: _plainMode || editor == null ? null : _toggleFind,
+        child: _buildShell(editor, bytes),
+      ),
     );
   }
 

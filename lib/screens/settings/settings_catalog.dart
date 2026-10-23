@@ -265,6 +265,13 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                 subtitleKey: 'fmset.resume_sub',
                 builder: _resumePositionTile),
           ]),
+          SettingsSection('set.sec_documents', [
+            SettingRow(
+                id: 'auto_save',
+                titleKey: 'edit.autosave',
+                subtitleKey: 'edit.autosave_sub',
+                builder: _autoSaveTile),
+          ]),
           SettingsSection('set.sec_photos', [
             SettingRow(
                 id: 'photo_grid',
@@ -624,6 +631,11 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                   titleKey: 'aipool.status',
                   builder: _aiPoolStatusTile),
               SettingRow(
+                  id: 'editor_perf',
+                  titleKey: 'edit.perf_overlay',
+                  subtitleKey: 'edit.perf_overlay_sub',
+                  builder: _editorPerfTile),
+              SettingRow(
                   id: 'developer_off',
                   titleKey: 'dev.turn_off',
                   builder: _developerOffTile),
@@ -701,6 +713,8 @@ Widget _volumesTile(BuildContext _) => const VolumesTile();
 Widget _settingsBackupTile(BuildContext _) => const SettingsBackupTile();
 Widget _usbDiagnosticsTile(BuildContext _) => const UsbDiagnosticsTile();
 Widget _developerOffTile(BuildContext _) => const DeveloperOffTile();
+Widget _autoSaveTile(BuildContext _) => const AutoSaveTile();
+Widget _editorPerfTile(BuildContext _) => const EditorPerfTile();
 Widget _aboutTile(BuildContext _) => const AboutTile();
 Widget _ttsVoiceTile(BuildContext _) => const TtsVoiceTile();
 Widget _ttsAiReadTile(BuildContext _) => const TtsAiReadTile();

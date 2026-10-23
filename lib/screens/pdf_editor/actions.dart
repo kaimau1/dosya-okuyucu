@@ -455,27 +455,16 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
     return true;
   }
 
+  /// Altı editörün ortak çıkış sorusu (Faz 20): Kaydet · Kaydetme · İptal.
   Future<bool> _confirmLeave() async {
     if (!_dirty) return true;
-    final choice = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.t('pe.unsaved_title')),
-        content: Text(ctx.t('pe.unsaved_body')),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, 'cancel'),
-              child: Text(ctx.t('common.cancel'))),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, 'discard'),
-              child: Text(ctx.t('pe.discard_leave'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, 'save'),
-              child: Text(ctx.t('common.save'))),
-        ],
-      ),
-    );
-    if (choice == 'save') return _save();
-    return choice == 'discard';
+    switch (await showUnsavedChanges(context)) {
+      case UnsavedChoice.save:
+        return _save();
+      case UnsavedChoice.discard:
+        return true;
+      case UnsavedChoice.cancel:
+        return false;
+    }
   }
 }

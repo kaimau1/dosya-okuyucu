@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show compute, visibleForTesting;
 import 'package:flutter/gestures.dart'
@@ -15,6 +16,8 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/app_icons.dart';
 import '../../core/excel_format.dart';
 import '../../core/doc_fonts.dart';
+import '../../core/edit/edit_session.dart';
+import '../../core/edit/editor_shortcuts.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/sheet_metrics.dart';
 import '../../core/sheet_overflow.dart';
@@ -103,7 +106,8 @@ class SpreadsheetEditorScreen extends StatefulWidget {
       _SpreadsheetEditorScreenState();
 }
 
-class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
+class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
+    with DraftRecoveryMixin<SpreadsheetEditorScreen> {
   static const double _rowHeaderW = 44;
   static const double _headerH = 24;
 
@@ -121,7 +125,17 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
   XlsxEditor? _editor;
   int _sheetIndex = 0;
   String? _error;
-  bool _dirty = false;
+
+  /// Faz 20: kirli durum, kaydetme durumu, taslak ve otomatik kaydetme.
+  /// Kaynak = kaydetme HEDEFİ (eski .xls açıldıysa yeni .xlsx; o dosya henüz
+  /// yoksa yazılabilir sayılmaz → otomatik kaydetme ilk elle kayda kadar
+  /// kapalı kalır).
+  late final EditSession _session = EditSession(
+    sourcePath: widget.savePath ?? widget.path,
+    editor: 'excel',
+    save: _writeFile,
+    snapshot: () async => _editor?.saveAsync(),
+  );
 
   int _selRow = 0;
   int _selCol = 0;
@@ -235,6 +249,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
 
   @override
   void dispose() {
+    _session.dispose();
     _cellField.dispose();
     _barFocus.dispose();
     _findField.dispose();
@@ -301,10 +316,19 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
     final editor = _editor;
     final visibleSheets =
         editor?.sheets.where((s) => !s.layout.hidden).toList() ?? const [];
-    return OfficeShell(
+    return EditExitGuard(
+      session: _session,
+      hasOpenLayer: _editing || _finding,
+      closeLayer: () => _editing ? _endEdit() : _toggleFind(),
+      child: EditorShortcuts(
+      undo: editor == null || !_undo.canUndo ? null : _undoStep,
+      redo: editor == null || !_undo.canRedo ? null : _redoStep,
+      save: editor == null ? null : _save,
+      find: editor == null ? null : _toggleFind,
+      child: OfficeShell(
       kind: DocKind.spreadsheet,
       title: widget.name,
-      dirty: _dirty,
+      session: _session,
       subtitle: visibleSheets.length >= 2
           ? context.t('shell.sheets', {'n': visibleSheets.length})
           : null,
@@ -331,7 +355,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
           onPressed: editor == null ? null : _toggleFind,
         ),
       ],
-      body: _error != null
+      body: withDraftBanner(restore: _restoreDraft, _error != null
           ? Center(
               child: Text(context.t('common.open_failed', {'error': _error})))
           : editor == null
@@ -357,7 +381,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
                     ),
                     _statusBar(),
                   ],
-                ),
+                )),
       // Sayfa sekmeleri + etiketli eylem çubuğu (2026-07-28 kullanıcı isteği —
       // PDF'teki gibi). Sekmeler üstte kalır: hangi sayfadasınız bilgisi
       // eylemlerden önce gelir.
@@ -397,7 +421,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen> {
         )),
         tooltip: context.t('common.ai'),
       ),
-    );
+    )));
   }
 
   /// İşlev adında geçebilen karakter: harf, rakam, alt çizgi, Türkçe harfler.

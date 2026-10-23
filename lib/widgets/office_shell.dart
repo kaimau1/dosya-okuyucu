@@ -4,6 +4,8 @@ import 'package:flutter/gestures.dart' show kLongPressTimeout;
 import 'package:flutter/material.dart';
 
 import '../core/app_icons.dart';
+import '../core/edit/edit_session.dart';
+import '../core/edit/editor_perf.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/motion.dart';
 import '../core/snack.dart';
@@ -82,6 +84,10 @@ class OfficeShell extends StatefulWidget {
   /// ekranlarında null — yazarken çubuk kaybolmamalı.
   final ReadingBars? readingBars;
 
+  /// Düzenleme oturumu (Faz 20): verilirse başlığın durum satırı ondan gelir
+  /// ("Kaydediliyor… / Kaydedildi 14:32 / Kaydedilmedi") ve [dirty] yok sayılır.
+  final EditSession? session;
+
   const OfficeShell({
     super.key,
     required this.kind,
@@ -94,6 +100,7 @@ class OfficeShell extends StatefulWidget {
     this.fab,
     this.subtitle,
     this.readingBars,
+    this.session,
   });
 
   @override
@@ -164,12 +171,23 @@ class _OfficeShellState extends State<OfficeShell>
       elevation: 0,
       scrolledUnderElevation: 0,
       titleSpacing: 0,
-      title: DocTitle(
-        kind: widget.kind,
-        title: widget.title,
-        dirty: widget.dirty,
-        subtitle: widget.subtitle,
-      ),
+      title: widget.session == null
+          ? DocTitle(
+              kind: widget.kind,
+              title: widget.title,
+              dirty: widget.dirty,
+              subtitle: widget.subtitle,
+            )
+          : ListenableBuilder(
+              listenable: widget.session!,
+              builder: (context, _) => DocTitle(
+                kind: widget.kind,
+                title: widget.title,
+                dirty: widget.session!.isDirty,
+                subtitle: widget.subtitle,
+                status: widget.session!.statusText(AppStrings.of(context)),
+              ),
+            ),
       actions: [...widget.actions, const SizedBox(width: 4)],
       bottom: widget.tabBar,
     );
@@ -189,7 +207,9 @@ class _OfficeShellState extends State<OfficeShell>
       return Scaffold(
         backgroundColor: OfficeColors.canvas(context),
         appBar: appBar,
-        body: widget.body,
+        body: widget.session == null
+            ? widget.body
+            : EditorPerfOverlay(child: widget.body),
         bottomNavigationBar: bottom,
         floatingActionButton: widget.fab,
       );
@@ -263,12 +283,17 @@ class DocTitle extends StatelessWidget {
   final bool dirty;
   final String? subtitle;
 
+  /// Kaydetme durumu metni ([EditSession.statusText]); verilmezse kirliyken
+  /// "Kaydedilmedi".
+  final String? status;
+
   const DocTitle({
     super.key,
     required this.kind,
     required this.title,
     this.dirty = false,
     this.subtitle,
+    this.status,
   });
 
   @override
@@ -313,21 +338,27 @@ class DocTitle extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (dirty) ...[
+                  if (dirty || status != null) ...[
                     const SizedBox(width: 8),
-                    Container(
+                    if (dirty)
+                      Container(
                       width: 6,
                       height: 6,
                       decoration:
                           BoxDecoration(color: brand, shape: BoxShape.circle),
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      context.t('shell.unsaved'),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: brand,
-                        fontWeight: FontWeight.w700,
-                        height: 1.2,
+                    if (dirty) const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        status ?? context.t('shell.unsaved'),
+                        key: const ValueKey('doc-save-status'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: dirty ? brand : scheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w700,
+                          height: 1.2,
+                        ),
                       ),
                     ),
                   ],

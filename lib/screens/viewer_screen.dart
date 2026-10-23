@@ -25,6 +25,7 @@ import '../core/pretty_format.dart';
 import '../core/text_replace.dart';
 import '../core/doc_fonts.dart';
 import '../core/image_budget.dart';
+import '../core/edit/edit_session.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/app_state.dart';
 import '../core/copy_text.dart';
@@ -615,10 +616,27 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final hasApiKey = context.watch<AppState>().hasApiKey;
     // Bekleyen PDF düzenlemesi varken geri tuşu doğrudan çıkmaz: önce
     // "kaydetmek ister misiniz?" sorulur (2026-07-26 kullanıcı isteği).
+    final textUnsaved = _dirty && doc.kind == DocKind.text;
     return PopScope(
-      canPop: !_hasUnsaved && _pdfWriting == 0,
+      canPop: !_hasUnsaved && !textUnsaved && _pdfWriting == 0,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
+        if (textUnsaved) {
+          // Metin düzenleyici: altı editörün ortak çıkış sorusu (Faz 20) —
+          // eskiden yazılan metin geri tuşuyla sessizce kayboluyordu.
+          final nav = Navigator.of(context);
+          final choice = await showUnsavedChanges(this.context);
+          switch (choice) {
+            case UnsavedChoice.save:
+              await _save();
+              if (!_dirty && nav.mounted) nav.pop();
+            case UnsavedChoice.discard:
+              if (nav.mounted) nav.pop();
+            case UnsavedChoice.cancel:
+              break;
+          }
+          return;
+        }
         final leave = await _confirmLeavePending();
         if (leave && context.mounted) Navigator.of(context).pop();
       },

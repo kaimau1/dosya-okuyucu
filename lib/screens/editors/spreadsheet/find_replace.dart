@@ -229,7 +229,7 @@ extension _SpreadsheetEditorScreenFindReplacePart on _SpreadsheetEditorScreenSta
         sheet.setRowHeightPt(r, value);
       }
     }
-    _dirty = true;
+    _session.changed();
     _gridVersion++;
     _partSetState(() {});
   }

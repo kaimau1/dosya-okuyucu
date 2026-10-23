@@ -93,6 +93,11 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
       _error = userErrorText(e);
     }
     if (mounted) _partSetState(() {});
+    // Ekran açılmayı BEKLEMEZ: kaynak damgası + taslak araması arkada.
+    if (_editor != null) {
+      unawaited(_session.captureSource());
+      unawaited(lookForDraft(widget.savePath ?? widget.path));
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) => _updateColWindow());
   }
 
@@ -413,7 +418,7 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
       },
     );
     _undo.push(step);
-    _dirty = true;
+    _session.changed();
     _gridVersion++; // yazma kullanılan alanı büyütebilir → ölçüler yenilenir
     // Yapıştırma/doldurma/Σ imlecin ALTINDAKİ değeri de değiştirmiş olabilir;
     // formül çubuğu tazelenmezse eski değeri gösterip bir sonraki düzenlemede
@@ -440,7 +445,7 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
 
   void _afterHistory(String label, {required bool undone}) {
     _editing = false;
-    _dirty = true;
+    _session.changed();
     _gridVersion++;
     final sheet = _sheet;
     if (sheet != null) {
@@ -468,7 +473,7 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
       _anchorRow = _selRow;
       _anchorCol = _selCol;
     }
-    _dirty = true;
+    _session.changed();
     _gridVersion++;
     _partSetState(() {});
     _syncField();

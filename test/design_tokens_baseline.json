@@ -410,5 +410,8 @@
  },
  "lib/widgets/tts_voice_sheet.dart": {
   "sheets": 1
+ },
+ "lib/core/edit/edit_session.dart": {
+  "dialogs": 1
  }
 }

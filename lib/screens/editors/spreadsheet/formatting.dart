@@ -31,7 +31,7 @@ extension _SpreadsheetEditorScreenFormattingPart on _SpreadsheetEditorScreenStat
     _recordStep('excel.undo_format', applyNow, () {
       before.forEach((at, style) => sheet.patchStyle(at.row, at.col, style));
     });
-    _dirty = true;
+    _session.changed();
     _partSetState(() {});
   }
 
@@ -71,7 +71,7 @@ extension _SpreadsheetEditorScreenFormattingPart on _SpreadsheetEditorScreenStat
     _recordStep(label, applyNow, () {
       before.forEach((at, style) => restore(editor, name, at.row, at.col, style));
     });
-    _dirty = true;
+    _session.changed();
     _partSetState(() {});
   }
 
@@ -133,7 +133,7 @@ extension _SpreadsheetEditorScreenFormattingPart on _SpreadsheetEditorScreenStat
       apply();
       _recordStep('excel.undo_merge', apply, undo);
     }
-    _dirty = true;
+    _session.changed();
     _gridVersion++;
     _partSetState(() {});
   }
@@ -212,7 +212,7 @@ extension _SpreadsheetEditorScreenFormattingPart on _SpreadsheetEditorScreenStat
 
     write(after);
     _recordStep('excel.undo_number_format', () => write(after), () => write(before));
-    _dirty = true;
+    _session.changed();
     _partSetState(() {});
   }
 }

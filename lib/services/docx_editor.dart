@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
 
+import '../core/edit/save_coordinator.dart';
+
 /// Canlı düzenlemeden gelen tek biçimli metin parçası.
 ///
 /// [font] ve [sizePt] **null bırakılabilir**: o zaman parça şablon
@@ -556,7 +558,7 @@ class DocxEditor {
   /// Değişen paragrafları geri yazıp yeni .docx byte'larını üretir.
   /// El değmeyen paragraflar (metin + biçim aynı) hiç dokunulmadan kalır;
   /// setRuns ile yazılmış (rich) paragraflar da atlanır.
-  Uint8List save() {
+  Archive buildArchive() {
     for (final para in paragraphs) {
       if (!para.rich) {
         if (para._textChanged) _writeText(para);
@@ -606,9 +608,18 @@ class DocxEditor {
       out.addFile(ArchiveFile(name, data.length, data));
     });
 
-    final List<int>? encoded = ZipEncoder().encode(out);
+    return out;
+  }
+
+  /// Dosyayı UI izleğinde üretir (testler, dışa aktarım).
+  Uint8List save() {
+    final List<int>? encoded = ZipEncoder().encode(buildArchive());
     return Uint8List.fromList(encoded ?? const <int>[]);
   }
+
+  /// Faz 20 / ED3: XML serileştirme UI izleğinde (hızlı), zip sıkıştırma
+  /// (asıl yük) ayrı izolatta.
+  Future<Uint8List> saveAsync() => SaveIsolate.encodeZip(buildArchive());
 
   // ── madde işareti / numaralandırma ─────────────────────────────────────
 

@@ -409,7 +409,8 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
     editor.addChart(spec);
     _recordStep('chart.undo_add', () => editor.charts.add(spec),
         () => editor.charts.remove(spec));
-    _partSetState(() => _dirty = true);
+    _session.changed();
+    _partSetState(() {});
     _snack(context.t('chart.added'));
   }
 
