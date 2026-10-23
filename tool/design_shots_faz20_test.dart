@@ -107,7 +107,7 @@ List<AccessoryItem> _items(BuildContext context) => const [
     ];
 
 void main() {
-  final out = 'docs/design/faz20';
+  const out = 'docs/design/faz20';
   final locale = Locale(Platform.environment['SHOT_LOCALE'] ?? 'tr');
   final suffixLocale = locale.languageCode == 'tr' ? '' : '_${locale.languageCode}';
 
