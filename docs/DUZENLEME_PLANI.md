@@ -72,8 +72,8 @@
 | Faz | Konu | Ön koşul | Ortam | Durum |
 |---|---|---|---|---|
 | 20 | **Ortak düzenleme çekirdeği** — geri al/yinele, taslak + otomatik kaydetme, klavye üstü çubuk, Aa paneli, kısayollar, ölçüm + **doğrulanmış 6 hata** | — | ☁️ | ✅ 2026-10-23 |
-| 21 | **Word: canlı düzenlemenin acil onarımı + motor denemesi** (K18 kapısı) | 20 | ☁️ + 📱 kısa | ✅ 2026-10-23 (21a + 21b ölçüm; **K18 📱 kontrol noktası bekliyor**) |
-| 22 | **Word Mobil görünüm editörü I** — belge modeli, yazma, seçim, yazım denetimi | 21 (K18) | ☁️ | ⬜ |
+| 21 | **Word: canlı düzenlemenin acil onarımı + motor denemesi** (K18 kapısı) | 20 | ☁️ + 📱 kısa | ✅ 2026-10-23 (21a + 21b; K18 kullanıcı devretti → ölçümle **(b-ii)**) |
+| 22 | **Word Mobil görünüm editörü I** — belge modeli, yazma, seçim, yazım denetimi | 21 (K18) | ☁️ | ✅ 2026-10-23 (22a + 22b; kalan: büyüteç, kendi panomuzdan biçimli yapıştırma, köprü metnini düzenleme, ilk 50 paragraf önce yükleme) |
 | 23 | **Word II** — biçimlendirme, Office şeridi, klavye üstü çubuk, Aa paneli, stiller | 22 | ☁️ | ⬜ |
 | 24 | **Word III** — Ekle (tablo, resim, bağlantı), Düzen, üst/alt bilgi, Gözden Geçir | 23 | ☁️ | ⬜ |
 | 25 | **Excel I** — veri girişi: hücre içi düzenleme, sayı/formül tuş takımı, işaret kipi, seçim tutamakları + doğruluk hataları | 20 | ☁️ | ✅ 2026-10-23 |
@@ -544,8 +544,8 @@ Ayrıntılı bağlantılar §11'de.
 
 | # | Soru | Seçenekler | Öneri | Faz | Karar |
 |---|---|---|---|---|---|
-| K18 | **Word'ün kalıcı düzenleme yüzeyi/motoru** | (a) bugünkü WebView `contenteditable` onarılarak sürer · (b) Flutter-yerel **Mobil görünüm** editörü + kendi DOCX modelimiz — motor (b-i) super_editor ya da (b-ii) kendi ince çekirdeğimiz · (c) WebView'da ProseMirror · (d) gömülü LibreOffice/Collabora | **(b)**; b-i/b-ii seçimi Faz 21b ölçümüyle; (a) yalnız geçiş dönemi için onarılır (21a). (c)(d) reddedilir — §4.3 | 21, 22 | |
-| K19 | **Sayfa görünümünde (yazdırma düzeni) düzenleme** | (a) kalsın (onarılmış WebView yolu) · (b) Faz 22–23 eşdeğerliğe ulaşınca sayfa görünümü salt okunur önizleme; "Düzenle" Mobil görünümü açar (M365 dili) | **Geçişte (a), Faz 23 bitince (b)**. Kullanıcıya ayar sunulmaz (sadelik) | 21, 23 | |
+| K18 | **Word'ün kalıcı düzenleme yüzeyi/motoru** | (a) bugünkü WebView `contenteditable` onarılarak sürer · (b) Flutter-yerel **Mobil görünüm** editörü + kendi DOCX modelimiz — motor (b-i) super_editor ya da (b-ii) kendi ince çekirdeğimiz · (c) WebView'da ProseMirror · (d) gömülü LibreOffice/Collabora | **(b)**; b-i/b-ii seçimi Faz 21b ölçümüyle | 21, 22 | **(b-ii)** 2026-10-23 — kullanıcı kararı devretti (*"ben bakamayacağım, sen en iyi şekilde yap"*); 21b ölçümü: ince çekirdek açılış 52 ms / 9 harf 112 ms, super_editor 2223 / 1177 ms + 43 paket + `package_config` düşürmesi. 📱 kontrol noktası Faz 33 cihaz turuna taşındı |
+| K19 | **Sayfa görünümünde (yazdırma düzeni) düzenleme** | (a) kalsın (onarılmış WebView yolu) · (b) Faz 22–23 eşdeğerliğe ulaşınca sayfa görünümü salt okunur önizleme; "Düzenle" Mobil görünümü açar (M365 dili) | **Geçişte (a), Faz 23 bitince (b)** | 21, 23 | 2026-10-23: **"Düzenle" artık Mobil görünümü açıyor**; sayfa üzerinde düzenleme ⋮ > "Sayfa üzerinde düzenle (eski)" altında geçiş boyunca duruyor (Faz 23 sonunda kalkar) |
 | K20 | **Excel'de sayı/formül girişi** | (a) sistem klavyesi (+ sayı kipi) · (b) **uygulama içi sayı/formül tuş takımı** + tek dokunuşla sistem klavyesine geçiş | **(b)** — işleçler, `;`, `:`, `$`, parantez, oklar tek ekranda; sayı biçimli hücrede kendiliğinden | 25 | |
 | K21 | **Otomatik kaydetme** | (a) yok (bugün) · (b) her zaman özgün dosyaya (M365) · (c) **taslak günlüğü her zaman** + dosyaya otomatik kaydetme ayarı | **(c), ayar varsayılan AÇIK**; başka uygulamadan gelen ve geri yazılamayan dosyalarda (`content://` salt okunur, e-posta eki) ilk kayıtta "Kopya olarak kaydet" önerisi | 20 | |
 | K22 | **Formül dili** | (a) dosyadaki gibi (İngilizce ad, `,` ayırıcı) · (b) **arayüz diline göre**: Türkçe arayüzde Türkçe ad + `;` + virgül ondalık gösterilir ve girilir; dosyaya her zaman İngilizce + `,` + nokta | **(b)** + Ayarlar'da "Formülleri İngilizce göster" | 20 (X1), 25 | |

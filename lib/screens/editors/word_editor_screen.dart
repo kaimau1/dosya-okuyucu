@@ -37,6 +37,7 @@ import '../../widgets/translate_flow.dart';
 import '../../widgets/quick_sheets.dart';
 import '../../widgets/download_action.dart';
 import '../chat_screen.dart';
+import 'word_mobile_editor_screen.dart';
 import '../../core/snack.dart';
 import '../../core/user_error.dart';
 import '../../core/app_colors.dart';

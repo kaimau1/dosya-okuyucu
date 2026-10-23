@@ -49,6 +49,9 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                   _editing = false;
                 });
                 break;
+              case 'pageedit':
+                _toggleEdit();
+                break;
               case 'lab':
                 final ed = _editor;
                 if (ed == null) break;
@@ -70,6 +73,9 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
             }
           },
           itemBuilder: (_) => [
+            if (!_plainMode && !_editing)
+              PopupMenuItem(
+                  value: 'pageedit', child: Text(context.t('word.edit_page'))),
             if (context.read<AppState>().labWordEditor)
               PopupMenuItem(value: 'lab', child: Text(context.t('lab.word_open'))),
             _plainMode
@@ -89,8 +95,10 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
           ? null
           : DocActionBar([
               if (!_plainMode)
+                // Faz 22 (K18 = b-ii): "Düzenle" Mobil görünüm editörünü açar;
+                // sayfa üzerinde (WebView) düzenleme ⋮ menüsünde kaldı.
                 DocAction(AppIcons.edit, context.t('common.edit'),
-                    editor == null ? null : _toggleEdit),
+                    editor == null ? null : _openMobileEditor),
               if (!_plainMode)
                 DocAction(
                   _flow ? AppIcons.newWord : AppIcons.device,

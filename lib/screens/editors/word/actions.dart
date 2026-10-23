@@ -86,6 +86,20 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
     _partSetState(() => _flow = on);
   }
 
+  /// Mobil görünüm editörünü açar (Faz 22). Dönünce belge dosyadan
+  /// yeniden açılır — editör kendi oturumuyla kaydetti.
+  Future<void> _openMobileEditor() async {
+    if (_dirty) await _save();
+    if (!mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => WordMobileEditorScreen(path: widget.path, name: widget.name),
+    ));
+    if (!mounted) return;
+    _undo.clear();
+    _session.markSaved();
+    await _load();
+  }
+
   void _toggleEdit() {
     final on = !_editing;
     _readingBars.show();

@@ -668,3 +668,17 @@ Hem eski "Düzenle" (WebView) hem deneysel editörde, **Gboard ve Samsung klavye
   olmayan bir destede de — onarım uyarısı çıkmamalı)
 - [ ] Şekil çubuğu: Kes / Kopyala / Yapıştır / Çoğalt / Öne getir / Arkaya gönder / Sil; ↶ geri alıyor
 - [ ] 50 slaytlık destede açılış ve kaydırma akıcı
+
+### Faz 22 — Word Mobil görünüm editörü (2026-10-23; K18 kontrol noktasının yerini alır)
+Word'de bir belge aç → alttaki **Düzenle** (artık Mobil görünüm açılır):
+- [ ] Gboard ve (varsa) Samsung Klavye ile Türkçe `ğüşıöçİ`, kaydırarak yazma, sesle yazma
+- [ ] otomatik düzeltme önerisine dokunma doğru kelimeyi değiştiriyor; büyük harf cümle başında
+- [ ] Enter yeni paragraf; başlığın sonunda Enter → normal gövde; boş madde işaretinde Enter → listeden çıkar
+- [ ] paragraf başında geri silme iki paragrafı birleştiriyor (boş paragrafta da)
+- [ ] uzun bas → kelime seçimi + mavi tutamaklar + Kes/Kopyala/Yapıştır/Tümünü seç/Çevir/AI ile düzelt
+- [ ] çift dokunuş kelime, üç dokunuş paragraf seçiyor; tutamakla seçim paragraflar arası uzuyor
+- [ ] yanlış yazılan kelimenin altında kırmızı dalgalı çizgi; dokununca öneriler menüde
+- [ ] klavye üstü çubuk: ↶ ↷ K T A yapıştır ⌄; klavye kapalıyken şerit + "Sayfa düzeni"
+- [ ] kaydet → Word masaüstünde / Google Dokümanlar'da onarımsız açılıyor; köprü, dipnot, resim, tablo yerinde
+- [ ] "akıcı mı" (1–5) ve eski sayfa üzerinde düzenleme (⋮ menü) ile kıyas
+- [ ] Arapça belgede sağdan sola yazma

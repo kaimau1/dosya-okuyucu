@@ -89,8 +89,8 @@
 | 18 | **Görüntüleyici ve medya deneyimi** — okuma kipi, video jestleri, galeri, geniş ekran | 15 | ✅ 2026-10-22 (bulut; jest hissi/parlaklık cihazda) |
 | 19 | **Sistem entegrasyonu ve ilk izlenim** — açılış ekranı, başlatıcı kısayolları, pencere öğeleri, sistem rengi (K13), dokunsal geri bildirim | 15 | ✅ 2026-10-22 (bulut; görünüş cihazda) |
 | 20 | **Ortak düzenleme çekirdeği** (geri al/yinele, taslak + otomatik kaydetme, klavye üstü çubuk, Aa paneli) + doğrulanmış 6 hata — ayrıntı `docs/DUZENLEME_PLANI.md` | — | ✅ 2026-10-23 |
-| 21 | **Word: canlı düzenlemenin acil onarımı + motor denemesi** (K18) — `DUZENLEME_PLANI.md` | 20 | ✅ 2026-10-23 (K18 📱 bekliyor) |
-| 22 | **Word Mobil görünüm editörü I** (model, yazma, seçim) — `DUZENLEME_PLANI.md` | 21 | ⬜ |
+| 21 | **Word: canlı düzenlemenin acil onarımı + motor denemesi** (K18) — `DUZENLEME_PLANI.md` | 20 | ✅ 2026-10-23 (K18 = b-ii) |
+| 22 | **Word Mobil görünüm editörü I** (model, yazma, seçim) — `DUZENLEME_PLANI.md` | 21 | ✅ 2026-10-23 |
 | 23 | **Word II** (biçim, şerit, Aa paneli, stiller) — `DUZENLEME_PLANI.md` | 22 | ⬜ |
 | 24 | **Word III** (Ekle, tablo, resim, Düzen, üst/alt bilgi, Gözden Geçir) — `DUZENLEME_PLANI.md` | 23 | ⬜ |
 | 25 | **Excel I** (veri girişi, sayı/formül tuş takımı, işaret kipi, tutamaklar, doğruluk) — `DUZENLEME_PLANI.md` | 20 | ✅ 2026-10-23 |
@@ -144,9 +144,9 @@ hesabı/kararı gerekir (Play Console, Billing, depo ayarı).
 > noktası) → Faz 25 → 26 → 22 → 23 → 28 → 30 → 24 → 27 → 29 → 32 → 31 → 33**.
 > Faz 33'ün cihaz kısmı sıra 12 cihaz turuyla birleştirilirse telefon oturumu bir kez yapılır.
 >
-> **Durum 2026-10-23:** Faz 20 ✅ · Faz 21 ✅ (K18 📱 kontrol noktası bekliyor) · Faz 25 ✅ ·
-> Faz 26 ✅ · Faz 28 ✅. Sıradaki: K18 cevabı gelmediyse **Faz 30** (metin/kod editörü, D8),
-> K18 kararıyla Faz 22.
+> **Durum 2026-10-23:** Faz 20 ✅ · Faz 21 ✅ (K18 = b-ii) · Faz 22 ✅ · Faz 25 ✅ · Faz 26 ✅ ·
+> Faz 28 ✅. Sıradaki: **Faz 23** (Word biçimlendirme, şerit, Aa paneli, stiller — D6), sonra
+> Faz 30.
 
 **Bulut oturumu ne yapabilir / ne yapamaz** (HAFIZA 2026-07-25 §F, 2026-10-21 (5)):
 

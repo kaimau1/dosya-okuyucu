@@ -576,3 +576,38 @@
   (`TextAlign.left` = PowerPoint `l`) içerik dosyalarında (`slide_text_controller`, `slide_box_editor`
   rtl_guard listesinde). **Kalan (Faz 28):** düzenlerken paragraf başına hiza / girinti düzeyi
   yalnız Bitti'den sonra görünür (tek TextField tek hiza); `spAutoFit` kutusu büyümüyor, yazı taşar.
+- **2026-10-23 (18) — Faz 22 ✅: Word Mobil görünüm editörü; K18 = (b-ii):**
+  Kullanıcı: *"Faz 22'yi de yap, ben bakamayacağım editöre, sen en iyi şekilde yap"* → K18
+  kullanıcıdan devralındı, 21b ölçümüyle **(b-ii) kendi ince çekirdeğimiz** (super_editor 43×
+  yavaş açılış + 43 paket + `package_config` düşürmesi). 📱 kontrol noktası Faz 33'e (CIHAZ_TESTI
+  "Faz 22"). K19: "Düzenle" Mobil görünümü açar; eski sayfa üzerinde düzenleme ⋮ menüsünde.
+  **Model** `lib/services/docx/` — `docx_styles.dart` (docDefaults → paragraf stili zinciri →
+  karakter stili → doğrudan; tema yazı tipleri; `DocxNumbering` etiketleri, düzey sayaçları,
+  Symbol/Wingdings) + `docx_document.dart`: gövde + tablo hücreleri tek düz paragraf listesi;
+  paragraf DEĞİŞMEZ nesne (metin + harf başına `DocxCharStyle` + atom listesi + çapalar). Atom
+  (`U+FFFC`) = köprü, karmaşık/basit alan, dipnot, resim (blip → rels → bayt), sayfa sonu, sembol,
+  izlenen değişiklik, içerik denetimi — özgün düğüm aynen geri konur; sıfır genişlikliler (yer
+  imi, yorum aralığı, proofErr) çapa. Kaydedici `_writtenAs[w:p] == paragraf nesnesi` ise
+  dokunmaz → el değmemiş belgede document.xml BAYTI BAYTINA aynı (bütün örneklerde test); değişen
+  paragrafta aynı rPr şablonlu harfler TEK run, metni aynen kalan run özgün düğümüyle. Geri al =
+  listenin sığ kopyası (undo sonra kaydet de doğru: nesne kimliği farklı → yeniden yazılır;
+  modelden düşen `w:p` çıkarılır, kopan yeniden yerine konur). Enter: başlık sonunda `w:next`
+  stili; boş liste öğesinde ve liste başında geri silmede listeden çık (stilden gelen liste için
+  `numId 0`); hücre/gövde sınırı birleştirilmez.
+  **Editör** `lib/widgets/docx_editor/` — tek `DeltaTextInputClient`, IME'ye yalnız imlecin
+  paragrafı + bekçi `U+200B`; tembel liste; tablo `IntrinsicHeight` satırları (gridSpan); atomlar
+  `WidgetSpan`; dokun/çift/üç dokun (çift dokunuş tanıyıcısı yok), uzun bas + sürükle, tutamaklar,
+  kendi bağlam çubuğumuz (Kes/Kopyala/Yapıştır/Tümünü seç/Çevir/AI ile düzelt + yazım önerileri),
+  `DefaultSpellCheckService` kırmızı dalga, donanım klavyesinde oklar paragraf sınırını aşar.
+  Ekran `word_mobile_editor_screen.dart` (EditSession: taslak + otomatik kaydetme; `compute`).
+  **Ölçüm (debug):** 3000 paragraf ayrıştır 355 ms; 1000 paragrafta ilk ekran 376 ms, tuş başına
+  model+çizim 9,7 ms; tek paragraf değişikliğinde commit 3 ms. LibreOffice dönüşümü doğrulandı.
+  **TUZAK (önemli):** `XmlName('w:numPr')` öneki AYIRMAZ — `name.local == 'w:numPr'` olur;
+  `name.local` ile arayan kod kendi oluşturduğu düğümü bulamaz (liste çıkışı bu yüzden "çalışmıyor"
+  görünüyordu). Önekli adlar `XmlName.fromString('w:numPr')` ile kurulmalı (pptx kodu `qualified`
+  ile karşılaştırdığı için etkilenmiyordu). Ayrıca: `paraLook` pPr DÜĞÜMÜ başına önbellekli —
+  değişecek pPr'yi önce kopyala, sınamayı kopyada yap. Fırlatma sürerken dokunuş kaydırmayı
+  durdurur (testte `scrollUntilVisible` sonrası bekle). Python-docx örnek üreteci:
+  `tool/make_word_fixtures.py` (stiller/listeler/tablo/resim/Arapça). **Kalan (Faz 22):** büyüteç,
+  kendi panomuzdan biçimli yapıştırma, köprü METNİNİ düzenleme (bugün atom), ilk 50 paragrafı
+  önce açma (3000 paragraf zaten ~0,4 s).

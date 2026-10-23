@@ -297,6 +297,9 @@
  "lib/widgets/doc_more_sheet.dart": {
   "sheets": 1
  },
+ "lib/widgets/docx_editor/docx_editor_view.dart": {
+  "font_size": 1
+ },
  "lib/widgets/docx_view.dart": {
   "hex_colors": 1
  },
