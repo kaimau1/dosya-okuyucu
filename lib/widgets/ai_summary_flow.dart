@@ -6,6 +6,8 @@ import 'package:share_plus/share_plus.dart';
 import '../core/app_icons.dart';
 import '../core/app_state.dart';
 import '../core/l10n/app_strings.dart';
+import '../services/ai_summary_store.dart';
+import '../services/fm/job_queue.dart' show FmJobTarget, FmJobTargetKind;
 import '../services/gemini_service.dart';
 import 'markdown_text.dart';
 import 'tracked_busy.dart';
@@ -64,10 +66,14 @@ class AiSummaryFlow {
     // arkadaki SAYFAYI kapatıyor ve tek sayfa kaldıysa ekran kararıyordu.
     // Gemini cevabı 30-40 sn sürebilir: pencerede geçen süre, uzun sürerse
     // ana ekran şeridinde ve bildirimde de (bkz. `tracked_busy.dart`).
+    // Sonuç diske yazılır ve işin hedefi o kayıttır: kullanıcı "Arka plana
+    // al" deyip ekrandan çıksa da bildirime dokununca özet açılır (2026-10-23).
+    final key = 'flow:$title:${length.name}';
     final busy = showTrackedBusy(
       context,
       title: str.t('ai.sum_working'),
       name: str.t('aia.summary_title'),
+      target: FmJobTarget(FmJobTargetKind.aiSummary, paths: [key]),
     );
 
     String? summary;
@@ -86,6 +92,13 @@ class AiSummaryFlow {
     if (error != null || summary == null) {
       await busy.failed(error ?? '-');
     } else {
+      await AiSummaryStore.write(AiSummaryRecord(
+        key: key,
+        title: title,
+        summary: summary,
+        createdAtMs: DateTime.now().millisecondsSinceEpoch,
+        truncated: source.length > maxChars,
+      ));
       await busy.done();
     }
     if (!context.mounted) return;

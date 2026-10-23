@@ -814,6 +814,8 @@ const Map<String, (String, String, String)> _t4 = {
         'Better voices can be downloaded from the system speech settings.',
     'لم يوفّر الجهاز قائمة أصوات؛ تظل السرعة والنبرة قابلتين للضبط.',
   ),
+  'tts.neural_sub': ('Yapay zekâ sesi · cihazda, internetsiz', 'AI voice · on device, offline', 'صوت ذكاء اصطناعي · على الجهاز، دون إنترنت'),
+  'tts.neural_get': ('İndirmek için dokunun', 'Tap to download', 'المس للتنزيل'),
   'tts.rate': ('Hız', 'Speed', 'السرعة'),
   'tts.pitch': ('Perde', 'Pitch', 'النبرة'),
   'tts.try': ('Dene', 'Try', 'جرّب'),

@@ -388,3 +388,19 @@
   (Impeller+Skia) → orta/güçlü tavan 160 MB/1000 → 64 MB/300 (GL 496 → 237 MB). Ölçüm
   betikleri: yan yana `.r8test` APK + tek senaryo betiği (A/B aynı adımlar).
 
+- **2026-10-23 (12) — arka plan işleri, yapay ses seçimi, AI özet kaydı:** Pano yüzen
+  çubuğundan yeni klasör düğmesi kalktı (kullanıcı isteği; diyalog + akış silindi).
+  **Kök neden — "AI özeti hazırlanıyor ama açamıyorum, tekrar basınca yenisi başlıyor":**
+  özet yalnız başlatan ekranın `context`i yaşıyorsa gösteriliyordu, hiçbir yerde
+  tutulmuyordu, iş hedefsizdi. Artık `services/ai_summary_store.dart` (diske JSON, dosya
+  boy+mtime değişince bayat) + süren iş anahtarla tekil + `FmJobTargetKind.aiSummary`
+  (bildirim/şerit özeti açar). `showTaskDialog` (tracked_busy) her "çalışıyor" penceresine
+  **"Arka plana al"** koydu; sessiz bitiş artık `userWatching && pencere açık`.
+  **Kök neden — yapay sesler yalnız sesli kitapta:** motor (WebView) sesli kitap EKRANININ
+  içindeydi. Artık `NeuralVoiceEngine.acquire/release` + kökte `NeuralVoiceHostLayer`
+  (main.dart builder; 3 dk boşta kapanır), sentez kuyruklu (EMA tek iş bilir). Sesli okuma
+  tercihi `TtsPrefs.voiceName = 'neural:<ad>'` (biçim değişmedi); `TtsService` parçaları
+  WAV'a çevirip video_player ile çalar, sonrakini önceden üretir, hata olursa cihaz sesine
+  düşer. Sesli kitap üretimi `AudiobookJob` (ekrandan bağımsız, `TrackedTask` eşiksiz →
+  ön plan servisi + bildirim "Durdur", hedef `FmJobTargetKind.audiobook`).
+  CIHAZ_TESTI: WebView'ın uygulama alttayken JS/Worker'ı kısıp kısmadığı doğrulanmadı.

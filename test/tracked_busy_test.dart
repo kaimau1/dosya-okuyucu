@@ -84,4 +84,20 @@ void main() {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pumpAndSettle();
   });
+
+  testWidgets('"Arka plana al": pencere kapanır, iş sürer, sonuç SÖYLENİR',
+      (tester) async {
+    final busy = await open(tester);
+    await tester.tap(find.byKey(const ValueKey('busy-background')));
+    await tester.pumpAndSettle();
+    expect(find.text('Belge okunuyor…'), findsNothing, reason: 'pencere kapandı');
+    expect(busy.task.isTracked, isTrue, reason: 'eşik beklenmeden kaydedildi');
+    final job = JobQueue.instance.currentJob!;
+    expect(job.status, JobStatus.running);
+    await busy.done(detail: 'tamam');
+    await tester.pumpAndSettle();
+    expect(job.status, JobStatus.done);
+    expect(job.quietFinish, isFalse,
+        reason: 'kullanıcı pencereyi bıraktı: bildirimle söylenmeli');
+  });
 }

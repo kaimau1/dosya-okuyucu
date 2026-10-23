@@ -120,41 +120,4 @@ extension _DashboardScreenScanPart on _DashboardScreenState {
       loadAll: loadAll,
     );
   }
-
-  /// Ana sayfadan klasör oluşturma (kullanıcı isteği 2026-07-29).
-  /// Konum seçilebilir: ana bellek kökü, standart klasörler ve Önemli
-  /// Dosyalar. Oluşan klasör hemen açılır — kullanıcı içine dosya koymak
-  /// isteyecektir.
-  Future<void> _newFolderFlow() async {
-    // Hata metni await'ten ÖNCE çevrilir (asenkron boşluktan sonra `context`
-    // kullanılamaz).
-    final createFailed = context.t('fm.folder_create_failed');
-    final locations = <({String label, String path})>[
-      (label: context.t('fm.internal_storage'), path: FmEnv.primaryRoot),
-      (
-        label: ImportantScreen.folderName,
-        path: ImportantScreen.pathIn(FmEnv.primaryRoot)
-      ),
-      for (final f in StorageStats.standardFolders(FmEnv.primaryRoot))
-        (label: f.label, path: f.path),
-      for (final v in FmEnv.volumes.where((v) => !v.isPrimary))
-        (label: v.label, path: v.path),
-    ];
-    final result = await showDialog<({String name, String parent})>(
-      context: context,
-      builder: (ctx) => _NewFolderDialog(locations: locations),
-    );
-    if (result == null) return;
-    try {
-      // Hedef (örn. henüz açılmamış "Önemli Dosyalar") yoksa kurulur.
-      final parent = Directory(result.parent);
-      if (!parent.existsSync()) await parent.create(recursive: true);
-      final path = await FileOps.createFolder(result.parent, result.name);
-      if (!mounted) return;
-      await _push(BrowserScreen(path: path));
-      await _scan();
-    } catch (e) {
-      _snack(createFailed.replaceAll('{error}', userErrorText(e)));
-    }
-  }
 }

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/app_icons.dart';
 import '../core/app_state.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
+import '../screens/audiobook/voices_screen.dart';
 import '../services/tts_service.dart';
+import '../services/voice/neural_voices.dart';
 
 /// **Sesli okuma ayarları** — ses seçimi, hız, perde.
 ///
@@ -87,18 +90,24 @@ class _TtsVoiceSheetState extends State<TtsVoiceSheet> {
                 padding: EdgeInsets.symmetric(vertical: Gap.lg),
                 child: Center(child: CircularProgressIndicator()),
               )
-            else if (voices.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: Gap.sm),
-                child: Text(context.t('tts.no_voices'),
-                    style: Theme.of(context).textTheme.bodySmall),
-              )
-            else
+            else ...[
+              if (voices.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+                  child: Text(context.t('tts.no_voices'),
+                      style: Theme.of(context).textTheme.bodySmall),
+                ),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 260),
                 child: RadioGroup<String>(
                   groupValue: _prefs.voiceName,
                   onChanged: (name) {
+                    final neural = NeuralVoiceId.parse(name ?? '');
+                    if (neural != null) {
+                      _save(_prefs.copyWith(
+                          voiceName: name, voiceLocale: 'tr-TR'));
+                      return;
+                    }
                     final voice =
                         voices.where((v) => v.name == name).firstOrNull;
                     _save(_prefs.copyWith(
@@ -108,6 +117,7 @@ class _TtsVoiceSheetState extends State<TtsVoiceSheet> {
                   child: ListView(
                     shrinkWrap: true,
                     children: [
+                      ..._neuralTiles(context),
                       RadioListTile<String>(
                         value: '',
                         dense: true,
@@ -125,11 +135,13 @@ class _TtsVoiceSheetState extends State<TtsVoiceSheet> {
                   ),
                 ),
               ),
+            ],
             const Divider(),
             _slider(
               label: context.t('tts.rate'),
               value: _prefs.rate,
-              onChanged: (v) => setState(() => _prefs = _prefs.copyWith(rate: v)),
+              onChanged: (v) =>
+                  setState(() => _prefs = _prefs.copyWith(rate: v)),
               onDone: () => _save(_prefs),
             ),
             _slider(
@@ -164,6 +176,43 @@ class _TtsVoiceSheetState extends State<TtsVoiceSheet> {
     );
   }
 
+  /// Yapay zekâ sesleri (2026-10-23): kurulu olanlar seçilebilir, kurulu
+  /// olmayanlar indirme ekranına götürür. Eskiden yalnız sesli kitap
+  /// ekranında seçilebiliyordu.
+  List<Widget> _neuralTiles(BuildContext context) {
+    final store = NeuralVoiceStore.instance;
+    return [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(Gap.md, Gap.xs, Gap.md, 0),
+        child: Text(context.t('voice.title'),
+            style: Theme.of(context).textTheme.labelLarge),
+      ),
+      for (final v in NeuralVoice.values)
+        if (store.isInstalled(v))
+          RadioListTile<String>(
+            key: ValueKey('tts-neural-${v.name}'),
+            value: NeuralVoiceId.of(v),
+            dense: true,
+            title: Text(v.label),
+            subtitle: Text(context.t('tts.neural_sub')),
+          )
+        else
+          ListTile(
+            key: ValueKey('tts-neural-get-${v.name}'),
+            dense: true,
+            leading: const Icon(AppIcons.download),
+            title: Text(v.label),
+            subtitle: Text(context.t('tts.neural_get')),
+            onTap: () async {
+              await Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const VoicesScreen()));
+              if (mounted) setState(() {});
+            },
+          ),
+      const Divider(height: 1),
+    ];
+  }
+
   Widget _slider({
     required String label,
     required double value,
@@ -172,7 +221,9 @@ class _TtsVoiceSheetState extends State<TtsVoiceSheet> {
   }) =>
       Row(
         children: [
-          SizedBox(width: 64, child: Text(label, style: const TextStyle(fontSize: 13))),
+          SizedBox(
+              width: 64,
+              child: Text(label, style: const TextStyle(fontSize: 13))),
           Expanded(
             child: Slider(
               value: value.clamp(0.5, 2.0),

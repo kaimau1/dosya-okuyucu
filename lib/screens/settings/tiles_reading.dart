@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../services/tts_service.dart';
+import '../../services/voice/neural_voices.dart';
 import '../../widgets/tts_voice_sheet.dart';
 import 'settings_widgets.dart';
 
@@ -34,9 +35,10 @@ class TtsVoiceTile extends StatelessWidget {
   }
 
   String _summary(BuildContext context, TtsPrefs prefs) {
+    final neural = NeuralVoiceId.parse(prefs.voiceName);
     final voice = prefs.voiceName.isEmpty
         ? context.t('set.tts_default_voice')
-        : prefs.voiceName;
+        : neural?.label ?? prefs.voiceName;
     return '$voice · ${prefs.rate.toStringAsFixed(1)}x';
   }
 }

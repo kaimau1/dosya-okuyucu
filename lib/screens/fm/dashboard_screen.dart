@@ -19,7 +19,6 @@ import '../../core/startup_queue.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/download_service.dart';
-import '../../services/fm/file_ops.dart';
 import '../../services/fm/ai_index.dart';
 import '../../services/fm/app_storage_service.dart';
 import '../../services/fm/fm_env.dart';
@@ -78,7 +77,6 @@ import 'trash_screen.dart';
 import 'vault_screen.dart';
 import '../../core/snack.dart';
 import '../../core/safe_insets.dart';
-import '../../core/user_error.dart';
 
 part 'dashboard/volume_watch.dart';
 part 'dashboard/scan.dart';
@@ -491,6 +489,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       // biniyordu; dolu çöp kutusu da tam turuncu bir kare olarak bağırıyordu.
       // Artık üçü TEK bir kapsülde, tek sırada: çöp kutusu · yeni klasör |
       // Belge Tara. Kaydırırken kapsül yalnız tarama simgesine katlanır.
+      // 2026-10-23: yeni klasör düğmesi kaldırıldı (kullanıcı isteği).
       floatingActionButton: _QuickDock(
         expanded: _fabsVisible,
         trashCount: _trashCount,
@@ -499,7 +498,6 @@ class _DashboardScreenState extends State<DashboardScreen>
               .push(MaterialPageRoute(builder: (_) => const TrashScreen()));
           _loadTrash();
         },
-        onNewFolder: _newFolderFlow,
         onScan: () => ScanFlow.run(context),
       ),
     );

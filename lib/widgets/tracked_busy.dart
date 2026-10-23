@@ -1,8 +1,11 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 
+import '../core/app_icons.dart';
 import '../core/busy_dialog.dart';
+import '../core/l10n/app_strings.dart';
 import '../services/fm/job_queue.dart' show FmJobTarget;
 import '../services/fm/tracked_task.dart';
 
@@ -46,19 +49,22 @@ class TrackedBusy {
   void close() => _dialog.close();
 
   Future<void> done({String? detail}) =>
-      _end(() => task.complete(detail: detail, quiet: TrackedTask.userWatching));
+      _end((quiet) => task.complete(detail: detail, quiet: quiet));
 
   Future<void> failed(Object error) =>
-      _end(() => task.fail(error, quiet: TrackedTask.userWatching));
+      _end((quiet) => task.fail(error, quiet: quiet));
 
-  Future<void> stopped({String? detail}) => _end(
-      () => task.stopped(detail: detail, quiet: TrackedTask.userWatching));
+  Future<void> stopped({String? detail}) =>
+      _end((quiet) => task.stopped(detail: detail, quiet: quiet));
 
-  Future<void> _end(Future<void> Function() finish) async {
+  /// Sessiz bitiş yalnız kullanıcı sonucu PENCEREDE izlediyse: pencereyi
+  /// "Arka plana al" ya da geri tuşuyla kapattıysa sonuç bildirimle söylenir.
+  Future<void> _end(Future<void> Function(bool quiet) finish) async {
     if (_ended) return;
     _ended = true;
+    final quiet = TrackedTask.userWatching && _dialog.isOpen;
     close();
-    await finish();
+    await finish(quiet);
   }
 }
 
@@ -74,7 +80,26 @@ TrackedBusy showTrackedBusy(
 }) {
   final task = TrackedTask(title: title, name: name, target: target);
   final text = ValueNotifier<String>(message ?? title);
-  final dialog = showBusyDialog(
+  final dialog = showTaskDialog(context, task: task, message: text);
+  return TrackedBusy._(dialog, task, text);
+}
+
+/// Süren bir [TrackedTask]ı izleyen pencere: dönen halka, [message] satırı,
+/// canlı süre satırı ve **"Arka plana al"** düğmesi.
+///
+/// Kullanıcı 2026-10-23: *"ai özet hazırlama arka plana — bu ve benzeri tüm
+/// işlemler arka planda çalışabilmeli"*. Pencere iş sürerken ekranı
+/// kilitliyordu; düğme işi hemen iş sistemine taşır (şerit + bildirim) ve
+/// pencereyi kapatır — iş sürer, kullanıcı uygulamada gezinebilir.
+/// [onBackground] düğmeye basılınca (pencere kapanmadan önce) çağrılır.
+BusyDialog showTaskDialog(
+  BuildContext context, {
+  required TrackedTask task,
+  required ValueListenable<String> message,
+  VoidCallback? onBackground,
+}) {
+  late final BusyDialog dialog;
+  dialog = showBusyDialog(
     context,
     builder: (ctx) => AlertDialog(
       content: Row(
@@ -88,7 +113,7 @@ TrackedBusy showTrackedBusy(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ValueListenableBuilder<String>(
-                  valueListenable: text,
+                  valueListenable: message,
                   builder: (_, v, __) => Text(v),
                 ),
                 _LiveStatus(task: task),
@@ -97,9 +122,21 @@ TrackedBusy showTrackedBusy(
           ),
         ],
       ),
+      actions: [
+        TextButton.icon(
+          key: const ValueKey('busy-background'),
+          onPressed: () {
+            task.promote();
+            onBackground?.call();
+            dialog.close();
+          },
+          icon: const Icon(AppIcons.open, size: 18),
+          label: Text(ctx.t('fm.to_background')),
+        ),
+      ],
     ),
   );
-  return TrackedBusy._(dialog, task, text);
+  return dialog;
 }
 
 /// Saniyede bir tazelenen durum satırı ("%42 · ~2 dk kaldı" / "12 sn");

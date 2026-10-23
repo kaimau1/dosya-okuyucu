@@ -115,6 +115,21 @@ enum NeuralVoice {
       .replaceAll('if (self.navigator?.gpu', 'if (false && self.navigator?.gpu');
 }
 
+/// Sesli okuma tercihinde (`TtsPrefs.voiceName`) yapay zekâ sesinin adı:
+/// `neural:antalia`. Cihaz seslerinin adlarıyla (`tr-tr-x-…`) çakışmaz; eski
+/// sürümün okuduğu tercih dizesi biçimi değişmedi.
+abstract final class NeuralVoiceId {
+  static const prefix = 'neural:';
+
+  static String of(NeuralVoice v) => '$prefix${v.name}';
+
+  static NeuralVoice? parse(String name) {
+    if (!name.startsWith(prefix)) return null;
+    final id = name.substring(prefix.length);
+    return NeuralVoice.values.where((v) => v.name == id).firstOrNull;
+  }
+}
+
 /// Seslerin indirme/kurulum durumu (uygulama destek klasörü `voices/`).
 class NeuralVoiceStore extends ChangeNotifier {
   NeuralVoiceStore._();

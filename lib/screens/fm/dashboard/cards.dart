@@ -258,7 +258,10 @@ class _RingPainter extends CustomPainter {
       old.strokeWidth != strokeWidth;
 }
 
-/// **Panonun yüzen çubuğu**: çöp kutusu · yeni klasör | Belge Tara.
+/// **Panonun yüzen çubuğu**: çöp kutusu | Belge Tara.
+///
+/// Yeni klasör düğmesi 2026-10-23'te kaldırıldı (kullanıcı isteği) — klasör
+/// gezginin kendi menüsünden oluşturulur.
 ///
 /// Çöp kutusu doluyken simgesi dolu ve turuncu, üstünde sayı rozeti var
 /// (2026-08-06 isteği: kutuyu açmadan durum görünsün) — ama artık koca
@@ -268,14 +271,12 @@ class _QuickDock extends StatelessWidget {
   final bool expanded;
   final int trashCount;
   final VoidCallback onTrash;
-  final VoidCallback onNewFolder;
   final VoidCallback onScan;
 
   const _QuickDock({
     required this.expanded,
     required this.trashCount,
     required this.onTrash,
-    required this.onNewFolder,
     required this.onScan,
   });
 
@@ -322,12 +323,6 @@ class _QuickDock extends StatelessWidget {
                                   child: trashIcon,
                                 )
                               : trashIcon,
-                        ),
-                        IconButton(
-                          tooltip: context.t('fm.new_folder'),
-                          onPressed: onNewFolder,
-                          icon: Icon(AppIcons.newFolder,
-                              color: scheme.onSurfaceVariant),
                         ),
                         Container(
                           width: 1,

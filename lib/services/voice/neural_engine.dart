@@ -26,6 +26,55 @@ class NeuralVoiceEngine {
 
   int _seq = 0;
 
+  // ── Paylaşılan motor (2026-10-23) ──────────────────────────────────────
+  // Kullanıcı: *"yapay zeka sesleri iniyor ama seçemiyorum, sadece sesli
+  // kitapta seçiliyor"* + *"sesli kitap oluştur arka planda çalışabilmeli"*.
+  // Motor eskiden sesli kitap EKRANININ içindeydi: ekran kapanınca WebView
+  // ağaçtan düşüp iş duruyordu, sesli okuma da ona erişemiyordu. Artık tek
+  // motor uygulama kökünde ([NeuralVoiceHostLayer]) yaşar; sesli kitap işi ve
+  // sesli okuma onu [acquire]/[release] ile paylaşır. Kimse kullanmayınca
+  // birkaç dakika sonra kapanır (model belleği geri verilir).
+
+  /// Kökteki görünmez yüzeyin izlediği motor (yoksa null).
+  static final active = ValueNotifier<NeuralVoiceEngine?>(null);
+  static Future<NeuralVoiceEngine>? _starting;
+  static int _users = 0;
+  static Timer? _idle;
+
+  /// Kullanılmayan motorun kapanmadan önce beklediği süre.
+  static const idleTimeout = Duration(minutes: 3);
+
+  /// Paylaşılan motoru alır (yoksa kurar). Her [acquire]e bir [release].
+  static Future<NeuralVoiceEngine> acquire() async {
+    _users++;
+    _idle?.cancel();
+    _idle = null;
+    final current = active.value;
+    if (current != null) return current;
+    try {
+      final engine = await (_starting ??= start());
+      active.value = engine;
+      return engine;
+    } catch (_) {
+      _users--;
+      rethrow;
+    } finally {
+      _starting = null;
+    }
+  }
+
+  static void release() {
+    if (_users > 0) _users--;
+    if (_users > 0) return;
+    _idle?.cancel();
+    _idle = Timer(idleTimeout, () {
+      if (_users > 0) return;
+      final engine = active.value;
+      active.value = null;
+      unawaited(engine?.dispose());
+    });
+  }
+
   static Future<NeuralVoiceEngine> start() async {
     final server = await VoiceServer.start(NeuralVoiceStore.instance.root);
     final controller = WebViewController();
@@ -80,11 +129,33 @@ class NeuralVoiceEngine {
     return c.future.timeout(const Duration(minutes: 3));
   }
 
+  /// Sentez kuyruğu: motor paylaşıldığı için (sesli kitap işi + sesli okuma)
+  /// istekler SIRAYLA gider — EMA çalışanı aynı anda tek iş bilir.
+  Future<void> _queue = Future.value();
+
   /// [text]i 24 kHz 16 bit mono WAV baytına çevirir.
   Future<Uint8List> synthesize(
     NeuralVoice voice,
     String text, {
     double speed = 1.0,
+    void Function(int done, int total)? onProgress,
+  }) async {
+    final previous = _queue;
+    final turn = Completer<void>();
+    _queue = turn.future;
+    try {
+      await previous;
+      return await _synthesizeNow(voice, text,
+          speed: speed, onProgress: onProgress);
+    } finally {
+      turn.complete();
+    }
+  }
+
+  Future<Uint8List> _synthesizeNow(
+    NeuralVoice voice,
+    String text, {
+    required double speed,
     void Function(int done, int total)? onProgress,
   }) async {
     await prepare(voice);
@@ -121,5 +192,30 @@ class NeuralVoiceHost extends StatelessWidget {
           opacity: 0.01,
           child: IgnorePointer(child: WebViewWidget(controller: engine.controller)),
         ),
+      );
+}
+
+/// Paylaşılan motorun yüzeyini uygulama köküne koyan katman (`main.dart`
+/// `builder`ı). Motor yokken hiçbir şey çizmez.
+class NeuralVoiceHostLayer extends StatelessWidget {
+  final Widget child;
+  const NeuralVoiceHostLayer({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) => Stack(
+        textDirection: TextDirection.ltr,
+        children: [
+          Positioned.fill(child: child),
+          ValueListenableBuilder<NeuralVoiceEngine?>(
+            valueListenable: NeuralVoiceEngine.active,
+            builder: (_, engine, __) => engine == null
+                ? const SizedBox.shrink()
+                : Positioned(
+                    left: 0,
+                    top: 0,
+                    child: NeuralVoiceHost(engine: engine),
+                  ),
+          ),
+        ],
       );
 }

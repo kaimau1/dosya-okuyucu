@@ -5,6 +5,8 @@ import 'package:path/path.dart' as p;
 
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/job_queue.dart';
+import '../audiobook/audiobook_screen.dart';
+import 'ai_actions.dart' show openSavedAiSummary;
 import 'ai_hub_screen.dart';
 import 'browser_screen.dart';
 import 'chat_cleanup_screen.dart';
@@ -91,6 +93,15 @@ Future<bool> _openTarget(BuildContext context, FmJobTarget target) async {
       return true;
     case FmJobTargetKind.file:
       return _openFiles(context, target.paths);
+    case FmJobTargetKind.aiSummary:
+      if (target.paths.isEmpty) return false;
+      return openSavedAiSummary(context, target.paths.first);
+    case FmJobTargetKind.audiobook:
+      if (target.paths.isEmpty) return false;
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => AudiobookScreen(path: target.paths.first),
+      ));
+      return true;
   }
 }
 

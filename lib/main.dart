@@ -54,6 +54,7 @@ import 'services/fm/remote/ftp_service.dart';
 import 'services/fm/open_history.dart';
 import 'services/fm/path_side_index.dart';
 import 'services/crash_log.dart';
+import 'services/voice/neural_engine.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -437,9 +438,12 @@ class _DosyaOkuyucuAppState extends State<DosyaOkuyucuApp> {
           // olursak olalım altta görünür (kullanıcı isteği 2026-09-03).
           // Seçici kipinde YOK: başka bir uygulama bizden dosya isterken
           // ekranın altına oynatıcı koymak yersiz olurdu.
+          // Yapay zekâ sesi motorunun görünmez yüzeyi de kökte: sesli kitap
+          // işi ve sesli okuma ekrandan bağımsız sürsün (2026-10-23).
           child: picker
               ? (child ?? const SizedBox.shrink())
-              : MiniPlayerBar.wrap(child ?? const SizedBox.shrink()),
+              : NeuralVoiceHostLayer(
+                  child: MiniPlayerBar.wrap(child ?? const SizedBox.shrink())),
         ),
       ),
       // Dil: seçim `system` ise `locale` null bırakılır — Flutter cihazın

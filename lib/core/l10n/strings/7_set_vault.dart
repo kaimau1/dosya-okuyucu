@@ -49,6 +49,7 @@ const Map<String, (String, String, String)> _t7 = {
     'تعذّر الحصول على ملخّص الذكاء الاصطناعي: {error}',
   ),
   'aia.summary_title': ('AI özeti', 'AI summary', 'ملخّص الذكاء الاصطناعي'),
+  'aia.regenerate': ('Yeniden oluştur', 'Regenerate', 'إعادة الإنشاء'),
 
   // AI özet akışı (AiSummaryFlow) — kısa / detaylı.
   'ai.summarize': ('AI özet', 'AI summary', 'ملخّص ذكي'),

@@ -1,10 +1,15 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:path/path.dart' as p;
+import 'package:video_player/video_player.dart';
 
 import 'scan_text_fix.dart' show ScanTextFix;
+import 'voice/neural_engine.dart';
+import 'voice/neural_voices.dart';
 
 /// Cihazda kurulu bir konuşma sesi.
 class TtsVoiceInfo {
@@ -158,10 +163,12 @@ class TtsService {
         await _tts.setLanguage(locale);
       }
     } catch (_) {}
-    if (prefs.voiceName.isNotEmpty && prefs.voiceLocale.isNotEmpty) {
+    if (prefs.voiceName.isNotEmpty &&
+        prefs.voiceLocale.isNotEmpty &&
+        NeuralVoiceId.parse(prefs.voiceName) == null) {
       try {
-        await _tts.setVoice(
-            {'name': prefs.voiceName, 'locale': prefs.voiceLocale});
+        await _tts
+            .setVoice({'name': prefs.voiceName, 'locale': prefs.voiceLocale});
       } catch (_) {}
     }
     try {
@@ -200,6 +207,16 @@ class TtsService {
 
   /// Seçilen sesi kısa bir cümleyle dinletir (ayar sayfasındaki "Dene").
   Future<void> preview(String sample) async {
+    final neural = _neuralVoice;
+    if (neural != null) {
+      await stop();
+      _chunks = [sample];
+      _index = 0;
+      _playing = true;
+      _previewOnly = true;
+      await _speakCurrent();
+      return;
+    }
     await _applyPrefs();
     await _tts.stop();
     await _tts.speak(sample);
@@ -207,10 +224,20 @@ class TtsService {
 
   /// [text] boşsa hiçbir şey yapmaz. [startAt] ile kaldığı yerden sürdürülür.
   Future<void> start(String text, {int startAt = 0}) async {
-    final chunks = splitForSpeech(cleanForSpeech(text));
+    _previewOnly = false;
+    _neuralFailed = false;
+    _clearNeural();
+    // Yapay ses parça başına ısınma maliyeti taşır: parçalar daha uzun.
+    final chunks = splitForSpeech(cleanForSpeech(text),
+        maxLength: _neuralVoice != null ? 400 : 240);
     if (chunks.isEmpty) return;
     _chunks = chunks;
     _index = startAt.clamp(0, chunks.length - 1);
+    if (_neuralVoice != null) {
+      _playing = true;
+      await _speakCurrent();
+      return;
+    }
     await _applyPrefs();
     await _tts.awaitSpeakCompletion(true);
     _playing = true;
@@ -219,6 +246,8 @@ class TtsService {
 
   Future<void> pause() async {
     _playing = false;
+    _gen++;
+    await _player?.pause();
     await _tts.stop();
     _notify();
   }
@@ -232,19 +261,140 @@ class TtsService {
   Future<void> stop() async {
     _playing = false;
     _index = 0;
+    _gen++;
+    await _disposePlayer();
     await _tts.stop();
     _notify();
   }
 
   Future<void> dispose() async {
     _playing = false;
+    _gen++;
+    await _disposePlayer();
+    _clearNeural();
+    if (_engine != null) {
+      _engine = null;
+      NeuralVoiceEngine.release();
+    }
     await _tts.stop();
   }
 
   Future<void> _speakCurrent() async {
     if (!_playing || _index >= _chunks.length) return;
     _notify();
+    if (_neuralVoice != null) {
+      await _speakNeural();
+      return;
+    }
     await _tts.speak(_chunks[_index]);
+  }
+
+  // ── Yapay zekâ sesi (2026-10-23) ─────────────────────────────────────────
+  // Kullanıcı: *"yapay zeka sesleri iniyor ama seçemiyorum, sadece sesli
+  // kitapta seçiliyor"*. Okuma ayarında `neural:<ses>` seçiliyse parçalar
+  // kökteki paylaşılan motorla WAV'a çevrilip çalınır; bir parça çalarken
+  // sonraki üretilir (parçalar arası boşluk kısa kalsın). Ses kurulu değilse
+  // ya da motor açılamazsa okuma DURMAZ: cihazın sesine düşülür.
+
+  /// Seçili ve kullanılabilir yapay ses (yoksa null → cihaz sesi).
+  NeuralVoice? get _neuralVoice {
+    if (_neuralFailed || kIsWeb) return null;
+    final v = NeuralVoiceId.parse(prefs.voiceName);
+    if (v == null || !NeuralVoiceStore.instance.isInstalled(v)) return null;
+    return v;
+  }
+
+  NeuralVoiceEngine? _engine;
+  VideoPlayerController? _player;
+  bool _neuralFailed = false;
+  bool _previewOnly = false;
+
+  /// Her durdurma/duraklatma kuşağı artırır: geç gelen sentez sonucu ya da
+  /// çalma bitişi eski bir kuşağa aitse yok sayılır.
+  int _gen = 0;
+  final Map<int, Future<String>> _files = {};
+  static int _fileSeq = 0;
+
+  Future<String> _fileFor(int i) => _files[i] ??= _synth(i);
+
+  Future<String> _synth(int i) async {
+    final voice = _neuralVoice!;
+    final engine = _engine ??= await NeuralVoiceEngine.acquire();
+    final bytes = await engine.synthesize(voice, _chunks[i],
+        speed: prefs.rate.clamp(0.5, 2.0));
+    final dir = Directory(p.join(Directory.systemTemp.path, 'tts_neural'));
+    await dir.create(recursive: true);
+    final f = File(p.join(dir.path, 'p${_fileSeq++}.wav'));
+    await f.writeAsBytes(bytes, flush: true);
+    return f.path;
+  }
+
+  void _clearNeural() {
+    for (final f in _files.values) {
+      f.then((path) => File(path).delete(), onError: (_) => null).ignore();
+    }
+    _files.clear();
+  }
+
+  Future<void> _disposePlayer() async {
+    final pl = _player;
+    _player = null;
+    if (pl == null) return;
+    try {
+      await pl.pause();
+    } catch (_) {}
+    await pl.dispose();
+  }
+
+  Future<void> _speakNeural() async {
+    final gen = ++_gen;
+    final i = _index;
+    String path;
+    try {
+      path = await _fileFor(i);
+    } catch (_) {
+      _files.remove(i);
+      if (gen != _gen) return;
+      // Motor açılamadı / ses yüklenemedi: cihazın sesiyle sürdür.
+      _neuralFailed = true;
+      await _applyPrefs();
+      await _tts.awaitSpeakCompletion(true);
+      await _speakCurrent();
+      return;
+    }
+    if (gen != _gen || !_playing) return;
+    // Sonraki parça şimdiden üretilsin.
+    if (i + 1 < _chunks.length) _fileFor(i + 1).ignore();
+    await _disposePlayer();
+    if (gen != _gen || !_playing) return;
+    final pl = _player = VideoPlayerController.file(File(path),
+        videoPlayerOptions: VideoPlayerOptions(allowBackgroundPlayback: true));
+    var finished = false;
+    pl.addListener(() {
+      if (finished || gen != _gen) return;
+      final v = pl.value;
+      if (v.hasError || v.isCompleted) {
+        finished = true;
+        // Çalınan parçanın dosyası artık gerekmiyor.
+        _files.remove(i)?.then((f) => File(f).delete()).ignore();
+        if (_previewOnly) {
+          _previewOnly = false;
+          stop();
+          return;
+        }
+        _speakNext();
+      }
+    });
+    try {
+      await pl.initialize();
+      if (gen != _gen || !_playing) return;
+      await pl.play();
+    } catch (_) {
+      if (gen == _gen && _playing && !finished) {
+        finished = true;
+        _speakNext();
+      }
+    }
   }
 
   Future<void> _speakNext() async {

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/app_icons.dart';
+import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
@@ -18,15 +20,33 @@ class VoicesScreen extends StatelessWidget {
         appBar: AppBar(title: Text(context.t('voice.title'))),
         body: ListenableBuilder(
           listenable: NeuralVoiceStore.instance,
-          builder: (context, _) => ListView(
-            padding: const EdgeInsets.all(Gap.md),
-            children: [
-              Text(context.t('voice.intro'),
-                  style: Theme.of(context).textTheme.bodyMedium),
-              const SizedBox(height: Gap.md),
-              for (final v in NeuralVoice.values) VoiceCard(voice: v),
-            ],
-          ),
+          builder: (context, _) {
+            final prefs = context.watch<AppState>().ttsPrefs;
+            return ListView(
+              padding: const EdgeInsets.all(Gap.md),
+              children: [
+                Text(context.t('voice.intro'),
+                    style: Theme.of(context).textTheme.bodyMedium),
+                const SizedBox(height: Gap.md),
+                // Kurulu ses buradan da sesli okuma sesi yapılır (2026-10-23:
+                // "iniyor ama seçemiyorum").
+                for (final v in NeuralVoice.values)
+                  VoiceCard(
+                    voice: v,
+                    selected: NeuralVoiceId.parse(prefs.voiceName) == v,
+                    selectHint: true,
+                    onSelect: () {
+                      final id = NeuralVoiceId.of(v);
+                      final state = context.read<AppState>();
+                      state.setTtsPrefs(prefs.voiceName == id
+                          ? prefs.copyWith(voiceName: '', voiceLocale: '')
+                          : prefs.copyWith(
+                              voiceName: id, voiceLocale: 'tr-TR'));
+                    },
+                  ),
+              ],
+            );
+          },
         ),
       );
 }
@@ -37,15 +57,24 @@ class VoiceCard extends StatelessWidget {
   final bool selected;
   final VoidCallback? onSelect;
 
+  /// Kurulu kartta "sesli okumada kullan" satırı gösterilsin mi (Ayarlar >
+  /// Yapay zekâ sesleri ekranı).
+  final bool selectHint;
+
   const VoiceCard(
-      {super.key, required this.voice, this.selected = false, this.onSelect});
+      {super.key,
+      required this.voice,
+      this.selected = false,
+      this.onSelect,
+      this.selectHint = false});
 
   Future<void> _install(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
     final strings = AppStrings.of(context);
     try {
       await NeuralVoiceStore.instance.install(voice);
-      showSnackOn(messenger, strings.t('voice.installed', {'name': voice.label}));
+      showSnackOn(
+          messenger, strings.t('voice.installed', {'name': voice.label}));
     } catch (e) {
       showSnackOn(messenger,
           strings.t('voice.install_failed', {'error': userErrorText(e)}));
@@ -105,9 +134,15 @@ class VoiceCard extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(top: Gap.xs),
                   child: Text(
-                    context.t('voice.installed_size', {
-                      'size': FsPaths.humanSize(store.installedBytes(voice)),
-                    }),
+                    [
+                      context.t('voice.installed_size', {
+                        'size': FsPaths.humanSize(store.installedBytes(voice)),
+                      }),
+                      if (selectHint)
+                        context.t(selected
+                            ? 'voice.reading_selected'
+                            : 'voice.tap_to_use'),
+                    ].join(' · '),
                     style: Theme.of(context)
                         .textTheme
                         .labelSmall

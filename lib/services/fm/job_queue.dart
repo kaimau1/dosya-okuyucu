@@ -83,6 +83,14 @@ enum FmJobTargetKind {
   /// AI Merkezi (toplu dosya analizi). Bildirime dokunan kullanıcı analizin
   /// sonuçlarına — etiketler, öneriler, rapor — doğrudan iner.
   aiHub,
+
+  /// Bir dosyanın (ya da metin akışının) AI özeti ([FmJobTarget.paths] =
+  /// özetin anahtarı, bkz. `AiSummaryStore`). Dokununca kaydedilmiş özet açılır.
+  aiSummary,
+
+  /// Sesli kitap üretimi ([FmJobTarget.paths] = kaynak belge). Dokununca
+  /// sesli kitap ekranı açılır (sürüyorsa ilerlemesiyle).
+  audiobook,
 }
 
 class FmJobTarget {
