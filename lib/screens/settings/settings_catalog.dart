@@ -636,6 +636,11 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                   titleKey: 'aipool.status',
                   builder: _aiPoolStatusTile),
               SettingRow(
+                  id: 'lab_word_editor',
+                  titleKey: 'lab.word_flag',
+                  subtitleKey: 'lab.word_flag_sub',
+                  builder: _labWordTile),
+              SettingRow(
                   id: 'editor_perf',
                   titleKey: 'edit.perf_overlay',
                   subtitleKey: 'edit.perf_overlay_sub',
@@ -721,6 +726,7 @@ Widget _developerOffTile(BuildContext _) => const DeveloperOffTile();
 Widget _autoSaveTile(BuildContext _) => const AutoSaveTile();
 Widget _wordSpellTile(BuildContext _) => const WordSpellcheckTile();
 Widget _editorPerfTile(BuildContext _) => const EditorPerfTile();
+Widget _labWordTile(BuildContext _) => const LabWordEditorTile();
 Widget _aboutTile(BuildContext _) => const AboutTile();
 Widget _ttsVoiceTile(BuildContext _) => const TtsVoiceTile();
 Widget _ttsAiReadTile(BuildContext _) => const TtsAiReadTile();

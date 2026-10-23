@@ -79,4 +79,26 @@ const Map<String, (String, String, String)> _t14 = {
     'خط متعرج أحمر واقتراحات لوحة المفاتيح وأحرف كبيرة في بداية الجملة',
   ),
   'word.align_cycle': ('Hizalama', 'Alignment', 'المحاذاة'),
+  'common.paste': ('Yapıştır', 'Paste', 'لصق'),
+  // ── Deneme: yeni Word editörü (Faz 21b / K18) ────────────────────────────
+  'lab.word_flag': (
+    'Yeni Word editörü (deneme)',
+    'New Word editor (experiment)',
+    'محرر Word الجديد (تجريبي)',
+  ),
+  'lab.word_flag_sub': (
+    'Word ⋮ menüsünde ince çekirdekli yazma denemesi — kaydetmez',
+    'Thin-core typing trial in the Word ⋮ menu — does not save',
+    'تجربة كتابة بنواة خفيفة في قائمة Word ⋮ — لا تحفظ',
+  ),
+  'lab.word_open': (
+    'Yeni editörde dene',
+    'Try in new editor',
+    'جرّب في المحرر الجديد',
+  ),
+  'lab.word_banner': (
+    'Deneme — değişiklikler kaydedilmez',
+    'Experiment — changes are not saved',
+    'تجربة — لا تُحفظ التغييرات',
+  ),
 };

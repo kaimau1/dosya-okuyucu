@@ -9,7 +9,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemChannels;
 import 'package:share_plus/share_plus.dart';
 
+import 'package:provider/provider.dart';
+
 import '../../core/app_icons.dart';
+import '../../core/app_state.dart';
+import '../../labs/word_editor/lab_word_screen.dart';
 import '../../core/doc_fonts.dart';
 import '../../core/edit/edit_session.dart';
 import '../../core/edit/editor_chrome.dart';

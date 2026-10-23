@@ -49,6 +49,16 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                   _editing = false;
                 });
                 break;
+              case 'lab':
+                final ed = _editor;
+                if (ed == null) break;
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => LabWordEditorScreen(
+                    title: widget.name,
+                    paragraphs: [for (final p in ed.paragraphs) p.text],
+                  ),
+                ));
+                break;
               case 'page':
                 if (_dirty) await _save();
                 // Yedek editördeki değişiklikler görünüme taşınsın.
@@ -60,6 +70,8 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
             }
           },
           itemBuilder: (_) => [
+            if (context.read<AppState>().labWordEditor)
+              PopupMenuItem(value: 'lab', child: Text(context.t('lab.word_open'))),
             _plainMode
                 ? PopupMenuItem(
                     value: 'page', child: Text(context.t('word.page_view')))

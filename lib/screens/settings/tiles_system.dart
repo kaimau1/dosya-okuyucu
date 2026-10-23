@@ -283,6 +283,23 @@ class EditorPerfTile extends StatelessWidget {
       );
 }
 
+/// "Yeni Word editörü (deneme)" bayrağı (Faz 21b / K18).
+class LabWordEditorTile extends StatelessWidget {
+  const LabWordEditorTile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
+    return SettingSwitch(
+      icon: AppIcons.developerMode,
+      title: context.t('lab.word_flag'),
+      subtitle: context.t('lab.word_flag_sub'),
+      value: state.labWordEditor,
+      onChanged: state.setLabWordEditor,
+    );
+  }
+}
+
 /// Geliştirici menüsünü kapatır (kategori listeden kalkar).
 class DeveloperOffTile extends StatelessWidget {
   const DeveloperOffTile({super.key});
