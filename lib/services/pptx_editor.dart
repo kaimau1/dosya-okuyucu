@@ -2,11 +2,13 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:flutter/painting.dart' show Color, TextAlign;
 import 'package:xml/xml.dart';
 
 import '../core/edit/save_coordinator.dart';
 
 import 'pptx_render.dart';
+import 'pptx_rich_text.dart';
 
 /// Bir slayttaki düzenlenebilir paragraf (a:p) — orijinal XML düğümüne bağlı.
 class PptxParagraph {
@@ -19,6 +21,25 @@ class PptxParagraph {
   String _written;
 
   PptxParagraph(this.text, this.element) : _written = text;
+}
+
+/// [PptxEditor.snapshot] sonucu — yalnız [PptxEditor.restore] okur.
+class PptxSnapshot {
+  final List<(String, String)> slides;
+  final String? contentTypes, presentation, presRels;
+  final Map<String, ArchiveFile> files;
+  final Set<String> removed;
+  final Map<String, String> notes;
+
+  const PptxSnapshot._({
+    required this.slides,
+    required this.contentTypes,
+    required this.presentation,
+    required this.presRels,
+    required this.files,
+    required this.removed,
+    required this.notes,
+  });
 }
 
 class PptxSlide {
@@ -184,10 +205,20 @@ class PptxEditor {
     // rels kopyası: hedefler görece (../media, ../slideLayouts) → aynı klasörden
     // geçerli, olduğu gibi kopyalanır. Render bunu _archive'dan okur.
     final srcRels = _fileByName(_archive, _relsPathOf(slide.fileName));
-    final relsXml = srcRels != null
+    var relsXml = srcRels != null
         ? utf8.decode(srcRels, allowMalformed: true)
         : '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
             '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>';
+    // Konuşmacı notu kopyaya TAŞINMAZ (Faz 28): iki slayt aynı not sayfasını
+    // paylaşırsa PowerPoint dosyayı onarmak ister; kopyanın notu boş başlar.
+    try {
+      final rels = XmlDocument.parse(relsXml);
+      _removeElems(rels.rootElement,
+          (e) => (e.getAttribute('Type') ?? '').endsWith('/notesSlide'));
+      relsXml = rels.toXmlString();
+    } catch (_) {
+      // Bozuk ilişki tablosu olduğu gibi kopyalanır.
+    }
 
     _addFile(newName, newDoc.toXmlString());
     _addFile(newRelsName, relsXml);
@@ -220,6 +251,14 @@ class PptxEditor {
       _removePresRel(rid);
     }
     _removeContentOverride(slide.fileName);
+    // Slaydın not sayfası da gider (sahipsiz not, silinmiş slayda işaret
+    // eden bir ilişki taşırdı).
+    final notes = _notesFileOf(slide);
+    if (notes != null) {
+      _removeContentOverride(notes);
+      _removed.add(notes);
+      _removed.add(_relsPathOf(notes));
+    }
     _removed.add(slide.fileName);
     _removed.add(_relsPathOf(slide.fileName));
     slides.remove(slide);
@@ -398,7 +437,27 @@ class PptxEditor {
   // ── Metin düzenleme ─────────────────────────────────────────────────────
 
   /// Paragraf metnini günceller, XML'e yazar ve slaytın görünümünü tazeler.
+  ///
+  /// Faz 28: paragraf çizim modelinde bulunursa yazım zengin modelden geçer —
+  /// yalnız değişen aralık yeniden yazılır, öbür run'ların biçimi (ikinci
+  /// run'daki kalın kelime) korunur (SL2). `\n` paragraf içi satır sonudur.
   void updateParagraph(PptxSlide slide, PptxParagraph para, String text) {
+    final shape = shapeOfParagraph(slide, para);
+    if (shape != null) {
+      final idx = shape.paragraphs
+          .indexWhere((p) => identical(p.source, para.element));
+      final rich = SlideRichText.fromParagraphs(shape.paragraphs);
+      final ranges = rich.paragraphRanges();
+      if (idx >= 0 && idx < ranges.length) {
+        final (start, end) = ranges[idx];
+        final next = text.replaceAll('\n', kSlideLineBreak);
+        if (rich.text.substring(start, end) != next) {
+          rich.applyText(rich.text.replaceRange(start, end, next));
+          writeRichText(slide, shape, rich);
+        }
+        return;
+      }
+    }
     para.text = text;
     _writeText(para);
     slide.view = _tryRender(_render, slide.fileName, slide.doc) ?? slide.view;
@@ -448,14 +507,39 @@ class PptxEditor {
   /// değiştirmezdi. Var olan düğüm güncellenir, yoksa eklenir — `a:latin`
   /// şema gereği rPr'nin İÇİNDE, `a:t`'nin dışındadır.
   static void _setTypeface(XmlElement rPr, String typeface) {
-    for (final tag in const ['a:latin', 'a:cs', 'a:ea']) {
+    // Şema sırası latin → ea → cs ve hepsi `a:hlinkClick`'ten ÖNCE (Faz 28:
+    // eskiden sona ekleniyordu; köprülü run'da şema dışı sıra oluşuyordu).
+    for (final tag in const ['a:latin', 'a:ea', 'a:cs']) {
       var node = _firstOrNull(rPr.findElements(tag));
       if (node == null) {
         node = XmlElement(XmlName(tag));
-        rPr.children.add(node);
+        _insertBefore(rPr, node, _afterFontTags);
       }
       node.setAttribute('typeface', typeface);
     }
+  }
+
+  static const _afterFontTags = {
+    'a:sym',
+    'a:hlinkClick',
+    'a:hlinkMouseOver',
+    'a:rtl',
+    'a:extLst',
+  };
+
+  /// [child]'ı [parent]'ın içinde, adı [before] kümesinde olan ilk çocuğun
+  /// önüne (yoksa sona) koyar.
+  static void _insertBefore(
+      XmlElement parent, XmlElement child, Set<String> before) {
+    final kids = parent.children;
+    for (var i = 0; i < kids.length; i++) {
+      final k = kids[i];
+      if (k is XmlElement && before.contains(k.name.qualified)) {
+        kids.insert(i, child);
+        return;
+      }
+    }
+    kids.add(child);
   }
 
   /// Paragrafın ilk çalıştırmasında yazılı yazı tipi (yoksa null).
@@ -550,6 +634,731 @@ class PptxEditor {
     final at = end == null ? el.children.length : el.children.indexOf(end);
     el.children.insertAll(at, nodes);
     para._written = para.text;
+  }
+
+  // ── Zengin metin (Faz 28) ───────────────────────────────────────────────
+
+  /// Kutunun zengin metnini XML'e yazar: yalnız DEĞİŞEN paragraflar
+  /// yeniden kurulur, onlarda da el değmemiş run'lar özgün düğümün kopyası
+  /// olarak yazılır (köprü, alan, dil özniteliği korunur). Enter ile doğan
+  /// paragraflar öncekinin `a:pPr`'ini taşır; birleşen paragrafların
+  /// düğümleri kalkar. Metin gövdesi olmayan yer tutucuya gövde açılır.
+  /// Dönen değer: bir şey yazıldı mı.
+  bool writeRichText(PptxSlide slide, ShapeVM shape, SlideRichText rich) {
+    if (!rich.touched) return false;
+    final orig = [
+      for (final p in shape.paragraphs)
+        if (p.source != null) p.source!,
+    ];
+    XmlElement? body = orig.isEmpty ? null : orig.first.parent as XmlElement?;
+    if (body == null) {
+      if (rich.text.isEmpty) return false; // boş yer tutucu boş kaldı
+      final sp = shape.element;
+      if (sp == null || sp.name.qualified != 'p:sp') return false;
+      body = _ensureTxBody(sp);
+    }
+    final txBody = body;
+
+    final ranges = rich.paragraphRanges();
+    final targets = <XmlElement>[];
+    final used = <XmlElement>{};
+    for (var k = 0; k < rich.paras.length; k++) {
+      final ps = rich.paras[k];
+      var el = ps.source;
+      if (el == null || used.contains(el) || !identical(el.parent, txBody)) {
+        el = _newParagraph(ps.cloneOf ??
+            (targets.isEmpty ? _firstOrNull(txBody.findElements('a:p')) : targets.last));
+        ps.touched = true;
+      }
+      used.add(el);
+      targets.add(el);
+      if (!ps.touched) continue;
+      final (start, end) = k < ranges.length ? ranges[k] : (0, 0);
+      _writeRuns(el, rich.groupsIn(start, end));
+      _writeParaProps(el, ps);
+    }
+
+    // Yapı: birleşen paragrafların düğümleri kalkar, yeniler yerine girer.
+    for (final el in txBody.findElements('a:p').toList()) {
+      if (!used.contains(el)) txBody.children.remove(el);
+    }
+    for (var i = 0; i < targets.length; i++) {
+      final el = targets[i];
+      if (el.parent != null) continue;
+      if (i == 0) {
+        final first = _firstOrNull(txBody.findElements('a:p'));
+        if (first != null) {
+          txBody.children.insert(txBody.children.indexOf(first), el);
+        } else {
+          _insertBefore(txBody, el, const {'a:extLst'});
+        }
+      } else {
+        final prev = targets[i - 1];
+        txBody.children.insert(txBody.children.indexOf(prev) + 1, el);
+      }
+    }
+
+    _refreshParagraphs(slide);
+    _render.forget(slide.fileName);
+    slide.view = _tryRender(_render, slide.fileName, slide.doc) ?? slide.view;
+    return true;
+  }
+
+  /// `p:sp`'ye boş metin gövdesi ekler (şema: spPr → style → txBody).
+  XmlElement _ensureTxBody(XmlElement sp) {
+    final existing = _firstOrNull(sp.findElements('p:txBody'));
+    if (existing != null) return existing;
+    final body = XmlElement(XmlName('p:txBody'), [], [
+      XmlElement(XmlName('a:bodyPr')),
+      XmlElement(XmlName('a:lstStyle')),
+    ]);
+    _insertBefore(sp, body, const {'p:extLst'});
+    return body;
+  }
+
+  /// [model]'in `a:pPr` ve `a:endParaRPr`'ini taşıyan boş paragraf.
+  static XmlElement _newParagraph(XmlElement? model) {
+    final p = XmlElement(XmlName('a:p'));
+    final pPr = model == null ? null : _firstOrNull(model.findElements('a:pPr'));
+    if (pPr != null) p.children.add(pPr.copy());
+    final end =
+        model == null ? null : _firstOrNull(model.findElements('a:endParaRPr'));
+    if (end != null) p.children.add(end.copy());
+    return p;
+  }
+
+  /// Paragrafın run'larını gruplardan yeniden kurar.
+  void _writeRuns(XmlElement p, List<(String, RunStyle)> groups) {
+    XmlElement? template;
+    for (final r in p.findElements('a:r')) {
+      template = _firstOrNull(r.findElements('a:rPr'));
+      if (template != null) break;
+    }
+    final end = _firstOrNull(p.findElements('a:endParaRPr'));
+    XmlElement baseRPr(RunStyle st) {
+      final src = st.source;
+      final own = src == null ? null : _firstOrNull(src.findElements('a:rPr'));
+      if (own != null) return own.copy();
+      if (src == null && template != null) return template.copy();
+      final rPr = XmlElement(XmlName('a:rPr'));
+      if (end != null && (src == null || own == null)) {
+        for (final a in end.attributes) {
+          rPr.setAttribute(a.name.qualified, a.value);
+        }
+        for (final c in end.childElements) {
+          rPr.children.add(c.copy());
+        }
+      }
+      return rPr;
+    }
+
+    final nodes = <XmlNode>[];
+    for (final (text, st) in groups) {
+      if (text == kSlideLineBreak) {
+        nodes.add(XmlElement(
+            XmlName('a:br'), [], [_withOverrides(baseRPr(st), st)]));
+        continue;
+      }
+      final src = st.source;
+      if (st.plain &&
+          src != null &&
+          (src.name.qualified == 'a:r' || src.name.qualified == 'a:fld') &&
+          _runText(src) == text) {
+        nodes.add(src.copy());
+        continue;
+      }
+      nodes.add(XmlElement(XmlName('a:r'), [], [
+        _withOverrides(baseRPr(st), st),
+        XmlElement(XmlName('a:t'), [], [XmlText(text)]),
+      ]));
+    }
+    p.children.removeWhere((n) =>
+        n is XmlElement &&
+        const {'a:r', 'a:br', 'a:fld'}.contains(n.name.qualified));
+    final at = end == null ? p.children.length : p.children.indexOf(end);
+    p.children.insertAll(at, nodes);
+  }
+
+  static String _runText(XmlElement r) {
+    final t = _firstOrNull(r.findElements('a:t'));
+    return t?.innerText ?? '';
+  }
+
+  /// Kullanıcı biçimini `a:rPr`'e yazar.
+  static XmlElement _withOverrides(XmlElement rPr, RunStyle st) {
+    if (st.bold != null) rPr.setAttribute('b', st.bold! ? '1' : '0');
+    if (st.italic != null) rPr.setAttribute('i', st.italic! ? '1' : '0');
+    if (st.underline != null) {
+      rPr.setAttribute('u', st.underline! ? 'sng' : 'none');
+    }
+    if (st.sizePt != null) {
+      rPr.setAttribute('sz', '${(st.sizePt! * 100).round()}');
+    }
+    if (st.color != null) _setSolidFill(rPr, st.color!);
+    if (st.font != null && st.font!.isNotEmpty) _setTypeface(rPr, st.font!);
+    return rPr;
+  }
+
+  static const _fillTags = {
+    'a:noFill',
+    'a:solidFill',
+    'a:gradFill',
+    'a:blipFill',
+    'a:pattFill',
+    'a:grpFill',
+  };
+
+  /// Run rengini düz dolgu olarak yazar (şemada `a:ln`'den hemen sonra).
+  static void _setSolidFill(XmlElement rPr, Color color) {
+    rPr.children.removeWhere(
+        (n) => n is XmlElement && _fillTags.contains(n.name.qualified));
+    final hex = (color.toARGB32() & 0xFFFFFF)
+        .toRadixString(16)
+        .padLeft(6, '0')
+        .toUpperCase();
+    final fill = XmlElement(XmlName('a:solidFill'), [], [
+      XmlElement(XmlName('a:srgbClr'), [XmlAttribute(XmlName('val'), hex)]),
+    ]);
+    final ln = _firstOrNull(rPr.findElements('a:ln'));
+    if (ln != null) {
+      rPr.children.insert(rPr.children.indexOf(ln) + 1, fill);
+    } else {
+      rPr.children.insert(0, fill);
+    }
+  }
+
+  /// Paragraf özellikleri: hizalama, düzey, madde işareti.
+  static void _writeParaProps(XmlElement p, ParaStyle ps) {
+    if (ps.align == null && ps.bullet == null && ps.level == null) return;
+    var pPr = _firstOrNull(p.findElements('a:pPr'));
+    if (pPr == null) {
+      pPr = XmlElement(XmlName('a:pPr'));
+      p.children.insert(0, pPr);
+    }
+    if (ps.align != null) {
+      pPr.setAttribute(
+          'algn',
+          switch (ps.align!) {
+            TextAlign.center => 'ctr',
+            TextAlign.right || TextAlign.end => 'r',
+            TextAlign.justify => 'just',
+            _ => 'l',
+          });
+    }
+    if (ps.level != null) {
+      if (ps.level! > 0) {
+        pPr.setAttribute('lvl', '${ps.level}');
+      } else {
+        pPr.removeAttribute('lvl');
+      }
+      // Düzeyin girintisi şablondan gelsin (elle marL düzeyi gölgelerdi).
+      pPr.removeAttribute('marL');
+      pPr.removeAttribute('indent');
+    }
+    if (ps.bullet != null) {
+      pPr.children.removeWhere((n) =>
+          n is XmlElement &&
+          const {'a:buNone', 'a:buAutoNum', 'a:buChar', 'a:buBlip', 'a:buFont'}
+              .contains(n.name.qualified));
+      final XmlElement bu = switch (ps.bullet!) {
+        'char' => XmlElement(XmlName('a:buChar'), [
+            XmlAttribute(XmlName('char'), '•'),
+          ]),
+        'num' => XmlElement(XmlName('a:buAutoNum'), [
+            XmlAttribute(XmlName('type'), 'arabicPeriod'),
+          ]),
+        _ => XmlElement(XmlName('a:buNone')),
+      };
+      _insertBefore(pPr, bu, const {'a:tabLst', 'a:defRPr', 'a:extLst'});
+      if (ps.bullet != 'none' && pPr.getAttribute('marL') == null) {
+        // Asılı girinti: madde işareti solda, metin hizalı.
+        final lvl = ps.effLevel;
+        pPr.setAttribute('marL', '${342900 + lvl * 457200}');
+        pPr.setAttribute('indent', '-342900');
+      }
+    }
+  }
+
+  /// Slaydın paragraf listesini XML'den tazeler; var olan nesneler korunur.
+  void _refreshParagraphs(PptxSlide slide) {
+    final byEl = {for (final p in slide.paragraphs) p.element: p};
+    final next = <PptxParagraph>[];
+    for (final el in slide.doc.findAllElements('a:p')) {
+      final text = _textOf(el);
+      final old = byEl[el];
+      if (old != null) {
+        old.text = text;
+        old._written = text;
+        next.add(old);
+      } else {
+        next.add(PptxParagraph(text, el));
+      }
+    }
+    slide.paragraphs
+      ..clear()
+      ..addAll(next);
+  }
+
+  /// [para]'nın çizim modelindeki karşılığı (zengin yazım için).
+  ShapeVM? shapeOfParagraph(PptxSlide slide, PptxParagraph para) {
+    for (final sh in slide.view?.shapes ?? const <ShapeVM>[]) {
+      for (final p in sh.paragraphs) {
+        if (identical(p.source, para.element)) return sh;
+      }
+    }
+    return null;
+  }
+
+  // ── Şekil işlemleri (Faz 28 / madde 1) ──────────────────────────────────
+
+  /// Şekil slaydın kendi ağacında mı (sil/çoğalt/sırala yalnız onlarda).
+  static bool canArrange(ShapeVM shape) {
+    final el = shape.element;
+    final parent = el?.parent;
+    return el != null &&
+        parent is XmlElement &&
+        (parent.name.qualified == 'p:spTree' ||
+            parent.name.qualified == 'p:grpSp');
+  }
+
+  void _rerender(PptxSlide slide) {
+    _render.forget(slide.fileName);
+    _refreshParagraphs(slide);
+    slide.view = _tryRender(_render, slide.fileName, slide.doc) ?? slide.view;
+  }
+
+  /// Şekli siler.
+  bool deleteShape(PptxSlide slide, ShapeVM shape) {
+    if (!canArrange(shape)) return false;
+    final el = shape.element!;
+    (el.parent! as XmlElement).children.remove(el);
+    _rerender(slide);
+    return true;
+  }
+
+  /// Şeklin kopyasını biraz kaydırarak hemen üstüne ekler (yeni kimlikle).
+  bool duplicateShape(PptxSlide slide, ShapeVM shape) {
+    if (!canArrange(shape)) return false;
+    final el = shape.element!;
+    final copy = el.copy();
+    _renumberShape(slide, copy);
+    final off = _firstOrNull(copy.findAllElements('a:off'));
+    if (off != null) {
+      for (final a in const ['x', 'y']) {
+        final v = int.tryParse(off.getAttribute(a) ?? '');
+        if (v != null) off.setAttribute(a, '${v + 228600}'); // 0,25 inç
+      }
+    }
+    final parent = el.parent! as XmlElement;
+    parent.children.insert(parent.children.indexOf(el) + 1, copy);
+    _rerender(slide);
+    return true;
+  }
+
+  /// Şekli en öne (true) ya da en arkaya (false) alır.
+  bool reorderShape(PptxSlide slide, ShapeVM shape, {required bool front}) {
+    if (!canArrange(shape)) return false;
+    final el = shape.element!;
+    final parent = el.parent! as XmlElement;
+    parent.children.remove(el);
+    if (front) {
+      _insertBefore(parent, el, const {'p:extLst'});
+    } else {
+      // Ağacın başındaki grup özellikleri (nvGrpSpPr, grpSpPr) önde kalır.
+      var at = 0;
+      for (var i = 0; i < parent.children.length; i++) {
+        final k = parent.children[i];
+        if (k is XmlElement &&
+            const {'p:nvGrpSpPr', 'p:grpSpPr'}.contains(k.name.qualified)) {
+          at = i + 1;
+        }
+      }
+      parent.children.insert(at, el);
+    }
+    _rerender(slide);
+    return true;
+  }
+
+  /// Şeklin XML'i (iç pano için).
+  String? shapeXml(ShapeVM shape) =>
+      canArrange(shape) ? shape.element!.toXmlString() : null;
+
+  /// İç panodaki şekli slayda yapıştırır (yeni kimlikle, kaydırarak).
+  bool pasteShape(PptxSlide slide, String xml) {
+    final tree = _firstOrNull(slide.doc.findAllElements('p:spTree'));
+    if (tree == null) return false;
+    XmlElement el;
+    try {
+      el = XmlDocumentFragment.parse(_withNs(xml)).firstElementChild!.copy();
+    } catch (_) {
+      return false;
+    }
+    el.removeAttribute('xmlns:p');
+    el.removeAttribute('xmlns:a');
+    el.removeAttribute('xmlns:r');
+    _renumberShape(slide, el);
+    _insertBefore(tree, el, const {'p:extLst'});
+    _rerender(slide);
+    return true;
+  }
+
+  static String _withNs(String xml) {
+    final i = xml.indexOf(RegExp(r'[\s/>]'));
+    if (i < 0) return xml;
+    return '${xml.substring(0, i)} '
+        'xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" '
+        'xmlns:a="$_nsA" xmlns:r="$_nsR"${xml.substring(i)}';
+  }
+
+  /// Kopyadaki bütün `p:cNvPr` kimliklerini slaytta kullanılmayanlarla
+  /// değiştirir (çakışan kimlik PowerPoint'te onarım ister).
+  void _renumberShape(PptxSlide slide, XmlElement el) {
+    var next = 1;
+    for (final c in slide.doc.findAllElements('p:cNvPr')) {
+      final v = int.tryParse(c.getAttribute('id') ?? '') ?? 0;
+      if (v >= next) next = v + 1;
+    }
+    for (final c in el.findAllElements('p:cNvPr')) {
+      c.setAttribute('id', '${next++}');
+    }
+  }
+
+  // ── Konuşmacı notu yazma (Faz 28 / madde 8) ─────────────────────────────
+
+  static const _notesSlideType =
+      'http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide';
+  static const _notesMasterType =
+      'http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesMaster';
+  static const _themeType =
+      'http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme';
+  static const _nsP = 'http://schemas.openxmlformats.org/presentationml/2006/main';
+
+  XmlDocument _relsDocOf(String part) {
+    final bytes = _fileByName(_archive, _relsPathOf(part));
+    if (bytes != null && !_removed.contains(_relsPathOf(part))) {
+      try {
+        return XmlDocument.parse(utf8.decode(bytes, allowMalformed: true));
+      } catch (_) {}
+    }
+    return XmlDocument.parse('<?xml version="1.0" encoding="UTF-8" '
+        'standalone="yes"?>\n<Relationships xmlns="$_relsNs"/>');
+  }
+
+  /// Slaydın not sayfasının paket yolu (yoksa null).
+  String? _notesFileOf(PptxSlide slide) {
+    final rels = _relsDocOf(slide.fileName);
+    for (final r in rels.rootElement.childElements) {
+      if (r.getAttribute('Type') != _notesSlideType) continue;
+      final t = r.getAttribute('Target');
+      if (t == null) continue;
+      return _resolve(slide.fileName, t);
+    }
+    return null;
+  }
+
+  /// Parçaya göre görece hedefi paket yoluna çevirir.
+  static String _resolve(String part, String target) {
+    if (target.startsWith('/')) return target.substring(1);
+    final parts = part.split('/')..removeLast();
+    for (final seg in target.split('/')) {
+      if (seg == '..') {
+        if (parts.isNotEmpty) parts.removeLast();
+      } else if (seg != '.') {
+        parts.add(seg);
+      }
+    }
+    return parts.join('/');
+  }
+
+  static String _nextRid(XmlDocument rels) {
+    var max = 0;
+    for (final r in rels.rootElement.childElements) {
+      final m = RegExp(r'^rId(\d+)$').firstMatch(r.getAttribute('Id') ?? '');
+      if (m != null && int.parse(m[1]!) > max) max = int.parse(m[1]!);
+    }
+    return 'rId${max + 1}';
+  }
+
+  static void _addRel(XmlDocument rels, String id, String type, String target) {
+    rels.rootElement.children.add(XmlElement(XmlName('Relationship'), [
+      XmlAttribute(XmlName('Id'), id),
+      XmlAttribute(XmlName('Type'), type),
+      XmlAttribute(XmlName('Target'), target),
+    ]));
+  }
+
+  String _freeName(String prefix, String ext) {
+    final names = {for (final f in _archive.files) f.name};
+    var n = 1;
+    while (names.contains('$prefix$n.$ext') && !_removed.contains('$prefix$n.$ext')) {
+      n++;
+    }
+    return '$prefix$n.$ext';
+  }
+
+  /// Slaydın konuşmacı notunu [text] yapar. Not sayfası yoksa oluşturulur;
+  /// sunumda not şablonu da yoksa asgari bir şablon (+ tema kopyası) eklenir.
+  /// Yapı desteklenmiyorsa false.
+  bool setNotes(PptxSlide slide, String text) {
+    var notesFile = _notesFileOf(slide);
+    XmlDocument? doc;
+    if (notesFile != null) {
+      final bytes = _fileByName(_archive, notesFile);
+      if (bytes != null) {
+        try {
+          doc = XmlDocument.parse(utf8.decode(bytes, allowMalformed: true));
+        } catch (_) {}
+      }
+    }
+    if (doc == null) {
+      if (text.trim().isEmpty) {
+        _notesCache[slide.fileName] = '';
+        return true;
+      }
+      if (!canEditStructure) return false;
+      final master = _ensureNotesMaster();
+      if (master == null) return false;
+      notesFile = _freeName('ppt/notesSlides/notesSlide', 'xml');
+      doc = XmlDocument.parse(_notesSlideXml);
+      final slideName = slide.fileName.split('/').last;
+      final nrels = XmlDocument.parse('<?xml version="1.0" encoding="UTF-8" '
+          'standalone="yes"?>\n<Relationships xmlns="$_relsNs"/>');
+      _addRel(nrels, 'rId1', _notesMasterType,
+          '../notesMasters/${master.split('/').last}');
+      _addRel(nrels, 'rId2', '$_nsR/slide', '../slides/$slideName');
+      _addFile(_relsPathOf(notesFile), nrels.toXmlString());
+      _addContentOverride(notesFile,
+          'application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml');
+      final srels = _relsDocOf(slide.fileName);
+      _addRel(srels, _nextRid(srels), _notesSlideType,
+          '../notesSlides/${notesFile.split('/').last}');
+      _addFile(_relsPathOf(slide.fileName), srels.toXmlString());
+      _render.forget(slide.fileName);
+    }
+
+    // Gövde yer tutucusu (yoksa eklenir).
+    XmlElement? body;
+    for (final sp in doc.findAllElements('p:sp')) {
+      final ph = _firstOrNull(sp.findAllElements('p:ph'));
+      if (ph != null && ph.getAttribute('type') == 'body') {
+        body = sp;
+        break;
+      }
+    }
+    if (body == null) {
+      final tree = _firstOrNull(doc.findAllElements('p:spTree'));
+      if (tree == null) return false;
+      body = XmlDocumentFragment.parse(_withNs(_notesBodySp))
+          .firstElementChild!
+          .copy();
+      body.removeAttribute('xmlns:p');
+      body.removeAttribute('xmlns:a');
+      body.removeAttribute('xmlns:r');
+      tree.children.add(body);
+    }
+    final txBody = _ensureTxBody(body);
+    final model = _firstOrNull(txBody.findElements('a:p'));
+    XmlElement? rPr;
+    for (final r in txBody.findAllElements('a:r')) {
+      rPr = _firstOrNull(r.findElements('a:rPr'));
+      if (rPr != null) break;
+    }
+    txBody.children.removeWhere(
+        (n) => n is XmlElement && n.name.qualified == 'a:p');
+    final lines = text.split('\n');
+    for (final line in lines) {
+      final p = _newParagraph(model);
+      if (line.isNotEmpty) {
+        final r = XmlElement(XmlName('a:r'), [], [
+          rPr?.copy() ?? XmlElement(XmlName('a:rPr')),
+          XmlElement(XmlName('a:t'), [], [XmlText(line)]),
+        ]);
+        final end = _firstOrNull(p.findElements('a:endParaRPr'));
+        if (end == null) {
+          p.children.add(r);
+        } else {
+          p.children.insert(p.children.indexOf(end), r);
+        }
+      }
+      _insertBefore(txBody, p, const {'a:extLst'});
+    }
+    _addFile(notesFile!, doc.toXmlString());
+    _render.forget(notesFile);
+    _notesCache[slide.fileName] = text;
+    return true;
+  }
+
+  /// Sunumun not şablonu; yoksa oluşturur. Paket yolu ya da null.
+  String? _ensureNotesMaster() {
+    final rels = _presRels;
+    final pres = _presentation;
+    if (rels == null || pres == null) return null;
+    for (final r in rels.rootElement.childElements) {
+      if (r.getAttribute('Type') == _notesMasterType) {
+        final t = r.getAttribute('Target');
+        if (t != null) return _normTarget(t);
+      }
+    }
+    // Tema kopyası (not şablonu kendi temasını ister).
+    String? themeSrc;
+    for (final f in _archive.files) {
+      if (RegExp(r'^ppt/theme/theme\d+\.xml$').hasMatch(f.name) &&
+          !_removed.contains(f.name)) {
+        themeSrc = f.name;
+        break;
+      }
+    }
+    if (themeSrc == null) return null;
+    final theme = _freeName('ppt/theme/theme', 'xml');
+    final themeBytes = _fileByName(_archive, themeSrc)!;
+    _addFile(theme, utf8.decode(themeBytes, allowMalformed: true));
+    _addContentOverride(
+        theme, 'application/vnd.openxmlformats-officedocument.theme+xml');
+
+    final master = _freeName('ppt/notesMasters/notesMaster', 'xml');
+    _addFile(master, _notesMasterXml);
+    final mrels = XmlDocument.parse('<?xml version="1.0" encoding="UTF-8" '
+        'standalone="yes"?>\n<Relationships xmlns="$_relsNs"/>');
+    _addRel(mrels, 'rId1', _themeType, '../theme/${theme.split('/').last}');
+    _addFile(_relsPathOf(master), mrels.toXmlString());
+    _addContentOverride(master,
+        'application/vnd.openxmlformats-officedocument.presentationml.notesMaster+xml');
+
+    final rid = _nextRelId();
+    _addPresRel(rid, _notesMasterType, 'notesMasters/${master.split('/').last}');
+    // `p:notesMasterIdLst` şemada `p:sldMasterIdLst`'ten hemen sonra.
+    final root = pres.rootElement;
+    final lst = XmlElement(XmlName('p:notesMasterIdLst'), [], [
+      XmlElement(XmlName('p:notesMasterId'), [XmlAttribute(XmlName('r:id'), rid)]),
+    ]);
+    if (root.getAttribute('xmlns:r') == null) root.setAttribute('xmlns:r', _nsR);
+    final sm = _firstOrNull(root.findElements('p:sldMasterIdLst'));
+    if (sm != null) {
+      root.children.insert(root.children.indexOf(sm) + 1, lst);
+    } else {
+      root.children.insert(0, lst);
+    }
+    return master;
+  }
+
+  static const _notesBodySp =
+      '<p:sp><p:nvSpPr><p:cNvPr id="3" name="Notes Placeholder 2"/>'
+      '<p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr>'
+      '<p:nvPr><p:ph type="body" idx="1"/></p:nvPr></p:nvSpPr><p:spPr/>'
+      '<p:txBody><a:bodyPr/><a:lstStyle/><a:p/></p:txBody></p:sp>';
+
+  static const _notesSlideXml =
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+      '<p:notes xmlns:a="$_nsA" xmlns:r="$_nsR" xmlns:p="$_nsP">'
+      '<p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/>'
+      '<p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>'
+      '<p:sp><p:nvSpPr><p:cNvPr id="2" name="Slide Image Placeholder 1"/>'
+      '<p:cNvSpPr><a:spLocks noGrp="1" noRot="1" noChangeAspect="1"/>'
+      '</p:cNvSpPr><p:nvPr><p:ph type="sldImg"/></p:nvPr></p:nvSpPr>'
+      '<p:spPr/></p:sp>'
+      '$_notesBodySp'
+      '</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>'
+      '</p:notes>';
+
+  static const _notesMasterXml =
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+      '<p:notesMaster xmlns:a="$_nsA" xmlns:r="$_nsR" xmlns:p="$_nsP">'
+      '<p:cSld><p:bg><p:bgRef idx="1001"><a:schemeClr val="bg1"/></p:bgRef>'
+      '</p:bg><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/>'
+      '<p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>'
+      '<p:sp><p:nvSpPr><p:cNvPr id="2" name="Notes Placeholder 1"/>'
+      '<p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr>'
+      '<p:nvPr><p:ph type="body" sz="quarter" idx="1"/></p:nvPr></p:nvSpPr>'
+      '<p:spPr><a:xfrm><a:off x="685800" y="4400550"/>'
+      '<a:ext cx="5486400" cy="3600450"/></a:xfrm>'
+      '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>'
+      '<p:txBody><a:bodyPr vert="horz" lIns="91440" tIns="45720" rIns="91440" '
+      'bIns="45720" rtlCol="0"/><a:lstStyle/><a:p><a:endParaRPr lang="tr-TR"/>'
+      '</a:p></p:txBody></p:sp></p:spTree></p:cSld>'
+      '<p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" '
+      'accent2="accent2" accent3="accent3" accent4="accent4" '
+      'accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/>'
+      '<p:notesStyle><a:lvl1pPr marL="0" algn="l" defTabSz="914400" rtl="0" '
+      'eaLnBrk="1" latinLnBrk="0" hangingPunct="1"><a:defRPr sz="1200" '
+      'kern="1200"><a:solidFill><a:schemeClr val="tx1"/></a:solidFill>'
+      '<a:latin typeface="+mn-lt"/><a:ea typeface="+mn-ea"/>'
+      '<a:cs typeface="+mn-cs"/></a:defRPr></a:lvl1pPr></p:notesStyle>'
+      '</p:notesMaster>';
+
+  // ── Geri al anlık görüntüsü (Faz 28 / madde 9) ──────────────────────────
+
+  /// Destenin geri alınabilir durumu: canlı XML belgeleri metin olarak,
+  /// paket parçaları BAŞVURU olarak (kopyalanmaz — parçalar değiştirilmez,
+  /// yenisiyle yer değiştirir).
+  PptxSnapshot snapshot() {
+    for (final s in slides) {
+      for (final p in s.paragraphs) {
+        _writeText(p);
+      }
+    }
+    return PptxSnapshot._(
+      slides: [for (final s in slides) (s.fileName, s.doc.toXmlString())],
+      contentTypes: _contentTypes?.toXmlString(),
+      presentation: _presentation?.toXmlString(),
+      presRels: _presRels?.toXmlString(),
+      files: {for (final f in _archive.files) f.name: f},
+      removed: {..._removed},
+      notes: Map.of(_notesCache),
+    );
+  }
+
+  /// [snap] durumuna döner. Yalnız değişen slaytlar yeniden çizilir.
+  void restore(PptxSnapshot snap) {
+    void replace(XmlDocument? doc, String? xml) {
+      if (doc == null || xml == null) return;
+      final fresh = XmlDocument.parse(xml);
+      doc.children
+        ..clear()
+        ..addAll(fresh.children.map((n) => n.copy()));
+    }
+
+    replace(_contentTypes, snap.contentTypes);
+    replace(_presentation, snap.presentation);
+    replace(_presRels, snap.presRels);
+
+    for (final f in _archive.files.toList()) {
+      final was = snap.files[f.name];
+      if (was == null) {
+        _removed.add(f.name);
+      } else if (!identical(was, f)) {
+        _archive.addFile(was);
+      }
+    }
+    for (final e in snap.files.entries) {
+      if (_fileByName(_archive, e.key) == null) _archive.addFile(e.value);
+    }
+    _removed
+      ..clear()
+      ..addAll(snap.removed);
+    for (final f in _archive.files) {
+      if (!snap.files.containsKey(f.name)) _removed.add(f.name);
+    }
+    _render.forgetAll();
+    _notesCache
+      ..clear()
+      ..addAll(snap.notes);
+
+    final current = {for (final s in slides) s.fileName: s};
+    final next = <PptxSlide>[];
+    for (final (name, xml) in snap.slides) {
+      final cur = current[name];
+      if (cur != null && cur.doc.toXmlString() == xml) {
+        next.add(cur);
+        continue;
+      }
+      final doc = XmlDocument.parse(xml);
+      next.add(PptxSlide(0, _paragraphsOf(doc), doc, name,
+          _tryRender(_render, name, doc)));
+    }
+    slides
+      ..clear()
+      ..addAll(next);
+    _reindex();
   }
 
   /// Düzenlenmiş metinleri ve yapısal değişiklikleri geri yazıp yeni .pptx

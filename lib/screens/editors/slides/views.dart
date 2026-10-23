@@ -200,13 +200,19 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
               ),
               child: view == null
                   ? _fallbackText(slide)
-                  : SlideCanvas(
-                      slide: view,
-                      onEditShape: (shape) => _beginEdit(slide, shape),
-                      editingShape:
-                          identical(_editSlide, slide) ? _editShapeVM : null,
-                      editControllers:
-                          identical(_editSlide, slide) ? _editCtrls : null,
+                  // Slaydın boş yerine dokunmak seçimi kaldırır; şekillerin
+                  // kendi dokunuşları içte olduğu için önce onlar kazanır.
+                  : GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onTap: _selShape == null ? null : _clearSelection,
+                      child: SlideCanvas(
+                        slide: view,
+                        onEditShape: (shape) => _beginEdit(slide, shape),
+                        onSelectShape: (shape) => _selectShape(slide, shape),
+                        selectedShape:
+                            identical(_selSlide, slide) ? _selShape : null,
+                        promptFor: _promptFor,
+                      ),
                     ),
             ),
           ),
@@ -286,6 +292,15 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
       onSelected: (v) => _onSlideAction(slide, v),
       itemBuilder: (_) => [
         PopupMenuItem(
+          value: 'notes',
+          child: ListTile(
+            dense: true,
+            leading: const Icon(AppIcons.notes),
+            title: Text(context.t('sl.notes_edit')),
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
+        PopupMenuItem(
           value: 'img',
           enabled: structural,
           child: ListTile(
@@ -343,6 +358,10 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
   void _onSlideAction(PptxSlide slide, String action) {
     final editor = _editor;
     if (editor == null) return;
+    if (action == 'notes') {
+      _editNotes(slide);
+      return;
+    }
     if (!editor.canEditStructure) {
       _snack(context.t('sl.no_structure'));
       return;
@@ -352,24 +371,15 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
         _insertImage(slide);
         break;
       case 'dup':
-        final added = editor.duplicateSlide(slide);
-        if (added != null) {
-          _session.changed();
-          _partSetState(() {});
+        if (_mutate('sl.duplicate', () => editor.duplicateSlide(slide) != null)) {
           _snack(context.t('sl.duplicated'));
         }
         break;
       case 'up':
-        if (editor.moveSlide(slide, -1)) {
-          _session.changed();
-          _partSetState(() {});
-        }
+        _mutate('sl.move_up', () => editor.moveSlide(slide, -1));
         break;
       case 'down':
-        if (editor.moveSlide(slide, 1)) {
-          _session.changed();
-          _partSetState(() {});
-        }
+        _mutate('sl.move_down', () => editor.moveSlide(slide, 1));
         break;
       case 'del':
         _confirmDeleteSlide(slide);
@@ -403,16 +413,17 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
     }
     if (!mounted) return;
     try {
-      editor.addImage(slide, data,
-          ext: (file.extension ?? 'png').toLowerCase(),
-          widthPx: size.$1,
-          heightPx: size.$2);
+      _mutate('sl.insert_image', () {
+        editor.addImage(slide, data,
+            ext: (file.extension ?? 'png').toLowerCase(),
+            widthPx: size.$1,
+            heightPx: size.$2);
+        return true;
+      });
     } catch (e) {
       showUserError(context, e);
       return;
     }
-    _session.changed();
-    _partSetState(() {});
     _snack(context.t('sl.image_added'));
   }
 
@@ -426,9 +437,8 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
         confirmLabel: context.t('common.delete'),
         destructive: true,
     );
-    if (ok == true && editor.deleteSlide(slide)) {
-      _session.changed();
-      if (mounted) _partSetState(() {});
+    if (ok == true && mounted) {
+      _mutate('sl.delete', () => editor.deleteSlide(slide));
     }
   }
 
@@ -490,236 +500,6 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
     );
   }
 
-  /// Bir metin kutusunda **yerinde** düzenlemeyi başlatır: kutunun paragrafları
-  /// slaytın üstünde TextField olur (popup yok). Önceki düzenleme varsa yazılır.
-  /// Denetleyiciler şeklin paragraf sırasıyla hizalıdır (düzenlenemeyen = null).
-  void _beginEdit(PptxSlide slide, ShapeVM shape) {
-    _commitEdit(); // açık başka kutu varsa değişikliğini yaz
-    _editCtrls.clear();
-    _editTargets.clear();
-    for (final p in shape.paragraphs) {
-      final para = p.source == null ? null : slide.paragraphOf(p.source);
-      if (para == null) {
-        _editCtrls.add(null);
-        _editTargets.add(null);
-      } else {
-        _editCtrls.add(TextEditingController(text: para.text));
-        _editTargets.add(para);
-      }
-    }
-    if (!_editTargets.any((t) => t != null)) return; // düzenlenebilir metin yok
-
-    // Başlangıç biçimi: kutudaki ilk çalıştırmadan okunur.
-    RunVM? firstRun;
-    for (final p in shape.paragraphs) {
-      if (p.runs.isNotEmpty) {
-        firstRun = p.runs.first;
-        break;
-      }
-    }
-    _fBold = firstRun?.bold ?? false;
-    _fItalic = firstRun?.italic ?? false;
-    _fUnder = firstRun?.underline ?? false;
-    _fSize = (firstRun?.sizePt ?? 18.0).clamp(6.0, 96.0).roundToDouble();
-    // Yazı tipi XML'den okunur: çizim modelindeki ad gömülü aileye eşlenmiş
-    // olur (Arial → Arimo) ve geri dönülemez.
-    final firstTarget = _editTargets.firstWhere((t) => t != null, orElse: () => null);
-    _fFont = firstTarget == null
-        ? ''
-        : (PptxEditor.fontOfParagraph(firstTarget) ?? '');
-    _tBold = _tItalic = _tUnder = _tSize = _tFont = false;
-
-    _partSetState(() {
-      _editSlide = slide;
-      _editShapeVM = shape;
-    });
-  }
-
-  /// Açık düzenlemeyi kalıcılaştırır (metin + dokunulan biçim), slaytı yeniden
-  /// çizer ve durumu temizler. Açık düzenleme yoksa hiçbir şey yapmaz.
-  /// Not: setState çağırmaz — çağıran sarar (build sırasında da güvenli kullanılır).
-  void _commitEdit() {
-    final slide = _editSlide;
-    final editor = _editor;
-    if (slide == null || editor == null) return;
-    for (var i = 0; i < _editTargets.length; i++) {
-      final t = _editTargets[i];
-      final c = _editCtrls[i];
-      if (t != null && c != null) editor.updateParagraph(slide, t, c.text);
-    }
-    if (_tBold || _tItalic || _tUnder || _tSize || _tFont) {
-      for (final t in _editTargets) {
-        if (t == null) continue;
-        editor.formatParagraph(
-          slide,
-          t,
-          bold: _tBold ? _fBold : null,
-          italic: _tItalic ? _fItalic : null,
-          underline: _tUnder ? _fUnder : null,
-          sizePt: _tSize ? _fSize : null,
-          fontFamily: _tFont && _fFont.isNotEmpty ? _fFont : null,
-        );
-      }
-    }
-    _session.changed();
-    for (final c in _editCtrls) {
-      c?.dispose();
-    }
-    _editCtrls.clear();
-    _editTargets.clear();
-    _editSlide = null;
-    _editShapeVM = null;
-  }
-
-  void _finishEdit() {
-    FocusScope.of(context).unfocus();
-    _partSetState(_commitEdit);
-  }
-
-  /// Yazı tipi ailesi seçimi. Seçilen ad DOSYAYA yazılır (PowerPoint'te
-  /// gerçek Arial görünsün), ekranda ise gömülü karşılığıyla çizilir.
-  Future<void> _pickSlideFont() async {
-    final pick = await showModalBottomSheet<String>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            for (final f in kDocFonts)
-              ListTile(
-                title: Text(f.name, style: TextStyle(fontFamily: f.render)),
-                trailing: f.name == _fFont ? const Icon(AppIcons.check) : null,
-                onTap: () => Navigator.pop(ctx, f.name),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (pick == null || !mounted) return;
-    _partSetState(() {
-      _fFont = pick;
-      _tFont = true;
-    });
-  }
-
-  Future<void> _pickSlideFontSize() async {
-    final pick = await showModalBottomSheet<double>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            for (final s in kDocFontSizes)
-              ListTile(
-                title: Text('${s.round()}'),
-                trailing: (s - _fSize).abs() < 0.25
-                    ? const Icon(AppIcons.check)
-                    : null,
-                onTap: () => Navigator.pop(ctx, s),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (pick == null || !mounted) return;
-    _partSetState(() {
-      _fSize = pick;
-      _tSize = true;
-    });
-  }
-
-  /// Klavyenin üstünde yüzen biçim çubuğu (yerinde düzenleme aktifken).
-  Widget _formatBar() {
-    final scheme = Theme.of(context).colorScheme;
-    return Material(
-      elevation: 0,
-      color: scheme.surface,
-      shape: Border(top: BorderSide(color: scheme.outlineVariant)),
-      // Scaffold.resizeToAvoidBottomInset (varsayılan) body'yi klavyenin üstüne
-      // sıkıştırır → çubuk zaten klavyenin hemen üstünde durur; ek viewInsets
-      // payı çift sayardı. SafeArea klavye kapalıyken alt çentiği korur.
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        // Simgeler Word/Excel ile ORTAK (`OfficeIcons`, 2026-08-07): aynı iş
-        // üç uygulamada da aynı simge.
-        child: SafeArea(
-          top: false,
-          child: OfficeRibbon(
-            tabs: [
-              RibbonTab('', [
-                RibbonButton(OfficeIcons.bold, context.t('common.bold'),
-                    active: _fBold,
-                    onTap: () => _partSetState(() {
-                          _fBold = !_fBold;
-                          _tBold = true;
-                        })),
-                RibbonButton(OfficeIcons.italic, context.t('common.italic'),
-                    active: _fItalic,
-                    onTap: () => _partSetState(() {
-                          _fItalic = !_fItalic;
-                          _tItalic = true;
-                        })),
-                RibbonButton(
-                    OfficeIcons.underline, context.t('common.underline'),
-                    active: _fUnder,
-                    onTap: () => _partSetState(() {
-                          _fUnder = !_fUnder;
-                          _tUnder = true;
-                        })),
-                const RibbonSep(),
-                // Yazı tipi ailesi (2026-08-07 kullanıcı: *"yazı tipi fontu
-                // boyutu seçimi yok"*): Word ve Excel'de vardı, slaytta hiç
-                // yoktu. Liste üçünde de aynı (`kDocFonts`).
-                RibbonChip(
-                  icon: OfficeIcons.fontFamily,
-                  label: _fFont.isEmpty
-                      ? context.t('word.font_family')
-                      : _fFont,
-                  tooltip: context.t('word.font_family'),
-                  onTap: _pickSlideFont,
-                ),
-                RibbonButton(
-                    OfficeIcons.fontShrink, context.t('vw.text_smaller'),
-                    onTap: () => _partSetState(() {
-                          _fSize = (_fSize - 2).clamp(6.0, 96.0).toDouble();
-                          _tSize = true;
-                        })),
-                RibbonChip(
-                  icon: OfficeIcons.fontSize,
-                  label: '${_fSize.round()}',
-                  tooltip: context.t('word.font_size'),
-                  onTap: _pickSlideFontSize,
-                ),
-                RibbonButton(OfficeIcons.fontGrow, context.t('vw.text_bigger'),
-                    onTap: () => _partSetState(() {
-                          _fSize = (_fSize + 2).clamp(6.0, 96.0).toDouble();
-                          _tSize = true;
-                        })),
-                const RibbonSep(),
-                // Seçili metni çevir (Faz 9 / Y4 — Word ve PDF'te vardı).
-                RibbonButton(AppIcons.translate, context.t('common.translate'),
-                    onTap: _translateEditing),
-              ]),
-            ],
-            trailing: Padding(
-              padding: const EdgeInsetsDirectional.only(end: 8),
-              child: FilledButton(
-                onPressed: _finishEdit,
-                child: Text(context.t('sl.done')),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Düzenlenen kutuda SEÇİLİ metni (seçim yoksa kutunun tamamını) çevirir.
-  void _translateEditing() {
-    final text = selectedEditText(_editCtrls);
-    if (text.trim().isEmpty) return;
-    QuickTranslateSheet.show(context, text, title: widget.name);
-  }
 }
 
 /// Kutunun denetleyicilerinden çevrilecek metin: seçimi olan ilk paragrafın

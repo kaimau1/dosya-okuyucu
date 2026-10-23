@@ -7,6 +7,28 @@ import '../services/pptx_render.dart';
 import 'chart_painter.dart';
 import '../core/app_colors.dart';
 
+/// Slayt run'ının çizim stili (punto biriminde). Kanvas ve düzenleyici
+/// ([SlideTextController]) AYNI kuralla çizer — yazarken ve Bitti'den sonra
+/// yazı birebir aynı görünsün.
+TextStyle slideRunStyle({
+  String? family,
+  required double size,
+  bool bold = false,
+  bool italic = false,
+  bool underline = false,
+  required Color color,
+  required double height,
+}) =>
+    TextStyle(
+      fontFamily: family,
+      fontSize: size,
+      fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+      fontStyle: italic ? FontStyle.italic : FontStyle.normal,
+      decoration: underline ? TextDecoration.underline : TextDecoration.none,
+      color: color,
+      height: height,
+    );
+
 /// Slayt görsellerinin çözüleceği en uzun kenar (piksel).
 ///
 /// **Bellek (2026-09-23 denetimi):** PPTX'teki fotoğraflar çoğu zaman kamera
@@ -38,14 +60,24 @@ class SlideCanvas extends StatelessWidget {
   /// Metin kutusuna dokunulduğunda çağrılır (düzenleme için). null ise salt okunur.
   final void Function(ShapeVM shape)? onEditShape;
 
-  /// Şu an **canlı düzenlenen** şekil. O kutunun paragrafları statik metin
-  /// yerine yerinde `TextField` olarak çizilir. Kimlikle (identical) eşlenir —
-  /// düzenleme sırasında slayt yeniden çizilmediği için nesne kararlıdır.
+  /// Faz 28 — seç / düzenle ayrımı (PowerPoint mobil): verilirse şekle İLK
+  /// dokunuş onu seçer, seçili şekle ikinci dokunuş (ya da çift dokunuş)
+  /// [onEditShape]'i çağırır. null ise eski davranış (dokun = düzenle).
+  final void Function(ShapeVM shape)? onSelectShape;
+
+  /// Seçili şekil (çerçeve + tutamaklar çizilir).
+  final ShapeVM? selectedShape;
+
+  /// Şu an **canlı düzenlenen** şekil. O kutunun metni yerine
+  /// [editorBuilder]'ın verdiği editör çizilir. Kimlikle (identical) eşlenir.
   final ShapeVM? editingShape;
 
-  /// Düzenlenen şeklin paragraflarıyla hizalı denetleyiciler (indeks = paragraf
-  /// sırası; düzenlenemeyen paragraf için null). Yalnız [editingShapeId] kutusu için.
-  final List<TextEditingController?>? editControllers;
+  /// Düzenlenen kutunun editörü (kutunun iç boşluğu içinde, punto biriminde).
+  final Widget Function(ShapeVM shape)? editorBuilder;
+
+  /// Boş yer tutucunun istem metni ("Başlık eklemek için dokunun"); null =
+  /// istem çizilmez (sunum, PDF, küçük resim).
+  final String Function(String placeholderType)? promptFor;
 
   /// Kaçıncı animasyon adımına kadar görünsün. null = her şey görünür
   /// (düzenleme görünümü). Sunum modunda 0'dan başlar, her tıklamada artar.
@@ -55,8 +87,11 @@ class SlideCanvas extends StatelessWidget {
     super.key,
     required this.slide,
     this.onEditShape,
+    this.onSelectShape,
+    this.selectedShape,
     this.editingShape,
-    this.editControllers,
+    this.editorBuilder,
+    this.promptFor,
     this.step,
   });
 
@@ -111,29 +146,54 @@ class SlideCanvas extends StatelessWidget {
     }
 
     final editing = editingShape != null && identical(s, editingShape);
+    final selected = !editing &&
+        selectedShape != null &&
+        identical(s, selectedShape);
+    final prompt = promptFor != null && s.isEmptyPlaceholder
+        ? promptFor!(s.placeholderType!)
+        : null;
     Widget child = _ShapeBody(
       shape: s,
       paraVisible: paraVisible,
-      editControllers: editing ? editControllers : null,
+      editor: editing ? editorBuilder?.call(s) : null,
+      prompt: prompt,
     );
     if (animated) child = _Reveal(visible: shapeVisible, child: child);
     if (s.rotationDeg != 0) {
       child = Transform.rotate(angle: s.rotationDeg * math.pi / 180, child: child);
     }
+    final tappable = s.hasText ||
+        prompt != null ||
+        (onSelectShape != null && s.element != null);
     if (editing) {
-      // Aktif kutuyu çerçeveyle belirt; dokunuşlar içteki TextField'lara gitsin
+      // Aktif kutuyu çerçeveyle belirt; dokunuşlar içteki editöre gitsin
       // (onTap sarmalamayı atla, yoksa düzenlemeyi yeniden tetikler).
       child = DecoratedBox(
+        position: DecorationPosition.foreground,
         decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFF2962FF), width: 1.2),
+          border: Border.all(color: AppColors.slideSelection, width: 1.2),
         ),
         child: child,
       );
-    } else if (onEditShape != null && s.hasText) {
+    } else if (onEditShape != null && tappable) {
+      final select = onSelectShape;
+      // Tablo hücresi gibi slayt düzeyinde düğümü olmayan metin seçilemez;
+      // dokunuş doğrudan düzenler. Çift dokunuş için ayrı tanıyıcı YOK:
+      // olsaydı her tek dokunuş 300 ms bekletilirdi; çift dokunuşun ilk
+      // dokunuşu seçer, ikincisi seçili şekli düzenler.
+      final canSelect = select != null && s.element != null;
       child = GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () => onEditShape!(s),
-        child: child,
+        onTap: () {
+          if (!canSelect || selected || (prompt != null && s.element == null)) {
+            onEditShape!(s);
+          } else {
+            select(s);
+          }
+        },
+        child: selected
+            ? CustomPaint(foregroundPainter: const _SelectionPainter(), child: child)
+            : child,
       );
     }
     // Yatay/dikey çizginin tek boyutu 0 olabilir → çizim için stroke kadar taban ver.
@@ -177,10 +237,14 @@ class _ShapeBody extends StatelessWidget {
   /// Paragraf bazlı görünürlük (animasyon adımları). null = hepsi görünür.
   final List<bool>? paraVisible;
 
-  /// Canlı düzenleme denetleyicileri (paragraf indeksiyle hizalı). null = statik.
-  final List<TextEditingController?>? editControllers;
+  /// Canlı düzenleme editörü (kutunun metni yerine). null = statik metin.
+  final Widget? editor;
 
-  const _ShapeBody({required this.shape, this.paraVisible, this.editControllers});
+  /// Boş yer tutucunun gri istem metni.
+  final String? prompt;
+
+  const _ShapeBody(
+      {required this.shape, this.paraVisible, this.editor, this.prompt});
 
   @override
   Widget build(BuildContext context) {
@@ -252,7 +316,13 @@ class _ShapeBody extends StatelessWidget {
       );
     }
 
-    final body = shape.hasText ? _text(shape) : null;
+    final body = editor != null
+        ? _editorBody(shape, editor!)
+        : shape.hasText
+            ? _text(shape)
+            : prompt != null
+                ? _promptBody(shape, prompt!)
+                : null;
 
     // Ön tanımlı şekil (üçgen/ok/elmas/yıldız/akış şeması…): kutu yerine
     // vektör yol. Metin yolun ÜSTÜNDE, PowerPoint'teki gibi kutu alanına
@@ -289,7 +359,7 @@ class _ShapeBody extends StatelessWidget {
     // fontlarla ölçüm artık doğru (gerçekten sığan kutuda 1 döner), ama bir kutu
     // yine de taşarsa (yazar taşırmış ya da kenar durumu) komşu kutuların üstüne
     // binmesin diye küçültülür — okunurluk > birebir sadakat (kök neden #3).
-    var scale = s.fontScale * _fitScale(s, s.fontScale);
+    var scale = s.fontScale * _fitCache(s);
 
     return OverflowBox(
       alignment: alignment,
@@ -302,11 +372,7 @@ class _ShapeBody extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (var i = 0; i < s.paragraphs.length; i++)
-              if (_editCtrl(i) != null)
-                // Canlı düzenleme: kutunun yerinde, aynı ölçekte TextField.
-                _paragraph(s.paragraphs[i], scale, s.lnSpcReduction,
-                    edit: _editCtrl(i))
-              else if (s.paragraphs[i].plainText.isNotEmpty)
+              if (s.paragraphs[i].plainText.isNotEmpty)
                 paraVisible == null
                     ? _paragraph(s.paragraphs[i], scale, s.lnSpcReduction)
                     : _Reveal(
@@ -320,8 +386,60 @@ class _ShapeBody extends StatelessWidget {
     );
   }
 
+  /// Sığdırma ölçeği şekil başına BİR kez ölçülür (Faz 28 / SL7: eskiden
+  /// her build'de iki TextPainter geçişi). Şekil nesnesi değişmez; slayt
+  /// yeniden çizilince yeni şekil nesnesi yeni ölçüm demektir.
+  static final _fitMemo = Expando<double>('slideFit');
+
+  double _fitCache(ShapeVM s) =>
+      _fitMemo[s] ??= _fitScale(s, s.fontScale);
+
+  Alignment get _anchor => switch (shape.vAnchor) {
+        'ctr' => Alignment.center,
+        'b' => Alignment.bottomCenter,
+        _ => Alignment.topCenter,
+      };
+
+  /// Düzenlenen kutu: editör kutunun iç boşluğunda, taşmaya izinli.
+  Widget _editorBody(ShapeVM s, Widget editor) => OverflowBox(
+        alignment: _anchor,
+        minHeight: 0,
+        maxHeight: double.infinity,
+        child: Padding(padding: s.inset, child: editor),
+      );
+
+  /// Boş yer tutucu: PowerPoint'in istem metni, gri, kesik çerçeveyle.
+  Widget _promptBody(ShapeVM s, String text) {
+    final look = s.paragraphs.isEmpty ? null : s.paragraphs.first.endLook;
+    final size = (look?.sizePt ?? 18) * s.fontScale;
+    return CustomPaint(
+      painter: const _PromptFramePainter(),
+      child: Padding(
+        padding: s.inset,
+        child: Align(
+          alignment: _anchor,
+          child: Text(
+            text,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            textAlign: s.placeholderType == 'title' ||
+                    s.placeholderType == 'ctrTitle' ||
+                    s.placeholderType == 'subTitle'
+                ? TextAlign.center
+                : TextAlign.start,
+            style: TextStyle(
+              fontFamily: look?.fontFamily,
+              fontSize: size,
+              color: AppColors.slidePrompt,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Kutuya sığması için gereken ek ölçek (1 = küçültme gerekmez).
-  double _fitScale(ShapeVM s, double baseScale) {
+  static double _fitScale(ShapeVM s, double baseScale) {
     final availW = s.w - s.inset.horizontal;
     final availH = s.h - s.inset.vertical;
     if (availW <= 0 || availH <= 0) return 1;
@@ -355,19 +473,18 @@ class _ShapeBody extends StatelessWidget {
     return math.max(0.35, fit);
   }
 
-  TextSpan _span(ParaVM p, double fontScale, double lnSpcReduction) {
+  static TextSpan _span(ParaVM p, double fontScale, double lnSpcReduction) {
     return TextSpan(
       children: [
         for (final r in p.runs)
           TextSpan(
             text: r.text,
-            style: TextStyle(
-              fontFamily: r.fontFamily,
-              fontSize: r.sizePt * fontScale,
-              fontWeight: r.bold ? FontWeight.bold : FontWeight.normal,
-              fontStyle: r.italic ? FontStyle.italic : FontStyle.normal,
-              decoration:
-                  r.underline ? TextDecoration.underline : TextDecoration.none,
+            style: slideRunStyle(
+              family: r.fontFamily,
+              size: r.sizePt * fontScale,
+              bold: r.bold,
+              italic: r.italic,
+              underline: r.underline,
               color: r.color,
               height: p.lineHeight * (1 - lnSpcReduction),
             ),
@@ -376,43 +493,10 @@ class _ShapeBody extends StatelessWidget {
     );
   }
 
-  TextEditingController? _editCtrl(int i) =>
-      editControllers != null && i < editControllers!.length
-          ? editControllers![i]
-          : null;
-
-  Widget _paragraph(ParaVM p, double fontScale, double lnSpcReduction,
-      {TextEditingController? edit}) {
+  Widget _paragraph(ParaVM p, double fontScale, double lnSpcReduction) {
     final first = p.runs.isEmpty ? null : p.runs.first;
-    final Widget body = edit == null
-        ? Text.rich(_span(p, fontScale, lnSpcReduction), textAlign: p.align)
-        // Yerinde düzenleme kutusu: paragrafın ilk çalıştırma biçiminde, çerçevesiz.
-        : TextField(
-            controller: edit,
-            maxLines: null,
-            textAlign: p.align,
-            cursorColor: const Color(0xFF2962FF),
-            style: TextStyle(
-              fontFamily: first?.fontFamily,
-              fontSize: (first?.sizePt ?? 18) * fontScale,
-              fontWeight: first?.bold == true ? FontWeight.bold : FontWeight.normal,
-              fontStyle: first?.italic == true ? FontStyle.italic : FontStyle.normal,
-              decoration: first?.underline == true
-                  ? TextDecoration.underline
-                  : TextDecoration.none,
-              color: first?.color,
-              height: p.lineHeight * (1 - lnSpcReduction),
-            ),
-            decoration: const InputDecoration(
-              isCollapsed: true,
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              disabledBorder: InputBorder.none,
-              filled: false,
-              contentPadding: EdgeInsets.zero,
-            ),
-          );
+    final Widget body =
+        Text.rich(_span(p, fontScale, lnSpcReduction), textAlign: p.align);
 
     return Padding(
       padding: EdgeInsets.only(
@@ -649,4 +733,70 @@ class _LinePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_LinePainter old) => old.s != s;
+}
+
+/// Seçili şeklin çerçevesi + sekiz tutamak (Faz 28; taşı/boyutlandır Faz 29).
+class _SelectionPainter extends CustomPainter {
+  const _SelectionPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const blue = AppColors.slideSelection;
+    final rect = Offset.zero & size;
+    canvas.drawRect(
+        rect,
+        Paint()
+          ..color = blue
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5);
+    // Tutamaklar kanvasın punto biriminde; slayt ~0,4 ölçekte çizildiği için
+    // 6 pt ≈ ekranda 2–3 dp — görünür ama metni örtmez.
+    final r = (math.min(size.width, size.height) * 0.06).clamp(3.0, 7.0);
+    final fill = Paint()..color = AppColors.page;
+    final edge = Paint()
+      ..color = blue
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    for (final dx in [0.0, size.width / 2, size.width]) {
+      for (final dy in [0.0, size.height / 2, size.height]) {
+        if (dx == size.width / 2 && dy == size.height / 2) continue;
+        canvas.drawCircle(Offset(dx, dy), r, fill);
+        canvas.drawCircle(Offset(dx, dy), r, edge);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_SelectionPainter old) => false;
+}
+
+/// Boş yer tutucunun kesik çizgili çerçevesi (PowerPoint'teki gibi).
+class _PromptFramePainter extends CustomPainter {
+  const _PromptFramePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AppColors.slidePromptFrame
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    const dash = 6.0, gap = 4.0;
+    void line(Offset a, Offset b) {
+      final total = (b - a).distance;
+      if (total <= 0) return;
+      final u = (b - a) / total;
+      for (var d = 0.0; d < total; d += dash + gap) {
+        canvas.drawLine(a + u * d, a + u * math.min(d + dash, total), paint);
+      }
+    }
+
+    final w = size.width, h = size.height;
+    line(Offset.zero, Offset(w, 0));
+    line(Offset(w, 0), Offset(w, h));
+    line(Offset(w, h), Offset(0, h));
+    line(Offset(0, h), Offset.zero);
+  }
+
+  @override
+  bool shouldRepaint(_PromptFramePainter old) => false;
 }

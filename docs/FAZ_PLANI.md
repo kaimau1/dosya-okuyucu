@@ -88,15 +88,15 @@
 | 17 | **Liste ve gezinme cilası** — kalan ~10 liste ekranı ortak bileşene, klasör başına hafıza, iki parmakla sütun, panoda "Son açılanlar" şeridi, eylem sayfası | 13, 15 | ✅ 2026-10-22 (bulut; kaydırma ölçümü cihazda) |
 | 18 | **Görüntüleyici ve medya deneyimi** — okuma kipi, video jestleri, galeri, geniş ekran | 15 | ✅ 2026-10-22 (bulut; jest hissi/parlaklık cihazda) |
 | 19 | **Sistem entegrasyonu ve ilk izlenim** — açılış ekranı, başlatıcı kısayolları, pencere öğeleri, sistem rengi (K13), dokunsal geri bildirim | 15 | ✅ 2026-10-22 (bulut; görünüş cihazda) |
-| 20 | **Ortak düzenleme çekirdeği** (geri al/yinele, taslak + otomatik kaydetme, klavye üstü çubuk, Aa paneli) + doğrulanmış 6 hata — ayrıntı `docs/DUZENLEME_PLANI.md` | — | ⬜ |
-| 21 | **Word: canlı düzenlemenin acil onarımı + motor denemesi** (K18) — `DUZENLEME_PLANI.md` | 20 | ⬜ |
+| 20 | **Ortak düzenleme çekirdeği** (geri al/yinele, taslak + otomatik kaydetme, klavye üstü çubuk, Aa paneli) + doğrulanmış 6 hata — ayrıntı `docs/DUZENLEME_PLANI.md` | — | ✅ 2026-10-23 |
+| 21 | **Word: canlı düzenlemenin acil onarımı + motor denemesi** (K18) — `DUZENLEME_PLANI.md` | 20 | ✅ 2026-10-23 (K18 📱 bekliyor) |
 | 22 | **Word Mobil görünüm editörü I** (model, yazma, seçim) — `DUZENLEME_PLANI.md` | 21 | ⬜ |
 | 23 | **Word II** (biçim, şerit, Aa paneli, stiller) — `DUZENLEME_PLANI.md` | 22 | ⬜ |
 | 24 | **Word III** (Ekle, tablo, resim, Düzen, üst/alt bilgi, Gözden Geçir) — `DUZENLEME_PLANI.md` | 23 | ⬜ |
-| 25 | **Excel I** (veri girişi, sayı/formül tuş takımı, işaret kipi, tutamaklar, doğruluk) — `DUZENLEME_PLANI.md` | 20 | ⬜ |
-| 26 | **Excel II** (bağımlılık grafiği, ızgara çizimi, büyük sayfa) — `DUZENLEME_PLANI.md` | 25 | ⬜ |
+| 25 | **Excel I** (veri girişi, sayı/formül tuş takımı, işaret kipi, tutamaklar, doğruluk) — `DUZENLEME_PLANI.md` | 20 | ✅ 2026-10-23 |
+| 26 | **Excel II** (bağımlılık grafiği, ızgara çizimi, büyük sayfa) — `DUZENLEME_PLANI.md` | 25 | ✅ 2026-10-23 |
 | 27 | **Excel III** (Hücreleri biçimlendir, Veri, Görünüm, form görünümü, CSV) — `DUZENLEME_PLANI.md` | 26 | ⬜ |
-| 28 | **Slayt I** (yerinde metin, kutuya yakınlaş, anahat, notlar) — `DUZENLEME_PLANI.md` | 20 | ⬜ |
+| 28 | **Slayt I** (yerinde metin, kutuya yakınlaş, anahat, notlar) — `DUZENLEME_PLANI.md` | 20 | ✅ 2026-10-23 |
 | 29 | **Slayt II** (taşı/boyutlandır, şekil/tablo, düzenden yeni slayt, şerit) — `DUZENLEME_PLANI.md` | 28 | ⬜ |
 | 30 | **Metin / kod / Markdown düzenleyici** — `DUZENLEME_PLANI.md` | 20 | ⬜ |
 | 31 | **PDF düzenleme deneyimi** (yerinde metin, nesne katmanı, ortak kabuk) — `DUZENLEME_PLANI.md` | 20 | ⬜ |
@@ -145,8 +145,8 @@ hesabı/kararı gerekir (Play Console, Billing, depo ayarı).
 > Faz 33'ün cihaz kısmı sıra 12 cihaz turuyla birleştirilirse telefon oturumu bir kez yapılır.
 >
 > **Durum 2026-10-23:** Faz 20 ✅ · Faz 21 ✅ (K18 📱 kontrol noktası bekliyor) · Faz 25 ✅ ·
-> Faz 26 🟡 kısmen (kalanı `DUZENLEME_PLANI.md` durum tablosunda). Sıradaki: Faz 26'nın kalanı,
-> sonra K18 kararıyla Faz 22.
+> Faz 26 ✅ · Faz 28 ✅. Sıradaki: K18 cevabı gelmediyse **Faz 30** (metin/kod editörü, D8),
+> K18 kararıyla Faz 22.
 
 **Bulut oturumu ne yapabilir / ne yapamaz** (HAFIZA 2026-07-25 §F, 2026-10-21 (5)):
 

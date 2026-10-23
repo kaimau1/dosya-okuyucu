@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
 
+import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:pdf/pdf.dart' show PdfPageFormat;
@@ -14,7 +15,9 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/app_icons.dart';
 import '../../core/busy_dialog.dart';
 import '../../core/doc_fonts.dart';
+import '../../core/edit/edit_history.dart';
 import '../../core/edit/edit_session.dart';
+import '../../core/edit/editor_chrome.dart';
 import '../../core/edit/editor_shortcuts.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
@@ -27,6 +30,7 @@ import '../../services/fm/save_to_downloads.dart';
 import '../../services/ocr_service.dart' show OcrLine;
 import '../../services/pptx_editor.dart';
 import '../../services/pptx_render.dart';
+import '../../services/pptx_rich_text.dart';
 import '../../services/slides_pdf.dart';
 import '../../widgets/ai_summary_flow.dart';
 import '../../widgets/doc_action_bar.dart';
@@ -34,7 +38,9 @@ import '../../widgets/doc_find_bar.dart';
 import '../../widgets/office_ribbon.dart';
 import '../../widgets/office_shell.dart';
 import '../../widgets/pinch_zoom_area.dart';
+import '../../widgets/slide_box_editor.dart';
 import '../../widgets/slide_canvas.dart';
+import '../../widgets/slide_text_controller.dart';
 import '../../widgets/slide_snapshot.dart';
 import '../../widgets/translate_flow.dart';
 import '../../widgets/quick_sheets.dart';
@@ -48,15 +54,28 @@ import '../../core/app_colors.dart';
 import '../../widgets/app_dialog.dart';
 
 part 'slides/actions.dart';
+part 'slides/outline.dart';
+part 'slides/text_edit.dart';
 part 'slides/views.dart';
 
-/// Slaytlar PowerPoint'teki gibi **gerçek tasarımıyla** çizilir; bir metin
-/// kutusuna dokunmak o kutunun yazılarını düzenlemeyi açar. Kaydederken orijinal
-/// tasarım korunur (yalnızca metin güncellenir).
+/// Slaytlar PowerPoint'teki gibi **gerçek tasarımıyla** çizilir. Faz 28
+/// (PowerPoint mobil dili): şekle dokunmak onu SEÇER (çerçeve + tutamaklar +
+/// alttaki bağlam çubuğu), ikinci dokunuş / çift dokunuş metni DÜZENLER —
+/// kanvas kutuya yakınlaşır, yazı okunur boyda, biçim seçime göre. Kaydederken
+/// orijinal tasarım korunur; el değmeyen run'lar aynen yazılır.
 class SlidesEditorScreen extends StatefulWidget {
   /// Konum rozetinin anahtarı. Testte rozeti "sondaki InkWell" diye aramak
   /// kırılgan olurdu (slayt kanvası ve alt çubuk da InkWell içeriyor).
   static const badgeKey = ValueKey('slideBadge');
+
+  /// Desteyi ayrı izolatta çöz (Faz 28 / SL7). Testte kapatılır: flutter_test
+  /// sahte saatinde izolat yanıtı beklenemez.
+  @visibleForTesting
+  static bool parseInIsolate = true;
+
+  /// Son yakınlaşmanın çarpanı (punto → dp) — "yazı ≥ 16 dp" testi için.
+  @visibleForTesting
+  static double? lastFocusScale;
 
   final String path;
   final String name;
@@ -80,7 +99,9 @@ class SlidesEditorScreen extends StatefulWidget {
 const _pdfPixelRatio = 2.0;
 
 class _SlidesEditorScreenState extends State<SlidesEditorScreen>
-    with DraftRecoveryMixin<SlidesEditorScreen> {
+    with
+        DraftRecoveryMixin<SlidesEditorScreen>,
+        SingleTickerProviderStateMixin<SlidesEditorScreen> {
   PptxEditor? _editor;
   String? _error;
   /// Faz 20: kirli durum, kaydetme durumu, taslak ve otomatik kaydetme.
@@ -91,15 +112,16 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
     snapshot: () async => _editor?.saveAsync(),
   );
 
+  /// Destenin geri al geçmişi (Faz 28 / madde 9): metin onayı, şekil ve
+  /// slayt işlemleri, not — her biri önce/sonra anlık görüntüsüyle.
+  final EditHistory _history = EditHistory(limit: 60);
+
   // Tüm slaytlar alt alta akar (kullanıcı kararı 2026-07-22: sayfa sayfa değil);
   // pinch zoom ortak PinchZoomArea'dan (Excel'le aynı his). Zoom > 1'de yatay
   // kaydırma açılır, ofsetler commit'te oranla düzeltilir.
   double _zoom = 1;
   final _hCtrl = ScrollController();
   final _vCtrl = ScrollController();
-
-  /// Konuşmacı notu şeridi AÇIK olan slaytların dosya adları. Slayt sırası
-  /// değişebildiği için indeks değil dosya adı tutulur.
 
   // ── Konum / gezinme ────────────────────────────────────────────────────────
   // Slaytlar tek bir akışta olduğu için "kaçıncı slayttayım" bilgisi ancak
@@ -117,23 +139,32 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
   bool _hitLimit = false;
   int _hitIndex = -1;
 
-  // ── Canlı (yerinde) metin düzenleme durumu ─────────────────────────────────
-  // Popup yerine kutu doğrudan slaytın üstünde TextField olur; biçim çubuğu
-  // klavyenin üstünde yüzer. Denetleyiciler şeklin paragraflarıyla hizalıdır.
+  // ── Seçim (Faz 28 / madde 1) ───────────────────────────────────────────────
+  PptxSlide? _selSlide;
+  ShapeVM? _selShape;
+
+  /// Kes/kopyala ile alınan şeklin XML'i (uygulama içi pano).
+  String? _clipShape;
+
+  // ── Metin düzenleme (Faz 28) ───────────────────────────────────────────────
   PptxSlide? _editSlide;
   ShapeVM? _editShapeVM;
-  final List<TextEditingController?> _editCtrls = [];
-  final List<PptxParagraph?> _editTargets = [];
-  bool _fBold = false, _fItalic = false, _fUnder = false;
-  double _fSize = 18;
-  /// Seçili kutunun yazı tipi (belgede yazılı ÖZGÜN ad; boş = tema fontu).
-  String _fFont = '';
-  bool _tBold = false, _tItalic = false, _tUnder = false, _tSize = false;
-  bool _tFont = false;
+  SlideTextController? _textCtrl;
+  final FocusNode _textFocus = FocusNode();
+  final FormatPanelController _panel = FormatPanelController();
+  late final AnimationController _zoomAnim;
+  ScrollController? _focusH, _focusV;
+
+  set _focusScaleNow(double k) => SlidesEditorScreen.lastFocusScale = k;
+
+  // ── Anahat (Faz 28 / madde 7) ──────────────────────────────────────────────
+  bool _outline = false;
+  final Map<(PptxSlide, PptxParagraph), String> _outlinePending = {};
 
   @override
   void initState() {
     super.initState();
+    _zoomAnim = AnimationController(vsync: this, duration: Motion.long);
     _vCtrl.addListener(_onScroll);
     _load();
   }
@@ -141,9 +172,13 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
   @override
   void dispose() {
     _session.dispose();
-    for (final c in _editCtrls) {
-      c?.dispose();
-    }
+    _history.dispose();
+    _textCtrl?.dispose();
+    _textFocus.dispose();
+    _panel.dispose();
+    _zoomAnim.dispose();
+    _focusH?.dispose();
+    _focusV?.dispose();
     _vCtrl.removeListener(_onScroll);
     _hCtrl.dispose();
     _vCtrl.dispose();
@@ -156,17 +191,21 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
   @override
   Widget build(BuildContext context) {
     final editor = _editor;
-    final editing = _editShapeVM != null;
+    final editing = _editShapeVM != null && _textCtrl != null;
+    final selected = _selShape != null && !editing;
     // GERİ TUŞU (2026-08-01 kullanıcı bulgusu: *"düzenleme başladığında geri
-    // tuşu düzenlemeyi kapatmalı, direk geri gidiyor"*). Metin kutusu açıkken
-    // geri, yazılanı kaydedip düzenlemeyi kapatır; ekrandan çıkmaz. Aynısı
-    // arama çubuğu için de geçerli — geri tuşu en üstteki katmanı kapatır.
+    // tuşu düzenlemeyi kapatmalı, direk geri gidiyor"*). Geri tuşu en üstteki
+    // katmanı kapatır: düzenleme → seçim → anahat → arama; ekrandan çıkmaz.
     return EditExitGuard(
       session: _session,
-      hasOpenLayer: editing || _finding,
+      hasOpenLayer: editing || selected || _outline || _finding,
       closeLayer: () {
         if (editing) {
           _finishEdit();
+        } else if (selected) {
+          _clearSelection();
+        } else if (_outline) {
+          _toggleOutline();
         } else if (_finding) {
           _toggleFind();
         }
@@ -174,6 +213,11 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
       child: EditorShortcuts(
       save: editor == null ? null : _save,
       find: editor == null ? null : _toggleFind,
+      undo: editor == null ? null : _undoDeck,
+      redo: editor == null ? null : _redoDeck,
+      bold: editing ? _textCtrl!.toggleBold : null,
+      italic: editing ? _textCtrl!.toggleItalic : null,
+      underline: editing ? _textCtrl!.toggleUnderline : null,
       child: OfficeShell(
         kind: DocKind.slides,
         title: widget.name,
@@ -182,85 +226,126 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
             ? context.t('shell.slides', {'n': editor!.slides.length})
             : null,
         // Bütün eylemler ALT çubukta (2026-07-28 kullanıcı isteği: aynı işlev
-        // iki yerde durmasın). İstisna: metin kutusu düzenlenirken alt çubuk
-        // gizlendiği için Kaydet buraya çıkar; arama da altta karşılığı
-        // olmadığı için üstte durur (Excel'le aynı yer).
+        // iki yerde durmasın). Üstte yalnız geri al/yinele, anahat, arama;
+        // metin düzenlenirken Kaydet (alt çubuk gizli).
         actions: [
+          if (!editing) ...[
+            ListenableBuilder(
+              listenable: _history,
+              builder: (context, _) => IconButton(
+                key: const ValueKey('sl-undo'),
+                tooltip: context.t('excel.undo'),
+                icon: const Icon(OfficeIcons.undo),
+                onPressed: _history.canUndo ? _undoDeck : null,
+              ),
+            ),
+            ListenableBuilder(
+              listenable: _history,
+              builder: (context, _) => IconButton(
+                tooltip: context.t('excel.redo'),
+                icon: const Icon(OfficeIcons.redo),
+                onPressed: _history.canRedo ? _redoDeck : null,
+              ),
+            ),
+            IconButton(
+              key: const ValueKey('sl-outline'),
+              tooltip: context.t('sl.outline'),
+              isSelected: _outline,
+              icon: const Icon(AppIcons.outline),
+              onPressed: editor == null ? null : _toggleOutline,
+            ),
+          ],
           if (editing)
             IconButton(
               tooltip: context.t('common.save'),
               icon: const Icon(AppIcons.save),
               onPressed: editor == null ? null : _save,
             ),
-          if (!editing)
+          if (!editing && !_outline)
             IconButton(
               tooltip: context.t('common.search'),
               icon: const Icon(AppIcons.search),
               onPressed: editor == null ? null : _toggleFind,
             ),
         ],
-        body: withDraftBanner(restore: _restoreDraft, _error != null
-            ? Center(child: Text(context.t('sl.open_failed', {'error': _error})))
-            : editor == null
-                ? const Center(child: CircularProgressIndicator())
-                : Column(
-                    children: [
-                      if (_finding) _findBar(),
-                      Expanded(
-                        child: Stack(
-                          children: [
-                            _buildSlides(editor),
-                            // Konum rozeti — PDF'teki sayfa rozetiyle aynı
-                            // kurgu ve aynı YER: nerede olduğunu söyler ve
-                            // dokununca "slayta git"i açar.
-                            //
-                            // ORTADA duruyor, sağda değil: sağ altta AI
-                            // düğmesi (FAB), sol altta pinch'in % rozeti var —
-                            // ilk sürümde sağa konmuştu ve FAB rozeti yarıdan
-                            // kesiyordu (2026-08-01 kullanıcı ekran görüntüsü).
-                            if (!editing && editor.slides.isNotEmpty)
-                              Positioned(
-                                bottom: 12,
-                                left: 0,
-                                right: 0,
-                                child: Center(
-                                  child: _slideBadge(editor.slides.length),
-                                ),
+        body: withDraftBanner(
+          restore: _restoreDraft,
+          EditorChrome(
+            editing: editing,
+            accessory: editing ? _slideAccessory() : null,
+            ribbon: editing ? _formatBar() : null,
+            panel: _panel,
+            panelTabs: [
+              FormatPanelTab(label: context.t('sl.tab_font'), builder: _fontPanel),
+              FormatPanelTab(
+                  label: context.t('sl.tab_paragraph'), builder: _paragraphPanel),
+            ],
+            body: _error != null
+                ? Center(child: Text(context.t('sl.open_failed', {'error': _error})))
+                : editor == null
+                    ? const Center(child: CircularProgressIndicator())
+                    : editing
+                        ? _focusEditor()
+                        : _outline
+                            ? _outlineView(editor)
+                            : Column(
+                                children: [
+                                  if (_finding) _findBar(),
+                                  Expanded(
+                                    child: Stack(
+                                      children: [
+                                        _buildSlides(editor),
+                                        // Konum rozeti — PDF'teki sayfa rozetiyle
+                                        // aynı kurgu ve aynı YER (ortada: sağ altta
+                                        // AI düğmesi, sol altta pinch % rozeti).
+                                        if (!selected && editor.slides.isNotEmpty)
+                                          Positioned(
+                                            bottom: 12,
+                                            left: 0,
+                                            right: 0,
+                                            child: Center(
+                                              child: _slideBadge(
+                                                  editor.slides.length),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
-                          ],
-                        ),
-                      ),
-                      if (editing) _formatBar(),
-                    ],
-                  )),
+          ),
+        ),
         // Etiketli eylem çubuğu (2026-07-28 kullanıcı isteği — PDF'teki gibi).
-        // Metin kutusu düzenlenirken gizli: altta zaten biçim çubuğu var.
+        // Metin düzenlenirken gizli (klavye üstü çubuk / şerit var); şekil
+        // seçiliyken şeklin bağlam çubuğu.
         bottomBar: editing
             ? null
-            : DocActionBar([
-                DocAction(AppIcons.play, context.t('sl.play'),
-                    editor == null ? null : () => _play(0)),
-                DocAction(AppIcons.summarize, context.t('ai.summarize'),
-                    editor == null ? null : _summarize),
-                DocAction(AppIcons.save, context.t('common.save'),
-                    editor == null ? null : _save),
-                DocAction(AppIcons.pdf, context.t('sl.to_pdf'),
-                    editor == null ? null : _exportPdf),
-                DocAction(AppIcons.share, context.t('common.share'),
-                    editor == null ? null : _export),
-                // Başka uygulamadan açıldıysa dosya özel önbellekte: doğrudan
-                // İndirilenler'e (bkz. [SaveToDownloads]).
-                if (showDownloadAction(widget.path))
-                  DocAction(AppIcons.download, context.t('common.download'),
-                      editor == null ? null : _download),
-                DocAction(
-                  AppIcons.translate,
-                  context.t('common.translate'),
-                  () => TranslateFlow.run(context, widget.plainText,
-                      title: widget.name),
-                ),
-              ]),
-        fab: editing
+            : selected
+                ? _shapeBar()
+                : DocActionBar([
+                    DocAction(AppIcons.play, context.t('sl.play'),
+                        editor == null ? null : () => _play(0)),
+                    DocAction(AppIcons.summarize, context.t('ai.summarize'),
+                        editor == null ? null : _summarize),
+                    DocAction(AppIcons.save, context.t('common.save'),
+                        editor == null ? null : _save),
+                    DocAction(AppIcons.pdf, context.t('sl.to_pdf'),
+                        editor == null ? null : _exportPdf),
+                    DocAction(AppIcons.share, context.t('common.share'),
+                        editor == null ? null : _export),
+                    // Başka uygulamadan açıldıysa dosya özel önbellekte:
+                    // doğrudan İndirilenler'e (bkz. [SaveToDownloads]).
+                    if (showDownloadAction(widget.path))
+                      DocAction(AppIcons.download, context.t('common.download'),
+                          editor == null ? null : _download),
+                    DocAction(
+                      AppIcons.translate,
+                      context.t('common.translate'),
+                      () => TranslateFlow.run(context, widget.plainText,
+                          title: widget.name),
+                    ),
+                  ]),
+        fab: editing || selected
             ? null
             : DocAiButton(
                 kind: DocKind.slides,
@@ -275,9 +360,6 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
       ),
     ));
   }
-
-
-
 
   /// Parça dosyalarındaki uzantılar `setState`i (korumalı) buradan çağırır.
   void _partSetState(VoidCallback fn) => setState(fn);

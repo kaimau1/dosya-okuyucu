@@ -113,6 +113,14 @@ class AppColors extends ThemeExtension<AppColors> {
   static const findMatch = Color(0x7FFFEB3B);
   static const findActive = Color(0x7FFF9800);
 
+  /// Slayt düzenleyicide seçili/düzenlenen kutunun çerçevesi ve imleç
+  /// (PowerPoint'in seçim mavisi — belge yüzeyinde, temadan bağımsız).
+  static const slideSelection = Color(0xFF2962FF);
+
+  /// Boş yer tutucunun istem metni ve kesik çerçevesi (belge yüzeyinde).
+  static const slidePrompt = Color(0xFF8A8A8A);
+  static const slidePromptFrame = Color(0xFFB0B0B0);
+
   /// Palet → tokenlar. Uyarı ve bilgi tonları paletin parlaklığına göre
   /// seçilir: açık zeminde koyu kehribar/mavi, koyu zeminde açık.
   factory AppColors.fromPalette(SkinPalette p, Brightness b) {

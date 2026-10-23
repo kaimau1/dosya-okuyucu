@@ -164,6 +164,15 @@ class ShapeVM {
   /// canvas yer tutucularda da sığdırma uygular.
   final bool isPlaceholder;
 
+  /// Yer tutucu türü (`p:ph@type`; türsüz yer tutucu `body`). Boş yer
+  /// tutucuda düzenleyici PowerPoint'in istem metnini gösterir (Faz 28).
+  final String? placeholderType;
+
+  /// Şeklin slayt XML'indeki düğümü (`p:sp`/`p:pic`/`p:cxnSp`) — yalnız
+  /// düzenlenebilir slayt şekillerinde (asıl slayt/düzen şekilleri ve tablo
+  /// hücreleri null). Seç / sil / çoğalt / öne-arkaya bunun üstünden yapılır.
+  final XmlElement? element;
+
   const ShapeVM({
     required this.x,
     required this.y,
@@ -197,7 +206,17 @@ class ShapeVM {
     this.autofit = false,
     this.lnSpcReduction = 0,
     this.isPlaceholder = false,
+    this.placeholderType,
+    this.element,
   });
+
+  /// Boş yer tutucu mu (istem metni gösterilir, dokununca yazılır).
+  bool get isEmptyPlaceholder =>
+      placeholderType != null &&
+      !hasText &&
+      image == null &&
+      const {'title', 'ctrTitle', 'subTitle', 'body', 'obj'}
+          .contains(placeholderType);
 
   bool get hasText => paragraphs.any((p) => p.plainText.isNotEmpty);
 
@@ -259,6 +278,13 @@ class ParaVM {
   /// Düzenlemeyi orijinal XML'e bağlayan `<a:p>` düğümü (slayt XML'inden).
   final XmlElement? source;
 
+  /// Paragraf sonu biçimi (`a:endParaRPr`) — boş paragrafa yazılan ilk
+  /// harfin görünüşü (Faz 28).
+  final RunVM? endLook;
+
+  /// Girinti düzeyi (`a:pPr@lvl`, 0 tabanlı).
+  final int level;
+
   const ParaVM({
     required this.runs,
     this.align = TextAlign.left,
@@ -268,6 +294,8 @@ class ParaVM {
     this.spaceBeforePt = 0,
     this.spaceAfterPt = 0,
     this.source,
+    this.endLook,
+    this.level = 0,
   });
 
   String get plainText => runs.map((r) => r.text).join();
@@ -284,6 +312,10 @@ class RunVM {
   /// Çizimde kullanılacak gömülü yazı ailesi (Carlito/Arimo/Tinos). null =
   /// varsayılan (Roboto). [PptxRender._mapFamily] typeface'i buna eşler.
   final String? fontFamily;
+
+  /// Kaynak düğüm (`a:r` / `a:fld` / `a:br`) — yalnız düzenlenebilir
+  /// slaytta; seçime göre biçimde run'ın özgün `a:rPr`'i şablon olur.
+  final XmlElement? source;
   const RunVM({
     required this.text,
     this.sizePt = 18,
@@ -292,6 +324,7 @@ class RunVM {
     this.underline = false,
     this.color = const Color(0xFF000000),
     this.fontFamily,
+    this.source,
   });
 }
 
@@ -806,9 +839,27 @@ class PptxRender {
 
     final txBody = _first(el, 'p:txBody');
     final bodyPr = txBody == null ? null : _first(txBody, 'a:bodyPr');
-    final paras = txBody == null
+    var paras = txBody == null
         ? <ParaVM>[]
         : _paragraphs(txBody, theme, clrMap, defaults, ph, editable);
+    // Metin gövdesi hiç olmayan yer tutucu (Faz 28): düzenleyici ilk harfin
+    // görünüşünü buradan alır; gövde yazınca oluşturulur.
+    if (paras.isEmpty && ph != null && editable && el.name.qualified == 'p:sp') {
+      final isTitle = ph.type == 'title' || ph.type == 'ctrTitle';
+      final def = isTitle ? defaults['title']! : defaults['body']!;
+      paras = [
+        ParaVM(
+          runs: const [],
+          endLook: RunVM(
+            text: '',
+            sizePt: def.size,
+            bold: def.bold,
+            color: def.color,
+            fontFamily: _resolveFont(null, null, isTitle),
+          ),
+        ),
+      ];
+    }
 
     return ShapeVM(
       id: id,
@@ -846,6 +897,8 @@ class PptxRender {
       autofit: bodyPr != null && _first(bodyPr, 'a:normAutofit') != null,
       lnSpcReduction: _lnSpcReduction(bodyPr),
       isPlaceholder: ph != null,
+      placeholderType: ph == null ? null : (ph.type ?? 'body'),
+      element: editable ? el : null,
     );
   }
 
@@ -988,32 +1041,43 @@ class PptxRender {
       final lvl = int.tryParse(pPr?.getAttribute('lvl') ?? '') ?? 0;
 
       final runs = <RunVM>[];
-      for (final r in p.childElements) {
-        if (r.name.qualified == 'a:br') {
-          runs.add(const RunVM(text: '\n'));
-          continue;
-        }
-        if (r.name.qualified != 'a:r' && r.name.qualified != 'a:fld') continue;
-        final t = _first(r, 'a:t');
-        if (t == null) continue;
-        final rPr = _first(r, 'a:rPr');
+      final defRPr0 = pPr == null ? null : _first(pPr, 'a:defRPr');
+      RunVM look(XmlElement? rPr, String text, XmlElement? source) {
         final size = double.tryParse(rPr?.getAttribute('sz') ?? '');
-        final defRPr = pPr == null ? null : _first(pPr, 'a:defRPr');
-        final defSize = double.tryParse(defRPr?.getAttribute('sz') ?? '');
-        runs.add(RunVM(
-          text: t.innerText,
+        final defSize = double.tryParse(defRPr0?.getAttribute('sz') ?? '');
+        return RunVM(
+          text: text,
           sizePt: (size ?? defSize ?? def.size * 100) / 100,
           bold: (rPr?.getAttribute('b') ?? (def.bold ? '1' : '0')) == '1',
           italic: rPr?.getAttribute('i') == '1',
           underline: (rPr?.getAttribute('u') ?? 'none') != 'none',
           color: (rPr == null ? null : _solidFill(rPr, theme, clrMap)) ??
-              (defRPr == null ? null : _solidFill(defRPr, theme, clrMap)) ??
+              (defRPr0 == null ? null : _solidFill(defRPr0, theme, clrMap)) ??
               def.color,
-          fontFamily: _resolveFont(rPr, defRPr, isTitle),
-        ));
+          fontFamily: _resolveFont(rPr, defRPr0, isTitle),
+          source: source,
+        );
+      }
+
+      final endLook = editable
+          ? look(_first(p, 'a:endParaRPr'), '', null)
+          : null;
+      for (final r in p.childElements) {
+        if (r.name.qualified == 'a:br') {
+          runs.add(RunVM(text: '\n', source: editable ? r : null));
+          continue;
+        }
+        if (r.name.qualified != 'a:r' && r.name.qualified != 'a:fld') continue;
+        final t = _first(r, 'a:t');
+        if (t == null) continue;
+        runs.add(look(_first(r, 'a:rPr'), t.innerText, editable ? r : null));
       }
       if (runs.isEmpty) {
-        out.add(ParaVM(runs: const [], source: editable ? p : null));
+        out.add(ParaVM(
+            runs: const [],
+            source: editable ? p : null,
+            endLook: endLook,
+            level: lvl));
         continue;
       }
 
@@ -1061,6 +1125,8 @@ class PptxRender {
         spaceBeforePt: spcBef == null ? 0 : (double.tryParse(spcBef) ?? 0) / 100,
         spaceAfterPt: spcAft == null ? 0 : (double.tryParse(spcAft) ?? 0) / 100,
         source: editable ? p : null,
+        endLook: endLook,
+        level: lvl,
       ));
     }
     return out;
@@ -1540,6 +1606,12 @@ class PptxRender {
 
   /// [file] ve ilişki tablosunun önbelleğini unutur — düzenleyici parçayı
   /// değiştirdiğinde (slayta görsel eklendi) yeniden okunsun diye.
+  /// Bütün parça önbelleğini unutur (geri al ile paket geri döndüğünde).
+  void forgetAll() {
+    _relsCache.clear();
+    _xmlCache.clear();
+  }
+
   void forget(String file) {
     final dir = _dir(file);
     final relsPath = '${dir}_rels/${file.substring(dir.length)}.rels';

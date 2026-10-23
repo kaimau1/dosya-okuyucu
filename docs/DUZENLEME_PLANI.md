@@ -77,9 +77,9 @@
 | 23 | **Word II** — biçimlendirme, Office şeridi, klavye üstü çubuk, Aa paneli, stiller | 22 | ☁️ | ⬜ |
 | 24 | **Word III** — Ekle (tablo, resim, bağlantı), Düzen, üst/alt bilgi, Gözden Geçir | 23 | ☁️ | ⬜ |
 | 25 | **Excel I** — veri girişi: hücre içi düzenleme, sayı/formül tuş takımı, işaret kipi, seçim tutamakları + doğruluk hataları | 20 | ☁️ | ✅ 2026-10-23 |
-| 26 | **Excel II** — hesap motoru (bağımlılık grafiği) + büyük sayfa akıcılığı (ızgara çizimi) | 25 | ☁️ | 🟡 2026-10-23 26a kısmen (kalıcı motor + bağımlılık grafiği, `<v>`, O(n) düzeltmeleri); **kalan:** K23 ızgara denemesi, okuma sınırı şeridi, `test/perf` kıyasları, paylaş/indir kaydetmesi isolate'e |
+| 26 | **Excel II** — hesap motoru (bağımlılık grafiği) + büyük sayfa akıcılığı (ızgara çizimi) | 25 | ☁️ | ✅ 2026-10-23 (26a + 26b; **K23 = (a) + hücre başı tanıyıcı kaldırıldı**, 📱 `FrameTiming` ölçümü Faz 33'te — tutmazsa (b) tek boyacı) |
 | 27 | **Excel III** — Hücreleri biçimlendir, Veri, Görünüm, form görünümü, CSV düzenleme | 26 | ☁️ | ⬜ |
-| 28 | **Slayt I** — yerinde metin düzenleme (kutuya yakınlaş), zengin metin, anahat, notlar | 20 | ☁️ | ⬜ |
+| 28 | **Slayt I** — yerinde metin düzenleme (kutuya yakınlaş), zengin metin, anahat, notlar | 20 | ☁️ | ✅ 2026-10-23 (28a + 28b; kalan: düzenleme sırasında girinti düzeyi ve paragraf başına hizalama yalnız Bitti'den sonra görünür) |
 | 29 | **Slayt II** — taşı/boyutlandır/döndür, şekil/metin kutusu/tablo ekle, düzenden yeni slayt, küçük resim şeridi | 28 | ☁️ | ⬜ |
 | 30 | **Metin / kod / Markdown düzenleyici** | 20 | ☁️ | ⬜ |
 | 31 | **PDF düzenleme deneyimi** — yerinde metin, nesne katmanı, ortak kabuk, sayfa üstünde form | 20 | ☁️ | ⬜ |
@@ -549,7 +549,7 @@ Ayrıntılı bağlantılar §11'de.
 | K20 | **Excel'de sayı/formül girişi** | (a) sistem klavyesi (+ sayı kipi) · (b) **uygulama içi sayı/formül tuş takımı** + tek dokunuşla sistem klavyesine geçiş | **(b)** — işleçler, `;`, `:`, `$`, parantez, oklar tek ekranda; sayı biçimli hücrede kendiliğinden | 25 | |
 | K21 | **Otomatik kaydetme** | (a) yok (bugün) · (b) her zaman özgün dosyaya (M365) · (c) **taslak günlüğü her zaman** + dosyaya otomatik kaydetme ayarı | **(c), ayar varsayılan AÇIK**; başka uygulamadan gelen ve geri yazılamayan dosyalarda (`content://` salt okunur, e-posta eki) ilk kayıtta "Kopya olarak kaydet" önerisi | 20 | |
 | K22 | **Formül dili** | (a) dosyadaki gibi (İngilizce ad, `,` ayırıcı) · (b) **arayüz diline göre**: Türkçe arayüzde Türkçe ad + `;` + virgül ondalık gösterilir ve girilir; dosyaya her zaman İngilizce + `,` + nokta | **(b)** + Ayarlar'da "Formülleri İngilizce göster" | 20 (X1), 25 | |
-| K23 | **Excel ızgara çizimi** | (a) bugünkü hücre widget'ları + O(n) düzeltmeleri · (b) tek boyacı (kendi `RenderBox`) · (c) `two_dimensional_scrollables` `TableView` | Faz 26 başında 1 günlük **ölçümlü deneme**; bütçeyi (§7) tutan en basit seçenek. Eski ızgara bir sürüm boyunca bayrakla geri dönüş yolu | 26 | |
+| K23 | **Excel ızgara çizimi** | (a) bugünkü hücre widget'ları + O(n) düzeltmeleri · (b) tek boyacı (kendi `RenderBox`) · (c) `two_dimensional_scrollables` `TableView` | Faz 26 başında 1 günlük **ölçümlü deneme**; bütçeyi (§7) tutan en basit seçenek. Eski ızgara bir sürüm boyunca bayrakla geri dönüş yolu | 26 | | **(a) + hücre başı `GestureDetector` kaldırıldı** (2026-10-23, cevap yok, öneri uygulandı): debug kıyasında tek boyacı prototipi widget satırından ~4× hızlı (10 vs 38 ms/kare), gerçek ızgara 81 → 64 ms; debug ölçümü cihaz bütçesini kanıtlayamaz → 📱 profil `FrameTiming` (Faz 33) %99 ≤ 16 ms tutmazsa (b) |
 | K24 | **Excel'de not (yorum) yazma** | (a) kapsam dışı kalsın (KALANLAR kararı: VML riski) · (b) asgari VML şablonuyla yaz, masaüstü doğrulaması | **(b)**, cihazda masaüstü Excel'de doğrulanana kadar "Deneysel" etiketiyle | 27 | |
 | K25 | **Metin/kod editörü motoru** | (a) `TextField` geliştir · (b) `re_editor` (MIT) | Faz 30 başında deneme; Türkçe IME + 5 MB açılış sorunsuzsa **(b)** | 30 | |
 

@@ -16,7 +16,20 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
   Future<void> _load() async {
     try {
       final bytes = await File(widget.path).readAsBytes();
-      _editor = PptxEditor.parse(bytes);
+      // Faz 28 / SL7: ayrıştırma + bütün slaytların çizim modeli ayrı
+      // izolatta (50 slaytlık destede UI izleği donmasın). İzolat
+      // kurulamazsa ana izlekte.
+      if (SlidesEditorScreen.parseInIsolate) {
+        try {
+          // `compute` + statik işlev: kapanış ekranın durumunu yakalayıp
+          // izolata taşımaya çalışmasın.
+          _editor = await compute(PptxEditor.parse, bytes);
+        } catch (_) {
+          _editor = PptxEditor.parse(bytes);
+        }
+      } else {
+        _editor = PptxEditor.parse(bytes);
+      }
     } catch (e) {
       _error = userErrorText(e);
     }
@@ -32,6 +45,7 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
   Future<void> _writeFile() async {
     final editor = _editor;
     if (editor == null) return;
+    _flushOutline();
     final bytes = await editor.saveAsync();
     await SafeWrite.bytes(widget.path, bytes);
     unawaited(ActivityLog.add(ActivityKind.documentEdit, widget.path));
@@ -39,12 +53,20 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
 
   /// Taslaktan geri yükleme (Faz 20).
   Future<void> _restoreDraft(Uint8List bytes) async {
-    _partSetState(() => _editor = PptxEditor.parse(bytes));
+    _history.clear();
+    _partSetState(() {
+      _commitEdit();
+      _selShape = null;
+      _editor = PptxEditor.parse(bytes);
+    });
     _session.changed();
   }
 
   Future<void> _save() async {
     if (_editor == null) return;
+    // Açık metin düzenlemesi ve anahattaki bekleyen yazı önce XML'e.
+    if (_textCtrl != null) _partSetState(_commitEdit);
+    _flushOutline();
     final ok = await _session.saveNow();
     if (!mounted) return;
     if (ok) {
@@ -60,15 +82,17 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
   Future<void> _download() async {
     final editor = _editor;
     if (editor == null) return;
-    await runDownloadAction(
-        context, () => SaveToDownloads.saveBytes(widget.name, editor.save()));
+    _flushOutline();
+    await runDownloadAction(context,
+        () async => SaveToDownloads.saveBytes(widget.name, await editor.saveAsync()));
   }
 
   Future<void> _export() async {
     final editor = _editor;
     if (editor == null) return;
+    _flushOutline();
     final f = File('${Directory.systemTemp.path}/${widget.name}');
-    await f.writeAsBytes(editor.save());
+    await f.writeAsBytes(await editor.saveAsync());
     await Share.shareXFiles([XFile(f.path)], text: widget.name);
   }
 
@@ -250,6 +274,16 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
                         icon: const Icon(AppIcons.copy),
                         onPressed: () =>
                             Clipboard.setData(ClipboardData(text: text)),
+                      ),
+                      // Faz 28 / madde 8: not artık yazılabilir.
+                      IconButton(
+                        key: const ValueKey('notes-edit-open'),
+                        tooltip: ctx.t('sl.notes_edit'),
+                        icon: const Icon(AppIcons.edit),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _editNotes(slide);
+                        },
                       ),
                       IconButton(
                         key: const ValueKey('notes-prev'),

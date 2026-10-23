@@ -528,3 +528,51 @@
   EditorChrome `View.of`; flutter_test gölgeleri düz siyah çizer (`debugDisableShadows`), tasarım
   görüntüsünde gövde içinde kapatıp aç; Carlito'da ⇥↵⌫ yok → ikon; LibreOffice dipnot başvurusu
   olup `footnotes.xml` yoksa dosyayı açmıyor; soffice UTF-8 metin filtresi `txt:Text (encoded):UTF8`.
+- **2026-10-23 (17) — düzenleme turu: Faz 26 ✅ (26b) + Faz 28 ✅ (Slayt I):**
+  Kullanıcı: *"Fazlara devam 2 faz yap bitir, main'e merge et, APK derle."* K18 cevabı yok → Faz 22
+  bekliyor; sıradaki Faz 26'nın kalanı + D7 Faz 28 yapıldı.
+  **Faz 26b:** okuma sınırı DÜRÜST — `XlsxSheetLayout.truncated` (200 bin satır / 1024 sütun
+  ötesinde hücre varsa); `XlsxEditor.save/saveAsync` → `XlsxTruncatedException`; ekranda kırmızı
+  şerit, otomatik kaydetme + taslak kapalı. *Bug kökü:* yazıcı `sheetData`yı modelden baştan
+  kurduğu için kesilen hücreler kaydette dosyadan SİLİNİYORDU. Paylaş/İndir artık `saveAsync`.
+  **K23 kararı (cevap yok, öneri):** (a) + hücre başı `GestureDetector` kaldırıldı (dokunuş ızgara
+  düzeyinde `SheetCellPos`'tan, `_cellAtGlobal(clamp:false)`). Ölçüm (`test/perf/excel_perf_test`,
+  debug/JIT, tek koşu): tek boyacı prototipi 10 ms vs widget satırı 38 ms/kare (~4×); gerçek ızgara
+  81 → 64 ms; 10k×20 aç 1,7–2,1 s (debug), 100k hücre `save()` ~300 ms (artık izolatta), 1000
+  bağımlı onayı 15–25 ms (yalnız bağımlılar, sayaçlı). **Debug ölçümü cihaz bütçesini kanıtlamaz**
+  → Faz 33'te profil `FrameTiming`; %99 ≤ 16 ms tutmazsa (b) tek boyacı (CIHAZ_TESTI "Faz 26b").
+  **TUZAK:** perf eşikleri paralel test yükünde 3–5× şişiyor (15 → 72 ms, 64 → 158 ms) — bekçi
+  eşikleri gerileme yakalayacak kadar gevşek tutuldu (`dart_test.yaml` `perf` etiketi).
+  **Faz 28:** `services/pptx_rich_text.dart` — kutunun TÜM paragrafları tek metin (`\n` = `a:p`,
+  ` ` = `a:br`) + karakter başına `RunStyle` (özgün run düğümü + kullanıcı örtmesi) +
+  `ParaStyle` (hiza/madde/düzey, `touched`). Yazma ortak önek/sonek farkıyla; `PptxEditor
+  .writeRichText` yalnız `touched` paragrafları yeniden kurar, el değmemiş run'ı ÖZGÜN DÜĞÜMÜN
+  KOPYASI olarak yazar (köprü/alan/dil korunur) — SL2 kökü (paragraf metni ilk `a:t`'ye
+  toplanıyordu) kapandı; `updateParagraph` (anahat) de bu yoldan. Enter = yeni `a:p` (öncekinin
+  pPr'i), geri silme birleştirir; gövdesiz yer tutucuya `p:txBody` açılır (spPr→style→txBody).
+  Ekran: dokun = SEÇ (çerçeve + 8 tutamak + alt bağlam çubuğu: Metni düzenle·Kes·Kopyala·Yapıştır·
+  Çoğalt·Öne·Arkaya·Sil), ikinci dokunuş = DÜZENLE (çift dokunuş tanıyıcısı YOK — her tek
+  dokunuşu 300 ms bekletirdi). Düzenleme = **odak görünümü**: kanvas kutuya yakınlaşır (`Motion.long`),
+  çarpan `max(0,9·W/kutu, 16/punto)` → yazı ≥ 16 dp; yatay+dikey kaydırma, imleç kendiliğinden
+  görünür. `SlideTextController` (run run çizim, bekleyen yazma biçimi, kelime sınırlı geri al),
+  `SlideBoxEditor` (canlı normAutofit, madde işaretleri imleç kutusundan ölçülen oluğa çizilir —
+  model metnine sahte karakter girmez). Klavye üstü çubuk + Aa (Yazı/Paragraf) + şerit. Anahat
+  görünümü (odak çıkınca tek geri al adımı), konuşmacı notu yazma (`setNotes`: not sayfası yoksa
+  oluşturulur; not şablonu da yoksa asgari şablon + TEMA KOPYASI + `notesMasterIdLst`
+  `sldMasterIdLst`'ten hemen sonra), deste geri al/yinele (`PptxEditor.snapshot/restore`: canlı
+  XML metin olarak, paket parçaları BAŞVURU olarak; 50 slaytta onay+2 görüntü ~40 ms, geri al ~12
+  ms). Ayrıştırma `compute`'ta. LibreOffice başsız dönüşümle doğrulandı (numara, kalın/renk, notlar
+  sayfası). PNG: `docs/design/faz28/` (`tool/design_shots_faz28_test.dart`).
+  **Bug kökleri:** (a) slayt çoğaltınca not ilişkisi kopyaya da gidiyordu → iki slayt tek not
+  sayfası (PowerPoint onarım ister); artık kopyada not yok, silinen slaydın notu da paketten
+  çıkar. (b) `_setTypeface` `a:latin/cs/ea`yı SONA ekliyordu → köprülü run'da `a:hlinkClick`'ten
+  sonra (şema dışı); artık sıralı. (c) odak görünümünde başka kutuya geçişte onay slaydı yeniden
+  çiziyor → dokunulan şekil bayat nesne, editör hiç açılmıyordu → `_resolveShape` (aynı XML düğümü).
+  **Tuzaklar:** `AnimationController` `late final` tembel kurulursa ilk kez `dispose`'da yaratılır
+  → "deactivated widget's ancestor" (initState'te kur). Levha kapanırken `TextEditingController`
+  atılırsa "used after disposed" → denetleyici levhanın kendi State'inde. `testWidgets`te
+  animasyon: dokunuştan sonra ilk `pump(süre)` ticker'ı BAŞLATIR, ilerletmez — önce kısa bir pump.
+  `design_tokens`/`rtl_guard` bekçileri: belge rengi `AppColors.slide*`, belge hizası
+  (`TextAlign.left` = PowerPoint `l`) içerik dosyalarında (`slide_text_controller`, `slide_box_editor`
+  rtl_guard listesinde). **Kalan (Faz 28):** düzenlerken paragraf başına hiza / girinti düzeyi
+  yalnız Bitti'den sonra görünür (tek TextField tek hiza); `spAutoFit` kutusu büyümüyor, yazı taşar.

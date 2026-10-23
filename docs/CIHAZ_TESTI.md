@@ -646,3 +646,25 @@ Hem eski "Düzenle" (WebView) hem deneysel editörde, **Gboard ve Samsung klavye
 - [ ] büyük (10 bin satır, formüllü) sayfada yazarken/kaydırırken takılma (önce/sonra izlenim)
 - [ ] kaydedilen .xlsx'i dosya yöneticisi/Drive önizlemesinde açınca formül SONUÇLARI görünüyor
 
+
+### Faz 26b — okuma sınırı, kaydetme izolatı, K23 ızgara ölçümü (2026-10-23)
+- [ ] 10 bin satırlık sayfada hızlı kaydırma: profil kipinde `FrameTiming` %99 kare ≤ 16 ms mı?
+  (K23 kararı buna bağlı: tutmazsa tek boyacıya geçilir — bulut ölçümü HAFIZA 2026-10-23 (17))
+- [ ] hücreye dokunma (seç / ikinci dokunuş = düzenle / aralığa dokunuş = bağlam menüsü) eskisi gibi
+- [ ] 200 bin satırdan büyük ya da 1024 sütunu aşan bir .xlsx açılınca kırmızı şerit; Kaydet
+  "kaydetme kapalı" diyor, dosya değişmiyor
+- [ ] büyük kitapta Paylaş / İndir sırasında ekran donmuyor
+
+### Faz 28 — slaytta yerinde metin düzenleme (2026-10-23)
+- [ ] şekle dokun → çerçeve + tutamaklar + alt bağlam çubuğu; tekrar dokun → kutuya yakınlaşma
+  animasyonu takılmasız, yazı rahat okunur boyda, klavyenin üstünde
+- [ ] uzun bir gövde kutusunda yazarken imleç ekranda kalıyor (yatay/dikey kendiliğinden kayıyor)
+- [ ] Gboard + Samsung klavyesiyle Türkçe (ğüşıöçİ) yazma, otomatik düzeltme, kelime önerisi sorunsuz
+- [ ] bir kelimeyi seç → K / renk / punto: yalnız o kelime değişiyor; kaydet → PowerPoint'te aynı
+- [ ] Enter yeni paragraf (madde işaretiyle), paragraf başında geri silme birleştiriyor
+- [ ] boş "Başlık eklemek için dokunun" yer tutucusuna yazılan metin PowerPoint'te başlık olarak görünüyor
+- [ ] Anahat görünümünde düzeltilen yazı slayta yansıyor
+- [ ] ⋮ > Konuşmacı notu: not yazılıyor; PowerPoint "Notlar" bölmesinde görünüyor (notesMaster
+  olmayan bir destede de — onarım uyarısı çıkmamalı)
+- [ ] Şekil çubuğu: Kes / Kopyala / Yapıştır / Çoğalt / Öne getir / Arkaya gönder / Sil; ↶ geri alıyor
+- [ ] 50 slaytlık destede açılış ve kaydırma akıcı

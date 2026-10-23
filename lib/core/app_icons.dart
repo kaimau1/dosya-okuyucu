@@ -262,6 +262,12 @@ abstract final class AppIcons {
   static const IconData fitScreen = Icons.fit_screen_rounded;
   static const IconData flipCameraAndroid = Icons.flip_camera_android_rounded;
   static const IconData flipToBack = Icons.flip_to_back_rounded;
+  static const IconData flipToFront = Icons.flip_to_front_rounded;
+  static const IconData formatIndentDecrease =
+      Icons.format_indent_decrease_rounded;
+  static const IconData formatIndentIncrease =
+      Icons.format_indent_increase_rounded;
+  static const IconData outline = Icons.view_headline_rounded;
   static const IconData folderCopy = Icons.folder_copy_rounded;
   static const IconData folderOff = Icons.folder_off_rounded;
   static const IconData folderSpecial = Icons.folder_special_rounded;
