@@ -19,12 +19,12 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
         IconButton(
           tooltip: context.t('word.undo'),
           icon: const Icon(AppIcons.undo),
-          onPressed: !_undo.canUndo ? null : _undoStep,
+          onPressed: !_canUndo ? null : _undoAny,
         ),
         IconButton(
           tooltip: context.t('word.redo'),
           icon: const Icon(AppIcons.redo),
-          onPressed: !_undo.canRedo ? null : _redoStep,
+          onPressed: !_canRedo ? null : _redoAny,
         ),
         // Belge içi arama: slaytta ve Excel'de zaten vardı, Word'de yoktu.
         if (!_plainMode)
@@ -51,7 +51,11 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                 break;
               case 'page':
                 if (_dirty) await _save();
-                _partSetState(() => _plainMode = false);
+                // Yedek editördeki değişiklikler görünüme taşınsın.
+                _partSetState(() {
+                  _viewBytes = _editor?.viewBytes();
+                  _plainMode = false;
+                });
                 break;
             }
           },
@@ -64,7 +68,8 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
           ],
         ),
       ],
-      tabBar: _editing ? _formatBar() : null,
+      // Biçim çubuğu artık ÜSTTE değil (W7): klavye açıkken klavyenin hemen
+      // üstünde tek satır hızlı çubuk, kapalıyken tam şerit — EditorChrome.
       // Etiketli eylem çubuğu (2026-07-28 kullanıcı isteği — PDF'teki gibi).
       // Düzenleme sırasında gizli: o sırada klavye + biçim çubuğu zaten
       // ekranın yarısını alıyor.
@@ -111,7 +116,7 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                   editor == null ? null : _translateSelection,
                 ),
             ]),
-      body: withDraftBanner(restore: _restoreDraft, _error != null
+      body: withDraftBanner(restore: _restoreDraft, _wordChrome(_error != null
           ? Center(
               child: Text(context.t('common.open_failed', {'error': _error})))
           : editor == null || bytes == null
@@ -127,7 +132,14 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                           key: _viewKey,
                           bytes: bytes,
                           rightToLeft: editor.rightToLeft,
-                          onEdited: _onEdited,
+                          onLive: _onLive,
+                          onHistory: (u, r) {
+                            if (u == _viewCanUndo && r == _viewCanRedo) return;
+                            _partSetState(() {
+                              _viewCanUndo = u;
+                              _viewCanRedo = r;
+                            });
+                          },
                           onSelection: _onSelection,
                           onAlign: _onAlignChanged,
                           onListStyle: _onListStyle,
@@ -163,7 +175,8 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                             // düzenleme kaldığı yerden sürer.
                             if (ok && _resumeEditing) {
                               _resumeEditing = false;
-                              _viewKey.currentState?.setEditing(true);
+                              _viewKey.currentState?.setEditing(true,
+                                  spellcheck: EditPrefs.wordSpellcheck);
                               _partSetState(() => _editing = true);
                             }
                           },
@@ -189,7 +202,7 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                           Positioned(
                               top: 0, left: 0, right: 0, child: _findBar()),
                       ],
-                    )),
+                    ))),
       // Klavye/biçim çubuğu varken FAB araya girmesin.
       fab: _editing
           ? null
@@ -219,13 +232,182 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
   /// Word'ün biçim şeridi. Simgeler ve düzen **Excel/Slayt ile ortak**
   /// (`OfficeRibbon` + `OfficeIcons`, 2026-08-07): aynı iş üç uygulamada da
   /// aynı simge. (2026-09-23: üst çubuk artık nötr — `onBrand` kalktı.)
-  PreferredSizeWidget _formatBar() {
+  /// Düzenleme kabuğu (Faz 20 çekirdeği): klavye açık → hızlı çubuk,
+  /// kapalı → tam şerit, Aa → klavye yüksekliğinde biçim paneli.
+  Widget _wordChrome(Widget body) => EditorChrome(
+        editing: _liveEditing,
+        body: body,
+        panel: _panel,
+        accessory: _accessoryBar(),
+        ribbon: _formatBar(),
+        panelTabs: _panelTabs(),
+      );
+
+  void _fmt(String cmd) => _viewKey.currentState?.format(cmd);
+
+  /// Hizalamayı sırayla çevirir: sola → ortala → sağa → iki yana.
+  void _cycleAlign() {
+    const order = ['left', 'center', 'right', 'both'];
+    const cmds = {
+      'left': 'justifyLeft',
+      'center': 'justifyCenter',
+      'right': 'justifyRight',
+      'both': 'justifyFull',
+    };
+    final next = order[(order.indexOf(_selAlign) + 1) % order.length];
+    _fmt(cmds[next]!);
+  }
+
+  IconData get _alignIcon => switch (_selAlign) {
+        'center' => OfficeIcons.alignCenter,
+        'right' => OfficeIcons.alignRight,
+        'both' => OfficeIcons.alignJustify,
+        _ => OfficeIcons.alignLeft,
+      };
+
+  Widget _accessoryBar() => KeyboardAccessoryBar(
+        onFormat: _panel.open,
+        onHideKeyboard: () =>
+            SystemChannels.textInput.invokeMethod<void>('TextInput.hide'),
+        items: [
+          AccessoryItem(
+              icon: AppIcons.check,
+              tooltip: context.t('word.done'),
+              onPressed: _toggleEdit),
+          AccessoryItem(
+              icon: AppIcons.undo,
+              tooltip: context.t('word.undo'),
+              onPressed: _canUndo ? _undoAny : null),
+          AccessoryItem(
+              icon: OfficeIcons.bold,
+              tooltip: context.t('common.bold'),
+              selected: _selB,
+              onPressed: () => _fmt('bold')),
+          AccessoryItem(
+              icon: OfficeIcons.italic,
+              tooltip: context.t('common.italic'),
+              selected: _selI,
+              onPressed: () => _fmt('italic')),
+          AccessoryItem(
+              icon: OfficeIcons.underline,
+              tooltip: context.t('common.underline'),
+              selected: _selU,
+              onPressed: () => _fmt('underline')),
+          AccessoryItem(
+              icon: OfficeIcons.bullets,
+              tooltip: context.t('word.bullets'),
+              selected: _selList == 'bullet',
+              onPressed: () => _viewKey.currentState?.setListStyle('bullet')),
+          AccessoryItem(
+              icon: OfficeIcons.numbering,
+              tooltip: context.t('word.numbering'),
+              selected: _selList == 'number',
+              onPressed: () => _viewKey.currentState?.setListStyle('number')),
+          AccessoryItem(
+              icon: _alignIcon,
+              tooltip: context.t('word.align_cycle'),
+              onPressed: _cycleAlign),
+          AccessoryItem(
+              icon: OfficeIcons.strike,
+              tooltip: context.t('common.strike'),
+              selected: _selS,
+              onPressed: () => _fmt('strikeThrough')),
+          AccessoryItem(
+              icon: AppIcons.addPhoto,
+              tooltip: context.t('word.insert_image'),
+              onPressed: _insertImage),
+        ],
+      );
+
+  /// "Aa" paneli: Yazı (yazı tipi, punto, biçim, renk) · Paragraf
+  /// (hizalama, liste).
+  List<FormatPanelTab> _panelTabs() => [
+        FormatPanelTab(
+          label: context.t('edit.tab_text'),
+          builder: (_) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(spacing: 8, runSpacing: 8, children: [_fontMenu(), _sizeMenu()]),
+              const SizedBox(height: 12),
+              Wrap(spacing: 4, runSpacing: 4, children: [
+                for (final (cmd, icon, on, tip) in [
+                  ('bold', OfficeIcons.bold, _selB, 'common.bold'),
+                  ('italic', OfficeIcons.italic, _selI, 'common.italic'),
+                  ('underline', OfficeIcons.underline, _selU, 'common.underline'),
+                  ('strikeThrough', OfficeIcons.strike, _selS, 'common.strike'),
+                ])
+                  RibbonButton(icon, context.t(tip),
+                      active: on, onTap: () => _fmt(cmd)),
+              ]),
+              const SizedBox(height: 12),
+              _swatches(_WordEditorScreenState._textColorPalette,
+                  (hex) => _viewKey.currentState?.setTextColor(hex),
+                  context.t('word.text_color')),
+              const SizedBox(height: 8),
+              _swatches(_WordEditorScreenState._highlightPalette,
+                  (hex) => _viewKey.currentState?.setHighlight(hex),
+                  context.t('word.highlight')),
+            ],
+          ),
+        ),
+        FormatPanelTab(
+          label: context.t('edit.tab_paragraph'),
+          builder: (_) => Wrap(spacing: 4, runSpacing: 4, children: [
+            for (final (cmd, icon, v, tip) in [
+              ('justifyLeft', OfficeIcons.alignLeft, 'left', 'common.align_left'),
+              ('justifyCenter', OfficeIcons.alignCenter, 'center', 'common.align_center'),
+              ('justifyRight', OfficeIcons.alignRight, 'right', 'common.align_right'),
+              ('justifyFull', OfficeIcons.alignJustify, 'both', 'common.align_justify'),
+            ])
+              RibbonButton(icon, context.t(tip),
+                  active: _selAlign == v, onTap: () => _fmt(cmd)),
+            RibbonButton(OfficeIcons.bullets, context.t('word.bullets'),
+                active: _selList == 'bullet',
+                onTap: () => _viewKey.currentState?.setListStyle('bullet')),
+            RibbonButton(OfficeIcons.numbering, context.t('word.numbering'),
+                active: _selList == 'number',
+                onTap: () => _viewKey.currentState?.setListStyle('number')),
+          ]),
+        ),
+      ];
+
+  /// Renk paleti satırı (panel): dokun = uygula, ⌀ = kaldır.
+  Widget _swatches(
+      List<String> palette, void Function(String?) onPick, String label) {
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      label: label,
+      child: Wrap(spacing: 8, runSpacing: 8, children: [
+        for (final hex in palette)
+          InkWell(
+            customBorder: const CircleBorder(),
+            onTap: () => onPick(hex),
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: Color(int.parse('FF$hex', radix: 16)),
+                shape: BoxShape.circle,
+                border: Border.all(color: scheme.outlineVariant),
+              ),
+            ),
+          ),
+        IconButton(
+          tooltip: context.t('excel.color_none'),
+          icon: const Icon(AppIcons.formatColorReset),
+          onPressed: () => onPick(null),
+        ),
+      ]),
+    );
+  }
+
+  Widget _formatBar() {
     Widget btn(String cmd, IconData icon, bool active, String tip) =>
         RibbonButton(icon, tip,
             active: active, onTap: () => _viewKey.currentState?.format(cmd));
 
-    return PreferredSize(
-      preferredSize: Size.fromHeight(OfficeRibbon.heightFor(1)),
+    return SizedBox(
+      height: OfficeRibbon.heightFor(1),
       child: OfficeRibbon(
         tabs: [
           RibbonTab('', [
@@ -237,13 +419,17 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                 context.t('common.italic')),
             btn('underline', OfficeIcons.underline, _selU,
                 context.t('common.underline')),
+            btn('strikeThrough', OfficeIcons.strike, _selS,
+                context.t('common.strike')),
             const RibbonSep(),
-            btn('justifyLeft', OfficeIcons.alignLeft, false,
+            btn('justifyLeft', OfficeIcons.alignLeft, _selAlign == 'left',
                 context.t('common.align_left')),
-            btn('justifyCenter', OfficeIcons.alignCenter, false,
+            btn('justifyCenter', OfficeIcons.alignCenter, _selAlign == 'center',
                 context.t('common.align_center')),
-            btn('justifyRight', OfficeIcons.alignRight, false,
+            btn('justifyRight', OfficeIcons.alignRight, _selAlign == 'right',
                 context.t('common.align_right')),
+            btn('justifyFull', OfficeIcons.alignJustify, _selAlign == 'both',
+                context.t('common.align_justify')),
             const RibbonSep(),
             _colorMenu(
               OfficeIcons.textColor,
@@ -338,6 +524,7 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
   Widget _listBtn(IconData icon, String tip, String kind) => RibbonButton(
         icon,
         tip,
+        active: _selList == kind,
         onTap: () => _viewKey.currentState?.setListStyle(kind),
       );
 

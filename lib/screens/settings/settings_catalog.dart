@@ -271,6 +271,11 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                 titleKey: 'edit.autosave',
                 subtitleKey: 'edit.autosave_sub',
                 builder: _autoSaveTile),
+            SettingRow(
+                id: 'word_spellcheck',
+                titleKey: 'word.spellcheck',
+                subtitleKey: 'word.spellcheck_sub',
+                builder: _wordSpellTile),
           ]),
           SettingsSection('set.sec_photos', [
             SettingRow(
@@ -714,6 +719,7 @@ Widget _settingsBackupTile(BuildContext _) => const SettingsBackupTile();
 Widget _usbDiagnosticsTile(BuildContext _) => const UsbDiagnosticsTile();
 Widget _developerOffTile(BuildContext _) => const DeveloperOffTile();
 Widget _autoSaveTile(BuildContext _) => const AutoSaveTile();
+Widget _wordSpellTile(BuildContext _) => const WordSpellcheckTile();
 Widget _editorPerfTile(BuildContext _) => const EditorPerfTile();
 Widget _aboutTile(BuildContext _) => const AboutTile();
 Widget _ttsVoiceTile(BuildContext _) => const TtsVoiceTile();

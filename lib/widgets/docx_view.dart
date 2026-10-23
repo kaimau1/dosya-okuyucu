@@ -6,9 +6,32 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
-import '../services/docx_editor.dart' show RunSeg;
 import 'office_shell.dart' show ZoomBadge, ZoomBadgeController;
 import '../core/app_icons.dart';
+
+/// Canlı görünümdeki seçimin biçim durumu (araç çubuğu düğmeleri yansıtır).
+class DocxSelection {
+  final bool bold, italic, underline, strike;
+  final String font;
+  final double sizePt;
+
+  /// 'left' | 'center' | 'right' | 'both'.
+  final String align;
+
+  /// '' | 'bullet' | 'number'.
+  final String list;
+
+  const DocxSelection({
+    this.bold = false,
+    this.italic = false,
+    this.underline = false,
+    this.strike = false,
+    this.font = '',
+    this.sizePt = 0,
+    this.align = 'left',
+    this.list = '',
+  });
+}
 
 /// .docx belgesini **Word'deki sayfa görünümüyle** çizer: sayfa kenarları,
 /// stiller, tablolar, gömülü görseller, sütunlar. Canlı düzenleme modunda
@@ -28,14 +51,16 @@ class DocxView extends StatefulWidget {
   /// sayfaya uygulanır.
   final bool rightToLeft;
 
-  /// Canlı düzenlemede bir paragraf değiştiğinde (indeks + biçimli parçalar).
-  final void Function(int index, List<RunSeg> segs)? onEdited;
+  /// Canlı düzenleme mesajı (paragraf parçaları, böl / birleştir, geri al)
+  /// — `DocxEditor.applyLiveMessage`e aynen verilir (Faz 21a).
+  final void Function(Map data)? onLive;
 
-  /// Seçimin kalın/italik/altçizgi + yazı tipi/punto durumu değiştiğinde
-  /// (araç çubuğu için). [font] boş, [sizePt] 0 ise okunamamış demektir.
-  final void Function(
-          bool bold, bool italic, bool underline, String font, double sizePt)?
-      onSelection;
+  /// Görünümün kendi geri al / yinele yığını boş mu (düğmeler için).
+  final void Function(bool canUndo, bool canRedo)? onHistory;
+
+  /// Seçimin biçim durumu değiştiğinde (araç çubuğu için). [font] boş,
+  /// [sizePt] 0 ise okunamamış demektir.
+  final void Function(DocxSelection sel)? onSelection;
 
   /// Belgenin toplam sayfa sayısı çizildikten sonra bildirilir.
   final void Function(int pages)? onPageCount;
@@ -74,7 +99,8 @@ class DocxView extends StatefulWidget {
     this.onScroll,
     required this.bytes,
     this.rightToLeft = false,
-    this.onEdited,
+    this.onLive,
+    this.onHistory,
     this.onSelection,
     this.onAlign,
     this.onStatus,
@@ -183,13 +209,21 @@ class DocxViewState extends State<DocxView> {
     }
     if (data['sel'] is Map) {
       final s = data['sel'] as Map;
-      widget.onSelection?.call(
-        s['b'] == true,
-        s['i'] == true,
-        s['u'] == true,
-        '${s['font'] ?? ''}',
-        (s['size'] as num?)?.toDouble() ?? 0,
-      );
+      widget.onSelection?.call(DocxSelection(
+        bold: s['b'] == true,
+        italic: s['i'] == true,
+        underline: s['u'] == true,
+        strike: s['s'] == true,
+        font: '${s['font'] ?? ''}',
+        sizePt: (s['size'] as num?)?.toDouble() ?? 0,
+        align: '${s['align'] ?? 'left'}',
+        list: '${s['list'] ?? ''}',
+      ));
+      return;
+    }
+    if (data['hist'] is Map) {
+      final h = data['hist'] as Map;
+      widget.onHistory?.call(h['u'] == true, h['r'] == true);
       return;
     }
     if (data['find'] is Map) {
@@ -219,35 +253,13 @@ class DocxViewState extends State<DocxView> {
       }
       return;
     }
-    if (data['i'] is int && data['segs'] is List) {
-      final segs = <RunSeg>[
-        for (final seg in data['segs'] as List)
-          if (seg is List && seg.isNotEmpty)
-            RunSeg(
-              '${seg[0]}',
-              seg.length > 1 && seg[1] == true,
-              seg.length > 2 && seg[2] == true,
-              seg.length > 3 && seg[3] == true,
-              // 5.–8. alanlar yalnız kullanıcı yazı tipi/punto/renk/vurgu
-              // SEÇTİYSE dolu gelir; null ise dosyadaki biçim korunur
-              // (bkz. viewer.html).
-              font: _str(seg, 4),
-              sizePt: seg.length > 5 && seg[5] is num && (seg[5] as num) > 0
-                  ? (seg[5] as num).toDouble()
-                  : null,
-              color: _str(seg, 6),
-              highlight: _str(seg, 7),
-            ),
-      ];
-      widget.onEdited?.call(data['i'] as int, segs);
+    if (data['segs'] != null ||
+        data['split'] != null ||
+        data['merge'] != null ||
+        data['mrange'] != null ||
+        data['restore'] != null) {
+      widget.onLive?.call(data);
     }
-  }
-
-  /// JS'ten gelen parçanın [at]. alanı — dolu bir metin değilse null.
-  static String? _str(List seg, int at) {
-    if (seg.length <= at) return null;
-    final v = seg[at];
-    return v is String && v.isNotEmpty ? v : null;
   }
 
   /// Sayfa sayacı ve yakınlaştırma oranı kanalı.
@@ -289,8 +301,37 @@ class DocxViewState extends State<DocxView> {
     }
   }
 
-  void setEditing(bool on) =>
-      _controller.runJavaScript('setEditable($on)');
+  /// [spellcheck]: yazım denetimi + otomatik düzeltme + cümle başı büyük
+  /// harf (Faz 21 / W8 — eskiden bilinçli kapalıydı).
+  void setEditing(bool on, {bool spellcheck = true}) =>
+      _controller.runJavaScript('setEditable($on, $spellcheck)');
+
+  /// Canlı düzenlemenin geri al / yinele adımı (görünümün kendi yığını).
+  void undo() => _controller.runJavaScript('undoEdit()');
+  void redo() => _controller.runJavaScript('redoEdit()');
+
+  /// İmlece satır içi resim adası koyar ([id] `DocxEditor.imageIsland`).
+  /// Eklenen paragrafın indeksi; imleç/düzenleme yoksa -1.
+  Future<int> insertImageIsland(int id, String dataUrl, double widthPx) async {
+    try {
+      final r = await _controller.runJavaScriptReturningResult(
+          "insertImageIsland($id, '${_js(dataUrl)}', $widthPx)");
+      return int.tryParse('$r'.split('.').first) ?? -1;
+    } catch (_) {
+      return -1;
+    }
+  }
+
+  /// İmlecin paragrafındaki resimleri siler; silinen sayı.
+  Future<int> deleteImagesAtCaret() async {
+    try {
+      final r =
+          await _controller.runJavaScriptReturningResult('deleteImagesAtCaret()');
+      return int.tryParse('$r'.split('.').first) ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
 
   /// Seçime biçim uygular: 'bold' | 'italic' | 'underline'.
   void format(String cmd) => _controller.runJavaScript("fmt('$cmd')");

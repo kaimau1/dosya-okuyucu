@@ -29,6 +29,10 @@ class EditPrefs {
   /// K21: dosyaya otomatik kaydetme (varsayılan AÇIK). Taslak günlüğü bundan
   /// bağımsız, her zaman çalışır.
   static bool autoSave = true;
+
+  /// Word canlı düzenlemede yazım denetimi + otomatik düzeltme + cümle başı
+  /// büyük harf (Faz 21 / W8, varsayılan AÇIK).
+  static bool wordSpellcheck = true;
 }
 
 /// Çıkış sorusunun cevabı.

@@ -51,6 +51,22 @@ void main() {
   test('Office örnekleri', () {
     const d = 'test/fixtures/office';
     write('$d/tablo.docx', OfficeFixtures.docxWithTable());
+    write('$d/word_kaydedilmis_cok_sayfa.docx', OfficeFixtures.docxWordSaved());
+    // Canlı düzenleme köprüsünün Playwright denetimi (tool/check_word_bridge.js)
+    // WebView'ın gördüğü İŞARETLİ kopyayla koşar (Faz 21a).
+    for (final name in [
+      'tablo.docx',
+      'madde_imleri.docx',
+      'word_kaydedilmis_cok_sayfa.docx',
+    ]) {
+      final src = name == 'tablo.docx'
+          ? OfficeFixtures.docxWithTable()
+          : name == 'word_kaydedilmis_cok_sayfa.docx'
+              ? OfficeFixtures.docxWordSaved()
+              : File('$d/$name').readAsBytesSync();
+      Directory('$d/view').createSync(recursive: true);
+      write('$d/view/$name', DocxEditor.parse(src).viewBytes());
+    }
     final docx = DocxEditor.parse(OfficeFixtures.docxWithTable());
     final cell = docx.paragraphs.indexWhere((p) => p.text == 'Ayşe');
     docx

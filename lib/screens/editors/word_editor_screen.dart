@@ -1,15 +1,18 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' show instantiateImageCodec;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemChannels;
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/app_icons.dart';
 import '../../core/doc_fonts.dart';
 import '../../core/edit/edit_session.dart';
+import '../../core/edit/editor_chrome.dart';
 import '../../core/edit/editor_shortcuts.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/list_prefix.dart';
@@ -60,7 +63,10 @@ class WordEditorScreen extends StatefulWidget {
 class _WordEditorScreenState extends State<WordEditorScreen>
     with DraftRecoveryMixin<WordEditorScreen> {
   DocxEditor? _editor;
-  Uint8List? _bytes;
+  /// WebView'a giden İŞARETLİ kopya (Faz 21a, `DocxEditor.viewBytes`). Yalnız
+  /// yeniden çizim gerektiğinde değişir — eskiden her kayıtta dosya baytları
+  /// değiştiği için sayfa baştan çiziliyor, imleç kayboluyordu.
+  Uint8List? _viewBytes;
   String? _error;
 
   /// Faz 20: kirli durum, kaydetme durumu, taslak ve otomatik kaydetme.
@@ -89,7 +95,19 @@ class _WordEditorScreenState extends State<WordEditorScreen>
   /// geri alındı. Netlik artık WebView'ın hybrid composition çizimiyle
   /// sağlanıyor — bkz. `DocxView._webView`.)
   bool _flow = false;
-  bool _selB = false, _selI = false, _selU = false;
+  bool _selB = false, _selI = false, _selU = false, _selS = false;
+  String _selAlign = 'left';
+  String _selList = '';
+
+  /// Canlı görünümün kendi geri al / yinele yığını (W5).
+  bool _viewCanUndo = false, _viewCanRedo = false;
+
+  /// Düzenlemeye girerken sayfa görünümündeysek okunur boyut için mobil
+  /// akışa geçildi mi (çıkışta geri dönülür — W6).
+  bool _flowForEdit = false;
+
+  /// Klavye ↔ Aa biçim paneli (Faz 20 çekirdeği).
+  final _panel = FormatPanelController();
 
   /// İmlecin bulunduğu paragrafın yazı tipi/puntosu (araç çubuğu gösterir).
   String _selFont = '';
@@ -153,6 +171,7 @@ class _WordEditorScreenState extends State<WordEditorScreen>
   @override
   void dispose() {
     _session.dispose();
+    _panel.dispose();
     _readingBars.dispose();
     super.dispose();
   }
@@ -162,7 +181,7 @@ class _WordEditorScreenState extends State<WordEditorScreen>
   @override
   Widget build(BuildContext context) {
     final editor = _editor;
-    final bytes = _bytes;
+    final bytes = _viewBytes;
     // Geri tuşu önce DÜZENLEMEYİ kapatır (slaytlarla aynı kural, 2026-08-01):
     // yazarken yanlışlıkla ekrandan çıkmak yazılanı görünmez kılıyordu.
     return EditExitGuard(
@@ -170,8 +189,14 @@ class _WordEditorScreenState extends State<WordEditorScreen>
       hasOpenLayer: _editing,
       closeLayer: _toggleEdit,
       child: EditorShortcuts(
-        undo: _undo.canUndo ? _undoStep : null,
-        redo: _undo.canRedo ? _redoStep : null,
+        undo: _canUndo ? _undoAny : null,
+        redo: _canRedo ? _redoAny : null,
+        bold: _liveEditing ? () => _viewKey.currentState?.format('bold') : null,
+        italic:
+            _liveEditing ? () => _viewKey.currentState?.format('italic') : null,
+        underline: _liveEditing
+            ? () => _viewKey.currentState?.format('underline')
+            : null,
         save: editor == null ? null : _save,
         find: _plainMode || editor == null ? null : _toggleFind,
         child: _buildShell(editor, bytes),

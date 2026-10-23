@@ -6,6 +6,8 @@ import 'package:xml/xml.dart';
 
 import '../core/edit/save_coordinator.dart';
 
+part 'docx/live_edit.dart';
+
 /// Canlı düzenlemeden gelen tek biçimli metin parçası.
 ///
 /// [font] ve [sizePt] **null bırakılabilir**: o zaman parça şablon
@@ -33,6 +35,13 @@ class RunSeg {
   /// yazılır. null = şablondakini koru.
   final String? highlight;
 
+  /// Üstü çizili (`w:strike`).
+  final bool strike;
+
+  /// Dokunulmaz ada (köprü, alan, dipnot başvurusu, sekme, resim …) —
+  /// metni `\uFFFC`, kendisi XML'de özgün düğüm olarak kalır (Faz 21 / W4).
+  final int? island;
+
   const RunSeg(
     this.text,
     this.bold,
@@ -42,7 +51,20 @@ class RunSeg {
     this.sizePt,
     this.color,
     this.highlight,
+    this.strike = false,
+    this.island,
   });
+
+  const RunSeg.island(int id)
+      : this('\uFFFC', false, false, false, island: id);
+
+  RunSeg withText(String t) => RunSeg(t, bold, italic, underline,
+      font: font,
+      sizePt: sizePt,
+      color: color,
+      highlight: highlight,
+      strike: strike,
+      island: island);
 }
 
 /// Düzenlenebilir bir Word paragrafı (orijinal XML düğümüne bağlı).
@@ -187,33 +209,35 @@ class DocxEditor {
       utf8.decode(docFile.content as List<int>, allowMalformed: true),
     );
 
-    final paras = <DocxParagraph>[];
-    for (final p in xml.findAllElements('w:p')) {
-      final text = p.findAllElements('w:t').map((e) => e.innerText).join();
-      final styleVal = p
-          .findAllElements('w:pStyle')
-          .map((e) => e.getAttribute('w:val') ?? '')
-          .firstWhere((_) => true, orElse: () => '');
-      final isHeading = styleVal.toLowerCase().contains('heading') ||
-          styleVal.toLowerCase().contains('title');
-      final level = _levelFromStyle(styleVal);
-
-      final rPr = _firstRunProps(p);
-      final jc = _firstOrNull(p.findAllElements('w:jc'));
-      paras.add(DocxParagraph(
-        text,
-        isHeading,
-        level,
-        p,
-        bold: rPr != null && _rprHas(rPr, 'w:b'),
-        italic: rPr != null && _rprHas(rPr, 'w:i'),
-        underline: rPr != null && _rprHas(rPr, 'w:u'),
-        align: _normalizeAlign(jc?.getAttribute('w:val')),
-        rtl: _paragraphRtl(p),
-        hadJc: jc != null,
-      ));
-    }
+    final paras = [for (final p in xml.findAllElements('w:p')) _paraFrom(p)];
     return DocxEditor._(archive, xml, paras);
+  }
+
+  /// Bir `w:p` düğümünün düzenleme modeli (ayrıştırma ve canlı
+  /// düzenlemede yeni paragraf).
+  static DocxParagraph _paraFrom(XmlElement p) {
+    final text = p.findAllElements('w:t').map((e) => e.innerText).join();
+    final styleVal = p
+        .findAllElements('w:pStyle')
+        .map((e) => e.getAttribute('w:val') ?? '')
+        .firstWhere((_) => true, orElse: () => '');
+    final isHeading = styleVal.toLowerCase().contains('heading') ||
+        styleVal.toLowerCase().contains('title');
+    final level = _levelFromStyle(styleVal);
+    final rPr = _firstRunProps(p);
+    final jc = _firstOrNull(p.findAllElements('w:jc'));
+    return DocxParagraph(
+      text,
+      isHeading,
+      level,
+      p,
+      bold: rPr != null && _rprHas(rPr, 'w:b'),
+      italic: rPr != null && _rprHas(rPr, 'w:i'),
+      underline: rPr != null && _rprHas(rPr, 'w:u'),
+      align: _normalizeAlign(jc?.getAttribute('w:val')),
+      rtl: _paragraphRtl(p),
+      hadJc: jc != null,
+    );
   }
 
   /// `<w:pPr><w:bidi/>` — paragraf sağdan sola mı?
@@ -279,55 +303,13 @@ class DocxEditor {
     return list.isEmpty ? null : list.first;
   }
 
-  /// Canlı düzenlemeden gelen paragrafı zengin (B/I/U) çalıştırmalar olarak
-  /// XML'e yazar. İlk run'ın `w:rPr`'i şablon alınır → font/boyut/renk korunur;
-  /// kalın/italik/altçizgi her segmente göre ayarlanır. Paragraf stilleri (pPr)
-  /// yerinde kalır. Köprü/işaretçi gibi run-dışı içerik sadeleşir (ORTA sadakat).
-  void setRuns(int index, List<RunSeg> segs) {
+  /// Canlı düzenlemeden gelen paragrafı yazar (Faz 21: fark tabanlı, adaları
+  /// koruyan yol — bkz. `docx/live_edit.dart`). [base] paragrafın düzenleme
+  /// öncesi hâli (JS ilk düzenlemede yollar); verilmezse son bilinen hâl,
+  /// o da yoksa ilk run'ı şablon alan yedek yol.
+  void setRuns(int index, List<RunSeg> segs, {List<RunSeg>? base}) {
     if (index < 0 || index >= paragraphs.length) return;
-    final para = paragraphs[index];
-    final el = para._element;
-
-    XmlElement? templateRPr;
-    for (final r in el.findAllElements('w:r')) {
-      final rPr = r.findElements('w:rPr').toList();
-      if (rPr.isNotEmpty) templateRPr = rPr.first;
-      break; // şablon = İLK run'ın biçimi (varsa)
-    }
-
-    el.children.removeWhere(
-        (n) => !(n is XmlElement && n.name.qualified == 'w:pPr'));
-
-    for (final seg in segs) {
-      final text = seg.text;
-      if (text.isEmpty) continue;
-      final run = XmlElement(XmlName('w:r'));
-      final rPr = templateRPr == null
-          ? XmlElement(XmlName('w:rPr'))
-          : (templateRPr.copy());
-      _setToggle(rPr, 'w:b', seg.bold);
-      _setToggle(rPr, 'w:i', seg.italic);
-      _setUnderline(rPr, seg.underline);
-      if (seg.font != null) _setFont(rPr, seg.font!);
-      if (seg.sizePt != null) _setSize(rPr, seg.sizePt!);
-      if (seg.color != null) _setColor(rPr, seg.color!);
-      if (seg.highlight != null) _setHighlight(rPr, seg.highlight!);
-      run.children.add(rPr);
-      // '\n' canlı düzenlemedeki satır sonudur (Enter → <br>) → w:br yazılır.
-      final parts = text.split('\n');
-      for (var k = 0; k < parts.length; k++) {
-        if (k > 0) run.children.add(XmlElement(XmlName('w:br')));
-        if (parts[k].isEmpty) continue;
-        final t = XmlElement(XmlName('w:t'));
-        t.setAttribute('xml:space', 'preserve');
-        t.children.add(XmlText(parts[k]));
-        run.children.add(t);
-      }
-      el.children.add(run);
-    }
-
-    para.text = segs.map((s) => s.text).join();
-    para._markRich();
+    _applySegs(paragraphs[index], segs, base);
   }
 
   /// [ref] paragrafından sonra boş bir paragraf ekler (ref null ise belge sonuna,
@@ -398,6 +380,24 @@ class DocxEditor {
     required int widthPx,
     required int heightPx,
   }) {
+    final run = imageRun(bytes, ext: ext, widthPx: widthPx, heightPx: heightPx);
+    final para = addParagraphAfter(ref);
+    final el = para._element;
+    el.children
+      ..clear()
+      ..add(run);
+    para._markRich();
+    return para;
+  }
+
+  /// Satır içi resim run'ı (`w:drawing`) üretir: medya pakete, ilişki ve
+  /// içerik türü yerine yazılır. Run belgeye eklenmez (çağıran yerleştirir).
+  XmlElement imageRun(
+    List<int> bytes, {
+    required String ext,
+    required int widthPx,
+    required int heightPx,
+  }) {
     final e = ext.toLowerCase().replaceFirst('.', '');
     final mime = switch (e) {
       'png' => 'image/png',
@@ -428,15 +428,15 @@ class DocxEditor {
       cy = (cy * maxImageWidthEmu / cx).round();
       cx = maxImageWidthEmu;
     }
-    var docPrId = 0;
+    var docPrId = _lastDocPr;
     for (final el in _doc.findAllElements('wp:docPr')) {
       final v = int.tryParse(el.getAttribute('id') ?? '') ?? 0;
       if (v > docPrId) docPrId = v;
     }
     docPrId++;
+    _lastDocPr = docPrId;
 
-    final para = addParagraphAfter(ref);
-    final run = XmlDocumentFragment.parse(
+    return XmlDocumentFragment.parse(
       '<w:r xmlns:w="$_nsW"><w:drawing>'
       '<wp:inline xmlns:wp="$_nsWp" distT="0" distB="0" distL="0" distR="0">'
       '<wp:extent cx="$cx" cy="$cy"/>'
@@ -454,13 +454,11 @@ class DocxEditor {
       '</pic:pic></a:graphicData></a:graphic></wp:inline>'
       '</w:drawing></w:r>',
     ).firstElementChild!.copy();
-    final el = para._element;
-    el.children
-      ..clear()
-      ..add(run);
-    para._markRich();
-    return para;
   }
+
+  /// Bu oturumda verilen son `wp:docPr` kimliği — henüz belgeye girmemiş
+  /// (canlı görünümde bekleyen) resimler aynı kimliği almasın.
+  int _lastDocPr = 0;
 
   /// Paragraftaki resim sayısı (`w:drawing` + eski `w:pict`).
   int imageCount(int index) {
@@ -843,7 +841,38 @@ class DocxEditor {
 
   void _setToggle(XmlElement rPr, String name, bool on) {
     _removeElems(rPr, (e) => e.name.qualified == name);
-    if (on) rPr.children.insert(0, XmlElement(XmlName(name)));
+    if (on) _putOrdered(rPr, XmlElement(XmlName(name)));
+  }
+
+  /// `w:rPr` çocuklarının şema sırası (CT_RPr). Word sıra dışı öğeyi
+  /// "dosya bozuk" sayabildiği için yeni öğe DAİMA yerine konur.
+  static const _rPrOrder = [
+    'w:rStyle', 'w:rFonts', 'w:b', 'w:bCs', 'w:i', 'w:iCs', 'w:caps',
+    'w:smallCaps', 'w:strike', 'w:dstrike', 'w:outline', 'w:shadow',
+    'w:emboss', 'w:imprint', 'w:noProof', 'w:snapToGrid', 'w:vanish',
+    'w:webHidden', 'w:color', 'w:spacing', 'w:w', 'w:kern', 'w:position',
+    'w:sz', 'w:szCs', 'w:highlight', 'w:u', 'w:effect', 'w:bdr', 'w:shd',
+    'w:fitText', 'w:vertAlign', 'w:rtl', 'w:cs', 'w:em', 'w:lang',
+    'w:eastAsianLayout', 'w:specVanish', 'w:oMath',
+  ];
+
+  static void _putOrdered(XmlElement rPr, XmlElement el) {
+    final rank = _rPrOrder.indexOf(el.name.qualified);
+    if (rank < 0) {
+      rPr.children.add(el);
+      return;
+    }
+    var at = rPr.children.length;
+    for (var k = 0; k < rPr.children.length; k++) {
+      final c = rPr.children[k];
+      if (c is! XmlElement) continue;
+      final r = _rPrOrder.indexOf(c.name.qualified);
+      if (r > rank || r < 0 && c.name.qualified == 'w:rPrChange') {
+        at = k;
+        break;
+      }
+    }
+    rPr.children.insert(at, el);
   }
 
   /// Yazı tipi ailesi. Word dört ayrı alan tutar (ascii / hAnsi / cs / eastAsia);
@@ -855,8 +884,8 @@ class DocxEditor {
       ..setAttribute('w:ascii', font)
       ..setAttribute('w:hAnsi', font)
       ..setAttribute('w:cs', font);
-    // rPr'nin ilk çocuğu olmalı (CT_RPr sırası: rFonts → b → i → …).
-    rPr.children.insert(0, el);
+    // CT_RPr sırası: rStyle → rFonts → b → i → …
+    _putOrdered(rPr, el);
   }
 
   /// Punto. Dosyada **yarım punto** cinsindendir (12 pt → `w:sz w:val="24"`).
@@ -865,16 +894,16 @@ class DocxEditor {
     final half = (pt.clamp(1.0, 409.0) * 2).round();
     _removeElems(rPr,
         (e) => e.name.qualified == 'w:sz' || e.name.qualified == 'w:szCs');
-    rPr.children.add(XmlElement(XmlName('w:sz'))..setAttribute('w:val', '$half'));
-    rPr.children
-        .add(XmlElement(XmlName('w:szCs'))..setAttribute('w:val', '$half'));
+    _putOrdered(rPr, XmlElement(XmlName('w:sz'))..setAttribute('w:val', '$half'));
+    _putOrdered(
+        rPr, XmlElement(XmlName('w:szCs'))..setAttribute('w:val', '$half'));
   }
 
   void _setUnderline(XmlElement rPr, bool on) {
     _removeElems(rPr, (e) => e.name.qualified == 'w:u');
     if (on) {
       final u = XmlElement(XmlName('w:u'))..setAttribute('w:val', 'single');
-      rPr.children.add(u);
+      _putOrdered(rPr, u);
     }
   }
 
@@ -882,7 +911,7 @@ class DocxEditor {
   /// "otomatik" (temadan gelen) renk demektir.
   void _setColor(XmlElement rPr, String hex) {
     _removeElems(rPr, (e) => e.name.qualified == 'w:color');
-    rPr.children.add(
+    _putOrdered(rPr,
         XmlElement(XmlName('w:color'))..setAttribute('w:val', hex.toUpperCase()));
   }
 
@@ -914,11 +943,11 @@ class DocxEditor {
     final upper = hex.toUpperCase();
     final named = _highlightNames[upper];
     if (named != null) {
-      rPr.children.add(
+      _putOrdered(rPr,
           XmlElement(XmlName('w:highlight'))..setAttribute('w:val', named));
       return;
     }
-    rPr.children.add(XmlElement(XmlName('w:shd'))
+    _putOrdered(rPr, XmlElement(XmlName('w:shd'))
       ..setAttribute('w:val', 'clear')
       ..setAttribute('w:color', 'auto')
       ..setAttribute('w:fill', upper));

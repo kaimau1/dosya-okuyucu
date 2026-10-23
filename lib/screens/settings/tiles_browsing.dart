@@ -208,6 +208,23 @@ class AutoSaveTile extends StatelessWidget {
   }
 }
 
+/// Word canlı düzenlemede yazım denetimi / otomatik düzeltme (Faz 21 / W8).
+class WordSpellcheckTile extends StatelessWidget {
+  const WordSpellcheckTile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
+    return SettingSwitch(
+      icon: AppIcons.spellcheck,
+      title: context.t('word.spellcheck'),
+      subtitle: context.t('word.spellcheck_sub'),
+      value: appState.wordSpellcheck,
+      onChanged: appState.setWordSpellcheck,
+    );
+  }
+}
+
 /// Medyanın uygulama içinde mi, sistem oynatıcısında mı açılacağı.
 class MediaOpenWithTile extends StatelessWidget {
   const MediaOpenWithTile({super.key});

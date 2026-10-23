@@ -77,6 +77,7 @@ class AppState extends ChangeNotifier {
   static const _kPeerRecent = 'peer_recent_devices';
   static const _kResumePosition = 'resume_position';
   static const _kAutoSave = 'doc_auto_save';
+  static const _kWordSpell = 'word_spellcheck';
   static const _kFmFolderSizes = 'fm_folder_sizes';
   static const _kMediaShuffle = 'media_shuffle';
   static const _kMediaRepeat = 'media_repeat';
@@ -389,6 +390,7 @@ class AppState extends ChangeNotifier {
   bool _fmThumbnails = true;
   bool _resumePosition = true;
   bool _autoSave = true;
+  bool _wordSpell = true;
   bool _fmFolderSizes = false;
   bool _mediaShuffle = false;
   int _mediaRepeat = 0;
@@ -477,6 +479,16 @@ class AppState extends ChangeNotifier {
     _autoSave = value;
     EditPrefs.autoSave = value;
     await _prefs.setBool(_kAutoSave, value);
+    notifyListeners();
+  }
+
+  /// Belgeler > Word yazım denetimi (Faz 21 / W8, varsayılan AÇIK).
+  bool get wordSpellcheck => _wordSpell;
+
+  Future<void> setWordSpellcheck(bool value) async {
+    _wordSpell = value;
+    EditPrefs.wordSpellcheck = value;
+    await _prefs.setBool(_kWordSpell, value);
     notifyListeners();
   }
 
@@ -741,6 +753,8 @@ class AppState extends ChangeNotifier {
     _resumePosition = _prefs.getBool(_kResumePosition) ?? true;
     _autoSave = _prefs.getBool(_kAutoSave) ?? true;
     EditPrefs.autoSave = _autoSave;
+    _wordSpell = _prefs.getBool(_kWordSpell) ?? true;
+    EditPrefs.wordSpellcheck = _wordSpell;
     // Servisler `AppState`i tanımıyor; anahtar oraya buradan geçiyor.
     PlaybackPositions.enabled = _resumePosition;
     ReadingPositions.enabled = _resumePosition;

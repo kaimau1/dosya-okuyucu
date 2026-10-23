@@ -121,6 +121,9 @@
      OLMAYAN her paragrafta sıfırlanır: art arda gelen numaralı paragraflar
      1,2,3 sayar, araya düz metin girince yeni liste 1'den başlar — Word de
      böyle davranır. */
+  /* Dokunulmaz ada (köprü, alan, dipnot başvurusu, sekme, resim — Faz 21):
+     düzenlerken Word'ün alan gölgesi gibi hafifçe belli olur. */
+  article[contenteditable="true"] .fk-island { background: rgba(0,0,0,.06); border-radius: 2px; }
   p:not([data-fk-list="number"]) { counter-reset: fklist; }
   p[data-fk-list] { padding-inline-start: 26px !important; position: relative; }
   p[data-fk-list="bullet"]::before {
@@ -168,6 +171,7 @@
         useBase64URL: true
       }).then(function () {
         fixSymbolFonts();
+        prepareMarkers();
         fitPage();
         reportPages();
         // Görseller/yerleşim geciken sayfalar için ikinci tur — sayfa sayısı
@@ -299,13 +303,27 @@
     });
   }
 
-  // ---- Canlı düzenleme köprüsü -------------------------------------------
-  // Sayfa contenteditable yapılır; değişen paragraf 250ms sonra Flutter'a
-  // {i: paragrafIndeksi, segs: [[metin,b,i,u],...]} olarak gönderilir (Kalem
-  // kanalı). Paragraf sırası document.xml'deki w:p sırasıyla birebirdir
-  // (başlık/altbilgi article dışında kaldığı için sayılmaz).
+  // ---- Canlı düzenleme köprüsü (Faz 21a, 2026-10-23) ----------------------
+  // KİMLİK TABANLI EŞLEME: Flutter görünüme işaretli bir kopya gönderir; her
+  // w:p'nin başında `_fkp<i>` yer imi vardır (docx-preview onu
+  // <span id="_fkp<i>"> çizer). Eskiden "DOM'daki <p> sırası = document.xml
+  // sırası" sayılıyordu; docx-preview Word'ün `w:lastRenderedPageBreak`
+  // işaretinde paragrafı İKİYE böldüğü için Word'de kaydedilmiş çok sayfalı
+  // belgelerde sayı tutmuyor, düzenleme hiç açılmıyordu (W1).
+  // * <p data-fkp="i">  : modelin i. paragrafı (ilk parçası)
+  // * <p data-fkc="i">  : sayfa kırmada bölünmüş i. paragrafın devamı
+  // * <p data-fkx>      : modelde karşılığı olmayan (düzenlenemez)
+  // DOKUNULMAZ ADALAR (W4): `_fkis<k>` … `_fkie<k>` arasındaki parça (köprü,
+  // alan, dipnot başvurusu, sekme, resim …) contenteditable=false bir çipe
+  // sarılır; parçalarda "￼" + ada kimliği olarak gider, XML'de özgün
+  // düğüm yerinde kalır.
   var EDIT = false;
+  var SPELL = true;
   var pending = {};
+  var PARTS = [];          // model indeksi → [ilk parça, devam parçaları…]
+  var KNOWN = new WeakSet(); // önceki hâli (base) Flutter'a gitmiş paragraflar
+  var BASE = new Map();      // ilk parça → düzenleme öncesi parçalar
+  var TOKEN = 0;
 
   function articles() {
     var a = document.querySelectorAll('.docx-wrapper section.docx article');
@@ -320,44 +338,121 @@
     return out;
   }
 
-  // Paragraf listesi düzenleme boyunca önbellekte tutulur: her tuş vuruşunda
-  // tüm belgeyi taramak büyük dosyalarda yazmayı kastırıyordu.
-  var cachedParas = null;
-
-  function setEditable(on) {
-    EDIT = !!on;
-    articles().forEach(function (a) {
-      a.contentEditable = EDIT ? 'true' : 'false';
-      a.spellcheck = false; // kırmızı dalgalı çizgi + denetim maliyeti olmasın
-      a.setAttribute('autocorrect', 'off');
-      a.setAttribute('autocapitalize', 'off');
+  // Çizimden hemen sonra bir kez: adalar sarılır, paragraflar işaretlenir.
+  function prepareMarkers() {
+    document.querySelectorAll('#container span[id^="_fkis"]').forEach(function (st) {
+      var id = st.id.substring(5);
+      var nodes = [], n = st.nextSibling, end = null;
+      while (n) {
+        if (n.nodeType === 1 && n.id === '_fkie' + id) { end = n; break; }
+        nodes.push(n);
+        n = n.nextSibling;
+      }
+      if (!end) { st.parentNode.removeChild(st); return; }
+      var w = document.createElement('span');
+      w.className = 'fk-island';
+      w.setAttribute('contenteditable', 'false');
+      w.setAttribute('data-fki', id);
+      st.parentNode.insertBefore(w, st);
+      nodes.forEach(function (x) { w.appendChild(x); });
+      st.parentNode.removeChild(st);
+      end.parentNode.removeChild(end);
     });
-    cachedParas = EDIT ? paraList() : null;
-    if (!EDIT && document.activeElement) document.activeElement.blur();
-    // Düzenleme açılınca imleç İLK paragrafa konur ve klavye açılır.
-    // (2026-08-17: yeni/boş belgede dokunulacak yazı yok — boş bir paragrafın
-    // yüksekliği bir satır kadar ve tam ortasına isabet ettirmek gerekiyordu;
-    // kullanıcı "düzenle ekranında yazı yazılmıyor" diye bildirdi.)
-    if (EDIT) focusStart();
-    // Flutter, paragraf sayısını kendi listesiyle karşılaştırıp eşleşmezse
-    // düzenlemeyi kapatır (yanlış paragrafa yazma sigortası).
-    if (EDIT && window.Kalem) {
-      window.Kalem.postMessage(JSON.stringify({ n: cachedParas.length }));
+    document.querySelectorAll('#container span[id^="_fkie"]').forEach(function (e) {
+      e.parentNode.removeChild(e);
+    });
+    document.querySelectorAll('#container span[id^="_fkp"]').forEach(function (m) {
+      var p = m.closest('p');
+      if (p) p.setAttribute('data-fkp', m.id.substring(4));
+      m.parentNode.removeChild(m);
+    });
+    var arts = articles();
+    for (var a = 0; a < arts.length; a++) {
+      arts[a].querySelectorAll('p').forEach(function (p) {
+        if (p.hasAttribute('data-fkp')) return;
+        var art = arts[a];
+        var prev = a > 0 ? arts[a - 1].lastElementChild : null;
+        if (p.parentElement === art && p === art.firstElementChild &&
+            prev && prev.tagName === 'P' && prev.hasAttribute('data-fkp')) {
+          p.setAttribute('data-fkc', prev.getAttribute('data-fkp'));
+        } else {
+          p.setAttribute('data-fkx', '1');
+          p.setAttribute('contenteditable', 'false');
+        }
+      });
     }
+    indexParas();
   }
 
-  // İmleci belgenin ilk paragrafının başına koyar ve düzenlenebilir kapsayıcıya
-  // odak verir → Android klavyesi açılır. Paragraf yoksa (bozuk/boş çizim)
-  // sessizce vazgeçilir; çağıran zaten paragraf sayısını da bildiriyor.
+  function idxOfEl(p) {
+    if (!p) return -1;
+    var v = p.getAttribute('data-fkp');
+    if (v === null) v = p.getAttribute('data-fkc');
+    return v === null ? -1 : parseInt(v, 10);
+  }
+
+  // Bir düğümün ait olduğu model paragrafı (-1: düzenlenebilir değil).
+  function idxAtNode(n) {
+    while (n && n.nodeType !== 1) n = n.parentNode;
+    while (n && n.closest) {
+      var p = n.closest('p');
+      if (!p) return -1;
+      var i = idxOfEl(p);
+      if (i >= 0) return i;
+      n = p.parentNode;
+    }
+    return -1;
+  }
+
+  function indexParas() {
+    PARTS = [];
+    paraList().forEach(function (p) {
+      var i = idxOfEl(p);
+      if (i < 0) return;
+      if (!PARTS[i]) PARTS[i] = [];
+      if (p.hasAttribute('data-fkp')) PARTS[i].unshift(p); else PARTS[i].push(p);
+    });
+  }
+
+  // İşaretli paragraf sayısı; delik varsa -1 (eşleme güvensiz).
+  function markedCount() {
+    for (var k = 0; k < PARTS.length; k++) {
+      if (!PARTS[k] || !PARTS[k][0] || !PARTS[k][0].hasAttribute('data-fkp')) return -1;
+    }
+    return PARTS.length;
+  }
+
+  function post(o) { if (window.Kalem) window.Kalem.postMessage(JSON.stringify(o)); }
+
+  function setEditable(on, spell) {
+    EDIT = !!on;
+    if (typeof spell === 'boolean') SPELL = spell;
+    articles().forEach(function (a) {
+      a.contentEditable = EDIT ? 'true' : 'false';
+      // Telefon klavyesinin yarısı (yazım denetimi, otomatik düzeltme,
+      // cümle başı büyük harf) artık açık (W8); ayardan kapatılabilir.
+      a.spellcheck = EDIT && SPELL;
+      a.setAttribute('autocorrect', SPELL ? 'on' : 'off');
+      a.setAttribute('autocapitalize', SPELL ? 'sentences' : 'off');
+    });
+    if (EDIT) indexParas();
+    if (!EDIT && document.activeElement) document.activeElement.blur();
+    // Düzenleme açılınca imleç İLK paragrafa konur ve klavye açılır.
+    if (EDIT) focusStart();
+    // Flutter, işaretli paragraf sayısını kendi listesiyle karşılaştırır.
+    if (EDIT) post({ n: markedCount() });
+    postHist();
+  }
+
   function focusStart() {
-    var paras = cachedParas && cachedParas.length ? cachedParas : paraList();
     var host = articles()[0];
     if (!host) return;
     try {
       host.focus({ preventScroll: true });
-      if (!paras.length) return;
+      var first = PARTS[0] && PARTS[0][0];
+      if (!first) return;
       var range = document.createRange();
-      range.setStart(paras[0], 0);
+      range.setStart(first, 0);
       range.collapse(true);
       var sel = window.getSelection();
       sel.removeAllRanges();
@@ -365,77 +460,536 @@
     } catch (e) { /* seçim API'si yoksa: odak yeter */ }
   }
 
-  // Yapı beklenmedik şekilde değiştiyse (sigorta): sayıyı yeniden bildir.
-  function structureChanged() {
-    cachedParas = paraList();
-    if (window.Kalem) {
-      window.Kalem.postMessage(JSON.stringify({ n: cachedParas.length }));
-    }
+  // Beklenmedik yapı (tarayıcı kendi <p>'sini üretti): sigorta.
+  function structureOk() {
+    var bad = false;
+    articles().forEach(function (a) {
+      a.querySelectorAll('p').forEach(function (p) {
+        if (!p.hasAttribute('data-fkp') && !p.hasAttribute('data-fkc') &&
+            !p.hasAttribute('data-fkx')) bad = true;
+      });
+    });
+    if (bad) post({ n: -1 });
+    return !bad;
   }
 
-  // Bir parça = [metin, kalın, italik, altçizgi, yazıTipi|null, punto|null].
-  // Yazı tipi/punto YALNIZ kullanıcı açıkça seçtiyse (paragrafta data-fk-*
-  // işareti varsa) doldurulur. Hesaplanmış değeri koşulsuz göndermek,
-  // dosyadaki STİLDEN gelen fontu her düzenlemede satır içi bir w:rFonts'a
-  // dondururdu (bkz. DocxEditor.setRuns yorumu).
-  // Renk/vurgu YALNIZ kullanıcı verdiyse (data-fk-color / data-fk-hl işaretli
-  // bir kapsayıcının içindeyse) taşınır. Hesaplanmış rengi koşulsuz göndermek
-  // temadan/stilden gelen rengi her düzenlemede satır içi bir w:color'a
-  // dondururdu — yazı tipiyle aynı gerekçe.
-  // Faz 9: yazı tipi/punto artık SEÇİME de verilebiliyor — işaret
-  // (data-fk-font / data-fk-size) paragrafta olabileceği gibi seçimi saran bir
-  // <span>'da da olabilir; en içteki işaret geçerlidir.
-  function segsOf(p) {
-    var out = [];
-    function walk(node, b, i, u, col, hl, font, size) {
+  // Bir parça = [metin, kalın, italik, altçizgi, yazıTipi|null, punto|null,
+  // renk|null, vurgu|null, üstüÇizili, adaKimliği|undefined]. Yazı tipi /
+  // punto / renk / vurgu YALNIZ kullanıcı açıkça seçtiyse (data-fk-* işareti)
+  // doldurulur — hesaplanmış değeri göndermek stilden gelen biçimi satır içi
+  // dondururdu.
+  function segsOfEl(p, out) {
+    function walk(node, b, i, u, col, hl, font, size, s) {
       if (node.nodeType === 3) {
-        if (node.textContent) {
-          out.push([node.textContent, b, i, u, font, size, col, hl]);
-        }
+        if (node.textContent) out.push([node.textContent, b, i, u, font, size, col, hl, s]);
         return;
       }
       if (node.nodeType !== 1) return;
-      // Ekranda Unicode'a çevrilmiş Symbol/Wingdings karakteri: Flutter'a
-      // belgedeki ÖZGÜN karakter gider (bkz. fixSymbolFonts).
-      // İmleç simgenin hemen sonundaysa yazılan metin aynı <span>'e girer:
-      // gösterilen simge başta durdukça özgünü + eklenen metin gider.
+      var isl = node.getAttribute('data-fki');
+      if (isl !== null) {
+        out.push(['￼', b, i, u, font, size, col, hl, s, parseInt(isl, 10)]);
+        return;
+      }
       var sym = node.getAttribute('data-fk-sym');
       var shown = node.getAttribute('data-fk-sym-shown');
-      if (sym !== null && shown !== null &&
-          node.textContent.indexOf(shown) === 0) {
-        out.push([sym, b, i, u, font, size, col, hl]);
+      if (sym !== null && shown !== null && node.textContent.indexOf(shown) === 0) {
+        out.push([sym, b, i, u, font, size, col, hl, s]);
         var rest = node.textContent.substring(shown.length);
-        if (rest) out.push([rest, b, i, u, font, size, col, hl]);
+        if (rest) out.push([rest, b, i, u, font, size, col, hl, s]);
         return;
       }
       if (node.nodeName === 'BR') {
-        out.push(['\n', b, i, u, font, size, col, hl]);
+        // Tarayıcının boş satıra koyduğu sondaki <br> metin değildir.
+        var trailing = node.nextSibling === null && node.parentNode === p;
+        if (!node.hasAttribute('data-fk-ph') && !trailing) {
+          out.push(['\n', b, i, u, font, size, col, hl, s]);
+        }
         return;
       }
       var cs = window.getComputedStyle(node);
       var nb = b || parseInt(cs.fontWeight, 10) >= 600 || cs.fontWeight === 'bold';
       var ni = i || cs.fontStyle === 'italic';
-      var nu = u || ((cs.textDecorationLine || cs.textDecoration || '')
-                       .indexOf('underline') >= 0);
+      var deco = cs.textDecorationLine || cs.textDecoration || '';
+      var nu = u || deco.indexOf('underline') >= 0;
+      var ns = s || deco.indexOf('line-through') >= 0;
       var nc = node.getAttribute('data-fk-color') || col;
       var nh = node.getAttribute('data-fk-hl') || hl;
       var nf = node.getAttribute('data-fk-font') || font;
       var sa = node.getAttribute('data-fk-size');
-      var ns = sa ? parseFloat(sa) : size;
+      var nsz = sa ? parseFloat(sa) : size;
       for (var c = node.firstChild; c; c = c.nextSibling) {
-        walk(c, nb, ni, nu, nc, nh, nf, ns);
+        walk(c, nb, ni, nu, nc, nh, nf, nsz, ns);
       }
     }
-    walk(p, false, false, false, null, null, null, null);
+    walk(p, false, false, false, null, null, null, null, false);
     return out;
   }
 
+  function segsOf(i) {
+    var out = [];
+    (PARTS[i] || []).forEach(function (p) { segsOfEl(p, out); });
+    return out;
+  }
+
+  // Düzenleme ÖNCESİ hâl: ilk değişiklikte bir kez alınır, Flutter fark
+  // hesabını buna göre yapar (el değmeyen run'lar ve biçimleri korunur).
+  function captureBase(i) {
+    var main = PARTS[i] && PARTS[i][0];
+    if (!main || KNOWN.has(main) || BASE.has(main)) return;
+    BASE.set(main, segsOf(i));
+  }
+
+  function takeBase(i) {
+    var main = PARTS[i] && PARTS[i][0];
+    if (!main) return undefined;
+    var b = BASE.get(main);
+    if (b === undefined && !KNOWN.has(main)) b = segsOf(i);
+    BASE.delete(main);
+    KNOWN.add(main);
+    return b;
+  }
+
+  function sendPara(idx) {
+    clearTimeout(pending[idx]);
+    delete pending[idx];
+    if (!PARTS[idx] || !structureOk()) return;
+    var msg = { i: idx, segs: segsOf(idx) };
+    var base = takeBase(idx);
+    if (base !== undefined) msg.base = base;
+    post(msg);
+  }
+
+  // Bekleyen (gecikmeli) gönderimleri hemen yollar — yapısal bir işlemden
+  // önce Flutter'ın modeli DOM ile aynı olmalı.
+  function flushAll() {
+    Object.keys(pending).forEach(function (k) { sendPara(parseInt(k, 10)); });
+  }
+
+  function paraAtCaret() {
+    var s = window.getSelection();
+    var i = s && s.anchorNode ? idxAtNode(s.anchorNode) : -1;
+    return i >= 0 && PARTS[i] ? PARTS[i][0] : null;
+  }
+
+  window.caretParaIndex = function () {
+    var s = window.getSelection();
+    return s && s.anchorNode ? idxAtNode(s.anchorNode) : -1;
+  };
+
+  // ---- Geri al / yinele (W5) ---------------------------------------------
+  // Paragraf düzeyi anlık görüntüler (innerHTML). Yazma birleşir: aynı
+  // paragrafta 1 sn içindeki ardışık yazım tek adım; boşlukta (kelime
+  // sınırı) kesilir — Word gibi. Yapısal işlemler (böl/birleştir/çoklu sil)
+  // Flutter'daki XML anlık görüntüsüyle (token) birlikte geri alınır.
+  var UNDO = [], REDO = [];
+  var MAXH = 200;
+
+  function shellOf(p) {
+    var o = {};
+    for (var k = 0; k < p.attributes.length; k++) {
+      var a = p.attributes[k];
+      if (a.name === 'data-fkp' || a.name === 'data-fkc') continue;
+      o[a.name] = a.value;
+    }
+    return o;
+  }
+
+  function snapPara(i) {
+    var parts = PARTS[i] || [];
+    return {
+      shell: parts[0] ? shellOf(parts[0]) : {},
+      html: parts.map(function (p) { return p.innerHTML; })
+    };
+  }
+
+  function pushHist(e) {
+    UNDO.push(e);
+    if (UNDO.length > MAXH) UNDO.shift();
+    REDO = [];
+    postHist();
+  }
+
+  function postHist() {
+    post({ hist: { u: EDIT && UNDO.length > 0, r: EDIT && REDO.length > 0 } });
+  }
+
+  // Yazma / biçim adımı: [idxs] paragraflarının önceki hâli.
+  function noteEdit(idxs, typing, data) {
+    var now = Date.now();
+    var top = UNDO[UNDO.length - 1];
+    if (typing && top && top.kind === 'edit' && top.typing &&
+        top.idxs.length === 1 && top.idxs[0] === idxs[0] &&
+        now - top.t < 1000 && !top.closed) {
+      top.t = now;
+      if (data && /\s/.test(data)) top.closed = true;
+      return;
+    }
+    var before = {};
+    idxs.forEach(function (i) { before[i] = snapPara(i); });
+    pushHist({ kind: 'edit', idxs: idxs.slice(), before: before, typing: !!typing,
+      t: now, closed: !!(data && /\s/.test(data)) });
+  }
+
+  function restorePara(i, snap) {
+    var parts = PARTS[i] || [];
+    if (parts.length === snap.html.length) {
+      parts.forEach(function (p, k) { p.innerHTML = snap.html[k]; });
+    } else if (parts[0]) {
+      parts[0].innerHTML = snap.html.join('');
+      for (var k = 1; k < parts.length; k++) parts[k].innerHTML = '';
+    }
+  }
+
+  // [i]'den başlayan [count] paragrafı [items] ile değiştirir (yapısal geri
+  // al/yinele). Yeni paragraflar ilk paragrafın sayfasına konur.
+  function replaceRange(i, count, items) {
+    var anchor = PARTS[i] && PARTS[i][0];
+    if (!anchor) return;
+    var mark = document.createComment('fk');
+    anchor.parentNode.insertBefore(mark, anchor);
+    for (var k = i; k < i + count; k++) {
+      (PARTS[k] || []).forEach(function (p) {
+        if (p.parentNode) p.parentNode.removeChild(p);
+      });
+    }
+    renumber(i + count, items.length - count);
+    items.forEach(function (it, k) {
+      var p = document.createElement('p');
+      Object.keys(it.shell).forEach(function (n) { p.setAttribute(n, it.shell[n]); });
+      p.innerHTML = it.html.join('');
+      p.setAttribute('data-fkp', '' + (i + k));
+      mark.parentNode.insertBefore(p, mark);
+      KNOWN.add(p);
+    });
+    mark.parentNode.removeChild(mark);
+    indexParas();
+  }
+
+  function undoRedo(isUndo) {
+    if (!EDIT) return;
+    flushAll();
+    var e = (isUndo ? UNDO : REDO).pop();
+    if (!e) return;
+    if (e.kind === 'edit') {
+      var other = {};
+      e.idxs.forEach(function (i) { other[i] = snapPara(i); });
+      e.idxs.forEach(function (i) { restorePara(i, e.before[i]); });
+      e.before = other;
+      e.idxs.forEach(function (i) { sendPara(i); });
+    } else {
+      var from = isUndo ? e.after : e.before;
+      var to = isUndo ? e.before : e.after;
+      replaceRange(e.i, from.length, to);
+      var segs = [];
+      for (var k = 0; k < to.length; k++) segs.push(segsOf(e.i + k));
+      post({ restore: e.tok, undo: isUndo, segs: segs });
+    }
+    (isUndo ? REDO : UNDO).push(e);
+    postHist();
+  }
+  window.undoEdit = function () { undoRedo(true); };
+  window.redoEdit = function () { undoRedo(false); };
+
+  // ---- Yapısal işlemler (W2/W3) ---------------------------------------------
+  function renumber(from, delta) {
+    if (!delta) return;
+    document.querySelectorAll('#container p[data-fkp], #container p[data-fkc]').forEach(function (p) {
+      var a = p.hasAttribute('data-fkp') ? 'data-fkp' : 'data-fkc';
+      var v = parseInt(p.getAttribute(a), 10);
+      if (v >= from) p.setAttribute(a, '' + (v + delta));
+    });
+  }
+
+  // Düğümler arası atom sayısı (harf, satır sonu ve ada birer).
+  function atomsIn(node) {
+    if (node.nodeType === 3) return node.textContent.length;
+    if (node.nodeType !== 1 && node.nodeType !== 11) return 0;
+    if (node.nodeType === 1) {
+      if (node.getAttribute('data-fki') !== null) return 1;
+      if (node.nodeName === 'BR') return node.hasAttribute && node.hasAttribute('data-fk-ph') ? 0 : 1;
+      var sym = node.getAttribute('data-fk-sym');
+      if (sym !== null) return sym.length + Math.max(0,
+          node.textContent.length - (node.getAttribute('data-fk-sym-shown') || '').length);
+    }
+    var n = 0;
+    for (var c = node.firstChild; c; c = c.nextSibling) n += atomsIn(c);
+    return n;
+  }
+
+  // İmlecin [i] paragrafındaki atom konumu (devam parçaları dahil).
+  function caretOffset(i, r) {
+    var parts = PARTS[i];
+    var n = 0;
+    for (var k = 0; k < parts.length; k++) {
+      var p = parts[k];
+      if (p.contains(r.startContainer) || p === r.startContainer) {
+        var pre = document.createRange();
+        pre.setStart(p, 0);
+        pre.setEnd(r.startContainer, r.startOffset);
+        return n + atomsIn(pre.cloneContents());
+      }
+      n += atomsIn(p);
+    }
+    return n;
+  }
+
+  function placeholder(p) {
+    if (!p.firstChild || (p.textContent === '' && !p.querySelector('[data-fki],img,br'))) {
+      var br = document.createElement('br');
+      br.setAttribute('data-fk-ph', '1');
+      p.appendChild(br);
+    }
+  }
+
+  function dropPlaceholders(p) {
+    p.querySelectorAll('br[data-fk-ph]').forEach(function (b) { b.parentNode.removeChild(b); });
+  }
+
+  function caretAt(node, offset) {
+    var r = document.createRange();
+    r.setStart(node, offset);
+    r.collapse(true);
+    var s = window.getSelection();
+    s.removeAllRanges();
+    s.addRange(r);
+  }
+
+  // Enter: imleçte paragrafı böler. Yeni paragraf aynı biçimdedir.
+  function splitAtCaret() {
+    var s = window.getSelection();
+    if (!s || !s.rangeCount) return;
+    var r = s.getRangeAt(0);
+    if (!r.collapsed) { r.deleteContents(); r = s.getRangeAt(0); }
+    var i = idxAtNode(r.startContainer);
+    if (i < 0 || !PARTS[i]) return;
+    flushAll();
+    var base = takeBase(i);
+    var at = caretOffset(i, r);
+    var before = [snapPara(i)];
+    var parts = PARTS[i];
+    var k = 0;
+    while (k < parts.length && !parts[k].contains(r.startContainer) && parts[k] !== r.startContainer) k++;
+    if (k >= parts.length) k = parts.length - 1;
+    var host = parts[k];
+    var tail = document.createRange();
+    tail.setStart(r.startContainer, r.startOffset);
+    tail.setEnd(host, host.childNodes.length);
+    var frag = tail.extractContents();
+    var np = document.createElement('p');
+    var sh = shellOf(host);
+    Object.keys(sh).forEach(function (n) { np.setAttribute(n, sh[n]); });
+    np.removeAttribute('data-fkx');
+    np.appendChild(frag);
+    host.parentNode.insertBefore(np, host.nextSibling);
+    renumber(i + 1, 1);
+    np.setAttribute('data-fkp', '' + (i + 1));
+    // Bölünen paragrafın sonraki sayfadaki devamı artık yeni paragrafın.
+    for (var j = k + 1; j < parts.length; j++) parts[j].setAttribute('data-fkc', '' + (i + 1));
+    dropPlaceholders(host);
+    placeholder(host);
+    dropPlaceholders(np);
+    placeholder(np);
+    KNOWN.add(np);
+    indexParas();
+    caretAt(np, 0);
+    var tok = ++TOKEN;
+    var msg = { split: i, at: at, a: segsOf(i), b: segsOf(i + 1), tok: tok };
+    if (base !== undefined) msg.base = base;
+    post(msg);
+    pushHist({ kind: 'struct', tok: tok, i: i, before: before,
+      after: [snapPara(i), snapPara(i + 1)] });
+  }
+
+  function sameContainer(a, b) {
+    if (!a || !b) return false;
+    if (a.parentElement === b.parentElement) return true;
+    var aa = a.parentElement && a.parentElement.tagName === 'ARTICLE';
+    var bb = b.parentElement && b.parentElement.tagName === 'ARTICLE';
+    return aa && bb;
+  }
+
+  // Geri silme paragraf başında / ileri silme paragraf sonunda: [i]'yi
+  // bir öncekine katar.
+  function mergeInto(i) {
+    if (i <= 0 || !PARTS[i] || !PARTS[i - 1]) return;
+    var prevParts = PARTS[i - 1], cur = PARTS[i];
+    var target = prevParts[prevParts.length - 1];
+    if (!sameContainer(target, cur[0])) return;
+    flushAll();
+    var baseA = takeBase(i - 1), baseB = takeBase(i);
+    var before = [snapPara(i - 1), snapPara(i)];
+    dropPlaceholders(target);
+    var junction = target.childNodes.length;
+    var main = cur[0];
+    dropPlaceholders(main);
+    while (main.firstChild) target.appendChild(main.firstChild);
+    main.parentNode.removeChild(main);
+    for (var k = 1; k < cur.length; k++) cur[k].setAttribute('data-fkc', '' + (i - 1));
+    renumber(i + 1, -1);
+    placeholder(target);
+    indexParas();
+    try { caretAt(target, Math.min(junction, target.childNodes.length)); } catch (e) {}
+    var tok = ++TOKEN;
+    var msg = { merge: i, segs: segsOf(i - 1), tok: tok };
+    if (baseA !== undefined) msg.baseA = baseA;
+    if (baseB !== undefined) msg.baseB = baseB;
+    post(msg);
+    pushHist({ kind: 'struct', tok: tok, i: i - 1, before: before, after: [snapPara(i - 1)] });
+  }
+
+  // Birden çok paragrafı kapsayan seçimi siler (+ yazılan metni koyar).
+  function deleteAcross(r, text) {
+    var a = idxAtNode(r.startContainer), b = idxAtNode(r.endContainer);
+    if (a < 0 || b < 0 || b <= a) return false;
+    for (var k = a + 1; k <= b; k++) {
+      if (!PARTS[k] || !sameContainer(PARTS[k - 1][PARTS[k - 1].length - 1], PARTS[k][0])) return false;
+    }
+    flushAll();
+    var bases = [], before = [];
+    for (var j = a; j <= b; j++) { bases.push(takeBase(j)); before.push(snapPara(j)); }
+    var startHost = null;
+    PARTS[a].forEach(function (p) { if (p.contains(r.startContainer) || p === r.startContainer) startHost = p; });
+    var endParts = PARTS[b];
+    r.deleteContents();
+    var target = startHost || PARTS[a][0];
+    var src = null;
+    endParts.forEach(function (p) { if (p.parentNode && !src) src = p; });
+    var caretNode = target, caretOff = target.childNodes.length;
+    var s = window.getSelection();
+    if (s.rangeCount) { caretNode = s.getRangeAt(0).startContainer; caretOff = s.getRangeAt(0).startOffset; }
+    if (src && src !== target) {
+      dropPlaceholders(src);
+      while (src.firstChild) target.appendChild(src.firstChild);
+      src.parentNode.removeChild(src);
+    }
+    for (var m = a + 1; m <= b; m++) {
+      (PARTS[m] || []).forEach(function (p) {
+        if (!p.parentNode) return;
+        if (p.hasAttribute('data-fkc') && m === b) { p.setAttribute('data-fkc', '' + a); return; }
+        if (p.textContent === '' && !p.querySelector('[data-fki]')) p.parentNode.removeChild(p);
+        else p.setAttribute('data-fkc', '' + a);
+      });
+    }
+    renumber(b + 1, -(b - a));
+    indexParas();
+    try { caretAt(caretNode, caretOff); } catch (e) {}
+    if (text) document.execCommand('insertText', false, text);
+    dropPlaceholders(target);
+    placeholder(target);
+    var tok = ++TOKEN;
+    post({ mrange: [a, b], bases: bases, segs: segsOf(a), tok: tok });
+    pushHist({ kind: 'struct', tok: tok, i: a, before: before, after: [snapPara(a)] });
+    return true;
+  }
+
+  function rangeIsAtStart(i, r) {
+    var main = PARTS[i][0];
+    if (!(main.contains(r.startContainer) || main === r.startContainer)) return false;
+    var pre = document.createRange();
+    pre.setStart(main, 0);
+    pre.setEnd(r.startContainer, r.startOffset);
+    return atomsIn(pre.cloneContents()) === 0;
+  }
+
+  function rangeIsAtEnd(i, r) {
+    var parts = PARTS[i];
+    var last = parts[parts.length - 1];
+    if (!(last.contains(r.startContainer) || last === r.startContainer)) return false;
+    var post_ = document.createRange();
+    post_.setStart(r.startContainer, r.startOffset);
+    post_.setEnd(last, last.childNodes.length);
+    return atomsIn(post_.cloneContents()) === 0;
+  }
+
+  document.addEventListener('beforeinput', function (e) {
+    if (!EDIT) return;
+    var s = window.getSelection();
+    if (!s || !s.rangeCount) return;
+    var r = s.getRangeAt(0);
+    var t = e.inputType || '';
+    var a = idxAtNode(r.startContainer), b = idxAtNode(r.endContainer);
+    if (a < 0) return;
+    if (t === 'insertParagraph') {
+      e.preventDefault();
+      if (!r.collapsed && b > a && !deleteAcross(r, null)) return;
+      splitAtCaret();
+      return;
+    }
+    if (!r.collapsed && b > a) {
+      e.preventDefault();
+      var text = (t === 'insertText' || t === 'insertReplacementText') ? e.data : null;
+      deleteAcross(r, text);
+      return;
+    }
+    if (r.collapsed && t === 'deleteContentBackward' && rangeIsAtStart(a, r)) {
+      e.preventDefault();
+      mergeInto(a);
+      return;
+    }
+    if (r.collapsed && t === 'deleteContentForward' && rangeIsAtEnd(a, r)) {
+      e.preventDefault();
+      if (PARTS[a + 1]) mergeInto(a + 1);
+      return;
+    }
+    captureBase(a);
+    noteEdit([a], t.indexOf('insert') === 0 || t.indexOf('delete') === 0, e.data);
+  });
+
+  document.addEventListener('input', function () {
+    if (!EDIT) return;
+    var p = paraAtCaret();
+    if (!p) { structureOk(); return; }
+    var idx = idxOfEl(p);
+    dropPlaceholders(p);
+    clearTimeout(pending[idx]);
+    pending[idx] = setTimeout(function () { sendPara(idx); }, 250);
+  });
+
+  // Enter = yeni paragraf (Shift+Enter satır sonu). Android klavyelerinin
+  // bir kısmı beforeinput yerine yalnız keydown 13 yollar — iki yol da aynı
+  // işe çıkar.
+  document.addEventListener('keydown', function (e) {
+    if (!EDIT) return;
+    if (e.key === 'Enter' || e.keyCode === 13) {
+      e.preventDefault();
+      if (e.shiftKey) {
+        var i = window.caretParaIndex();
+        if (i >= 0) { captureBase(i); noteEdit([i], false); }
+        document.execCommand('insertLineBreak');
+      } else {
+        var s = window.getSelection();
+        if (s && s.rangeCount) {
+          var r = s.getRangeAt(0);
+          var a = idxAtNode(r.startContainer), b = idxAtNode(r.endContainer);
+          if (!r.collapsed && b > a && !deleteAcross(r, null)) return;
+        }
+        splitAtCaret();
+      }
+    }
+  });
+
+  // Yapıştırma düz metin; satır sonları yeni paragraf olur.
+  document.addEventListener('paste', function (e) {
+    if (!EDIT) return;
+    e.preventDefault();
+    var t = (e.clipboardData || window.clipboardData).getData('text/plain');
+    if (!t) return;
+    var lines = t.replace(/\r/g, '').split('\n');
+    var s = window.getSelection();
+    if (s && s.rangeCount) {
+      var r = s.getRangeAt(0);
+      var a = idxAtNode(r.startContainer), b = idxAtNode(r.endContainer);
+      if (!r.collapsed && b > a) deleteAcross(r, null);
+    }
+    lines.forEach(function (line, k) {
+      if (k > 0) splitAtCaret();
+      var i = window.caretParaIndex();
+      if (i >= 0) { captureBase(i); noteEdit([i], false); }
+      if (line) document.execCommand('insertText', false, line);
+    });
+  });
+
   // ---- Yazı rengi ve vurgu ------------------------------------------------
-  // Bunlar SEÇİME uygulanır (yazı tipinin aksine): bir cümlenin üç kelimesini
-  // sarıya boyamak Word'ün en sık kullanılan işlerinden. Güvenli olmasının
-  // nedeni `execCommand`ın `<span>` ÜRETMESİ — <p> sayısı değişmez, paragraf
-  // eşlemesi bozulmaz. Üretilen span'lar işaretlenir ki `segsOf` yalnız
-  // kullanıcının verdiği rengi taşısın.
   function rgbToHex(v) {
     if (!v) return null;
     var m = v.match(/rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
@@ -445,8 +999,6 @@
   }
 
   function markInline(p) {
-    // Paragrafın KENDİSİ de listede: seçim tüm paragrafı kapsıyorsa
-    // `execCommand` rengi <span> yerine doğrudan <p>'ye yazıyor.
     var els = [p].concat([].slice.call(p.querySelectorAll('[style]')));
     for (var k = 0; k < els.length; k++) {
       var el = els[k];
@@ -457,52 +1009,69 @@
     }
   }
 
-  // hex: "FF0000" · null = kaldır (rengi otomatiğe döndür).
+  // Seçimdeki model paragrafları: [{i, p: ilk parça, parts}].
+  function selectedParas() {
+    var s = window.getSelection();
+    if (!s || !s.anchorNode) return [];
+    var a = idxAtNode(s.anchorNode), f = idxAtNode(s.focusNode);
+    if (a < 0 && f < 0) return [];
+    if (a < 0) a = f;
+    if (f < 0) f = a;
+    var out = [];
+    for (var k = Math.min(a, f); k <= Math.max(a, f); k++) {
+      if (PARTS[k]) out.push({ i: k, p: PARTS[k][0], parts: PARTS[k] });
+    }
+    return out;
+  }
+
+  // Biçim işleminden önce: önceki hâl + geri al adımı.
+  function beforeFormat() {
+    var list = selectedParas();
+    if (!list.length) return list;
+    flushAll();
+    list.forEach(function (e) { captureBase(e.i); });
+    noteEdit(list.map(function (e) { return e.i; }), false);
+    return list;
+  }
+
   function applyInline(cmd, hex, attr) {
     if (!EDIT) return;
+    var paras = beforeFormat();
     document.execCommand('styleWithCSS', false, true);
     if (hex) {
       document.execCommand(cmd, false, '#' + hex);
     } else {
-      // "Yok": execCommand'in geri alması yok — seçimdeki işaretli span'ların
-      // stili elle temizlenir.
-      var paras = selectedParas();
-      for (var i = 0; i < paras.length; i++) {
-        var els = paras[i].p.querySelectorAll('[' + attr + ']');
-        for (var k = 0; k < els.length; k++) {
-          els[k].removeAttribute(attr);
-          if (attr === 'data-fk-color') els[k].style.color = '';
-          else els[k].style.backgroundColor = '';
-        }
-      }
+      paras.forEach(function (e) {
+        e.parts.forEach(function (p) {
+          var els = p.querySelectorAll('[' + attr + ']');
+          for (var k = 0; k < els.length; k++) {
+            els[k].removeAttribute(attr);
+            if (attr === 'data-fk-color') els[k].style.color = '';
+            else els[k].style.backgroundColor = '';
+          }
+        });
+      });
     }
-    selectedParas().forEach(function (e) {
-      markInline(e.p);
-      sendPara(e.i, e.p);
+    paras.forEach(function (e) {
+      e.parts.forEach(markInline);
+      sendPara(e.i);
     });
   }
 
   // ---- Madde işareti / numaralandırma -------------------------------------
   // `execCommand('insertUnorderedList')` BİLİNÇLİ olarak kullanılmıyor: <p>'yi
-  // <li>'ye çevirip paragraf sayısını değiştirir ve canlı düzenlemenin eşleme
-  // sigortası devreye girip düzenlemeyi tamamen kapatırdı. Bunun yerine liste
-  // PARAGRAF ÖZELLİĞİ: işaret CSS'ten çizilir, Word tarafında `w:numPr` olur —
-  // Word'ün kendi modeli de tam olarak budur.
+  // <li>'ye çevirip yapıyı bozar. Liste PARAGRAF ÖZELLİĞİ: işaret CSS'ten
+  // çizilir, Word tarafında `w:numPr` olur.
   window.setListStyle = function (kind) {
     if (!EDIT) return;
     selectedParas().forEach(function (e) {
-      if (kind === 'none' || e.p.getAttribute('data-fk-list') === kind) {
-        e.p.removeAttribute('data-fk-list');
-        if (window.Kalem) {
-          window.Kalem.postMessage(JSON.stringify({ list: { i: e.i, v: 'none' } }));
-        }
-      } else {
-        e.p.setAttribute('data-fk-list', kind);
-        if (window.Kalem) {
-          window.Kalem.postMessage(JSON.stringify({ list: { i: e.i, v: kind } }));
-        }
-      }
+      var off = kind === 'none' || e.p.getAttribute('data-fk-list') === kind;
+      e.parts.forEach(function (p) {
+        if (off) p.removeAttribute('data-fk-list'); else p.setAttribute('data-fk-list', kind);
+      });
+      post({ list: { i: e.i, v: off ? 'none' : kind } });
     });
+    syncSelectionState();
   };
 
   window.setTextColor = function (hex) {
@@ -512,75 +1081,38 @@
     applyInline('hiliteColor', hex || null, 'data-fk-hl');
   };
 
-  // Seçili metni Flutter'a verir (AI ile yeniden yazma, çeviri, arama kutusunu
-  // doldurma). Seçim yoksa boş dizi gider — çağıran uyarıyı kendisi gösterir.
-  // Seçim, alt sayfa (AI/çeviri) açılırken kaybolabilir → istek anında
-  // Range SAKLANIR ve sonucu yazarken o kullanılır.
   var SAVED_RANGE = null;
 
   window.sendSelectionText = function () {
     var s = window.getSelection();
     var t = s ? s.toString() : '';
     SAVED_RANGE = (s && s.rangeCount) ? s.getRangeAt(0).cloneRange() : null;
-    if (window.Kalem) {
-      window.Kalem.postMessage(JSON.stringify({ seltext: t }));
-    }
+    post({ seltext: t });
   };
 
-  // AI/çeviri sonucunu saklanan seçimin yerine yazar. Metin düğümü düzeyinde
-  // çalışır → <p> sayısı sabit, paragraf eşlemesi güvende.
+  // AI/çeviri sonucunu saklanan seçimin yerine yazar (tek paragraf içinde).
   window.replaceSelectionText = function (text) {
     if (!EDIT || !SAVED_RANGE) return;
-    var list = paraList();
-    var node = SAVED_RANGE.startContainer;
-    while (node && node.nodeType !== 1) node = node.parentNode;
-    var p = node && node.closest ? node.closest('p') : null;
+    var i = idxAtNode(SAVED_RANGE.startContainer);
+    if (i >= 0) {
+      flushAll();
+      captureBase(i);
+      noteEdit([i], false);
+    }
     SAVED_RANGE.deleteContents();
     if (text) SAVED_RANGE.insertNode(document.createTextNode(text));
-    if (p) {
-      p.normalize();
-      var idx = list.indexOf(p);
-      if (idx >= 0) sendPara(idx, p);
+    if (i >= 0) {
+      PARTS[i].forEach(function (p) { p.normalize(); });
+      sendPara(i);
     }
     SAVED_RANGE = null;
   };
 
   // ---- Yazı tipi ve punto -------------------------------------------------
-  // Seçime değil **paragrafa** uygulanır. Nedeni yapısal: canlı düzenlemenin
-  // tamamı "DOM'daki <p> sırası = document.xml'deki w:p sırası" varsayımına
-  // dayanıyor; seçimi span'la sarmak (surroundContents/extractContents)
-  // paragraf sınırını aşan seçimlerde <p> bölebilir ve eşleme bozulunca
-  // sigorta düzenlemeyi tamamen kapatır. Paragraf stili DOM'u DEĞİŞTİRMEZ.
-  function selectedParas() {
-    var s = window.getSelection();
-    var list = paraList();
-    if (!s || !s.anchorNode) return [];
-    function idxOf(node) {
-      while (node && node.nodeType !== 1) node = node.parentNode;
-      var p = node && node.closest ? node.closest('p') : null;
-      return p ? list.indexOf(p) : -1;
-    }
-    var a = idxOf(s.anchorNode), f = idxOf(s.focusNode);
-    if (a < 0 && f < 0) return [];
-    if (a < 0) a = f;
-    if (f < 0) f = a;
-    var out = [];
-    for (var k = Math.min(a, f); k <= Math.max(a, f); k++) {
-      out.push({ i: k, p: list[k] });
-    }
-    return out;
-  }
-
-  // **Seçime uygulanan yazı tipi/punto** (Faz 9 — KALANLAR "punto PARAGRAF
-  // düzeyinde"). Renkteki yöntemin aynısı: `execCommand` seçimi <span>'larla
-  // sarar, <p> sayısı DEĞİŞMEZ (eşleme güvende). `fontSize` yalnız 1-7
-  // ölçeğini bilir: önce geçici olarak 7 (xxx-large) verilir, oluşan
-  // span'lar bulunup gerçek punto + işaretle değiştirilir. Seçim yoksa
-  // false döner ve çağıran eski paragraf yolunu kullanır.
   function applyToSelection(kind, value) {
     var s = window.getSelection();
     if (!EDIT || !s || !s.rangeCount || s.isCollapsed) return false;
-    var paras = selectedParas();
+    var paras = beforeFormat();
     if (!paras.length) return false;
     document.execCommand('styleWithCSS', false, true);
     if (kind === 'size') {
@@ -589,23 +1121,25 @@
       document.execCommand('fontName', false, value);
     }
     paras.forEach(function (e) {
-      var els = [e.p].concat([].slice.call(e.p.querySelectorAll('span,font')));
-      els.forEach(function (el) {
-        if (kind === 'size') {
-          if (el.style.fontSize === 'xxx-large' || el.getAttribute('size') === '7') {
-            el.style.fontSize = value + 'pt';
-            el.removeAttribute('size');
-            el.setAttribute('data-fk-size', '' + value);
+      e.parts.forEach(function (part) {
+        var els = [part].concat([].slice.call(part.querySelectorAll('span,font')));
+        els.forEach(function (el) {
+          if (kind === 'size') {
+            if (el.style.fontSize === 'xxx-large' || el.getAttribute('size') === '7') {
+              el.style.fontSize = value + 'pt';
+              el.removeAttribute('size');
+              el.setAttribute('data-fk-size', '' + value);
+            }
+          } else {
+            var fam = (el.style.fontFamily || el.getAttribute('face') || '')
+              .replace(/["']/g, '');
+            if (fam && fam.split(',')[0].trim() === value) {
+              el.setAttribute('data-fk-font', value);
+            }
           }
-        } else {
-          var fam = (el.style.fontFamily || el.getAttribute('face') || '')
-            .replace(/["']/g, '');
-          if (fam && fam.split(',')[0].trim() === value) {
-            el.setAttribute('data-fk-font', value);
-          }
-        }
+        });
       });
-      sendPara(e.i, e.p);
+      sendPara(e.i);
     });
     syncSelectionState();
     return true;
@@ -614,10 +1148,12 @@
   window.setFontFamily = function (name) {
     if (!EDIT) return;
     if (applyToSelection('font', name)) return;
-    selectedParas().forEach(function (e) {
-      e.p.style.fontFamily = name;
-      e.p.setAttribute('data-fk-font', name);
-      sendPara(e.i, e.p);
+    beforeFormat().forEach(function (e) {
+      e.parts.forEach(function (p) {
+        p.style.fontFamily = name;
+        p.setAttribute('data-fk-font', name);
+      });
+      sendPara(e.i);
     });
     syncSelectionState();
   };
@@ -625,15 +1161,16 @@
   window.setFontSize = function (pt) {
     if (!EDIT) return;
     if (applyToSelection('size', pt)) return;
-    selectedParas().forEach(function (e) {
-      e.p.style.fontSize = pt + 'pt';
-      e.p.setAttribute('data-fk-size', '' + pt);
-      sendPara(e.i, e.p);
+    beforeFormat().forEach(function (e) {
+      e.parts.forEach(function (p) {
+        p.style.fontSize = pt + 'pt';
+        p.setAttribute('data-fk-size', '' + pt);
+      });
+      sendPara(e.i);
     });
     syncSelectionState();
   };
 
-  // İmlecin bulunduğu paragrafın yazı tipi/puntosu (araç çubuğu göstersin).
   function currentFontInfo() {
     var s = window.getSelection();
     if (!s || !s.anchorNode) return {};
@@ -642,87 +1179,36 @@
     var p = n && n.closest ? n.closest('p') : null;
     if (!p) return {};
     var cs = window.getComputedStyle(n);
-    // İlk aile adı yeter ("Calibri, sans-serif" → "Calibri"); tırnaklar atılır.
     var fam = (cs.fontFamily || '').split(',')[0].replace(/["']/g, '').trim();
     var px = parseFloat(cs.fontSize);
-    return { font: fam, size: px ? Math.round(px * 0.75 * 10) / 10 : null };
+    var ta = window.getComputedStyle(p).textAlign;
+    return {
+      font: fam,
+      size: px ? Math.round(px * 0.75 * 10) / 10 : null,
+      align: ta === 'center' ? 'center' : (ta === 'right' || ta === 'end') ? 'right'
+        : ta === 'justify' ? 'both' : 'left',
+      list: p.getAttribute('data-fk-list') || ''
+    };
   }
 
-  function sendPara(idx, p) {
-    // Debounce'lu gönderimde ucuz yapı kontrolü: sayı değiştiyse eşleme
-    // güvensiz → Flutter'a bildir, bu paragrafı gönderme.
-    if (cachedParas && paraList().length !== cachedParas.length) {
-      structureChanged();
-      return;
-    }
-    if (window.Kalem) {
-      window.Kalem.postMessage(JSON.stringify({ i: idx, segs: segsOf(p) }));
-    }
-  }
-
-  // KÖK NEDEN (Faz 9, Chromium'da ölçüldü): `input` olayının hedefi yazılan
-  // <p> DEĞİL, düzenlenebilir kabın kendisidir (<article>, spec gereği).
-  // Eskiden yalnız `e.target`a bakılıyordu → `closest('p')` hep null, yazılan
-  // metin Flutter'a HİÇ gönderilmiyordu (yalnız biçim düğmeleri gönderiyordu).
-  // Paragraf artık imlecin bulunduğu yerden bulunur.
-  function paraAtCaret() {
-    var s = window.getSelection();
-    var n = s && s.anchorNode;
-    while (n && n.nodeType !== 1) n = n.parentNode;
-    return n && n.closest ? n.closest('p') : null;
-  }
-
-  // İmlecin bulunduğu paragrafın indeksi (resim ekle/sil — Faz 9). Eşleme
-  // `cachedParas` ile aynı sırada; imleç belgede değilse -1.
-  window.caretParaIndex = function () {
-    var p = paraAtCaret();
-    var list = cachedParas || paraList();
-    return p ? list.indexOf(p) : -1;
-  };
-
-  document.addEventListener('input', function (e) {
-    if (!EDIT || !cachedParas) return;
-    var n = e.target;
-    while (n && n.nodeType !== 1) n = n.parentNode;
-    var p = n && n.closest ? n.closest('p') : null;
-    if (!p) p = paraAtCaret();
-    if (!p) return;
-    var idx = cachedParas.indexOf(p);
-    if (idx < 0) { structureChanged(); return; }
-    clearTimeout(pending[idx]);
-    pending[idx] = setTimeout(function () { sendPara(idx, p); }, 250);
-  });
-
-  // Enter yeni <p> üretip paragraf eşlemesini bozardı → satır sonuna çevrilir
-  // (kaydta w:br olur). Yapıştırma da düz metin olarak eklenir.
-  document.addEventListener('keydown', function (e) {
-    if (!EDIT) return;
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      document.execCommand('insertLineBreak');
-    }
-  });
-  document.addEventListener('paste', function (e) {
-    if (!EDIT) return;
-    e.preventDefault();
-    var t = (e.clipboardData || window.clipboardData).getData('text/plain');
-    if (t) document.execCommand('insertText', false, t.replace(/\r/g, ''));
-  });
-
-  // Seçimin B/I/U + yazı tipi/punto durumu araç çubuğuna yansır (150ms kısıtlı).
+  // Seçimin biçim durumu araç çubuğuna yansır (150ms kısıtlı) — hizalama,
+  // liste ve üstü çizili de (W7).
   var selTimer = null;
   function syncSelectionState() {
     if (!EDIT || !window.Kalem) return;
     var info = currentFontInfo();
-    window.Kalem.postMessage(JSON.stringify({
+    post({
       sel: {
         b: document.queryCommandState('bold'),
         i: document.queryCommandState('italic'),
         u: document.queryCommandState('underline'),
+        s: document.queryCommandState('strikeThrough'),
         font: info.font || '',
-        size: info.size || 0
+        size: info.size || 0,
+        align: info.align || 'left',
+        list: info.list || ''
       }
-    }));
+    });
   }
   document.addEventListener('selectionchange', function () {
     if (!EDIT || !window.Kalem) return;
@@ -730,55 +1216,81 @@
     selTimer = setTimeout(syncSelectionState, 150);
   });
 
-  function fmt(cmd) { // bold | italic | underline | justifyLeft/Center/Right/Full
+  // bold | italic | underline | strikeThrough | justifyLeft/Center/Right/Full
+  function fmt(cmd) {
+    if (!EDIT) return;
+    var paras = beforeFormat();
     document.execCommand(cmd, false, null);
-    if (cmd.indexOf('justify') === 0) { sendAligns(); return; }
-    syncSelection();
+    if (cmd.indexOf('justify') === 0) { sendAligns(paras); syncSelectionState(); return; }
+    paras.forEach(function (e) { sendPara(e.i); });
     syncSelectionState();
   }
 
-  // Hizalama paragrafın <p> stiline yazılır (yapı değişmez, eşleme bozulmaz);
-  // seçimdeki her paragrafın yeni hizası Flutter'a {a:{i,v}} olarak bildirilir,
-  // kaydetmede w:jc olur.
-  function sendAligns() {
-    var s = window.getSelection();
-    if (!s || !s.anchorNode || !window.Kalem) return;
-    var list = paraList();
-    function idxOf(node) {
-      while (node && node.nodeType !== 1) node = node.parentNode;
-      var p = node && node.closest ? node.closest('p') : null;
-      return p ? list.indexOf(p) : -1;
-    }
-    var a = idxOf(s.anchorNode), f = idxOf(s.focusNode);
-    if (a < 0 && f < 0) return;
-    if (a < 0) a = f;
-    if (f < 0) f = a;
-    var from = Math.min(a, f), to = Math.max(a, f);
-    for (var k = from; k <= to; k++) {
-      var ta = window.getComputedStyle(list[k]).textAlign;
+  // Hizalama paragrafın stiline yazılır; kaydetmede w:jc olur.
+  function sendAligns(paras) {
+    (paras || selectedParas()).forEach(function (e) {
+      var ta = window.getComputedStyle(e.p).textAlign;
       var v = ta === 'center' ? 'center'
         : (ta === 'right' || ta === 'end') ? 'right'
         : ta === 'justify' ? 'both' : 'left';
-      window.Kalem.postMessage(JSON.stringify({ a: { i: k, v: v } }));
-    }
+      e.parts.forEach(function (p) { p.style.textAlign = ta; });
+      post({ a: { i: e.i, v: v } });
+    });
   }
 
-  function syncSelection() {
+  // ---- Resim (W9): yeniden çizim YOK ------------------------------------
+  // Flutter resmi ada olarak kaydeder (kimlik), burada imlece satır içi
+  // konur ve paragraf parçalarıyla gider; geri al da çalışır.
+  window.insertImageIsland = function (id, src, w) {
+    if (!EDIT) return -1;
     var s = window.getSelection();
-    if (!s || !s.anchorNode) return;
-    var list = paraList();
-    function idxOf(node) {
-      while (node && node.nodeType !== 1) node = node.parentNode;
-      var p = node && node.closest ? node.closest('p') : null;
-      return p ? list.indexOf(p) : -1;
-    }
-    var a = idxOf(s.anchorNode), f = idxOf(s.focusNode);
-    if (a < 0 && f < 0) return;
-    if (a < 0) a = f;
-    if (f < 0) f = a;
-    var from = Math.min(a, f), to = Math.max(a, f);
-    for (var k = from; k <= to; k++) sendPara(k, list[k]);
-  }
+    var i = s && s.anchorNode ? idxAtNode(s.anchorNode) : -1;
+    if (i < 0) { i = PARTS.length - 1; if (i < 0) return -1; caretAt(PARTS[i][PARTS[i].length - 1], PARTS[i][PARTS[i].length - 1].childNodes.length); s = window.getSelection(); }
+    flushAll();
+    captureBase(i);
+    noteEdit([i], false);
+    var span = document.createElement('span');
+    span.className = 'fk-island';
+    span.setAttribute('contenteditable', 'false');
+    span.setAttribute('data-fki', '' + id);
+    var img = document.createElement('img');
+    img.src = src;
+    if (w > 0) img.style.width = w + 'px';
+    img.style.maxWidth = '100%';
+    span.appendChild(img);
+    var r = s.getRangeAt(0);
+    r.collapse(false);
+    r.insertNode(span);
+    var host = span.parentNode;
+    if (host) dropPlaceholders(host.closest ? (host.closest('p') || host) : host);
+    r.setStartAfter(span);
+    r.collapse(true);
+    s.removeAllRanges();
+    s.addRange(r);
+    sendPara(i);
+    return i;
+  };
+
+  // İmlecin paragrafındaki resim adalarını siler; silinen sayı.
+  window.deleteImagesAtCaret = function () {
+    if (!EDIT) return 0;
+    var i = window.caretParaIndex();
+    if (i < 0 || !PARTS[i]) return 0;
+    var found = [];
+    PARTS[i].forEach(function (p) {
+      p.querySelectorAll('.fk-island').forEach(function (isl) {
+        if (isl.querySelector('img,svg,image')) found.push(isl);
+      });
+    });
+    if (!found.length) return 0;
+    flushAll();
+    captureBase(i);
+    noteEdit([i], false);
+    found.forEach(function (isl) { isl.parentNode.removeChild(isl); });
+    PARTS[i].forEach(placeholder);
+    sendPara(i);
+    return found.length;
+  };
 
   // ---- Belge içinde bul / değiştir ---------------------------------------
   // Slaytta ve Excel'de vardı, Word'de yoktu (KALANLAR maddesi). Arama DOM'a
@@ -866,10 +1378,12 @@
     if (!p) return;
     var r = rangeAt(p, hit.s, hit.e);
     if (!r) return;
+    var mi = idxOfEl(p);
+    if (mi >= 0) { flushAll(); captureBase(mi); noteEdit([mi], false); }
     r.deleteContents();
     if (text) r.insertNode(document.createTextNode(text));
     p.normalize();
-    sendPara(hit.i, p);
+    if (mi >= 0) sendPara(mi);
   };
 
   // Tümünü değiştir: her paragraf tek geçişte yeniden kurulur.
@@ -878,6 +1392,15 @@
     var list = paraList();
     var needle = fold(q);
     var count = 0;
+    var touched = {};
+    flushAll();
+    list.forEach(function (p) {
+      var mi = idxOfEl(p);
+      if (mi >= 0 && fold(p.textContent || '').indexOf(needle) >= 0) touched[mi] = 1;
+    });
+    var idxs = Object.keys(touched).map(function (x) { return parseInt(x, 10); });
+    idxs.forEach(function (i) { captureBase(i); });
+    if (idxs.length) noteEdit(idxs, false);
     for (var k = 0; k < list.length; k++) {
       var p = list[k];
       var nodes = textNodesOf(p);
@@ -898,8 +1421,9 @@
         }
         if (hitHere) { node.textContent = src; changed = true; }
       }
-      if (changed) { p.normalize(); sendPara(k, p); }
+      if (changed) { p.normalize(); }
     }
+    idxs.forEach(function (i) { sendPara(i); });
     HITS = [];
     if (window.Kalem) {
       window.Kalem.postMessage(JSON.stringify({ replaced: count }));
@@ -1066,7 +1590,15 @@
       applyZoom();
     }
   }
-  window.addEventListener('resize', fitPage);
+  // Klavye açılıp kapanınca yalnız YÜKSEKLİK değişir: yeniden sığdırma
+  // gerekmez (W6 — eskiden her klavye hareketinde iki kez yeniden yerleşim).
+  var lastVW = 0;
+  window.addEventListener('resize', function () {
+    var vw = viewportW();
+    if (vw === lastVW) return;
+    lastVW = vw;
+    fitPage();
+  });
 
   // ---- Sayfa sayacı -------------------------------------------------------
   // docx-preview her Word sayfasını ayrı bir <section class="docx"> olarak
@@ -1120,7 +1652,9 @@
       scrollRaf = false;
       var y = window.pageYOffset, dy = y - lastScrollY;
       lastScrollY = y;
-      if (dy !== 0 && window.Sayfa) {
+      // Düzenlerken okuma kipi çubukları zaten kapalı: köprüyü her karede
+      // yormayalım (W12).
+      if (dy !== 0 && window.Sayfa && !EDIT) {
         window.Sayfa.postMessage(JSON.stringify({ scroll: dy, top: y <= 0 }));
       }
     });

@@ -65,4 +65,18 @@ const Map<String, (String, String, String)> _t14 = {
     'يعرض زمن المفتاح إلى الشاشة في الزاوية (للمطور)',
   ),
   'set.sec_documents': ('Belgeler', 'Documents', 'المستندات'),
+  'common.strike': ('Üstü çizili', 'Strikethrough', 'يتوسطه خط'),
+  'common.redo_short': ('Yinele', 'Redo', 'إعادة'),
+  // ── Word (Faz 21) ─────────────────────────────────────────────────────────
+  'word.spellcheck': (
+    'Word: yazım denetimi ve otomatik düzeltme',
+    'Word: spell check and autocorrect',
+    'Word: التدقيق الإملائي والتصحيح التلقائي',
+  ),
+  'word.spellcheck_sub': (
+    'Kırmızı dalgalı çizgi, klavye önerileri, cümle başı büyük harf',
+    'Red squiggles, keyboard suggestions, sentence capitalisation',
+    'خط متعرج أحمر واقتراحات لوحة المفاتيح وأحرف كبيرة في بداية الجملة',
+  ),
+  'word.align_cycle': ('Hizalama', 'Alignment', 'المحاذاة'),
 };

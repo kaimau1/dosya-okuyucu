@@ -42,6 +42,67 @@ abstract final class OfficeFixtures {
     return Uint8List.fromList(ZipEncoder().encode(out)!);
   }
 
+  /// **Word'de kaydedilmiş çok sayfalı belge** (Faz 21 / W1 kanıtı).
+  ///
+  /// Word her kayıtta sayfanın kırıldığı yere `w:lastRenderedPageBreak`
+  /// yazar; docx-preview o işareti taşıyan paragrafı İKİ `<p>`ye böler.
+  /// Burada 3. paragrafın ORTASINDA bir işaret var (ikinci sayfa orada
+  /// başlıyor) + bir sert sayfa sonu + köprü, sekme ve dipnot başvurusu
+  /// içeren bir paragraf (dokunulmaz adalar).
+  static Uint8List docxWordSaved() {
+    String p(String body) => '<w:p>$body</w:p>';
+    String r(String t, {String rpr = ''}) =>
+        '<w:r>${rpr.isEmpty ? '' : '<w:rPr>$rpr</w:rPr>'}'
+        '<w:t xml:space="preserve">$t</w:t></w:r>';
+    final filler = List.generate(
+        24, (i) => p(r('Dolgu paragrafı ${i + 1}: sayfayı doldurmak için '
+            'yeterince uzun bir cümle, Word gibi.'))).join();
+    final body = [
+      p('<w:pPr><w:pStyle w:val="Heading1"/></w:pPr>${r('Rapor başlığı')}'),
+      p(r('Giriş paragrafı.')),
+      filler,
+      p('${r('Sayfa sonunda başlayan ')}'
+          '<w:r><w:lastRenderedPageBreak/><w:t xml:space="preserve">'
+          've sonraki sayfada biten paragraf.</w:t></w:r>'),
+      p('${r('Bağlantı: ')}<w:hyperlink r:id="rIdLink">'
+          '${r('örnek site', rpr: '<w:color w:val="0563C1"/><w:u w:val="single"/>')}'
+          '</w:hyperlink>${r(' sonrası')}<w:r><w:tab/></w:r>${r('sekme')}'
+          '<w:r><w:rPr><w:vertAlign w:val="superscript"/></w:rPr>'
+          '<w:footnoteReference w:id="1"/></w:r>${r(' son.')}'),
+      p(r('Karışık ') + r('kalın', rpr: '<w:b/>') + r(' metin.')),
+      p('<w:r><w:br w:type="page"/></w:r>'),
+      p(r('Üçüncü sayfa.')),
+    ].join();
+    final out = Archive();
+    for (final f in ZipDecoder().decodeBytes(BlankDocs.blankDocx()).files) {
+      var data = f.content as List<int>;
+      if (f.name == 'word/document.xml') {
+        var xml = utf8.decode(data);
+        if (!xml.contains('xmlns:r=')) {
+          xml = xml.replaceFirst('<w:document ',
+              '<w:document xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ');
+        }
+        data = utf8.encode(xml.replaceFirst(RegExp(r'<w:p>.*?</w:p>'), body));
+      } else if (f.name == 'word/_rels/document.xml.rels') {
+        data = utf8.encode(utf8.decode(data).replaceFirst('</Relationships>',
+            '<Relationship Id="rIdLink" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://example.com" TargetMode="External"/>'
+            '<Relationship Id="rIdFn" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes" Target="footnotes.xml"/></Relationships>'));
+      } else if (f.name == '[Content_Types].xml') {
+        data = utf8.encode(utf8.decode(data).replaceFirst('</Types>',
+            '<Override PartName="/word/footnotes.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"/></Types>'));
+      }
+      out.addFile(ArchiveFile(f.name, data.length, data));
+    }
+    final fn = utf8.encode('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<w:footnotes xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+        '<w:footnote w:type="separator" w:id="-1"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>'
+        '<w:footnote w:type="continuationSeparator" w:id="0"><w:p><w:r><w:continuationSeparator/></w:r></w:p></w:footnote>'
+        '<w:footnote w:id="1"><w:p><w:r><w:rPr><w:vertAlign w:val="superscript"/></w:rPr><w:footnoteRef/></w:r>'
+        '<w:r><w:t xml:space="preserve"> Dipnot metni.</w:t></w:r></w:p></w:footnote></w:footnotes>');
+    out.addFile(ArchiveFile('word/footnotes.xml', fn.length, fn));
+    return Uint8List.fromList(ZipEncoder().encode(out)!);
+  }
+
   /// İki sayfalı satış tablosu (formül + Türkçe ad).
   static Uint8List xlsxSales() => xlsxFrom({
         'A1': 'Ay', 'B1': 'Satış', 'C1': 'Gider',

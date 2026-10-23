@@ -303,6 +303,7 @@ abstract final class AppIcons {
   static const IconData key = Icons.key_rounded;
   static const IconData keyboardArrowDown = Icons.keyboard_arrow_down_rounded;
   static const IconData keyboard = Icons.keyboard_alt_rounded;
+  static const IconData spellcheck = Icons.spellcheck_rounded;
   static const IconData draftRestore = Icons.restore_page_rounded;
   static const IconData keyboardArrowLeft = Icons.keyboard_arrow_left_rounded;
   static const IconData keyboardArrowRight = Icons.keyboard_arrow_right_rounded;
