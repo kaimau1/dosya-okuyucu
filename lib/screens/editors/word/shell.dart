@@ -73,7 +73,12 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
             }
           },
           itemBuilder: (_) => [
-            if (!_plainMode && !_editing)
+            // K19 (b), Faz 23: sayfa görünümü salt okunur önizleme; Word
+            // biçimleri Mobil görünümde. WebView'da sayfa üzerinde düzenleme
+            // (21a köprüsü) yalnız geliştirici denemesi bayrağıyla yedek.
+            if (!_plainMode &&
+                !_editing &&
+                context.read<AppState>().labWordEditor)
               PopupMenuItem(
                   value: 'pageedit', child: Text(context.t('word.edit_page'))),
             if (context.read<AppState>().labWordEditor)
@@ -96,7 +101,8 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
           : DocActionBar([
               if (!_plainMode)
                 // Faz 22 (K18 = b-ii): "Düzenle" Mobil görünüm editörünü açar;
-                // sayfa üzerinde (WebView) düzenleme ⋮ menüsünde kaldı.
+                // sayfa üzerinde (WebView) düzenleme Faz 23'ten beri yalnız
+                // geliştirici bayrağıyla ⋮ menüsünde (K19 b).
                 DocAction(AppIcons.edit, context.t('common.edit'),
                     editor == null ? null : _openMobileEditor),
               if (!_plainMode)

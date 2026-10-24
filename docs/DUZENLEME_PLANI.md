@@ -74,7 +74,7 @@
 | 20 | **Ortak düzenleme çekirdeği** — geri al/yinele, taslak + otomatik kaydetme, klavye üstü çubuk, Aa paneli, kısayollar, ölçüm + **doğrulanmış 6 hata** | — | ☁️ | ✅ 2026-10-23 |
 | 21 | **Word: canlı düzenlemenin acil onarımı + motor denemesi** (K18 kapısı) | 20 | ☁️ + 📱 kısa | ✅ 2026-10-23 (21a + 21b; K18 kullanıcı devretti → ölçümle **(b-ii)**) |
 | 22 | **Word Mobil görünüm editörü I** — belge modeli, yazma, seçim, yazım denetimi | 21 (K18) | ☁️ | ✅ 2026-10-23 (22a + 22b; kalan: büyüteç, kendi panomuzdan biçimli yapıştırma, köprü metnini düzenleme, ilk 50 paragraf önce yükleme) |
-| 23 | **Word II** — biçimlendirme, Office şeridi, klavye üstü çubuk, Aa paneli, stiller | 22 | ☁️ | ⬜ |
+| 23 | **Word II** — biçimlendirme, Office şeridi, klavye üstü çubuk, Aa paneli, stiller | 22 | ☁️ | ✅ 2026-10-24 (K19 b: sayfa üzerinde düzenleme yalnız geliştirici bayrağıyla; kalan: biçimli yapıştır, liste kalıbı galerisi, masaüstü Word doğrulaması 📱) |
 | 24 | **Word III** — Ekle (tablo, resim, bağlantı), Düzen, üst/alt bilgi, Gözden Geçir | 23 | ☁️ | ⬜ |
 | 25 | **Excel I** — veri girişi: hücre içi düzenleme, sayı/formül tuş takımı, işaret kipi, seçim tutamakları + doğruluk hataları | 20 | ☁️ | ✅ 2026-10-23 |
 | 26 | **Excel II** — hesap motoru (bağımlılık grafiği) + büyük sayfa akıcılığı (ızgara çizimi) | 25 | ☁️ | ✅ 2026-10-23 (26a + 26b; **K23 = (a) + hücre başı tanıyıcı kaldırıldı**, 📱 `FrameTiming` ölçümü Faz 33'te — tutmazsa (b) tek boyacı) |

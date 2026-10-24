@@ -18,6 +18,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -51,6 +52,98 @@ class DocxAtom {
       {this.image, this.widthPt = 0, this.heightPt = 0});
 }
 
+/// Kullanıcının harfe uyguladığı doğrudan biçim (Faz 23). `null` alan =
+/// dokunulmadı (özgün run'ın/stilin biçimi geçerli).
+class DocxRunPatch {
+  final bool? bold, italic, underline, strike;
+
+  /// ARGB; [autoColor] = otomatik (tema metin rengi).
+  final int? color;
+
+  /// Word vurgu adı (`yellow` …); `''` = vurgu yok.
+  final String? highlight;
+  final double? sizePt;
+  final String? font;
+
+  /// `superscript` | `subscript` | `''` (taban çizgisi).
+  final String? vertAlign;
+
+  static const int autoColor = 0;
+  static const none = DocxRunPatch();
+
+  const DocxRunPatch({
+    this.bold,
+    this.italic,
+    this.underline,
+    this.strike,
+    this.color,
+    this.highlight,
+    this.sizePt,
+    this.font,
+    this.vertAlign,
+  });
+
+  bool get isEmpty =>
+      bold == null &&
+      italic == null &&
+      underline == null &&
+      strike == null &&
+      color == null &&
+      highlight == null &&
+      sizePt == null &&
+      font == null &&
+      vertAlign == null;
+
+  /// [o]'nun dolu alanları bunun üstüne.
+  DocxRunPatch merge(DocxRunPatch o) => DocxRunPatch(
+        bold: o.bold ?? bold,
+        italic: o.italic ?? italic,
+        underline: o.underline ?? underline,
+        strike: o.strike ?? strike,
+        color: o.color ?? color,
+        highlight: o.highlight ?? highlight,
+        sizePt: o.sizePt ?? sizePt,
+        font: o.font ?? font,
+        vertAlign: o.vertAlign ?? vertAlign,
+      );
+
+  /// Görünüşe uygulanmış hâli.
+  DocxRunLook apply(DocxRunLook l) => isEmpty
+      ? l
+      : DocxRunLook(
+          bold: bold ?? l.bold,
+          italic: italic ?? l.italic,
+          underline: underline ?? l.underline,
+          strike: strike ?? l.strike,
+          sizePt: sizePt ?? l.sizePt,
+          color: color == null ? l.color : (color == autoColor ? null : color),
+          highlight: highlight == null
+              ? l.highlight
+              : (highlight!.isEmpty ? null : DocxStyles.highlightArgb(highlight!)),
+          font: font ?? l.font,
+          vertAlign: vertAlign == null
+              ? l.vertAlign
+              : (vertAlign!.isEmpty ? null : vertAlign),
+        );
+
+  @override
+  bool operator ==(Object other) =>
+      other is DocxRunPatch &&
+      other.bold == bold &&
+      other.italic == italic &&
+      other.underline == underline &&
+      other.strike == strike &&
+      other.color == color &&
+      other.highlight == highlight &&
+      other.sizePt == sizePt &&
+      other.font == font &&
+      other.vertAlign == vertAlign;
+
+  @override
+  int get hashCode => Object.hash(bold, italic, underline, strike, color,
+      highlight, sizePt, font, vertAlign);
+}
+
 /// Bir harfin biçimi: özgün run (+ özgün metni) ve kullanıcı örtmeleri.
 class DocxCharStyle {
   /// Özgün `w:r` (yeni yazıda ve paragraf işaretinde null).
@@ -61,29 +154,48 @@ class DocxCharStyle {
 
   /// Yeni run'ın `w:rPr` şablonu.
   final XmlElement? rPr;
+
+  /// Stil + `rPr`'den çözülmüş görünüş (örtmeler HARİÇ — bkz. [effective]).
   final DocxRunLook look;
-  final bool? bold, italic, underline;
+  final DocxRunPatch patch;
 
   const DocxCharStyle(this.run, this.runText, this.rPr, this.look,
-      {this.bold, this.italic, this.underline});
+      {this.patch = DocxRunPatch.none});
 
-  bool get plain => bold == null && italic == null && underline == null;
-  bool get isBold => bold ?? look.bold;
-  bool get isItalic => italic ?? look.italic;
-  bool get isUnderline => underline ?? look.underline;
+  bool? get bold => patch.bold;
+  bool? get italic => patch.italic;
+  bool? get underline => patch.underline;
 
-  DocxCharStyle merge({bool? bold, bool? italic, bool? underline}) =>
+  bool get plain => patch.isEmpty;
+
+  /// Ekranda görünen (örtmeler uygulanmış) görünüş.
+  DocxRunLook get effective =>
+      plain ? look : (_effective[this] ??= patch.apply(look));
+  static final _effective = Expando<DocxRunLook>('docxEffective');
+
+  bool get isBold => effective.bold;
+  bool get isItalic => effective.italic;
+  bool get isUnderline => effective.underline;
+
+  DocxCharStyle merge(
+          {bool? bold,
+          bool? italic,
+          bool? underline,
+          DocxRunPatch patch = DocxRunPatch.none}) =>
       DocxCharStyle(run, runText, rPr, look,
-          bold: bold ?? this.bold,
-          italic: italic ?? this.italic,
-          underline: underline ?? this.underline);
+          patch: this.patch.merge(patch).merge(
+              DocxRunPatch(bold: bold, italic: italic, underline: underline)));
+
+  /// Aynı run, başka görünüş (paragraf stili değişti).
+  DocxCharStyle withLook(DocxRunLook l) =>
+      DocxCharStyle(run, runText, rPr, l, patch: patch);
 
   /// Run'dan kopmuş hâli (yazılan yeni metin özgün run'ı "aynen" sayılmasın).
   /// Aynı biçim için hep AYNI nesne: ardışık yazılan harfler tek run olur.
   DocxCharStyle detached() => run == null
       ? this
-      : (_detached[this] ??= DocxCharStyle(null, null, rPr, look,
-          bold: bold, italic: italic, underline: underline));
+      : (_detached[this] ??=
+          DocxCharStyle(null, null, rPr, look, patch: patch));
 
   static final _detached = Expando<DocxCharStyle>('docxDetached');
 }
@@ -148,6 +260,7 @@ class DocxPara {
     List<DocxAtom?>? atoms,
     List<(int, XmlElement)>? anchors,
     DocxParaLook? look,
+    DocxCharStyle? mark,
   }) =>
       DocxPara(
         source: clearSource ? null : (source ?? this.source),
@@ -158,7 +271,7 @@ class DocxPara {
         atoms: atoms ?? this.atoms,
         anchors: anchors ?? this.anchors,
         look: look ?? this.look,
-        mark: mark,
+        mark: mark ?? this.mark,
         opaque: opaque,
         cell: cell,
       );
@@ -232,11 +345,29 @@ class DocxPara {
 
   /// Aralıktaki harflere biçim uygular (atomlar hariç).
   DocxPara format(int from, int to,
-      {bool? bold, bool? italic, bool? underline}) {
+      {bool? bold,
+      bool? italic,
+      bool? underline,
+      DocxRunPatch patch = DocxRunPatch.none}) {
     final st = [...styles];
+    // Aynı kaynak biçim aynı sonuca gider: run grupları bölünmesin.
+    final memo = <DocxCharStyle, DocxCharStyle>{};
     for (var k = from.clamp(0, length); k < to.clamp(0, length); k++) {
       if (atoms[k] != null) continue;
-      st[k] = st[k].merge(bold: bold, italic: italic, underline: underline);
+      st[k] = memo[st[k]] ??= st[k].merge(
+          bold: bold, italic: italic, underline: underline, patch: patch);
+    }
+    return copyWith(styles: st);
+  }
+
+  /// Aralıktaki harflerin biçimini [map] ile değiştirir (atomlar hariç).
+  DocxPara mapStyles(
+      int from, int to, DocxCharStyle Function(DocxCharStyle) map) {
+    final st = [...styles];
+    final memo = <DocxCharStyle, DocxCharStyle>{};
+    for (var k = from.clamp(0, length); k < to.clamp(0, length); k++) {
+      if (atoms[k] != null) continue;
+      st[k] = memo[st[k]] ??= map(st[k]);
     }
     return copyWith(styles: st);
   }
@@ -248,8 +379,13 @@ class DocxDocument {
   final XmlDocument doc;
   final XmlElement body;
   final DocxStyles styles;
-  final DocxNumbering numbering;
+  DocxNumbering numbering;
   final Map<String, String> _rels;
+
+  /// Biçim işlerinin dokunduğu yan parçalar (Faz 23): yalnız değişince
+  /// yeniden yazılır; yoksa yaratılır (ilişki + içerik türüyle).
+  final Map<String, XmlDocument> _parts = {};
+  final Set<String> _dirtyParts = {};
 
   /// Belgenin düzenlenebilir akışı (gövde + tablo hücreleri, belge sırasıyla).
   List<DocxPara> paras;
@@ -263,6 +399,8 @@ class DocxDocument {
 
   /// Belge düzenlendi mi (kaydette `document.xml` yeniden yazılacak mı).
   bool get xmlDirty => _xmlDirty;
+
+  XmlDocument? Function(String name)? _partReader;
 
   static DocxDocument parse(Uint8List bytes) {
     final archive = ZipDecoder().decodeBytes(bytes);
@@ -301,6 +439,13 @@ class DocxDocument {
       }
     }
     final d = DocxDocument._(archive, doc, body, styles, numbering, rels, []);
+    for (final (name, x) in [
+      ('word/styles.xml', part('word/styles.xml')),
+      ('word/numbering.xml', part('word/numbering.xml')),
+    ]) {
+      if (x != null) d._parts[name] = x;
+    }
+    d._partReader = part;
     d.paras = d._readBody();
     return d;
   }
@@ -691,6 +836,331 @@ class DocxDocument {
     ps.setAttribute('w:val', id);
   }
 
+
+  // ── paragraf biçimi (Faz 23) ────────────────────────────────────────────
+
+  /// `w:pPr` şema sırası (CT_PPr).
+  static const _pPrOrder = [
+    'pStyle', 'keepNext', 'keepLines', 'pageBreakBefore', 'framePr',
+    'widowControl', 'numPr', 'suppressLineNumbers', 'pBdr', 'shd', 'tabs',
+    'suppressAutoHyphens', 'kinsoku', 'wordWrap', 'overflowPunct',
+    'topLinePunct', 'autoSpaceDE', 'autoSpaceDN', 'bidi', 'adjustRightInd',
+    'snapToGrid', 'spacing', 'ind', 'contextualSpacing', 'mirrorIndents',
+    'suppressOverlap', 'jc', 'textDirection', 'textAlignment',
+    'textboxTightWrap', 'outlineLvl', 'divId', 'cnfStyle', 'rPr', 'sectPr',
+    'pPrChange',
+  ];
+
+  static XmlElement _w(String local, [Map<String, String> attrs = const {}]) =>
+      XmlElement(XmlName.fromString('w:$local'), [
+        for (final MapEntry(:key, :value) in attrs.entries)
+          XmlAttribute(XmlName.fromString('w:$key'), value),
+      ]);
+
+  static void _putP(XmlElement pPr, XmlElement el) {
+    pPr.children.removeWhere(
+        (n) => n is XmlElement && n.name.local == el.name.local);
+    final rank = _pPrOrder.indexOf(el.name.local);
+    final kids = pPr.children;
+    for (var i = 0; i < kids.length; i++) {
+      final k = kids[i];
+      if (k is! XmlElement) continue;
+      final r = _pPrOrder.indexOf(k.name.local);
+      if (r > rank) {
+        kids.insert(i, el);
+        return;
+      }
+    }
+    kids.add(el);
+  }
+
+  static void _dropP(XmlElement pPr, String local) => pPr.children
+      .removeWhere((n) => n is XmlElement && n.name.local == local);
+
+  /// pPr'nin kopyası üzerinde [edit]; görünüş yeniden çözülür. Paragraf
+  /// stili değiştiyse harflerin görünüşü de (stilden gelen biçim).
+  DocxPara editPPr(DocxPara p, void Function(XmlElement pPr) edit) {
+    if (p.opaque) return p;
+    final pPr = p.pPr?.copy() ?? XmlElement(XmlName.fromString('w:pPr'));
+    edit(pPr);
+    final look = styles.paraLook(pPr);
+    if (look.styleId == p.look.styleId) {
+      return p.copyWith(pPr: pPr, look: look);
+    }
+    final memo = <DocxCharStyle, DocxCharStyle>{};
+    DocxCharStyle re(DocxCharStyle c) =>
+        memo[c] ??= c.withLook(styles.runLook(pPr, c.rPr));
+    return p.copyWith(
+      pPr: pPr,
+      look: look,
+      styles: [for (final c in p.styles) re(c)],
+      mark: re(p.mark),
+    );
+  }
+
+  /// Hizalama: `left` | `center` | `right` | `both`.
+  DocxPara setAlign(DocxPara p, String align) => editPPr(p, (pPr) {
+        _putP(pPr, _w('jc', {'val': align}));
+      });
+
+  /// Satır aralığı çarpanı (1,0 / 1,15 / 1,5 / 2,0).
+  DocxPara setLineSpacing(DocxPara p, double multiple) => editPPr(p, (pPr) {
+        final sp = _child(pPr, 'spacing')?.copy() ?? _w('spacing');
+        sp.setAttribute('w:line', '${(multiple * 240).round()}');
+        sp.setAttribute('w:lineRule', 'auto');
+        _putP(pPr, sp);
+      });
+
+  /// Paragraf öncesi / sonrası boşluk (punto).
+  DocxPara setSpacing(DocxPara p, {double? beforePt, double? afterPt}) =>
+      editPPr(p, (pPr) {
+        final sp = _child(pPr, 'spacing')?.copy() ?? _w('spacing');
+        if (beforePt != null) sp.setAttribute('w:before', '${(beforePt * 20).round()}');
+        if (afterPt != null) sp.setAttribute('w:after', '${(afterPt * 20).round()}');
+        _putP(pPr, sp);
+      });
+
+  /// Sağdan sola paragraf (`w:bidi`).
+  DocxPara setBidi(DocxPara p, bool on) => editPPr(p, (pPr) {
+        if (on) {
+          _putP(pPr, _w('bidi'));
+        } else if (styles.paraLook(p.pPr).bidi) {
+          _putP(pPr, _w('bidi', {'val': '0'}));
+        } else {
+          _dropP(pPr, 'bidi');
+        }
+      });
+
+  /// Girinti: listede düzey (0–8), değilse sol girinti ±0,5 inç.
+  DocxPara indent(DocxPara p, int delta) {
+    if (p.look.numId != null) {
+      final lvl = (p.look.ilvl + delta).clamp(0, 8);
+      return editPPr(p, (pPr) {
+        _putP(
+            pPr,
+            _w('numPr')
+              ..children.addAll([
+                _w('ilvl', {'val': '$lvl'}),
+                _w('numId', {'val': '${p.look.numId}'}),
+              ]));
+      });
+    }
+    final left = math.max(0.0, p.look.indentLeftPt + delta * 36);
+    return editPPr(p, (pPr) {
+      final ind = _child(pPr, 'ind')?.copy() ?? _w('ind');
+      ind.removeAttribute('w:start');
+      ind.setAttribute('w:left', '${(left * 20).round()}');
+      _putP(pPr, ind);
+    });
+  }
+
+  /// Paragraf stili uygular (`w:pStyle`). Stilden gelen biçim harflere
+  /// GÖMÜLMEZ (yalnız görünüş yeniden çözülür); sanal yerleşik stil önce
+  /// `styles.xml`'e yazılır.
+  DocxPara applyStyle(DocxPara p, String styleId) {
+    _materializeStyle(styleId);
+    return editPPr(p, (pPr) {
+      if (styleId == styles.defaultParagraphStyle) {
+        _dropP(pPr, 'pStyle');
+      } else {
+        _putP(pPr, _w('pStyle', {'val': styleId}));
+      }
+    });
+  }
+
+  void _materializeStyle(String id) {
+    if (!styles.isVirtual(id)) return;
+    final el = styles.materialize(id);
+    if (el == null) return;
+    final x = _partOrCreate('word/styles.xml');
+    x.rootElement.children.add(el.copy());
+    _dirtyParts.add('word/styles.xml');
+  }
+
+  /// Doğrudan harf biçimini temizler ("Biçimi temizle"): run biçimi ve
+  /// karakter stili kalkar, paragraf stilinin biçimi kalır.
+  DocxPara clearFormatting(DocxPara p, int from, int to) {
+    final plain = DocxCharStyle(null, null, null, styles.runLook(p.pPr, null));
+    return p.mapStyles(from, to, (_) => plain);
+  }
+
+  /// Biçim boyacısı: [src]'nin harf biçimi (rPr şablonu + örtmeler) hedef
+  /// paragrafın stiliyle yeniden çözülür.
+  DocxPara paintFormat(DocxPara p, int from, int to, DocxCharStyle src) {
+    final st = DocxCharStyle(null, null, src.rPr, styles.runLook(p.pPr, src.rPr),
+        patch: src.patch);
+    return p.mapStyles(from, to, (_) => st);
+  }
+
+  // ── listeler ─────────────────────────────────────────────────────────────
+
+  /// Paragrafın liste türü: `bullet` | `number` | `multi` | null.
+  String? listKind(DocxPara p) {
+    final id = p.look.numId;
+    if (id == null) return null;
+    final k = _ourKinds[id];
+    if (k != null) return k;
+    return numbering.isBullet(id, p.look.ilvl) ? 'bullet' : 'number';
+  }
+
+  /// Bu oturumda yaratılan listeler (numId → tür).
+  final Map<int, String> _ourKinds = {};
+
+  /// [kind] listesini paragrafa uygular; komşusu aynı türde listeyse onun
+  /// numarasını sürdürür (Word'deki "numaralandırmaya devam et").
+  DocxPara setList(DocxPara p, String kind, {DocxPara? prev, DocxPara? next}) {
+    int? reuse;
+    for (final n in [prev, next]) {
+      if (n != null && !n.opaque && listKind(n) == kind) {
+        reuse = n.look.numId;
+        break;
+      }
+    }
+    final numId = reuse ?? _newList(kind);
+    final lvl = p.look.numId != null ? p.look.ilvl : 0;
+    return editPPr(p, (pPr) {
+      _putP(
+          pPr,
+          _w('numPr')
+            ..children.addAll([
+              _w('ilvl', {'val': '$lvl'}),
+              _w('numId', {'val': '$numId'}),
+            ]));
+    });
+  }
+
+  static const _wNs =
+      'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
+
+  int _newList(String kind) {
+    final x = _partOrCreate('word/numbering.xml');
+    final root = x.rootElement;
+    int maxOf(String local, String attr) {
+      var m = 0;
+      for (final e in root.childElements) {
+        if (e.name.local != local) continue;
+        final v = int.tryParse(e.getAttribute('w:$attr') ?? '') ?? 0;
+        if (v > m) m = v;
+      }
+      return m;
+    }
+
+    final abs = maxOf('abstractNum', 'abstractNumId') + 1;
+    final numId = maxOf('num', 'numId') + 1;
+    final lvls = StringBuffer();
+    const bullets = ['•', 'o', '▪'];
+    const fmts = ['decimal', 'lowerLetter', 'lowerRoman'];
+    for (var i = 0; i < 9; i++) {
+      final left = 720 * (i + 1);
+      final String fmt, text;
+      switch (kind) {
+        case 'bullet':
+          fmt = 'bullet';
+          text = bullets[i % 3];
+        case 'multi':
+          fmt = 'decimal';
+          text = '${[for (var k = 1; k <= i + 1; k++) '%$k'].join('.')}.';
+        default:
+          fmt = fmts[i % 3];
+          text = '%${i + 1}.';
+      }
+      lvls.write('<w:lvl w:ilvl="$i"><w:start w:val="1"/>'
+          '<w:numFmt w:val="$fmt"/><w:lvlText w:val="$text"/>'
+          '<w:lvlJc w:val="left"/><w:pPr><w:ind w:left="$left" '
+          'w:hanging="360"/></w:pPr>'
+          '${fmt == 'bullet' && text == 'o' ? '<w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/></w:rPr>' : ''}'
+          '</w:lvl>');
+    }
+    final frag = XmlDocument.parse('<w:numbering $_wNs>'
+            '<w:abstractNum w:abstractNumId="$abs">'
+            '<w:multiLevelType w:val="${kind == 'bullet' ? 'hybridMultilevel' : 'multilevel'}"/>'
+            '$lvls</w:abstractNum>'
+            '<w:num w:numId="$numId"><w:abstractNumId w:val="$abs"/></w:num>'
+            '</w:numbering>')
+        .rootElement;
+    final absEl = frag.childElements.first.copy();
+    final numEl = frag.childElements.last.copy();
+    // Şema: abstractNum'lar num'lardan önce.
+    final kids = root.children;
+    var firstNum = kids.indexWhere(
+        (n) => n is XmlElement && n.name.local == 'num');
+    if (firstNum < 0) {
+      firstNum = kids.indexWhere(
+          (n) => n is XmlElement && n.name.local == 'numIdMacAtCleanup');
+    }
+    if (firstNum < 0) {
+      kids.add(absEl);
+    } else {
+      kids.insert(firstNum, absEl);
+    }
+    final cleanup = kids.indexWhere(
+        (n) => n is XmlElement && n.name.local == 'numIdMacAtCleanup');
+    if (cleanup < 0) {
+      kids.add(numEl);
+    } else {
+      kids.insert(cleanup, numEl);
+    }
+    _dirtyParts.add('word/numbering.xml');
+    numbering = DocxNumbering.parse(x);
+    _ourKinds[numId] = kind;
+    return numId;
+  }
+
+  // ── yan parçalar ─────────────────────────────────────────────────────────
+
+  static const _partInfo = {
+    'word/styles.xml': (
+      'styles',
+      'http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml',
+    ),
+    'word/numbering.xml': (
+      'numbering',
+      'http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml',
+    ),
+  };
+
+  /// Parça yoksa yaratır: kökü + `document.xml.rels` ilişkisi + içerik türü.
+  XmlDocument _partOrCreate(String name) {
+    final have = _parts[name];
+    if (have != null) return have;
+    final (root, relType, contentType) = _partInfo[name]!;
+    final x = XmlDocument.parse(
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+        '<w:$root $_wNs/>');
+    _parts[name] = x;
+    _dirtyParts.add(name);
+    final rels = _parts['word/_rels/document.xml.rels'] ??
+        _partReader?.call('word/_rels/document.xml.rels') ??
+        XmlDocument.parse(
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>');
+    _parts['word/_rels/document.xml.rels'] = rels;
+    var maxId = 0;
+    for (final r in rels.rootElement.childElements) {
+      final m = RegExp(r'^rId(\d+)$').firstMatch(r.getAttribute('Id') ?? '');
+      if (m != null) maxId = math.max(maxId, int.parse(m[1]!));
+    }
+    rels.rootElement.children.add(XmlElement(XmlName('Relationship'), [
+      XmlAttribute(XmlName('Id'), 'rId${maxId + 1}'),
+      XmlAttribute(XmlName('Type'), relType),
+      XmlAttribute(XmlName('Target'), name.substring('word/'.length)),
+    ]));
+    _dirtyParts.add('word/_rels/document.xml.rels');
+    final ct = _parts['[Content_Types].xml'] ??
+        _partReader?.call('[Content_Types].xml');
+    if (ct != null) {
+      ct.rootElement.children.add(XmlElement(XmlName('Override'), [
+        XmlAttribute(XmlName('PartName'), '/$name'),
+        XmlAttribute(XmlName('ContentType'), contentType),
+      ]));
+      _parts['[Content_Types].xml'] = ct;
+      _dirtyParts.add('[Content_Types].xml');
+    }
+    return x;
+  }
+
   // ── yazma ───────────────────────────────────────────────────────────────
 
   /// Modeli XML'e işler: yalnız değişen paragraflar yeniden kurulur, yeni
@@ -835,10 +1305,7 @@ class DocxDocument {
 
   static bool _sameWrite(DocxCharStyle a, DocxCharStyle b) =>
       identical(a, b) ||
-      (identical(a.rPr, b.rPr) &&
-          a.bold == b.bold &&
-          a.italic == b.italic &&
-          a.underline == b.underline);
+      (identical(a.rPr, b.rPr) && a.patch == b.patch);
 
   static XmlElement _newRun(DocxCharStyle style, String text) {
     final rPr = style.rPr?.copy() ?? XmlElement(XmlName.fromString('w:rPr'));
@@ -853,6 +1320,40 @@ class DocxDocument {
       rPr.children.removeWhere((n) => n is XmlElement && n.name.local == 'u');
       _putOrdered(rPr,
           XmlElement(XmlName.fromString('w:u'), [XmlAttribute(XmlName.fromString('w:val'), style.underline! ? 'single' : 'none')]));
+    }
+    final pt = style.patch;
+    if (pt.strike != null) _setToggle(rPr, 'strike', pt.strike!);
+    void put(String local, Map<String, String>? attrs, {List<String> drop = const []}) {
+      rPr.children.removeWhere((n) =>
+          n is XmlElement &&
+          (n.name.local == local || drop.contains(n.name.local)));
+      if (attrs != null) _putOrdered(rPr, _w(local, attrs));
+    }
+
+    if (pt.color != null) {
+      final c = pt.color!;
+      put('color', {
+        'val': c == DocxRunPatch.autoColor
+            ? 'auto'
+            : (c & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase(),
+      });
+    }
+    if (pt.highlight != null) {
+      // Vurgu kaldırılınca gölgelendirme dolgusu da (o da vurgu gibi görünür).
+      put('highlight', pt.highlight!.isEmpty ? null : {'val': pt.highlight!},
+          drop: pt.highlight!.isEmpty ? const ['shd'] : const []);
+    }
+    if (pt.sizePt != null) {
+      final hp = '${(pt.sizePt! * 2).round()}';
+      put('sz', {'val': hp});
+      put('szCs', {'val': hp});
+    }
+    if (pt.font != null) {
+      final f = pt.font!;
+      put('rFonts', {'ascii': f, 'hAnsi': f, 'cs': f});
+    }
+    if (pt.vertAlign != null) {
+      put('vertAlign', pt.vertAlign!.isEmpty ? null : {'val': pt.vertAlign!});
     }
     final r = XmlElement(XmlName.fromString('w:r'));
     if (rPr.childElements.isNotEmpty || rPr.attributes.isNotEmpty) {
@@ -928,22 +1429,19 @@ class DocxDocument {
   /// Paket: `document.xml` yalnız değiştiyse yeniden yazılır.
   Archive buildArchive() {
     commit();
-    if (!_xmlDirty) {
-      final out = Archive();
-      for (final f in _archive.files) {
-        out.addFile(f);
-      }
-      return out;
-    }
-    final xml = doc.toXmlString();
+    final replaced = <String, List<int>>{
+      if (_xmlDirty) 'word/document.xml': utf8.encode(doc.toXmlString()),
+      for (final name in _dirtyParts)
+        name: utf8.encode(_parts[name]!.toXmlString()),
+    };
     final out = Archive();
     for (final f in _archive.files) {
-      if (f.name == 'word/document.xml') {
-        final data = utf8.encode(xml);
-        out.addFile(ArchiveFile(f.name, data.length, data));
-      } else {
-        out.addFile(f);
-      }
+      final data = replaced.remove(f.name);
+      out.addFile(data == null ? f : ArchiveFile(f.name, data.length, data));
+    }
+    // Yeni yaratılan parçalar (numbering.xml …).
+    for (final MapEntry(key: name, value: data) in replaced.entries) {
+      out.addFile(ArchiveFile(name, data.length, data));
     }
     return out;
   }

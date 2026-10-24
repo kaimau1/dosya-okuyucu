@@ -278,6 +278,9 @@ abstract final class AppIcons {
   static const IconData formatAlignRight = Icons.format_align_right_rounded;
   static const IconData formatBold = Icons.format_bold_rounded;
   static const IconData formatPaint = Icons.format_paint_rounded;
+  static const IconData superscript = Icons.superscript_rounded;
+  static const IconData subscript = Icons.subscript_rounded;
+  static const IconData formatLineSpacing = Icons.format_line_spacing_rounded;
   static const IconData formatClear = Icons.format_clear_rounded;
   static const IconData formatColorFill = Icons.format_color_fill_rounded;
   static const IconData formatColorReset = Icons.format_color_reset_rounded;

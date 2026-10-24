@@ -91,7 +91,7 @@
 | 20 | **Ortak düzenleme çekirdeği** (geri al/yinele, taslak + otomatik kaydetme, klavye üstü çubuk, Aa paneli) + doğrulanmış 6 hata — ayrıntı `docs/DUZENLEME_PLANI.md` | — | ✅ 2026-10-23 |
 | 21 | **Word: canlı düzenlemenin acil onarımı + motor denemesi** (K18) — `DUZENLEME_PLANI.md` | 20 | ✅ 2026-10-23 (K18 = b-ii) |
 | 22 | **Word Mobil görünüm editörü I** (model, yazma, seçim) — `DUZENLEME_PLANI.md` | 21 | ✅ 2026-10-23 |
-| 23 | **Word II** (biçim, şerit, Aa paneli, stiller) — `DUZENLEME_PLANI.md` | 22 | ⬜ |
+| 23 | **Word II** (biçim, şerit, Aa paneli, stiller) — `DUZENLEME_PLANI.md` | 22 | ✅ 2026-10-24 |
 | 24 | **Word III** (Ekle, tablo, resim, Düzen, üst/alt bilgi, Gözden Geçir) — `DUZENLEME_PLANI.md` | 23 | ⬜ |
 | 25 | **Excel I** (veri girişi, sayı/formül tuş takımı, işaret kipi, tutamaklar, doğruluk) — `DUZENLEME_PLANI.md` | 20 | ✅ 2026-10-23 |
 | 26 | **Excel II** (bağımlılık grafiği, ızgara çizimi, büyük sayfa) — `DUZENLEME_PLANI.md` | 25 | ✅ 2026-10-23 |
@@ -145,8 +145,8 @@ hesabı/kararı gerekir (Play Console, Billing, depo ayarı).
 > Faz 33'ün cihaz kısmı sıra 12 cihaz turuyla birleştirilirse telefon oturumu bir kez yapılır.
 >
 > **Durum 2026-10-23:** Faz 20 ✅ · Faz 21 ✅ (K18 = b-ii) · Faz 22 ✅ · Faz 25 ✅ · Faz 26 ✅ ·
-> Faz 28 ✅. Sıradaki: **Faz 23** (Word biçimlendirme, şerit, Aa paneli, stiller — D6), sonra
-> Faz 30.
+> Faz 28 ✅. **2026-10-24: Faz 23 ✅.** Sıradaki: **Faz 30** (metin/kod/Markdown — D8; bulguları
+> HAFIZA 2026-10-24'te: metin kaydı kodlamayı UTF-8'e çeviriyor), sonra Faz 24.
 
 **Bulut oturumu ne yapabilir / ne yapamaz** (HAFIZA 2026-07-25 §F, 2026-10-21 (5)):
 

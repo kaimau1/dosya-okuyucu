@@ -626,3 +626,23 @@
   **TUZAK:** özel `TextInputClient` yazan her editör (slayt/Excel kendi TextField'ını kullanıyor,
   etkilenmez) Backspace/Delete TUŞ olayını kendisi işlemeli; testte `t.sendKeyEvent(backspace)`
   ile sına, yalnız delta yetmez.
+- **2026-10-24 — Faz 23: Word biçimlendirme (Mobil görünüm):** Giriş/Görünüm/Gözden Geçir şeridi,
+  klavye üstü çubuk (↶ K T A • 1. ⇤ ⇥ hizalama renk Aa ⌄), Aa paneli (Yazı · Paragraf · Stiller),
+  biçim boyacısı (tek/çift dokunuş), gezinti, sözcük sayısı, yakınlaştır; ↶ ↷ ve "Sayfa düzeni"
+  üst çubukta. **Model:** `DocxRunPatch` (K/T/A/üstü çizili/renk/vurgu/punto/yazı tipi/üst-alt
+  simge; `DocxCharStyle.effective` = stil + yama); paragraf işleri `editPPr` (pPr KOPYASINDA,
+  CT_PPr şema sırasıyla `_putP`); stil değişince harf görünüşleri yeniden çözülür (stil biçimi
+  run'a GÖMÜLMEZ — test). Listeler: oturumda yeni `abstractNum`+`num` (madde/numara/çok düzeyli),
+  komşu aynı türdeyse numarası sürer; `numbering.xml` yoksa parça + ilişki + içerik türü yaratılır.
+  Yerleşik stiller (Normal, Konu Başlığı, Alt Konu, Başlık 1–3, Alıntı, Liste Paragrafı) belgede
+  yoksa **sanal** — ilk uygulamada `styles.xml`'e yazılır. **Stil ADLA aranır** (Türkçe Word
+  kimliği `Balk1` ama adı `heading 1`). **K19 (b):** sayfa üzerinde (WebView) düzenleme ⋮'den
+  kalktı, yalnız geliştirici bayrağı (`labWordEditor`) açıkken yedek. Testler: `docx_format_test`
+  (12, gidiş-dönüş), `word_mobile_format_test` (5; 2,0× yazı). PNG `docs/design/faz23/`.
+  **TUZAK:** yatay kayan şerit/çubukta öğe ekran dışındaysa testte `scrollUntilVisible` +
+  `ensureVisible` gerekir (2,0× yazıda "Gözden Geçir" sekmesi bile dışarıda kalıyor).
+  **Kalan:** biçimli yapıştırma, masaüstü Word doğrulaması (CIHAZ_TESTI). Test görüntüsünde Arapça
+  belge metni kutu — yalnız testte yazı tipi yok, cihazda sistem yazı tipine düşer.
+  **Faz 30 için bulgu (yapılmadı, kullanıcı sırayı erteledi):** `FileService.saveText` her zaman
+  UTF-8 yazıyor → Windows-1254 / UTF-16 metin dosyası düzenlenip kaydedilince kodlaması sessizce
+  değişir; `TextReplace` büyük/küçük + tam sözcük destekliyor ama arayüzde düğmesi yok.

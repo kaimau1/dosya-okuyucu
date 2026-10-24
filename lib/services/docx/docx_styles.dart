@@ -117,7 +117,82 @@ class _Style {
   final XmlElement? pPr;
   const _Style(this.id, this.type, this.name, this.basedOn, this.next, this.rPr,
       this.pPr);
+
+  factory _Style.of(XmlElement s, String id) => _Style(
+        id,
+        s.getAttribute('type', namespace: _ns) ??
+            s.getAttribute('w:type') ??
+            'paragraph',
+        _val(_child(s, 'name')),
+        _val(_child(s, 'basedOn')),
+        _val(_child(s, 'next')),
+        _child(s, 'rPr'),
+        _child(s, 'pPr'),
+      );
 }
+
+/// Stil galerisindeki bir öğe (Faz 23).
+class DocxGalleryStyle {
+  final String id;
+
+  /// Word'ün yerleşik (İngilizce) adı — `Normal`, `heading 1` …; arayüz bunu
+  /// kendi diline çevirir.
+  final String builtin;
+
+  /// Belgede henüz tanımlı değil (uygulanınca `styles.xml`'e eklenir).
+  final bool virtual;
+  const DocxGalleryStyle(this.id, this.builtin, {this.virtual = false});
+}
+
+/// Yerleşik stil şablonları — belgede yoksa galeride yine görünür, ilk
+/// uygulamada `styles.xml`'e yazılır (Word 2016 varsayılanları). Yerelleşmiş
+/// Word stil KİMLİĞİNİ çevirir (Türkçe Word'de `Balk1`) ama ADI hep
+/// İngilizce yazar: stil adla aranır.
+const _builtinXml = <String, String>{
+  'Normal': '<w:pPr/>',
+  'Title': '<w:basedOn w:val="@N"/><w:next w:val="@N"/><w:qFormat/>'
+      '<w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/>'
+      '<w:contextualSpacing/></w:pPr><w:rPr><w:rFonts w:asciiTheme="majorHAnsi" '
+      'w:hAnsiTheme="majorHAnsi" w:eastAsiaTheme="majorEastAsia" '
+      'w:cstheme="majorBidi"/><w:spacing w:val="-10"/><w:kern w:val="28"/>'
+      '<w:sz w:val="56"/><w:szCs w:val="56"/></w:rPr>',
+  'Subtitle': '<w:basedOn w:val="@N"/><w:next w:val="@N"/><w:qFormat/>'
+      '<w:pPr><w:spacing w:after="160"/></w:pPr><w:rPr><w:color w:val="5A5A5A"/>'
+      '<w:spacing w:val="15"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr>',
+  'heading 1': '<w:basedOn w:val="@N"/><w:next w:val="@N"/><w:qFormat/>'
+      '<w:pPr><w:keepNext/><w:keepLines/><w:spacing w:before="240" w:after="0"/>'
+      '<w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:rFonts w:asciiTheme="majorHAnsi" '
+      'w:hAnsiTheme="majorHAnsi" w:eastAsiaTheme="majorEastAsia" '
+      'w:cstheme="majorBidi"/><w:color w:val="2F5496"/><w:sz w:val="32"/>'
+      '<w:szCs w:val="32"/></w:rPr>',
+  'heading 2': '<w:basedOn w:val="@N"/><w:next w:val="@N"/><w:qFormat/>'
+      '<w:pPr><w:keepNext/><w:keepLines/><w:spacing w:before="40" w:after="0"/>'
+      '<w:outlineLvl w:val="1"/></w:pPr><w:rPr><w:rFonts w:asciiTheme="majorHAnsi" '
+      'w:hAnsiTheme="majorHAnsi" w:eastAsiaTheme="majorEastAsia" '
+      'w:cstheme="majorBidi"/><w:color w:val="2F5496"/><w:sz w:val="26"/>'
+      '<w:szCs w:val="26"/></w:rPr>',
+  'heading 3': '<w:basedOn w:val="@N"/><w:next w:val="@N"/><w:qFormat/>'
+      '<w:pPr><w:keepNext/><w:keepLines/><w:spacing w:before="40" w:after="0"/>'
+      '<w:outlineLvl w:val="2"/></w:pPr><w:rPr><w:rFonts w:asciiTheme="majorHAnsi" '
+      'w:hAnsiTheme="majorHAnsi" w:eastAsiaTheme="majorEastAsia" '
+      'w:cstheme="majorBidi"/><w:color w:val="1F3763"/><w:sz w:val="24"/>'
+      '<w:szCs w:val="24"/></w:rPr>',
+  'Quote': '<w:basedOn w:val="@N"/><w:next w:val="@N"/><w:qFormat/>'
+      '<w:pPr><w:spacing w:before="200" w:after="160"/>'
+      '<w:ind w:left="864" w:right="864"/><w:jc w:val="center"/></w:pPr>'
+      '<w:rPr><w:i/><w:iCs/><w:color w:val="404040"/></w:rPr>',
+  'List Paragraph': '<w:basedOn w:val="@N"/><w:qFormat/>'
+      '<w:pPr><w:ind w:left="720"/><w:contextualSpacing/></w:pPr>',
+};
+
+/// Yeni yaratılan yerleşik stilin kimliği (Word'ün İngilizce kimlikleri).
+String _builtinId(String name) => switch (name) {
+      'heading 1' => 'Heading1',
+      'heading 2' => 'Heading2',
+      'heading 3' => 'Heading3',
+      'List Paragraph' => 'ListParagraph',
+      _ => name,
+    };
 
 /// `word/styles.xml` + tema yazı tipleri.
 class DocxStyles {
@@ -128,12 +203,20 @@ class DocxStyles {
   final String _majorFont;
   final String _minorFont;
 
+  /// Tema renkleri (koyu 1, açık 1, koyu 2, açık 2, vurgu 1–6) — ARGB.
+  final List<int> themeColors;
+
+  /// Belgede tanımsız yerleşik stiller (kimlik → şablon `w:style`).
+  final Map<String, XmlElement> _virtual = {};
+
   /// pPr düğümü başına çözülmüş görünüş (pPr'ler değişmez: değişen kopyadır).
   final _paraCache = Expando<DocxParaLook>('docxParaLook');
   DocxParaLook? _nullLook;
 
   DocxStyles._(this._styles, this._defRPr, this._defPPr, this._defaultParaStyle,
-      this._majorFont, this._minorFont);
+      this._majorFont, this._minorFont, this.themeColors) {
+    _addVirtualBuiltins();
+  }
 
   factory DocxStyles.parse(XmlDocument? styles, XmlDocument? theme) {
     final map = <String, _Style>{};
@@ -149,18 +232,8 @@ class DocxStyles {
         final id = s.getAttribute('styleId', namespace: _ns) ??
             s.getAttribute('w:styleId');
         if (id == null) continue;
-        final type = s.getAttribute('type', namespace: _ns) ??
-            s.getAttribute('w:type') ??
-            'paragraph';
-        final st = _Style(
-          id,
-          type,
-          _val(_child(s, 'name')),
-          _val(_child(s, 'basedOn')),
-          _val(_child(s, 'next')),
-          _child(s, 'rPr'),
-          _child(s, 'pPr'),
-        );
+        final st = _Style.of(s, id);
+        final type = st.type;
         map[id] = st;
         final isDefault = s.getAttribute('default', namespace: _ns) ??
             s.getAttribute('w:default');
@@ -170,25 +243,114 @@ class DocxStyles {
       }
     }
     var major = 'Calibri Light', minor = 'Calibri';
+    final colors = <int>[];
     if (theme != null) {
       for (final e in theme.descendantElements) {
         if (e.name.local == 'majorFont') {
           major = _child(e, 'latin')?.getAttribute('typeface') ?? major;
         } else if (e.name.local == 'minorFont') {
           minor = _child(e, 'latin')?.getAttribute('typeface') ?? minor;
+        } else if (e.name.local == 'clrScheme' && colors.isEmpty) {
+          for (final name in const [
+            'dk1', 'lt1', 'dk2', 'lt2', 'accent1', 'accent2', 'accent3',
+            'accent4', 'accent5', 'accent6',
+          ]) {
+            final c = _child(e, name);
+            final srgb = _child(c, 'srgbClr')?.getAttribute('val') ??
+                _child(c, 'sysClr')?.getAttribute('lastClr');
+            final argb = srgb == null ? null : _argb(srgb);
+            if (argb != null) colors.add(argb);
+          }
         }
       }
     }
-    return DocxStyles._(map, defR, defP, defaultPara, major, minor);
+    if (colors.isEmpty) {
+      // Office teması (2013–2022).
+      colors.addAll(const [
+        0xFF000000, 0xFFFFFFFF, 0xFF44546A, 0xFFE7E6E6, 0xFF4472C4,
+        0xFFED7D31, 0xFFA5A5A5, 0xFFFFC000, 0xFF5B9BD5, 0xFF70AD47,
+      ]);
+    }
+    return DocxStyles._(map, defR, defP, defaultPara, major, minor, colors);
   }
 
+  static const _w =
+      'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
+
+  void _addVirtualBuiltins() {
+    final normal = _defaultParaStyle ?? idForName('Normal') ?? 'Normal';
+    for (final MapEntry(key: name, value: body) in _builtinXml.entries) {
+      if (idForName(name) != null) continue;
+      var id = _builtinId(name);
+      while (_styles.containsKey(id)) {
+        id = '${id}X';
+      }
+      final el = XmlDocument.parse('<w:styles $_w><w:style w:type="paragraph" '
+              '${name == 'Normal' ? 'w:default="1" ' : ''}w:styleId="$id">'
+              '<w:name w:val="$name"/>${body.replaceAll('@N', normal)}'
+              '</w:style></w:styles>')
+          .rootElement
+          .childElements
+          .first;
+      _virtual[id] = el;
+    }
+  }
+
+  _Style? _get(String id) =>
+      _styles[id] ?? switch (_virtual[id]) { final v? => _Style.of(v, id), _ => null };
+
+  /// Belgede adıyla (büyük/küçük harf duyarsız) tanımlı paragraf stili.
+  String? idForName(String name) {
+    final n = name.toLowerCase();
+    for (final s in _styles.values) {
+      if (s.type == 'paragraph' && s.name?.toLowerCase() == n) return s.id;
+    }
+    return null;
+  }
+
+  /// Stil galerisi: Normal, Konu Başlığı, Alt Konu Başlığı, Başlık 1–3,
+  /// Alıntı, Liste Paragrafı — belgede olanlar kendi kimliğiyle, olmayanlar
+  /// sanal (ilk uygulamada yazılır).
+  List<DocxGalleryStyle> gallery() => [
+        for (final name in _builtinXml.keys)
+          if (idForName(name) case final id?)
+            DocxGalleryStyle(id, name)
+          else
+            for (final MapEntry(key: id, value: el) in _virtual.entries)
+              if (_val(_child(el, 'name')) == name)
+                DocxGalleryStyle(id, name, virtual: true),
+      ];
+
+  bool isVirtual(String id) => _virtual.containsKey(id);
+
+  /// Sanal stili gerçek yapar: döndürülen `w:style` `styles.xml`'e eklenir.
+  XmlElement? materialize(String id) {
+    final el = _virtual.remove(id);
+    if (el == null) return null;
+    _styles[id] = _Style.of(el, id);
+    return el;
+  }
+
+  /// Galeri önizlemesi: stilin harf görünüşü.
+  DocxRunLook styleLook(String id) => runLook(_pStyleOnly(id), null);
+
+  /// Galeri önizlemesi: stilin paragraf görünüşü.
+  DocxParaLook styleParaLook(String id) => paraLook(_pStyleOnly(id));
+
+  final _pStyleCache = <String, XmlElement>{};
+  XmlElement _pStyleOnly(String id) => _pStyleCache[id] ??= XmlElement(
+          XmlName.fromString('w:pPr'), [], [
+        XmlElement(XmlName.fromString('w:pStyle'),
+            [XmlAttribute(XmlName.fromString('w:val'), id)]),
+      ]);
+
   /// Stil adı / kimliği (yoksa null).
-  String? nameOf(String? id) => id == null ? null : _styles[id]?.name;
+  String? nameOf(String? id) => id == null ? null : _get(id)?.name;
 
   /// Enter'dan sonra gelecek paragraf stili (`w:next`; yoksa aynı stil).
   String? nextStyleOf(String? id) {
     if (id == null) return null;
-    return _styles[id]?.next ?? id;
+    return _get(id)?.next ?? id;
   }
 
   String? get defaultParagraphStyle => _defaultParaStyle;
@@ -199,7 +361,7 @@ class DocxStyles {
     final seen = <String>{};
     var cur = id;
     while (cur != null && seen.add(cur)) {
-      final s = _styles[cur];
+      final s = _get(cur);
       if (s == null) break;
       out.insert(0, s);
       cur = s.basedOn;
@@ -373,6 +535,15 @@ class DocxStyles {
     final v = int.tryParse(hex, radix: 16);
     return v == null || hex.length != 6 ? null : 0xFF000000 | v;
   }
+
+  /// Word'ün vurgu (fosforlu kalem) renkleri — ad sırası panel sırasıdır.
+  static const highlightNames = [
+    'yellow', 'green', 'cyan', 'magenta', 'blue', 'red', 'darkBlue',
+    'darkCyan', 'darkGreen', 'darkMagenta', 'darkRed', 'darkYellow',
+    'darkGray', 'lightGray', 'black',
+  ];
+
+  static int? highlightArgb(String name) => _highlightArgb(name);
 
   static int? _highlightArgb(String name) => switch (name) {
         'yellow' => 0xFFFFFF00,

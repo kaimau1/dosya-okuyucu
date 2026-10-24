@@ -22,6 +22,8 @@ import '../../widgets/docx_editor/docx_editor_view.dart';
 import '../../widgets/office_ribbon.dart';
 import '../../widgets/office_shell.dart';
 import '../../widgets/quick_sheets.dart';
+import '../../widgets/app_dialog.dart';
+import 'word_mobile/word_format_ui.dart';
 
 /// **Word Mobil görünüm editörü** (Faz 22, K18 = b-ii).
 ///
@@ -167,46 +169,104 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     QuickTranslateSheet.show(context, text, title: widget.name);
   }
 
-  Widget _accessory(DocxEditController c) => KeyboardAccessoryBar(
+  /// Mobil görünümün punto → dp çarpanı (Görünüm > Yakınlaştır).
+  double _scale = 1.35;
+  static const _scales = [1.0, 1.15, 1.35, 1.6, 1.9, 2.2];
+
+  void _zoom(int dir) {
+    final i = _scales.indexOf(_scale) + dir;
+    if (i < 0 || i >= _scales.length) return;
+    setState(() => _scale = _scales[i]);
+  }
+
+  final _viewKey = GlobalKey<DocxEditorViewState>();
+
+  WordFormatUi _ui(DocxEditController c) => WordFormatUi(
+        context: context,
+        c: c,
+        onPageLayout: _pageLayout,
+        onNavigate: _navigate,
+        onWordCount: _wordCount,
+        onZoomIn: _scale < _scales.last ? () => _zoom(1) : null,
+        onZoomOut: _scale > _scales.first ? () => _zoom(-1) : null,
+        onTranslate: _translate,
+      );
+
+  /// Görünüm > Gezinti: başlık listesi → dokun = o başlığa atla.
+  Future<void> _navigate() async {
+    final c = _ctrl;
+    if (c == null) return;
+    final hs = c.headings();
+    final i = await showAppSheet<int>(
+      context,
+      title: context.t('word.navigation'),
+      builder: (ctx) => hs.isEmpty
+          ? Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(ctx.t('word.no_headings')),
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final (i, level, text) in hs)
+                  ListTile(
+                    key: ValueKey('word-nav-$i'),
+                    contentPadding: EdgeInsetsDirectional.only(
+                        start: 16.0 + (level - 1).clamp(0, 4) * 20, end: 16),
+                    title: Text(text,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: level == 1
+                            ? const TextStyle(fontWeight: FontWeight.w600)
+                            : null),
+                    onTap: () => Navigator.pop(ctx, i),
+                  ),
+              ],
+            ),
+    );
+    if (i == null || !mounted) return;
+    c.goToParagraph(i);
+    await _viewKey.currentState?.revealParagraph(i);
+  }
+
+  /// Gözden Geçir > Sözcük sayısı.
+  Future<void> _wordCount() async {
+    final c = _ctrl;
+    if (c == null) return;
+    final n = c.counts();
+    await showAppSheet<void>(
+      context,
+      title: context.t('word.word_count'),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final (k, v) in [
+            ('word.count_words', n.words),
+            ('word.count_chars', n.chars),
+            ('word.count_chars_ns', n.charsNoSpace),
+            ('word.count_paras', n.paragraphs),
+          ])
+            ListTile(
+              title: Text(ctx.t(k)),
+              trailing: Text('$v', style: Theme.of(ctx).textTheme.titleMedium),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _accessory(DocxEditController c, WordFormatUi ui) =>
+      KeyboardAccessoryBar(
+        onFormat: _panel.open,
         onHideKeyboard: () {
           c.detach();
           FocusScope.of(context).unfocus();
           setState(() {});
         },
-        items: [
-          AccessoryItem(
-              key: const ValueKey('word-acc-undo'),
-              icon: OfficeIcons.undo,
-              tooltip: context.t('word.undo'),
-              onPressed: c.canUndo ? c.undo : null),
-          AccessoryItem(
-              icon: OfficeIcons.redo,
-              tooltip: context.t('word.redo'),
-              onPressed: c.canRedo ? c.redo : null),
-          AccessoryItem(
-              key: const ValueKey('word-acc-bold'),
-              icon: OfficeIcons.bold,
-              tooltip: context.t('common.bold'),
-              selected: c.isBold,
-              onPressed: c.toggleBold),
-          AccessoryItem(
-              icon: OfficeIcons.italic,
-              tooltip: context.t('common.italic'),
-              selected: c.isItalic,
-              onPressed: c.toggleItalic),
-          AccessoryItem(
-              icon: OfficeIcons.underline,
-              tooltip: context.t('common.underline'),
-              selected: c.isUnderline,
-              onPressed: c.toggleUnderline),
-          AccessoryItem(
-              icon: OfficeIcons.paste,
-              tooltip: context.t('word.paste'),
-              onPressed: c.paste),
-        ],
+        items: ui.accessory(),
       );
 
-  Widget _ribbon(DocxEditController c) {
+  Widget _ribbon(WordFormatUi ui) {
     final scheme = Theme.of(context).colorScheme;
     return Material(
       color: scheme.surface,
@@ -215,35 +275,64 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
         top: false,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: OfficeRibbon(
-            tabs: [
-              RibbonTab('', [
-                RibbonButton(OfficeIcons.undo, context.t('word.undo'),
-                    onTap: c.canUndo ? c.undo : null),
-                RibbonButton(OfficeIcons.redo, context.t('word.redo'),
-                    onTap: c.canRedo ? c.redo : null),
-                const RibbonSep(),
-                RibbonButton(OfficeIcons.bold, context.t('common.bold'),
-                    active: c.isBold, onTap: c.toggleBold),
-                RibbonButton(OfficeIcons.italic, context.t('common.italic'),
-                    active: c.isItalic, onTap: c.toggleItalic),
-                RibbonButton(OfficeIcons.underline, context.t('common.underline'),
-                    active: c.isUnderline, onTap: c.toggleUnderline),
-                const RibbonSep(),
-                RibbonButton(AppIcons.translate, context.t('common.translate'),
-                    onTap: () => _translate(c.selectedText())),
-              ]),
-            ],
-            trailing: Padding(
-              padding: const EdgeInsetsDirectional.only(end: 8),
-              child: FilledButton(
-                key: const ValueKey('word-page-layout'),
-                onPressed: _pageLayout,
-                child: Text(context.t('word.page_layout')),
-              ),
+          child: OfficeRibbon(tabs: ui.ribbonTabs()),
+        ),
+      ),
+    );
+  }
+
+  /// Biçim boyacısı etkinken belgenin üstünde ince şerit (kilitliyse ✕).
+  Widget _painterBanner(DocxEditController c) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      key: const ValueKey('word-painter-banner'),
+      color: scheme.secondaryContainer,
+      child: Padding(
+        padding: const EdgeInsetsDirectional.only(start: 12),
+        child: Row(children: [
+          Icon(OfficeIcons.formatPainter,
+              size: 18, color: scheme.onSecondaryContainer),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              context.t(c.painterLocked
+                  ? 'word.format_painter_locked'
+                  : 'word.format_painter_hint'),
+              style: TextStyle(color: scheme.onSecondaryContainer),
             ),
           ),
-        ),
+          IconButton(
+            tooltip: context.t('common.close'),
+            icon: const Icon(AppIcons.close),
+            onPressed: c.cancelPainter,
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _chrome(DocxEditController c) {
+    final ui = _ui(c);
+    return EditorChrome(
+      editing: true,
+      accessory: _accessory(c, ui),
+      ribbon: _ribbon(ui),
+      panel: _panel,
+      panelTabs: ui.panelTabs(),
+      body: Column(
+        children: [
+          if (c.painterActive) _painterBanner(c),
+          Expanded(
+            child: DocxEditorView(
+              key: _viewKey,
+              controller: c,
+              scale: _scale,
+              spellcheck: EditPrefs.wordSpellcheck,
+              actions:
+                  DocxEditorActions(translate: _translate, aiFix: _aiFix),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -271,7 +360,26 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
           title: widget.name,
           session: _session,
           subtitle: context.t('word.mobile_view'),
+          // ↶ ↷ hep üst çubukta (§5 madde 5); Sayfa düzeni M365'teki gibi
+          // tepede — şerit yazı işlerine kalır.
           actions: [
+            IconButton(
+              key: const ValueKey('word-undo'),
+              tooltip: context.t('word.undo'),
+              icon: const Icon(OfficeIcons.undo),
+              onPressed: c != null && c.canUndo ? c.undo : null,
+            ),
+            IconButton(
+              tooltip: context.t('word.redo'),
+              icon: const Icon(OfficeIcons.redo),
+              onPressed: c != null && c.canRedo ? c.redo : null,
+            ),
+            IconButton(
+              key: const ValueKey('word-page-layout'),
+              tooltip: context.t('word.page_layout'),
+              icon: const Icon(AppIcons.newWord),
+              onPressed: c == null ? null : _pageLayout,
+            ),
             IconButton(
               tooltip: context.t('common.save'),
               icon: const Icon(AppIcons.save),
@@ -285,18 +393,7 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
                     child: Text(context.t('common.open_failed', {'error': _error})))
                 : c == null
                     ? const Center(child: CircularProgressIndicator())
-                    : EditorChrome(
-                        editing: true,
-                        accessory: _accessory(c),
-                        ribbon: _ribbon(c),
-                        panel: _panel,
-                        body: DocxEditorView(
-                          controller: c,
-                          spellcheck: EditPrefs.wordSpellcheck,
-                          actions: DocxEditorActions(
-                              translate: _translate, aiFix: _aiFix),
-                        ),
-                      ),
+                    : _chrome(c),
           ),
         ),
       ),

@@ -53,6 +53,9 @@
  "lib/screens/editors/word/page.dart": {
   "font_size": 1
  },
+ "lib/screens/editors/word_mobile/word_format_ui.dart": {
+  "font_size": 1
+ },
  "lib/screens/fm/ai_actions.dart": {
   "sheets": 2
  },

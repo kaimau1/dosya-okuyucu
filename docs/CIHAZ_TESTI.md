@@ -682,3 +682,12 @@ Word'de bir belge aç → alttaki **Düzenle** (artık Mobil görünüm açılı
 - [ ] kaydet → Word masaüstünde / Google Dokümanlar'da onarımsız açılıyor; köprü, dipnot, resim, tablo yerinde
 - [ ] "akıcı mı" (1–5) ve eski sayfa üzerinde düzenleme (⋮ menü) ile kıyas
 - [ ] Arapça belgede sağdan sola yazma
+
+## 2026-10-24 — Faz 23 (Word biçimlendirme)
+
+- Word > Düzenle (Mobil görünüm): klavye kapalıyken altta **Giriş · Görünüm · Gözden Geçir** şeridi, klavye açılınca klavyenin hemen üstünde hızlı çubuk → şerit/çubuk geçişi takılmasız.
+- **Aa**: klavye iner, aynı yükseklikte panel (Yazı · Paragraf · Stiller) açılır → imleç satırı yerinde kalmalı; ⌨ ile klavye geri gelmeli.
+- Bir kelimeye kalın + kırmızı + 16 pt + vurgu, paragrafa Başlık 1, başka paragrafa madde/numara/çok düzeyli liste, satır aralığı 1,5, ortala → kaydet → dosyayı **masaüstü Word'de ve LibreOffice'te** aç: aynı görünmeli, onarım uyarısı çıkmamalı (numbering.xml olmayan belgede de: ör. sıfırdan yazılmış tek stilli .docx).
+- Biçim boyacısı: tek dokunuş bir kez uygular; çift dokunuş kilitler, üstteki şeritte ✕ ile biter.
+- Görünüm > Gezinti: başlığa dokununca o başlığa kaymalı (uzun belgede de).
+- Türkçe Word'de kaydedilmiş belgede (stil kimliği `Balk1`) Başlık 1 galeride belgenin kendi stiliyle görünmeli.

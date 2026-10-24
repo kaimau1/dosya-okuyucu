@@ -218,7 +218,11 @@ class DocxEditorViewState extends State<DocxEditorView> {
     if (p == null) return;
     if (c.paras[p.para].opaque) return;
     _focus.requestFocus();
-    if (_taps == 2) {
+    if (c.painterActive && _taps == 1) {
+      // Biçim boyacısı: dokunulan kelimeye uygula (Word gibi).
+      c.selectWord(p);
+      c.selectionFinished();
+    } else if (_taps == 2) {
       c.selectWord(p);
     } else if (_taps >= 3) {
       c.selectParagraph(p.para);
@@ -258,6 +262,7 @@ class DocxEditorViewState extends State<DocxEditorView> {
 
   void _onLongPressEnd(LongPressEndDetails d) {
     c.toolbar = !c.collapsed;
+    c.selectionFinished();
     setState(() {});
   }
 
@@ -273,6 +278,30 @@ class DocxEditorViewState extends State<DocxEditorView> {
       rect: Rect.fromLTWH(caret.dx, caret.dy - 24, 2, h + 48),
       duration: Motion.short,
     );
+  }
+
+  /// Gezinti: [i]. paragrafa atlar. Tembel listede paragraf kurulu
+  /// olmayabilir — önce blok oranıyla tahmini konuma kaydırılır, kurulunca
+  /// tam yerine (en çok birkaç kare).
+  Future<void> revealParagraph(int i) async {
+    final bl = _blockList;
+    var k = bl.indexWhere((b) => i >= b.start && i < b.end);
+    if (k < 0) k = 0;
+    for (var tries = 0; tries < 6 && mounted; tries++) {
+      final ro = _render(i);
+      if (ro != null) {
+        ro.showOnScreen(
+            rect: Rect.fromLTWH(0, -8, ro.size.width, ro.size.height + 16),
+            duration: Motion.short);
+        return;
+      }
+      if (!_scroll.hasClients) return;
+      final pos = _scroll.position;
+      final target = (pos.maxScrollExtent * k / math.max(1, bl.length - 1))
+          .clamp(0.0, pos.maxScrollExtent);
+      _scroll.jumpTo(target);
+      await WidgetsBinding.instance.endOfFrame;
+    }
   }
 
   /// Seçim uçlarının ve araç çubuğunun yeri.
@@ -344,9 +373,8 @@ class DocxEditorViewState extends State<DocxEditorView> {
 
   // ── çizim ────────────────────────────────────────────────────────────────
 
-  TextStyle _style(DocxRunLook look, {bool? bold, bool? italic, bool? underline}) {
-    final b = bold ?? look.bold, i = italic ?? look.italic;
-    final u = underline ?? look.underline;
+  TextStyle _style(DocxRunLook look) {
+    final b = look.bold, i = look.italic, u = look.underline;
     final sup = look.vertAlign != null;
     return TextStyle(
       fontFamily: look.renderFamily,
@@ -427,7 +455,7 @@ class DocxEditorViewState extends State<DocxEditorView> {
     while (k < p.length) {
       final atom = p.atoms[k];
       if (atom != null) {
-        kids.add(_atomSpan(atom, _style(p.styles[k].look), maxW));
+        kids.add(_atomSpan(atom, _style(p.styles[k].effective), maxW));
         k++;
         continue;
       }
@@ -438,12 +466,11 @@ class DocxEditorViewState extends State<DocxEditorView> {
       }
       kids.add(TextSpan(
         text: p.text.substring(k, j),
-        style: _style(st.look,
-            bold: st.bold, italic: st.italic, underline: st.underline),
+        style: _style(st.effective),
       ));
       k = j;
     }
-    return TextSpan(style: _style(p.mark.look), children: kids);
+    return TextSpan(style: _style(p.mark.effective), children: kids);
   }
 
   Widget _para(int i, double maxW) {
@@ -483,7 +510,7 @@ class DocxEditorViewState extends State<DocxEditorView> {
             width: 28,
             child: Text(label,
                 textDirection: dir,
-                style: _style(p.mark.look)),
+                style: _style(p.mark.effective)),
           ),
           Expanded(child: body),
         ],
@@ -610,6 +637,7 @@ class DocxEditorViewState extends State<DocxEditorView> {
         },
         onPanEnd: (_) {
           c.toolbar = !c.collapsed;
+          c.selectionFinished();
           setState(() {});
         },
         child: Container(

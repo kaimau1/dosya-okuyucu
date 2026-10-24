@@ -23,6 +23,10 @@ abstract final class OfficeIcons {
   static const textColor = AppIcons.formatColorText;
   static const fillColor = AppIcons.formatColorFill;
   static const highlight = AppIcons.borderColor;
+  static const superscript = AppIcons.superscript;
+  static const subscript = AppIcons.subscript;
+  static const clearFormat = AppIcons.formatClear;
+  static const formatPainter = AppIcons.formatPaint;
 
   // Hizalama ve akış
   static const alignLeft = AppIcons.formatAlignLeft;
@@ -32,6 +36,14 @@ abstract final class OfficeIcons {
   static const wrapText = AppIcons.wrapText;
   static const bullets = AppIcons.formatListBulleted;
   static const numbering = AppIcons.formatListNumbered;
+  static const multilevel = AppIcons.accountTree;
+  static const indentLess = AppIcons.formatIndentDecrease;
+  static const indentMore = AppIcons.formatIndentIncrease;
+  static const lineSpacing = AppIcons.formatLineSpacing;
+  static const rtl = AppIcons.formatTextdirectionRToL;
+  static const styles = AppIcons.title;
+  static const navigation = AppIcons.toc;
+  static const wordCount = AppIcons.numbers;
 
   // Tablo / hücre
   static const borders = AppIcons.borderAll;

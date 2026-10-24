@@ -20,6 +20,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/edit/edit_history.dart';
 import '../../services/docx/docx_document.dart';
+import '../../services/docx/docx_styles.dart';
 
 /// Belgede bir konum (paragraf sırası + paragraf içi harf).
 @immutable
@@ -423,11 +424,50 @@ class DocxEditController extends ChangeNotifier
   bool get isBold => _all((s) => s.isBold);
   bool get isItalic => _all((s) => s.isItalic);
   bool get isUnderline => _all((s) => s.isUnderline);
+  bool get isStrike => _all((s) => s.effective.strike);
+  bool get isSuperscript =>
+      _all((s) => s.effective.vertAlign == 'superscript');
+  bool get isSubscript => _all((s) => s.effective.vertAlign == 'subscript');
 
-  void _format({bool? bold, bool? italic, bool? underline}) {
+  /// Seçimdeki harflerin ortak değeri; karışıksa `(null, true)`.
+  (T?, bool) _common<T>(T Function(DocxRunLook) get) {
+    final caret = get(_typingStyle(extent.para, extent.offset).effective);
+    if (collapsed) return (caret, false);
+    T? v;
+    var any = false;
+    final s = start, e = end;
+    for (var i = s.para; i <= e.para; i++) {
+      final p = paras[i];
+      if (p.opaque) continue;
+      final from = i == s.para ? s.offset : 0;
+      final to = i == e.para ? e.offset : p.length;
+      for (var k = from; k < to; k++) {
+        if (p.atoms[k] != null) continue;
+        final x = get(p.styles[k].effective);
+        if (!any) {
+          v = x;
+          any = true;
+        } else if (x != v) {
+          return (null, true);
+        }
+      }
+    }
+    return any ? (v, false) : (caret, false);
+  }
+
+  /// Punto (karışık seçimde null — şeritte "—").
+  double? get fontSize => _common((l) => l.sizePt).$1;
+
+  /// Yazı tipi adı (karışık seçimde null).
+  String? get fontName => _common((l) => l.font).$1;
+
+  void _format({bool? bold, bool? italic, bool? underline}) =>
+      applyPatch(DocxRunPatch(bold: bold, italic: italic, underline: underline));
+
+  /// Harf biçimi uygular: seçim varsa seçime, yoksa sıradaki yazıya.
+  void applyPatch(DocxRunPatch patch) {
     if (collapsed) {
-      _pending = _typingStyle(extent.para, extent.offset)
-          .merge(bold: bold, italic: italic, underline: underline);
+      _pending = _typingStyle(extent.para, extent.offset).merge(patch: patch);
       _pendingAt = extent;
       notifyListeners();
       return;
@@ -439,8 +479,7 @@ class DocxEditController extends ChangeNotifier
       if (p.opaque) continue;
       final from = i == s.para ? s.offset : 0;
       final to = i == e.para ? e.offset : p.length;
-      doc.paras[i] =
-          p.format(from, to, bold: bold, italic: italic, underline: underline);
+      doc.paras[i] = p.format(from, to, patch: patch);
     }
     _changed(notify: true);
   }
@@ -448,6 +487,225 @@ class DocxEditController extends ChangeNotifier
   void toggleBold() => _format(bold: !isBold);
   void toggleItalic() => _format(italic: !isItalic);
   void toggleUnderline() => _format(underline: !isUnderline);
+  void toggleStrike() => applyPatch(DocxRunPatch(strike: !isStrike));
+  void toggleSuperscript() => applyPatch(
+      DocxRunPatch(vertAlign: isSuperscript ? '' : 'superscript'));
+  void toggleSubscript() =>
+      applyPatch(DocxRunPatch(vertAlign: isSubscript ? '' : 'subscript'));
+  void setFontSize(double pt) => applyPatch(DocxRunPatch(sizePt: pt));
+  void setFont(String name) => applyPatch(DocxRunPatch(font: name));
+
+  /// Son kullanılan yazı renkleri (en yeni başta, en çok 6).
+  final List<int> recentColors = [];
+
+  /// Yazı rengi; [DocxRunPatch.autoColor] = otomatik.
+  void setColor(int argb) {
+    if (argb != DocxRunPatch.autoColor) {
+      recentColors
+        ..remove(argb)
+        ..insert(0, argb);
+      if (recentColors.length > 6) recentColors.removeLast();
+    }
+    applyPatch(DocxRunPatch(color: argb));
+  }
+
+  /// Vurgu adı; `''` = kaldır.
+  void setHighlight(String name) => applyPatch(DocxRunPatch(highlight: name));
+
+  /// A+ / A−: punto kademesinde bir adım.
+  void growFont(int dir, List<double> steps) {
+    final cur = fontSize ?? 11;
+    double next = cur;
+    if (dir > 0) {
+      next = steps.firstWhere((v) => v > cur + 0.01, orElse: () => cur);
+    } else {
+      next = steps.lastWhere((v) => v < cur - 0.01, orElse: () => cur);
+    }
+    if (next != cur) setFontSize(next);
+  }
+
+  /// "Biçimi temizle": seçimdeki (seçim yoksa paragraftaki) doğrudan harf
+  /// biçimi kalkar; paragraf stilinin biçimi kalır.
+  void clearFormatting() {
+    _record(typing: false);
+    if (collapsed) {
+      final i = extent.para;
+      if (paras[i].opaque) return;
+      doc.paras[i] = doc.clearFormatting(paras[i], 0, paras[i].length);
+      _pending = null;
+    } else {
+      final s = start, e = end;
+      for (var i = s.para; i <= e.para; i++) {
+        final p = paras[i];
+        if (p.opaque) continue;
+        final from = i == s.para ? s.offset : 0;
+        final to = i == e.para ? e.offset : p.length;
+        doc.paras[i] = doc.clearFormatting(p, from, to);
+      }
+    }
+    _changed(notify: true);
+  }
+
+  // ── paragraf biçimi (Faz 23) ─────────────────────────────────────────────
+
+  DocxPara get currentPara => paras[extent.para];
+  DocxParaLook get paraLook => currentPara.look;
+
+  /// Seçimdeki paragrafların ortak stili (karışıksa null).
+  String? get styleId {
+    String? v;
+    var first = true;
+    for (var i = start.para; i <= end.para; i++) {
+      final p = paras[i];
+      if (p.opaque) continue;
+      if (first) {
+        v = p.look.styleId;
+        first = false;
+      } else if (p.look.styleId != v) {
+        return null;
+      }
+    }
+    return v;
+  }
+
+  /// İmlecin paragrafının liste türü (`bullet` | `number` | `multi` | null).
+  String? get listKind => doc.listKind(currentPara);
+
+  void _editParas(DocxPara Function(int i, DocxPara p) edit) {
+    _record(typing: false);
+    for (var i = start.para; i <= end.para; i++) {
+      final p = paras[i];
+      if (p.opaque) continue;
+      doc.paras[i] = edit(i, p);
+    }
+    _changed(notify: true);
+  }
+
+  void setAlign(String align) => _editParas((_, p) => doc.setAlign(p, align));
+
+  /// Hizalamayı sırayla çevirir: sola → ortala → sağa → iki yana.
+  void cycleAlign() {
+    const order = ['left', 'center', 'right', 'both'];
+    setAlign(order[(order.indexOf(paraLook.align) + 1) % order.length]);
+  }
+
+  void indent(int delta) => _editParas((_, p) => doc.indent(p, delta));
+
+  void setLineSpacing(double multiple) =>
+      _editParas((_, p) => doc.setLineSpacing(p, multiple));
+
+  /// Paragraf öncesine 12 nk boşluk ekler / kaldırır.
+  void toggleSpaceBefore() {
+    final on = paraLook.spaceBeforePt > 0;
+    _editParas((_, p) => doc.setSpacing(p, beforePt: on ? 0 : 12));
+  }
+
+  /// Paragraf sonrasına 8 nk boşluk ekler / kaldırır.
+  void toggleSpaceAfter() {
+    final on = paraLook.spaceAfterPt > 0;
+    _editParas((_, p) => doc.setSpacing(p, afterPt: on ? 0 : 8));
+  }
+
+  void toggleRtl() {
+    final on = !paraLook.bidi;
+    _editParas((_, p) => doc.setBidi(p, on));
+  }
+
+  /// Madde / numara / çok düzeyli liste — hepsi o türdeyse listeden çıkar.
+  void toggleList(String kind) {
+    var all = true;
+    for (var i = start.para; i <= end.para; i++) {
+      if (!paras[i].opaque && doc.listKind(paras[i]) != kind) all = false;
+    }
+    _editParas((i, p) {
+      if (all) return doc.withoutList(p);
+      final prev = i > 0 && identical(paras[i - 1].container, p.container)
+          ? paras[i - 1]
+          : null;
+      final next = i + 1 < paras.length &&
+              i + 1 > end.para &&
+              identical(paras[i + 1].container, p.container)
+          ? paras[i + 1]
+          : null;
+      return doc.setList(p, kind, prev: prev, next: next);
+    });
+  }
+
+  void applyStyle(String id) => _editParas((_, p) => doc.applyStyle(p, id));
+
+  /// Gezinti: başlıklar (paragraf sırası, düzey, metin).
+  List<(int, int, String)> headings() => [
+        for (var i = 0; i < paras.length; i++)
+          if (!paras[i].opaque &&
+              paras[i].look.headingLevel > 0 &&
+              paras[i].text.trim().isNotEmpty)
+            (i, paras[i].look.headingLevel, paras[i].text.replaceAll(kDocxAtom, '').trim()),
+      ];
+
+  /// Sözcük / karakter (boşluklu, boşluksuz) / paragraf sayısı.
+  ({int words, int chars, int charsNoSpace, int paragraphs}) counts() {
+    final text = doc.plainText();
+    return (
+      words: RegExp(r'\S+').allMatches(text).length,
+      chars: text.replaceAll('\n', '').length,
+      charsNoSpace: text.replaceAll(RegExp(r'\s'), '').length,
+      paragraphs: paras.where((p) => !p.opaque && p.text.trim().isNotEmpty).length,
+    );
+  }
+
+  /// [i]. paragrafa imleç koyar (gezinti).
+  void goToParagraph(int i) => select(DocPos(i, 0), DocPos(i, 0));
+
+  // ── biçim boyacısı ───────────────────────────────────────────────────────
+
+  DocxCharStyle? _painter;
+
+  /// Çift dokunuşla kilitli: birden çok yere uygulanır, ✕ ile biter.
+  bool painterLocked = false;
+  bool get painterActive => _painter != null;
+
+  /// Biçimi kopyalar (tek dokunuş: bir kez; [lock]: kilitli). Etkinken
+  /// yeniden basmak kapatır.
+  void pickPainter({bool lock = false}) {
+    if (painterActive && !lock) return cancelPainter();
+    DocxCharStyle src = _typingStyle(extent.para, extent.offset);
+    if (!collapsed) {
+      final p = paras[start.para];
+      for (var k = start.offset; k < p.length; k++) {
+        if (p.atoms[k] == null) {
+          src = p.styles[k];
+          break;
+        }
+      }
+    }
+    _painter = src;
+    painterLocked = lock;
+    notifyListeners();
+  }
+
+  void cancelPainter() {
+    _painter = null;
+    painterLocked = false;
+    notifyListeners();
+  }
+
+  /// Görünüm seçim bitince çağırır (uzun bas / tutamak / dokunuş): boyacı
+  /// etkinse biçimi seçime uygular.
+  void selectionFinished() {
+    final src = _painter;
+    if (src == null || collapsed) return;
+    _record(typing: false);
+    final s = start, e = end;
+    for (var i = s.para; i <= e.para; i++) {
+      final p = paras[i];
+      if (p.opaque) continue;
+      final from = i == s.para ? s.offset : 0;
+      final to = i == e.para ? e.offset : p.length;
+      doc.paras[i] = doc.paintFormat(p, from, to, src);
+    }
+    if (!painterLocked) _painter = null;
+    _changed(notify: true);
+  }
 
   // ── seçim ────────────────────────────────────────────────────────────────
 
