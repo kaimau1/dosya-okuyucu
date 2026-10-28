@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
@@ -19,10 +18,11 @@ import '../../../services/fm/notification_hub.dart';
 import '../../../services/fm/fm_env.dart';
 import '../../../services/fm/fs_scan.dart';
 import '../../../services/fm/remote/peer_share.dart';
-import '../../../services/fm/remote/qr_transfer.dart';
 import '../../../widgets/fm/fm_progress_dialog.dart';
 import '../folder_picker_screen.dart';
 import 'qr_file_share_screen.dart';
+import 'qr_receive_flow.dart';
+import '../../../core/app_haptics.dart';
 import '../../../core/safe_insets.dart';
 import '../../../core/user_error.dart';
 import '../../../widgets/app_dialog.dart';
@@ -89,6 +89,9 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
   /// Alıcıda kod istensin mi ve o kodun kendisi.
   bool _requireCode = false;
   String _code = '';
+
+  /// Gelen her gönderim için onay sorulsun mu (varsayılan AÇIK).
+  bool _confirmIncoming = true;
   final _received = <(String path, String from)>[];
   String? _incoming;
 
@@ -255,7 +258,9 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
       messenger,
       SnackBar(
         content: Text(
-          result.wrongCode
+          result.declined
+              ? strings.t('peer.declined_by_peer')
+              : result.wrongCode
               ? strings.t('peer.code_wrong')
               : result.hasError
                   ? strings.t('peer.send_failed', {'error': result.errors.first})
@@ -306,6 +311,7 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
       deviceName: _deviceName,
       saveDir: _saveDir,
       pairingCode: _requireCode ? _code : '',
+      onAsk: _confirmIncoming ? _askIncoming : null,
       onProgress: (name, received, total) {
         if (!mounted) return;
         final label = total > 0
@@ -353,59 +359,36 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
     setState(() => _receiver = receiver);
   }
 
+  /// QR ile al — panodaki yüzen düğmeyle AYNI akış (onaylı, bkz.
+  /// [QrReceiveFlow]); gelenler bu ekranın listesine de yazılır.
   Future<void> _scanQr() async {
-    final strings = AppStrings.of(context);
-    final messenger = ScaffoldMessenger.of(context);
-    final String? raw;
-    try {
-      raw = await QrNative.scan();
-    } on PlatformException {
-      showSnackOn(messenger, strings.t('qrf.scan_unavailable'));
-      return;
-    }
-    if (raw == null || !mounted) return; // vazgeçildi
-    final payload = QrPayload.parse(raw);
-    if (payload == null) {
-      showSnackOn(messenger, strings.t('qrf.scan_unknown'));
-      return;
-    }
-    if (payload.url == null) {
-      showSnackOn(messenger, strings.t('qrf.scan_wifi_only'));
-      return;
-    }
-    var joined = false;
-    if (payload.ssid != null) {
-      setState(() => _incoming = payload.ssid);
-      joined = await QrNative.joinWifi(
-          payload.ssid!, payload.pass ?? '', payload.sec);
-      if (!joined) {
-        if (mounted) setState(() => _incoming = null);
-        showSnackOn(messenger, strings.t('qrf.join_failed'));
-        return;
+    final paths = await QrReceiveFlow.run(context,
+        saveDir: _saveDir, showResult: false);
+    if (!mounted || paths.isEmpty) return;
+    setState(() {
+      for (final path in paths) {
+        _received.insert(0, (path, 'QR'));
       }
-    }
-    try {
-      final paths = await QrReceiver.download(payload.url!, _saveDir,
-          onProgress: (name, received, total) {
-        if (!mounted) return;
-        final label = total > 0
-            ? '$name · ${FsPaths.humanSize(received)} / '
-                '${FsPaths.humanSize(total)}'
-            : name;
-        if (_incoming != label) setState(() => _incoming = label);
-      });
-      if (!mounted) return;
-      setState(() {
-        for (final path in paths) {
-          _received.insert(0, (path, 'QR'));
-        }
-      });
-    } catch (e) {
-      showSnackOn(messenger, userErrorText(e));
-    } finally {
-      if (joined) await QrNative.leaveWifi();
-      if (mounted) setState(() => _incoming = null);
-    }
+    });
+  }
+
+  /// Gelen dosya isteği: "X sana N dosya göndermek istiyor · Kabul et /
+  /// Reddet" (2026-10-28 kullanıcı isteği: *"dosya almada onay olmalı"*).
+  Future<bool> _askIncoming(PeerOffer offer) async {
+    if (!mounted) return false;
+    final size = FsPaths.humanSize(offer.totalBytes);
+    final message = offer.count <= 1 && offer.firstName.isNotEmpty
+        ? context.t('peer.ask_body_one',
+            {'from': offer.from, 'name': offer.firstName, 'size': size})
+        : context.t('peer.ask_body',
+            {'from': offer.from, 'n': offer.count, 'size': size});
+    AppHaptics.step();
+    return showAppConfirm(
+      context,
+      title: context.t('peer.ask_title'),
+      message: message,
+      confirmLabel: context.t('peer.ask_accept'),
+    );
   }
 
   Future<void> _pickSaveDir() async {
@@ -699,6 +682,19 @@ class _PeerShareScreenState extends State<PeerShareScreen> {
               _requireCode = value;
               if (value && _code.isEmpty) _code = PeerReceiver.newCode();
             });
+            await _startReceiving();
+          },
+        ),
+        // **Gelen dosyayı onayla** (varsayılan açık): gönderim, "Kabul et"
+        // denmeden diske yazılmaz.
+        SwitchListTile(
+          key: const ValueKey('peer-confirm'),
+          contentPadding: EdgeInsets.zero,
+          secondary: const Icon(AppIcons.incoming),
+          title: Text(context.t('peer.ask_switch')),
+          value: _confirmIncoming,
+          onChanged: (value) async {
+            setState(() => _confirmIncoming = value);
             await _startReceiving();
           },
         ),

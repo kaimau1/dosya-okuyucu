@@ -438,4 +438,16 @@ abstract final class AppIcons {
   static const IconData wrapText = Icons.wrap_text_rounded;
   static const IconData zoomIn = Icons.zoom_in_rounded;
   static const IconData zoomOut = Icons.zoom_out_rounded;
+
+  // ── 2026-10-28 turu ──────────────────────────────────────────────────
+  /// Tür seçici hapı (tüm türler).
+  static const IconData typeAll = Icons.category_rounded;
+  /// "Görüntüler" — fotoğraf + video birleşik ekran.
+  static const IconData mediaAll = Icons.perm_media_rounded;
+  /// Fotoğraflar (yalnız görsel) kutusu.
+  static const IconData photos = Icons.photo_library_rounded;
+  /// QR ile al (tarayıcı).
+  static const IconData qrScan = Icons.qr_code_scanner_rounded;
+  /// Gelen dosya isteği.
+  static const IconData incoming = Icons.call_received_rounded;
 }

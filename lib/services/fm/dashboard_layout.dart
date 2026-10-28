@@ -34,6 +34,10 @@ class DashboardLayout extends ChangeNotifier {
     'important',
     'image',
     'video',
+    // **Görüntüler** (2026-10-28): fotoğraf + video TEK zaman ekseninde.
+    // Varsayılan GİZLİ — kullanıcı "Ana ekranı düzenle"den panoya taşır;
+    // Fotoğraflar ve Videolar kutuları ayrı ayrı yerinde kalır.
+    'media',
     'document',
     'audio',
     'archive',
@@ -48,6 +52,9 @@ class DashboardLayout extends ChangeNotifier {
   /// mevcut kullanıcının panosu güncellemeyle kendiliğinden değişmesin.
   static const defaultHiddenSections = {'recent'};
 
+  /// Aynı kural kutular için: güncellemeyle gelen bu kutular gizli doğar.
+  static const defaultHiddenTiles = {'media'};
+
   static const _kSections = 'dash_sections';
   static const _kHiddenSections = 'dash_hidden_sections';
   static const _kTiles = 'dash_tiles';
@@ -56,7 +63,7 @@ class DashboardLayout extends ChangeNotifier {
   List<String> _sectionOrder = List.of(sections);
   Set<String> _hiddenSections = {...defaultHiddenSections};
   List<String> _tileOrder = List.of(tiles);
-  Set<String> _hiddenTiles = {};
+  Set<String> _hiddenTiles = {...defaultHiddenTiles};
   bool _loaded = false;
 
   List<String> get sectionOrder => List.unmodifiable(_sectionOrder);
@@ -67,7 +74,7 @@ class DashboardLayout extends ChangeNotifier {
   /// Varsayılandan farklı mı? ("Varsayılana dön" düğmesi için.)
   bool get isCustomized =>
       !setEquals(_hiddenSections, defaultHiddenSections) ||
-      _hiddenTiles.isNotEmpty ||
+      !setEquals(_hiddenTiles, defaultHiddenTiles) ||
       !listEquals(_sectionOrder, sections) ||
       !listEquals(_tileOrder, tiles);
 
@@ -102,8 +109,14 @@ class DashboardLayout extends ChangeNotifier {
       for (final id in defaultHiddenSections) {
         if (saved == null || !saved.contains(id)) _hiddenSections.add(id);
       }
-      _tileOrder = _merge(p.getStringList(_kTiles), tiles);
+      final savedTiles = p.getStringList(_kTiles);
+      _tileOrder = _merge(savedTiles, tiles);
       _hiddenTiles = {...?p.getStringList(_kHiddenTiles)}..retainAll(tiles);
+      for (final id in defaultHiddenTiles) {
+        if (savedTiles == null || !savedTiles.contains(id)) {
+          _hiddenTiles.add(id);
+        }
+      }
       notifyListeners();
     } catch (_) {
       // Ayar okunamadı: varsayılan düzen.
@@ -145,7 +158,7 @@ class DashboardLayout extends ChangeNotifier {
     _sectionOrder = List.of(sections);
     _tileOrder = List.of(tiles);
     _hiddenSections = {...defaultHiddenSections};
-    _hiddenTiles = {};
+    _hiddenTiles = {...defaultHiddenTiles};
     return _save();
   }
 
@@ -175,7 +188,7 @@ class DashboardLayout extends ChangeNotifier {
     _sectionOrder = List.of(sections);
     _tileOrder = List.of(tiles);
     _hiddenSections = {...defaultHiddenSections};
-    _hiddenTiles = {};
+    _hiddenTiles = {...defaultHiddenTiles};
     _loaded = false;
   }
 }

@@ -187,17 +187,17 @@ class FmFileListView extends StatelessWidget {
     // yükseklik birebir aynı, tahmin yok.
     final uniform = items.isNotEmpty && items.every((it) => it is FmEntryItem);
     return ListView.builder(
-        controller: controller,
-        padding: _pad(context, Gap.xs),
-        itemCount: items.length,
-        prototypeItem: uniform ? _row(items.first as FmEntryItem) : null,
-        itemBuilder: (context, i) => switch (items[i]) {
-          FmHeaderItem(:final labelKey, :final count) =>
-            FmGroupHeader(label: context.t(labelKey), count: count),
-          FmEntryItem(:final entry) =>
-            _focus(context, entry, _row(items[i] as FmEntryItem)),
-        },
-      );
+      controller: controller,
+      padding: _pad(context, Gap.xs),
+      itemCount: items.length,
+      prototypeItem: uniform ? _row(items.first as FmEntryItem) : null,
+      itemBuilder: (context, i) => switch (items[i]) {
+        FmHeaderItem(:final labelKey, :final count) =>
+          FmGroupHeader(label: context.t(labelKey), count: count),
+        FmEntryItem(:final entry) =>
+          _focus(context, entry, _row(items[i] as FmEntryItem)),
+      },
+    );
   }
 
   Widget _row(FmEntryItem item) {
@@ -253,16 +253,19 @@ class FmFileListView extends StatelessWidget {
                 itemCount: cells.length,
                 itemBuilder: (context, i) {
                   final c = cells[i];
-                  return _focus(context, c.entry, DragSelectItem(
-                    index: c.index,
-                    child: FmEntryCard(
-                      entry: c.entry,
-                      layout: layout,
-                      selected: selected.contains(c.entry.path),
-                      selecting: _selecting,
-                      onTap: () => _tap(c.entry),
-                    ),
-                  ));
+                  return _focus(
+                      context,
+                      c.entry,
+                      DragSelectItem(
+                        index: c.index,
+                        child: FmEntryCard(
+                          entry: c.entry,
+                          layout: layout,
+                          selected: selected.contains(c.entry.path),
+                          selecting: _selecting,
+                          onTap: () => _tap(c.entry),
+                        ),
+                      ));
                 },
               ),
             ),
@@ -324,7 +327,13 @@ class FmListToolbar extends StatelessWidget {
   final bool? folderOnly;
   final ValueChanged<bool>? onFolderOnly;
 
+  /// Satırın başına konan süzgeç hapları (ör. tür seçici). Verilirse özet
+  /// metninin ("142 öğe") yerini alır — sayı zaten tür hapında yazar ve
+  /// süzgeç ile sıralama TEK satırda durur (2026-10-28).
+  final List<Widget> filters;
+
   const FmListToolbar({
+    this.filters = const [],
     super.key,
     required this.count,
     required this.sort,
@@ -347,6 +356,75 @@ class FmListToolbar extends StatelessWidget {
             {'n': count, 'size': FsPaths.humanSize(totalBytes!)})
         : context.t('list.summary', {'n': count});
     final sortName = context.t(sort.labelKey);
+    final sortText = Text(
+      sortName,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.labelLarge?.copyWith(color: scheme.primary),
+    );
+    // Süzgeç hapları varsa sıralama onlarla AYNI kaydırmada durur: 360 dp +
+    // 2,0× yazıda sabit bir sıralama düğmesi tür hapını ezip
+    // dokunulamaz yapıyordu (2026-10-28 taşma testi).
+    Widget sortMenu({required bool inScroll}) =>
+        PopupMenuButton<(FmSort, bool)>(
+          tooltip: context.t('list.sort_by', {'name': sortName}),
+          onSelected: (v) => onSort(v.$1, v.$2),
+          itemBuilder: (_) => [
+            for (final s in sortOptions)
+              CheckedPopupMenuItem(
+                checked: s == sort,
+                // Aynı ölçüte yeniden dokunmak yönü çevirir; yeni ölçüt
+                // kendi doğal yönüyle başlar (tarih/boyut: yeni/büyük üstte).
+                value: (
+                  s,
+                  s == sort
+                      ? !descending
+                      : (s == FmSort.date || s == FmSort.size),
+                ),
+                child: Text(context.t(s.labelKey)),
+              ),
+            const PopupMenuDivider(),
+            CheckedPopupMenuItem(
+              checked: !descending,
+              value: (sort, false),
+              child: Text(context.t('list.sort_dir_asc')),
+            ),
+            CheckedPopupMenuItem(
+              checked: descending,
+              value: (sort, true),
+              child: Text(context.t('list.sort_dir_desc')),
+            ),
+            if (folderOnly != null) ...[
+              const PopupMenuDivider(),
+              CheckedPopupMenuItem(
+                key: const ValueKey('sort-folder-only'),
+                checked: folderOnly!,
+                // Değer döndürmez: anahtar kendi geri çağrısıyla çalışır.
+                onTap: () => onFolderOnly?.call(!folderOnly!),
+                child: Text(context.t('list.sort_folder_only')),
+              ),
+            ],
+          ],
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(AppIcons.sort, size: 18, color: scheme.primary),
+                  const SizedBox(width: 4),
+                  if (inScroll) sortText else Flexible(child: sortText),
+                  Icon(
+                    descending ? AppIcons.arrowDown : AppIcons.arrowUp,
+                    size: 16,
+                    color: scheme.primary,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
     return Container(
       constraints: const BoxConstraints(minHeight: 44),
       padding: const EdgeInsetsDirectional.only(start: Gap.md, end: Gap.xs),
@@ -355,88 +433,28 @@ class FmListToolbar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Expanded(
-            child: Text(
-              bidiParts(context, summary),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-                fontFeatures: const [FontFeature.tabularFigures()],
+          if (filters.isNotEmpty)
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(children: [...filters, sortMenu(inScroll: true)]),
+              ),
+            )
+          else
+            Expanded(
+              child: Text(
+                bidiParts(context, summary),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
             ),
-          ),
           // Flexible: 360 dp + 2,0× yazıda "Tarihe göre ↓" sığmayınca kısalır
           // (Faz 13 taşma testi) — özet metni zaten Expanded.
-          Flexible(
-            child: PopupMenuButton<(FmSort, bool)>(
-              tooltip: context.t('list.sort_by', {'name': sortName}),
-              onSelected: (v) => onSort(v.$1, v.$2),
-              itemBuilder: (_) => [
-                for (final s in sortOptions)
-                  CheckedPopupMenuItem(
-                    checked: s == sort,
-                    // Aynı ölçüte yeniden dokunmak yönü çevirir; yeni ölçüt
-                    // kendi doğal yönüyle başlar (tarih/boyut: yeni/büyük üstte).
-                    value: (
-                      s,
-                      s == sort
-                          ? !descending
-                          : (s == FmSort.date || s == FmSort.size),
-                    ),
-                    child: Text(context.t(s.labelKey)),
-                  ),
-                const PopupMenuDivider(),
-                CheckedPopupMenuItem(
-                  checked: !descending,
-                  value: (sort, false),
-                  child: Text(context.t('list.sort_dir_asc')),
-                ),
-                CheckedPopupMenuItem(
-                  checked: descending,
-                  value: (sort, true),
-                  child: Text(context.t('list.sort_dir_desc')),
-                ),
-                if (folderOnly != null) ...[
-                  const PopupMenuDivider(),
-                  CheckedPopupMenuItem(
-                    key: const ValueKey('sort-folder-only'),
-                    checked: folderOnly!,
-                    // Değer döndürmez: anahtar kendi geri çağrısıyla çalışır.
-                    onTap: () => onFolderOnly?.call(!folderOnly!),
-                    child: Text(context.t('list.sort_folder_only')),
-                  ),
-                ],
-              ],
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 48),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(AppIcons.sort, size: 18, color: scheme.primary),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          sortName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.labelLarge
-                              ?.copyWith(color: scheme.primary),
-                        ),
-                      ),
-                      Icon(
-                        descending ? AppIcons.arrowDown : AppIcons.arrowUp,
-                        size: 16,
-                        color: scheme.primary,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
+          if (filters.isEmpty) Flexible(child: sortMenu(inScroll: false)),
           if (onFilter != null)
             IconButton(
               tooltip: filterCount > 0

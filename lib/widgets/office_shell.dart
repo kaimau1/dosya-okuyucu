@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart' show kLongPressTimeout;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderProxyBox;
 
 import '../core/app_icons.dart';
 import '../core/edit/edit_session.dart';
@@ -31,23 +32,40 @@ import '../core/app_colors.dart';
 /// ekranlar kendi Scaffold'unu kurmaz.
 /// **Okuma kipi** çubuk durumu (Faz 18 / G20, 2026-10-22).
 ///
-/// Belge aşağı kaydırılınca üst/alt çubuklar çekilir, yukarı kaydırınca ya
-/// da tek dokunuşla geri gelir (Acrobat/Drive dili). Kaydırma kaynağı ya
-/// [OfficeShell]'in yakaladığı `ScrollUpdateNotification` (metin, slayt,
-/// Excel) ya da görüntüleyicinin kendi jest geri çağrısıdır (PDF —
-/// pdfrx kaydırma bildirimi yaymıyor: [scrolled] elle çağrılır).
+/// Belge aşağı kaydırılınca üst/alt çubuklar çekilir, yukarı kaydırınca, tek
+/// dokunuşla ya da kaydırma bir süre DURUNCA ([idle]) yumuşakça geri gelir
+/// (Acrobat/Drive dili). Kaydırma kaynağı ya [OfficeShell]'in yakaladığı
+/// `ScrollUpdateNotification` (metin, slayt, Excel) ya da görüntüleyicinin
+/// kendi dinleyicisidir (PDF/Word — [scrolled] elle çağrılır).
+///
+/// 2026-10-28 (kullanıcı: *"okurken alttaki ve üstteki şeyler yumuşak
+/// biçimde gizlensin, durunca geri gelebilsin; şu an titremeler, bozulmalar
+/// oluyor"*): bkz. [OfficeShell] — çubuklar artık belgenin ÜSTÜNDE kayan
+/// katmanlar; gövdenin boyu hiç değişmez.
 class ReadingBars extends ValueNotifier<bool> {
-  ReadingBars() : super(true);
+  ReadingBars({this.idle = Motion.readingIdle}) : super(true);
+
+  /// Kaydırma bu kadar durunca çubuklar kendiliğinden geri gelir
+  /// (`Duration.zero` = gelmez).
+  final Duration idle;
 
   /// Yön değişmeden biriken kaydırma; eşik aşılınca karar verilir (titreyen
   /// parmakta çubuklar yanıp sönmesin).
   double _acc = 0;
+  Timer? _idleTimer;
+
+  /// Sabitlenmiş (ör. arama açık): kaydırma çubukları gizlemez.
+  bool _pinned = false;
+  bool get pinned => _pinned;
+  set pinned(bool on) {
+    _pinned = on;
+    if (on) show();
+  }
 
   /// [delta] > 0: içerik aşağı kaydı (okumaya devam) → gizle.
   void scrolled(double delta, {bool atTop = false}) {
-    if (atTop) {
-      _acc = 0;
-      value = true;
+    if (atTop || _pinned) {
+      show();
       return;
     }
     if (delta == 0) return;
@@ -55,14 +73,115 @@ class ReadingBars extends ValueNotifier<bool> {
     _acc += delta;
     if (_acc > 32) {
       value = false;
-    } else if (_acc < -32) {
+    } else if (_acc < -24) {
       value = true;
     }
+    _armIdle();
+  }
+
+  void _armIdle() {
+    _idleTimer?.cancel();
+    if (idle == Duration.zero || value) return;
+    _idleTimer = Timer(idle, show);
   }
 
   void show() {
+    _idleTimer?.cancel();
     _acc = 0;
     value = true;
+  }
+
+  /// Çubukları çek (ör. "sayfaya git" sonrası okumaya başlanır).
+  void hide() {
+    if (_pinned) return;
+    _acc = 0;
+    value = false;
+    _armIdle();
+  }
+
+  @override
+  void dispose() {
+    _idleTimer?.cancel();
+    super.dispose();
+  }
+}
+
+/// Okuma kipinde belgenin üstüne binen çubukların ölçüleri — gövde, içeriği
+/// ilk açılışta çubukların ALTINDAN başlatmak için bunu okur
+/// ([ReadingChrome.insetsOf]); yüzen öğeler (sayfa rozeti, seçim çubuğu)
+/// [shown] ile alt çubukla birlikte iner/kalkar ([ReadingFloat]).
+class ReadingChrome extends InheritedWidget {
+  /// Üst çubuğun tam boyu (durum çubuğu dahil).
+  final double top;
+
+  /// Alt çubuğun tam boyu (sistem gezinme çubuğu dahil).
+  final double bottom;
+
+  /// 1 = çubuklar görünür, 0 = çekik.
+  final Animation<double> shown;
+
+  const ReadingChrome({
+    super.key,
+    required this.top,
+    required this.bottom,
+    required this.shown,
+    required super.child,
+  });
+
+  static ReadingChrome? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<ReadingChrome>();
+
+  /// İçeriğe verilecek üst/alt pay (okuma kipi yoksa sıfır).
+  static EdgeInsets insetsOf(BuildContext context) {
+    final c = maybeOf(context);
+    return c == null
+        ? EdgeInsets.zero
+        : EdgeInsets.only(top: c.top, bottom: c.bottom);
+  }
+
+  @override
+  bool updateShouldNotify(ReadingChrome old) =>
+      old.top != top || old.bottom != bottom || old.shown != shown;
+}
+
+/// Gövdenin ALTINA yaslı yüzen öğe (sayfa rozeti, seçim/konuşma çubuğu):
+/// okuma kipinde alt çubuk görünürken onun üstünde durur, çubuk çekilince
+/// birlikte aşağı iner. Okuma kipi yoksa yalnız [gap] kadar yukarıda.
+///
+/// Bir `Stack`in DOĞRUDAN çocuğu olmalı (`Positioned` üretir).
+class ReadingFloat extends StatelessWidget {
+  final double gap;
+  final double? start;
+  final double? end;
+  final Widget child;
+
+  const ReadingFloat({
+    super.key,
+    this.gap = 16,
+    this.start = 0,
+    this.end = 0,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = ReadingChrome.maybeOf(context);
+    if (c == null) {
+      return PositionedDirectional(
+          start: start, end: end, bottom: gap, child: child);
+    }
+    final nav = MediaQuery.paddingOf(context).bottom;
+    return AnimatedBuilder(
+      animation: c.shown,
+      child: child,
+      builder: (context, child) => PositionedDirectional(
+        start: start,
+        end: end,
+        // Çekikken sistem gezinme çubuğunun üstünde kalır.
+        bottom: gap + nav + (c.bottom - nav) * c.shown.value,
+        child: child!,
+      ),
+    );
   }
 }
 
@@ -154,6 +273,7 @@ class _OfficeShellState extends State<OfficeShell>
   bool _onScroll(ScrollUpdateNotification n) {
     final bars = widget.readingBars;
     if (bars != null &&
+        widget.tabBar == null &&
         n.metrics.axis == Axis.vertical &&
         n.dragDetails != null) {
       bars.scrolled(n.scrollDelta ?? 0,
@@ -214,8 +334,22 @@ class _OfficeShellState extends State<OfficeShell>
         floatingActionButton: widget.fab,
       );
     }
-    final full = appBar.preferredSize.height;
-    final body = Listener(
+    // **Okuma kipi = KATMAN** (2026-10-28). Eskiden çubukların boyu her
+    // animasyon karesinde küçülüyor, gövde her karede yeniden yerleşiyordu:
+    // metin satırları kayıyor, kaydırma konumu titriyor, pdfrx ise görünüm
+    // boyu değişince sayfa başına atlıyordu (HAFIZA 2026-10-23 (14)).
+    // Şimdi gövde EKRANIN TAMAMINI sabit boyla kaplar; çubuklar onun üstünde
+    // yalnız kayar (Transform — yerleşim yok, yalnız boya). İçerik
+    // [ReadingChrome.insetsOf] kadar pay bırakıp çubukların altından başlar.
+    final media = MediaQuery.of(context);
+    final status = media.padding.top;
+    final topH = status + appBar.preferredSize.height;
+    // İçeriğe verilen pay arama çubuğunu (tabBar) SAYMAZ: arama açılıp
+    // kapanınca pay değişseydi PDF düzeni yeniden kurulur, sayfa başına
+    // atlardı. Arama çubuğu açıkken belgenin üstüne biner.
+    final chromeTop = topH - (widget.tabBar?.preferredSize.height ?? 0);
+    final bottomH = bottom == null ? 0.0 : (_bottomH ?? 0.0);
+    final barsBody = Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: (e) {
         _downAt = e.position;
@@ -236,39 +370,136 @@ class _OfficeShellState extends State<OfficeShell>
         child: widget.body,
       ),
     );
-    return AnimatedBuilder(
-      animation: _shown,
-      builder: (context, _) {
-        final t = _shown.value;
-        return Scaffold(
-          backgroundColor: OfficeColors.canvas(context),
-          appBar: PreferredSize(
-            preferredSize: Size.fromHeight(full * t),
-            child: ClipRect(
-              // Üstten hizalı: gizliyken kalan şerit çubuğun durum çubuğu
-              // dolgusudur (yüzey rengi) — simgeler yarım görünmez.
-              child: OverflowBox(
-                alignment: Alignment.topCenter,
-                minHeight: 0,
-                maxHeight: double.infinity,
+    final surface = scheme.surface;
+    return Scaffold(
+      backgroundColor: OfficeColors.canvas(context),
+      body: ReadingChrome(
+        top: chromeTop,
+        bottom: bottomH,
+        shown: _shown,
+        child: Stack(
+          children: [
+            Positioned.fill(child: barsBody),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: topH,
+              child: AnimatedBuilder(
+                animation: _shown,
                 child: appBar,
+                builder: (context, child) {
+                  final t = _shown.value;
+                  return IgnorePointer(
+                    ignoring: t < 0.5,
+                    child: Transform.translate(
+                      offset: Offset(0, -(topH - status) * (1 - t)),
+                      child: Opacity(
+                        // Çekilirken hafif solar: kenar sert bir şerit gibi
+                        // kaymaz (yumuşak his).
+                        opacity: 0.35 + 0.65 * t,
+                        child: child,
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
-          ),
-          body: body,
-          bottomNavigationBar: bottom == null
-              ? null
-              : ClipRect(
-                  child: Align(
-                    alignment: Alignment.topCenter,
-                    heightFactor: t,
+            // Durum çubuğu şeridi: çubuk çekikken saat/pil simgeleri belgenin
+            // üstüne yazılmasın.
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: status,
+              child: ColoredBox(color: surface),
+            ),
+            if (bottom != null)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: AnimatedBuilder(
+                  animation: _shown,
+                  child: _SizeReporter(
+                    onSize: (size) {
+                      if (_bottomH != size.height) {
+                        setState(() => _bottomH = size.height);
+                      }
+                    },
                     child: bottom,
                   ),
+                  builder: (context, child) {
+                    final t = _shown.value;
+                    return IgnorePointer(
+                      ignoring: t < 0.5,
+                      child: Transform.translate(
+                        offset: Offset(0, bottomH * (1 - t)),
+                        child: child,
+                      ),
+                    );
+                  },
                 ),
-          floatingActionButton: t < 0.5 ? null : widget.fab,
-        );
-      },
+              ),
+            if (widget.fab != null)
+              AnimatedBuilder(
+                animation: _shown,
+                child: widget.fab,
+                builder: (context, child) {
+                  final t = _shown.value;
+                  return PositionedDirectional(
+                    end: 16,
+                    bottom: 16 + media.padding.bottom +
+                        (bottomH - media.padding.bottom).clamp(0, 999) * t,
+                    child: IgnorePointer(
+                      ignoring: t < 0.5,
+                      child: Opacity(
+                        opacity: t,
+                        child: Transform.scale(
+                            scale: 0.8 + 0.2 * t, child: child),
+                      ),
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
     );
+  }
+
+  /// Alt çubuğun ölçülen boyu (ilk karede bilinmez).
+  double? _bottomH;
+}
+
+/// Çocuğunun boyunu yerleşimden sonra bildirir (alt çubuk payı için).
+class _SizeReporter extends SingleChildRenderObjectWidget {
+  final ValueChanged<Size> onSize;
+  const _SizeReporter({required this.onSize, required super.child});
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderSizeReporter(onSize);
+
+  @override
+  void updateRenderObject(
+          BuildContext context, _RenderSizeReporter renderObject) =>
+      renderObject.onSize = onSize;
+}
+
+class _RenderSizeReporter extends RenderProxyBox {
+  _RenderSizeReporter(this.onSize);
+  ValueChanged<Size> onSize;
+  Size? _last;
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    if (size != _last) {
+      _last = size;
+      final s = size;
+      WidgetsBinding.instance.addPostFrameCallback((_) => onSize(s));
+    }
   }
 }
 

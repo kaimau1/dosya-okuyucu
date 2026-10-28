@@ -238,6 +238,79 @@ void main() {
     });
   });
 
+  // 2026-10-28 kullanıcı isteği: *"dosya almada onay olmalı"*.
+  group('gelen dosya onayı', () {
+    Future<PeerReceiver> startAsking(Future<bool> Function(PeerOffer) ask) async {
+      final receiver = PeerReceiver(
+          deviceName: 'Alıcı', saveDir: inbox.path, onAsk: ask);
+      await receiver.start();
+      addTearDown(receiver.stop);
+      return receiver;
+    }
+
+    test('reddedilen gönderim diske HİÇ yazılmaz; gönderen "reddedildi" alır',
+        () async {
+      final offers = <PeerOffer>[];
+      final receiver = await startAsking((o) async {
+        offers.add(o);
+        return false;
+      });
+      final a = File(p.join(temp.path, 'a.txt'))..writeAsStringSync('aaaa');
+      final b = File(p.join(temp.path, 'b.txt'))..writeAsStringSync('bb');
+      final peer = Peer(name: 'A', host: '127.0.0.1', port: receiver.port);
+      final result = await PeerSender.send(peer, [a.path, b.path],
+          senderName: 'Ayşe');
+      expect(result.declined, isTrue);
+      expect(result.sent, 0);
+      expect(inbox.listSync(), isEmpty);
+      expect(offers, hasLength(1));
+      expect(offers.single.from, 'Ayşe');
+      expect(offers.single.count, 2);
+      expect(offers.single.totalBytes, 6);
+      expect(offers.single.firstName, 'a.txt');
+    });
+
+    test('kabul edilen tur TEK soruyla bütün dosyaları alır', () async {
+      var asked = 0;
+      final receiver = await startAsking((_) async {
+        asked++;
+        return true;
+      });
+      final paths = [
+        for (var i = 0; i < 3; i++)
+          (File(p.join(temp.path, 'd$i.txt'))..writeAsStringSync('$i' * 10))
+              .path,
+      ];
+      final peer = Peer(name: 'A', host: '127.0.0.1', port: receiver.port);
+      final result =
+          await PeerSender.send(peer, paths, senderName: 'G');
+      expect(result.sent, 3);
+      expect(result.declined, isFalse);
+      expect(asked, 1);
+      expect(inbox.listSync(), hasLength(3));
+    });
+
+    test('izinsiz (eski sürüm) doğrudan gönderimde dosya başına sorulur',
+        () async {
+      var asked = 0;
+      final receiver = await startAsking((_) async {
+        asked++;
+        return false;
+      });
+      final client = HttpClient();
+      addTearDown(client.close);
+      final req = await client.postUrl(Uri.parse(
+          'http://127.0.0.1:${receiver.port}/al?ad=x.txt&kim=eski'));
+      req.write('veri');
+      final res = await req.close();
+      final body = await res.transform(const Utf8Decoder()).join();
+      expect(res.statusCode, HttpStatus.forbidden);
+      expect(body, 'red');
+      expect(asked, 1);
+      expect(inbox.listSync(), isEmpty);
+    });
+  });
+
   test('alt ağ yayın adresi', () {
     expect(PeerShare.broadcastFor('192.168.1.37'), '192.168.1.255');
     expect(PeerShare.broadcastFor('10.0.0.4'), '10.0.0.255');

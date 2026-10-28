@@ -5,6 +5,7 @@ import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
 import '../core/user_error.dart';
 import '../services/large_text.dart';
+import 'office_shell.dart' show ReadingChrome;
 
 /// Büyük metin dosyasının **sanal listesi** (bkz. [LargeTextFile]).
 ///
@@ -92,6 +93,15 @@ class _LargeTextViewState extends State<LargeTextView> {
 
   @override
   Widget build(BuildContext context) {
+    // Okuma kipinde çubuklar belgenin üstünde kayan katman: dev dosyada
+    // içerik onların altından başlar (pay sabit — yerleşim titremez).
+    return Padding(
+      padding: ReadingChrome.insetsOf(context),
+      child: _build(context),
+    );
+  }
+
+  Widget _build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final file = _file;

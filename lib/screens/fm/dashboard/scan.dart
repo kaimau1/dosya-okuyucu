@@ -104,7 +104,7 @@ extension _DashboardScreenScanPart on _DashboardScreenState {
     // Görsel ve video → Google Fotoğraflar tarzı zaman ekseni (gün/ay/yıl).
     if (category == FmCategory.image || category == FmCategory.video) {
       return PhotosScreen(
-        title: category.label,
+        title: _categoryLabel(category),
         // Kapsam: TÜM depolama. Önemli Dosyalar ekranı aynı başlıkla ("Görüntüler")
         // çok daha küçük bir küme açıyor — benzer tarama sonuçları karışmasın.
         scopeId: 'depolama-${category.name}',
@@ -117,6 +117,31 @@ extension _DashboardScreenScanPart on _DashboardScreenState {
       files: _index.files(category),
       gridDefault: grid,
       // Belgelerde PDF/Word/Excel/Slayt/Metin süzgeci.
+      loadAll: loadAll,
+    );
+  }
+
+  /// **Görüntüler** — fotoğraf + video tek zaman ekseninde (2026-10-28).
+  /// Önce panonun önbelleğindeki iki liste birleşik açılır, eksiksiz liste
+  /// arka planda gelir (Fotoğraflar/Videolar ekranlarıyla aynı yol); tür
+  /// seçici (Fotoğraflar · Videolar) kendiliğinden çıkar.
+  Widget _mediaScreen() {
+    final locked = context.read<AppState>().fmLockedFolders;
+    List<FsEntry> merged(List<FsEntry> a, List<FsEntry> b) =>
+        [...a, ...b]..sort((x, y) => y.modifiedMs.compareTo(x.modifiedMs));
+    Future<List<FsEntry>> loadAll() async {
+      final parts = await Future.wait([
+        MediaLibrary.categoryFiles(FmCategory.image, lockedFolders: locked),
+        MediaLibrary.categoryFiles(FmCategory.video, lockedFolders: locked),
+      ]);
+      return merged(parts[0], parts[1]);
+    }
+
+    return PhotosScreen(
+      title: context.t('fm.media_all'),
+      scopeId: 'depolama-media',
+      files: merged(
+          _index.files(FmCategory.image), _index.files(FmCategory.video)),
       loadAll: loadAll,
     );
   }

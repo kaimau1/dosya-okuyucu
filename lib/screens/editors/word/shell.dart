@@ -215,18 +215,38 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                         // Alt şeridin paylaşımı: SOL = zoom düğmeleri,
                         // ORTA = sayfa rozeti, SAĞ = AI düğmesi (FAB).
                         // Üçü de köşeye yığılırsa üst üste biniyor.
+                        //
+                        // Okuma kipinde alt çubukla birlikte iner/kalkar
+                        // (2026-10-28; zoom düğmeleriyle aynı şerit).
                         if (_pageCount > 0 && !_editing)
-                          Positioned(
-                            left: 0,
-                            right: 0,
-                            // Zoom düğmeleriyle aynı sistem çubuğu payı
-                            // (bkz. DocxView'daki not) — rozet de aynı şeritte.
-                            bottom: 12 + MediaQuery.paddingOf(context).bottom,
-                            child: Center(child: _pageBadge()),
+                          Builder(
+                            builder: (context) =>
+                                ReadingChrome.maybeOf(context) == null
+                                    ? Positioned(
+                                        left: 0,
+                                        right: 0,
+                                        // Zoom düğmeleriyle aynı sistem çubuğu
+                                        // payı (bkz. DocxView'daki not).
+                                        bottom: 12 +
+                                            MediaQuery.paddingOf(context)
+                                                .bottom,
+                                        child: Center(child: _pageBadge()),
+                                      )
+                                    : ReadingFloat(
+                                        gap: 12,
+                                        child: Center(child: _pageBadge()),
+                                      ),
                           ),
+                        // Okuma kipinde üst çubuk belgenin üstüne biner:
+                        // arama çubuğu onun altında durur.
                         if (_finding)
-                          Positioned(
-                              top: 0, left: 0, right: 0, child: _findBar()),
+                          Builder(
+                            builder: (context) => Positioned(
+                                top: ReadingChrome.insetsOf(context).top,
+                                left: 0,
+                                right: 0,
+                                child: _findBar()),
+                          ),
                       ],
                     ))),
       // Klavye/biçim çubuğu varken FAB araya girmesin.

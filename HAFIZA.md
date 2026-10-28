@@ -646,3 +646,46 @@
   **Faz 30 için bulgu (yapılmadı, kullanıcı sırayı erteledi):** `FileService.saveText` her zaman
   UTF-8 yazıyor → Windows-1254 / UTF-16 metin dosyası düzenlenip kaydedilince kodlaması sessizce
   değişir; `TextReplace` büyük/küçük + tam sözcük destekliyor ama arayüzde düğmesi yok.
+- **2026-10-28 — Tek satır süzgeç başlığı, okuma kipi = katman, PDF zoom netliği, Görüntüler
+  (foto+video), QR ile al, alma onayı:** Kullanıcı (2 ekran görüntüsü, 6 madde).
+  **Süzgeç başlığı:** tür çipleri tek açılır hap (`FmTypePill`, "Tüm türler · 142 ▾" /
+  "PDF · 59" / "PDF +1") → levhada türler simge+renk+sayılı kutular (çoklu seçim, liste ARKADA
+  hemen süzülür, "N dosyayı göster"). `FmTypeChips.build` artık tek hap döndürür → bütün
+  ekranlar (kategori, gezgin, arama, İndirilenler, Son açılanlar, Çöp, Kasa, Üretilenler, galeri)
+  kendiliğinden değişti. Kategori ekranında Sırala·Süzgeç·Analiz (`FmListControls.pills`) AYNI
+  satırda → iki satır (~100 dp) tek satır; görünmeyen ölçütler `FmActiveCriteria`.
+  `FmListToolbar(filters:)`: tür hapı + sıralama tek kaydırmada (360 dp + 2,0× yazıda sabit
+  sıralama düğmesi hapı ezip dokunulamaz yapıyordu — test yakaladı).
+  **Okuma kipi — kök neden (titreme):** çubuklar çekilirken `PreferredSize` boyu her karede
+  değişiyor → gövde her karede yeniden yerleşiyor (metin kayıyor, PDF sayfa başına atlıyor;
+  PDF bu yüzden 10-23'te kapatılmıştı). **Çözüm:** `OfficeShell` okuma kipinde çubuklar gövdenin
+  ÜSTÜNDE `Transform` ile kayan katman; gövde boyu SABİT. İçerik `ReadingChrome.insetsOf` payıyla
+  başlar (metin: dış `SingleChildScrollView` + büyüyen `TextField`; dev metin: Padding; PDF:
+  `layoutPages` belgenin başına/sonuna pt cinsinden pay; Word: JS `setInsets` → body padding).
+  Yüzen öğeler `ReadingFloat` (alt çubukla iner/kalkar). `ReadingBars`: kaydırma durunca
+  `Motion.readingIdle` (2,2 sn) sonra geri gelir, `pinned` (arama açık) gizlenmez, `hide()`
+  (PDF "sayfaya git" sonrası). PDF'te kaydırma `PdfViewerController` matris dinleyicisiyle
+  (ölçek değişimi = yakınlaştırma → yok sayılır). Pay arama çubuğunu SAYMAZ (açılıp kapanınca
+  PDF düzeni değişip sayfa başına atlardı). **TUZAK:** pdfrx düzeni HER karede `==` ile
+  karşılaştırır — `layoutPages` aynı girdide eşit düzen döndürmeli.
+  **PDF zoom titremesi — kök neden (pdfrx 1.3.5):** tam sayfa bitmap'i sabit 200 dpi; yakında
+  görünen parça ayrıca çizilip yapıştırılıyor ve her jest karesinde iptal + 50 ms sonra yeniden
+  isteniyor → keskin dikdörtgen eski yerinde, kenarı bulanık, yenisi gelince "atlama", eşik
+  altında keskinlik birden kaybı. **Çözüm:** `getPageRenderingScale` = basamaklı ölçek (×1,5,
+  sayfa başına ~12 MP tavan), jest SÜRERKEN sabit, iniş yarıdan fazla düşünce (gidip gelmesin).
+  **Görüntüler:** pano kutusu `media` (foto + video tek zaman ekseni, `PhotosScreen`; tür hapı
+  Fotoğraflar/Videolar) — VARSAYILAN GİZLİ (`DashboardLayout.defaultHiddenTiles`, K16 (b) ile
+  aynı kural), "Ana ekranı düzenle"den eklenir; görsel kutusu ve `enum.cat_image` artık
+  **Fotoğraflar** (`FmCategory.label` Türkçe sabit KALDI — klasör adı üretiminde kullanılıyor).
+  **QR ile al:** `QrReceiveFlow` (tara → `QrReceiver.list` → onay levhası [dosyalar, toplam,
+  klasör] → `showFmProgress` ile iptal edilebilir indirme → "N dosya alındı · Aç"). Panonun
+  yüzen çubuğunda (çöp · QR | Belge Tara) ve Yakındaki cihaz → Al'da aynı akış.
+  **Alma onayı (yakındaki cihaz):** gönderen önce `POST /sor` (kim, ad, adet, toplam) → alıcıda
+  "Kabul et / Reddet" (`PeerReceiver.onAsk`, sorular sıralı, 90 sn'de ret) → izin anahtarı
+  (`izin`, 30 dk) ile o turun bütün dosyaları; izinsiz `/al` (eski gönderen) dosya başına sorulur,
+  reddedilen gövde OKUNMADAN 403 `red`. Eski alıcı `/sor`u tanımaz → eski yol. Alıcıda anahtar
+  "Gelen dosyayı onayla" (varsayılan açık). Gönderen sonucu `declined` → "Karşı taraf kabul etmedi".
+  Testler: `reading_mode_test` (gövde rect'i sabit, idle dönüş, pinned), `fm_type_filter_test`
+  (levha), `peer_share_test` (ret diske yazmaz / tek soru / eski yol), `qr_transfer_test`,
+  `dashboard_layout_test`. **Cihazda doğrulanacak:** zoom hissi, okuma kipinin akıcılığı, Word
+  WebView dolgusu, QR tarayıcı akışı. graphify bu oturumda kurulu değildi (rapor güncellenmedi).

@@ -244,6 +244,8 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
         _findCtrl.clear();
       }
     });
+    // Arama açıkken okuma kipi çubukları sabit durur.
+    _readingBars.pinned = _finding;
   }
 
   void _runFind(String query) {

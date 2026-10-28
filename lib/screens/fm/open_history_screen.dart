@@ -15,7 +15,6 @@ import '../../core/app_icons.dart';
 import '../../models/fm_layout.dart';
 import '../../widgets/fm/fm_file_list_view.dart';
 import '../../widgets/fm/fm_layout_sheet.dart';
-import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
 import '../../widgets/fm/fm_type_chips.dart';
@@ -258,18 +257,16 @@ class _OpenHistoryScreenState extends State<OpenHistoryScreen> {
         children: [
           Column(
             children: [
+              // Tür seçici + sıralama TEK satırda (2026-10-28).
               if (_entries.isNotEmpty)
-                FmFilterBar(
-                  children: FmTypeChips.forEntries(
+                FmListToolbar(
+                  filters: FmTypeChips.forEntries(
                     context,
                     source: _entries,
                     filter: _filter,
                     onChanged: _setFilter,
                     query: _query,
                   ),
-                ),
-              if (_entries.isNotEmpty)
-                FmListToolbar(
                   count: visible.length,
                   sort: _sort,
                   descending: _desc,

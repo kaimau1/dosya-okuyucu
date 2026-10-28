@@ -29,6 +29,7 @@ import '../../services/fm/fs_scan.dart';
 import '../../services/fm/installed_apps_service.dart';
 import '../../services/fm/job_queue.dart';
 import '../../services/fm/media_library.dart';
+import 'remote/qr_receive_flow.dart';
 import '../../services/fm/search_index.dart';
 import '../../services/fm/smart_folders.dart';
 import '../../services/fm/storage_permission.dart';
@@ -554,6 +555,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           _loadTrash();
         },
         onScan: () => ScanFlow.run(context),
+        onQrReceive: () => QrReceiveFlow.run(context),
       ),
     );
   }

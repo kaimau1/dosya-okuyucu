@@ -185,10 +185,14 @@ class FmPill extends StatelessWidget {
   /// Vurgulu (seçili çiple aynı dolgu) — ör. süzgeç etkinken.
   final bool highlighted;
 
+  /// Etiketin yanına soluk ` · 12` (ör. tür hapında görünen dosya sayısı).
+  final int? count;
+
   const FmPill({
     super.key,
     required this.label,
     this.icon,
+    this.count,
     this.disabled = false,
     this.dropdown = false,
     this.highlighted = false,
@@ -218,8 +222,9 @@ class FmPill extends StatelessWidget {
         child: _ChipBody(
           icon: icon,
           label: label,
-          count: null,
+          count: (count ?? 0) > 0 ? count : null,
           fg: fg,
+          bold: highlighted,
           dropdown: dropdown,
         ),
       ),

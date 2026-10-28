@@ -56,4 +56,33 @@ void main() {
     final page = await (await client.getUrl(server.urlFor('127.0.0.1'))).close();
     expect(page.statusCode, 200);
   });
+
+  // 2026-10-28: onay için liste ÖNCE alınır; vazgeçilirse hiçbir şey inmez,
+  // iptal edilen indirme yarım dosya bırakmaz.
+  test('liste önce gelir; onaylı indirme listeyi yeniden istemez; iptal temiz',
+      () async {
+    final tmp = await Directory.systemTemp.createTemp('qrl');
+    addTearDown(() => tmp.delete(recursive: true));
+    final a = File(p.join(tmp.path, 'a.bin'))
+      ..writeAsBytesSync(List.filled(200000, 7));
+    final b = File(p.join(tmp.path, 'b.txt'))..writeAsStringSync('bb');
+    final server = QrShareServer([a.path, b.path]);
+    await server.start();
+    addTearDown(server.stop);
+    final url = server.urlFor('127.0.0.1');
+
+    final items = await QrReceiver.list(url);
+    expect(items.map((e) => e.name), ['a.bin', 'b.txt']);
+    expect(items.map((e) => e.size), [200000, 2]);
+
+    final out = Directory(p.join(tmp.path, 'gelen'))..createSync();
+    final got = await QrReceiver.download(url, out.path, listed: items);
+    expect(got.map(p.basename), ['a.bin', 'b.txt']);
+
+    final out2 = Directory(p.join(tmp.path, 'iptal'))..createSync();
+    final none = await QrReceiver.download(url, out2.path,
+        listed: items, isCancelled: () => true);
+    expect(none, isEmpty);
+    expect(out2.listSync(), isEmpty);
+  });
 }

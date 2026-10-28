@@ -363,35 +363,53 @@ class _CategoryScreenState extends State<CategoryScreen> {
           // bir satırdaydı; iki satır birlikte listeden 92 dp çalıyordu.
           // **Tür çipleri EN BAŞTA** (Faz 13): "yalnız PDF'ler" tek dokunuş;
           // kaynak/birim/açılma çipleri aynı satırda, türlerden SONRA.
-          FmQuickFilters(
-            source: _files,
-            filter: _filter,
-            onChanged: _setFilter,
-            leading: FmTypeChips.forEntries(
-              context,
-              source: _files,
-              filter: _filter,
-              onChanged: _setFilter,
-              query: _query,
-              tagsOf: FileTags.forPath,
-              openedAtOf: OpenHistory.forPath,
-              cacheSalt: '${OpenHistory.revision}',
+          // **TEK süzgeç satırı** (2026-10-28, kullanıcı ekran görüntüsüyle:
+          // *"üst filtre alanını baştan tasarla"*): türler artık tek açılır
+          // hap (levhada büyük kutular), Sırala · Süzgeç · Analiz AYNI
+          // satırda; ardından hızlı çipler (kaynak, açılma, büyük) ve
+          // etiketler. İki satır (~100 dp) → bir satır (46 dp). Görünmeyen
+          // etkin ölçütler yalnız varken altta kaldırılabilir çip olarak.
+          DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border(
+                  bottom: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant)),
             ),
-            // Etiket çipleri (2026-10-23): etiketlenmiş dosya varsa en sık
-            // altı etiket aynı satırda — "#Fatura" tek dokunuş.
-            trailing: _tagChips(),
-          ),
-          // **Yeni denetim şeridi** (2026-10-23): Sırala · Süzgeç · Analiz
-          // hapları + görünmeyen etkin ölçütlerin kaldırılabilir özeti.
-          // Sayı başlığın altında (bkz. [_normalBar]).
-          FmListControls(
-            sort: _sort,
-            descending: _desc,
-            onSort: _setSort,
-            filter: _filter,
-            onFilterChanged: _setFilter,
-            onOpenFilter: _openFilterSheet,
-            onTools: _openTools,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FmQuickFilters(
+                    source: _files,
+                    filter: _filter,
+                    onChanged: _setFilter,
+                    leading: [
+                      ...FmTypeChips.forEntries(
+                        context,
+                        source: _files,
+                        filter: _filter,
+                        onChanged: _setFilter,
+                        query: _query,
+                        tagsOf: FileTags.forPath,
+                        openedAtOf: OpenHistory.forPath,
+                        cacheSalt: '${OpenHistory.revision}',
+                      ),
+                      ..._controls.pills(context),
+                    ],
+                    // Etiket çipleri (2026-10-23): etiketlenmiş dosya varsa en
+                    // sık altı etiket aynı satırda — "#Fatura" tek dokunuş.
+                    trailing: _tagChips(),
+                  ),
+                  FmActiveCriteria(
+                    filter: _filter,
+                    onChanged: _setFilter,
+                    padding: const EdgeInsetsDirectional.only(start: 12),
+                  ),
+                ],
+              ),
+            ),
           ),
           Expanded(
             child: FmFileListView(
@@ -519,6 +537,17 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   int? _bytesKey;
   int _bytesCache = 0;
+
+  /// Sırala · Süzgeç · Analiz hapları (süzgeç satırına katılır).
+  FmListControls get _controls => FmListControls(
+        sort: _sort,
+        descending: _desc,
+        onSort: _setSort,
+        filter: _filter,
+        onFilterChanged: _setFilter,
+        onOpenFilter: _openFilterSheet,
+        onTools: _openTools,
+      );
 
   /// "Analiz ve düzenle" levhası — görünen (süzülmüş) listeye uygulanır.
   Future<void> _openTools() => showCategoryTools(

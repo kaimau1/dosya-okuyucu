@@ -18,6 +18,10 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
         // Chrome'un PDF görüntüleyicisiyle aynı). Focus çevresi klavye
         // olayını alabilmek için; arama kutusu gibi alanlar açılınca odağı
         // onlar devralır, kısayol da doğal olarak onlara akar.
+        // Builder: okuma kipinin çubuk ölçüleri ([ReadingChrome]) kabuğun
+        // İÇİNDEN okunur — ekranın kendi bağlamı kabuğun dışında kalıyor.
+        return Builder(builder: (context) {
+        final chrome = ReadingChrome.insetsOf(context);
         return _withPdfSidePanel(CallbackShortcuts(
           bindings: {
             const SingleActivator(LogicalKeyboardKey.keyC, control: true):
@@ -63,17 +67,34 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         panEnabled: !_pdfSelecting,
                         // Çok sütunlu dizilim (uzun belge). 1 sütunda pdfrx'in kendi
                         // düzeni kullanılır — gereksiz yere devralmıyoruz.
-                        layoutPages:
-                            _pdfColumns == 1 ? null : _layoutPdfColumns,
+                        //
+                        // Okuma kipi (2026-10-28): çubuklar belgenin üstünde
+                        // kayan katman; belgenin başına/sonuna çubuk boyu
+                        // kadar pay eklenir ki ilk sayfanın üstü çubuğun
+                        // altında kalmasın. Pay SABİT — görünüm boyu hiç
+                        // değişmez (pdfrx boy değişince sayfa başına
+                        // atlıyordu, HAFIZA 2026-10-23 (14)).
+                        layoutPages: (pages, params) => _insetPdfLayout(
+                          _pdfColumns == 1
+                              ? _plainPdfLayout(pages, params)
+                              : _layoutPdfColumns(pages, params),
+                          context,
+                          chrome,
+                        ),
+                        // **Yakınlaştırmada titreme** (2026-10-28): bkz.
+                        // [_pdfRenderScale] — sayfa bitmap'i yakınlığa göre
+                        // basamaklı keskinleşir, jest sürerken değişmez.
+                        getPageRenderingScale: _pdfRenderScale,
                         // Güncel sayfa: sayfalar ekrana sığınca rozet geri
                         // kalıyordu (bkz. [currentPdfPage]).
                         calculateCurrentPageNumber: _currentPdfPage,
                         // Kullanıcı kendisi kaydırmaya başladı: "gidilen sayfa"
                         // tercihi artık geçerli değil.
-                        onInteractionStart: (_) => _pdfJumpTarget = null,
-                        // (Okuma kipi çubukları PDF'te kapalı — görünüm boyu
-                        // değişince pdfrx sayfa başına atlıyor; bkz.
-                        // `_buildShell`.)
+                        onInteractionStart: (_) {
+                          _pdfJumpTarget = null;
+                          _pdfInteracting = true;
+                        },
+                        onInteractionEnd: (_) => _pdfInteracting = false,
                         // Arama eşleşmelerini sayfada vurgula: metin katmanı
                         // (pdfrx, Faz 1) + taranmış sayfaların OCR eşleşmeleri
                         // (Faz 2) — renkler aynı, kullanıcı fark görmez.
@@ -188,10 +209,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                 // Seçim çubuğu açıkken rozet gizli: çubuğun altından yarım
                 // görünüyordu ("1 / 1 · sayfaya git" kartın altına sıkışmıştı).
                 if (_pageCount > 0 && !_pdfBarShown)
-                  Positioned(
-                    bottom: 16,
-                    left: 0,
-                    right: 0,
+                  ReadingFloat(
                     child: Center(
                       // Rozet İngilizce/Arapça arayüzde de çevrilmeli — eskiden
                       // "— sayfaya git" kısmı koda gömülü Türkçeydi.
@@ -199,16 +217,16 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                     ),
                   ),
                 if (_pdfSelection.trim().isNotEmpty)
-                  Positioned(
-                    bottom: 16,
-                    left: 8,
-                    right: 8,
+                  ReadingFloat(
+                    start: 8,
+                    end: 8,
                     child: Center(child: _selectionBar()),
                   ),
               ],
             ),
           ),
         ));
+        });
 
       case DocKind.image:
         return Container(
@@ -320,6 +338,78 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
           ),
         );
     }
+  }
+
+  /// pdfrx'in kendi tek sütun düzeninin aynısı (paketteki özel; okuma
+  /// kipi payı eklenebilsin diye burada).
+  static PdfPageLayout _plainPdfLayout(
+      List<PdfPage> pages, PdfViewerParams params) {
+    final width =
+        pages.fold(0.0, (w, p) => math.max(w, p.width)) + params.margin * 2;
+    final rects = <Rect>[];
+    var y = params.margin;
+    for (final page in pages) {
+      rects.add(
+          Rect.fromLTWH((width - page.width) / 2, y, page.width, page.height));
+      y += page.height + params.margin;
+    }
+    return PdfPageLayout(pageLayouts: rects, documentSize: Size(width, y));
+  }
+
+  /// Belgenin başına ve sonuna okuma kipi çubuklarının boyu kadar pay.
+  ///
+  /// Pay belge biriminde (pt): sığdırılmış yakınlıkta ekrandaki dp karşılığı
+  /// tam çubuk boyu olsun diye `belge genişliği / görünüm genişliği` ile
+  /// çevrilir. Aynı girdide aynı düzen döner (pdfrx düzeni her karede
+  /// eşitlikle karşılaştırıyor — farklı çıksa sayfa başına atlardı).
+  PdfPageLayout _insetPdfLayout(
+      PdfPageLayout base, BuildContext context, EdgeInsets chrome) {
+    if (chrome.top == 0 && chrome.bottom == 0) return base;
+    var viewW = MediaQuery.sizeOf(context).width;
+    if (_pdfDoc != null && viewW >= 840) viewW -= 149; // yan küçük resimler
+    if (viewW <= 0) return base;
+    final k = base.documentSize.width / viewW;
+    final top = (chrome.top * k).roundToDouble();
+    final bottom = (chrome.bottom * k).roundToDouble();
+    return PdfPageLayout(
+      pageLayouts: [for (final r in base.pageLayouts) r.translate(0, top)],
+      documentSize: Size(base.documentSize.width,
+          base.documentSize.height + top + bottom),
+    );
+  }
+
+  /// **Yakınlaştırırken titreme/bozulma** (kullanıcı 2026-10-28: *"zoom
+  /// yaparken anlık görüntü değişmesi, bozulması, titremesi oluyor"*).
+  ///
+  /// KÖK NEDEN (pdfrx 1.3.5): sayfanın tam bitmap'i SABİT bir ölçekte
+  /// (200 dpi) çiziliyor; daha yakında pdfrx görünen parçayı ayrıca keskin
+  /// çizip üstüne yapıştırıyor ve bu "kısmi" görüntüyü her jest karesinde
+  /// iptal edip 50 ms sonra yeniden istiyor. Parmak hareket ettikçe keskin
+  /// dikdörtgen eski yerinde kalıyor, kenarında bulanık zemin görünüyor,
+  /// yenisi gelince görüntü "atlıyor"; eşiğin altına inince de keskinlik
+  /// birden kayboluyor.
+  ///
+  /// Çözüm: tam sayfa bitmap'inin ölçeği yakınlığa göre **basamaklı**
+  /// yükselir (×1,5 adımlar, sayfa başına ~12 MP tavan) — kısmi yamaya ancak
+  /// tavanın ötesinde gerek kalır. Jest SÜRERKEN ölçek değişmez (yeniden
+  /// çizim yok, titreme yok); parmak kalkınca bir kez keskinleşir. Geri
+  /// uzaklaşınca ölçek ancak yarıdan fazla düşünce iner (gidip gelmesin).
+  double? _pdfRenderScale(BuildContext context, PdfPage page,
+      PdfViewerController controller, double estimated) {
+    var current = _pdfBaseScale ?? estimated;
+    if (!_pdfInteracting && controller.isReady) {
+      final need =
+          MediaQuery.devicePixelRatioOf(context) * controller.currentZoom;
+      var step = estimated;
+      while (step < need) {
+        step *= 1.5;
+      }
+      if (step > current || step < current / 2.3) current = step;
+      _pdfBaseScale = current;
+    }
+    final area = page.width * page.height;
+    final cap = area <= 0 ? current : math.sqrt(12e6 / area);
+    return math.max(estimated, math.min(current, cap));
   }
 
   /// **Geniş ekranda sayfa küçük resimleri** (Faz 18 / G17): ≥ 840 dp'de

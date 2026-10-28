@@ -281,6 +281,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
       ),
       _categoryTile(FmCategory.image, grid: true),
       _categoryTile(FmCategory.video, grid: true),
+      _mediaTile(),
       _categoryTile(FmCategory.document),
       _categoryTile(FmCategory.audio),
       _categoryTile(FmCategory.archive),

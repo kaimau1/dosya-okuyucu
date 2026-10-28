@@ -80,13 +80,79 @@ class FmListControls extends StatelessWidget {
     return out;
   }
 
+  /// Sırala · Süzgeç · Analiz hapları — başka bir satıra (tür seçici ve
+  /// hızlı çiplerle aynı satıra) konabilsin diye ayrı (2026-10-28: iki
+  /// satır tek satıra indi).
+  List<Widget> pills(BuildContext context) {
+    final active = filter.activeCount;
+    final sortName = context.t(sort.labelKey);
+    return [
+      PopupMenuButton<(FmSort, bool)>(
+        key: const ValueKey('lc-sort'),
+        tooltip: context.t('list.sort_by', {'name': sortName}),
+        onSelected: (v) => onSort(v.$1, v.$2),
+        itemBuilder: (_) => [
+          for (final s in sortOptions)
+            CheckedPopupMenuItem(
+              checked: s == sort,
+              // Aynı ölçüte yeniden dokunmak yönü çevirir; yeni
+              // ölçüt kendi doğal yönüyle başlar.
+              value: (
+                s,
+                s == sort
+                    ? !descending
+                    : (s == FmSort.date || s == FmSort.size),
+              ),
+              child: Text(context.t(s.labelKey)),
+            ),
+          const PopupMenuDivider(),
+          CheckedPopupMenuItem(
+            checked: !descending,
+            value: (sort, false),
+            child: Text(context.t('list.sort_dir_asc')),
+          ),
+          CheckedPopupMenuItem(
+            checked: descending,
+            value: (sort, true),
+            child: Text(context.t('list.sort_dir_desc')),
+          ),
+        ],
+        child: FmPill(
+          icon: descending ? AppIcons.arrowDown : AppIcons.arrowUp,
+          label: sortName,
+          dropdown: true,
+        ),
+      ),
+      _Tap(
+        key: const ValueKey('lc-filter'),
+        onTap: onOpenFilter,
+        tooltip: active > 0
+            ? context.t('list.filter_n', {'n': active})
+            : context.t('list.filter'),
+        child: FmPill(
+          icon: AppIcons.filter,
+          label: active > 0
+              ? context.t('lc.filter_n', {'n': active})
+              : context.t('lc.filter'),
+          highlighted: active > 0,
+        ),
+      ),
+      if (onTools != null)
+        _Tap(
+          key: const ValueKey('lc-tools'),
+          onTap: onTools!,
+          tooltip: context.t('ct.title'),
+          child: FmPill(
+            icon: AppIcons.insights,
+            label: context.t('lc.tools'),
+          ),
+        ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final active = filter.activeCount;
-    final hidden = hiddenCriteria(context, filter);
-    final sortName = context.t(sort.labelKey);
+    final scheme = Theme.of(context).colorScheme;
     return DecoratedBox(
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
@@ -99,100 +165,58 @@ class FmListControls extends StatelessWidget {
           children: [
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  PopupMenuButton<(FmSort, bool)>(
-                    key: const ValueKey('lc-sort'),
-                    tooltip: context.t('list.sort_by', {'name': sortName}),
-                    onSelected: (v) => onSort(v.$1, v.$2),
-                    itemBuilder: (_) => [
-                      for (final s in sortOptions)
-                        CheckedPopupMenuItem(
-                          checked: s == sort,
-                          // Aynı ölçüte yeniden dokunmak yönü çevirir; yeni
-                          // ölçüt kendi doğal yönüyle başlar.
-                          value: (
-                            s,
-                            s == sort
-                                ? !descending
-                                : (s == FmSort.date || s == FmSort.size),
-                          ),
-                          child: Text(context.t(s.labelKey)),
-                        ),
-                      const PopupMenuDivider(),
-                      CheckedPopupMenuItem(
-                        checked: !descending,
-                        value: (sort, false),
-                        child: Text(context.t('list.sort_dir_asc')),
-                      ),
-                      CheckedPopupMenuItem(
-                        checked: descending,
-                        value: (sort, true),
-                        child: Text(context.t('list.sort_dir_desc')),
-                      ),
-                    ],
-                    child: FmPill(
-                      icon: descending ? AppIcons.arrowDown : AppIcons.arrowUp,
-                      label: sortName,
-                      dropdown: true,
-                    ),
-                  ),
-                  _Tap(
-                    key: const ValueKey('lc-filter'),
-                    onTap: onOpenFilter,
-                    tooltip: active > 0
-                        ? context.t('list.filter_n', {'n': active})
-                        : context.t('list.filter'),
-                    child: FmPill(
-                      icon: AppIcons.filter,
-                      label: active > 0
-                          ? context.t('lc.filter_n', {'n': active})
-                          : context.t('lc.filter'),
-                      highlighted: active > 0,
-                    ),
-                  ),
-                  if (onTools != null)
-                    _Tap(
-                      key: const ValueKey('lc-tools'),
-                      onTap: onTools!,
-                      tooltip: context.t('ct.title'),
-                      child: FmPill(
-                        icon: AppIcons.insights,
-                        label: context.t('lc.tools'),
-                      ),
-                    ),
-                ],
-              ),
+              child: Row(children: pills(context)),
             ),
-            if (hidden.isNotEmpty)
+            FmActiveCriteria(filter: filter, onChanged: onFilterChanged),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Çip satırında GÖRÜNMEYEN etkin ölçütlerin kaldırılabilir küçük çipleri +
+/// "Temizle" (bkz. [FmListControls.hiddenCriteria]). Ölçüt yokken çizilmez.
+class FmActiveCriteria extends StatelessWidget {
+  final FmFilter filter;
+  final ValueChanged<FmFilter> onChanged;
+
+  /// Yatay kenar payı (süzgeç satırının metin hizası).
+  final EdgeInsetsGeometry padding;
+
+  const FmActiveCriteria({
+    super.key,
+    required this.filter,
+    required this.onChanged,
+    this.padding = EdgeInsetsDirectional.zero,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hidden = FmListControls.hiddenCriteria(context, filter);
+    if (hidden.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 4).add(padding),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (final (label, without) in hidden)
               Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      for (final (label, without) in hidden)
-                        Padding(
-                          padding: const EdgeInsetsDirectional.only(end: 6),
-                          child: InputChip(
-                            visualDensity: VisualDensity.compact,
-                            materialTapTargetSize:
-                                MaterialTapTargetSize.shrinkWrap,
-                            label: Text(label),
-                            onDeleted: () => onFilterChanged(without),
-                            deleteButtonTooltipMessage:
-                                context.t('common.clear'),
-                          ),
-                        ),
-                      TextButton(
-                        key: const ValueKey('lc-clear'),
-                        onPressed: () => onFilterChanged(FmFilter.none),
-                        child: Text(context.t('lc.clear_all')),
-                      ),
-                    ],
-                  ),
+                padding: const EdgeInsetsDirectional.only(end: 6),
+                child: InputChip(
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  label: Text(label),
+                  onDeleted: () => onChanged(without),
+                  deleteButtonTooltipMessage: context.t('common.clear'),
                 ),
               ),
+            TextButton(
+              key: const ValueKey('lc-clear'),
+              onPressed: () => onChanged(FmFilter.none),
+              child: Text(context.t('lc.clear_all')),
+            ),
           ],
         ),
       ),

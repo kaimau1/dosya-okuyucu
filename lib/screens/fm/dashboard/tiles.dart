@@ -25,11 +25,33 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
       id: category.name,
       icon: FmColors.iconFor(category, outlined: context.fmOutlinedIcons),
       color: FmColors.forCategory(category),
-      label: category.label,
+      label: _categoryLabel(category),
       subtitle: stat.count == 0
           ? (_scanning ? context.t('fm.scanning') : context.t('fm.none'))
           : '${FsPaths.humanSize(stat.bytes)} (${stat.count})',
       onTap: () => _openSwipe(category.name),
+    );
+  }
+
+  /// Panodaki ad: görsel kutusu artık **Fotoğraflar** (2026-10-28 —
+  /// "Görüntüler" adı fotoğraf + video birleşik ekranına geçti).
+  String _categoryLabel(FmCategory category) =>
+      category == FmCategory.image ? context.t('fm.photos') : category.label;
+
+  /// **Görüntüler** kutusu — fotoğraf ve video tek zaman ekseninde
+  /// (2026-10-28 kullanıcı isteği). Varsayılan gizli; "Ana ekranı düzenle".
+  FmTileData _mediaTile() {
+    final img = _index.stat(FmCategory.image), vid = _index.stat(FmCategory.video);
+    final count = img.count + vid.count;
+    return FmTileData(
+      id: 'media',
+      icon: AppIcons.mediaAll,
+      color: AppHues.purple,
+      label: context.t('fm.media_all'),
+      subtitle: count == 0
+          ? (_scanning ? context.t('fm.scanning') : context.t('fm.none'))
+          : '${FsPaths.humanSize(img.bytes + vid.bytes)} ($count)',
+      onTap: () => _openSwipe('media'),
     );
   }
 
@@ -68,13 +90,22 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
       pages.add((
         category.name,
         SwipePage(
-          label: category.label,
+          label: _categoryLabel(category),
           icon: FmColors.iconFor(category, outlined: context.fmOutlinedIcons),
           color: FmColors.forCategory(category),
           builder: (_) => _categoryScreen(category, grid: grid),
         ),
       ));
     }
+    pages.add((
+      'media',
+      SwipePage(
+        label: context.t('fm.media_all'),
+        icon: AppIcons.mediaAll,
+        color: AppHues.purple,
+        builder: (_) => _mediaScreen(),
+      ),
+    ));
     pages.add((
       'apk',
       SwipePage(

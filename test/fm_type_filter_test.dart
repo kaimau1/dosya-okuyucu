@@ -167,6 +167,25 @@ void main() {
     });
   });
 
+  /// Tür hapını açar, [types]'a dokunur, "N dosyayı göster" ile kapatır
+  /// (2026-10-28: türler tek açılır hap + levha).
+  Future<void> pickTypes(WidgetTester tester, List<FmType> types) async {
+    // pumpAndSettle DEĞİL: bazı ekranlarda sürekli dönen gösterge var.
+    Future<void> settle() async {
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+    }
+
+    await tester.tap(find.byKey(const ValueKey('type-pill')).first);
+    await settle();
+    for (final t in types) {
+      await tester.tap(find.byKey(ValueKey('type-${t.name}')));
+      await tester.pump();
+    }
+    await tester.tap(find.byKey(const ValueKey('type-done')));
+    await settle();
+  }
+
   group('FmTypeChips bileşeni', () {
     /// Çipleri ve süzülmüş listenin uzunluğunu birlikte çizen düzenek.
     Future<ValueNotifier<FmFilter>> pump(
@@ -190,38 +209,56 @@ void main() {
       return filter;
     }
 
-    testWidgets('çip sayısı = dokununca kalan dosya', (tester) async {
+    testWidgets('levhadaki sayı = dokununca kalan dosya; hap seçimi yazar',
+        (tester) async {
       await pump(tester, _mixed);
-      expect(find.text('Tümü · 9'), findsOneWidget);
-      for (final (label, n) in [
-        ('PDF', 3),
-        ('Word', 2),
-        ('Excel', 1),
-        ('Görüntüler', 2),
-        ('Videolar', 1),
+      expect(find.text('Tüm türler · 9'), findsOneWidget);
+      for (final (type, label, n) in [
+        (FmType.pdf, 'PDF', 3),
+        (FmType.word, 'Word', 2),
+        (FmType.excel, 'Excel', 1),
+        (FmType.image, 'Fotoğraflar', 2),
+        (FmType.video, 'Videolar', 1),
       ]) {
-        expect(find.text('$label · $n'), findsOneWidget, reason: label);
-        await tester.tap(find.text('$label · $n'));
+        await tester.tap(find.byKey(const ValueKey('type-pill')));
+        await tester.pumpAndSettle();
+        // Levhada tür kutusu sayısıyla.
+        expect(
+            find.descendant(
+                of: find.byKey(ValueKey('type-${type.name}')),
+                matching: find.text('$n')),
+            findsOneWidget,
+            reason: label);
+        await tester.tap(find.byKey(ValueKey('type-${type.name}')));
         await tester.pump();
+        // Liste ARKADA hemen süzülür; düğme sonucu söyler.
         expect(find.text('görünen: $n'), findsOneWidget, reason: label);
-        await tester.tap(find.text('Tümü · 9'));
+        expect(find.text('$n dosyayı göster'), findsOneWidget, reason: label);
+        await tester.tap(find.byKey(const ValueKey('type-done')));
+        await tester.pumpAndSettle();
+        expect(find.text('$label · $n'), findsOneWidget, reason: label);
+        // "Tüm türler" seçimi temizler.
+        await tester.tap(find.byKey(const ValueKey('type-pill')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('type-all')));
         await tester.pump();
+        await tester.tap(find.byKey(const ValueKey('type-done')));
+        await tester.pumpAndSettle();
+        expect(find.text('görünen: 9'), findsOneWidget);
       }
     });
 
     testWidgets('PDF + Word birlikte seçilir', (tester) async {
       final filter = await pump(tester, _mixed);
-      await tester.tap(find.text('PDF · 3'));
-      await tester.pump();
-      await tester.tap(find.text('Word · 2'));
-      await tester.pump();
+      await pickTypes(tester, [FmType.pdf, FmType.word]);
       expect(filter.value.types, {FmType.pdf, FmType.word});
       expect(find.text('görünen: 5'), findsOneWidget);
+      expect(find.text('PDF +1 · 5'), findsOneWidget);
     });
 
-    testWidgets('tek türlü listede tür çipi çizilmez', (tester) async {
+    testWidgets('tek türlü listede tür seçici çizilmez', (tester) async {
       await pump(tester, [_file('a.pdf'), _file('b.pdf')]);
-      expect(find.byType(FmChip), findsNothing);
+      expect(find.byType(FmTypePill), findsNothing);
     });
   });
 
@@ -247,9 +284,7 @@ void main() {
             files: _mixed,
             memoryId: 'new_files',
           ));
-      expect(find.text('PDF · 3'), findsOneWidget);
-      await tester.tap(find.text('PDF · 3'));
-      await tester.pump();
+      await pickTypes(tester, [FmType.pdf]);
       expect(find.byType(FmEntryRow), findsNWidgets(3));
       expect(find.text('dilekce.docx'), findsNothing);
       // Süzgeç oturum boyunca hatırlanır (K17).
@@ -262,8 +297,7 @@ void main() {
           if (e.category == FmCategory.document) e,
       ];
       await pumpScreen(tester, CategoryScreen(title: 'Belgeler', files: docs));
-      await tester.tap(find.text('Excel · 1'));
-      await tester.pump();
+      await pickTypes(tester, [FmType.excel]);
       expect(find.byType(FmEntryRow), findsOneWidget);
       expect(find.text('butce.xlsx'), findsOneWidget);
     });
@@ -281,8 +315,7 @@ void main() {
     testWidgets('Son açılanlar: PDF süzgeci', (tester) async {
       await pumpScreen(tester, OpenHistoryScreen(entriesForTest: history()));
       expect(find.byType(FmEntryRow), findsNWidgets(4));
-      await tester.tap(find.text('PDF · 2'));
-      await tester.pump();
+      await pickTypes(tester, [FmType.pdf]);
       expect(find.byType(FmEntryRow), findsNWidgets(2));
       expect(find.text('kira.pdf'), findsOneWidget);
       expect(find.text('fatura.pdf'), findsOneWidget);
@@ -348,9 +381,9 @@ void main() {
         });
         await tester.pumpWidget(_app(screen()));
         await tester.pump();
-        // PDF süzgeci açıkken (seçili çip kalın) ve seçimde de taşmasın.
-        await tester.tap(find.textContaining('PDF ·').first);
-        await tester.pump();
+        // PDF süzgeci açıkken (hap kalın) ve seçimde de taşmasın; levha da
+        // 2,0× yazıda taşmaz.
+        await pickTypes(tester, [FmType.pdf]);
         await tester.longPress(find.byType(FmEntryRow).first);
         await tester.pump();
         expect(tester.takeException(), isNull);

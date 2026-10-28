@@ -37,10 +37,12 @@ class _TextEditor extends StatelessWidget {
     // iki `Scrollable`a bağlanamaz). Çözüm: tek bir kaydırma alanı, içinde
     // yan yana iki sütun — numaralar metinle birlikte, aynı satır
     // yüksekliğiyle kayıyor.
+    final chrome = ReadingChrome.insetsOf(context);
     return Container(
       color: Paper.docSurface(context),
       child: SingleChildScrollView(
-        padding: const EdgeInsetsDirectional.fromSTEB(0, 12, 16, 16),
+        padding: EdgeInsetsDirectional.fromSTEB(
+            0, 12 + chrome.top, 16, 16 + chrome.bottom),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -64,9 +66,11 @@ class _TextEditor extends StatelessWidget {
     // (`maxLines: null` sarmayı zorunlu kılar); çözüm alanı yatay bir
     // kaydırma kutusuna koyup ona geniş bir genişlik vermek.
     if (!wrapLines) {
+      final chrome = ReadingChrome.insetsOf(context);
       return Container(
         color: Paper.docSurface(context),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        padding: EdgeInsets.fromLTRB(
+            16, 12 + chrome.top, 16, 16 + chrome.bottom),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: SizedBox(
@@ -127,6 +131,14 @@ class _TextEditor extends StatelessWidget {
         ),
       );
     }
+    // **Okuma kipi** (2026-10-28): çubuklar belgenin ÜSTÜNDE kayan katman;
+    // metin kendi kaydırma alanında çubukların boyu kadar pay bırakarak
+    // başlar, çubuklar çekilince altlarındaki yer de okunur. Eskiden alan
+    // `expands: true` ile kendi içinde kayıyordu — o kaydırmanın içine pay
+    // konamıyordu; artık dış kaydırma + büyüyen alan (satır numaralı kipin
+    // zaten kullandığı yapı). İmleç görünür kalır: `EditableText`
+    // `showOnScreen` ile dış kaydırmayı kendisi sürer.
+    final chrome = ReadingChrome.insetsOf(context);
     return Container(
       // Metin sayfası BEYAZ: kağıt teması uygulamanın kabuğuna ait, belgenin
       // içine değil (2026-08-07 kullanıcı isteği — "txt de öyle").
@@ -135,33 +147,46 @@ class _TextEditor extends StatelessWidget {
       // sütunu) ve geniş ekranda satır uzunluğu ~80 karakterde sınırlı —
       // tablette ekran boyu uzanan satırı göz takip edemiyordu.
       color: Paper.docSurface(context),
-      alignment: Alignment.topCenter,
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 820),
-        child: TextField(
-          controller: controller,
-          focusNode: focusNode,
-          readOnly: !editable,
-          onChanged: (_) => onChanged(),
-          maxLines: null,
-          expands: true,
-          textAlignVertical: TextAlignVertical.top,
-          decoration: InputDecoration(
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-            disabledBorder: InputBorder.none,
-            hintText: editable ? context.t('vw.doc_content') : null,
-            filled: false,
-          ),
-          style: TextStyle(
-            fontSize: fontSize,
-            height: 1.5,
-            fontFamily: fontFamily,
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Paper.inkDark
-                : Paper.ink,
+      child: LayoutBuilder(
+        builder: (context, box) => SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+              20, 16 + chrome.top, 20, 16 + chrome.bottom),
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              // En az bir ekran boyu: boş belgede de alanın her yerine
+              // dokunmak yazmaya başlatır.
+              constraints: BoxConstraints(
+                maxWidth: 820,
+                minHeight: (box.maxHeight - 32 - chrome.top - chrome.bottom)
+                    .clamp(0, double.infinity),
+              ),
+              child: TextField(
+                controller: controller,
+                focusNode: focusNode,
+                readOnly: !editable,
+                onChanged: (_) => onChanged(),
+                maxLines: null,
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                  hintText: editable ? context.t('vw.doc_content') : null,
+                  filled: false,
+                ),
+                style: TextStyle(
+                  fontSize: fontSize,
+                  height: 1.5,
+                  fontFamily: fontFamily,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Paper.inkDark
+                      : Paper.ink,
+                ),
+              ),
+            ),
           ),
         ),
       ),

@@ -77,4 +77,32 @@ void main() {
     await layout.ensureLoaded();
     expect(layout.sectionVisible('recent'), isTrue);
   });
+
+  test('Görüntüler (foto + video) kutusu varsayılan GİZLİ, eklenince kalıcı',
+      () async {
+    // Eski sürümden gelen kullanıcı: kayıtlı kutu sırasında 'media' yok.
+    SharedPreferences.setMockInitialValues({
+      'dash_tiles': [
+        for (final t in DashboardLayout.tiles)
+          if (t != 'media') t,
+      ],
+      'dash_hidden_tiles': <String>[],
+    });
+    layout.debugReset();
+    await layout.ensureLoaded();
+    expect(layout.tileVisible('media'), isFalse);
+    expect(layout.tileVisible('image'), isTrue);
+    expect(layout.tileVisible('video'), isTrue);
+    expect(layout.isCustomized, isFalse);
+    // Fotoğraflar ve Videolar'ın hemen ardında doğar.
+    expect(layout.tileOrder.indexOf('media'),
+        layout.tileOrder.indexOf('video') + 1);
+
+    await layout.setTileVisible('media', true);
+    layout.debugReset();
+    await layout.ensureLoaded();
+    expect(layout.tileVisible('media'), isTrue);
+    expect(layout.arrangeTiles(['media', 'image'], (s) => s),
+        ['image', 'media']);
+  });
 }

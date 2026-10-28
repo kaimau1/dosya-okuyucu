@@ -209,23 +209,47 @@ class QrPayload {
 
 /// **Alıcı (uygulama)**: adres QR'ındaki dosyaların hepsini klasöre indirir.
 abstract final class QrReceiver {
-  /// İndirilen dosyaların yollarını döndürür. Yarım kalan dosya silinir.
-  static Future<List<String>> download(
-    Uri base,
-    String saveDir, {
-    void Function(String name, int received, int total)? onProgress,
-  }) async {
+  /// Gönderenin sunduğu dosyaların listesi (ad, boyut) — indirmeden ÖNCE
+  /// alıcıya "şunlar gelecek, alınsın mı?" diye sorabilmek için
+  /// (2026-10-28 kullanıcı isteği: *"dosya almada onay olmalı"*).
+  static Future<List<({String name, int size})>> list(Uri base) async {
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
-    final out = <String>[];
     try {
       final listReq = await client.getUrl(base.resolve('list'));
       final listRes = await listReq.close();
       if (listRes.statusCode != 200) throw const HttpException('list');
-      final list = jsonDecode(await listRes.transform(utf8.decoder).join())
+      final raw = jsonDecode(await listRes.transform(utf8.decoder).join())
           as List<dynamic>;
-      for (var i = 0; i < list.length; i++) {
-        final name = FileOps.sanitizeName(list[i]['name'] as String? ?? '');
-        final total = (list[i]['size'] as num?)?.toInt() ?? 0;
+      return [
+        for (final item in raw)
+          (
+            name: FileOps.sanitizeName(item['name'] as String? ?? ''),
+            size: (item['size'] as num?)?.toInt() ?? 0,
+          ),
+      ];
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  /// İndirilen dosyaların yollarını döndürür. Yarım kalan dosya silinir.
+  /// [listed] verilirse liste yeniden istenmez (onaydan sonra indirme);
+  /// [isCancelled] true dönünce kalan dosyalar alınmaz.
+  static Future<List<String>> download(
+    Uri base,
+    String saveDir, {
+    void Function(String name, int received, int total)? onProgress,
+    List<({String name, int size})>? listed,
+    bool Function()? isCancelled,
+  }) async {
+    final items = listed ?? await list(base);
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
+    final out = <String>[];
+    try {
+      for (var i = 0; i < items.length; i++) {
+        if (isCancelled?.call() ?? false) break;
+        final name = items[i].name;
+        final total = items[i].size;
         final target = FileOps.uniquePath(
             p.join(saveDir, name.isEmpty ? 'dosya' : name));
         final res = await (await client.getUrl(base.resolve('$i'))).close();
@@ -234,8 +258,13 @@ abstract final class QrReceiver {
         await file.parent.create(recursive: true);
         final sink = file.openWrite();
         var received = 0;
+        var stopped = false;
         try {
           await for (final chunk in res) {
+            if (isCancelled?.call() ?? false) {
+              stopped = true;
+              break;
+            }
             sink.add(chunk);
             received += chunk.length;
             onProgress?.call(name, received, total);
@@ -247,8 +276,9 @@ abstract final class QrReceiver {
           rethrow;
         }
         await sink.close();
-        if (total > 0 && received < total) {
+        if (stopped || (total > 0 && received < total)) {
           await file.delete().catchError((_) => file);
+          if (stopped) break;
           throw HttpException('short $name');
         }
         out.add(target);

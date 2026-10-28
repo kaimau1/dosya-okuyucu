@@ -315,6 +315,9 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
       // gösteriyor; "2. sayfa (toplam 3239)" şeridi ekranın altını boşuna
       // kapatıyordu.
       if (_pdfPage != target) _partSetState(() => _pdfPage = target);
+      // Okuma kipi: sayfanın üstü çubuğun altında kalmasın — atlayış
+      // okumaya başlamaktır, çubuklar çekilir (dokununca geri gelir).
+      _readingBars.hide();
     } else {
       _snack(context.t('vw.page_jump_failed_total', {
         'target': target,

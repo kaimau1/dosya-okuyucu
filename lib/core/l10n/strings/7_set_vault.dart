@@ -579,7 +579,7 @@ const Map<String, (String, String, String)> _t7 = {
   ),
 
   'enum.cat_folder': ('Klasör', 'Folder', 'مجلد'),
-  'enum.cat_image': ('Görüntüler', 'Images', 'الصور'),
+  'enum.cat_image': ('Fotoğraflar', 'Photos', 'الصور'),
   'enum.cat_video': ('Videolar', 'Videos', 'الفيديوهات'),
   'enum.cat_audio': ('Ses', 'Audio', 'الصوت'),
   'enum.cat_document': ('Belgeler', 'Documents', 'المستندات'),

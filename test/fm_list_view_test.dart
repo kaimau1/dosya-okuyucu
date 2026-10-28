@@ -246,7 +246,11 @@ void main() {
       // Filtre düğmesi → çip satırı → "Klasörler" yalnız Beta'yı bırakır.
       await tester.tap(find.byTooltip('Filtre'));
       await settle(tester);
-      await tester.tap(find.textContaining('Klasörler'));
+      // Türler tek açılır hapta (2026-10-28) → levhada "Klasörler".
+      await tester.tap(find.byKey(const ValueKey('type-pill')));
+      await settle(tester);
+      await tester.tap(find.byKey(const ValueKey('type-folder')));
+      await tester.tap(find.byKey(const ValueKey('type-done')));
       await settle(tester);
       expect(find.byType(FmEntryRow), findsOneWidget);
       expect(find.text('Beta'), findsWidgets);

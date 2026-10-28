@@ -13,6 +13,8 @@ extension _ViewerScreenFindReplacePart on _ViewerScreenState {
         _findEntry = null;
       }
     });
+    // Arama açıkken okuma kipi çubukları sabit (arama çubuğu kaybolmasın).
+    _readingBars.pinned = _findOpen;
   }
 
   void _runFind(String query) {

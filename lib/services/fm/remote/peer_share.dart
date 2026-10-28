@@ -140,13 +140,54 @@ class PeerReceiver {
   /// Aktarım sürerken ilerleme (dosya adı, alınan bayt, toplam bayt).
   final void Function(String name, int received, int total)? onProgress;
 
+  /// **Gelen dosya onayı** (2026-10-28 kullanıcı isteği: *"dosya almada onay
+  /// olmalı"*). Verilirse gönderim, alıcı "Kabul et" demeden diske YAZILMAZ.
+  /// Gönderen önce `/sor` ile (ad, adet, toplam bayt) sorar; kabul edilince
+  /// bir izin anahtarı alır ve o turun bütün dosyaları onunla gelir — her
+  /// dosya için ayrı soru sorulmaz. `null` = eski davranış (onaysız).
+  final Future<bool> Function(PeerOffer offer)? onAsk;
+
   PeerReceiver({
     required this.deviceName,
     required this.saveDir,
     this.pairingCode = '',
     this.onReceived,
     this.onProgress,
+    this.onAsk,
   });
+
+  /// Verilmiş izinler: anahtar → son geçerlilik.
+  final _grants = <String, DateTime>{};
+
+  /// Sorular sırayla sorulur (iki gönderen aynı anda gelirse üst üste iki
+  /// pencere açılmasın).
+  Future<void> _askChain = Future.value();
+
+  Future<bool> _ask(PeerOffer offer) {
+    final ask = onAsk;
+    if (ask == null) return Future.value(true);
+    final result = _askChain.then((_) => ask(offer)).timeout(
+        const Duration(seconds: 90),
+        onTimeout: () => false);
+    _askChain = result.then((_) {}, onError: (_) {});
+    return result.catchError((_) => false);
+  }
+
+  String _grant() {
+    final r = Random.secure();
+    final token =
+        List.generate(16, (_) => r.nextInt(16).toRadixString(16)).join();
+    final now = DateTime.now();
+    _grants.removeWhere((_, until) => until.isBefore(now));
+    _grants[token] = now.add(const Duration(minutes: 30));
+    return token;
+  }
+
+  bool _granted(String? token) {
+    if (token == null) return false;
+    final until = _grants[token];
+    return until != null && until.isAfter(DateTime.now());
+  }
 
   /// Rastgele dört haneli kod. `Random.secure` DEĞİL: bu bir sır değil,
   /// ekranda yazan ve karşı tarafa okunan bir eşleştirme numarası.
@@ -251,6 +292,34 @@ class PeerReceiver {
         await response.close();
         return;
       }
+      // **Ön soru** (onay): gövde yok, yalnız ne geleceği.
+      if (request.method == 'POST' && request.uri.path == '/sor') {
+        if (pairingCode.isNotEmpty &&
+            request.uri.queryParameters['kod'] != pairingCode) {
+          response.statusCode = HttpStatus.forbidden;
+          response.write('kod');
+          await response.close();
+          return;
+        }
+        await request.drain<void>();
+        final q = request.uri.queryParameters;
+        final ok = await _ask(PeerOffer(
+          from: q['kim'] ?? '?',
+          firstName: FileOps.sanitizeName(q['ad'] ?? ''),
+          count: int.tryParse(q['adet'] ?? '') ?? 1,
+          totalBytes: int.tryParse(q['toplam'] ?? '') ?? 0,
+        ));
+        if (!ok) {
+          response.statusCode = HttpStatus.forbidden;
+          response.write('red');
+          await response.close();
+          return;
+        }
+        response.headers.contentType = ContentType.json;
+        response.write(jsonEncode({'ok': true, 'izin': _grant()}));
+        await response.close();
+        return;
+      }
       if (request.method != 'POST' || request.uri.path != '/al') {
         response.statusCode = HttpStatus.notFound;
         await response.close();
@@ -272,6 +341,18 @@ class PeerReceiver {
       final from = request.uri.queryParameters['kim'] ?? '?';
       final safeName = FileOps.sanitizeName(rawName);
       final total = request.contentLength;
+      // Onay: izin anahtarı yoksa (ör. eski sürüm gönderen) dosya başına
+      // sorulur — reddedilen gövde OKUNMADAN geri çevrilir.
+      if (onAsk != null && !_granted(request.uri.queryParameters['izin'])) {
+        final ok = await _ask(PeerOffer(
+            from: from, firstName: safeName, count: 1, totalBytes: total));
+        if (!ok) {
+          response.statusCode = HttpStatus.forbidden;
+          response.write('red');
+          await response.close();
+          return;
+        }
+      }
       final target = FileOps.uniquePath(
           p.join(saveDir, safeName.isEmpty ? 'dosya' : safeName));
 
@@ -435,6 +516,40 @@ abstract final class PeerSender {
       ..connectionTimeout = const Duration(seconds: 8)
       ..idleTimeout = const Duration(seconds: 20);
     try {
+      // **Ön soru**: alıcı onay istiyorsa "Kabul et" diyene kadar bekler
+      // (en çok ~90 sn). Eski sürüm alıcı `/sor`u tanımaz (404) → onaysız
+      // eski yol. Gövde gönderilmeden sorulur: reddedilecek 2 GB'lık bir
+      // video için tek bayt bile okunmaz.
+      var grant = '';
+      try {
+        final ask = await client.postUrl(
+            peer.base.replace(path: '/sor', queryParameters: {
+          'kim': senderName,
+          'ad': paths.isEmpty ? '' : p.basename(paths.first),
+          'adet': '${paths.length}',
+          'toplam': '$totalBytes',
+          if (pairingCode.isNotEmpty) 'kod': pairingCode,
+        }));
+        ask.contentLength = 0;
+        final res = await ask.close().timeout(const Duration(seconds: 95));
+        final body = await res.transform(utf8.decoder).join();
+        if (res.statusCode == HttpStatus.forbidden) {
+          return body.trim() == 'red'
+              ? const PeerSendResult(declined: true)
+              : const PeerSendResult(wrongCode: true);
+        }
+        if (res.statusCode == HttpStatus.ok) {
+          final data = jsonDecode(body);
+          if (data is Map && data['izin'] is String) {
+            grant = data['izin'] as String;
+          }
+        }
+      } on TimeoutException {
+        return const PeerSendResult(declined: true);
+      } catch (_) {
+        // Ön soru başarısız (eski alıcı / ağ): gönderim eski yoldan denenir;
+        // gerçek bir ağ hatası zaten aşağıda dosya başına raporlanır.
+      }
       for (final path in paths) {
         if (isCancelled?.call() ?? false) {
           return PeerSendResult(
@@ -448,6 +563,7 @@ abstract final class PeerSender {
             'ad': name,
             'kim': senderName,
             if (pairingCode.isNotEmpty) 'kod': pairingCode,
+            if (grant.isNotEmpty) 'izin': grant,
           });
           final request = await client.postUrl(uri);
           request.contentLength = length;
@@ -459,7 +575,11 @@ abstract final class PeerSender {
             onProgress?.call(name, sentBytes, totalBytes);
           }
           final response = await request.close();
-          await response.drain<void>();
+          final reply = await response.transform(utf8.decoder).join();
+          if (response.statusCode == HttpStatus.forbidden &&
+              reply.trim() == 'red') {
+            return PeerSendResult(sent: sent, errors: errors, declined: true);
+          }
           if (response.statusCode == HttpStatus.forbidden) {
             // Yanlış kod: kalan dosyaları denemenin anlamı yok, hepsi aynı
             // cevabı alacak. Hata metni de "HTTP 403" değil, kullanıcının
@@ -493,12 +613,31 @@ class PeerSendResult {
   /// sormak gerekiyor.
   final bool wrongCode;
 
+  /// Alıcı gelen dosyayı kabul etmedi (ya da yanıt vermedi).
+  final bool declined;
+
   const PeerSendResult({
     this.sent = 0,
     this.errors = const [],
     this.cancelled = false,
     this.wrongCode = false,
+    this.declined = false,
   });
 
   bool get hasError => errors.isNotEmpty;
+}
+
+/// Alıcıya sorulan teklif: kim, kaç dosya, toplam ne kadar.
+class PeerOffer {
+  final String from;
+  final String firstName;
+  final int count;
+  final int totalBytes;
+
+  const PeerOffer({
+    required this.from,
+    required this.firstName,
+    required this.count,
+    required this.totalBytes,
+  });
 }

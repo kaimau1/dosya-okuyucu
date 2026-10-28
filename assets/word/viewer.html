@@ -1457,6 +1457,13 @@
 
   // Mobil akış / sayfa görünümü arasında geçiş. Akışta sığdırma ölçeği hiç
   // uygulanmaz; sayfaya dönerken genişlik yeniden ölçülür (pageW sıfırlanır).
+  // Okuma kipi (2026-10-28): Flutter çubukları belgenin ÜSTÜNDE kayan
+  // katman; belge çubuk boyu kadar payla başlar/biter (WebView boyu sabit).
+  window.setInsets = function (top, bottom) {
+    document.body.style.paddingTop = (top | 0) + 'px';
+    document.body.style.paddingBottom = (bottom | 0) + 'px';
+  };
+
   window.setFlow = function (on) {
     FLOW = !!on;
     document.body.classList.toggle('flow', FLOW);

@@ -23,6 +23,9 @@ abstract final class Motion {
   /// Metin imlecinin yarım yanıp sönme süresi (EditableText ile aynı).
   static const caretBlink = Duration(milliseconds: 500);
 
+  /// Okuma kipi: kaydırma bu kadar durunca çekilen çubuklar geri gelir.
+  static const readingIdle = Duration(milliseconds: 2200);
+
   /// Giren öğe (yavaşlayarak durur).
   static const Curve enter = Curves.easeOutCubic;
 

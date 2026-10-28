@@ -258,7 +258,12 @@ class _RingPainter extends CustomPainter {
       old.strokeWidth != strokeWidth;
 }
 
-/// **Panonun yüzen çubuğu**: çöp kutusu | Belge Tara.
+/// **Panonun yüzen çubuğu**: çöp kutusu · QR ile al | Belge Tara.
+///
+/// QR ile al (2026-10-28, kullanıcı: *"QR'la al seçeneği yüzen buton olmalı
+/// — biri paylaşırken uygulama içinden alma"*): karşı taraf "QR ile
+/// paylaş"ı açtığında tek dokunuşla tarayıcı açılır, gelecek dosyalar
+/// gösterilip onay istenir (bkz. `QrReceiveFlow`).
 ///
 /// Yeni klasör düğmesi 2026-10-23'te kaldırıldı (kullanıcı isteği) — klasör
 /// gezginin kendi menüsünden oluşturulur.
@@ -272,12 +277,14 @@ class _QuickDock extends StatelessWidget {
   final int trashCount;
   final VoidCallback onTrash;
   final VoidCallback onScan;
+  final VoidCallback onQrReceive;
 
   const _QuickDock({
     required this.expanded,
     required this.trashCount,
     required this.onTrash,
     required this.onScan,
+    required this.onQrReceive,
   });
 
   static const _trashFull = Color(0xFFE65100);
@@ -323,6 +330,13 @@ class _QuickDock extends StatelessWidget {
                                   child: trashIcon,
                                 )
                               : trashIcon,
+                        ),
+                        IconButton(
+                          key: const ValueKey('dock-qr-receive'),
+                          tooltip: context.t('qrr.fab'),
+                          onPressed: onQrReceive,
+                          icon: Icon(AppIcons.qrScan,
+                              color: scheme.onSurfaceVariant),
                         ),
                         Container(
                           width: 1,

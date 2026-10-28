@@ -339,8 +339,39 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// ile o sayfaya kaydırır. Yalnız PDF belgesinde kurulur.
   final PdfViewerController _pdfController = PdfViewerController();
 
-  /// Okuma kipi (Faz 18 / G20): kaydırınca çubuklar çekilir.
+  /// Okuma kipi (Faz 18 / G20): kaydırınca çubuklar çekilir. 2026-10-28:
+  /// PDF'te de açık — çubuklar artık gövdenin boyunu değiştirmiyor.
   final ReadingBars _readingBars = ReadingBars();
+
+  /// pdfrx jesti (kaydırma/iki parmak) sürüyor mu — sürerken sayfa bitmap
+  /// ölçeği değişmez (bkz. [_pdfRenderScale]).
+  bool _pdfInteracting = false;
+
+  /// Son seçilen sayfa bitmap ölçeği (basamaklı, bkz. [_pdfRenderScale]).
+  double? _pdfBaseScale;
+
+  /// Önceki matris (PDF kaydırma yönünü çıkarmak için).
+  double? _pdfLastTy;
+  double? _pdfLastZoom;
+
+  /// PDF kaydırması → okuma kipi. pdfrx kaydırma bildirimi YAYMIYOR; matris
+  /// değişimi izlenir. Yakınlaştırma (ölçek değişimi) ve seçim sürüklemesi
+  /// çubuklara dokunmaz.
+  void _onPdfMatrix() {
+    if (!_pdfController.isReady) return;
+    final m = _pdfController.value;
+    final ty = m.getTranslation().y;
+    final zoom = m.getMaxScaleOnAxis();
+    final pTy = _pdfLastTy, pZoom = _pdfLastZoom;
+    _pdfLastTy = ty;
+    _pdfLastZoom = zoom;
+    // Görüntüleyici hazır olmadan (açılıştaki "kaldığın sayfaya" atlayış)
+    // çubuklar kıpırdamaz.
+    if (pTy == null || pZoom == null || _pdfCount == 0) return;
+    if ((zoom - pZoom).abs() > pZoom * 0.002) return;
+    if (_pdfSelecting || _findOpen) return;
+    _readingBars.scrolled(pTy - ty, atTop: ty >= -1);
+  }
 
   /// "Tam ekran" (Aa levhası): sistem çubukları gizli okur. Tercih
   /// kalıcı (`reading_fullscreen`); ekrandan çıkınca sistem çubukları döner.
@@ -439,6 +470,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       _prepareSafeOpen();
       _pdfSearcher = PdfTextSearcher(_pdfController)..addListener(_onPdfSearch);
       _ocrSearch = PdfOcrSearch()..addListener(_onPdfSearch);
+      _pdfController.addListener(_onPdfMatrix);
       unawaited(_offerFormFilling());
       unawaited(_restoreReadingPage());
     }
@@ -584,6 +616,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     // Bekleyen okuma konumu diske yazılsın: uygulama kapansa da "kaldığın
     // sayfa" çalışsın (kayıt üç saniyelik gecikmeyle yazılıyor).
     unawaited(ReadingPositions.save());
+    _pdfController.removeListener(_onPdfMatrix);
     _readingBars.dispose();
     if (_fullscreen) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);

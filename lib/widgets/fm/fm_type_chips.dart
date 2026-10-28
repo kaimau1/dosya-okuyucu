@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/motion.dart';
+import '../../core/theme.dart';
 import '../../models/fm_filter.dart';
 import '../../models/fm_type.dart';
 import '../../models/fs_entry.dart';
+import '../app_dialog.dart';
+import 'fm_entry_icon.dart';
 import 'fm_quick_filters.dart';
 
 /// **Ortak tür süzgeci** (Faz 13, 2026-10-22): `Tümü · PDF 12 · Word 3 ·
@@ -29,8 +34,18 @@ import 'fm_quick_filters.dart';
 /// Çiplerin kendisi bir `List<Widget>`: `FmQuickFilters.leading`'e ya da
 /// [FmFilterBar]'a verilir — tek satır kuralı (`kFmFilterBarHeight`) korunur.
 abstract final class FmTypeChips {
-  /// Çip listesini üretir. [counts] seçili türlerden bağımsız (öteki
-  /// ölçütlerle süzülmüş) tür sayıları, [total] onların toplamı.
+  /// Tür süzgecini üretir: **tek açılır hap** ([FmTypePill]) — dokununca
+  /// tür levhası açılır. [counts] seçili türlerden bağımsız (öteki
+  /// ölçütlerle süzülmüş) tür sayıları.
+  ///
+  /// 2026-10-28 (kullanıcı, ekran görüntüsüyle: *"üst filtre alanını baştan
+  /// tasarla — dropdown mı olur, daha güzel bir şey mi, sen karar ver"*):
+  /// eskiden her tür ayrı bir çipti ("Tümü · 142 · PDF · 59 · Word · 11 ·
+  /// Excel · 38 · Sla…") ve satırın tamamını yiyordu; Sırala/Süzgeç/Analiz
+  /// bu yüzden İKİNCİ bir satıra iniyordu. Şimdi türler tek hapta
+  /// toplanır, aynı satıra öteki denetimler sığar — listeden 46 dp geri
+  /// gelir. Levhada her tür simgesi, rengi ve sayısıyla büyük bir kutu
+  /// (çoklu seçim, liste hemen süzülür).
   static List<Widget> build(
     BuildContext context, {
     required Map<FmType, int> counts,
@@ -41,30 +56,17 @@ abstract final class FmTypeChips {
       for (final t in FmType.values)
         if ((counts[t] ?? 0) > 0 || selected.contains(t)) t,
     ];
-    // Tek türlü listede tür çipi bilgi taşımaz (hepsi PDF'se "PDF" çipi hiçbir
-    // şey süzmez, yalnız satırda yer kaplar).
+    // Tek türlü listede tür seçici bilgi taşımaz (hepsi PDF'se "PDF"
+    // hiçbir şey süzmez, yalnız satırda yer kaplar).
     if (present.length < 2 && selected.isEmpty) return const [];
-    final total = counts.values.fold<int>(0, (a, b) => a + b);
     return [
-      FmChip(
-        key: const ValueKey('type-all'),
-        label: context.t('flt.all'),
-        count: total,
-        selected: selected.isEmpty,
-        onTap: () => onChanged(const {}),
+      FmTypePill(
+        key: const ValueKey('type-pill'),
+        counts: counts,
+        present: present,
+        selected: selected,
+        onChanged: onChanged,
       ),
-      for (final t in present)
-        FmChip(
-          key: ValueKey('type-${t.name}'),
-          label: context.t(t.labelKey),
-          count: counts[t],
-          selected: selected.contains(t),
-          onTap: () {
-            final next = {...selected};
-            if (!next.remove(t)) next.add(t);
-            onChanged(next);
-          },
-        ),
     ];
   }
 
@@ -171,3 +173,277 @@ List<Widget> fmDateSizePills(
         ),
       ),
     ];
+
+/// Türün levhadaki simgesi ve rengi (belge alt türleri Office renklerinde).
+(IconData, Color) fmTypeStyle(FmType t) => switch (t) {
+      FmType.pdf => (AppIcons.pdf, OfficeColors.pdf),
+      FmType.word => (AppIcons.newWord, OfficeColors.word),
+      FmType.excel => (AppIcons.gridOn, OfficeColors.excel),
+      FmType.slides => (AppIcons.slideshow, OfficeColors.slides),
+      FmType.text => (AppIcons.textSnippet, FmColors.other),
+      FmType.ebook => (AppIcons.menuBook, FmColors.archive),
+      FmType.docOther => (AppIcons.insertDriveFile, FmColors.other),
+      _ => (FmColors.iconFor(t.category), FmColors.forCategory(t.category)),
+    };
+
+/// Tür süzgecinin **açılır hapı**: "Tüm türler · 142 ▾", tek tür seçiliyse
+/// "PDF · 59 ▾" (vurgulu, türün simgesiyle), çoğulsa "PDF +1 · 70 ▾".
+class FmTypePill extends StatelessWidget {
+  final Map<FmType, int> counts;
+  final List<FmType> present;
+  final Set<FmType> selected;
+  final ValueChanged<Set<FmType>> onChanged;
+
+  const FmTypePill({
+    super.key,
+    required this.counts,
+    required this.present,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  int get _shown => selected.isEmpty
+      ? counts.values.fold<int>(0, (a, b) => a + b)
+      : selected.fold<int>(0, (a, t) => a + (counts[t] ?? 0));
+
+  @override
+  Widget build(BuildContext context) {
+    final ordered = [
+      for (final t in FmType.values)
+        if (selected.contains(t)) t,
+    ];
+    final String label;
+    final IconData icon;
+    if (ordered.isEmpty) {
+      label = context.t('typ.all_types');
+      icon = AppIcons.typeAll;
+    } else {
+      final first = context.t(ordered.first.labelKey);
+      label = ordered.length == 1
+          ? first
+          : context.t('typ.more_n', {'name': first, 'n': ordered.length - 1});
+      icon = fmTypeStyle(ordered.first).$1;
+    }
+    return Tooltip(
+      message: context.t('typ.title'),
+      child: Semantics(
+        button: true,
+        child: InkWell(
+          customBorder: const StadiumBorder(),
+          onTap: () => showFmTypeSheet(
+            context,
+            counts: counts,
+            present: present,
+            selected: selected,
+            onChanged: onChanged,
+          ),
+          child: FmPill(
+            icon: icon,
+            label: label,
+            count: _shown,
+            dropdown: true,
+            highlighted: ordered.isNotEmpty,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// **Tür levhası**: her tür büyük bir kutu (simge · ad · sayı). Dokunuş türü
+/// ekler/çıkarır ve liste ARKADA hemen süzülür; "Tüm türler" seçimi
+/// temizler; alttaki düğme "N dosyayı göster" diyerek kapatır.
+Future<void> showFmTypeSheet(
+  BuildContext context, {
+  required Map<FmType, int> counts,
+  required List<FmType> present,
+  required Set<FmType> selected,
+  required ValueChanged<Set<FmType>> onChanged,
+}) {
+  var current = {...selected};
+  return showAppSheet<void>(
+    context,
+    title: context.t('typ.title'),
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setSheet) {
+        void set(Set<FmType> next) {
+          setSheet(() => current = next);
+          onChanged(next);
+        }
+
+        final total = counts.values.fold<int>(0, (a, b) => a + b);
+        final shown = current.isEmpty
+            ? total
+            : current.fold<int>(0, (a, t) => a + (counts[t] ?? 0));
+        return Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(
+              Gap.md, 0, Gap.md, Gap.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsetsDirectional.only(
+                    start: Gap.sm, bottom: Gap.md),
+                child: Text(
+                  ctx.t('typ.hint'),
+                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(ctx).colorScheme.onSurfaceVariant),
+                ),
+              ),
+              LayoutBuilder(builder: (ctx, c) {
+                // 3 sütun (dar ekranda/büyük yazıda 2): kutular eşit genişlikte.
+                final cols = c.maxWidth < 300 ? 2 : 3;
+                final w = (c.maxWidth - Gap.sm * (cols - 1)) / cols;
+                return Wrap(
+                  spacing: Gap.sm,
+                  runSpacing: Gap.sm,
+                  children: [
+                    _TypeTile(
+                      key: const ValueKey('type-all'),
+                      width: w,
+                      icon: AppIcons.typeAll,
+                      color: Theme.of(ctx).colorScheme.primary,
+                      label: ctx.t('typ.all_types'),
+                      count: total,
+                      selected: current.isEmpty,
+                      onTap: () => set(const {}),
+                    ),
+                    for (final t in present)
+                      _TypeTile(
+                        key: ValueKey('type-${t.name}'),
+                        width: w,
+                        icon: fmTypeStyle(t).$1,
+                        color: fmTypeStyle(t).$2,
+                        label: ctx.t(t.labelKey),
+                        count: counts[t] ?? 0,
+                        selected: current.contains(t),
+                        onTap: () {
+                          final next = {...current};
+                          if (!next.remove(t)) next.add(t);
+                          set(next);
+                        },
+                      ),
+                  ],
+                );
+              }),
+              const SizedBox(height: Gap.md),
+              FilledButton(
+                key: const ValueKey('type-done'),
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: Text(ctx.t('typ.show_n', {'n': shown})),
+              ),
+            ],
+          ),
+        );
+      },
+    ),
+  );
+}
+
+class _TypeTile extends StatelessWidget {
+  final double width;
+  final IconData icon;
+  final Color color;
+  final String label;
+  final int count;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _TypeTile({
+    super.key,
+    required this.width,
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.count,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return SizedBox(
+      width: width,
+      child: Semantics(
+        button: true,
+        selected: selected,
+        child: AnimatedContainer(
+          duration: Motion.of(context, Motion.short),
+          curve: Motion.standard,
+          decoration: BoxDecoration(
+            color: selected
+                ? scheme.primaryContainer
+                : scheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: selected ? scheme.primary : Colors.transparent,
+              width: 1.5,
+            ),
+          ),
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    Gap.sm, Gap.md, Gap.sm, Gap.sm),
+                child: Stack(
+                  children: [
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.14),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(icon, color: color, size: 22),
+                        ),
+                        const SizedBox(height: Gap.xs),
+                        Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            fontWeight:
+                                selected ? FontWeight.w700 : FontWeight.w600,
+                            color: selected
+                                ? scheme.onPrimaryContainer
+                                : scheme.onSurface,
+                          ),
+                        ),
+                        Text(
+                          '$count',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            fontFeatures: const [
+                              FontFeature.tabularFigures()
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (selected)
+                      PositionedDirectional(
+                        top: 0,
+                        end: 0,
+                        child: Icon(AppIcons.checkCircle,
+                            size: 18, color: scheme.primary),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

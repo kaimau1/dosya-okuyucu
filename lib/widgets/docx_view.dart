@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
-import 'office_shell.dart' show ZoomBadge, ZoomBadgeController;
+import 'office_shell.dart' show ReadingChrome, ZoomBadge, ZoomBadgeController;
 import '../core/app_icons.dart';
 
 /// Canlı görünümdeki seçimin biçim durumu (araç çubuğu düğmeleri yansıtır).
@@ -162,6 +162,7 @@ class DocxViewState extends State<DocxView> {
           _error = err;
         });
         widget.onStatus?.call(err == null);
+        if (err == null) _sendInsets(force: true);
       })
       ..addJavaScriptChannel('Kalem', onMessageReceived: _onKalem)
       ..setNavigationDelegate(NavigationDelegate(
@@ -451,8 +452,29 @@ class DocxViewState extends State<DocxView> {
     return WebViewWidget(controller: _controller);
   }
 
+  /// Okuma kipi payı (çubuk boyları) — belgeye CSS dolgusu olarak gider.
+  EdgeInsets _insets = EdgeInsets.zero;
+  EdgeInsets? _sentInsets;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _insets = ReadingChrome.insetsOf(context);
+    _sendInsets();
+  }
+
+  void _sendInsets({bool force = false}) {
+    if (_loading || _error != null) return;
+    if (!force && _sentInsets == _insets) return;
+    _sentInsets = _insets;
+    _controller.runJavaScript('setInsets(${_insets.top.round()}, '
+        '${_insets.bottom.round()})');
+  }
+
   @override
   Widget build(BuildContext context) {
+    final chrome = ReadingChrome.maybeOf(context);
+    final nav = MediaQuery.paddingOf(context).bottom;
     return Stack(
       children: [
         _webView(),
@@ -481,10 +503,21 @@ class DocxViewState extends State<DocxView> {
         // kadar uzuyor — alttaki uzaklaştır düğmesi geri/ana menü çubuğunun
         // altında kalıyordu. `paddingOf` klavye açıkken kendiliğinden 0 olur
         // (insets payı yutar), yani klavyeliyken düğmeler fazladan yükselmez.
+        //
+        // Okuma kipinde (2026-10-28) alt çubukla birlikte iner/kalkar.
         if (_error == null)
-          Positioned(
-            left: 12,
-            bottom: 12 + MediaQuery.paddingOf(context).bottom,
+          AnimatedBuilder(
+            animation: chrome?.shown ?? kAlwaysCompleteAnimation,
+            builder: (context, child) => Positioned(
+              left: 12,
+              bottom: 12 +
+                  nav +
+                  (chrome == null
+                      ? 0
+                      : (chrome.bottom - nav).clamp(0, 999) *
+                          chrome.shown.value),
+              child: child!,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -497,7 +530,7 @@ class DocxViewState extends State<DocxView> {
         // Ölçek yüzdesi rozeti (Excel/slaytlardaki ile aynı).
         if (_error == null)
           Positioned(
-            top: 12,
+            top: 12 + _insets.top,
             left: 0,
             right: 0,
             child: Center(

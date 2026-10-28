@@ -7,12 +7,12 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
       title: doc.name,
       dirty: _dirty || _hasUnsaved,
       tabBar: _findOpen ? _findBar() : null,
-      // **PDF'te okuma kipi YOK** (2026-10-23, kullanıcı: *"pdfler sanki zorla
-      // kaydırılıyor"*). KÖK NEDEN: çubuklar kaydırırken çekilince gövde her
-      // animasyon karesinde büyüyor; pdfrx görünüm boyutu her değiştiğinde
-      // `_goToPage(güncel sayfa)` çağırıp sayfanın BAŞINA atlıyor — parmak
-      // aşağı iterken belge geri çekiliyordu. Gövde boyu sabit kalmalı.
-      readingBars: doc.kind == DocKind.pdf ? null : _readingBars,
+      // **Okuma kipi her belgede** (2026-10-28). 2026-10-23'te PDF'te
+      // kapatılmıştı: çubuklar çekilirken gövde her karede büyüyor, pdfrx
+      // görünüm boyu değişince sayfa başına atlıyordu ("zorla kaydırılıyor").
+      // Artık çubuklar gövdenin ÜSTÜNDE kayan katman — gövde boyu sabit
+      // (bkz. `OfficeShell`). Arama açıkken çubuklar sabit durur.
+      readingBars: _readingBars,
       subtitle: _isPdf && _pageCount > 0
           ? context.t('shell.pages', {'n': _pageCount})
           : null,
@@ -63,12 +63,14 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
           onPressed: () => _showMore(doc),
         ),
       ],
+      // Konuşma çubuğu belgenin ALTINA eklenmez, üstünde yüzer: eklenince
+      // gövdenin boyu değişir, PDF sayfa başına atlardı.
       body: _ttsTotal == 0
           ? _buildBody(doc)
-          : Column(
+          : Stack(
               children: [
-                Expanded(child: _buildBody(doc)),
-                _speechBar(),
+                Positioned.fill(child: _buildBody(doc)),
+                ReadingFloat(gap: 0, child: _speechBar()),
               ],
             ),
       // Etiketli eylem çubuğu — artık her belge türünde (2026-07-28 kullanıcı
