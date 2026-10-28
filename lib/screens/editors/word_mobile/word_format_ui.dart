@@ -66,7 +66,14 @@ class WordFormatUi {
   final VoidCallback? onZoomIn, onZoomOut;
   final void Function(String text) onTranslate;
 
+  /// Faz 24: Ekle ve Bul-Değiştir (ekran açar; sekme yoksa gizli).
+  final VoidCallback? onInsertTable, onInsertLink, onSymbol, onFind;
+
   const WordFormatUi({
+    this.onInsertTable,
+    this.onInsertLink,
+    this.onSymbol,
+    this.onFind,
     required this.context,
     required this.c,
     required this.onPageLayout,
@@ -147,6 +154,19 @@ class WordFormatUi {
 
   List<RibbonTab> ribbonTabs() => [
         RibbonTab(_t('word.tab_home'), home()),
+        if (onInsertTable != null)
+          RibbonTab(_t('word.tab_insert'), [
+            RibbonButton(AppIcons.tableView, _t('word.insert_table'),
+                key: const ValueKey('word-ins-table'), onTap: onInsertTable),
+            RibbonButton(AppIcons.link, _t('word.insert_link'),
+                key: const ValueKey('word-ins-link'), onTap: onInsertLink),
+            RibbonButton(AppIcons.wrapText, _t('word.insert_break'),
+                key: const ValueKey('word-ins-break'),
+                onTap: c.insertPageBreak),
+            RibbonButton(AppIcons.textFields, _t('word.insert_symbol'),
+                key: const ValueKey('word-ins-symbol'), onTap: onSymbol),
+          ]),
+        if (onInsertTable != null) RibbonTab(_t('word.tab_layout'), layout()),
         RibbonTab(_t('word.tab_view'), [
           RibbonButton(AppIcons.device, _t('word.mobile_view'),
               active: true, onTap: () {}),
@@ -161,12 +181,77 @@ class WordFormatUi {
               key: const ValueKey('word-nav'), onTap: onNavigate),
         ]),
         RibbonTab(_t('word.tab_review'), [
+          if (onFind != null)
+            RibbonButton(OfficeIcons.search, _t('word.find'),
+                key: const ValueKey('word-find'), onTap: onFind),
           RibbonButton(OfficeIcons.wordCount, _t('word.word_count'),
               key: const ValueKey('word-count'), onTap: onWordCount),
           RibbonButton(OfficeIcons.translate, _t('common.translate'),
               onTap: () => onTranslate(c.selectedText())),
         ]),
       ];
+
+  /// Düzen sekmesi: kenar boşlukları, yönlendirme, boyut, sütunlar.
+  List<Widget> layout() {
+    final ps = c.pageSetup;
+    return [
+      RibbonMenu<String>(
+        key: const ValueKey('word-lay-margins'),
+        icon: AppIcons.cropFree,
+        tooltip: _t('word.margins'),
+        onSelected: c.setMargins,
+        itemBuilder: (_) => [
+          for (final k in const ['normal', 'narrow', 'moderate', 'wide'])
+            CheckedPopupMenuItem(
+                value: k,
+                checked: ps.marginPreset == k,
+                child: Text(_t('word.margin_$k'))),
+        ],
+      ),
+      RibbonMenu<bool>(
+        key: const ValueKey('word-lay-orient'),
+        icon: AppIcons.device,
+        tooltip: _t('word.orientation'),
+        onSelected: c.setLandscape,
+        itemBuilder: (_) => [
+          CheckedPopupMenuItem(
+              value: false,
+              checked: !ps.landscape,
+              child: Text(_t('word.portrait'))),
+          CheckedPopupMenuItem(
+              value: true,
+              checked: ps.landscape,
+              child: Text(_t('word.landscape'))),
+        ],
+      ),
+      RibbonMenu<String>(
+        key: const ValueKey('word-lay-size'),
+        icon: AppIcons.newWord,
+        tooltip: _t('word.paper_size'),
+        onSelected: c.setPaper,
+        itemBuilder: (_) => [
+          for (final k in kDocxPaperSizes.keys)
+            CheckedPopupMenuItem(
+                value: k,
+                checked: ps.paper == k,
+                child: Text(k == 'a4' || k == 'a5' ? k.toUpperCase() : k[0].toUpperCase() + k.substring(1))),
+        ],
+      ),
+      RibbonMenu<int>(
+        key: const ValueKey('word-lay-cols'),
+        icon: AppIcons.viewColumn,
+        tooltip: _t('word.columns'),
+        onSelected: c.setColumns,
+        itemBuilder: (ctx) => [
+          for (final n in const [1, 2, 3])
+            CheckedPopupMenuItem(
+                value: n,
+                checked: ps.columns == n,
+                child: Text(ctx.t('word.columns_n', {'n': n}))),
+        ],
+      ),
+    ];
+  }
 
   /// Giriş sekmesi.
   List<Widget> home() => [

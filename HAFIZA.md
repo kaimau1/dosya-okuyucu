@@ -708,3 +708,19 @@ aynı kart ızgarası (`FmChoiceTile`): Nerede (SD, WhatsApp, İndirilenler…) 
 açılmamış, 100 MB üzeri); bütün liste ekranlarında ortak. Cihazda doğrula: klavye üstü çubuk, kod yazma
 hissi, levha.
 
+## 2026-10-28 — Faz 24a: Word Ekle / Düzen / Bul-Değiştir (Mobil görünüm)
+`services/docx/docx_insert.dart` (`part of docx_document`; extension `DocxInsert`): tablo, bağlantı
+atomu (+ dış ilişki `document.xml.rels`), sayfa sonu atomu, sayfa ayarı (`w:sectPr`: pgSz/pgMar/cols).
+**Tasarım:** yeni tablo XML'e EAĞER bağlanmaz — `commit()` sonunda `_syncNewTables` bağlar (önceki üst
+düzey öğenin ardına) ya da yetim kalmışsa (geri alınmış) sökar; hücre paragrafları `paras`ta
+(`DocxCellRef`) ve her tablonun ardına boş gövde paragrafı konur (Word, gövdenin tabloyla bitmesini
+istemez; her `w:tc` en az bir `w:p`). Sayfa ayarının geri alınması için geri al durumuna 4. öğe:
+`sectSnapshot()` (`restoreSect`). **TUZAK:** `XmlElement.setAttribute('w:num', …)` YENİ özniteliği
+yerel adı `w:num` olan adsız-alanlı oluşturur (yeniden ayrıştırmadan önce `a.name.local == 'num'`
+tutmaz) → `_set` var olanı günceller, yoksa `XmlAttribute(XmlName.fromString('w:x'))` ekler. Denetleyici:
+`widgets/docx_editor/docx_edit_insert.dart` (part; `insertTable/Link/PageBreak`, `setMargins/Landscape/
+Paper/Columns`, `findMatches`, `replaceAllMatches` — Türkçe katlama, tek geri al adımı). UI:
+`word_mobile/word_insert_ui.dart` (8×8 ızgara levhası, bağlantı, sembol + son kullanılanlar,
+`WordFindBar`) + Ekle/Düzen sekmeleri. Testler: `docx_insert_test` (LibreOffice onarımsız açıyor),
+`word_mobile_insert_test`. Cihazda doğrula: levha boyları, sekme kaydırma.
+

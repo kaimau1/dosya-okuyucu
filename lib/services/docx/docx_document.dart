@@ -28,6 +28,8 @@ import '../../core/edit/save_coordinator.dart';
 import '../../core/symbol_fonts.dart';
 import 'docx_styles.dart';
 
+part 'docx_insert.dart';
+
 /// Atom karakteri (Flutter `WidgetSpan` yer tutucusuyla aynı).
 const String kDocxAtom = '￼';
 
@@ -393,6 +395,9 @@ class DocxDocument {
   /// Her `w:p`'ye en son yazılan (ya da ondan okunan) paragraf nesnesi.
   final Map<XmlElement, DocxPara> _writtenAs = {};
   bool _xmlDirty = false;
+
+  /// Faz 24: bu oturumda eklenen (henüz XML'e bağlanmamış olabilir) tablolar.
+  final List<XmlElement> _newTables = [];
 
   DocxDocument._(this._archive, this.doc, this.body, this.styles,
       this.numbering, this._rels, this.paras);
@@ -1210,6 +1215,7 @@ class DocxDocument {
       _place(el, i, targets);
       changed = true;
     }
+    if (_syncNewTables()) changed = true;
     if (changed) _xmlDirty = true;
   }
 

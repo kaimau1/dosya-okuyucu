@@ -19,8 +19,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/edit/edit_history.dart';
+import '../../core/text_replace.dart';
 import '../../services/docx/docx_document.dart';
 import '../../services/docx/docx_styles.dart';
+
+part 'docx_edit_insert.dart';
 
 /// Belgede bir konum (paragraf sırası + paragraf içi harf).
 @immutable
@@ -44,7 +47,7 @@ class DocPos implements Comparable<DocPos> {
   String toString() => '($para:$offset)';
 }
 
-typedef _State = (List<DocxPara>, DocPos, DocPos);
+typedef _State = (List<DocxPara>, DocPos, DocPos, String);
 
 class DocxEditController extends ChangeNotifier
     implements DeltaTextInputClient {
@@ -233,7 +236,7 @@ class DocxEditController extends ChangeNotifier
 
   // ── geri al ──────────────────────────────────────────────────────────────
 
-  _State _state() => ([...paras], base, extent);
+  _State _state() => ([...paras], base, extent, doc.sectSnapshot());
 
   /// Değişiklikten ÖNCE çağrılır; yazma kelime/duraklama sınırında bölünür.
   void _record({required bool typing, String inserted = ''}) {
@@ -255,6 +258,7 @@ class DocxEditController extends ChangeNotifier
   void _restore(_State? s) {
     if (s == null) return;
     doc.paras = [...s.$1];
+    doc.restoreSect(s.$4);
     base = s.$2;
     extent = s.$3;
     composing = TextRange.empty;

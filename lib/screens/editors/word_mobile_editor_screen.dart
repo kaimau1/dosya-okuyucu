@@ -24,6 +24,7 @@ import '../../widgets/office_shell.dart';
 import '../../widgets/quick_sheets.dart';
 import '../../widgets/app_dialog.dart';
 import 'word_mobile/word_format_ui.dart';
+import 'word_mobile/word_insert_ui.dart';
 
 /// **Word Mobil görünüm editörü** (Faz 22, K18 = b-ii).
 ///
@@ -190,7 +191,40 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
         onZoomIn: _scale < _scales.last ? () => _zoom(1) : null,
         onZoomOut: _scale > _scales.first ? () => _zoom(-1) : null,
         onTranslate: _translate,
+        onInsertTable: _insertTable,
+        onInsertLink: _insertLink,
+        onSymbol: _insertSymbol,
+        onFind: () => setState(() => _findOpen = !_findOpen),
       );
+
+  bool _findOpen = false;
+
+  Future<void> _insertTable() async {
+    final c = _ctrl;
+    if (c == null) return;
+    final size = await showWordTableSheet(context);
+    if (size == null || !mounted) return;
+    if (!c.insertTable(size.$1, size.$2)) {
+      showSnack(context, context.t('word.table_failed'));
+      return;
+    }
+    await _viewKey.currentState?.revealParagraph(c.extent.para);
+  }
+
+  Future<void> _insertLink() async {
+    final c = _ctrl;
+    if (c == null) return;
+    final r = await showWordLinkSheet(context, text: c.selectedText());
+    if (r == null || !mounted) return;
+    c.insertLink(r.$1, r.$2);
+  }
+
+  Future<void> _insertSymbol() async {
+    final c = _ctrl;
+    if (c == null) return;
+    final sym = await showWordSymbolSheet(context);
+    if (sym != null) c.insertText(sym);
+  }
 
   /// Görünüm > Gezinti: başlık listesi → dokun = o başlığa atla.
   Future<void> _navigate() async {
@@ -322,6 +356,12 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
       body: Column(
         children: [
           if (c.painterActive) _painterBanner(c),
+          if (_findOpen)
+            WordFindBar(
+              controller: c,
+              reveal: (i) async => _viewKey.currentState?.revealParagraph(i),
+              onClose: () => setState(() => _findOpen = false),
+            ),
           Expanded(
             child: DocxEditorView(
               key: _viewKey,
