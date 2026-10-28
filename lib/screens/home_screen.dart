@@ -8,6 +8,7 @@ import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 
 import '../core/app_state.dart';
 import '../core/l10n/app_strings.dart';
+import 'app_links.dart';
 import '../core/snack.dart';
 import '../models/download_task.dart';
 import '../models/fs_entry.dart';
@@ -116,6 +117,10 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Kısayolun gösterdiği yolu açar: klasörse gezgin, dosyaysa görüntüleyici.
   Future<void> _openShortcut(String path) async {
     if (!mounted) return;
+    if (path.startsWith('app:')) {
+      await openAppLink(context, path);
+      return;
+    }
     if (Directory(path).existsSync()) {
       await Navigator.of(context).push(browserRoute(
         BrowserScreen(path: path),

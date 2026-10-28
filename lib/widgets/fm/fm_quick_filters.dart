@@ -25,7 +25,7 @@ import 'fm_type_chips.dart' show FmChoiceTile;
 /// 2026-09-26 (kullanıcı: *"üstteki filtreler tüm alanlarda pek güzel
 /// değil"*): 38 → 46 dp. Çipler çerçeveli kutucuktan TONLU hapa döndü ve
 /// aralarına nefes payı kondu; tek satır kuralı aynen duruyor.
-const double kFmFilterBarHeight = 46;
+const double kFmFilterBarHeight = 48;
 
 /// Çip (ve pil) yüksekliği — şeritten 12 dp kısa, üstte/altta 6 dp pay.
 const double kFmChipHeight = 34;
@@ -212,34 +212,57 @@ class FmPill extends StatelessWidget {
     } else {
       fg = scheme.onSurface;
     }
+    // Süzgeç şeridinde (üç kart) hap genişliği PAYLAŞIR: kaydırma yok,
+    // yazı sığmazsa küçülür; sayı yalnız vurguluyken yazılır.
+    final fill = _FilterBarScope.of(context);
+    final body = _ChipBody(
+      icon: icon,
+      label: label,
+      count: (count ?? 0) > 0 && (!fill || highlighted) ? count : null,
+      fg: fg,
+      bold: highlighted,
+      dropdown: dropdown,
+    );
+    final pill = Container(
+      height: kFmChipHeight,
+      decoration: ShapeDecoration(
+        shape: const StadiumBorder(),
+        color: highlighted
+            ? scheme.secondaryContainer
+            : scheme.surfaceContainerHighest,
+      ),
+      child: fill
+          ? Center(child: FittedBox(fit: BoxFit.scaleDown, child: body))
+          : body,
+    );
+    // Şeritte dokunma alanı 48 dp (görünen hap 34 dp) — erişilebilirlik.
+    if (fill) {
+      return SizedBox(
+          height: kFmFilterBarHeight, child: Center(child: pill));
+    }
     return Padding(
       padding: const EdgeInsetsDirectional.only(end: _kChipGap),
-      child: Container(
-        height: kFmChipHeight,
-        decoration: ShapeDecoration(
-          shape: const StadiumBorder(),
-          color: highlighted
-              ? scheme.secondaryContainer
-              : scheme.surfaceContainerHighest,
-        ),
-        child: _ChipBody(
-          icon: icon,
-          label: label,
-          count: (count ?? 0) > 0 ? count : null,
-          fg: fg,
-          bold: highlighted,
-          dropdown: dropdown,
-        ),
-      ),
+      child: pill,
     );
   }
 }
 
-/// Liste/galeri ekranlarının üstündeki **tek satırlık** süzgeç şeridi.
-///
-/// Sabit yükseklikli (`kFmFilterBarHeight`) yatay kaydırmalı bir satır: içine
-/// ne konursa konsun ekranın üstünden aldığı yer değişmez. Seçim başlayınca
-/// gizlenmez — gizlenirse altındaki ızgara yukarı zıplıyordu (2026-07-29).
+/// Şeridin içindeki hapların "genişliği paylaş" kipini açan işaret.
+class _FilterBarScope extends InheritedWidget {
+  const _FilterBarScope({required super.child});
+
+  static bool of(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<_FilterBarScope>() != null;
+
+  @override
+  bool updateShouldNotify(_FilterBarScope old) => false;
+}
+
+/// Liste/galeri ekranlarının üstündeki **süzgeç şeridi**: EN FAZLA ÜÇ kart —
+/// Tür · Kaynak ve zaman · Analiz ve diğer (kullanıcı 2026-10-28). Kaydırma
+/// YOK: kartlar genişliği eşit paylaşır, her biri kendi kart levhasını açar.
+/// Sabit yükseklikli (`kFmFilterBarHeight`): içeriğe göre yer değişmez; seçim
+/// başlayınca gizlenmez (altındaki ızgara zıplamasın, 2026-07-29).
 class FmFilterBar extends StatelessWidget {
   final List<Widget> children;
 
@@ -248,17 +271,21 @@ class FmFilterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (children.isEmpty) return const SizedBox.shrink();
-    return SizedBox(
-      height: kFmFilterBarHeight,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        // Kenar payı ızgaranın/listenin metin hizasıyla aynı (12 dp);
-        // sondaki pay son çipin ekrana yapışmasını önler.
-        padding: const EdgeInsetsDirectional.only(start: 12, end: 4),
-        children: [
-          for (final child in children)
-            Align(alignment: Alignment.center, child: child),
-        ],
+    return _FilterBarScope(
+      child: SizedBox(
+        height: kFmFilterBarHeight,
+        child: Padding(
+          // Kenar payı ızgaranın/listenin metin hizasıyla aynı (12 dp).
+          padding: const EdgeInsetsDirectional.symmetric(horizontal: 12),
+          child: Row(
+            children: [
+              for (var i = 0; i < children.length; i++) ...[
+                if (i > 0) const SizedBox(width: _kChipGap),
+                Expanded(child: children[i]),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }

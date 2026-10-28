@@ -227,21 +227,14 @@ void main() {
           .toggleTag('Fatura')
           .withTypes({FmType.pdf});
       await tester.pumpWidget(StatefulBuilder(
-        builder: (context, setState) => app(FmListControls(
-          sort: FmSort.date,
-          descending: true,
-          onSort: (_, __) {},
+        builder: (context, setState) => app(FmActiveCriteria(
           filter: filter,
-          onFilterChanged: (f) => setState(() => filter = f),
-          onOpenFilter: () {},
-          onTools: () {},
+          onChanged: (f) => setState(() => filter = f),
         )),
       ));
       // Tür çipi zaten tür satırında görünüyor → burada tekrar yazılmaz.
       expect(find.byType(InputChip), findsNWidgets(2));
       expect(find.text('#Fatura'), findsOneWidget);
-      expect(find.text(AppStrings.current.t('lc.filter_n', {'n': 3})),
-          findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('lc-clear')));
       await tester.pump();
       expect(filter.isActive, isFalse);

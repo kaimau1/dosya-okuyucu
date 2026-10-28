@@ -24,6 +24,7 @@ import '../../services/fm/search_history.dart';
 import '../../services/fm/search_index.dart';
 import '../../services/fm/smart_query.dart';
 import '../../services/gemini_service.dart';
+import '../../widgets/fm/fm_more_sheet.dart';
 import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_type_chips.dart';
 import '../../models/fm_layout.dart';
@@ -678,15 +679,6 @@ class _SearchScreenState extends State<SearchScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        FmListToolbar(
-          count: shown,
-          sort: _sort,
-          descending: _desc,
-          onSort: (sort, desc) => setState(() {
-            _sort = sort;
-            _desc = desc;
-          }),
-        ),
         if (capped)
           Padding(
             padding: const EdgeInsets.fromLTRB(Gap.md, Gap.xs, Gap.md, 0),
@@ -697,55 +689,69 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  /// Tür süzgeçleri — galeri ve kategori ekranlarının şeridiyle AYNI
-  /// bileşen (`FmFilterBar` + `FmChip`, 2026-09-26): kullanıcı *"üstteki
-  /// filtreler tüm alanlarda pek güzel değil"* dedi; her ekranın kendi çip
-  /// biçimi olması da bunun bir parçasıydı.
-  Widget _filterChips() => FmFilterBar(
-        children: [
-          if (widget.root != null)
-            FmChip(
-              key: const ValueKey('search-scope'),
-              icon: _everywhere ? AppIcons.storage : AppIcons.folder,
-              label: _everywhere
-                  ? context.t('srch.scope_everywhere')
-                  : context.t('srch.scope_here'),
-              selected: _everywhere,
-              onTap: () {
-                setState(() => _everywhere = !_everywhere);
-                _run(_controller.text);
-              },
-            ),
-          // **Dosya içinde ara** çipi en başta: kullanıcı adı bulamayınca
-          // ilk buraya bakıyor.
-          FmChip(
-            icon: AppIcons.manageSearch,
-            label: context.t('srch.in_content'),
-            selected: _inContent,
-            onTap: () {
-              setState(() {
-                _inContent = !_inContent;
-                _contentHits = const [];
-                // İçerik araması ile anlamla arama aynı anda olmaz.
-                if (_inContent) {
-                  _meaning = false;
-                  _plan = null;
-                }
-              });
-              _run(_controller.text);
-            },
-          ),
-          // Tür çipleri **sonuçlardan** türer (Faz 13): yalnız bulunan türler,
-          // PDF/Word… ayrı, sayılar "dokununca kalan". Eskiden sabit sekiz
-          // kategori çipiydi; "Belgeler" içinde PDF'i ayırmak mümkün değildi.
-          ...FmTypeChips.forEntries(
-            context,
-            source: _results,
-            filter: _filter,
-            onChanged: (f) => setState(() => _filter = f),
-            tagsOf: FileTags.forPath,
-            openedAtOf: OpenHistory.forPath,
-            cacheSalt: '${OpenHistory.revision}',
+  /// Süzgeç şeridi — galeri ve kategori ekranlarıyla AYNI üç kart: Tür ·
+  /// Kaynak ve zaman · Analiz ve diğer (2026-10-28). Arama kapsamı, içerikte
+  /// arama ve sıralama "Analiz ve diğer" levhasında.
+  Widget _filterChips() => FmQuickFilters(
+        source: _results,
+        filter: _filter,
+        onChanged: (f) => setState(() => _filter = f),
+        leading: FmTypeChips.forEntries(
+          context,
+          source: _results,
+          filter: _filter,
+          onChanged: (f) => setState(() => _filter = f),
+          tagsOf: FileTags.forPath,
+          openedAtOf: OpenHistory.forPath,
+          cacheSalt: '${OpenHistory.revision}',
+        ),
+        trailing: [
+          FmMoreChip(
+            active: _filter.activeCount,
+            sections: (c) => [
+              FmMoreSection(c.t('srch.scope_title'), [
+                if (widget.root != null)
+                  FmMoreTile(
+                    key: const ValueKey('search-scope'),
+                    icon: _everywhere ? AppIcons.storage : AppIcons.folder,
+                    label: _everywhere
+                        ? c.t('srch.scope_everywhere')
+                        : c.t('srch.scope_here'),
+                    selected: _everywhere,
+                    onTap: () {
+                      setState(() => _everywhere = !_everywhere);
+                      _run(_controller.text);
+                    },
+                  ),
+                FmMoreTile(
+                  icon: AppIcons.manageSearch,
+                  label: c.t('srch.in_content'),
+                  selected: _inContent,
+                  onTap: () {
+                    setState(() {
+                      _inContent = !_inContent;
+                      _contentHits = const [];
+                      // İçerik araması ile anlamla arama aynı anda olmaz.
+                      if (_inContent) {
+                        _meaning = false;
+                        _plan = null;
+                      }
+                    });
+                    _run(_controller.text);
+                  },
+                ),
+              ]),
+              fmSortSection(c,
+                  sort: _sort,
+                  descending: _desc,
+                  onSort: (sort, desc) => setState(() {
+                        _sort = sort;
+                        _desc = desc;
+                      })),
+              ...fmDateSizeSections(c,
+                  filter: _filter,
+                  onChanged: (f) => setState(() => _filter = f)),
+            ],
           ),
         ],
       );

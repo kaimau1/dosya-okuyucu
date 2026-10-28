@@ -16,6 +16,7 @@ import '../../services/fm/fs_scan.dart';
 import '../../services/fm/list_memory.dart';
 import '../../core/app_icons.dart';
 import '../../widgets/fm/fm_file_list_view.dart';
+import '../../widgets/fm/fm_more_sheet.dart';
 import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_type_chips.dart';
 import '../../widgets/fm/fm_search_field.dart';
@@ -292,14 +293,24 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                   children: [
                     _summary(total, ancient),
                     const Divider(height: 1),
-                    FmFilterBar(
-                      children: FmTypeChips.forEntries(
+                    FmQuickFilters(
+                      source: _files,
+                      filter: _filter,
+                      onChanged: _setFilter,
+                      leading: FmTypeChips.forEntries(
                         context,
                         source: _files,
                         filter: _filter,
                         onChanged: _setFilter,
                         query: _query,
                       ),
+                      trailing: [
+                        FmMoreChip(
+                          active: _filter.activeCount,
+                          sections: (c) => fmDateSizeSections(c,
+                              filter: _filter, onChanged: _setFilter),
+                        ),
+                      ],
                     ),
                     Expanded(
                       child: FmFileListView(

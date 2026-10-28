@@ -215,7 +215,7 @@ class FmTypePill extends StatelessWidget {
     final String label;
     final IconData icon;
     if (ordered.isEmpty) {
-      label = context.t('typ.all_types');
+      label = context.t('fb.type');
       icon = AppIcons.typeAll;
     } else {
       final first = context.t(ordered.first.labelKey);
@@ -420,15 +420,16 @@ class FmChoiceTile extends StatelessWidget {
                                 : scheme.onSurface,
                           ),
                         ),
-                        Text(
-                          '$count',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            fontFeatures: const [
-                              FontFeature.tabularFigures()
-                            ],
+                        if (count >= 0)
+                          Text(
+                            '$count',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures()
+                              ],
+                            ),
                           ),
-                        ),
                       ],
                     ),
                     if (selected)

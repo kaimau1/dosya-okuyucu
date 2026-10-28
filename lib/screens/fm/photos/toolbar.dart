@@ -145,6 +145,11 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
                       value: 'view',
                       icon: AppIcons.layoutGrid,
                       label: context.t('ph.view')),
+                  AppAction(
+                      value: 'pin',
+                      icon: AppIcons.homeShortcut,
+                      label: context.t('ph.pin_home'),
+                      hint: context.t('ph.pin_home_hint')),
                   if (visible.isNotEmpty)
                     AppAction(
                         value: 'select',
@@ -173,6 +178,8 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
                 _openSimilar();
               case 'select':
                 _toggleSelectAll(visible);
+              case 'pin':
+                await _pinToHome();
               case 'tools':
                 await showCategoryTools(
                   context,
@@ -191,6 +198,40 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
     );
   }
 
+  /// Bu sayfayı telefonun ana ekranına **kendi simgesiyle** ekler
+  /// (kullanıcı 2026-10-28: *"görüntüler sayfasını ana ekrana ekleyebilmek
+  /// istiyorum"*). Görüntüler (foto+video) / Fotoğraflar / Videolar ayrı
+  /// kısayol; simge türün renginde çizilir, dokunuş `app:images` bağlantısı.
+  Future<void> _pinToHome() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final str = AppStrings.of(context);
+    final scope = widget.scopeId ?? '';
+    final (link, cat) = switch (scope) {
+      'depolama-image' => ('app:photos', FmCategory.image),
+      'depolama-video' => ('app:videos', FmCategory.video),
+      _ => ('app:images', FmCategory.image),
+    };
+    if (!scope.startsWith('depolama-')) {
+      showSnackOn(messenger, str.t('ea.shortcut_unsupported'));
+      return;
+    }
+    if (!await HomeShortcuts.supported()) {
+      showSnackOn(messenger, str.t('ea.shortcut_unsupported'));
+      return;
+    }
+    final ok = await HomeShortcuts.pin(
+      path: link,
+      label: widget.title,
+      icon: link == 'app:videos' ? AppIcons.videoLibrary : AppIcons.photos,
+      color: FmColors.forCategory(cat),
+    );
+    showSnackOn(
+        messenger,
+        ok
+            ? str.t('ea.shortcut_requested', {'name': widget.title})
+            : str.t('ea.shortcut_failed'));
+  }
+
   void _openSimilar() {
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => SimilarScreen(
@@ -204,9 +245,10 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
     ));
   }
 
-  /// **TEK süzgeç satırı** (2026-08-09 kullanıcı: *"görüntüler ve
-  /// videolardaki işaretli üst alan çok yer kaplıyor, kompaktlaşmalı"*).
-  /// Sıra: kopya uyarısı → ölçek (ya da sıralama) → kaynaklar → süzgeçler.
+  /// **Üç kartlık süzgeç satırı** (2026-10-28, kullanıcı: *"en fazla 3
+  /// simge: Tür · Kaynak ve zaman · Analiz ve diğer"*). Kaynaklar (Kamera,
+  /// Ekran görüntüsü, WhatsApp …) "Kaynak ve zaman" levhasında; sıralama,
+  /// gün/ay/yıl ölçeği, kopyalar ve görünüm "Analiz ve diğer" levhasında.
   /// Yükleme çizgisi şeridin ALTINA biner — ayrı satır açmaz.
   Widget _filterStrip(AppState appState, PhotoGroup group) => Stack(
         children: [
@@ -214,14 +256,21 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
             source: _files,
             filter: _filter,
             onChanged: (f) => _partSetState(() => _filter = f),
-            showBuckets: false,
-            leading: [
-              // Kopya uyarısı EN BAŞTA: satır yatay kaydırmalı ve sona konan
-              // bir uyarı ekran dışında kalabiliyor — "dosyam kayboldu"
-              // hatasını önlemesi gereken bilgi görünmeden işe yaramaz.
-              if (_hiddenDuplicates > 0) _duplicateChip(),
-              if (_timelineMode) _scalePill(appState, group) else _sortChip(),
-              if (widget.showSources) ..._sourceChips(),
+            showBuckets: widget.showSources,
+            leading: FmTypeChips.forEntries(
+              context,
+              source: _files,
+              filter: _filter,
+              onChanged: (f) => _partSetState(() => _filter = f),
+              tagsOf: FileTags.forPath,
+              openedAtOf: OpenHistory.forPath,
+              cacheSalt: '${OpenHistory.revision}',
+            ),
+            trailing: [
+              FmMoreChip(
+                active: _filter.activeCount + (_hiddenDuplicates > 0 ? 1 : 0),
+                sections: _moreSections,
+              ),
             ],
           ),
           if (_loadingAll)
@@ -234,42 +283,60 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
         ],
       );
 
-  /// Gün / Ay / Yıl — **tek pil + menü** (2026-09-26).
-  ///
-  /// Eskiden şeridin başında üç bölmeli bir kutuydu; ölçek artık iki parmakla
-  /// da değişiyor ve kutu şeridin en değerli yerini (ilk 150 dp) kaplıyordu.
-  /// Pil o anki ölçeği YAZAR (gizli bir durum yok), dokununca üçü birden
-  /// menüde görünür.
-  Widget _scalePill(AppState appState, PhotoGroup group) =>
-      PopupMenuButton<PhotoGroup>(
-        tooltip: context.t('ph.view_scale'),
-        initialValue: group,
-        onSelected: (g) => appState.setFmPhotoView(appState.fmPhotoLayout, g),
-        itemBuilder: (ctx) => [
+  /// "Analiz ve diğer" levhasının bölümleri (her çağrıda güncel durum).
+  List<FmMoreSection> _moreSections(BuildContext ctx) {
+    final appState = context.read<AppState>();
+    final controls = FmListControls(
+      sort: _sort,
+      descending: _desc,
+      onSort: (s, d) => _partSetState(() {
+        _sort = s;
+        _desc = d;
+      }),
+      filter: _filter,
+      onFilterChanged: (f) => _partSetState(() => _filter = f),
+      onOpenFilter: _openFilterSheet,
+      // Fotoğraf ızgarasında "türe göre" sıralamanın karşılığı yok.
+      sortOptions: const [FmSort.date, FmSort.name, FmSort.size],
+    );
+    final group = appState.fmPhotoGroup;
+    return controls.sections(ctx, extras: [
+      FmMoreSection(ctx.t('ph.view'), [
+        if (_timelineMode)
           for (final g in PhotoGroup.values)
-            CheckedPopupMenuItem(
-              value: g,
-              checked: g == group,
-              child: Text(ctx.t(g.labelKey)),
+            FmMoreTile(
+              icon: AppIcons.calendarMonth,
+              label: ctx.t(g.labelKey),
+              selected: g == group,
+              onTap: () => appState.setFmPhotoView(appState.fmPhotoLayout, g),
             ),
-        ],
-        // `FmChip` DEĞİL `FmPill`: çipin kendi dokunma tanıyıcısı menü
-        // düğmesinin dokunuşunu yutar ve menü hiç açılmazdı.
-        child: FmPill(
-          icon: AppIcons.calendarMonth,
-          label: context.t(group.labelKey),
-          dropdown: true,
+        FmMoreTile(
+          icon: AppIcons.layoutGrid,
+          label: ctx.t('ph.view_columns'),
+          keepOpen: false,
+          onTap: _showViewSheet,
         ),
-      );
-
-  /// Tarih dışı sıralamada ölçek yerine sıralamanın kendisi yazar
-  /// ("Ada göre ↑"); dokununca süzgeç ve sıralama sayfası açılır.
-  Widget _sortChip() => FmChip(
-        icon: AppIcons.sort,
-        label: '${context.t(_sort.labelKey)} ${_desc ? '↓' : '↑'}',
-        selected: false,
-        onTap: _openFilterSheet,
-      );
+      ]),
+      if (_hiddenDuplicates > 0)
+        FmMoreSection(
+            ctx.t('ph.hidden_dupes_short', {'n': _hiddenDuplicates}), [
+          FmMoreTile(
+            icon: AppIcons.filterNone,
+            label: ctx.t('ph.show'),
+            keepOpen: false,
+            onTap: () =>
+                _partSetState(() => _filter = _filter.withHideDuplicates(false)),
+          ),
+          FmMoreTile(
+            icon: AppIcons.delete,
+            label: ctx.t('ph.clean'),
+            color: Theme.of(ctx).colorScheme.error,
+            keepOpen: false,
+            onTap: _selecting ? () {} : _cleanDuplicates,
+          ),
+        ]),
+    ]);
+  }
 
   /// Gizlenen kopyaları **gerçekten** siler.
   ///
@@ -323,37 +390,6 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
       await _dropMissing();
     }
   }
-
-  /// "N kopya gizlendi" — süzgeç satırının başındaki **tek pil**.
-  ///
-  /// Sessiz gizleme "dosyam kayboldu" hatasına yol açar, o yüzden bilgi hep
-  /// ekranda; ama kendi satırını hak etmiyordu (2026-08-09: üst alan çok yer
-  /// kaplıyor). Dokununca "Göster / Temizle" menüsü açılır — iki eylem de
-  /// eskisi gibi tek dokunuş uzakta, yalnız 48 dp'lik satırı yemiyor.
-  Widget _duplicateChip() => PopupMenuButton<String>(
-        // Seçim sırasında PASİF: etkin kalsa "seçtiklerimi mi siliyor?" sanılır.
-        enabled: !_selecting,
-        tooltip: context.t('ph.hidden_dupes', {'n': _hiddenDuplicates}),
-        onSelected: (value) {
-          if (value == 'show') {
-            _partSetState(() => _filter = _filter.withHideDuplicates(false));
-          } else {
-            _cleanDuplicates();
-          }
-        },
-        itemBuilder: (ctx) => [
-          PopupMenuItem(value: 'show', child: Text(ctx.t('ph.show'))),
-          PopupMenuItem(value: 'clean', child: Text(ctx.t('ph.clean'))),
-        ],
-        // `FmChip` DEĞİL `FmPill`: çipin kendi jest tanıyıcısı menü düğmesinin
-        // dokunuşunu yutar ve menü hiç açılmazdı.
-        child: FmPill(
-          icon: AppIcons.filterNone,
-          label: context.t('ph.hidden_dupes_short', {'n': _hiddenDuplicates}),
-          disabled: _selecting,
-          highlighted: !_selecting,
-        ),
-      );
 
   /// Görünüm sayfası: zaman ölçeği + sütun sayısı + pinch ipucu.
   ///
@@ -462,36 +498,5 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
     _extCache = extensionCounts(_files);
     _chatKindCache = chatKindCounts(_files);
     _countsKey = key;
-  }
-
-  /// Kaynak çipleri (Tümü / Kamera / WhatsApp …) — **kendi satırı yok**,
-  /// ortak süzgeç şeridine katılır (bkz. `FmQuickFilters.leading`).
-  List<Widget> _sourceChips() {
-    _ensureCounts();
-    final counts = _bucketCache!;
-    final buckets = MediaBucket.values
-        .where((b) => (counts[b] ?? 0) > 0)
-        .toList()
-      ..sort((a, b) => (counts[b] ?? 0).compareTo(counts[a] ?? 0));
-    if (buckets.length < 2) return const [];
-    return [
-      FmChip(
-        label: context.t('flt.all'),
-        count: _files.length,
-        selected: _filter.buckets.isEmpty,
-        onTap: () => _partSetState(() => _filter = _filter.withBuckets(const {})),
-      ),
-      for (final b in buckets)
-        // Çoklu seçim (istek 2026-07-29). Çip ve süzgeç sayfası AYNI alanı
-        // yazar → ikisi hep tutarlı.
-        FmChip(
-          // `b.label` Türkçe SABİT (klasör adı üretiminde kullanılıyor);
-          // ekranda görünen ad çeviri anahtarından gelmeli.
-          label: context.t(b.labelKey),
-          count: counts[b],
-          selected: _filter.buckets.contains(b),
-          onTap: () => _partSetState(() => _filter = _filter.toggleBucket(b)),
-        ),
-    ];
   }
 }

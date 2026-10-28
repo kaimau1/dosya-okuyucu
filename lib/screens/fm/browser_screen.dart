@@ -32,6 +32,7 @@ import '../../widgets/fm/fm_path_bar.dart';
 import '../../widgets/scan_flow.dart';
 import '../../widgets/fm/fm_layout_sheet.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
+import '../../widgets/fm/fm_more_sheet.dart';
 import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_type_chips.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
@@ -145,10 +146,6 @@ class _BrowserScreenState extends State<BrowserScreen> {
   /// sıfırdan başlar (süzgeç bir bakış, ayar değil).
   FmFilter _filter = FmFilter.none;
 
-  /// Çip satırı açık mı? Süzgeç etkinse her zaman açık kalır (aksi hâlde
-  /// liste "neden eksik" belli olmazdı).
-  bool _showFilters = false;
-
   /// Liste ve ızgara aynı anda mount edilmediği için tek denetleyici yeterli;
   /// sürükleyerek seçimde kenara gelince otomatik kaydırma bunu kullanır.
   final ScrollController _scroll = ScrollController();
@@ -236,37 +233,54 @@ class _BrowserScreenState extends State<BrowserScreen> {
           path: widget.path,
           onTap: (target) => BrowserScreen.jumpTo(context, target),
         ),
-        if (!_locked && _error == null && (!_loading || _entries.isNotEmpty))
-          FmListToolbar(
-            count: entries.length,
-            totalBytes: _bytesOf(entries),
-            sort: _sortOf(appState).$1,
-            descending: _sortOf(appState).$2,
-            onSort: (s, d) => _folderSort != null
-                ? FolderSortMemory.instance.set(widget.path, s, d)
-                : appState.setFmSort(s, descending: d),
-            folderOnly: _folderSort != null,
-            onFolderOnly: (on) => on
-                ? FolderSortMemory.instance.set(
-                    widget.path, appState.fmSort, appState.fmSortDesc)
-                : FolderSortMemory.instance.clear(widget.path),
-            filterCount: _filterCount,
-            onFilter: () => _partSetState(() => _showFilters = !_showFilters),
-          ),
-        if (!_locked && (_showFilters || _filterCount > 0) && _entries.isNotEmpty)
-          FmFilterBar(children: [
-            ...FmTypeChips.forEntries(
+        // Üç kart: Tür · Kaynak ve zaman · Analiz ve diğer (2026-10-28).
+        if (!_locked && _error == null && _entries.isNotEmpty) ...[
+          FmQuickFilters(
+            source: _entries,
+            filter: _filter,
+            onChanged: (f) => _partSetState(() => _filter = f),
+            leading: FmTypeChips.forEntries(
               context,
               source: _entries,
               filter: _filter,
               onChanged: (f) => _partSetState(() => _filter = f),
             ),
-            ...fmDateSizePills(
-              context,
-              filter: _filter,
-              onChanged: (f) => _partSetState(() => _filter = f),
-            ),
-          ]),
+            trailing: [
+              FmMoreChip(
+                active: _filterCount,
+                sections: (c) {
+                  final st = context.read<AppState>();
+                  return [
+                    fmSortSection(
+                      c,
+                      sort: _sortOf(st).$1,
+                      descending: _sortOf(st).$2,
+                      onSort: (s, d) => _folderSort != null
+                          ? FolderSortMemory.instance.set(widget.path, s, d)
+                          : st.setFmSort(s, descending: d),
+                    ),
+                    FmMoreSection(c.t('more.folder'), [
+                      FmMoreTile(
+                        icon: AppIcons.folder,
+                        label: c.t('list.sort_folder_only'),
+                        selected: _folderSort != null,
+                        onTap: () => _folderSort == null
+                            ? FolderSortMemory.instance.set(
+                                widget.path, st.fmSort, st.fmSortDesc)
+                            : FolderSortMemory.instance.clear(widget.path),
+                      ),
+                    ]),
+                    ...fmDateSizeSections(c,
+                        filter: _filter,
+                        onChanged: (f) =>
+                            _partSetState(() => _filter = f)),
+                  ];
+                },
+              ),
+            ],
+          ),
+          const Divider(height: 1),
+        ],
         Expanded(
           child: _locked
               ? FmEmptyState(
@@ -352,14 +366,6 @@ class _BrowserScreenState extends State<BrowserScreen> {
       tooltip: context.t('fm.new_folder_or_file'),
       child: const Icon(AppIcons.add),
     );
-  }
-
-  int _bytesOf(List<FsEntry> entries) {
-    var total = 0;
-    for (final e in entries) {
-      if (!e.isDir) total += e.sizeBytes;
-    }
-    return total;
   }
 
   /// Parça dosyalarındaki uzantılar `setState`i (korumalı) buradan çağırır.

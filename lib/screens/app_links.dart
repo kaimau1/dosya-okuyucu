@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
+import 'package:provider/provider.dart';
+
+import '../core/app_state.dart';
+import '../models/fs_entry.dart';
+import '../services/fm/media_library.dart';
+import 'fm/photos_screen.dart';
 
 import '../widgets/scan_flow.dart';
 import '../services/fm/entry_opener.dart';
@@ -17,6 +23,8 @@ import '../core/l10n/app_strings.dart';
 ///   `app:bills` faturalar
 /// - `app:downloads` İndirilenler · `app:recent` Son açılanlar (başlatıcı
 ///   kısayolları, Faz 19)
+/// - `app:images` Görüntüler (foto + video) · `app:photos` Fotoğraflar ·
+///   `app:videos` Videolar (ana ekran kısayolları, 2026-10-28)
 /// - `file:/tam/yol` o dosyayı açar.
 ///
 /// Tanınmayan bağlantı sessizce yok sayılır (eski bir widget sürümü).
@@ -44,5 +52,33 @@ Future<void> openAppLink(BuildContext context, String link) async {
       await push(DownloadsScreen(path: p.join(FmEnv.primaryRoot, 'Download')));
     case 'app:recent':
       await push(const OpenHistoryScreen());
+    case 'app:images' || 'app:photos' || 'app:videos':
+      await FmEnv.ensureInit();
+      if (!context.mounted) return;
+      final locked = context.read<AppState>().fmLockedFolders;
+      final cats = switch (link) {
+        'app:photos' => [FmCategory.image],
+        'app:videos' => [FmCategory.video],
+        _ => [FmCategory.image, FmCategory.video],
+      };
+      await push(PhotosScreen(
+        title: context.t(switch (link) {
+          'app:photos' => 'fm.photos',
+          'app:videos' => 'enum.cat_video',
+          _ => 'fm.media_all',
+        }),
+        scopeId: link == 'app:images'
+            ? 'depolama-media'
+            : 'depolama-${cats.first.name}',
+        files: const [],
+        loadAll: () async {
+          final parts = await Future.wait([
+            for (final c in cats)
+              MediaLibrary.categoryFiles(c, lockedFolders: locked),
+          ]);
+          return [for (final l in parts) ...l]
+            ..sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
+        },
+      ));
   }
 }

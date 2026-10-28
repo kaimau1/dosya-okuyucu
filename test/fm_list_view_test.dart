@@ -6,7 +6,6 @@ import 'package:dosya_okuyucu/models/fm_list_groups.dart';
 import 'package:dosya_okuyucu/models/fs_entry.dart';
 import 'package:dosya_okuyucu/screens/fm/browser_screen.dart';
 import 'package:dosya_okuyucu/widgets/fm/fm_entry_tiles.dart';
-import 'package:dosya_okuyucu/widgets/fm/fm_file_list_view.dart';
 import 'package:dosya_okuyucu/widgets/fm/fm_path_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -240,12 +239,10 @@ void main() {
       final (_, _, nav) = await pump(tester);
       nav.currentState!.push(browserRoute(BrowserScreen(path: p.join(dir.path, 'Alfa'))));
       await settle(tester);
-      expect(find.byType(FmListToolbar), findsOneWidget);
-      expect(find.text('13 öğe · 66 B'), findsOneWidget);
-      expect(find.text('Ada göre'), findsOneWidget);
-      // Filtre düğmesi → çip satırı → "Klasörler" yalnız Beta'yı bırakır.
-      await tester.tap(find.byTooltip('Filtre'));
-      await settle(tester);
+      // Üç kart (2026-10-28): Tür · Kaynak ve zaman · Analiz ve diğer.
+      expect(find.textContaining('Kaynak ve zaman'), findsOneWidget);
+      expect(find.text('Analiz ve diğer'), findsOneWidget);
+      // "Klasörler" yalnız Beta'yı bırakır.
       // Türler tek açılır hapta (2026-10-28) → levhada "Klasörler".
       await tester.tap(find.byKey(const ValueKey('type-pill')));
       await settle(tester);

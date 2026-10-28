@@ -212,7 +212,7 @@ void main() {
     testWidgets('levhadaki sayı = dokununca kalan dosya; hap seçimi yazar',
         (tester) async {
       await pump(tester, _mixed);
-      expect(find.text('Tüm türler · 9'), findsOneWidget);
+      expect(find.text('Tür'), findsOneWidget);
       for (final (type, label, n) in [
         (FmType.pdf, 'PDF', 3),
         (FmType.word, 'Word', 2),
@@ -330,13 +330,12 @@ void main() {
 
     testWidgets('Son açılanlar: ada göre sıralama kalıcı', (tester) async {
       await pumpScreen(tester, OpenHistoryScreen(entriesForTest: history()));
-      await tester.tap(find.textContaining('Tarihe göre'));
+      await tester.tap(find.text('Analiz ve diğer'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
-      await tester.tap(find.byWidgetPredicate((w) =>
-          w is CheckedPopupMenuItem &&
-          w.child is Text &&
-          (w.child as Text).data == 'Ada göre'));
+      await tester.tap(find.text('Ada göre'));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('more-done')));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
       final names = tester

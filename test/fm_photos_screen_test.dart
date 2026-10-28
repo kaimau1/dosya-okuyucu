@@ -181,15 +181,17 @@ void main() {
     ], state: state));
     await tester.pump();
 
-    // Pil o anki ölçeği YAZAR; öteki ikisi menüde.
-    expect(find.text('Gün'), findsOneWidget);
+    // Ölçek "Analiz ve diğer" kart levhasında (2026-10-28): üç kutu.
     expect(find.byIcon(AppIcons.search), findsOneWidget);
-    await tester.tap(find.text('Gün'));
+    await tester.tap(find.textContaining('Analiz ve diğer'));
     await tester.pumpAndSettle();
+    expect(find.text('Gün'), findsOneWidget);
     expect(find.text('Ay'), findsOneWidget);
     expect(find.text('Yıl'), findsOneWidget);
 
     await tester.tap(find.text('Ay'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('more-done')));
     await tester.pumpAndSettle();
     expect(state.fmPhotoGroup, PhotoGroup.month);
     // İki gün TEK ay grubunda birleşti.
@@ -323,14 +325,18 @@ void main() {
     // Uyarı 2026-08-09'dan beri kendi satırında değil, süzgeç şeridindeki
     // bir pilde (üst alan ~180 dp'den 38 dp'ye indi).
     expect(find.text('2 / 4 dosya'), findsOneWidget);
+    // Kopya bilgisi artık "Analiz ve diğer" levhasında (2026-10-28).
+    await tester.tap(find.textContaining('Analiz ve diğer'));
+    await tester.pumpAndSettle();
     expect(find.text('2 kopya gizli'), findsOneWidget);
 
     // "Göster" hepsini geri getirir — gizleme kalıcı bir kayıp değil.
-    await tester.tap(find.text('2 kopya gizli'));
-    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Göster'));
     await tester.tap(find.text('Göster'));
     await tester.pumpAndSettle();
     expect(find.textContaining('4 dosya'), findsOneWidget);
+    await tester.tap(find.textContaining('Analiz ve diğer'));
+    await tester.pumpAndSettle();
     expect(find.text('2 kopya gizli'), findsNothing);
   });
 
@@ -361,13 +367,15 @@ void main() {
     expect(tester.getSize(find.byType(FmFilterBar)).height,
         kFmFilterBarHeight);
 
-    // Ölçek, kaynak çipi ve kopya uyarısı AYNI şeridin içinde.
+    // En fazla ÜÇ kart, kaydırma yok: Kaynak ve zaman · Analiz ve diğer
+    // (tek türlü listede Tür kartı çıkmaz).
     final bar = find.byType(FmFilterBar);
-    expect(find.descendant(of: bar, matching: find.text('Gün')), findsOneWidget);
-    expect(find.descendant(of: bar, matching: find.textContaining('WhatsApp')),
+    expect(find.descendant(of: bar, matching: find.text('Kaynak ve zaman')),
         findsOneWidget);
-    expect(find.descendant(of: bar, matching: find.text('1 kopya gizli')),
+    expect(find.descendant(of: bar, matching: find.textContaining('Analiz ve diğer')),
         findsOneWidget);
+    expect(find.descendant(of: bar, matching: find.byType(Scrollable)),
+        findsNothing);
 
     // Izgara şeridin hemen altında başlar: arada yalnız grup başlığı (52 dp)
     // var — üçüncü bir satır sıkışırsa bu fark büyür.
@@ -417,9 +425,8 @@ void main() {
     await tester.pump();
 
     // Üst satırların üçü de görünüyor olmalı (yoksa test bir şeyi ölçmez).
-    expect(find.text('Gün'), findsOneWidget);
-    expect(find.textContaining('Kamera'), findsOneWidget);
-    expect(find.text('1 kopya gizli'), findsOneWidget);
+    expect(find.text('Kaynak ve zaman'), findsOneWidget);
+    expect(find.textContaining('Analiz ve diğer'), findsOneWidget);
 
     // Karonun kendisi (özel sınıf) yerine içindeki önizleme aranıyor:
     // uzun basış DragSelectArea'da yakalanıyor ve basılan NOKTA karonun
@@ -440,9 +447,8 @@ void main() {
     expect(tester.getTopLeft(firstCell), before);
 
     // Üst satırlar seçim sırasında da DURUR (kaybolan satır = zıplama).
-    expect(find.text('Gün'), findsOneWidget);
-    expect(find.textContaining('Kamera'), findsOneWidget);
-    expect(find.text('1 kopya gizli'), findsOneWidget);
+    expect(find.text('Kaynak ve zaman'), findsOneWidget);
+    expect(find.textContaining('Analiz ve diğer'), findsOneWidget);
   });
 
 

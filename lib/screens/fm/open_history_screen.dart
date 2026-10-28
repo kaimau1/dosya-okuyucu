@@ -17,6 +17,8 @@ import '../../widgets/fm/fm_file_list_view.dart';
 import '../../widgets/fm/fm_layout_sheet.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
+import '../../widgets/fm/fm_more_sheet.dart';
+import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_type_chips.dart';
 import 'entry_actions.dart';
 import '../../widgets/motion.dart';
@@ -257,27 +259,44 @@ class _OpenHistoryScreenState extends State<OpenHistoryScreen> {
         children: [
           Column(
             children: [
-              // Tür seçici + sıralama TEK satırda (2026-10-28).
-              if (_entries.isNotEmpty)
-                FmListToolbar(
-                  filters: FmTypeChips.forEntries(
+              // Üç kart: Tür · Kaynak ve zaman · Analiz ve diğer (2026-10-28).
+              if (_entries.isNotEmpty) ...[
+                FmQuickFilters(
+                  source: _entries,
+                  filter: _filter,
+                  onChanged: _setFilter,
+                  leading: FmTypeChips.forEntries(
                     context,
                     source: _entries,
                     filter: _filter,
                     onChanged: _setFilter,
                     query: _query,
                   ),
-                  count: visible.length,
-                  sort: _sort,
-                  descending: _desc,
-                  onSort: (sort, desc) {
-                    setState(() {
-                      _sort = sort;
-                      _desc = desc;
-                    });
-                    ListMemory.saveSort(OpenHistoryScreen.memoryId, sort, desc);
-                  },
+                  trailing: [
+                    FmMoreChip(
+                      active: _filter.activeCount,
+                      sections: (c) => [
+                        fmSortSection(
+                          c,
+                          sort: _sort,
+                          descending: _desc,
+                          onSort: (sort, desc) {
+                            setState(() {
+                              _sort = sort;
+                              _desc = desc;
+                            });
+                            ListMemory.saveSort(
+                                OpenHistoryScreen.memoryId, sort, desc);
+                          },
+                        ),
+                        ...fmDateSizeSections(c,
+                            filter: _filter, onChanged: _setFilter),
+                      ],
+                    ),
+                  ],
                 ),
+                const Divider(height: 1),
+              ],
               Expanded(
                 child: FmFileListView(
                   entries: visible,

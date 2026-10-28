@@ -20,6 +20,7 @@ import '../../widgets/motion.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
 import '../../widgets/fm/fm_layout_sheet.dart';
 import '../../widgets/fm/fm_list_controls.dart';
+import '../../widgets/fm/fm_more_sheet.dart';
 import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
 import '../../widgets/fm/fm_search_field.dart';
@@ -396,11 +397,16 @@ class _CategoryScreenState extends State<CategoryScreen> {
                         openedAtOf: OpenHistory.forPath,
                         cacheSalt: '${OpenHistory.revision}',
                       ),
-                      ..._controls.pills(context),
                     ],
                     // Etiket çipleri (2026-10-23): etiketlenmiş dosya varsa en
                     // sık altı etiket aynı satırda — "#Fatura" tek dokunuş.
-                    trailing: _tagChips(),
+                    trailing: [
+                      FmMoreChip(
+                        active: _filter.activeCount,
+                        sections: (c) =>
+                            _controls.sections(c, tags: _tagCounts()),
+                      ),
+                    ],
                   ),
                   FmActiveCriteria(
                     filter: _filter,
@@ -559,28 +565,15 @@ class _CategoryScreenState extends State<CategoryScreen> {
         },
       );
 
-  /// En sık altı etiketin çipi (yalnız bu listede etiketli dosya varsa).
-  List<Widget> _tagChips() {
+  /// Bu listedeki etiketlerin sayıları ("Analiz ve diğer" levhasında kutu).
+  Map<String, int> _tagCounts() {
     final counts = <String, int>{};
     for (final e in _files) {
       for (final t in FileTags.forPath(e.path)) {
         counts[t] = (counts[t] ?? 0) + 1;
       }
     }
-    if (counts.isEmpty) return const [];
-    final top = (counts.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value)))
-        .take(6);
-    return [
-      for (final e in top)
-        FmChip(
-          icon: AppIcons.tag,
-          label: e.key,
-          count: e.value,
-          selected: _filter.tags.contains(e.key),
-          onTap: () => _setFilter(_filter.toggleTag(e.key)),
-        ),
-    ];
+    return counts;
   }
 
   /// Süzgeç ve sıralama sayfası (tarih aralığı, boyut, kaynak, tür).
