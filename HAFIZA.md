@@ -765,3 +765,17 @@ YENİDEN kurar: eski `PptxSlide`/`XmlElement` başvuruları bayatlar → seçim/
 geçişin sunumda oynaması. Kalan Faz 27 ve Faz 31/32 dokunulmadı. Cihazda doğrula: sürükleme hissi (kaydırma
 çakışması), tutamak boyu, 3 kartlı şerit yazı sığması, ana ekran kısayolu.
 
+
+## 2026-10-28 — Gemini işlevleri (AppFunctions, Android 16+)
+`ci/Ajan.kt`: `recentFiles`, `searchFiles` (MediaStore, ad), `openFile` / `openScreen` (`Extras.linkIntent`
+ile `file:` / `app:` — widget'larla aynı bağlantılar; ajan arka plandan Activity açamadığı için
+`intentToOpen` PendingIntent döner). **GİZLİLİK (karar):** `ai_scope.dart` ile AYNI kural — kilitli
+klasörler (`flutter.fm_locked_folders`), AI kapsamı dışındakiler (`flutter.ai_scope.excluded`, kayıt yoksa
+`DCIM/Camera` + `DCIM/100ANDRO`), gizli/sistem yolları ajana dönmez; ayar okunamazsa sonuç BOŞ (kapalı
+tarafta hata). Liste önekli JSON (`VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGxpc3Qu!`) — shared_preferences_android
+sürümü değişirse biçim değişebilir, o zaman ajan BOŞ döner (bozulmaz, sessizce kapanır). Widget verisi artık
+son 10 dosya (widget 4'ünü çizer). **Araç zinciri:** AppFunctions 1.0.0-beta01 compileSdk 37 + AGP 9.1 ister,
+AGP 9.1 de Gradle 9.3.1 ister (yoksa `version-check` eklentisi düşürür) — `prepare_android.sh` 7b ikisini
+yalnız YÜKSELTİR, KSP 2.3.12 ekler; 6/6b compileSdk 37 (targetSdk 36 aynı). Yerelde temiz kopyada betik +
+`flutter build apk --release --obfuscate` (arm64) geçti; servis + `dosya_ajan.xml` APK'da. **TUZAK:** yerel
+derlemede eşzamanlı Gradle/Kotlin daemon'ları 15 GB'ı aşıp OOM ile öldürüyor — derlemeleri sırayla koş.

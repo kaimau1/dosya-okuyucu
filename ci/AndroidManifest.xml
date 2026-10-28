@@ -546,6 +546,22 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Gemini işlevleri (Ajan.kt; sınıfı KSP üretir, Android 16+):
+             son açılanlar / dosya ara / dosya ya da ekran aç. -->
+        <service
+            android:name=".AjanServisi"
+            android:exported="true"
+            android:permission="android.permission.BIND_APP_FUNCTION_SERVICE">
+            <property
+                android:name="android.app.appfunctions.schema"
+                android:value="app_functions_schema.xsd" />
+            <property
+                android:name="android.app.appfunctions.v2"
+                android:value="dosya_ajan.xml" />
+            <intent-filter>
+                <action android:name="android.app.appfunctions.AppFunctionService" />
+            </intent-filter>
+        </service>
     </application>
 
     <!-- Metin işleme (PROCESS_TEXT) görünürlüğü — Flutter varsayılanı. -->
