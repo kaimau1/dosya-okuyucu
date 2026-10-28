@@ -256,7 +256,8 @@ done
 # ── 7b) Gemini işlevleri: AppFunctions (2026-10-28) ───────────────────────
 # ci/Ajan.kt'deki @AppFunctionDeclaration'lardan KSP somut `AjanServisi`ni ve
 # `dosya_ajan.xml`'i üretir (manifest ikisini adıyla arar). 1.0.0-beta01 AGP
-# 9.1+ istiyor: şablonun AGP'si yalnız YÜKSELTİLİR (7'deki Kotlin kuralı).
+# 9.1+ (o da Gradle 9.3.1+) istiyor: şablonun AGP'si ve Gradle'ı yalnız
+# YÜKSELTİLİR (7'deki Kotlin kuralı).
 say "AppFunctions (AGP >= 9.1 + KSP)"
 python3 - <<'PY'
 import pathlib, re
@@ -284,6 +285,13 @@ if 'com.google.devtools.ksp' not in t:
     tail = ' apply false' if line.rstrip().endswith('apply false') else ''
     t = t.replace(line, f'{line}\n{indent}id("com.google.devtools.ksp") version "{KSP}"{tail}', 1)
 s.write_text(t)
+# AGP 9.1 en az Gradle 9.3.1 ister (version-check eklentisi); şablon 9.1.0 yazıyor
+w = pathlib.Path('android/gradle/wrapper/gradle-wrapper.properties')
+wt = w.read_text()
+wm = re.search(r'gradle-([0-9.]+)-(all|bin)\.zip', wt)
+if wm and tuple(int(x) for x in wm.group(1).split('.')) < (9, 3, 1):
+    w.write_text(wt.replace(wm.group(0), f'gradle-9.3.1-{wm.group(2)}.zip'))
+    print(f'Gradle {wm.group(1)} -> 9.3.1')
 a = pathlib.Path('android/app/build.gradle.kts')
 t = a.read_text()
 t, n = re.subn(r'(plugins\s*\{)', r'\1\n    id("com.google.devtools.ksp")', t, count=1)
