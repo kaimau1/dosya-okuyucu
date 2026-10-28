@@ -29,6 +29,9 @@ class XlsxSheetPatch {
   final int frozenRows;
   final int frozenCols;
 
+  /// Bölme bu oturumda değişti (0/0'a çözmek dahil) — yama boş sayılmaz.
+  final bool freezeEdited;
+
   /// Sayfada ızgara çizgileri görünüyor mu (`<sheetView showGridLines="0"/>`).
   /// Excel varsayılanı AÇIK; yalnız kapalıysa yazılır.
   final bool showGridLines;
@@ -72,6 +75,7 @@ class XlsxSheetPatch {
     this.rowHeightsPt = const {},
     this.frozenRows = 0,
     this.frozenCols = 0,
+    this.freezeEdited = false,
     this.showGridLines = true,
     this.autoFilterRef,
     this.numberFormats = const {},
@@ -87,6 +91,7 @@ class XlsxSheetPatch {
       rowHeightsPt.isEmpty &&
       frozenRows == 0 &&
       frozenCols == 0 &&
+      !freezeEdited &&
       showGridLines &&
       autoFilterRef == null &&
       numberFormats.isEmpty &&
@@ -602,7 +607,8 @@ class XlsxSavePatch {
   /// dondurulmuş bölme aynı düğümde durur, hepsi tek geçişte yazılır.
   static bool _applyView(XmlElement root, XlsxSheetPatch patch) {
     final needsView =
-        patch.rightToLeft || !patch.showGridLines || _hasFreeze(patch);
+        patch.rightToLeft || !patch.showGridLines || _hasFreeze(patch) ||
+            patch.freezeEdited;
     var views = _firstChild(root, 'sheetViews');
     if (views == null) {
       if (!needsView) return false;

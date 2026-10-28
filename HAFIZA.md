@@ -724,3 +724,14 @@ Paper/Columns`, `findMatches`, `replaceAllMatches` — Türkçe katlama, tek ger
 `WordFindBar`) + Ekle/Düzen sekmeleri. Testler: `docx_insert_test` (LibreOffice onarımsız açıyor),
 `word_mobile_insert_test`. Cihazda doğrula: levha boyları, sekme kaydırma.
 
+## 2026-10-28 — Faz 27 (kısmi): Excel Veri araçları, dondurma, gizle/göster
+`services/sheet_data_ops.dart` (saf): `duplicateRowIndexes` (Türkçe katlamalı, ilk kalır, boş satır
+yinelenen sayılmaz), `splitText` (`"…"` niteleyici, art arda ayraç). Ekran `spreadsheet/data_ops.dart`
+(part): değerler `_editCells` ile TEK geri al adımı. **KÖK NEDEN (dondurma):** `XlsxSheetPatch.isEmpty`
+frozen 0/0'ı "yama yok" sayıyordu → dosyadan gelen bölmeyi ÇÖZÜP kaydetmek (başka değişiklik yoksa)
+bölmeyi KALDIRMIYORDU; `XlsxSheetLayout.freezeEdited` + `XlsxSheetPatch.freezeEdited` eklendi.
+`XlsxSheet.setFreeze/setRowHidden/setColHidden` model ucu. Görünüm sekmesinde dondurma menüsü; eski
+"sabit bölmeyi ekranda aç/kapa" (`_freeze`) ayrı düğme olarak kaldı. Testler: `excel_data_ops_test`
+(gidiş-dönüş), `excel_data_screen_test`. Kılavuz çizgisi aç/kapa EKLENMEDİ: ızgara `showGridLines`'ı
+çizimde dikkate almıyor (yalnız kayıtta yazılıyor) — çizimi bağlamadan düğme koymak yalan olurdu.
+

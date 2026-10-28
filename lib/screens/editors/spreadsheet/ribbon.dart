@@ -141,6 +141,11 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
           RibbonButton(OfficeIcons.filter, context.t('excel.filter'),
               onTap: _filterSelectedColumn),
           const RibbonSep(),
+          RibbonButton(AppIcons.clipCopy, context.t('excel.dup_title'),
+              key: const ValueKey('xl-dedup'), onTap: _removeDuplicates),
+          RibbonButton(AppIcons.viewColumn, context.t('excel.split_title'),
+              key: const ValueKey('xl-split'), onTap: _splitTextToColumns),
+          const RibbonSep(),
           RibbonButton(OfficeIcons.condFormat, context.t('excel.cond_format'),
               onTap: _showCondFormat),
           RibbonButton(OfficeIcons.search, context.t('common.search'),
@@ -167,14 +172,58 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
           RibbonButton(OfficeIcons.zoomIn, context.t('excel.zoom_in'),
               onTap: () => _zoomCtl.zoomBy(1.25)),
           const RibbonSep(),
+          RibbonMenu<String>(
+            key: const ValueKey('xl-freeze-menu'),
+            icon: OfficeIcons.freeze,
+            tooltip: context.t('excel.freeze_menu'),
+            onSelected: _setFreeze,
+            itemBuilder: (ctx) => [
+              PopupMenuItem(
+                  value: 'cell', child: Text(ctx.t('excel.freeze_cell'))),
+              PopupMenuItem(
+                  value: 'row', child: Text(ctx.t('excel.freeze_row'))),
+              PopupMenuItem(
+                  value: 'col', child: Text(ctx.t('excel.freeze_col'))),
+              if (_sheetHasFreeze)
+                PopupMenuItem(
+                    value: 'none', child: Text(ctx.t('excel.unfreeze_panes'))),
+            ],
+          ),
           if (_sheetHasFreeze)
             RibbonButton(
-                OfficeIcons.freeze,
+                AppIcons.hidden,
                 context.t(_freeze
-                    ? 'excel.unfreeze_panes'
-                    : 'excel.freeze_panes'),
+                    ? 'excel.freeze_off_view'
+                    : 'excel.freeze_on_view'),
                 active: _freeze,
                 onTap: _toggleFreeze),
+          RibbonMenu<String>(
+            key: const ValueKey('xl-hide-menu'),
+            icon: AppIcons.hiddenOff,
+            tooltip: context.t('excel.hide_show'),
+            onSelected: (v) {
+              switch (v) {
+                case 'hide-row':
+                  _hideLines(rows: true);
+                case 'hide-col':
+                  _hideLines(rows: false);
+                case 'show-row':
+                  _showHiddenLines(rows: true);
+                case 'show-col':
+                  _showHiddenLines(rows: false);
+              }
+            },
+            itemBuilder: (ctx) => [
+              PopupMenuItem(
+                  value: 'hide-row', child: Text(ctx.t('excel.hide_row'))),
+              PopupMenuItem(
+                  value: 'hide-col', child: Text(ctx.t('excel.hide_col'))),
+              PopupMenuItem(
+                  value: 'show-row', child: Text(ctx.t('excel.show_rows'))),
+              PopupMenuItem(
+                  value: 'show-col', child: Text(ctx.t('excel.show_cols'))),
+            ],
+          ),
           RibbonButton(AppIcons.formatTextdirectionRToL,
               context.t('excel.sheet_rtl'),
               active: _sheet?.rightToLeft ?? false,

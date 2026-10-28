@@ -1423,6 +1423,10 @@ class XlsxSheetLayout {
   int frozenRows = 0;
   int frozenCols = 0;
 
+  /// Kullanıcı bölmeyi bu oturumda değiştirdi (kaldırmak da bir değişiklik:
+  /// boş yama atlanmasın).
+  bool freezeEdited = false;
+
   /// Okuma sınırı ([XlsxReader.maxRows] / [XlsxReader.maxColumns]) ötesinde
   /// hücre vardı ve okunmadı. Böyle bir sayfa kaydedilirse o hücreler
   /// kaybolur — bu yüzden kaydetme kapalıdır (bkz. [XlsxEditor.truncated]).

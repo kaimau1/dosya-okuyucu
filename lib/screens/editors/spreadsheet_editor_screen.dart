@@ -33,6 +33,7 @@ import '../../services/csv_codec.dart';
 import '../../services/text_decode.dart';
 import '../../services/formula_engine.dart';
 import '../../services/formula_help.dart';
+import '../../services/sheet_data_ops.dart';
 import '../../services/sheet_edit.dart';
 import '../../services/sheet_input.dart';
 import '../../services/xlsx_save_patch.dart' show XlsxStyleEdit;
@@ -67,6 +68,7 @@ part 'spreadsheet/headers.dart';
 part 'spreadsheet/cells.dart';
 part 'spreadsheet/widgets.dart';
 part 'spreadsheet/entry.dart';
+part 'spreadsheet/data_ops.dart';
 
 /// Excel görünümü — hedef: dosya telefonda **Excel'deki gibi** görünsün.
 ///

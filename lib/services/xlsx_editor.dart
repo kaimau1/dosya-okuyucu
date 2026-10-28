@@ -219,6 +219,30 @@ class XlsxSheet {
   int get frozenRows => layout.frozenRows;
   int get frozenCols => layout.frozenCols;
   bool get showGridLines => layout.showGridLines;
+
+  /// Dondurulmuş bölmeyi ayarlar (0/0 = çöz). Kaydetmede `<pane>` yazılır.
+  void setFreeze(int rows, int cols) {
+    layout.frozenRows = rows < 0 ? 0 : rows;
+    layout.frozenCols = cols < 0 ? 0 : cols;
+    layout.freezeEdited = true;
+  }
+
+  /// Satırı/sütunu gizler ya da gösterir (yükseklik/genişlik korunur).
+  void setRowHidden(int r, bool hidden) {
+    if (hidden) {
+      layout.hiddenRows.add(r);
+    } else {
+      layout.hiddenRows.remove(r);
+    }
+  }
+
+  void setColHidden(int c, bool hidden) {
+    if (hidden) {
+      layout.hiddenCols.add(c);
+    } else {
+      layout.hiddenCols.remove(c);
+    }
+  }
   bool get isHiddenRow0 => false;
 
   /// Sayfa sağdan sola mı çiziliyor (Excel: *Sayfa Düzeni → Sayfayı Sağdan
@@ -1387,6 +1411,7 @@ class XlsxEditor {
           hiddenCols: s.layout.hiddenCols,
           frozenRows: s.layout.frozenRows,
           frozenCols: s.layout.frozenCols,
+          freezeEdited: s.layout.freezeEdited,
           showGridLines: s.layout.showGridLines,
           autoFilterRef: s.layout.autoFilterRef,
           // Yalnız HİÇ HÜCRESİ OLMAYAN satırlar: paket `<row>`u yalnız
