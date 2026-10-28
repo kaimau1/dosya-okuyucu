@@ -35,6 +35,13 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
               onPressed: _savePendingPdf,
             ),
         ],
+        if (_isMarkdown)
+          IconButton(
+            key: const ValueKey('md-preview-toggle'),
+            tooltip: _mdPreview ? context.t('md.edit') : context.t('md.preview'),
+            icon: Icon(_mdPreview ? AppIcons.edit : AppIcons.hidden),
+            onPressed: () => _partSetState(() => _mdPreview = !_mdPreview),
+          ),
         if (_textController != null || doc.kind == DocKind.pdf)
           IconButton(
             tooltip: context.t('vw.find_in_doc_short'),

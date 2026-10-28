@@ -7,6 +7,7 @@ extension _ViewerScreenFindReplacePart on _ViewerScreenState {
       if (!_findOpen) {
         _findCtl.clear();
         _matchStarts = const [];
+        _matchEnds = const [];
         _matchPos = -1;
         _pdfSearcher?.resetTextSearch();
         _ocrSearch?.reset();
@@ -40,10 +41,27 @@ extension _ViewerScreenFindReplacePart on _ViewerScreenState {
       return;
     }
     final text = _textController?.text ?? '';
-    // Türkçe-duyarlı, büyük/küçük harf duyarsız arama (İ/I/ı/i doğru eşlenir).
-    final starts = findAll(text, q);
+    // Türkçe-duyarlı arama (İ/I/ı/i doğru eşlenir); büyük/küçük, tam sözcük
+    // ve düzenli ifade seçenekleri (Faz 30).
+    List<int> starts;
+    List<int> ends = const [];
+    var bad = false;
+    if (_findRegex) {
+      final spans = TextReplace.regexMatches(text, query,
+          matchCase: _findCase, wholeWord: _findWord);
+      bad = spans == null;
+      starts = [for (final s in spans ?? const <(int, int)>[]) s.$1];
+      ends = [for (final s in spans ?? const <(int, int)>[]) s.$2];
+    } else if (_findCase || _findWord) {
+      starts = TextReplace.matches(text, q,
+          matchCase: _findCase, wholeWord: _findWord);
+    } else {
+      starts = findAll(text, q);
+    }
     _partSetState(() {
       _matchStarts = starts;
+      _matchEnds = ends;
+      _findRegexBad = bad;
       _matchLen = q.length;
       _matchPos = starts.isEmpty ? -1 : 0;
     });
@@ -93,9 +111,12 @@ extension _ViewerScreenFindReplacePart on _ViewerScreenState {
       return;
     }
     final start = _matchStarts[_matchPos];
+    final end = _matchEnds.length == _matchStarts.length
+        ? _matchEnds[_matchPos]
+        : start + _matchLen;
     ctl.selection = TextSelection(
       baseOffset: start,
-      extentOffset: (start + _matchLen).clamp(0, ctl.text.length),
+      extentOffset: end.clamp(0, ctl.text.length),
     );
     if (focus) _textFocus.requestFocus();
   }
@@ -153,8 +174,10 @@ extension _ViewerScreenFindReplacePart on _ViewerScreenState {
     // belgede "değiştir" düğmesi sunmak, basılınca hiçbir şey yapmayan bir
     // düğme olurdu.
     final canReplace = !_isPdf && (widget.doc.isEditableText);
+    final options = !_isPdf && _textController != null;
     return PreferredSize(
-      preferredSize: Size.fromHeight(_replaceOpen && canReplace ? 108 : 56),
+      preferredSize: Size.fromHeight(
+          (_replaceOpen && canReplace ? 108 : 56) + (options ? 44 : 0)),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         DocFindBar(
           controller: _findCtl,
@@ -186,6 +209,7 @@ extension _ViewerScreenFindReplacePart on _ViewerScreenState {
               ),
           ],
         ),
+        if (options) _findOptionsRow(),
         if (_replaceOpen && canReplace)
           Padding(
             padding: const EdgeInsets.fromLTRB(8, 0, 8, 6),
@@ -239,8 +263,15 @@ extension _ViewerScreenFindReplacePart on _ViewerScreenState {
     }
     final start = _matchStarts[_matchPos];
     final wanted = _matchPos; // değişimden sonra aynı sıradaki eşleşmeye dön
-    ctl.text =
-        TextReplace.replaceAt(ctl.text, start, _matchLen, _replaceCtl.text);
+    final isRx = _matchEnds.length == _matchStarts.length;
+    final len = isRx ? _matchEnds[_matchPos] - start : _matchLen;
+    var repl = _replaceCtl.text;
+    if (isRx) {
+      final m = RegExp(_findCtl.text, caseSensitive: _findCase, unicode: true)
+          .matchAsPrefix(ctl.text, start);
+      if (m != null) repl = TextReplace.expandGroups(repl, m);
+    }
+    ctl.text = TextReplace.replaceAt(ctl.text, start, len, repl);
     _partSetState(() => _dirty = true);
     _runFind(_findCtl.text);
     if (_matchStarts.isNotEmpty) {
@@ -253,8 +284,12 @@ extension _ViewerScreenFindReplacePart on _ViewerScreenState {
   void _replaceAll() {
     final ctl = _textController;
     if (ctl == null) return;
-    final result = TextReplace.replaceAll(
-        ctl.text, _findCtl.text.trim(), _replaceCtl.text);
+    // Tümünü değiştir TEK atamadır → tek geri al adımı.
+    final result = _findRegex
+        ? TextReplace.regexReplaceAll(ctl.text, _findCtl.text, _replaceCtl.text,
+            matchCase: _findCase, wholeWord: _findWord)
+        : TextReplace.replaceAll(ctl.text, _findCtl.text.trim(), _replaceCtl.text,
+            matchCase: _findCase, wholeWord: _findWord);
     if (result.count == 0) {
       _snack(context.t('vw.replace_none'));
       return;

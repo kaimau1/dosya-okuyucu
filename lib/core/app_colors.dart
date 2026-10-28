@@ -113,6 +113,23 @@ class AppColors extends ThemeExtension<AppColors> {
   static const findMatch = Color(0x7FFFEB3B);
   static const findActive = Color(0x7FFF9800);
 
+  /// Kod düzenleyici sözdizimi renkleri (Faz 30) — açık / koyu zemin.
+  static const syntaxKeywordLight = Color(0xFF7B2D9B);
+  static const syntaxKeywordDark = Color(0xFFC792EA);
+  static const syntaxStringLight = Color(0xFF2E7D32);
+  static const syntaxStringDark = Color(0xFFA5D6A7);
+  static const syntaxCommentLight = Color(0xFF78909C);
+  static const syntaxCommentDark = Color(0xFF90A4AE);
+  static const syntaxNumberLight = Color(0xFFB45309);
+  static const syntaxNumberDark = Color(0xFFFFCC80);
+  static const syntaxTypeLight = Color(0xFF00695C);
+  static const syntaxTypeDark = Color(0xFF80CBC4);
+  static const syntaxTagLight = Color(0xFF1565C0);
+  static const syntaxTagDark = Color(0xFF90CAF9);
+
+  /// Eşleşen parantez vurgusu.
+  static const bracketMatch = Color(0x55FFC107);
+
   /// Slayt düzenleyicide seçili/düzenlenen kutunun çerçevesi ve imleç
   /// (PowerPoint'in seçim mavisi — belge yüzeyinde, temadan bağımsız).
   static const slideSelection = Color(0xFF2962FF);

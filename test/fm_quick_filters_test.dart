@@ -57,23 +57,38 @@ void main() {
     return current;
   }
 
+  Future<void> openSheet(WidgetTester tester) async {
+    await tester.tap(find.byKey(const ValueKey('source-pill')));
+    await tester.pumpAndSettle();
+  }
+
+  String countOf(WidgetTester tester, String key) {
+    final texts = find.descendant(
+        of: find.byKey(ValueKey(key)), matching: find.byType(Text));
+    return tester.widgetList<Text>(texts).last.data ?? '';
+  }
+
   testWidgets('çip sayısı ÖTEKİ ölçütlere bağlıdır', (tester) async {
     // Süzgeç boşken: üç dosyanın ikisi 100 MB üzeri.
     await pump(tester, FmFilter.none);
-    expect(find.textContaining('100 MB üzeri · 2'), findsOneWidget);
+    await openSheet(tester);
+    expect(countOf(tester, 'src-large'), '2');
+    await tester.tap(find.byKey(const ValueKey('src-done')));
+    await tester.pumpAndSettle();
 
-    // WhatsApp seçiliyken aynı çip yalnız WhatsApp'takileri saymalı (1).
+    // WhatsApp seçiliyken aynı kutu yalnız WhatsApp'takileri saymalı (1).
     await pump(tester, FmFilter.none.toggleBucket(MediaBucket.whatsapp));
-    expect(find.textContaining('100 MB üzeri · 1'), findsOneWidget);
+    await openSheet(tester);
+    expect(countOf(tester, 'src-large'), '1');
   });
 
   testWidgets('“son 6 ayda açılanlar” çipi vardır ve seçilebilir',
       (tester) async {
     await pump(tester, FmFilter.none);
-    final chip = find.textContaining('Son 6 ayda açılanlar');
-    expect(chip, findsOneWidget);
+    await openSheet(tester);
+    expect(find.textContaining('Son 6 ayda açılanlar'), findsOneWidget);
     // Dosyaların hepsi bugün değiştirilmiş → üçü de "açılanlar" sayılır.
-    expect(find.textContaining('Son 6 ayda açılanlar · 3'), findsOneWidget);
+    expect(countOf(tester, 'src-opened'), '3');
   });
 
   testWidgets('karşıt çipe dokunmak öncekini kapatır', (tester) async {
@@ -83,7 +98,8 @@ void main() {
     expect(f.untouchedDays, 180);
 
     await pump(tester, f);
-    // Ölçüt açıkken çip, sayısı sıfır olsa da çizilir — yoksa kullanıcı açtığı
+    await openSheet(tester);
+    // Ölçüt açıkken kutu, sayısı sıfır olsa da çizilir — yoksa kullanıcı açtığı
     // süzgeci kapatamazdı.
     expect(find.textContaining('aydır açılmamış'), findsOneWidget);
   });
@@ -104,6 +120,8 @@ void main() {
       ),
     ));
     await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('source-pill')));
+    await tester.pumpAndSettle();
     expect(find.textContaining('Over 100 MB'), findsOneWidget);
     expect(find.textContaining('Opened in the last 6 months'), findsOneWidget);
     expect(find.textContaining('100 MB üzeri'), findsNothing);

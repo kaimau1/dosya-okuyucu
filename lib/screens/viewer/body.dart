@@ -273,7 +273,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
       case DocKind.text:
       case DocKind.word:
       case DocKind.slides:
-        final editor = _TextEditor(
+        final editorBase = _TextEditor(
           controller: _textController!,
           focusNode: _textFocus,
           editable: doc.isEditableText,
@@ -281,10 +281,34 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
           fontFamily: _fontFamily,
           lineNumbers: _lineNumbers,
           wrapLines: _wrapLines,
+          scroll: _textScroll,
+          formatters: _codeFormatters,
+          undo: _undoCtl,
           onChanged: () {
             if (!_dirty) _partSetState(() => _dirty = true);
           },
         );
+        // Kod / Markdown araçları (Faz 30): yalnız düz metin dosyasında;
+        // klavye üstü çubuk metin alanına odaklanınca görünür.
+        final Widget editor = !_isCodeDoc
+            ? editorBase
+            : ListenableBuilder(
+                listenable: Listenable.merge([_textFocus, _undoCtl]),
+                builder: (context, _) {
+                  final preview = _isMarkdown && _mdPreview;
+                  final showBar = doc.isEditableText &&
+                      _textFocus.hasFocus &&
+                      !preview;
+                  return Stack(
+                    children: [
+                      Positioned.fill(
+                          child: preview ? _markdownPreview() : editorBase),
+                      if (showBar)
+                        ReadingFloat(gap: 0, child: _codeAccessoryBar()),
+                    ],
+                  );
+                },
+              );
         // Eski .doc/.ppt: salt okunur rozeti + "dönüştür ve düzenle" (Faz 9).
         final legacy = doc.legacyExt;
         final target = legacy == null ? null : LegacyConvert.targetExt(legacy);

@@ -81,7 +81,7 @@
 | 27 | **Excel III** — Hücreleri biçimlendir, Veri, Görünüm, form görünümü, CSV düzenleme | 26 | ☁️ | ⬜ |
 | 28 | **Slayt I** — yerinde metin düzenleme (kutuya yakınlaş), zengin metin, anahat, notlar | 20 | ☁️ | ✅ 2026-10-23 (28a + 28b; kalan: düzenleme sırasında girinti düzeyi ve paragraf başına hizalama yalnız Bitti'den sonra görünür) |
 | 29 | **Slayt II** — taşı/boyutlandır/döndür, şekil/metin kutusu/tablo ekle, düzenden yeni slayt, küçük resim şeridi | 28 | ☁️ | ⬜ |
-| 30 | **Metin / kod / Markdown düzenleyici** | 20 | ☁️ | ⬜ |
+| 30 | **Metin / kod / Markdown düzenleyici** | 20 | ☁️ | ✅ 2026-10-28 (K25 = geliştirilmiş `TextField`; kalan: `re_editor` denemesi, > 1 MB'da isolate renklendirme, "satır aralığını düzenle", Tab ayarı, yan yana Markdown) |
 | 31 | **PDF düzenleme deneyimi** — yerinde metin, nesne katmanı, ortak kabuk, sayfa üstünde form | 20 | ☁️ | ⬜ |
 | 32 | **Görsel düzenleyici 2.0** — önizleme vekili, filtreler, taşınabilir metin, bulanıklaştır | 20 | ☁️ | ⬜ |
 | 33 | **Kapanış** — tablet/donanım klavyesi, erişilebilirlik + RTL, Office uyumluluk turu, cihaz turu | 20–32 | ☁️ + 📱 | ⬜ |

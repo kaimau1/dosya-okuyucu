@@ -299,7 +299,7 @@ Future<void> showFmTypeSheet(
                   spacing: Gap.sm,
                   runSpacing: Gap.sm,
                   children: [
-                    _TypeTile(
+                    FmChoiceTile(
                       key: const ValueKey('type-all'),
                       width: w,
                       icon: AppIcons.typeAll,
@@ -310,7 +310,7 @@ Future<void> showFmTypeSheet(
                       onTap: () => set(const {}),
                     ),
                     for (final t in present)
-                      _TypeTile(
+                      FmChoiceTile(
                         key: ValueKey('type-${t.name}'),
                         width: w,
                         icon: fmTypeStyle(t).$1,
@@ -341,7 +341,8 @@ Future<void> showFmTypeSheet(
   );
 }
 
-class _TypeTile extends StatelessWidget {
+/// Levhalardaki kart kutusu (tür, kaynak, zaman, boyut için ortak).
+class FmChoiceTile extends StatelessWidget {
   final double width;
   final IconData icon;
   final Color color;
@@ -350,7 +351,7 @@ class _TypeTile extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _TypeTile({
+  const FmChoiceTile({
     super.key,
     required this.width,
     required this.icon,

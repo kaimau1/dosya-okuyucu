@@ -689,3 +689,22 @@
   (levha), `peer_share_test` (ret diske yazmaz / tek soru / eski yol), `qr_transfer_test`,
   `dashboard_layout_test`. **Cihazda doğrulanacak:** zoom hissi, okuma kipinin akıcılığı, Word
   WebView dolgusu, QR tarayıcı akışı. graphify bu oturumda kurulu değildi (rapor güncellenmedi).
+
+## 2026-10-28 — Faz 30: metin / kod / Markdown düzenleyici + kart süzgeç levhası
+**Karar (K25):** motor = geliştirilmiş `TextField` (`re_editor` DENENMEDİ; ek bağımlılık + APK farkı
+riski, IME/Türkçe testleri mevcut yolda yeşil). Yeni: `core/edit/code_highlight.dart` (tek geçişli
+tarayıcı, 11 dil; > 1 MB kapalı), `code_text_controller.dart` (`buildTextSpan` geçersiz kılınır; IME
+birleştirme sürerken renklendirme ATLANIR; parantez eşi vurgusu), `code_editing.dart` (Enter'da
+girinti, `{|}` arası iki satır, otomatik kapatma/atlama/çiftli silme, Tab/Shift+Tab, parantez eşleme),
+`markdown_edit.dart` (sar/önek/bağlantı/kod/tablo + liste sürdürme), `widgets/code_gutter.dart`
+(TX2: sarmalı satırda hizalı numara — tek `TextPainter` yerleşiminden satır üstleri, yalnız görünen
+aralık boyanır), `text_replace.dart` regex + `$1` (geçersiz ifade null). Görüntüleyici: klavye üstü çubuk
+(`ReadingFloat` içinde, odakta), durum satırı (UTF-8 · LF/CRLF döngü · satır:sütun), Markdown
+Düzenle|Önizle, bul/değiştir seçenekleri (Aa · tam sözcük · .*), geri al/yinele (`UndoHistoryController`).
+**TUZAK:** `String.lastIndexOf('\n', -1)` ATAR (imleç 0'dayken) → `lineStartOf`. Bekçi testleri:
+`design_tokens` (renk `AppColors.syntax*`, punto `editorTextStyle`), `rtl_guard` (`EdgeInsetsDirectional`).
+**Kart süzgeç (kullanıcı 2026-10-28):** `FmQuickFilters` artık TEK hap ("Kaynak ve zaman") → tür levhasıyla
+aynı kart ızgarası (`FmChoiceTile`): Nerede (SD, WhatsApp, İndirilenler…) + Zaman/boyut (açılanlar,
+açılmamış, 100 MB üzeri); bütün liste ekranlarında ortak. Cihazda doğrula: klavye üstü çubuk, kod yazma
+hissi, levha.
+

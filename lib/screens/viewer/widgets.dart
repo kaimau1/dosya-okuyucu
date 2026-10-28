@@ -18,12 +18,25 @@ class _TextEditor extends StatelessWidget {
   /// kayıt dosyalarında sütun hizası bozulmadan okunuyor.
   final bool wrapLines;
   final VoidCallback onChanged;
+
+  /// Dış kaydırma denetleyicisi: satır numarası şeridi yalnız görünen
+  /// aralığı boyar (Faz 30 / TX2) ve "satıra git" buradan kaydırır.
+  final ScrollController scroll;
+
+  /// Kod kuralları (Enter'da girinti, otomatik kapatma …) — boş = düz metin.
+  final List<TextInputFormatter> formatters;
+
+  /// Geri al / yinele (klavye üstü çubuk ve ↶ ↷ düğmeleri).
+  final UndoHistoryController? undo;
   const _TextEditor({
     required this.controller,
     required this.focusNode,
     required this.editable,
     required this.fontSize,
     required this.onChanged,
+    required this.scroll,
+    this.formatters = const [],
+    this.undo,
     this.lineNumbers = false,
     this.wrapLines = true,
     this.fontFamily,
@@ -38,26 +51,50 @@ class _TextEditor extends StatelessWidget {
     // yan yana iki sütun — numaralar metinle birlikte, aynı satır
     // yüksekliğiyle kayıyor.
     final chrome = ReadingChrome.insetsOf(context);
+    final topPad = 12 + chrome.top;
     return Container(
       color: Paper.docSurface(context),
-      child: SingleChildScrollView(
-        padding: EdgeInsetsDirectional.fromSTEB(
-            0, 12 + chrome.top, 16, 16 + chrome.bottom),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ValueListenableBuilder<TextEditingValue>(
-              valueListenable: controller,
-              builder: (_, value, __) {
-                return LineNumberGutter(
-                    count: value.text.split('\n').length, size: fontSize);
-              },
-            ),
-            Expanded(child: _field(context, scrollable: false)),
-          ],
+      child: LayoutBuilder(
+        builder: (context, box) => ValueListenableBuilder<TextEditingValue>(
+          valueListenable: controller,
+          builder: (_, value, __) {
+            final count = _lineCount(value.text);
+            // Metin sütununun genişliği: şerit + dış boşluklar düşülür —
+            // sarmalı satırların numarası bu genişlikte ölçülür.
+            final textW =
+                box.maxWidth - codeGutterWidth(count, fontSize) - 12 - 16;
+            return SingleChildScrollView(
+              controller: scroll,
+              padding: EdgeInsetsDirectional.fromSTEB(
+                  0, topPad, 16, 16 + chrome.bottom),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CodeGutter(
+                    controller: controller,
+                    scroll: scroll,
+                    size: fontSize,
+                    fontFamily: fontFamily,
+                    textWidth: textW,
+                    wrap: wrapLines,
+                    topPad: topPad,
+                  ),
+                  Expanded(child: _field(context, scrollable: false)),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
+  }
+
+  static int _lineCount(String text) {
+    var n = 1;
+    for (var i = text.indexOf('\n'); i != -1; i = text.indexOf('\n', i + 1)) {
+      n++;
+    }
+    return n;
   }
 
   Widget _field(BuildContext context, {bool scrollable = true}) {
@@ -69,8 +106,9 @@ class _TextEditor extends StatelessWidget {
       final chrome = ReadingChrome.insetsOf(context);
       return Container(
         color: Paper.docSurface(context),
-        padding: EdgeInsets.fromLTRB(
-            16, 12 + chrome.top, 16, 16 + chrome.bottom),
+        padding: scrollable
+            ? EdgeInsets.fromLTRB(16, 12 + chrome.top, 16, 16 + chrome.bottom)
+            : const EdgeInsets.symmetric(horizontal: 16),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: SizedBox(
@@ -81,6 +119,8 @@ class _TextEditor extends StatelessWidget {
               controller: controller,
               focusNode: focusNode,
               readOnly: !editable,
+              inputFormatters: formatters,
+              undoController: undo,
               onChanged: (_) => onChanged(),
               maxLines: null,
               decoration: const InputDecoration(
@@ -110,6 +150,8 @@ class _TextEditor extends StatelessWidget {
         controller: controller,
         focusNode: focusNode,
         readOnly: !editable,
+        inputFormatters: formatters,
+        undoController: undo,
         onChanged: (_) => onChanged(),
         maxLines: null,
         decoration: const InputDecoration(
@@ -149,6 +191,7 @@ class _TextEditor extends StatelessWidget {
       color: Paper.docSurface(context),
       child: LayoutBuilder(
         builder: (context, box) => SingleChildScrollView(
+          controller: scroll,
           padding: EdgeInsets.fromLTRB(
               20, 16 + chrome.top, 20, 16 + chrome.bottom),
           child: Align(
@@ -165,6 +208,8 @@ class _TextEditor extends StatelessWidget {
                 controller: controller,
                 focusNode: focusNode,
                 readOnly: !editable,
+                inputFormatters: formatters,
+                undoController: undo,
                 onChanged: (_) => onChanged(),
                 maxLines: null,
                 decoration: InputDecoration(

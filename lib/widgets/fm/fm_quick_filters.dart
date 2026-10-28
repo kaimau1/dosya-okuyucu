@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_icons.dart';
+import '../../core/app_colors.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
 import '../../core/theme.dart';
@@ -10,6 +11,8 @@ import '../../models/media_bucket.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/open_history.dart';
 import '../../services/fm/storage_stats.dart';
+import '../app_dialog.dart';
+import 'fm_type_chips.dart' show FmChoiceTile;
 
 /// Süzgeç satırının **tek ve sabit** yüksekliği (dp).
 ///
@@ -337,6 +340,230 @@ class _Counts {
       this.volumes);
 }
 
+/// [probe] ölçütü eklenmiş süzgeçten kaç dosya geçer?
+int _countWith(List<FsEntry> source, FmFilter probe) {
+  var n = 0;
+  for (final e in source) {
+    if (e.isDir) continue;
+    if (probe.matches(e, openedAtOf: OpenHistory.forPath)) n++;
+  }
+  return n;
+}
+
+_Counts _computeCounts(
+    List<FsEntry> source, FmFilter f, int untouchedDays, bool showBuckets) {
+  // Kaynak çipleri: hangi kaynaklar VAR (ham listeden) — çizilip çizilmeyeceği
+  // listenin içeriğine bakar, sayısı ise süzgece ("dokunursam kaç dosya kalır").
+  final present = <MediaBucket>{};
+  if (showBuckets) {
+    for (final e in source) {
+      if (e.isDir) continue;
+      final b = bucketForPath(e.path);
+      if (b == MediaBucket.other) continue;
+      present.add(b);
+    }
+  }
+  final buckets = <(MediaBucket, int)>[];
+  for (final b in present) {
+    final probe = f.buckets.contains(b) ? f : f.toggleBucket(b);
+    buckets.add((b, _countWith(source, probe)));
+  }
+  buckets.sort((a, b) => b.$2.compareTo(a.$2));
+
+  // Birim (SD kart) yalnız BİRDEN ÇOK birim varken; sıfır olan çizilmez ama
+  // seçiliyse kalır (kullanıcı seçtiğini kaybetmesin).
+  final volumes = <(StorageVolume, int)>[];
+  if (FmEnv.volumes.length > 1) {
+    for (final v in FmEnv.volumes) {
+      final selected = f.volumeRoots.contains(v.path);
+      final probe = selected ? f : f.toggleVolumeRoot(v.path);
+      final n = _countWith(source, probe);
+      if (n > 0 || selected) volumes.add((v, n));
+    }
+  }
+
+  return _Counts(
+    buckets,
+    _countWith(
+        source,
+        f.untouchedDays == null ? f.withUntouchedDays(untouchedDays) : f),
+    _countWith(
+        source,
+        f.openedWithinDays == null
+            ? f.withOpenedWithinDays(untouchedDays)
+            : f),
+    _countWith(
+        source,
+        f.sizeRange == FmSizeRange.large
+            ? f
+            : f.withSizeRange(FmSizeRange.large)),
+    volumes,
+  );
+}
+
+/// Kaynak · zaman · boyut **kart levhası** — tür levhasıyla aynı dil
+/// (kullanıcı 2026-10-28: *"tüm filtre çeşitleri bu güzel kart ekranı gibi
+/// olsun; WhatsApp, İndirilenler vb. hepsi aynı alanda"*). Her kutu çoklu
+/// seçilir, liste arkada hemen süzülür; sayılar "dokunursam kaç dosya kalır".
+Future<void> showFmSourceSheet(
+  BuildContext context, {
+  required List<FsEntry> source,
+  required FmFilter filter,
+  required ValueChanged<FmFilter> onChanged,
+  required int untouchedDays,
+  required bool showBuckets,
+}) {
+  var f = filter;
+  return showAppSheet<void>(
+    context,
+    title: context.t('src.title'),
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setSheet) {
+        void apply(FmFilter next) {
+          setSheet(() => f = next);
+          onChanged(next);
+        }
+
+        final c = _computeCounts(source, f, untouchedDays, showBuckets);
+        final months = untouchedDays ~/ 30;
+        final scheme = Theme.of(ctx).colorScheme;
+        Widget section(String title, List<Widget Function(double)> tiles) {
+          if (tiles.isEmpty) return const SizedBox.shrink();
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsetsDirectional.only(
+                    start: Gap.sm, top: Gap.sm, bottom: Gap.sm),
+                child: Text(title,
+                    style: Theme.of(ctx).textTheme.labelLarge?.copyWith(
+                        color: scheme.onSurfaceVariant)),
+              ),
+              LayoutBuilder(builder: (ctx, box) {
+                final cols = box.maxWidth < 300 ? 2 : 3;
+                final w = (box.maxWidth - Gap.sm * (cols - 1)) / cols;
+                return Wrap(
+                  spacing: Gap.sm,
+                  runSpacing: Gap.sm,
+                  children: [for (final t in tiles) t(w)],
+                );
+              }),
+            ],
+          );
+        }
+
+        final where = <Widget Function(double)>[
+          for (final (v, n) in c.volumes)
+            (w) => FmChoiceTile(
+                  key: ValueKey('src-vol-${v.path}'),
+                  width: w,
+                  icon: AppIcons.sdCard,
+                  color: scheme.primary,
+                  label: v.displayLabel(ctx.t),
+                  count: n,
+                  selected: f.volumeRoots.contains(v.path),
+                  onTap: () => apply(f.toggleVolumeRoot(v.path)),
+                ),
+          for (final (b, n) in c.buckets)
+            (w) => FmChoiceTile(
+                  key: ValueKey('src-${b.name}'),
+                  width: w,
+                  icon: _bucketIcon(b),
+                  color: _bucketColor(b, scheme),
+                  label: ctx.t(b.labelKey),
+                  count: n,
+                  selected: f.buckets.contains(b),
+                  onTap: () => apply(f.toggleBucket(b)),
+                ),
+        ];
+        final when = <Widget Function(double)>[
+          if (c.openedWithin > 0 || f.openedWithinDays != null)
+            (w) => FmChoiceTile(
+                  key: const ValueKey('src-opened'),
+                  width: w,
+                  icon: AppIcons.history,
+                  color: scheme.primary,
+                  label: ctx.t('fm.quick_opened_within', {'n': months}),
+                  count: c.openedWithin,
+                  selected: f.openedWithinDays != null,
+                  onTap: () => apply(f.withOpenedWithinDays(
+                      f.openedWithinDays == null ? untouchedDays : null)),
+                ),
+          if (c.untouched > 0 || f.untouchedDays != null)
+            (w) => FmChoiceTile(
+                  key: const ValueKey('src-untouched'),
+                  width: w,
+                  icon: AppIcons.historyToggleOff,
+                  color: scheme.tertiary,
+                  label: ctx.t('fm.quick_untouched', {'n': months}),
+                  count: c.untouched,
+                  selected: f.untouchedDays != null,
+                  onTap: () => apply(f.withUntouchedDays(
+                      f.untouchedDays == null ? untouchedDays : null)),
+                ),
+          if (c.large > 0 || f.sizeRange == FmSizeRange.large)
+            (w) => FmChoiceTile(
+                  key: const ValueKey('src-large'),
+                  width: w,
+                  icon: AppIcons.storage,
+                  color: scheme.error,
+                  label: ctx.t(FmSizeRange.large.labelKey),
+                  count: c.large,
+                  selected: f.sizeRange == FmSizeRange.large,
+                  onTap: () => apply(f.withSizeRange(
+                      f.sizeRange == FmSizeRange.large
+                          ? FmSizeRange.any
+                          : FmSizeRange.large)),
+                ),
+        ];
+        final shown = _countWith(source, f);
+        return SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(
+                Gap.md, 0, Gap.md, Gap.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(start: Gap.sm),
+                  child: Text(ctx.t('typ.hint'),
+                      style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant)),
+                ),
+                section(ctx.t('src.where'), where),
+                section(ctx.t('src.when'), when),
+                const SizedBox(height: Gap.md),
+                FilledButton(
+                  key: const ValueKey('src-done'),
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: Text(ctx.t('typ.show_n', {'n': shown})),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    ),
+  );
+}
+
+IconData _bucketIcon(MediaBucket b) => switch (b) {
+      MediaBucket.camera => AppIcons.photoCamera,
+      MediaBucket.screenshot => AppIcons.screenshot,
+      MediaBucket.download => AppIcons.download,
+      _ => AppIcons.folder,
+    };
+
+Color _bucketColor(MediaBucket b, ColorScheme scheme) => switch (b) {
+      MediaBucket.whatsapp => AppHues.green,
+      MediaBucket.telegram => AppHues.blue,
+      MediaBucket.instagram => AppHues.tangerine,
+      MediaBucket.download => AppHues.teal,
+      MediaBucket.camera => AppHues.navy,
+      _ => scheme.primary,
+    };
+
 class _FmQuickFiltersState extends State<FmQuickFilters> {
   _Counts? _cache;
   String? _cacheKey;
@@ -363,77 +590,13 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
     return computed;
   }
 
-  /// [probe] ölçütü eklenmiş süzgeçten kaç dosya geçer?
-  int _countWith(FmFilter probe) {
-    var n = 0;
-    for (final e in widget.source) {
-      if (e.isDir) continue;
-      if (probe.matches(e, openedAtOf: OpenHistory.forPath)) n++;
-    }
-    return n;
-  }
-
-  _Counts _compute() {
-    final f = widget.filter;
-    // Kaynak çipleri: hangi kaynaklar VAR (ham listeden) — çipin çizilip
-    // çizilmeyeceği listenin içeriğine bakar, sayısı ise süzgece.
-    final present = <MediaBucket>{};
-    if (widget.showBuckets) {
-      for (final e in widget.source) {
-        if (e.isDir) continue;
-        final b = bucketForPath(e.path);
-        if (b == MediaBucket.other) continue; // "Diğer" çipinin bilgi değeri yok
-        present.add(b);
-      }
-    }
-    final buckets = <(MediaBucket, int)>[];
-    for (final b in present) {
-      // Seçili çipin sayısı "şu an kaç tane görünüyor"; seçili değilse
-      // "dokunursam kaç tane kalır". İkisi de aynı hesap.
-      final probe = f.buckets.contains(b) ? f : f.toggleBucket(b);
-      buckets.add((b, _countWith(probe)));
-    }
-    buckets.sort((a, b) => b.$2.compareTo(a.$2));
-
-    // **Birim çipleri** (kullanıcı isteği 2026-09-02: *"SD kart takılı
-    // olduğunda Görüntüler, Videolar, Belgeler içeriğinde SD karttakileri
-    // göster seçeneği ve filtresi de olmalı"*).
-    //
-    // Yalnız BİRDEN ÇOK birim varken çizilir: tek birimli bir telefonda
-    // "Ana bellek" çipi hiçbir şey süzmez, sadece satırda yer kaplardı.
-    // Sayısı sıfır olan birim de çizilmez (SD kartta hiç video yoksa
-    // "Videolar"da SD kart çipi çıkmasın) — ama SEÇİLİYSE kalır, yoksa
-    // kullanıcı seçtiği çipi kaybedip listeyi boş görürdü.
-    final volumes = <(StorageVolume, int)>[];
-    if (FmEnv.volumes.length > 1) {
-      for (final v in FmEnv.volumes) {
-        final selected = f.volumeRoots.contains(v.path);
-        final probe = selected ? f : f.toggleVolumeRoot(v.path);
-        final n = _countWith(probe);
-        if (n > 0 || selected) volumes.add((v, n));
-      }
-    }
-
-    return _Counts(
-      buckets,
-      _countWith(f.untouchedDays == null
-          ? f.withUntouchedDays(widget.untouchedDays)
-          : f),
-      _countWith(f.openedWithinDays == null
-          ? f.withOpenedWithinDays(widget.untouchedDays)
-          : f),
-      _countWith(f.sizeRange == FmSizeRange.large
-          ? f
-          : f.withSizeRange(FmSizeRange.large)),
-      volumes,
-    );
-  }
+  _Counts _compute() => _computeCounts(
+      widget.source, widget.filter, widget.untouchedDays, widget.showBuckets);
 
   @override
   Widget build(BuildContext context) {
     final counts = _counts;
     final f = widget.filter;
-    final months = widget.untouchedDays ~/ 30;
     if (counts.buckets.isEmpty &&
         counts.volumes.isEmpty &&
         counts.untouched == 0 &&
@@ -444,56 +607,40 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
       return const SizedBox.shrink();
     }
 
+    // Tüm kaynak/zaman/boyut süzgeçleri TEK hapta; dokununca kart levhası.
+    final active = f.volumeRoots.length +
+        f.buckets.length +
+        (f.openedWithinDays != null ? 1 : 0) +
+        (f.untouchedDays != null ? 1 : 0) +
+        (f.sizeRange == FmSizeRange.large ? 1 : 0);
+    final hasAny = counts.buckets.isNotEmpty ||
+        counts.volumes.isNotEmpty ||
+        counts.untouched > 0 ||
+        counts.openedWithin > 0 ||
+        counts.large > 0 ||
+        active > 0;
     return FmFilterBar(
       children: [
         ...widget.leading,
-        // **Birim çipleri EN BAŞTA** (ekrana özel bileşenlerden hemen sonra):
-        // "bu dosyalar nerede duruyor" sorusu, "ne zaman açıldı"dan önce
-        // gelir — SD kart takan kullanıcının ilk yaptığı ayrım budur.
-        for (final (volume, count) in counts.volumes)
-          FmChip(
-            label: volume.displayLabel(context.t),
-            count: count,
-            selected: f.volumeRoots.contains(volume.path),
-            onTap: () =>
-                widget.onChanged(widget.filter.toggleVolumeRoot(volume.path)),
-          ),
-        // "Son 6 ayda açılanlar" ÖNCE: kullanıcının aradığı dosya çoğunlukla
-        // yakında dokunduğu dosyadır; "açılmamışlar" yer açma işidir.
-        if (counts.openedWithin > 0 || f.openedWithinDays != null)
-          FmChip(
-            label: context.t('fm.quick_opened_within', {'n': months}),
-            count: counts.openedWithin,
-            selected: f.openedWithinDays != null,
-            onTap: () => widget.onChanged(widget.filter.withOpenedWithinDays(
-                f.openedWithinDays == null ? widget.untouchedDays : null)),
-          ),
-        if (counts.untouched > 0 || f.untouchedDays != null)
-          FmChip(
-            label: context.t('fm.quick_untouched', {'n': months}),
-            count: counts.untouched,
-            selected: f.untouchedDays != null,
-            onTap: () => widget.onChanged(widget.filter.withUntouchedDays(
-                f.untouchedDays == null ? widget.untouchedDays : null)),
-          ),
-        if (counts.large > 0 || f.sizeRange == FmSizeRange.large)
-          FmChip(
-            label: context.t(FmSizeRange.large.labelKey),
-            count: counts.large,
-            selected: f.sizeRange == FmSizeRange.large,
-            onTap: () => widget.onChanged(widget.filter.withSizeRange(
-                f.sizeRange == FmSizeRange.large
-                    ? FmSizeRange.any
-                    : FmSizeRange.large)),
-          ),
-        for (final (bucket, count) in counts.buckets)
-          FmChip(
-            // Çeviri anahtarı: `bucket.label` Türkçe SABİT ("Kamera",
-            // "İndirilenler"), ekranda gösterilen ad ondan bağımsız olmalı.
-            label: context.t(bucket.labelKey),
-            count: count,
-            selected: f.buckets.contains(bucket),
-            onTap: () => widget.onChanged(widget.filter.toggleBucket(bucket)),
+        if (hasAny)
+          InkWell(
+            key: const ValueKey('source-pill'),
+            customBorder: const StadiumBorder(),
+            onTap: () => showFmSourceSheet(
+              context,
+              source: widget.source,
+              filter: widget.filter,
+              onChanged: widget.onChanged,
+              untouchedDays: widget.untouchedDays,
+              showBuckets: widget.showBuckets,
+            ),
+            child: FmPill(
+              icon: AppIcons.folder,
+              label: context.t('src.title'),
+              count: active > 0 ? active : null,
+              dropdown: true,
+              highlighted: active > 0,
+            ),
           ),
         ...widget.trailing,
       ],

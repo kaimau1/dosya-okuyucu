@@ -1,0 +1,31 @@
+part of '../app_strings.dart';
+
+/// Faz 30 — metin / kod / Markdown düzenleyici.
+const Map<String, (String, String, String)> _t16 = {
+  'code.undo': ('Geri al', 'Undo', 'تراجع'),
+  'code.redo': ('Yinele', 'Redo', 'إعادة'),
+  'code.tab': ('Girinti (Tab)', 'Indent (Tab)', 'مسافة بادئة'),
+  'code.cursor_left': ('İmleç sola', 'Cursor left', 'المؤشر يسارًا'),
+  'code.cursor_right': ('İmleç sağa', 'Cursor right', 'المؤشر يمينًا'),
+  'code.find': ('Bul', 'Find', 'بحث'),
+  'code.match_case': ('Büyük/küçük harf', 'Match case', 'مطابقة الحالة'),
+  'code.whole_word': ('Tam sözcük', 'Whole word', 'كلمة كاملة'),
+  'code.regex': ('Düzenli ifade', 'Regex', 'تعبير نمطي'),
+  'code.bad_regex': ('Geçersiz ifade', 'Invalid expression', 'تعبير غير صالح'),
+  'code.eol': ('Satır sonunu değiştir', 'Change line ending', 'تغيير نهاية السطر'),
+  'code.eol_changed': ('Satır sonu: {name} — kaydedince uygulanır', 'Line ending: {name} — applied on save', 'نهاية السطر: {name} — تُطبَّق عند الحفظ'),
+  'md.edit': ('Düzenle', 'Edit', 'تحرير'),
+  'md.preview': ('Önizle', 'Preview', 'معاينة'),
+  'md.heading': ('Başlık', 'Heading', 'عنوان'),
+  'md.bold': ('Kalın', 'Bold', 'غامق'),
+  'md.italic': ('İtalik', 'Italic', 'مائل'),
+  'md.bullets': ('Madde işaretli liste', 'Bulleted list', 'قائمة نقطية'),
+  'md.numbered': ('Numaralı liste', 'Numbered list', 'قائمة مرقمة'),
+  'md.task': ('Onay kutusu', 'Checkbox', 'خانة اختيار'),
+  'md.link': ('Bağlantı', 'Link', 'رابط'),
+  'md.quote': ('Alıntı', 'Quote', 'اقتباس'),
+  'md.table': ('Tablo', 'Table', 'جدول'),
+  'src.title': ('Kaynak ve zaman', 'Source & time', 'المصدر والوقت'),
+  'src.where': ('Nerede', 'Where', 'المكان'),
+  'src.when': ('Zaman ve boyut', 'Time & size', 'الوقت والحجم'),
+};

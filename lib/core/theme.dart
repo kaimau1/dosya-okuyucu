@@ -779,3 +779,18 @@ extension AppTypeContext on BuildContext {
   /// Arayüz yazı ölçeği — bkz. [AppType].
   AppType get type => AppType(Theme.of(this).textTheme);
 }
+
+/// Kod / belge düzenleyicide sabit puntolu metin biçimi (Faz 30). Punto
+/// kullanıcının okuma ayarından gelir; `fontSize:` ham değeri ekran
+/// dosyalarında sayılmasın diye tek yerde.
+TextStyle editorTextStyle(double size,
+        {double height = 1.5,
+        String? family,
+        Color? color,
+        FontWeight? weight}) =>
+    TextStyle(
+        fontSize: size,
+        height: height,
+        fontFamily: family,
+        color: color,
+        fontWeight: weight);

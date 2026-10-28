@@ -94,4 +94,67 @@ abstract final class TextReplace {
 
     return !wordChar(index - 1) && !wordChar(index + length);
   }
+
+  /// **Düzenli ifade** araması (Faz 30). Eşleşme uzunlukları değişkendir →
+  /// `(başlangıç, bitiş)` çiftleri. Geçersiz desen ya da boş eşleşme
+  /// döngüsünde `null` / atlama: arayüz "geçersiz ifade" der, uygulama
+  /// çökmez. [wholeWord] desenin etrafına `\b` DEĞİL Unicode sınırı koyar.
+  static List<(int, int)>? regexMatches(
+    String text,
+    String pattern, {
+    bool matchCase = false,
+    bool wholeWord = false,
+    int limit = 20000,
+  }) {
+    if (pattern.isEmpty) return const [];
+    final RegExp re;
+    try {
+      re = RegExp(pattern, caseSensitive: matchCase, unicode: true);
+    } on FormatException {
+      return null;
+    }
+    final out = <(int, int)>[];
+    for (final m in re.allMatches(text)) {
+      if (m.end == m.start) continue; // boş eşleşme
+      if (wholeWord && !_isWholeWord(text, m.start, m.end - m.start)) continue;
+      out.add((m.start, m.end));
+      if (out.length >= limit) break;
+    }
+    return out;
+  }
+
+  /// Tek geçişte tüm düzenli ifade eşleşmelerini değiştirir; değiştirme
+  /// metninde `$1` … grup başvuruları çalışır.
+  static ({String text, int count}) regexReplaceAll(
+    String text,
+    String pattern,
+    String replacement, {
+    bool matchCase = false,
+    bool wholeWord = false,
+  }) {
+    final spans = regexMatches(text, pattern,
+        matchCase: matchCase, wholeWord: wholeWord);
+    if (spans == null || spans.isEmpty) return (text: text, count: 0);
+    final re = RegExp(pattern, caseSensitive: matchCase, unicode: true);
+    final sb = StringBuffer();
+    var last = 0;
+    for (final (a, b) in spans) {
+      sb.write(text.substring(last, a));
+      final m = re.matchAsPrefix(text, a)!;
+      sb.write(expandGroups(replacement, m));
+      last = b;
+    }
+    sb.write(text.substring(last));
+    return (text: sb.toString(), count: spans.length);
+  }
+
+  /// `$1`..`$9` ve `$&` başvurularını [m]'nin gruplarıyla doldurur.
+  static String expandGroups(String replacement, Match m) {
+    return replacement.replaceAllMapped(RegExp(r'\$(\d|&)'), (g) {
+      final k = g.group(1)!;
+      if (k == '&') return m.group(0) ?? '';
+      final i = int.parse(k);
+      return i <= m.groupCount ? (m.group(i) ?? '') : g.group(0)!;
+    });
+  }
 }

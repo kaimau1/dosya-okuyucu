@@ -9,6 +9,7 @@ import 'package:flutter/services.dart'
         ClipboardData,
         LogicalKeyboardKey,
         SystemChrome,
+        TextInputFormatter,
         SystemUiMode;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path/path.dart' as p;
@@ -26,6 +27,11 @@ import '../core/text_replace.dart';
 import '../core/doc_fonts.dart';
 import '../core/image_budget.dart';
 import '../core/edit/edit_session.dart';
+import '../core/edit/code_editing.dart';
+import '../core/edit/code_highlight.dart';
+import '../core/edit/code_text_controller.dart';
+import '../core/edit/editor_chrome.dart';
+import '../core/edit/markdown_edit.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/app_state.dart';
 import '../core/copy_text.dart';
@@ -58,7 +64,9 @@ import '../widgets/tracked_busy.dart';
 import 'pdf_ink_screen.dart';
 import '../widgets/ai_slides_flow.dart';
 import '../widgets/doc_action_bar.dart';
+import '../widgets/code_gutter.dart';
 import '../widgets/doc_find_bar.dart';
+import '../widgets/markdown_text.dart';
 import '../widgets/doc_more_sheet.dart';
 import '../widgets/office_shell.dart';
 import 'fm/entry_actions.dart';
@@ -97,6 +105,7 @@ part 'viewer/pdf_selection.dart';
 part 'viewer/pdf_marks.dart';
 part 'viewer/pdf_navigation.dart';
 part 'viewer/body.dart';
+part 'viewer/code_tools.dart';
 part 'viewer/widgets.dart';
 
 /// PDF vurgu renkleri (0xAARRGGBB) — vurgu kipindeki sıra. Pastel tonlar
@@ -334,6 +343,22 @@ class _ViewerScreenState extends State<ViewerScreen> {
   int _matchPos = -1;
   int _matchLen = 0;
 
+  /// Eşleşme bitişleri (düzenli ifadede uzunluk değişken; boşsa `_matchLen`).
+  List<int> _matchEnds = const [];
+
+  /// Bul/değiştir seçenekleri (Faz 30): büyük/küçük, tam sözcük, ifade.
+  bool _findCase = false;
+  bool _findWord = false;
+  bool _findRegex = false;
+  bool _findRegexBad = false;
+
+  /// Kod düzenleyici (Faz 30): geri al/yinele, kaydırma, girinti genişliği,
+  /// Markdown önizleme.
+  final UndoHistoryController _undoCtl = UndoHistoryController();
+  final ScrollController _textScroll = ScrollController();
+  final int _tabWidth = 2;
+  bool _mdPreview = false;
+
   /// PDF içi arama (Faz 1): pdfrx'in hazır arayıcısı. Eşleşmeleri sayfa sayfa
   /// bulur, sayfada vurgular (pageTextMatchPaintCallback) ve goToNext/PrevMatch
   /// ile o sayfaya kaydırır. Yalnız PDF belgesinde kurulur.
@@ -463,8 +488,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
       // indirger, yani biçimi burada tutmazsak kaydetme onu kalıcı olarak
       // değiştirirdi (bkz. `core/line_endings.dart`).
       _lineEnding = LineEndings.detect(doc.plainText);
-      _textController =
-          TextEditingController(text: LineEndings.toLf(doc.plainText));
+      _textController = CodeTextController(
+        text: LineEndings.toLf(doc.plainText),
+        lang: codeLangFor(p.extension(doc.path)),
+        enabled: doc.kind == DocKind.text,
+      );
     }
     if (doc.kind == DocKind.pdf) {
       _prepareSafeOpen();
@@ -623,6 +651,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
     }
     _pdfEdgeScrollTimer?.cancel();
     _textController?.dispose();
+    _undoCtl.dispose();
+    _textScroll.dispose();
     _imgTx.removeListener(_onImgTransform);
     _imgTx.dispose();
     _findCtl.dispose();
