@@ -127,7 +127,8 @@ abstract final class NativeExtras {
 
   // ── 2. widget'lar ──────────────────────────────────────────────────────
 
-  /// Widget'ların verisini tazeler: son açılan 4 dosya + çevrilmiş etiketler.
+  /// Widget'ların verisini tazeler: son açılan 10 dosya + çevrilmiş etiketler.
+  /// Widget ilk 4'ünü çizer; 10'u Gemini işlevi (`ci/Ajan.kt` › recentFiles) okur.
   static Future<void> updateWidgets() async {
     try {
       await OpenHistory.ensureLoaded();
@@ -135,7 +136,7 @@ abstract final class NativeExtras {
     final recent = <Map<String, String>>[];
     for (final path in OpenHistory.pathsByRecency()) {
       recent.add({'name': p.basename(path), 'path': path});
-      if (recent.length >= 4) break;
+      if (recent.length >= 10) break;
     }
     final s = AppStrings.current;
     await _call<bool>('updateWidgets', jsonEncode({

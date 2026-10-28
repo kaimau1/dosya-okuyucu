@@ -42,12 +42,13 @@ grep -E "INTERNET|launchMode|action.VIEW|action.SEND|label=" \
 #   UsbMass (ham USB SCSI/BBB), MediaSession (bildirim + ön plan servisi),
 #   SdUnion (SD birleşik depolama işi),
 #   Extras (widget'lar, günlük iş, biyometri, Keystore, Geocoder),
-#   QrTransfer (QR ile paylaş: kod tarayıcı + yerel hotspot).
+#   QrTransfer (QR ile paylaş: kod tarayıcı + yerel hotspot),
+#   Ajan (Gemini işlevleri — AppFunctions, bkz. 7b).
 say "Kotlin kaynakları"
 DIR=android/app/src/main/kotlin/com/dosyaokuyucu/dosya_okuyucu
 mkdir -p "$DIR"
 for kt in MainActivity DosyaProvider PickerActivity UsbMass MediaSession MediaTranscode \
-          SdUnion Extras QrTransfer; do
+          SdUnion Extras QrTransfer Ajan; do
   cp "ci/$kt.kt" "$DIR/$kt.kt"
 done
 # `cp -r ci/res/.` mevcut res/ dosyalarını SİLMEZ, yalnız ekler.
@@ -133,11 +134,13 @@ if not patched:
     raise SystemExit('Desugaring yamalanamadı — build.gradle bulunamadı')
 PY
 
-# ── 6) targetSdk/compileSdk 36 + ML Kit modelleri Play Hizmetleri'nden ────
+# ── 6) targetSdk 36 / compileSdk 37 + ML Kit modelleri Play Hizmetleri'nden ────
 # Play 31 Ağustos 2026'dan beri targetSdk 36 istiyor; Flutter 3.29.3 şablonu
 # 35 yazıyor. OCR gömülü model yerine Play Hizmetleri'nin ortak modelini
 # kullanır (APK'dan ~12 MB çıkar).
-say "targetSdk/compileSdk 36 + ML Kit ikamesi"
+# compileSdk 37: AppFunctions 1.0.0-beta01'in AAR metadata'sı istiyor (7b).
+# targetSdk değişmez — çalışma davranışı aynı kalır.
+say "targetSdk 36 / compileSdk 37 + ML Kit ikamesi"
 python3 - <<'PY'
 import pathlib, re
 OCR_FROM = 'com.google.mlkit:text-recognition'
@@ -154,7 +157,7 @@ for name in ('android/app/build.gradle.kts', 'android/app/build.gradle'):
         'targetSdk = 36' if kts else 'targetSdkVersion 36', text)
     text, n2 = re.subn(
         r'compileSdk(Version)?\s*=?\s*flutter\.compileSdkVersion',
-        'compileSdk = 36' if kts else 'compileSdkVersion 36', text)
+        'compileSdk = 37' if kts else 'compileSdkVersion 37', text)
     if n1 != 1 or n2 != 1:
         raise SystemExit(f'{name}: targetSdk/compileSdk satırı bulunamadı ({n1}, {n2})')
     if kts:
@@ -175,19 +178,19 @@ for name in ('android/app/build.gradle.kts', 'android/app/build.gradle'):
             '}\n')
     path.write_text(text.rstrip() + '\n' + block)
     patched = True
-    print(f'{name}: targetSdk/compileSdk 36, OCR ikamesi eklendi')
+    print(f'{name}: targetSdk 36, compileSdk 37, OCR ikamesi eklendi')
 if not patched:
     raise SystemExit('build.gradle bulunamadı')
 PY
-echo "android.suppressUnsupportedCompileSdk=36" >> android/gradle.properties
+echo "android.suppressUnsupportedCompileSdk=37" >> android/gradle.properties
 
-# ── 6b) Eklentiler de compileSdk 36 (Flutter 3.44 / AGP 9, 2026-10-21) ─────
+# ── 6b) Eklentiler de compileSdk 37 (Flutter 3.44 / AGP 9, 2026-10-21) ─────
 # AGP 9 her eklentinin AAR metadata'sını denetliyor: eski compileSdk ile gelen
 # eklenti (cunning_document_scanner 33, androidx.fragment 34 ister) derlemeyi
 # düşürüyor. Bütün alt projeler uygulamayla aynı SDK'ya çekilir. Blok
 # `evaluationDependsOn(":app")`dan ÖNCE durmalı: sonra gelirse alt projeler
 # çoktan değerlendirilmiş olur ve afterEvaluate hata verir.
-say "Eklentiler compileSdk 36"
+say "Eklentiler compileSdk 37"
 python3 - <<'PY'
 import pathlib
 for name in ('android/build.gradle.kts', 'android/build.gradle'):
@@ -198,7 +201,7 @@ for name in ('android/build.gradle.kts', 'android/build.gradle'):
     block = ('subprojects {\n'
              '    afterEvaluate {\n'
              '        extensions.findByName("android")?.let { ext ->\n'
-             '            ext.withGroovyBuilder { setProperty("compileSdk", 36) }\n'
+             '            ext.withGroovyBuilder { setProperty("compileSdk", 37) }\n'
              # receive_sharing_intent 1.8.1: Java 11 + Kotlin 21 (araç zinciri).
              # 3.44 şablonunda 8. adımdaki validation.mode=warning ETKİSİZ —
              # yalnız bu eklentide Java hedefi Kotlin'inkine (21) çekilir.
@@ -215,7 +218,7 @@ for name in ('android/build.gradle.kts', 'android/build.gradle'):
              'subprojects {\n'
              '    afterEvaluate { p ->\n'
              '        if (p.extensions.findByName("android") != null) {\n'
-             '            p.android.compileSdk = 36\n'
+             '            p.android.compileSdk = 37\n'
              '        }\n'
              '    }\n'
              '}\n')
@@ -223,7 +226,7 @@ for name in ('android/build.gradle.kts', 'android/build.gradle'):
     if anchor not in text:
         raise SystemExit(f'{name}: evaluationDependsOn bloğu bulunamadı')
     path.write_text(text.replace(anchor, block + anchor, 1))
-    print(f'{name}: eklentiler compileSdk 36')
+    print(f'{name}: eklentiler compileSdk 37')
     break
 else:
     raise SystemExit('kök build.gradle bulunamadı')
@@ -249,6 +252,48 @@ for f in android/settings.gradle android/settings.gradle.kts; do
     sed -i -E 's/(id[( ]"org\.jetbrains\.kotlin\.android"\)? version )"[0-9.]+"/\1"'"$MIN_KOTLIN"'"/' "$f"
   fi
 done
+
+# ── 7b) Gemini işlevleri: AppFunctions (2026-10-28) ───────────────────────
+# ci/Ajan.kt'deki @AppFunctionDeclaration'lardan KSP somut `AjanServisi`ni ve
+# `dosya_ajan.xml`'i üretir (manifest ikisini adıyla arar). 1.0.0-beta01 AGP
+# 9.1+ istiyor: şablonun AGP'si yalnız YÜKSELTİLİR (7'deki Kotlin kuralı).
+say "AppFunctions (AGP >= 9.1 + KSP)"
+python3 - <<'PY'
+import pathlib, re
+MIN_AGP = (9, 1, 0)
+KSP = '2.3.12'
+AF = 'androidx.appfunctions:appfunctions:1.0.0-beta01'
+AFC = 'androidx.appfunctions:appfunctions-compiler:1.0.0-beta01'
+s = pathlib.Path('android/settings.gradle.kts')
+if not s.exists():
+    raise SystemExit('android/settings.gradle.kts yok (Groovy şablonu desteklenmiyor)')
+t = s.read_text()
+m = re.search(r'id\("com\.android\.application"\) version "([0-9.]+)"', t)
+if not m:
+    raise SystemExit('settings.gradle.kts: AGP sürümü bulunamadı')
+cur = tuple(int(x) for x in m.group(1).split('.')[:3])
+if cur < MIN_AGP:
+    t = t.replace(m.group(0), m.group(0).replace(m.group(1), '.'.join(map(str, MIN_AGP))))
+    print(f'AGP {m.group(1)} -> 9.1.0')
+else:
+    print(f'AGP {m.group(1)} zaten >= 9.1.0')
+if 'com.google.devtools.ksp' not in t:
+    # AGP satırının hemen altına, aynı girinti ve aynı "apply false" ile
+    line = next(l for l in t.splitlines() if 'id("com.android.application") version' in l)
+    indent = line[:len(line) - len(line.lstrip())]
+    tail = ' apply false' if line.rstrip().endswith('apply false') else ''
+    t = t.replace(line, f'{line}\n{indent}id("com.google.devtools.ksp") version "{KSP}"{tail}', 1)
+s.write_text(t)
+a = pathlib.Path('android/app/build.gradle.kts')
+t = a.read_text()
+t, n = re.subn(r'(plugins\s*\{)', r'\1\n    id("com.google.devtools.ksp")', t, count=1)
+if n != 1:
+    raise SystemExit('app/build.gradle.kts: plugins bloğu bulunamadı')
+t = t.rstrip() + f'\n\ndependencies {{\n    implementation("{AF}")\n    ksp("{AFC}")\n}}\n'
+a.write_text(t)
+print('AppFunctions bağımlılıkları + KSP eklendi')
+PY
+grep -E "com.android.application|devtools.ksp" android/settings.gradle.kts
 
 # ── 8) JVM hedef uyumu uyarıya + Gradle ağ zaman aşımı ────────────────────
 # Eklentiler Kotlin'i 17'ye, Java'yı 8/11'e derliyor; hedefleri zorla
