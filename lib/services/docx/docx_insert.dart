@@ -210,41 +210,43 @@ extension DocxInsert on DocxDocument {
     return last;
   }
 
-  /// `commit()` sonunda: yeni tabloları bağlar / yetim kalanları söker.
+  /// `commit()` sonunda: yönetilen tabloları paragraf modeline eşitler —
+  /// modelde hiç paragrafı kalmayanı söker, geri gelmiş (geri al/yinele)
+  /// olanı yerine bağlar, satır/hücre sırasını ve ızgarayı düzeltir.
   bool _syncNewTables() {
     var changed = false;
-    for (final tbl in [..._newTables]) {
+    for (final tbl in _newTables) {
       final first = paras.indexWhere((p) => identical(p.cell?.table, tbl));
       if (first < 0) {
-        // Geri alınmış: kaydedilmiş olsa bile XML'den çıkar.
         if (tbl.parent != null) {
           tbl.parent!.children.remove(tbl);
           changed = true;
         }
-        _newTables.remove(tbl);
         continue;
       }
-      if (tbl.parent != null) continue;
-      // Önceki üst düzey öğeyi bul: gövde paragrafı ya da başka tablo.
-      XmlElement? prev;
-      for (var j = first - 1; j >= 0; j--) {
-        final q = paras[j];
-        if (q.cell != null) {
-          prev = q.cell!.table;
-          break;
+      if (tbl.parent == null) {
+        // Önceki üst düzey öğeyi bul: gövde paragrafı ya da başka tablo.
+        XmlElement? prev;
+        for (var j = first - 1; j >= 0; j--) {
+          final q = paras[j];
+          if (q.cell != null) {
+            prev = q.cell!.table;
+            break;
+          }
+          if (identical(q.container, body) && q.source?.parent != null) {
+            prev = q.source;
+            break;
+          }
         }
-        if (identical(q.container, body) && q.source?.parent != null) {
-          prev = q.source;
-          break;
+        final kids = body.children;
+        if (prev != null && identical(prev.parent, body)) {
+          kids.insert(kids.indexOf(prev) + 1, tbl);
+        } else {
+          kids.insert(0, tbl);
         }
+        changed = true;
       }
-      final kids = body.children;
-      if (prev != null && identical(prev.parent, body)) {
-        kids.insert(kids.indexOf(prev) + 1, tbl);
-      } else {
-        kids.insert(0, tbl);
-      }
-      changed = true;
+      if (_reconcileTable(tbl)) changed = true;
     }
     return changed;
   }
@@ -289,17 +291,34 @@ extension DocxInsert on DocxDocument {
     );
   }
 
-  /// Geri al için anlık görüntü (tüm bölümler).
-  String sectSnapshot() => _sections.map((e) => e.toXmlString()).join('\u0000');
+  /// Geri al için anlık görüntü: bölümler + izlenen özellik düğümleri.
+  String sectSnapshot() =>
+      '${_sections.map((e) => e.toXmlString()).join('\u0000')}'
+      '\u0001${_tracked.map((e) => e.toXmlString()).join('\u0000')}';
 
   void restoreSect(String snap) {
     if (snap == sectSnapshot()) return;
+    final halves = snap.split('\u0001');
+    final secs = halves[0];
     final now = _sections;
-    final parts = snap.isEmpty ? const <String>[] : snap.split('\u0000');
+    final parts = secs.isEmpty ? const <String>[] : secs.split('\u0000');
     for (var k = 0; k < now.length && k < parts.length; k++) {
       final fresh = XmlDocument.parse(parts[k]).rootElement.copy();
       final parent = now[k].parent!;
       parent.children[parent.children.indexOf(now[k])] = fresh;
+    }
+    final props = halves.length > 1 && halves[1].isNotEmpty
+        ? halves[1].split('\u0000')
+        : const <String>[];
+    for (var k = 0; k < _tracked.length && k < props.length; k++) {
+      final fresh = XmlDocument.parse(props[k]).rootElement;
+      final el = _tracked[k];
+      el.attributes
+        ..clear()
+        ..addAll(fresh.attributes.map((a) => a.copy()));
+      el.children
+        ..clear()
+        ..addAll(fresh.children.map((c) => c.copy()));
     }
     _xmlDirty = true;
   }

@@ -32,6 +32,12 @@ const kWordStandardColors = <int>[
   0xFF00B050, 0xFF00B0F0, 0xFF0070C0, 0xFF002060, 0xFF7030A0,
 ];
 
+/// Hücre gölgesi renkleri (açık tonlar).
+const kWordShadeColors = <int>[
+  0xFFD9D9D9, 0xFFFFF2CC, 0xFFE2EFDA, 0xFFDDEBF7, 0xFFFCE4D6, 0xFFEAD1F5,
+  0xFFFFFF00, 0xFFBDD7EE,
+];
+
 /// Satır aralığı seçenekleri (Word'ün menüsü).
 const kWordLineSpacings = <double>[1.0, 1.15, 1.5, 2.0];
 
@@ -69,11 +75,17 @@ class WordFormatUi {
   /// Faz 24: Ekle ve Bul-Değiştir (ekran açar; sekme yoksa gizli).
   final VoidCallback? onInsertTable, onInsertLink, onSymbol, onFind;
 
+  /// Faz 24b: üst/alt bilgi ve izlenen değişiklikleri çözme (ekran onaylar).
+  final VoidCallback? onHeaderFooter;
+  final void Function(bool accept)? onResolveTracked;
+
   const WordFormatUi({
     this.onInsertTable,
     this.onInsertLink,
     this.onSymbol,
     this.onFind,
+    this.onHeaderFooter,
+    this.onResolveTracked,
     required this.context,
     required this.c,
     required this.onPageLayout,
@@ -165,7 +177,11 @@ class WordFormatUi {
                 onTap: c.insertPageBreak),
             RibbonButton(AppIcons.textFields, _t('word.insert_symbol'),
                 key: const ValueKey('word-ins-symbol'), onTap: onSymbol),
+            if (onHeaderFooter != null)
+              RibbonButton(AppIcons.newWord, _t('word.insert_hf'),
+                  key: const ValueKey('word-ins-hf'), onTap: onHeaderFooter),
           ]),
+        if (c.inTable) RibbonTab(_t('word.tab_table'), table()),
         if (onInsertTable != null) RibbonTab(_t('word.tab_layout'), layout()),
         RibbonTab(_t('word.tab_view'), [
           RibbonButton(AppIcons.device, _t('word.mobile_view'),
@@ -188,7 +204,71 @@ class WordFormatUi {
               key: const ValueKey('word-count'), onTap: onWordCount),
           RibbonButton(OfficeIcons.translate, _t('common.translate'),
               onTap: () => onTranslate(c.selectedText())),
+          if (onResolveTracked != null && c.trackedChanges > 0) ...[
+            const RibbonSep(),
+            RibbonButton(AppIcons.check, _t('word.track_accept'),
+                key: const ValueKey('word-track-accept'),
+                onTap: () => onResolveTracked!(true)),
+            RibbonButton(AppIcons.close, _t('word.track_reject'),
+                key: const ValueKey('word-track-reject'),
+                onTap: () => onResolveTracked!(false)),
+          ],
         ]),
+      ];
+
+  /// Bağlamsal Tablo sekmesi (imleç bir hücredeyken).
+  List<Widget> table() => [
+        RibbonButton(AppIcons.add, _t('word.tbl_row_above'),
+            key: const ValueKey('word-tbl-row-above'),
+            onTap: () => c.tableRow(below: false)),
+        RibbonButton(AppIcons.addCircleOutline, _t('word.tbl_row_below'),
+            key: const ValueKey('word-tbl-row-below'),
+            onTap: () => c.tableRow(below: true)),
+        RibbonButton(AppIcons.viewColumn, _t('word.tbl_col_left'),
+            key: const ValueKey('word-tbl-col-left'),
+            onTap: () => c.tableColumn(right: false)),
+        RibbonButton(AppIcons.viewColumn, _t('word.tbl_col_right'),
+            key: const ValueKey('word-tbl-col-right'),
+            onTap: () => c.tableColumn(right: true)),
+        const RibbonSep(),
+        RibbonButton(AppIcons.deleteSweep, _t('word.tbl_del_row'),
+            key: const ValueKey('word-tbl-del-row'),
+            onTap: c.deleteTableRow),
+        RibbonButton(AppIcons.delete, _t('word.tbl_del_col'),
+            key: const ValueKey('word-tbl-del-col'),
+            onTap: c.deleteTableColumn),
+        RibbonButton(AppIcons.deleteForever, _t('word.tbl_del'),
+            key: const ValueKey('word-tbl-del'), onTap: c.deleteWholeTable),
+        const RibbonSep(),
+        RibbonButton(AppIcons.tableView, _t('word.tbl_header'),
+            key: const ValueKey('word-tbl-header'),
+            active: c.tableHeader,
+            onTap: () => c.setTableHeader(!c.tableHeader)),
+        RibbonButton(AppIcons.viewColumn, _t('word.tbl_banded'),
+            key: const ValueKey('word-tbl-banded'),
+            active: c.tableBanded,
+            onTap: () => c.setTableBanded(!c.tableBanded)),
+        RibbonMenu<int>(
+          key: const ValueKey('word-tbl-shade'),
+          icon: AppIcons.formatColorFill,
+          tooltip: _t('word.tbl_shade'),
+          onSelected: (v) => c.setCellShade(v < 0 ? null : v),
+          itemBuilder: (_) => [
+            PopupMenuItem(value: -1, child: Text(_t('word.tbl_shade_none'))),
+            for (final col in kWordShadeColors)
+              PopupMenuItem(
+                value: col & 0xFFFFFF,
+                child: Row(children: [
+                  Container(
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
+                          color: Color(col),
+                          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant))),
+                ]),
+              ),
+          ],
+        ),
       ];
 
   /// Düzen sekmesi: kenar boşlukları, yönlendirme, boyut, sütunlar.

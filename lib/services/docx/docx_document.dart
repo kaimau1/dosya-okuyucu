@@ -29,6 +29,8 @@ import '../../core/symbol_fonts.dart';
 import 'docx_styles.dart';
 
 part 'docx_insert.dart';
+part 'docx_table.dart';
+part 'docx_review.dart';
 
 /// Atom karakteri (Flutter `WidgetSpan` yer tutucusuyla aynı).
 const String kDocxAtom = '￼';
@@ -263,6 +265,7 @@ class DocxPara {
     List<(int, XmlElement)>? anchors,
     DocxParaLook? look,
     DocxCharStyle? mark,
+    DocxCellRef? cell,
   }) =>
       DocxPara(
         source: clearSource ? null : (source ?? this.source),
@@ -275,7 +278,7 @@ class DocxPara {
         look: look ?? this.look,
         mark: mark ?? this.mark,
         opaque: opaque,
-        cell: cell,
+        cell: cell ?? this.cell,
       );
 
   /// [offset]'e yazılacak harfin biçimi.
@@ -397,7 +400,12 @@ class DocxDocument {
   bool _xmlDirty = false;
 
   /// Faz 24: bu oturumda eklenen (henüz XML'e bağlanmamış olabilir) tablolar.
+  /// Tablo yapısı işlemleriyle yönetilen tüm tablolar (yeni ya da var olan):
+  /// `commit()` bunları paragraf modeline göre eşitler (Faz 24b).
   final List<XmlElement> _newTables = [];
+
+  /// Geri alınabilir özellik düğümleri (`tblPr`, `tcPr`): anlık görüntüye girer.
+  final List<XmlElement> _tracked = [];
 
   DocxDocument._(this._archive, this.doc, this.body, this.styles,
       this.numbering, this._rels, this.paras);

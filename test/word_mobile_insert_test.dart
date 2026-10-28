@@ -137,4 +137,37 @@ void main() {
     // Seçim ilk eşleşmede.
     expect(c.collapsed, isFalse);
   });
+
+  testWidgets('Tablo sekmesi: imleç hücredeyken görünür; satır ekle / sil',
+      (t) async {
+    final c = await open(t);
+    c.select(const DocPos(0, 0), const DocPos(0, 0));
+    expect(find.text('Tablo'), findsNothing);
+    c.insertTable(2, 2);
+    await settle(t);
+    expect(c.inTable, isTrue);
+    await tab(t, 'Tablo');
+    final before = c.paras.where((p) => p.cell != null).length;
+    await t.tap(find.byKey(const ValueKey('word-tbl-row-below')));
+    await settle(t);
+    expect(c.paras.where((p) => p.cell != null).length, before + 2);
+    await t.tap(find.byKey(const ValueKey('word-tbl-del-row')));
+    await settle(t);
+    expect(c.paras.where((p) => p.cell != null).length, before);
+    await t.tap(find.byKey(const ValueKey('word-tbl-header')));
+    await settle(t);
+    expect(c.tableHeader, isFalse);
+  });
+
+  testWidgets('Ekle > Üst/alt bilgi: yaz → uygula', (t) async {
+    final c = await open(t);
+    await tab(t, 'Ekle');
+    await t.tap(find.byKey(const ValueKey('word-ins-hf')));
+    await t.pumpAndSettle();
+    await t.enterText(find.byKey(const ValueKey('word-hf-header')), 'Gizli');
+    await t.ensureVisible(find.byKey(const ValueKey('word-hf-apply')));
+    await t.tap(find.byKey(const ValueKey('word-hf-apply')));
+    await settle(t);
+    expect(c.headerFooter(header: true).text, 'Gizli');
+  });
 }

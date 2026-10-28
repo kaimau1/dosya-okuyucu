@@ -67,6 +67,92 @@ extension DocxEditInsert on DocxEditController {
   void setPaper(String key) => _layout(() => doc.setPaperSize(key));
   void setColumns(int n) => _layout(() => doc.setColumns(n));
 
+  // ── Tablo (bağlamsal sekme) ─────────────────────────────────────────────
+
+  /// İmleç bir tablo hücresinde mi.
+  bool get inTable => doc.tableAt(extent.para) != null;
+
+  bool get tableHeader {
+    final t = doc.tableAt(extent.para);
+    return t != null && doc.tableHeaderRow(t);
+  }
+
+  bool get tableBanded {
+    final t = doc.tableAt(extent.para);
+    return t != null && doc.tableBandedRows(t);
+  }
+
+  int? get cellShade => doc.cellShade(extent.para);
+
+  void _tableOp(int Function(int at) op) {
+    if (!inTable) return;
+    _record(typing: false);
+    final i = op(extent.para);
+    if (i < 0) return;
+    base = extent = DocPos(i.clamp(0, paras.length - 1), 0);
+    structure++;
+    _afterInsert();
+  }
+
+  void tableRow({required bool below}) =>
+      _tableOp((i) => doc.insertTableRow(i, below: below));
+  void tableColumn({required bool right}) =>
+      _tableOp((i) => doc.insertTableColumn(i, right: right));
+  void deleteTableRow() => _tableOp(doc.deleteTableRow);
+  void deleteTableColumn() => _tableOp(doc.deleteTableColumn);
+  void deleteWholeTable() => _tableOp(doc.deleteTable);
+
+  void setTableHeader(bool on) {
+    final t = doc.tableAt(extent.para);
+    if (t == null) return;
+    doc.trackTableLook(t);
+    _layout(() => doc.setTableHeaderRow(t, on));
+  }
+
+  void setTableBanded(bool on) {
+    final t = doc.tableAt(extent.para);
+    if (t == null) return;
+    doc.trackTableLook(t);
+    _layout(() => doc.setTableBandedRows(t, on));
+  }
+
+  void setCellShade(int? rgb) {
+    if (!inTable) return;
+    final at = extent.para;
+    doc.trackCellProps(at);
+    _layout(() => doc.setCellShade(at, rgb));
+  }
+
+  // ── Gözden Geçir ────────────────────────────────────────────────────────
+
+  int get trackedChanges => doc.trackedChangeCount();
+
+  /// İzlenen değişiklikleri çözer. Geri alınamaz: geçmiş sıfırlanır.
+  void resolveTracked({required bool accept}) {
+    doc.resolveTrackedChanges(accept: accept);
+    _history.clear();
+    composing = TextRange.empty;
+    _pending = null;
+    base = extent = DocPos(extent.para.clamp(0, paras.length - 1), 0);
+    structure++;
+    _changed(notify: true);
+    _syncIme();
+  }
+
+  // ── Üst / alt bilgi ─────────────────────────────────────────────────────
+
+  DocxHeaderFooter headerFooter({required bool header}) =>
+      doc.headerFooter(header: header);
+
+  /// Parçaya yazar (geri alınamaz). Zengin içerikte false.
+  bool setHeaderFooter(
+      {required bool header, required String text, required bool pageNumber}) {
+    final ok = doc.setHeaderFooter(
+        header: header, text: text.trim(), pageNumber: pageNumber);
+    if (ok) _changed(notify: true);
+    return ok;
+  }
+
   // ── Bul / Değiştir ──────────────────────────────────────────────────────
 
   /// [query]'nin tüm eşleşmeleri (belge sırasıyla), paragraf başına.

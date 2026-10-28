@@ -384,3 +384,75 @@ class _WordFindBarState extends State<WordFindBar> {
     );
   }
 }
+
+
+/// Üst/alt bilgi levhası: iki metin kutusu + sayfa numarası. Uygulayınca
+/// doğrudan belgeye yazar (zengin içerik varsa uyarır).
+Future<void> showWordHeaderFooterSheet(
+    BuildContext context, DocxEditController c) {
+  final head = c.headerFooter(header: true);
+  final foot = c.headerFooter(header: false);
+  final hCtl = TextEditingController(text: head.text);
+  final fCtl = TextEditingController(text: foot.text);
+  var page = foot.pageNumber;
+  return showAppSheet<void>(
+    context,
+    title: context.t('word.insert_hf'),
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, set) => Padding(
+        padding: EdgeInsets.fromLTRB(
+            Gap.md, 0, Gap.md, Gap.md + MediaQuery.viewInsetsOf(ctx).bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (!head.editable || !foot.editable)
+              Padding(
+                padding: const EdgeInsets.only(bottom: Gap.sm),
+                child: Text(ctx.t('word.hf_rich'),
+                    style: Theme.of(ctx).textTheme.bodySmall),
+              ),
+            TextField(
+              key: const ValueKey('word-hf-header'),
+              controller: hCtl,
+              enabled: head.editable,
+              decoration:
+                  InputDecoration(labelText: ctx.t('word.hf_header')),
+            ),
+            const SizedBox(height: Gap.sm),
+            TextField(
+              key: const ValueKey('word-hf-footer'),
+              controller: fCtl,
+              enabled: foot.editable,
+              decoration:
+                  InputDecoration(labelText: ctx.t('word.hf_footer')),
+            ),
+            CheckboxListTile(
+              key: const ValueKey('word-hf-page'),
+              contentPadding: EdgeInsets.zero,
+              value: page,
+              onChanged: foot.editable ? (v) => set(() => page = v ?? false) : null,
+              title: Text(ctx.t('word.hf_page')),
+            ),
+            FilledButton(
+              key: const ValueKey('word-hf-apply'),
+              onPressed: () {
+                if (head.editable) {
+                  c.setHeaderFooter(
+                      header: true, text: hCtl.text, pageNumber: head.pageNumber);
+                }
+                if (foot.editable) {
+                  c.setHeaderFooter(
+                      header: false, text: fCtl.text, pageNumber: page);
+                }
+                Navigator.pop(ctx);
+                showSnack(context, context.t('word.hf_saved'));
+              },
+              child: Text(ctx.t('word.hf_apply')),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}

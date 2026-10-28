@@ -195,6 +195,8 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
         onInsertLink: _insertLink,
         onSymbol: _insertSymbol,
         onFind: () => setState(() => _findOpen = !_findOpen),
+        onHeaderFooter: _headerFooter,
+        onResolveTracked: _resolveTracked,
       );
 
   bool _findOpen = false;
@@ -217,6 +219,32 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     final r = await showWordLinkSheet(context, text: c.selectedText());
     if (r == null || !mounted) return;
     c.insertLink(r.$1, r.$2);
+  }
+
+  Future<void> _headerFooter() async {
+    final c = _ctrl;
+    if (c == null) return;
+    await showWordHeaderFooterSheet(context, c);
+  }
+
+  Future<void> _resolveTracked(bool accept) async {
+    final c = _ctrl;
+    if (c == null) return;
+    final n = c.trackedChanges;
+    if (n == 0) {
+      showSnack(context, context.t('word.track_none'));
+      return;
+    }
+    final ok = await showAppConfirm(
+      context,
+      message: context.t(
+          accept ? 'word.track_confirm_accept' : 'word.track_confirm_reject',
+          {'n': n}),
+      confirmLabel:
+          context.t(accept ? 'word.track_accept' : 'word.track_reject'),
+    );
+    if (!ok || !mounted) return;
+    c.resolveTracked(accept: accept);
   }
 
   Future<void> _insertSymbol() async {
