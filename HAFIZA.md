@@ -735,3 +735,33 @@ bölmeyi KALDIRMIYORDU; `XlsxSheetLayout.freezeEdited` + `XlsxSheetPatch.freezeE
 (gidiş-dönüş), `excel_data_screen_test`. Kılavuz çizgisi aç/kapa EKLENMEDİ: ızgara `showGridLines`'ı
 çizimde dikkate almıyor (yalnız kayıtta yazılıyor) — çizimi bağlamadan düğme koymak yalan olurdu.
 
+## 2026-10-28 — Faz 24b (Word), Süzgeç şeridi 3 kart, ana ekrana Görüntüler, Faz 29a (Slayt nesneleri)
+**Faz 24b:** `services/docx/docx_table.dart` (satır/sütun ekle-sil, tabloyu sil, başlık/bant/gölge) +
+`docx_review.dart` (izlenen değişiklik kabul/ret, üst/alt bilgi). Tasarım: işlem yalnız `paras` + hücre
+başvurusunu değiştirir, `w:tr/w:tc` sırası ve `tblGrid` `commit()`te `_reconcileTable` ile modele eşitlenir
+→ geri al/yinele ek iş istemez. **KÖK NEDEN (eski hata):** `_syncNewTables` orphan tabloyu `_newTables`tan
+çıkarıyordu → tablo ekle → geri al → YİNELE sonrası tablo XML'e hiç bağlanmıyordu; liste artık kalıcı.
+Geri alınabilir özellikler (`tblLook`, `tcPr`) `_tracked` listesiyle `sectSnapshot`a girer; DEĞİŞİKLİKTEN ÖNCE
+`trackTableLook/trackCellProps` çağrılmalı. İzlenen değişiklik çözme GERİ ALINAMAZ (geçmiş sıfırlanır, onaylı);
+silinmiş paragraf işareti kabulde paragrafları BİRLEŞTİRMEZ. Üst/alt bilgi: yalnız tek paragraflı, resim/sekmesiz
+parçalar düzenlenir; geri alınamaz. Kalan 24b: resim tutamakları, yorumlar, dipnot, yatay çizgi/tarih.
+**Süzgeç şeridi (kullanıcı 2026-10-28):** bütün liste ekranlarında EN FAZLA 3 kart, kaydırmasız:
+Tür · Kaynak ve zaman · Analiz ve diğer. `FmFilterBar` artık Row+Expanded (hap `FmPill` şeritte kapsam
+işaretiyle genişliği paylaşır, 48 dp dokunma alanı, sayı yalnız vurguluyken). "Analiz ve diğer" =
+`widgets/fm/fm_more_sheet.dart` (`FmMoreChip`; hazır bölümler: `fmSortSection`, `fmDateSizeSections`,
+`fmTagsSection`; ekrana özel `extras`). `FmListControls` artık widget değil, `sections()` üretir. Kategori,
+Fotoğraflar/Videolar/Görüntüler, Son açılanlar, İndirilenler, Gezgin, Arama bu düzende; Etkinlik/Çöp/Kasa
+yalnız Tür kartı. **Ana ekrana ekle:** Fotoğraflar menüsü → `HomeShortcuts.pin(path:'app:images'|'app:photos'|
+'app:videos')`; `home_screen._openShortcut` `app:` önekini `openAppLink`e verir (kısayol türün renginde çizilir).
+**TUZAK:** kısayol yolu dosya yolu değil `app:` bağlantısı; native taraf değişmedi.
+**Faz 29a:** `services/pptx_objects.dart` (part): `setShapeFrame` (pt→EMU, rot), `addTextBox`, `addShape`
+(7 tür), `setShapeFill`, `setSlideBackground`, `setTransition` (yazılır; SUNUMDA OYNATMA YOK), `layouts()` +
+`addSlideFromLayout`. UI: `widgets/slide_frame_editor.dart` (8 tutamak + döndürme, sürükleme eşiği 2 dp —
+`PanGestureRecognizer.gestureSettings`; tutamak kutuları kenarın DIŞINA taşar, içeri 4 dp: yoksa metne
+dokunuş tutamağa takılır), `slides/objects.dart` (Ekle/Tasarım levhaları, dolgu). **KÖK NEDEN (tuzak):**
+`_mutate` → `_history.record` değil ama `undo/redo` sonrası `restore` slayt nesnelerini ve XML düğümlerini
+YENİDEN kurar: eski `PptxSlide`/`XmlElement` başvuruları bayatlar → seçim/ekleme `_fresh(slide)` +
+`p:cNvPr@id` ile yeniden bulunur. Kalan Faz 29: tablo ekle, küçük resim şeridi/sıralayıcı, hizalama kılavuzları,
+geçişin sunumda oynaması. Kalan Faz 27 ve Faz 31/32 dokunulmadı. Cihazda doğrula: sürükleme hissi (kaydırma
+çakışması), tutamak boyu, 3 kartlı şerit yazı sığması, ana ekran kısayolu.
+

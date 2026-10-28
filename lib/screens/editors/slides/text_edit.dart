@@ -38,6 +38,7 @@ extension _SlidesEditorScreenTextEditPart on _SlidesEditorScreenState {
     _flushOutline();
     if (_history.undo() == null) return;
     _selShape = null;
+    _selSlide = null;
     _session.changed();
     _partSetState(() {});
   }
@@ -50,6 +51,7 @@ extension _SlidesEditorScreenTextEditPart on _SlidesEditorScreenState {
     _flushOutline();
     if (_history.redo() == null) return;
     _selShape = null;
+    _selSlide = null;
     _session.changed();
     _partSetState(() {});
   }
@@ -703,6 +705,8 @@ extension _SlidesEditorScreenTextEditPart on _SlidesEditorScreenState {
                   () => editor.duplicateShape(slide, shape));
               _clearSelection();
             }),
+      if (shape.element?.name.qualified == 'p:sp')
+        DocAction(AppIcons.formatColorFill, context.t('sl.fill'), _openFill),
       DocAction(AppIcons.flipToFront, context.t('sl.bring_front'), !arrange
           ? null
           : () {

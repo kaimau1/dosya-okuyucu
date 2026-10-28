@@ -2,9 +2,11 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:xml/xml.dart' show XmlElement;
 
 import '../services/pptx_render.dart';
 import 'chart_painter.dart';
+import 'slide_frame_editor.dart';
 import '../core/app_colors.dart';
 
 /// Slayt run'ının çizim stili (punto biriminde). Kanvas ve düzenleyici
@@ -83,6 +85,11 @@ class SlideCanvas extends StatelessWidget {
   /// (düzenleme görünümü). Sunum modunda 0'dan başlar, her tıklamada artar.
   final int? step;
 
+  /// Faz 29 — seçili şeklin çerçevesi sürüklenip bırakılınca (taşı /
+  /// boyutlandır / döndür): yeni çerçeve (pt) ve dönüş (derece).
+  final void Function(ShapeVM shape, Rect frame, double rotationDeg)?
+      onFrameChanged;
+
   const SlideCanvas({
     super.key,
     required this.slide,
@@ -93,10 +100,22 @@ class SlideCanvas extends StatelessWidget {
     this.editorBuilder,
     this.promptFor,
     this.step,
+    this.onFrameChanged,
   });
 
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, box) {
+      // 1 dp'nin punto karşılığı (tutamak boyutları için).
+      final scale = math.min(
+          box.maxWidth.isFinite ? box.maxWidth / slide.widthPt : double.infinity,
+          box.maxHeight.isFinite ? box.maxHeight / slide.heightPt : double.infinity);
+      final unit = scale.isFinite && scale > 0 ? 1 / scale : 1.0;
+      return _canvas(unit);
+    });
+  }
+
+  Widget _canvas(double unit) {
     return FittedBox(
       fit: BoxFit.contain,
       child: SizedBox(
@@ -122,7 +141,7 @@ class SlideCanvas extends StatelessWidget {
                         ),
                 ),
               ),
-              for (final shape in slide.shapes) _positioned(shape),
+              for (final shape in slide.shapes) _positioned(shape, unit),
             ],
           ),
         ),
@@ -130,7 +149,7 @@ class SlideCanvas extends StatelessWidget {
     );
   }
 
-  Widget _positioned(ShapeVM s) {
+  Widget _positioned(ShapeVM s, double unit) {
     // Animasyonlu içerik: adımı gelmemiş şekil/paragraf saydamdır (yer tutar,
     // böylece belirdiğinde yerleşim oynamaz — PowerPoint de böyle yapar).
     final animated = step != null && slide.steps.isNotEmpty;
@@ -159,7 +178,10 @@ class SlideCanvas extends StatelessWidget {
       prompt: prompt,
     );
     if (animated) child = _Reveal(visible: shapeVisible, child: child);
-    if (s.rotationDeg != 0) {
+    final framed = selected &&
+        onFrameChanged != null &&
+        (s.element?.parent as XmlElement?)?.name.qualified == 'p:spTree';
+    if (s.rotationDeg != 0 && !framed) {
       child = Transform.rotate(angle: s.rotationDeg * math.pi / 180, child: child);
     }
     final tappable = s.hasText ||
@@ -191,10 +213,20 @@ class SlideCanvas extends StatelessWidget {
             select(s);
           }
         },
-        child: selected
+        child: selected && !framed
             ? CustomPaint(foregroundPainter: const _SelectionPainter(), child: child)
             : child,
       );
+      if (framed) {
+        return SlideFrameEditor(
+          shape: s,
+          unit: unit,
+          slideW: slide.widthPt,
+          slideH: slide.heightPt,
+          onCommit: (r, rot) => onFrameChanged!(s, r, rot),
+          child: child,
+        );
+      }
     }
     // Yatay/dikey çizginin tek boyutu 0 olabilir → çizim için stroke kadar taban ver.
     final floor = math.max(s.strokeWidth, 1.0);

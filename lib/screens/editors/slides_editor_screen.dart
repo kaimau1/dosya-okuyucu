@@ -32,7 +32,12 @@ import '../../services/pptx_editor.dart';
 import '../../services/pptx_render.dart';
 import '../../services/pptx_rich_text.dart';
 import '../../services/slides_pdf.dart';
+import 'package:xml/xml.dart' show XmlElement, XmlFindExtension;
+
 import '../../widgets/ai_summary_flow.dart';
+import '../../widgets/app_dialog.dart';
+import '../../widgets/fm/fm_type_chips.dart' show FmChoiceTile;
+import '../../core/theme.dart';
 import '../../widgets/doc_action_bar.dart';
 import '../../widgets/doc_find_bar.dart';
 import '../../widgets/office_ribbon.dart';
@@ -51,9 +56,9 @@ import '../../core/snack.dart';
 import '../../core/safe_insets.dart';
 import '../../core/user_error.dart';
 import '../../core/app_colors.dart';
-import '../../widgets/app_dialog.dart';
 
 part 'slides/actions.dart';
+part 'slides/objects.dart';
 part 'slides/outline.dart';
 part 'slides/text_edit.dart';
 part 'slides/views.dart';
@@ -323,6 +328,10 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
             : selected
                 ? _shapeBar()
                 : DocActionBar([
+                    DocAction(AppIcons.add, context.t('sl.insert'),
+                        editor == null ? null : _openInsert),
+                    DocAction(AppIcons.palette, context.t('sl.design'),
+                        editor == null ? null : _openDesign),
                     DocAction(AppIcons.play, context.t('sl.play'),
                         editor == null ? null : () => _play(0)),
                     DocAction(AppIcons.summarize, context.t('ai.summarize'),

@@ -92,12 +92,12 @@
 | 21 | **Word: canlı düzenlemenin acil onarımı + motor denemesi** (K18) — `DUZENLEME_PLANI.md` | 20 | ✅ 2026-10-23 (K18 = b-ii) |
 | 22 | **Word Mobil görünüm editörü I** (model, yazma, seçim) — `DUZENLEME_PLANI.md` | 21 | ✅ 2026-10-23 |
 | 23 | **Word II** (biçim, şerit, Aa paneli, stiller) — `DUZENLEME_PLANI.md` | 22 | ✅ 2026-10-24 |
-| 24 | **Word III** (Ekle, tablo, resim, Düzen, üst/alt bilgi, Gözden Geçir) — `DUZENLEME_PLANI.md` | 23 | ⬜ |
+| 24 | **Word III** (Ekle, tablo, resim, Düzen, üst/alt bilgi, Gözden Geçir) — `DUZENLEME_PLANI.md` | 23 | 🟡 24b-kısmi 2026-10-28 |
 | 25 | **Excel I** (veri girişi, sayı/formül tuş takımı, işaret kipi, tutamaklar, doğruluk) — `DUZENLEME_PLANI.md` | 20 | ✅ 2026-10-23 |
 | 26 | **Excel II** (bağımlılık grafiği, ızgara çizimi, büyük sayfa) — `DUZENLEME_PLANI.md` | 25 | ✅ 2026-10-23 |
 | 27 | **Excel III** (Hücreleri biçimlendir, Veri, Görünüm, form görünümü, CSV) — `DUZENLEME_PLANI.md` | 26 | ⬜ |
 | 28 | **Slayt I** (yerinde metin, kutuya yakınlaş, anahat, notlar) — `DUZENLEME_PLANI.md` | 20 | ✅ 2026-10-23 |
-| 29 | **Slayt II** (taşı/boyutlandır, şekil/tablo, düzenden yeni slayt, şerit) — `DUZENLEME_PLANI.md` | 28 | ⬜ |
+| 29 | **Slayt II** (taşı/boyutlandır, şekil/tablo, düzenden yeni slayt, şerit) — `DUZENLEME_PLANI.md` | 28 | 🟡 29a 2026-10-28 |
 | 30 | **Metin / kod / Markdown düzenleyici** — `DUZENLEME_PLANI.md` | 20 | ⬜ |
 | 31 | **PDF düzenleme deneyimi** (yerinde metin, nesne katmanı, ortak kabuk) — `DUZENLEME_PLANI.md` | 20 | ⬜ |
 | 32 | **Görsel düzenleyici 2.0** — `DUZENLEME_PLANI.md` | 20 | ⬜ |

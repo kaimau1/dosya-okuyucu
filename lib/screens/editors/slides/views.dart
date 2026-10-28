@@ -212,6 +212,8 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
                         selectedShape:
                             identical(_selSlide, slide) ? _selShape : null,
                         promptFor: _promptFor,
+                        onFrameChanged: (shape, r, rot) =>
+                            _commitFrame(slide, shape, r, rot),
                       ),
                     ),
             ),

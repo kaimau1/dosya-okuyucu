@@ -7,6 +7,8 @@ import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/screens/editors/slides_editor_screen.dart';
 import 'package:dosya_okuyucu/services/pptx_writer.dart';
 import 'package:dosya_okuyucu/widgets/slide_box_editor.dart';
+import 'package:dosya_okuyucu/widgets/slide_canvas.dart';
+import 'package:dosya_okuyucu/widgets/slide_frame_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -100,6 +102,7 @@ void main() {
     await tapText(tester, text); // düzenle
     await tester.pump(const Duration(milliseconds: 400)); // yakınlaşma
     await tester.pump();
+    // ignore: avoid_print
     expect(find.byKey(const ValueKey('slide-focus-editor')), findsOneWidget);
     expect(find.byType(SlideBoxEditor), findsOneWidget);
   }
@@ -228,5 +231,34 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('notes-save')));
     await settle(tester);
     expect(find.text('Burada süreyi söyle'), findsOneWidget); // not şeridi
+  });
+
+  testWidgets('Faz 29: seçili kutu sürüklenince taşınır (geri alınır); Ekle → '
+      'metin kutusu', (tester) async {
+    await pump(tester);
+    await tapText(tester, 'Birinci madde'); // seç
+    final view = tester.widget<SlideCanvas>(find.byType(SlideCanvas).first);
+    expect(view.onFrameChanged, isNotNull);
+    final before = view.selectedShape!.x;
+    final body = find.byType(SlideFrameEditor).first;
+    expect(body, findsOneWidget);
+    await tester.drag(body, const Offset(60, 0), warnIfMissed: false);
+    await settle(tester);
+    final after = tester
+        .widget<SlideCanvas>(find.byType(SlideCanvas).first)
+        .selectedShape!
+        .x;
+    expect(after, greaterThan(before));
+    await tester.tap(find.byKey(const ValueKey('sl-undo')));
+    await settle(tester);
+    // Ekle levhası
+    await tester.tapAt(const Offset(5, 400)); // seçimi kaldır
+    await settle(tester);
+    await tester.tap(find.text('Ekle'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Metin kutusu'));
+    await tester.pumpAndSettle();
+    await settle(tester);
+    expect(find.byType(SlideFrameEditor), findsOneWidget);
   });
 }

@@ -24,6 +24,8 @@ const _contentFiles = [
   'lib/widgets/markdown_text.dart',
   'lib/widgets/sheet_cell.dart',
   'lib/widgets/slide_canvas.dart',
+  // Faz 29: slayt çerçeve editörü belge koordinatında çalışır.
+  'lib/widgets/slide_frame_editor.dart',
   // Faz 28: slayt kutusu editörü belge hizasıyla çizer (dosyanın yönü).
   'lib/widgets/slide_box_editor.dart',
   'lib/widgets/slide_text_controller.dart',

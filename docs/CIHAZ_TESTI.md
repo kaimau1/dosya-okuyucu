@@ -691,3 +691,16 @@ Word'de bir belge aç → alttaki **Düzenle** (artık Mobil görünüm açılı
 - Biçim boyacısı: tek dokunuş bir kez uygular; çift dokunuş kilitler, üstteki şeritte ✕ ile biter.
 - Görünüm > Gezinti: başlığa dokununca o başlığa kaymalı (uzun belgede de).
 - Türkçe Word'de kaydedilmiş belgede (stil kimliği `Balk1`) Başlık 1 galeride belgenin kendi stiliyle görünmeli.
+
+## 2026-10-28 — Süzgeç şeridi, ana ekran kısayolu, Word tablo, Slayt nesneleri
+
+- [ ] **Süzgeç şeridi:** Belgeler / Görüntüler / İndirilenler / Son açılanlar / Gezgin / Arama →
+      üstte en fazla 3 kart (Tür · Kaynak ve zaman · Analiz ve diğer), kaydırma yok, yazılar
+      sığıyor mu; "Analiz ve diğer" → Sırala + tarih/boyut + etiket kutuları süzüyor mu.
+- [ ] **Ana ekrana ekle:** Görüntüler → ⋮ → "Ana ekrana ekle" → başlatıcı onayı → ana ekranda
+      kendi simgesiyle kısayol; dokununca Görüntüler açılıyor mu (uygulama kapalıyken de).
+- [ ] **Word tablo:** hücreye dokun → "Tablo" sekmesi; satır/sütun ekle-sil, başlık/bant/gölge;
+      kaydet → masaüstü Word'de aynı mı; izlenen değişiklik kabul/ret; üst/alt bilgi.
+- [ ] **Slayt:** şekle dokun (seç) → sürükle = taşı (liste kaymamalı), köşe = boyutlandır,
+      üstteki ok = döndür; Ekle → metin kutusu/şekil/yeni slayt (düzen); Tasarım → arka plan,
+      geçiş; kaydet → PowerPoint'te aynı konum.

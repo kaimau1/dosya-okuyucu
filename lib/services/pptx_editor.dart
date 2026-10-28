@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -9,6 +10,8 @@ import '../core/edit/save_coordinator.dart';
 
 import 'pptx_render.dart';
 import 'pptx_rich_text.dart';
+
+part 'pptx_objects.dart';
 
 /// Bir slayttaki düzenlenebilir paragraf (a:p) — orijinal XML düğümüne bağlı.
 class PptxParagraph {
