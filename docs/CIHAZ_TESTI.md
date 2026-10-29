@@ -724,3 +724,17 @@ Word'de bir belge aç → alttaki **Düzenle** (artık Mobil görünüm açılı
 - [ ] **Çizgi / saydamlık:** şekil seç → Çizgi (renk, kalınlık, kesik), Saydamlık %50 →
       PowerPoint'te aynı.
 
+
+## 2026-10-29 — Görsel düzenleyici 2.0 (Faz 32) + slayt spAutoFit
+
+- [ ] **Akıcılık:** 4000×3000 fotoğrafta Ayarla kaydırıcısı ve filtre şiddeti takılmadan
+      (vekil görüntü) — `FrameTiming` ölçümü §7 bütçesiyle.
+- [ ] **Yakınlaştır:** iki parmakla yakınlaş/kaydır (kırp ve işaretle sırasında da), çift
+      dokunuş sığdırır; çizerken ikinci parmak çizgiyi bırakmadan yakınlaştırır.
+- [ ] **Yazı nesnesi:** Yazı → dokun → yaz; sürükle, sağ alt tutamakla büyüt, üst tutamakla
+      döndür, tekrar dokun → düzenle; Tırnaklı/Arka plan; kaydedilen dosyada aynı.
+- [ ] **Bulanıklaştır / pikselleştir:** plakanın üstünden geç → kaydet → galeride yakınlaştır,
+      okunamıyor mu.
+- [ ] **Serbest açı + dikey çevir + filtre (Belge)** kayıtta önizlemeyle aynı mı.
+- [ ] **Slayt spAutoFit:** "Şekli metne göre boyutlandır" kutusuna uzun yazı → Bitti → kutu
+      büyüdü; PowerPoint'te aynı boy.

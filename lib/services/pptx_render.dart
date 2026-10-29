@@ -164,6 +164,11 @@ class ShapeVM {
   /// Canvas bunu görünce kendi ölçümüyle ek küçültme uygular (font farkını da kapatır).
   final bool autofit;
 
+  /// `a:spAutoFit`: PowerPoint bu kutuyu YAZIYA GÖRE BÜYÜTÜR ("Şekli metne
+  /// göre yeniden boyutlandır"). Düzenleyici bitirirken kutunun boyunu yazının
+  /// yüksekliğine çıkarır (Faz 28 kalanı) — yoksa yazı kutudan taşardı.
+  final bool growFit;
+
   /// `a:normAutofit@lnSpcReduction` (0-1): satır aralığı küçültmesi.
   final double lnSpcReduction;
 
@@ -213,6 +218,7 @@ class ShapeVM {
     this.inset = const EdgeInsets.fromLTRB(7.2, 3.6, 7.2, 3.6),
     this.fontScale = 1,
     this.autofit = false,
+    this.growFit = false,
     this.lnSpcReduction = 0,
     this.isPlaceholder = false,
     this.placeholderType,
@@ -924,6 +930,7 @@ class PptxRender {
       ),
       fontScale: _fontScale(bodyPr),
       autofit: bodyPr != null && _first(bodyPr, 'a:normAutofit') != null,
+      growFit: bodyPr != null && _first(bodyPr, 'a:spAutoFit') != null,
       lnSpcReduction: _lnSpcReduction(bodyPr),
       isPlaceholder: ph != null,
       placeholderType: ph == null ? null : (ph.type ?? 'body'),

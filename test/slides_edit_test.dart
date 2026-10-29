@@ -26,7 +26,7 @@ const _delegates = <LocalizationsDelegate<Object?>>[
 ];
 
 /// İki slayt; ikincisinin gövde yer tutucusunun metin gövdesi YOK (boş).
-Uint8List _deck() {
+Uint8List _deck({bool growTitle = false}) {
   final raw = PptxWriter.build(const [
     SlideDraft('Proje Özeti', ['Birinci madde', 'İkinci madde']),
     SlideDraft('Boş slayt', ['silinecek']),
@@ -34,7 +34,17 @@ Uint8List _deck() {
   final arc = ZipDecoder().decodeBytes(raw);
   final out = Archive();
   for (final f in arc.files) {
-    if (f.name == 'ppt/slides/slide2.xml') {
+    if (growTitle && f.name == 'ppt/slides/slide1.xml') {
+      // Başlık kutusu "Şekli metne göre yeniden boyutlandır" (spAutoFit).
+      final doc = XmlDocument.parse(utf8.decode(f.content as List<int>));
+      final sp = doc.findAllElements('p:sp').first;
+      final body = sp.findAllElements('a:bodyPr').first;
+      body.children
+        ..clear()
+        ..add(XmlElement(XmlName('a:spAutoFit')));
+      final data = utf8.encode(doc.toXmlString());
+      out.addFile(ArchiveFile(f.name, data.length, data));
+    } else if (f.name == 'ppt/slides/slide2.xml') {
       final doc = XmlDocument.parse(utf8.decode(f.content as List<int>));
       for (final sp in doc.findAllElements('p:sp').toList()) {
         if (sp.findAllElements('p:ph').first.getAttribute('type') == 'body') {
@@ -306,5 +316,32 @@ void main() {
     await tester.pumpAndSettle();
     await settle(tester);
     expect(find.byKey(const ValueKey('sorter-ppt/slides/slide2.xml')), findsNothing);
+  });
+
+  testWidgets('Faz 28 kalanı: spAutoFit kutusu yazıya göre büyür (geri alınır)',
+      (tester) async {
+    File(path).writeAsBytesSync(_deck(growTitle: true));
+    await pump(tester);
+    SlideCanvas canvas() =>
+        tester.widget<SlideCanvas>(find.byType(SlideCanvas).first);
+    await tapText(tester, 'Proje Özeti'); // seç
+    final shape = canvas().selectedShape!;
+    expect(shape.growFit, isTrue);
+    final h0 = shape.h;
+    await tapText(tester, 'Proje Özeti'); // düzenle
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump();
+    await tester.enterText(find.byType(EditableText).last,
+        List.filled(12, 'Uzun bir başlık satırı').join(' '));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('sl-done')));
+    await settle(tester);
+    final grown = canvas().slide.shapes.firstWhere((s) => s.growFit);
+    expect(grown.h, greaterThan(h0 * 1.5));
+    expect(grown.y, closeTo(shape.y, 0.5)); // üst kenar sabit
+    await tester.tap(find.byKey(const ValueKey('sl-undo')));
+    await settle(tester);
+    expect(canvas().slide.shapes.firstWhere((s) => s.growFit).h,
+        closeTo(h0, 0.5));
   });
 }

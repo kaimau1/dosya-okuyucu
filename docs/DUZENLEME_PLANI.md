@@ -79,11 +79,11 @@
 | 25 | **Excel I** — veri girişi: hücre içi düzenleme, sayı/formül tuş takımı, işaret kipi, seçim tutamakları + doğruluk hataları | 20 | ☁️ | ✅ 2026-10-23 |
 | 26 | **Excel II** — hesap motoru (bağımlılık grafiği) + büyük sayfa akıcılığı (ızgara çizimi) | 25 | ☁️ | ✅ 2026-10-23 (26a + 26b; **K23 = (a) + hücre başı tanıyıcı kaldırıldı**, 📱 `FrameTiming` ölçümü Faz 33'te — tutmazsa (b) tek boyacı) |
 | 27 | **Excel III** — Hücreleri biçimlendir, Veri, Görünüm, form görünümü, CSV düzenleme | 26 | ☁️ | ✅ 2026-10-29 (Hücreleri biçimlendir paneli, hücre stilleri + tablo olarak biçimlendir, Formüller/Gözden Geçir sekmeleri, özel sıralama, süzgeç oluştur/kaldır, veri doğrulama + Durdur, kılavuz çizgileri, zoomScale, sekme rengi/gizle/çoğalt, form görünümü, notlar (deneysel, K24), ızgarada grafik taşı/boyutlandır/tür/sil, CSV/TSV düzenleme; **kalan:** sayfa sekmesi sürükle-bırak, dosyadaki grafiklerin ızgarada çizimi, tablo parçası `tableN.xml`) |
-| 28 | **Slayt I** — yerinde metin düzenleme (kutuya yakınlaş), zengin metin, anahat, notlar | 20 | ☁️ | ✅ 2026-10-23 (28a + 28b; kalan: düzenleme sırasında girinti düzeyi ve paragraf başına hizalama yalnız Bitti'den sonra görünür) |
+| 28 | **Slayt I** — yerinde metin düzenleme (kutuya yakınlaş), zengin metin, anahat, notlar | 20 | ☁️ | ✅ 2026-10-23 (28a + 28b) · **kalan kapandı 2026-10-29:** `spAutoFit` kutusu yazıya göre büyür (Bitti'de boy yazıya çıkar, üst kenar sabit, geri alınır; düzenlerken küçültme yok); paragraf başına hiza/girinti düzenlerken → §10 (tek alan mimarisi) |
 | 29 | **Slayt II** — taşı/boyutlandır/döndür, şekil/metin kutusu/tablo ekle, düzenden yeni slayt, küçük resim şeridi | 28 | ☁️ | ✅ 2026-10-29 (29a + 29b: tablo ekle [satır×sütun seçici, `a:tbl` + Orta Stil 2 + açık hücre biçimi], küçük resim şeridi [altta / yatayda solda, sürükle-bırak → `sldIdLst`] + slayt sıralayıcı, hizalama kılavuzları [slayt + şekil kenar/merkez, titreşim, ok = 1 pt], geçişin sunumda oynaması, slaytı gizle [`show="0"`, sunumda atlanır], çizgi biçimi + saydamlık; **kalan:** Düzeni değiştir, grup içi şekli taşıma, tabloyu taşı/boyutlandır, ⇥ ile hücreler arası) |
 | 30 | **Metin / kod / Markdown düzenleyici** | 20 | ☁️ | ✅ 2026-10-28 (K25 = geliştirilmiş `TextField`; kalan: `re_editor` denemesi, > 1 MB'da isolate renklendirme, "satır aralığını düzenle", Tab ayarı, yan yana Markdown) |
 | 31 | **PDF düzenleme deneyimi** — yerinde metin, nesne katmanı, ortak kabuk, sayfa üstünde form | 20 | ☁️ | ⬜ |
-| 32 | **Görsel düzenleyici 2.0** — önizleme vekili, filtreler, taşınabilir metin, bulanıklaştır | 20 | ☁️ | ⬜ |
+| 32 | **Görsel düzenleyici 2.0** — önizleme vekili, filtreler, taşınabilir metin, bulanıklaştır | 20 | ☁️ | ✅ 2026-10-29 (vekil + ayrı canlı çizim katmanı, iki parmak yakınlaştırma/çift dokun sığdır, serbest açı −45…45 + ince ızgara, dikey çevir, 11 ayar [tek kaydırıcı + tek dokunuşla sıfır], 10 filtre + şiddet + canlı küçük resim, kalem/vurgulayıcı/silgi/ok/çizgi/dikdörtgen/elips, kalınlık + saydamlık, taşınır/boyutlanır/döner/düzenlenir yazı nesnesi [yazı tipi, arka plan kutusu], bulanıklaştır/pikselleştir fırçası, nesne seç/sil, yinele; PNG `docs/design/faz32/`; 📱 4000×3000 kare bütçesi Faz 33) |
 | 33 | **Kapanış** — tablet/donanım klavyesi, erişilebilirlik + RTL, Office uyumluluk turu, cihaz turu | 20–32 | ☁️ + 📱 | ⬜ |
 
 ### Yürütme sırası
@@ -1451,6 +1451,12 @@ Telefonda "rahat düzenleme" hedefinin dışında kalanlar — istenirse ayrı f
 - SmartArt ve denklem (OMML) **düzenleme** (görüntülenir, dokunulmaz ada olarak
   korunur).
 - Gerçek zamanlı ortak düzenleme, bulut senkronu.
+- **Slayt kutusunda paragraf başına hiza / girinti düzeyinin DÜZENLERKEN
+  görünmesi** (2026-10-29, Faz 28 kalanı): kutunun bütün paragrafları tek
+  `EditableText` — Flutter tek alanda tek hiza çizer. Çözüm paragraf başına alan
+  olurdu, ama paragraflar arası seçim (tümünü seç → kalın) kaybolur; o daha
+  büyük kayıp. Hiza/girinti modele anında yazılır, Bitti'de (ve PowerPoint'te)
+  doğru görünür; kutunun tamamı aynı hizadaysa düzenlerken de görünür.
 - İzlenen değişikliklerde tek tek kabul/reddet (Faz 24: tümü), izlenen değişiklik
   **kaydetme** kipi.
 - Slayt animasyonu yazma (sunumda oynatılıyor), ses/video ekleme.

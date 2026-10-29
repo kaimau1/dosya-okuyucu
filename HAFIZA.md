@@ -690,3 +690,25 @@
   `dashboard_layout_test`. **Cihazda doğrulanacak:** zoom hissi, okuma kipinin akıcılığı, Word
   WebView dolgusu, QR tarayıcı akışı. graphify bu oturumda kurulu değildi (rapor güncellenmedi).
 
+- **2026-10-29 — Faz 32 ✅ (görsel düzenleyici 2.0) + Faz 28 kalanı (spAutoFit):**
+  Kullanıcı: *"yarım kalan 1 faz + 1 tam faz bitir, main'e merge et, APK derlensin, token
+  tasarrufu."* **Faz 32:** `services/image_edit.dart` — `ImageEdits` + açı (kaplama çarpanı
+  `coverScale`, kutuya kırpılır), pozlama/sıcaklık/ton/vurgu/gölge/canlılık (tek 4×5 matris,
+  vurgu/gölge/canlılık **yaklaşık**), keskinlik (3×3 maske, isolate; önizlemede vekile, kayıtta
+  tam görsele), vinyet (kırpılmış bölgeye radyal), 10 filtre (`imageFilters`, şiddetle birim
+  matrise karışır). Dikey çevir = yatay + 180° (ayrı alan yok). İşaret türleri: vurgulayıcı
+  (multiply), çizgi, dikdörtgen, elips, bulanıklaştır/pikselleştir (görüntü fırça izi içinde
+  `saveLayer`+`srcIn` ile yeniden çizilir; mozaik kısa kenar 40 blok, `toImageSync`, yumuşatmasız
+  → özgün ayrıntı çıktıya girmez), yazı nesnesi (nokta = ORTA, dönüş, yazı tipi, arka plan).
+  **Ölçüler hep kutuya oranlı** → vekil (ekran × dpr, 1024–2560) ile tam çözünürlük aynı sonucu
+  verir (test: 400×300 ↔ 200×150 ortalama kanal farkı < 6). Ekran: tek `GestureDetector`
+  ölçek jesti (1 parmak = araç, 2 = görünüm; ikinci parmak gelince yarım çizim geri alınır),
+  çizim ayrı `_LivePainter` + `ValueNotifier` (IM2), sürükleme sonunda tek geçmiş adımı.
+  **Tuzaklar:** `ValueKey(Object)` ≠ `ValueKey<String>` (testte tür ayrı → bulunamaz); yatay
+  şeritte `ListView` tembel kurar → az öğede `Row`; `testWidgets` içinde `await File.writeAsBytes`
+  sonsuza asılır (sahte zaman) → `writeAsBytesSync`; diyalog denetleyicisini kapanırken atma
+  (`showAppPrompt` kullan). **Faz 28 kalanı:** `ShapeVM.growFit` (`a:spAutoFit`); editör bu
+  kutuda küçültmez, Bitti'de `SlideBoxEditor.fittedHeight` > boy ise `setShapeFrame` (üst kenar
+  sabit, aynı geri al adımında). Paragraf başına hiza/girinti düzenlerken → bilinçli kapsam dışı
+  (DUZENLEME_PLANI §10). Testler: `image_edit_test` (+6), `image_edit_screen_test` (yeni),
+  `slides_edit_test` (+1); PNG `tool/design_shots_faz32_test.dart` → `docs/design/faz32/`.

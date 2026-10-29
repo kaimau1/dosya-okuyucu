@@ -30,6 +30,21 @@ class SlideBoxEditor extends StatefulWidget {
 
   @override
   State<SlideBoxEditor> createState() => _SlideBoxEditorState();
+
+  /// `spAutoFit` kutusunun yazıya göre olması gereken boyu (punto; iç boşluk
+  /// dahil). Madde oluğu ve canlı punto ölçeği editördekiyle aynı.
+  static double fittedHeight(
+      BuildContext context, ShapeVM s, SlideTextController c) {
+    final bullets = c.model.paras.any((p) => p.effBullet != 'none');
+    final gutter = bullets ? c.baseStyle.fontSize! * 1.2 : 0.0;
+    final tp = TextPainter(
+      text: c.buildTextSpan(context: context, withComposing: false),
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: math.max(1, s.w - s.inset.horizontal - gutter));
+    final h = tp.height + s.inset.vertical;
+    tp.dispose();
+    return h;
+  }
 }
 
 class _SlideBoxEditorState extends State<SlideBoxEditor> {
@@ -64,7 +79,11 @@ class _SlideBoxEditorState extends State<SlideBoxEditor> {
   /// Taşan yazının sığması için ek küçültme (1 = gerekmez).
   double _liveFit(double availW, double availH) {
     final s = widget.shape;
-    if (!(s.autofit || s.isPlaceholder) || availW <= 0 || availH <= 0) {
+    // spAutoFit kutusu küçültmez, büyür ([SlideBoxEditor.fittedHeight]).
+    if (!(s.autofit || s.isPlaceholder) ||
+        s.growFit ||
+        availW <= 0 ||
+        availH <= 0) {
       return 1;
     }
     final c = widget.controller;

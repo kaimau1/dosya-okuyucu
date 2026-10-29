@@ -156,7 +156,15 @@ extension _SlidesEditorScreenTextEditPart on _SlidesEditorScreenState {
     }
     if (ctrl.model.touched) {
       final before = editor.snapshot();
+      // spAutoFit: kutu yazıya göre büyür (PowerPoint gibi; üst kenar sabit).
+      final grown = shape.growFit
+          ? SlideBoxEditor.fittedHeight(context, shape, ctrl)
+          : 0.0;
       if (editor.writeRichText(slide, shape, ctrl.model)) {
+        if (grown > shape.h + 0.5) {
+          editor.setShapeFrame(slide, shape,
+              x: shape.x, y: shape.y, w: shape.w, h: grown);
+        }
         final after = editor.snapshot();
         _history.record(CallbackEdit('sl.undo_text',
             () => editor.restore(after), () => editor.restore(before)));

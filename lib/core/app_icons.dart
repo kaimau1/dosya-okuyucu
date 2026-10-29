@@ -476,4 +476,15 @@ abstract final class AppIcons {
   static const IconData sorter = Icons.grid_view_rounded;
   /// Saydamlık.
   static const IconData opacity = Icons.opacity_rounded;
+  // ── görsel düzenleyici (Faz 32) ──
+  static const IconData highlighter = Icons.border_color_rounded;
+  static const IconData eraser = Icons.auto_fix_normal_rounded;
+  static const IconData lineTool = Icons.horizontal_rule_rounded;
+  static const IconData rectTool = Icons.crop_square_rounded;
+  static const IconData ellipseTool = Icons.panorama_fish_eye_rounded;
+  static const IconData pixelate = Icons.grid_on_rounded;
+  static const IconData pointer = Icons.pan_tool_alt_rounded;
+  static const IconData flipV = Icons.swap_vert_rounded;
+  static const IconData photoFilter = Icons.photo_filter_rounded;
+  static const IconData lineWeight = Icons.line_weight_rounded;
 }

@@ -16,15 +16,21 @@ import '../models/media_resize.dart' show aspectChoices, longEdgeChoices;
 import '../services/image_edit.dart';
 import '../widgets/app_dialog.dart';
 
-/// **Temel görsel düzenleyici** (Faz 10, N7). Kırp (oran ön ayarlı) ·
-/// döndür/çevir · parlaklık/kontrast/doygunluk · işaretle (kalem/ok/yazı) ·
-/// boyut (Faz 14b: kırp → boyut → kaydet tek akış).
+/// **Görsel düzenleyici** (Faz 10, N7; Faz 32 "2.0"). Kırp (oran ön ayarlı,
+/// serbest açı, dikey/yatay çevir) · 11 ayar · 10 filtre · işaretle (kalem,
+/// vurgulayıcı, silgi, şekiller, taşınabilir yazı, bulanıklaştır/
+/// pikselleştir) · boyut (Faz 14b: kırp → boyut → kaydet tek akış).
+/// Kanvas iki parmakla yakınlaşır (düzenlerken de), çift dokunuş sığdırır.
 /// Kaydetme varsayılanı KOPYA; özgüne dokunmak ayrı ve açık bir seçim.
 /// Çizim ve kayıt `services/image_edit.dart`taki tek yoldan geçer.
 class ImageEditScreen extends StatefulWidget {
   const ImageEditScreen({super.key, required this.path});
 
   final String path;
+
+  /// Testler için son çizilen düzenleme (yalnız hata ayıklama kipinde).
+  @visibleForTesting
+  static ImageEdits? debugEdits;
 
   /// Kaydedilen dosyanın yolunu döndürür (iptalde null).
   static Future<String?> open(BuildContext context, String path) =>
@@ -36,7 +42,24 @@ class ImageEditScreen extends StatefulWidget {
   State<ImageEditScreen> createState() => _ImageEditScreenState();
 }
 
-enum _Tab { crop, adjust, markup, size }
+enum _Tab { crop, adjust, filter, markup, size }
+
+/// İşaretleme aracı; [MarkKind] dışındakiler: seç ve silgi.
+enum _Tool {
+  select,
+  pen,
+  highlighter,
+  eraser,
+  arrow,
+  line,
+  rect,
+  ellipse,
+  text,
+  blur,
+  pixelate,
+}
+
+enum _SelDrag { none, move, scale, rotate }
 
 enum _Drag { none, move, tl, tr, br, bl }
 
@@ -54,11 +77,43 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
   bool _showOriginal = false;
   final _widthCtl = TextEditingController();
   final _heightCtl = TextEditingController();
-  MarkKind _tool = MarkKind.pen;
+  _Tool _tool = _Tool.pen;
   Color _color = const Color(0xFFE53935);
-  ImageMark? _drawing;
+  double _stroke = 0.012; // kısa kenara oranlı kalınlık
+  double _opacity = 1;
   _Drag _drag = _Drag.none;
   bool _saving = false;
+
+  /// Faz 32 (IM2): çizilen işaret setState'siz büyür; yalnız canlı katman
+  /// [_liveTick] ile yeniden boyanır.
+  ImageMark? _live;
+  final _liveTick = ValueNotifier<int>(0);
+
+  /// Seçili işaret (taşı / boyutlandır / döndür / düzenle / sil).
+  int? _sel;
+  _SelDrag _selDrag = _SelDrag.none;
+  ImageMark? _selOrig;
+  Offset _selStart = Offset.zero;
+
+  /// Sürükleme başındaki hâl — bitince değiştiyse TEK geçmiş adımı.
+  ImageEdits? _before;
+
+  /// Ayarla sekmesinde seçili ayar.
+  String _adjustKey = 'brightness';
+  bool _straightening = false;
+
+  // Faz 32 (IM1): ekran boyunda vekil; keskinlik önizlemesi vekilden.
+  ui.Image? _proxy, _thumb, _sharp;
+  double _sharpFor = 0;
+  bool _sharpBusy = false;
+
+  // Kanvas görünümü (iki parmakla yakınlaştır/kaydır).
+  double _vs = 1;
+  Offset _vo = Offset.zero;
+  bool _viewGesture = false;
+  double _vsStart = 1;
+  Offset _voStart = Offset.zero, _focalStart = Offset.zero;
+  Size _avail = Size.zero;
 
   // Son yerleşim (jest → normalleştirilmiş koordinat çevirisi için).
   Rect _box = Rect.zero;
@@ -70,6 +125,19 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
     ('ied.original', null),
     for (final (label, w, h) in aspectChoices) (label, w / h),
     ('ied.custom_ratio', null),
+  ];
+  static const _adjustKeys = [
+    'brightness',
+    'contrast',
+    'saturation',
+    'exposure',
+    'temperature',
+    'tint',
+    'highlights',
+    'shadows',
+    'vibrance',
+    'sharpness',
+    'vignette',
   ];
   static const _colors = [
     Color(0xFFE53935),
@@ -84,19 +152,57 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
   void initState() {
     super.initState();
     loadEditableImage(widget.path).then((im) {
-      if (mounted) {
-        setState(() => _src = im);
-      } else {
-        im.dispose();
-      }
+      if (!mounted) return im.dispose();
+      setState(() => _src = im);
+      _makeProxies(im);
     }, onError: (Object e) {
       if (mounted) setState(() => _error = e);
     });
   }
 
+  Future<void> _makeProxies(ui.Image im) async {
+    final view = MediaQuery.sizeOf(context) * MediaQuery.devicePixelRatioOf(context);
+    final side = math.max(view.longestSide, 1024).clamp(1024, 2560).round();
+    final proxy = await previewProxy(im, maxSide: side);
+    final thumb = await previewProxy(proxy ?? im, maxSide: 160);
+    if (!mounted) {
+      proxy?.dispose();
+      thumb?.dispose();
+      return;
+    }
+    setState(() {
+      _proxy = proxy;
+      _thumb = thumb;
+    });
+  }
+
+  /// Önizlemede çizilen görsel: (keskinleştirilmiş) vekil ya da özgün.
+  ui.Image get _view =>
+      (_e.sharpness > 0 && !_showOriginal ? _sharp : null) ?? _proxy ?? _src!;
+
+  /// Keskinlik değiştiyse vekilin keskin kopyası arka planda yenilenir.
+  void _ensureSharp() {
+    final want = _e.sharpness;
+    if (want == 0 || want == _sharpFor || _sharpBusy) return;
+    _sharpBusy = true;
+    sharpened(_proxy ?? _src!, want).then((im) {
+      _sharpBusy = false;
+      if (!mounted) return im.dispose();
+      setState(() {
+        _sharp?.dispose();
+        _sharp = im;
+        _sharpFor = want;
+      });
+    }, onError: (_) => _sharpBusy = false);
+  }
+
   @override
   void dispose() {
     _src?.dispose();
+    _proxy?.dispose();
+    _thumb?.dispose();
+    _sharp?.dispose();
+    _liveTick.dispose();
     _widthCtl.dispose();
     _heightCtl.dispose();
     super.dispose();
@@ -131,7 +237,15 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
       full.width * s,
       full.height * s,
     );
-    return (box, visible);
+    if (_vs == 1 && _vo == Offset.zero) return (box, visible);
+    final c = avail.center(Offset.zero);
+    Rect view(Rect r) => Rect.fromLTRB(
+          c.dx + (r.left - c.dx) * _vs + _vo.dx,
+          c.dy + (r.top - c.dy) * _vs + _vo.dy,
+          c.dx + (r.right - c.dx) * _vs + _vo.dx,
+          c.dy + (r.bottom - c.dy) * _vs + _vo.dy,
+        );
+    return (view(box), view(visible).intersect(Offset.zero & avail));
   }
 
   Offset _norm(Offset local) => Offset(
@@ -382,63 +496,310 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
 
   // ── işaretleme ────────────────────────────────────────────────────────────
 
-  void _markStart(Offset local) {
-    if (_tool == MarkKind.text) return;
-    final n = _norm(local);
-    _drawing = ImageMark(
-      kind: _tool,
-      points: _tool == MarkKind.arrow ? [n, n] : [n],
-      color: _color,
+  MarkKind? get _kind => switch (_tool) {
+        _Tool.select || _Tool.eraser => null,
+        _Tool.pen => MarkKind.pen,
+        _Tool.highlighter => MarkKind.highlighter,
+        _Tool.arrow => MarkKind.arrow,
+        _Tool.line => MarkKind.line,
+        _Tool.rect => MarkKind.rect,
+        _Tool.ellipse => MarkKind.ellipse,
+        _Tool.text => MarkKind.text,
+        _Tool.blur => MarkKind.blur,
+        _Tool.pixelate => MarkKind.pixelate,
+      };
+
+  /// Araca göre kalınlık: fırçalar ve vurgulayıcı kalemden kalın.
+  double _sizeFor(MarkKind k) => switch (k) {
+        MarkKind.blur || MarkKind.pixelate => _stroke * 5,
+        MarkKind.highlighter => _stroke * 2.5,
+        _ => _stroke,
+      };
+
+  ImageMark? get _selected =>
+      _sel != null && _sel! < _e.marks.length ? _e.marks[_sel!] : null;
+
+  /// Seçili işaretin tutamakları (ekran): boyut (sağ alt), döndür (üst, yazı).
+  (Offset, Offset?) _handles(ImageMark m) {
+    final r = markBounds(m, _box);
+    Offset rot(Offset o) {
+      if (m.kind != MarkKind.text || m.rotation == 0) return o;
+      final d = o - r.center;
+      final c = math.cos(m.rotation), s = math.sin(m.rotation);
+      return r.center + Offset(d.dx * c - d.dy * s, d.dx * s + d.dy * c);
+    }
+
+    return (
+      rot(r.bottomRight),
+      m.kind == MarkKind.text ? rot(r.topCenter - const Offset(0, 28)) : null,
     );
-    setState(() {});
+  }
+
+  void _replaceSelected(ImageMark m) {
+    final marks = [..._e.marks];
+    marks[_sel!] = m;
+    setState(() => _e = _e.copyWith(marks: marks));
+  }
+
+  /// Sürükleme bittiğinde: değiştiyse başlangıç hâli tek geri al adımı.
+  void _commitDrag() {
+    final before = _before;
+    _before = null;
+    if (before != null && !identical(before, _e)) {
+      _history.push(before);
+      setState(() {});
+    }
+  }
+
+  void _markStart(Offset local) {
+    final sel = _selected;
+    if (sel != null) {
+      final (scale, rotate) = _handles(sel);
+      // Küçük yazıda tutamak ortaya yakın: ortaya daha yakınsa taşı.
+      final center = markBounds(sel, _box).center;
+      final ds = (local - scale).distance;
+      _selDrag = ds < 28 && ds < (local - center).distance
+          ? _SelDrag.scale
+          : rotate != null && (local - rotate).distance < 28
+              ? _SelDrag.rotate
+              : hitMark([sel], _box, local) != null
+                  ? _SelDrag.move
+                  : _SelDrag.none;
+      if (_selDrag != _SelDrag.none) {
+        _before = _e;
+        _selOrig = sel;
+        _selStart = local;
+        return;
+      }
+    }
+    if (_tool == _Tool.select || _tool == _Tool.text) {
+      final hit = hitMark(_e.marks, _box, local);
+      setState(() => _sel = hit);
+      if (hit != null) {
+        _before = _e;
+        _selDrag = _SelDrag.move;
+        _selOrig = _e.marks[hit];
+        _selStart = local;
+      }
+      return;
+    }
+    setState(() => _sel = null);
+    if (_tool == _Tool.eraser) {
+      _before = _e;
+      _erase(local);
+      return;
+    }
+    final kind = _kind!;
+    final n = _norm(local);
+    _live = ImageMark(
+      kind: kind,
+      points: kind == MarkKind.arrow ||
+              kind == MarkKind.line ||
+              kind == MarkKind.rect ||
+              kind == MarkKind.ellipse
+          ? [n, n]
+          : [n],
+      color: _color,
+      size: _sizeFor(kind),
+      opacity: kind == MarkKind.highlighter ? _opacity * 0.45 : _opacity,
+    );
+    _liveTick.value++;
   }
 
   void _markUpdate(Offset local) {
-    final d = _drawing;
+    if (_selDrag != _SelDrag.none) return _selUpdate(local);
+    if (_tool == _Tool.eraser) return _erase(local);
+    final d = _live;
     if (d == null) return;
-    setState(() => _drawing = d.withPoint(_norm(local)));
+    // Nokta listesi yerinde büyür (IM2: kopya yok, setState yok).
+    if (d.isShape) {
+      d.points[1] = _norm(local);
+    } else {
+      d.points.add(_norm(local));
+    }
+    _liveTick.value++;
   }
 
   void _markEnd() {
-    final d = _drawing;
-    _drawing = null;
-    if (d != null) _push(_e.copyWith(marks: [..._e.marks, d]));
+    if (_selDrag != _SelDrag.none || _tool == _Tool.eraser) {
+      _selDrag = _SelDrag.none;
+      return _commitDrag();
+    }
+    final d = _live;
+    _live = null;
+    _liveTick.value++;
+    if (d != null) {
+      _push(_e.copyWith(
+          marks: [..._e.marks, d.copyWith(points: List.of(d.points))]));
+    }
+  }
+
+  /// İki parmak dokununca yarım kalan çizim/sürükleme geri alınır.
+  void _cancelTool() {
+    if (_live != null) {
+      _live = null;
+      _liveTick.value++;
+    }
+    if (_before != null) setState(() => _e = _before!);
+    _before = null;
+    _selDrag = _SelDrag.none;
+    _drag = _Drag.none;
+  }
+
+  void _selUpdate(Offset local) {
+    final o = _selOrig!;
+    final r = markBounds(o, _box);
+    switch (_selDrag) {
+      case _SelDrag.move:
+        final d = local - _selStart;
+        _replaceSelected(
+            o.shifted(Offset(d.dx / _box.width, d.dy / _box.height)));
+      case _SelDrag.scale:
+        final k = ((local - r.center).distance /
+                math.max(1, (_selStart - r.center).distance))
+            .clamp(0.2, 8.0);
+        if (o.kind == MarkKind.text) {
+          _replaceSelected(o.copyWith(size: (o.size * k).clamp(0.004, 0.4)));
+        } else {
+          final c = _norm(r.center);
+          _replaceSelected(o.copyWith(
+              points: [for (final p in o.points) c + (p - c) * k]));
+        }
+      case _SelDrag.rotate:
+        final d = local - r.center;
+        var a = math.atan2(d.dy, d.dx) + math.pi / 2;
+        // 0/90/180/270'e yakınsa yapışır.
+        final snap = (a / (math.pi / 2)).roundToDouble() * (math.pi / 2);
+        if ((a - snap).abs() < 0.06) a = snap;
+        _replaceSelected(o.copyWith(rotation: a));
+      case _SelDrag.none:
+    }
+  }
+
+  void _erase(Offset local) {
+    final hit = hitMark(_e.marks, _box, local, slop: 6);
+    if (hit == null) return;
+    setState(() => _e = _e.copyWith(marks: [..._e.marks]..removeAt(hit)));
+  }
+
+  void _markTap(Offset local) {
+    final hit = hitMark(_e.marks, _box, local);
+    if (_tool == _Tool.text) {
+      if (hit != null && _e.marks[hit].kind == MarkKind.text) {
+        if (_sel == hit) {
+          _editText();
+        } else {
+          setState(() => _sel = hit);
+        }
+        return;
+      }
+      _addText(local);
+      return;
+    }
+    if (_tool == _Tool.select || hit != null && _sel != null) {
+      setState(() => _sel = hit);
+    } else if (_sel != null) {
+      setState(() => _sel = null);
+    }
+  }
+
+  Future<String?> _askText(String initial) async {
+    final text = await showAppPrompt(context,
+        label: context.t('ied.text_hint'),
+        initial: initial,
+        confirmLabel: context.t(initial.isEmpty ? 'common.add' : 'common.ok'));
+    if (text == null || text.trim().isEmpty || !mounted) return null;
+    return text.trim();
   }
 
   Future<void> _addText(Offset local) async {
-    final controller = TextEditingController();
-    final text = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(hintText: ctx.t('ied.text_hint')),
-          onSubmitted: (v) => Navigator.pop(ctx, v),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(ctx.t('common.cancel')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
-            child: Text(ctx.t('common.add')),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
-    if (text == null || text.trim().isEmpty || !mounted) return;
+    final text = await _askText('');
+    if (text == null) return;
     _push(_e.copyWith(marks: [
       ..._e.marks,
       ImageMark(
         kind: MarkKind.text,
         points: [_norm(local)],
         color: _color,
-        text: text.trim(),
+        size: _stroke,
+        opacity: _opacity,
+        text: text,
       ),
     ]));
+    setState(() => _sel = _e.marks.length - 1);
+  }
+
+  Future<void> _editText() async {
+    final m = _selected;
+    if (m == null || m.kind != MarkKind.text) return;
+    final text = await _askText(m.text);
+    if (text == null || _selected != m) return;
+    _updateSelected(m.copyWith(text: text));
+  }
+
+  /// Seçili işarete tek adımlık değişiklik (renk, kalınlık, yazı tipi…).
+  void _updateSelected(ImageMark m) {
+    _history.push(_e);
+    _replaceSelected(m);
+  }
+
+  void _deleteSelected() {
+    if (_selected == null) return;
+    _push(_e.copyWith(marks: [..._e.marks]..removeAt(_sel!)));
+    setState(() => _sel = null);
+  }
+
+  // ── kanvas jestleri ────────────────────────────────────────────────────────
+
+  void _gestureStart(ScaleStartDetails d) {
+    _viewGesture = d.pointerCount > 1;
+    if (_viewGesture) return _viewStart(d.localFocalPoint);
+    if (_tab == _Tab.crop && !_showOriginal) {
+      _cropStart(d.localFocalPoint);
+    } else if (_tab == _Tab.markup) {
+      _markStart(d.localFocalPoint);
+    }
+  }
+
+  void _gestureUpdate(ScaleUpdateDetails d) {
+    if (d.pointerCount > 1 && !_viewGesture) {
+      _cancelTool();
+      _viewGesture = true;
+      _viewStart(d.localFocalPoint);
+    }
+    if (_viewGesture) {
+      final c = _avail.center(Offset.zero);
+      final vs = (_vsStart * d.scale).clamp(1.0, 8.0);
+      setState(() {
+        _vs = vs;
+        _vo = d.localFocalPoint - c - (_focalStart - c - _voStart) * (vs / _vsStart);
+      });
+      return;
+    }
+    if (_tab == _Tab.crop && !_showOriginal) {
+      _cropUpdate(d.localFocalPoint, d.focalPointDelta);
+    } else if (_tab == _Tab.markup) {
+      _markUpdate(d.localFocalPoint);
+    }
+  }
+
+  void _gestureEnd(ScaleEndDetails d) {
+    if (_viewGesture) {
+      _viewGesture = d.pointerCount > 0;
+      if (_vs <= 1.01) setState(() => _vo = Offset.zero);
+      return;
+    }
+    if (_tab == _Tab.crop) {
+      setState(() => _drag = _Drag.none);
+    } else if (_tab == _Tab.markup) {
+      _markEnd();
+    }
+  }
+
+  void _viewStart(Offset focal) {
+    _vsStart = _vs;
+    _voStart = _vo;
+    _focalStart = focal;
   }
 
   // ── kaydetme ──────────────────────────────────────────────────────────────
@@ -516,6 +877,10 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    assert(() {
+      ImageEditScreen.debugEdits = _e;
+      return true;
+    }());
     return PopScope(
       canPop: _e.isIdentity || _saving,
       onPopInvokedWithResult: (didPop, _) async {
@@ -552,14 +917,20 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
               tooltip: context.t('common.undo'),
               icon: const Icon(AppIcons.undo),
               onPressed: _history.canUndo
-                  ? () => setState(() => _e = _history.undo(_e)!)
+                  ? () => setState(() {
+                        _e = _history.undo(_e)!;
+                        _sel = null;
+                      })
                   : null,
             ),
             IconButton(
               tooltip: context.t('common.redo'),
               icon: const Icon(AppIcons.redo),
               onPressed: _history.canRedo
-                  ? () => setState(() => _e = _history.redo(_e)!)
+                  ? () => setState(() {
+                        _e = _history.redo(_e)!;
+                        _sel = null;
+                      })
                   : null,
             ),
             Padding(
@@ -583,7 +954,10 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
             NavigationBar(
               selectedIndex: _tab.index,
               onDestinationSelected: (i) {
-                setState(() => _tab = _Tab.values[i]);
+                setState(() {
+                  _tab = _Tab.values[i];
+                  _sel = null;
+                });
                 if (_tab == _Tab.size) _syncSizeFields();
               },
               destinations: [
@@ -591,6 +965,9 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
                     icon: const Icon(AppIcons.crop), label: context.t('ied.crop')),
                 NavigationDestination(
                     icon: const Icon(AppIcons.tune), label: context.t('ied.adjust')),
+                NavigationDestination(
+                    icon: const Icon(AppIcons.photoFilter),
+                    label: context.t('ied.filters')),
                 NavigationDestination(
                     icon: const Icon(AppIcons.draw),
                     label: context.t('ied.markup')),
@@ -614,56 +991,71 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
       );
     }
     if (src == null) return const Center(child: CircularProgressIndicator());
+    _ensureSharp();
     return LayoutBuilder(builder: (context, c) {
+      _avail = c.biggest;
       final (box, visible) = _layout(c.biggest);
       _box = box;
-      final edits = _showOriginal
-          ? const ImageEdits()
-          : _drawing == null
-              ? _e
-              : _e.copyWith(marks: [..._e.marks, _drawing!]);
+      final edits = _showOriginal ? const ImageEdits() : _e;
       final crop = _tab == _Tab.crop && !_showOriginal;
       final markup = _tab == _Tab.markup;
+      final view = _showOriginal ? (_proxy ?? src) : _view;
+      final sel = markup ? _selected : null;
       return GestureDetector(
+        key: const ValueKey('ied-canvas'),
         behavior: HitTestBehavior.opaque,
-        onPanStart: crop
-            ? (d) => _cropStart(d.localPosition)
-            : markup
-                ? (d) => _markStart(d.localPosition)
-                : null,
-        onPanUpdate: crop
-            ? (d) => _cropUpdate(d.localPosition, d.delta)
-            : markup
-                ? (d) => _markUpdate(d.localPosition)
-                : null,
-        onPanEnd: crop
-            ? (_) => setState(() => _drag = _Drag.none)
-            : markup
-                ? (_) => _markEnd()
-                : null,
-        onTapUp: markup && _tool == MarkKind.text
-            ? (d) => _addText(d.localPosition)
+        onScaleStart: _gestureStart,
+        onScaleUpdate: _gestureUpdate,
+        onScaleEnd: _gestureEnd,
+        onTapUp: markup ? (d) => _markTap(d.localPosition) : null,
+        onDoubleTap: _vs != 1 || _vo != Offset.zero
+            ? () => setState(() {
+                  _vs = 1;
+                  _vo = Offset.zero;
+                })
             : null,
-        child: RepaintBoundary(
-          child: CustomPaint(
-            size: c.biggest,
-            painter: _EditPainter(
-              src: src,
-              edits: edits,
-              box: box,
-              clip: visible,
-              cropRect: crop ? _cropOnScreen() : null,
-              cropLabel: crop ? _cropLabel() : null,
-              labelStyle: Theme.of(context).textTheme.labelMedium,
+        child: Stack(children: [
+          RepaintBoundary(
+            child: CustomPaint(
+              size: c.biggest,
+              painter: _EditPainter(
+                src: view,
+                edits: edits,
+                box: box,
+                clip: visible,
+                cropRect: crop ? _cropOnScreen() : null,
+                cropLabel: crop ? _cropLabel() : null,
+                fineGrid: crop && _straightening,
+                selection: sel == null ? null : markBounds(sel, box),
+                selectionRotation:
+                    sel?.kind == MarkKind.text ? sel!.rotation : 0,
+                handles: sel == null ? null : _handles(sel),
+                labelStyle: Theme.of(context).textTheme.labelMedium,
+              ),
             ),
           ),
-        ),
+          // Çizilmekte olan işaret ayrı katmanda: her noktada yalnız bu boyanır.
+          RepaintBoundary(
+            child: CustomPaint(
+              size: c.biggest,
+              painter: _LivePainter(
+                tick: _liveTick,
+                mark: () => _live,
+                src: view,
+                edits: edits,
+                box: box,
+                clip: visible,
+              ),
+            ),
+          ),
+        ]),
       );
     });
   }
 
   Widget _panel(ColorScheme scheme) {
     final chipTheme = ChipTheme.of(context);
+    final hint = chipTheme.labelStyle?.copyWith(color: AppColors.onMediaSoft);
     return Material(
       color: AppColors.mediaSurface,
       child: Padding(
@@ -686,81 +1078,366 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
                     ),
                 ]),
               ),
-              Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-                _toolButton(AppIcons.rotateRight, 'ied.rotate',
-                    () => _push(_e.rotated())),
-                _toolButton(AppIcons.selectInvert, 'ied.flip', () => _push(_e.flipped())),
-                _toolButton(AppIcons.reset, 'ied.reset', () {
-                  setState(() {
-                    _ratio = null;
-                    _ratioKey = 'ied.free';
-                  });
-                  _push(const ImageEdits());
-                }),
+              // Serbest açı (−45…45): sürüklerken ince ızgara.
+              Row(children: [
+                IconButton(
+                  tooltip: context.t('ied.reset_one'),
+                  color: AppColors.onMediaSoft,
+                  icon: const Icon(AppIcons.straighten),
+                  onPressed: _e.angle == 0
+                      ? null
+                      : () => _push(_e.copyWith(angle: 0)),
+                ),
+                Expanded(
+                  child: Slider(
+                    key: const ValueKey('ied-angle'),
+                    value: _e.angle,
+                    min: -45,
+                    max: 45,
+                    onChangeStart: (_) {
+                      _history.push(_e);
+                      setState(() => _straightening = true);
+                    },
+                    onChangeEnd: (_) => setState(() => _straightening = false),
+                    onChanged: (v) => setState(() =>
+                        _e = _e.copyWith(angle: (v * 2).roundToDouble() / 2)),
+                  ),
+                ),
+                SizedBox(
+                  width: 56,
+                  child: Text('${_e.angle.toStringAsFixed(1)}°',
+                      textAlign: TextAlign.end,
+                      style: const TextStyle(color: AppColors.onMediaSoft)),
+                ),
               ]),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(children: [
+                  _toolButton(AppIcons.rotateRight, 'ied.rotate',
+                      () => _push(_e.rotated())),
+                  _toolButton(AppIcons.selectInvert, 'ied.flip',
+                      () => _push(_e.flipped())),
+                  _toolButton(
+                      AppIcons.flipV, 'ied.flip_v', () => _push(_e.flippedV())),
+                  _toolButton(AppIcons.reset, 'ied.reset', () {
+                    setState(() {
+                      _ratio = null;
+                      _ratioKey = 'ied.free';
+                    });
+                    _push(const ImageEdits());
+                  }),
+                ]),
+              ),
             ]),
-          _Tab.adjust => Column(mainAxisSize: MainAxisSize.min, children: [
-              _slider('ied.brightness', _e.brightness,
-                  (v) => _e.copyWith(brightness: v)),
-              _slider('ied.contrast', _e.contrast,
-                  (v) => _e.copyWith(contrast: v)),
-              _slider('ied.saturation', _e.saturation,
-                  (v) => _e.copyWith(saturation: v)),
-            ]),
+          _Tab.adjust => _adjustPanel(),
+          _Tab.filter => _filterPanel(),
           _Tab.size => _sizePanel(),
-          _Tab.markup => Column(mainAxisSize: MainAxisSize.min, children: [
-              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                for (final (kind, icon, key) in const [
-                  (MarkKind.pen, AppIcons.edit, 'ied.pen'),
-                  (MarkKind.arrow, AppIcons.arrowTool, 'ied.arrow'),
-                  (MarkKind.text, AppIcons.textFields, 'ied.text'),
-                ])
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 3),
-                    child: ChoiceChip(
-                      avatar: Icon(icon, size: 18),
-                      label: Text(context.t(key)),
-                      selected: _tool == kind,
-                      onSelected: (_) => setState(() => _tool = kind),
-                    ),
-                  ),
-              ]),
-              const SizedBox(height: 4),
-              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                for (final color in _colors)
-                  Semantics(
-                    button: true,
-                    selected: color == _color,
-                    child: InkResponse(
-                      onTap: () => setState(() => _color = color),
-                      radius: 24,
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        margin: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: color == _color
-                                ? scheme.primary
-                                : AppColors.onMediaFaint,
-                            width: color == _color ? 3 : 1,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-              ]),
-              if (_tool == MarkKind.text)
-                Text(context.t('ied.tap_for_text'),
-                    style: chipTheme.labelStyle
-                        ?.copyWith(color: AppColors.onMediaSoft)),
-            ]),
+          _Tab.markup => _markupPanel(scheme, hint),
         },
       ),
     );
   }
+
+  Widget _adjustPanel() {
+    final unipolar = _adjustKey == 'sharpness' || _adjustKey == 'vignette';
+    final value = _e.adjust(_adjustKey);
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(children: [
+          for (final k in _adjustKeys)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3),
+              child: ChoiceChip(
+                key: ValueKey('adj-$k'),
+                // Değişmiş ayar noktayla işaretli.
+                avatar: _e.adjust(k) != 0
+                    ? const Icon(AppIcons.dot, size: 8)
+                    : null,
+                label: Text(context.t('ied.$k')),
+                selected: _adjustKey == k,
+                onSelected: (_) => setState(() => _adjustKey = k),
+              ),
+            ),
+        ]),
+      ),
+      Row(children: [
+        IconButton(
+          key: const ValueKey('adj-reset'),
+          tooltip: context.t('ied.reset_one'),
+          color: AppColors.onMediaSoft,
+          icon: const Icon(AppIcons.reset),
+          onPressed: value == 0
+              ? null
+              : () => _push(_e.withAdjust(_adjustKey, 0)),
+        ),
+        Expanded(
+          child: Slider(
+            key: const ValueKey('adj-slider'),
+            value: value,
+            min: unipolar ? 0 : -1,
+            max: 1,
+            // Bir sürükleme = bir geri al adımı (IM4).
+            onChangeStart: (_) => _history.push(_e),
+            onChanged: (v) =>
+                setState(() => _e = _e.withAdjust(_adjustKey, v)),
+          ),
+        ),
+        SizedBox(
+          width: 40,
+          child: Text('${(value * 100).round()}',
+              textAlign: TextAlign.end,
+              style: const TextStyle(color: AppColors.onMediaSoft)),
+        ),
+      ]),
+    ]);
+  }
+
+  Widget _filterPanel() {
+    final thumb = _thumb ?? _proxy ?? _src!;
+    Widget tile(String key, String label) {
+      final selected = _e.filter == key;
+      final m = editMatrix(_e.copyWith(filter: key, filterStrength: 1));
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: InkWell(
+          key: ValueKey('filter-$key'),
+          borderRadius: BorderRadius.circular(10),
+          onTap: () {
+            if (selected) return;
+            _push(_e.copyWith(filter: key, filterStrength: 1));
+          },
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 64,
+              height: 64,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: selected
+                      ? Theme.of(context).colorScheme.primary
+                      : AppColors.onMediaFaint,
+                  width: selected ? 3 : 1,
+                ),
+              ),
+              child: ColorFiltered(
+                colorFilter: ColorFilter.matrix(m),
+                child: RawImage(image: thumb, fit: BoxFit.cover),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(context.t(label),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: selected ? AppColors.onMedia : AppColors.onMediaSoft)),
+          ]),
+        ),
+      );
+    }
+
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(children: [
+          tile('', 'ied.f_none'),
+          for (final f in imageFilters.entries) tile(f.key, f.value.$1),
+        ]),
+      ),
+      if (_e.filter.isNotEmpty)
+        Row(children: [
+          SizedBox(
+            width: 72,
+            child: Text(context.t('ied.strength'),
+                style: const TextStyle(color: AppColors.onMediaSoft)),
+          ),
+          Expanded(
+            child: Slider(
+              key: const ValueKey('filter-strength'),
+              value: _e.filterStrength,
+              onChangeStart: (_) => _history.push(_e),
+              onChanged: (v) =>
+                  setState(() => _e = _e.copyWith(filterStrength: v)),
+            ),
+          ),
+          SizedBox(
+            width: 40,
+            child: Text('${(_e.filterStrength * 100).round()}',
+                textAlign: TextAlign.end,
+                style: const TextStyle(color: AppColors.onMediaSoft)),
+          ),
+        ]),
+    ]);
+  }
+
+  Widget _markupPanel(ColorScheme scheme, TextStyle? hint) {
+    final sel = _selected;
+    const soft = TextStyle(color: AppColors.onMediaSoft);
+    Widget slider(IconData icon, String key, double value, double min,
+            double max, void Function(double) onChanged,
+            {void Function(double)? onStart}) =>
+        Expanded(
+          child: Row(children: [
+            Tooltip(
+              message: context.t(key),
+              child: Icon(icon, size: 18, color: AppColors.onMediaSoft),
+            ),
+            Expanded(
+              child: Slider(
+                key: ValueKey(key),
+                value: value.clamp(min, max),
+                min: min,
+                max: max,
+                onChangeStart: onStart,
+                onChanged: onChanged,
+              ),
+            ),
+          ]),
+        );
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(children: [
+          for (final (tool, icon, key) in const [
+            (_Tool.select, AppIcons.pointer, 'ied.select'),
+            (_Tool.pen, AppIcons.edit, 'ied.pen'),
+            (_Tool.text, AppIcons.textFields, 'ied.text'),
+            (_Tool.highlighter, AppIcons.highlighter, 'ied.highlighter'),
+            (_Tool.eraser, AppIcons.eraser, 'ied.eraser'),
+            (_Tool.arrow, AppIcons.arrowTool, 'ied.arrow'),
+            (_Tool.line, AppIcons.lineTool, 'ied.line'),
+            (_Tool.rect, AppIcons.rectTool, 'ied.rect'),
+            (_Tool.ellipse, AppIcons.ellipseTool, 'ied.ellipse'),
+            (_Tool.blur, AppIcons.blur, 'ied.blur'),
+            (_Tool.pixelate, AppIcons.pixelate, 'ied.pixelate'),
+          ])
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3),
+              child: ChoiceChip(
+                key: ValueKey('tool-${tool.name}'),
+                avatar: Icon(icon, size: 18),
+                label: Text(context.t(key)),
+                selected: _tool == tool,
+                onSelected: (_) => setState(() {
+                  _tool = tool;
+                  if (tool != _Tool.select && tool != _Tool.text) _sel = null;
+                }),
+              ),
+            ),
+        ]),
+      ),
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          for (final color in _colors)
+            Semantics(
+              button: true,
+              selected: color == (sel?.color ?? _color),
+              child: InkResponse(
+                onTap: () {
+                  setState(() => _color = color);
+                  if (sel != null && sel.color != color) {
+                    _updateSelected(sel.copyWith(color: color));
+                  }
+                },
+                radius: 22,
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  margin: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: color == (sel?.color ?? _color)
+                          ? scheme.primary
+                          : AppColors.onMediaFaint,
+                      width: color == (sel?.color ?? _color) ? 3 : 1,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ]),
+      ),
+      Row(children: [
+        slider(
+          AppIcons.lineWeight,
+          'ied.thickness',
+          sel == null
+              ? _stroke
+              : sel.kind == MarkKind.text
+                  ? sel.size
+                  : _sizeOf(sel),
+          0.004,
+          sel?.kind == MarkKind.text ? 0.4 : 0.05,
+          (v) => sel == null
+              ? setState(() => _stroke = v)
+              : _replaceSelected(sel.copyWith(
+                  size: sel.kind == MarkKind.text ? v : v * (sel.size / _sizeOf(sel)))),
+          onStart: sel == null ? null : (_) => _history.push(_e),
+        ),
+        slider(
+          AppIcons.opacity,
+          'ied.opacity',
+          sel?.opacity ?? _opacity,
+          0.1,
+          1,
+          (v) => sel == null
+              ? setState(() => _opacity = v)
+              : _replaceSelected(sel.copyWith(opacity: v)),
+          onStart: sel == null ? null : (_) => _history.push(_e),
+        ),
+      ]),
+      if (sel != null)
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(children: [
+            if (sel.kind == MarkKind.text) ...[
+              _toolButton(AppIcons.edit, 'ied.edit_text', _editText),
+              for (final (font, key) in const [
+                ('sans', 'ied.font_sans'),
+                ('serif', 'ied.font_serif'),
+                ('mono', 'ied.font_mono'),
+              ])
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  child: ChoiceChip(
+                    label: Text(context.t(key)),
+                    selected: sel.font == font,
+                    onSelected: (_) =>
+                        _updateSelected(sel.copyWith(font: font)),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: FilterChip(
+                  key: const ValueKey('text-bg'),
+                  label: Text(context.t('ied.text_box')),
+                  selected: sel.background,
+                  onSelected: (v) =>
+                      _updateSelected(sel.copyWith(background: v)),
+                ),
+              ),
+            ],
+            _toolButton(AppIcons.delete, 'common.delete', _deleteSelected),
+          ]),
+        )
+      else if (_tool == _Tool.text)
+        Text(context.t('ied.tap_for_text'), style: hint)
+      else if (_tool == _Tool.blur || _tool == _Tool.pixelate)
+        Text(context.t('ied.blur_hint'),
+            textAlign: TextAlign.center, style: hint ?? soft)
+      else
+        Text(context.t('ied.zoom_hint'), style: hint ?? soft),
+    ]);
+  }
+
+  /// Seçili çizgi işaretinin taban kalınlığı (araç çarpanı çıkarılmış).
+  double _sizeOf(ImageMark m) => switch (m.kind) {
+        MarkKind.blur || MarkKind.pixelate => m.size / 5,
+        MarkKind.highlighter => m.size / 2.5,
+        _ => m.size,
+      };
 
   Widget _toolButton(IconData icon, String key, VoidCallback onTap) => TextButton.icon(
         style: TextButton.styleFrom(
@@ -769,32 +1446,6 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
         icon: Icon(icon),
         label: Text(context.t(key)),
       );
-
-  Widget _slider(
-      String key, double value, ImageEdits Function(double) apply) {
-    return Row(children: [
-      SizedBox(
-        width: 96,
-        child: Text(context.t(key),
-            style: const TextStyle(color: AppColors.onMediaSoft)),
-      ),
-      Expanded(
-        child: Slider(
-          value: value,
-          min: -1,
-          max: 1,
-          onChangeStart: (_) => _history.push(_e),
-          onChanged: (v) => setState(() => _e = apply(v)),
-        ),
-      ),
-      SizedBox(
-        width: 40,
-        child: Text('${(value * 100).round()}',
-            textAlign: TextAlign.end,
-            style: const TextStyle(color: AppColors.onMediaSoft)),
-      ),
-    ]);
-  }
 }
 
 class _EditPainter extends CustomPainter {
@@ -805,6 +1456,10 @@ class _EditPainter extends CustomPainter {
     required this.clip,
     this.cropRect,
     this.cropLabel,
+    this.fineGrid = false,
+    this.selection,
+    this.selectionRotation = 0,
+    this.handles,
     this.labelStyle,
   });
 
@@ -815,6 +1470,14 @@ class _EditPainter extends CustomPainter {
 
   /// Kırpma kutusunun piksel ölçüsü — kutunun üst ortasında rozet.
   final String? cropLabel;
+
+  /// Serbest açı sürüklenirken 6×6 ince ızgara (yatay çizgiyi hizalamak için).
+  final bool fineGrid;
+
+  /// Seçili işaretin çerçevesi + tutamakları (boyut, döndür).
+  final Rect? selection;
+  final double selectionRotation;
+  final (Offset, Offset?)? handles;
   final TextStyle? labelStyle;
 
   @override
@@ -823,6 +1486,28 @@ class _EditPainter extends CustomPainter {
     canvas.clipRect(clip);
     paintEdits(canvas, src, edits, box);
     canvas.restore();
+    final sel = selection;
+    if (sel != null) {
+      final line = Paint()
+        ..color = AppColors.slideSelection
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5;
+      canvas.save();
+      canvas.translate(sel.center.dx, sel.center.dy);
+      canvas.rotate(selectionRotation);
+      canvas.drawRect(sel.shift(-sel.center), line);
+      canvas.restore();
+      final (scale, rotate) = handles!;
+      final fill = Paint()..color = AppColors.slideSelection;
+      final ring = Paint()
+        ..color = AppColors.onMedia
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2;
+      for (final h in [scale, if (rotate != null) rotate]) {
+        canvas.drawCircle(h, 9, fill);
+        canvas.drawCircle(h, 9, ring);
+      }
+    }
     final r = cropRect;
     if (r == null) return;
     // Kırpma dışını karart, çerçeve + üçte bir kılavuzu + köşe tutamaçları.
@@ -839,7 +1524,9 @@ class _EditPainter extends CustomPainter {
     line
       ..strokeWidth = 0.6
       ..color = AppColors.onMediaGuide;
-    for (final f in [1 / 3, 2 / 3]) {
+    final steps = fineGrid ? 6 : 3;
+    for (var i = 1; i < steps; i++) {
+      final f = i / steps;
       canvas.drawLine(Offset(r.left + r.width * f, r.top),
           Offset(r.left + r.width * f, r.bottom), line);
       canvas.drawLine(Offset(r.left, r.top + r.height * f),
@@ -887,5 +1574,40 @@ class _EditPainter extends CustomPainter {
       old.box != box ||
       old.clip != clip ||
       old.cropRect != cropRect ||
-      old.cropLabel != cropLabel;
+      old.cropLabel != cropLabel ||
+      old.fineGrid != fineGrid ||
+      old.selection != selection ||
+      old.selectionRotation != selectionRotation;
+}
+
+/// Çizilmekte olan tek işaret (IM2): [tick] her noktada yalnız bunu boyar.
+class _LivePainter extends CustomPainter {
+  _LivePainter({
+    required this.tick,
+    required this.mark,
+    required this.src,
+    required this.edits,
+    required this.box,
+    required this.clip,
+  }) : super(repaint: tick);
+
+  final ValueNotifier<int> tick;
+  final ImageMark? Function() mark;
+  final ui.Image src;
+  final ImageEdits edits;
+  final Rect box, clip;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final m = mark();
+    if (m == null) return;
+    canvas.save();
+    canvas.clipRect(clip);
+    paintMarks(canvas, [m], box, src: src, edits: edits);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_LivePainter old) =>
+      old.src != src || old.edits != edits || old.box != box || old.clip != clip;
 }
