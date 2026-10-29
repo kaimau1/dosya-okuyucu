@@ -60,6 +60,7 @@ import '../../core/app_colors.dart';
 part 'slides/actions.dart';
 part 'slides/objects.dart';
 part 'slides/outline.dart';
+part 'slides/sorter.dart';
 part 'slides/text_edit.dart';
 part 'slides/views.dart';
 
@@ -164,6 +165,9 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
 
   // ── Anahat (Faz 28 / madde 7) ──────────────────────────────────────────────
   bool _outline = false;
+
+  // ── Küçük resim şeridi (Faz 29b) ───────────────────────────────────────────
+  bool _strip = true;
   final Map<(PptxSlide, PptxParagraph), String> _outlinePending = {};
 
   @override
@@ -293,7 +297,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
                         ? _focusEditor()
                         : _outline
                             ? _outlineView(editor)
-                            : Column(
+                            : _withStrip(editor, Column(
                                 children: [
                                   if (_finding) _findBar(),
                                   Expanded(
@@ -317,7 +321,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
                                     ),
                                   ),
                                 ],
-                              ),
+                              )),
           ),
         ),
         // Etiketli eylem çubuğu (2026-07-28 kullanıcı isteği — PDF'teki gibi).
@@ -334,6 +338,12 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
                         editor == null ? null : _openDesign),
                     DocAction(AppIcons.play, context.t('sl.play'),
                         editor == null ? null : () => _play(0)),
+                    DocAction(AppIcons.thumbnails, context.t('sl.thumbnails'),
+                        editor == null
+                            ? null
+                            : () => setState(() => _strip = !_strip)),
+                    DocAction(AppIcons.sorter, context.t('sl.sorter'),
+                        editor == null ? null : _openSorter),
                     DocAction(AppIcons.summarize, context.t('ai.summarize'),
                         editor == null ? null : _summarize),
                     DocAction(AppIcons.save, context.t('common.save'),
@@ -368,6 +378,15 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
               ),
       ),
     ));
+  }
+
+  /// Slayt akışına küçük resim şeridini ekler (altta ya da solda).
+  Widget _withStrip(PptxEditor editor, Widget body) {
+    if (!_strip || editor.slides.length < 2) return body;
+    if (_stripVertical) {
+      return Row(children: [_thumbStrip(editor), Expanded(child: body)]);
+    }
+    return Column(children: [Expanded(child: body), _thumbStrip(editor)]);
   }
 
   /// Parça dosyalarındaki uzantılar `setState`i (korumalı) buradan çağırır.

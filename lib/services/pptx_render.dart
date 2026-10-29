@@ -42,6 +42,13 @@ class SlideVM {
   /// Boşsa slaytta animasyon yoktur, her şey baştan görünür.
   final List<List<AnimTarget>> steps;
 
+  /// Slayta girerken oynayan geçiş (`p:transition`): `fade`, `push`, `wipe`;
+  /// null = geçiş yok. Tanımadığımız türler `fade`e yaklaşıklanır.
+  final String? transition;
+
+  /// Geçişin itme/silme yönü (`dir`: `l`, `r`, `u`, `d`).
+  final String transitionDir;
+
   const SlideVM({
     required this.widthPt,
     required this.heightPt,
@@ -50,6 +57,8 @@ class SlideVM {
     this.backgroundGradient,
     this.backgroundImage,
     this.steps = const [],
+    this.transition,
+    this.transitionDir = 'l',
   });
 
   /// Verilen şekil/paragraf hangi tıklamada belirir? 0 = baştan görünür.
@@ -441,6 +450,7 @@ class PptxRender {
         placeholderSource: [layoutDoc, masterDoc],
         editable: true);
 
+    final tr = _transition(doc);
     return SlideVM(
       widthPt: slideW,
       heightPt: slideH,
@@ -449,7 +459,26 @@ class PptxRender {
       backgroundImage: bgImage,
       shapes: shapes,
       steps: _timing(doc),
+      transition: tr?.$1,
+      transitionDir: tr?.$2 ?? 'l',
     );
+  }
+
+  /// `p:transition` (PowerPoint çoğu zaman `mc:AlternateContent` içine
+  /// sarar; ilk bulunan alınır) → (tür, yön). Geçiş yoksa null.
+  (String, String)? _transition(XmlDocument doc) {
+    final t = doc.rootElement.findAllElements('p:transition').firstOrNull;
+    if (t == null) return null;
+    final k = t.childElements
+        .where((e) => e.name.local != 'sndAc' && e.name.local != 'extLst')
+        .firstOrNull;
+    if (k == null) return null;
+    final kind = switch (k.name.local) {
+      'push' || 'cover' || 'pull' => 'push',
+      'wipe' || 'split' || 'strips' || 'wedge' || 'wheel' => 'wipe',
+      _ => 'fade',
+    };
+    return (kind, k.getAttribute('dir') ?? 'l');
   }
 
   /// `p:timing` içindeki ana diziden tıklama adımlarını çıkarır.

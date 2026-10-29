@@ -134,6 +134,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
   Widget _slideCard(PptxSlide slide, int i, double baseW) {
     final scheme = Theme.of(context).colorScheme;
     final view = slide.view;
+    final hidden = _editor?.isHidden(slide) ?? false;
     return Padding(
       // Slaytlar arası boşluk da zoom ile ölçeklenir → dikey yerleşim doğrusal
       // kalır, commit'te zıplama olmaz (bkz. _buildSlides).
@@ -167,6 +168,38 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
                         }),
                         style: Theme.of(context).textTheme.labelMedium,
                       ),
+                      if (hidden) ...[
+                        const SizedBox(width: 8),
+                        Tooltip(
+                          message: context.t('sl.hidden_tip'),
+                          child: Container(
+                            key: ValueKey('hidden-badge-${slide.fileName}'),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: scheme.secondaryContainer,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(AppIcons.hiddenOff,
+                                    size: 14,
+                                    color: scheme.onSecondaryContainer),
+                                const SizedBox(width: 4),
+                                Text(
+                                  context.t('sl.hidden'),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelSmall
+                                      ?.copyWith(
+                                          color: scheme.onSecondaryContainer),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                       const Spacer(),
                       IconButton(
                         tooltip: context.t('sl.fullscreen'),
@@ -198,6 +231,11 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
                   ),
                 ],
               ),
+              // Gizli slayt PowerPoint'teki gibi soluk çizilir.
+              foregroundDecoration: hidden
+                  ? BoxDecoration(
+                      color: scheme.surface.withValues(alpha: 0.45))
+                  : null,
               child: view == null
                   ? _fallbackText(slide)
                   // Slaydın boş yerine dokunmak seçimi kaldırır; şekillerin
@@ -284,10 +322,11 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
     );
   }
 
-  /// Slayt işlemleri menüsü (çoğalt / sil / yukarı-aşağı taşı).
+  /// Slayt işlemleri menüsü (çoğalt / gizle / sil / yukarı-aşağı taşı).
   Widget _slideMenu(PptxSlide slide) {
     final editor = _editor;
     final structural = editor?.canEditStructure ?? false;
+    final hidden = editor?.isHidden(slide) ?? false;
     return PopupMenuButton<String>(
       tooltip: context.t('sl.actions'),
       icon: const Icon(AppIcons.more, size: 20),
@@ -319,6 +358,16 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
             dense: true,
             leading: const Icon(AppIcons.copyAll),
             title: Text(context.t('sl.duplicate')),
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
+        PopupMenuItem(
+          value: 'hide',
+          enabled: structural,
+          child: ListTile(
+            dense: true,
+            leading: Icon(hidden ? AppIcons.hidden : AppIcons.hiddenOff),
+            title: Text(context.t(hidden ? 'sl.unhide' : 'sl.hide')),
             contentPadding: EdgeInsets.zero,
           ),
         ),
@@ -376,6 +425,11 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
         if (_mutate('sl.duplicate', () => editor.duplicateSlide(slide) != null)) {
           _snack(context.t('sl.duplicated'));
         }
+        break;
+      case 'hide':
+        final hide = !editor.isHidden(slide);
+        _mutate(hide ? 'sl.hide' : 'sl.unhide',
+            () => editor.setHidden(slide, hide));
         break;
       case 'up':
         _mutate('sl.move_up', () => editor.moveSlide(slide, -1));
@@ -444,7 +498,9 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
     }
   }
 
-  /// Tam ekran sunum modunu [index]. slayttan başlatır.
+  /// Tam ekran sunum modunu [index]. slayttan başlatır. Gizli slaytlar
+  /// atlanır — sunum gizli bir slayttan başlatıldıysa o slayt gösterilir
+  /// (PowerPoint'teki gibi).
   void _play(int index) {
     final views = <SlideVM>[];
     final notes = <String>[];
@@ -452,6 +508,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
     for (var i = 0; i < (_editor?.slides.length ?? 0); i++) {
       final v = _editor!.slides[i].view;
       if (v == null) continue;
+      if (i != index && _editor!.isHidden(_editor!.slides[i])) continue;
       if (i <= index) start = views.length;
       views.add(v);
       notes.add(_editor!.notesOf(_editor!.slides[i]));

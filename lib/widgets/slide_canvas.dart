@@ -184,9 +184,11 @@ class SlideCanvas extends StatelessWidget {
     if (s.rotationDeg != 0 && !framed) {
       child = Transform.rotate(angle: s.rotationDeg * math.pi / 180, child: child);
     }
+    // Tablo hücresi boşken de dokunulup yazılabilir (Faz 29b: tablo ekle).
     final tappable = s.hasText ||
         prompt != null ||
-        (onSelectShape != null && s.element != null);
+        (onSelectShape != null && s.element != null) ||
+        (s.cellBorder != null && s.paragraphs.any((p) => p.source != null));
     if (editing) {
       // Aktif kutuyu çerçeveyle belirt; dokunuşlar içteki editöre gitsin
       // (onTap sarmalamayı atla, yoksa düzenlemeyi yeniden tetikler).
@@ -224,6 +226,11 @@ class SlideCanvas extends StatelessWidget {
           slideW: slide.widthPt,
           slideH: slide.heightPt,
           onCommit: (r, rot) => onFrameChanged!(s, r, rot),
+          others: [
+            for (final o in slide.shapes)
+              if (!identical(o, s) && o.element != null && o.rotationDeg == 0)
+                Rect.fromLTWH(o.x, o.y, o.w, o.h),
+          ],
           child: child,
         );
       }

@@ -33,4 +33,25 @@ void main() {
     await tap(0.1);
     expect(find.text('1 / 3'), findsOneWidget);
   });
+
+  testWidgets('geçişli slayta ileri giderken geçiş oynar (Faz 29b)', (t) async {
+    const faded = SlideVM(
+        widthPt: 960, heightPt: 540, shapes: [], transition: 'push');
+    await t.pumpWidget(const MaterialApp(
+      home: SlideshowScreen(slides: [_slide, faded, _slide]),
+    ));
+    final w = t.view.physicalSize.width / t.view.devicePixelRatio;
+    await t.tapAt(Offset(w * 0.9, 200));
+    await t.pump(const Duration(milliseconds: 350));
+    expect(find.text('2 / 3'), findsOneWidget);
+    expect(find.byKey(const ValueKey('ss-transition')), findsOneWidget);
+    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('ss-transition')), findsNothing);
+    // Geçişsiz slayta: efekt yok.
+    await t.tapAt(Offset(w * 0.9, 200));
+    await t.pump(const Duration(milliseconds: 350));
+    expect(find.byKey(const ValueKey('ss-transition')), findsNothing);
+    await t.pumpAndSettle();
+    expect(find.text('3 / 3'), findsOneWidget);
+  });
 }

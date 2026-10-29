@@ -10,6 +10,7 @@ import '../core/app_state.dart';
 import '../core/edit/edit_session.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/gemini_service.dart';
+import '../services/pdf/pdf_fling.dart';
 import '../services/pdf/pdf_ocr_text.dart';
 import '../services/pdf/pdf_scanned_retype.dart';
 import '../services/pdf/pdf_text_stamp.dart';
@@ -107,6 +108,9 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   final Set<int> _backgroundPicked = {};
 
   int? _selectedObject;
+
+  /// Süren jest iki parmaklı mı — fırlatma sürtünmesi (bkz. [kPdfPanFriction]).
+  bool _pinch = false;
   bool _busy = false;
   bool _dirty = false;
   bool _ready = false;

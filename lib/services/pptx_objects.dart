@@ -1,7 +1,8 @@
 part of 'pptx_editor.dart';
 
 /// Faz 29 — slayt nesneleri: çerçeve (taşı/boyutlandır/döndür), metin kutusu
-/// ve şekil ekleme, dolgu, arka plan, geçiş, düzenden yeni slayt.
+/// ve şekil ekleme, tablo, dolgu, çizgi, saydamlık, arka plan, geçiş, slaytı
+/// gizle, düzenden yeni slayt, sürükle-bırak sıralama.
 /// Hepsi XML'e doğrudan yazar; geri al, deste anlık görüntüsüyle (`snapshot`)
 /// ekranda yapılır.
 
@@ -11,6 +12,10 @@ const _emuPt = 12700;
 const kPptxShapeKinds = [
   'rect', 'roundRect', 'ellipse', 'triangle', 'rightArrow', 'star5', 'line',
 ];
+
+/// PowerPoint'in varsayılan tablo stili ("Orta Stil 2 - Vurgu 1"); yerleşik
+/// GUID — `tableStyles.xml`te tanımı gerekmez.
+const kPptxDefaultTableStyle = '{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}';
 
 /// Slayt geçişi türleri.
 enum PptxTransition { none, fade, push, wipe }
@@ -197,6 +202,134 @@ extension PptxObjects on PptxEditor {
     return true;
   }
 
+  // ── çizgi ve saydamlık ──────────────────────────────────────────────────
+
+  XmlElement? _spPrOf(ShapeVM shape) {
+    final el = shape.element;
+    if (el == null || !const {'p:sp', 'p:cxnSp', 'p:pic'}.contains(el.name.qualified)) {
+      return null;
+    }
+    return PptxEditor._firstOrNull(el.findElements('p:spPr'));
+  }
+
+  /// Şeklin çizgisi (`a:ln`): [color] null = çizgisiz (`a:noFill`), [widthPt]
+  /// kalınlık, [dashed] kesik (`a:prstDash val="dash"`). Ok uçları korunur.
+  bool setShapeLine(PptxSlide slide, ShapeVM shape,
+      {Color? color, double widthPt = 1, bool dashed = false}) {
+    final spPr = _spPrOf(shape);
+    if (spPr == null) return false;
+    var ln = PptxEditor._firstOrNull(spPr.findElements('a:ln'));
+    if (ln == null) {
+      ln = XmlElement(XmlName.fromString('a:ln'));
+      PptxEditor._insertBefore(
+          spPr, ln, const {'a:effectLst', 'a:effectDag', 'a:scene3d', 'a:sp3d', 'a:extLst'});
+    }
+    // ln içi sıra: dolgu, prstDash/custDash, birleşim, headEnd, tailEnd, extLst.
+    ln.children.removeWhere((n) =>
+        n is XmlElement &&
+        const {'a:noFill', 'a:solidFill', 'a:gradFill', 'a:pattFill', 'a:prstDash', 'a:custDash'}
+            .contains(n.name.qualified));
+    if (color == null) {
+      ln.removeAttribute('w');
+      ln.children.insert(0, XmlElement(XmlName.fromString('a:noFill')));
+    } else {
+      ln.setAttribute('w', '${(math.max(widthPt, 0.25) * _emuPt).round()}');
+      ln.children.insert(
+          0,
+          XmlDocument.parse('<a:solidFill $_aNs><a:srgbClr val="${_hex(color)}"/></a:solidFill>')
+              .rootElement
+              .copy());
+      if (dashed) {
+        ln.children.insert(
+            1,
+            XmlElement(XmlName.fromString('a:prstDash'),
+                [XmlAttribute(XmlName.fromString('val'), 'dash')]));
+      }
+    }
+    _rerender(slide);
+    return true;
+  }
+
+  /// Dolgunun renk düğümü (`a:solidFill > a:srgbClr|a:schemeClr|…`).
+  XmlElement? _fillColorNode(ShapeVM shape) {
+    final spPr = _spPrOf(shape);
+    final fill = spPr == null ? null : PptxEditor._firstOrNull(spPr.findElements('a:solidFill'));
+    return fill == null ? null : PptxEditor._firstOrNull(fill.childElements);
+  }
+
+  /// Dolgunun saydamlığı (0 = opak, 1 = tamamen saydam); düz dolgu yoksa null.
+  double? shapeTransparency(ShapeVM shape) {
+    final c = _fillColorNode(shape);
+    if (c == null) return null;
+    final a = PptxEditor._firstOrNull(c.findElements('a:alpha'));
+    final v = double.tryParse(a?.getAttribute('val') ?? '');
+    return v == null ? 0 : (1 - v / 100000).clamp(0.0, 1.0);
+  }
+
+  /// Düz dolgunun saydamlığını yazar (`a:alpha`; 0 = öğe kaldırılır).
+  /// Düz dolgusu olmayan şekilde false.
+  bool setShapeTransparency(PptxSlide slide, ShapeVM shape, double transparency) {
+    final c = _fillColorNode(shape);
+    if (c == null) return false;
+    c.children.removeWhere((n) => n is XmlElement && n.name.qualified == 'a:alpha');
+    final t = transparency.clamp(0.0, 1.0);
+    if (t > 0) {
+      c.children.add(XmlElement(XmlName.fromString('a:alpha'),
+          [XmlAttribute(XmlName.fromString('val'), '${((1 - t) * 100000).round()}')]));
+    }
+    _rerender(slide);
+    return true;
+  }
+
+  // ── tablo ───────────────────────────────────────────────────────────────
+
+  /// Slaytın ortasına [rows]×[cols] tablo ekler (`a:tbl` + tema tablo stili).
+  /// Çizicimiz tablo stillerini çözmediği için stilin görünümü (başlık satırı
+  /// vurgu rengi, bantlı satırlar, beyaz kılavuz) hücrelere de açıkça yazılır;
+  /// PowerPoint açık hücre biçimini stile tercih eder → iki yerde aynı görünür.
+  XmlElement? addTable(PptxSlide slide, int rows, int cols) {
+    if (rows < 1 || cols < 1 || rows > 30 || cols > 20) return null;
+    final (sw, sh) = _slideSizeEmu;
+    final w = (sw * 0.8).round();
+    final colW = w ~/ cols;
+    const rowH = 370840; // 0,4 inç — PowerPoint'in varsayılanı
+    final h = rowH * rows;
+    final x = ((sw - colW * cols) / 2).round(), y = ((sh - h) / 2).round();
+    final id = _nextShapeId(slide);
+    const side = '<a:solidFill><a:schemeClr val="lt1"/></a:solidFill>';
+    String border(String tag) => '<a:$tag w="12700" cmpd="sng">$side</a:$tag>';
+    final sb = StringBuffer(
+        '<p:graphicFrame $_pNs $_aNs><p:nvGraphicFramePr><p:cNvPr id="$id" name="Table $id"/>'
+        '<p:cNvGraphicFramePr><a:graphicFrameLocks noGrp="1"/></p:cNvGraphicFramePr><p:nvPr/>'
+        '</p:nvGraphicFramePr><p:xfrm><a:off x="$x" y="$y"/><a:ext cx="${colW * cols}" cy="$h"/>'
+        '</p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table">'
+        '<a:tbl><a:tblPr firstRow="1" bandRow="1"><a:tableStyleId>$kPptxDefaultTableStyle'
+        '</a:tableStyleId></a:tblPr><a:tblGrid>');
+    for (var c = 0; c < cols; c++) {
+      sb.write('<a:gridCol w="$colW"/>');
+    }
+    sb.write('</a:tblGrid>');
+    for (var r = 0; r < rows; r++) {
+      sb.write('<a:tr h="$rowH">');
+      final header = r == 0;
+      final fill = header
+          ? '<a:schemeClr val="accent1"/>'
+          : '<a:schemeClr val="accent1"><a:tint val="${r.isOdd ? 40000 : 20000}"/></a:schemeClr>';
+      final rPr = header
+          ? '<a:endParaRPr lang="tr-TR" sz="1800" b="1" dirty="0"><a:solidFill>'
+              '<a:schemeClr val="lt1"/></a:solidFill></a:endParaRPr>'
+          : '<a:endParaRPr lang="tr-TR" sz="1800" dirty="0"/>';
+      for (var c = 0; c < cols; c++) {
+        sb.write('<a:tc><a:txBody><a:bodyPr/><a:lstStyle/><a:p>$rPr</a:p></a:txBody>'
+            '<a:tcPr anchor="ctr">${border('lnL')}${border('lnR')}${border('lnT')}${border('lnB')}'
+            '<a:solidFill>$fill</a:solidFill></a:tcPr></a:tc>');
+      }
+      sb.write('</a:tr>');
+    }
+    sb.write('</a:tbl></a:graphicData></a:graphic></p:graphicFrame>');
+    return _addToTree(slide, sb.toString());
+  }
+
   /// Slayt arka plan rengi (null = kaldır, düzenin arka planı geçerli).
   bool setSlideBackground(PptxSlide slide, Color? color) {
     final cSld = PptxEditor._firstOrNull(slide.doc.findAllElements('p:cSld'));
@@ -245,6 +378,39 @@ extension PptxObjects on PptxEditor {
           .copy();
       PptxEditor._insertBefore(root, t, const {'p:timing', 'p:extLst'});
     }
+    _rerender(slide); // sunum geçişi çizim modelinden okur
+    return true;
+  }
+
+  /// Slayt gizli mi (`p:sld@show="0"`) — sunumda atlanır, düzenlemede görünür.
+  bool isHidden(PptxSlide slide) {
+    final v = slide.doc.rootElement.getAttribute('show');
+    return v == '0' || v == 'false';
+  }
+
+  /// **Slaytı gizle / göster.** Gösterilen slaytta öznitelik hiç yazılmaz
+  /// (varsayılan `true`; PowerPoint de böyle kaydeder).
+  bool setHidden(PptxSlide slide, bool hidden) {
+    final root = slide.doc.rootElement;
+    if (hidden) {
+      root.setAttribute('show', '0');
+    } else {
+      root.removeAttribute('show');
+    }
+    return true;
+  }
+
+  /// Sürükle-bırak sıralama: [slide]'ı [to] konumuna (0 tabanlı) taşır;
+  /// `sldIdLst` sırası da güncellenir. Yer değişmediyse false.
+  bool moveSlideTo(PptxSlide slide, int to) {
+    if (!canEditStructure) return false;
+    final i = slides.indexOf(slide);
+    final j = to.clamp(0, slides.length - 1);
+    if (i < 0 || i == j) return false;
+    slides.removeAt(i);
+    slides.insert(j, slide);
+    _syncSldIdOrder();
+    _reindex();
     return true;
   }
 

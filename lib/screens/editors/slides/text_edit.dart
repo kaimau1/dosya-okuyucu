@@ -707,6 +707,10 @@ extension _SlidesEditorScreenTextEditPart on _SlidesEditorScreenState {
             }),
       if (shape.element?.name.qualified == 'p:sp')
         DocAction(AppIcons.formatColorFill, context.t('sl.fill'), _openFill),
+      if (const {'p:sp', 'p:cxnSp', 'p:pic'}.contains(shape.element?.name.qualified))
+        DocAction(AppIcons.borderColor, context.t('sl.line'), _openLine),
+      if (shape.element?.name.qualified == 'p:sp')
+        DocAction(AppIcons.opacity, context.t('sl.transparency'), _openTransparency),
       DocAction(AppIcons.flipToFront, context.t('sl.bring_front'), !arrange
           ? null
           : () {

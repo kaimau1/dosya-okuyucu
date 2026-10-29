@@ -97,7 +97,7 @@
 | 26 | **Excel II** (bağımlılık grafiği, ızgara çizimi, büyük sayfa) — `DUZENLEME_PLANI.md` | 25 | ✅ 2026-10-23 |
 | 27 | **Excel III** (Hücreleri biçimlendir, Veri, Görünüm, form görünümü, CSV) — `DUZENLEME_PLANI.md` | 26 | ✅ 2026-10-29 (küçük kalanlar DUZENLEME_PLANI'nda) |
 | 28 | **Slayt I** (yerinde metin, kutuya yakınlaş, anahat, notlar) — `DUZENLEME_PLANI.md` | 20 | ✅ 2026-10-23 |
-| 29 | **Slayt II** (taşı/boyutlandır, şekil/tablo, düzenden yeni slayt, şerit) — `DUZENLEME_PLANI.md` | 28 | 🟡 29a 2026-10-28 — **sıradaki iş: 29b** |
+| 29 | **Slayt II** (taşı/boyutlandır, şekil/tablo, düzenden yeni slayt, şerit) — `DUZENLEME_PLANI.md` | 28 | ✅ 2026-10-29 (29a + 29b) |
 | 30 | **Metin / kod / Markdown düzenleyici** — `DUZENLEME_PLANI.md` | 20 | ✅ 2026-10-28 |
 | 31 | **PDF düzenleme deneyimi** (yerinde metin, nesne katmanı, ortak kabuk) — `DUZENLEME_PLANI.md` | 20 | ⬜ |
 | 32 | **Görsel düzenleyici 2.0** — `DUZENLEME_PLANI.md` | 20 | ⬜ |
@@ -145,7 +145,7 @@ hesabı/kararı gerekir (Play Console, Billing, depo ayarı).
 > Faz 33'ün cihaz kısmı sıra 12 cihaz turuyla birleştirilirse telefon oturumu bir kez yapılır.
 >
 > **Durum 2026-10-23:** Faz 20 ✅ · Faz 21 ✅ (K18 = b-ii) · Faz 22 ✅ · Faz 25 ✅ · Faz 26 ✅ ·
-> Faz 28 ✅. **2026-10-24: Faz 23 ✅.** **2026-10-29: Faz 24 ✅, Faz 27 ✅ — sıradaki: Faz 29b (slayt), sonra 32 → 31 → 33.** Sıradaki: **Faz 30** (metin/kod/Markdown — D8; bulguları
+> Faz 28 ✅. **2026-10-24: Faz 23 ✅.** **2026-10-29: Faz 24 ✅, Faz 27 ✅, Faz 29 ✅ — sıradaki: Faz 32 (görsel düzenleyici), sonra 31 → 33.** Sıradaki: **Faz 30** (metin/kod/Markdown — D8; bulguları
 > HAFIZA 2026-10-24'te: metin kaydı kodlamayı UTF-8'e çeviriyor), sonra Faz 24.
 
 **Bulut oturumu ne yapabilir / ne yapamaz** (HAFIZA 2026-07-25 §F, 2026-10-21 (5)):

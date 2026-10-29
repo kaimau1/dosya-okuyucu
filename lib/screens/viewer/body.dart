@@ -93,6 +93,23 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         onInteractionStart: (_) {
                           _pdfJumpTarget = null;
                           _pdfInteracting = true;
+                          if (_pdfPinch) _partSetState(() => _pdfPinch = false);
+                        },
+                        // **Kaydırma "birazcık gidip duruyordu"** (2026-10-29
+                        // kullanıcı bulgusu): pdfrx'in varsayılan fırlatma
+                        // sürtünmesi (1,35e-5) 3000 px/sn'lik bir fırlatmayı
+                        // ~270 px'te durduruyor; Android listeleri ~1300 px
+                        // götürür. Kaydırmada [kPdfPanFriction]. AMA aynı
+                        // katsayı ×200 yakınlaştırma ataletine de giriyor
+                        // (≥ 1/200 olunca yakınlık fırlar) → iki parmaklı
+                        // jestte varsayılana dönülür. Bu parametre belgeyi
+                        // yeniden yüklemez/düzeni değiştirmez.
+                        interactionEndFrictionCoefficient:
+                            _pdfPinch ? kPdfPinchFriction : kPdfPanFriction,
+                        onInteractionUpdate: (d) {
+                          if (d.pointerCount >= 2 && !_pdfPinch) {
+                            _partSetState(() => _pdfPinch = true);
+                          }
                         },
                         onInteractionEnd: (_) => _pdfInteracting = false,
                         // Arama eşleşmelerini sayfada vurgula: metin katmanı

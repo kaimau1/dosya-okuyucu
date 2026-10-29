@@ -3,6 +3,8 @@ import 'dart:ui' show Color;
 
 import 'package:archive/archive.dart';
 import 'package:dosya_okuyucu/services/pptx_editor.dart';
+import 'package:dosya_okuyucu/services/pptx_render.dart';
+import 'package:dosya_okuyucu/services/pptx_rich_text.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xml/xml.dart';
 
@@ -68,6 +70,109 @@ void main() {
     expect(root.findAllElements('p:bg').first.parent!.childElements.first.name.local, 'bg');
     e.setTransition(s, PptxTransition.none);
     expect(e.transitionOf(s), PptxTransition.none);
+  });
+
+  test('slaytı gizle / göster → show="0" yazılır, kayıtta korunur, kaldırılır', () {
+    final e = _open();
+    final s = e.slides.first;
+    expect(e.isHidden(s), isFalse);
+    expect(e.setHidden(s, true), isTrue);
+    expect(e.isHidden(s), isTrue);
+    expect(XmlDocument.parse(_slideXml(e, 0)).rootElement.getAttribute('show'), '0');
+    final again = PptxEditor.parse(e.save());
+    expect(again.isHidden(again.slides.first), isTrue);
+    if (again.slides.length > 1) expect(again.isHidden(again.slides[1]), isFalse);
+    // Çoğaltılan gizli slayt da gizli kalır (PowerPoint gibi).
+    final copy = again.duplicateSlide(again.slides.first);
+    if (copy != null) expect(again.isHidden(copy), isTrue);
+    again.setHidden(again.slides.first, false);
+    expect(again.isHidden(again.slides.first), isFalse);
+    expect(XmlDocument.parse(_slideXml(again, 0)).rootElement.getAttribute('show'),
+        isNull);
+  });
+
+  test('tablo ekle → hücreler çizilir, düzenlenebilir, kayıtta korunur', () {
+    final e = _open();
+    final s = e.slides.first;
+    final before = s.view!.shapes.length;
+    expect(e.addTable(s, 3, 4), isNotNull);
+    expect(e.addTable(s, 0, 4), isNull);
+    final cells = s.view!.shapes.skip(before).toList();
+    expect(cells.length, 12);
+    expect(cells.every((c) => c.paragraphs.isNotEmpty && c.paragraphs.first.source != null),
+        isTrue);
+    // Başlık satırı vurgu rengiyle, gövde açık tonla dolu.
+    expect(cells.first.fill, isNotNull);
+    expect(cells[4].fill, isNotNull);
+    expect(cells.first.fill, isNot(cells[4].fill));
+    final xml = XmlDocument.parse(_slideXml(e, 0));
+    final tbl = xml.findAllElements('a:tbl').single;
+    expect(tbl.findAllElements('a:tableStyleId').single.innerText, kPptxDefaultTableStyle);
+    expect(tbl.findAllElements('a:gridCol').length, 4);
+    expect(tbl.findAllElements('a:tr').length, 3);
+    // Şema sırası: a:tc içinde txBody, tcPr'den önce.
+    for (final tc in tbl.findAllElements('a:tc')) {
+      expect(tc.childElements.map((x) => x.name.qualified).toList(), ['a:txBody', 'a:tcPr']);
+    }
+    // Hücreye yaz → kaydet → aç.
+    final cell = cells[5];
+    final rich = SlideRichText.fromParagraphs(cell.paragraphs)..applyText('Hücre');
+    expect(e.writeRichText(s, cell, rich), isTrue);
+    final again = PptxEditor.parse(e.save());
+    expect(again.slides.first.view!.shapes.any((x) => x.hasText &&
+        x.paragraphs.map((p) => p.plainText).join() == 'Hücre'), isTrue);
+  });
+
+  test('çizgi biçimi + saydamlık', () {
+    final e = _open();
+    final s = e.slides.first;
+    e.addShape(s, 'rect');
+    ShapeVM rect() => s.view!.shapes.lastWhere((x) => x.preset == 'rect' && x.element != null);
+    expect(e.setShapeLine(s, rect(), color: const Color(0xFF00FF00), widthPt: 3, dashed: true),
+        isTrue);
+    expect(rect().stroke, const Color(0xFF00FF00));
+    expect(rect().strokeWidth, closeTo(3, 0.01));
+    expect(rect().dashed, isTrue);
+    expect(e.setShapeLine(s, rect()), isTrue); // düz, 1 pt — kesik kalkar
+    expect(rect().dashed, isFalse);
+    expect(e.setShapeLine(s, rect(), color: null), isTrue);
+    expect(rect().stroke, isNull);
+    expect(e.shapeTransparency(rect()), 0);
+    expect(e.setShapeTransparency(s, rect(), 0.6), isTrue);
+    expect(e.shapeTransparency(rect()), closeTo(0.6, 0.001));
+    expect(rect().fill!.a, closeTo(0.4, 0.01));
+    final again = PptxEditor.parse(e.save());
+    final back = again.slides.first.view!.shapes
+        .lastWhere((x) => x.preset == 'rect' && x.element != null);
+    expect(again.shapeTransparency(back), closeTo(0.6, 0.001));
+    expect(e.setShapeTransparency(s, rect(), 0), isTrue);
+    expect(rect().fill!.a, 1);
+  });
+
+  test('geçiş çizim modeline girer (sunumda oynar)', () {
+    final e = _open();
+    final s = e.slides.first;
+    expect(s.view!.transition, isNull);
+    e.setTransition(s, PptxTransition.wipe);
+    expect(s.view!.transition, 'wipe');
+    e.setTransition(s, PptxTransition.fade);
+    expect(s.view!.transition, 'fade');
+    e.setTransition(s, PptxTransition.none);
+    expect(s.view!.transition, isNull);
+  });
+
+  test('sürükle-bırak sıralama sldIdLst\'e yazılır', () {
+    final e = _open();
+    while (e.slides.length < 3) {
+      e.duplicateSlide(e.slides.first);
+    }
+    final names = e.slides.map((x) => x.fileName).toList();
+    expect(e.moveSlideTo(e.slides.first, 2), isTrue);
+    expect(e.moveSlideTo(e.slides[2], 2), isFalse);
+    expect(e.slides.map((x) => x.fileName).toList(), [names[1], names[2], names[0], ...names.skip(3)]);
+    expect(e.slides.map((x) => x.index).toList(), [for (var i = 1; i <= e.slides.length; i++) i]);
+    final again = PptxEditor.parse(e.save());
+    expect(again.slides.map((x) => x.fileName).toList(), e.slides.map((x) => x.fileName).toList());
   });
 
   test('düzenden yeni slayt: yer tutucular, sıralama, kayıt', () {

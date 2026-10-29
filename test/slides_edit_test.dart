@@ -261,4 +261,50 @@ void main() {
     await settle(tester);
     expect(find.byType(SlideFrameEditor), findsOneWidget);
   });
+
+  testWidgets('Faz 29b: küçük resim şeridi, slaytı gizle, tablo ekle, sıralayıcı',
+      (tester) async {
+    await pump(tester);
+    // Şerit: iki slayt için iki küçük resim.
+    expect(find.byKey(const ValueKey('sl-strip')), findsOneWidget);
+    expect(find.byKey(const ValueKey('thumb-ppt/slides/slide1.xml')), findsOneWidget);
+    // Güncel slaytın küçük resmine dokun → slayt menüsü → gizle.
+    await tester.tap(find.byKey(const ValueKey('thumb-ppt/slides/slide1.xml')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('sl-sheet-hide')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('hidden-badge-ppt/slides/slide1.xml')),
+        findsOneWidget);
+    // Geri al gizlemeyi kaldırır.
+    await tester.tap(find.byKey(const ValueKey('sl-undo')));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('hidden-badge-ppt/slides/slide1.xml')),
+        findsNothing);
+    // Ekle → Tablo → 2×3.
+    final cellsBefore = find.byType(SlideCanvas).evaluate().length;
+    await tester.tap(find.text('Ekle'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tablo'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('sl-tbl-2-3')));
+    await tester.pump();
+    expect(find.text('2 satır × 3 sütun'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('sl-tbl-insert')));
+    await tester.pumpAndSettle();
+    await settle(tester);
+    final canvas = tester.widget<SlideCanvas>(find.byType(SlideCanvas).first);
+    expect(canvas.slide.shapes.where((x) => x.cellBorder != null).length, 6);
+    expect(find.byType(SlideCanvas).evaluate().length, cellsBefore);
+    // Sıralayıcı açılır, iki slayt listelenir.
+    await tester.ensureVisible(find.text('Slayt sıralayıcı'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Slayt sıralayıcı'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('sorter-ppt/slides/slide2.xml')), findsOneWidget);
+    // Dokun = o slayta git (sıralayıcı kapanır).
+    await tester.tap(find.byKey(const ValueKey('sorter-ppt/slides/slide2.xml')));
+    await tester.pumpAndSettle();
+    await settle(tester);
+    expect(find.byKey(const ValueKey('sorter-ppt/slides/slide2.xml')), findsNothing);
+  });
 }

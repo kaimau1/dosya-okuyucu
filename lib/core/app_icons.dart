@@ -474,4 +474,6 @@ abstract final class AppIcons {
   static const IconData thumbnails = Icons.view_carousel_rounded;
   /// Slayt sıralayıcı.
   static const IconData sorter = Icons.grid_view_rounded;
+  /// Saydamlık.
+  static const IconData opacity = Icons.opacity_rounded;
 }

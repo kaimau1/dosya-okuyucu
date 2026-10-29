@@ -134,6 +134,9 @@ class AppColors extends ThemeExtension<AppColors> {
   /// (PowerPoint'in seçim mavisi — belge yüzeyinde, temadan bağımsız).
   static const slideSelection = Color(0xFF2962FF);
 
+  /// Slaytta taşırken hizalama kılavuzu (PowerPoint'in akıllı kılavuzu gibi).
+  static const slideGuide = Color(0xFFE6198A);
+
   /// Boş yer tutucunun istem metni ve kesik çerçevesi (belge yüzeyinde).
   static const slidePrompt = Color(0xFF8A8A8A);
   static const slidePromptFrame = Color(0xFFB0B0B0);

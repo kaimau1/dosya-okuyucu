@@ -704,3 +704,23 @@ Word'de bir belge aç → alttaki **Düzenle** (artık Mobil görünüm açılı
 - [ ] **Slayt:** şekle dokun (seç) → sürükle = taşı (liste kaymamalı), köşe = boyutlandır,
       üstteki ok = döndür; Ekle → metin kutusu/şekil/yeni slayt (düzen); Tasarım → arka plan,
       geçiş; kaydet → PowerPoint'te aynı konum.
+
+## 2026-10-29 — Slayt II kalanı (Faz 29b) + PDF kaydırma
+
+- [ ] **PDF kaydırma:** uzun PDF'te parmakla hızlı fırlat → Word/listeler kadar uzağa kaymalı
+      ("birazcık gidip durma" bitti mi); iki parmakla yakınlaştırıp bırakınca yakınlık
+      fırlamamalı/zıplamamalı; okuma kipi çubukları hâlâ sayfa başına atlatmıyor mu.
+      PDF düzenle ekranında da aynı.
+- [ ] **Küçük resim şeridi:** dikeyde altta, yatay tablette solda; dokun = git, güncel küçük
+      resme dokun = menü; uzun bas + sürükle = sırala → kaydet → PowerPoint'te aynı sıra.
+- [ ] **Sıralayıcı:** ızgarada uzun bas + başka slaytın üstüne bırak; ⋮ menüsü.
+- [ ] **Hizalama kılavuzları:** şekli taşırken slayt ortası/kenarlarında ve başka şeklin
+      kenarında pembe çizgi + hafif titreşim; donanım klavyesinde oklar 1 pt (⇧ 10 pt).
+- [ ] **Tablo:** Ekle → Tablo → 3×4 → hücreye dokun, yaz → kaydet → PowerPoint/LibreOffice
+      onarımsız açıyor mu, renkler aynı mı.
+- [ ] **Geçiş:** Tasarım → Soldur/İt/Sil → Sun → ileri dokunuşta oynuyor mu.
+- [ ] **Slaytı gizle:** ⋮ → Slaytı gizle → kartta "Gizli" + soluk; sunumda atlanıyor;
+      PowerPoint'te de gizli görünüyor.
+- [ ] **Çizgi / saydamlık:** şekil seç → Çizgi (renk, kalınlık, kesik), Saydamlık %50 →
+      PowerPoint'te aynı.
+

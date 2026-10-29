@@ -2,8 +2,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../core/app_colors.dart';
+import '../core/app_haptics.dart';
 import '../core/app_icons.dart';
 import '../services/pptx_render.dart';
 
@@ -14,6 +16,12 @@ import '../services/pptx_render.dart';
 /// hemen başlar (sürükleme eşiği 2 dp): dikey kaydırılan slayt listesine
 /// kaptırmamak için. Bırakınca [onCommit] ile yeni çerçeve bildirilir; canlı
 /// önizleme bu katmanın kendi durumudur.
+///
+/// **Hizalama kılavuzları** (Faz 29b): taşırken kutunun sol/orta/sağ ve
+/// üst/orta/alt çizgileri slaytın kenar/merkezine ve [others]'ın kenar/
+/// merkezlerine 6 dp yakınlıkta yaslanır; yaslanan çizgi çizilir, yeni bir
+/// yaslanmada hafif titreşim verilir. Donmuş (döndürülmüş) şekil yaslanmaz.
+/// Donanım klavyesinde oklar 1 pt (⇧ ile 10 pt) iter.
 class SlideFrameEditor extends StatefulWidget {
   final ShapeVM shape;
   final Widget child;
@@ -23,6 +31,9 @@ class SlideFrameEditor extends StatefulWidget {
   final double slideW, slideH;
   final void Function(Rect frame, double rotationDeg) onCommit;
 
+  /// Slayttaki diğer şekillerin çerçeveleri (pt) — kılavuz hedefleri.
+  final List<Rect> others;
+
   const SlideFrameEditor({
     super.key,
     required this.shape,
@@ -31,7 +42,24 @@ class SlideFrameEditor extends StatefulWidget {
     required this.slideW,
     required this.slideH,
     required this.onCommit,
+    this.others = const [],
   });
+
+  /// Yaslanma hedefleri: slaytın kenar + merkezi ve diğer şekillerinki.
+  @visibleForTesting
+  static Rect snapRect(Rect r, double slideW, double slideH, List<Rect> others,
+      double threshold, void Function(double? gx, double? gy) guides) {
+    final xs = <double>[0, slideW / 2, slideW];
+    final ys = <double>[0, slideH / 2, slideH];
+    for (final o in others) {
+      xs.addAll([o.left, o.center.dx, o.right]);
+      ys.addAll([o.top, o.center.dy, o.bottom]);
+    }
+    final sx = _SlideFrameEditorState._snap([r.left, r.center.dx, r.right], xs, threshold);
+    final sy = _SlideFrameEditorState._snap([r.top, r.center.dy, r.bottom], ys, threshold);
+    guides(sx?.$2, sy?.$2);
+    return r.shift(Offset(sx?.$1 ?? 0, sy?.$1 ?? 0));
+  }
 
   @override
   State<SlideFrameEditor> createState() => _SlideFrameEditorState();
@@ -40,6 +68,14 @@ class SlideFrameEditor extends StatefulWidget {
 class _SlideFrameEditorState extends State<SlideFrameEditor> {
   late Rect _rect;
   late double _rot;
+
+  /// Taşımada yaslanmamış (parmağın götürdüğü) çerçeve; [_rect] bunun
+  /// kılavuzlara yaslanmış hâli.
+  Rect? _raw;
+
+  /// Etkin kılavuz çizgileri (pt; dikey çizgilerin x'i, yatayların y'si).
+  double? _guideX, _guideY;
+  final FocusNode _keys = FocusNode(debugLabel: 'slide-frame');
 
   static const _minSize = 12.0;
 
@@ -64,7 +100,50 @@ class _SlideFrameEditorState extends State<SlideFrameEditor> {
   bool get _isLine => widget.shape.isLine;
   bool get _lockRatio => widget.shape.image != null;
 
-  void _commit() => widget.onCommit(_rect, _rot);
+  @override
+  void dispose() {
+    _keys.dispose();
+    super.dispose();
+  }
+
+  void _commit() {
+    _raw = null;
+    if (_guideX != null || _guideY != null) {
+      setState(() => _guideX = _guideY = null);
+    }
+    widget.onCommit(_rect, _rot);
+  }
+
+  /// [cands] (kutunun üç çizgisi) içinden [targets]'a en yakın olanın farkı;
+  /// [thr] içinde değilse null. (fark, kılavuz konumu)
+  static (double, double)? _snap(List<double> cands, List<double> targets, double thr) {
+    (double, double)? best;
+    for (final c in cands) {
+      for (final t in targets) {
+        final d = t - c;
+        if (d.abs() <= thr && (best == null || d.abs() < best.$1.abs())) {
+          best = (d, t);
+        }
+      }
+    }
+    return best;
+  }
+
+  KeyEventResult _onKey(FocusNode _, KeyEvent e) {
+    if (e is! KeyDownEvent && e is! KeyRepeatEvent) return KeyEventResult.ignored;
+    final step = HardwareKeyboard.instance.isShiftPressed ? 10.0 : 1.0;
+    final d = switch (e.logicalKey) {
+      LogicalKeyboardKey.arrowLeft => Offset(-step, 0),
+      LogicalKeyboardKey.arrowRight => Offset(step, 0),
+      LogicalKeyboardKey.arrowUp => Offset(0, -step),
+      LogicalKeyboardKey.arrowDown => Offset(0, step),
+      _ => null,
+    };
+    if (d == null) return KeyEventResult.ignored;
+    setState(() => _rect = _rect.shift(d));
+    _commit();
+    return KeyEventResult.handled;
+  }
 
   Map<Type, GestureRecognizerFactory> _pan(
           {required void Function(DragUpdateDetails) onUpdate,
@@ -87,12 +166,26 @@ class _SlideFrameEditorState extends State<SlideFrameEditor> {
 
   void _move(Offset d) {
     setState(() {
-      var r = _rect.shift(d);
+      var r = (_raw ?? _rect).shift(d);
       r = r.shift(Offset(
         r.left < -r.width + 8 ? -r.width + 8 - r.left : 0,
         r.top < -r.height + 8 ? -r.height + 8 - r.top : 0,
       ));
-      _rect = r;
+      _raw = r;
+      if (_rot % 360 != 0) {
+        _rect = r;
+        return;
+      }
+      final hadX = _guideX, hadY = _guideY;
+      _rect = SlideFrameEditor.snapRect(r, widget.slideW, widget.slideH, widget.others,
+          6 * widget.unit, (gx, gy) {
+        _guideX = gx;
+        _guideY = gy;
+      });
+      if ((_guideX != null && _guideX != hadX) ||
+          (_guideY != null && _guideY != hadY)) {
+        AppHaptics.selection();
+      }
     });
   }
 
@@ -212,6 +305,21 @@ class _SlideFrameEditorState extends State<SlideFrameEditor> {
               ),
             ),
           ),
+          if (_guideX != null || _guideY != null)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  key: const ValueKey('slide-guides'),
+                  painter: _GuidePainter(
+                    unit: u,
+                    origin: _rect.topLeft,
+                    slide: Size(widget.slideW, widget.slideH),
+                    x: _guideX,
+                    y: _guideY,
+                  ),
+                ),
+              ),
+            ),
           if (!_isLine && !rotated)
             for (final hx in const [-1, 0, 1])
               for (final hy in const [-1, 0, 1])
@@ -242,7 +350,11 @@ class _SlideFrameEditorState extends State<SlideFrameEditor> {
       top: _rect.top,
       width: math.max(_rect.width, _isLine ? 1 : 0),
       height: math.max(_rect.height, _isLine ? 1 : 0),
-      child: Transform.rotate(
+      child: Focus(
+        focusNode: _keys,
+        autofocus: true,
+        onKeyEvent: _onKey,
+        child: Transform.rotate(
         angle: _rot * math.pi / 180,
         child: OverflowBox(
           alignment: Alignment.topLeft,
@@ -253,8 +365,39 @@ class _SlideFrameEditorState extends State<SlideFrameEditor> {
           child: body,
         ),
       ),
+      ),
     );
   }
+}
+
+/// Hizalama kılavuzları: çerçeve katmanının içinden, slayt boyunca çizilir
+/// ([origin] = kutunun slayttaki sol üstü).
+class _GuidePainter extends CustomPainter {
+  final double unit;
+  final Offset origin;
+  final Size slide;
+  final double? x, y;
+  const _GuidePainter(
+      {required this.unit, required this.origin, required this.slide, this.x, this.y});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Paint()
+      ..color = AppColors.slideGuide
+      ..strokeWidth = 1 * unit;
+    if (x != null) {
+      final gx = x! - origin.dx;
+      canvas.drawLine(Offset(gx, -origin.dy), Offset(gx, slide.height - origin.dy), p);
+    }
+    if (y != null) {
+      final gy = y! - origin.dy;
+      canvas.drawLine(Offset(-origin.dx, gy), Offset(slide.width - origin.dx, gy), p);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_GuidePainter old) =>
+      old.x != x || old.y != y || old.origin != origin || old.unit != unit;
 }
 
 class _FramePainter extends CustomPainter {

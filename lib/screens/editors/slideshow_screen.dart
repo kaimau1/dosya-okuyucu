@@ -11,7 +11,9 @@ import '../../core/theme.dart';
 
 /// Tam ekran sunum modu — PowerPoint'in "Slayt Gösterisi"nin karşılığı.
 /// Yatay + tam ekran, kaydırarak veya sağ/sol yarıya dokunarak geçiş,
-/// parmakla veya çift dokunarak yakınlaştırma.
+/// parmakla veya çift dokunarak yakınlaştırma. İleri giderken slaydın
+/// geçişi (`p:transition`: Soldur / İt / Sil) oynar (Faz 29b); parmakla
+/// kaydırmada sayfa kaydırmanın kendisi geçiştir.
 class SlideshowScreen extends StatefulWidget {
   final List<SlideVM> slides;
   final int initialIndex;
@@ -31,7 +33,11 @@ class SlideshowScreen extends StatefulWidget {
   State<SlideshowScreen> createState() => _SlideshowScreenState();
 }
 
-class _SlideshowScreenState extends State<SlideshowScreen> {
+class _SlideshowScreenState extends State<SlideshowScreen>
+    with SingleTickerProviderStateMixin {
+  /// Giriş geçişinin ilerleyişi (1 = bitti; açılışta da 1).
+  late final AnimationController _enter;
+
   late final PageController _pages =
       PageController(initialPage: widget.initialIndex);
   final TransformationController _zoom = TransformationController();
@@ -69,6 +75,8 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
   @override
   void initState() {
     super.initState();
+    _enter = AnimationController(
+        vsync: this, duration: Motion.long, value: 1);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeLeft,
@@ -82,13 +90,60 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     _pages.dispose();
     _zoom.dispose();
+    _enter.dispose();
     super.dispose();
   }
 
   void _go(int delta) {
     final next = _index + delta;
     if (next < 0 || next >= widget.slides.length) return;
+    if (delta > 0 &&
+        widget.slides[next].transition != null &&
+        !Motion.reduced(context)) {
+      // Geçişli slayt: sayfa kaydırması yerine yerinde giriş efekti.
+      _pages.jumpToPage(next);
+      _enter.forward(from: 0);
+      return;
+    }
     Motion.toPage(context, _pages, next);
+  }
+
+  /// Slaytın giriş efekti ([t] 0→1).
+  static Widget _transition(SlideVM slide, double t, Widget child) {
+    final rest = 1 - Curves.easeOutCubic.transform(t);
+    final dir = slide.transitionDir;
+    switch (slide.transition) {
+      case 'push':
+        return FractionalTranslation(
+          translation: switch (dir) {
+            'r' => Offset(-rest, 0),
+            'u' => Offset(0, rest),
+            'd' => Offset(0, -rest),
+            _ => Offset(rest, 0),
+          },
+          child: child,
+        );
+      case 'wipe':
+        final f = (1 - rest).clamp(0.001, 1.0);
+        final vertical = dir == 'u' || dir == 'd';
+        // Silme yönü SLAYTIN kendi yönüdür (`p:wipe@dir`), arayüz dilinin
+        // değil: Arapça arayüzde de aynalanmaz — bu yüzden fiziksel hiza.
+        return ClipRect(
+          child: Align(
+            alignment: switch (dir) {
+              'r' => const Alignment(-1, 0),
+              'u' => Alignment.bottomCenter,
+              'd' => Alignment.topCenter,
+              _ => const Alignment(1, 0),
+            },
+            widthFactor: vertical ? 1 : f,
+            heightFactor: vertical ? f : 1,
+            child: child,
+          ),
+        );
+      default:
+        return Opacity(opacity: (1 - rest).clamp(0.0, 1.0), child: child);
+    }
   }
 
   void _resetZoom() {
@@ -247,7 +302,18 @@ class _SlideshowScreenState extends State<SlideshowScreen> {
         if ((scale > 1.02) != _zoomed) setState(() => _zoomed = scale > 1.02);
       },
       child: Center(
-        child: SlideCanvas(slide: slide, step: i == _index ? _step : 0),
+        child: i != _index || slide.transition == null
+            ? SlideCanvas(slide: slide, step: i == _index ? _step : 0)
+            : AnimatedBuilder(
+                animation: _enter,
+                child: SlideCanvas(slide: slide, step: _step),
+                builder: (_, child) => _enter.value >= 1
+                    ? child!
+                    : KeyedSubtree(
+                        key: const ValueKey('ss-transition'),
+                        child: _transition(slide, _enter.value, child!),
+                      ),
+              ),
       ),
     );
   }

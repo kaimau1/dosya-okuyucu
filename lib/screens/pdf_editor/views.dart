@@ -23,6 +23,17 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                 _workPath!,
                 controller: _controller,
                 params: PdfViewerParams(
+                  // Görüntüleyiciyle aynı fırlatma (bkz. [kPdfPanFriction]).
+                  interactionEndFrictionCoefficient:
+                      _pinch ? kPdfPinchFriction : kPdfPanFriction,
+                  onInteractionStart: (_) {
+                    if (_pinch) _partSetState(() => _pinch = false);
+                  },
+                  onInteractionUpdate: (d) {
+                    if (d.pointerCount >= 2 && !_pinch) {
+                      _partSetState(() => _pinch = true);
+                    }
+                  },
                   onPageChanged: (page) {
                     if (page == null || page == _page) return;
                     _partSetState(() => _page = page);

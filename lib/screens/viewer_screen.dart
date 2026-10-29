@@ -51,6 +51,7 @@ import '../services/ocr_service.dart';
 import '../services/pdf/edge_auto_scroll.dart';
 import '../services/fm/save_to_downloads.dart';
 import '../services/pdf/current_page.dart';
+import '../services/pdf/pdf_fling.dart';
 import '../services/pdf/page_arrival.dart';
 import '../services/pdf/pdf_form.dart';
 import '../services/pdf/pdf_ocr_search.dart';
@@ -371,6 +372,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// pdfrx jesti (kaydırma/iki parmak) sürüyor mu — sürerken sayfa bitmap
   /// ölçeği değişmez (bkz. [_pdfRenderScale]).
   bool _pdfInteracting = false;
+
+  /// Süren jest iki parmaklı mı (yakınlaştırma)? Fırlatma sürtünmesi buna
+  /// göre seçilir (bkz. [kPdfPanFriction]).
+  bool _pdfPinch = false;
 
   /// Son seçilen sayfa bitmap ölçeği (basamaklı, bkz. [_pdfRenderScale]).
   double? _pdfBaseScale;
