@@ -90,6 +90,33 @@ for f in android/app/build.gradle.kts android/app/build.gradle; do
 done
 grep -R -E "minSdk|ndkVersion" android/app/build.gradle* || true
 
+# Eklentiler (ör. `jni`) uygulamanınkini değil Flutter'ın varsayılan NDK'sını
+# (`flutter.ndkVersion`) ister; runner'da yoksa Gradle onu TEK denemede
+# indiriyor. Build 436 (2026-10-29) indirme bozuk gelince ("Archive is not a
+# ZIP archive") derlemeye başlamadan düştü. O sürüm burada, yeniden
+# denemeli kurulur; kurulamazsa Gradle eskisi gibi kendisi dener.
+FLUTTER_BIN=$(command -v flutter || true)
+if [ -n "$SDK" ] && [ -n "$FLUTTER_BIN" ]; then
+  FLUTTER_DIR=$(cd "$(dirname "$(readlink -f "$FLUTTER_BIN")")/.." && pwd)
+  PLUGIN_NDK=$(grep -ho 'ndkVersion: String = "[0-9.]*"' \
+    "$FLUTTER_DIR/packages/flutter_tools/gradle/src/main/kotlin/FlutterExtension.kt" \
+    2>/dev/null | grep -o '[0-9][0-9.]*' | head -1 || true)
+  SDKM=$(ls "$SDK"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | sort -V | tail -1 || true)
+  if [ -n "$PLUGIN_NDK" ] && [ -n "$SDKM" ] && [ ! -f "$SDK/ndk/$PLUGIN_NDK/source.properties" ]; then
+    for attempt in 1 2 3; do
+      echo "Eklenti NDK'sı $PLUGIN_NDK kuruluyor (deneme $attempt)…"
+      # Başarı çıkış koduyla değil DOSYAYLA ölçülür: `yes` SIGPIPE ile biter
+      # ve `pipefail` altında boru hattını başarısız gösterir.
+      (yes | "$SDKM" --install "ndk;$PLUGIN_NDK" >/dev/null 2>&1) || true
+      if [ -f "$SDK/ndk/$PLUGIN_NDK/source.properties" ]; then
+        break
+      fi
+      rm -rf "$SDK/ndk/$PLUGIN_NDK"
+      sleep $((attempt * 10))
+    done
+  fi
+fi
+
 # ── 5) Core library desugaring ────────────────────────────────────────────
 # flutter_local_notifications java.time kullanıyor; minSdk < 26 olduğu için
 # UYGULAMA modülünde de desugar edilmeli (desugaring modül başınadır).
