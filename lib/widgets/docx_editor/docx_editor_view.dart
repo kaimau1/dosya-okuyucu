@@ -19,6 +19,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/app_icons.dart';
 import '../../core/app_haptics.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
@@ -30,7 +31,11 @@ import 'docx_edit_controller.dart';
 class DocxEditorActions {
   final void Function(String text)? translate;
   final void Function(String text)? aiFix;
-  const DocxEditorActions({this.translate, this.aiFix});
+
+  /// Dipnot / yorum işaretine dokunuş (kimlik ile).
+  final void Function(String id)? openNote, openComment;
+  const DocxEditorActions(
+      {this.translate, this.aiFix, this.openNote, this.openComment});
 }
 
 class DocxEditorView extends StatefulWidget {
@@ -391,17 +396,40 @@ class DocxEditorViewState extends State<DocxEditorView> {
     );
   }
 
-  InlineSpan _atomSpan(DocxAtom a, TextStyle st, double maxW) {
+  InlineSpan _atomSpan(DocxAtom a, TextStyle st, double maxW, int i, int k) {
     switch (a.kind) {
       case DocxAtomKind.image:
-        final w = a.widthPt <= 0 ? maxW : math.min(maxW, a.widthPt * widget.scale);
-        final h = a.widthPt <= 0 ? null : w * a.heightPt / math.max(1, a.widthPt);
+        final sel = c.selectedImage;
+        final selected = identical(sel, a) && c.start == DocPos(i, k);
         return WidgetSpan(
           alignment: PlaceholderAlignment.middle,
-          child: a.image == null
-              ? SizedBox(width: w, height: h ?? 40, child: const Placeholder())
-              : Image.memory(a.image!, width: w, height: h, fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => SizedBox(width: w, height: h ?? 40)),
+          child: _ImageAtom(
+            key: ValueKey('docx-img-$i-$k'),
+            atom: a,
+            scale: widget.scale,
+            maxW: maxW,
+            selected: selected,
+            onTap: () {
+              _focus.requestFocus();
+              c.detach();
+              c.selectAtom(i, k);
+            },
+            onResize: (pt) => c.resizeImage(pt),
+          ),
+        );
+      case DocxAtomKind.comment:
+        final open = widget.actions.openComment;
+        return WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: GestureDetector(
+            key: ValueKey('docx-comment-${a.display}'),
+            onTap: open == null ? null : () => open(a.display),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: Icon(AppIcons.comment,
+                  size: (st.fontSize ?? 14) * 0.9, color: AppHues.amber),
+            ),
+          ),
         );
       case DocxAtomKind.pageBreak:
         return WidgetSpan(
@@ -422,9 +450,16 @@ class DocxEditorViewState extends State<DocxEditorView> {
           ),
         );
       case DocxAtomKind.note:
+        final open = widget.actions.openNote;
         return WidgetSpan(
           alignment: PlaceholderAlignment.top,
-          child: Text(a.display, style: st.apply(fontSizeFactor: 0.65)),
+          child: GestureDetector(
+            key: ValueKey('docx-note-${a.display}'),
+            onTap: open == null ? null : () => open(a.display),
+            child: Text(a.display,
+                style: st.apply(fontSizeFactor: 0.65).copyWith(
+                    color: open == null ? null : AppHues.blue)),
+          ),
         );
       case DocxAtomKind.link:
         return WidgetSpan(
@@ -449,25 +484,52 @@ class DocxEditorViewState extends State<DocxEditorView> {
     }
   }
 
-  TextSpan _span(DocxPara p, double maxW) {
+  /// Yorum aralıklarının sınırları (paragraf içi): açık aralık [from, to).
+  static List<(int, int)> _commentRanges(DocxPara p) {
+    final starts = <String, int>{};
+    final out = <(int, int)>[];
+    final ends = <String>{};
+    for (final (o, e) in p.anchors) {
+      final id = e.getAttribute('w:id') ?? '';
+      if (e.name.local == 'commentRangeStart') starts[id] = o;
+      if (e.name.local == 'commentRangeEnd') {
+        out.add((starts.remove(id) ?? 0, o));
+        ends.add(id);
+      }
+    }
+    for (final o in starts.values) {
+      out.add((o, p.length));
+    }
+    return out;
+  }
+
+  TextSpan _span(DocxPara p, double maxW, int i) {
     final kids = <InlineSpan>[];
+    final ranges = p.anchors.isEmpty ? const <(int, int)>[] : _commentRanges(p);
+    bool inComment(int k) => ranges.any((r) => k >= r.$1 && k < r.$2);
     var k = 0;
     while (k < p.length) {
       final atom = p.atoms[k];
       if (atom != null) {
-        kids.add(_atomSpan(atom, _style(p.styles[k].effective), maxW));
+        kids.add(_atomSpan(atom, _style(p.styles[k].effective), maxW, i, k));
         k++;
         continue;
       }
       final st = p.styles[k];
+      final mark = inComment(k);
       var j = k + 1;
-      while (j < p.length && p.atoms[j] == null && identical(p.styles[j], st)) {
+      while (j < p.length &&
+          p.atoms[j] == null &&
+          identical(p.styles[j], st) &&
+          inComment(j) == mark) {
         j++;
       }
-      kids.add(TextSpan(
-        text: p.text.substring(k, j),
-        style: _style(st.effective),
-      ));
+      var style = _style(st.effective);
+      if (mark && style.backgroundColor == null) {
+        style = style.copyWith(
+            backgroundColor: AppHues.amber.withValues(alpha: 0.18));
+      }
+      kids.add(TextSpan(text: p.text.substring(k, j), style: style));
       k = j;
     }
     return TextSpan(style: _style(p.mark.effective), children: kids);
@@ -493,13 +555,22 @@ class DocxEditorViewState extends State<DocxEditorView> {
           i == c.extent.para ? _caretOn : null),
       child: RichText(
         key: _key(i),
-        text: _span(p, textW),
+        text: _span(p, textW, i),
         textAlign: align,
         textDirection: dir,
       ),
     );
     if (p.opaque) {
       body = Opacity(opacity: 0.7, child: body);
+    }
+    if (look.borderBottom) {
+      body = DecoratedBox(
+        decoration: BoxDecoration(
+            border: Border(
+                bottom: BorderSide(
+                    color: AppColors.pageInk.withValues(alpha: 0.6), width: 1.2))),
+        child: Padding(padding: const EdgeInsets.only(bottom: 4), child: body),
+      );
     }
     if (label.isNotEmpty) {
       body = Row(
@@ -803,4 +874,89 @@ class _ParaPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ParaPainter old) => true;
+}
+
+
+/// Resim atomu: seçiliyken çerçeve + sağ alt köşede oran kilitli
+/// boyutlandırma tutamağı (sürüklerken canlı önizleme, bırakınca yazılır).
+class _ImageAtom extends StatefulWidget {
+  final DocxAtom atom;
+  final double scale, maxW;
+  final bool selected;
+  final VoidCallback onTap;
+  final ValueChanged<double> onResize;
+  const _ImageAtom({
+    super.key,
+    required this.atom,
+    required this.scale,
+    required this.maxW,
+    required this.selected,
+    required this.onTap,
+    required this.onResize,
+  });
+
+  @override
+  State<_ImageAtom> createState() => _ImageAtomState();
+}
+
+class _ImageAtomState extends State<_ImageAtom> {
+  double? _dragW; // sürüklenirken ekran genişliği
+
+  @override
+  Widget build(BuildContext context) {
+    final a = widget.atom;
+    final natural = a.widthPt <= 0 ? widget.maxW : a.widthPt * widget.scale;
+    final w = math.min(widget.maxW, _dragW ?? natural);
+    final ratio = a.widthPt <= 0 ? null : a.heightPt / math.max(1, a.widthPt);
+    final h = ratio == null ? null : w * ratio;
+    Widget img = a.image == null
+        ? SizedBox(width: w, height: h ?? 40, child: const Placeholder())
+        : Image.memory(a.image!,
+            width: w,
+            height: h,
+            fit: BoxFit.contain,
+            gaplessPlayback: true,
+            errorBuilder: (_, __, ___) => SizedBox(width: w, height: h ?? 40));
+    img = GestureDetector(onTap: widget.onTap, child: img);
+    if (!widget.selected) return img;
+    const hs = 22.0;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        DecoratedBox(
+          position: DecorationPosition.foreground,
+          decoration: BoxDecoration(
+              border: Border.all(color: AppColors.slideSelection, width: 2)),
+          child: img,
+        ),
+        // Tutamak resmin İÇİNDE (köşede): dışarı taşan parça WidgetSpan'in
+        // vuruş alanı dışında kalır, dokunuş ulaşmaz.
+        PositionedDirectional(
+          end: 0,
+          bottom: 0,
+          child: GestureDetector(
+            key: const ValueKey('docx-img-handle'),
+            behavior: HitTestBehavior.opaque,
+            onPanStart: (_) => setState(() => _dragW = w),
+            onPanUpdate: (d) => setState(() => _dragW =
+                ((_dragW ?? w) + d.delta.dx).clamp(24.0, widget.maxW)),
+            onPanEnd: (_) {
+              final px = _dragW;
+              setState(() => _dragW = null);
+              if (px != null) widget.onResize(px / widget.scale);
+            },
+            child: Container(
+              width: hs,
+              height: hs,
+              decoration: BoxDecoration(
+                color: AppColors.page,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.slideSelection, width: 2),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }

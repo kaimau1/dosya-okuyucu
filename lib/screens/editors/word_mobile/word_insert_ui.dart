@@ -2,6 +2,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/app_icons.dart';
 import '../../../core/l10n/app_strings.dart';
@@ -9,6 +10,7 @@ import '../../../core/snack.dart';
 import '../../../core/theme.dart';
 import '../../../widgets/app_dialog.dart';
 import '../../../widgets/doc_find_bar.dart';
+import '../../../services/docx/docx_document.dart';
 import '../../../widgets/docx_editor/docx_edit_controller.dart';
 
 /// Tablo ızgara seçici: 8×8 kare; dokun = o köşeye kadar seç → "Tabloyu ekle".
@@ -385,7 +387,6 @@ class _WordFindBarState extends State<WordFindBar> {
   }
 }
 
-
 /// Üst/alt bilgi levhası: iki metin kutusu + sayfa numarası. Uygulayınca
 /// doğrudan belgeye yazar (zengin içerik varsa uyarır).
 Future<void> showWordHeaderFooterSheet(
@@ -416,22 +417,21 @@ Future<void> showWordHeaderFooterSheet(
               key: const ValueKey('word-hf-header'),
               controller: hCtl,
               enabled: head.editable,
-              decoration:
-                  InputDecoration(labelText: ctx.t('word.hf_header')),
+              decoration: InputDecoration(labelText: ctx.t('word.hf_header')),
             ),
             const SizedBox(height: Gap.sm),
             TextField(
               key: const ValueKey('word-hf-footer'),
               controller: fCtl,
               enabled: foot.editable,
-              decoration:
-                  InputDecoration(labelText: ctx.t('word.hf_footer')),
+              decoration: InputDecoration(labelText: ctx.t('word.hf_footer')),
             ),
             CheckboxListTile(
               key: const ValueKey('word-hf-page'),
               contentPadding: EdgeInsets.zero,
               value: page,
-              onChanged: foot.editable ? (v) => set(() => page = v ?? false) : null,
+              onChanged:
+                  foot.editable ? (v) => set(() => page = v ?? false) : null,
               title: Text(ctx.t('word.hf_page')),
             ),
             FilledButton(
@@ -439,7 +439,9 @@ Future<void> showWordHeaderFooterSheet(
               onPressed: () {
                 if (head.editable) {
                   c.setHeaderFooter(
-                      header: true, text: hCtl.text, pageNumber: head.pageNumber);
+                      header: true,
+                      text: hCtl.text,
+                      pageNumber: head.pageNumber);
                 }
                 if (foot.editable) {
                   c.setHeaderFooter(
@@ -454,5 +456,251 @@ Future<void> showWordHeaderFooterSheet(
         ),
       ),
     ),
+  );
+}
+
+// ── Faz 24 kalanı: tarih/saat, dipnot, yorumlar ────────────────────────────
+
+/// Tarih / saat levhası: biçim seç → metin olarak eklenir.
+Future<String?> showWordDateSheet(BuildContext context) {
+  final now = DateTime.now();
+  String two(int v) => v.toString().padLeft(2, '0');
+  final months = context.t('word.month_names').split(',');
+  final options = [
+    '${two(now.day)}.${two(now.month)}.${now.year}',
+    '${now.day} ${months.length == 12 ? months[now.month - 1] : two(now.month)} ${now.year}',
+    '${now.year}-${two(now.month)}-${two(now.day)}',
+    '${two(now.day)}.${two(now.month)}.${now.year} ${two(now.hour)}:${two(now.minute)}',
+    '${two(now.hour)}:${two(now.minute)}',
+  ];
+  return showAppSheet<String>(
+    context,
+    title: context.t('word.insert_date'),
+    builder: (ctx) => Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final (i, o) in options.indexed)
+          ListTile(
+            key: ValueKey('word-date-$i'),
+            title: Text(o),
+            onTap: () => Navigator.pop(ctx, o),
+          ),
+      ],
+    ),
+  );
+}
+
+/// Kısa metin levhası (dipnot / yorum / alternatif metin): vazgeçilirse null.
+Future<String?> showWordTextSheet(BuildContext context,
+        {required String title,
+        required String label,
+        required String action,
+        String initial = '',
+        Key? fieldKey}) =>
+    showAppSheet<String>(
+      context,
+      title: title,
+      builder: (ctx) => _WordTextSheet(
+          label: label, action: action, initial: initial, fieldKey: fieldKey),
+    );
+
+/// Denetleyicisi levhanın ömrüne bağlı (kapanış animasyonu sürerken
+/// atılmasın).
+class _WordTextSheet extends StatefulWidget {
+  final String label, action, initial;
+  final Key? fieldKey;
+  const _WordTextSheet(
+      {required this.label,
+      required this.action,
+      required this.initial,
+      this.fieldKey});
+
+  @override
+  State<_WordTextSheet> createState() => _WordTextSheetState();
+}
+
+class _WordTextSheetState extends State<_WordTextSheet> {
+  late final _ctl = TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _ctl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: EdgeInsets.fromLTRB(Gap.md, 0, Gap.md,
+            Gap.md + MediaQuery.viewInsetsOf(context).bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              key: widget.fieldKey ?? const ValueKey('word-text-field'),
+              controller: _ctl,
+              autofocus: true,
+              minLines: 2,
+              maxLines: 6,
+              decoration: InputDecoration(labelText: widget.label),
+            ),
+            const SizedBox(height: Gap.md),
+            FilledButton(
+              key: const ValueKey('word-text-ok'),
+              onPressed: () => Navigator.pop(context, _ctl.text),
+              child: Text(widget.action),
+            ),
+          ],
+        ),
+      );
+}
+
+/// Yorum yazarı (bir kez sorulur, hatırlanır).
+Future<String?> wordCommentAuthor(BuildContext context) async {
+  SharedPreferences? prefs;
+  try {
+    prefs = await SharedPreferences.getInstance();
+    final have = prefs.getString(kWordAuthorPref);
+    if (have != null && have.trim().isNotEmpty) return have;
+  } catch (_) {
+    // Tercih deposu yoksa her seferinde sorulur.
+  }
+  if (!context.mounted) return null;
+  final name = await showAppPrompt(context,
+      title: context.t('word.comment_author'),
+      label: context.t('word.comment_author_hint'));
+  if (name == null || name.trim().isEmpty) return null;
+  try {
+    await prefs?.setString(kWordAuthorPref, name.trim());
+  } catch (_) {
+    // En iyi çaba: hatırlanamazsa bir dahaki yorumda yine sorulur.
+  }
+  return name.trim();
+}
+
+const kWordAuthorPref = 'word.comment_author';
+
+/// Yorumlar levhası: liste (yanıtlar girintili), yanıtla / çözüldü / sil,
+/// "Yeni yorum" seçime ekler. [focusId] verilirse o yorum vurgulu.
+Future<void> showWordCommentsSheet(BuildContext context, DocxEditController c,
+    {String? focusId, void Function(int para)? reveal}) {
+  return showAppSheet<void>(
+    context,
+    title: context.t('word.comments'),
+    builder: (ctx) => StatefulBuilder(builder: (ctx, set) {
+      final all = c.comments;
+      final roots = [
+        for (final x in all)
+          if (x.parentId == null) x
+      ];
+      final scheme = Theme.of(ctx).colorScheme;
+      Future<void> addNew() async {
+        final author = await wordCommentAuthor(ctx);
+        if (author == null || !ctx.mounted) return;
+        final text = await showWordTextSheet(ctx,
+            title: ctx.t('word.comment_new'),
+            label: ctx.t('word.comment_text'),
+            action: ctx.t('word.comment_post'),
+            fieldKey: const ValueKey('word-comment-text'));
+        if (text == null || text.trim().isEmpty) return;
+        c.addComment(text, author);
+        set(() {});
+      }
+
+      Widget tile(DocxComment x, {bool reply = false}) => Padding(
+            key: ValueKey('word-comment-${x.id}'),
+            padding: EdgeInsetsDirectional.only(
+                start: reply ? Gap.xl : 0, bottom: Gap.xs),
+            child: Material(
+              color: x.id == focusId
+                  ? scheme.secondaryContainer
+                  : scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(Radii.card),
+              clipBehavior: Clip.antiAlias,
+              child: ListTile(
+                dense: true,
+                title: Text(x.author.isEmpty ? '—' : x.author,
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        decoration:
+                            x.done ? TextDecoration.lineThrough : null)),
+                subtitle: Text(x.text),
+                onTap: reveal == null
+                    ? null
+                    : () {
+                        final i = c.commentPara(x.id);
+                        if (i >= 0) {
+                          Navigator.pop(ctx);
+                          reveal(i);
+                        }
+                      },
+                trailing: PopupMenuButton<String>(
+                  key: ValueKey('word-comment-menu-${x.id}'),
+                  onSelected: (v) async {
+                    switch (v) {
+                      case 'reply':
+                        final author = await wordCommentAuthor(ctx);
+                        if (author == null || !ctx.mounted) return;
+                        final text = await showWordTextSheet(ctx,
+                            title: ctx.t('word.comment_reply'),
+                            label: ctx.t('word.comment_text'),
+                            action: ctx.t('word.comment_post'),
+                            fieldKey: const ValueKey('word-comment-text'));
+                        if (text == null) return;
+                        c.replyComment(x.id, text, author);
+                      case 'done':
+                        c.setCommentDone(x.id, !x.done);
+                      case 'delete':
+                        c.deleteComment(x.id);
+                    }
+                    set(() {});
+                  },
+                  itemBuilder: (_) => [
+                    if (!reply)
+                      PopupMenuItem(
+                          value: 'reply',
+                          child: Text(ctx.t('word.comment_reply'))),
+                    if (!reply)
+                      PopupMenuItem(
+                          value: 'done',
+                          child: Text(ctx.t(x.done
+                              ? 'word.comment_reopen'
+                              : 'word.comment_resolve'))),
+                    PopupMenuItem(
+                        value: 'delete', child: Text(ctx.t('common.delete'))),
+                  ],
+                ),
+              ),
+            ),
+          );
+
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (roots.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(Gap.md),
+                child: Text(ctx.t('word.comments_none'),
+                    textAlign: TextAlign.center),
+              ),
+            for (final r in roots) ...[
+              tile(r),
+              for (final x in all)
+                if (x.parentId == r.id) tile(x, reply: true),
+            ],
+            const SizedBox(height: Gap.sm),
+            FilledButton.tonalIcon(
+              key: const ValueKey('word-comment-new'),
+              onPressed: addNew,
+              icon: const Icon(AppIcons.addComment),
+              label: Text(ctx.t('word.comment_new')),
+            ),
+          ],
+        ),
+      );
+    }),
   );
 }

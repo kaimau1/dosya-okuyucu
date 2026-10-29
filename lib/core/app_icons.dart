@@ -450,4 +450,28 @@ abstract final class AppIcons {
   static const IconData qrScan = Icons.qr_code_scanner_rounded;
   /// Gelen dosya isteği.
   static const IconData incoming = Icons.call_received_rounded;
+
+  // ── 2026-10-29 turu (Faz 24/27/29 kalanı) ────────────────────────────
+  /// Yorum (Word yorumu, Excel notu).
+  static const IconData comment = Icons.mode_comment_rounded;
+  /// Yorum ekle.
+  static const IconData addComment = Icons.add_comment_rounded;
+  /// Dipnot.
+  static const IconData footnote = Icons.short_text_rounded;
+  /// Yatay çizgi.
+  static const IconData horizontalRule = Icons.horizontal_rule_rounded;
+  /// Alternatif metin.
+  static const IconData altText = Icons.closed_caption_rounded;
+  /// Form görünümü (kayıt kartı).
+  static const IconData formView = Icons.view_agenda_rounded;
+  /// Hücre stilleri / biçimlendir.
+  static const IconData cellStyles = Icons.format_paint_rounded;
+  /// Kenarlık.
+  static const IconData borders = Icons.border_all_rounded;
+  /// Veri doğrulama.
+  static const IconData validation = Icons.rule_rounded;
+  /// Küçük resim şeridi.
+  static const IconData thumbnails = Icons.view_carousel_rounded;
+  /// Slayt sıralayıcı.
+  static const IconData sorter = Icons.grid_view_rounded;
 }

@@ -31,6 +31,7 @@ import 'docx_styles.dart';
 part 'docx_insert.dart';
 part 'docx_table.dart';
 part 'docx_review.dart';
+part 'docx_media.dart';
 
 /// Atom karakteri (Flutter `WidgetSpan` yer tutucusuyla aynı).
 const String kDocxAtom = '￼';
@@ -38,7 +39,7 @@ const String kDocxAtom = '￼';
 /// Satır içi satır sonu (`w:br`).
 const String kDocxLineBreak = ' ';
 
-enum DocxAtomKind { image, link, field, note, pageBreak, inline }
+enum DocxAtomKind { image, link, field, note, comment, pageBreak, inline }
 
 /// Satır içi dokunulmaz öğe.
 class DocxAtom {
@@ -392,6 +393,9 @@ class DocxDocument {
   final Map<String, XmlDocument> _parts = {};
   final Set<String> _dirtyParts = {};
 
+  /// Bu oturumda eklenen ikili parçalar (resimler — Faz 24).
+  final Map<String, Uint8List> _binParts = {};
+
   /// Belgenin düzenlenebilir akışı (gövde + tablo hücreleri, belge sırasıyla).
   List<DocxPara> paras;
 
@@ -709,6 +713,9 @@ class DocxDocument {
           atom(DocxAtom(DocxAtomKind.pageBreak, [wrap(c)], ''), style);
         case 'footnoteReference' || 'endnoteReference':
           atom(DocxAtom(DocxAtomKind.note, [wrap(c)], _attr(c, 'id') ?? '*'),
+              style);
+        case 'commentReference':
+          atom(DocxAtom(DocxAtomKind.comment, [wrap(c)], _attr(c, 'id') ?? ''),
               style);
         case 'sym':
           atom(
@@ -1443,7 +1450,9 @@ class DocxDocument {
   /// Paket: `document.xml` yalnız değiştiyse yeniden yazılır.
   Archive buildArchive() {
     commit();
+    _pruneNotes();
     final replaced = <String, List<int>>{
+      ..._binParts,
       if (_xmlDirty) 'word/document.xml': utf8.encode(doc.toXmlString()),
       for (final name in _dirtyParts)
         name: utf8.encode(_parts[name]!.toXmlString()),

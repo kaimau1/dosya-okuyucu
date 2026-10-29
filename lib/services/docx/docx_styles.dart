@@ -90,6 +90,9 @@ class DocxParaLook {
   final int ilvl;
   final bool pageBreakBefore;
 
+  /// Alt kenarlık (`w:pBdr/w:bottom`) — "yatay çizgi" (Faz 24).
+  final bool borderBottom;
+
   const DocxParaLook({
     this.align = 'left',
     this.indentLeftPt = 0,
@@ -104,6 +107,7 @@ class DocxParaLook {
     this.numId,
     this.ilvl = 0,
     this.pageBreakBefore = false,
+    this.borderBottom = false,
   });
 }
 
@@ -393,6 +397,7 @@ class DocxStyles {
     var ilvl = 0;
     var outline = -1;
     var pageBreak = false;
+    var borderBottom = false;
     for (final l in layers) {
       if (l == null) continue;
       final jc = _val(_child(l, 'jc'));
@@ -433,6 +438,11 @@ class DocxStyles {
       if (ol != null) outline = ol;
       final pb = _toggle(l, 'pageBreakBefore');
       if (pb != null) pageBreak = pb;
+      final bdr = _child(_child(l, 'pBdr'), 'bottom');
+      if (bdr != null) {
+        final v = _val(bdr);
+        borderBottom = v != null && v != 'nil' && v != 'none';
+      }
     }
     // Başlık: anahat düzeyi ya da "heading N" adlı stil.
     var heading = outline >= 0 && outline < 9 ? outline + 1 : 0;
@@ -456,6 +466,7 @@ class DocxStyles {
       numId: numId == 0 ? null : numId,
       ilvl: ilvl,
       pageBreakBefore: pageBreak,
+      borderBottom: borderBottom,
     );
   }
 

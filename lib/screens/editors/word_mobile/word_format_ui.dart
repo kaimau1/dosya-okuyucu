@@ -79,7 +79,23 @@ class WordFormatUi {
   final VoidCallback? onHeaderFooter;
   final void Function(bool accept)? onResolveTracked;
 
+  /// Faz 24 kalanı: resim, yorum, dipnot, tarih (ekran açar).
+  final VoidCallback? onInsertImage,
+      onReplaceImage,
+      onImageAlt,
+      onComments,
+      onNewComment,
+      onFootnote,
+      onDate;
+
   const WordFormatUi({
+    this.onInsertImage,
+    this.onReplaceImage,
+    this.onImageAlt,
+    this.onComments,
+    this.onNewComment,
+    this.onFootnote,
+    this.onDate,
     this.onInsertTable,
     this.onInsertLink,
     this.onSymbol,
@@ -180,7 +196,23 @@ class WordFormatUi {
             if (onHeaderFooter != null)
               RibbonButton(AppIcons.newWord, _t('word.insert_hf'),
                   key: const ValueKey('word-ins-hf'), onTap: onHeaderFooter),
+            if (onInsertImage != null) ...[
+              const RibbonSep(),
+              RibbonButton(AppIcons.addPhoto, _t('word.insert_image'),
+                  key: const ValueKey('word-ins-image'), onTap: onInsertImage),
+              RibbonButton(AppIcons.addComment, _t('word.comment_new'),
+                  key: const ValueKey('word-ins-comment'),
+                  onTap: onNewComment),
+              RibbonButton(AppIcons.footnote, _t('word.insert_footnote'),
+                  key: const ValueKey('word-ins-footnote'), onTap: onFootnote),
+              RibbonButton(AppIcons.horizontalRule, _t('word.insert_rule'),
+                  key: const ValueKey('word-ins-rule'),
+                  onTap: c.insertHorizontalRule),
+              RibbonButton(AppIcons.calendarMonth, _t('word.insert_date'),
+                  key: const ValueKey('word-ins-date'), onTap: onDate),
+            ],
           ]),
+        if (c.selectedImage != null) RibbonTab(_t('word.tab_picture'), picture()),
         if (c.inTable) RibbonTab(_t('word.tab_table'), table()),
         if (onInsertTable != null) RibbonTab(_t('word.tab_layout'), layout()),
         RibbonTab(_t('word.tab_view'), [
@@ -204,6 +236,14 @@ class WordFormatUi {
               key: const ValueKey('word-count'), onTap: onWordCount),
           RibbonButton(OfficeIcons.translate, _t('common.translate'),
               onTap: () => onTranslate(c.selectedText())),
+          if (onComments != null) ...[
+            const RibbonSep(),
+            RibbonButton(AppIcons.addComment, _t('word.comment_new'),
+                key: const ValueKey('word-rev-new-comment'),
+                onTap: onNewComment),
+            RibbonButton(AppIcons.comment, _t('word.comments'),
+                key: const ValueKey('word-rev-comments'), onTap: onComments),
+          ],
           if (onResolveTracked != null && c.trackedChanges > 0) ...[
             const RibbonSep(),
             RibbonButton(AppIcons.check, _t('word.track_accept'),
@@ -215,6 +255,52 @@ class WordFormatUi {
           ],
         ]),
       ];
+
+  /// Bağlamsal Resim sekmesi (bir resim seçiliyken): boyut, hiza, alternatif
+  /// metin, değiştir, sil.
+  List<Widget> picture() {
+    final a = c.selectedImage;
+    final align = c.paraLook.align;
+    return [
+      RibbonMenu<double>(
+        key: const ValueKey('word-img-size'),
+        icon: AppIcons.resize,
+        tooltip: _t('word.img_size'),
+        onSelected: c.resizeImage,
+        itemBuilder: (ctx) => [
+          for (final (k, pt) in const [
+            ('word.img_small', 144.0),
+            ('word.img_medium', 288.0),
+            ('word.img_large', 432.0),
+          ])
+            CheckedPopupMenuItem(
+                value: pt,
+                checked: a != null && (a.widthPt - pt).abs() < 1,
+                child: Text(ctx.t(k))),
+        ],
+      ),
+      RibbonButton(OfficeIcons.alignLeft, _t('common.align_left'),
+          key: const ValueKey('word-img-left'),
+          active: align == 'left',
+          onTap: () => c.alignImage('left')),
+      RibbonButton(OfficeIcons.alignCenter, _t('common.align_center'),
+          key: const ValueKey('word-img-center'),
+          active: align == 'center',
+          onTap: () => c.alignImage('center')),
+      RibbonButton(OfficeIcons.alignRight, _t('common.align_right'),
+          key: const ValueKey('word-img-right'),
+          active: align == 'right',
+          onTap: () => c.alignImage('right')),
+      const RibbonSep(),
+      RibbonButton(AppIcons.altText, _t('word.img_alt'),
+          key: const ValueKey('word-img-alt'), onTap: onImageAlt),
+      RibbonButton(AppIcons.image, _t('word.img_replace'),
+          key: const ValueKey('word-img-replace'), onTap: onReplaceImage),
+      RibbonButton(AppIcons.delete, _t('common.delete'),
+          key: const ValueKey('word-img-delete'),
+          onTap: () => c.deleteSelection()),
+    ];
+  }
 
   /// Bağlamsal Tablo sekmesi (imleç bir hücredeyken).
   List<Widget> table() => [

@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'dart:ui' as ui;
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show compute, visibleForTesting;
 import 'package:flutter/material.dart';
 
@@ -44,6 +47,11 @@ class WordMobileEditorScreen extends StatefulWidget {
   /// izolat yanıtı beklenemez).
   @visibleForTesting
   static bool parseInIsolate = true;
+
+  /// Testte dosya seçici yerine (bayt, uzantı) verir.
+  @visibleForTesting
+  static Future<(Uint8List, String)?> Function()? pickImageForTest;
+
 
   const WordMobileEditorScreen(
       {super.key, required this.path, required this.name});
@@ -197,7 +205,123 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
         onFind: () => setState(() => _findOpen = !_findOpen),
         onHeaderFooter: _headerFooter,
         onResolveTracked: _resolveTracked,
+        onInsertImage: () => _pickImage(replace: false),
+        onReplaceImage: () => _pickImage(replace: true),
+        onImageAlt: _imageAlt,
+        onComments: () => _comments(),
+        onNewComment: _newComment,
+        onFootnote: _insertFootnote,
+        onDate: _insertDate,
       );
+
+  Future<void> _pickImage({required bool replace}) async {
+    final c = _ctrl;
+    if (c == null) return;
+    (Uint8List, String)? got;
+    final hook = WordMobileEditorScreen.pickImageForTest;
+    if (hook != null) {
+      got = await hook();
+    } else {
+      final picked = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['png', 'jpg', 'jpeg', 'gif', 'bmp'],
+        withData: true,
+      );
+      final f = picked?.files.single;
+      if (f?.bytes != null) {
+        got = (f!.bytes!, (f.extension ?? 'png').toLowerCase());
+      }
+    }
+    if (got == null || !mounted) return;
+    var size = (0, 0);
+    try {
+      final codec = await ui.instantiateImageCodec(got.$1);
+      final frame = await codec.getNextFrame();
+      size = (frame.image.width, frame.image.height);
+      frame.image.dispose();
+      codec.dispose();
+    } catch (_) {
+      size = (0, 0);
+    }
+    if (!mounted) return;
+    if (size.$1 <= 0 || size.$2 <= 0) {
+      showSnack(context, context.t('word.img_failed'));
+      return;
+    }
+    if (replace) {
+      c.replaceImage(got.$1, got.$2, pixelWidth: size.$1, pixelHeight: size.$2);
+    } else {
+      c.insertImage(got.$1, got.$2, pixelWidth: size.$1, pixelHeight: size.$2);
+    }
+  }
+
+  Future<void> _imageAlt() async {
+    final c = _ctrl;
+    if (c == null || c.selectedImage == null) return;
+    final t = await showWordTextSheet(context,
+        title: context.t('word.img_alt'),
+        label: context.t('word.img_alt_hint'),
+        action: context.t('common.apply'),
+        initial: c.imageAlt,
+        fieldKey: const ValueKey('word-img-alt-field'));
+    if (t != null && mounted) c.setImageAlt(t);
+  }
+
+  Future<void> _comments({String? focus}) async {
+    final c = _ctrl;
+    if (c == null) return;
+    await showWordCommentsSheet(context, c,
+        focusId: focus,
+        reveal: (i) => _viewKey.currentState?.revealParagraph(i));
+  }
+
+  Future<void> _newComment() async {
+    final c = _ctrl;
+    if (c == null) return;
+    final author = await wordCommentAuthor(context);
+    if (author == null || !mounted) return;
+    final text = await showWordTextSheet(context,
+        title: context.t('word.comment_new'),
+        label: context.t('word.comment_text'),
+        action: context.t('word.comment_post'),
+        fieldKey: const ValueKey('word-comment-text'));
+    if (text != null && mounted) c.addComment(text, author);
+  }
+
+  Future<void> _insertFootnote() async {
+    final c = _ctrl;
+    if (c == null) return;
+    final t = await showWordTextSheet(context,
+        title: context.t('word.insert_footnote'),
+        label: context.t('word.footnote_text'),
+        action: context.t('common.insert'),
+        fieldKey: const ValueKey('word-footnote-field'));
+    if (t != null && t.trim().isNotEmpty && mounted) c.insertFootnote(t.trim());
+  }
+
+  Future<void> _openFootnote(String id) async {
+    final c = _ctrl;
+    if (c == null) return;
+    final cur = c.footnoteText(id);
+    if (cur == null) return;
+    final t = await showWordTextSheet(context,
+        title: context.t('word.footnote_edit', {'n': id}),
+        label: context.t('word.footnote_text'),
+        action: context.t('common.apply'),
+        initial: cur,
+        fieldKey: const ValueKey('word-footnote-field'));
+    if (t == null || !mounted || t.trim() == cur) return;
+    if (!c.setFootnoteText(id, t.trim())) {
+      showSnack(context, context.t('word.footnote_rich'));
+    }
+  }
+
+  Future<void> _insertDate() async {
+    final c = _ctrl;
+    if (c == null) return;
+    final t = await showWordDateSheet(context);
+    if (t != null && mounted) c.insertText(t);
+  }
 
   bool _findOpen = false;
 
@@ -396,8 +520,11 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
               controller: c,
               scale: _scale,
               spellcheck: EditPrefs.wordSpellcheck,
-              actions:
-                  DocxEditorActions(translate: _translate, aiFix: _aiFix),
+              actions: DocxEditorActions(
+                  translate: _translate,
+                  aiFix: _aiFix,
+                  openNote: _openFootnote,
+                  openComment: (id) => _comments(focus: id)),
             ),
           ),
         ],
