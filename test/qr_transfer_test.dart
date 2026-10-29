@@ -85,4 +85,61 @@ void main() {
     expect(none, isEmpty);
     expect(out2.listSync(), isEmpty);
   });
+
+  // 2026-10-29: kısa adres, klasör paketi, Range ile devam, Tümünü indir.
+  test('kısa jeton, klasör paket olarak gelir ve alıcıda AÇILIR', () async {
+    final tmp = await Directory.systemTemp.createTemp('qrk');
+    addTearDown(() => tmp.delete(recursive: true));
+    final dir = Directory(p.join(tmp.path, 'Fotoğraflar'))..createSync();
+    File(p.join(dir.path, 'a.txt')).writeAsStringSync('aaa');
+    File(p.join(dir.path, 'b.txt')).writeAsStringSync('bbbb');
+    final server = QrShareServer([dir.path], senderName: 'Ayşe');
+    await server.start();
+    addTearDown(server.stop);
+    expect(server.token, matches(RegExp(r'^[a-z2-9]{6}$')));
+    final url = server.urlFor('127.0.0.1');
+    final items = await QrReceiver.list(url);
+    expect(items.single.name, 'Fotoğraflar.zip');
+    expect(items.single.files, 2);
+    final out = Directory(p.join(tmp.path, 'gelen'))..createSync();
+    final got = await QrReceiver.download(url, out.path, listed: items);
+    expect(got.map(p.basename), ['Fotoğraflar']);
+    expect(File(p.join(out.path, 'Fotoğraflar', 'b.txt')).readAsStringSync(),
+        'bbbb');
+    expect(out.listSync().map((e) => p.basename(e.path)), ['Fotoğraflar']);
+
+    final client = HttpClient();
+    addTearDown(client.close);
+    final page = await (await client.getUrl(url)).close();
+    final html = await page.transform(const SystemEncoding().decoder).join();
+    expect(html, contains('Ayşe'));
+    expect(html, isNot(contains('all.zip'))); // tek öğe: "Tümü" düğmesi yok
+  });
+
+  test('Range: kalan bayttan sürer; Tümünü indir ZIP veriyor', () async {
+    final tmp = await Directory.systemTemp.createTemp('qrr');
+    addTearDown(() => tmp.delete(recursive: true));
+    final a = File(p.join(tmp.path, 'a.bin'))
+      ..writeAsBytesSync(List.generate(1000, (i) => i % 256));
+    final b = File(p.join(tmp.path, 'b.txt'))..writeAsStringSync('bb');
+    final server = QrShareServer([a.path, b.path]);
+    await server.start();
+    addTearDown(server.stop);
+    final url = server.urlFor('127.0.0.1');
+    final client = HttpClient();
+    addTearDown(client.close);
+    final req = await client.getUrl(url.resolve('0'));
+    req.headers.set(HttpHeaders.rangeHeader, 'bytes=990-');
+    final res = await req.close();
+    expect(res.statusCode, HttpStatus.partialContent);
+    final tail = [for (final c in await res.toList()) ...c];
+    expect(tail, List.generate(10, (i) => (990 + i) % 256));
+    final all = await (await client.getUrl(url.resolve('all.zip'))).close();
+    expect(all.statusCode, 200);
+    final zipBytes = [for (final c in await all.toList()) ...c];
+    expect(zipBytes.sublist(0, 4), [0x50, 0x4b, 0x03, 0x04]);
+    final page = await (await client.getUrl(url)).close();
+    final html = await page.transform(const SystemEncoding().decoder).join();
+    expect(html, contains('all.zip'));
+  });
 }

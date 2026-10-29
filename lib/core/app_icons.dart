@@ -487,4 +487,11 @@ abstract final class AppIcons {
   static const IconData flipV = Icons.swap_vert_rounded;
   static const IconData photoFilter = Icons.photo_filter_rounded;
   static const IconData lineWeight = Icons.line_weight_rounded;
+
+  // ── Yakındakiler (2026-10-29) ─────────────────────────────────────────
+  static const IconData bluetooth = Icons.bluetooth_rounded;
+  static const IconData wifi = Icons.wifi_rounded;
+  static const IconData nearMe = Icons.near_me_rounded;
+  static const IconData addFile = Icons.note_add_rounded;
+  static const IconData addFolder = Icons.create_new_folder_rounded;
 }

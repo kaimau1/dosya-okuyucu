@@ -98,8 +98,7 @@ class FmSelectionBar extends StatelessWidget {
                       }
                     },
                   ),
-                  if (!_anyDir)
-                    _action(
+                  _action(
                       context,
                       AppIcons.share,
                       context.t('common.share'),

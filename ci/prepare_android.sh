@@ -43,12 +43,13 @@ grep -E "INTERNET|launchMode|action.VIEW|action.SEND|label=" \
 #   SdUnion (SD birleşik depolama işi),
 #   Extras (widget'lar, günlük iş, biyometri, Keystore, Geocoder),
 #   QrTransfer (QR ile paylaş: kod tarayıcı + yerel hotspot),
+#   NearbyBle (Yakındakiler: Bluetooth LE ile bulma + davet),
 #   Ajan (Gemini işlevleri — AppFunctions, bkz. 7b).
 say "Kotlin kaynakları"
 DIR=android/app/src/main/kotlin/com/dosyaokuyucu/dosya_okuyucu
 mkdir -p "$DIR"
 for kt in MainActivity DosyaProvider PickerActivity UsbMass MediaSession MediaTranscode \
-          SdUnion Extras QrTransfer Ajan; do
+          SdUnion Extras QrTransfer NearbyBle Ajan; do
   cp "ci/$kt.kt" "$DIR/$kt.kt"
 done
 # `cp -r ci/res/.` mevcut res/ dosyalarını SİLMEZ, yalnız ekler.

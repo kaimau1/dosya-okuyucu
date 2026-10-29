@@ -311,9 +311,14 @@ class MainActivity : FlutterActivity() {
     /** QR ile paylaş: hotspot/ağ bağı motor yıkılınca bırakılır. */
     private var qrTransfer: QrTransfer? = null
 
+    /** Yakındakiler (Bluetooth LE): yayın/tarama motor yıkılınca durur. */
+    private var nearbyBle: NearbyBle? = null
+
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         qrTransfer?.dispose()
         qrTransfer = null
+        nearbyBle?.dispose()
+        nearbyBle = null
         super.cleanUpFlutterEngine(flutterEngine)
     }
     private var pendingShortcutPath: String? = null
@@ -640,6 +645,10 @@ class MainActivity : FlutterActivity() {
             qrTransfer = it
             MethodChannel(flutterEngine.dartExecutor.binaryMessenger, QrTransfer.CHANNEL)
                 .setMethodCallHandler(it)
+        }
+        NearbyBle(this).also {
+            nearbyBle = it
+            it.attach(MethodChannel(flutterEngine.dartExecutor.binaryMessenger, NearbyBle.CHANNEL))
         }
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
         channel!!

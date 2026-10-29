@@ -252,7 +252,19 @@ Future<bool> deleteForever(BuildContext context, List<String> paths) async {
 
 Future<void> shareEntries(List<String> paths) async {
   if (paths.isEmpty) return;
-  await Share.shareXFiles(paths.map((p) => XFile(p)).toList());
+  // Klasör paylaşımı (2026-10-29): sistem paylaşım sayfası klasör
+  // taşıyamaz — klasörler geçici bir ZIP'e çevrilip öyle gider.
+  final files = <String>[];
+  for (final path in paths) {
+    if (Directory(path).existsSync()) {
+      final tmp = await Directory.systemTemp.createTemp('share-zip');
+      files.add(await ArchiveOps.zip([path], tmp.path,
+          archiveName: p.basename(path)));
+    } else {
+      files.add(path);
+    }
+  }
+  await Share.shareXFiles(files.map((f) => XFile(f)).toList());
 }
 
 /// "Paylaş" düğmesinin gerçek akışı: **önce nasıl** diye sorar.

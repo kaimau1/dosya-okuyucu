@@ -103,9 +103,10 @@ Future<bool> showEntryActions(
             _quickRow(ctx, [
               _quick(ctx, AppIcons.open, ctx.t('common.open'),
                   _EntryAction.open),
-              if (!entry.isDir)
-                _quick(ctx, AppIcons.share, ctx.t('common.share'),
-                    _EntryAction.share),
+              // Klasör de paylaşılır (2026-10-29): yakındakilere klasör
+              // olarak gider, başka uygulamaya ZIP olarak.
+              _quick(ctx, AppIcons.share, ctx.t('common.share'),
+                  _EntryAction.share),
               _quick(ctx, AppIcons.move, ctx.t('fm.move'),
                   _EntryAction.moveTo),
               // Faz 17 / G16: hızlı sıra beşli — Kopyala da burada

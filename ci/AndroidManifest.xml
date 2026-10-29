@@ -41,6 +41,20 @@
         android:maxSdkVersion="32"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"
         android:maxSdkVersion="32"/>
+    <!-- Yakındakiler (2026-10-29): ekran açıkken Bluetooth LE ile görünme,
+         bulma ve "dosya gönderiyorum" daveti (veri Wi-Fi'den akar).
+         Android 12+ "Yakındaki cihazlar" izni (konum İÇİN DEĞİL); öncesi
+         eski Bluetooth izinleri + yukarıdaki konum izni. Bluetooth'u
+         olmayan cihazlar da kurabilsin diye özellik zorunlu değil. -->
+    <uses-permission android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false"/>
 
 
     <!-- ── Dosya yöneticisi izinleri ───────────────────────────────────────

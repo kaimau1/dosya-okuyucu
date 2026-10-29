@@ -117,8 +117,15 @@ void main() {
         onProgress: (_, sent, total) => lastTotal = total);
 
     expect(result.sent, 5);
-    expect(lastTotal, 15); // 5 dosya × 3 bayt: ilerleme BAYT sayıyor
-    expect(inbox.listSync().whereType<File>(), hasLength(5));
+    // 5 küçük dosya tek PAKET akışıyla gider (2026-10-29): ilerleme paketin
+    // baytını sayar (veri + ZIP başlıkları), alıcıda dosyalar tek tek açılır.
+    expect(lastTotal, greaterThan(15));
+    final landed = inbox.listSync().whereType<File>().toList();
+    expect(landed, hasLength(5));
+    for (var i = 0; i < 5; i++) {
+      expect(File(p.join(inbox.path, 'dosya$i.bin')).readAsBytesSync(),
+          [i, i, i]);
+    }
   });
 
   test('/kim ucu cihazı tanıtır (elle adres yazma yolu)', () async {
@@ -309,6 +316,107 @@ void main() {
       expect(asked, 1);
       expect(inbox.listSync(), isEmpty);
     });
+  });
+
+  // 2026-10-29: klasör ve çoklu küçük dosya tek akışta gider, alıcıda açılır.
+  test('klasör KLASÖR olarak gelir (iç içe dosyalarla)', () async {
+    final receiver = await startReceiver();
+    addTearDown(receiver.stop);
+    final folder = Directory(p.join(temp.path, 'Tatil'))..createSync();
+    Directory(p.join(folder.path, 'gün 1')).createSync();
+    File(p.join(folder.path, 'a.txt')).writeAsStringSync('aaa');
+    File(p.join(folder.path, 'gün 1', 'b.bin'))
+        .writeAsBytesSync(List.generate(70000, (i) => i % 256));
+    final peer = Peer(name: 'A', host: '127.0.0.1', port: receiver.port);
+    final r = await PeerSender.send(peer, [folder.path], senderName: 'G');
+    expect(r.errors, isEmpty);
+    expect(r.sent, 2);
+    expect(File(p.join(inbox.path, 'Tatil', 'a.txt')).readAsStringSync(), 'aaa');
+    expect(File(p.join(inbox.path, 'Tatil', 'gün 1', 'b.bin')).readAsBytesSync(),
+        File(p.join(folder.path, 'gün 1', 'b.bin')).readAsBytesSync());
+    // Geride yarım/geçici dosya kalmaz.
+    expect(
+        inbox.listSync().where(
+            (e) => p.basename(e.path).startsWith(PeerShare.partPrefix)),
+        isEmpty);
+  });
+
+  test('kopan aktarım KALDIĞI BAYTTAN sürer', () async {
+    final receiver = await startReceiver();
+    addTearDown(receiver.stop);
+    final client = HttpClient();
+    addTearDown(client.close);
+    final base = 'http://127.0.0.1:${receiver.port}';
+    // İlk deneme yarıda kesildi: 10 baytın 4'ü geldi.
+    var req = await client.postUrl(
+        Uri.parse('$base/al?ad=v.bin&kim=G&tid=abc123&ofs=0&boyut=10'));
+    req.add([0, 1, 2, 3]);
+    var res = await req.close();
+    await res.drain<void>();
+    expect(res.statusCode, HttpStatus.badRequest);
+    // Yarım dosya "geldi" sayılmaz…
+    expect(File(p.join(inbox.path, 'v.bin')).existsSync(), isFalse);
+    // …ama baytlar durur.
+    final st = await (await client
+            .getUrl(Uri.parse('$base/durum?tid=abc123')))
+        .close();
+    final have = jsonDecode(await st.transform(utf8.decoder).join())['have'];
+    expect(have, 4);
+    // Yanlış yerden sürdürmek reddedilir.
+    req = await client.postUrl(
+        Uri.parse('$base/al?ad=v.bin&kim=G&tid=abc123&ofs=2&boyut=10'));
+    req.add([9]);
+    res = await req.close();
+    await res.drain<void>();
+    expect(res.statusCode, HttpStatus.conflict);
+    // Doğru yerden kalan 6 bayt.
+    req = await client.postUrl(
+        Uri.parse('$base/al?ad=v.bin&kim=G&tid=abc123&ofs=4&boyut=10'));
+    req.add([4, 5, 6, 7, 8, 9]);
+    res = await req.close();
+    await res.drain<void>();
+    expect(res.statusCode, HttpStatus.ok);
+    expect(File(p.join(inbox.path, 'v.bin')).readAsBytesSync(),
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  });
+
+  test('alıcı yokken başlayan gönderim süre dolunca hata verir', () async {
+    final peer = Peer(name: 'A', host: '127.0.0.1', port: 1);
+    final waits = <bool>[];
+    final source = File(p.join(temp.path, 'x.txt'))..writeAsStringSync('x');
+    final r = await PeerSender.send(peer, [source.path],
+        senderName: 'G',
+        onWaiting: waits.add,
+        retryFor: const Duration(milliseconds: 300),
+        retryEvery: const Duration(milliseconds: 100));
+    expect(r.sent, 0);
+    expect(r.hasError, isTrue);
+    expect(waits, contains(true));
+  });
+
+  test('onay penceresi adları, boyutları ve önizlemeyi alır', () async {
+    PeerOffer? got;
+    final receiver = PeerReceiver(
+        deviceName: 'A',
+        saveDir: inbox.path,
+        onAsk: (o) async {
+          got = o;
+          return true;
+        });
+    await receiver.start();
+    addTearDown(receiver.stop);
+    final img = File(p.join(temp.path, 'foto.jpg'))..writeAsBytesSync([1, 2]);
+    final dir = Directory(p.join(temp.path, 'Belgeler'))..createSync();
+    File(p.join(dir.path, 'x.txt')).writeAsStringSync('12345');
+    final peer = Peer(name: 'A', host: '127.0.0.1', port: receiver.port);
+    final r = await PeerSender.send(peer, [img.path, dir.path],
+        senderName: 'Ayşe', thumbnail: (path) async => [7, 7, 7]);
+    expect(r.errors, isEmpty);
+    expect(got!.items.map((e) => e.name), ['foto.jpg', 'Belgeler']);
+    expect(got!.items[0].thumb, [7, 7, 7]);
+    expect(got!.items[1].isFolder, isTrue);
+    expect(got!.items[1].folderFiles, 1);
+    expect(got!.items[1].size, 5);
   });
 
   test('alt ağ yayın adresi', () {
