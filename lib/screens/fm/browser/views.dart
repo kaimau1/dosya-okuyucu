@@ -27,86 +27,88 @@ extension _BrowserScreenViewsPart on _BrowserScreenState {
             if (picked != null) await appState.setFmLayout(picked);
           },
         ),
-        PopupMenuButton<String>(
+        // ⋮ artık açılır liste değil, dosya içindeki "Daha fazla" ile AYNI
+        // levha (2026-10-29 görsel birlik: *"klasör menüsü farklı"*).
+        IconButton(
+          key: const ValueKey('browser-more'),
           tooltip: context.t('fm.other'),
           icon: const Icon(AppIcons.more),
-          onSelected: (value) async {
-            switch (value) {
-              case 'hidden':
-                await appState.setFmShowHidden(!appState.fmShowHidden);
-                _load();
-              case 'star':
-                appState.toggleBookmark(widget.path);
-              case 'lock':
-                if (!appState.fmHasLockPin && !await setupPin(context)) break;
-                if (!context.mounted) break;
-                // Kilidi KALDIRIRKEN de PIN sorulur: telefonu eline alan biri
-                // kilidi tek dokunuşla açabilseydi kilit anlamsız olurdu.
-                if (appState.isFolderLocked(widget.path) &&
-                    !await askPin(context)) {
-                  break;
-                }
-                await appState.toggleLockedFolder(widget.path);
-              case 'organize':
-                await Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => OrganizeScreen(path: widget.path),
-                ));
-                _load();
-              case 'select_all':
-                _toggleSelectAll();
-              case 'empty_folders':
-                await _cleanEmptyFolders();
-              case 'export_list':
-                await _exportListing();
-              case 'refresh':
-                _load();
-            }
-          },
-          itemBuilder: (ctx) => [
-            _menuItem('hidden',
-                appState.fmShowHidden ? AppIcons.hiddenOff : AppIcons.hidden,
-                appState.fmShowHidden
-                    ? context.t('fm.hide_hidden')
-                    : context.t('fm.show_hidden')),
-            _menuItem(
-                'star',
-                starred ? AppIcons.star : AppIcons.starEmpty,
-                starred
-                    ? context.t('fm.unfavorite')
-                    : context.t('fm.favorite')),
-            _menuItem(
-                'lock',
-                appState.isFolderLocked(widget.path)
-                    ? AppIcons.unlock
-                    : AppIcons.lock,
-                appState.isFolderLocked(widget.path)
-                    ? context.t('fm.unlock_folder')
-                    : context.t('fm.lock_folder')),
-            _menuItem('select_all', AppIcons.selectAll, context.t('fm.select_all')),
-            const PopupMenuDivider(),
-            _menuItem('organize', AppIcons.organize, context.t('fm.auto_organize')),
-            _menuItem('empty_folders', AppIcons.cleanEmpty,
-                context.t('fm.empty_folders')),
-            _menuItem('export_list', AppIcons.exportList,
-                context.t('fm.export_list')),
-            _menuItem('refresh', AppIcons.refresh, context.t('common.refresh')),
-          ],
+          onPressed: () => _openFolderMenu(context, appState, starred),
         ),
       ],
     );
   }
 
-  PopupMenuItem<String> _menuItem(String value, IconData icon, String text) =>
-      PopupMenuItem(
-        value: value,
-        child: Row(
-          children: [
-            Icon(icon, size: AppIcons.small),
-            const SizedBox(width: Gap.md),
-            Expanded(child: Text(text)),
-          ],
-        ),
-      );
+  void _openFolderMenu(BuildContext context, AppState appState, bool starred) {
+    final locked = appState.isFolderLocked(widget.path);
+    Future<void> lock() async {
+      if (!appState.fmHasLockPin && !await setupPin(context)) return;
+      if (!context.mounted) return;
+      // Kilidi KALDIRIRKEN de PIN sorulur: telefonu eline alan biri kilidi
+      // tek dokunuşla açabilseydi kilit anlamsız olurdu.
+      if (locked && !await askPin(context)) return;
+      await appState.toggleLockedFolder(widget.path);
+    }
+
+    DocMoreSheet.show(
+      context,
+      [
+        DocMoreGroup(context.t('ea.sec_this'), [
+          DocMoreItem(
+            appState.fmShowHidden ? AppIcons.hiddenOff : AppIcons.hidden,
+            context.t('fm.show_hidden'),
+            () async {
+              await appState.setFmShowHidden(!appState.fmShowHidden);
+              _load();
+            },
+            selected: appState.fmShowHidden,
+          ),
+          DocMoreItem(
+            starred ? AppIcons.star : AppIcons.starEmpty,
+            context.t('fm.favorite'),
+            () => appState.toggleBookmark(widget.path),
+            selected: starred,
+          ),
+          DocMoreItem(
+            locked ? AppIcons.lock : AppIcons.unlock,
+            context.t('fm.lock_folder'),
+            () => unawaited(lock()),
+            selected: locked,
+          ),
+          DocMoreItem(AppIcons.selectAll, context.t('fm.select_all'),
+              _toggleSelectAll),
+        ]),
+        DocMoreGroup(context.t('fm.other'), [
+          DocMoreItem(AppIcons.organize, context.t('fm.auto_organize'),
+              () async {
+            await Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => OrganizeScreen(path: widget.path),
+            ));
+            _load();
+          }),
+          DocMoreItem(AppIcons.cleanEmpty, context.t('fm.empty_folders'),
+              () => unawaited(_cleanEmptyFolders())),
+          DocMoreItem(AppIcons.exportList, context.t('fm.export_list'),
+              () => unawaited(_exportListing())),
+          DocMoreItem(AppIcons.refresh, context.t('common.refresh'), _load),
+        ]),
+      ],
+      header: Row(
+        children: [
+          const Icon(AppIcons.folder, color: FmColors.folder),
+          const SizedBox(width: Gap.sm),
+          Expanded(
+            child: Text(
+              widget.title ?? p.basename(widget.path),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   /// Seçim üst çubuğu **sade**: sayaç + toplam boyut + **metinli** seçim
   /// menüsü (Faz 6 / U8). Eylemler (Taşı/Kopyala/Paylaş/Sil/…) alttaki

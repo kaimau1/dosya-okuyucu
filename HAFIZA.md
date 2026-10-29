@@ -712,3 +712,32 @@
   sabit, aynı geri al adımında). Paragraf başına hiza/girinti düzenlerken → bilinçli kapsam dışı
   (DUZENLEME_PLANI §10). Testler: `image_edit_test` (+6), `image_edit_screen_test` (yeni),
   `slides_edit_test` (+1); PNG `tool/design_shots_faz32_test.dart` → `docs/design/faz32/`.
+
+- **2026-10-29 (bulut) — Yakındakiler (tek aktarım ekranı), süzgeç içi arama, Kırık beyaz tema,
+  Anılar kaldırıldı, ortak menü dili:** Kullanıcı: *"Gönder/Al ayrımını kaldırın (AirDrop),
+  BLE ile otomatik görme, karşıda uygulama yoksa web, önizlemeli kabul, hotspot, kaldığı yerden
+  devam, çoklu küçük dosyada tek akış; PIN hariç; geçmiş paneli; QR okutunca açılmıyor/arayüz
+  kötü; aktarım ekranları tek ekran"* + belgelerde filtreye bağlı arama (AI'lı/AI'sız, içinde ara),
+  mavisiz kırık beyaz tema, anıları kaldır, klasör paylaş, menülerde görsel birlik.
+  **Kararlar:** (1) `NearbyScreen` = Aktar kapısı + Paylaş; açılınca HEM alır HEM bulur (UDP 6 sn'de
+  bir + BLE); `peer_share_screen`/`qr_file_share_screen` silindi (`showShareChoice` 2 seçenek).
+  (2) **BLE yalnız bulma + davet** (`ci/NearbyBle.kt`, kanal `dosya/ble`): reklam = hizmet UUID,
+  tarama yanıtı = 4 bayt kimlik + ≤20 bayt ad; davet GATT yazmasıyla QR metninin aynısını taşır,
+  veri Wi-Fi'den (gerekirse LocalOnlyHotspot) akar. Wi-Fi Direct REDDEDİLDİ (hotspot zaten var,
+  yeni izin/sürüm riski). (3) Protokol v2 (`peer_share.dart`): `/durum?tid` + `/al?tid&ofs&boyut`
+  → yarım alım gizli `.dosya-aktarim-<tid>` dosyasında kalır, gönderen 2 dk yeniden dener;
+  `paket=1` = **store ZIP akışı** (`zip_stream.dart`, boy önceden bilinir, ortadan başlatılabilir;
+  deflate REDDEDİLDİ — telefonda Wi-Fi'den yavaş, medya zaten sıkışık). Eski sürümle uyumlu.
+  (4) Web: 8080 portu, 6 harf jeton (elle yazılabilir), Range, küçük resim `th/<i>`, "Tümünü indir"
+  `all.zip`, tek dosyada otomatik indirme; sayfa metni tarayıcı diline göre TR/EN (JS anahtarları
+  tek harf — l10n bekçisi `title:` kalıbını yakalıyordu). (5) Arama: `CategoryScreen` arama kipleri
+  Adında / Anlamla (AI, `AiMeaningSearch.rankIn`) / Dosyaların içinde / İçinde (AI) — hepsi
+  `_sorted` (süzgeç) kapsamında; içerik `DocTextSearch` (PDF pdfrx ≤120 sayfa, Office FileService),
+  AI'ya YALNIZ sorgu gider. (6) `AppSkin.ivory` (Kırık beyaz, adaçayı vurgu; testte "mavi değil"
+  bekçisi). (7) `widgets/menu_kit.dart`: DocMoreSheet, uzun basma menüsü, AppActionSheet ve
+  klasör ⋮ (artık DocMoreSheet) aynı başlık/kart/simge kutusu. **Doğrulama:** Kotlin gerçek
+  android-all 14 jar'ına karşı derlendi + harness (`tool/check_kotlin.sh` NearbyBle bölümü);
+  3216 test yeşil. PNG: `tool/design_shots_birlik_test.dart` → `docs/design/birlik/`.
+  **Açık:** BLE + hotspot daveti ve 2 telefon arası devam cihaz turunda denenmedi.
+  Kullanıcının "tikli öğesi çok notlar kasıyor" notu: bu uygulamada onay kutulu not özelliği
+  bulunamadı — kullanıcıya soruldu.

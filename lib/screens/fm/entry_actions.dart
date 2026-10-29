@@ -49,6 +49,7 @@ import '../../core/snack.dart';
 import '../../core/user_error.dart';
 import '../audiobook/audiobook_screen.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/menu_kit.dart';
 
 part 'entry_actions/sheet.dart';
 part 'entry_actions/file_ops.dart';

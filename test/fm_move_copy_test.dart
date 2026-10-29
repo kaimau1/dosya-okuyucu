@@ -144,13 +144,14 @@ void main() {
       expect(find.text('Daha fazla'), findsOneWidget);
     });
 
-    testWidgets('klasör seçiliyken Paylaş gösterilmez (Android paylaşamaz)',
-        (tester) async {
+    // 2026-10-29 kullanıcı isteği: "klasör paylaşta olsun" — klasör
+    // Yakındakiler'e klasör olarak, başka uygulamaya ZIP olarak gider.
+    testWidgets('klasör seçiliyken de Paylaş görünür', (tester) async {
       await tester.pumpWidget(harness([entry('Belgeler', dir: true)]));
       await tester.pump();
 
       expect(find.text('Taşı'), findsOneWidget);
-      expect(find.text('Paylaş'), findsNothing);
+      expect(find.text('Paylaş'), findsOneWidget);
     });
 
     testWidgets('seçim boşken çubuk çizilmez', (tester) async {

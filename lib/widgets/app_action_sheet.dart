@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/theme.dart';
 import 'app_dialog.dart';
+import 'menu_kit.dart';
 
 /// Eylem levhasındaki tek eylem.
 class AppAction<T> {
@@ -93,29 +94,27 @@ Future<T?> showAppActionSheet<T>(
               Flexible(
                 child: ListView(
                   shrinkWrap: true,
-                  padding: const EdgeInsets.only(bottom: Gap.sm),
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, Gap.sm),
                   children: [
+                    // Ortak menü dili (2026-10-29): başlık + kart + simge
+                    // kutusu — dosya içi "Daha fazla" ve uzun basma
+                    // menüsüyle aynı (bkz. `menu_kit.dart`).
                     for (var g = 0; g < visible.length; g++) ...[
                       if (visible[g].title != null)
-                        Padding(
-                          padding: EdgeInsetsDirectional.fromSTEB(
-                              24, g == 0 ? Gap.sm : Gap.md, 24, Gap.xs),
-                          child: Text(
-                            visible[g].title!,
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: theme.colorScheme.primary,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.4,
-                            ),
-                          ),
-                        )
-                      else if (g > 0)
-                        const Divider(height: Gap.md, indent: 24, endIndent: 24),
-                      for (final a in visible[g].actions)
-                        _ActionTile(
-                          action: a,
-                          onTap: () => Navigator.of(ctx).pop(a.value),
+                        MenuGroupTitle(visible[g].title!)
+                      else
+                        const SizedBox(height: Gap.sm),
+                      MenuGroupCard(
+                        child: Column(
+                          children: [
+                            for (final a in visible[g].actions)
+                              _ActionTile(
+                                action: a,
+                                onTap: () => Navigator.of(ctx).pop(a.value),
+                              ),
+                          ],
                         ),
+                      ),
                     ],
                   ],
                 ),
@@ -133,57 +132,13 @@ class _ActionTile<T> extends StatelessWidget {
   const _ActionTile({required this.action, required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final color = action.destructive
-        ? scheme.error
-        : (action.accent ? scheme.primary : scheme.onSurfaceVariant);
-    final bg = action.destructive
-        ? scheme.errorContainer.withValues(alpha: 0.6)
-        : (action.accent
-            ? scheme.primaryContainer
-            : scheme.surfaceContainerHighest);
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: Gap.md + 4, vertical: 6),
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: bg,
-                borderRadius: BorderRadius.circular(Radii.control),
-              ),
-              child: Icon(action.icon, size: 20, color: color),
-            ),
-            const SizedBox(width: Gap.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    action.label,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w500,
-                      color: action.destructive ? scheme.error : null,
-                    ),
-                  ),
-                  if (action.hint != null)
-                    Text(action.hint!,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: Paper.faint(context))),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => MenuRow(
+        icon: action.icon,
+        label: action.label,
+        hint: action.hint,
+        onTap: onTap,
+        tone: action.destructive
+            ? MenuTone.danger
+            : (action.accent ? MenuTone.accent : MenuTone.neutral),
+      );
 }

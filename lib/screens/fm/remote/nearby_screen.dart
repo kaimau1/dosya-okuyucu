@@ -8,10 +8,12 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../../core/app_colors.dart';
 import '../../../core/app_haptics.dart';
 import '../../../core/app_icons.dart';
 import '../../../core/app_state.dart';
 import '../../../core/l10n/app_strings.dart';
+import '../../../core/motion.dart';
 import '../../../core/safe_insets.dart';
 import '../../../core/snack.dart';
 import '../../../core/theme.dart';
@@ -395,7 +397,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
   void _scheduleWeb() {
     if (!widget.services) return;
     _webDebounce?.cancel();
-    _webDebounce = Timer(const Duration(milliseconds: 400), () {
+    _webDebounce = Timer(Motion.long, () {
       unawaited(_restartWeb());
     });
   }
@@ -458,7 +460,9 @@ class _NearbyScreenState extends State<NearbyScreen> {
           if (!except.contains(a.address)) return a.address;
         }
       }
-    } catch (_) {}
+    } catch (_) {
+      // Arayüz listesi okunamadı: adres yok sayılır, ekran hotspot'u önerir.
+    }
     return null;
   }
 
@@ -471,7 +475,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
       final h = await QrNative.startHotspot();
       String? host;
       for (var i = 0; i < 20 && host == null; i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 250));
+        await Future<void>.delayed(Motion.medium);
         host = await _wifiAddress(except: before);
       }
       if (!mounted) return false;
@@ -690,7 +694,9 @@ class _NearbyScreenState extends State<NearbyScreen> {
     try {
       final type = FileSystemEntity.typeSync(path);
       if (type == FileSystemEntityType.file) return File(path).lengthSync();
-    } catch (_) {}
+    } catch (_) {
+      // Boyut yalnız bilgi: okunamazsa 0 yazılır, aktarım etkilenmez.
+    }
     return 0;
   }
 
@@ -1443,8 +1449,8 @@ class _PeerAvatar extends StatelessWidget {
   });
 
   static const _hues = [
-    Color(0xFF2F7D6B), Color(0xFFB0602C), Color(0xFF7A4FB0), Color(0xFF3B7A3A),
-    Color(0xFFA8463F), Color(0xFF8A6A1F), Color(0xFF2E6E8E), Color(0xFF9B4A7A),
+    AppHues.jade, AppHues.tangerine, AppHues.purple, AppHues.green,
+    AppHues.red, AppHues.olive, AppHues.cyan, AppHues.plum,
   ];
 
   @override

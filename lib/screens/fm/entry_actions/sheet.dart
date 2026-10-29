@@ -566,165 +566,78 @@ Widget _sheetHeader(BuildContext ctx, FsEntry entry) => Padding(
       ),
     );
 
-/// Bir bölüm: küçük başlık + iki sütunlu ızgara. Hiç işlemi kalmayan bölüm
-/// (koşullar elediyse) HİÇ çizilmez — başlığın altı boş kalmaz.
+/// Bir bölüm: grup başlığı + kart içinde iki sütunlu satırlar. Hiç işlemi
+/// kalmayan bölüm (koşullar elediyse) HİÇ çizilmez.
+///
+/// Ortak menü dili (2026-10-29, `menu_kit.dart`): dosya içindeki "Daha
+/// fazla" ve seçimdeki eylem levhasıyla aynı başlık, aynı kart, aynı simge
+/// kutusu. Eskiden BÜYÜK HARF başlık + her hücre ayrı çerçeveli kutuydu.
 Widget _section(BuildContext ctx, String title, List<Widget> actions) {
   final items = actions;
   if (items.isEmpty) return const SizedBox.shrink();
   return Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(4, Gap.md, 4, Gap.xs),
-        child: Text(
-          title.toUpperCase(),
-          style: Theme.of(ctx).textTheme.labelSmall?.copyWith(
-                color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-                letterSpacing: 0.8,
+      MenuGroupTitle(title,
+          padding: const EdgeInsetsDirectional.fromSTEB(8, Gap.md, 8, 6)),
+      MenuGroupCard(
+        child: Column(
+          children: [
+            // Izgara ELLE satırlanıyor (GridView değil): hücre yüksekliği
+            // metne bağlı — büyük yazı ölçeğinde sabit oran taşma demek.
+            for (var i = 0; i < items.length; i += 2)
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: items[i]),
+                    // Tek kalan son işlem TAM genişlik.
+                    if (i + 1 < items.length) Expanded(child: items[i + 1]),
+                  ],
+                ),
               ),
+          ],
         ),
       ),
-      // Izgara ELLE satırlanıyor (GridView değil): `GridView` sabit bir
-      // en-boy oranı ister, oysa hücre yüksekliği metne bağlı — büyük yazı
-      // ölçeğinde sabit oran taşma demek. `IntrinsicHeight` iki hücreyi
-      // satırın en uzununa eşitliyor.
-      for (var i = 0; i < items.length; i += 2)
-        Padding(
-          padding: const EdgeInsets.only(bottom: Gap.xs),
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(child: items[i]),
-                // Tek kalan son işlem TAM genişlik: yanında yarım satırlık
-                // boş bir delik bırakmak menüyü dağınık gösteriyordu.
-                if (i + 1 < items.length) ...[
-                  const SizedBox(width: Gap.xs),
-                  Expanded(child: items[i + 1]),
-                ],
-              ],
-            ),
-          ),
-        ),
     ],
   );
 }
 
-/// Hızlı sıra: eşit genişlikte yuvarlak düğmeler.
+/// Hızlı sıra: eşit genişlikte simge kutuları (vurgu tonunda).
 Widget _quickRow(BuildContext ctx, List<Widget> items) => Padding(
-      padding: const EdgeInsets.only(top: Gap.xs, bottom: Gap.xs),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [for (final item in items) Expanded(child: item)],
+      padding: const EdgeInsets.only(top: Gap.xs),
+      child: MenuGroupCard(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [for (final item in items) Expanded(child: item)],
+        ),
       ),
     );
 
-/// Hızlı sıranın bir düğmesi: tonlu daire içinde simge + altında etiket.
+/// Hızlı sıranın bir düğmesi — ortak [MenuTile], vurgu tonunda.
 Widget _quick(
-    BuildContext ctx, IconData icon, String label, _EntryAction action) {
-  final scheme = Theme.of(ctx).colorScheme;
-  return InkWell(
-    onTap: () => Navigator.pop(ctx, action),
-    borderRadius: BorderRadius.circular(Radii.card),
-    child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: Gap.sm),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: scheme.primaryContainer,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: scheme.onPrimaryContainer, size: 24),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            maxLines: 2,
-            textAlign: TextAlign.center,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(ctx)
-                .textTheme
-                .labelMedium
-                ?.copyWith(fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
-    ),
-  );
-}
+        BuildContext ctx, IconData icon, String label, _EntryAction action) =>
+    MenuTile(
+      icon: icon,
+      label: label,
+      tone: MenuTone.accent,
+      onTap: () => Navigator.pop(ctx, action),
+    );
 
-/// Izgaranın bir hücresi: simge rozeti + etiket (+ soluk ipucu satırı).
-///
-/// Rozet (tonlu yuvarlatılmış kare) simgeleri aynı hizaya ve aynı ağırlığa
-/// oturtuyor; çıplak simgelerde ince/kalın glifler satırda dalgalanıyordu.
+/// Kart içindeki satır — ortak [MenuRow] (simge kutusu + etiket + ipucu).
 Widget _act(
   BuildContext ctx,
   IconData icon,
   String label,
   _EntryAction action, {
   String? hint,
-}) {
-  final scheme = Theme.of(ctx).colorScheme;
-  return Material(
-    color: scheme.surfaceContainerLow,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(Radii.control),
-      side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6)),
-    ),
-    clipBehavior: Clip.antiAlias,
-    child: InkWell(
+}) =>
+    MenuRow(
+      icon: icon,
+      label: label,
+      hint: hint,
       onTap: () => Navigator.pop(ctx, action),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 56),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-              horizontal: Gap.sm, vertical: Gap.sm),
-          child: Row(
-            children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: scheme.primary.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, size: 19, color: scheme.primary),
-              ),
-              const SizedBox(width: Gap.sm + 2),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(label,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(ctx)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(height: 1.15)),
-                    if (hint != null)
-                      Text(hint,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(ctx).textTheme.labelSmall?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                              )),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-}
+    );
 
 /// **Sil** — tam genişlikte, hata renginde, ızgaranın dışında.
 ///

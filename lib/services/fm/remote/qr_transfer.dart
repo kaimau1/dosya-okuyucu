@@ -285,7 +285,7 @@ class QrShareServer {
               '{textContent:\'${_kind(it.name)}\'}))">'
           : '<span>${it.isZip ? '🗂️' : _kind(it.name)}</span>';
       final meta = it.isZip
-          ? '${_human(it.size)} · <i data-t="files">${it.zip!.entries.length}</i>'
+          ? '${_human(it.size)} · <i data-t="f">${it.zip!.entries.length}</i>'
           : _human(it.size);
       cards.write('<a class="card" href="$href" download>'
           '<div class="thumb">$media</div>'
@@ -326,23 +326,23 @@ footer a{color:var(--accent)}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .25s}
 </style></head><body><main>
 <div class="brand"><i>⇣</i>Dosya Okuyucu</div>
-<h1 data-t="title"></h1>
+<h1 data-t="h"></h1>
 <p class="sub">${_items.length} · ${_human(total)}</p>
-${single ? '' : '<a class="all" href="all.zip" download>⬇ <span data-t="all"></span></a>'}
+${single ? '' : '<a class="all" href="all.zip" download>⬇ <span data-t="a"></span></a>'}
 $cards
-<div class="note" data-t="note"></div>
-<footer><span data-t="private"></span><br><a href="https://github.com/kaimau1/dosya-okuyucu/releases/latest" data-t="get"></a></footer>
-</main><div id="toast" data-t="started"></div>
+<div class="note" data-t="n"></div>
+<footer><span data-t="p"></span><br><a href="https://github.com/kaimau1/dosya-okuyucu/releases/latest" data-t="g"></a></footer>
+</main><div id="toast" data-t="s"></div>
 <script>
 var tr=(navigator.language||'tr').toLowerCase().indexOf('tr')===0;
 var who=${jsonEncode(who)};
-var T=tr?{title:(who?who+' sizinle dosya paylaşıyor':'Sizinle dosya paylaşıldı'),all:'Tümünü indir (ZIP)',files:'dosya',
-note:'<b>Dokunun, indirilsin.</b> İndirme başlamazsa bu sayfayı Chrome/Safari\\'de açın. Sayfa açılmıyorsa iki telefonun aynı Wi-Fi\\'de olduğundan emin olun ya da mobil veriyi kapatın.',
-private:'Dosyalar doğrudan gönderen telefondan gelir; internete yüklenmez.',get:'Dosya Okuyucu\\'yu indir',started:'İndirme başladı'}
-:{title:(who?who+' is sharing files with you':'Files shared with you'),all:'Download all (ZIP)',files:'files',
-note:'<b>Tap to download.</b> If nothing happens, open this page in Chrome/Safari. If the page does not load, make sure both phones are on the same Wi-Fi or turn off mobile data.',
-private:'Files come straight from the sender\\'s phone; nothing is uploaded.',get:'Get Dosya Okuyucu',started:'Download started'};
-document.querySelectorAll('[data-t]').forEach(function(e){var k=e.getAttribute('data-t');if(k==='files'){e.textContent=e.textContent+' '+T.files}else{e.innerHTML=T[k]}});
+var T=tr?{h:(who?who+' sizinle dosya paylaşıyor':'Sizinle dosya paylaşıldı'),a:'Tümünü indir (ZIP)',f:'dosya',
+n:'<b>Dokunun, indirilsin.</b> İndirme başlamazsa bu sayfayı Chrome/Safari\\'de açın. Sayfa açılmıyorsa iki telefonun aynı Wi-Fi\\'de olduğundan emin olun ya da mobil veriyi kapatın.',
+p:'Dosyalar doğrudan gönderen telefondan gelir; internete yüklenmez.',g:'Dosya Okuyucu\\'yu indir',s:'İndirme başladı'}
+:{h:(who?who+' is sharing files with you':'Files shared with you'),a:'Download all (ZIP)',f:'files',
+n:'<b>Tap to download.</b> If nothing happens, open this page in Chrome/Safari. If the page does not load, make sure both phones are on the same Wi-Fi or turn off mobile data.',
+p:'Files come straight from the sender\\'s phone; nothing is uploaded.',g:'Get Dosya Okuyucu',s:'Download started'};
+document.querySelectorAll('[data-t]').forEach(function(e){var k=e.getAttribute('data-t');if(k==='f'){e.textContent=e.textContent+' '+T.f}else{e.innerHTML=T[k]}});
 document.documentElement.lang=tr?'tr':'en';
 function toast(){var t=document.getElementById('toast');t.style.opacity=1;setTimeout(function(){t.style.opacity=0},2200)}
 document.querySelectorAll('a[download]').forEach(function(a){a.addEventListener('click',toast)});

@@ -27,6 +27,8 @@ import '../../services/fm/storage_stats.dart' show StorageKind;
 import '../../services/fm/paste_conflict.dart';
 import '../../core/app_icons.dart';
 import '../../models/fm_filter.dart';
+import '../../widgets/doc_more_sheet.dart';
+import '../../widgets/fm/fm_entry_icon.dart' show FmColors;
 import '../../widgets/fm/fm_file_list_view.dart';
 import '../../widgets/fm/fm_path_bar.dart';
 import '../../widgets/scan_flow.dart';

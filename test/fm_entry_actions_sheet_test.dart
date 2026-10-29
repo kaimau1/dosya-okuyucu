@@ -71,13 +71,14 @@ void main() {
     await open(tester);
     expect(tester.takeException(), isNull);
 
-    // Dört bölüm başlığı (büyük harfe çevrilmiş hâlleriyle).
+    // Bölüm başlıkları — ortak menü dili (2026-10-29): büyük harf YOK,
+    // dosya içi "Daha fazla" ile aynı başlık stili.
     for (final key in const [
       'ea.sec_open',
       'ea.sec_move',
       'ea.sec_file',
     ]) {
-      expect(find.text(const AppStrings(AppLanguage.tr).t(key).toUpperCase()),
+      expect(find.text(const AppStrings(AppLanguage.tr).t(key)),
           findsOneWidget,
           reason: '$key bölümü çizilmedi');
     }
