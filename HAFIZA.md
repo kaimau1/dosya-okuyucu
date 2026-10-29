@@ -779,3 +779,25 @@ AGP 9.1 de Gradle 9.3.1 ister (yoksa `version-check` eklentisi düşürür) — 
 yalnız YÜKSELTİR, KSP 2.3.12 ekler; 6/6b compileSdk 37 (targetSdk 36 aynı). Yerelde temiz kopyada betik +
 `flutter build apk --release --obfuscate` (arm64) geçti; servis + `dosya_ajan.xml` APK'da. **TUZAK:** yerel
 derlemede eşzamanlı Gradle/Kotlin daemon'ları 15 GB'ı aşıp OOM ile öldürüyor — derlemeleri sırayla koş.
+
+## 2026-10-29 — Faz 24 kalanı (Word) + Faz 27 kalanı (Excel); Faz 29b yarıda bırakıldı
+**Word** (`services/docx/docx_media.dart`): resim = satır içi `wp:inline` + `word/media` (ikili parça
+`_binParts`), boyut oran kilitli ve atom düğümlerinin KOPYASINDA (`wp:extent` + `a:xfrm/a:ext`); yorum
+= `commentRangeStart/End` çapası + `commentReference` atomu (`DocxAtomKind.comment`); yanıt/çözüldü
+`commentsExtended.xml` (`w14:paraId`). **KARAR:** yorum silme yalnız modeldeki izi kaldırır, başvurusu
+kalmayan yorum KAYITTA budanır (`_pruneNotes`) → geri al yorumu geri getirir. Dipnot `footnotes.xml`
+(yoksa -1/0 ayırıcılarla yaratılır). Yatay çizgi = `pBdr/bottom` (DocxParaLook.borderBottom).
+**TUZAK:** levhadaki `TextEditingController`'ı `whenComplete`te atmak kapanış animasyonunda
+"used after disposed" verir → denetleyici levha widget'ının/ekranın ömrüne bağlanmalı.
+**TUZAK:** WidgetSpan içindeki tutamak taşan (negatif konum) parçada dokunuş almaz — tutamak içeride.
+**Excel:** `XlsxStyleEdit` +strike/vAlign/indent/rotation/borderArgb; doğrulama `XlsxDataValidation.accepts`
+(liste/sayı/tarih/metin uzunluğu; formüllü sınır denetlenmez) + yama `_applyValidations`; sekme rengi
+`sheetPr/tabColor`; süzgeç kaldırmak için `autoFilterEdited` bayrağı ŞART (yoksa boş yama atlanır, paket
+yazıcı özgün `<autoFilter>`ı korur — KÖK NEDEN); notlar `xlsx/notes_writer.dart` (comments + VML +
+legacyDrawing, kayıt zincirinin EN SONU, hata → girdi aynen). CSV/TSV artık `SpreadsheetEditorScreen`de
+(`XlsxEditor.fromCsv`, `editor.csv` → kaydetme özgün ayraç/kodlama/satır sonu/tırnak düzeniyle;
+`entry_opener.screenFor`). Grafikler ızgarada (`chart_layer.dart`; `XlsxChartSpec.widthCols/heightRows`).
+Test kancası `SpreadsheetEditorScreen.exposeForTest/testEditor`. Şerit: Formüller + Gözden Geçir sekmeleri.
+**Faz 29b başlanmadı** (kullanıcı bağlam şiştiği için durdurdu): tablo ekle, şerit/sıralayıcı, kılavuzlar,
+geçiş oynatma, slayt gizle → sıradaki oturum. Cihazda doğrula: resim tutamağı hissi, yorumların masaüstü
+Word'de görünmesi, Excel notunun masaüstü Excel'de açılması, CSV'nin Excel'de yeniden açılması.

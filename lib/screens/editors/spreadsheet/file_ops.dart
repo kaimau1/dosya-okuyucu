@@ -44,8 +44,12 @@ extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
   Future<void> _restoreDraft(Uint8List bytes) async {
     _endEdit();
     _undoBySheet.clear();
+    final csv = _editor?.csv;
     _partSetState(() {
-      _editor = XlsxEditor.parse(bytes);
+      _editor = csv == null
+          ? XlsxEditor.parse(bytes)
+          : (XlsxEditor.fromCsv(bytes, sheetName: _editor!.sheets.first.name,
+              tsv: csv.delimiter == '\t'));
       _gridVersion++;
     });
     _syncField();

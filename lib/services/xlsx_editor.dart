@@ -7,6 +7,8 @@ import '../core/excel_format.dart';
 import 'xlsx_package.dart';
 import 'xlsx_reader.dart';
 import 'xlsx_save_patch.dart';
+import 'xlsx/notes_writer.dart';
+import 'csv_document.dart';
 import 'xlsx_chart.dart';
 import 'sheet_structure.dart';
 import 'calc_log.dart';
@@ -20,6 +22,7 @@ export 'xlsx_chart.dart';
 export 'sheet_structure.dart' show SheetShift;
 
 part 'xlsx/structure_edit.dart';
+part 'xlsx/sheet_ops.dart';
 
 /// Bir hücrenin Excel'deki görünümü.
 ///
@@ -88,8 +91,12 @@ class XlsxCellStyle {
     bool? bold,
     bool? italic,
     bool? underline,
+    bool? strike,
     bool? wrap,
     XlsxHAlign? hAlign,
+    XlsxVAlign? vAlign,
+    int? indent,
+    int? rotation,
     Color? background,
     bool clearBackground = false,
     Color? fontColor,
@@ -103,16 +110,16 @@ class XlsxCellStyle {
         bold: bold ?? this.bold,
         italic: italic ?? this.italic,
         underline: underline ?? this.underline,
-        strike: strike,
+        strike: strike ?? this.strike,
         fontSize: fontSize ?? this.fontSize,
         fontFamily: fontFamily ?? this.fontFamily,
         fontColor: clearFontColor ? null : (fontColor ?? this.fontColor),
         background: clearBackground ? null : (background ?? this.background),
         hAlign: hAlign ?? this.hAlign,
-        vAlign: vAlign,
+        vAlign: vAlign ?? this.vAlign,
         wrap: wrap ?? this.wrap,
-        indent: indent,
-        rotation: rotation,
+        indent: indent ?? this.indent,
+        rotation: rotation ?? this.rotation,
         border: border ?? this.border,
         numFmtCode: numFmtCode ?? this.numFmtCode,
       );
@@ -165,6 +172,22 @@ class XlsxSheet {
   /// (kullanıcı ekran görüntüsü 2026-08-07). Ekran doldurur (ölçüm `TextPainter`
   /// ister), dosyaya YAZILMAZ: bu bizim gösterimimiz, kullanıcının verisi değil.
   final Map<int, double> autoRowHeights = {};
+
+  /// Faz 27: bu oturumda eklenen veri doğrulamaları ve temizlenen aralıklar
+  /// (kaydette `<dataValidations>`a yazılır).
+  final List<XlsxValidationWrite> validationWrites = [];
+  final List<String> validationClears = [];
+
+  /// Sekme rengi bu oturumda değişti (kaldırmak dahil).
+  bool tabColorEdited = false;
+
+  /// Otomatik süzgeç bu oturumda kuruldu ya da kaldırıldı.
+  bool autoFilterEdited = false;
+
+  /// Not düzenlemeleri: hücre → yeni metin (null = notu sil). Kaydette
+  /// `commentsN.xml` + VML çizimine yazılır (bkz. `XlsxNotesWriter`).
+  final Map<(int, int), String?> noteEdits = {};
+  String noteAuthor = '';
 
   late final List<XlsxMerge> merges = [
     for (final m in layout.merges) XlsxMerge(m.r1, m.c1, m.r2, m.c2),
@@ -749,6 +772,29 @@ class XlsxEditor {
   /// Grafik ekler (sayfa adı modeldeki adla eşleşmeli).
   void addChart(XlsxChartSpec spec) => charts.add(spec);
 
+  /// CSV/TSV olarak açıldıysa özgün yazım biçimi (Faz 27): kaydetme o
+  /// biçimle CSV yazar, xlsx paketi kurulmaz. Biçim düzenlemeleri saklanmaz.
+  CsvFormat? csv;
+
+  /// CSV/TSV baytlarından tek sayfalık kitap.
+  static XlsxEditor fromCsv(Uint8List bytes,
+      {required String sheetName, bool tsv = false}) {
+    final doc = CsvDocument.parse(bytes, tsv: tsv);
+    final ed = XlsxEditor.blank(sheetName: sheetName);
+    final sheet = ed.sheets.first;
+    for (var r = 0; r < doc.rows.length; r++) {
+      final row = doc.rows[r];
+      for (var c = 0; c < row.length; c++) {
+        if (row[c].isEmpty) continue;
+        ed.setCell(sheet.name, r, c, row[c]);
+      }
+    }
+    // Açılış "değişiklik" sayılmasın: hesap günlüğü toplu yeniden kurulur.
+    ed.calcLog.bulk();
+    ed.csv = doc.format;
+    return ed;
+  }
+
   /// Boş bir çalışma kitabı (tek sayfa).
   factory XlsxEditor.blank({String sheetName = 'Sayfa1'}) {
     final wb = XlsxWorkbook(
@@ -1257,6 +1303,75 @@ class XlsxEditor {
     model.recordStyleEdit(r, c, XlsxStyleEdit(borders: sides));
   }
 
+  /// Faz 27 — "Hücreleri biçimlendir" paneli: verilen alanları hem ekrana
+  /// (örtme) hem kaydetmeye (yama) yazar; `null` alan dokunulmaz.
+  void setCellFormat(
+    String sheetName,
+    int r,
+    int c, {
+    bool? underline,
+    bool? strike,
+    XlsxHAlign? hAlign,
+    XlsxVAlign? vAlign,
+    int? indent,
+    int? rotation,
+  }) {
+    final model = _modelSheet(sheetName);
+    if (model == null || r < 0 || c < 0) return;
+    final current = model.styleAt(r, c) ?? const XlsxCellStyle();
+    model.patchStyle(
+      r,
+      c,
+      current.copyWith(
+        underline: underline,
+        strike: strike,
+        hAlign: hAlign,
+        vAlign: vAlign,
+        indent: indent,
+        rotation: rotation,
+      ),
+    );
+    model.recordStyleEdit(
+      r,
+      c,
+      XlsxStyleEdit(
+        underline: underline,
+        strike: strike,
+        hAlign: hAlign?.name,
+        vAlign: vAlign?.name,
+        indent: indent,
+        rotation: rotation,
+      ),
+    );
+  }
+
+  /// Renkli kenarlık ([setCellBorder] + çizgi rengi).
+  void setCellBorderColored(String sheetName, int r, int c,
+      Map<String, String?> sides, Color? color) {
+    final model = _modelSheet(sheetName);
+    if (model == null || r < 0 || c < 0 || sides.isEmpty) return;
+    final current = model.styleAt(r, c) ?? const XlsxCellStyle();
+    final argb = color == null ? null : _argbOf(color);
+    XlsxBorderSide sideOf(String name, XlsxBorderSide fallback) =>
+        sides.containsKey(name)
+            ? XlsxBorderSide(sides[name] ?? 'none', argb)
+            : fallback;
+    model.patchStyle(
+      r,
+      c,
+      current.copyWith(
+        border: XlsxBorder(
+          left: sideOf('left', current.border.left),
+          right: sideOf('right', current.border.right),
+          top: sideOf('top', current.border.top),
+          bottom: sideOf('bottom', current.border.bottom),
+        ),
+      ),
+    );
+    model.recordStyleEdit(
+        r, c, XlsxStyleEdit(borders: sides, borderArgb: argb));
+  }
+
   /// **Biçim yapıştırma**: kaynak hücrenin görünümünü hedefe taşır.
   /// Değer taşınmaz — onu `paste` yapar.
   void copyCellFormat(String sheetName, int sr, int sc, int dr, int dc) {
@@ -1327,20 +1442,7 @@ class XlsxEditor {
     for (var i = 0; i < charts.length; i++) {
       final c = charts[i];
       if (c.sheetName != oldName) continue;
-      charts[i] = XlsxChartSpec(
-        sheetName: clean,
-        kind: c.kind,
-        title: c.title,
-        top: c.top,
-        left: c.left,
-        bottom: c.bottom,
-        right: c.right,
-        hasCategoryColumn: c.hasCategoryColumn,
-        categories: c.categories,
-        series: c.series,
-        anchorRow: c.anchorRow,
-        anchorCol: c.anchorCol,
-      );
+      charts[i] = c.copyWith(sheetName: clean);
     }
     return true;
   }
@@ -1425,17 +1527,28 @@ class XlsxEditor {
           styleEdits: s.styleEdits,
           styleCopies: s.styleCopies,
           condRules: s.condRuleEdits,
+          validations: s.validationWrites,
+          validationClears: s.validationClears,
+          tabColorEdited: s.tabColorEdited,
+          autoFilterEdited: s.autoFilterEdited,
+          tabColorArgb: s.layout.tabColorArgb,
         ),
     ];
     return _XlsxSaveJob(_source, sheetsOut, patches, [
       for (final c in charts)
         if (hasSheet(c.sheetName)) c,
+    ], [
+      for (final s in sheets)
+        if (s.noteEdits.isNotEmpty)
+          XlsxNoteEdits(s.name, Map.of(s.noteEdits), s.noteAuthor),
     ]);
   }
 
   /// Dosyayı UI izleğinde üretir (testler, küçük dosyalar, dışa aktarım).
   Uint8List save() {
     _guardTruncated();
+    final f = csv;
+    if (f != null) return CsvDocument.encode(sheets.first.rows, f);
     return _runSave(_saveJob());
   }
 
@@ -1448,6 +1561,8 @@ class XlsxEditor {
   /// kayıt sürerken yapılan düzenleme bir sonraki kayda kalır.
   Future<Uint8List> saveAsync() async {
     _guardTruncated();
+    final f = csv;
+    if (f != null) return CsvDocument.encode(sheets.first.rows, f);
     return SaveIsolate.run<_XlsxSaveJob, Uint8List>(_runSave, _saveJob());
   }
 
@@ -1459,7 +1574,9 @@ class XlsxEditor {
     final patched = XlsxSavePatch.apply(bytes, job.patches);
     // Grafikler en son: sayfa XML'ine `<drawing>` ekler, öncekiler onu
     // korur ama yazmaz.
-    return XlsxChartWriter.apply(patched, job.charts);
+    final charted = XlsxChartWriter.apply(patched, job.charts);
+    // Notlar en son: sayfa XML'ine `<legacyDrawing>` ve yan parçalar ekler.
+    return XlsxNotesWriter.apply(charted, job.notes);
   }
 
   static bool _isEmptyRow(XlsxSheet sheet, int r) {
@@ -1527,5 +1644,7 @@ class _XlsxSaveJob {
   final List<XlsxPackageSheet> sheets;
   final List<XlsxSheetPatch> patches;
   final List<XlsxChartSpec> charts;
-  const _XlsxSaveJob(this.source, this.sheets, this.patches, this.charts);
+  final List<XlsxNoteEdits> notes;
+  const _XlsxSaveJob(
+      this.source, this.sheets, this.patches, this.charts, this.notes);
 }

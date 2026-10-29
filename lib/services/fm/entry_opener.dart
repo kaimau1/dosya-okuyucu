@@ -230,6 +230,15 @@ abstract final class EntryOpener {
   /// Yüklenmiş belgeye uygun ekran. (Salt-okunur içerik OOXML editörlerine
   /// gitmez — bkz. HAFIZA 2026-07-21 legacy notu.)
   static Widget screenFor(LoadedDoc doc, {bool startInk = false}) {
+    // Faz 27 madde 11: CSV/TSV salt okunur tablo değil, Excel ızgarasında
+    // düzenlenir (kaydetme özgün ayraç/kodlamayla CSV yazar).
+    final ext = p.extension(doc.path).toLowerCase();
+    if (doc.kind == DocKind.spreadsheet &&
+        doc.table != null &&
+        (ext == '.csv' || ext == '.tsv')) {
+      return SpreadsheetEditorScreen(
+          path: doc.path, name: doc.name, plainText: doc.plainText);
+    }
     if (doc.readOnly) return ViewerScreen(doc: doc, startInk: startInk);
     switch (doc.kind) {
       case DocKind.spreadsheet:

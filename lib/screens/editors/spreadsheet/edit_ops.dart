@@ -98,6 +98,9 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
         _editor = _SpreadsheetEditorScreenState._readAndParse(widget.path);
       }
       _syncField();
+      if (SpreadsheetEditorScreen.exposeForTest) {
+        SpreadsheetEditorScreen.testEditor = _editor;
+      }
     } catch (e) {
       _error = userErrorText(e);
     }
@@ -111,7 +114,12 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
       unawaited(_session.captureSource());
       unawaited(lookForDraft(widget.savePath ?? widget.path));
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) => _updateColWindow());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Faz 27: dosyanın kayıtlı yakınlaştırması (`zoomScale`) açılışta.
+      final z = _sheet?.layout.zoomScale ?? 1;
+      if (mounted && z != 1) _zoomCtl.setZoom(z.clamp(0.3, 3).toDouble());
+      _updateColWindow();
+    });
   }
 
   XlsxSheet? get _sheet {
@@ -465,6 +473,11 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
   void _applyCell(String value) {
     final sheet = _sheet;
     final m = _toModel(value);
+    // Faz 27: veri doğrulama ("Durdur" — geçersiz giriş yazılmaz).
+    if (!_passesValidation(m.raw)) {
+      _syncField();
+      return;
+    }
     final at = CellRef(_selRow, _selCol);
     final code = sheet?.numFmtCode(_selRow, _selCol).trim() ?? 'General';
     final fmt = m.numberFormat != null && (code.isEmpty || code == 'General')

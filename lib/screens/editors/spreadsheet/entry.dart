@@ -652,6 +652,8 @@ extension _SpreadsheetEditorScreenEntryPart on _SpreadsheetEditorScreenState {
             ('delete_col', OfficeIcons.deleteCells, 'excel.delete_col'),
             ('sort_asc', OfficeIcons.sortAsc, 'excel.sort_asc'),
             ('sort_desc', OfficeIcons.sortDesc, 'excel.sort_desc'),
+            ('format_cells', AppIcons.cellStyles, 'excel.format_cells'),
+            ('note', AppIcons.comment, 'excel.note_new'),
           ])
             ListTile(
               key: ValueKey('cellmenu-$id'),
@@ -693,6 +695,10 @@ extension _SpreadsheetEditorScreenEntryPart on _SpreadsheetEditorScreenState {
         _insertColumn(right: false);
       case 'delete_col':
         _deleteColumn();
+      case 'format_cells':
+        await _showFormatCells();
+      case 'note':
+        await _editNote();
       case 'sort_asc':
       case 'sort_desc':
         final sheet = _sheet;

@@ -1010,6 +1010,14 @@ class XlsxReader {
       options: options,
       promptTitle: dv.getAttribute('promptTitle'),
       prompt: dv.getAttribute('prompt'),
+      operator: dv.getAttribute('operator') ?? 'between',
+      formula2: dv.childElements
+          .where((e) => e.name.local == 'formula2')
+          .map((e) => e.innerText)
+          .firstOrNull,
+      error: dv.getAttribute('error'),
+      allowBlank: dv.getAttribute('allowBlank') == '1' ||
+          dv.getAttribute('allowBlank') == 'true',
     );
   }
 
@@ -1030,7 +1038,10 @@ class XlsxReader {
 }
 
 /// Hücre anahtarı (satır, sütun) → tek int. 16384 = Excel'in sütun sınırı.
-int cellKey(int r, int c) => r * 16384 + c;
+int cellKey(int r, int c) => r * kCellKeyStride + c;
+
+/// [cellKey]'in sütun adımı (Excel'in sütun sınırı).
+const int kCellKeyStride = 16384;
 
 /// [cellKey]in tersi — hücre haritasını satır/sütun bilerek dolaşan yerler
 /// (otomatik satır yüksekliği) için.
@@ -1302,6 +1313,12 @@ class XlsxRange {
   int get rowCount => r2 - r1 + 1;
   int get colCount => c2 - c1 + 1;
 
+  /// "A1:C5" (tek hücrede "A1").
+  String get ref {
+    final a = '${colName(c1)}${r1 + 1}';
+    return r1 == r2 && c1 == c2 ? a : '$a:${colName(c2)}${r2 + 1}';
+  }
+
   static XlsxRange? parse(String? ref) {
     if (ref == null || ref.isEmpty) return null;
     final parts = ref.split(':');
@@ -1379,6 +1396,15 @@ class XlsxDataValidation {
   final String? promptTitle;
   final String? prompt;
 
+  /// `between`, `notBetween`, `equal`, `notEqual`, `greaterThan`,
+  /// `lessThan`, `greaterThanOrEqual`, `lessThanOrEqual`.
+  final String operator;
+  final String? formula2;
+
+  /// Geçersiz girişte gösterilecek ileti (`error`).
+  final String? error;
+  final bool allowBlank;
+
   const XlsxDataValidation({
     required this.type,
     required this.ranges,
@@ -1386,9 +1412,79 @@ class XlsxDataValidation {
     this.options,
     this.promptTitle,
     this.prompt,
+    this.operator = 'between',
+    this.formula2,
+    this.error,
+    this.allowBlank = true,
   });
 
   bool covers(int r, int c) => ranges.any((x) => x.contains(r, c));
+
+  /// Giriş kurala uyuyor mu (Faz 27): liste, tam sayı, ondalık, tarih ve
+  /// metin uzunluğu sabit sınırlarla denetlenir. Formüllü (başvurulu)
+  /// sınırlar ve özel kurallar denetlenmez — Excel'e bırakılır (true).
+  bool accepts(String raw) {
+    final v = raw.trim();
+    if (v.isEmpty) return allowBlank;
+    if (v.startsWith('=')) return true; // formül: sonucu bilinmiyor
+    switch (type) {
+      case 'list':
+        final opts = options;
+        if (opts == null) return true;
+        final lv = v.toLowerCase();
+        return opts.any((o) => o.toLowerCase() == lv);
+      case 'whole' || 'decimal' || 'date' || 'time' || 'textLength':
+        final double? x;
+        if (type == 'textLength') {
+          x = v.length.toDouble();
+        } else if (type == 'date') {
+          x = _dateSerial(v);
+        } else {
+          x = double.tryParse(v.replaceAll(',', '.'));
+        }
+        if (x == null) return false;
+        if (type == 'whole' && x != x.roundToDouble()) return false;
+        final a = _bound(formula1), b = _bound(formula2);
+        if (a == null) return true;
+        return switch (operator) {
+          'between' => b == null || (x >= a && x <= b),
+          'notBetween' => b == null || (x < a || x > b),
+          'equal' => x == a,
+          'notEqual' => x != a,
+          'greaterThan' => x > a,
+          'lessThan' => x < a,
+          'greaterThanOrEqual' => x >= a,
+          'lessThanOrEqual' => x <= a,
+          _ => true,
+        };
+      default:
+        return true;
+    }
+  }
+
+  double? _bound(String? f) {
+    if (f == null) return null;
+    final t = f.trim();
+    if (type == 'date') {
+      final s = double.tryParse(t);
+      return s ?? _dateSerial(t.replaceAll('"', ''));
+    }
+    return double.tryParse(t.replaceAll(',', '.'));
+  }
+
+  /// `gg.aa.yyyy` / `yyyy-aa-gg` → Excel seri numarası (1900 sistemi).
+  static double? _dateSerial(String v) {
+    DateTime? d;
+    final tr = RegExp(r'^(\d{1,2})[./](\d{1,2})[./](\d{4})$').firstMatch(v);
+    final iso = RegExp(r'^(\d{4})-(\d{1,2})-(\d{1,2})$').firstMatch(v);
+    if (tr != null) {
+      d = DateTime.utc(int.parse(tr[3]!), int.parse(tr[2]!), int.parse(tr[1]!));
+    } else if (iso != null) {
+      d = DateTime.utc(int.parse(iso[1]!), int.parse(iso[2]!), int.parse(iso[3]!));
+    }
+    if (d == null) return double.tryParse(v);
+    return d.difference(DateTime.utc(1899, 12, 30)).inDays.toDouble();
+  }
 }
 
 class XlsxSheetLayout {

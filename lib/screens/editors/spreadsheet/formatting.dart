@@ -5,6 +5,7 @@ extension _SpreadsheetEditorScreenFormattingPart on _SpreadsheetEditorScreenStat
     final sheet = _sheet;
     final editor = _editor;
     if (sheet == null || editor == null) return;
+    _csvFormatGuard();
     // Aralık seçiliyse tüm aralığa uygulanır (Excel gibi).
     final r1 = math.min(_anchorRow, _selRow);
     final r2 = math.max(_anchorRow, _selRow);
@@ -51,6 +52,7 @@ extension _SpreadsheetEditorScreenFormattingPart on _SpreadsheetEditorScreenStat
     final sheet = _sheet;
     final editor = _editor;
     if (sheet == null || editor == null) return;
+    _csvFormatGuard();
     _endEdit();
     final range = _range;
     final name = sheet.name;
@@ -192,6 +194,7 @@ extension _SpreadsheetEditorScreenFormattingPart on _SpreadsheetEditorScreenStat
   void _applyNumberFormat(String Function(String current) codeFor) {
     final sheet = _sheet;
     if (sheet == null) return;
+    _csvFormatGuard();
     _endEdit();
     final r = _range;
     final before = <(int, int), String>{};

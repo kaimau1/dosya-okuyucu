@@ -42,6 +42,7 @@ import '../../widgets/doc_action_bar.dart';
 import '../../widgets/doc_find_bar.dart';
 import '../../widgets/doc_more_sheet.dart';
 import '../../widgets/chart_insert_dialog.dart';
+import '../../widgets/chart_painter.dart';
 import '../../widgets/office_ribbon.dart';
 import '../../widgets/office_shell.dart';
 import '../../widgets/pinch_zoom_area.dart';
@@ -69,6 +70,9 @@ part 'spreadsheet/cells.dart';
 part 'spreadsheet/widgets.dart';
 part 'spreadsheet/entry.dart';
 part 'spreadsheet/data_ops.dart';
+part 'spreadsheet/finish_format.dart';
+part 'spreadsheet/finish_data.dart';
+part 'spreadsheet/chart_layer.dart';
 
 /// Excel görünümü — hedef: dosya telefonda **Excel'deki gibi** görünsün.
 ///
@@ -90,6 +94,13 @@ class SpreadsheetEditorScreen extends StatefulWidget {
   /// asılı kaldığı için widget testleri bunu kapatır — üretim yolu değişmez.
   @visibleForTesting
   static bool parseInIsolate = true;
+
+  /// Testte açılan modeli gözlemek için (kaydetmeden doğrulama). Üretimde
+  /// [exposeForTest] kapalı — model başka bir yerde tutulmaz.
+  @visibleForTesting
+  static bool exposeForTest = false;
+  @visibleForTesting
+  static XlsxEditor? testEditor;
 
   /// Doldurma tutamağının anahtarı — `SheetCell` kendi içinde de hareket
   /// tanıyıcıları kuruyor, test tutamağı tipe göre ayırt edemiyor.
@@ -310,6 +321,10 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
 
   @override
   void dispose() {
+    _fcCustom.dispose();
+    for (final c in _valCtl) {
+      c.dispose();
+    }
     _session.dispose();
     _cellFocus.dispose();
     _keypadPanel.dispose();
@@ -330,8 +345,38 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
   /// Dosyayı OKUR ve çözümler — ikisi de arka plan izolatında olsun diye tek
   /// fonksiyon (ana izlekte ne disk G/Ç'si ne de ayrıştırma kalır; büyük
   /// dosyada açılışta donma → ANR bu yüzden yaşanmıştı, bkz. HAFIZA).
-  static XlsxEditor _readAndParse(String path) =>
-      XlsxEditor.parse(File(path).readAsBytesSync());
+  static XlsxEditor _readAndParse(String path) {
+    final bytes = File(path).readAsBytesSync();
+    final ext = p.extension(path).toLowerCase();
+    if (ext == '.csv' || ext == '.tsv') {
+      // Faz 27 madde 11: CSV/TSV aynı ızgarada düzenlenir, özgün biçimle
+      // (ayraç, kodlama, satır sonu) geri yazılır.
+      return XlsxEditor.fromCsv(bytes,
+          sheetName: _csvSheetName(p.basenameWithoutExtension(path)),
+          tsv: ext == '.tsv');
+    }
+    return XlsxEditor.parse(bytes);
+  }
+
+  /// Excel sayfa adı kuralı: en çok 31 karakter, `[]:*?/\` yok.
+  static String _csvSheetName(String base) {
+    final clean = base.replaceAll(RegExp(r'[\[\]:*?/\\]'), '_').trim();
+    final name = clean.isEmpty ? 'Sayfa1' : clean;
+    return name.length > 31 ? name.substring(0, 31) : name;
+  }
+
+  /// CSV'de "biçim saklanmaz" uyarısı bir kez gösterildi mi.
+  bool _csvWarned = false;
+
+  /// Izgarada seçili grafik ve sürüklenirken kayma / büyüme (Faz 27).
+  XlsxChartSpec? _chartSel;
+  Offset _chartDrag = Offset.zero;
+  Offset _chartGrow = Offset.zero;
+
+  /// Levha metin alanları (Hücreleri biçimlendir > Özel, Veri doğrulama):
+  /// ekranın ömrüne bağlı — levha kapanış animasyonu sürerken atılmasınlar.
+  final _fcCustom = TextEditingController();
+  final _valCtl = List.generate(4, (_) => TextEditingController());
 
   // ── satır/sütun listeleri ─────────────────────────────────────────────────
 

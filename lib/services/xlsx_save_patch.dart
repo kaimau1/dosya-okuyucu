@@ -5,6 +5,7 @@ import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
 
 import '../core/excel_format.dart' show builtinNumberFormats;
+import 'xlsx_reader.dart' show XlsxDataValidation, XlsxRange;
 
 /// Bir sayfa için kaydetme sonrası düzeltilecek nitelikler.
 ///
@@ -67,7 +68,24 @@ class XlsxSheetPatch {
   /// ekrandaki modelin kullandığı indekslerle birebir örtüşmesi gerekiyor.
   final List<XlsxCondRuleWrite> condRules;
 
+  /// Faz 27: eklenen veri doğrulamaları ve temizlenen aralıklar (önce
+  /// temizleme, sonra ekleme uygulanır).
+  final List<XlsxValidationWrite> validations;
+  final List<String> validationClears;
+
+  /// Sekme rengi (`<sheetPr><tabColor rgb>`); [tabColorEdited] değilse dokunulmaz.
+  final bool tabColorEdited;
+  final int? tabColorArgb;
+
+  /// Süzgeç bu oturumda kuruldu/kaldırıldı — kaldırmak (`null`) da yazılsın.
+  final bool autoFilterEdited;
+
   const XlsxSheetPatch({
+    this.autoFilterEdited = false,
+    this.validations = const [],
+    this.validationClears = const [],
+    this.tabColorEdited = false,
+    this.tabColorArgb,
     required this.name,
     this.rightToLeft = false,
     this.hiddenRows = const {},
@@ -97,7 +115,46 @@ class XlsxSheetPatch {
       numberFormats.isEmpty &&
       styleEdits.isEmpty &&
       styleCopies.isEmpty &&
-      condRules.isEmpty;
+      condRules.isEmpty &&
+      validations.isEmpty &&
+      validationClears.isEmpty &&
+      !tabColorEdited &&
+      !autoFilterEdited;
+}
+
+/// Dosyaya yazılacak veri doğrulama kuralı (yamanın girdisi; saf veri).
+class XlsxValidationWrite {
+  final String sqref;
+  final String type;
+  final String operator;
+  final String? formula1, formula2;
+  final String? error;
+  final bool allowBlank;
+
+  const XlsxValidationWrite({
+    required this.sqref,
+    required this.type,
+    this.operator = 'between',
+    this.formula1,
+    this.formula2,
+    this.error,
+    this.allowBlank = true,
+  });
+
+  static String sqrefOf(List<XlsxRange> ranges) =>
+      ranges.map((r) => r.ref).join(' ');
+
+  factory XlsxValidationWrite.from(XlsxDataValidation v) => XlsxValidationWrite(
+        sqref: sqrefOf(v.ranges),
+        type: v.type,
+        operator: v.operator,
+        formula1: v.type == 'list' && v.options != null
+            ? '"${v.options!.join(',')}"'
+            : v.formula1,
+        formula2: v.formula2,
+        error: v.error,
+        allowBlank: v.allowBlank,
+      );
 }
 
 /// Dosyaya yazılacak tek bir koşullu biçimlendirme kuralı.
@@ -165,6 +222,22 @@ class XlsxStyleEdit {
   /// Haritada olmayan kenara dokunulmaz.
   final Map<String, String?> borders;
 
+  /// Kenarlık rengi (0xAARRGGBB) — yalnız [borders]'ta adı geçen kenarlara;
+  /// `null` = otomatik (`indexed="64"`).
+  final int? borderArgb;
+
+  /// Üstü çizili (`<strike/>`).
+  final bool? strike;
+
+  /// Dikey hizalama (`<alignment vertical="top|center|bottom"/>`).
+  final String? vAlign;
+
+  /// Girinti düzeyi (`<alignment indent="2"/>`); 0 = kaldır.
+  final int? indent;
+
+  /// Yazı yönü derecesi (`textRotation`: 0–180; 255 = dikey yığın).
+  final int? rotation;
+
   /// "Dolguyu kaldır" işareti — `fillArgb`da 0 ile karıştırılmasın diye ayrı
   /// bir sabit (0x00000000 saydam siyah da geçerli bir renk olabilirdi).
   static const int noFill = -1;
@@ -180,6 +253,11 @@ class XlsxStyleEdit {
     this.wrap,
     this.hAlign,
     this.borders = const {},
+    this.borderArgb,
+    this.strike,
+    this.vAlign,
+    this.indent,
+    this.rotation,
   });
 
   bool get isEmpty =>
@@ -192,7 +270,11 @@ class XlsxStyleEdit {
       fontName == null &&
       wrap == null &&
       hAlign == null &&
-      borders.isEmpty;
+      borders.isEmpty &&
+      strike == null &&
+      vAlign == null &&
+      indent == null &&
+      rotation == null;
 
   /// Aynı hücreye art arda verilen düzenlemeleri birleştirir (sonraki kazanır).
   XlsxStyleEdit merge(XlsxStyleEdit other) => XlsxStyleEdit(
@@ -206,6 +288,11 @@ class XlsxStyleEdit {
         wrap: other.wrap ?? wrap,
         hAlign: other.hAlign ?? hAlign,
         borders: {...borders, ...other.borders},
+        borderArgb: other.borders.isNotEmpty ? other.borderArgb : borderArgb,
+        strike: other.strike ?? strike,
+        vAlign: other.vAlign ?? vAlign,
+        indent: other.indent ?? indent,
+        rotation: other.rotation ?? rotation,
       );
 }
 
@@ -366,8 +453,90 @@ class XlsxSavePatch {
     if (_applyStyleEdits(root, patch.styleEdits, styles)) changed = true;
     if (_applyNumberFormats(root, patch.numberFormats, styles)) changed = true;
     if (_applyCondRules(root, patch.condRules, styles)) changed = true;
+    if (_applyValidations(root, patch)) changed = true;
+    if (_applyTabColor(root, patch)) changed = true;
 
     return changed ? doc.toXmlString() : null;
+  }
+
+  /// Veri doğrulama: önce [XlsxSheetPatch.validationClears] aralıklarına
+  /// değen kurallar silinir, sonra yeniler eklenir (`<dataValidations>`).
+  static bool _applyValidations(XmlElement root, XlsxSheetPatch patch) {
+    if (patch.validations.isEmpty && patch.validationClears.isEmpty) {
+      return false;
+    }
+    var changed = false;
+    var dvs = _firstChild(root, 'dataValidations');
+    final clears = [
+      for (final c in patch.validationClears) XlsxRange.parse(c),
+    ].whereType<XlsxRange>().toList();
+    if (dvs != null && clears.isNotEmpty) {
+      dvs.children.removeWhere((n) {
+        if (n is! XmlElement || n.name.local != 'dataValidation') return false;
+        final refs = (n.getAttribute('sqref') ?? '').split(RegExp(r'\s+'));
+        final hit = refs.map(XlsxRange.parse).whereType<XlsxRange>().any(
+            (x) => clears.any((c) =>
+                x.r1 <= c.r2 && x.r2 >= c.r1 && x.c1 <= c.c2 && x.c2 >= c.c1));
+        if (hit) changed = true;
+        return hit;
+      });
+    }
+    if (patch.validations.isNotEmpty) {
+      if (dvs == null) {
+        dvs = XmlElement(XmlName('dataValidations'));
+        _insertOrdered(root, dvs);
+      }
+      for (final v in patch.validations) {
+        dvs.children.add(XmlElement(XmlName('dataValidation'), [
+          XmlAttribute(XmlName('type'), v.type),
+          if (v.type != 'list' && v.operator != 'between')
+            XmlAttribute(XmlName('operator'), v.operator),
+          if (v.allowBlank) XmlAttribute(XmlName('allowBlank'), '1'),
+          XmlAttribute(XmlName('showErrorMessage'), '1'),
+          if (v.error != null && v.error!.isNotEmpty)
+            XmlAttribute(XmlName('error'), v.error!),
+          XmlAttribute(XmlName('sqref'), v.sqref),
+        ], [
+          if (v.formula1 != null)
+            XmlElement(XmlName('formula1'), const [], [XmlText(v.formula1!)]),
+          if (v.formula2 != null)
+            XmlElement(XmlName('formula2'), const [], [XmlText(v.formula2!)]),
+        ]));
+      }
+      changed = true;
+    }
+    if (dvs != null) {
+      final n = dvs.childElements.length;
+      if (n == 0) {
+        root.children.remove(dvs);
+      } else {
+        dvs.setAttribute('count', '$n');
+      }
+    }
+    return changed;
+  }
+
+  /// Sekme rengi: `<sheetPr>` (sayfanın İLK çocuğu) içinde `<tabColor>`.
+  static bool _applyTabColor(XmlElement root, XlsxSheetPatch patch) {
+    if (!patch.tabColorEdited) return false;
+    var pr = _firstChild(root, 'sheetPr');
+    final argb = patch.tabColorArgb;
+    if (pr == null) {
+      if (argb == null) return false;
+      pr = XmlElement(XmlName('sheetPr'));
+      _insertOrdered(root, pr);
+    }
+    pr.children.removeWhere(
+        (n) => n is XmlElement && n.name.local == 'tabColor');
+    if (argb != null) {
+      // CT_SheetPr: tabColor → outlinePr → pageSetUpPr (ilk çocuk).
+      pr.children.insert(
+          0,
+          XmlElement(XmlName('tabColor'),
+              [XmlAttribute(XmlName('rgb'),
+                  argb.toUnsigned(32).toRadixString(16).padLeft(8, '0').toUpperCase())]));
+    }
+    return true;
   }
 
   /// Koşullu biçimlendirme kurallarını yazar.
@@ -1050,6 +1219,7 @@ class _StyleTable {
     if (edit.bold != null ||
         edit.italic != null ||
         edit.underline != null ||
+        edit.strike != null ||
         edit.fontArgb != null ||
         edit.fontSize != null ||
         edit.fontName != null) {
@@ -1063,8 +1233,8 @@ class _StyleTable {
     }
     if (edit.borders.isNotEmpty) {
       final baseBorder = int.tryParse(wanted.getAttribute('borderId') ?? '') ?? 0;
-      wanted.setAttribute(
-          'borderId', '${_borderIdWith(baseBorder, edit.borders)}');
+      wanted.setAttribute('borderId',
+          '${_borderIdWith(baseBorder, edit.borders, edit.borderArgb)}');
       wanted.setAttribute('applyBorder', '1');
     }
     if (edit.wrap != null) {
@@ -1077,8 +1247,39 @@ class _StyleTable {
       wanted.setAttribute('applyAlignment', '1');
     }
     if (edit.hAlign != null) {
-      _childOrAppend(wanted, 'alignment')
-          .setAttribute('horizontal', edit.hAlign!);
+      final al = _childOrAppend(wanted, 'alignment');
+      if (edit.hAlign == 'general') {
+        al.removeAttribute('horizontal');
+      } else {
+        al.setAttribute('horizontal', edit.hAlign!);
+      }
+      wanted.setAttribute('applyAlignment', '1');
+    }
+    if (edit.vAlign != null) {
+      final al = _childOrAppend(wanted, 'alignment');
+      if (edit.vAlign == 'bottom') {
+        al.removeAttribute('vertical'); // Excel varsayılanı
+      } else {
+        al.setAttribute('vertical', edit.vAlign!);
+      }
+      wanted.setAttribute('applyAlignment', '1');
+    }
+    if (edit.indent != null) {
+      final al = _childOrAppend(wanted, 'alignment');
+      if (edit.indent! <= 0) {
+        al.removeAttribute('indent');
+      } else {
+        al.setAttribute('indent', '${edit.indent}');
+      }
+      wanted.setAttribute('applyAlignment', '1');
+    }
+    if (edit.rotation != null) {
+      final al = _childOrAppend(wanted, 'alignment');
+      if (edit.rotation == 0) {
+        al.removeAttribute('textRotation');
+      } else {
+        al.setAttribute('textRotation', '${edit.rotation}');
+      }
       wanted.setAttribute('applyAlignment', '1');
     }
 
@@ -1138,6 +1339,7 @@ class _StyleTable {
     setFlag('b', edit.bold);
     setFlag('i', edit.italic);
     setFlag('u', edit.underline);
+    setFlag('strike', edit.strike);
     if (edit.fontSize != null) {
       children.removeWhere((e) => e.name.local == 'sz');
       children.add(XmlElement(XmlName('sz'),
@@ -1185,7 +1387,8 @@ class _StyleTable {
   }
 
   /// [baseBorderId]'i klonlayıp verilen kenarları değiştirir (`null` = sil).
-  int _borderIdWith(int baseBorderId, Map<String, String?> sides) {
+  int _borderIdWith(int baseBorderId, Map<String, String?> sides,
+      [int? argb]) {
     final borders = _childOrCreate(root, 'borders');
     final list = borders.childElements
         .where((e) => e.name.local == 'border')
@@ -1208,8 +1411,11 @@ class _StyleTable {
           XmlName(side),
           [XmlAttribute(XmlName('style'), style)],
           [
-            XmlElement(XmlName('color'),
-                [XmlAttribute(XmlName('indexed'), '64')]),
+            XmlElement(XmlName('color'), [
+              argb == null
+                  ? XmlAttribute(XmlName('indexed'), '64')
+                  : XmlAttribute(XmlName('rgb'), _argbHex(argb)),
+            ]),
           ],
         ));
       }

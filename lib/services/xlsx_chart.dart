@@ -30,6 +30,10 @@ class XlsxChartSpec {
   /// Grafiğin sol-üst köşesinin hücresi (0 tabanlı).
   final int anchorRow, anchorCol;
 
+  /// Kaplama: kaç sütun genişliğinde, kaç satır yüksekliğinde (Faz 27:
+  /// ızgarada köşeden boyutlandırma).
+  final int widthCols, heightRows;
+
   const XlsxChartSpec({
     required this.sheetName,
     required this.kind,
@@ -43,7 +47,38 @@ class XlsxChartSpec {
     required this.anchorRow,
     required this.anchorCol,
     this.title = '',
+    this.widthCols = 8,
+    this.heightRows = 15,
   });
+
+  XlsxChartSpec copyWith({
+    XlsxChartKind? kind,
+    int? anchorRow,
+    int? anchorCol,
+    int? widthCols,
+    int? heightRows,
+    String? sheetName,
+  }) =>
+      XlsxChartSpec(
+        sheetName: sheetName ?? this.sheetName,
+        kind: kind ?? this.kind,
+        title: title,
+        top: top,
+        left: left,
+        bottom: bottom,
+        right: right,
+        hasCategoryColumn: hasCategoryColumn,
+        categories: categories,
+        // Pastaya geçişte tek seri; geri dönüşte veri yeniden okunmalı —
+        // çağıran ([fromRange]) bunu bilir, burada eldeki seriler kalır.
+        series: (kind ?? this.kind) == XlsxChartKind.pie && series.isNotEmpty
+            ? [series.first]
+            : series,
+        anchorRow: anchorRow ?? this.anchorRow,
+        anchorCol: anchorCol ?? this.anchorCol,
+        widthCols: widthCols ?? this.widthCols,
+        heightRows: heightRows ?? this.heightRows,
+      );
 
   /// Seçili aralıktan grafik kurar: ilk satır başlık, ilk sütun sayı DEĞİLSE
   /// kategori sütunu. Sayısal hiçbir değer yoksa null (çizilecek bir şey yok).
@@ -337,8 +372,8 @@ abstract final class XlsxChartWriter {
     final anchor = '<${x}twoCellAnchor>'
         '<${x}from><${x}col>${spec.anchorCol}</${x}col><${x}colOff>0</${x}colOff>'
         '<${x}row>${spec.anchorRow}</${x}row><${x}rowOff>0</${x}rowOff></${x}from>'
-        '<${x}to><${x}col>${spec.anchorCol + 8}</${x}col><${x}colOff>0</${x}colOff>'
-        '<${x}row>${spec.anchorRow + 15}</${x}row><${x}rowOff>0</${x}rowOff></${x}to>'
+        '<${x}to><${x}col>${spec.anchorCol + spec.widthCols}</${x}col><${x}colOff>0</${x}colOff>'
+        '<${x}row>${spec.anchorRow + spec.heightRows}</${x}row><${x}rowOff>0</${x}rowOff></${x}to>'
         '<${x}graphicFrame macro="">'
         '<${x}nvGraphicFramePr><${x}cNvPr id="$id" name="$name"/>'
         '<${x}cNvGraphicFramePr/></${x}nvGraphicFramePr>'

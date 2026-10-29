@@ -199,22 +199,26 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
                         scrollDirection: Axis.horizontal,
                         child: SizedBox(
                           width: cols.total,
-                          child: _dragSelectArea(
-                            ListView.builder(
-                              controller: _vBody,
-                              physics: physics,
-                              padding: EdgeInsets.only(bottom: bottomInset),
-                              itemCount: rows.length,
-                              itemExtentBuilder: (i, _) => rows.sizeAt(i),
-                              itemBuilder: (_, i) {
-                                final r = rows.indices[i];
-                                return Row(children: [
-                                  SizedBox(width: padLeft),
-                                  ..._rowCells(ctx, r, window),
-                                  SizedBox(width: padRight),
-                                ]);
-                              },
+                          child: _withCharts(
+                            _dragSelectArea(
+                              ListView.builder(
+                                controller: _vBody,
+                                physics: physics,
+                                padding: EdgeInsets.only(bottom: bottomInset),
+                                itemCount: rows.length,
+                                itemExtentBuilder: (i, _) => rows.sizeAt(i),
+                                itemBuilder: (_, i) {
+                                  final r = rows.indices[i];
+                                  return Row(children: [
+                                    SizedBox(width: padLeft),
+                                    ..._rowCells(ctx, r, window),
+                                    SizedBox(width: padRight),
+                                  ]);
+                                },
+                              ),
                             ),
+                            rows,
+                            cols,
                           ),
                         ),
                       ),

@@ -3,6 +3,7 @@
 library;
 
 import '../core/text_search.dart';
+import 'sheet_edit.dart' show compareCellText;
 
 /// [rows] (seçili aralığın değerleri, satır × sütun) içinde **silinecek**
 /// satırların göreli indeksleri: ilk geçen kalır, sonrakiler silinir.
@@ -101,4 +102,29 @@ List<String> splitText(String text, SplitSpec spec) {
   }
   out.add(cur.toString());
   return out;
+}
+
+/// Çok düzeyli sıralama anahtarı: sütunun değeri (satır → görünen değer) ve
+/// yön.
+class SortLevel {
+  final String Function(int row) value;
+  final bool ascending;
+  const SortLevel(this.value, {this.ascending = true});
+}
+
+/// [first]..[last] satırlarının yeni sırası (Excel "Özel sıralama"): birinci
+/// düzey eşitse ikinciye bakılır; tümü eşitse özgün sıra korunur (kararlı).
+List<int> multiSortOrder(int first, int last, List<SortLevel> levels) {
+  final rows = [for (var r = first; r <= last; r++) r];
+  final keys = [
+    for (final l in levels) {for (final r in rows) r: l.value(r)},
+  ];
+  rows.sort((a, b) {
+    for (var i = 0; i < levels.length; i++) {
+      final cmp = compareCellText(keys[i][a]!, keys[i][b]!);
+      if (cmp != 0) return levels[i].ascending ? cmp : -cmp;
+    }
+    return a.compareTo(b);
+  });
+  return rows;
 }
