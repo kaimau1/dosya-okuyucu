@@ -26,6 +26,12 @@ enum AppSkin {
   /// haklıydı, bu "açık tema" değil "kağıt tema".
   paper,
 
+  /// **Kırık beyaz** (2026-10-29, kullanıcı: *"kırık beyaz teması ama mavi
+  /// olmasın — yardımcı tema"*): sıcak fildişi zemin, vurgu MAVİ DEĞİL
+  /// adaçayı yeşili. Kağıttan farkı: zemin bir tık daha kremsi, kartlar
+  /// beyaz (zeminden ayrışır), seçili sekme/düğme yeşil.
+  ivory,
+
   /// Düz **açık** tema: nötr beyaz/gri, kağıdın sıcaklığı yok. Kağıt dokusunu
   /// sevmeyen kullanıcının aradığı şey buydu.
   light,
@@ -50,6 +56,7 @@ enum AppSkin {
 
   String get labelKey => switch (this) {
         AppSkin.paper => 'skin.paper',
+        AppSkin.ivory => 'skin.ivory',
         AppSkin.light => 'skin.light',
         AppSkin.modern => 'skin.modern',
         AppSkin.night => 'skin.night',
@@ -58,6 +65,7 @@ enum AppSkin {
 
   String get descriptionKey => switch (this) {
         AppSkin.paper => 'skin.paper_sub',
+        AppSkin.ivory => 'skin.ivory_sub',
         AppSkin.light => 'skin.light_sub',
         AppSkin.modern => 'skin.modern_sub',
         AppSkin.night => 'skin.night_sub',
@@ -177,6 +185,7 @@ class SkinPalette {
     final dark = brightness == Brightness.dark || skin.forcesDark;
     return switch (skin) {
       AppSkin.paper => dark ? _paperDark : _paperLight,
+      AppSkin.ivory => dark ? _ivoryDark : _ivoryLight,
       AppSkin.light => dark ? _neutralDark : _neutralLight,
       AppSkin.modern => dark ? _modernDark : _modernLight,
       AppSkin.night => _nightDark,
@@ -218,6 +227,45 @@ class SkinPalette {
     onAccent: Color(0xFF13202F),
     danger: Color(0xFFD9756B),
     ok: Color(0xFF7FA98A),
+  );
+
+  // ── Kırık beyaz (mavisiz) ─────────────────────────────────────────────────
+  //
+  // Zemin fildişi, kartlar ondan AÇIK (beyaza yakın) — kâğıtta kart zeminden
+  // koyuydu; burada kartlar "zeminin üstüne konmuş" görünür. Vurgu adaçayı
+  // yeşili: mavi yok, beyaz üstünde 4.5:1'den yüksek karşıtlık.
+  static const _ivoryLight = SkinPalette(
+    bg: Color(0xFFF6F3EA),
+    card: Color(0xFFFDFBF6),
+    band: Color(0xFFEFEADF),
+    well: Color(0xFFEAE4D6),
+    rule: Color(0xFFE2DBCB),
+    edge: Color(0xFFCFC6B2),
+    ink: Color(0xFF28251D),
+    inkSoft: Color(0xFF665E4E),
+    inkFaint: Color(0xFF6F675A),
+    accent: Color(0xFF3F6A4C),
+    accentWell: Color(0xFFDDE8DC),
+    onAccent: Colors.white,
+    danger: Color(0xFFB0402F),
+    ok: Color(0xFF3F6A4C),
+  );
+
+  static const _ivoryDark = SkinPalette(
+    bg: Color(0xFF1B1A16),
+    card: Color(0xFF23211C),
+    band: Color(0xFF2C2A23),
+    well: Color(0xFF34312A),
+    rule: Color(0xFF3D3A31),
+    edge: Color(0xFF6C6757),
+    ink: Color(0xFFECE7DB),
+    inkSoft: Color(0xFFB8B09F),
+    inkFaint: Color(0xFF9C9483),
+    accent: Color(0xFF9CC6A6),
+    accentWell: Color(0xFF2A3A2E),
+    onAccent: Color(0xFF13251A),
+    danger: Color(0xFFDB7A6C),
+    ok: Color(0xFF9CC6A6),
   );
 
   // ── Açık (nötr) ───────────────────────────────────────────────────────────
@@ -372,6 +420,15 @@ class SkinMetrics {
             radiusSheet: 26,
             iconScale: 1,
             rowPadding: 4,
+            density: VisualDensity.standard,
+            iconStyle: SkinIconStyle.gradient,
+          ),
+        AppSkin.ivory => const SkinMetrics(
+            radiusControl: 12,
+            radiusCard: 16,
+            radiusSheet: 28,
+            iconScale: 1,
+            rowPadding: 5,
             density: VisualDensity.standard,
             iconStyle: SkinIconStyle.gradient,
           ),

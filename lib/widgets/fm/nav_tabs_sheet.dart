@@ -89,11 +89,6 @@ NavTabSpec navTabSpec(BuildContext context, String id) => switch (id) {
           selected: AppIcons.vault,
           label: context.t('nav.vault'),
         ),
-      'memories' => (
-          icon: AppIcons.autoAwesomeMosaic,
-          selected: AppIcons.autoAwesomeMosaic,
-          label: context.t('mem.title'),
-        ),
       'jobs' => (
           icon: AppIcons.exportList,
           selected: AppIcons.playlistAddCheckCircle,

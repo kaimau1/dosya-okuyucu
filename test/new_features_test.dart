@@ -5,12 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:dosya_okuyucu/models/fs_entry.dart';
 import 'package:dosya_okuyucu/services/fm/ai_index.dart';
 import 'package:dosya_okuyucu/services/fm/bills.dart';
 import 'package:dosya_okuyucu/services/fm/exif_reader.dart';
 import 'package:dosya_okuyucu/services/fm/native_extras.dart';
-import 'package:dosya_okuyucu/services/fm/photo_insights.dart';
 import 'package:dosya_okuyucu/services/fm/smart_folders.dart';
 import 'package:dosya_okuyucu/widgets/qr_code.dart';
 
@@ -116,32 +114,7 @@ void main() {
     expect(back['remindDays'], Bills.remindDays);
   });
 
-  group('anılar', () {
-    test('bu gün: yalnız geçmiş yıllar, aynı ay-gün, yeni yıl önce', () {
-      FsEntry e(String name) => FsEntry(
-          path: '/$name', name: name, isDir: false, sizeBytes: 1, modifiedMs: 0);
-      final dates = {
-        'a': DateTime(2024, 10, 18, 9),
-        'b': DateTime(2021, 10, 18, 20),
-        'c': DateTime(2026, 10, 18),
-        'd': DateTime(2024, 10, 17),
-      };
-      final out = PhotoInsights.onThisDayOf(
-        [for (final n in dates.keys) e(n)],
-        (x) => dates[x.name]!.millisecondsSinceEpoch,
-        now: DateTime(2026, 10, 18, 12),
-      );
-      expect(out.keys, [2024, 2021]);
-      expect(out[2024]!.single.name, 'a');
-    });
-
-    test('yakın konumlar aynı kümede', () {
-      expect(PhotoInsights.clusterKey(39.9008, 32.8541),
-          PhotoInsights.clusterKey(39.9101, 32.8602));
-      expect(PhotoInsights.clusterKey(39.92, 32.85),
-          isNot(PhotoInsights.clusterKey(41.01, 28.97)));
-    });
-
+  group('EXIF konum', () {
     test('EXIF GPS çözülür (K/D ve G/B işaretleri)', () {
       Uint8List jpegWithGps({required bool south}) {
         // TIFF (II): IFD0 → tek etiket 0x8825 (GPS IFD) → 4 etiket.

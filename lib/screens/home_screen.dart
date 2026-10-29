@@ -32,7 +32,6 @@ import 'fm/drive_screen.dart';
 import 'fm/important_screen.dart';
 import 'fm/installed_apps_screen.dart';
 import 'fm/jobs_screen.dart';
-import 'fm/memories_screen.dart';
 import 'fm/new_files_screen.dart';
 import 'fm/open_history_screen.dart';
 import 'fm/photos_screen.dart';
@@ -373,8 +372,6 @@ class _HomeScreenState extends State<HomeScreen> {
         return const BillsScreen();
       case 'vault':
         return const VaultScreen();
-      case 'memories':
-        return const MemoriesScreen();
       case 'trash':
         return const TrashScreen();
       case 'drive':

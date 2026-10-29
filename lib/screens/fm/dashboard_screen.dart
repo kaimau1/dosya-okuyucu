@@ -66,7 +66,6 @@ import 'drive_screen.dart';
 import '../settings_screen.dart';
 import 'important_screen.dart';
 import 'installed_apps_screen.dart';
-import 'memories_screen.dart';
 import 'new_files_screen.dart';
 import 'swipe_pager.dart';
 import '../../services/fm/dashboard_layout.dart';

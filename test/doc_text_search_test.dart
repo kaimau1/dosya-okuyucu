@@ -50,13 +50,13 @@ void main() {
   });
 
   test('anlamla sıralama verilen adaylarla sınırlı', () async {
-    final pdf = FsEntry(
+    const pdf = FsEntry(
         path: '/x/Elektrik_faturasi.pdf',
         name: 'Elektrik_faturasi.pdf',
         isDir: false,
         sizeBytes: 1,
         modifiedMs: 1);
-    final docx = FsEntry(
+    const docx = FsEntry(
         path: '/x/fatura.docx',
         name: 'fatura.docx',
         isDir: false,

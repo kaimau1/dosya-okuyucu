@@ -139,15 +139,7 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
         },
         onTap: () => _push(CleanupScreen(index: _index)),
       ),
-      // Anılar (2026-10-18): bu gün, yerler, insanlar — cihazda.
-      FmTileData(
-        icon: AppIcons.autoAwesomeMosaic,
-        color: AppHues.pink,
-        id: 'memories',
-        label: context.t('mem.title'),
-        subtitle: '',
-        onTap: () => _push(const MemoriesScreen()),
-      ),
+      // Anılar 2026-10-29'da kaldırıldı (kullanıcı isteği: "anıları kaldır").
       // Sesli kitaplar (2026-10-22): belgeden üretilmiş, kayıtlı ses dosyaları.
       FmTileData(
         icon: AppIcons.audiobook,
@@ -228,7 +220,6 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
       'organize',
       'new_document',
       'jobs',
-      'memories',
       'audiobooks',
     ];
     int rank(FmTileData t) {

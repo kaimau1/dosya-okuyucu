@@ -74,10 +74,33 @@ void main() {
     });
   });
 
+  // 2026-10-29: "kırık beyaz ama mavi olmasın".
+  test('Kırık beyaz: fildişi zemin, vurgu mavi DEĞİL ve okunur', () {
+    for (final b in Brightness.values) {
+      final p = SkinPalette.of(AppSkin.ivory, b);
+      final hsv = HSVColor.fromColor(p.accent);
+      expect(hsv.hue < 190 || hsv.hue > 260, isTrue,
+          reason: 'vurgu mavi tonunda: ${hsv.hue}');
+      double ratio(Color a, Color c) {
+        final l1 = a.computeLuminance(), l2 = c.computeLuminance();
+        final hi = l1 > l2 ? l1 : l2, lo = l1 > l2 ? l2 : l1;
+        return (hi + 0.05) / (lo + 0.05);
+      }
+
+      expect(ratio(p.accent, p.onAccent), greaterThanOrEqualTo(4.5));
+      expect(ratio(p.ink, p.bg), greaterThanOrEqualTo(7));
+      expect(ratio(p.inkSoft, p.card), greaterThanOrEqualTo(4.5));
+    }
+    final light = SkinPalette.of(AppSkin.ivory, Brightness.light);
+    expect(light.bg, isNot(const Color(0xFFFFFFFF)));
+    expect(light.bg.computeLuminance(), greaterThan(0.85));
+  });
+
   group('sadeleşme göçü (2026-10-21)', () {
     test('dört aile kalır (+ Faz 19 "Sistem rengi", yalnız Android 12+)', () {
       expect(AppSkin.values, [
         AppSkin.paper,
+        AppSkin.ivory,
         AppSkin.light,
         AppSkin.modern,
         AppSkin.night,

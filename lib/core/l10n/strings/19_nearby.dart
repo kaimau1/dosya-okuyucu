@@ -138,4 +138,12 @@ const Map<String, (String, String, String)> _t19 = {
   'srch.mode_reading': ('{n} / {total} dosya okunuyor…', 'Reading {n} / {total} files…', 'قراءة {n} / {total} ملف…'),
   'srch.mode_found': ('{n} sonuç · {total} dosya arandı', '{n} results · {total} files searched', '{n} نتيجة · بُحث في {total} ملف'),
   'srch.in_filter_hint': ('Süzgeçteki {n} dosyada ara…', 'Search {n} filtered files…', 'ابحث في {n} ملف مُصفّى…'),
+
+  // ── Kırık beyaz tema ──
+  'skin.ivory': ('Kırık beyaz', 'Ivory', 'أبيض عاجي'),
+  'skin.ivory_sub': (
+    'Sıcak fildişi zemin, adaçayı yeşili vurgu — mavisiz, göz yormayan',
+    'Warm ivory background, sage-green accent — no blue, easy on the eyes',
+    'خلفية عاجية دافئة ولون مميز أخضر — دون أزرق ومريحة للعين',
+  ),
 };

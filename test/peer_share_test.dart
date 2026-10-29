@@ -381,7 +381,7 @@ void main() {
   });
 
   test('alıcı yokken başlayan gönderim süre dolunca hata verir', () async {
-    final peer = Peer(name: 'A', host: '127.0.0.1', port: 1);
+    const peer = Peer(name: 'A', host: '127.0.0.1', port: 1);
     final waits = <bool>[];
     final source = File(p.join(temp.path, 'x.txt'))..writeAsStringSync('x');
     final r = await PeerSender.send(peer, [source.path],

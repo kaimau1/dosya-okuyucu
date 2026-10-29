@@ -42,7 +42,6 @@ class NavTabs extends ChangeNotifier {
     'smart',
     'bills',
     'vault',
-    'memories',
     'jobs',
     'trash',
     'drive',
