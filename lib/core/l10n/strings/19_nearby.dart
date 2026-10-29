@@ -119,4 +119,23 @@ const Map<String, (String, String, String)> _t19 = {
   'near.folder_files': ('{n} dosya', '{n} files', '{n} ملف'),
   'near.accept': ('Kabul et', 'Accept', 'قبول'),
   'near.decline': ('Reddet', 'Decline', 'رفض'),
+
+  // ── Süzgeç içi arama kipleri ──
+  'srch.mode_name': ('Adında', 'In name', 'في الاسم'),
+  'srch.mode_meaning': ('Anlamla', 'By meaning', 'بالمعنى'),
+  'srch.mode_content': ('Dosyaların içinde', 'Inside files', 'داخل الملفات'),
+  'srch.mode_content_ai': ('İçinde (AI)', 'Inside (AI)', 'في الداخل (ذكاء)'),
+  'srch.mode_scope': (
+    'Seçili süzgeçteki {n} dosyanın adında aranır',
+    'Searching names of the {n} files in the current filter',
+    'البحث في أسماء {n} ملف ضمن التصفية الحالية',
+  ),
+  'srch.mode_press': (
+    'Yazıp "Ara"ya basın · seçili süzgeçteki {n} dosyada aranır',
+    'Type and press "Search" · searches the {n} files in the current filter',
+    'اكتب واضغط «بحث» · يبحث في {n} ملف ضمن التصفية',
+  ),
+  'srch.mode_reading': ('{n} / {total} dosya okunuyor…', 'Reading {n} / {total} files…', 'قراءة {n} / {total} ملف…'),
+  'srch.mode_found': ('{n} sonuç · {total} dosya arandı', '{n} results · {total} files searched', '{n} نتيجة · بُحث في {total} ملف'),
+  'srch.in_filter_hint': ('Süzgeçteki {n} dosyada ara…', 'Search {n} filtered files…', 'ابحث في {n} ملف مُصفّى…'),
 };

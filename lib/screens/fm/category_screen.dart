@@ -1,11 +1,20 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/snack.dart';
+import '../../core/theme.dart';
+import '../../core/user_error.dart';
 import '../../models/chat_media.dart';
 import '../../models/fm_filter.dart';
 import '../../models/fm_layout.dart';
 import '../../models/fs_entry.dart';
 import '../../models/media_bucket.dart';
+import '../../services/fm/ai_meaning_search.dart';
+import '../../services/fm/doc_text_search.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_tags.dart';
 import '../../services/fm/fs_events.dart';
@@ -25,6 +34,7 @@ import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import '../../widgets/fm/fm_type_chips.dart';
+import '../../widgets/ai_key_gate.dart';
 import 'browser_screen.dart';
 import 'category_tools.dart';
 import 'entry_actions.dart';
@@ -95,6 +105,10 @@ class CategoryScreen extends StatefulWidget {
   State<CategoryScreen> createState() => _CategoryScreenState();
 }
 
+/// Arama kipi (2026-10-29): adında (canlı) · anlamla (AI) · içinde ·
+/// içinde (AI). Hepsi o an seçili süzgecin İÇİNDE arar.
+enum _SearchMode { name, meaning, content, contentAi }
+
 class _CategoryScreenState extends State<CategoryScreen> {
   late List<FsEntry> _files = [...widget.files];
   final Set<String> _selected = {};
@@ -120,6 +134,9 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   void _setFilter(FmFilter f) => setState(() {
         _filter = f;
+        // Süzgeç değişti: AI/içerik sonucu eski kapsama aitti.
+        _modeResults = null;
+        _modeSubs = const {};
         final id = widget.memoryId;
         if (id != null) ListMemory.rememberFilter(id, f);
       });
@@ -135,6 +152,23 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   final _searchController = TextEditingController();
   bool _searching = false;
+
+  // ── Süzgeç içi arama kipleri (2026-10-29) ──────────────────────────────
+  // Kullanıcı: *"belgeler içerisinde yapılan filtreye göre arama olmalı —
+  // PDF seçildiyse arama PDF'lerde; AI araması da orada olmalı, yine
+  // filtrede; bir butonla dosyaların içinde de ara — hem AI'lı hem AI'sız,
+  // seçilen filtre dahilinde"*.
+  _SearchMode _mode = _SearchMode.name;
+
+  /// AI/içerik kipinin sonucu (null = henüz aranmadı → süzgeç listesi).
+  List<FsEntry>? _modeResults;
+
+  /// Sonuç satırının alt yazısı: alıntı ya da AI'nın eşleşen terimleri.
+  Map<String, String> _modeSubs = const {};
+  bool _modeBusy = false;
+  int _modeDone = 0;
+  int _modeTotal = 0;
+  int _modeToken = 0;
   bool _loadingAll = false;
   String _query = '';
 
@@ -239,7 +273,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
   List<FsEntry> get _sorted {
     // Açılış geçmişi ekran çizildikten SONRA diskten gelir; anahtara girmezse
     // önbellek eski (geçmişsiz) sonucu döndürüp donardı.
-    final key = '${identityHashCode(_files)}|${_files.length}|$_query|'
+    final query = _mode == _SearchMode.name ? _query : '';
+    final key = '${identityHashCode(_files)}|${_files.length}|$query|'
         '${_filter.signature}|${_sort.name}|$_desc|'
         '${OpenHistory.revision}';
     final cached = _sortedCache;
@@ -248,7 +283,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
         FsScan.sort(_files, _sort, descending: _desc, foldersFirst: false);
     final filtered = _filter.apply(
       sorted,
-      query: _query,
+      query: query,
       tagsOf: FileTags.forPath,
       // "6 aydır açılmamış" / "son 6 ayda açılanlar" ölçütleri uygulamanın
       // kendi açılış kaydını da sayar (bkz. `FmFilter.lastSeenMs`).
@@ -332,12 +367,179 @@ class _CategoryScreenState extends State<CategoryScreen> {
       _searching = false;
       _query = '';
       _searchController.clear();
+      _mode = _SearchMode.name;
+      _modeResults = null;
+      _modeSubs = const {};
+      _modeBusy = false;
+      _modeToken++;
     });
+  }
+
+  /// Aramanın kapsamı: o an seçili süzgeçten geçen dosyalar (ad sorgusu
+  /// uygulanmadan).
+  List<FsEntry> get _scope => _sorted;
+
+  bool get _scopeHasDocs => _scope.any(DocTextSearch.supports);
+
+  void _setMode(_SearchMode mode) {
+    setState(() {
+      _mode = mode;
+      _modeResults = null;
+      _modeSubs = const {};
+      _modeBusy = false;
+      _sortedCache = null;
+      _modeToken++;
+    });
+    if (mode != _SearchMode.name && _query.trim().length >= 2) {
+      unawaited(_runMode());
+    }
+  }
+
+  /// AI/içerik araması — klavyedeki "Ara" ya da kip çipi başlatır.
+  Future<void> _runMode() async {
+    final q = _query.trim();
+    if (_mode == _SearchMode.name || q.length < 2) return;
+    final appState = context.read<AppState>();
+    final str = AppStrings.of(context);
+    final needsAi =
+        _mode == _SearchMode.meaning || _mode == _SearchMode.contentAi;
+    if (needsAi && (!await ensureAiKey(context) || !mounted)) return;
+    final token = ++_modeToken;
+    final scope = _scope;
+    setState(() {
+      _modeBusy = true;
+      _modeDone = 0;
+      _modeTotal = 0;
+    });
+    try {
+      List<FsEntry> results;
+      Map<String, String> subs;
+      switch (_mode) {
+        case _SearchMode.meaning:
+          final plan =
+              await AiMeaningSearch.planFor(q, gemini: appState.gemini);
+          final hits = await AiMeaningSearch.rankIn(plan, scope);
+          results = [for (final h in hits) h.entry];
+          subs = {
+            for (final h in hits)
+              if (h.matched.isNotEmpty) h.entry.path: '✦ ${h.matched.join(' · ')}',
+          };
+        case _SearchMode.content:
+        case _SearchMode.contentAi:
+          var terms = [q];
+          if (_mode == _SearchMode.contentAi) {
+            // Yalnız SORGU AI'ya gider; dosya içeriği cihazda kalır.
+            final plan =
+                await AiMeaningSearch.planFor(q, gemini: appState.gemini);
+            terms = [q, ...plan.terms.where((t) => t != q)];
+          }
+          if (!mounted || token != _modeToken) return;
+          final hits = await DocTextSearch.search(
+            scope,
+            terms,
+            isCancelled: () => !mounted || token != _modeToken,
+            onProgress: (done, total) {
+              if (!mounted || token != _modeToken) return;
+              if (done == total || done % 3 == 0) {
+                setState(() {
+                  _modeDone = done;
+                  _modeTotal = total;
+                });
+              }
+            },
+          );
+          results = [for (final h in hits) h.entry];
+          subs = {
+            for (final h in hits)
+              h.entry.path: h.snippet.isEmpty
+                  ? h.terms.join(' · ')
+                  : (_mode == _SearchMode.contentAi && h.terms.isNotEmpty
+                      ? '✦ ${h.terms.take(3).join(' · ')} — ${h.snippet}'
+                      : h.snippet),
+          };
+        case _SearchMode.name:
+          return;
+      }
+      if (!mounted || token != _modeToken) return;
+      setState(() {
+        _modeBusy = false;
+        _modeResults = results;
+        _modeSubs = subs;
+      });
+    } catch (e) {
+      if (!mounted || token != _modeToken) return;
+      setState(() => _modeBusy = false);
+      showSnack(context, str.t('srch.ai_error', {'error': userErrorText(e)}));
+    }
+  }
+
+  /// Arama açıkken süzgeç satırının üstündeki kip şeridi.
+  Widget _modeStrip() {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final scope = _scope;
+    final docs = _scopeHasDocs;
+    Widget chip(_SearchMode m, String label, {bool ai = false}) => Padding(
+          padding: const EdgeInsetsDirectional.only(end: Gap.xs),
+          child: ChoiceChip(
+            key: ValueKey('search-mode-${m.name}'),
+            avatar: ai
+                ? Icon(AppIcons.ai, size: 16, color: scheme.primary)
+                : null,
+            label: Text(label),
+            selected: _mode == m,
+            onSelected: (_) => _setMode(m),
+          ),
+        );
+    final scopeText = _modeBusy && _modeTotal > 0
+        ? context.t('srch.mode_reading', {'n': _modeDone, 'total': _modeTotal})
+        : _modeResults != null
+            ? context.t('srch.mode_found', {'n': _modeResults!.length, 'total': scope.length})
+            : (_mode == _SearchMode.name
+                ? context.t('srch.mode_scope', {'n': scope.length})
+                : context.t('srch.mode_press', {'n': scope.length}));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsetsDirectional.fromSTEB(12, Gap.xs, 12, 0),
+          child: Row(
+            children: [
+              chip(_SearchMode.name, context.t('srch.mode_name')),
+              chip(_SearchMode.meaning, context.t('srch.mode_meaning'), ai: true),
+              if (docs) chip(_SearchMode.content, context.t('srch.mode_content')),
+              if (docs)
+                chip(_SearchMode.contentAi, context.t('srch.mode_content_ai'),
+                    ai: true),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(16, 2, 16, 2),
+          child: Text(
+            scopeText,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+        ),
+        if (_modeBusy)
+          LinearProgressIndicator(
+            minHeight: 2,
+            value: _modeTotal > 0 ? _modeDone / _modeTotal : null,
+          ),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final files = _sorted;
+    final files = _searching && _mode != _SearchMode.name && _modeResults != null
+        ? _modeResults!
+        : _sorted;
     // Seçili+görünen küme build başına BİR kez hesaplanır (bkz.
     // `photos_screen.dart`taki aynı not — 20 bin dosyada perf).
     final selectedEntries = _selectedEntries;
@@ -355,6 +557,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
           Column(
         children: [
           if (_loadingAll) const LinearProgressIndicator(minHeight: 2),
+          if (_searching && !_selecting) _modeStrip(),
           // **Hızlı süzgeç çipleri** (2026-08-05 kullanıcı isteği): kaynak
           // (WhatsApp/Telegram/Kamera…), büyük dosyalar ve "6 aydır
           // açılmamış" tek dokunuşta. Eskiden kaynak çipleri `showSources`
@@ -432,9 +635,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
               onSelectRange: (a, b, sel) => _selectRange(files, a, b, sel),
               // Tam yol yerine kaynak adı ("WhatsApp", "İndirilenler") —
               // bkz. [FmLocation] (2026-09-23 tasarım turu).
-              subtitle: (e) => FmLocation.subtitle(
-                  e.path, e.sizeBytes, e.modifiedMs, context.t,
-                  volumes: FmEnv.volumes),
+              subtitle: (e) =>
+                  _modeSubs[e.path] ??
+                  FmLocation.subtitle(
+                      e.path, e.sizeBytes, e.modifiedMs, context.t,
+                      volumes: FmEnv.volumes),
               onMore: (e) async {
                 await showEntryActions(context, e,
                     allowReveal: true, onReveal: _reveal);
@@ -603,10 +808,29 @@ class _CategoryScreenState extends State<CategoryScreen> {
         ),
         title: FmSearchField(
           controller: _searchController,
-          hint: context.t('ph.search_in_hint', {'title': widget.title}),
-          onChanged: (v) => setState(() => _query = v),
+          // Süzgeç seçiliyse ipucu onu söyler: "PDF'lerde ara…" yerine
+          // genel "Belgelerde ara…" yazıp PDF dışını da arıyormuş gibi
+          // görünmesin.
+          hint: _filter.isActive
+              ? context.t('srch.in_filter_hint', {'n': _scope.length})
+              : context.t('ph.search_in_hint', {'title': widget.title}),
+          onChanged: (v) => setState(() {
+            _query = v;
+            if (_mode != _SearchMode.name) {
+              _modeResults = null;
+              _modeSubs = const {};
+            }
+          }),
+          onSubmitted: (_) => unawaited(_runMode()),
         ),
         actions: [
+          if (_mode != _SearchMode.name)
+            IconButton(
+              key: const ValueKey('search-mode-run'),
+              tooltip: context.t('common.search'),
+              icon: const Icon(AppIcons.search),
+              onPressed: _modeBusy ? null : () => unawaited(_runMode()),
+            ),
           if (_query.isNotEmpty)
             IconButton(
               tooltip: context.t('common.clear'),
@@ -614,6 +838,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
               onPressed: () => setState(() {
                 _query = '';
                 _searchController.clear();
+                _modeResults = null;
+                _modeSubs = const {};
               }),
             ),
           // Arama açıkken de süzgeç erişilebilir: "adında tatil geçen, geçen

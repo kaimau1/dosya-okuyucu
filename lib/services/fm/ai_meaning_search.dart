@@ -176,6 +176,65 @@ abstract final class AiMeaningSearch {
     return out.take(limit).toList();
   }
 
+  /// Yalnız plan (tek istek): sorgu → eş anlamlı/ilgili terimler. "İçinde
+  /// ara (AI)" bu terimlerle dosya METNİNDE cihazda arar.
+  static Future<MeaningPlan> planFor(String query,
+      {required GeminiService gemini}) async {
+    final raw =
+        await gemini.generateJson(prompt: promptFor(query), schema: schema);
+    return parse(raw, query);
+  }
+
+  /// Planı **verilen aday listesine** uygular (2026-10-29: Belgeler'deki
+  /// süzgeç — "yalnız PDF'ler" seçiliyken AI araması da yalnız PDF'lerde).
+  /// Ad + AI dizini (başlık/özet/etiket/tür) eşleşmesi; ağ yok.
+  static Future<List<MeaningHit>> rankIn(
+    MeaningPlan plan,
+    List<FsEntry> candidates, {
+    int limit = 300,
+  }) async {
+    await AiIndex.ensureLoaded();
+    final byPath = {for (final r in AiIndex.all()) r.path: r};
+    final folded = [for (final t in plan.terms) asciiFold(t)];
+    final n = folded.length;
+    final exts = plan.extensions.toSet();
+    final out = <MeaningHit>[];
+    for (final e in candidates) {
+      if (e.isDir) continue;
+      final name = asciiFold(e.name);
+      final r = byPath[e.path];
+      final meta = r == null
+          ? ''
+          : asciiFold('${r.title} ${r.summary} ${r.tags.join(' ')} ${r.docType}');
+      var score = 0.0;
+      final matched = <String>[];
+      for (var i = 0; i < n; i++) {
+        final t = folded[i];
+        if (t.isEmpty) continue;
+        final w = 1.0 - 0.6 * (i / (n <= 1 ? 1 : n - 1));
+        var hit = false;
+        if (name.contains(t)) {
+          score += w;
+          hit = true;
+        }
+        if (meta.isNotEmpty && meta.contains(t)) {
+          score += w + 0.4;
+          hit = true;
+        }
+        if (hit && matched.length < 3) matched.add(plan.terms[i]);
+      }
+      if (score <= 0) continue;
+      score *= 1 + 0.25 * (matched.length - 1);
+      if (exts.contains(e.extension)) score += 0.3;
+      out.add(MeaningHit(e, score, matched));
+    }
+    out.sort((a, b) {
+      final c = b.score.compareTo(a.score);
+      return c != 0 ? c : b.entry.modifiedMs.compareTo(a.entry.modifiedMs);
+    });
+    return out.take(limit).toList();
+  }
+
   /// Uçtan uca: sorgu → plan (tek istek) → yerel sıralama.
   static Future<(MeaningPlan, List<MeaningHit>)> search(
     String query, {

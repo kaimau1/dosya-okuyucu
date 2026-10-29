@@ -14,10 +14,14 @@ class FmSearchField extends StatelessWidget {
   final String hint;
   final ValueChanged<String> onChanged;
 
+  /// Klavyedeki "Ara" tuşu (AI/içerik araması gibi canlı koşmayan kipler).
+  final ValueChanged<String>? onSubmitted;
+
   const FmSearchField({
     super.key,
     required this.controller,
     required this.onChanged,
+    this.onSubmitted,
     this.hint = 'Ara…',
   });
 
@@ -35,6 +39,7 @@ class FmSearchField extends StatelessWidget {
           filled: false,
         ),
         onChanged: onChanged,
+        onSubmitted: onSubmitted,
       );
 }
 
