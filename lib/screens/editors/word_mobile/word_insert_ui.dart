@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/app_icons.dart';
 import '../../../core/l10n/app_strings.dart';
@@ -86,13 +87,18 @@ Future<(int, int)?> showWordTableSheet(BuildContext context) =>
     );
 
 /// Bağlantı levhası: (metin, adres).
+///
+/// [url] verilirse var olan bağlantı düzenlenir (Faz 22 kalanı): başlık
+/// "Bağlantıyı düzenle", altta **Aç** ve **Kaldır** — kaldır `(metin, '')`
+/// döner (metin düz yazı olarak kalır).
 Future<(String, String)?> showWordLinkSheet(BuildContext context,
-    {String text = ''}) {
+    {String text = '', String? url}) {
+  final editing = url != null;
   final textCtl = TextEditingController(text: text);
-  final urlCtl = TextEditingController(text: 'https://');
+  final urlCtl = TextEditingController(text: url ?? 'https://');
   return showAppSheet<(String, String)>(
     context,
-    title: context.t('word.insert_link'),
+    title: context.t(editing ? 'word.edit_link' : 'word.insert_link'),
     builder: (ctx) => Padding(
       padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
       child: Column(
@@ -115,8 +121,45 @@ Future<(String, String)?> showWordLinkSheet(BuildContext context,
           FilledButton(
             key: const ValueKey('word-link-ok'),
             onPressed: () => Navigator.pop(ctx, (textCtl.text, urlCtl.text)),
-            child: Text(ctx.t('word.link_insert')),
+            child: Text(ctx.t(editing ? 'common.save' : 'word.link_insert')),
           ),
+          if (editing) ...[
+            const SizedBox(height: Gap.sm),
+            Row(children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  key: const ValueKey('word-link-open'),
+                  icon: const Icon(AppIcons.open),
+                  label: Text(ctx.t('word.link_open')),
+                  onPressed: () async {
+                    final u = Uri.tryParse(urlCtl.text.trim());
+                    if (u == null || !u.hasScheme) {
+                      showSnack(ctx, ctx.t('word.link_bad'));
+                      return;
+                    }
+                    try {
+                      if (!await launchUrl(u,
+                              mode: LaunchMode.externalApplication) &&
+                          ctx.mounted) {
+                        showSnack(ctx, ctx.t('word.link_bad'));
+                      }
+                    } catch (_) {
+                      if (ctx.mounted) showSnack(ctx, ctx.t('word.link_bad'));
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: Gap.sm),
+              Expanded(
+                child: OutlinedButton.icon(
+                  key: const ValueKey('word-link-remove'),
+                  icon: const Icon(AppIcons.linkOff),
+                  label: Text(ctx.t('word.link_remove')),
+                  onPressed: () => Navigator.pop(ctx, (textCtl.text, '')),
+                ),
+              ),
+            ]),
+          ],
         ],
       ),
     ),

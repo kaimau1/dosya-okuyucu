@@ -3,6 +3,9 @@ part of '../viewer_screen.dart';
 /// Faz 30 — metin / kod / Markdown düzenleyici araçları: klavye üstü çubuk,
 /// durum satırı (kodlama · satır sonu · konum), Markdown önizleme ve
 /// gelişmiş bul-değiştir seçenekleri.
+/// Bu genişlikten itibaren Markdown önizleme editörün yanında açılır.
+const double _mdSplitMinWidth = 840;
+
 extension _ViewerCodeToolsPart on _ViewerScreenState {
   bool get _isCodeDoc => widget.doc.kind == DocKind.text;
 
@@ -154,7 +157,7 @@ extension _ViewerCodeToolsPart on _ViewerScreenState {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (!_isMarkdown || !_mdPreview) _statusRow(),
+        _statusRow(),
         KeyboardAccessoryBar(
           items: _codeAccessoryItems(),
           onHideKeyboard: () => _textFocus.unfocus(),

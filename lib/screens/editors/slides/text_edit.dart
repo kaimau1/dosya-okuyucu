@@ -180,6 +180,31 @@ extension _SlidesEditorScreenTextEditPart on _SlidesEditorScreenState {
     _editShapeVM = null;
   }
 
+  /// Düzenlenen tablonun hücreleri, çizim modelindeki sırayla (satır satır).
+  /// Hücreler aynı tablo çerçevesinin kimliğini taşır.
+  List<ShapeVM> _tableCells(PptxSlide slide, int frameId) => [
+        for (final s in slide.view?.shapes ?? const <ShapeVM>[])
+          if (s.cellBorder != null && s.id == frameId && _canEditText(s)) s,
+      ];
+
+  /// ⇥ / ⇧⇥ (ya da klavye üstü çubuktaki ‹ ›): PowerPoint gibi hücreden
+  /// hücreye ([delta] = ±1; satır sonunda alt satıra geçer). Açık düzenleme
+  /// önce yazılır; yazınca hücre yeniden çizildiği için komşu, eski sıra
+  /// numarasıyla yeni çizim modelinden alınır.
+  void _moveCell(int delta) {
+    final slide = _editSlide;
+    final shape = _editShapeVM;
+    if (slide == null || shape == null || shape.cellBorder == null) return;
+    final j = _tableCells(slide, shape.id).indexWhere((s) => identical(s, shape)) +
+        delta;
+    if (j < 0 || j >= _tableCells(slide, shape.id).length) return;
+    _partSetState(_commitEdit);
+    final cells = _tableCells(slide, shape.id);
+    if (j >= cells.length) return;
+    _beginEdit(slide, cells[j]);
+    _textFocus.requestFocus();
+  }
+
   void _finishEdit() {
     FocusScope.of(context).unfocus();
     _partSetState(_commitEdit);
@@ -251,10 +276,21 @@ extension _SlidesEditorScreenTextEditPart on _SlidesEditorScreenState {
                       // Başka kutuya dokunmak onu düzenlemeye açar.
                       onEditShape: (other) => _beginEdit(slide, other),
                       promptFor: _promptFor,
-                      editorBuilder: (s) => SlideBoxEditor(
-                        shape: s,
-                        controller: ctrl,
-                        focusNode: _textFocus,
+                      editorBuilder: (s) => CallbackShortcuts(
+                        // Tablo hücresinde ⇥ / ⇧⇥ hücreden hücreye geçer.
+                        bindings: s.cellBorder == null
+                            ? const {}
+                            : {
+                                const SingleActivator(LogicalKeyboardKey.tab):
+                                    () => _moveCell(1),
+                                const SingleActivator(LogicalKeyboardKey.tab,
+                                    shift: true): () => _moveCell(-1),
+                              },
+                        child: SlideBoxEditor(
+                          shape: s,
+                          controller: ctrl,
+                          focusNode: _textFocus,
+                        ),
                       ),
                     ),
                   ),
@@ -292,6 +328,18 @@ extension _SlidesEditorScreenTextEditPart on _SlidesEditorScreenState {
           onFormat: _panel.open,
           onHideKeyboard: () => _textFocus.unfocus(),
           items: [
+            if (_editShapeVM?.cellBorder != null) ...[
+              AccessoryItem(
+                  key: const ValueKey('sl-acc-prev-cell'),
+                  icon: AppIcons.back,
+                  tooltip: context.t('sl.prev_cell'),
+                  onPressed: () => _moveCell(-1)),
+              AccessoryItem(
+                  key: const ValueKey('sl-acc-next-cell'),
+                  icon: AppIcons.arrowForward,
+                  tooltip: context.t('sl.next_cell'),
+                  onPressed: () => _moveCell(1)),
+            ],
             AccessoryItem(
                 icon: OfficeIcons.undo,
                 tooltip: context.t('excel.undo'),

@@ -357,7 +357,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// Markdown önizleme.
   final UndoHistoryController _undoCtl = UndoHistoryController();
   final ScrollController _textScroll = ScrollController();
-  final int _tabWidth = 2;
+  int _tabWidth = 2;
   bool _mdPreview = false;
 
   /// PDF içi arama (Faz 1): pdfrx'in hazır arayıcısı. Eşleşmeleri sayfa sayfa

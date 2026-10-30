@@ -145,7 +145,7 @@ hesabı/kararı gerekir (Play Console, Billing, depo ayarı).
 > Faz 33'ün cihaz kısmı sıra 12 cihaz turuyla birleştirilirse telefon oturumu bir kez yapılır.
 >
 > **Durum 2026-10-23:** Faz 20 ✅ · Faz 21 ✅ (K18 = b-ii) · Faz 22 ✅ · Faz 25 ✅ · Faz 26 ✅ ·
-> Faz 28 ✅. **2026-10-24: Faz 23 ✅.** **2026-10-29: Faz 24 ✅, Faz 27 ✅, Faz 29 ✅ — sıradaki: Faz 32 (görsel düzenleyici), sonra 31 → 33.** Sıradaki: **Faz 30** (metin/kod/Markdown — D8; bulguları
+> Faz 28 ✅. **2026-10-24: Faz 23 ✅.** **2026-10-29: Faz 24 ✅, Faz 27 ✅, Faz 29 ✅, Faz 32 ✅. 2026-10-30: küçük kalanlar (sekme sürükle, slayt ⇥, Word bağlantı düzenle, Tab ayarı, yan yana Markdown) — sıradaki: Faz 31, sonra 33.** Sıradaki: **Faz 30** (metin/kod/Markdown — D8; bulguları
 > HAFIZA 2026-10-24'te: metin kaydı kodlamayı UTF-8'e çeviriyor), sonra Faz 24.
 
 **Bulut oturumu ne yapabilir / ne yapamaz** (HAFIZA 2026-07-25 §F, 2026-10-21 (5)):

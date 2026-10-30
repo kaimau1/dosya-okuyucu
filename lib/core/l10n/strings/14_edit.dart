@@ -162,6 +162,8 @@ const Map<String, (String, String, String)> _t14 = {
   'sl.align': ('Hizalama', 'Alignment', 'المحاذاة'),
   'sl.bullets': ('Madde işaretleri', 'Bullets', 'تعداد نقطي'),
   'sl.numbering': ('Numaralandırma', 'Numbering', 'ترقيم'),
+  'sl.prev_cell': ('Önceki hücre', 'Previous cell', 'الخلية السابقة'),
+  'sl.next_cell': ('Sonraki hücre', 'Next cell', 'الخلية التالية'),
   'sl.indent_less': ('Girintiyi azalt', 'Decrease indent', 'إنقاص المسافة البادئة'),
   'sl.indent_more': ('Girintiyi artır', 'Increase indent', 'زيادة المسافة البادئة'),
   'sl.edit_text': ('Metni düzenle', 'Edit text', 'تحرير النص'),

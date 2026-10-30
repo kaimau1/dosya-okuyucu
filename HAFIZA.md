@@ -741,3 +741,23 @@
   **Açık:** BLE + hotspot daveti ve 2 telefon arası devam cihaz turunda denenmedi.
   Kullanıcının "tikli öğesi çok notlar kasıyor" notu: bu uygulamada onay kutulu not özelliği
   bulunamadı — kullanıcıya soruldu.
+
+- **2026-10-30 (bulut) — küçük kalanlar (Faz 22/27/29/30):** Kullanıcı: *"küçük işleri bitir,
+  main'e merge et."* (1) **Excel sayfa sekmesi sürükle-bırak** (`sheet_tabs.dart` `_draggableTab`):
+  `LongPressDraggable` + `DragTarget`; uzun basış menüsü korunur — sürükleme kabul edilmeden ve
+  < 24 px yer değiştirerek biterse `_sheetActions` açılır (ikisi aynı jestte). (2) **Slayt tablosu
+  ⇥ / ⇧⇥** + klavye üstü ‹ › (`_moveCell`). **Tuzak:** hücre yazılınca slayt yeniden çizilir ve
+  paragraf düğümleri değişir → `_resolveShape` yeni hücreyi BULAMAZ; komşu, yazmadan önceki
+  sıra numarasıyla (hücreler satır satır, aynı çerçeve kimliği) yeni modelden alınır. (3) **Word
+  bağlantıyı düzenle**: bağlantıya dokun → `showWordLinkSheet(url:)` (Kaydet · Aç · Kaldır);
+  `DocxDocument.linkTarget` (r:id → rels Target, `w:anchor` → `#ad`), `editLinkAt` tek geri al
+  adımı (yeni ilişki eklenir, eskisi yetim kalır — zararsız). (4) **Metin: girinti genişliği**
+  2/4/8 (Okuma ayarları, yalnız düzenlenebilir metin; kalıcı değil — öteki görünüm ayarları gibi).
+  (5) **Yan yana Markdown**: önizleme açıkken genişlik ≥ 840 dp ise editör | önizleme, yazdıkça
+  güncellenir; klavye üstü çubuk ve durum satırı açık kalır. Testler: `docx_insert_test` (+1),
+  `code_viewer_screen_test` (+1), `excel_finish_screen_test` (+1), `slides_edit_test` (+1).
+  **Testte tuzak:** klavye üstü çubuk yalnız `viewInsets.bottom > 0` iken çizilir →
+  `tester.view.viewInsets = FakeViewPadding(bottom: …)`; açıkken `sl-done` görünmez.
+  **Kalan (bilerek ertelendi, küçük değil):** Word büyüteç / biçimli yapıştırma / ilk 50 paragraf /
+  liste kalıbı galerisi; Excel dosya grafikleri + `tableN.xml`; slayt Düzeni değiştir, grup içi
+  taşıma, tablo çerçevesini taşı/boyutlandır; metin `re_editor`, isolate renklendirme; 56 levha.

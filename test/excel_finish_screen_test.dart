@@ -5,6 +5,7 @@ import 'package:dosya_okuyucu/core/edit/edit_session.dart';
 import 'package:dosya_okuyucu/core/edit/save_coordinator.dart';
 import 'package:dosya_okuyucu/screens/editors/spreadsheet_editor_screen.dart';
 import 'package:dosya_okuyucu/services/xlsx_editor.dart';
+import 'package:flutter/gestures.dart' show kLongPressTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -172,5 +173,34 @@ void main() {
     expect(find.byKey(const ValueKey('xl-csv-warning')), findsOneWidget);
     expect(utf8.decode(SpreadsheetEditorScreen.testEditor!.save()),
         'Ad;Şehir\r\nAyşe;İzmir\r\n');
+  });
+
+  testWidgets('sayfa sekmesi: sürükle-bırak taşır, yerinde uzun basış menü açar',
+      (t) async {
+    final ed0 = XlsxEditor.parse(File(path).readAsBytesSync());
+    ed0.addSheet('İkinci');
+    File(path).writeAsBytesSync(ed0.save());
+    await pump(t);
+    final first = ed0.sheets.first.name;
+    // Yerinde uzun basış → işlem menüsü.
+    await t.longPress(find.byKey(ValueKey('sheet-tab-$first')));
+    await t.pumpAndSettle();
+    expect(find.text('Sağa taşı'), findsOneWidget);
+    await t.tapAt(const Offset(10, 10));
+    await t.pumpAndSettle();
+    // Basılı tut + "İkinci"nin üstüne sürükle → sıra değişir.
+    final from = t.getCenter(find.byKey(ValueKey('sheet-tab-$first')));
+    final to = t.getCenter(find.byKey(const ValueKey('sheet-tab-İkinci')));
+    final g = await t.startGesture(from);
+    await t.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+    await g.moveTo(Offset.lerp(from, to, 0.5)!);
+    await t.pump();
+    await g.moveTo(to);
+    await t.pump();
+    await g.up();
+    await t.pumpAndSettle();
+    expect(find.text('Sağa taşı'), findsNothing);
+    expect(SpreadsheetEditorScreen.testEditor!.sheets.map((s) => s.name),
+        ['İkinci', first]);
   });
 }

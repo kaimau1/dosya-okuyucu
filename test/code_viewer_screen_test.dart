@@ -70,6 +70,30 @@ void main() {
     expect(find.byType(TextField), findsOneWidget);
   });
 
+  testWidgets('Markdown: geniş ekranda önizleme yan yana ve canlı',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_app(const LoadedDoc(
+        path: '/tmp/y.md',
+        name: 'y.md',
+        kind: DocKind.text,
+        plainText: '# Başlık')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('md-preview-toggle')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('md-split')), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget);
+    await tester.enterText(find.byType(TextField), '# Başlık\n\nyeni satır');
+    await tester.pump();
+    expect(
+        find.descendant(
+            of: find.byKey(const ValueKey('md-preview')),
+            matching: find.textContaining('yeni satır', findRichText: true)),
+        findsWidgets);
+  });
+
   testWidgets('satır numarası açıkken şerit çizilir, bul seçenekleri var',
       (tester) async {
     await tester.pumpWidget(_app(const LoadedDoc(

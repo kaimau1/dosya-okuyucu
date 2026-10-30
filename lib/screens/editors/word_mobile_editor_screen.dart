@@ -345,6 +345,17 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     c.insertLink(r.$1, r.$2);
   }
 
+  /// Bağlantıya dokunuş: metni / adresi düzenle, aç ya da kaldır.
+  Future<void> _editLink(int para, int offset) async {
+    final c = _ctrl;
+    final link = c?.linkAt(para, offset);
+    if (c == null || link == null) return;
+    final r = await showWordLinkSheet(context, text: link.$1, url: link.$2);
+    if (r == null || !mounted) return;
+    if (r == link) return;
+    c.editLinkAt(para, offset, r.$1, r.$2);
+  }
+
   Future<void> _headerFooter() async {
     final c = _ctrl;
     if (c == null) return;
@@ -524,7 +535,8 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
                   translate: _translate,
                   aiFix: _aiFix,
                   openNote: _openFootnote,
-                  openComment: (id) => _comments(focus: id)),
+                  openComment: (id) => _comments(focus: id),
+                  openLink: _editLink),
             ),
           ),
         ],

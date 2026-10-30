@@ -9,12 +9,7 @@ extension _SpreadsheetEditorScreenSheetTabsPart on _SpreadsheetEditorScreenState
           for (final s in sheets)
             Padding(
               padding: const EdgeInsets.all(4),
-              child: GestureDetector(
-                // Sekmeye UZUN BASIŞ: yeniden adlandır / sil. Excel mobil de
-                // sekme işlemlerini böyle sunuyor; ayrı bir düğme sekme
-                // şeridini daraltırdı.
-                onLongPress: () => _sheetActions(s),
-                child: ChoiceChip(
+              child: _draggableTab(s, ChoiceChip(
                 avatar: s.layout.tabColorArgb == null
                     ? null
                     : CircleAvatar(
@@ -40,8 +35,7 @@ extension _SpreadsheetEditorScreenSheetTabsPart on _SpreadsheetEditorScreenState
                   WidgetsBinding.instance
                       .addPostFrameCallback((_) => _updateColWindow());
                 },
-                ),
-              ),
+              )),
             ),
           // Yeni sayfa — sekmelerin sonunda, Excel'deki "+" gibi.
           IconButton(
@@ -51,6 +45,60 @@ extension _SpreadsheetEditorScreenSheetTabsPart on _SpreadsheetEditorScreenState
             onPressed: _addSheet,
           ),
         ],
+      ),
+    );
+  }
+
+  /// Sekmeye UZUN BASIŞ: parmak kıpırdamadan bırakılırsa işlem menüsü
+  /// (yeniden adlandır / sil …; Excel mobil de sekme işlemlerini böyle
+  /// sunuyor), basılı tutup başka sekmenin üstüne sürüklenirse sayfa oraya
+  /// taşınır. İkisi aynı jestte: `LongPressDraggable` uzun basışı kendisi
+  /// yakaladığı için menü, kabul edilmemiş ve neredeyse hiç yer
+  /// değiştirmemiş bir sürüklemenin sonundan açılır.
+  Widget _draggableTab(XlsxSheet sheet, Widget chip) {
+    final scheme = Theme.of(context).colorScheme;
+    Offset? start;
+    var moved = 0.0;
+    return DragTarget<XlsxSheet>(
+      onWillAcceptWithDetails: (d) => d.data != sheet,
+      onAcceptWithDetails: (d) {
+        final to = _editor?.sheets.indexOf(sheet) ?? -1;
+        if (to >= 0) _moveSheet(d.data, to);
+      },
+      builder: (context, cand, _) => LongPressDraggable<XlsxSheet>(
+        key: ValueKey('sheet-tab-${sheet.name}'),
+        data: sheet,
+        hapticFeedbackOnStart: true,
+        onDragStarted: () {
+          start = null;
+          moved = 0;
+        },
+        onDragUpdate: (d) {
+          start ??= d.globalPosition;
+          moved = (d.globalPosition - start!).distance;
+        },
+        onDragEnd: (d) {
+          if (!d.wasAccepted && moved < 24) _sheetActions(sheet);
+        },
+        feedback: Material(
+          elevation: 6,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Text(sheet.name),
+          ),
+        ),
+        childWhenDragging: Opacity(opacity: 0.3, child: chip),
+        child: DecoratedBox(
+          position: DecorationPosition.foreground,
+          decoration: BoxDecoration(
+            border: cand.isEmpty
+                ? null
+                : BorderDirectional(
+                    start: BorderSide(color: scheme.primary, width: 3)),
+          ),
+          child: chip,
+        ),
       ),
     );
   }

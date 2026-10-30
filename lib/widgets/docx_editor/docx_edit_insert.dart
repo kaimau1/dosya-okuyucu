@@ -31,6 +31,38 @@ extension DocxEditInsert on DocxEditController {
     _afterInsert();
   }
 
+  /// [i]. paragrafın [k]. karakteri bir bağlantıysa (metin, adres).
+  (String, String)? linkAt(int i, int k) {
+    if (i < 0 || i >= paras.length) return null;
+    final p = paras[i];
+    if (p.opaque || k < 0 || k >= p.length) return null;
+    final a = p.atoms[k];
+    if (a == null || a.kind != DocxAtomKind.link) return null;
+    return (a.display, doc.linkTarget(a));
+  }
+
+  /// [i]. paragrafın [k]. karakterindeki bağlantıyı yeni metin/adresle
+  /// değiştirir; [url] boşsa bağlantı kaldırılır, metin düz yazı olarak
+  /// kalır. Tek geri al adımı.
+  void editLinkAt(int i, int k, String text, String url) {
+    final old = linkAt(i, k);
+    if (old == null) return;
+    final label = text.isEmpty ? old.$1 : text;
+    final p = paras[i];
+    _record(typing: false);
+    final style = p.typingStyleAt(k);
+    if (url.trim().isEmpty) {
+      doc.paras[i] = p.replace(k, k + 1, label, style);
+      base = extent = DocPos(i, k + label.length);
+    } else {
+      final cut = p.replace(k, k + 1, '', style);
+      doc.paras[i] =
+          doc.insertAtom(cut, k, doc.newLinkAtom(label, url.trim()), style);
+      base = extent = DocPos(i, k + 1);
+    }
+    _afterInsert();
+  }
+
   /// İmlecin paragrafından sonra [rows]×[cols] tablo ekler; imleç ilk
   /// hücreye gider. Hücre içindeyken tablonun ardına eklenir.
   bool insertTable(int rows, int cols) {

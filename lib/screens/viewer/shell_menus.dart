@@ -363,6 +363,24 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                           value: _wrapLines,
                           onChanged: (v) => apply(() => _wrapLines = v),
                         ),
+                        // Girinti genişliği (Faz 30 kalanı): ⇥ ve
+                        // otomatik girinti bu kadar boşluk yazar.
+                        if (_isCodeDoc && widget.doc.isEditableText)
+                          ListTile(
+                            leading: const Icon(AppIcons.formatIndentIncrease),
+                            title: Text(context.t('code.tab_width')),
+                            trailing: SegmentedButton<int>(
+                              key: const ValueKey('code-tab-width'),
+                              showSelectedIcon: false,
+                              segments: [
+                                for (final n in const [2, 4, 8])
+                                  ButtonSegment(value: n, label: Text('$n')),
+                              ],
+                              selected: {_tabWidth},
+                              onSelectionChanged: (v) =>
+                                  apply(() => _tabWidth = v.first),
+                            ),
+                          ),
                         SwitchListTile(
                           key: const ValueKey('reading-fullscreen'),
                           secondary: const Icon(AppIcons.fullscreen),
@@ -548,6 +566,24 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                             setSheet(() {});
                           },
                         ),
+                        // Girinti genişliği (Faz 30 kalanı): ⇥ ve
+                        // otomatik girinti bu kadar boşluk yazar.
+                        if (_isCodeDoc && widget.doc.isEditableText)
+                          ListTile(
+                            leading: const Icon(AppIcons.formatIndentIncrease),
+                            title: Text(context.t('code.tab_width')),
+                            trailing: SegmentedButton<int>(
+                              key: const ValueKey('code-tab-width'),
+                              showSelectedIcon: false,
+                              segments: [
+                                for (final n in const [2, 4, 8])
+                                  ButtonSegment(value: n, label: Text('$n')),
+                              ],
+                              selected: {_tabWidth},
+                              onSelectionChanged: (v) =>
+                                  apply(() => _tabWidth = v.first),
+                            ),
+                          ),
                         SwitchListTile(
                           key: const ValueKey('reading-fullscreen'),
                           secondary: const Icon(AppIcons.fullscreen),

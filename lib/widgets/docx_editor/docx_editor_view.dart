@@ -34,8 +34,16 @@ class DocxEditorActions {
 
   /// Dipnot / yorum işaretine dokunuş (kimlik ile).
   final void Function(String id)? openNote, openComment;
+
+  /// Bağlantıya dokunuş: [para]. paragrafın [offset]. karakteri (düzenle /
+  /// aç / kaldır levhası ekranda).
+  final void Function(int para, int offset)? openLink;
   const DocxEditorActions(
-      {this.translate, this.aiFix, this.openNote, this.openComment});
+      {this.translate,
+      this.aiFix,
+      this.openNote,
+      this.openComment,
+      this.openLink});
 }
 
 class DocxEditorView extends StatefulWidget {
@@ -462,14 +470,20 @@ class DocxEditorViewState extends State<DocxEditorView> {
           ),
         );
       case DocxAtomKind.link:
+        final open = widget.actions.openLink;
         return WidgetSpan(
           alignment: PlaceholderAlignment.baseline,
           baseline: TextBaseline.alphabetic,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxW),
-            child: Text(a.display,
-                style: st.copyWith(
-                    color: AppHues.blue, decoration: TextDecoration.underline)),
+          child: GestureDetector(
+            key: ValueKey('docx-link-$i-$k'),
+            onTap: open == null ? null : () => open(i, k),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxW),
+              child: Text(a.display,
+                  style: st.copyWith(
+                      color: AppHues.blue,
+                      decoration: TextDecoration.underline)),
+            ),
           ),
         );
       case DocxAtomKind.field || DocxAtomKind.inline:

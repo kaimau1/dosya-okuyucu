@@ -103,6 +103,29 @@ void main() {
     _expectOpensInLibreOffice(out);
   });
 
+  test('bağlantıyı düzenle ve kaldır (Faz 22 kalanı)', () {
+    final c = _open();
+    c.select(const DocPos(0, 0), const DocPos(0, 0));
+    c.insertLink('Site', 'https://example.com');
+    expect(c.linkAt(0, 0), ('Site', 'https://example.com'));
+    expect(c.linkAt(0, 1), isNull);
+    c.editLinkAt(0, 0, 'Yeni', 'https://ornek.org');
+    expect(c.linkAt(0, 0), ('Yeni', 'https://ornek.org'));
+    final out = c.doc.save();
+    expect(_part(out, 'word/_rels/document.xml.rels'),
+        contains('https://ornek.org'));
+    final again = DocxDocument.parse(out);
+    final atom = again.paras.first.atoms.first!;
+    expect(atom.display, 'Yeni');
+    expect(again.linkTarget(atom), 'https://ornek.org');
+    // Kaldır: metin düz yazı olarak kalır; geri al bağlantıyı döndürür.
+    c.editLinkAt(0, 0, 'Yeni', '');
+    expect(c.linkAt(0, 0), isNull);
+    expect(c.paras.first.text, startsWith('Yeni'));
+    c.undo();
+    expect(c.linkAt(0, 0), ('Yeni', 'https://ornek.org'));
+  });
+
   test('sayfa sonu ekle', () {
     final c = _open();
     c.select(const DocPos(0, 0), const DocPos(0, 0));

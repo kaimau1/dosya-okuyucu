@@ -5,11 +5,13 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/screens/editors/slides_editor_screen.dart';
+import 'package:dosya_okuyucu/services/pptx_editor.dart';
 import 'package:dosya_okuyucu/services/pptx_writer.dart';
 import 'package:dosya_okuyucu/widgets/slide_box_editor.dart';
 import 'package:dosya_okuyucu/widgets/slide_canvas.dart';
 import 'package:dosya_okuyucu/widgets/slide_frame_editor.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xml/xml.dart';
@@ -343,5 +345,53 @@ void main() {
     await settle(tester);
     expect(canvas().slide.shapes.firstWhere((s) => s.growFit).h,
         closeTo(h0, 0.5));
+  });
+
+  testWidgets('Faz 29 kalanı: tablo hücresinde ⇥ / › sonraki hücreye geçer',
+      (tester) async {
+    final ed = PptxEditor.parse(File(path).readAsBytesSync());
+    final tbl = ed.addTable(ed.slides.first, 2, 2)!;
+    var n = 0;
+    for (final para in tbl.findAllElements('a:p')) {
+      n++;
+      para.children.insert(
+          0, XmlDocument.parse('<a:r xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:t>H$n</a:t></a:r>')
+              .rootElement
+              .copy());
+    }
+    File(path).writeAsBytesSync(ed.save());
+    await pump(tester);
+    await tapText(tester, 'H1'); // tablo hücresi: dokunuş doğrudan düzenler
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump();
+    expect(find.byType(SlideBoxEditor), findsOneWidget);
+    String editing() =>
+        tester.widget<EditableText>(find.byType(EditableText).last).controller.text;
+    expect(editing(), 'H1');
+    // Klavye açık: klavye üstü çubuk görünür.
+    tester.view.viewInsets = const FakeViewPadding(bottom: 800);
+    await tester.pump();
+    await tester.enterText(find.byType(EditableText).last, 'A1');
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('sl-acc-next-cell')));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump();
+    expect(editing(), 'H2');
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump();
+    expect(editing(), 'H3');
+    await tester.tap(find.byKey(const ValueKey('sl-acc-prev-cell')));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump();
+    expect(editing(), 'H2');
+    tester.view.resetViewInsets();
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('sl-done')));
+    await settle(tester);
+    expect(find.text('A1'), findsWidgets);
   });
 }

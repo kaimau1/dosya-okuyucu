@@ -311,20 +311,41 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
             ? editorBase
             : ListenableBuilder(
                 listenable: Listenable.merge([_textFocus, _undoCtl]),
-                builder: (context, _) {
+                builder: (context, _) => LayoutBuilder(builder: (context, box) {
                   final preview = _isMarkdown && _mdPreview;
+                  // Geniş ekranda (tablet / yatay) önizleme editörün YANINDA
+                  // açılır ve yazdıkça güncellenir (Faz 30 kalanı); telefonda
+                  // Düzenle | Önizle arasında geçilir.
+                  final split = preview && box.maxWidth >= _mdSplitMinWidth;
                   final showBar = doc.isEditableText &&
                       _textFocus.hasFocus &&
-                      !preview;
+                      (!preview || split);
+                  final Widget body;
+                  if (split) {
+                    body = Row(
+                      key: const ValueKey('md-split'),
+                      children: [
+                        Expanded(child: editorBase),
+                        const VerticalDivider(width: 1),
+                        Expanded(
+                          child: ValueListenableBuilder<TextEditingValue>(
+                            valueListenable: _textController!,
+                            builder: (_, __, ___) => _markdownPreview(),
+                          ),
+                        ),
+                      ],
+                    );
+                  } else {
+                    body = preview ? _markdownPreview() : editorBase;
+                  }
                   return Stack(
                     children: [
-                      Positioned.fill(
-                          child: preview ? _markdownPreview() : editorBase),
+                      Positioned.fill(child: body),
                       if (showBar)
                         ReadingFloat(gap: 0, child: _codeAccessoryBar()),
                     ],
                   );
-                },
+                }),
               );
         // Eski .doc/.ppt: salt okunur rozeti + "dönüştür ve düzenle" (Faz 9).
         final legacy = doc.legacyExt;

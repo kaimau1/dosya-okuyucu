@@ -123,6 +123,21 @@ extension DocxInsert on DocxDocument {
     return DocxAtom(DocxAtomKind.link, [node], text);
   }
 
+  /// Bağlantı atomunun hedefi: dış adres (`r:id` → ilişkinin `Target`i) ya
+  /// da belge içi yer imi (`w:anchor` → `#ad`). Bulunamazsa ''.
+  String linkTarget(DocxAtom atom) {
+    if (atom.kind != DocxAtomKind.link || atom.nodes.isEmpty) return '';
+    final n = atom.nodes.first;
+    final anchor = n.getAttribute('w:anchor');
+    if (anchor != null && anchor.isNotEmpty) return '#$anchor';
+    final id = n.getAttribute('r:id');
+    if (id == null) return '';
+    for (final r in _relsPart().rootElement.childElements) {
+      if (r.getAttribute('Id') == id) return r.getAttribute('Target') ?? '';
+    }
+    return '';
+  }
+
   DocxAtom newPageBreakAtom() {
     final node = XmlDocument.parse('<w:r $_wMain><w:br w:type="page"/></w:r>')
         .rootElement

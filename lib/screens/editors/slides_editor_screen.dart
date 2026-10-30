@@ -8,7 +8,8 @@ import 'package:file_picker/file_picker.dart';
 
 import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:flutter/services.dart'
+    show Clipboard, ClipboardData, LogicalKeyboardKey;
 import 'package:pdf/pdf.dart' show PdfPageFormat;
 import 'package:share_plus/share_plus.dart';
 
