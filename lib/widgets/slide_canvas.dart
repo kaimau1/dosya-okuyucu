@@ -206,18 +206,31 @@ class SlideCanvas extends StatelessWidget {
       // olsaydı her tek dokunuş 300 ms bekletilirdi; çift dokunuşun ilk
       // dokunuşu seçer, ikincisi seçili şekli düzenler.
       final canSelect = select != null && s.element != null;
-      child = GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () {
-          if (!canSelect || selected || (prompt != null && s.element == null)) {
-            onEditShape!(s);
-          } else {
-            select(s);
-          }
-        },
-        child: selected && !framed
-            ? CustomPaint(foregroundPainter: const _SelectionPainter(), child: child)
-            : child,
+      final spoken = s.paragraphs.map((p) => p.plainText).join(' ').trim();
+      child = Semantics(
+        // TalkBack (Faz 33): şeklin yazısı (ya da yer tutucunun daveti).
+        container: true,
+        button: true,
+        selected: selected,
+        label: spoken.isNotEmpty
+            ? (spoken.length > 120 ? '${spoken.substring(0, 120)}…' : spoken)
+            : prompt,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            if (!canSelect ||
+                selected ||
+                (prompt != null && s.element == null)) {
+              onEditShape!(s);
+            } else {
+              select(s);
+            }
+          },
+          child: selected && !framed
+              ? CustomPaint(
+                  foregroundPainter: const _SelectionPainter(), child: child)
+              : child,
+        ),
       );
       if (framed) {
         return SlideFrameEditor(

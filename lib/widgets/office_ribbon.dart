@@ -259,17 +259,21 @@ class RibbonStyle extends InheritedWidget {
 }
 
 /// Şerit düğmesi (simge + isteğe bağlı etkin durum).
+///
+/// [active] verilen düğme bir **aç/kapa** düğmesidir: TalkBack onu "Kalın,
+/// açık / kapalı" diye okur (Faz 33 / madde 3). Verilmeyen (null) düğme düz
+/// eylemdir — "kapalı" denmez.
 class RibbonButton extends StatelessWidget {
   final IconData icon;
   final String tooltip;
-  final bool active;
+  final bool? active;
   final VoidCallback? onTap;
 
   const RibbonButton(
     this.icon,
     this.tooltip, {
     super.key,
-    this.active = false,
+    this.active,
     this.onTap,
   });
 
@@ -277,23 +281,32 @@ class RibbonButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final onBrand = RibbonStyle.of(context);
     final scheme = Theme.of(context).colorScheme;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 1),
-      decoration: active
-          ? BoxDecoration(
-              color: onBrand ? AppColors.onBrandWell : scheme.primaryContainer,
-              borderRadius: BorderRadius.circular(12),
-            )
-          : null,
-      child: IconButton(
-        tooltip: tooltip,
-        visualDensity: VisualDensity.compact,
-        iconSize: 20,
-        color: onBrand
-            ? AppColors.onBrand
-            : (active ? scheme.onPrimaryContainer : scheme.onSurface),
-        icon: Icon(icon),
-        onPressed: onTap,
+    final on = active == true;
+    return Semantics(
+      button: true,
+      toggled: active,
+      enabled: onTap != null,
+      label: tooltip,
+      excludeSemantics: true,
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 1),
+        decoration: on
+            ? BoxDecoration(
+                color: onBrand ? AppColors.onBrandWell : scheme.primaryContainer,
+                borderRadius: BorderRadius.circular(12),
+              )
+            : null,
+        child: IconButton(
+          tooltip: tooltip,
+          visualDensity: VisualDensity.compact,
+          iconSize: 20,
+          color: onBrand
+              ? AppColors.onBrand
+              : (on ? scheme.onPrimaryContainer : scheme.onSurface),
+          icon: Icon(icon),
+          onPressed: onTap,
+        ),
       ),
     );
   }

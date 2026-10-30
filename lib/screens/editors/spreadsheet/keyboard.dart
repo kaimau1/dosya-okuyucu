@@ -10,11 +10,14 @@ part of '../spreadsheet_editor_screen.dart';
 /// Izgara kendi odağını taşır; hücre editörü ya da formül çubuğu açıkken
 /// tuşlar onların (oklar imleci yürütür, ⇥/↵ zaten editörde bağlı).
 extension _SpreadsheetKeyboardPart on _SpreadsheetEditorScreenState {
-  Widget _keyboardGrid(Widget child) => Focus(
-        focusNode: _gridFocus,
-        autofocus: true,
-        onKeyEvent: (_, e) => _onGridKey(e),
-        child: child,
+  Widget _keyboardGrid(Widget child) => Semantics(
+        label: context.t('excel.grid_label'),
+        child: Focus(
+          focusNode: _gridFocus,
+          autofocus: true,
+          onKeyEvent: (_, e) => _onGridKey(e),
+          child: child,
+        ),
       );
 
   /// Düzenleme bitince odak ızgaraya döner (yoksa sonraki ok tuşu kaybolur).

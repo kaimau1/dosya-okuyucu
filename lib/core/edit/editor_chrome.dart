@@ -161,6 +161,11 @@ class FormatPanelController extends ChangeNotifier {
   bool _open = false;
   double _lastKeyboard = 0;
 
+  /// Geniş ekranda (tablet / yatay / DeX) panel YAN bölmede açılır ve
+  /// klavyeyi indirmez — Google Dokümanlar tabletteki gibi yazarken açık
+  /// kalır (Faz 33). [EditorChrome] her yerleşimde bildirir.
+  bool side = false;
+
   bool get isOpen => _open;
   double get panelHeight =>
       _lastKeyboard > 120 ? _lastKeyboard : fallbackHeight;
@@ -174,7 +179,7 @@ class FormatPanelController extends ChangeNotifier {
   void open() {
     if (_open) return;
     _open = true;
-    SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
+    if (!side) SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
     notifyListeners();
   }
 
@@ -182,7 +187,7 @@ class FormatPanelController extends ChangeNotifier {
   void close({bool showKeyboard = false}) {
     if (!_open) return;
     _open = false;
-    if (showKeyboard) {
+    if (showKeyboard && !side) {
       SystemChannels.textInput.invokeMethod<void>('TextInput.show');
     }
     notifyListeners();
@@ -194,8 +199,14 @@ class FormatPanelHost extends StatefulWidget {
   final FormatPanelController controller;
   final List<FormatPanelTab> tabs;
 
+  /// Yan bölmede: tam yükseklik, klavye düğmesi yerine kapat.
+  final bool side;
+
   const FormatPanelHost(
-      {super.key, required this.controller, required this.tabs});
+      {super.key,
+      required this.controller,
+      required this.tabs,
+      this.side = false});
 
   @override
   State<FormatPanelHost> createState() => _FormatPanelHostState();
@@ -213,7 +224,7 @@ class _FormatPanelHostState extends State<FormatPanelHost> {
       key: const ValueKey('format-panel'),
       color: scheme.surfaceContainerLow,
       child: SizedBox(
-        height: widget.controller.panelHeight,
+        height: widget.side ? null : widget.controller.panelHeight,
         child: Column(
           children: [
             SizedBox(
@@ -237,13 +248,21 @@ class _FormatPanelHostState extends State<FormatPanelHost> {
                       ],
                     ),
                   ),
-                  IconButton(
-                    key: const ValueKey('format-panel-keyboard'),
-                    tooltip: context.t('edit.show_keyboard'),
-                    icon: const Icon(AppIcons.keyboard),
-                    onPressed: () =>
-                        widget.controller.close(showKeyboard: true),
-                  ),
+                  if (widget.side)
+                    IconButton(
+                      key: const ValueKey('format-panel-close'),
+                      tooltip: context.t('common.close'),
+                      icon: const Icon(AppIcons.close),
+                      onPressed: () => widget.controller.close(),
+                    )
+                  else
+                    IconButton(
+                      key: const ValueKey('format-panel-keyboard'),
+                      tooltip: context.t('edit.show_keyboard'),
+                      icon: const Icon(AppIcons.keyboard),
+                      onPressed: () =>
+                          widget.controller.close(showKeyboard: true),
+                    ),
                 ],
               ),
             ),
@@ -284,6 +303,9 @@ class EditorChrome extends StatefulWidget {
 
   /// Testte klavye payı benzetimi (null → pencerenin gerçek klavye payı).
   final double? keyboardInsetOverride;
+
+  /// Bu genişlikten itibaren (dp) biçim paneli yan bölmede açılır.
+  static const double sidePanelWidth = 840;
 
   const EditorChrome({
     super.key,
@@ -336,17 +358,40 @@ class _EditorChromeState extends State<EditorChrome>
     final p = widget.panel;
     p?.reportKeyboard(inset);
     if (!widget.editing) return widget.body;
+    final wide = MediaQuery.sizeOf(context).width >= EditorChrome.sidePanelWidth;
+    if (p != null) p.side = wide;
     Widget build(bool panelOpen) {
       final keyboardUp = inset > 0;
       final accessory = widget.accessory;
       final ribbon = widget.ribbon;
+      // Geniş ekran: panel sağ bölmede, belge solda; yazarken açık kalır.
+      final sideOpen = wide && panelOpen;
+      final bottomOpen = !wide && panelOpen;
       return Column(
         children: [
-          Expanded(child: widget.body),
-          if ((keyboardUp || panelOpen) && accessory != null) accessory,
-          if (panelOpen && !keyboardUp)
+          Expanded(
+            child: sideOpen
+                ? Row(
+                    children: [
+                      Expanded(child: widget.body),
+                      VerticalDivider(
+                          width: 1,
+                          color: Theme.of(context).colorScheme.outlineVariant),
+                      SizedBox(
+                        width: 320,
+                        child: FormatPanelHost(
+                            controller: p!,
+                            tabs: widget.panelTabs,
+                            side: true),
+                      ),
+                    ],
+                  )
+                : widget.body,
+          ),
+          if ((keyboardUp || bottomOpen) && accessory != null) accessory,
+          if (bottomOpen && !keyboardUp)
             FormatPanelHost(controller: p!, tabs: widget.panelTabs),
-          if (!keyboardUp && !panelOpen && ribbon != null) ribbon,
+          if (!keyboardUp && !bottomOpen && ribbon != null) ribbon,
         ],
       );
     }

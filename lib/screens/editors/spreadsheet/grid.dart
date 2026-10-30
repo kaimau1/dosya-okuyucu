@@ -243,7 +243,9 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
   /// karşılığı). Hücrelerin kendi uzun basışı YOKTUR — olsaydı jest arenasını
   /// çocuk kazanır, sürükleme hiç başlamazdı.
   Widget _dragSelectArea(Widget child) => Builder(
-        builder: (areaContext) => GestureDetector(
+        builder: (areaContext) => Semantics(
+          label: context.t('excel.grid_label'),
+          child: GestureDetector(
           key: _gridAreaKey,
           onLongPressStart: (d) {
             final pos = _cellAtGlobal(areaContext, d.globalPosition);
@@ -290,6 +292,7 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
           },
           child: child,
         ),
+        ),
       );
 
   /// Ekran koordinatındaki hücreyi bulur (MetaData işaretleriyle, ölçüm yok).
@@ -322,7 +325,10 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
 
   Widget _cornerCell() {
     final scheme = Theme.of(context).colorScheme;
-    return GestureDetector(
+    return Semantics(
+      label: context.t('ks.select_all'),
+      button: true,
+      child: GestureDetector(
       onTap: () {
         final sheet = _sheet;
         if (sheet == null) return;
@@ -343,6 +349,7 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
           border: Border.all(color: Theme.of(context).dividerColor, width: 0.5),
         ),
       ),
+    ),
     );
   }
 

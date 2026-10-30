@@ -185,9 +185,8 @@ class SheetCell extends StatelessWidget {
         textAlign: align,
         softWrap: s?.wrap ?? false,
         maxLines: (s?.wrap ?? false) ? null : 1,
-        overflow: (s?.wrap ?? false)
-            ? TextOverflow.clip
-            : TextOverflow.ellipsis,
+        overflow:
+            (s?.wrap ?? false) ? TextOverflow.clip : TextOverflow.ellipsis,
         style: textStyle,
       );
     }
@@ -238,32 +237,42 @@ class SheetCell extends StatelessWidget {
       );
     }
 
-    return MetaData(
-      metaData: SheetCellPos(row, col),
-      behavior: HitTestBehavior.opaque,
-      child: _tappable(
-        onTap,
-        CustomPaint(
-          painter: _CellBorderPainter(
-            border: s?.border,
-            background: background,
-            gridColor: showGridLines
-                ? Theme.of(context).dividerColor.withValues(alpha: 0.55)
-                : null,
-            // Aralık seçiliyken çerçeve aralığın DIŞINDA (rangeEdges);
-            // tek hücrede imleç hücresi kendi çerçevesini çizer.
-            selection: cursor && rangeEdges == 0 ? OfficeColors.excel : null,
-            selectionFill: selected && !cursor
-                ? OfficeColors.excel.withValues(alpha: 0.10)
-                : null,
-            rangeEdges: rangeEdges,
-            rangeColor: OfficeColors.excel,
-            refEdges: refEdges,
-            refColor: refColor,
-            barRatio: cond?.barRatio,
-            barColor: cond?.barColor,
+    // TalkBack (Faz 33 / madde 3): "B2, Armut" — hücre adresi + değer;
+    // imleç hücresi "seçili". Anlam ağacı yalnız erişilebilirlik açıkken
+    // kurulur; kaydırma maliyeti yok.
+    return Semantics(
+      container: true,
+      label: '${XlsxRange.colName(col)}${row + 1}'
+          '${view.text.isEmpty ? '' : ', ${view.text}'}',
+      selected: cursor,
+      excludeSemantics: true,
+      child: MetaData(
+        metaData: SheetCellPos(row, col),
+        behavior: HitTestBehavior.opaque,
+        child: _tappable(
+          onTap,
+          CustomPaint(
+            painter: _CellBorderPainter(
+              border: s?.border,
+              background: background,
+              gridColor: showGridLines
+                  ? Theme.of(context).dividerColor.withValues(alpha: 0.55)
+                  : null,
+              // Aralık seçiliyken çerçeve aralığın DIŞINDA (rangeEdges);
+              // tek hücrede imleç hücresi kendi çerçevesini çizer.
+              selection: cursor && rangeEdges == 0 ? OfficeColors.excel : null,
+              selectionFill: selected && !cursor
+                  ? OfficeColors.excel.withValues(alpha: 0.10)
+                  : null,
+              rangeEdges: rangeEdges,
+              rangeColor: OfficeColors.excel,
+              refEdges: refEdges,
+              refColor: refColor,
+              barRatio: cond?.barRatio,
+              barColor: cond?.barColor,
+            ),
+            child: SizedBox(width: width, height: height, child: body),
           ),
-          child: SizedBox(width: width, height: height, child: body),
         ),
       ),
     );
@@ -325,7 +334,9 @@ class SheetCell extends StatelessWidget {
     if (n.contains('times') || n.contains('cambria') || n.contains('georgia')) {
       return 'Tinos';
     }
-    if (n.contains('arial') || n.contains('helvetica') || n.contains('verdana')) {
+    if (n.contains('arial') ||
+        n.contains('helvetica') ||
+        n.contains('verdana')) {
       return 'Arimo';
     }
     if (n.contains('calibri') || n.contains('segoe') || n.contains('candara')) {
@@ -398,7 +409,8 @@ class _CellBorderPainter extends CustomPainter {
           ..strokeWidth = s.width
           ..style = PaintingStyle.stroke;
         if (s.style == 'double') {
-          final d = (p1.dy == p2.dy) ? const Offset(0, 1.5) : const Offset(1.5, 0);
+          final d =
+              (p1.dy == p2.dy) ? const Offset(0, 1.5) : const Offset(1.5, 0);
           canvas.drawLine(p1 - d, p2 - d, paint..strokeWidth = 1);
           canvas.drawLine(p1 + d, p2 + d, paint..strokeWidth = 1);
           return;
@@ -440,7 +452,8 @@ class _CellBorderPainter extends CustomPainter {
   }
 
   /// Aralığın dış kenarı bu hücreden geçiyorsa çizgi (içe yaslı).
-  static void _edges(Canvas canvas, Size size, int edges, Color color, double w) {
+  static void _edges(
+      Canvas canvas, Size size, int edges, Color color, double w) {
     if (edges == 0) return;
     final p = Paint()
       ..color = color

@@ -142,6 +142,43 @@ void main() {
         reason: 'geri yüklenen içerik henüz dosyada değil');
   });
 
+  testWidgets('geniş ekranda Aa paneli sağ bölmede açılır, klavye kalır',
+      (tester) async {
+    final panel = FormatPanelController();
+    final docKey = GlobalKey();
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: EditorChrome(
+          keyboardInsetOverride: 300,
+          panel: panel,
+          body: Container(key: docKey, color: Colors.white),
+          accessory: KeyboardAccessoryBar(
+            items: const [AccessoryItem(icon: Icons.format_bold, tooltip: 'K')],
+            onFormat: panel.open,
+          ),
+          panelTabs: [
+            FormatPanelTab(label: 'Yazı', builder: (_) => const Text('panel')),
+          ],
+        ),
+      ),
+    ));
+    await tester.tap(find.byKey(const ValueKey('accessory-format')));
+    await tester.pump();
+    expect(panel.side, isTrue);
+    final panelRect = tester.getRect(find.byKey(const ValueKey('format-panel')));
+    final docRect = tester.getRect(find.byKey(docKey));
+    expect(panelRect.left, greaterThanOrEqualTo(docRect.right));
+    expect(panelRect.width, 320);
+    // Klavye açıkken klavye üstü çubuk da durur (yazarken panel açık).
+    expect(find.byKey(const ValueKey('keyboard-accessory')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('format-panel-close')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('format-panel')), findsNothing);
+  });
+
   testWidgets('Aa ↔ klavye geçişinde belge alanı yerinde kalır',
       (tester) async {
     final panel = FormatPanelController();
