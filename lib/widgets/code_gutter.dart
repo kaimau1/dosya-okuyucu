@@ -58,6 +58,9 @@ class CodeGutter extends StatefulWidget {
   final bool wrap;
   final double topPad;
 
+  /// Satır aralığı (metin alanıyla aynı olmalı, yoksa numaralar kayar).
+  final double lineHeight;
+
   const CodeGutter({
     super.key,
     required this.controller,
@@ -67,6 +70,7 @@ class CodeGutter extends StatefulWidget {
     required this.wrap,
     this.fontFamily,
     this.topPad = 0,
+    this.lineHeight = 1.5,
   });
 
   @override
@@ -78,22 +82,26 @@ class _CodeGutterState extends State<CodeGutter> {
   double _w = -1;
   bool _wrap = false;
   double _size = -1;
+  double _lh = -1;
   List<double> _tops = const [0];
 
   List<double> _computeTops(String text) {
     if (identical(text, _text) &&
         _w == widget.textWidth &&
         _wrap == widget.wrap &&
-        _size == widget.size) {
+        _size == widget.size &&
+        _lh == widget.lineHeight) {
       return _tops;
     }
+    _lh = widget.lineHeight;
     _text = text;
     _w = widget.textWidth;
     _wrap = widget.wrap;
     _size = widget.size;
     _tops = codeLineTops(
       text,
-      editorTextStyle(widget.size, family: widget.fontFamily),
+      editorTextStyle(widget.size,
+          family: widget.fontFamily, height: widget.lineHeight),
       widget.textWidth,
       wrap: widget.wrap,
     );
@@ -107,7 +115,7 @@ class _CodeGutterState extends State<CodeGutter> {
       valueListenable: widget.controller,
       builder: (_, value, __) {
         final tops = _computeTops(value.text);
-        final lh = widget.size * 1.5;
+        final lh = widget.size * widget.lineHeight;
         final height = tops.last + lh;
         final caretLine = _lineOf(value);
         return Container(
@@ -128,6 +136,7 @@ class _CodeGutterState extends State<CodeGutter> {
                 activeColor: scheme.primary,
                 caretLine: caretLine,
                 topPad: widget.topPad,
+                lineHeight: widget.lineHeight,
               ),
             ),
           ),
@@ -157,6 +166,7 @@ class _GutterPainter extends CustomPainter {
   final Color activeColor;
   final int caretLine;
   final double topPad;
+  final double lineHeight;
 
   _GutterPainter({
     required this.tops,
@@ -166,11 +176,12 @@ class _GutterPainter extends CustomPainter {
     required this.activeColor,
     required this.caretLine,
     required this.topPad,
+    this.lineHeight = 1.5,
   }) : super(repaint: scroll);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final lh = fs * 1.5;
+    final lh = fs * lineHeight;
     final off = scroll.hasClients ? scroll.offset - topPad : 0.0;
     final view = scroll.hasClients ? scroll.position.viewportDimension : 2000.0;
     final lo = off - lh;
@@ -191,6 +202,7 @@ class _GutterPainter extends CustomPainter {
         text: TextSpan(
           text: '${i + 1}',
           style: editorTextStyle(fs,
+              height: lineHeight,
               family: 'monospace',
               color: active ? activeColor : color,
               weight: active ? FontWeight.w700 : FontWeight.w400),
@@ -207,5 +219,6 @@ class _GutterPainter extends CustomPainter {
       old.tops != tops ||
       old.caretLine != caretLine ||
       old.color != color ||
-      old.fs != fs;
+      old.fs != fs ||
+      old.lineHeight != lineHeight;
 }

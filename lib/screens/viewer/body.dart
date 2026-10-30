@@ -313,6 +313,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
           scroll: _textScroll,
           formatters: _codeFormatters,
           undo: _undoCtl,
+          lineHeight: _lineHeight,
           onChanged: () {
             if (!_dirty) _partSetState(() => _dirty = true);
           },

@@ -51,6 +51,27 @@ void main() {
     expect(find.text('CRLF'), findsOneWidget);
   });
 
+  testWidgets('Okuma ayarları: satır aralığı alana ve numara şeridine uygulanır',
+      (tester) async {
+    await tester.pumpWidget(_app(const LoadedDoc(
+        path: '/tmp/y.txt',
+        name: 'y.txt',
+        kind: DocKind.text,
+        plainText: 'bir\niki\n')));
+    await tester.pump();
+    double height() =>
+        tester.widget<TextField>(find.byType(TextField)).style!.height!;
+    expect(height(), 1.5);
+    await tester.tap(find.byTooltip('Okuma ayarları'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('code-line-spacing')), 100,
+        scrollable: find.byType(Scrollable).last);
+    await tester.tap(find.text('1.8'));
+    await tester.pumpAndSettle();
+    expect(height(), 1.8);
+  });
+
   testWidgets('Markdown: önizleme düğmesi ve araç çubuğu', (tester) async {
     await tester.pumpWidget(_app(const LoadedDoc(
         path: '/tmp/n.md',

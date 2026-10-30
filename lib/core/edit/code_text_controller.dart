@@ -6,6 +6,9 @@
 /// alttaki çizgi bozulmasın.
 library;
 
+import 'dart:async';
+
+import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/material.dart';
 
 import '../app_colors.dart';
@@ -39,20 +42,66 @@ class CodeTextController extends TextEditingController {
   bool get highlighting =>
       _enabled &&
       _lang != CodeLang.plain &&
-      text.length <= codeHighlightMaxChars;
+      text.length <= codeHighlightIsolateMaxChars;
+
+  /// Büyük metin (> 1 MB) arka planda mı renkleniyor.
+  bool get backgroundHighlighting =>
+      highlighting && text.length > codeHighlightMaxChars;
 
   String? _cacheText;
   CodeLang? _cacheLang;
   List<CodeToken> _cache = const [];
 
+  /// Arka plan renklendirmesinin çalıştırıcısı (testte eşzamanlı; üretimde
+  /// izolat — `compute` flutter_test'te tamamlanmıyor).
+  static Future<List<CodeToken>> Function(String text, CodeLang lang)
+      backgroundTokenize = _inIsolate;
+
+  static Future<List<CodeToken>> _inIsolate(String text, CodeLang lang) =>
+      compute(_tokenizeEntry, (text, lang));
+
+  static List<CodeToken> _tokenizeEntry((String, CodeLang) a) =>
+      tokenizeCode(a.$1, a.$2);
+
+  /// Yazma durduktan sonra arka plan renklendirmesi.
+  static const backgroundDelay = Duration(milliseconds: 400);
+  Timer? _bgTimer;
+  int _bgSeq = 0;
+
   List<CodeToken> get tokens {
     final t = text;
-    if (!identical(t, _cacheText) && t != _cacheText || _cacheLang != _lang) {
+    final fresh = (identical(t, _cacheText) || t == _cacheText) &&
+        _cacheLang == _lang;
+    if (fresh) return _cache;
+    if (t.length <= codeHighlightMaxChars) {
       _cache = tokenizeCode(t, _lang);
       _cacheText = t;
       _cacheLang = _lang;
+      return _cache;
     }
-    return _cache;
+    // Büyük metin: eski belirteçler kaymış olur → o an düz çizilir, yazma
+    // durunca izolatta hesaplanıp yeniden boyanır.
+    _scheduleBackground(t, _lang);
+    return const [];
+  }
+
+  void _scheduleBackground(String t, CodeLang lang) {
+    _bgTimer?.cancel();
+    final seq = ++_bgSeq;
+    _bgTimer = Timer(backgroundDelay, () async {
+      final result = await backgroundTokenize(t, lang);
+      if (seq != _bgSeq || text != t || _lang != lang) return;
+      _cache = result;
+      _cacheText = t;
+      _cacheLang = lang;
+      notifyListeners(); // yalnız boya; metin aynı
+    });
+  }
+
+  @override
+  void dispose() {
+    _bgTimer?.cancel();
+    super.dispose();
   }
 
   /// Renk paleti — açık/koyu temaya göre (`AppColors.syntax*`).

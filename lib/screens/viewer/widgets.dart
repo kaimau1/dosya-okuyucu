@@ -28,6 +28,9 @@ class _TextEditor extends StatelessWidget {
 
   /// Geri al / yinele (klavye üstü çubuk ve ↶ ↷ düğmeleri).
   final UndoHistoryController? undo;
+
+  /// Satır aralığı (yazı boyunun katı; Okuma ayarları, Faz 30 kalanı).
+  final double lineHeight;
   const _TextEditor({
     required this.controller,
     required this.focusNode,
@@ -40,6 +43,7 @@ class _TextEditor extends StatelessWidget {
     this.lineNumbers = false,
     this.wrapLines = true,
     this.fontFamily,
+    this.lineHeight = 1.5,
   });
 
   @override
@@ -78,6 +82,7 @@ class _TextEditor extends StatelessWidget {
                     textWidth: textW,
                     wrap: wrapLines,
                     topPad: topPad,
+                    lineHeight: lineHeight,
                   ),
                   Expanded(child: _field(context, scrollable: false)),
                 ],
@@ -134,7 +139,7 @@ class _TextEditor extends StatelessWidget {
               ),
               style: TextStyle(
                 fontSize: fontSize,
-                height: 1.5,
+                height: lineHeight,
                 fontFamily: fontFamily,
                 color: Theme.of(context).brightness == Brightness.dark
                     ? Paper.inkDark
@@ -165,7 +170,7 @@ class _TextEditor extends StatelessWidget {
         ),
         style: TextStyle(
           fontSize: fontSize,
-          height: 1.5,
+          height: lineHeight,
           fontFamily: fontFamily,
           color: Theme.of(context).brightness == Brightness.dark
               ? Paper.inkDark
@@ -224,7 +229,7 @@ class _TextEditor extends StatelessWidget {
                 ),
                 style: TextStyle(
                   fontSize: fontSize,
-                  height: 1.5,
+                  height: lineHeight,
                   fontFamily: fontFamily,
                   color: Theme.of(context).brightness == Brightness.dark
                       ? Paper.inkDark

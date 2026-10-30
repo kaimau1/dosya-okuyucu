@@ -35,8 +35,12 @@ class CodeToken {
   String toString() => 'CodeToken($start,$end,$kind)';
 }
 
-/// 1 MB üstünde renklendirme kapalı (her tuşta tarama maliyeti).
+/// 1 MB'a kadar renklendirme her tuşta, UI izleğinde (tek geçiş, hızlı).
 const int codeHighlightMaxChars = 1 << 20;
+
+/// 1–4 MB arası: renklendirme **arka planda** (izolatta), yazma durunca
+/// (Faz 30 kalanı). Üstünde kapalı — span ağacının kendisi ağırlaşıyor.
+const int codeHighlightIsolateMaxChars = 4 << 20;
 
 /// Uzantıdan dil. Bilinmeyen → [CodeLang.plain] (renklendirme yok).
 CodeLang codeLangFor(String ext) {
@@ -200,7 +204,7 @@ bool _isDigit(int c) => c >= 0x30 && c <= 0x39;
 /// [text]'i tarayıp renklenecek aralıkları döndürür (artan sırada,
 /// çakışmasız). [CodeLang.plain] ya da çok büyük metinde boş.
 List<CodeToken> tokenizeCode(String text, CodeLang lang) {
-  if (lang == CodeLang.plain || text.length > codeHighlightMaxChars) {
+  if (lang == CodeLang.plain || text.length > codeHighlightIsolateMaxChars) {
     return const [];
   }
   if (lang == CodeLang.markup) return _tokenizeMarkup(text);

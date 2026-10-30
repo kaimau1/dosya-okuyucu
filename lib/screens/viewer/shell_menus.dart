@@ -344,11 +344,12 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                     ],
                   ),
                   label(context.t('vw.layout')),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: scheme.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
+                  Material(
+                    // Material (Container değil): satırların dokunma dalgası zeminin
+                    // altında kalmasın.
+                    color: scheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(20),
+                    clipBehavior: Clip.antiAlias,
                     child: Column(
                       children: [
                         SwitchListTile(
@@ -363,6 +364,26 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                           value: _wrapLines,
                           onChanged: (v) => apply(() => _wrapLines = v),
                         ),
+                        // Satır aralığı (Faz 30 kalanı): düz metin ve
+                        // kod düzenleyicide; numara şeridi de aynı aralıkla.
+                        if (widget.doc.isEditableText)
+                          ListTile(
+                            leading: const Icon(AppIcons.formatLineSpacing),
+                            title: Text(context.t('code.line_spacing')),
+                            trailing: SegmentedButton<double>(
+                              key: const ValueKey('code-line-spacing'),
+                              showSelectedIcon: false,
+                              segments: [
+                                for (final h in const [1.2, 1.5, 1.8])
+                                  ButtonSegment(
+                                      value: h,
+                                      label: Text(h.toStringAsFixed(1))),
+                              ],
+                              selected: {_lineHeight},
+                              onSelectionChanged: (v) =>
+                                  apply(() => _lineHeight = v.first),
+                            ),
+                          ),
                         // Girinti genişliği (Faz 30 kalanı): ⇥ ve
                         // otomatik girinti bu kadar boşluk yazar.
                         if (_isCodeDoc && widget.doc.isEditableText)
@@ -544,11 +565,12 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                     },
                   ),
                   const SizedBox(height: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: scheme.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
+                  Material(
+                    // Material (Container değil): satırların dokunma dalgası zeminin
+                    // altında kalmasın.
+                    color: scheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(20),
+                    clipBehavior: Clip.antiAlias,
                     child: Column(
                       children: [
                         SwitchListTile(
@@ -566,6 +588,26 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                             setSheet(() {});
                           },
                         ),
+                        // Satır aralığı (Faz 30 kalanı): düz metin ve
+                        // kod düzenleyicide; numara şeridi de aynı aralıkla.
+                        if (widget.doc.isEditableText)
+                          ListTile(
+                            leading: const Icon(AppIcons.formatLineSpacing),
+                            title: Text(context.t('code.line_spacing')),
+                            trailing: SegmentedButton<double>(
+                              key: const ValueKey('code-line-spacing'),
+                              showSelectedIcon: false,
+                              segments: [
+                                for (final h in const [1.2, 1.5, 1.8])
+                                  ButtonSegment(
+                                      value: h,
+                                      label: Text(h.toStringAsFixed(1))),
+                              ],
+                              selected: {_lineHeight},
+                              onSelectionChanged: (v) =>
+                                  apply(() => _lineHeight = v.first),
+                            ),
+                          ),
                         // Girinti genişliği (Faz 30 kalanı): ⇥ ve
                         // otomatik girinti bu kadar boşluk yazar.
                         if (_isCodeDoc && widget.doc.isEditableText)

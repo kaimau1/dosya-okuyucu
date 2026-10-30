@@ -359,6 +359,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
   final UndoHistoryController _undoCtl = UndoHistoryController();
   final ScrollController _textScroll = ScrollController();
   int _tabWidth = 2;
+
+  /// Metin düzenleyicide satır aralığı (Okuma ayarları; Faz 30 kalanı).
+  double _lineHeight = 1.5;
   bool _mdPreview = false;
 
   /// PDF içi arama (Faz 1): pdfrx'in hazır arayıcısı. Eşleşmeleri sayfa sayfa
