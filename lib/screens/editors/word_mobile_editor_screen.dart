@@ -14,6 +14,7 @@ import '../../core/edit/editor_chrome.dart';
 import '../../core/edit/editor_shortcuts.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/snack.dart';
+import '../../core/theme.dart';
 import '../../core/user_error.dart';
 import '../../models/document.dart';
 import '../../services/docx/docx_document.dart';
@@ -92,12 +93,27 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
 
   static DocxDocument _parse(Uint8List bytes) => DocxDocument.parse(bytes);
 
+  /// Tam ayrıştırma sürerken gösterilen ilk paragraflar (Faz 22 kalanı —
+  /// "ilk 50 paragraf önce"). Büyük belgede editör modeli birkaç saniye
+  /// sürebiliyor; kullanıcı o arada boş çark yerine belgenin başını görür.
+  List<String>? _preview;
+
+  static List<String> _previewParas(Uint8List bytes) =>
+      docxPreviewParagraphs(bytes, limit: 50);
+
   Future<void> _load() async {
     try {
       final bytes = await File(widget.path).readAsBytes();
-      final doc = WordMobileEditorScreen.parseInIsolate
-          ? await compute(_parse, bytes)
-          : _parse(bytes);
+      final isolate = WordMobileEditorScreen.parseInIsolate;
+      // Önizleme ve tam ayrıştırma AYNI ANDA başlar; önizleme önce biter.
+      if (isolate) {
+        unawaited(compute(_previewParas, bytes).then((list) {
+          if (mounted && _doc == null && list.isNotEmpty) {
+            setState(() => _preview = list);
+          }
+        }, onError: (_) {}));
+      }
+      final doc = isolate ? await compute(_parse, bytes) : _parse(bytes);
       _attach(doc);
     } catch (e) {
       _error = userErrorText(e);
@@ -599,11 +615,51 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
                 ? Center(
                     child: Text(context.t('common.open_failed', {'error': _error})))
                 : c == null
-                    ? const Center(child: CircularProgressIndicator())
+                    ? (_preview == null
+                        ? const Center(child: CircularProgressIndicator())
+                        : DocxLoadingPreview(paragraphs: _preview!))
                     : _chrome(c),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Belge açılırken ilk paragraflar — salt okunur, sayfa zemininde; üstte
+/// ince ilerleme çubuğu ve "açılıyor" notu.
+class DocxLoadingPreview extends StatelessWidget {
+  final List<String> paragraphs;
+  const DocxLoadingPreview({super.key, required this.paragraphs});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      key: const ValueKey('word-loading-preview'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const LinearProgressIndicator(minHeight: 2),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: Text(context.t('word.opening_preview'),
+              style: context.type.small.copyWith(color: scheme.onSurfaceVariant)),
+        ),
+        Expanded(
+          child: ColoredBox(
+            color: Paper.docSurface(context),
+            child: ListView.builder(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+              itemCount: paragraphs.length,
+              itemBuilder: (_, i) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Text(paragraphs[i],
+                    style: context.type.large.copyWith(height: 1.4)),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

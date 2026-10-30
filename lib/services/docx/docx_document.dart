@@ -1026,17 +1026,32 @@ class DocxDocument {
   /// Bu oturumda yaratılan listeler (numId → tür).
   final Map<int, String> _ourKinds = {};
 
+  /// Bu oturumda kalıpla yaratılan listeler (numId → kalıp kimliği).
+  final Map<int, String> _ourPatterns = {};
+
+  /// Paragrafın liste kalıbı (bu oturumda galeriden seçildiyse).
+  String? listPattern(DocxPara p) {
+    final id = p.look.numId;
+    return id == null ? null : _ourPatterns[id];
+  }
+
   /// [kind] listesini paragrafa uygular; komşusu aynı türde listeyse onun
   /// numarasını sürdürür (Word'deki "numaralandırmaya devam et").
-  DocxPara setList(DocxPara p, String kind, {DocxPara? prev, DocxPara? next}) {
+  /// [pattern] (liste kalıbı galerisi, bkz. [kDocxListPatterns]) verilirse
+  /// yalnız aynı kalıplı komşu sürdürülür.
+  DocxPara setList(DocxPara p, String kind,
+      {DocxPara? prev, DocxPara? next, String? pattern}) {
     int? reuse;
     for (final n in [prev, next]) {
-      if (n != null && !n.opaque && listKind(n) == kind) {
+      if (n != null &&
+          !n.opaque &&
+          listKind(n) == kind &&
+          (pattern == null || listPattern(n) == pattern)) {
         reuse = n.look.numId;
         break;
       }
     }
-    final numId = reuse ?? _newList(kind);
+    final numId = reuse ?? _newList(kind, pattern: pattern);
     final lvl = p.look.numId != null ? p.look.ilvl : 0;
     return editPPr(p, (pPr) {
       _putP(
@@ -1052,7 +1067,8 @@ class DocxDocument {
   static const _wNs =
       'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
 
-  int _newList(String kind) {
+  int _newList(String kind, {String? pattern}) {
+    final pat = pattern == null ? null : kDocxListPatterns[pattern];
     final x = _partOrCreate('word/numbering.xml');
     final root = x.rootElement;
     int maxOf(String local, String attr) {
@@ -1083,6 +1099,19 @@ class DocxDocument {
         default:
           fmt = fmts[i % 3];
           text = '%${i + 1}.';
+      }
+      // Galeriden seçilen kalıp ilk düzeyi belirler; alt düzeyler varsayılan.
+      final (pFmt, pText, pFont) = i == 0 && pat != null
+          ? (pat.fmt, pat.text, pat.font)
+          : (fmt, text, null);
+      if (pat != null && i == 0) {
+        lvls.write('<w:lvl w:ilvl="0"><w:start w:val="1"/>'
+            '<w:numFmt w:val="$pFmt"/><w:lvlText w:val="${_xmlAttr(pText)}"/>'
+            '<w:lvlJc w:val="left"/><w:pPr><w:ind w:left="$left" '
+            'w:hanging="360"/></w:pPr>'
+            '${pFont != null ? '<w:rPr><w:rFonts w:ascii="$pFont" w:hAnsi="$pFont" w:hint="default"/></w:rPr>' : ''}'
+            '</w:lvl>');
+        continue;
       }
       lvls.write('<w:lvl w:ilvl="$i"><w:start w:val="1"/>'
           '<w:numFmt w:val="$fmt"/><w:lvlText w:val="$text"/>'
@@ -1123,8 +1152,14 @@ class DocxDocument {
     _dirtyParts.add('word/numbering.xml');
     numbering = DocxNumbering.parse(x);
     _ourKinds[numId] = kind;
+    if (pattern != null) _ourPatterns[numId] = pattern;
     return numId;
   }
+
+  static String _xmlAttr(String v) => v
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('"', '&quot;');
 
   // ── yan parçalar ─────────────────────────────────────────────────────────
 
@@ -1501,4 +1536,66 @@ class DocxDocument {
     }
     return null;
   }
+}
+
+/// Liste kalıbı galerisinin bir öğesi: ilk düzeyin biçimi, metni ve
+/// (simge madde imleri için) yazı tipi.
+class DocxListPattern {
+  final String kind; // bullet | number
+  final String fmt;
+  final String text;
+  final String? font;
+
+  /// Galeride gösterilen örnek ("•", "1.", "a)").
+  final String sample;
+  const DocxListPattern(this.kind, this.fmt, this.text, this.sample,
+      {this.font});
+}
+
+/// Word'ün "Madde İşareti Kitaplığı" / "Numaralandırma Kitaplığı"nın
+/// telefondaki karşılığı (Faz 23 kalanı). Madde imleri Unicode — yazı tipi
+/// gerektirmez (Symbol/Wingdings eşlemesi okumada var, yazmada gerekmez).
+const Map<String, DocxListPattern> kDocxListPatterns = {
+  'bullet-dot': DocxListPattern('bullet', 'bullet', '•', '•'),
+  'bullet-circle': DocxListPattern('bullet', 'bullet', '○', '○'),
+  'bullet-square': DocxListPattern('bullet', 'bullet', '■', '■'),
+  'bullet-dash': DocxListPattern('bullet', 'bullet', '–', '–'),
+  'bullet-arrow': DocxListPattern('bullet', 'bullet', '➢', '➢'),
+  'bullet-check': DocxListPattern('bullet', 'bullet', '✓', '✓'),
+  'num-dot': DocxListPattern('number', 'decimal', '%1.', '1.'),
+  'num-paren': DocxListPattern('number', 'decimal', '%1)', '1)'),
+  'num-upper': DocxListPattern('number', 'upperLetter', '%1.', 'A.'),
+  'num-lower': DocxListPattern('number', 'lowerLetter', '%1)', 'a)'),
+  'num-roman': DocxListPattern('number', 'upperRoman', '%1.', 'I.'),
+  'num-roman-lower': DocxListPattern('number', 'lowerRoman', '%1.', 'i.'),
+};
+
+/// `word/document.xml`'in ilk [limit] dolu paragrafının düz metni — tam
+/// model kurulmadan (düzenli ifadeyle, izolatta). Editör açılırken önizleme.
+List<String> docxPreviewParagraphs(Uint8List bytes, {int limit = 50}) {
+  final file = ZipDecoder().decodeBytes(bytes).findFile('word/document.xml');
+  if (file == null) return const [];
+  final xml = utf8.decode(file.content as List<int>, allowMalformed: true);
+  final out = <String>[];
+  final para = RegExp(r'<w:p[ >].*?</w:p>', dotAll: true);
+  final text = RegExp(r'<w:t(?: [^>]*)?>([^<]*)</w:t>|<w:tab/>|<w:br/>');
+  for (final m in para.allMatches(xml)) {
+    final b = StringBuffer();
+    for (final t in text.allMatches(m[0]!)) {
+      final g = t.group(1);
+      b.write(g ?? (t[0] == '<w:tab/>' ? '\t' : '\n'));
+    }
+    final line = b
+        .toString()
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&apos;', "'")
+        .replaceAll('&amp;', '&')
+        .trim();
+    if (line.isEmpty) continue;
+    out.add(line);
+    if (out.length >= limit) break;
+  }
+  return out;
 }

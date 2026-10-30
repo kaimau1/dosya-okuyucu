@@ -288,4 +288,24 @@ void main() {
     expect(n.words, greaterThan(10));
     expect(n.chars, greaterThan(n.charsNoSpace));
   });
+
+  test('liste kalıbı galerisi: ✓ madde ve A. numara numbering.xml\'e yazılır',
+      () {
+    final d = DocxDocument.parse(_read('word_kaydedilmis_cok_sayfa.docx'));
+    final c = _select(d, 'Giriş', 'paragrafı');
+    c.applyListPattern('bullet-check');
+    expect(c.listKind, 'bullet');
+    expect(c.listPattern, 'bullet-check');
+    final out = d.save();
+    final numbering = _part(out, 'word/numbering.xml');
+    expect(numbering, contains('w:lvlText w:val="✓"'));
+    final i = _find(d, 'Giriş');
+    c.select(DocPos(i, 0), DocPos(i, 0));
+    c.applyListPattern('num-upper');
+    final again = _part(d.save(), 'word/numbering.xml');
+    expect(again, contains('w:numFmt w:val="upperLetter"'));
+    final back = DocxDocument.parse(d.save());
+    final j = back.paras.indexWhere((p) => p.text.startsWith('Giriş'));
+    expect(back.listKind(back.paras[j]), 'number');
+  });
 }

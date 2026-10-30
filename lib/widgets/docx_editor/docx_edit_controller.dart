@@ -17,6 +17,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:xml/xml.dart' show XmlElement;
 
 import '../../core/edit/edit_history.dart';
 import '../../core/text_replace.dart';
@@ -635,6 +636,22 @@ class DocxEditController extends ChangeNotifier
     });
   }
 
+  /// Liste kalıbı galerisi (Faz 23 kalanı): seçili paragraflara kalıp
+  /// uygular (aç/kapa değil — zaten o kalıpsa da yeniden uygular).
+  void applyListPattern(String id) {
+    final pat = kDocxListPatterns[id];
+    if (pat == null) return;
+    _editParas((i, p) {
+      final prev = i > 0 && identical(paras[i - 1].container, p.container)
+          ? paras[i - 1]
+          : null;
+      return doc.setList(p, pat.kind, prev: prev, pattern: id);
+    });
+  }
+
+  /// İmlecin paragrafının galeri kalıbı (yalnız bu oturumda seçildiyse).
+  String? get listPattern => doc.listPattern(paras[extent.para]);
+
   void applyStyle(String id) => _editParas((_, p) => doc.applyStyle(p, id));
 
   /// Gezinti: başlıklar (paragraf sırası, düzey, metin).
@@ -770,9 +787,45 @@ class DocxEditController extends ChangeNotifier
     return out.toString().replaceAll(kDocxLineBreak, '\n');
   }
 
+  /// **Kendi panomuz** (Faz 22/23 kalanı — biçimli yapıştırma). Sistem
+  /// panosuna düz metin gider (başka uygulamalar için); yanında harf
+  /// biçimleri ve paragraf biçimleri burada tutulur. Yapıştırırken sistem
+  /// panosundaki metin bununla AYNIYSA biçimli yapıştırılır — kullanıcı
+  /// arada başka yerden bir şey kopyaladıysa düz metin.
+  static DocxRichClip? richClip;
+
+  DocxRichClip? _captureClip() {
+    if (collapsed) return null;
+    final s = start, e = end;
+    final styles = <List<DocxCharStyle>>[];
+    final texts = <String>[];
+    final props = <(XmlElement?, DocxParaLook)>[];
+    for (var i = s.para; i <= e.para; i++) {
+      final p = paras[i];
+      final from = i == s.para ? s.offset : 0;
+      final to = i == e.para ? e.offset : p.length;
+      final line = StringBuffer();
+      final st = <DocxCharStyle>[];
+      for (var k = from; k < to; k++) {
+        final ch = p.atoms[k]?.display ?? p.text[k];
+        line.write(ch);
+        for (var n = 0; n < ch.length; n++) {
+          st.add(p.styles[k].detached());
+        }
+      }
+      texts.add(line.toString());
+      styles.add(st);
+      props.add((p.pPr?.copy(), p.look));
+    }
+    return DocxRichClip(texts, styles, props);
+  }
+
   Future<void> copy() async {
     final t = selectedText();
-    if (t.isNotEmpty) await Clipboard.setData(ClipboardData(text: t));
+    if (t.isNotEmpty) {
+      richClip = _captureClip();
+      await Clipboard.setData(ClipboardData(text: t));
+    }
     toolbar = false;
     notifyListeners();
   }
@@ -786,7 +839,46 @@ class DocxEditController extends ChangeNotifier
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final t = data?.text;
     if (t == null || t.isEmpty) return;
-    insertText(t);
+    final clip = richClip;
+    if (clip != null && clip.plainText == t.replaceAll('\r\n', '\n')) {
+      pasteRich(clip);
+    } else {
+      insertText(t);
+    }
+  }
+
+  /// Biçimli yapıştır: her harf kendi biçimiyle; tam kopyalanmış ara
+  /// paragraflar (ilk ve son hariç) kendi paragraf biçimiyle (başlık, liste).
+  void pasteRich(DocxRichClip clip) {
+    if (!collapsed) deleteSelection(notify: false);
+    if (paras[extent.para].opaque) return;
+    _lastTyping = false;
+    _record(typing: false);
+    for (var n = 0; n < clip.lines.length; n++) {
+      if (n > 0) enter(notify: false);
+      final i = extent.para, at = extent.offset;
+      final line = clip.lines[n].replaceAll('\n', kDocxLineBreak);
+      final p = paras[i];
+      var next = p.replace(at, at, line, _typingStyle(i, at));
+      final st = [...next.styles];
+      final src = clip.styles[n];
+      for (var k = 0; k < line.length && k < src.length; k++) {
+        st[at + k] = src[k];
+      }
+      next = next.copyWith(styles: st);
+      // Ara paragraf (bütünüyle kopyalandı): paragraf biçimi de gelir.
+      final whole = n > 0 && n < clip.lines.length - 1 && at == 0;
+      if (whole) {
+        final (pPr, look) = clip.props[n];
+        next = next.copyWith(pPr: pPr?.copy(), look: look);
+      }
+      doc.paras[i] = next;
+      base = extent = DocPos(i, at + line.length);
+    }
+    toolbar = false;
+    composing = TextRange.empty;
+    _changed(notify: true);
+    _syncIme();
   }
 
   /// Seçimi [text] ile değiştirir (yazım önerisi, AI düzeltmesi, çeviri).
@@ -934,4 +1026,20 @@ class DocxEditController extends ChangeNotifier
 
   @override
   void updateFloatingCursor(RawFloatingCursorPoint point) {}
+}
+
+/// Uygulama içi biçimli pano içeriği — bkz. [DocxEditController.richClip].
+class DocxRichClip {
+  /// Paragraf başına metin (atomlar görünen metniyle).
+  final List<String> lines;
+
+  /// Paragraf başına harf biçimleri (metinle aynı uzunlukta).
+  final List<List<DocxCharStyle>> styles;
+
+  /// Paragraf başına `w:pPr` kopyası + görünüm.
+  final List<(XmlElement?, DocxParaLook)> props;
+
+  const DocxRichClip(this.lines, this.styles, this.props);
+
+  String get plainText => lines.join('\n').replaceAll(kDocxLineBreak, '\n');
 }

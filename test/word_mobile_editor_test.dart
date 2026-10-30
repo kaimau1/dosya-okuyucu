@@ -211,6 +211,20 @@ void main() {
     await t.pump(const Duration(milliseconds: 510));
   });
 
+  testWidgets('uzun basıp kaydırırken büyüteç görünür, bırakınca kaybolur',
+      (t) async {
+    await open(t);
+    final word = find.textContaining('Ortalanmış', findRichText: true).first;
+    final g = await t.startGesture(t.getTopLeft(word) + const Offset(30, 10));
+    await t.pump(const Duration(milliseconds: 600)); // uzun basış
+    await g.moveBy(const Offset(40, 0));
+    await t.pump();
+    expect(find.byKey(const ValueKey('docx-magnifier')), findsOneWidget);
+    await g.up();
+    await t.pump();
+    expect(find.byKey(const ValueKey('docx-magnifier')), findsNothing);
+  });
+
   testWidgets('uzun bas → kelime seçilir, bağlam çubuğu; K seçime uygulanır',
       (t) async {
     final c = await open(t);

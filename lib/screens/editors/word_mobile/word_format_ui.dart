@@ -798,6 +798,21 @@ class WordFormatUi {
           RibbonButton(OfficeIcons.indentMore, _t('sl.indent_more'),
               onTap: () => c.indent(1)),
         ]),
+        // Liste kalıbı galerisi (Faz 23 kalanı): Word'ün madde işareti ve
+        // numaralandırma kitaplığı.
+        _label(_t('word.list_gallery')),
+        Wrap(spacing: 6, runSpacing: 6, children: [
+          for (final e in kDocxListPatterns.entries)
+            ChoiceChip(
+              key: ValueKey('word-list-${e.key}'),
+              label: Text(e.value.sample),
+              tooltip: _t(e.value.kind == 'bullet'
+                  ? 'word.bullets'
+                  : 'word.numbering'),
+              selected: c.listPattern == e.key,
+              onSelected: (_) => c.applyListPattern(e.key),
+            ),
+        ]),
         _label(_t('word.line_spacing')),
         Wrap(spacing: 8, children: [
           for (final v in kWordLineSpacings)

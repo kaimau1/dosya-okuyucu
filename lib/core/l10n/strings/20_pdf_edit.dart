@@ -57,6 +57,8 @@ const Map<String, (String, String, String)> _t20 = {
   'chart.file_chart': ('Grafik', 'Chart', 'مخطط'),
   'sl.change_layout': ('Düzeni değiştir', 'Change layout', 'تغيير التخطيط'),
   'code.line_spacing': ('Satır aralığı', 'Line spacing', 'تباعد الأسطر'),
+  'word.list_gallery': ('Liste kalıbı', 'List style', 'نمط القائمة'),
+  'word.opening_preview': ('Belge açılıyor — düzenleme birazdan hazır, ilk paragraflar gösteriliyor', 'Opening — editing will be ready shortly; showing the first paragraphs', 'جارٍ الفتح — تظهر الفقرات الأولى'),
   'ks.title': ('Klavye kısayolları', 'Keyboard shortcuts', 'اختصارات لوحة المفاتيح'),
   'ks.undo': ('Geri al', 'Undo', 'تراجع'),
   'ks.redo': ('Yinele', 'Redo', 'إعادة'),

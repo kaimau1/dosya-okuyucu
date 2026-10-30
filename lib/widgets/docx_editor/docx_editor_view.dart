@@ -23,6 +23,7 @@ import '../../core/app_icons.dart';
 import '../../core/app_haptics.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
+import '../../core/theme.dart' show Radii;
 import '../../services/docx/docx_document.dart';
 import '../../services/docx/docx_styles.dart';
 import 'docx_edit_controller.dart';
@@ -268,15 +269,64 @@ class DocxEditorViewState extends State<DocxEditorView> {
   }
 
   void _onLongPressMove(LongPressMoveUpdateDetails d) {
+    _showMagnifier(d.globalPosition);
     final p = hitTest(d.globalPosition);
     if (p == null) return;
     c.select(c.base, p);
   }
 
   void _onLongPressEnd(LongPressEndDetails d) {
+    _hideMagnifier();
     c.toolbar = !c.collapsed;
     c.selectionFinished();
     setState(() {});
+  }
+
+  // ── büyüteç (Faz 22 kalanı) ─────────────────────────────────────────────
+
+  /// Parmağın altındaki yazının büyütülmüş görüntüsü (yığın koordinatı).
+  /// Android'in kendi metin alanlarındaki gibi: seçim tutamağı ya da uzun
+  /// basıp kaydırma sürerken parmağın üstünde durur, bırakınca kaybolur.
+  Offset? _magnifierAt;
+
+  void _showMagnifier(Offset global) {
+    final box = _stackKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    setState(() => _magnifierAt = box.globalToLocal(global));
+  }
+
+  void _hideMagnifier() {
+    if (_magnifierAt != null) setState(() => _magnifierAt = null);
+  }
+
+  static const _magnifierSize = Size(128, 48);
+  static const _magnifierLift = 76.0;
+
+  Widget _magnifier(Offset at, double width) {
+    final double left = (at.dx - _magnifierSize.width / 2)
+        .clamp(0.0, math.max(0.0, width - _magnifierSize.width));
+    final top = math.max(0.0, at.dy - _magnifierLift - _magnifierSize.height / 2);
+    final center = Offset(left + _magnifierSize.width / 2,
+        top + _magnifierSize.height / 2);
+    return Positioned(
+      key: const ValueKey('docx-magnifier'),
+      left: left,
+      top: top,
+      child: IgnorePointer(
+        child: RawMagnifier(
+          size: _magnifierSize,
+          magnificationScale: 1.5,
+          focalPointOffset: at - center,
+          decoration: MagnifierDecoration(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(Radii.control)),
+            shadows: const [
+              BoxShadow(blurRadius: 6, offset: Offset(0, 2), color: AppColors.shadow),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   // ── imleci görünür tut ──────────────────────────────────────────────────
@@ -712,6 +762,7 @@ class DocxEditorViewState extends State<DocxEditorView> {
         key: ValueKey(startHandle ? 'docx-handle-a' : 'docx-handle-b'),
         behavior: HitTestBehavior.opaque,
         onPanUpdate: (d) {
+          _showMagnifier(d.globalPosition - Offset(0, _handleH / 2 + 8));
           final p = hitTest(d.globalPosition - Offset(0, _handleH / 2 + 8));
           if (p == null) return;
           if (startHandle) {
@@ -721,6 +772,7 @@ class DocxEditorViewState extends State<DocxEditorView> {
           }
         },
         onPanEnd: (_) {
+          _hideMagnifier();
           c.toolbar = !c.collapsed;
           c.selectionFinished();
           setState(() {});
@@ -783,6 +835,7 @@ class DocxEditorViewState extends State<DocxEditorView> {
               if (!c.collapsed && _handleB != null) _handle(_handleB!, false),
               if (c.toolbar && !c.collapsed && sel != null)
                 _toolbar(sel, box.maxWidth),
+              if (_magnifierAt != null) _magnifier(_magnifierAt!, box.maxWidth),
             ],
           ),
         ),
