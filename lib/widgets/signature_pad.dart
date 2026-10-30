@@ -19,6 +19,11 @@ class Signature {
 
   static const _prefsKey = 'signature_strokes_v1';
 
+  /// Baş harf (paraf) ayrı saklanır (Faz 31 — imza + baş harf).
+  static const _initialsKey = 'signature_initials_v1';
+
+  static String _key(bool initials) => initials ? _initialsKey : _prefsKey;
+
   /// Ekranda çizilmiş ham noktaları sınır kutusuna göre normalize eder.
   /// Tek nokta/çizgi gibi dejenere hâllerde bölme sıfıra düşmesin diye taban var.
   factory Signature.fromRaw(List<List<Offset>> raw) {
@@ -71,15 +76,15 @@ class Signature {
   }
 
   /// Kayıtlı imzayı okur (yoksa null). Kullanıcı her seferinde yeniden çizmesin.
-  static Future<Signature?> load() async {
+  static Future<Signature?> load({bool initials = false}) async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_prefsKey);
+    final raw = prefs.getString(_key(initials));
     return raw == null ? null : fromJson(raw);
   }
 
-  Future<void> save() async {
+  Future<void> save({bool initials = false}) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_prefsKey, toJson());
+    await prefs.setString(_key(initials), toJson());
   }
 
   static Future<void> clear() async {
@@ -90,12 +95,16 @@ class Signature {
 
 /// İmza çizme penceresi. Kullanıcı çizip onaylarsa [Signature] döner.
 class SignaturePad extends StatefulWidget {
-  const SignaturePad({super.key});
+  const SignaturePad({super.key, this.initials = false});
 
-  static Future<Signature?> show(BuildContext context) =>
+  /// Baş harf mi çiziliyor (ayrı anahtara kaydedilir, başlık farklı).
+  final bool initials;
+
+  static Future<Signature?> show(BuildContext context,
+          {bool initials = false}) =>
       showDialog<Signature>(
         context: context,
-        builder: (_) => const SignaturePad(),
+        builder: (_) => SignaturePad(initials: initials),
       );
 
   @override
@@ -109,7 +118,7 @@ class _SignaturePadState extends State<SignaturePad> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return AlertDialog(
-      title: Text(context.t('sp.draw')),
+      title: Text(context.t(widget.initials ? 'pe.draw_initials' : 'sp.draw')),
       content: SizedBox(
         width: 400,
         height: 200,
@@ -152,7 +161,7 @@ class _SignaturePadState extends State<SignaturePad> {
                     Navigator.pop(context);
                     return;
                   }
-                  sig.save();
+                  sig.save(initials: widget.initials);
                   Navigator.pop(context, sig);
                 },
           child: Text(context.t('common.ok')),

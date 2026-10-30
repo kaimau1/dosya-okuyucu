@@ -207,6 +207,41 @@ abstract final class PdfPageEdit {
     return out;
   }
 
+  /// [paragraphIndex] paragrafının metnini sayfadan kaldırır (bkz.
+  /// [eraseParagraph]) — "Üstüne yaz"ın ilk yarısı.
+  static List<int> eraseParagraphText(
+    List<int> bytes, {
+    required int pageIndex,
+    required int paragraphIndex,
+  }) {
+    final page = PdfPageContext.open(bytes, pageIndex);
+    final paragraphs = page.paragraphs();
+    if (paragraphIndex < 0 || paragraphIndex >= paragraphs.length) {
+      throw const PdfPageRefused(
+          'Paragraf bulunamadı (belge değişmiş olabilir). Sayfayı yenileyip '
+          'yeniden deneyin.');
+    }
+    final paragraph = paragraphs[paragraphIndex];
+    final content = eraseParagraph(
+      content: page.contents[paragraph.streamIndex],
+      paragraph: paragraph,
+    );
+    final out = page.write(paragraph.streamIndex, content);
+    verify(out, bytes, changedPages: {pageIndex});
+    return out;
+  }
+
+  static Future<List<int>> eraseParagraphTextInBackground(
+    List<int> bytes, {
+    required int pageIndex,
+    required int paragraphIndex,
+  }) =>
+      _guard(() => Isolate.run(() => eraseParagraphText(
+            bytes,
+            pageIndex: pageIndex,
+            paragraphIndex: paragraphIndex,
+          )));
+
   static Future<List<int>> replaceParagraphInBackground(
     List<int> bytes, {
     required int pageIndex,

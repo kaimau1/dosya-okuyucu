@@ -1,4 +1,7 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
@@ -8,19 +11,27 @@ import 'package:provider/provider.dart';
 import '../core/app_icons.dart';
 import '../core/app_state.dart';
 import '../core/edit/edit_session.dart';
+import '../core/edit/editor_chrome.dart';
+import '../core/motion.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/gemini_service.dart';
+import '../services/pdf/pdf_edit_history.dart';
 import '../services/pdf/pdf_fling.dart';
+import '../services/pdf/pdf_form.dart';
+import '../services/pdf/pdf_pending_objects.dart';
 import '../services/pdf/pdf_ocr_text.dart';
 import '../services/pdf/pdf_scanned_retype.dart';
-import '../services/pdf/pdf_text_stamp.dart';
 import '../services/pdf_page_edit.dart';
 import '../services/pdf_reload.dart';
 import '../services/pdf_tools.dart';
 import '../services/scan_ai_fix.dart';
 import '../services/scan_text_fix.dart';
 import '../widgets/app_dialog.dart';
+import '../widgets/office_ribbon.dart';
 import '../widgets/pdf_edit_overlay.dart';
+import '../widgets/pdf_object_layer.dart';
+import '../widgets/signature_pad.dart';
+import 'package:file_picker/file_picker.dart';
 import '../widgets/pdf_save_dialog.dart';
 import '../core/snack.dart';
 import '../core/user_error.dart';
@@ -29,6 +40,7 @@ import '../core/theme.dart';
 
 part 'pdf_editor/actions.dart';
 part 'pdf_editor/views.dart';
+part 'pdf_editor/layer.dart';
 
 /// **Tek PDF düzenleme ekranı** — metin, görsel, filigran ve sayfa işlerinin
 /// hepsi burada (2026-07-27 kullanıcı isteği: *"tüm bu işler tek bir pdf
@@ -73,7 +85,9 @@ class PdfEditorScreen extends StatefulWidget {
   State<PdfEditorScreen> createState() => _PdfEditorScreenState();
 }
 
-enum _EditMode { text, image, background, page }
+/// Şerit sekmeleri = düzenleme kipleri (Faz 31: Office editörleriyle aynı
+/// şerit dili; eskiden alt `NavigationBar`).
+enum _EditMode { text, image, sign, form, background, page }
 
 class _PdfEditorScreenState extends State<PdfEditorScreen> {
   /// Bu ekranın mesajları uzun asenkron işlerin **içinden** üretiliyor
@@ -88,8 +102,12 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   Directory? _workDir;
   String? _workPath;
 
-  /// Geri alma yığını: her değişiklikten ÖNCEki hâlin dosya yolu.
-  final List<String> _undo = [];
+  /// **İşlem listesi** (Faz 31 / PD4): geri al + yinele, belge bellekte,
+  /// disk kopyası yok; eklenen nesneler ve form değerleri de adım olarak.
+  PdfEditHistory<PdfOverlayLayer>? _history;
+
+  bool get _dirty => _history?.dirty ?? false;
+  PdfOverlayLayer get _layer => _history?.layer ?? PdfOverlayLayer.empty;
 
   _EditMode _mode = _EditMode.text;
   int _page = 1;
@@ -112,7 +130,6 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   /// Süren jest iki parmaklı mı — fırlatma sürtünmesi (bkz. [kPdfPanFriction]).
   bool _pinch = false;
   bool _busy = false;
-  bool _dirty = false;
   bool _ready = false;
   String? _error;
 
@@ -136,6 +153,39 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   /// "Yazı ekle" yerleştirme kipi: sıradaki dokunuş yazının yeridir.
   bool _placingText = false;
 
+  /// Açık sayfanın katman ölçeği (katman pikseli / PDF noktası) ve görünen
+  /// ölçüsü (PDF noktası) — kaplama kurucusundan güncellenir.
+  double _pageScale = 1;
+  Size _pageViewSize = Size.zero;
+
+  // ── Yerinde paragraf düzenleme (Faz 31 / PD1–PD2) ──────────────────────
+  int? _inlineIndex;
+  TextEditingController? _inlineCtrl;
+  final FocusNode _inlineFocus = FocusNode();
+
+  /// Kullanıcının seçtiği punto (null → özgün).
+  double? _inlineSize;
+
+  /// Arka plan denemesinin reddi (satır içinde gösterilir) / sürüyor mu.
+  String? _inlineRefusal;
+  bool _inlineChecking = false;
+  bool _inlineFits = false;
+  Timer? _inlineTimer;
+  int _inlineSeq = 0;
+
+  // ── Bekleyen nesneler (Faz 31 / PD3) ───────────────────────────────────
+  int _nextObjectId = 1;
+  int? _selectedPending;
+  int? _editingPending;
+  TextEditingController? _pendingCtrl;
+  final FocusNode _pendingFocus = FocusNode();
+
+  // ── Sayfa üstünde form (Faz 31 / PD5) ──────────────────────────────────
+  List<PdfFormFieldInfo>? _formFields;
+  String? _activeField;
+  TextEditingController? _fieldCtrl;
+  final FocusNode _fieldFocus = FocusNode();
+
   @override
   void initState() {
     super.initState();
@@ -145,6 +195,13 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
 
   @override
   void dispose() {
+    _inlineTimer?.cancel();
+    _inlineCtrl?.dispose();
+    _pendingCtrl?.dispose();
+    _fieldCtrl?.dispose();
+    _inlineFocus.dispose();
+    _pendingFocus.dispose();
+    _fieldFocus.dispose();
     // Kaydedilmemiş çalışma kopyasını bırakma: geçici klasör silinir.
     final dir = _workDir;
     if (dir != null && dir.existsSync()) {
@@ -167,6 +224,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final history = _history;
     return PopScope(
       canPop: !_dirty,
       onPopInvokedWithResult: (didPop, _) async {
@@ -183,9 +241,20 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
               overflow: TextOverflow.ellipsis),
           actions: [
             IconButton(
+              key: const ValueKey('pdf-undo'),
               tooltip: context.t('common.undo'),
               icon: const Icon(AppIcons.undo),
-              onPressed: _undo.isEmpty || _busy ? null : _undoLast,
+              onPressed: history == null || !history.canUndo || _busy
+                  ? null
+                  : _undoLast,
+            ),
+            IconButton(
+              key: const ValueKey('pdf-redo'),
+              tooltip: context.t('common.redo'),
+              icon: const Icon(AppIcons.redo),
+              onPressed: history == null || !history.canRedo || _busy
+                  ? null
+                  : _redoLast,
             ),
             IconButton(
               tooltip: context.t('common.save'),
@@ -205,8 +274,13 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                 )
               : null,
         ),
-        body: _body(),
-        bottomNavigationBar: _modeBar(),
+        // Faz 20 ortak kabuğu: klavye açıkken klavyenin hemen üstünde hızlı
+        // çubuk, kapalıyken şerit (sekmeler = kipler).
+        body: EditorChrome(
+          accessory: _accessory(),
+          ribbon: _ribbon(),
+          body: _body(),
+        ),
       ),
     );
   }

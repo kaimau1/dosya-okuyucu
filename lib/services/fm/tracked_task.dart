@@ -79,6 +79,21 @@ class TrackedTask {
     _job?.report(done: done, total: total, detail: detail, unit: unit);
   }
 
+  /// İş kaydı (kaydedildiyse) — ayrıntı sayfası ve değişiklik listesi için.
+  FmJob? get job => _job?.job;
+
+  /// Dosya dosya yapılanları iş kaydına yazar; kayıt henüz yoksa hemen
+  /// kaydedilir (kısa süren işin de sonuç sayfası olsun).
+  void recordChanges(Iterable<JobChange> list) {
+    if (_job == null) {
+      final wasEnded = _ended;
+      _ended = false;
+      promote();
+      _ended = wasEnded;
+    }
+    _job?.addChanges(list);
+  }
+
   /// Şimdi kaydet (eşik beklenmeden — "Arka plana al").
   void promote() {
     _timer?.cancel();

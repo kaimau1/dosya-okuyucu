@@ -11,6 +11,7 @@ import '../../core/user_error.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/ai_tagger.dart';
 import '../../services/fm/file_tags.dart';
+import '../../services/fm/job_queue.dart';
 import '../ai_key_gate.dart';
 import '../app_dialog.dart';
 import '../tracked_busy.dart';
@@ -36,6 +37,9 @@ Future<bool> showAiTagFlow(BuildContext context, List<FsEntry> entries) async {
     message: str.t('tagai.busy_n', {'n': files.length}),
   );
   Map<String, Set<String>> suggestions;
+  // Ekranın birleştirdiği öneriler iş kaydına da yazılır (aşağıda).
+  final byFold = {for (final t in existing) turkishFold(t): t};
+  final merged = <String, Set<String>>{};
   try {
     suggestions = await AiTagger.suggest(
       entries: files,
@@ -47,6 +51,21 @@ Future<bool> showAiTagFlow(BuildContext context, List<FsEntry> entries) async {
           done: done,
           total: total),
     );
+    // Kullanıcının zaten kullandığı yazımı tercih et ("fatura" önerisi mevcut
+    // "Fatura" etiketine katılır, ikinci bir etiket doğmaz).
+    suggestions.forEach((tag, paths) {
+      final name = byFold[turkishFold(tag)] ?? tag;
+      (merged[name] ??= {}).addAll(paths);
+    });
+    // Öneriler İŞ KAYDINA yazılır (kullanıcı 2026-10-30: *"etiket önerileri
+    // tamamlandı ama ne yapıldı göremiyorum"*). Kullanıcı ekrandan ayrıldıysa
+    // gözden geçirme levhası hiç açılmıyor ve öneriler kayboluyordu; artık
+    // İşlemler'deki karta dokununca ayrıntı sayfasında uygulanabilir.
+    busy.task.recordChanges([
+      for (final e in merged.entries)
+        for (final path in e.value)
+          JobChange(path: path, kind: 'tag', value: e.key, applied: false),
+    ]);
     await busy.done(
         detail: str.t('tagai.found', {'n': suggestions.length}));
   } catch (e) {
@@ -61,14 +80,6 @@ Future<bool> showAiTagFlow(BuildContext context, List<FsEntry> entries) async {
     showSnack(context, str.t('tagai.none'));
     return false;
   }
-  // Kullanıcının zaten kullandığı yazımı tercih et ("fatura" önerisi mevcut
-  // "Fatura" etiketine katılır, ikinci bir etiket doğmaz).
-  final byFold = {for (final t in existing) turkishFold(t): t};
-  final merged = <String, Set<String>>{};
-  suggestions.forEach((tag, paths) {
-    final name = byFold[turkishFold(tag)] ?? tag;
-    (merged[name] ??= {}).addAll(paths);
-  });
   final picked = await showAppSheet<Map<String, Set<String>>>(
     context,
     scrollable: false,
@@ -77,6 +88,15 @@ Future<bool> showAiTagFlow(BuildContext context, List<FsEntry> entries) async {
   if (picked == null || picked.isEmpty) return false;
   for (final e in picked.entries) {
     await FileTags.add(e.value, e.key);
+  }
+  final job = busy.task.job;
+  if (job != null) {
+    for (final c in job.changes) {
+      if (c.kind == 'tag' && picked[c.value]?.contains(c.path) == true) {
+        c.applied = true;
+      }
+    }
+    JobQueue.instance.touch(job);
   }
   if (context.mounted) {
     showSnack(context,

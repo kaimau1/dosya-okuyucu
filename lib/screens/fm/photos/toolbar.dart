@@ -300,7 +300,7 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
       sortOptions: const [FmSort.date, FmSort.name, FmSort.size],
     );
     final group = appState.fmPhotoGroup;
-    return controls.sections(ctx, extras: [
+    return controls.sections(ctx, tags: FileTags.counts(), extras: [
       FmMoreSection(ctx.t('ph.view'), [
         if (_timelineMode)
           for (final g in PhotoGroup.values)

@@ -256,6 +256,9 @@
  "lib/services/pdf/pdf_paragraph.dart": {
   "font_size": 3
  },
+ "lib/services/pdf/pdf_pending_objects.dart": {
+  "font_size": 1
+ },
  "lib/services/pdf/pdf_syntax.dart": {
   "font_size": 2
  },
@@ -381,6 +384,9 @@
  "lib/widgets/office_shell.dart": {
   "hex_colors": 1,
   "durations": 1
+ },
+ "lib/widgets/pdf_object_layer.dart": {
+  "font_size": 5
  },
  "lib/widgets/pdf_page_navigator.dart": {
   "hex_colors": 1,

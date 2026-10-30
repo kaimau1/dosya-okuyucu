@@ -175,6 +175,20 @@ List<int> rewriteParagraph({
   return out;
 }
 
+/// Paragrafın metin operatörlerini içerik akışından **çıkarır** (Faz 31,
+/// "Üstüne yaz"): yeni metin beyaz kapağın üstüne yazılırken eski metin
+/// altında kalırsa arama/kopyalama/ekran okuyucu hâlâ ESKİ metni bulur
+/// (poppler ikisini iç içe okuyordu). Aralık [rewriteParagraph] ile aynı
+/// denetimden geçer; dengesizse reddedilir — o zaman yalnız kapak kalır.
+List<int> eraseParagraph({
+  required List<int> content,
+  required PdfParagraph paragraph,
+}) {
+  _checkSpan(content, paragraph);
+  return List<int>.of(content)
+    ..replaceRange(paragraph.spanStart, paragraph.spanEnd, const []);
+}
+
 /// Aralıkta yalnız metin/durum operatörleri olduğunu doğrular.
 ///
 /// `BT`/`ET` ve `q`/`Q` ayrı ele alınır: belgelerin çoğu (resmi yazı

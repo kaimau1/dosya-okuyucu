@@ -8,6 +8,7 @@ import '../../core/theme.dart';
 import '../../models/fm_filter.dart';
 import '../../models/fs_entry.dart';
 import '../../models/media_bucket.dart';
+import '../../services/fm/file_tags.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/open_history.dart';
 import '../../services/fm/storage_stats.dart';
@@ -372,7 +373,12 @@ int _countWith(List<FsEntry> source, FmFilter probe) {
   var n = 0;
   for (final e in source) {
     if (e.isDir) continue;
-    if (probe.matches(e, openedAtOf: OpenHistory.forPath)) n++;
+    // Etiket çözücüsü ŞART: verilmezse etiket süzgeci her dosyayı "etiketsiz"
+    // sayar ve sayılar 0 çıkar (bkz. photos/toolbar `_cleanDuplicates`).
+    if (probe.matches(e,
+        openedAtOf: OpenHistory.forPath, tagsOf: FileTags.forPath)) {
+      n++;
+    }
   }
   return n;
 }
@@ -543,6 +549,36 @@ Future<void> showFmSourceSheet(
                           : FmSizeRange.large)),
                 ),
         ];
+        // Etiketler (kullanıcı 2026-10-30: *"etiketler oluştuğunda filtrelerde
+        // seçilebilir olmalı, sadece fotoğraflarda değil tüm dosyalar için"*).
+        // Yalnız BU listedeki dosyalarda geçen etiketler; seçili olan sıfıra
+        // düşse de kalır.
+        final tagsHere = <String, int>{};
+        for (final e in source) {
+          if (e.isDir) continue;
+          for (final t in FileTags.forPath(e.path)) {
+            tagsHere[t] = (tagsHere[t] ?? 0) + 1;
+          }
+        }
+        for (final t in f.tags) {
+          tagsHere.putIfAbsent(t, () => 0);
+        }
+        final tagNames = tagsHere.keys.toList()
+          ..sort((a, b) => tagsHere[b]!.compareTo(tagsHere[a]!));
+        final tagTiles = <Widget Function(double)>[
+          for (final t in tagNames)
+            (w) => FmChoiceTile(
+                  key: ValueKey('src-tag-$t'),
+                  width: w,
+                  icon: AppIcons.labelOutline,
+                  color: scheme.secondary,
+                  label: '#$t',
+                  count: _countWith(
+                      source, f.tags.contains(t) ? f : f.toggleTag(t)),
+                  selected: f.tags.contains(t),
+                  onTap: () => apply(f.toggleTag(t)),
+                ),
+        ];
         final shown = _countWith(source, f);
         return SingleChildScrollView(
           child: Padding(
@@ -560,6 +596,7 @@ Future<void> showFmSourceSheet(
                 ),
                 section(ctx.t('src.where'), where),
                 section(ctx.t('src.when'), when),
+                section(ctx.t('more.tags'), tagTiles),
                 const SizedBox(height: Gap.md),
                 FilledButton(
                   key: const ValueKey('src-done'),
@@ -624,7 +661,11 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
   Widget build(BuildContext context) {
     final counts = _counts;
     final f = widget.filter;
-    if (counts.buckets.isEmpty &&
+    // Etiketli dosya varsa levha (ve içindeki Etiketler bölümü) hep açılabilir.
+    final tagged = f.tags.isNotEmpty ||
+        widget.source.any((e) => !e.isDir && FileTags.forPath(e.path).isNotEmpty);
+    if (!tagged &&
+        counts.buckets.isEmpty &&
         counts.volumes.isEmpty &&
         counts.untouched == 0 &&
         counts.openedWithin == 0 &&
@@ -639,8 +680,10 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
         f.buckets.length +
         (f.openedWithinDays != null ? 1 : 0) +
         (f.untouchedDays != null ? 1 : 0) +
-        (f.sizeRange == FmSizeRange.large ? 1 : 0);
-    final hasAny = counts.buckets.isNotEmpty ||
+        (f.sizeRange == FmSizeRange.large ? 1 : 0) +
+        f.tags.length;
+    final hasAny = tagged ||
+        counts.buckets.isNotEmpty ||
         counts.volumes.isNotEmpty ||
         counts.untouched > 0 ||
         counts.openedWithin > 0 ||

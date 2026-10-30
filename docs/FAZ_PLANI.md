@@ -99,7 +99,7 @@
 | 28 | **Slayt I** (yerinde metin, kutuya yakınlaş, anahat, notlar) — `DUZENLEME_PLANI.md` | 20 | ✅ 2026-10-23 |
 | 29 | **Slayt II** (taşı/boyutlandır, şekil/tablo, düzenden yeni slayt, şerit) — `DUZENLEME_PLANI.md` | 28 | ✅ 2026-10-29 (29a + 29b) |
 | 30 | **Metin / kod / Markdown düzenleyici** — `DUZENLEME_PLANI.md` | 20 | ✅ 2026-10-28 |
-| 31 | **PDF düzenleme deneyimi** (yerinde metin, nesne katmanı, ortak kabuk) — `DUZENLEME_PLANI.md` | 20 | ⬜ |
+| 31 | **PDF düzenleme deneyimi** (yerinde metin, nesne katmanı, ortak kabuk) — `DUZENLEME_PLANI.md` | 20 | ✅ 2026-10-30 |
 | 32 | **Görsel düzenleyici 2.0** — `DUZENLEME_PLANI.md` | 20 | ✅ 2026-10-29 |
 | 33 | **Düzenleme turu kapanışı** (tablet, klavye, erişilebilirlik, Office uyumluluğu, cihaz turu) — `DUZENLEME_PLANI.md` | 20–32 | ⬜ |
 

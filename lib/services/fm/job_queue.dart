@@ -225,6 +225,62 @@ abstract final class JobRecipes {
       !job.status.isActive && runnerFor(job.recipe?.kind) != null;
 }
 
+/// Bir işin dosyalara **tek tek** yaptığı (ya da önerdiği) değişiklik.
+///
+/// Kullanıcı isteği 2026-10-30: *"etiket önerileri tamamlandı ama ne yapıldı
+/// göremiyorum; üzerine basınca hangi dosya neye etiketlendi gösteren, geri
+/// alınabilen, silinebilen, düzenlenebilen, taşınabilen bir sayfa açılmalı —
+/// tüm bu tür işlerde"*. İş kartı yalnız "36 etiket önerildi" diyordu;
+/// öneriler ekran kapanınca kayboluyordu. Artık iş kaydı değişikliklerin
+/// listesini taşır, diske yazılır ve İşlemler'deki karta dokununca ayrıntı
+/// sayfası (`JobReportScreen`) açılır.
+class JobChange {
+  /// Değişikliğin dokunduğu dosya (taşındıysa güncel yolu).
+  String path;
+
+  /// Tür: `tag` (etiket), `rename`, `resize`, `edit` … — ayrıntı sayfası
+  /// türe göre eylem sunar; tanımadığı türü yalnız listeler.
+  final String kind;
+
+  /// Türün değeri: etikette etiket adı, yeniden adlandırmada yeni ad …
+  String value;
+
+  /// Önceki hâl (biliniyorsa; geri al bununla yapılır).
+  final String? before;
+
+  /// Uygulandı mı (öneri olarak kaldıysa false).
+  bool applied;
+
+  JobChange({
+    required this.path,
+    required this.kind,
+    required this.value,
+    this.before,
+    this.applied = true,
+  });
+
+  Map<String, Object?> toJson() => {
+        'p': path,
+        'k': kind,
+        'v': value,
+        if (before != null) 'b': before,
+        if (!applied) 'a': false,
+      };
+
+  static JobChange? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    final path = raw['p'], kind = raw['k'], value = raw['v'];
+    if (path is! String || kind is! String || value is! String) return null;
+    return JobChange(
+      path: path,
+      kind: kind,
+      value: value,
+      before: raw['b'] as String?,
+      applied: raw['a'] != false,
+    );
+  }
+}
+
 class FmJob {
   /// Kararlı kimlik. Aynı kimlikli iş zaten sürüyorsa yenisi açılmaz ve
   /// ekranlar (ör. Yer aç) kendi işini bununla geri bulur.
@@ -269,6 +325,10 @@ class FmJob {
   /// Çıktı yolu → **kaynağı** (boyut düşürmede özgün dosya). "Eski ↔ yeni"
   /// karşılaştırma sayfası çiftleri buradan kurar (bkz. `ResizeCompareScreen`).
   final Map<String, String> outputSources = {};
+
+  /// Dosya dosya ne yapıldı (bkz. [JobChange]). En çok [maxChanges] kayıt.
+  final List<JobChange> changes = [];
+  static const int maxChanges = 5000;
 
   /// İşin **ilgili yeri** (bkz. [FmJobTarget]). Yoksa gezinme [outputs]'a,
   /// o da yoksa İşlemler ekranına düşer.
@@ -433,6 +493,8 @@ class FmJob {
         if (error != null) 'error': error,
         if (outputs.isNotEmpty) 'outputs': outputs,
         if (outputSources.isNotEmpty) 'sources': outputSources,
+        if (changes.isNotEmpty)
+          'changes': [for (final c in changes) c.toJson()],
         'startedAtMs': startedAtMs,
         'finishedAtMs': finishedAtMs,
         'dismissed': dismissed,
@@ -477,6 +539,10 @@ class FmJob {
     final sources = raw['sources'];
     if (sources is Map) {
       sources.forEach((k, v) => job.outputSources['$k'] = '$v');
+    }
+    for (final c in (raw['changes'] as List? ?? const [])) {
+      final change = JobChange.fromJson(c);
+      if (change != null) job.changes.add(change);
     }
     return job;
   }
@@ -623,6 +689,16 @@ class TrackedJob {
     _queue._tick(job);
   }
 
+  /// Dosya dosya yapılanları kaydeder (bkz. [JobChange]).
+  void addChanges(Iterable<JobChange> list) {
+    for (final c in list) {
+      if (job.changes.length >= FmJob.maxChanges) break;
+      job.changes.add(c);
+    }
+    _queue._persist();
+    _queue._tick(job);
+  }
+
   /// Başarıyla bitti; [detail] sonucun özeti ("12 öğe kopyalandı").
   ///
   /// [quiet]: kullanıcı sonucu ekranda gördü — ne bildirim ne şerit.
@@ -718,6 +794,13 @@ class JobQueue extends ChangeNotifier {
   bool _busy = false;
 
   void _persist() => store?.save(_jobs);
+
+  /// Bir işin kaydı dışarıdan değişti (ayrıntı sayfasında etiket geri
+  /// alındı, öneri uygulandı …): diske yaz ve ekranları uyar.
+  void touch(FmJob job) {
+    _persist();
+    notifyListeners();
+  }
 
   /// Önceki oturumdan kalan işleri listenin **başına** koyar.
   ///

@@ -45,7 +45,17 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                     }
                   },
                   pageOverlaysBuilder: (context, pageRect, page) => [
+                    if (page.pageNumber == _page)
+                      Builder(builder: (_) {
+                        // Katman ölçeği: düzenleme eylemleri (yakınlaşma,
+                        // yeni nesnenin yeri) bunu okur; build'de yalnız
+                        // alan güncellenir, setState yok.
+                        _pageScale = pageRect.width / page.width;
+                        _pageViewSize = Size(page.width, page.height);
+                        return const SizedBox.shrink();
+                      }),
                     if (page.pageNumber == _page &&
+                        _inlineIndex == null &&
                         (_mode == _EditMode.text || _mode == _EditMode.image))
                       PdfEditOverlay(
                         page: page,
@@ -72,6 +82,7 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                     // yani gerçek metnin üstüne ikinci kutu binmez.
                     if (page.pageNumber == _page &&
                         _mode == _EditMode.text &&
+                        _inlineIndex == null &&
                         _ocrEditable &&
                         PdfOcrText.isSupported)
                       Builder(builder: (context) {
@@ -88,13 +99,21 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                     // "Sayfaya yazı ekle" (Faz 8, K12 yedeği): yerleştirme
                     // kipinde sayfanın tamamı tek dokunuş alanıdır; en ÜSTTE
                     // durur ki paragraf/OCR kutuları dokunuşu yutmasın.
+                    // Form alanları sayfanın üstünde (Faz 31 / PD5).
+                    if (_mode == _EditMode.form)
+                      ..._formLayer(page, pageRect.size),
+                    // Paragrafın kendi kutusunda düzenleme (Faz 31 / PD1).
+                    if (page.pageNumber == _page && _inlineIndex != null)
+                      ..._inlineLayer(page, pageRect.size),
+                    // Kaydedilene kadar nesne olan yazı/imza/görseller.
+                    ..._pendingLayer(page, pageRect.size),
                     if (page.pageNumber == _page &&
                         _mode == _EditMode.text &&
                         _placingText)
                       SizedBox.expand(
                         child: GestureDetector(
                           behavior: HitTestBehavior.opaque,
-                          onTapUp: (d) => _placeTextAt(
+                          onTapUp: (d) => _placePendingText(
                               page, pageRect.size, d.localPosition),
                           child: ColoredBox(
                             color: Theme.of(context)
@@ -114,24 +133,16 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                   bottom: 12,
                   child: _objectToolbar(),
                 ),
-              // Taranmış sayfada tüm satırları bir geçişte onaran ikili
-              // (+ "Yazı ekle"); öteki sayfalarda yalnız "Yazı ekle".
-              if (_mode == _EditMode.text)
+              // Seçili bekleyen nesnenin bağlam çubuğu (yazı: düzenle, punto,
+              // kalın, renk; hepsi: sil).
+              if (_selectedPending != null &&
+                  _editingPending == null &&
+                  _layer.byId(_selectedPending) != null)
                 Positioned(
                   left: 12,
                   right: 12,
                   bottom: 12,
-                  child:
-                      _scannedPages.contains(_page) && _scannedLines.isNotEmpty
-                          ? _scannedToolbar()
-                          : _addTextToolbar(),
-                ),
-              if (_mode == _EditMode.page)
-                Positioned(
-                  left: 12,
-                  right: 12,
-                  bottom: 12,
-                  child: _pageToolbar(),
+                  child: _pendingToolbar(),
                 ),
             ],
           ),
@@ -166,6 +177,12 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                       'pe.hint_image_locked',
                     _ => 'pe.hint_image',
                   },
+                _EditMode.sign => 'pe.hint_sign',
+                _EditMode.form => _formFields == null
+                    ? 'pe.hint_form_loading'
+                    : _formFields!.isEmpty
+                        ? 'pe.hint_form_none'
+                        : 'pe.hint_form',
                 _EditMode.background => 'pe.hint_background',
                 _EditMode.page => 'pe.hint_page',
               });
@@ -186,34 +203,6 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
       ),
     );
   }
-
-  Widget _modeBar() => NavigationBar(
-        selectedIndex: _EditMode.values.indexOf(_mode),
-        onDestinationSelected: (i) {
-          final mode = _EditMode.values[i];
-          _partSetState(() {
-            _mode = mode;
-            _selectedObject = null;
-          });
-          if (mode == _EditMode.background && _background.isEmpty) {
-            _loadBackground();
-          }
-        },
-        destinations: [
-          NavigationDestination(
-              icon: const Icon(AppIcons.textFields),
-              label: context.t('pe.mode_text')),
-          NavigationDestination(
-              icon: const Icon(AppIcons.image),
-              label: context.t('pe.mode_image')),
-          NavigationDestination(
-              icon: const Icon(AppIcons.layersClear),
-              label: context.t('pe.mode_watermark')),
-          NavigationDestination(
-              icon: const Icon(AppIcons.rotate),
-              label: context.t('pe.mode_page')),
-        ],
-      );
 
   /// Seçili görselin araç çubuğu.
   ///
@@ -301,74 +290,6 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
       ),
     );
   }
-
-  /// Taranmış sayfa araç çubuğu: **Düzelt** (cihaz içi) ve **AI ile düzelt**.
-  /// İkisi de aynı işi yapmaya çalışır, farkı ne kadar cesur olduklarıdır —
-  /// kullanıcı hangisinin sonucunu beğenirse onda kalır, beğenmezse "Geri al".
-  Widget _scannedToolbar() => Card(
-        elevation: 4,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              TextButton.icon(
-                onPressed: _busy ? null : () => _fixScannedPage(withAi: false),
-                icon: const Icon(AppIcons.organize),
-                label: Text(context.t('pe.fix_page')),
-              ),
-              TextButton.icon(
-                onPressed: _busy ? null : () => _fixScannedPage(withAi: true),
-                icon: const Icon(AppIcons.ai),
-                label: Text(context.t('pe.fix_page_ai')),
-              ),
-              _addTextButton(),
-            ],
-          ),
-        ),
-      );
-
-  /// "Yazı ekle" düğmesi — yerleştirme kipindeyken "Vazgeç"e döner.
-  Widget _addTextButton() => TextButton.icon(
-        onPressed: _busy
-            ? null
-            : () => _partSetState(() => _placingText = !_placingText),
-        icon: Icon(_placingText ? AppIcons.close : AppIcons.postAdd),
-        label: Text(context.t(_placingText ? 'common.cancel' : 'pe.add_text')),
-      );
-
-  Widget _addTextToolbar() => Align(
-        alignment: AlignmentDirectional.centerEnd,
-        child: Card(
-          elevation: 4,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-            child: _addTextButton(),
-          ),
-        ),
-      );
-
-  Widget _pageToolbar() => Card(
-        elevation: 4,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              TextButton.icon(
-                onPressed: _busy ? null : () => _rotate(-1),
-                icon: const Icon(AppIcons.rotate90DegreesCcw),
-                label: Text(context.t('pe.rot_left')),
-              ),
-              TextButton.icon(
-                onPressed: _busy ? null : () => _rotate(1),
-                icon: const Icon(AppIcons.rotate),
-                label: Text(context.t('pe.rot_right')),
-              ),
-            ],
-          ),
-        ),
-      );
 
   Widget _backgroundPanel() {
     if (_busy && _background.isEmpty) {

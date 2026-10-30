@@ -12,6 +12,7 @@ import 'browser_screen.dart';
 import 'chat_cleanup_screen.dart';
 import 'cleanup_screen.dart';
 import 'duplicates_screen.dart';
+import 'job_report_screen.dart';
 import 'jobs_screen.dart';
 import 'resize_compare_screen.dart';
 import 'similar_screen.dart';
@@ -33,6 +34,14 @@ Future<void> openJobTarget(
   FmJob job, {
   bool fallbackToJobs = true,
 }) async {
+  // Dosya dosya değişiklik kaydı olan iş → önce ayrıntı sayfası (kullanıcı
+  // 2026-10-30: "ne yapıldı göremiyorum").
+  if (job.changes.isNotEmpty) {
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => JobReportScreen(job: job),
+    ));
+    return;
+  }
   final target = job.target;
   if (target != null && await _openTarget(context, target)) return;
   if (!context.mounted) return;
@@ -52,7 +61,7 @@ Future<void> openJobTarget(
 /// İşin hedefi var mı — kart/şeritte "dokunulabilir mi" kararı buna bakar.
 /// (Hedefi de çıktısı da olmayan iş için ok simgesi göstermek yalan olurdu.)
 bool jobHasDestination(FmJob job) =>
-    job.target != null || job.outputs.isNotEmpty;
+    job.target != null || job.outputs.isNotEmpty || job.changes.isNotEmpty;
 
 Future<bool> _openTarget(BuildContext context, FmJobTarget target) async {
   switch (target.kind) {

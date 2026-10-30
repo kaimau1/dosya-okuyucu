@@ -114,6 +114,17 @@ class InkPainter extends CustomPainter {
     }
   }
 
+  /// Gerçek karşılaştırma (Faz 31 / PD6): liste her çizimde yeniden kurulur
+  /// ama izler değişmez nesnelerdir — canlı iz her harekette YENİ nesne olur
+  /// ([InkMark.withPoints]). Aynı nesneler aynı sırayla geldiyse boyanacak
+  /// bir şey yok; eskiden her kare (kaydırma dahil) bütün izler yeniden
+  /// çiziliyordu.
   @override
-  bool shouldRepaint(InkPainter old) => true;
+  bool shouldRepaint(InkPainter old) {
+    if (old.marks.length != marks.length) return true;
+    for (var i = 0; i < marks.length; i++) {
+      if (!identical(old.marks[i], marks[i])) return true;
+    }
+    return false;
+  }
 }

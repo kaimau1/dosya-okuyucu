@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
-import '../core/app_icons.dart';
 import '../services/pdf/pdf_scanned_retype.dart' show ScannedLine;
 import '../services/pdf_page_edit.dart';
-import '../core/app_colors.dart';
+import 'pdf_object_layer.dart';
 
 /// PDF sayfasının üstünde **düzenlenebilir öğeleri gösteren katman**:
 /// paragraf kutuları ve görsel (resim/logo/QR) kutuları.
@@ -177,10 +176,13 @@ class PdfEditOverlay extends StatelessWidget {
       );
     }
 
-    return _MovableObject(
+    // Faz 31 / PD6: dört köşeden boyutlanır, oran kilitli (fotoğraf/logo
+    // çekiştirilip bozulmasın — Office'te köşe tutamağı da böyle).
+    return PdfTransformBox(
       key: ValueKey('obj-$index-${rect.left}-${rect.top}'),
-      initial: rect,
+      rect: rect,
       color: color,
+      keepAspect: true,
       // Döndürülmüş görselde köşe tutamağı yanıltıcı olurdu: kutu sayfaya
       // hizalı ama görsel değil. Yalnız taşımaya izin veriliyor.
       //
@@ -190,107 +192,6 @@ class PdfEditOverlay extends StatelessWidget {
       resizable: !object.rotated && object.editable,
       movable: object.editable,
       onCommit: (screenRect) => onObjectChanged(index, _toPage(screenRect)),
-    );
-  }
-}
-
-/// Seçili görselin sürüklenebilir/boyutlandırılabilir kutusu.
-class _MovableObject extends StatefulWidget {
-  final Rect initial;
-  final Color color;
-  final bool resizable;
-
-  /// Sürüklenebilir mi? (Paylaşılan çizim bloğundaki görselde false.)
-  final bool movable;
-  final ValueChanged<Rect> onCommit;
-
-  const _MovableObject({
-    super.key,
-    required this.initial,
-    required this.color,
-    this.movable = true,
-    required this.resizable,
-    required this.onCommit,
-  });
-
-  @override
-  State<_MovableObject> createState() => _MovableObjectState();
-}
-
-class _MovableObjectState extends State<_MovableObject> {
-  late Rect _rect = widget.initial;
-
-  /// Tutamak kutusunun kenar uzunluğu (dokunma hedefi: parmak ~44dp).
-  static const _handle = 30.0;
-
-  /// En küçük kutu — kullanıcı yanlışlıkla görseli yok etmesin.
-  static const _minSize = 16.0;
-
-  void _move(DragUpdateDetails d) {
-    setState(() => _rect = _rect.shift(d.delta));
-  }
-
-  void _resize(DragUpdateDetails d) {
-    setState(() {
-      final width = (_rect.width + d.delta.dx).clamp(_minSize, 100000.0);
-      final height = (_rect.height + d.delta.dy).clamp(_minSize, 100000.0);
-      _rect = Rect.fromLTWH(_rect.left, _rect.top, width, height);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned.fromRect(
-      rect: _rect.inflate(_handle / 2),
-      child: SizedBox.expand(
-        child: Stack(
-          children: [
-            Positioned.fromRect(
-              rect: Rect.fromLTWH(
-                  _handle / 2, _handle / 2, _rect.width, _rect.height),
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onPanUpdate: widget.movable ? _move : null,
-                onPanEnd:
-                    widget.movable ? (_) => widget.onCommit(_rect) : null,
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: widget.color, width: 2),
-                    color: widget.color.withValues(alpha: 0.12),
-                  ),
-                  child: Center(
-                    child: Icon(
-                        widget.movable ? AppIcons.dragMove : AppIcons.lock,
-                        color: widget.color.withValues(alpha: 0.8),
-                        size: 20),
-                  ),
-                ),
-              ),
-            ),
-            if (widget.resizable)
-              Positioned(
-                left: _rect.width,
-                top: _rect.height,
-                width: _handle,
-                height: _handle,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onPanUpdate: _resize,
-                  onPanEnd: (_) => widget.onCommit(_rect),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: widget.color,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.onMedia, width: 2),
-                    ),
-                    child: const Icon(AppIcons.openFull,
-                        color: AppColors.onMedia, size: 14),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
     );
   }
 }

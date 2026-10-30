@@ -32,6 +32,9 @@ const _contentFiles = [
   'lib/widgets/docx_view.dart',
   'lib/widgets/chart_painter.dart',
   'lib/widgets/pdf_edit_overlay.dart',
+  // Faz 31: PDF sayfa katmanları (nesne, yerinde paragraf, form) sayfa
+  // koordinatında — sayfa dil değişince aynalanmaz.
+  'lib/widgets/pdf_object_layer.dart',
   'lib/widgets/pdf_select_layer.dart',
   'lib/widgets/signature_pad.dart',
 ];

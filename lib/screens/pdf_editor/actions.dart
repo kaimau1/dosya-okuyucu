@@ -7,10 +7,14 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
       final work = p.join(dir.path, p.basename(widget.path));
       // `copy`: dosya Dart belleğine alınmadan kopyalanır (2026-09-23).
       await File(widget.path).copy(work);
+      // Belge bir kez okunur ve oturum boyunca BELLEKTE kalır (Faz 31 / PD4:
+      // sayfa değişiminde tüm PDF'i diskten yeniden okuma kalktı).
+      final bytes = await File(work).readAsBytes();
       if (!mounted) return;
       _partSetState(() {
         _workDir = dir;
         _workPath = work;
+        _history = PdfEditHistory(bytes, PdfOverlayLayer.empty);
         _ready = true;
       });
       await _loadOutline();
@@ -21,7 +25,7 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
     }
   }
 
-  Future<List<int>> _workBytes() => File(_workPath!).readAsBytes();
+  Future<List<int>> _workBytes() async => _history!.bytes;
 
   /// Açık sayfanın düzenlenebilir öğelerini yükler.
   Future<void> _loadOutline() async {
@@ -85,36 +89,59 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
     }
   }
 
-  /// Değişikliği çalışma kopyasına yazar, geri alma noktası bırakır ve
-  /// görüntüleyiciyi tazeler.
-  Future<void> _apply(List<int> bytes, String note) async {
-    final path = _workPath!;
-    final snapshot = p.join(_workDir!.path, 'undo_${_undo.length}.pdf');
-    // Geri alma noktası: her adımda bütün PDF'i belleğe okuyup yazmak yerine
-    // çekirdek kopyası (büyük belgede adım başına bir PDF boyu bellek).
-    await File(path).copy(snapshot);
-    _undo.add(snapshot);
-
-    await File(path).writeAsBytes(bytes, flush: true);
-    await PdfReload.reloadFile(path);
-    if (!mounted) return;
-    _partSetState(() => _dirty = true);
-    await _loadOutline();
+  /// [op]'u işlem listesine ekleyip uygular ve görüntüleyiciyi tazeler.
+  ///
+  /// Faz 31 / PD4: eskiden her adım tüm dosyanın disk kopyasını
+  /// (`undo_N.pdf`) bırakıyordu. Artık adım bir komut; güncel belge bellekte,
+  /// disk yalnız görüntüleyicinin okuduğu TEK çalışma dosyası.
+  Future<void> _apply(PdfByteOp op, String note) async {
+    await _history!.applyOp(note, op);
+    await _syncDocument();
     if (mounted) _snack(note);
   }
 
-  Future<void> _undoLast() async {
-    if (_undo.isEmpty) return;
-    final snapshot = _undo.removeLast();
-    await File(snapshot).copy(_workPath!);
-    await PdfReload.reloadFile(_workPath!);
+  /// Bellekteki güncel belgeyi görüntüleyiciye yansıtır.
+  Future<void> _syncDocument() async {
+    final path = _workPath!;
+    await File(path).writeAsBytes(_history!.bytes, flush: true);
+    await PdfReload.reloadFile(path);
     if (!mounted) return;
-    _partSetState(() => _dirty = _undo.isNotEmpty);
+    _partSetState(() => _docRev++);
     await _loadOutline();
-    if (mounted) _snack(_str.t('pe.undone'));
   }
 
-  Future<void> _editParagraph(int index) async {
+  Future<void> _undoLast() async {
+    final h = _history;
+    if (h == null || !h.canUndo || _busy) return;
+    _closeEditors();
+    final label = h.undoLabel;
+    _partSetState(() => _busy = true);
+    try {
+      if (await h.undo()) await _syncDocument();
+    } finally {
+      if (mounted) _partSetState(() => _busy = false);
+    }
+    if (mounted) _snack(_str.t('pe.undone_what', {'what': label ?? ''}));
+  }
+
+  Future<void> _redoLast() async {
+    final h = _history;
+    if (h == null || !h.canRedo || _busy) return;
+    _closeEditors();
+    final label = h.redoLabel;
+    _partSetState(() => _busy = true);
+    try {
+      if (await h.redo()) await _syncDocument();
+    } catch (e) {
+      _longSnack(_str.t('pe.op_failed', {'error': userErrorText(e)}));
+    } finally {
+      if (mounted) _partSetState(() => _busy = false);
+    }
+    if (mounted) _snack(_str.t('pe.redone_what', {'what': label ?? ''}));
+  }
+
+  /// Diyalogda düzenleme — yerinde düzenlemenin yedeği ("Pencerede").
+  Future<void> _editParagraphInDialog(int index) async {
     if (index < 0 || index >= _outline.paragraphs.length) return;
     final paragraph = _outline.paragraphs[index];
     final currentSize = paragraphPointSize(paragraph);
@@ -129,16 +156,18 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
         size != null && size > 0 && (size - currentSize).abs() > 0.05;
     if (newText.trim() == paragraph.text.trim() && !sizeChanged) return;
 
-    await _run(() async {
-      final out = await PdfPageEdit.replaceParagraphInBackground(
-        await _workBytes(),
-        pageIndex: _page - 1,
-        paragraphIndex: index,
-        newText: newText.trim(),
-        pointSize: sizeChanged ? size : null,
-      );
-      await _apply(out, _str.t('pe.paragraph_updated'));
-    });
+    final pageIndex = _page - 1;
+    final text = newText.trim();
+    final pointSize = sizeChanged ? size : null;
+    await _run(() => _apply(
+        (b) => PdfPageEdit.replaceParagraphInBackground(
+              b,
+              pageIndex: pageIndex,
+              paragraphIndex: index,
+              newText: text,
+              pointSize: pointSize,
+            ),
+        _str.t('pe.paragraph_updated')));
   }
 
   /// Bu sayfada OCR ile düzenleme denenmeli mi?
@@ -203,36 +232,6 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
     ];
   }
 
-  /// **Sayfaya yazı ekle** (Faz 8, K12): dokunulan noktaya yeni yazı basılır.
-  ///
-  /// Paragraf motorunun reddettiği ya da metni hiç olmayan sayfalarda tek
-  /// düzenleme yolu budur; eski kelime-bazlı yerinde düzenleme kalktı.
-  /// [local] sayfa katmanındaki dokunuş, [pageSize] o katmanın ölçüsü —
-  /// görünen sayfa noktasına (sol-üst, PDF noktası) oranla çevrilir; döndürme
-  /// ve CropBox'ı [PdfTextStamp] hesaba katar.
-  Future<void> _placeTextAt(PdfPage page, Size pageSize, Offset local) async {
-    if (pageSize.width <= 0 || pageSize.height <= 0) return;
-    final x = local.dx * page.width / pageSize.width;
-    final y = local.dy * page.height / pageSize.height;
-    final answer = await _askParagraphText('',
-        pointSize: 12, titleKey: 'pe.add_text_title');
-    if (!mounted) return;
-    _partSetState(() => _placingText = false);
-    if (answer == null || answer.text.trim().isEmpty) return;
-    await _run(() async {
-      final out = await PdfTextStamp.add(
-        bytes: await _workBytes(),
-        pageIndex: page.pageNumber - 1,
-        x: x,
-        y: y,
-        text: answer.text,
-        size: answer.size ?? 12,
-      );
-      _docRev++;
-      await _apply(out, _str.t('pe.text_added'));
-    });
-  }
-
   /// OCR satırına dokunuldu: tanınan metin ön-dolu pencerede düzenlenir,
   /// satır beyaz kapakla örtülüp yeni metin AYNI yere yazılır (bkz.
   /// [PdfScannedRetype]). Boş bırakmak satırı siler.
@@ -242,17 +241,18 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
     final answer = await _askParagraphText(line.text);
     if (answer == null || !mounted) return;
     final newText = answer.text;
+    final pageIndex = _page - 1;
     await _run(() async {
-      final out = await PdfScannedRetype.apply(
-        bytes: await _workBytes(),
-        pageIndex: _page - 1,
-        box: line.box,
-        newText: newText,
-      );
+      await _apply(
+          (b) => PdfScannedRetype.apply(
+                bytes: b,
+                pageIndex: pageIndex,
+                box: line.box,
+                newText: newText,
+              ),
+          _str.t('pe.scanned_updated'));
       // Sayfa değişti: OCR bellek önbelleği bayat, kutular yeniden yüklensin.
       PdfOcrText.invalidateMemory();
-      _docRev++;
-      await _apply(out, _str.t('pe.scanned_updated'));
     });
   }
 
@@ -290,15 +290,16 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
         _snack(_str.t('pe.fix_nothing'));
         return;
       }
-      final out = await PdfScannedRetype.applyMany(
-        bytes: await _workBytes(),
-        pageIndex: _page - 1,
-        edits: edits,
-      );
+      final pageIndex = _page - 1;
+      await _apply(
+          (b) => PdfScannedRetype.applyMany(
+                bytes: b,
+                pageIndex: pageIndex,
+                edits: edits,
+              ),
+          _str.t('pe.fix_done', {'n': edits.length}));
       // Sayfa değişti: OCR bellek önbelleği bayat, kutular yeniden yüklensin.
       PdfOcrText.invalidateMemory();
-      _docRev++;
-      await _apply(out, _str.t('pe.fix_done', {'n': edits.length}));
     });
   }
 
@@ -306,29 +307,31 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
     final ok =
         await _confirm(_str.t('pe.delete_image'), _str.t('pe.delete_image_body'));
     if (ok != true) return;
-    await _run(() async {
-      final out = await PdfPageEdit.deleteObjectInBackground(
-        await _workBytes(),
-        pageIndex: _page - 1,
-        objectIndex: index,
-      );
-      await _apply(out, _str.t('pe.image_deleted'));
-    });
+    final pageIndex = _page - 1;
+    await _run(() => _apply(
+        (b) => PdfPageEdit.deleteObjectInBackground(
+              b,
+              pageIndex: pageIndex,
+              objectIndex: index,
+            ),
+        _str.t('pe.image_deleted')));
   }
 
   Future<void> _moveObject(int index, Rect pageRect) async {
-    await _run(() async {
-      final out = await PdfPageEdit.transformObjectInBackground(
-        await _workBytes(),
-        pageIndex: _page - 1,
-        objectIndex: index,
-        left: pageRect.left,
-        bottom: pageRect.top < pageRect.bottom ? pageRect.top : pageRect.bottom,
-        width: pageRect.width.abs(),
-        height: pageRect.height.abs(),
-      );
-      await _apply(out, _str.t('pe.image_moved'));
-    });
+    final pageIndex = _page - 1;
+    await _run(() => _apply(
+        (b) => PdfPageEdit.transformObjectInBackground(
+              b,
+              pageIndex: pageIndex,
+              objectIndex: index,
+              left: pageRect.left,
+              bottom: pageRect.top < pageRect.bottom
+                  ? pageRect.top
+                  : pageRect.bottom,
+              width: pageRect.width.abs(),
+              height: pageRect.height.abs(),
+            ),
+        _str.t('pe.image_moved')));
   }
 
   /// Seçili görseli **kendi merkezinde** döndürür / aynalar (kullanıcı
@@ -339,21 +342,17 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
     bool flipH = false,
     bool flipV = false,
   }) async {
-    await _run(() async {
-      final out = await PdfPageEdit.turnObjectInBackground(
-        await _workBytes(),
-        pageIndex: _page - 1,
-        objectIndex: index,
-        quarterTurns: quarterTurns,
-        flipH: flipH,
-        flipV: flipV,
-      );
-      await _apply(
-          out,
-          _str.t(quarterTurns != 0
-              ? 'pe.image_turned'
-              : 'pe.image_mirrored'));
-    });
+    final pageIndex = _page - 1;
+    await _run(() => _apply(
+        (b) => PdfPageEdit.turnObjectInBackground(
+              b,
+              pageIndex: pageIndex,
+              objectIndex: index,
+              quarterTurns: quarterTurns,
+              flipH: flipH,
+              flipV: flipV,
+            ),
+        _str.t(quarterTurns != 0 ? 'pe.image_turned' : 'pe.image_mirrored')));
   }
 
   Future<void> _removeBackground() async {
@@ -361,23 +360,24 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
       _snack(_str.t('pe.pick_to_remove'));
       return;
     }
+    final picked = {..._backgroundPicked};
     await _run(() async {
-      final out = await PdfPageEdit.removeBackgroundInBackground(
-          await _workBytes(), {..._backgroundPicked});
-      await _apply(out, _str.t('pe.items_removed'));
+      await _apply(
+          (b) => PdfPageEdit.removeBackgroundInBackground(b, picked),
+          _str.t('pe.items_removed'));
       await _loadBackground();
     });
   }
 
   Future<void> _rotate(int quarterTurns) async {
-    await _run(() async {
-      final out = await PdfTools.rotatePagesInBackground(
-        await _workBytes(),
-        pageIndexes: [_page - 1],
-        quarterTurns: quarterTurns,
-      );
-      await _apply(out, _str.t('pe.page_rotated'));
-    });
+    final pageIndex = _page - 1;
+    await _run(() => _apply(
+        (b) => PdfTools.rotatePagesInBackground(
+              b,
+              pageIndexes: [pageIndex],
+              quarterTurns: quarterTurns,
+            ),
+        _str.t('pe.page_rotated')));
   }
 
   /// Ortak sarmalayıcı: meşgul bayrağı + tek yerde hata mesajı.
@@ -427,11 +427,9 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
     if (unlock != true) return false;
 
     try {
-      final unlocked = await PdfTools.removePasswordInBackground(
-        await _workBytes(),
-        currentPassword: '',
-      );
-      await _apply(unlocked, _str.t('pe.protection_removed'));
+      await _apply(
+          (b) => PdfTools.removePasswordInBackground(b, currentPassword: ''),
+          _str.t('pe.protection_removed'));
       await body();
       return true;
     } catch (e) {
@@ -442,7 +440,18 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
 
   Future<bool> _save() async {
     if (!_dirty) return true;
-    final bytes = await _workBytes();
+    _closeEditors();
+    // Bekleyen nesneler + form değerleri TEK geçişte yazılır (izolatta).
+    final List<int> bytes;
+    try {
+      _partSetState(() => _busy = true);
+      bytes = await PdfPendingWriter.write(_history!.bytes, _layer);
+    } catch (e) {
+      _longSnack(_str.t('pe.op_failed', {'error': userErrorText(e)}));
+      return false;
+    } finally {
+      if (mounted) _partSetState(() => _busy = false);
+    }
     if (!mounted) return false;
     final outcome = await savePdfWithChoice(
       context,
@@ -451,7 +460,7 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
       note: _str.t('pe.save_note'),
     );
     if (outcome == null) return false;
-    if (mounted) _partSetState(() => _dirty = false);
+    if (mounted) _partSetState(() => _history!.markSaved());
     return true;
   }
 

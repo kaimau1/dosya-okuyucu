@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:ui' show Rect;
 
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
@@ -35,6 +36,11 @@ class PdfFormFieldInfo {
   /// arayüz bunu SÖYLER — dokunup bir şey olmaması "bozuk" sanılıyor.
   final bool readOnly;
 
+  /// Alanın sayfadaki kutusu (Syncfusion uzayı: sol-üst köken, PDF noktası,
+  /// döndürülmemiş sayfa). Sayfa üstünde doldurma (Faz 31) bununla çizer;
+  /// çözülemezse null — alan yalnız listede görünür.
+  final Rect? bounds;
+
   const PdfFormFieldInfo({
     required this.name,
     required this.kind,
@@ -42,6 +48,7 @@ class PdfFormFieldInfo {
     this.options = const [],
     this.page = 0,
     this.readOnly = false,
+    this.bounds,
   });
 
   bool get isChecked => value == 'true';
@@ -274,12 +281,20 @@ abstract final class PdfFormFiller {
     } catch (_) {
       // Bazı belgelerde alanın sayfası çözülemiyor; 0 = "bilinmiyor".
     }
+    Rect? bounds;
+    try {
+      final b = field.bounds;
+      if (b.width > 0 && b.height > 0) bounds = b;
+    } catch (_) {
+      // Kutusu okunamayan alan sayfada çizilmez, listede kalır.
+    }
     if (field is PdfTextBoxField) {
       return PdfFormFieldInfo(
         name: name,
         kind: PdfFormFieldKind.text,
         value: field.text,
         page: page,
+        bounds: bounds,
         readOnly: field.readOnly,
       );
     }
@@ -289,6 +304,7 @@ abstract final class PdfFormFiller {
         kind: PdfFormFieldKind.checkbox,
         value: field.isChecked ? 'true' : 'false',
         page: page,
+        bounds: bounds,
         readOnly: field.readOnly,
       );
     }
@@ -303,6 +319,7 @@ abstract final class PdfFormFiller {
         value: field.selectedValue,
         options: options,
         page: page,
+        bounds: bounds,
         readOnly: field.readOnly,
       );
     }
@@ -320,6 +337,7 @@ abstract final class PdfFormFiller {
         value: field is PdfComboBoxField ? field.selectedValue : '',
         options: options,
         page: page,
+        bounds: bounds,
         readOnly: field.readOnly,
       );
     }
@@ -329,6 +347,7 @@ abstract final class PdfFormFiller {
         kind: PdfFormFieldKind.signature,
         value: '',
         page: page,
+        bounds: bounds,
         // İmza alanı bu ekrandan doldurulmaz: uygulamanın kendi imza akışı
         // (parmakla çiz → sayfaya bas) var, orası daha iyi bir cevap.
         readOnly: true,
@@ -339,6 +358,7 @@ abstract final class PdfFormFiller {
       kind: PdfFormFieldKind.unknown,
       value: '',
       page: page,
+      bounds: bounds,
       readOnly: true,
     );
   }

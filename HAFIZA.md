@@ -761,3 +761,53 @@
   **Kalan (bilerek ertelendi, küçük değil):** Word büyüteç / biçimli yapıştırma / ilk 50 paragraf /
   liste kalıbı galerisi; Excel dosya grafikleri + `tableN.xml`; slayt Düzeni değiştir, grup içi
   taşıma, tablo çerçevesini taşı/boyutlandır; metin `re_editor`, isolate renklendirme; 56 levha.
+
+- **2026-10-30 (bulut) — Faz 31 PDF düzenleme deneyimi + PDF sütun sığdırma + etiket süzgeci +
+  iş sonucu sayfası.** Kullanıcı: *"Faz 31 yap bitir, main'e merge et"* + tur içinde üç bulgu.
+  **Faz 31:** (1) `PdfEditorScreen` Faz 20 kabuğunda: alt `NavigationBar` → `OfficeRibbon`
+  (sekme = kip: Metin · Görsel · İmzala · Form · Filigran · Sayfa; `OfficeRibbon.selectedTab/
+  onTabChanged` denetimli kip eklendi), düzenlerken `KeyboardAccessoryBar`; AppBar'da ↶ ↷.
+  (2) **İşlem listesi** `services/pdf/pdf_edit_history.dart`: adım = `PdfByteOp` (yeniden
+  oynatılabilir komut) ya da katman hâli; belge BELLEKTE, `undo_N.pdf` disk kopyaları kalktı,
+  sayfa değişiminde dosya yeniden okunmuyor; ara sonuç 48 MB bütçede önbellek, aşılırsa en yakın
+  tutulan hâlden yeniden oynatma; yinele var; kirli = kayıt adımı ≠ şimdiki adım. **Kural:**
+  op kapanışına `_page` DEĞİL, yerel `pageIndex` kopyası girer (yeniden oynatma başka sayfada
+  koşar). (3) **Yerinde paragraf** (`PdfInlineParagraphEditor`): paragrafa dokun → kendi
+  kutusunda beyaz zeminli alan, punto × sayfa ölçeği; 350 ms sonra paragrafa yakınlaşır
+  (`calcMatrixForRect`, hedef ~18 px yazı); her duraklamada (Motion.long) arka planda
+  `replaceParagraphInBackground` denemesi → ret gerekçesi klavye üstü şeritte + **"Üstüne yaz"**.
+  Diyalog "Pencerede düzenle" olarak yedek. (4) **"Üstüne yaz"** = `eraseParagraphText`
+  (paragrafın span'i akıştan çıkarılır; `_checkSpan` ile aynı denge denetimi) + `PdfOverwrite`
+  (beyaz kapak + Carlito, genişlik sayfa kenarına kadar). **Kök neden:** yalnız kapak bırakınca
+  poppler/arama ESKİ metni de okuyordu (`pdftotext` iki metni iç içe verdi) — span silinmeli.
+  (5) **Bekleyen nesneler** (`PdfPendingObject` + `PdfOverlayLayer`): Yazı ekle / imza / baş harf
+  (`Signature.load/save(initials:)`, ayrı anahtar) / görsel ekle — kaydedilene kadar seç, taşı,
+  dört köşeden oran kilitli boyutlandır (yazıda punto oranla ölçeklenir), yeniden yaz, kalın,
+  renk, sil; kaydette `PdfPendingWriter` TEK açılışta (izolatta) yazar. (6) **Form sayfada**
+  (`PdfFormOverlay`, `PdfFormFieldInfo.bounds` eklendi): metin alanı yerinde, onay kutusu tek
+  dokunuş, liste/radyo levhadan; ‹ › ✓ klavye üstü; değerler katmanda, kaydette
+  `PdfFormFiller.fill` (alanın kendi değeri). Döndürülmüş sayfada katman çizilmez (liste ekranı
+  yedek). (7) Var olan görsel de `PdfTransformBox` (dört köşe, oran kilitli) — eski
+  `_MovableObject` kalktı. (8) `InkPainter.shouldRepaint` gerçek karşılaştırma (iz nesneleri
+  değişmez; özdeşlik). PNG: `tool/design_shots_faz31_test.dart` → `docs/design/faz31/` (pdfium
+  testte yok: sahte kâğıt + gerçek katmanlar). Testler: `pdf_edit_history_test`,
+  `pdf_pending_objects_test` (ret → Üstüne yaz, pdftotext ile), `pdf_object_layer_test`.
+  **Kalan:** Çiz/AI sekmeleri ayrı ekranlarda (çalışma kopyasını paylaşmıyorlar); yazı tipi
+  gömülü fonttan değil Carlito; paragraf kalın/renk yok (motorun kesimi yoksa); büyük PDF'te
+  bellek (belge + önbellek) cihazda ölçülmeli 📱.
+  **PDF 2/4 sütun "tek sütun gibi kalıyor" (kullanıcı):** KÖK NEDEN pdfrx
+  `useAlternativeFitScaleAsMinScale` (varsayılan açık) en küçük ölçeği "güncel sayfayı sığdır /
+  ekranı kapla"nın küçüğüne kenetliyor → `_fitPdfWidth`in istediği 4 sütun genişlik ölçeği
+  kırpılıyordu. Çok sütunda kapalı + `minScale 0.05`; sığdırma bir kez de 220 ms sonra.
+  **Etiket süzgeci her yerde:** ortak "Kaynak ve zaman" levhasına (`showFmSourceSheet`)
+  Etiketler bölümü (yalnız o listedeki dosyaların etiketleri); levha etiketli dosya varken hep
+  açılır; fotoğraf "Analiz ve diğer"e de etiketler. **TUZAK:** `_countWith` `tagsOf`
+  vermiyordu → etiket süzgeciyle sayılar 0.
+  **İş sonucu ayrıntısı** (kullanıcı: *"etiket önerileri tamamlandı ama ne yapıldı
+  göremiyorum… tüm bu tür işlerde böyle bir sayfa olmalı"*): `JobChange` (yol, tür, değer, önce,
+  uygulandı) `FmJob.changes`'te diske yazılır; `TrackedTask.recordChanges`; değişikliği olan
+  işin kartı → `JobReportScreen` (gruplar; tümünü uygula / geri al; etiketi yeniden adlandır /
+  kaldır / dosyaları klasöre taşı; dosya aç / bu dosyadan kaldır). **Kök neden:** AI etiket
+  önerileri yalnız ekran açıkken levhada gösteriliyordu; kullanıcı işi arka plana alınca
+  öneriler izsiz kayboluyordu. Şimdilik değişiklik yazan iş: AI etiketleme; öteki işler
+  (yeniden adlandırma, küçültme, AI düzenleme) aynı `recordChanges`e bağlanmalı — açık iş.

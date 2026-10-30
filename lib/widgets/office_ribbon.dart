@@ -107,6 +107,11 @@ class OfficeRibbon extends StatefulWidget {
   /// boşluk kısılır — dokunma hedefi 40 dp'nin altına DÜŞMEZ.
   final bool compact;
 
+  /// Denetimli kip (Faz 31 — PDF düzenleyicide sekme = düzenleme kipi):
+  /// verilirse etkin sekmeyi çağıran tutar, dokunuş [onTabChanged]'e gider.
+  final int? selectedTab;
+  final ValueChanged<int>? onTabChanged;
+
   /// Şerit yüksekliği — `PreferredSize` kullanan ekranlar için hesaplanır.
   static double heightFor(int tabCount, {bool compact = false}) {
     final rows = compact ? 40.0 : 48.0;
@@ -119,6 +124,8 @@ class OfficeRibbon extends StatefulWidget {
     this.trailing,
     this.onBrand = false,
     this.compact = false,
+    this.selectedTab,
+    this.onTabChanged,
   });
 
   @override
@@ -132,7 +139,8 @@ class _OfficeRibbonState extends State<OfficeRibbon> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final tabs = widget.tabs.isEmpty ? const [RibbonTab('', [])] : widget.tabs;
-    final index = _tab < tabs.length ? _tab : 0;
+    final wanted = widget.selectedTab ?? _tab;
+    final index = wanted < tabs.length ? wanted : 0;
     final fg = widget.onBrand ? AppColors.onBrand : scheme.onSurface;
 
     // 2026-09-23 tasarım turu: sekmeler alt çizgili düz metin değil, HAP
@@ -174,7 +182,10 @@ class _OfficeRibbonState extends State<OfficeRibbon> {
                         shape: const StadiumBorder(),
                         clipBehavior: Clip.antiAlias,
                         child: InkWell(
-                          onTap: () => setState(() => _tab = i),
+                          onTap: () {
+                            setState(() => _tab = i);
+                            widget.onTabChanged?.call(i);
+                          },
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14),
                             alignment: Alignment.center,

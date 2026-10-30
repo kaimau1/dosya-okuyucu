@@ -177,8 +177,15 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
   void _setPdfColumns(int cols) {
     if (cols == _pdfColumns) return;
     _partSetState(() => _pdfColumns = cols);
-    // Yeni düzen ölçüldükten SONRA genişliğe sığdır.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _fitPdfWidth());
+    // Yeni düzen ölçüldükten SONRA genişliğe sığdır. Levha kapanırken ve
+    // pdfrx ölçeği yeniden hesaplarken bir kare daha geçebiliyor: kısa bir
+    // gecikmeyle bir kez daha (aynı hedef — ikincisi zararsız).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fitPdfWidth();
+      Future.delayed(Motion.medium, () {
+        if (mounted) _fitPdfWidth();
+      });
+    });
   }
 
   /// Belgeyi **genişliğine sığdırır** — çok sütunlu dizilimin can alıcı yarısı.

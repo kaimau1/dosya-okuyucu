@@ -56,6 +56,18 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                       controller: _pdfController,
                       initialPageNumber: _pdfPage,
                       params: PdfViewerParams(
+                        // **2/4 sütunda en küçük yakınlık** (kullanıcı
+                        // 2026-10-30: *"2 sütun 4 sütun seçildiğinde sayfa
+                        // yine tek sütun gibi görünüyor, zoom out yapınca
+                        // düzeliyor"*). KÖK NEDEN: pdfrx varsayılanı
+                        // (`useAlternativeFitScaleAsMinScale`) en küçük ölçeği
+                        // "güncel sayfayı sığdır / ekranı kapla"nın küçüğüne
+                        // kenetliyor; 4 sütunluk düzeni genişliğine sığdırmak
+                        // bunun ALTINDA kaldığı için `_fitPdfWidth` sessizce
+                        // tek sayfa ölçeğine kırpılıyordu. Çok sütunda sınır
+                        // gevşer; tek sütunda eski davranış.
+                        useAlternativeFitScaleAsMinScale: _pdfColumns == 1,
+                        minScale: _pdfColumns == 1 ? 0.1 : 0.05,
                         backgroundColor: Theme.of(context)
                             .colorScheme
                             .surfaceContainerHighest,
