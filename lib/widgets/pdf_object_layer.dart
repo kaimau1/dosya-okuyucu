@@ -205,6 +205,9 @@ class PdfPendingObjectView extends StatelessWidget {
         fontFamily: 'Carlito',
         fontSize: o.fontSize * scale,
         height: 1.2,
+        // Tema gövdesinin harf aralığı (M3: 0,5) alana karışmasın: PDF'e
+        // aralıksız yazılıyor, ekranda da öyle görünmeli.
+        letterSpacing: 0,
         fontWeight: o.bold ? FontWeight.w700 : FontWeight.w400,
         color: Color(o.colorArgb),
       );
@@ -399,6 +402,15 @@ class PdfPendingObjectLayer extends StatelessWidget {
 /// alan aynı konum ve genişlikte, paragrafın puntosunda açılır; yazı uzarsa
 /// kutu aşağı doğru büyür. Ekran, düzenleme başlarken paragrafa yakınlaşır —
 /// alan belge koordinatında olduğu için yakınlaştırmayla birlikte büyür.
+///
+/// **Özgün görünüm korunur (2026-10-30, kullanıcı: *"tek satırlık yazı
+/// düzenle dendiğinde 2 satıra çıkıyor"*).** İki kök neden vardı: (1) kenarlık
+/// + iç boşluk alanın iç genişliğini paragrafın kendisinden ~3 px DAR
+/// bırakıyordu; (2) alanın yazı tipi (Carlito) özgün gömülü yazı tipinden
+/// biraz geniş olabiliyor. Artık kutu dışa doğru açılır (iç genişlik =
+/// paragraf genişliği) ve özgün metin, özgün satır sayısına sığana kadar
+/// puntosu en fazla %25 küçültülerek çizilir — düzenleme açıldığı an sayfa
+/// "aynı" görünür; satır aralığı ve hiza da paragraftan gelir.
 class PdfInlineParagraphEditor extends StatelessWidget {
   /// Paragrafın katman koordinatındaki kutusu.
   final Rect rect;
@@ -408,8 +420,21 @@ class PdfInlineParagraphEditor extends StatelessWidget {
   /// Katman pikseli cinsinden yazı boyu (punto × ölçek).
   final double pointSize;
 
+  /// Özgün punto × ölçek ve özgün metin/satır sayısı — sığdırma oranı
+  /// bunlarla bir kez hesaplanır (kullanıcı puntoyu değiştirince oran sabit).
+  final double? originalPointSize;
+  final String? originalText;
+  final int originalLines;
+
+  /// Satır aralığı (punto katı); null → 1,15.
+  final double? lineHeight;
+  final TextAlign textAlign;
+
   /// Ret var mı — çerçeve rengi bunu söyler (gerekçe klavye üstü şeritte).
   final bool refused;
+
+  /// Uygulanıyor: yeni metin salt okunur yerinde durur, köşede çark.
+  final bool applying;
 
   const PdfInlineParagraphEditor({
     super.key,
@@ -417,47 +442,139 @@ class PdfInlineParagraphEditor extends StatelessWidget {
     required this.controller,
     required this.pointSize,
     this.focusNode,
+    this.originalPointSize,
+    this.originalText,
+    this.originalLines = 1,
+    this.lineHeight,
+    this.textAlign = TextAlign.start,
     this.refused = false,
+    this.applying = false,
   });
+
+  static const _border = 1.5;
+  static const _pad = 2.0;
+
+  /// Alanın imleç için ayırdığı pay (EditableText `cursorWidth` + boşluk).
+  static const _cursorSlack = 3.0;
+
+  static final Map<String, double> _fitCache = {};
+
+  /// Özgün metni [lines] satıra sığdıran ölçek (0,75…1).
+  static double fitRatio({
+    required String text,
+    required double width,
+    required double size,
+    required int lines,
+    required double height,
+    TextDirection direction = TextDirection.ltr,
+  }) {
+    if (text.trim().isEmpty || width <= 0 || size <= 0) return 1;
+    final key = '$width|$size|$lines|$height|$text';
+    final cached = _fitCache[key];
+    if (cached != null) return cached;
+    var ratio = 1.0;
+    final painter = TextPainter(textDirection: direction);
+    for (var i = 0; i < 12; i++) {
+      painter.text = TextSpan(
+          text: text,
+          style: TextStyle(
+              fontFamily: 'Carlito',
+              fontSize: size * ratio,
+              height: height,
+              letterSpacing: 0,
+              wordSpacing: 0));
+      painter.layout(maxWidth: width);
+      if (painter.computeLineMetrics().length <= lines) break;
+      ratio *= 0.975;
+      if (ratio < 0.75) {
+        ratio = 0.75;
+        break;
+      }
+    }
+    painter.dispose();
+    if (_fitCache.length > 64) _fitCache.clear();
+    return _fitCache[key] = ratio;
+  }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final border = refused ? scheme.error : scheme.primary;
+    const inset = _border + _pad;
+    final height = (lineHeight ?? 1.15).clamp(1.0, 2.0);
+    final original = originalText;
+    final ratio = original == null
+        ? 1.0
+        : fitRatio(
+            text: original,
+            width: rect.width - _cursorSlack,
+            size: originalPointSize ?? pointSize,
+            lines: originalLines,
+            height: height,
+            direction: Directionality.of(context),
+          );
     return Positioned(
-      left: rect.left - 2,
-      top: rect.top - 2,
-      width: rect.width + 4,
+      // Kenarlık ve iç boşluk DIŞA açılır: yazının sığdığı genişlik
+      // paragrafın kendi genişliği kadar kalır (+ imleç payı).
+      left: rect.left - inset,
+      top: rect.top - inset,
+      width: rect.width + 2 * inset + _cursorSlack,
       child: ConstrainedBox(
-        constraints: BoxConstraints(minHeight: rect.height + 4),
+        constraints: BoxConstraints(minHeight: rect.height + 2 * inset),
         child: DecoratedBox(
           key: const ValueKey('inline-paragraph-box'),
           decoration: BoxDecoration(
             // Sayfa kâğıdı beyaz: özgün yazı alttan görünmesin.
             color: AppColors.page,
-            border: Border.all(color: border, width: 1.5),
+            border: Border.all(color: border, width: _border),
             boxShadow: [
               BoxShadow(color: border.withValues(alpha: 0.25), blurRadius: 6),
             ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(2),
-            child: TextField(
-              key: const ValueKey('inline-paragraph-field'),
-              controller: controller,
-              focusNode: focusNode,
-              autofocus: true,
-              maxLines: null,
-              keyboardType: TextInputType.multiline,
-              style: TextStyle(
-                fontFamily: 'Carlito',
-                fontSize: pointSize,
-                height: 1.15,
-                color: AppColors.pageInk,
+          child: Stack(
+            children: [
+              Padding(
+                // DecoratedBox kenarlığı çocuğu içeri itmez: pay elle.
+                padding: const EdgeInsets.all(inset),
+                child: TextField(
+                  key: const ValueKey('inline-paragraph-field'),
+                  controller: controller,
+                  focusNode: focusNode,
+                  autofocus: true,
+                  readOnly: applying,
+                  maxLines: null,
+                  keyboardType: TextInputType.multiline,
+                  textAlign: textAlign,
+                  // Temanın gövde stili (M3: harf aralığı 0,5) BURAYA
+                  // karışmasın — sayfadaki yazının harf aralığı yok; o 0,5 px
+                  // tek satırı iki satıra itiyordu.
+                  style: TextStyle(
+                    fontFamily: 'Carlito',
+                    fontSize: pointSize * ratio,
+                    height: height,
+                    letterSpacing: 0,
+                    wordSpacing: 0,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.pageInk,
+                  ),
+                  cursorColor: border,
+                  decoration: _bare,
+                ),
               ),
-              cursorColor: border,
-              decoration: _bare,
-            ),
+              if (applying)
+                PositionedDirectional(
+                  top: 0,
+                  end: 0,
+                  child: SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                        key: const ValueKey('inline-applying'),
+                        strokeWidth: 2,
+                        color: border),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
@@ -547,6 +664,7 @@ class PdfFormOverlay extends StatelessWidget {
                 style: TextStyle(
                     fontFamily: 'Carlito',
                     fontSize: textSize,
+                    letterSpacing: 0,
                     color: AppColors.pageInk),
                 decoration: _bare,
               )

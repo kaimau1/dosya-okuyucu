@@ -228,6 +228,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
       bold: editing ? _textCtrl!.toggleBold : null,
       italic: editing ? _textCtrl!.toggleItalic : null,
       underline: editing ? _textCtrl!.toggleUnderline : null,
+      extraHelp: [('⇥ · ⇧⇥', context.t('ks.s_tab'))],
       child: OfficeShell(
         kind: DocKind.slides,
         title: widget.name,

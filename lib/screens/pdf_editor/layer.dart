@@ -111,7 +111,9 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
   /// Düzenleme sürerken şerit yerine de bu çubuk durur (klavye inince
   /// kullanıcı "Bitti"yi kaybetmesin).
   Widget? _editBar() {
-    if (_inlineIndex != null) {
+    if (_inlineOpen) {
+      final paragraph = _inlineIndex != null;
+      final applying = _inlineApplying;
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -128,33 +130,26 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
               AccessoryItem(
                 icon: AppIcons.close,
                 tooltip: context.t('common.cancel'),
-                onPressed: _cancelInline,
+                onPressed: applying ? null : _cancelInline,
               ),
-              AccessoryItem(
-                icon: AppIcons.textDecrease,
-                tooltip: context.t('pe.font_smaller'),
-                onPressed: () => _nudgeInlineSize(-0.5),
-              ),
-              AccessoryItem(
-                icon: AppIcons.textIncrease,
-                tooltip: context.t('pe.font_bigger'),
-                onPressed: () => _nudgeInlineSize(0.5),
-              ),
-              AccessoryItem(
-                key: const ValueKey('inline-overwrite'),
-                text: context.t('pe.overwrite'),
-                tooltip: context.t('pe.overwrite_help'),
-                onPressed: _busy ? null : _overwriteInline,
-              ),
-              AccessoryItem(
-                icon: AppIcons.editNote,
-                tooltip: context.t('pe.in_dialog'),
-                onPressed: () {
-                  final i = _inlineIndex!;
-                  _cancelInline();
-                  _editParagraphInDialog(i);
-                },
-              ),
+              if (paragraph) ...[
+                AccessoryItem(
+                  icon: AppIcons.textDecrease,
+                  tooltip: context.t('pe.font_smaller'),
+                  onPressed: applying ? null : () => _nudgeInlineSize(-0.5),
+                ),
+                AccessoryItem(
+                  icon: AppIcons.textIncrease,
+                  tooltip: context.t('pe.font_bigger'),
+                  onPressed: applying ? null : () => _nudgeInlineSize(0.5),
+                ),
+                AccessoryItem(
+                  key: const ValueKey('inline-overwrite'),
+                  text: context.t('pe.overwrite'),
+                  tooltip: context.t('pe.overwrite_help'),
+                  onPressed: _busy ? null : _overwriteInline,
+                ),
+              ],
             ],
           ),
         ],
@@ -205,9 +200,11 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
   Widget _inlineStatus() {
     final scheme = Theme.of(context).colorScheme;
     final refusal = _inlineRefusal;
-    if (refusal == null && !_inlineChecking && !_inlineFits) {
-      return const SizedBox.shrink();
-    }
+    final applying = _inlineApplying;
+    final checking = _inlineChecking || applying;
+    // Her an ne olduğu yazsın: açılınca "yaz, Bitti'ye bas", denerken
+    // "deneniyor", uygularken "uygulanıyor" (2026-10-30: "ne oluyor hissi").
+    final idle = refusal == null && !checking && !_inlineFits;
     final error = refusal != null;
     return Material(
       key: const ValueKey('inline-status'),
@@ -216,29 +213,35 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
         padding: const EdgeInsetsDirectional.fromSTEB(12, 6, 6, 6),
         child: Row(
           children: [
-            if (_inlineChecking)
+            if (checking)
               const SizedBox(
                   width: 14,
                   height: 14,
                   child: CircularProgressIndicator(strokeWidth: 2))
             else
-              Icon(error ? AppIcons.info : AppIcons.check,
+              Icon(error ? AppIcons.info : idle ? AppIcons.edit : AppIcons.check,
                   size: 16,
                   color: error ? scheme.onErrorContainer : scheme.primary),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 refusal ??
-                    context.t(_inlineChecking
-                        ? 'pe.inline_checking'
-                        : 'pe.inline_fits'),
+                    context.t(applying
+                        ? 'pe.busy_applying'
+                        : checking
+                            ? 'pe.inline_checking'
+                            : idle
+                                ? (_inlineScanned != null
+                                    ? 'pe.inline_hint_scanned'
+                                    : 'pe.inline_hint')
+                                : 'pe.inline_fits'),
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
                 style: context.type.compact.copyWith(
                     color: error ? scheme.onErrorContainer : null),
               ),
             ),
-            if (error)
+            if (error && _inlineIndex != null)
               TextButton(
                 onPressed: _busy ? null : _overwriteInline,
                 child: Text(context.t('pe.overwrite')),
@@ -266,31 +269,45 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
   /// Açık düzenleme alanlarını kapatır (yerinde paragraf vazgeçilir; yazı
   /// nesnesi ve form alanı yazılanı korur).
   void _closeEditors() {
-    if (_inlineIndex != null) _cancelInline();
+    if (_inlineOpen && !_inlineApplying) _cancelInline();
     if (_editingPending != null) _finishPendingText();
     if (_activeField != null) _commitField(close: true);
   }
 
   // ── Yerinde paragraf düzenleme ────────────────────────────────────────────
 
+  /// Yerinde alan açık mı (paragraf ya da taranmış satır).
+  bool get _inlineOpen => _inlineIndex != null || _inlineScanned != null;
+
   /// Paragrafa dokunuldu: kendi kutusunda düzenleme açılır ve ekran ona
   /// yakınlaşır (yazı okunur boya gelsin).
   void _editParagraph(int index) {
-    if (index < 0 || index >= _outline.paragraphs.length || _busy) return;
+    if (index < 0 || index >= _outline.paragraphs.length) return;
+    if (_busy) {
+      // Sessizce yutmak "bastım, bir şey olmadı" demekti (2026-10-30).
+      _snack(_str.t('pe.wait_busy', {'what': _busyNote ?? ''}));
+      return;
+    }
     _closeEditors();
-    final paragraph = _outline.paragraphs[index];
+    _openInline(_outline.paragraphs[index].text, paragraph: index);
+    _zoomToParagraph(index);
+  }
+
+  /// Ortak açılış: paragraf ([paragraph]) ya da OCR satırı ([scanned]).
+  void _openInline(String text, {int? paragraph, int? scanned}) {
     _inlineCtrl?.dispose();
-    final ctrl = TextEditingController(text: paragraph.text);
-    ctrl.addListener(_scheduleInlineCheck);
+    final ctrl = TextEditingController(text: text);
+    if (paragraph != null) ctrl.addListener(_scheduleInlineCheck);
     _partSetState(() {
-      _inlineIndex = index;
+      _inlineIndex = paragraph;
+      _inlineScanned = scanned;
       _inlineCtrl = ctrl;
       _inlineSize = null;
       _inlineRefusal = null;
       _inlineFits = false;
       _inlineChecking = false;
+      _inlineApplying = false;
     });
-    _zoomToParagraph(index);
   }
 
   /// Paragrafı görünür ve okunur boyda gösterir: hedef, ekranda ~18 px yazı.
@@ -317,23 +334,72 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
   }
 
   List<Widget> _inlineLayer(PdfPage page, Size pageSize) {
-    final index = _inlineIndex!;
     final ctrl = _inlineCtrl;
-    if (index >= _outline.paragraphs.length || ctrl == null) return const [];
-    final par = _outline.paragraphs[index];
-    final rect = PdfRect(par.left, par.top, par.right, par.bottom)
-        .toRect(page: page, scaledPageSize: pageSize);
+    if (ctrl == null) return const [];
     final scale = pageSize.width / page.width;
-    final pt = _inlineSize ?? paragraphPointSize(par);
+    // Uygularken sayfa yeniden okunur ve paragraf sırası kayabilir: alan,
+    // açıldığı kutuda donmuş kalır (yanlış paragrafa sıçramasın).
+    final geom = _inlineApplying && _inlineGeom != null
+        ? _inlineGeom!
+        : _inlineGeometry();
+    if (geom == null) return const [];
+    _inlineGeom = geom;
+    final (:box, :original, :lines, :basePt, :lineHeight, :align) = geom;
+    final rect = box.toRect(page: page, scaledPageSize: pageSize);
+    final pt = _inlineSize ?? basePt;
     return [
       PdfInlineParagraphEditor(
         rect: rect,
         controller: ctrl,
         focusNode: _inlineFocus,
-        pointSize: (pt > 0 ? pt : 11) * scale,
+        pointSize: pt * scale,
+        originalPointSize: basePt * scale,
+        originalText: original,
+        originalLines: lines,
+        lineHeight: lineHeight,
+        textAlign: align,
         refused: _inlineRefusal != null,
+        applying: _inlineApplying,
       ),
     ];
+  }
+
+  /// Açık alanın özgün kutusu, metni, satır sayısı, puntosu, satır aralığı
+  /// ve hizası (PDF noktası).
+  _InlineGeom? _inlineGeometry() {
+    final scanned = _inlineScanned;
+    if (scanned != null) {
+      if (scanned >= _scannedLines.length) return null;
+      final line = _scannedLines[scanned];
+      return (
+        box: line.box,
+        original: line.text,
+        lines: 1,
+        // OCR kutusu satırın görünen yüksekliği: büyük harf + alt uzantı ≈
+        // 1,2 punto.
+        basePt: math.max(4.0, line.box.height / 1.2),
+        lineHeight: null,
+        align: TextAlign.start,
+      );
+    }
+    final index = _inlineIndex;
+    if (index == null || index >= _outline.paragraphs.length) return null;
+    final par = _outline.paragraphs[index];
+    final lines = math.max(1, par.lines.length);
+    final measured = paragraphPointSize(par);
+    final basePt = measured > 0 ? measured : 11.0;
+    return (
+      box: PdfRect(par.left, par.top, par.right, par.bottom),
+      original: par.text,
+      lines: lines,
+      lineHeight: par.leading > 0 && lines > 1 ? par.leading / basePt : null,
+      basePt: basePt,
+      align: par.centered
+          ? TextAlign.center
+          : par.justified && lines > 1
+              ? TextAlign.justify
+              : TextAlign.start,
+    );
   }
 
   void _nudgeInlineSize(double delta) {
@@ -356,7 +422,7 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
   Future<void> _checkInline() async {
     final index = _inlineIndex;
     final ctrl = _inlineCtrl;
-    if (index == null || ctrl == null || !mounted) return;
+    if (index == null || ctrl == null || !mounted || _inlineApplying) return;
     final seq = ++_inlineSeq;
     final text = ctrl.text.trim();
     final size = _inlineSize;
@@ -396,21 +462,74 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
     final ctrl = _inlineCtrl;
     _partSetState(() {
       _inlineIndex = null;
+      _inlineScanned = null;
       _inlineCtrl = null;
       _inlineRefusal = null;
       _inlineFits = false;
       _inlineChecking = false;
+      _inlineApplying = false;
     });
     // Alan ağaçtan çıktıktan sonra bırakılır.
     WidgetsBinding.instance.addPostFrameCallback((_) => ctrl?.dispose());
   }
 
+  /// Yazılanı sayfaya uygular. **Alan, sayfa yenilenene kadar yerinde ve
+  /// yeni metinle kalır** (salt okunur, "uygulanıyor" işaretiyle): eskiden
+  /// alan hemen kapanıyor, birkaç saniye ESKİ metin görünüyor, sonra
+  /// birdenbire yenisi geliyordu (kullanıcı 2026-10-30).
+  Future<void> _applyInline(
+      String label, Future<List<int>> Function(List<int>) op) async {
+    _inlineTimer?.cancel();
+    _inlineSeq++;
+    _inlineFocus.unfocus();
+    _partSetState(() {
+      _inlineApplying = true;
+      _inlineChecking = false;
+      _busy = true;
+      _busyNote = _str.t('pe.busy_applying');
+    });
+    try {
+      await _history!.applyOp(label, op);
+      await _syncDocument();
+      _cancelInline();
+      _snack(label);
+    } on PdfParagraphRefused catch (e) {
+      if (mounted) _partSetState(() => _inlineRefusal = e.message);
+    } on PdfPageRefused catch (e) {
+      if (mounted) _partSetState(() => _inlineRefusal = e.message);
+    } catch (e) {
+      if (mounted) _partSetState(() => _inlineRefusal = userErrorText(e));
+    } finally {
+      if (mounted) {
+        _partSetState(() => _inlineApplying = false);
+        _setBusy(null);
+      }
+    }
+  }
+
   /// "Bitti": paragraf motoruyla yeniden dizilir. Reddedilirse alan AÇIK
   /// kalır ve gerekçe + "Üstüne yaz" satır içinde gösterilir.
   Future<void> _commitInline() async {
-    final index = _inlineIndex;
     final ctrl = _inlineCtrl;
-    if (index == null || ctrl == null || _busy) return;
+    if (ctrl == null || _busy) return;
+    final scanned = _inlineScanned;
+    final pageIndex = _page - 1;
+    if (scanned != null) {
+      if (scanned >= _scannedLines.length) return _cancelInline();
+      final line = _scannedLines[scanned];
+      final text = ctrl.text;
+      if (text.trim() == line.text.trim()) return _cancelInline();
+      await _applyInline(_str.t('pe.scanned_updated'), (b) async {
+        final out = await PdfScannedRetype.apply(
+            bytes: b, pageIndex: pageIndex, box: line.box, newText: text);
+        // Sayfa değişti: OCR bellek önbelleği bayat.
+        PdfOcrText.invalidateMemory();
+        return out;
+      });
+      return;
+    }
+    final index = _inlineIndex;
+    if (index == null) return;
     final paragraph = _outline.paragraphs[index];
     final text = ctrl.text.trim();
     final size = _inlineSize;
@@ -424,31 +543,15 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
       _partSetState(() => _inlineRefusal = _str.t('pe.inline_empty'));
       return;
     }
-    final pageIndex = _page - 1;
-    _inlineTimer?.cancel();
-    _partSetState(() => _busy = true);
-    try {
-      await _history!.applyOp(
-          _str.t('pe.paragraph_updated'),
-          (b) => PdfPageEdit.replaceParagraphInBackground(
-                b,
-                pageIndex: pageIndex,
-                paragraphIndex: index,
-                newText: text,
-                pointSize: sizeChanged ? size : null,
-              ));
-      _cancelInline();
-      await _syncDocument();
-      _snack(_str.t('pe.paragraph_updated'));
-    } on PdfParagraphRefused catch (e) {
-      if (mounted) _partSetState(() => _inlineRefusal = e.message);
-    } on PdfPageRefused catch (e) {
-      if (mounted) _partSetState(() => _inlineRefusal = e.message);
-    } catch (e) {
-      if (mounted) _partSetState(() => _inlineRefusal = userErrorText(e));
-    } finally {
-      if (mounted) _partSetState(() => _busy = false);
-    }
+    await _applyInline(
+        _str.t('pe.paragraph_updated'),
+        (b) => PdfPageEdit.replaceParagraphInBackground(
+              b,
+              pageIndex: pageIndex,
+              paragraphIndex: index,
+              newText: text,
+              pointSize: sizeChanged ? size : null,
+            ));
   }
 
   /// "Üstüne yaz": paragrafın kutusu beyazla örtülür, yeni metin aynı yere
@@ -462,40 +565,29 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
     final measured = paragraphPointSize(par);
     final size = _inlineSize ?? (measured > 0 ? measured : 11);
     final pageIndex = _page - 1;
-    _inlineTimer?.cancel();
-    _partSetState(() => _busy = true);
-    try {
-      await _history!.applyOp(
-          _str.t('pe.overwritten'),
-          (b) async {
-            // Önce eski metin akıştan çıkarılır (arama/kopyalama yeni metni
-            // bulsun); dengesiz akışta yalnız beyaz kapak kalır.
-            var base = b;
-            try {
-              base = await PdfPageEdit.eraseParagraphTextInBackground(b,
-                  pageIndex: pageIndex, paragraphIndex: index);
-            } catch (_) {
-              // Bilinçli: çıkarılamazsa kapak yine örter.
-            }
-            return PdfOverwrite.apply(
-                bytes: base,
-                pageIndex: pageIndex,
-                left: par.left,
-                bottom: par.bottom,
-                right: par.right,
-                top: par.top,
-                text: text,
-                pointSize: size,
-              );
-          });
-      _cancelInline();
-      await _syncDocument();
-      _snack(_str.t('pe.overwritten'));
-    } catch (e) {
-      if (mounted) _partSetState(() => _inlineRefusal = userErrorText(e));
-    } finally {
-      if (mounted) _partSetState(() => _busy = false);
-    }
+    await _applyInline(
+        _str.t('pe.overwritten'),
+        (b) async {
+          // Önce eski metin akıştan çıkarılır (arama/kopyalama yeni metni
+          // bulsun); dengesiz akışta yalnız beyaz kapak kalır.
+          var base = b;
+          try {
+            base = await PdfPageEdit.eraseParagraphTextInBackground(b,
+                pageIndex: pageIndex, paragraphIndex: index);
+          } catch (_) {
+            // Bilinçli: çıkarılamazsa kapak yine örter.
+          }
+          return PdfOverwrite.apply(
+            bytes: base,
+            pageIndex: pageIndex,
+            left: par.left,
+            bottom: par.bottom,
+            right: par.right,
+            top: par.top,
+            text: text,
+            pointSize: size,
+          );
+        });
   }
 
   // ── Bekleyen nesneler ─────────────────────────────────────────────────────
@@ -506,7 +598,7 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
         if (o.pageIndex == page.pageNumber - 1) o
     ];
     if (objects.isEmpty) return const [];
-    final interactive = _inlineIndex == null &&
+    final interactive = !_inlineOpen &&
         !_placingText &&
         (_mode == _EditMode.text ||
             _mode == _EditMode.image ||

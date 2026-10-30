@@ -12,6 +12,7 @@ import '../core/app_icons.dart';
 import '../core/app_state.dart';
 import '../core/edit/edit_session.dart';
 import '../core/edit/editor_chrome.dart';
+import '../core/edit/editor_shortcuts.dart';
 import '../core/motion.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/gemini_service.dart';
@@ -89,6 +90,16 @@ class PdfEditorScreen extends StatefulWidget {
 /// şerit dili; eskiden alt `NavigationBar`).
 enum _EditMode { text, image, sign, form, background, page }
 
+/// Yerinde alanın özgün geometrisi (PDF noktası) — bkz. `_inlineGeometry`.
+typedef _InlineGeom = ({
+  PdfRect box,
+  String original,
+  int lines,
+  double basePt,
+  double? lineHeight,
+  TextAlign align,
+});
+
 class _PdfEditorScreenState extends State<PdfEditorScreen> {
   /// Bu ekranın mesajları uzun asenkron işlerin **içinden** üretiliyor
   /// (`_run`, `_apply`, `catch` dalları); orada `context` kullanmak
@@ -130,6 +141,9 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   /// Süren jest iki parmaklı mı — fırlatma sürtünmesi (bkz. [kPdfPanFriction]).
   bool _pinch = false;
   bool _busy = false;
+
+  /// Meşgulken ne yapıldığı (ipucu şeridinde) — bkz. `_setBusy`.
+  String? _busyNote;
   bool _ready = false;
   String? _error;
 
@@ -160,6 +174,15 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
 
   // ── Yerinde paragraf düzenleme (Faz 31 / PD1–PD2) ──────────────────────
   int? _inlineIndex;
+
+  /// Yerinde düzenlenen OCR satırı (taranmış sayfa) — paragrafla aynı alan.
+  int? _inlineScanned;
+
+  /// Uygulanıyor: alan yeni metinle, salt okunur, sayfa yenilenene kadar.
+  bool _inlineApplying = false;
+
+  /// Alanın son çizildiği özgün kutu (uygularken donar).
+  _InlineGeom? _inlineGeom;
   TextEditingController? _inlineCtrl;
   final FocusNode _inlineFocus = FocusNode();
 
@@ -276,10 +299,22 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         ),
         // Faz 20 ortak kabuğu: klavye açıkken klavyenin hemen üstünde hızlı
         // çubuk, kapalıyken şerit (sekmeler = kipler).
-        body: EditorChrome(
-          accessory: _accessory(),
-          ribbon: _ribbon(),
-          body: _body(),
+        // Donanım klavyesi (Faz 33): geri al / yinele / kaydet, Esc, Ctrl+/.
+        body: EditorShortcuts(
+          undo: history == null || !history.canUndo || _busy ? null : _undoLast,
+          redo: history == null || !history.canRedo || _busy ? null : _redoLast,
+          save: !_dirty || _busy
+              ? null
+              : () async {
+                  final navigator = Navigator.of(context);
+                  if (await _save() && mounted) navigator.pop(true);
+                },
+          escape: _inlineOpen && !_inlineApplying ? _cancelInline : null,
+          child: EditorChrome(
+            accessory: _accessory(),
+            ribbon: _ribbon(),
+            body: _body(),
+          ),
         ),
       ),
     );
@@ -287,9 +322,6 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
 
   // ── Küçük yardımcılar ─────────────────────────────────────────────────────
 
-  /// `10.0` → `10`, `10.5` → `10.5`.
-  static String _trimZero(double v) =>
-      v == v.roundToDouble() ? v.round().toString() : v.toString();
 
 
   /// Parça dosyalarındaki uzantılar `setState`i (korumalı) buradan çağırır.

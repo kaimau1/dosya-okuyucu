@@ -9,7 +9,14 @@ import 'package:flutter/gestures.dart'
     show Drag, DoubleTapGestureRecognizer, ImmediateMultiDragGestureRecognizer;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show BoxHitTestResult, RenderMetaData;
-import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:flutter/services.dart'
+    show
+        Clipboard,
+        ClipboardData,
+        HardwareKeyboard,
+        KeyEvent,
+        KeyUpEvent,
+        LogicalKeyboardKey;
 import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart';
 
@@ -73,6 +80,7 @@ part 'spreadsheet/data_ops.dart';
 part 'spreadsheet/finish_format.dart';
 part 'spreadsheet/finish_data.dart';
 part 'spreadsheet/chart_layer.dart';
+part 'spreadsheet/keyboard.dart';
 
 /// Excel görünümü — hedef: dosya telefonda **Excel'deki gibi** görünsün.
 ///
@@ -217,6 +225,9 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
   /// düzenleme HÜCREDE değil burada açılır (bkz. [_select]).
   final _barFocus = FocusNode();
 
+  /// Izgaranın klavye odağı (Faz 33: donanım klavyesi — `keyboard.dart`).
+  final _gridFocus = FocusNode(debugLabel: 'sheet-grid');
+
   double _zoom = 1;
 
   /// Şeritteki −/%/+ düğmeleri pinch ile AYNI ölçeği sürer.
@@ -316,6 +327,11 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
         setState(() => _keypad = false);
       }
     });
+    // Hücre editörü / formül çubuğu kapanınca klavye odağı ızgaraya döner.
+    void refocus() => WidgetsBinding.instance
+        .addPostFrameCallback((_) => _refocusGridAfterEdit());
+    _cellFocus.addListener(refocus);
+    _barFocus.addListener(refocus);
     _load();
   }
 
@@ -327,6 +343,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
     }
     _session.dispose();
     _cellFocus.dispose();
+    _gridFocus.dispose();
     _keypadPanel.dispose();
     _cellField.dispose();
     _barFocus.dispose();
@@ -423,6 +440,17 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
       redo: editor == null || !_undo.canRedo ? null : _redoStep,
       save: editor == null ? null : _save,
       find: editor == null ? null : _toggleFind,
+      extraHelp: [
+        ('← ↑ → ↓', context.t('ks.x_move')),
+        ('Ctrl+ok', context.t('ks.x_edge')),
+        ('⇥ · ⇧⇥', context.t('ks.x_tab')),
+        ('↵ · ⇧↵', context.t('ks.x_enter')),
+        ('F2', context.t('ks.x_f2')),
+        ('Delete', context.t('ks.x_delete')),
+        ('Home · Ctrl+Home', context.t('ks.x_home')),
+        ('PgUp · PgDn', context.t('ks.x_page')),
+        ('A–Z 0–9', context.t('ks.x_type')),
+      ],
       child: OfficeShell(
       kind: DocKind.spreadsheet,
       title: widget.name,
@@ -483,7 +511,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
                         onCommitted: _fixScroll,
                         builder: (context, zoom, physics) {
                           _zoom = zoom;
-                          return _grid(physics);
+                          return _keyboardGrid(_grid(physics));
                         },
                       ),
                     ),

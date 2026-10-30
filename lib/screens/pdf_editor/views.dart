@@ -36,7 +36,14 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                   },
                   onPageChanged: (page) {
                     if (page == null || page == _page) return;
-                    _partSetState(() => _page = page);
+                    // Eski sayfanın kutuları yeni sayfada bir an yanlış
+                    // yerde görünmesin: anahat okunana kadar boş.
+                    if (_inlineOpen && !_inlineApplying) _cancelInline();
+                    _partSetState(() {
+                      _page = page;
+                      _outline = PdfPageOutline.empty;
+                      _selectedObject = null;
+                    });
                     _loadOutline();
                   },
                   onViewerReady: (doc, _) {
@@ -55,7 +62,7 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                         return const SizedBox.shrink();
                       }),
                     if (page.pageNumber == _page &&
-                        _inlineIndex == null &&
+                        !_inlineOpen &&
                         (_mode == _EditMode.text || _mode == _EditMode.image))
                       PdfEditOverlay(
                         page: page,
@@ -82,7 +89,7 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                     // yani gerçek metnin üstüne ikinci kutu binmez.
                     if (page.pageNumber == _page &&
                         _mode == _EditMode.text &&
-                        _inlineIndex == null &&
+                        !_inlineOpen &&
                         _ocrEditable &&
                         PdfOcrText.isSupported)
                       Builder(builder: (context) {
@@ -103,7 +110,7 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                     if (_mode == _EditMode.form)
                       ..._formLayer(page, pageRect.size),
                     // Paragrafın kendi kutusunda düzenleme (Faz 31 / PD1).
-                    if (page.pageNumber == _page && _inlineIndex != null)
+                    if (page.pageNumber == _page && _inlineOpen)
                       ..._inlineLayer(page, pageRect.size),
                     // Kaydedilene kadar nesne olan yazı/imza/görseller.
                     ..._pendingLayer(page, pageRect.size),
@@ -186,15 +193,30 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                 _EditMode.background => 'pe.hint_background',
                 _EditMode.page => 'pe.hint_page',
               });
-    return Container(
+    final busyNote = _busy ? (_busyNote ?? context.t('pe.busy_working')) : null;
+    final scheme = Theme.of(context).colorScheme;
+    return AnimatedContainer(
+      key: const ValueKey('pe-hint'),
+      duration: Motion.short,
       width: double.infinity,
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      color: busyNote != null
+          ? scheme.secondaryContainer
+          : scheme.surfaceContainerHighest,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
-          const Icon(AppIcons.info, size: 18),
+          if (busyNote != null)
+            const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2))
+          else
+            const Icon(AppIcons.info, size: 18),
           const SizedBox(width: 8),
-          Expanded(child: Text(text, style: context.type.compact)),
+          Expanded(
+              child: Text(busyNote ?? text,
+                  key: const ValueKey('pe-hint-text'),
+                  style: context.type.compact)),
           if (_pageCount > 0)
             Text('$_page / $_pageCount',
                 style:
@@ -344,131 +366,6 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
         ),
       ],
     );
-  }
-
-  /// Paragraf düzenleme penceresi.
-  ///
-  /// Özgün metin ÜSTTE, soluk ve salt okunur duruyor — kullanıcı neyi
-  /// değiştirdiğini gözden kaçırmasın (isteğin birebir karşılığı: *"orjinal
-  /// arka planda duruyor"*).
-  /// Paragraf düzenleme penceresi: metin **ve** punto.
-  ///
-  /// [pointSize] paragrafın ölçülmüş görünen puntosudur; verilirse kullanıcı
-  /// onu da değiştirebilir (kullanıcı isteği 2026-09-01: *"yazı puntosu
-  /// tutmadı… ufacık yazdı"*). Verilmezse (taranmış sayfa satırı) yalnız
-  /// metin sorulur ve dönen `size` null olur.
-  ///
-  /// [original] boşsa (sayfaya YENİ yazı — Faz 8 yedeği) "şu anki metin"
-  /// kutusu çizilmez ve başlık [titleKey] olur.
-  Future<({String text, double? size})?> _askParagraphText(
-    String original, {
-    double? pointSize,
-    String titleKey = 'pe.edit_paragraph',
-  }) {
-    final controller = TextEditingController(text: original);
-    // Punto kutusu: ölçülen değer bir tık yuvarlanır (9.9998 → 10).
-    final rounded =
-        pointSize == null ? null : (pointSize * 10).roundToDouble() / 10;
-    final sizeController = TextEditingController(
-        text: rounded == null ? '' : _PdfEditorScreenState._trimZero(rounded));
-    return showDialog<({String text, double? size})>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.t(titleKey)),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (original.isNotEmpty) ...[
-                Text(ctx.t('pe.current_text'),
-                    style: Theme.of(ctx).textTheme.labelMedium),
-                const SizedBox(height: 4),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Theme.of(ctx).colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(original,
-                      style: context.type.small.copyWith(
-                        color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-                      )),
-                ),
-                const SizedBox(height: 12),
-              ],
-              TextField(
-                controller: controller,
-                autofocus: true,
-                maxLines: 8,
-                minLines: 3,
-                decoration: InputDecoration(
-                  labelText: ctx.t('pe.new_text'),
-                  helperText: ctx.t('pe.new_text_help'),
-                  border: const OutlineInputBorder(),
-                ),
-              ),
-              if (rounded != null) ...[
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: sizeController,
-                        keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true),
-                        decoration: InputDecoration(
-                          labelText: ctx.t('pe.font_size'),
-                          helperText: ctx.t('pe.font_size_help'),
-                          isDense: true,
-                          border: const OutlineInputBorder(),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      tooltip: ctx.t('pe.font_smaller'),
-                      icon: const Icon(AppIcons.textDecrease),
-                      onPressed: () => _nudgeSize(sizeController, -0.5),
-                    ),
-                    IconButton(
-                      tooltip: ctx.t('pe.font_bigger'),
-                      icon: const Icon(AppIcons.textIncrease),
-                      onPressed: () => _nudgeSize(sizeController, 0.5),
-                    ),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(ctx.t('common.cancel'))),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, (
-              text: controller.text,
-              size: rounded == null
-                  ? null
-                  : double.tryParse(sizeController.text.replaceAll(',', '.')),
-            )),
-            child: Text(ctx.t('common.apply')),
-          ),
-        ],
-      ),
-    ).whenComplete(() {
-      controller.dispose();
-      sizeController.dispose();
-    });
-  }
-
-  /// Punto kutusunu [delta] kadar oynatır (± düğmeleri).
-  void _nudgeSize(TextEditingController c, double delta) {
-    final current = double.tryParse(c.text.replaceAll(',', '.')) ?? 10;
-    final next = (current + delta).clamp(2.0, 200.0);
-    c.text = _PdfEditorScreenState._trimZero((next * 10).roundToDouble() / 10);
   }
 
   Future<bool?> _confirm(String title, String message) => showAppConfirm(

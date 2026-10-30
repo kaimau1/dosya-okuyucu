@@ -404,6 +404,8 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     });
     _syncField();
     _ensureVisible(r, c);
+    // Donanım klavyesi: seçim değişince oklar ızgaraya gitsin (Faz 33).
+    if (!_barFocus.hasFocus && !_gridFocus.hasFocus) _gridFocus.requestFocus();
   }
 
   bool _inSelection(int r, int c) {

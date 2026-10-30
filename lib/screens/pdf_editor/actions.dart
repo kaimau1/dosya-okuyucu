@@ -31,7 +31,12 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
   Future<void> _loadOutline() async {
     final path = _workPath;
     if (path == null) return;
-    _partSetState(() => _busy = true);
+    // İç içe çağrı (uygula → senkron → anahat): dıştaki iş meşgul bayrağını
+    // ve notunu tutar; burada erken bırakılırsa "bitti" sanılıp dokunuşlar
+    // yarım belgeye giderdi.
+    final owner = !_busy;
+    final page = _page;
+    if (owner) _setBusy(_str.t('pe.busy_reading', {'page': page}));
     try {
       final outline =
           await PdfPageEdit.outlineInBackground(await _workBytes(), _page - 1);
@@ -66,12 +71,25 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
       }
       _snack(_str.t('pe.outline_failed', {'error': userErrorText(e)}));
     } finally {
-      if (mounted) _partSetState(() => _busy = false);
+      if (owner) _setBusy(null);
     }
   }
 
+  /// Meşgul bayrağı + ne yapıldığı (ipucu şeridinde dönen çark ve cümle).
+  /// Kullanıcı 2026-10-30: *"bir tuşa basınca bir şey olmuyor, aslında
+  /// yükleniyormuş, birkaç saniye sonra bir şey oluyor"* — 3 piksellik çubuk
+  /// fark edilmiyordu; artık her bekleme ne olduğunu söylüyor.
+  void _setBusy(String? note) {
+    if (!mounted) return;
+    _partSetState(() {
+      _busy = note != null;
+      _busyNote = note;
+    });
+  }
+
   Future<void> _loadBackground() async {
-    _partSetState(() => _busy = true);
+    final owner = !_busy;
+    if (owner) _setBusy(_str.t('pe.busy_background'));
     try {
       final items =
           await PdfPageEdit.backgroundItemsInBackground(await _workBytes());
@@ -85,7 +103,7 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
     } catch (e) {
       _snack(_str.t('pe.background_failed', {'error': userErrorText(e)}));
     } finally {
-      if (mounted) _partSetState(() => _busy = false);
+      if (owner) _setBusy(null);
     }
   }
 
@@ -102,6 +120,7 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
 
   /// Bellekteki güncel belgeyi görüntüleyiciye yansıtır.
   Future<void> _syncDocument() async {
+    if (_busy) _setBusy(_str.t('pe.busy_refresh'));
     final path = _workPath!;
     await File(path).writeAsBytes(_history!.bytes, flush: true);
     await PdfReload.reloadFile(path);
@@ -115,11 +134,11 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
     if (h == null || !h.canUndo || _busy) return;
     _closeEditors();
     final label = h.undoLabel;
-    _partSetState(() => _busy = true);
+    _setBusy(_str.t('pe.busy_undo', {'what': label ?? ''}));
     try {
       if (await h.undo()) await _syncDocument();
     } finally {
-      if (mounted) _partSetState(() => _busy = false);
+      _setBusy(null);
     }
     if (mounted) _snack(_str.t('pe.undone_what', {'what': label ?? ''}));
   }
@@ -129,45 +148,15 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
     if (h == null || !h.canRedo || _busy) return;
     _closeEditors();
     final label = h.redoLabel;
-    _partSetState(() => _busy = true);
+    _setBusy(_str.t('pe.busy_redo', {'what': label ?? ''}));
     try {
       if (await h.redo()) await _syncDocument();
     } catch (e) {
       _longSnack(_str.t('pe.op_failed', {'error': userErrorText(e)}));
     } finally {
-      if (mounted) _partSetState(() => _busy = false);
+      _setBusy(null);
     }
     if (mounted) _snack(_str.t('pe.redone_what', {'what': label ?? ''}));
-  }
-
-  /// Diyalogda düzenleme — yerinde düzenlemenin yedeği ("Pencerede").
-  Future<void> _editParagraphInDialog(int index) async {
-    if (index < 0 || index >= _outline.paragraphs.length) return;
-    final paragraph = _outline.paragraphs[index];
-    final currentSize = paragraphPointSize(paragraph);
-    final answer = await _askParagraphText(
-      paragraph.text,
-      pointSize: currentSize > 0 ? currentSize : null,
-    );
-    if (answer == null || !mounted) return;
-    final newText = answer.text;
-    final size = answer.size;
-    final sizeChanged =
-        size != null && size > 0 && (size - currentSize).abs() > 0.05;
-    if (newText.trim() == paragraph.text.trim() && !sizeChanged) return;
-
-    final pageIndex = _page - 1;
-    final text = newText.trim();
-    final pointSize = sizeChanged ? size : null;
-    await _run(() => _apply(
-        (b) => PdfPageEdit.replaceParagraphInBackground(
-              b,
-              pageIndex: pageIndex,
-              paragraphIndex: index,
-              newText: text,
-              pointSize: pointSize,
-            ),
-        _str.t('pe.paragraph_updated')));
   }
 
   /// Bu sayfada OCR ile düzenleme denenmeli mi?
@@ -232,28 +221,20 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
     ];
   }
 
-  /// OCR satırına dokunuldu: tanınan metin ön-dolu pencerede düzenlenir,
-  /// satır beyaz kapakla örtülüp yeni metin AYNI yere yazılır (bkz.
-  /// [PdfScannedRetype]). Boş bırakmak satırı siler.
-  Future<void> _editScannedLine(int index) async {
+  /// OCR satırına dokunuldu: tanınan metin **satırın kendi kutusunda**
+  /// düzenlenir (paragrafla aynı yerinde alan — 2026-10-30 kullanıcı:
+  /// *"metin düzenleme her PDF türünde aynı değil, kimisinde direkt yerinde,
+  /// kimisinde açılan bir pencerede"*). Bitti'de satır beyaz kapakla örtülüp
+  /// yeni metin AYNI yere yazılır (bkz. [PdfScannedRetype]); boş bırakmak
+  /// satırı siler.
+  void _editScannedLine(int index) {
     if (index < 0 || index >= _scannedLines.length) return;
-    final line = _scannedLines[index];
-    final answer = await _askParagraphText(line.text);
-    if (answer == null || !mounted) return;
-    final newText = answer.text;
-    final pageIndex = _page - 1;
-    await _run(() async {
-      await _apply(
-          (b) => PdfScannedRetype.apply(
-                bytes: b,
-                pageIndex: pageIndex,
-                box: line.box,
-                newText: newText,
-              ),
-          _str.t('pe.scanned_updated'));
-      // Sayfa değişti: OCR bellek önbelleği bayat, kutular yeniden yüklensin.
-      PdfOcrText.invalidateMemory();
-    });
+    if (_busy) {
+      _snack(_str.t('pe.wait_busy', {'what': _busyNote ?? ''}));
+      return;
+    }
+    _closeEditors();
+    _openInline(_scannedLines[index].text, scanned: index);
   }
 
   /// **Sayfayı düzelt** — taranmış sayfanın TÜM satırlarını bir geçişte
@@ -277,7 +258,7 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
       gemini = state.gemini;
     }
 
-    await _run(() async {
+    await _run(note: _str.t(withAi ? 'pe.busy_fix_ai' : 'pe.busy_fix'), () async {
       final fixed = withAi
           ? await ScanAiFix.polish(gemini!, originals)
           : ScanTextFix.lines(originals);
@@ -314,7 +295,7 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
               pageIndex: pageIndex,
               objectIndex: index,
             ),
-        _str.t('pe.image_deleted')));
+        _str.t('pe.image_deleted')), note: _str.t('pe.busy_image'));
   }
 
   Future<void> _moveObject(int index, Rect pageRect) async {
@@ -331,7 +312,7 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
               width: pageRect.width.abs(),
               height: pageRect.height.abs(),
             ),
-        _str.t('pe.image_moved')));
+        _str.t('pe.image_moved')), note: _str.t('pe.busy_image'));
   }
 
   /// Seçili görseli **kendi merkezinde** döndürür / aynalar (kullanıcı
@@ -352,7 +333,8 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
               flipH: flipH,
               flipV: flipV,
             ),
-        _str.t(quarterTurns != 0 ? 'pe.image_turned' : 'pe.image_mirrored')));
+        _str.t(quarterTurns != 0 ? 'pe.image_turned' : 'pe.image_mirrored')),
+        note: _str.t('pe.busy_image'));
   }
 
   Future<void> _removeBackground() async {
@@ -377,7 +359,7 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
               pageIndexes: [pageIndex],
               quarterTurns: quarterTurns,
             ),
-        _str.t('pe.page_rotated')));
+        _str.t('pe.page_rotated')), note: _str.t('pe.busy_rotate'));
   }
 
   /// Ortak sarmalayıcı: meşgul bayrağı + tek yerde hata mesajı.
@@ -385,9 +367,12 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
   /// Reddedilme mesajları kullanıcıya doğrudan gösterilebilir biçimde
   /// yazıldı ("metin sığmıyor, 2 satır fazla geliyor" gibi); teknik bir
   /// istisna metnine sarmadan aynen gösteriyoruz.
-  Future<void> _run(Future<void> Function() body) async {
-    if (_busy) return;
-    _partSetState(() => _busy = true);
+  Future<void> _run(Future<void> Function() body, {String? note}) async {
+    if (_busy) {
+      _snack(_str.t('pe.wait_busy', {'what': _busyNote ?? ''}));
+      return;
+    }
+    _setBusy(note ?? _str.t('pe.busy_working'));
     try {
       await body();
     } on PdfPageRefused catch (e) {
@@ -407,7 +392,7 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
     } catch (e) {
       _longSnack(_str.t('pe.op_failed', {'error': userErrorText(e)}));
     } finally {
-      if (mounted) _partSetState(() => _busy = false);
+      _setBusy(null);
     }
   }
 
@@ -444,13 +429,13 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
     // Bekleyen nesneler + form değerleri TEK geçişte yazılır (izolatta).
     final List<int> bytes;
     try {
-      _partSetState(() => _busy = true);
+      _setBusy(_str.t('pe.busy_saving'));
       bytes = await PdfPendingWriter.write(_history!.bytes, _layer);
     } catch (e) {
       _longSnack(_str.t('pe.op_failed', {'error': userErrorText(e)}));
       return false;
     } finally {
-      if (mounted) _partSetState(() => _busy = false);
+      _setBusy(null);
     }
     if (!mounted) return false;
     final outcome = await savePdfWithChoice(

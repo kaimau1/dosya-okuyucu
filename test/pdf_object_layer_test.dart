@@ -2,6 +2,7 @@ import 'package:dosya_okuyucu/services/pdf/pdf_form.dart';
 import 'package:dosya_okuyucu/services/pdf/pdf_pending_objects.dart';
 import 'package:dosya_okuyucu/widgets/pdf_object_layer.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Faz 31: yerinde paragraf alanı, dört köşe tutamağı, bekleyen nesneler ve
@@ -24,16 +25,53 @@ void main() {
     await tester.pumpWidget(host(PdfInlineParagraphEditor(
         rect: rect, controller: ctrl, pointSize: 12)));
     final box = tester.getRect(find.byKey(const ValueKey('inline-paragraph-box')));
-    // Kutu paragrafı 2 px payla tam örter.
-    expect(box.left, closeTo(rect.left - 2, 0.01));
-    expect(box.top, closeTo(rect.top - 2, 0.01));
-    expect(box.width, closeTo(rect.width + 4, 0.01));
-    expect(box.height, greaterThanOrEqualTo(rect.height + 4 - 0.01));
+    // Kenarlık + iç boşluk DIŞA açılır (3,5 px), iç genişlik = paragraf
+    // genişliği + imleç payı (2026-10-30: tek satır iki satıra çıkıyordu).
+    expect(box.left, closeTo(rect.left - 3.5, 0.01));
+    expect(box.top, closeTo(rect.top - 3.5, 0.01));
+    expect(box.width, closeTo(rect.width + 7 + 3, 0.01));
+    expect(box.height, greaterThanOrEqualTo(rect.height + 7 - 0.01));
     final field =
         tester.getRect(find.byKey(const ValueKey('inline-paragraph-field')));
-    expect(rect.inflate(2).contains(field.topLeft), isTrue);
+    expect(field.left, closeTo(rect.left, 0.01));
+    expect(field.width, greaterThanOrEqualTo(rect.width));
     await tester.enterText(find.byType(TextField), 'Yeni paragraf');
     expect(ctrl.text, 'Yeni paragraf');
+  });
+
+  testWidgets('tek satırlık paragraf düzenleme açılınca tek satır kalır',
+      (tester) async {
+    // Kutu, yazının bu puntoda TAM sığmadığı kadar dar: sığdırma olmadan
+    // iki satıra kırılırdı.
+    const text = 'Toplantı tutanağı ve ekleri';
+    final probe = TextPainter(
+        text: const TextSpan(
+            text: text,
+            style: TextStyle(fontFamily: 'Carlito', fontSize: 20, height: 1.15)),
+        textDirection: TextDirection.ltr)
+      ..layout();
+    final rect = Rect.fromLTWH(10, 10, probe.width * 0.9, 24);
+    probe.dispose();
+    final ctrl = TextEditingController(text: text);
+    await tester.pumpWidget(host(PdfInlineParagraphEditor(
+        rect: rect,
+        controller: ctrl,
+        pointSize: 20,
+        originalPointSize: 20,
+        originalText: text,
+        originalLines: 1)));
+    final RenderEditable editable =
+        tester.state<EditableTextState>(find.byType(EditableText)).renderEditable;
+    final lineCount = editable
+        .getBoxesForSelection(
+            const TextSelection(baseOffset: 0, extentOffset: text.length))
+        .map((b) => b.top.round())
+        .toSet()
+        .length;
+    expect(lineCount, 1);
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.style!.fontSize, lessThan(20));
+    expect(field.style!.fontSize, greaterThanOrEqualTo(15));
   });
 
   test('köşeden boyutlandırma: karşı köşe sabit, oran kilidi', () {

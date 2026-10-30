@@ -386,7 +386,7 @@
   "durations": 1
  },
  "lib/widgets/pdf_object_layer.dart": {
-  "font_size": 5
+  "font_size": 6
  },
  "lib/widgets/pdf_page_navigator.dart": {
   "hex_colors": 1,

@@ -11,6 +11,7 @@ import '../../core/user_error.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/ai_tagger.dart';
 import '../../services/fm/file_tags.dart';
+import '../../screens/fm/job_report_screen.dart';
 import '../../services/fm/job_queue.dart';
 import '../ai_key_gate.dart';
 import '../app_dialog.dart';
@@ -80,6 +81,17 @@ Future<bool> showAiTagFlow(BuildContext context, List<FsEntry> entries) async {
     showSnack(context, str.t('tagai.none'));
     return false;
   }
+  // Gözden geçirme **İş sonucu ekranında** (2026-10-30 (2)): küçük resimli
+  // ızgara, etiket çipleri, dosyaya göre görünüm. Eskiden burada yalnız etiket
+  // adlarını listeleyen bir levha açılıyordu; hangi fotoğrafa ne önerildiği
+  // görülmüyordu ve aynı iş İşlemler'den açılınca bambaşka bir ekran çıkıyordu.
+  final job = busy.task.job;
+  if (job != null) {
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => JobReportScreen(job: job),
+    ));
+    return job.changes.any((c) => c.applied);
+  }
   final picked = await showAppSheet<Map<String, Set<String>>>(
     context,
     scrollable: false,
@@ -88,15 +100,6 @@ Future<bool> showAiTagFlow(BuildContext context, List<FsEntry> entries) async {
   if (picked == null || picked.isEmpty) return false;
   for (final e in picked.entries) {
     await FileTags.add(e.value, e.key);
-  }
-  final job = busy.task.job;
-  if (job != null) {
-    for (final c in job.changes) {
-      if (c.kind == 'tag' && picked[c.value]?.contains(c.path) == true) {
-        c.applied = true;
-      }
-    }
-    JobQueue.instance.touch(job);
   }
   if (context.mounted) {
     showSnack(context,

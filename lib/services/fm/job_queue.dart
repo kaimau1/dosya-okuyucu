@@ -251,13 +251,21 @@ class JobChange {
   /// Uygulandı mı (öneri olarak kaldıysa false).
   bool applied;
 
+  /// Kullanıcı öneriyi çıkardı mı (ayrıntı sayfasında ✕). Çıkarılan öneri
+  /// "Tümünü uygula"ya girmez ama listede soluk kalır — fikir değiştirilebilir.
+  bool rejected;
+
   JobChange({
     required this.path,
     required this.kind,
     required this.value,
     this.before,
     this.applied = true,
+    this.rejected = false,
   });
+
+  /// Uygulanmamış ve çıkarılmamış öneri.
+  bool get pending => !applied && !rejected;
 
   Map<String, Object?> toJson() => {
         'p': path,
@@ -265,6 +273,7 @@ class JobChange {
         'v': value,
         if (before != null) 'b': before,
         if (!applied) 'a': false,
+        if (rejected) 'r': true,
       };
 
   static JobChange? fromJson(Object? raw) {
@@ -277,6 +286,7 @@ class JobChange {
       value: value,
       before: raw['b'] as String?,
       applied: raw['a'] != false,
+      rejected: raw['r'] == true,
     );
   }
 }

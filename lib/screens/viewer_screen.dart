@@ -26,6 +26,7 @@ import '../core/pretty_format.dart';
 import '../core/text_replace.dart';
 import '../core/doc_fonts.dart';
 import '../core/image_budget.dart';
+import '../core/edit/editor_shortcuts.dart';
 import '../core/edit/edit_session.dart';
 import '../core/edit/code_editing.dart';
 import '../core/edit/code_highlight.dart';
@@ -708,7 +709,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
         final leave = await _confirmLeavePending();
         if (leave && context.mounted) Navigator.of(context).pop();
       },
-      child: _buildShell(doc, hasApiKey),
+      // Donanım klavyesi (Faz 33): düzenlenebilir metinde Ctrl+S/Z/Y/F, Ctrl+/.
+      child: doc.isEditableText
+          ? EditorShortcuts(
+              save: _save,
+              undo: _undoCtl.undo,
+              redo: _undoCtl.redo,
+              find: _toggleFind,
+              child: _buildShell(doc, hasApiKey),
+            )
+          : _buildShell(doc, hasApiKey),
     );
   }
 
