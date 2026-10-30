@@ -95,6 +95,7 @@ extension _SlidesEditorScreenSorterPart on _SlidesEditorScreenState {
           item('hide', hidden ? AppIcons.hidden : AppIcons.hiddenOff,
               ctx.t(hidden ? 'sl.unhide' : 'sl.hide'),
               enabled: structural),
+          item('layout', AppIcons.spaceDashboard, ctx.t('sl.change_layout')),
           item('notes', AppIcons.notes, ctx.t('sl.notes_edit')),
           item('del', AppIcons.delete, ctx.t('sl.delete'),
               enabled: structural && editor.slides.length > 1),
@@ -104,6 +105,8 @@ extension _SlidesEditorScreenSorterPart on _SlidesEditorScreenState {
     if (act == null || !mounted) return;
     if (act == 'new') {
       await _openLayoutGallery(slide);
+    } else if (act == 'layout') {
+      await _openLayoutGallery(slide, change: true);
     } else {
       _onSlideAction(slide, act);
     }

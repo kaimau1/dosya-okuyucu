@@ -97,7 +97,10 @@ void main() {
     final before = s.view!.shapes.length;
     expect(e.addTable(s, 3, 4), isNotNull);
     expect(e.addTable(s, 0, 4), isNull);
-    final cells = s.view!.shapes.skip(before).toList();
+    final added = s.view!.shapes.skip(before).toList();
+    // Dış çerçeve (seçilip taşınır) + 12 hücre.
+    expect(added.where((c) => c.tableFrame), hasLength(1));
+    final cells = added.where((c) => !c.tableFrame).toList();
     expect(cells.length, 12);
     expect(cells.every((c) => c.paragraphs.isNotEmpty && c.paragraphs.first.source != null),
         isTrue);
@@ -187,5 +190,81 @@ void main() {
     expect(again.slides.length, n + 1);
     final shapes = again.slides[1].view?.shapes ?? const [];
     expect(shapes.every((x) => x.isPlaceholder), isTrue);
+  });
+
+  /// Faz 29 kalanı: **Düzeni değiştir** — metin korunur, yer tutucular yeni
+  /// düzene eşlenir, ilişki yeni düzene bağlanır (PowerPoint'in varsayılan
+  /// şablonuyla üretilmiş örnek: 11 düzen).
+  test('düzeni değiştir: metin korunur, ilişki yeni düzene, geri dönüş', () {
+    final e = PptxEditor.parse(
+        File('test/fixtures/office/sunum_duzenler.pptx').readAsBytesSync());
+    final layouts = e.layouts();
+    expect(layouts.length, greaterThan(5));
+    final slide = e.slides.first;
+    final before = e.layoutOf(slide);
+    final titleOnly = layouts.firstWhere((l) => l.type == 'titleOnly');
+    expect(e.changeLayout(slide, titleOnly), isTrue);
+    expect(e.layoutOf(slide), titleOnly.part);
+    final again = PptxEditor.parse(e.save());
+    final xml = again.slides.first.doc.toXmlString();
+    expect(xml, contains('Çeyrek sonuçları'));
+    expect(xml, contains('Satışlar arttı'),
+        reason: 'yeni düzende gövde yok; dolu yer tutucu silinmez');
+    // İki Başlık+İçerik'e geri: başlık başlığa, gövde gövdeye eşlenir.
+    final twoContent = layouts.firstWhere((l) => l.type == 'twoObj');
+    expect(again.changeLayout(again.slides.first, twoContent), isTrue);
+    final phs = again.slides.first.doc
+        .findAllElements('p:ph')
+        .map((p) => p.getAttribute('type') ?? 'body')
+        .toList();
+    expect(phs.where((t) => t == 'title'), hasLength(1));
+    expect(before, isNot(titleOnly.part));
+    // Kaydedilen paket yeniden açılır.
+    expect(PptxEditor.parse(again.save()).slides, hasLength(1));
+  });
+
+  /// Faz 29 kalanı: grup içindeki şekil taşınır (grup dönüşümü tersine);
+  /// tablo bütün olarak taşınır/boyutlandırılır (sütun/satır oranla).
+  group('grup içi + tablo çerçevesi', () {
+    PptxEditor open() => PptxEditor.parse(
+        File('test/fixtures/office/sunum_grup_tablo.pptx').readAsBytesSync());
+
+    test('grup içindeki şekil: slayt koordinatı çocuk koordinatına çevrilir',
+        () {
+      final e = open();
+      final slide = e.slides.first;
+      final a = slide.view!.shapes.firstWhere(
+          (s) => s.paragraphs.any((p) => p.plainText == 'Grup A'));
+      // Grup 2× yatay ölçekli, 100 pt sağa kaydırılmış: çizimde x=200, w=200.
+      expect(a.x, closeTo(200, 0.01));
+      expect(a.w, closeTo(200, 0.01));
+      expect(e.setShapeFrame(slide, a, x: 300, y: 150, w: 200, h: 100), isTrue);
+      final moved = e.slides.first.view!.shapes.firstWhere(
+          (s) => s.paragraphs.any((p) => p.plainText == 'Grup A'));
+      expect(moved.x, closeTo(300, 0.01));
+      expect(moved.y, closeTo(150, 0.01));
+      expect(moved.w, closeTo(200, 0.01));
+      final off = a.element!.findAllElements('a:off').first;
+      expect(off.getAttribute('x'), '${150 * 12700}');
+    });
+
+    test('tablo çerçevesi: taşı + boyutlandır, sütunlar oranla', () {
+      final e = open();
+      final slide = e.slides.first;
+      final frame = slide.view!.shapes.firstWhere((s) => s.tableFrame);
+      expect(frame.w, closeTo(200, 0.01));
+      expect(e.setShapeFrame(slide, frame,
+          x: 50, y: 250, w: 400, h: frame.h * 2), isTrue);
+      final again = PptxEditor.parse(e.save());
+      final f2 = again.slides.first.view!.shapes.firstWhere((s) => s.tableFrame);
+      expect(f2.x, closeTo(50, 0.01));
+      expect(f2.w, closeTo(400, 0.5));
+      expect(f2.h, closeTo(frame.h * 2, 0.5));
+      final cells = again.slides.first.view!.shapes
+          .where((s) => s.cellBorder != null)
+          .toList();
+      expect(cells.first.w, closeTo(200, 0.5), reason: 'iki sütun, oranla');
+      expect(cells.first.paragraphs.first.plainText, 'Başlık');
+    });
   });
 }

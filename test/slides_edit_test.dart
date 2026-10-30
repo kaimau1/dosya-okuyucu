@@ -347,6 +347,25 @@ void main() {
         closeTo(h0, 0.5));
   });
 
+  testWidgets('Faz 29 kalanı: tablo hücresine uzun bas → tablo çerçevesi seçilir',
+      (tester) async {
+    final ed = PptxEditor.parse(File(path).readAsBytesSync());
+    final tbl = ed.addTable(ed.slides.first, 2, 2)!;
+    final para = tbl.findAllElements('a:p').first;
+    para.children.insert(
+        0,
+        XmlDocument.parse('<a:r xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:t>T1</a:t></a:r>')
+            .rootElement
+            .copy());
+    File(path).writeAsBytesSync(ed.save());
+    await pump(tester);
+    expect(find.byType(SlideFrameEditor), findsNothing);
+    await tester.longPress(find.text('T1').first);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(SlideFrameEditor), findsOneWidget,
+        reason: 'tablo bütün olarak taşınabilir/boyutlandırılabilir');
+  });
+
   testWidgets('Faz 29 kalanı: tablo hücresinde ⇥ / › sonraki hücreye geçer',
       (tester) async {
     final ed = PptxEditor.parse(File(path).readAsBytesSync());

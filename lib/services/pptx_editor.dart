@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:flutter/painting.dart' show Color, TextAlign;
+import 'package:flutter/painting.dart' show Color, Rect, TextAlign;
 import 'package:xml/xml.dart';
 
 import '../core/edit/save_coordinator.dart';

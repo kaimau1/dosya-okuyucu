@@ -74,18 +74,56 @@ extension PptxObjects on PptxEditor {
       required double h,
       double? rotationDeg}) {
     final el = shape.element;
-    if (el == null || (el.parent as XmlElement?)?.name.qualified != 'p:spTree') {
-      return false;
+    final parent = el?.parent;
+    if (el == null || parent is! XmlElement) return false;
+    final parentName = parent.name.qualified;
+    if (parentName != 'p:spTree' && parentName != 'p:grpSp') return false;
+    // Grup içindeki şekil: ekran (slayt) koordinatı grubun çocuk
+    // koordinatına çevrilir (Faz 29 kalanı — "grup içi şekli taşıma").
+    var local = Rect.fromLTWH(x, y, w, h);
+    if (parentName == 'p:grpSp') {
+      final mapped = _toGroupSpace(parent, local);
+      if (mapped == null) return false;
+      local = mapped;
     }
     final xf = _xfrmOf(el);
     if (xf == null) return false;
     final off = PptxEditor._firstOrNull(xf.findElements('a:off'));
     final ext = PptxEditor._firstOrNull(xf.findElements('a:ext'));
     if (off == null || ext == null) return false;
-    off.setAttribute('x', '${(x * _emuPt).round()}');
-    off.setAttribute('y', '${(y * _emuPt).round()}');
-    ext.setAttribute('cx', '${(math.max(w, 0) * _emuPt).round()}');
-    ext.setAttribute('cy', '${(math.max(h, 0) * _emuPt).round()}');
+    // Tablo: sütun genişlikleri ve satır yükseklikleri oranla ölçeklenir
+    // (PowerPoint'te çerçeveyi çekmek de böyle yapar).
+    final tbl = el.name.qualified == 'p:graphicFrame'
+        ? PptxEditor._firstOrNull(el.findAllElements('a:tbl'))
+        : null;
+    if (tbl != null) {
+      final oldW = double.tryParse(ext.getAttribute('cx') ?? '') ?? 0;
+      final oldH = double.tryParse(ext.getAttribute('cy') ?? '') ?? 0;
+      var gridW = 0.0, rowsH = 0.0;
+      for (final c in tbl.findAllElements('a:gridCol')) {
+        gridW += double.tryParse(c.getAttribute('w') ?? '') ?? 0;
+      }
+      for (final r in tbl.findElements('a:tr')) {
+        rowsH += double.tryParse(r.getAttribute('h') ?? '') ?? 0;
+      }
+      final baseW = gridW > 0 ? gridW : oldW;
+      final baseH = rowsH > 0 ? rowsH : oldH;
+      final sx = baseW > 0 ? local.width * _emuPt / baseW : 1.0;
+      final sy = baseH > 0 ? local.height * _emuPt / baseH : 1.0;
+      for (final c in tbl.findAllElements('a:gridCol')) {
+        final v = double.tryParse(c.getAttribute('w') ?? '') ?? 0;
+        c.setAttribute('w', '${(v * sx).round()}');
+      }
+      for (final r in tbl.findElements('a:tr')) {
+        final v = double.tryParse(r.getAttribute('h') ?? '') ?? 0;
+        r.setAttribute('h', '${(v * sy).round()}');
+      }
+      rotationDeg = null; // tablo döndürülemez
+    }
+    off.setAttribute('x', '${(local.left * _emuPt).round()}');
+    off.setAttribute('y', '${(local.top * _emuPt).round()}');
+    ext.setAttribute('cx', '${(math.max(local.width, 0) * _emuPt).round()}');
+    ext.setAttribute('cy', '${(math.max(local.height, 0) * _emuPt).round()}');
     if (rotationDeg != null) {
       final r = ((rotationDeg % 360) + 360) % 360;
       if (r == 0) {
@@ -96,6 +134,40 @@ extension PptxObjects on PptxEditor {
     }
     _rerender(slide);
     return true;
+  }
+
+  /// Slayt (punto) dikdörtgenini [group]un çocuk koordinatına çevirir; iç içe
+  /// gruplarda dıştan içe. Döndürülmüş grupta null (ters dönüşüm kesin değil).
+  Rect? _toGroupSpace(XmlElement group, Rect r) {
+    final outer = group.parent;
+    if (outer is XmlElement && outer.name.qualified == 'p:grpSp') {
+      final m = _toGroupSpace(outer, r);
+      if (m == null) return null;
+      r = m;
+    }
+    final grpSpPr = PptxEditor._firstOrNull(group.findElements('p:grpSpPr'));
+    final xf = grpSpPr == null
+        ? null
+        : PptxEditor._firstOrNull(grpSpPr.findElements('a:xfrm'));
+    if (xf == null) return r;
+    final rot = int.tryParse(xf.getAttribute('rot') ?? '0') ?? 0;
+    if (rot % 21600000 != 0) return null;
+    double v(String tag, String attr) =>
+        (double.tryParse(PptxEditor._firstOrNull(xf.findElements(tag))
+                    ?.getAttribute(attr) ??
+                '') ??
+            0) /
+        _emuPt;
+    final ox = v('a:off', 'x'), oy = v('a:off', 'y');
+    final ew = v('a:ext', 'cx'), eh = v('a:ext', 'cy');
+    final cx = v('a:chOff', 'x'), cy = v('a:chOff', 'y');
+    var cw = v('a:chExt', 'cx'), ch = v('a:chExt', 'cy');
+    if (cw <= 0) cw = ew;
+    if (ch <= 0) ch = eh;
+    final sx = ew > 0 ? cw / ew : 1.0;
+    final sy = eh > 0 ? ch / eh : 1.0;
+    return Rect.fromLTWH(cx + (r.left - ox) * sx, cy + (r.top - oy) * sy,
+        r.width * sx, r.height * sy);
   }
 
   static const _aNs = 'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"';
@@ -480,5 +552,158 @@ extension PptxObjects on PptxEditor {
     _syncSldIdOrder();
     _reindex();
     return s;
+  }
+
+  /// Slaydın şu anki düzeni (galeride işaretli gösterilir).
+  String? layoutOf(PptxSlide slide) {
+    final rels = _slideRelsDoc(slide);
+    if (rels == null) return null;
+    for (final r in rels.rootElement.childElements) {
+      if ((r.getAttribute('Type') ?? '').endsWith('/slideLayout')) {
+        final t = r.getAttribute('Target') ?? '';
+        return 'ppt/slideLayouts/${t.split('/').last}';
+      }
+    }
+    return null;
+  }
+
+  XmlDocument? _slideRelsDoc(PptxSlide slide) {
+    final bytes = PptxEditor._fileByName(
+        _archive, PptxEditor._relsPathOf(slide.fileName));
+    if (bytes == null) return null;
+    try {
+      return XmlDocument.parse(utf8.decode(bytes, allowMalformed: true));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Yer tutucu türünün eşleşme sınıfı (`ctrTitle` ↔ `title`, içerik ↔ gövde).
+  static String _phClass(XmlElement ph) {
+    final t = ph.getAttribute('type') ?? 'body';
+    return switch (t) {
+      'ctrTitle' || 'title' => 'title',
+      'subTitle' || 'body' || 'obj' => 'body',
+      _ => t,
+    };
+  }
+
+  static XmlElement? _phOf(XmlElement sp) =>
+      PptxEditor._firstOrNull(sp.findAllElements('p:ph'));
+
+  /// **Düzeni değiştir** (PowerPoint: Giriş > Düzen). Slaytın ilişkisi yeni
+  /// düzene bağlanır; yer tutucular türüne göre eşleşir (başlık → başlık,
+  /// içerik → ilk boş gövde) ve yeni düzenin `idx`ini alır — konum/biçim
+  /// yeni düzenden kalıtılır. Yeni düzende karşılığı olmayan:
+  /// * **boş** yer tutucu silinir;
+  /// * **dolu** yer tutucu kalır, eski düzendeki yeri slayta yazılır (metin
+  ///   kaybolmaz, yerinde durur).
+  /// Yeni düzende olup slaytta olmayan yer tutucular boş eklenir.
+  bool changeLayout(PptxSlide slide, PptxLayoutInfo layout) {
+    final newDoc = PptxEditor._tryParse(_archive, layout.part);
+    final rels = _slideRelsDoc(slide);
+    final tree = _spTree(slide);
+    if (newDoc == null || rels == null || tree == null) return false;
+    final oldPart = layoutOf(slide);
+    if (oldPart == layout.part) return false;
+    final oldDoc = oldPart == null ? null : PptxEditor._tryParse(_archive, oldPart);
+
+    // Yeni düzenin yer tutucuları (alt bilgi/tarih/numara hariç).
+    final targets = <XmlElement>[];
+    for (final sp in newDoc.findAllElements('p:sp')) {
+      final ph = _phOf(sp);
+      if (ph == null) continue;
+      if (const {'dt', 'ftr', 'sldNum'}.contains(ph.getAttribute('type'))) {
+        continue;
+      }
+      targets.add(sp);
+    }
+    final used = <XmlElement>{};
+
+    XmlElement? oldXfrm(XmlElement ph) {
+      if (oldDoc == null) return null;
+      final cls = _phClass(ph);
+      final idx = ph.getAttribute('idx');
+      for (final sp in oldDoc.findAllElements('p:sp')) {
+        final o = _phOf(sp);
+        if (o == null) continue;
+        if ((idx != null && o.getAttribute('idx') == idx) ||
+            (idx == null && _phClass(o) == cls)) {
+          final spPr = PptxEditor._firstOrNull(sp.findElements('p:spPr'));
+          final x = spPr == null
+              ? null
+              : PptxEditor._firstOrNull(spPr.findElements('a:xfrm'));
+          if (x != null) return x;
+        }
+      }
+      return null;
+    }
+
+    for (final sp in tree.findElements('p:sp').toList()) {
+      final ph = _phOf(sp);
+      if (ph == null) continue;
+      final type = ph.getAttribute('type');
+      if (const {'dt', 'ftr', 'sldNum'}.contains(type)) continue;
+      final cls = _phClass(ph);
+      XmlElement? match;
+      for (final t in targets) {
+        if (used.contains(t)) continue;
+        if (_phClass(_phOf(t)!) == cls) {
+          match = t;
+          break;
+        }
+      }
+      final text = sp.findAllElements('a:t').map((e) => e.innerText).join();
+      if (match != null) {
+        used.add(match);
+        final nph = _phOf(match)!;
+        for (final a in ph.attributes.toList()) {
+          ph.removeAttribute(a.name.qualified);
+        }
+        for (final a in nph.attributes) {
+          ph.setAttribute(a.name.qualified, a.value);
+        }
+        continue;
+      }
+      if (text.trim().isEmpty) {
+        tree.children.remove(sp);
+        continue;
+      }
+      // Dolu ama yeni düzende yeri yok: eski yeri slayta sabitlenir.
+      final spPr = PptxEditor._firstOrNull(sp.findElements('p:spPr'));
+      final hasXfrm = spPr != null &&
+          PptxEditor._firstOrNull(spPr.findElements('a:xfrm')) != null;
+      final x = oldXfrm(ph);
+      if (spPr != null && !hasXfrm && x != null) {
+        spPr.children.insert(0, x.copy());
+      }
+    }
+
+    var id = _nextShapeId(slide);
+    for (final t in targets) {
+      if (used.contains(t)) continue;
+      final ph = _phOf(t)!;
+      final attrs = StringBuffer();
+      for (final a in ph.attributes) {
+        attrs.write(' ${a.name.qualified}="${a.value}"');
+      }
+      final sp = XmlDocument.parse(
+              '<p:sp $_pNs $_aNs><p:nvSpPr><p:cNvPr id="$id" name="Placeholder $id"/>'
+              '<p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr><p:ph$attrs/></p:nvPr></p:nvSpPr>'
+              '<p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:endParaRPr lang="tr-TR"/></a:p></p:txBody></p:sp>')
+          .rootElement
+          .copy();
+      PptxEditor._insertBefore(tree, sp, const {'p:extLst'});
+      id++;
+    }
+
+    for (final r in rels.rootElement.childElements) {
+      if ((r.getAttribute('Type') ?? '').endsWith('/slideLayout')) {
+        r.setAttribute('Target', '../slideLayouts/${layout.part.split('/').last}');
+      }
+    }
+    _addFile(PptxEditor._relsPathOf(slide.fileName), rels.toXmlString());
+    _rerender(slide);
+    return true;
   }
 }

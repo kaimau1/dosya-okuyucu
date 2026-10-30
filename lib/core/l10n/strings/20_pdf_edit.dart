@@ -55,6 +55,7 @@ const Map<String, (String, String, String)> _t20 = {
   // ── İş sonucu ayrıntısı (2026-10-30) ─────────────────────────────────────
   'excel.grid_label': ('Hücre ızgarası — basılı tutup kaydırarak aralık seç', 'Cell grid — long-press and drag to select a range', 'شبكة الخلايا'),
   'chart.file_chart': ('Grafik', 'Chart', 'مخطط'),
+  'sl.change_layout': ('Düzeni değiştir', 'Change layout', 'تغيير التخطيط'),
   'ks.title': ('Klavye kısayolları', 'Keyboard shortcuts', 'اختصارات لوحة المفاتيح'),
   'ks.undo': ('Geri al', 'Undo', 'تراجع'),
   'ks.redo': ('Yinele', 'Redo', 'إعادة'),

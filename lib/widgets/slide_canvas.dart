@@ -178,9 +178,12 @@ class SlideCanvas extends StatelessWidget {
       prompt: prompt,
     );
     if (animated) child = _Reveal(visible: shapeVisible, child: child);
+    // Grup içindeki şekil de çerçeveyle taşınır (Faz 29 kalanı; düzenleyici
+    // grup dönüşümünü tersine çevirir).
+    final parentName = (s.element?.parent as XmlElement?)?.name.qualified;
     final framed = selected &&
         onFrameChanged != null &&
-        (s.element?.parent as XmlElement?)?.name.qualified == 'p:spTree';
+        (parentName == 'p:spTree' || parentName == 'p:grpSp');
     if (s.rotationDeg != 0 && !framed) {
       child = Transform.rotate(angle: s.rotationDeg * math.pi / 180, child: child);
     }
@@ -218,6 +221,8 @@ class SlideCanvas extends StatelessWidget {
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () {
+            // Seçili tablo çerçevesi: yazı yok, yalnız taşınır.
+            if (s.tableFrame && selected) return;
             if (!canSelect ||
                 selected ||
                 (prompt != null && s.element == null)) {
@@ -226,6 +231,18 @@ class SlideCanvas extends StatelessWidget {
               select(s);
             }
           },
+          // Tablo hücresine uzun bas → tablonun tamamı seçilir (taşı /
+          // boyutlandır), PowerPoint'te çerçeveye dokunmanın karşılığı.
+          onLongPress: select != null && s.cellBorder != null
+              ? () {
+                  for (final o in slide.shapes) {
+                    if (o.tableFrame && o.id == s.id) {
+                      select(o);
+                      return;
+                    }
+                  }
+                }
+              : null,
           child: selected && !framed
               ? CustomPaint(
                   foregroundPainter: const _SelectionPainter(), child: child)

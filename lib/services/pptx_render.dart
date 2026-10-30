@@ -187,6 +187,10 @@ class ShapeVM {
   /// hücreleri null). Seç / sil / çoğalt / öne-arkaya bunun üstünden yapılır.
   final XmlElement? element;
 
+  /// Tablonun DIŞ çerçevesi (çizilmez; hücreler kendi şekilleri). Seçilince
+  /// tablo bütün olarak taşınır/boyutlandırılır (Faz 29 kalanı).
+  final bool tableFrame;
+
   const ShapeVM({
     required this.x,
     required this.y,
@@ -223,6 +227,7 @@ class ShapeVM {
     this.isPlaceholder = false,
     this.placeholderType,
     this.element,
+    this.tableFrame = false,
   });
 
   /// Boş yer tutucu mu (istem metni gösterilir, dokununca yazılır).
@@ -676,6 +681,25 @@ class PptxRender {
       }
     }
     if (widths.isEmpty) return;
+
+    // Dış çerçeve (yalnız slaydın kendi tablosunda): seçilip bütün olarak
+    // taşınır/boyutlandırılır. Hücrelerden ÖNCE eklenir → altta kalır,
+    // dokunuşlar hücrelere gider; seçim uzun basışla.
+    if (editable) {
+      var totalH = 0.0;
+      for (final row in tbl.findElements('a:tr')) {
+        totalH += (_pt(row.getAttribute('h')) ?? 0) * xf.sy;
+      }
+      out.add(ShapeVM(
+        id: frameId,
+        x: x0,
+        y: y0,
+        w: widths.fold(0.0, (a, b) => a + b),
+        h: totalH,
+        element: frame,
+        tableFrame: true,
+      ));
+    }
 
     var y = y0;
     for (final row in tbl.findElements('a:tr')) {

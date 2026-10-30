@@ -132,14 +132,16 @@ extension _SlidesEditorScreenObjectsPart on _SlidesEditorScreenState {
         _ => AppIcons.remove,
       };
 
-  /// Düzen galerisi → yer tutuculu yeni slayt.
-  Future<void> _openLayoutGallery(PptxSlide after) async {
+  /// Düzen galerisi → yer tutuculu yeni slayt; [change] ise **Düzeni
+  /// değiştir** (slaytın kendisi yeni düzene geçer, metin korunur).
+  Future<void> _openLayoutGallery(PptxSlide slide, {bool change = false}) async {
     final editor = _editor!;
     final list = editor.layouts();
     if (list.isEmpty) return;
+    final current = change ? editor.layoutOf(slide) : null;
     final pick = await showAppSheet<PptxLayoutInfo>(
       context,
-      title: context.t('sl.new_slide'),
+      title: context.t(change ? 'sl.change_layout' : 'sl.new_slide'),
       builder: (ctx) => Padding(
         padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
         child: Wrap(
@@ -147,16 +149,21 @@ extension _SlidesEditorScreenObjectsPart on _SlidesEditorScreenState {
           runSpacing: Gap.sm,
           children: [
             for (final l in list)
-              _tile(AppIcons.slideshow, l.name, () => Navigator.pop(ctx, l),
+              _tile(l.part == current ? AppIcons.checkCircle : AppIcons.slideshow,
+                  l.name, () => Navigator.pop(ctx, l),
                   width: 104),
           ],
         ),
       ),
     );
     if (pick == null || !mounted) return;
+    if (change) {
+      _mutate('sl.change_layout', () => editor.changeLayout(slide, pick));
+      return;
+    }
     PptxSlide? made;
     if (_mutate('sl.new_slide', () {
-      made = editor.addSlideFromLayout(pick, after: after);
+      made = editor.addSlideFromLayout(pick, after: slide);
       return made != null;
     })) {
       final n = made!.index;
@@ -186,6 +193,19 @@ extension _SlidesEditorScreenObjectsPart on _SlidesEditorScreenState {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (editor.layouts().length > 1)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: Gap.md),
+                  child: OutlinedButton.icon(
+                    key: const ValueKey('sl-change-layout'),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _openLayoutGallery(slide, change: true);
+                    },
+                    icon: const Icon(AppIcons.spaceDashboard),
+                    label: Text(ctx.t('sl.change_layout')),
+                  ),
+                ),
               Text(ctx.t('sl.background'), style: style),
               const SizedBox(height: Gap.sm),
               Wrap(spacing: 10, runSpacing: 10, children: [
