@@ -45,6 +45,7 @@ import '../../services/sheet_edit.dart';
 import '../../services/sheet_input.dart';
 import '../../services/xlsx_save_patch.dart' show XlsxStyleEdit;
 import '../../services/xlsx_editor.dart';
+import '../../services/xlsx_file_charts.dart';
 import '../../widgets/doc_action_bar.dart';
 import '../../widgets/doc_find_bar.dart';
 import '../../widgets/doc_more_sheet.dart';

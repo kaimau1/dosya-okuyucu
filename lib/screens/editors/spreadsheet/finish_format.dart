@@ -719,6 +719,12 @@ extension _SpreadsheetFinishPart on _SpreadsheetEditorScreenState {
     };
     final filterBefore = sheet.layout.autoFilterRef;
     final ref = _xlRange.ref;
+    final table = XlsxTableSpec(
+        sheetName: name,
+        top: range.top,
+        left: range.left,
+        bottom: range.bottom,
+        right: range.right);
     void applyNow() {
       for (var r = range.top; r <= range.bottom; r++) {
         for (var c = range.left; c <= range.right; c++) {
@@ -739,10 +745,13 @@ extension _SpreadsheetFinishPart on _SpreadsheetEditorScreenState {
         }
       }
       editor.setAutoFilter(name, ref);
+      // Gerçek Excel tablosu (`tableN.xml`) — kaydette yazılır.
+      if (!editor.tables.contains(table)) editor.tables.add(table);
     }
 
     applyNow();
     _recordStep('excel.undo_table_format', applyNow, () {
+      editor.tables.remove(table);
       before.forEach((at, b) {
         editor.setCellFill(name, at.row, at.col, b.background);
         editor.setFontColor(name, at.row, at.col, b.fontColor);

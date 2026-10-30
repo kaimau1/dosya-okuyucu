@@ -4,6 +4,7 @@ import 'dart:ui' show Color;
 import 'package:flutter/painting.dart' show TextAlign;
 
 import '../core/excel_format.dart';
+import 'xlsx_file_charts.dart';
 import 'xlsx_package.dart';
 import 'xlsx_reader.dart';
 import 'xlsx_save_patch.dart';
@@ -771,6 +772,15 @@ class XlsxEditor {
 
   /// Grafik ekler (sayfa adı modeldeki adla eşleşmeli).
   void addChart(XlsxChartSpec spec) => charts.add(spec);
+
+  /// Bu oturumda "Tablo olarak biçimlendir"le kurulan tablolar (Faz 27
+  /// kalanı). Kaydette başlık metinleri sayfadan okunur ve geçerliyse
+  /// `xl/tables/tableN.xml` yazılır.
+  final List<XlsxTableSpec> tables = [];
+
+  /// Dosyada zaten olan grafikler (salt çizim; kaydetme onları olduğu gibi
+  /// taşır). İlk istendiğinde okunur.
+  late final List<XlsxFileChart> fileCharts = XlsxFileCharts.read(_source);
 
   /// CSV/TSV olarak açıldıysa özgün yazım biçimi (Faz 27): kaydetme o
   /// biçimle CSV yazar, xlsx paketi kurulmaz. Biçim düzenlemeleri saklanmaz.
@@ -1541,6 +1551,18 @@ class XlsxEditor {
       for (final s in sheets)
         if (s.noteEdits.isNotEmpty)
           XlsxNoteEdits(s.name, Map.of(s.noteEdits), s.noteAuthor),
+    ], [
+      for (final t in tables)
+        if (_modelSheet(t.sheetName) case final sheet?)
+          t.withHeaders([
+            for (var c = t.left; c <= t.right; c++)
+              // Yalnız METİN başlık tablo sütun adı olur; sayı/formül
+              // başlıkta Excel onarım ister → tablo yazılmaz (bkz. valid).
+              sheet.rawAt(t.top, c).startsWith('=') ||
+                      double.tryParse(sheet.rawAt(t.top, c)) != null
+                  ? ''
+                  : sheet.rawAt(t.top, c),
+          ]),
     ]);
   }
 
@@ -1575,8 +1597,10 @@ class XlsxEditor {
     // Grafikler en son: sayfa XML'ine `<drawing>` ekler, öncekiler onu
     // korur ama yazmaz.
     final charted = XlsxChartWriter.apply(patched, job.charts);
-    // Notlar en son: sayfa XML'ine `<legacyDrawing>` ve yan parçalar ekler.
-    return XlsxNotesWriter.apply(charted, job.notes);
+    // Notlar: sayfa XML'ine `<legacyDrawing>` ve yan parçalar ekler.
+    final noted = XlsxNotesWriter.apply(charted, job.notes);
+    // Tablolar en son: `<tableParts>` sayfanın sonuna (extLst'ten önce).
+    return XlsxTableWriter.apply(noted, job.tables);
   }
 
   static bool _isEmptyRow(XlsxSheet sheet, int r) {
@@ -1645,6 +1669,7 @@ class _XlsxSaveJob {
   final List<XlsxSheetPatch> patches;
   final List<XlsxChartSpec> charts;
   final List<XlsxNoteEdits> notes;
-  const _XlsxSaveJob(
-      this.source, this.sheets, this.patches, this.charts, this.notes);
+  final List<XlsxTableSpec> tables;
+  const _XlsxSaveJob(this.source, this.sheets, this.patches, this.charts,
+      this.notes, this.tables);
 }

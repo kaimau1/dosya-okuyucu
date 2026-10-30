@@ -1327,6 +1327,12 @@ class PptxRender {
 
   // --------------------------------------------------------------- grafik
 
+  /// Paketteki bir grafik parçasını (`xl/charts/chart1.xml` da olur — DrawingML
+  /// grafikleri Office'in üç uygulamasında aynı) tema paleti olmadan çözer.
+  /// Excel ızgarasında dosyadaki grafikleri çizmek için (Faz 27 kalanı).
+  ChartVM? chartPart(String chartFile) =>
+      _parseChart(chartFile, const {}, const {});
+
   /// Bir grafik XML parçasını ([chartFile]) [ChartVM]'e çevirir. Desteklenen
   /// tür yoksa null. Seri renkleri açık `c:spPr` yoksa tema aksan paletinden.
   ChartVM? _parseChart(String chartFile, Map<String, Color> theme,

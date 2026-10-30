@@ -15,12 +15,70 @@ extension _SpreadsheetChartLayerPart on _SpreadsheetEditorScreenState {
       for (final c in editor.charts)
         if (c.sheetName == sheet.name) c,
     ];
-    if (specs.isEmpty) return list;
+    final fromFile = [
+      for (final c in editor.fileCharts)
+        if (c.sheetName == sheet.name) c,
+    ];
+    if (specs.isEmpty && fromFile.isEmpty) return list;
     return Stack(
       children: [
         list,
+        for (final chart in fromFile) _fileChartBox(chart, rows, cols),
         for (final spec in specs) _chartBox(spec, rows, cols),
       ],
+    );
+  }
+
+  /// Dosyada zaten olan grafik: hücrelerinin üstünde, salt çizim (Excel'deki
+  /// yerinde ve boyunda). Dokunuşları altındaki hücrelere geçer; dosyada
+  /// olduğu gibi kalır.
+  Widget _fileChartBox(
+      XlsxFileChart chart, SheetAxisMetrics rows, SheetAxisMetrics cols) {
+    final left = _axisStart(cols, chart.fromCol);
+    final right = _axisStart(cols, chart.toCol);
+    final top = _axisStart(rows, chart.fromRow);
+    final bottom = _axisStart(rows, chart.toRow);
+    final w = math.max(80.0, right - left);
+    final h = math.max(60.0, bottom - top);
+    final scheme = Theme.of(context).colorScheme;
+    return AnimatedBuilder(
+      animation: _vBody,
+      builder: (context, child) {
+        final dy = _vBody.hasClients ? _vBody.offset : 0.0;
+        return Positioned(
+            left: left, top: top - dy, width: w, height: h, child: child!);
+      },
+      child: IgnorePointer(
+        child: Semantics(
+          key: ValueKey('xl-file-chart-${chart.fromRow}-${chart.fromCol}'),
+          label: chart.title.isEmpty
+              ? context.t('chart.file_chart')
+              : chart.title,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Paper.docSurface(context),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: Column(
+                children: [
+                  if (chart.title.isNotEmpty)
+                    Text(chart.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.type.compact
+                            .copyWith(fontWeight: FontWeight.w600)),
+                  Expanded(
+                      child:
+                          CustomPaint(painter: ChartPainter(chart.chart),
+                              child: const SizedBox.expand())),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 

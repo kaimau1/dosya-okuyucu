@@ -1,9 +1,12 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:path/path.dart' as p;
 import 'package:xml/xml.dart';
+
+import 'xlsx_reader.dart' show XlsxRange;
 
 /// Eklenebilen grafik türleri (PPTX çizicisinin desteklediklerinin aynısı —
 /// önizleme `ChartPainter` ile çizilir).
@@ -538,4 +541,206 @@ abstract final class XlsxChartWriter {
       .replaceAll('<', '&lt;')
       .replaceAll('>', '&gt;')
       .replaceAll('"', '&quot;');
+}
+
+/// "Tablo olarak biçimlendir"in **gerçek Excel tablosu** (Faz 27 kalanı:
+/// `tableN.xml`). Biçim (bant, başlık dolgusu) zaten hücre stillerinde;
+/// tablo parçası Excel'e "bu bir Tablo" der: Tablo Tasarımı sekmesi, yapısal
+/// başvurular, yeni satırda otomatik genişleme.
+class XlsxTableSpec {
+  final String sheetName;
+  final int top, left, bottom, right;
+
+  /// Başlık hücrelerinin metni (kayıt anında sayfadan okunur).
+  final List<String> headers;
+
+  const XlsxTableSpec({
+    required this.sheetName,
+    required this.top,
+    required this.left,
+    required this.bottom,
+    required this.right,
+    this.headers = const [],
+  });
+
+  XlsxTableSpec withHeaders(List<String> h) => XlsxTableSpec(
+      sheetName: sheetName,
+      top: top,
+      left: left,
+      bottom: bottom,
+      right: right,
+      headers: h);
+
+  String get ref =>
+      '${_col(left)}${top + 1}:${_col(right)}${bottom + 1}';
+
+  static String _col(int c) {
+    var n = c + 1;
+    var s = '';
+    while (n > 0) {
+      final m = (n - 1) % 26;
+      s = String.fromCharCode(65 + m) + s;
+      n = (n - 1) ~/ 26;
+    }
+    return s;
+  }
+
+  /// Excel'in onarımsız açacağı tablo mu: başlıklar boş değil ve (büyük/küçük
+  /// harf duyarsız) benzersiz. Değilse tablo parçası YAZILMAZ — biçim ve
+  /// süzgeç kalır (yarım tablo "dosya onarıldı" uyarısı demekti).
+  bool get valid {
+    if (bottom <= top || right < left) return false;
+    if (headers.length != right - left + 1) return false;
+    final seen = <String>{};
+    for (final h in headers) {
+      final k = h.trim().toLowerCase();
+      if (k.isEmpty || !seen.add(k)) return false;
+    }
+    return true;
+  }
+}
+
+/// Kaydedilmiş pakete `xl/tables/tableN.xml` + sayfa ilişkisi +
+/// `<tableParts>` ekler. Tablo kendi süzgecini taşır; aynı aralıktaki sayfa
+/// `<autoFilter>`ı kaldırılır (ikisi birden Excel'de onarım uyarısı verir).
+abstract final class XlsxTableWriter {
+  static const _relTable = '${XlsxChartWriter._nsRel}/table';
+  static const _ctTable =
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml';
+
+  static Uint8List apply(Uint8List xlsx, List<XlsxTableSpec> tables) {
+    final valid = [for (final t in tables) if (t.valid) t];
+    if (valid.isEmpty) return xlsx;
+    final files = <String, List<int>>{};
+    final order = <String>[];
+    for (final f in ZipDecoder().decodeBytes(xlsx).files) {
+      if (!f.isFile) continue;
+      files[f.name] = f.content as List<int>;
+      order.add(f.name);
+    }
+    String? text(String name) {
+      final d = files[name];
+      return d == null ? null : utf8.decode(d, allowMalformed: true);
+    }
+
+    void put(String name, String value) {
+      if (!files.containsKey(name)) order.add(name);
+      files[name] = utf8.encode(value);
+    }
+
+    final ct = XmlDocument.parse(text('[Content_Types].xml')!);
+    var seq = XlsxChartWriter._maxIndex(
+        files.keys, RegExp(r'^xl/tables/table(\d+)\.xml$'));
+    // Tablo kimliği kitap genelinde benzersiz.
+    var maxId = 0;
+    for (final name in files.keys) {
+      if (!name.startsWith('xl/tables/')) continue;
+      final m = RegExp(r'<table\b[^>]*\bid="(\d+)"').firstMatch(text(name)!);
+      if (m != null) maxId = math.max(maxId, int.parse(m[1]!));
+    }
+
+    for (final t in valid) {
+      final sheetPart = XlsxChartWriter._sheetPart(text, t.sheetName);
+      if (sheetPart == null) continue;
+      var sheetXml = text(sheetPart)!;
+      // Var olan bir tabloyla çakışıyorsa dokunma.
+      if (sheetXml.contains('<tablePart ') && _overlapsExisting(t, sheetPart, text)) {
+        continue;
+      }
+      seq++;
+      maxId++;
+      final part = 'xl/tables/table$seq.xml';
+      put(part, _tableXml(t, maxId));
+      XlsxChartWriter._addOverride(ct, '/$part', _ctTable);
+      final relsPath = XlsxChartWriter._relsPathOf(sheetPart);
+      final rels = XlsxChartWriter._relsDoc(text(relsPath));
+      final rid =
+          XlsxChartWriter._addRel(rels, _relTable, '../tables/table$seq.xml');
+      put(relsPath, rels.toXmlString());
+
+      // Aynı aralıktaki sayfa süzgeci kalkar (tablonun kendi süzgeci var).
+      sheetXml = sheetXml.replaceAll(
+          RegExp(r'<autoFilter\b[^>]*\bref="' +
+              RegExp.escape(t.ref) +
+              r'"[^>]*?(?:/>|>.*?</autoFilter>)', dotAll: true),
+          '');
+      sheetXml = _addTablePart(sheetXml, rid);
+      put(sheetPart, sheetXml);
+    }
+
+    put('[Content_Types].xml', ct.toXmlString());
+    final out = Archive();
+    for (final name in order) {
+      final data = files[name];
+      if (data == null) continue;
+      out.addFile(ArchiveFile(name, data.length, data));
+    }
+    return Uint8List.fromList(ZipEncoder().encode(out)!);
+  }
+
+  static bool _overlapsExisting(
+      XlsxTableSpec t, String sheetPart, String? Function(String) text) {
+    final rels = XlsxChartWriter._relsDoc(text(XlsxChartWriter._relsPathOf(sheetPart)));
+    for (final r in rels.rootElement.childElements) {
+      if (r.getAttribute('Type') != _relTable) continue;
+      final target = r.getAttribute('Target');
+      if (target == null) continue;
+      final xml = text(XlsxChartWriter._resolve(sheetPart, target));
+      final ref = xml == null
+          ? null
+          : RegExp(r'<table\b[^>]*\bref="([^"]+)"').firstMatch(xml)?.group(1);
+      if (ref == null) continue;
+      final range = XlsxRange.parse(ref);
+      if (range == null) continue;
+      final disjoint = range.r2 < t.top ||
+          range.r1 > t.bottom ||
+          range.c2 < t.left ||
+          range.c1 > t.right;
+      if (!disjoint) return true;
+    }
+    return false;
+  }
+
+  static String _esc(String s) => s
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;');
+
+  static String _tableXml(XlsxTableSpec t, int id) {
+    final cols = StringBuffer();
+    for (var i = 0; i < t.headers.length; i++) {
+      cols.write('<tableColumn id="${i + 1}" name="${_esc(t.headers[i].trim())}"/>');
+    }
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+        '<table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        'id="$id" name="Tablo$id" displayName="Tablo$id" ref="${t.ref}" '
+        'totalsRowShown="0"><autoFilter ref="${t.ref}"/>'
+        '<tableColumns count="${t.headers.length}">$cols</tableColumns>'
+        '<tableStyleInfo name="TableStyleMedium2" showFirstColumn="0" '
+        'showLastColumn="0" showRowStripes="1" showColumnStripes="0"/></table>';
+  }
+
+  /// `<tableParts>`a ekler (yoksa `extLst`ten önce / sayfa sonuna açar).
+  static String _addTablePart(String sheetXml, String rid) {
+    final part = '<tablePart r:id="$rid"/>';
+    final existing =
+        RegExp(r'<tableParts\b[^>]*>(.*?)</tableParts>', dotAll: true)
+            .firstMatch(sheetXml);
+    if (existing != null) {
+      final inner = existing[1]! + part;
+      final count = RegExp('<tablePart ').allMatches(inner).length;
+      return sheetXml.replaceRange(existing.start, existing.end,
+          '<tableParts count="$count">$inner</tableParts>');
+    }
+    if (!sheetXml.contains('xmlns:r=')) {
+      sheetXml = sheetXml.replaceFirst(RegExp(r'<worksheet\b'),
+          '<worksheet xmlns:r="${XlsxChartWriter._nsRel}"');
+    }
+    final block = '<tableParts count="1">$part</tableParts>';
+    final ext = sheetXml.indexOf('<extLst');
+    if (ext >= 0) return sheetXml.replaceRange(ext, ext, block);
+    final end = sheetXml.lastIndexOf('</worksheet>');
+    return sheetXml.replaceRange(end, end, block);
+  }
 }
