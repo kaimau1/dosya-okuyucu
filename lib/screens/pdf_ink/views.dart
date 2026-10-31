@@ -29,8 +29,11 @@ extension _PdfInkScreenViewsPart on _PdfInkScreenState {
             padding: const EdgeInsets.only(right: 8),
             child: FilledButton.icon(
               onPressed: _busy || pages == null ? null : _save,
-              icon: const Icon(AppIcons.save, size: 18),
-              label: Text(context.t('common.save')),
+              // Düzenleyicinin Çiz sekmesinden: kaydetmez, düzenlemeye uygular.
+              icon: Icon(widget.returnMarks ? AppIcons.check : AppIcons.save,
+                  size: 18),
+              label: Text(context.t(
+                  widget.returnMarks ? 'common.apply' : 'common.save')),
             ),
           ),
         ],

@@ -1,5 +1,6 @@
 import 'package:dosya_okuyucu/core/app_icons.dart';
 import 'package:dosya_okuyucu/screens/pdf_ink_screen.dart';
+import 'package:dosya_okuyucu/services/pdf/pdf_markup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -190,5 +191,37 @@ void main() {
     await tester.pump();
     expect(find.text('2 / 2'), findsOneWidget);
     expect(strokeCount(tester), 0);
+  });
+
+  testWidgets('düzenleyiciden açılınca (returnMarks) kaydetmez, izleri geri verir',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2000);
+    tester.view.devicePixelRatio = 2.5;
+    addTearDown(tester.view.reset);
+    Object? result;
+    await tester.pumpWidget(MaterialApp(
+      home: Builder(
+        builder: (ctx) => TextButton(
+          onPressed: () async {
+            result = await Navigator.of(ctx).push<Object?>(MaterialPageRoute(
+              builder: (_) => const PdfInkScreen(
+                path: '/yok/belge.pdf',
+                returnMarks: true,
+                testPageSizes: [Size(595, 842)],
+              ),
+            ));
+          },
+          child: const Text('aç'),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('aç'));
+    await tester.pumpAndSettle();
+    final c = pageCenter(tester);
+    await drawLine(tester, c, c + const Offset(80, 40));
+    await tester.tap(find.text('Uygula'));
+    await tester.pumpAndSettle();
+    expect(result, isA<List<PdfMark>>());
+    expect((result! as List).length, 1);
   });
 }

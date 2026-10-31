@@ -190,6 +190,8 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                     : _formFields!.isEmpty
                         ? 'pe.hint_form_none'
                         : 'pe.hint_form',
+                _EditMode.draw => 'pe.hint_draw',
+                _EditMode.ai => 'pe.hint_ai',
                 _EditMode.background => 'pe.hint_background',
                 _EditMode.page => 'pe.hint_page',
               });

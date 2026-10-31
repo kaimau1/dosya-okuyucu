@@ -6,8 +6,12 @@
 /// işlemi reddediyor.
 library;
 
+/// Ad değeri (`/BaseFont /ABCDEF+Arial-BoldMT` → `ABCDEF+Arial-BoldMT`).
+/// PDF adı sınırlayıcı ve boşluk dışındaki her karakteri taşır; eskiden yalnız
+/// harf/rakam alınıyordu → `Arial-BoldMT` "Arial" okunuyor, alt küme öneki ve
+/// kalın/italik kesimi kayboluyordu (2026-10-30, Faz 31 paragraf kalın).
 String? pdfName(String dict, String key) =>
-    RegExp('/$key\\s*/([A-Za-z0-9]+)').firstMatch(dict)?.group(1);
+    RegExp('/$key\\s*/([^\\s/\\[\\]<>(){}%]+)').firstMatch(dict)?.group(1);
 
 int? pdfInt(String dict, String key) {
   final m = RegExp('/$key\\s+(\\d+)').firstMatch(dict);

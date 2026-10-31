@@ -142,6 +142,12 @@ extension _PdfInkScreenInputPart on _PdfInkScreenState {
       Navigator.of(context).pop(false);
       return;
     }
+    if (widget.returnMarks) {
+      final marks = _marks;
+      _marks = const [];
+      Navigator.of(context).pop(marks);
+      return;
+    }
     _partSetState(() => _busy = true);
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);

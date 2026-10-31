@@ -77,7 +77,26 @@ List<int> rewriteParagraph({
   required String newText,
   required PdfFontAccess fonts,
   double? pointSize,
+  String? fontOverride,
+  List<int>? colorOverride,
 }) {
+  // Faz 31 kalanı — paragrafa kalın / renk: bütün koşular [fontOverride]
+  // yazı tipiyle (belgenin KENDİ gömülü kalın/normal kesimi) ve
+  // [colorOverride] rengiyle yazılır.
+  if (fontOverride != null) {
+    paragraph = paragraph.withRuns([
+      for (final r in paragraph.runs)
+        PdfParagraphRun(
+          text: r.text,
+          fontName: fontOverride,
+          fontSize: r.fontSize,
+          colorBytes: r.colorBytes,
+          state: r.state,
+          scaleX: r.scaleX,
+          scaleY: r.scaleY,
+        ),
+    ]);
+  }
   if (newText.trim().isEmpty) {
     throw const PdfParagraphRefused(
         'Paragraf boş bırakılamaz. Silmek için nesne silme aracını kullanın.');
@@ -168,6 +187,7 @@ List<int> rewriteParagraph({
     fonts: fonts,
     scale: scale,
     leading: leading,
+    colorOverride: colorOverride,
   );
 
   final out = List<int>.of(content)
@@ -474,9 +494,14 @@ List<int> _emit({
   required PdfFontAccess fonts,
   required double scale,
   required double leading,
+  List<int>? colorOverride,
 }) {
   final buffer = <int>[];
   void write(String s) => buffer.addAll(s.codeUnits);
+  if (colorOverride != null) {
+    buffer.addAll(colorOverride);
+    write('\n');
+  }
 
   final baseY = paragraph.lines.first.baselineY;
 
@@ -494,7 +519,8 @@ List<int> _emit({
       for (final segment in word.segments) {
         final run = segment.run;
 
-        if (run.colorBytes.isNotEmpty &&
+        if (colorOverride == null &&
+            run.colorBytes.isNotEmpty &&
             (lastColor == null || !_sameBytes(lastColor, run.colorBytes))) {
           buffer.addAll(run.colorBytes);
           write('\n');
@@ -535,7 +561,28 @@ List<int> _emit({
       if (w < line.words.length - 1) x += line.spaceAdvance;
     }
   }
+  // Paragraftan SONRAKİ içerik, özgün aralığın sonunda geçerli olan rengi
+  // bekler: geri yüklenir (koşu rengi boşsa hiç renk operatörü yoktu →
+  // PDF'in varsayılanı siyah).
+  if (colorOverride != null) {
+    final last = paragraph.runs.isEmpty
+        ? const <int>[]
+        : paragraph.runs.last.colorBytes;
+    if (last.isNotEmpty) {
+      buffer.addAll(last);
+      write('\n');
+    } else {
+      write('0 g\n');
+    }
+  }
   return buffer;
+}
+
+/// ARGB → PDF dolgu rengi operatörü (`r g b rg`).
+List<int> pdfFillColorOp(int argb) {
+  String c(int v) => writePdfNumber(v / 255);
+  return '${c((argb >> 16) & 0xFF)} ${c((argb >> 8) & 0xFF)} ${c(argb & 0xFF)} rg'
+      .codeUnits;
 }
 
 /// Paragrafın **görünen** puntosu (sayfa birimi): en çok karakterin yazıldığı

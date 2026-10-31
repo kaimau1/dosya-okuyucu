@@ -37,6 +37,10 @@ import '../widgets/pdf_save_dialog.dart';
 import '../core/snack.dart';
 import '../core/user_error.dart';
 import '../widgets/ai_key_gate.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import '../services/pdf/pdf_markup.dart';
+import 'pdf_ai_edit_screen.dart';
+import 'pdf_ink_screen.dart';
 import '../core/theme.dart';
 
 part 'pdf_editor/actions.dart';
@@ -88,7 +92,7 @@ class PdfEditorScreen extends StatefulWidget {
 
 /// Şerit sekmeleri = düzenleme kipleri (Faz 31: Office editörleriyle aynı
 /// şerit dili; eskiden alt `NavigationBar`).
-enum _EditMode { text, image, sign, form, background, page }
+enum _EditMode { text, image, sign, form, draw, ai, background, page }
 
 /// Yerinde alanın özgün geometrisi (PDF noktası) — bkz. `_inlineGeometry`.
 typedef _InlineGeom = ({
@@ -188,6 +192,11 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
 
   /// Kullanıcının seçtiği punto (null → özgün).
   double? _inlineSize;
+
+  /// Kalın / renk (Faz 31 kalanı; null → özgün). Kalın, belgenin gömülü
+  /// kalın kesimiyle yazılır; yoksa ret + "Üstüne yaz" (Carlito Kalın).
+  bool? _inlineBold;
+  int? _inlineColor;
 
   /// Arka plan denemesinin reddi (satır içinde gösterilir) / sürüyor mu.
   String? _inlineRefusal;

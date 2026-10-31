@@ -86,6 +86,34 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
             onTap: _formFields?.isNotEmpty == true ? () => _stepField(1) : null,
           ),
         ]),
+        // Faz 31 kalanı: Çiz ve AI artık kabuğun sekmeleri — ikisi de AYNI
+        // çalışma kopyasıyla açılır (kaydedilmemiş düzenlemeler dahil); çizim
+        // işlem listesine tek adım olarak girer (geri al / yinele).
+        RibbonTab(context.t('pe.mode_draw'), [
+          RibbonChip(
+            key: const ValueKey('pe-draw'),
+            icon: AppIcons.draw,
+            label: context.t('pe.draw_open'),
+            tooltip: context.t('pe.draw_open'),
+            onTap: busy ? null : _openDraw,
+          ),
+        ]),
+        RibbonTab(context.t('pe.mode_ai'), [
+          RibbonChip(
+            key: const ValueKey('pe-ai-rewrite'),
+            icon: AppIcons.ai,
+            label: context.t('pe.ai_rewrite'),
+            tooltip: context.t('pe.ai_rewrite'),
+            onTap: busy ? null : _openAiRewrite,
+          ),
+          if (scanned)
+            RibbonChip(
+              icon: AppIcons.ai,
+              label: context.t('pe.fix_page_ai'),
+              tooltip: context.t('pe.fix_page_ai'),
+              onTap: busy ? null : () => _fixScannedPage(withAi: true),
+            ),
+        ]),
         RibbonTab(context.t('pe.mode_watermark'), const []),
         RibbonTab(context.t('pe.mode_page'), [
           RibbonChip(
@@ -142,6 +170,19 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
                   icon: AppIcons.textIncrease,
                   tooltip: context.t('pe.font_bigger'),
                   onPressed: applying ? null : () => _nudgeInlineSize(0.5),
+                ),
+                AccessoryItem(
+                  key: const ValueKey('inline-bold'),
+                  icon: AppIcons.formatBold,
+                  tooltip: context.t('common.bold'),
+                  selected: _inlineBold ?? false,
+                  onPressed: applying ? null : _toggleInlineBold,
+                ),
+                AccessoryItem(
+                  key: const ValueKey('inline-color'),
+                  icon: AppIcons.formatColorText,
+                  tooltip: context.t('pe.text_color'),
+                  onPressed: applying ? null : _pickInlineColor,
                 ),
                 AccessoryItem(
                   key: const ValueKey('inline-overwrite'),
@@ -252,6 +293,57 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
     );
   }
 
+  /// Çiz sekmesi: kalem ekranı çalışma kopyasıyla açılır; dönen izler
+  /// yeniden oynatılabilir tek adım olarak uygulanır.
+  Future<void> _openDraw() async {
+    final path = _workPath;
+    if (path == null || _busy) return;
+    _closeEditors();
+    final marks =
+        await PdfInkScreen.pickMarks(context, path, initialPage: _page);
+    if (marks == null || !mounted) return;
+    final font = marks.any((m) => m is TextMark)
+        ? (await rootBundle.load('assets/fonts/Carlito-Regular.ttf'))
+            .buffer
+            .asUint8List()
+        : null;
+    await _run(
+        note: _str.t('pe.busy_draw'),
+        () => _apply((b) => applyPdfMarks(b, marks, fontBytes: font),
+            _str.t('pe.drawn')));
+  }
+
+  /// AI sekmesi: belge metni AI ile yeniden yazılır (yeni PDF; özgün düzen
+  /// korunmaz — ekranın kendi uyarısı). Çalışma kopyasının GÜNCEL metniyle.
+  Future<void> _openAiRewrite() async {
+    final path = _workPath;
+    if (path == null || _busy) return;
+    _closeEditors();
+    _setBusy(_str.t('pe.busy_text'));
+    final sb = StringBuffer();
+    try {
+      if (_controller.isReady) {
+        await _controller.useDocument((doc) async {
+          for (final page in doc.pages) {
+            final dynamic t = await page.loadText();
+            final full = t == null ? '' : (t.fullText as String? ?? '');
+            if (full.trim().isNotEmpty) sb.writeln(full);
+            if (sb.length > 100000) break;
+          }
+        });
+      }
+    } catch (_) {
+      // Bilinçli: metin katmanı okunamazsa AI ekranı "metin yok" der.
+    } finally {
+      _setBusy(null);
+    }
+    if (!mounted) return;
+    await PdfAiEditScreen.open(context,
+        path: path,
+        fileName: p.basename(widget.path),
+        sourceText: sb.toString().trim());
+  }
+
   void _setMode(_EditMode mode) {
     _closeEditors();
     _partSetState(() {
@@ -303,11 +395,53 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
       _inlineScanned = scanned;
       _inlineCtrl = ctrl;
       _inlineSize = null;
+      _inlineBold = null;
+      _inlineColor = null;
       _inlineRefusal = null;
       _inlineFits = false;
       _inlineChecking = false;
       _inlineApplying = false;
     });
+  }
+
+  void _toggleInlineBold() {
+    _partSetState(() => _inlineBold = !(_inlineBold ?? false));
+    _scheduleInlineCheck();
+  }
+
+  static const _inlineColors = <int>[
+    0xFF191919, 0xFFC00000, 0xFF1F4E79, 0xFF2E7D32, 0xFF7030A0, 0xFFED7D31,
+  ];
+
+  Future<void> _pickInlineColor() async {
+    final picked = await showAppSheet<int>(
+      context,
+      title: context.t('pe.text_color'),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+        child: Wrap(spacing: 14, runSpacing: 14, children: [
+          for (final c in _inlineColors)
+            InkWell(
+              key: ValueKey('pe-inline-color-${c.toRadixString(16)}'),
+              customBorder: const CircleBorder(),
+              onTap: () => Navigator.pop(ctx, c),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Color(c),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                      color: Theme.of(ctx).colorScheme.outlineVariant),
+                ),
+              ),
+            ),
+        ]),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    _partSetState(() => _inlineColor = picked);
+    _scheduleInlineCheck();
   }
 
   /// Paragrafı görünür ve okunur boyda gösterir: hedef, ekranda ~18 px yazı.
@@ -360,6 +494,8 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
         textAlign: align,
         refused: _inlineRefusal != null,
         applying: _inlineApplying,
+        bold: _inlineBold,
+        colorArgb: _inlineColor,
       ),
     ];
   }
@@ -426,6 +562,8 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
     final seq = ++_inlineSeq;
     final text = ctrl.text.trim();
     final size = _inlineSize;
+    final bold = _inlineBold;
+    final color = _inlineColor;
     _partSetState(() => _inlineChecking = true);
     String? refusal;
     var fits = false;
@@ -436,13 +574,18 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
         paragraphIndex: index,
         newText: text,
         pointSize: size,
+        bold: bold,
+        colorArgb: color,
       );
       fits = true;
     } on PdfParagraphRefused catch (e) {
       refusal = e.message;
     } on PdfPageRefused catch (e) {
       // "Metin değişmedi" ret değil — kullanıcı daha bir şey yazmadı.
-      if (text != _outline.paragraphs[index].text.trim() || size != null) {
+      if (text != _outline.paragraphs[index].text.trim() ||
+          size != null ||
+          bold != null ||
+          color != null) {
         refusal = e.message;
       }
     } catch (e) {
@@ -535,7 +678,12 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
     final size = _inlineSize;
     final sizeChanged = size != null &&
         (size - paragraphPointSize(paragraph)).abs() > 0.05;
-    if (text == paragraph.text.trim() && !sizeChanged) {
+    final bold = _inlineBold;
+    final color = _inlineColor;
+    if (text == paragraph.text.trim() &&
+        !sizeChanged &&
+        bold == null &&
+        color == null) {
       _cancelInline();
       return;
     }
@@ -551,6 +699,8 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
               paragraphIndex: index,
               newText: text,
               pointSize: sizeChanged ? size : null,
+              bold: bold,
+              colorArgb: color,
             ));
   }
 
@@ -565,17 +715,41 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
     final measured = paragraphPointSize(par);
     final size = _inlineSize ?? (measured > 0 ? measured : 11);
     final pageIndex = _page - 1;
+    final bold = _inlineBold ?? false;
+    final color = _inlineColor ?? 0xFF191919;
     await _applyInline(
         _str.t('pe.overwritten'),
         (b) async {
           // Önce eski metin akıştan çıkarılır (arama/kopyalama yeni metni
           // bulsun); dengesiz akışta yalnız beyaz kapak kalır.
+          // Özgün görünüm: paragrafın KENDİ gömülü yazı tipi yeni metnin
+          // bütün harflerini taşıyorsa onunla, yoksa Carlito (Faz 31 kalanı).
+          // Program erase'den ÖNCE okunur (paragraf dizini o belgede geçerli).
+          final program = await PdfPageEdit.paragraphFontProgramInBackground(b,
+              pageIndex: pageIndex,
+              paragraphIndex: index,
+              text: text,
+              bold: bold);
           var base = b;
           try {
             base = await PdfPageEdit.eraseParagraphTextInBackground(b,
                 pageIndex: pageIndex, paragraphIndex: index);
           } catch (_) {
             // Bilinçli: çıkarılamazsa kapak yine örter.
+          }
+          if (program != null) {
+            return PdfOverwrite.applySync(
+              bytes: base,
+              pageIndex: pageIndex,
+              left: par.left,
+              bottom: par.bottom,
+              right: par.right,
+              top: par.top,
+              text: text,
+              pointSize: size,
+              font: program,
+              colorArgb: color,
+            );
           }
           return PdfOverwrite.apply(
             bytes: base,
@@ -586,6 +760,8 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
             top: par.top,
             text: text,
             pointSize: size,
+            bold: bold,
+            colorArgb: color,
           );
         });
   }

@@ -71,6 +71,8 @@ abstract final class PdfFixtures {
     String? cropBox,
     int rotate = 0,
     bool image = false,
+    bool boldFont = false,
+    List<int>? embedFont,
   }) {
     final out = BytesBuilder();
     final offsets = <int, int>{};
@@ -90,7 +92,11 @@ abstract final class PdfFixtures {
         ];
 
     // 1 katalog, 2 sayfalar, 3 font, 4 kodlama, 5 görsel; sayfa i → 6+2i,
-    // içeriği 7+2i.
+    // içeriği 7+2i; [boldFont] → son nesne aynı ailenin kalın kesimi (/F2).
+    final boldObj = 6 + 2 * pages.length;
+    // [embedFont] → /F1'e FontDescriptor + FontFile2 (gömülü TrueType).
+    final descObj = boldObj + (boldFont ? 1 : 0);
+    final fileObj = descObj + 1;
     final kids = [for (var i = 0; i < pages.length; i++) '${6 + 2 * i} 0 R'];
     final widths = List.filled(224, '500').join(' ');
     out.add(s('%PDF-1.4\n'));
@@ -101,7 +107,7 @@ abstract final class PdfFixtures {
         3,
         s('<< /Type /Font /Subtype /TrueType /BaseFont /Arial '
             '/FirstChar 32 /LastChar 255 /Widths [$widths] '
-            '/Encoding 4 0 R >>'));
+            '/Encoding 4 0 R${embedFont != null ? ' /FontDescriptor $descObj 0 R' : ''} >>'));
     add(
         4,
         s('<< /Type /Encoding /BaseEncoding /WinAnsiEncoding '
@@ -118,7 +124,7 @@ abstract final class PdfFixtures {
       add(
           6 + 2 * i,
           s('<< /Type /Page /Parent 2 0 R /MediaBox $mediaBox$crop$rot '
-              '/Resources << /Font << /F1 3 0 R >> '
+              '/Resources << /Font << /F1 3 0 R${boldFont ? ' /F2 $boldObj 0 R' : ''} >> '
               '/XObject << /Im1 5 0 R >> >> /Contents ${7 + 2 * i} 0 R >>'));
       final body = image
           ? 'q 400 0 0 600 0 0 cm /Im1 Do Q\n${pages[i]}'
@@ -126,7 +132,23 @@ abstract final class PdfFixtures {
       add(7 + 2 * i, stream('', s(body)));
     }
 
-    final count = 6 + 2 * pages.length;
+    if (boldFont) {
+      add(
+          boldObj,
+          s('<< /Type /Font /Subtype /TrueType /BaseFont /Arial-BoldMT '
+              '/FirstChar 32 /LastChar 255 /Widths [$widths] '
+              '/Encoding 4 0 R >>'));
+    }
+    if (embedFont != null) {
+      add(
+          descObj,
+          s('<< /Type /FontDescriptor /FontName /Arial /Flags 32 '
+              '/FontBBox [0 0 1000 1000] /ItalicAngle 0 /Ascent 900 '
+              '/Descent -200 /CapHeight 700 /StemV 80 /FontFile2 $fileObj 0 R >>'));
+      add(fileObj, stream('/Length1 ${embedFont.length}', embedFont));
+    }
+    final count =
+        6 + 2 * pages.length + (boldFont ? 1 : 0) + (embedFont != null ? 2 : 0);
     final xrefOffset = out.length;
     final xref = StringBuffer('xref\n0 $count\n0000000000 65535 f \n');
     for (var i = 1; i < count; i++) {

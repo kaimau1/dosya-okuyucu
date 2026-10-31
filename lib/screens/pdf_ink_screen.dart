@@ -51,9 +51,28 @@ class PdfInkScreen extends StatefulWidget {
     required this.path,
     this.initialPage = 1,
     this.testPageSizes,
+    this.returnMarks = false,
   });
 
   final String path;
+
+  /// PDF düzenleyicinin **Çiz** sekmesinden açıldı (Faz 31 kalanı): kaydetmez,
+  /// izleri geri verir — düzenleyici onları kendi işlem listesine (geri al /
+  /// yinele) tek adım olarak ekler; çalışma kopyası ortak kalır.
+  final bool returnMarks;
+
+  /// Düzenleyici için: izler (vazgeçilirse null).
+  static Future<List<PdfMark>?> pickMarks(
+    BuildContext context,
+    String path, {
+    int initialPage = 1,
+  }) async {
+    final r = await Navigator.of(context).push<Object?>(MaterialPageRoute(
+      builder: (_) =>
+          PdfInkScreen(path: path, initialPage: initialPage, returnMarks: true),
+    ));
+    return r is List<PdfMark> && r.isNotEmpty ? r : null;
+  }
 
   /// Testler için: pdfium olmadan sayfa ölçüleri (sayfalar düz beyaz çizilir).
   @visibleForTesting

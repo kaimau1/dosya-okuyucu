@@ -436,6 +436,10 @@ class PdfInlineParagraphEditor extends StatelessWidget {
   /// Uygulanıyor: yeni metin salt okunur yerinde durur, köşede çark.
   final bool applying;
 
+  /// Kullanıcının seçtiği kalın / renk (null → özgün; alanda önizlenir).
+  final bool? bold;
+  final int? colorArgb;
+
   const PdfInlineParagraphEditor({
     super.key,
     required this.rect,
@@ -449,6 +453,8 @@ class PdfInlineParagraphEditor extends StatelessWidget {
     this.textAlign = TextAlign.start,
     this.refused = false,
     this.applying = false,
+    this.bold,
+    this.colorArgb,
   });
 
   static const _border = 1.5;
@@ -554,8 +560,11 @@ class PdfInlineParagraphEditor extends StatelessWidget {
                     height: height,
                     letterSpacing: 0,
                     wordSpacing: 0,
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.pageInk,
+                    fontWeight:
+                        bold == true ? FontWeight.w700 : FontWeight.w400,
+                    color: colorArgb == null
+                        ? AppColors.pageInk
+                        : Color(colorArgb!),
                   ),
                   cursorColor: border,
                   decoration: _bare,

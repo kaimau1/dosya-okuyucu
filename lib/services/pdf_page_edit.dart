@@ -12,6 +12,7 @@ import 'dart:isolate';
 
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
+import 'pdf/ttf_coverage.dart';
 import 'pdf/pdf_background.dart';
 import 'pdf/pdf_objects.dart';
 import 'pdf/pdf_page_context.dart';
@@ -179,6 +180,8 @@ abstract final class PdfPageEdit {
     required int paragraphIndex,
     required String newText,
     double? pointSize,
+    bool? bold,
+    int? colorArgb,
   }) {
     final page = PdfPageContext.open(bytes, pageIndex);
     final paragraphs = page.paragraphs();
@@ -190,7 +193,14 @@ abstract final class PdfPageEdit {
     final paragraph = paragraphs[paragraphIndex];
     final sizeChanged = pointSize != null &&
         (pointSize - paragraphPointSize(paragraph)).abs() > 0.05;
-    if (paragraph.text.trim() == newText.trim() && !sizeChanged) {
+    String? fontOverride;
+    if (bold != null) {
+      fontOverride = _variantFont(page, paragraph, bold: bold);
+    }
+    if (paragraph.text.trim() == newText.trim() &&
+        !sizeChanged &&
+        fontOverride == null &&
+        colorArgb == null) {
       throw const PdfPageRefused('Metin değişmedi.');
     }
 
@@ -200,11 +210,119 @@ abstract final class PdfPageEdit {
       newText: newText,
       fonts: page.fonts,
       pointSize: sizeChanged ? pointSize : null,
+      fontOverride: fontOverride,
+      colorOverride: colorArgb == null ? null : pdfFillColorOp(colorArgb),
     );
 
     final out = page.write(paragraph.streamIndex, content);
-    verify(out, bytes, changedPages: {pageIndex});
+    // Yalnız biçim değiştiyse (kalın / renk) metin AYNI kalmalı: doğrulama
+    // "başka sayfa bozulmadı"ya iner.
+    final styleOnly = paragraph.text.trim() == newText.trim() && !sizeChanged;
+    verify(out, bytes,
+        changedPages: styleOnly ? const {} : {pageIndex},
+        touchedPages: {pageIndex});
     return out;
+  }
+
+  /// "Üstüne yaz" için paragrafın **kendi gömülü yazı tipi** (TrueType
+  /// programı) — yeni metnin her harfinin glifi bu programda VARSA. Alt küme
+  /// fontta eksik harf varsa ya da program gömülü değilse null → çağıran
+  /// Carlito'ya düşer (Faz 31 kalanı: "yazı tipi gömülü fonttan değil").
+  /// [bold] istenirse aynı ailenin gömülü kalın kesimi denenir.
+  static List<int>? paragraphFontProgram(
+    List<int> bytes, {
+    required int pageIndex,
+    required int paragraphIndex,
+    required String text,
+    bool bold = false,
+  }) {
+    try {
+      final page = PdfPageContext.open(bytes, pageIndex);
+      final paragraphs = page.paragraphs();
+      if (paragraphIndex < 0 || paragraphIndex >= paragraphs.length) {
+        return null;
+      }
+      final paragraph = paragraphs[paragraphIndex];
+      String? name;
+      try {
+        name = _variantFont(page, paragraph, bold: bold);
+      } on PdfParagraphRefused {
+        return null;
+      }
+      if (name == null) {
+        final weight = <String, int>{};
+        for (final r in paragraph.runs) {
+          final f = r.fontName;
+          if (f != null) weight[f] = (weight[f] ?? 0) + r.text.length;
+        }
+        if (weight.isEmpty) return null;
+        name = weight.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+      }
+      final program = page.file.embeddedTrueType(page.page, name);
+      if (program == null || !TtfCoverage.covers(program, text)) return null;
+      return program;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<List<int>?> paragraphFontProgramInBackground(
+    List<int> bytes, {
+    required int pageIndex,
+    required int paragraphIndex,
+    required String text,
+    bool bold = false,
+  }) =>
+      Isolate.run(() => paragraphFontProgram(bytes,
+          pageIndex: pageIndex,
+          paragraphIndex: paragraphIndex,
+          text: text,
+          bold: bold));
+
+  /// Paragrafın ana yazı tipinin **aynı aileden** kalın (ya da normal)
+  /// kesimi — belgede gömülü olanlardan. PDF'e yeni yazı tipi gömmek
+  /// paragraf motorunun işi değil; kesim yoksa açıklamalı ret.
+  /// Paragraf zaten istenen kesimdeyse null (değişiklik yok).
+  static String? _variantFont(PdfPageContext page, PdfParagraph paragraph,
+      {required bool bold}) {
+    final base = page.file.fontBaseNames(page.page);
+    final weight = <String, int>{};
+    for (final r in paragraph.runs) {
+      final f = r.fontName;
+      if (f != null) weight[f] = (weight[f] ?? 0) + r.text.length;
+    }
+    if (weight.isEmpty) return null;
+    final main =
+        weight.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+    bool isBold(String name) =>
+        RegExp(r'bold|black|heavy|semibold|demi', caseSensitive: false)
+            .hasMatch(name);
+    String family(String name) => name
+        .split(RegExp(r'[-,]'))
+        .first
+        .replaceAll(RegExp(r'(PS|MT)$'), '')
+        .toLowerCase();
+    final mainBase = base[main] ?? '';
+    if (isBold(mainBase) == bold &&
+        paragraph.runs.every((r) => r.fontName == main)) {
+      return null;
+    }
+    final fam = family(mainBase);
+    for (final e in base.entries) {
+      if (e.key == main) continue;
+      if (family(e.value) != fam || isBold(e.value) != bold) continue;
+      if (RegExp(r'italic|oblique', caseSensitive: false).hasMatch(e.value) !=
+          RegExp(r'italic|oblique', caseSensitive: false).hasMatch(mainBase)) {
+        continue;
+      }
+      if (page.fonts.metrics[e.key] == null) continue;
+      return e.key;
+    }
+    if (isBold(mainBase) == bold) return main;
+    throw PdfParagraphRefused(bold
+        ? 'Bu belgede bu yazı tipinin kalın kesimi gömülü değil; paragraf '
+            'kalın yapılamıyor. "Üstüne yaz" ile kalın yazabilirsiniz.'
+        : 'Bu belgede bu yazı tipinin normal kesimi gömülü değil.');
   }
 
   /// [paragraphIndex] paragrafının metnini sayfadan kaldırır (bkz.
@@ -248,6 +366,8 @@ abstract final class PdfPageEdit {
     required int paragraphIndex,
     required String newText,
     double? pointSize,
+    bool? bold,
+    int? colorArgb,
   }) =>
       _guard(() => Isolate.run(() => replaceParagraph(
             bytes,
@@ -255,6 +375,8 @@ abstract final class PdfPageEdit {
             paragraphIndex: paragraphIndex,
             newText: newText,
             pointSize: pointSize,
+            bold: bold,
+            colorArgb: colorArgb,
           )));
 
   /// [objectIndex] görselini siler (sayfadan kaldırır).
@@ -557,6 +679,7 @@ abstract final class PdfPageEdit {
     List<int> out,
     List<int> original, {
     required Set<int> changedPages,
+    Set<int> touchedPages = const {},
   }) {
     PdfDocument? updated;
     PdfDocument? before;
@@ -582,7 +705,7 @@ abstract final class PdfPageEdit {
 
       if (updated.pages.count <= _fullDiffPageLimit) {
         for (var i = 0; i < updated.pages.count; i++) {
-          if (changedPages.contains(i)) continue;
+          if (changedPages.contains(i) || touchedPages.contains(i)) continue;
           if (now.extractText(startPageIndex: i) !=
               was.extractText(startPageIndex: i)) {
             throw const PdfPageRefused(

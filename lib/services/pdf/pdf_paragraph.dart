@@ -297,6 +297,32 @@ class PdfParagraph {
 
   int get lineCount => lines.length;
 
+  /// Aynı paragraf, koşuları [next] (kalın/renk değişikliğinde yazı tipi
+  /// değişen kopya — konum ve aralık aynen).
+  PdfParagraph withRuns(List<PdfParagraphRun> next) => PdfParagraph(
+        streamIndex: streamIndex,
+        spanStart: spanStart,
+        spanEnd: spanEnd,
+        lines: lines,
+        runs: next,
+        text: text,
+        runOfChar: runOfChar,
+        left: left,
+        right: right,
+        top: top,
+        bottom: bottom,
+        leading: leading,
+        justified: justified,
+        centered: centered,
+        centerX: centerX,
+        columnWidth: columnWidth,
+        uniformGraphics: uniformGraphics,
+        bodyLeftX: bodyLeftX,
+        firstLineX: firstLineX,
+        rightX: rightX,
+        roomBelow: roomBelow,
+      );
+
   /// Sayfa uzayındaki bir nokta bu paragrafın içinde mi? [pad] dokunma payı.
   bool contains(double x, double y, {double pad = 2}) =>
       x >= left - pad && x <= right + pad && y >= bottom - pad && y <= top + pad;

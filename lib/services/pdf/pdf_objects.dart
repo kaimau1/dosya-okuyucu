@@ -446,6 +446,31 @@ class PdfFile {
     return out;
   }
 
+  /// [fontName] kaynağının **gömülü TrueType programı** (`/FontFile2`),
+  /// Type0 ise soyundaki fonttan. Yoksa / çözülemezse null. "Üstüne yaz"ın
+  /// özgün yazı tipiyle yazabilmesi için (Faz 31 kalanı).
+  List<int>? embeddedTrueType(PdfObject page, String fontName) {
+    final ref = fontRefs(page)[fontName];
+    var font = ref == null ? null : objects[ref];
+    if (font == null) return null;
+    final descendants = pdfArray(font.dict, 'DescendantFonts');
+    if (descendants != null) {
+      final m = RegExp(r'(\d+)\s+\d+\s+R').firstMatch(descendants);
+      final child = m == null ? null : objects[int.parse(m.group(1)!)];
+      if (child != null) font = child;
+    }
+    final descRef = pdfRef(font.dict, 'FontDescriptor');
+    final desc = descRef == null ? null : objects[descRef];
+    final fileRef = desc == null ? null : pdfRef(desc.dict, 'FontFile2');
+    final file = fileRef == null ? null : objects[fileRef];
+    if (file == null || !file.isStream) return null;
+    try {
+      return decodeStream(file);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Sayfanın `/Resources /Font` sözlüğü: kaynak adı → nesne numarası.
   Map<String, int> fontRefs(PdfObject page) => resourceRefs(page, 'Font');
 
