@@ -880,3 +880,12 @@
   Arama/kapsam `Ajan.kt`'den `ci/DosyaArama.kt`'ye taşındı (davranış aynı; Gemini işlevleri ve köprü ortak
   kullanır, `tool/check_kotlin.sh` gerçek jar'a karşı derler + `AsistanKopruHarness`). Sözleşme asistan deposunun
   `PROTOKOL.md`'sinde; oradan buraya kod kopyalanmaz (GPL).
+
+- **2026-10-31 — Asistandan sesli oku / durdur / özetle (asistan PLAN K7 = "kanca eklensin").** Köprü `oku`/`ozetle`
+  için dosyayı `ac` ile aynı kuralla bulur (sorgu boşsa son açılan) ve `oku:/yol` / `ozet:/yol`, `durdur` için `durdur:`
+  bağlantısı verir; asistan uygulamayı onunla açar. Dart kancası: `lib/services/asistan_komutlari.dart` (açık
+  görüntüleyiciler kendini kaydeder; dosya açık değilse önce `EntryOpener.open`, görüntüleyici kurulunca bekleyen
+  isteği alır) + `app_links.dart`. Okuma görüntüleyicinin KENDİ `_toggleSpeech`'i (`TtsService` değişmedi, yalnız
+  başlatılır; "durdur" duraklatır, kaldığı yer kalır), özet mevcut `showAiSummary` (kayıtlı özet varsa anında açılır).
+  Kanca genel APK'da da var ama etkisiz (bağlantıları veren köprü yalnız kişisel derlemede). Özet asistanda sesli
+  okunmaz, Dosya Okuyucu'nun özet sayfasında açılır (sonuç Dart'ta, köprüye geri dönen yol yok — gerekirse sonra).

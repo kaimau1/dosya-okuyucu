@@ -16,6 +16,8 @@ import 'fm/open_history_screen.dart';
 import 'fm/cleanup_screen.dart';
 import 'fm/search_screen.dart';
 import '../core/l10n/app_strings.dart';
+import '../services/asistan_komutlari.dart';
+import 'fm/ai_actions.dart';
 
 /// **Uygulama içi bağlantılar** (2026-10-18): ana ekran widget'ları ve yerel
 /// iş bildirimleri uygulamayı bir bağlantıyla açar. Biçim:
@@ -26,6 +28,9 @@ import '../core/l10n/app_strings.dart';
 /// - `app:images` Görüntüler (foto + video) · `app:photos` Fotoğraflar ·
 ///   `app:videos` Videolar (ana ekran kısayolları, 2026-10-28)
 /// - `file:/tam/yol` o dosyayı açar.
+/// - `oku:/tam/yol` dosyayı (açık değilse açıp) sesli okur, `durdur:` okumayı
+///   durdurur, `ozet:/tam/yol` AI özetini açar — kişisel derlemedeki asistan
+///   köprüsünden gelir (bkz. `AsistanKomutlari`; genel APK'da gelmez).
 ///
 /// Tanınmayan bağlantı sessizce yok sayılır (eski bir widget sürümü).
 Future<void> openAppLink(BuildContext context, String link) async {
@@ -34,6 +39,22 @@ Future<void> openAppLink(BuildContext context, String link) async {
   if (link.startsWith('file:')) {
     final path = link.substring(5);
     if (path.isNotEmpty) await EntryOpener.open(context, path);
+    return;
+  }
+  if (link.startsWith('oku:')) {
+    final path = link.substring(4);
+    if (!AsistanKomutlari.oku(path) && path.isNotEmpty) {
+      await EntryOpener.open(context, path);
+    }
+    return;
+  }
+  if (link == 'durdur:') {
+    AsistanKomutlari.durdur();
+    return;
+  }
+  if (link.startsWith('ozet:')) {
+    final entry = FsEntry.ofPath(link.substring(5));
+    if (entry != null) await showAiSummary(context, entry);
     return;
   }
   switch (link) {

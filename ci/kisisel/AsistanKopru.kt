@@ -16,12 +16,14 @@ import java.io.File
  *
  * Kullanıcının kişisel sesli asistanı (`com.ses.asistan`, ayrı uygulama) "X dosyasını aç", "son dosyayı aç",
  * "sesli oku", "okumayı durdur", "özetle" komutlarını buraya `KOMUT` iletisiyle verir; cevap `SONUÇ` ile döner.
+ * Okuma ve özet uygulamanın kendi kodudur: köprü yalnız `oku:` / `ozet:` / `durdur:` bağlantısını verir, asistan
+ * uygulamayı onunla açar, Dart'taki kanca açık görüntüleyicide `TtsService`'i ya da AI özetini başlatır.
  * Sözleşme asistan deposunun `PROTOKOL.md`'sinde ("Dosya Okuyucu komutları"); buraya o depodan kod kopyalanmaz,
  * sabitler belgeden yazıldı.
  *
  * * **Genel (dağıtılan) APK'da bu dosya, servis ve izin YOKTUR** — `prepare_android.sh` bayrak yokken eklemez ve
  *   üretilen manifestte köprü olmadığını denetler.
- * * Uygulamanın kendi ses özelliklerine (`tts_service`, sesli kitap) dokunulmaz.
+ * * Uygulamanın kendi ses özelliklerine (`tts_service`, sesli kitap) dokunulmaz; yalnız başlatılır.
  * * Güvenlik: servis `…izin.ASISTAN` (`signature|knownSigner`, knownCerts = asistanın sertifikası) ile korunur;
  *   ayrıca iletiyi gönderenin paketi denetlenir.
  * * Gizlilik: arama ve son açılanlar Gemini işlevleriyle AYNI kapsam kuralından geçer (`DosyaArama`, kilitli ve AI
@@ -69,23 +71,24 @@ class AsistanKopru : Service() {
     /** [link] verilirse asistan uygulamayı o bağlantıyla açar (`app_links.dart` biçimi). */
     internal data class Cevap(val metin: String, val tamam: Boolean, val link: String? = null)
 
-    internal fun cevap(ad: String, sorgu: String): Cevap = when (ad) {
-        "ac" -> {
-            val bulunan = if (sorgu.isBlank()) DosyaArama.son(this).take(1) else DosyaArama.ara(this, sorgu, 5)
-            val f = bulunan.firstOrNull()
-            when {
-                f == null && sorgu.isBlank() -> Cevap("Son açılan dosya yok.", false)
-                f == null -> Cevap("Adında “$sorgu” geçen dosya bulunamadı.", false)
-                !DosyaArama.izinli(this, File(f.yol)) -> Cevap("Dosya bulunamadı.", false)
-                else -> Cevap(acilisCumlesi(f.ad, bulunan.size), true, "file:" + f.yol)
-            }
+    internal fun cevap(ad: String, sorgu: String): Cevap {
+        if (ad == "durdur") return Cevap("Okuma durduruluyor.", true, BAG_DURDUR)
+        val onek = when (ad) {
+            "ac" -> "file:"
+            // Sesli okuma ve özet uygulamanın kendi kodunda (`TtsService`, AI özeti); bağlantıyı Dart'taki kanca
+            // karşılar (`lib/services/asistan_komutlari.dart`, asistan PLAN K7).
+            "oku" -> BAG_OKU
+            "ozetle" -> BAG_OZET
+            else -> return Cevap("Dosya Okuyucu bu komutu bilmiyor.", false)
         }
-        // Görüntüleyicinin sesli okuması ve özeti Dart'ta, ekrana bağlı; asistandan başlatmak için Dart'ta kanca
-        // gerekir (asistan PLAN K7, açık karar). O zamana kadar dürüstçe söylenir.
-        "oku", "durdur", "ozetle" -> Cevap(
-            "Bunu Dosya Okuyucu'da şimdilik ekrandan yapın; asistandan sesli okuma ve özet henüz bağlı değil.", false,
-        )
-        else -> Cevap("Dosya Okuyucu bu komutu bilmiyor.", false)
+        val bulunan = if (sorgu.isBlank()) DosyaArama.son(this).take(1) else DosyaArama.ara(this, sorgu, 5)
+        val f = bulunan.firstOrNull()
+        return when {
+            f == null && sorgu.isBlank() -> Cevap("Son açılan dosya yok.", false)
+            f == null -> Cevap("Adında “$sorgu” geçen dosya bulunamadı.", false)
+            !DosyaArama.izinli(this, File(f.yol)) -> Cevap("Dosya bulunamadı.", false)
+            else -> Cevap(cumle(ad, f.ad, bulunan.size), true, onek + f.yol)
+        }
     }
 
     companion object {
@@ -95,8 +98,20 @@ class AsistanKopru : Service() {
         private const val KOMUT = 107
         private const val SONUC = 9
 
+        // Dart kancasının bağlantıları (`app_links.dart`); "file:" uygulamanın eski bağlantısı
+        internal const val BAG_OKU = "oku:"
+        internal const val BAG_OZET = "ozet:"
+        internal const val BAG_DURDUR = "durdur:"
+
         /** "fatura.pdf açılıyor" / "3 dosya bulundu, en yenisi açılıyor: fatura.pdf". */
         internal fun acilisCumlesi(ad: String, adet: Int): String =
             if (adet <= 1) "$ad açılıyor." else "$adet dosya bulundu, en yenisi açılıyor: $ad."
+
+        /** Komuta göre cevap: aç → [acilisCumlesi]; oku → "fatura.pdf okunuyor."; özet → "fatura.pdf özetleniyor." */
+        internal fun cumle(komut: String, ad: String, adet: Int): String = when (komut) {
+            "oku" -> "$ad okunuyor."
+            "ozetle" -> "$ad özetleniyor; özet Dosya Okuyucu'da açılacak."
+            else -> acilisCumlesi(ad, adet)
+        }
     }
 }

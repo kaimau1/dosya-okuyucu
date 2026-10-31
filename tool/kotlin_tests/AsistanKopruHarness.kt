@@ -9,6 +9,10 @@ fun main() {
     }
     check("tek dosya", AsistanKopru.acilisCumlesi("fatura.pdf", 1) == "fatura.pdf açılıyor.")
     check("çok dosya", AsistanKopru.acilisCumlesi("fatura.pdf", 3) == "3 dosya bulundu, en yenisi açılıyor: fatura.pdf.")
+    check("oku cümlesi", AsistanKopru.cumle("oku", "kira.pdf", 2) == "kira.pdf okunuyor.")
+    check("özet cümlesi", AsistanKopru.cumle("ozetle", "kira.pdf", 1).startsWith("kira.pdf özetleniyor"))
+    check("aç cümlesi", AsistanKopru.cumle("ac", "kira.pdf", 1) == "kira.pdf açılıyor.")
+    check("bağlantılar", listOf(AsistanKopru.BAG_OKU, AsistanKopru.BAG_OZET, AsistanKopru.BAG_DURDUR) == listOf("oku:", "ozet:", "durdur:"))
     // AI kapsamı (Ajan ile aynı kural): gizli klasör ve engelli yol dönmez
     val k = AjanKapsam(listOf("/sd/DCIM/Camera"))
     check("kamera kapalı", !k.izinli("/sd/DCIM/Camera/a.jpg"))

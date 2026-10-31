@@ -60,6 +60,7 @@ import '../services/pdf_annotator.dart';
 import '../services/pdf_reload.dart';
 import '../services/pdf_tools.dart';
 import '../services/tts_service.dart';
+import '../services/asistan_komutlari.dart';
 import '../widgets/office_ribbon.dart' show OfficeIcons;
 import '../widgets/download_action.dart';
 import '../widgets/tracked_busy.dart';
@@ -484,11 +485,25 @@ class _ViewerScreenState extends State<ViewerScreen> {
   int _ttsTotal = 0;
   bool _ttsPlaying = false;
 
+  /// Asistandan "sesli oku / durdur" (kişisel derleme köprüsü; bkz.
+  /// [AsistanKomutlari]). Okuma yine bu ekranın kendi "Sesli oku"sudur.
+  late final AcikOkuyucu _asistanKaydi;
+
   @override
   void initState() {
     super.initState();
     unawaited(_loadFullscreen());
     final doc = widget.doc;
+    _asistanKaydi = AsistanKomutlari.kaydet(doc.path, oku: () {
+      if (!_ttsPlaying) unawaited(_toggleSpeech());
+    }, durdur: () {
+      if (_ttsPlaying) unawaited(_toggleSpeech()); // duraklat: kaldığı yer kalır
+    });
+    if (AsistanKomutlari.bekleyenOkuAl(doc.path)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_ttsPlaying) unawaited(_toggleSpeech());
+      });
+    }
     if (doc.kind == DocKind.text ||
         doc.kind == DocKind.word ||
         doc.kind == DocKind.slides) {
@@ -671,6 +686,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
         ?.dispose(); // PdfViewerController = ValueListenable, dispose'suz
     _ocrSearch?.dispose();
     _tts?.dispose(); // ekran kapanınca konuşma sürmesin
+    AsistanKomutlari.birak(_asistanKaydi);
     // Geri yazma ARTIK BEKLENMEZ ve ana izleği dondurmaz: eskiden burada
     // büyük dosya eşzamanlı kopyalanıyordu (bkz. [SafeWrite]). İş kuyrukta
     // sürer; aynı dosya yeniden açılırsa görüntüleyici onu bekler.
