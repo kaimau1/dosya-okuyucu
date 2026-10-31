@@ -251,6 +251,12 @@ Future<T> showFmProgress<T>(
     } else {
       await tracked.complete(detail: summary.detail, quiet: watched());
     }
+    // İş kartından "ne yapıldı" görülsün (2026-10-30 (2): "tüm bu tür
+    // işlerde"): dosya dosya nereye taşındı / kopyalandı. Yalnız iş kaydı
+    // oluşmuşsa (uzun ya da arka plana alınmış iş) — kısa işler kart açmaz.
+    if (result is FmOpResult && tracked.job != null) {
+      tracked.recordChanges(jobChangesOf(result));
+    }
     return result;
   } catch (e) {
     await tracked.fail(e, quiet: watched());

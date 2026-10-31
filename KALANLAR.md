@@ -10,18 +10,18 @@
 > köşeli parantezde.
 
 
-- [ ] **[Sıra 8 ☁️ + 12 📱] Ham USB yazmayı sağlamlaştır (K8 kararı, 2026-10-21).** Kullanıcı:
+- [x] **(☁️ kısmı yapıldı — `test/usb_fat_robust_test.dart`: kirli bayrak, yarıda kesilme, geri-okuma doğrulaması; 2026-10-31 denetimde görüldü. Cihazda takıp yazma 📱 `docs/CIHAZ_TESTI.md`) [Sıra 8 ☁️ + 12 📱] Ham USB yazmayı sağlamlaştır (K8 kararı, 2026-10-21).** Kullanıcı:
       *"kişi rahatlıkla USB'ye yazabilmeli ve güvenli olmalı"*. Android'in bağlamadığı
       bellekte FAT/exFAT'a kendi sürücümüz yazıyor (`lib/services/fm/usb/`); günlük yok.
       Yapılacak: güvenli yazma sırası (veri → FAT → dizin girdisi), yazma sonrası geri-okuma
       doğrulaması, "kirli" bayrağıyla bir sonraki takışta onarım, çekmeden önce "Güvenle
       çıkar" uyarısı + yarıda kesilme testleri.
 
-- [ ] **[Sıra 8 ☁️] onReorder → onReorderItem (Flutter 3.44 kullanımdan kaldırma, 2026-10-21):**
+- [x] **(YAPILDI — kodda `onReorder` kalmadı; 2026-10-31 denetim) [Sıra 8 ☁️] onReorder → onReorderItem (Flutter 3.44 kullanımdan kaldırma, 2026-10-21):**
       `dashboard_layout_sheet.dart` (alt küme → tam liste eşlemesi) ve `nav_tabs_sheet.dart`
       (`nav.move`) `// ignore` ile bırakıldı; yeni API `newIndex`i önceden düzeltiyor —
       eşleme ve `move` mantığı buna göre değiştirilip testle sabitlenmeli.
-- [ ] **[Sıra 2 ☁️ = Faz 10b] Faz 10 kalan:** örnek medya seti + duman testleri (EXIF yönlü JPEG, HEIC, WebP,
+- [x] **(YAPILDI 2026-10-22 — Faz 10b) [Sıra 2 ☁️ = Faz 10b] Faz 10 kalan:** örnek medya seti + duman testleri (EXIF yönlü JPEG, HEIC, WebP,
       MP4/MKV/altyazı, MP3/FLAC/M4A). (Galeri RSS 2026-10-22 ölçüldü: PSS 948 MB → aşağıdaki GPU maddesi.)
 
 - [ ] **[📱] Açılışın ilk 0,5 sn'si:** ilk kare raster 218–309 ms (Impeller ve Skia), sonra pano

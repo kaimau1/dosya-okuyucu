@@ -428,5 +428,8 @@
  },
  "lib/widgets/tts_voice_sheet.dart": {
   "sheets": 1
+ },
+ "lib/services/pdf/pdf_paragraph_layout.dart": {
+  "font_size": 1
  }
 }

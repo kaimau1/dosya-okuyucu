@@ -185,3 +185,16 @@ class TrackedTask {
     return (detail: '', target: null, cancelled: false);
   }
 }
+
+/// Taşıma / kopyalama / yeniden adlandırma sonucunu iş kaydına çevirir:
+/// tür `move` (kaynak artık yok) ya da `copy`; değer hedef klasörün adı,
+/// [JobChange.before] kaynak yol (taşımada geri alma bununla yapılır).
+List<JobChange> jobChangesOf(FmOpResult result) => [
+      for (final t in result.transfers)
+        JobChange(
+          path: t.dest,
+          kind: File(t.source).existsSync() ? 'copy' : 'move',
+          value: p.basename(p.dirname(t.dest)),
+          before: t.source,
+        ),
+    ];

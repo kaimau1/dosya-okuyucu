@@ -308,10 +308,11 @@ class DocxEditorViewState extends State<DocxEditorView> {
     final top = math.max(0.0, at.dy - _magnifierLift - _magnifierSize.height / 2);
     final center = Offset(left + _magnifierSize.width / 2,
         top + _magnifierSize.height / 2);
-    return Positioned(
+    // Parmağın fiziksel konumu (yönden bağımsız) — dikdörtgenle yerleşir.
+    return Positioned.fromRect(
       key: const ValueKey('docx-magnifier'),
-      left: left,
-      top: top,
+      rect: Rect.fromLTWH(
+          left, top, _magnifierSize.width, _magnifierSize.height),
       child: IgnorePointer(
         child: RawMagnifier(
           size: _magnifierSize,

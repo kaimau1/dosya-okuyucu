@@ -4,7 +4,9 @@ import 'package:dosya_okuyucu/core/app_state.dart';
 import 'package:dosya_okuyucu/screens/fm/job_report_screen.dart';
 import 'package:dosya_okuyucu/services/fm/file_tags.dart';
 import 'package:dosya_okuyucu/services/fm/fm_env.dart';
+import 'package:dosya_okuyucu/services/fm/file_ops.dart';
 import 'package:dosya_okuyucu/services/fm/job_queue.dart';
+import 'package:dosya_okuyucu/services/fm/tracked_task.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -131,5 +133,43 @@ void main() {
     final back = JobChange.fromJson(c.toJson())!;
     expect(back.rejected, isTrue);
     expect(back.pending, isFalse);
+  });
+
+  testWidgets('taşıma işi: grup "→ klasör", Taşımayı geri al dosyayı döndürür',
+      (tester) async {
+    final dest = Directory('${dir.path}/Arsiv')..createSync();
+    final moved = File(a).renameSync('${dest.path}/fatura.pdf').path;
+    final job = FmJob(id: 'j4', title: 'Taşıma', status: JobStatus.done)
+      ..changes.add(
+          JobChange(path: moved, kind: 'move', value: 'Arsiv', before: a));
+    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(app(job));
+    await tester.pump();
+    expect(find.text('→ Arsiv klasörüne taşındı'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('jr-menu-Arsiv')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Taşımayı geri al'));
+    await tester.pump();
+    for (var i = 0; i < 10 && job.changes.isNotEmpty; i++) {
+      await settle(tester);
+      await tester.pump(const Duration(milliseconds: 500));
+    }
+    expect(File(a).existsSync(), isTrue);
+    expect(File(moved).existsSync(), isFalse);
+    expect(job.changes, isEmpty);
+  });
+
+  test('jobChangesOf: taşıma / kopya ayrımı', () {
+    final src = File('${dir.path}/x.txt')..writeAsStringSync('1');
+    final r = FmOpResult(succeeded: 2, transfers: [
+      FmTransfer(src.path, '${dir.path}/Y/x.txt'),
+      FmTransfer('${dir.path}/gitti.txt', '${dir.path}/Y/gitti.txt'),
+    ]);
+    final c = jobChangesOf(r);
+    expect(c.map((e) => e.kind), ['copy', 'move']);
+    expect(c.first.value, 'Y');
+    expect(c.last.before, '${dir.path}/gitti.txt');
   });
 }

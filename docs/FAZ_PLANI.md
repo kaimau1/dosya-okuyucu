@@ -101,7 +101,7 @@
 | 30 | **Metin / kod / Markdown düzenleyici** — `DUZENLEME_PLANI.md` | 20 | ✅ 2026-10-28 |
 | 31 | **PDF düzenleme deneyimi** (yerinde metin, nesne katmanı, ortak kabuk) — `DUZENLEME_PLANI.md` | 20 | ✅ 2026-10-30 |
 | 32 | **Görsel düzenleyici 2.0** — `DUZENLEME_PLANI.md` | 20 | ✅ 2026-10-29 |
-| 33 | **Düzenleme turu kapanışı** (tablet, klavye, erişilebilirlik, Office uyumluluğu, cihaz turu) — `DUZENLEME_PLANI.md` | 20–32 | ⬜ |
+| 33 | **Düzenleme turu kapanışı** (tablet, klavye, erişilebilirlik, Office uyumluluğu, cihaz turu) — `DUZENLEME_PLANI.md` | 20–32 | 🟡 2026-10-31 bulut kısmı ✅ · cihaz kısmı 📱 (sıra 12 cihaz turuyla birlikte) |
 
 ### 0.1 Yürütme sırası (2026-10-22) — bulutta yapılabilenler önce
 
@@ -147,6 +147,12 @@ hesabı/kararı gerekir (Play Console, Billing, depo ayarı).
 > **Durum 2026-10-23:** Faz 20 ✅ · Faz 21 ✅ (K18 = b-ii) · Faz 22 ✅ · Faz 25 ✅ · Faz 26 ✅ ·
 > Faz 28 ✅. **2026-10-24: Faz 23 ✅.** **2026-10-29: Faz 24 ✅, Faz 27 ✅, Faz 29 ✅, Faz 32 ✅. 2026-10-30: küçük kalanlar (sekme sürükle, slayt ⇥, Word bağlantı düzenle, Tab ayarı, yan yana Markdown) — sıradaki: Faz 31, sonra 33.** Sıradaki: **Faz 30** (metin/kod/Markdown — D8; bulguları
 > HAFIZA 2026-10-24'te: metin kaydı kodlamayı UTF-8'e çeviriyor), sonra Faz 24.
+
+> **Durum 2026-10-31:** Faz 20–32'nin bütün bulut kalanları ve Faz 33'ün bulut kısmı bitti
+> (HAFIZA 2026-10-31). **Bulutta yapılacak faz işi kalmadı;** sıradaki: sıra 12 cihaz turu
+> (+ Faz 33 cihaz kısmı), sonra 11b/12c (hesap). İsteğe bağlı bulut işi olarak yalnız
+> 53 levhanın / 49 pencerenin ortak bileşene taşınması duruyor (görsel fark riski; levha
+> başına cihazda bakılarak yapılmalı — faz işi değil).
 
 **Bulut oturumu ne yapabilir / ne yapamaz** (HAFIZA 2026-07-25 §F, 2026-10-21 (5)):
 

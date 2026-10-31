@@ -12,6 +12,7 @@ import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/material.dart';
 
 import '../app_colors.dart';
+import '../motion.dart';
 import 'code_editing.dart';
 import 'code_highlight.dart';
 
@@ -64,7 +65,7 @@ class CodeTextController extends TextEditingController {
       tokenizeCode(a.$1, a.$2);
 
   /// Yazma durduktan sonra arka plan renklendirmesi.
-  static const backgroundDelay = Duration(milliseconds: 400);
+  static const backgroundDelay = Motion.long;
   Timer? _bgTimer;
   int _bgSeq = 0;
 

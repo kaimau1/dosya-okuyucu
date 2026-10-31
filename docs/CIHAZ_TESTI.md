@@ -738,3 +738,33 @@ Word'de bir belge aç → alttaki **Düzenle** (artık Mobil görünüm açılı
 - [ ] **Serbest açı + dikey çevir + filtre (Belge)** kayıtta önizlemeyle aynı mı.
 - [ ] **Slayt spAutoFit:** "Şekli metne göre boyutlandır" kutusuna uzun yazı → Bitti → kutu
       büyüdü; PowerPoint'te aynı boy.
+
+
+## 2026-10-31 — Bulut kalanları turu (AI iş ekranı, PDF akışı, Faz 33 bulut, faz kalanları)
+
+- [ ] **AI etiket iş ekranı:** İşlemler → etiket işi → küçük resimler yükleniyor mu (fotoğraf,
+      video karesi, PDF kapağı); dokun = ✕/✓, basılı tut = aç; etiket çipleri; Dosyaya göre.
+- [ ] **PDF akışı:** sayfa açılınca ipucu şeridinde "Sayfa N okunuyor…" çarkı görünüyor mu;
+      meşgulken paragrafa dokununca "Bir saniye — …"; Bitti'den sonra yeni metin yerinde kalıp
+      sayfa yenileniyor mu (eski metin bir an görünmemeli); **tek satırlık başlık düzenlemede
+      tek satır kalıyor mu** (birkaç farklı PDF: Word çıktısı, e-Devlet, tarama + OCR).
+- [ ] **Taranmış satır** artık pencere değil yerinde alan — klavye açılınca satır görünür mü.
+- [ ] **PDF kalın / renk:** Word'den çıkmış (kalın kesim gömülü) PDF'te paragraf → K → Bitti;
+      kesim yoksa ret + "Üstüne yaz" kalın yazıyor mu. Renk → kırmızı → Acrobat/Chrome'da aynı.
+- [ ] **Üstüne yaz özgün yazı tipiyle:** Word PDF'inde yazı tipi değişmeden mi yazıyor
+      (alt kümede harf yoksa Carlito'ya düşer).
+- [ ] **PDF Çiz / AI sekmeleri:** Çiz → çiz → Uygula → düzenleyicide geri al çizimi siliyor mu.
+- [ ] **Donanım klavyesi (Bluetooth / DeX):** Excel oklar, ⇧+ok, Ctrl+ok, ⇥, ↵, F2, Delete,
+      harfle yazmaya başlama; her editörde Ctrl+/ yardım levhası.
+- [ ] **Tablet yan paneli:** ≥ 840 dp'de Word Aa paneli sağda, yazarken klavye kapanmıyor.
+- [ ] **TalkBack:** Excel hücresi "B2, Armut"; şeritte "Kalın, açık/kapalı"; slayt şekli yazısıyla.
+- [ ] **Excel:** dosyadaki grafik hücrelerin üstünde doğru yerde; Tablo olarak biçimlendir →
+      kaydet → masaüstü Excel'de "Tablo Tasarımı" sekmesi çıkıyor, onarım uyarısı yok.
+- [ ] **Slayt:** Düzeni değiştir (metin kaybolmuyor); grup içindeki şekli sürükle; tablo
+      hücresine uzun bas → tabloyu taşı/boyutlandır → PowerPoint'te aynı.
+- [ ] **Word:** kalın kelime kopyala/yapıştır kalın kalıyor; liste kalıbı galerisi (✓, A., i.)
+      masaüstü Word'de aynı; büyük belgede açılışta ilk paragraflar önce görünüyor; tutamak
+      sürüklerken büyüteç.
+- [ ] **Metin:** 2 MB'lık kod dosyasında renklendirme yazma durunca geliyor, yazarken takılmıyor;
+      satır aralığı 1,8 → numaralar hizalı.
+

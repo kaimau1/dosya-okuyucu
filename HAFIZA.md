@@ -811,3 +811,59 @@
   önerileri yalnız ekran açıkken levhada gösteriliyordu; kullanıcı işi arka plana alınca
   öneriler izsiz kayboluyordu. Şimdilik değişiklik yazan iş: AI etiketleme; öteki işler
   (yeniden adlandırma, küçültme, AI düzenleme) aynı `recordChanges`e bağlanmalı — açık iş.
+
+- **2026-10-31 (bulut) — AI iş ekranı baştan, PDF düzenleme akışı, Faz 33 bulut kısmı, Faz 22–31
+  bütün bulut kalanları.** Kullanıcı: *"PDF düzenlemede ne oluyor hissi var… bir tuşa basınca bir
+  şey olmuyor, aslında yükleniyormuş… metin düzenleme kimisinde yerinde kimisinde pencerede…
+  tek satırlık yazı 2 satıra çıkıyor"* + *"AI iş ekranı çok kullanışsız… görseller önizlemesiyle
+  görülmeli, ekranı baştan yaz"* + *"fazlarda kalan bulutta yapılabilecek her işi bitir"*.
+  **İş sonucu ekranı** (`JobReportScreen`): düz cümleli özet ("AI 640 dosyaya baktı, 38 etiket
+  önerdi · henüz hiçbiri uygulanmadı") + ilerleme; **Etikete göre** küçük resim ızgarası (dokun =
+  çıkar ✕ / geri kat ✓, basılı tut = aç/kaldır), etiket çipleriyle süzme, "Tümünü göster";
+  **Dosyaya göre** (küçük resim + etiket çipleri, çip = tak/çıkar). Yazımlar sıralı kuyrukta,
+  dokunuş beklemez. `JobChange.rejected` ('r'). AI etiketleme bitince eski adlar-listesi levhası
+  yerine aynı ekran açılır. Taşı/kopyala işleri de (`showFmProgress`, yalnız iş kaydı oluştuysa)
+  `jobChangesOf` ile yazılır; taşımada "Taşımayı geri al". **TUZAK:** collection-if içinde
+  `if (a) for (...) if (b) ...x else y` — `else` İÇTEKİ if'e bağlanır (dosya görünümü hiç
+  açılmıyordu); düz `if (!a) y else for …` yaz.
+  **PDF akışı — kök nedenler:** (1) "bastım bir şey olmadı": `_editParagraph` meşgulken sessizce
+  dönüyordu ve tek bekleme işareti 3 px'lik çubuktu → `_setBusy(not)` her bekleme ipucu
+  şeridinde çark + cümle ("Sayfa 3 okunuyor…", "Değişiklik uygulanıyor…"), meşgulken dokunuş
+  "Bir saniye — …" der; iç içe meşgul (uygula → senkron → anahat) artık bayrağı erken bırakmıyor.
+  (2) "birkaç saniye sonra birdenbire": Bitti'de alan hemen kapanıyor, sayfa yenilenene kadar
+  ESKİ metin görünüyordu → alan yeni metinle salt okunur yerinde kalır (`_inlineApplying`,
+  geometri dondurulur), yenilenince kapanır. (3) "kimisinde pencere": taranmış/OCR satırı
+  pencerede açılıyordu → paragrafla aynı yerinde alan; "Pencerede düzenle" kaldırıldı.
+  (4) **tek satır iki satıra çıkıyordu — üç kök neden:** `DecoratedBox` kenarlığı çocuğu içeri
+  itmez ve iç boşluk alanı paragraftan ~3 px DAR bırakıyordu; temanın M3 gövde stilinin
+  `letterSpacing 0.5`i alana karışıyordu; Carlito özgün yazı tipinden geniş olabiliyor →
+  kutu dışa açılır, harf aralığı 0, özgün metin özgün satır sayısına sığana dek punto ≤ %25
+  küçültülür; satır aralığı ve hiza paragraftan. (5) Sayfa değişince eski sayfanın kutuları
+  bir an yeni sayfada görünüyordu → anahat okunana dek boş.
+  **PDF kalanları:** Çiz/AI şeridin sekmeleri (`PdfInkScreen.returnMarks` izleri döndürür →
+  `applyPdfMarks` yeniden oynatılabilir tek adım; AI çalışma kopyasının metniyle); paragrafa
+  kalın (aynı ailenin GÖMÜLÜ kalın kesimi, yoksa açıklamalı ret) ve renk (sonraki içerik eski
+  renge döner; stil-yalnız değişiklikte doğrulama "sayfa değişti" değil "başka sayfa
+  bozulmadı"); Üstüne yaz paragrafın kendi `FontFile2`siyle (`TtfCoverage`: cmap 4/12 + loca —
+  alt kümede boş glif sayılmaz; Syncfusion alt kümesinde cmap YOK → Carlito). **KÖK NEDEN
+  (eski hata):** `pdfName` yalnız `[A-Za-z0-9]` alıyordu → `/ABCDEF+Arial-BoldMT` "ABCDEF"
+  okunuyordu; aile/kalınlık tahmini ve alt küme öneki temizliği hiç çalışmıyordu.
+  **Faz 33 bulut:** Excel ızgara klavyesi (`spreadsheet/keyboard.dart`: ok, ⇧+ok, Ctrl+ok,
+  ⇥/↵, F2, Delete, Home, PgUp/Dn, harfle yazmaya başla); `EditorShortcuts` Ctrl+/ yardım
+  levhası (yalnız BAĞLI kısayollar + `extraHelp`); PDF ve metin düzenleyiciye kısayollar;
+  `EditorChrome` ≥ 840 dp'de Aa paneli sağ bölmede, klavyeyi indirmez; `RibbonButton.active`
+  null = düz eylem, bool = aç/kapa (TalkBack "açık/kapalı"); hücre "B2, Armut", slayt şekli
+  yazısıyla; `test/editor_a11y_test.dart`. **TUZAK:** ızgaranın odağı torunlarda olabilir —
+  `hasPrimaryFocus` değil `hasFocus` + birincil odak `EditableText` değil denetimi; testte
+  açılışta seçili A1'e dokunmak düzenlemeyi açar.
+  **Diğer kalanlar:** Excel dosya grafikleri (`XlsxFileCharts` → `PptxRender.chartPart`, salt
+  çizim) ve `tableN.xml` (`XlsxTableWriter`; başlık boş/sayı/yinelenense tablo YAZILMAZ, aynı
+  aralıktaki sayfa autoFilter'ı kaldırılır; LibreOffice açtı); slayt Düzeni değiştir, grup içi
+  taşıma (çocuk koordinatına ters dönüşüm; dönmüş grupta ret), tablo çerçevesi
+  (`ShapeVM.tableFrame`, hücreye uzun bas); Word biçimli yapıştırma (`DocxEditController.
+  richClip`; sistem panosu metni aynıysa), liste kalıbı galerisi (`kDocxListPatterns`), açılış
+  önizlemesi (`docxPreviewParagraphs`), büyüteç (`RawMagnifier`); metin 1–4 MB isolate
+  renklendirme (`CodeTextController.backgroundTokenize`, testte eşzamanlı) ve satır aralığı.
+  **Bilerek yapılmayan:** `re_editor` denemesi (K25 + bağımlılık diyeti; darboğaz ölçülmedi);
+  53 levha / 49 pencerenin ortak bileşene taşınması (faz işi değil, görsel risk — cihazda).
+  Cihaz maddeleri `docs/CIHAZ_TESTI.md` 2026-10-31.

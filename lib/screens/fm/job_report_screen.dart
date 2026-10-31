@@ -220,6 +220,37 @@ class _JobReportScreenState extends State<JobReportScreen> {
 
   /// Grubun dosyalarını bir klasöre taşır; etiketler ve kayıttaki yollar
   /// yeni yere göre güncellenir.
+  /// Taşımayı geri al: dosyalar eski klasörlerine döner; kayıttan düşer.
+  Future<void> _undoMove(List<JobChange> list) async {
+    final str = AppStrings.of(context);
+    await _guard(() async {
+      final byDir = <String, List<JobChange>>{};
+      for (final c in list) {
+        final before = c.before;
+        if (c.kind != 'move' || before == null) continue;
+        if (!File(c.path).existsSync()) continue;
+        (byDir[p.dirname(before)] ??= []).add(c);
+      }
+      var n = 0;
+      for (final e in byDir.entries) {
+        final result =
+            await FileOps.moveAll([for (final c in e.value) c.path], e.key);
+        n += result.succeeded;
+        for (final t in result.transfers) {
+          await FileTags.movePath(t.source, t.dest);
+        }
+        // Geri dönen (artık hedefte olmayan) dosyalar kayıttan düşer.
+        for (final c in e.value) {
+          if (!File(c.path).existsSync()) {
+            _job.changes.remove(c);
+            _entries.remove(c.path);
+          }
+        }
+      }
+      if (mounted) showSnack(context, str.t('jr.moved_back', {'n': n}));
+    });
+  }
+
   Future<void> _moveGroup(List<JobChange> list) async {
     final paths = {
       for (final c in list)
@@ -577,7 +608,12 @@ class _JobReportScreenState extends State<JobReportScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(isTag ? '#$value' : value,
+                Text(
+                    isTag
+                        ? '#$value'
+                        : (first.kind == 'move' || first.kind == 'copy')
+                            ? context.t('jr.kind_${first.kind}', {'dir': value})
+                            : value,
                     style: theme.textTheme.titleMedium,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
@@ -614,6 +650,8 @@ class _JobReportScreenState extends State<JobReportScreen> {
                   _removeGroup(value, list);
                 case 'move':
                   _moveGroup(list);
+                case 'unmove':
+                  _undoMove(list);
               }
             },
             itemBuilder: (ctx) => [
@@ -627,6 +665,9 @@ class _JobReportScreenState extends State<JobReportScreen> {
               if (isTag)
                 PopupMenuItem(
                     value: 'remove', child: Text(ctx.t('jr.remove_tag'))),
+              if (first.kind == 'move')
+                PopupMenuItem(
+                    value: 'unmove', child: Text(ctx.t('jr.undo_move'))),
               PopupMenuItem(value: 'move', child: Text(ctx.t('jr.move_files'))),
             ],
           ),
