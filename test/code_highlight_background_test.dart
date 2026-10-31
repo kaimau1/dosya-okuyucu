@@ -14,7 +14,7 @@ void main() {
       runs++;
       return tokenizeCode(t, l);
     };
-    final line = 'final x = "dize"; // yorum\n';
+    const line = 'final x = "dize"; // yorum\n';
     final big = line * ((codeHighlightMaxChars ~/ line.length) + 10);
     final c = CodeTextController(text: big, lang: CodeLang.dart);
     expect(c.highlighting, isTrue);
