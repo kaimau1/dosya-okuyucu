@@ -41,6 +41,10 @@ on:
         description: 'Denenecek Flutter sürümü (varsayılan 3.44.6)'
         type: string
         default: '3.44.6'
+      kisisel:
+        description: 'Kişisel derleme (asistan köprüsüyle; YALNIZ artifact, Release yayınlanmaz)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -201,6 +205,10 @@ jobs:
 
       # C7: 9 ayrı yama adımı tek betikte — yerelde de koşar.
       - name: Android iskeleti + yamalar (ci/prepare_android.sh)
+        # Kişisel derleme (asistan köprüsü) yalnız elle; genel derlemede betik
+        # köprünün manifestte OLMADIĞINI denetler (ci/kisisel/).
+        env:
+          DOSYA_KISISEL: ${{ inputs.kisisel && '1' || '0' }}
         run: bash ci/prepare_android.sh
 
       # C4: push'ta yalnız arm64 (pratikte her telefon). 32-bit yalnız tam
@@ -418,7 +426,10 @@ jobs:
   release:
     name: GitHub Release
     needs: [verify, apk]
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    # Kişisel derleme (asistan köprüsü) dağıtıma GİRMEZ: Release yayınlanmaz.
+    if: >-
+      !inputs.kisisel &&
+      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:

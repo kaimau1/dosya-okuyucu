@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Asistan köprüsü (YALNIZ kişisel derleme; asistan deposu PROTOKOL.md). devir="hayir": serbest metin verilmez,
+     yalnız yapılandırılmış KOMUT. -->
+<asistan devir="hayir" surum="1">
+    <komut ad="ac" aciklama="Adında verilen söz geçen dosyayı açar; söz boşsa son açılan dosyayı" ornek="kira sözleşmesi dosyasını aç" />
+    <komut ad="oku" aciklama="Açık dosyayı uygulamanın kendi sesiyle sesli okur" ornek="sesli oku" />
+    <komut ad="durdur" aciklama="Sesli okumayı durdurur" ornek="okumayı durdur" />
+    <komut ad="ozetle" aciklama="Dosyayı uygulamanın Gemini'siyle özetler; özet asistanda okunur" ornek="bu dosyayı özetle" />
+</asistan>

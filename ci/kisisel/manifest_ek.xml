@@ -1,0 +1,22 @@
+<!-- Asistan köprüsü: YALNIZ kişisel derleme (DOSYA_KISISEL=1). prepare_android.sh bu iki bloğu üretilen
+     manifeste ekler; işaretler arası kopyalanır. Sertifika: asistan (com.ses.asistan) SHA-256. -->
+<!-- IZIN -->
+    <permission
+        android:name="com.dosyaokuyucu.dosya_okuyucu.izin.ASISTAN"
+        android:knownCerts="@array/asistan_sertifikasi"
+        android:label="Asistan köprüsü"
+        android:protectionLevel="signature|knownSigner" />
+<!-- /IZIN -->
+<!-- SERVIS -->
+        <service
+            android:name=".AsistanKopru"
+            android:exported="true"
+            android:permission="com.dosyaokuyucu.dosya_okuyucu.izin.ASISTAN">
+            <intent-filter>
+                <action android:name="com.ses.asistan.KOPRU" />
+            </intent-filter>
+            <meta-data
+                android:name="com.ses.asistan.yetenekler"
+                android:resource="@xml/ses_yetenekler" />
+        </service>
+<!-- /SERVIS -->

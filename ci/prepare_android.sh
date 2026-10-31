@@ -44,11 +44,12 @@ grep -E "INTERNET|launchMode|action.VIEW|action.SEND|label=" \
 #   Extras (widget'lar, günlük iş, biyometri, Keystore, Geocoder),
 #   QrTransfer (QR ile paylaş: kod tarayıcı + yerel hotspot),
 #   NearbyBle (Yakındakiler: Bluetooth LE ile bulma + davet),
-#   Ajan (Gemini işlevleri — AppFunctions, bkz. 7b).
+#   Ajan (Gemini işlevleri — AppFunctions, bkz. 7b),
+#   DosyaArama (Ajan ile asistan köprüsünün ortak arama/kapsam kuralı).
 say "Kotlin kaynakları"
 DIR=android/app/src/main/kotlin/com/dosyaokuyucu/dosya_okuyucu
 mkdir -p "$DIR"
-for kt in MainActivity DosyaProvider PickerActivity UsbMass MediaSession MediaTranscode \
+for kt in MainActivity DosyaProvider PickerActivity UsbMass MediaSession MediaTranscode DosyaArama \
           SdUnion Extras QrTransfer NearbyBle Ajan; do
   cp "ci/$kt.kt" "$DIR/$kt.kt"
 done
@@ -67,6 +68,44 @@ cp ci/usb_device_filter.xml android/app/src/main/res/xml/usb_device_filter.xml
 # Proguard: Flutter'ın Gradle eklentisi app/proguard-rules.pro'yu release
 # küçültmede kendiliğinden dahil eder (ML Kit R8 "missing class" düzeltmesi).
 cp ci/proguard-rules.pro android/app/proguard-rules.pro
+
+# ── 3b) Asistan köprüsü: YALNIZ kişisel derleme (DOSYA_KISISEL=1, 2026-10-31) ──
+# Kullanıcının kişisel sesli asistanı (ayrı uygulama, `com.ses.asistan`) için
+# bağlı servis: "X dosyasını aç", "son dosyayı aç" … (ci/kisisel/AsistanKopru.kt).
+# Dağıtılan APK'ya GİRMEZ: bayrak yokken hiçbir şey eklenmez ve üretilen
+# manifestte köprü olmadığı denetlenir (biri yanlışlıkla ana manifeste koyarsa
+# derleme burada düşer). Sözleşme: asistan deposunun PROTOKOL.md'si.
+if [ "${DOSYA_KISISEL:-0}" = "1" ]; then
+  say "Asistan köprüsü (kişisel derleme)"
+  cp ci/kisisel/AsistanKopru.kt "$DIR/AsistanKopru.kt"
+  cp ci/kisisel/ses_yetenekler.xml android/app/src/main/res/xml/ses_yetenekler.xml
+  mkdir -p android/app/src/main/res/values
+  cp ci/kisisel/asistan_sertifikasi.xml android/app/src/main/res/values/asistan_sertifikasi.xml
+  python3 - <<'PY'
+import pathlib, re
+ek = pathlib.Path('ci/kisisel/manifest_ek.xml').read_text()
+def parca(ad):
+    m = re.search(rf'<!-- {ad} -->\n(.*?)<!-- /{ad} -->', ek, re.S)
+    if not m:
+        raise SystemExit(f'manifest_ek.xml: {ad} bloğu yok')
+    return m.group(1)
+p = pathlib.Path('android/app/src/main/AndroidManifest.xml')
+t = p.read_text()
+if t.count('<application') != 1 or t.count('</application>') != 1:
+    raise SystemExit('manifest: <application> tek değil')
+t = t.replace('<application', parca('IZIN').lstrip() + '\n    <application', 1)
+t = t.replace('</application>', parca('SERVIS').lstrip() + '    </application>', 1)
+p.write_text(t)
+print('manifest: asistan köprüsü eklendi')
+PY
+  grep -c "com.ses.asistan.KOPRU" android/app/src/main/AndroidManifest.xml
+else
+  if grep -q "com.ses.asistan" android/app/src/main/AndroidManifest.xml \
+      || [ -e "$DIR/AsistanKopru.kt" ]; then
+    echo "::error::Genel derlemede asistan köprüsü var (yalnız DOSYA_KISISEL=1 ile girer)"; exit 1
+  fi
+  echo "Genel derleme: asistan köprüsü yok (doğru)."
+fi
 
 # ── 4) minSdk 24 + NDK ────────────────────────────────────────────────────
 # minSdk 24: fc_native_video_thumbnail ister. NDK: runner'da KURULU olan en

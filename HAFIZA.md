@@ -867,3 +867,16 @@
   **Bilerek yapılmayan:** `re_editor` denemesi (K25 + bağımlılık diyeti; darboğaz ölçülmedi);
   53 levha / 49 pencerenin ortak bileşene taşınması (faz işi değil, görsel risk — cihazda).
   Cihaz maddeleri `docs/CIHAZ_TESTI.md` 2026-10-31.
+
+- **2026-10-31 — Asistan köprüsü (YALNIZ kişisel derleme; kullanıcının ayrı sesli asistanı `com.ses.asistan`,
+  `fatihsenel273806-tech/ses` PLAN Faz 5).** `DOSYA_KISISEL=1 bash ci/prepare_android.sh` (CI'da elle tetikleme
+  `kisisel: true`; o koşu **Release yayınlamaz**, yalnız artifact) → `ci/kisisel/AsistanKopru.kt` (bağlı servis +
+  `Messenger`, eylem `com.ses.asistan.KOPRU`), `ses_yetenekler.xml`, izin `com.dosyaokuyucu.dosya_okuyucu.izin.ASISTAN`
+  (`signature|knownSigner`, knownCerts = asistan `9f9ba7d6…9551`). Genel derlemede betik üretilen manifestte köprü
+  OLMADIĞINI denetler (varsa düşer). Komutlar: `ac` (sorgu boşsa son açılan; yoksa MediaStore ad araması, en yenisi
+  açılır — `Extras.linkIntent("file:…")` PendingIntent'i asistan başlatır), `oku`/`durdur`/`ozetle` şimdilik "henüz
+  bağlı değil" der: görüntüleyicinin sesli okuması (`TtsService`) ve özeti ekran durumuna bağlı Dart'ta; asistandan
+  başlatmak Dart'ta kanca ister (asistan PLAN **K7, açık karar**). Uygulamanın kendi ses özelliklerine dokunulmadı.
+  Arama/kapsam `Ajan.kt`'den `ci/DosyaArama.kt`'ye taşındı (davranış aynı; Gemini işlevleri ve köprü ortak
+  kullanır, `tool/check_kotlin.sh` gerçek jar'a karşı derler + `AsistanKopruHarness`). Sözleşme asistan deposunun
+  `PROTOKOL.md`'sinde; oradan buraya kod kopyalanmaz (GPL).

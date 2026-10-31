@@ -80,6 +80,27 @@ if ! "$KOTLIN_RUN" -cp "$OUT3:$ANDROID_JAR" com.dosyaokuyucu.dosya_okuyucu.Extra
   exit 1
 fi
 
+# ── Asistan köprüsü (yalnız kişisel derleme) + ortak dosya arama (2026-10-31) ──
+# `ci/kisisel/AsistanKopru.kt` ve `ci/DosyaArama.kt` gerçek jar'a karşı
+# derlenir (Extras.linkIntent/widgetData için Extras + R taslağı), saf
+# yardımcılar JVM'de denenir.
+OUT5="$OUT/asistan"
+mkdir -p "$OUT5"
+"$KOTLINC" -nowarn -cp "$ANDROID_JAR" -d "$OUT5" \
+  "$ROOT/ci/kisisel/AsistanKopru.kt" \
+  "$ROOT/ci/DosyaArama.kt" \
+  "$ROOT/ci/Extras.kt" \
+  "$ROOT/tool/kotlin_tests/ExtrasR.kt" \
+  "$ROOT/tool/kotlin_tests/AsistanKopruHarness.kt" 2>&1 | tee "$OUT/log5"
+if grep -qE "^e: |: error: " "$OUT/log5"; then
+  echo "KOTLIN HATASI (AsistanKopru) — yukarıya bakın."
+  exit 1
+fi
+if ! "$KOTLIN_RUN" -cp "$OUT5:$ANDROID_JAR" com.dosyaokuyucu.dosya_okuyucu.AsistanKopruHarnessKt; then
+  echo "AsistanKopru DENEMESİ BAŞARISIZ."
+  exit 1
+fi
+
 # ── Yakındakiler: Bluetooth LE bulma/davet (2026-10-29) ──
 # `ci/NearbyBle.kt` gerçek jar'a + Flutter kanal taslaklarına karşı derlenir,
 # kimlik kodlama/UTF-8 kesme yardımcıları JVM'de denenir.

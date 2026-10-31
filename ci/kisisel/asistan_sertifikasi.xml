@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Asistan köprüsü (yalnız kişisel derleme): köprüye bağlanabilecek tek uygulama, asistan (com.ses.asistan,
+     app/asistan.keystore). SHA-256, iki nokta üst üste olmadan. -->
+<resources>
+    <string-array name="asistan_sertifikasi" translatable="false">
+        <item>9f9ba7d6e0465f41e500744010cdb5e8428a09a5ec6d6e33ccd6510ff4209551</item>
+    </string-array>
+</resources>
