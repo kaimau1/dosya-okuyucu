@@ -1667,6 +1667,25 @@
     });
   }, { passive: true });
 
+  // Düzenlemeden okumaya dönüş (2026-11-01, kullanıcı: "düzeltilen yerde
+  // kalınmalı, alan kısa süre çerçeveyle gösterilmeli"): model paragrafı
+  // [i] ortaya kaydırılır ve ~1,2 sn ince çerçeve alır. Görünüm değişimi
+  // (akış → sayfa) yerleşimi yeniden kurduğu için bir tık beklenir.
+  window.focusPara = function (i) {
+    setTimeout(function () {
+      var p = PARTS[i] && PARTS[i][0];
+      if (!p) return;
+      p.scrollIntoView({ block: 'center' });
+      var o = p.style.outline, off = p.style.outlineOffset;
+      p.style.outline = '2px solid rgba(230, 150, 30, 0.75)';
+      p.style.outlineOffset = '3px';
+      setTimeout(function () {
+        p.style.outline = o;
+        p.style.outlineOffset = off;
+      }, 1200);
+    }, 250);
+  };
+
   // 1 tabanlı sayfaya kaydırır.
   window.goToPage = function (n) {
     var secs = sections();

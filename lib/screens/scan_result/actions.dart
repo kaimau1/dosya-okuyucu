@@ -312,7 +312,7 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
   /// Tarayıcının resimli sayfayı yanlış kırptığı durumda kullanıcının
   /// elindeki tam denetimli yol budur.
   Future<void> _addFromGallery() async {
-    final res = await FilePicker.platform
+    final res = await AppFilePicker
         .pickFiles(type: FileType.image, allowMultiple: true);
     final paths = [
       for (final f in res?.files ?? const <PlatformFile>[])

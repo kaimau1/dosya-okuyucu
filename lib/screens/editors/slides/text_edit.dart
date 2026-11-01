@@ -173,6 +173,12 @@ extension _SlidesEditorScreenTextEditPart on _SlidesEditorScreenState {
     }
     _textFocus.unfocus();
     _panel.close();
+    _flashSlide = slide;
+    _flashRect = Rect.fromLTWH(shape.x, shape.y, shape.w, shape.h);
+    _flashTimer?.cancel();
+    _flashTimer = Timer(Motion.long * 4, () {
+      if (mounted) _partSetState(() => _flashSlide = _flashRect = null);
+    });
     // Denetleyici bu karede hâlâ editörde bağlı olabilir: bir kare sonra at.
     WidgetsBinding.instance.addPostFrameCallback((_) => ctrl.dispose());
     _textCtrl = null;

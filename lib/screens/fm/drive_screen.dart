@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:share_plus/share_plus.dart';
@@ -31,6 +30,7 @@ import '../../core/user_error.dart';
 import '../../core/theme.dart';
 import '../../core/app_colors.dart';
 import '../../widgets/app_dialog.dart';
+import 'pick_file_screen.dart';
 
 part 'drive/actions.dart';
 part 'drive/views.dart';

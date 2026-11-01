@@ -241,3 +241,17 @@ main'e"* deyince birleştirildi. Elle tetikleme `kisisel: true` → ayrı **`kis
 Herhangi bir daldan; elle tetikleme yoksa commit mesajına `[kisisel]` yazıp push etmek de aynısını
 yapar. İndirme: `releases/download/kisisel/dosya-okuyucu.apk`. (Özgün kayıt madde biçimindeydi,
 birleştirmede yeni dizin biçimine taşındı.)
+
+## 2026-11-01 — Uygulama içi seçici, düzenleme dönüşü, dock, kırık beyaz
+- **Paylaş "dosya seç" = sistem DocumentsUI** (adb: bizim uygulama `OPEN_DOCUMENT` başlatıyordu, `file_picker`).
+  Artık tüm `FilePicker.platform.pickFiles` çağrıları `AppFilePicker.pickFiles` (pick_file_screen.dart) —
+  aynı imza/`FilePickerResult`, arayüz bizim `PickFileScreen` (uygulama içi kip: `request` dolu → `Navigator.pop`).
+  İzin yoksa / "Diğer kaynaklar" → sistem seçicisi. `getDirectoryPath` hâlâ sistemde.
+  Sınır: başka uygulama `OPEN_DOCUMENT` çağırırsa araya girilemez; yalnız `GET_CONTENT` (PickerActivity) bize gelir.
+- **Slayt düzenle→bitir başa atlıyordu — kök:** düzenlerken gövde `_focusEditor()` ile DEĞİŞİYORDU, liste (`_vCtrl`)
+  sökülüp dönüşte offset 0 ile yeniden kuruluyordu. Çözüm: liste `Offstage`+`TickerMode` ile ağaçta kalır,
+  `Stack(fit: expand)` (gizli liste 0×0 ölçülür, expand şart — yoksa odak editörü 0×0, test yakaladı).
+  Düzenlenen kutu `_flashRect` ile ~1,3 sn çerçevelenir.
+- **Word:** çıkışta akış→sayfa geçişi kaydırmayı atıyordu; imleç paragrafı önce okunur, `focusPara(i)` (viewer.html)
+  ortalar + çerçeveler. Mobil editör dönüşü yeniden çizer → `_resumePage` ile aynı sayfa.
+- Dock: QR → Aktar (QR alma Yakındaki cihazlar içinde), Belge Tara yalnız simge. Kırık beyaz zemin F6F3EA→FAF8F2.

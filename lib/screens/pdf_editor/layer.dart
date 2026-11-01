@@ -998,7 +998,7 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
   /// Görsel ekle (galeriden/dosyadan): oranı korunarak sayfanın ortasına.
   Future<void> _addImage() async {
     _closeEditors();
-    final picked = await FilePicker.platform
+    final picked = await AppFilePicker
         .pickFiles(type: FileType.image, withData: true);
     final data = picked?.files.single.bytes;
     if (data == null || !mounted) return;

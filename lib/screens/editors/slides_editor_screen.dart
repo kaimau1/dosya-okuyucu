@@ -57,6 +57,7 @@ import '../../core/snack.dart';
 import '../../core/safe_insets.dart';
 import '../../core/user_error.dart';
 import '../../core/app_colors.dart';
+import '../fm/pick_file_screen.dart';
 
 part 'slides/actions.dart';
 part 'slides/objects.dart';
@@ -169,6 +170,12 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
 
   // ── Küçük resim şeridi (Faz 29b) ───────────────────────────────────────────
   bool _strip = true;
+
+  // ── Düzenleme sonrası vurgu (2026-11-01) ───────────────────────────────────
+  // Düzenlenen kutu okumaya dönünce ~1,2 sn ince çerçeveyle gösterilir.
+  PptxSlide? _flashSlide;
+  Rect? _flashRect;
+  Timer? _flashTimer;
   final Map<(PptxSlide, PptxParagraph), String> _outlinePending = {};
 
   @override
@@ -181,6 +188,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
 
   @override
   void dispose() {
+    _flashTimer?.cancel();
     _session.dispose();
     _history.dispose();
     _textCtrl?.dispose();
@@ -295,11 +303,19 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
                 ? Center(child: Text(context.t('sl.open_failed', {'error': _error})))
                 : editor == null
                     ? const Center(child: CircularProgressIndicator())
-                    : editing
-                        ? _focusEditor()
-                        : _outline
-                            ? _outlineView(editor)
-                            : _withStrip(editor, Column(
+                    : _outline && !editing
+                        ? _outlineView(editor)
+                        // Düzenlerken slayt listesi AĞAÇTA kalır (yalnız
+                        // gizlenir): eskiden sökülüp dönüşte baştan
+                        // kuruluyordu → kaydırma başa atlıyor, ilk karede
+                        // takılma oluyordu (kullanıcı 2026-11-01).
+                        // expand: gizli liste 0×0 ölçülür, Stack'i küçültmesin.
+                        : Stack(fit: StackFit.expand, children: [
+                            Offstage(
+                              offstage: editing,
+                              child: TickerMode(
+                                enabled: !editing,
+                                child: _withStrip(editor, Column(
                                 children: [
                                   if (_finding) _findBar(),
                                   Expanded(
@@ -324,6 +340,10 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
                                   ),
                                 ],
                               )),
+                              ),
+                            ),
+                            if (editing) Positioned.fill(child: _focusEditor()),
+                          ]),
           ),
         ),
         // Etiketli eylem çubuğu (2026-07-28 kullanıcı isteği — PDF'teki gibi).

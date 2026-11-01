@@ -391,6 +391,10 @@ class DocxViewState extends State<DocxView> {
       .replaceAll('\n', r'\n')
       .replaceAll('\r', '');
 
+  /// Model paragrafını ortaya kaydırıp kısa süre çerçeveler (düzenlemeden
+  /// okumaya dönüş).
+  void focusParagraph(int i) => _controller.runJavaScript('focusPara($i)');
+
   /// Belirtilen (1 tabanlı) Word sayfasına kaydırır.
   void goToPage(int page) => _controller.runJavaScript('goToPage($page)');
 

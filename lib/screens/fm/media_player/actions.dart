@@ -69,7 +69,7 @@ extension _MediaPlayerScreenActionsPart on _MediaPlayerScreenState {
 
   /// Kullanıcının seçtiği bir altyazı dosyasını ekler ve açar.
   Future<void> _pickSubtitle() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await AppFilePicker.pickFiles(
       // `FileType.custom` + uzantı süzgeci: kullanıcı seçicide film klasörünü
       // açtığında yüzlerce medya dosyası arasında altyazıyı aramasın.
       type: FileType.custom,

@@ -25,6 +25,7 @@ import '../core/user_error.dart';
 import '../core/theme.dart';
 import '../core/app_colors.dart';
 import '../widgets/app_dialog.dart';
+import 'fm/pick_file_screen.dart';
 
 part 'pdf_tools/actions.dart';
 part 'pdf_tools/views.dart';
@@ -45,7 +46,7 @@ class PdfToolsScreen extends StatefulWidget {
   static Future<bool?> open(BuildContext context, {String? path}) async {
     var target = path;
     if (target == null) {
-      final res = await FilePicker.platform.pickFiles(
+      final res = await AppFilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf'],
       );

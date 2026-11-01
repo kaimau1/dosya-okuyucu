@@ -277,14 +277,14 @@ class _QuickDock extends StatelessWidget {
   final int trashCount;
   final VoidCallback onTrash;
   final VoidCallback onScan;
-  final VoidCallback onQrReceive;
+  final VoidCallback onTransfer;
 
   const _QuickDock({
     required this.expanded,
     required this.trashCount,
     required this.onTrash,
     required this.onScan,
-    required this.onQrReceive,
+    required this.onTransfer,
   });
 
   static const _trashFull = Color(0xFFE65100);
@@ -332,10 +332,12 @@ class _QuickDock extends StatelessWidget {
                               : trashIcon,
                         ),
                         IconButton(
-                          key: const ValueKey('dock-qr-receive'),
-                          tooltip: context.t('qrr.fab'),
-                          onPressed: onQrReceive,
-                          icon: Icon(AppIcons.qrScan,
+                          // 2026-11-01: QR yerine Aktar (QR alma Aktar →
+                          // Yakındaki cihazlar içinde duruyor).
+                          key: const ValueKey('dock-transfer'),
+                          tooltip: context.t('xfer.title'),
+                          onPressed: onTransfer,
+                          icon: Icon(AppIcons.swapHoriz,
                               color: scheme.onSurfaceVariant),
                         ),
                         Container(
@@ -353,27 +355,12 @@ class _QuickDock extends StatelessWidget {
               child: FilledButton(
                 style: FilledButton.styleFrom(
                   minimumSize: const Size(48, 48),
-                  padding: EdgeInsets.symmetric(horizontal: expanded ? 18 : 12),
+                  // 2026-11-01: yalnız simge (yazı kaldırıldı, kullanıcı isteği).
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                   shape: const StadiumBorder(),
                 ),
                 onPressed: onScan,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(AppIcons.ocr, size: 22),
-                    AnimatedSize(
-                      duration: Motion.of(context, Motion.medium),
-                      curve: Curves.easeOutCubic,
-                      child: expanded
-                          ? Padding(
-                              padding: const EdgeInsetsDirectional.only(start: 8),
-                              child: Text(context.t('fm.scan_document'),
-                                  maxLines: 1),
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                  ],
-                ),
+                child: const Icon(AppIcons.ocr, size: 22),
               ),
             ),
           ],

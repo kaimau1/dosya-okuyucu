@@ -14,6 +14,7 @@ import '../../services/settings_backup.dart';
 import 'settings_widgets.dart';
 import '../../core/user_error.dart';
 import '../../core/app_icons.dart';
+import '../fm/pick_file_screen.dart';
 
 /// **Ayar yedeği** — dışa aktar / geri yükle.
 ///
@@ -102,7 +103,7 @@ class SettingsBackupTile extends StatelessWidget {
       // `FileType.any`: bazı cihazların seçicisi `.json` uzantı süzgecini
       // desteklemiyor ve dosyayı hiç göstermiyor (uygulamanın başka
       // yerlerinde de aynı tuzağa düşüldü).
-      final picked = await FilePicker.platform.pickFiles(type: FileType.any);
+      final picked = await AppFilePicker.pickFiles(type: FileType.any);
       final path = picked?.files.single.path;
       if (path == null) return;
       final prefs = await SharedPreferences.getInstance();

@@ -417,7 +417,7 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
   }
 
   Future<void> _mergeOther() async {
-    final res = await FilePicker.platform.pickFiles(
+    final res = await AppFilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
       allowMultiple: true,

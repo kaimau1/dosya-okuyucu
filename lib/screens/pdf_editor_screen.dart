@@ -42,6 +42,7 @@ import '../services/pdf/pdf_markup.dart';
 import 'pdf_ai_edit_screen.dart';
 import 'pdf_ink_screen.dart';
 import '../core/theme.dart';
+import 'fm/pick_file_screen.dart';
 
 part 'pdf_editor/actions.dart';
 part 'pdf_editor/views.dart';

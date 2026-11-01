@@ -240,7 +240,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
                   ? _fallbackText(slide)
                   // Slaydın boş yerine dokunmak seçimi kaldırır; şekillerin
                   // kendi dokunuşları içte olduğu için önce onlar kazanır.
-                  : GestureDetector(
+                  : _withFlash(slide, view, GestureDetector(
                       behavior: HitTestBehavior.translucent,
                       onTap: _selShape == null ? null : _clearSelection,
                       child: SlideCanvas(
@@ -253,13 +253,48 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
                         onFrameChanged: (shape, r, rot) =>
                             _commitFrame(slide, shape, r, rot),
                       ),
-                    ),
+                    )),
             ),
           ),
           _notesStrip(slide, baseW),
         ],
       ),
     );
+  }
+
+  /// Düzenlemeden dönüşte düzenlenen kutunun üstüne sönen ince çerçeve.
+  Widget _withFlash(PptxSlide slide, SlideVM view, Widget canvas) {
+    final rect = _flashRect;
+    if (rect == null || !identical(_flashSlide, slide)) return canvas;
+    return LayoutBuilder(builder: (context, box) {
+      final k = box.maxWidth / view.widthPt;
+      return Stack(children: [
+        Positioned.fill(child: canvas),
+        Positioned.fromRect(
+          rect: Rect.fromLTWH(rect.left * k - 3, rect.top * k - 3,
+              rect.width * k + 6, rect.height * k + 6),
+          child: IgnorePointer(
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 1, end: 0),
+              duration: Motion.long * 4,
+              curve: const Interval(0.4, 1),
+              builder: (context, t, _) => DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.8 * t),
+                    width: 2,
+                  ),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ]);
+    });
   }
 
   /// Konuşmacı notu şeridi — kanvasın hemen altında, kağıt teması devir
@@ -449,7 +484,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
   Future<void> _insertImage(PptxSlide slide) async {
     final editor = _editor;
     if (editor == null) return;
-    final picked = await FilePicker.platform.pickFiles(
+    final picked = await AppFilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['png', 'jpg', 'jpeg', 'gif'],
       withData: true,

@@ -43,6 +43,7 @@ import '../folder_picker_screen.dart';
 import 'ftp_server_screen.dart';
 import 'qr_receive_flow.dart';
 import 'remote_connections_screen.dart';
+import '../pick_file_screen.dart';
 
 /// Gelen dosya bildiriminin kimliği (uygulamadaki öteki kimliklerden farklı).
 const _receiveNotificationId = 90521;
@@ -354,7 +355,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
 
   Future<void> _addFiles() async {
     try {
-      final picked = await FilePicker.platform.pickFiles(allowMultiple: true);
+      final picked = await AppFilePicker.pickFiles(allowMultiple: true);
       final paths = [
         for (final f in picked?.files ?? const <PlatformFile>[])
           if (f.path != null) f.path!,

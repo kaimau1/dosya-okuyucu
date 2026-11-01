@@ -55,7 +55,7 @@ extension _DriveScreenActionsPart on _DriveScreenState {
   Future<void> _openViaSystemPicker() async {
     final failed = context.t('drive.download_failed');
     try {
-      final result = await FilePicker.platform.pickFiles(withData: false);
+      final result = await AppFilePicker.pickFiles(withData: false);
       final path = result?.files.single.path;
       if (path == null || !mounted) return;
       await EntryOpener.open(context, path);
@@ -199,7 +199,7 @@ extension _DriveScreenActionsPart on _DriveScreenState {
 
   /// Telefondan dosya seçip BULUNULAN klasöre yükler.
   Future<void> _uploadHere() async {
-    final result = await FilePicker.platform.pickFiles(withData: false);
+    final result = await AppFilePicker.pickFiles(withData: false);
     final path = result?.files.single.path;
     if (path == null || !mounted) return;
     _partSetState(() => _busy = true);

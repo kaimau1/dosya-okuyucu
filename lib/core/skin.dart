@@ -234,12 +234,14 @@ class SkinPalette {
   // Zemin fildişi, kartlar ondan AÇIK (beyaza yakın) — kâğıtta kart zeminden
   // koyuydu; burada kartlar "zeminin üstüne konmuş" görünür. Vurgu adaçayı
   // yeşili: mavi yok, beyaz üstünde 4.5:1'den yüksek karşıtlık.
+  // 2026-11-01 (kullanıcı: "biraz daha beyaza yakın olsun"): zemin ve
+  // yüzeyler bir ton açıldı; vurgu ve metin aynı.
   static const _ivoryLight = SkinPalette(
-    bg: Color(0xFFF6F3EA),
-    card: Color(0xFFFDFBF6),
-    band: Color(0xFFEFEADF),
-    well: Color(0xFFEAE4D6),
-    rule: Color(0xFFE2DBCB),
+    bg: Color(0xFFFAF8F2),
+    card: Color(0xFFFFFEFB),
+    band: Color(0xFFF3F0E8),
+    well: Color(0xFFEEEAE0),
+    rule: Color(0xFFE6E1D5),
     edge: Color(0xFFCFC6B2),
     ink: Color(0xFF28251D),
     inkSoft: Color(0xFF665E4E),

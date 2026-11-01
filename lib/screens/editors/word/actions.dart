@@ -91,6 +91,8 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
   Future<void> _openMobileEditor() async {
     if (_dirty) await _save();
     if (!mounted) return;
+    // Dönüşte belge yeniden çizilir: aynı sayfaya geri gelinsin.
+    _resumePage = _page;
     await Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => WordMobileEditorScreen(path: widget.path, name: widget.name),
     ));
@@ -100,10 +102,14 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
     await _load();
   }
 
-  void _toggleEdit() {
+  Future<void> _toggleEdit() async {
     final on = !_editing;
     _readingBars.show();
     final view = _viewKey.currentState;
+    // Çıkışta imlecin paragrafı, görünüm değişmeden ÖNCE okunur: akış →
+    // sayfa geçişi kaydırmayı başa atıyordu (kullanıcı 2026-11-01).
+    final caret = on || view == null ? -1 : await view.caretParagraph();
+    if (!mounted || on == _editing) return;
     // Yazı okunur boyutta düzenlenir (W6): sayfa görünümü ~0,5 ölçekte
     // (11 pt ≈ 5–6 px) — düzenlerken mobil akışa geçilir, çıkışta dönülür.
     if (on && !_flow && !_plainMode) {
@@ -118,6 +124,7 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
     if (!on) _panel.close();
     view?.setEditing(on, spellcheck: EditPrefs.wordSpellcheck);
     _partSetState(() => _editing = on);
+    if (caret >= 0) view?.focusParagraph(caret);
   }
 
   /// Eşleme sigortası: işaretli paragraf sayısı bizimkiyle uyuşmuyorsa
@@ -339,7 +346,7 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
     final editor = _editor;
     if (editor == null) return;
     final at = await _viewKey.currentState?.caretParagraph() ?? -1;
-    final picked = await FilePicker.platform.pickFiles(
+    final picked = await AppFilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['png', 'jpg', 'jpeg', 'gif'],
       withData: true,

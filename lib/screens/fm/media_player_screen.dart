@@ -22,6 +22,7 @@ import '../../services/fm/video_playback.dart';
 import '../../widgets/mini_player_bar.dart';
 import 'entry_actions.dart';
 import '../../core/snack.dart';
+import 'pick_file_screen.dart';
 
 part 'media_player/actions.dart';
 part 'media_player/views.dart';

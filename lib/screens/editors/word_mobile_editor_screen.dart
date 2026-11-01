@@ -29,6 +29,7 @@ import '../../widgets/quick_sheets.dart';
 import '../../widgets/app_dialog.dart';
 import 'word_mobile/word_format_ui.dart';
 import 'word_mobile/word_insert_ui.dart';
+import '../fm/pick_file_screen.dart';
 
 /// **Word Mobil görünüm editörü** (Faz 22, K18 = b-ii).
 ///
@@ -238,7 +239,7 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     if (hook != null) {
       got = await hook();
     } else {
-      final picked = await FilePicker.platform.pickFiles(
+      final picked = await AppFilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: const ['png', 'jpg', 'jpeg', 'gif', 'bmp'],
         withData: true,

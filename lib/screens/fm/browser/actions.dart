@@ -410,7 +410,7 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
   Future<void> _importHere() async {
     final strings = AppStrings.of(context);
     final messenger = ScaffoldMessenger.of(context);
-    final res = await FilePicker.platform
+    final res = await AppFilePicker
         .pickFiles(allowMultiple: true, withData: false);
     final paths = [
       for (final f in res?.files ?? const <PlatformFile>[])

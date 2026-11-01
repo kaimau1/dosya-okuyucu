@@ -41,6 +41,7 @@ import 'word_mobile_editor_screen.dart';
 import '../../core/snack.dart';
 import '../../core/user_error.dart';
 import '../../core/app_colors.dart';
+import '../fm/pick_file_screen.dart';
 
 part 'word/actions.dart';
 part 'word/shell.dart';
@@ -121,6 +122,9 @@ class _WordEditorScreenState extends State<WordEditorScreen>
   /// Belgenin toplam sayfa sayısı ve görünen sayfa (canlı görünümden gelir).
   int _pageCount = 0;
   int _page = 1;
+
+  /// Mobil editörden dönüşte yeniden çizim bitince gidilecek sayfa (0: yok).
+  int _resumePage = 0;
 
   final _viewKey = GlobalKey<DocxViewState>();
 

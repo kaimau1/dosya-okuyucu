@@ -3,7 +3,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show compute;
 import 'package:path/path.dart' as p;
 
@@ -16,6 +15,7 @@ import 'text_decode.dart';
 import 'xls_legacy.dart';
 import 'large_text.dart';
 import 'xlsx_editor.dart' show XlsxCell, XlsxReader, generalNumberRaw;
+import '../screens/fm/pick_file_screen.dart';
 
 /// Dosya seçme, tür tespiti ve içerik yükleme.
 class FileService {
@@ -79,7 +79,7 @@ class FileService {
 
   /// Kullanıcıya dosya seçtirir; iptal edilirse null döner.
   Future<String?> pickFilePath() async {
-    final result = await FilePicker.platform.pickFiles(withData: false);
+    final result = await AppFilePicker.pickFiles(withData: false);
     if (result == null || result.files.isEmpty) return null;
     return result.files.single.path;
   }

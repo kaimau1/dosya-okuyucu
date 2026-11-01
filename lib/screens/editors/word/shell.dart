@@ -199,6 +199,10 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                             }
                             // Resim ekle/sil sonrası yeniden çizim bitti:
                             // düzenleme kaldığı yerden sürer.
+                            if (ok && _resumePage > 1) {
+                              _viewKey.currentState?.goToPage(_resumePage);
+                              _resumePage = 0;
+                            }
                             if (ok && _resumeEditing) {
                               _resumeEditing = false;
                               _viewKey.currentState?.setEditing(true,

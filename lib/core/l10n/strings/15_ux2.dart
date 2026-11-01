@@ -19,7 +19,6 @@ const Map<String, (String, String, String)> _t15 = {
   'fm.media_all': ('Görüntüler', 'Photos & videos', 'الصور والفيديو'),
 
   // ── QR ile al ────────────────────────────────────────────────────────────
-  'qrr.fab': ('QR ile al', 'Receive by QR', 'استلام عبر QR'),
   'qrr.confirm_title': ('Dosyalar alınsın mı?', 'Receive these files?', 'هل تريد استلام هذه الملفات؟'),
   'qrr.confirm_body': (
     '{n} dosya · {size}\nKaydedileceği yer: {dir}',

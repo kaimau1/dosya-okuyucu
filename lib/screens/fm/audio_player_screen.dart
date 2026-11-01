@@ -22,6 +22,7 @@ import 'entry_actions.dart';
 import '../../core/snack.dart';
 import '../../core/user_error.dart';
 import '../../widgets/app_dialog.dart';
+import 'pick_file_screen.dart';
 
 /// Çalma sırası davranışı.
 
@@ -476,7 +477,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
     final strings = AppStrings.of(context);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final picked = await FilePicker.platform.pickFiles(type: FileType.any);
+      final picked = await AppFilePicker.pickFiles(type: FileType.any);
       final path = picked?.files.single.path;
       if (path == null) return;
       final entries = await PlaylistM3u.read(path);
