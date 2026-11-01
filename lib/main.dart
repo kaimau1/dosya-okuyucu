@@ -24,6 +24,7 @@ import 'screens/app_links.dart';
 import 'screens/fm/job_navigation.dart';
 import 'screens/fm/jobs_screen.dart';
 import 'screens/fm/remote/ftp_server_screen.dart';
+import 'screens/fm/remote/nearby_screen.dart';
 import 'screens/fm/resize_actions.dart';
 import 'screens/fm/pick_file_screen.dart';
 import 'core/app_haptics.dart';
@@ -51,6 +52,7 @@ import 'widgets/app_lock_gate.dart';
 import 'widgets/mini_player_bar.dart';
 import 'screens/fm/media_player_screen.dart';
 import 'services/fm/remote/ftp_service.dart';
+import 'services/fm/remote/transfer_keeper.dart';
 import 'services/fm/open_history.dart';
 import 'services/fm/path_side_index.dart';
 import 'services/crash_log.dart';
@@ -131,6 +133,10 @@ Future<void> main() async {
       if (payload != null && payload.isNotEmpty) {
         JobQueue.instance.cancel(payload);
       }
+      return;
+    }
+    if (actionId == TransferKeeper.actionStop) {
+      unawaited(TransferKeeper.instance.stopAdopted());
       return;
     }
     unawaited(AudioPlayback.instance.handleAction(actionId));
@@ -294,6 +300,11 @@ void _openFromNotification(String payload) {
   if (payload == FtpService.owner) {
     unawaited(Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => const FtpServerScreen())));
+    return;
+  }
+  if (payload == TransferKeeper.owner) {
+    unawaited(Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const NearbyScreen())));
     return;
   }
   // **Müzik bildirimi ÇALAN PARÇAYA götürür** (kullanıcı 2026-09-02:

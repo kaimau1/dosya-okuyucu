@@ -11,6 +11,7 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.net.wifi.SoftApConfiguration
 import android.net.wifi.WifiManager
+import android.os.PowerManager
 import android.net.wifi.WifiNetworkSpecifier
 import android.os.Build
 import android.os.Handler
@@ -42,6 +43,8 @@ class QrTransfer(private val activity: Activity) : MethodChannel.MethodCallHandl
 
     private var reservation: WifiManager.LocalOnlyHotspotReservation? = null
     private var joinCallback: ConnectivityManager.NetworkCallback? = null
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var wifiLock: WifiManager.WifiLock? = null
 
     private val cm get() =
         activity.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE)
@@ -65,6 +68,10 @@ class QrTransfer(private val activity: Activity) : MethodChannel.MethodCallHandl
                 leaveWifi()
                 result.success(null)
             }
+            "keepAwake" -> {
+                keepAwake(call.argument<Boolean>("on") == true)
+                result.success(null)
+            }
             else -> result.notImplemented()
         }
     }
@@ -72,6 +79,26 @@ class QrTransfer(private val activity: Activity) : MethodChannel.MethodCallHandl
     fun dispose() {
         stopHotspot()
         leaveWifi()
+        keepAwake(false)
+    }
+
+    /** Ekran kapalıyken aktarım sürsün: CPU + Wi-Fi uykuya geçmesin. */
+    private fun keepAwake(on: Boolean) {
+        wakeLock?.let { if (it.isHeld) it.release() }
+        wakeLock = null
+        wifiLock?.let { if (it.isHeld) it.release() }
+        wifiLock = null
+        if (!on) return
+        val app = activity.applicationContext
+        val power = app.getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "dosya:transfer").apply {
+            // Dart tarafı çökse bile pil sonsuza dek yanmasın.
+            acquire(2 * 60 * 60 * 1000L)
+        }
+        val wifi = app.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        wifiLock = wifi.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "dosya:transfer").apply {
+            acquire()
+        }
     }
 
     private fun scan(result: MethodChannel.Result) {

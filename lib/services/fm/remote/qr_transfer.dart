@@ -10,6 +10,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../archive_ops.dart';
 import '../file_ops.dart';
+import 'transfer_keeper.dart';
 import 'zip_stream.dart';
 
 
@@ -38,7 +39,7 @@ import 'zip_stream.dart';
 ///
 /// Jeton tutmayan her istek 404. Sunucu yalnız GET yanıtlar, yalnız verilen
 /// dosyaları açar.
-class QrShareServer {
+class QrShareServer implements KeepableServer {
   final List<String> paths;
   final String token;
 
@@ -60,7 +61,17 @@ class QrShareServer {
     this.thumbnail,
     this.senderName = '',
     this.preferredPort = 8080,
+    this.onActivity,
   }) : token = _newToken();
+
+  /// Süren indirme sayısı değişince ([TransferKeeper.onActivity]).
+  final void Function(QrShareServer server)? onActivity;
+
+  @override
+  int activeTransfers = 0;
+
+  @override
+  DateTime? lastActivity;
 
   HttpServer? _server;
   int get port => _server?.port ?? 0;
@@ -98,6 +109,7 @@ class QrShareServer {
     server.listen((r) => unawaited(_handle(r)), onError: (_) {});
   }
 
+  @override
   Future<void> stop() async {
     final s = _server;
     _server = null;
@@ -128,6 +140,8 @@ class QrShareServer {
         res.statusCode = HttpStatus.notFound;
         return;
       }
+      // Yalnız jetonu tutan istek "etkinlik" sayılır.
+      lastActivity = DateTime.now();
       if (seg.length == 2) {
         if (!req.uri.path.endsWith('/')) {
           res.statusCode = HttpStatus.movedPermanently;
@@ -215,7 +229,15 @@ class QrShareServer {
       ..set('content-disposition',
           "attachment; filename*=UTF-8''${Uri.encodeComponent(item.name)}");
     if (req.method == 'HEAD') return;
-    await res.addStream(item.open(start));
+    activeTransfers++;
+    onActivity?.call(this);
+    try {
+      await res.addStream(item.open(start));
+    } finally {
+      activeTransfers--;
+      lastActivity = DateTime.now();
+      onActivity?.call(this);
+    }
     onServed?.call(item.name);
   }
 

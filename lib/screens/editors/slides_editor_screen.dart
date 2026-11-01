@@ -175,6 +175,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
   // Düzenlenen kutu okumaya dönünce ~1,2 sn ince çerçeveyle gösterilir.
   PptxSlide? _flashSlide;
   Rect? _flashRect;
+  double? _editOffset;
   Timer? _flashTimer;
   final Map<(PptxSlide, PptxParagraph), String> _outlinePending = {};
 

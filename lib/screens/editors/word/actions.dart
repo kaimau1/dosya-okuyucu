@@ -91,11 +91,24 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
   Future<void> _openMobileEditor() async {
     if (_dirty) await _save();
     if (!mounted) return;
-    // Dönüşte belge yeniden çizilir: aynı sayfaya geri gelinsin.
+    // Düzenleyici ekrandaki paragrafta açılır; dönüşte belge yeniden çizilir
+    // ve imlecin bıraktığı paragraf ortalanıp çerçevelenir (kullanıcı
+    // 2026-11-01: "düzenleme sonrası odak çalışmıyor" — bu yol yalnız sayfa
+    // numarası taşıyordu, 1. sayfada hiç, sonrasında yalnız sayfa başına).
+    final top = await _viewKey.currentState?.topParagraph() ?? -1;
+    if (!mounted) return;
     _resumePage = _page;
+    final caret = ValueNotifier<int>(top);
     await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => WordMobileEditorScreen(path: widget.path, name: widget.name),
+      builder: (_) => WordMobileEditorScreen(
+        path: widget.path,
+        name: widget.name,
+        startPara: top,
+        caretOut: caret,
+      ),
     ));
+    _resumePara = caret.value;
+    caret.dispose();
     if (!mounted) return;
     _undo.clear();
     _session.markSaved();

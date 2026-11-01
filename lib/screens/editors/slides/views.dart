@@ -271,6 +271,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
       return Stack(children: [
         Positioned.fill(child: canvas),
         Positioned.fromRect(
+          key: const ValueKey('slide-flash'),
           rect: Rect.fromLTWH(rect.left * k - 3, rect.top * k - 3,
               rect.width * k + 6, rect.height * k + 6),
           child: IgnorePointer(

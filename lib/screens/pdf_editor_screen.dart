@@ -63,6 +63,10 @@ part 'pdf_editor/layer.dart';
 /// Özgün dosyaya kaydedilene kadar DOKUNULMAZ: bütün düzenlemeler geçici bir
 /// çalışma kopyasında yapılır. Kullanıcı vazgeçerse hiçbir iz kalmaz.
 class PdfEditorScreen extends StatefulWidget {
+  /// Düzenleyicide en son bakılan sayfa: görüntüleyici dönüşte oraya gider
+  /// (kullanıcı 2026-11-01: düzenleme sonrası odak).
+  static int lastPage = 1;
+
   final String path;
   final int initialPage;
 
@@ -223,6 +227,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   void initState() {
     super.initState();
     _page = widget.initialPage;
+    PdfEditorScreen.lastPage = _page;
     _prepare();
   }
 

@@ -126,6 +126,9 @@ class _WordEditorScreenState extends State<WordEditorScreen>
   /// Mobil editörden dönüşte yeniden çizim bitince gidilecek sayfa (0: yok).
   int _resumePage = 0;
 
+  /// Mobil editörden dönüşte odaklanılacak paragraf (-1: yok).
+  int _resumePara = -1;
+
   final _viewKey = GlobalKey<DocxViewState>();
 
   /// Biçim çubuğunda sunulan yazı tipleri — Excel/slaytla ORTAK liste

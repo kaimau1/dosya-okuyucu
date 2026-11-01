@@ -45,6 +45,13 @@ class WordMobileEditorScreen extends StatefulWidget {
   final String path;
   final String name;
 
+  /// Açılışta gösterilecek paragraf (-1/0: baş).
+  final int startPara;
+
+  /// İmlecin bulunduğu paragraf buraya yazılır: görüntüleyici dönüşte oraya
+  /// odaklanır.
+  final ValueNotifier<int>? caretOut;
+
   /// Ayrıştırmayı izolatta yap (testte kapatılır: flutter_test sahte saatinde
   /// izolat yanıtı beklenemez).
   @visibleForTesting
@@ -56,7 +63,11 @@ class WordMobileEditorScreen extends StatefulWidget {
 
 
   const WordMobileEditorScreen(
-      {super.key, required this.path, required this.name});
+      {super.key,
+      required this.path,
+      required this.name,
+      this.startPara = -1,
+      this.caretOut});
 
   @override
   State<WordMobileEditorScreen> createState() => _WordMobileEditorScreenState();
@@ -121,9 +132,22 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     }
     if (mounted) setState(() {});
     if (_doc != null) {
+      _openAtStart();
       unawaited(_session.captureSource());
       unawaited(lookForDraft(widget.path));
     }
+  }
+
+  /// Görüntüleyicide bakılan yerde aç; imleç de orada olsun.
+  void _openAtStart() {
+    final i = widget.startPara;
+    final c = _ctrl;
+    if (i <= 0 || c == null || i >= c.paras.length) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      c.select(DocPos(i, 0), DocPos(i, 0));
+      unawaited(_viewKey.currentState?.revealParagraph(i));
+    });
   }
 
   void _attach(DocxDocument doc) {
@@ -142,6 +166,7 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
       _seenRevision = c.revision;
       _session.changed();
     }
+    widget.caretOut?.value = c.extent.para;
     setState(() {});
   }
 

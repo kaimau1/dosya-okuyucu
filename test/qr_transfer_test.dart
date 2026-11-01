@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dosya_okuyucu/services/fm/remote/qr_transfer.dart';
@@ -111,7 +112,7 @@ void main() {
     final client = HttpClient();
     addTearDown(client.close);
     final page = await (await client.getUrl(url)).close();
-    final html = await page.transform(const SystemEncoding().decoder).join();
+    final html = await page.transform(utf8.decoder).join();
     expect(html, contains('Ayşe'));
     expect(html, isNot(contains('all.zip'))); // tek öğe: "Tümü" düğmesi yok
   });
@@ -139,7 +140,7 @@ void main() {
     final zipBytes = [for (final c in await all.toList()) ...c];
     expect(zipBytes.sublist(0, 4), [0x50, 0x4b, 0x03, 0x04]);
     final page = await (await client.getUrl(url)).close();
-    final html = await page.transform(const SystemEncoding().decoder).join();
+    final html = await page.transform(utf8.decoder).join();
     expect(html, contains('all.zip'));
   });
 }

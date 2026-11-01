@@ -11,6 +11,7 @@ import 'package:path/path.dart' as p;
 import '../archive_ops.dart';
 import '../file_ops.dart';
 import '../fs_events.dart';
+import 'transfer_keeper.dart';
 import 'zip_stream.dart';
 
 /// **İki Dosya Okuyucu arasında doğrudan dosya gönderme.**
@@ -151,7 +152,7 @@ class Peer {
 /// `paket=1` ile gelen gövde tek akış ZIP'tir ([ZipStream]): çok sayıda küçük
 /// dosya ya da bir klasör. Tamamlanınca klasöre AÇILIR — klasör klasör
 /// olarak, dosyalar tek tek görünür; kullanıcı ZIP ile uğraşmaz.
-class PeerReceiver {
+class PeerReceiver implements KeepableServer {
   /// Ekranda ve gönderenin listesinde görünecek ad.
   final String deviceName;
 
@@ -192,7 +193,17 @@ class PeerReceiver {
     this.onReceived,
     this.onProgress,
     this.onAsk,
+    this.onActivity,
   });
+
+  /// Süren alım sayısı değişince ([TransferKeeper.onActivity]).
+  final void Function(PeerReceiver receiver)? onActivity;
+
+  @override
+  int activeTransfers = 0;
+
+  @override
+  DateTime? lastActivity;
 
   /// Verilmiş izinler: anahtar → son geçerlilik.
   final _grants = <String, DateTime>{};
@@ -259,7 +270,7 @@ class PeerReceiver {
     }
     _http = server;
     server.listen(
-      (request) => unawaited(_handle(request)),
+      (request) => unawaited(_tracked(request)),
       onError: (_) {},
       cancelOnError: false,
     );
@@ -267,9 +278,15 @@ class PeerReceiver {
     await _startDiscovery();
   }
 
-  Future<void> stop() async {
+  /// Ekran kapandı, süren alım bitiyor: yeni göndericiler artık bulamasın.
+  void stopDiscovery() {
     _udp?.close();
     _udp = null;
+  }
+
+  @override
+  Future<void> stop() async {
+    stopDiscovery();
     final server = _http;
     _http = null;
     if (server != null) {
@@ -356,6 +373,19 @@ class PeerReceiver {
     response.statusCode = HttpStatus.forbidden;
     response.write(body);
     await response.close();
+  }
+
+  Future<void> _tracked(HttpRequest request) async {
+    activeTransfers++;
+    lastActivity = DateTime.now();
+    onActivity?.call(this);
+    try {
+      await _handle(request);
+    } finally {
+      activeTransfers--;
+      lastActivity = DateTime.now();
+      onActivity?.call(this);
+    }
   }
 
   Future<void> _handle(HttpRequest request) async {

@@ -393,6 +393,18 @@ class DocxViewState extends State<DocxView> {
 
   /// Model paragrafını ortaya kaydırıp kısa süre çerçeveler (düzenlemeden
   /// okumaya dönüş).
+  /// Ekranın tepesindeki paragrafın model indeksi (bilinmiyorsa -1).
+  Future<int> topParagraph() async {
+    try {
+      final r =
+          await _controller.runJavaScriptReturningResult('topParaIndex()');
+      return int.tryParse('$r'.split('.').first) ?? -1;
+    } catch (_) {
+      // Köprü hazır değil (çizim sürüyor): konum bilinmiyor.
+      return -1;
+    }
+  }
+
   void focusParagraph(int i) => _controller.runJavaScript('focusPara($i)');
 
   /// Belirtilen (1 tabanlı) Word sayfasına kaydırır.

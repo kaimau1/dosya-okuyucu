@@ -150,6 +150,38 @@ void main() {
     expect(find.text('Proje Özeti'), findsWidgets);
   });
 
+  testWidgets('Bitti: kaydırma konumu korunur (klavye açılıp kapansa da), '
+      'düzenlenen kutu çerçevelenir', (tester) async {
+    await pump(tester);
+    // İki slayt uzun ekrana sığar: kaydırma olsun diye kısa ekran.
+    tester.view.physicalSize = const Size(1080, 1100);
+    await tester.pump();
+    final list = find.byWidgetPredicate((w) =>
+        w is Scrollable && w.axisDirection == AxisDirection.down);
+    ScrollPosition pos() =>
+        tester.state<ScrollableState>(list.first).position;
+    pos().jumpTo(30);
+    await tester.pump();
+    final before = pos().pixels;
+    expect(before, 30);
+    await openEditor(tester, 'Proje Özeti');
+    tester.view.viewInsets = const FakeViewPadding(bottom: 250);
+    await tester.pump();
+    final field = find.byType(EditableText).last;
+    await tester.enterText(field, 'Dolu slayt');
+    await tester.pump();
+    tester.view.resetViewInsets();
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('sl-done')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(pos().pixels, before);
+    expect(find.byKey(const ValueKey('slide-flash')), findsOneWidget);
+    expect(find.text('Dolu slayt'), findsWidgets);
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.byKey(const ValueKey('slide-flash')), findsNothing);
+  });
+
   testWidgets('düzenlerken başka kutuya dokunmak onu açar (önceki yazılır)',
       (tester) async {
     await pump(tester);

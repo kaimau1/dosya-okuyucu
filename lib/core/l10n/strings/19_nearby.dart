@@ -4,6 +4,10 @@ part of '../app_strings.dart';
 /// tema ve görsel birlik turu.
 const Map<String, (String, String, String)> _t19 = {
   'near.title': ('Yakındakiler', 'Nearby', 'القريبون'),
+'pick.select_all': ('Tümünü seç', 'Select all', 'تحديد الكل'),
+'pick.last_folder': ('Son kullanılan klasör', 'Last used folder', 'آخر مجلد مستخدم'),
+'near.keep_title': ('Dosya aktarılıyor', 'Transferring files', 'جارٍ نقل الملفات'),
+'near.keep_body': ('Bitince paylaşım kendiliğinden kapanır', 'Sharing closes by itself when done', 'تُغلق المشاركة تلقائيًا عند الانتهاء'),
   'near.share_sub': (
     'Yakındaki telefona ya da QR ile tarayıcıya — uygulama şart değil',
     'To a nearby phone, or by QR to any browser — no app needed',

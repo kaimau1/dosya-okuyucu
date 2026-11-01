@@ -261,3 +261,23 @@ birleştirmede yeni dizin biçimine taşındı.)
   Girişler: pano kutusu `id: 'library'`, dosya menüsünde "Kitaplığa ekle/çıkar", ana ekran kısayolu `app:library`
   (`openAppLink`). TUZAK: l10n dizgesinde düz `'` (file's) derleme kırar — part dosyası olduğu için
   `flutter analyze <dosya>` yakalamadı, l10n testi yakaladı; tam analyze ya da `’` kullan.
+
+## 2026-11-01 — Aktarım ekrandan bağımsız; düzenleme dönüşü odağı; seçici 2. tur
+- **QR/web gönderimi ekrandan çıkınca kesiliyordu — kök:** `NearbyScreen.dispose` sunucuyu `close(force: true)` ile
+  kapatıyor, hotspot'u da indiriyordu; seçim değişince `_restartWeb` de süren indirmeyi kesiyordu. Alıcı (`PeerReceiver`) aynı
+  hatayı taşıyordu. Çözüm `services/fm/remote/transfer_keeper.dart`: aktarım sürerken ön plan servisi + `PARTIAL_WAKE_LOCK`
+  + Wi-Fi kilidi (`dosya/qr` → `keepAwake`, 2 sa tavan); ekran kapanırken son 60 sn'de isteği olan sunucu devralınır, iş
+  bitince 60 sn boşta kalırsa sunucu + hotspot kapanır. **Hiç istek almamış sunucu eskisi gibi anında kapanır** (gizlilik
+  kararı korunuyor). Bildirimde "Durdur". Test `test/transfer_keeper_test.dart` (gerçek HTTP).
+- **Düzenleme sonrası odak — kökler:** (1) Word'ün gerçek yolu Mobil editör; dönüş yalnız sayfa numarası taşıyordu ve
+  `_resumePage > 1` şartı vardı, `focusPara` yalnız eski WebView yolundaydı → artık `topParaIndex` ile bakılan paragrafta açılır,
+  `caretOut` ile imleç paragrafına dönüp çerçeveler. (2) Slayt: gizli liste düzenleme boyunca boyu değişen görünümde kaldığı için
+  konum kenetlenip başa kayıyordu (test önce kırmızı: 30 → 0) → `_editOffset` ile geri konur. (3) PDF: düzenleyicide
+  başka sayfaya geçince görüntüleyici eski sayfaya dönüyordu → `PdfEditorScreen.lastPage`.
+- **Seçici 2. tur:** kategori/arama yalnız arama dizinine bakıyordu (yeni kurulumda boş) → diske düşer; yazdıkça arama;
+  sıralama çipi her listede; Tümünü seç / Temizle + toplam boyut; "son klasör" çipi; teslimde silinmiş dosya çökmez.
+- **TUZAK:** `pick_file_screen.dart` kaynağında ham NUL baytı vardı (`'\0system'`), git dosyayı ikili sayıp diff göstermiyordu → `'\u0000system'`.
+- **TUZAK:** MIUI'de adb kurulum ve dokunma için Geliştirici seçeneklerinde "USB üzerinden yükle" + "USB hata ayıklama
+  (Güvenlik ayarları)" kullanıcı tarafından açılmalı; yoksa `INSTALL_FAILED_USER_RESTRICTED` / `INJECT_EVENTS`.
+- **TUZAK (Windows test, B1.2):** `const SystemEncoding()` Windows'ta cp1254 çözer → testte `utf8.decoder`. Aynı cihazı başka oturum
+  kullanıyorsa kilit: `/data/local/tmp/cihaz.lock`.

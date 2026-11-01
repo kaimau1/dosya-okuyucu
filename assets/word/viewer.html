@@ -1671,8 +1671,24 @@
   // kalınmalı, alan kısa süre çerçeveyle gösterilmeli"): model paragrafı
   // [i] ortaya kaydırılır ve ~1,2 sn ince çerçeve alır. Görünüm değişimi
   // (akış → sayfa) yerleşimi yeniden kurduğu için bir tık beklenir.
+  // Ekranın tepesindeki model paragrafı: düzenleyici aynı yerde açılsın.
+  window.topParaIndex = function () {
+    markParts();
+    for (var k = 0; k < PARTS.length; k++) {
+      var p = PARTS[k] && PARTS[k][0];
+      if (p && p.getBoundingClientRect().bottom > 8) return k;
+    }
+    return -1;
+  };
+
+  // Okuma görünümünde işaretleme hiç koşmamış olabilir (yalnız düzenlemede).
+  function markParts() {
+    if (!PARTS.length) prepareMarkers();
+  }
+
   window.focusPara = function (i) {
     setTimeout(function () {
+      markParts();
       var p = PARTS[i] && PARTS[i][0];
       if (!p) return;
       p.scrollIntoView({ block: 'center' });

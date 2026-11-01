@@ -116,6 +116,8 @@ extension _SlidesEditorScreenTextEditPart on _SlidesEditorScreenState {
   /// yerinde açılır, imleç sonda.
   void _beginEdit(PptxSlide slide, ShapeVM shape) {
     if (identical(_editShapeVM, shape)) return;
+    // Düzenleme başlarken bakılan yer; hücreler arası geçişte üzerine yazılmaz.
+    if (_textCtrl == null && _vCtrl.hasClients) _editOffset = _vCtrl.offset;
     if (_textCtrl != null) {
       _commitEdit();
       // Onay slaydı yeniden çizmiş olabilir: dokunulan kutu eski çizim
@@ -214,6 +216,16 @@ extension _SlidesEditorScreenTextEditPart on _SlidesEditorScreenState {
   void _finishEdit() {
     FocusScope.of(context).unfocus();
     _partSetState(_commitEdit);
+    // Gizli liste düzenleme boyunca boyu değişen görünümde kaldı: şerit ve
+    // klavye yüzünden konum kenetlenip başa kayabiliyordu (kullanıcı
+    // 2026-11-01: "düzenleme sonrası odak çalışmıyor"). Dönüşte geri konur.
+    final offset = _editOffset;
+    _editOffset = null;
+    if (offset == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_vCtrl.hasClients) return;
+      _vCtrl.jumpTo(offset.clamp(0.0, _vCtrl.position.maxScrollExtent));
+    });
   }
 
   /// Kutunun yakınlaşma çarpanı (punto → mantıksal piksel): kutu ekran

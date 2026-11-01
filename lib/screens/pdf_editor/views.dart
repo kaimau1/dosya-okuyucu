@@ -41,6 +41,7 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                     if (_inlineOpen && !_inlineApplying) _cancelInline();
                     _partSetState(() {
                       _page = page;
+                      PdfEditorScreen.lastPage = page;
                       _outline = PdfPageOutline.empty;
                       _selectedObject = null;
                     });

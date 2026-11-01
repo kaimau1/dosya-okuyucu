@@ -103,6 +103,8 @@
       yenilemeden güncel.
 - [ ] **Ana ekrana ekle:** Görüntüler → ⋮ → "Ana ekrana ekle" → kendi simgeli kısayol; uygulama
       kapalıyken de Görüntüler'i açıyor.
+- [ ] **Dosya seçici 2. tur:** yeni kurulumda kategori/arama dolu; yazdıkça arama; sıralama çipi; çoklu seçimde Tümünü seç /
+      Temizle + toplam boyut; bir seçimden sonra ana sayfada son klasör çipi.
 - [ ] **Seçici kipi (başka uygulamadan "dosya seç"):** PDF isteyen uygulamada doğrudan o türün
       dosyaları (en yeni üstte, "Tümü · PDF 34" çipleri, "Klasörlerde gez"); seçici kapandıktan
       sonra ayarlar kaydediliyor (shared_preferences çökmesi yok); Notlar'dan gelişte "Diğer".
@@ -155,6 +157,9 @@
       paylaşımı; ortak Wi-Fi yoksa **hotspot daveti** (BLE ile) → alıcı ağa bağlanıyor, iş
       bitince eski ağına dönüyor; ekrandan çıkınca geçici ağ kapanıyor (Wi-Fi listesinde
       DIRECT-/AndroidShare kalmıyor); geçmiş paneli.
+- [ ] **Gönderim ekrandan bağımsız:** QR ile büyük dosya indirilirken gönderen geri çıksın / ana ekrana dönsün / ekranı
+      kilitlesin → indirme sonuna kadar sürüyor, "Dosya aktarılıyor" bildirimi + Durdur; bitince ~1 dk içinde sunucu ve
+      hotspot kapanıyor; hiç indirme başlamadan çıkınca sunucu anında kapanıyor. Alıcı tarafta da ekrandan çıkınca alım sürüyor.
 - [ ] **Uygulamasız alıcı (web):** tarayıcıda `http://<ip>:8080` + 6 harfli jeton (elle de
       yazılabiliyor) → küçük resimli liste, "Tümünü indir" ZIP, tek dosyada otomatik indirme,
       sayfa tarayıcı diline göre TR/EN. Hotspot yolunda alıcının tarayıcısı mobil veriye
@@ -245,6 +250,8 @@
 ## 8. Word
 
 **Bütün editörlerde ortak (Faz 20 — Word, Excel, Slayt, Metin, PDF, Görsel):**
+- [ ] **Düzenleme sonrası odak:** Word 5. sayfada Düzenle → aynı yerde açılıyor; paragraf değiştir, çık → o paragraf ortada +
+      çerçeve. Slayt 7'de kutu düzenle, Bitti → aynı slayt + çerçeve. PDF düzenleyicide 3. sayfada kaydet → görüntüleyici 3. sayfada.
 - [ ] Klavye açılıp kapanırken klavye üstü çubuk klavyeyle birlikte kayıyor (zıplama yok).
 - [ ] Otomatik kaydetme: düzenle, 3 sn bekle → başlıkta "Kaydedildi"; uygulamayı zorla kapat →
       yeniden aç → taslak şeridi "Geri yükle"; geri yazılamayan dosyada (e-posta eki) ilk kayıtta

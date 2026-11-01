@@ -29,6 +29,7 @@ import '../../../services/fm/remote/ble_nearby.dart';
 import '../../../services/fm/remote/ftp_service.dart';
 import '../../../services/fm/remote/peer_share.dart';
 import '../../../services/fm/remote/qr_transfer.dart';
+import '../../../services/fm/remote/transfer_keeper.dart';
 import '../../../services/fm/remote/transfer_history.dart';
 import '../../../services/fm/remote/transfer_thumbs.dart';
 import '../../../widgets/app_dialog.dart';
@@ -156,11 +157,23 @@ class _NearbyScreenState extends State<NearbyScreen> {
     _scan?.cancel();
     _bleFound?.cancel();
     _bleInvite?.cancel();
-    // Sunucu, yayın ve hotspot ekranla birlikte ÖLÜR: arka planda dinleyen
-    // bir kapı bırakmak kullanıcının bilmediği bir risk olurdu.
-    unawaited(_receiver?.stop());
-    unawaited(_web?.stop());
-    if (_hotspot != null) unawaited(QrNative.stopHotspot());
+    // Boştaki sunucu, yayın ve hotspot ekranla birlikte ÖLÜR: arka planda
+    // dinleyen bir kapı bırakmak kullanıcının bilmediği bir risk olurdu. Ama
+    // SÜREN aktarım kesilmez: iş bitene kadar [TransferKeeper] taşır.
+    final keeper = TransferKeeper.instance;
+    final hadHotspot = _hotspot != null;
+    final receiver = _receiver;
+    if (receiver != null) {
+      receiver.stopDiscovery();
+      unawaited(keeper.handOff(receiver));
+    }
+    final web = _web;
+    if (web != null) {
+      unawaited(keeper.handOff(web,
+          onClosed: hadHotspot ? QrNative.stopHotspot : null));
+    } else if (hadHotspot) {
+      unawaited(QrNative.stopHotspot());
+    }
     if (widget.services) unawaited(BleNearby.stop());
     super.dispose();
   }
@@ -244,8 +257,10 @@ class _NearbyScreenState extends State<NearbyScreen> {
   // ── Alma ───────────────────────────────────────────────────────────────
 
   Future<void> _startReceiving() async {
-    await _receiver?.stop();
+    final previous = _receiver;
+    if (previous != null) await TransferKeeper.instance.handOff(previous);
     final receiver = PeerReceiver(
+      onActivity: TransferKeeper.instance.onActivity,
       deviceName: _deviceName,
       deviceId: _id,
       saveDir: _saveDir,
@@ -406,7 +421,8 @@ class _NearbyScreenState extends State<NearbyScreen> {
   Future<void> _restartWeb() async {
     final old = _web;
     _web = null;
-    await old?.stop();
+    // Seçim değişti diye süren indirme kesilmez.
+    if (old != null) await TransferKeeper.instance.handOff(old);
     if (_selection.isEmpty) {
       if (mounted) setState(() {});
       return;
@@ -414,6 +430,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
     try {
       final server = QrShareServer([..._selection],
           senderName: _deviceName,
+          onActivity: TransferKeeper.instance.onActivity,
           thumbnail: TransferThumbs.of,
           onServed: (name) {
             unawaited(TransferHistory.instance.add([
@@ -470,6 +487,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
   Future<bool> _startHotspot() async {
     if (_hotspot != null) return true;
     if (_hotspotBusy) return false;
+    TransferKeeper.instance.detachClosers();
     setState(() => _hotspotBusy = true);
     final before = <String>{if (_webHost != null) _webHost!};
     try {
