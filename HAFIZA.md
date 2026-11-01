@@ -893,4 +893,4 @@
 - **2026-11-01 — Kişisel derleme artık Release'e çıkar (kullanıcı isteği: "indirebileyim").** Elle tetikleme
   `kisisel: true` → ayrı **`kisisel`** ön-sürümü (prerelease, `--latest=false`; etiket her koşuda o commit'e taşınır,
   APK üzerine yazılır). `nightly` ve `releases/latest/download/dosya-okuyucu.apk` DEĞİŞMEZ; budama `kisisel`i de
-  atlar. Herhangi bir daldan tetiklenebilir. İndirme: `releases/download/kisisel/dosya-okuyucu.apk`.
+  atlar. Herhangi bir daldan; elle tetikleme yoksa commit mesajına `[kisisel]` yazıp push etmek de aynısını yapar. İndirme: `releases/download/kisisel/dosya-okuyucu.apk`.
