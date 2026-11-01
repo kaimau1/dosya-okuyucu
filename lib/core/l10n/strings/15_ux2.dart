@@ -51,4 +51,32 @@ const Map<String, (String, String, String)> _t15 = {
     'رفض الجهاز الآخر الملف',
   ),
   'peer.ask_switch': ('Gelen dosyayı onayla', 'Confirm incoming files', 'تأكيد الملفات الواردة'),
+
+  // ── Kitaplık (2026-11-01) ────────────────────────────────────────────────
+  'lib.title': ('Kitaplık', 'Library', 'المكتبة'),
+  'lib.count': ('{n} kitap', '{n} books', '{n} كتاب'),
+  'lib.add': ('Kitap ekle', 'Add books', 'إضافة كتب'),
+  'lib.added': ('{n} kitap eklendi', '{n} books added', 'تمت إضافة {n} كتاب'),
+  'lib.already': ('Seçilenler zaten kitaplıkta', 'Already in your library', 'موجودة بالفعل في المكتبة'),
+  'lib.add_one': ('Kitaplığa ekle', 'Add to library', 'إضافة إلى المكتبة'),
+  'lib.remove': ('Kitaplıktan çıkar', 'Remove from library', 'إزالة من المكتبة'),
+  'lib.removed': ('Kitaplıktan çıkarıldı', 'Removed from library', 'أزيل من المكتبة'),
+  'lib.missing': ('Dosya bulunamadı (taşınmış ya da silinmiş)', 'File not found (moved or deleted)', 'الملف غير موجود'),
+  'lib.search': ('Kitaplıkta ara', 'Search library', 'ابحث في المكتبة'),
+  'lib.continue': ('Okumaya devam et', 'Continue reading', 'متابعة القراءة'),
+  'lib.shelf': ('Raflar', 'Shelves', 'الرفوف'),
+  'lib.no_match': ('Eşleşen kitap yok', 'No matching books', 'لا توجد كتب مطابقة'),
+  'lib.sort_added': ('Son eklenen', 'Recently added', 'المضاف حديثًا'),
+  'lib.sort_name': ('Ada göre', 'By name', 'حسب الاسم'),
+  'lib.sort_progress': ('Okuma ilerlemesine göre', 'By reading progress', 'حسب التقدم'),
+  'lib.pin_home': ('Ana ekrana ekle', 'Add to home screen', 'إضافة إلى الشاشة الرئيسية'),
+  'lib.empty_title': ('Kitaplığın boş', 'Your library is empty', 'مكتبتك فارغة'),
+  'lib.empty_body': (
+    'PDF, EPUB, MOBI, FB2, DJVU ve çizgi roman (CBZ) dosyalarını ekle. '
+    'Dosya menüsünden "Kitaplığa ekle" de diyebilirsin; dosyalar yerinden oynamaz.',
+    'Add PDF, EPUB, MOBI, FB2, DJVU and comic (CBZ) files. You can also use '
+    '"Add to library" in a file’s menu; files stay where they are.',
+    'أضف ملفات PDF وEPUB وMOBI وFB2 وDJVU وCBZ. الملفات تبقى في مكانها.',
+  ),
+  'lib.tile_empty': ('Kitap ekle', 'Add books', 'إضافة كتب'),
 };

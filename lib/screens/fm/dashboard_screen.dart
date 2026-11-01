@@ -79,6 +79,8 @@ import 'trash_screen.dart';
 import 'vault_screen.dart';
 import '../../core/snack.dart';
 import '../../core/safe_insets.dart';
+import 'library_screen.dart';
+import '../../services/fm/library_store.dart';
 
 part 'dashboard/volume_watch.dart';
 part 'dashboard/scan.dart';
@@ -195,6 +197,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     // AI kartı analiz sayısını gösteriyor; indeks diskten okunmadan sayı 0
     // görünürdü. Okuma bittiğinde `AiIndex.revision` kartı tazeler.
     AiIndex.ensureLoaded();
+    // Kitaplık kutusu kitap sayısını gösterir.
+    LibraryStore.ensureLoaded().then((_) {
+      if (mounted) setState(() {});
+    });
     // Araç sırası kullanım sayaçlarından geliyor; sayaçlar diskten gelene
     // kadar ızgara yazılış sırasında çizilir, sonra bir kez tazelenir.
     ToolUsage.ensureLoaded().then((_) {

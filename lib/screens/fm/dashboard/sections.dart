@@ -283,6 +283,21 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
       _categoryTile(FmCategory.video, grid: true),
       _mediaTile(),
       _categoryTile(FmCategory.document),
+      // **Kitaplık** (2026-11-01): kullanıcının seçtiği PDF/e-kitaplar rafta.
+      FmTileData(
+        id: 'library',
+        icon: AppIcons.autoStories,
+        color: AppHues.plum,
+        label: context.t('lib.title'),
+        subtitle: LibraryStore.count == 0
+            ? context.t('lib.tile_empty')
+            : context.t('lib.count', {'n': LibraryStore.count}),
+        onTap: () async {
+          await Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const LibraryScreen()));
+          if (mounted) _partSetState(() {});
+        },
+      ),
       _categoryTile(FmCategory.audio),
       _categoryTile(FmCategory.archive),
       // Kurulum dosyaları ayrı kutuda (kullanıcı isteği 2026-07-25).

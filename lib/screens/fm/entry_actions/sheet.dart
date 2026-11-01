@@ -30,6 +30,7 @@ enum _EntryAction {
   split,
   join,
   shortcut,
+  library,
   hide,
   audiobook,
 }
@@ -169,6 +170,14 @@ Future<bool> showEntryActions(
               if (allowReveal)
                 _act(ctx, AppIcons.reveal, ctx.t('fm.reveal'),
                     _EntryAction.reveal),
+              if (!entry.isDir && LibraryStore.isBook(entry.path))
+                _act(
+                    ctx,
+                    AppIcons.autoStories,
+                    ctx.t(LibraryStore.contains(entry.path)
+                        ? 'lib.remove'
+                        : 'lib.add_one'),
+                    _EntryAction.library),
               // Ana ekran kısayolu (kullanıcı isteği 2026-09-27).
               if (Platform.isAndroid)
                 _act(ctx, AppIcons.homeShortcut,
@@ -352,6 +361,19 @@ Future<bool> showEntryActions(
 
     case _EntryAction.shortcut:
       await addHomeShortcut(context, entry);
+      return false;
+
+    case _EntryAction.library:
+      final strings = AppStrings.of(context);
+      final messenger = ScaffoldMessenger.of(context);
+      await LibraryStore.ensureLoaded();
+      if (LibraryStore.contains(entry.path)) {
+        await LibraryStore.remove([entry.path]);
+        showSnackOn(messenger, strings.t('lib.removed'));
+      } else {
+        await LibraryStore.add([entry.path]);
+        showSnackOn(messenger, strings.t('lib.added', {'n': 1}));
+      }
       return false;
 
     case _EntryAction.hide:

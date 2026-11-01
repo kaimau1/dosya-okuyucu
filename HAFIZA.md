@@ -255,3 +255,9 @@ birleştirmede yeni dizin biçimine taşındı.)
 - **Word:** çıkışta akış→sayfa geçişi kaydırmayı atıyordu; imleç paragrafı önce okunur, `focusPara(i)` (viewer.html)
   ortalar + çerçeveler. Mobil editör dönüşü yeniden çizer → `_resumePage` ile aynı sayfa.
 - Dock: QR → Aktar (QR alma Yakındaki cihazlar içinde), Belge Tara yalnız simge. Kırık beyaz zemin F6F3EA→FAF8F2.
+- **Kitaplık (2026-11-01):** `LibraryStore` (appSupport/`library.json`, yalnız yol listesi — dosya taşınmaz;
+  kayıp dosya soluk + "bulunamadı", sessizce düşürülmez) + `LibraryScreen` (raf görünümü, "Okumaya devam et"
+  `ReadingPositions.progressOf`'tan, kapak: PDF ilk sayfa / EPUB OPF cover-image / yoksa çizilmiş kapak).
+  Girişler: pano kutusu `id: 'library'`, dosya menüsünde "Kitaplığa ekle/çıkar", ana ekran kısayolu `app:library`
+  (`openAppLink`). TUZAK: l10n dizgesinde düz `'` (file's) derleme kırar — part dosyası olduğu için
+  `flutter analyze <dosya>` yakalamadı, l10n testi yakaladı; tam analyze ya da `’` kullan.

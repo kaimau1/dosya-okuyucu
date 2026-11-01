@@ -18,6 +18,7 @@ import 'fm/search_screen.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/asistan_komutlari.dart';
 import 'fm/ai_actions.dart';
+import 'fm/library_screen.dart';
 
 /// **Uygulama içi bağlantılar** (2026-10-18): ana ekran widget'ları ve yerel
 /// iş bildirimleri uygulamayı bir bağlantıyla açar. Biçim:
@@ -71,6 +72,8 @@ Future<void> openAppLink(BuildContext context, String link) async {
       await FmEnv.ensureInit();
       if (!context.mounted) return;
       await push(DownloadsScreen(path: p.join(FmEnv.primaryRoot, 'Download')));
+    case LibraryScreen.link:
+      await push(const LibraryScreen());
     case 'app:recent':
       await push(const OpenHistoryScreen());
     case 'app:images' || 'app:photos' || 'app:videos':
