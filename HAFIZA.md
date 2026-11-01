@@ -1,891 +1,231 @@
-# Dosya Okuyucu — Proje Hafızası
+# Dosya Okuyucu — Proje Hafızası (dizin)
 
-> Kararlar, *niye*'leri, denenip reddedilen yollar ve açık durum burada.
-> **Append-only:** eski maddeler silinmez, geçersizse "→ güncellendi/iptal" notu düşülür.
-> Kod yapısı buraya yazılmaz (bkz. CLAUDE.md §Hafıza haritası).
-> KVKK: hasta verisi / TC / ölçüm / token bu dosyaya YAZILMAZ.
+> **Ne:** kalıcı kararlar ve *niye*'leri, hâlâ geçerli tuzaklar, reddedilen yollar, güncel
+> durum. Kod yapısı burada değil (`graphify-out/`), kalan iş burada değil (`KALANLAR.md`).
+> **KVKK:** hasta verisi / TC / ölçüm / token / parola bu dosyaya YAZILMAZ.
 >
-> **Dizin + arşiv (2026-10-21, Faz 0 H1):** bu dosya yalnız dizin (kararlar, tuzaklar,
-> açık durum). Tarihli tur kayıtları kelimesi kelimesine `docs/hafiza/YYYY-MM.md`
-> arşivlerinde — gerektiğinde ara (`grep -rn "<konu>" docs/hafiza`). Yeni tarihli kayıt
-> bu dosyanın SONUNA yazılır; ~600 satırı geçince `python tool/hafiza_arsivle.py`.
+> **2026-11-01 temizliği:** önceki dizin (892 satır; 2026-07 kararları, build geçmişi,
+> 2026-10-22…31 tur kayıtları) **kelimesi kelimesine** `docs/hafiza/dizin_2026-11-01_oncesi.md`
+> dosyasına taşındı; bu dosya güncel özettir. Daha eski tur kayıtları `docs/hafiza/2026-07.md`
+> … `2026-10.md`. Ayrıntı/kanıt için: `grep -rn "<konu>" docs/hafiza`.
+>
+> **Yazma kuralı (usta rule 12):** iş bitmeden kalıcı karar, bug kök nedeni ya da yanlış çıkan
+> yol oluştuysa **en alttaki "Tarihli kayıtlar"a** `## YYYY-MM-DD — başlık` biçiminde ekle
+> (madde imli `- **2026-…**` biçimi `tool/hafiza_arsivle.py`'nin göremediği biçimdir — 2026-10'da
+> 400 satır bu yüzden dizinde birikti). Bir karar değişirse buradaki satırı güncelle ve
+> tarihli kayda "→ güncellendi" yaz. Dosya ~600 satırı geçince `python tool/hafiza_arsivle.py`.
 
-## Sabit Kararlar (tarihli, append-only)
+## 1. Güncel durum (2026-11-01)
 
-- **2026-07-20 — Teknoloji: Flutter (Dart), CI Flutter sürümü 3.29.3.**
-  *Niye:* tek kod tabanıyla mobil + masaüstü. 3.29.3 zorunlu: pdfx engine API'si ve
-  compileSdk 35 gerektiriyor, daha eski sürümlerde derlenmiyor (build-1 bu yüzden kırmızı).
+- **Sürüm:** `main` @ `9ae256a`, build **444** (CI yeşil, nightly). Flutter **3.44.6** (CI = yerel
+  = bulut). ~623 Dart dosyası / ~210 bin satır, 349 test dosyası (son tam sayım 2026-10-29:
+  3216 test yeşil), `flutter analyze` 0.
+- **Fazlar:** FAZ_PLANI Faz 0–19 ve DUZENLEME_PLANI Faz 20–32 bulut kısmıyla bitti; Faz 4, 10,
+  11b, 12b/12c ve 33'ün cihaz/hesap kısmı açık. **Bütün kalan iş tek listede:
+  `KALANLAR.md` — Faz A ☁️ (bulut) / Faz B 📱💻👤 (telefon, yerel, hesap).** Telefonda
+  bakılacaklar: `docs/CIHAZ_TESTI.md` (alana göre, 2026-11-01).
+- **Açık kararlar (kullanıcı):** Pro özellik listesi + Billing ürünleri (K6), depo private
+  zamanı (K7), Drive CASA ya da kapsam (K5), Play derlemesi izin varyantı, bekleyen dal
+  `ccr-0ba9d97d-1mtuwm` (KALANLAR A1.1).
 
-- **2026-07-20 — AI: Google Gemini, düz REST çağrısı (paket bağımlılığı yok).**
-  *Niye:* ücretsiz kota + bağımlılık şişkinliği istenmedi. Anahtar Ayarlar'dan girilir,
-  cihazda SharedPreferences'ta saklanır. Varsayılan model `gemini-2.0-flash`.
+## 2. Sabit kararlar (güncel)
 
-- **2026-07-20 — Firebase kodu guard'lı; config repoda YOK.**
-  *Niye:* config gizli ve kullanıcıya özel. `Firebase.initializeApp()` guard'lı olduğu için
-  config yokken uygulama "yerel mod"da çalışır — kurulum kullanıcıyı bloklamaz.
-  Aktifleştirme: `flutterfire configure` veya `google-services.json` (FIREBASE_SETUP.md).
+Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
+`docs/DUZENLEME_PLANI.md` §6 (K18–K25).
 
-- **2026-07-20 — Office düzenleme: cihaz-içi / offline / ücretsiz, ORTA sadakat.**
-  Word/PPT'de orijinal XML korunur, sadece metin düğümleri (`w:t` / `a:t`) güncellenir →
-  biçim bozulmadan metin düzenleme + geri kaydetme.
-  **REDDEDİLEN yol:** sunucu tabanlı OnlyOffice — kullanıcı açıkça ücretsiz/offline istedi.
+**Platform ve dağıtım**
+- **Yalnız Android** (K10, 2026-10-21); minSdk **24** (K9), targetSdk/compileSdk 36 (AppFunctions
+  için compileSdk 37 yaması). Paket `com.dosyaokuyucu.dosya_okuyucu`.
+- **`android/` depoda yok:** `ci/prepare_android.sh` `flutter create` iskeletini üretip bütün
+  yamaları (manifest `ci/AndroidManifest.xml`, Kotlin `ci/*.kt`, Gradle, R8 kuralları
+  `ci/proguard-rules.pro`) uygular; yerelde de aynı betik. Kotlin değiştiyse
+  `tool/check_kotlin.sh` (gerçek android-all jar'ına karşı derler + harness'ler).
+- **CI** (`.github/workflows/build-apk.yml`): `verify` (pub get → analyze → test) ∥ `apk`
+  (obfuscate, apksigner, içerik/16 KB/boyut bütçesi) → `release`. main → tek **`nightly`**
+  (üzerine yazılır); **`v*` etiketi** → kalıcı sürüm (arm + arm64 + AAB); eski sürümler budanır.
+  `**.md`, `docs/**`, `graphify-out/**` CI koşturmaz. Dağıtım K11: Play (AAB) + GitHub nightly.
+- **Kişisel derleme** (`DOSYA_KISISEL=1`, elle `kisisel: true`): asistan köprüsü
+  (`ci/kisisel/AsistanKopru.kt`, izin `signature|knownSigner`) yalnız orada; genel derlemede
+  betik köprünün manifestte OLMADIĞINI denetler. Release'e çıkışı bekleyen dalda (A1.1).
+- **İmza:** bütün APK'lar sabit anahtarla — secret `ANDROID_KEYSTORE_B64` +
+  `ANDROID_KEYSTORE_PASSWORD`, alias `dosyaokuyucu`, SHA-256 `9E:EF:67:04:…:4C:57:37:18`.
+  Anahtar dosyası repo DIŞINDA (`C:\Users\sena\Desktop\dosya-okuyucu-imza\release.jks`) —
+  **kaybetmek = bir daha güncelleme yayınlayamamak**, yedekle. İmza değişirse telefona kurulmaz
+  (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`, veri silinir).
+- **Tek dal `main`.** Bulut oturum dalı (`ccr-*`, `claude/*`) iş main'e girince silinir; dal
+  silmeden önce main'de olduğunu doğrula (2026-07-22 ikon kaybı dersi).
 
-- **2026-07-20 — İmzalama: tüm APK'lar sabit anahtarla imzalanır.**
-  *Niye:* güncelleme uyumu (anahtar değişirse kullanıcı uygulamayı güncelleyemez).
-  Anahtar repoda TUTULMAZ; `ANDROID_KEYSTORE_B64` GitHub secret'ından yüklenir. Secret yoksa
-  CI geçici anahtar üretip base64'ünü loglar (SIGNING.md). Alias `dosyaokuyucu`.
-  → *güncellendi 2026-07-23:* parola workflow'da düz metindi; repo public yapılmadan
-  önce DEĞİŞTİRİLDİ ve `ANDROID_KEYSTORE_PASSWORD` secret'ına taşındı (aşağıya bak).
+**Yapay zekâ ve gizlilik**
+- **Gemini düz REST** (paket yok); kullanıcı kendi anahtarı (K4) + anahtarsız temiz deneyim;
+  anahtar Keystore sarmalı (Faz 11a); model listesi ListModels'ten, olmazsa statik yedek.
+- AI'ya yalnız gereken gider: anlamla arama = yalnız sorgu (puanlama cihazda); AI etiketleme =
+  ad + klasör ADI + boyut + ay; Yakındakiler/QR'da üçüncü taraf yükleme YOK.
+- **Firebase 2026-09-26'da kaldırıldı.** Google Drive `google_sign_in` + tam `drive` kapsamı
+  (K5 a) → yayından önce CASA; OAuth istemcisi paket + SHA-1 ile kayıt ister
+  (`docs/GOOGLE-DRIVE-KURULUM.md`).
+- Yapay zekâ sesleri APK'ya 0 MB: HF Space'lerin ONNX Runtime Web dosyaları ilk kullanımda iner,
+  WebView + yerel 127.0.0.1 sunucu (COOP/COEP); kökte `NeuralVoiceHostLayer`, 3 dk boşta kapanır.
 
-- **2026-07-20 — Bildirim: başarılı derlemede release linki Gmail *taslağı* olarak hazırlanır**
-  (hekimasistanitr@gmail.com). *Niye:* doğrudan gönderme aracı yok, sadece taslak mümkün.
+**Belge motorları**
+- **Office ilkesi:** cihaz-içi / çevrimdışı / ücretsiz; özgün XML korunur, yalnız dokunulan düğüm
+  yeniden yazılır → el değmemiş belge baytı baytına aynı (Word/Excel/Slayt testli).
+- **Word:** okuma/sayfa görünümü = gömülü docx-preview + WebView (K19), MS font ikamesi
+  (Carlito/Tinos/Arimo). **Düzenleme = Mobil görünüm editörü** — kendi DOCX modeli
+  (`services/docx/`, paragraf değişmez nesne, atom `U+FFFC` = köprü/alan/dipnot/resim…) + ince
+  `DeltaTextInputClient` çekirdeği (`widgets/docx_editor/`) — **K18 (b-ii)**. WebView
+  `contenteditable` düzenleme yalnız geliştirici bayrağında; cihaz onayından sonra silinecek
+  (KALANLAR B3.2).
+- **Excel:** kendi Flutter ızgarası (K23 a; tek boyacı yedek plan), okuma `xlsx_reader`, yazma
+  `excel 4.0.6` + `XlsxSavePatch` (stil/gizli/yükseklik/koşullu biçim/tablo parçaları);
+  kendi formül motoru + `CalcState` bağımlılık grafiği; Türkçe arayüzde Türkçe formül, dosyaya
+  İngilizce `,` `.` `_xlfn.` (K22); uygulama içi sayı/formül tuş takımı (K20); okuma sınırı
+  200 bin satır / 1024 sütun, aşılırsa kaydetme KAPALI (kesilen hücre silinmesin).
+- **Slayt:** kendi renderer (`pptx_render` + `slide_canvas`); yerinde zengin metin
+  (`pptx_rich_text`), kutuya yakınlaşan odak görünümü; dikey akış + ham pointer pinch
+  (`PinchZoomArea`, Excel ile ortak).
+- **PDF:** görüntüleme pdfrx 1.3.x (pdfium) + kendi seçim katmanı; yazma Syncfusion 31.1.19
+  (K1 a Community License); paragraf motoru yerinde düzenler, reddederse "Üstüne yaz"
+  (eski span akıştan çıkarılır + gömülü yazı tipi/Carlito); düzenleme işlem listesi bellekte.
+- **Ortak düzenleme çekirdeği** `lib/core/edit/` (EditHistory, EditSession, DraftJournal,
+  SaveIsolate, EditorChrome, EditorShortcuts): taslak günlüğü her zaman + otomatik kaydetme
+  varsayılan AÇIK (K21).
+- **Metin/kod:** geliştirilmiş `TextField` (K25), 1–4 MB isolate renklendirme, kodlama korunur.
 
-- **2026-07-21 — Hafıza 3 katmana ayrıldı** (bu dosya + CLAUDE.md haritası + graphify).
-  *Niye:* CLAUDE.md her oturumda otomatik yükleniyor; append-only karar listesi orada
-  büyüyünce her oturumun token maliyeti artıyordu. Kararlar buraya, kurallar orada kaldı.
-  graphify kuruldu (390 düğüm / 522 kenar / 22 topluluk) → CLAUDE.md'deki elle yazılmış
-  dosya haritası silindi, yerine `graphify-out/GRAPH_REPORT.md` geçti (tek kaynak).
-  `graphify-out/cache/` ve tarihli yedek klasörleri .gitignore'a eklendi; rapor+graf commitlenir.
+**Medya ve sistem**
+- Video küçültme **Media3 Transformer** (K2 b; FFmpeg kalktı); tek oynatma motoru `video_player`;
+  bildirim/kilit ekranı çerçevenin kendi `MediaSession`'ı (`ci/MediaSession.kt`) + ön plan
+  servisi. Görsel çıktı Android yerel (HEIC okuma, WebP yazma; K15 b), Dart `image` yedek.
+- Yakındakiler: UDP + **BLE yalnız bulma/davet** (`ci/NearbyBle.kt`), veri Wi-Fi'den (gerekirse
+  LocalOnlyHotspot); protokol v2 kaldığı yerden devam + store ZIP akışı; web 8080 + 6 harf jeton.
+- Ham USB FAT/exFAT yazma kalsın + sağlamlaştırıldı (K8): güvenli sıra, geri-okuma, kirli bayrak.
+- Cihaz profili `low/mid/high` (Faz 4): görsel önbelleği orta/güçlü 64 MB / 300, açılış işleri
+  `StartupQueue`'da (ilk kareden 2 sn sonra, tek sırada).
 
-- **2026-07-21 — Slayt görüntüleme: kendi Flutter renderer'ımız** (`services/pptx_render.dart`
-  + `widgets/slide_canvas.dart`). Slayt XML'i punto koordinatlara çözülür, Flutter widget'ı
-  olarak çizilir: arka plan, düzen/master grafikleri, şekil dolgu+çerçeve, görsel, grup
-  dönüşümü, tablo hücreleri, biçimli metin (boyut/kalın/italik/renk/hizalama/madde).
-  *Niye:* kullanıcı "PowerPoint'te nasıl görünüyorsa aynısı" istedi; metin listesi yetmiyordu.
-  **REDDEDİLEN yol:** WebView + PPTXjs — jQuery bağımlılığı, APK şişmesi, orta sadakat.
-  Metin düzenleme kutuya dokununca açılır, `<a:t>` güncellenir → tasarım bozulmaz.
-  *Kapsam dışı (bilinçli):* SmartArt, grafik (chart), animasyon, gradient dolgu, gömülü fontlar.
+**Arayüz ve dil**
+- Tasarım tokenları `AppIcons` / `AppColors` / `AppType` / `Motion`; ham `Icons.*` ve `Colors.*`
+  **0** (bekçi `design_tokens_test`, cırcır). Yeni dosyada `showModalBottomSheet` yasak →
+  `showAppSheet` / `showAppActionSheet`; onay/ad sorma `showAppConfirm` / `showAppPrompt`.
+- Diller TR/EN/AR, `t()` tablosu `core/l10n/strings/`; ekranda doğrudan Türkçe yazmak
+  `l10n_literals_test`'i kırar. Fiziksel sol/sağ yazma (`rtl_guard_test`); belge içeriği
+  (PDF sayfası, Excel hizası, slayt) bilinçli fiziksel.
+- Ortak bekçiler: `a11y_guidelines`, `editor_a11y`, `bare_input_guard`, `navigator_guard`,
+  `route_guard`, `fm_delete_guard`, `motion_tokens`, `l10n_keys_used`.
+- Menü dili tek: `widgets/menu_kit.dart` (DocMoreSheet, uzun basma, AppActionSheet, klasör ⋮).
 
-- **2026-07-21 — DÜZELTME: yerelde Flutter VAR** (`C:\src\flutter`, sürüm 3.44.6).
-  Artık doğrulama = `flutter test` + `flutter analyze` (yerel), sonra CI derlemesi.
-  **Dikkat:** yerel 3.44 ≠ CI 3.29.3 → yerelde `withOpacity` "deprecated" uyarısı verir ama
-  CI'da GEREKLİ, `withValues`'a çevirme (3.29'da yok). Uyarı normaldir, hata değildir.
+## 3. Tuzaklar (hâlâ geçerli)
 
-- **2026-07-21 — Word: gömülü docx-preview + WebView; Excel: excel paketinin kendi stili.**
-  *Niye:* Word'ün sayfa akışı (satır/sayfa kırma, stil mirası) elle yazılırsa %70 sadakatte
-  kalıyor; olgun motor `assets/word/`e gömüldü (jszip MIT + docx-preview Apache-2.0, LICENSES.txt).
-  İnternet gerekmez, WebView yalnızca yerel dosya açar. Excel'de tam tersi: `excel` paketi
-  genişlik/yükseklik/stil/birleşik hücre bilgisini zaten veriyor → kendi styles.xml ayrıştırıcım
-  YAZILMADI. **REDDEDİLEN yol:** Excel için WebView (x-spreadsheet) — gereksiz, ızgara Flutter'da daha iyi.
+**Ortam, CI, süreç**
+- **Bulut oturumu:** Flutter 3.44.6 Linux tarball'ı indirilebilir
+  (`storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.44.6-stable.tar.xz`),
+  `git config --global --add safe.directory '*'` şart. Telefon/ölçüm/`graphify` YOK.
+- **`dart format` KOŞTURMA** — depo biçimlendirilmiş değil; tek dosyada yüzlerce satır gürültü
+  (2026-10-23'te 172 dosya geri alındı).
+- **Actions dakika kotası** bitince işler 2-3 sn'de logsuz düşer — "altyapı arızası" sanıp boş
+  commit'le yeniden tetikleme; önce kullanıcıya/Billing'e bak. Depo private olunca 2.000 dk/ay.
+- PowerShell borusu secret'a CR ekler → `gh secret set X < dosya`; workflow `tr -d '\r\n \t'`.
+- Oturum başında `.claude/settings.json` hook'u `git pull --rebase --autostash` yapar —
+  beklenmeyen üst commit bundandır.
+- Kotlin yalnız CI'da derleniyordu, tek tür hatası 13 dk yakıyordu → `tool/check_kotlin.sh`.
+- `pubspec.lock` gitignore'da; CI her koşuda yeniden çözümler → alt paketler elle pinli
+  (KALANLAR A3.5).
+- **Yerel APK telefona kurulmaz** (anahtar farklı, veri silinir): temiz kopyada
+  `applicationIdSuffix = ".r8test"` + `documents` authority `${applicationId}` → yan yana kur.
+  Git Bash'te adb: `MSYS_NO_PATHCONV=1`, Windows yolları `C:/` biçiminde.
+- **SurfaceFlinger `--latency` aralığı takılma DEĞİLDİR** (`input swipe` boşlukları); kare için
+  `FrameTiming` / logcat `KARE`. Ölçüm medyası telefona `.nomedia`'lı klasörde, sonra sil.
+- Perf eşikleri paralel test yükünde 3–5× şişer → bekçi eşikleri gevşek (`perf` etiketi);
+  debug ölçümü cihaz bütçesini kanıtlamaz.
+- Flutter yükseltmesinde platform varsayılanlarını gözden geçir: 3.27+ derin bağlantı açık →
+  `content://` sayfa adı sanılıp çöküyordu (`flutter_deeplinking_enabled=false` + `route_guard`).
+- `shared_preferences_android` 2.5.x JNI kaydı süreç başına tek → `PickerActivity` kapanınca
+  ana uygulama çöküyordu → **2.4.28 sabit**.
+- R8: ML Kit dört dil sınıfı için `-dontwarn`; tam kip `ComponentRegistrar` boş yapıcılarını
+  siliyordu → keep kuralı. AGP 9 kütüphane kurallarını uygular.
 
-- **2026-07-21 — Sunum modu + animasyon yaklaşımı.** `p:timing/mainSeq` içindeki her `p:par`
-  bir tıklama adımı sayılır; hedefler `p:spTgt@spid` (+ `p:pRg` paragraf aralığı). Efekt türü/süresi
-  OKUNMAZ — beliriş jenerik (fade + hafif kayma). *Niye:* PowerPoint'te 100+ efekt var, akış
-  önemli, efektin kendisi değil. Sunum modu tam ekran + yatay + zoom (InteractiveViewer).
+**Flutter / Dart**
+- `testWidgets` içinde gerçek dosya G/Ç ve `compute` sahte saatte bitmez (`await
+  File.writeAsBytes`, `createTemp` sonsuza asılır) → `setUp`'ta ya da `*Sync`; ekran kodunda
+  okuma izolata.
+- Özel `TextInputClient` yazan editör Backspace/Delete **tuş olayını** kendisi işlemeli (Android
+  klavyesi silmeyi `KEYCODE_DEL` olarak gönderir); testte `sendKeyEvent` ile sına.
+- Çift dokunuş tanıyıcısı her tek dokunuşu 300 ms geciktirir (`kDoubleTapTimeout`) → editörlerde
+  yok; testte süreyi ilerlet.
+- `Transform.scale`'de `alignment` origin'e EKLENİR → `Alignment.topLeft` (pinch kayması).
+- Örtük animasyon yapı değişirse oynamaz — iki durumda aynı ağaç.
+- Tema `focusedBorder/enabledBorder/filled` `InputBorder.none` alanlara sızar → dört anahtar
+  birlikte (`bare_input_guard_test`).
+- Degrade `begin/end` `AlignmentDirectional` OLAMAZ; `animateTo` sıfır süre kabul etmez →
+  `Motion.scrollTo`; `textTheme.bodySmall` RENK de taşır → `AppType` yalnız boy.
+- Diyalog/levha `TextEditingController`'ı kapanış animasyonunda atılırsa "used after disposed" →
+  denetleyici pencerenin State'inde (`showAppPrompt`); `AnimationController` `initState`'te kur.
+- collection-if: `if (a) for (...) if (b) x else y` — `else` içteki if'e bağlanır.
+- `ValueKey(Object)` ≠ `ValueKey<String>`; yatay `ListView` tembel kurar (testte bulunamaz);
+  ekran dışındaki şerit öğesi için `scrollUntilVisible` + `ensureVisible`.
+- Klavye üstü çubuk yalnız `viewInsets.bottom > 0` iken; testte `tester.view.viewInsets`.
+- Yeni alt çubuk `ToastAvoider` ile sarılır (iş kartı düğmeleri örtmesin).
+- Bağlamsız `?? const []` for-loop'ta `Object`e düşer → `?? const <XmlElement>[]`.
 
-- **2026-07-22 — Faz 0 "Office hissi" temeli (kullanıcı onaylı plan; sıra: Faz 0 → Word → Excel → PPTX).**
-  Görsel referans **M365 mobil** (kullanıcı seçimi); Word Faz 1 kapsamı **metin + B/I/U birlikte** (kullanıcı seçimi).
-  M365 kimliği: `OfficeColors` token'ları (Word #185ABD / Excel #107C41 / PPT #C43E1C / PDF #C50F1F),
-  Fluent kanvas #F3F2F1 / #201F1E, ortak kabuk `widgets/office_shell.dart` — alt bar SafeArea'sı
-  tek yerden (alt sistem çubuğu çakışma sınıfı burada çözülür, ekran ekran değil).
-  120Hz: `flutter_displaymode.setHighRefreshRate` (Android, try/catch) + `SystemUiMode.edgeToEdge`.
-  Zoom kararları ve *niye*leri:
-  - Excel = **ham pointer pinch** (GestureDetector değil) — jest arenası çekişmesine girmez,
-    2 parmakta scroll `NeverScrollableScrollPhysics` ile kilitlenir, bırakınca ölçek hücre
-    metriklerine işlenir → yazı yeniden net çizilir (canlı faz GPU Transform.scale).
-  - Slayt = PageView (PowerPoint mobil düzeni) + InteractiveViewer; zoom>1'ken sayfa kaydırma kilidi.
-  - Word = native WebView zoom + viewer.html `viewport width=820` → açılışta tam sayfa sığar.
-  **Bilinçli yok:** editör görünümlerinde çift-dokunuş zoom — kDoubleTapTimeout tuzağı gereği
-  hücre/kutu dokunuşlarını 300 ms geciktirirdi; düzenleme hissi zoom kısayolundan önemli.
+**Belge biçimleri**
+- **`XmlName('w:numPr')` öneki ayırmaz** (`local == 'w:numPr'`) → `XmlName.fromString`; xml
+  `removeWhere` "already has a parent" atabilir → toplayıp tek tek `remove`.
+- `paraLook` pPr düğümü başına önbellekli → değişecek pPr'yi önce kopyala.
+- Word stilleri ADLA aranır (Türkçe Word kimliği `Balk1`, adı `heading 1`).
+- docx-preview `w:lastRenderedPageBreak`'te paragrafı ikiye böler → WebView kopyasında `_fkp<i>`
+  yer imleri (W1). Office Symbol/Wingdings madde imleri Android'de ▯ → `fixSymbolFonts` /
+  `core/symbol_fonts.dart`; `viewer.html`'de charset yok → `\uXXXX`.
+- WebView: meta viewport'u JS ile değiştirmek yeniden sığdırmaz → CSS `zoom`.
+- **pdfrx 1.3.5:** görüntüleyicinin boyunu jest sırasında değiştirme (sayfa başına atlar);
+  `layoutPages` aynı girdide eşit düzen döndürmeli; yakınlaştırmada basamaklı çizim ölçeği;
+  çok sütunda `useAlternativeFitScaleAsMinScale` kapalı. (2.x'e geçiş KALANLAR A3.2.)
+- PDF adları `[A-Za-z0-9]` dışını da içerir (`/ABCDEF+Arial-BoldMT`); yalnız kapak bırakmak eski
+  metni aramada bırakır → span akıştan çıkarılmalı; PDF düzenleme op kapanışına yerel
+  `pageIndex` kopyası.
+- Slayt: kopyalanan slayda not ilişkisi gitmemeli; `a:latin/cs/ea` sıralı eklenmeli; yeniden
+  çizimden sonra şekil `_resolveShape` ile (aynı XML düğümü) bulunur.
+- `excel 4.0.6`: hizalama okunmuyor, `insertRow/insertColumn` NO-OP, `defaultColWidth` yoksa
+  `getColumnWidth` null atar — kendi kodumuz/try-catch. Sentetik dosya bu hataları göstermedi:
+  gerçek dosyayla duman testi yapmadan "çalışıyor" deme.
+- LibreOffice: dipnot başvurusu olup `footnotes.xml` yoksa açmıyor; soffice UTF-8 metin filtresi
+  `txt:Text (encoded):UTF8`.
+- `image` paketi `decodeJpg` yön etiketini piksele uygulayıp siler; WebP kodlayıcı meta veri taşımaz.
 
-- **2026-07-22 — İkon kurtarma dersi + Faz 1 Word canlı düzenleme mimarisi.**
-  *İkon:* launcher ikonu commit'i (69213bf) hiçbir dalda değildi (dangling) — bulut oturum
-  dalı silinince kaybolmuş; `git checkout <sha> -- <paths>` ile nesne veritabanından kurtarıldı.
-  *Ders:* dal silmeden önce main'e merge edildiğini doğrula.
-  *Faz 1 kararları:* Sayfa görünümü contenteditable yapılır (docx-preview DOM'u);
-  paragraf eşleme **indeks tabanlı** — DOM `section.docx article p` sırası = `document.xml`
-  `w:p` sırası (başlık/altbilgi article dışında). Sigorta: düzenleme açılırken JS paragraf
-  sayısı gönderir, uyuşmazsa canlı düzenleme kapanır (yanlış paragrafa yazma engellenir).
-  B/I/U: `document.execCommand` + DOM'dan segman çıkarımı (computed style ile b/i/u) →
-  `DocxEditor.setRuns` ilk run'ın rPr'ini şablon kopyalayıp `w:b/w:i/w:u` ayarlar.
-  `DocxParagraph.rich` bayrağı: setRuns yazan paragrafa save() bir daha dokunmaz (ezme tuzağı).
-  Kaydetme canlı görünümü YENİDEN ÇİZMEZ (imleç kaybolmasın). Eski "Düzenle" sekmesi silindi;
-  düz metin editörü yalnız yedek yol (⋮ menüsü / sayfa görünümü açılamazsa).
+## 4. Reddedilen yollar (tekrar önerme)
 
-- **2026-07-22 — Slayt görünümü kararı (kullanıcı, build 49 denemesi sonrası):**
-  PageView (sayfa sayfa yatay) REDDEDİLDİ → tüm slaytlar alt alta dikey akış.
-  InteractiveViewer + sonsuz boundaryMargin da reddedildi ("slayt kayboluyor",
-  zoom zor) → Excel'deki ham-pointer pinch modeli ortaklaştırıldı:
-  `widgets/pinch_zoom_area.dart` (Excel + slayt listesi aynı widget'ı kullanır).
-  *Yazı taşması kök nedeni #2:* autofit çoğu dosyada şeklin bodyPr'inde değil
-  ŞABLONDA durur → yer tutucu (`ph` olan) şekillere de sığdırma uygulanır
-  (`ShapeVM.isPlaceholder`). #1 lnSpcReduction/ölçüm 48'de gelmişti.
+- Sunucu tabanlı OnlyOffice / gömülü LibreOffice-Collabora (çevrimdışı + APK +70 MB) ·
+  WebView + PPTXjs (slayt) · x-spreadsheet (Excel WebView) · Word için super_editor (43× yavaş
+  açılış + 43 paket), WebView'da ProseMirror, paragraf başına `TextField` · `audio_service` /
+  `just_audio_background` (yaşam döngüsü dayatıyor) · Wi-Fi Direct (hotspot yeterli) · aktarımda
+  deflate (telefonda Wi-Fi'den yavaş) · QR/aktarımda üçüncü taraf yükleme (gizlilik) · Firebase
+  senkronu (kaldırıldı) · FFmpeg (Media3'e geçildi) · `insertUnorderedList` (Word paragraf
+  eşlemesini bozuyordu) · çift dokunuşla yakınlaştırma editörlerde · `usage_stats` paketi
+  (compileSdk 30, derlemeyi kırıyor).
 
-- **2026-07-22 — DAL BİRLEŞTİRME:** `claude/office-programs-development-vbnq1x` dalındaki
-  34 commit (aşağıdaki 2026-07-21 kararları) main'e merge edildi — dal main varsayılan
-  olduktan SONRA da aktif kalmış, bugünkü Faz 0/1 işi main'de ayrı ilerlemişti.
-  Çakışma politikası: kabuk/zoom/canlı-düzenleme UX'i main'den (kullanıcı onaylı),
-  tüm dal özellikleri korunarak port edildi. Kural: tek aktif geliştirme hattı = main.
+## 5. Tarihli kayıtlar (yeni kayıt en alta; `## YYYY-MM-DD — başlık`)
 
-- **2026-07-21 — Office ileri düzenleme (yol haritası #1) eklendi.** Cihaz-içi/offline/
-  ücretsiz ilkesi korunarak:
-  - **Excel:** satır/sütun ekle-sil (`Excel.insertRow/removeRow/insertColumn/removeColumn`,
-    ardından modeli `_refresh` ile yeniden kur), formül girişi (`=` ile başlayan hücre
-    `FormulaCellValue` olur → dosyayı Excel açınca hesaplar, biz hesaplamayız), akıllı tip
-    (sayı→IntCell/DoubleCell, baştaki sıfırlı "007"→metin). Formül çubuğu altına satır/sütun
-    araç çubuğu.
-  - **Word:** paragraf kalın/italik/altı çizili + hizalama (rPr `<w:b>/<w:i>/<w:u>`,
-    pPr `<w:jc>`), paragraf ekle/sil (`<w:sectPr>` daima en sonda tutulur). Biçim araç çubuğu
-    seçili paragraf üzerinde çalışır.
-  - **PowerPoint:** slayt çoğalt/sil/taşı. `[Content_Types].xml` + `presentation.xml`
-    (`sldIdLst`) + `presentation.xml.rels` üçlüsü güncellenir; yoksa `canEditStructure=false`
-    (sentetik/eksik dosyada yapısal düzenleme kapalı, metin düzenleme açık kalır). Slayt
-    sırası artık mümkünse `sldIdLst`'e göre (yoksa dosya numarası yedeği).
-  *Niye/karar:* orijinal XML korunur, sadece hedef düğümler güncellenir (mevcut orta-sadakat
-  ilkesiyle uyumlu). **REDDEDİLEN:** formülü cihazda hesaplama (offline motor şişkinliği);
-  karakter-bazlı Word biçimi (mobilde paragraf-bazı daha kullanışlı + risk düşük).
-
-- **2026-07-21 TUZAK — `excel` 4.0.6 Excel-seviye `insertRow/insertColumn` NO-OP:**
-  `_excel.insertRow(sheetName, i)` / `insertColumn` çağrısı derleniyor ama satır/sütun
-  sayısını DEĞİŞTİRMİYOR (CI run #17: beklenen 3, gelen 2; sütunda 1). Çözüm: yapısal
-  işlemleri Sheet hücre API'siyle (`cell/value/cellStyle` — bunlar güvenilir) elle kaydır
-  ve model listesini doğrudan güncelle (`xlsx_editor.dart` insert/deleteRow/Column). Not:
-  Sheet-seviye `table.insertRow(i)` denenmedi; elle kaydırma paketten bağımsız çalışıyor.
-
-- **2026-07-21 TUZAK — Dart: bağlamsız `?? const []` for-loop'ta 'Object'e düşer:**
-  `for (final x in nullable?.iter() ?? const [])` CFE hatası verir ("must implement
-  Iterable"). Çözüm: açık tip — `?? const <XmlElement>[]`. (Fonksiyon argümanı gibi bağlam
-  tipi olan yerlerde sorun yok; yalnızca for-loop gibi bağlamsız yerlerde.)
-
-- **2026-07-21 TUZAK — xml paketinde `XmlNodeList.removeWhere` üst-düğüm çakışması riski:**
-  jenerik `ListMixin.removeWhere` compaction sırasında `[]=` ile düğümü yeniden atayınca
-  "node already has a parent" atabilir. Çözüm: eşleşenleri `.toList()` ile toplayıp tek tek
-  `children.remove(node)` ile sil (`_removeElems` yardımcısı, docx+pptx editörlerinde).
-
-- **2026-07-21 — CI feature dallarında da çalışır.** `build-apk.yml` push tetikleyicisine
-  `claude/**` eklendi → dal main'e girmeden test+build ile doğrulanır. **Release adımı
-  yalnızca main**'de (if guard). *Niye:* yerelde Flutter yok; tek doğrulama CI'ın `flutter
-  test` + `flutter build apk` adımları, o yüzden feature dalı da derlenmeli.
-  → *güncelleme 2026-07-22:* yerelde Flutter var; doğrulama önce yerel test+analyze.
-
-- **2026-07-22 — Pinch zoom odak noktası + CI tekrar tuzağı + WhatsApp intent kök nedeni.**
-  *Zoom:* `PinchZoomArea` başta `Transform.scale`'i sol-üstten (topLeft) uyguluyordu →
-  "sayfa kayıyor/kayboluyor" şikayeti. Çözüm: origin = iki parmağın ortası (focal),
-  commit'te kaydırma ofseti `(ofset+odak)*f-odak` ile odaktaki içeriği sabit tutar.
-  *CI TUZAK:* ayrı `test` işi + apk işinde `needs: test` → main'de APK ~4 dk boşuna
-  bekliyordu (apk işi zaten `flutter test` koşuyor). Çözüm: `test` işi yalnız feature
-  dallarında (`if: github.ref != 'refs/heads/main'`), apk'dan `needs` kaldırıldı.
-  *WhatsApp "birlikte aç":* kod eksik değildi — ACTION_VIEW/SEND intent-filtreleri
-  `ci/AndroidManifest.xml`'de zaten vardı ama kayıp dalda kalmıştı; build 51'de yok,
-  build 52 (merge) sonrası geldi. Ders: "görünmüyor" = sürüm eski olabilir, önce build no.
-
-- **2026-07-22 — Kullanıcı geri bildirim turu (zoom kayması, yazı taşması, PDF seçimi, eski Office).**
-  - **TUZAK / zoom kök nedeni:** `Transform.scale`'e `origin` verilse bile `alignment`
-    varsayılanı (center) origin'e EKLENİR (`RenderTransform` ikisini toplar) → etkin zoom
-    merkezi odak+viewport/2 olur, yaklaştırırken içerik sağa/aşağı kayar. Çözüm:
-    `alignment: Alignment.topLeft` (PinchZoomArea — Excel + slayt ikisi de düzeldi).
-  - **Yazı taşması kök nedeni #3:** sığdırma artık TÜM metin kutularına uygulanıyor
-    (autofit/yer tutucu ayrımı yetmedi; düz şekillerde Calibri≠Roboto farkı komşu
-    kutuya bindiriyordu — Slayt 22 örneği). Ölçüm iki geçişli (sarma değişimini doğrular).
-    PowerPoint'in "taşır" davranışından bilinçli sapma: okunurluk > birebir sadakat.
-  - **PDF: pdfx → pdfrx 1.3.x (pdfium).** Sayfa üzerinde METİN SEÇME/kopyalama
-    (`enableTextSelection`) + sayfa metni artık AI sohbet bağlamına gidiyor (loadText).
-    **Sürüm sabitleme nedeni:** pdfrx 2.x Dart ≥3.9 ister; CI 3.29.3 = Dart 3.7 →
-    `^1.3.0`. pdfium .so'ları CMake sırasında GitHub'dan iner (CI'da ağ var, sorun değil).
-  - **Eski .doc/.ppt yapısal ayrıştırma:** .doc'ta FIB+piece table (CLX/PlcPcd, alan
-    kodu gizleme, CP1252/UTF-16 parçalar), .ppt'te kayıt ağacı (TextChars/TextBytesAtom,
-    SlidePersistAtom → "[Slayt N]"). Bayt tarama YEDEK yol olarak duruyor (bozuk dosya).
-    Test için sentetik CFB üretici: `test/helpers/cfb_writer.dart` (mini-FAT'sız, 4096 pad).
-  - **Excel hücre biçimi:** kalın/italik/hizalama düğmeleri (`setCellStyle`,
-    copyWith `boldVal/italicVal/horizontalAlignVal` adları!). Hizalama dosyaya yazılır ama
-    excel paketi okuma hatası yüzünden yeniden açınca GÖRÜNMEZ (bilinen paket hatası).
-    Önbellek `patchStyle` ile tek hücre güncellenir (rebuildCaches O(hücre) çağrılmaz).
-  - **Word canlı hizalama:** viewer.html `fmt('justify*')` → seçimdeki paragrafların
-    hizası `{a:{i,v}}` köprüsüyle Flutter'a gelir, kayıtta `w:jc`. `_formatChanged`
-    ikiye bölündü (`_biuChanged`/`_alignChanged`) — yalnız hizalama değişince karma
-    run biçimi (tek kelimesi kalın paragraf) artık EZİLMİYOR; rich paragrafta da jc yazılır.
-  - **Slayt kutu biçimi:** metin düzenleme sayfasında B/I/U + punto
-    (`PptxEditor.formatParagraph`; yalnız DOKUNULAN özellik yazılır, rPr ilk çocuk).
-
-- **2026-07-22 — PDF seçim düzeltmesi (kendi katmanımız) + OCR.**
-  - **TUZAK / pdfrx 2.x bu projede KULLANILAMAZ:** pdfrx 2.x'in kendi sürüm kısıtı
-    ">=3.7" dese de motoru `pdfrx_engine` TÜM sürümlerde Dart **>=3.8.1** ve
-    `archive ^4` istiyor; CI (3.29.3 = Dart 3.7) + `excel`in `archive ^3` kısıtı
-    ile pub çözümlemesi imkânsız. Yani "metin seçimi 2.0'da yeniden yazıldı"
-    düzeltmesi paket yükseltmeyle alınamıyor.
-  - **Karar:** seçim arayüzü bizim: `widgets/pdf_select_layer.dart` —
-    pdfium karakter kutuları (`loadText().fragments[].charRects`) ekran
-    koordinatına çevrilir; sürükleme/uzun basış karakter aralığına eşlenir,
-    vurgu CustomPainter, kopyalama alt çubuktan. "Metin seç" modu açıkken
-    `panEnabled=false` (jest çekişmesi kökten yok). 1.3.5'in SelectionArea
-    yolu Android'de "tepki var, seçim yok" veriyordu → tamamen kaldırıldı.
-  - **OCR:** `google_mlkit_text_recognition` **0.15.0 SABİT** (0.15.1+ Dart
-    >=3.8). Cihaz-içi, Latin (Türkçe dahil), internet yok. Görsel → doğrudan;
-    PDF → sayfa pdfium'la ~1600px PNG'ye çizilip tanınır (en çok 25 sayfa).
-    Sonuç seçilebilir sayfada + panoya; taranmış PDF'te/görselde AI sohbet
-    bağlamına da girer. ⋮ menüsünde "Metni tanı (OCR)".
-
-- **2026-07-22 TUZAK — ML Kit + R8: "Missing class …text.chinese/japanese/korean/devanagari".**
-  google_mlkit_text_recognition yalnız Latin AAR'ını getirir ama Java köprüsü
-  dört dilin sınıflarına da referans verir → release küçültmede (R8) derleme
-  KESİLİR (build #61). Çözüm: `ci/proguard-rules.pro` (4 satır `-dontwarn`) →
-  CI'da `android/app/proguard-rules.pro`'ya kopyalanır; Flutter'ın Gradle
-  eklentisi bu dosyayı otomatik dahil eder, build.gradle patch'i GEREKMEZ.
-
-- **2026-07-22 — Gemini model listesi API'den otomatik çekilir.**
-  Ayarlar'da API anahtarı girilince (600ms debounce) `GeminiService.listModels`
-  (ListModels REST uç noktası) çağrılır; yalnızca `generateContent` destekleyen
-  modeller döner, sürüm+yetenek sıralamasıyla (2.5 pro gibi en yeniler önde)
-  dropdown'a dolar. Kayıtlı model bu hesapta yoksa listenin ilkine geçilir.
-  Anahtar boş/geçersiz/ağ hatasında sessizce statik yedek listeye (`_fallbackModels`)
-  düşülür — kullanıcı hiçbir zaman boş dropdown'la kalmaz. Elle "yenile" düğmesi var.
-  *Test:* `http.runWithClient` + `MockClient` (paket zon-tabanlı override sağlıyor,
-  GeminiService'e Client enjekte etmeye gerek kalmadı — düz REST sarmalayıcı ilkesi korundu).
-
-- **2026-07-22 DÜZELTME — "runner atanamadan 3 sn'de düşme" GERÇEK KÖK NEDENİ: Actions
-  DAKİKA KOTASI bitmiş.** build #63/#64 için "GitHub Actions altyapı arızası" diye
-  yorumlanmıştı (job hiç loglanmadan saniyeler içinde failure oldu) — YANLIŞ teşhis.
-  Kullanıcı doğruladı: hesabın aylık Actions dakikası tükenmişti; GitHub kotasız job'ı
-  hiç kuyruğa almadan/runner atamadan anında reddediyor, bu da "altyapı arızası"yla
-  AYIRT EDİLEMEZ şekilde görünüyor (ikisi de: 2-3 sn, log yok, `output.text` boş).
-  **Ders:** bu belirtiyi görünce ARKA ARKAYA boş commit'le yeniden tetiklemek (yaptığımız
-  hata) kotayı daha da tüketir/işe yaramaz — önce kullanıcıya sor ya da GitHub'ın
-  Settings > Billing > Actions sayfasından kota durumunu kontrol et. Kota bitmişse tek
-  çözüm: sonraki fatura döngüsünü beklemek ya da kullanıcının harcama limitini artırması
-  (ajan bunu yapamaz). Bu proje ücretsiz/limitli kullanım hedeflediği için (bkz. CLAUDE.md
-  §1) APK'yı yalnızca gerçekten istendiğinde derlemeye devam et (zaten mevcut politika).
-
-## Build Geçmişi
-
-| # | Sonuç | Not |
-|---|---|---|
-| build-1 | ❌ | pdfx engine API + compileSdk 34 (Flutter 3.24.5 uyumsuz) |
-| build-2 | ✅ | Flutter 3.29.3'e yükseltildi |
-| build-3 | ✅ | Firebase (guard'lı) eklendi, minSdk 23 |
-| build-4 | ✅ | Office biçimli editörler (Excel / Word / Slayt) |
-| build-5 | ✅ | Sabit imza (apksigner + secret bootstrap) — imzalı release üretildi |
-| build-8 | ✅ | PPTX gerçek tasarım renderer'ı + CI'ya `flutter test` adımı (4/4 yeşil) |
-| build-9 | ❌ | Secret'a yapışan CR → `base64: invalid input` (aşağıdaki tuzak) |
-| build-10 | ✅ | **Kalıcı imzalı ilk sürüm** (SHA-256 `9eef6704…`), telefona kuruldu ve açıldı |
-| build-11 | ✅ | Tam ekran sunum modu + zoom; kaldırmadan güncelleme ilk kez çalıştı |
-| build-12..16 | ✅ | Animasyon adımları, Word sayfa görünümü (WebView), Excel ızgarası. APK 57 MB |
-
-## Açık Durum / Bekleyenler
-
-- ~~Kalıcı imza — kullanıcı aksiyonu bekliyor~~ → **ÇÖZÜLDÜ 2026-07-21:** kalıcı keystore
-  üretildi ve `ANDROID_KEYSTORE_B64` secret'ı olarak eklendi. Artık her CI derlemesi AYNI
-  anahtarla imzalanır → yeni APK eskisinin üstüne kurulur.
-  - Anahtar dosyası: `C:\Users\sena\Desktop\dosya-okuyucu-imza\release.jks` (repo DIŞINDA).
-    Parmak izi SHA-256 `9E:EF:67:04:C8:6F:74:76:...:4C:57:37:18`, alias `dosyaokuyucu`.
-  - **Bu dosyayı kaybetmek = bir daha güncelleme yayınlayamamak.** Yedekle (repoya değil).
-  - Parola workflow'da açık yazıyor ama repo PRIVATE; anahtar dosyası olmadan parola işe yaramaz.
-- ~~main dalı yok~~ → **ÇÖZÜLDÜ 2026-07-21:** `main` oluşturuldu ve reponun varsayılan dalı
-  yapıldı; yerel çalışma da `main`e alındı. Eski `claude/multi-format-file-reader-c9gh78` dalı
-  aynı commit'te duruyor (silinmedi). Artık PR açılabilir.
-- **Firebase config:** gerçek senkron için kullanıcı `flutterfire configure` yapmalı.
-
-## Bilinen Riskler / Tuzaklar
-
-- ~~Yerelde Flutter YOK~~ → **güncellendi 2026-07-21:** `C:\src\flutter\bin\flutter.bat` ile
-  yerelde `test`/`analyze` çalışıyor; APK derlemesi yine CI'da doğrulanır.
-- **Slaytta metin kutudan taşarsa** Column "RenderFlex overflowed" (sarı-siyah şerit) verir.
-  Çözüm: `OverflowBox` (metin PowerPoint'teki gibi taşar, kırpılmaz). Widget testi yakaladı —
-  `test/pptx_render_test.dart` bu yüzden var, silme.
-- **Flutter API uyumu:** `withOpacity` / `value:` kullanıldı (3.29 uyumu).
-  `CardThemeData` KULLANMA — sürüm hassas, derlemeyi kırar.
-- **Platform klasörleri (`android/`, `ios/`) repoda yok**, CI'da `flutter create` ile üretilir.
-  Yerelde de aynı adım gerekir (README).
-- **Gizli anahtar / keystore repoya COMMIT EDİLMEZ** — güvenlik sınıflandırıcısı da engeller.
-- **2026-07-21 TUZAK — `excel` paketinde iki hata (4.0.6):**
-  1) Hizalama HİÇBİR dosyada okunmuyor: `parse.dart:445` `<alignment>` çocuğu yerine üst `<xf>`
-     düğümünün özniteliklerine bakıyor. Çözüm: sayı/tarih hücrelerini varsayılan olarak sağa
-     yasladık; açık hizalama beklemeyin (paket düzelirse kod kendiliğinden çalışır).
-  2) `getColumnWidth/getRowHeight`, dosyada `defaultColWidth` yoksa **null hatası fırlatıp
-     uygulamayı çökertiyor** (ICD10Listesi.xlsx'te yakalandı) → `xlsx_editor` içinde try/catch.
-  *Ders:* gerçek dosyalarla duman testi yapmadan "çalışıyor" deme; sentetik dosya bu iki hatayı
-  da göstermedi.
-- **2026-07-21 TUZAK — Flutter'da çift dokunuş tek dokunuşu 300 ms geciktirir**
-  (`kDoubleTapTimeout`). Sunum modunda dokunarak geçişte his gecikmeli; test de bu süreyi
-  ilerletmeli (`pumpAndSettle` tek başına yetmez, zamanlayıcı kare planlamaz).
-- **2026-07-21 TUZAK — örtük animasyon (AnimatedOpacity/AnimatedSlide) yapı değişirse oynamaz:**
-  görünür durumda widget'ı sarmalayıp gizli durumda sarmalamazsan geçiş anında olur. İki durumda
-  da aynı ağaç kalmalı (`_Reveal`).
-- **2026-07-21 TUZAK — PowerShell borusu secret'a CR ekler:** `... | gh secret set X` ile
-  yazılan base64'ün sonuna CRLF yapışıyor, CI'da `base64 -d` "invalid input" veriyor (build-9).
-  Secret yazarken bash yönlendirmesi kullan: `gh secret set X < dosya` (dosyada CR/LF olmasın).
-  Workflow artık `printf '%s' | tr -d '\r\n \t' | base64 -d` ile kendini koruyor.
-- **2026-07-22 TUZAK — meta viewport'u JS ile değiştirmek Android WebView'da yeniden
-  sığdırma YAPMAZ** (build 49'da Word sayfası "çok yakın" açıldı). Sığdırma CSS `zoom`
-  ile yapılır (fitPage), viewport `device-width`te sabit kalır; pinch üzerine çarpan biner.
-- **2026-07-22 TUZAK — contenteditable'da her tuşta tüm belgeyi taramak (querySelectorAll)
-  yazmayı kastırır**; paragraf listesi düzenleme boyunca önbelleklenir, spellcheck kapatılır.
-  Enter yeni `<p>` üretip indeks eşlemesini bozar → keydown'da satır sonuna (`w:br`) çevrilir,
-  yapıştırma düz metne indirgenir.
-- **İmza değişirse telefona kurulmaz:** `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. Android, imzası
-  farklı APK'yı mevcut verinin üstüne kurdurmaz → tek yol eskisini kaldırmak (uygulama verisi,
-  yani kayıtlı Gemini anahtarı ve son dosyalar silinir). 2026-07-21'deki sabit anahtardan sonra
-  bu bir daha yaşanmamalı. Kurulum: `adb install -r <apk>`; adb `%LOCALAPPDATA%\Android\Sdk\platform-tools`.
-- `**.md` değişiklikleri CI'ı tetiklemez (workflow `paths-ignore`).
-- **2026-07-21 TUZAK — graphify sandbox'ta çalışmaz:** ajan sandbox'ı DNS'i kesiyor,
-  hata "Connection error" diye görünüyor → kota sanılıp boşuna key/model değiştiriliyor.
-  Kök neden: `generativelanguage.googleapis.com` çözülemiyor. graphify'ı ağ erişimiyle çalıştır.
-- **2026-07-21 TUZAK — repoda oturum başı otomatik `git pull` hook'u var**
-  (`.claude/settings.json`, commit `d58fa94`). Oturum ortasında sessizce yeni commit
-  getirebilir; beklenmedik bir üst commit görürsen sebebi budur, panik yapma.
-
-- **2026-10-22 (Faz 15–16; ayrıntı `docs/hafiza/2026-10.md` (6)):** yeni alt çubuk
-  (`bottomNavigationBar`, seçim/dock çubuğu) `ToastAvoider` ile sarılır, yoksa iş kartı
-  düğmeleri örter · degradenin `begin:/end:`i `AlignmentDirectional` OLMAZ (boyayıcıda
-  `createShader` çöker) · `ScrollController.animateTo` sıfır süre kabul etmez →
-  `Motion.scrollTo/toPage` · yeni ekran kodu tokenları kullanır (`design_tokens_test`
-  cırcırı), fiziksel sol/sağ yazmaz (`rtl_guard_test`).
-- **2026-10-22 (7):** Office Symbol/Wingdings madde imleri (U+F0B7, "§"+Wingdings) Android'de ▯ —
-  Word `viewer.html` `fixSymbolFonts`, slayt `core/symbol_fonts.dart`; `viewer.html`'de charset
-  YOK → betikte `\uXXXX`.
-- **2026-10-22 (8):** Flutter 3.27+ derin bağlantı varsayılan açık → "Birlikte aç" `content://`
-  adresini sayfa adı diye itip çökertiyordu: manifest `flutter_deeplinking_enabled=false` +
-  `core/route_guard.dart`. Flutter yükseltmesinde platform varsayılanlarını da gözden geçir.
-
-## Yol Haritası (öncelik kullanıcıyla netleşecek)
-
-1. ~~Office ileri düzenleme: Excel formül + satır/sütun; Word biçim araç çubuğu; slayt
-   çoğalt/sil/taşı~~ → **YAPILDI 2026-07-21** (bkz. Sabit Kararlar). Kalan uçlar: Word'de
-   liste (madde/numara) düğmesi, slayta görsel ekleme, Excel formül sonucunu önizleme.
-2. Firebase config ile gerçek senkron + Google Sign-In SHA ekleme.
-3. Format dönüştürme zenginleştirme (PDF ↔ Word ↔ Slayt).
-4. AI: PDF'den otomatik slayt üretimi (genişletilmiş), kaynakları bağlama alma.
-5. Masaüstü (Windows/macOS/Linux) build hedefleri + iOS.
-
-
-
-- **2026-10-22 (9) — Faz 14b/15b/17/18/19/11a(bulut)/12a + yeni istekler:**
-  ÇÖKME kök nedeni: `shared_preferences_android` 2.5.x JNI kaydı SÜREÇ başına
-  tek ve her motorun detach'i siliyor → `PickerActivity` kapanınca ana uygulama
-  "No instance with no name has been registered" → 2.4.28'e sabit (2.4.29
-  yayımlanmamış). TUZAK: temanın `focusedBorder/enabledBorder/filled`'ı
-  `border: InputBorder.none` alanlara sızar (Excel hücresi mavi çerçeve) — dört
-  anahtar birlikte; bekçi `bare_input_guard_test`. Yapay zekâ sesleri (Antalia,
-  EMA): APK'ya 0 MB — HF Space'lerin ONNX Runtime Web dosyaları ilk kullanımda
-  iner, WebView + yerel 127.0.0.1 sunucu (COOP/COEP), çıktı POST ile; ağ güvenliği
-  yalnız loopback cleartext. Chromium'da doğrulandı (`tool/voice_engine_check.mjs`);
-  Android WebView'da cihaz turu bekliyor. QR paylaşım ağsız (metin QR'ın içinde,
-  üçüncü taraf yükleme reddedildi: gizlilik). Hata kaydı artık kayıt başına sürüm
-  yazar (eski kayıtlar güncel sürüme aitmiş gibi okunuyordu).
-
-- **2026-10-22 (10) — QR ile dosya paylaş, İndirilenlerde göster, R8 geri açıldı, cihaz ölçümleri:**
-  QR paylaşım artık DOSYA (metin QR'ı alt yol): gönderen ekran açıkken `QrShareServer`
-  (dart:io, jetonlu `/q/<jeton>/`), karşı tarafın kamerası tarayıcıda İndir sayfası açar;
-  Dosya Okuyucu'lu alıcı Al → "QR kodu tara" (Google kod tarayıcısı — kamera izni yok,
-  `ci/QrTransfer.kt`). Ortak Wi-Fi yoksa `LocalOnlyHotspot` + `WIFI:` QR; alıcı uygulama
-  `WifiNetworkSpecifier` + `bindProcessToNetwork` (internetsiz ağda bağlamadan 192.168.x'e
-  gidilemez — tarayıcı yolunda bu risk açık, CIHAZ_TESTI). Üçüncü taraf yükleme YOK (gizlilik).
-  **R8 hipotezi YANLIŞ çıktı:** AGP 9 kütüphane koruma kurallarını UYGULUYOR
-  (`build/app/outputs/mapping/release/configuration.txt` kaynak listesi); tam kip
-  `ComponentRegistrar` boş yapıcılarını siliyordu → kural eklendi, 6c (R8 kapalı) silindi.
-  **TUZAK — yerel APK telefona kurulamaz** (CI anahtarı ≠ debug anahtarı, veri silinir):
-  temiz kopyada `applicationIdSuffix = ".r8test"` + sabit `documents` authority'sini
-  `${applicationId}`e çevirip YAN YANA kur. **TUZAK — Git Bash'te adb:** `MSYS_NO_PATHCONV=1`
-  `uiautomator dump /sdcard/...` için şart (yoksa "/Files/Git/sdcard"a yazar, bayat döküm
-  okunur) ama aynı oturumda Windows yolları `C:/` biçiminde verilmeli; SF `--latency`
-  katman adı `#id` ekiyle. İndirilenlerde göster: `BrowserScreen(focusPath:)` — oranla atla,
-  satır kurulunca `getOffsetToReveal`; `ensureVisible` satırı alt çubuğun arkasında bıraktı.
-- **2026-10-23 (11) — foto klasörü ölçüm turu:** **TUZAK — SF `--latency` aralığı takılma
-  değildir:** `adb input swipe` arasındaki boşluklar >33 ms "takılma" gibi görünüyor; önceki
-  turun "kaydırmada 180–250 ms / yukarı p99 50 ms" sonucu bu yüzden YANLIŞTI. Doğrusu
-  `FrameTiming` (`main.dart` yavaş kare kancası, logcat `KARE`). Gerçek donma büyük klasör
-  AÇILIŞINDA: `FsScan.sort` her karşılaştırmada `nameKey` (242 ms → 45 ms, anahtar sıralama
-  başına bir kez). GPU belleği görsel önbelleği tavanının ~2-3 katı, ön planda geri verilmiyor
-  (Impeller+Skia) → orta/güçlü tavan 160 MB/1000 → 64 MB/300 (GL 496 → 237 MB). Ölçüm
-  betikleri: yan yana `.r8test` APK + tek senaryo betiği (A/B aynı adımlar).
-
-- **2026-10-23 (12) — arka plan işleri, yapay ses seçimi, AI özet kaydı:** Pano yüzen
-  çubuğundan yeni klasör düğmesi kalktı (kullanıcı isteği; diyalog + akış silindi).
-  **Kök neden — "AI özeti hazırlanıyor ama açamıyorum, tekrar basınca yenisi başlıyor":**
-  özet yalnız başlatan ekranın `context`i yaşıyorsa gösteriliyordu, hiçbir yerde
-  tutulmuyordu, iş hedefsizdi. Artık `services/ai_summary_store.dart` (diske JSON, dosya
-  boy+mtime değişince bayat) + süren iş anahtarla tekil + `FmJobTargetKind.aiSummary`
-  (bildirim/şerit özeti açar). `showTaskDialog` (tracked_busy) her "çalışıyor" penceresine
-  **"Arka plana al"** koydu; sessiz bitiş artık `userWatching && pencere açık`.
-  **Kök neden — yapay sesler yalnız sesli kitapta:** motor (WebView) sesli kitap EKRANININ
-  içindeydi. Artık `NeuralVoiceEngine.acquire/release` + kökte `NeuralVoiceHostLayer`
-  (main.dart builder; 3 dk boşta kapanır), sentez kuyruklu (EMA tek iş bilir). Sesli okuma
-  tercihi `TtsPrefs.voiceName = 'neural:<ad>'` (biçim değişmedi); `TtsService` parçaları
-  WAV'a çevirip video_player ile çalar, sonrakini önceden üretir, hata olursa cihaz sesine
-  düşer. Sesli kitap üretimi `AudiobookJob` (ekrandan bağımsız, `TrackedTask` eşiksiz →
-  ön plan servisi + bildirim "Durdur", hedef `FmJobTargetKind.audiobook`).
-  CIHAZ_TESTI: WebView'ın uygulama alttayken JS/Worker'ı kısıp kısmadığı doğrulanmadı.
-
-- **2026-10-23 (13) — bulut işlerinin sonu: Faz 14b, 15b, 16 kalanı, slayta görsel:**
-  Kullanıcı: *"bulutta yapılabilecek hepsini tek oturumda yap, main'e merge et, APK derlensin"*.
-  **14b:** video da dört yerleşimi yapıyor — Media3 `Presentation` `LAYOUT_SCALE_TO_FIT` (siyah
-  boşluk) / `_WITH_CROP` (ortadan kırp); Dart `VideoLayout` adı kanalla gider. Videoda dosya
-  boyutu hedefi = hedef×8/süre − ses (taban 150 kbit/s; düşükse ölçü de iner, piksel başına
-  en az "en küçük" kalitenin bpp'si). `CropAnchor` (fotoğraf; video motoru yalnız orta).
-  **Ölçüldü:** `image` paketi `decodeJpg` yön etiketini piksele uygulayıp SİLİYOR, tarih/kamera
-  EXIF'ini çıktıya yazıyor → "EXIF kopyası" zaten vardı; yalnız `stripLocation` eklendi
-  (`exif.imageIfd.sub.directories.remove('gps')`). WebP (Android kodlayıcı) meta veri taşımaz.
-  Düzenleyici: `ImageEdits.scale` (kırpılmış bölgeye uygulanır, isIdentity'ye dahil).
-  **15b:** `AppType` (`context.type.small` …) — **TUZAK:** `textTheme.bodySmall` RENK de
-  taşır; düğme/çip/perde içindeki beyaz yazıyı koyuya çevirir → `AppType` yalnız BOY verir.
-  Renk tokenları değerleri birebir korur (görünüm değişmez). Simge/`Colors.*` bekçisi artık
-  tavan değil kural (0). **TUZAK — `dart format` KOŞTURMA:** depo dart format'lı değil; tek
-  dosyada bile yüzlerce satırlık gürültü üretir (bu turda 172 dosyayı biçimlendirip geri
-  almak zorunda kalındı — betikler HEAD'den yeniden uygulandı). Elle kurulan ad sorma
-  pencerelerinde `controller.dispose()` `await`ten hemen sonra → kapanış animasyonunda
-  "used after disposed" yarışı; `showAppPrompt` denetleyiciyi pencerenin durumunda tutar.
-  **16:** asimetrik `Positioned` → `PositionedDirectional` (bilinçli fiziksel: PDF sayfası
-  üstü imza/kurdele, önce/sonra bölme çizgisi — bekçide izinli). `LiveProgress`: canlı
-  bölge yalnız %10 basamağında değişir (her saniye konuşmasın).
-  **Office:** "Word liste düğmesi" ve "Excel formül önizlemesi" zaten vardı (yol haritası
-  bayattı); slayta görsel ekleme yazıldı (`PptxEditor.addImage`, `PptxRender.forget`).
-  Cihaz maddeleri `docs/CIHAZ_TESTI.md` en alt. Sıradaki: cihaz turu (FAZ_PLANI §0.1 sıra 12).
-
-- **2026-10-23 (14) — üst alan yeniden tasarımı, akıllı bildirim alanı, çöp donması, PDF "zorla
-  kaydırma", AI etiket/anlamla arama:** Kullanıcı (4 ekran görüntüsü): kategori üst alanı baştan,
-  "Analiz ve düzenle" menüsü, panoda %25 alçak bellek kartı + bildirim alanı, çöp donması, PDF,
-  tek tip bildirim, sohbet temizliği sayıları, araç sırası, menüler, anlamla ara.
-  **Kök neden — PDF "zorla kaydırılıyor":** okuma kipi (Faz 18/G20) çubukları kaydırırken çekince
-  gövde her animasyon karesinde büyüyor; pdfrx 1.3.5 `_updateLayout` görünüm boyu her değiştiğinde
-  `_goToPage(güncel sayfa)` çağırıp SAYFA BAŞINA atlıyor. PDF'te okuma kipi kapatıldı
-  (`readingBars: null`). **TUZAK:** pdfrx görüntüleyicisinin boyunu jest sırasında asla değiştirme.
-  **Kök neden — dolu çöpte donma/çökme:** `TrashService.list()` her kayıt için ana izlekte
-  `existsSync`×2; `empty()` öğe başına `deleteForever` → 5 bin kez tüm `index.json` yazımı +
-  5 bin `FsEvents.changed()` (açık ekranlar disk taramalı tazelemeye giriyordu). Artık var olma
-  denetimi `compute`ta (≥200), dizin JSON'u damgalı (boy+mtime) bellek önbelleğinde, toplu silme
-  200'lük gruplarla tek yazma + TEK sinyal (`_deleteMany`, purge de). Çöp ekranı süzme/sayım
-  önbellekli, tek silme/geri yükleme yerelden düşer.
-  **Kök neden — sohbet temizliği "temizledim ama hâlâ sayıyor":** rapor taramanın anlık fotoğrafıydı.
-  `ChatJunkLive` (süreç başına tek FsEvents dinleyicisi) silineni kovalardan/toplamdan düşürür,
-  `job.detail`i yeniler, `JobQueue.refreshFinished` şeridi/kutuyu tazeler.
-  **Yeni:** `SmartInbox` (pano en üstü; süren işler → olaylar [bellek ≥%90, çöp ≥300, ağdan erişim
-  — kapatılamaz] → 24 sa içindeki kapatılmamış sonuçlar; en çok 3 satır; boşken çizilmez). Panoda
-  alt `JobProgressBar(hidden:)` gizli (aynı iş iki yerde olmasın); ağ şeridi inbox'a katıldı.
-  Bellek kartı kompakt (halka 52, titleLarge). `showAppActionSheet` (gruplu, simgeli levha —
-  `showAppSheet` üstünde; tasarım bekçisi `showModalBottomSheet`i yeni dosyada YASAKLIYOR) →
-  seçim "Daha fazla" ve galeri ⋮; açılır menü teması gölgeli/ferah. Kategori ekranı: başlık altında
-  "N öğe · X MB", `FmListControls` (Sırala·Süzgeç·Analiz hapları + çip satırında GÖRÜNMEYEN etkin
-  ölçütlerin kaldırılabilir çipleri), etiket çipleri. `category_tools.dart`: Özet / Genel analiz
-  (`CollectionInsights`, cihazda) / AI analizi (sayılar + ≤150 ad) / AI ile kategorilere ayır
-  (`AiTagger`: önce AI dizini, kalanlar için ad+klasör ADI+boyut+ay; öneri levhada onaylanır) /
-  toplu etiket / etiket yönetimi (ilk kez arayüz; `renameTag/deleteTag` artık @visibleForTesting
-  değil). Anlamla ara (`AiMeaningSearch`): YALNIZ sorgu AI'ya, sözcük planı arama dizini + AI
-  dizininde cihazda puanlanır; panodaki arama kutusunda "✦ Anlamla" + arama ekranında düğme.
-  Araçlar varsayılan sırası güç sırası (Yer aç, Sohbet temizliği [yeni kutu], Aktar, Kasa…);
-  harici bellek yine hep başta. graphify bu ortamda yok — `graphify update .` yerelde.
-
-- **2026-10-23 (15) — düzenleme turu planı (`docs/DUZENLEME_PLANI.md`, Faz 20–33; kod değişmedi):**
-  Kullanıcı: *"Word, Excel, PDF, slayt, metin, görsel düzenleme — özellikle Word'de yazı, Excel'de
-  giriş — telefonda rahat, canlı, kasmadan, alışık olunan Office'e benzer olsun; detaylı fazlar, kod
-  değiştirme, main'e merge et."* Altı editör denetlendi + M365/Google/Numbers mobil dili + Android IME
-  araştırması. **Doğrulanmış bulgular (kodda yeniden okundu, henüz düzeltilmedi → Faz 20/21):**
-  **W1** docx-preview `splitBySection`, `breakPages:true` + `ignoreLastRenderedPageBreak:false` iken
-  `w:lastRenderedPageBreak` içeren paragrafı iki `<p>`'ye bölüyor → indeks eşlemesinin sayım sigortası
-  canlı düzenlemeyi kapatıyor; Word bu işareti her kayıtta yazdığı için çok sayfalı gerçek belgelerde
-  "Düzenle" büyük olasılıkla çalışmıyor (köprü testi tek sayfalık örnekle koştuğu için yakalanmadı).
-  Çözüm planı: WebView'a giden kopyada her `w:p`'ye `w:bookmarkStart _fkp<i>` (docx-preview
-  `<span id>` çiziyor), işaretsiz `<p>` = önceki paragrafın devamı. **X1** Türkçe işlev adı/`;` formül
-  dosyaya ham yazılıyor (`xlsx_package.dart:564`) → masaüstü Excel `#AD?`. **X2** satır/sütun silmede
-  `_shiftLayoutRows/_shiftKeys/_shiftSet` `k == at`'i düşürmüyor → silinen satırın stil/yükseklik/gizli
-  bilgisi ÜST satıra yazılıyor. **SL1** slaytta `\n` `a:t` içine ham; `a:t`'siz paragrafa yazı
-  kaydedilmiyor. **TX1** metin editörü satır numarası `'\$i'` → her satırda "$i". Ayrıca: Word'de
-  Enter yeni paragraf açmıyor (`w:br`), `setRuns` köprü/alan/dipnot başvurusunu siliyor, yazı ~0,5
-  ölçekte düzenleniyor; Excel'de %100'de hücre içi düzenleme hiç açılmıyor (30×72 dp eşiği), her
-  setState'te 3 yeni `FormulaEngine`, ekle/silde formül başvurusu kaymıyor; slaytta ~0,37 ölçek.
-  **Mimari öneri (K18, karar Faz 21 ölçümü + 📱 kontrol noktasıyla):** Word'ün kalıcı yazma yüzeyi
-  WebView `contenteditable` DEĞİL, Flutter-yerel **Mobil görünüm** editörü + kendi DOCX modeli (M365
-  telefonda da Mobil görünümde düzenletiyor); motor super_editor ya da kendi ince `DeltaTextInputClient`
-  çekirdeğimiz. *Niye:* Android IME + contenteditable sorunları bitmiyor (ProseMirror 2025'te hâlâ
-  Android klavye düzeltmesi yayımlıyor), Flutter yolu bulutta `flutter test`le simüle edilebiliyor.
-  **REDDEDİLEN:** gömülü LibreOffice/Collabora (APK +70–75 MB), WebView'da ProseMirror (yine
-  contenteditable), paragraf başına ayrı TextField (paragraflar arası seçim yok, boş paragrafta geri
-  silme klavyeye göre olay üretmiyor). Sayfa görünümü okuma/önizleme için WebView'da kalır (K19).
-  Diğer öneriler: Excel'e uygulama içi sayı/formül tuş takımı (K20), taslak günlüğü + varsayılan açık
-  otomatik kaydetme (K21), Türkçe arayüzde Türkçe formül dili ama dosyaya İngilizce (K22), Excel ızgara
-  çiziminde ölçümlü deneme (K23). Yürütme: Faz 20 → 21 → 25 → 26 → 22 → 23 → 28 → 30 → 24 → 27 → 29 →
-  32 → 31 → 33; cihaz turu (FAZ_PLANI sıra 12) Faz 33 ile birleştirilebilir.
-- **2026-10-23 (16) — düzenleme turu D1–D4: Faz 20 ✅, 21 ✅ (K18 bekliyor), 25 ✅, 26 🟡 kısmen:**
-  Kullanıcı: *"Faz 20'ye başla, 4 faz bitir, main'e merge et, APK derlensin"*; bağlam dolunca
-  *"daha fazla faza geçme, bitir, rapor sun"* → Faz 26'nın bir kısmı sonraki oturuma.
-  **Faz 20:** X1 (`FormulaEngine.toFileFormula`: İngilizce ad + `,` + `.` + `_xlfn.`), X2
-  (`_inDeleted`), W11 (zengin metin korunur), SL1 (`a:br`; el değmeyen paragraf artık yazılmıyor —
-  eskiden HER kayıtta ilk `a:t`'ye toplanıyordu), TX1, IM4. `lib/core/edit/`: EditHistory,
-  EditSession (otomatik kaydetme K21 varsayılan açık), DraftJournal, SaveIsolate, EditorChrome
-  (klavye üstü çubuk + Aa paneli), EditorShortcuts, EditorPerf. **Faz 21a:** W1 kökü
-  `w:lastRenderedPageBreak` bölmesi → WebView kopyasında `_fkp<i>` yer imleri; kanıt: Word'de
-  kaydedilmiş örnek Dart 31 / DOM 32 → şimdi 31. Enter/geri silme paragraf böl/birleştir, ada
-  (köprü/alan/dipnot/resim) korunur, JS tarafı geri al. **Faz 21b ölçüm (flutter test, debug):**
-  super_editor 1000 paragraf ilk pump 2223 ms, 8 harf IME 1177 ms; ince çekirdek 52 ms / 9 harf
-  112 ms. super_editor 43 paket ekliyor ve package_config 3.0.0→2.2.0 düşürüyor → ana pubspec'e
-  EKLENMEDİ; ince çekirdek (`lib/labs/word_editor/`) geliştirici bayrağıyla. **K18 kararı
-  kullanıcının 📱 kontrol noktasına bağlı** (CIHAZ_TESTI "Faz 21"). **Faz 25:** yüzer hücre
-  editörü (%100'de de), ✓↵⇥ oklar, K20 tuş takımı, işaret kipi + renkli başvurular, tutamaklar,
-  bağlam menüsü (özel yapıştır), akıllı giriş (`sheet_input.dart`), K22 Türkçe formül dili
-  (Ayarlar'da "Formülleri İngilizce göster"), ekle/silde başvuru kaydırma (`sheet_structure.dart`).
-  **Faz 26 (yapılan):** `CalcState` (kalıcı değer önbelleği + hesapta kaydedilen bağımlılık
-  grafiği; hücre değişince yalnız bağımlılar; uçucu işlevler her değişiklikte; ≥5 bin formülde ilk
-  hesap isolate'te), `CalcLog` (model günlüğü: setCell hücre, yapısal/sayfa işlemi toplu),
-  kaydette `<v>` önbellek değeri, `maxCols`/`mergeAt`/`condRuleAt` dizinleri, durum çubuğu ve
-  koşullu biçim min/max önbelleği, `functionNames` bir kez sıralı. AST önbelleği YOK (ayrıştırıcı
-  yorumlayıcı; değer önbelleği sayesinde formül değişiklik başına bir kez ayrıştırılıyor).
-  **Faz 26 kalan:** K23 ızgara denemesi, okuma sınırı (1024 sütun/200 bin satır) şeridi — DİKKAT
-  bugün kesilen hücreler kaydedince SİLİNİR —, `test/perf` kıyasları, paylaş/indir'in `save()`'i
-  hâlâ ana izlekte (`file_ops.dart`).
-  **Bug kökleri:** (a) çapraz sayfa formülü: `=Sayfa2!B1` hesaplanırken B1'in `=C1*2`'si etkin
-  sayfanın C1'ini okuyordu (ayrıştırıcının sayfa bağlamı yoktu) → `_Parser.sheet`. (b) Excel AI
-  düğmesi düzenlerken klavye üstü çubuğun üstüne biniyordu → yazarken gizli.
-  **Tuzaklar:** testWidgets içinde gerçek dosya G/Ç sahte saatte bitmez (captureSource/lookForDraft
-  unawaited, DraftJournal.find senkron); Scaffold gövdesinin MediaQuery'si viewInsets'i siler →
-  EditorChrome `View.of`; flutter_test gölgeleri düz siyah çizer (`debugDisableShadows`), tasarım
-  görüntüsünde gövde içinde kapatıp aç; Carlito'da ⇥↵⌫ yok → ikon; LibreOffice dipnot başvurusu
-  olup `footnotes.xml` yoksa dosyayı açmıyor; soffice UTF-8 metin filtresi `txt:Text (encoded):UTF8`.
-- **2026-10-23 (17) — düzenleme turu: Faz 26 ✅ (26b) + Faz 28 ✅ (Slayt I):**
-  Kullanıcı: *"Fazlara devam 2 faz yap bitir, main'e merge et, APK derle."* K18 cevabı yok → Faz 22
-  bekliyor; sıradaki Faz 26'nın kalanı + D7 Faz 28 yapıldı.
-  **Faz 26b:** okuma sınırı DÜRÜST — `XlsxSheetLayout.truncated` (200 bin satır / 1024 sütun
-  ötesinde hücre varsa); `XlsxEditor.save/saveAsync` → `XlsxTruncatedException`; ekranda kırmızı
-  şerit, otomatik kaydetme + taslak kapalı. *Bug kökü:* yazıcı `sheetData`yı modelden baştan
-  kurduğu için kesilen hücreler kaydette dosyadan SİLİNİYORDU. Paylaş/İndir artık `saveAsync`.
-  **K23 kararı (cevap yok, öneri):** (a) + hücre başı `GestureDetector` kaldırıldı (dokunuş ızgara
-  düzeyinde `SheetCellPos`'tan, `_cellAtGlobal(clamp:false)`). Ölçüm (`test/perf/excel_perf_test`,
-  debug/JIT, tek koşu): tek boyacı prototipi 10 ms vs widget satırı 38 ms/kare (~4×); gerçek ızgara
-  81 → 64 ms; 10k×20 aç 1,7–2,1 s (debug), 100k hücre `save()` ~300 ms (artık izolatta), 1000
-  bağımlı onayı 15–25 ms (yalnız bağımlılar, sayaçlı). **Debug ölçümü cihaz bütçesini kanıtlamaz**
-  → Faz 33'te profil `FrameTiming`; %99 ≤ 16 ms tutmazsa (b) tek boyacı (CIHAZ_TESTI "Faz 26b").
-  **TUZAK:** perf eşikleri paralel test yükünde 3–5× şişiyor (15 → 72 ms, 64 → 158 ms) — bekçi
-  eşikleri gerileme yakalayacak kadar gevşek tutuldu (`dart_test.yaml` `perf` etiketi).
-  **Faz 28:** `services/pptx_rich_text.dart` — kutunun TÜM paragrafları tek metin (`\n` = `a:p`,
-  ` ` = `a:br`) + karakter başına `RunStyle` (özgün run düğümü + kullanıcı örtmesi) +
-  `ParaStyle` (hiza/madde/düzey, `touched`). Yazma ortak önek/sonek farkıyla; `PptxEditor
-  .writeRichText` yalnız `touched` paragrafları yeniden kurar, el değmemiş run'ı ÖZGÜN DÜĞÜMÜN
-  KOPYASI olarak yazar (köprü/alan/dil korunur) — SL2 kökü (paragraf metni ilk `a:t`'ye
-  toplanıyordu) kapandı; `updateParagraph` (anahat) de bu yoldan. Enter = yeni `a:p` (öncekinin
-  pPr'i), geri silme birleştirir; gövdesiz yer tutucuya `p:txBody` açılır (spPr→style→txBody).
-  Ekran: dokun = SEÇ (çerçeve + 8 tutamak + alt bağlam çubuğu: Metni düzenle·Kes·Kopyala·Yapıştır·
-  Çoğalt·Öne·Arkaya·Sil), ikinci dokunuş = DÜZENLE (çift dokunuş tanıyıcısı YOK — her tek
-  dokunuşu 300 ms bekletirdi). Düzenleme = **odak görünümü**: kanvas kutuya yakınlaşır (`Motion.long`),
-  çarpan `max(0,9·W/kutu, 16/punto)` → yazı ≥ 16 dp; yatay+dikey kaydırma, imleç kendiliğinden
-  görünür. `SlideTextController` (run run çizim, bekleyen yazma biçimi, kelime sınırlı geri al),
-  `SlideBoxEditor` (canlı normAutofit, madde işaretleri imleç kutusundan ölçülen oluğa çizilir —
-  model metnine sahte karakter girmez). Klavye üstü çubuk + Aa (Yazı/Paragraf) + şerit. Anahat
-  görünümü (odak çıkınca tek geri al adımı), konuşmacı notu yazma (`setNotes`: not sayfası yoksa
-  oluşturulur; not şablonu da yoksa asgari şablon + TEMA KOPYASI + `notesMasterIdLst`
-  `sldMasterIdLst`'ten hemen sonra), deste geri al/yinele (`PptxEditor.snapshot/restore`: canlı
-  XML metin olarak, paket parçaları BAŞVURU olarak; 50 slaytta onay+2 görüntü ~40 ms, geri al ~12
-  ms). Ayrıştırma `compute`'ta. LibreOffice başsız dönüşümle doğrulandı (numara, kalın/renk, notlar
-  sayfası). PNG: `docs/design/faz28/` (`tool/design_shots_faz28_test.dart`).
-  **Bug kökleri:** (a) slayt çoğaltınca not ilişkisi kopyaya da gidiyordu → iki slayt tek not
-  sayfası (PowerPoint onarım ister); artık kopyada not yok, silinen slaydın notu da paketten
-  çıkar. (b) `_setTypeface` `a:latin/cs/ea`yı SONA ekliyordu → köprülü run'da `a:hlinkClick`'ten
-  sonra (şema dışı); artık sıralı. (c) odak görünümünde başka kutuya geçişte onay slaydı yeniden
-  çiziyor → dokunulan şekil bayat nesne, editör hiç açılmıyordu → `_resolveShape` (aynı XML düğümü).
-  **Tuzaklar:** `AnimationController` `late final` tembel kurulursa ilk kez `dispose`'da yaratılır
-  → "deactivated widget's ancestor" (initState'te kur). Levha kapanırken `TextEditingController`
-  atılırsa "used after disposed" → denetleyici levhanın kendi State'inde. `testWidgets`te
-  animasyon: dokunuştan sonra ilk `pump(süre)` ticker'ı BAŞLATIR, ilerletmez — önce kısa bir pump.
-  `design_tokens`/`rtl_guard` bekçileri: belge rengi `AppColors.slide*`, belge hizası
-  (`TextAlign.left` = PowerPoint `l`) içerik dosyalarında (`slide_text_controller`, `slide_box_editor`
-  rtl_guard listesinde). **Kalan (Faz 28):** düzenlerken paragraf başına hiza / girinti düzeyi
-  yalnız Bitti'den sonra görünür (tek TextField tek hiza); `spAutoFit` kutusu büyümüyor, yazı taşar.
-- **2026-10-23 (18) — Faz 22 ✅: Word Mobil görünüm editörü; K18 = (b-ii):**
-  Kullanıcı: *"Faz 22'yi de yap, ben bakamayacağım editöre, sen en iyi şekilde yap"* → K18
-  kullanıcıdan devralındı, 21b ölçümüyle **(b-ii) kendi ince çekirdeğimiz** (super_editor 43×
-  yavaş açılış + 43 paket + `package_config` düşürmesi). 📱 kontrol noktası Faz 33'e (CIHAZ_TESTI
-  "Faz 22"). K19: "Düzenle" Mobil görünümü açar; eski sayfa üzerinde düzenleme ⋮ menüsünde.
-  **Model** `lib/services/docx/` — `docx_styles.dart` (docDefaults → paragraf stili zinciri →
-  karakter stili → doğrudan; tema yazı tipleri; `DocxNumbering` etiketleri, düzey sayaçları,
-  Symbol/Wingdings) + `docx_document.dart`: gövde + tablo hücreleri tek düz paragraf listesi;
-  paragraf DEĞİŞMEZ nesne (metin + harf başına `DocxCharStyle` + atom listesi + çapalar). Atom
-  (`U+FFFC`) = köprü, karmaşık/basit alan, dipnot, resim (blip → rels → bayt), sayfa sonu, sembol,
-  izlenen değişiklik, içerik denetimi — özgün düğüm aynen geri konur; sıfır genişlikliler (yer
-  imi, yorum aralığı, proofErr) çapa. Kaydedici `_writtenAs[w:p] == paragraf nesnesi` ise
-  dokunmaz → el değmemiş belgede document.xml BAYTI BAYTINA aynı (bütün örneklerde test); değişen
-  paragrafta aynı rPr şablonlu harfler TEK run, metni aynen kalan run özgün düğümüyle. Geri al =
-  listenin sığ kopyası (undo sonra kaydet de doğru: nesne kimliği farklı → yeniden yazılır;
-  modelden düşen `w:p` çıkarılır, kopan yeniden yerine konur). Enter: başlık sonunda `w:next`
-  stili; boş liste öğesinde ve liste başında geri silmede listeden çık (stilden gelen liste için
-  `numId 0`); hücre/gövde sınırı birleştirilmez.
-  **Editör** `lib/widgets/docx_editor/` — tek `DeltaTextInputClient`, IME'ye yalnız imlecin
-  paragrafı + bekçi `U+200B`; tembel liste; tablo `IntrinsicHeight` satırları (gridSpan); atomlar
-  `WidgetSpan`; dokun/çift/üç dokun (çift dokunuş tanıyıcısı yok), uzun bas + sürükle, tutamaklar,
-  kendi bağlam çubuğumuz (Kes/Kopyala/Yapıştır/Tümünü seç/Çevir/AI ile düzelt + yazım önerileri),
-  `DefaultSpellCheckService` kırmızı dalga, donanım klavyesinde oklar paragraf sınırını aşar.
-  Ekran `word_mobile_editor_screen.dart` (EditSession: taslak + otomatik kaydetme; `compute`).
-  **Ölçüm (debug):** 3000 paragraf ayrıştır 355 ms; 1000 paragrafta ilk ekran 376 ms, tuş başına
-  model+çizim 9,7 ms; tek paragraf değişikliğinde commit 3 ms. LibreOffice dönüşümü doğrulandı.
-  **TUZAK (önemli):** `XmlName('w:numPr')` öneki AYIRMAZ — `name.local == 'w:numPr'` olur;
-  `name.local` ile arayan kod kendi oluşturduğu düğümü bulamaz (liste çıkışı bu yüzden "çalışmıyor"
-  görünüyordu). Önekli adlar `XmlName.fromString('w:numPr')` ile kurulmalı (pptx kodu `qualified`
-  ile karşılaştırdığı için etkilenmiyordu). Ayrıca: `paraLook` pPr DÜĞÜMÜ başına önbellekli —
-  değişecek pPr'yi önce kopyala, sınamayı kopyada yap. Fırlatma sürerken dokunuş kaydırmayı
-  durdurur (testte `scrollUntilVisible` sonrası bekle). Python-docx örnek üreteci:
-  `tool/make_word_fixtures.py` (stiller/listeler/tablo/resim/Arapça). **Kalan (Faz 22):** büyüteç,
-  kendi panomuzdan biçimli yapıştırma, köprü METNİNİ düzenleme (bugün atom), ilk 50 paragrafı
-  önce açma (3000 paragraf zaten ~0,4 s).
-- **2026-10-23 (19) — Word Mobil görünüm: geri silme çalışmıyordu + imleç yanıp sönmüyordu:**
-  Kullanıcı (telefon, ekran görüntüsü): *"siliyorum hiçbir şey olmuyor ama yazılıyor, imleç yanıp
-  sönmüyor"*. **Bug kökü:** Android'de yazılım klavyesinin geri silmesi çoğu zaman
-  `sendKeyEvent(KEYCODE_DEL)`; Flutter motoru bu tuşu editable'a UYGULAMAZ — normal `TextField`'da
-  silmeyi framework'te `EditableText`'in `DeleteCharacterIntent` eylemi yapar. Kendi
-  `DeltaTextInputClient`'ımızda (Faz 22) tuş olayı `handleKey`'de yalnız okları tanıyordu → silme
-  düşüyordu; testler yalnız delta (deleteSurroundingText) benzetiyordu, o yol çalışıyordu.
-  **Düzeltme:** `DocxEditController.deleteBackward/deleteForward` (Backspace/Delete tuşu; vekil
-  çift bütün silinir; paragraf başında öncekine katılır, sonunda sonrakini katar; ardından IME
-  yeniden eşitlenir — motorun metni değişmediği için ŞART). Uzun basışta da odak istenir (tuş
-  olayı odak düğümüne gelir). İmleç: `Motion.caretBlink` (500 ms) ile yanıp söner; yalnız imlecin
-  paragrafının boyacısı `repaint: _caretOn` dinler; her değişiklikte görünür başlar.
-  **TUZAK:** özel `TextInputClient` yazan her editör (slayt/Excel kendi TextField'ını kullanıyor,
-  etkilenmez) Backspace/Delete TUŞ olayını kendisi işlemeli; testte `t.sendKeyEvent(backspace)`
-  ile sına, yalnız delta yetmez.
-- **2026-10-24 — Faz 23: Word biçimlendirme (Mobil görünüm):** Giriş/Görünüm/Gözden Geçir şeridi,
-  klavye üstü çubuk (↶ K T A • 1. ⇤ ⇥ hizalama renk Aa ⌄), Aa paneli (Yazı · Paragraf · Stiller),
-  biçim boyacısı (tek/çift dokunuş), gezinti, sözcük sayısı, yakınlaştır; ↶ ↷ ve "Sayfa düzeni"
-  üst çubukta. **Model:** `DocxRunPatch` (K/T/A/üstü çizili/renk/vurgu/punto/yazı tipi/üst-alt
-  simge; `DocxCharStyle.effective` = stil + yama); paragraf işleri `editPPr` (pPr KOPYASINDA,
-  CT_PPr şema sırasıyla `_putP`); stil değişince harf görünüşleri yeniden çözülür (stil biçimi
-  run'a GÖMÜLMEZ — test). Listeler: oturumda yeni `abstractNum`+`num` (madde/numara/çok düzeyli),
-  komşu aynı türdeyse numarası sürer; `numbering.xml` yoksa parça + ilişki + içerik türü yaratılır.
-  Yerleşik stiller (Normal, Konu Başlığı, Alt Konu, Başlık 1–3, Alıntı, Liste Paragrafı) belgede
-  yoksa **sanal** — ilk uygulamada `styles.xml`'e yazılır. **Stil ADLA aranır** (Türkçe Word
-  kimliği `Balk1` ama adı `heading 1`). **K19 (b):** sayfa üzerinde (WebView) düzenleme ⋮'den
-  kalktı, yalnız geliştirici bayrağı (`labWordEditor`) açıkken yedek. Testler: `docx_format_test`
-  (12, gidiş-dönüş), `word_mobile_format_test` (5; 2,0× yazı). PNG `docs/design/faz23/`.
-  **TUZAK:** yatay kayan şerit/çubukta öğe ekran dışındaysa testte `scrollUntilVisible` +
-  `ensureVisible` gerekir (2,0× yazıda "Gözden Geçir" sekmesi bile dışarıda kalıyor).
-  **Kalan:** biçimli yapıştırma, masaüstü Word doğrulaması (CIHAZ_TESTI). Test görüntüsünde Arapça
-  belge metni kutu — yalnız testte yazı tipi yok, cihazda sistem yazı tipine düşer.
-  **Faz 30 için bulgu (yapılmadı, kullanıcı sırayı erteledi):** `FileService.saveText` her zaman
-  UTF-8 yazıyor → Windows-1254 / UTF-16 metin dosyası düzenlenip kaydedilince kodlaması sessizce
-  değişir; `TextReplace` büyük/küçük + tam sözcük destekliyor ama arayüzde düğmesi yok.
-- **2026-10-28 — Tek satır süzgeç başlığı, okuma kipi = katman, PDF zoom netliği, Görüntüler
-  (foto+video), QR ile al, alma onayı:** Kullanıcı (2 ekran görüntüsü, 6 madde).
-  **Süzgeç başlığı:** tür çipleri tek açılır hap (`FmTypePill`, "Tüm türler · 142 ▾" /
-  "PDF · 59" / "PDF +1") → levhada türler simge+renk+sayılı kutular (çoklu seçim, liste ARKADA
-  hemen süzülür, "N dosyayı göster"). `FmTypeChips.build` artık tek hap döndürür → bütün
-  ekranlar (kategori, gezgin, arama, İndirilenler, Son açılanlar, Çöp, Kasa, Üretilenler, galeri)
-  kendiliğinden değişti. Kategori ekranında Sırala·Süzgeç·Analiz (`FmListControls.pills`) AYNI
-  satırda → iki satır (~100 dp) tek satır; görünmeyen ölçütler `FmActiveCriteria`.
-  `FmListToolbar(filters:)`: tür hapı + sıralama tek kaydırmada (360 dp + 2,0× yazıda sabit
-  sıralama düğmesi hapı ezip dokunulamaz yapıyordu — test yakaladı).
-  **Okuma kipi — kök neden (titreme):** çubuklar çekilirken `PreferredSize` boyu her karede
-  değişiyor → gövde her karede yeniden yerleşiyor (metin kayıyor, PDF sayfa başına atlıyor;
-  PDF bu yüzden 10-23'te kapatılmıştı). **Çözüm:** `OfficeShell` okuma kipinde çubuklar gövdenin
-  ÜSTÜNDE `Transform` ile kayan katman; gövde boyu SABİT. İçerik `ReadingChrome.insetsOf` payıyla
-  başlar (metin: dış `SingleChildScrollView` + büyüyen `TextField`; dev metin: Padding; PDF:
-  `layoutPages` belgenin başına/sonuna pt cinsinden pay; Word: JS `setInsets` → body padding).
-  Yüzen öğeler `ReadingFloat` (alt çubukla iner/kalkar). `ReadingBars`: kaydırma durunca
-  `Motion.readingIdle` (2,2 sn) sonra geri gelir, `pinned` (arama açık) gizlenmez, `hide()`
-  (PDF "sayfaya git" sonrası). PDF'te kaydırma `PdfViewerController` matris dinleyicisiyle
-  (ölçek değişimi = yakınlaştırma → yok sayılır). Pay arama çubuğunu SAYMAZ (açılıp kapanınca
-  PDF düzeni değişip sayfa başına atlardı). **TUZAK:** pdfrx düzeni HER karede `==` ile
-  karşılaştırır — `layoutPages` aynı girdide eşit düzen döndürmeli.
-  **PDF zoom titremesi — kök neden (pdfrx 1.3.5):** tam sayfa bitmap'i sabit 200 dpi; yakında
-  görünen parça ayrıca çizilip yapıştırılıyor ve her jest karesinde iptal + 50 ms sonra yeniden
-  isteniyor → keskin dikdörtgen eski yerinde, kenarı bulanık, yenisi gelince "atlama", eşik
-  altında keskinlik birden kaybı. **Çözüm:** `getPageRenderingScale` = basamaklı ölçek (×1,5,
-  sayfa başına ~12 MP tavan), jest SÜRERKEN sabit, iniş yarıdan fazla düşünce (gidip gelmesin).
-  **Görüntüler:** pano kutusu `media` (foto + video tek zaman ekseni, `PhotosScreen`; tür hapı
-  Fotoğraflar/Videolar) — VARSAYILAN GİZLİ (`DashboardLayout.defaultHiddenTiles`, K16 (b) ile
-  aynı kural), "Ana ekranı düzenle"den eklenir; görsel kutusu ve `enum.cat_image` artık
-  **Fotoğraflar** (`FmCategory.label` Türkçe sabit KALDI — klasör adı üretiminde kullanılıyor).
-  **QR ile al:** `QrReceiveFlow` (tara → `QrReceiver.list` → onay levhası [dosyalar, toplam,
-  klasör] → `showFmProgress` ile iptal edilebilir indirme → "N dosya alındı · Aç"). Panonun
-  yüzen çubuğunda (çöp · QR | Belge Tara) ve Yakındaki cihaz → Al'da aynı akış.
-  **Alma onayı (yakındaki cihaz):** gönderen önce `POST /sor` (kim, ad, adet, toplam) → alıcıda
-  "Kabul et / Reddet" (`PeerReceiver.onAsk`, sorular sıralı, 90 sn'de ret) → izin anahtarı
-  (`izin`, 30 dk) ile o turun bütün dosyaları; izinsiz `/al` (eski gönderen) dosya başına sorulur,
-  reddedilen gövde OKUNMADAN 403 `red`. Eski alıcı `/sor`u tanımaz → eski yol. Alıcıda anahtar
-  "Gelen dosyayı onayla" (varsayılan açık). Gönderen sonucu `declined` → "Karşı taraf kabul etmedi".
-  Testler: `reading_mode_test` (gövde rect'i sabit, idle dönüş, pinned), `fm_type_filter_test`
-  (levha), `peer_share_test` (ret diske yazmaz / tek soru / eski yol), `qr_transfer_test`,
-  `dashboard_layout_test`. **Cihazda doğrulanacak:** zoom hissi, okuma kipinin akıcılığı, Word
-  WebView dolgusu, QR tarayıcı akışı. graphify bu oturumda kurulu değildi (rapor güncellenmedi).
-
-- **2026-10-29 — Faz 32 ✅ (görsel düzenleyici 2.0) + Faz 28 kalanı (spAutoFit):**
-  Kullanıcı: *"yarım kalan 1 faz + 1 tam faz bitir, main'e merge et, APK derlensin, token
-  tasarrufu."* **Faz 32:** `services/image_edit.dart` — `ImageEdits` + açı (kaplama çarpanı
-  `coverScale`, kutuya kırpılır), pozlama/sıcaklık/ton/vurgu/gölge/canlılık (tek 4×5 matris,
-  vurgu/gölge/canlılık **yaklaşık**), keskinlik (3×3 maske, isolate; önizlemede vekile, kayıtta
-  tam görsele), vinyet (kırpılmış bölgeye radyal), 10 filtre (`imageFilters`, şiddetle birim
-  matrise karışır). Dikey çevir = yatay + 180° (ayrı alan yok). İşaret türleri: vurgulayıcı
-  (multiply), çizgi, dikdörtgen, elips, bulanıklaştır/pikselleştir (görüntü fırça izi içinde
-  `saveLayer`+`srcIn` ile yeniden çizilir; mozaik kısa kenar 40 blok, `toImageSync`, yumuşatmasız
-  → özgün ayrıntı çıktıya girmez), yazı nesnesi (nokta = ORTA, dönüş, yazı tipi, arka plan).
-  **Ölçüler hep kutuya oranlı** → vekil (ekran × dpr, 1024–2560) ile tam çözünürlük aynı sonucu
-  verir (test: 400×300 ↔ 200×150 ortalama kanal farkı < 6). Ekran: tek `GestureDetector`
-  ölçek jesti (1 parmak = araç, 2 = görünüm; ikinci parmak gelince yarım çizim geri alınır),
-  çizim ayrı `_LivePainter` + `ValueNotifier` (IM2), sürükleme sonunda tek geçmiş adımı.
-  **Tuzaklar:** `ValueKey(Object)` ≠ `ValueKey<String>` (testte tür ayrı → bulunamaz); yatay
-  şeritte `ListView` tembel kurar → az öğede `Row`; `testWidgets` içinde `await File.writeAsBytes`
-  sonsuza asılır (sahte zaman) → `writeAsBytesSync`; diyalog denetleyicisini kapanırken atma
-  (`showAppPrompt` kullan). **Faz 28 kalanı:** `ShapeVM.growFit` (`a:spAutoFit`); editör bu
-  kutuda küçültmez, Bitti'de `SlideBoxEditor.fittedHeight` > boy ise `setShapeFrame` (üst kenar
-  sabit, aynı geri al adımında). Paragraf başına hiza/girinti düzenlerken → bilinçli kapsam dışı
-  (DUZENLEME_PLANI §10). Testler: `image_edit_test` (+6), `image_edit_screen_test` (yeni),
-  `slides_edit_test` (+1); PNG `tool/design_shots_faz32_test.dart` → `docs/design/faz32/`.
-
-- **2026-10-29 (bulut) — Yakındakiler (tek aktarım ekranı), süzgeç içi arama, Kırık beyaz tema,
-  Anılar kaldırıldı, ortak menü dili:** Kullanıcı: *"Gönder/Al ayrımını kaldırın (AirDrop),
-  BLE ile otomatik görme, karşıda uygulama yoksa web, önizlemeli kabul, hotspot, kaldığı yerden
-  devam, çoklu küçük dosyada tek akış; PIN hariç; geçmiş paneli; QR okutunca açılmıyor/arayüz
-  kötü; aktarım ekranları tek ekran"* + belgelerde filtreye bağlı arama (AI'lı/AI'sız, içinde ara),
-  mavisiz kırık beyaz tema, anıları kaldır, klasör paylaş, menülerde görsel birlik.
-  **Kararlar:** (1) `NearbyScreen` = Aktar kapısı + Paylaş; açılınca HEM alır HEM bulur (UDP 6 sn'de
-  bir + BLE); `peer_share_screen`/`qr_file_share_screen` silindi (`showShareChoice` 2 seçenek).
-  (2) **BLE yalnız bulma + davet** (`ci/NearbyBle.kt`, kanal `dosya/ble`): reklam = hizmet UUID,
-  tarama yanıtı = 4 bayt kimlik + ≤20 bayt ad; davet GATT yazmasıyla QR metninin aynısını taşır,
-  veri Wi-Fi'den (gerekirse LocalOnlyHotspot) akar. Wi-Fi Direct REDDEDİLDİ (hotspot zaten var,
-  yeni izin/sürüm riski). (3) Protokol v2 (`peer_share.dart`): `/durum?tid` + `/al?tid&ofs&boyut`
-  → yarım alım gizli `.dosya-aktarim-<tid>` dosyasında kalır, gönderen 2 dk yeniden dener;
-  `paket=1` = **store ZIP akışı** (`zip_stream.dart`, boy önceden bilinir, ortadan başlatılabilir;
-  deflate REDDEDİLDİ — telefonda Wi-Fi'den yavaş, medya zaten sıkışık). Eski sürümle uyumlu.
-  (4) Web: 8080 portu, 6 harf jeton (elle yazılabilir), Range, küçük resim `th/<i>`, "Tümünü indir"
-  `all.zip`, tek dosyada otomatik indirme; sayfa metni tarayıcı diline göre TR/EN (JS anahtarları
-  tek harf — l10n bekçisi `title:` kalıbını yakalıyordu). (5) Arama: `CategoryScreen` arama kipleri
-  Adında / Anlamla (AI, `AiMeaningSearch.rankIn`) / Dosyaların içinde / İçinde (AI) — hepsi
-  `_sorted` (süzgeç) kapsamında; içerik `DocTextSearch` (PDF pdfrx ≤120 sayfa, Office FileService),
-  AI'ya YALNIZ sorgu gider. (6) `AppSkin.ivory` (Kırık beyaz, adaçayı vurgu; testte "mavi değil"
-  bekçisi). (7) `widgets/menu_kit.dart`: DocMoreSheet, uzun basma menüsü, AppActionSheet ve
-  klasör ⋮ (artık DocMoreSheet) aynı başlık/kart/simge kutusu. **Doğrulama:** Kotlin gerçek
-  android-all 14 jar'ına karşı derlendi + harness (`tool/check_kotlin.sh` NearbyBle bölümü);
-  3216 test yeşil. PNG: `tool/design_shots_birlik_test.dart` → `docs/design/birlik/`.
-  **Açık:** BLE + hotspot daveti ve 2 telefon arası devam cihaz turunda denenmedi.
-  Kullanıcının "tikli öğesi çok notlar kasıyor" notu: bu uygulamada onay kutulu not özelliği
-  bulunamadı — kullanıcıya soruldu.
-
-- **2026-10-30 (bulut) — küçük kalanlar (Faz 22/27/29/30):** Kullanıcı: *"küçük işleri bitir,
-  main'e merge et."* (1) **Excel sayfa sekmesi sürükle-bırak** (`sheet_tabs.dart` `_draggableTab`):
-  `LongPressDraggable` + `DragTarget`; uzun basış menüsü korunur — sürükleme kabul edilmeden ve
-  < 24 px yer değiştirerek biterse `_sheetActions` açılır (ikisi aynı jestte). (2) **Slayt tablosu
-  ⇥ / ⇧⇥** + klavye üstü ‹ › (`_moveCell`). **Tuzak:** hücre yazılınca slayt yeniden çizilir ve
-  paragraf düğümleri değişir → `_resolveShape` yeni hücreyi BULAMAZ; komşu, yazmadan önceki
-  sıra numarasıyla (hücreler satır satır, aynı çerçeve kimliği) yeni modelden alınır. (3) **Word
-  bağlantıyı düzenle**: bağlantıya dokun → `showWordLinkSheet(url:)` (Kaydet · Aç · Kaldır);
-  `DocxDocument.linkTarget` (r:id → rels Target, `w:anchor` → `#ad`), `editLinkAt` tek geri al
-  adımı (yeni ilişki eklenir, eskisi yetim kalır — zararsız). (4) **Metin: girinti genişliği**
-  2/4/8 (Okuma ayarları, yalnız düzenlenebilir metin; kalıcı değil — öteki görünüm ayarları gibi).
-  (5) **Yan yana Markdown**: önizleme açıkken genişlik ≥ 840 dp ise editör | önizleme, yazdıkça
-  güncellenir; klavye üstü çubuk ve durum satırı açık kalır. Testler: `docx_insert_test` (+1),
-  `code_viewer_screen_test` (+1), `excel_finish_screen_test` (+1), `slides_edit_test` (+1).
-  **Testte tuzak:** klavye üstü çubuk yalnız `viewInsets.bottom > 0` iken çizilir →
-  `tester.view.viewInsets = FakeViewPadding(bottom: …)`; açıkken `sl-done` görünmez.
-  **Kalan (bilerek ertelendi, küçük değil):** Word büyüteç / biçimli yapıştırma / ilk 50 paragraf /
-  liste kalıbı galerisi; Excel dosya grafikleri + `tableN.xml`; slayt Düzeni değiştir, grup içi
-  taşıma, tablo çerçevesini taşı/boyutlandır; metin `re_editor`, isolate renklendirme; 56 levha.
-
-- **2026-10-30 (bulut) — Faz 31 PDF düzenleme deneyimi + PDF sütun sığdırma + etiket süzgeci +
-  iş sonucu sayfası.** Kullanıcı: *"Faz 31 yap bitir, main'e merge et"* + tur içinde üç bulgu.
-  **Faz 31:** (1) `PdfEditorScreen` Faz 20 kabuğunda: alt `NavigationBar` → `OfficeRibbon`
-  (sekme = kip: Metin · Görsel · İmzala · Form · Filigran · Sayfa; `OfficeRibbon.selectedTab/
-  onTabChanged` denetimli kip eklendi), düzenlerken `KeyboardAccessoryBar`; AppBar'da ↶ ↷.
-  (2) **İşlem listesi** `services/pdf/pdf_edit_history.dart`: adım = `PdfByteOp` (yeniden
-  oynatılabilir komut) ya da katman hâli; belge BELLEKTE, `undo_N.pdf` disk kopyaları kalktı,
-  sayfa değişiminde dosya yeniden okunmuyor; ara sonuç 48 MB bütçede önbellek, aşılırsa en yakın
-  tutulan hâlden yeniden oynatma; yinele var; kirli = kayıt adımı ≠ şimdiki adım. **Kural:**
-  op kapanışına `_page` DEĞİL, yerel `pageIndex` kopyası girer (yeniden oynatma başka sayfada
-  koşar). (3) **Yerinde paragraf** (`PdfInlineParagraphEditor`): paragrafa dokun → kendi
-  kutusunda beyaz zeminli alan, punto × sayfa ölçeği; 350 ms sonra paragrafa yakınlaşır
-  (`calcMatrixForRect`, hedef ~18 px yazı); her duraklamada (Motion.long) arka planda
-  `replaceParagraphInBackground` denemesi → ret gerekçesi klavye üstü şeritte + **"Üstüne yaz"**.
-  Diyalog "Pencerede düzenle" olarak yedek. (4) **"Üstüne yaz"** = `eraseParagraphText`
-  (paragrafın span'i akıştan çıkarılır; `_checkSpan` ile aynı denge denetimi) + `PdfOverwrite`
-  (beyaz kapak + Carlito, genişlik sayfa kenarına kadar). **Kök neden:** yalnız kapak bırakınca
-  poppler/arama ESKİ metni de okuyordu (`pdftotext` iki metni iç içe verdi) — span silinmeli.
-  (5) **Bekleyen nesneler** (`PdfPendingObject` + `PdfOverlayLayer`): Yazı ekle / imza / baş harf
-  (`Signature.load/save(initials:)`, ayrı anahtar) / görsel ekle — kaydedilene kadar seç, taşı,
-  dört köşeden oran kilitli boyutlandır (yazıda punto oranla ölçeklenir), yeniden yaz, kalın,
-  renk, sil; kaydette `PdfPendingWriter` TEK açılışta (izolatta) yazar. (6) **Form sayfada**
-  (`PdfFormOverlay`, `PdfFormFieldInfo.bounds` eklendi): metin alanı yerinde, onay kutusu tek
-  dokunuş, liste/radyo levhadan; ‹ › ✓ klavye üstü; değerler katmanda, kaydette
-  `PdfFormFiller.fill` (alanın kendi değeri). Döndürülmüş sayfada katman çizilmez (liste ekranı
-  yedek). (7) Var olan görsel de `PdfTransformBox` (dört köşe, oran kilitli) — eski
-  `_MovableObject` kalktı. (8) `InkPainter.shouldRepaint` gerçek karşılaştırma (iz nesneleri
-  değişmez; özdeşlik). PNG: `tool/design_shots_faz31_test.dart` → `docs/design/faz31/` (pdfium
-  testte yok: sahte kâğıt + gerçek katmanlar). Testler: `pdf_edit_history_test`,
-  `pdf_pending_objects_test` (ret → Üstüne yaz, pdftotext ile), `pdf_object_layer_test`.
-  **Kalan:** Çiz/AI sekmeleri ayrı ekranlarda (çalışma kopyasını paylaşmıyorlar); yazı tipi
-  gömülü fonttan değil Carlito; paragraf kalın/renk yok (motorun kesimi yoksa); büyük PDF'te
-  bellek (belge + önbellek) cihazda ölçülmeli 📱.
-  **PDF 2/4 sütun "tek sütun gibi kalıyor" (kullanıcı):** KÖK NEDEN pdfrx
-  `useAlternativeFitScaleAsMinScale` (varsayılan açık) en küçük ölçeği "güncel sayfayı sığdır /
-  ekranı kapla"nın küçüğüne kenetliyor → `_fitPdfWidth`in istediği 4 sütun genişlik ölçeği
-  kırpılıyordu. Çok sütunda kapalı + `minScale 0.05`; sığdırma bir kez de 220 ms sonra.
-  **Etiket süzgeci her yerde:** ortak "Kaynak ve zaman" levhasına (`showFmSourceSheet`)
-  Etiketler bölümü (yalnız o listedeki dosyaların etiketleri); levha etiketli dosya varken hep
-  açılır; fotoğraf "Analiz ve diğer"e de etiketler. **TUZAK:** `_countWith` `tagsOf`
-  vermiyordu → etiket süzgeciyle sayılar 0.
-  **İş sonucu ayrıntısı** (kullanıcı: *"etiket önerileri tamamlandı ama ne yapıldı
-  göremiyorum… tüm bu tür işlerde böyle bir sayfa olmalı"*): `JobChange` (yol, tür, değer, önce,
-  uygulandı) `FmJob.changes`'te diske yazılır; `TrackedTask.recordChanges`; değişikliği olan
-  işin kartı → `JobReportScreen` (gruplar; tümünü uygula / geri al; etiketi yeniden adlandır /
-  kaldır / dosyaları klasöre taşı; dosya aç / bu dosyadan kaldır). **Kök neden:** AI etiket
-  önerileri yalnız ekran açıkken levhada gösteriliyordu; kullanıcı işi arka plana alınca
-  öneriler izsiz kayboluyordu. Şimdilik değişiklik yazan iş: AI etiketleme; öteki işler
-  (yeniden adlandırma, küçültme, AI düzenleme) aynı `recordChanges`e bağlanmalı — açık iş.
-
-- **2026-10-31 (bulut) — AI iş ekranı baştan, PDF düzenleme akışı, Faz 33 bulut kısmı, Faz 22–31
-  bütün bulut kalanları.** Kullanıcı: *"PDF düzenlemede ne oluyor hissi var… bir tuşa basınca bir
-  şey olmuyor, aslında yükleniyormuş… metin düzenleme kimisinde yerinde kimisinde pencerede…
-  tek satırlık yazı 2 satıra çıkıyor"* + *"AI iş ekranı çok kullanışsız… görseller önizlemesiyle
-  görülmeli, ekranı baştan yaz"* + *"fazlarda kalan bulutta yapılabilecek her işi bitir"*.
-  **İş sonucu ekranı** (`JobReportScreen`): düz cümleli özet ("AI 640 dosyaya baktı, 38 etiket
-  önerdi · henüz hiçbiri uygulanmadı") + ilerleme; **Etikete göre** küçük resim ızgarası (dokun =
-  çıkar ✕ / geri kat ✓, basılı tut = aç/kaldır), etiket çipleriyle süzme, "Tümünü göster";
-  **Dosyaya göre** (küçük resim + etiket çipleri, çip = tak/çıkar). Yazımlar sıralı kuyrukta,
-  dokunuş beklemez. `JobChange.rejected` ('r'). AI etiketleme bitince eski adlar-listesi levhası
-  yerine aynı ekran açılır. Taşı/kopyala işleri de (`showFmProgress`, yalnız iş kaydı oluştuysa)
-  `jobChangesOf` ile yazılır; taşımada "Taşımayı geri al". **TUZAK:** collection-if içinde
-  `if (a) for (...) if (b) ...x else y` — `else` İÇTEKİ if'e bağlanır (dosya görünümü hiç
-  açılmıyordu); düz `if (!a) y else for …` yaz.
-  **PDF akışı — kök nedenler:** (1) "bastım bir şey olmadı": `_editParagraph` meşgulken sessizce
-  dönüyordu ve tek bekleme işareti 3 px'lik çubuktu → `_setBusy(not)` her bekleme ipucu
-  şeridinde çark + cümle ("Sayfa 3 okunuyor…", "Değişiklik uygulanıyor…"), meşgulken dokunuş
-  "Bir saniye — …" der; iç içe meşgul (uygula → senkron → anahat) artık bayrağı erken bırakmıyor.
-  (2) "birkaç saniye sonra birdenbire": Bitti'de alan hemen kapanıyor, sayfa yenilenene kadar
-  ESKİ metin görünüyordu → alan yeni metinle salt okunur yerinde kalır (`_inlineApplying`,
-  geometri dondurulur), yenilenince kapanır. (3) "kimisinde pencere": taranmış/OCR satırı
-  pencerede açılıyordu → paragrafla aynı yerinde alan; "Pencerede düzenle" kaldırıldı.
-  (4) **tek satır iki satıra çıkıyordu — üç kök neden:** `DecoratedBox` kenarlığı çocuğu içeri
-  itmez ve iç boşluk alanı paragraftan ~3 px DAR bırakıyordu; temanın M3 gövde stilinin
-  `letterSpacing 0.5`i alana karışıyordu; Carlito özgün yazı tipinden geniş olabiliyor →
-  kutu dışa açılır, harf aralığı 0, özgün metin özgün satır sayısına sığana dek punto ≤ %25
-  küçültülür; satır aralığı ve hiza paragraftan. (5) Sayfa değişince eski sayfanın kutuları
-  bir an yeni sayfada görünüyordu → anahat okunana dek boş.
-  **PDF kalanları:** Çiz/AI şeridin sekmeleri (`PdfInkScreen.returnMarks` izleri döndürür →
-  `applyPdfMarks` yeniden oynatılabilir tek adım; AI çalışma kopyasının metniyle); paragrafa
-  kalın (aynı ailenin GÖMÜLÜ kalın kesimi, yoksa açıklamalı ret) ve renk (sonraki içerik eski
-  renge döner; stil-yalnız değişiklikte doğrulama "sayfa değişti" değil "başka sayfa
-  bozulmadı"); Üstüne yaz paragrafın kendi `FontFile2`siyle (`TtfCoverage`: cmap 4/12 + loca —
-  alt kümede boş glif sayılmaz; Syncfusion alt kümesinde cmap YOK → Carlito). **KÖK NEDEN
-  (eski hata):** `pdfName` yalnız `[A-Za-z0-9]` alıyordu → `/ABCDEF+Arial-BoldMT` "ABCDEF"
-  okunuyordu; aile/kalınlık tahmini ve alt küme öneki temizliği hiç çalışmıyordu.
-  **Faz 33 bulut:** Excel ızgara klavyesi (`spreadsheet/keyboard.dart`: ok, ⇧+ok, Ctrl+ok,
-  ⇥/↵, F2, Delete, Home, PgUp/Dn, harfle yazmaya başla); `EditorShortcuts` Ctrl+/ yardım
-  levhası (yalnız BAĞLI kısayollar + `extraHelp`); PDF ve metin düzenleyiciye kısayollar;
-  `EditorChrome` ≥ 840 dp'de Aa paneli sağ bölmede, klavyeyi indirmez; `RibbonButton.active`
-  null = düz eylem, bool = aç/kapa (TalkBack "açık/kapalı"); hücre "B2, Armut", slayt şekli
-  yazısıyla; `test/editor_a11y_test.dart`. **TUZAK:** ızgaranın odağı torunlarda olabilir —
-  `hasPrimaryFocus` değil `hasFocus` + birincil odak `EditableText` değil denetimi; testte
-  açılışta seçili A1'e dokunmak düzenlemeyi açar.
-  **Diğer kalanlar:** Excel dosya grafikleri (`XlsxFileCharts` → `PptxRender.chartPart`, salt
-  çizim) ve `tableN.xml` (`XlsxTableWriter`; başlık boş/sayı/yinelenense tablo YAZILMAZ, aynı
-  aralıktaki sayfa autoFilter'ı kaldırılır; LibreOffice açtı); slayt Düzeni değiştir, grup içi
-  taşıma (çocuk koordinatına ters dönüşüm; dönmüş grupta ret), tablo çerçevesi
-  (`ShapeVM.tableFrame`, hücreye uzun bas); Word biçimli yapıştırma (`DocxEditController.
-  richClip`; sistem panosu metni aynıysa), liste kalıbı galerisi (`kDocxListPatterns`), açılış
-  önizlemesi (`docxPreviewParagraphs`), büyüteç (`RawMagnifier`); metin 1–4 MB isolate
-  renklendirme (`CodeTextController.backgroundTokenize`, testte eşzamanlı) ve satır aralığı.
-  **Bilerek yapılmayan:** `re_editor` denemesi (K25 + bağımlılık diyeti; darboğaz ölçülmedi);
-  53 levha / 49 pencerenin ortak bileşene taşınması (faz işi değil, görsel risk — cihazda).
-  Cihaz maddeleri `docs/CIHAZ_TESTI.md` 2026-10-31.
-
-- **2026-10-31 — Asistan köprüsü (YALNIZ kişisel derleme; kullanıcının ayrı sesli asistanı `com.ses.asistan`,
-  `fatihsenel273806-tech/ses` PLAN Faz 5).** `DOSYA_KISISEL=1 bash ci/prepare_android.sh` (CI'da elle tetikleme
-  `kisisel: true`; o koşu **Release yayınlamaz**, yalnız artifact) → `ci/kisisel/AsistanKopru.kt` (bağlı servis +
-  `Messenger`, eylem `com.ses.asistan.KOPRU`), `ses_yetenekler.xml`, izin `com.dosyaokuyucu.dosya_okuyucu.izin.ASISTAN`
-  (`signature|knownSigner`, knownCerts = asistan `9f9ba7d6…9551`). Genel derlemede betik üretilen manifestte köprü
-  OLMADIĞINI denetler (varsa düşer). Komutlar: `ac` (sorgu boşsa son açılan; yoksa MediaStore ad araması, en yenisi
-  açılır — `Extras.linkIntent("file:…")` PendingIntent'i asistan başlatır), `oku`/`durdur`/`ozetle` şimdilik "henüz
-  bağlı değil" der: görüntüleyicinin sesli okuması (`TtsService`) ve özeti ekran durumuna bağlı Dart'ta; asistandan
-  başlatmak Dart'ta kanca ister (asistan PLAN **K7, açık karar**). Uygulamanın kendi ses özelliklerine dokunulmadı.
-  Arama/kapsam `Ajan.kt`'den `ci/DosyaArama.kt`'ye taşındı (davranış aynı; Gemini işlevleri ve köprü ortak
-  kullanır, `tool/check_kotlin.sh` gerçek jar'a karşı derler + `AsistanKopruHarness`). Sözleşme asistan deposunun
-  `PROTOKOL.md`'sinde; oradan buraya kod kopyalanmaz (GPL).
-
-- **2026-10-31 — Asistandan sesli oku / durdur / özetle (asistan PLAN K7 = "kanca eklensin").** Köprü `oku`/`ozetle`
-  için dosyayı `ac` ile aynı kuralla bulur (sorgu boşsa son açılan) ve `oku:/yol` / `ozet:/yol`, `durdur` için `durdur:`
-  bağlantısı verir; asistan uygulamayı onunla açar. Dart kancası: `lib/services/asistan_komutlari.dart` (açık
-  görüntüleyiciler kendini kaydeder; dosya açık değilse önce `EntryOpener.open`, görüntüleyici kurulunca bekleyen
-  isteği alır) + `app_links.dart`. Okuma görüntüleyicinin KENDİ `_toggleSpeech`'i (`TtsService` değişmedi, yalnız
-  başlatılır; "durdur" duraklatır, kaldığı yer kalır), özet mevcut `showAiSummary` (kayıtlı özet varsa anında açılır).
-  Kanca genel APK'da da var ama etkisiz (bağlantıları veren köprü yalnız kişisel derlemede). Özet asistanda sesli
-  okunmaz, Dosya Okuyucu'nun özet sayfasında açılır (sonuç Dart'ta, köprüye geri dönen yol yok — gerekirse sonra).
+## 2026-11-01 — Kalan işler iki fazda toplandı; HAFIZA, KALANLAR, CIHAZ_TESTI temizlendi
+Kullanıcı: *"bütün kalan işleri tara, başka eksikleri de belirle, eski fazlardan her şeyi
+toparla; 1. bulutta yapılabilecekler 2. diğerleri — iki faz; eksik ufak şey kalmasın; hafızayı
+ve kalanlar dosyasını temizle; main'e merge et."* Kod değişmedi.
+- **`KALANLAR.md` baştan:** Faz A ☁️ (A1 hijyen … A9) / Faz B 📱💻👤 (B1 yerel … B6 sürüm);
+  biten [x] maddeler silindi, bilinçli sınırlar ayrı bölümde, açılış istemleri sonda. Eski metin
+  `docs/arsiv/KALANLAR_2026-10-31.md`. **`docs/CIHAZ_TESTI.md`** alana göre yeniden (§1 ölçüm
+  tablosu, §13 Office uyumluluk tablosu); kaldırılan akışlar çıktı; eski metin
+  `docs/arsiv/CIHAZ_TESTI_2026-10-31.md`. FAZ_PLANI / DUZENLEME_PLANI durum ve karar
+  tabloları güncellendi (K13, K15, K16, K19–K22, K24, K25 karar sütunları boştu).
+- **Yeni bulgular (kod taraması):** (1) pubspec'te "CI 3.29.3 / Dart 3.7" diye sabitlenmiş ~12
+  paket — CI 2026-10-21'den beri 3.44.6; pdfrx 2.x artık mümkün (A3). (2) main'den erişilemeyen 3
+  dosya: `qr_share_screen.dart` (10-29'da paylaş seçimi daralınca koptu), `pdf_font_class.dart`,
+  `pdf_text_stamp.dart` (A2). (3) Play izin beyanında Yakındakiler'in yeni izinleri ve
+  `QUERY_ALL_PACKAGES` yok; gizlilik/veri güvenliği metni kaldırılan "Anılar"ı anlatıyor (A6).
+  (4) 800+ satırlı 5 ekran (Faz 3 ölçütü geriledi), 166 boş `catch`, ekran kodunda 51 senkron
+  G/Ç (A4). (5) `ProGate`/Billing iskeleti ve `integration_test` senaryoları hiç yazılmamış
+  (A6.5, A8.1). (6) Arşiv çıkarmada iptal yok (A7.3). (7) "JPEG kodlayıcı yok" engeli kalktığı
+  için agresif PDF sıkıştırma yolu açıldı (A7.4).
+- **Uzak dallar:** main dışında 64 dal; 16'sı main'e girmiş, 46'sının main'le ortak atası yok
+  (main geçmişi bir ara yeniden yazılmış), `ccr-4fb1643b` #52 ile squash girmiş; **bugün açılmış
+  `ccr-0ba9d97d-1mtuwm` main'de olmayan 2 CI commit'i taşıyor** (kişisel ön-sürüm) — kullanıcıya
+  soruldu, dokunulmadı (A1.1).
+- **CI süresi** (Faz 1'in "önbellek dolunca yeniden ölç" notu): main koşuları #440–444 ≈ 9–12 dk.
+- **Tuzak:** son tur kayıtları `- **2026-…**` madde biçiminde yazıldığı için
+  `tool/hafiza_arsivle.py` (yalnız `## YYYY-MM-DD` başlıklarını taşır) onları göremedi, dizin
+  892 satıra çıktı → tarihli kayıt başlıkla yazılır (yukarıdaki kural).

@@ -8,6 +8,12 @@
 > (`.so`) ELF hizalama ölçümü, gömülü fontların ad tablolarının okunması,
 > HAFIZA.md / KALANLAR.md geçmişi.
 >
+> **2026-11-01 — YÜRÜTME BU BELGEDEN ÇIKTI:** bütün kalan işler (bu belgenin açık faz
+> kalanları, DUZENLEME_PLANI, eski KALANLAR ve CIHAZ_TESTI, yeni kod taraması) tek listede
+> toplandı → **`KALANLAR.md`** (Faz A ☁️ bulut · Faz B 📱💻👤 diğerleri). Bu belge bulgu,
+> karar (K1–K17) ve tarihçe kaynağı olarak duruyor; aşağıdaki "Açılış istemi" kutuları
+> tarihseldir.
+>
 > **Bu belge bir PLANDIR — kod değişikliği içermez.** Her faz ayrı bir oturumda,
 > sırayla uygulanmak üzere yazıldı. Fazlar tamamlandıkça §0'daki durum tablosu
 > güncellenir.
@@ -53,8 +59,8 @@
   aynen yapıştır. İstem; bu belgenin ilgili bölümünü okumayı, kabul ölçütlerini
   sağlamayı, HAFIZA'ya yazmayı ve main'e birleştirmeyi zaten içeriyor.
 - **Her fazın "bitti" tanımı (ortak):**
-  1. `flutter analyze` 0 sorun, `flutter test` tamamı yeşil (Flutter 3.29.3 —
-     ya da Faz 7'den sonra yeni sürüm);
+  1. `flutter analyze` 0 sorun, `flutter test` tamamı yeşil (Faz 7'den beri
+     Flutter 3.44.6; öncesi 3.29.3);
   2. fazın **kabul ölçütleri** tek tek işaretli;
   3. HAFIZA.md'ye tarihli kayıt (karar + kök neden + tuzak);
   4. bu belgede durum satırı ✅ + tarih + sürüm numarası;
@@ -72,15 +78,15 @@
 | 1 | CI/CD hızlandırma ve sürüm hattı | 0 | ✅ 2026-10-21 — C1–C12; verify 4,5 dk; main süresi Gradle önbelleği dolduktan sonra yeniden ölçülecek (bkz. HAFIZA) |
 | 2 | Sadeleştirme I — ölü kod, eski yollar, özellik birleştirme/çıkarma | 0, 1 | ✅ 2026-10-21 — ölü kod, İnsanlar, görünüm 10/10/6→4/3/3, Geçmiş/Aktar/Depolama/AI/tek Kasa; satır ölçütü K5/K8 kararlarıyla tutmadı (bkz. Faz 2 notu) |
 | 3 | Sadeleştirme II — uzun dosyaları bölme + durum yönetimi | 2 | ✅ 2026-10-21 — 19 ekran + çeviri tablosu + formül motoru bölündü (800+ satırlı ekran yok); kök yalnız `AppearanceState`i izliyor; Browse/Clipboard/Remotes/AI bildiricileri ayrılmadı (bkz. HAFIZA) |
-| 4 | Performans — düşük donanım profili ve ölçüm | 3 | 🟡 2026-10-21 — profil + bütçeler + açılış kuyruğu + P2-P12 kodda (P10: arama isolate'i, 2026-10-21 (5)); **cihaz kaydırma/RSS ölçümü bekliyor** (`docs/perf/2026-10-21.md`; soğuk açılış 1.0.379'da ~620 ms ölçüldü) |
+| 4 | Performans — düşük donanım profili ve ölçüm | 3 | 🟡 2026-10-21 — profil + bütçeler + açılış kuyruğu + P2-P12 kodda (P10: arama isolate'i, 2026-10-21 (5)); **cihaz kaydırma/RSS ölçümü bekliyor** (`docs/perf/2026-10-21.md`; soğuk açılış 1.0.379'da ~620 ms ölçüldü) → kalan: KALANLAR A8 + B2/B3.3 |
 | 5 | Son kullanıcı iletişimi altyapısı (hata dili, izin/boş/çevrimdışı durumları) | 3 | ✅ 2026-10-21 — `UserError`, `PermissionGate`, `ensureAiKey`, Yardım iskeleti, bekçiler; servis içi boş catch'ler sınıflandırılmadı (bkz. HAFIZA) |
 | 6 | Klasör içi / gezgin / filtre / simge yeniden tasarımı | 4, 5 | ✅ 2026-10-21 — `583f5a3`: FmFileListView, yol hapları geri gider (B1/B2), simge tablosu, tablet iki bölme (HAFIZA kaydı yazılmamıştı — commit mesajından) |
 | 7 | Bağımlılık diyeti, Flutter yükseltmesi, lisans uyumu, APK boyutu | 2, K1–K5 | ✅ 2026-10-21 — `dc9e613` excel/lisans/font + (5): **Flutter 3.44.6** (CI varsayılanı), kullanımdan kaldırmalar, AGP 9 yamaları, `receive_sharing_intent` 1.8.1; K2 Media3 → Faz 10'da yapıldı |
 | 8 | PDF akışı (tek çatı) | 6, 7 | ✅ 2026-10-21 — tek "Düzenle" kapısı (6 kip), eski yol silindi (K12), "yazı ekle" yedeği, Aa levhası, örnek set + duman; vurgu+CropBox cihazda (bkz. HAFIZA (4)) |
 | 9 | Office ve metin akışları (Word, Excel, Slayt, Metin/CSV/MD) | 6, 7 | ✅ 2026-10-21 — Y1 (tablo hücresi, seçime punto, resim ekle/sil), Y2 (grafik, köşegen, sayfa taşı), Y4, büyük metin, eski Office dönüştür; Word yazım köprüsü hatası bulundu-düzeltildi; 10 bin satır ölçümü cihazda |
 | 10 | Medya akışları (görsel, video, ses, galeri) + temel görsel düzenleyici | 6, 7 | 🟡 2026-10-21 — görsel düzenleyici, PiP (`SYSTEM_ALERT_WINDOW` kalktı), tek motor (`audioplayers` kalktı), Media3 Transformer (FFmpeg + `video_compress` kalktı); örnek medya seti ve cihaz turu bekliyor (bkz. HAFIZA (5)) → **10b** (☁️, yürütme sırası 2) + cihaz turu | · **10b ✅ 2026-10-22** — örnek set `test/fixtures/media/` + `media_fixture_smoke_test`; B11: çıktı doğru, `probeSize` ham ölçüyordu → düzeltildi; FLAC etiketleri eklendi
-| 11 | Ticari yayın hazırlığı (Play politikaları, ilk açılış, gelir modeli, mağaza) — 2026-10-22: **11a** bulut kısmı · **11b** hesap/cihaz kısmı | 8–10 | 🟡 11a ✅ 2026-10-22 (rehber, PopScope/tahminli geri, Keystore, Yardım/Sorun bildir, docs/play, politika) · 11b 👤 (Pro/Billing, Play Console) |
-| 12 | Kapanış — uçtan uca hata avı, cihaz doğrulama turu, sürüm adayı — 2026-10-22: **12a** betikli hata avı (bulut) · **12b** cihaz turu · **12c** RC | 11 | 🟡 12a ✅ 2026-10-22 (`tool/scan_setstate_after_await.py`) · 12b 📱 · 12c 👤 |
+| 11 | Ticari yayın hazırlığı (Play politikaları, ilk açılış, gelir modeli, mağaza) — 2026-10-22: **11a** bulut kısmı · **11b** hesap/cihaz kısmı | 8–10 | 🟡 11a ✅ 2026-10-22 (rehber, PopScope/tahminli geri, Keystore, Yardım/Sorun bildir, docs/play, politika) · 11b 👤 (Pro/Billing, Play Console) → 2026-11-01: 11a'nın atlanan kısmı (ProGate/Billing iskeleti, N5) ve bayatlayan metinler KALANLAR A6; 11b → B5 |
+| 12 | Kapanış — uçtan uca hata avı, cihaz doğrulama turu, sürüm adayı — 2026-10-22: **12a** betikli hata avı (bulut) · **12b** cihaz turu · **12c** RC | 11 | 🟡 12a ✅ 2026-10-22 (`tool/scan_setstate_after_await.py`) · 12b 📱 → KALANLAR B2 · 12c 👤 → B6 |
 | 13 | **Ortak tür süzgeci** — her listede PDF/Word/Excel… ayrı seçilir; Son açılanlar'a süzgeç, sıralama, gruplama, çoklu seçim | 6 | ✅ 2026-10-22 (cihaz maddeleri bekliyor) — `FmType` + `FmFilter.types` + `FmTypeChips`; 10 ekran; Son açılanlar yenilendi; K17 (c) `ListMemory`; PNG `docs/design/faz13/`; sapmalar HAFIZA 2026-10-22 (3) |
 | 14 | **Görsel boyutlandırma 2.0** — oran kilidi; yüzde/piksel/uzun kenar/en-boy oranı/hedef dosya boyutu; ön ayarlar; WebP/HEIC; düzenleyicide "Boyut" | 10b | ✅ 2026-10-23 (cihaz maddeleri bekliyor) — **14a** 2026-10-22 · **14b**: HEIC/WebP (`b505ced`) + Media3 `LAYOUT_SCALE_TO_FIT(_WITH_CROP)` düzen kipleri, videoda uzun kenar/oran/dosya boyutu (bit hızı), kırpma çapası, kullanıcı ön ayarı kaydet/sil, canlı önizleme küçük resmi, konum kaldırma, düzenleyicide Boyut sekmesi + levhayla aynı oranlar + canlı ölçü + basılı tut → özgün — HAFIZA 2026-10-23 (13) |
 | 15 | **Görsel dil birliği** — simge, renk, yazı, hareket tokenları + bekçi testler + kontrast | 6 | ✅ 2026-10-23 (cihaz maddeleri bekliyor) — **15a** 2026-10-22 · **15b**: ham `Icons.*` 547 → 0 ve `Colors.*` 98 → 0 (artık tavan değil kural), sabit punto 148 → 47 (`AppType`/`context.type`; kalanlar belge içeriği/hesaplanan boy), `Color(0x…)` 101 → 91 (kalanlar içerik/kimlik sabiti), elle pencere 85 → 53 (`showAppConfirm` 26, `showAppPrompt` 6); levhalar (56) `showAppSheet`e taşınmadı — HAFIZA 2026-10-23 (13) |
@@ -101,7 +107,7 @@
 | 30 | **Metin / kod / Markdown düzenleyici** — `DUZENLEME_PLANI.md` | 20 | ✅ 2026-10-28 |
 | 31 | **PDF düzenleme deneyimi** (yerinde metin, nesne katmanı, ortak kabuk) — `DUZENLEME_PLANI.md` | 20 | ✅ 2026-10-30 |
 | 32 | **Görsel düzenleyici 2.0** — `DUZENLEME_PLANI.md` | 20 | ✅ 2026-10-29 |
-| 33 | **Düzenleme turu kapanışı** (tablet, klavye, erişilebilirlik, Office uyumluluğu, cihaz turu) — `DUZENLEME_PLANI.md` | 20–32 | 🟡 2026-10-31 bulut kısmı ✅ · cihaz kısmı 📱 (sıra 12 cihaz turuyla birlikte) |
+| 33 | **Düzenleme turu kapanışı** (tablet, klavye, erişilebilirlik, Office uyumluluğu, cihaz turu) — `DUZENLEME_PLANI.md` | 20–32 | 🟡 2026-10-31 bulut kısmı ✅ · cihaz kısmı 📱 → KALANLAR B2 + B4 |
 
 ### 0.1 Yürütme sırası (2026-10-22) — bulutta yapılabilenler önce
 
@@ -153,6 +159,12 @@ hesabı/kararı gerekir (Play Console, Billing, depo ayarı).
 > (+ Faz 33 cihaz kısmı), sonra 11b/12c (hesap). İsteğe bağlı bulut işi olarak yalnız
 > 53 levhanın / 49 pencerenin ortak bileşene taşınması duruyor (görsel fark riski; levha
 > başına cihazda bakılarak yapılmalı — faz işi değil).
+
+> **Durum 2026-11-01:** kalan her şey `KALANLAR.md`'de iki fazda — **Faz A ☁️** (hijyen, ölü
+> kod, bağımlılık tazeleme, kod sağlığı, iş sonucu sayfası, Play/gizlilik metinleri + Pro
+> iskeleti, eksik özellikler, ölçüm altyapısı) ve **Faz B 📱💻👤** (graphify/Windows, cihaz
+> turu = bu tablonun sıra 12'si + Faz 33 cihaz kısmı, Office uyumluluğu, 11b, 12c). Bu tablo
+> tarihseldir.
 
 **Bulut oturumu ne yapabilir / ne yapamaz** (HAFIZA 2026-07-25 §F, 2026-10-21 (5)):
 
@@ -717,10 +729,10 @@ yoksa "Öneri" uygulanır.
 | K10 | Masaüstü / iOS | şimdi · yayından sonra · hiç | **Yayından sonra** — şimdilik yalnız Android | 0 |  **Hiç** — yalnız Android (CLAUDE.md hedefi güncellendi) — 2026-10-21 |
 | K11 | Dağıtım kanalı | yalnız Play · Play + GitHub Releases | **Play (AAB)**; GitHub Releases yalnız iç test (nightly) | 1, 11 |  **Play (AAB) + GitHub nightly** — 2026-10-21 |
 | K12 | Eski PDF kelime-bazlı düzenleme yolu | cihazda paragraf motoru doğrulanınca sil · hemen sil | **Faz 8'de**: paragraf motorunun reddettiği belgelerde "sayfaya yazı ekle" yedeğiyle değiştirilip silinir | 8 |  **Faz 8'de sil** — 2026-10-21 |
-| K13 | **Sistem rengi (Material You)** (2026-10-22) | (a) 5. görünüm "Sistem rengi" — Android 12+'da duvar kâğıdından (`dynamic_color`, BSD-3) · (b) ekleme (K8'deki 4 tema sadeliği korunur) | **(a)**, yalnız Android 12+'da listelenir; ana ekran pencere öğeleri de aynı renkleri alır | 19 |  |
+| K13 | **Sistem rengi (Material You)** (2026-10-22) | (a) 5. görünüm "Sistem rengi" — Android 12+'da duvar kâğıdından (`dynamic_color`, BSD-3) · (b) ekleme (K8'deki 4 tema sadeliği korunur) | **(a)**, yalnız Android 12+'da listelenir; ana ekran pencere öğeleri de aynı renkleri alır | 19 | (a) — cevap yok, öneri uygulandı (Faz 19; `skin.system`, Android 12 altında listelenmez) |
 | K14 | **Boyutlandırmada büyütme** (2026-10-22) | (a) yasak (bugün; sessizce kaynağa kırpılıyor) · (b) izinli + "büyütmek netlik eklemez" uyarısı | **(b)** — kullanıcı "istediğim oranda" diyor; uyarı dürüstlüğü korur | 14 | (b) — cevap yok, öneri uygulandı (14a; yalnız fotoğrafta, videoda büyütme yok) |
-| K15 | **Görsel çıktı motoru** (2026-10-22) | (a) saf Dart `image` paketi (bugün) · (b) Android yerel (BitmapFactory + ExifInterface + `Bitmap.compress`) birincil, Dart yedek | **(b)** — HEIC okuma (Android 9+), WebP yazma, EXIF'i koruma, `inSampleSize` ile düşük cihazda hız ve bellek; Dart yolu test referansı ve yedek kalır | 14 |  |
-| K16 | **Panoya "Son açılanlar" şeridi** (2026-10-22) | (a) varsayılan görünür · (b) eklenir ama varsayılan gizli ("Ana ekranı düzenle"den açılır) · (c) eklenmez | **(b)** — pano tasarımı 2026-10-18 kararıyla korunuyor; mevcut kullanıcının ekranı kendiliğinden değişmez (`DashboardLayout` "yeni kimlik görünür eklenir" kuralına bilinçli istisna) | 17 |  |
+| K15 | **Görsel çıktı motoru** (2026-10-22) | (a) saf Dart `image` paketi (bugün) · (b) Android yerel (BitmapFactory + ExifInterface + `Bitmap.compress`) birincil, Dart yedek | **(b)** — HEIC okuma (Android 9+), WebP yazma, EXIF'i koruma, `inSampleSize` ile düşük cihazda hız ve bellek; Dart yolu test referansı ve yedek kalır | 14 | (b) — cevap yok, öneri uygulandı (Faz 14b, `b505ced`: HEIC/WebP yerel) |
+| K16 | **Panoya "Son açılanlar" şeridi** (2026-10-22) | (a) varsayılan görünür · (b) eklenir ama varsayılan gizli ("Ana ekranı düzenle"den açılır) · (c) eklenmez | **(b)** — pano tasarımı 2026-10-18 kararıyla korunuyor; mevcut kullanıcının ekranı kendiliğinden değişmez (`DashboardLayout` "yeni kimlik görünür eklenir" kuralına bilinçli istisna) | 17 | (b) — cevap yok, öneri uygulandı (Faz 17; `defaultHiddenSections = {'recent'}`) |
 | K17 | **Süzgeç/sıralama hafızası** (2026-10-22) | (a) her ekran son süzgecini kalıcı hatırlar · (b) her açılışta temiz · (c) karışık | **(c)** sıralama + yerleşim ekran başına **kalıcı**; tür/tarih süzgeci **oturum boyunca** (uygulama yeniden açılınca temiz) — "liste neden boş?" şaşkınlığı olmasın | 13, 17 | (c) — cevap yok, öneri uygulandı (Faz 13) |
 
 ---

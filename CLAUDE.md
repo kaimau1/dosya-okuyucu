@@ -16,12 +16,13 @@ Sade, hızlı, ücretsiz, çok formatlı **dosya okuyucu/düzenleyici + dosya y�
 (K10, 2026-10-21: masaüstü/iOS hedefi kaldırıldı). Gemini AI entegrasyonu, format dönüştürme,
 paylaşım. (Firebase senkronu 2026-09-26'da kaldırıldı — HAFIZA.) Piyasadaki yavaş/pahalı programlara alternatif.
 
-> Sabit kararlar, build geçmişi, açık durum ve reddedilen yollar → **HAFIZA.md**
-> **Faz planı (2026-10-21; 2026-10-22 ek: görsel/UX Faz 13–19) → `docs/FAZ_PLANI.md`** —
-> sıradaki iş, kararlar (K1–K17) ve her fazın açılış istemi orada; yeni bir oturum işe
-> **§0.1 yürütme sırası**ndan başlar (bulutta yapılabilenler önce, telefon işleri tek cihaz turunda).
-> **Düzenleme turu (2026-10-23; Word/Excel/Slayt/PDF/metin/görsel "telefonda Office gibi") →
-> `docs/DUZENLEME_PLANI.md`** — Faz 20–33, kararlar K18–K25, kendi yürütme sırası (§0) ve açılış istemleri.
+> Sabit kararlar, tuzaklar, reddedilen yollar ve güncel durum → **HAFIZA.md**
+> **Kalan işlerin tamamı (2026-11-01) → `KALANLAR.md`** — iki faz: **Faz A ☁️ bulutta
+> yapılabilenler** ve **Faz B 📱💻👤 diğerleri** (telefon, yerel Windows, hesap/karar); her
+> bölümün bitti ölçütü ve açılış istemi orada. Yeni oturum işe Faz A'nın ilk açık bölümünden
+> başlar; telefonda bakılacaklar `docs/CIHAZ_TESTI.md`.
+> Bulgu/karar kaynağı (tarihsel): `docs/FAZ_PLANI.md` (Faz 0–19, K1–K17) ve
+> `docs/DUZENLEME_PLANI.md` (Faz 20–33, K18–K25).
 
 ## 2) Mimari / Dosya Haritası
 `graphify-out/GRAPH_REPORT.md` — 16.323 düğüm, 23.141 kenar, 573 topluluk (2026-10-21) (App State Management,

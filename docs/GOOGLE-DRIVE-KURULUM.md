@@ -85,9 +85,8 @@ adlarla arayan kaybolur. Karşılıklar:
 6. Kaydedin. Değişikliğin yayılması birkaç dakika sürebilir.
 
 `google-services.json` indirmeye **gerek yok**: Android'de `google_sign_in`
-istemciyi paket adı + SHA-1 üzerinden bulur, dosyadan değil. (Firebase senkronu
-ayrı bir konu; o `google-services.json` ister ve yoksa uygulama yerel modda
-çalışır.)
+istemciyi paket adı + SHA-1 üzerinden bulur, dosyadan değil. (Uygulamada Firebase
+yok — 2026-09-26'da kaldırıldı.)
 
 ## Doğrulama
 

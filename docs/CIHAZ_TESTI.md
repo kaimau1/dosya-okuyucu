@@ -1,770 +1,495 @@
-# Cihaz ve masaüstü doğrulama listesi
+# Cihaz doğrulama listesi (KALANLAR Faz B2'nin eki)
 
-> Kodla ya da birim testle kapatılamayan, **telefonda bakılması gereken** maddeler.
-> Faz 8/9 bölümleri + KALANLAR'dan taşınan 37 eski madde (en altta, kaynak bölüm
-> başlığıyla). Her madde: ne yapılır → ne görülmeli.
-> Örnek dosyalar `test/fixtures/pdf/` ve `test/fixtures/office/` altında
-> (`flutter test tool/write_fixtures_test.dart` yeniden üretir).
+> **2026-11-01'de baştan düzenlendi:** eski liste (770 satır, tarih tarih birikmiş, bir kısmı
+> kaldırılmış ekranlara ait) **alana göre** toplandı; yinelenenler birleşti, artık var olmayan
+> akışlar (QR paylaş ekranları, Firebase, eski PDF "Düzenleyici" alt çubuğu, Word sayfa
+> üzerinde düzenleme, Excel eski biçim çubuğu…) çıkarıldı ya da bugünkü karşılığına çevrildi.
+> Eski metin kelimesi kelimesine: `docs/arsiv/CIHAZ_TESTI_2026-10-31.md`.
+>
+> **Nasıl:** her madde *ne yapılır → ne görülmeli*. Geçen madde **silinir**; kırmızı olan
+> aynı oturumda düzeltilir ya da KALANLAR'a madde olarak yazılır. Bulutta yeni yazılan ve
+> telefonda bakılması gereken her şey buraya, ilgili bölüme eklenir.
 
-## Faz 8 — PDF tek çatı (2026-10-21)
+## 0. Hazırlık
 
-- [ ] **Düzenle kapısı:** herhangi bir PDF → alt çubukta artık *Düzenle · Araçlar · Çevir ·
-      Paylaş · Yazdır* var (Kalem/Düzenleyici ayrı düğme değil). "Düzenle" → altı kip
-      (Metin, Kalem, İmza, Form, Sayfalar, AI ile) çıkıyor mu, her biri kendi ekranını
-      açıyor mu, kaydederken hep aynı "Orijinali değiştir / Kopyasını kaydet" penceresi mi.
-- [ ] **Seçimden düzenleme:** yazıya uzun bas → seçim çubuğunda "Düzenle" → PDF
-      düzenleyicisi SEÇİMİN SAYFASINDA açılıyor mu (eski satır içi kutu artık yok).
-- [ ] **Yazı ekle (K12 yedeği):** `taranmis.pdf` → Düzenle → Metin → sağ altta
-      "Yazı ekle" → sayfaya dokun → metin + punto → yazı dokunulan yerde mi;
-      `dondurulmus_90.pdf` ve `cropbox.pdf`te de dokunulan yerde ve DÜZ okunuyor mu.
-- [ ] **"Daha fazla" sayfası:** "Düzenle ve imzala" grubu kalktı; Metni tanı (OCR)
-      "Dönüştür" grubunda.
-- [ ] **Aa levhası (PDF):** üst çubukta "Aa" → okuma görünümü düğmesi, 1/2/4 sütun,
-      gece modu ve "kaldığım yerden aç" anahtarı tek yerde; değişiklik arkada canlı.
-- [ ] **Örnek set:** `test/fixtures/pdf/*` uygulamada açılıyor mu (parola: `1234`);
-      `uzun_320_sayfa.pdf` açılış süresi Faz 4 ölçümünden kötü değil mi
-      (`docs/perf/2026-10-21.md`).
+- Nightly APK (`releases/latest/download/dosya-okuyucu.apk`) ya da ölçüm için yan yana
+  kurulan `.r8test` profil APK'sı (HAFIZA tuzağı: yerel anahtar ≠ CI anahtarı → üstüne kurma).
+- Örnek dosyalar: `test/fixtures/pdf/` (parola `1234`), `test/fixtures/office/`,
+  `test/fixtures/media/` (yeniden üretim: `flutter test tool/write_fixtures_test.dart`,
+  `python3 tool/make_media_fixtures.py`, `python3 tool/make_word_fixtures.py`).
+  Ölçüm verisi: `python3 tool/make_test_tree.py olcum` → telefonda **`.nomedia`'lı** klasör,
+  iş bitince SİL (galeri/dizin bozulmasın).
+- Cihazlar: güncel telefon + düşük donanımlı telefon (FAZ_PLANI Ek D, ≤ 3 GB) · Yakındakiler
+  için ikinci telefon · Bluetooth klavye · varsa tablet/katlanabilir/DeX · masaüstünde Word/
+  Excel/PowerPoint + Google Dokümanlar + LibreOffice (§13).
+- Kare ölçümü `FrameTiming` / logcat `KARE` (`adb logcat -s flutter | grep KARE`).
+  **SurfaceFlinger `--latency` aralığı takılma ölçüsü DEĞİLDİR** (HAFIZA). Git Bash'te adb:
+  `MSYS_NO_PATHCONV=1`.
 
-**Bulutta ölçülen (2026-10-21):** örnek PDF'lerin hepsi Poppler'da açılıyor;
-düzenlenmiş hâllerinde yeni metin var, eskisi yok (`pdftotext`). Paragraf motoru
-`/Rotate 90/180/270`, CropBox'lı, parolası kaldırılmış, Type0/Identity-H ve
-`/Differences`+AGL (ToUnicode'suz) belgelerde düzenliyor (`pdf_fixture_smoke_test`).
+## 1. Ölçümler (sayıyla doldur — FAZ_PLANI Faz 4 + DUZENLEME §7)
 
-## Faz 9 — Office ve metin (2026-10-21)
+| Senaryo | Hedef (orta / düşük) | Güncel cihaz | Düşük cihaz |
+|---|---|---|---|
+| Soğuk açılış, ilk kare / etkileşim | ≤ 1,2 sn / ≤ 2 sn | 433–628 ms (2026-10-22, Xiaomi 13T) | |
+| Açılışın ilk 0,5 sn'si: ilk kare raster, pano build | ölç (KALANLAR A8.2 sonrası) | 218–309 ms / 45–49 ms | |
+| Boşta pano 60 sn: çizilen kare + zamanlayıcı | 0 | 0 ✔ | |
+| 5.000 öğeli klasör kaydırma + sürükleyerek seçim, %99 kare | ≤ 24 ms | 8,5 ms ✔ | |
+| Büyük klasör açılış karesi (3.000 foto) | — | 58 ms ✔ | |
+| Galeri 2.000 fotoğraf kaydırma sonrası RSS | ≤ 350 MB (hafif ≤ 250) | | |
+| 100 sayfalık PDF: ilk sayfa, açılıştan sonraki 10 sn CPU | — | | |
+| `uzun_320_sayfa.pdf` açılış | Faz 4'ten kötü değil | | |
+| Excel 10 bin × 20: açılış / kaydırma %99 kare (**K23** — tutmazsa KALANLAR B3.1) | ≤ 1,5 sn / ≤ 16 ms | | |
+| Excel hücre onayı → 1000 bağımlı hesaplı | ≤ 16 ms / ≤ 33 ms | | |
+| Word 20 sayfa aç → düzenlemeye hazır · 300 sayfa ilk ekran | ≤ 1,2 sn · ≤ 1,5 sn | | |
+| Word/Slayt/Excel/Metin tuş → ekranda harf | ≤ 1 kare / ≤ 2 kare | | |
+| Word / Excel / slayt kaydırma %99 kare | ≤ 16 ms / ≤ 33 ms | | |
+| Görsel düzenleyici 4000×3000: ayar kaydırıcısı kare | ≤ 8 ms / ≤ 16 ms | | |
+| Ek bellek: Word 300 sayfa · Excel 100 bin hücre · büyük PDF düzenleme | ≤ +150 MB · ≤ +120 MB · ölç | | |
+| 50 slaytlık deste açılış/kaydırma · 10 bin satırlık metin | akıcı | | |
+| Dolu çöp (≥ 3 bin öğe) açılış | < 1 sn | | |
+| 100 bin+ dosyalı telefonda pano taraması (süre, bellek; `_TopN` yeterli mi) | ölç | | |
+| Akıllı analiz: 1.500 WhatsApp görselinde OCR süresi | ölç | | |
+| R8'li APK: açılış çökmesiz, APK boyutu | çökme yok | ✔ 60,6 MB (2026-10-22) | |
 
-### Word
-- [ ] **Canlı yazma gidiyor mu (KÖK NEDEN düzeltmesi):** `tablo.docx` → Düzenle → bir
-      paragrafa yaz → Kaydet → dosyayı kapat-aç: yazılan duruyor mu. (Chromium'da
-      ölçüldü: `input` olayının hedefi `<article>` olduğu için yazılanlar eskiden
-      Flutter'a hiç gitmiyordu — bkz. HAFIZA 2026-10-21 (4).)
-- [ ] **Tablo hücresi:** aynı belgede "Ayşe" hücresine yaz → kaydet → yeniden aç.
-- [ ] **Seçime punto/yazı tipi:** bir kelimeyi seç → punto 20 → yalnız o kelime
-      büyüyor mu; kaydet-aç sonrası da öyle mi.
-- [ ] **Resim ekle/sil:** imleç bir paragrafta → şeritte "Resim ekle" → galeriden
-      resim → paragrafın altına geldi mi, düzenleme kaldığı yerden sürüyor mu;
-      resmin yanına dokun → "Resmi sil".
-- [ ] **Masaüstü Word:** `tablo_duzenlendi.docx` Word'de onarım istemeden açılıyor mu
-      (resim, madde işareti, "Mart" 16 pt kalın, "Ayşe Kaya").
+## 2. Dosya yöneticisi — pano, listeler, süzgeç, arama
 
-### Excel
-- [ ] **Grafik ekle:** `satis.xlsx` → A1:C4 seç → Daha fazla → Ekle → Grafik ekle →
-      Sütun/Çubuk/Çizgi/Pasta önizlemesi değişiyor mu → Ekle → Kaydet.
-- [ ] **Masaüstü Excel / Google E-Tablolar:** `satis_duzenlendi.xlsx` onarım istemeden
-      açılıyor mu, grafik E-M sütunlarında görünüyor mu, sayfa sırası *Notlar, Özet*.
-- [ ] **Köşegen doldurma:** 1, 2 / 10, 20 bloğunu seç → tutamağı sağ-aşağı çapraz çek →
-      önizleme dikdörtgen mi, sonuç satır serisinin devamı mı (C1=19 …).
-- [ ] **Sayfa taşı:** sekmeye uzun bas → Sola/Sağa taşı → kaydet → Excel'de sıra aynı mı.
-- [ ] **Seçimi çevir:** birkaç hücre seç → Çevir → yalnız seçim çevriliyor mu.
-- [ ] 10 bin satırlık dosyada kaydırma/açılış Faz 4 ölçümünden kötü değil mi
-      (`tool/make_test_tree.py` ve Ek D protokolü).
+- [ ] **İzin akışı:** ilk açılış rehberi (3 ekran) → "Tüm dosyalara erişim" → ayara git, dön →
+      tarama kendiliğinden başlıyor; reddedilirse medya izinleriyle Görüntüler/Video/Ses yine
+      görünüyor, öteki yerlerde "izin gerekli" kartı.
+- [ ] **Pano:** bellek kartı (eskisinden ~%25 alçak, 2,0× yazıda taşma yok; toplam = reklam
+      kapasitesi "512 GB", `df` kısıtlı ROM'da çubuk gizli); kaydırınca kapsül katlanıyor;
+      çöp doluyken kutunun nefesi birkaç saniye sonra duruyor.
+- [ ] **Akıllı bildirim alanı:** büyük kopyalama → panonun en üstünde halka + kalan süre; bitince
+      "✓ … · şimdi", × kapatır; panodayken alt şerit YOK, başka sekmede VAR; bellek ≥ %90
+      uyarısı; FTP açıkken kapatılamaz satır + "Kapat".
+- [ ] **Araçlar sırası:** Harici bellek, Yer aç, Sohbet temizliği, Aktar (Yakındakiler), Kasa…
+- [ ] **Ana ekranı düzenle:** "Görüntüler" (foto + video) ve "Son açılanlar" şeridi varsayılan
+      gizli, buradan eklenince görünüyor (K16).
+- [ ] **Tür hapı (her listede):** "Tüm türler · 142 ▾" → levhada simge/renk/sayılı kutular,
+      çoklu seçim (PDF + Word), liste arkada hemen süzülüyor, "N dosyayı göster"; boş sonuçta
+      "Filtreyi temizle". Belgeler, Görüntüler, İndirilenler, Son açılanlar, Gezgin, Arama,
+      Çöp, Kasa, Üretilenler, Yeni gelenler, Önemli.
+- [ ] **Süzgeç şeridi:** en fazla 3 kart (Tür · Kaynak ve zaman · Analiz ve diğer), kaydırma
+      yok, yazılar sığıyor; "Kaynak ve zaman"da WhatsApp/Telegram/Kamera çipleri sayılı ve
+      **Etiketler** bölümü; "6 aydır açılmamış" mantıklı (cihaz `atime` tutmuyorsa "eski
+      dosyalar"a döner — bilinçli).
+- [ ] **Son açılanlar:** "Tarihe göre" = açılma zamanı (Bugün / Bu hafta); "Ada göre" kapat-aç
+      sonrası korunuyor, tür süzgeci ise yeniden açılışta TEMİZ (K17); 2 dosya seç → ⋮ →
+      "Geçmişten kaldır" → dosyalar diskte duruyor, "Geri al" geri getiriyor.
+- [ ] **Kategori üst alanı (Belgeler):** "161 öğe · 220 MB"; Sırala · Süzgeç · Analiz aynı satırda;
+      görünmeyen ölçütler × çipleri, "Temizle".
+- [ ] **Analiz ve düzenle:** Özet; Genel analiz (ay çubukları, "uzun süredir açılmamış" → liste);
+      AI analizi (anahtar yoksa etkinleştir penceresi); AI ile kategorilere ayır → iş sonucu
+      ekranı (aşağıda); Etiketleri yönet → yeniden adlandır / sil.
+- [ ] **AI etiket iş sonucu ekranı:** İşlemler → etiket işi → düz cümleli özet; **Etikete göre**
+      küçük resim ızgarası (fotoğraf, video karesi, PDF kapağı) — dokun = ✕ / ✓, basılı tut = aç;
+      etiket çipleriyle süzme; **Dosyaya göre** çip = tak/çıkar; işi arka plana alınca öneriler
+      kaybolmuyor. Taşı/kopyala işinde "Taşımayı geri al".
+- [ ] **Arama:** son sorgular çip, × siler; tür çipleri SONUÇTAN çıkıyor; kipler **Adında /
+      Anlamla (AI) / Dosyaların içinde / İçinde (AI)** süzgeç kapsamında; panoda "✦ Anlamla" →
+      "geçen kışki elektrik faturası" → "Aranan:" çipleri + ilgili dosyalar; tekrar basınca ad
+      aramasına dönüyor.
+- [ ] **Seçim › Daha fazla:** gruplu levha (Düzenle / Kopyala ve gönder / Diğer), "AI ile etiketle"
+      vurgulu; galeri ⋮ ve uzun basma menüsü aynı görünüm (menü dili).
+- [ ] **Seçimde** galeri/kategori ekranında yana kaydırma sayfa DEĞİŞTİRMİYOR; başlıkta toplam
+      boyut doğru.
+- [ ] **Liste görünümü:** klasör başına hatırlanan görünüm/sıralama; iki parmakla sütun sayısı;
+      simge üstündeki uzantı yazısı ("XLSX") net; PDF'ler kapak sayfasıyla, kaydırma akıcı.
+- [ ] **Hızlı kaydırıcı:** balon + tutamaç; Arapça'da SOL kenarda.
+- [ ] **Uygulamalar ekranı:** boyuta göre sıralı, Ayarlar'daki sayılarla tutuyor; "Kullanım
+      erişimi" yokken boyut yerine boşluk (sıfır değil), izin verince hemen geliyor; klasör
+      düğmesi "Depolama ve önbellek"e iniyor (MIUI); Bellek Analizi Uygulamalar kartı toplamı.
+- [ ] **Sohbet temizliği:** kovadan sil → geri dön → kova sayısı ve panodaki "N dosya · X MB"
+      yenilemeden güncel.
+- [ ] **Ana ekrana ekle:** Görüntüler → ⋮ → "Ana ekrana ekle" → kendi simgeli kısayol; uygulama
+      kapalıyken de Görüntüler'i açıyor.
+- [ ] **Seçici kipi (başka uygulamadan "dosya seç"):** PDF isteyen uygulamada doğrudan o türün
+      dosyaları (en yeni üstte, "Tümü · PDF 34" çipleri, "Klasörlerde gez"); seçici kapandıktan
+      sonra ayarlar kaydediliyor (shared_preferences çökmesi yok); Notlar'dan gelişte "Diğer".
 
-### Slayt
-- [ ] Metin kutusunu düzenle → bir kelime seç → şeritte "Çevir" → yalnız seçim.
-- [ ] `sunum_duzenlendi.pptx` PowerPoint'te açılıyor mu ("Gelir %12 arttı").
+## 3. Gezgin, dosya işlemleri, çöp, Kasa
 
-### Metin ve eski biçimler
-- [ ] **Büyük metin:** 50 MB'lık bir kayıt dosyası aç → "Büyük dosya — salt okunur"
-      şeridi + satır sayısı + kodlama; hızlı kaydırma (kaydırma çubuğunu sürükle)
-      takılmıyor mu, bellek uyarısı/çökme yok mu.
-- [ ] **Kodlamalar:** `metin_utf8.txt`, `metin_cp1254.txt`, `metin_utf16le.txt` aynı
-      Türkçe metni gösteriyor mu; `noktali_virgul.csv` üç sütun.
-- [ ] **Eski .doc/.ppt:** gerçek bir `.doc` aç → "SALT OKUNUR" rozeti → "DOCX yap ve
-      düzenle" → yanına `ad.docx` (varsa `ad (2).docx`) çıktı mı ve Word ekranı açıldı mı;
-      `.ppt` için aynısı (`.pptx`).
+- [ ] **Yol hapları** geri gidiyor (yeni sayfa açmıyor); hap adı TalkBack'te bir kez okunuyor.
+- [ ] **Açılış klasörü** (Dosya yöneticisi ayarları) → kapat-aç → doğrudan orada; klasör
+      silinmişse panoya düşüyor.
+- [ ] **Listede klasör boyutu** (Ayarlar > Gezinme) açık → boyut beliriyor, kaydırma akıcı.
+- [ ] **İndirilenlerde göster:** indirme bildiriminden → satır alt çubuğun arkasında kalmadan görünür.
+- [ ] **Yapıştırma çakışması:** aynı adlı dosyanın olduğu klasöre yapıştır → İkisini de tut / Atla /
+      Üzerine yaz doğru; pencereyi kapatmak = vazgeç.
+- [ ] **İş bildirimi alt çubuğu örtmüyor:** çok dosya seç → Sil → "Çöp kutusuna taşınıyor · n / N"
+      kartı seçim çubuğunun ÜSTÜNDE; ana ekran alt gezinmesi ve belge dock'unda da; ilerleme
+      penceresinde **"Arka plana al"**; biten iş şeritte/bildirimde "… tamamlandı".
+- [ ] **Dolu çöp (≥ 3 bin öğe):** "Boşalt" sırasında pano/kategori takılmıyor, bitince sayı doğru;
+      tek öğe sil/geri yükle anında düşüyor.
+- [ ] **Kasa:** eski "Gizli dosyalar"ı olan telefonda taşıma kartı → "Kasaya taşı" → Kasa'da
+      açılıyor, "Geri çıkar" özgün klasöre (alt klasörleriyle); PIN değiştir önce eski PIN'i
+      soruyor.
+- [ ] **Geçmiş ekranı** alt çubuğu ve geri tuşu; işlem geçmişi.
+- [ ] **Arşiv:** büyük ve solid RAR/7z çıkarma süresi + ilerleme (iptal KALANLAR A7.3 sonrası);
+      parolalı ZIP üretme.
+- [ ] **Belge tarama stüdyosu:** Google tarayıcı (Play Hizmetleri yoksa yedek tarayıcı), kenar +
+      kırpma + filtre; resimli sayfa bozulmadan; Kırp (kenar ortası tutamaçları, büyüteç,
+      "Kenarları bul"), Döndür, Filtre + "Tüm sayfalara", sıra sürükleme, Yeniden çek, Sil →
+      "Geri al", "Kaydediliyor… → Kaydedildi"; "+" → "Fotoğraftan ekle"; "Yazıları da tanı" →
+      PDF'te arama; PDF Araçları ⋮ "Sayfa tara ve ekle".
+- [ ] **Uygulamanın kapladığı alan** listesinin son satırı ("Android uygulama ayarlarını aç")
+      gezinme çubuğunun üstünde; öteki listeler de.
 
-**Bulutta ölçülen (2026-10-21):** `test/fixtures/office/*.{docx,xlsx,pptx}` (özgün +
-düzenlenmiş, 7 dosya) LibreOffice 7'de PDF'e çevrildi; hepsi açıldı, düzenlenen metinler
-yerinde. Grafik dört türde de LibreOffice'te çiziliyor (`spPr` rengi eklendikten sonra —
-önce çubuklar görünmüyordu). openpyxl grafikleri `BarChart/LineChart/PieChart` olarak
-okuyor. Word köprüsü: `node tool/check_word_bridge.js` (Playwright + Chromium).
-**Gerçek Microsoft Office'te açılış bulutta denenemedi** — yukarıdaki masaüstü maddeleri
-bunun için.
+## 4. Depolama birimleri (SD kart, USB)
 
-## Faz 10 — medya (2026-10-21)
+- [ ] **SD kart:** `/storage/XXXX-XXXX` bulunuyor; birimler arası taşımada kopyala+sil yedek yolu;
+      yazılamayan kartta hata anlamlı (`sd_readonly`; SAF akışı KALANLAR A7.2 sonrası).
+- [ ] **SD birleşik depolama (deneysel):** "Şimdi taşı" ilerlemesi; şarja takınca UYGULAMA
+      KAPALIYKEN çalışıyor, şarjdan çıkınca duruyor; bitiş bildirimi; taşınan fotoğraflar
+      galeride; Android ≤ 10'da "yazılamıyor" uyarısı.
+- [ ] **USB bellek (ham FAT/exFAT yazma, K8):** dosya yaz → "Güvenle çıkar" → çek → PC'de dosya
+      sağlam; yazma sırasında çek → tekrar tak → "kirli" bayrağıyla onarım uyarısı, veri
+      kaybı yok; çok bölümlü bellekte "Bölüm seç" şeridi.
 
-- [ ] **Görsel düzenleyici:** galeride bir JPEG → "Düzenle" → Kırp (4:3 seç, köşeyi
-      çek), Döndür, Çevir, Ayarla (parlaklık +), İşaretle (kalem, ok, yazı "Şğİ") →
-      Kaydet → "Kopya olarak kaydet" → yanına `ad (1).jpg`; açınca önizlemedekiyle aynı,
-      özgün dokunulmamış. EXIF'li (yan çekilmiş) fotoğrafta önizleme dik mi.
-- [ ] **HEIC/WebP:** düzenle → kaydet seçeneğinde "JPEG kopya" notu, çıktı `.jpg`.
-- [ ] **PiP:** video oynat → "Küçük pencerede oynat" → video küçük pencerede sürüyor;
-      oynatırken ana ekrana kaydır → kendiliğinden PiP; pencereyi büyüt → oynatıcıya döner.
-      Ayarlar > Uygulamalar'da "diğer uygulamaların üzerinde göster" izni ARTIK yok.
-- [ ] **Ses (yeni motor):** müzik klasörü → çal, ekranı kilitle → çalmaya devam; bildirimden
-      sonraki/önceki; parça bitince sıradaki; tekrar/karışık; hız 1.5x; telefon çalınca
-      susuyor mu (ses odağı).
-- [ ] **Video küçültme (Media3):** 1080p video → 720p, 30 fps, "Dengeli" → ilerleme yüzdesi
-      akıyor, çıktı 1280x720 (dikey videoda 720x1280), süre aynı; "sesi çıkar" sessiz;
-      serbest ölçü 1234x568 birebir; iptal → yarım dosya kalmıyor.
+## 5. Ağ ve aktarım
 
-## Faz 10b — örnek medya seti (2026-10-22)
+- [ ] **Yakındakiler (iki telefon):** ekran açılınca HEM alıyor HEM buluyor (Wi-Fi + **BLE**,
+      karşı telefon birkaç sn'de listede); gönder → alıcıda önizlemeli **Kabul et / Reddet**
+      (reddedilen diske YAZILMIYOR, gönderende "Karşı taraf kabul etmedi"); çok küçük dosya tek
+      akışta (ZIP akışı); aktarım yarıda kesilip yeniden bağlanınca **kaldığı yerden**; klasör
+      paylaşımı; ortak Wi-Fi yoksa **hotspot daveti** (BLE ile) → alıcı ağa bağlanıyor, iş
+      bitince eski ağına dönüyor; ekrandan çıkınca geçici ağ kapanıyor (Wi-Fi listesinde
+      DIRECT-/AndroidShare kalmıyor); geçmiş paneli.
+- [ ] **Uygulamasız alıcı (web):** tarayıcıda `http://<ip>:8080` + 6 harfli jeton (elle de
+      yazılabiliyor) → küçük resimli liste, "Tümünü indir" ZIP, tek dosyada otomatik indirme,
+      sayfa tarayıcı diline göre TR/EN. Hotspot yolunda alıcının tarayıcısı mobil veriye
+      gidiyorsa sonucu yaz (KALANLAR B3.4).
+- [ ] **QR ile al:** pano yüzen çubuğu → QR → Google kod tarayıcısı (kamera izni SORULMAZ) →
+      onay levhası (dosyalar, toplam, klasör) → iptal edilebilir indirme → "N dosya alındı · Aç".
+- [ ] **Ağdan erişim (FTP sunucusu):** BAŞLAT → `ftp://<ip>:2121` + kullanıcı/parola; PC
+      gezgininde kök kutular (Telefon · İndirilenler · Kamera …); indir/yükle; uygulamadan çıkınca
+      ve ekran kapalıyken aktarım sürüyor; kalıcı bildirim → ekrana götürüyor; panoda kapatılamaz
+      satır + "Kapat"; *Yazma izni* kapalıyken PC'den silme reddediliyor; *Gizli dosyalar*
+      kapalıyken `.` klasörleri görünmüyor; son kullanılanlardan kapatınca paylaşım bitiyor.
+- [ ] **Ağ depolama (NAS):** "Ağda ara" NAS'ı buluyor (mDNS + port); SFTP/FTP/FTPS/WebDAV/SMB2
+      "Bağlantıyı sına" yeşil; gez, aç, Buraya yükle, yeni klasör, yeniden adlandır, sil; parola
+      kaydı kapalıyken her bağlanışta soruyor; yanlış adres/parola ANLAŞILIR hata; SMB3-zorunlu
+      NAS varsa sonucu yaz.
+- [ ] **Google Drive:** OAuth istemcisi kayıtlıysa (KALANLAR B5.5) "Google ile bağlan" → hesap +
+      Drive izni; uzun bas → Drive'a yükle; listede görünüyor, dokununca inip açılıyor; sil; büyük
+      indirmede "Arka plana al" ve "Durdur" (yarım dosya kalmıyor). Kayıt yoksa: "Google girişi bu
+      APK için etkinleştirilmemiş" + "Sistem seçicisiyle Drive dosyası aç" çalışıyor, çökme yok.
+- [ ] **Paylaş / Birlikte aç:** WhatsApp'tan gelen dosya açılıyor (octet-stream); `.apk`'ya
+      "birlikte aç" listesinde uygulamamız YOK; `content://` bağlantısıyla açılış çökmesiz
+      (derin bağlantı koruması).
 
-Set: `test/fixtures/media/` (`python3 tool/make_media_fixtures.py` yeniden üretir).
-Telefona kopyalarken klasöre `.nomedia` KOY ve iş bitince SİL (HAFIZA 2026-10-22 ölçüm tuzağı).
+## 6. PDF — görüntüleme ve araçlar
 
-- [ ] **EXIF yönü (B11):** `orient_6.jpg` ve `orient_8.jpg` galeride DİK görünüyor mu (sol üst
-      kırmızı). Boyutlandır → "Şu an" satırı **300×400** yazıyor mu (eskiden 400×300).
-- [ ] **Görsel düzenleyici:** `orient_6.jpg` → Düzenle → kırp 1:1 + döndür → kopya; kopya dik ve
-      kırmızı kare doğru köşede mi.
-- [ ] **HEIC:** telefonda çekilmiş bir HEIC → Boyutlandır: "Görüntü çözülemedi" mi, çalışıyor mu
-      (Dart `image` paketi HEIC çözemiyor — beklenen: hata; Faz 14b yerel motorla kapanır).
-      Görsel düzenleyici HEIC'i açıyor mu.
-- [ ] **WebP / GIF:** `photo.webp`, `anim.gif` → Boyutlandır → JPEG kopya açılıyor mu; GIF'te
-      "özgünü çöpe at" uygulanmıyor (kare kaybı uyarısı).
-- [ ] **Video:** `clip.mp4` ve `clip.mkv` oynuyor; `clip.srt` altyazı olarak kendiliğinden
-      bulunuyor ("Merhaba dünya", Türkçe karakterler bozulmadan). `clip.mkv` → küçült (Media3)
-      → MP4 çıktı oynuyor mu.
-- [ ] **Ses:** `tagged.mp3`, `tagged.m4a`, `tagged.flac` → başlık "Örnek Şarkı", sanatçı, albüm
-      ve turuncu kapak görünüyor mu (FLAC etiketleri bu turda eklendi).
-- [ ] **Galeri 2.000 fotoğraf RSS** (Ek D) — Faz 4 ölçümüyle birlikte.
+- [ ] **Örnek set** (`test/fixtures/pdf/*`) açılıyor; parolalı (`1234`) soruyor.
+- [ ] **Kaldığın yerden:** uzun PDF'i yarıda bırak, kapat-aç → o sayfa + "Baştan başla" şeridi.
+- [ ] **Kaydırma:** hızlı fırlatma Word/listeler kadar gidiyor; sayfa başına geri ÇEKMİYOR; iki
+      parmak yakınlaştırıp bırakınca zıplama yok; yakında yazı keskin (basamaklı çizim
+      ölçeği, kenar bulanıklığı/atlama yok).
+- [ ] **Okuma kipi:** kaydırınca çubuklar gövdenin üstünden kayıp gidiyor, gövde ZIPLAMIYOR;
+      2,2 sn sonra geri geliyor; arama açıkken gizlenmiyor; Tam ekran.
+- [ ] **Aa levhası:** okuma görünümü, 1/2/4 sütun (2/4 sütunda sayfalar genişliğe sığıyor), gece
+      modu (ters renk okunaklı), "kaldığım yerden aç" — değişiklik arkada canlı.
+- [ ] **İçindekiler** (☰): başlık → sayfa; olmayan belgede "içindekiler yok".
+- [ ] **Bağlantılar:** onay penceresi tam adres; "Aç" tarayıcıyı açıyor; iç bağlantı sayfaya atlıyor.
+- [ ] **Arama:** Türkçe duyarlı (İ/ı), sonuçlar vurgulu, ‹ › o sayfaya kaydırıyor.
+- [ ] **Metin seçimi:** uzun bas → tutamaçlar, kopyala; seçim çubuğunda Çevir (ML Kit dil modeli
+      iniyor) ve "Düzenle" (düzenleyici seçimin sayfasında açılıyor).
+- [ ] **Vurgu:** sarı/yeşil/pembe/mavi seçilen metnin tam üstünde; kaydet-aç sonrası kalıcı;
+      **`cropbox.pdf`** ve döndürülmüş sayfada da yerinde (başka okuyucuda bak).
+- [ ] **Sesli oku:** Türkçe okuyor, duraklat/devam/durdur; ekrandan çıkınca susuyor; taranmış
+      PDF'te "önce OCR" uyarısı; yapay zekâ sesi seçiliyse onunla (cihaz sesine düşme yedeği).
+- [ ] **OCR (Metni tanı):** taranmış PDF / görsel → seçilebilir metin + AI bağlamı.
+- [ ] **PDF Araçları:** küçük resimler; seç → döndür/sil/öne-arkaya doğru sayfaya; "Çıkar" ayrı
+      PDF; "Başka PDF ekle" birleştiriyor; parola koy (kapat-aç → soruyor) / kaldır; sıkıştır
+      boyutu düşürüyor (taranmışta kazanç küçük — beklenen); kaydet sonrası görüntüleyici tazeleniyor.
+- [ ] **PDF çevir → "belgenin kendisi":** özgün düzende; atlanan paragraf sayısı doğru (Türkçe →
+      Arapça'da çoğunun atlanması beklenen).
+- [ ] **Slayt ↔ PDF:** `.pptx` → PDF: slaytlar ekrandakiyle birebir (görseller boş değil, 20+
+      slaytta donma yok), yazı seçilebilir/aranabilir; PDF → ⋮ → Slayta dönüştür → düzenleyicide
+      açılıyor; bölme mantıklı (PowerPoint'te açılış §13).
+- [ ] **Resim → PDF** + "Yazıları da tanı" → resim TAM, yazı aranabilir.
+- [ ] **Daha fazla sayfası:** OCR "Dönüştür" grubunda.
 
-## Faz 14a — görsel boyutlandırma 2.0 (2026-10-22)
+## 7. PDF — düzenleme (Faz 31 + 2026-10-31)
 
-- [ ] **Galeri → "Boyut"** (alt çubukta, Düzenle'nin yanında) levhayı açıyor mu; başlık
-      "Boyutlandır (1 dosya)".
-- [ ] **Piksel + kilit:** genişliğe 1600 yaz → yükseklik alanı anında doluyor mu; kilidi aç →
-      1080 × 1080 → "Doldur ve kırp" / "Kenar boşluğu ekle (Bulanık)" / "Esnet" → çıktılar
-      galeride beklenen gibi mi (kırpılmış kare, bulanık zeminli kare, esnemiş kare).
-- [ ] **%150:** kırmızı "netlik artmaz" uyarısı; çıktı 1,5 kat ve iş "küçültülemedi" diye
-      SİLMİYOR (büyük çıktı istenen sonuç).
-- [ ] **Uzun kenar 1600:** dikey telefon fotoğrafında (EXIF 6) çıktı 1200×1600 DİK mi.
-- [ ] **En-boy oranı 4:5 + kenar boşluğu, 16:9 + kırp** çıktıları doğru mu.
-- [ ] **Dosya boyutu "Başvuru ≤ 200 KB":** 3-5 MB kamera fotoğrafı → çıktı ≤ 200 KB mi, süre
-      makul mü (en çok 8 kodlama; düşük cihazda ölç). İş özetinde boyut yazıyor mu.
-- [ ] **Son ayar hatırlanıyor mu:** bir ayarla başlat → başka fotoğrafta levha aynı ayarla
-      açılıyor mu; "Özgünü çöpe at" ise HER ZAMAN kapalı açılmalı.
-- [ ] **Video seçiminde** fotoğraf kipleri görünmüyor, 480p…1080p duruyor.
-      → **2026-10-23 (14b) güncellendi:** videoda uzun kenar / en-boy oranı / dosya boyutu
-      DA var (aşağıdaki 14b maddeleri).
+- [ ] **Kabuk:** Düzenle → şerit sekmeleri Metin · Görsel · İmzala · Form · Filigran · Sayfa (+ Çiz,
+      AI); düzenlerken klavye üstü çubuk; ↶ ↷ üstte.
+- [ ] **"Ne oluyor" hissi:** sayfa açılınca ipucu şeridinde "Sayfa N okunuyor…" çarkı; meşgulken
+      paragrafa dokununca "Bir saniye — …"; Bitti'den sonra yeni metin yerinde kalıp sayfa
+      yenileniyor (eski metin bir an görünmüyor); sayfa değişince eski kutular görünmüyor.
+- [ ] **Yerinde paragraf:** dokun → kendi kutusunda alan, ~18 px'e yakınlaşma; **tek satırlık başlık
+      tek satır kalıyor** (Word çıktısı, e-Devlet, tarama + OCR — en az üç farklı PDF); yazı
+      tipi/punto/hizalama korunuyor; uzatınca düzgün sarıyor; **ortalı başlık kısalt/uzat → ortalı
+      kalıyor**; taranmış/OCR satırı da yerinde (klavye açılınca satır görünür).
+- [ ] **Ret → "Üstüne yaz":** paragrafın KENDİ gömülü yazı tipiyle (harf alt kümede yoksa Carlito);
+      eski metin aramada/kopyada da yok.
+- [ ] **Kalın / renk:** Word'den çıkmış PDF'te paragraf → K → Bitti (gömülü kalın kesim); kesim yoksa
+      ret + "Üstüne yaz" kalın; renk kırmızı → Acrobat/Chrome'da aynı.
+- [ ] **Nesneler:** Yazı ekle (`taranmis.pdf`, `dondurulmus_90.pdf`, `cropbox.pdf`'te dokunulan yerde,
+      DÜZ), imza (bir kez çiz → hatırlanıyor), baş harf, görsel ekle → kaydedilene kadar seç, taşı,
+      dört köşeden oran kilitli boyutlandır, yeniden yaz, sil; yakında keskin (vektör);
+      **döndürülmüş sayfada** imza doğru köşede ve dik.
+- [ ] **Var olan görsel:** logo/QR/arma seç → taşı (kesilmiyor), dört köşe boyut, merkezinde döndür
+      (iki kez), ayna, sil.
+- [ ] **Form (`formlu.pdf`):** alanlar sayfada (metin yerinde, onay kutusu tek dokunuş, liste/radyo
+      levhadan, ‹ › ✓); Türkçe değer (Ayşe, İstanbul) kaydediliyor; kaydedilen dosya Acrobat/
+      tarayıcıda dolu; "Doldurduktan sonra kilitle" sayfaya işliyor; form olmayan PDF'te açıklama;
+      döndürülmüş sayfada liste ekranı yedeği.
+- [ ] **Filigran:** "KOPYADIR" benzeri damga listede, kaldırılıyor; gerçek içerik listede yok.
+- [ ] **Sayfa:** 90° sağa/sola.
+- [ ] **Çiz / AI sekmeleri:** Çiz → çiz → Uygula → düzenleyicide ↶ çizimi siliyor; AI düzenleme
+      çalışma kopyasının metniyle.
+- [ ] **Kaydet:** "Orijinali değiştir / Kopyasını kaydet / Klasör seç" + "AÇ"; kaydetmeden çıkınca
+      özgün dosya DEĞİŞMEMİŞ; büyük PDF'te bellek (§1).
 
-## Faz 13 — ortak tür süzgeci + Son açılanlar (2026-10-22)
+## 8. Word
 
-- [ ] **Son açılanlar:** Ayarlar/pano → Geçmiş → Açılanlar → üstte `Tümü · PDF · Word …`
-      çipleri; "PDF"e dokun → yalnız PDF'ler, sayı çipteki sayıyla aynı mı. PDF + Word
-      birlikte seçilebiliyor mu.
-- [ ] **Son açılanlar sıralama/gruplar:** "Tarihe göre" = AÇILMA zamanı (Bugün / Bu hafta
-      başlıkları); "Ada göre" seç → uygulamayı kapat-aç → ada göre açılıyor mu (kalıcı).
-      PDF süzgeci ise uygulama yeniden açılınca TEMİZ olmalı (K17).
-- [ ] **Geçmişten kaldır:** uzun bas → 2 dosya seç → ⋮ → "Geçmişten kaldır" → satırlar
-      gidiyor, dosyalar diskte duruyor mu; snackbar "Geri al" → eski yerlerine dönüyor mu.
-- [ ] **Yeni gelenler / İndirilenler / Belgeler / Önemli:** PDF çipi var ve tek dokunuşla
-      süzüyor mu; çipler tek satır, kaydırılabilir; boş sonuçta "Filtreyi temizle".
-- [ ] **Arama:** bir sorgu yaz → tür çipleri SONUÇTAN çıkıyor mu (PDF/Word ayrı).
-- [ ] **Gezgin:** süzgeç düğmesi → PDF/Word/… + Tarih ▾ + Boyut ▾ aynı satırda.
-- [ ] **Çöp kutusu, Kasa, Üretilenler:** karışık içerikte tür çipleri çıkıyor ve süzüyor mu.
-- [ ] **Büyük yazı (Ayarlar → yazı boyutu en büyük + sistem yazı 200 %):** Son açılanlar
-      ve Yeni gelenlerde taşma (sarı-siyah şerit) yok mu.
+**Bütün editörlerde ortak (Faz 20 — Word, Excel, Slayt, Metin, PDF, Görsel):**
+- [ ] Klavye açılıp kapanırken klavye üstü çubuk klavyeyle birlikte kayıyor (zıplama yok).
+- [ ] Otomatik kaydetme: düzenle, 3 sn bekle → başlıkta "Kaydedildi"; uygulamayı zorla kapat →
+      yeniden aç → taslak şeridi "Geri yükle"; geri yazılamayan dosyada (e-posta eki) ilk kayıtta
+      "Kopya olarak kaydet" önerisi.
+- [ ] Çıkışta kaydedilmemiş değişiklik sorusu (Kaydet / Atma / Vazgeç).
 
-## Faz 15–16 — görsel dil birliği + erişilebilirlik/RTL (2026-10-22)
+**Görüntüleme (sayfa görünümü, WebView):**
+- [ ] Açılınca sayfa ekran genişliğini dolduruyor; yakınlaştırınca yazı keskin + ölçek rozeti;
+      "Sayfa 3 / 12" rozeti ortada, dokununca o sayfaya; okuma kipinde gövde dolgusu doğru.
+- [ ] **Sadakat:** Calibri/Times/Arial'lı gerçek belgede satır/sayfa kırılımı Word'le aynı yerde,
+      fontlar (Carlito/Tinos/Arimo) yükleniyor; madde imleri ▯ değil • / ➢ / ✓ / ▪
+      (`madde_imleri.docx`, ESNEKLİK-REZİLYANS belgesi).
+- [ ] **Arapça (`arapca_rtl.docx`):** metin sağdan akıyor, harfler kutu değil.
 
-- [ ] **İş bildirimi alt çubuğu örtmüyor (kullanıcı bildirimi 2026-10-22):** çok
-      dosya seçip Sil → "Çöp kutusuna taşınıyor · n / N" kartı seçim çubuğunun
-      ÜSTÜNDE duruyor mu, düğmeler basılabiliyor mu. Aynısı ana ekran alt
-      gezinmesi ve belge dock'u (Word/Excel alt çubuğu) için. Başka sayfa
-      açılınca kart yine ekranın altına iniyor mu.
-- [ ] **Simge ailesi:** gezgin, pano, ayarlar, oynatıcı, PDF/Word araç
-      çubuklarında çizgi (outlined) + dolu glif karışımı kalmadı mı; "İş
-      programı/Gece" ailesinde kategori simgeleri hâlâ çizgi mi (bilinçli).
-- [ ] **Soluk metin okunurluğu:** yol, sayaç, zaman damgası (inkFaint koyulaştı,
-      4 tema × açık/koyu) gözü yormadan okunuyor mu; Modern açık temada yeşil
+**Mobil görünüm editörü (Düzenle) — K18 kontrol noktası; onaylanırsa KALANLAR B3.2:**
+- [ ] **Gboard ve Samsung Klavye ayrı ayrı:** `ğüşıöçİ` kaybolmuyor/çiftlenmiyor; kaydırarak yazma;
+      sesle yazma; öneri çubuğu kelimeyi değiştiriyor; cümle başı büyük harf.
+- [ ] **Geri silme** harf siliyor (kök neden düzeltmesi 2026-10-23), imleç yanıp sönüyor.
+- [ ] Enter yeni paragraf; başlık sonunda Enter → gövde; boş maddede Enter → listeden çıkar;
+      paragraf başında geri silme birleştiriyor (boş paragrafta da).
+- [ ] Uzun bas → kelime + mavi tutamaklar + **büyüteç**; çift dokunuş kelime, üç dokunuş paragraf;
+      seçim paragraflar arası uzuyor; bağlam çubuğu Kes/Kopyala/Yapıştır/Tümünü seç/Çevir/AI ile düzelt.
+- [ ] Yanlış kelimenin altında kırmızı dalga, dokununca öneriler.
+- [ ] Büyük belgede açılışta ilk paragraflar önce görünüyor; Arapça belgede sağdan sola yazma.
+- [ ] Akıcılık puanı 1–5: ___ (isteğe bağlı: geliştirici bayrağıyla eski sayfa üzerinde düzenleme
+      kıyası ___).
+
+**Biçim ve ekleme (Faz 23–24 + 2026-10-30/31):**
+- [ ] Klavye kapalıyken Giriş · Görünüm · Gözden Geçir şeridi, açıkken klavye üstü çubuk (↶ K T A •
+      1. ⇤ ⇥ hiza renk Aa ⌄) — geçiş takılmasız; **Aa** paneli klavye yüksekliğinde, imleç satırı
+      yerinde, ⌨ ile klavye geri.
+- [ ] Kelimeye kalın + kırmızı + 16 pt + vurgu; paragrafa Başlık 1; madde/numara/çok düzeyli liste;
+      **liste kalıbı galerisi** (✓, A., i.); satır aralığı 1,5; ortala (masaüstü kontrolü §13).
+- [ ] Biçim boyacısı: tek dokunuş bir kez, çift dokunuş kilit, ✕ ile biter.
+- [ ] Görünüm > Gezinti başlığa kaydırıyor; Türkçe Word'de kaydedilmiş belgede (stil kimliği
+      `Balk1`) Başlık 1 belgenin kendi stiliyle.
+- [ ] **Kalın kelime kopyala/yapıştır** kalın kalıyor (kendi panomuz).
+- [ ] **Bağlantı:** dokun → düzenle (metin/adres) · Aç · Kaldır.
+- [ ] **Tablo:** hücreye dokun → Tablo sekmesi; satır/sütun ekle-sil, başlık/bant/gölge; hücreye yaz
+      (`tablo.docx` "Ayşe"); kaydet-aç sonrası duruyor.
+- [ ] **Resim:** Ekle → galeriden → paragrafın altında; tutamakla boyut, Resim sekmesi, alternatif
+      metin, sil.
+- [ ] Yorum ekle/yanıtla/çözüldü/sil; dipnot; yatay çizgi; tarih/saat; üst/alt bilgi; izlenen
+      değişiklikleri tümünü kabul/ret.
+- [ ] **Tablet (≥ 840 dp):** Aa paneli sağda, yazarken klavye kapanmıyor. **Donanım klavyesi:**
+      kısayollar + Ctrl+/ yardım levhası. **TalkBack:** bir paragraf yazıp kalın yapılabiliyor;
+      şeritte "Kalın, açık/kapalı".
+
+## 9. Excel
+
+- [ ] **Hücre girişi:** %100'de seçili hücreye ikinci dokunuş hücre üstünde editör; ✓ ↵ ⇥ oklar (⇥ ile
+      satır girip ↵ satır başı sütununa); sayı hücresinde uygulama tuş takımı, "ABC" sistem
+      klavyesi; `=` yazıp hücreye dokununca başvuru + renkli çerçeve; yazarken mavi çerçeve YOK.
+- [ ] **Akıllı giriş:** `1.234,56`, `%15`, `₺100`, `23.10.2026`, `14:30` doğru tür ve biçim;
+      `=TOPLA(A1;A2)` (masaüstü kontrolü §13).
+- [ ] **Seçim:** tutamaklarla aralık genişliyor; hızlı fırlatma veri sonuna; uzun bas → bağlam menüsü
+      (yalnız değerleri / biçimi yapıştır, devrik yapıştır); kaydırma sürerken pinch tutuyor mu
+      (tutmuyorsa KALANLAR B3.4).
+- [ ] **Düzenleme çekirdeği:** geri al / yinele; kopyala → yapıştır formül başvurusu kayıyor
+      (`=A1*2` bir sağa → `=B1*2`); kes → yapıştırınca kaynak boşalıyor; doldurma tutamağı sayfa
+      kaymadan (1,2 → 3,4,5; Ocak → Şubat), çift dokunuşla sütun boyunca, **köşegen** (1,2 / 10,20
+      bloğu → C1=19…); Σ doğru aralık; 🔍 Tümünü değiştir tek geri al adımı; satır/sütun sil →
+      geri al veri VE biçimi getiriyor; başka uygulamaya yapıştırınca sekmeyle ayrılmış tablo.
+- [ ] **Biçim:** Hücreleri biçimlendir paneli (sayı: Para ₺/Yüzde/Tarih; ondalık artır/azalt; dolgu,
+      yazı rengi, kenarlık, kaydır, birleştir), hücre stilleri, koşullu biçim; biçimli hücrenin
+      kalın/renk/kenarlığı bozulmuyor; hepsi geri alınıyor.
+- [ ] **Veri:** A→Z / Z→A (satırlar bütün), değer süzgeci, özel sıralama, veri doğrulama + Durdur,
+      form görünümü, notlar (deneysel K24).
+- [ ] **Görünüm:** sığmayan metin boş komşuya taşıyor, çok satırlı hücreler Excel kadar yüksek;
+      kılavuz çizgileri; durum çubuğunda "Sayfa 1 / 3"; büyük dosyada kaydırma (§1).
+- [ ] **Sayfa sekmeleri:** basılı tut + sürükle = sırala (yerinde bırakınca menü); Sola/Sağa taşı;
+      renk, gizle, çoğalt, ekle/yeniden adlandır/sil.
+- [ ] **Grafik:** `satis.xlsx` A1:C4 → Ekle → Grafik (Sütun/Çubuk/Çizgi/Pasta önizlemesi) → ızgarada
+      taşı/boyutlandır/tür/sil; **dosyadaki grafikler** hücrelerin üstünde doğru yerde.
+- [ ] **Tablo olarak biçimlendir** → kaydet (masaüstünde "Tablo Tasarımı" §13).
+- [ ] **Çeviri:** birkaç hücre seç → Çevir → yalnız seçim.
+- [ ] **Okuma sınırı:** 200 bin satırı ya da 1024 sütunu aşan dosyada kırmızı şerit, Kaydet "kaydetme
+      kapalı", dosya değişmiyor; büyük kitapta Paylaş/İndir'de ekran donmuyor.
+- [ ] **RTL:** Arapça `.xlsx` → A sütunu SAĞDA, kaydırma sağdan, metin sağa/sayı sola; ⋮ > Sayfa
+      sağdan sola → kaydet → Excel'de korunuyor; hücre hizası belge içeriği olarak AYNALANMIYOR.
+- [ ] **Donanım klavyesi:** oklar, ⇧+ok, Ctrl+ok, ⇥, ↵, F2, Delete, Home, PgUp/Dn, harfle yazmaya
+      başlama; Ctrl+/ yardım. **TalkBack:** hücre "B2, Armut".
+
+## 10. Slayt
+
+- [ ] **Sadakat:** oklar, üçgen, elmas, chevron, yıldız, altıgen, artı, silindir, akış kutuları kendi
+      biçiminde; basık elips oval; kırpılmış fotoğraf doğru kadraj/oran; çerçeve; yuvarlak köşe;
+      flipH/flipV doğru yön; konuşma balonu kuyruğu; tema renkli şekiller dolu; tablo yalnız tanımlı
+      kenarlar; gömülü font + Arimo kalın; bağlayıcı ok/kesik çizgi; gölge; grafikler (sütun/çubuk/
+      pasta/halka/çizgi) doğru veri/renk; madde imleri "§"/"Ø" yerine ▪/➢.
+- [ ] **Gezinme:** kartlarda "Slayt 3 / 12" rozeti → "Slayta git" (yakınlaştırılmışken de); 🔍 arama
+      ‹ › + bağlam satırı; AI özet Kısa/Detaylı slayt numaralı; düzenlerken geri tuşu düzenlemeyi
+      kapatıyor; sunum modu (tam ekran, yatay, zoom, animasyon adımları, geçiş oynuyor, gizli
+      slayt atlanıyor).
+- [ ] **Yerinde metin (Faz 28):** şekle dokun → çerçeve + tutamaklar + bağlam çubuğu; tekrar dokun →
+      kutuya yakınlaşma takılmasız, yazı ≥ 16 dp, klavyenin üstünde; uzun kutuda imleç ekranda
+      kalıyor; Gboard + Samsung'da Türkçe, otomatik düzeltme, öneri; kelimeye K/renk/punto yalnız
+      ona; Enter madde işaretli yeni paragraf, geri silme birleştiriyor; boş "Başlık eklemek için
+      dokunun" yer tutucusu; Anahat görünümü slayta yansıyor; ⋮ > Konuşmacı notu.
+- [ ] **Nesneler (Faz 29):** sürükle = taşı (liste kaymıyor), köşe = boyut, üst ok = döndür; hizalama
+      kılavuzları (pembe çizgi + titreşim, donanım klavyesinde ok 1 pt / ⇧ 10 pt); Ekle → metin
+      kutusu / şekil / **tablo 3×4** (hücreler arası ⇥ / ⇧⇥, klavye üstü ‹ ›) / **görsel** (ortada,
+      oran doğru) / düzenden yeni slayt; **Düzeni değiştir** (metin kaybolmuyor); **grup içindeki
+      şekli** sürükle; tablo hücresine uzun bas → tabloyu bütün olarak taşı/boyutlandır; Çizgi
+      (renk, kalınlık, kesik) + Saydamlık %50; "Şekli metne göre boyutlandır" kutusu Bitti'de
+      büyüyor; şekil çubuğu Kes/Kopyala/Yapıştır/Çoğalt/Öne/Arkaya/Sil + ↶.
+- [ ] **Slaytlar:** küçük resim şeridi (dikeyde altta, yatay tablette solda; dokun = git, güncel
+      küçük resme dokun = menü, uzun bas + sürükle = sırala); sıralayıcı ızgarası; çoğalt/sil/taşı;
+      ⋮ → Slaytı gizle ("Gizli" + soluk); Tasarım → arka plan, geçiş (Soldur/İt/Sil).
+- [ ] **Çeviri:** metin kutusunda kelime seç → şeritte Çevir → yalnız seçim.
+- [ ] **TalkBack:** slayt şekli yazısıyla okunuyor.
+
+## 11. Metin, kod, Markdown, eski biçimler
+
+- [ ] **Büyük metin:** 50 MB kayıt dosyası → "Büyük dosya — salt okunur" şeridi + satır sayısı +
+      kodlama; kaydırma çubuğunu sürükleyerek hızlı kaydırma takılmıyor, bellek uyarısı/çökme yok.
+- [ ] **Kodlamalar:** `metin_utf8.txt`, `metin_cp1254.txt`, `metin_utf16le.txt` aynı Türkçe metin;
+      düzenle-kaydet sonrası kodlama korunuyor; `noktali_virgul.csv` üç sütun.
+- [ ] **Kod:** 2 MB dosyada renklendirme yazma durunca geliyor, yazarken takılma yok; satır aralığı
+      1,8 → numaralar hizalı; girinti 2/4/8; Ctrl+/ yardım.
+- [ ] **Markdown:** önizleme; tablette (≥ 840 dp) editör | önizleme yan yana, yazdıkça güncel.
+- [ ] **Eski `.doc/.xls/.ppt`:** "SALT OKUNUR" rozeti → "DOCX yap ve düzenle" → yanına `ad.docx`
+      (varsa `ad (2).docx`), Word ekranı açılıyor; `.ppt` → `.pptx`, `.xls` → `.xlsx`.
+- [ ] **Yeni belge** oluşturma (Word/Excel/Slayt/metin) ve "Belgeyi çevir" (Word/Excel/Slayt menüsü).
+
+## 12. Görsel, galeri, video, ses
+
+- [ ] **Galeri:** büyük fotoğraflı klasörde hızlı sağa-sola kaydırma takılmasız, kendiliğinden
+      kapanma yok; 3-4 kat yakınlaştırınca yazı keskin; slayt gösterisi; "Farklı kullan";
+      **EXIF yönü** `orient_6.jpg` / `orient_8.jpg` DİK (sol üst kırmızı), Boyutlandır "Şu an 300×400".
+- [ ] **Görsel düzenleyici 2.0:** Kırp (4:3, 4:5, 3:2, 21:9, A4, Orijinal, Özel; "1080 × 1350"
+      etiketi), serbest açı −45…45, Döndür, yatay/dikey çevir, Ayarla (11 ayar, tek dokunuşla
+      sıfır), 10 filtre + şiddet, kalem/vurgulayıcı/silgi/ok/çizgi/dikdörtgen/elips, yazı nesnesi
+      (sürükle, sağ alt tutamakla büyüt, üst tutamakla döndür, tekrar dokun = düzenle; Tırnaklı,
+      Arka plan; "Şğİ"), bulanıklaştır/pikselleştir (kaydedince plaka okunamıyor), iki parmak
+      yakınlaştır (çizerken ikinci parmak çizgiyi bırakmadan), çift dokunuş sığdır, **Boyut**
+      sekmesi (%50 / 1080 px, en yazınca boy, kırp → boyut → Kaydet doğru ölçü), karşılaştırma
+      simgesine BASILI TUT → özgün; "Kopya olarak kaydet" → `ad (1).jpg`, kayıt önizlemeyle aynı,
+      özgün dokunulmamış; `orient_6.jpg` kırp 1:1 + döndür → kopya dik.
+- [ ] **Boyutlandırma 2.0 (fotoğraf):** galeri → "Boyut" levhası "Boyutlandır (1 dosya)"; genişlik
+      1600 → yükseklik anında (kilit); kilit kapalı 1080×1080 → Doldur ve kırp / Kenar boşluğu
+      (Bulanık) / Esnet; %150 kırmızı uyarı ve çıktı silinmiyor; uzun kenar 1600 dikey (EXIF 6) →
+      1200×1600 DİK; 4:5 + boşluk, 16:9 + kırp; **"≤ 200 KB"** → 3-5 MB fotoğraf ≤ 200 KB, süre
+      makul, iş özetinde boyut; kırpma çapası Üst/Sol/Sağ (Arapça'da da görüntünün solu); canlı
+      önizleme küçük resmi (50 fotoğraflık seçimde levha gecikmiyor); son ayar hatırlanıyor ama
+      "Özgünü çöpe at" HEP kapalı; ön ayar kaydet → kapat-aç duruyor → basılı tut sil; konum
+      kaldır → konum YOK, tarih/kamera VAR.
+- [ ] **HEIC / WebP / GIF:** telefonda çekilmiş HEIC boyutlandırma + düzenleyicide açma; WebP çıktı;
+      `anim.gif` → JPEG kopya, "özgünü çöpe at" uygulanmıyor (kare kaybı uyarısı).
+- [ ] **Video oynatıcı:** `clip.mp4` / `clip.mkv`, büyük mkv/HEVC; `clip.srt` kendiliğinden altyazı
+      (Türkçe bozulmadan); jestler (parlaklık kaydırması, uzun basış 2×, kilit, yatay sarma, tam ekran
+      yatay geçiş); A-B tekrar; dokunmadan beklerken ekran SÖNMÜYOR, duraklatınca normal zaman
+      aşımı; ana ekrana çıkınca duruyor, dönünce kaldığı yerden; kendin duraklattıysan dönüşte
+      BAŞLAMIYOR; **PiP** ("Küçük pencerede oynat", oynarken ana ekrana → kendiliğinden PiP,
+      büyüt → oynatıcı; "diğer uygulamaların üzerinde göster" izni YOK).
+- [ ] **Video küçültme (Media3):** 1080p → 720p 30 fps "Dengeli" → yüzde akıyor, 1280×720 (dikeyde
+      720×1280), süre aynı; "sesi çıkar" sessiz; serbest 1234×568 birebir; iptal → yarım dosya
+      yok; `clip.mkv` → MP4 oynuyor; **oran kipleri** 1920×1080 → 1:1 + Kırp = 1080×1080 ortadan,
+      esneme yok / 1:1 + Kenar boşluğu = siyah şerit; kilit kapalı 1080×1080 dört kip farklı ve
+      doğru; **dosya boyutu hedefi** 1 dk 1080p → "≤ 10 MB" ≈ 10 MB (±%15), "≤ 2 MB" çözünürlüğü de
+      indiriyor, ses duruyor.
+- [ ] **Ses:** müzik klasörü → çal, ekranı kilitle → sürüyor; bildirim/kilit ekranı kontrolleri
+      (sürüklenebilir ilerleme, önceki/sonraki), kulaklık düğmeleri; parça bitince sıradaki;
+      tekrar/karışık (karışık kapat-aç sonrası korunuyor); hız 1,5×; telefon çalınca susuyor;
+      `tagged.mp3/.m4a/.flac` → "Örnek Şarkı", sanatçı · albüm, turuncu kapak.
+- [ ] **Sesli kitap + yapay zekâ sesleri:** Antalia / EMA indir → sesli kitap üret (Android
+      WebView'da ONNX çalışıyor mu, süre); uygulama alttayken üretim sürüyor mu (KALANLAR B3.4);
+      bildirimde "Durdur"; çıktı M4A, Müzik/Sesli Kitaplar'da görünüyor; sesli okumada yapay ses
+      seçilebiliyor.
+- [ ] **AI özet:** hazırlanırken ekrandan çık → bildirim/şeritten açılıyor; tekrar basınca yenisi
+      başlamıyor, kayıtlı özet anında açılıyor.
+- [ ] **Akıllı analiz:** WhatsApp "günaydın" görselleri OCR ile bulunuyor (süre §1).
+
+## 13. Office uyumluluk tablosu (masaüstü — KALANLAR B4)
+
+Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablolar/Slaytlar** ve
+**LibreOffice**'te aç: onarım uyarısı yok + içerik doğru. Sonucu tabloya yaz.
+
+| Dosya / işlem | Beklenen | MS Office | Google | LibreOffice |
+|---|---|---|---|---|
+| `tablo_duzenlendi.docx` | resim, madde işareti, "Mart" 16 pt kalın, "Ayşe Kaya" | | | ✔ (bulut) |
+| Mobil editörde biçimlenmiş .docx (kalın/renk/16 pt/vurgu, Başlık 1, 3 liste türü + liste galerisi, 1,5 aralık, ortala) — `numbering.xml`'siz belgede de | aynı görünüm | | | |
+| .docx: tablo (satır/sütun, bant), resim + alternatif metin, yorum, dipnot, üst/alt bilgi, bağlantı, izlenen değişiklik kabul/ret | yerinde | | | |
+| .docx: Türkçe font/punto seçimi | korunmuş | | | |
+| `satis_duzenlendi.xlsx` | grafik E-M sütunlarında, sayfa sırası *Notlar, Özet* | | | ✔ (bulut) |
+| .xlsx: sayı biçimleri (₺/%/tarih), dolgu/kenarlık/birleştirme, koşullu biçim | biçimler duruyor | | | |
+| .xlsx: `=TOPLA(A1;A2)` gibi Türkçe formül | doğru işlev, `#AD?` yok | | | |
+| .xlsx: Tablo olarak biçimlendir | "Tablo Tasarımı" sekmesi | | | ✔ (bulut) |
+| .xlsx: dondurulmuş bölme + ızgara ayarı + süzgeç okları olan dosyada tek hücre değiştir | hepsi duruyor | | | |
+| .xlsx: gizli sütun, sayfa sağdan sola, sayfa sırası (taşı), sekme rengi | korunmuş | | | |
+| .xlsx: not ekle (deneysel K24) | onarımsız, not görünüyor | | | |
+| .xlsx: kaydedilen dosyanın Drive/dosya yöneticisi önizlemesi | formül SONUÇLARI görünüyor | | | |
+| `sunum_duzenlendi.pptx` | "Gelir %12 arttı" | | | ✔ (bulut) |
+| .pptx: yerinde metin (K/renk/punto), yer tutucuya yazı → başlık, konuşmacı notu (notesMaster'sız destede de) | onarımsız | | | |
+| .pptx: taşı/boyut/döndür, tablo 3×4 + renkler, görsel ekle, sıralama, gizli slayt, çizgi/saydamlık, spAutoFit boyu, Düzeni değiştir, grup içi taşıma | aynı konum/görünüm | | | |
+| PDF → Slayta dönüştür çıktısı | onarımsız açılıyor | | | |
+| Düzenlenen PDF'ler (yerinde metin, kalın/renk, form, imza) | Acrobat/Chrome'da aynı | — | — | — |
+
+## 14. Görünüm, dil, erişilebilirlik, sistem
+
+- [ ] **Temalar:** 4 tema + **Kırık beyaz** (mavisiz, adaçayı vurgu) + **Sistem rengi** (yalnız
+      Android 12+ listede, duvar kâğıdı rengi); eski seçilmiş tema/yazı tipi (Okyanus,
+      Merriweather) güncellemeden sonra Modern/Tinos'a dönmüş; kâğıt temasında büyük yazıda taşma
+      yok, koyu temada kart kenarları görünüyor, Arapça'da cetvel/özet yönü doğru, serif başlık +
+      sans gövde okunaklı.
+- [ ] **Görsel dil (15b — görünüm DEĞİŞMEMELİ):** simge ailesi (çizgi/dolu karışımı yok; kategori
+      simgeleri bilinçli çizgi), Office şeridi beyaz yazı/simge, PDF küçük resimleri beyaz kâğıt,
+      galeri/video perde yazıları, kırpma kılavuzları, bulma vurgusu, yazı boyları önceki sürümle
+      aynı; soluk metin (yol, sayaç, zaman) 4 tema × açık/koyu okunur; Modern açıkta yeşil
       "başarılı" rengi.
-- [ ] **Animasyonları kaldır:** Geliştirici seçenekleri → animasyon ölçekleri
-      kapalı ya da Erişilebilirlik → "Animasyonları kaldır" → sayfa geçişi anında
-      mı; galeri küçük resim şeridi, slayt gösterisi, sohbet kaydırması
-      atlayarak mı gidiyor (çökme/takılma yok).
-- [ ] **TalkBack:** dosya satırı "PDF, Kira sözleşmesi, 117 KB · dün" gibi TEK
-      kez okunuyor mu; TalkBack menüsünde (üç parmak/yerel bağlam menüsü)
-      **"Seç"** eylemi var ve seçim kipini açıyor mu; yol çubuğu hapı adı bir
-      kez okuyor mu; listede etiketsiz "uzun bas" düğümü kalmadı mı.
-- [ ] **Uygulama başına dil (Android 13+):** Ayarlar → Uygulamalar → Dosya
-      Okuyucu → Dil listesinde Türkçe/English/العربية var mı; uygulama içi dil
-      "Sistem"deyken buradan seçilen dil uygulamaya yansıyor mu.
-- [ ] **Arapça:** gezgin/kategori/Son açılanlar/ayarlar aynalanmış mı; alt satır
-      "117 KB · 22 …" sırası doğru mu (sayı/birim karışmıyor); Excel hücre
-      hizası ve PDF çıktısı AYNALANMAMIŞ mı (belge içeriği bilinçli fiziksel).
-- [ ] **Büyük yazı 2,0×:** Ayarlar → Görünüm → yazı boyutu kaydırıcısı %200'e
-      çıkıyor mu; 360 dp'lik telefonda gezgin, Son açılanlar, ayarlar, arama,
-      çöp kutusu taşma şeridi göstermeden kullanılabiliyor mu.
+- [ ] **Onay pencereleri:** "Sil" kırmızı dolgulu, vazgeç solda; yeniden adlandır/yeni klasör
+      penceresinde uzantı seçimin dışında; art arda uyarı şeritleri sıra beklemeden yer değiştirip
+      kayboluyor.
+- [ ] **Animasyonları kaldır** (Erişilebilirlik ya da geliştirici ölçekleri) → geçişler anında;
+      galeri şeridi, slayt gösterisi, sohbet kaydırması atlayarak; çökme yok.
+- [ ] **Büyük yazı:** uygulama içi %200 + sistem %200, 360 dp telefonda gezgin, Son açılanlar, Yeni
+      gelenler, ayarlar, arama, çöp, editör şeritleri taşma şeridi yok.
+- [ ] **TalkBack:** dosya satırı "PDF, Kira sözleşmesi, 117 KB · dün" TEK kez; yerel bağlam menüsünde
+      **"Seç"** eylemi seçim kipini açıyor; etiketsiz "uzun bas" düğümü yok; büyük kopyalamada %10
+      adımlarla duyuru (her saniye değil) — şerit, İşlemler ekranı, ilerleme penceresi; editörler §8–10.
+- [ ] **Dil:** English → dosya yöneticisi, PDF, slayt, sohbet, Excel/Word dahil Türkçe metin
+      KALMAMIŞ; العربية → arayüz aynalı (geri oku, sekme sırası, kaydırıcılar, rozetler, fotoğraf
+      ızgarası grup etiketleri), "117 KB · 22 …" sırası doğru, cihazın Arapça fontu okunur; dil
+      seçimi kapat-aç sonrası korunuyor; "Sistem"de telefon dili izleniyor; **Android 13+ uygulama
+      başına dil** listesinde Türkçe/English/العربية ve oradan seçim yansıyor.
+- [ ] **Sistem entegrasyonu:** açılış ekranı açık/koyu; başlatıcı kısayolları; ana ekran pencere
+      öğesi (son dosyalar); **tahminli geri** (Android 14+ geri jesti önizlemesi, düzenlemeden
+      çıkarken sorma, açık pencereyi önce kapatma); dokunsal geri bildirim.
+- [ ] **İlk açılış ve yardım:** ilk açılış rehberi (seçici kipinde YOK); Yardım/SSS; "Sorun bildir"
+      (hata kaydı sürümle).
+- [ ] **Ayarlar:** Pil ve başarım → "Yüksek tazeleme hızı" kapalı → 60 Hz, tercih korunuyor;
+      Başarım Otomatik/Hafif/Tam (düşük cihazda Hafif varsayılanları); Gemini anahtarı + model
+      listesi API'den kendiliğinden doluyor; güncellemeden sonra anahtar kayıtlı (Keystore göçü).
+- [ ] **Gemini işlevleri (AppFunctions, destekleyen cihaz/Gemini sürümünde):** Gemini'den "son açılan
+      dosyalarım", "… dosyasını bul/aç" → Dosya Okuyucu'da açılıyor; kilitli ve AI kapsamı dışı
+      klasörler dönmüyor.
 
-- [ ] **Word/slayt madde imleri (kullanıcı bildirimi 2026-10-22):** ekran görüntüsündeki
-      ESNEKLİK-REZİLYANS belgesinde "Yastıkların üzerinden atlama…" maddelerinin başında
-      ▯ yerine • görünüyor mu; ok (➢), onay (✓), kare (▪) imli listeler; PowerPoint'te
-      "§"/"Ø" yerine ▪/➢. Düzenleyip kaydedince Word'de madde imleri bozulmuyor mu.
+## 15. Kurulum, kararlılık, kişisel derleme
 
-## KALANLAR'dan taşınanlar (Faz 0, 2026-10-21 — kelimesi kelimesine)
-
-### (başlıksız)
-
-- [ ] **cihaz doğrulaması (kullanıcı) — 2026-10-21 Faz 8/9:** `docs/CIHAZ_TESTI.md` §Faz 8
-      (PDF "Düzenle" kip sayfası, "Yazı ekle", Aa levhası) ve §Faz 9 (Word canlı yazma +
-      tablo hücresi + seçime punto + resim ekle/sil, Excel grafik/köşegen/sayfa taşı,
-      büyük metin, eski .doc dönüştür). Örnek dosyalar `test/fixtures/{pdf,office}/`.
-- [ ] **cihaz doğrulaması (kullanıcı) — 2026-10-21 Faz 2:** (a) eski "Gizli dosyalar"ı olan
-      telefonda Kasa açılınca taşıma kartı çıkıyor mu, "Kasaya taşı" sonrası dosyalar Kasa'da
-      açılıyor ve "Geri çıkar" özgün klasöre (alt klasörleriyle) döndürüyor mu; (b) Ayarlar >
-      PIN değiştir önce eski PIN'i soruyor mu, sonra Kasa yeni PIN'le açılıyor mu; (c) Geçmiş
-      ekranının alt çubuğu ve geri tuşu; (d) Aktar ekranı; (e) seçilmiş eski tema/yazı tipi
-      (ör. Okyanus, Merriweather) güncellemeden sonra Modern/Tinos'a dönmüş mü.
-- [ ] **cihaz doğrulaması (kullanıcı) — 2026-10-18 turu (tarama baştan).** (a) Resimli
-      sayfa taranıp ML Kit'te onaylanınca fotoğraf bozulmadan / dilimlenmeden mi
-      kaydediliyor; (b) stüdyo: Kırp (kenar ortası tutamaçları, büyüteç, "Kenarları bul"),
-      Döndür, Filtre önizlemeleri ve "Tüm sayfalara", sıra sürükleme, Yeniden çek, Sil →
-      "Geri al", başlıkta "Kaydediliyor… → Kaydedildi"; (c) "+" → "Fotoğraftan ekle" ile
-      kırpma; (d) "Uygulamanın kapladığı alan"ın en altındaki "Android uygulama
-      ayarlarını aç" ve öteki listelerin son satırı gezinme çubuğunun üstünde mi; (e) dosya
-      işlem menüsünün hızlı sırası; (f) pano kapsülü (kaydırınca katlanma); (g) biten işin
-      şeritte/bildirimde "… tamamlandı" yazması.
-- [ ] **cihaz doğrulaması (kullanıcı) — 2026-10-17 (3) turu.** (a) Galeri/kategori
-      ekranında seçim yaparken yana kaydırma sayfa DEĞİŞTİRMİYOR, seçim bitince
-      değiştiriyor mu; (b) tarama → 2026-10-18 turunda akış baştan yazıldı, aşağıdaki
-      maddeye bakın; (c) **SD kartla birleşik depolama**: "Şimdi taşı"
-      ilerlemesi, şarja takınca UYGULAMA KAPALIYKEN çalışıyor mu, şarjdan çıkınca
-      duruyor mu, bitiş bildirimi, taşınan fotoğraflar galeride görünüyor mu,
-      Android 10 ve öncesinde "yazılamıyor" uyarısı çıkıyor mu.
-- [ ] **cihaz doğrulaması (kullanıcı) — 2026-09-04 turu.** Telefonda
-      bakılacaklar: (a) uzun bir PDF'i yarıda bırak, kapat, yeniden aç →
-      kaldığın SAYFADAN açılıyor ve "Baştan başla" şeridi çıkıyor mu;
-      (b) Ayarlar > Gezinme > "Listede klasör boyutu"nu aç → klasör
-      satırlarında boyut beliriyor, kaydırma akıcı kalıyor mu; (c) dosya
-      seçince başlıkta toplam boyut doğru mu; (d) aramada son sorgular çip
-      olarak geliyor, çarpıyla siliniyor mu; (e) videoda A-B tekrar:
-      düğmeye iki kez basıp aralığın döndüğünü gör; (f) müzikte karışık
-      kipini aç, uygulamayı kapat-aç → kip KORUNUYOR mu; (g) çok bölümlü bir
-      USB bellekte "Bölüm seç" şeridi çıkıyor ve öteki bölüm açılıyor mu.
-- [ ] **cihaz doğrulaması (kullanıcı) — 2026-08-30 turu.** Bu turda değişenler
-      yalnız CI'da derlendi; telefonda bakılacaklar: (a) dosya listesinde
-      simgelerin üstündeki uzantı yazısı ("XLSX", "DOCX") artık NET mi —
-      bulanıklığın kök nedeni yazının birim karede dizilmesiydi; (b) Drive'da
-      büyük bir dosya indirirken "Arka plana al" ve "Durdur" çalışıyor mu,
-      durdurulan indirme klasörde yarım dosya BIRAKMIYOR mu; (c) PDF'te
-      yerinde düzenlemede satırın biraz üstüne/altına dokunmak imleci o
-      sütuna taşıyor mu, ◀ ▶ okları tek karakter ilerletiyor mu; (d) art arda
-      çıkan uyarı şeritleri artık sıra beklemeden birbirinin yerine geçip
-      kendiliğinden kayboluyor mu; (e) PDF düzenleyicide görsel seçip
-      döndür/ayna — görsel merkezinde dönüyor mu, iki kez döndürülebiliyor
-      mu; (f) **PDF çevir → "belgenin kendisi"** — çıkan belge özgününün
-      düzeninde mi, kaç paragrafın atlandığı doğru mu yazıyor (Türkçe→Arapça
-      gibi bir çiftte gömülü font harfleri taşımadığı için çoğu paragrafın
-      atlanması BEKLENEN davranış).
-- [ ] **Slayt ↔ PDF cihaz doğrulaması (kullanıcı)** — 2026-08-08:
-      (a) bir `.pptx` aç → alt çubukta **PDF** → üretilen PDF'te slaytlar
-      **ekrandakiyle birebir** mi (şekiller, renkler, görseller yerinde mi),
-      (b) o PDF'te **yazı seçilip kopyalanabiliyor** ve aranabiliyor mu
-      (görünmez metin katmanı), (c) görsel içeren bir slayt PDF'te boş
-      çıkıyor mu (çıkıyorsa önbellek/kare bekleme yetmemiş demektir),
-      (d) çok slaytlı (20+) bir destede bellek/donma sorunu var mı,
-      (e) bir **PDF** aç → ⋮ → **Slayta dönüştür** → çıkan `.pptx`
-      düzenleyicimizde açılıyor mu, (f) aynı dosya **PowerPoint / Google
-      Slaytlar**'da onarım uyarısı olmadan açılıyor mu (en kritik madde —
-      paket geçerliliği yalnız orada kanıtlanır), (g) bölme mantıklı mı
-      (başlıklar başlık, her cümle ayrı slayt değil).
-- [ ] **KALANLAR turu cihaz doğrulaması (kullanıcı)** — 2026-08-08:
-      (a) Ayarlar > **Dil** > English seç → **dosya yöneticisi, PDF, slayt ve
-      sohbet** ekranlarında da artık Türkçe metin KALMAMALI, (b) bir video
-      izlerken ekrana dokunmadan bekle → **ekran sönmemeli**; duraklatınca
-      normal zaman aşımına dönmeli, (c) bir dosyayı kopyala → **aynı adlı
-      dosyanın olduğu** klasöre yapıştır → İkisini de tut / Atla / Üzerine yaz
-      soruluyor mu, üçü de doğru davranıyor mu, (d) Dosya yöneticisi ayarları >
-      **Açılış klasörü** bir klasör seç → uygulamayı kapat-aç → doğrudan orada
-      açılıyor mu, (e) bir mp3 aç → **kapak resmi, sanatçı ve albüm** geliyor
-      mu, (f) Belgeler listesinde **PDF'ler kapak sayfalarıyla** mı görünüyor,
-      çok PDF'li klasörde kaydırma akıcı mı.
-- [ ] **Pil/başarım turu cihaz doğrulaması (kullanıcı)** — 2026-08-07 (7):
-      (a) çok sayıda büyük fotoğrafı olan bir klasörde galeriyi aç, sağa-sola
-      hızlı kaydır → takılma/kasma AZALDI mı, uygulama artık kendiliğinden
-      kapanıyor mu (eskiden tam çözünürlük belleği şişiriyordu), (b) bir
-      fotoğrafı 3-4 kat **yakınlaştırınca yazı hâlâ keskin** mi (çözünürlük
-      kademeli artıyor), (c) bir video aç → ana ekrana çık → **ses/görüntü
-      duruyor** mu, uygulamaya dönünce kaldığı yerden devam ediyor mu,
-      (d) videoyu KENDİN duraklat → arkaya al → dön: kendiliğinden BAŞLAMAMALI,
-      (e) çöp kutusu doluyken panodaki kutunun nefes alması birkaç saniye sonra
-      duruyor mu (sonsuza kadar oynamamalı), (f) Ayarlar > **Pil ve başarım** →
-      "Yüksek tazeleme hızı"nı kapat → kaydırma hissi 60 Hz'e düşüyor mu,
-      uygulamayı kapatıp açınca tercih korunuyor mu.
-- [ ] **2026-08-02 (5. tur) arayüz cihaz doğrulaması (kullanıcı).**
-      (a) Excel biçim çubuğu artık kısa mı (Kalın · İtalik · Hizalama ·
-      Sayı biçimi · Σ · **Daha fazla**) ve yatayda kaydırmaya gerek kalmıyor
-      mu, (b) **Daha fazla** sayfası açılıp Pano/Sayı/Satır/Sütun grupları
-      ETİKETLİ görünüyor mu, dokununca sayfa kapanıp iş yapılıyor mu,
-      (c) hizalama menüsü etkin hizalamayı işaretli gösteriyor mu,
-      (d) PDF'te üst çubuk daha ferah mı, döndürme ⋮ menüsünde bulunuyor mu,
-      (e) belge başlığı artık kırpılmadan okunuyor mu.
-      **Sonraki adım (istenirse):** aynı kural Word ve slayt biçim
-      çubuklarına da uygulanabilir — ikisi şu an sınırda (9 ve 11 kontrol).
-- [ ] **2026-08-02 (3-4. tur) cihaz doğrulaması (kullanıcı).**
-      **Excel:** (a) bir sütun seç → biçim çubuğundaki **#** menüsünden
-      *Para (₺)* / *Yüzde* / *Tarih* seç → hücreler o biçimde görünüyor mu,
-      (b) **kaydet → masaüstü Excel'de aç**: biçimler DURUYOR mu (en kritik
-      madde — eski yol dosyayı hiç kaydettirmiyordu), (c) **ondalık artır/
-      azalt** düğmeleri çalışıyor mu, (d) biçim verilen hücrenin kalın/renk/
-      kenarlığı BOZULMADI mı, (e) hepsi **geri al** ile geri dönüyor mu.
-      **Word:** (f) akış (Mobil) görünümünde bir paragrafı **sil** → üstteki
-      **geri al** paragrafı KENDİ yerine geri getiriyor mu (sona değil),
-      (g) paragraf **ekle** → geri al onu kaldırıyor mu, (h) yazarken
-      klavyenin kendi geri alması hâlâ çalışıyor mu.
-
-### Excel "gerçek mobil Excel gibi olsun" — kalan yol haritası
-
-- [ ] **2026-08-02 (2. tur) cihaz doğrulaması (kullanıcı) — Excel düzenleme.**
-      Bir .xlsx aç: (a) bir hücreye yaz → üstteki **geri al** oku eski değeri
-      geri getiriyor, **yinele** tekrar yazıyor mu, (b) aralık seç → **kopyala**
-      → başka yere **yapıştır**; formül yapıştırınca başvurular kaydı mı
-      (`=A1*2` bir sağa → `=B1*2`), (c) **kes** → yapıştır: kaynak yapıştırınca
-      mı boşalıyor, (d) seçimin **sağ alt köşesindeki küçük kare** parmakla
-      aşağı sürüklenebiliyor mu (sayfa kaymadan!), 1-2 yazıp sürükleyince
-      3,4,5 geliyor mu, "Ocak" sürükleyince "Şubat" geliyor mu, (e) sayı
-      sütununun altına **Σ** basınca doğru aralığı topluyor mu, (f) 🔍 →
-      **Tümünü değiştir** çalışıp tek geri alma adımında geri alınıyor mu,
-      (g) satır/sütun **sil** → geri al: veri VE biçim geri geliyor mu,
-      (h) uygulamadan kopyalayıp **başka bir uygulamaya** (Not Defteri/Excel)
-      yapıştırınca tablo düzgün mü (sekmeyle ayrılmış).
-
-### Yarım kalan
-
-- [ ] **2026-08-02 turu cihaz doğrulaması (kullanıcı) — slayt şekilleri.**
-      İçinde süreç/akış diyagramı olan gerçek bir .pptx aç: (a) **oklar, üçgen,
-      elmas, chevron, yıldız, altıgen, artı, silindir, akış şeması kutuları
-      artık kendi biçiminde mi** (eskiden hepsi düz dikdörtgendi), (b) **geniş
-      bir elips** (basık oval) artık daire değil oval mi, (c) kırpılmış bir
-      **fotoğraf doğru kadrajda ve doğru en-boy oranında** mı, (d) kenarlıklı
-      bir fotoğrafın **çerçevesi görünüyor** mu, (e) yuvarlatılmış dikdörtgenin
-      köşe yuvarlaklığı PowerPoint'tekiyle aynı mı, (f) aynalanmış (flipH/flipV)
-      bir ok/üçgen doğru yöne bakıyor mu, (g) konuşma balonunun kuyruğu var mı.
-      **Bilinen sınır:** bulut (`cloud`) ve gözyaşı (`teardrop`) yaklaşık
-      çiziliyor; `bentArrow`/`circularArrow`/`ribbon` gibi tanımsız geometriler
-      hâlâ dikdörtgen düşüyor (bilinçli — yanlış biçim yerine kutu).
-- [ ] **2026-08-01 turu cihaz doğrulaması (kullanıcı)** — (a) slaytta her kartın
-      üstünde ve sağ alt rozette **"Slayt 3 / 12"** yazıyor mu, rozete
-      dokununca "Slayta git" açılıp o slayda ATLIYOR mu (yakınlaştırılmış
-      hâlde de doğru yere), (b) üstteki 🔍 ile aranan kelime bulunuyor,
-      ‹ › eşleşmeler arasında geziyor, altındaki bağlam satırı hangi slaytta
-      olduğunu söylüyor mu, (c) alt çubuktaki **AI özet** → "Kısa"/"Detaylı"
-      seçenekleri geliyor ve özet slayt numaralarına atıf yapıyor mu,
-      (d) slaytta bir metin kutusuna dokunup düzenlemeye geçince **geri tuşu**
-      ekrandan çıkmak yerine düzenlemeyi kapatıyor mu (Word'de de aynı),
-      (e) Word'de **yakınlaştırınca yazı keskin mi** (pinch artık JS/CSS zoom;
-      bulanıklık gitmeli), ölçek rozeti (%) çıkıyor mu, (f) Word biçim
-      çubuğundaki **yazı tipi/punto** seçimi paragrafa uygulanıp KAYDEDİLİYOR
-      mu (kaydet → Word'de aç → font ve punto korunmuş olmalı), (g) Word'de
-      sol alt **"Sayfa 3 / 12"** rozeti doğru sayıyor ve dokununca o sayfaya
-      gidiyor mu, (h) Excel durum çubuğunun sağında **"Sayfa 1 / 3"** var mı,
-      (i) **dondurulmuş bölmesi olan** bir Excel dosyasında tek hücre değiştirip
-      kaydet → masaüstü Excel'de aç → bölme, ızgara ayarı ve süzgeç okları
-      DURUYOR mu.
-      **2. tur (aynı gün, kullanıcı ekran görüntüsü üzerine):** (j) Word'de
-      belge açılır açılmaz sayfa **ekran genişliğini DOLDURUYOR** mu (önceden
-      %59'unu kaplıyordu, yazı bu yüzden okunaksızdı), (k) slaytta konum rozeti
-      ve Word'de sayfa rozeti artık **ortada** — AI düğmesi hiçbirini kesmiyor,
-      Word'de zoom düğmeleri de solda ve FAB'ın altında kalmıyor.
-- [ ] **Google Drive cihaz doğrulaması (kullanıcı)** — 2026-07-30: Pano →
-      Araçlar → **Google Drive** → (a) "Google ile bağlan" hesap seçtiriyor ve
-      Drive izni soruyor mu, (b) bir dosyaya uzun bas → **Drive'a yükle** →
-      dosya gerçekten Drive'a çıkıyor mu, (c) Drive ekranında o dosya
-      listeleniyor mu, dokununca inip AÇILIYOR mu, (d) kapsam şeridi
-      ("yalnız bu uygulamayla yüklediğiniz…") okunuyor mu, (e) silme çalışıyor
-      mu, (f) **google-services.json yoksa** giriş penceresi hiç açılmıyor
-      olmalı — çökme DEĞİL. NOT: Drive, Firebase ile aynı OAuth istemcisini
-      kullanıyor; Firebase kurulmamışsa Drive da çalışmaz (FIREBASE_SETUP.md).
-- [ ] **NAS cihaz doğrulaması (kullanıcı)** — 2026-07-30: Pano → Araçlar →
-      **Ağ depolama** → (a) **Ağda ara** telefonun Wi-Fi'sindeki NAS'ı buluyor
-      mu (mDNS + port taraması), (b) elle eklenen SFTP/FTP/FTPS/WebDAV
-      bağlantısı **Bağlantıyı sına** ile yeşil veriyor mu, (c) klasörler
-      geziliyor, dosya dokununca inip AÇILIYOR mu, (d) **Buraya yükle** /
-      yeni klasör / yeniden adlandır / sil çalışıyor mu, (e) parola kaydetme
-      KAPALIYKEN her bağlanışta soruluyor mu, (f) yanlış adres/parola
-      ANLAŞILIR hata veriyor mu (ham SocketException değil).
-- [ ] **"Ağdan erişim" cihaz doğrulaması (kullanıcı)** — 2026-08-29'da
-      yeniden yazıldı. Pano → araçlar → **Ağdan erişim** → **BAŞLAT** →
-      (a) ekranda `ftp://<ip>:2121`, kullanıcı adı ve parola yazıyor mu,
-      (b) PC'nin dosya gezginine bu adres yazılınca **kök telefondaki
-      kutuları** gösteriyor mu (Telefon · Indirilenler · Kamera · Resimler ·
-      Videolar · Ses · Belgeler · Arsivler · Uygulamalar), kutulara girince
-      dosyalar listeleniyor, inip yükleniyor mu, (c) **uygulamadan çıkıp başka ekranda gezerken /
-      ekran kapalıyken aktarım sürüyor mu** (asıl düzeltilen şey bu),
-      (d) bildirim panelinde kalıcı bildirim duruyor ve dokununca ekrana
-      götürüyor mu, (e) panonun üstündeki "Ağdan erişim açık" şeridi
-      görünüyor ve **Kapat** çalışıyor mu, (f) *Yazma izni* kutusu kapalıyken
-      PC'den silme reddediliyor mu, (g) *Gizli dosyaları göster* kapalıyken
-      `.` ile başlayan klasörler PC'de görünmüyor mu, (h) uygulamayı son
-      kullanılanlardan kapatınca paylaşım ve bildirim kayboluyor mu.
-- [ ] **Dil desteği cihaz doğrulaması (kullanıcı)** — 2026-07-30: Ayarlar →
-      **Dil** → English / العربية seç → (a) ana ekran, alt sekmeler, Ayarlar,
-      Excel ve Word ekranları o dilde mi, (b) **Arapça'da arayüz sağdan sola**
-      mı akıyor (geri oku, sekme sırası, kaydırıcılar), (c) Arapça'da yazı
-      tipi okunur mu (cihazın Arapça fontu), (d) dil seçimi uygulamayı
-      kapatıp açınca korunuyor mu, (e) "Sistem" seçiliyken telefon dili
-      İngilizce/Arapça ise uygulama o dilde mi açılıyor.
-- [ ] **Sağdan sola Excel/Word cihaz doğrulaması (kullanıcı)** — 2026-07-30:
-      (a) Arapça bir .xlsx aç → A sütunu SAĞDA mı, kaydırma sağ kenardan mı
-      başlıyor, hücre metni sağa mı yaslı, sayılar sola mı, (b) ⋮ > **Sayfa
-      sağdan sola** ile yön değişiyor mu, kaydedip Excel'de açınca korunuyor
-      mu, (c) gizlediğin sütunu kaydedip Excel'de aç → gizli KALMALI,
-      (d) Arapça bir .docx aç → sayfa görünümünde metin sağdan mı akıyor,
-      Arapça harfler kutu (tofu) çıkmıyor mu, (e) ⋮ > Metin düzenleyicide
-      paragraflar sağa yaslı mı.
-- [ ] **2026-07-28 turu cihaz doğrulaması (kullanıcı)** — (a) resmi PDF'te
-      *Düzenleyici → Metin* → paragrafa dokun → artık ne "metin dışı çizim var
-      (ET)" ne de "(Q)" uyarısı ÇIKMAMALI; (b) **ortalı** bir başlığı (DAĞITIM
-      gibi) kısalt/uzat → sayfada ORTALI kalmalı; (c) *Görsel* modunda armayı
-      taşı → KESİLMEMELİ; (d) Word'de alt çubuktaki **Mobil** düğmesi → yazı
-      okunur boyuta gelmeli, **Sayfa** ile geri dönmeli, düzenleme hâlâ
-      çalışmalı; (e) Word/Excel/slayt/görüntüleyicide üstteki ⋮ ve simgelerde
-      artık alttakilerin ikizi OLMAMALI, ama Word/Slaytta düzenlemeye geçince
-      üstte **Kaydet** görünmeli.
-- [ ] **PDF editörü cihaz doğrulaması (kullanıcı)** — 2026-07-27: PDF aç → alt
-      çubuk **Düzenleyici** → (a) *Metin* modunda paragraf kutuları çıkıyor mu,
-      dokununca pencere açılıp özgün metni üstte gösteriyor mu, "Uygula" sonrası
-      sonuç sayfada HEMEN görünüyor mu, yazı tipi/punto/hizalama korunuyor mu,
-      (b) kelimeyi uzatınca satır düzgün sarıyor mu, kısaltınca boşluk düzgün mü,
-      (c) *Görsel* modunda logo/QR seçilip sürükleniyor/boyutlanıyor/siliniyor mu,
-      (d) *Filigran* modunda "KOPYADIR" benzeri damga listeleniyor ve
-      kaldırılıyor mu, gerçek içerik listede ÇIKMAMALI, (e) *Sayfa* modunda
-      90° sağa/sola dönüyor mu, (f) **Geri al** işe yarıyor mu, (g) **Kaydet** →
-      "Üzerine yaz / Kopyasını kaydet / Klasör seç" ve "AÇ" düğmesi çalışıyor mu,
-      (h) kaydetmeden çıkınca özgün dosya DEĞİŞMEMİŞ olmalı.
-- [ ] **Okuma deneyimi cihaz doğrulaması (kullanıcı)** — 2026-07-25 Faz 4: PDF aç →
-      (a) ay simgesi gece modunu açıyor mu, sayfa ters renkte okunaklı mı,
-      (b) içindekiler (☰ simgesi) olan bir PDF'te başlığa dokununca o sayfaya
-      gidiyor mu, olmayan belgede "içindekiler yok" diyor mu, (c) içinde köprü
-      olan PDF'te bağlantıya dokununca ONAY penceresi tam adresi gösteriyor mu,
-      "Aç" tarayıcıyı açıyor mu, iç bağlantı sayfaya atlıyor mu, (d) ⋮ "Sesli oku"
-      → Türkçe okuyor mu, duraklat/devam/durdur çalışıyor mu, ekrandan çıkınca
-      susuyor mu (dispose), (e) taranmış PDF'te "önce OCR" uyarısı geliyor mu.
-- [ ] **İmza cihaz doğrulaması (kullanıcı)** — 2026-07-25 Faz 2: PDF aç → ⋮
-      "İmzala" → (a) imza penceresi çiziyor mu, "Tamam" sonrası imza HATIRLANIYOR
-      mu (ikinci kez sormamalı), (b) imza kutusu parmakla sürüklenip kaydırıcıyla
-      büyüyor mu, (c) "Bas" sonrası imza sayfada TAM gördüğünüz yerde mi,
-      (d) yakınlaştırınca keskin mi (vektör), (e) **döndürülmüş sayfada** (araçlardan
-      90° döndürüp imzalayın) imza yan yatık ya da başka köşede mi çıkıyor —
-      koordinat çevirisi birim testli ama cihazda görsel teyit edilmedi.
-- [ ] **Belge tarayıcı cihaz doğrulaması (kullanıcı)** — 2026-07-25 Faz 3: ana
-      ekranda "Belge Tara" → (a) Google tarayıcı arayüzü açılıyor mu, kamera izni
-      soruluyor mu, (b) kenar tespiti + kırpma + filtre "tarayıcıdan çıkmış gibi"
-      mi, (c) çok sayfa çekip tek PDF oluyor mu, (d) "Yazıları da tanı" seçilince
-      PDF içinde arama çalışıyor mu, (e) belge Son belgeler'de görünüyor mu,
-      (f) PDF Araçları ⋮ "Sayfa tara ve ekle" mevcut belgeye ekliyor mu.
-      **Play Services olmayan cihazda** paketin yedek tarayıcısına düşmeli.
-- [ ] **PDF Araçları cihaz doğrulaması (kullanıcı)** — 2026-07-25 Faz 1: ana ekran
-      PDF simgesi / görüntüleyici ⋮ "PDF araçları" → (a) sayfa küçük resimleri
-      geliyor mu, (b) seç → döndür/sil/öne-arkaya taşı doğru sayfaya mı uyguluyor,
-      (c) "Çıkar" seçili sayfaları ayrı PDF olarak paylaşıyor mu, (d) "Başka PDF
-      ekle" birleştiriyor mu, (e) parola koy → uygulamayı kapat-aç → parola soruyor
-      mu, parolayı kaldır çalışıyor mu, (f) sıkıştır boyutu düşürüyor mu (taranmış
-      PDF'te kazanç KÜÇÜK olabilir, beklenen), (g) Kaydet sonrası görüntüleyici
-      belgeyi tazeliyor mu.
-- [ ] **Çeviri/resim-PDF/premium cihaz doğrulaması (kullanıcı)** — 2026-07-24,
-      build 89'da: (a) PDF'te metin seç → "Çevir" → dil modeli iniyor mu, çeviri
-      geliyor mu; (b) Word/Excel/Slayt menüsünde "Belgeyi çevir"; (c) bir resim
-      açıp "PDF'e dönüştür" → "Yazıları da tanı" → çıkan PDF'te resim TAM ve
-      içindeki yazı aranabilir mi; (d) .apk dosyasına "birlikte aç" deyince
-      uygulamamız artık listede ÇIKMIYOR mu (asıl şikayet); (e) WhatsApp'tan
-      gelen dosya hâlâ açılıyor mu (octet-stream riski — HAFIZA'da yazılı);
-      (f) premium görünüm: kart/liste/boş durum, koyu tema kontrastı.
-- [ ] **PDF Faz 2 vurgu cihaz doğrulaması (kullanıcı)** — yerel build telefona
-      KURULDU (2026-07-23, adb install başarılı, debug-imzalı). "Metin seç" →
-      renk seç (sarı/yeşil/pembe/mavi) → Vurgula → (a) vurgu SEÇİLEN metnin tam
-      üstüne oturuyor mu (koordinat Y-flip), (b) kaydettikten sonra aynı sayfada
-      yeniden yükleniyor mu (ValueKey), (c) kapatıp açınca vurgu kalıcı mı.
-      **Not:** kaldır+kur ile kuruldu → Gemini API anahtarı ve son dosyalar listesi
-      sıfırlandı, Ayarlar'dan anahtarı tekrar gir. Push yapılmadı, main/CI eski.
-- [ ] **Cihaz doğrulaması (kullanıcı)** — 2026-07-23 14:30'da yerel derleme telefona
-      kuruldu, içindekiler test edilmedi: Excel hücre içi yazma (seçili hücreye
-      ikinci dokunuş), slaytta yerinde metin düzenleme, PDF seçim tutamaçları,
-      Gemini model listesinin Ayarlar'da otomatik dolması. Ayrıca eski liste:
-      WhatsApp "birlikte aç", odak-noktalı pinch, Word tam sayfa sığdırma,
-      eski .doc/.xls/.ppt açma, arama, yeni belge, slayt çoğalt/sil/taşı.
-- [ ] **PDF arama cihaz doğrulaması (kullanıcı)** — Faz 1 (belge içi arama + sayfaya
-      atlama + sarı vurgu) main'de/build'de: gerçek PDF'te arama sonuçları doğru
-      vurgulanıp sonraki/önceki ile o sayfaya kayıyor mu? (pdfrx PdfTextSearcher).
-- [ ] **Slayt sadakati cihaz doğrulaması (kullanıcı)** — Faz 1-3 yerelde test
-      yeşil (204) ama GÖRSEL cihazda bakılmadı (2026-07-23): gömülü fontlarla
-      metin görünümü + **değişken-Arimo kalın** (Arial kalın doğru mu?),
-      bağlayıcı okları/kesik çizgi, dış gölge, grafiklerin (sütun/çubuk/pasta/
-      halka/çizgi) gerçek .pptx'te doğru veri+renk+oranla çizilmesi.
-- [ ] **Word sadakati cihaz doğrulaması (kullanıcı)** — 2026-07-24 WebView'a MS font
-      ikamesi (Calibri→Carlito, Times→Tinos, Arial→Arimo `@font-face`) + Word sayfa
-      kırma konumları (`ignoreLastRenderedPageBreak:false`) + tam A4 yükseklik
-      (`ignoreHeight:false`) eklendi. Gerçek Calibri/Times/Arial'lı .docx'te: (a)
-      satır/sayfa kırılımı Word ile aynı yerde mi, (b) yazı yerel/doğru görünüyor mu,
-      (c) `../fonts/` file:// erişimi cihazda fontları gerçekten yüklüyor mu (script'ler
-      yükleniyor → beklenen evet). Yerelde flutter yok, CI test+APK yeşil olmalı.
-- [ ] **PPTX sadakati cihaz doğrulaması (kullanıcı)** — 2026-07-24: p:style tema
-      dolgu/çizgi referansı, görsel flipH/flipV, spcPts/spcAft satır aralığı, tablo
-      kenar-başına kenarlık eklendi (birim testli, CI yeşil olmalı). Gerçek .pptx'te:
-      (a) tema temelli renkli şekiller artık dolu mu (eskiden boştu), (b) aynalanmış
-      görseller doğru yönde mi, (c) tablo yalnız tanımlı kenarları mı çiziyor.
-
-### Dosya yöneticisi (2026-07-25) — cihaz doğrulaması gereken/ertelenen işler
-
-- [ ] **İzin akışı (kullanıcı, cihaz):** ilk açılışta "Tüm dosyalara erişim" kartı →
-      Android ayar sayfası → geri dönünce tarama otomatik başlıyor mu. Reddedilirse
-      medya izinleriyle en azından Görüntüler/Video/Ses görünüyor mu.
-- [ ] **Uygulama boyutu cihaz doğrulaması (kullanıcı)** — 2026-08-05: Pano →
-      **Uygulamalar** → (a) liste boyuta göre mi sıralı, boyutlar Ayarlar →
-      Uygulamalar'daki sayılarla tutuyor mu, (b) "Kullanım erişimi" izni YOKKEN
-      boyut yerine sıfır DEĞİL hiçbir şey gösteriliyor mu, izin verilince
-      hemen geliyor mu, (c) satırdaki klasör düğmesi doğrudan "Depolama ve
-      önbellek" sayfasına iniyor mu (MIUI), (d) Bellek Analizi'ndeki
-      **Uygulamalar kartı** toplamı Ayarlar'daki toplamla yakın mı.
-- [ ] **Hızlı süzgeç cihaz doğrulaması (kullanıcı)** — 2026-08-05: Belgeler /
-      Videolar ekranında (a) üstte WhatsApp/Telegram/Kamera çipleri sayılarıyla
-      çıkıyor mu, (b) **"6 aydır açılmamış"** çipi mantıklı bir sonuç veriyor
-      mu — cihazın `atime` tutup tutmadığına bağlı, tutmuyorsa liste "eski
-      dosyalar"a dönüşür (bilinçli sınır).
-
-### PDF turu sonrası kalanlar (2026-07-26, 2. tur sonrası güncel)
-
-- [ ] **Cihaz doğrulaması bekliyor:** vurgulama, uzun basışla metin seçimi,
-      2/4 sütun düzeni, kaydırma çubuğu, taramada köşe ayarı + döndürme,
-      yerinde metin düzenleme. Hiçbiri birim testle doğrulanamaz
-      (pdfium render + dokunma + kamera).
-
-### Kağıt teması — 2. tur devir notundan kalanlar (2026-08-05)
-
-- [ ] **Cihaz doğrulaması (kullanıcı):** kağıt temasında (a) büyük sistem yazı
-      tipinde taşma var mı, (b) koyu temada kart kenarlıkları görünüyor mu,
-      (c) Arapça (RTL) düzende cetvel çizgileri ve sağdaki özet değerler doğru
-      yönde mi, (d) serif başlık + sans gövde okunaklı mı.
-
-## 2026-10-22 — Faz 17–19, 11a, sesli kitap, QR, akıllı analiz (cihazda bakılacak)
-- [ ] Seçici (başka uygulamadan "dosya seç") açılıp kapandıktan sonra ayarlar kaydediliyor mu (shared_preferences çökmesi)
-- [ ] Excel hücresinde yazarken mavi çerçeve YOK; Word/slayt kutusunda da
-- [ ] Yapay zekâ sesleri: Antalia/EMA indir → sesli kitap üret (Android WebView'da ONNX çalışıyor mu, süre)
-- [ ] Sesli kitap M4A'ya dönüşüyor mu (Media3 yalnız-ses), Müzik/Sesli Kitaplar'da görünüyor mu
-- [ ] Akıllı analiz: WhatsApp "günaydın" görselleri OCR ile bulunuyor mu, süre (1.500 görsel)
-- [ ] QR paylaşım (metin alt yolu): Paylaş → QR ile paylaş → "Metni QR'ın içine koy" → başka telefonun kamerası Türkçe metni doğru gösteriyor mu
-
-### QR ile dosya paylaş (2026-10-22 — İKİ telefon gerekir)
-- [ ] **Aynı Wi-Fi, uygulamasız alıcı:** bir PDF → Paylaş → 3. seçenek "QR ile paylaş" → karşı
-      telefonun KAMERASI kodu okuyor, tarayıcıda dosya adı + "İndir" sayfası açılıyor, iniyor;
-      gönderende "İndirildi: 1".
-- [ ] **Aynı Wi-Fi, Dosya Okuyucu'lu alıcı:** Aktar → Telefonla → Al → "QR kodu tara" (kamera
-      izni SORULMAMALI, Google tarayıcısı açılır) → dosya "Kaydet" klasörüne iniyor, listede görünüyor.
-- [ ] **Ortak Wi-Fi yok (hotspot):** gönderenin Wi-Fi'si kapalıyken ekran kendiliğinden geçici
-      ağ kuruyor (Android 13+ "Yakındaki cihazlar" izni sorulur) → 1. kod kamerayla okutulunca
-      karşı telefon ağa bağlanıyor → 2. kod tarayıcıda açılıyor ve iniyor.
-      **Risk (tahmin):** internetsiz ağda alıcının tarayıcısı mobil veriden gitmeye çalışabilir —
-      açılmazsa alıcının mobil verisini kapatıp dene ve sonucu yaz.
-- [ ] **Hotspot + uygulamalı alıcı:** "QR kodu tara" → 2. kod → sistem "ağa bağlan" onayı → dosya
-      iniyor; iş bitince alıcı telefon eski Wi-Fi'sine/mobil veriye dönüyor.
-- [ ] Ekrandan çıkınca geçici ağ kapanıyor (Wi-Fi listesinde DIRECT-/AndroidShare ağı kalmıyor).
-- [ ] Klasör paylaşımı ZIP olarak iniyor.
-- [ ] Tahminli geri (Android 14+): geri jesti önizlemesi, düzenlemeden çıkarken sorma
-- [ ] Açılış ekranı açık/koyu, başlatıcı kısayolları, Sistem rengi teması (Android 12+)
-- [ ] Video: parlaklık kaydırması, uzun basış 2×, kilit, yatay sarma; galeri slayt gösterisi, Farklı kullan
-- [ ] Okuma kipi: PDF/Word'de çubuklar kaydırınca gizleniyor mu; Tam ekran
-- [ ] HEIC fotoğraf boyutlandırma, WebP çıktı
-- [ ] Gemini anahtarı güncellemeden sonra kayıtlı kalıyor mu (Keystore göçü)
-
-## Faz 14b + 15b + 16 devamı + slayt görseli (2026-10-23 — bulut turu, cihazda bakılacak)
-- [ ] **Video oran kipi (Media3 düzen):** yatay 1920×1080 video → En-boy oranı 1:1 + Kırp →
-      çıktı 1080×1080, görüntü ORTADAN kırpılmış, esneme YOK; aynı video 1:1 + Kenar boşluğu →
-      1920×1920, üst/alt SİYAH şerit. (Eskiden kilit kapalı ölçü videoyu sessizce esnetiyordu.)
-- [ ] **Video piksel kilit kapalı 1080×1080:** Sığdır / Doldur ve kırp / Kenar boşluğu / Esnet
-      dört farklı ve doğru çıktı.
-- [ ] **Video dosya boyutu hedefi:** 1 dk 1080p video → "≤ 10 MB" → çıktı ~10 MB (±%15);
-      "≤ 2 MB" seçince çözünürlük de iniyor mu (iş özetinde ölçü), ses duruyor mu.
-- [ ] **Kırpma çapası (fotoğraf):** dikey portre → 1:1 + Kırp + "Üst" → yüz korunuyor mu;
-      "Sol/Sağ" yatay fotoğrafta doğru kenarı tutuyor mu (Arapça arayüzde de "Sol" görüntünün solu).
-- [ ] **Canlı önizleme:** levhanın üstündeki küçük resim oran/kırp/boşluk seçtikçe anında
-      değişiyor mu; bulanık zemin görünüyor mu; 50 fotoğraflık seçimde levha açılışı gecikmiyor mu.
-- [ ] **Ön ayar kaydet/sil:** "Ayarı kaydet" → ad ver → çip görünüyor; uygulamayı kapat-aç →
-      çip duruyor; basılı tut → sil onayı → gidiyor. "Özgünü çöpe at" ön ayarla gelmiyor.
-- [ ] **Konum bilgisini kaldır:** konumlu kamera fotoğrafı → anahtar açık → çıktıyı galeri
-      bilgisinde aç: konum YOK, tarih/kamera VAR; anahtar kapalı → konum duruyor.
-- [ ] **Görsel düzenleyici "Boyut" sekmesi:** 4. sekme; %50 / 1080 px çipleri, en yazınca boy
-      anında; kırp → boyut → Kaydet → dosya beklenen ölçüde mi. Kırpma kutusunda "1080 × 1350"
-      etiketi; yeni oranlar (4:5, 3:2, 21:9, A4, Orijinal, Özel "4:5"); üstteki karşılaştırma
-      simgesine BASILI TUT → özgün görünüyor, bırakınca düzenlenmiş.
-- [ ] **Slayta görsel ekle:** slayt ⋮ → "Görsel ekle" → galeriden resim → slaytın ortasında,
-      oranı doğru; Kaydet → dosyayı PowerPoint/Google Slaytlar'da aç → görsel orada, taşınabiliyor.
-- [ ] **Görsel dil taşıması (15b — görünüm DEĞİŞMEMELİ):** simgeler, Office şeridi (marka zemini
-      üstü beyaz yazı/simge), PDF sayfa küçük resimleri (beyaz kâğıt), galeri/video perde yazıları,
-      kırpma kılavuzları, bulma vurgusu (sarı/turuncu) önceki sürümle aynı mı. Yazı boyutları:
-      ayarlar, AI merkezi, çöp kutusu alt satırları aynı boyda mı (13 pt'lik satırlar 13 kaldı).
-- [ ] **Onay pencereleri (15b):** silme/boşaltma pencerelerinde "Sil" artık kırmızı dolgulu düğme,
-      vazgeç solda; yeniden adlandır / yeni klasör adı penceresinde uzantı seçimin dışında.
-- [ ] **TalkBack — iş ilerlemesi (16):** büyük kopyalamada şerit %10 adımlarla duyuruluyor mu
-      (her saniye konuşmamalı); İşlemler ekranında ve ilerleme penceresinde de.
-- [ ] **Arapça (RTL) — 16:** hızlı kaydırıcı balonu ve tutamacı SOL kenarda; benzer fotoğraflar
-      ve fotoğraf ızgarası grup etiketleri hücrelerin üstünde hizalı; rozetler aynalanmış.
-
-
-### 2026-10-23 (14) — üst alan yeniden tasarımı / bildirim alanı / çöp / PDF
-- [ ] **PDF kaydırma:** uzun PDF'te hızlı aşağı-yukarı kaydır + savur → belge parmağı izliyor,
-      sayfa başına geri ÇEKİLMİYOR; üst/alt çubuk sabit kalıyor.
-- [ ] **Dolu çöp (≥ 3 bin öğe):** açılış < 1 sn, kaydırma akıcı; "Boşalt" sırasında pano/kategori
-      ekranı takılmıyor; bitince sayı doğru; tek öğe sil/geri yükle anında listeden düşüyor.
-- [ ] **Sohbet temizliği:** kovadan sil → geri dön → kova sayısı ve "N dosya · X MB" (panodaki
-      kartta da) yenile'ye basmadan güncel.
-- [ ] **Akıllı bildirim alanı:** büyük kopyalama başlat → panonun en üstünde halka + kalan süre;
-      bitince "✓ … · şimdi" satırı, × ile kapanıyor; panodayken alt şerit YOK, Dosyalar dışındaki
-      sekmede şerit VAR; bellek ≥ %90'da uyarı satırı; FTP açıkken kapatılamaz satır + "Kapat".
-- [ ] **Bellek kartı:** eskisinden ~%25 alçak; 2,0× yazıda taşma yok.
-- [ ] **Kategori üst alanı (Belgeler):** başlık altında "161 öğe · 220 MB"; Sırala/Süzgeç/Analiz
-      hapları; süzgeçte tarih/etiket seçince hapların altında × çipleri, "Temizle" hepsini kaldırıyor.
-- [ ] **Analiz ve düzenle:** Özet, Genel analiz (ay çubukları, "uzun süredir açılmamış" → liste),
-      AI analizi (anahtar yoksa etkinleştir penceresi), AI ile kategorilere ayır → öneri levhası →
-      uygula → çip satırında "#Fatura · 12"; Etiketleri yönet → yeniden adlandır/sil.
-- [ ] **Seçim › Daha fazla:** alttan gruplu levha (Düzenle / Kopyala ve gönder / Diğer), "AI ile
-      etiketle" mavi; galeri ⋮ da aynı levha.
-- [ ] **Anlamla ara:** panodaki "✦ Anlamla" → "geçen kışki elektrik faturası" → Ara → "Aranan:"
-      çipleri + ilgili dosyalar; düğmeye tekrar basınca normal ad aramasına dönüyor.
-- [ ] **Araçlar:** ilk sıra Harici bellek, sonra Yer aç, Sohbet temizliği, Aktar, Kasa…
-
-## Düzenleme turu Faz 20–26 (2026-10-23 — bulut turu, cihazda bakılacak)
-
-### Faz 21 — K18 kontrol noktası (Word yazma motoru; KARAR BU TESTE BAĞLI)
-Ayarlar → Geliştirici → "Deneysel Word editörü" açılır; Word'de ⋮ → Deneysel editör.
-Hem eski "Düzenle" (WebView) hem deneysel editörde, **Gboard ve Samsung klavyede** ayrı ayrı:
-- [ ] ğ ü ş ı ö ç İ yazılıyor, harf kaybolmuyor/çiftlenmiyor
-- [ ] kaydırarak yazma (swipe) kelimeyi doğru koyuyor
-- [ ] sesle yazma metni ekliyor
-- [ ] öneri çubuğuna dokunmak kelimeyi değiştiriyor
-- [ ] Enter yeni paragraf açıyor, boş paragrafta geri silme önceki paragrafla birleştiriyor
-- [ ] uzun basınca seçim, kopyala/yapıştır çalışıyor
-- [ ] akıcılık puanı 1–5 (eski / deneysel): ___ / ___ — hangisi daha iyi?
-- [ ] çok sayfalı, Word'de kaydedilmiş gerçek bir .docx'te "Düzenle" açılıyor (W1 onarımı)
-
-### Faz 20 — ortak düzenleme çekirdeği
-- [ ] klavye açılıp kapanırken klavye üstü çubuk klavyeyle birlikte kayıyor (takılma/zıplama yok)
-- [ ] otomatik kaydetme: düzenleyip 3 sn bekle → başlıkta "Kaydedildi"; uygulamayı zorla kapat →
-      yeniden aç → taslak şeridi "Geri yükle" çıkıyor
-- [ ] çıkışta kaydedilmemiş değişiklik sorusu (Kaydet / Atma / Vazgeç)
-
-### Faz 25 — Excel veri girişi
-- [ ] %100 yakınlaştırmada seçili hücreye ikinci dokunuş hücre üstünde editör açıyor
-- [ ] ✓ ↵ ⇥ oklar; ⇥ ile satır girip ↵ satır başı sütununa dönüyor
-- [ ] sayı hücresinde uygulama tuş takımı açılıyor, "ABC" sistem klavyesine geçiyor
-- [ ] `=` yazıp hücreye dokununca başvuru ekleniyor, renkli çerçeve görünüyor
-- [ ] seçim tutamaklarını sürükleyerek aralık genişliyor; hızlı fırlatma veri sonuna gidiyor
-- [ ] uzun bas → bağlam menüsü (yalnız değerleri / biçimi yapıştır, devrik yapıştır)
-- [ ] `1.234,56`, `%15`, `₺100`, `23.10.2026`, `14:30` doğru tür ve biçimle giriliyor
-- [ ] Türkçe formül (`=TOPLA(A1;A2)`) kaydedilen dosyada masaüstü Excel'de doğru açılıyor
-
-### Faz 26 (kısmen) — hesap motoru
-- [ ] büyük (10 bin satır, formüllü) sayfada yazarken/kaydırırken takılma (önce/sonra izlenim)
-- [ ] kaydedilen .xlsx'i dosya yöneticisi/Drive önizlemesinde açınca formül SONUÇLARI görünüyor
-
-
-### Faz 26b — okuma sınırı, kaydetme izolatı, K23 ızgara ölçümü (2026-10-23)
-- [ ] 10 bin satırlık sayfada hızlı kaydırma: profil kipinde `FrameTiming` %99 kare ≤ 16 ms mı?
-  (K23 kararı buna bağlı: tutmazsa tek boyacıya geçilir — bulut ölçümü HAFIZA 2026-10-23 (17))
-- [ ] hücreye dokunma (seç / ikinci dokunuş = düzenle / aralığa dokunuş = bağlam menüsü) eskisi gibi
-- [ ] 200 bin satırdan büyük ya da 1024 sütunu aşan bir .xlsx açılınca kırmızı şerit; Kaydet
-  "kaydetme kapalı" diyor, dosya değişmiyor
-- [ ] büyük kitapta Paylaş / İndir sırasında ekran donmuyor
-
-### Faz 28 — slaytta yerinde metin düzenleme (2026-10-23)
-- [ ] şekle dokun → çerçeve + tutamaklar + alt bağlam çubuğu; tekrar dokun → kutuya yakınlaşma
-  animasyonu takılmasız, yazı rahat okunur boyda, klavyenin üstünde
-- [ ] uzun bir gövde kutusunda yazarken imleç ekranda kalıyor (yatay/dikey kendiliğinden kayıyor)
-- [ ] Gboard + Samsung klavyesiyle Türkçe (ğüşıöçİ) yazma, otomatik düzeltme, kelime önerisi sorunsuz
-- [ ] bir kelimeyi seç → K / renk / punto: yalnız o kelime değişiyor; kaydet → PowerPoint'te aynı
-- [ ] Enter yeni paragraf (madde işaretiyle), paragraf başında geri silme birleştiriyor
-- [ ] boş "Başlık eklemek için dokunun" yer tutucusuna yazılan metin PowerPoint'te başlık olarak görünüyor
-- [ ] Anahat görünümünde düzeltilen yazı slayta yansıyor
-- [ ] ⋮ > Konuşmacı notu: not yazılıyor; PowerPoint "Notlar" bölmesinde görünüyor (notesMaster
-  olmayan bir destede de — onarım uyarısı çıkmamalı)
-- [ ] Şekil çubuğu: Kes / Kopyala / Yapıştır / Çoğalt / Öne getir / Arkaya gönder / Sil; ↶ geri alıyor
-- [ ] 50 slaytlık destede açılış ve kaydırma akıcı
-
-### Faz 22 — Word Mobil görünüm editörü (2026-10-23; K18 kontrol noktasının yerini alır)
-Word'de bir belge aç → alttaki **Düzenle** (artık Mobil görünüm açılır):
-- [ ] Gboard ve (varsa) Samsung Klavye ile Türkçe `ğüşıöçİ`, kaydırarak yazma, sesle yazma
-- [ ] otomatik düzeltme önerisine dokunma doğru kelimeyi değiştiriyor; büyük harf cümle başında
-- [ ] Enter yeni paragraf; başlığın sonunda Enter → normal gövde; boş madde işaretinde Enter → listeden çıkar
-- [ ] paragraf başında geri silme iki paragrafı birleştiriyor (boş paragrafta da)
-- [ ] uzun bas → kelime seçimi + mavi tutamaklar + Kes/Kopyala/Yapıştır/Tümünü seç/Çevir/AI ile düzelt
-- [ ] çift dokunuş kelime, üç dokunuş paragraf seçiyor; tutamakla seçim paragraflar arası uzuyor
-- [ ] yanlış yazılan kelimenin altında kırmızı dalgalı çizgi; dokununca öneriler menüde
-- [ ] klavye üstü çubuk: ↶ ↷ K T A yapıştır ⌄; klavye kapalıyken şerit + "Sayfa düzeni"
-- [ ] kaydet → Word masaüstünde / Google Dokümanlar'da onarımsız açılıyor; köprü, dipnot, resim, tablo yerinde
-- [ ] "akıcı mı" (1–5) ve eski sayfa üzerinde düzenleme (⋮ menü) ile kıyas
-- [ ] Arapça belgede sağdan sola yazma
-
-## 2026-10-24 — Faz 23 (Word biçimlendirme)
-
-- Word > Düzenle (Mobil görünüm): klavye kapalıyken altta **Giriş · Görünüm · Gözden Geçir** şeridi, klavye açılınca klavyenin hemen üstünde hızlı çubuk → şerit/çubuk geçişi takılmasız.
-- **Aa**: klavye iner, aynı yükseklikte panel (Yazı · Paragraf · Stiller) açılır → imleç satırı yerinde kalmalı; ⌨ ile klavye geri gelmeli.
-- Bir kelimeye kalın + kırmızı + 16 pt + vurgu, paragrafa Başlık 1, başka paragrafa madde/numara/çok düzeyli liste, satır aralığı 1,5, ortala → kaydet → dosyayı **masaüstü Word'de ve LibreOffice'te** aç: aynı görünmeli, onarım uyarısı çıkmamalı (numbering.xml olmayan belgede de: ör. sıfırdan yazılmış tek stilli .docx).
-- Biçim boyacısı: tek dokunuş bir kez uygular; çift dokunuş kilitler, üstteki şeritte ✕ ile biter.
-- Görünüm > Gezinti: başlığa dokununca o başlığa kaymalı (uzun belgede de).
-- Türkçe Word'de kaydedilmiş belgede (stil kimliği `Balk1`) Başlık 1 galeride belgenin kendi stiliyle görünmeli.
-
-## 2026-10-28 — Süzgeç şeridi, ana ekran kısayolu, Word tablo, Slayt nesneleri
-
-- [ ] **Süzgeç şeridi:** Belgeler / Görüntüler / İndirilenler / Son açılanlar / Gezgin / Arama →
-      üstte en fazla 3 kart (Tür · Kaynak ve zaman · Analiz ve diğer), kaydırma yok, yazılar
-      sığıyor mu; "Analiz ve diğer" → Sırala + tarih/boyut + etiket kutuları süzüyor mu.
-- [ ] **Ana ekrana ekle:** Görüntüler → ⋮ → "Ana ekrana ekle" → başlatıcı onayı → ana ekranda
-      kendi simgesiyle kısayol; dokununca Görüntüler açılıyor mu (uygulama kapalıyken de).
-- [ ] **Word tablo:** hücreye dokun → "Tablo" sekmesi; satır/sütun ekle-sil, başlık/bant/gölge;
-      kaydet → masaüstü Word'de aynı mı; izlenen değişiklik kabul/ret; üst/alt bilgi.
-- [ ] **Slayt:** şekle dokun (seç) → sürükle = taşı (liste kaymamalı), köşe = boyutlandır,
-      üstteki ok = döndür; Ekle → metin kutusu/şekil/yeni slayt (düzen); Tasarım → arka plan,
-      geçiş; kaydet → PowerPoint'te aynı konum.
-
-## 2026-10-29 — Slayt II kalanı (Faz 29b) + PDF kaydırma
-
-- [ ] **PDF kaydırma:** uzun PDF'te parmakla hızlı fırlat → Word/listeler kadar uzağa kaymalı
-      ("birazcık gidip durma" bitti mi); iki parmakla yakınlaştırıp bırakınca yakınlık
-      fırlamamalı/zıplamamalı; okuma kipi çubukları hâlâ sayfa başına atlatmıyor mu.
-      PDF düzenle ekranında da aynı.
-- [ ] **Küçük resim şeridi:** dikeyde altta, yatay tablette solda; dokun = git, güncel küçük
-      resme dokun = menü; uzun bas + sürükle = sırala → kaydet → PowerPoint'te aynı sıra.
-- [ ] **Sıralayıcı:** ızgarada uzun bas + başka slaytın üstüne bırak; ⋮ menüsü.
-- [ ] **Hizalama kılavuzları:** şekli taşırken slayt ortası/kenarlarında ve başka şeklin
-      kenarında pembe çizgi + hafif titreşim; donanım klavyesinde oklar 1 pt (⇧ 10 pt).
-- [ ] **Tablo:** Ekle → Tablo → 3×4 → hücreye dokun, yaz → kaydet → PowerPoint/LibreOffice
-      onarımsız açıyor mu, renkler aynı mı.
-- [ ] **Geçiş:** Tasarım → Soldur/İt/Sil → Sun → ileri dokunuşta oynuyor mu.
-- [ ] **Slaytı gizle:** ⋮ → Slaytı gizle → kartta "Gizli" + soluk; sunumda atlanıyor;
-      PowerPoint'te de gizli görünüyor.
-- [ ] **Çizgi / saydamlık:** şekil seç → Çizgi (renk, kalınlık, kesik), Saydamlık %50 →
-      PowerPoint'te aynı.
-
-
-## 2026-10-29 — Görsel düzenleyici 2.0 (Faz 32) + slayt spAutoFit
-
-- [ ] **Akıcılık:** 4000×3000 fotoğrafta Ayarla kaydırıcısı ve filtre şiddeti takılmadan
-      (vekil görüntü) — `FrameTiming` ölçümü §7 bütçesiyle.
-- [ ] **Yakınlaştır:** iki parmakla yakınlaş/kaydır (kırp ve işaretle sırasında da), çift
-      dokunuş sığdırır; çizerken ikinci parmak çizgiyi bırakmadan yakınlaştırır.
-- [ ] **Yazı nesnesi:** Yazı → dokun → yaz; sürükle, sağ alt tutamakla büyüt, üst tutamakla
-      döndür, tekrar dokun → düzenle; Tırnaklı/Arka plan; kaydedilen dosyada aynı.
-- [ ] **Bulanıklaştır / pikselleştir:** plakanın üstünden geç → kaydet → galeride yakınlaştır,
-      okunamıyor mu.
-- [ ] **Serbest açı + dikey çevir + filtre (Belge)** kayıtta önizlemeyle aynı mı.
-- [ ] **Slayt spAutoFit:** "Şekli metne göre boyutlandır" kutusuna uzun yazı → Bitti → kutu
-      büyüdü; PowerPoint'te aynı boy.
-
-
-## 2026-10-31 — Bulut kalanları turu (AI iş ekranı, PDF akışı, Faz 33 bulut, faz kalanları)
-
-- [ ] **AI etiket iş ekranı:** İşlemler → etiket işi → küçük resimler yükleniyor mu (fotoğraf,
-      video karesi, PDF kapağı); dokun = ✕/✓, basılı tut = aç; etiket çipleri; Dosyaya göre.
-- [ ] **PDF akışı:** sayfa açılınca ipucu şeridinde "Sayfa N okunuyor…" çarkı görünüyor mu;
-      meşgulken paragrafa dokununca "Bir saniye — …"; Bitti'den sonra yeni metin yerinde kalıp
-      sayfa yenileniyor mu (eski metin bir an görünmemeli); **tek satırlık başlık düzenlemede
-      tek satır kalıyor mu** (birkaç farklı PDF: Word çıktısı, e-Devlet, tarama + OCR).
-- [ ] **Taranmış satır** artık pencere değil yerinde alan — klavye açılınca satır görünür mü.
-- [ ] **PDF kalın / renk:** Word'den çıkmış (kalın kesim gömülü) PDF'te paragraf → K → Bitti;
-      kesim yoksa ret + "Üstüne yaz" kalın yazıyor mu. Renk → kırmızı → Acrobat/Chrome'da aynı.
-- [ ] **Üstüne yaz özgün yazı tipiyle:** Word PDF'inde yazı tipi değişmeden mi yazıyor
-      (alt kümede harf yoksa Carlito'ya düşer).
-- [ ] **PDF Çiz / AI sekmeleri:** Çiz → çiz → Uygula → düzenleyicide geri al çizimi siliyor mu.
-- [ ] **Donanım klavyesi (Bluetooth / DeX):** Excel oklar, ⇧+ok, Ctrl+ok, ⇥, ↵, F2, Delete,
-      harfle yazmaya başlama; her editörde Ctrl+/ yardım levhası.
-- [ ] **Tablet yan paneli:** ≥ 840 dp'de Word Aa paneli sağda, yazarken klavye kapanmıyor.
-- [ ] **TalkBack:** Excel hücresi "B2, Armut"; şeritte "Kalın, açık/kapalı"; slayt şekli yazısıyla.
-- [ ] **Excel:** dosyadaki grafik hücrelerin üstünde doğru yerde; Tablo olarak biçimlendir →
-      kaydet → masaüstü Excel'de "Tablo Tasarımı" sekmesi çıkıyor, onarım uyarısı yok.
-- [ ] **Slayt:** Düzeni değiştir (metin kaybolmuyor); grup içindeki şekli sürükle; tablo
-      hücresine uzun bas → tabloyu taşı/boyutlandır → PowerPoint'te aynı.
-- [ ] **Word:** kalın kelime kopyala/yapıştır kalın kalıyor; liste kalıbı galerisi (✓, A., i.)
-      masaüstü Word'de aynı; büyük belgede açılışta ilk paragraflar önce görünüyor; tutamak
-      sürüklerken büyüteç.
-- [ ] **Metin:** 2 MB'lık kod dosyasında renklendirme yazma durunca geliyor, yazarken takılmıyor;
-      satır aralığı 1,8 → numaralar hizalı.
-
+- [ ] **Güncelleme:** nightly eskisinin üstüne kuruluyor (aynı imza), ayarlar/anahtar/son dosyalar
+      duruyor.
+- [ ] **R8'li sürüm:** açılış çökmesiz; ML Kit (OCR/çeviri), Drive girişi, Yakındakiler, Media3,
+      PDF yazma (Syncfusion) çalışıyor.
+- [ ] **Kişisel derleme (yalnız `kisisel` APK, asistan `com.ses.asistan` kurulu):** asistandan
+      "… dosyasını aç" (sorgu boşsa son açılan), "oku" (görüntüleyicinin kendi sesli okuması),
+      "durdur" (duraklatır, kaldığı yer kalır), "özetle" (özet sayfası) çalışıyor; genel APK'da
+      köprü yok.
+- [ ] **48 saat iç test** (KALANLAR B6): çökme/ANR yok; `CrashLog` boş ya da anlamlı.
