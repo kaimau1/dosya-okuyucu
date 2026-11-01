@@ -391,7 +391,10 @@ class _EditorChromeState extends State<EditorChrome>
           if ((keyboardUp || bottomOpen) && accessory != null) accessory,
           if (bottomOpen && !keyboardUp)
             FormatPanelHost(controller: p!, tabs: widget.panelTabs),
-          if (!keyboardUp && !bottomOpen && ribbon != null) ribbon,
+          // Üç tuşlu gezinme çubuğu şeridin üstünü örtmesin (2026-11-01 cihaz
+          // turu: PDF araçları çubuğun arkasında kalıyordu).
+          if (!keyboardUp && !bottomOpen && ribbon != null)
+            SafeArea(top: false, left: false, right: false, child: ribbon),
         ],
       );
     }

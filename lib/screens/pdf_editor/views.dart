@@ -22,6 +22,8 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
               PdfViewer.file(
                 _workPath!,
                 controller: _controller,
+                // Sayaç bu sayfayı söylüyor; görüntü de orada açılsın.
+                initialPageNumber: widget.initialPage,
                 params: PdfViewerParams(
                   // Görüntüleyiciyle aynı fırlatma (bkz. [kPdfPanFriction]).
                   interactionEndFrictionCoefficient:

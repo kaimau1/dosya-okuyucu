@@ -295,7 +295,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
   Future<List<FsEntry>> _allOf(FmCategory? category, {required int limit}) async {
     try {
       await SearchIndex.ensureLoaded();
-      return SearchIndex.isReady
+      final hits = SearchIndex.isReady
           ? await SearchIndex.query(
               '',
               category: category,
@@ -308,6 +308,11 @@ class _PickFileScreenState extends State<PickFileScreen> {
               category: category,
               limit: limit,
             );
+      // Uygulamaların gizli klasörleri (`.…recycle`) seçim listesine girmesin.
+      return [
+        for (final entry in hits)
+          if (!entry.path.contains('/.')) entry
+      ];
     } catch (_) {
       return const [];
     }
@@ -950,7 +955,9 @@ class _PickFileScreenState extends State<PickFileScreen> {
               for (final root in FmEnv.volumeRoots)
                 ActionChip(
                   avatar: const Icon(AppIcons.storage, size: 18),
-                  label: Text(p.basename(root)),
+                  label: Text(p.equals(root, FmEnv.primaryRoot)
+                      ? context.t('fm.internal_storage')
+                      : p.basename(root)),
                   onPressed: () => _openFolder(root),
                 ),
             ],

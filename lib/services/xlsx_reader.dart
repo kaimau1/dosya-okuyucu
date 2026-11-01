@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:xml/xml.dart';
 
 import '../core/excel_format.dart';
@@ -27,6 +28,10 @@ class XlsxReader {
   static const int maxColumns = 1024;
   static const int maxRows = 200000;
 
+  /// Testte hızlı tarayıcıyı kapatır: iki yolun sonucu karşılaştırılır.
+  @visibleForTesting
+  static bool forceDom = false;
+
   static XlsxWorkbook read(Uint8List bytes) {
     final archive = ZipDecoder().decodeBytes(bytes);
     final files = <String, List<int>>{};
@@ -45,7 +50,7 @@ class XlsxReader {
     }
 
     final theme = _readTheme(doc('xl/theme/theme1.xml'));
-    final shared = _readSharedStrings(doc('xl/sharedStrings.xml'));
+    final shared = _sharedStringsOf(files['xl/sharedStrings.xml'], doc);
     final styles = _readStyles(doc('xl/styles.xml'), theme);
 
     final wb = doc('xl/workbook.xml');
@@ -67,6 +72,25 @@ class XlsxReader {
       }
     }
 
+    // Sayfanın hücreleri DOM'a alınmaz (2026-11-01 cihaz ölçümü: 200 bin
+    // hücrede DOM + GC telefonda ~20 sn); yalnız `sheetData` dışı DOM'dan.
+    XlsxSheetLayout sheetOf(String? part, String name) {
+      final data = part == null ? null : files[part];
+      if (data == null) return _readSheet(null, name, shared, styles);
+      final (head, cells) =
+          _splitSheetData(utf8.decode(data, allowMalformed: true));
+      XmlDocument? ws;
+      try {
+        ws = XmlDocument.parse(head);
+      } catch (_) {
+        return _readSheet(null, name, shared, styles);
+      }
+      final layout = _readSheet(ws, name, shared, styles);
+      if (cells != null) _scanSheetData(cells, layout, shared);
+      layout.partPath = part;
+      return layout;
+    }
+
     final sheets = <XlsxSheetLayout>[];
     if (wb != null) {
       for (final s in wb.findAllElements('sheet')) {
@@ -76,21 +100,16 @@ class XlsxReader {
         final state = s.getAttribute('state');
         var target = rid == null ? null : relTarget[rid];
         target = _normalizeTarget(target);
-        final ws = target == null ? null : doc(target);
-        final layout = _readSheet(ws, name, shared, styles);
+        final layout = sheetOf(target, name);
         layout.hidden = state == 'hidden' || state == 'veryHidden';
-        if (ws != null) layout.partPath = target;
         if (target != null) _readComments(layout, target, doc);
         sheets.add(layout);
       }
     }
     if (sheets.isEmpty) {
       // workbook.xml okunamadıysa: sheet1'i doğrudan dene.
-      final ws = doc('xl/worksheets/sheet1.xml');
-      if (ws != null) {
-        sheets.add(_readSheet(ws, 'Sayfa1', shared, styles)
-          ..partPath = 'xl/worksheets/sheet1.xml');
-      }
+      final layout = sheetOf('xl/worksheets/sheet1.xml', 'Sayfa1');
+      if (layout.partPath != null) sheets.add(layout);
     }
 
     return XlsxWorkbook(
@@ -227,11 +246,62 @@ class XlsxReader {
 
   // ── paylaşılan dizeler ────────────────────────────────────────────────────
 
+  /// Düz dizeler elle taranır, zengin metinli `<si>` tek başına DOM'dan.
+  /// Olağandışı yapıda (CDATA, ön ekli ad) bütün parça DOM'a düşer.
+  static List<XlsxSharedString> _sharedStringsOf(
+      List<int>? data, XmlDocument? Function(String) doc) {
+    const part = 'xl/sharedStrings.xml';
+    if (data == null) return const [];
+    if (forceDom) return _readSharedStrings(doc(part));
+    final s = utf8.decode(data, allowMalformed: true);
+    if (s.contains('<![CDATA[') || s.contains('<!--')) {
+      return _readSharedStrings(doc(part));
+    }
+    final out = <XlsxSharedString>[];
+    var i = 0;
+    while (true) {
+      i = s.indexOf('<si', i);
+      if (i < 0) break;
+      if (!_isTag(s, i, 'si')) {
+        i += 3;
+        continue;
+      }
+      final tagEnd = _tagEnd(s, i);
+      if (tagEnd < 0) return _readSharedStrings(doc(part));
+      if (s.codeUnitAt(tagEnd - 1) == 47) {
+        out.add(const XlsxSharedString('', null));
+        i = tagEnd + 1;
+        continue;
+      }
+      final close = s.indexOf('</si>', tagEnd);
+      if (close < 0) return _readSharedStrings(doc(part));
+      final seg = s.substring(tagEnd + 1, close);
+      if (seg.contains('<r>') || seg.contains('<r ') || seg.contains('<rPh')) {
+        try {
+          out.add(_sharedOf(
+              XmlDocument.parse(s.substring(i, close + 5)).rootElement));
+        } catch (_) {
+          return _readSharedStrings(doc(part));
+        }
+      } else {
+        out.add(XlsxSharedString(_textsOf(seg), null));
+      }
+      i = close + 5;
+    }
+    return out.isEmpty ? _readSharedStrings(doc(part)) : out;
+  }
+
   static List<XlsxSharedString> _readSharedStrings(XmlDocument? doc) {
     final out = <XlsxSharedString>[];
     if (doc == null) return out;
     for (final si in doc.rootElement.childElements) {
       if (si.name.local != 'si') continue;
+      out.add(_sharedOf(si));
+    }
+    return out;
+  }
+
+  static XlsxSharedString _sharedOf(XmlElement si) {
       final runs = <XlsxRichRun>[];
       final sb = StringBuffer();
       for (final child in si.childElements) {
@@ -257,9 +327,7 @@ class XlsxReader {
           ));
         }
       }
-      out.add(XlsxSharedString(sb.toString(), runs.length > 1 ? runs : null));
-    }
-    return out;
+      return XlsxSharedString(sb.toString(), runs.length > 1 ? runs : null);
   }
 
   // ── styles.xml ────────────────────────────────────────────────────────────
@@ -720,35 +788,286 @@ class XlsxReader {
     }
   }
 
+  // ── hızlı hücre tarayıcı ──────────────────────────────────────────────────
+
+  /// Sayfa XML'ini (`sheetData`'sı boşaltılmış gövde, hücre metni) diye ayırır.
+  /// Tarayıcının bilmediği yapı (CDATA, yorum, ön ekli ad) → (bütün XML, null):
+  /// DOM yolu okur.
+  static (String, String?) _splitSheetData(String xml) {
+    if (forceDom) return (xml, null);
+    final start = xml.indexOf('<sheetData');
+    if (start < 0 || !_isTag(xml, start, 'sheetData')) return (xml, null);
+    final open = _tagEnd(xml, start);
+    if (open < 0 || xml.codeUnitAt(open - 1) == 47) return (xml, null);
+    final end = xml.indexOf('</sheetData>', open);
+    if (end < 0) return (xml, null);
+    final cells = xml.substring(open + 1, end);
+    if (cells.contains('<![CDATA[') ||
+        cells.contains('<!--') ||
+        cells.contains('<?')) {
+      return (xml, null);
+    }
+    return (
+      '${xml.substring(0, start)}<sheetData/>${xml.substring(end + 12)}',
+      cells
+    );
+  }
+
+  /// [i]'deki `<` tam olarak [name] etiketini mi açıyor (`<c` ≠ `<col`)?
+  static bool _isTag(String s, int i, String name) {
+    if (!s.startsWith(name, i + 1)) return false;
+    final after = i + 1 + name.length;
+    if (after >= s.length) return false;
+    final u = s.codeUnitAt(after);
+    return u == 32 || u == 62 || u == 47 || u == 9 || u == 10 || u == 13;
+  }
+
+  /// Etiketin kapanan `>` konumu (tırnak içindeki `>` sayılmaz).
+  static int _tagEnd(String s, int i) {
+    var quote = 0;
+    for (var k = i + 1; k < s.length; k++) {
+      final u = s.codeUnitAt(k);
+      if (quote != 0) {
+        if (u == quote) quote = 0;
+      } else if (u == 34 || u == 39) {
+        quote = u;
+      } else if (u == 62) {
+        return k;
+      }
+    }
+    return -1;
+  }
+
+  static String? _attr(String s, int from, int end, String name) {
+    var k = from;
+    while (k < end) {
+      final eq = s.indexOf('=', k);
+      if (eq < 0 || eq >= end) return null;
+      var q = eq + 1;
+      while (q < end && s.codeUnitAt(q) != 34 && s.codeUnitAt(q) != 39) {
+        q++;
+      }
+      if (q >= end) return null;
+      final close = s.indexOf(String.fromCharCode(s.codeUnitAt(q)), q + 1);
+      if (close < 0 || close >= end) return null;
+      if (s.substring(k, eq).trim() == name) {
+        return _unescape(s.substring(q + 1, close));
+      }
+      k = close + 1;
+    }
+    return null;
+  }
+
+  static final _entity = RegExp(r'&(#x[0-9a-fA-F]+|#[0-9]+|amp|lt|gt|quot|apos);');
+
+  static String _unescape(String t) {
+    if (!t.contains('&')) return t;
+    return t.replaceAllMapped(_entity, (m) {
+      final e = m[1]!;
+      switch (e) {
+        case 'amp':
+          return '&';
+        case 'lt':
+          return '<';
+        case 'gt':
+          return '>';
+        case 'quot':
+          return '"';
+        case 'apos':
+          return "'";
+      }
+      final code = e.startsWith('#x')
+          ? int.tryParse(e.substring(2), radix: 16)
+          : int.tryParse(e.substring(1));
+      return code == null ? m[0]! : String.fromCharCode(code);
+    });
+  }
+
+  /// Parçadaki bütün `<t>` metinleri (birleşik).
+  static String _textsOf(String seg) {
+    String? one;
+    StringBuffer? many;
+    var i = 0;
+    while (true) {
+      i = seg.indexOf('<t', i);
+      if (i < 0) break;
+      if (!_isTag(seg, i, 't')) {
+        i += 2;
+        continue;
+      }
+      final end = _tagEnd(seg, i);
+      if (end < 0) break;
+      i = end + 1;
+      if (seg.codeUnitAt(end - 1) == 47) continue;
+      final close = seg.indexOf('</t>', end);
+      if (close < 0) break;
+      final t = _unescape(seg.substring(end + 1, close));
+      if (one == null) {
+        one = t;
+      } else {
+        (many ??= StringBuffer(one)).write(t);
+      }
+      i = close + 4;
+    }
+    return many?.toString() ?? one ?? '';
+  }
+
+  /// Hücre başvurusu (`AB12` → (11, 27)); regex'siz, olağandışı yazım
+  /// (`\$A\$1`) [XlsxRange.cellRef]'e düşer.
+  static (int, int)? _cellRefFast(String ref) {
+    var col = 0;
+    var row = 0;
+    var k = 0;
+    for (; k < ref.length; k++) {
+      final u = ref.codeUnitAt(k);
+      if (u < 65 || u > 90) break;
+      col = col * 26 + (u - 64);
+    }
+    if (k == 0 || k == ref.length) return XlsxRange.cellRef(ref);
+    for (; k < ref.length; k++) {
+      final u = ref.codeUnitAt(k);
+      if (u < 48 || u > 57) return XlsxRange.cellRef(ref);
+      row = row * 10 + (u - 48);
+    }
+    return row < 1 ? null : (row - 1, col - 1);
+  }
+
+  /// [_readSheetData]'nın DOM'suz eşi: anlamı birebir aynı (test: iki yol).
+  static void _scanSheetData(
+      String s, XlsxSheetLayout layout, List<XlsxSharedString> shared) {
+    final sharedFormulas = <String, _SharedFormula>{};
+    var rIdx = -1;
+    var overflow = false; // satır sınırı aşıldı: hücrede "kesildi" denir
+    var i = 0;
+    while (true) {
+      i = s.indexOf('<', i);
+      if (i < 0) return;
+      if (_isTag(s, i, 'row')) {
+        final end = _tagEnd(s, i);
+        if (end < 0) return;
+        final attrEnd = s.codeUnitAt(end - 1) == 47 ? end - 1 : end;
+        final from = i + 4;
+        rIdx = (int.tryParse(_attr(s, from, attrEnd, 'r') ?? '') ?? 0) - 1;
+        overflow = rIdx >= maxRows;
+        i = end + 1;
+        if (overflow || rIdx < 0) continue;
+        final ht = double.tryParse(_attr(s, from, attrEnd, 'ht') ?? '');
+        if (ht != null) layout.rowHeights[rIdx] = ht;
+        final hidden = _attr(s, from, attrEnd, 'hidden');
+        if (hidden == '1' || hidden == 'true') layout.hiddenRows.add(rIdx);
+        final rowStyle = int.tryParse(_attr(s, from, attrEnd, 's') ?? '');
+        final custom = _attr(s, from, attrEnd, 'customFormat');
+        if (rowStyle != null && (custom == '1' || custom == 'true')) {
+          layout.rowStyles[rIdx] = rowStyle;
+        }
+        if (rIdx > layout.maxRow) layout.maxRow = rIdx;
+        continue;
+      }
+      if (!_isTag(s, i, 'c')) {
+        final end = s.indexOf('>', i);
+        if (end < 0) return;
+        i = end + 1;
+        continue;
+      }
+      final end = _tagEnd(s, i);
+      if (end < 0) return;
+      final selfClosed = s.codeUnitAt(end - 1) == 47;
+      final attrEnd = selfClosed ? end - 1 : end;
+      final ref = _attr(s, i + 2, attrEnd, 'r');
+      final styleAttr = _attr(s, i + 2, attrEnd, 's');
+      final typeAttr = _attr(s, i + 2, attrEnd, 't');
+      String? formula, si, vText, inlineText;
+      var next = end + 1;
+      if (!selfClosed) {
+        final close = s.indexOf('</c>', end);
+        if (close < 0) return;
+        next = close + 4;
+        if (!overflow && rIdx >= 0) {
+          var k = end + 1;
+          while (true) {
+            k = s.indexOf('<', k);
+            if (k < 0 || k >= close) break;
+            final e = _tagEnd(s, k);
+            if (e < 0 || e >= close) break;
+            final empty = s.codeUnitAt(e - 1) == 47;
+            if (_isTag(s, k, 'f')) {
+              si = _attr(s, k + 2, empty ? e - 1 : e, 'si');
+              if (empty) {
+                formula = '';
+              } else {
+                final c2 = s.indexOf('</f>', e);
+                if (c2 < 0 || c2 > close) break;
+                formula = _unescape(s.substring(e + 1, c2));
+                k = c2 + 4;
+                continue;
+              }
+            } else if (_isTag(s, k, 'v')) {
+              if (empty) {
+                vText = '';
+              } else {
+                final c2 = s.indexOf('</v>', e);
+                if (c2 < 0 || c2 > close) break;
+                vText = _unescape(s.substring(e + 1, c2));
+                k = c2 + 4;
+                continue;
+              }
+            } else if (_isTag(s, k, 'is')) {
+              if (empty) {
+                inlineText = '';
+              } else {
+                final c2 = s.indexOf('</is>', e);
+                if (c2 < 0 || c2 > close) break;
+                inlineText = _textsOf(s.substring(e + 1, c2));
+                k = c2 + 5;
+                continue;
+              }
+            }
+            k = e + 1;
+          }
+        }
+      }
+      i = next;
+      if (overflow) {
+        layout.truncated = true;
+        continue;
+      }
+      if (rIdx < 0) continue;
+      var col = -1;
+      var rr = rIdx;
+      if (ref != null) {
+        final parsed = _cellRefFast(ref);
+        if (parsed != null) {
+          rr = parsed.$1;
+          col = parsed.$2;
+        }
+      }
+      if (col >= maxColumns) {
+        layout.truncated = true;
+        continue;
+      }
+      if (col < 0) continue;
+      final cell = _cellFrom(rr, col, styleAttr, typeAttr, formula, si, vText,
+          inlineText, shared, sharedFormulas);
+      if (cell == null) continue;
+      layout.cells[cellKey(rr, col)] = cell;
+      if (col > layout.maxCol) layout.maxCol = col;
+      if (rr > layout.maxRow) layout.maxRow = rr;
+    }
+  }
+
   static XlsxCell? _readCell(XmlElement c, int row, int col,
       List<XlsxSharedString> shared,
       [Map<String, _SharedFormula>? sharedFormulas]) {
-    final styleIndex = int.tryParse(c.getAttribute('s') ?? '') ?? 0;
-    final type = c.getAttribute('t') ?? 'n';
     String? formula;
+    String? formulaSi;
     String? vText;
     String? inlineText;
-    List<XlsxRichRun>? runs;
 
     for (final child in c.childElements) {
       switch (child.name.local) {
         case 'f':
           formula = child.innerText;
-          final si = child.getAttribute('si');
-          if (si != null && sharedFormulas != null) {
-            if (formula.isNotEmpty) {
-              // Paylaşılan formülün ANA hücresi.
-              sharedFormulas[si] = _SharedFormula(formula, row, col);
-            } else {
-              // Takipçi hücre: ana formül göreli başvurular kaydırılarak
-              // kopyalanır (Excel'in dosyada yapmadığı işi biz yapıyoruz).
-              final master = sharedFormulas[si];
-              if (master != null) {
-                formula = shiftFormulaRefs(
-                    master.formula, row - master.row, col - master.col);
-              }
-            }
-          }
+          formulaSi = child.getAttribute('si');
         case 'v':
           vText = child.innerText;
         case 'is':
@@ -757,6 +1076,39 @@ class XlsxReader {
             if (e.name.local == 't') sb.write(e.innerText);
           }
           inlineText = sb.toString();
+      }
+    }
+    return _cellFrom(row, col, c.getAttribute('s'), c.getAttribute('t'), formula,
+        formulaSi, vText, inlineText, shared, sharedFormulas);
+  }
+
+  static XlsxCell? _cellFrom(
+      int row,
+      int col,
+      String? styleAttr,
+      String? typeAttr,
+      String? formulaRaw,
+      String? si,
+      String? vText,
+      String? inlineText,
+      List<XlsxSharedString> shared,
+      Map<String, _SharedFormula>? sharedFormulas) {
+    final styleIndex = int.tryParse(styleAttr ?? '') ?? 0;
+    final type = typeAttr ?? 'n';
+    var formula = formulaRaw;
+    List<XlsxRichRun>? runs;
+    if (formula != null && si != null && sharedFormulas != null) {
+      if (formula.isNotEmpty) {
+        // Paylaşılan formülün ANA hücresi.
+        sharedFormulas[si] = _SharedFormula(formula, row, col);
+      } else {
+        // Takipçi hücre: ana formül göreli başvurular kaydırılarak
+        // kopyalanır (Excel'in dosyada yapmadığı işi biz yapıyoruz).
+        final master = sharedFormulas[si];
+        if (master != null) {
+          formula = shiftFormulaRefs(
+              master.formula, row - master.row, col - master.col);
+        }
       }
     }
 
@@ -1335,9 +1687,11 @@ class XlsxRange {
   }
 
   /// "B3" → (satır 2, sütun 1). `$` işaretleri yok sayılır.
+  static final _cellRefPattern = RegExp(r'^\$?([A-Za-z]+)\$?(\d+)$');
+
   static (int, int)? cellRef(String? ref) {
     if (ref == null) return null;
-    final m = RegExp(r'^\$?([A-Za-z]+)\$?(\d+)$').firstMatch(ref.trim());
+    final m = _cellRefPattern.firstMatch(ref.trim());
     if (m == null) return null;
     var col = 0;
     for (final u in m.group(1)!.toUpperCase().codeUnits) {
