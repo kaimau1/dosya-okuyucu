@@ -1,6 +1,24 @@
 part of '../pdf_editor_screen.dart';
 
 extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
+  Future<void> _jumpToStartPage() async {
+    _startJumping = true;
+    final target = widget.initialPage;
+    for (var attempt = 0; attempt < 8 && mounted; attempt++) {
+      await Future<void>.delayed(Motion.short);
+      if (!mounted) return;
+      try {
+        await _controller.goToPage(pageNumber: target, duration: Duration.zero);
+        await Future<void>.delayed(Motion.short);
+        if (!mounted) return;
+        if (_controller.pageNumber == target) break;
+      } catch (_) {
+        // Bilinçli: denetleyici henüz bağlanmadı; bir sonraki denemede tutar.
+      }
+    }
+    _startJumping = false;
+  }
+
   Future<void> _prepare() async {
     try {
       final dir = await Directory.systemTemp.createTemp('pdf_editor');

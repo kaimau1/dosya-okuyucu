@@ -10,19 +10,21 @@ import '../../core/theme.dart';
 Future<String?> askArchivePassword(
   BuildContext context, {
   bool retry = false,
+  String? title,
+  String? body,
 }) async {
   final controller = TextEditingController();
   final value = await showDialog<String>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: Text(ctx.t('ap.title')),
+      title: Text(title ?? ctx.t('ap.title')),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(retry
               ? ctx.t('ap.wrong')
-              : ctx.t('ap.body')),
+              : body ?? ctx.t('ap.body')),
           const SizedBox(height: Gap.sm),
           TextField(
             controller: controller,

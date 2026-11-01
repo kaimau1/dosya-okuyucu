@@ -22,8 +22,6 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
               PdfViewer.file(
                 _workPath!,
                 controller: _controller,
-                // Sayaç bu sayfayı söylüyor; görüntü de orada açılsın.
-                initialPageNumber: widget.initialPage,
                 params: PdfViewerParams(
                   // Görüntüleyiciyle aynı fırlatma (bkz. [kPdfPanFriction]).
                   interactionEndFrictionCoefficient:
@@ -38,6 +36,8 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                   },
                   onPageChanged: (page) {
                     if (page == null || page == _page) return;
+                    // Başlangıç sayfasına atlarken gelen ara sayfalar yok sayılır.
+                    if (_startJumping) return;
                     // Eski sayfanın kutuları yeni sayfada bir an yanlış
                     // yerde görünmesin: anahat okunana kadar boş.
                     if (_inlineOpen && !_inlineApplying) _cancelInline();
@@ -52,6 +52,12 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                   onViewerReady: (doc, _) {
                     if (mounted) {
                       _partSetState(() => _pageCount = doc.pages.length);
+                    }
+                    // pdfrx ilk düzende `initialPageNumber`ı tutmuyor (cihaz
+                    // turu 2026-11-01): sayaç 16 derken 1. sayfa görünüyordu.
+                    if (widget.initialPage > 1 && !_startJumped) {
+                      _startJumped = true;
+                      unawaited(_jumpToStartPage());
                     }
                   },
                   pageOverlaysBuilder: (context, pageRect, page) => [

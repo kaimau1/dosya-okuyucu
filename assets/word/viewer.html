@@ -1693,6 +1693,7 @@
       var p = PARTS[i] && PARTS[i][0];
       if (!p) return;
       p.scrollIntoView({ block: 'center' });
+      updateCurrentPage();
       var o = p.style.outline, off = p.style.outlineOffset;
       p.style.outline = '2px solid rgba(230, 150, 30, 0.75)';
       p.style.outlineOffset = '3px';

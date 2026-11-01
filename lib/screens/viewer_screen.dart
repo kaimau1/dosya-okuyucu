@@ -73,6 +73,7 @@ import '../widgets/markdown_text.dart';
 import '../widgets/doc_more_sheet.dart';
 import '../widgets/office_shell.dart';
 import 'fm/entry_actions.dart';
+import '../widgets/fm/archive_password_dialog.dart';
 import '../widgets/pdf_action_bars.dart';
 import '../widgets/pdf_edit_modes.dart';
 import '../widgets/large_text_view.dart';
@@ -148,6 +149,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   // Görüntüleme durumu (okuma konforu).
   int _pdfPage = 1;
+
+  /// Bu oturumda girilen PDF parolası: yeniden okumada (düzenleme dönüşü)
+  /// tekrar sorulmasın. Yalnız bellekte.
+  String? _pdfPassword;
+
+  /// Elimizdeki parola bu açılışta denendi mi (denendiyse yanlıştır).
+  bool _pdfPasswordTried = false;
 
   /// Az önce kodla gidilen sayfa ("sayfaya git", arama, içindekiler,
   /// bağlantı). Birden çok sayfa ekrana tam sığdığında rozet bu sayfayı

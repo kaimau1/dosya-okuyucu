@@ -23,12 +23,13 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
       initialPage: (page != null && page > 0) ? page : (_livePdfPage() ?? _pdfPage),
     );
     if (saved && mounted) {
-      // Yeniden okuma `initialPageNumber`dan başlar: düzenlenen sayfada kalınsın.
-      _partSetState(() {
-        _pdfText = '';
-        _pdfPage = PdfEditorScreen.lastPage;
-      });
+      _partSetState(() => _pdfText = '');
+      final page = PdfEditorScreen.lastPage;
       await _reloadPdf();
+      // Düzenlenen sayfada kalınsın.
+      if (mounted && page > 0 && _pdfCount > 0) {
+        await _goToPdfPage(page, _pdfCount);
+      }
     }
   }
 

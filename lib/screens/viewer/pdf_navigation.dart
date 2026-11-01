@@ -440,6 +440,26 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
   /// Eskiden pdfrx'in varsayılanı çıkıyordu: mavi zeminde
   /// "PdfException: Failed to load PDF document (FPDF_GetLastError=3)" ve
   /// yığın izi. Kullanıcı ne olduğunu, ne yapabileceğini anlamıyordu.
+  /// Parolalı PDF (2026-11-01 cihaz turu: görüntüleyici hiç sormuyor, dosyayı
+  /// "bozuk" diye gösteriyordu). `null` = vazgeçti, hata kartı açıklar.
+  Future<String?> _askPdfPassword() async {
+    final known = _pdfPassword;
+    if (known != null && !_pdfPasswordTried) {
+      _pdfPasswordTried = true;
+      return known;
+    }
+    if (!mounted) return null;
+    final entered = await askArchivePassword(
+      context,
+      retry: known != null,
+      title: context.t('pt.locked_title'),
+      body: context.t('pt.enter_password'),
+    );
+    _pdfPassword = entered;
+    _pdfPasswordTried = entered != null;
+    return entered;
+  }
+
   Widget _pdfErrorBanner(BuildContext context, Object error,
       StackTrace? stackTrace, PdfDocumentRef documentRef) {
     final scheme = Theme.of(context).colorScheme;
@@ -451,7 +471,9 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
       // Bilinçli: boyut yalnız hata kartındaki teşhis satırı için; okunamazsa "bilinmiyor" (-1) kalır.
     }
     final canRecover = PdfEditJournal.hasStale(widget.doc.path);
-    final reason = size == 0
+    final reason = error is PdfPasswordException
+        ? context.t('uerr.pdf_locked')
+        : size == 0
         ? context.t('vw.pdf_error_empty')
         : context.t('vw.pdf_error_broken');
     return ColoredBox(

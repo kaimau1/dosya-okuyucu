@@ -154,6 +154,8 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   /// Meşgulken ne yapıldığı (ipucu şeridinde) — bkz. `_setBusy`.
   String? _busyNote;
   bool _ready = false;
+  bool _startJumped = false;
+  bool _startJumping = false;
   String? _error;
 
   // ── Taranmış sayfa düzenleme (2026-08-06: "taranmış belge deyip düzenleme

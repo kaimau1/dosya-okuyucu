@@ -55,6 +55,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                       doc.path,
                       controller: _pdfController,
                       initialPageNumber: _pdfPage,
+                      passwordProvider: _askPdfPassword,
                       params: PdfViewerParams(
                         // **2/4 sütunda en küçük yakınlık** (kullanıcı
                         // 2026-10-30: *"2 sütun 4 sütun seçildiğinde sayfa
@@ -160,6 +161,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         ),
                         onViewerReady: (document, controller) {
                           _pdfDoc = document;
+                          _pdfPasswordTried = false;
                           if (mounted) {
                             _partSetState(() => _pdfCount = document.pages.length);
                           }
