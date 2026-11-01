@@ -34,19 +34,14 @@ A3 tek başına bir oturum (riskli); A4, A5+A6, A7 (2 oturum), A8 ayrı ayrı.
 
 ### A1 — Depo ve belge hijyeni (kısa, ilk iş)
 
-- [ ] **A1.1 Bekleyen dal `ccr-0ba9d97d-1mtuwm` (2026-11-01, başka oturum).** İki commit
-      main'e girmemiş: kişisel (asistan köprülü) derleme ayrı `kisisel` ön-sürümüne
-      yayınlanır + commit mesajında `[kisisel]` işareti (`.github/workflows/build-apk.yml`,
-      HAFIZA'ya 5 satır). O oturum sürüyorsa bekle; bittiyse kullanıcıya sor → gözden
-      geçir, main'e al (HAFIZA kaydını yeni dizinin "Tarihli kayıtlar" bölümüne taşı) ya
-      da kapat. **Bitti:** dal ya main'de ya silinmiş.
 - [ ] **A1.2 Uzak dalları temizle (kullanıcı izniyle).** main dışında 64 uzak dal var:
       16'sı main'e tam girmiş; 46'sının main'le ortak atası yok (main'in geçmişi bir ara
-      yeniden yazılmış — içerikleri main'de); `ccr-4fb1643b-cvg3t7` #52 ile squash girmiş.
+      yeniden yazılmış — içerikleri main'de); `ccr-4fb1643b-cvg3t7` #52 ile squash girmiş;
+      `ccr-0ba9d97d-1mtuwm` 2026-11-01'de birleştirildi.
       CLAUDE.md kuralı "iş main'e girince uzak dal silinir"; Faz 0'da silme izinle
       engellenmişti. Önce yeniden say (`git for-each-ref refs/remotes/origin` +
-      `git rev-list --count origin/main..<dal>` + `git merge-base`), A1.1 ve o an süren
-      oturum dalları HARİÇ sil. **Bitti:** `git ls-remote --heads origin` yalnız `main` +
+      `git rev-list --count origin/main..<dal>` + `git merge-base`), o an süren oturum
+      dalları HARİÇ sil. **Bitti:** `git ls-remote --heads origin` yalnız `main` +
       süren oturum dalları.
 - [ ] **A1.3 Bayat ifadeler (kod tarafı):** `pubspec.yaml`'daki "CI 3.29.3 / Dart 3.7"
       gerekçeleri (A3 ile birlikte düzelir); `flutter_launcher_icons` `min_sdk_android: 23`
@@ -327,8 +322,8 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
 > **Faz A (bulut), sıradaki bölüm:** `KALANLAR.md`'yi oku; Faz A'da ilk açık bölümü
 > (A1'den başlayarak) bitir. Her madde için kabul ölçütünü sağla, testleri yaz, cihazda
 > bakılacakları `docs/CIHAZ_TESTI.md`'ye ekle, HAFIZA'nın "Tarihli kayıtlar" bölümüne
-> yaz, biten maddeleri KALANLAR'dan sil, main'e birleştir, CI'ı izle. A1.1 ve A1.2'de
-> dal birleştirme/silme öncesi bana sor; A3'te her paket ayrı commit.
+> yaz, biten maddeleri KALANLAR'dan sil, main'e birleştir, CI'ı izle. A1.2'de dal
+> silme öncesi bana sor; A3'te her paket ayrı commit.
 >
 > **Faz B2 (cihaz turu, yerel oturum + USB'li telefon):** `KALANLAR.md` B1 ve B2'yi
 > yapalım: önce graphify ve Windows testleri, sonra `docs/CIHAZ_TESTI.md`'yi benimle

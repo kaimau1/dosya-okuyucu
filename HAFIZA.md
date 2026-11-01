@@ -25,8 +25,7 @@
   `KALANLAR.md` — Faz A ☁️ (bulut) / Faz B 📱💻👤 (telefon, yerel, hesap).** Telefonda
   bakılacaklar: `docs/CIHAZ_TESTI.md` (alana göre, 2026-11-01).
 - **Açık kararlar (kullanıcı):** Pro özellik listesi + Billing ürünleri (K6), depo private
-  zamanı (K7), Drive CASA ya da kapsam (K5), Play derlemesi izin varyantı, bekleyen dal
-  `ccr-0ba9d97d-1mtuwm` (KALANLAR A1.1).
+  zamanı (K7), Drive CASA ya da kapsam (K5), Play derlemesi izin varyantı (KALANLAR B5).
 
 ## 2. Sabit kararlar (güncel)
 
@@ -46,7 +45,9 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
   `**.md`, `docs/**`, `graphify-out/**` CI koşturmaz. Dağıtım K11: Play (AAB) + GitHub nightly.
 - **Kişisel derleme** (`DOSYA_KISISEL=1`, elle `kisisel: true`): asistan köprüsü
   (`ci/kisisel/AsistanKopru.kt`, izin `signature|knownSigner`) yalnız orada; genel derlemede
-  betik köprünün manifestte OLMADIĞINI denetler. Release'e çıkışı bekleyen dalda (A1.1).
+  betik köprünün manifestte OLMADIĞINI denetler. Ayrı **`kisisel`** ön-sürümüne yayınlanır
+  (`releases/download/kisisel/dosya-okuyucu.apk`; nightly/"en son" değişmez); tetik: elle
+  `kisisel: true` ya da head commit mesajında `[kisisel]` (2026-11-01).
 - **İmza:** bütün APK'lar sabit anahtarla — secret `ANDROID_KEYSTORE_B64` +
   `ANDROID_KEYSTORE_PASSWORD`, alias `dosyaokuyucu`, SHA-256 `9E:EF:67:04:…:4C:57:37:18`.
   Anahtar dosyası repo DIŞINDA (`C:\Users\sena\Desktop\dosya-okuyucu-imza\release.jks`) —
@@ -123,6 +124,8 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Actions dakika kotası** bitince işler 2-3 sn'de logsuz düşer — "altyapı arızası" sanıp boş
   commit'le yeniden tetikleme; önce kullanıcıya/Billing'e bak. Depo private olunca 2.000 dk/ay.
 - PowerShell borusu secret'a CR ekler → `gh secret set X < dosya`; workflow `tr -d '\r\n \t'`.
+- **main'e giden head commit mesajında `[kisisel]` YAZMA** (birleştirme mesajı dahil): o koşu
+  nightly yerine kişisel derleme + `kisisel` ön-sürümü üretir.
 - Oturum başında `.claude/settings.json` hook'u `git pull --rebase --autostash` yapar —
   beklenmeyen üst commit bundandır.
 - Kotlin yalnız CI'da derleniyordu, tek tür hatası 13 dk yakıyordu → `tool/check_kotlin.sh`.
@@ -224,8 +227,17 @@ ve kalanlar dosyasını temizle; main'e merge et."* Kod değişmedi.
 - **Uzak dallar:** main dışında 64 dal; 16'sı main'e girmiş, 46'sının main'le ortak atası yok
   (main geçmişi bir ara yeniden yazılmış), `ccr-4fb1643b` #52 ile squash girmiş; **bugün açılmış
   `ccr-0ba9d97d-1mtuwm` main'de olmayan 2 CI commit'i taşıyor** (kişisel ön-sürüm) — kullanıcıya
-  soruldu, dokunulmadı (A1.1).
+  soruldu, dokunulmadı → kullanıcı onayıyla aynı gün main'e alındı (aşağıdaki kayıt).
 - **CI süresi** (Faz 1'in "önbellek dolunca yeniden ölç" notu): main koşuları #440–444 ≈ 9–12 dk.
 - **Tuzak:** son tur kayıtları `- **2026-…**` madde biçiminde yazıldığı için
   `tool/hafiza_arsivle.py` (yalnız `## YYYY-MM-DD` başlıklarını taşır) onları göremedi, dizin
   892 satıra çıktı → tarihli kayıt başlıkla yazılır (yukarıdaki kural).
+
+## 2026-11-01 — Kişisel derleme Release'e çıkar (dal `ccr-0ba9d97d-1mtuwm` main'e alındı)
+Kullanıcı isteği: *"indirebileyim"*; aynı gün başka oturumda yazıldı, kullanıcı *"o dalı da al
+main'e"* deyince birleştirildi. Elle tetikleme `kisisel: true` → ayrı **`kisisel`** ön-sürümü
+(prerelease, `--latest=false`; etiket her koşuda o commit'e taşınır, APK üzerine yazılır).
+`nightly` ve `releases/latest/download/dosya-okuyucu.apk` DEĞİŞMEZ; budama `kisisel`i de atlar.
+Herhangi bir daldan; elle tetikleme yoksa commit mesajına `[kisisel]` yazıp push etmek de aynısını
+yapar. İndirme: `releases/download/kisisel/dosya-okuyucu.apk`. (Özgün kayıt madde biçimindeydi,
+birleştirmede yeni dizin biçimine taşındı.)
