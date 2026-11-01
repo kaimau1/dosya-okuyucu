@@ -219,9 +219,6 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
 
 ### B1 — Yerel Windows oturumu küçük işleri 💻
 
-- [ ] **B1.1 `graphify update .`** → `graphify-out/` (rapor 2026-10-21'den beri eski;
-      sonrasında `services/docx/`, `widgets/docx_editor/`, `screens/pdf_editor/`,
-      `core/edit/`, Yakındakiler … eklendi); CLAUDE.md §2 düğüm/kenar/topluluk sayıları.
 - [ ] **B1.3 Ölçüm hazırlığı:** yan yana kurulabilen `.r8test` profil APK'sı (HAFIZA
       tuzağı: CI anahtarı ≠ yerel anahtar) + `tool/make_test_tree.py` verisi.
 
