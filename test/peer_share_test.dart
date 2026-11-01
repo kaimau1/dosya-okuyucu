@@ -387,7 +387,8 @@ void main() {
     final r = await PeerSender.send(peer, [source.path],
         senderName: 'G',
         onWaiting: waits.add,
-        retryFor: const Duration(milliseconds: 300),
+        // Windows reddedilen bağlantıyı ~2 sn'de bildirir.
+        retryFor: Duration(milliseconds: Platform.isWindows ? 3000 : 300),
         retryEvery: const Duration(milliseconds: 100));
     expect(r.sent, 0);
     expect(r.hasError, isTrue);

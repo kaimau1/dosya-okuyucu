@@ -222,10 +222,6 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
 - [ ] **B1.1 `graphify update .`** → `graphify-out/` (rapor 2026-10-21'den beri eski;
       sonrasında `services/docx/`, `widgets/docx_editor/`, `screens/pdf_editor/`,
       `core/edit/`, Yakındakiler … eklendi); CLAUDE.md §2 düğüm/kenar/topluluk sayıları.
-- [ ] **B1.2 Windows'ta kalan 2 test** (2026-11-01 tam koşu: 3293 geçti, `analyze` 0; ikisi temiz
-      ağaçta da kırık, Linux CI'da sorun değil): `pdf_pending_objects_test` "Üstüne yaz" (çıkarılan
-      metinde yeni yazı yok) · `peer_share_test` "alıcı yokken…" (Windows'ta port 1 bağlantısı
-      `onWaiting` çağırmadan bitiyor). **Bitti:** Windows'ta ikisi de yeşil ya da platforma göre atlanıyor.
 - [ ] **B1.3 Ölçüm hazırlığı:** yan yana kurulabilen `.r8test` profil APK'sı (HAFIZA
       tuzağı: CI anahtarı ≠ yerel anahtar) + `tool/make_test_tree.py` verisi.
 

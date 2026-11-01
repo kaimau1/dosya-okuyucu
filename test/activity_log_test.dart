@@ -67,7 +67,8 @@ void main() {
     expect(all.length, ActivityLog.maxRecords);
     // En yeniler korunur.
     expect(all.first.path, '/f${ActivityLog.maxRecords + 19}.txt');
-  });
+    // Her kayıt diske yazar: paralel yükte 30 sn sınırını aşabiliyor.
+  }, timeout: const Timeout(Duration(minutes: 3)));
 
   test('temizlemek yalnız DEFTERİ siler, dosyaya dokunmaz', () async {
     final real = File('${dir.path}/durur.pdf')..writeAsStringSync('x');

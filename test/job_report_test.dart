@@ -9,6 +9,8 @@ import 'package:dosya_okuyucu/services/fm/job_queue.dart';
 import 'package:dosya_okuyucu/services/fm/tracked_task.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'support/temp_dir.dart';
 import 'package:provider/provider.dart';
 
 /// 2026-10-30 kullanıcı isteği: biten işin (AI etiket önerisi) dosya dosya
@@ -26,7 +28,7 @@ void main() {
   });
 
   tearDown(() {
-    if (dir.existsSync()) dir.deleteSync(recursive: true);
+    removeTempDir(dir);
   });
 
   test('değişiklik listesi iş kaydıyla diske yazılıp geri okunur', () {
@@ -43,8 +45,11 @@ void main() {
   });
 
   /// Dosya yazımı gerçek G/Ç: sahte saatte ilerlemez, gerçek zamanla beklenir.
-  Future<void> settle(WidgetTester tester) async {
-    for (var i = 0; i < 20; i++) {
+  /// Dosya yazımı gerçek saatle biter: [until] verilirse koşul gelene kadar
+  /// (paralel test yükünde sabit bekleme yetmiyor).
+  Future<void> settle(WidgetTester tester, {bool Function()? until}) async {
+    for (var i = 0; i < (until == null ? 20 : 500); i++) {
+      if (until != null && until()) break;
       await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 20)));
       await tester.pump();
@@ -73,13 +78,20 @@ void main() {
     expect(find.text('#Tatil'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('jr-apply-all')));
-    await settle(tester);
+    await settle(tester,
+        until: () =>
+            FileTags.forPath(a).contains('Fatura') &&
+            FileTags.forPath(b).contains('Tatil') &&
+            job.changes.every((c) => c.applied));
     expect(FileTags.forPath(a), contains('Fatura'));
     expect(FileTags.forPath(b), contains('Tatil'));
     expect(job.changes.every((c) => c.applied), isTrue);
 
     await tester.tap(find.byKey(const ValueKey('jr-undo-all')));
-    await settle(tester);
+    await settle(tester,
+        until: () =>
+            FileTags.forPath(a).isEmpty &&
+            job.changes.every((c) => !c.applied));
     expect(FileTags.forPath(a), isEmpty);
     expect(job.changes.every((c) => !c.applied), isTrue);
   });
@@ -106,7 +118,10 @@ void main() {
     expect(job.changes[1].rejected, isTrue);
 
     await tester.tap(find.byKey(const ValueKey('jr-apply-all')));
-    await settle(tester);
+    // Yük altında sabit bekleme yetmiyor: koşul gelene kadar.
+    for (var i = 0; i < 40 && !FileTags.forPath(b).contains('Tatil'); i++) {
+      await settle(tester);
+    }
     expect(FileTags.forPath(a), contains('Belge'));
     expect(FileTags.forPath(b), isNot(contains('Belge')));
     expect(FileTags.forPath(b), contains('Tatil'));

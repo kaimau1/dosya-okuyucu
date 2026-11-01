@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
 
@@ -40,7 +41,8 @@ void main() {
     final dir = Directory.systemTemp.createTempSync('faz31');
     try {
       final f = File('${dir.path}/a.pdf')..writeAsBytesSync(bytes);
-      final r = Process.runSync('pdftotext', [f.path, '-']);
+      final r = Process.runSync('pdftotext', ['-enc', 'UTF-8', f.path, '-'],
+          stdoutEncoding: utf8);
       return r.stdout as String;
     } finally {
       dir.deleteSync(recursive: true);
