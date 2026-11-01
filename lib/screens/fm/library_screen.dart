@@ -194,6 +194,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 decoration: InputDecoration(
                   hintText: context.t('lib.search'),
                   border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  filled: false,
                 ),
                 onChanged: (_) => setState(() {}),
               )
@@ -544,7 +547,7 @@ class _BookCoverState extends State<_BookCover> {
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 12, 8, 10),
+          padding: const EdgeInsetsDirectional.fromSTEB(14, 12, 8, 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
