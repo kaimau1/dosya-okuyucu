@@ -347,13 +347,22 @@ class DocxEditorViewState extends State<DocxEditorView> {
   /// Gezinti: [i]. paragrafa atlar. Tembel listede paragraf kurulu
   /// olmayabilir — önce blok oranıyla tahmini konuma kaydırılır, kurulunca
   /// tam yerine (en çok birkaç kare).
-  Future<void> revealParagraph(int i) async {
+  Future<void> revealParagraph(int i, {bool top = false}) async {
     final bl = _blockList;
     var k = bl.indexWhere((b) => i >= b.start && i < b.end);
     if (k < 0) k = 0;
     for (var tries = 0; tries < 6 && mounted; tries++) {
       final ro = _render(i);
       if (ro != null) {
+        final viewport = top ? RenderAbstractViewport.maybeOf(ro) : null;
+        if (viewport != null && _scroll.hasClients) {
+          final pos = _scroll.position;
+          _scroll.jumpTo(viewport
+              .getOffsetToReveal(ro, 0)
+              .offset
+              .clamp(pos.minScrollExtent, pos.maxScrollExtent));
+          return;
+        }
         ro.showOnScreen(
             rect: Rect.fromLTWH(0, -8, ro.size.width, ro.size.height + 16),
             duration: Motion.short);

@@ -242,9 +242,6 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
       demişti. Onaylanmazsa kök neden yazılır, editör düzeltilir.
 - [ ] **B3.3a Excel açılışı:** 10 bin × 20 Mi Note 10 Lite'ta 7,7–8,9 sn (DOM'suz okuyucudan önce ~20 sn), hedef ≤ 1,5 sn.
       Sırada: `XlsxReader.read` sonrası nerede vakit gidiyor ölç (`_rowsFrom`, ilk çizim); gerekirse hücreleri tembel kur.
-- [ ] **B3.3b Bozuk xref'li PDF'e kaydetme:** pdfium açıyor ama Syncfusion "Invalid cross reference table" diye reddediyor,
-      kullanıcı "Beklenmeyen bir hata" görüyor. Anlaşılır mesaj ya da kaydetmeden önce onarım.
-- [ ] **B3.3c Word düzenleyici açılışı:** bakılan paragraf ekranın altında kalıyor (`showOnScreen` en az kaydırır); üste hizala.
 - [ ] **B3.3 Faz 4 bütçe aşımları** (soğuk açılış ≤ 1,2 sn, 5.000 öğe kaydırma %99 ≤ 24 ms,
       galeri 2.000 fotoğraf RSS ≤ 350 MB / hafif ≤ 250 MB, boşta 0 kare) ve DUZENLEME §7
       bütçeleri → aynı oturumda düzelt.

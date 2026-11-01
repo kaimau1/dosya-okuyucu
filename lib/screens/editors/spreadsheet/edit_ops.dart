@@ -267,15 +267,15 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
       // Dosya bu satırın yüksekliğini SÖYLEDİYSE ona dokunulmaz: kullanıcının
       // (ya da Excel'in) verdiği ölçü bizim tahminimizden önce gelir.
       if (sheet.layout.rowHeights.containsKey(r)) continue;
-      if (sheet.isRowHidden(r) || sheet.isColHidden(c)) continue;
-      if (sheet.mergeAt(r, c) != null) continue;
       // ÖNCE ucuz eleme: kaydırma bayrağı (önbellekli stil) ve ham metindeki
-      // satır sonu. Biçimlendirilmiş metni (`viewAt`) üretmek 200 bin hücrelik
-      // bir dosyada her ölçü tazelemesinde sayfayı bekletirdi.
+      // satır sonu. Biçimlendirilmiş metni (`viewAt`) üretmek ve her hücrede
+      // birleşik aralık aramak 200 bin hücrelik dosyada sayfayı bekletirdi.
       final style = sheet.styleAt(r, c);
       final raw = sheet.rawAt(r, c);
       if (raw.isEmpty) continue;
       if (!(style?.wrap ?? false) && !raw.contains('\n')) continue;
+      if (sheet.isRowHidden(r) || sheet.isColHidden(c)) continue;
+      if (sheet.mergeAt(r, c) != null) continue;
       final text = _autoFitText(sheet, r, c);
       if (text.isEmpty) continue;
       final width = sheet.colWidth(c) -

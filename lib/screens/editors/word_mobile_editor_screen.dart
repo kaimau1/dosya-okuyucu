@@ -146,7 +146,7 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       c.select(DocPos(i, 0), DocPos(i, 0));
-      unawaited(_viewKey.currentState?.revealParagraph(i));
+      unawaited(_viewKey.currentState?.revealParagraph(i, top: true));
     });
   }
 

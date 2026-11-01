@@ -88,6 +88,8 @@ class UserError {
     if (type.contains('PdfPassword') || text.contains('password')) {
       return UserErrorKind.pdfLocked;
     }
+    // Syncfusion bozuk xref'te düz ArgumentError atar (pdfium açar, yazma düşer).
+    if (text.contains('cross reference')) return UserErrorKind.pdfDamaged;
     if (type.startsWith('Pdf') && type.contains('Exception')) {
       return UserErrorKind.pdfDamaged;
     }
