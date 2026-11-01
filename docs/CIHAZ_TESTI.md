@@ -51,6 +51,19 @@
 | Akıllı analiz: 1.500 WhatsApp görselinde OCR süresi | ölç | | |
 | R8'li APK: açılış çökmesiz, APK boyutu | çökme yok | ✔ 60,6 MB (2026-10-22) | |
 
+**Mi Note 10 Lite (Android 12, 5,7 GB RAM) — 2026-11-01, v1.0.452–454, ADB ile:**
+
+| Ölçüm | Sonuç |
+|---|---|
+| Soğuk açılış (`am start -W`, ilk kurulum / sonrası) | 1,63 sn / 0,60–0,70 sn ✔ |
+| Pano boşta 60 sn · arka planda 60 sn CPU (tek çekirdek) | %0,20 ✔ · %0,18 ✔ |
+| Pano bellek (PSS / RSS) | 130 MB / 237 MB |
+| PDF 320 sayfa: açılış, kaydırma tepesi PSS | 664 ms, ~227 MB, sonra düşüyor ✔ (RSS tek koşuda 555 MB) |
+| Word çok sayfa · Slayt 50: açılış, kaydırma PSS | 601 ms, ~203 MB · 629 ms, ~150 MB ✔ |
+| Excel 10 bin × 20: ilk hücre | ~20 sn → DOM'suz okuyucuyla **7,7–8,9 sn** ✖ hedef ≤ 1,5 sn (KALANLAR B3.3) |
+| Pil: 4 dk PDF kaydırma + 2 dk arka plan | 48 sn CPU; **mAh ölçülemedi** (telefon prizde, hesaplanan tüketim 0) |
+| Kare %99 | ölçülmedi: yayın derlemesinde kare kancası 6 sn sonra sökülüyor; profil APK gerekir (B1.3) |
+
 ## 2. Dosya yöneticisi — pano, listeler, süzgeç, arama
 
 - [ ] **İzin akışı:** ilk açılış rehberi (3 ekran) → "Tüm dosyalara erişim" → ayara git, dön →
@@ -103,8 +116,8 @@
       yenilemeden güncel.
 - [ ] **Ana ekrana ekle:** Görüntüler → ⋮ → "Ana ekrana ekle" → kendi simgeli kısayol; uygulama
       kapalıyken de Görüntüler'i açıyor.
-- [ ] **Dosya seçici 2. tur:** yeni kurulumda kategori/arama dolu; yazdıkça arama; sıralama çipi; çoklu seçimde Tümünü seç /
-      Temizle + toplam boyut; bir seçimden sonra ana sayfada son klasör çipi.
+- [ ] **Dosya seçici 2. tur, kalanı (kategori, sıralama, Tümünü seç çipi, toplam boyut 2026-11-01'de geçti):** yazdıkça arama;
+      Temizle; bir seçimden sonra ana sayfada son klasör çipi; depolama çipi "Ana bellek"; gizli klasör dosyaları listede yok.
 - [ ] **Seçici kipi (başka uygulamadan "dosya seç"):** PDF isteyen uygulamada doğrudan o türün
       dosyaları (en yeni üstte, "Tümü · PDF 34" çipleri, "Klasörlerde gez"); seçici kapandıktan
       sonra ayarlar kaydediliyor (shared_preferences çökmesi yok); Notlar'dan gelişte "Diğer".
@@ -157,9 +170,8 @@
       paylaşımı; ortak Wi-Fi yoksa **hotspot daveti** (BLE ile) → alıcı ağa bağlanıyor, iş
       bitince eski ağına dönüyor; ekrandan çıkınca geçici ağ kapanıyor (Wi-Fi listesinde
       DIRECT-/AndroidShare kalmıyor); geçmiş paneli.
-- [ ] **Gönderim ekrandan bağımsız:** QR ile büyük dosya indirilirken gönderen geri çıksın / ana ekrana dönsün / ekranı
-      kilitlesin → indirme sonuna kadar sürüyor, "Dosya aktarılıyor" bildirimi + Durdur; bitince ~1 dk içinde sunucu ve
-      hotspot kapanıyor; hiç indirme başlamadan çıkınca sunucu anında kapanıyor. Alıcı tarafta da ekrandan çıkınca alım sürüyor.
+- [ ] **Gönderim ekrandan bağımsız, kalanı (gönderen tarafı 2026-11-01'de 300 MB + MD5 ile geçti):** pil üzerinde (USB'siz)
+      ekran kapalıyken; bildirimdeki Durdur; hotspot yolu; iki telefonla alıcı ekrandan çıkınca alım sürüyor.
 - [ ] **Uygulamasız alıcı (web):** tarayıcıda `http://<ip>:8080` + 6 harfli jeton (elle de
       yazılabiliyor) → küçük resimli liste, "Tümünü indir" ZIP, tek dosyada otomatik indirme,
       sayfa tarayıcı diline göre TR/EN. Hotspot yolunda alıcının tarayıcısı mobil veriye
@@ -185,7 +197,6 @@
 
 ## 6. PDF — görüntüleme ve araçlar
 
-- [ ] **Örnek set** (`test/fixtures/pdf/*`) açılıyor; parolalı (`1234`) soruyor.
 - [ ] **Kaldığın yerden:** uzun PDF'i yarıda bırak, kapat-aç → o sayfa + "Baştan başla" şeridi.
 - [ ] **Kaydırma:** hızlı fırlatma Word/listeler kadar gidiyor; sayfa başına geri ÇEKMİYOR; iki
       parmak yakınlaştırıp bırakınca zıplama yok; yakında yazı keskin (basamaklı çizim
@@ -250,8 +261,6 @@
 ## 8. Word
 
 **Bütün editörlerde ortak (Faz 20 — Word, Excel, Slayt, Metin, PDF, Görsel):**
-- [ ] **Düzenleme sonrası odak:** Word 5. sayfada Düzenle → aynı yerde açılıyor; paragraf değiştir, çık → o paragraf ortada +
-      çerçeve. Slayt 7'de kutu düzenle, Bitti → aynı slayt + çerçeve. PDF düzenleyicide 3. sayfada kaydet → görüntüleyici 3. sayfada.
 - [ ] Klavye açılıp kapanırken klavye üstü çubuk klavyeyle birlikte kayıyor (zıplama yok).
 - [ ] Otomatik kaydetme: düzenle, 3 sn bekle → başlıkta "Kaydedildi"; uygulamayı zorla kapat →
       yeniden aç → taslak şeridi "Geri yükle"; geri yazılamayan dosyada (e-posta eki) ilk kayıtta

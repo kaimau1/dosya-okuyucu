@@ -224,8 +224,9 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
 
 ### B2 — Cihaz turu 📱 (FAZ_PLANI 12b + DUZENLEME 33 cihaz kısmı + Faz 4 ölçümleri)
 
-- [ ] **`docs/CIHAZ_TESTI.md`'yi baştan sona geç** (2026-11-01'de alana göre yeniden
-      düzenlendi; §1 ölçüm tablosu sayılarla doldurulur). En az iki telefon (biri düşük
+- [ ] **`docs/CIHAZ_TESTI.md`'yi baştan sona geç** (2026-11-01 ilk tur tek telefonla, ADB:
+      §1'de CPU/RAM/açılış dolu; açılış duman testi, QR gönderim, odak, parola, FTP, seçici kipi geçti. Elle/donanımla
+      yapılacak bölümler duruyor). En az iki telefon (biri düşük
       donanımlı, FAZ_PLANI Ek D), Yakındakiler için ikinci telefon, Bluetooth klavye,
       varsa tablet/DeX. Kırmızılar aynı oturumda düzeltilir; sonuç HAFIZA'ya.
       Ölçüm verisi telefona `.nomedia`'lı klasörde konur, iş bitince silinir.
@@ -239,6 +240,11 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
       bayrağı, `screens/editors/word/shell.dart`, `viewer.html` düzenleme köprüsü) ve
       `lib/labs/word_editor/` prototipi silinir — K19 (b) "Faz 23 sonunda kalkar"
       demişti. Onaylanmazsa kök neden yazılır, editör düzeltilir.
+- [ ] **B3.3a Excel açılışı:** 10 bin × 20 Mi Note 10 Lite'ta 7,7–8,9 sn (DOM'suz okuyucudan önce ~20 sn), hedef ≤ 1,5 sn.
+      Sırada: `XlsxReader.read` sonrası nerede vakit gidiyor ölç (`_rowsFrom`, ilk çizim); gerekirse hücreleri tembel kur.
+- [ ] **B3.3b Bozuk xref'li PDF'e kaydetme:** pdfium açıyor ama Syncfusion "Invalid cross reference table" diye reddediyor,
+      kullanıcı "Beklenmeyen bir hata" görüyor. Anlaşılır mesaj ya da kaydetmeden önce onarım.
+- [ ] **B3.3c Word düzenleyici açılışı:** bakılan paragraf ekranın altında kalıyor (`showOnScreen` en az kaydırır); üste hizala.
 - [ ] **B3.3 Faz 4 bütçe aşımları** (soğuk açılış ≤ 1,2 sn, 5.000 öğe kaydırma %99 ≤ 24 ms,
       galeri 2.000 fotoğraf RSS ≤ 350 MB / hafif ≤ 250 MB, boşta 0 kare) ve DUZENLEME §7
       bütçeleri → aynı oturumda düzelt.

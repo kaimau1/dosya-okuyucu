@@ -281,3 +281,20 @@ birleştirmede yeni dizin biçimine taşındı.)
   (Güvenlik ayarları)" kullanıcı tarafından açılmalı; yoksa `INSTALL_FAILED_USER_RESTRICTED` / `INJECT_EVENTS`.
 - **TUZAK (Windows test, B1.2):** `const SystemEncoding()` Windows'ta cp1254 çözer → testte `utf8.decoder`. Aynı cihazı başka oturum
   kullanıyorsa kilit: `/data/local/tmp/cihaz.lock`.
+
+## 2026-11-01 — İlk cihaz turu (Mi Note 10 Lite, ADB): bulgular ve tuzaklar
+Sayılar `docs/CIHAZ_TESTI.md` §1. Cihazda kanıtlananlar: QR gönderimi 300 MB + MD5 (geri çık, ana ekran, ekran kapalı; USB'de),
+Word/Slayt/PDF düzenleme dönüş odağı, parolalı PDF, FTP uçtan uca, seçici kipi, 49 örnek dosya açılışı.
+- **Excel açılış kökü:** `XlsxReader` sayfayı `XmlDocument.parse` ile DOM'a alıyordu (200 bin hücre telefonda ~20 sn + GC) ve `cellRef`
+  her hücrede RegExp derliyordu → `sheetData` ve paylaşılan dizeler elle taranır (CDATA, yorum, ön ekli adda DOM'a düşer; `forceDom` ile iki yol
+  eşdeğerlik testli). ~8 sn'ye indi, hedef 1,5 sn tutmuyor (KALANLAR B3.3a).
+- **Parolalı PDF kökü:** görüntüleyicide `passwordProvider` hiç yoktu, dosya "bozuk" görünüyordu. Parola yalnız bellekte tutulur.
+- **Şerit kökü:** `EditorChrome` şeridi alt güvenli alanı saymıyordu; 3 tuşlu gezinmede PDF araçları çubuğun arkasındaydı. Hareketli gezinmeli
+  telefonda (13T) görünmüyordu: **tek telefonla test yetmez.**
+- **TUZAK — pdfrx `initialPageNumber` tutmuyor** (görüntü 1. sayfada, sayaç 16): `goToPage` yeniden denemeyle.
+- **TUZAK — Windows checkout örnek PDF'leri bozuyordu:** `autocrlf` + düz metin PDF → xref kayar, pdfium açar ama Syncfusion reddeder. "PDF kaydı
+  bozuk" diye yanlış alarm verdi. `.gitattributes`: `test/fixtures/** binary`. Bozuk xref'li gerçek PDF'te mesaj hâlâ genel (B3.3b).
+- **TUZAK — `hooks/pre-push` tam testi koşar (5–7 dk):** kısa zaman aşımıyla "push takıldı" sanma, arka planda koştur; yükte kararsız test çıkabilir,
+  önce tek başına koştur. Push sonrası CI koşusunu `gh run list --commit <sha>` ile bul: `--limit 1` eski koşuyu izletir.
+- **TUZAK — ölçüm:** sentetik `input tap` Flutter satırlarında bazen kaçıyor → `input swipe x y x y 110`. `uiautomator dump` metni okumak ekran görüntüsünden çok ucuz.
+  Prizdeki telefonda `batterystats` mAh vermez; gerçek pil için USB'siz koşu gerekir. Aynı telefonu başka oturum kullanıyorsa kilit `/data/local/tmp/cihaz.lock`.

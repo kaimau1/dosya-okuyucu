@@ -1,0 +1,2 @@
+# Windows autocrlf örnek PDF'lerin xref tablosunu bozuyordu (2026-11-01).
+test/fixtures/** binary
