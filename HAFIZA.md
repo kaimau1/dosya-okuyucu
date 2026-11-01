@@ -889,3 +889,8 @@
   başlatılır; "durdur" duraklatır, kaldığı yer kalır), özet mevcut `showAiSummary` (kayıtlı özet varsa anında açılır).
   Kanca genel APK'da da var ama etkisiz (bağlantıları veren köprü yalnız kişisel derlemede). Özet asistanda sesli
   okunmaz, Dosya Okuyucu'nun özet sayfasında açılır (sonuç Dart'ta, köprüye geri dönen yol yok — gerekirse sonra).
+
+- **2026-11-01 — Kişisel derleme artık Release'e çıkar (kullanıcı isteği: "indirebileyim").** Elle tetikleme
+  `kisisel: true` → ayrı **`kisisel`** ön-sürümü (prerelease, `--latest=false`; etiket her koşuda o commit'e taşınır,
+  APK üzerine yazılır). `nightly` ve `releases/latest/download/dosya-okuyucu.apk` DEĞİŞMEZ; budama `kisisel`i de
+  atlar. Herhangi bir daldan tetiklenebilir. İndirme: `releases/download/kisisel/dosya-okuyucu.apk`.

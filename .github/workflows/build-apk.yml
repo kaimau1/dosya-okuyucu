@@ -42,7 +42,7 @@ on:
         type: string
         default: '3.44.6'
       kisisel:
-        description: 'Kişisel derleme (asistan köprüsüyle; YALNIZ artifact, Release yayınlanmaz)'
+        description: 'Kişisel derleme (asistan köprüsüyle; ayrı `kisisel` ön-sürümüne yayınlanır, nightly/en son değişmez)'
         type: boolean
         default: false
 
@@ -426,10 +426,12 @@ jobs:
   release:
     name: GitHub Release
     needs: [verify, apk]
-    # Kişisel derleme (asistan köprüsü) dağıtıma GİRMEZ: Release yayınlanmaz.
+    # Kişisel derleme (asistan köprüsü) genel dağıtıma GİRMEZ: nightly/en son
+    # değişmez; yalnız ayrı `kisisel` ön-sürümü (prerelease, latest DEĞİL)
+    # güncellenir — kullanıcı oradan indirir (2026-11-01). Her daldan olur.
     if: >-
-      !inputs.kisisel &&
-      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+      inputs.kisisel ||
+      github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -453,6 +455,10 @@ jobs:
         run: |
           set -e
           {
+            if [ "${{ inputs.kisisel && '1' || '0' }}" = "1" ]; then
+              echo "> **KİŞİSEL derleme** — asistan köprüsü (\`com.ses.asistan\`) içerir; genel dağıtım değildir."
+              echo
+            fi
             echo "**Sürüm ${BUILD_NAME}** (derleme ${BUILD_NUMBER}) — \`$(git rev-parse --short HEAD)\`"
             echo
             echo "**Bu derlemedeki son değişiklikler:**"
@@ -480,7 +486,21 @@ jobs:
         run: |
           set -u
           publish() {
-            if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            if [ "${{ inputs.kisisel && '1' || '0' }}" = "1" ]; then
+              TAG=kisisel
+              TITLE="Dosya Okuyucu KİŞİSEL (asistan köprülü) v${BUILD_NAME}"
+              if gh release view "$TAG" >/dev/null 2>&1; then
+                gh api -X PATCH "repos/$GH_REPO/git/refs/tags/$TAG" \
+                  -f sha="$GITHUB_SHA" -F force=true >/dev/null &&
+                gh release edit "$TAG" --title "$TITLE" \
+                  --notes-file RELEASE_NOTES.md --prerelease --latest=false &&
+                gh release upload "$TAG" dist/*.apk --clobber
+              else
+                gh release create "$TAG" dist/*.apk --target "$GITHUB_SHA" \
+                  --title "$TITLE" --notes-file RELEASE_NOTES.md \
+                  --prerelease --latest=false
+              fi
+            elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
               TAG="${GITHUB_REF#refs/tags/}"
               if gh release view "$TAG" >/dev/null 2>&1; then
                 gh release upload "$TAG" dist/*.apk --clobber
@@ -527,7 +547,7 @@ jobs:
           set -e
           gh release list --limit 1000 --json tagName,createdAt \
             --jq 'sort_by(.createdAt) | reverse | .[].tagName' \
-            | grep -vx nightly | tail -n +$((KEEP + 1)) | head -n "$MAX_DELETE" > old.txt || true
+            | grep -vxE 'nightly|kisisel' | tail -n +$((KEEP + 1)) | head -n "$MAX_DELETE" > old.txt || true
           echo "Silinecek: $(wc -l < old.txt) sürüm"
           while read -r TAG; do
             [ -n "$TAG" ] || continue
