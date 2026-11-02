@@ -561,3 +561,12 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
       taranmış sayfada OCR seçimi, arama vurguları, açıklama işaretleri yerinde mi, küçük resimler, 4 sütun düzeni.
       Ölç: `_pdfRenderScale` ve sığdırma kenetlemesi kapatılınca 2.x kendisi titremiyor mu → gereksizse sil.
 
+
+## 17. VLC benzeri oynatıcı + görsel iyileştirme (2026-11-02, kişisel APK)
+- [ ] AC3/DTS sesli MKV: ses geliyor mu (otomatik mpv'ye geçiş); menüde "Standart motora dön" görünüyor mu
+- [ ] AVI/WMV/FLV açılıyor mu; mpv'de PiP, mini çubuk, bildirim, kaldığı yerden devam çalışıyor mu
+- [ ] Çok dilli MKV'de ses parçası menüsü (ExoPlayer) dil değiştiriyor mu
+- [ ] Altyazı → İnternette ara: sonuç geliyor, indirilen altyazı filmin yanına kaydedilip açılıyor (secret varsa)
+- [ ] Altyazı büyüt/küçült
+- [ ] Galeri → İyileştir: otomatik/keskinleştir/gürültü kopyası `_iyi.jpg`; yapay zekâ ilk seferde model indiriyor, süre?
+- [ ] Başında çöp olan / yarım inmiş JPEG "kurtarılabilen kısmı" notuyla açılıyor

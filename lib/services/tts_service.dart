@@ -331,7 +331,7 @@ class TtsService {
 
   void _clearNeural() {
     for (final f in _files.values) {
-      f.then((path) => File(path).delete(), onError: (_) => null).ignore();
+      f.then<void>((path) => File(path).delete(), onError: (_) {}).ignore();
     }
     _files.clear();
   }

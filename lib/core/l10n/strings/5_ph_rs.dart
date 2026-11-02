@@ -913,6 +913,36 @@ const Map<String, (String, String, String)> _t5 = {
   'mp.play_speed': ('Oynatma hızı', 'Playback speed', 'سرعة التشغيل'),
   'mp.subtitles': ('Altyazı', 'Subtitles', 'الترجمة'),
   'mp.sub_off': ('Altyazı kapalı', 'Subtitles off', 'إيقاف الترجمة'),
+  'mp.audio_engine': ('Ses ve oynatma motoru', 'Audio and player engine', 'الصوت ومحرك التشغيل'),
+  'mp.engine_mpv': (
+    'Gelişmiş motorla aç (mpv — her kodek)',
+    'Open with advanced engine (mpv — all codecs)',
+    'فتح بالمحرك المتقدم (mpv — كل الترميزات)',
+  ),
+  'mp.engine_exo': (
+    'Standart motora dön (ExoPlayer)',
+    'Back to standard engine (ExoPlayer)',
+    'العودة إلى المحرك القياسي (ExoPlayer)',
+  ),
+  'mp.audio_track_n': ('Ses {n}', 'Audio {n}', 'الصوت {n}'),
+  'mp.sub_online': (
+    'İnternette ara (OpenSubtitles)…',
+    'Search online (OpenSubtitles)…',
+    'البحث عبر الإنترنت (OpenSubtitles)…',
+  ),
+  'mp.sub_online_none': (
+    'Bu video için altyazı bulunamadı.',
+    'No subtitles found for this video.',
+    'لم يتم العثور على ترجمة لهذا الفيديو.',
+  ),
+  'mp.sub_online_failed': (
+    'Altyazı alınamadı: {error}',
+    'Could not get subtitles: {error}',
+    'تعذر جلب الترجمة: {error}',
+  ),
+  'mp.sub_exact': ('Bu sürümle birebir', 'Exact match for this file', 'مطابقة تامة لهذا الملف'),
+  'mp.sub_bigger': ('Altyazıyı büyüt', 'Larger subtitles', 'تكبير الترجمة'),
+  'mp.sub_smaller': ('Altyazıyı küçült', 'Smaller subtitles', 'تصغير الترجمة'),
   'mp.sub_pick': (
     'Dosyadan altyazı seç…',
     'Choose subtitle file…',

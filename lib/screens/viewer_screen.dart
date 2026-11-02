@@ -515,7 +515,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
     }
     if (doc.kind == DocKind.pdf) {
       _prepareSafeOpen();
-      _pdfSearcher = PdfTextSearcher(_pdfController)..addListener(_onPdfSearch);
+      // `_pdfSearcher` `onViewerReady`'de kurulur: pdfrx 2.x'in yapıcısı
+      // denetleyicinin belgesine hemen abone oluyor ve görüntüleyici
+      // bağlanmadan çağrılınca "Null check" ile ekranı düşürüyordu
+      // (sürüm 475, her PDF — 2026-11-03 hata kaydı).
       _ocrSearch = PdfOcrSearch()..addListener(_onPdfSearch);
       _pdfController.addListener(_onPdfMatrix);
       unawaited(_offerFormFilling());

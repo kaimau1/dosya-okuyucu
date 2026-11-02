@@ -15,9 +15,13 @@ import '../../core/theme.dart';
 import '../../models/document.dart';
 import '../../models/fs_entry.dart';
 import '../../models/photo_group.dart';
+import '../../core/user_error.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/image_enhance.dart';
+import '../../services/image_repair.dart';
 import '../../services/fm/native_extras.dart';
 import '../../core/snack.dart';
+import '../../widgets/app_action_sheet.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/fm/fm_file_image.dart';
 import '../image_edit_screen.dart';
@@ -245,6 +249,73 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     if (written == null || !mounted) return;
     _statCache.remove(_current);
     setState(() {});
+  }
+
+  /// **İyileştir** (kullanıcı isteği 2026-11-02: *"bulanık görselleri
+  /// iyileştirme"*): seçilen yöntemle `<ad>_iyi.jpg` kopyası kaydedilir ve
+  /// galeri ona geçer — önce/sonra kaydırarak karşılaştırılabilsin.
+  Future<void> _enhance() async {
+    final str = AppStrings.of(context);
+    final kind = await showAppActionSheet<EnhanceKind>(
+      context,
+      title: str.t('gal.enhance'),
+      groups: [
+        AppActionGroup(actions: [
+          AppAction(
+            value: EnhanceKind.auto,
+            icon: AppIcons.autoFixNormal,
+            label: str.t('gal.enh_auto'),
+            hint: str.t('gal.enh_auto_hint'),
+          ),
+          AppAction(
+            value: EnhanceKind.sharpen,
+            icon: AppIcons.zoomIn,
+            label: str.t('gal.enh_sharpen'),
+          ),
+          AppAction(
+            value: EnhanceKind.denoise,
+            icon: AppIcons.blur,
+            label: str.t('gal.enh_denoise'),
+          ),
+          AppAction(
+            value: EnhanceKind.upscale,
+            icon: AppIcons.photoFilter,
+            label: str.t('gal.enh_ai'),
+            hint: str.t(ImageEnhance.modelReady
+                ? 'gal.enh_ai_hint'
+                : 'gal.enh_ai_download'),
+            accent: true,
+          ),
+        ]),
+      ],
+    );
+    if (kind == null || !mounted) return;
+    final source = _current;
+    final busy = showBusyDialog(context,
+        builder: (_) => AlertDialog(
+              content: Row(children: [
+                const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2)),
+                const SizedBox(width: Gap.md),
+                Expanded(child: Text(str.t('gal.enh_working'))),
+              ]),
+            ));
+    try {
+      final out = await ImageEnhance.enhanceFile(source, kind);
+      busy.close();
+      if (!mounted) return;
+      final at = _paths.indexOf(source) + 1;
+      setState(() => _paths.insert(at, out));
+      _pages.jumpToPage(at);
+      showSnack(context, str.t('gal.enh_saved', {'name': p.basename(out)}));
+    } catch (e) {
+      busy.close();
+      if (mounted) {
+        showSnack(context, str.t('gal.enh_failed', {'error': userErrorText(e)}));
+      }
+    }
   }
 
   Future<void> _otherActions() async {
@@ -535,6 +606,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                               icon: AppIcons.tune,
                               label: context.t('ied.title'),
                               onTap: _edit,
+                            ),
+                            _GalleryAction(
+                              icon: AppIcons.autoFixNormal,
+                              label: context.t('gal.enhance'),
+                              onTap: _enhance,
                             ),
                             // Faz 14 (G4i): boyutlandırma eskiden yalnız ⋮ →
                             // eylem sayfasındaydı; "fotoğrafı küçült" galerinin

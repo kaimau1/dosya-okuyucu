@@ -144,7 +144,7 @@ class DriveService {
     if (override != null) return override();
     try {
       final account = _google.currentUser ?? await _google.signInSilently();
-      return account?.authHeaders;
+      return await account?.authHeaders;
     } catch (_) {
       return null;
     }

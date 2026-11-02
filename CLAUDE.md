@@ -45,8 +45,8 @@ Art arda push → önceki koşu iptal.
   iş doğrudan main'e commit edilir. Push: `git push`.
   Bulut oturumu (`claude/*`, `ccr-*`) dal açtıysa iş main'e girince o uzak dal silinir.
   APK yalnız **main**'e push'ta derlenir (feature dalında sadece `flutter test`).
-- **Doğrulama döngüsü:** önce yerelde `C:\src\flutter\bin\flutter.bat test` + `analyze`
-  (2026-10-21'den beri yerel ve CI AYNI sürüm: **3.44.6**), sonra push → Actions logunu
+- **Doğrulama döngüsü:** önce yerelde `C:\src\flutter-3.44.6\bin\flutter.bat test` + `analyze`
+  (CI **3.44.6**; `C:\src\flutter` 2026-11'de 3.47.7'ye geçmiş — onunla `pub get` kilidi bozar, HAFIZA 2026-11-03), sonra push → Actions logunu
   izle, kırmızıysa sormadan düzelt. Yerel APK: temiz kopyada `bash ci/prepare_android.sh`
   + `flutter build apk` (Git Bash'te `python3` yoksa `python`a yönlendiren bir kabuk
   betiği PATH'e). **Bulut (Linux) oturumunda** Flutter 3.44.6 indirilip

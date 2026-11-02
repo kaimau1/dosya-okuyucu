@@ -7,6 +7,9 @@ import 'package:video_player/video_player.dart';
 
 import '../../core/l10n/app_strings.dart';
 import '../../core/screen_awake.dart';
+import '../../models/fs_entry.dart';
+import 'audio_playback.dart';
+import 'player_engine.dart';
 import 'pip.dart';
 import 'media_session.dart';
 import 'playback_positions.dart';
@@ -133,31 +136,98 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     await _load();
   }
 
-  Future<void> _load() async {
+  /// mpv'de açılacak dosyalar (kullanıcı seçti ya da ExoPlayer çözemedi) —
+  /// oturum boyu hatırlanır: listede geri dönünce yine sessiz açılmasın.
+  final Set<String> _mpvPaths = {};
+
+  /// Açık dosya mpv'de mi oynuyor? (Menü metni için.)
+  bool get usingMpv => PlayerEngine.isMpv && hasVideo;
+
+  /// Açık dosyanın ses parçaları (ExoPlayer; mpv'de liste yok → boş).
+  List<VideoAudioTrack> audioTracks = const [];
+
+  /// Dosyayı öbür motorla, aynı konumdan yeniden açar.
+  Future<void> reopenWithMpv(bool on) async {
+    if (current.isEmpty) return;
+    final at = position;
+    if (on) {
+      _mpvPaths.add(current);
+    } else {
+      _mpvPaths.remove(current);
+    }
+    await _load(startAt: at, fallback: false);
+  }
+
+  Future<void> selectAudioTrack(String id) async {
+    final c = _controller;
+    if (c == null) return;
+    await _guard(() async {
+      await c.selectAudioTrack(id);
+      audioTracks = await c.getAudioTracks();
+    });
+    notifyListeners();
+  }
+
+  /// [fallback]: ExoPlayer açamazsa mpv'yi kendiliğinden dene (kullanıcı
+  /// motoru elle seçtiyse kapalı — seçimine karışılmaz).
+  Future<void> _load({Duration? startAt, bool fallback = true}) async {
     loading = true;
     error = null;
     _cover = null;
+    audioTracks = const [];
     notifyListeners();
-    final old = _controller;
+    var old = _controller;
     old?.removeListener(_onTick);
     final path = current;
+    final ext = p.extension(path).replaceFirst('.', '').toLowerCase();
+    final mpv =
+        _mpvPaths.contains(path) || PlayerEngine.mpvFirst.contains(ext);
+    if (mpv != PlayerEngine.isMpv) {
+      // Motor değişiyor: açık denetleyiciler ESKİ motorda kapanmalı (yeni
+      // motor seçilince `video_player` eskisine bir daha ulaşamıyor).
+      _controller = null;
+      await old?.dispose();
+      old = null;
+      await AudioPlayback.instance.stop();
+      PlayerEngine.switchTo(mpv: mpv);
+    }
     final controller = VideoPlayerController.file(File(path));
     try {
       await controller.initialize();
+      if (!mpv) {
+        audioTracks = await _audioTracksOf(controller);
+        final expectVideo =
+            FsEntry.categoryForExtension(ext) == FmCategory.video;
+        if (fallback &&
+            PlayerEngine.needsMpv(
+              audioTracks: audioTracks,
+              expectVideo: expectVideo,
+              hasPicture: !controller.value.size.isEmpty,
+            )) {
+          throw const _ExoCannotPlay();
+        }
+      }
       await controller.setPlaybackSpeed(speed);
       // **Kaldığı yerden devam** (kullanıcı isteği 2026-09-03): yarım
       // bırakılan bir filmi baştan açmak oynatıcıların en çok konuşulan
       // eksiği. Kural `PlaybackPositions`ta: ilk 30 sn ve son %5 kaydedilmez.
-      final resume = PlaybackPositions.positionOf(path);
+      final resume = startAt ?? PlaybackPositions.positionOf(path);
       if (resume != null && resume < controller.value.duration) {
         await controller.seekTo(resume);
-        resumedFrom = resume;
+        // Motor değişiminde (startAt) "kaldığın yerden" notu anlamsız.
+        resumedFrom = startAt == null ? resume : null;
       } else {
         resumedFrom = null;
       }
       await controller.play();
     } catch (e) {
       await controller.dispose();
+      // ExoPlayer açamadı ya da sessiz/görüntüsüz açtı → mpv (VLC gibi her
+      // kodek). Bir kez: mpv de açamazsa hata gösterilir.
+      if (!mpv && fallback && path == current) {
+        _mpvPaths.add(path);
+        return _load(startAt: startAt, fallback: false);
+      }
       await old?.dispose();
       _controller = null;
       loading = false;
@@ -481,8 +551,25 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     resumedFrom = null;
     loopStart = null;
     loopEnd = null;
+    audioTracks = const [];
+    _mpvPaths.clear();
     c?.removeListener(_onTick);
     unawaited(c?.pause());
     unawaited(c?.dispose());
+  }
+}
+
+/// ExoPlayer dosyayı açtı ama çalamıyor (bkz. [PlayerEngine.needsMpv]).
+class _ExoCannotPlay implements Exception {
+  const _ExoCannotPlay();
+}
+
+Future<List<VideoAudioTrack>> _audioTracksOf(VideoPlayerController c) async {
+  try {
+    if (!c.isAudioTrackSupportAvailable()) return const [];
+    return await c.getAudioTracks();
+  } catch (_) {
+    // Parça listesi alınamadı: karar yalnız görüntüye göre verilir.
+    return const [];
   }
 }

@@ -498,3 +498,33 @@ Kullanıcı: *"fazlardan devam et, bulutta yapılabilecekleri yap, main'e merge 
   State'ten sonraki sınıflar `part` + `extension` (davranış aynı). Kurallar: extension alan tanımlayamaz (alan
   State'te kalır), `setState` → State'teki `_update`, statik üyeler `_XState.` ile nitelenir.
 
+
+## 2026-11-02 — VLC benzeri oynatıcı (mpv) + görsel iyileştirme/kurtarma
+- **Motor:** ExoPlayer varsayılan; mpv (`video_player_media_kit` + `media_kit_libs_android_video`, libmpv 12 MB,
+  içinde FFmpeg) `VideoPlayerPlatform.instance` değiştirilerek takılıyor (`services/fm/player_engine.dart`).
+  **TUZAK:** örnek değişince `video_player` yeni örneğin `init()`ini çağırıyor ve onun TÜM oynatıcılarını
+  kapatıyor; eski denetleyici değiştirmeden ÖNCE kapatılmalı (ses oynatıcısı da durduruluyor).
+- **Otomatik geçiş:** ExoPlayer çözemediği sesi (AC3/DTS) HATA VERMEDEN sessiz çalıyor; tek ipucu
+  `getAudioTracks()`ta hiçbir parçanın `isSelected` olmaması → mpv. Görüntü boyutu 0 ya da init hatası da mpv'ye
+  düşer. AVI/WMV/FLV/RMVB/VOB… baştan mpv (`PlayerEngine.mpvFirst`). Menüde elle geçiş + ses parçası seçimi.
+- **FFmpeg ses eklentisi (Media3 decoder_ffmpeg) EKLENMEDİ:** video_player_android ExoPlayer'ı
+  `EXTENSION_RENDERER_MODE_OFF` ile kuruyor, eklenti için Java yaması gerekirdi; mpv aynı kodekleri kapsıyor.
+- **Altyazı:** OpenSubtitles v1 (`opensubtitles.dart`, moviehash önce). Anahtar `--dart-define=OPENSUBTITLES_API_KEY`
+  yalnız kişisel derlemede (secret `OPENSUBTITLES_API_KEY`); anahtar yoksa menüde seçenek yok. Altyazı punto
+  çarpanı oturum boyu statik.
+- **Görsel:** galeride "İyileştir" (otomatik/keskinleştir/gürültü — saf Dart; ESRGAN 4× — LiteRT `tflite_flutter`,
+  model ilk kullanımda TF Hub'dan indirilip SHA-256 doğrulanıyor, APK'da yok). Bozuk görsel: başındaki çöp atılır,
+  yarım JPEG'e EOI eklenir, `image` paketiyle yeniden çözülür (`image_repair.dart`); dosyaya dokunulmaz.
+- APK bütçesi 80 → 100 MB; `-keep class com.alexmercerind.**` (libmpv JNI ile adla çağırıyor).
+- meta 1.19 ile gelen `unawaited_return_in_try_block` / `invalid_return_type_for_then` uyarıları düzeltildi.
+
+## 2026-11-03 — PDF'ler açılmıyordu (sürüm 475) + yerel SDK tuzağı
+- **Kök neden:** pdfrx 2.x `PdfTextSearcher(controller)` yapıcısı hemen `controller.document.events`e abone
+  oluyor; `ViewerScreen.initState`te (görüntüleyici bağlanmadan) kurulunca "Null check" → her PDF "Bu ekran
+  çizilemedi". Arayıcı artık `onViewerReady`'de kuruluyor (her yeniden yüklemede yenisi). Kanıt:
+  `test/pdf_viewer_open_test.dart` düzeltmesiz KIRMIZI, düzeltmeyle YEŞİL. Yöntem: CI artifact'ından
+  `dart-symbols-<sürüm>` + `flutter symbolize` (tahminle yama yok).
+- **TUZAK — yerel Flutter 3.47.7, CI 3.44.6:** `C:\src\flutter` güncellenmiş (CLAUDE.md "aynı sürüm" diyordu).
+  3.47 ile `pub add/get` SDK sabitli paketleri (meta 1.19, test_api, matcher, vector_math, intl) yükseltip kilidi
+  bozuyor ve `dartssh2` yerelde derlenmiyor. Doğru yol: `C:\src\flutter-3.44.6` (aynı depodan git worktree,
+  3.44.6 etiketi) ile pub get / analyze / test.

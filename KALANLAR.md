@@ -221,6 +221,14 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
 
 ---
 
+### A11 — Dosya seçici: süzgeç + sade ana sayfa (kullanıcı isteği 2026-11-03, plan onay bekliyor)
+
+- [ ] `pick_file_screen` ana sayfası: kategori simgeleri + hızlı klasörler üstte, depolama kartı ince tek satır,
+      son açılanlar en altta. Klasör/eşleşme listelerine gezgin/kategori/İndirilenler'deki `FmQuickFilters` +
+      `FmTypeChips` (tür/boyut/tarih). Açık soru: tek türle açılan seçicide tür çipleri gizlensin mi (öneri: evet).
+      **Bitti:** analyze + seçici testleri; telefonda bakış.
+- [ ] OpenSubtitles: depoya `OPENSUBTITLES_API_KEY` secret'ı eklenecek (👤; yoksa "İnternette ara" gizli).
+
 ### A10 — Kişisel sürümde sesli not (Asistan yerine; Harita KALANLAR "Asistan'sız ses planı" Faz D)
 
 - [ ] **Görüntüleyicide 🎤 not düğmesi, yalnız kişisel sürüm (`DOSYA_KISISEL=1`).** Basınca dikte hemen başlar

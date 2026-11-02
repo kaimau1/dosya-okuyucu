@@ -12,13 +12,17 @@ import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
+import '../../core/user_error.dart';
 import '../../services/fm/entry_opener.dart';
+import '../../services/fm/fm_env.dart';
+import '../../services/fm/opensubtitles.dart';
 import '../../services/fm/native_extras.dart';
 import '../../services/fm/pip.dart';
 import '../../services/fm/playback_positions.dart';
 import '../../services/fm/subtitles.dart';
 import '../../services/fm/subtitle_delays.dart';
 import '../../services/fm/video_playback.dart';
+import '../../widgets/app_dialog.dart';
 import '../../widgets/mini_player_bar.dart';
 import 'entry_actions.dart';
 import '../../core/snack.dart';
@@ -172,6 +176,10 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   /// Altyazı gecikmesi (ms). Kaynağı farklı bir sürümden indirilmiş altyazı
   /// sesle tutmayabiliyor; kullanıcı ileri/geri kaydırabilsin.
   int _subtitleOffsetMs = 0;
+
+  /// Altyazı punto çarpanı. ponytail: oturum boyu (statik); kalıcı tercih
+  /// istenirse `SubtitleDelays` desenine taşınır.
+  static double _subtitleScale = 1.0;
 
 
   /// Ekranı açık tutan kilit ve uygulama yaşam döngüsü (arkaya alınınca

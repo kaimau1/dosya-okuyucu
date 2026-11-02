@@ -231,6 +231,10 @@ jobs:
       # izlerini çözmek için semboller artifact olarak saklanır
       # (`flutter symbolize -i iz.txt -d app.android-arm64.symbols`).
       - name: APK derle (release, karartılmış)
+        # OpenSubtitles anahtarı (altyazı arama) YALNIZ kişisel derlemeye girer:
+        # genel APK herkese açık sürümde, anahtar oradan sökülebilirdi.
+        env:
+          OS_KEY: ${{ (inputs.kisisel || contains(github.event.head_commit.message, '[kisisel]')) && secrets.OPENSUBTITLES_API_KEY || '' }}
         run: |
           set -e
           PLATFORMS=android-arm64
@@ -238,6 +242,7 @@ jobs:
           flutter build apk --release --split-per-abi \
             --obfuscate --split-debug-info=build/symbols \
             --build-name="$BUILD_NAME" --build-number="$BUILD_NUMBER" \
+            --dart-define=OPENSUBTITLES_API_KEY="$OS_KEY" \
             --target-platform "$PLATFORMS"
           ls -lh build/app/outputs/flutter-apk/*.apk
 
@@ -346,10 +351,11 @@ jobs:
       #   • pdfium.wasm ve gömülü OCR APK'da yok, targetSdk 36;
       #   • 16 KB sayfa hizası (Play şartı, Kasım 2025'ten beri): zip hizası
       #     (`zipalign -P 16`) + her .so'nun ELF LOAD hizası ≥ 0x4000;
-      #   • arm64 APK boyut bütçesi (Faz 7'de düşürülecek).
+      #   • arm64 APK boyut bütçesi. 80 → 100 (2026-11-02): mpv motoru (libmpv
+      #     12 MB, VLC benzeri kodek desteği) + LiteRT (6,5 MB, görsel büyütme).
       - name: APK denetimi (içerik, 16 KB hiza, boyut bütçesi)
         env:
-          BUDGET_MB: 80
+          BUDGET_MB: 100
         run: |
           set -e
           APK=dist/dosya-okuyucu.apk

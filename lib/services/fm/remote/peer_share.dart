@@ -410,7 +410,7 @@ class PeerReceiver implements KeepableServer {
       // **Ön soru** (onay): ne geleceği — eski sürüm sorgu, yeni sürüm
       // gövdede liste + küçük önizlemeler gönderir.
       if (request.method == 'POST' && request.uri.path == '/sor') {
-        if (!codeOk) return _deny(response, 'kod');
+        if (!codeOk) return await _deny(response, 'kod');
         final items = <PeerOfferItem>[];
         try {
           final bytes = BytesBuilder(copy: false);
@@ -438,13 +438,13 @@ class PeerReceiver implements KeepableServer {
           totalBytes: int.tryParse(q['toplam'] ?? '') ?? 0,
           items: items,
         ));
-        if (!ok) return _deny(response, 'red');
+        if (!ok) return await _deny(response, 'red');
         await _json(response, {'ok': true, 'izin': _grant()});
         return;
       }
       // **Devam sorusu**: bu aktarımdan kaç bayt elimde?
       if (request.method == 'GET' && request.uri.path == '/durum') {
-        if (!codeOk) return _deny(response, 'kod');
+        if (!codeOk) return await _deny(response, 'kod');
         final tid = _cleanTid(q['tid']);
         var have = 0;
         if (tid != null) {
@@ -460,7 +460,7 @@ class PeerReceiver implements KeepableServer {
         return;
       }
       // **Kod denetimi gövdeyi OKUMADAN**.
-      if (!codeOk) return _deny(response, 'kod');
+      if (!codeOk) return await _deny(response, 'kod');
       // **Ad istekten gelir, YOL gelmez.** `sanitizeName` ayırıcıları
       // temizliyor: `../../etc/passwd` diye bir ad `.._.._etc_passwd` olur.
       final rawName = q['ad'] ?? 'dosya';
@@ -477,7 +477,7 @@ class PeerReceiver implements KeepableServer {
       if (onAsk != null && !_granted(q['izin'])) {
         final ok = await _ask(PeerOffer(
             from: from, firstName: safeName, count: 1, totalBytes: total));
-        if (!ok) return _deny(response, 'red');
+        if (!ok) return await _deny(response, 'red');
       }
 
       if (tid == null) {

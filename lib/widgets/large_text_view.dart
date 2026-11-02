@@ -86,7 +86,7 @@ class _LargeTextViewState extends State<LargeTextView> {
             _blocks.remove(_blocks.keys.first);
           }
         });
-      }, onError: (Object _) => _loading.remove(b));
+      }, onError: (Object _) { _loading.remove(b); });
     }
     return null;
   }

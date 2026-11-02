@@ -89,6 +89,74 @@ extension _MediaPlayerScreenActionsPart on _MediaPlayerScreenState {
     await _selectSubtitle(picked);
   }
 
+  /// **İnternette altyazı** (OpenSubtitles): arayüz dili + İngilizce aranır,
+  /// seçilen indirilip filmin yanına kaydedilir ve açılır.
+  Future<void> _searchOnline() async {
+    final path = _current;
+    final code = AppStrings.current.language.name;
+    final langs = <String>{
+      const {'tr', 'en', 'ar'}.contains(code) ? code : 'tr',
+      'en',
+    }.toList();
+    final search = OpenSubtitles.search(path, langs);
+    final hit = await showAppSheet<SubtitleHit>(
+      context,
+      title: context.t('mp.sub_online'),
+      builder: (ctx) => FutureBuilder<List<SubtitleHit>>(
+        future: search,
+        builder: (ctx, snap) {
+          Widget note(String text) => Padding(
+                padding: const EdgeInsets.all(Gap.lg),
+                child: Text(text, textAlign: TextAlign.center),
+              );
+          if (snap.hasError) {
+            return note(ctx.t('mp.sub_online_failed',
+                {'error': userErrorText(snap.error!)}));
+          }
+          final hits = snap.data;
+          if (hits == null) {
+            return const Padding(
+              padding: EdgeInsets.all(Gap.xl),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (hits.isEmpty) return note(ctx.t('mp.sub_online_none'));
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final h in hits.take(30))
+                ListTile(
+                  leading: Text(h.language.toUpperCase()),
+                  title: Text(h.name,
+                      maxLines: 2, overflow: TextOverflow.ellipsis),
+                  subtitle: Text(h.hashMatch
+                      ? ctx.t('mp.sub_exact')
+                      : '⬇ ${h.downloads}'),
+                  onTap: () => Navigator.pop(ctx, h),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+    if (hit == null || !mounted) return;
+    try {
+      final saved = await OpenSubtitles.download(hit, path,
+          fallbackDir: FmEnv.appSupportDir);
+      if (!mounted || path != _current) return;
+      _partSetState(() {
+        _subtitles = [
+          ..._subtitles.where((t) => t.path != saved),
+          SubtitleTrack(path: saved, label: p.basename(saved)),
+        ];
+      });
+      await _selectSubtitle(saved);
+    } catch (e) {
+      if (!mounted) return;
+      _toast(context.t('mp.sub_online_failed', {'error': userErrorText(e)}));
+    }
+  }
+
   void _toast(String message) {
     if (!mounted) return;
     showSnack(context, message);

@@ -43,3 +43,7 @@
 # Kişisel derlemedeki arka plan görünürlüğü `NearbyBle.kt` tarafından YANSIMAYLA bulunuyor
 # (genel derleme sınıfa bağlanmasın diye); R8 adını değiştirmesin/silmesin.
 -keep class com.dosyaokuyucu.dosya_okuyucu.NearbyBgService$Control { *; }
+
+# mpv motoru (media_kit, 2026-11-02): libmpv yardımcı sınıfa (`MediaKitAndroidHelper`)
+# yerel koddan JNI ile ADIYLA ulaşıyor; R8 adını değiştirirse video açılırken çöker.
+-keep class com.alexmercerind.** { *; }

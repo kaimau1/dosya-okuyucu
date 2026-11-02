@@ -13,6 +13,9 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
         child: Text(
           text,
           textAlign: TextAlign.center,
+          textScaler: MediaQuery.textScalerOf(context).clamp(
+              minScaleFactor: _MediaPlayerScreenState._subtitleScale,
+              maxScaleFactor: _MediaPlayerScreenState._subtitleScale * 2),
           style: context.type.heading.copyWith(
             color: AppColors.onMedia,
             height: 1.25,
@@ -39,6 +42,18 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
               await _selectSubtitle(null);
             case '_pick':
               await _pickSubtitle();
+            case '_online':
+              await _searchOnline();
+            case '_mpv':
+              await _p.reopenWithMpv(!_p.usingMpv);
+            case final v when v.startsWith('_audio:'):
+              await _p.selectAudioTrack(v.substring(7));
+            case '_bigger':
+              _partSetState(() => _MediaPlayerScreenState._subtitleScale =
+                  (_MediaPlayerScreenState._subtitleScale + 0.15).clamp(0.6, 2.2));
+            case '_smaller':
+              _partSetState(() => _MediaPlayerScreenState._subtitleScale =
+                  (_MediaPlayerScreenState._subtitleScale - 0.15).clamp(0.6, 2.2));
             case '_later':
               _partSetState(() => _subtitleOffsetMs -= 500);
               SubtitleDelays.set(_current, _subtitleOffsetMs);
@@ -77,13 +92,47 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
               child: Text(context.t('mp.sub_offset',
                   {'v': (_subtitleOffsetMs / 1000).toStringAsFixed(1)})),
             ),
+            PopupMenuItem(
+              value: '_bigger',
+              child: Text(context.t('mp.sub_bigger')),
+            ),
+            PopupMenuItem(
+              value: '_smaller',
+              child: Text(context.t('mp.sub_smaller')),
+            ),
           ],
+          if (OpenSubtitles.available)
+            PopupMenuItem(
+              value: '_online',
+              child: Text(context.t('mp.sub_online')),
+            ),
+          // **Ses + motor** (2026-11-02, "VLC gibi"): ayrı düğme üst çubuğu
+          // telefonda taşırıyordu (media_player_layout_test), bu menüde.
+          const PopupMenuDivider(),
+          for (final (i, t) in _p.audioTracks.indexed)
+            PopupMenuItem(
+              value: '_audio:${t.id}',
+              child: Text('${_trackLabel(i, t)}${t.isSelected ? '  ✓' : ''}'),
+            ),
+          PopupMenuItem(
+            value: '_mpv',
+            child: Text(context
+                .t(_p.usingMpv ? 'mp.engine_exo' : 'mp.engine_mpv')),
+          ),
           PopupMenuItem(
             value: '_pick',
             child: Text(context.t('mp.sub_pick')),
           ),
         ],
       );
+
+  /// "Türkçe · ac3 · 6 kanal" — ExoPlayer'ın verdiği kadarı.
+  String _trackLabel(int i, VideoAudioTrack t) => [
+        t.label ?? t.language ?? context.t('mp.audio_track_n', {'n': '${i + 1}'}),
+        if (t.label != null && t.language != null) t.language!,
+        if (t.codec != null) t.codec!.replaceFirst('audio/', ''),
+        if (t.channelCount != null) '${t.channelCount}ch',
+      ].join(' · ');
 
   /// Videonun üstünde yüzen başlık çubuğu (Scaffold slotu değil — bkz. build).
   ///

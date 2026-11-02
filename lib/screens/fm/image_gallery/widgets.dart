@@ -49,6 +49,62 @@ class _GalleryAction extends StatelessWidget {
   }
 }
 
+/// Bozuk görselin kurtarılmış hâli ([ImageRepair]); o da olmazsa "açılamadı".
+class _RepairedImage extends StatefulWidget {
+  final String path;
+  final BoxFit fit;
+  const _RepairedImage(this.path, {required this.fit});
+
+  @override
+  State<_RepairedImage> createState() => _RepairedImageState();
+}
+
+class _RepairedImageState extends State<_RepairedImage> {
+  late final Future<Uint8List?> _bytes = ImageRepair.repairFile(widget.path);
+
+  @override
+  Widget build(BuildContext context) {
+    Widget failed() => Center(
+          child: Text(context.t('vw.image_failed'),
+              style: const TextStyle(color: AppColors.onMediaSoft)),
+        );
+    return FutureBuilder<Uint8List?>(
+      future: _bytes,
+      builder: (context, snap) {
+        // Kurtarma kısa sürer; dönen gösterge yerine boş alan (gösterge
+        // açılıp kapanınca görsel bir kare "titriyordu").
+        if (snap.connectionState != ConnectionState.done) {
+          return const SizedBox.expand();
+        }
+        final data = snap.data;
+        if (data == null) return failed();
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.memory(data,
+                fit: widget.fit, errorBuilder: (_, __, ___) => failed()),
+            Positioned(
+              left: Gap.md,
+              right: Gap.md,
+              bottom: Gap.md,
+              child: Text(
+                context.t('gal.repaired'),
+                textAlign: TextAlign.center,
+                style: context.type.caption.copyWith(
+                  color: AppColors.onMedia,
+                  shadows: const [
+                    Shadow(color: AppColors.mediaSurface, blurRadius: 4),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
 /// Küçük resim şeridi — geçerli görsel ortalanır ve beyaz çerçeveyle işaretli.
 ///
 /// Bellek: her küçük resim 48 dp × cihaz yoğunluğu genişlikte çözülür
@@ -310,10 +366,8 @@ class _ZoomableImageState extends State<_ZoomableImage> {
           : (context, child, frame, sync) => frame == null && !sync
               ? Image(image: thumb, fit: fit, gaplessPlayback: true)
               : child,
-      errorBuilder: (_, __, ___) => Center(
-        child: Text(context.t('vw.image_failed'),
-            style: const TextStyle(color: AppColors.onMediaSoft)),
-      ),
+      // Çözücü reddetti → kurtarmayı dene (başında çöp, yarım JPEG …).
+      errorBuilder: (_, __, ___) => _RepairedImage(widget.path, fit: fit),
     );
     final tag = widget.heroTag;
     if (tag != null) image = Hero(tag: tag, child: image);

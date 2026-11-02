@@ -168,6 +168,13 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         onViewerReady: (document, controller) {
                           _pdfDoc = document;
                           _pdfPasswordTried = false;
+                          // Her (yeniden) yüklemede yeni arayıcı: eskisi önceki
+                          // belgenin olaylarına bağlı kalırdı.
+                          _pdfSearcher
+                            ?..removeListener(_onPdfSearch)
+                            ..dispose();
+                          _pdfSearcher = PdfTextSearcher(controller)
+                            ..addListener(_onPdfSearch);
                           if (mounted) {
                             _partSetState(() => _pdfCount = document.pages.length);
                           }
