@@ -83,6 +83,7 @@ import '../services/legacy_convert.dart';
 import '../widgets/pdf_save_dialog.dart';
 import '../widgets/quick_sheets.dart';
 import '../widgets/pdf_page_navigator.dart';
+import '../widgets/pdf_resume_note.dart';
 import '../widgets/pdf_select_layer.dart';
 import '../widgets/translate_flow.dart';
 import '../widgets/tts_voice_sheet.dart';
@@ -601,26 +602,25 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// Devam edilen sayfa (bir kez şerit gösterilir), yoksa null.
   int? _resumedPage;
 
-  /// "42. sayfadan devam ediliyor · Baştan başla" şeridi.
+  /// Ekranda görünen "N. sayfadan devam ediliyor" notu (yoksa null).
+  int? _resumeNotePage;
+
+  /// "42. sayfadan devam ediliyor · Baştan başla" notu.
   ///
   /// Sessizce ortadan açmak "belge bozuk mu?" dedirtiyor; bir cümle + tek
-  /// dokunuşluk geri dönüş yolu bırakılıyor.
+  /// dokunuşluk geri dönüş yolu bırakılıyor. Alttaki SnackBar yerine sayfanın
+  /// üstünde okuma kipine uygun ince hap ([PdfResumeNote], 2026-11-02).
   void _showResumeNotice() {
     final page = _resumedPage;
     if (page == null || !mounted) return;
     _resumedPage = null;
-    showSnack(
-      context,
-      context.t('vw.resumed_page', {'n': '$page'}),
-      action: SnackBarAction(
-        label: context.t('vw.restart_doc'),
-        onPressed: () {
-          ReadingPositions.clear(widget.doc.path);
-          _pdfJumpTarget = 1;
-          _pdfController.goToPage(pageNumber: 1);
-        },
-      ),
-    );
+    _partSetState(() => _resumeNotePage = page);
+  }
+
+  void _restartFromFirstPage() {
+    ReadingPositions.clear(widget.doc.path);
+    _pdfJumpTarget = 1;
+    _pdfController.goToPage(pageNumber: 1);
   }
 
   @override

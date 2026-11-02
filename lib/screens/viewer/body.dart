@@ -251,6 +251,15 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                       child: _pageBadge(),
                     ),
                   ),
+                if (_resumeNotePage case final page?)
+                  PdfResumeNote(
+                    page: page,
+                    top: ReadingChrome.insetsOf(context).top + 8,
+                    onRestart: _restartFromFirstPage,
+                    onDismiss: () {
+                      if (mounted) _partSetState(() => _resumeNotePage = null);
+                    },
+                  ),
                 if (_pdfSelection.trim().isNotEmpty)
                   ReadingFloat(
                     start: 8,
