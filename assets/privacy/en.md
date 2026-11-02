@@ -1,6 +1,6 @@
 # Privacy Policy — Dosya Okuyucu
 
-**Last updated:** 22 October 2026 · **Version:** 0.1.0
+**Last updated:** 2 November 2026 · **Version:** 0.2.0
 
 ## Summary
 
@@ -35,14 +35,38 @@ Uninstalling the app deletes all of it.
 | **Download manager** | The address you enter | The download request |
 | **Translation** (ML Kit) | Google | Only while the language model is downloaded **for the first time**. Translation itself runs offline, on the device. |
 | **Share / Print** | The app you choose | The file you share |
+| **AI meaning search** | Google — `generativelanguage.googleapis.com` | **Only the search query you type** (with your own key). File names and contents are not sent; matching happens on the device. |
+| **AI tagging / sorting into categories** | Google — `generativelanguage.googleapis.com` | For the files you select: **name, extension, the NAME of the folder they are in** (not the full path), size and month (for a category analysis also a count/size summary). File contents are not sent; the camera folder and locked folders are never sent. Suggestions are not written until you approve them. |
 | **AI voices** (Antalia-2 Mini, EMA Lightning) | Hugging Face — `huggingface.co` | Only while **you download** a voice: the request for the model files. Your text is never sent — speech is generated on the device, offline. |
 
 **Text recognition (OCR), smart cleanup analysis, audiobook creation,
 document scanning and translation run on the
 device** — your document contents are not uploaded for these features.
 
-**QR code sharing** uses no network: the note is inside the QR code read by
-the other person's camera and is not uploaded anywhere.
+**Showing text as a QR code** uses no network: the text is inside the QR
+code that the other person's camera reads and is not uploaded anywhere.
+
+**Nearby** (sending files to a nearby device or browser) **uses no
+third-party server**; files go directly between the two devices over the
+local network:
+
+- **Bluetooth LE only for discovery and invitations:** while the Nearby
+  screen is open, your phone advertises its display name and a random ID
+  unique to this installation. Files never travel over Bluetooth.
+- **Local network:** devices on the same Wi-Fi find each other by local
+  broadcast; without a shared Wi-Fi the phone creates a temporary network
+  with no internet (hotspot).
+- **Receiving in a browser:** while sending, the phone opens a web page that
+  is reachable only on the local network (port 8080); the page is protected
+  by a 6-letter code and closes when the transfer ends.
+- The location permission (Android 12 and earlier only) is requested because
+  the system requires it for these network operations; **your location is
+  never read or stored.**
+
+The **assistant bridge** exists only in the developer's **personal build**
+(not in the store or GitHub releases): an assistant app signed with the same
+key can have a file read aloud or open its summary. Other apps cannot use
+this bridge; no data leaves the device.
 
 ## 3. Crash reports
 
@@ -70,6 +94,10 @@ the content in front of you.
 | Notifications | Progress of long jobs (copy, compress, download) |
 | Usage access (`PACKAGE_USAGE_STATS`) | The **last-opened date** on the "Apps" screen. If you decline, the list still works. |
 | Install unknown apps | To open the system installer when you tap an `.apk` file |
+| Bluetooth, nearby devices, Wi-Fi state | Nearby: finding a nearby phone, invitations and the temporary network (above). If you refuse, QR and same-Wi-Fi transfer still work. |
+| Location (Android 12 and earlier only) | Older Android versions tie Bluetooth scanning and the temporary network to the location permission. Location is never read. |
+| Seeing installed apps | The "Apps" screen: list, size, the system's uninstall dialog. The list never leaves the device. |
+| Running after reboot | If you turned it on, so that the periodic job of SD-card unified storage survives a restart. |
 | Internet | The actions in section 2 |
 
 ## 5. Children

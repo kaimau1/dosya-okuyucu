@@ -232,8 +232,8 @@ void _logSlowStartupFrames() {
   cb = (timings) {
     for (final t in timings) {
       if (t.totalSpan.inMilliseconds < 25) continue;
-      // ignore: avoid_print
-      print('KARE toplam=${t.totalSpan.inMilliseconds} '
+      // debugPrint yayın derlemesinde de logcat'e yazar (`print` uyarısız).
+      debugPrint('KARE toplam=${t.totalSpan.inMilliseconds} '
           'build=${t.buildDuration.inMilliseconds} '
           'raster=${t.rasterDuration.inMilliseconds} '
           'vsync_gecikme=${t.vsyncOverhead.inMilliseconds}');

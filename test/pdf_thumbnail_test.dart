@@ -7,7 +7,7 @@ import 'package:path/path.dart' as p;
 
 import 'support/temp_dir.dart';
 
-/// KALANLAR: *"Küçük resim yalnız görsellerde — video/PDF küçük resmi yok"*.
+/// Eski madde: *"Küçük resim yalnız görsellerde — video/PDF küçük resmi yok"*.
 /// Video tarafı 2026-07-25'te kapandı; PDF kapağı 2026-08-08'de.
 ///
 /// **Ne test edilebilir, ne edilemez:** gerçek çizim pdfium'a (yerel kod)

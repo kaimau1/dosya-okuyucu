@@ -124,7 +124,7 @@ class DocxViewState extends State<DocxView> {
 
   /// Sayfanın o anki toplam ölçeği (sığdırma × kullanıcı çarpanı) — rozet için.
   /// Değeri JS bildirir; Flutter tarafı kendi başına hesaplayamaz. (Bu köprü
-  /// olmadığı için Word'de zoom yüzdesi rozeti yoktu — KALANLAR maddesi.)
+  /// olmadığı için Word'de zoom yüzdesi rozeti yoktu.)
   double _zoom = 1.0;
   late final _badge = ZoomBadgeController(setState);
 

@@ -140,8 +140,10 @@
       açılıyor, "Geri çıkar" özgün klasöre (alt klasörleriyle); PIN değiştir önce eski PIN'i
       soruyor.
 - [ ] **Geçmiş ekranı** alt çubuğu ve geri tuşu; işlem geçmişi.
-- [ ] **Arşiv:** büyük ve solid RAR/7z çıkarma süresi + ilerleme (iptal KALANLAR A7.3 sonrası);
-      parolalı ZIP üretme.
+- [ ] **Arşiv:** büyük ve solid RAR/7z çıkarma süresi + ilerleme; parolalı ZIP üretme.
+- [ ] **Arşiv çıkarmada Durdur (2026-11-02):** büyük RAR/7z/ZIP çıkarırken pencerede **İptal** ve
+      şeritte/bildirimde **Durdur** var → birkaç sn içinde duruyor, yarım klasör SİLİNMİŞ, iş
+      "durduruldu" (hata değil); aynı arşivi yeniden çıkarmak sorunsuz; arşiv dosyası silinebiliyor.
 - [ ] **Belge tarama stüdyosu:** Google tarayıcı (Play Hizmetleri yoksa yedek tarayıcı), kenar +
       kırpma + filtre; resimli sayfa bozulmadan; Kırp (kenar ortası tutamaçları, büyüteç,
       "Kenarları bul"), Döndür, Filtre + "Tüm sayfalara", sıra sürükleme, Yeniden çek, Sil →
@@ -176,6 +178,10 @@
       yazılabiliyor) → küçük resimli liste, "Tümünü indir" ZIP, tek dosyada otomatik indirme,
       sayfa tarayıcı diline göre TR/EN. Hotspot yolunda alıcının tarayıcısı mobil veriye
       gidiyorsa sonucu yaz (KALANLAR B3.4).
+- [ ] **Metni QR kodda göster (2026-11-02):** küçük bir `.txt`/`.md` (≤ 8 KB) → Paylaş → üç seçenek
+      (Yakındakiler · **Metni QR kodda göster** · Diğer uygulamalar); QR ekranı açılıyor, başka
+      telefonun kamerası metni okuyor; uzun notta 1/n… sırayla + "Otomatik"; PDF'te ya da çoklu
+      seçimde bu seçenek YOK.
 - [ ] **QR ile al:** pano yüzen çubuğu → QR → Google kod tarayıcısı (kamera izni SORULMAZ) →
       onay levhası (dosyalar, toplam, klasör) → iptal edilebilir indirme → "N dosya alındı · Aç".
 - [ ] **Ağdan erişim (FTP sunucusu):** BAŞLAT → `ftp://<ip>:2121` + kullanıcı/parola; PC
@@ -237,8 +243,9 @@
       tek satır kalıyor** (Word çıktısı, e-Devlet, tarama + OCR — en az üç farklı PDF); yazı
       tipi/punto/hizalama korunuyor; uzatınca düzgün sarıyor; **ortalı başlık kısalt/uzat → ortalı
       kalıyor**; taranmış/OCR satırı da yerinde (klavye açılınca satır görünür).
-- [ ] **Ret → "Üstüne yaz":** paragrafın KENDİ gömülü yazı tipiyle (harf alt kümede yoksa Carlito);
-      eski metin aramada/kopyada da yok.
+- [ ] **Ret → "Üstüne yaz":** paragrafın KENDİ gömülü yazı tipiyle; harf alt kümede yoksa **aynı
+      aileden** gömülü karşılık (2026-11-02: serif/Times kitapta **Tinos**, italikse italik; sans'ta
+      Carlito); eski metin aramada/kopyada da yok.
 - [ ] **Kalın / renk:** Word'den çıkmış PDF'te paragraf → K → Bitti (gömülü kalın kesim); kesim yoksa
       ret + "Üstüne yaz" kalın; renk kırmızı → Acrobat/Chrome'da aynı.
 - [ ] **Nesneler:** Yazı ekle (`taranmis.pdf`, `dondurulmus_90.pdf`, `cropbox.pdf`'te dokunulan yerde,

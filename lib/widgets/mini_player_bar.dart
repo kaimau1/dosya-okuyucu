@@ -72,6 +72,8 @@ class MiniPlayerBar extends StatefulWidget {
 /// aynı: anında.
 void _rebuildSafely(State<StatefulWidget> state) {
   if (!state.mounted) return;
+  // Bilinçli: dinleyici dışarıdan State'i yeniden çizdiriyor; ortak bir
+  // kurucu ([_rebuildSafely]) yazmanın tek yolu bu (gerekçe yukarıda).
   // ignore: invalid_use_of_protected_member
   void rebuild() => state.setState(() {});
   if (SchedulerBinding.instance.schedulerPhase ==

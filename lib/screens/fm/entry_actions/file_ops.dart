@@ -572,11 +572,11 @@ Future<bool> extractArchive(
       context,
       title: context.t('fm.extracting'),
       name: context.t('fm.extracting_name'),
-      cancellable: false,
-      task: (report, _) => ArchiveOps.extract(
+      task: (report, isCancelled) => ArchiveOps.extract(
         archivePath,
         password: password,
         onProgress: report,
+        isCancelled: isCancelled,
       ),
     );
     if (context.mounted) {
@@ -584,6 +584,8 @@ Future<bool> extractArchive(
           context.t('fm.extracted_to', {'name': target.split('/').last}));
     }
     return true;
+  } on JobCancelled {
+    return false; // kullanıcı durdurdu; yarım klasör silindi
   } on ArchiveError catch (e) {
     if (!context.mounted) return false;
     if (e.failure == ArchiveFailure.passwordRequired ||

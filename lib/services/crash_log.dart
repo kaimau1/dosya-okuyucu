@@ -14,7 +14,7 @@ import '../core/app_version.dart';
 /// Uygulama GitHub Releases üzerinden dağıtılıyor ve **hiçbir hata bildirimi
 /// yoktu**: kullanıcının telefonunda bir çökme olduğunda bunu öğrenmenin bir
 /// yolu yoktu. Tüm doğrulama "cihaz doğrulaması (kullanıcı)" maddelerine
-/// (KALANLAR'da ~27 tane) bağlıydı; yani tek bir telefona. Ölçek büyüyünce bu
+/// (eski iş listesinde ~27 tane) bağlıydı; yani tek bir telefona. Ölçek büyüyünce bu
 /// model çöker ve hata, mağaza yorumu olarak geri döner.
 ///
 /// ## Niçin Crashlytics/Sentry DEĞİL (şimdilik)

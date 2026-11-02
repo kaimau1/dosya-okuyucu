@@ -227,7 +227,7 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
     final sources = appState.clipboard;
     if (sources.isEmpty) return;
     final cut = appState.clipboardCut;
-    // ÇAKIŞMA SORULUYOR (KALANLAR maddesi kapandı). Eskiden sessizce
+    // ÇAKIŞMA SORULUYOR (eski iş maddesi kapandı). Eskiden sessizce
     // "yeniden adlandır" uygulanıyordu: aynı dosyanın yeni sürümünü
     // yapıştıran kullanıcı klasörde iki kopya buluyor ve hangisinin güncel
     // olduğunu bilemiyordu. Çakışma yoksa hiçbir şey sorulmuyor.

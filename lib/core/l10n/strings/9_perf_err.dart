@@ -347,6 +347,8 @@ const Map<String, (String, String, String)> _t9 = {
   'qr.next': ('Sonraki kod', 'Next code', 'الرمز التالي'),
   'qr.auto': ('Otomatik', 'Auto', 'تلقائي'),
   'qr.stop': ('Durdur', 'Stop', 'إيقاف'),
+  'qr.text_choice': ('Metni QR kodda göster', 'Show text as QR code', 'عرض النص كرمز QR'),
+  'qr.text_choice_sub': ('Yazı QR\'ın içinde — ağ ve uygulama gerekmez', 'The text is inside the QR — no network or app needed', 'النص داخل رمز QR — دون شبكة أو تطبيق'),
   // ── QR ile dosya paylaş (2026-10-22) ──────────────────────────────────────
   'qrf.title': ('QR ile paylaş', 'Share with QR', 'المشاركة عبر QR'),
   'qrf.choice_sub': ('Karşı taraf kamerasıyla okutur — uygulama gerekmez', 'They scan it with their camera — no app needed', 'يمسحه الطرف الآخر بكاميرته — دون تطبيق'),

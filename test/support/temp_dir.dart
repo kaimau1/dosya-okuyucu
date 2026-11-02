@@ -2,7 +2,7 @@ import 'dart:io';
 
 /// Testin geçici klasörünü **hiçbir zaman testi kırmadan** siler.
 ///
-/// **Niye var (KALANLAR: "Windows'ta kırık testler yerel doğrulamayı
+/// **Niye var (eski madde: "Windows'ta kırık testler yerel doğrulamayı
 /// köreltiyor"):** `tearDown` içinde çıplak `deleteSync(recursive: true)`
 /// Windows'ta `FileSystemException` atıyor — dosya kolu henüz kapanmamış olur
 /// (arşiv okuyucu, WebView, video denetleyicisi bir kolu geç bırakabiliyor).

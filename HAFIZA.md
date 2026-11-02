@@ -298,3 +298,37 @@ Word/Slayt/PDF düzenleme dönüş odağı, parolalı PDF, FTP uçtan uca, seçi
   önce tek başına koştur. Push sonrası CI koşusunu `gh run list --commit <sha>` ile bul: `--limit 1` eski koşuyu izletir.
 - **TUZAK — ölçüm:** sentetik `input tap` Flutter satırlarında bazen kaçıyor → `input swipe x y x y 110`. `uiautomator dump` metni okumak ekran görüntüsünden çok ucuz.
   Prizdeki telefonda `batterystats` mAh vermez; gerçek pil için USB'siz koşu gerekir. Aynı telefonu başka oturum kullanıyorsa kilit `/data/local/tmp/cihaz.lock`.
+
+## 2026-11-02 — Faz A bulut turu 1: A1.3, A2, A4.5, A6.1–A6.3, A7.3
+Kullanıcı: *"fazlardan devam et, bulutta yapılabilecekleri yap, main'e merge et, APK derlensin"*.
+- **A2 ölü kod:** `qr_share_screen.dart` yeniden bağlandı — paylaş seçimi `screens/fm/remote/share_choice.dart`'a
+  taşındı (nearby_screen 1621 → 1602 satır), tek ve ≤ 8 KB metin dosyasında üçüncü seçenek "Metni QR kodda göster".
+  `pdf_font_class.dart` "Üstüne yaz"ın Carlito yedeğine bağlandı: paragrafın ana `/BaseFont`'u
+  (`PdfPageEdit.paragraphBaseFont`) → `PdfOverwrite.fontAssetFor` (serif → Tinos, italik korunur, kalınlık
+  kullanıcıdan). `pdf_text_stamp.dart` yalnız örnek üretimi kullanıyordu → `test/support/`. Bekçi
+  `test/reachability_test.dart` (import/export/part + koşullu import gezintisi, `main.dart`'tan; kopuk dosya 0).
+- **A4.5:** `ftpconnect` alt sınırı ^2.0.10 (her ortam 3.44.6) → `?.` + ignore kalktı; `route_guard`'da eskimiş
+  `didPushRoute` ezmesi gereksizdi (varsayılan `didPushRouteInformation` onu çağırıyordu, o zaten eziliyor);
+  `main.dart` `print` → `debugPrint` (yayında da logcat). `mini_player_bar` `setState` ignore'u gerekçeli, kaldı.
+- **A1.3:** kod/test yorumlarındaki "KALANLAR maddesi" atıfları kaldırıldı (KALANLAR artık yalnız açık iş);
+  `flutter_launcher_icons` `min_sdk_android: 24`. pubspec'teki "CI 3.29.3" gerekçeleri A3'te paket paket düzelecek.
+- **A6.1:** `docs/play/izin_beyanlari.md` her izni anlatıyor (QUERY_ALL_PACKAGES/REQUEST_DELETE_PACKAGES,
+  konum ≤ API 32, BLE, Wi-Fi/hotspot, BOOT, INSTALL_SHORTCUT, medya, VIBRATE). Bekçi
+  `test/play_permissions_doc_test.dart`: `ci/AndroidManifest.xml` + eklenti manifestleri (`package_config.json`
+  üzerinden) ⊆ `## ` başlıkları.
+- **A6.2:** gizlilik TR/EN/AR'ye Yakındakiler (BLE yalnız bulma — görünen ad + KURULUMA özgü kimlik, oturum değil;
+  8080 + 6 harf kod; hotspot; konum okunmaz), AI anlamla arama (yalnız sorgu), AI etiketleme/kategori analizi
+  (ad + uzantı + klasör ADI + boyut + ay; analizde sayı/boyut özeti), asistan köprüsü (yalnız kişisel derleme);
+  izin tablosu genişledi; veri güvenliği taslağından "Anılar" çıktı. `policy_doc_test`: üç dil aynı bölüm + tablo satırı.
+- **A6.3:** mağaza metinleri + L6 Microsoft marka notu TR/EN/AR. **Ekran görüntüleri buluttan ALINAMAZ**:
+  `design_shots_test` geçici klasör yolunu (`tmp > designXXXX`) ve boş tür rozetlerini çiziyor, `filtre` çekimi
+  düşüyor → B2'ye taşındı.
+- **A7.3 arşiv çıkarmada Durdur:** `ArchiveOps.extract(isCancelled:)` → `Isolate.spawn` + üst düzey giriş
+  (`_extractEntry`, yalnız gönderilebilir liste — 2026-07-27 closure-context tuzağı) + 150 ms yoklama; iptalde
+  `kill(immediate)`, yarım hedef klasör silinir (uniquePath ile yeni açıldığı için güvenli), `JobCancelled` atılır;
+  `showFmProgress` `JobCancelled`'ı hata değil "durduruldu" sayar. `isCancelled` verilmeyen çağrılar (QR/peer alma)
+  eski `Isolate.run` yolunda. Test `test/fm_archive_cancel_test.dart` (4000 dosyalı ZIP).
+- **Bulut test notu:** tam takımda `excel_data_screen_test` "Yinelenenleri kaldır" ve `snack_queue_test` "ikinci
+  bildirim" yükte düştü, tek başına yeşil (bilinen yük kararsızlığı; kod değişikliğiyle ilgisiz).
+- **A1.2 (uzak dal silme)** kullanıcı izni gerektirdiği için yapılmadı.
+

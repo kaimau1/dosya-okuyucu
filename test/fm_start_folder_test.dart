@@ -11,7 +11,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'support/temp_dir.dart';
 
-/// **Açılış klasörü** (KALANLAR maddesi): dosyalarını hep aynı klasörde tutan
+/// **Açılış klasörü**: dosyalarını hep aynı klasörde tutan
 /// kullanıcı her açılışta panodan oraya tıklaya tıklaya gidiyordu.
 const _delegates = <LocalizationsDelegate<Object?>>[
   AppStrings.delegate,

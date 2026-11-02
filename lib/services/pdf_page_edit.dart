@@ -279,6 +279,43 @@ abstract final class PdfPageEdit {
           text: text,
           bold: bold));
 
+  /// Paragrafın ana (en çok harf taşıyan) yazı tipinin `/BaseFont` adı, alt
+  /// küme öneki atılmış (`TimesNewRomanPS-BoldMT`). "Üstüne yaz" kendi gömülü
+  /// programı kullanamazsa aynı AİLEDEN gömülü karşılık seçsin diye
+  /// ([PdfFontClass]: serif → Tinos, değilse Carlito). Bulunamazsa null.
+  static String? paragraphBaseFont(
+    List<int> bytes, {
+    required int pageIndex,
+    required int paragraphIndex,
+  }) {
+    try {
+      final page = PdfPageContext.open(bytes, pageIndex);
+      final paragraphs = page.paragraphs();
+      if (paragraphIndex < 0 || paragraphIndex >= paragraphs.length) {
+        return null;
+      }
+      final weight = <String, int>{};
+      for (final r in paragraphs[paragraphIndex].runs) {
+        final f = r.fontName;
+        if (f != null) weight[f] = (weight[f] ?? 0) + r.text.length;
+      }
+      if (weight.isEmpty) return null;
+      final main =
+          weight.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+      return page.file.fontBaseNames(page.page)[main];
+    } catch (_) {
+      return null; // Bilinçli: aile tahmini yalnız görünüm; Carlito'ya düşer.
+    }
+  }
+
+  static Future<String?> paragraphBaseFontInBackground(
+    List<int> bytes, {
+    required int pageIndex,
+    required int paragraphIndex,
+  }) =>
+      Isolate.run(() => paragraphBaseFont(bytes,
+          pageIndex: pageIndex, paragraphIndex: paragraphIndex));
+
   /// Paragrafın ana yazı tipinin **aynı aileden** kalın (ya da normal)
   /// kesimi — belgede gömülü olanlardan. PDF'e yeni yazı tipi gömmek
   /// paragraf motorunun işi değil; kesim yoksa açıklamalı ret.

@@ -68,7 +68,7 @@ List<int> findAll(String haystack, String needle, {int limit = 5000}) {
 /// içinde, sayfa sayfa yapılıyor (`PdfTextSearcher`) ve bize yalnız bir
 /// `Pattern` verme imkânı var. Paketin kendi `caseInsensitive` bayrağı
 /// yerel-duyarsız — "İSTANBUL" ararken "istanbul"u, "IŞIK" ararken "ışık"ı
-/// kaçırıyordu (KALANLAR maddesi). Çözüm: her harfi Türkçe eş biçimlerini
+/// kaçırıyordu. Çözüm: her harfi Türkçe eş biçimlerini
 /// kapsayan bir karakter sınıfına çevirmek, eşleştirmeyi büyük/küçük harf
 /// DUYARLI koşturmak. Böylece kendi çizim geri çağırımımızı yazmadan,
 /// paketin vurgulaması olduğu gibi kullanılabiliyor.

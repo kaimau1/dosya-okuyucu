@@ -14,6 +14,7 @@ import '../../services/fm/archive_ops.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/job_queue.dart' show JobCancelled;
 import '../../widgets/fm/archive_password_dialog.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import 'browser_screen.dart';
@@ -103,11 +104,11 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
         context,
         title: context.t('fm.extracting'),
         name: context.t('fm.extracting_name'),
-        cancellable: false,
-        task: (report, _) => ArchiveOps.extract(
+        task: (report, isCancelled) => ArchiveOps.extract(
           widget.path,
           password: _password,
           onProgress: report,
+          isCancelled: isCancelled,
         ),
       );
       if (!mounted) return;
@@ -119,6 +120,8 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
           )),
         ),
       ));
+    } on JobCancelled {
+      return; // kullanıcı durdurdu; yarım klasör silindi
     } on ArchiveError catch (e) {
       _snack(e.userMessage);
     } catch (e) {

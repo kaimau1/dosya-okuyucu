@@ -21,7 +21,7 @@ import 'share_scope.dart';
 /// Sunucu 2026-07-24'ten beri [FtpServerScreen]'in `State`'i içinde
 /// yaşıyordu: ekrandan çıkınca `dispose` onu durduruyordu. O gün bunun
 /// gerekçesi *"kullanıcı telefonunu ağa açtığını unutmasın"* idi ve karar
-/// KALANLAR'a "bilinçli sınır" olarak yazılmıştı.
+/// eski iş listesine "bilinçli sınır" olarak yazılmıştı.
 ///
 /// Kullanıcı 2026-08-29'da bunu bir HATA olarak bildirdi: *"arka planda da
 /// çalışmalı, çalışırken uygulama içinde ve bildirim panelinde görülmeli."*

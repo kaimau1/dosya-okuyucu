@@ -17,7 +17,7 @@
 
 | Faz | Ortam | Bölümler | Tahmini |
 |---|---|---|---|
-| **A** | ☁️ bulut | A1 hijyen · A2 ölü kod · A3 bağımlılık tazeleme · A4 kod sağlığı · A5 iş sonucu sayfası · A6 Play/gizlilik metinleri + Pro iskeleti · A7 eksik özellikler · A8 ölçüm altyapısı · A9 isteğe bağlı | 5–7 oturum |
+| **A** | ☁️ bulut | A1 hijyen · A3 bağımlılık tazeleme · A4 kod sağlığı · A5 iş sonucu sayfası · A6 Play/gizlilik metinleri + Pro iskeleti · A7 eksik özellikler · A8 ölçüm altyapısı · A9 isteğe bağlı | 5–7 oturum |
 | **B** | 📱💻👤 | B1 yerel küçük işler · B2 cihaz turu · B3 cihaza bağlı takip · B4 Office uyumluluk · B5 hesap/karar · B6 sürüm adayı | 1–2 cihaz oturumu + hesap işleri |
 
 ---
@@ -29,8 +29,9 @@ cihazla doğrulanacak yeni şey `docs/CIHAZ_TESTI.md`'de · HAFIZA'ya tarihli ka
 bu dosyadan madde silindi · main'e birleşti, CI yeşil. `ci/*.kt` değiştiyse
 `tool/check_kotlin.sh`. **`dart format` KOŞTURMA** (HAFIZA tuzakları).
 
-**Sıra:** A1 → A2 → A3 → A4 → A5 → A6 → A7 → A8 → (A9 isteğe bağlı). A1+A2 bir oturum;
-A3 tek başına bir oturum (riskli); A4, A5+A6, A7 (2 oturum), A8 ayrı ayrı.
+**Sıra:** A1 → A3 → A4 → A5 → A6 → A7 → A8 → (A9 isteğe bağlı). A3 tek başına bir
+oturum (riskli); A4, A5+A6, A7, A8 ayrı ayrı. (A2 ve A1.3, A4.5, A6.1–A6.3, A7.3
+2026-11-02'de bitti — HAFIZA.)
 
 ### A1 — Depo ve belge hijyeni (kısa, ilk iş)
 
@@ -43,32 +44,6 @@ A3 tek başına bir oturum (riskli); A4, A5+A6, A7 (2 oturum), A8 ayrı ayrı.
       `git rev-list --count origin/main..<dal>` + `git merge-base`), o an süren oturum
       dalları HARİÇ sil. **Bitti:** `git ls-remote --heads origin` yalnız `main` +
       süren oturum dalları.
-- [ ] **A1.3 Bayat ifadeler (kod tarafı):** `pubspec.yaml`'daki "CI 3.29.3 / Dart 3.7"
-      gerekçeleri (A3 ile birlikte düzelir); `flutter_launcher_icons` `min_sdk_android: 23`
-      (gerçek minSdk 24); kod yorumlarında "KALANLAR maddesi" atıfları (KALANLAR artık
-      yalnız açık işi tutuyor — atıf HAFIZA'ya ya da kaldırılır). Belge tarafı 2026-11-01'de
-      düzeltildi.
-
-### A2 — Ölü kod ve eski yollar
-
-`lib/main.dart`'tan erişilemeyen 3 dosya var (2026-11-01 erişilebilirlik taraması):
-
-- [ ] **A2.1 `lib/screens/qr_share_screen.dart`** (173 satır; yalnız
-      `test/qr_share_test.dart` kullanıyor). 2026-10-29'da paylaş seçimi 2 seçeneğe
-      inince "metni QR'ın içine koy" yolu koptu. **Öneri:** Paylaş levhasına küçük metin
-      dosyası / seçili metin için "QR olarak göster" diye yeniden bağla (kullanıcı
-      2026-10-22'de istemişti); istenmezse ekran + test silinir.
-- [ ] **A2.2 `lib/services/pdf/pdf_font_class.dart`** (yalnız kendi testi) ve
-      **`pdf_text_stamp.dart`** (yalnız `tool/write_fixtures_test.dart` +
-      `pdf_fixture_smoke_test`). Kullanılacaksa bağla; yalnız örnek üretimi içinse
-      `test/support/`'a taşı; değilse testiyle sil.
-- [ ] **A2.3 Erişilebilirlik bekçisi:** `test/reachability_test.dart` — `lib/` altında
-      `main.dart`'tan erişilemeyen dosya 0 (yöntem: import/export/part grafiğinde
-      `main.dart`'tan gezinti; 2026-11-01'de elle koşturuldu, kaydedilmedi). Bundan sonra
-      kopan ekran testte yakalanır.
-
-> Eski WebView Word düzenleme yolu ve `lib/labs/word_editor/` prototipi **cihaz onayına
-> bağlı** → B3.2.
 
 ### A3 — Bağımlılık tazeleme (Flutter 3.29 dönemi sabitleri) — tek başına bir oturum
 
@@ -116,10 +91,6 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
 - [ ] **A4.4 Ekran/widget kodunda 51 senkron G/Ç** (`existsSync/statSync/listSync/
       readAsBytesSync…`; Faz 12a'da 39'du) → `async`/`compute`; bekçi testi tavanla
       (cırcır, yalnız azalabilir).
-- [ ] **A4.5 4 `// ignore:`** — `core/route_guard.dart` (deprecated_member_use),
-      `widgets/mini_player_bar.dart` (invalid_use_of_protected_member),
-      `services/fm/remote/ftp_fs.dart` (invalid_null_aware_operator), `main.dart`
-      (avoid_print): gerekçe doğrula ya da kaldır.
 
 ### A5 — İş sonucu sayfası her işte (`recordChanges`)
 
@@ -133,23 +104,6 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
 
 ### A6 — Play, gizlilik ve mağaza metinleri + Pro iskeleti
 
-- [ ] **A6.1 `docs/play/izin_beyanlari.md` eksik izinler:** `QUERY_ALL_PACKAGES`
-      (`installed_apps` eklentisinden birleşiyor; Play'de yüksek riskli), `ACCESS_FINE/
-      COARSE_LOCATION` (hangi API düzeyinde ve neden), `BLUETOOTH_SCAN/ADVERTISE/
-      CONNECT` (Yakındakiler BLE bulma/davet), `NEARBY_WIFI_DEVICES` + `CHANGE_WIFI_STATE`
-      (LocalOnlyHotspot), `RECEIVE_BOOT_COMPLETED` (SD birleşik iş), `INSTALL_SHORTCUT`.
-      **Bitti:** `ci/AndroidManifest.xml` + birleşen eklenti izinlerinin her biri belgede
-      (bekçi testi: manifest izin listesi ⊆ belge başlıkları).
-- [ ] **A6.2 `docs/play/veri_guvenligi.md` + `assets/privacy/{tr,en,ar}.md`:** kaldırılan
-      **Anılar** hâlâ yazıyor; eklenecek: Yakındakiler (BLE reklamı, yerel ağda 8080 web
-      sunucusu + jeton, hotspot), AI anlamla arama (yalnız sorgu gider), AI etiketleme
-      (dosya ADI + klasör adı + boyut + ay Gemini'ye gider), asistan köprüsü (yalnız
-      kişisel derleme, imza izinli). Üç dil aynı bölümler.
-- [ ] **A6.3 Mağaza metinleri** (`docs/play/magaza_metinleri.md`, 2026-10-22): düzenleme
-      turu (Word/Excel/Slayt/PDF), Yakındakiler, Kırık beyaz tema, iş sonucu ekranı;
-      **L6 marka notu** ("Microsoft Word, Excel ve PowerPoint Microsoft Corporation'ın
-      ticari markalarıdır; bu uygulama Microsoft ile bağlantılı değildir") TR/EN/AR;
-      ekran görüntüleri son görünümle `tool/design_shots_*` yöntemiyle yeniden.
 - [ ] **A6.4 Play derlemesi izin varyantı** (eski "mağaza yolu (c)"): `DOSYA_PLAY=1`
       hazırlık bayrağı (kişisel derleme bayrağı gibi) Play AAB'sinden
       `QUERY_ALL_PACKAGES` (`tools:node="remove"`; uygulamalar ekranı `<queries>` +
@@ -173,9 +127,6 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
       depolamanın `sd_readonly` uyarısı buna bağlanır. Aynı turda SD birleşik **(b)**
       "ana bellek %X'i aşınca" eşiği ve **(c)** serbest klasör seçimi (bugün yalnız
       Android'in standart ortak klasörleri).
-- [ ] **A7.3 Arşiv çıkarmada iptal:** ZIP/RAR/7z çıkarma izolatı durdurulamıyor
-      (`archive_ops.dart` — `ReceivePort`, iptal belirteci yok; büyük solid RAR'da
-      dakikalar sürebiliyor). "Durdur" → izolat öldürülür, yarım hedef klasör silinir.
 - [ ] **A7.4 Görüntüye çevirerek PDF sıkıştırma (agresif kip):** eski engel "cihazda JPEG
       kodlayıcı yok" kalktı (Faz 14b: Android `Bitmap.compress`, `image` paketi). Ayrı ve
       açıkça uyaran seçenek (metin katmanı kaybolur; isteğe bağlı OCR katmanı), DPI/kalite
@@ -230,6 +181,11 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
       donanımlı, FAZ_PLANI Ek D), Yakındakiler için ikinci telefon, Bluetooth klavye,
       varsa tablet/DeX. Kırmızılar aynı oturumda düzeltilir; sonuç HAFIZA'ya.
       Ölçüm verisi telefona `.nomedia`'lı klasörde konur, iş bitince silinir.
+- [ ] **Mağaza ekran görüntüleri** (A6.3'ten, 2026-11-02): metinler güncel
+      (`docs/play/magaza_metinleri.md`), görüntüler son görünümle telefonda alınmalı —
+      bulutta `tool/design_shots_test.dart` geçici klasör yolunu ve eksik rozetleri gösteriyor,
+      mağazaya uygun değil. Düzenleme turu (Word/Excel/Slayt/PDF), Yakındakiler, kırık beyaz
+      tema, iş sonucu ekranı; TR/EN/AR.
 
 ### B3 — Cihaz sonucuna bağlı takip işleri (B2 içinde ya da hemen sonra; kod bulutta da yazılabilir)
 

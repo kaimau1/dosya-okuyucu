@@ -12,6 +12,7 @@ import 'package:path/path.dart' as p;
 import 'file_ops.dart';
 import 'fs_events.dart';
 import 'fs_scan.dart';
+import 'job_queue.dart' show JobCancelled;
 
 /// Arşiv içindeki tek bir öğe (uygulama tarafı modeli).
 ///
@@ -173,11 +174,16 @@ abstract final class ArchiveOps {
 
   /// Arşivin tamamını, adıyla aynı isimli yeni bir klasöre çıkarır ve
   /// klasörü döndürür. Hedef doluysa `" (1)"` eklenir (üzerine yazılmaz).
+  ///
+  /// [isCancelled] verilirse çıkarma **durdurulabilir** (2026-11-02): büyük
+  /// solid RAR'da dakikalar sürebiliyordu ve "Durdur" yoktu. İzolat
+  /// öldürülür, yarım hedef klasör silinir, [JobCancelled] atılır.
   static Future<String> extract(
     String archivePath, {
     String? destDir,
     String? password,
     void Function(FmProgress)? onProgress,
+    bool Function()? isCancelled,
   }) async {
     final parent = destDir ?? p.dirname(archivePath);
     final target = FileOps.uniquePath(p.join(parent, _archiveBaseName(archivePath)));
@@ -197,13 +203,34 @@ abstract final class ArchiveOps {
       }
     });
     try {
-      await _runExtract(archivePath, target, password, port.sendPort);
+      if (isCancelled == null) {
+        await _runExtract(archivePath, target, password, port.sendPort);
+      } else {
+        final finished = await _runExtractKillable(
+            archivePath, target, password, port.sendPort, isCancelled);
+        if (!finished) {
+          await _deletePartial(target);
+          FsEvents.changed();
+          throw const JobCancelled();
+        }
+      }
     } finally {
       await sub.cancel();
       port.close();
     }
     FsEvents.changed();
     return target;
+  }
+
+  /// Durdurulan çıkarmanın yarım klasörü. [extract] onu `uniquePath` ile
+  /// YENİ açtığı için içindeki her şey bu işin ürünü — silmek güvenli.
+  static Future<void> _deletePartial(String target) async {
+    try {
+      await Directory(target).delete(recursive: true);
+    } on FileSystemException {
+      // Bilinçli: silinemeyen yarım klasör kullanıcıya görünür kalır; iş
+      // yine "durduruldu" biter (çıkarma hatası değil).
+    }
   }
 
   /// Arşivden TEK dosyayı çıkarır (önizleme/açma için) ve yolunu döndürür.
@@ -387,6 +414,59 @@ Future<void> _runExtract(
 ) async =>
     _unwrap(await Isolate.run(
         () => _guard(() => _extractSync(archivePath, target, password, progress))));
+
+/// [_runExtract]'ın durdurulabilir eşi: `Isolate.run` öldürülemediği için
+/// izolat elle kurulur ([_extractEntry], yalnız gönderilebilir argümanlar —
+/// yukarıdaki TUZAK) ve [isCancelled] 150 ms'de bir yoklanır. `true` = bitti,
+/// `false` = durduruldu (izolat öldürüldü). Hata [ArchiveError] olarak atılır.
+Future<bool> _runExtractKillable(
+  String archivePath,
+  String target,
+  String? password,
+  SendPort progress,
+  bool Function() isCancelled,
+) async {
+  final reply = ReceivePort();
+  final done = Completer<List<Object?>?>();
+  final sub = reply.listen((msg) {
+    // İlk mesaj sonuçtur; onExit'in `null`u yalnız sonuç gelmeden ölünce.
+    if (!done.isCompleted) done.complete(msg is List ? msg : null);
+  });
+  Isolate? isolate;
+  Timer? poll;
+  try {
+    if (isCancelled()) return false;
+    isolate = await Isolate.spawn(
+      _extractEntry,
+      <Object?>[archivePath, target, password, progress, reply.sendPort],
+      onExit: reply.sendPort,
+    );
+    poll = Timer.periodic(const Duration(milliseconds: 150), (_) {
+      if (!done.isCompleted && isCancelled()) done.complete(const ['cancel']);
+    });
+    final result = await done.future;
+    if (result != null && result.isNotEmpty && result.first == 'cancel') {
+      isolate.kill(priority: Isolate.immediate);
+      return false;
+    }
+    _unwrap(result ??
+        <Object?>['err', ArchiveFailure.other.index, 'çıkarma yarıda kaldı']);
+    return true;
+  } finally {
+    poll?.cancel();
+    await sub.cancel();
+    reply.close();
+  }
+}
+
+/// [_runExtractKillable]'ın izolat girişi (üst düzey: closure taşımaz).
+Future<void> _extractEntry(List<Object?> args) async {
+  final reply = args[4]! as SendPort;
+  final result = await _guard(() => _extractSync(
+      args[0]! as String, args[1]! as String, args[2] as String?,
+      args[3]! as SendPort));
+  Isolate.exit(reply, result);
+}
 
 Future<void> _runZip(
   List<String> paths,

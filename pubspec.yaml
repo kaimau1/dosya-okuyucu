@@ -231,12 +231,11 @@ dependencies:
   dartssh2: ^2.14.0
   # FTP + FTPS (örtük) + FTPES (açık TLS) — saf Dart (MIT). Üç protokol tek
   # sınıfta (`FtpFs`), aradaki tek fark `SecurityType` ve varsayılan port.
-  # Aralık BİLEREK açık: CI (Flutter 3.29.3) 2.0.8+'ın `intl` kısıtı yüzünden
-  # 2.0.7'de kalır, daha yeni bir Flutter 2.0.10 çeker — sürümü sabitlemek
-  # ortamlardan birini "version solving failed" ile kırar. İki sürüm arasında
-  # enum ADLARI değiştiği için (`SecurityType.FTPS` → `ftps`) `ftp_fs.dart`
-  # sabitleri adıyla değil, harf duyarsız arayarak bulur. Bkz. HAFIZA 2026-08-05.
-  ftpconnect: ^2.0.7
+  # Alt sınır 2.0.10 (2026-11-02): eski CI (Flutter 3.29.3) 2.0.7'de kalıyordu,
+  # aralık o yüzden açıktı; artık her ortam 3.44.6 ve 2.0.10 çözümlüyor.
+  # Enum ADLARI sürümler arasında değiştiği için (`SecurityType.FTPS` → `ftps`)
+  # `ftp_fs.dart` sabitleri yine harf duyarsız arar. Bkz. HAFIZA 2026-08-05.
+  ftpconnect: ^2.0.10
   # WebDAV (Nextcloud/ownCloud/Synology) — BSD 3-Clause, `dio` üstünde.
   webdav_client: ^1.2.2
   # Yerel ağ keşfi (mDNS/Bonjour) — Flutter ekibi, BSD. Tek başına yetmiyor
@@ -334,7 +333,7 @@ flutter_launcher_icons:
   android: true
   ios: false
   image_path: "assets/icon/icon.png"
-  min_sdk_android: 23
+  min_sdk_android: 24 # gerçek minSdk (K9)
   adaptive_icon_background: "assets/icon/background.png"
   adaptive_icon_foreground: "assets/icon/foreground.png"
   adaptive_icon_monochrome: "assets/icon/monochrome.png"

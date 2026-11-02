@@ -93,11 +93,9 @@ class FtpFs extends RemoteFs {
           path: RemoteFs.join(path, item.name),
           // `FTPEntryType.DIR` / `.dir` — sürüme göre ad değişiyor
           // (bkz. [securityFor] notu), o yüzden ad üstünden karşılaştırılır.
-          // 2.0.7'de bu alan nullable, 2.0.10'da değil; `?.` iki sürümde de
-          // derlenen tek yazım — yeni sürümde "gereksiz" uyarısı bu yüzden
-          // bilinçli olarak susturuluyor.
-          // ignore: invalid_null_aware_operator
-          isDir: item.type?.name.toLowerCase() == 'dir',
+          // (2026-11-02: alt sınır 2.0.10 — alan artık nullable değil;
+          // iki sürümü birden derleyen `?.` + `ignore` kalktı.)
+          isDir: item.type.name.toLowerCase() == 'dir',
           sizeBytes: item.size ?? 0,
           modifiedMs: item.modifyTime?.millisecondsSinceEpoch ?? 0,
         ));

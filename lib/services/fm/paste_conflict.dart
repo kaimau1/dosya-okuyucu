@@ -5,7 +5,7 @@ import 'package:path/path.dart' as p;
 
 /// Yapıştırmadan önce hedefte çakışan adları bulur.
 ///
-/// **Niye gerekli (KALANLAR maddesi):** yapıştırma her zaman sessizce
+/// **Niye gerekli:** yapıştırma her zaman sessizce
 /// `FmConflict.rename` uyguluyordu — `rapor.pdf` hedefte varsa
 /// `rapor (1).pdf` oluşuyordu. Veri kaybı yok (bilinçli, güvenli varsayılan)
 /// ama kullanıcının niyeti çoğu zaman **güncelleme**: aynı dosyanın yeni

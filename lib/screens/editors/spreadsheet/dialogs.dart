@@ -2,7 +2,7 @@ part of '../spreadsheet_editor_screen.dart';
 
 extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
   /// Koşullu biçimlendirme kuralları — eskiden yalnız OKUNUYORDU, kullanıcı
-  /// kural ekleyemiyordu (KALANLAR maddesi).
+  /// kural ekleyemiyordu.
   ///
   /// Kural seçili aralığa uygulanır. Karşılaştırma değeri **serbest metin**:
   /// sayı kuralları için sayı, metin kuralları için aranan sözcük.

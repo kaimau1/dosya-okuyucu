@@ -29,7 +29,7 @@ class RouteInformationGuard with WidgetsBindingObserver {
   Future<bool> didPushRouteInformation(RouteInformation routeInformation) =>
       Future.value(true);
 
-  @override
-  // ignore: deprecated_member_use
-  Future<bool> didPushRoute(String route) => Future.value(true);
+  // `didPushRoute` (eskimiş) ezilmiyor: çerçevenin varsayılan
+  // `didPushRouteInformation`'ı onu çağırırdı; o yukarıda ezildiği için
+  // eski yol hiç çalışmaz (2026-11-02, `ignore` kaldırıldı).
 }

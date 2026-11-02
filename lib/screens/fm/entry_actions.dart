@@ -27,6 +27,7 @@ import '../../services/text_decode.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/job_queue.dart' show JobCancelled;
 import '../../services/fm/open_history.dart';
 import '../../services/fm/remote/ftp_tree.dart';
 import '../../services/fm/remote/share_scope.dart';

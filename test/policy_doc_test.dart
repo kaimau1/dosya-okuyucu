@@ -70,6 +70,28 @@ void main() {
       });
     }
 
+    // 2026-11-02: Yakındakiler / AI anlamla arama / etiketleme eklendi;
+    // bir dilde unutulursa o dilin kullanıcısı eksik politika görürdü.
+    test('üç dil aynı bölüm ve tablo satırı sayısında, yeni akışlar yazılı', () {
+      int count(String code, PolicyBlockKind kind, [int? level]) => PolicyDoc
+          .parse(File('assets/privacy/$code.md').readAsStringSync())
+          .where((b) => b.kind == kind && (level == null || b.level == level))
+          .length;
+      for (final code in ['en', 'ar']) {
+        expect(count(code, PolicyBlockKind.heading, 2),
+            count('tr', PolicyBlockKind.heading, 2),
+            reason: '$code bölüm sayısı');
+        expect(count(code, PolicyBlockKind.tableRow),
+            count('tr', PolicyBlockKind.tableRow),
+            reason: '$code tablo satırı sayısı');
+      }
+      for (final code in ['tr', 'en', 'ar']) {
+        final text = File('assets/privacy/$code.md').readAsStringSync();
+        expect(text, contains('8080'), reason: '$code: Yakındakiler web yolu');
+        expect(text, contains('Bluetooth'), reason: '$code: BLE bulma');
+      }
+    });
+
     test('pubspec varlık olarak kaydetmiş', () {
       expect(File('pubspec.yaml').readAsStringSync(),
           contains('assets/privacy/'));

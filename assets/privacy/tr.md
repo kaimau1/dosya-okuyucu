@@ -1,6 +1,6 @@
 # Gizlilik Politikası — Dosya Okuyucu
 
-**Son güncelleme:** 22 Ekim 2026 · **Sürüm:** 0.1.0
+**Son güncelleme:** 2 Kasım 2026 · **Sürüm:** 0.2.0
 
 ## Özet
 
@@ -36,14 +36,36 @@ Uygulamayı kaldırdığınızda bunların hepsi silinir.
 | **İndirme yöneticisi** | Girdiğiniz adres | İndirme isteği |
 | **Çeviri** (ML Kit) | Google | Yalnız **dil modeli ilk kez indirilirken**. Çevirinin kendisi cihazda, çevrimdışı yapılır. |
 | **Paylaş / Yazdır** | Seçtiğiniz uygulama | Paylaştığınız dosya |
+| **AI ile anlamla arama** | Google — `generativelanguage.googleapis.com` | **Yalnız yazdığınız arama sorgusu** (kendi anahtarınızla). Dosya adları ve içerikleri gitmez; eşleştirme cihazda yapılır. |
+| **AI ile etiketleme / kategorilere ayırma** | Google — `generativelanguage.googleapis.com` | Seçtiğiniz dosyaların **adı, uzantısı, bulunduğu klasörün ADI** (tam yol değil), boyutu ve ayı (kategori analizinde ayrıca sayı/boyut özeti). Dosya içeriği gitmez; kamera klasörü ve kilitli klasörler hiç gönderilmez. Öneriler siz onaylamadan yazılmaz. |
 | **Yapay zekâ sesleri** (Antalia-2 Mini, EMA Lightning) | Hugging Face — `huggingface.co` | Yalnız sesi **siz indirirken**: model dosyalarının indirme isteği. Metniniz gönderilmez — seslendirme cihazda, internetsiz yapılır. |
 
 **Metin tanıma (OCR), akıllı temizlik analizi, sesli kitap üretimi, belge
 tarama ve çeviri motorları cihazda çalışır** —
 belgelerinizin içeriği bu işlemler için internete gönderilmez.
 
-**QR kodla paylaşım** ağ kullanmaz: not, karşı tarafın kamerasıyla okunan
-QR kodun içindedir ve hiçbir sunucuya yüklenmez.
+**Metni QR kodda gösterme** ağ kullanmaz: yazı, karşı tarafın kamerasıyla
+okunan QR kodun içindedir ve hiçbir sunucuya yüklenmez.
+
+**Yakındakiler** (yakındaki cihaza / tarayıcıya dosya gönderme) **üçüncü
+taraf sunucu kullanmaz**; dosya iki cihaz arasında doğrudan, yerel ağdan
+gider:
+
+- **Bluetooth LE yalnız bulma ve davet için:** Yakındakiler ekranı açıkken
+  telefonunuz görünen adını ve bu kuruluma özgü rastgele bir kimliği
+  yayınlar. Dosya Bluetooth'tan geçmez.
+- **Yerel ağ:** aynı Wi-Fi'deki cihazlar birbirini yerel yayınla bulur;
+  ortak Wi-Fi yoksa telefon internetsiz geçici bir ağ (hotspot) kurar.
+- **Tarayıcıdan alma:** gönderirken telefon, yalnız yerel ağda erişilebilen
+  bir web sayfası açar (8080 bağlantı noktası); sayfa 6 harflik bir
+  kodla korunur ve aktarım bitince kapanır.
+- Konum izni (yalnız Android 12 ve öncesi) sistem bu ağ işlemleri için
+  istediği için sorulur; **konumunuz okunmaz ve kaydedilmez.**
+
+**Asistan köprüsü** yalnız geliştiricinin **kişisel derlemesinde** vardır
+(mağaza ve GitHub sürümünde yoktur): aynı imzayla imzalanmış asistan
+uygulaması bir dosyayı sesli okutabilir ya da özetini açabilir. Başka
+uygulamalar bu köprüyü kullanamaz; veri cihazdan çıkmaz.
 
 ## 3. Hata (çökme) kayıtları
 
@@ -71,6 +93,10 @@ karar verirsiniz.
 | Bildirimler | Uzun işlerin (kopyalama, sıkıştırma, indirme) ilerlemesi |
 | Kullanım erişimi (`PACKAGE_USAGE_STATS`) | "Uygulamalar" ekranındaki **son açılma tarihi**. Vermezseniz liste yine gelir. |
 | Bilinmeyen kaynak kurulumu | Bir `.apk` dosyasına dokunduğunuzda sistemin kurulum ekranını açmak |
+| Bluetooth, yakındaki cihazlar, Wi-Fi durumu | Yakındakiler: yakındaki telefonu bulma, davet ve geçici ağ (yukarıda). Vermezseniz QR ve aynı Wi-Fi yolu çalışır. |
+| Konum (yalnız Android 12 ve öncesi) | Android eski sürümlerde Bluetooth taramayı ve geçici ağı konum iznine bağlıyor. Konum okunmaz. |
+| Yüklü uygulamaları görme | "Uygulamalar" ekranı: liste, boyut, sistemin kaldırma penceresi. Liste cihazdan çıkmaz. |
+| Açılışta çalışma | Siz açtıysanız SD kartla birleşik depolamanın dönemsel işi yeniden başlatmadan sonra da sürsün diye. |
 | İnternet | Yukarıdaki 2. bölümdeki işlemler |
 
 ## 5. Çocuklar

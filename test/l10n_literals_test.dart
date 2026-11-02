@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// **Çevrilmemiş metin BEKÇİSİ.**
 ///
-/// KALANLAR'daki "kalan ekranlar hâlâ Türkçe" maddesi 2026-08-08'de kapandı;
+/// Eski "kalan ekranlar hâlâ Türkçe" maddesi 2026-08-08'de kapandı;
 /// bu test onu KAPALI TUTAR. Kaynakta kullanıcıya görünen yerlere (`Text(...)`,
 /// `tooltip:`, `label:`, `title:`, `hintText:`…) doğrudan Türkçe bir dize
 /// yazılırsa test kırmızı yanar ve yazan kişi `context.t('anahtar')`a

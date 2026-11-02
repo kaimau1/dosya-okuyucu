@@ -737,7 +737,7 @@ bool _looksLikeDateTimeCode(String code) {
 }
 
 /// Doldurma tutamağının yazacağı değerler — tek eksen ya da **köşegen**
-/// (Faz 9 / Y2; KALANLAR "köşegen doldurma yok").
+/// (Faz 9 / Y2; eski "köşegen doldurma yok" maddesi).
 ///
 /// [src] seçili blok, ([toRow], [toCol]) tutamağın bırakıldığı hücre,
 /// [rawAt] sayfanın ham değeri (formül `=` ile). Köşegende önce satır ekseni

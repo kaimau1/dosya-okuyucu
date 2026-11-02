@@ -1,13 +1,13 @@
 import 'dart:io';
 
 import 'package:dosya_okuyucu/services/pdf/pdf_form.dart';
-import 'package:dosya_okuyucu/services/pdf/pdf_text_stamp.dart';
 import 'package:dosya_okuyucu/services/pdf_page_edit.dart';
 import 'package:dosya_okuyucu/services/pdf_tools.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/pdf_edit_helper.dart';
 import 'support/pdf_fixtures.dart';
+import 'support/pdf_text_stamp.dart';
 
 /// **PDF duman testleri** (Faz 8): örnek setin HER belgesi için
 /// aç → düzenle → kaydet → yeniden aç → içerik doğrula.
@@ -167,7 +167,7 @@ void main() {
       // Bağımsız ikinci ölçüm (bizim ayrıştırıcı, HAM y-yukarı uzay):
       // CropBox [40 60 360 560] → görünen (20, 30) = ham (60, ~530).
       // Yani Syncfusion'ın çizim kökeni CropBox'ın sol-üst köşesi; kaydırma
-      // eklemeye gerek YOK (KALANLAR'daki "doğrulanmadı" maddesi kapandı).
+      // eklemeye gerek YOK (eski "doğrulanmadı" maddesi kapandı).
       final p = PdfPageEdit.outline(out, 0)
           .paragraphs
           .firstWhere((p) => p.text.contains('Damga'));

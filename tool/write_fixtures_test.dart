@@ -9,7 +9,7 @@ import 'dart:io';
 import 'package:dosya_okuyucu/services/docx_editor.dart';
 import 'package:dosya_okuyucu/services/legacy_convert.dart';
 import 'package:dosya_okuyucu/services/pdf/pdf_form.dart';
-import 'package:dosya_okuyucu/services/pdf/pdf_text_stamp.dart';
+import '../test/support/pdf_text_stamp.dart';
 import 'package:dosya_okuyucu/services/pptx_editor.dart';
 import 'package:dosya_okuyucu/services/xlsx_editor.dart';
 import 'package:flutter_test/flutter_test.dart';

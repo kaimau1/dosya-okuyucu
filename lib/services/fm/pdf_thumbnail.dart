@@ -12,7 +12,7 @@ import '../../core/app_colors.dart';
 
 /// PDF'in **ilk sayfasını** küçük resim olarak üretir ve diskte önbelleğe alır.
 ///
-/// **Niye (KALANLAR maddesi):** listelerde her PDF aynı kırmızı simgeyle
+/// **Niye:** listelerde her PDF aynı kırmızı simgeyle
 /// görünüyordu; on tane faturanın hangisinin hangisi olduğu ancak dosya adından
 /// anlaşılıyordu. Kapak sayfası tek bakışta ayırt ettirir.
 ///

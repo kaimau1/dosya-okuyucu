@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'support/temp_dir.dart';
 
-/// **Listede klasör boyutu** (KALANLAR maddesi, 2026-09-04'te kapandı).
+/// **Listede klasör boyutu** (2026-09-04'te kapandı).
 ///
 /// Ölçüm pahalı olduğu için kurallar önemli: yalnız istenen klasör ölçülür,
 /// ölçülemeyen yol bir daha denenmez, dosya sistemi değişince ölçüler düşer.

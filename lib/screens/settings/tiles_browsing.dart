@@ -269,7 +269,7 @@ class MediaOpenWithTile extends StatelessWidget {
 /// Açılış klasörü: boşken pano ilk ekran kalır.
 ///
 /// Dosyalarını hep aynı klasörde tutan kullanıcı her açılışta panodan oraya
-/// tıklaya tıklaya gidiyordu (KALANLAR maddesi).
+/// tıklaya tıklaya gidiyordu.
 class StartFolderTile extends StatelessWidget {
   const StartFolderTile({super.key});
 

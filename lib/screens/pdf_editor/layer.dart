@@ -751,7 +751,11 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
               colorArgb: color,
             );
           }
+          // Kendi programı yoksa aynı aileden gömülü karşılık (serif → Tinos).
+          final baseFont = await PdfPageEdit.paragraphBaseFontInBackground(b,
+              pageIndex: pageIndex, paragraphIndex: index);
           return PdfOverwrite.apply(
+            baseFont: baseFont,
             bytes: base,
             pageIndex: pageIndex,
             left: par.left,

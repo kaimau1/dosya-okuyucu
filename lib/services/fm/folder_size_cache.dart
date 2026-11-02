@@ -8,7 +8,7 @@ import 'fs_scan.dart';
 /// **Listede klasör boyutu** — istek üzerine hesaplanan, bellekte tutulan
 /// ölçüler.
 ///
-/// Niye istek üzerine (KALANLAR maddesi, 2026-09-04'te kapandı): bir klasörün
+/// Niye istek üzerine (2026-09-04'te kapandı): bir klasörün
 /// boyutu ancak ALTINDAKİ HER ŞEY gezilerek bulunur. Bir listedeki 40 klasörü
 /// açılışta ölçmek, diskin o dalını baştan sona okumak demek — ayar
 /// varsayılan olarak KAPALI ve açıkken bile yalnız **ekranda görünen**

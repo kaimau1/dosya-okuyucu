@@ -5,7 +5,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 /// Ekranın sönmesini engelleme (wakelock) — **tek kapı**.
 ///
-/// **Niye var (KALANLAR maddesi, 2026-08-08'de kapandı):** uzun bir videoyu
+/// **Niye var (2026-08-08'de kapandı):** uzun bir videoyu
 /// izlerken kimse ekrana dokunmaz; Android'in ekran zaman aşımı devreye girip
 /// filmi 30 saniyede karartıyordu. Kullanıcı her seferinde ekrana dokunmak
 /// zorunda kalıyordu.

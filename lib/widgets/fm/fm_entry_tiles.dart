@@ -20,7 +20,7 @@ import '../motion.dart';
 
 /// Liste satırı — **kendi `Row`umuz** (Faz 6 / U4, 2026-10-21).
 ///
-/// KÖK NEDEN (KALANLAR maddesi): `ListTile` `leading` yuvasını 56 dp ile
+/// KÖK NEDEN: `ListTile` `leading` yuvasını 56 dp ile
 /// sınırlıyordu; 68 dp'lik önizleme (kullanıcı 2026-08-17: *"simgeleri
 /// olabildiğince büyüt"*) bu tavana çarpıp sıkışıyor, alt satır da tek
 /// aralıklı yazıyla "teknik" görünüyordu. Şimdi:

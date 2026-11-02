@@ -6,6 +6,11 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 /// **Sayfaya yazı kutusu ekle** — paragraf motorunun düzenleyemediği
+/// sayfaların eski yedeği. 2026-11-02 (HAFIZA 2026-11-02, eski A2.2): uygulamada artık
+/// kullanılmıyor ("Üstüne yaz" ve bekleyen yazı nesnesi aldı); yalnız örnek
+/// dosya üretimi ve duman testi için `test/support/`'a taşındı.
+///
+/// Özgün not —
 /// sayfaların yedeği (Faz 8, karar K12).
 ///
 /// Eski kelime-bazlı yerinde düzenleme yolu (`PdfContentEditor`, ~1.600

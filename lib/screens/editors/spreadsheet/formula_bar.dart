@@ -166,7 +166,7 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
   /// Formül yazarken **işlev adı önerileri**.
   ///
   /// Motor 100'ün üzerinde işlev biliyordu ama kullanıcı adını ezberlemek
-  /// zorundaydı (KALANLAR maddesi). Öneriler imlecin solundaki YARIM SÖZCÜKTEN
+  /// zorundaydı. Öneriler imlecin solundaki YARIM SÖZCÜKTEN
   /// üretilir: `=TOP` → TOPLA, `=DÜŞ` → DÜŞEYARA. Ayrı bir "işlev sihirbazı"
   /// ekranı yerine satır içi öneri seçildi — telefonda ekran değiştirmeden,
   /// yazma ritmini bozmadan çalışıyor.

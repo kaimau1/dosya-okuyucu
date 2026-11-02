@@ -7,6 +7,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 import '../pdf_tools.dart' show stampTransform;
+import 'pdf_font_class.dart';
 import 'pdf_form.dart';
 
 /// Kaydedilene kadar **nesne** olarak yaşayan bir ekleme (Faz 31 / PD3).
@@ -259,7 +260,9 @@ abstract final class PdfPendingWriter {
 /// **"Üstüne yaz"** (Faz 31 / PD2): paragraf motoru yeniden dizmeyi
 /// reddettiğinde (yazı tipinde harf yok, sığmıyor …) tek dokunuşluk
 /// alternatif — paragrafın kutusu beyazla örtülür, yeni metin aynı yere
-/// gömülü Carlito ile yazılır.
+/// gömülü Carlito ile yazılır. [baseFont] (paragrafın `/BaseFont` adı)
+/// verilirse aile [PdfFontClass] ile seçilir: serif → Tinos, italik kesim
+/// korunur (2026-11-02, HAFIZA 2026-11-02, eski A2.2).
 ///
 /// [left]/[top]/[right]/[bottom] paragrafın **PDF kullanıcı uzayındaki**
 /// kutusu (y yukarı; `top > bottom`) — [PdfParagraph] ile aynı.
@@ -275,10 +278,9 @@ abstract final class PdfOverwrite {
     required double pointSize,
     bool bold = false,
     int colorArgb = 0xFF191919,
+    String? baseFont,
   }) async {
-    final font = (await rootBundle.load(bold
-            ? 'assets/fonts/Carlito-Bold.ttf'
-            : 'assets/fonts/Carlito-Regular.ttf'))
+    final font = (await rootBundle.load(fontAssetFor(baseFont, bold: bold)))
         .buffer
         .asUint8List();
     return applySync(
@@ -293,6 +295,14 @@ abstract final class PdfOverwrite {
       font: font,
       colorArgb: colorArgb,
     );
+  }
+
+  /// Yedek yazı tipinin varlık yolu: ailesi/italikliği [baseFont]'tan,
+  /// kalınlığı kullanıcının seçiminden ([bold]).
+  static String fontAssetFor(String? baseFont, {required bool bold}) {
+    final c = PdfFontClass.of(baseFont ?? '');
+    return PdfFontClass(serif: c.serif, bold: bold, italic: c.italic)
+        .assetPath;
   }
 
   static List<int> applySync({

@@ -5,7 +5,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
 import '../../services/fm/file_ops.dart';
-import '../../services/fm/job_queue.dart' show FmJobTarget;
+import '../../services/fm/job_queue.dart' show FmJobTarget, JobCancelled;
 import '../../services/fm/tracked_task.dart';
 import '../live_progress.dart';
 
@@ -258,6 +258,11 @@ Future<T> showFmProgress<T>(
       tracked.recordChanges(jobChangesOf(result));
     }
     return result;
+  } on JobCancelled {
+    // Görev durdurmayı kendi bitiriyor (ör. arşiv çıkarma izolatı
+    // öldürüldü): hata değil, "durduruldu".
+    await tracked.stopped(quiet: watched());
+    rethrow;
   } catch (e) {
     await tracked.fail(e, quiet: watched());
     rethrow;
