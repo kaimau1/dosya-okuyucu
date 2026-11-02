@@ -137,8 +137,15 @@ namespace DosyaAktar
         public int Port = Proto.TransferPort;
         public DateTime Seen;
         public bool Manual;
-        public string Key => Host + ":" + Port;
-        public override string ToString() => Name + "    " + Host + (Manual ? "  (elle)" : "");
+
+        /// <summary>Yalnız Bluetooth'tan görülen telefon (Host yok): önce davet, sonra Wi-Fi.</summary>
+        public ulong BleAddress;
+        public bool BleRandom;
+        public bool IsBle => Host == null;
+
+        public string Key => IsBle ? "ble:" + BleAddress : Host + ":" + Port;
+        public override string ToString() =>
+            Name + "    " + (IsBle ? "Bluetooth" : Host) + (Manual ? "  (elle)" : "");
     }
 
     public class OfferItem
@@ -615,16 +622,22 @@ namespace DosyaAktar
             lock (peers) peers[p.Key] = p;
         }
 
+        public void AddBle(Peer p)
+        {
+            lock (peers) peers[p.Key] = p;
+        }
+
         public List<Peer> Snapshot()
         {
             var now = DateTime.UtcNow;
             lock (peers)
             {
                 return peers.Values
-                    .Where(p => p.Manual || now - p.Seen < TimeSpan.FromSeconds(7))
-                    // Aynı cihaz iki arayüzden (Wi-Fi + hotspot) cevap verebilir.
+                    // Arka plandaki telefon ~1 sn'de bir, seyrek yayınlar: Bluetooth'a daha uzun süre tanınır.
+                    .Where(p => p.Manual || now - p.Seen < TimeSpan.FromSeconds(p.IsBle ? 15 : 7))
+                    // Aynı cihaz iki arayüzden (Wi-Fi + hotspot, Wi-Fi + Bluetooth) görünebilir; Wi-Fi öncelikli.
                     .GroupBy(p => p.Id != "" ? p.Id : p.Key)
-                    .Select(g => g.OrderByDescending(p => p.Seen).First())
+                    .Select(g => g.OrderBy(p => p.IsBle).ThenByDescending(p => p.Seen).First())
                     .OrderBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
                     .ToList();
             }

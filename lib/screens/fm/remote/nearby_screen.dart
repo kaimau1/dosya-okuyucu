@@ -98,7 +98,19 @@ class NearbyScreen extends StatefulWidget {
   @visibleForTesting
   final bool services;
 
-  const NearbyScreen({super.key, this.sendPaths = const [], this.services = true});
+  /// Bildirimden gelen davet (arka planda görünürlük, kişisel derleme).
+  final BleInvite? invite;
+
+  /// Bildirimde "Kabul et"e basıldı: yeniden sorulmaz.
+  final bool inviteAccepted;
+
+  const NearbyScreen({
+    super.key,
+    this.sendPaths = const [],
+    this.services = true,
+    this.invite,
+    this.inviteAccepted = false,
+  });
 
   @override
   State<NearbyScreen> createState() => _NearbyScreenState();
@@ -112,6 +124,13 @@ class _NearbyScreenState extends State<NearbyScreen> {
   String _id = '';
   String _saveDir = QrReceiveFlow.defaultSaveDir();
   bool _confirmIncoming = true;
+
+  /// Onaylanmış "push" daveti (ör. Windows): o göndericinin teklifi kısa süre sorulmaz.
+  ({String name, DateTime until})? _preApproved;
+
+  /// Arka planda görünürlük (yalnız kişisel derlemede [_bgAvailable]).
+  bool _bgAvailable = false;
+  bool _bgOn = false;
 
   // ── alma ────────────────────────────────────────────────────────────────
   PeerReceiver? _receiver;
@@ -188,6 +207,12 @@ class _NearbyScreenState extends State<NearbyScreen> {
   }
 
   Future<void> _boot() async {
+    // Bildirimde onaylanan push daveti: alıcı açılır açılmaz gönderen /sor sorabilir —
+    // onay alıcıdan ÖNCE kayıtlı olsun (yoksa aynı istek bir kez daha sorulurdu).
+    final accepted = widget.invite;
+    if (accepted != null && accepted.push && widget.inviteAccepted) {
+      _preApproved = (name: accepted.from, until: DateTime.now().add(const Duration(minutes: 3)));
+    }
     _id = await NearbyIdentity.id();
     if (!mounted) return;
     await _startReceiving();
@@ -200,6 +225,12 @@ class _NearbyScreenState extends State<NearbyScreen> {
     _bleInvite = BleNearby.invites.listen(_onInvite);
     await _startBle();
     if (_selection.isNotEmpty) _scheduleWeb();
+    unawaited(_loadBg());
+    final invite = widget.invite;
+    if (invite != null) {
+      unawaited(BleNearby.bgClearAsk());
+      unawaited(_takeInvite(invite, accepted: widget.inviteAccepted));
+    }
   }
 
   Future<void> _startBle() async {
@@ -325,6 +356,10 @@ class _NearbyScreenState extends State<NearbyScreen> {
 
   Future<bool> _askIncoming(PeerOffer offer) async {
     if (!mounted) return false;
+    final pre = _preApproved;
+    if (pre != null && pre.name == offer.from && DateTime.now().isBefore(pre.until)) {
+      return true;
+    }
     return showTransferOffer(
       context,
       from: offer.from,
@@ -347,19 +382,72 @@ class _NearbyScreenState extends State<NearbyScreen> {
 
   /// Bluetooth daveti: önce ne geleceği sorulur, kabul edilirse Wi-Fi'ye
   /// (gerekirse gönderenin geçici ağına) bağlanılıp dosyalar çekilir.
-  Future<void> _onInvite(BleInvite invite) async {
+  Future<void> _onInvite(BleInvite invite) => _takeInvite(invite, accepted: false);
+
+  Future<void> _takeInvite(BleInvite invite, {required bool accepted}) async {
     if (!mounted) return;
-    final ok = await showTransferOffer(
-      context,
-      from: invite.from,
-      count: invite.count,
-      totalBytes: invite.totalBytes,
-      saveDir: _saveDir,
-      items: [for (final n in invite.names) OfferRow(name: n, size: 0)],
-    );
+    final ok = accepted ||
+        await showTransferOffer(
+          context,
+          from: invite.from,
+          count: invite.count,
+          totalBytes: invite.totalBytes,
+          saveDir: _saveDir,
+          items: [for (final n in invite.names) OfferRow(name: n, size: 0)],
+        );
     if (!ok || !mounted) return;
+    if (invite.push) {
+      // Gönderen (ör. Windows "Dosya Aktar") bu cihazı Wi-Fi'de bulup kendisi gönderir;
+      // onay verildi, aynı göndericinin teklifi birkaç dakika yeniden sorulmaz.
+      _preApproved = (name: invite.from, until: DateTime.now().add(const Duration(minutes: 3)));
+      showSnack(context, context.t('near.bg_waiting', {'name': invite.from}));
+      return;
+    }
     await QrReceiveFlow.runPayload(context, invite.url,
         saveDir: _saveDir, preAccepted: true, from: invite.from);
+  }
+
+  // ── Arka planda görünürlük (kişisel derleme) ───────────────────────────
+
+  Future<void> _loadBg() async {
+    final state = await BleNearby.bgState();
+    if (!mounted) return;
+    setState(() {
+      _bgAvailable = state.available;
+      _bgOn = state.on;
+    });
+  }
+
+  Future<bool> _enableBg() {
+    final strings = AppStrings.of(context);
+    return BleNearby.bgEnable(id: _id, name: _deviceName, texts: {
+      'bg_title': strings.t('near.bg_note_title'),
+      'bg_text': strings.t('near.bg_note_text'),
+      // {name}/{n} yer tutucuları bildirimi kuran Kotlin tarafında doldurulur.
+      'ask_title': strings.t('near.bg_ask_title'),
+      'ask_body': strings.t('near.bg_ask_body'),
+      'accept': strings.t('near.accept'),
+      'reject': strings.t('near.decline'),
+      'ch_quiet': strings.t('near.bg_ch_quiet'),
+      'ch_ask': strings.t('near.bg_ch_ask'),
+    });
+  }
+
+  Future<void> _toggleBg() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final strings = AppStrings.of(context);
+    if (_bgOn) {
+      await BleNearby.bgDisable();
+      if (!mounted) return;
+      setState(() => _bgOn = false);
+      showSnackOn(messenger, strings.t('near.bg_off'));
+      return;
+    }
+    final ok = await _enableBg();
+    if (!mounted) return;
+    setState(() => _bgOn = ok);
+    showSnackOn(messenger, strings.t(ok ? 'near.bg_on' : 'near.bg_failed'),
+        duration: const Duration(seconds: 6));
   }
 
   Future<void> _scanQr() async {
@@ -694,6 +782,8 @@ class _NearbyScreenState extends State<NearbyScreen> {
     await _startReceiving();
     await _startBle();
     _scheduleWeb();
+    // Arka plan yayınında da ad gidiyor.
+    if (_bgOn) await _enableBg();
   }
 
   Future<void> _pickSaveDir() async {
@@ -744,6 +834,8 @@ class _NearbyScreenState extends State<NearbyScreen> {
                 case 'confirm':
                   setState(() => _confirmIncoming = !_confirmIncoming);
                   if (widget.services) await _startReceiving();
+                case 'bg':
+                  await _toggleBg();
               }
             },
             itemBuilder: (ctx) => [
@@ -760,6 +852,12 @@ class _NearbyScreenState extends State<NearbyScreen> {
                 checked: _confirmIncoming,
                 child: Text(ctx.t('peer.ask_switch')),
               ),
+              if (_bgAvailable)
+                CheckedPopupMenuItem(
+                  value: 'bg',
+                  checked: _bgOn,
+                  child: Text(ctx.t('near.bg_switch')),
+                ),
             ],
           ),
         ],

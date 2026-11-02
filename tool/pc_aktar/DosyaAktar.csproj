@@ -17,4 +17,7 @@
     <Reference Include="System.Web.Extensions" />
     <Reference Include="System.IO.Compression" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Windows.SDK.Contracts" Version="10.0.19041.2" />
+  </ItemGroup>
 </Project>

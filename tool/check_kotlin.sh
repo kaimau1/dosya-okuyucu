@@ -92,11 +92,16 @@ fi
 
 # ── Yakındakiler: Bluetooth LE bulma/davet (2026-10-29) ──
 # `ci/NearbyBle.kt` gerçek jar'a + Flutter kanal taslaklarına karşı derlenir,
-# kimlik kodlama/UTF-8 kesme yardımcıları JVM'de denenir.
+# kimlik kodlama/UTF-8 kesme yardımcıları JVM'de denenir. Kişisel derlemenin arka
+# plan servisi (`ci/kisisel/NearbyBgService.kt`, BleBeacon + Extras.linkIntent) da
+# burada derlenir.
 OUT4="$OUT/ble"
 mkdir -p "$OUT4"
 "$KOTLINC" -nowarn -cp "$ANDROID_JAR" -d "$OUT4" \
   "$ROOT/ci/NearbyBle.kt" \
+  "$ROOT/ci/kisisel/NearbyBgService.kt" \
+  "$ROOT/ci/Extras.kt" \
+  "$ROOT/tool/kotlin_tests/ExtrasR.kt" \
   "$ROOT/tool/kotlin_tests/FlutterChannelStubs.kt" \
   "$ROOT/tool/kotlin_tests/NearbyBleHarness.kt" 2>&1 | tee "$OUT/log4"
 if grep -qE "^e: |: error: " "$OUT/log4"; then

@@ -71,6 +71,7 @@ namespace DosyaAktar
         readonly string deviceName, deviceId;
         readonly Receiver receiver;
         readonly Scanner scanner;
+        readonly BleLink ble = new BleLink();
         volatile bool sending, cancel;
 
         readonly ListBox devices = new ListBox();
@@ -277,6 +278,8 @@ namespace DosyaAktar
                     "Dosya Aktar", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             scanner.Start();
+            ble.Found = p => scanner.AddBle(p);
+            ble.Start();
             refresh.Start();
             gallery.SetFolder(receiver.SaveDir);
             UpdateInfo();
@@ -292,7 +295,7 @@ namespace DosyaAktar
         void UpdateInfo()
         {
             var ips = string.Join(", ", Proto.LocalIPv4().Select(a => a.ip.ToString()));
-            info.Text = "Telefonda Dosya Okuyucu › Yakındakiler ekranını açın; bu bilgisayar orada görünür.\n" +
+            info.Text = "Telefonda Dosya Okuyucu › Yakındakiler ekranını açın; bu bilgisayar orada görünür. Arka planda görünür telefonlar Bluetooth ile listelenir.\n" +
                         "IP: " + (ips == "" ? "ağ yok" : ips) + "   ·   Gelenler: " + receiver.SaveDir;
         }
 
@@ -375,13 +378,67 @@ namespace DosyaAktar
                     status.Text = "Gönderiliyor: " + name + "   " + Proto.Size(done) + " / " + Proto.Size(total);
                 }),
             };
-            Task.Run(() =>
+            Task.Run(async () =>
             {
                 SendResult r;
-                try { r = sender.Send(peer, paths); }
+                try { r = peer.IsBle ? await SendViaBle(peer, paths, sender) : sender.Send(peer, paths); }
                 catch (Exception e) { r = new SendResult(); r.Errors.Add(e.Message); }
                 Ui(() => Finish(peer, r));
             });
+        }
+
+        /// <summary>
+        /// Yalnız Bluetooth'tan görünen telefon (Yakındakiler kapalı, kişisel derlemede arka planda görünür):
+        /// davet yazılır → telefonda bildirim → "Kabul et" Yakındakiler'i açar → telefon bu ağda Wi-Fi'den
+        /// görünür olunca normal gönderim. Telefonun bu bilgisayarla aynı Wi-Fi'de olması şart.
+        /// </summary>
+        async Task<SendResult> SendViaBle(Peer blePeer, string[] paths, Sender sender)
+        {
+            var result = new SendResult();
+            Ui(() => status.Text = blePeer.Name + " — Bluetooth ile istek gönderiliyor…");
+            var invite = Proto.ToJson(new Dictionary<string, object>
+            {
+                ["v"] = 1, ["f"] = deviceName, ["i"] = deviceId, ["p"] = 1,
+                ["n"] = paths.Sum(x => CountFiles(x)), ["s"] = paths.Sum(x => SizeOf(x)),
+                ["a"] = paths.Take(4).Select(x =>
+                {
+                    var n = Path.GetFileName(x.TrimEnd('\\'));
+                    return n.Length > 40 ? n.Substring(0, 37) + "…" : n;
+                }).ToArray(),
+            });
+            if (!await BleLink.SendInvite(blePeer, invite))
+            {
+                result.Errors.Add("Bluetooth isteği telefona ulaşmadı (uzakta ya da Bluetooth kapalı)");
+                return result;
+            }
+            Ui(() => status.Text = blePeer.Name + " telefonunda onay bekleniyor… (telefon bu bilgisayarla aynı Wi-Fi'de olmalı)");
+            var deadline = DateTime.UtcNow.AddMinutes(3);
+            while (DateTime.UtcNow < deadline)
+            {
+                if (cancel) { result.Cancelled = true; return result; }
+                var wifi = scanner.Snapshot().FirstOrDefault(x => !x.IsBle && x.Id == blePeer.Id);
+                if (wifi != null) return sender.Send(wifi, paths);
+                await Task.Delay(1000);
+            }
+            result.Errors.Add("telefon Wi-Fi'de görünmedi (onaylanmadı ya da aynı ağda değil)");
+            return result;
+        }
+
+        static int CountFiles(string path)
+        {
+            try { return Directory.Exists(path) ? Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories).Count() : 1; }
+            catch { return 1; }
+        }
+
+        static long SizeOf(string path)
+        {
+            try
+            {
+                return Directory.Exists(path)
+                    ? new DirectoryInfo(path).EnumerateFiles("*", SearchOption.AllDirectories).Sum(f => f.Length)
+                    : new FileInfo(path).Length;
+            }
+            catch { return 0; }
         }
 
         void Finish(Peer peer, SendResult r)
@@ -455,6 +512,7 @@ namespace DosyaAktar
             cancel = true;
             refresh.Stop();
             receiver.Stop();
+            ble.Stop();
         }
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]

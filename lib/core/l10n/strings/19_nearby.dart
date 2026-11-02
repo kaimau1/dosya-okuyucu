@@ -127,6 +127,34 @@ const Map<String, (String, String, String)> _t19 = {
   'near.offer_dest': ('Kaydedilecek yer: {dir}', 'Saving to: {dir}', 'سيُحفظ في: {dir}'),
   'near.folder_files': ('{n} dosya', '{n} files', '{n} ملف'),
   'near.accept': ('Kabul et', 'Accept', 'قبول'),
+  // ── Arka planda görünürlük (kişisel derleme) ──
+  'near.bg_switch': ('Arka planda görünür ol', 'Visible in background', 'مرئي في الخلفية'),
+  'near.bg_on': (
+    'Bu ekran kapalıyken de yakındakiler sizi görür (düşük güçlü Bluetooth); istekler bildirimle sorulur.',
+    'Nearby devices can see you even when this screen is closed (low-power Bluetooth); requests are asked by notification.',
+    'تراك الأجهزة القريبة حتى عند إغلاق هذه الشاشة (بلوتوث منخفض الطاقة)؛ تُعرض الطلبات كإشعار.',
+  ),
+  'near.bg_off': ('Arka planda görünürlük kapandı.', 'Background visibility turned off.', 'تم إيقاف الظهور في الخلفية.'),
+  'near.bg_failed': (
+    'Açılamadı — Bluetooth açık ve izinli mi?',
+    'Could not turn on — is Bluetooth on and allowed?',
+    'تعذّر التشغيل — هل البلوتوث مفعّل ومسموح؟',
+  ),
+  'near.bg_note_title': ('Yakındakilere görünürsünüz', 'Visible to nearby devices', 'أنت مرئي للأجهزة القريبة'),
+  'near.bg_note_text': (
+    'Düşük güçlü Bluetooth · gelen istekler onayınıza sorulur',
+    'Low-power Bluetooth · incoming requests need your approval',
+    'بلوتوث منخفض الطاقة · الطلبات الواردة تحتاج موافقتك',
+  ),
+  'near.bg_ask_title': ('Gelen dosya isteği', 'Incoming file request', 'طلب ملف وارد'),
+  'near.bg_ask_body': ('{name} {n} dosya göndermek istiyor', '{name} wants to send {n} files', 'يريد {name} إرسال {n} ملفات'),
+  'near.bg_ch_quiet': ('Arka planda görünürlük', 'Background visibility', 'الظهور في الخلفية'),
+  'near.bg_ch_ask': ('Gelen dosya istekleri', 'Incoming file requests', 'طلبات الملفات الواردة'),
+  'near.bg_waiting': (
+    "{name} onaylandı — gönderim Wi-Fi'den başlayacak",
+    '{name} approved — sending will start over Wi-Fi',
+    'تمت الموافقة على {name} — سيبدأ الإرسال عبر Wi-Fi',
+  ),
   'near.decline': ('Reddet', 'Decline', 'رفض'),
 
   // ── Süzgeç içi arama kipleri ──

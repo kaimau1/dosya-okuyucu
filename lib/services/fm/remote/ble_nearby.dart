@@ -22,12 +22,15 @@ class BlePeer {
   });
 }
 
-/// Bluetooth'tan gelen "dosya gönderiyorum" daveti. Veri Wi-Fi'den çekilir:
-/// [url] QR'daki metnin aynısıdır (gerekirse hotspot bilgisiyle).
+/// Bluetooth'tan gelen "dosya gönderiyorum" daveti. Veri Wi-Fi'den akar:
+/// * [url] doluysa alıcı çeker — QR'daki metnin aynısı (gerekirse hotspot bilgisiyle).
+/// * [push] ise gönderen (ör. Windows "Dosya Aktar", `tool/pc_aktar`) alıcı Yakındakiler'i
+///   açınca onu Wi-Fi'de bulup kendisi gönderir; alıcı yalnız onaylar.
 class BleInvite {
   final String from;
   final String fromId;
   final String url;
+  final bool push;
   final int count;
   final int totalBytes;
   final List<String> names;
@@ -36,6 +39,7 @@ class BleInvite {
     required this.from,
     required this.fromId,
     required this.url,
+    this.push = false,
     required this.count,
     required this.totalBytes,
     required this.names,
@@ -46,6 +50,7 @@ class BleInvite {
         'f': from,
         'i': fromId,
         'u': url,
+        if (push) 'p': 1,
         'n': count,
         's': totalBytes,
         // BLE yazması kısa olmalı: ilk birkaç ad, kısaltılmış.
@@ -58,11 +63,15 @@ class BleInvite {
   static BleInvite? decode(String raw) {
     try {
       final m = jsonDecode(raw);
-      if (m is! Map || m['u'] is! String) return null;
+      if (m is! Map) return null;
+      final push = m['p'] == 1;
+      final url = m['u'] is String ? m['u'] as String : '';
+      if (!push && url.isEmpty) return null;
       return BleInvite(
         from: '${m['f'] ?? '?'}',
         fromId: '${m['i'] ?? ''}',
-        url: m['u'] as String,
+        url: url,
+        push: push,
         count: (m['n'] as num?)?.toInt() ?? 0,
         totalBytes: (m['s'] as num?)?.toInt() ?? 0,
         names: [
@@ -174,6 +183,52 @@ abstract final class BleNearby {
   static Future<void> stop() async {
     try {
       await _ch.invokeMethod('stop');
+    } catch (_) {}
+  }
+
+  /// **Arka planda görünürlük** (yalnız kişisel derleme, `ci/kisisel/NearbyBgService.kt`):
+  /// genel derlemede `available` false döner ve anahtar hiç gösterilmez.
+  static Future<({bool available, bool on})> bgState() async {
+    try {
+      final r = await _ch.invokeMapMethod<String, Object?>('bgState');
+      return (available: r?['available'] == true, on: r?['on'] == true);
+    } catch (_) {
+      return (available: false, on: false);
+    }
+  }
+
+  /// Servisi açar (ya da adı/metinleri tazeler). [texts]: bildirim metinleri (dil tablosundan).
+  static Future<bool> bgEnable(
+      {required String id, required String name, required Map<String, String> texts}) async {
+    _wire();
+    Future<bool?> call() =>
+        _ch.invokeMethod<bool>('bgEnable', {'id': id, 'name': name, ...texts});
+    try {
+      // Android 13+: bildirim izni yoksa istek görünmez — önce sorulur (reddedilse de açılır).
+      await Permission.notification.request();
+      return await call() ?? false;
+    } on PlatformException catch (e) {
+      if (e.code != 'perm' || !await _request()) return false;
+      try {
+        return await call() ?? false;
+      } catch (_) {
+        return false;
+      }
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<void> bgDisable() async {
+    try {
+      await _ch.invokeMethod('bgDisable');
+    } catch (_) {}
+  }
+
+  /// Bildirimden gelinen isteğin bildirimi kalksın.
+  static Future<void> bgClearAsk() async {
+    try {
+      await _ch.invokeMethod('bgClearAsk');
     } catch (_) {}
   }
 

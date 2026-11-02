@@ -1,0 +1,15 @@
+<!-- Kişisel derleme (DOSYA_KISISEL=1) manifest eki. prepare_android.sh bu iki bloğu üretilen
+     manifeste ekler; işaretler arası kopyalanır. -->
+<!-- IZIN -->
+    <!-- Yakındakiler arka planda görünürlük (NearbyBgService): Android 14+ ön plan servis türü izni. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"/>
+<!-- /IZIN -->
+<!-- SERVIS -->
+        <!-- Yakındakiler arka planda görünürlük: düşük güçlü BLE reklamı + davet; uygulama
+             görev listesinden atılsa da sürer (kendi süreci yok, Dart'a bağlı değil). -->
+        <service
+            android:name=".NearbyBgService"
+            android:foregroundServiceType="connectedDevice"
+            android:exported="false"
+            android:stopWithTask="false" />
+<!-- /SERVIS -->

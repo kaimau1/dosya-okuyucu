@@ -90,11 +90,9 @@ class NearbyBle(private val activity: Activity) : MethodChannel.MethodCallHandle
 
     private val main = Handler(Looper.getMainLooper())
     private var channel: MethodChannel? = null
-    private var server: BluetoothGattServer? = null
-    private var advertising: AdvertiseCallback? = null
+    private val beacon = BleBeacon(activity.applicationContext) { address, bytes -> deliver(address, bytes) }
     private var scanning: ScanCallback? = null
     private val lastSeen = HashMap<String, Long>()
-    private val prepared = HashMap<String, ByteArrayOutputStream>()
 
     private val manager get() =
         activity.applicationContext.getSystemService(Context.BLUETOOTH_SERVICE)
@@ -122,6 +120,28 @@ class NearbyBle(private val activity: Activity) : MethodChannel.MethodCallHandle
             )
             "stop" -> {
                 stop()
+                result.success(null)
+            }
+            "bgState" -> result.success(
+                mapOf(
+                    "available" to (nearbyBackground != null),
+                    "on" to (nearbyBackground?.isOn(activity) == true),
+                )
+            )
+            "bgEnable" -> {
+                val bg = nearbyBackground
+                when {
+                    bg == null -> result.error("unsupported", null, null)
+                    missingPermissions().isNotEmpty() -> result.error("perm", null, missingPermissions())
+                    else -> result.success(bg.enable(activity, call.arguments as? Map<String, Any?> ?: emptyMap()))
+                }
+            }
+            "bgDisable" -> {
+                nearbyBackground?.disable(activity)
+                result.success(null)
+            }
+            "bgClearAsk" -> {
+                nearbyBackground?.clearAsk(activity)
                 result.success(null)
             }
             "invite" -> invite(
@@ -166,61 +186,31 @@ class NearbyBle(private val activity: Activity) : MethodChannel.MethodCallHandle
             result.error("off", null, null)
             return
         }
-        stop()
+        halt()
+        // Ekran aynı UUID'yi kendisi yayınlıyor: arka plan servisi (kişisel derleme) bu sürede susar.
+        nearbyBackground?.pause()
         try {
-            openServer()
-            advertise(a, id, name)
+            beacon.start(id, name, lowPower = false)
             scan(a)
             result.success(true)
         } catch (e: Exception) {
-            stop()
+            halt()
             result.error("failed", e.message, null)
         }
     }
 
     private fun stop() {
-        val a = adapter
-        try {
-            advertising?.let { a?.bluetoothLeAdvertiser?.stopAdvertising(it) }
-        } catch (_: Exception) {}
-        advertising = null
-        try {
-            scanning?.let { a?.bluetoothLeScanner?.stopScan(it) }
-        } catch (_: Exception) {}
-        scanning = null
-        try {
-            server?.close()
-        } catch (_: Exception) {}
-        server = null
-        prepared.clear()
-        lastSeen.clear()
+        halt()
+        nearbyBackground?.resume()
     }
 
-    // ── Görünme ─────────────────────────────────────────────────────────────
-
-    private fun advertise(a: BluetoothAdapter, id: String, name: String) {
-        val advertiser = a.bluetoothLeAdvertiser ?: return // çevre birimi kipi yok
-        val settings = AdvertiseSettings.Builder()
-            .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
-            .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM)
-            .setConnectable(true)
-            .setTimeout(0)
-            .build()
-        val data = AdvertiseData.Builder()
-            .setIncludeDeviceName(false)
-            .addServiceUuid(ParcelUuid(SERVICE))
-            .build()
-        val response = AdvertiseData.Builder()
-            .setIncludeDeviceName(false)
-            .addManufacturerData(MANUFACTURER, encodeIdentity(id, name))
-            .build()
-        val cb = object : AdvertiseCallback() {
-            override fun onStartFailure(errorCode: Int) {
-                advertising = null
-            }
-        }
-        advertising = cb
-        advertiser.startAdvertising(settings, data, response, cb)
+    private fun halt() {
+        beacon.stop()
+        try {
+            scanning?.let { adapter?.bluetoothLeScanner?.stopScan(it) }
+        } catch (_: Exception) {}
+        scanning = null
+        lastSeen.clear()
     }
 
     // ── Bulma ───────────────────────────────────────────────────────────────
@@ -254,52 +244,6 @@ class NearbyBle(private val activity: Activity) : MethodChannel.MethodCallHandle
         lastSeen[address] = now
         val payload = mapOf("id" to id, "name" to name, "address" to address, "rssi" to result.rssi)
         main.post { channel?.invokeMethod("found", payload) }
-    }
-
-    // ── Davet alma (GATT sunucusu) ──────────────────────────────────────────
-
-    private fun openServer() {
-        val m = manager ?: return
-        val callback = object : BluetoothGattServerCallback() {
-            override fun onCharacteristicWriteRequest(
-                device: BluetoothDevice,
-                requestId: Int,
-                characteristic: BluetoothGattCharacteristic,
-                preparedWrite: Boolean,
-                responseNeeded: Boolean,
-                offset: Int,
-                value: ByteArray?,
-            ) {
-                val bytes = value ?: ByteArray(0)
-                if (characteristic.uuid == INVITE) {
-                    if (preparedWrite) {
-                        prepared.getOrPut(device.address) { ByteArrayOutputStream() }.write(bytes)
-                    } else {
-                        deliver(device.address, bytes)
-                    }
-                }
-                if (responseNeeded) {
-                    server?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, bytes)
-                }
-            }
-
-            override fun onExecuteWrite(device: BluetoothDevice, requestId: Int, execute: Boolean) {
-                val buffer = prepared.remove(device.address)
-                if (execute && buffer != null) deliver(device.address, buffer.toByteArray())
-                server?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
-            }
-        }
-        val s = m.openGattServer(activity.applicationContext, callback) ?: return
-        val service = BluetoothGattService(SERVICE, BluetoothGattService.SERVICE_TYPE_PRIMARY)
-        service.addCharacteristic(
-            BluetoothGattCharacteristic(
-                INVITE,
-                BluetoothGattCharacteristic.PROPERTY_WRITE,
-                BluetoothGattCharacteristic.PERMISSION_WRITE,
-            )
-        )
-        s.addService(service)
-        server = s
     }
 
     private fun deliver(address: String, bytes: ByteArray) {
@@ -404,5 +348,144 @@ class NearbyBle(private val activity: Activity) : MethodChannel.MethodCallHandle
         } catch (e: Exception) {
             finish(false)
         }
+    }
+}
+
+/**
+ * **Görünme (BLE reklamı) + davet alma (GATT sunucusu).** Yakındakiler ekranı ve kişisel derlemedeki
+ * arka plan servisi (`ci/kisisel/NearbyBgService.kt`) ortak kullanır; davet baytları [onInvite]'a
+ * (gönderen adresi, ham veri) gider.
+ */
+@SuppressLint("MissingPermission")
+class BleBeacon(
+    private val context: Context,
+    private val onInvite: (String, ByteArray) -> Unit,
+) {
+    private var server: BluetoothGattServer? = null
+    private var advertising: AdvertiseCallback? = null
+    private val prepared = HashMap<String, ByteArrayOutputStream>()
+
+    private val manager get() =
+        context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager?
+
+    /**
+     * [lowPower]: arka planda ~1 sn aralıklı yayın (pil dostu); ekran açıkken düşük gecikme
+     * (karşı taraf hemen bulsun).
+     */
+    fun start(id: String, name: String, lowPower: Boolean) {
+        stop()
+        val a = manager?.adapter ?: return
+        if (!a.isEnabled) return
+        openServer()
+        advertise(a, id, name, lowPower)
+    }
+
+    fun stop() {
+        try {
+            advertising?.let { manager?.adapter?.bluetoothLeAdvertiser?.stopAdvertising(it) }
+        } catch (_: Exception) {}
+        advertising = null
+        try {
+            server?.close()
+        } catch (_: Exception) {}
+        server = null
+        synchronized(prepared) { prepared.clear() }
+    }
+
+    private fun advertise(a: BluetoothAdapter, id: String, name: String, lowPower: Boolean) {
+        val advertiser = a.bluetoothLeAdvertiser ?: return // çevre birimi kipi yok
+        val settings = AdvertiseSettings.Builder()
+            .setAdvertiseMode(
+                if (lowPower) AdvertiseSettings.ADVERTISE_MODE_LOW_POWER
+                else AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY
+            )
+            .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM)
+            .setConnectable(true)
+            .setTimeout(0)
+            .build()
+        val data = AdvertiseData.Builder()
+            .setIncludeDeviceName(false)
+            .addServiceUuid(ParcelUuid(NearbyBle.SERVICE))
+            .build()
+        val response = AdvertiseData.Builder()
+            .setIncludeDeviceName(false)
+            .addManufacturerData(NearbyBle.MANUFACTURER, NearbyBle.encodeIdentity(id, name))
+            .build()
+        val cb = object : AdvertiseCallback() {
+            override fun onStartFailure(errorCode: Int) {
+                advertising = null
+            }
+        }
+        advertising = cb
+        advertiser.startAdvertising(settings, data, response, cb)
+    }
+
+    private fun openServer() {
+        val m = manager ?: return
+        val callback = object : BluetoothGattServerCallback() {
+            override fun onCharacteristicWriteRequest(
+                device: BluetoothDevice,
+                requestId: Int,
+                characteristic: BluetoothGattCharacteristic,
+                preparedWrite: Boolean,
+                responseNeeded: Boolean,
+                offset: Int,
+                value: ByteArray?,
+            ) {
+                val bytes = value ?: ByteArray(0)
+                if (characteristic.uuid == NearbyBle.INVITE) {
+                    if (preparedWrite) {
+                        synchronized(prepared) {
+                            prepared.getOrPut(device.address) { ByteArrayOutputStream() }.write(bytes)
+                        }
+                    } else {
+                        onInvite(device.address, bytes)
+                    }
+                }
+                if (responseNeeded) {
+                    server?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, bytes)
+                }
+            }
+
+            override fun onExecuteWrite(device: BluetoothDevice, requestId: Int, execute: Boolean) {
+                val buffer = synchronized(prepared) { prepared.remove(device.address) }
+                if (execute && buffer != null) onInvite(device.address, buffer.toByteArray())
+                server?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
+            }
+        }
+        val s = m.openGattServer(context, callback) ?: return
+        val service = BluetoothGattService(NearbyBle.SERVICE, BluetoothGattService.SERVICE_TYPE_PRIMARY)
+        service.addCharacteristic(
+            BluetoothGattCharacteristic(
+                NearbyBle.INVITE,
+                BluetoothGattCharacteristic.PROPERTY_WRITE,
+                BluetoothGattCharacteristic.PERMISSION_WRITE,
+            )
+        )
+        s.addService(service)
+        server = s
+    }
+}
+
+/**
+ * Kişisel derlemedeki **arka planda görünürlük** (`ci/kisisel/NearbyBgService.kt`). Genel derlemede
+ * sınıf yok → [nearbyBackground] null, Yakındakiler'de anahtar görünmez.
+ */
+interface NearbyBackground {
+    fun isOn(ctx: Context): Boolean
+    fun enable(ctx: Context, args: Map<String, Any?>): Boolean
+    fun disable(ctx: Context)
+    fun clearAsk(ctx: Context)
+    fun pause()
+    fun resume()
+}
+
+/** Yansımayla: genel derleme kişisel sınıfa derleme zamanında bağlanmasın (proguard-rules.pro'da korunur). */
+val nearbyBackground: NearbyBackground? by lazy {
+    try {
+        Class.forName("com.dosyaokuyucu.dosya_okuyucu.NearbyBgService\$Control")
+            .getField("INSTANCE").get(null) as NearbyBackground
+    } catch (_: Throwable) {
+        null
     }
 }

@@ -17,6 +17,8 @@ import 'fm/cleanup_screen.dart';
 import 'fm/search_screen.dart';
 import '../core/l10n/app_strings.dart';
 import 'fm/library_screen.dart';
+import 'fm/remote/nearby_screen.dart';
+import '../services/fm/remote/ble_nearby.dart';
 
 /// **Uygulama içi bağlantılar** (2026-10-18): ana ekran widget'ları ve yerel
 /// iş bildirimleri uygulamayı bir bağlantıyla açar. Biçim:
@@ -37,7 +39,17 @@ Future<void> openAppLink(BuildContext context, String link) async {
     if (path.isNotEmpty) await EntryOpener.open(context, path);
     return;
   }
+  // Arka planda görünürlük bildirimi (kişisel derleme, ci/kisisel/NearbyBgService.kt):
+  // "Kabul et" → `davet:`, bildirime dokunmak → `davetsor:` (uygulamada yeniden sorar).
+  if (link.startsWith('davet:') || link.startsWith('davetsor:')) {
+    final accepted = link.startsWith('davet:');
+    final invite = BleInvite.decode(link.substring(accepted ? 6 : 9));
+    if (invite != null) await push(NearbyScreen(invite: invite, inviteAccepted: accepted));
+    return;
+  }
   switch (link) {
+    case 'app:nearby':
+      await push(const NearbyScreen());
     case 'app:scan':
       await ScanFlow.run(context);
     case 'app:search':

@@ -423,3 +423,18 @@ Kullanıcı: *"fazlardan devam et, bulutta yapılabilecekleri yap, main'e merge 
   `SIO_UDP_CONNRESET` kapatılmalı yoksa ICMP sonrası Receive düşer; HttpWebRequest'te `Proxy=null` +
   `Expect100Continue=false`; gizli `.dosya-aktarim-*` taşınınca Hidden niteliği kalır → temizlenmeli;
   Android adlarındaki `: ? *` Windows'ta geçersiz → SafeName '_' yapar. Uçtan uca Dart PeerReceiver/PeerSender ile denendi (iki yön).
+
+## 2026-11-02 — Arka planda görünürlük (kişisel derleme) + Dosya Aktar galerisi/BLE
+- **Karar:** Yakındakiler kapalıyken görünmek YALNIZ kişisel derlemede (`ci/kisisel/NearbyBgService.kt`,
+  DOSYA_KISISEL=1). Wi-Fi/UDP arka planda dinlenmez (pil + ekran kapalıyken yayın düşer); yalnız
+  BLE LOW_POWER reklamı + GATT davet sunucusu, ön plan servisi `connectedDevice`, kanal IMPORTANCE_MIN.
+  Kalıcı bildirim Android zorunluluğu (kullanıcı "olmasa iyi" dedi — sessiz/simgesiz yapıldı, kaldırılamaz).
+- Davet → yüksek öncelikli bildirim; "Kabul et" = `davet:<json>` bağlantısı (Extras.linkIntent), dokunmak =
+  `davetsor:` (yeniden sorar). Yeni davet türü **push** (`"p":1`, adressiz): Windows exe gönderir; telefon
+  Yakındakiler'i açınca exe onu Wi-Fi'de bulup /sor ile gönderir, `_preApproved` (ad, 3 dk) ikinci soruyu atlar.
+- Genel derleme servise yansımayla bağlanır (`nearbyBackground`, `NearbyBgService$Control` proguard keep);
+  yayın + GATT sunucusu ortak `BleBeacon` (NearbyBle.kt). Ekran açıkken servis susar (aynı UUID çakışmasın).
+- Windows exe: WinRT BLE (`Microsoft.Windows.SDK.Contracts`, net48'de tek exe kalıyor). Tuzak: Windows tarama
+  yanıtını (üretici verisi) hizmet UUID'li reklamdan AYRI olay verir → adres önce UUID ile işaretlenir.
+  Tuzak: kabuk küçük resmi alttan-üste DIB (negatif Stride) — satır satır kopyala.
+- Doğrulanmadı: Kotlin (yerelde kotlinc yok → CI), gerçek telefonda arka plan + MIUI süreç öldürme + pil.

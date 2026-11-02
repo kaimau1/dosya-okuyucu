@@ -71,8 +71,39 @@ cp ci/usb_device_filter.xml android/app/src/main/res/xml/usb_device_filter.xml
 # küçültmede kendiliğinden dahil eder (ML Kit R8 "missing class" düzeltmesi).
 cp ci/proguard-rules.pro android/app/proguard-rules.pro
 
-# ── 3b) Kişisel derleme (DOSYA_KISISEL=1): asistan köprüsü 2026-11-02'de kaldırıldı ──
-# (merkezi asistan bırakıldı). Bayrak ve `kisisel` ön-sürümü kişisel özellikler için durur.
+# ── 3b) Kişisel derleme (DOSYA_KISISEL=1): Yakındakiler arka planda görünürlük ──
+# (ci/kisisel/NearbyBgService.kt). Asistan köprüsü 2026-11-02'de kaldırıldı.
+# Dağıtılan APK'ya GİRMEZ: bayrak yokken hiçbir şey eklenmez ve üretilen
+# manifestte servis olmadığı denetlenir.
+if [ "${DOSYA_KISISEL:-0}" = "1" ]; then
+  say "Kişisel derleme ekleri"
+  cp ci/kisisel/NearbyBgService.kt "$DIR/NearbyBgService.kt"
+  python3 - <<'PY'
+import pathlib, re
+ek = pathlib.Path('ci/kisisel/manifest_ek.xml').read_text()
+def parca(ad):
+    m = re.search(rf'<!-- {ad} -->
+(.*?)<!-- /{ad} -->', ek, re.S)
+    if not m:
+        raise SystemExit(f'manifest_ek.xml: {ad} bloğu yok')
+    return m.group(1)
+p = pathlib.Path('android/app/src/main/AndroidManifest.xml')
+t = p.read_text()
+if t.count('<application') != 1 or t.count('</application>') != 1:
+    raise SystemExit('manifest: <application> tek değil')
+t = t.replace('<application', parca('IZIN').lstrip() + '
+    <application', 1)
+t = t.replace('</application>', parca('SERVIS').lstrip() + '    </application>', 1)
+p.write_text(t)
+print('manifest: kişisel ekler eklendi')
+PY
+  grep -c "NearbyBgService" android/app/src/main/AndroidManifest.xml
+else
+  if grep -q "NearbyBgService" android/app/src/main/AndroidManifest.xml       || [ -e "$DIR/NearbyBgService.kt" ]; then
+    echo "::error::Genel derlemede kişisel servis var (yalnız DOSYA_KISISEL=1 ile girer)"; exit 1
+  fi
+  echo "Genel derleme: kişisel ekler yok (doğru)."
+fi
 
 # ── 4) minSdk 24 + NDK ────────────────────────────────────────────────────
 # minSdk 24: fc_native_video_thumbnail ister. NDK: runner'da KURULU olan en

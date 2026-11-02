@@ -39,3 +39,7 @@
 # koruyup yapıcıyı siliyordu → "NoSuchMethodException: TextRegistrar.<init>" — OCR,
 # çeviri ve kod tarayıcı kayıtsız kalıyordu (2026-10-22, R8'li test APK'sında logcat).
 -keep class * implements com.google.firebase.components.ComponentRegistrar { <init>(); }
+
+# Kişisel derlemedeki arka plan görünürlüğü `NearbyBle.kt` tarafından YANSIMAYLA bulunuyor
+# (genel derleme sınıfa bağlanmasın diye); R8 adını değiştirmesin/silmesin.
+-keep class com.dosyaokuyucu.dosya_okuyucu.NearbyBgService$Control { *; }
