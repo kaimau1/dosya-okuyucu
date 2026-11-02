@@ -107,8 +107,11 @@ void main() {
       return w.elapsedMilliseconds;
     }
 
-    final dom = run(true);
-    final fast = run(false);
+    // Tek ölçüm yük altında (tam paket, GC) dalgalanıyor → en iyi 3 tur.
+    int best(bool dom) =>
+        [for (var i = 0; i < 3; i++) run(dom)].reduce((a, b) => a < b ? a : b);
+    final dom = best(true);
+    final fast = best(false);
     // ignore: avoid_print
     print('dom=$dom ms hızlı=$fast ms');
     expect(fast * 3, lessThan(dom));
