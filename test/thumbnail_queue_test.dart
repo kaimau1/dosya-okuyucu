@@ -93,4 +93,20 @@ void main() {
     open('y.mp4');
     open('z.mp4');
   });
+
+  // 2026-11-03: ızgara her hücrede 12 MP'lik özgünü çözüyordu.
+  test('fotoğraf küçük resmi bir kez üretilir, sonra EŞZAMANLI bilinir', () async {
+    final src = video('a.jpg');
+    expect(ThumbnailCache.knownImage(src, 7, 384), isNull);
+    final f = ThumbnailCache.forImage(src, modifiedMs: 7, size: 384);
+    await settle();
+    open('a.jpg');
+    final dest = await f;
+    expect(dest, isNotNull);
+    expect(File(dest!).existsSync(), isTrue);
+    expect(ThumbnailCache.knownImage(src, 7, 384), dest);
+    // Dosya değişince (yeni zaman) eski küçük resim kullanılmaz.
+    expect(ThumbnailCache.knownImage(src, 8, 384), isNull);
+    expect(started, ['a.jpg']);
+  });
 }

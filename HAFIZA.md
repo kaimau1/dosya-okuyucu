@@ -526,3 +526,15 @@ Kullanıcı: *"fazlardan devam et, bulutta yapılabilecekleri yap, main'e merge 
   `dart-symbols-<sürüm>` + `flutter symbolize` (tahminle yama yok).
 - **TUZAK (yine düşüldü):** 3.47.7 SDK ile `pub add` kilidi bozdu (meta 1.19 …). Kayıt zaten vardı (yukarıda
   `C:\src\flutter-3446`); oturum başında HAFIZA tam okunmadı. Push kancası da PATH'te 3446 ister.
+
+## 2026-11-03 — Fotoğraflar ızgarası kaydırma takılması (Mi Note 10 Lite, ölçümle)
+- **Kök neden (ölçüldü):** her hücre 12 MP'lik özgün JPEG'i çözüyordu. Profil zaman çizelgesi (VM servis
+  `getVMTimeline`, 5 savurma): `DecompressTexture` 4746 ms / en uzun 202 ms; doku yükleme 852 ms. UI izleği
+  temiz (≤ 9,5 ms) → Dart kodu değil. **Düzeltme:** Android `ThumbnailUtils.createImageThumbnail` ile diskte
+  küçük JPEG (`ThumbnailCache.forImage`, `image_thumbs/`, Kotlin `imageThumb`); hücre onu açar. Sonra: çözme
+  470 ms / en uzun 21 ms (10×), yükleme 463 ms, raster en uzun 27 → 21 ms.
+- **Ölçüm TUZAĞI:** Flutter `FrameTiming` (logcat KARE) bu takılmayı GÖSTERMİYOR (kareler zamanında) —
+  görsel donma için ekran kaydı (`screenrecord` + ffmpeg 60 fps + satır kayması eşlemesi) gerekti.
+- **Açık kalan:** videoda hâlâ 4.–5. savurmada 13–17 karelik donma görülüyor; Flutter tarafı temiz. Ekran
+  kaydedici artığı mı gerçek mi ayrılmadı (SurfaceFlinger `--latency` ile bakılacak) — KALANLAR B3.3b.
+- MIUI `svc power stayon usb`'yi yok sayıyor: her ölçümde `KEYCODE_WAKEUP` + kaydırarak kilit aç.

@@ -170,6 +170,9 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
       %99 19–27 ms (hedef 24; yavaş karelerde raster baskın, Impeller GLES — Skia daha kötü);
       galeri 2.000 küçük PNG sonrası RSS 355 MB (hedef 350). Kök neden için DevTools zaman
       çizelgesi (profil APK, `flutter attach`) gerekir; tahminle yama yok.
+- [ ] **B3.3c Fotoğraflar ızgarası kalan donma (2026-11-03):** küçük resim düzeltmesinden sonra ekran kaydında
+      4.–5. savurmada 13–17 karelik donma kaldı, Flutter karesi temiz. Önce SurfaceFlinger `--latency` (uygulama
+      katmanı) ile gerçek mi kaydedici artığı mı ayır; gerçekse GPU/doku tarafı (Impeller GLES). Yöntem HAFIZA.
 - [ ] **B3.3 Faz 4 bütçe aşımları** (soğuk açılış ≤ 1,2 sn, 5.000 öğe kaydırma %99 ≤ 24 ms,
       galeri 2.000 fotoğraf RSS ≤ 350 MB / hafif ≤ 250 MB, boşta 0 kare) ve DUZENLEME §7
       bütçeleri → aynı oturumda düzelt.

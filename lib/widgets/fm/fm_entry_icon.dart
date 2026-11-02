@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -304,7 +305,7 @@ class FmEntryIcon extends StatelessWidget {
     }
 
     if (thumbsOn && category == FmCategory.image) {
-      return ClipRRect(
+      final original = ClipRRect(
         borderRadius: BorderRadius.circular(radius),
         child: Image(
           // [FmFileImage] (Image.file DEĞİL): tam boyutlu fotoğraf Dart
@@ -337,6 +338,15 @@ class FmEntryIcon extends StatelessWidget {
             return _badge(context, category);
           },
         ),
+      );
+      // Android'de hazır küçük resim dosyası (bkz. [ThumbnailCache.forImage]);
+      // üretilemezse (ve testte) yukarıdaki özgün dosya yolu.
+      if (!Platform.isAndroid) return original;
+      return _PhotoThumb(
+        entry: entry,
+        size: size,
+        radius: radius,
+        fallback: original,
       );
     }
 
@@ -718,6 +728,110 @@ class _PdfThumbState extends State<_PdfThumb> {
 /// Video küçük resmi: önbellekten gelir, yoksa arka planda üretilir.
 /// Üretim bitene kadar (ve üretilemezse) [fallback] ikonu görünür — liste
 /// asla boş kutu göstermez.
+/// Fotoğraf hücresi: Android'in ürettiği küçük JPEG'i gösterir (2026-11-03
+/// kaydırma takılması — kök neden [ThumbnailCache.forImage] notunda).
+class _PhotoThumb extends StatefulWidget {
+  final FsEntry entry;
+  final double size;
+  final double radius;
+  final Widget fallback;
+
+  const _PhotoThumb({
+    required this.entry,
+    required this.size,
+    required this.radius,
+    required this.fallback,
+  });
+
+  @override
+  State<_PhotoThumb> createState() => _PhotoThumbState();
+}
+
+class _PhotoThumbState extends State<_PhotoThumb> {
+  String? _thumb;
+  bool _failed = false;
+  int _width = 0;
+
+  String get _path => widget.entry.path;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final w = fmThumbWidth(
+        widget.size, MediaQuery.maybeDevicePixelRatioOf(context) ?? 3);
+    if (w == _width) return;
+    _width = w;
+    _start();
+  }
+
+  @override
+  void didUpdateWidget(covariant _PhotoThumb old) {
+    super.didUpdateWidget(old);
+    if (old.entry.path != _path ||
+        old.entry.modifiedMs != widget.entry.modifiedMs) {
+      _start();
+    }
+  }
+
+  void _start() {
+    _failed = false;
+    // Diskte olduğu biliniyorsa EŞZAMANLI: geri kaydırınca boş kare yok.
+    _thumb = ThumbnailCache.knownImage(_path, widget.entry.modifiedMs, _width);
+    if (_thumb == null) _load();
+  }
+
+  Future<void> _load() async {
+    final path = _path;
+    // Hızlı savurmada bekle (aynı kural: [_VideoThumbState._load]).
+    if (Scrollable.recommendDeferredLoadingForContext(context)) {
+      SchedulerBinding.instance.scheduleFrameCallback((_) {
+        scheduleMicrotask(() {
+          if (mounted && path == _path && _thumb == null && !_failed) _load();
+        });
+      });
+      return;
+    }
+    final result = await ThumbnailCache.forImage(path,
+        modifiedMs: widget.entry.modifiedMs,
+        size: _width,
+        wanted: () => mounted && path == _path);
+    if (!mounted || path != _path) return;
+    setState(() {
+      _thumb = result;
+      _failed = result == null;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_failed) return widget.fallback;
+    final thumb = _thumb;
+    if (thumb == null) {
+      return SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: ColoredBox(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest),
+      );
+    }
+    final provider = FmFileImage(thumb, cacheWidth: _width);
+    fmRememberThumb(_path, provider);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(widget.radius),
+      child: Image(
+        image: provider,
+        width: widget.size,
+        height: widget.size,
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.low,
+        gaplessPlayback: true,
+        frameBuilder: _placeholder(widget.size),
+        errorBuilder: (_, __, ___) => widget.fallback,
+      ),
+    );
+  }
+}
+
 class _VideoThumb extends StatefulWidget {
   final String path;
   final double size;

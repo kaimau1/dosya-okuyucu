@@ -498,6 +498,34 @@ class MainActivity : FlutterActivity() {
                         runOnUiThread { result.success(ok) }
                     }.start()
                 }
+                // Izgara küçük resmi (2026-11-03, "Google Foto'da kasmıyor"): Android'in
+                // kendi üreticisi (EXIF küçük resmi / örneklemeli çözme + yön) küçük
+                // bir JPEG yazar; Flutter her hücrede 12 MP'lik özgünü çözmez.
+                // API 29 altı false → Dart özgün dosyaya düşer.
+                "imageThumb" -> {
+                    val path = call.argument<String>("path") ?: ""
+                    val target = call.argument<String>("target") ?: ""
+                    val size = call.argument<Int>("size") ?: 384
+                    Thread {
+                        val ok = try {
+                            if (Build.VERSION.SDK_INT < 29) {
+                                false
+                            } else {
+                                val bmp = android.media.ThumbnailUtils.createImageThumbnail(
+                                    java.io.File(path), android.util.Size(size, size), null)
+                                val part = java.io.File("$target.part")
+                                java.io.FileOutputStream(part).use {
+                                    bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, it)
+                                }
+                                bmp.recycle()
+                                part.renameTo(java.io.File(target))
+                            }
+                        } catch (e: Exception) {
+                            false
+                        }
+                        runOnUiThread { result.success(ok) }
+                    }.start()
+                }
                 "encodeWebp" -> {
                     val source = call.argument<String>("source") ?: ""
                     val target = call.argument<String>("target") ?: ""

@@ -114,7 +114,20 @@ FmFileImage? fmCachedThumb(String path) {
     final provider = FmFileImage(path, cacheWidth: b);
     if (cache.statusForKey(provider).tracked) return provider;
   }
+  // Izgara özgünü değil, küçük resim DOSYASINI çözmüş olabilir (2026-11-03).
+  final alias = _thumbAliases[path];
+  if (alias != null && cache.statusForKey(alias).tracked) return alias;
   return null;
+}
+
+/// Özgün yol → ızgaranın gösterdiği küçük resim sağlayıcısı (galeri açılırken
+/// ilk kareyi anında çizebilsin).
+final Map<String, FmFileImage> _thumbAliases = {};
+
+void fmRememberThumb(String path, FmFileImage provider) {
+  // ponytail: kaba tavan; önbellek zaten ~300 görsel tutuyor.
+  if (_thumbAliases.length > 2000) _thumbAliases.clear();
+  _thumbAliases[path] = provider;
 }
 
 /// Önbellekte TAMAMLANMIŞ görselin en-boy oranı (genişlik / yükseklik);

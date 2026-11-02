@@ -570,3 +570,4 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
 - [ ] Altyazı büyüt/küçült
 - [ ] Galeri → İyileştir: otomatik/keskinleştir/gürültü kopyası `_iyi.jpg`; yapay zekâ ilk seferde model indiriyor, süre?
 - [ ] Başında çöp olan / yarım inmiş JPEG "kurtarılabilen kısmı" notuyla açılıyor
+- [ ] Fotoğraflar ızgarası: hızlı savurmada takılma/donma Google Foto'ya yakın mı (küçük resimler ilk açılışta üretilir, ikinci açılışta anında)

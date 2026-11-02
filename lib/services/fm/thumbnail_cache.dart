@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'disk_housekeeping.dart';
+import 'native_extras.dart';
 import '../../core/device_profile.dart';
 
 /// Video küçük resimlerini üretir ve **diskte** önbelleğe alır.
@@ -43,6 +44,8 @@ abstract final class ThumbnailCache {
 
   static Directory? _dir;
   static bool _pruned = false;
+  static Directory? _imageDir;
+  static bool _imagePruned = false;
 
   /// Küçük resim dosya adı (saf fonksiyon → birim testli).
   /// FNV-1a: `crypto` bağımlılığı eklemeye değmez.
@@ -55,7 +58,8 @@ abstract final class ThumbnailCache {
     return '${hash.toRadixString(16)}.jpg';
   }
 
-  static Future<Directory> _cacheDir() async {
+  static Future<Directory> _cacheDir({bool image = false}) async {
+    if (image) return _imageCacheDir();
     final cached = _dir;
     if (cached != null) return cached;
     final base = await getTemporaryDirectory();
@@ -64,6 +68,75 @@ abstract final class ThumbnailCache {
     _dir = dir;
     unawaited(_prune(dir));
     return dir;
+  }
+
+  static Future<Directory> _imageCacheDir() async {
+    final cached = _imageDir;
+    if (cached != null) return cached;
+    final base = await getTemporaryDirectory();
+    final dir = Directory(p.join(base.path, 'image_thumbs'));
+    if (!dir.existsSync()) await dir.create(recursive: true);
+    _imageDir = dir;
+    if (!_imagePruned) {
+      _imagePruned = true;
+      unawaited(DiskCache.prune(dir.path, imageCacheLimit));
+    }
+    return dir;
+  }
+
+  // ── Fotoğraf küçük resimleri (2026-11-03) ──────────────────────────────
+  //
+  // Kullanıcı: *"görseller kaydırılırken kasma donma oluyor … Google
+  // fotoğraflarda olmuyor"*. Telefonda zaman çizelgesi (Mi Note 10 Lite,
+  // 643 fotoğraf): UI izleği kare başı ≤ 9,5 ms — sorun Dart'ta DEĞİL; her
+  // hücre 12 MP'lik özgün JPEG'i çözüyordu (`DecompressTexture` tek dosyada
+  // 200 ms'ye kadar, 5 savurmada ~4,7 sn) ve çözülen dokuların yüklenmesi
+  // Impeller GLES'te raster izleğiyle aynı kilidi paylaştığı için kareler
+  // 3–6 kare (50–100 ms) duruyordu (ekran kaydında ölçüldü). Google Foto
+  // önceden üretilmiş küçük dosyayı açıyor; artık biz de: Android bir kez
+  // küçük JPEG yazar, sonraki her açılış ~30 KB'lık dosyayı çözer.
+
+  /// Fotoğraf küçük resmi sınırı (~30 KB/dosya → ~120 MB tavan).
+  static const imageCacheLimit = 4000;
+
+  /// Diskte olduğu BİLİNEN küçük resimler: hücre geri döndüğünde dosyayı
+  /// eşzamanlı alsın (bir kare boş zemin gösterip titremesin).
+  static final Map<String, String> _knownImages = {};
+
+  /// [path] (değişme zamanı [modifiedMs]) için bilinen küçük resim; yoksa null.
+  static String? knownImage(String path, int modifiedMs, int size) =>
+      _knownImages['$path|$modifiedMs|$size'];
+
+  /// Fotoğrafın küçük resmi (yoksa üretir). null → üretilemedi (API < 29,
+  /// bozuk dosya, kanal yok): çağıran özgün dosyayı gösterir.
+  static Future<String?> forImage(
+    String path, {
+    required int modifiedMs,
+    required int size,
+    bool Function()? wanted,
+  }) {
+    final key = '$path|$modifiedMs|$size';
+    final known = _knownImages[key];
+    if (known != null) return Future.value(known);
+    if (_failed.contains(path)) return Future.value(null);
+    (_wanted[path] ??= []).add(wanted ?? _always);
+    final existing = _inFlight[path];
+    if (existing != null) return existing;
+    final future = _generate(path, size, image: true, modifiedMs: modifiedMs)
+        .then((dest) {
+      if (dest != null) {
+        // ponytail: sınırsız büyümesin diye kaba budama; LRU gerekirse eklenir.
+        if (_knownImages.length > imageCacheLimit) _knownImages.clear();
+        _knownImages[key] = dest;
+      }
+      return dest;
+    });
+    _inFlight[path] = future;
+    future.whenComplete(() {
+      _inFlight.remove(path);
+      _wanted.remove(path);
+    });
+    return future;
   }
 
   /// Aynı anda en çok kaç küçük resim ÜRETİLİR (2026-10-17 başarım turu).
@@ -158,21 +231,24 @@ abstract final class ThumbnailCache {
     _wanted.clear();
     _inFlight.clear();
     _failed.clear();
+    _imageDir = cacheDir;
+    _imagePruned = cacheDir != null;
+    _knownImages.clear();
   }
 
   /// Test kancası: üretimi yapan çağrı (eklenti yerine).
   @visibleForTesting
   static Future<bool> Function(String src, String dest, int size)? debugExtract;
 
-  static Future<String?> _generate(String path, int size) async {
+  static Future<String?> _generate(String path, int size,
+      {bool image = false, int? modifiedMs}) async {
     String dest;
     try {
-      final stat = File(path).statSync();
-      final dir = await _cacheDir();
-      dest = p.join(
-        dir.path,
-        cacheName(path, stat.modified.millisecondsSinceEpoch, size),
-      );
+      // Fotoğrafta değişme zamanı listeden gelir: hücre başına FUSE `stat`
+      // kaydırırken UI izleğinde birikiyordu.
+      final mtime = modifiedMs ?? File(path).statSync().modified.millisecondsSinceEpoch;
+      final dir = await _cacheDir(image: image);
+      dest = p.join(dir.path, cacheName(path, mtime, size));
       // Diskte varsa sıra beklemeden (üretim yok).
       if (File(dest).existsSync()) return dest;
     } catch (_) {
@@ -184,7 +260,9 @@ abstract final class ThumbnailCache {
       final extract = debugExtract;
       final ok = extract != null
           ? await extract(path, dest, size)
-          : await _plugin.saveThumbnailToFile(
+          : image
+              ? await NativeExtras.imageThumb(path, dest, size)
+              : await _plugin.saveThumbnailToFile(
               srcFile: path,
               destFile: dest,
               width: size,

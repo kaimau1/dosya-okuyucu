@@ -209,6 +209,13 @@ abstract final class NativeExtras {
           {'path': path, 'target': target, 'maxEdge': maxEdge}) ??
       false;
 
+  /// Izgara küçük resmi: Android'in `ThumbnailUtils`i ile [size] px'lik JPEG
+  /// (EXIF yönü uygulanmış). API 29 altında ya da kanal yoksa false.
+  static Future<bool> imageThumb(String path, String target, int size) async =>
+      await _call<bool>('imageThumb',
+          {'path': path, 'target': target, 'size': size}) ??
+      false;
+
   /// PNG/JPEG → WebP (Android kodlayıcısı, Faz 14b). Kanal yoksa false.
   static Future<bool> encodeWebp(String source, String target,
           {int quality = 85}) async =>
