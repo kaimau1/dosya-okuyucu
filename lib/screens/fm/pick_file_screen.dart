@@ -48,12 +48,14 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_navigator.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
+import '../../services/fm/dashboard_layout.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/open_history.dart';
@@ -61,12 +63,17 @@ import '../../services/fm/picker_bridge.dart';
 import '../../services/fm/search_index.dart';
 import '../../services/fm/storage_permission.dart';
 import '../../services/fm/storage_stats.dart';
+import '../../widgets/fm/fm_category_tile.dart';
+import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_entry_tiles.dart';
 import '../../widgets/section_header.dart';
 import '../../core/snack.dart';
 import '../../widgets/motion.dart';
 import '../../core/safe_insets.dart';
 import '../../core/user_error.dart';
+import 'dashboard_screen.dart';
+import 'downloads_screen.dart' show downloadsPathIn;
+import 'important_screen.dart';
 
 /// Ekranın hangi görünümde olduğu.
 enum _PickView { home, folder, category, search, matches }
@@ -891,80 +898,70 @@ class _PickFileScreenState extends State<PickFileScreen> {
         ),
       );
 
-  /// **Ana sayfa** — seçicinin asıl yüzü.
+  /// **Ana sayfa** — seçicinin asıl yüzü: panonun AYNISI (2026-11-02,
+  /// kullanıcı: *"dosya seçici ekranı bizim ana ekranımızın aynısı olmalı,
+  /// oradaki tüm kartlar bulunmalı"*). Bellek kartları, kullanıcının
+  /// dizdiği kutu ızgarası ve hızlı klasörler; dokunuşlar uygulamanın
+  /// ekranlarına değil seçicinin kendi görünümlerine gider.
   Widget _home() {
-    final categories = [
-      for (final category in const [
-        FmCategory.document,
-        FmCategory.image,
-        FmCategory.video,
-        FmCategory.audio,
-      ])
-        // İstenen türü karşılamayan kategori hiç gösterilmez: `image/*` isteyen
-        // bir uygulamada "Belgeler"e girip boş liste görmek zaman kaybı.
-        if (_categoryAccepted(category)) category
-    ];
     final folders = StorageStats.standardFolders(FmEnv.primaryRoot);
+    final tiles = _tiles();
 
     return ListView(
-      padding: withNavInset(context, const EdgeInsets.only(bottom: Gap.xl)),
+      padding: withNavInset(
+          context, const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl)),
       children: [
+        for (final v in FmEnv.volumes) ...[
+          DashboardVolumeCard(
+            volume: v,
+            onTap: () => _openFolder(v.path),
+          ),
+          const SizedBox(height: Gap.sm),
+        ],
         if (_recent.isNotEmpty) ...[
-          SectionHeader(context.t('fm.recent_opened')),
+          SectionHeader(context.t('fm.recent_opened'),
+              padding: const EdgeInsets.only(top: Gap.md, bottom: Gap.xs)),
           for (final entry in _recent) _row(entry),
         ],
-        if (categories.isNotEmpty) ...[
-          SectionHeader(context.t('fm.categories')),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Gap.md),
-            child: Wrap(
-              spacing: Gap.sm,
-              runSpacing: Gap.sm,
-              children: [
-                for (final category in categories)
-                  ActionChip(
-                    avatar: Icon(_iconFor(category), size: 18),
-                    label: Text(context.t(category.labelKey)),
-                    onPressed: () => _openCategory(category),
-                  ),
-              ],
-            ),
+        if (tiles.isNotEmpty) ...[
+          const SizedBox(height: Gap.sm),
+          FmCategoryGrid(
+            tiles: DashboardLayout.instance.arrangeTiles(tiles, (t) => t.id),
           ),
         ],
-        SectionHeader(context.t('fm.quick_folders')),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: Gap.md),
-          child: Wrap(
-            spacing: Gap.sm,
-            runSpacing: Gap.sm,
-            children: [
-              if (_lastFolder case final last?)
-                ActionChip(
-                  key: const ValueKey('pick-last-folder'),
-                  avatar: const Icon(AppIcons.history, size: 18),
-                  label: Text(p.basename(last)),
-                  tooltip: context.t('pick.last_folder'),
-                  onPressed: () => _openFolder(last),
-                ),
-              for (final folder in folders)
-                ActionChip(
-                  avatar: const Icon(AppIcons.folder, size: 18),
-                  label: Text(folder.label),
-                  onPressed: () => _openFolder(folder.path),
-                ),
-              for (final root in FmEnv.volumeRoots)
-                ActionChip(
-                  avatar: const Icon(AppIcons.storage, size: 18),
-                  label: Text(p.equals(root, FmEnv.primaryRoot)
-                      ? context.t('fm.internal_storage')
-                      : p.basename(root)),
-                  onPressed: () => _openFolder(root),
-                ),
-            ],
-          ),
+        SectionHeader(context.t('fm.quick_folders'),
+            padding: const EdgeInsets.only(top: Gap.lg, bottom: Gap.sm)),
+        Wrap(
+          spacing: Gap.sm,
+          runSpacing: Gap.sm,
+          children: [
+            if (_lastFolder case final last?)
+              ActionChip(
+                key: const ValueKey('pick-last-folder'),
+                avatar: const Icon(AppIcons.history, size: 18),
+                label: Text(p.basename(last)),
+                tooltip: context.t('pick.last_folder'),
+                onPressed: () => _openFolder(last),
+              ),
+            for (final folder in folders)
+              ActionChip(
+                avatar: const Icon(AppIcons.folder, size: 18),
+                label: Text(folder.label),
+                onPressed: () => _openFolder(folder.path),
+              ),
+            for (final root in FmEnv.volumeRoots)
+              ActionChip(
+                avatar: const Icon(AppIcons.storage, size: 18),
+                label: Text(p.equals(root, FmEnv.primaryRoot)
+                    ? context.t('fm.internal_storage')
+                    : p.basename(root)),
+                onPressed: () => _openFolder(root),
+              ),
+          ],
         ),
         const SizedBox(height: Gap.md),
         ListTile(
+          contentPadding: EdgeInsets.zero,
           leading: const Icon(AppIcons.database),
           title: Text(context.t('fm.all_files')),
           trailing: const Icon(AppIcons.chevron),
@@ -972,6 +969,70 @@ class _PickFileScreenState extends State<PickFileScreen> {
         ),
       ],
     );
+  }
+
+  /// Panodaki kutuların seçicideki karşılığı. Seçilebilir dosya vermeyen
+  /// kutular (Uygulamalar, Geçmiş, Kitaplık) burada YOK; Drive, çağıran
+  /// "diğer kaynaklar"ı açtıysa onun kapısı olur. İstenen türü karşılamayan
+  /// kategori kutusu hiç çizilmez (`image/*` isteyen yerde "Belgeler"e girip
+  /// boş liste görmek zaman kaybı).
+  List<FmTileData> _tiles() {
+    final outlined = context.fmOutlinedIcons;
+    String sub(CategoryStat stat) => stat.count == 0
+        ? context.t('fm.none')
+        : '${FsPaths.humanSize(stat.bytes)} (${stat.count})';
+
+    FmTileData? category(String id, FmCategory c, {String? label}) {
+      if (!_categoryAccepted(c)) return null;
+      return FmTileData(
+        id: id,
+        icon: FmColors.iconFor(c, outlined: outlined),
+        color: FmColors.forCategory(c),
+        label: label ?? c.label,
+        subtitle: sub(DashboardScreen.cachedStat(c)),
+        onTap: () => _openCategory(c),
+      );
+    }
+
+    final downloads = downloadsPathIn(FmEnv.primaryRoot);
+    final important = ImportantScreen.pathIn(FmEnv.primaryRoot);
+    return [
+      if (downloads != null)
+        FmTileData(
+          id: 'downloads',
+          icon: AppIcons.download,
+          color: AppHues.blue,
+          label: context.t('fm.downloads'),
+          subtitle: '',
+          onTap: () => _openFolder(downloads),
+        ),
+      if (Directory(important).existsSync())
+        FmTileData(
+          id: 'important',
+          icon: AppIcons.star,
+          color: AppHues.amber,
+          label: ImportantScreen.folderName,
+          subtitle: context.t('common.open'),
+          onTap: () => _openFolder(important),
+        ),
+      if (category('image', FmCategory.image, label: context.t('fm.photos')) case final t?) t,
+      if (category('video', FmCategory.video) case final t?) t,
+      if (category('document', FmCategory.document) case final t?) t,
+      if (category('audio', FmCategory.audio) case final t?) t,
+      if (category('archive', FmCategory.archive) case final t?) t,
+      if (category('apk', FmCategory.apk, label: context.t('fm.apk_files')) case final t?) t,
+      if (_request.otherSources)
+        FmTileData(
+          id: 'drive',
+          icon: AppIcons.cloud,
+          color: AppHues.mint,
+          label: 'Google Drive',
+          subtitle: context.t('pick.other_sources'),
+          onTap: _inApp
+              ? () => Navigator.of(context).pop(const [AppFilePicker._system])
+              : PickerBridge.otherSources,
+        ),
+    ];
   }
 
   /// Bu kategoride çağıranın kabul edeceği dosya olabilir mi?
@@ -985,13 +1046,6 @@ class _PickFileScreenState extends State<PickFileScreen> {
     return _request.accepts(
         PickerRequest.mimeForExtension(sample, category));
   }
-
-  static IconData _iconFor(FmCategory category) => switch (category) {
-        FmCategory.image => AppIcons.image,
-        FmCategory.video => AppIcons.video,
-        FmCategory.audio => AppIcons.audiotrack,
-        _ => AppIcons.newWord,
-      };
 
   /// Ortak satır ([FmEntryRow], Faz 6): seçici de gezginle AYNI satırı
   /// çizer; çoklu seçimde onay rozeti önizlemenin köşesine biner.

@@ -108,6 +108,12 @@ class DashboardScreen extends StatefulWidget {
   static List<FsEntry> cachedFiles(FmCategory category) =>
       _DashboardScreenState._cachedIndex?.files(category) ?? const [];
 
+  /// Panonun son taramasındaki kategori sayımı (dosya seçici de aynı kutuları
+  /// aynı sayılarla gösterir; tarama yoksa 0).
+  static CategoryStat cachedStat(FmCategory category) =>
+      _DashboardScreenState._cachedIndex?.stat(category) ??
+      const CategoryStat(0, 0);
+
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
@@ -576,4 +582,24 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   /// Parça dosyalarındaki uzantılar `setState`i (korumalı) buradan çağırır.
   void _partSetState(VoidCallback fn) => setState(fn);
+}
+
+/// Dosya seçici de panodaki bellek kartının AYNISINI çizer (2026-11-02,
+/// kullanıcı: *"dosya seçici ekranı ana ekranımızın aynısı olmalı"*).
+class DashboardVolumeCard extends StatelessWidget {
+  final StorageVolume volume;
+  final VoidCallback onTap;
+
+  const DashboardVolumeCard({
+    super.key,
+    required this.volume,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => _VolumeCard(
+        volume: volume,
+        index: _DashboardScreenState._cachedIndex ?? StorageIndex.empty,
+        onTap: onTap,
+      );
 }

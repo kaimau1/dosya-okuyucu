@@ -539,3 +539,13 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
 - [ ] **R8'li sürüm:** açılış çökmesiz; ML Kit (OCR/çeviri), Drive girişi, Yakındakiler, Media3,
       PDF yazma (Syncfusion) çalışıyor.
 - [ ] **48 saat iç test** (KALANLAR B6): çökme/ANR yok; `CrashLog` boş ya da anlamlı.
+
+## 16. Dosya seçici ana sayfası ve devam notu (2026-11-02)
+- [ ] **Dosya seçici (tür belirtmeyen istek, ör. "Diğer dosyalar"):** ana sayfa panonun aynısı — bellek
+      kartı(ları), kullanıcının dizdiği kutu ızgarası (İndirilenler, Önemli, Fotoğraflar, Videolar,
+      Belgeler, Müzik, Arşivler, APK; "diğer kaynaklar" açıksa Drive), hızlı klasörler. Kutuya
+      dokununca seçicinin kendi kategori/klasör listesi açılıyor; çoklu seçim alt çubuğu çalışıyor.
+      Belirli tür isteyen yerlerde (yalnız görsel vb.) ilk yüz yine eşleşme listesi.
+- [ ] **Belge devam notu:** 5. sayfadan sonra kapatılmış PDF'i aç → üstte ince "N. sayfadan devam
+      ediliyor · Baştan başla" hapı, birkaç sn sonra kendiliğinden çekiliyor; "Baştan başla" 1. sayfaya
+      götürüyor; okuma kipinde (çubuklar çekik) sayfayı örtmüyor; koyu/kâğıt temasında okunur.
