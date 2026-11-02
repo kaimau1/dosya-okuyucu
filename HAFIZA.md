@@ -465,3 +465,9 @@ Kullanıcı: *"fazlardan devam et, bulutta yapılabilecekleri yap, main'e merge 
   (ya da fark yalnız `.github/ docs/ graphify-out/ hooks/ *.md`) yeniden test edilmez → push saniyeler.
   Düşen test asıl dosyasıyla bir kez tek başına denenir (yük altında süre aşımı). Akış: commit → `sh tool/test_gate.sh` → push.
 - CI eşzamanlılık grubu kişisel/genel ayrı (elle kişisel derleme nightly'i iptal ediyordu).
+
+## 2026-11-02 — A3.3 ML Kit tazelendi
+- text_recognition 0.15.0 → ^0.17.1, translation 0.13.0 → ^0.15.1 (commons 0.13.0). Dart API değişmedi.
+- R8 `-dontwarn com.google.mlkit.vision.text.{chinese,devanagari,japanese,korean}` HÂLÂ gerekli: eklenti 0.17.1
+  o dil paketlerini `compileOnly` alıp köprüde içe aktarıyor. Cihazda OCR + çeviri bakılacak (CIHAZ_TESTI R8 satırı).
+

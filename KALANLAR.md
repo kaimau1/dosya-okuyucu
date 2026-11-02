@@ -58,9 +58,6 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
       `useAlternativeFitScaleAsMinScale` kenetlemesi, kendi seçim katmanı
       `widgets/pdf_select_layer.dart` — 2.x'te gereksiz mi, ölç. Gereksizse sadeleştir;
       değilse kalsın ve gerekçe HAFIZA'ya. Bütün `pdf_*` testleri + B2 PDF bölümü.
-- [ ] **A3.3 ML Kit:** `google_mlkit_text_recognition 0.15.0`, `google_mlkit_translation
-      0.13.0` → güncel (OCR Play Hizmetleri, çeviri K3 = kalsın); R8 `-dontwarn`
-      kuralları hâlâ gerekli mi.
 - [ ] **A3.4 Ötekiler:** `video_player 2.10.1` + `video_player_android 2.8.15`,
       `wakelock_plus 1.4.0`, `permission_handler 11.3.1`, `fc_native_video_thumbnail
       2.2.0`, `flutter_local_notifications 17.2.4`, `syncfusion_flutter_pdf/_core 31.1.19`
