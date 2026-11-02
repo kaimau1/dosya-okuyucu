@@ -524,7 +524,5 @@ Kullanıcı: *"fazlardan devam et, bulutta yapılabilecekleri yap, main'e merge 
   çizilemedi". Arayıcı artık `onViewerReady`'de kuruluyor (her yeniden yüklemede yenisi). Kanıt:
   `test/pdf_viewer_open_test.dart` düzeltmesiz KIRMIZI, düzeltmeyle YEŞİL. Yöntem: CI artifact'ından
   `dart-symbols-<sürüm>` + `flutter symbolize` (tahminle yama yok).
-- **TUZAK — yerel Flutter 3.47.7, CI 3.44.6:** `C:\src\flutter` güncellenmiş (CLAUDE.md "aynı sürüm" diyordu).
-  3.47 ile `pub add/get` SDK sabitli paketleri (meta 1.19, test_api, matcher, vector_math, intl) yükseltip kilidi
-  bozuyor ve `dartssh2` yerelde derlenmiyor. Doğru yol: `C:\src\flutter-3.44.6` (aynı depodan git worktree,
-  3.44.6 etiketi) ile pub get / analyze / test.
+- **TUZAK (yine düşüldü):** 3.47.7 SDK ile `pub add` kilidi bozdu (meta 1.19 …). Kayıt zaten vardı (yukarıda
+  `C:\src\flutter-3446`); oturum başında HAFIZA tam okunmadı. Push kancası da PATH'te 3446 ister.
