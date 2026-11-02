@@ -336,15 +336,26 @@ class _DashboardScreenState extends State<DashboardScreen>
             for (final id in part) ..._dashSection(id, volumes, appState),
           ],
         );
+    // **Geniş ekran** (2026-11-02): eşit iki sütun yerine bellek/son
+    // açılanlar/favoriler SOL şeritte sabit-orantılı (kartlar 360–440 dp'den
+    // fazla uzamasın), kutu ızgarası ve araçlar kalan alanı alır (sütun sayısı
+    // genişliğe göre artar). Çok geniş ekranda içerik ortalanıp sınırlanır —
+    // 2000 dp'lik bir tabloda kartlar bir uçtan bir uca gerilmesin.
+    final leftWidth = (size.width * 0.34).clamp(360.0, 440.0);
     return [
-      Row(
-        key: const ValueKey('dash-two-columns'),
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: column(left)),
-          const SizedBox(width: Gap.lg),
-          Expanded(child: column(right)),
-        ],
+      Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1480),
+          child: Row(
+            key: const ValueKey('dash-two-columns'),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(width: leftWidth, child: column(left)),
+              const SizedBox(width: Gap.lg),
+              Expanded(child: column(right)),
+            ],
+          ),
+        ),
       ),
     ];
   }
