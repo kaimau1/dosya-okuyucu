@@ -55,7 +55,12 @@ void main() {
         ? Directory(dest).listSync()
         : const <FileSystemEntity>[];
     expect(left, isEmpty, reason: 'yarım hedef klasör kalmamalı');
-  });
+  },
+      // Windows'ta aralıklı (≈1/6): öldürülen izolatın yarıda kalan dosya
+      // tanıtıcısı kapanmıyor ve Windows açık dosyanın klasörünü silmiyor
+      // (errno 32; izolat çıkışı ≤1 ms'de geliyor — ölçüldü 2026-11-02).
+      // Linux/Android açık dosyayı silebilir; uygulama yalnız Android (K10).
+      skip: Platform.isWindows ? 'Windows dosya kilidi (bkz. not)' : false);
 
   test('başlamadan durdurulmuşsa izolat hiç kurulmaz', () async {
     final dest = p.join(tmp.path, 'hic');

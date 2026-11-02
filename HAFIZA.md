@@ -386,3 +386,8 @@ Kullanıcı: *"fazlardan devam et, bulutta yapılabilecekleri yap, main'e merge 
   **TUZAK:** ölçümde `date +%s%N` aritmetiği telefonda taşıyor (negatif/yanlış süre) → `time sh -c`.
   **Bilinen sınır:** süreç grup ortasında ölürse ≤ 64 dosya kayıtsız kalır (ponytail notu kodda).
 - Ölçümler `docs/CIHAZ_TESTI.md` §1; sınırdakiler KALANLAR B3.3b.
+- **Arşiv durdurma:** `isolate.kill` asenkron → durdurmada `addOnExitListener` ile çıkış beklenip
+  sonra yarım klasör silinir (Android'de silmeden sonra yazma yarışı). **TUZAK (Windows test):**
+  öldürülen izolatın yarım dosya tanıtıcısı kapanmıyor, Windows klasörü silmiyor (errno 32, ≈1/6) →
+  `fm_archive_cancel_test` "yarım klasör" testi Windows'ta `skip`. Yeniden deneme işe yaramadı (denendi).
+  Push-öncesi kanca yerel kırmızı testte push'u engelliyor — atlama.

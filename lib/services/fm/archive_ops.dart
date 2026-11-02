@@ -432,6 +432,15 @@ Future<bool> _runExtractKillable(
     // İlk mesaj sonuçtur; onExit'in `null`u yalnız sonuç gelmeden ölünce.
     if (!done.isCompleted) done.complete(msg is List ? msg : null);
   });
+  // Durdurmada çıkış AYRICA beklenir: `kill` asenkron, izolat ölene dek
+  // dosyası açık ve yazıyor olabilir. Beklemeden yarım klasörü silmek
+  // Windows'ta "dosya kullanımda" ile düşüyor, Android'de izolat son anda
+  // yeni dosya yazıp klasörü geri yaratabiliyordu (2026-11-02). Dinleyici
+  // yalnız `kill`den önce takılır: sonuç mesajıyla sırası karışmasın.
+  final exited = Completer<void>();
+  final exitPort = RawReceivePort((_) {
+    if (!exited.isCompleted) exited.complete();
+  });
   Isolate? isolate;
   Timer? poll;
   try {
@@ -446,7 +455,9 @@ Future<bool> _runExtractKillable(
     });
     final result = await done.future;
     if (result != null && result.isNotEmpty && result.first == 'cancel') {
+      isolate.addOnExitListener(exitPort.sendPort);
       isolate.kill(priority: Isolate.immediate);
+      await exited.future.timeout(const Duration(seconds: 2), onTimeout: () {});
       return false;
     }
     _unwrap(result ??
@@ -456,6 +467,7 @@ Future<bool> _runExtractKillable(
     poll?.cancel();
     await sub.cancel();
     reply.close();
+    exitPort.close();
   }
 }
 
