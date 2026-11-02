@@ -523,5 +523,5 @@ Uint8List _rebuild(Uint8List bytes, String sheetXml) {
         ? ArchiveFile(f.name, data.length, data)
         : f);
   }
-  return Uint8List.fromList(ZipEncoder().encode(rebuilt)!);
+  return Uint8List.fromList(ZipEncoder().encode(rebuilt));
 }

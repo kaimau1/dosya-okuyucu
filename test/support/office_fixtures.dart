@@ -39,7 +39,7 @@ abstract final class OfficeFixtures {
       }
       out.addFile(ArchiveFile(f.name, data.length, data));
     }
-    return Uint8List.fromList(ZipEncoder().encode(out)!);
+    return Uint8List.fromList(ZipEncoder().encode(out));
   }
 
   /// **Word'de kaydedilmiş çok sayfalı belge** (Faz 21 / W1 kanıtı).
@@ -100,7 +100,7 @@ abstract final class OfficeFixtures {
         '<w:footnote w:id="1"><w:p><w:r><w:rPr><w:vertAlign w:val="superscript"/></w:rPr><w:footnoteRef/></w:r>'
         '<w:r><w:t xml:space="preserve"> Dipnot metni.</w:t></w:r></w:p></w:footnote></w:footnotes>');
     out.addFile(ArchiveFile('word/footnotes.xml', fn.length, fn));
-    return Uint8List.fromList(ZipEncoder().encode(out)!);
+    return Uint8List.fromList(ZipEncoder().encode(out));
   }
 
   /// İki sayfalı satış tablosu (formül + Türkçe ad).

@@ -362,16 +362,12 @@ class XlsxSavePatch {
       final rebuilt = Archive();
       for (final f in archive.files) {
         final text = replacements[f.name];
-        if (text == null) {
-          rebuilt.addFile(f);
-          continue;
-        }
-        final data = utf8.encode(text);
+        final data = text == null ? f.content as List<int> : utf8.encode(text);
         rebuilt.addFile(ArchiveFile(f.name, data.length, data)
-          ..compress = f.compress);
+          ..compression = f.compression);
       }
       final out = ZipEncoder().encode(rebuilt);
-      if (out == null || out.isEmpty) return bytes;
+      if (out.isEmpty) return bytes;
       return Uint8List.fromList(out);
     } catch (_) {
       return bytes;

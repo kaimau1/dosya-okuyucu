@@ -63,7 +63,7 @@ class XlsxNotesWriter {
         out.addFile(ArchiveFile(n, files[n]!.length, files[n]!));
       }
       final z = ZipEncoder().encode(out);
-      return z == null ? bytes : Uint8List.fromList(z);
+      return Uint8List.fromList(z);
     } catch (_) {
       return bytes;
     }

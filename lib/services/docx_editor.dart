@@ -5,6 +5,7 @@ import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
 
 import '../core/edit/save_coordinator.dart';
+import 'zip_carry.dart';
 
 part 'docx/live_edit.dart';
 
@@ -595,7 +596,7 @@ class DocxEditor {
       } else if (parts.containsKey(f.name)) {
         put(f.name, parts[f.name]!);
       } else {
-        out.addFile(f);
+        out.addFile(carryEntry(f));
       }
     }
     // Dosyada hiç bulunmayan parçalar (ör. numbering.xml yoksa) sona eklenir.
@@ -611,8 +612,8 @@ class DocxEditor {
 
   /// Dosyayı UI izleğinde üretir (testler, dışa aktarım).
   Uint8List save() {
-    final List<int>? encoded = ZipEncoder().encode(buildArchive());
-    return Uint8List.fromList(encoded ?? const <int>[]);
+    final List<int> encoded = ZipEncoder().encode(buildArchive());
+    return Uint8List.fromList(encoded);
   }
 
   /// Faz 20 / ED3: XML serileştirme UI izleğinde (hızlı), zip sıkıştırma

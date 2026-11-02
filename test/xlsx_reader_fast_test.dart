@@ -20,7 +20,7 @@ Uint8List _book(String sheet, String sharedStrings) {
         '<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>'))
     ..addFile(f('xl/worksheets/sheet1.xml', sheet))
     ..addFile(f('xl/sharedStrings.xml', sharedStrings));
-  return Uint8List.fromList(ZipEncoder().encode(a)!);
+  return Uint8List.fromList(ZipEncoder().encode(a));
 }
 
 String _dump(XlsxWorkbook wb) {

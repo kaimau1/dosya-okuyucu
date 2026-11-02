@@ -494,5 +494,5 @@ Uint8List _rangedColsXlsx() {
       out.addFile(f);
     }
   }
-  return Uint8List.fromList(ZipEncoder().encode(out)!);
+  return Uint8List.fromList(ZipEncoder().encode(out));
 }

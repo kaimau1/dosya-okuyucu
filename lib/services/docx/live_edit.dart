@@ -73,13 +73,13 @@ extension DocxLiveEdit on DocxEditor {
         final data = utf8.encode(_partEdits[f.name]!);
         out.addFile(ArchiveFile(f.name, data.length, data));
       } else {
-        out.addFile(f);
+        out.addFile(carryEntry(f));
       }
     }
     _newMedia.forEach((name, data) {
       out.addFile(ArchiveFile(name, data.length, data));
     });
-    return Uint8List.fromList(ZipEncoder().encode(out) ?? const <int>[]);
+    return Uint8List.fromList(ZipEncoder().encode(out));
   }
 
   /// Canlı görünümde Enter: [index] paragrafını [offset] (atom birimi: harf,

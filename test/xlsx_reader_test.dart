@@ -188,7 +188,7 @@ void main() {
           '<comment ref="B1" authorId="0"><text>'
           '<r><t>KDV </t></r><r><t>dahil</t></r></text></comment>'
           '</commentList></comments>');
-      return Uint8List.fromList(ZipEncoder().encode(archive)!);
+      return Uint8List.fromList(ZipEncoder().encode(archive));
     }
 
     test('not, yazarı ve BİRLEŞTİRİLMİŞ metniyle okunur', () {

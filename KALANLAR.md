@@ -52,8 +52,6 @@ sürüm" diye sabitlenmiş paketler ve onlara karşı yazılmış geçici çöz�
 Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu bütçesi
 (CI) geçmeli; cihazda bakılacaklar `CIHAZ_TESTI.md`'ye.
 
-- [ ] **A3.1 `archive ^3` → `^4`** (ön koşul): `image 4.3.0` → güncel, `koni_archive`,
-      `excel` uyumu; arşiv testleri (`fm_archive_*`) yeşil.
 - [ ] **A3.2 `pdfrx ^1.3.0` → 2.x** (en büyük kazanç, ayrı dalda dene): 1.3.5 hatalarına
       karşı yazılan çözümler — basamaklı `getPageRenderingScale` (yakınlaştırma
       titremesi), görünüm boyu değişince sayfa başına atlama (okuma kipi katmanı),

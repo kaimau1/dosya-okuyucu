@@ -29,7 +29,7 @@ void main() {
       }
       out.addFile(ArchiveFile(f.name, data.length, data));
     }
-    return Uint8List.fromList(ZipEncoder().encode(out)!);
+    return Uint8List.fromList(ZipEncoder().encode(out));
   }
 
   String documentXml(Uint8List docx) => utf8.decode(ZipDecoder()

@@ -101,7 +101,7 @@ void main() {
         archive.addFile(ArchiveFile(e.key, e.value.length, e.value));
       }
       final path = p.join(dir.path, name);
-      File(path).writeAsBytesSync(ZipEncoder().encode(archive)!);
+      File(path).writeAsBytesSync(ZipEncoder().encode(archive));
       return path;
     }
 
@@ -150,7 +150,7 @@ void main() {
         archive.addFile(ArchiveFile(e.key, e.value.length, e.value));
       }
       final path = p.join(dir.path, name);
-      File(path).writeAsBytesSync(ZipEncoder().encode(archive)!);
+      File(path).writeAsBytesSync(ZipEncoder().encode(archive));
       return path;
     }
 

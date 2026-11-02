@@ -255,7 +255,7 @@ abstract final class XlsxChartWriter {
       if (data == null) continue;
       out.addFile(ArchiveFile(name, data.length, data));
     }
-    return Uint8List.fromList(ZipEncoder().encode(out)!);
+    return Uint8List.fromList(ZipEncoder().encode(out));
   }
 
   // ── paket gezintisi ─────────────────────────────────────────────────────
@@ -675,7 +675,7 @@ abstract final class XlsxTableWriter {
       if (data == null) continue;
       out.addFile(ArchiveFile(name, data.length, data));
     }
-    return Uint8List.fromList(ZipEncoder().encode(out)!);
+    return Uint8List.fromList(ZipEncoder().encode(out));
   }
 
   static bool _overlapsExisting(

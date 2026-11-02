@@ -62,7 +62,7 @@ class XlsxWriter {
     }
 
     final zip = ZipEncoder().encode(archive);
-    return Uint8List.fromList(zip ?? const []);
+    return Uint8List.fromList(zip);
   }
 
   // ── parçalar ──────────────────────────────────────────────────────────────

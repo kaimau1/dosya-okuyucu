@@ -30,7 +30,7 @@ Uint8List _bytes({String Function(String xml)? slideXmlPatch}) {
       out.addFile(f);
     }
   }
-  return Uint8List.fromList(ZipEncoder().encode(out)!);
+  return Uint8List.fromList(ZipEncoder().encode(out));
 }
 
 /// "bir" paragrafını üç run'a böler: "Merhaba " · **dünya** · " sonu".

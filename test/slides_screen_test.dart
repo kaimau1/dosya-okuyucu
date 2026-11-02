@@ -90,7 +90,7 @@ Uint8List _deck() {
   </p:sp>
  </p:spTree></p:cSld>
 </p:notes>''');
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 const _delegates = <LocalizationsDelegate<Object?>>[

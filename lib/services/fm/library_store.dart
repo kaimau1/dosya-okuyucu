@@ -147,7 +147,7 @@ abstract final class LibraryStore {
   static Uint8List? epubCoverBytes(String path) {
     final input = InputFileStream(path);
     try {
-      final zip = ZipDecoder().decodeBuffer(input);
+      final zip = ZipDecoder().decodeStream(input);
       String text(String name) {
         final f = zip.findFile(name);
         return f == null ? '' : utf8.decode(f.content as List<int>,

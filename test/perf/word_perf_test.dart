@@ -35,7 +35,7 @@ Uint8List _docx(int paras) {
     }
     out.addFile(ArchiveFile(f.name, data.length, data));
   }
-  return Uint8List.fromList(ZipEncoder().encode(out)!);
+  return Uint8List.fromList(ZipEncoder().encode(out));
 }
 
 void main() {

@@ -122,7 +122,7 @@ void main() {
         archive.addFile(ArchiveFile(e.key, e.value.length, e.value));
       }
       final path = p.join(dir.path, name);
-      File(path).writeAsBytesSync(ZipEncoder().encode(archive)!);
+      File(path).writeAsBytesSync(ZipEncoder().encode(archive));
       return path;
     }
 
@@ -256,7 +256,7 @@ void main() {
         'res/o-.png': realPng(192, 192),
       });
       final archive =
-          ZipDecoder().decodeBuffer(InputFileStream(path));
+          ZipDecoder().decodeStream(InputFileStream(path));
       expect(ApkIcon.packageOf(archive), 'com.ornek.uygulama');
       // Simge yolu paket adı eklenince de bozulmuyor.
       expect(ApkIcon.pngSize(ApkIcon.readIconBytes(path)!), (192, 192));

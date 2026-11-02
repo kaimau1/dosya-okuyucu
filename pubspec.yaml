@@ -89,7 +89,7 @@ dependencies:
   # D6): okuma `xlsx_reader`, yazma `xlsx_package` (özgün paketi koruyarak) +
   # `xlsx_writer` (yeni belge). archive ^3'ün tek kilidi kalktı; ^4'e geçiş
   # Flutter yükseltmesiyle birlikte (pdfrx 2.x, image 4.4+) yapılacak.
-  archive: ^3.6.1
+  archive: ^4.0.9
   xml: ^6.5.0
 
   # Arşiv okuma: RAR4/RAR5 + 7z + zip/tar/gz — SAF DART (MIT), platform kodu yok.
@@ -182,12 +182,11 @@ dependencies:
   flutter_local_notifications: 17.2.4
 
   # Görüntü boyut düşürme/format çevirme (saf Dart; platform kodu yok).
-  # 4.3.0'a SABİT — `archive ^3.6.1` ile UYUMLU SON sürüm. 4.4.0+ `archive ^4`
-  # istiyor (archive ^4 geçişi Flutter yükseltmesiyle; `excel` kilidi 2026-10-21
-  # kalktı). Zaten `pdf` paketi image ^4.1.0
-  # çektiği için APK'ya yeni bir ağırlık GİRMİYOR, yalnız doğrudan
-  # kullanabilmek için bildiriliyor.
-  image: 4.3.0
+  # `archive ^4` ile uyumlu en yeni aralık (2026-11-02, A3.1): `pdf` paketi
+  # archive'i <4.1'de tutuyor; image 4.9+ xml ^7, 4.11+ archive'in yeni API'sini
+  # (`ZLibDecoder.decodeLazy`) istiyor. Zaten `pdf` image'ı çektiği için APK'ya
+  # yeni ağırlık girmiyor, yalnız doğrudan kullanabilmek için bildiriliyor.
+  image: ">=4.4.0 <4.9.0"
 
   # Video küçültme: Media3 Transformer (ci/MediaTranscode.kt, Faz 10/K2 (b)).
   # FFmpeg (ffmpeg_kit_flutter_new_min, LGPL, ~15 MB) ve video_compress

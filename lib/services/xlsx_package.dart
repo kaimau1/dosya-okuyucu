@@ -328,7 +328,7 @@ class XlsxPackageWriter {
       if (data == null) continue;
       out.addFile(ArchiveFile(name, data.length, data));
     }
-    return Uint8List.fromList(ZipEncoder().encode(out)!);
+    return Uint8List.fromList(ZipEncoder().encode(out));
   }
 
   static String? _rid(XmlElement el) {

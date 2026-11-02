@@ -427,6 +427,6 @@ class PptxWriter {
       archive.addFile(ArchiveFile(name, data.length, data));
     });
     final out = ZipEncoder().encode(archive);
-    return Uint8List.fromList(out ?? const <int>[]);
+    return Uint8List.fromList(out);
   }
 }

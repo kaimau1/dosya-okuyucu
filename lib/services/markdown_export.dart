@@ -293,6 +293,6 @@ class MarkdownExport {
       final data = utf8.encode(content);
       archive.addFile(ArchiveFile(name, data.length, data));
     });
-    return ZipEncoder().encode(archive) ?? const <int>[];
+    return ZipEncoder().encode(archive);
   }
 }

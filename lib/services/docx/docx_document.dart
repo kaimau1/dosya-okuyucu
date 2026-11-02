@@ -27,6 +27,7 @@ import 'package:xml/xml.dart';
 import '../../core/edit/save_coordinator.dart';
 import '../../core/symbol_fonts.dart';
 import 'docx_styles.dart';
+import '../zip_carry.dart';
 
 part 'docx_insert.dart';
 part 'docx_table.dart';
@@ -1495,7 +1496,7 @@ class DocxDocument {
     final out = Archive();
     for (final f in _archive.files) {
       final data = replaced.remove(f.name);
-      out.addFile(data == null ? f : ArchiveFile(f.name, data.length, data));
+      out.addFile(data == null ? carryEntry(f) : ArchiveFile(f.name, data.length, data));
     }
     // Yeni yaratılan parçalar (numbering.xml …).
     for (final MapEntry(key: name, value: data) in replaced.entries) {
@@ -1505,7 +1506,7 @@ class DocxDocument {
   }
 
   Uint8List save() =>
-      Uint8List.fromList(ZipEncoder().encode(buildArchive()) ?? const <int>[]);
+      Uint8List.fromList(ZipEncoder().encode(buildArchive()));
 
   /// XML yazımı UI izleğinde (yalnız değişen paragraflar, hızlı), zip izolatta.
   Future<Uint8List> saveAsync() => SaveIsolate.encodeZip(buildArchive());

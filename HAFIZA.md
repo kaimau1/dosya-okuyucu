@@ -395,3 +395,15 @@ Kullanıcı: *"fazlardan devam et, bulutta yapılabilecekleri yap, main'e merge 
   bu projede `flutter` komutu `pubspec.lock`'u sessizce yükseltti (intl/meta/matcher…), commit'e
   karıştı, testler derleyicide düştü. Bu proje için ayrı SDK: `C:\src\flutter-3446` (3.44.6) —
   `export PATH="/c/src/flutter-3446/bin:$PATH"`; kilit `flutter pub get --enforce-lockfile` ile doğrulanır.
+
+## 2026-11-02 — A3.1 archive 3→4 (image 4.8.0)
+- `archive ^4.0.9` + `image >=4.4.0 <4.9.0` (kilit 4.8.0). **Üst sınırlar:** `pdf` paketi archive'i <4.1'de
+  tutuyor; image 4.9+ `xml ^7`, 4.11+ archive'in yeni API'sini (`ZLibDecoder.decodeLazy`) istiyor → ikisi de
+  `xml ^6` ve pdf yüzünden yükseltilemez (pdf 3.13 → xml 7 gerektirir).
+- **Kök neden / TUZAK:** archive 4'te çözülmüş `ArchiveFile`'ı başka arşive olduğu gibi `addFile` etmek
+  BOZUK bayt üretiyor (ham sıkıştırılmış veri yeniden işleniyor); xlsx yaması hatayı `catch`te yutup girdiyi
+  değiştirmeden döndürüyordu (tek belirti: yama sessizce uygulanmıyor). Çare: `services/zip_carry.dart`
+  `carryEntry` — açık içerikten yeni girdi. Kalan API farkları: `decodeBuffer`→`decodeStream`,
+  `compress`→`compression`, `encode()` artık null dönmüyor.
+- Bu makinede doğrulama yalnız `C:\src\flutter-3446` ile; 3.47.7'de pdfrx 1.3.5/dartssh2 derlenmiyor.
+- Tam pakette 3 zamanlama düşüşü (slides_edit, pdf_form_screen, xlsx_reader_fast) yük altında; izole geçiyor.

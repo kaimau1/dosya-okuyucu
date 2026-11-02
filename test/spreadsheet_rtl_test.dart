@@ -32,7 +32,7 @@ Uint8List _book({required bool rtl}) {
     final data = utf8.encode(xml);
     rebuilt.addFile(ArchiveFile(f.name, data.length, data));
   }
-  return Uint8List.fromList(ZipEncoder().encode(rebuilt)!);
+  return Uint8List.fromList(ZipEncoder().encode(rebuilt));
 }
 
 /// Üründeki (main.dart) delege listesi — Türkçe/Arapça'da MaterialLocalizations

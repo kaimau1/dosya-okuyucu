@@ -59,7 +59,7 @@ Uint8List _deck({bool growTitle = false}) {
       out.addFile(f);
     }
   }
-  return Uint8List.fromList(ZipEncoder().encode(out)!);
+  return Uint8List.fromList(ZipEncoder().encode(out));
 }
 
 void main() {

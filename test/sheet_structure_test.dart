@@ -48,7 +48,7 @@ Uint8List _rich() {
     }
     out.addFile(ArchiveFile(f.name, d.length, d));
   }
-  return Uint8List.fromList(ZipEncoder().encode(out)!);
+  return Uint8List.fromList(ZipEncoder().encode(out));
 }
 
 void main() {

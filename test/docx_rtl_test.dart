@@ -12,7 +12,7 @@ Uint8List _docx(String body) {
   final archive = Archive();
   final data = utf8.encode(doc);
   archive.addFile(ArchiveFile('word/document.xml', data.length, data));
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 void main() {

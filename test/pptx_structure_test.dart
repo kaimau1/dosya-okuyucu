@@ -61,7 +61,7 @@ Uint8List _structuredPptx() {
   add('ppt/slides/_rels/slide1.xml.rels', '<Relationships xmlns="$pkgRel"/>');
   add('ppt/slides/_rels/slide2.xml.rels', '<Relationships xmlns="$pkgRel"/>');
 
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 String _firstText(dynamic slide) => slide.paragraphs.first.text as String;
@@ -129,7 +129,7 @@ void main() {
         '<p:presentation xmlns:p="ppt"><p:sldSz cx="9144000" cy="6858000"/></p:presentation>');
     add('ppt/slides/slide1.xml',
         '<p:sld xmlns:p="ppt" xmlns:a="draw"><p:cSld><p:spTree><p:sp><p:txBody><a:p><a:r><a:t>Tek</a:t></a:r></a:p></p:txBody></p:sp></p:spTree></p:cSld></p:sld>');
-    final bytes = Uint8List.fromList(ZipEncoder().encode(archive)!);
+    final bytes = Uint8List.fromList(ZipEncoder().encode(archive));
 
     final e = PptxEditor.parse(bytes);
     expect(e.canEditStructure, isFalse);

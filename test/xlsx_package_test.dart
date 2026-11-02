@@ -47,7 +47,7 @@ Uint8List _book() {
     final d = utf8.encode(text);
     out.addFile(ArchiveFile(name, d.length, d));
   }
-  return Uint8List.fromList(ZipEncoder().encode(out)!);
+  return Uint8List.fromList(ZipEncoder().encode(out));
 }
 
 void main() {

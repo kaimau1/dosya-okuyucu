@@ -52,7 +52,7 @@ void main() {
           '<manifest><item id="c" href="img/kapak.jpg" properties="cover-image"/></manifest>'))
       ..addFile(ArchiveFile('OEBPS/img/kapak.jpg', img.length, img));
     final file = File(p.join(dir.path, 'k.epub'))
-      ..writeAsBytesSync(ZipEncoder().encode(arc)!);
+      ..writeAsBytesSync(ZipEncoder().encode(arc));
     expect(LibraryStore.epubCoverBytes(file.path), img);
   });
 

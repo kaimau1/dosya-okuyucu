@@ -155,7 +155,7 @@ abstract final class ApkIcon {
     InputFileStream? input;
     try {
       input = InputFileStream(path);
-      final archive = ZipDecoder().decodeBuffer(input);
+      final archive = ZipDecoder().decodeStream(input);
       return {
         'icon': iconBytesFrom(archive),
         'package': packageOf(archive),
@@ -222,7 +222,7 @@ abstract final class ApkIcon {
     }
     if (best != null) {
       final content = best.content;
-      if (content is List<int> && content.isNotEmpty) {
+      if (content.isNotEmpty) {
         return Uint8List.fromList(content);
       }
     }
@@ -239,7 +239,7 @@ abstract final class ApkIcon {
     InputFileStream? input;
     try {
       input = InputFileStream(path);
-      return iconBytesFrom(ZipDecoder().decodeBuffer(input));
+      return iconBytesFrom(ZipDecoder().decodeStream(input));
     } catch (_) {
       return null;
     } finally {
@@ -494,7 +494,7 @@ abstract final class ApkIcon {
     for (final entry in archive.files) {
       if (!entry.isFile || entry.name != name) continue;
       final content = entry.content;
-      if (content is List<int> && content.isNotEmpty) {
+      if (content.isNotEmpty) {
         return Uint8List.fromList(content);
       }
       return null;
@@ -543,7 +543,7 @@ abstract final class ApkIcon {
       if (probed >= _fallbackMaxProbe) break;
       probed++;
       final content = entry.content;
-      if (content is! List<int> || content.length < 24) continue;
+      if (content.length < 24) continue;
       final bytes = Uint8List.fromList(content);
       final size = pngSize(bytes);
       if (size == null) continue;

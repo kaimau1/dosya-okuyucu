@@ -195,5 +195,5 @@ Uint8List _tinyDocx() {
   final a = Archive();
   final d = utf8.encode(doc);
   a.addFile(ArchiveFile('word/document.xml', d.length, d));
-  return Uint8List.fromList(ZipEncoder().encode(a)!);
+  return Uint8List.fromList(ZipEncoder().encode(a));
 }

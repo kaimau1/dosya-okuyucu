@@ -10,6 +10,7 @@ import '../core/edit/save_coordinator.dart';
 
 import 'pptx_render.dart';
 import 'pptx_rich_text.dart';
+import 'zip_carry.dart';
 
 part 'pptx_objects.dart';
 
@@ -1390,7 +1391,7 @@ class PptxEditor {
       if (updated.containsKey(f.name)) {
         _addTo(out, f.name, updated[f.name]!);
       } else {
-        out.addFile(f);
+        out.addFile(carryEntry(f));
       }
     }
     return out;
@@ -1398,8 +1399,8 @@ class PptxEditor {
 
   /// Dosyayı UI izleğinde üretir (testler, dışa aktarım).
   Uint8List save() {
-    final List<int>? encoded = ZipEncoder().encode(buildArchive());
-    return Uint8List.fromList(encoded ?? const <int>[]);
+    final List<int> encoded = ZipEncoder().encode(buildArchive());
+    return Uint8List.fromList(encoded);
   }
 
   /// Faz 20 / ED3: XML serileştirme UI izleğinde (hızlı), zip sıkıştırma

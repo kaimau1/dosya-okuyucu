@@ -20,7 +20,7 @@ Uint8List _sampleDocx() {
   final archive = Archive();
   final data = utf8.encode(doc);
   archive.addFile(ArchiveFile('word/document.xml', data.length, data));
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 /// setRuns testleri için: renkli run'lı (şablon rPr) 2 paragraflık örnek.
@@ -39,7 +39,7 @@ Uint8List _richSampleDocx() {
   final archive = Archive();
   final data = utf8.encode(doc);
   archive.addFile(ArchiveFile('word/document.xml', data.length, data));
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 /// İçerik türü ve ilişki dosyası OLAN tam bir .docx (numaralandırma yazma
@@ -67,7 +67,7 @@ Uint8List _fullDocx() {
   <w:p><w:r><w:t>İkinci</w:t></w:r></w:p>
  </w:body>
 </w:document>''');
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 String _part(Uint8List bytes, String name) {

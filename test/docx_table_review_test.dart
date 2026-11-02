@@ -36,7 +36,7 @@ Uint8List _docx(String bodyXml) {
       '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
   add('word/document.xml',
       '<?xml version="1.0" encoding="UTF-8"?><w:document $w><w:body>$bodyXml<w:sectPr/></w:body></w:document>');
-  return Uint8List.fromList(ZipEncoder().encode(a)!);
+  return Uint8List.fromList(ZipEncoder().encode(a));
 }
 
 List<XmlElement> _tables(Uint8List out) =>

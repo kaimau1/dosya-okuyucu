@@ -62,7 +62,7 @@ Uint8List _samplePptx() {
 </p:sld>
 ''');
 
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 /// Autofit örneği: küçük kutuda (360x45pt) taşacak kadar uzun 32pt metin +
@@ -98,7 +98,7 @@ Uint8List _autofitPptx({bool withAutofit = true}) {
 </p:sld>
 ''');
 
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 /// typeface eşlemesi için: 3 paragraf, her biri farklı yazı tipiyle.
@@ -130,7 +130,7 @@ Uint8List _fontPptx() {
 </p:sld>
 ''');
 
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 /// Bağlayıcı (ok'lu çizgi) + dış gölgeli dikdörtgen.
@@ -171,7 +171,7 @@ Uint8List _linePptx() {
 </p:sld>
 ''');
 
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 /// Ön tanımlı geometri örneği: ok (ayar değerli), elmas, elips, çentikli
@@ -212,7 +212,7 @@ ${sp('Bilinmeyen', 'funkyShapeXyz', '')}
 </p:sld>
 ''');
 
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 /// Özel geometri (`a:custGeom`) örnekleri: dolu üçgen + `fill="none"` açık
@@ -279,7 +279,7 @@ ${sp('EmuUzay', '''
 </p:sld>
 ''');
 
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 /// `a:srcRect` ile kırpılmış görsel içeren slayt.
@@ -334,7 +334,7 @@ Uint8List _croppedPicPptx() {
 </p:sld>
 ''');
 
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 /// Grafikli slayt: graphicFrame → ayrı chart parçası (2 seri, 3 kategori sütun).
@@ -400,7 +400,7 @@ Uint8List _chartPptx() {
 </c:chartSpace>
 ''');
 
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 /// Tema stil referansı: dolgu/çizgi `spPr`'de DEĞİL, `p:style` içinde
@@ -470,7 +470,7 @@ Uint8List _styleRefPptx({bool withTheme = false}) {
 </p:sld>
 ''');
 
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 /// Mutlak punto satır aralığı (`a:lnSpc>a:spcPts`) + paragraf sonrası boşluk
@@ -504,7 +504,7 @@ Uint8List _spacingPptx() {
 </p:sld>
 ''');
 
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 /// Madde imleri Wingdings/Symbol kodlamasıyla: PowerPoint "§" + Wingdings
@@ -538,7 +538,7 @@ Uint8List _symbolBulletPptx() {
 </p:sld>
 ''');
 
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 /// Tablo: 1 hücre, yalnız sol (kırmızı 1pt) ve alt (mavi 2pt) kenarlık tanımlı.
@@ -579,7 +579,7 @@ Uint8List _tablePptx() {
 </p:sld>
 ''');
 
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 void main() {
@@ -1083,7 +1083,7 @@ Uint8List _notesPptx() {
  </p:sp>
 </p:spTree></p:cSld></p:notes>
 ''');
-  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+  return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
 void _notesTests() {

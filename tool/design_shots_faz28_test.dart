@@ -87,7 +87,7 @@ Uint8List _deck() {
       out.addFile(f);
     }
   }
-  return Uint8List.fromList(ZipEncoder().encode(out)!);
+  return Uint8List.fromList(ZipEncoder().encode(out));
 }
 
 void main() {

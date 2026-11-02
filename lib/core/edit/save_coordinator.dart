@@ -47,7 +47,7 @@ class SaveIsolate {
       run<Archive, Uint8List>(_encode, archive);
 
   static Uint8List _encode(Archive a) =>
-      Uint8List.fromList(ZipEncoder().encode(a) ?? const <int>[]);
+      Uint8List.fromList(ZipEncoder().encode(a));
 }
 
 /// Tek belge için kaydetme sırası.
