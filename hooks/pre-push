@@ -1,14 +1,21 @@
 #!/bin/sh
 # usta saglik kiti (refs/kit.md): kirmizi testle push edilmez.
 # --no-verify ile gecme; testi kok nedeninden duzelt.
-FLUTTER=$(command -v flutter 2>/dev/null)
-[ -z "$FLUTTER" ] && FLUTTER="/c/src/flutter/bin/flutter.bat"
-if [ ! -x "$FLUTTER" ] && [ ! -f "$FLUTTER" ]; then
-  echo "pre-push: flutter bulunamadi ($FLUTTER) - test atlandi, PUSH DURDURULDU."
-  exit 1
+# Ayni agac (commit icerigi) tool/test_gate.sh ile zaten yesil test edildiyse
+# tekrar kosulmaz; degilse kapi burada kosar.
+ROOT=$(git rev-parse --show-toplevel) || exit 1
+STAMP="$ROOT/.git/test-green"
+need=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$local_sha" in *[!0]*) ;; *) continue ;; esac   # dal silme: test gerekmez
+  tree=$(git rev-parse "$local_sha^{tree}")
+  if [ ! -f "$STAMP" ] || [ "$(cat "$STAMP")" != "$tree" ]; then need=1; fi
+done
+if [ "$need" = 0 ]; then
+  echo "pre-push: bu agac zaten yesil test edildi (.git/test-green) - push devam."
+  exit 0
 fi
-echo "pre-push: flutter test calisiyor..."
-if ! "$FLUTTER" test; then
+if ! sh "$ROOT/tool/test_gate.sh"; then
   echo ""
   echo "PUSH ENGELLENDI: testler kirmizi (usta refs/kit.md)."
   exit 1
