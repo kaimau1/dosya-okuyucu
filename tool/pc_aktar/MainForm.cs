@@ -65,12 +65,6 @@ namespace DosyaAktar
         }
     }
 
-    class LogEntry
-    {
-        public string Text, Path;
-        public override string ToString() => Text;
-    }
-
     class MainForm : Form
     {
         readonly Dictionary<string, string> settings = Settings.Load();
@@ -85,9 +79,11 @@ namespace DosyaAktar
         readonly Button pickFiles = new Button(), pickFolder = new Button(), cancelBtn = new Button();
         readonly ProgressBar bar = new ProgressBar();
         readonly Label status = new Label(), recvStatus = new Label(), info = new Label();
-        readonly ListBox log = new ListBox();
+        Gallery gallery;
+        readonly Button copyBtn = new Button();
         readonly System.Windows.Forms.Timer refresh = new System.Windows.Forms.Timer { Interval = 1000 };
 
+        string lastReceived = "";
         float scale = 1f;
         int S(int px) => (int)(px * scale);
 
@@ -109,10 +105,15 @@ namespace DosyaAktar
             {
                 Name = deviceName, Id = deviceId, SaveDir = saveDir,
                 Ask = AskUser,
-                Received = (path, from) => Ui(() => AddLog("⬇  " + System.IO.Path.GetFileName(path) + "   ←  " + from, path)),
+                Received = (path, from) => Ui(() =>
+                {
+                    lastReceived = "Son gelen: " + System.IO.Path.GetFileName(path) + "  ←  " + from;
+                    if (receiver.Active <= 1) recvStatus.Text = lastReceived;
+                    gallery.Poke();
+                }),
                 Progress = (name, got, total) => Ui(() => recvStatus.Text = "Alınıyor: " + name + "  " +
                     (total > 0 ? (got * 100 / total) + "%  (" + Proto.Size(got) + " / " + Proto.Size(total) + ")" : Proto.Size(got))),
-                Done = name => Ui(() => { if (receiver.Active <= 1) recvStatus.Text = ""; }),
+                Done = name => Ui(() => { if (receiver.Active <= 1) recvStatus.Text = lastReceived; }),
             };
             scanner = new Scanner { OwnId = deviceId };
 
@@ -126,14 +127,14 @@ namespace DosyaAktar
             Text = "Dosya Aktar — Dosya Okuyucu";
             Font = new Font("Segoe UI", 10f);
             StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(S(900), S(620));
-            MinimumSize = new Size(S(680), S(520));
+            ClientSize = new Size(S(960), S(720));
+            MinimumSize = new Size(S(700), S(600));
             BackColor = Color.FromArgb(0xFA, 0xF8, 0xF2);
 
             var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(S(12)) };
             root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, S(200)));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 42));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 58));
             Controls.Add(root);
 
             // Başlık
@@ -226,28 +227,39 @@ namespace DosyaAktar
             right.Controls.Add(rightGrid);
             main.Controls.Add(right, 1, 0);
 
-            // Alt: gelenler ve geçmiş
-            var bottom = new GroupBox { Text = "Gelenler ve geçmiş  (çift tıkla: klasörde göster)", Dock = DockStyle.Fill, Padding = new Padding(S(8)) };
+            // Alt: gelenler — önizleme, dışarı sürükle, kopyala
+            var bottom = new GroupBox
+            {
+                Text = "Gelenler  —  seçip dışarı sürükleyin (WhatsApp, Claude…) ya da Kopyala → orada Ctrl+V",
+                Dock = DockStyle.Fill, Padding = new Padding(S(8)),
+            };
             var bottomGrid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2 };
             bottomGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             bottomGrid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            log.Dock = DockStyle.Fill;
-            log.IntegralHeight = false;
-            log.BorderStyle = BorderStyle.None;
-            log.DoubleClick += (s, e) => { if (log.SelectedItem is LogEntry le && le.Path != null) Reveal(le.Path); };
-            bottomGrid.Controls.Add(log, 0, 0);
-            var bb = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true };
-            var open = new Button { Text = "Gelenler klasörünü aç", AutoSize = true };
+            gallery = new Gallery(S(96)) { Dock = DockStyle.Fill };
+            gallery.SelectionChangedDebounced += UpdateCopyButton;
+            bottomGrid.Controls.Add(gallery, 0, 0);
+            var bb = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, Margin = new Padding(0, S(6), 0, 0) };
+            copyBtn.AutoSize = true;
+            copyBtn.Font = new Font("Segoe UI Semibold", 10f);
+            copyBtn.Padding = new Padding(S(8), S(2), S(8), S(2));
+            copyBtn.Click += (s, e) =>
+            {
+                var n = gallery.CopySelected();
+                recvStatus.Text = n > 0 ? "✓  " + n + " öğe panoya kopyalandı — WhatsApp / Claude'da Ctrl+V" : "Pano şu an meşgul, tekrar deneyin.";
+            };
+            var all = new Button { Text = "Tümünü seç", AutoSize = true };
+            all.Click += (s, e) => { gallery.SelectAll(); gallery.Focus(); };
+            var open = new Button { Text = "Klasörü aç", AutoSize = true };
             open.Click += (s, e) => { Directory.CreateDirectory(receiver.SaveDir); Process.Start("explorer.exe", "\"" + receiver.SaveDir + "\""); };
             var change = new Button { Text = "Klasörü değiştir…", AutoSize = true };
             change.Click += (s, e) => ChangeFolder();
             recvStatus.AutoSize = true;
             recvStatus.Margin = new Padding(S(10), S(8), 0, 0);
             recvStatus.ForeColor = Color.FromArgb(0x1A, 0x5F, 0xB4);
-            bb.Controls.Add(open);
-            bb.Controls.Add(change);
-            bb.Controls.Add(recvStatus);
+            foreach (var c in new Control[] { copyBtn, all, open, change, recvStatus }) bb.Controls.Add(c);
             bottomGrid.Controls.Add(bb, 0, 1);
+            UpdateCopyButton();
             bottom.Controls.Add(bottomGrid);
             root.Controls.Add(bottom, 0, 2);
 
@@ -266,7 +278,15 @@ namespace DosyaAktar
             }
             scanner.Start();
             refresh.Start();
+            gallery.SetFolder(receiver.SaveDir);
             UpdateInfo();
+        }
+
+        void UpdateCopyButton()
+        {
+            var n = gallery.SelectedItems.Count;
+            copyBtn.Text = n == 0 ? "Kopyala" : "Kopyala (" + n + ")";
+            copyBtn.Enabled = n > 0;
         }
 
         void UpdateInfo()
@@ -376,7 +396,6 @@ namespace DosyaAktar
             else text = "✓  " + r.Sent + " dosya gönderildi  →  " + peer.Name;
             if (!r.Declined && !r.Cancelled && r.Errors.Count == 0) bar.Value = bar.Maximum;
             status.Text = text;
-            AddLog("⬆  " + text, null);
             RefreshDevices();
         }
 
@@ -388,17 +407,6 @@ namespace DosyaAktar
             if (on) drop.Text = "Gönderiliyor…";
         }
 
-        void AddLog(string text, string path)
-        {
-            log.Items.Insert(0, new LogEntry { Text = DateTime.Now.ToString("HH:mm") + "   " + text, Path = path });
-            while (log.Items.Count > 500) log.Items.RemoveAt(log.Items.Count - 1);
-        }
-
-        static void Reveal(string path)
-        {
-            try { Process.Start("explorer.exe", "/select,\"" + path + "\""); } catch { }
-        }
-
         void ChangeFolder()
         {
             using (var d = new FolderBrowserDialog { Description = "Gelen dosyalar nereye kaydedilsin?", SelectedPath = receiver.SaveDir })
@@ -407,6 +415,7 @@ namespace DosyaAktar
                 receiver.SaveDir = d.SelectedPath;
                 settings["klasor"] = d.SelectedPath;
                 Settings.Save(settings);
+                gallery.SetFolder(d.SelectedPath);
                 UpdateInfo();
             }
         }
