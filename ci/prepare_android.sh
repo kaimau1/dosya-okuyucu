@@ -82,8 +82,7 @@ if [ "${DOSYA_KISISEL:-0}" = "1" ]; then
 import pathlib, re
 ek = pathlib.Path('ci/kisisel/manifest_ek.xml').read_text()
 def parca(ad):
-    m = re.search(rf'<!-- {ad} -->
-(.*?)<!-- /{ad} -->', ek, re.S)
+    m = re.search(rf'<!-- {ad} -->\n(.*?)<!-- /{ad} -->', ek, re.S)
     if not m:
         raise SystemExit(f'manifest_ek.xml: {ad} bloğu yok')
     return m.group(1)
@@ -91,8 +90,7 @@ p = pathlib.Path('android/app/src/main/AndroidManifest.xml')
 t = p.read_text()
 if t.count('<application') != 1 or t.count('</application>') != 1:
     raise SystemExit('manifest: <application> tek değil')
-t = t.replace('<application', parca('IZIN').lstrip() + '
-    <application', 1)
+t = t.replace('<application', parca('IZIN').lstrip() + '\n    <application', 1)
 t = t.replace('</application>', parca('SERVIS').lstrip() + '    </application>', 1)
 p.write_text(t)
 print('manifest: kişisel ekler eklendi')
