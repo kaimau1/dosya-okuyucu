@@ -361,3 +361,28 @@ Kullanıcı: *"fazlardan devam et, bulutta yapılabilecekleri yap, main'e merge 
   paperFrame / docCanvas` token'ı. Turu 1 bu yüzden CI'da kırmızıydı (yerel tam test aynı anda koşmadan
   push edildi) → turu 2'de düzeldi. Ders: push ÖNCESİ tam test bitmeli.
 
+
+## 2026-11-02 — Cihaz turu (Mi Note 10 Lite): profil APK, çöp hızı kök nedeni
+
+- **Test telefonu temizlendi:** 54 reklam/arka plan/gereksiz paket `pm uninstall --user 0`
+  (MIUI msa/analytics/daemon/joyose, Facebook/Netflix ön yüklemesi, Xiaomi bulut/mağaza/uygulamalar,
+  Google gereksizleri, kullanıcının eski uygulamaları). Kalan: WhatsApp, Telegram, Gmail, YouTube,
+  Play, Chrome (Yakındakiler tarayıcı yolu), Foto/Drive, Mi Dosya. Geri: `cmd package install-existing <paket>`.
+- **B1.3 tarifi (yerelde):** `git clone` → `C:\r8`; `ci/AndroidManifest.xml` + `ci/PickerActivity.kt`
+  authority `…dosya_okuyucu.r8test.documents`; `bash ci/prepare_android.sh` (PATH'te `python3` →
+  `python` kabuğu); `android/app/build.gradle.kts`'e `applicationIdSuffix = ".r8test"`;
+  `flutter build apk --profile --target-platform android-arm64`. MIUI kurulumu: Geliştirici
+  seçenekleri → "USB üzerinden yükle" (yoksa `INSTALL_FAILED_USER_RESTRICTED`). Profilde
+  `_logSlowStartupFrames` sökülmez, 300 karede bir `KARE_OZET … p99=` yazar.
+- **Bulgu:** Impeller Vulkan bu telefonda (Adreno 618) GLES'e düşüyor. `--ez enable-impeller false`
+  ile Skia denendi → daha KÖTÜ (%99 30–45 ms) → **reddedildi**, Impeller kalır.
+- **Kök neden — "5.000 dosyayı çöpe atmak dakikalar sürüyor":** (1) her dosyada büyüyen
+  `index.json` baştan kodlanıp yazılıyordu (O(n²)) → kayıtlar 64'lük gruplarla; grup yazılamazsa o
+  gruptaki dosyalar geri alınır. (2) asıl büyük pay **FUSE**: `/sdcard`'da `rename` hedef klasör
+  büyüdükçe pahalı — kabukta bile 5.500 dosyalı düz klasöre ~150 ms/dosya, küçük klasöre ~22 ms
+  (taban). Çöp artık `files/<zaman>-<k>/` 256'lık alt klasörlere yazıyor; kayıt `stored` alanı
+  `files/`e göreli yol (eski kayıtlar yalnız ad — ikisi de okunur); boşalan alt klasör silinir.
+  Sonuç temiz çöpte 1.000 dosya: taşı 31 sn, boşalt ~20 sn (önce 74–92 / ~67 ms/dosya).
+  **TUZAK:** ölçümde `date +%s%N` aritmetiği telefonda taşıyor (negatif/yanlış süre) → `time sh -c`.
+  **Bilinen sınır:** süreç grup ortasında ölürse ≤ 64 dosya kayıtsız kalır (ponytail notu kodda).
+- Ölçümler `docs/CIHAZ_TESTI.md` §1; sınırdakiler KALANLAR B3.3b.

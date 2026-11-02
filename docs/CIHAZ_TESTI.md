@@ -33,9 +33,9 @@
 | Soğuk açılış, ilk kare / etkileşim | ≤ 1,2 sn / ≤ 2 sn | 433–628 ms (2026-10-22, Xiaomi 13T) | |
 | Açılışın ilk 0,5 sn'si: ilk kare raster, pano build | ölç (KALANLAR A8.2 sonrası) | 218–309 ms / 45–49 ms | |
 | Boşta pano 60 sn: çizilen kare + zamanlayıcı | 0 | 0 ✔ | |
-| 5.000 öğeli klasör kaydırma + sürükleyerek seçim, %99 kare | ≤ 24 ms | 8,5 ms ✔ | |
+| 5.000 öğeli klasör kaydırma + sürükleyerek seçim, %99 kare | ≤ 24 ms | 8,5 ms ✔ | Mi Note 10 Lite 19–27 ms ≈ sınırda |
 | Büyük klasör açılış karesi (3.000 foto) | — | 58 ms ✔ | |
-| Galeri 2.000 fotoğraf kaydırma sonrası RSS | ≤ 350 MB (hafif ≤ 250) | | |
+| Galeri 2.000 fotoğraf kaydırma sonrası RSS | ≤ 350 MB (hafif ≤ 250) | | Mi Note 10 Lite 355 MB (profil, küçük PNG) ≈ sınırda |
 | 100 sayfalık PDF: ilk sayfa, açılıştan sonraki 10 sn CPU | — | | |
 | `uzun_320_sayfa.pdf` açılış | Faz 4'ten kötü değil | | |
 | Excel 10 bin × 20: açılış / kaydırma %99 kare (**K23** — tutmazsa KALANLAR B3.1) | ≤ 1,5 sn / ≤ 16 ms | | |
@@ -46,7 +46,7 @@
 | Görsel düzenleyici 4000×3000: ayar kaydırıcısı kare | ≤ 8 ms / ≤ 16 ms | | |
 | Ek bellek: Word 300 sayfa · Excel 100 bin hücre · büyük PDF düzenleme | ≤ +150 MB · ≤ +120 MB · ölç | | |
 | 50 slaytlık deste açılış/kaydırma · 10 bin satırlık metin | akıcı | | |
-| Dolu çöp (≥ 3 bin öğe) açılış | < 1 sn | | |
+| Dolu çöp (≥ 3 bin öğe) açılış | < 1 sn | | Mi Note 10 Lite 5.999 öğe ✔ |
 | 100 bin+ dosyalı telefonda pano taraması (süre, bellek; `_TopN` yeterli mi) | ölç | | |
 | Akıllı analiz: 1.500 WhatsApp görselinde OCR süresi | ölç | | |
 | R8'li APK: açılış çökmesiz, APK boyutu | çökme yok | ✔ 60,6 MB (2026-10-22) | |
@@ -62,7 +62,21 @@
 | Word çok sayfa · Slayt 50: açılış, kaydırma PSS | 601 ms, ~203 MB · 629 ms, ~150 MB ✔ |
 | Excel 10 bin × 20: ilk hücre | ~20 sn → DOM'suz okuyucuyla **7,7–8,9 sn** ✖ hedef ≤ 1,5 sn (KALANLAR B3.3) |
 | Pil: 4 dk PDF kaydırma + 2 dk arka plan | 48 sn CPU; **mAh ölçülemedi** (telefon prizde, hesaplanan tüketim 0) |
-| Kare %99 | ölçülmedi: yayın derlemesinde kare kancası 6 sn sonra sökülüyor; profil APK gerekir (B1.3) |
+| Kare %99 | yayın derlemesinde ölçülmez → profil APK (aşağıda) |
+
+**Aynı telefon — 2026-11-02, yan yana `.r8test` profil APK'sı (`KARE_OZET`, 300 karelik dilimler):**
+Impeller Vulkan bu telefonda (Adreno 618) **OpenGLES'e düşüyor**. Skia denendi: daha kötü
+(%99 30–45 ms, ilk dilim 145 ms) → Impeller kalıyor.
+
+| Ölçüm | Sonuç |
+|---|---|
+| Soğuk açılış (profil, yayından yavaş) | 1,45–1,56 sn (ilk 2,5 sn) |
+| 5.000 öğeli klasör açılış karesi | 145 ms (build 139) |
+| 5.000 öğe kaydırma %99 — 300 ms'lik kaydırma / 120 ms'lik (insandan hızlı) | 19–27 ms ≈ sınırda / 25–31 ms (hedef ≤ 24) |
+| 2.000 görsel, 3 sütun kaydırma %99 · sonra PSS / RSS | 20–29 ms · 260 / 355 MB (hedef RSS ≤ 350) |
+| Çöpe taşı (eski kod) | ✖ 5.000 dosyada 4 dk'da ~1.800, giderek yavaş (74–92 ms/dosya) |
+| Çöpe taşı / boşalt, temiz çöpte 1.000 dosya (toplu kayıt + 256'lık alt klasör) | 31 sn / ~20 sn ✔ (FUSE `rename` tabanı ~22 ms/dosya) |
+| Dolu çöp (5.999 öğe) açılış | < 1 sn, en kötü kare 88 ms ✔ · eski düz çöpü boşaltma 5.999 öğe ~400 sn |
 
 ## 2. Dosya yöneticisi — pano, listeler, süzgeç, arama
 
@@ -106,7 +120,8 @@
       vurgulu; galeri ⋮ ve uzun basma menüsü aynı görünüm (menü dili).
 - [ ] **Seçimde** galeri/kategori ekranında yana kaydırma sayfa DEĞİŞTİRMİYOR; başlıkta toplam
       boyut doğru.
-- [ ] **Liste görünümü:** klasör başına hatırlanan görünüm/sıralama; iki parmakla sütun sayısı;
+- [ ] **Liste görünümü:** sıralama menüsünde "Yalnız bu klasör" açıkken sıralama klasöre özel
+      (görünüm/sütun gezginde GLOBAL — tasarım, FAZ_PLANI Faz 17 G3); iki parmakla sütun sayısı;
       simge üstündeki uzantı yazısı ("XLSX") net; PDF'ler kapak sayfasıyla, kaydırma akıcı.
 - [ ] **Hızlı kaydırıcı:** balon + tutamaç; Arapça'da SOL kenarda.
 - [ ] **Uygulamalar ekranı:** boyuta göre sıralı, Ayarlar'daki sayılarla tutuyor; "Kullanım

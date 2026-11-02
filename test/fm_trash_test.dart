@@ -60,6 +60,29 @@ void main() {
     expect(await trash.list(), isEmpty);
   });
 
+  test('toplu silme: her dosya kayıtlı, alt klasörlere bölünür, boşalınca '
+      'alt klasör kalmaz', () async {
+    final files = [for (var i = 0; i < 300; i++) touch('cok/d$i.txt', '$i')];
+    final result = await trash.moveToTrash([for (final f in files) f.path]);
+    expect(result.hasError, isFalse);
+    expect(result.succeeded, 300);
+    expect(result.transfers, hasLength(300));
+    // Yeni bir servis örneği kaydı diskten okur (göreli alt klasör yolu).
+    final fresh = TrashService(
+        volumeRoots: [volume.path], fallbackRoot: p.join(tmp.path, 'app'));
+    final items = await fresh.list();
+    expect(items.map((i) => i.originalPath).toSet(),
+        {for (final f in files) f.path});
+    expect(items.map((i) => p.dirname(i.storedPath)).toSet(), hasLength(2));
+    final restored =
+        await fresh.restore(items.firstWhere((i) => i.name == 'd299.txt'));
+    expect(File(restored).readAsStringSync(), '299');
+    await fresh.empty();
+    final filesDir =
+        Directory(p.join(volume.path, TrashService.dirName, 'files'));
+    expect(filesDir.listSync(), isEmpty);
+  });
+
   test('eski yol doluysa geri yükleme " (1)" ile yapılır', () async {
     final f = touch('a.txt', 'eski');
     await trash.moveToTrash([f.path]);

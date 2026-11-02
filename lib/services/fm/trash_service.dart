@@ -37,7 +37,9 @@ class TrashItem {
   });
 
   Map<String, dynamic> toMap() => {
-        'stored': p.basename(storedPath),
+        // `files/`e göre göreli yol: alt klasörlü (bkz. [TrashService._shard])
+        // ya da eski kayıtlarda yalnız ad — ikisini de [fromMap] okur.
+        'stored': p.relative(storedPath, from: p.join(trashDir, 'files')),
         'original': originalPath,
         'name': name,
         'isDir': isDir,
@@ -105,6 +107,14 @@ class TrashService {
 
   /// Verilen yolları çöpe taşır.
   static var _counter = 0;
+  static const _batch = 64;
+
+  /// Çöpteki alt klasör başına en çok bu kadar öğe (2026-11-02, Mi Note 10
+  /// Lite). `/sdcard` FUSE'tan geçiyor ve `rename` maliyeti HEDEF KLASÖRÜN
+  /// büyüklüğüyle artıyor: kabukta bile 5.500 dosyalı düz `files/`e taşıma
+  /// dosya başına ~150 ms, küçük klasöre ~22 ms. Her çöpe atma çağrısı kendi
+  /// `files/<zaman>-<k>/` klasörlerine yazar.
+  static const _shard = 256;
   Future<FmOpResult> moveToTrash(
     List<String> paths, {
     void Function(FmProgress)? onProgress,
@@ -115,15 +125,61 @@ class TrashService {
     final moves = <FmTransfer>[];
     var ok = 0;
     var done = 0;
+    // **Kayıtlar toplu yazılır** (2026-11-02, Mi Note 10 Lite: 5.000 küçük
+    // dosya 4 dakikada ancak ~1.800'e varıyordu, giderek yavaşlayarak). KÖK
+    // NEDEN: her dosyada büyüyen `index.json` baştan kodlanıp `flush`la
+    // yazılıyordu — toplam O(n²). Artık [_batch] dosyada bir yazma; yazma
+    // başarısızsa o gruptaki dosyalar eski yerine döner (aşağıdaki güvence).
+    // ponytail: süreç grup ortasında ölürse en çok [_batch] dosya kayıtsız
+    // kalır (eskiden 1); gerekirse `files/` içindeki kayıtsızları toplayan
+    // bir kurtarma eklenir.
+    final pending = <(TrashItem, FmTransfer)>[];
+    Future<void> flush() async {
+      if (pending.isEmpty) return;
+      final batch = [...pending];
+      pending.clear();
+      try {
+        await _appendIndex([for (final b in batch) b.$1]);
+        ok += batch.length;
+        for (final b in batch) {
+          gone.add(b.$1.originalPath);
+          moves.add(b.$2);
+        }
+      } catch (e) {
+        // KAYIT YAZILAMAZSA DOSYA GERİ GETİRİLİR — açıklama aşağıda.
+        for (final (item, _) in batch) {
+          var back = false;
+          try {
+            if (item.isDir) {
+              await Directory(item.storedPath).rename(item.originalPath);
+            } else {
+              await File(item.storedPath).rename(item.originalPath);
+            }
+            back = true;
+            await PathSideIndex.moved(item.storedPath, item.originalPath);
+          } catch (_) {}
+          final why = back
+              ? 'dosya yerinde bırakıldı'
+              : 'dosya şurada: ${item.storedPath}';
+          errors.add('${item.name}: çöp kaydı yazılamadı ($e); $why');
+        }
+      }
+    }
+
+    final bucket = DateTime.now().millisecondsSinceEpoch;
+    final ready = <String>{}; // bu çağrıda kurulan alt klasörler
     for (final path in paths) {
       final name = p.basename(path);
       onProgress?.call(FmProgress(done, paths.length, name));
       try {
         final trashDir = trashDirFor(path);
-        final filesDir = Directory(p.join(trashDir, 'files'));
-        await filesDir.create(recursive: true);
-        // Çöp klasörünün kendisi medya taramasına girmesin.
-        await _ensureNoMedia(trashDir);
+        final filesDir =
+            Directory(p.join(trashDir, 'files', '$bucket-${done ~/ _shard}'));
+        if (ready.add(filesDir.path)) {
+          await filesDir.create(recursive: true);
+          // Çöp klasörünün kendisi medya taramasına girmesin.
+          await _ensureNoMedia(trashDir);
+        }
 
         final id = '${DateTime.now().millisecondsSinceEpoch}'
             '-${_counter++}-${FileOps.sanitizeName(name)}';
@@ -213,43 +269,26 @@ class TrashService {
         // alıp hatayı bildiriyoruz: kullanıcı dosyasını YERİNDE bulur, "silme
         // başarısız" mesajını okur ve yeniden dener (2026-07-29 denetimi, 4.
         // tur — CRITICAL). Geri alma da başarısız olursa yol en azından hata
-        // metninde geçer.
-        try {
-          await _appendIndex(
-            trashDir,
-            TrashItem(
-              storedPath: storedAt,
-              originalPath: path,
-              name: name,
-              isDir: isDir,
-              sizeBytes: size,
-              deletedAtMs: DateTime.now().millisecondsSinceEpoch,
-              trashDir: trashDir,
-            ),
-          );
-        } catch (e) {
-          var back = false;
-          try {
-            if (isDir) {
-              await Directory(storedAt).rename(path);
-            } else {
-              await File(storedAt).rename(path);
-            }
-            back = true;
-            await PathSideIndex.moved(storedAt, path);
-          } catch (_) {}
-          throw FileSystemException(back
-              ? 'çöp kaydı yazılamadı ($e); dosya yerinde bırakıldı'
-              : 'çöp kaydı yazılamadı ($e); dosya şurada: $storedAt');
-        }
-        ok++;
-        gone.add(path);
-        moves.add(FmTransfer(path, storedAt));
+        // metninde geçer. (Yazma toplu: [flush].)
+        pending.add((
+          TrashItem(
+            storedPath: storedAt,
+            originalPath: path,
+            name: name,
+            isDir: isDir,
+            sizeBytes: size,
+            deletedAtMs: DateTime.now().millisecondsSinceEpoch,
+            trashDir: trashDir,
+          ),
+          FmTransfer(path, storedAt),
+        ));
+        if (pending.length >= _batch) await flush();
       } catch (e) {
         errors.add('$name: $e');
       }
       done++;
     }
+    await flush();
     onProgress?.call(FmProgress(done, paths.length, ''));
     // **Çöpe atılan dosya arama dizininden de düşer** (kullanıcı hatası
     // 2026-08-25: *"çöpe atılan şeyler bir süre sonra hem çöpte hem
@@ -341,6 +380,7 @@ class TrashService {
     // Etiket/açılma geçmişi dosyayla birlikte eski yoluna döner.
     await PathSideIndex.moved(item.storedPath, target);
     await _removeFromIndex(item);
+    _dropEmptyShards([item]);
     FsEvents.changed([target]);
     return target;
   }
@@ -359,7 +399,19 @@ class TrashService {
   Future<void> deleteForever(TrashItem item) async {
     await _deleteStored(item);
     await _removeFromIndex(item);
+    _dropEmptyShards([item]);
     FsEvents.changed();
+  }
+
+  /// Boşalan alt klasörleri ([_shard]) siler; dolu olan ya da `files/`in
+  /// kendisi kalır (boş olmayan klasörde `delete` hata verir, yutulur).
+  void _dropEmptyShards(Iterable<TrashItem> items) {
+    for (final dir in {for (final i in items) p.dirname(i.storedPath)}) {
+      if (p.basename(dir) == 'files') continue;
+      try {
+        Directory(dir).deleteSync();
+      } catch (_) {}
+    }
   }
 
   /// Dosyanın kendisini siler (kayda dokunmaz). Hata YUKARI çıkar.
@@ -434,6 +486,7 @@ class TrashService {
       }
     }
     if (pending.isNotEmpty) await _removeManyFromIndex(pending);
+    _dropEmptyShards(items);
     if (ok > 0) FsEvents.changed();
     onProgress?.call(FmProgress(done, items.length, ''));
     return FmOpResult(succeeded: ok, errors: errors, cancelled: cancelled);
@@ -584,10 +637,15 @@ class TrashService {
     return completer.future;
   }
 
-  Future<void> _appendIndex(String trashDir, TrashItem item) =>
-      _withIndexLock(() async {
-        final items = [...await _readIndex(trashDir), item];
-        await _writeIndex(trashDir, items);
+  /// Kayıtları çöp dizinlerine (birim başına bir `index.json`) ekler.
+  Future<void> _appendIndex(List<TrashItem> added) => _withIndexLock(() async {
+        for (final dir in {for (final i in added) i.trashDir}) {
+          final items = [
+            ...await _readIndex(dir),
+            ...added.where((i) => i.trashDir == dir),
+          ];
+          await _writeIndex(dir, items);
+        }
       });
 
   Future<void> _removeFromIndex(TrashItem item) => _withIndexLock(() async {

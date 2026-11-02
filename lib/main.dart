@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kProfileMode;
 import 'package:flutter/scheduler.dart' show SchedulerBinding, TimingsCallback;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -226,11 +227,27 @@ Future<void> main() async {
 /// yayın derlemesinde zaman çizelgesi yok. İlk 6 sn'deki yavaş karelerin
 /// Dart (build) mı çizim (raster) mi olduğu logcat'e yazılır:
 /// `adb logcat -s flutter | grep KARE`. Sonra kanca kendini söker.
+///
+/// **Profil derlemesinde** (`.r8test`, KALANLAR B1.3) kanca sökülmez ve her
+/// 300 karede bir dağılım yazar: `KARE_OZET n= p50= p90= p99= max=` (ms) —
+/// kaydırma senaryolarının %99 karesi buradan okunur.
 void _logSlowStartupFrames() {
   final until = DateTime.now().add(const Duration(seconds: 6));
+  final spans = <int>[];
   late final TimingsCallback cb;
   cb = (timings) {
     for (final t in timings) {
+      if (kProfileMode) {
+        spans.add(t.totalSpan.inMicroseconds);
+        if (spans.length >= 300) {
+          spans.sort();
+          String q(double p) =>
+              (spans[((spans.length - 1) * p).round()] / 1000).toStringAsFixed(1);
+          debugPrint('KARE_OZET n=${spans.length} p50=${q(.5)} p90=${q(.9)} '
+              'p99=${q(.99)} max=${q(1)}');
+          spans.clear();
+        }
+      }
       if (t.totalSpan.inMilliseconds < 25) continue;
       // debugPrint yayın derlemesinde de logcat'e yazar (`print` uyarısız).
       debugPrint('KARE toplam=${t.totalSpan.inMilliseconds} '
@@ -238,7 +255,7 @@ void _logSlowStartupFrames() {
           'raster=${t.rasterDuration.inMilliseconds} '
           'vsync_gecikme=${t.vsyncOverhead.inMilliseconds}');
     }
-    if (DateTime.now().isAfter(until)) {
+    if (!kProfileMode && DateTime.now().isAfter(until)) {
       SchedulerBinding.instance.removeTimingsCallback(cb);
     }
   };

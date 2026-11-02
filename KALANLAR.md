@@ -161,8 +161,7 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
 
 ### B1 — Yerel Windows oturumu küçük işleri 💻
 
-- [ ] **B1.3 Ölçüm hazırlığı:** yan yana kurulabilen `.r8test` profil APK'sı (HAFIZA
-      tuzağı: CI anahtarı ≠ yerel anahtar) + `tool/make_test_tree.py` verisi.
+(B1 bitti — 2026-11-02: `.r8test` profil APK'sı ve ölçüm verisi hazırlığı; tarif HAFIZA.)
 
 ### B2 — Cihaz turu 📱 (FAZ_PLANI 12b + DUZENLEME 33 cihaz kısmı + Faz 4 ölçümleri)
 
@@ -189,6 +188,10 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
       demişti. Onaylanmazsa kök neden yazılır, editör düzeltilir.
 - [ ] **B3.3a Excel açılışı:** 10 bin × 20 Mi Note 10 Lite'ta 7,7–8,9 sn (DOM'suz okuyucudan önce ~20 sn), hedef ≤ 1,5 sn.
       Sırada: `XlsxReader.read` sonrası nerede vakit gidiyor ölç (`_rowsFrom`, ilk çizim); gerekirse hücreleri tembel kur.
+- [ ] **B3.3b Mi Note 10 Lite sınırdakiler (2026-11-02, profil APK):** 5.000 öğe kaydırma
+      %99 19–27 ms (hedef 24; yavaş karelerde raster baskın, Impeller GLES — Skia daha kötü);
+      galeri 2.000 küçük PNG sonrası RSS 355 MB (hedef 350). Kök neden için DevTools zaman
+      çizelgesi (profil APK, `flutter attach`) gerekir; tahminle yama yok.
 - [ ] **B3.3 Faz 4 bütçe aşımları** (soğuk açılış ≤ 1,2 sn, 5.000 öğe kaydırma %99 ≤ 24 ms,
       galeri 2.000 fotoğraf RSS ≤ 350 MB / hafif ≤ 250 MB, boşta 0 kare) ve DUZENLEME §7
       bütçeleri → aynı oturumda düzelt.

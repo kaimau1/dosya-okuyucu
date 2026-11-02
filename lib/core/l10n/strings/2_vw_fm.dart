@@ -85,8 +85,7 @@ const Map<String, (String, String, String)> _t2 = {
         '(سلة المهملات معطّلة من الإعدادات.)',
   ),
   'fm.delete_trash_body': (
-    '{label} çöp kutusuna taşınacak. Geri Dönüşüm Kutusu’ndan geri '
-        'yükleyebilirsiniz.',
+    '{label} çöp kutusuna taşınacak. Oradan geri yükleyebilirsiniz.',
     '{label} will be moved to the trash. You can restore it from the Recycle '
         'Bin.',
     'سيتم نقل {label} إلى المهملات. يمكنك استعادته من سلة المحذوفات.',
