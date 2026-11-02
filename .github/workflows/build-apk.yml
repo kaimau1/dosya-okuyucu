@@ -62,7 +62,8 @@ permissions:
 # Art arda iki push → ilki iptal (C2). Etiketler ref'e göre ayrı gruptadır,
 # yani bir sürüm etiketi main'deki derlemeyi iptal etmez.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # Kişisel derleme ayrı grupta: aynı daldaki genel (nightly) koşuyu iptal etmesin.
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ (inputs.kisisel || contains(github.event.head_commit.message, '[kisisel]')) && 'kisisel' || 'genel' }}
   cancel-in-progress: true
 
 # SÜRÜM DUVARI DENEMESİ (2026-08-28): Flutter sürümü tek yerde ve elle
