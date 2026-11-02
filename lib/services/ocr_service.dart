@@ -247,7 +247,7 @@ class OcrService {
     final img = await page.render(
       fullWidth: page.width * scale,
       fullHeight: page.height * scale,
-      backgroundColor: AppColors.page,
+      backgroundColor: AppColors.page.toARGB32(),
     );
     if (img == null) return null;
     try {
@@ -256,7 +256,8 @@ class OcrService {
         img.pixels,
         img.width,
         img.height,
-        img.format,
+        // pdfrx 2.x: pdfium çıktısı her platformda BGRA.
+        ui.PixelFormat.bgra8888,
         completer.complete,
       );
       final uiImage = await completer.future;

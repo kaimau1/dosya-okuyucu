@@ -26,13 +26,14 @@ List<PdfRect> selectionPdfRects(PdfPageText text, int start, int end) {
     final s = a < 0 ? 0 : a;
     final e = b > f.length ? f.length : b;
     if (s >= e) continue;
-    PdfRect? bounds;
+    PdfRect bounds;
     try {
-      bounds = f.getBoundsForRange(start: s, end: e);
+      bounds = f.charRects.boundingRect(start: s, end: e);
     } catch (_) {
+      // Parçanın karakter kutuları eksikse (bozuk metin katmanı) parçanın tamamı.
       bounds = f.bounds;
     }
-    if (bounds != null) out.add(bounds);
+    out.add(bounds);
   }
   return mergeSameLineRects(out);
 }

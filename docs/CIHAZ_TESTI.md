@@ -557,4 +557,7 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
       satırında ilerliyor, bitenler ✓; Durdur kalanları göndermiyor; tablette/yatayda iki sütun.
 - [ ] **A3.4 tazeleme sonrası (2026-11-02):** iş bildirimi + Durdur düğmesi, müzik bildirimi (ön plan servisi), video
       küçük resimleri, ilk açılışta depolama izni, PDF açıklama/form kaydetme, belge tarayıcı (cunning 1.4.0), OCR + çeviri.
+- [ ] **pdfrx 2.4.8 (A3.2, 2026-11-02):** PDF aç/kaydır/yakınlaştır (titreme var mı), metin seçimi + kopyala,
+      taranmış sayfada OCR seçimi, arama vurguları, açıklama işaretleri yerinde mi, küçük resimler, 4 sütun düzeni.
+      Ölç: `_pdfRenderScale` ve sığdırma kenetlemesi kapatılınca 2.x kendisi titremiyor mu → gereksizse sil.
 

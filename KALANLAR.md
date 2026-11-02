@@ -52,12 +52,6 @@ sürüm" diye sabitlenmiş paketler ve onlara karşı yazılmış geçici çöz�
 Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu bütçesi
 (CI) geçmeli; cihazda bakılacaklar `CIHAZ_TESTI.md`'ye.
 
-- [ ] **A3.2 `pdfrx ^1.3.0` → 2.x** (en büyük kazanç, ayrı dalda dene): 1.3.5 hatalarına
-      karşı yazılan çözümler — basamaklı `getPageRenderingScale` (yakınlaştırma
-      titremesi), görünüm boyu değişince sayfa başına atlama (okuma kipi katmanı),
-      `useAlternativeFitScaleAsMinScale` kenetlemesi, kendi seçim katmanı
-      `widgets/pdf_select_layer.dart` — 2.x'te gereksiz mi, ölç. Gereksizse sadeleştir;
-      değilse kalsın ve gerekçe HAFIZA'ya. Bütün `pdf_*` testleri + B2 PDF bölümü.
 - [ ] **A3.4b Kalan sabitler:** `wakelock_plus 1.4.0` (1.6.1+ `win32 ^6` → `share_plus` 10 → 13 birlikte),
       `permission_handler` 12 (13'ü `cunning_document_scanner` 3.x ister), `syncfusion` 33 (35 `xml ^7`; `pdf`
       paketi ^6'da tutuyor), `shared_preferences_android 2.4.28` (JNI çökmesi düzeldiği cihazda doğrulanırsa).

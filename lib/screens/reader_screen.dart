@@ -155,7 +155,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
     String text = '';
     try {
       final page = widget.document.pages[pageNumber - 1];
-      text = (await page.loadText()).fullText;
+      text = (await page.loadText())?.fullText ?? '';
       // "İnce" metin (yalnız sayfa numarası gibi kırıntılar) = taranmış
       // sayfa → OCR (seçim katmanıyla aynı eşik ve aynı önbellek).
       if (text.trim().length < 8 && PdfOcrText.isSupported) {

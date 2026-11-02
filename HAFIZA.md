@@ -481,3 +481,14 @@ Kullanıcı: *"fazlardan devam et, bulutta yapılabilecekleri yap, main'e merge 
   wakelock 1.8 + bildirim 17 ise `dbus` sürümünde çakışıyordu (bildirim 22 bunu çözdü).
 - Cihazda: bildirim (iş/oynatıcı/ön plan servisi), video küçük resmi, depolama izni akışı, PDF yazma (Syncfusion).
 
+## 2026-11-02 — A3.2 pdfrx 1.3.5 → 2.4.8
+- 2.11 çözülmüyor (pdfrx_engine 0.9 bağımlılık zinciri); ^2.4.8. Yerel pdfium artık `pdfium_flutter` paketinden.
+- API farkları: `loadText()` → ham `PdfPageRawText?` (fullText + charRects); parçalı metin `loadStructuredText()`
+  (uzantı; ham metinden üretir → **test sahteleri `loadText` ile ham metin döndürmeli**). `PdfPageText` artık sabit
+  değer sınıfı, parça sayfaya geri başvurur → OCR metni `assembleOcrPageText` (önce sayfa, sonra parçalar).
+  `getBoundsForRange` → `charRects.boundingRect(start,end)`; `toRectInPageRect` → `toRectInDocument`;
+  `render(backgroundColor:)` int (ARGB); `PdfImage.format` yok (her yerde BGRA); `minScale` /
+  `useAlternativeFitScaleAsMinScale` → `sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(...)`.
+- **Geçici çözümler BİLEREK duruyor** (basamaklı `getPageRenderingScale`, sığdırma kenetlemesi, sabit pay,
+  kendi seçim katmanı): 2.x'te gereksiz mi sorusu yalnız cihazda ölçülür → CIHAZ_TESTI PDF bölümü (B2).
+

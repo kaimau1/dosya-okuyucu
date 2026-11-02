@@ -67,8 +67,10 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         // bunun ALTINDA kaldığı için `_fitPdfWidth` sessizce
                         // tek sayfa ölçeğine kırpılıyordu. Çok sütunda sınır
                         // gevşer; tek sütunda eski davranış.
-                        useAlternativeFitScaleAsMinScale: _pdfColumns == 1,
-                        minScale: _pdfColumns == 1 ? 0.1 : 0.05,
+                        sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(
+                          useAlternativeFitScaleAsMinScale: _pdfColumns == 1,
+                          minScale: _pdfColumns == 1 ? 0.1 : 0.05,
+                        ),
                         backgroundColor: Theme.of(context)
                             .colorScheme
                             .surfaceContainerHighest,
@@ -484,7 +486,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
   /// tavanın ötesinde gerek kalır. Jest SÜRERKEN ölçek değişmez (yeniden
   /// çizim yok, titreme yok); parmak kalkınca bir kez keskinleşir. Geri
   /// uzaklaşınca ölçek ancak yarıdan fazla düşünce iner (gidip gelmesin).
-  double? _pdfRenderScale(BuildContext context, PdfPage page,
+  double _pdfRenderScale(BuildContext context, PdfPage page,
       PdfViewerController controller, double estimated) {
     var current = _pdfBaseScale ?? estimated;
     if (!_pdfInteracting && controller.isReady) {
