@@ -111,6 +111,8 @@ class TrashService {
   }) async {
     final errors = <String>[];
     final gone = <String>[];
+    // İş sonucu sayfası için (2026-11-02, A5): özgün yol → çöpteki yol.
+    final moves = <FmTransfer>[];
     var ok = 0;
     var done = 0;
     for (final path in paths) {
@@ -242,6 +244,7 @@ class TrashService {
         }
         ok++;
         gone.add(path);
+        moves.add(FmTransfer(path, storedAt));
       } catch (e) {
         errors.add('$name: $e');
       }
@@ -260,7 +263,8 @@ class TrashService {
     // döner, arada da diskten tarayan yollar (gezgin) onu zaten gösterir.
     if (gone.isNotEmpty) await SearchIndex.forget(gone);
     if (ok > 0) FsEvents.changed(gone);
-    return FmOpResult(succeeded: ok, errors: errors);
+    return FmOpResult(
+        succeeded: ok, errors: errors, transfers: moves, trashed: true);
   }
 
   /// Çöpteki tüm kayıtlar (en yeni önce). Diskte karşılığı kalmamış kayıtlar

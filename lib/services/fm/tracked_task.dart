@@ -154,7 +154,7 @@ class TrackedTask {
           str.t('job.op_errors', {'n': result.errors.length}),
       ];
       FmJobTarget? target;
-      if (result.transfers.isNotEmpty) {
+      if (result.transfers.isNotEmpty && !result.trashed) {
         target = FmJobTarget.folder(p.dirname(result.transfers.first.dest));
       }
       return (
@@ -189,12 +189,28 @@ class TrackedTask {
 /// Taşıma / kopyalama / yeniden adlandırma sonucunu iş kaydına çevirir:
 /// tür `move` (kaynak artık yok) ya da `copy`; değer hedef klasörün adı,
 /// [JobChange.before] kaynak yol (taşımada geri alma bununla yapılır).
+///
+/// Çöpe taşımada (2026-11-02) tür `trash`, değer boş (tek grup), [path]
+/// çöpteki yol, [JobChange.before] özgün yol — "Geri yükle" bununla.
 List<JobChange> jobChangesOf(FmOpResult result) => [
       for (final t in result.transfers)
-        JobChange(
-          path: t.dest,
-          kind: File(t.source).existsSync() ? 'copy' : 'move',
-          value: p.basename(p.dirname(t.dest)),
-          before: t.source,
-        ),
+        if (result.trashed)
+          JobChange(path: t.dest, kind: 'trash', value: '', before: t.source)
+        else
+          JobChange(
+            path: t.dest,
+            kind: File(t.source).existsSync() ? 'copy' : 'move',
+            value: p.basename(p.dirname(t.dest)),
+            before: t.source,
+          ),
     ];
+
+/// Yeniden adlandırma kaydı (2026-11-02): tür `rename`, değer boş (tek grup:
+/// "Yeniden adlandırıldı"), [JobChange.before] eski yol — geri alma onunla.
+JobChange renamedChange(String oldPath, String newPath) => JobChange(
+      path: newPath,
+      kind: 'rename',
+      value: '',
+      before: oldPath,
+    );
+

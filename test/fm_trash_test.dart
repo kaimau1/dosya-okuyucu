@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dosya_okuyucu/models/fs_entry.dart';
 import 'package:dosya_okuyucu/services/fm/fs_scan.dart';
+import 'package:dosya_okuyucu/services/fm/tracked_task.dart';
 import 'package:dosya_okuyucu/services/fm/trash_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -148,5 +149,24 @@ void main() {
     // Bugün silinen öğe 7 gün eşiğine takılmaz.
     expect(await trash.purgeOlderThan(7), 0);
     expect(await trash.list(), hasLength(1));
+  });
+
+  // 2026-11-02 (KALANLAR A5): çöpe taşıma iş sonucu sayfasına yazılır.
+  test('çöpe taşıma sonucu iş kaydına "trash" olarak çevrilir, geri yüklenir',
+      () async {
+    final f = touch('Belgeler/rapor.pdf');
+    final r = await trash.moveToTrash([f.path]);
+    expect(r.trashed, isTrue);
+    expect(r.transfers.single.source, f.path);
+    final changes = jobChangesOf(r);
+    expect(changes.single.kind, 'trash');
+    expect(changes.single.before, f.path);
+    // İş kartı gizli çöp klasörünü "hedef" göstermez.
+    expect(TrackedTask.summarize(r).target, isNull);
+    // Rapor ekranının yolu: kayıttaki çöp yolu listede bulunur, geri yüklenir.
+    final item = (await trash.list())
+        .singleWhere((i) => i.storedPath == changes.single.path);
+    await trash.restore(item);
+    expect(f.existsSync(), isTrue);
   });
 }

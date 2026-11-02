@@ -18,11 +18,13 @@ say "Platform iskeleti (flutter create)"
 rm -rf .backup
 mkdir -p .backup
 cp -r lib pubspec.yaml .backup/
+[ -f pubspec.lock ] && cp pubspec.lock .backup/ || true
 [ -d assets ] && cp -r assets .backup/ || true
 [ -f analysis_options.yaml ] && cp analysis_options.yaml .backup/ || true
 flutter create --org com.dosyaokuyucu --project-name dosya_okuyucu --platforms=android .
 cp -r .backup/lib .
 cp .backup/pubspec.yaml .
+[ -f .backup/pubspec.lock ] && cp .backup/pubspec.lock . || true
 [ -d .backup/assets ] && cp -r .backup/assets . || true
 [ -f .backup/analysis_options.yaml ] && cp .backup/analysis_options.yaml . || true
 rm -f test/widget_test.dart
@@ -387,7 +389,8 @@ tail -8 android/gradle.properties
 # Android APK'sına da koyuyordu (Android libpdfium.so kullanır). Flutter 3.29
 # paket varlığını dışlamayı bilmiyor → paket önbelleğindeki dosya silinir.
 say "pub get + pdfium.wasm + ikon"
-flutter pub get
+# Kilit depodaysa ona uy (2026-11-02); yoksa (eski kopya) serbest çözümle.
+if [ -f pubspec.lock ]; then flutter pub get --enforce-lockfile; else flutter pub get; fi
 python3 - <<'PY'
 import json, pathlib, urllib.parse
 cfg = json.loads(pathlib.Path('.dart_tool/package_config.json').read_text())

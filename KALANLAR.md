@@ -30,8 +30,8 @@ bu dosyadan madde silindi · main'e birleşti, CI yeşil. `ci/*.kt` değiştiyse
 `tool/check_kotlin.sh`. **`dart format` KOŞTURMA** (HAFIZA tuzakları).
 
 **Sıra:** A1 → A3 → A4 → A5 → A6 → A7 → A8 → (A9 isteğe bağlı). A3 tek başına bir
-oturum (riskli); A4, A5+A6, A7, A8 ayrı ayrı. (A2 ve A1.3, A4.5, A6.1–A6.3, A7.3
-2026-11-02'de bitti — HAFIZA.)
+oturum (riskli); A4, A5+A6, A7, A8 ayrı ayrı. (A2 ve A1.3, A3.5, A4.5, A6.1–A6.4, A7.3,
+A7.6, A7.7 2026-11-02'de bitti — HAFIZA.)
 
 ### A1 — Depo ve belge hijyeni (kısa, ilk iş)
 
@@ -68,9 +68,6 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
       2.2.0`, `flutter_local_notifications 17.2.4`, `syncfusion_flutter_pdf/_core 31.1.19`
       (K1 lisansı aynı), `shared_preferences_android 2.4.28` (JNI çökmesi — HAFIZA;
       yalnız düzeldiği doğrulanırsa), `flutter_lints ^4`.
-- [ ] **A3.5 `pubspec.lock` depoya alınsın** (uygulama deposu için Dart önerisi): CI her
-      koşuda yeniden çözümlüyor; alt paket kayması bu yüzden elle pinleniyordu.
-      `.gitignore`dan çıkar, CI `pub get --enforce-lockfile`.
 
 ### A4 — Kod sağlığı (Faz 3/5/12'nin kalıntıları)
 
@@ -94,22 +91,17 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
 
 ### A5 — İş sonucu sayfası her işte (`recordChanges`)
 
-- [ ] Bugün yalnız **AI etiketleme** ve **taşı/kopyala** dosya dosya değişiklik yazıyor
-      (`TrackedTask.recordChanges`, `jobChangesOf`; HAFIZA 2026-10-30/31 açık iş).
-      Bağlanacak: toplu yeniden adlandır (geri al = eski ad), görsel/video boyutlandırma
-      ve küçültme (çıktı + "özgünü çöpe at"), çöpe taşı / kalıcı sil, arşive ekle / çıkar,
+- [ ] Bugün **AI etiketleme**, **taşı/kopyala**, **toplu yeniden adlandır** (Adları geri al)
+      ve **çöpe taşı** (Geri yükle) dosya dosya değişiklik yazıyor (`TrackedTask.recordChanges`,
+      `jobChangesOf`, `renamedChange`; 2026-11-02).
+      Bağlanacak: görsel/video boyutlandırma
+      ve küçültme (çıktı + "özgünü çöpe at"), kalıcı sil, arşive ekle / çıkar,
       AI ile kategorilere ayır uygulaması, AI düzenleme, SD birleşik "Şimdi taşı", sohbet
       temizliği. **Bitti:** her işin kartından `JobReportScreen` açılıyor; geri
       alınabilenlerde "Geri al" çalışıyor; her iş için test.
 
 ### A6 — Play, gizlilik ve mağaza metinleri + Pro iskeleti
 
-- [ ] **A6.4 Play derlemesi izin varyantı** (eski "mağaza yolu (c)"): `DOSYA_PLAY=1`
-      hazırlık bayrağı (kişisel derleme bayrağı gibi) Play AAB'sinden
-      `QUERY_ALL_PACKAGES` (`tools:node="remove"`; uygulamalar ekranı `<queries>` +
-      kullanım istatistiğiyle) ve gerekirse `REQUEST_INSTALL_PACKAGES` /
-      `PACKAGE_USAGE_STATS`'ı çıkarır; GitHub derlemesi değişmez. Hangisi çıkacak 👤 B5;
-      kod + "üretilen manifestte yok" denetimi ☁️.
 - [ ] **A6.5 Pro / Billing iskeleti** (Faz 11a'da "kapalı bayrakla yazılabilir" denmişti,
       yazılmadı): tek kapı `ProGate` + Play Billing (tek seferlik Pro, K6) — ürün kimliği
       yokken bayrak kapalı, GitHub derlemesinde her şey açık; satın alma geri yükleme
@@ -134,12 +126,6 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
 - [ ] **A7.5 Excel koşullu biçim yazma:** renk ölçeği / veri çubuğu / simge kümesi bugün
       yalnız okunup çiziliyor; "Koşullu biçimlendirme" levhasına eklenir (`<cfRule>` +
       `<colorScale>/<dataBar>/<iconSet>`), LibreOffice ile gidiş-dönüş testi.
-- [ ] **A7.6 Koyu temada Word sayfa görünümü:** WebView kanvası (sayfanın çevresi) açık
-      kalıyor → `assets/word/viewer.html`'e tema zemini; isteğe bağlı gece kipi (PDF'teki
-      gibi ters renk).
-- [ ] **A7.7 Kâğıt teması belge sayfası çerçevesi** (`#FBF8F1` zemin + 1 px `#D2C8B4` +
-      yarıçap 4): bugün yalnız kanvas düzeyinde; PDF sayfa kutusu (pdfrx sayfa süslemesi)
-      ve Word WebView sayfasına da.
 - [ ] **A7.8 Asistan köprüsü — özet geri dönüşü** (isteğe bağlı): özet bugün Dosya
       Okuyucu'nun özet sayfasında açılıyor, asistana dönmüyor (HAFIZA 2026-10-31
       "gerekirse sonra"). Asistan deposunun `PROTOKOL.md`'siyle birlikte; yalnız kişisel
@@ -163,6 +149,11 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
       `showAppSheet` / `showAppActionSheet` / `showAppConfirm` / `showAppPrompt`. Her levha
       için önce/sonra PNG (`tool/design_shots_*`), kullanıcı onayıyla parti parti; son
       bakış B2.
+
+- [ ] **A9.2 Belge gece kipi ve PDF kâğıt zemini** (A7.6/A7.7 kalanı, 2026-11-02): koyu temada
+      Word kanvası artık koyu ama sayfa beyaz; isteğe bağlı "gece kipi" (PDF'teki gibi ters
+      renk, `viewer.html` CSS `filter`). PDF'te kâğıt temasında yalnız çerçeve var — sayfanın
+      içi pdfium beyazı (pdfrx 1.3.5 zemin rengini açmıyor; A3.2 pdfrx 2.x ile bak).
 
 ---
 
@@ -223,7 +214,10 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
       servisi türleri.
 - [ ] **B5.2 Pro:** Pro'ya girecek özellik listesi + Billing ürün kimlikleri → A6.5
       iskeletine bağlanır; test hesabında satın alma ve geri yükleme.
-- [ ] **B5.3 A6.4 kararı:** Play derlemesinden hangi izinler çıkacak.
+- [ ] **B5.3 Play izin varyantı kararı:** Play derlemesinden hangi izinler çıkacak
+      (kod hazır: `ci/play_variant.py`, elle tetiklemede `aab: true` + `play: true` +
+      `play_remove`; varsayılan yalnız `QUERY_ALL_PACKAGES`). Karardan sonra `v*` etiketinde
+      varsayılan açılabilir.
 - [ ] **B5.4 K7 — depo private + `LICENSE`** ("Tüm hakları saklıdır") + README lisans notu.
       Önce iki sonucu karara bağla: Actions dakikası 2.000/ay sınırı (HAFIZA kota tuzağı)
       ve gizlilik politikasının "raw GitHub" adresi çalışmaz → herkese açık politika

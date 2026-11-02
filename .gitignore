@@ -4,7 +4,8 @@
 build/
 .flutter-plugins
 .flutter-plugins-dependencies
-pubspec.lock
+# pubspec.lock DEPODA (2026-11-02, uygulama deposu için Dart önerisi;
+# CI `pub get --enforce-lockfile`).
 
 # Platform scaffolding (CI'da `flutter create` ile üretilir)
 .metadata

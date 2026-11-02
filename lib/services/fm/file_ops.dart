@@ -43,12 +43,17 @@ class FmOpResult {
   /// yüzden tahmin edilemez; "Geri al" için gerçek yol gerekir.
   final List<FmTransfer> transfers;
 
+  /// Çöpe taşıma sonucu mu? (2026-11-02) O zaman [transfers]'ın hedefi gizli
+  /// çöp klasörüdür: iş kartı oraya "git" demez, kayıt türü `trash` olur.
+  final bool trashed;
+
   const FmOpResult({
     this.succeeded = 0,
     this.skipped = 0,
     this.errors = const [],
     this.cancelled = false,
     this.transfers = const [],
+    this.trashed = false,
   });
 
   bool get hasError => errors.isNotEmpty;

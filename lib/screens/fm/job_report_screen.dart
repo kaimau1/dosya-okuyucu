@@ -12,6 +12,7 @@ import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/file_tags.dart';
+import '../../services/fm/fm_env.dart';
 import '../../services/fm/job_queue.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
@@ -248,6 +249,56 @@ class _JobReportScreenState extends State<JobReportScreen> {
         }
       }
       if (mounted) showSnack(context, str.t('jr.moved_back', {'n': n}));
+    });
+  }
+
+  /// Yeniden adlandırmayı geri al (2026-11-02): her dosya eski adına döner;
+  /// eski ad bu arada başka dosyaya verilmişse o dosya atlanır.
+  Future<void> _undoRename(List<JobChange> list) async {
+    final str = AppStrings.of(context);
+    await _guard(() async {
+      var n = 0;
+      for (final c in [...list]) {
+        final before = c.before;
+        if (c.kind != 'rename' || before == null) continue;
+        if (await FileSystemEntity.type(c.path) ==
+            FileSystemEntityType.notFound) {
+          continue;
+        }
+        try {
+          await FileOps.rename(c.path, p.basename(before));
+        } on FileSystemException {
+          continue; // eski ad dolu → bu dosya yeni adında kalır
+        }
+        n++;
+        _job.changes.remove(c);
+        _entries.remove(c.path);
+      }
+      if (mounted) showSnack(context, str.t('jr.renamed_back', {'n': n}));
+    });
+  }
+
+  /// Çöpe taşımayı geri al (2026-11-02): kayıttaki çöp yolu çöp dizininde
+  /// aranır ve eski yerine geri yüklenir (eski yol doluysa " (1)" ekiyle).
+  /// Çöp bu arada boşaltıldıysa o dosya için yapılacak bir şey yok.
+  Future<void> _untrash(List<JobChange> list) async {
+    final str = AppStrings.of(context);
+    await _guard(() async {
+      await FmEnv.ensureInit();
+      final wanted = {
+        for (final c in list)
+          if (c.kind == 'trash') c.path: c
+      };
+      var n = 0;
+      for (final item in await FmEnv.trash.list()) {
+        final c = wanted[item.storedPath];
+        if (c == null) continue;
+        await FmEnv.trash.restore(item);
+        n++;
+        _job.changes.remove(c);
+        _entries.remove(c.path);
+      }
+      if (mounted) showSnack(context, str.t('jr.restored', {'n': n}));
     });
   }
 
@@ -613,7 +664,9 @@ class _JobReportScreenState extends State<JobReportScreen> {
                         ? '#$value'
                         : (first.kind == 'move' || first.kind == 'copy')
                             ? context.t('jr.kind_${first.kind}', {'dir': value})
-                            : value,
+                            : first.kind == 'rename' || first.kind == 'trash'
+                                ? context.t('jr.kind_${first.kind}')
+                                : value,
                     style: theme.textTheme.titleMedium,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
@@ -652,6 +705,10 @@ class _JobReportScreenState extends State<JobReportScreen> {
                   _moveGroup(list);
                 case 'unmove':
                   _undoMove(list);
+                case 'unrename':
+                  _undoRename(list);
+                case 'untrash':
+                  _untrash(list);
               }
             },
             itemBuilder: (ctx) => [
@@ -668,6 +725,16 @@ class _JobReportScreenState extends State<JobReportScreen> {
               if (first.kind == 'move')
                 PopupMenuItem(
                     value: 'unmove', child: Text(ctx.t('jr.undo_move'))),
+              if (first.kind == 'rename')
+                PopupMenuItem(
+                    key: const ValueKey('jr-unrename'),
+                    value: 'unrename',
+                    child: Text(ctx.t('jr.undo_rename'))),
+              if (first.kind == 'trash')
+                PopupMenuItem(
+                    key: const ValueKey('jr-untrash'),
+                    value: 'untrash',
+                    child: Text(ctx.t('jr.untrash'))),
               PopupMenuItem(value: 'move', child: Text(ctx.t('jr.move_files'))),
             ],
           ),

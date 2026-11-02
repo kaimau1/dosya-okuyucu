@@ -228,6 +228,9 @@
  "lib/services/fm/ai_analyzer.dart": {
   "durations": 1
  },
+ "lib/services/fm/archive_ops.dart": {
+  "durations": 1
+ },
  "lib/services/fm/entry_opener.dart": {
   "dialogs": 1
  },
@@ -255,6 +258,9 @@
  },
  "lib/services/pdf/pdf_paragraph.dart": {
   "font_size": 3
+ },
+ "lib/services/pdf/pdf_paragraph_layout.dart": {
+  "font_size": 1
  },
  "lib/services/pdf/pdf_pending_objects.dart": {
   "font_size": 1
@@ -428,8 +434,5 @@
  },
  "lib/widgets/tts_voice_sheet.dart": {
   "sheets": 1
- },
- "lib/services/pdf/pdf_paragraph_layout.dart": {
-  "font_size": 1
  }
 }

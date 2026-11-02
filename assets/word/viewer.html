@@ -1450,6 +1450,26 @@
   // sayıyor, değer Flutter tarafında `DocxEditor.rightToLeft` ile okunup
   // buraya veriliyor. Sayfa çizildikten sonra da çağrılabilir (yalnız sınıf
   // ekler, yeniden çizim gerekmez).
+  /* Kanvas ve sayfa rengi temadan (2026-11-02, KALANLAR A7.6/A7.7): koyu
+     temada sayfanın çevresi açık kalıyordu; kâğıt temasında sayfa kâğıt
+     rengi + ince çerçeve. Sayfanın İÇİ (belgenin kendi renkleri) değişmez.
+     Argümanlar Dart'ta #RRGGBB olarak doğrulanır; null = varsayılan. */
+  window.setCanvas = function (bg, page, frame) {
+    var st = document.getElementById('canvasStyle');
+    if (!st) {
+      st = document.createElement('style');
+      st.id = 'canvasStyle';
+      document.head.appendChild(st);
+    }
+    var css = 'html, body, .docx-wrapper { background: ' + bg + ' !important; }';
+    if (page) css += ' .docx-wrapper > section.docx { background: ' + page + ' !important; }';
+    if (frame) {
+      css += ' body:not(.flow) .docx-wrapper > section.docx { border: 1px solid ' + frame +
+        '; border-radius: 4px; box-shadow: none !important; }';
+    }
+    st.textContent = css;
+  };
+
   window.setDocDir = function (rtl) {
     document.body.classList.toggle('rtl', !!rtl);
     document.body.dir = rtl ? 'rtl' : 'ltr';

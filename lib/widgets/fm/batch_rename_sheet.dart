@@ -6,6 +6,8 @@ import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/batch_rename.dart';
 import '../../services/fm/file_ops.dart';
+import '../../services/fm/job_queue.dart' show JobChange;
+import '../../services/fm/tracked_task.dart';
 import '../../core/snack.dart';
 import '../../core/user_error.dart';
 
@@ -65,16 +67,25 @@ class _BatchRenameSheetState extends State<_BatchRenameSheet> {
     final plan = _preview.where((r) => r.isValid && r.changed).toList();
     if (plan.isEmpty) return;
     setState(() => _running = true);
+    final str = AppStrings.of(context);
+    // İş sonucu sayfası (2026-11-02, KALANLAR A5): dosya dosya eski → yeni ad
+    // iş kaydına yazılır; İşlemler'deki karttan "Adları geri al".
+    final task = TrackedTask(title: str.t('br.title'));
     var ok = 0;
     final errors = <String>[];
+    final changes = <JobChange>[];
     for (final item in plan) {
       try {
-        await FileOps.rename(item.entry.path, item.newName);
+        final renamed = await FileOps.rename(item.entry.path, item.newName);
         ok++;
+        changes.add(renamedChange(item.entry.path, renamed));
       } catch (e) {
         errors.add('${item.entry.name}: ${userErrorText(e)}');
       }
     }
+    if (changes.isNotEmpty) task.recordChanges(changes);
+    await task.complete(
+        detail: str.t('br.done', {'n': ok}), quiet: true, notify: false);
     if (!mounted) return;
     setState(() => _running = false);
     showSnack(context, errors.isEmpty

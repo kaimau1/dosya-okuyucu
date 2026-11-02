@@ -152,6 +152,11 @@
 - [ ] **Uygulamanın kapladığı alan** listesinin son satırı ("Android uygulama ayarlarını aç")
       gezinme çubuğunun üstünde; öteki listeler de.
 
+- [ ] **İş sonucu sayfası (2026-11-02):** toplu yeniden adlandır → İşlemler'de kart → "Yeniden
+      adlandırıldı" grubu → ⋮ "Adları geri al" eski adları veriyor (eski ad doluysa o dosya kalıyor);
+      çok dosyayı çöpe at → kart → "Çöp kutusuna taşındı" → ⋮ "Geri yükle" eski yerlerine; kart
+      gizli çöp klasörünü "aç" diye göstermiyor.
+
 ## 4. Depolama birimleri (SD kart, USB)
 
 - [ ] **SD kart:** `/storage/XXXX-XXXX` bulunuyor; birimler arası taşımada kopyala+sil yedek yolu;
@@ -231,6 +236,9 @@
       açılıyor; bölme mantıklı (PowerPoint'te açılış §13).
 - [ ] **Resim → PDF** + "Yazıları da tanı" → resim TAM, yazı aranabilir.
 - [ ] **Daha fazla sayfası:** OCR "Dönüştür" grubunda.
+
+- [ ] **Kâğıt teması sayfa çerçevesi (2026-11-02):** kâğıt temasında (açık) PDF sayfalarında gölge
+      yerine ince bej çerçeve, yakınlaşınca da 1 piksel; öteki temalarda eski gölge.
 
 ## 7. PDF — düzenleme (Faz 31 + 2026-10-31)
 
@@ -315,6 +323,10 @@
 - [ ] **Tablet (≥ 840 dp):** Aa paneli sağda, yazarken klavye kapanmıyor. **Donanım klavyesi:**
       kısayollar + Ctrl+/ yardım levhası. **TalkBack:** bir paragraf yazıp kalın yapılabiliyor;
       şeritte "Kalın, açık/kapalı".
+
+- [ ] **Kanvas teması (2026-11-02):** koyu temada Word sayfasının çevresi KOYU (eskiden açık gri);
+      kâğıt temasında (açık) sayfa kâğıt rengi `#FBF8F1` + ince bej çerçeve, gölge yok; akış
+      görünümünde çerçeve yok; tema değiştirip geri dönünce kanvas hemen değişiyor.
 
 ## 9. Excel
 

@@ -47,6 +47,14 @@ on:
         description: 'Kişisel derleme (asistan köprüsüyle; ayrı `kisisel` ön-sürümüne yayınlanır, nightly/en son değişmez)'
         type: boolean
         default: false
+      play:
+        description: 'AAB Play izin varyantıyla (QUERY_ALL_PACKAGES vb. çıkarılır; APK değişmez — ci/play_variant.py)'
+        type: boolean
+        default: false
+      play_remove:
+        description: 'Play AAB''sinden çıkarılacak izinler (virgüllü kısa adlar)'
+        type: string
+        default: 'QUERY_ALL_PACKAGES'
 
 permissions:
   contents: write
@@ -116,8 +124,11 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
+      # pubspec.lock depoda (2026-11-02): CI artık her koşuda yeniden
+      # çözümlemiyor; kilit pubspec'le uyuşmazsa adım kırılır (yerelde
+      # `flutter pub get` koşturup kilidi commit'le).
       - name: Bağımlılıklar
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       # KAPI (2026-08-28): `flutter analyze` info seviyesinde de sıfır dışı
       # çıkar — bu adım "hiç uyarı yok" demektir. Başka bir Flutter sürümü
@@ -278,13 +289,25 @@ jobs:
         if: steps.version.outputs.full == 'true'
         env:
           KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'DosyaOkuyucuGecici' }}
+          DOSYA_PLAY: ${{ inputs.play && '1' || '0' }}
+          DOSYA_PLAY_REMOVE: ${{ inputs.play_remove || 'QUERY_ALL_PACKAGES' }}
         run: |
           set -e
+          # Play izin varyantı (A6.4): APK'lar ZATEN derlendi; manifest yalnız
+          # AAB için yamanır, sonra birleşmiş manifestte izin YOK denetlenir.
+          if [ "$DOSYA_PLAY" = "1" ]; then
+            python3 ci/play_variant.py apply
+          fi
           flutter build appbundle --release \
             --obfuscate --split-debug-info=build/symbols-aab \
             --build-name="$BUILD_NAME" --build-number="$BUILD_NUMBER" \
             --target-platform android-arm,android-arm64,android-x64
           AAB=build/app/outputs/bundle/release/app-release.aab
+          if [ "$DOSYA_PLAY" = "1" ]; then
+            python3 ci/play_variant.py verify $(find build/app/intermediates \
+              -path '*merged_manifest*' -path '*release*' -name AndroidManifest.xml)
+            echo "Play izin varyantı: $DOSYA_PLAY_REMOVE çıkarıldı" >> "$GITHUB_STEP_SUMMARY"
+          fi
           jarsigner -keystore release.jks -storepass "$KS_PASS" -keypass "$KS_PASS" \
             -sigalg SHA256withRSA -digestalg SHA-256 "$AAB" dosyaokuyucu
           jarsigner -verify "$AAB" > /dev/null && echo "AAB imzası doğrulandı"

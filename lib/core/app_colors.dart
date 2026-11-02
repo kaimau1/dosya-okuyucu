@@ -80,6 +80,14 @@ class AppColors extends ThemeExtension<AppColors> {
   /// Belge **sayfası** — PDF/Word/slayt/QR/imza her temada beyaz kâğıttır.
   static const page = Color(0xFFFFFFFF);
 
+  /// Kâğıt teması belge sayfası zemini ve çerçevesi (2026-11-02, Word
+  /// WebView + PDF sayfa çerçevesi; KALANLAR A7.7).
+  static const paperPage = Color(0xFFFBF8F1);
+  static const paperFrame = Color(0xFFD2C8B4);
+
+  /// Word sayfa görünümünün açık temalardaki Fluent kanvası.
+  static const docCanvas = Color(0xFFF3F2F1);
+
   /// Belge mürekkebi (imza, QR modülü, açık zemin üstü kontrast yazı).
   static const pageInk = Color(0xFF000000);
 

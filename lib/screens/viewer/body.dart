@@ -128,7 +128,11 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         // Arama eşleşmelerini sayfada vurgula: metin katmanı
                         // (pdfrx, Faz 1) + taranmış sayfaların OCR eşleşmeleri
                         // (Faz 2) — renkler aynı, kullanıcı fark görmez.
+                        // Kâğıt temasında gölge yerine ince sayfa çerçevesi
+                        // (2026-11-02, A7.7; bkz. PdfPageFrame).
+                        pageDropShadow: PdfPageFrame.of(context).shadowOrDefault,
                         pagePaintCallbacks: [
+                          PdfPageFrame.of(context).paint,
                           _paintPendingMarks,
                           if (_pdfSearcher != null)
                             _pdfSearcher!.pageTextMatchPaintCallback,

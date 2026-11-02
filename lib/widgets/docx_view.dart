@@ -7,7 +7,10 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import 'office_shell.dart' show ReadingChrome, ZoomBadge, ZoomBadgeController;
+import '../core/app_colors.dart';
 import '../core/app_icons.dart';
+import '../core/skin.dart';
+import '../core/theme.dart' show AppSkinData;
 
 /// Canlı görünümdeki seçimin biçim durumu (araç çubuğu düğmeleri yansıtır).
 class DocxSelection {
@@ -151,7 +154,7 @@ class DocxViewState extends State<DocxView> {
     super.initState();
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0xFFF3F2F1)) // Fluent kanvas
+      ..setBackgroundColor(AppColors.docCanvas) // Fluent kanvas
       ..enableZoom(false)
       ..addJavaScriptChannel('Sayfa', onMessageReceived: _onSayfa)
       ..addJavaScriptChannel('Durum', onMessageReceived: (m) {
@@ -162,7 +165,10 @@ class DocxViewState extends State<DocxView> {
           _error = err;
         });
         widget.onStatus?.call(err == null);
-        if (err == null) _sendInsets(force: true);
+        if (err == null) {
+          _sendInsets(force: true);
+          _sendCanvas(force: true);
+        }
       })
       ..addJavaScriptChannel('Kalem', onMessageReceived: _onKalem)
       ..setNavigationDelegate(NavigationDelegate(
@@ -477,6 +483,20 @@ class DocxViewState extends State<DocxView> {
     super.didChangeDependencies();
     _insets = ReadingChrome.insetsOf(context);
     _sendInsets();
+    _canvas = DocxCanvas.of(context);
+    _sendCanvas();
+  }
+
+  /// Kanvas/sayfa rengi (A7.6/A7.7) — tema değişince yeniden gönderilir.
+  DocxCanvas _canvas = DocxCanvas.fallback;
+  DocxCanvas? _sentCanvas;
+
+  void _sendCanvas({bool force = false}) {
+    _controller.setBackgroundColor(_canvas.background);
+    if (_loading || _error != null) return;
+    if (!force && _sentCanvas == _canvas) return;
+    _sentCanvas = _canvas;
+    _controller.runJavaScript(_canvas.js);
   }
 
   void _sendInsets({bool force = false}) {
@@ -588,3 +608,62 @@ class _ZoomBtn extends StatelessWidget {
     );
   }
 }
+
+/// Word WebView'ının **kanvas ve sayfa rengi** (2026-11-02, KALANLAR A7.6 +
+/// A7.7). Eskiden kanvas her temada Fluent açık griydi (#F3F2F1): koyu temada
+/// belgenin çevresi parlıyordu. Şimdi:
+/// * **koyu** → kanvas temanın zemini, sayfa beyaz kalır (belge renkleri
+///   belgenin kendisi; ters çevirmek ayrı bir "gece kipi" işi);
+/// * **kâğıt teması (açık)** → kanvas kâğıt kuyusu, sayfa `#FBF8F1` + 1 px
+///   `#D2C8B4` çerçeve, yarıçap 4 (uygulamanın belge sayfası dili);
+/// * öteki açık temalar → eski Fluent görünümü.
+@immutable
+class DocxCanvas {
+  final Color background;
+  final Color? page;
+  final Color? frame;
+
+  const DocxCanvas({required this.background, this.page, this.frame});
+
+  static const fallback = DocxCanvas(background: AppColors.docCanvas);
+  static const paperPage = AppColors.paperPage;
+  static const paperFrame = AppColors.paperFrame;
+
+  factory DocxCanvas.of(BuildContext context) {
+    final skin = AppSkinData.of(context);
+    return DocxCanvas.forSkin(skin.skin, Theme.of(context).brightness,
+        skin.palette);
+  }
+
+  factory DocxCanvas.forSkin(
+      AppSkin skin, Brightness brightness, SkinPalette palette) {
+    final dark = brightness == Brightness.dark || skin.forcesDark;
+    if (dark) return DocxCanvas(background: palette.bg);
+    if (skin == AppSkin.paper) {
+      return DocxCanvas(
+          background: palette.well, page: paperPage, frame: paperFrame);
+    }
+    return fallback;
+  }
+
+  static String hex(Color c) =>
+      '#${(c.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
+
+  /// `setCanvas('#rrggbb', '#rrggbb'|null, '#rrggbb'|null)` — yalnız onaltılık
+  /// renk geçer, JS'e kullanıcı metni girmez.
+  String get js {
+    String arg(Color? c) => c == null ? 'null' : "'${hex(c)}'";
+    return 'setCanvas(${arg(background)}, ${arg(page)}, ${arg(frame)})';
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is DocxCanvas &&
+      other.background == background &&
+      other.page == page &&
+      other.frame == frame;
+
+  @override
+  int get hashCode => Object.hash(background, page, frame);
+}
+

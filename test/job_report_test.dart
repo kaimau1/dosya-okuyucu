@@ -176,6 +176,36 @@ void main() {
     expect(job.changes, isEmpty);
   });
 
+  // 2026-11-02 (KALANLAR A5): toplu yeniden adlandırma iş kaydına yazılır.
+  testWidgets('yeniden adlandırma işi: tek grup, Adları geri al eski adı verir',
+      (tester) async {
+    final renamed = File(a).renameSync('${dir.path}/2026_fatura.pdf').path;
+    final other = File(b).renameSync('${dir.path}/2026_tatil.jpg').path;
+    // İkinci dosyanın eski adı bu arada dolmuş: o dosya atlanmalı.
+    File(b).writeAsStringSync('yeni');
+    final job = FmJob(id: 'j5', title: 'Toplu ad', status: JobStatus.done)
+      ..changes.addAll([renamedChange(a, renamed), renamedChange(b, other)]);
+    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(app(job));
+    await tester.pump();
+    expect(find.text('Yeniden adlandırıldı'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('jr-menu-')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('jr-unrename')));
+    await tester.pump();
+    for (var i = 0; i < 10 && job.changes.length > 1; i++) {
+      await settle(tester);
+      await tester.pump(const Duration(milliseconds: 500));
+    }
+    expect(File(a).existsSync(), isTrue);
+    expect(File(renamed).existsSync(), isFalse);
+    expect(File(other).existsSync(), isTrue, reason: 'eski adı dolu');
+    expect(job.changes.single.path, other);
+    await tester.pump(const Duration(seconds: 5)); // bildirim süresi
+  });
+
   test('jobChangesOf: taşıma / kopya ayrımı', () {
     final src = File('${dir.path}/x.txt')..writeAsStringSync('1');
     final r = FmOpResult(succeeded: 2, transfers: [

@@ -129,8 +129,9 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - Oturum başında `.claude/settings.json` hook'u `git pull --rebase --autostash` yapar —
   beklenmeyen üst commit bundandır.
 - Kotlin yalnız CI'da derleniyordu, tek tür hatası 13 dk yakıyordu → `tool/check_kotlin.sh`.
-- `pubspec.lock` gitignore'da; CI her koşuda yeniden çözümler → alt paketler elle pinli
-  (KALANLAR A3.5).
+- **`pubspec.lock` depoda (2026-11-02):** CI `pub get --enforce-lockfile` → pubspec'i değiştiren
+  `flutter pub get` koşturup kilidi de commit'lemeli; yoksa verify/apk "Bağımlılıklar" adımı kırılır.
+  `prepare_android.sh` kilidi `flutter create`e karşı yedekler.
 - **Yerel APK telefona kurulmaz** (anahtar farklı, veri silinir): temiz kopyada
   `applicationIdSuffix = ".r8test"` + `documents` authority `${applicationId}` → yan yana kur.
   Git Bash'te adb: `MSYS_NO_PATHCONV=1`, Windows yolları `C:/` biçiminde.
@@ -331,4 +332,32 @@ Kullanıcı: *"fazlardan devam et, bulutta yapılabilecekleri yap, main'e merge 
 - **Bulut test notu:** tam takımda `excel_data_screen_test` "Yinelenenleri kaldır" ve `snack_queue_test` "ikinci
   bildirim" yükte düştü, tek başına yeşil (bilinen yük kararsızlığı; kod değişikliğiyle ilgisiz).
 - **A1.2 (uzak dal silme)** kullanıcı izni gerektirdiği için yapılmadı.
+
+## 2026-11-02 — Faz A bulut turu 2: A3.5, A6.4, A7.6, A7.7, A5'in iki işi
+- **A3.5 `pubspec.lock` depoda** (Flutter 3.44.6 ile çözümlenmiş hâli); `.gitignore`'dan çıktı; CI
+  `flutter pub get --enforce-lockfile`, `prepare_android.sh` kilidi `flutter create`e karşı yedekler ve
+  kilit varsa ona uyar. Alt paket kayması artık kilitte görünür.
+- **A6.4 Play izin varyantı:** `ci/play_variant.py apply|verify` — `DOSYA_PLAY_REMOVE` (varsayılan
+  `QUERY_ALL_PACKAGES`) için ana manifeste `tools:node="remove"`, `<queries>`'e MAIN/LAUNCHER; doğrudan
+  bildirilmiş izin satırı önce silinir (yoksa çakışır); iki kez uygulanmaz. Workflow elle tetiklemede
+  `play: true` (+ `aab: true`): APK'lar ÖNCE derlenir, manifest yalnız AAB için yamanır, birleşmiş
+  manifestte izin YOK denetlenir. Varsayılan KAPALI — hangi izinler çıkacağı kullanıcı kararı (B5.3).
+  Test `test/play_variant_test.dart` (python3 yoksa atlanır).
+- **A7.6/A7.7 belge kanvası:** `DocxCanvas` (docx_view.dart) + `viewer.html` `setCanvas(bg, page, frame)`
+  (kendi `<style id=canvasStyle>`; renkler Dart'ta `#rrggbb`, JS'e kullanıcı metni girmez). Koyu (ve
+  gece ailesi) → kanvas temanın zemini, sayfa beyaz; kâğıt açık → kanvas `well`, sayfa `#FBF8F1` +
+  `#D2C8B4` çerçeve, yarıçap 4 (akış görünümünde çerçeve yok); öteki açık temalar eski `#F3F2F1`.
+  WebView `setBackgroundColor` da aynı renk (açılış parlaması yok). PDF: `PdfPageFrame` kâğıt açıkta
+  `pageDropShadow: null` + `pagePaintCallbacks`'te kalınlık 0 (her yakınlıkta 1 cihaz pikseli) çerçeve.
+  **Sınır:** pdfrx 1.3.5 sayfa zeminini açmıyor → PDF sayfa içi beyaz kalır (A9.2).
+- **A5 (kısmi):** toplu yeniden adlandırma `TrackedTask` + `renamedChange` (tür `rename`, değer boş = tek
+  grup, `before` eski yol) → rapor ⋮ "Adları geri al" (eski ad doluysa o dosya atlanır). Çöpe taşıma:
+  `FmOpResult.trashed` + `transfers` (özgün → çöpteki yol) → `jobChangesOf` tür `trash`; `summarize` çöpü
+  hedef göstermez; rapor ⋮ "Geri yükle" çöp listesinde `storedPath` ile bulup `restore`. Kalan işler KALANLAR A5.
+- **TUZAK (test):** `MaterialApp(theme:)` değişince ilk karede `Theme.of` hâlâ ESKİ parlaklığı verir
+  (AnimatedTheme geçişi) → testte `pumpAndSettle`.
+- **TUZAK (bekçi):** `design_tokens_test` servis kodundaki `Duration(milliseconds: N)`'yi de sayar; arşiv
+  iptal yoklaması (zamanlayıcı = içerik, tasarım değil) tavana yazıldı. Belge renkleri `AppColors.paperPage /
+  paperFrame / docCanvas` token'ı. Turu 1 bu yüzden CI'da kırmızıydı (yerel tam test aynı anda koşmadan
+  push edildi) → turu 2'de düzeldi. Ders: push ÖNCESİ tam test bitmeli.
 
