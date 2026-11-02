@@ -452,3 +452,16 @@ Kullanıcı: *"fazlardan devam et, bulutta yapılabilecekleri yap, main'e merge 
   `nearby/sections.dart` + `nearby/widgets.dart` (`part` + extension). **TUZAK:** extension içinden `setState`
   `invalid_use_of_protected_member` verir → State'te `_update(fn)`; statik üyeler `_NearbyScreenState.` ile nitelenir.
 
+
+## 2026-11-02 — Test süresi: demetler + push damgası
+- Ölçüm (`--file-reporter json`): 357 dosya, tam paket 810 sn; tek dosyada test 2 sn, kalan ~40 sn DERLEME
+  (her test dosyası ayrı derleniyor). Çare `tool/test_bundle.py`: dosyalar 8 demette (`group(dosya, t.main)`),
+  önceki koşunun süresine göre dengeli → **tam paket ~2 dk**. Demetler gitignore'da, kapı bitince silinir.
+- **TUZAK:** demette bir widget testi `TestWidgetsFlutterBinding` kurunca aynı izolattaki HER `HttpClient`
+  sahte 400 döner → gerçek ağ açan dosyalar (regex NET) ayrı koşar. Duruma duyarlılar `ALONE` listesinde
+  (job_tracking, job_shown_title, smart_redesign, fm_photos_screen, neural_voices) — yeni sızıntıda listeye ekle,
+  kök nedeni ayrıca düzelt. Dosya düzeyi `@Timeout/@Tags` group'a geçmez → onlar da ayrı.
+- `hooks/pre-push` artık `tool/test_gate.sh`: yeşil koşu HEAD ağacını `.git/test-green`'e damgalar; aynı ağaç
+  (ya da fark yalnız `.github/ docs/ graphify-out/ hooks/ *.md`) yeniden test edilmez → push saniyeler.
+  Düşen test asıl dosyasıyla bir kez tek başına denenir (yük altında süre aşımı). Akış: commit → `sh tool/test_gate.sh` → push.
+- CI eşzamanlılık grubu kişisel/genel ayrı (elle kişisel derleme nightly'i iptal ediyordu).

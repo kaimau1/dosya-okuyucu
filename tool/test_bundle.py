@@ -36,6 +36,7 @@ ALONE = {
     'smart_redesign_test.dart',
     'fm_photos_screen_test.dart',
     'neural_voices_test.dart',
+    'job_tracking_test.dart',
 }
 marked += [f for f in files if f not in marked
            and (f in ALONE or NET.search((TEST / f).read_text(encoding='utf-8')))]
