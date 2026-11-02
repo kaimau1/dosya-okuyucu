@@ -412,3 +412,14 @@ Kullanıcı: *"fazlardan devam et, bulutta yapılabilecekleri yap, main'e merge 
 - Merkezi asistan (`com.ses.asistan`) pil yüzünden bırakıldı. Silinenler: `ci/kisisel/` (AsistanKopru, manifest eki,
   sertifika, yetenekler), `AsistanKomutlari` (`oku:`/`ozet:`/`durdur:` bağlantıları), harness ve testi. `DOSYA_KISISEL`
   bayrağı ve `kisisel` ön-sürümü kişisel not özelliği için kaldı. `DosyaArama` yalnız Ajan'ın.
+
+## 2026-11-02 — Windows "Dosya Aktar" exe (tool/pc_aktar)
+- Kullanıcı isteği: Yakındakiler protokolüyle konuşan Windows exe. C# WinForms, **net48** (her Win10/11'de kurulu,
+  exe ~55 KB, kurulumsuz). Derle: `cd tool/pc_aktar && dotnet build -c Release` → `bin/Release/net48/DosyaAktar.exe`.
+  Protokol Dart'tan birebir (`peer_share.dart`): UDP 8769 bulma, HTTP 8770 `/kim /sor /durum /al`, tid'li devam,
+  `paket=1` ZIP açma. **peer_share.dart'ta uç/alan değişirse `tool/pc_aktar/Core.cs` de değişmeli.**
+- BLE bilinçli YOK (uygulamada da yalnız bulma; veri zaten Wi-Fi). Eşleştirme kodu desteklenmiyor (Yakındakiler kullanmıyor).
+- Tuzaklar: HttpListener yerine TcpListener (HttpListener LAN önekinde yönetici/urlacl ister); UDP soketinde
+  `SIO_UDP_CONNRESET` kapatılmalı yoksa ICMP sonrası Receive düşer; HttpWebRequest'te `Proxy=null` +
+  `Expect100Continue=false`; gizli `.dosya-aktarim-*` taşınınca Hidden niteliği kalır → temizlenmeli;
+  Android adlarındaki `: ? *` Windows'ta geçersiz → SafeName '_' yapar. Uçtan uca Dart PeerReceiver/PeerSender ile denendi (iki yön).

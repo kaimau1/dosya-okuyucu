@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- .NET Framework 4.8: her Windows 10/11'de kurulu gelir, exe tek dosya ve kurulumsuz çalışır. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>DosyaAktar</AssemblyName>
+    <RootNamespace>DosyaAktar</RootNamespace>
+    <ApplicationIcon />
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <Product>Dosya Aktar</Product>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="System.IO.Compression" />
+  </ItemGroup>
+</Project>
