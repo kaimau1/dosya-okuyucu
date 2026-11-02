@@ -1,3 +1,7 @@
+// 4.000 dosyalık çıkarma Windows'ta tam paket yükünde 30 sn'yi aşabiliyor.
+@Timeout(Duration(minutes: 3))
+library;
+
 import 'dart:io';
 
 import 'package:dosya_okuyucu/services/fm/archive_ops.dart';
