@@ -1,7 +1,8 @@
 #!/bin/sh
 # Tam test kapısı (pre-push kancası ve elle doğrulama aynı yoldan geçer).
 #
-# 1) `flutter test` tam paket.
+# 1) Tam paket, DEMETLERLE (tool/test_bundle.py: 357 ayrı derleme yerine
+#    8 demet + demete giremeyen birkaç dosya — 13,5 dk → ~6,5 dk).
 # 2) Kırmızı çıkan dosyalar BİR KEZ tek başına yeniden koşar: tam paketin
 #    yükünde süre sınırını aşan ölçüm testleri (slides_edit, word_perf,
 #    xlsx_reader_fast … — HAFIZA 2026-11-02) tek başına geçer; orada da
@@ -22,11 +23,25 @@ clean=0
 [ -z "$(git status --porcelain --untracked-files=no)" ] && clean=1
 tree=$(git rev-parse 'HEAD^{tree}')
 
+# Windows'ta `python3` Mağaza kısayolu olabilir (çalışmaz): deneyerek seç.
+PY=
+for c in python3 python; do
+  if "$c" -c '' >/dev/null 2>&1; then PY=$c; break; fi
+done
+[ -n "$PY" ] || { echo "test-gate: python yok"; exit 1; }
+alone=$("$PY" tool/test_bundle.py 8) || exit 1
+# Demetler kalırsa elle `flutter test` her testi iki kez koşar.
+trap 'rm -f "$ROOT"/test/_bundle_*_test.dart' EXIT
 echo "test-gate: tam paket koşuyor (kayıt: .git/test-gate.log)..."
-if "$FLUTTER" test -r expanded --file-reporter "json:$ROOT/.git/test-times.json" > "$LOG" 2>&1; then
+# shellcheck disable=SC2086
+if "$FLUTTER" test test/_bundle_*_test.dart $alone -r expanded \
+    --file-reporter "json:$ROOT/.git/test-times.json" > "$LOG" 2>&1; then
   ok=1
 else
-  failed=$(grep '\[E\]$' "$LOG" | grep -o 'test/[A-Za-z0-9_/]*\.dart' | sort -u)
+  # Demet satırında asıl dosya grup adıdır ("_bundle_3_test.dart: fm_x_test.dart …").
+  failed=$(grep '\[E\]$' "$LOG" \
+    | sed -E 's#.*_bundle_[0-9]+_test\.dart: ([A-Za-z0-9_/]+_test\.dart).*#test/\1#; t; s#.*(test/[A-Za-z0-9_/]+\.dart).*#\1#' \
+    | grep '^test/' | sort -u)
   if [ -z "$failed" ]; then
     tail -20 "$LOG"
     echo "test-gate: KIRMIZI (derleme/yükleme hatası — dosya adı çıkmadı)."

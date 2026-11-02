@@ -15,6 +15,8 @@ import 'support/temp_dir.dart';
 /// içindeydi ve durdurulamıyordu (büyük solid RAR'da dakikalar). Artık
 /// [ArchiveOps.extract] `isCancelled` alıyor: izolat öldürülür, yarım hedef
 /// klasör silinir, [JobCancelled] atılır.
+final _files = Platform.isWindows ? 400 : 4000;
+
 void main() {
   late Directory tmp;
   late String archive;
@@ -23,8 +25,10 @@ void main() {
     tmp = Directory.systemTemp.createTempSync('fm_archive_cancel');
     final src = Directory(p.join(tmp.path, 'kaynak'))..createSync();
     // Çıkarması bir süre tutsun: çok sayıda küçük dosya (her biri ayrı
-    // aç/yaz/kapat) — 150 ms'lik yoklama araya girebilsin.
-    for (var i = 0; i < 4000; i++) {
+    // aç/yaz/kapat) — 150 ms'lik yoklama araya girebilsin. Bu büyüklük yalnız
+    // durdurma testi için gerekli; o Windows'ta atlanıyor ve Windows'ta 4000
+    // dosyayı açmak tek başına ~60 sn sürüyordu → orada 400.
+    for (var i = 0; i < _files; i++) {
       File(p.join(src.path, 'dosya_$i.txt'))
           .writeAsStringSync('içerik $i ' * 40);
     }
@@ -40,7 +44,7 @@ void main() {
         destDir: p.join(tmp.path, 'tam'),
         onProgress: (_) => reports++,
         isCancelled: () => false);
-    expect(File(p.join(target, 'kaynak', 'dosya_3999.txt')).existsSync(),
+    expect(File(p.join(target, 'kaynak', 'dosya_${_files - 1}.txt')).existsSync(),
         isTrue);
     expect(reports, greaterThan(0), reason: 'ilerleme izolattan gelmeli');
   });
