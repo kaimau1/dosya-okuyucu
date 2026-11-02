@@ -58,11 +58,9 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
       `useAlternativeFitScaleAsMinScale` kenetlemesi, kendi seçim katmanı
       `widgets/pdf_select_layer.dart` — 2.x'te gereksiz mi, ölç. Gereksizse sadeleştir;
       değilse kalsın ve gerekçe HAFIZA'ya. Bütün `pdf_*` testleri + B2 PDF bölümü.
-- [ ] **A3.4 Ötekiler:** `video_player 2.10.1` + `video_player_android 2.8.15`,
-      `wakelock_plus 1.4.0`, `permission_handler 11.3.1`, `fc_native_video_thumbnail
-      2.2.0`, `flutter_local_notifications 17.2.4`, `syncfusion_flutter_pdf/_core 31.1.19`
-      (K1 lisansı aynı), `shared_preferences_android 2.4.28` (JNI çökmesi — HAFIZA;
-      yalnız düzeldiği doğrulanırsa), `flutter_lints ^4`.
+- [ ] **A3.4b Kalan sabitler:** `wakelock_plus 1.4.0` (1.6.1+ `win32 ^6` → `share_plus` 10 → 13 birlikte),
+      `permission_handler` 12 (13'ü `cunning_document_scanner` 3.x ister), `syncfusion` 33 (35 `xml ^7`; `pdf`
+      paketi ^6'da tutuyor), `shared_preferences_android 2.4.28` (JNI çökmesi düzeldiği cihazda doğrulanırsa).
 
 ### A4 — Kod sağlığı (Faz 3/5/12'nin kalıntıları)
 

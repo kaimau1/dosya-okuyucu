@@ -58,13 +58,9 @@ dependencies:
 
   # PDF YAZMA işleri (annotation gömme, sayfa döndür/sil/sırala, form doldurma).
   # Görüntüleme yine pdfrx/pdfium; Syncfusion yalnız düzenlenmiş PDF ÜRETİR.
-  # 31.1.19'a SABİT: 32+ Flutter >=3.35 ister → CI 3.29.3'ü kırar. Bu sürüm
-  # flutter>=3.29 + Dart 3.7 + xml 6.5.x ister (bizimkiyle birebir), archive'a
-  # bağlı değil. Saf Dart (native yok).
-  syncfusion_flutter_pdf: 31.1.19
-  # Core'u da SABİTLE: pdf'in dep'i ^31.1.19 en yükseği (31.2.x) çeker ama
-  # core 31.2.x Flutter >=3.35.1 ister → CI 3.29.3'ü kırar. 31.1.19 flutter>=3.29.
-  syncfusion_flutter_core: 31.1.19
+  # 33.2.x: 35.x `xml ^7` ister, `pdf` paketi xml'i ^6'da tutuyor (A3.1 notu).
+  syncfusion_flutter_pdf: ^33.2.13
+  syncfusion_flutter_core: ^33.2.15
 
   # OCR: cihaz-içi ML Kit metin tanıma (Latin — Türkçe dahil), internet gerekmez.
   # (Eski "Dart 3.7 sabiti" 2026-11-02'de kalktı: CI 3.44.6.)
@@ -117,33 +113,20 @@ dependencies:
 
   # ── Dosya yöneticisi ────────────────────────────────────────────────────────
   # Depolama izni (Android 11+ "tüm dosyalara erişim" = MANAGE_EXTERNAL_STORAGE).
-  # 11.3.1'e SABİT: 11.4.0+/12.x `sdk ^3.5.0 + flutter >=3.24` ister — CI 3.29.3
-  # bunu sağlar ama alt paketi permission_handler_android 13.x compileSdk'yı
-  # yukarı çeker. 11.3.1 (sdk >=2.15 <4.0, flutter >=2.8) en güvenli sürüm.
-  permission_handler: 11.3.1
+  permission_handler: ^12.0.1  # 13: cunning_document_scanner en fazla ^12 kabul ediyor
   # Video oynarken ekranın sönmesini engeller. YALNIZ video OYNARKEN tutulur
   # (duraklatınca ve ekrandan çıkınca bırakılır) — ses oynatıcıda hiç
   # kullanılmaz, orada ekranın kapanması zaten istenen davranış.
-  # 1.4.0: Flutter 3.29.3 / Dart 3.7 ile çözümlenen sürüm (1.7.0 sdk >=3.8 ister).
-  wakelock_plus: 1.4.0
+  wakelock_plus: ^1.4.0
 
   # Uygulama içi video + ses oynatıcı (ExoPlayer/Media3).
-  # SÜRÜM ZİNCİRİ SABİT — CI Flutter 3.29.3 için: video_player 2.10.1
-  # (flutter>=3.29) → alt paket `video_player_android` **2.8.15**, Flutter 3.29
-  # ile uyumlu SON sürüm (2.8.16+ flutter>=3.35 ister → CI kırılır).
-  # pubspec.lock gitignore'da olduğu için CI her koşuda yeniden çözümlüyor;
-  # bu yüzden alt paket de doğrudan pinlendi (yoksa pub yeni sürümü seçer).
-  video_player: 2.10.1
-  video_player_android: 2.8.15
+  video_player: ^2.14.1
 
   # Ses de video_player'da (ExoPlayer) çalıyor — Faz 10 tek oynatma motoru;
   # audioplayers kalktı. Arka planda çalma: VideoPlayerOptions(allowBackgroundPlayback).
 
   # Video küçük resmi (native MediaMetadataRetriever) — listelerde film karesi.
-  # 2.2.0: sdk >=2.18.6 <4.0.0, flutter >=3.7 → CI 3.29.3 uyumlu (3.0.0 ise
-  # flutter >=3.44 ister). NOT: eski `video_thumbnail` paketi sdk <3.0.0'da
-  # kaldığı için Dart 3 ile KULLANILAMIYOR.
-  fc_native_video_thumbnail: 2.2.0
+  fc_native_video_thumbnail: ^4.0.0
 
   # Telefonda yüklü uygulamaların listesi (ad, ikon, sürüm, kurulum tarihi)
   # ve son kullanım zamanı (UsageStats — kullanıcı "kullanım erişimi" verirse).
@@ -173,7 +156,7 @@ dependencies:
   # desugaring açık olmalı — CI'da build.gradle'a yamalanıyor (bkz. workflow).
   # Zamanlanmış bildirim kullanmıyoruz → `timezone` ilklendirmesi ve
   # SCHEDULE_EXACT_ALARM izni gerekmiyor.
-  flutter_local_notifications: 17.2.4
+  flutter_local_notifications: ^22.3.3
 
   # Görüntü boyut düşürme/format çevirme (saf Dart; platform kodu yok).
   # `archive ^4` ile uyumlu en yeni aralık (2026-11-02, A3.1): `pdf` paketi
@@ -252,7 +235,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^4.0.0
+  flutter_lints: ^6.0.0
   # Uygulama ikonunu (launcher + adaptive) tek kaynaktan üretir.
   flutter_launcher_icons: ^0.14.1
   # Testte gerçek ExoPlayer yerine sahte oynatma motoru takmak için

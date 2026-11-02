@@ -471,3 +471,13 @@ Kullanıcı: *"fazlardan devam et, bulutta yapılabilecekleri yap, main'e merge 
 - R8 `-dontwarn com.google.mlkit.vision.text.{chinese,devanagari,japanese,korean}` HÂLÂ gerekli: eklenti 0.17.1
   o dil paketlerini `compileOnly` alıp köprüde içe aktarıyor. Cihazda OCR + çeviri bakılacak (CIHAZ_TESTI R8 satırı).
 
+## 2026-11-02 — A3.4 bağımlılık tazeleme
+- video_player 2.10.1 → ^2.14.1 (android alt paketi artık doğrudan sabit değil, 2.12.2), flutter_local_notifications
+  17.2.4 → ^22.3.3 (**API: `initialize(settings:)`, `show/cancel/startForegroundService` adlı parametreler**; tek
+  dosya `notification_hub.dart`), syncfusion pdf/core 31.1.19 → ^33.2, permission_handler 11.3.1 → ^12.0.1
+  (cunning_document_scanner 1.4.0'a çıktı), fc_native_video_thumbnail 2.2.0 → ^4.0.0 (API aynı), flutter_lints ^6
+  (yalnız 4 `unintended_html_in_doc_comment` → ters tırnak).
+- Çakışma zinciri (kalan sabitler KALANLAR A3.4b): wakelock_plus ≥1.6.1 `win32 ^6` → share_plus 10 ile çakışır;
+  wakelock 1.8 + bildirim 17 ise `dbus` sürümünde çakışıyordu (bildirim 22 bunu çözdü).
+- Cihazda: bildirim (iş/oynatıcı/ön plan servisi), video küçük resmi, depolama izni akışı, PDF yazma (Syncfusion).
+

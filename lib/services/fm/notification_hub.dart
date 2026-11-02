@@ -79,7 +79,7 @@ class NotificationHub {
     _tried = true;
     try {
       await plugin.initialize(
-        const InitializationSettings(
+        settings: const InitializationSettings(
           android: AndroidInitializationSettings('@mipmap/ic_launcher'),
         ),
         onDidReceiveNotificationResponse: _handleResponse,
@@ -141,7 +141,10 @@ class NotificationHub {
     if (!_ready) return;
     try {
       await plugin.show(
-          id, title, body, NotificationDetails(android: details),
+          id: id,
+          title: title,
+          body: body,
+          notificationDetails: NotificationDetails(android: details),
           payload: payload);
     } catch (_) {}
   }
@@ -149,7 +152,7 @@ class NotificationHub {
   Future<void> cancel(int id) async {
     if (!_ready) return;
     try {
-      await plugin.cancel(id);
+      await plugin.cancel(id: id);
     } catch (_) {}
   }
 
@@ -206,9 +209,9 @@ class NotificationHub {
       _serviceOwner = owner;
       try {
         await _android?.startForegroundService(
-          notice.id,
-          notice.title,
-          notice.body,
+          id: notice.id,
+          title: notice.title,
+          body: notice.body,
           notificationDetails: notice.details,
           payload: notice.payload,
           // START_NOT_STICKY: süreç ölürse Android servisi geri getirmesin —

@@ -6,8 +6,8 @@ import '../../models/fs_entry.dart';
 
 /// Liste ekranlarının **hafızası** (Faz 13, K17 (c), 2026-10-22).
 ///
-/// * **Sıralama + yerleşim ekran başına KALICI** (`list.<ekran>.sort|desc|
-///   layout`): "İndirilenler tarihe, Son açılanlar ada göre" bir kez seçilir.
+/// * **Sıralama + yerleşim ekran başına KALICI** (`list.<ekran>.sort|desc|layout`):
+///   "İndirilenler tarihe, Son açılanlar ada göre" bir kez seçilir.
 /// * **Tür/tarih süzgeci yalnız OTURUM boyunca** (bellekte): ekrandan çıkıp
 ///   dönünce PDF süzgeci durur, uygulama yeniden açılınca temiz başlar — "liste
 ///   neden boş?" şaşkınlığı olmasın (KÖK NEDEN G3: süzgeç ekrandan çıkınca

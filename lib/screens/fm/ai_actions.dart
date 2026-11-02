@@ -250,7 +250,7 @@ Future<void> showImageInsight(BuildContext context, FsEntry entry) async {
   );
 }
 
-/// Tahmine göre "Önemli Dosyalar/<klasör>" altına taşır.
+/// Tahmine göre `Önemli Dosyalar/<klasör>` altına taşır.
 Future<bool> fileIntoSuggestedFolder(
   BuildContext context,
   FsEntry entry,

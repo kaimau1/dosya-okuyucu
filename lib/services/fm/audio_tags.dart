@@ -349,7 +349,7 @@ abstract final class AudioTagReader {
 
   /// Metin alanları NUL ile sonlanır (ve v2.4'te NUL'la ayrılmış çoklu değer
   /// taşıyabilir). İlk NUL'dan sonrası atılır — yoksa ekranda
-  /// "Sanatçı<NUL>Ad" gibi görünürdü.
+  /// `Sanatçı<NUL>Ad` gibi görünürdü.
   static String _trimNul(String s) {
     final end = s.indexOf('\u0000');
     return (end < 0 ? s : s.substring(0, end)).trim();

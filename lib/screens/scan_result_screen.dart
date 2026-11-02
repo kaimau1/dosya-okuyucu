@@ -183,7 +183,7 @@ class _ScanResultScreenState extends State<ScanResultScreen>
   /// Tarama sonrası tür tahmini (yalnız güvenliyse); kullanıcı kapatınca null.
   DocGuess? _classGuess;
 
-  /// Önerilen klasör: Önemli Dosyalar / <tür klasörü>.
+  /// Önerilen klasör: `Önemli Dosyalar / <tür klasörü>`.
   String? get _suggestedFolder {
     final guess = _classGuess;
     if (guess == null) return null;
