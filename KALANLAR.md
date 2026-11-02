@@ -58,14 +58,9 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
 
 ### A4 — Kod sağlığı (Faz 3/5/12'nin kalıntıları)
 
-- [ ] **A4.1 800+ satırlı ekranlar** (Faz 3 ölçütü "800+ satırlı ekran yok" geriledi):
-      `screens/image_edit_screen.dart`
-      1613 · `screens/fm/job_report_screen.dart` 911 · `screens/fm/category_screen.dart`
-      884 · `screens/fm/search_screen.dart` 881 → Faz 3 yöntemiyle böl (davranış aynı,
-      testler aynen geçer). İsteğe bağlı 1000+ satırlı widget/denetleyiciler:
-      `pdf_editor/layer.dart` 1152, `widgets/fm/media_resize_sheet.dart` 1150,
-      `widgets/pdf_select_layer.dart` 1062, `docx_edit_controller.dart` 1045,
-      `docx_editor_view.dart` 1030, `editors/spreadsheet/entry.dart` 1003.
+- [ ] **A4.1b (isteğe bağlı) 1000+ satırlı widget/denetleyiciler:** `pdf_editor/layer.dart` 1156,
+      `widgets/fm/media_resize_sheet.dart` 1150, `widgets/pdf_select_layer.dart` 1062, `docx_edit_controller.dart`
+      1045, `docx_editor_view.dart` 1030, `editors/spreadsheet/entry.dart` 1003. (Ekranlar 2026-11-02'de < 800.)
 - [ ] **A4.2 `AppState` (989 satır):** Faz 3'te ayrılmayan Browse / Clipboard / Remotes /
       AI bildiricileri ayrı `ChangeNotifier`'lara; yalnız ilgili ekran izlesin
       (`root_rebuild_test` yöntemiyle yeniden çizim sayısı testi).

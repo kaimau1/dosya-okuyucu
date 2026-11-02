@@ -18,7 +18,8 @@ const _contentFiles = [
   'lib/screens/editors/word/page.dart',
   'lib/screens/pdf_ink/',
   'lib/screens/scan_edit_screen.dart',
-  'lib/screens/image_edit_screen.dart',
+  // Kanvas çizici 2026-11-02'den beri image_edit_screen/ altında (önek ikisini de kapsar).
+  'lib/screens/image_edit_screen',
   'lib/services/',
   'lib/core/excel_format.dart',
   'lib/widgets/markdown_text.dart',

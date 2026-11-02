@@ -150,9 +150,12 @@
   "sheets": 1
  },
  "lib/screens/image_edit_screen.dart": {
-  "hex_colors": 8,
+  "hex_colors": 7,
   "dialogs": 1,
   "sheets": 1
+ },
+ "lib/screens/image_edit_screen/parts.dart": {
+  "hex_colors": 1
  },
  "lib/screens/pdf_editor/actions.dart": {
   "dialogs": 1

@@ -492,3 +492,9 @@ Kullanıcı: *"fazlardan devam et, bulutta yapılabilecekleri yap, main'e merge 
 - **Geçici çözümler BİLEREK duruyor** (basamaklı `getPageRenderingScale`, sığdırma kenetlemesi, sabit pay,
   kendi seçim katmanı): 2.x'te gereksiz mi sorusu yalnız cihazda ölçülür → CIHAZ_TESTI PDF bölümü (B2).
 
+## 2026-11-02 — A4.1 800+ satırlı ekranlar bölündü
+- image_edit 1613 → 762 (+ `image_edit_screen/crop.dart`, `parts.dart`), pick_file 1071 → 687, job_report 978 → 417,
+  category 884 → 699, search 881 → 449 (+ `<ad>/parts.dart`). Yöntem: `build` SONRASI yardımcı metotlar +
+  State'ten sonraki sınıflar `part` + `extension` (davranış aynı). Kurallar: extension alan tanımlayamaz (alan
+  State'te kalır), `setState` → State'teki `_update`, statik üyeler `_XState.` ile nitelenir.
+
