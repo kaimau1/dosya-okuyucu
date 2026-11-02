@@ -25,7 +25,7 @@ paylaşım. (Firebase senkronu 2026-09-26'da kaldırıldı — HAFIZA.) Piyasada
 > `docs/DUZENLEME_PLANI.md` (Faz 20–33, K18–K25).
 
 ## 2) Mimari / Dosya Haritası
-`graphify-out/GRAPH_REPORT.md` — 22.810 düğüm, 34.430 kenar, 704 topluluk (2026-11-01) (App State Management,
+`graphify-out/GRAPH_REPORT.md` — 23.268 düğüm, 35.421 kenar, 721 topluluk (2026-11-02) (App State Management,
 Gemini AI Service, Firebase Auth, PPTX Render/Slide Canvas/Slideshow, Word DocxView, Excel Grid …).
 Kod değiştikten sonra `graphify update .` (API maliyeti yok).
 
