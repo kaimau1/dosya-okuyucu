@@ -64,6 +64,33 @@ void main() {
     expect(received, hasLength(1));
   });
 
+  test('her dosya için ilerleme gelir ve BİTİNCE onDone aynı adla çağrılır',
+      () async {
+    final progress = <String>{};
+    final done = <String>[];
+    final receiver = PeerReceiver(
+      deviceName: 'Alıcı',
+      saveDir: inbox.path,
+      onProgress: (name, _, __) => progress.add(name),
+      onDone: done.add,
+    );
+    await receiver.start();
+    addTearDown(receiver.stop);
+
+    final a = File(p.join(temp.path, 'a.txt'))..writeAsStringSync('A' * 4000);
+    final b = File(p.join(temp.path, 'b.txt'))..writeAsStringSync('B' * 4000);
+    final peer = Peer(name: 'A', host: '127.0.0.1', port: receiver.port);
+    final result = await PeerSender.send(peer, [a.path, b.path],
+        senderName: 'G');
+
+    expect(result.sent, 2);
+    // `onDone` yanıt gönderildikten sonraki `finally`de koşar.
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    expect(progress, {'a.txt', 'b.txt'});
+    // Ekran satırı onProgress adıyla açar, onDone adıyla kapatır: eşleşmeli.
+    expect(done..sort(), ['a.txt', 'b.txt']);
+  });
+
   test('aynı adlı dosya EZİLMEZ', () async {
     final receiver = await startReceiver();
     addTearDown(receiver.stop);

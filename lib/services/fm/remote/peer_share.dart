@@ -178,6 +178,12 @@ class PeerReceiver implements KeepableServer {
   /// Aktarım sürerken ilerleme (dosya adı, alınan bayt, toplam bayt).
   final void Function(String name, int received, int total)? onProgress;
 
+  /// Bir dosyanın alımı **bitti** (tamamlandı, yarım kaldı ya da koptu):
+  /// ekran ilerleme satırını kaldırır. [onProgress] adıyla aynı ad gelir —
+  /// `onReceived` yolu tutmaz (çakışmada `uniquePath` adı değiştirir, paket
+  /// açılınca bir istekten çok yol çıkar).
+  final void Function(String name)? onDone;
+
   /// **Gelen dosya onayı** (2026-10-28 kullanıcı isteği: *"dosya almada onay
   /// olmalı"*). Verilirse gönderim, alıcı "Kabul et" demeden diske YAZILMAZ.
   /// Gönderen önce `/sor` ile ne geleceğini (adlar, boyutlar, küçük
@@ -192,6 +198,7 @@ class PeerReceiver implements KeepableServer {
     this.pairingCode = '',
     this.onReceived,
     this.onProgress,
+    this.onDone,
     this.onAsk,
     this.onActivity,
   });
@@ -522,6 +529,7 @@ class PeerReceiver implements KeepableServer {
         });
       } finally {
         _busy.remove(tid);
+        onDone?.call(safeName);
       }
     } catch (_) {
       try {
@@ -551,6 +559,7 @@ class PeerReceiver implements KeepableServer {
       await sink.flush();
     } finally {
       await sink.close();
+      onDone?.call(safeName);
     }
     if (total > 0 && received < total) {
       try {

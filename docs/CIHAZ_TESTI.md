@@ -549,3 +549,7 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
 - [ ] **Belge devam notu:** 5. sayfadan sonra kapatılmış PDF'i aç → üstte ince "N. sayfadan devam
       ediliyor · Baştan başla" hapı, birkaç sn sonra kendiliğinden çekiliyor; "Baştan başla" 1. sayfaya
       götürüyor; okuma kipinde (çubuklar çekik) sayfayı örtmüyor; koyu/kâğıt temasında okunur.
+- [ ] **Yakındakiler — aynı anda iki dosya alma (2026-11-02):** iki ayrı telefondan (ya da bir telefondan
+      iki büyük dosya, 8 MB üstü) aynı anda gönder → "Alınıyor · 2 dosya" kartı en üstte; her dosya kendi
+      satırında (simge, tek satır ad, alınan/toplam · %, kendi çubuğu); adlar birbirinin üstüne binmiyor;
+      biten dosyanın satırı kalkıyor, geçmişe düşüyor. 4+ küçük dosya tek paket olarak gelir (tek satır).

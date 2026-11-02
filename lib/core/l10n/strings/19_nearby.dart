@@ -52,6 +52,11 @@ const Map<String, (String, String, String)> _t19 = {
     'افتح «القريبون» على الهاتف الآخر أيضًا. تكفي نفس شبكة Wi-Fi أو تشغيل البلوتوث.',
   ),
   'near.receiving': ('Alınıyor', 'Receiving', 'جارٍ الاستلام'),
+  'near.receiving_n': (
+    'Alınıyor · {n} dosya',
+    'Receiving · {n} files',
+    'جارٍ استلام {n} ملفات',
+  ),
   'near.waiting': (
     'Bağlantı koptu — yeniden bağlanınca kaldığı yerden sürecek…',
     'Connection lost — will resume where it stopped…',

@@ -115,8 +115,11 @@ class _NearbyScreenState extends State<NearbyScreen> {
 
   // ── alma ────────────────────────────────────────────────────────────────
   PeerReceiver? _receiver;
-  String? _incoming;
-  double? _incomingFraction;
+
+  /// Süren alımlar, dosya adına göre. Eskiden TEK bir metin vardı: iki dosya
+  /// aynı anda gelince adlar birbirini eziyordu (2026-11-02 kullanıcı bulgusu).
+  /// Ekle-sırası korunur (LinkedHashMap) → satırlar yerinde durur.
+  final Map<String, ({int received, int total})> _incoming = {};
 
   // ── bulma ───────────────────────────────────────────────────────────────
   final Map<String, _Near> _near = {};
@@ -267,17 +270,18 @@ class _NearbyScreenState extends State<NearbyScreen> {
       onAsk: _confirmIncoming ? _askIncoming : null,
       onProgress: (name, received, total) {
         if (!mounted) return;
-        final fraction = total > 0 ? received / total : null;
-        final label = total > 0
-            ? '$name · ${FsPaths.humanSize(received)} / ${FsPaths.humanSize(total)}'
-            : name;
-        // `setState` her yığında değil, metin değiştikçe.
-        if (_incoming != label) {
-          setState(() {
-            _incoming = label;
-            _incomingFraction = fraction;
-          });
-        }
+        final before = _incoming[name];
+        // `setState` her yığında değil, görünür yüzde (ya da yeni dosya)
+        // değiştikçe.
+        final shown = total > 0 ? received * 100 ~/ total : -1;
+        final was = before == null
+            ? -2
+            : (before.total > 0 ? before.received * 100 ~/ before.total : -1);
+        _incoming[name] = (received: received, total: total);
+        if (shown != was) setState(() {});
+      },
+      onDone: (name) {
+        if (mounted && _incoming.remove(name) != null) setState(() {});
       },
       onReceived: (path, from) {
         unawaited(TransferHistory.instance.add([
@@ -304,11 +308,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
           ),
         ));
         if (!mounted) return;
-        setState(() {
-          _incoming = null;
-          _incomingFraction = null;
-          _historyIncoming = true;
-        });
+        setState(() => _historyIncoming = true);
       },
     );
     try {
@@ -769,12 +769,12 @@ class _NearbyScreenState extends State<NearbyScreen> {
             const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.md)),
         children: [
           _statusCard(context),
+          if (_incoming.isNotEmpty) _incomingRow(context),
           const SizedBox(height: Gap.md),
           _selectionCard(context),
           SectionHeader(context.t('near.devices'),
               count: _near.isEmpty ? null : '${_near.length}', padding: _section),
           _devices(context),
-          if (_incoming != null) _incomingRow(context),
           SectionHeader(context.t('near.no_app'), padding: _section),
           _webCard(context),
           SectionHeader(context.t('near.history'), padding: _section),
@@ -972,22 +972,55 @@ class _NearbyScreenState extends State<NearbyScreen> {
     );
   }
 
+  /// **Alınıyor** kartı — her dosya KENDİ satırında: simge, tek satır ad,
+  /// "alınan / toplam · %", kendi ilerleme çubuğu. Üstte toplam özet.
   Widget _incomingRow(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final files = _incoming.entries.toList();
+    final known = files.where((e) => e.value.total > 0);
+    final got = known.fold<int>(0, (a, e) => a + e.value.received);
+    final all = known.fold<int>(0, (a, e) => a + e.value.total);
     return Padding(
       padding: const EdgeInsets.only(top: Gap.md),
       child: Card(
+        key: const ValueKey('near-incoming'),
         margin: EdgeInsets.zero,
+        color: scheme.primaryContainer.withValues(alpha: 0.45),
         child: Padding(
           padding: const EdgeInsets.all(Gap.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(context.t('near.receiving'), style: theme.textTheme.titleSmall),
-              const SizedBox(height: Gap.xs),
-              Text(_incoming!, maxLines: 2, style: theme.textTheme.bodySmall),
-              const SizedBox(height: Gap.sm),
-              LinearProgressIndicator(value: _incomingFraction),
+              Row(
+                children: [
+                  Icon(AppIcons.download, size: 20, color: scheme.primary),
+                  const SizedBox(width: Gap.sm),
+                  Expanded(
+                    child: Text(
+                      files.length == 1
+                          ? context.t('near.receiving')
+                          : context.t('near.receiving_n', {'n': files.length}),
+                      style: theme.textTheme.titleSmall,
+                    ),
+                  ),
+                  if (all > 0)
+                    Text(
+                      '${FsPaths.humanSize(got)} / ${FsPaths.humanSize(all)}',
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: scheme.onSurfaceVariant),
+                    ),
+                ],
+              ),
+              for (final f in files) ...[
+                const SizedBox(height: Gap.md),
+                _IncomingFileRow(
+                  key: ValueKey('near-in-${f.key}'),
+                  name: f.key,
+                  received: f.value.received,
+                  total: f.value.total,
+                ),
+              ],
             ],
           ),
         ),
@@ -1597,6 +1630,72 @@ class _SelectedTile extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Süren bir alımın tek satırı: dosya simgesi + ad (tek satır, sığmazsa
+/// ortadan kırpılmaz, sondan) + boyut/yüzde + kendi çubuğu.
+class _IncomingFileRow extends StatelessWidget {
+  final String name;
+  final int received;
+  final int total;
+
+  const _IncomingFileRow({
+    super.key,
+    required this.name,
+    required this.received,
+    required this.total,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final fraction = total > 0 ? (received / total).clamp(0.0, 1.0) : null;
+    final category = FsEntry.categoryForExtension(
+        p.extension(name).replaceFirst('.', '').toLowerCase());
+    final color = FmColors.forCategory(category);
+    final detail = total > 0
+        ? '${FsPaths.humanSize(received)} / ${FsPaths.humanSize(total)}'
+            ' · %${(fraction! * 100).floor()}'
+        : FsPaths.humanSize(received);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(Radii.control),
+          ),
+          child: SizedBox(
+            width: 36,
+            height: 36,
+            child: Icon(FmColors.iconFor(category), size: 20, color: color),
+          ),
+        ),
+        const SizedBox(width: Gap.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium),
+              const SizedBox(height: 2),
+              Text(detail,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant)),
+              const SizedBox(height: Gap.xs),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: LinearProgressIndicator(value: fraction, minHeight: 6),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
