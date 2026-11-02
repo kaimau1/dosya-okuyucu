@@ -221,6 +221,15 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
 
 ---
 
+### A10 — Kişisel sürümde sesli not (Asistan yerine; Harita KALANLAR "Asistan'sız ses planı" Faz D)
+
+- [ ] **Görüntüleyicide 🎤 not düğmesi, yalnız kişisel sürüm (`DOSYA_KISISEL=1`).** Basınca dikte hemen başlar
+      (Harita/Kanallarım `Dictation` kuralları: ~3,5 sn sessizlik ya da "tamam" bitirir, "iptal" vazgeçer), not Notlar'ın
+      "Dosyalar" klasörüne gider: dosya adı, sayfa no, görünen pasajdan alıntı, dosyayı yeniden açan `file:` bağlantısı.
+      Kotlin köprü `ci/kisisel/`'de (prepare_android.sh 3b kopyalar), Dart düğmesi method channel ile, `RECORD_AUDIO`
+      yalnız kişisel manifestte. **Bitti ölçütü:** CI genel APK'da mikrofon izni ve köprü olmadığını denetler;
+      Notlar `kopru.xml` knownCerts'e Dosya Okuyucu release sertifikası eklendi; telefonda not "Dosyalar"a düşüyor.
+
 ## Bilinçli kapsam dışı / paket sınırı (yapılmayacak — kayıt için)
 
 - **SMB:** `smb_connect` en fazla SMB 2.1 konuşuyor ve portu 445'e sabitliyor (paket
