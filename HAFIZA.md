@@ -391,3 +391,7 @@ Kullanıcı: *"fazlardan devam et, bulutta yapılabilecekleri yap, main'e merge 
   öldürülen izolatın yarım dosya tanıtıcısı kapanmıyor, Windows klasörü silmiyor (errno 32, ≈1/6) →
   `fm_archive_cancel_test` "yarım klasör" testi Windows'ta `skip`. Yeniden deneme işe yaramadı (denendi).
   Push-öncesi kanca yerel kırmızı testte push'u engelliyor — atlama.
+- **TUZAK (ortak SDK):** 2026-11-02 13:25'te başka bir oturum `C:\src\flutter`'ı 3.47.7'ye geçirdi →
+  bu projede `flutter` komutu `pubspec.lock`'u sessizce yükseltti (intl/meta/matcher…), commit'e
+  karıştı, testler derleyicide düştü. Bu proje için ayrı SDK: `C:\src\flutter-3446` (3.44.6) —
+  `export PATH="/c/src/flutter-3446/bin:$PATH"`; kilit `flutter pub get --enforce-lockfile` ile doğrulanır.
