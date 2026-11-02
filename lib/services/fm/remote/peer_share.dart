@@ -344,7 +344,9 @@ class PeerReceiver implements KeepableServer {
         try {
           socket.send(reply, packet.address, packet.port);
         } catch (_) {}
-      });
+        // Ağ/güvenlik duvarı UDP göndermeyi reddederse (EPERM) hata akışa
+        // düşer; yakalanmazsa "[async] SocketException" olarak tekrar eder.
+      }, onError: (Object _) {}, cancelOnError: false);
     } catch (_) {
       // Bulma çalışmasa da aktarım çalışır: gönderen IP'yi elle yazabilir,
       // Bluetooth ile de bulunabilir.
@@ -653,15 +655,17 @@ abstract final class PeerSender {
           id: '${data['id'] ?? ''}',
         );
         if (seen.add(peer.key)) controller.add(peer);
-      });
+      }, onError: (Object _) {}, cancelOnError: false);
 
       Future<void> ask() async {
         final payload = utf8.encode(PeerShare._magic);
         final targets = <String>{'255.255.255.255'};
-        for (final address in await PeerShare.localAddresses()) {
-          final broadcast = PeerShare.broadcastFor(address.address);
-          if (broadcast != null) targets.add(broadcast);
-        }
+        try {
+          for (final address in await PeerShare.localAddresses()) {
+            final broadcast = PeerShare.broadcastFor(address.address);
+            if (broadcast != null) targets.add(broadcast);
+          }
+        } catch (_) {}
         for (final target in targets) {
           try {
             sock.send(payload, InternetAddress(target), PeerShare.discoveryPort);
