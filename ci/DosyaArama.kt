@@ -8,8 +8,8 @@ import org.json.JSONObject
 import java.io.File
 
 /**
- * **Dosya arama + AI kapsamı** — Gemini işlevleri (`Ajan.kt`) ile asistan köprüsünün (`ci/kisisel/AsistanKopru.kt`,
- * yalnız kişisel derleme) ortak kısmı (2026-10-31, Ajan.kt'den taşındı; davranış aynı). Flutter'a bağlı değil:
+ * **Dosya arama + AI kapsamı** — Gemini işlevlerinin (`Ajan.kt`) arama/kapsam kuralı (2026-10-31, Ajan.kt'den
+ * taşındı; davranış aynı). Flutter'a bağlı değil:
  * `tool/check_kotlin.sh` gerçek Android jar'ına karşı derler.
  */
 internal object DosyaArama {

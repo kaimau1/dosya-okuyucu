@@ -124,10 +124,6 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
 - [ ] **A7.5 Excel koşullu biçim yazma:** renk ölçeği / veri çubuğu / simge kümesi bugün
       yalnız okunup çiziliyor; "Koşullu biçimlendirme" levhasına eklenir (`<cfRule>` +
       `<colorScale>/<dataBar>/<iconSet>`), LibreOffice ile gidiş-dönüş testi.
-- [ ] **A7.8 Asistan köprüsü — özet geri dönüşü** (isteğe bağlı): özet bugün Dosya
-      Okuyucu'nun özet sayfasında açılıyor, asistana dönmüyor (HAFIZA 2026-10-31
-      "gerekirse sonra"). Asistan deposunun `PROTOKOL.md`'siyle birlikte; yalnız kişisel
-      derleme.
 
 ### A8 — Ölçüm altyapısı (bulut kısmı; koşusu B2'de)
 

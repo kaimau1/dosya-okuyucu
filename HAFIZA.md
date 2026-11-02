@@ -407,3 +407,8 @@ Kullanıcı: *"fazlardan devam et, bulutta yapılabilecekleri yap, main'e merge 
   `compress`→`compression`, `encode()` artık null dönmüyor.
 - Bu makinede doğrulama yalnız `C:\src\flutter-3446` ile; 3.47.7'de pdfrx 1.3.5/dartssh2 derlenmiyor.
 - Tam pakette 3 zamanlama düşüşü (slides_edit, pdf_form_screen, xlsx_reader_fast) yük altında; izole geçiyor.
+
+## 2026-11-02 — Asistan köprüsü kaldırıldı
+- Merkezi asistan (`com.ses.asistan`) pil yüzünden bırakıldı. Silinenler: `ci/kisisel/` (AsistanKopru, manifest eki,
+  sertifika, yetenekler), `AsistanKomutlari` (`oku:`/`ozet:`/`durdur:` bağlantıları), harness ve testi. `DOSYA_KISISEL`
+  bayrağı ve `kisisel` ön-sürümü kişisel not özelliği için kaldı. `DosyaArama` yalnız Ajan'ın.

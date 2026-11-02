@@ -16,7 +16,7 @@ name: APK Derle & Release
 #   onayı 2026-10-21). Hız sınırına takılmamak için koşu başına ≤ 100 silme.
 # • `[release-apk]` işaretli commit: özellik dalında APK'yı artifact olarak
 #   üretir, Release basmaz (2026-07-21 politikası).
-# • Kişisel derleme (asistan köprüsü): elle `kisisel: true` YA DA commit
+# • Kişisel derleme (kişisel özellikler): elle `kisisel: true` YA DA commit
 #   mesajında `[kisisel]` → ayrı `kisisel` ön-sürümü (nightly değişmez).
 
 on:
@@ -44,7 +44,7 @@ on:
         type: string
         default: '3.44.6'
       kisisel:
-        description: 'Kişisel derleme (asistan köprüsüyle; ayrı `kisisel` ön-sürümüne yayınlanır, nightly/en son değişmez)'
+        description: 'Kişisel derleme (kişisel özelliklerle; ayrı `kisisel` ön-sürümüne yayınlanır, nightly/en son değişmez)'
         type: boolean
         default: false
       play:
@@ -219,8 +219,7 @@ jobs:
 
       # C7: 9 ayrı yama adımı tek betikte — yerelde de koşar.
       - name: Android iskeleti + yamalar (ci/prepare_android.sh)
-        # Kişisel derleme (asistan köprüsü) yalnız elle; genel derlemede betik
-        # köprünün manifestte OLMADIĞINI denetler (ci/kisisel/).
+        # Kişisel derleme yalnız elle ya da `[kisisel]` ile.
         env:
           DOSYA_KISISEL: ${{ (inputs.kisisel || contains(github.event.head_commit.message, '[kisisel]')) && '1' || '0' }}
         run: bash ci/prepare_android.sh
@@ -482,7 +481,7 @@ jobs:
           set -e
           {
             if [ "${{ (inputs.kisisel || contains(github.event.head_commit.message, '[kisisel]')) && '1' || '0' }}" = "1" ]; then
-              echo "> **KİŞİSEL derleme** — asistan köprüsü (\`com.ses.asistan\`) içerir; genel dağıtım değildir."
+              echo "> **KİŞİSEL derleme** — kişisel özellikleri içerir; genel dağıtım değildir."
               echo
             fi
             echo "**Sürüm ${BUILD_NAME}** (derleme ${BUILD_NUMBER}) — \`$(git rev-parse --short HEAD)\`"

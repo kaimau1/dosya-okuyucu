@@ -538,9 +538,4 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
       duruyor.
 - [ ] **R8'li sürüm:** açılış çökmesiz; ML Kit (OCR/çeviri), Drive girişi, Yakındakiler, Media3,
       PDF yazma (Syncfusion) çalışıyor.
-- [ ] **Kişisel derleme (yalnız `kisisel` APK — `releases/download/kisisel/dosya-okuyucu.apk`;
-      nightly/"en son" değişmemiş olmalı; asistan `com.ses.asistan` kurulu):** asistandan
-      "… dosyasını aç" (sorgu boşsa son açılan), "oku" (görüntüleyicinin kendi sesli okuması),
-      "durdur" (duraklatır, kaldığı yer kalır), "özetle" (özet sayfası) çalışıyor; genel APK'da
-      köprü yok.
 - [ ] **48 saat iç test** (KALANLAR B6): çökme/ANR yok; `CrashLog` boş ya da anlamlı.

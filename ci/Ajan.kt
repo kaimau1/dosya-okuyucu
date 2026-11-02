@@ -19,7 +19,7 @@ import java.io.File
  * başlatır — arka plandaki servisten Activity açmak Android 10+'da engelli.
  * Bağlantılar widget'larınkiyle AYNI (`Extras.linkIntent`, `app:` / `file:`).
  *
- * Arama ve kapsam `DosyaArama.kt`'de (asistan köprüsü de aynısını kullanır).
+ * Arama ve kapsam `DosyaArama.kt`'de.
  *
  * **GİZLİLİK — `lib/services/fm/ai_scope.dart` ile aynı kural:** kilitli
  * klasörler (`fm_locked_folders`), AI kapsamından dışlanan klasörler
