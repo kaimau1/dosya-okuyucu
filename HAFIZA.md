@@ -438,3 +438,17 @@ Kullanıcı: *"fazlardan devam et, bulutta yapılabilecekleri yap, main'e merge 
   yanıtını (üretici verisi) hizmet UUID'li reklamdan AYRI olay verir → adres önce UUID ile işaretlenir.
   Tuzak: kabuk küçük resmi alttan-üste DIB (negatif Stride) — satır satır kopyala.
 - Doğrulanmadı: Kotlin (yerelde kotlinc yok → CI), gerçek telefonda arka plan + MIUI süreç öldürme + pil.
+
+## 2026-11-02 — Yakındakiler yeniden tasarım + rebase kurtarma
+- Önceki oturum `git rebase` ortasında kalmıştı (HAFIZA + asistan silinmesi çakışması). Çözüm: iki HAFIZA kaydı da
+  kaldı; `ci/kisisel/` asistan parçaları origin'deki silinmeye uyuldu, **NearbyBgService korundu** (manifest_ek yalnız
+  servis + FOREGROUND_SERVICE_CONNECTED_DEVICE; prepare_android kişisel bloğu yalnız servisi kopyalar/denetler).
+  `git range-diff` ile 7 yerel commit doğrulandı — veri kaybı yok.
+- Gönderim artık ekranı kapatan `showFmProgress` penceresi DEĞİL: ekranda "→ X cihazına gönderiliyor" kartı, dosya
+  (kalem) başına satır + Durdur. Kaynak `PeerSender.send(onFile:)` (başta 0, bitince boyun tamamı). Süren gönderimde
+  avatarlar soluk, dokununca `near.busy_sending`. Ekrandan çıkınca gönderim SÜRER (Future ekrana bağlı değil).
+- ≥ 840 dp iki sütun (sol: durum/aktarımlar/seçim/cihazlar · sağ: QR/geçmiş/diğer yollar), en geniş 1480 (pano ile aynı).
+- Bölme: `nearby_screen.dart` (durum+mantık) + `nearby/links.dart` (QR/hotspot/BLE davet/arka plan) +
+  `nearby/sections.dart` + `nearby/widgets.dart` (`part` + extension). **TUZAK:** extension içinden `setState`
+  `invalid_use_of_protected_member` verir → State'te `_update(fn)`; statik üyeler `_NearbyScreenState.` ile nitelenir.
+

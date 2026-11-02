@@ -21,7 +21,6 @@ import '../../../core/user_error.dart';
 import '../../../models/fs_entry.dart';
 import '../../../services/fm/download_service.dart';
 import '../../../services/fm/entry_opener.dart';
-import '../../../services/fm/file_ops.dart' show FmProgress;
 import '../../../services/fm/fm_env.dart';
 import '../../../services/fm/fs_scan.dart';
 import '../../../services/fm/notification_hub.dart';
@@ -34,7 +33,6 @@ import '../../../services/fm/remote/transfer_history.dart';
 import '../../../services/fm/remote/transfer_thumbs.dart';
 import '../../../widgets/app_dialog.dart';
 import '../../../widgets/fm/fm_entry_icon.dart';
-import '../../../widgets/fm/fm_progress_dialog.dart';
 import '../../../widgets/fm/transfer_offer_sheet.dart';
 import '../../../widgets/qr_code.dart';
 import '../../../widgets/section_header.dart';
@@ -45,6 +43,10 @@ import 'ftp_server_screen.dart';
 import 'qr_receive_flow.dart';
 import 'remote_connections_screen.dart';
 import '../pick_file_screen.dart';
+
+part 'nearby/links.dart';
+part 'nearby/sections.dart';
+part 'nearby/widgets.dart';
 
 /// Gelen dosya bildiriminin kimliği (uygulamadaki öteki kimliklerden farklı).
 const _receiveNotificationId = 90521;
@@ -59,6 +61,21 @@ class _Near {
   DateTime bleSeen = DateTime.fromMillisecondsSinceEpoch(0);
 
   _Near(this.key, this.name);
+}
+
+/// Süren bir Wi-Fi gönderimi: dosya (kalem) başına ilerleme, ekle-sırasıyla.
+/// Eskiden ekranı kapatan tek çubuklu bir pencereydi; artık alınanlar gibi
+/// her dosya kendi satırında, ekran kullanılabilir kalır.
+class _Outgoing {
+  final String to;
+  final DateTime startedAt = DateTime.now();
+  final Map<String, ({int sent, int size})> files = {};
+  int sentBytes = 0;
+  int totalBytes = 0;
+  bool waiting = false;
+  bool cancelled = false;
+
+  _Outgoing(this.to);
 }
 
 /// **Yakındakiler** — telefonlar arası aktarımın TEK ekranı (2026-10-29).
@@ -139,6 +156,10 @@ class _NearbyScreenState extends State<NearbyScreen> {
   /// aynı anda gelince adlar birbirini eziyordu (2026-11-02 kullanıcı bulgusu).
   /// Ekle-sırası korunur (LinkedHashMap) → satırlar yerinde durur.
   final Map<String, ({int received, int total})> _incoming = {};
+
+  // ── gönderme ────────────────────────────────────────────────────────────
+  /// Tek seferde tek gönderim (avatarlar bu sürede pasif).
+  _Outgoing? _out;
 
   // ── bulma ───────────────────────────────────────────────────────────────
   final Map<String, _Near> _near = {};
@@ -407,49 +428,6 @@ class _NearbyScreenState extends State<NearbyScreen> {
         saveDir: _saveDir, preAccepted: true, from: invite.from);
   }
 
-  // ── Arka planda görünürlük (kişisel derleme) ───────────────────────────
-
-  Future<void> _loadBg() async {
-    final state = await BleNearby.bgState();
-    if (!mounted) return;
-    setState(() {
-      _bgAvailable = state.available;
-      _bgOn = state.on;
-    });
-  }
-
-  Future<bool> _enableBg() {
-    final strings = AppStrings.of(context);
-    return BleNearby.bgEnable(id: _id, name: _deviceName, texts: {
-      'bg_title': strings.t('near.bg_note_title'),
-      'bg_text': strings.t('near.bg_note_text'),
-      // {name}/{n} yer tutucuları bildirimi kuran Kotlin tarafında doldurulur.
-      'ask_title': strings.t('near.bg_ask_title'),
-      'ask_body': strings.t('near.bg_ask_body'),
-      'accept': strings.t('near.accept'),
-      'reject': strings.t('near.decline'),
-      'ch_quiet': strings.t('near.bg_ch_quiet'),
-      'ch_ask': strings.t('near.bg_ch_ask'),
-    });
-  }
-
-  Future<void> _toggleBg() async {
-    final messenger = ScaffoldMessenger.of(context);
-    final strings = AppStrings.of(context);
-    if (_bgOn) {
-      await BleNearby.bgDisable();
-      if (!mounted) return;
-      setState(() => _bgOn = false);
-      showSnackOn(messenger, strings.t('near.bg_off'));
-      return;
-    }
-    final ok = await _enableBg();
-    if (!mounted) return;
-    setState(() => _bgOn = ok);
-    showSnackOn(messenger, strings.t(ok ? 'near.bg_on' : 'near.bg_failed'),
-        duration: const Duration(seconds: 6));
-  }
-
   Future<void> _scanQr() async {
     await QrReceiveFlow.run(context, saveDir: _saveDir);
   }
@@ -495,63 +473,6 @@ class _NearbyScreenState extends State<NearbyScreen> {
     _scheduleWeb();
   }
 
-  // ── QR / web sunucusu ──────────────────────────────────────────────────
-
-  /// Seçim değişince sunucu yeni listeyle (kısa bir beklemeden sonra) kurulur.
-  void _scheduleWeb() {
-    if (!widget.services) return;
-    _webDebounce?.cancel();
-    _webDebounce = Timer(Motion.long, () {
-      unawaited(_restartWeb());
-    });
-  }
-
-  Future<void> _restartWeb() async {
-    final old = _web;
-    _web = null;
-    // Seçim değişti diye süren indirme kesilmez.
-    if (old != null) await TransferKeeper.instance.handOff(old);
-    if (_selection.isEmpty) {
-      if (mounted) setState(() {});
-      return;
-    }
-    try {
-      final server = QrShareServer([..._selection],
-          senderName: _deviceName,
-          onActivity: TransferKeeper.instance.onActivity,
-          thumbnail: TransferThumbs.of,
-          onServed: (name) {
-            unawaited(TransferHistory.instance.add([
-              TransferRecord(
-                incoming: false,
-                path: _selection.firstWhere((s) => name.startsWith(p.basename(s)),
-                    orElse: () => name),
-                name: name,
-                size: 0,
-                peer: AppStrings.current.t('near.via_web'),
-                at: DateTime.now(),
-              ),
-            ]));
-            if (mounted) setState(() => _served++);
-          });
-      await server.start();
-      final host = await _wifiAddress();
-      if (!mounted) {
-        await server.stop();
-        return;
-      }
-      setState(() {
-        _web = server;
-        _webHost = host;
-        _webError = null;
-      });
-      // Ortak Wi-Fi yoksa hotspot tek yol — sormadan kurulur.
-      if (host == null && _hotspot == null) await _startHotspot();
-    } catch (e) {
-      if (mounted) setState(() => _webError = userErrorText(e));
-    }
-  }
-
   /// Wi-Fi arayüzünün (`wlan0`) adresi; mobil veri değil.
   static Future<String?> _wifiAddress({Set<String> except = const {}}) async {
     try {
@@ -572,45 +493,13 @@ class _NearbyScreenState extends State<NearbyScreen> {
     return null;
   }
 
-  Future<bool> _startHotspot() async {
-    if (_hotspot != null) return true;
-    if (_hotspotBusy) return false;
-    TransferKeeper.instance.detachClosers();
-    setState(() => _hotspotBusy = true);
-    final before = <String>{if (_webHost != null) _webHost!};
-    try {
-      final h = await QrNative.startHotspot();
-      String? host;
-      for (var i = 0; i < 20 && host == null; i++) {
-        await Future<void>.delayed(Motion.medium);
-        host = await _wifiAddress(except: before);
-      }
-      if (!mounted) return false;
-      setState(() {
-        _hotspot = h;
-        _hotspotHost = host;
-        _hotspotStep = 0;
-        if (host == null) _webError = context.t('qrf.no_address');
-      });
-      return host != null;
-    } on PlatformException catch (e) {
-      if (mounted) {
-        setState(() => _webError = context.t(switch (e.code) {
-              'perm' => 'qrf.err_perm',
-              'location_off' => 'qrf.err_location',
-              'unsupported' => 'qrf.err_unsupported',
-              _ => 'qrf.err_hotspot',
-            }));
-      }
-      return false;
-    } finally {
-      if (mounted) setState(() => _hotspotBusy = false);
-    }
-  }
-
   // ── Gönderme ───────────────────────────────────────────────────────────
 
   Future<void> _tapPeer(_Near near) async {
+    if (_out != null) {
+      showSnack(context, context.t('near.busy_sending'));
+      return;
+    }
     if (_selection.isEmpty) {
       final picked = await showAppSheet<String>(
         context,
@@ -654,39 +543,49 @@ class _NearbyScreenState extends State<NearbyScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final appState = context.read<AppState>();
     final payload = [..._selection];
-    final startedAt = DateTime.now();
-    var waiting = false;
-    final result = await showFmProgress<PeerSendResult>(
-      context,
-      title: strings.t('peer.sending'),
-      name: strings.t('peer.sending_name'),
-      task: (report, isCancelled) => PeerSender.send(
+    final out = _Outgoing(peer.name);
+    setState(() => _out = out);
+    // Görünür yüzde değişmedikçe yeniden çizilmez (yığın başına değil).
+    var shown = -1;
+    void tick() {
+      final pct = out.totalBytes > 0 ? out.sentBytes * 100 ~/ out.totalBytes : 0;
+      if (pct != shown && mounted) {
+        shown = pct;
+        setState(() {});
+      }
+    }
+
+    PeerSendResult result;
+    try {
+      result = await PeerSender.send(
         peer,
         payload,
         senderName: _deviceName,
         senderId: _id,
-        isCancelled: isCancelled,
+        isCancelled: () => out.cancelled,
         thumbnail: TransferThumbs.of,
-        onWaiting: (w) => waiting = w,
-        onProgress: (name, sent, total) => report(
-            FmProgress(sent, total, waiting ? strings.t('near.waiting') : name)),
-      ),
-      describe: (value) {
-        if (value.total <= 0) return '';
-        final elapsed = DateTime.now().difference(startedAt).inMilliseconds;
-        if (waiting) return strings.t('near.waiting');
-        final speed = elapsed > 300
-            ? FsPaths.humanSize((value.done * 1000 / elapsed).round())
-            : '';
-        return speed.isEmpty
-            ? '${FsPaths.humanSize(value.done)} / ${FsPaths.humanSize(value.total)}'
-            : strings.t('peer.speed', {
-                'done': FsPaths.humanSize(value.done),
-                'total': FsPaths.humanSize(value.total),
-                'speed': speed,
-              });
-      },
-    );
+        onWaiting: (w) {
+          out.waiting = w;
+          if (mounted) setState(() {});
+        },
+        onFile: (name, sent, size) {
+          final isNew = !out.files.containsKey(name);
+          out.files[name] = (sent: sent, size: size);
+          if (isNew || sent == size) {
+            if (mounted) setState(() {});
+          }
+        },
+        onProgress: (_, sent, total) {
+          out.sentBytes = sent;
+          out.totalBytes = total;
+          tick();
+        },
+      );
+    } catch (e) {
+      result = PeerSendResult(errors: [userErrorText(e)]);
+    } finally {
+      if (mounted) setState(() => _out = null);
+    }
     if (result.sent > 0 && !result.hasError && !result.cancelled) {
       await TransferHistory.instance.add([
         for (final path in payload)
@@ -716,52 +615,6 @@ class _NearbyScreenState extends State<NearbyScreen> {
                       : strings.t('peer.sent', {'n': result.sent, 'name': peer.name}),
         ),
       ),
-    );
-  }
-
-  /// Yalnız Bluetooth'tan görünen cihaz: gönderen geçici ağ kurar, adresi
-  /// davet olarak yollar; alıcı onaylayınca dosyalar Wi-Fi'den çekilir.
-  Future<void> _sendBle(_Near near) async {
-    final strings = AppStrings.of(context);
-    final messenger = ScaffoldMessenger.of(context);
-    if (_web == null) await _restartWeb();
-    final web = _web;
-    if (web == null || !mounted) return;
-    // Aynı Wi-Fi'de olmadığımızı varsayıyoruz (öyle olsaydı Wi-Fi'den de
-    // görünürdü): geçici ağ kurulur. Kurulamazsa Wi-Fi adresi denenir.
-    final hotspotOk = await _startHotspot();
-    if (!mounted) return;
-    final hs = _hotspot;
-    String? url;
-    if (hotspotOk && hs != null && _hotspotHost != null) {
-      url = QrPayload.encode(web.urlFor(_hotspotHost!),
-          ssid: hs.ssid, pass: hs.pass, sec: hs.sec);
-    } else if (_webHost != null) {
-      url = web.urlFor(_webHost!).toString();
-    }
-    if (url == null) {
-      showSnackOn(messenger, strings.t('near.no_network'));
-      return;
-    }
-    final total = _selection.fold<int>(0, (a, s) => a + _sizeOf(s));
-    showSnackOn(messenger, strings.t('near.inviting', {'name': near.name}));
-    final ok = await BleNearby.invite(
-      near.ble!.address,
-      BleInvite(
-        from: _deviceName,
-        fromId: _id,
-        url: url,
-        count: _selection.length,
-        totalBytes: total,
-        names: [for (final s in _selection) p.basename(s)],
-      ),
-    );
-    showSnackOn(
-      messenger,
-      ok
-          ? strings.t('near.invited', {'name': near.name})
-          : strings.t('near.invite_failed', {'name': near.name}),
-      duration: const Duration(seconds: 6),
     );
   }
 
@@ -811,6 +664,13 @@ class _NearbyScreenState extends State<NearbyScreen> {
 
   // ── Çizim ──────────────────────────────────────────────────────────────
 
+  /// Bölüm dosyaları (extension) `setState`'i doğrudan çağıramaz (korumalı üye).
+  void _update(VoidCallback fn) => setState(fn);
+
+  /// Bu genişlikten sonra iki sütun: solda gönderme akışı, sağda QR, geçmiş
+  /// ve diğer yollar (pano ile aynı eşik ve en geniş içerik).
+  static const _wideFrom = 840.0;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -823,977 +683,59 @@ class _NearbyScreenState extends State<NearbyScreen> {
             icon: const Icon(AppIcons.qrScan),
             onPressed: _scanQr,
           ),
-          PopupMenuButton<String>(
-            icon: const Icon(AppIcons.more),
-            onSelected: (v) async {
-              switch (v) {
-                case 'name':
-                  await _editDeviceName();
-                case 'dir':
-                  await _pickSaveDir();
-                case 'confirm':
-                  setState(() => _confirmIncoming = !_confirmIncoming);
-                  if (widget.services) await _startReceiving();
-                case 'bg':
-                  await _toggleBg();
-              }
-            },
-            itemBuilder: (ctx) => [
-              PopupMenuItem(
-                value: 'name',
-                child: Text(ctx.t('peer.device_name')),
-              ),
-              PopupMenuItem(
-                value: 'dir',
-                child: Text(ctx.t('peer.save_to', {'path': p.basename(_saveDir)})),
-              ),
-              CheckedPopupMenuItem(
-                value: 'confirm',
-                checked: _confirmIncoming,
-                child: Text(ctx.t('peer.ask_switch')),
-              ),
-              if (_bgAvailable)
-                CheckedPopupMenuItem(
-                  value: 'bg',
-                  checked: _bgOn,
-                  child: Text(ctx.t('near.bg_switch')),
-                ),
-            ],
-          ),
+          _menu(context),
         ],
       ),
-      body: ListView(
-        padding: withNavInset(context,
-            const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.md)),
-        children: [
+      body: LayoutBuilder(builder: (context, box) {
+        final send = [
           _statusCard(context),
-          if (_incoming.isNotEmpty) _incomingRow(context),
+          ..._transfers(context),
           const SizedBox(height: Gap.md),
           _selectionCard(context),
           SectionHeader(context.t('near.devices'),
               count: _near.isEmpty ? null : '${_near.length}', padding: _section),
           _devices(context),
-          SectionHeader(context.t('near.no_app'), padding: _section),
+        ];
+        // İki sütunda sağın ilk başlığı soldaki durum kartıyla aynı hizada başlar.
+        List<Widget> more({required bool first}) => [
+          SectionHeader(context.t('near.no_app'),
+              padding: first ? _section.copyWith(top: 0) : _section),
           _webCard(context),
           SectionHeader(context.t('near.history'), padding: _section),
           _history(context),
           SectionHeader(context.t('near.other_ways'), padding: _section),
           _otherWays(context),
-        ],
-      ),
-    );
-  }
-
-  Widget _statusCard(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final visible = _receiver?.running ?? false;
-    final bleOk = _ble == BleStart.ok;
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(Gap.md),
-        child: Row(
-          children: [
-            _Radar(active: visible || bleOk),
-            const SizedBox(width: Gap.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  InkWell(
-                    onTap: _editDeviceName,
-                    borderRadius: BorderRadius.circular(Radii.control),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            _deviceName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.titleMedium,
-                          ),
-                        ),
-                        const SizedBox(width: Gap.xs),
-                        Icon(AppIcons.edit, size: 16, color: scheme.onSurfaceVariant),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    context.t(visible || bleOk ? 'near.visible' : 'near.starting'),
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: scheme.onSurfaceVariant),
-                  ),
-                  const SizedBox(height: Gap.sm),
-                  Wrap(
-                    spacing: Gap.xs,
-                    runSpacing: Gap.xs,
-                    children: [
-                      _Pill(
-                        icon: AppIcons.wifi,
-                        label: context.t(_hasWifi ? 'near.wifi_on' : 'near.wifi_off'),
-                        ok: _hasWifi,
-                      ),
-                      _Pill(
-                        icon: AppIcons.bluetooth,
-                        label: context.t(switch (_ble) {
-                          BleStart.ok => 'near.bt_on',
-                          BleStart.off => 'near.bt_off',
-                          BleStart.denied => 'near.bt_denied',
-                          BleStart.unsupported => 'near.bt_none',
-                          BleStart.failed => 'near.bt_failed',
-                          null => 'near.bt_wait',
-                        }),
-                        ok: bleOk,
-                        onTap: bleOk || _ble == BleStart.unsupported || !widget.services
-                            ? null
-                            : _startBle,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _selectionCard(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(Gap.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              _selection.isEmpty
-                  ? context.t('near.pick_title')
-                  : context.t('near.selected', {'n': _selection.length}),
-              style: theme.textTheme.titleSmall,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              context.t(_selection.isEmpty ? 'near.pick_sub' : 'near.tap_device'),
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-            if (_selection.isNotEmpty) ...[
-              const SizedBox(height: Gap.sm),
-              SizedBox(
-                height: 92,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _selection.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: Gap.sm),
-                  itemBuilder: (_, i) => _SelectedTile(
-                    path: _selection[i],
-                    onRemove: () => _remove(_selection[i]),
-                  ),
-                ),
-              ),
-            ],
-            const SizedBox(height: Gap.sm),
-            Row(
+        ];
+        const pad = EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.md);
+        if (box.maxWidth < _wideFrom) {
+          return ListView(
+            padding: withNavInset(context, pad),
+            children: [...send, ...more(first: false)],
+          );
+        }
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1480),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
-                    key: const ValueKey('near-add-files'),
-                    onPressed: _addFiles,
-                    icon: const Icon(AppIcons.addFile, size: AppIcons.small),
-                    label: Text(context.t('near.add_files')),
-                  ),
+                  key: const ValueKey('near-col-send'),
+                  child: ListView(padding: withNavInset(context, pad), children: send),
                 ),
-                const SizedBox(width: Gap.sm),
                 Expanded(
-                  child: OutlinedButton.icon(
-                    key: const ValueKey('near-add-folder'),
-                    onPressed: _addFolder,
-                    icon: const Icon(AppIcons.addFolder, size: AppIcons.small),
-                    label: Text(context.t('near.add_folder')),
+                  key: const ValueKey('near-col-more'),
+                  child: ListView(
+                    padding: withNavInset(context, pad.copyWith(left: 0)),
+                    // Sağ sütunun ilk başlığı solun durum kartıyla hizalı başlasın.
+                    children: more(first: true),
                   ),
                 ),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _devices(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final list = _near.values.toList()
-      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-    if (list.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: Gap.md),
-        child: Column(
-          children: [
-            Icon(AppIcons.nearMe, size: AppIcons.large, color: scheme.onSurfaceVariant),
-            const SizedBox(height: Gap.sm),
-            Text(
-              context.t('near.searching'),
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: Gap.xs),
-            Text(
-              context.t('near.searching_sub'),
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-          ],
-        ),
-      );
-    }
-    return Wrap(
-      spacing: Gap.md,
-      runSpacing: Gap.md,
-      children: [
-        for (final n in list)
-          _PeerAvatar(
-            name: n.name,
-            wifi: n.wifi != null,
-            ble: n.ble != null,
-            onTap: () => _tapPeer(n),
-          ),
-      ],
-    );
-  }
-
-  /// **Alınıyor** kartı — her dosya KENDİ satırında: simge, tek satır ad,
-  /// "alınan / toplam · %", kendi ilerleme çubuğu. Üstte toplam özet.
-  Widget _incomingRow(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final files = _incoming.entries.toList();
-    final known = files.where((e) => e.value.total > 0);
-    final got = known.fold<int>(0, (a, e) => a + e.value.received);
-    final all = known.fold<int>(0, (a, e) => a + e.value.total);
-    return Padding(
-      padding: const EdgeInsets.only(top: Gap.md),
-      child: Card(
-        key: const ValueKey('near-incoming'),
-        margin: EdgeInsets.zero,
-        color: scheme.primaryContainer.withValues(alpha: 0.45),
-        child: Padding(
-          padding: const EdgeInsets.all(Gap.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Icon(AppIcons.download, size: 20, color: scheme.primary),
-                  const SizedBox(width: Gap.sm),
-                  Expanded(
-                    child: Text(
-                      files.length == 1
-                          ? context.t('near.receiving')
-                          : context.t('near.receiving_n', {'n': files.length}),
-                      style: theme.textTheme.titleSmall,
-                    ),
-                  ),
-                  if (all > 0)
-                    Text(
-                      '${FsPaths.humanSize(got)} / ${FsPaths.humanSize(all)}',
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: scheme.onSurfaceVariant),
-                    ),
-                ],
-              ),
-              for (final f in files) ...[
-                const SizedBox(height: Gap.md),
-                _IncomingFileRow(
-                  key: ValueKey('near-in-${f.key}'),
-                  name: f.key,
-                  received: f.value.received,
-                  total: f.value.total,
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _webCard(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final web = _web;
-    final hs = _hotspot;
-    if (_selection.isEmpty) {
-      return Card(
-        margin: EdgeInsets.zero,
-        child: ListTile(
-          leading: const Icon(AppIcons.qr),
-          title: Text(context.t('near.web_idle')),
-          subtitle: Text(context.t('near.web_idle_sub')),
-        ),
-      );
-    }
-    String? qr;
-    String? url;
-    String hint;
-    if (web == null) {
-      hint = context.t('qrf.preparing');
-    } else if (hs != null && _hotspotHost != null) {
-      final u = web.urlFor(_hotspotHost!);
-      url = u.toString();
-      qr = _hotspotStep == 0
-          ? QrPayload.wifi(hs.ssid, hs.pass, sec: hs.sec)
-          : QrPayload.encode(u, ssid: hs.ssid, pass: hs.pass, sec: hs.sec);
-      hint = context.t(_hotspotStep == 0 ? 'near.web_step1' : 'near.web_step2');
-    } else if (_webHost != null) {
-      url = web.urlFor(_webHost!).toString();
-      qr = url;
-      hint = context.t('near.web_same_wifi');
-    } else {
-      hint = context.t('qrf.preparing');
-    }
-    final size =
-        (MediaQuery.sizeOf(context).shortestSide - 140).clamp(160.0, 260.0);
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(Gap.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (hs != null && _hotspotHost != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: Gap.sm),
-                child: SegmentedButton<int>(
-                  segments: [
-                    ButtonSegment(value: 0, label: Text(context.t('near.step_wifi'))),
-                    ButtonSegment(value: 1, label: Text(context.t('near.step_page'))),
-                  ],
-                  selected: {_hotspotStep},
-                  onSelectionChanged: (s) => setState(() => _hotspotStep = s.first),
-                ),
-              ),
-            Center(
-              child: qr == null
-                  ? SizedBox.square(
-                      dimension: size,
-                      child: const Center(child: CircularProgressIndicator()),
-                    )
-                  : QrCode(key: ValueKey(qr), data: qr, size: size),
-            ),
-            const SizedBox(height: Gap.sm),
-            Text(hint, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
-            if (hs != null && _hotspotStep == 0) ...[
-              const SizedBox(height: Gap.xs),
-              SelectableText(
-                '${context.t('near.network')}: ${hs.ssid}\n${context.t('near.password')}: ${hs.pass}',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall,
-              ),
-              Center(
-                child: TextButton(
-                  onPressed: () => setState(() => _hotspotStep = 1),
-                  child: Text(context.t('qrf.connected_next')),
-                ),
-              ),
-            ],
-            if (url != null && (hs == null || _hotspotStep == 1)) ...[
-              const SizedBox(height: Gap.sm),
-              Material(
-                color: scheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(Radii.control),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(Radii.control),
-                  onTap: () {
-                    Clipboard.setData(ClipboardData(text: url!));
-                    showSnack(context, context.t('near.copied'));
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: Gap.md, vertical: Gap.sm),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            url,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontFamily: AppTheme.fontMono,
-                            ),
-                          ),
-                        ),
-                        Icon(AppIcons.copyPlain,
-                            size: AppIcons.small, color: scheme.onSurfaceVariant),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: Gap.xs),
-              Text(context.t('near.type_address'),
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: scheme.onSurfaceVariant)),
-            ],
-            if (_served > 0) ...[
-              const SizedBox(height: Gap.sm),
-              Text(context.t('qrf.served', {'n': _served}),
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(color: Paper.success(context))),
-            ],
-            if (_webError != null) ...[
-              const SizedBox(height: Gap.sm),
-              Text(_webError!,
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodySmall?.copyWith(color: scheme.error)),
-            ],
-            if (hs == null && web != null) ...[
-              const SizedBox(height: Gap.xs),
-              TextButton.icon(
-                onPressed: _hotspotBusy ? null : _startHotspot,
-                icon: _hotspotBusy
-                    ? const SizedBox.square(
-                        dimension: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(AppIcons.hotspot, size: AppIcons.small),
-                label: Text(context.t('qrf.no_common_wifi')),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _history(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return ListenableBuilder(
-      listenable: TransferHistory.instance,
-      builder: (context, _) {
-        final h = TransferHistory.instance;
-        final all = _historyIncoming ? h.received : h.sent;
-        final shown = _historyAll ? all : all.take(6).toList();
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SegmentedButton<bool>(
-              segments: [
-                ButtonSegment(
-                  value: true,
-                  icon: const Icon(AppIcons.download, size: AppIcons.small),
-                  label: Text(context.t('near.received_tab')),
-                ),
-                ButtonSegment(
-                  value: false,
-                  icon: const Icon(AppIcons.uploadArrow, size: AppIcons.small),
-                  label: Text(context.t('near.sent_tab')),
-                ),
-              ],
-              selected: {_historyIncoming},
-              onSelectionChanged: (s) => setState(() {
-                _historyIncoming = s.first;
-                _historyAll = false;
-              }),
-            ),
-            const SizedBox(height: Gap.sm),
-            if (all.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: Gap.md),
-                child: Text(
-                  context.t(_historyIncoming ? 'near.none_received' : 'near.none_sent'),
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: scheme.onSurfaceVariant),
-                ),
-              )
-            else
-              Card(
-                margin: EdgeInsets.zero,
-                clipBehavior: Clip.antiAlias,
-                child: Column(
-                  children: [
-                    for (final r in shown) _historyRow(context, r),
-                  ],
-                ),
-              ),
-            if (!_historyAll && all.length > shown.length)
-              TextButton(
-                onPressed: () => setState(() => _historyAll = true),
-                child: Text(context.t('near.show_all', {'n': all.length})),
-              ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _historyRow(BuildContext context, TransferRecord r) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final exists = r.exists;
-    final isDir = exists && FileSystemEntity.isDirectorySync(r.path);
-    final ext = p.extension(r.name).replaceFirst('.', '').toLowerCase();
-    final c = isDir ? FmCategory.folder : FsEntry.categoryForExtension(ext);
-    final (glyph, color) = isDir
-        ? (AppIcons.folder, FmColors.folder)
-        : FmColors.forExtension(ext) ?? (FmColors.iconFor(c), FmColors.forCategory(c));
-    final when = MaterialLocalizations.of(context).formatShortDate(r.at);
-    final time = TimeOfDay.fromDateTime(r.at).format(context);
-    return ListTile(
-      leading: Icon(glyph, color: exists ? color : scheme.outline),
-      title: Text(r.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(
-        [
-          r.peer,
-          '$when $time',
-          if (r.size > 0) FsPaths.humanSize(r.size),
-          if (!exists) context.t('near.missing'),
-        ].join(' · '),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      onTap: !exists
-          ? null
-          : () {
-              if (isDir) {
-                Navigator.of(context)
-                    .push(browserRoute(BrowserScreen(path: r.path)));
-              } else {
-                EntryOpener.open(context, r.path);
-              }
-            },
-      trailing: PopupMenuButton<String>(
-        icon: const Icon(AppIcons.more, size: AppIcons.small),
-        onSelected: (v) {
-          switch (v) {
-            case 'open':
-              EntryOpener.open(context, r.path);
-            case 'reveal':
-              Navigator.of(context).push(browserRoute(BrowserScreen(
-                  path: p.dirname(r.path), focusPath: r.path)));
-            case 'remove':
-              unawaited(TransferHistory.instance.remove(r));
-          }
-        },
-        itemBuilder: (ctx) => [
-          if (exists && !isDir)
-            PopupMenuItem(value: 'open', child: Text(ctx.t('common.open'))),
-          if (exists)
-            PopupMenuItem(value: 'reveal', child: Text(ctx.t('near.reveal'))),
-          PopupMenuItem(value: 'remove', child: Text(ctx.t('near.remove_record'))),
-        ],
-      ),
-    );
-  }
-
-  Widget _otherWays(BuildContext context) {
-    return ListenableBuilder(
-      listenable: Listenable.merge([FtpService.instance, DownloadService.instance]),
-      builder: (context, _) {
-        final sharing = FtpService.instance.running;
-        final downloading = DownloadService.instance.activeTasks.length;
-        return Card(
-          margin: EdgeInsets.zero,
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            children: [
-              _wayTile(
-                context,
-                icon: sharing ? AppIcons.hotspot : AppIcons.computer,
-                title: context.t('xfer.computer'),
-                note: sharing ? context.t('ftpd.running') : context.t('xfer.computer_note'),
-                live: sharing,
-                screen: const FtpServerScreen(),
-              ),
-              const Divider(height: 1),
-              _wayTile(
-                context,
-                icon: AppIcons.dns,
-                title: context.t('fm.network_storage'),
-                note: context.t('xfer.nas_note'),
-                screen: const RemoteConnectionsScreen(),
-              ),
-              const Divider(height: 1),
-              _wayTile(
-                context,
-                icon: AppIcons.downloadForOffline,
-                title: context.t('xfer.downloads'),
-                note: downloading > 0
-                    ? context.t('fm.jobs_running', {'n': downloading})
-                    : context.t('xfer.downloads_note'),
-                live: downloading > 0,
-                screen: const DownloadManagerScreen(),
-              ),
-            ],
           ),
         );
-      },
-    );
-  }
-
-  Widget _wayTile(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String note,
-    required Widget screen,
-    bool live = false,
-  }) {
-    final scheme = Theme.of(context).colorScheme;
-    return ListTile(
-      leading: Icon(icon, color: scheme.primary),
-      title: Text(title),
-      subtitle: Text(note,
-          maxLines: 2,
-          style: live ? TextStyle(color: Paper.success(context)) : null),
-      trailing: Icon(AppIcons.chevron, color: scheme.onSurfaceVariant),
-      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen)),
-    );
-  }
-}
-
-/// Durum kartındaki küçük "yayında" halkası.
-class _Radar extends StatefulWidget {
-  final bool active;
-
-  const _Radar({required this.active});
-
-  @override
-  State<_Radar> createState() => _RadarState();
-}
-
-class _RadarState extends State<_Radar> with SingleTickerProviderStateMixin {
-  late final AnimationController _c =
-      AnimationController(vsync: this, duration: const Duration(seconds: 2));
-
-  @override
-  void initState() {
-    super.initState();
-    _sync();
-  }
-
-  @override
-  void didUpdateWidget(covariant _Radar old) {
-    super.didUpdateWidget(old);
-    _sync();
-  }
-
-  void _sync() {
-    final reduce = WidgetsBinding.instance.platformDispatcher
-        .accessibilityFeatures.disableAnimations;
-    if (widget.active && !reduce) {
-      if (!_c.isAnimating) _c.repeat();
-    } else {
-      _c.stop();
-    }
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final color = widget.active ? scheme.primary : scheme.outline;
-    return SizedBox.square(
-      dimension: 56,
-      child: AnimatedBuilder(
-        animation: _c,
-        builder: (_, __) => CustomPaint(
-          painter: _RadarPainter(color, widget.active ? _c.value : 0),
-          child: Center(child: Icon(AppIcons.device, color: color)),
-        ),
-      ),
-    );
-  }
-}
-
-class _RadarPainter extends CustomPainter {
-  final Color color;
-  final double t;
-
-  _RadarPainter(this.color, this.t);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final c = size.center(Offset.zero);
-    final r = size.shortestSide / 2;
-    canvas.drawCircle(c, r * 0.62, Paint()..color = color.withValues(alpha: 0.12));
-    if (t > 0) {
-      for (final k in [0.0, 0.5]) {
-        final v = (t + k) % 1.0;
-        canvas.drawCircle(
-          c,
-          r * (0.62 + 0.38 * v),
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 2
-            ..color = color.withValues(alpha: (1 - v) * 0.5),
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_RadarPainter old) => old.t != t || old.color != color;
-}
-
-class _Pill extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool ok;
-  final VoidCallback? onTap;
-
-  const _Pill({required this.icon, required this.label, required this.ok, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final fg = ok ? Paper.success(context) : scheme.onSurfaceVariant;
-    return Material(
-      color: scheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(999),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 14, color: fg),
-              const SizedBox(width: 4),
-              Text(label,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(color: fg)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PeerAvatar extends StatelessWidget {
-  final String name;
-  final bool wifi;
-  final bool ble;
-  final VoidCallback onTap;
-
-  const _PeerAvatar({
-    required this.name,
-    required this.wifi,
-    required this.ble,
-    required this.onTap,
-  });
-
-  static const _hues = [
-    AppHues.jade, AppHues.tangerine, AppHues.purple, AppHues.green,
-    AppHues.red, AppHues.olive, AppHues.cyan, AppHues.plum,
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final hue = _hues[name.hashCode.abs() % _hues.length];
-    final initial = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
-    return SizedBox(
-      width: 84,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(Radii.card),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: Gap.xs),
-          child: Column(
-            children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: hue.withValues(alpha: 0.16),
-                    foregroundColor: hue,
-                    child: Text(initial,
-                        style: theme.textTheme.headlineSmall?.copyWith(color: hue)),
-                  ),
-                  PositionedDirectional(
-                    end: -4,
-                    bottom: -2,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: scheme.surface,
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: scheme.outlineVariant),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (wifi) Icon(AppIcons.wifi, size: 12, color: scheme.primary),
-                          if (ble) Icon(AppIcons.bluetooth, size: 12, color: scheme.primary),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: Gap.xs),
-              Text(name,
-                  maxLines: 2,
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SelectedTile extends StatelessWidget {
-  final String path;
-  final VoidCallback onRemove;
-
-  const _SelectedTile({required this.path, required this.onRemove});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final isDir = FileSystemEntity.isDirectorySync(path);
-    final name = p.basename(path);
-    final ext = p.extension(name).replaceFirst('.', '').toLowerCase();
-    final c = isDir ? FmCategory.folder : FsEntry.categoryForExtension(ext);
-    final (glyph, color) = isDir
-        ? (AppIcons.folder, FmColors.folder)
-        : FmColors.forExtension(ext) ?? (FmColors.iconFor(c), FmColors.forCategory(c));
-    final isImage = c == FmCategory.image;
-    return SizedBox(
-      width: 76,
-      child: Stack(
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(Radii.control),
-                  child: ColoredBox(
-                    color: scheme.surfaceContainerHighest,
-                    child: isImage
-                        ? Image.file(File(path),
-                            fit: BoxFit.cover,
-                            cacheWidth: 160,
-                            errorBuilder: (_, __, ___) =>
-                                Center(child: Icon(glyph, color: color)))
-                        : Center(child: Icon(glyph, color: color, size: 30)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall),
-            ],
-          ),
-          PositionedDirectional(
-            top: 2,
-            end: 2,
-            child: Material(
-              color: scheme.surface.withValues(alpha: 0.9),
-              shape: const CircleBorder(),
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: onRemove,
-                child: Padding(
-                  padding: const EdgeInsets.all(2),
-                  child: Icon(AppIcons.close, size: 14, color: scheme.onSurface),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Süren bir alımın tek satırı: dosya simgesi + ad (tek satır, sığmazsa
-/// ortadan kırpılmaz, sondan) + boyut/yüzde + kendi çubuğu.
-class _IncomingFileRow extends StatelessWidget {
-  final String name;
-  final int received;
-  final int total;
-
-  const _IncomingFileRow({
-    super.key,
-    required this.name,
-    required this.received,
-    required this.total,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final fraction = total > 0 ? (received / total).clamp(0.0, 1.0) : null;
-    final category = FsEntry.categoryForExtension(
-        p.extension(name).replaceFirst('.', '').toLowerCase());
-    final color = FmColors.forCategory(category);
-    final detail = total > 0
-        ? '${FsPaths.humanSize(received)} / ${FsPaths.humanSize(total)}'
-            ' · %${(fraction! * 100).floor()}'
-        : FsPaths.humanSize(received);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(Radii.control),
-          ),
-          child: SizedBox(
-            width: 36,
-            height: 36,
-            child: Icon(FmColors.iconFor(category), size: 20, color: color),
-          ),
-        ),
-        const SizedBox(width: Gap.md),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodyMedium),
-              const SizedBox(height: 2),
-              Text(detail,
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: scheme.onSurfaceVariant)),
-              const SizedBox(height: Gap.xs),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(3),
-                child: LinearProgressIndicator(value: fraction, minHeight: 6),
-              ),
-            ],
-          ),
-        ),
-      ],
+      }),
     );
   }
 }

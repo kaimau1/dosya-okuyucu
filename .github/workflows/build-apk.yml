@@ -451,7 +451,7 @@ jobs:
   release:
     name: GitHub Release
     needs: [verify, apk]
-    # Kişisel derleme (asistan köprüsü) genel dağıtıma GİRMEZ: nightly/en son
+    # Kişisel derleme (kişisel özellikler) genel dağıtıma GİRMEZ: nightly/en son
     # değişmez; yalnız ayrı `kisisel` ön-sürümü (prerelease, latest DEĞİL)
     # güncellenir — kullanıcı oradan indirir (2026-11-01). Her daldan olur.
     if: >-
@@ -513,7 +513,7 @@ jobs:
           publish() {
             if [ "${{ (inputs.kisisel || contains(github.event.head_commit.message, '[kisisel]')) && '1' || '0' }}" = "1" ]; then
               TAG=kisisel
-              TITLE="Dosya Okuyucu KİŞİSEL (asistan köprülü) v${BUILD_NAME}"
+              TITLE="Dosya Okuyucu KİŞİSEL v${BUILD_NAME}"
               if gh release view "$TAG" >/dev/null 2>&1; then
                 gh api -X PATCH "repos/$GH_REPO/git/refs/tags/$TAG" \
                   -f sha="$GITHUB_SHA" -F force=true >/dev/null &&

@@ -57,6 +57,14 @@ const Map<String, (String, String, String)> _t19 = {
     'Receiving · {n} files',
     'جارٍ استلام {n} ملفات',
   ),
+  'near.sending_to': ('{name} cihazına gönderiliyor', 'Sending to {name}', 'جارٍ الإرسال إلى {name}'),
+  'near.asking': ('{name} onay veriyor…', 'Waiting for {name} to accept…', 'بانتظار موافقة {name}…'),
+  'near.file_done': ('Tamam', 'Done', 'تم'),
+  'near.busy_sending': (
+    'Önce süren gönderim bitsin (ya da Durdur)',
+    'Wait for the current send to finish (or Stop)',
+    'انتظر انتهاء الإرسال الجاري (أو أوقفه)',
+  ),
   'near.waiting': (
     'Bağlantı koptu — yeniden bağlanınca kaldığı yerden sürecek…',
     'Connection lost — will resume where it stopped…',

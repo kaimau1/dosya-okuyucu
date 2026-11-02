@@ -553,3 +553,6 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
       iki büyük dosya, 8 MB üstü) aynı anda gönder → "Alınıyor · 2 dosya" kartı en üstte; her dosya kendi
       satırında (simge, tek satır ad, alınan/toplam · %, kendi çubuğu); adlar birbirinin üstüne binmiyor;
       biten dosyanın satırı kalkıyor, geçmişe düşüyor. 4+ küçük dosya tek paket olarak gelir (tek satır).
+- [ ] **Yakındakiler — gönderim kartı (2026-11-02):** 3+ dosya gönderirken ekran açık kalıyor; her dosya kendi
+      satırında ilerliyor, bitenler ✓; Durdur kalanları göndermiyor; tablette/yatayda iki sütun.
+

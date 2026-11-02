@@ -70,7 +70,7 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
 ### A4 — Kod sağlığı (Faz 3/5/12'nin kalıntıları)
 
 - [ ] **A4.1 800+ satırlı ekranlar** (Faz 3 ölçütü "800+ satırlı ekran yok" geriledi):
-      `screens/fm/remote/nearby_screen.dart` 1621 · `screens/image_edit_screen.dart`
+      `screens/image_edit_screen.dart`
       1613 · `screens/fm/job_report_screen.dart` 911 · `screens/fm/category_screen.dart`
       884 · `screens/fm/search_screen.dart` 881 → Faz 3 yöntemiyle böl (davranış aynı,
       testler aynen geçer). İsteğe bağlı 1000+ satırlı widget/denetleyiciler:

@@ -80,10 +80,15 @@ void main() {
     final a = File(p.join(temp.path, 'a.txt'))..writeAsStringSync('A' * 4000);
     final b = File(p.join(temp.path, 'b.txt'))..writeAsStringSync('B' * 4000);
     final peer = Peer(name: 'A', host: '127.0.0.1', port: receiver.port);
+    // Gönderen de dosya başına ilerleme alır (Yakındakiler gönderim kartı).
+    final sentFiles = <String, ({int sent, int size})>{};
     final result = await PeerSender.send(peer, [a.path, b.path],
-        senderName: 'G');
+        senderName: 'G',
+        onFile: (name, sent, size) => sentFiles[name] = (sent: sent, size: size));
 
     expect(result.sent, 2);
+    expect(sentFiles.keys, ['a.txt', 'b.txt']);
+    expect(sentFiles.values.every((f) => f.sent == f.size && f.size == 4000), isTrue);
     // `onDone` yanıt gönderildikten sonraki `finally`de koşar.
     await Future<void>.delayed(const Duration(milliseconds: 150));
     expect(progress, {'a.txt', 'b.txt'});

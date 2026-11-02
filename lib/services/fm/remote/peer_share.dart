@@ -785,7 +785,8 @@ abstract final class PeerSender {
   /// * [thumbnail] verilirse ilk birkaç görsel/videonun küçük önizlemesi
   ///   onay penceresinde görünsün diye `/sor` ile gider.
   ///
-  /// İlerleme **bayt** üzerinden bildirilir.
+  /// İlerleme **bayt** üzerinden bildirilir: [onProgress] toplam, [onFile] o
+  /// gönderim kalemi (dosya ya da paket) için — başlarken 0, bitince boyunun tamamı.
   static Future<PeerSendResult> send(
     Peer peer,
     List<String> paths, {
@@ -794,6 +795,7 @@ abstract final class PeerSender {
     String pairingCode = '',
     void Function(String name, int sentBytes, int totalBytes)? onProgress,
     void Function(bool waiting)? onWaiting,
+    void Function(String name, int sentBytes, int sizeBytes)? onFile,
     bool Function()? isCancelled,
     Future<List<int>?> Function(String path)? thumbnail,
     Duration retryFor = const Duration(minutes: 2),
@@ -855,6 +857,7 @@ abstract final class PeerSender {
         var waiting = false;
         var ok = false;
         String? error;
+        onFile?.call(item.name, 0, item.size);
         while (true) {
           if (isCancelled?.call() ?? false) break;
           final outcome = await _sendOne(client, peer, item,
@@ -869,6 +872,7 @@ abstract final class PeerSender {
                   onWaiting?.call(false);
                 }
                 onProgress?.call(item.name, doneBytes + n, totalBytes);
+                onFile?.call(item.name, n, item.size);
               });
           if (outcome == _Outcome.ok) {
             ok = true;
@@ -896,6 +900,7 @@ abstract final class PeerSender {
         if (ok) {
           sent += item.files;
           doneBytes += item.size;
+          onFile?.call(item.name, item.size, item.size);
         } else if (error != null) {
           errors.add(error);
         } else {
