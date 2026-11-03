@@ -223,6 +223,11 @@ Impeller Vulkan bu telefonda (Adreno 618) **OpenGLES'e düşüyor**. Skia denend
 
 ## 6. PDF — görüntüleme ve araçlar
 
+- [ ] **Kasma turu (2026-11-03):** 50+ MB PDF'i aç → ilk sayfa geçiş biter bitmez görünüyor (eskiden form
+      taraması ana izlekte saniyeler yiyordu); hızlı kaydırmada takılma yok; uzun basış yine kelime seçiyor,
+      ÇİFT seçim/menü çıkmıyor (pdfrx'in kendi seçimi kapatıldı); taranmış PDF'te kaydırırken takılma yok ve
+      sayfa birkaç sn sonra yine seçilebilir (OCR JPEG/izolat); form PDF'inde "doldurulabilir form" önerisi
+      hâlâ çıkıyor.
 - [ ] **Kaldığın yerden:** uzun PDF'i yarıda bırak, kapat-aç → o sayfa + "Baştan başla" şeridi.
 - [ ] **Kaydırma:** hızlı fırlatma Word/listeler kadar gidiyor; sayfa başına geri ÇEKMİYOR; iki
       parmak yakınlaştırıp bırakınca zıplama yok; yakında yazı keskin (basamaklı çizim
@@ -290,6 +295,9 @@ Impeller Vulkan bu telefonda (Adreno 618) **OpenGLES'e düşüyor**. Skia denend
 
 ## 8. Word
 
+- [ ] **Kasma turu (2026-11-03):** resimli/uzun .docx aç → "açılıyor" göstergesi donmuyor, sayfa geçişi
+      akıcı (ayrıştırma + görünüm kopyası izolatta); düzenle/kaydet/geri al eskisi gibi. Kapanırken ve şerit /
+      alt levha açılırken hâlâ takılma varsa → KALANLAR B3.3d (hybrid composition).
 **Bütün editörlerde ortak (Faz 20 — Word, Excel, Slayt, Metin, PDF, Görsel):**
 - [ ] Klavye açılıp kapanırken klavye üstü çubuk klavyeyle birlikte kayıyor (zıplama yok).
 - [ ] Otomatik kaydetme: düzenle, 3 sn bekle → başlıkta "Kaydedildi"; uygulamayı zorla kapat →

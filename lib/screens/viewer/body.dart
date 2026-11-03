@@ -80,6 +80,13 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         // ortasında kapatmak da işler; belge yeniden YÜKLENMEZ
                         // (pdfrx yalnız documentRef değişiminde yükler).
                         panEnabled: !_pdfSelecting,
+                        // pdfrx 2.x'in KENDİ metin seçimi varsayılan olarak
+                        // açık (1.3.5'te kapalıydı): bizim katmanımızın
+                        // ([PdfSelectLayer]) altına ikinci bir jest katmanı,
+                        // her dokunuşta tüm sayfaların metnini tarayan bir
+                        // isabet testi ve ikinci bir uzun basış seçimi
+                        // ekliyordu. Seçim bizde → kapalı (2026-11-03 kasma).
+                        textSelectionParams: kPdfOwnSelectionOff,
                         // Çok sütunlu dizilim (uzun belge). 1 sütunda pdfrx'in kendi
                         // düzeni kullanılır — gereksiz yere devralmıyoruz.
                         //

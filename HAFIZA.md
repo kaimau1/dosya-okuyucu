@@ -538,3 +538,29 @@ Kullanıcı: *"fazlardan devam et, bulutta yapılabilecekleri yap, main'e merge 
 - **Açık kalan:** videoda hâlâ 4.–5. savurmada 13–17 karelik donma görülüyor; Flutter tarafı temiz. Ekran
   kaydedici artığı mı gerçek mi ayrılmadı (SurfaceFlinger `--latency` ile bakılacak) — KALANLAR B3.3b.
 - MIUI `svc power stayon usb`'yi yok sayıyor: her ölçümde `KEYCODE_WAKEUP` + kaydırarak kilit aç.
+
+## 2026-11-03 — PDF/Word kasma turu (bulut, ölçümsüz — kod okumasıyla bulunan kök nedenler)
+- **PDF açılışı — form taraması:** `PdfFormFiller.looksLikeForm` her açılışta dosyanın TAMAMINI ana izlekte
+  tarıyordu (64 KB parçalar `[...tail, ...chunk]` ile kutulu listeye kopyalanıp bayt bayt). Büyük PDF'te
+  saniyeler, tam da ilk sayfalar çizilirken. → `Isolate.run` + 1 MB blok + ilk bayt atlaması
+  (`scanForAcroFormSync`, sınır testi `perf_offload_test`).
+- **pdfrx 2.x'te kendi metin seçimi VARSAYILAN AÇIK** (1.3.5'te kapalıydı; A3.2'de fark edilmedi): sayfaların
+  altına ikinci jest katmanı + her dokunuşta tüm sayfaların metnini tarayan isabet testi + bizim katmanla
+  yarışan uzun basış. → `kPdfOwnSelectionOff` (`services/pdf/pdf_viewer_defaults.dart`, `const` olmalı:
+  pdfrx parametreleri `!=` ile karşılaştırıyor). Görüntüleyici + PDF düzenleyici.
+- **TUZAK — pdfrx 2.x boyama döngüsü her önbellekteki sayfanın metnini ZATEN yüklüyor**
+  (`_getCachedTextOrDelayLoadText`, seçim kapalıyken bile) ve bütün pdfium çağrıları tek işçide sırada.
+  `PdfSelectLayer` kurulur kurulmaz ikinci kez yüklüyordu → artık `textLoadDelay` (Motion.long) sonra ya da
+  ilk dokunuşta; metin gelmeden uzun basış OCR'a DÜŞMEZ, yükleme bitince yeniden dener.
+- **Taranmış PDF otomatik OCR:** sayfa görüntüsü GPU dokusuna yüklenip geri okunarak PNG yapılıyordu
+  (`decodeImageFromPixels` + `toByteData`) → `OcrService.renderPageForOcr`: pikseller izolatta JPEG
+  (`image` paketi). PNG dışa aktarım (`renderPageToPng`) değişmedi.
+- **Word açılışı:** `FileService.load` docx/pptx metnini ana izlekte çıkarıyordu (yükleniyor göstergesi
+  donar) → `compute`. `WordEditorScreen._load` `DocxEditor.parse` + `viewBytes` (DOM kopyası + bütün
+  belgenin yeniden zip'lenmesi) işini sayfa geçişi sırasında ana izlekte yapıyordu → `DocxEditor.openForView`
+  (`Isolate.run`, sonuç `Isolate.exit` ile kopyasız; gönderilemezse eski yola düşer — testte
+  `debugOpenedInIsolate` ile izolat yolu doğrulanıyor).
+- **Açık (cihaz):** Word kapanış/menü takılması için şüpheli hybrid composition WebView → KALANLAR B3.3d.
+  Bu turun hiçbir düzeltmesi cihazda ÖLÇÜLMEDİ → CIHAZ_TESTI §6/§8 "Kasma turu".
+- Tasarım tokenı testi dosya başına ham `Duration` sayısına tavan koyuyor: yeni gecikme için `Motion.*`.
+

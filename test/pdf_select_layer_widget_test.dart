@@ -60,7 +60,10 @@ void main() {
         ),
       ),
     );
-    await tester.pump(); // loadText çözülsün
+    // Metin katmanı gecikmeli yüklenir (bkz. `PdfSelectLayer.textLoadDelay`):
+    // gecikme dolsun, sonra loadText çözülsün.
+    await tester.pump(PdfSelectLayer.textLoadDelay);
+    await tester.pump();
   }
 
   /// Seçim tutamaçlarının (daire nokta) sayısı — seçim var/yok göstergesi.
@@ -353,6 +356,65 @@ void main() {
     await g2.up();
     await tester.pump();
   });
+
+  // ── Gecikmeli metin yükleme (2026-11-03 kasma turu) ──────────────────────
+
+  Widget bareLayer(_FakePage page) => MaterialApp(
+        home: Stack(children: [
+          PdfSelectLayer(
+            page: page,
+            pageSize: pageSize,
+            onSelected: (t, rects, pageNo, preceding, fromOcr) =>
+                selections.add(t),
+          ),
+        ]),
+      );
+
+  testWidgets('metin kurulur kurulmaz değil, gecikmeyle yüklenir',
+      (tester) async {
+    selections = [];
+    final page = _FakePage(text: lineText('Merhaba dünya'));
+    await tester.pumpWidget(bareLayer(page));
+    await tester.pump();
+    expect(page.loads, 0,
+        reason: 'açılışta pdfium kuyruğuna ikinci metin işi girmemeli');
+    await tester.pump(PdfSelectLayer.textLoadDelay);
+    await tester.pump();
+    expect(page.loads, 1);
+  });
+
+  testWidgets('hızla geçilen sayfanın metni hiç yüklenmez', (tester) async {
+    selections = [];
+    final page = _FakePage(text: lineText('Merhaba dünya'));
+    await tester.pumpWidget(bareLayer(page));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+    await tester.pump(const Duration(seconds: 1));
+    expect(page.loads, 0);
+  });
+
+  testWidgets('gecikme dolmadan uzun basış yine kelimeyi seçer (OCR yok)',
+      (tester) async {
+    selections = [];
+    var ocrCalls = 0;
+    PdfOcrText.debugReset();
+    PdfOcrText.debugOcrOverride = (_) async {
+      ocrCalls++;
+      return null;
+    };
+    addTearDown(PdfOcrText.debugReset);
+    final page = _FakePage(text: lineText('Merhaba dünya'));
+    await tester.pumpWidget(bareLayer(page));
+    await tester.pump();
+    final g = await tester.startGesture(const Offset(15, 45));
+    await tester.pump(const Duration(milliseconds: 600));
+    await g.up();
+    await tester.pump();
+    expect(page.loads, 1, reason: 'dokunuş yüklemeyi hemen başlatır');
+    expect(selections, isNotEmpty);
+    expect(selections.last, 'Merhaba');
+    expect(ocrCalls, 0, reason: 'metni olan sayfa OCR\'a gitmemeli');
+  });
 }
 
 /// Test için sahte belge/sayfa: yalnız katmanın gerçekten kullandığı üyeler
@@ -365,11 +427,15 @@ class _FakeDoc implements PdfDocument {
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError('$invocation');
+
 }
 
 class _FakePage implements PdfPage {
   final PdfPageText text;
   _FakePage({required this.text});
+
+  /// `loadText` kaç kez çağrıldı (gecikmeli yükleme testleri).
+  int loads = 0;
 
   @override
   final PdfDocument document = _FakeDoc();
@@ -392,8 +458,10 @@ class _FakePage implements PdfPage {
   bool get isLoaded => true;
 
   @override
-  Future<PdfPageRawText?> loadText() async =>
-      PdfPageRawText(text.fullText, text.charRects);
+  Future<PdfPageRawText?> loadText() async {
+    loads++;
+    return PdfPageRawText(text.fullText, text.charRects);
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>

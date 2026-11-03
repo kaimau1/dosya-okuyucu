@@ -173,6 +173,13 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
 - [ ] **B3.3c Fotoğraflar ızgarası kalan donma (2026-11-03):** küçük resim düzeltmesinden sonra ekran kaydında
       4.–5. savurmada 13–17 karelik donma kaldı, Flutter karesi temiz. Önce SurfaceFlinger `--latency` (uygulama
       katmanı) ile gerçek mi kaydedici artığı mı ayır; gerçekse GPU/doku tarafı (Impeller GLES). Yöntem HAFIZA.
+- [ ] **B3.3d Word kapanış/menü takılması (2026-11-03):** açılış işi izolata alındı; kalan şüpheli
+      `DocxView`'ın **hybrid composition** WebView'ı (`displayWithHybridComposition: true`, netlik için
+      2026-08-06 seçildi): HC'de Flutter karesi platform izleğinde çizilir, WebView'ın üstüne açılan her
+      şerit/levha/menü ayrı katman ister ve sayfa geçişinde platform görünümü kaydırılır. Profil APK'da
+      Word kapat/şerit aç zaman çizelgesi al; HC suçluysa seçenekler: geçiş/levha süresince WebView'ın
+      anlık görüntüsünü göster ya da TLHC + `devicePixelRatio` ölçekli çizim (netliği yeniden ölç). Tahminle
+      kip değiştirme — netlik kullanıcının açık isteği.
 - [ ] **B3.3 Faz 4 bütçe aşımları** (soğuk açılış ≤ 1,2 sn, 5.000 öğe kaydırma %99 ≤ 24 ms,
       galeri 2.000 fotoğraf RSS ≤ 350 MB / hafif ≤ 250 MB, boşta 0 kare) ve DUZENLEME §7
       bütçeleri → aynı oturumda düzelt.

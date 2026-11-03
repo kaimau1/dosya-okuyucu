@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:ui' as ui;
+import 'package:image/image.dart' as imglib;
 
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
@@ -232,9 +234,62 @@ class OcrService {
     return sb.toString().trim();
   }
 
-  /// Sayfayı ~1600px genişlikte PNG'ye çizer (OCR için yeterli çözünürlük).
+  /// Sayfayı ~1600px genişlikte OCR görüntüsüne çizer (bkz. [renderPageForOcr]).
   static Future<String?> _renderPageToPng(PdfPage page, int index) async =>
-      (await renderPageToPng(page, tag: '$index'))?.path;
+      (await renderPageForOcr(page, tag: '$index'))?.path;
+
+  /// OCR için sayfa görüntüsü (JPEG, ~1600 px) — `scale` = görüntü pikseli /
+  /// PDF punto oranı.
+  ///
+  /// **Niye [renderPageToPng] değil (2026-11-03 kasma turu):** o yol pdfium
+  /// piksellerini önce bir GPU dokusuna yüklüyor (`decodeImageFromPixels`),
+  /// sonra GPU'dan geri okuyup PNG'ye sıkıştırıyordu (`toByteData`). Taranmış
+  /// PDF'te otomatik OCR bunu görünen HER sayfa için yapıyor; 1600×2260'lık
+  /// doku yükleme + geri okuma, kaydırma sırasında çizim izleğini tıkıyordu.
+  /// Burada pikseller doğrudan bir izolatta JPEG'e kodlanır — GPU'ya hiç
+  /// dokunulmaz. (ML Kit JPEG'i PNG kadar iyi okur.)
+  static Future<({String path, double scale})?> renderPageForOcr(
+    PdfPage page, {
+    String tag = '',
+  }) async {
+    final scale = (1600 / page.width).clamp(1.0, 4.0);
+    final img = await page.render(
+      fullWidth: page.width * scale,
+      fullHeight: page.height * scale,
+      backgroundColor: AppColors.page.toARGB32(),
+    );
+    if (img == null) return null;
+    final int w = img.width, h = img.height;
+    final TransferableTypedData pixels;
+    try {
+      // pdfium belleği `dispose`ta kalkar: izolata gitmeden önce kopya.
+      pixels = TransferableTypedData.fromList([img.pixels]);
+    } finally {
+      img.dispose();
+    }
+    final path =
+        '${Directory.systemTemp.path}/ocr_page_${tag}_${page.pageNumber}.jpg';
+    final ok = await _encodeJpegInIsolate(pixels, w, h, path);
+    return ok ? (path: path, scale: scale) : null;
+  }
+
+  /// Ayrı fonksiyon: izolata giden kapanış yalnız bu ilkel değerleri taşısın
+  /// (sayfa/pdfium nesneleri yakalanmasın).
+  static Future<bool> _encodeJpegInIsolate(
+          TransferableTypedData pixels, int w, int h, String path) =>
+      Isolate.run(() {
+        final bgra = pixels.materialize().asUint8List();
+        final image = imglib.Image.fromBytes(
+          width: w,
+          height: h,
+          bytes: bgra.buffer,
+          bytesOffset: bgra.offsetInBytes,
+          numChannels: 4,
+          order: imglib.ChannelOrder.bgra,
+        );
+        File(path).writeAsBytesSync(imglib.encodeJpg(image, quality: 90));
+        return true;
+      });
 
   /// [_renderPageToPng]'nin ölçeği de döndüren biçimi: `scale` = görüntü
   /// pikseli / PDF punto oranı. Taranmış sayfa seçiminde OCR kutularını sayfa

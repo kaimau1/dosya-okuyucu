@@ -12,6 +12,7 @@ import '../services/pdf/pdf_ocr_text.dart';
 import '../services/pdf/selection_rects.dart';
 import '../core/app_haptics.dart';
 import '../core/app_icons.dart';
+import '../core/motion.dart';
 import '../core/theme.dart';
 import '../core/app_colors.dart';
 
@@ -115,6 +116,22 @@ class PdfSelectLayer extends StatefulWidget {
     this.activeSelectionPage = 0,
   });
 
+  /// Metin katmanı bu kadar sonra yüklenir (sayfa hâlâ ekrandaysa).
+  ///
+  /// **Kasma kök nedeni (2026-11-03, pdfrx 2.x):** katman eskiden kurulur
+  /// kurulmaz `loadStructuredText` çağırıyordu. pdfrx 2.x'te bütün pdfium
+  /// çağrıları TEK bir arka işçide sıraya giriyor ve pdfrx kendi boyama
+  /// döngüsünde aynı sayfaların metnini zaten ayrıca yüklüyor; bizim çağrımız
+  /// her görünen (ve önbellek payındaki) sayfa için ikinci bir metin çıkarma
+  /// + ana izlekte satır/kelime çözümlemesi demekti. Açılışta ilk sayfa
+  /// görüntüleri bu kuyruğun arkasında bekliyor (geç açılma), hızlı
+  /// kaydırmada geçilen her sayfa da iş biriktiriyordu (kasma). Şimdi: sayfa
+  /// [textLoadDelay] boyunca ekranda kalırsa ya da parmak değerse yüklenir;
+  /// hızla geçilen sayfa hiç yüklenmez. Uzun basış 500 ms sürdüğü için
+  /// dokunuşta başlayan yükleme seçime yetişir.
+  /// (Bir sayfa geçişi kadar: [Motion.long], 320 ms.)
+  static const textLoadDelay = Motion.long;
+
   @override
   State<PdfSelectLayer> createState() => _PdfSelectLayerState();
 }
@@ -215,23 +232,36 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   PdfPageText? _geomText;
   Size? _geomSize;
 
+
+  Timer? _textTimer;
+  Future<void>? _textLoad;
+
   @override
   void initState() {
     super.initState();
-    widget.page.loadStructuredText().then((t) {
-      if (mounted) {
-        setState(() {
-          _text = t;
-          _textLoaded = true;
-        });
-        _maybeAutoOcr();
-      }
-    }).catchError((_) {
-      if (mounted) {
-        setState(() => _textLoaded = true);
-        _maybeAutoOcr();
-      }
+    _textTimer = Timer(PdfSelectLayer.textLoadDelay, _ensureText);
+  }
+
+  /// Metni (bir kez) yükler; ikinci çağrı ilk işi bekler.
+  Future<void> _ensureText() {
+    _textTimer?.cancel();
+    _textTimer = null;
+    return _textLoad ??= _loadText();
+  }
+
+  Future<void> _loadText() async {
+    PdfPageText? t;
+    try {
+      t = await widget.page.loadStructuredText();
+    } catch (_) {
+      // Bilinçli: metin okunamazsa katman metinsiz kalır (OCR adayı olur).
+    }
+    if (!mounted) return;
+    setState(() {
+      if (t != null) _text = t;
+      _textLoaded = true;
     });
+    _maybeAutoOcr();
   }
 
   @override
@@ -265,6 +295,7 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
 
   @override
   void dispose() {
+    _textTimer?.cancel();
     _pressTimer?.cancel();
     _ocrEmptyTimer?.cancel();
     _autoOcrTimer?.cancel();
@@ -303,6 +334,7 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   // ═══ Dokunma (parmak/kalem) ═══════════════════════════════════════════════
 
   void _onPointerDown(PointerDownEvent event) {
+    _ensureText();
     if (event.kind == PointerDeviceKind.mouse) {
       _onMouseDown(event);
       return;
@@ -332,6 +364,21 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   /// Metin yoksa (taranmış sayfa) OCR'ı bekle/tetikle; OCR bitmiş ve yine
   /// metin yoksa kullanıcıya söyle.
   void _beginTouchSelection(Offset at, int pointer) {
+    if (!_textLoaded) {
+      // Metin henüz gelmedi (dokunuşta başlayan yükleme sürüyor): metni
+      // OLAN sayfa yanlışlıkla OCR'a gitmesin, yükleme bitince yeniden dene.
+      _ensureText().then((_) {
+        if (!mounted || !_textLoaded) return;
+        // Parmak hâlâ yerdeyse sürükleme kipiyle; kalktıysa yalnız kelime
+        // (kalkmış parmağa pan kilidi bağlanmasın).
+        if (_pointers.contains(pointer)) {
+          _beginTouchSelection(at, pointer);
+        } else {
+          _selectWordAt(at);
+        }
+      });
+      return;
+    }
     if (_selectWordAt(at)) {
       _dragAnchorStart = _selStart;
       _dragAnchorEnd = _selEnd;
@@ -399,6 +446,7 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
     if (isDoubleTap) {
       _lastTapAt = null;
       if (!_selectWordAt(at) &&
+          _textLoaded &&
           _textThin &&
           !_ocrTried &&
           PdfOcrText.isSupported) {
@@ -517,6 +565,7 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
 
   void _onPointerHover(PointerHoverEvent event) {
     if (event.kind != PointerDeviceKind.mouse) return;
+    _ensureText();
     final on = _charIndexAt(event.localPosition, maxDist: 4) != null;
     if (on != _hoverOnText) setState(() => _hoverOnText = on);
   }

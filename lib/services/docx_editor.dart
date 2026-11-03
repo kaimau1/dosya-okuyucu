@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -199,6 +200,39 @@ class DocxEditor {
     final rtlCount = withText.where((p) => p.rtl).length;
     return rtlCount * 2 > withText.length;
   }
+
+  /// Ekranın açılış işi — [parse] + [DocxLiveEdit.viewBytes] — **arka
+  /// izlekte** (2026-11-03 kasma turu).
+  ///
+  /// İkisi eskiden `WordEditorScreen.initState`te ana izlekte koşuyordu:
+  /// zip çözme, `document.xml`in DOM'a ayrıştırılması, DOM'un kopyalanıp
+  /// metne dökülmesi ve bütün belgenin yeniden zip'lenmesi — tam da sayfa
+  /// geçişi oynarken. Resimli bir belgede yüzlerce ms; kullanıcının "Word
+  /// açılırken kasıyor" dediği an. `Isolate.run` sonucu `Isolate.exit` ile
+  /// döndürür: model kopyalanmadan, sahipliği devredilerek gelir.
+  ///
+  /// İzolat herhangi bir nedenle kullanılamazsa (gönderilemeyen nesne vb.)
+  /// eski yola, ana izlekte aynı işe düşülür — açılış hiçbir koşulda
+  /// bozulmaz.
+  static Future<({DocxEditor editor, Uint8List view})> openForView(
+      Uint8List bytes) async {
+    ({DocxEditor editor, Uint8List view}) work() {
+      final e = DocxEditor.parse(bytes);
+      return (editor: e, view: e.viewBytes());
+    }
+
+    try {
+      final r = await Isolate.run(work);
+      debugOpenedInIsolate = true;
+      return r;
+    } catch (_) {
+      debugOpenedInIsolate = false;
+      return work();
+    }
+  }
+
+  /// Son [openForView] izolatta mı koştu (yedeğe düşmedi mi)? Yalnız test.
+  static bool debugOpenedInIsolate = false;
 
   static DocxEditor parse(Uint8List bytes) {
     final archive = ZipDecoder().decodeBytes(bytes);

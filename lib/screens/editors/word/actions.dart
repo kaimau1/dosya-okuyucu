@@ -4,8 +4,11 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
   Future<void> _load() async {
     try {
       final bytes = await File(widget.path).readAsBytes();
-      _editor = DocxEditor.parse(bytes);
-      _viewBytes = _editor!.viewBytes();
+      // Ayrıştırma + görünüm kopyası arka izlekte (bkz. `openForView`):
+      // sayfa geçişi takılmadan oynar.
+      final opened = await DocxEditor.openForView(bytes);
+      _editor = opened.editor;
+      _viewBytes = opened.view;
     } catch (e) {
       _error = userErrorText(e);
     }

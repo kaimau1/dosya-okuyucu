@@ -186,7 +186,7 @@ class PdfOcrText {
       if (override != null) {
         result = await override(page);
       } else {
-        final rendered = await OcrService.renderPageToPng(page,
+        final rendered = await OcrService.renderPageForOcr(page,
             tag: 'sel${page.pageNumber}');
         if (rendered != null) {
           try {

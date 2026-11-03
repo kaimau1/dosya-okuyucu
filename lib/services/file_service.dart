@@ -156,12 +156,14 @@ class FileService {
         // Eski .doc bu noktaya gelmez (yukarıda isLegacyOffice ile ayrılır);
         // kind==word ise içerik daima OOXML .docx'tir (uzantı boş olsa bile).
         final bytes = await file.readAsBytes();
-        final text = OfficeReader.extractDocxText(bytes);
+        // Zip + XML çözümü arka izlekte (2026-11-03 kasma turu): ana izlekte
+        // "açılıyor" penceresinin dönen göstergesi donuyordu.
+        final text = await compute(OfficeReader.extractDocxText, bytes);
         return LoadedDoc(path: path, name: name, kind: kind, plainText: text);
 
       case DocKind.slides:
         final bytes = await file.readAsBytes();
-        final text = OfficeReader.extractPptxText(bytes);
+        final text = await compute(OfficeReader.extractPptxText, bytes);
         return LoadedDoc(path: path, name: name, kind: kind, plainText: text);
 
       case DocKind.spreadsheet:

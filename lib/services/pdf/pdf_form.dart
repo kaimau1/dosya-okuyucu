@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:typed_data';
 import 'dart:ui' show Rect;
 
 import 'package:syncfusion_flutter_pdf/pdf.dart';
@@ -123,35 +124,57 @@ abstract final class PdfFormFiller {
   ///
   /// Dosya **akış hâlinde** taranır: 50 MB'lık bir belgeyi yalnız bunun için
   /// belleğe almak saçma olurdu.
-  static Future<bool> looksLikeForm(String path) async {
-    const marker = '/AcroForm';
-    final needle = marker.codeUnits;
+  ///
+  /// **Arka izlekte** (2026-11-03 kasma turu): tarama eskiden ana izlekte,
+  /// her 64 KB'lık parçayı `[...tail, ...chunk]` ile kutulu bir listeye
+  /// kopyalayıp bayt bayt karşılaştırarak koşuyordu — her PDF açılışında,
+  /// görüntüleyici ilk sayfaları çizmeye çalışırken. 100 MB'lık bir belgede
+  /// bu, saniyelerce süren ve kareleri düşüren bir işti ("PDF geç açılıyor ve
+  /// kasıyor"). Şimdi izolatta, 1 MB'lık bloklarla ve ilk bayt için hızlı
+  /// atlamayla.
+  static Future<bool> looksLikeForm(String path) =>
+      Isolate.run(() => scanForAcroFormSync(path));
+
+  /// [looksLikeForm]'un gövdesi (izolatta koşar; test doğrudan çağırır).
+  static bool scanForAcroFormSync(String path, {int blockSize = 1 << 20}) {
+    final needle = '/AcroForm'.codeUnits;
+    final n = needle.length;
+    RandomAccessFile? raf;
     try {
-      var tail = <int>[];
-      await for (final chunk in File(path).openRead()) {
-        final window = [...tail, ...chunk];
-        if (_indexOf(window, needle) >= 0) return true;
-        // Anahtar iki parçanın SINIRINDA bölünmüş olabilir.
-        tail = window.length <= needle.length
-            ? window
-            : window.sublist(window.length - needle.length);
+      raf = File(path).openSync();
+      final buf = Uint8List(blockSize + n - 1);
+      var carry = 0; // önceki bloğun sonundan taşınan bayt sayısı
+      while (true) {
+        final read = raf.readIntoSync(buf, carry, carry + blockSize);
+        if (read <= 0) break;
+        final len = carry + read;
+        if (_contains(buf, len, needle)) return true;
+        // Anahtar iki bloğun SINIRINDA bölünmüş olabilir: son n-1 bayt taşınır.
+        carry = len < n - 1 ? len : n - 1;
+        buf.setRange(0, carry, buf, len - carry);
       }
     } catch (_) {
       // Okunamayan dosyada sessiz kal: bu yalnız bir öneri.
+    } finally {
+      try {
+        raf?.closeSync();
+      } catch (_) {}
     }
     return false;
   }
 
-  static int _indexOf(List<int> haystack, List<int> needle) {
-    if (needle.isEmpty || haystack.length < needle.length) return -1;
+  static bool _contains(Uint8List hay, int len, List<int> needle) {
+    final first = needle[0];
+    final last = len - needle.length;
     outer:
-    for (var i = 0; i <= haystack.length - needle.length; i++) {
-      for (var j = 0; j < needle.length; j++) {
-        if (haystack[i + j] != needle[j]) continue outer;
+    for (var i = 0; i <= last; i++) {
+      if (hay[i] != first) continue;
+      for (var j = 1; j < needle.length; j++) {
+        if (hay[i + j] != needle[j]) continue outer;
       }
-      return i;
+      return true;
     }
-    return -1;
+    return false;
   }
 
   // ── izolat gövdeleri (test doğrudan çağırabilsin diye ayrı) ──────────────
