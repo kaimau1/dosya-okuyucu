@@ -25,7 +25,14 @@ void main() {
       for (var i = 0; i < line.length; i++)
         PdfRect(10.0 + 10 * i, 60, 20.0 + 10 * i, 50),
     ];
-    return assembleOcrPageText(1, line, [(index: 0, rects: rects)]);
+    return OcrPageText(
+      pageNumber: 1,
+      fullText: line,
+      fragments: [
+        PdfPageTextFragment.fromParams(
+            0, line.length, rects.boundingRect(), line, rects),
+      ],
+    );
   }
 
   late List<String> selections;
@@ -166,7 +173,7 @@ void main() {
       (tester) async {
     // Sayfanın pdfium metni BOŞ → katman OCR'a düşmeli.
     final page = _FakePage(
-        text: assembleOcrPageText(1, '', const []));
+        text: OcrPageText(pageNumber: 1, fullText: '', fragments: const []));
     final completer = Completer<OcrPageText?>();
     PdfOcrText.debugReset();
     PdfOcrText.debugOcrOverride = (_) => completer.future;
@@ -196,7 +203,7 @@ void main() {
   testWidgets('taranmış sayfada metin çıkmazsa kullanıcıya söylenir',
       (tester) async {
     final page = _FakePage(
-        text: assembleOcrPageText(1, '', const []));
+        text: OcrPageText(pageNumber: 1, fullText: '', fragments: const []));
     PdfOcrText.debugReset();
     PdfOcrText.debugOcrOverride = (_) async => null;
     addTearDown(PdfOcrText.debugReset);
@@ -217,7 +224,7 @@ void main() {
       'taranmış sayfa KENDİLİĞİNDEN tanınır: jest yok, çip yok, '
       'sonrasında uzun basış anında seçer', (tester) async {
     final page = _FakePage(
-        text: assembleOcrPageText(1, '', const []));
+        text: OcrPageText(pageNumber: 1, fullText: '', fragments: const []));
     var ocrCalls = 0;
     PdfOcrText.debugReset();
     PdfOcrText.debugOcrOverride = (_) async {
@@ -250,7 +257,7 @@ void main() {
   testWidgets('hızla geçilen sayfa OCR\'lanmaz (katman sökülünce iptal)',
       (tester) async {
     final page = _FakePage(
-        text: assembleOcrPageText(1, '', const []));
+        text: OcrPageText(pageNumber: 1, fullText: '', fragments: const []));
     var ocrCalls = 0;
     PdfOcrText.debugReset();
     PdfOcrText.debugOcrOverride = (_) async {
@@ -449,6 +456,7 @@ class _FakePage implements PdfPage {
   @override
   double get height => 100;
 
+  @override
   Size get size => const Size(200, 100);
 
   @override
@@ -458,9 +466,9 @@ class _FakePage implements PdfPage {
   bool get isLoaded => true;
 
   @override
-  Future<PdfPageRawText?> loadText() async {
+  Future<PdfPageText> loadText() async {
     loads++;
-    return PdfPageRawText(text.fullText, text.charRects);
+    return text;
   }
 
   @override

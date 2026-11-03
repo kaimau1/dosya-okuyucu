@@ -223,11 +223,11 @@ Impeller Vulkan bu telefonda (Adreno 618) **OpenGLES'e düşüyor**. Skia denend
 
 ## 6. PDF — görüntüleme ve araçlar
 
-- [ ] **Kasma turu (2026-11-03):** 50+ MB PDF'i aç → ilk sayfa geçiş biter bitmez görünüyor (eskiden form
-      taraması ana izlekte saniyeler yiyordu); hızlı kaydırmada takılma yok; uzun basış yine kelime seçiyor,
-      ÇİFT seçim/menü çıkmıyor (pdfrx'in kendi seçimi kapatıldı); taranmış PDF'te kaydırırken takılma yok ve
-      sayfa birkaç sn sonra yine seçilebilir (OCR JPEG/izolat); form PDF'inde "doldurulabilir form" önerisi
-      hâlâ çıkıyor.
+- [ ] **Kasma turu (2026-11-03, pdfrx 1.3.5'e dönüldü):** kullanıcının "40 Hadis İmam Nevevî" PDF'i (her
+      sayfada 12 MP saydam arka plan resmi) → açılış ve kaydırma 2.x öncesi kadar akıcı; 50+ MB PDF'te ilk sayfa
+      geçiş biter bitmez görünüyor (form taraması izolatta); uzun basış kelime seçiyor; taranmış PDF'te
+      kaydırırken takılma yok, sayfa birkaç sn sonra seçilebilir (OCR JPEG/izolat — 1.3.5'te RGBA/BGRA
+      ikisi de: tanınan metin doğru mu?); form PDF'inde "doldurulabilir form" önerisi çıkıyor.
 - [ ] **Kaldığın yerden:** uzun PDF'i yarıda bırak, kapat-aç → o sayfa + "Baştan başla" şeridi.
 - [ ] **Kaydırma:** hızlı fırlatma Word/listeler kadar gidiyor; sayfa başına geri ÇEKMİYOR; iki
       parmak yakınlaştırıp bırakınca zıplama yok; yakında yazı keskin (basamaklı çizim
@@ -565,9 +565,6 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
       satırında ilerliyor, bitenler ✓; Durdur kalanları göndermiyor; tablette/yatayda iki sütun.
 - [ ] **A3.4 tazeleme sonrası (2026-11-02):** iş bildirimi + Durdur düğmesi, müzik bildirimi (ön plan servisi), video
       küçük resimleri, ilk açılışta depolama izni, PDF açıklama/form kaydetme, belge tarayıcı (cunning 1.4.0), OCR + çeviri.
-- [ ] **pdfrx 2.4.8 (A3.2, 2026-11-02):** PDF aç/kaydır/yakınlaştır (titreme var mı), metin seçimi + kopyala,
-      taranmış sayfada OCR seçimi, arama vurguları, açıklama işaretleri yerinde mi, küçük resimler, 4 sütun düzeni.
-      Ölç: `_pdfRenderScale` ve sığdırma kenetlemesi kapatılınca 2.x kendisi titremiyor mu → gereksizse sil.
 
 
 ## 17. VLC benzeri oynatıcı + görsel iyileştirme (2026-11-02, kişisel APK)

@@ -252,7 +252,7 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   Future<void> _loadText() async {
     PdfPageText? t;
     try {
-      t = await widget.page.loadStructuredText();
+      t = await widget.page.loadText();
     } catch (_) {
       // Bilinçli: metin okunamazsa katman metinsiz kalır (OCR adayı olur).
     }

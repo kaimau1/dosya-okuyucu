@@ -22,39 +22,18 @@ class OcrWordBox {
 /// aynı arayüzü giyince katman "yazılmış mı taranmış mı" hiç bilmeden çalışır —
 /// iki ayrı seçim yolu (ve iki kat hata yüzeyi) yerine tek yol.
 class OcrPageText extends PdfPageText {
-  OcrPageText._({
-    required super.pageNumber,
-    required super.fullText,
-    required super.charRects,
-    required super.fragments,
+  @override
+  final int pageNumber;
+  @override
+  final String fullText;
+  @override
+  final List<PdfPageTextFragment> fragments;
+
+  OcrPageText({
+    required this.pageNumber,
+    required this.fullText,
+    required this.fragments,
   });
-}
-
-/// Parça = (metindeki başlangıç, karakter kutuları); metin uzunluğu kutu sayısı.
-typedef OcrFrag = ({int index, List<PdfRect> rects});
-
-/// pdfrx 2.x'te parça sayfaya geri başvurur (`pageText`): önce sayfa boş
-/// parça listesiyle kurulur, parçalar sonra eklenir. Sayfanın `charRects`'i
-/// parçalarınkinin art arda dizilişi (metinle birebir aynı uzunlukta).
-OcrPageText assembleOcrPageText(int pageNumber, String fullText, List<OcrFrag> frags) {
-  final page = OcrPageText._(
-    pageNumber: pageNumber,
-    fullText: fullText,
-    charRects: [for (final f in frags) ...f.rects],
-    fragments: <PdfPageTextFragment>[],
-  );
-  page.fragments.addAll([
-    for (final f in frags)
-      PdfPageTextFragment(
-        pageText: page,
-        index: f.index,
-        length: f.rects.length,
-        bounds: f.rects.boundingRect(),
-        charRects: f.rects,
-        direction: PdfTextDirection.ltr,
-      ),
-  ]);
-  return page;
 }
 
 /// ML Kit sözcük satırlarından seçilebilir sayfa metni kurar; sözcük yoksa
@@ -94,7 +73,7 @@ OcrPageText? buildOcrPageText({
       );
 
   final buffer = StringBuffer();
-  final fragments = <OcrFrag>[];
+  final fragments = <PdfPageTextFragment>[];
 
   for (final line in lines) {
     final words = [
@@ -142,11 +121,21 @@ OcrPageText? buildOcrPageText({
 
     final text = lineText.toString();
     buffer.write(text);
-    fragments.add((index: lineStart, rects: charRects));
+    fragments.add(PdfPageTextFragment.fromParams(
+      lineStart,
+      text.length,
+      charRects.boundingRect(),
+      text,
+      charRects,
+    ));
   }
 
   if (fragments.isEmpty) return null;
-  return assembleOcrPageText(pageNumber, buffer.toString(), fragments);
+  return OcrPageText(
+    pageNumber: pageNumber,
+    fullText: buffer.toString(),
+    fragments: fragments,
+  );
 }
 
 /// [OcrPageText]'i JSON'a çevirir — **disk önbelleği** için (2026-08-05,
@@ -177,7 +166,7 @@ OcrPageText? decodeOcrPageText(String json) {
     final map = jsonDecode(json);
     if (map is! Map || map['v'] != 1) return null;
     final fullText = map['text'] as String;
-    final fragments = <OcrFrag>[];
+    final fragments = <PdfPageTextFragment>[];
     for (final f in map['frags'] as List) {
       final text = f['t'] as String;
       final flat = (f['r'] as List).cast<num>();
@@ -187,16 +176,15 @@ OcrPageText? decodeOcrPageText(String json) {
           PdfRect(flat[i].toDouble(), flat[i + 1].toDouble(),
               flat[i + 2].toDouble(), flat[i + 3].toDouble()),
       ];
-      final index = f['i'] as int;
-      // Parça metni tam metinle tutarlı olmalı (bozuk önbellek girdisi atılır).
-      if (index + text.length > fullText.length ||
-          fullText.substring(index, index + text.length) != text) {
-        return null;
-      }
-      fragments.add((index: index, rects: rects));
+      fragments.add(PdfPageTextFragment.fromParams(
+          f['i'] as int, text.length, rects.boundingRect(), text, rects));
     }
     if (fragments.isEmpty) return null;
-    return assembleOcrPageText(map['page'] as int, fullText, fragments);
+    return OcrPageText(
+      pageNumber: map['page'] as int,
+      fullText: fullText,
+      fragments: fragments,
+    );
   } catch (_) {
     return null;
   }

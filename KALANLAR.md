@@ -131,7 +131,7 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
 - [ ] **A9.2 Belge gece kipi ve PDF kâğıt zemini** (A7.6/A7.7 kalanı, 2026-11-02): koyu temada
       Word kanvası artık koyu ama sayfa beyaz; isteğe bağlı "gece kipi" (PDF'teki gibi ters
       renk, `viewer.html` CSS `filter`). PDF'te kâğıt temasında yalnız çerçeve var — sayfanın
-      içi pdfium beyazı (pdfrx 1.3.5 zemin rengini açmıyor; A3.2 pdfrx 2.x ile bak).
+      içi pdfium beyazı (pdfrx 1.3.5 zemin rengini açmıyor; 2.x'e geçiş 2026-11-03'te geri alındı — HAFIZA).
 
 ---
 

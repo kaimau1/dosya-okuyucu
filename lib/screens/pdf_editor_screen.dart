@@ -18,7 +18,6 @@ import '../core/l10n/app_strings.dart';
 import '../services/gemini_service.dart';
 import '../services/pdf/pdf_edit_history.dart';
 import '../services/pdf/pdf_fling.dart';
-import '../services/pdf/pdf_viewer_defaults.dart';
 import '../services/pdf/pdf_form.dart';
 import '../services/pdf/pdf_pending_objects.dart';
 import '../services/pdf/pdf_ocr_text.dart';

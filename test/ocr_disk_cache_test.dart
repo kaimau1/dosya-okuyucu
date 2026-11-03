@@ -171,8 +171,9 @@ class FakeOcrPage implements PdfPage {
   bool get isLoaded => true;
 
   @override
-  Future<PdfPageRawText?> loadText() async =>
-      PdfPageRawText(textLayer?.fullText ?? '', textLayer?.charRects ?? const []);
+  Future<PdfPageText> loadText() async =>
+      textLayer ??
+      OcrPageText(pageNumber: pageNumber, fullText: '', fragments: const []);
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>

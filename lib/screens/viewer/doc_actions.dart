@@ -227,7 +227,7 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
     if (_isPdf && doc != null && _pdfPage >= 1 && _pdfPage <= doc.pages.length) {
       try {
         final text = await doc.pages[_pdfPage - 1].loadText();
-        focus = text?.fullText;
+        focus = text.fullText;
       } catch (_) {
         // Bilinçli: sayfa metni yalnız ek odak bağlamı; okunamazsa sohbet belgenin tamamıyla açılır.
       }

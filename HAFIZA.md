@@ -202,7 +202,9 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
   deflate (telefonda Wi-Fi'den yavaş) · QR/aktarımda üçüncü taraf yükleme (gizlilik) · Firebase
   senkronu (kaldırıldı) · FFmpeg (Media3'e geçildi) · `insertUnorderedList` (Word paragraf
   eşlemesini bozuyordu) · çift dokunuşla yakınlaştırma editörlerde · `usage_stats` paketi
-  (compileSdk 30, derlemeyi kırıyor).
+  (compileSdk 30, derlemeyi kırıyor) · **pdfrx 2.x** (2.4.8 denendi, 2026-11-03'te geri alındı:
+  yoğun PDF'te açılış çok geç, kaydırma ~5 FPS — ayrıntı 2026-11-03 kaydı; tekrar denenecekse önce
+  cihazda o PDF'le profil ölçümü).
 
 ## 5. Tarihli kayıtlar (yeni kayıt en alta; `## YYYY-MM-DD — başlık`)
 
@@ -481,7 +483,7 @@ Kullanıcı: *"fazlardan devam et, bulutta yapılabilecekleri yap, main'e merge 
   wakelock 1.8 + bildirim 17 ise `dbus` sürümünde çakışıyordu (bildirim 22 bunu çözdü).
 - Cihazda: bildirim (iş/oynatıcı/ön plan servisi), video küçük resmi, depolama izni akışı, PDF yazma (Syncfusion).
 
-## 2026-11-02 — A3.2 pdfrx 1.3.5 → 2.4.8
+## 2026-11-02 — A3.2 pdfrx 1.3.5 → 2.4.8 (**2026-11-03 GERİ ALINDI**, aşağıya bak)
 - 2.11 çözülmüyor (pdfrx_engine 0.9 bağımlılık zinciri); ^2.4.8. Yerel pdfium artık `pdfium_flutter` paketinden.
 - API farkları: `loadText()` → ham `PdfPageRawText?` (fullText + charRects); parçalı metin `loadStructuredText()`
   (uzantı; ham metinden üretir → **test sahteleri `loadText` ile ham metin döndürmeli**). `PdfPageText` artık sabit
@@ -563,4 +565,24 @@ Kullanıcı: *"fazlardan devam et, bulutta yapılabilecekleri yap, main'e merge 
 - **Açık (cihaz):** Word kapanış/menü takılması için şüpheli hybrid composition WebView → KALANLAR B3.3d.
   Bu turun hiçbir düzeltmesi cihazda ÖLÇÜLMEDİ → CIHAZ_TESTI §6/§8 "Kasma turu".
 - Tasarım tokenı testi dosya başına ham `Duration` sayısına tavan koyuyor: yeni gecikme için `Motion.*`.
+
+## 2026-11-03 — pdfrx 2.4.8 → 1.3.5 GERİ (yoğun PDF'te ~5 FPS, açılış çok geç)
+- **Kullanıcı bulgusu:** "40 Hadis İmam Nevevî" PDF'i (54 sayfa, 595×595 pt) kaydırırken sürekli donuyor,
+  ilk yükleme aşırı geç; diğer PDF'lerde daha az. "Önceden düzgündü" = 1.3.5.
+- **PDF'in ağırlığı (ölçüldü, poppler):** her sayfada 4961×2480'lik (12 MP) saydamlıklı (ExtGState) arka plan
+  resmi; poppler bir sayfayı 200 dpi'da 4,8 sn'de çiziyor, metin çıkarma 25 ms. Yani maliyet ÇİZİMDE; sayfayı
+  fazladan çizdiren / çizim kuyruğunu dolduran her şey kasmaya dönüşür.
+- **2.x'in 1.3.5'te olmayan, parametreyle kapatılamayan işleri (kaynaktan):** (1) erişilebilirlik açıkken
+  (telefonda HERHANGİ bir erişilebilirlik hizmeti) görünen her sayfanın HER satırı için `Focus`+`Semantics`
+  bileşeni, kaydırmanın her karesinde yeniden (`_buildPageSemanticsWidgets`, yalnız
+  `SemanticsBinding.semanticsEnabled`'a bakıyor); (2) boyama döngüsü önbellek payındaki her sayfanın metnini
+  yüklüyor + ana izlekte `PdfTextFormatter` (`_getCachedTextOrDelayLoadText`); (3) kendi metin seçimi
+  varsayılan açık. Tüm pdfium işleri tek işçide sırada.
+- **Ölçülemedi:** bulutta pdfium çalıştırma (indirilen `libpdfium.so`) izin denetiminden geçmedi; telefon yok.
+  Hangisinin baskın olduğu bilinmiyor → bilinen iyi motora dönüldü (geri alma küçük: A3.2 17 dosya).
+- **Korunanlar (motordan bağımsız):** form taraması izolatta, seçim katmanı metni gecikmeli, OCR görüntüsü
+  izolatta JPEG (1.3.5'te `PdfImage.format` RGBA/BGRA'ya göre kanal sırası), Word izolatı, PdfTextSearcher
+  `onViewerReady`'de. `pdfrx: 1.3.5` tam sabit (`^1.3.0` değil).
+- **Tekrar yükseltmeden önce:** bu PDF'le cihazda profil zaman çizelgesi (UI + raster + pdfium işçisi);
+  2.x'te (1)'i kapatmak paket yaması ister (`dependency_overrides` + yerel kopya).
 
