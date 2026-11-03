@@ -56,6 +56,7 @@ Future<bool> showTransferOffer(
   required int count,
   required int totalBytes,
   required String saveDir,
+  ValueNotifier<bool>? trust,
 }) async {
   AppHaptics.step();
   final ok = await showAppSheet<bool>(
@@ -66,6 +67,7 @@ Future<bool> showTransferOffer(
       count: count,
       totalBytes: totalBytes,
       saveDir: saveDir,
+      trust: trust,
     ),
   );
   return ok ?? false;
@@ -78,12 +80,16 @@ class _OfferBody extends StatelessWidget {
   final int totalBytes;
   final String saveDir;
 
+  /// Verilirse "Bu cihaza güven" kutusu çıkar; seçim buraya yazılır.
+  final ValueNotifier<bool>? trust;
+
   const _OfferBody({
     required this.from,
     required this.items,
     required this.count,
     required this.totalBytes,
     required this.saveDir,
+    this.trust,
   });
 
   @override
@@ -165,6 +171,18 @@ class _OfferBody extends StatelessWidget {
               ),
             ],
           ),
+          if (trust != null)
+            ValueListenableBuilder<bool>(
+              valueListenable: trust!,
+              builder: (_, on, __) => CheckboxListTile(
+                key: const ValueKey('offer-trust'),
+                value: on,
+                onChanged: (v) => trust!.value = v ?? false,
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: Text(context.t('near.trust_this')),
+              ),
+            ),
           const SizedBox(height: Gap.md),
           Row(
             children: [

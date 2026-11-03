@@ -37,6 +37,7 @@ import 'services/fm/disk_housekeeping.dart';
 import 'services/fm/file_tags.dart';
 import 'services/fm/fm_env.dart';
 import 'services/fm/job_notifications.dart';
+import 'services/fm/enhance_jobs.dart';
 import 'services/fm/job_queue.dart';
 import 'services/fm/sd_union.dart';
 import 'services/fm/job_store.dart';
@@ -67,6 +68,7 @@ Future<void> main() async {
   // öğrenmenin başka yolu yoktu; kayıt cihazda kalır, kullanıcı Ayarlar >
   // Hata kayıtları'ndan görüp isterse paylaşır (bkz. services/crash_log.dart).
   CrashLog.install();
+  unawaited(CrashLog.importExitReasons());
   // Platformun `content://…` adresini sayfa adı diye itmesi çökertiyordu
   // (1.0.393) — `WidgetsApp`ten önce kayıtlı olmalı (bkz. route_guard.dart).
   RouteInformationGuard.install();
@@ -201,6 +203,7 @@ Future<void> main() async {
   // "Devam et" dediğinde tarifin türünü çalıştıracak üretici bulunamazsa
   // düğme yine ölü kalırdı (bkz. JobRecipes).
   registerResizeJobRunner();
+  EnhanceJobs.registerRunner();
   unawaited(_restoreJobs());
   final appState = AppState();
   await appState.init();

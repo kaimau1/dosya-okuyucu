@@ -30,6 +30,7 @@ import '../../../services/fm/remote/peer_share.dart';
 import '../../../services/fm/remote/qr_transfer.dart';
 import '../../../services/fm/remote/transfer_keeper.dart';
 import '../../../services/fm/remote/transfer_history.dart';
+import '../../../services/fm/remote/trusted_peers.dart';
 import '../../../services/fm/remote/transfer_thumbs.dart';
 import '../../../widgets/app_dialog.dart';
 import '../../../widgets/fm/fm_entry_icon.dart';
@@ -111,6 +112,9 @@ class NearbyScreen extends StatefulWidget {
   /// Gönderilecek dosya/klasörler (boş da olabilir).
   final List<String> sendPaths;
 
+  /// Gönderilecek yazı (Paylaş ile gelen düz metin; boş olabilir).
+  final String? sendText;
+
   /// Testte ağ/Bluetooth başlatılmasın.
   @visibleForTesting
   final bool services;
@@ -124,6 +128,7 @@ class NearbyScreen extends StatefulWidget {
   const NearbyScreen({
     super.key,
     this.sendPaths = const [],
+    this.sendText,
     this.services = true,
     this.invite,
     this.inviteAccepted = false,
@@ -137,6 +142,9 @@ class _NearbyScreenState extends State<NearbyScreen> {
   static const _section = EdgeInsets.fromLTRB(Gap.xs, Gap.lg, Gap.xs, Gap.sm);
 
   late final List<String> _selection = [...widget.sendPaths];
+
+  /// Gönderilecek yazı (dosyalarla birlikte de gidebilir).
+  late String? _text = widget.sendText;
 
   String _id = '';
   String _saveDir = QrReceiveFlow.defaultSaveDir();
@@ -189,6 +197,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
   void initState() {
     super.initState();
     unawaited(TransferHistory.instance.ensureLoaded());
+    unawaited(TrustedPeers.instance.ensureLoaded());
     if (widget.services) unawaited(_boot());
   }
 
@@ -320,6 +329,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
       deviceId: _id,
       saveDir: _saveDir,
       onAsk: _confirmIncoming ? _askIncoming : null,
+      onText: _showIncomingText,
       onProgress: (name, received, total) {
         if (!mounted) return;
         final before = _incoming[name];
@@ -381,8 +391,11 @@ class _NearbyScreenState extends State<NearbyScreen> {
     if (pre != null && pre.name == offer.from && DateTime.now().isBefore(pre.until)) {
       return true;
     }
-    return showTransferOffer(
+    if (TrustedPeers.instance.isTrusted(offer.from, offer.fromId)) return true;
+    final trust = ValueNotifier(false);
+    final ok = await showTransferOffer(
       context,
+      trust: trust,
       from: offer.from,
       count: offer.count,
       totalBytes: offer.totalBytes,
@@ -399,6 +412,55 @@ class _NearbyScreenState extends State<NearbyScreen> {
           ),
       ],
     );
+    if (ok && trust.value) await _trust(offer.from, offer.fromId);
+    trust.dispose();
+    return ok;
+  }
+
+  Future<void> _trust(String name, String id) async {
+    await TrustedPeers.instance.add(name, id);
+    if (mounted) showSnack(context, context.t('near.trusted_added', {'name': name}));
+  }
+
+  /// Gelen yazı: diske yazılmaz, kopyalanabilir olarak gösterilir.
+  void _showIncomingText(String text, String from) {
+    if (!mounted) return;
+    AppHaptics.step();
+    unawaited(showAppSheet<void>(
+      context,
+      title: context.t('near.text_from', {'from': from}),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(Gap.md, 0, Gap.md, Gap.md),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(ctx).height * 0.45),
+              child: SingleChildScrollView(
+                child: SelectableText(
+                  key: const ValueKey('near-text-in'),
+                  text,
+                  style: Theme.of(ctx).textTheme.bodyLarge,
+                ),
+              ),
+            ),
+            const SizedBox(height: Gap.md),
+            FilledButton.icon(
+              key: const ValueKey('near-text-copy'),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: text));
+                Navigator.pop(ctx);
+                showSnack(context, context.t('near.copied'));
+              },
+              icon: const Icon(AppIcons.copyPlain),
+              label: Text(ctx.t('near.text_copy')),
+            ),
+          ],
+        ),
+      ),
+    ));
   }
 
   /// Bluetooth daveti: önce ne geleceği sorulur, kabul edilirse Wi-Fi'ye
@@ -407,16 +469,23 @@ class _NearbyScreenState extends State<NearbyScreen> {
 
   Future<void> _takeInvite(BleInvite invite, {required bool accepted}) async {
     if (!mounted) return;
+    final trust = ValueNotifier(false);
     final ok = accepted ||
+        TrustedPeers.instance.isTrusted(invite.from, invite.fromId) ||
         await showTransferOffer(
           context,
+          trust: trust,
           from: invite.from,
           count: invite.count,
           totalBytes: invite.totalBytes,
           saveDir: _saveDir,
           items: [for (final n in invite.names) OfferRow(name: n, size: 0)],
         );
+    final trusted = trust.value;
+    trust.dispose();
     if (!ok || !mounted) return;
+    if (trusted) await _trust(invite.from, invite.fromId);
+    if (!mounted) return;
     if (invite.push) {
       // Gönderen (ör. Windows "Dosya Aktar") bu cihazı Wi-Fi'de bulup kendisi gönderir;
       // onay verildi, aynı göndericinin teklifi birkaç dakika yeniden sorulmaz.
@@ -500,7 +569,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
       showSnack(context, context.t('near.busy_sending'));
       return;
     }
-    if (_selection.isEmpty) {
+    if (_selection.isEmpty && _text == null) {
       final picked = await showAppSheet<String>(
         context,
         title: context.t('near.what_to_send', {'name': near.name}),
@@ -517,6 +586,12 @@ class _NearbyScreenState extends State<NearbyScreen> {
               title: Text(ctx.t('near.add_folder')),
               onTap: () => Navigator.pop(ctx, 'folder'),
             ),
+            if (near.wifi != null)
+              ListTile(
+                leading: const Icon(AppIcons.textSnippet),
+                title: Text(ctx.t('near.add_text')),
+                onTap: () => Navigator.pop(ctx, 'text'),
+              ),
             const SizedBox(height: Gap.sm),
           ],
         ),
@@ -524,18 +599,58 @@ class _NearbyScreenState extends State<NearbyScreen> {
       if (picked == null || !mounted) return;
       if (picked == 'files') {
         await _addFiles();
-      } else {
+      } else if (picked == 'folder') {
         await _addFolder();
+      } else {
+        await _editText();
       }
-      if (_selection.isEmpty || !mounted) return;
+      if ((_selection.isEmpty && _text == null) || !mounted) return;
     }
     AppHaptics.step();
     final wifi = near.wifi;
     if (wifi != null) {
-      await _sendWifi(wifi);
+      if (_text != null && !await _sendText(wifi)) return;
+      if (_selection.isNotEmpty) await _sendWifi(wifi);
     } else if (near.ble != null) {
+      if (_text != null) {
+        showSnack(context, context.t('near.text_wifi_only'));
+        if (_selection.isEmpty) return;
+      }
       await _sendBle(near);
     }
+  }
+
+  /// Yazı ekler/düzenler; panodaki metin hazır gelir.
+  Future<void> _editText() async {
+    var initial = _text ?? '';
+    if (initial.isEmpty) {
+      try {
+        initial = (await Clipboard.getData(Clipboard.kTextPlain))?.text ?? '';
+      } catch (_) {
+        // Pano okunamadı: kutu boş açılır, kullanıcı yazar — söylenecek bir şey yok.
+      }
+    }
+    if (!mounted) return;
+    final text = await showAppPrompt(
+      context,
+      title: context.t('near.text_title'),
+      label: context.t('near.text_hint'),
+      initial: initial,
+      confirmLabel: context.t('common.ok'),
+      multiline: true,
+    );
+    if (text == null || !mounted) return;
+    setState(() => _text = text);
+  }
+
+  Future<bool> _sendText(Peer peer) async {
+    final strings = AppStrings.of(context);
+    final ok = await PeerSender.sendText(peer, _text!, senderName: _deviceName);
+    if (!mounted) return ok;
+    if (ok) setState(() => _text = null);
+    showSnack(context,
+        ok ? strings.t('near.text_sent', {'name': peer.name}) : strings.t('near.text_failed'));
+    return ok;
   }
 
   Future<void> _sendWifi(Peer peer) async {
@@ -686,15 +801,17 @@ class _NearbyScreenState extends State<NearbyScreen> {
           _menu(context),
         ],
       ),
-      body: LayoutBuilder(builder: (context, box) {
+      // Güvenilenler listesi değişince (ekle/kaldır) rozetler ve bölüm tazelenir.
+      body: ListenableBuilder(
+        listenable: TrustedPeers.instance,
+        builder: (context, _) => LayoutBuilder(builder: (context, box) {
         final send = [
           _statusCard(context),
           ..._transfers(context),
           const SizedBox(height: Gap.md),
           _selectionCard(context),
-          SectionHeader(context.t('near.devices'),
-              count: _near.isEmpty ? null : '${_near.length}', padding: _section),
-          _devices(context),
+          const SizedBox(height: Gap.md),
+          _devicesCard(context),
         ];
         // İki sütunda sağın ilk başlığı soldaki durum kartıyla aynı hizada başlar.
         List<Widget> more({required bool first}) => [
@@ -703,6 +820,10 @@ class _NearbyScreenState extends State<NearbyScreen> {
           _webCard(context),
           SectionHeader(context.t('near.history'), padding: _section),
           _history(context),
+          if (TrustedPeers.instance.items.isNotEmpty) ...[
+            SectionHeader(context.t('near.trusted'), padding: _section),
+            _trustedCard(context),
+          ],
           SectionHeader(context.t('near.other_ways'), padding: _section),
           _otherWays(context),
         ];
@@ -736,6 +857,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
           ),
         );
       }),
+      ),
     );
   }
 }

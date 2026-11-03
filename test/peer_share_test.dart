@@ -457,4 +457,39 @@ void main() {
     expect(PeerShare.broadcastFor('10.0.0.4'), '10.0.0.255');
     expect(PeerShare.broadcastFor('saçma'), isNull);
   });
+
+  test('yazı gönderme: alıcıda aynen görünür; kimlik teklife gider', () async {
+    final texts = <(String, String)>[];
+    PeerOffer? offer;
+    final receiver = PeerReceiver(
+        deviceName: 'Alıcı',
+        saveDir: inbox.path,
+        onText: (t, from) => texts.add((t, from)),
+        onAsk: (o) async {
+          offer = o;
+          return true;
+        });
+    await receiver.start();
+    addTearDown(receiver.stop);
+    final peer = Peer(name: 'Alıcı', host: '127.0.0.1', port: receiver.port);
+
+    const text = 'Şifre değil, adres: Atatürk Cd. 12\nikinci satır';
+    expect(await PeerSender.sendText(peer, text, senderName: 'Gönderen'),
+        isTrue);
+    expect(texts.single, (text, 'Gönderen'));
+    expect(inbox.listSync(), isEmpty, reason: 'yazı diske yazılmaz');
+    expect(await PeerSender.sendText(peer, '   ', senderName: 'G'), isFalse);
+
+    final f = File(p.join(temp.path, 'a.txt'))..writeAsStringSync('A');
+    await PeerSender.send(peer, [f.path],
+        senderName: 'Gönderen', senderId: 'kurulum-1');
+    expect(offer?.fromId, 'kurulum-1');
+  });
+
+  test('yazı almayan (eski) alıcıya gönderim false döner', () async {
+    final receiver = await startReceiver();
+    addTearDown(receiver.stop);
+    final peer = Peer(name: 'Alıcı', host: '127.0.0.1', port: receiver.port);
+    expect(await PeerSender.sendText(peer, 'selam', senderName: 'G'), isFalse);
+  });
 }

@@ -188,6 +188,16 @@ abstract final class AppStorageService {
   /// Son "Birlikte aç" bir **düzenleme/işaretleme** isteği miydi (Chrome'un
   /// PDF görüntüleyicisindeki kalem düğmesi → `ANNOTATE`, ya da `EDIT`)?
   /// Okununca temizlenir. Kanal yoksa false.
+  /// Son açılış **Paylaş** ile miydi (okununca temizlenir)? Öyleyse dosya
+  /// Aktar ekranında gönderilecek olarak açılır.
+  static Future<bool> takeSendRequest() async {
+    try {
+      return await _channel.invokeMethod<bool>('takeSendRequest') ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   static Future<bool> takeEditRequest() async {
     try {
       return await _channel.invokeMethod<bool>('takeEditRequest') ?? false;

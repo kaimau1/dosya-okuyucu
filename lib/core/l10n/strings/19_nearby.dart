@@ -191,4 +191,43 @@ const Map<String, (String, String, String)> _t19 = {
     'Warm ivory background, sage-green accent — no blue, easy on the eyes',
     'خلفية عاجية دافئة ولون مميز أخضر — دون أزرق ومريحة للعين',
   ),
+  // ── Aktar 2026-11-03: yazı gönderme, güvenilen cihazlar, yeni düzen ───────
+  'near.add_text': ('Yazı', 'Text', 'نص'),
+  'near.text_title': ('Gönderilecek yazı', 'Text to send', 'النص المراد إرساله'),
+  'near.text_hint': (
+    'Yaz ya da yapıştır — karşı cihazda kopyalanabilir olarak görünür',
+    'Type or paste — it appears on the other device, ready to copy',
+    'اكتب أو الصق — يظهر على الجهاز الآخر جاهزًا للنسخ',
+  ),
+  'near.text_chip': ('Yazı · {n} karakter', 'Text · {n} characters', 'نص · {n} حرفًا'),
+  'near.text_sent': ('Yazı {name} cihazına gönderildi', 'Text sent to {name}', 'أُرسل النص إلى {name}'),
+  'near.text_failed': (
+    'Yazı gönderilemedi — karşıda Aktar açık ve uygulama güncel mi?',
+    "Couldn't send the text — is Transfer open and the app up to date there?",
+    'تعذّر إرسال النص — هل شاشة النقل مفتوحة والتطبيق محدّث هناك؟',
+  ),
+  'near.text_wifi_only': (
+    'Yazı yalnız Wi-Fi ile gider — iki cihaz aynı ağda olmalı',
+    'Text only goes over Wi-Fi — both devices must be on the same network',
+    'يُرسل النص عبر Wi-Fi فقط — يجب أن يكون الجهازان على الشبكة نفسها',
+  ),
+  'near.text_from': ('{from} yazı gönderdi', '{from} sent text', 'أرسل {from} نصًا'),
+  'near.text_copy': ('Kopyala', 'Copy', 'نسخ'),
+  'near.step_what': ('1 · Ne gönderilecek?', '1 · What to send?', '1 · ماذا ترسل؟'),
+  'near.step_who': ('2 · Kime?', '2 · To whom?', '2 · إلى من؟'),
+  'near.you': ('Bu cihaz', 'This device', 'هذا الجهاز'),
+  'near.trust_this': (
+    'Bu cihaza güven — bir daha sorma',
+    "Trust this device — don't ask again",
+    'ثق بهذا الجهاز — لا تسأل مرة أخرى',
+  ),
+  'near.trusted': ('Güvenilen cihazlar', 'Trusted devices', 'الأجهزة الموثوقة'),
+  'near.trusted_sub': (
+    'Bunlardan gelen dosyalar sorulmadan alınır',
+    'Files from these are received without asking',
+    'تُستلم الملفات منها دون سؤال',
+  ),
+  'near.trusted_badge': ('Güvenilir', 'Trusted', 'موثوق'),
+  'near.untrust': ('Güveni kaldır', 'Remove trust', 'إزالة الثقة'),
+  'near.trusted_added': ('{name} güvenilenlere eklendi', '{name} added to trusted devices', 'أُضيف {name} إلى الأجهزة الموثوقة'),
 };

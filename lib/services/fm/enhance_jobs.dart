@@ -48,6 +48,39 @@ abstract final class EnhanceJobs {
         EnhanceKind.upscale => 'gal.enh_ai',
       });
 
+  /// Tarif türü: yarıda kalan iyileştirme İşlemler'de "Devam et" ile
+  /// yeniden başlatılır (kullanıcı 2026-11-03: *"dokunup yeniden başlat
+  /// çalışmıyor, görsel iyileştirme yarım kaldığında"* — iş tarifsiz
+  /// izleniyordu, [JobRecipes.canResume] hep false'tu).
+  static const recipeKind = 'enhance';
+
+  /// Uygulama açılışında bir kez (`main.dart`).
+  static void registerRunner() {
+    JobRecipes.register(recipeKind, (handle, params) async {
+      final path = '${params['path']}';
+      final kind = EnhanceKind.values.asNameMap()[params['kind']] ??
+          EnhanceKind.auto;
+      handle.report(total: 100, done: 0);
+      final String? out;
+      try {
+        out = await _enhance(path, kind,
+            report: (pct) => handle.report(done: pct),
+            cancelled: () => handle.cancelled);
+      } on EnhanceCancelled {
+        throw const JobCancelled();
+      } catch (e) {
+        throw userErrorText(e); // kuyruk hatayı '$e' olarak yazar
+      }
+      if (out == null) throw const JobCancelled();
+      handle.addOutput(out, source: path);
+      handle.report(
+          done: 100,
+          detail: AppStrings.current
+              .t('gal.enh_saved', {'name': p.basename(out)}));
+      _results.add(EnhanceResult(path, out));
+    });
+  }
+
   /// İşi başlatır ve hemen döner. Aynı görsel aynı yöntemle zaten
   /// iyileştiriliyorsa ikinci iş açılmaz (null döner).
   static TrackedJob? start(String path, EnhanceKind kind) {
@@ -62,35 +95,21 @@ abstract final class EnhanceJobs {
       detail: _kindLabel(kind),
       total: 100,
       target: FmJobTarget(FmJobTargetKind.enhance, paths: [path]),
+      recipe: JobRecipe(recipeKind, {'path': path, 'kind': kind.name}),
     );
     unawaited(_run(job, path, kind));
     return job;
   }
 
   static Future<void> _run(TrackedJob job, String path, EnhanceKind kind) async {
-    final run = debugRun ?? ImageEnhance.enhanceFile;
-    // "Durdur" kuyruğu değiştirir (notifyListeners) → sinyal hemen tetiklenir.
-    final stop = Completer<void>();
-    void watch() {
-      if (job.cancelRequested && !stop.isCompleted) stop.complete();
-    }
-
-    JobQueue.instance.addListener(watch);
     try {
-      final out = await run(
-        path,
-        kind,
-        onProgress: (r) => job.report(done: (r * 100).floor()),
-        cancelSignal: stop.future,
-      );
-      if (job.cancelRequested) {
-        try {
-          File(out).deleteSync();
-        } catch (_) {}
+      final out = await _enhance(path, kind,
+          report: (pct) => job.report(done: pct),
+          cancelled: () => job.cancelRequested);
+      if (out == null) {
         await job.stopped();
         return;
       }
-      FsEvents.changed([out]); // galeriye de bildirir (MediaScan)
       job.addOutput(out, source: path);
       await job.complete(
           detail: AppStrings.current
@@ -100,6 +119,36 @@ abstract final class EnhanceJobs {
       await job.stopped();
     } catch (e) {
       await job.fail(userErrorText(e));
+    }
+  }
+
+  /// Ortak gövde (izlenen iş + yeniden başlatma). İptalde null döner.
+  static Future<String?> _enhance(String path, EnhanceKind kind,
+      {required void Function(int pct) report,
+      required bool Function() cancelled}) async {
+    final run = debugRun ?? ImageEnhance.enhanceFile;
+    // "Durdur" kuyruğu değiştirir (notifyListeners) → sinyal hemen tetiklenir.
+    final stop = Completer<void>();
+    void watch() {
+      if (cancelled() && !stop.isCompleted) stop.complete();
+    }
+
+    JobQueue.instance.addListener(watch);
+    try {
+      final out = await run(
+        path,
+        kind,
+        onProgress: (r) => report((r * 100).floor()),
+        cancelSignal: stop.future,
+      );
+      if (cancelled()) {
+        try {
+          File(out).deleteSync();
+        } catch (_) {}
+        return null;
+      }
+      FsEvents.changed([out]); // galeriye de bildirir (MediaScan)
+      return out;
     } finally {
       JobQueue.instance.removeListener(watch);
     }

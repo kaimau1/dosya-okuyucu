@@ -605,3 +605,22 @@ Kullanıcı: *"fazlardan devam et, bulutta yapılabilecekleri yap, main'e merge 
   Listelerde `FmQuickFilters` + `FmTypeChips` + `FmMoreChip`; tür hapı `request.isSpecific`te gizli (açık
   soru öneriyle kapandı); klasörler süzgeçten etkilenmez (`pickVisibleEntries`, testli); görünüm değişince
   süzgeç sıfırlanır.
+
+## 2026-11-03 — Aktar turu: yazı gönderme, güvenilen cihaz, Paylaş→Aktar, yeni düzen; iyileştirme devamı
+- **"Dokunup yeniden başlat" ölüydü — kök:** `EnhanceJobs` işi `track()` ile TARİFSİZ açıyordu → `JobRecipes.canResume`
+  hep false. `track()` artık `recipe:` alır; tür `enhance` (`EnhanceJobs.registerRunner`, `main.dart`), gövde ortak
+  (`_enhance`), yeniden başlatma kuyruk yolundan (`JobQueue.resume`) koşar. Test: `enhance_background_test`.
+- **İyileştirme çöküşü: kök neden BULUNAMADI** (log yok; kullanıcı triage sorularını yanıtlamadı). Yerel çökme /
+  bellek öldürmesi / ANR Dart'a düşmüyordu → `Extras.exitReasons` (`ApplicationExitInfo`, Android 11+) açılışta
+  `CrashLog.importExitReasons` ile Hata kayıtları'na `kind: exit` yazılır (`exit_seen.txt` damgası). Sonraki çöküşte
+  neden + PSS orada. Adaylar (tahmin): 12 MP'de filtre zinciri 5 kopya (~180 MB) ya da tflite yerel çökme.
+- **Paylaş → Aktar:** eklenti VIEW ile SEND'i ayırmıyor → `MainActivity.sendRequest` (`takeSendRequest`, okununca
+  temizlenir; `launchAction` KULLANILMADI — `volume_watch` onu resume'da tüketip yarışırdı). SEND dosyası/düz yazısı
+  `NearbyScreen(sendPaths:, sendText:)` açar; "Birlikte aç" okuyucuda kalır; URL paylaşımı indirmede kalır.
+- **Yazı gönderme:** `POST /yazi` (≤1 MB, diske YAZILMAZ, alıcıda kopyalanabilir pencere — onay sorulmaz: gösterim
+  kabulün kendisi). Eski alıcı 404 → `sendText` false. Yalnız Wi-Fi (BLE yolu yok).
+- **Güvenilen cihaz** (`TrustedPeers`, prefs `near_trusted_v1`): onay penceresinde "Bu cihaza güven"; `/sor` artık
+  `kimlik` (gönderen kurulum kimliği) taşır. Eşleşme: iki tarafta kimlik varsa kimlik, yoksa AD (Windows "Dosya
+  Aktar" kimlik göndermiyor). **Sınır:** ad ağda taklit edilebilir — gerekirse çifte özel jeton.
+- **Aktar yeniden tasarım:** "1 · Ne gönderilecek?" (Dosya/Klasör/Yazı büyük kutular + yazı çipi) ve "2 · Kime?"
+  kartları; avatarda güven rozeti; "Güvenilen cihazlar" bölümü (yalnız varsa). Cihazda GÖRÜLMEDİ → CIHAZ_TESTI.

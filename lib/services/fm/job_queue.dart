@@ -981,6 +981,7 @@ class JobQueue extends ChangeNotifier {
     FmJobTarget? target,
     int? startedAtMs,
     bool ownNotification = false,
+    JobRecipe? recipe,
   }) {
     _noteJobStarted();
     final jobId = id ?? 'tracked_${DateTime.now().microsecondsSinceEpoch}';
@@ -994,6 +995,7 @@ class JobQueue extends ChangeNotifier {
       done: done,
       status: JobStatus.running,
       target: target,
+      recipe: recipe,
     )
       ..tracked = true
       ..ownNotification = ownNotification

@@ -118,9 +118,12 @@ extension _NearbySections on _NearbyScreenState {
     );
   }
 
+  /// **1 · Ne gönderilecek?** — üç büyük kutu (Dosya / Klasör / Yazı), altında
+  /// seçilenler. 2026-11-03 yeniden tasarım: eskiden iki çerçeveli düğme ve
+  /// uzun bir açıklama vardı; "yazı" yolu yoktu.
   Widget _selectionCard(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
+    final text = _text;
+    final count = _selection.length + (text == null ? 0 : 1);
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -128,18 +131,58 @@ extension _NearbySections on _NearbyScreenState {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              _selection.isEmpty
-                  ? context.t('near.pick_title')
-                  : context.t('near.selected', {'n': _selection.length}),
-              style: theme.textTheme.titleSmall,
+            _StepHeader(
+              title: context.t('near.step_what'),
+              sub: count == 0
+                  ? context.t('near.pick_sub')
+                  : context.t('near.selected', {'n': count}),
             ),
-            const SizedBox(height: 2),
-            Text(
-              context.t(_selection.isEmpty ? 'near.pick_sub' : 'near.tap_device'),
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: scheme.onSurfaceVariant),
+            Row(
+              children: [
+                Expanded(
+                  child: _ActionTile(
+                    key: const ValueKey('near-add-files'),
+                    icon: AppIcons.addFile,
+                    label: context.t('near.add_files'),
+                    onTap: _addFiles,
+                  ),
+                ),
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: _ActionTile(
+                    key: const ValueKey('near-add-folder'),
+                    icon: AppIcons.addFolder,
+                    label: context.t('near.add_folder'),
+                    onTap: _addFolder,
+                  ),
+                ),
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: _ActionTile(
+                    key: const ValueKey('near-add-text'),
+                    icon: AppIcons.textSnippet,
+                    label: context.t('near.add_text'),
+                    onTap: _editText,
+                  ),
+                ),
+              ],
             ),
+            if (text != null) ...[
+              const SizedBox(height: Gap.sm),
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: InputChip(
+                  key: const ValueKey('near-text-chip'),
+                  avatar: const Icon(AppIcons.textSnippet, size: AppIcons.small),
+                  label: Text(
+                    context.t('near.text_chip', {'n': text.characters.length}),
+                  ),
+                  tooltip: text.length > 200 ? '${text.substring(0, 200)}…' : text,
+                  onPressed: _editText,
+                  onDeleted: () => _update(() => _text = null),
+                ),
+              ),
+            ],
             if (_selection.isNotEmpty) ...[
               const SizedBox(height: Gap.sm),
               SizedBox(
@@ -149,36 +192,64 @@ extension _NearbySections on _NearbyScreenState {
                   itemCount: _selection.length,
                   separatorBuilder: (_, __) => const SizedBox(width: Gap.sm),
                   itemBuilder: (_, i) => _SelectedTile(
+                    key: ValueKey(_selection[i]),
                     path: _selection[i],
                     onRemove: () => _remove(_selection[i]),
                   ),
                 ),
               ),
             ],
-            const SizedBox(height: Gap.sm),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    key: const ValueKey('near-add-files'),
-                    onPressed: _addFiles,
-                    icon: const Icon(AppIcons.addFile, size: AppIcons.small),
-                    label: Text(context.t('near.add_files')),
-                  ),
-                ),
-                const SizedBox(width: Gap.sm),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    key: const ValueKey('near-add-folder'),
-                    onPressed: _addFolder,
-                    icon: const Icon(AppIcons.addFolder, size: AppIcons.small),
-                    label: Text(context.t('near.add_folder')),
-                  ),
-                ),
-              ],
-            ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// **2 · Kime?** — yakındaki cihazlar; güvenilenlerde rozet.
+  Widget _devicesCard(BuildContext context) {
+    final ready = _selection.isNotEmpty || _text != null;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _StepHeader(
+              title: context.t('near.step_who'),
+              sub: ready ? context.t('near.tap_device') : null,
+              trailing: _near.isEmpty
+                  ? null
+                  : Text('${_near.length}',
+                      style: Theme.of(context).textTheme.labelLarge),
+            ),
+            _devices(context),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Güvenilen cihazlar (yalnız varsa): kaldırmak tek dokunuş.
+  Widget _trustedCard(BuildContext context) {
+    final items = TrustedPeers.instance.items;
+    return Card(
+      key: const ValueKey('near-trusted'),
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          for (final t in items)
+            ListTile(
+              leading: Icon(AppIcons.verified, color: Paper.success(context)),
+              title: Text(t.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+              trailing: IconButton(
+                tooltip: context.t('near.untrust'),
+                icon: const Icon(AppIcons.close),
+                onPressed: () => unawaited(TrustedPeers.instance.remove(t)),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -221,6 +292,7 @@ extension _NearbySections on _NearbyScreenState {
             wifi: n.wifi != null,
             ble: n.ble != null,
             busy: _out != null,
+            trusted: TrustedPeers.instance.isTrusted(n.name, n.wifi?.id ?? n.ble?.id ?? ''),
             onTap: () => _tapPeer(n),
           ),
       ],

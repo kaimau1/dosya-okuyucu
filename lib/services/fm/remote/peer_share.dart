@@ -191,6 +191,11 @@ class PeerReceiver implements KeepableServer {
   /// bütün dosyaları onunla gelir. `null` = onaysız.
   final Future<bool> Function(PeerOffer offer)? onAsk;
 
+  /// **Gelen yazı** (`/yazi`, 2026-11-03 kullanıcı isteği *"yazı gönderme"*).
+  /// Diske yazılmaz, yalnız gösterilir (kopyalanabilir) — bu yüzden onay
+  /// sorulmaz; gösterim kabulün kendisi. `null` = yazı alınmaz (404).
+  final void Function(String text, String from)? onText;
+
   PeerReceiver({
     required this.deviceName,
     required this.saveDir,
@@ -200,6 +205,7 @@ class PeerReceiver implements KeepableServer {
     this.onProgress,
     this.onDone,
     this.onAsk,
+    this.onText,
     this.onActivity,
   });
 
@@ -433,6 +439,7 @@ class PeerReceiver implements KeepableServer {
         }
         final ok = await _ask(PeerOffer(
           from: q['kim'] ?? '?',
+          fromId: q['kimlik'] ?? '',
           firstName: FileOps.sanitizeName(q['ad'] ?? ''),
           count: int.tryParse(q['adet'] ?? '') ?? 1,
           totalBytes: int.tryParse(q['toplam'] ?? '') ?? 0,
@@ -440,6 +447,23 @@ class PeerReceiver implements KeepableServer {
         ));
         if (!ok) return await _deny(response, 'red');
         await _json(response, {'ok': true, 'izin': _grant()});
+        return;
+      }
+      if (request.method == 'POST' &&
+          request.uri.path == '/yazi' &&
+          onText != null) {
+        if (!codeOk) return await _deny(response, 'kod');
+        final bytes = BytesBuilder(copy: false);
+        await for (final chunk in request) {
+          bytes.add(chunk);
+          if (bytes.length > PeerSender.maxTextBytes) {
+            return await _deny(response, 'buyuk');
+          }
+        }
+        final text = utf8.decode(bytes.takeBytes(), allowMalformed: true);
+        if (text.trim().isEmpty) return await _deny(response, 'bos');
+        onText!(text, q['kim'] ?? '?');
+        await _json(response, {'ok': true});
         return;
       }
       // **Devam sorusu**: bu aktarımdan kaç bayt elimde?
@@ -631,6 +655,35 @@ class _Sendable {
 
 /// **Gönderen taraf**: ağdaki alıcıları bulur ve dosyaları gönderir.
 abstract final class PeerSender {
+  /// Tek yazı gönderiminin üst sınırı (alıcı fazlasını reddeder).
+  static const maxTextBytes = 1024 * 1024;
+
+  /// [text]'i [peer]'a gönderir (alıcıda kopyalanabilir olarak görünür).
+  /// Alıcı eski sürümse (uç yok) ya da ulaşılamazsa false.
+  static Future<bool> sendText(Peer peer, String text,
+      {required String senderName, String pairingCode = ''}) async {
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
+    try {
+      final req = await client.postUrl(peer.base.replace(
+          path: '/yazi',
+          queryParameters: {
+            'kim': senderName,
+            if (pairingCode.isNotEmpty) 'kod': pairingCode,
+          }));
+      final body = utf8.encode(text);
+      req.headers.contentType = ContentType.text;
+      req.contentLength = body.length;
+      req.add(body);
+      final res = await req.close().timeout(const Duration(seconds: 15));
+      await res.drain<void>();
+      return res.statusCode == HttpStatus.ok;
+    } catch (_) {
+      return false;
+    } finally {
+      client.close(force: true);
+    }
+  }
+
   /// Ağa "kim var?" diye sorar; cevap verenleri akış olarak döner.
   ///
   /// Akış [timeout] sonunda kapanır. Sonuçlar **birikerek** gelir.
@@ -819,6 +872,7 @@ abstract final class PeerSender {
         final ask = await client.postUrl(
             peer.base.replace(path: '/sor', queryParameters: {
           'kim': senderName,
+          if (senderId.isNotEmpty) 'kimlik': senderId,
           'ad': paths.isEmpty ? '' : p.basename(paths.first),
           'adet': '$fileCount',
           'toplam': '$totalBytes',
@@ -1103,6 +1157,10 @@ class PeerOfferItem {
 /// Alıcıya sorulan teklif: kim, kaç dosya, toplam ne kadar, neler.
 class PeerOffer {
   final String from;
+
+  /// Gönderenin kurulum kimliği (`kimlik`; eski sürüm / bilgisayar: boş) —
+  /// güvenilen cihaz eşleşmesi için.
+  final String fromId;
   final String firstName;
   final int count;
   final int totalBytes;
@@ -1112,6 +1170,7 @@ class PeerOffer {
 
   const PeerOffer({
     required this.from,
+    this.fromId = '',
     required this.firstName,
     required this.count,
     required this.totalBytes,

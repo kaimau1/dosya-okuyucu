@@ -80,6 +80,14 @@ class MainActivity : FlutterActivity() {
      */
     private var editRequest = false
 
+    /**
+     * Son intent **Paylaş** (`SEND`/`SEND_MULTIPLE`) miydi? Paylaşılan dosya
+     * okuyucuda değil Aktar ekranında, gönderilecekler listesinde açılır
+     * (kullanıcı isteği 2026-11-03). "Birlikte aç" (VIEW) okuyucuda kalır;
+     * eklenti ikisini ayırmıyor. Dart okuyunca temizlenir (`takeSendRequest`).
+     */
+    private var sendRequest = false
+
     /** Dart tarafına olay ITMEK için (native → Dart). */
     private var channel: MethodChannel? = null
 
@@ -169,6 +177,7 @@ class MainActivity : FlutterActivity() {
         val action = intent?.action
         val edit = action == ACTION_ANNOTATE || action == Intent.ACTION_EDIT
         editRequest = edit
+        sendRequest = action == Intent.ACTION_SEND || action == Intent.ACTION_SEND_MULTIPLE
         if (edit) intent?.action = Intent.ACTION_VIEW
     }
 
@@ -357,6 +366,9 @@ class MainActivity : FlutterActivity() {
                     Extras.saveWidgetData(ctx, call.arguments as? String ?: "{}")
                 )
                 "deviceClass" -> result.success(Extras.deviceClass(ctx))
+                "exitReasons" -> result.success(
+                    Extras.exitReasons(ctx, (call.arguments as? Number)?.toLong() ?: 0L)
+                )
                 "canAuthenticate" -> result.success(Extras.canAuthenticate(ctx))
                 "authenticate" -> Extras.authenticate(
                     this,
@@ -788,6 +800,11 @@ class MainActivity : FlutterActivity() {
                         val edit = editRequest
                         editRequest = false
                         result.success(edit)
+                    }
+                    "takeSendRequest" -> {
+                        val send = sendRequest
+                        sendRequest = false
+                        result.success(send)
                     }
 
                     // **Android'in KENDİ birim listesi.**

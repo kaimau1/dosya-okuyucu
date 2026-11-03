@@ -133,12 +133,16 @@ class _PeerAvatar extends StatelessWidget {
   final bool busy;
   final VoidCallback onTap;
 
+  /// Güvenilen cihaz: adın yanında rozet (teklifi sorulmadan alınır).
+  final bool trusted;
+
   const _PeerAvatar({
     required this.name,
     required this.wifi,
     required this.ble,
     required this.onTap,
     this.busy = false,
+    this.trusted = false,
   });
 
   static const _hues = [
@@ -200,6 +204,17 @@ class _PeerAvatar extends StatelessWidget {
                   textAlign: TextAlign.center,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall),
+              if (trusted)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(AppIcons.verified, size: 12, color: Paper.success(context)),
+                    const SizedBox(width: 2),
+                    Text(context.t('near.trusted_badge'),
+                        style: theme.textTheme.labelSmall
+                            ?.copyWith(color: Paper.success(context))),
+                  ],
+                ),
             ],
           ),
         ),
@@ -209,11 +224,89 @@ class _PeerAvatar extends StatelessWidget {
   }
 }
 
+/// "Ne gönderilecek?" adımının büyük eylem kutusu (Dosya / Klasör / Yazı):
+/// simge üstte, ad altta, en az 64 dp yüksek — tek elle rahat dokunulur.
+class _ActionTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ActionTile({super.key, required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Material(
+      color: scheme.secondaryContainer,
+      borderRadius: BorderRadius.circular(Radii.control),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(Radii.control),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 64),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: Gap.sm, horizontal: Gap.xs),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: scheme.onSecondaryContainer),
+                const SizedBox(height: Gap.xs),
+                Text(label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelLarge
+                        ?.copyWith(color: scheme.onSecondaryContainer)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Bölüm başlığı yerine adım başlığı ("1 · Ne gönderilecek?") + alt satır.
+class _StepHeader extends StatelessWidget {
+  final String title;
+  final String? sub;
+  final Widget? trailing;
+
+  const _StepHeader({required this.title, this.sub, this.trailing});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Gap.sm),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: theme.textTheme.titleMedium),
+                if (sub != null) ...[
+                  const SizedBox(height: 2),
+                  Text(sub!,
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                ],
+              ],
+            ),
+          ),
+          if (trailing != null) trailing!,
+        ],
+      ),
+    );
+  }
+}
+
 class _SelectedTile extends StatelessWidget {
   final String path;
   final VoidCallback onRemove;
 
-  const _SelectedTile({required this.path, required this.onRemove});
+  const _SelectedTile({super.key, required this.path, required this.onRemove});
 
   @override
   Widget build(BuildContext context) {

@@ -130,6 +130,30 @@ void main() {
       await pumpEventQueue();
       expect(job.job.status, JobStatus.failed);
     });
+
+    test('yarım kalan iş "Devam et" ile yeniden başlar', () async {
+      EnhanceJobs.registerRunner();
+      addTearDown(JobRecipes.reset);
+      EnhanceJobs.debugRun = (path, kind, {onProgress, cancelSignal}) async =>
+          throw const FormatException('decode');
+      final job = EnhanceJobs.start(photo, EnhanceKind.upscale)!;
+      await pumpEventQueue();
+      expect(job.job.status, JobStatus.failed);
+      expect(JobRecipes.canResume(job.job), isTrue,
+          reason: 'tarifsiz iş kartı ölü kalıyordu');
+
+      final out = '${dir.path}/foto_iyi.jpg';
+      EnhanceJobs.debugRun = (path, kind, {onProgress, cancelSignal}) async {
+        expect(path, photo);
+        expect(kind, EnhanceKind.upscale);
+        File(out).writeAsBytesSync([0xFF, 0xD8, 0xFF, 0xD9]);
+        return out;
+      };
+      final resumed = JobQueue.instance.resume(job.id)!;
+      await pumpEventQueue();
+      expect(resumed.status, JobStatus.done);
+      expect(resumed.outputSources[out], photo);
+    });
   });
 
   testWidgets('önce/sonra ekranı: etiketler ve yan yana görünüm',

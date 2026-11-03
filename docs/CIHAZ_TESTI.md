@@ -586,3 +586,14 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
 - [ ] Galeri → İyileştir: otomatik/keskinleştir/gürültü kopyası `_iyi.jpg`; yapay zekâ ilk seferde model indiriyor, süre?
 - [ ] Başında çöp olan / yarım inmiş JPEG "kurtarılabilen kısmı" notuyla açılıyor
 - [ ] Fotoğraflar ızgarası: hızlı savurmada takılma/donma Google Foto'ya yakın mı (küçük resimler ilk açılışta üretilir, ikinci açılışta anında)
+
+## 18. Aktar turu (2026-11-03)
+- [ ] Galeride bir fotoğrafı "Yapay zekâ ile büyüt" + "Otomatik iyileştir" ile dene. Kapanırsa uygulamayı yeniden aç →
+      Ayarlar > Hata kayıtları'nda "Process exit: …" satırını paylaş (neden + PSS MB).
+- [ ] Yarım kalan iyileştirme: İşlemler'de karta / "Devam et"e dokun → iş yeniden başlar, sonunda önce/sonra açılır.
+- [ ] Başka uygulamada bir dosyayı Paylaş → Dosya Okuyucu: Aktar açılır, dosya "Ne gönderilecek?"te hazır.
+      Bir yazıyı paylaş → yazı çipi hazır. "Birlikte aç" hâlâ okuyucuda açmalı.
+- [ ] Yazı: Aktar > Yazı (panodaki metin hazır gelir) → cihaza dokun → karşıda kopyalanabilir pencere.
+- [ ] Güvenilen cihaz: gelen teklifte "Bu cihaza güven" işaretle → ikinci gönderim sorulmadan gelir; avatarda rozet;
+      Windows "Dosya Aktar" ile de; "Güvenilen cihazlar"dan kaldırınca yine sorulur.
+- [ ] Yeni Aktar düzeni telefonda ve yatayda taşmasız, okunur.

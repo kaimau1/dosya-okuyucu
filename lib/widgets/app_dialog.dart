@@ -110,6 +110,7 @@ Future<String?> showAppPrompt(
   String? confirmLabel,
   int? maxLength,
   int? selectEnd,
+  bool multiline = false,
 }) async {
   final text = await showDialog<String>(
     context: context,
@@ -120,6 +121,7 @@ Future<String?> showAppPrompt(
       confirmLabel: confirmLabel,
       maxLength: maxLength,
       selectEnd: selectEnd,
+      multiline: multiline,
     ),
   );
   final clean = text?.trim();
@@ -134,9 +136,13 @@ class _PromptDialog extends StatefulWidget {
     this.confirmLabel,
     this.maxLength,
     this.selectEnd,
+    this.multiline = false,
   });
 
   final String? title, label, confirmLabel;
+
+  /// Çok satırlı metin (Enter yeni satır; onay yalnız düğmeyle).
+  final bool multiline;
   final String initial;
   final int? maxLength;
 
@@ -167,8 +173,12 @@ class _PromptDialogState extends State<_PromptDialog> {
           controller: _controller,
           autofocus: true,
           maxLength: widget.maxLength,
+          minLines: widget.multiline ? 3 : null,
+          maxLines: widget.multiline ? 8 : 1,
+          keyboardType: widget.multiline ? TextInputType.multiline : null,
           decoration: InputDecoration(labelText: widget.label),
-          onSubmitted: (v) => Navigator.pop(context, v),
+          onSubmitted:
+              widget.multiline ? null : (v) => Navigator.pop(context, v),
         ),
         actions: [
           TextButton(

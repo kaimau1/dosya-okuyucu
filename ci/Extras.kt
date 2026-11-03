@@ -60,6 +60,38 @@ object Extras {
     const val CHANNEL = "dosya/extras"
 
     /**
+     * **Önceki süreç neden öldü?** (2026-11-03, kullanıcı: *"iyileştir başlıyor,
+     * kısa süre sonra uygulama kapanıyor"*). Yerel çökme, bellek öldürmesi ve
+     * ANR Dart hata yakalayıcısına hiç düşmüyordu; Hata kayıtları boş kalıyor,
+     * kök neden telefona adb bağlamadan bulunamıyordu. Android 11+.
+     * [since] (ms) sonrasındaki kayıtlar, en yeni önce.
+     */
+    fun exitReasons(ctx: Context, since: Long): List<Map<String, Any>> {
+        if (Build.VERSION.SDK_INT < 30) return emptyList()
+        val am = ctx.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val wanted = mapOf(
+            android.app.ApplicationExitInfo.REASON_CRASH to "crash",
+            android.app.ApplicationExitInfo.REASON_CRASH_NATIVE to "native_crash",
+            android.app.ApplicationExitInfo.REASON_LOW_MEMORY to "low_memory",
+            android.app.ApplicationExitInfo.REASON_ANR to "anr",
+            android.app.ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE to "excessive_resource",
+            android.app.ApplicationExitInfo.REASON_SIGNALED to "signaled",
+        )
+        return am.getHistoricalProcessExitReasons(ctx.packageName, 0, 5)
+            .filter { it.timestamp > since && wanted.containsKey(it.reason) }
+            .map {
+                mapOf(
+                    "time" to it.timestamp,
+                    "reason" to (wanted[it.reason] ?: "?"),
+                    "description" to (it.description ?: ""),
+                    "status" to it.status,
+                    "pssKb" to it.pss,
+                    "rssKb" to it.rss,
+                )
+            }
+    }
+
+    /**
      * **Cihaz sınıfı** (Faz 4, 2026-10-21): Dart tarafı bütçeleri (görsel
      * önbelleği, küçük resim eşzamanlılığı, 120 Hz varsayılanı) buna göre
      * seçer — bkz. `lib/core/device_profile.dart`.

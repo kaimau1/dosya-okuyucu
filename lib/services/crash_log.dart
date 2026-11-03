@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -124,6 +125,40 @@ abstract final class CrashLog {
   static bool shouldRecord(FlutterErrorDetails details) =>
       !(details.library == 'image resource service' &&
           isBenignImageFailure(details.context?.toDescription()));
+
+  /// **Yerel çökme / bellek öldürmesi / ANR** kayıtlarını içeri alır
+  /// (Android 11+ `ApplicationExitInfo`, `Extras.exitReasons`). Bunlar Dart
+  /// yakalayıcısına hiç düşmüyordu: 2026-11-03'te görsel iyileştirme
+  /// uygulamayı kapatıyordu ama Hata kayıtları boştu. Açılışta bir kez.
+  static Future<void> importExitReasons() async {
+    try {
+      final dir = await _resolveDir();
+      if (dir == null) return;
+      final seen = File(p.join(dir, 'exit_seen.txt'));
+      final since = seen.existsSync()
+          ? int.tryParse(seen.readAsStringSync().trim()) ?? 0
+          : 0;
+      final list = await const MethodChannel('dosya/extras')
+          .invokeListMethod<Map<Object?, Object?>>('exitReasons', since);
+      if (list == null || list.isEmpty) return;
+      var newest = since;
+      for (final e in list.reversed) {
+        final time = (e['time'] as num?)?.toInt() ?? 0;
+        if (time > newest) newest = time;
+        await record(
+          'Process exit: ${e['reason']} ${e['description'] ?? ''}'.trim(),
+          null,
+          kind: 'exit',
+          context: '${DateTime.fromMillisecondsSinceEpoch(time)} · '
+              'pss ${(e['pssKb'] as num? ?? 0) ~/ 1024} MB · '
+              'status ${e['status']}',
+        );
+      }
+      seen.writeAsStringSync('$newest');
+    } catch (_) {
+      // Eski Android / kanal yok (test): sessiz.
+    }
+  }
 
   /// Bir hatayı kaydeder. **Hiçbir koşulda fırlatmaz:** hata kaydedicinin
   /// kendisi hata verirse (disk dolu, izin yok) uygulamayı çökertmek en kötü

@@ -25,6 +25,7 @@ import 'fm/ai_hub_screen.dart';
 import 'fm/bills_screen.dart';
 import 'fm/browser_screen.dart';
 import 'fm/category_screen.dart';
+import 'fm/remote/nearby_screen.dart';
 import 'fm/dashboard_screen.dart';
 import 'fm/download_manager_screen.dart';
 import 'fm/downloads_screen.dart';
@@ -202,6 +203,28 @@ class _HomeScreenState extends State<HomeScreen> {
       ));
       return;
     }
+    // **Paylaş → Dosya Okuyucu = gönder** (kullanıcı isteği 2026-11-03:
+    // *"paylaşım seçeneklerinde dosya okuyucu seçildiğinde aktarım ekranı
+    // otomatik gelsin, paylaşılacak şey gönderilecek dosyaya eklensin"*).
+    // "Birlikte aç" (VIEW) aşağıda okuyucuda açılmaya devam eder.
+    if (await AppStorageService.takeSendRequest()) {
+      if (!mounted) return;
+      final paths = [
+        for (final f in files)
+          if (f.path.isNotEmpty && File(f.path).existsSync()) f.path,
+      ];
+      // Dosya yoksa paylaşılan düz yazıdır (eklenti metni `path`e koyar).
+      final text = paths.isEmpty && first.type == SharedMediaType.text
+          ? path
+          : null;
+      if (paths.isNotEmpty || text != null) {
+        await Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => NearbyScreen(sendPaths: paths, sendText: text),
+        ));
+        return;
+      }
+    }
+    if (!mounted) return;
     // Tarayıcıda açılan dosya yalnız özel önbelleğimizde kalıyordu ve
     // kullanıcı onu bir daha bulamıyordu → İndirilenler'e (Yeni Dosyalar'a
     // da düşer) ve oradan açılır. Bkz. [IncomingFiles].
