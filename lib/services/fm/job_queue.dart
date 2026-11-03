@@ -91,6 +91,11 @@ enum FmJobTargetKind {
   /// Sesli kitap üretimi ([FmJobTarget.paths] = kaynak belge). Dokununca
   /// sesli kitap ekranı açılır (sürüyorsa ilerlemesiyle).
   audiobook,
+
+  /// Görsel iyileştirme ([FmJobTarget.paths] = özgün görsel). Dokununca
+  /// özgün ↔ iyileştirilmiş "önce / sonra" ekranı açılır (çift işin
+  /// `outputSources`ından kurulur); iş sürüyorsa özgün açılır.
+  enhance,
 }
 
 class FmJobTarget {
@@ -696,6 +701,14 @@ class TrackedJob {
     if (detail != null) job.detail = detail;
     if (unit != null) job.unit = unit.clamp(0.0, 1.0);
     job.noteProgress();
+    _queue._tick(job);
+  }
+
+  /// İşin ürettiği dosya (+ özgünü) — bkz. [JobHandle.addOutput].
+  void addOutput(String path, {String? source}) {
+    job.outputs.add(path);
+    if (source != null) job.outputSources[path] = source;
+    _queue._persist();
     _queue._tick(job);
   }
 

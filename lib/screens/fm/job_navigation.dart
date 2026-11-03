@@ -43,6 +43,16 @@ Future<void> openJobTarget(
     return;
   }
   final target = job.target;
+  // Görsel iyileştirme: bittiyse özgün ↔ yeni "önce / sonra" (2026-11-03).
+  if (target?.kind == FmJobTargetKind.enhance) {
+    final pairs = resizePairsOf(job.outputSources, job.outputs);
+    if (pairs.isNotEmpty) {
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => ResizeCompareScreen(pairs: pairs, enhance: true),
+      ));
+      return;
+    }
+  }
   if (target != null && await _openTarget(context, target)) return;
   if (!context.mounted) return;
   // Boyut düşürme: eski ↔ yeni karşılaştırma sayfası (2026-09-28).
@@ -105,6 +115,9 @@ Future<bool> _openTarget(BuildContext context, FmJobTarget target) async {
     case FmJobTargetKind.aiSummary:
       if (target.paths.isEmpty) return false;
       return openSavedAiSummary(context, target.paths.first);
+    case FmJobTargetKind.enhance:
+      // Sürüyor ya da çıktı silinmiş: özgün görseli aç.
+      return _openFiles(context, target.paths);
     case FmJobTargetKind.audiobook:
       if (target.paths.isEmpty) return false;
       await Navigator.of(context).push(MaterialPageRoute(

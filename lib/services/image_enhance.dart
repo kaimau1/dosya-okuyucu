@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
@@ -22,6 +23,13 @@ import 'fm/fm_env.dart';
 ///   kullanımda indirilip SHA-256 ile doğrulanıyor: büyütmeyi hiç kullanmayan
 ///   kullanıcının APK'sı şişmesin.
 enum EnhanceKind { auto, sharpen, denoise, upscale }
+
+/// Kullanıcı arka plandaki iyileştirmeyi durdurdu.
+class EnhanceCancelled implements Exception {
+  const EnhanceCancelled();
+  @override
+  String toString() => 'cancelled';
+}
 
 abstract final class ImageEnhance {
   /// ESRGAN (captain-pool/esrgan-tf2, Apache 2.0) — TF Hub / Kaggle.
@@ -59,21 +67,113 @@ abstract final class ImageEnhance {
 
   /// [path]'i iyileştirir, `<ad>_iyi.jpg` olarak yanına (yazılamıyorsa
   /// uygulama klasörüne) kaydeder ve yeni yolu döndürür.
-  static Future<String> enhanceFile(String path, EnhanceKind kind) async {
+  ///
+  /// **Ayrı, öldürülebilir izolatta** (2026-11-03, kullanıcı isteği: *"arka
+  /// planda yapılabilmesi"*): yapay zekâ büyütmesi dakikalar sürebiliyor;
+  /// [onProgress] parça parça ilerlemeyi (0–1) bildirir; [cancelSignal]
+  /// tamamlanınca izolat öldürülür ve [EnhanceCancelled] atılır (yoklama
+  /// yok: "Durdur" anında etki eder).
+  static Future<String> enhanceFile(
+    String path,
+    EnhanceKind kind, {
+    void Function(double ratio)? onProgress,
+    Future<void>? cancelSignal,
+  }) async {
+    var cancelled = false;
+    unawaited(cancelSignal?.then((_) => cancelled = true));
     if (kind == EnhanceKind.upscale) await ensureModel();
-    final model = _modelPath;
-    final bytes = await Isolate.run(() {
-      final src = img.decodeImage(File(path).readAsBytesSync());
-      if (src == null) throw const FormatException('decode');
+    await Future<void>.delayed(Duration.zero); // hazır sinyal işlensin
+    if (cancelled) throw const EnhanceCancelled();
+    final bytes = await _runIsolated(
+        path, kind, _modelPath, onProgress, cancelSignal);
+    return _save(path, bytes);
+  }
+
+  static Future<Uint8List> _runIsolated(
+    String path,
+    EnhanceKind kind,
+    String model,
+    void Function(double ratio)? onProgress,
+    Future<void>? cancelSignal,
+  ) async {
+    final port = ReceivePort();
+    final done = Completer<Uint8List>();
+    Isolate? iso;
+    void finish([Object? error]) {
+      port.close();
+      if (done.isCompleted) return;
+      if (error != null) {
+        done.completeError(error);
+      }
+    }
+
+    port.listen((msg) {
+      if (msg is double) {
+        onProgress?.call(msg);
+      } else if (msg is TransferableTypedData) {
+        if (!done.isCompleted) {
+          done.complete(msg.materialize().asUint8List());
+        }
+        finish();
+      } else if (msg is String) {
+        finish(msg == 'decode'
+            ? const FormatException('decode')
+            : Exception(msg));
+      } else if (msg == null) {
+        // onExit: sonuç gelmeden çıktıysa (bellek yetmedi vb.) hata say.
+        finish(Exception('enhance isolate exited'));
+      }
+    });
+    iso = await Isolate.spawn(
+      _isolateEntry,
+      (port.sendPort, path, kind.index, model),
+      onExit: port.sendPort,
+      errorsAreFatal: true,
+    );
+    unawaited(cancelSignal?.then((_) {
+      if (done.isCompleted) return;
+      iso?.kill(priority: Isolate.immediate);
+      finish(const EnhanceCancelled());
+    }));
+    return done.future;
+  }
+
+  static void _isolateEntry((SendPort, String, int, String) args) {
+    final (send, path, kindIndex, model) = args;
+    try {
+      img.Image? src;
+      try {
+        src = img.decodeImage(File(path).readAsBytesSync());
+      } on FileSystemException {
+        rethrow;
+      } catch (_) {
+        src = null; // bozuk/tanınmayan biçim (çözücü RangeError vb. atıyor)
+      }
+      if (src == null) {
+        send.send('decode');
+        return;
+      }
+      final kind = EnhanceKind.values[kindIndex];
+      var last = -1.0;
+      void progress(double r) {
+        // Kanal taşmasın: yüzde birlik adımlarla.
+        if (r - last < 0.01 && r < 1) return;
+        last = r;
+        send.send(r);
+      }
+
       final out = switch (kind) {
         EnhanceKind.auto => sharpen(autoLevels(denoise(src)), amount: 0.6),
         EnhanceKind.sharpen => sharpen(src),
         EnhanceKind.denoise => denoise(src, threshold: 28),
-        EnhanceKind.upscale => _upscale(src, model),
+        EnhanceKind.upscale => _upscale(src, model, onTile: progress),
       };
-      return img.encodeJpg(out, quality: 92);
-    });
-    return _save(path, bytes);
+      progress(1);
+      send.send(TransferableTypedData.fromList(
+          [img.encodeJpg(out, quality: 92)]));
+    } catch (e) {
+      send.send('$e');
+    }
   }
 
   static Future<String> _save(String path, Uint8List bytes) async {
@@ -174,7 +274,8 @@ abstract final class ImageEnhance {
   /// ESRGAN ile 4× büyütme — görsel model girişi boyunda (50×50) parçalara
   /// bölünür; parçalar [_pad] piksel örtüşür ve ortaları alınır (ek yeri
   /// görünmesin).
-  static img.Image _upscale(img.Image source, String modelPath) {
+  static img.Image _upscale(img.Image source, String modelPath,
+      {void Function(double ratio)? onTile}) {
     var src = source;
     final side = src.width > src.height ? src.width : src.height;
     if (side > upscaleMaxSide) {
@@ -193,7 +294,7 @@ abstract final class ImageEnhance {
         interpreter.invoke();
         return Float32List.fromList(
             Uint8List.fromList(output.data).buffer.asFloat32List());
-      });
+      }, onTile: onTile);
     } finally {
       interpreter.close();
     }
@@ -207,10 +308,13 @@ abstract final class ImageEnhance {
     img.Image src,
     int tile,
     int scale,
-    Float32List Function(Float32List tile) run,
-  ) {
+    Float32List Function(Float32List tile) run, {
+    void Function(double ratio)? onTile,
+  }) {
     final out = img.Image(width: src.width * scale, height: src.height * scale);
     final step = tile - 2 * _pad;
+    final tiles = ((src.height + step - 1) ~/ step) * ((src.width + step - 1) ~/ step);
+    var tilesDone = 0;
     final buf = Float32List(tile * tile * 3);
     for (var oy = 0; oy < src.height; oy += step) {
       for (var ox = 0; ox < src.width; ox += step) {
@@ -225,6 +329,7 @@ abstract final class ImageEnhance {
           }
         }
         final res = run(buf);
+        onTile?.call(++tilesDone / tiles);
         final rs = tile * scale;
         for (var y = _pad * scale; y < (tile - _pad) * scale; y++) {
           final dy = (oy - _pad) * scale + y;

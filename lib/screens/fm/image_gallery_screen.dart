@@ -15,9 +15,10 @@ import '../../core/theme.dart';
 import '../../models/document.dart';
 import '../../models/fs_entry.dart';
 import '../../models/photo_group.dart';
-import '../../core/user_error.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/image_enhance.dart';
+import '../../services/fm/enhance_jobs.dart';
+import '../../services/fm/job_queue.dart';
 import '../../services/image_repair.dart';
 import '../../services/fm/native_extras.dart';
 import '../../core/snack.dart';
@@ -28,6 +29,7 @@ import '../image_edit_screen.dart';
 import '../viewer_screen.dart';
 import 'entry_actions.dart';
 import 'resize_actions.dart';
+import 'resize_compare_screen.dart';
 
 part 'image_gallery/widgets.dart';
 
@@ -117,10 +119,14 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _precacheAround(_index);
     });
+    _enhanceSub = EnhanceJobs.results.listen(_onEnhanced);
   }
+
+  StreamSubscription<EnhanceResult>? _enhanceSub;
 
   @override
   void dispose() {
+    _enhanceSub?.cancel();
     _slideTimer?.cancel();
     _snap.dispose();
     _pages.dispose();
@@ -290,33 +296,117 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       ],
     );
     if (kind == null || !mounted) return;
-    final source = _current;
-    final busy = showBusyDialog(context,
-        builder: (_) => AlertDialog(
-              content: Row(children: [
-                const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2)),
-                const SizedBox(width: Gap.md),
-                Expanded(child: Text(str.t('gal.enh_working'))),
-              ]),
-            ));
-    try {
-      final out = await ImageEnhance.enhanceFile(source, kind);
-      busy.close();
-      if (!mounted) return;
-      final at = _paths.indexOf(source) + 1;
-      setState(() => _paths.insert(at, out));
-      _pages.jumpToPage(at);
-      showSnack(context, str.t('gal.enh_saved', {'name': p.basename(out)}));
-    } catch (e) {
-      busy.close();
-      if (mounted) {
-        showSnack(context, str.t('gal.enh_failed', {'error': userErrorText(e)}));
+    // Arka planda (2026-11-03): modal pencere yok, kullanıcı gezinmeye devam
+    // eder; ilerleme bu ekranda hap olarak, şeritte ve bildirimde görünür.
+    final job = EnhanceJobs.start(_current, kind);
+    showSnack(context, str.t(job == null ? 'gal.enh_already' : 'gal.enh_started'));
+  }
+
+  /// Arka plandaki iyileştirme bitti: yeni kopya özgünün hemen ardına girer
+  /// (kaydırınca önce/sonra) ve "Önce / sonra" karşılaştırması sunulur.
+  void _onEnhanced(EnhanceResult r) {
+    if (!mounted) return;
+    final at = _paths.indexOf(r.source);
+    if (at < 0 || _paths.contains(r.output)) return;
+    setState(() {
+      _paths.insert(at + 1, r.output);
+      if (_index > at) _index++;
+    });
+    if (_index != _pages.page?.round()) _pages.jumpToPage(_index);
+    final str = AppStrings.of(context);
+    showSnack(
+      context,
+      str.t('gal.enh_saved', {'name': p.basename(r.output)}),
+      duration: const Duration(seconds: 6),
+      action: SnackBarAction(
+        label: str.t('gal.enh_compare'),
+        onPressed: () => _openCompare(r.source, r.output),
+      ),
+    );
+  }
+
+  void _openCompare(String source, String output) {
+    if (!mounted) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ResizeCompareScreen(
+          pairs: [ResizePair(source, output)], enhance: true),
+    ));
+  }
+
+  /// Bu görsel için süren iyileştirme (ilerleme hapı).
+  FmJob? _enhanceJobFor(String path) {
+    for (final j in JobQueue.instance.jobs) {
+      final t = j.target;
+      if (t?.kind == FmJobTargetKind.enhance &&
+          t!.paths.isNotEmpty &&
+          t.paths.first == path &&
+          j.status.isActive) {
+        return j;
       }
     }
+    return null;
   }
+
+  /// Bu görselin biten son iyileştirmesinin kopyası (hâlâ diskteyse).
+  String? _enhancedOf(String path) {
+    for (final j in JobQueue.instance.jobs) { // en yeni önce
+      if (j.target?.kind != FmJobTargetKind.enhance) continue;
+      for (final out in j.outputs) {
+        if (j.outputSources[out] == path && File(out).existsSync()) return out;
+      }
+    }
+    return null;
+  }
+
+  Widget _enhanceChip() => ListenableBuilder(
+        listenable: JobQueue.instance,
+        builder: (context, _) {
+          final path = _current;
+          final job = _enhanceJobFor(path);
+          final done = job == null ? _enhancedOf(path) : null;
+          if (job == null && done == null) return const SizedBox.shrink();
+          final pct = job == null || job.total <= 0
+              ? null
+              : (job.done * 100 ~/ job.total).clamp(0, 100);
+          return Material(
+            key: const ValueKey('gal-enhance-chip'),
+            color: AppColors.mediaScrim,
+            shape: const StadiumBorder(),
+            child: InkWell(
+              customBorder: const StadiumBorder(),
+              onTap: done == null ? null : () => _openCompare(path, done),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  if (job != null)
+                    SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        value: pct == null || pct == 0 ? null : pct / 100,
+                        color: AppColors.onMedia,
+                      ),
+                    )
+                  else
+                    const Icon(AppIcons.compare,
+                        size: 16, color: AppColors.onMedia),
+                  const SizedBox(width: 8),
+                  Text(
+                    job != null
+                        ? (pct == null
+                            ? context.t('gal.enh_working')
+                            : context.t('gal.enh_running', {'n': pct}))
+                        : context.t('gal.enh_compare'),
+                    style: context.type.caption
+                        .copyWith(color: AppColors.onMedia),
+                  ),
+                ]),
+              ),
+            ),
+          );
+        },
+      );
 
   Future<void> _otherActions() async {
     await showEntryActions(context, _currentEntry);
@@ -483,6 +573,13 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                   ),
                 ),
               ),
+            ),
+            // ── İyileştirme hapı: sürüyorsa ilerleme, bittiyse "Önce / sonra"
+            Positioned(
+              top: padding.top + 64,
+              left: 0,
+              right: 0,
+              child: chrome(child: Center(child: _enhanceChip())),
             ),
             // ── Üst perde: geri, zaman, sıra/boyut/ad, daha fazla ──────────
             Positioned(

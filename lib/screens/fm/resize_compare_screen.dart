@@ -41,7 +41,14 @@ List<ResizePair> resizePairsOf(Map<String, String> sources, List<String> outputs
 /// videoda yan yana; her çift için "eskiyi sil / yeniyi sil / ikisini tut".
 class ResizeCompareScreen extends StatefulWidget {
   final List<ResizePair> pairs;
-  const ResizeCompareScreen({super.key, required this.pairs});
+
+  /// Görsel iyileştirme sonucu (2026-11-03): başlık "Önce / sonra", etiketler
+  /// Önce/Sonra, boyut tasarrufu satırı yok (iyileştirilmiş kopya genelde
+  /// DAHA BÜYÜK), birincil eylem "İkisini de tut".
+  final bool enhance;
+
+  const ResizeCompareScreen(
+      {super.key, required this.pairs, this.enhance = false});
 
   @override
   State<ResizeCompareScreen> createState() => _ResizeCompareScreenState();
@@ -76,6 +83,9 @@ class _ResizeCompareScreenState extends State<ResizeCompareScreen> {
   late final List<_PairState> _items;
   final _controller = PageController();
   int _page = 0;
+
+  /// Fotoğrafta görünüm: kaydırmalı üst üste mi, yan yana mı.
+  bool _sideBySide = false;
 
   @override
   void initState() {
@@ -157,7 +167,16 @@ class _ResizeCompareScreenState extends State<ResizeCompareScreen> {
             sum + (i.newGone ? 0 : (i.oldBytes - i.newBytes).clamp(0, 1 << 60)));
     return Scaffold(
       appBar: AppBar(
-        title: Text(context.t('rc.title')),
+        title: Text(context.t(widget.enhance ? 'rc.title_enhance' : 'rc.title')),
+        actions: [
+          if (_items.any((i) => !i.isVideo))
+            IconButton(
+              key: const ValueKey('rc-view-toggle'),
+              tooltip: context.t(_sideBySide ? 'rc.view_slider' : 'rc.view_side'),
+              icon: Icon(_sideBySide ? AppIcons.compare : AppIcons.viewColumn),
+              onPressed: () => setState(() => _sideBySide = !_sideBySide),
+            ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(22),
           child: Padding(
@@ -166,7 +185,7 @@ class _ResizeCompareScreenState extends State<ResizeCompareScreen> {
               alignment: AlignmentDirectional.centerStart,
               child: Text(
                 '${_items.isEmpty ? 0 : _page + 1} / ${_items.length}'
-                ' · ${context.t('ra.saved_bytes', {'size': FsPaths.humanSize(saved)})}',
+                '${widget.enhance ? '' : ' · ${context.t('ra.saved_bytes', {'size': FsPaths.humanSize(saved)})}'}',
                 style: context.type.small.copyWith(color: Paper.faint(context)),
               ),
             ),
@@ -181,6 +200,8 @@ class _ResizeCompareScreenState extends State<ResizeCompareScreen> {
               onPageChanged: (i) => setState(() => _page = i),
               itemBuilder: (_, i) => _PairPage(
                 item: _items[i],
+                enhance: widget.enhance,
+                sideBySide: _sideBySide,
                 onTrashOld: () => _trashOld(_items[i]),
                 onTrashNew: () => _trashNew(_items[i]),
                 onNext: _next,
@@ -218,12 +239,16 @@ class _ResizeCompareScreenState extends State<ResizeCompareScreen> {
 
 class _PairPage extends StatelessWidget {
   final _PairState item;
+  final bool enhance;
+  final bool sideBySide;
   final VoidCallback onTrashOld;
   final VoidCallback onTrashNew;
   final VoidCallback onNext;
 
   const _PairPage({
     required this.item,
+    this.enhance = false,
+    this.sideBySide = false,
     required this.onTrashOld,
     required this.onTrashNew,
     required this.onNext,
@@ -240,6 +265,8 @@ class _PairPage extends StatelessWidget {
         ? (((item.oldBytes - item.newBytes) / item.oldBytes) * 100).round()
         : 0;
     final canCompare = !item.oldGone && !item.newGone;
+    final oldLabel = context.t(enhance ? 'rc.before' : 'rc.old');
+    final newLabel = context.t(enhance ? 'rc.after' : 'rc.new');
     return ListView(
       padding: withNavInset(context, const EdgeInsets.all(Gap.md)),
       children: [
@@ -248,27 +275,38 @@ class _PairPage extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.titleMedium),
         const SizedBox(height: Gap.xs),
-        Text(
-          '${FsPaths.humanSize(item.oldBytes)} → ${FsPaths.humanSize(item.newBytes)}'
-          '${pct > 0 ? '  ·  −%$pct' : ''}',
-          style: theme.textTheme.bodyMedium
-              ?.copyWith(color: Paper.success(context)),
-        ),
+        if (!enhance)
+          Text(
+            '${FsPaths.humanSize(item.oldBytes)} → ${FsPaths.humanSize(item.newBytes)}'
+            '${pct > 0 ? '  ·  −%$pct' : ''}',
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: Paper.success(context)),
+          ),
         const SizedBox(height: Gap.md),
         if (item.newGone)
           _Note(text: context.t('rc.new_trashed'))
         else if (item.isVideo)
           _VideoSideBySide(item: item)
+        else if (canCompare && sideBySide)
+          _SideBySide(
+              oldPath: pair.oldPath,
+              newPath: pair.newPath,
+              oldLabel: oldLabel,
+              newLabel: newLabel)
         else if (canCompare)
-          _BeforeAfter(oldPath: pair.oldPath, newPath: pair.newPath)
+          _BeforeAfter(
+              oldPath: pair.oldPath,
+              newPath: pair.newPath,
+              oldLabel: oldLabel,
+              newLabel: newLabel)
         else
           _SingleImage(path: pair.newPath),
         const SizedBox(height: Gap.sm),
         if (item.oldGone && !item.newGone)
           _Note(text: context.t('rc.old_trashed')),
         Text(
-          '${context.t('rc.old')}: ${FsPaths.humanSize(item.oldBytes)}${_dims(item.oldDims)}\n'
-          '${context.t('rc.new')}: ${FsPaths.humanSize(item.newBytes)}${_dims(item.newDims)}',
+          '$oldLabel: ${FsPaths.humanSize(item.oldBytes)}${_dims(item.oldDims)}\n'
+          '$newLabel: ${FsPaths.humanSize(item.newBytes)}${_dims(item.newDims)}',
           style: theme.textTheme.bodySmall,
         ),
         const SizedBox(height: Gap.md),
@@ -276,7 +314,13 @@ class _PairPage extends StatelessWidget {
           spacing: Gap.sm,
           runSpacing: Gap.sm,
           children: [
-            if (!item.oldGone && !item.newGone)
+            if (enhance)
+              FilledButton.icon(
+                icon: const Icon(AppIcons.check),
+                label: Text(context.t('rc.keep_both')),
+                onPressed: onNext,
+              ),
+            if (!item.oldGone && !item.newGone && !enhance)
               FilledButton.icon(
                 icon: const Icon(AppIcons.delete),
                 label: Text(context.t('rc.trash_old')),
@@ -288,11 +332,18 @@ class _PairPage extends StatelessWidget {
                 label: Text(context.t('rc.trash_new')),
                 onPressed: onTrashNew,
               ),
-            OutlinedButton.icon(
-              icon: const Icon(AppIcons.check),
-              label: Text(context.t('rc.keep_both')),
-              onPressed: onNext,
-            ),
+            if (!enhance)
+              OutlinedButton.icon(
+                icon: const Icon(AppIcons.check),
+                label: Text(context.t('rc.keep_both')),
+                onPressed: onNext,
+              ),
+            if (enhance && !item.oldGone && !item.newGone)
+              OutlinedButton.icon(
+                icon: const Icon(AppIcons.delete),
+                label: Text(context.t('rc.trash_old')),
+                onPressed: onTrashOld,
+              ),
             if (!item.oldGone)
               TextButton(
                 onPressed: () => EntryOpener.open(context, pair.oldPath),
@@ -346,7 +397,13 @@ class _SingleImage extends StatelessWidget {
 class _BeforeAfter extends StatefulWidget {
   final String oldPath;
   final String newPath;
-  const _BeforeAfter({required this.oldPath, required this.newPath});
+  final String oldLabel;
+  final String newLabel;
+  const _BeforeAfter(
+      {required this.oldPath,
+      required this.newPath,
+      required this.oldLabel,
+      required this.newLabel});
 
   @override
   State<_BeforeAfter> createState() => _BeforeAfterState();
@@ -411,9 +468,9 @@ class _BeforeAfterState extends State<_BeforeAfter> {
                     ),
                   ),
                   Positioned(
-                      left: 8, top: 8, child: _Tag(context.t('rc.old'))),
+                      left: 8, top: 8, child: _Tag(widget.oldLabel)),
                   Positioned(
-                      right: 8, top: 8, child: _Tag(context.t('rc.new'))),
+                      right: 8, top: 8, child: _Tag(widget.newLabel)),
                 ],
               ),
             ),
@@ -422,6 +479,55 @@ class _BeforeAfterState extends State<_BeforeAfter> {
       ),
     );
   }
+}
+
+/// İki görüntü yan yana (2026-11-03: *"yenisi ile eskisi beraber
+/// görülmeli"*); dokununca o görüntü tam ekran açılır.
+class _SideBySide extends StatelessWidget {
+  final String oldPath;
+  final String newPath;
+  final String oldLabel;
+  final String newLabel;
+  const _SideBySide(
+      {required this.oldPath,
+      required this.newPath,
+      required this.oldLabel,
+      required this.newLabel});
+
+  Widget _cell(BuildContext context, String path, String label) => Expanded(
+        child: GestureDetector(
+          onTap: () => EntryOpener.open(context, path),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(Radii.card),
+            child: SizedBox(
+              height: 320,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Container(color: AppColors.barrier),
+                  Image(
+                    image: FmFileImage(path, cacheWidth: 900),
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) =>
+                        const Center(child: Icon(AppIcons.brokenImage)),
+                  ),
+                  PositionedDirectional(start: 8, top: 8, child: _Tag(label)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) => Row(
+        key: const ValueKey('rc-side-by-side'),
+        children: [
+          _cell(context, oldPath, oldLabel),
+          const SizedBox(width: Gap.sm),
+          _cell(context, newPath, newLabel),
+        ],
+      );
 }
 
 class _LeftClipper extends CustomClipper<Rect> {

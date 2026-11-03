@@ -54,6 +54,7 @@ import '../../core/app_navigator.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
 import '../../core/theme.dart';
+import '../../models/fm_filter.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/dashboard_layout.dart';
 import '../../services/fm/fm_env.dart';
@@ -66,6 +67,9 @@ import '../../services/fm/storage_stats.dart';
 import '../../widgets/fm/fm_category_tile.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_entry_tiles.dart';
+import '../../widgets/fm/fm_more_sheet.dart';
+import '../../widgets/fm/fm_quick_filters.dart';
+import '../../widgets/fm/fm_type_chips.dart';
 import '../../widgets/section_header.dart';
 import '../../core/snack.dart';
 import '../../widgets/motion.dart';
@@ -186,6 +190,13 @@ class _PickFileScreenState extends State<PickFileScreen> {
   /// Eşleşme listesi ada göre mi sıralı (varsayılan: en yeni üstte).
   bool _byName = false;
 
+  /// Ortak süzgeç (kaynak/tür/tarih/boyut — A11). Görünüm değişince sıfırlanır:
+  /// klasörde seçilen "WhatsApp" süzgeci kategoriye geçince sessizce
+  /// listeyi boşaltmasın.
+  FmFilter _filter = FmFilter.none;
+
+  void _setFilter(FmFilter f) => setState(() => _filter = f);
+
   /// Çoklu seçim: yol → bayt (alt çubukta toplam boyut için).
   final _selected = <String, int>{};
   final _search = TextEditingController();
@@ -270,6 +281,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
     }
     setState(() {
       _view = _PickView.matches;
+      _filter = FmFilter.none;
       _loading = true;
       _error = '';
     });
@@ -330,6 +342,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
   /// Ana sayfanın tek asenkron parçası: son açılan dosyalar.
   Future<void> _loadHome() async {
     setState(() {
+      _filter = FmFilter.none;
       _view = _PickView.home;
       _loading = true;
       _error = '';
@@ -357,6 +370,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
 
   Future<void> _openFolder(String path) async {
     setState(() {
+      _filter = FmFilter.none;
       _view = _PickView.folder;
       _loading = true;
       _error = '';
@@ -385,6 +399,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
   /// Bir kategorinin **tüm depolamadaki** dosyaları (arama dizininden).
   Future<void> _openCategory(FmCategory category) async {
     setState(() {
+      _filter = FmFilter.none;
       _view = _PickView.category;
       _category = category;
       _loading = true;

@@ -586,3 +586,22 @@ Kullanıcı: *"fazlardan devam et, bulutta yapılabilecekleri yap, main'e merge 
 - **Tekrar yükseltmeden önce:** bu PDF'le cihazda profil zaman çizelgesi (UI + raster + pdfium işçisi);
   2.x'te (1)'i kapatmak paket yaması ister (`dependency_overrides` + yerel kopya).
 
+## 2026-11-03 — Görsel iyileştirme arka planda + önce/sonra; dosya seçici A11
+- **"Üretiliyor ve kayboluyor" kökü:** iş galerinin modal penceresine bağlıydı, sonuç YALNIZ galerinin o anki
+  bellek listesine ekleniyordu (kalıcı iz yok, galeriye bildirim yok, ekrandan çıkınca bulunamıyor).
+  → `services/fm/enhance_jobs.dart`: `JobQueue.track` (şerit + İşlemler + bildirim, ön plan servisi),
+  çıktı `TrackedJob.addOutput(out, source:)` ile özgünle çift, `FsEvents.changed` (MediaScan), `results`
+  akışı açık galeriye yeni kopyayı ekler. Hedef `FmJobTargetKind.enhance` → `openJobTarget` çiftten
+  `ResizeCompareScreen(enhance: true)` açar (Önce/Sonra etiketi, tasarruf satırı yok, "İkisini de tut"
+  birincil; yeni "yan yana" görünümü her iki kipte).
+- **İzolat:** `ImageEnhance.enhanceFile` artık `Isolate.spawn` (öldürülebilir): ilerleme ESRGAN parçası
+  başına (`tileUpscale(onTile:)`), Durdur → `cancelSignal` (kuyruk dinleyicisi, yoklama YOK — tasarım
+  tokenı testi ham `Duration(milliseconds:)` sayıyor) → `kill` + `EnhanceCancelled`; bozuk dosya `FormatException`
+  (`image` çözücüsü çöpte RangeError atıyor — yakalanıyor).
+- **TUZAK (test):** `track()` aynı kimlikle SÜREN iş varken yinelenen kayıt açar → `EnhanceJobs.start`
+  önce `find(id)` bakar, sürüyorsa null döner.
+- **Seçici A11:** ana sayfa sırası kutular → hızlı klasörler → ince depolama satırı → son açılanlar (EN ALTTA;
+  eski büyük `DashboardVolumeCard` ve ayrı "Tüm dosyalar" satırı kalktı — depolama satırı köke gider).
+  Listelerde `FmQuickFilters` + `FmTypeChips` + `FmMoreChip`; tür hapı `request.isSpecific`te gizli (açık
+  soru öneriyle kapandı); klasörler süzgeçten etkilenmez (`pickVisibleEntries`, testli); görünüm değişince
+  süzgeç sıfırlanır.

@@ -549,6 +549,11 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
 - [ ] **48 saat iç test** (KALANLAR B6): çökme/ANR yok; `CrashLog` boş ya da anlamlı.
 
 ## 16. Dosya seçici ana sayfası ve devam notu (2026-11-02)
+- [ ] **Seçici yenisi (A11, 2026-11-03):** "Diğer dosyalar" gibi tür belirtmeyen istekte ana sayfa: üstte kategori
+      kutuları, altında hızlı klasörler, sonra ince depolama satırı (ad · "x GB boş" · ince çizgi; dokununca kök),
+      EN ALTTA son açılanlar. Klasör/kategori/arama/eşleşme listelerinde süzgeç satırı (WhatsApp/Kamera gibi kaynak,
+      büyük dosyalar, açılmayanlar, tür hapı, ⋯ tarih/boyut); klasörler süzgeçte kaybolmuyor; PDF isteyen
+      uygulamada tür hapı YOK, uzantı çipleri var; görünüm değişince süzgeç sıfırlanıyor.
 - [ ] **Dosya seçici (tür belirtmeyen istek, ör. "Diğer dosyalar"):** ana sayfa panonun aynısı — bellek
       kartı(ları), kullanıcının dizdiği kutu ızgarası (İndirilenler, Önemli, Fotoğraflar, Videolar,
       Belgeler, Müzik, Arşivler, APK; "diğer kaynaklar" açıksa Drive), hızlı klasörler. Kutuya
@@ -568,6 +573,11 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
 
 
 ## 17. VLC benzeri oynatıcı + görsel iyileştirme (2026-11-02, kişisel APK)
+- [ ] **İyileştirme arka planda (2026-11-03):** Galeri → İyileştir → yapay zekâ: pencere açılmıyor, "arka planda"
+      notu; galeride "İyileştiriliyor · %n" hapı; başka fotoğrafa geç / galeriden çık → alt şerit + bildirimde
+      ilerleme, Durdur çalışıyor (yarım kopya kalmıyor). Bitince yeni kopya özgünün hemen sağında; "Önce / sonra"
+      eylemi ve hap → karşılaştırma (kaydırmalı + üstteki düğmeyle YAN YANA); bildirime dokununca da aynı ekran;
+      kopya Fotoğraflar'da görünüyor (kaybolmuyor).
 - [ ] AC3/DTS sesli MKV: ses geliyor mu (otomatik mpv'ye geçiş); menüde "Standart motora dön" görünüyor mu
 - [ ] AVI/WMV/FLV açılıyor mu; mpv'de PiP, mini çubuk, bildirim, kaldığı yerden devam çalışıyor mu
 - [ ] Çok dilli MKV'de ses parçası menüsü (ExoPlayer) dil değiştiriyor mu
