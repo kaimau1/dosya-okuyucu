@@ -245,11 +245,20 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 children: [
                   Text(context.t('lib.title')),
                   if (LibraryStore.count > 0)
-                    Text(_statsLine(),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.type.small
-                            .copyWith(color: Paper.faint(context))),
+                    Row(
+                      children: [
+                        Text(context.t('lib.count', {'n': LibraryStore.count}),
+                            style: context.type.small
+                                .copyWith(color: Paper.faint(context))),
+                        Flexible(
+                          child: Text(' · ${_statsLine()}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: context.type.small
+                                  .copyWith(color: Paper.faint(context))),
+                        ),
+                      ],
+                    ),
                 ],
               ),
         actions: [
@@ -386,8 +395,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           u++;
       }
     }
-    return '${context.t('lib.count', {'n': LibraryStore.count})} · '
-        '${context.t('lib.stats', {'r': r, 'd': d, 'u': u})}';
+    return context.t('lib.stats', {'r': r, 'd': d, 'u': u});
   }
 
   /// Kitaplıktaki ama diskte artık olmayan kitaplar.
