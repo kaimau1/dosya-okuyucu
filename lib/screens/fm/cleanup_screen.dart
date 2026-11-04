@@ -18,6 +18,7 @@ import '../../widgets/fm/fm_entry_icon.dart';
 import 'trash_screen.dart';
 import '../../core/safe_insets.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/embedded_toolbar.dart';
 
 /// **Yer açma asistanı** — "3 GB yer aç" isteğinin karşılığı.
 ///
@@ -42,7 +43,10 @@ class CleanupScreen extends StatefulWidget {
   /// tarama indeksi kendisi kurar; hazır indeksle açıldığında (yaygın yol)
   /// hiçbir şey değişmez, ikinci bir tam tarama YAPILMAZ.
   final StorageIndex? index;
-  const CleanupScreen({super.key, this.index});
+
+  /// İşlemler merkezinin sekmesi mi? (bkz. `OperationsScreen`)
+  final bool embedded;
+  const CleanupScreen({super.key, this.index, this.embedded = false});
 
   @override
   State<CleanupScreen> createState() => _CleanupScreenState();
@@ -272,20 +276,22 @@ class _CleanupScreenState extends State<CleanupScreen> {
     _analyze();
   }
 
+  Widget _reanalyzeButton() => IconButton(
+        tooltip: context.t('clean.reanalyze'),
+        icon: const Icon(AppIcons.refresh),
+        onPressed: _loading ? null : _analyze,
+      );
+
   @override
   Widget build(BuildContext context) {
     final chosen = _chosen;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(context.t('clean.title')),
-        actions: [
-          IconButton(
-            tooltip: context.t('clean.reanalyze'),
-            icon: const Icon(AppIcons.refresh),
-            onPressed: _loading ? null : _analyze,
-          ),
-        ],
-      ),
+      appBar: widget.embedded
+          ? EmbeddedToolbar(actions: [_reanalyzeButton()])
+          : AppBar(
+              title: Text(context.t('clean.title')),
+              actions: [_reanalyzeButton()],
+            ),
       body: _loading
           ? Center(
               child: Column(

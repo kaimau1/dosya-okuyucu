@@ -92,7 +92,8 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
                   AnalysisScreen(index: _index, volumes: FmEnv.volumes)),
               onFreeSpace: () {
                 unawaited(ToolUsage.record('free_space'));
-                _push(CleanupScreen(index: _index));
+                OperationsScreen.open(context,
+                    tab: OpsTab.cleanup, index: _index);
               },
               onLongPress: () => unawaited(_volumeMenu(v)),
             )
@@ -156,7 +157,9 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
             // Panoda yalnız kullanımca ilk sekiz (2026-09-26
             // sadeleştirmesi); tamamı "Tümü"nde. Sıralama kullanıma göre
             // olduğu için kullanıcının açtığı araç kendiliğinden öne gelir.
-            final shown = DashboardTools.head(tools);
+            // 2026-11-04 (kullanıcı): araçlar TEK satır — Aktar alt panelde,
+            // Yer aç / Sohbet medyası / Düzenle İşlemler'in sekmelerinde.
+            final shown = DashboardTools.row(tools);
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -250,6 +253,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
         id: 'downloads',
         icon: AppIcons.download,
         color: AppHues.blue,
+        art: FmTileArt.downloads,
         label: context.t('fm.downloads'),
         subtitle: _folderSizes[download] != null
             ? FsPaths.humanSize(_folderSizes[download]!)

@@ -18,6 +18,12 @@ import '../../services/fm/reading_positions.dart';
 import '../../widgets/app_action_sheet.dart';
 import '../../widgets/section_header.dart';
 import 'pick_file_screen.dart';
+import '../../models/fs_entry.dart';
+import '../../services/fm/fs_scan.dart';
+import '../../widgets/app_dialog.dart';
+import 'browser_screen.dart';
+import 'dashboard_screen.dart';
+import 'entry_actions.dart';
 
 /// **Kitaplık** — kitaplar rafta, kapaklarıyla (bkz. [LibraryStore]).
 ///
@@ -37,9 +43,23 @@ class LibraryScreen extends StatefulWidget {
 
 enum _Sort { added, name, recent }
 
+/// Okuma durumuna göre süzgeç (2026-11-04).
+enum _Filter { all, reading, unread, done }
+
+_Filter _statusOf(String path) {
+  final v = ReadingPositions.progressOf(path) ?? 0;
+  if (v >= 0.98) return _Filter.done;
+  if (v > 0) return _Filter.reading;
+  return _Filter.unread;
+}
+
 class _LibraryScreenState extends State<LibraryScreen> {
   bool _loading = true;
   _Sort _sort = _Sort.added;
+  _Filter _filter = _Filter.all;
+
+  /// Raf mı liste mi — süreç boyunca hatırlanır.
+  static bool _listView = false;
   final _query = TextEditingController();
   bool _searching = false;
 
@@ -73,7 +93,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final q = _query.text.trim().toLowerCase();
     final list = [
       for (final path in LibraryStore.paths)
-        if (q.isEmpty || p.basename(path).toLowerCase().contains(q)) path,
+        if ((q.isEmpty || p.basename(path).toLowerCase().contains(q)) &&
+            (_filter == _Filter.all || _statusOf(path) == _filter))
+          path,
     ];
     switch (_sort) {
       case _Sort.added:
@@ -146,6 +168,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
         AppActionGroup(actions: [
           AppAction(
               value: 'open', icon: AppIcons.menuBook, label: context.t('common.open')),
+          AppAction(
+              value: 'folder',
+              icon: AppIcons.emptyFolder,
+              label: context.t('lib.show_folder')),
+          AppAction(
+              value: 'share',
+              icon: AppIcons.share,
+              label: context.t('lib.share')),
           if (Platform.isAndroid)
             AppAction(
                 value: 'pin',
@@ -164,6 +194,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
     switch (choice) {
       case 'open':
         await _open(path);
+      case 'folder':
+        await Navigator.of(context).push(browserRoute(BrowserScreen(
+            path: p.dirname(path), focusPath: path)));
+      case 'share':
+        if (!File(path).existsSync()) {
+          showSnack(context, context.t('lib.missing'));
+          return;
+        }
+        await shareEntriesFrom(context, [path]);
       case 'pin':
         final messenger = ScaffoldMessenger.of(context);
         final strings = AppStrings.of(context);
@@ -206,7 +245,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 children: [
                   Text(context.t('lib.title')),
                   if (LibraryStore.count > 0)
-                    Text(context.t('lib.count', {'n': LibraryStore.count}),
+                    Text(_statsLine(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: context.type.small
                             .copyWith(color: Paper.faint(context))),
                 ],
@@ -226,9 +267,41 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 setState(() => _sort = v);
               } else if (v == 'pin') {
                 _pinLibrary();
+              } else if (v == 'view') {
+                setState(() => _listView = !_listView);
+              } else if (v == 'find') {
+                _findBooks();
+              } else if (v == 'clean') {
+                LibraryStore.remove(_missing());
               }
             },
             itemBuilder: (ctx) => [
+              PopupMenuItem(
+                value: 'view',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(_listView ? AppIcons.layoutGrid : AppIcons.listAlt),
+                  title: Text(ctx.t(_listView ? 'lib.view_shelf' : 'lib.view_list')),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'find',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(AppIcons.search),
+                  title: Text(ctx.t('lib.find')),
+                ),
+              ),
+              if (_missing().isNotEmpty)
+                PopupMenuItem(
+                  value: 'clean',
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(AppIcons.folderOff),
+                    title: Text(ctx.t('lib.clean_missing', {'n': _missing().length})),
+                  ),
+                ),
+              const PopupMenuDivider(),
               for (final (s, key) in const [
                 (_Sort.added, 'lib.sort_added'),
                 (_Sort.name, 'lib.sort_name'),
@@ -288,6 +361,171 @@ class _LibraryScreenState extends State<LibraryScreen> {
               icon: const Icon(AppIcons.add),
               label: Text(context.t('lib.add')),
             ),
+            const SizedBox(height: Gap.sm),
+            OutlinedButton.icon(
+              key: const ValueKey('lib-find'),
+              onPressed: _findBooks,
+              icon: const Icon(AppIcons.search),
+              label: Text(context.t('lib.find')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _statsLine() {
+    var r = 0, d = 0, u = 0;
+    for (final path in LibraryStore.paths) {
+      switch (_statusOf(path)) {
+        case _Filter.reading:
+          r++;
+        case _Filter.done:
+          d++;
+        case _Filter.unread || _Filter.all:
+          u++;
+      }
+    }
+    return '${context.t('lib.count', {'n': LibraryStore.count})} · '
+        '${context.t('lib.stats', {'r': r, 'd': d, 'u': u})}';
+  }
+
+  /// Kitaplıktaki ama diskte artık olmayan kitaplar.
+  List<String> _missing() => [
+        for (final path in LibraryStore.paths)
+          if (!File(path).existsSync()) path,
+      ];
+
+  /// **Telefondaki kitapları bul** (2026-11-04): panonun son taramasındaki
+  /// dosyalardan kitap uzantılı olup kitaplıkta OLMAYANLAR listelenir, seçilip
+  /// tek dokunuşla eklenir. Tarama yoksa liste boş kalır ve bunu söyler —
+  /// ayrı bir disk taraması yapılmaz (pano zaten yapıyor).
+  Future<void> _findBooks() async {
+    final seen = <String>{};
+    final found = <FsEntry>[];
+    for (final c in FmCategory.values) {
+      if (c == FmCategory.folder) continue;
+      for (final e in DashboardScreen.cachedFiles(c)) {
+        if (e.isDir || !LibraryStore.isBook(e.path)) continue;
+        if (LibraryStore.contains(e.path) || !seen.add(e.path)) continue;
+        found.add(e);
+      }
+    }
+    found.sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
+    if (!mounted) return;
+    if (found.isEmpty) {
+      showSnack(context, context.t('lib.find_none'));
+      return;
+    }
+    final chosen = await showAppSheet<List<String>>(
+      context,
+      title: context.t('lib.find_title', {'n': found.length}),
+      scrollable: false,
+      builder: (ctx) => _FindBooksSheet(found: found),
+    );
+    if (!mounted || chosen == null || chosen.isEmpty) return;
+    final n = await LibraryStore.add(chosen);
+    if (!mounted) return;
+    showSnack(context, context.t('lib.added', {'n': n}));
+  }
+
+  Widget _filters() {
+    final counts = <_Filter, int>{};
+    for (final path in LibraryStore.paths) {
+      final f = _statusOf(path);
+      counts[f] = (counts[f] ?? 0) + 1;
+    }
+    return SizedBox(
+      height: 48,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+        children: [
+          for (final (f, key) in const [
+            (_Filter.all, 'lib.f_all'),
+            (_Filter.reading, 'lib.f_reading'),
+            (_Filter.unread, 'lib.f_unread'),
+            (_Filter.done, 'lib.f_done'),
+          ])
+            Padding(
+              padding: const EdgeInsetsDirectional.only(end: Gap.sm),
+              child: Center(
+                child: ChoiceChip(
+                  label: Text(f == _Filter.all
+                      ? context.t(key)
+                      : '${context.t(key)} · ${counts[f] ?? 0}'),
+                  selected: _filter == f,
+                  onSelected: (_) => setState(() => _filter = f),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Liste görünümü: küçük kapak, ad, tür · boyut, ilerleme.
+  Widget _listTile(String path) {
+    final theme = Theme.of(context);
+    final progress = ReadingPositions.progressOf(path);
+    final file = File(path);
+    final exists = file.existsSync();
+    final ext = p.extension(path).replaceFirst('.', '').toUpperCase();
+    final size = exists ? FsPaths.humanSize(file.lengthSync()) : '';
+    return InkWell(
+      onTap: () => _open(path),
+      onLongPress: () => _bookMenu(path),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+            horizontal: Gap.md, vertical: Gap.sm),
+        child: Row(
+          children: [
+            SizedBox(width: 44, child: _BookCover(path: path)),
+            const SizedBox(width: Gap.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(p.basenameWithoutExtension(path),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleSmall),
+                  const SizedBox(height: 2),
+                  Text(
+                    [ext, if (size.isNotEmpty) size].join(' · '),
+                    style: context.type.small
+                        .copyWith(color: Paper.faint(context)),
+                  ),
+                  if (progress != null && progress > 0) ...[
+                    const SizedBox(height: Gap.xs),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(2),
+                            child: LinearProgressIndicator(
+                              value: progress.clamp(0.0, 1.0),
+                              minHeight: 3,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: Gap.sm),
+                        Text(
+                            context.t('lib.page_of',
+                                {'p': (progress * 100).round()}),
+                            style: context.type.caption
+                                .copyWith(color: Paper.faint(context))),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: context.t('common.more'),
+              icon: const Icon(AppIcons.more),
+              onPressed: () => _bookMenu(path),
+            ),
           ],
         ),
       ),
@@ -295,7 +533,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Widget _shelves(List<String> books) {
-    final reading = _query.text.isEmpty
+    final reading = _query.text.isEmpty && _filter == _Filter.all
         ? [
             for (final path in LibraryStore.paths)
               if ((ReadingPositions.progressOf(path) ?? 0) case final v
@@ -332,13 +570,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
               ),
             ),
           ],
-          SectionHeader(context.t('lib.shelf')),
+          _filters(),
+          SectionHeader(context.t('lib.shelf'), count: '${books.length}'),
           if (books.isEmpty)
             Padding(
               padding: const EdgeInsets.all(Gap.lg),
               child: Text(context.t('lib.no_match'), textAlign: TextAlign.center),
             ),
-          for (final row in rows) _shelfRow(row, perRow),
+          if (_listView)
+            for (final path in books) _listTile(path)
+          else
+            for (final row in rows) _shelfRow(row, perRow),
         ],
       );
     });
@@ -599,6 +841,67 @@ class _BookCaption extends StatelessWidget {
           Text('%${(progress * 100).round()}',
               style: context.type.caption.copyWith(color: Paper.faint(context))),
         ],
+      ],
+    );
+  }
+}
+
+/// "Telefondaki kitapları bul" seçimi: hepsi seçili gelir, işaret kaldırılır.
+class _FindBooksSheet extends StatefulWidget {
+  final List<FsEntry> found;
+  const _FindBooksSheet({required this.found});
+
+  @override
+  State<_FindBooksSheet> createState() => _FindBooksSheetState();
+}
+
+class _FindBooksSheetState extends State<_FindBooksSheet> {
+  late final Set<String> _picked = {for (final e in widget.found) e.path};
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Flexible(
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: widget.found.length,
+            itemBuilder: (context, i) {
+              final e = widget.found[i];
+              return CheckboxListTile(
+                value: _picked.contains(e.path),
+                onChanged: (v) => setState(() {
+                  if (v ?? false) {
+                    _picked.add(e.path);
+                  } else {
+                    _picked.remove(e.path);
+                  }
+                }),
+                secondary: const Icon(AppIcons.menuBook),
+                title: Text(p.basenameWithoutExtension(e.name),
+                    maxLines: 2, overflow: TextOverflow.ellipsis),
+                subtitle: Text(
+                  '${FsPaths.humanSize(e.sizeBytes)} · '
+                  '${p.basename(p.dirname(e.path))}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              );
+            },
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.md),
+          child: FilledButton.icon(
+            onPressed: _picked.isEmpty
+                ? null
+                : () => Navigator.of(context).pop(_picked.toList()),
+            icon: const Icon(AppIcons.add),
+            label: Text(context.t('lib.add_selected', {'n': _picked.length})),
+          ),
+        ),
       ],
     );
   }

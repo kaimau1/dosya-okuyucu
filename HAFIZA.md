@@ -246,3 +246,26 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
   her sekmede. NavigationBar şeffaf/elevation 0, 64 dp, yazı ölçeği 1.0 kıskaç. Çöp·Aktar·Drive
   tek bölmeli grup (ince ayırıcılar), Tara sağda tek vurgu; çöp sayısı etiket yanında küçük hap.
   Tuzak: tek kenarlı `Border(top:)` + `borderRadius` Flutter'da assert → gölge kullanıldı.
+
+## 2026-11-04 — Tasarım turu: İşlemler sekmeli, tek araç satırı, arama kapsülü, yeni simgeler, alt panel, Kitaplık
+- **Araçlar TEK satır** (`DashboardTools.row`, 4): Aktar araçlardan kalktı (alt panelde); Yer aç ·
+  Sohbet medyası · Düzenle → **`OperationsScreen`** (screens/fm/operations_screen.dart) sekmeleri:
+  İşlemler | Yer aç | Sohbet medyası | Düzenle. Sekme ilk seçilince kurulur, `IndexedStack`'te
+  kalır (kaydırarak geçiş YOK — kartlar yatay hareket taşıyor). Ekranlara `embedded` bayrağı:
+  kendi AppBar'ı yerine `EmbeddedToolbar` (ince eylem satırı). `openJobsScreen` + İşlemler kutusu +
+  akıllı bildirim "Tümü" + kart "Yer aç" düğmesi artık bu merkeze gider. Geçmiş ekranı (4 bölüm) aynen.
+- **JobsScreen:** süren işler tam kart, **biten işler 2 sütun ızgara** (`_FinishedGrid`,
+  `IntrinsicHeight` satırlar — sabit yükseklik yok, 2× yazıda taşmasın). Test metinleri korunuyor.
+- **Arama kapsülü:** AppBar'da tek kapsül (gölgeli), AI · yenile · ayarlar içinde; "Anlamla" artık
+  AÇ/KAPA anahtarı (`dash_meaning_search_v1`), ipucu duruma göre (`srch.hint_ai`). AI rozeti nokta.
+- **Simgeler:** `FmSquircleIcon` (widgets/fm/fm_tile_art.dart) — squircle zemin + gölge; Fotoğraflar,
+  Videolar, Arşivler, Ses, Belgeler, İndirilenler kendi 2.5D çizimi (`FmTileData.art`). Çizgi
+  ailesinde eski glif. Görünmez `Icon` ağaçta kalır (`find.byIcon`).
+- **Alt panel:** `[sol ek] Çöp · Drive (Aktar) Tara [sağ ek]`, 52 dp; ek düğmeler `DockExtras`
+  (prefs `dock_extra_left_v1/right_v1`), panele basılı tut ya da panodaki "Alt paneli düzenle".
+- **Kitaplık:** okuma durumu süzgeci (Okunuyor/Başlanmadı/Bitti), istatistik satırı, raf/liste
+  görünümü, "Telefondaki kitapları bul" (pano taramasından, ayrı disk taraması yok), bulunamayanları
+  kaldır, kitap menüsüne Klasöründe göster + Paylaş.
+- Tuzak: tasarım tokenı bekçisi (`design_tokens_test`) yeni dosyada `Color(0x`, `fontSize:`,
+  `Duration(milliseconds:`, `showModalBottomSheet` tavanı 0 → `AppHues`, `context.type`, `Motion`,
+  `showAppSheet` kullan. Cihazda doğrulanmadı.

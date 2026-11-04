@@ -25,6 +25,14 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
       id: category.name,
       icon: FmColors.iconFor(category, outlined: context.fmOutlinedIcons),
       color: FmColors.forCategory(category),
+      art: switch (category) {
+        FmCategory.image => FmTileArt.photos,
+        FmCategory.video => FmTileArt.video,
+        FmCategory.archive => FmTileArt.archive,
+        FmCategory.audio => FmTileArt.audio,
+        FmCategory.document => FmTileArt.document,
+        _ => null,
+      },
       label: _categoryLabel(category),
       subtitle: stat.count == 0
           ? (_scanning ? context.t('fm.scanning') : context.t('fm.none'))

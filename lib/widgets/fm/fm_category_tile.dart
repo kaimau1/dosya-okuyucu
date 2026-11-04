@@ -7,6 +7,9 @@ import '../../core/theme.dart';
 import '../motion.dart';
 import '../../core/device_profile.dart';
 import '../../core/app_colors.dart';
+import 'fm_tile_art.dart';
+
+export 'fm_tile_art.dart' show FmTileArt;
 
 /// Pano kutusunun verisi (ikon, renk, başlık, alt satır, dokunma).
 class FmTileData {
@@ -30,6 +33,10 @@ class FmTileData {
   /// varken); sürekli oynayan bir kutu bir süre sonra görünmez olur.
   final bool pulse;
 
+  /// Kendi çizimi olan kutular (Fotoğraflar, Videolar, Arşivler…) —
+  /// bkz. [FmSquircleIcon]. Yoksa [icon] glifi çizilir.
+  final FmTileArt? art;
+
   const FmTileData({
     required this.icon,
     required this.color,
@@ -38,6 +45,7 @@ class FmTileData {
     required this.onTap,
     this.id = '',
     this.pulse = false,
+    this.art,
   });
 
   /// Yalnız dokunmayı saran kopya (pano, sayacı artırmak için kullanır).
@@ -49,6 +57,7 @@ class FmTileData {
         onTap: onTap,
         id: id,
         pulse: pulse,
+        art: art,
       );
 }
 
@@ -271,11 +280,22 @@ class FmCategoryTile extends StatelessWidget {
     // hücre ~76 dp; 46 dp glif hücrenin genişliğinin %60'ı — daha büyüğü
     // etiketi sıkıştırırdı.
     // 46 taban ölçü; tema ailesi bunu ölçekler (bkz. SkinMetrics.iconScale).
-    final icon = FmTintedIcon(
-      icon: data.icon,
-      color: tint,
-      size: 46 * context.fmIconScale,
-    );
+    // **2026-11-04 tasarım turu:** degrade/dolgu ailelerde simge yumuşak
+    // köşeli (squircle), açık renkli, gölgeli bir zemine oturur; Fotoğraflar,
+    // Videolar, Arşivler… kendi 2.5D çizimiyle (bkz. [FmSquircleIcon]).
+    // Çizgi ailelerinde sade glif kalır (o ailelerin sakin ağırlığı).
+    final Widget icon = context.fmIconStyle == SkinIconStyle.outlined
+        ? FmTintedIcon(
+            icon: data.icon,
+            color: tint,
+            size: 46 * context.fmIconScale,
+          )
+        : FmSquircleIcon(
+            icon: data.icon,
+            color: data.color,
+            art: data.art,
+            size: 46 * context.fmIconScale,
+          );
     // Basınca hafifçe çöker (iOS dokunsal hissi — bkz. widgets/motion.dart).
     return PressScale(
       child: InkWell(
@@ -288,13 +308,15 @@ class FmCategoryTile extends StatelessWidget {
             children: [
               data.pulse ? _PulsingIcon(key: pulseKey, child: icon) : icon,
               const SizedBox(height: Gap.xs),
+              // Yazı bir kademe küçük ve ince (2026-11-04: "ekran nefes
+              // alsın").
               Text(
                 data.label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                   letterSpacing: 0,
                 ),
               ),

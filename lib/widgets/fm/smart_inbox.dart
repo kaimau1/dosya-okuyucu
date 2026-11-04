@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
-import '../../screens/fm/history_screen.dart';
+import '../../screens/fm/operations_screen.dart';
 import '../../screens/fm/job_navigation.dart';
 import '../../services/fm/job_queue.dart';
 import '../live_progress.dart';
@@ -405,7 +405,7 @@ class _Footer extends StatelessWidget {
               ),
             const Spacer(),
             TextButton(
-              onPressed: () => HistoryScreen.open(context, HistorySection.jobs),
+              onPressed: () => OperationsScreen.open(context),
               child: Text(hidden > 0
                   ? context.t('inbox.more', {'n': hidden})
                   : context.t('inbox.all')),

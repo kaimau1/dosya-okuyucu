@@ -18,6 +18,8 @@ import 'op_history_screen.dart';
 import '../../core/snack.dart';
 import '../../core/safe_insets.dart';
 import '../../widgets/live_progress.dart';
+import '../../widgets/embedded_toolbar.dart';
+import 'operations_screen.dart';
 
 /// **İşlemler ekranı** — uzun süren her işin nerede olduğu, başarılı mı
 /// olduğu ve **ne ürettiği** tek yerde.
@@ -38,37 +40,52 @@ import '../../widgets/live_progress.dart';
 /// süren, sırada bekleyen ve bitmiş işleri (son [JobQueue.historyLimit] iş)
 /// süreleriyle listeler, çıktı dosyalarını açar ya da klasörünü gösterir.
 class JobsScreen extends StatelessWidget {
-  const JobsScreen({super.key});
+  /// İşlemler merkezinin sekmesi olarak mı açıldı? (Üstte sekmeli başlık
+  /// varken kendi geri oklu çubuğunu çizmez — bkz. [EmbeddedToolbar].)
+  final bool embedded;
+
+  const JobsScreen({super.key, this.embedded = false});
+
+  List<Widget> _actions(BuildContext context) => [
+        // Geri alınabilir taşıma/kopyalama geçmişi (eski "Son işlemler"
+        // kutusu, 2026-10-21'de Geçmiş > İşlemler'e katıldı).
+        IconButton(
+          tooltip: context.t('oph.title'),
+          icon: const Icon(AppIcons.undo),
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const OpHistoryScreen())),
+        ),
+        AnimatedBuilder(
+          animation: JobQueue.instance,
+          builder: (context, _) => JobQueue.instance.finishedJobs.isEmpty
+              ? const SizedBox.shrink()
+              : TextButton(
+                  onPressed: JobQueue.instance.clearFinished,
+                  child: Text(context.t('fm.clear_finished')),
+                ),
+        ),
+      ];
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: Text(context.t('jb.title')),
-          actions: [
-            // Geri alınabilir taşıma/kopyalama geçmişi (eski "Son işlemler"
-            // kutusu, 2026-10-21'de Geçmiş > İşlemler'e katıldı).
-            IconButton(
-              tooltip: context.t('oph.title'),
-              icon: const Icon(AppIcons.undo),
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => const OpHistoryScreen())),
-            ),
-            AnimatedBuilder(
-              animation: JobQueue.instance,
-              builder: (context, _) =>
-                  JobQueue.instance.finishedJobs.isEmpty
-                      ? const SizedBox.shrink()
-                      : TextButton(
-                          onPressed: JobQueue.instance.clearFinished,
-                          child: Text(context.t('fm.clear_finished')),
-                        ),
-            ),
-          ],
-        ),
+        appBar: embedded
+            ? EmbeddedToolbar(actions: _actions(context))
+            : AppBar(
+                title: Text(context.t('jb.title')),
+                actions: _actions(context),
+              ),
         body: AnimatedBuilder(
           animation: JobQueue.instance,
           builder: (context, _) {
             final jobs = JobQueue.instance.jobs;
+            final active = [
+              for (final j in jobs)
+                if (j.status.isActive) j,
+            ];
+            final finished = [
+              for (final j in jobs)
+                if (!j.status.isActive) j,
+            ];
             return ListView(
               padding: withNavInset(
                   context, const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl)),
@@ -87,9 +104,22 @@ class JobsScreen extends StatelessWidget {
                       child: Text(context.t('jb.empty'),
                           textAlign: TextAlign.center),
                     ),
-                  )
-                else
-                  for (final job in jobs) _JobCard(job: job),
+                  ),
+                // Süren/sıradaki işler tam genişlik kart (ilerleme çubuğu,
+                // Durdur); biten işler 2 sütunlu ızgara (2026-11-04,
+                // kullanıcı: *"biten işler grid kart olarak 2 kolonlu"*).
+                if (active.isNotEmpty && finished.isNotEmpty)
+                  SectionHeader(context.t('ops.active'),
+                      count: '${active.length}',
+                      padding: const EdgeInsets.only(bottom: Gap.sm)),
+                for (final job in active) _JobCard(job: job),
+                if (finished.isNotEmpty) ...[
+                  SectionHeader(context.t('ops.finished'),
+                      count: '${finished.length}',
+                      padding: EdgeInsets.only(
+                          top: active.isEmpty ? 0 : Gap.md, bottom: Gap.sm)),
+                  _FinishedGrid(jobs: finished),
+                ],
               ],
             );
           },
@@ -97,10 +127,183 @@ class JobsScreen extends StatelessWidget {
       );
 }
 
+/// Biten işler iki sütunda; satırdaki iki kart AYNI yükseklikte (kısa olan
+/// uzun olanınkine uzar — ızgara tırtıklı görünmesin). Sabit hücre yüksekliği
+/// yok: büyük yazı ölçeğinde metin taşmasın diye satır içeriğe göre büyür.
+class _FinishedGrid extends StatelessWidget {
+  final List<FmJob> jobs;
+  const _FinishedGrid({required this.jobs});
+
+  @override
+  Widget build(BuildContext context) {
+    final columns = MediaQuery.sizeOf(context).width >= 720 ? 3 : 2;
+    final rows = <List<FmJob>>[
+      for (var i = 0; i < jobs.length; i += columns)
+        jobs.sublist(i, i + columns > jobs.length ? jobs.length : i + columns),
+    ];
+    return Column(
+      children: [
+        for (final row in rows)
+          Padding(
+            padding: const EdgeInsets.only(bottom: Gap.sm),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < columns; i++) ...[
+                    if (i > 0) const SizedBox(width: Gap.sm),
+                    Expanded(
+                      child: i < row.length
+                          ? _FinishedJobTile(job: row[i])
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Biten işin küçük kartı: durum simgesi, başlık, özet, ürettiği ilk dosya ve
+/// süre. Dokununca işin ilgili yerine gider (ya da sürdürülebiliyorsa sürdürür).
+class _FinishedJobTile extends StatelessWidget {
+  final FmJob job;
+  const _FinishedJobTile({required this.job});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final card = _JobCard(job: job);
+    final resumable = card.resumable;
+    final destination = jobHasDestination(job);
+    final elapsed = job.elapsed;
+    final outputs = job.outputs;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        onTap: resumable
+            ? () => card._resume(context, job)
+            : (destination
+                ? () => openJobTarget(context, job, fallbackToJobs: false)
+                : null),
+        child: Padding(
+          padding: const EdgeInsets.all(Gap.sm + 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: (card._color(scheme) ?? scheme.onSurfaceVariant)
+                          .withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Icon(card._icon,
+                        size: 18, color: card._color(scheme)),
+                  ),
+                  const Spacer(),
+                  if (destination && !resumable)
+                    Icon(AppIcons.chevron,
+                        size: 18, color: scheme.onSurfaceVariant),
+                ],
+              ),
+              const SizedBox(height: Gap.sm),
+              Text(job.shownTitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall),
+              const SizedBox(height: 2),
+              Text(card.subtitle(context),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall),
+              if (outputs.isNotEmpty) ...[
+                const SizedBox(height: Gap.xs),
+                Text(context.t('jb.outputs', {'n': outputs.length}),
+                    style: theme.textTheme.labelSmall),
+                InkWell(
+                  onTap: () => EntryOpener.open(context, outputs.first,
+                      siblings: outputs),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Text(p.basename(outputs.first),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: scheme.primary)),
+                  ),
+                ),
+              ],
+              const Spacer(),
+              if (elapsed != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: Gap.xs),
+                  child: MonoText(context.t('jb.took', {
+                    'status': context.t(job.status.labelKey),
+                    'time': humanDuration(elapsed),
+                  })),
+                ),
+              if (resumable)
+                Padding(
+                  padding: const EdgeInsets.only(top: Gap.xs),
+                  child: FilledButton.tonal(
+                    onPressed: () => card._resume(context, job),
+                    child: Text(context.t('jb.resume')),
+                  ),
+                )
+              else if (outputs.isNotEmpty)
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: TextButton.icon(
+                    style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 4)),
+                    onPressed: () => Navigator.of(context).push(
+                      browserRoute(
+                          BrowserScreen(path: p.dirname(outputs.first))),
+                    ),
+                    icon: const Icon(AppIcons.emptyFolder, size: 16),
+                    label: Text(context.t('jb.open_folder'),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Tek işin kartı: durum, ilerleme, süre, özet ve ürettiği dosyalar.
 class _JobCard extends StatelessWidget {
   final FmJob job;
   const _JobCard({required this.job});
+
+  /// Yarıda kalan/başarısız iş devam ettirilebilir mi?
+  bool get resumable =>
+      JobRecipes.canResume(job) &&
+      (job.status == JobStatus.interrupted ||
+          job.status == JobStatus.failed ||
+          job.status == JobStatus.cancelled);
+
+  String subtitle(BuildContext context) => switch (job.status) {
+        JobStatus.failed => job.error ?? context.t('job.error_generic'),
+        JobStatus.cancelled => job.detail.isEmpty
+            ? context.t('jb.cancelled')
+            : context.t('jb.cancelled_detail', {'detail': job.detail}),
+        JobStatus.interrupted => job.detail.isEmpty
+            ? context.t('jb.interrupted')
+            : context.t('jb.interrupted_detail', {'detail': job.detail}),
+        _ => job.detail.isEmpty ? context.t(job.status.labelKey) : job.detail,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -109,19 +312,7 @@ class _JobCard extends StatelessWidget {
     // İptalde de `detail` GÖSTERİLİR: durdurulan iş yarıda ne yaptığını oraya
     // yazıyor ("12,4 MB kazanıldı · 4 özgün çöp kutusunda · durduruldu (4/10)")
     // ve kullanıcının bunu öğrenmesinin tek yolu bu satır.
-    final subtitle = switch (job.status) {
-      JobStatus.failed => job.error ?? context.t('job.error_generic'),
-      JobStatus.cancelled =>
-        job.detail.isEmpty
-            ? context.t('jb.cancelled')
-            : context.t('jb.cancelled_detail', {'detail': job.detail}),
-      // Yarıda kalan işte NE OLDUĞU ve NE YAPILACAĞI yazılır: iş sessizce
-      // kaybolmasın diye kaydediliyor, ama "sürüyor" sanılması da yanlış olur.
-      JobStatus.interrupted => job.detail.isEmpty
-          ? context.t('jb.interrupted')
-          : context.t('jb.interrupted_detail', {'detail': job.detail}),
-      _ => job.detail.isEmpty ? context.t(job.status.labelKey) : job.detail,
-    };
+    final sub = subtitle(context);
     final elapsed = job.elapsed;
     // Kullanıcı isteği 2026-07-31: *"bir işlemin üzerine tıklayınca ilgili yere
     // götürsün"*. Eskiden kartın kendisi ölü bir kutuydu; yalnız çıktı dosyası
@@ -132,10 +323,6 @@ class _JobCard extends StatelessWidget {
     // yeniden başlatır (kullanıcı 2026-08-07: *"yarım kaldığında 'dokunun
     // devam etsin' çalışmıyor"* — kart "yeniden başlatmak için dokunun"
     // diyordu ama dokunuş yalnız klasöre gidiyordu).
-    final resumable = JobRecipes.canResume(job) &&
-        (job.status == JobStatus.interrupted ||
-            job.status == JobStatus.failed ||
-            job.status == JobStatus.cancelled);
     return Card(
       margin: const EdgeInsets.only(bottom: Gap.sm),
       child: InkWell(
@@ -176,7 +363,7 @@ class _JobCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: Gap.xs),
-            Text(subtitle, style: theme.textTheme.bodySmall),
+            Text(sub, style: theme.textTheme.bodySmall),
             if (job.status == JobStatus.running) ...[
               const SizedBox(height: Gap.sm),
               LiveProgress(
@@ -337,7 +524,8 @@ class _JobCard extends StatelessWidget {
 }
 
 /// İşlemler ekranını açar (alt şerit ve pano kutusu bunu çağırır).
+///
+/// 2026-11-04: İşlemler artık sekmeli merkez ([OperationsScreen]) — ilk sekme
+/// bu liste.
 Future<void> openJobsScreen(BuildContext context) =>
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const JobsScreen()),
-    );
+    OperationsScreen.open(context);

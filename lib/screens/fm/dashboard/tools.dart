@@ -61,7 +61,6 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
   /// (bkz. [_rankedTools]). Yeni bir araç listenin neresine yazılırsa, hiç
   /// dokunulmadığı sürece orada durur.
   List<FmTileData> _tools() {
-    final downloading = DownloadService.instance.activeTasks.length;
     final queue = JobQueue.instance;
     final runningJobs = queue.activeJobs.length;
     final finishedJobs = queue.finishedJobs.length;
@@ -83,7 +82,7 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
                 ? context.t('fm.jobs_finished', {'n': finishedJobs})
                 : ''),
         onTap: () async {
-          await HistoryScreen.open(context, HistorySection.jobs);
+          await OperationsScreen.open(context);
           if (mounted) _partSetState(() {});
         },
       ),
@@ -91,26 +90,6 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
       // kutusu Geçmiş'in İşlemler bölümünü açar.)
       // (Gizli dosyalar 2026-10-21'de Kasa'ya katıldı: gizlemek = şifreli
       // kasaya taşımak; eski gizliler Kasa ekranından taşınır.)
-      // **Aktar** (2026-10-21, Faz 2): Ağdan erişim, Yakındaki cihaz, Ağ
-      // depolama ve İndir dört ayrı kutuydu; tek kapı oldu. Alt yazı canlı:
-      // paylaşım açıksa ya da indirme sürüyorsa yazar.
-      FmTileData(
-        icon: FtpService.instance.running
-            ? AppIcons.hotspot
-            : AppIcons.swapHoriz,
-        color: AppHues.jade,
-        id: 'transfer',
-        label: context.t('xfer.title'),
-        subtitle: FtpService.instance.running
-            ? context.t('ftpd.running')
-            : (downloading > 0
-                ? context.t('fm.jobs_running', {'n': downloading})
-                : ''),
-        onTap: () async {
-          await _push(const TransferScreen());
-          if (mounted) _partSetState(() {});
-        },
-      ),
       // **Yeni belge** — boş Word/Excel/metin oluşturur. 2026-08-17'ye kadar
       // "Son belgeler" sekmesinin içindeydi; o sekme kullanıcı isteğiyle alt
       // gezinme çubuğundan kalkınca akış buraya alındı. Kaldırılan şey
@@ -122,22 +101,6 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
         label: context.t('home.new_document_title'),
         subtitle: '',
         onTap: () => showNewDocumentSheet(context),
-      ),
-      // (İndirilenler klasörü 2026-08-17'de buradan yukarıdaki BÜYÜK kutu
-      // ızgarasına, ilk sıraya taşındı. Buradaki "İndir" kutusu farklı bir
-      // şey: indirme YÖNETİCİSİ — süren indirmeler ve kuyruk.)
-      FmTileData(
-        icon: AppIcons.cleanEmpty,
-        color: AppHues.cyan,
-        id: 'free_space',
-        label: context.t('fm.free_space'),
-        // CANLI bilgi (2026-09-26): bu oturumda çözümleme yapıldıysa bulduğu
-        // toplam ("2,1 GB"). Yapılmadıysa boş — tahmin yazılmaz.
-        subtitle: switch (lastCleanupRecoverable()) {
-          final int bytes when bytes > 0 => FsPaths.humanSize(bytes),
-          _ => '',
-        },
-        onTap: () => _push(CleanupScreen(index: _index)),
       ),
       // Anılar 2026-10-29'da kaldırıldı (kullanıcı isteği: "anıları kaldır").
       // Sesli kitaplar (2026-10-22): belgeden üretilmiş, kayıtlı ses dosyaları.
@@ -163,16 +126,6 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
       // K8: "ayrı pano kutusu değil, AI Merkezi'nin alt bölümü".)
       // (Sohbet medyası ve Benzer görseller 2026-10-21'de Depolama
       // analizine — "Depolama merkezi" — taşındı.)
-      FmTileData(
-        icon: AppIcons.autoAwesomeMotion,
-        color: AppHues.violet,
-        id: 'organize',
-        label: context.t('fm.organize'),
-        subtitle: '',
-        onTap: () => _push(OrganizeScreen(
-          path: downloadsPathIn(FmEnv.primaryRoot) ?? FmEnv.primaryRoot,
-        )),
-      ),
       // (Uygulamalar 2026-08-27'de buradan yukarıdaki BÜYÜK kutu ızgarasına
       // taşındı — kullanıcı isteği, ekran görüntüsünde araç ızgarasındaki
       // simge işaretlenip kart ızgarasının boş kalan dördüncü hücresi
@@ -187,39 +140,18 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
       // 2026-07-31'de "çöp kutusunu bulmak çok zor" dedi. Araçlar ızgarası
       // küçük ve kartsız; 12 küçük simgenin arasında geri alma kapısının
       // kaybolması, silinen dosyayı kurtaramamak demekti.
-      // **Sohbet temizliği** araçlarda da (2026-10-23, kullanıcı: *"araçlar
-      // alanı en güçlü olduğumuz ve en sık kullanılacak şeylerle dolu
-      // başlamalı"*). WhatsApp yığını en çok yer açan tek iş; Yer aç'ın
-      // içinde iki dokunuş derindeydi. Alt yazı süren/biten taramanın özeti.
-      FmTileData(
-        icon: AppIcons.forum,
-        color: AppHues.green,
-        id: 'chat_cleanup',
-        label: context.t('cj.title'),
-        subtitle: switch (queue.find(ChatJunkLive.jobId)) {
-          final job? when job.status.isActive =>
-            context.t('fm.jobs_running', {'n': 1}),
-          final job? when job.result is ChatJunkReport =>
-            (job.result as ChatJunkReport).junkFiles == 0
-                ? ''
-                : FsPaths.humanSize((job.result as ChatJunkReport).junkBytes),
-          _ => '',
-        },
-        onTap: () => openChatCleanupScreen(context),
-      ),
     ];
     // **Varsayılan sıra = güç sırası** (2026-10-23): hiç dokunulmamış bir
     // kurulumda ızgara en çok işe yarayanla başlar; kullanım sayacı yine
     // üstüne biner ([_rankedTools]). İşlemler sona yakın: süren/biten işler
     // artık panonun en üstündeki bildirim alanında.
+    // 2026-11-04 (kullanıcı): Aktar alt panelde; Yer aç · Sohbet medyası ·
+    // Düzenle İşlemler ekranının sekmeleri oldu. Araçlar TEK satır: İşlemler
+    // başta, gerisi "Tümü"nde.
     const order = [
-      'free_space',
-      'chat_cleanup',
-      'transfer',
-      'vault',
-      'organize',
-      'new_document',
       'jobs',
+      'vault',
+      'new_document',
       'audiobooks',
     ];
     int rank(FmTileData t) {

@@ -14,6 +14,7 @@ import 'chat_junk_bucket_screen.dart';
 import 'similar_screen.dart';
 import '../../core/safe_insets.dart';
 import 'smart_cleanup_screen.dart';
+import '../../widgets/embedded_toolbar.dart';
 
 /// **Sohbet medyası temizliği** — "WhatsApp'tan 10 bin fotoğraf var, %90'ı
 /// gereksiz" sorusunun karşılığı (kullanıcı 2026-07-31).
@@ -27,7 +28,9 @@ import 'smart_cleanup_screen.dart';
 /// karesi" oluyor ve onu ancak görüntüyü çözen bir tarama bulabilir. Ekranın
 /// altında **Benzer görüntüler** taramasına (WhatsApp kapsamıyla) bir kapı var.
 class ChatCleanupScreen extends StatefulWidget {
-  const ChatCleanupScreen({super.key});
+  /// İşlemler merkezinin sekmesi mi? (bkz. `OperationsScreen`)
+  final bool embedded;
+  const ChatCleanupScreen({super.key, this.embedded = false});
 
   @override
   State<ChatCleanupScreen> createState() => _ChatCleanupScreenState();
@@ -126,20 +129,25 @@ class _ChatCleanupScreenState extends State<ChatCleanupScreen> {
     setState(() {});
   }
 
+  Widget _rescanButton() => IconButton(
+        tooltip: context.t('cj.rescan'),
+        icon: const Icon(AppIcons.refresh),
+        onPressed: _loading ? null : _scan,
+      );
+
   @override
   Widget build(BuildContext context) {
     final report = _report;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(context.t('cj.title')),
-        actions: [
-          IconButton(
-            tooltip: context.t('cj.rescan'),
-            icon: const Icon(AppIcons.refresh),
-            onPressed: _loading ? null : _scan,
-          ),
-        ],
-      ),
+      appBar: widget.embedded
+          ? EmbeddedToolbar(
+              title: context.t('cj.title'),
+              actions: [_rescanButton()],
+            )
+          : AppBar(
+              title: Text(context.t('cj.title')),
+              actions: [_rescanButton()],
+            ),
       body: ListView(
         padding: withNavInset(
             context, const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl)),

@@ -19,6 +19,7 @@ import '../../widgets/motion.dart';
 import '../../core/safe_insets.dart';
 import '../../core/user_error.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/embedded_toolbar.dart';
 
 /// **Otomatik düzenle** — dağınık bir klasörü tek dokunuşla türe/tarihe/kaynağa
 /// göre alt klasörlere ayırır.
@@ -33,7 +34,10 @@ import '../../widgets/app_dialog.dart';
 class OrganizeScreen extends StatefulWidget {
   /// Düzenlenecek klasör.
   final String path;
-  const OrganizeScreen({super.key, required this.path});
+
+  /// İşlemler merkezinin sekmesi mi? (bkz. `OperationsScreen`)
+  final bool embedded;
+  const OrganizeScreen({super.key, required this.path, this.embedded = false});
 
   @override
   State<OrganizeScreen> createState() => _OrganizeScreenState();
@@ -134,11 +138,23 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
     await _load();
   }
 
+  Widget _openFolderButton() => IconButton(
+        tooltip: context.t('org.open_folder'),
+        icon: const Icon(AppIcons.emptyFolder),
+        onPressed: () => Navigator.of(context)
+            .push(browserRoute(BrowserScreen(path: widget.path))),
+      );
+
   @override
   Widget build(BuildContext context) {
     final plan = _plan;
     return Scaffold(
-      appBar: AppBar(
+      appBar: widget.embedded
+          ? EmbeddedToolbar(
+              title: '${context.t('org.title')} · ${p.basename(widget.path)}',
+              actions: [_openFolderButton()],
+            )
+          : AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -148,14 +164,7 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
                 style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
-        actions: [
-          IconButton(
-            tooltip: context.t('org.open_folder'),
-            icon: const Icon(AppIcons.emptyFolder),
-            onPressed: () => Navigator.of(context).push(browserRoute(BrowserScreen(path: widget.path),
-            )),
-          ),
-        ],
+        actions: [_openFolderButton()],
       ),
       body: _loading
           ? const FmListSkeleton()

@@ -15,9 +15,8 @@ import '../../core/app_state.dart';
 import '../../core/device_profile.dart';
 import '../../core/startup_queue.dart';
 import '../../core/theme.dart';
+import '../../core/motion.dart';
 import '../../models/fs_entry.dart';
-import '../../services/fm/chat_junk.dart';
-import '../../services/fm/download_service.dart';
 import '../../services/fm/ai_index.dart';
 import '../../services/fm/app_storage_service.dart';
 import '../../services/fm/fm_env.dart';
@@ -43,6 +42,7 @@ import '../../widgets/crash_notice.dart';
 import '../../widgets/fm/fm_category_tile.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/smart_inbox.dart';
+import '../../widgets/fm/home_quick_row.dart';
 import '../../widgets/new_document_sheet.dart';
 import '../../widgets/section_header.dart';
 import '../../services/fm/entry_opener.dart';
@@ -52,10 +52,8 @@ import '../audiobook/audiobook_library_screen.dart';
 import 'analysis_screen.dart';
 import 'history_screen.dart';
 import 'remote/ftp_server_screen.dart';
-import 'transfer_screen.dart';
 import 'browser_screen.dart';
 import 'category_screen.dart';
-import 'chat_cleanup_screen.dart';
 import 'cleanup_screen.dart';
 import 'downloads_screen.dart';
 import 'drive_screen.dart';
@@ -68,7 +66,7 @@ import '../../services/fm/dashboard_layout.dart';
 import '../../widgets/fm/dashboard_layout_sheet.dart';
 import 'ai_hub_screen.dart';
 import '../../widgets/fm/ai_status_icon.dart';
-import 'organize_screen.dart';
+import 'operations_screen.dart';
 import 'photos_screen.dart';
 import 'search_screen.dart';
 import 'tools_screen.dart';
@@ -179,6 +177,31 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
   bool _hasAccess = true;
+
+  /// Arama kapsülündeki AI anahtarı (anlamla ara) — kalıcı.
+  bool _meaning = false;
+  static const _meaningKey = 'dash_meaning_search_v1';
+
+  Future<void> _loadMeaning() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final on = prefs.getBool(_meaningKey) ?? false;
+      if (mounted && on != _meaning) setState(() => _meaning = on);
+    } catch (_) {
+      // Bilinçli: okunamazsa anahtar kapalı başlar.
+    }
+  }
+
+  Future<void> _toggleMeaning() async {
+    setState(() => _meaning = !_meaning);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_meaningKey, _meaning);
+    } catch (_) {
+      // Bilinçli: kayıt yazılamazsa yalnız bu oturumda geçerli kalır.
+    }
+  }
+
   int _trashCount = 0;
   final Map<String, int> _folderSizes = {};
 
@@ -196,6 +219,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   void initState() {
     super.initState();
     unawaited(_recallScanDuration());
+    unawaited(_loadMeaning());
     WidgetsBinding.instance.addObserver(this);
     FsEvents.version.addListener(_onFsChanged);
     // AI kartı analiz sayısını gösteriyor; indeks diskten okunmadan sayı 0
@@ -366,115 +390,16 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     return Scaffold(
       appBar: AppBar(
-        // **Üst bilgi + arama TEK satır** (2026-11-04, kullanıcı: *"ara satırı
-        // ile üst bilgi satırını birleştir, ayarlar vs olan yer aramayla
-        // beraber tek satır olsun"*). "Dosyalar" başlığı alt çubukta zaten
-        // yazıyor; arama kutusu başlığın yerini aldı, ~52 dp kazanıldı.
-        titleSpacing: Gap.md,
-        toolbarHeight: 60,
-        title: InkWell(
-              borderRadius: BorderRadius.circular(Radii.control),
-              // Kök YOK = tüm depolama (SD kart ve USB dahil). Eskiden
-              // `FmEnv.primaryRoot` geçiliyordu; kutuda "Tüm dosyalarda ara"
-              // yazmasına rağmen SD karttaki dosyalar hiç bulunmuyordu.
-              onTap: () => _push(SearchScreen(
-                rootLabel: context.t('fm.all_files'),
-              )),
-              child: Container(
-                height: 44,
-                padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(Radii.control),
-                  border: Border.all(color: scheme.outlineVariant),
-                ),
-                child: Row(
-                  children: [
-                    Icon(AppIcons.search,
-                        size: 20, color: scheme.onSurfaceVariant),
-                    const SizedBox(width: Gap.sm),
-                    Expanded(
-                      child: Text(
-                        context.t('fm.search_all'),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(color: Paper.faint(context)),
-                      ),
-                    ),
-                    // **Anlamla ara (AI)** (2026-10-23, kullanıcı: *"tüm
-                    // dosyalarda ara seçeneğine anlam ile ara AI butonu
-                    // gelmeli"*) — kutunun içinde, tek dokunuş.
-                    Tooltip(
-                      message: context.t('srch.meaning'),
-                      child: Material(
-                        color: scheme.primaryContainer,
-                        shape: const StadiumBorder(),
-                        child: InkWell(
-                          key: const ValueKey('dash-meaning-search'),
-                          customBorder: const StadiumBorder(),
-                          onTap: () => _push(SearchScreen(
-                            rootLabel: context.t('fm.all_files'),
-                            meaning: true,
-                          )),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 5),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(AppIcons.ai,
-                                    size: 16,
-                                    color: scheme.onPrimaryContainer),
-                                const SizedBox(width: 4),
-                                Text(
-                                  context.t('srch.meaning_short'),
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .labelMedium
-                                      ?.copyWith(
-                                          color: scheme.onPrimaryContainer,
-                                          fontWeight: FontWeight.w600),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        actions: [
-          // AI Merkezi (2026-09-27: alt çubuktaki AI sekmesi kalktı, kapısı
-          // burada — analiz halkası ve öneri rozetiyle).
-          IconButton(
-            visualDensity: VisualDensity.compact,
-            tooltip: context.t('aih.title'),
-            icon: const AiStatusIcon(),
-            onPressed: () => _push(const AiHubScreen()),
-          ),
-          IconButton(
-            visualDensity: VisualDensity.compact,
-            tooltip: context.t('common.rescan'),
-            icon: const Icon(AppIcons.refresh),
-            onPressed: _scanning ? null : _scan,
-          ),
-          IconButton(
-            // Ayrı bir "dosya yöneticisi ayarları" ekranı KALMADI (2026-08-09):
-            // ayarlar tek ekranda, sekiz kategoride toplandı.
-            visualDensity: VisualDensity.compact,
-            tooltip: context.t('common.settings'),
-            icon: const Icon(AppIcons.settings),
-            onPressed: () async {
-              await _push(const SettingsScreen());
-              if (mounted) await _loadTrash();
-            },
-          ),
-        ],
+        // **Üst satır = tek arama kapsülü** (2026-11-04, kullanıcı: *"arama
+        // çubuğu en sağa kadar genişlesin, oradaki butonları içine alsın;
+        // anlamla yazan şey açılıp kapanır AI işaretli bir buton olsun"*).
+        // Kapsül yumuşak gölgeyle zeminden ayrılır; AI Merkezi · yenile ·
+        // ayarlar kapsülün sağ ucunda ince bir kümede. AI anahtarı açıksa
+        // ipucu "Anlamla ara…" der ve dokunuş anlamla aramayı açar.
+        titleSpacing: Gap.md - 4,
+        toolbarHeight: 64,
+        automaticallyImplyLeading: false,
+        title: _searchCapsule(scheme),
       ),
       body: RefreshIndicator(
         onRefresh: _scan,
@@ -516,12 +441,22 @@ class _DashboardScreenState extends State<DashboardScreen>
             // hızlı klasörler — her biri gizlenebilir.
             ..._sectionsLaidOut(volumes, appState),
             const SizedBox(height: Gap.lg),
-            Center(
-              child: TextButton.icon(
-                onPressed: _editLayout,
-                icon: const Icon(AppIcons.dashboardCustomize, size: 18),
-                label: Text(context.t('dash.title')),
-              ),
+            Wrap(
+              alignment: WrapAlignment.center,
+              children: [
+                TextButton.icon(
+                  onPressed: _editLayout,
+                  icon: const Icon(AppIcons.dashboardCustomize, size: 18),
+                  label: Text(context.t('dash.title')),
+                ),
+                // Alt panelin iki ek düğmesi (panele basılı tutmak da açar).
+                TextButton.icon(
+                  key: const ValueKey('dash-edit-dock'),
+                  onPressed: () => showDockEditor(context),
+                  icon: const Icon(AppIcons.tune, size: 18),
+                  label: Text(context.t('dock.edit_title')),
+                ),
+              ],
             ),
             if (_cachedAtMs > 0) ...[
               const SizedBox(height: Gap.lg),
@@ -541,6 +476,159 @@ class _DashboardScreenState extends State<DashboardScreen>
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _searchCapsule(ColorScheme scheme) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    Widget trayButton({
+      required Key key,
+      required String tooltip,
+      required Widget icon,
+      VoidCallback? onPressed,
+    }) =>
+        IconButton(
+          key: key,
+          tooltip: tooltip,
+          onPressed: onPressed,
+          icon: icon,
+          iconSize: 21,
+          color: scheme.onSurfaceVariant,
+          visualDensity: VisualDensity.compact,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints.tightFor(width: 40, height: 44),
+        );
+    // Kök YOK = tüm depolama (SD kart ve USB dahil). Eskiden
+    // `FmEnv.primaryRoot` geçiliyordu; kutuda "Tüm dosyalarda ara" yazmasına
+    // rağmen SD karttaki dosyalar hiç bulunmuyordu.
+    void openSearch() => _push(SearchScreen(
+          rootLabel: context.t('fm.all_files'),
+          meaning: _meaning,
+        ));
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: dark ? scheme.surfaceContainerHigh : scheme.surface,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: dark ? 0.6 : 0.45)),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.shadow.withValues(alpha: dark ? 0.30 : 0.07),
+            blurRadius: 14,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          key: const ValueKey('dash-search'),
+          borderRadius: BorderRadius.circular(26),
+          onTap: openSearch,
+          child: SizedBox(
+            height: 50,
+            child: Row(
+              children: [
+                const SizedBox(width: Gap.md - 2),
+                Icon(AppIcons.search, size: 20, color: scheme.onSurfaceVariant),
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: Motion.short,
+                    child: Text(
+                      context.t(_meaning ? 'srch.hint_ai' : 'fm.search_all'),
+                      key: ValueKey(_meaning),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                          color: _meaning
+                              ? scheme.primary
+                              : Paper.faint(context)),
+                    ),
+                  ),
+                ),
+                // **AI anahtarı** (anlamla ara): açıkken renkli kapsül,
+                // kapalıyken sade çizgi simge. Durum ipucu metninde yazar.
+                Semantics(
+                  toggled: _meaning,
+                  child: Tooltip(
+                    message: context.t(_meaning
+                        ? 'srch.ai_toggle_on'
+                        : 'srch.ai_toggle_off'),
+                    child: InkResponse(
+                      key: const ValueKey('dash-meaning-search'),
+                      onTap: _toggleMeaning,
+                      radius: 24,
+                      child: SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: Center(
+                          child: AnimatedContainer(
+                            duration: Motion.short,
+                            width: 34,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              gradient: _meaning
+                                  ? LinearGradient(colors: [
+                                      AppHues.violet,
+                                      scheme.primary,
+                                    ])
+                                  : null,
+                              border: _meaning
+                                  ? null
+                                  : Border.all(color: scheme.outlineVariant),
+                            ),
+                            child: Icon(AppIcons.ai,
+                                size: 16,
+                                color: _meaning
+                                    ? scheme.onPrimary
+                                    : scheme.onSurfaceVariant),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  height: 22,
+                  child: VerticalDivider(
+                      width: Gap.sm + 1,
+                      thickness: 1,
+                      color: scheme.outlineVariant),
+                ),
+                // İnce küme: AI Merkezi (öneri varsa küçük kırmızı nokta),
+                // yenile, ayarlar.
+                trayButton(
+                  key: const ValueKey('dash-ai-hub'),
+                  tooltip: context.t('aih.title'),
+                  icon: const AiStatusIcon(dot: true),
+                  onPressed: () => _push(const AiHubScreen()),
+                ),
+                trayButton(
+                  key: const ValueKey('dash-rescan'),
+                  tooltip: context.t('common.rescan'),
+                  icon: const Icon(AppIcons.refresh),
+                  onPressed: _scanning ? null : _scan,
+                ),
+                // Ayrı bir "dosya yöneticisi ayarları" ekranı KALMADI
+                // (2026-08-09): ayarlar tek ekranda.
+                trayButton(
+                  key: const ValueKey('dash-settings'),
+                  tooltip: context.t('common.settings'),
+                  icon: const Icon(AppIcons.settings),
+                  onPressed: () async {
+                    await _push(const SettingsScreen());
+                    if (mounted) await _loadTrash();
+                  },
+                ),
+                const SizedBox(width: Gap.xs),
+              ],
+            ),
+          ),
         ),
       ),
     );

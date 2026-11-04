@@ -13,7 +13,11 @@ import '../../core/app_icons.dart';
 /// * ikisi de yoksa düz simge (gürültü yok).
 class AiStatusIcon extends StatelessWidget {
   final bool selected;
-  const AiStatusIcon({super.key, this.selected = false});
+
+  /// Öneri sayısı yerine küçük kırmızı nokta (pano kapsülü, 2026-11-04:
+  /// sayı göz yoruyordu).
+  final bool dot;
+  const AiStatusIcon({super.key, this.selected = false, this.dot = false});
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +47,7 @@ class AiStatusIcon extends StatelessWidget {
             );
           }
           if (pending <= 0) return icon;
+          if (dot) return Badge(smallSize: 7, child: icon);
           return Badge(
             label: Text('$pending'),
             child: icon,

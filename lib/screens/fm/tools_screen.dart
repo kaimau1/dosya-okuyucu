@@ -48,4 +48,10 @@ abstract final class DashboardTools {
   /// Panoda gösterilecek ilk araçlar; [all] zaten kullanım sırasında.
   static List<T> head<T>(List<T> all) =>
       all.length <= visible ? all : all.sublist(0, visible);
+
+  /// Panonun TEK araç satırı (2026-11-04): telefonda dört sütun = dört araç.
+  static const rowLength = 4;
+
+  static List<T> row<T>(List<T> all) =>
+      all.length <= rowLength ? all : all.sublist(0, rowLength);
 }
