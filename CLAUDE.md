@@ -1,10 +1,13 @@
 # Dosya Okuyucu — Çalışma Kuralları (CLAUDE.md)
 
 ## Hafıza (usta koordineli — 3 katman)
-- Kod yapısı        → `graphify-out/`   (oku: `GRAPH_REPORT.md` · güncelle: `graphify update .` — API maliyeti yok)
-- Proje ne/niye     → `HAFIZA.md`       (oku: iş başı · yaz: iş sonu karar/bug-kök/tuzak, tarihli append-only)
+- Kod yapısı        → `graphify-out/`   (oku: `GRAPH_REPORT.md`'yi BAŞTAN SONA OKUMA, konuya göre `grep` · güncelle: `graphify update .` — API maliyeti yok)
+- Proje ne/niye     → `HAFIZA.md`       (oku: iş başı YALNIZ son ~30 satır, gerisi + `docs/hafiza/` konuya göre `grep` · yaz: iş sonu karar/bug-kök/tuzak, tarihli append-only)
   (HAFIZA.md = dizin; eski tarihli kayıtlar `docs/hafiza/YYYY-MM.md` — gerekince ara; ~600 satırı geçince `python tool/hafiza_arsivle.py`)
 - Kullanıcı tercihi → `.claude memory/` (otomatik, projeler-arası — proje bilgisi buraya YAZILMAZ)
+
+**Token tasarrufu (2026-11-04, kullanıcı kararı):** dosyaları tümüyle değil gereken kısmıyla oku;
+yerel test yok (§4); kullanıcıya yanıtlar KISA — ne yapıldı + gerekirse tek soru, uzun özet/rapor yazma.
 
 Yaz kuralı: usta rule 12 / YAZ — kalıcı karar, bug kök nedeni veya yanlış çıkan yol oluştuysa
 iş bitmeden HAFIZA.md'ye yaz. KVKK: hasta verisi / TC / ölçüm / token yazma.
