@@ -75,11 +75,21 @@ bellek yoklaması 15 sn (P6), hafif profilde 120 Hz/otomatik tarama/nabız kapal
 **Bitti ölçütü:** ekran görüntüsünde 4 sıra kutu + araç satırı + alt panel kayma yok.
 
 ## Faz 35 — Pro belge tarayıcı (en büyük kullanıcı değeri)
-Karar önerisi (👤 onay): **ML Kit `GmsDocumentScanner`'ı doğrudan kullan** (Kotlin köprüsü,
+**KARAR (kullanıcı onayladı, 2026-11-04): ML Kit geçişi Faz 35'in ilk adımıdır; kullanıcı başlatacak.**
+Karar: **ML Kit `GmsDocumentScanner`'ı doğrudan kullan** (Kotlin köprüsü,
 `ci/` yaması) — `cunning_document_scanner`'ı bırak. Gerekçe: sonuç olarak **PDF + JPEG**
 birlikte döner, **canlı kenar + otomatik çekim + parmak/gölge/leke silme + otomatik
 döndürme** Google'da hazır; sayfa sınırı, galeri içe aktarma, kip (BASE / BASE_WITH_FILTER /
 FULL) seçilebilir. Bizim katman: OCR, sıkıştırma, adlandırma, saklama.
+0. **ML Kit geçişi (ilk adım, ayrı commit):** `ci/` altında Kotlin köprüsü (`GmsDocumentScanner`,
+   `play-services-mlkit-document-scanner`; MethodChannel `scan.start` → PDF + JPEG yolları),
+   `ci/prepare_android.sh` yaması + `tool/check_kotlin.sh` uyumu; Dart'ta `DocumentScanner.scanPages`
+   yeni köprüye bağlanır, `cunning_document_scanner` pubspec'ten çıkar (bu ayrıca `permission_handler`
+   ^13 engelini kaldırır — A3.4b). Play Services yoksa/ hata olursa **eski yedek akış** (galeriden
+   içe aktar + elle kırpma, `scan_edit_screen`) devreye girer. Bayrak: `scan_engine_v2` (kapalıyken
+   eski yol). R8 kuralı + `.r8test` A/B; APK boyutu bütçesi; 16 KB denetimi. Perf: tarayıcı
+   ilk kullanımda kurulur, açılışta yok; sonuç JPEG'leri `cacheWidth` ile gösterilir.
+   **Bitti:** cihazda tara → PDF; Play Services'siz cihazda yedek akış; CI yeşil.
 1. **Belge türü kipleri** (tara ekranında hap seçici): Belge · Kimlik/Ehliyet (ön+arka tek A4)
    · Kitap (çift sayfa → 2 sayfaya böl) · Makbuz/Fiş (uzun, ince) · Beyaz tahta · Kartvizit
    (OCR → kişi) · Fotoğraf. Her kip filtre/kırpma varsayılanını belirler.

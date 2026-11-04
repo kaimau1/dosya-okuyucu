@@ -285,4 +285,4 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Plan genişletildi (aynı gün, kullanıcı: "performans düzeltmelerini bozma"):** `GELISTIRME_PLANI.md`
   başına 10 maddelik PERFORMANS KORUMA ANAYASASI (izolat, tembel yükleme, PerfBudget, boşta 0 kare,
   APK bütçesi, faz sonu A/B tablosu, özellik bayrağı, büyük dosya tavanı) + her faza ek maddeler.
-
+- **KARAR 2026-11-04:** belge tarayıcı ML Kit `GmsDocumentScanner`a doğrudan geçecek (Faz 35 adım 0, bayrak `scan_engine_v2`, yedek akış korunur); kullanıcı başlatacak.

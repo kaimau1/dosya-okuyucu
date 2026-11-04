@@ -139,6 +139,7 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
 Ayrıntı ve bitti ölçütleri: **`docs/GELISTIRME_PLANI.md`** (Faz 34–42: pano cilası ·
 pro belge tarayıcı · Excel · Word · Slayt · PDF · ortak görünüm · dosya yöneticisi · kalite).
 **Her faz `GELISTIRME_PLANI.md` baştaki PERFORMANS KORUMA ANAYASASI'na uyar** (izolat, tembel yükleme, PerfBudget, boşta 0 kare, perf kapısı + A/B tablo).
+Faz 35'in ilk adımı **ML Kit geçişi** (onaylandı; kullanıcı başlatacak).
 Önerilen sıra: 34 → 35 → 39 → 36 → 37 → 38 → 40 → 41 → 42. Faz 34'ün kod kısmı bitti;
 kalan: cihazda doğrulama + sekme/ayar sadeleştirme.
 
