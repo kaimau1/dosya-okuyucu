@@ -367,7 +367,7 @@ class FmCategoryGrid extends StatelessWidget {
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: columns,
-              childAspectRatio: 0.86,
+              childAspectRatio: 0.94,
               mainAxisSpacing: Gap.xs,
               crossAxisSpacing: Gap.xs,
             ),

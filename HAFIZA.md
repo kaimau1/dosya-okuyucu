@@ -269,3 +269,17 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - Tuzak: tasarım tokenı bekçisi (`design_tokens_test`) yeni dosyada `Color(0x`, `fontSize:`,
   `Duration(milliseconds:`, `showModalBottomSheet` tavanı 0 → `AppHues`, `context.type`, `Motion`,
   `showAppSheet` kullan. Cihazda doğrulanmadı.
+
+## 2026-11-04 — Pano cilası 2 + Geliştirme planı (Faz 34–42)
+- **Alt gezinme çubuğu (NavigationBar) KALDIRILDI** (kullanıcı: "en alt satırı kaldır dediydim"):
+  `home_screen.dart` yalnız pano'da `BottomDock([HomeQuickRow])` çizer; öteki sekmelere (Yeni
+  Dosyalar, Geçmiş…) panodaki kutular/ek düğmelerle gidilir. `NavTabs` altyapısı duruyor (temizlik Faz 34).
+- **Hızlı sıra simetrik:** Aktar ortada, iki yanda eşit yuva (eksik yana `Spacer`); sağ ek düğme
+  varsayılanı `free_space` (pref yoksa); "yok" seçimi artık `''` saklanır (null = hiç seçilmedi).
+  Dock'a `SafeArea(top:false)` (gezinme çubuğu kalkınca sistem çubuğu payı).
+- **Simgeler sadeleşti:** parlama kalktı, gölge alpha 0.24→0.09, zemin daha açık/düz, nesne
+  gradyanı yumuşak. Araç başlığı üst boşluğu Gap.lg→sm, çerçeve dikey boşluk azaldı, kutu oranı 0.94.
+- **Plan:** `docs/GELISTIRME_PLANI.md` (Faz 34–42), `KALANLAR.md` Faz C. Tarayıcı önerisi: ML Kit
+  `GmsDocumentScanner` doğrudan (PDF+JPEG, canlı kenar, otomatik çekim) — kullanıcı onayı bekler.
+- Cihazda/CI'da doğrulanmadı (yerel test yok, CLAUDE.md §4).
+

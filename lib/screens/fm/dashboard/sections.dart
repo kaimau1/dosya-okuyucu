@@ -9,7 +9,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
     final scheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      padding: const EdgeInsets.all(Gap.sm),
+      padding: const EdgeInsets.symmetric(vertical: Gap.xs, horizontal: Gap.sm),
       decoration: BoxDecoration(
         // Kağıt tokenlarından (elle hex yazılmıyor — 2026-08-17'de kağıt
         // beyazlatılınca bu iki hex geride kalıp kutuyu sararmış gösterdi).
@@ -185,8 +185,10 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
                             child: Text(context.t(
                                 'fm.all_tools', {'n': tools.length})),
                           ),
+                    // Çizgi yukarı çekildi (2026-11-04): tüm araç satırı
+                    // alt panelin üstünde tek seferde görünsün.
                     padding: const EdgeInsets.only(
-                        top: Gap.lg, bottom: Gap.sm)),
+                        top: Gap.sm, bottom: Gap.xs)),
                 _toolFrame(FmToolGrid(tools: shown)),
               ],
             );

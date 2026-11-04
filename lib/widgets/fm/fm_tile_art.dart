@@ -86,8 +86,8 @@ class _SquirclePainter extends CustomPainter {
     required this.art,
   });
 
-  Color get _light => Color.lerp(color, AppColors.mixLight, 0.38)!;
-  Color get _deep => Color.lerp(color, AppColors.mixDark, 0.22)!;
+  Color get _light => Color.lerp(color, AppColors.mixLight, 0.18)!;
+  Color get _deep => Color.lerp(color, AppColors.mixDark, 0.10)!;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -99,19 +99,19 @@ class _SquirclePainter extends CustomPainter {
 
     // Gölge: renkli, yumuşak, biraz aşağıda.
     canvas.drawPath(
-      path.shift(Offset(0, s * 0.07)),
+      path.shift(Offset(0, s * 0.04)),
       Paint()
-        ..color = color.withValues(alpha: dark ? 0.30 : 0.24)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, s * 0.08),
+        ..color = color.withValues(alpha: dark ? 0.16 : 0.09)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, s * 0.06),
     );
 
     // Zemin: kutunun renginin çok açık tonu, üstten alta koyulaşan.
     final top = dark
         ? Color.lerp(color, AppColors.mixDark, 0.55)!
-        : Color.lerp(color, AppColors.mixLight, 0.86)!;
+        : Color.lerp(color, AppColors.mixLight, 0.90)!;
     final bottom = dark
         ? Color.lerp(color, AppColors.mixDark, 0.68)!
-        : Color.lerp(color, AppColors.mixLight, 0.72)!;
+        : Color.lerp(color, AppColors.mixLight, 0.84)!;
     canvas.drawPath(
       path,
       Paint()
@@ -121,28 +121,13 @@ class _SquirclePainter extends CustomPainter {
           colors: [top, bottom],
         ).createShader(rect),
     );
-    // Üst parlama + ince kenar.
-    canvas.save();
-    canvas.clipPath(path);
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, s, s * 0.5),
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            AppColors.mixLight.withValues(alpha: dark ? 0.08 : 0.45),
-            AppColors.mixLight.withValues(alpha: 0),
-          ],
-        ).createShader(Rect.fromLTWH(0, 0, s, s * 0.5)),
-    );
-    canvas.restore();
+    // Sade: parlama yok, yalnız ince kenar.
     canvas.drawPath(
       path,
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = math.max(0.8, s * 0.018)
-        ..color = color.withValues(alpha: dark ? 0.35 : 0.18),
+        ..color = color.withValues(alpha: dark ? 0.25 : 0.10),
     );
 
     final a = art;
@@ -182,7 +167,7 @@ class _SquirclePainter extends CustomPainter {
   void _softShadow(Canvas c, RRect r) => c.drawRRect(
         r.shift(const Offset(0, 0.035)),
         Paint()
-          ..color = AppColors.shade.withValues(alpha: 0.18)
+          ..color = AppColors.shade.withValues(alpha: 0.08)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 0.025),
       );
 
@@ -342,7 +327,7 @@ class _SquirclePainter extends CustomPainter {
     c.drawPath(
       page.shift(const Offset(0, 0.03)),
       Paint()
-        ..color = AppColors.shade.withValues(alpha: 0.18)
+        ..color = AppColors.shade.withValues(alpha: 0.08)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 0.025),
     );
     c.drawPath(page, _white);
@@ -401,7 +386,7 @@ class _SquirclePainter extends CustomPainter {
     c.drawPath(
       arrow.shift(const Offset(0, 0.03)),
       Paint()
-        ..color = AppColors.shade.withValues(alpha: 0.18)
+        ..color = AppColors.shade.withValues(alpha: 0.08)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 0.025),
     );
     c.drawPath(arrow, _fill(const Rect.fromLTWH(0.34, 0.2, 0.32, 0.45)));

@@ -73,69 +73,74 @@ class HomeQuickRow extends StatelessWidget {
       child: GestureDetector(
         onLongPress: () => showDockEditor(context),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(Gap.sm, Gap.xs + 2, Gap.sm, 0),
+          padding: const EdgeInsets.fromLTRB(Gap.sm, Gap.xs + 2, Gap.sm, Gap.xs),
           child: SizedBox(
             height: 52,
             child: ValueListenableBuilder<(String?, String?)>(
               valueListenable: DockExtras.value,
-              builder: (context, extras, _) => Row(
-                children: [
+              builder: (context, extras, _) {
+                // **Simetri:** Aktar tam ortada; iki yanda eşit sayıda,
+                // eşit genişlikte yuva. Bir yan eksikse boş yuva konur —
+                // yoksa Aktar kayıyor, öğeler düzensiz aralanıyordu.
+                final left = <Widget>[
+                  ..._extra(context, extras.$1, 'left'),
                   Expanded(
-                    child: Row(
-                      children: [
-                        ..._extra(context, extras.$1, 'left'),
-                        Expanded(
-                            child: ValueListenableBuilder<int>(
-                          valueListenable: DashboardScreen.trashCount,
-                          builder: (context, n, _) => _DockItem(
-                            key: const ValueKey('dock-trash'),
-                            icon: AppIcons.delete,
-                            label: context.t('dock.trash'),
-                            semantics: n > 0
-                                ? '${context.t('fm.trash')} · '
-                                    '${context.t('fm.trash_count', {'n': n})}'
-                                : context.t('fm.trash'),
-                            color: n > 0 ? _trashFull : null,
-                            count: n,
-                            onTap: () => _openTrash(context),
-                          ),
-                        )),
-                        Expanded(
-                            child: _DockItem(
-                          key: const ValueKey('dock-drive'),
-                          icon: AppIcons.cloud,
-                          label: context.t('dock.drive'),
-                          semantics: context.t('drive.title'),
-                          onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                  builder: (_) => const DriveScreen())),
-                        )),
-                      ],
+                      child: ValueListenableBuilder<int>(
+                    valueListenable: DashboardScreen.trashCount,
+                    builder: (context, n, _) => _DockItem(
+                      key: const ValueKey('dock-trash'),
+                      icon: AppIcons.delete,
+                      label: context.t('dock.trash'),
+                      semantics: n > 0
+                          ? '${context.t('fm.trash')} · '
+                              '${context.t('fm.trash_count', {'n': n})}'
+                          : context.t('fm.trash'),
+                      color: n > 0 ? _trashFull : null,
+                      count: n,
+                      onTap: () => _openTrash(context),
                     ),
-                  ),
-                  _TransferButton(
-                    key: const ValueKey('dock-transfer'),
-                    label: context.t('xfer.title'),
+                  )),
+                  Expanded(
+                      child: _DockItem(
+                    key: const ValueKey('dock-drive'),
+                    icon: AppIcons.cloud,
+                    label: context.t('dock.drive'),
+                    semantics: context.t('drive.title'),
                     onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => const TransferScreen())),
-                  ),
+                        builder: (_) => const DriveScreen())),
+                  )),
+                ];
+                final right = <Widget>[
                   Expanded(
-                    child: Row(
-                      children: [
-                        Expanded(
-                            child: _DockItem(
-                          key: const ValueKey('dock-scan'),
-                          icon: AppIcons.ocr,
-                          label: context.t('dock.scan'),
-                          semantics: context.t('fm.scan_document'),
-                          onTap: () => ScanFlow.run(context),
-                        )),
-                        ..._extra(context, extras.$2, 'right'),
-                      ],
+                      child: _DockItem(
+                    key: const ValueKey('dock-scan'),
+                    icon: AppIcons.ocr,
+                    label: context.t('dock.scan'),
+                    semantics: context.t('fm.scan_document'),
+                    onTap: () => ScanFlow.run(context),
+                  )),
+                  ..._extra(context, extras.$2, 'right'),
+                ];
+                while (right.length < left.length) {
+                  right.add(const Spacer());
+                }
+                while (left.length < right.length) {
+                  left.insert(0, const Spacer());
+                }
+                return Row(
+                  children: [
+                    Expanded(flex: left.length, child: Row(children: left)),
+                    _TransferButton(
+                      key: const ValueKey('dock-transfer'),
+                      label: context.t('xfer.title'),
+                      onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const TransferScreen())),
                     ),
-                  ),
-                ],
-              ),
+                    Expanded(flex: right.length, child: Row(children: right)),
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -305,7 +310,8 @@ abstract final class DockExtras {
   static const _rightKey = 'dock_extra_right_v1';
 
   /// (sol, sağ) — null = yok.
-  static final value = ValueNotifier<(String?, String?)>((null, null));
+  static final value =
+      ValueNotifier<(String?, String?)>((null, 'free_space'));
   static Future<void>? _loading;
 
   /// Seçilebilen düğmeler (sıra = düzenleme sayfasındaki sıra).
@@ -324,12 +330,15 @@ abstract final class DockExtras {
   static Future<void> ensureLoaded() => _loading ??= () async {
         try {
           final prefs = await SharedPreferences.getInstance();
-          String? read(String key) {
+          String? read(String key, {String? fallback}) {
+            // Hiç seçilmemişse varsayılan; "yok" seçimi '' diye saklanır.
+            if (!prefs.containsKey(key)) return fallback;
             final v = prefs.getString(key);
             return ids.contains(v) ? v : null;
           }
 
-          value.value = (read(_leftKey), read(_rightKey));
+          value.value =
+              (read(_leftKey), read(_rightKey, fallback: 'free_space'));
         } catch (_) {
           // Bilinçli: okunamazsa ek düğme yok.
         }
@@ -342,7 +351,7 @@ abstract final class DockExtras {
       final prefs = await SharedPreferences.getInstance();
       final key = left ? _leftKey : _rightKey;
       if (id == null) {
-        await prefs.remove(key);
+        await prefs.setString(key, '');
       } else {
         await prefs.setString(key, id);
       }
@@ -474,7 +483,10 @@ class BottomDock extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: radius,
-        child: Column(mainAxisSize: MainAxisSize.min, children: children),
+        child: SafeArea(
+          top: false,
+          child: Column(mainAxisSize: MainAxisSize.min, children: children),
+        ),
       ),
     );
   }
