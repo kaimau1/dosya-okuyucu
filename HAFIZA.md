@@ -234,3 +234,10 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
   kayıt yeniden yazılmaz). Açık temada kart zeminden AÇIK. Word/PDF kâğıt sayfa çerçevesi artık Kil
   ailesinde. Açılış zemini `#EAF0EB`. `Paper` sabitleri (belge kanvası vb.) bilerek değişmedi.
   Cihazda doğrulanmadı.
+
+## 2026-11-04 — Alt alan görsel düzeltmesi + hızlı sıra gecikmesi
+- Gezinme çubuğu panoda 62 dp'de seçili etiketi kırpıyordu → 68 dp + yazı ölçeği ≤1.1 kıskacı.
+  Hızlı sıranın üstüne ince `outlineVariant` çizgisi (içerik "kesik" görünmesin), çubukla aynı
+  `surfaceContainer`. Çöp rozeti simgenin soluna (etiketin üstüne biniyordu).
+- Gecikme: hızlı sıra öğelerindeki `Tooltip` (dokunmatikte uzun basma tanıyıcısı) kaldırıldı,
+  yerine `Semantics`; dalga `InkSplash` (anında). Kök neden kesin değil — cihazda doğrulanmadı.

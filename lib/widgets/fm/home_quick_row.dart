@@ -39,10 +39,19 @@ class HomeQuickRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return SizedBox(
-      height: 44,
+    // Üstte ince çizgi: kaydırılan içerik bu satırın altına "kesik" girmesin,
+    // alan gezinme çubuğuyla birlikte ayrı bir taban gibi okunsun
+    // (2026-11-04 kullanıcı: "alt alan olmamış görsel olarak").
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainer,
+        border: Border(
+            top: BorderSide(color: scheme.outlineVariant, width: 0.6)),
+      ),
+      child: SizedBox(
+      height: 46,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(Gap.sm, Gap.xs, Gap.sm, 0),
+        padding: const EdgeInsets.fromLTRB(Gap.sm, 6, Gap.sm, 2),
         child: Row(
           children: [
             ValueListenableBuilder<int>(
@@ -57,6 +66,10 @@ class HomeQuickRow extends StatelessWidget {
                   icon: full
                       ? Badge(
                           label: Text(n > 99 ? '99+' : '$n'),
+                          // Rozet simgenin sol üstüne: sağa taşınca etiketin
+                          // ("Çöp") üstüne biniyordu.
+                          alignment: AlignmentDirectional.topStart,
+                          offset: const Offset(-14, -6),
                           backgroundColor: _trashFull,
                           child: icon,
                         )
@@ -98,6 +111,7 @@ class HomeQuickRow extends StatelessWidget {
           ],
         ),
       ),
+      ),
     );
   }
 }
@@ -125,14 +139,20 @@ class _QuickItem extends StatelessWidget {
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 3),
-        child: Tooltip(
-          message: tooltip ?? label,
+        // Tooltip YOK: dokunmatikte uzun basma tanıyıcısı dokunuşla aynı
+        // arenaya giriyordu; açılış gecikmeli hissediliyordu (2026-11-04).
+        child: Semantics(
+          button: true,
+          label: tooltip ?? label,
+          excludeSemantics: true,
           child: Material(
             color: primary ? scheme.primary : scheme.surfaceContainerHighest,
             shape: const StadiumBorder(),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
+              // Geri bildirim + açılış anında: dalga beklemeden sayfa itilir.
               onTap: onTap,
+              splashFactory: InkSplash.splashFactory,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

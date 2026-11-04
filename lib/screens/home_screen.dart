@@ -305,11 +305,7 @@ class _HomeScreenState extends State<HomeScreen> {
           // **Hızlı sıra + gezinme TEK alan** (2026-11-04): panodaki yüzen
           // kapsül (çöp · aktar · tara) + Drive kartı gezinme çubuğunun
           // üstünde, aynı yüzeyde ince bir satır. Yalnız pano sekmesinde.
-          if (onHome)
-            ColoredBox(
-              color: Theme.of(context).colorScheme.surfaceContainer,
-              child: const HomeQuickRow(),
-            ),
+          if (onHome) const HomeQuickRow(),
           // Tek sekme kaldıysa çubuk çizilmez (Material en az iki ister) —
           // düzenleme sayfası Ayarlar'dan ve "Ana ekranı düzenle"den açılır.
           if (tabs.length > 1)
@@ -318,10 +314,17 @@ class _HomeScreenState extends State<HomeScreen> {
             ToastAvoider(
               child: GestureDetector(
                 onLongPress: () => showNavTabsSheet(context),
-                child: NavigationBar(
+                child: MediaQuery.withClampedTextScaling(
+                  // Büyük yazı ölçeğinde 68 dp'lik çubukta etiket kırpılıyordu.
+                  maxScaleFactor: 1.1,
+                  child: NavigationBar(
                   // İki satır birlikte alçak kalsın (kullanıcı: "yüksekliği
-                  // çok olmasın"): 80 → 62 dp.
-                  height: onHome ? 62 : null,
+                  // çok olmasın"): 80 → 68 dp. 62 dp'de seçili sekmenin
+                  // etiketi kırpılıyordu (2026-11-04 ekran görüntüsü).
+                  height: onHome ? 68 : null,
+                  backgroundColor: onHome
+                      ? Theme.of(context).colorScheme.surfaceContainer
+                      : null,
                   selectedIndex: index < 0 ? 0 : index,
                   // 5-6 sekmede etiketler sıkışıyor: yalnız seçilinin adı
                   // yazılır (Material'ın kendi önerisi).
@@ -347,6 +350,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         );
                       }(),
                   ],
+                  ),
                 ),
               ),
             ),
