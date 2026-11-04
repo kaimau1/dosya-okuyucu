@@ -23,6 +23,7 @@ import '../../services/fm/exif_reader.dart';
 import '../../services/fm/file_digest.dart';
 import '../../services/fm/file_split.dart';
 import '../../services/fm/image_rotate.dart';
+import '../../services/fm/important_files.dart';
 import '../../services/text_decode.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
@@ -51,6 +52,7 @@ import '../../core/user_error.dart';
 import '../audiobook/audiobook_screen.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/menu_kit.dart';
+import '../../widgets/app_action_sheet.dart';
 import '../../services/fm/library_store.dart';
 
 part 'entry_actions/sheet.dart';

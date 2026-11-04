@@ -348,7 +348,10 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
       index = i;
     }
     final next = index + 1;
-    if (next != _currentSlide) _partSetState(() => _currentSlide = next);
+    if (next != _currentSlide) {
+      _partSetState(() => _currentSlide = next);
+      _followStrip(index);
+    }
   }
 
   /// [number] 1 tabanlı slayt numarasına kaydırır.
@@ -358,7 +361,10 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
     final target = _slideOffset(index)
         .clamp(0.0, _vCtrl.position.maxScrollExtent);
     await Motion.scrollTo(context, _vCtrl, target);
-    if (mounted) _partSetState(() => _currentSlide = index + 1);
+    if (mounted) {
+      _partSetState(() => _currentSlide = index + 1);
+      _followStrip(index);
+    }
   }
 
   Future<void> _showGoToSlide() async {

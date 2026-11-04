@@ -624,3 +624,28 @@ Kullanıcı: *"fazlardan devam et, bulutta yapılabilecekleri yap, main'e merge 
   Aktar" kimlik göndermiyor). **Sınır:** ad ağda taklit edilebilir — gerekirse çifte özel jeton.
 - **Aktar yeniden tasarım:** "1 · Ne gönderilecek?" (Dosya/Klasör/Yazı büyük kutular + yazı çipi) ve "2 · Kime?"
   kartları; avatarda güven rozeti; "Güvenilen cihazlar" bölümü (yalnız varsa). Cihazda GÖRÜLMEDİ → CIHAZ_TESTI.
+
+## 2026-11-04 — Önizleme kalitesi, video kapanınca durur, döndürme, slayt şeridi, önemli dosya koruması
+- **Görsel önizleme bulanıklığı — kök (kod okumasıyla, cihazda ölçülmedi):** (1) `ThumbnailUtils.createImageThumbnail`
+  dosyada EXIF içi küçük resim varsa (çoğu kamerada 160×120) onu büyütüp veriyor ve örneklemeyi UZUN kenara göre
+  yapıyordu → kare hücrede kısa kenar hedefin altında; (2) Dart tarafı `cacheWidth` yalnız GENİŞLİĞİ sınırlıyordu →
+  yatay fotoğrafın yüksekliği hücrenin altına düşüp `cover` ile yeniden büyütülüyordu; (3) video küçük resmi 256
+  (16:9'da 144 px yükseklik). → Kotlin `writeImageThumb` (BitmapFactory 2^n örnekleme, kısa kenar = hedef, süzgeçli
+  küçültme, EXIF yönü, JPEG 90 / saydamsa PNG, her API; çözemezse eski ThumbnailUtils), dosya adı `q2_` önekli (eski
+  bulanıklar yeniden kullanılmaz), `FmFileImage(cover: true)` = kısa kenar sınırı (`fmCoverTargetSize`), küçük resim
+  dosyası ikinci kez küçültülmez, video 512.
+- **Video kapanınca durur** (istek): `MediaPlayerScreen.dispose` video ise `VideoPlayback.close()` (PiP'te değilse).
+  Ses (müzik/sesli kitap) bilinçli olarak mini çubukta SÜRER (`closesOnExit`, testli).
+- **Döndürme:** oynatıcıda kilidin karşı kenarında sağa/sola çevir (yalnız görüntü, `RotatedBox`, dosya değişmez,
+  dosya değişince sıfır); galeride üst çubukta sağa/sola + ⋮ "Döndürülmüş hâlini kaydet" (`ImageRotate`, yanına yeni dosya).
+- **Slayt önizleme:** şerit 76 → 100 dp (küçük resim 100 → 140; dikey 120 → 160), güncel slayt şeridin ortasına
+  kayar (`_followStrip`), küçük slaytlar `RepaintBoundary`'de. Dosya listelerinde PPTX/XLSX/DOCX/ODF için gömülü
+  önizleme resmi (`OfficeThumbnail`, `docProps/thumbnail.*` / `Thumbnails/thumbnail.png`, izolatta, `office_thumbs/`);
+  resmi olmayan (çoğu Excel) simge kalır. Excel'e başka değişiklik YAPILMADI (istek belirsizdi).
+- **Önemli dosyalar** (`services/fm/important_files.dart`): kopya adı `rapor_onemli.pdf` (uzantıdan önce, ASCII;
+  `FileOps.copyAll/moveAll(renameTo:)`); "önemli" = adında iz olan HER dosya + klasörün kendisi/içi. Yıldız rozeti
+  `FmEntryIcon.build`'de (bütün listeler/ızgaralar/son açılanlar tek yerden) + galeri başlığı. **Silme:** `deleteEntries`
+  önemli öğe için HER ZAMAN sorar (`confirm: false` ve "silmeden önce sor" kapalı olsa bile); karışık toplu seçimde
+  "önemlileri koru, diğerlerini sil" / "hepsini sil" levhası. Temizlik önerileri (kuyruk işi, pencere açamaz) önemlileri
+  hiç silmez. Çöp ekranındaki kalıcı silme ayrıca sorulmaz (öğe zaten silinmiş).
+- Cihazda bakılacak: CIHAZ_TESTI "2026-11-04 turu".

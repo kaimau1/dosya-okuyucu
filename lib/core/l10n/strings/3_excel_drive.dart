@@ -930,6 +930,9 @@ const Map<String, (String, String, String)> _t3 = {
   ),
   'mp.loop_cleared': ('A-B tekrar kapatıldı', 'A-B repeat cleared', 'أُلغي تكرار A-B'),
   'mp.lock': ('Kontrolleri kilitle', 'Lock controls', 'قفل عناصر التحكم'),
+  'mp.rotate_right': ('Sağa çevir', 'Rotate right', 'تدوير لليمين'),
+  'mp.rotate_left': ('Sola çevir', 'Rotate left', 'تدوير لليسار'),
+  'gal.save_rotation': ('Döndürülmüş hâlini kaydet', 'Save rotated copy', 'حفظ نسخة مدوّرة'),
   'mp.unlock': ('Kilidi aç', 'Unlock', 'إلغاء القفل'),
   'mp.float_window': (
     'Küçük pencerede oynat',

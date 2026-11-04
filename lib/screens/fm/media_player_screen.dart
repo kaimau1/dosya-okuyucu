@@ -54,6 +54,15 @@ class MediaPlayerScreen extends StatefulWidget {
     this.playlist = const [],
   });
 
+  /// Bu dosyanın oynatıcısı ekrandan çıkınca kapanır mı? (saf, testli)
+  /// Video: evet. Ses: hayır — arka planda dinlemek ses için olağan.
+  @visibleForTesting
+  static bool closesOnExit(String path) =>
+      path.isNotEmpty &&
+      FsEntry.categoryForExtension(
+              p.extension(path).replaceFirst('.', '').toLowerCase()) !=
+          FmCategory.audio;
+
   @override
   State<MediaPlayerScreen> createState() => _MediaPlayerScreenState();
 }
@@ -83,6 +92,12 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   /// şeritlerini kaldırır. Varsayılan kapalı: kırpma bir tercihtir, kimsenin
   /// görüntüsü habersiz kesilmemeli.
   bool _zoomFill = false;
+
+  /// **Görüntüyü döndürme** (kullanıcı isteği 2026-11-04: *"videolarda sağa
+  /// sola çevir butonu oynatma panelinde"*): yan çekilmiş videolar için
+  /// çeyrek tur sayısı (0-3). Yalnız görüntüyü döndürür, dosyaya dokunmaz;
+  /// başka dosyaya geçince sıfırlanır.
+  int _quarterTurns = 0;
 
   /// Son dokunuşun zamanı — ikinci dokunuşu (sarma) elle ölçmek için.
   DateTime? _lastTapAt;
@@ -128,6 +143,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     // Yeni dosyaya geçildiyse altyazılar da yenilenmeli.
     if (_subtitlesFor != _p.current) {
       _subtitlesFor = _p.current;
+      _quarterTurns = 0;
       unawaited(_loadSubtitles());
     }
   }
@@ -216,7 +232,12 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     _volumeTimer?.cancel();
     _lockTimer?.cancel();
     if (_brightnessTouched) unawaited(NativeExtras.setBrightness(-1));
-    // **Oynatıcı KAPATILMIYOR** — ekran altı mini çubuk onu sürdürüyor.
+    // **Video kapanınca DURUR** (kullanıcı isteği 2026-11-04: *"videolar
+    // kapatınca arka planda oynamasın"*). Eskiden ekrandan çıkınca video mini
+    // çubukta sesiyle sürüyordu. Ses dosyası (müzik, sesli kitap) bilinçli
+    // olarak SÜRER — mini çubuk/bildirim onun için var. Küçük pencerede
+    // (PiP) ekran zaten kapanmaz, bu dal oraya uğramaz.
+    if (MediaPlayerScreen.closesOnExit(_current) && !Pip.active.value) unawaited(_p.close());
     // Ekranı serbest bırak (tam ekranda yatay kilitlemiş olabiliriz).
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -355,6 +376,13 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                 top: 0,
                 bottom: 0,
                 child: Center(child: _lockButton()),
+              ),
+            if (!_isAudio && _controlsVisible && !_locked)
+              PositionedDirectional(
+                end: Gap.md,
+                top: 0,
+                bottom: 0,
+                child: Center(child: _rotateButtons()),
               ),
             if (_controlsVisible && !_locked)
               Positioned(left: 0, right: 0, top: 0, child: _topBar()),

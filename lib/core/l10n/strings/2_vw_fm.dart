@@ -829,6 +829,34 @@ const Map<String, (String, String, String)> _t2 = {
 
   // ── Önemli dosyalar ───────────────────────────────────────────────────────
   'important.title': ('Önemli Dosyalar', 'Important files', 'الملفات المهمة'),
+  'important.badge': ('Önemli dosya', 'Important file', 'ملف مهم'),
+  'important.delete_title': ('Önemli dosya silinecek', 'Deleting an important file', 'سيتم حذف ملف مهم'),
+  'important.delete_body_trash': (
+    '{n} önemli öğe ({names}) çöp kutusuna taşınacak. Emin misin?',
+    '{n} important item(s) ({names}) will be moved to the trash. Are you sure?',
+    'سيتم نقل {n} من العناصر المهمة ({names}) إلى سلة المهملات. هل أنت متأكد؟',
+  ),
+  'important.delete_body_permanent': (
+    '{n} önemli öğe ({names}) KALICI olarak silinecek. Emin misin?',
+    '{n} important item(s) ({names}) will be deleted PERMANENTLY. Are you sure?',
+    'سيتم حذف {n} من العناصر المهمة ({names}) نهائيًا. هل أنت متأكد؟',
+  ),
+  'important.delete_mixed': (
+    'Seçimde {n} önemli öğe var: {names}',
+    'The selection contains {n} important item(s): {names}',
+    'يحتوي التحديد على {n} من العناصر المهمة: {names}',
+  ),
+  'important.delete_anyway': ('Yine de sil', 'Delete anyway', 'احذف على أي حال'),
+  'important.keep_delete_rest': (
+    'Önemlileri koru, diğer {n} öğeyi sil',
+    'Keep important ones, delete the other {n}',
+    'احتفظ بالمهمة واحذف {n} الأخرى',
+  ),
+  'important.delete_all_too': (
+    'Önemliler dahil {n} öğenin hepsini sil',
+    'Delete all {n} items, important ones too',
+    'احذف كل العناصر الـ {n} بما فيها المهمة',
+  ),
   'important.search': ('Önemli dosyalarda ara', 'Search important files', 'ابحث في الملفات المهمة'),
   'important.missing': (
     'Önemli dosyalar klasörü yok',

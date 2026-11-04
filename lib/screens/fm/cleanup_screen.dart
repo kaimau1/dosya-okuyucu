@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
+import '../../services/fm/important_files.dart';
 import '../../services/fm/cleanup_advisor.dart';
 import '../../services/fm/duplicate_finder.dart';
 import '../../services/fm/fm_env.dart';
@@ -243,9 +244,15 @@ class _CleanupScreenState extends State<CleanupScreen> {
           if (suggestion.id == 'trash') {
             await FmEnv.trash.empty();
           } else if (suggestion.files.isNotEmpty) {
-            // Onay ekranda alındı; kuyruktaki iş diyalog açamaz.
-            await FmEnv.trash.moveToTrash(
-                suggestion.files.map((f) => f.path).toList());
+            // Onay ekranda alındı; kuyruktaki iş diyalog açamaz. Bu yüzden
+            // ÖNEMLİ dosyalar (Önemli Dosyalar klasörü, `_onemli` ekli
+            // kopyalar) toplu temizlikte hiç silinmez — onlar yalnız kendi
+            // onay penceresiyle silinir (kullanıcı isteği 2026-11-04).
+            final paths = [
+              for (final f in suggestion.files)
+                if (!ImportantFiles.isImportant(f.path)) f.path,
+            ];
+            if (paths.isNotEmpty) await FmEnv.trash.moveToTrash(paths);
           }
           done++;
           handle.report(done: done);

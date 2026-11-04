@@ -328,21 +328,55 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
         child: FittedBox(
           fit: BoxFit.cover,
           clipBehavior: Clip.hardEdge,
-          child: SizedBox(
-            width: value.size.width,
-            height: value.size.height,
-            child: VideoPlayer(c),
+          child: RotatedBox(
+            quarterTurns: _quarterTurns,
+            child: SizedBox(
+              width: value.size.width,
+              height: value.size.height,
+              child: VideoPlayer(c),
+            ),
           ),
         ),
       );
     }
     return Center(
-      child: AspectRatio(
-        aspectRatio: value.aspectRatio,
-        child: VideoPlayer(c),
+      child: RotatedBox(
+        quarterTurns: _quarterTurns,
+        child: AspectRatio(
+          aspectRatio: value.aspectRatio,
+          child: VideoPlayer(c),
+        ),
       ),
     );
   }
+
+  /// Sağa / sola çevir düğmeleri (kilidin karşı kenarında, kontrollerle
+  /// birlikte görünür). Döndürme yalnız görüntüde — dosya değişmez.
+  Widget _rotateButtons() => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final (key, icon, tip, delta) in [
+            ('mp-rotate-right', AppIcons.rotateRight, 'mp.rotate_right', 1),
+            ('mp-rotate-left', AppIcons.rotateLeft, 'mp.rotate_left', 3),
+          ]) ...[
+            Material(
+              color: AppColors.mediaSurface.withValues(alpha: 0.5),
+              shape: const CircleBorder(),
+              child: IconButton(
+                key: ValueKey<String>(key),
+                tooltip: context.t(tip),
+                icon: Icon(icon, color: AppColors.onMedia),
+                onPressed: () {
+                  _partSetState(
+                      () => _quarterTurns = (_quarterTurns + delta) % 4);
+                  _scheduleHide();
+                },
+              ),
+            ),
+            if (delta == 1) const SizedBox(height: Gap.sm),
+          ],
+        ],
+      );
 
   Widget _controls(VideoPlayerController c, VideoPlayerValue value) {
     return Container(

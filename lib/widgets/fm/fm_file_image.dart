@@ -33,7 +33,14 @@ class FmFileImage extends ImageProvider<FmFileImage> {
 
   final double scale;
 
-  const FmFileImage(this.path, {this.cacheWidth, this.scale = 1.0});
+  /// Kare hücre (`BoxFit.cover`) için: [cacheWidth] GENİŞLİĞİ değil KISA
+  /// KENARI sınırlar. Yalnız genişlik sınırlanınca yatay fotoğrafın yüksekliği
+  /// hücrenin altına düşüyor, `cover` onu yeniden büyütüp bulanıklaştırıyordu
+  /// (kullanıcı 2026-11-04: *"görsellerde ön izlemeler çok kalitesiz"*).
+  final bool cover;
+
+  const FmFileImage(this.path,
+      {this.cacheWidth, this.scale = 1.0, this.cover = false});
 
   @override
   Future<FmFileImage> obtainKey(ImageConfiguration configuration) =>
@@ -61,6 +68,7 @@ class FmFileImage extends ImageProvider<FmFileImage> {
       // Kaynak zaten daha darsa BÜYÜTÜLMEZ — bulanık bir küçük resim
       // üretmenin anlamı yok, üstelik bellekte de daha çok yer tutardı.
       getTargetSize: (int width, int height) {
+        if (key.cover) return fmCoverTargetSize(width, height, target);
         if (width <= target) return ui.TargetImageSize(width: width, height: height);
         return ui.TargetImageSize(
           width: target,
@@ -75,13 +83,29 @@ class FmFileImage extends ImageProvider<FmFileImage> {
       other is FmFileImage &&
       other.path == path &&
       other.cacheWidth == cacheWidth &&
-      other.scale == scale;
+      other.scale == scale &&
+      other.cover == cover;
 
   @override
-  int get hashCode => Object.hash(path, cacheWidth, scale);
+  int get hashCode => Object.hash(path, cacheWidth, scale, cover);
 
   @override
-  String toString() => 'FmFileImage("$path", cacheWidth: $cacheWidth)';
+  String toString() =>
+      'FmFileImage("$path", cacheWidth: $cacheWidth${cover ? ', cover' : ''})';
+}
+
+/// `cover` çözme ölçüsü (saf, testli): kısa kenar [target]'a iner, en-boy
+/// korunur; kaynak zaten küçükse büyütülmez.
+ui.TargetImageSize fmCoverTargetSize(int width, int height, int target) {
+  final shortSide = width < height ? width : height;
+  if (shortSide <= target || shortSide <= 0) {
+    return ui.TargetImageSize(width: width, height: height);
+  }
+  final scale = target / shortSide;
+  return ui.TargetImageSize(
+    width: (width * scale).round().clamp(1, width),
+    height: (height * scale).round().clamp(1, height),
+  );
 }
 
 /// Küçük resim çözme genişlikleri (piksel), kademeli (2026-09-26).
@@ -111,8 +135,10 @@ int fmThumbWidth(double logicalSize, double devicePixelRatio) {
 FmFileImage? fmCachedThumb(String path) {
   final cache = PaintingBinding.instance.imageCache;
   for (final b in fmThumbBuckets.reversed) {
-    final provider = FmFileImage(path, cacheWidth: b);
-    if (cache.statusForKey(provider).tracked) return provider;
+    for (final cover in const [true, false]) {
+      final provider = FmFileImage(path, cacheWidth: b, cover: cover);
+      if (cache.statusForKey(provider).tracked) return provider;
+    }
   }
   // Izgara özgünü değil, küçük resim DOSYASINI çözmüş olabilir (2026-11-03).
   final alias = _thumbAliases[path];

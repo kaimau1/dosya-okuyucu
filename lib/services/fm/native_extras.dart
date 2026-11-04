@@ -209,8 +209,9 @@ abstract final class NativeExtras {
           {'path': path, 'target': target, 'maxEdge': maxEdge}) ??
       false;
 
-  /// Izgara küçük resmi: Android'in `ThumbnailUtils`i ile [size] px'lik JPEG
-  /// (EXIF yönü uygulanmış). API 29 altında ya da kanal yoksa false.
+  /// Izgara küçük resmi: KISA kenarı [size] px olan JPEG (saydamsa PNG), EXIF
+  /// yönü uygulanmış (`MainActivity.writeImageThumb`, 2026-11-04 kalite turu).
+  /// Çözülemezse ya da kanal yoksa false.
   static Future<bool> imageThumb(String path, String target, int size) async =>
       await _call<bool>('imageThumb',
           {'path': path, 'target': target, 'size': size}) ??
