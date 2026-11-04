@@ -3,17 +3,17 @@ part of '../app_strings.dart';
 /// Çeviri tablosunun 8. bölümü (çoğunlukla `enum`, `aih` alanları).
 /// Yinelenen anahtar `_table`ın sabit birleşiminde DERLEME hatası verir.
 const Map<String, (String, String, String)> _t8 = {
-  'skin.paper': ('Kağıt', 'Paper', 'ورقي'),
-  'skin.paper_sub': (
-    'Kağıt zemin, mürekkep metin, cetvel çizgileri',
-    'Paper ground, ink text, ruled lines',
-    'خلفية ورقية ونص حبري وخطوط مسطرة',
+  'skin.clay': ('Kil', 'Clay', 'طين'),
+  'skin.clay_sub': (
+    'Sıcak pembe-bej zemin, erik vurgu, kâğıt beyazı kartlar',
+    'Warm rosy-beige ground, plum accent, paper-white cards',
+    'خلفية دافئة وردية بيج ولون برقوقي وبطاقات بيضاء',
   ),
-  'skin.light': ('Açık', 'Light', 'فاتح'),
-  'skin.light_sub': (
-    'Nötr beyaz — kağıdın sıcaklığı olmadan',
-    'Neutral white, without the paper warmth',
-    'أبيض محايد بدون دفء الورق',
+  'skin.porcelain': ('Porselen', 'Porcelain', 'خزف'),
+  'skin.porcelain_sub': (
+    'Serin mavi-gri zemin, lacivert vurgu, kâğıt beyazı kartlar',
+    'Cool blue-grey ground, navy accent, paper-white cards',
+    'خلفية رمادية زرقاء باردة ولون كحلي وبطاقات بيضاء',
   ),
   'skin.modern': ('Modern', 'Modern', 'عصري'),
   'skin.modern_sub': (

@@ -219,3 +219,18 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
   görseller; ASIL asla silinmez. Cihazda doğrulanmadı.
 - Dosya menüsü: ikinci hızlı sıra = Hızlı paylaş (doğrudan `NearbyScreen`) · Önemli işaretle
   (`fm.copy_to_important` adı değişti) · Sil (danger tonu). Alttaki tam genişlik Sil kaldırıldı.
+
+## 2026-11-04 — Menüler tek kaynak, alt çubuk 2 satır, "masa ve kâğıt" teması
+- **Menüler:** seçimde tek öğe varken "Daha fazla" artık ⋮ menüsünün AYNISI (`showEntryActions`,
+  `FmSelectionBar.allowReveal/onReveal` ekranın ⋮ çağrısıyla aynı verilir). ⋮ menüsüne "AI ile
+  etiketle" eklendi. Seçim çubuğuna Hızlı paylaş (`quickShareEntries`). Çoklu seçimde eski levha kalır.
+- **Alt alan:** yüzen kapsül (çöp · aktar | tara) KALDIRILDI → `HomeQuickRow` (Çöp · Aktar · Drive ·
+  Tara, 44 dp) gezinme çubuğunun üstünde, aynı yüzeyde (`surfaceContainer`), yalnız pano sekmesinde;
+  gezinme çubuğu o sekmede 62 dp. Çöp rozeti `DashboardScreen.trashCount` (ValueNotifier).
+  Drive kutusu varsayılan gizli + mevcut kurulumda bir kez gizlenir (`dash_drive_moved_v1`).
+- **Üst satır:** "Dosyalar" başlığı kalktı; arama kutusu AppBar başlığında, AI · yenile · ayarlar yanında.
+- **Tema (Notlar TEMA_PLANI K1–K2 aynısı):** `AppSkin` paper/ivory/light → **sage (varsayılan) /
+  porcelain / clay**; eski adlar `byName` ile eşlenir (ivory→sage, light→porcelain, paper→clay,
+  kayıt yeniden yazılmaz). Açık temada kart zeminden AÇIK. Word/PDF kâğıt sayfa çerçevesi artık Kil
+  ailesinde. Açılış zemini `#EAF0EB`. `Paper` sabitleri (belge kanvası vb.) bilerek değişmedi.
+  Cihazda doğrulanmadı.

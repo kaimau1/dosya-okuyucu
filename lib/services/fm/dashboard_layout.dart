@@ -53,7 +53,14 @@ class DashboardLayout extends ChangeNotifier {
   static const defaultHiddenSections = {'recent'};
 
   /// Aynı kural kutular için: güncellemeyle gelen bu kutular gizli doğar.
-  static const defaultHiddenTiles = {'media'};
+  ///
+  /// `drive` (2026-11-04, kullanıcı: *"Drive'ı alt hızlı erişime al ve drive
+  /// kartını gizle varsayılan olarak"*): Drive artık alt çubuğun hızlı
+  /// sırasında; kutu gizli doğar ve MEVCUT kurulumda da bir kez gizlenir
+  /// ([_kDriveMoved] bayrağı — kullanıcı sonra açarsa dokunulmaz).
+  static const defaultHiddenTiles = {'media', 'drive'};
+
+  static const _kDriveMoved = 'dash_drive_moved_v1';
 
   static const _kSections = 'dash_sections';
   static const _kHiddenSections = 'dash_hidden_sections';
@@ -116,6 +123,11 @@ class DashboardLayout extends ChangeNotifier {
         if (savedTiles == null || !savedTiles.contains(id)) {
           _hiddenTiles.add(id);
         }
+      }
+      if (!(p.getBool(_kDriveMoved) ?? false)) {
+        _hiddenTiles.add('drive');
+        await p.setBool(_kDriveMoved, true);
+        await p.setStringList(_kHiddenTiles, _hiddenTiles.toList());
       }
       notifyListeners();
     } catch (_) {

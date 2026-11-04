@@ -39,6 +39,8 @@ extension _SearchScreenStateParts on _SearchScreenState {
             bottom: 0,
             child: FmSelectionBar(
               selected: selected,
+              allowReveal: true,
+              onReveal: _reveal,
               onChanged: () async {
                 // "Arka plana al" ekranı kapatmış olabilir (bkz. kategori
                 // ekranındaki aynı not).

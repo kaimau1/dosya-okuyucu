@@ -674,6 +674,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
               bottom: 0,
               child: FmSelectionBar(
                 selected: selectedEntries,
+                allowReveal: true,
+                onReveal: _reveal,
                 onChanged: () async {
                   // "Arka plana al" ile ekran kapanmış olabilir: `FmSelectionBar`
                   // işini bitirdiğinde bu State artık ölü olabiliyor ve

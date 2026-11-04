@@ -166,8 +166,9 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                 id: 'skin',
                 titleKey: 'skin.title',
                 altKeys: [
-                  'skin.paper',
-                  'skin.light',
+                  'skin.sage',
+                  'skin.porcelain',
+                  'skin.clay',
                   'skin.modern',
                   'skin.night',
                   'set.kw_dark',

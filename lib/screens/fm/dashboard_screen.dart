@@ -4,7 +4,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,7 +13,6 @@ import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/device_profile.dart';
-import '../../core/motion.dart';
 import '../../core/startup_queue.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -46,7 +44,6 @@ import '../../widgets/fm/fm_category_tile.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/smart_inbox.dart';
 import '../../widgets/new_document_sheet.dart';
-import '../../widgets/scan_flow.dart';
 import '../../widgets/section_header.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../widgets/fm/recent_strip.dart';
@@ -110,6 +107,10 @@ class DashboardScreen extends StatefulWidget {
 
   /// Panonun son taramasındaki kategori sayımı (dosya seçici de aynı kutuları
   /// aynı sayılarla gösterir; tarama yoksa 0).
+  /// Çöp kutusundaki öğe sayısı — alt çubuğun hızlı sırasındaki rozet
+  /// (2026-11-04: yüzen kapsül alt çubuğa taşındı; sayıyı pano ölçer).
+  static final trashCount = ValueNotifier<int>(0);
+
   static CategoryStat cachedStat(FmCategory category) =>
       _DashboardScreenState._cachedIndex?.stat(category) ??
       const CategoryStat(0, 0);
@@ -140,9 +141,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   /// Ham aygıt ilk ne zaman görüldü? (İlk saniyelerde kart gösterilmiyor —
   /// Android'in bağlaması bitsin.)
   DateTime? _rawUsbSeenAt;
-
-  /// Küçük yüzen düğmeler görünür mü? (Aşağı kaydırırken çekiliyorlar.)
-  bool _fabsVisible = true;
 
   /// Takılma yayını üstüne yayın gelmesin (aynı anda tek tazeleme turu).
   bool _usbBroadcastBusy = false;
@@ -368,14 +366,13 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(context.t('fm.files')),
-        // **Arama kalıcı** (2026-08-04 tasarım turu): dosya yöneticisine gelme
-        // sebebi çoğu zaman arama; simgenin arkasında bir dokunuş kaybediyordu.
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(52),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.sm),
-            child: InkWell(
+        // **Üst bilgi + arama TEK satır** (2026-11-04, kullanıcı: *"ara satırı
+        // ile üst bilgi satırını birleştir, ayarlar vs olan yer aramayla
+        // beraber tek satır olsun"*). "Dosyalar" başlığı alt çubukta zaten
+        // yazıyor; arama kutusu başlığın yerini aldı, ~52 dp kazanıldı.
+        titleSpacing: Gap.md,
+        toolbarHeight: 60,
+        title: InkWell(
               borderRadius: BorderRadius.circular(Radii.control),
               // Kök YOK = tüm depolama (SD kart ve USB dahil). Eskiden
               // `FmEnv.primaryRoot` geçiliyordu; kutuda "Tüm dosyalarda ara"
@@ -451,17 +448,17 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ),
               ),
             ),
-          ),
-        ),
         actions: [
           // AI Merkezi (2026-09-27: alt çubuktaki AI sekmesi kalktı, kapısı
           // burada — analiz halkası ve öneri rozetiyle).
           IconButton(
+            visualDensity: VisualDensity.compact,
             tooltip: context.t('aih.title'),
             icon: const AiStatusIcon(),
             onPressed: () => _push(const AiHubScreen()),
           ),
           IconButton(
+            visualDensity: VisualDensity.compact,
             tooltip: context.t('common.rescan'),
             icon: const Icon(AppIcons.refresh),
             onPressed: _scanning ? null : _scan,
@@ -469,6 +466,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           IconButton(
             // Ayrı bir "dosya yöneticisi ayarları" ekranı KALMADI (2026-08-09):
             // ayarlar tek ekranda, sekiz kategoride toplandı.
+            visualDensity: VisualDensity.compact,
             tooltip: context.t('common.settings'),
             icon: const Icon(AppIcons.settings),
             onPressed: () async {
@@ -480,26 +478,14 @@ class _DashboardScreenState extends State<DashboardScreen>
       ),
       body: RefreshIndicator(
         onRefresh: _scan,
-        child: NotificationListener<ScrollNotification>(
-          // **Kaydırırken küçük düğmeler ÇEKİLİYOR** (kullanıcı ekran
-          // görüntüsü 2026-09-02: çöp kutusu ve yeni klasör düğmeleri
-          // "Uygulamalar" karesinin üstünde duruyordu). Yüzen düğmeler
-          // tanım gereği içeriğin üstünde; çare onları kalıcı olarak
-          // kaldırmak değil, kullanıcı LİSTEYE bakarken çekilmeleri.
-          // Parmak yukarı kaydırınca (geri gelirken) yeniden beliriyorlar.
-          onNotification: (n) {
-            if (n is UserScrollNotification) {
-              final show = n.direction != ScrollDirection.reverse;
-              if (show != _fabsVisible) setState(() => _fabsVisible = show);
-            }
-            return false;
-          },
-          child: ListView(
+        child: ListView(
           // Alt boşluk FAB yığınını (küçük düğme sırası + "Belge Tara") aşar:
           // 2026-08-06'da Gap.xl (32) yetmiyordu ve son satırdaki "Google
           // Drive" kartının yazısı düğmelerin altında kalıyordu.
+          // 2026-11-04: yüzen kapsül alt çubuğa katıldı — içeriğin üstünde
+          // düğme kalmadı, alt boşluk normal.
           padding: withNavInset(
-              context, const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 136)),
+              context, const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl)),
           children: [
             // Çökme uyarısı EN ÜSTTE ve yalnız çökme olduysa (kendini gizler):
             // hata kaydını Ayarlar'da bırakmak kimsenin bakmayacağı bir yere
@@ -556,28 +542,6 @@ class _DashboardScreenState extends State<DashboardScreen>
             ],
           ],
         ),
-        ),
-      ),
-      // **Tek yüzen çubuk** (2026-10-18, kullanıcı ekran görüntüleriyle:
-      // *"ana ekran biraz daha toparlanmalı ve daha premium hâle gelmeli"*).
-      // Eskiden üç ayrı yüzen düğme vardı — iki küçük kare (çöp kutusu, yeni
-      // klasör) bir sıra, "Belge Tara" altında ikinci sıra: sağ alt köşede
-      // ~120 dp yükseklik kaplayıp "Araçlar" başlığının ve ızgaranın üstüne
-      // biniyordu; dolu çöp kutusu da tam turuncu bir kare olarak bağırıyordu.
-      // Artık üçü TEK bir kapsülde, tek sırada: çöp kutusu · yeni klasör |
-      // Belge Tara. Kaydırırken kapsül yalnız tarama simgesine katlanır.
-      // 2026-10-23: yeni klasör düğmesi kaldırıldı (kullanıcı isteği).
-      floatingActionButton: _QuickDock(
-        expanded: _fabsVisible,
-        trashCount: _trashCount,
-        onTrash: () async {
-          await Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => const TrashScreen()));
-          _loadTrash();
-        },
-        onScan: () => ScanFlow.run(context),
-        onTransfer: () => Navigator.of(context)
-            .push(MaterialPageRoute(builder: (_) => const TransferScreen())),
       ),
     );
   }

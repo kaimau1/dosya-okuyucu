@@ -387,6 +387,10 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                   ),
                   FmSelectionBar(
                     selected: _selectedEntries,
+                    allowReveal: true,
+                    onReveal: (path) => Navigator.of(context).push(
+                          browserRoute(BrowserScreen(path: path)),
+                        ),
                     onChanged: () async {
                       setState(_selected.clear);
                       await _load();

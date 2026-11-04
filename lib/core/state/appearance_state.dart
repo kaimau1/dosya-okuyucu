@@ -14,7 +14,7 @@ import '../theme.dart';
 /// görünüme dair kopyasını taşır ve **yalnız gerçekten değişince** bildirir.
 class AppearanceState extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
-  AppSkin _skin = AppSkin.paper;
+  AppSkin _skin = AppSkin.sage;
   String _background = 'default';
   AppLanguage _language = AppLanguage.system;
   String _uiFont = AppTheme.uiFontDefault;

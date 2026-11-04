@@ -21,20 +21,20 @@ import 'package:flutter/material.dart';
 /// ölçeğini ve kendi satır sıklığını getirir ([SkinMetrics]). Yalnız renk
 /// değiştiren bir tema listesi "boyanmış aynı uygulama" gibi duruyordu.
 enum AppSkin {
-  /// Uygulamanın 2026-08-04'ten beri gelen kimliği: kağıt zemin, mürekkep
-  /// metin, gölge yerine cetvel çizgisi. Artık ADIYLA anılıyor — kullanıcı
-  /// haklıydı, bu "açık tema" değil "kağıt tema".
-  paper,
+  /// **Adaçayı** (2026-11-04, varsayılan — Notlar uygulamasıyla AYNI tema
+  /// çalışması, `TEMA_PLANI.md` K1–K6): "masa ve kâğıt". Zemin (masa) orta
+  /// açıklıkta ve hafif yeşil-gri (L≈0,95) → parlamaz; kartlar zeminden AÇIK
+  /// (kâğıt masanın üstünde), vurgu petrol yeşili. Kırık beyazın yerine geldi:
+  /// kullanıcı *"kırık beyaz soluk ve sıkıcı, saman çok sarı, beyaz çok
+  /// parlak"* dedi.
+  sage,
 
-  /// **Kırık beyaz** (2026-10-29, kullanıcı: *"kırık beyaz teması ama mavi
-  /// olmasın — yardımcı tema"*): sıcak fildişi zemin, vurgu MAVİ DEĞİL
-  /// adaçayı yeşili. Kağıttan farkı: zemin bir tık daha kremsi, kartlar
-  /// beyaz (zeminden ayrışır), seçili sekme/düğme yeşil.
-  ivory,
+  /// **Porselen**: serin mavi-gri masa, lacivert vurgu. Eski "Açık"ın yerine.
+  porcelain,
 
-  /// Düz **açık** tema: nötr beyaz/gri, kağıdın sıcaklığı yok. Kağıt dokusunu
-  /// sevmeyen kullanıcının aradığı şey buydu.
-  light,
+  /// **Kil**: sıcak pembe-bej masa, erik vurgu. Eski "Kağıt"ın yerine
+  /// (sıcak aile; belge kanvası kâğıt sayfa çerçevesini bu ailede çizer).
+  clay,
 
   /// **Modern:** canlı mor-mavi vurgu, büyük yuvarlak köşeler, büyük simgeler,
   /// rahat satır aralığı. Material 3'ün kendi hissine en yakın aile.
@@ -55,18 +55,18 @@ enum AppSkin {
   // taşınır, kullanıcının tercihi sıfırlanmaz.
 
   String get labelKey => switch (this) {
-        AppSkin.paper => 'skin.paper',
-        AppSkin.ivory => 'skin.ivory',
-        AppSkin.light => 'skin.light',
+        AppSkin.sage => 'skin.sage',
+        AppSkin.porcelain => 'skin.porcelain',
+        AppSkin.clay => 'skin.clay',
         AppSkin.modern => 'skin.modern',
         AppSkin.night => 'skin.night',
         AppSkin.system => 'skin.system',
       };
 
   String get descriptionKey => switch (this) {
-        AppSkin.paper => 'skin.paper_sub',
-        AppSkin.ivory => 'skin.ivory_sub',
-        AppSkin.light => 'skin.light_sub',
+        AppSkin.sage => 'skin.sage_sub',
+        AppSkin.porcelain => 'skin.porcelain_sub',
+        AppSkin.clay => 'skin.clay_sub',
         AppSkin.modern => 'skin.modern_sub',
         AppSkin.night => 'skin.night_sub',
         AppSkin.system => 'skin.system_sub',
@@ -78,7 +78,7 @@ enum AppSkin {
   /// Aile yalnız koyu çalışıyor mu? (Gece/OLED'in açık karşılığı yok.)
   bool get forcesDark => this == AppSkin.night;
 
-  static AppSkin byName(String? name, {AppSkin fallback = AppSkin.paper}) {
+  static AppSkin byName(String? name, {AppSkin fallback = AppSkin.sage}) {
     for (final s in AppSkin.values) {
       if (s.name == name) return s;
     }
@@ -87,9 +87,16 @@ enum AppSkin {
 
   /// Kaldırılan ailelerin en yakın karşılığı: sakin/nötr olanlar Açık'a,
   /// renkli olanlar Modern'e.
+  ///
+  /// 2026-11-04 (Notlar'la aynı K2 kararı): eski üç açık aile yeni ailelere
+  /// bir kez eşlenir — Kırık beyaz → Adaçayı, Açık → Porselen, Kağıt → Kil.
+  /// Kayıt yeniden yazılmaz; seçim okunurken çevrilir.
   static const _retired = {
-    'office': AppSkin.light,
-    'graphite': AppSkin.light,
+    'ivory': AppSkin.sage,
+    'light': AppSkin.porcelain,
+    'paper': AppSkin.clay,
+    'office': AppSkin.porcelain,
+    'graphite': AppSkin.porcelain,
     'ocean': AppSkin.modern,
     'sunset': AppSkin.modern,
     'forest': AppSkin.modern,
@@ -184,127 +191,123 @@ class SkinPalette {
   static SkinPalette of(AppSkin skin, Brightness brightness) {
     final dark = brightness == Brightness.dark || skin.forcesDark;
     return switch (skin) {
-      AppSkin.paper => dark ? _paperDark : _paperLight,
-      AppSkin.ivory => dark ? _ivoryDark : _ivoryLight,
-      AppSkin.light => dark ? _neutralDark : _neutralLight,
+      AppSkin.sage => dark ? _sageDark : _sageLight,
+      AppSkin.porcelain => dark ? _porcelainDark : _porcelainLight,
+      AppSkin.clay => dark ? _clayDark : _clayLight,
       AppSkin.modern => dark ? _modernDark : _modernLight,
       AppSkin.night => _nightDark,
       AppSkin.system => SystemAccent.apply(
-          dark ? _neutralDark : _neutralLight, dark: dark),
+          dark ? _porcelainDark : _porcelainLight, dark: dark),
     };
   }
 
-  // ── Kağıt ─────────────────────────────────────────────────────────────────
-  static const _paperLight = SkinPalette(
-    bg: Color(0xFFFEFEFC),
-    card: Color(0xFFFCFBF7),
-    band: Color(0xFFF9F7F1),
-    well: Color(0xFFF5F3EB),
-    rule: Color(0xFFEBE7DC),
-    edge: Color(0xFFD9D2C4),
-    ink: Color(0xFF262219),
-    inkSoft: Color(0xFF6E6555),
-    inkFaint: Color(0xFF786F61),
-    accent: Color(0xFF2E5AA8),
-    accentWell: Color(0xFFE3E9F5),
-    onAccent: Colors.white,
-    danger: Color(0xFFB23A2E),
-    ok: Color(0xFF2F6B3A),
-  );
-
-  static const _paperDark = SkinPalette(
-    bg: Color(0xFF1A1712),
-    card: Color(0xFF221E17),
-    band: Color(0xFF2C2720),
-    well: Color(0xFF332D24),
-    rule: Color(0xFF3A342A),
-    edge: Color(0xFF6B6455),
-    ink: Color(0xFFE8E1D3),
-    inkSoft: Color(0xFFB5AB98),
-    inkFaint: Color(0xFF998F7F),
-    accent: Color(0xFF7FA3E0),
-    accentWell: Color(0xFF26364D),
-    onAccent: Color(0xFF13202F),
-    danger: Color(0xFFD9756B),
-    ok: Color(0xFF7FA98A),
-  );
-
-  // ── Kırık beyaz (mavisiz) ─────────────────────────────────────────────────
+  // ── "Masa ve kâğıt" aileleri (2026-11-04, Notlar `TEMA_PLANI.md`) ─────
   //
-  // Zemin fildişi, kartlar ondan AÇIK (beyaza yakın) — kâğıtta kart zeminden
-  // koyuydu; burada kartlar "zeminin üstüne konmuş" görünür. Vurgu adaçayı
-  // yeşili: mavi yok, beyaz üstünde 4.5:1'den yüksek karşıtlık.
-  // 2026-11-01 (kullanıcı: "biraz daha beyaza yakın olsun"): zemin ve
-  // yüzeyler bir ton açıldı; vurgu ve metin aynı.
-  static const _ivoryLight = SkinPalette(
-    bg: Color(0xFFFAF8F2),
-    card: Color(0xFFFFFEFB),
-    band: Color(0xFFF3F0E8),
-    well: Color(0xFFEEEAE0),
-    rule: Color(0xFFE6E1D5),
-    edge: Color(0xFFCFC6B2),
-    ink: Color(0xFF28251D),
-    inkSoft: Color(0xFF665E4E),
-    inkFaint: Color(0xFF6F675A),
-    accent: Color(0xFF3F6A4C),
-    accentWell: Color(0xFFDDE8DC),
+  // İlke: zemin (masa) orta açıklıkta ve hafif renkli → parlamaz; kart
+  // (kâğıt) zeminden AÇIK; şerit/levha kartla zemin arası; alan (arama,
+  // giriş) kartın bir tık altı. Mürekkep saf siyah değil, zeminin tonunu
+  // taşır. Değerler Notlar'daki OKLCH tablosunun aynısı; kontrastlar
+  // `contrast_test` (WCAG) ile kilitli.
+  static const _sageLight = SkinPalette(
+    bg: Color(0xFFEAF0EB),
+    card: Color(0xFFFAFCFA),
+    band: Color(0xFFF5F9F6),
+    well: Color(0xFFEFF4F0),
+    rule: Color(0xFFD1D8D2),
+    edge: Color(0xFFA9B3AC),
+    ink: Color(0xFF1B2420),
+    inkSoft: Color(0xFF535E59),
+    inkFaint: Color(0xFF5C6762),
+    accent: Color(0xFF106561),
+    accentWell: Color(0xFFC8E9E6),
     onAccent: Colors.white,
     danger: Color(0xFFB0402F),
-    ok: Color(0xFF3F6A4C),
+    ok: Color(0xFF3B6B47),
   );
 
-  static const _ivoryDark = SkinPalette(
-    bg: Color(0xFF1B1A16),
-    card: Color(0xFF23211C),
-    band: Color(0xFF2C2A23),
-    well: Color(0xFF34312A),
-    rule: Color(0xFF3D3A31),
-    edge: Color(0xFF6C6757),
-    ink: Color(0xFFECE7DB),
-    inkSoft: Color(0xFFB8B09F),
-    inkFaint: Color(0xFF9C9483),
-    accent: Color(0xFF9CC6A6),
-    accentWell: Color(0xFF2A3A2E),
-    onAccent: Color(0xFF13251A),
-    danger: Color(0xFFDB7A6C),
-    ok: Color(0xFF9CC6A6),
+  static const _sageDark = SkinPalette(
+    bg: Color(0xFF131916),
+    card: Color(0xFF1C2420),
+    band: Color(0xFF232C27),
+    well: Color(0xFF29332E),
+    rule: Color(0xFF323D37),
+    edge: Color(0xFF5C6862),
+    ink: Color(0xFFDFE7E2),
+    inkSoft: Color(0xFF9FA7A2),
+    inkFaint: Color(0xFF8E9791),
+    accent: Color(0xFF78C8C1),
+    accentWell: Color(0xFF1E3B38),
+    onAccent: Color(0xFF00201E),
+    danger: Color(0xFFE58A7C),
+    ok: Color(0xFF8FC79E),
   );
 
-  // ── Açık (nötr) ───────────────────────────────────────────────────────────
-  //
-  // Kağıdın kremi tamamen alındı: zemin saf beyaz, basamaklar nötr gri.
-  static const _neutralLight = SkinPalette(
-    bg: Color(0xFFFFFFFF),
-    card: Color(0xFFFBFBFC),
-    band: Color(0xFFF4F5F7),
-    well: Color(0xFFEDEEF1),
-    rule: Color(0xFFE2E4E9),
-    edge: Color(0xFFC7CBD3),
-    ink: Color(0xFF1B1D21),
-    inkSoft: Color(0xFF5A5F69),
-    inkFaint: Color(0xFF6A6F77),
-    accent: Color(0xFF1F6FEB),
-    accentWell: Color(0xFFE1ECFD),
+  static const _porcelainLight = SkinPalette(
+    bg: Color(0xFFECEFF4),
+    card: Color(0xFFFAFCFE),
+    band: Color(0xFFF6F9FC),
+    well: Color(0xFFF0F4F8),
+    rule: Color(0xFFD2D8DF),
+    edge: Color(0xFFABB2BC),
+    ink: Color(0xFF1A1F2A),
+    inkSoft: Color(0xFF545B66),
+    inkFaint: Color(0xFF5D6470),
+    accent: Color(0xFF304D8C),
+    accentWell: Color(0xFFD6E2F9),
     onAccent: Colors.white,
-    danger: Color(0xFFC62828),
-    ok: Color(0xFF2E7D32),
+    danger: Color(0xFFB3261E),
+    ok: Color(0xFF2E6B3A),
   );
 
-  static const _neutralDark = SkinPalette(
-    bg: Color(0xFF16181C),
-    card: Color(0xFF1D2025),
-    band: Color(0xFF25282F),
-    well: Color(0xFF2C3038),
-    rule: Color(0xFF343943),
-    edge: Color(0xFF5B616C),
-    ink: Color(0xFFE7E9EC),
-    inkSoft: Color(0xFFB0B5BD),
-    inkFaint: Color(0xFF8B9199),
-    accent: Color(0xFF6EA8FF),
-    accentWell: Color(0xFF1E3252),
-    onAccent: Color(0xFF0B1726),
-    danger: Color(0xFFE57373),
-    ok: Color(0xFF81C784),
+  static const _porcelainDark = SkinPalette(
+    bg: Color(0xFF13161C),
+    card: Color(0xFF1C2028),
+    band: Color(0xFF232832),
+    well: Color(0xFF2A303B),
+    rule: Color(0xFF333A46),
+    edge: Color(0xFF5D6573),
+    ink: Color(0xFFE0E4EC),
+    inkSoft: Color(0xFFA0A7B3),
+    inkFaint: Color(0xFF8F96A2),
+    accent: Color(0xFF9FB6EA),
+    accentWell: Color(0xFF22314F),
+    onAccent: Color(0xFF0E1A33),
+    danger: Color(0xFFE8897F),
+    ok: Color(0xFF86C894),
+  );
+
+  static const _clayLight = SkinPalette(
+    bg: Color(0xFFF4EBE7),
+    card: Color(0xFFFEFBF8),
+    band: Color(0xFFFCF7F4),
+    well: Color(0xFFF8F1ED),
+    rule: Color(0xFFDFD3CE),
+    edge: Color(0xFFBFB0AA),
+    ink: Color(0xFF2B1E1E),
+    inkSoft: Color(0xFF695958),
+    inkFaint: Color(0xFF6E5E5D),
+    accent: Color(0xFF743957),
+    accentWell: Color(0xFFF5D8E4),
+    onAccent: Colors.white,
+    danger: Color(0xFFB0402F),
+    ok: Color(0xFF2F6B4A),
+  );
+
+  static const _clayDark = SkinPalette(
+    bg: Color(0xFF1A1415),
+    card: Color(0xFF241C1E),
+    band: Color(0xFF2C2325),
+    well: Color(0xFF342A2C),
+    rule: Color(0xFF3E3335),
+    edge: Color(0xFF6B5D5F),
+    ink: Color(0xFFEDE2E0),
+    inkSoft: Color(0xFFB5A7A5),
+    inkFaint: Color(0xFFA09391),
+    accent: Color(0xFFE2A5C2),
+    accentWell: Color(0xFF4A2638),
+    onAccent: Color(0xFF2E0F1F),
+    danger: Color(0xFFE8897F),
+    ok: Color(0xFF8FC79E),
   );
 
   // ── Modern ────────────────────────────────────────────────────────────────
@@ -416,28 +419,11 @@ class SkinMetrics {
   bool get outlinedIcons => iconStyle == SkinIconStyle.outlined;
 
   static SkinMetrics of(AppSkin skin) => switch (skin) {
-        AppSkin.paper => const SkinMetrics(
-            radiusControl: 11,
-            radiusCard: 14,
-            radiusSheet: 26,
-            iconScale: 1,
-            rowPadding: 4,
-            density: VisualDensity.standard,
-            iconStyle: SkinIconStyle.gradient,
-          ),
-        AppSkin.ivory => const SkinMetrics(
+        // Notlar'la aynı ölçü: kart 16, levha 24 (TEMA_PLANI F30.2).
+        AppSkin.sage || AppSkin.porcelain || AppSkin.clay => const SkinMetrics(
             radiusControl: 12,
             radiusCard: 16,
-            radiusSheet: 28,
-            iconScale: 1,
-            rowPadding: 5,
-            density: VisualDensity.standard,
-            iconStyle: SkinIconStyle.gradient,
-          ),
-        AppSkin.light => const SkinMetrics(
-            radiusControl: 12,
-            radiusCard: 16,
-            radiusSheet: 28,
+            radiusSheet: 24,
             iconScale: 1,
             rowPadding: 4,
             density: VisualDensity.standard,
@@ -489,7 +475,7 @@ class AppBackground {
   bool get isDefault => id == 'default';
 
   static const values = <AppBackground>[
-    AppBackground('default', 'bgc.default', Color(0xFFFEFEFC), Color(0xFF1A1712)),
+    AppBackground('default', 'bgc.default', Color(0xFFEAF0EB), Color(0xFF131916)),
     AppBackground('white', 'bgc.white', Color(0xFFFFFFFF), Color(0xFF101012)),
     AppBackground('paper', 'bgc.paper', Color(0xFFFAF6EC), Color(0xFF1B1813)),
     AppBackground('sand', 'bgc.sand', Color(0xFFF6EFE2), Color(0xFF221D16)),

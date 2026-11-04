@@ -55,7 +55,7 @@ void main() {
     WidgetTester tester,
     String name,
     Widget home, {
-    AppSkin skin = AppSkin.paper,
+    AppSkin skin = AppSkin.sage,
     Brightness brightness = Brightness.light,
     Future<void> Function(WidgetTester, BuildContext)? after,
     double height = 860,
@@ -118,7 +118,7 @@ void main() {
 
   testWidgets('yakındakiler kırık beyaz', (t) async {
     await shot(t, 'yakindakiler_ivory', const NearbyScreen(services: false),
-        skin: AppSkin.ivory, height: 1700);
+        skin: AppSkin.sage, height: 1700);
   });
 
   testWidgets('kabul ekranı', (t) async {
