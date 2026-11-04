@@ -61,9 +61,14 @@ extension _PhotosScreenDataPart on _PhotosScreenState {
     final List<FsEntry> list;
     if (_filter.hideDuplicates) {
       final seen = <String>{};
+      // WhatsApp "Sent" kopyaları da gizlenir (2026-11-04): aslı kamerada.
+      // Kullanıcı "Gönderdiklerim"i açıkça seçtiyse gizlemek anlamsız.
+      final hideSent = _filter.direction != ChatDirection.sent;
       list = [
         for (final e in matched)
-          if (seen.add(duplicateKey(e))) e,
+          if (!(hideSent && isWhatsAppSentCopy(e.path)) &&
+              seen.add(duplicateKey(e)))
+            e,
       ];
     } else {
       list = matched;

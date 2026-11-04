@@ -1008,10 +1008,12 @@ const Map<String, (String, String, String)> _t1 = {
     'تصغير الحجم (الدقة/معدل الإطارات)',
   ),
   'fm.tag': ('Etiketle (kişi/grup)', 'Tag (person/group)', 'وسم (شخص/مجموعة)'),
+  // 2026-11-04 kullanıcı: "önemli dosyalara kopyalanın adı Önemli İşaretle
+  // olsun". İş aynı (Önemli dosyalar'a kopya), yalnız ad kısaldı.
   'fm.copy_to_important': (
-    'Önemli dosyalara kopyala',
-    'Copy to important files',
-    'نسخ إلى الملفات المهمة',
+    'Önemli işaretle',
+    'Mark important',
+    'وضع علامة مهم',
   ),
   // "Paylaşılan"a kopyala — ağ paylaşımının dar kapsamlı kutusu (kullanıcı
   // isteği 2026-08-31: *"dosyaların 3 nokta ayarında paylaşılan'a kopyala

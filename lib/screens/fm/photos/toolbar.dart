@@ -365,6 +365,13 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
         ..sort((a, b) => a.modifiedMs.compareTo(b.modifiedMs));
       extras.addAll(sorted.skip(1));
     }
+    // **WhatsApp "Sent" kopyaları** (2026-11-04): yeniden sıkıştırıldıkları
+    // için bayt bayt eşleşmezler. Aslı (kamera) ile algısal olarak (dHash,
+    // sıkı eşik) eşleşen Sent kopyası silinir; ASIL asla silinmez.
+    extras.addAll(await _sentCopiesWithOriginal(candidates));
+    final seenPaths = <String>{};
+    extras.retainWhere((e) => seenPaths.add(e.path));
+    if (!mounted) return;
     if (extras.isEmpty) {
       showSnackOn(messenger, str.t('ph.not_identical'));
       return;
@@ -389,6 +396,50 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
     if (await deleteEntries(context, extras, confirm: false)) {
       await _dropMissing();
     }
+  }
+
+  /// Aslı listede duran WhatsApp "Sent" kopyaları.
+  ///
+  /// Aday asıllar yalnız bir Sent kopyasından en çok 7 gün ÖNCE çekilmiş
+  /// görsellerdir: gönderim çekimden sonra olur ve böylece 20 bin fotoğrafın
+  /// parmak izi çıkarılmaz.
+  Future<List<FsEntry>> _sentCopiesWithOriginal(List<FsEntry> candidates) async {
+    final sent = [
+      for (final e in candidates)
+        if (e.category == FmCategory.image && isWhatsAppSentCopy(e.path)) e,
+    ];
+    if (sent.isEmpty) return const [];
+    const window = 7 * 24 * 60 * 60 * 1000;
+    final sentMs = [for (final e in sent) e.modifiedMs]..sort();
+    bool nearSent(int ms) {
+      // İlk `>= ms` olan gönderim zamanını ikili aramayla bul.
+      var lo = 0, hi = sentMs.length;
+      while (lo < hi) {
+        final mid = (lo + hi) >> 1;
+        if (sentMs[mid] < ms) {
+          lo = mid + 1;
+        } else {
+          hi = mid;
+        }
+      }
+      return lo < sentMs.length && sentMs[lo] - ms <= window;
+    }
+
+    final originals = [
+      for (final e in candidates)
+        if (e.category == FmCategory.image &&
+            !isWhatsAppSentCopy(e.path) &&
+            nearSent(e.modifiedMs))
+          e,
+    ];
+    if (originals.isEmpty) return const [];
+    final groups = await SimilarFinder.run([...sent, ...originals],
+        level: SimilarityLevel.strict);
+    return [
+      for (final g in groups)
+        if (g.files.any((f) => !isWhatsAppSentCopy(f.path)))
+          ...g.files.where((f) => isWhatsAppSentCopy(f.path)),
+    ];
   }
 
   /// Görünüm sayfası: zaman ölçeği + sütun sayısı + pinch ipucu.

@@ -518,8 +518,31 @@ class FmFilter {
 /// açmak dondururdu); WhatsApp/Telegram kopyaları adı ve boyutu birebir
 /// koruduğu için bu anahtar pratikte yeterli. Ad karşılaştırması Türkçe
 /// katlamalı ve harf duyarsız.
-String duplicateKey(FsEntry entry) =>
-    '${turkishFold(entry.name)}|${entry.sizeBytes}';
+///
+/// **WhatsApp sayacı yok sayılır** (2026-11-04, kullanıcı: *"WhatsApp'tan
+/// paylaşılan görseller 3 tane oluyor"*): aynı fotoğraf iki sohbete
+/// gönderilince WhatsApp `IMG-20261104-WA0003.jpg` ve `...-WA0004.jpg` diye
+/// BAYT BAYT aynı iki kopya yazar — adlar farklı olduğu için eski anahtar
+/// yakalamıyordu. Tarih + boyut aynı kaldıkça bunlar tek sayılır (silmeden
+/// önce yine bayt bayt doğrulanır).
+String duplicateKey(FsEntry entry) {
+  final name = turkishFold(entry.name).replaceFirst(_waCounter, '-wa');
+  return '$name|${entry.sizeBytes}';
+}
+
+final RegExp _waCounter = RegExp(r'-wa\d+(?=\.[^.]*$|$)');
+
+/// Dosya, kullanıcının WhatsApp'tan **gönderdiği** bir görselin kopyası mı?
+///
+/// WhatsApp gönderdiğin fotoğrafı yeniden sıkıştırıp `.../WhatsApp
+/// Images/Sent/` altına yazar: aslı kamerada durur, bu ikinci (çoğu zaman
+/// üçüncü) kopyadır. Ad ve boyut farklı olduğu için ad+boyut anahtarı
+/// tutmaz; galeri bunları "kopya" sayıp gizler (Göster ile geri gelir),
+/// silme ise algısal eşleşmeyle doğrulanır (`PhotosScreen._cleanDuplicates`).
+bool isWhatsAppSentCopy(String path) {
+  final lower = path.toLowerCase().replaceAll('\\', '/');
+  return lower.contains('whatsapp') && lower.contains('/sent/');
+}
 
 /// Bir listedeki uzantı sayıları (süzgeç sayfasındaki çipler için).
 /// Uzantısız dosyalar sayılmaz — süzülecek bir anahtarları yok.

@@ -88,14 +88,17 @@ void main() {
     expect(find.byType(IntrinsicHeight), findsWidgets);
   });
 
-  testWidgets('silme düğmesi ızgaranın DIŞINDA ve dürüst metinli',
+  testWidgets('ikinci hızlı sıra: hızlı paylaş, önemli işaretle, sil',
       (tester) async {
     await open(tester);
-    // Çöp kutusu varsayılan olarak açık → "çöp kutusuna" sözü verilir.
-    expect(
-      find.text(const AppStrings(AppLanguage.tr).t('ea.delete_trash')),
-      findsOneWidget,
-    );
+    const tr = AppStrings(AppLanguage.tr);
+    for (final key in const [
+      'ea.quick_share',
+      'fm.copy_to_important',
+      'common.delete',
+    ]) {
+      expect(find.text(tr.t(key)), findsOneWidget, reason: '$key yok');
+    }
   });
 
   testWidgets('1.6 yazı ölçeğinde de taşmaz', (tester) async {

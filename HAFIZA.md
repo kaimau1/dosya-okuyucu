@@ -208,3 +208,14 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 
 ## 5. Tarihli kayıtlar (yeni kayıt en alta; `## YYYY-MM-DD — başlık`)
 
+
+## 2026-11-04 — WhatsApp klonları + dosya menüsü 2. hızlı sıra
+- **Kök neden (galeride aynı fotoğraftan 3 tane):** ad+boyut anahtarı (2026-07-29) iki durumu
+  kaçırıyordu: (1) aynı foto iki sohbete gidince `IMG-…-WA0003/WA0004` bayt bayt aynı ama ad
+  farklı; (2) `WhatsApp Images/Sent/` kopyası yeniden sıkıştırılmış → ad da boyut da farklı.
+  Çözüm: `duplicateKey` WA sayacını yok sayar; galeri `isWhatsAppSentCopy` olanları da gizler
+  ("Gönderdiklerim" seçiliyken hariç). "Temizle": bayt bayt gruplar + Sent kopyaları **algısal**
+  (`SimilarFinder` sıkı eşik) eşleşirse silinir — aday asıllar yalnız bir Sent'ten ≤7 gün önceki
+  görseller; ASIL asla silinmez. Cihazda doğrulanmadı.
+- Dosya menüsü: ikinci hızlı sıra = Hızlı paylaş (doğrudan `NearbyScreen`) · Önemli işaretle
+  (`fm.copy_to_important` adı değişti) · Sil (danger tonu). Alttaki tam genişlik Sil kaldırıldı.
