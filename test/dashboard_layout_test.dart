@@ -105,4 +105,21 @@ void main() {
     expect(layout.arrangeTiles(['media', 'image'], (s) => s),
         ['image', 'media']);
   });
+
+  test('Drive kutusu alt çubuğa taşındı: mevcut kurulumda bir kez gizlenir',
+      () async {
+    SharedPreferences.setMockInitialValues({
+      'dash_tiles': DashboardLayout.tiles,
+      'dash_hidden_tiles': <String>[],
+    });
+    layout.debugReset();
+    await layout.ensureLoaded();
+    expect(layout.tileVisible('drive'), isFalse);
+
+    // Kullanıcı açarsa ikinci yüklemede yeniden gizlenmez.
+    await layout.setTileVisible('drive', true);
+    layout.debugReset();
+    await layout.ensureLoaded();
+    expect(layout.tileVisible('drive'), isTrue);
+  });
 }

@@ -167,7 +167,7 @@ class AppColors extends ThemeExtension<AppColors> {
     final theme = Theme.of(context);
     return theme.extension<AppColors>() ??
         AppColors.fromPalette(
-            SkinPalette.of(AppSkin.paper, theme.brightness), theme.brightness);
+            SkinPalette.of(AppSkin.sage, theme.brightness), theme.brightness);
   }
 
   @override

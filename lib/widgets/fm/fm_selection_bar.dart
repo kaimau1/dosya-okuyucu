@@ -42,11 +42,18 @@ class FmSelectionBar extends StatelessWidget {
   /// gibi tek klasöre ait olmayan listelerde arşivin nereye yazılacağı belirsiz).
   final String? zipDestDir;
 
+  /// Tek seçimde "Daha fazla" ⋮ menüsünün AYNISINI açar (2026-11-04): bu iki
+  /// alan da o ekranın ⋮ çağrısıyla aynı verilir ("Konumunu aç").
+  final bool allowReveal;
+  final void Function(String path)? onReveal;
+
   const FmSelectionBar({
     super.key,
     required this.selected,
     required this.onChanged,
     this.zipDestDir,
+    this.allowReveal = false,
+    this.onReveal,
   });
 
   List<String> get _paths => selected.map((e) => e.path).toList();
@@ -104,6 +111,15 @@ class FmSelectionBar extends StatelessWidget {
                       context.t('common.share'),
                       () => shareEntriesFrom(context, _paths),
                     ),
+                  // **Hızlı paylaş** (2026-11-04, kullanıcı: *"basılı tutunca
+                  // altta gelen hızlı erişim alanında hızlı paylaş da
+                  // olmalı"*): sormadan Yakındakiler'e.
+                  _action(
+                    context,
+                    AppIcons.nearMe,
+                    context.t('ea.quick_share'),
+                    () => quickShareEntries(context, _paths),
+                  ),
                   _action(
                     context,
                     AppIcons.delete,
@@ -168,6 +184,17 @@ class FmSelectionBar extends StatelessWidget {
         context.t('fm.more'),
         () async {
           final n = selected.length;
+          // **Tek seçim = ⋮ menüsünün aynısı** (2026-11-04, kullanıcı: *"bir
+          // dosyanın ne olduğu fark etmez sağındaki 3 nokta ve basılı tutunca
+          // gelen daha fazla menüsü aynı ve eksiksiz olmalı"*). Eskiden ayrı
+          // ve eksik bir levhaydı (Aç, Drive, Kitaplık, Böl… yoktu).
+          if (n == 1) {
+            if (await showEntryActions(context, selected.first,
+                allowReveal: allowReveal, onReveal: onReveal)) {
+              await onChanged();
+            }
+            return;
+          }
           final v = await showAppActionSheet<String>(
             context,
             title: context.t('sel.sheet_title', {'n': n}),

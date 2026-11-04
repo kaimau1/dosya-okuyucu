@@ -34,6 +34,7 @@ import '../../services/fm/remote/ftp_tree.dart';
 import '../../services/fm/remote/share_scope.dart';
 import '../../services/fm/storage_stats.dart';
 import '../../services/fm/volume_watcher.dart';
+import '../../widgets/fm/ai_tag_flow.dart';
 import '../../widgets/fm/archive_password_dialog.dart';
 import '../../widgets/fm/compress_sheet.dart';
 import '../../widgets/fm/fm_entry_icon.dart';

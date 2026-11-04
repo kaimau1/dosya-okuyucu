@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dosya_okuyucu/core/skin.dart';
+import 'package:dosya_okuyucu/core/theme.dart';
 import 'package:dosya_okuyucu/widgets/docx_view.dart';
 import 'package:dosya_okuyucu/widgets/pdf_page_frame.dart';
 import 'package:flutter/material.dart';
@@ -14,8 +15,8 @@ void main() {
 
   test('koyu: kanvas temanın zemini, sayfa/çerçeve yok', () {
     final c = DocxCanvas.forSkin(
-        AppSkin.paper, Brightness.dark, pal(AppSkin.paper, Brightness.dark));
-    expect(c.background, pal(AppSkin.paper, Brightness.dark).bg);
+        AppSkin.clay, Brightness.dark, pal(AppSkin.clay, Brightness.dark));
+    expect(c.background, pal(AppSkin.clay, Brightness.dark).bg);
     expect(c.page, isNull);
     expect(c.frame, isNull);
     expect(c.background, isNot(DocxCanvas.fallback.background));
@@ -29,8 +30,8 @@ void main() {
   });
 
   test('kâğıt açık: #FBF8F1 sayfa + #D2C8B4 çerçeve', () {
-    final c = DocxCanvas.forSkin(AppSkin.paper, Brightness.light,
-        pal(AppSkin.paper, Brightness.light));
+    final c = DocxCanvas.forSkin(AppSkin.clay, Brightness.light,
+        pal(AppSkin.clay, Brightness.light));
     expect(c.page, const Color(0xFFFBF8F1));
     expect(c.frame, const Color(0xFFD2C8B4));
     expect(c.js, "setCanvas('${DocxCanvas.hex(c.background)}', "
@@ -48,21 +49,21 @@ void main() {
       (tester) async {
     late PdfPageFrame light, dark;
     await tester.pumpWidget(MaterialApp(
-      theme: ThemeData(brightness: Brightness.light),
+      theme: AppTheme.light(skin: AppSkin.clay),
       home: Builder(builder: (c) {
         light = PdfPageFrame.of(c);
         return const SizedBox();
       }),
     ));
     await tester.pumpWidget(MaterialApp(
-      theme: ThemeData(brightness: Brightness.dark),
+      theme: AppTheme.dark(skin: AppSkin.clay),
       home: Builder(builder: (c) {
         dark = PdfPageFrame.of(c);
         return const SizedBox();
       }),
     ));
     await tester.pumpAndSettle(); // tema geçiş animasyonu bitsin
-    // Tema uzantısı yoksa kâğıt ailesi varsayılır.
+    // Kâğıt sayfa çerçevesi sıcak ailede (eski Kağıt → Kil, 2026-11-04).
     expect(light.enabled, isTrue);
     expect(light.shadowOrDefault, isNull);
     expect(dark.enabled, isFalse);

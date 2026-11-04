@@ -34,6 +34,7 @@ enum _EntryAction {
   hide,
   audiobook,
   quickShare,
+  aiTag,
 }
 
 /// Uzun basınca (ya da ⋮ ile) açılan işlem sayfası. Dosya sistemi değiştiyse
@@ -236,6 +237,13 @@ Future<bool> showEntryActions(
                 _act(ctx, AppIcons.tag, ctx.t('ea.tag'),
                     _EntryAction.tag,
                     hint: ctx.t('ea.tag_hint')),
+              // 2026-11-04 (kullanıcı: *"3 nokta ve basılı tutunca gelen daha
+              // fazla menüsü aynı ve eksiksiz olmalı"*): seçimdeki "AI ile
+              // etiketle" burada da var — iki menü tek kaynaktan.
+              if (!entry.isDir)
+                _act(ctx, AppIcons.ai, ctx.t('tagai.action'),
+                    _EntryAction.aiTag,
+                    hint: ctx.t('tagai.action_hint')),
               // **Döndür** (2026-09-06 denetim turu): yan çekilmiş bir
               // fotoğrafı düzeltmenin uygulama içinde hiçbir yolu yoktu.
               // **Böl / birleştir**: FAT32 biçimli USB bellek ve SD kartlar
@@ -298,9 +306,11 @@ Future<bool> showEntryActions(
       return false;
 
     case _EntryAction.quickShare:
-      await Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => NearbyScreen(sendPaths: [entry.path])));
+      await quickShareEntries(context, [entry.path]);
       return false;
+
+    case _EntryAction.aiTag:
+      return showAiTagFlow(context, [entry]);
 
     case _EntryAction.driveUpload:
       await uploadToDrive(context, entry.path);
@@ -410,6 +420,12 @@ Future<bool> showEntryActions(
       return joinEntry(context, entry);
   }
 }
+
+/// **Hızlı paylaş**: seçim sormadan doğrudan Yakındakiler'e gönderir. Dosya
+/// menüsü ile seçim çubuğu aynı yolu kullanır.
+Future<void> quickShareEntries(BuildContext context, List<String> paths) =>
+    Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => NearbyScreen(sendPaths: paths)));
 
 /// **İki dosyanın SHA-256 özetini karşılaştırır.**
 ///

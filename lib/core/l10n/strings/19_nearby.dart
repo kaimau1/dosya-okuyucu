@@ -184,12 +184,12 @@ const Map<String, (String, String, String)> _t19 = {
   'srch.mode_found': ('{n} sonuç · {total} dosya arandı', '{n} results · {total} files searched', '{n} نتيجة · بُحث في {total} ملف'),
   'srch.in_filter_hint': ('Süzgeçteki {n} dosyada ara…', 'Search {n} filtered files…', 'ابحث في {n} ملف مُصفّى…'),
 
-  // ── Kırık beyaz tema ──
-  'skin.ivory': ('Kırık beyaz', 'Ivory', 'أبيض عاجي'),
-  'skin.ivory_sub': (
-    'Sıcak fildişi zemin, adaçayı yeşili vurgu — mavisiz, göz yormayan',
-    'Warm ivory background, sage-green accent — no blue, easy on the eyes',
-    'خلفية عاجية دافئة ولون مميز أخضر — دون أزرق ومريحة للعين',
+  // ── Adaçayı tema (2026-11-04; eski Kırık beyaz) ──
+  'skin.sage': ('Adaçayı', 'Sage', 'مريمية'),
+  'skin.sage_sub': (
+    'Masa ve kâğıt: yumuşak yeşil-gri zemin, açık kartlar, petrol vurgu',
+    'Desk and paper: soft green-grey ground, light cards, teal accent',
+    'مكتب وورق: خلفية رمادية خضراء ناعمة وبطاقات فاتحة ولون أزرق مخضر',
   ),
   // ── Aktar 2026-11-03: yazı gönderme, güvenilen cihazlar, yeni düzen ───────
   'near.add_text': ('Yazı', 'Text', 'نص'),
@@ -230,4 +230,8 @@ const Map<String, (String, String, String)> _t19 = {
   'near.trusted_badge': ('Güvenilir', 'Trusted', 'موثوق'),
   'near.untrust': ('Güveni kaldır', 'Remove trust', 'إزالة الثقة'),
   'near.trusted_added': ('{name} güvenilenlere eklendi', '{name} added to trusted devices', 'أُضيف {name} إلى الأجهزة الموثوقة'),
+  // ── Alt çubuğun hızlı sırası (2026-11-04) ──
+  'dock.trash': ('Çöp', 'Trash', 'المهملات'),
+  'dock.drive': ('Drive', 'Drive', 'Drive'),
+  'dock.scan': ('Tara', 'Scan', 'مسح'),
 };

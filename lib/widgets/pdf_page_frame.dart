@@ -21,7 +21,7 @@ class PdfPageFrame {
     final skin = AppSkinData.of(context);
     final dark = Theme.of(context).brightness == Brightness.dark ||
         skin.skin.forcesDark;
-    return PdfPageFrame._(skin.skin == AppSkin.paper && !dark);
+    return PdfPageFrame._(skin.skin == AppSkin.clay && !dark);
   }
 
   /// `PdfViewerParams.pageDropShadow` için: çerçeveliyken gölge yok.

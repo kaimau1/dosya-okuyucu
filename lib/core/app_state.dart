@@ -140,7 +140,7 @@ class AppState extends ChangeNotifier {
 
   /// Tema ailesi (kağıt / açık / modern / iş programı / gece). `ThemeMode`
   /// ile diktir: aile kimliği, mod parlaklığı seçer — bkz. [AppSkin].
-  AppSkin _appSkin = AppSkin.paper;
+  AppSkin _appSkin = AppSkin.sage;
 
   /// Seçili hazır arka plan rengi (`AppBackground.id`); 'default' = ailenin
   /// kendi zemini.

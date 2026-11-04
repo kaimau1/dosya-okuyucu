@@ -76,6 +76,7 @@ extension _DashboardScreenScanPart on _DashboardScreenState {
     final items = await FmEnv.trash.list();
     if (!mounted) return;
     _partSetState(() => _trashCount = items.length);
+    DashboardScreen.trashCount.value = items.length;
   }
 
   /// Kısayol kutularının (İndirilenler…) boyutu — indeks klasör bazlı toplam

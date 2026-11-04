@@ -639,7 +639,8 @@ class DocxCanvas {
       AppSkin skin, Brightness brightness, SkinPalette palette) {
     final dark = brightness == Brightness.dark || skin.forcesDark;
     if (dark) return DocxCanvas(background: palette.bg);
-    if (skin == AppSkin.paper) {
+    // Kâğıt sayfa çerçevesi sıcak ailede (eski Kağıt → Kil, 2026-11-04).
+    if (skin == AppSkin.clay) {
       return DocxCanvas(
           background: palette.well, page: paperPage, frame: paperFrame);
     }

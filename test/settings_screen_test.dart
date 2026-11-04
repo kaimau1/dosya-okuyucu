@@ -139,9 +139,9 @@ void main() {
   testWidgets('kart mevcut değeri gösterir (açmadan ne ayarlı görülüyor)',
       (tester) async {
     await _pump(tester);
-    // Varsayılan tema ailesi "Kağıt", mod "Sistem", dil "Sistem" → üçü de
-    // kartta yazar (aile 2026-08-25'te eklendi: `AppSkin`).
-    expect(find.text('Kağıt · Sistem · Sistem'), findsOneWidget);
+    // Varsayılan tema ailesi "Adaçayı" (2026-11-04), mod "Sistem", dil
+    // "Sistem" → üçü de kartta yazar (aile 2026-08-25'te eklendi: `AppSkin`).
+    expect(find.text('Adaçayı · Sistem · Sistem'), findsOneWidget);
   });
 
   /// **Kök neden testi:** eski arama BÖLÜM başlığına bakıyordu; "küçük resim"

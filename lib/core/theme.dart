@@ -203,7 +203,7 @@ class AppTheme {
   /// onunla çizilir.
   static ThemeData light({
     String? bodyFont,
-    AppSkin skin = AppSkin.paper,
+    AppSkin skin = AppSkin.sage,
     String? background,
   }) =>
       _base(Brightness.light,
@@ -211,7 +211,7 @@ class AppTheme {
 
   static ThemeData dark({
     String? bodyFont,
-    AppSkin skin = AppSkin.paper,
+    AppSkin skin = AppSkin.sage,
     String? background,
   }) =>
       _base(Brightness.dark,
@@ -220,7 +220,7 @@ class AppTheme {
   static ThemeData _base(
     Brightness brightness, {
     String? bodyFont,
-    AppSkin skin = AppSkin.paper,
+    AppSkin skin = AppSkin.sage,
     String? background,
   }) {
     // Seçilen aile HER YERE: başlık ve veri satırları da. Gezgin listesinde
@@ -645,10 +645,10 @@ class AppSkinData extends ThemeExtension<AppSkinData> {
   static AppSkinData of(BuildContext context) =>
       Theme.of(context).extension<AppSkinData>() ??
       AppSkinData(
-        skin: AppSkin.paper,
+        skin: AppSkin.sage,
         palette: SkinPalette.of(
-            AppSkin.paper, Theme.of(context).brightness),
-        metrics: SkinMetrics.of(AppSkin.paper),
+            AppSkin.sage, Theme.of(context).brightness),
+        metrics: SkinMetrics.of(AppSkin.sage),
       );
 
   @override

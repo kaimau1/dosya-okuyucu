@@ -482,6 +482,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             bottom: 0,
             child: FmSelectionBar(
               selected: _selectedEntries(visible),
+              allowReveal: true,
+              onReveal: (path) => Navigator.of(context).push(
+                    browserRoute(BrowserScreen(path: path)),
+                  ),
               onChanged: () async {
                 setState(_selected.clear);
                 await _refreshAlive();

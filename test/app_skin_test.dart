@@ -30,18 +30,28 @@ void main() {
       expect(AppSkin.night.forcesDark, isTrue);
     });
 
-    test('kağıt ailesi eski paletin kendisi (görünüm değişmedi)', () {
-      final paper = SkinPalette.of(AppSkin.paper, Brightness.light);
-      expect(paper.bg, const Color(0xFFFEFEFC));
-      expect(paper.ink, const Color(0xFF262219));
-      expect(paper.accent, const Color(0xFF2E5AA8));
+    // 2026-11-04 "masa ve kâğıt" (Notlar TEMA_PLANI): açık temalarda kart
+    // zeminden AÇIK, zemin beyaz değil (parlamaz).
+    test('masa ve kâğıt: açık ailelerde kart zeminden açık, zemin beyaz değil',
+        () {
+      for (final skin in [AppSkin.sage, AppSkin.porcelain, AppSkin.clay]) {
+        final p = SkinPalette.of(skin, Brightness.light);
+        expect(p.card.computeLuminance(),
+            greaterThan(p.bg.computeLuminance()),
+            reason: '$skin: kart zeminden koyu');
+        expect(p.bg, isNot(const Color(0xFFFFFFFF)));
+        expect(p.bg.computeLuminance(), lessThan(0.9), reason: '$skin');
+      }
+      final sage = SkinPalette.of(AppSkin.sage, Brightness.light);
+      expect(sage.bg, const Color(0xFFEAF0EB));
+      expect(sage.accent, const Color(0xFF106561));
     });
   });
 
   group('arka plan rengi', () {
     test('koyu bir zemin seçilince mürekkep AÇIĞA döner (okunurluk korunur)',
         () {
-      final paper = SkinPalette.of(AppSkin.paper, Brightness.light);
+      final paper = SkinPalette.of(AppSkin.sage, Brightness.light);
       final navy = AppBackground.byId('navy');
       final applied = paper.withBackground(navy.dark); // koyu lacivert
       expect(applied.bg, navy.dark);
@@ -50,7 +60,7 @@ void main() {
     });
 
     test('zemin değişince kart/şerit basamakları da birlikte taşınır', () {
-      final paper = SkinPalette.of(AppSkin.paper, Brightness.light);
+      final paper = SkinPalette.of(AppSkin.sage, Brightness.light);
       final applied = paper.withBackground(const Color(0xFFFFFFFF));
       // Basamaklar tersine dönmemeli: kart hâlâ zeminden ayrı bir yüzey.
       expect(applied.card, isNot(applied.bg));
@@ -64,8 +74,8 @@ void main() {
   });
 
   group('ölçüler', () {
-    test('modern rahat ve büyük, kağıt ölçüsü değişmedi', () {
-      final paper = SkinMetrics.of(AppSkin.paper);
+    test('modern rahat ve büyük, Adaçayı ölçüsü sade', () {
+      final paper = SkinMetrics.of(AppSkin.sage);
       final modern = SkinMetrics.of(AppSkin.modern);
       expect(paper.iconScale, 1);
       expect(modern.iconScale, greaterThan(1));
@@ -74,10 +84,10 @@ void main() {
     });
   });
 
-  // 2026-10-29: "kırık beyaz ama mavi olmasın".
-  test('Kırık beyaz: fildişi zemin, vurgu mavi DEĞİL ve okunur', () {
+  // 2026-10-29: "kırık beyaz ama mavi olmasın" → 2026-11-04 Adaçayı devraldı.
+  test('Adaçayı: vurgu mavi DEĞİL ve okunur', () {
     for (final b in Brightness.values) {
-      final p = SkinPalette.of(AppSkin.ivory, b);
+      final p = SkinPalette.of(AppSkin.sage, b);
       final hsv = HSVColor.fromColor(p.accent);
       expect(hsv.hue < 190 || hsv.hue > 260, isTrue,
           reason: 'vurgu mavi tonunda: ${hsv.hue}');
@@ -91,17 +101,17 @@ void main() {
       expect(ratio(p.ink, p.bg), greaterThanOrEqualTo(7));
       expect(ratio(p.inkSoft, p.card), greaterThanOrEqualTo(4.5));
     }
-    final light = SkinPalette.of(AppSkin.ivory, Brightness.light);
+    final light = SkinPalette.of(AppSkin.sage, Brightness.light);
     expect(light.bg, isNot(const Color(0xFFFFFFFF)));
-    expect(light.bg.computeLuminance(), greaterThan(0.85));
+    expect(light.bg.computeLuminance(), greaterThan(0.8));
   });
 
   group('sadeleşme göçü (2026-10-21)', () {
     test('dört aile kalır (+ Faz 19 "Sistem rengi", yalnız Android 12+)', () {
       expect(AppSkin.values, [
-        AppSkin.paper,
-        AppSkin.ivory,
-        AppSkin.light,
+        AppSkin.sage,
+        AppSkin.porcelain,
+        AppSkin.clay,
         AppSkin.modern,
         AppSkin.night,
         AppSkin.system,
@@ -110,13 +120,17 @@ void main() {
     });
 
     test('kaldırılan aile en yakın karşılığa taşınır, seçim sıfırlanmaz', () {
-      expect(AppSkin.byName('office'), AppSkin.light);
-      expect(AppSkin.byName('graphite'), AppSkin.light);
+      expect(AppSkin.byName('office'), AppSkin.porcelain);
+      expect(AppSkin.byName('graphite'), AppSkin.porcelain);
+      // 2026-11-04 (K2): eski açık aileler yeni ailelere eşlenir.
+      expect(AppSkin.byName('ivory'), AppSkin.sage);
+      expect(AppSkin.byName('light'), AppSkin.porcelain);
+      expect(AppSkin.byName('paper'), AppSkin.clay);
       for (final colorful in ['ocean', 'sunset', 'forest', 'rose']) {
         expect(AppSkin.byName(colorful), AppSkin.modern, reason: colorful);
       }
       expect(AppSkin.byName('night'), AppSkin.night);
-      expect(AppSkin.byName('bilinmeyen'), AppSkin.paper);
+      expect(AppSkin.byName('bilinmeyen'), AppSkin.sage);
     });
   });
 
@@ -137,7 +151,7 @@ void main() {
     });
 
     test('arka plan seçimi ThemeData zeminine geçer', () {
-      final theme = AppTheme.light(skin: AppSkin.light, background: 'mint');
+      final theme = AppTheme.light(skin: AppSkin.porcelain, background: 'mint');
       expect(theme.colorScheme.surface, AppBackground.byId('mint').light);
     });
 
@@ -150,7 +164,7 @@ void main() {
           return const SizedBox();
         }),
       ));
-      expect(seen.skin, AppSkin.paper);
+      expect(seen.skin, AppSkin.sage);
     });
   });
 }

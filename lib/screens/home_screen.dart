@@ -17,6 +17,7 @@ import '../services/fm/entry_opener.dart';
 import '../services/fm/incoming_files.dart';
 import '../services/fm/media_library.dart';
 import '../services/fm/nav_tabs.dart';
+import '../widgets/fm/home_quick_row.dart';
 import '../widgets/fm/job_progress_bar.dart';
 import '../widgets/fm/nav_tabs_sheet.dart';
 import '../services/fm/fm_env.dart';
@@ -267,6 +268,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _scaffold(BuildContext context) {
     final tabs = NavTabs.instance.tabs;
     final index = tabs.indexOf(_tab);
+    final onHome =
+        (tabs.isEmpty ? NavTabs.home : tabs[index < 0 ? 0 : index]) ==
+            NavTabs.home;
     return Scaffold(
       body: IndexedStack(
         index: index < 0 ? 0 : index,
@@ -297,9 +301,15 @@ class _HomeScreenState extends State<HomeScreen> {
           // bildirim alanında (2026-10-23, kullanıcı: *"bildirim işlerinin tek
           // alanda toplanması, tek tip olması"*) — aynı iş iki yerde
           // görünmesin. Öteki sekmelerde şerit durur.
-          JobProgressBar(
-              hidden: (tabs.isEmpty ? NavTabs.home : tabs[index < 0 ? 0 : index]) ==
-                  NavTabs.home),
+          JobProgressBar(hidden: onHome),
+          // **Hızlı sıra + gezinme TEK alan** (2026-11-04): panodaki yüzen
+          // kapsül (çöp · aktar · tara) + Drive kartı gezinme çubuğunun
+          // üstünde, aynı yüzeyde ince bir satır. Yalnız pano sekmesinde.
+          if (onHome)
+            ColoredBox(
+              color: Theme.of(context).colorScheme.surfaceContainer,
+              child: const HomeQuickRow(),
+            ),
           // Tek sekme kaldıysa çubuk çizilmez (Material en az iki ister) —
           // düzenleme sayfası Ayarlar'dan ve "Ana ekranı düzenle"den açılır.
           if (tabs.length > 1)
@@ -309,6 +319,9 @@ class _HomeScreenState extends State<HomeScreen> {
               child: GestureDetector(
                 onLongPress: () => showNavTabsSheet(context),
                 child: NavigationBar(
+                  // İki satır birlikte alçak kalsın (kullanıcı: "yüksekliği
+                  // çok olmasın"): 80 → 62 dp.
+                  height: onHome ? 62 : null,
                   selectedIndex: index < 0 ? 0 : index,
                   // 5-6 sekmede etiketler sıkışıyor: yalnız seçilinin adı
                   // yazılır (Material'ın kendi önerisi).
