@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
@@ -22,7 +23,7 @@ import '../scan_flow.dart';
 class HomeQuickRow extends StatelessWidget {
   const HomeQuickRow({super.key});
 
-  static const _trashFull = Color(0xFFE65100);
+  static const _trashFull = AppHues.orange;
 
   Future<void> _openTrash(BuildContext context) async {
     await Navigator.of(context)
