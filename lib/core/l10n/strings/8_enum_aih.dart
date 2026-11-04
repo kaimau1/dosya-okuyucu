@@ -852,6 +852,8 @@ const Map<String, (String, String, String)> _t8 = {
     'No bookmarks yet. While reading, long-press the page badge or use the button here.',
     'لا توجد علامات بعد. أثناء القراءة اضغط مطولًا على شارة الصفحة أو استخدم الزر هنا.',
   ),
+  // 2026-11-04: dosya menüsünün ikinci hızlı sırası — doğrudan Yakındakiler.
+  'ea.quick_share': ('Hızlı paylaş', 'Quick share', 'مشاركة سريعة'),
   'ea.shortcut': (
     'Ana ekrana ekle',
     'Add to home screen',

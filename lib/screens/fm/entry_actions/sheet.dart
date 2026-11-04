@@ -33,6 +33,7 @@ enum _EntryAction {
   library,
   hide,
   audiobook,
+  quickShare,
 }
 
 /// Uzun basınca (ya da ⋮ ile) açılan işlem sayfası. Dosya sistemi değiştiyse
@@ -129,6 +130,21 @@ Future<bool> showEntryActions(
                   _EntryAction.bookmark,
                 ),
             ]),
+            // **İkinci hızlı sıra** (2026-11-04, kullanıcı: *"en çok
+            // kullanılanları en üstteki gibi yan yana buton yapalım — sil,
+            // önemli işaretle, hızlı paylaş"*). Hızlı paylaş seçim sormadan
+            // doğrudan Yakındakiler'i açar. Sil buraya taşındı; hata renginde
+            // ve sıranın EN SONUNDA (yanlış dokunuşa en uzak köşe).
+            const SizedBox(height: Gap.sm),
+            _quickRow(ctx, [
+              _quick(ctx, AppIcons.nearMe, ctx.t('ea.quick_share'),
+                  _EntryAction.quickShare),
+              _quick(ctx, AppIcons.important, ctx.t('fm.copy_to_important'),
+                  _EntryAction.important),
+              _quick(ctx, AppIcons.delete, ctx.t('common.delete'),
+                  _EntryAction.delete,
+                  tone: MenuTone.danger),
+            ]),
             // **Türe göre ilk grup** (Faz 17 / G16): arşivde Çıkar, görselde
             // Boyut/Döndür/Tanı, videoda Boyut — dosyanın asıl işi ızgarada
             // aranmasın. Bu eylemler aşağıdaki bölümlerden buraya taşındı.
@@ -195,8 +211,6 @@ Future<bool> showEntryActions(
               _act(ctx, AppIcons.cut, ctx.t('fm.clip_cut'),
                   _EntryAction.cut,
                   hint: ctx.t('ea.clip_hint')),
-              _act(ctx, AppIcons.important, ctx.t('fm.copy_to_important'),
-                  _EntryAction.important),
               // "Paylaşılan"a kopyala (kullanıcı isteği 2026-08-31): ağ
               // paylaşımının dar kapsamlı kutusu. Taşımak değil KOPYALAMAK —
               // dosya kullanıcının bildiği yerde kalmalı.
@@ -253,8 +267,6 @@ Future<bool> showEntryActions(
                 _act(ctx, AppIcons.ai, ctx.t('fm.ai_summary'),
                     _EntryAction.aiSummary),
             ]),
-            const SizedBox(height: Gap.md),
-            _deleteButton(ctx, appState.fmUseTrash),
             const SizedBox(height: Gap.sm),
           ],
         ),
@@ -283,6 +295,11 @@ Future<bool> showEntryActions(
 
     case _EntryAction.share:
       await shareEntriesFrom(context, [entry.path]);
+      return false;
+
+    case _EntryAction.quickShare:
+      await Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => NearbyScreen(sendPaths: [entry.path])));
       return false;
 
     case _EntryAction.driveUpload:
@@ -638,11 +655,16 @@ Widget _quickRow(BuildContext ctx, List<Widget> items) => Padding(
 
 /// Hızlı sıranın bir düğmesi — ortak [MenuTile], vurgu tonunda.
 Widget _quick(
-        BuildContext ctx, IconData icon, String label, _EntryAction action) =>
+  BuildContext ctx,
+  IconData icon,
+  String label,
+  _EntryAction action, {
+  MenuTone tone = MenuTone.accent,
+}) =>
     MenuTile(
       icon: icon,
       label: label,
-      tone: MenuTone.accent,
+      tone: tone,
       onTap: () => Navigator.pop(ctx, action),
     );
 
@@ -660,43 +682,3 @@ Widget _act(
       hint: hint,
       onTap: () => Navigator.pop(ctx, action),
     );
-
-/// **Sil** — tam genişlikte, hata renginde, ızgaranın dışında.
-///
-/// Etiket ayarı okur: çöp kutusu kapalıyken "çöp kutusuna" yazmak tutulmayan
-/// bir sözdür (bkz. [deleteActionText]).
-Widget _deleteButton(BuildContext ctx, bool useTrash) {
-  final scheme = Theme.of(ctx).colorScheme;
-  return Material(
-    color: scheme.errorContainer.withValues(alpha: 0.55),
-    borderRadius: BorderRadius.circular(Radii.control),
-    child: InkWell(
-      onTap: () => Navigator.pop(ctx, _EntryAction.delete),
-      borderRadius: BorderRadius.circular(Radii.control),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-            horizontal: Gap.md, vertical: Gap.sm + 4),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(AppIcons.delete, color: scheme.error),
-            const SizedBox(width: Gap.sm),
-            Flexible(
-              child: Text(
-                useTrash
-                    ? ctx.t('ea.delete_trash')
-                    : ctx.t('ea.delete_permanent'),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(ctx)
-                    .textTheme
-                    .titleSmall
-                    ?.copyWith(color: scheme.error),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}

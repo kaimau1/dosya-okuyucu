@@ -19,6 +19,8 @@ import '../../models/photo_grid_plan.dart';
 import '../../models/photo_group.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/duplicate_finder.dart';
+import '../../services/fm/image_hash.dart' show SimilarityLevel;
+import '../../services/fm/similar_finder.dart';
 import '../../services/fm/file_tags.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/home_shortcuts.dart';
