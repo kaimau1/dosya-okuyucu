@@ -302,58 +302,62 @@ class _HomeScreenState extends State<HomeScreen> {
           // alanda toplanması, tek tip olması"*) — aynı iş iki yerde
           // görünmesin. Öteki sekmelerde şerit durur.
           JobProgressBar(hidden: onHome),
-          // **Hızlı sıra + gezinme TEK alan** (2026-11-04): panodaki yüzen
-          // kapsül (çöp · aktar · tara) + Drive kartı gezinme çubuğunun
-          // üstünde, aynı yüzeyde ince bir satır. Yalnız pano sekmesinde.
-          if (onHome) const HomeQuickRow(),
-          // Tek sekme kaldıysa çubuk çizilmez (Material en az iki ister) —
-          // düzenleme sayfası Ayarlar'dan ve "Ana ekranı düzenle"den açılır.
-          if (tabs.length > 1)
-            // **Basılı tut = düzenle**: kullanıcı kısayolu çubuğun
-            // kendisinde arar.
-            ToastAvoider(
-              child: GestureDetector(
-                onLongPress: () => showNavTabsSheet(context),
-                child: MediaQuery.withClampedTextScaling(
-                  // Büyük yazı ölçeğinde 68 dp'lik çubukta etiket kırpılıyordu.
-                  maxScaleFactor: 1.1,
-                  child: NavigationBar(
-                  // İki satır birlikte alçak kalsın (kullanıcı: "yüksekliği
-                  // çok olmasın"): 80 → 68 dp. 62 dp'de seçili sekmenin
-                  // etiketi kırpılıyordu (2026-11-04 ekran görüntüsü).
-                  height: onHome ? 68 : null,
-                  backgroundColor: onHome
-                      ? Theme.of(context).colorScheme.surfaceContainer
-                      : null,
-                  selectedIndex: index < 0 ? 0 : index,
-                  // 5-6 sekmede etiketler sıkışıyor: yalnız seçilinin adı
-                  // yazılır (Material'ın kendi önerisi).
-                  labelBehavior: tabs.length > 4
-                      ? NavigationDestinationLabelBehavior.onlyShowSelected
-                      : NavigationDestinationLabelBehavior.alwaysShow,
-                  onDestinationSelected: (i) => setState(() {
-                    _tab = tabs[i];
-                    _built.add(_tab);
-                  }),
-                  destinations: [
-                    for (final id in tabs)
-                      () {
-                        final spec = navTabSpec(context, id);
-                        return NavigationDestination(
-                          icon: Icon(spec.icon),
-                          selectedIcon: Icon(spec.selected),
-                          label: spec.label,
-                          // Boş ipucu: hedefin kendi ipucu da basılı tutmayı
-                          // dinliyor ve çubuğun "basılı tut = düzenle"sini
-                          // yutuyordu.
-                          tooltip: '',
-                        );
-                      }(),
-                  ],
+          // **Tek taban** (2026-11-04, 2. tasarım): hızlı sıra (yalnız pano)
+          // + gezinme çubuğu aynı yuvarlak köşeli yüzeyde — her sekmede aynı.
+          BottomDock(
+            children: [
+              if (onHome) const HomeQuickRow(),
+              // Tek sekme kaldıysa çubuk çizilmez (Material en az iki ister) —
+              // düzenleme sayfası Ayarlar'dan ve "Ana ekranı düzenle"den açılır.
+              if (tabs.length > 1)
+                // **Basılı tut = düzenle**: kullanıcı kısayolu çubuğun
+                // kendisinde arar.
+                ToastAvoider(
+                  child: GestureDetector(
+                    onLongPress: () => showNavTabsSheet(context),
+                    child: MediaQuery.withClampedTextScaling(
+                      // Büyük yazı ölçeğinde alçak çubukta etiket kırpılıyordu.
+                      maxScaleFactor: 1.0,
+                      child: NavigationBar(
+                        // Taban alçak kalsın (kullanıcı: "yüksekliği çok
+                        // olmasın"): 80 → 64 dp; etiket ölçeği 1.0'a kıskaçlı.
+                        height: 64,
+                        // Renk tabandan gelir: iki ayrı parça gibi durmasın.
+                        backgroundColor: Colors.transparent,
+                        surfaceTintColor: Colors.transparent,
+                        elevation: 0,
+                        selectedIndex: index < 0 ? 0 : index,
+                        // 5-6 sekmede etiketler sıkışıyor: yalnız seçilinin
+                        // adı yazılır (Material'ın kendi önerisi).
+                        labelBehavior: tabs.length > 4
+                            ? NavigationDestinationLabelBehavior
+                                .onlyShowSelected
+                            : NavigationDestinationLabelBehavior.alwaysShow,
+                        onDestinationSelected: (i) => setState(() {
+                          _tab = tabs[i];
+                          _built.add(_tab);
+                        }),
+                        destinations: [
+                          for (final id in tabs)
+                            () {
+                              final spec = navTabSpec(context, id);
+                              return NavigationDestination(
+                                icon: Icon(spec.icon),
+                                selectedIcon: Icon(spec.selected),
+                                label: spec.label,
+                                // Boş ipucu: hedefin kendi ipucu da basılı
+                                // tutmayı dinliyor ve çubuğun "basılı tut =
+                                // düzenle"sini yutuyordu.
+                                tooltip: '',
+                              );
+                            }(),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
+            ],
+          ),
         ],
       ),
     );

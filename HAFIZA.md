@@ -241,3 +241,8 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
   `surfaceContainer`. Çöp rozeti simgenin soluna (etiketin üstüne biniyordu).
 - Gecikme: hızlı sıra öğelerindeki `Tooltip` (dokunmatikte uzun basma tanıyıcısı) kaldırıldı,
   yerine `Semantics`; dalga `InkSplash` (anında). Kök neden kesin değil — cihazda doğrulanmadı.
+- **2. tasarım (aynı gün, kullanıcı: "ayrı duruyor, baştan tasarla, görsel birlik"):** `BottomDock`
+  (home_quick_row.dart) = hızlı sıra + gezinme TEK yüzey, üst köşeler yuvarlak + yumuşak gölge,
+  her sekmede. NavigationBar şeffaf/elevation 0, 64 dp, yazı ölçeği 1.0 kıskaç. Çöp·Aktar·Drive
+  tek bölmeli grup (ince ayırıcılar), Tara sağda tek vurgu; çöp sayısı etiket yanında küçük hap.
+  Tuzak: tek kenarlı `Border(top:)` + `borderRadius` Flutter'da assert → gölge kullanıldı.

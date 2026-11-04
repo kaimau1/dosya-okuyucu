@@ -11,15 +11,16 @@ import '../../screens/fm/trash_screen.dart';
 import '../../services/fm/fm_env.dart';
 import '../scan_flow.dart';
 
-/// **Alt çubuğun hızlı sırası** (2026-11-04, kullanıcı: *"alt kısımdaki hızlı
-/// erişim satırı ile yüzen erişim butonlarını tek alanda birleştirelim; alt
-/// hızlı erişimde çöp ve aktar mutlaka olsun, 2 satır olsun ama yüksekliği çok
-/// olmasın; Drive'ı da oraya al"*).
+/// **Alt taban** (2026-11-04, ikinci tasarım — kullanıcı: *"alt o 2 satırı
+/// tamamen baştan tasarla, butonların yeri değişebilir, görsel birlik
+/// olsun"*).
 ///
-/// Eskiden sağ altta içeriğin ÜSTÜNDE yüzen bir kapsül vardı (çöp · aktar |
-/// tara) ve kutu ızgarasının son satırını örtüyordu. Artık gezinme çubuğuyla
-/// AYNI yüzeyde, onun hemen üstünde ince (40 dp) tek satır: Çöp · Aktar ·
-/// Drive · Tara. Yalnız pano sekmesinde çizilir (yüzen kapsül de oradaydı).
+/// Hızlı eylemler ile gezinme çubuğu TEK yüzeyde ([BottomDock]): üst köşeleri
+/// yuvarlak, üstünde ince çizgi olan bir "taban". İlk sürümde dört ayrı gri
+/// hap + ayrı bir çubuk iki ayrı parça gibi duruyordu. Artık:
+/// - Çöp · Aktar · Drive tek bölmeli grup (aralarında ince ayırıcı),
+/// - Tara sağda tek vurgulu eylem (gezinme göstergesiyle aynı renk ailesi),
+/// - çöp sayısı simgeye binen rozet değil, etiketin yanında küçük sayı.
 class HomeQuickRow extends StatelessWidget {
   const HomeQuickRow({super.key});
 
@@ -28,150 +29,245 @@ class HomeQuickRow extends StatelessWidget {
   Future<void> _openTrash(BuildContext context) async {
     await Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => const TrashScreen()));
-    // Çöp kutusunda boşaltma/geri yükleme olduysa rozet tazelensin.
+    // Çöp kutusunda boşaltma/geri yükleme olduysa sayı tazelensin.
     try {
       DashboardScreen.trashCount.value = (await FmEnv.trash.list()).length;
     } catch (_) {
-      // Bilinçli: rozet bir sonraki pano taramasında düzelir.
+      // Bilinçli: sayı bir sonraki pano taramasında düzelir.
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    // Üstte ince çizgi: kaydırılan içerik bu satırın altına "kesik" girmesin,
-    // alan gezinme çubuğuyla birlikte ayrı bir taban gibi okunsun
-    // (2026-11-04 kullanıcı: "alt alan olmamış görsel olarak").
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainer,
-        border: Border(
-            top: BorderSide(color: scheme.outlineVariant, width: 0.6)),
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Gap.md - 4, Gap.sm + 2, Gap.md - 4, 2),
       child: SizedBox(
-      height: 46,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(Gap.sm, 6, Gap.sm, 2),
+        height: 42,
         child: Row(
           children: [
-            ValueListenableBuilder<int>(
-              valueListenable: DashboardScreen.trashCount,
-              builder: (context, n, _) {
-                final full = n > 0;
-                final icon = Icon(AppIcons.delete,
-                    size: 20,
-                    color: full ? _trashFull : scheme.onSurfaceVariant);
-                return _QuickItem(
-                  key: const ValueKey('dock-trash'),
-                  icon: full
-                      ? Badge(
-                          label: Text(n > 99 ? '99+' : '$n'),
-                          // Rozet simgenin sol üstüne: sağa taşınca etiketin
-                          // ("Çöp") üstüne biniyordu.
-                          alignment: AlignmentDirectional.topStart,
-                          offset: const Offset(-14, -6),
-                          backgroundColor: _trashFull,
-                          child: icon,
-                        )
-                      : icon,
-                  label: context.t('dock.trash'),
-                  tooltip: full
-                      ? '${context.t('fm.trash')} · '
-                          '${context.t('fm.trash_count', {'n': n})}'
-                      : context.t('fm.trash'),
-                  onTap: () => _openTrash(context),
-                );
-              },
+            Expanded(
+              child: Material(
+                color: scheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(Radii.control + 3),
+                clipBehavior: Clip.antiAlias,
+                child: Row(
+                  children: [
+                    ValueListenableBuilder<int>(
+                      valueListenable: DashboardScreen.trashCount,
+                      builder: (context, n, _) => _Segment(
+                        key: const ValueKey('dock-trash'),
+                        icon: AppIcons.delete,
+                        label: context.t('dock.trash'),
+                        semantics: n > 0
+                            ? '${context.t('fm.trash')} · '
+                                '${context.t('fm.trash_count', {'n': n})}'
+                            : context.t('fm.trash'),
+                        count: n,
+                        countColor: _trashFull,
+                        onTap: () => _openTrash(context),
+                      ),
+                    ),
+                    const _SegmentDivider(),
+                    _Segment(
+                      key: const ValueKey('dock-transfer'),
+                      icon: AppIcons.swapHoriz,
+                      label: context.t('xfer.title'),
+                      onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const TransferScreen())),
+                    ),
+                    const _SegmentDivider(),
+                    _Segment(
+                      key: const ValueKey('dock-drive'),
+                      icon: AppIcons.cloud,
+                      label: context.t('dock.drive'),
+                      semantics: context.t('drive.title'),
+                      onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const DriveScreen())),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            _QuickItem(
-              key: const ValueKey('dock-transfer'),
-              icon: Icon(AppIcons.swapHoriz,
-                  size: 20, color: scheme.onSurfaceVariant),
-              label: context.t('xfer.title'),
-              onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const TransferScreen())),
-            ),
-            _QuickItem(
-              key: const ValueKey('dock-drive'),
-              icon: Icon(AppIcons.cloud,
-                  size: 20, color: scheme.onSurfaceVariant),
-              label: context.t('dock.drive'),
-              tooltip: context.t('drive.title'),
-              onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const DriveScreen())),
-            ),
-            _QuickItem(
+            const SizedBox(width: Gap.sm),
+            _ScanButton(
               key: const ValueKey('dock-scan'),
-              primary: true,
-              icon: Icon(AppIcons.ocr, size: 20, color: scheme.onPrimary),
               label: context.t('dock.scan'),
-              tooltip: context.t('fm.scan_document'),
+              semantics: context.t('fm.scan_document'),
               onTap: () => ScanFlow.run(context),
             ),
           ],
         ),
       ),
-      ),
     );
   }
 }
 
-class _QuickItem extends StatelessWidget {
-  final Widget icon;
-  final String label;
-  final String? tooltip;
-  final VoidCallback onTap;
-  final bool primary;
+class _SegmentDivider extends StatelessWidget {
+  const _SegmentDivider();
 
-  const _QuickItem({
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        height: 20,
+        child: VerticalDivider(
+          width: 1,
+          thickness: 1,
+          color: Theme.of(context).colorScheme.outlineVariant,
+        ),
+      );
+}
+
+class _Segment extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String? semantics;
+  final VoidCallback onTap;
+  final int count;
+  final Color? countColor;
+
+  const _Segment({
     super.key,
     required this.icon,
     required this.label,
     required this.onTap,
-    this.tooltip,
-    this.primary = false,
+    this.semantics,
+    this.count = 0,
+    this.countColor,
   });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final fg = primary ? scheme.onPrimary : scheme.onSurface;
+    final text = Theme.of(context).textTheme.labelMedium;
+    final full = count > 0;
     return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 3),
-        // Tooltip YOK: dokunmatikte uzun basma tanıyıcısı dokunuşla aynı
-        // arenaya giriyordu; açılış gecikmeli hissediliyordu (2026-11-04).
-        child: Semantics(
-          button: true,
-          label: tooltip ?? label,
-          excludeSemantics: true,
-          child: Material(
-            color: primary ? scheme.primary : scheme.surfaceContainerHighest,
-            shape: const StadiumBorder(),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              // Geri bildirim + açılış anında: dalga beklemeden sayfa itilir.
-              onTap: onTap,
-              splashFactory: InkSplash.splashFactory,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  icon,
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: fg, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ],
+      // Tooltip YOK: dokunmatikte uzun basma tanıyıcısı dokunuşla aynı
+      // arenaya giriyordu (2026-11-04).
+      child: Semantics(
+        button: true,
+        label: semantics ?? label,
+        excludeSemantics: true,
+        child: InkWell(
+          onTap: onTap,
+          splashFactory: InkSplash.splashFactory,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon,
+                  size: 18,
+                  color: full ? countColor : scheme.onSurfaceVariant),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: text?.copyWith(
+                      color: scheme.onSurface, fontWeight: FontWeight.w600),
+                ),
               ),
+              if (full) ...[
+                const SizedBox(width: 4),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: countColor,
+                    borderRadius: BorderRadius.circular(Radii.control),
+                  ),
+                  child: Text(
+                    count > 99 ? '99+' : '$count',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: scheme.surface,
+                        height: 1.2,
+                        fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ScanButton extends StatelessWidget {
+  final String label;
+  final String semantics;
+  final VoidCallback onTap;
+
+  const _ScanButton({
+    super.key,
+    required this.label,
+    required this.semantics,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      label: semantics,
+      excludeSemantics: true,
+      child: Material(
+        color: scheme.primary,
+        borderRadius: BorderRadius.circular(Radii.control + 3),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          splashFactory: InkSplash.splashFactory,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(AppIcons.ocr, size: 18, color: scheme.onPrimary),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: scheme.onPrimary, fontWeight: FontWeight.w700),
+                ),
+              ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Gezinme çubuğu + (panoda) hızlı sıra için ortak taban: tek renk, üst
+/// köşeler yuvarlak, üstünde yumuşak bir gölge (tek kenarlı çizgi
+/// yuvarlak köşeyle birlikte çizilemiyor — Flutter tek tip kenarlık ister). Her sekmede aynı görünür.
+class BottomDock extends StatelessWidget {
+  final List<Widget> children;
+
+  const BottomDock({super.key, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    const radius = BorderRadius.vertical(top: Radius.circular(Radii.sheet - 4));
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainer,
+        borderRadius: radius,
+        boxShadow: [
+          BoxShadow(
+            color: scheme.shadow.withValues(alpha: 0.08),
+            blurRadius: 14,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: radius,
+        child: Column(mainAxisSize: MainAxisSize.min, children: children),
       ),
     );
   }
