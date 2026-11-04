@@ -64,14 +64,14 @@ bellek yoklaması 15 sn (P6), hafif profilde 120 Hz/otomatik tarama/nabız kapal
 
 ---
 
-## Faz 34 — Pano cilası (bu oturumda başladı)
+## Faz 34 — Pano cilası — BİTTİ 2026-11-04 (cihaz doğrulaması CIHAZ_TESTI.md'de)
 - [x] Simgeler sadeleşti: parlama kalktı, gölge/gradyan yumuşak (`fm_tile_art.dart`).
 - [x] Alt gezinme çubuğu kalktı; alt panel simetrik (Çöp · Drive · **Aktar** · Tara · Yer aç),
       güvenli alan (SafeArea) eklendi; ek düğme varsayılanı "Yer aç" (`home_quick_row.dart`).
 - [x] Araçlar çizgisi yukarı çekildi; kutu ızgarası 0,86→0,94 oran; araç çerçevesi ince.
 - [ ] Cihazda doğrula: 360×800 dp ve 2× yazı ölçeğinde tüm araç satırı alt panel üstünde.
-- [ ] Başka sekmelere erişim (Yeni Dosyalar, Geçmiş, İndirilenler) panodaki kutulardan —
-      eski sekme ayarı (`NavTabs`) ve "Ana ekranı düzenle" sayfasını sadeleştir/kaldır.
+- [x] Başka sekmelere erişim panodaki kutulardan; ölü alt çubuk ayarı (ayarlar satırı +
+      "Ana ekranı düzenle" girişi) kaldırıldı (`NavTabs` altyapısı sekme durumu için duruyor).
 **Bitti ölçütü:** ekran görüntüsünde 4 sıra kutu + araç satırı + alt panel kayma yok.
 
 ## Faz 35 — Pro belge tarayıcı (en büyük kullanıcı değeri)

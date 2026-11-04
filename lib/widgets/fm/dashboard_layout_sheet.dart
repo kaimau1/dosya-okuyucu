@@ -4,7 +4,6 @@ import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../services/fm/dashboard_layout.dart';
 import '../../core/safe_insets.dart';
-import 'nav_tabs_sheet.dart';
 import '../../core/app_colors.dart';
 
 /// Düzen sayfasındaki bir satırın görünümü.
@@ -100,15 +99,6 @@ class _LayoutSheetState extends State<_LayoutSheet> {
                 selected: {_tilesTab},
                 onSelectionChanged: (v) => setState(() => _tilesTab = v.first),
               ),
-            ),
-            // Alt çubuk da ana ekranın parçası (2026-10-18): kullanıcı onu
-            // "ana ekranı düzenle"de de arar.
-            ListTile(
-              leading: const Icon(AppIcons.spaceDashboard),
-              title: Text(context.t('nav.edit_title')),
-              subtitle: Text(context.t('nav.settings_sub')),
-              trailing: const Icon(AppIcons.chevron),
-              onTap: () => showNavTabsSheet(context),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 10, 20, 4),

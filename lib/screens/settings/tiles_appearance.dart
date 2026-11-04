@@ -9,7 +9,6 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/skin.dart';
 import '../../core/theme.dart';
 import '../../widgets/fm/fm_category_tile.dart' show FmTintedIcon;
-import '../../widgets/fm/nav_tabs_sheet.dart';
 import 'settings_widgets.dart';
 import '../../core/app_haptics.dart';
 
@@ -407,17 +406,5 @@ class HapticsTile extends StatelessWidget {
           value: on,
           onChanged: AppHaptics.setEnabled,
         ),
-      );
-}
-
-class NavTabsTile extends StatelessWidget {
-  const NavTabsTile({super.key});
-
-  @override
-  Widget build(BuildContext context) => SettingTile(
-        icon: AppIcons.spaceDashboard,
-        title: context.t('nav.edit_title'),
-        subtitle: context.t('nav.settings_sub'),
-        onTap: () => showNavTabsSheet(context),
       );
 }
