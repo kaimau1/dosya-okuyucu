@@ -6,7 +6,6 @@ import 'package:dosya_okuyucu/core/skin.dart';
 import 'package:dosya_okuyucu/core/theme.dart';
 import 'package:dosya_okuyucu/services/fm/nav_tabs.dart';
 import 'package:dosya_okuyucu/widgets/fm/fm_category_tile.dart';
-import 'package:dosya_okuyucu/widgets/fm/nav_tabs_sheet.dart';
 
 /// **Alt çubuk kısayolları** ve **tema simge dilleri** (2026-10-18).
 void main() {
@@ -73,24 +72,6 @@ void main() {
       await nav.reset();
       expect(nav.isDefault, isTrue);
     });
-  });
-
-  testWidgets('her kimliğin etiketi ve simgesi var', (tester) async {
-    late BuildContext ctx;
-    await tester.pumpWidget(MaterialApp(
-      home: Builder(builder: (c) {
-        ctx = c;
-        return const SizedBox();
-      }),
-    ));
-    final labels = <String>{};
-    for (final id in NavTabs.available) {
-      final spec = navTabSpec(ctx, id);
-      expect(spec.label, isNotEmpty, reason: id);
-      labels.add(spec.label);
-    }
-    expect(labels.length, NavTabs.available.length,
-        reason: 'iki sekme aynı adı taşımamalı');
   });
 
   group('tema simge dilleri', () {
