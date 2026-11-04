@@ -43,11 +43,16 @@ Yalnız `test/**`/`tool/**` değişen push APK derlemez; `**.md`, `docs/**`, `gr
 Art arda push → önceki koşu iptal.
 
 ## 4) Çalışma Kuralları
-- **Dal:** **TEK DAL — `main`.** (2026-07-27: eski 13 `claude/**` dalı silindi; hepsi
+- **Dal:** **TEK DAL — `main`** (faz işleri hariç, aşağıya bak). (2026-07-27: eski 13 `claude/**` dalı silindi; hepsi
   main'in gerisindeydi, hiçbirinde main'de olmayan iş yoktu.) Yeni dal AÇMA;
   iş doğrudan main'e commit edilir. Push: `git push`.
   Bulut oturumu (`claude/*`, `ccr-*`) dal açtıysa iş main'e girince o uzak dal silinir.
   APK yalnız **main**'e push'ta derlenir (feature dalında sadece `flutter test`).
+- **İSTİSNA — Geliştirme fazları (2026-11-04, kullanıcı kararı):** `docs/GELISTIRME_PLANI.md`
+  Faz 34–42 işleri **`faz-NN` dalında** yapılır ve iş sonunda **MUTLAKA PR açılıp main'e
+  BİRLEŞTİRİLİR** (CI yeşilken; faz ancak birleşmeyle biter). Birleşince sıradaki faz görevi
+  `fire_trigger` ile tetiklenir (bkz. `docs/ZAMANLANMIS_GOREV_ISTEMI.md`). Bu istisna yalnız
+  faz işleri içindir; öteki işler yine doğrudan main'e.
 - **Doğrulama = CI (2026-11-04, kullanıcı kararı — token tasarrufu):** yerelde/bulutta
   `flutter test`/`analyze` KOŞTURMA, Flutter İNDİRME. Push et → CI `verify` işi test eder;
   Actions sonucuna koşu bitince bir kez bak (sık yoklama yapma), kırmızıysa logdan
