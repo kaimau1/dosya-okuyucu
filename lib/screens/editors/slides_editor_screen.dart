@@ -171,6 +171,11 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
   // ── Küçük resim şeridi (Faz 29b) ───────────────────────────────────────────
   bool _strip = true;
 
+  /// Şeridin kaydırıcısı: ana görünümde slayt değişince güncel küçük resim
+  /// şeridin ortasına gelir (2026-11-04 önizleme turu — eskiden şerit yerinde
+  /// duruyor, 20. slayttayken şeritte 1–3 görünüyordu).
+  final ScrollController _stripCtrl = ScrollController();
+
   // ── Düzenleme sonrası vurgu (2026-11-01) ───────────────────────────────────
   // Düzenlenen kutu okumaya dönünce ~1,2 sn ince çerçeveyle gösterilir.
   PptxSlide? _flashSlide;
@@ -201,6 +206,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
     _vCtrl.removeListener(_onScroll);
     _hCtrl.dispose();
     _vCtrl.dispose();
+    _stripCtrl.dispose();
     _findCtrl.dispose();
     super.dispose();
   }

@@ -6,6 +6,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_icons.dart';
+import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -13,7 +14,9 @@ import '../../services/file_service.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/apk_icon.dart';
 import '../../services/fm/image_sniff.dart';
+import '../../services/fm/important_files.dart';
 import '../../services/fm/media_duration.dart';
+import '../../services/fm/office_thumbnail.dart';
 import '../../services/fm/pdf_thumbnail.dart';
 import '../../services/fm/thumbnail_cache.dart';
 import 'fm_file_image.dart';
@@ -254,8 +257,28 @@ class FmEntryIcon extends StatelessWidget {
     this.radius = Radii.control,
   });
 
+  /// **Önemli dosya yıldızı** (kullanıcı isteği 2026-11-04: *"önemli
+  /// dosyalara kopyalanmış her türlü dosyanın üzerinde yıldız simgesi olsun,
+  /// her nerede olursa olsun"*). Bütün listeler, ızgaralar, son açılanlar,
+  /// arama ve fotoğraflar simgeyi buradan aldığı için rozet de tek yerde.
   @override
   Widget build(BuildContext context) {
+    final icon = _content(context);
+    if (!ImportantFiles.isImportant(entry.path)) return icon;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        icon,
+        PositionedDirectional(
+          top: 2,
+          end: 2,
+          child: FmImportantBadge(size: (size * 0.32).clamp(14.0, 24.0)),
+        ),
+      ],
+    );
+  }
+
+  Widget _content(BuildContext context) {
     final category = entry.category;
     // Kullanıcı ayarlardan küçük resimleri kapatabilir (yavaş cihaz).
     final thumbsOn =
@@ -277,6 +300,17 @@ class FmEntryIcon extends StatelessWidget {
           size: size,
           radius: radius,
           fallback: icon,
+        );
+      }
+      // Slayt / Excel / Word: dosyanın içindeki hazır önizleme resmi
+      // (PowerPoint ilk slaytı yazar — 2026-11-04, bkz. [OfficeThumbnail]).
+      if (thumbsOn && OfficeThumbnail.supports(entry.extension)) {
+        return _PdfThumb(
+          path: entry.path,
+          size: size,
+          radius: radius,
+          fallback: icon,
+          loader: (path, _) => OfficeThumbnail.forOffice(path),
         );
       }
       return icon;
@@ -320,6 +354,7 @@ class FmEntryIcon extends StatelessWidget {
             // önbellekte bulup ilk kareyi anında çizebilsin.
             cacheWidth: fmThumbWidth(
                 size, MediaQuery.maybeDevicePixelRatioOf(context) ?? 3),
+            cover: true,
           ),
           width: size,
           height: size,
@@ -550,6 +585,7 @@ class _SniffedImageState extends State<_SniffedImage> {
       borderRadius: BorderRadius.circular(widget.radius),
       child: Image(
         image: FmFileImage(widget.path,
+            cover: true,
             cacheWidth: fmThumbWidth(widget.size,
                 MediaQuery.maybeDevicePixelRatioOf(context) ?? 3)),
         width: widget.size,
@@ -641,11 +677,16 @@ class _PdfThumb extends StatefulWidget {
   final double radius;
   final Widget fallback;
 
+  /// Kapak üreticisi (yol, piksel boyu); verilmezse PDF'in ilk sayfası.
+  /// Office belgeleri aynı "kâğıt" çerçevesini kullanır.
+  final Future<String?> Function(String path, int size)? loader;
+
   const _PdfThumb({
     required this.path,
     required this.size,
     required this.fallback,
     this.radius = Radii.control,
+    this.loader,
   });
 
   @override
@@ -673,8 +714,11 @@ class _PdfThumbState extends State<_PdfThumb> {
 
   Future<void> _load() async {
     final path = widget.path;
-    final result = await PdfThumbnail.forPdf(path,
-        size: (widget.size * 2).round().clamp(96, 512));
+    final size = (widget.size * 2).round().clamp(96, 512);
+    final loader = widget.loader;
+    final result = loader != null
+        ? await loader(path, size)
+        : await PdfThumbnail.forPdf(path, size: size);
     if (!mounted || path != widget.path) return;
     setState(() => _thumb = result);
   }
@@ -814,7 +858,11 @@ class _PhotoThumbState extends State<_PhotoThumb> {
             color: Theme.of(context).colorScheme.surfaceContainerHighest),
       );
     }
-    final provider = FmFileImage(thumb, cacheWidth: _width);
+    // Küçük resim dosyası zaten hücre ölçüsünde (kısa kenarı [_width]):
+    // ikinci kez küçültülmez. Eskiden `cacheWidth` GENİŞLİĞİ kısıtlıyordu —
+    // yatay fotoğrafta yükseklik hücrenin altına düşüp `cover` ile yeniden
+    // büyütülüyordu (bulanıklığın ikinci kaynağı, 2026-11-04).
+    final provider = FmFileImage(thumb);
     fmRememberThumb(_path, provider);
     return ClipRRect(
       borderRadius: BorderRadius.circular(widget.radius),
@@ -928,8 +976,10 @@ class _VideoThumbState extends State<_VideoThumb> {
         fit: StackFit.passthrough,
         children: [
           Image(
-            image: FmFileImage(thumb, cacheWidth: fmThumbWidth(widget.size,
-                MediaQuery.maybeDevicePixelRatioOf(context) ?? 3)),
+            image: FmFileImage(thumb,
+                cover: true,
+                cacheWidth: fmThumbWidth(widget.size,
+                    MediaQuery.maybeDevicePixelRatioOf(context) ?? 3)),
             width: widget.size,
             height: widget.size,
             fit: BoxFit.cover,
@@ -1022,3 +1072,26 @@ IconData volumeIcon(StorageVolume volume) => switch (volume.iconName) {
       'usb' => AppIcons.external,
       _ => AppIcons.sdCard,
     };
+
+/// Önemli dosya rozeti: koyu daire üstünde sarı yıldız (her zeminde okunur).
+class FmImportantBadge extends StatelessWidget {
+  final double size;
+  const FmImportantBadge({super.key, this.size = 18});
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        label: context.t('important.badge'),
+        child: Container(
+          key: const ValueKey<String>('fm-important-badge'),
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: AppColors.mediaSurface.withValues(alpha: 0.7),
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: Icon(AppIcons.star,
+              size: size * 0.78, color: AppHues.amberBright),
+        ),
+      );
+}

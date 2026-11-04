@@ -16,6 +16,10 @@ import '../../models/document.dart';
 import '../../models/fs_entry.dart';
 import '../../models/photo_group.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/image_rotate.dart';
+import '../../services/fm/important_files.dart';
+import '../../widgets/fm/fm_entry_icon.dart';
+import '../../core/user_error.dart';
 import '../../services/image_enhance.dart';
 import '../../services/fm/enhance_jobs.dart';
 import '../../services/fm/job_queue.dart';
@@ -97,6 +101,46 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
   /// Yakınlaştırılmış sayfa varken sayfa geçişi kilitlenir.
   bool _zoomed = false;
+
+  /// **Görünümde döndürme** (kullanıcı isteği 2026-11-04: *"sağa sola çevir
+  /// butonu … görsellerde de"*): yol → saat yönünde çeyrek tur. Dosyaya
+  /// dokunulmaz; ⋮ → "Döndürülmüş hâlini kaydet" yanına yeni dosya yazar.
+  final Map<String, int> _turns = {};
+
+  int _turnsOf(String path) => _turns[path] ?? 0;
+
+  void _rotateBy(int delta) {
+    final path = _current;
+    setState(() {
+      final t = (_turnsOf(path) + delta) % 4;
+      if (t == 0) {
+        _turns.remove(path);
+      } else {
+        _turns[path] = t;
+      }
+    });
+  }
+
+  Future<void> _saveRotation() async {
+    final path = _current;
+    final turns = _turnsOf(path);
+    if (turns == 0) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final strings = AppStrings.of(context);
+    showSnackOn(messenger, strings.t('rotate.working'));
+    try {
+      final out = await ImageRotate.rotate(path, quarterTurns: turns);
+      if (!mounted) return;
+      setState(() {
+        _turns.remove(path);
+        // Yeni dosya hemen yanında açılır: kullanıcı sonucu görür.
+        _paths.insert(_index + 1, out);
+      });
+      showSnackOn(messenger, strings.t('rotate.done', {'name': p.basename(out)}));
+    } catch (e) {
+      showSnackOn(messenger, strings.t('rotate.failed', {'error': userErrorText(e)}));
+    }
+  }
 
   // ── Aşağı kaydırıp kapatma (2026-09-26) ───────────────────────────────────
   /// Sayfanın dikey kayması (aşağı artı). Sürükleme bitince ya kapanır ya da
@@ -557,7 +601,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                         _precacheAround(i);
                       },
                       itemCount: _paths.length,
-                      itemBuilder: (context, i) => _ZoomableImage(
+                      itemBuilder: (context, i) => RotatedBox(
+                       quarterTurns: _turnsOf(_paths[i]),
+                       child: _ZoomableImage(
                         path: _paths[i],
                         heroTag: fmMediaHeroTag(_paths[i]),
                         onTap: () => _slideshow
@@ -568,6 +614,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                             setState(() => _zoomed = zoomed);
                           }
                         },
+                       ),
                       ),
                     ),
                   ),
@@ -601,6 +648,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                       children: [
                         const BackButton(color: AppColors.onMedia),
                         const SizedBox(width: 4),
+                        if (ImportantFiles.isImportant(_current)) ...[
+                          const FmImportantBadge(size: 22),
+                          const SizedBox(width: 6),
+                        ],
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -623,6 +674,20 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                             ],
                           ),
                         ),
+                        IconButton(
+                          key: const ValueKey<String>('gal-rotate-left'),
+                          tooltip: context.t('mp.rotate_left'),
+                          icon: const Icon(AppIcons.rotateLeft,
+                              color: AppColors.onMedia),
+                          onPressed: () => _rotateBy(3),
+                        ),
+                        IconButton(
+                          key: const ValueKey<String>('gal-rotate-right'),
+                          tooltip: context.t('mp.rotate_right'),
+                          icon: const Icon(AppIcons.rotateRight,
+                              color: AppColors.onMedia),
+                          onPressed: () => _rotateBy(1),
+                        ),
                         PopupMenuButton<String>(
                           icon: const Icon(AppIcons.more, color: AppColors.onMedia),
                           onSelected: (v) async {
@@ -639,9 +704,16 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                                 }
                               case 'attach':
                                 await _attachAs();
+                              case 'save_rotation':
+                                await _saveRotation();
                             }
                           },
                           itemBuilder: (_) => [
+                            if (_turnsOf(_current) != 0 &&
+                                ImageRotate.canRotate(_current))
+                              PopupMenuItem(
+                                  value: 'save_rotation',
+                                  child: Text(context.t('gal.save_rotation'))),
                             PopupMenuItem(
                                 value: 'viewer',
                                 child: Text(context.t('gal.open_in_viewer'))),

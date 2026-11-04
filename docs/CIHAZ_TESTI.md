@@ -597,3 +597,17 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
 - [ ] Güvenilen cihaz: gelen teklifte "Bu cihaza güven" işaretle → ikinci gönderim sorulmadan gelir; avatarda rozet;
       Windows "Dosya Aktar" ile de; "Güvenilen cihazlar"dan kaldırınca yine sorulur.
 - [ ] Yeni Aktar düzeni telefonda ve yatayda taşmasız, okunur.
+
+## 19. Önizleme / video / önemli dosyalar turu (2026-11-04, kişisel APK)
+- [ ] Fotoğraflar ızgarası ve dosya listeleri: önizlemeler NET mi (yatay + dikey fotoğraf, 3/4/5 sütun)? İlk açılışta
+      küçük resimler yeniden üretilir (`q2_`); kaydırma eski kadar akıcı mı (Mi Note 10 Lite)?
+- [ ] Video küçük resimleri net mi? HEIC fotoğrafta önizleme çıkıyor mu?
+- [ ] Video oynatırken geri tuşu / çıkış → video DURUR, mini çubuk ve bildirim kalkar. Müzik/sesli kitapta çıkınca SÜRER.
+      Küçük pencere (PiP) hâlâ çalışıyor mu?
+- [ ] Oynatıcıda sağdaki "Sağa çevir / Sola çevir": görüntü 90° döner, ekranı doldur kipinde de; başka videoya geçince sıfır.
+- [ ] Galeride üstteki döndür düğmeleri; ⋮ → "Döndürülmüş hâlini kaydet" yanına yeni dosya yazar ve hemen yanında açılır.
+- [ ] Slayt düzenleyici: alttaki şerit büyüdü mü, ana görünümde kaydırınca güncel slayt şeridin ortasına geliyor mu?
+      Dosya listesinde PowerPoint/Word dosyasında ilk sayfa/slayt önizlemesi görünüyor mu?
+- [ ] Bir dosyayı "Önemli Dosyalar'a kopyala" → kopya `ad_onemli.uzantı`; galeri/kategori/aramada yıldızlı.
+      O kopyayı tekli sil → "Önemli dosya silinecek" sorulur; toplu seçimde (önemli + normal) "Önemlileri koru" seçeneği.
+      Ayarlarda "silmeden önce sor" kapalıyken de sorulmalı. Temizlik önerileri önemlileri silmemeli.

@@ -169,7 +169,11 @@ abstract final class ThumbnailCache {
   /// verir; arka plan işleri (benzer bulma, oynatıcı kapağı) vermez.
   static Future<String?> forVideo(
     String path, {
-    int size = 256,
+    // 512 (2026-11-04, eskiden 256): eklenti UZUN kenarı sınırlıyor; 16:9
+    // videoda 256 → 144 px yükseklik, 3 sütunlu ızgaranın ~330 px hücresinde
+    // iki kattan fazla büyütülüp bulanık görünüyordu. Oynatıcı kapağı da 512
+    // istediği için aynı dosya paylaşılır.
+    int size = 512,
     bool Function()? wanted,
   }) {
     if (_failed.contains(path)) return Future.value(null);
@@ -248,7 +252,11 @@ abstract final class ThumbnailCache {
       // kaydırırken UI izleğinde birikiyordu.
       final mtime = modifiedMs ?? File(path).statSync().modified.millisecondsSinceEpoch;
       final dir = await _cacheDir(image: image);
-      dest = p.join(dir.path, cacheName(path, mtime, size));
+      // Fotoğrafta `q2_` öneki: 2026-11-04 kalite turundan önceki (EXIF içi
+      // 160 px küçük resimden büyütülmüş, bulanık) dosyalar yeniden KULLANILMAZ;
+      // eskiler disk sınırıyla budanır.
+      final name = cacheName(path, mtime, size);
+      dest = p.join(dir.path, image ? 'q2_$name' : name);
       // Diskte varsa sıra beklemeden (üretim yok).
       if (File(dest).existsSync()) return dest;
     } catch (_) {

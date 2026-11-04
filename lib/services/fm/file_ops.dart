@@ -99,18 +99,24 @@ abstract final class FileOps {
   }
 
   /// Kaynakları [destDir] içine kopyalar.
+  ///
+  /// [renameTo] verilirse her kaynağın varıştaki ADI ondan gelir (kaynak yolu
+  /// alır, yalnız ad döndürür) — Önemli Dosyalar kopyası `_onemli` ekini
+  /// böyle alır.
   static Future<FmOpResult> copyAll(
     List<String> sources,
     String destDir, {
     FmConflict conflict = FmConflict.rename,
     void Function(FmProgress)? onProgress,
     bool Function()? isCancelled,
+    String Function(String source)? renameTo,
   }) =>
       _transfer(sources, destDir,
           move: false,
           conflict: conflict,
           onProgress: onProgress,
-          isCancelled: isCancelled);
+          isCancelled: isCancelled,
+          renameTo: renameTo);
 
   /// Kaynakları [destDir] içine taşır. Aynı bölümde `rename` ile anında;
   /// farklı bölümde (SD kart ↔ dahili) kopyala+sil ile.
@@ -120,12 +126,14 @@ abstract final class FileOps {
     FmConflict conflict = FmConflict.rename,
     void Function(FmProgress)? onProgress,
     bool Function()? isCancelled,
+    String Function(String source)? renameTo,
   }) =>
       _transfer(sources, destDir,
           move: true,
           conflict: conflict,
           onProgress: onProgress,
-          isCancelled: isCancelled);
+          isCancelled: isCancelled,
+          renameTo: renameTo);
 
   static Future<FmOpResult> _transfer(
     List<String> sources,
@@ -134,6 +142,7 @@ abstract final class FileOps {
     required FmConflict conflict,
     void Function(FmProgress)? onProgress,
     bool Function()? isCancelled,
+    String Function(String source)? renameTo,
   }) async {
     final errors = <String>[];
     final transfers = <FmTransfer>[];
@@ -174,7 +183,7 @@ abstract final class FileOps {
         errors.add('$name: klasör kendi içine taşınamaz');
         continue;
       }
-      var dest = joinKeepingSeparator(destDir, name);
+      var dest = joinKeepingSeparator(destDir, renameTo?.call(src) ?? name);
       if (p.normalize(src) == p.normalize(dest)) {
         // Aynı klasöre kopyalama → kopya üret ("rapor (1).pdf").
         if (move) {

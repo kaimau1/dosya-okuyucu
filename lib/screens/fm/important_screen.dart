@@ -13,6 +13,7 @@ import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/important_files.dart';
 import '../../widgets/fm/fm_category_tile.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
@@ -49,7 +50,7 @@ class ImportantScreen extends StatefulWidget {
   /// metni değil — çevrilirse var olan klasör bulunamaz ve kullanıcı
   /// dosyalarını kaybetmiş gibi görür. Başlıkta gösterilen çevrilebilir ad
   /// için `important.title` anahtarı var.
-  static const folderName = 'Önemli Dosyalar';
+  static const folderName = ImportantFiles.folderName;
 
   static String pathIn(String root) => p.join(root, folderName);
 
@@ -161,9 +162,13 @@ class _ImportantScreenState extends State<ImportantScreen> {
       name: context.t(cut ? 'fm.moving_name' : 'fm.copying_name'),
       task: (report, isCancelled) => cut
           ? FileOps.moveAll(sources, _root,
-              onProgress: report, isCancelled: isCancelled)
+              onProgress: report,
+              isCancelled: isCancelled,
+              renameTo: ImportantFiles.markedNameFor)
           : FileOps.copyAll(sources, _root,
-              onProgress: report, isCancelled: isCancelled),
+              onProgress: report,
+              isCancelled: isCancelled,
+              renameTo: ImportantFiles.markedNameFor),
     );
     appState.clearClipboard();
     if (!mounted) return;

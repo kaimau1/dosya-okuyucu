@@ -14,9 +14,41 @@ extension _SlidesEditorScreenSorterPart on _SlidesEditorScreenState {
     return size.width > size.height && size.width >= 600;
   }
 
+  /// Destenin en-boy oranı (ilk slayttan; çizilmemişse 16:9).
+  double _stripRatio(PptxEditor editor) {
+    final view = editor.slides.isEmpty ? null : editor.slides.first.view;
+    return view == null || view.heightPt <= 0 ? 16 / 9 : view.widthPt / view.heightPt;
+  }
+
+  /// Küçük resmin genişliği. 2026-11-04 önizleme turu: 100 → 140 (dikey
+  /// şeritte 120 → 160) — eski boyda slayt yazısı hiç okunmuyordu. 4:3
+  /// destede yatay şeridin yüksekliğine sığacak kadar daralır.
+  double _stripThumbW(PptxEditor editor, bool vertical) => vertical
+      ? 160.0
+      : math.min(140.0, (_stripHeight - 12) * _stripRatio(editor));
+
+  static const double _stripHeight = 100;
+
+  /// Güncel slaytın küçük resmini şeridin ortasına getirir.
+  void _followStrip(int index) {
+    final editor = _editor;
+    if (editor == null || !_stripCtrl.hasClients) return;
+    final pos = _stripCtrl.position;
+    final vertical = _stripVertical;
+    final thumbW = _stripThumbW(editor, vertical);
+    final extent =
+        vertical ? thumbW / _stripRatio(editor) + 6 : thumbW + 6;
+    final start = 6 + index * extent;
+    final target = (start - (pos.viewportDimension - extent) / 2)
+        .clamp(0.0, pos.maxScrollExtent);
+    if ((target - pos.pixels).abs() < 1) return;
+    unawaited(Motion.scrollTo(context, _stripCtrl, target));
+  }
+
   Widget _thumbStrip(PptxEditor editor) {
     final vertical = _stripVertical;
     final scheme = Theme.of(context).colorScheme;
+    final thumbW = _stripThumbW(editor, vertical);
     return Material(
       key: const ValueKey('sl-strip'),
       color: scheme.surfaceContainerLow,
@@ -24,9 +56,10 @@ extension _SlidesEditorScreenSorterPart on _SlidesEditorScreenState {
           ? BorderDirectional(end: BorderSide(color: scheme.outlineVariant))
           : Border(top: BorderSide(color: scheme.outlineVariant)),
       child: SizedBox(
-        width: vertical ? 132 : null,
-        height: vertical ? null : 76,
+        width: vertical ? thumbW + 12 : null,
+        height: vertical ? null : _stripHeight,
         child: ReorderableListView.builder(
+          scrollController: _stripCtrl,
           scrollDirection: vertical ? Axis.vertical : Axis.horizontal,
           buildDefaultDragHandles: false,
           padding: const EdgeInsets.all(6),
@@ -41,7 +74,6 @@ extension _SlidesEditorScreenSorterPart on _SlidesEditorScreenState {
           },
           itemBuilder: (context, i) {
             final slide = editor.slides[i];
-            final thumbW = vertical ? 120.0 : 100.0;
             return ReorderableDelayedDragStartListener(
               key: ValueKey('thumb-${slide.fileName}'),
               index: i,
@@ -157,9 +189,12 @@ Widget _slideThumb(BuildContext context, PptxEditor editor, PptxSlide slide,
           foregroundDecoration: hidden
               ? BoxDecoration(color: scheme.surface.withValues(alpha: 0.5))
               : null,
+          // RepaintBoundary: ana görünümde yazı yazarken / kaydırırken şeritteki
+          // onlarca küçük slayt yeniden boyanmasın.
           child: view == null
               ? const SizedBox.expand()
-              : IgnorePointer(child: SlideCanvas(slide: view)),
+              : RepaintBoundary(
+                  child: IgnorePointer(child: SlideCanvas(slide: view))),
         ),
       ),
       PositionedDirectional(

@@ -520,19 +520,8 @@ class MainActivity : FlutterActivity() {
                     val size = call.argument<Int>("size") ?: 384
                     Thread {
                         val ok = try {
-                            if (Build.VERSION.SDK_INT < 29) {
-                                false
-                            } else {
-                                val bmp = android.media.ThumbnailUtils.createImageThumbnail(
-                                    java.io.File(path), android.util.Size(size, size), null)
-                                val part = java.io.File("$target.part")
-                                java.io.FileOutputStream(part).use {
-                                    bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, it)
-                                }
-                                bmp.recycle()
-                                part.renameTo(java.io.File(target))
-                            }
-                        } catch (e: Exception) {
+                            writeImageThumb(path, target, size)
+                        } catch (e: Throwable) {
                             false
                         }
                         runOnUiThread { result.success(ok) }
@@ -569,6 +558,88 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+    }
+
+    /**
+     * Fotoğraf küçük resmi (2026-11-04, kullanıcı: "görsellerde ön izlemeler
+     * çok kalitesiz"). Eskiden `ThumbnailUtils.createImageThumbnail` vardı:
+     * (1) dosyada EXIF içi küçük resim varsa (çoğu kamerada 160×120) onu
+     * BÜYÜTEREK veriyordu, (2) örnekleme UZUN kenara göre yapılıyordu → kare
+     * hücrede kısa kenar hedefin altında kalıp `cover` ile yeniden büyütülüyordu,
+     * (3) JPEG 85. Şimdi: özgün görsel 2'nin kuvvetleriyle örneklenir (kısa
+     * kenar hedefin altına İNMEZ), süzgeçli küçültmeyle kısa kenar tam hedefe
+     * oturur, EXIF yönü uygulanır, JPEG 90 (saydamsa PNG). Her API'de çalışır.
+     */
+    private fun writeImageThumb(path: String, target: String, size: Int): Boolean {
+        val bounds = BitmapFactory.Options()
+        bounds.inJustDecodeBounds = true
+        BitmapFactory.decodeFile(path, bounds)
+        val w = bounds.outWidth
+        val h = bounds.outHeight
+        if (w <= 0 || h <= 0 || size <= 0) return false
+        val shortSide = minOf(w, h)
+        var sample = 1
+        while (shortSide / (sample * 2) >= size) sample *= 2
+        val opts = BitmapFactory.Options()
+        opts.inSampleSize = sample
+        opts.inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
+        // Çözücünün tanımadığı biçimde (bazı HEIC/HEIF) sistemin küçük resim
+        // yoluna düş: kalitesi düşük olabilir ama boş kareden iyidir.
+        var bmp: android.graphics.Bitmap = BitmapFactory.decodeFile(path, opts)
+            ?: (if (Build.VERSION.SDK_INT >= 29)
+                    android.media.ThumbnailUtils.createImageThumbnail(
+                        java.io.File(path), android.util.Size(size, size), null)
+                else null)
+            ?: return false
+        val decodedShort = minOf(bmp.width, bmp.height)
+        if (decodedShort > size) {
+            val scale = size.toFloat() / decodedShort.toFloat()
+            val sw = maxOf(1, Math.round(bmp.width * scale))
+            val sh = maxOf(1, Math.round(bmp.height * scale))
+            val scaled = android.graphics.Bitmap.createScaledBitmap(bmp, sw, sh, true)
+            if (scaled !== bmp) bmp.recycle()
+            bmp = scaled
+        }
+        val orientation = try {
+            android.media.ExifInterface(path).getAttributeInt(
+                android.media.ExifInterface.TAG_ORIENTATION,
+                android.media.ExifInterface.ORIENTATION_NORMAL)
+        } catch (e: Throwable) {
+            android.media.ExifInterface.ORIENTATION_NORMAL
+        }
+        val m = android.graphics.Matrix()
+        when (orientation) {
+            android.media.ExifInterface.ORIENTATION_ROTATE_90 -> m.postRotate(90f)
+            android.media.ExifInterface.ORIENTATION_ROTATE_180 -> m.postRotate(180f)
+            android.media.ExifInterface.ORIENTATION_ROTATE_270 -> m.postRotate(270f)
+            android.media.ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> m.postScale(-1f, 1f)
+            android.media.ExifInterface.ORIENTATION_FLIP_VERTICAL -> m.postScale(1f, -1f)
+            android.media.ExifInterface.ORIENTATION_TRANSPOSE -> {
+                m.postRotate(90f)
+                m.postScale(-1f, 1f)
+            }
+            android.media.ExifInterface.ORIENTATION_TRANSVERSE -> {
+                m.postRotate(270f)
+                m.postScale(-1f, 1f)
+            }
+            else -> {}
+        }
+        if (!m.isIdentity) {
+            val turned = android.graphics.Bitmap.createBitmap(
+                bmp, 0, 0, bmp.width, bmp.height, m, true)
+            if (turned !== bmp) bmp.recycle()
+            bmp = turned
+        }
+        val part = java.io.File("$target.part")
+        val format = if (bmp.hasAlpha()) android.graphics.Bitmap.CompressFormat.PNG
+            else android.graphics.Bitmap.CompressFormat.JPEG
+        val written = java.io.FileOutputStream(part).use { bmp.compress(format, 90, it) }
+        bmp.recycle()
+        if (!written) {
+            part.delete()
+            return false
+        }
+        return part.renameTo(java.io.File(target))
     }
 
     private fun setupSdUnionChannel(flutterEngine: FlutterEngine) {

@@ -121,6 +121,60 @@ Future<bool> deleteEntries(
   if (entries.isEmpty) return false;
   final appState = context.read<AppState>();
   final useTrash = appState.fmUseTrash;
+
+  // **Önemli dosyalar onaysız SİLİNMEZ** (kullanıcı isteği 2026-11-04):
+  // tekli ya da toplu, "silmeden önce sor" kapalı ya da çağıran kendi onayını
+  // almış olsa bile (`confirm: false`) burada ayrıca sorulur. Toplu seçimde
+  // önemliler ayrılır: "önemlileri koru, diğerlerini sil" varsayılan yoldur.
+  final (important, rest) = ImportantFiles.split(entries, (e) => e.path);
+  var importantAsked = false;
+  if (important.isNotEmpty) {
+    final names = important.take(3).map((e) => '“${e.name}”').join(', ') +
+        (important.length > 3 ? ' …' : '');
+    if (rest.isEmpty) {
+      final ok = await showAppConfirm(
+        context,
+        title: context.t('important.delete_title'),
+        message: context.t(
+            useTrash
+                ? 'important.delete_body_trash'
+                : 'important.delete_body_permanent',
+            {'n': important.length, 'names': names}),
+        confirmLabel: context.t('important.delete_anyway'),
+        destructive: true,
+      );
+      if (ok != true || !context.mounted) return false;
+    } else {
+      final choice = await showAppActionSheet<String>(
+        context,
+        title: context.t('important.delete_title'),
+        subtitle: context.t('important.delete_mixed',
+            {'n': important.length, 'names': names}),
+        groups: [
+          AppActionGroup(actions: [
+            AppAction(
+              value: 'keep',
+              icon: AppIcons.star,
+              label: context.t('important.keep_delete_rest',
+                  {'n': rest.length}),
+              accent: true,
+            ),
+            AppAction(
+              value: 'all',
+              icon: AppIcons.delete,
+              label: context.t('important.delete_all_too',
+                  {'n': entries.length}),
+              destructive: true,
+            ),
+          ]),
+        ],
+      );
+      if (choice == null || !context.mounted) return false;
+      if (choice == 'keep') entries = rest;
+    }
+    importantAsked = true;
+  }
+
   final label = entries.length == 1
       ? '“${entries.first.name}”'
       : context.t('fm.items_count', {'n': entries.length});
@@ -128,7 +182,9 @@ Future<bool> deleteEntries(
   if (needsDeleteConfirm(
     useTrash: useTrash,
     confirmSetting: appState.fmConfirmDelete,
-    askAllowed: confirm,
+    // Önemli penceresi zaten sorduysa çöpe atmada ikinci pencere yok;
+    // kalıcı silmede ([needsDeleteConfirm]) yine sorulur.
+    askAllowed: confirm && !importantAsked,
   )) {
     final confirmed = await showAppConfirm(
         context,
@@ -388,8 +444,12 @@ Future<bool> copyToImportant(BuildContext context, List<String> paths) async {
     context,
     title: context.t('fm.copying_important'),
     name: context.t('fm.copying_important_name'),
+    // Kopyanın adına `_onemli` eklenir (kullanıcı isteği 2026-11-04):
+    // özgünüyle karışmasın, yanlışlıkla silinmesin (bkz. [ImportantFiles]).
     task: (report, isCancelled) => FileOps.copyAll(paths, dest,
-        onProgress: report, isCancelled: isCancelled),
+        onProgress: report,
+        isCancelled: isCancelled,
+        renameTo: ImportantFiles.markedNameFor),
   );
   if (!context.mounted) return true;
   _snack(
