@@ -45,17 +45,14 @@ Art arda push → önceki koşu iptal.
   iş doğrudan main'e commit edilir. Push: `git push`.
   Bulut oturumu (`claude/*`, `ccr-*`) dal açtıysa iş main'e girince o uzak dal silinir.
   APK yalnız **main**'e push'ta derlenir (feature dalında sadece `flutter test`).
-- **Doğrulama döngüsü:** önce yerelde `C:\src\flutter-3446\bin\flutter.bat test` + `analyze`
-  (CI **3.44.6**; `C:\src\flutter` 3.47.7 — onunla `pub get` kilidi bozar; push kancası için
-  `PATH=/c/src/flutter-3446/bin:$PATH`, HAFIZA), sonra push → Actions logunu
-  izle, kırmızıysa sormadan düzelt. Yerel APK: temiz kopyada `bash ci/prepare_android.sh`
-  + `flutter build apk` (Git Bash'te `python3` yoksa `python`a yönlendiren bir kabuk
-  betiği PATH'e). **Bulut (Linux) oturumunda** Flutter 3.44.6 indirilip
-  `pub get / analyze / test` koşturulur — tuzaklar HAFIZA 2026-07-25 §F. Kör push etme.
-  **`ci/*.kt` değiştiyse `tool/check_kotlin.sh` koştur** (kotlinc + Android
-  taslakları; yoksa sessizce atlar). Kotlin yalnız CI'da derleniyordu ve tek
-  satırlık bir tür hatası 13 dakikalık bir derleme turunu yakıyordu — bkz.
-  HAFIZA 2026-09-02 (on birinci tur).
+- **Doğrulama = CI (2026-11-04, kullanıcı kararı — token tasarrufu):** yerelde/bulutta
+  `flutter test`/`analyze` KOŞTURMA, Flutter İNDİRME. Push et → CI `verify` işi test eder;
+  Actions sonucuna koşu bitince bir kez bak (sık yoklama yapma), kırmızıysa logdan
+  yalnız hatalı adımı oku ve sormadan düzelt. Kullanıcı açıkça isterse yerel test yapılır
+  (Windows: `C:\src\flutter-3446\bin\flutter.bat`, CI **3.44.6**; `C:\src\flutter`
+  3.47.7 `pub get` kilidini bozar — HAFIZA).
+  `ci/*.kt` değişikliğini de CI `verify` (Kotlin denetimi) yakalar; `tool/check_kotlin.sh`
+  yalnız kotlinc zaten kuruluysa koşturulur (HAFIZA 2026-09-02).
 - **Commit mesajı sonu:** `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
   ve `Claude-Session:` satırı.
 - Bilinen derleme tuzakları (CardThemeData, platform klasörleri, keystore) → **HAFIZA.md**

@@ -649,3 +649,7 @@ Kullanıcı: *"fazlardan devam et, bulutta yapılabilecekleri yap, main'e merge 
   "önemlileri koru, diğerlerini sil" / "hepsini sil" levhası. Temizlik önerileri (kuyruk işi, pencere açamaz) önemlileri
   hiç silmez. Çöp ekranındaki kalıcı silme ayrıca sorulmaz (öğe zaten silinmiş).
 - Cihazda bakılacak: CIHAZ_TESTI "2026-11-04 turu".
+
+## 2026-11-04 — Karar: yerel test yok, doğrulama CI'da
+- Kullanıcı: "CI zaten test yapıyor, boşa token harcama." Oturumlar artık Flutter indirip `test/analyze`
+  koşturmaz; push → CI `verify`. Kırmızıysa yalnız hatalı adımın logu okunur. (CLAUDE.md §4 güncellendi.)
