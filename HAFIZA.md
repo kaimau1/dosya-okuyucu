@@ -286,3 +286,9 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
   başına 10 maddelik PERFORMANS KORUMA ANAYASASI (izolat, tembel yükleme, PerfBudget, boşta 0 kare,
   APK bütçesi, faz sonu A/B tablosu, özellik bayrağı, büyük dosya tavanı) + her faza ek maddeler.
 - **KARAR 2026-11-04:** belge tarayıcı ML Kit `GmsDocumentScanner`a doğrudan geçecek (Faz 35 adım 0, bayrak `scan_engine_v2`, yedek akış korunur); kullanıcı başlatacak.
+
+## 2026-11-04 — Faz 34 bitti (faz-34 dalı)
+- Ölü alt çubuk ayarı kaldırıldı: ayarlar `nav_tabs` satırı, `NavTabsTile`, "Ana ekranı düzenle" içindeki giriş. `NavTabs`/`nav_tabs_sheet` dosyaları duruyor (home_screen sekme durumu, nav_tabs_test).
+- Perf A/B: bekliyor (ölçüm yok). Cihazda 360×800 dp + 2× yazı ölçeği doğrulaması bekliyor.
+
+- **Tuzak (Faz 34):** build-apk.yml push tetikleyicisinde `faz-*` yoktu → faz PR'ları hiç CI almıyordu; `faz-*` eklendi (verify her dalda koşar, apk/release main+etiket kapılı).

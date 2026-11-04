@@ -209,11 +209,6 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
           // ALTINDA: kategori ekranındaki yerleri testlerde sabit.
           SettingsSection('nav.section', [
             SettingRow(
-                id: 'nav_tabs',
-                titleKey: 'nav.edit_title',
-                altKeys: ['nav.settings_sub'],
-                builder: _navTabsTile),
-            SettingRow(
                 id: 'haptics',
                 titleKey: 'set.haptics',
                 subtitleKey: 'set.haptics_sub',
@@ -672,7 +667,6 @@ String _themeModeLabel(BuildContext context, ThemeMode mode) => switch (mode) {
 Widget _themeTile(BuildContext _) => const ThemeTile();
 Widget _skinTile(BuildContext _) => const AppSkinTile();
 Widget _backgroundTile(BuildContext _) => const BackgroundColorTile();
-Widget _navTabsTile(BuildContext _) => const NavTabsTile();
 Widget _hapticsTile(BuildContext _) => const HapticsTile();
 Widget _neuralVoicesTile(BuildContext context) => SettingTile(
       icon: AppIcons.voice,

@@ -611,3 +611,7 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
 - [ ] Bir dosyayı "Önemli Dosyalar'a kopyala" → kopya `ad_onemli.uzantı`; galeri/kategori/aramada yıldızlı.
       O kopyayı tekli sil → "Önemli dosya silinecek" sorulur; toplu seçimde (önemli + normal) "Önemlileri koru" seçeneği.
       Ayarlarda "silmeden önce sor" kapalıyken de sorulmalı. Temizlik önerileri önemlileri silmemeli.
+
+## Faz 34 — Pano cilası
+- [ ] 360×800 dp ve 2× yazı ölçeğinde 4 sıra kutu + araç satırı alt panelin üstünde, kayma yok.
+- [ ] Ayarlar > Görünüm'de "Alt çubuk kısayolları" satırı yok; Ana ekranı düzenle açılıyor.

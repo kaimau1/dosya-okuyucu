@@ -25,6 +25,7 @@ on:
       - main
       - 'claude/**'
       - 'ccr-*'
+      - 'faz-*'
     tags:
       - 'v*'
     paths-ignore:
