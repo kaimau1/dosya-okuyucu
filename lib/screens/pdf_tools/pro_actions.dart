@@ -888,6 +888,7 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
           _snack(_str.t('pp.save_first'));
           return;
         }
+        if (!mounted) return;
         final signed = await PdfSignScreen.open(context, widget.path);
         if (signed == true && mounted) await _load();
     }
