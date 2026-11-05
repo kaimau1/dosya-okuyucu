@@ -13,6 +13,12 @@
 > → 38 `trig_01EsWv4m1YoEPt4KNWJBFUAP` → 40 `trig_015M6sxWRYGZwA3EBnuYupsA` → 41 `trig_016N4RTd7YM1xq3NN12NPM1C`
 > → 42 `trig_011s7SMLbHGJ3qqe8fVU2Zjf`. Güncel istem metni görevlerin kendisinde (`get_trigger`); aşağıdaki şablon tarihsel.
 
+> **2026-11-05 (Faz 39 oturumu) KÖK NEDEN 2:** zamanlanmış oturumda `fire_trigger` aracı HİÇ yoktu
+> (claude-code-remote yalnız `subscribe/unsubscribe_pr_activity` veriyor; ToolSearch bulamadı) → 5. adım
+> çalışamadı, zincir yine koptu. **Yedek kural:** `fire_trigger` yoksa oturum sıradaki fazı AYNI oturumda
+> sürdürür (kullanıcıya elle başlatma sorulmaz). Kalıcı çözüm: claude.ai Routines > GitHub tetikleyicisi
+> (`pull_request` closed+merged, dal `faz-NN`) — araçla kurulamıyor.
+
 **Yoklama YOK.** 9 görev "zamanlamasız" (yalnız `fire_trigger` ile tetiklenir). Her faz görevi
 işini `faz-NN` dalında yapar, **PR açar, CI yeşilken main'e BİRLEŞTİRİR**, sonra sıradaki fazın
 görevini tetikler. Birleşme = faz bitti = zincir ilerler. Zinciri kullanıcı Faz 34 görevini
