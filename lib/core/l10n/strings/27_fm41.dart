@@ -57,4 +57,10 @@ const Map<String, (String, String, String)> _t27 = {
   'lcol.tag': ('"{tag}" etiket rengi', '"{tag}" tag color', 'لون الوسم "{tag}"'),
   'fav.reorder': ('Favorileri sırala', 'Reorder favorites', 'ترتيب المفضلة'),
   'fav.drag': ('Sürükleyerek taşı', 'Drag to move', 'اسحب للنقل'),
+  'cmp.split': ('Bölümlere ayır', 'Split into volumes', 'تقسيم إلى أجزاء'),
+  'cmp.vol_none': ('Tek dosya', 'Single file', 'ملف واحد'),
+  'cmp.vol_25': ('25 MB (e-posta)', '25 MB (email)', '25 ميغابايت (بريد)'),
+  'cmp.vol_100': ('100 MB', '100 MB', '100 ميغابايت'),
+  'cmp.vol_700': ('700 MB', '700 MB', '700 ميغابايت'),
+  'cmp.vol_4g': ('4 GB (FAT32)', '4 GB (FAT32)', '4 غيغابايت (FAT32)'),
 };
