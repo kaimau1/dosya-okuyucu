@@ -12,6 +12,7 @@ import 'package:flutter/services.dart'
     show Clipboard, ClipboardData, LogicalKeyboardKey;
 import 'package:pdf/pdf.dart' show PdfPageFormat;
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/app_icons.dart';
 import '../../core/busy_dialog.dart';
@@ -29,6 +30,8 @@ import '../../services/conversion_service.dart';
 import '../../services/fm/activity_log.dart';
 import '../../services/fm/save_to_downloads.dart';
 import '../../services/ocr_service.dart' show OcrLine;
+import '../../services/pptx/pro/pptx_package.dart';
+import '../../services/pptx/pro/pptx_templates.dart';
 import '../../services/pptx_editor.dart';
 import '../../services/pptx_render.dart';
 import '../../services/pptx_rich_text.dart';
@@ -36,6 +39,7 @@ import '../../services/slides_pdf.dart';
 import 'package:xml/xml.dart' show XmlElement, XmlFindExtension;
 
 import '../../widgets/ai_summary_flow.dart';
+import '../../widgets/app_action_sheet.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/fm/fm_type_chips.dart' show FmChoiceTile;
 import '../../core/theme.dart';
@@ -53,6 +57,7 @@ import '../../widgets/quick_sheets.dart';
 import '../../widgets/download_action.dart';
 import '../chat_screen.dart';
 import 'slideshow_screen.dart';
+import 'slides_pro/master_page.dart';
 import '../../core/snack.dart';
 import '../../core/safe_insets.dart';
 import '../../core/user_error.dart';
@@ -62,6 +67,7 @@ import '../fm/pick_file_screen.dart';
 part 'slides/actions.dart';
 part 'slides/objects.dart';
 part 'slides/outline.dart';
+part 'slides/pro.dart';
 part 'slides/sorter.dart';
 part 'slides/text_edit.dart';
 part 'slides/views.dart';
@@ -184,12 +190,18 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
   Timer? _flashTimer;
   final Map<(PptxSlide, PptxParagraph), String> _outlinePending = {};
 
+  // ── Faz 38 — pro araçlar ───────────────────────────────────────────────────
+  bool _proOn = true;
+  bool _proBusy = false;
+  final List<Uint8List> _proUndo = [];
+
   @override
   void initState() {
     super.initState();
     _zoomAnim = AnimationController(vsync: this, duration: Motion.long);
     _vCtrl.addListener(_onScroll);
     _load();
+    unawaited(_loadProFlag());
   }
 
   @override
@@ -262,7 +274,9 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
                 key: const ValueKey('sl-undo'),
                 tooltip: context.t('excel.undo'),
                 icon: const Icon(OfficeIcons.undo),
-                onPressed: _history.canUndo ? _undoDeck : null,
+                onPressed: _history.canUndo || _proUndo.isNotEmpty
+                    ? _undoDeck
+                    : null,
               ),
             ),
             ListenableBuilder(
@@ -365,6 +379,9 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
                         editor == null ? null : _openInsert),
                     DocAction(AppIcons.palette, context.t('sl.design'),
                         editor == null ? null : _openDesign),
+                    if (_proOn)
+                      DocAction(AppIcons.handyman, context.t('sp.tools'),
+                          editor == null || _proBusy ? null : _openProTools),
                     DocAction(AppIcons.play, context.t('sl.play'),
                         editor == null ? null : () => _play(0)),
                     DocAction(AppIcons.thumbnails, context.t('sl.thumbnails'),

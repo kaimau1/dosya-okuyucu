@@ -27,6 +27,7 @@ part 'strings/21_scan_pro.dart';
 part 'strings/22_pdf_pro.dart';
 part 'strings/23_excel_pro.dart';
 part 'strings/24_word_pro.dart';
+part 'strings/25_slides_pro.dart';
 
 /// Uygulama metinleri — Türkçe / İngilizce / Arapça.
 ///
@@ -153,4 +154,5 @@ const Map<String, (String, String, String)> _table = {
   ..._t22,
   ..._t23,
   ..._t24,
+  ..._t25,
 };

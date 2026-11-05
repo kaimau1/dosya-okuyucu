@@ -36,6 +36,10 @@ extension _SlidesEditorScreenTextEditPart on _SlidesEditorScreenState {
     }
     // Anahatta bekleyen yazı önce adım olur (geri al onu geri alsın).
     _flushOutline();
+    if (!_history.canUndo && _proUndo.isNotEmpty) {
+      unawaited(_proUndoLast());
+      return;
+    }
     if (_history.undo() == null) return;
     _selShape = null;
     _selSlide = null;
