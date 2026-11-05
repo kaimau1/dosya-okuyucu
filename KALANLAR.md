@@ -226,6 +226,11 @@ Faz 35'in ilk adımı **ML Kit geçişi** (onaylandı; kullanıcı başlatacak).
       da kapsamı yeniden düşün (`drive.file` / sistem seçicisi). Ayrıca Google Cloud OAuth
       istemcisi (paket + SHA-1, `docs/GOOGLE-DRIVE-KURULUM.md`) kayıtlı değilse Drive
       gezgini hiç çalışmaz.
+- [ ] **B5.8 B-bulut — OneDrive / Dropbox (Faz 41 / 2):** eklensin mi? Gerekenler:
+      Microsoft Entra uygulama kaydı (istemci kimliği + Android yönlendirme URI'si,
+      `Files.ReadWrite` izni) ve/veya Dropbox App Console uygulaması (App key, `files.content.*`).
+      Karar + kimlikler gelince Drive'ın çevrimdışı/çakışma altyapısı (`drive_offline.dart`)
+      aynen kullanılır. (2026-11-05)
 - [ ] **B5.6 K1 — Syncfusion Community License** başvurusu yapıldı ve belge saklandı mı
       (teyit).
 - [ ] **B5.7 Açık soru:** kullanıcının "tikli öğesi çok notlar kasıyor" notu (2026-10-29)
