@@ -35,6 +35,7 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       'pdf_to_images' => _pdfToImages(),
       'web_to_pdf' => _webToPdf(),
       'office_to_pdf' => _officeToPdf(),
+      'signatures' => _manageSignatures(),
       'form_profile' => showAutofillProfileSheet(context),
       _ => Future<void>.value(),
     };
@@ -810,5 +811,62 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       );
       await _saveToDocs(pdf, title, 'pdf');
     });
+  }
+
+  // ── 12. İmza yönetimi ────────────────────────────────────────────────────
+
+  Future<void> _manageSignatures() async {
+    final action = await showAppSheet<_SigAction>(
+      context,
+      title: context.t('pp.signatures'),
+      builder: (_) => _SignaturesSheet(hasSelection: _selected.isNotEmpty),
+    );
+    if (action == null || !mounted) return;
+    final now = DateTime.now();
+    String two(int v) => v.toString().padLeft(2, '0');
+    final date = '${two(now.day)}.${two(now.month)}.${now.year}';
+    final pw = _password;
+    final font = await _unicodeFont();
+    final pages = action.selectedOnly ? _selectedOrNull() : null;
+    switch (action.kind) {
+      case _SigActionKind.initialAll:
+        final initials = await Signature.load(initials: true);
+        if (!mounted) return;
+        if (initials == null) {
+          _snack(_str.t('pp.initials_missing'));
+          return;
+        }
+        await _apply(
+          _str.t('pp.initial_all'),
+          (b) => PdfDocPro.initialPagesInBackground(b,
+              strokes: initials.strokes,
+              aspect: initials.aspect,
+              place: action.place,
+              dateText: action.withDate ? date : null,
+              pages: pages,
+              fontBytes: font,
+              password: pw),
+        );
+      case _SigActionKind.dateStamp:
+        await _apply(
+          _str.t('pp.date_stamp'),
+          (b) => PdfDocPro.addStampInBackground(b,
+              text: date,
+              colorArgb: PdfDocPro.stampColor(PdfStampKind.custom),
+              place: action.place,
+              pages: pages,
+              fontBytes: font,
+              password: pw),
+        );
+      case _SigActionKind.stamp:
+        await _stamp();
+      case _SigActionKind.signHere:
+        if (_dirty) {
+          _snack(_str.t('pp.save_first'));
+          return;
+        }
+        final signed = await PdfSignScreen.open(context, widget.path);
+        if (signed == true && mounted) await _load();
+    }
   }
 }

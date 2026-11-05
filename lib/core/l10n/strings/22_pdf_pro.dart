@@ -293,4 +293,16 @@ const Map<String, (String, String, String)> _t22 = {
   'pp.web_bad_url': ('Geçerli bir http(s) adresi gir', 'Enter a valid http(s) address', 'أدخل عنوان http(s) صالحًا'),
   'pp.office_to_pdf': ('Word/Excel/PowerPoint → PDF', 'Word/Excel/PowerPoint → PDF', 'Word/Excel/PowerPoint ← PDF'),
   'pp.office_to_pdf_sub': ('Metin, başlık ve tablolar korunur', 'Text, headings and tables kept', 'يُحافظ على النص والعناوين والجداول'),
+  // ── İmza yönetimi ──
+  'pp.signatures': ('İmza ve paraf yönetimi', 'Signatures and initials', 'إدارة التوقيعات والأحرف الأولى'),
+  'pp.signatures_sub': ('Kayıtlı imza/paraf, her sayfaya paraf, tarih, damga', 'Saved signature/initials, initial every page, date, stamp', 'توقيع محفوظ، أحرف أولى لكل صفحة، تاريخ، ختم'),
+  'pp.my_signature': ('İmzam', 'My signature', 'توقيعي'),
+  'pp.my_initials': ('Parafım', 'My initials', 'أحرفي الأولى'),
+  'pp.none': ('Yok', 'None', 'لا يوجد'),
+  'pp.initial_all': ('Her sayfaya paraf', 'Initial every page', 'أحرف أولى في كل صفحة'),
+  'pp.initial_with_date': ('Parafın altına tarih', 'Date under the initials', 'التاريخ أسفل الأحرف الأولى'),
+  'pp.initials_missing': ('Önce parafını çiz', 'Draw your initials first', 'ارسم أحرفك الأولى أولًا'),
+  'pp.date_stamp': ('Tarih damgası', 'Date stamp', 'ختم التاريخ'),
+  'pp.sign_here': ('İmzayı sayfaya yerleştir', 'Place signature on a page', 'ضع التوقيع على صفحة'),
+  'pp.save_first': ('Önce değişiklikleri kaydet', 'Save your changes first', 'احفظ التغييرات أولًا'),
 };

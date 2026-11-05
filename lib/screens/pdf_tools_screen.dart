@@ -44,10 +44,12 @@ import '../core/theme.dart';
 import '../core/app_colors.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/autofill_profile_sheet.dart';
+import '../widgets/signature_pad.dart';
 import 'fm/pick_file_screen.dart';
 import 'pdf_compare_screen.dart';
 import 'pdf_region_screen.dart';
 import 'pdf_reorder_screen.dart';
+import 'pdf_sign_screen.dart';
 
 part 'pdf_tools/actions.dart';
 part 'pdf_tools/views.dart';

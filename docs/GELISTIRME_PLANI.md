@@ -206,7 +206,9 @@ genişlet), boş sayfa algıla ve sil, sayfaları kırp/boyutlandır, A4'e sığ
    (`pdf_notes.dart` Markdown kitapçık — görüntüleyici + Pro araçlar; arama çubuğunda sonuç listesi; OCR arama vardı.)
 - [x] 11. Görüntüden PDF / PDF'ten görüntü toplu, web sayfasından PDF, PDF'e Word/Excel/PPT aktarım.
    (`office_html.dart` + `Printing.convertHtml`; toplu JPEG klasörü 40'lık parçalarla.)
-12. İmza yönetimi: kayıtlı imza/paraf/tarih/damga, toplu "her sayfaya paraf". **Perf:** sayfalar
+- [x] 12. İmza yönetimi: kayıtlı imza/paraf/tarih/damga, toplu "her sayfaya paraf".
+   (`PdfDocPro.initialPages` tek geçiş; Pro araçlar → İmza ve paraf yönetimi.)
+**Perf:** sayfalar
 tembel render (görünür ±1, kova cacheWidth), metin çıkarma **istek üzerine** (P4 korunur),
 karartma/sıkıştırma/OCR/karşılaştırma `JobQueue` + izolat, 500 sayfa PDF'te bellek tavanı
 testi, küçük resim şeridi yalnız açıkken üretilir.

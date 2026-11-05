@@ -10,7 +10,8 @@ import 'dart:ui' show Offset, Rect, Size;
 
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
-import 'pdf_tools.dart' show PdfToolsException;
+import 'pdf_tools.dart'
+    show PdfToolsException, composedPageTransform, stampTransform;
 
 /// Düz yer imi listesi öğesi (ağaç `level` ile).
 class PdfOutlineItem {
@@ -422,6 +423,104 @@ abstract final class PdfDocPro {
           prefix: prefix,
           digits: digits,
           pageWord: pageWord,
+          fontBytes: fontBytes,
+          password: password));
+
+  // ── Toplu paraf ──────────────────────────────────────────────────────────
+
+  /// **Her sayfaya paraf** (Faz 39 madde 12): kayıtlı baş harf çizgileri
+  /// ([strokes] 0..1, [aspect] en/boy) her sayfanın [place] köşesine vektör
+  /// olarak basılır; [dateText] verilirse yanına küçük tarih. Tek açılış,
+  /// tek kayıt (500 sayfada da tek geçiş).
+  static Future<List<int>> initialPages(
+    List<int> bytes, {
+    required List<List<Offset>> strokes,
+    required double aspect,
+    PdfStampPlace place = PdfStampPlace.bottomRight,
+    double widthPt = 56,
+    String? dateText,
+    List<int>? pages,
+    List<int>? fontBytes,
+    String? password,
+  }) async {
+    if (strokes.every((s) => s.length < 2)) throw ArgumentError('Paraf boş');
+    final doc = PdfDocument(inputBytes: bytes, password: password);
+    try {
+      final pen = PdfPen(PdfColor(20, 40, 110),
+          width: 1.3, lineCap: PdfLineCap.round, lineJoin: PdfLineJoin.round);
+      final font = dateText == null
+          ? null
+          : (fontBytes == null
+              ? PdfStandardFont(PdfFontFamily.helvetica, 7)
+              : PdfTrueTypeFont(fontBytes, 7));
+      final targets = pages ?? List<int>.generate(doc.pages.count, (i) => i);
+      for (final i in targets) {
+        if (i < 0 || i >= doc.pages.count) continue;
+        final page = doc.pages[i];
+        final shown =
+            composedPageTransform(page.size, page.rotation.index).size;
+        final w = widthPt;
+        final h = w / (aspect <= 0 ? 2 : aspect);
+        final dateH = font == null ? 0.0 : font.height + 2;
+        const m = 22.0;
+        final origin = switch (place) {
+          PdfStampPlace.topLeft => const Offset(m, m),
+          PdfStampPlace.topRight => Offset(shown.width - w - m, m),
+          PdfStampPlace.bottomLeft => Offset(m, shown.height - h - dateH - m),
+          PdfStampPlace.center =>
+            Offset((shown.width - w) / 2, (shown.height - h) / 2),
+          PdfStampPlace.bottomRight =>
+            Offset(shown.width - w - m, shown.height - h - dateH - m),
+        };
+        final rect = Rect.fromLTWH(origin.dx, origin.dy, w, h);
+        final t = stampTransform(page.size, page.rotation.index);
+        final g = page.graphics;
+        final state = g.save();
+        if (t.angle != 0) {
+          g.translateTransform(t.translate.dx, t.translate.dy);
+          g.rotateTransform(t.angle);
+        }
+        for (final stroke in strokes) {
+          if (stroke.length < 2) continue;
+          final path = PdfPath()..startFigure();
+          for (var k = 0; k + 1 < stroke.length; k++) {
+            path.addLine(
+              Offset(rect.left + stroke[k].dx * w, rect.top + stroke[k].dy * h),
+              Offset(rect.left + stroke[k + 1].dx * w,
+                  rect.top + stroke[k + 1].dy * h),
+            );
+          }
+          g.drawPath(path, pen: pen);
+        }
+        if (font != null) {
+          g.drawString(dateText!, font,
+              brush: PdfSolidBrush(PdfColor(20, 40, 110)),
+              bounds: Rect.fromLTWH(rect.left, rect.bottom + 1, w + 30, dateH));
+        }
+        g.restore(state);
+      }
+      return await doc.save();
+    } finally {
+      doc.dispose();
+    }
+  }
+
+  static Future<List<int>> initialPagesInBackground(
+    List<int> bytes, {
+    required List<List<Offset>> strokes,
+    required double aspect,
+    PdfStampPlace place = PdfStampPlace.bottomRight,
+    String? dateText,
+    List<int>? pages,
+    List<int>? fontBytes,
+    String? password,
+  }) =>
+      _bg(() => initialPages(bytes,
+          strokes: strokes,
+          aspect: aspect,
+          place: place,
+          dateText: dateText,
+          pages: pages,
           fontBytes: fontBytes,
           password: password));
 

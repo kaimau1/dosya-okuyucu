@@ -87,9 +87,9 @@ class Signature {
     await prefs.setString(_key(initials), toJson());
   }
 
-  static Future<void> clear() async {
+  static Future<void> clear({bool initials = false}) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_prefsKey);
+    await prefs.remove(_key(initials));
   }
 }
 

@@ -1,4 +1,4 @@
-import 'dart:ui' show Rect;
+import 'dart:ui' show Offset, Rect;
 
 import 'package:dosya_okuyucu/services/pdf_doc_pro.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -95,5 +95,31 @@ void main() {
     expect(ex.extractText(startPageIndex: 1, endPageIndex: 1), contains('EK001'));
     expect(ex.extractText(startPageIndex: 2, endPageIndex: 2), contains('EK002'));
     doc.dispose();
+  });
+
+  test('her sayfaya paraf + tarih, seçili sayfa sınırı', () async {
+    final out = await PdfDocPro.initialPages(await _doc(3),
+        strokes: const [
+          [Offset(0, 0), Offset(1, 1)],
+          [Offset(0, 1), Offset(1, 0)],
+        ],
+        aspect: 2,
+        dateText: '05.11.2026',
+        pages: [0, 2]);
+    final doc = PdfDocument(inputBytes: out);
+    final ex = PdfTextExtractor(doc);
+    expect(doc.pages.count, 3);
+    expect(ex.extractText(startPageIndex: 0, endPageIndex: 0), contains('05.11.2026'));
+    expect(ex.extractText(startPageIndex: 1, endPageIndex: 1),
+        isNot(contains('05.11.2026')));
+    expect(ex.extractText(startPageIndex: 2, endPageIndex: 2), contains('05.11.2026'));
+    doc.dispose();
+  });
+
+  test('boş paraf reddedilir', () async {
+    expect(
+        () async => PdfDocPro.initialPages(await _doc(1),
+            strokes: const [[Offset(0, 0)]], aspect: 1),
+        throwsArgumentError);
   });
 }

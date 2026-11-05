@@ -13,6 +13,9 @@ class _ProTool {
 /// içinde bir dal.
 const _proTools = <List<_ProTool>>[
   [
+    _ProTool('signatures', AppIcons.pdfInitials, 'pp.signatures', 'pp.signatures_sub'),
+  ],
+  [
     _ProTool('reorder', AppIcons.dragHandle, 'pp.reorder', 'pp.reorder_sub'),
     _ProTool('blank', AppIcons.pdfBlankPage, 'pp.blank', 'pp.blank_sub'),
     _ProTool('crop', AppIcons.crop, 'pp.crop', 'pp.crop_sub'),
@@ -745,5 +748,162 @@ class _HardCompressSheetState extends State<_HardCompressSheet> {
             ),
           ],
         ),
+      );
+}
+
+// ── İmza yönetimi ─────────────────────────────────────────────────────────
+
+enum _SigActionKind { initialAll, dateStamp, stamp, signHere }
+
+class _SigAction {
+  final _SigActionKind kind;
+  final PdfStampPlace place;
+  final bool withDate;
+  final bool selectedOnly;
+  const _SigAction(this.kind, this.place, this.withDate, this.selectedOnly);
+}
+
+/// Kayıtlı imza ve paraf: önizle, yeniden çiz, sil; toplu paraf / tarih /
+/// damga / tek imza eylemleri.
+class _SignaturesSheet extends StatefulWidget {
+  const _SignaturesSheet({required this.hasSelection});
+
+  final bool hasSelection;
+
+  @override
+  State<_SignaturesSheet> createState() => _SignaturesSheetState();
+}
+
+class _SignaturesSheetState extends State<_SignaturesSheet> {
+  Signature? _signature;
+  Signature? _initials;
+  PdfStampPlace _place = PdfStampPlace.bottomRight;
+  bool _withDate = true;
+  bool _selectedOnly = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  Future<void> _reload() async {
+    final s = await Signature.load();
+    final i = await Signature.load(initials: true);
+    if (mounted) {
+      setState(() {
+        _signature = s;
+        _initials = i;
+      });
+    }
+  }
+
+  Future<void> _draw(bool initials) async {
+    await SignaturePad.show(context, initials: initials);
+    await _reload();
+  }
+
+  Future<void> _clear(bool initials) async {
+    await Signature.clear(initials: initials);
+    await _reload();
+  }
+
+  Widget _slot(BuildContext context, String title, Signature? sig, bool initials) {
+    final scheme = Theme.of(context).colorScheme;
+    return ListTile(
+      leading: SizedBox(
+        width: 96,
+        height: 44,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppColors.page,
+            border: Border.all(color: scheme.outlineVariant),
+            borderRadius: BorderRadius.circular(Radii.control),
+          ),
+          child: sig == null
+              ? Center(child: Text(context.t('pp.none'), style: context.type.caption))
+              : Padding(
+                  padding: const EdgeInsets.all(Gap.xs),
+                  child: CustomPaint(painter: SignaturePainter(sig)),
+                ),
+        ),
+      ),
+      title: Text(title),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            tooltip: context.t('sg.redraw'),
+            icon: const Icon(AppIcons.gesture),
+            onPressed: () => _draw(initials),
+          ),
+          IconButton(
+            tooltip: context.t('common.delete'),
+            icon: const Icon(AppIcons.delete),
+            onPressed: sig == null ? null : () => _clear(initials),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _pick(_SigActionKind kind) => Navigator.pop(
+      context, _SigAction(kind, _place, _withDate, _selectedOnly));
+
+  @override
+  Widget build(BuildContext context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _slot(context, context.t('pp.my_signature'), _signature, false),
+          _slot(context, context.t('pp.my_initials'), _initials, true),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+            child: DropdownButtonFormField<PdfStampPlace>(
+              initialValue: _place,
+              decoration: InputDecoration(labelText: context.t('pp.place')),
+              items: [
+                for (final pl in PdfStampPlace.values)
+                  DropdownMenuItem(
+                      value: pl, child: Text(context.t('pp.place_${pl.name}'))),
+              ],
+              onChanged: (v) => setState(() => _place = v ?? _place),
+            ),
+          ),
+          SwitchListTile(
+            value: _withDate,
+            onChanged: (v) => setState(() => _withDate = v),
+            title: Text(context.t('pp.initial_with_date')),
+          ),
+          if (widget.hasSelection)
+            SwitchListTile(
+              value: _selectedOnly,
+              onChanged: (v) => setState(() => _selectedOnly = v),
+              title: Text(context.t('pp.selected_pages_only')),
+            ),
+          ListTile(
+            leading: const Icon(AppIcons.pdfInitials),
+            title: Text(context.t('pp.initial_all')),
+            enabled: _initials != null,
+            onTap: () => _pick(_SigActionKind.initialAll),
+          ),
+          ListTile(
+            leading: const Icon(AppIcons.calendarMonth),
+            title: Text(context.t('pp.date_stamp')),
+            onTap: () => _pick(_SigActionKind.dateStamp),
+          ),
+          ListTile(
+            leading: const Icon(AppIcons.pdfStamp),
+            title: Text(context.t('pp.stamp')),
+            onTap: () => _pick(_SigActionKind.stamp),
+          ),
+          ListTile(
+            leading: const Icon(AppIcons.draw),
+            title: Text(context.t('pp.sign_here')),
+            enabled: _signature != null,
+            onTap: () => _pick(_SigActionKind.signHere),
+          ),
+        ],
       );
 }
