@@ -305,3 +305,7 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Taramalar** artık `Documents/Dosya Okuyucu/Taramalar`.
 - **Tuzak:** Dart `RegExp` `\b` ASCII — "A.Ş." gibi Türkçe harf/nokta ile biten kalıpta sınır yok; boşluk bakışı kullan.
 - **Açık:** `pdf` paketi 30 sayfayı kayda dek bellekte tutuyor (akışla üretim yok). Perf A/B: bekliyor (ölçüm yok). Kotlin köprüsü (`ci/DocScan.kt`) ilk kez `[release-apk]` ile faz dalında derlendi.
+
+## 2026-11-05 — Faz zinciri onarıldı
+- **Bug kökü:** faz görevlerinde `model` boş (→ Sonnet açılıyordu) ve istem 5. adımı kurulmamış bir "GitHub PR birleşti" tetikleyicisine güvenip `fire_trigger`ı yasaklıyordu → zincir her fazda koptu. Düzeltme: model `claude-opus-5-5`, 5. adım sıradaki id ile `fire_trigger`, TAMLIK KURALI (tüm maddeler [x] olmadan PR yok; daralırsa kendini yeniden tetikle). Yedek denetim `send_later` 2 saatte bir. Ayrıntı `docs/ZAMANLANMIS_GOREV_ISTEMI.md`.
+- **Tuzak:** zamanlanmış görev isteminde "başka tetikleyici başlatır" deme — doğrulanmadıysa zincir kopar.

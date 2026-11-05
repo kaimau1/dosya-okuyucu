@@ -1,4 +1,17 @@
-# Zamanlanmış görev istemi — olay zinciri (2026-11-04, 2. sürüm)
+# Zamanlanmış görev istemi — olay zinciri (2026-11-05, 3. sürüm)
+
+> **2026-11-05 düzeltmesi (kullanıcı: "birbirini tetiklemiyor, Sonnet ile başlıyor, işi yarım bırakıyor"):**
+> - Görevlerin `model` alanı boştu → varsayılan model açıyordu. Hepsi `claude-opus-5-5` yapıldı (`update_trigger model`).
+> - 2. sürümde istemin 5. adımı "GitHub PR birleşti tetikleyicisi başlatır, fire_trigger YAPMA" diyordu; o tetikleyici hiç
+>   kurulmamıştı → zincir her fazda koptu. 5. adım yeniden `fire_trigger(trigger_id=<sıradaki>)`, id'ler isme göre
+>   arama yerine doğrudan istemde.
+> - TAMLIK KURALI eklendi: tüm Faz maddeleri [x] olmadan PR açılmaz; süre/bağlam daralırsa her madde push'lanır ve görev
+>   kendini (`fire_trigger(<kendi id>)`) yeniden tetikler.
+> - Yedek: denetim oturumu `send_later` ile 2 saatte bir PR/koşu durumuna bakar, zincir durduysa sıradakini tetikler.
+>
+> Görev id'leri: 39 `trig_015ARhmEzCpRUsJiZyJafPHH` → 36 `trig_01WsCWEScEthdxGpqsvwLmdz` → 37 `trig_01NCMRkZn3YBWPxooRPj4duf`
+> → 38 `trig_01EsWv4m1YoEPt4KNWJBFUAP` → 40 `trig_015M6sxWRYGZwA3EBnuYupsA` → 41 `trig_016N4RTd7YM1xq3NN12NPM1C`
+> → 42 `trig_011s7SMLbHGJ3qqe8fVU2Zjf`. Güncel istem metni görevlerin kendisinde (`get_trigger`); aşağıdaki şablon tarihsel.
 
 **Yoklama YOK.** 9 görev "zamanlamasız" (yalnız `fire_trigger` ile tetiklenir). Her faz görevi
 işini `faz-NN` dalında yapar, **PR açar, CI yeşilken main'e BİRLEŞTİRİR**, sonra sıradaki fazın
