@@ -452,7 +452,7 @@ class _LayoutEditPageState extends State<LayoutEditPage> {
             onPressed: () async {
               await _run(PptxMasterOps.duplicateLayout(
                   widget.part, '$_name (${context.t('sp.copy_suffix')})'));
-              if (mounted) Navigator.pop(context);
+              if (context.mounted) Navigator.pop(context);
             },
           ),
         ],

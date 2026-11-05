@@ -148,8 +148,7 @@ extension _SlidesProPart on _SlidesEditorScreenState {
 
   // ── Madde 3: grafik / SmartArt ─────────────────────────────────────────────
 
-  Future<void> _insertChart(int slide, SlideChartData initial,
-      {int? tableId}) async {
+  Future<void> _insertChart(int slide, SlideChartData initial) async {
     final d = await Navigator.of(context).push<SlideChartData>(
         MaterialPageRoute(builder: (_) => SlideChartPage(initial: initial)));
     if (d == null || !mounted) return;
