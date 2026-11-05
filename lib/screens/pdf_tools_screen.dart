@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -16,6 +17,7 @@ import '../core/l10n/app_strings.dart';
 import '../services/conversion_service.dart';
 import '../services/document_scanner.dart';
 import '../services/ocr_service.dart';
+import '../services/pdf_digital_sign.dart';
 import '../services/pdf_tools.dart';
 import '../services/scan_prepare.dart';
 import '../widgets/pdf_save_dialog.dart';
@@ -29,6 +31,8 @@ import 'fm/pick_file_screen.dart';
 
 part 'pdf_tools/actions.dart';
 part 'pdf_tools/views.dart';
+part 'pdf_tools/pro_actions.dart';
+part 'pdf_tools/pro_views.dart';
 
 /// **PDF Araçları** — sayfa ızgarası üzerinden birleştir / çıkar / sil / sırala /
 /// döndür, ayrıca parola ve sıkıştırma.
@@ -183,6 +187,7 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
                 'lock' => _setPassword(),
                 'unlock' => _removePassword(),
                 'share' => _share(),
+                'pro' => _openProTools(),
                 _ => null,
               },
               itemBuilder: (_) => [
@@ -231,6 +236,9 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
                       child: Text(context.t('pt.remove_password'))),
                 PopupMenuItem(
                     value: 'share', child: Text(context.t('common.share'))),
+                const PopupMenuDivider(),
+                PopupMenuItem(
+                    value: 'pro', child: Text(context.t('pp.menu'))),
               ],
             ),
           ],
