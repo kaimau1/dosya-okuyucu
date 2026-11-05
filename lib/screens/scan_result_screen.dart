@@ -182,10 +182,14 @@ class _ScanResultScreenState extends State<ScanResultScreen>
   Timer? _saveTimer;
   bool _logged = false;
 
-  ScanSaver get _saver =>
-      widget.saver ??
-      (path, pages, ocr) => ScanResultScreen.defaultSaver(path, pages, ocr,
-          uniformA4: _kind.uniformA4);
+  ScanSaver get _saver {
+    final custom = widget.saver;
+    if (custom != null) return custom;
+    // Sayfa düzeni seçili belge türünden (fiş/fotoğraf görsel oranında).
+    return (path, pages, ocr) => ScanResultScreen.defaultSaver(
+        path, pages, ocr,
+        uniformA4: _kind.uniformA4);
+  }
 
   @override
   void initState() {

@@ -218,8 +218,10 @@ class BusinessCard {
   static final _phone = RegExp(r'(\+?\d[\d ()\-]{7,}\d)');
   static final _web = RegExp(r'\b(?:https?://)?(?:www\.)[\w-]+(\.[\w-]+)+\S*',
       caseSensitive: false);
+  // `\b` ASCII'dir: "A.Ş." gibi Türkçe harf/noktayla biten ekte sınır
+  // bulunmaz — boşluk/satır sonu bakışı kullanılır.
   static final _companyHint = RegExp(
-      r'\b(A\.?Ş\.?|Ltd\.?|Şti\.?|Inc\.?|GmbH|LLC|Holding|Limited)\b',
+      r'(^|\s)(A\.?Ş\.?|Ltd\.?|Şti\.?|Inc\.?|GmbH|LLC|Holding|Limited)(?=\s|$|,)',
       caseSensitive: false);
 
   /// OCR metninden kişi: e-posta, telefon, web kurallı; ad = harf ağırlıklı,

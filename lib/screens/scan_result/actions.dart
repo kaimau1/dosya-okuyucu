@@ -312,6 +312,7 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
         if (!mounted) return;
         _commit(next);
       }
+      if (!mounted) return;
       _partSetState(() => _kind = kind);
       // Sayfa düzeni (A4 / görsel oranı) değişti → PDF yeniden yazılsın.
       _partSetState(() => _dirty = true);
