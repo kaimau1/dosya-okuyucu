@@ -15,6 +15,7 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
     await switch (id) {
       'dsign' => _digitalSign(),
       'dsign_list' => _showSignatures(),
+      'redact' => _redact(),
       _ => Future<void>.value(),
     };
   }
@@ -131,5 +132,72 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
         ],
       ),
     );
+  }
+
+  // ── 2. Kalıcı karartma ───────────────────────────────────────────────────
+
+  Future<void> _redact() async {
+    final bytes = _bytes;
+    if (bytes == null) return;
+    final pw = _password;
+    final terms = await showAppPrompt(
+      context,
+      title: context.t('pp.redact'),
+      label: context.t('pp.redact_terms_hint'),
+      confirmLabel: context.t('pp.redact_find'),
+    );
+    if (!mounted) return;
+    var initial = const <int, List<Rect>>{};
+    if (terms != null) {
+      _partSetState(() => _busyLabel = '${_str.t('pp.redact_searching')}…');
+      try {
+        initial = await PdfRedact.findTextInBackground(
+            bytes, terms.split(','), password: pw);
+      } catch (_) {
+        initial = const {};
+      } finally {
+        if (mounted) _partSetState(() => _busyLabel = '');
+      }
+      if (!mounted) return;
+      if (initial.isEmpty) _snack(_str.t('pp.redact_no_match'));
+    }
+    final marks = await PdfRegionScreen.open(
+      context,
+      bytes: bytes,
+      mode: PdfRegionMode.redact,
+      password: pw,
+      initial: initial,
+      title: context.t('pp.redact'),
+    );
+    if (marks == null || marks.isEmpty || !mounted) return;
+    final ok = await showAppConfirm(
+      context,
+      title: context.t('pp.redact'),
+      message: context.t('pp.redact_confirm', {
+        'n': marks.values.fold<int>(0, (s, l) => s + l.length),
+        'pages': marks.length,
+      }),
+      confirmLabel: context.t('pp.redact_apply'),
+      destructive: true,
+    );
+    if (!ok || !mounted) return;
+    final font = await _unicodeFont();
+    final before = _bytes;
+    final pages = marks.keys.toList()..sort();
+    await _apply(_str.t('pp.redact'), (b) async {
+      final rasters = await PdfRaster.renderJpegs(b, pages,
+          password: pw, dpi: 150, quality: 85, blackout: marks);
+      return PdfRedact.applyInBackground(
+        b,
+        rects: marks,
+        rasters: [for (final r in rasters) RedactedRaster(r.index, r.jpeg)],
+        fontBytes: font,
+        password: pw,
+      );
+    });
+    if (!mounted || identical(before, _bytes)) return;
+    // Yeni belge sıfırdan yazıldı: parola taşınmaz.
+    _partSetState(() => _password = null);
+    _snack(_str.t('pp.redact_done'));
   }
 }

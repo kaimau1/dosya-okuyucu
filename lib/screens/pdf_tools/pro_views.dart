@@ -16,6 +16,9 @@ const _proTools = <List<_ProTool>>[
     _ProTool('dsign', AppIcons.pdfSignCert, 'pp.dsign', 'pp.dsign_sub'),
     _ProTool('dsign_list', AppIcons.draw, 'pp.dsign_list'),
   ],
+  [
+    _ProTool('redact', AppIcons.pdfRedact, 'pp.redact', 'pp.redact_sub'),
+  ],
 ];
 
 class _ProToolsSheet extends StatelessWidget {

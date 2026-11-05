@@ -18,6 +18,8 @@ import '../services/conversion_service.dart';
 import '../services/document_scanner.dart';
 import '../services/ocr_service.dart';
 import '../services/pdf_digital_sign.dart';
+import '../services/pdf_raster.dart';
+import '../services/pdf_redact.dart';
 import '../services/pdf_tools.dart';
 import '../services/scan_prepare.dart';
 import '../widgets/pdf_save_dialog.dart';
@@ -28,6 +30,7 @@ import '../core/theme.dart';
 import '../core/app_colors.dart';
 import '../widgets/app_dialog.dart';
 import 'fm/pick_file_screen.dart';
+import 'pdf_region_screen.dart';
 
 part 'pdf_tools/actions.dart';
 part 'pdf_tools/views.dart';

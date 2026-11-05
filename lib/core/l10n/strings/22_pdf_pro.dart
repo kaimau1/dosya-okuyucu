@@ -35,4 +35,45 @@ const Map<String, (String, String, String)> _t22 = {
   'pp.dsign_empty_field': ('Boş imza alanı', 'Empty signature field', 'حقل توقيع فارغ'),
   'pp.dsign_export_cert': ('Sertifikamı paylaş (.cer)', 'Share my certificate (.cer)', 'شارك شهادتي (.cer)'),
   'pp.dsign_name_needed': ('İmzalayan adı gerekli', 'Signer name is required', 'اسم الموقّع مطلوب'),
+  // ── Bölge işaretleme ──
+  'pp.region_title': ('Bölge seç', 'Select area', 'اختر منطقة'),
+  'pp.region_hint': (
+    'Sürükleyerek kutu çiz; kutuya dokun → sil',
+    'Drag to draw a box; tap a box to remove it',
+    'اسحب لرسم مربع؛ انقر على مربع لحذفه',
+  ),
+  'pp.region_hint_crop': (
+    'Kalacak alanı sürükleyerek çiz',
+    'Drag to draw the area to keep',
+    'اسحب لرسم المنطقة التي ستبقى',
+  ),
+  'pp.region_status': ('Sayfa {page}/{count} · {n} kutu', 'Page {page}/{count} · {n} boxes', 'الصفحة {page}/{count} · {n} مربع'),
+  'pp.prev_page': ('Önceki sayfa', 'Previous page', 'الصفحة السابقة'),
+  'pp.next_page': ('Sonraki sayfa', 'Next page', 'الصفحة التالية'),
+  // ── Karartma ──
+  'pp.redact': ('Kalıcı karartma', 'Permanent redaction', 'تنقيح دائم'),
+  'pp.redact_sub': (
+    'Metni ve görüntüyü gerçekten siler',
+    'Really removes the text and image',
+    'يحذف النص والصورة فعليًا',
+  ),
+  'pp.redact_terms_hint': (
+    'Aranacak ifadeler (virgülle) — boş: elle işaretle',
+    'Terms to find (comma separated) — empty: mark by hand',
+    'عبارات للبحث (مفصولة بفواصل) — فارغ: حدّد يدويًا',
+  ),
+  'pp.redact_find': ('Bul', 'Find', 'بحث'),
+  'pp.redact_searching': ('Aranıyor', 'Searching', 'جارٍ البحث'),
+  'pp.redact_no_match': ('Eşleşme yok — elle işaretleyebilirsin', 'No matches — you can mark by hand', 'لا تطابق — يمكنك التحديد يدويًا'),
+  'pp.redact_confirm': (
+    '{pages} sayfada {n} alan kalıcı olarak silinecek. Bu sayfalar görüntüye dönüşür (kutu dışı metin aranabilir kalır); açıklamalar, formlar ve parola kaldırılır. Geri alma yalnız kaydetmeden önce.',
+    '{n} areas on {pages} pages will be removed permanently. These pages become images (text outside boxes stays searchable); annotations, forms and the password are removed. Undo works only before saving.',
+    'سيُحذف {n} منطقة في {pages} صفحة نهائيًا. تتحول هذه الصفحات إلى صور (يبقى النص خارج المربعات قابلاً للبحث)؛ تُزال التعليقات والنماذج وكلمة المرور. التراجع ممكن قبل الحفظ فقط.',
+  ),
+  'pp.redact_apply': ('Karart', 'Redact', 'نقّح'),
+  'pp.redact_done': (
+    'Karartıldı ve doğrulandı: kutularda metin kalmadı.',
+    'Redacted and verified: no text left inside the boxes.',
+    'تم التنقيح والتحقق: لم يبقَ نص داخل المربعات.',
+  ),
 };

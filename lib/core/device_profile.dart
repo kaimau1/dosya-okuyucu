@@ -113,6 +113,13 @@ class PerfBudget {
   Duration get volumePoll =>
       isLight ? const Duration(seconds: 30) : const Duration(seconds: 15);
 
+  /// PDF sayfası tarama (karartma/agresif sıkıştırma/PDF→görsel) üst sınırı,
+  /// uzun kenar piksel (Faz 39; anayasa k.4: ≤2480).
+  int get pdfRasterMaxPx => isLight ? 1754 : 2480;
+
+  /// İki PDF görsel karşılaştırmasında sayfa genişliği (piksel).
+  int get pdfCompareWidthPx => isLight ? 800 : 1200;
+
   /// Açılış kuyruğunun ilk kareden sonra bekleme süresi (P11).
   Duration get startupDelay =>
       isLight ? const Duration(seconds: 3) : const Duration(seconds: 2);

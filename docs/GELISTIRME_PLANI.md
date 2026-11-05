@@ -181,7 +181,8 @@ yalnız görünür slayt tam çizilir, sunum kipinde sonraki slayt önceden rast
 ## Faz 39 — PDF
 - [x] 1. **Dijital imza (PKCS#7)** — kullanıcı sertifikası/self-signed, görünür imza alanı.
    (`services/pdf_digital_sign.dart` + `pdf/der.dart`; Pro araçlar levhası.)
-2. Kalıcı karartma (redaction) — metin+görüntüyü gerçekten siler, doğrulama testi.
+- [x] 2. Kalıcı karartma (redaction) — metin+görüntüyü gerçekten siler, doğrulama testi.
+   (`pdf_redact.dart` + `pdf_raster.dart` + `pdf_region_screen.dart`; `test/pdf_redact_test.dart`.)
 3. Tablo çıkarma → Excel; sayfa metnini Word'e (düzen korunarak); PDF/A dışa aktarım.
 4. İki PDF karşılaştırma (görsel fark + metin farkı).
 5. Parola/izin düzenleme, yer imi düzenleme, damga/filigran şablonları, numaralandırma.
