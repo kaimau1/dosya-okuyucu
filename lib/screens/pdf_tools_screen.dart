@@ -24,6 +24,7 @@ import '../services/docs_home.dart';
 import '../services/legacy_convert.dart';
 import '../services/pdf_doc_pro.dart';
 import '../services/pdf_export_pro.dart';
+import '../services/pdf_page_pro.dart';
 import '../services/pdf_raster.dart';
 import '../services/pdf_redact.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart' show PdfConformanceLevel;
@@ -39,6 +40,7 @@ import '../widgets/app_dialog.dart';
 import 'fm/pick_file_screen.dart';
 import 'pdf_compare_screen.dart';
 import 'pdf_region_screen.dart';
+import 'pdf_reorder_screen.dart';
 
 part 'pdf_tools/actions.dart';
 part 'pdf_tools/views.dart';

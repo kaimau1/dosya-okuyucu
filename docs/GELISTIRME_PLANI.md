@@ -196,8 +196,10 @@ yalnız görünür slayt tam çizilir, sunum kipinde sonraki slayt önceden rast
    (DPI 96/120/150 + kalite + gri + görünmez metin; 40 sayfalık parçalarla, bellek tavanlı.)
 **Ölçüt:** imzalı PDF Adobe/Chrome'da geçerli görünür (cihaz dışı doğrulama 💻).
 
-**Ek:** 8. Sayfa küçük resim ızgarasında çoklu seç → döndür/sil/çıkar/yeniden sırala (var olanı
+**Ek:**
+- [x] 8. Sayfa küçük resim ızgarasında çoklu seç → döndür/sil/çıkar/yeniden sırala (var olanı
 genişlet), boş sayfa algıla ve sil, sayfaları kırp/boyutlandır, A4'e sığdır.
+   (`pdf_page_pro.dart`, `pdf_reorder_screen.dart`; kırpma bölge ekranının `crop` kipi.)
 9. Formlar: alan vurgusu, otomatik doldurma profili (ad/adres), düzleştir, form oluştur (metin/onay/imza).
 10. Notlar: metin vurgusu/çizgi/not özeti dışa aktar; metinde ara + sonuç listesi + OCR'lı taranmış PDF'te ara.
 11. Görüntüden PDF / PDF'ten görüntü toplu, web sayfasından PDF, PDF'e Word/Excel/PPT aktarım.

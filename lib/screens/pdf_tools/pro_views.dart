@@ -13,6 +13,12 @@ class _ProTool {
 /// içinde bir dal.
 const _proTools = <List<_ProTool>>[
   [
+    _ProTool('reorder', AppIcons.dragHandle, 'pp.reorder', 'pp.reorder_sub'),
+    _ProTool('blank', AppIcons.pdfBlankPage, 'pp.blank', 'pp.blank_sub'),
+    _ProTool('crop', AppIcons.crop, 'pp.crop', 'pp.crop_sub'),
+    _ProTool('fit_a4', AppIcons.pdfFitPage, 'pp.fit_a4', 'pp.fit_a4_sub'),
+  ],
+  [
     _ProTool('dsign', AppIcons.pdfSignCert, 'pp.dsign', 'pp.dsign_sub'),
     _ProTool('dsign_list', AppIcons.draw, 'pp.dsign_list'),
   ],

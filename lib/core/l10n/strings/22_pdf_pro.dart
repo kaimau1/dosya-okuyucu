@@ -236,4 +236,18 @@ const Map<String, (String, String, String)> _t22 = {
     'Not smaller ({size}) — use Undo to go back',
     'لم يصغر ({size}) — استخدم التراجع للعودة',
   ),
+  // ── Sayfa işlemleri ──
+  'pp.reorder': ('Sürükleyerek sırala', 'Reorder by dragging', 'إعادة الترتيب بالسحب'),
+  'pp.reorder_sub': ('Uzun belgede hızlı sıralama', 'Fast reordering in long documents', 'ترتيب سريع في المستندات الطويلة'),
+  'pp.reorder_was': ('Eskiden {n}. sayfa', 'Was page {n}', 'كانت الصفحة {n}'),
+  'pp.blank': ('Boş sayfaları bul ve sil', 'Find and delete blank pages', 'ابحث عن الصفحات الفارغة واحذفها'),
+  'pp.blank_sub': ('Taramadaki boş arka yüzler', 'Empty backs in scans', 'الظهور الفارغة في المسح'),
+  'pp.blank_finding': ('Boş sayfalar aranıyor', 'Looking for blank pages', 'جارٍ البحث عن صفحات فارغة'),
+  'pp.blank_none': ('Boş sayfa bulunmadı', 'No blank pages found', 'لم توجد صفحات فارغة'),
+  'pp.blank_all': ('Tüm sayfalar boş görünüyor — silinmedi', 'All pages look blank — nothing deleted', 'كل الصفحات تبدو فارغة — لم يُحذف شيء'),
+  'pp.blank_found': ('{n} boş sayfa seçildi: {pages}. Silinsin mi?', '{n} blank pages selected: {pages}. Delete them?', 'حُددت {n} صفحة فارغة: {pages}. حذفها؟'),
+  'pp.crop': ('Sayfaları kırp', 'Crop pages', 'قص الصفحات'),
+  'pp.crop_sub': ('Seçili sayfalar ya da tümü', 'Selected pages or all', 'الصفحات المحددة أو الكل'),
+  'pp.fit_a4': ('A4\'e sığdır', 'Fit to A4', 'ملاءمة إلى A4'),
+  'pp.fit_a4_sub': ('Farklı boyutlu sayfaları eşitler', 'Evens out mixed page sizes', 'يوحّد أحجام الصفحات المختلفة'),
 };

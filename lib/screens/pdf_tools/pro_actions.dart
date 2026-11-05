@@ -25,6 +25,10 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       'stamp' => _stamp(),
       'numbering' => _numbering(),
       'compress_hard' => _compressHard(),
+      'reorder' => _reorderPages(),
+      'blank' => _findBlankPages(),
+      'crop' => _cropPages(),
+      'fit_a4' => _fitA4(),
       _ => Future<void>.value(),
     };
   }
@@ -530,4 +534,84 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
   }
 
   static const _hardChunk = 40;
+
+  // ── 8. Sayfa ızgarası işlemleri ──────────────────────────────────────────
+
+  Future<void> _reorderPages() async {
+    final bytes = _bytes!;
+    final order =
+        await PdfReorderScreen.open(context, bytes: bytes, password: _password);
+    if (order == null || !mounted) return;
+    if (!await _confirmAnnotationLoss(_str.t('pp.reorder')) || !mounted) return;
+    final pw = _password;
+    await _apply(_str.t('pp.reorder'),
+        (b) => PdfTools.selectPagesInBackground(b, order, password: pw));
+  }
+
+  /// Boş sayfaları bulur (küçük gri çizim), seçer ve silmeyi önerir.
+  Future<void> _findBlankPages() async {
+    final bytes = _bytes!;
+    final pw = _password;
+    List<int> blanks = const [];
+    await _produce(_str.t('pp.blank_finding'), () async {
+      final gray = await PdfRaster.renderGray(bytes, password: pw, widthPx: 96);
+      final shapes = [for (final g in gray) (w: g.width, h: g.height, luma: g.luma)];
+      blanks = await Isolate.run(() => [
+            for (var i = 0; i < shapes.length; i++)
+              if (PdfPagePro.isBlank(shapes[i].w, shapes[i].h, shapes[i].luma)) i,
+          ]);
+    });
+    if (!mounted) return;
+    if (blanks.isEmpty) {
+      _snack(_str.t('pp.blank_none'));
+      return;
+    }
+    _selection.value = blanks.toSet();
+    final total = await _pageCount();
+    if (!mounted) return;
+    if (blanks.length >= total) {
+      _snack(_str.t('pp.blank_all'));
+      return;
+    }
+    final ok = await showAppConfirm(
+      context,
+      title: context.t('pp.blank'),
+      message: context.t('pp.blank_found', {
+        'n': blanks.length,
+        'pages': blanks.map((i) => i + 1).join(', '),
+      }),
+      confirmLabel: context.t('common.delete'),
+      destructive: true,
+    );
+    if (!ok || !mounted) return;
+    final del = List<int>.of(blanks);
+    await _apply(_str.t('pp.blank'),
+        (b) => PdfTools.deletePagesInBackground(b, del, password: pw));
+  }
+
+  Future<void> _cropPages() async {
+    final bytes = _bytes!;
+    final pw = _password;
+    final pages = _selectedOrNull();
+    final marks = await PdfRegionScreen.open(
+      context,
+      bytes: bytes,
+      mode: PdfRegionMode.crop,
+      password: pw,
+      title: context.t('pp.crop'),
+    );
+    if (marks == null || marks.isEmpty || !mounted) return;
+    final rect = marks.values.first.first;
+    if (!await _confirmAnnotationLoss(_str.t('pp.crop')) || !mounted) return;
+    await _apply(_str.t('pp.crop'),
+        (b) => PdfPagePro.cropInBackground(b, rect, pages: pages, password: pw));
+  }
+
+  Future<void> _fitA4() async {
+    if (!await _confirmAnnotationLoss(_str.t('pp.fit_a4')) || !mounted) return;
+    final pw = _password;
+    final pages = _selectedOrNull();
+    await _apply(_str.t('pp.fit_a4'),
+        (b) => PdfPagePro.resizeInBackground(b, pages: pages, password: pw));
+  }
 }
