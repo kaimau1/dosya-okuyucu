@@ -327,3 +327,13 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Tuzak:** `pdf` paketinde `pw.Table(headerCount:)` YOK (yalnız `fromTextArray`); başlık yinelemek için `TableRow(repeat: true)`. Matcher `contains([..])` liste içinde listeyi eşitlikle bulmaz → `contains(equals([..]))`. Türkçe sayfa adı başvuruda tırnaklanır (`'Satış'!A1:E1`).
 - **Tuzak:** sayfa koruması güçlü özeti SHA-512(H + LE32(n)) — sayaç SONDA (dosya şifrelemesinde başta). Biz 16 bit eski özet yazarız (`legacyHash('password') == '83AF'`).
 - Perf A/B: bekliyor (`docs/perf/2026-11-05-faz36.md`), cihaz listesi `CIHAZ_TESTI.md` Faz 36.
+## 2026-11-05 — Faz 37 bitti (faz-37 dalı; kod — cihaz turu + perf A/B bekliyor)
+- **Mimari:** Word pro işlemleri paket düzeyinde: `doc.saveAsync()` → `DocxPackage` (zip + XML parçaları) → işlem → yeniden ayrıştır (`_proApply`, izolatta `DocxPro.run`); önceki bayt `_proUndo` (≤5) — üst çubuk ↶ editör yığını boşsa onu geri alır. İmleç→XML eşlemesi `DocxPackage.modelParagraphs()` = `DocxDocument._readBody` sırası (gövde p, üst düzey tablo hücre p'leri, boş hücre, metinli diğer öğe) — ikisi birlikte değişmeli.
+- **İmlece öğe (alan, çapraz başvuru, kaynak):** editör `kDocxMarker` (U+E000 U+E001 U+E000) yazar, paket işlemi işaretli run'ı böler; başarısızsa `c.undo()`.
+- **Araçlar sekmesi** `kWordProTools` (+ Tablo/Resim sekmesinde pro düğmeleri), bayrak `word_pro_v1`. Parolalı docx: sayfa görünümü (WebView) çözemez → Word ekranı Mobil editöre `pushReplacement`; kayıt `OfficeCrypto` Agile.
+- **PDF** kendi çizicimiz (`docx_pdf.dart`, `pdf` paketi, Carlito/Tinos gömülü); `pdf` paketinde gazete sütunu yok → çok sütunlu bölüm PDF'te tek sütun akar. **DOCX yazı tipi gömme:** yalnız OFL metrik eşleri — Calibri→Carlito, Times/Georgia/Cambria→Tinos adıyla yazılır; odttf anahtarı GUID hex'in TERS bayt sırası, ilk 32 bayt XOR.
+- **Sesle yazma** `ci/Dikte.kt` RecognizerIntent (kanal `dosya/dictate`), RECORD_AUDIO EKLENMEDİ (tanıyıcı uygulama ister); manifest `<queries>` RECOGNIZE_SPEECH.
+- **Tuzak (analyze):** pro sınıf adları `docx_document.dart` kütüphanesindekilerle çakışıyordu (`DocxTableOps`, `DocxReview` zaten var) → `DocxTableTools`, `DocxReviewTools`. Yeni dosyada `xml` uzantı yöntemleri (`descendantElements`, `remove`) için `package:xml` importu şart. `XmlName('w:p')` önek ayırmaz → `XmlName.fromString`. SDK alt sınırı 3.3 → `?öğe` (null-aware eleman) ve `_` joker parametre YOK.
+- **Tuzak (test):** `pdf` paketinin sıkıştırılmış çıktısında `/Type /Page` sayılamaz → `DocxPdf.render(compress: false)`.
+- Perf A/B: bekliyor (`docs/perf/2026-11-05-faz37.md`), cihaz listesi `CIHAZ_TESTI.md` Faz 37.
+

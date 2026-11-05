@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart' show compute, visibleForTesting;
 import 'package:flutter/material.dart';
 
 import '../../core/app_icons.dart';
+import '../../core/doc_fonts.dart';
 import '../../core/edit/edit_session.dart';
 import '../../core/edit/editor_chrome.dart';
 import '../../core/edit/editor_shortcuts.dart';
@@ -30,6 +31,32 @@ import '../../widgets/app_dialog.dart';
 import 'word_mobile/word_format_ui.dart';
 import 'word_mobile/word_insert_ui.dart';
 import '../fm/pick_file_screen.dart';
+import '../../services/docx/pro/docx_package.dart';
+import '../../services/docx/pro/docx_style_ops.dart';
+import '../../services/docx/pro/docx_layout_ops.dart';
+import '../../services/docx/pro/docx_pdf.dart';
+import '../../services/docx/pro/docx_math.dart';
+import '../../services/docx/pro/docx_table_ops.dart';
+import '../../services/docx/pro/docx_compare.dart';
+import '../../services/office_crypto.dart';
+import '../../services/dictation.dart';
+import '../../services/docx/pro/docx_paginator.dart';
+import '../../services/docx/pro/docx_insert_pro.dart';
+import '../../services/docx/pro/docx_export_formats.dart';
+import 'word_mobile/word_reader.dart';
+import '../../services/docx/pro/docx_fonts.dart';
+import '../../services/fm/save_to_downloads.dart';
+import '../../widgets/download_action.dart';
+import 'package:share_plus/share_plus.dart';
+import '../../services/docx/pro/docx_ai.dart';
+import '../../services/gemini_service.dart';
+import '../../core/app_state.dart';
+import '../../core/l10n/app_language.dart';
+import 'package:provider/provider.dart';
+import 'package:printing/printing.dart' show Printing;
+import 'package:shared_preferences/shared_preferences.dart';
+
+part 'word_mobile/word_pro.dart';
 
 /// **Word Mobil görünüm editörü** (Faz 22, K18 = b-ii).
 ///
@@ -61,6 +88,10 @@ class WordMobileEditorScreen extends StatefulWidget {
   @visibleForTesting
   static Future<(Uint8List, String)?> Function()? pickImageForTest;
 
+  /// Testte dosya seçici yerine docx baytı verir (karşılaştır/birleştir).
+  @visibleForTesting
+  static Future<Uint8List?> Function()? pickDocxForTest;
+
 
   const WordMobileEditorScreen(
       {super.key,
@@ -81,6 +112,22 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
   int _seenRevision = 0;
   final _panel = FormatPanelController();
 
+  /// Faz 37: yapısal (paket düzeyi) işlemlerin geri alma yığını — her biri
+  /// işlemden önceki belge baytı (en çok 5; bellek bütçesi).
+  final List<Uint8List> _proUndo = [];
+  bool _proBusy = false;
+
+  /// Madde 8/11: artımlı sayfa tahmini (gezinti, küçük resim, sayaç).
+  DocxPaginator _paginator = DocxPaginator();
+
+  /// Madde 5: gözden geçirme çubuğu öğeleri (null → kapalı) ve parola.
+  List<DocxReviewItem>? _review;
+  int _reviewAt = 0;
+  String? _filePassword;
+
+  /// `word_pro_v1` bayrağı (anayasa k.9): kapalıysa Araçlar sekmesi yok.
+  bool _proOn = true;
+
   late final EditSession _session = EditSession(
     sourcePath: widget.path,
     editor: 'word',
@@ -92,6 +139,7 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
   void initState() {
     super.initState();
     _load();
+    unawaited(_loadProFlag());
   }
 
   @override
@@ -115,7 +163,16 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
 
   Future<void> _load() async {
     try {
-      final bytes = await File(widget.path).readAsBytes();
+      var bytes = await File(widget.path).readAsBytes();
+      // Faz 37 madde 5: parolalı belge (ECMA-376 Agile) önce çözülür.
+      if (OfficeCrypto.isEncrypted(bytes)) {
+        final plain = await _unlock(bytes);
+        if (plain == null) {
+          if (mounted) setState(() {});
+          return;
+        }
+        bytes = plain;
+      }
       final isolate = WordMobileEditorScreen.parseInIsolate;
       // Önizleme ve tam ayrıştırma AYNI ANDA başlar; önizleme önce biter.
       if (isolate) {
@@ -173,7 +230,11 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
   Future<void> _writeFile() async {
     final doc = _doc;
     if (doc == null) return;
-    final bytes = await doc.saveAsync();
+    final plain = await doc.saveAsync();
+    final pw = _filePassword;
+    final bytes = pw == null
+        ? plain
+        : await OfficeCrypto.encryptInBackground(plain, pw);
     await SafeWrite.bytes(widget.path, bytes);
     unawaited(ActivityLog.add(ActivityKind.documentEdit, widget.path));
   }
@@ -237,7 +298,7 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
         c: c,
         onPageLayout: _pageLayout,
         onNavigate: _navigate,
-        onWordCount: _wordCount,
+        onWordCount: _proOn ? _stats : _wordCount,
         onZoomIn: _scale < _scales.last ? () => _zoom(1) : null,
         onZoomOut: _scale > _scales.first ? () => _zoom(-1) : null,
         onTranslate: _translate,
@@ -254,6 +315,7 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
         onNewComment: _newComment,
         onFootnote: _insertFootnote,
         onDate: _insertDate,
+        onPro: _proOn ? _onPro : null,
       );
 
   Future<void> _pickImage({required bool replace}) async {
@@ -561,6 +623,7 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
       body: Column(
         children: [
           if (c.painterActive) _painterBanner(c),
+          if (_review != null) _reviewBar(),
           if (_findOpen)
             WordFindBar(
               controller: c,
@@ -616,7 +679,9 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
               key: const ValueKey('word-undo'),
               tooltip: context.t('word.undo'),
               icon: const Icon(OfficeIcons.undo),
-              onPressed: c != null && c.canUndo ? c.undo : null,
+              onPressed: c != null && c.canUndo
+                  ? c.undo
+                  : (_proUndo.isNotEmpty && !_proBusy ? _proUndoLast : null),
             ),
             IconButton(
               tooltip: context.t('word.redo'),

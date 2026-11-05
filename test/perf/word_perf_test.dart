@@ -7,6 +7,8 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:dosya_okuyucu/services/blank_docs.dart';
 import 'package:dosya_okuyucu/services/docx/docx_document.dart';
+import 'package:dosya_okuyucu/services/docx/pro/docx_export_formats.dart';
+import 'package:dosya_okuyucu/services/docx/pro/docx_paginator.dart';
 import 'package:dosya_okuyucu/widgets/docx_editor/docx_edit_controller.dart';
 import 'package:dosya_okuyucu/widgets/docx_editor/docx_editor_view.dart';
 import 'package:flutter/material.dart';
@@ -91,5 +93,42 @@ void main() {
     // §7: tuş ≤ 1 kare (cihaz). Debug gerileme bekçisi: ≤ 100 ms.
     expect(perKey, lessThan(100));
     c.dispose();
+  });
+
+  // ── Faz 37 perf kapısı: 500 sayfa eşiği ──────────────────────────────────
+  test('Faz 37: ~500 sayfa (5000 paragraf) sayfa tahmini ≤ 600 ms, '
+      'tek değişiklikte artımlı ≤ 60 ms', () {
+    final d = DocxDocument.parse(_docx(5000));
+    final pg = DocxPaginator();
+    final sw = Stopwatch()..start();
+    pg.layout(d.paras);
+    final full = sw.elapsedMilliseconds;
+    expect(pg.pageCount, greaterThan(200));
+    final p = d.paras[4000];
+    d.paras[4000] = p.replace(0, 0, 'X', p.typingStyleAt(0));
+    sw
+      ..reset()
+      ..start();
+    pg.layout(d.paras);
+    final inc = sw.elapsedMilliseconds;
+    // ignore: avoid_print
+    print('PERF word_paginate_5000_ms=$full incremental_ms=$inc '
+        'pages=${pg.pageCount} measured=${pg.measured}');
+    expect(pg.measured, 1);
+    expect(full, lessThan(600));
+    expect(inc, lessThan(60));
+  });
+
+  test('Faz 37: 5000 paragraf Markdown + ODT dışa aktarım ≤ 3 sn', () {
+    final d = DocxDocument.parse(_docx(5000));
+    final sw = Stopwatch()..start();
+    final md = DocxExportFormats.toMarkdown(d);
+    final odt = DocxExportFormats.toOdt(d);
+    sw.stop();
+    // ignore: avoid_print
+    print('PERF word_export_md_odt_5000_ms=${sw.elapsedMilliseconds}');
+    expect(md, contains('**Kalın son.**'));
+    expect(odt.length, greaterThan(1000));
+    expect(sw.elapsedMilliseconds, lessThan(3000));
   });
 }

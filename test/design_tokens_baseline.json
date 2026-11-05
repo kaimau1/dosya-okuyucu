@@ -228,6 +228,9 @@
  "lib/services/conversion_service.dart": {
   "font_size": 6
  },
+ "lib/services/docx/pro/docx_pdf.dart": {
+  "font_size": 4
+ },
  "lib/services/fm/ai_analyzer.dart": {
   "durations": 1
  },

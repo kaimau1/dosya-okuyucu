@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import '../core/l10n/app_strings.dart';
 import '../models/document.dart';
 import '../services/blank_docs.dart';
+import '../services/docx/pro/docx_templates.dart';
+import '../core/app_icons.dart';
+import '../core/l10n/app_language.dart';
+import 'app_dialog.dart';
 import '../services/fm/entry_opener.dart';
 import 'file_type_icon.dart';
 import '../core/snack.dart';
@@ -50,6 +54,13 @@ Widget _tile(BuildContext ctx, DocKind kind, String title, String sub,
     title: Text(title),
     subtitle: Text(sub),
     onTap: () {
+      if (type == 'docx') {
+        // Faz 37 madde 4: Word → şablon galerisi (boş belge ilk sırada).
+        final nav = Navigator.of(ctx);
+        nav.pop();
+        showWordTemplateSheet(nav.context);
+        return;
+      }
       Navigator.pop(ctx);
       _createAndOpen(ctx, type);
     },
@@ -64,6 +75,52 @@ Future<void> _createAndOpen(BuildContext context, String type) async {
   final navigator = Navigator.of(context);
   try {
     final path = await BlankDocs.create(type);
+    if (!navigator.mounted) return;
+    await EntryOpener.open(navigator.context, path);
+  } catch (e) {
+    showSnackOn(messenger, s.t('home.create_error', {'error': userErrorText(e)}));
+  }
+}
+
+/// Word şablon galerisi (Faz 37 madde 4): Boş belge + CV, mektup, rapor,
+/// fatura, tutanak. Şablon içeriği arayüz diliyle (Türkçe değilse İngilizce).
+Future<void> showWordTemplateSheet(BuildContext context) async {
+  final id = await showAppSheet<String>(
+    context,
+    title: context.t('wt.title'),
+    builder: (ctx) => Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final (id, icon) in const [
+          ('blank', AppIcons.newWord),
+          ('cv', AppIcons.badge),
+          ('letter', AppIcons.editNote),
+          ('report', AppIcons.assignment),
+          ('invoice', AppIcons.receiptLong),
+          ('minutes', AppIcons.eventNote),
+        ])
+          ListTile(
+            key: ValueKey('word-template-$id'),
+            leading: Icon(icon),
+            title: Text(ctx.t('wt.$id')),
+            subtitle: Text(ctx.t('wt.${id}_hint')),
+            onTap: () => Navigator.pop(ctx, id),
+          ),
+      ],
+    ),
+  );
+  if (id == null || !context.mounted) return;
+  if (id == 'blank') {
+    await _createAndOpen(context, 'docx');
+    return;
+  }
+  final s = AppStrings.of(context);
+  final messenger = ScaffoldMessenger.of(context);
+  final navigator = Navigator.of(context);
+  try {
+    final bytes = DocxTemplates.build(id,
+        turkish: s.language != AppLanguage.en && s.language != AppLanguage.ar);
+    final path = await BlankDocs.createFrom(s.t('wt.$id'), 'docx', bytes);
     if (!navigator.mounted) return;
     await EntryOpener.open(navigator.context, path);
   } catch (e) {

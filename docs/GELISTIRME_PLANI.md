@@ -164,24 +164,36 @@ yalnız görünürken boyanır.
    satır testi; pivot ve büyük yapıştırma izolatta; grafik pencere dışında boyanmaz, mini grafik sanal
    ızgara hücresinde.)
 
-## Faz 37 — Word
-1. Stil galerisi (Başlık 1–3, Alıntı, Liste) + "stili güncelle"; belge teması/yazı tipleri.
-2. Sayfa düzeni ekranı (kenar boşluğu, yön, boyut, sütun, sayfa kesmesi), yazdır önizleme.
-3. Denklem düzenleyici (OMML yaz/oku, temel LaTeX girişi), tablo: hücre birleştir/böl,
+## Faz 37 — Word — BİTTİ 2026-11-05 (kod; cihaz doğrulaması CIHAZ_TESTI.md'de, perf A/B bekliyor)
+- [x] 1. Stil galerisi (Başlık 1–3, Alıntı, Liste) + "stili güncelle"; belge teması/yazı tipleri.
+   (`docx/pro/docx_style_ops.dart`: stile taşı + 5 tema; Giriş > Stiller; `word_pro_style_test`.)
+- [x] 2. Sayfa düzeni ekranı (kenar boşluğu, yön, boyut, sütun, sayfa kesmesi), yazdır önizleme.
+   (`docx_layout_ops.dart` + Araçlar > Sayfa düzeni levhası; önizleme = `docx_pdf.dart` → sistem yazdırma; `word_pro_layout_test`.)
+- [x] 3. Denklem düzenleyici (OMML yaz/oku, temel LaTeX girişi), tablo: hücre birleştir/böl,
    kenarlık/gölge, otomatik sığdır, sıralama.
-4. Şablonlar (CV, mektup, rapor, fatura, tutanak) — "Yeni belge" sayfasına galeri.
-5. Karşılaştır/birleştir iki belge; yorum+değişiklik gezinme çubuğu; belge parolası.
-6. Sesle yazma (cihaz STT) ve AI ile yeniden yaz/özetle/çevir (Gemini var) — satır içi.
-7. PDF/Docx dışa aktarım kalitesi: sayfa kırılımı, yazı tipi gömme.
+   (`docx_math.dart` LaTeX↔OMML, `docx_table_ops.dart`; Araçlar > Denklem, Tablo sekmesi; `word_pro_math_table_test`.)
+- [x] 4. Şablonlar (CV, mektup, rapor, fatura, tutanak) — "Yeni belge" sayfasına galeri.
+   (`docx_templates.dart` tam OOXML paketleri tr/en; `new_document_sheet` Word → galeri; `word_pro_templates_test`.)
+- [x] 5. Karşılaştır/birleştir iki belge; yorum+değişiklik gezinme çubuğu; belge parolası.
+   (`docx_compare.dart` LCS + sözcük farkı → w:ins/w:del, belge ekle, `DocxReview` tek öğe kabul/ret; parola = `OfficeCrypto` Agile; `word_pro_compare_test`.)
+- [x] 6. Sesle yazma (cihaz STT) ve AI ile yeniden yaz/özetle/çevir (Gemini var) — satır içi.
+   (`ci/Dikte.kt` RecognizerIntent, kanal `dosya/dictate`, izin yok; `_AiInlineSheet` 6 görev, önizleme + Değiştir/Altına ekle, Vazgeç = iptal; `word_pro_ai_test`.)
+- [x] 7. PDF/Docx dışa aktarım kalitesi: sayfa kırılımı, yazı tipi gömme.
+   (`docx_pdf.dart`: sayfa sonu/pageBreakBefore/bölüm sonu türü, keepNext, üst/alt bilgi + PAGE/NUMPAGES, Carlito/Tinos gömülü; `docx_fonts.dart`: odttf gizleme + fontTable + embedTrueTypeFonts; Araçlar > Dışa aktar; `word_pro_export_test`.)
 **Ölçüt:** 5 gerçek docx düzen kaybı olmadan açılıp kaydedilir.
 
-**Ek:** 8. Gezinti bölmesi (başlık ağacı), sayfa küçük resimleri, kelime sayacı, okuma süresi.
-9. Madde/numara çok düzeyli, sütun, kenarlık, metin kutusu, şekil, görsel sarma (satır içi/üstte/arkada),
+**Ek:**
+- [x] 8. Gezinti bölmesi (başlık ağacı), sayfa küçük resimleri, kelime sayacı, okuma süresi.
+   (`_OutlineTree` katlanır + tahmini sayfa; `_ThumbGrid` PDF akışı + `cacheWidth`; `docx_paginator.dart` artımlı + `DocxStats`; `word_pro_pages_test`.)
+- [x] 9. Madde/numara çok düzeyli, sütun, kenarlık, metin kutusu, şekil, görsel sarma (satır içi/üstte/arkada),
 başlık/kapak sayfası, bölüm sonu, farklı ilk sayfa, alan kodları (tarih, sayfa), çapraz başvuru, kaynakça.
-10. Yazım/dilbilgisi (var olan yazım denetimi + AI düzeltme önerisi satır içi, kullanıcı onaylı).
-11. Okuma kipi (yeniden akış) + gece kipi; PDF/ODT/RTF/MD dışa aktarma kalitesi. **Perf:** sayfa
+   (çok düzeyli liste + sütun Faz 23–24'te vardı; `docx_insert_pro.dart` kenarlık/metin kutusu/şekil/sarma/kapak/alan/çapraz başvuru/kaynakça — imleç işareti yöntemi; bölüm sonu + farklı ilk sayfa `docx_layout_ops`; `word_pro_insert_test`.)
+- [x] 10. Yazım/dilbilgisi (var olan yazım denetimi + AI düzeltme önerisi satır içi, kullanıcı onaylı).
+   (cihaz yazım denetimi korunur; `_ProofSheet` paragraf/belge, 3000 harflik parçalar, öneri başına Uygula/Atla + Tümü, Durdur; `DocxAi.parseProof`; `word_pro_ai_test`.)
+- [x] 11. Okuma kipi (yeniden akış) + gece kipi; PDF/ODT/RTF/MD dışa aktarma kalitesi. **Perf:** sayfa
 düzeni **artımlı** (yalnız değişen paragraf ve sonrası), görünür sayfa ±1 çizilir, `word_perf_test`
 500 sayfa eşiği; yazım denetimi izolatta ve boşta; görsel `cacheWidth`; AI çağrıları iptal edilebilir.
+   (`word_reader.dart` ListView.builder + gündüz/sepya/gece + yazı boyu; `docx_export_formats.dart` ODT/RTF/MD/TXT izolatta; artımlı `DocxPaginator`; `word_perf_test` 5000 paragraf ≈500 sayfa eşiği; AI yazım denetimi istek üzerine + Durdur; resimler `cacheWidth`; `word_pro_formats_test`.)
 
 ## Faz 38 — Slayt
 1. Ana slayt/yerleşim (master/layout) düzenleme: yer tutucu, tema renk/yazı tipi.

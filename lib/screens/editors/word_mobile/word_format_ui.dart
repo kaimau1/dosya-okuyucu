@@ -61,6 +61,43 @@ String _num(double v) => v == v.roundToDouble()
     ? '${v.round()}'
     : v.toStringAsFixed(v * 10 == (v * 10).roundToDouble() ? 1 : 2);
 
+/// Faz 37 Araçlar sekmesinin düğmeleri (kimlik, simge), gruplu.
+const kWordProTools = <List<(String, IconData)>>[
+  [
+    ('page_setup', AppIcons.cropFree),
+    ('print_preview', AppIcons.print),
+    ('export', AppIcons.iosShare),
+    ('reader', AppIcons.chromeReaderMode),
+  ],
+  [
+    ('equation', AppIcons.functions),
+    ('textbox', AppIcons.textFields),
+    ('shape', AppIcons.rectTool),
+    ('cover', AppIcons.title),
+    ('section_break', AppIcons.wrapText),
+    ('field', AppIcons.dataObject),
+    ('cross_ref', AppIcons.link),
+    ('bibliography', AppIcons.menuBook),
+    ('para_border', AppIcons.borderOuter),
+  ],
+  [
+    ('outline', AppIcons.accountTree),
+    ('thumbnails', AppIcons.thumbnails),
+    ('stats', AppIcons.numbers),
+  ],
+  [
+    ('review_bar', AppIcons.rule),
+    ('compare', AppIcons.compare),
+    ('combine', AppIcons.mergeType),
+    ('password', AppIcons.password),
+  ],
+  [
+    ('dictate', AppIcons.micNone),
+    ('ai_inline', AppIcons.ai),
+    ('ai_proof', AppIcons.spellcheck),
+  ],
+];
+
 class WordFormatUi {
   final BuildContext context;
   final DocxEditController c;
@@ -88,7 +125,12 @@ class WordFormatUi {
       onFootnote,
       onDate;
 
+  /// Faz 37: Araçlar sekmesi ([kWordProTools] kimliğiyle ekran açar; null →
+  /// sekme gizli, bayrak `word_pro_v1` kapalı).
+  final void Function(String id)? onPro;
+
   const WordFormatUi({
+    this.onPro,
     this.onInsertImage,
     this.onReplaceImage,
     this.onImageAlt,
@@ -254,6 +296,18 @@ class WordFormatUi {
                 onTap: () => onResolveTracked!(false)),
           ],
         ]),
+        // Faz 37: en sonda — eski sekmelerin yeri değişmesin.
+        if (onPro != null) RibbonTab(_t('wp.tab'), proTab()),
+      ];
+
+  /// Faz 37 Araçlar sekmesi: gruplar [RibbonSep] ile ayrılır.
+  List<Widget> proTab() => [
+        for (final group in kWordProTools) ...[
+          for (final (id, icon) in group)
+            RibbonButton(icon, _t('wp.$id'),
+                key: ValueKey('word-pro-$id'), onTap: () => onPro!(id)),
+          if (!identical(group, kWordProTools.last)) const RibbonSep(),
+        ],
       ];
 
   /// Bağlamsal Resim sekmesi (bir resim seçiliyken): boyut, hiza, alternatif
@@ -292,6 +346,10 @@ class WordFormatUi {
           active: align == 'right',
           onTap: () => c.alignImage('right')),
       const RibbonSep(),
+      if (onPro != null)
+        RibbonButton(AppIcons.wrapText, _t('wp.img_wrap'),
+            key: const ValueKey('word-pro-img_wrap'),
+            onTap: () => onPro!('img_wrap')),
       RibbonButton(AppIcons.altText, _t('word.img_alt'),
           key: const ValueKey('word-img-alt'), onTap: onImageAlt),
       RibbonButton(AppIcons.image, _t('word.img_replace'),
@@ -334,6 +392,18 @@ class WordFormatUi {
             key: const ValueKey('word-tbl-banded'),
             active: c.tableBanded,
             onTap: () => c.setTableBanded(!c.tableBanded)),
+        if (onPro != null) ...[
+          const RibbonSep(),
+          for (final (id, icon) in const [
+            ('tbl_merge', AppIcons.join),
+            ('tbl_split', AppIcons.split),
+            ('tbl_borders', AppIcons.borderAll),
+            ('tbl_autofit', AppIcons.fitScreen),
+            ('tbl_sort', AppIcons.sort),
+          ])
+            RibbonButton(icon, _t('wp.$id'),
+                key: ValueKey('word-pro-$id'), onTap: () => onPro!(id)),
+        ],
         RibbonMenu<int>(
           key: const ValueKey('word-tbl-shade'),
           icon: AppIcons.formatColorFill,
@@ -455,6 +525,14 @@ class WordFormatUi {
         const RibbonSep(),
         // Stiller galerisi
         for (final g in c.doc.styles.gallery()) styleChip(g),
+        if (onPro != null) ...[
+          RibbonButton(AppIcons.style, _t('wp.style_update'),
+              key: const ValueKey('word-style-update'),
+              onTap: () => onPro!('style_update')),
+          RibbonButton(AppIcons.palette, _t('wp.theme'),
+              key: const ValueKey('word-style-theme'),
+              onTap: () => onPro!('theme')),
+        ],
       ];
 
   List<Widget> _charButtons() => [

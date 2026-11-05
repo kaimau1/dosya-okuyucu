@@ -594,5 +594,9 @@
         <intent>
             <action android:name="android.intent.action.INSTALL_PACKAGE"/>
         </intent>
+        <!-- Faz 37: sesle yazma — cihazın konuşma tanıyıcısı görünsün. -->
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH"/>
+        </intent>
     </queries>
 </manifest>

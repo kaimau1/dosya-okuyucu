@@ -36,6 +36,14 @@ class BlankDocs {
     return path;
   }
 
+  /// Hazır bayttan (ör. Word şablonu, Faz 37) yeni belge: `<ad> <zaman>.<uzantı>`.
+  static Future<String> createFrom(String baseName, String ext, List<int> bytes) async {
+    final dir = await _targetDir();
+    final path = p.join(dir.path, '$baseName ${_stamp()}.$ext');
+    await File(path).writeAsBytes(bytes);
+    return path;
+  }
+
   /// Ana bellekte `Documents/Dosya Okuyucu` (bkz. [DocsHome]); yazılamazsa
   /// uygulamanın kendi belgeler klasörü.
   static Future<Directory> _targetDir() => DocsHome.resolve();
