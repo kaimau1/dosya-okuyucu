@@ -366,3 +366,14 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Arama dizini artımlı:** `SearchIndex.applyChanges` + `FsEvents.changed(paths, indexed)` → `indexedVersion` eşitse dizin bayatlamaz.
 - **Tuzak (CI, 3 kez):** çeviri anahtarı ÖNEKLERİ başka tablolarla çakışıyor (`tp.`, `saf.granted`, `ss.saved`) → `equal_keys_in_const_map`. Yeni anahtar eklemeden önce tüm `strings/*.dart`ta yinelenen anahtar taraması yap (python tek satır). `JobHandle`ta iptal = `cancelled` (JobRecord'da `cancelRequested`). `daysBetween` `int?` döner. `dart:ui` olmadan servis dosyasında `Color` yok.
 - Perf A/B: bekliyor (`docs/perf/2026-11-05-faz41.md`), cihaz listesi `CIHAZ_TESTI.md` Faz 41.
+
+## 2026-11-05 — CI: test seçimi, 3 parça, pre-push kaldırıldı (kullanıcı kararı)
+- `hooks/pre-push` silindi: push öncesi yerel tam test (5–7 dk) yok; doğrulama yalnız CI.
+  Windows'ta `core.hooksPath=hooks` kalsa da dosya olmadığından kanca koşmaz.
+- `verify` 3 parça (`fail-fast: false`); kırmızı parça tek başına "Re-run failed jobs".
+- Seçim `tool/ci_test_secimi.sh`: dal → `git diff merge-base(origin/main)..HEAD` →
+  `tool/etkilenen_testler.py` (import grafiği + testteki `'lib'`, `'test/fixtures/..'`,
+  `'assets/..'` yol dizeleri). Taban son push DEĞİL: iptal edilen koşunun değişikliği kaçmaz.
+  main → ağaç yeşil PR başıyla aynıysa `atla` (iş yeşil biter, release bekler). Tam: `[tam]`.
+- TUZAK: dal korumasında zorunlu kontrol adı "Doğrulama (analyze + test)" ise artık
+  "Doğrulama (0/3)" … "(2/3)" seçilmeli.

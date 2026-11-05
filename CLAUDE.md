@@ -33,7 +33,7 @@ Gemini AI Service, Firebase Auth, PPTX Render/Slide Canvas/Slideshow, Word DocxV
 Kod değiştikten sonra `graphify update .` (API maliyeti yok).
 
 ## 3) CI/CD (.github/workflows/build-apk.yml — Faz 1 düzeni, 2026-10-21)
-`changes` → **`verify`** (pub get → analyze → test [+ `ci/` değiştiyse Kotlin denetimi]; her dalda)
+`changes` (+ test seçimi) → **`verify`** ×3 parça (pub get → analyze → seçili test [+ `ci/` değiştiyse Kotlin denetimi]; her dalda)
 ∥ **`apk`** (sürüm no → `ci/prepare_android.sh` [iskelet + tüm yamalar, yerelde de koşar] →
 `flutter build apk --obfuscate` → apksigner → içerik/16 KB/boyut bütçesi denetimi → artifact + Dart sembolleri)
 → **`release`** (ikisi yeşilse): main → tek **`nightly`** sürüm (üzerine yazılır, "en son" işaretli,
@@ -61,6 +61,13 @@ Art arda push → önceki koşu iptal.
   3.47.7 `pub get` kilidini bozar — HAFIZA).
   `ci/*.kt` değişikliğini de CI `verify` (Kotlin denetimi) yakalar; `tool/check_kotlin.sh`
   yalnız kotlinc zaten kuruluysa koşturulur (HAFIZA 2026-09-02).
+- **Test seçimi + 3 parça (2026-11-05, kullanıcı kararı):** `verify` 3 parçada paralel
+  (`Doğrulama (0/3)`…`(2/3)`; analyze + Kotlin 0. parçada); kırmızı parça Actions →
+  "Re-run failed jobs" ile tek başına yeniden koşar. Dalda yalnız main'den ayrılınca
+  değişenlerin ETKİLEDİĞİ testler (`tool/ci_test_secimi.sh` + `tool/etkilenen_testler.py`;
+  pubspec/assets/fixture/.github değişirse tam takım). main'de birleştirme ağacı yeşil PR
+  başıyla aynıysa doğrulama atlanır. Tam takım: başlıkta `[tam]`, `v*` etiketi, elle tetik.
+  `hooks/pre-push` kaldırıldı (push öncesi yerel tam test YOK); `tool/test_gate.sh` elle kalır.
 - **Commit mesajı sonu:** `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
   ve `Claude-Session:` satırı.
 - Bilinen derleme tuzakları (CardThemeData, platform klasörleri, keystore) → **HAFIZA.md**
