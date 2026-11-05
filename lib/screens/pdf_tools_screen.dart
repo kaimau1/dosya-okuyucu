@@ -4,6 +4,7 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:path/path.dart' as p;
@@ -20,6 +21,7 @@ import '../services/ocr_service.dart';
 import '../services/pdf_digital_sign.dart';
 import '../services/docs_home.dart';
 import '../services/legacy_convert.dart';
+import '../services/pdf_doc_pro.dart';
 import '../services/pdf_export_pro.dart';
 import '../services/pdf_raster.dart';
 import '../services/pdf_redact.dart';

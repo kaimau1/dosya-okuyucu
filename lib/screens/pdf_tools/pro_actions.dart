@@ -20,6 +20,10 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       'to_docx' => _exportDocx(),
       'pdfa' => _exportPdfA(),
       'compare' => _compare(),
+      'permissions' => _permissions(),
+      'outline' => _editOutline(),
+      'stamp' => _stamp(),
+      'numbering' => _numbering(),
       _ => Future<void>.value(),
     };
   }
@@ -363,5 +367,116 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
         passwordB: pwB,
       ),
     ));
+  }
+
+  // ── 5. İzinler / yer imleri / damga / numara ─────────────────────────────
+
+  Future<void> _permissions() async {
+    final bytes = _bytes!;
+    final pw = _password;
+    Set<PdfAllow> current;
+    try {
+      current = await Isolate.run(
+          () => PdfDocPro.readPermissions(bytes, password: pw));
+    } catch (_) {
+      current = PdfAllow.values.toSet();
+    }
+    if (!mounted) return;
+    final opts = await showAppSheet<_PermOptions>(
+      context,
+      title: context.t('pp.permissions'),
+      builder: (_) => _PermissionsSheet(initial: current),
+    );
+    if (opts == null || !mounted) return;
+    final before = _bytes;
+    await _apply(
+      _str.t('pp.permissions'),
+      (b) => PdfDocPro.setPermissionsInBackground(b,
+          ownerPassword: opts.owner,
+          userPassword: opts.user,
+          allow: opts.allow,
+          currentPassword: pw),
+    );
+    if (!mounted || identical(before, _bytes)) return;
+    // Sahip parolası belgeyi her zaman açar: sonraki işlemler onunla.
+    _partSetState(() => _password = opts.owner);
+    _snack(_str.t('pp.permissions_done'));
+  }
+
+  Future<void> _editOutline() async {
+    final bytes = _bytes!;
+    final pw = _password;
+    final total = await _pageCount();
+    final items = await PdfDocPro.readOutlineInBackground(bytes, password: pw);
+    if (!mounted) return;
+    final edited = await Navigator.of(context).push<List<PdfOutlineItem>>(
+      MaterialPageRoute(
+        builder: (_) => _OutlineEditor(
+          items: items,
+          pageCount: total,
+          suggestPage: _selected.isEmpty ? 0 : (_selected.toList()..sort()).first,
+        ),
+      ),
+    );
+    if (edited == null || !mounted) return;
+    if (listEquals(edited, items)) return;
+    await _apply(_str.t('pp.outline'),
+        (b) => PdfDocPro.writeOutlineInBackground(b, edited, password: pw));
+  }
+
+  Future<void> _stamp() async {
+    final opts = await showAppSheet<_StampOptions>(
+      context,
+      title: context.t('pp.stamp'),
+      builder: (_) => _StampSheet(hasSelection: _selected.isNotEmpty),
+    );
+    if (opts == null || !mounted) return;
+    final pw = _password;
+    final font = await _unicodeFont();
+    final pages = opts.selectedOnly ? _selectedOrNull() : null;
+    if (opts.watermark) {
+      await _apply(
+        _str.t('pt.op_watermark'),
+        (b) => PdfTools.addWatermarkInBackground(b,
+            text: opts.text, password: pw, fontBytes: font),
+      );
+      return;
+    }
+    await _apply(
+      _str.t('pp.stamp'),
+      (b) => PdfDocPro.addStampInBackground(b,
+          text: opts.text,
+          colorArgb: opts.color,
+          place: opts.place,
+          subline: opts.subline,
+          pages: pages,
+          fontBytes: font,
+          password: pw),
+    );
+  }
+
+  Future<void> _numbering() async {
+    final opts = await showAppSheet<_NumberingOptions>(
+      context,
+      title: context.t('pp.numbering'),
+      builder: (_) => const _NumberingSheet(),
+    );
+    if (opts == null || !mounted) return;
+    final pw = _password;
+    final font = await _unicodeFont();
+    final word = _str.t('pp.page_word');
+    await _apply(
+      _str.t('pp.numbering'),
+      (b) => PdfDocPro.addNumberingInBackground(b,
+          style: opts.style,
+          place: opts.place,
+          startAt: opts.startAt,
+          skipFirstPage: opts.skipFirst,
+          prefix: opts.prefix,
+          digits: opts.digits,
+          pageWord: word,
+          fontBytes: font,
+          password: pw),
+    );
   }
 }

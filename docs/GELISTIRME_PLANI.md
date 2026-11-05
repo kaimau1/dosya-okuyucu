@@ -187,7 +187,8 @@ yalnız görünür slayt tam çizilir, sunum kipinde sonraki slayt önceden rast
    (`pdf_export_pro.dart`; PDF/A-2b `PdfRedact.apply(conformance:)` şablon ya da görüntü kipi.)
 - [x] 4. İki PDF karşılaştırma (görsel fark + metin farkı).
    (`pdf_compare.dart` + `pdf_compare_screen.dart`.)
-5. Parola/izin düzenleme, yer imi düzenleme, damga/filigran şablonları, numaralandırma.
+- [x] 5. Parola/izin düzenleme, yer imi düzenleme, damga/filigran şablonları, numaralandırma.
+   (`pdf_doc_pro.dart`: izinler AES-256, yer imi ağacı, 7 damga şablonu + filigran, Bates/Romen/n-N.)
 6. Okuma: gece kipi (A9.2), kaydırma kilidi, çift sayfa/kitap görünümü, sesli okuma
    (var), metin işaretleme kitapçığı (tüm vurgular tek listede dışa aktar).
 7. Agresif sıkıştırma (A7.4).
