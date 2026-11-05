@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart' show compute, visibleForTesting;
 import 'package:flutter/material.dart';
 
 import '../../core/app_icons.dart';
+import '../../core/doc_fonts.dart';
 import '../../core/edit/edit_session.dart';
 import '../../core/edit/editor_chrome.dart';
 import '../../core/edit/editor_shortcuts.dart';
@@ -30,6 +31,11 @@ import '../../widgets/app_dialog.dart';
 import 'word_mobile/word_format_ui.dart';
 import 'word_mobile/word_insert_ui.dart';
 import '../fm/pick_file_screen.dart';
+import '../../services/docx/pro/docx_package.dart';
+import '../../services/docx/pro/docx_style_ops.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+part 'word_mobile/word_pro.dart';
 
 /// **Word Mobil görünüm editörü** (Faz 22, K18 = b-ii).
 ///
@@ -81,6 +87,14 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
   int _seenRevision = 0;
   final _panel = FormatPanelController();
 
+  /// Faz 37: yapısal (paket düzeyi) işlemlerin geri alma yığını — her biri
+  /// işlemden önceki belge baytı (en çok 5; bellek bütçesi).
+  final List<Uint8List> _proUndo = [];
+  bool _proBusy = false;
+
+  /// `word_pro_v1` bayrağı (anayasa k.9): kapalıysa Araçlar sekmesi yok.
+  bool _proOn = true;
+
   late final EditSession _session = EditSession(
     sourcePath: widget.path,
     editor: 'word',
@@ -92,6 +106,7 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
   void initState() {
     super.initState();
     _load();
+    unawaited(_loadProFlag());
   }
 
   @override
@@ -254,6 +269,7 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
         onNewComment: _newComment,
         onFootnote: _insertFootnote,
         onDate: _insertDate,
+        onPro: _proOn ? _onPro : null,
       );
 
   Future<void> _pickImage({required bool replace}) async {
@@ -616,7 +632,9 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
               key: const ValueKey('word-undo'),
               tooltip: context.t('word.undo'),
               icon: const Icon(OfficeIcons.undo),
-              onPressed: c != null && c.canUndo ? c.undo : null,
+              onPressed: c != null && c.canUndo
+                  ? c.undo
+                  : (_proUndo.isNotEmpty && !_proBusy ? _proUndoLast : null),
             ),
             IconButton(
               tooltip: context.t('word.redo'),
