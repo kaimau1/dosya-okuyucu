@@ -10,10 +10,12 @@ import 'xlsx_reader.dart';
 import 'xlsx_save_patch.dart';
 import 'xlsx/notes_writer.dart';
 import 'xlsx/table_reader.dart';
+import 'xlsx/print_area_writer.dart';
 import 'csv_document.dart';
 import 'xlsx_chart.dart';
 import 'sheet_structure.dart';
 import 'calc_log.dart';
+import 'office_crypto.dart' show OfficeCrypto;
 import '../core/app_colors.dart';
 import '../core/edit/save_coordinator.dart';
 
@@ -348,6 +350,85 @@ class XlsxSheet {
 
   /// Faz 36: bu oturumda eklenen mini grafikler (kaydetmede `extLst`e).
   final List<XlsxSparklineWrite> sparklineEdits = [];
+
+  // ── Faz 36 madde 12: koruma, düzenlenebilir aralık, yazdırma alanı ──
+
+  bool get isProtected => layout.protected;
+
+  /// Korumayı kaldırmak parola ister mi?
+  bool get protectionNeedsPassword =>
+      layout.protected &&
+      (layout.protectionHash != null || layout.protectionStrong);
+
+  /// Sayfayı korur ([password] boşsa parolasız).
+  void protect({String? password}) {
+    layout.protected = true;
+    layout.protectionHash = password == null || password.isEmpty
+        ? null
+        : XlsxProtectionWrite.legacyHash(password);
+    layout.protectionStrong = false;
+    layout.protectionAttrs.clear();
+    layout.protectionEdited = true;
+    _touched();
+  }
+
+  /// Parola doğruysa (ya da parola yoksa) korumayı kaldırır.
+  bool unprotect([String password = '']) {
+    if (!layout.protected) return true;
+    final legacy = layout.protectionHash;
+    final a = layout.protectionAttrs;
+    final ok = layout.protectionStrong
+        ? OfficeCrypto.verifySheetHash(password,
+            algorithm: a['algorithmName'] ?? '',
+            saltB64: a['saltValue'] ?? '',
+            hashB64: a['hashValue'] ?? '',
+            spin: int.tryParse(a['spinCount'] ?? '') ?? 0)
+        : legacy == null ||
+            XlsxProtectionWrite.legacyHash(password) == legacy.toUpperCase();
+    if (!ok) return false;
+    layout.protected = false;
+    layout.protectionHash = null;
+    layout.protectionStrong = false;
+    layout.protectionAttrs.clear();
+    layout.protectionEdited = true;
+    _touched();
+    return true;
+  }
+
+  /// Korumalı sayfada [range] düzenlenebilir olsun mu?
+  void setAllowEdit(XlsxRange range, bool allow) {
+    layout.allowEditRanges.removeWhere((x) =>
+        x.r1 == range.r1 && x.c1 == range.c1 && x.r2 == range.r2 && x.c2 == range.c2);
+    if (allow) layout.allowEditRanges.add(range);
+    layout.protectionEdited = true;
+    _touched();
+  }
+
+  /// Yazdırma alanı ([range] null = kaldır).
+  void setPrintArea(XlsxRange? range) {
+    layout.printArea = range == null ? null : _rangeRef(range);
+    layout.printAreaEdited = true;
+    _touched();
+  }
+
+  XlsxRange? get printArea => XlsxRange.parse(layout.printArea);
+
+  XlsxProtectionWrite? get _protectionWrite => layout.protected
+      ? XlsxProtectionWrite(
+          hash: layout.protectionHash,
+          allowRanges: [for (final r in layout.allowEditRanges) _rangeRef(r)],
+          // Güçlü özet (dosyadan) olduğu gibi korunur.
+          attrs: layout.protectionStrong
+              ? {
+                  for (final k in const [
+                    'algorithmName', 'hashValue', 'saltValue', 'spinCount',
+                  ])
+                    if (layout.protectionAttrs[k] != null)
+                      k: layout.protectionAttrs[k]!,
+                }
+              : const {},
+        )
+      : null;
 
   /// Mini grafik ekler; kaynak aynı sayfadaysa sayfa adı başa yazılır.
   XlsxSparkline addSparkline({
@@ -1714,6 +1795,8 @@ class XlsxEditor {
           styleCopies: s.styleCopies,
           condRules: s.condRuleEdits,
           condRemovals: s.condRemovals,
+          protectionEdited: s.layout.protectionEdited,
+          protection: s._protectionWrite,
           sparklines: s.sparklineEdits,
           rowOutline: s.layout.outlineEdited
               ? {
@@ -1753,6 +1836,10 @@ class XlsxEditor {
     ], [
       for (final l in links)
         if (hasSheet(l.sheetName)) l,
+    ], [
+      for (var i = 0; i < sheets.length; i++)
+        if (sheets[i].layout.printAreaEdited)
+          XlsxPrintAreaSpec(i, sheets[i].name, sheets[i].layout.printArea),
     ]);
   }
 
@@ -1792,7 +1879,9 @@ class XlsxEditor {
     // Tablolar en son: `<tableParts>` sayfanın sonuna (extLst'ten önce).
     final tabled = XlsxTableWriter.apply(noted, job.tables);
     // Köprüler en son (Faz 36): sayfa XML'i + dış adres ilişkileri.
-    return XlsxLinkWriter.apply(tabled, job.links);
+    final linked = XlsxLinkWriter.apply(tabled, job.links);
+    // Yazdırma alanı (Faz 36 madde 12): workbook.xml `definedNames`.
+    return XlsxPrintAreaWriter.apply(linked, job.printAreas);
   }
 
   static bool _isEmptyRow(XlsxSheet sheet, int r) {
@@ -1863,6 +1952,8 @@ class _XlsxSaveJob {
   final List<XlsxNoteEdits> notes;
   final List<XlsxTableSpec> tables;
   final List<XlsxLinkSpec> links;
+  final List<XlsxPrintAreaSpec> printAreas;
   const _XlsxSaveJob(this.source, this.sheets, this.patches, this.charts,
-      this.notes, this.tables, [this.links = const []]);
+      this.notes, this.tables,
+      [this.links = const [], this.printAreas = const []]);
 }

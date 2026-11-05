@@ -155,10 +155,14 @@ metni sütunlara böl, ara toplam, gruplama/anahat, hücre notları/yorum dizisi
 - [x] 11. Grafik: kombinasyon, ikincil eksen, eğilim çizgisi, grafik stilleri; grafiği görüntü/PDF paylaş.
    (`XlsxChartSpec.combo/secondaryAxis/trendline/style` → c:lineChart + 2. eksen çifti, c:trendline;
    önizleme `ChartPainter` aynı bayraklarla; PNG/PDF paylaş `pro_chart.dart`.)
-12. Çok kişilik: sayfa/aralık koruma; yazdırma alanı. **Perf:** hesaplama **bağımlılık grafiği +
+- [x] 12. Çok kişilik: sayfa/aralık koruma; yazdırma alanı. **Perf:** hesaplama **bağımlılık grafiği +
 kirli hücre** (tam yeniden hesap YOK), pivot/büyük yapıştır izolatta, görünür pencere dışı hücre
 çizilmez (mevcut sanal ızgara korunur), `excel_perf_test` 100 bin satır eşiği eklenir; grafik/sparkline
 yalnız görünürken boyanır.
+   (Koruma: 16 bit özet yazılır, dosyadaki SHA-512 doğrulanır; `protectedRanges` = düzenlenebilir aralık;
+   `_xlnm.Print_Area` → `xlsx/print_area_writer.dart`. Perf: kirli hücre `CalcState` zaten vardı — 100 bin
+   satır testi; pivot ve büyük yapıştırma izolatta; grafik pencere dışında boyanmaz, mini grafik sanal
+   ızgara hücresinde.)
 
 ## Faz 37 — Word
 1. Stil galerisi (Başlık 1–3, Alıntı, Liste) + "stili güncelle"; belge teması/yazı tipleri.

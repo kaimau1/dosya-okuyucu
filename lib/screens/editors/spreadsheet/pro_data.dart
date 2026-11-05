@@ -53,7 +53,8 @@ extension _SpreadsheetProDataPart on _SpreadsheetEditorScreenState {
     }
     final added = editor.addSheet(context.t('xp.pivot_sheet', {'n': n}));
     if (added == null) return;
-    _writePivot(added.name, link, data);
+    await _writePivot(added.name, link, data);
+    if (!mounted) return;
     _partSetState(() {
       _pivots[added.name] = link;
       _sheetIndex = editor.sheets.indexOf(added);
@@ -68,18 +69,21 @@ extension _SpreadsheetProDataPart on _SpreadsheetEditorScreenState {
   }
 
   /// Özet sonucunu [target] sayfasına düz değer olarak yazar (önce temizler).
-  void _writePivot(String target, _PivotLink link, List<List<String>> data) {
+  /// Hesap (gruplama) izolatta koşar — 100 bin satırda UI izleği donmaz
+  /// (Faz 36 perf).
+  Future<void> _writePivot(
+      String target, _PivotLink link, List<List<String>> data) async {
     final editor = _editor!;
-    final result = Pivot.build(
-      data,
-      link.spec,
-      totalLabel: context.t('xp.grand_total'),
-      blankLabel: context.t('xp.blank'),
-      valueHeader: context.t('xp.agg_header', {
-        'agg': context.t('xp.agg_${link.spec.agg.name}'),
-        'field': data.first[link.spec.valueField],
-      }),
-    );
+    final spec = link.spec;
+    final totalLabel = context.t('xp.grand_total');
+    final blankLabel = context.t('xp.blank');
+    final valueHeader = context.t('xp.agg_header', {
+      'agg': context.t('xp.agg_${spec.agg.name}'),
+      'field': data.first[spec.valueField],
+    });
+    PivotResult run() => Pivot.build(data, spec,
+        totalLabel: totalLabel, blankLabel: blankLabel, valueHeader: valueHeader);
+    final result = data.length > 5000 ? await Isolate.run(run) : run();
     final model = editor.sheets.firstWhere((s) => s.name == target);
     for (var row = 0; row < model.rows.length; row++) {
       for (var c = 0; c < model.rows[row].length; c++) {
@@ -94,7 +98,7 @@ extension _SpreadsheetProDataPart on _SpreadsheetEditorScreenState {
   }
 
   /// Etkin sayfa bir özetse kaynağını yeniden okuyup sonucu tazeler.
-  void _refreshPivot() {
+  Future<void> _refreshPivot() async {
     final sheet = _sheet;
     final editor = _editor;
     final link = sheet == null ? null : _pivots[sheet.name];
@@ -105,7 +109,8 @@ extension _SpreadsheetProDataPart on _SpreadsheetEditorScreenState {
       _snack(context.t('xp.pivot_source_gone'));
       return;
     }
-    _writePivot(sheet.name, link, _rangeValues(source, link.range));
+    await _writePivot(sheet.name, link, _rangeValues(source, link.range));
+    if (!mounted) return;
     _partSetState(() {
       _session.changed();
       _gridVersion++;
@@ -325,11 +330,15 @@ extension _SpreadsheetProDataPart on _SpreadsheetEditorScreenState {
       builder: (_) => _PrintSheet(title: sheet.name),
     );
     if (spec == null || !mounted) return;
-    // Seçim varsa yalnız seçim, yoksa kullanılan alan; gizli satır/sütun yok.
+    // Seçim varsa yalnız seçim, yoksa yazdırma alanı (Faz 36 madde 12),
+    // o da yoksa kullanılan alan; gizli satır/sütun yok.
+    final area = sheet.printArea;
     final r = _hasRange
         ? _range
-        : CellRange(0, 0, math.max(0, sheet.maxRows - 1),
-            math.max(0, sheet.maxCols - 1));
+        : area != null
+            ? CellRange(area.r1, area.c1, area.r2, area.c2)
+            : CellRange(0, 0, math.max(0, sheet.maxRows - 1),
+                math.max(0, sheet.maxCols - 1));
     final engine = _engineFor(sheet);
     final cols = [
       for (var c = r.left; c <= r.right; c++)

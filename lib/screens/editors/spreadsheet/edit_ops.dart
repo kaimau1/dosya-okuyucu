@@ -438,7 +438,10 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
   /// Faz 25: düzenleme HER yakınlaştırmada hücrenin üstündeki yüzer
   /// editörde açılır (eski 30×72 dp eşiği kalktı — 100 %'de hücre ~20×64 dp
   /// olduğundan düzenleme hep formül çubuğuna kaçıyordu).
-  void _beginEdit(int r, int c, {bool caret = true}) => _openEditor(caret: caret);
+  void _beginEdit(int r, int c, {bool caret = true}) {
+    if (!_guardEditable([CellRef(r, c)])) return;
+    _openEditor(caret: caret);
+  }
 
   /// Seçimi taşır — [_select]'in aksine aynı hücreye ikinci kez gelince
   /// düzenlemeye GEÇMEZ (Hücreye git / Bul bunu istemez).
@@ -557,6 +560,11 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     final sheet = _sheet;
     final editor = _editor;
     if (sheet == null || editor == null || values.isEmpty) return;
+    // Faz 36 madde 12: korumalı sayfada kilitli hücre yazılmaz.
+    if (!_guardEditable(values.keys)) {
+      _syncField();
+      return;
+    }
     final name = sheet.name;
     final valueStep = SheetValueStep(
       label: label,
@@ -772,8 +780,13 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     var clip = _clip;
     if (clip == null) {
       final data = await Clipboard.getData('text/plain');
-      clip = SheetClip.fromTsv(data?.text ?? '',
-          origin: CellRef(_selRow, _selCol));
+      final text = data?.text ?? '';
+      final origin = CellRef(_selRow, _selCol);
+      // Büyük yapıştırma (Faz 36 perf): TSV ayrıştırması izolatta.
+      clip = text.length > 200000
+          ? await Isolate.run(() => SheetClip.fromTsv(text, origin: origin))
+          : SheetClip.fromTsv(text, origin: origin);
+      if (!mounted) return;
     }
     if (clip == null || clip.isEmpty) {
       if (mounted) _snack(context.t('excel.clipboard_empty'));

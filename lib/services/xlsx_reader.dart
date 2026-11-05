@@ -105,6 +105,16 @@ class XlsxReader {
         if (target != null) _readComments(layout, target, doc);
         sheets.add(layout);
       }
+      // Yazdırma alanı: yerel ad `_xlnm.Print_Area` (localSheetId = sıra).
+      for (final dn in wb.findAllElements('definedName')) {
+        if (dn.getAttribute('name') != '_xlnm.Print_Area') continue;
+        final i = int.tryParse(dn.getAttribute('localSheetId') ?? '');
+        if (i == null || i < 0 || i >= sheets.length) continue;
+        final v = dn.innerText.split(',').first;
+        final bang = v.lastIndexOf('!');
+        sheets[i].printArea =
+            (bang < 0 ? v : v.substring(bang + 1)).replaceAll(r'$', '');
+      }
     }
     if (sheets.isEmpty) {
       // workbook.xml okunamadıysa: sheet1'i doğrudan dene.
@@ -686,6 +696,21 @@ class XlsxReader {
           }
         case 'autoFilter':
           layout.autoFilterRef = el.getAttribute('ref');
+        case 'sheetProtection':
+          final on = el.getAttribute('sheet');
+          layout.protected = on == '1' || on == 'true';
+          layout.protectionHash = el.getAttribute('password');
+          layout.protectionStrong = el.getAttribute('hashValue') != null;
+          for (final a in el.attributes) {
+            layout.protectionAttrs[a.name.local] = a.value;
+          }
+        case 'protectedRanges':
+          for (final pr in el.childElements) {
+            for (final t in (pr.getAttribute('sqref') ?? '').split(' ')) {
+              final range = XlsxRange.parse(t);
+              if (range != null) layout.allowEditRanges.add(range);
+            }
+          }
         case 'extLst':
           _readSparklines(el, layout, styles.theme);
       }
@@ -1960,6 +1985,30 @@ class XlsxSheetLayout {
 
   /// Bu oturumda düzeyi sıfırlanan satırlar (dosyadaki `outlineLevel` silinsin).
   final Set<int> outlineCleared = {};
+
+  /// Faz 36 madde 12 — sayfa koruması (`<sheetProtection sheet="1">`),
+  /// eski 16 bit parola özeti ([protectionHash]) ya da güçlü özet
+  /// ([protectionStrong] — SHA-512 `hashValue`, parolası doğrulanamaz) ve
+  /// korumalı sayfada düzenlenebilir aralıklar (`protectedRanges`).
+  bool protected = false;
+  String? protectionHash;
+  bool protectionStrong = false;
+
+  /// Güçlü özet öznitelikleri (`algorithmName`, `saltValue`, `hashValue`,
+  /// `spinCount`) — parolayla kaldırırken doğrulamak için.
+  final Map<String, String> protectionAttrs = {};
+  final List<XlsxRange> allowEditRanges = [];
+
+  /// Koruma bu oturumda değişti — kaydetmede yazılsın.
+  bool protectionEdited = false;
+
+  /// Yazdırma alanı (`_xlnm.Print_Area`, ör. `A1:D20`); null = yok.
+  String? printArea;
+  bool printAreaEdited = false;
+
+  /// Korumalı sayfada (r,c) düzenlenebilir mi?
+  bool canEdit(int r, int c) =>
+      !protected || allowEditRanges.any((x) => x.contains(r, c));
   final Map<int, String> hyperlinks = {};
 
   /// Hücre notları (açıklama/yorum) — `cellKey(r, c)` → not.

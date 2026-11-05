@@ -48,6 +48,8 @@ extension _SpreadsheetChartLayerPart on _SpreadsheetEditorScreenState {
       animation: _vBody,
       builder: (context, child) {
         final dy = _vBody.hasClients ? _vBody.offset : 0.0;
+        // Faz 36 perf: görünür pencere dışındaki grafik boyanmaz.
+        if (_offscreenY(top, h, dy)) return const SizedBox.shrink();
         return Positioned(
             left: left, top: top - dy, width: w, height: h, child: child!);
       },
@@ -86,6 +88,13 @@ extension _SpreadsheetChartLayerPart on _SpreadsheetEditorScreenState {
   }
 
   /// Satır/sütun ölçüsünde [index]'in başlangıcı (gizli/donmuşsa yaklaşık).
+  /// Dikeyde görünür pencerenin tamamen dışında mı?
+  bool _offscreenY(double top, double h, double dy) {
+    if (!_vBody.hasClients) return false;
+    final vh = _vBody.position.viewportDimension;
+    return top - dy > vh || top + h - dy < 0;
+  }
+
   static double _axisStart(SheetAxisMetrics m, int index) {
     final at = m.indices.indexOf(index);
     if (at >= 0) return m.startAt(at);
@@ -122,6 +131,7 @@ extension _SpreadsheetChartLayerPart on _SpreadsheetEditorScreenState {
       builder: (context, child) {
         final dy = _vBody.hasClients ? _vBody.offset : 0.0;
         final off = selected ? _chartDrag : Offset.zero;
+        if (!selected && _offscreenY(top, h, dy)) return const SizedBox.shrink();
         return Positioned(
           left: left + off.dx,
           top: top - dy + off.dy,

@@ -72,6 +72,11 @@ class XlsxSheetPatch {
   /// yeni kurallardan ÖNCE sökülür (öncelik kaydırması onları etkilemesin).
   final List<(String, int)> condRemovals;
 
+  /// Faz 36 madde 12: sayfa koruması — [protectionEdited] değilse
+  /// dokunulmaz; [protection] null → koruma kaldırılır.
+  final bool protectionEdited;
+  final XlsxProtectionWrite? protection;
+
   /// Faz 36: bu oturumda eklenen mini grafikler (`x14:sparklineGroups`).
   final List<XlsxSparklineWrite> sparklines;
 
@@ -111,6 +116,8 @@ class XlsxSheetPatch {
     this.styleCopies = const {},
     this.condRules = const [],
     this.condRemovals = const [],
+    this.protectionEdited = false,
+    this.protection,
     this.sparklines = const [],
     this.rowOutline = const {},
   });
@@ -130,12 +137,39 @@ class XlsxSheetPatch {
       styleCopies.isEmpty &&
       condRules.isEmpty &&
       condRemovals.isEmpty &&
+      !protectionEdited &&
       sparklines.isEmpty &&
       rowOutline.isEmpty &&
       validations.isEmpty &&
       validationClears.isEmpty &&
       !tabColorEdited &&
       !autoFilterEdited;
+}
+
+/// Sayfa koruması (yamanın girdisi). [hash] eski 16 bit parola özeti
+/// ([legacyHash]) — null ise parolasız koruma; [allowRanges] korumalı
+/// sayfada düzenlenebilen aralıklar (`A1:B5`).
+class XlsxProtectionWrite {
+  final String? hash;
+  final List<String> allowRanges;
+
+  /// Dosyadan gelen güçlü özet öznitelikleri (aynen yazılır).
+  final Map<String, String> attrs;
+  const XlsxProtectionWrite(
+      {this.hash, this.allowRanges = const [], this.attrs = const {}});
+
+  /// Excel'in `sheetProtection/@password` özeti (ECMA-376 Bölüm 4, 16 bit).
+  static String legacyHash(String password) {
+    var h = 0;
+    for (var i = password.length - 1; i >= 0; i--) {
+      h = ((h >> 14) & 0x01) | ((h << 1) & 0x7FFF);
+      h ^= password.codeUnitAt(i);
+    }
+    h = ((h >> 14) & 0x01) | ((h << 1) & 0x7FFF);
+    h ^= password.length;
+    h ^= 0xCE4B;
+    return h.toRadixString(16).toUpperCase().padLeft(4, '0');
+  }
 }
 
 /// Dosyaya yazılacak mini grafik (yamanın girdisi; saf veri).
@@ -497,6 +531,10 @@ class XlsxSavePatch {
     if (_applyStyleCopies(root, patch.styleCopies)) changed = true;
     if (_applyStyleEdits(root, patch.styleEdits, styles)) changed = true;
     if (_applyNumberFormats(root, patch.numberFormats, styles)) changed = true;
+    if (patch.protectionEdited) {
+      _applyProtection(root, patch.protection);
+      changed = true;
+    }
     if (_removeCondRules(root, patch.condRemovals)) changed = true;
     if (_applyCondRules(root, patch.condRules, styles)) changed = true;
     if (_applySparklines(root, patch.sparklines)) changed = true;
@@ -632,6 +670,40 @@ class XlsxSavePatch {
       );
     }
     return true;
+  }
+
+  /// Eski `sheetProtection`/`protectedRanges` sökülür, istenirse yenisi
+  /// şema sırasıyla yazılır.
+  static void _applyProtection(XmlElement root, XlsxProtectionWrite? p) {
+    for (final el in root.childElements
+        .where((e) =>
+            e.name.local == 'sheetProtection' ||
+            e.name.local == 'protectedRanges')
+        .toList()) {
+      root.children.remove(el);
+    }
+    if (p == null) return;
+    _insertOrdered(
+      root,
+      XmlElement(XmlName('sheetProtection'), [
+        if (p.hash != null) XmlAttribute(XmlName('password'), p.hash!),
+        for (final e in p.attrs.entries) XmlAttribute(XmlName(e.key), e.value),
+        XmlAttribute(XmlName('sheet'), '1'),
+        XmlAttribute(XmlName('objects'), '1'),
+        XmlAttribute(XmlName('scenarios'), '1'),
+      ]),
+    );
+    if (p.allowRanges.isEmpty) return;
+    _insertOrdered(
+      root,
+      XmlElement(XmlName('protectedRanges'), [], [
+        for (var i = 0; i < p.allowRanges.length; i++)
+          XmlElement(XmlName('protectedRange'), [
+            XmlAttribute(XmlName('name'), 'AllowEdit${i + 1}'),
+            XmlAttribute(XmlName('sqref'), p.allowRanges[i]),
+          ]),
+      ]),
+    );
   }
 
   /// `A1 $B$2:C3` → `A1:A1 B2:C3` (karşılaştırma için).

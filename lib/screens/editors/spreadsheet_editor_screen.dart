@@ -99,6 +99,7 @@ part 'spreadsheet/pro_data.dart';
 part 'spreadsheet/pro_format.dart';
 part 'spreadsheet/pro_audit.dart';
 part 'spreadsheet/pro_chart.dart';
+part 'spreadsheet/pro_protect.dart';
 
 /// Excel görünümü — hedef: dosya telefonda **Excel'deki gibi** görünsün.
 ///

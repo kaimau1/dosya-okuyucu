@@ -275,6 +275,18 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
                 onTap: () => _setNote(_selRow, _selCol, null)),
           RibbonButton(OfficeIcons.translate, context.t('common.translate'),
               onTap: _translate),
+          const RibbonSep(),
+          // Faz 36 madde 12: sayfa koruması + düzenlenebilir aralık.
+          RibbonButton(
+              (_sheet?.isProtected ?? false) ? AppIcons.unlock : AppIcons.lock,
+              context.t((_sheet?.isProtected ?? false)
+                  ? 'xp.unprotect'
+                  : 'xp.protect_sheet'),
+              key: const ValueKey('xl-protect'),
+              active: _sheet?.isProtected ?? false,
+              onTap: _toggleSheetProtection),
+          RibbonButton(AppIcons.editNote, context.t('xp.allow_edit'),
+              key: const ValueKey('xl-allow-edit'), onTap: _toggleAllowEdit),
         ]),
         RibbonTab(context.t('excel.tab_view'), [
           RibbonButton(AppIcons.tune, context.t('xp.ribbon_simple'),
@@ -544,6 +556,11 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
       // Faz 36 madde 6: yazdırma düzeni / PDF + parola.
       DocMoreGroup(context.t('xp.print_group'), [
         DocMoreItem(AppIcons.pdf, context.t('xp.print_pdf'), _printToPdf),
+        DocMoreItem(AppIcons.print, context.t('xp.print_area_set_btn'),
+            () => _setPrintArea(clear: false)),
+        if (_sheet?.printArea != null)
+          DocMoreItem(AppIcons.close, context.t('xp.print_area_clear'),
+              () => _setPrintArea(clear: true)),
         if (_filePassword == null)
           DocMoreItem(AppIcons.lock, context.t('xp.password_set'),
               _protectWithPassword)

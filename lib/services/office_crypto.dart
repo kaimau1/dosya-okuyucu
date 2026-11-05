@@ -237,6 +237,45 @@ abstract final class OfficeCrypto {
   static Uint8List _sha512(List<int> data) =>
       SHA512Digest().process(Uint8List.fromList(data));
 
+  /// Sayfa korumasının güçlü özetini doğrular (Faz 36 madde 12):
+  /// `sheetProtection@hashValue` = SHA-512(tuz + UTF-16LE parola), sonra
+  /// [spin] kez SHA-512(H + LE32(n)) — şifrelemenin AKSİNE sayaç SONDA
+  /// (ISO/IEC 29500). Yalnız SHA-512 desteklenir.
+  static bool verifySheetHash(String password,
+      {required String algorithm,
+      required String saltB64,
+      required String hashB64,
+      required int spin}) {
+    if (algorithm.toUpperCase().replaceAll('-', '') != 'SHA512') return false;
+    final List<int> salt, want;
+    try {
+      salt = base64.decode(saltB64);
+      want = base64.decode(hashB64);
+    } on FormatException {
+      return false;
+    }
+    final pw = <int>[];
+    for (final u in password.codeUnits) {
+      pw..add(u & 0xff)..add(u >> 8);
+    }
+    var h = _sha512([...salt, ...pw]);
+    final d = SHA512Digest();
+    final buf = Uint8List(64 + 4);
+    final bd = ByteData.sublistView(buf);
+    for (var i = 0; i < spin; i++) {
+      buf.setRange(0, 64, h);
+      bd.setUint32(64, i, Endian.little);
+      d.reset();
+      h = d.process(buf);
+    }
+    if (h.length != want.length) return false;
+    var diff = 0;
+    for (var i = 0; i < h.length; i++) {
+      diff |= h[i] ^ want[i];
+    }
+    return diff == 0;
+  }
+
   /// H0 = SHA512(tuz + UTF-16LE parola); Hn = SHA512(LE32(n) + Hn-1).
   static Uint8List _passwordHash(String password, List<int> salt, int spin) {
     final pw = <int>[];
