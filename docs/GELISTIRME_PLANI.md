@@ -174,7 +174,8 @@ yalnız görünürken boyanır.
    (`docx_math.dart` LaTeX↔OMML, `docx_table_ops.dart`; Araçlar > Denklem, Tablo sekmesi; `word_pro_math_table_test`.)
 - [x] 4. Şablonlar (CV, mektup, rapor, fatura, tutanak) — "Yeni belge" sayfasına galeri.
    (`docx_templates.dart` tam OOXML paketleri tr/en; `new_document_sheet` Word → galeri; `word_pro_templates_test`.)
-5. Karşılaştır/birleştir iki belge; yorum+değişiklik gezinme çubuğu; belge parolası.
+- [x] 5. Karşılaştır/birleştir iki belge; yorum+değişiklik gezinme çubuğu; belge parolası.
+   (`docx_compare.dart` LCS + sözcük farkı → w:ins/w:del, belge ekle, `DocxReview` tek öğe kabul/ret; parola = `OfficeCrypto` Agile; `word_pro_compare_test`.)
 6. Sesle yazma (cihaz STT) ve AI ile yeniden yaz/özetle/çevir (Gemini var) — satır içi.
 7. PDF/Docx dışa aktarım kalitesi: sayfa kırılımı, yazı tipi gömme.
 **Ölçüt:** 5 gerçek docx düzen kaybı olmadan açılıp kaydedilir.

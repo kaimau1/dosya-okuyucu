@@ -69,4 +69,23 @@ const Map<String, (String, String, String)> _t24 = {
   'wt.invoice_hint': ('Kalemler, KDV, toplam', 'Items, VAT, total', 'البنود، الضريبة، الإجمالي'),
   'wt.minutes': ('Toplantı tutanağı', 'Meeting minutes', 'محضر اجتماع'),
   'wt.minutes_hint': ('Gündem, kararlar, imza', 'Agenda, decisions, signatures', 'جدول الأعمال، القرارات، التوقيعات'),
+
+  // Madde 5
+  'wp.compare': ('Karşılaştır', 'Compare', 'مقارنة'),
+  'wp.compare_done': ('Eski sürümle farklar izlenen değişiklik olarak işlendi', 'Differences from the older version marked as tracked changes', 'تم تمييز الفروق كتغييرات متعقبة'),
+  'wp.compare_encrypted': ('Parolalı belge seçildi — önce açıp parolasını kaldırın', 'The selected document is password protected', 'المستند المحدد محمي بكلمة مرور'),
+  'wp.combine': ('Belge ekle', 'Insert document', 'إدراج مستند'),
+  'wp.combine_done': ('Belge imleçten sonra eklendi', 'Document inserted after the cursor', 'تم إدراج المستند بعد المؤشر'),
+  'wp.review_bar': ('Gözden geçir', 'Review', 'مراجعة'),
+  'wp.review_none': ('Yorum ya da izlenen değişiklik yok', 'No comments or tracked changes', 'لا تعليقات أو تغييرات متعقبة'),
+  'wp.review_ins': ('Ekleme', 'Insertion', 'إدراج'),
+  'wp.review_del': ('Silme', 'Deletion', 'حذف'),
+  'wp.review_format': ('Biçim değişikliği', 'Formatting change', 'تغيير تنسيق'),
+  'wp.review_comment': ('Yorum', 'Comment', 'تعليق'),
+  'wp.review_prev': ('Önceki', 'Previous', 'السابق'),
+  'wp.review_next': ('Sonraki', 'Next', 'التالي'),
+  'wp.password': ('Belge parolası', 'Document password', 'كلمة مرور المستند'),
+  'wp.password_change': ('Parolayı değiştir', 'Change password', 'تغيير كلمة المرور'),
+  'wp.password_open': ('Bu belge parolalı', 'This document is password protected', 'هذا المستند محمي بكلمة مرور'),
+  'wp.password_unsupported': ('Bu şifreleme türü desteklenmiyor (eski Word)', 'This encryption type is not supported (old Word)', 'نوع التشفير هذا غير مدعوم (Word قديم)'),
 };

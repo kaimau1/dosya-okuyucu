@@ -97,6 +97,14 @@ extension _WordProPart on _WordMobileEditorScreenState {
         await _printPreview();
       case 'equation':
         await _equation();
+      case 'compare':
+        await _compareWith();
+      case 'combine':
+        await _combineWith();
+      case 'review_bar':
+        await _openReview();
+      case 'password':
+        await _passwordMenu();
       case 'tbl_merge':
         final dir = await _choose('wp.tbl_merge', const [
           ('right', 'wp.tbl_merge_right'),
@@ -289,6 +297,192 @@ extension _WordProPart on _WordMobileEditorScreenState {
 
   static List<String> Function(DocxPackage) _readMath(int i) =>
       (pkg) => DocxMathOps.read(pkg, i);
+
+  // ── Madde 5: karşılaştır, birleştir, gözden geçirme, parola ──────────────
+
+  Future<Uint8List?> _pickDocx() async {
+    final hook = WordMobileEditorScreen.pickDocxForTest;
+    if (hook != null) return hook();
+    final picked = await AppFilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['docx'],
+      withData: true,
+    );
+    return picked?.files.single.bytes;
+  }
+
+  Future<void> _compareWith() async {
+    final older = await _pickDocx();
+    if (older == null || !mounted) return;
+    if (OfficeCrypto.isEncrypted(older)) {
+      showSnack(context, context.t('wp.compare_encrypted'));
+      return;
+    }
+    final ok = await _proApply(DocxCompare.compare(older),
+        keepPara: 0, doneKey: 'wp.compare_done');
+    if (ok) await _openReview();
+  }
+
+  Future<void> _combineWith() async {
+    final c = _ctrl;
+    final other = await _pickDocx();
+    if (other == null || c == null || !mounted) return;
+    if (OfficeCrypto.isEncrypted(other)) {
+      showSnack(context, context.t('wp.compare_encrypted'));
+      return;
+    }
+    await _proApply(DocxCompare.append(other, c.extent.para),
+        keepPara: c.extent.para + 1, doneKey: 'wp.combine_done');
+  }
+
+  Future<void> _openReview({int keep = 0}) async {
+    final doc = _doc;
+    if (doc == null) return;
+    final bytes = await doc.saveAsync();
+    final items = await DocxPro.query(bytes, DocxReview.items);
+    if (!mounted) return;
+    if (items.isEmpty) {
+      _setState(() => _review = null);
+      showSnack(context, context.t('wp.review_none'));
+      return;
+    }
+    _setState(() {
+      _review = items;
+      _reviewAt = keep.clamp(0, items.length - 1);
+    });
+    _placeCaret(items[_reviewAt].para);
+  }
+
+  void _reviewGo(int d) {
+    final r = _review;
+    if (r == null || r.isEmpty) return;
+    _setState(() => _reviewAt = (_reviewAt + d) % r.length);
+    _placeCaret(r[_reviewAt].para);
+  }
+
+  Future<void> _reviewResolve(bool accept) async {
+    final r = _review;
+    if (r == null) return;
+    final item = r[_reviewAt];
+    final ok = await _proApply(DocxReview.resolve(item.para, accept: accept),
+        keepPara: item.para);
+    if (ok) await _openReview(keep: _reviewAt);
+  }
+
+  Widget _reviewBar() {
+    final r = _review!;
+    final item = r[_reviewAt.clamp(0, r.length - 1)];
+    final scheme = Theme.of(context).colorScheme;
+    final tracked = item.kind != 'comment';
+    return Material(
+      key: const ValueKey('word-review-bar'),
+      color: scheme.surfaceContainerHigh,
+      child: Padding(
+        padding: const EdgeInsetsDirectional.only(start: 12),
+        child: Row(children: [
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${_reviewAt + 1}/${r.length} · ${context.t('wp.review_${item.kind}')}'
+                  '${item.author.isEmpty ? '' : ' · ${item.author}'}',
+                  style: context.type.small.copyWith(color: scheme.primary),
+                ),
+                Text(item.text, maxLines: 1, overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          ),
+          IconButton(
+              key: const ValueKey('word-review-prev'),
+              tooltip: context.t('wp.review_prev'),
+              icon: const Icon(AppIcons.keyboardArrowUp),
+              onPressed: () => _reviewGo(-1)),
+          IconButton(
+              key: const ValueKey('word-review-next'),
+              tooltip: context.t('wp.review_next'),
+              icon: const Icon(AppIcons.keyboardArrowDown),
+              onPressed: () => _reviewGo(1)),
+          if (tracked) ...[
+            IconButton(
+                key: const ValueKey('word-review-accept'),
+                tooltip: context.t('word.track_accept'),
+                icon: const Icon(AppIcons.check),
+                onPressed: _proBusy ? null : () => _reviewResolve(true)),
+            IconButton(
+                key: const ValueKey('word-review-reject'),
+                tooltip: context.t('word.track_reject'),
+                icon: const Icon(AppIcons.removeCircleOutline),
+                onPressed: _proBusy ? null : () => _reviewResolve(false)),
+          ] else
+            IconButton(
+                key: const ValueKey('word-review-open'),
+                tooltip: context.t('word.comments'),
+                icon: const Icon(AppIcons.comment),
+                onPressed: () => _comments(focus: item.commentId)),
+          IconButton(
+              tooltip: context.t('common.close'),
+              icon: const Icon(AppIcons.close),
+              onPressed: () => _setState(() => _review = null)),
+        ]),
+      ),
+    );
+  }
+
+  /// Parolalı belgeyi açar: en çok 5 deneme; vazgeçilirse null.
+  Future<Uint8List?> _unlock(Uint8List bytes) async {
+    String? hint;
+    for (var attempt = 0; attempt < 5; attempt++) {
+      if (!mounted) return null;
+      final pw = await showAppSheet<String>(
+        context,
+        title: context.t('wp.password_open'),
+        builder: (_) => _WordPasswordSheet(error: hint),
+      );
+      if (pw == null) {
+        _error = AppStrings.current.t('xp.password_cancelled');
+        return null;
+      }
+      try {
+        final plain = await OfficeCrypto.decryptInBackground(bytes, pw);
+        _filePassword = pw;
+        return plain;
+      } on OfficeCryptoException catch (e) {
+        if (e.code != 'wrong_password') {
+          _error = AppStrings.current.t('wp.password_unsupported');
+          return null;
+        }
+        hint = AppStrings.current.t('xp.password_wrong');
+      }
+    }
+    _error = AppStrings.current.t('xp.password_wrong');
+    return null;
+  }
+
+  Future<void> _passwordMenu() async {
+    final has = _filePassword != null;
+    final v = await _choose('wp.password', [
+      ('set', has ? 'wp.password_change' : 'xp.password_set'),
+      if (has) ('remove', 'xp.password_remove'),
+    ]);
+    if (v == null || !mounted) return;
+    if (v == 'remove') {
+      _setState(() => _filePassword = null);
+      _session.changed();
+      showSnack(context, context.t('xp.password_removed'));
+      return;
+    }
+    final pw = await showAppSheet<String>(
+      context,
+      title: context.t('xp.password_set'),
+      builder: (_) => const _WordPasswordSheet(confirm: true),
+    );
+    if (pw == null || pw.isEmpty || !mounted) return;
+    _setState(() => _filePassword = pw);
+    _session.changed();
+    showSnack(context, context.t('xp.password_set_done'));
+  }
 }
 
 /// Sayfa düzeni levhası: kâğıt, yön, kenar boşlukları (cm), cilt payı,
@@ -547,6 +741,92 @@ class _EquationSheetState extends State<_EquationSheet> {
               key: const ValueKey('word-eq-ok'),
               onPressed: () => Navigator.pop(context, _t.text),
               child: Text(context.t(widget.initial.isEmpty ? 'common.insert' : 'common.apply')),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+/// Gizli girişli parola levhası; [confirm] → ikinci alan, eşleşme denetimi.
+class _WordPasswordSheet extends StatefulWidget {
+  final String? error;
+  final bool confirm;
+  const _WordPasswordSheet({this.error, this.confirm = false});
+
+  @override
+  State<_WordPasswordSheet> createState() => _WordPasswordSheetState();
+}
+
+class _WordPasswordSheetState extends State<_WordPasswordSheet> {
+  final _a = TextEditingController();
+  final _b = TextEditingController();
+  String? _err;
+
+  @override
+  void initState() {
+    super.initState();
+    _err = widget.error;
+  }
+
+  @override
+  void dispose() {
+    _a.dispose();
+    _b.dispose();
+    super.dispose();
+  }
+
+  void _ok() {
+    if (_a.text.isEmpty) return;
+    if (widget.confirm && _a.text != _b.text) {
+      setState(() => _err = context.t('xp.password_mismatch'));
+      return;
+    }
+    Navigator.pop(context, _a.text);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          16, 0, 16, 16 + MediaQuery.viewInsetsOf(context).bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            key: const ValueKey('word-pw-field'),
+            controller: _a,
+            obscureText: true,
+            autofocus: true,
+            decoration: InputDecoration(labelText: context.t('xp.password')),
+            onSubmitted: (_) => widget.confirm ? null : _ok(),
+          ),
+          if (widget.confirm)
+            TextField(
+              key: const ValueKey('word-pw-again'),
+              controller: _b,
+              obscureText: true,
+              decoration:
+                  InputDecoration(labelText: context.t('xp.password_again')),
+              onSubmitted: (_) => _ok(),
+            ),
+          if (_err != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(_err!,
+                  style: context.type.small
+                      .copyWith(color: Theme.of(context).colorScheme.error)),
+            ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: FilledButton(
+              key: const ValueKey('word-pw-ok'),
+              onPressed: _ok,
+              child: Text(context.t('common.ok')),
             ),
           ),
         ],

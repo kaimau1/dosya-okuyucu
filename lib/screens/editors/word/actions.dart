@@ -4,6 +4,15 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
   Future<void> _load() async {
     try {
       final bytes = await File(widget.path).readAsBytes();
+      // Faz 37: parolalı belge sayfa görünümünde (WebView) çözülemez →
+      // doğrudan Mobil editör açılır; parolayı o sorar.
+      if (OfficeCrypto.isEncrypted(bytes)) {
+        if (!mounted) return;
+        unawaited(Navigator.of(context).pushReplacement(MaterialPageRoute(
+            builder: (_) =>
+                WordMobileEditorScreen(path: widget.path, name: widget.name))));
+        return;
+      }
       // Ayrıştırma + görünüm kopyası arka izlekte (bkz. `openForView`):
       // sayfa geçişi takılmadan oynar.
       final opened = await DocxEditor.openForView(bytes);

@@ -37,6 +37,8 @@ import '../../services/docx/pro/docx_layout_ops.dart';
 import '../../services/docx/pro/docx_pdf.dart';
 import '../../services/docx/pro/docx_math.dart';
 import '../../services/docx/pro/docx_table_ops.dart';
+import '../../services/docx/pro/docx_compare.dart';
+import '../../services/office_crypto.dart';
 import 'package:printing/printing.dart' show Printing;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -72,6 +74,10 @@ class WordMobileEditorScreen extends StatefulWidget {
   @visibleForTesting
   static Future<(Uint8List, String)?> Function()? pickImageForTest;
 
+  /// Testte dosya seçici yerine docx baytı verir (karşılaştır/birleştir).
+  @visibleForTesting
+  static Future<Uint8List?> Function()? pickDocxForTest;
+
 
   const WordMobileEditorScreen(
       {super.key,
@@ -96,6 +102,11 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
   /// işlemden önceki belge baytı (en çok 5; bellek bütçesi).
   final List<Uint8List> _proUndo = [];
   bool _proBusy = false;
+
+  /// Madde 5: gözden geçirme çubuğu öğeleri (null → kapalı) ve parola.
+  List<DocxReviewItem>? _review;
+  int _reviewAt = 0;
+  String? _filePassword;
 
   /// `word_pro_v1` bayrağı (anayasa k.9): kapalıysa Araçlar sekmesi yok.
   bool _proOn = true;
@@ -135,7 +146,16 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
 
   Future<void> _load() async {
     try {
-      final bytes = await File(widget.path).readAsBytes();
+      var bytes = await File(widget.path).readAsBytes();
+      // Faz 37 madde 5: parolalı belge (ECMA-376 Agile) önce çözülür.
+      if (OfficeCrypto.isEncrypted(bytes)) {
+        final plain = await _unlock(bytes);
+        if (plain == null) {
+          if (mounted) setState(() {});
+          return;
+        }
+        bytes = plain;
+      }
       final isolate = WordMobileEditorScreen.parseInIsolate;
       // Önizleme ve tam ayrıştırma AYNI ANDA başlar; önizleme önce biter.
       if (isolate) {
@@ -193,7 +213,11 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
   Future<void> _writeFile() async {
     final doc = _doc;
     if (doc == null) return;
-    final bytes = await doc.saveAsync();
+    final plain = await doc.saveAsync();
+    final pw = _filePassword;
+    final bytes = pw == null
+        ? plain
+        : await OfficeCrypto.encryptInBackground(plain, pw);
     await SafeWrite.bytes(widget.path, bytes);
     unawaited(ActivityLog.add(ActivityKind.documentEdit, widget.path));
   }
@@ -582,6 +606,7 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
       body: Column(
         children: [
           if (c.painterActive) _painterBanner(c),
+          if (_review != null) _reviewBar(),
           if (_findOpen)
             WordFindBar(
               controller: c,
