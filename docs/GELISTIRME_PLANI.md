@@ -262,7 +262,7 @@ testi, küçük resim şeridi yalnız açıkken üretilir.
    alt araç şeridi kaydırılabilir + bağlama duyarlı (seçime göre).
 2. [x] Animasyon/hareket: sayfa geçişleri `Motion` tokenlarıyla; boş durum çizimleri.
 3. [x] Erişilebilirlik: 2× yazı, TalkBack etiketleri, kontrast denetimi (token bekçisi).
-4. Onboarding: ilk açılış 3 ekran (okuyucu · düzenleyici · tara) + örnek belgeler.
+4. [x] Onboarding: ilk açılış 3 ekran (okuyucu · düzenleyici · tara) + örnek belgeler.
 5. Ayarlar sadeleşmesi: arama kutusu, gruplar, "önerilenler".
 **Ölçüt:** token bekçisi yeşil; 2× yazıda taşma yok (widget testleri).
 

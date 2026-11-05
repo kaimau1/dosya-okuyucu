@@ -75,7 +75,12 @@ class BlankDocs {
   /// `styles.xml` de eklendi: varsayılan yazı tipi/punto (Calibri 11pt)
   /// belgede yazmazsa motor tarayıcı varsayılanına (Times 16px) düşüyor ve
   /// yeni belge Word'dekinden farklı görünüyordu.
-  static List<int> blankDocx() {
+  static List<int> blankDocx() => docxWithParagraphs(const ['']);
+
+  /// Verilen paragraflarla geçerli .docx (Faz 40 / 4 — örnek belgeler).
+  /// `heading: true` olan ilk satır kalın ve büyük yazılır.
+  static List<int> docxWithParagraphs(List<String> paragraphs,
+      {bool heading = false}) {
     const contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
         '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
         '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
@@ -107,10 +112,10 @@ class BlankDocs {
         '<w:name w:val="Normal"/><w:qFormat/>'
         '</w:style>'
         '</w:styles>';
-    const document = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+    final document = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
         '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
         '<w:body>'
-        '<w:p><w:r><w:t xml:space="preserve"></w:t></w:r></w:p>'
+        '${_paragraphsXml(paragraphs, heading)}'
         '<w:sectPr>'
         '<w:pgSz w:w="11906" w:h="16838"/>'
         '<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" '
@@ -127,6 +132,19 @@ class BlankDocs {
       'word/document.xml': document,
       'word/styles.xml': styles,
     });
+  }
+
+  static String _paragraphsXml(List<String> paragraphs, bool heading) {
+    final b = StringBuffer();
+    for (var i = 0; i < paragraphs.length; i++) {
+      final text = const HtmlEscape(HtmlEscapeMode.element)
+          .convert(paragraphs[i]);
+      final rPr = heading && i == 0
+          ? '<w:rPr><w:b/><w:sz w:val="36"/><w:szCs w:val="36"/></w:rPr>'
+          : '';
+      b.write('<w:p><w:r>$rPr<w:t xml:space="preserve">$text</w:t></w:r></w:p>');
+    }
+    return b.toString();
   }
 
   static List<int> _zip(Map<String, String> files) {
