@@ -439,7 +439,8 @@ class _Parser {
       {this.selfR = 0, this.selfC = 0, this.sheet = ''});
 
   /// Aralık/referans değerini tek değere indirir (dosya dışına açılan API).
-  Object resolve(Object v) => _single(v);
+  /// Dinamik dizi (Faz 36) olduğu gibi döner — çapa onu taşırır.
+  Object resolve(Object v) => v is FormulaArray ? v : _single(v);
 
   void expectEnd() {
     _skip();

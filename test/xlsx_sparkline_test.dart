@@ -29,7 +29,7 @@ void main() {
         .firstWhere((f) => f.name == 'xl/worksheets/sheet1.xml')
         .content as List<int>);
     expect(xml, contains('sparklineGroup'));
-    expect(xml, contains('Satış!A1:E1'));
+    expect(xml, contains("'Satış'!A1:E1"));
     final back = XlsxEditor.parse(bytes).sheets.first;
     final sp = back.sparklineAt(0, 5)!;
     expect(sp.type, 'column');

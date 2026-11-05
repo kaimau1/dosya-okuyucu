@@ -16,8 +16,8 @@ void main() {
     final r = Pivot.build(_data, const PivotSpec(rowField: 0, valueField: 2),
         valueHeader: 'Toplam Tutar');
     expect(r.cells.first, ['Bölge', 'Toplam Tutar']);
-    expect(r.cells, contains(['Ege', '1260.5']));
-    expect(r.cells, contains(['Marmara', '12']));
+    expect(r.cells, contains(equals(['Ege', '1260.5'])));
+    expect(r.cells, contains(equals(['Marmara', '12'])));
     expect(r.cells.last, ['Genel Toplam', '1272.5']);
   });
 
@@ -34,17 +34,17 @@ void main() {
         Pivot.build(_data,
                 const PivotSpec(rowField: 1, valueField: 2, agg: PivotAgg.count))
             .cells,
-        contains(['Silgi', '1']));
+        contains(equals(['Silgi', '1'])));
     expect(
         Pivot.build(_data,
                 const PivotSpec(rowField: 0, valueField: 2, agg: PivotAgg.average))
             .cells,
-        contains(['Marmara', '6']));
+        contains(equals(['Marmara', '6'])));
     expect(
         Pivot.build(_data,
                 const PivotSpec(rowField: 0, valueField: 2, agg: PivotAgg.max))
             .cells,
-        contains(['Ege', '1250.5']));
+        contains(equals(['Ege', '1250.5'])));
   });
 
   test('süzgeç yalnız seçili değerleri alır', () {
@@ -52,7 +52,7 @@ void main() {
         _data,
         const PivotSpec(
             rowField: 0, valueField: 2, filterField: 1, filterValues: {'Kalem'}));
-    expect(r.cells, contains(['Ege', '10']));
+    expect(r.cells, contains(equals(['Ege', '10'])));
     expect(r.cells.last, ['Genel Toplam', '22']);
   });
 
