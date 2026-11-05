@@ -678,6 +678,12 @@ class PptxRender {
       w: w,
       h: h,
       chart: chart,
+      // Faz 38: grafik seçilip verisi düzenlenebilsin (kimlik + XML düğümü).
+      id: int.tryParse(_first(_first(frame, 'p:nvGraphicFramePr'), 'p:cNvPr')
+                  ?.getAttribute('id') ??
+              '') ??
+          0,
+      element: editable ? frame : null,
     ));
   }
 

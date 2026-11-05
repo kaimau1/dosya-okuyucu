@@ -172,7 +172,7 @@ class _SlideChartPageState extends State<SlideChartPage> {
                         child: _cell(_cats[r])),
                     for (var i = 0; i < _names.length; i++)
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(2, 2, 50, 2),
+                        padding: const EdgeInsetsDirectional.fromSTEB(2, 2, 50, 2),
                         child: _cell(_vals[i][r],
                             number: true, key: ValueKey('sp-val-$i-$r')),
                       ),

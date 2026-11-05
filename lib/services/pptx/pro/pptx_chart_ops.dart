@@ -49,6 +49,10 @@ abstract final class PptxChartOps {
       s = comma > dot
           ? s.replaceAll('.', '').replaceAll(',', '.')
           : s.replaceAll(',', '');
+    } else if (dot >= 0) {
+      // Yalnız nokta: "1.200" / "1.234.567" Türkçe binlik; "3.5" ondalık.
+      final parts = s.split('.');
+      if (parts.length > 2 || parts.last.length == 3) s = s.replaceAll('.', '');
     } else if (comma >= 0) {
       // Tek virgül + ≠3 hane → ondalık; "1,234" → binlik.
       final tail = s.length - comma - 1;

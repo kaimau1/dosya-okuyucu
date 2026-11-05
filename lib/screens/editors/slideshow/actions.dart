@@ -80,11 +80,9 @@ extension _SlideshowActions on _SlideshowScreenState {
     final k = r.width / slide.widthPt;
     return [
       for (final (i, c) in cs.indexed)
-        Positioned(
-          left: r.left + c.x * k,
-          top: r.top + c.y * k,
-          width: c.w * k,
-          height: c.h * k,
+        // Slayt koordinatı fiziksel (slayt RTL'de aynalanmaz) → fromRect.
+        Positioned.fromRect(
+          rect: Rect.fromLTWH(r.left + c.x * k, r.top + c.y * k, c.w * k, c.h * k),
           child: IgnorePointer(
             child: ValueListenableBuilder<int>(
               valueListenable: _counterRev,
