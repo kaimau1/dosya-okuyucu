@@ -8,7 +8,7 @@ name: APK Derle & Release
 #
 # • verify ∥ apk PARALEL koşar (eskiden test, derlemeden önce sıralıydı:
 #   ~4 dk duvar süresi). Release ikisi de yeşilse çıkar.
-# • main push'u → tek bir "nightly" sürüm (her seferinde ÜZERİNE yazılır,
+# • main push'u (başlıkta [apk] ya da faz PR birleşmesi) → tek bir "nightly" sürüm (her seferinde ÜZERİNE yazılır,
 #   etiket yeni commit'e taşınır). `releases/latest/download/dosya-okuyucu.apk`
 #   adresi bozulmasın diye nightly "en son" işaretli kalır.
 # • `v*` etiketi → kalıcı, gerçek Release (arm + arm64 + AAB).
@@ -90,6 +90,7 @@ jobs:
     outputs:
       app: ${{ steps.diff.outputs.app }}
       kotlin: ${{ steps.diff.outputs.kotlin }}
+      apk_isareti: ${{ steps.isaret.outputs.apk }}
       test_mod: ${{ steps.secim.outputs.mod }}
       test_liste: ${{ steps.secim.outputs.liste }}
     steps:
@@ -115,6 +116,20 @@ jobs:
           echo "app=$APP" >> "$GITHUB_OUTPUT"
           echo "kotlin=$KOTLIN" >> "$GITHUB_OUTPUT"
           echo "app=$APP kotlin=$KOTLIN"
+
+      # [apk] İŞARETİ (2026-11-05, kullanıcı kararı): main push'u APK/nightly
+      # ancak commit BAŞLIĞINDA [apk] varsa derler (CI/belge birleştirmesi
+      # sürüm üretmesin). Yalnız başlık: gövdede geçen söz tetiklemesin.
+      # PR birleştirmesinde başlık = merge_pull_request `commit_title`.
+      - name: Derleme işareti ([apk])
+        id: isaret
+        run: |
+          title=$(git log -1 --pretty=%s)
+          # Faz PR'ı birleşmesi (`Merge pull request #N from <sahip>/faz-NN`) de
+          # derler: zamanlanmış faz görevleri başlığa [apk] yazmıyor.
+          if [[ "$title" == *'[apk]'* ]] || [[ "$title" =~ ^Merge\ pull\ request\ \#[0-9]+\ from\ [^/]+/faz- ]]; then
+            echo "apk=true" >> "$GITHUB_OUTPUT"; echo "APK derlenecek: $title"
+          else echo "apk=false" >> "$GITHUB_OUTPUT"; echo "Başlıkta [apk] yok → main'de APK derlenmez."; fi
 
       # TEST SEÇİMİ (2026-11-05, kullanıcı kararı): dalda yalnız etkilenen
       # testler (main'den ayrıldığı yerden bu yana); main'de PR başında yeşil
@@ -206,7 +221,7 @@ jobs:
     if: >-
       needs.changes.outputs.app == 'true' && (
         github.event_name == 'workflow_dispatch' ||
-        github.ref == 'refs/heads/main' ||
+        (github.ref == 'refs/heads/main' && needs.changes.outputs.apk_isareti == 'true') ||
         startsWith(github.ref, 'refs/tags/v') ||
         contains(github.event.head_commit.message, '[release-apk]') ||
         contains(github.event.head_commit.message, '[kisisel]'))

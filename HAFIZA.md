@@ -377,3 +377,7 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
   main → ağaç yeşil PR başıyla aynıysa `atla` (iş yeşil biter, release bekler). Tam: `[tam]`.
 - TUZAK: dal korumasında zorunlu kontrol adı "Doğrulama (analyze + test)" ise artık
   "Doğrulama (0/3)" … "(2/3)" seçilmeli.
+- **[apk] işareti (2026-11-05, kullanıcı kararı):** main push'u APK/nightly yalnız başlıkta `[apk]`
+  ya da `Merge pull request #N from …/faz-NN` başlığında derler (`changes` → `apk_isareti`).
+  CI/belge birleştirmesi sürüm üretmez. APK derlemesi tek adım (~7 dk, Dart AOT + Gradle) —
+  parçalara bölünemez; push'ta zaten yalnız arm64.
