@@ -105,7 +105,7 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
       kodlayıcı yok" kalktı (Faz 14b: Android `Bitmap.compress`, `image` paketi). Ayrı ve
       açıkça uyaran seçenek (metin katmanı kaybolur; isteğe bağlı OCR katmanı), DPI/kalite
       seçimi; `pdf_tools.dart:304` yorumu güncellenir.
-- [ ] **A7.5 Excel koşullu biçim yazma:** renk ölçeği / veri çubuğu / simge kümesi bugün
+- [x] **A7.5 Excel koşullu biçim yazma:** renk ölçeği / veri çubuğu / simge kümesi bugün (Faz 36 madde 2, 2026-11-05)
       yalnız okunup çiziliyor; "Koşullu biçimlendirme" levhasına eklenir (`<cfRule>` +
       `<colorScale>/<dataBar>/<iconSet>`), LibreOffice ile gidiş-dönüş testi.
 

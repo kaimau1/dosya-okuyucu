@@ -24,4 +24,14 @@ const Map<String, (String, String, String)> _t23 = {
   'xp.agg_average': ('Ortalama', 'Average', 'المتوسط'),
   'xp.agg_min': ('En küçük', 'Min', 'الأدنى'),
   'xp.agg_max': ('En büyük', 'Max', 'الأقصى'),
+  // ── Koşullu biçim ──
+  'xp.cond_visual': ('Ölçek, çubuk, simge', 'Scales, bars, icons', 'مقاييس وأشرطة ورموز'),
+  'xp.scale_rg': ('Renk ölçeği: kırmızı → yeşil', 'Colour scale: red → green', 'مقياس لوني: أحمر ← أخضر'),
+  'xp.scale_ryg': ('Renk ölçeği: kırmızı → sarı → yeşil', 'Colour scale: red → yellow → green', 'مقياس لوني: أحمر ← أصفر ← أخضر'),
+  'xp.scale_wb': ('Renk ölçeği: beyaz → mavi', 'Colour scale: white → blue', 'مقياس لوني: أبيض ← أزرق'),
+  'xp.data_bar': ('Veri çubuğu (mavi)', 'Data bar (blue)', 'شريط بيانات (أزرق)'),
+  'xp.data_bar_green': ('Veri çubuğu (yeşil)', 'Data bar (green)', 'شريط بيانات (أخضر)'),
+  'xp.icon_set': ('Simge kümesi: trafik ışığı', 'Icon set: traffic lights', 'مجموعة رموز: إشارات المرور'),
+  'xp.cond_formula': ('Formülle kural…', 'Rule by formula…', 'قاعدة بصيغة…'),
+  'xp.cond_formula_hint': ('{cell} hücresine göre koşul (ör. ={cell}>100)', 'Condition relative to {cell} (e.g. ={cell}>100)', 'شرط نسبةً إلى {cell} (مثل ={cell}>100)'),
 };

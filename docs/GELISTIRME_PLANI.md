@@ -123,7 +123,8 @@ Ek 9: dışa aktarma `TrackedTask` → `JobQueue` (ilerleme, iptal, bitince bild
 - [x] 1. Özet tablo (pivot) oluştur/yenile (satır/sütun/değer/süzgeç, topla-say-ort) — xlsx
    `pivotCache` yazımı veya salt "değer anlık görüntüsü" ilk sürüm.
    (`services/xlsx/pivot.dart` değer anlık görüntüsü + "Özeti yenile"; Veri sekmesi.)
-2. Koşullu biçim yazma: renk ölçeği, veri çubuğu, simge kümesi, formül kuralı (A7.5).
+- [x] 2. Koşullu biçim yazma: renk ölçeği, veri çubuğu, simge kümesi, formül kuralı (A7.5).
+   (`XlsxCondRuleWrite` görsel gövdeler + `expression`; ızgarada simge/formül boyama; `xlsx_cond_write_test`.)
 3. Mini grafik (sparkline) çiz + yaz (`x14:sparklineGroups`).
 4. Formül: yardım balonu + otomatik tamamlama + hata açıklaması ("#DEĞER! neden"),
    dinamik diziler (FILTER/SORT/UNIQUE), XLOOKUP, LET, SEQUENCE.

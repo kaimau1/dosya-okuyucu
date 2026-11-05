@@ -357,15 +357,26 @@ class XlsxSheet {
     String? text,
     int? fillArgb,
     int? fontArgb,
+    List<int>? scaleColors,
+    int? barColorArgb,
+    String? iconSet,
   }) {
-    final dxfId = styles.dxfs.length;
-    styles.dxfs.add(XlsxDxf(
-      fill: fillArgb == null
-          ? null
-          : XlsxFill(pattern: 'solid', fgArgb: fillArgb),
-      font: fontArgb == null ? null : XlsxFont(colorArgb: fontArgb),
-    ));
+    final visual =
+        type == 'colorScale' || type == 'dataBar' || type == 'iconSet';
+    int? dxfId;
+    if (!visual) {
+      dxfId = styles.dxfs.length;
+      styles.dxfs.add(XlsxDxf(
+        fill: fillArgb == null
+            ? null
+            : XlsxFill(pattern: 'solid', fgArgb: fillArgb),
+        font: fontArgb == null ? null : XlsxFont(colorArgb: fontArgb),
+      ));
+    }
     final rule = XlsxCondRule(
+      scaleColors: scaleColors,
+      barColorArgb: barColorArgb,
+      iconSet: type == 'iconSet' ? (iconSet ?? '3TrafficLights1') : null,
       ranges: [range],
       type: type,
       operator: operator,
@@ -385,6 +396,9 @@ class XlsxSheet {
       text: text,
       fillArgb: fillArgb,
       fontArgb: fontArgb,
+      scaleColors: scaleColors,
+      barColorArgb: barColorArgb,
+      iconSet: iconSet,
     ));
     return rule;
   }
@@ -401,7 +415,12 @@ class XlsxSheet {
     layout.condFormats.removeAt(at);
     _touched();
     final dxfId = rule.dxfId;
-    if (dxfId != null && dxfId == styles.dxfs.length - 1) {
+    if (dxfId == null) {
+      // Görsel kural (ölçek/çubuk/simge): dxf yok, son yazma kaydı düşer.
+      if (condRuleEdits.isNotEmpty) condRuleEdits.removeLast();
+      return;
+    }
+    if (dxfId == styles.dxfs.length - 1) {
       // Yalnız SON dxf sökülebilir; ortadakini silmek kalan kuralların
       // indekslerini kaydırırdı.
       styles.dxfs.removeLast();

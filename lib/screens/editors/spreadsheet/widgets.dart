@@ -83,6 +83,16 @@ class _RenderContext {
           barRatio: ratio,
           barColor: Color(rule.barColorArgb ?? 0xFF638EC6),
         );
+      case 'iconSet':
+        if (value == null) return null;
+        final stats = _statsFor(rule);
+        final t = stats.max <= stats.min
+            ? 1.0
+            : ((value - stats.min) / (stats.max - stats.min)).clamp(0.0, 1.0);
+        return SheetCondPaint(iconColor: _iconColor(t));
+      case 'expression':
+        if (!_expressionMatch(rule, r, c)) return null;
+        return _dxfPaint(rule);
       case 'cellIs':
         if (!_cellIsMatch(rule, value, raw)) return null;
         return _dxfPaint(rule);
@@ -109,6 +119,23 @@ class _RenderContext {
       default:
         return null;
     }
+  }
+
+  /// Üç kademeli simge (trafik ışığı): alt üçte bir kırmızı, orta sarı,
+  /// üst yeşil — Excel `3TrafficLights1` eşikleri (yüzde 33/67).
+  static Color _iconColor(double t) =>
+      t < 0.33 ? AppHues.red : (t < 0.67 ? AppHues.amber : AppHues.green);
+
+  /// Formül kuralı: formül aralığın SOL-ÜST hücresine göre yazılır (Excel
+  /// gibi); her hücre için göreli başvurular kaydırılıp değerlendirilir.
+  bool _expressionMatch(XlsxCondRule rule, int r, int c) {
+    if (rule.formulas.isEmpty || rule.ranges.isEmpty) return false;
+    final anchor = rule.ranges.first;
+    final f = shiftFormula(rule.formulas.first, r - anchor.r1, c - anchor.c1);
+    final v = engine.preview('=$f', r, c).trim().toUpperCase();
+    if (v == 'TRUE' || v == 'DOĞRU') return true;
+    final n = double.tryParse(v);
+    return n != null && n != 0;
   }
 
   SheetCondPaint? _dxfPaint(XlsxCondRule rule) {

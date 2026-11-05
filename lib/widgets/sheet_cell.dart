@@ -39,6 +39,9 @@ class SheetCondPaint {
   final double? barRatio;
   final Color? barColor;
 
+  /// Simge kümesi rengi (sol kenarda küçük daire; Faz 36).
+  final Color? iconColor;
+
   const SheetCondPaint({
     this.background,
     this.foreground,
@@ -46,6 +49,7 @@ class SheetCondPaint {
     this.italic = false,
     this.barRatio,
     this.barColor,
+    this.iconColor,
   });
 }
 
@@ -270,6 +274,7 @@ class SheetCell extends StatelessWidget {
               refColor: refColor,
               barRatio: cond?.barRatio,
               barColor: cond?.barColor,
+              iconColor: cond?.iconColor,
             ),
             child: SizedBox(width: width, height: height, child: body),
           ),
@@ -364,6 +369,7 @@ class _CellBorderPainter extends CustomPainter {
   final Color? selectionFill;
   final double? barRatio;
   final Color? barColor;
+  final Color? iconColor;
   final int rangeEdges;
   final Color rangeColor;
   final int refEdges;
@@ -381,6 +387,7 @@ class _CellBorderPainter extends CustomPainter {
     required this.selectionFill,
     required this.barRatio,
     required this.barColor,
+    this.iconColor,
   });
 
   @override
@@ -394,6 +401,10 @@ class _CellBorderPainter extends CustomPainter {
         Rect.fromLTWH(0, 1, size.width * barRatio!, size.height - 2),
         Paint()..color = barColor!.withValues(alpha: 0.45),
       );
+    }
+    if (iconColor != null) {
+      final r = math.min(size.height * 0.22, 5.0);
+      canvas.drawCircle(Offset(r + 3, size.height / 2), r, Paint()..color = iconColor!);
     }
     if (selectionFill != null) {
       canvas.drawRect(rect, Paint()..color = selectionFill!);
@@ -495,6 +506,7 @@ class _CellBorderPainter extends CustomPainter {
       old.selectionFill != selectionFill ||
       old.barRatio != barRatio ||
       old.barColor != barColor ||
+      old.iconColor != iconColor ||
       old.gridColor != gridColor ||
       old.border != border ||
       old.rangeEdges != rangeEdges ||

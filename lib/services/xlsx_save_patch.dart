@@ -180,6 +180,15 @@ class XlsxCondRuleWrite {
   final int? fillArgb;
   final int? fontArgb;
 
+  /// `colorScale`: 2 ya da 3 renk (en küçük → [orta] → en büyük).
+  final List<int>? scaleColors;
+
+  /// `dataBar`: çubuk rengi.
+  final int? barColorArgb;
+
+  /// `iconSet`: simge kümesi adı (`3TrafficLights1`, `3Arrows`, `3Symbols`).
+  final String? iconSet;
+
   const XlsxCondRuleWrite({
     required this.sqref,
     required this.type,
@@ -188,7 +197,14 @@ class XlsxCondRuleWrite {
     this.text,
     this.fillArgb,
     this.fontArgb,
+    this.scaleColors,
+    this.barColorArgb,
+    this.iconSet,
   });
+
+  /// Görünümü dxf'te değil kuralın kendisinde duran türler.
+  bool get visual =>
+      type == 'colorScale' || type == 'dataBar' || type == 'iconSet';
 }
 
 /// Tek hücrenin görünüm değişikliği. Verilmeyen (null) alan **dokunulmaz**:
@@ -557,15 +573,16 @@ class XlsxSavePatch {
 
     var priority = 0;
     for (final rule in rules) {
-      final dxfId = styles.addDxf(rule.fillArgb, rule.fontArgb);
+      final dxfId = rule.visual ? null : styles.addDxf(rule.fillArgb, rule.fontArgb);
       final cfRule = XmlElement(XmlName('cfRule'), [
         XmlAttribute(XmlName('type'), rule.type),
-        XmlAttribute(XmlName('dxfId'), '$dxfId'),
+        if (dxfId != null) XmlAttribute(XmlName('dxfId'), '$dxfId'),
         XmlAttribute(XmlName('priority'), '${++priority}'),
         if (rule.operator != null)
           XmlAttribute(XmlName('operator'), rule.operator!),
         if (rule.text != null) XmlAttribute(XmlName('text'), rule.text!),
       ], [
+        ..._visualChildren(rule),
         for (final f in rule.formulas)
           XmlElement(XmlName('formula'), [], [XmlText(f)]),
       ]);
@@ -579,6 +596,50 @@ class XlsxSavePatch {
       );
     }
     return true;
+  }
+
+  /// Renk ölçeği / veri çubuğu / simge kümesi gövdesi (ECMA-376 §18.3.1).
+  static List<XmlElement> _visualChildren(XlsxCondRuleWrite rule) {
+    XmlElement cfvo(String type, [String? val]) => XmlElement(XmlName('cfvo'), [
+          XmlAttribute(XmlName('type'), type),
+          if (val != null) XmlAttribute(XmlName('val'), val),
+        ]);
+    XmlElement color(int argb) => XmlElement(XmlName('color'), [
+          XmlAttribute(XmlName('rgb'),
+              argb.toUnsigned(32).toRadixString(16).padLeft(8, '0').toUpperCase()),
+        ]);
+    switch (rule.type) {
+      case 'colorScale':
+        final colors = rule.scaleColors ?? const [0xFFF8696B, 0xFF63BE7B];
+        return [
+          XmlElement(XmlName('colorScale'), [], [
+            cfvo('min'),
+            if (colors.length > 2) cfvo('percentile', '50'),
+            cfvo('max'),
+            for (final c in colors) color(c),
+          ]),
+        ];
+      case 'dataBar':
+        return [
+          XmlElement(XmlName('dataBar'), [], [
+            cfvo('min'),
+            cfvo('max'),
+            color(rule.barColorArgb ?? 0xFF638EC6),
+          ]),
+        ];
+      case 'iconSet':
+        return [
+          XmlElement(XmlName('iconSet'), [
+            XmlAttribute(XmlName('iconSet'), rule.iconSet ?? '3TrafficLights1'),
+          ], [
+            cfvo('percent', '0'),
+            cfvo('percent', '33'),
+            cfvo('percent', '67'),
+          ]),
+        ];
+      default:
+        return const [];
+    }
   }
 
   /// Biçim yapıştırma: kaynak hücrenin `s` indeksi hedefe kopyalanır.

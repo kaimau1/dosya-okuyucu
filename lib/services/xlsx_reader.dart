@@ -1314,7 +1314,12 @@ class XlsxReader {
         barColor =
             c == null ? 0xFF638EC6 : (_readColor(c, theme) ?? 0xFF638EC6);
       }
+      final iconSet = rule.childElements
+          .where((e) => e.name.local == 'iconSet')
+          .firstOrNull
+          ?.getAttribute('iconSet');
       layout.condFormats.add(XlsxCondRule(
+        iconSet: type == 'iconSet' ? (iconSet ?? '3TrafficLights1') : null,
         ranges: ranges,
         type: type,
         operator: rule.getAttribute('operator'),
@@ -1726,7 +1731,11 @@ class XlsxCondRule {
   final List<double>? scaleValues;
   final int? barColorArgb;
 
+  /// `iconSet` kuralının simge kümesi adı (`3TrafficLights1`, `3Arrows`…).
+  final String? iconSet;
+
   const XlsxCondRule({
+    this.iconSet,
     required this.ranges,
     required this.type,
     required this.formulas,

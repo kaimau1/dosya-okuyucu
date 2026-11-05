@@ -113,6 +113,75 @@ extension _SpreadsheetProDataPart on _SpreadsheetEditorScreenState {
     _syncField();
     _snack(context.t('xp.pivot_refreshed'));
   }
+
+  // ── 2. Koşullu biçim yazma ─────────────────────────────────────────────
+
+  XlsxRange _selXlsxRange() =>
+      XlsxRange(_range.top, _range.left, _range.bottom, _range.right);
+
+  /// Kuralı ekler, geri al/yinele adımı kaydeder, ızgarayı tazeler.
+  void _commitCondRule(XlsxCondRule Function() add) {
+    final sheet = _sheet;
+    if (sheet == null) return;
+    XlsxCondRule? added;
+    void apply() => added = add();
+    apply();
+    _recordStep('excel.undo_cond_format', apply, () {
+      final rule = added;
+      if (rule != null) sheet.removeCondRule(rule);
+    });
+    _condCache.clear();
+    _session.changed();
+    _gridVersion++;
+    _partSetState(() {});
+  }
+
+  /// Renk ölçeği / veri çubuğu / simge kümesi (görünüm kuralın kendisinde).
+  void _addVisualCond(String type, {List<int>? scale, int? bar}) {
+    final sheet = _sheet;
+    if (sheet == null) return;
+    _endEdit();
+    final xr = _selXlsxRange();
+    _commitCondRule(() => sheet.addCondRule(
+          range: xr,
+          type: type,
+          scaleColors: scale,
+          barColorArgb: bar,
+          iconSet: type == 'iconSet' ? '3TrafficLights1' : null,
+        ));
+  }
+
+  /// Formül kuralı: aralığın sol-üst hücresine göre yazılmış koşul
+  /// (`=B2>100`); doğruysa seçilen dolgu.
+  Future<void> _askFormulaCond() async {
+    final sheet = _sheet;
+    if (sheet == null) return;
+    _endEdit();
+    final top = '${CellRef.colName(_range.left)}${_range.top + 1}';
+    final input = await showAppPrompt(
+      context,
+      title: context.t('xp.cond_formula'),
+      label: context.t('xp.cond_formula_hint', {'cell': top}),
+      initial: '=$top>0',
+    );
+    if (input == null || !mounted) return;
+    final body = input.startsWith('=') ? input.substring(1) : input;
+    // Dosyaya İngilizce işlev adlarıyla yazılır (Excel/LibreOffice okur).
+    final formula = _turkishFormulas
+        ? FormulaEngine.toFileFormula(body, turkish: true)
+        : body;
+    await _pickColor(context.t('excel.fill_color'), (color) {
+      final fill = _SpreadsheetEditorScreenState._argbOf(
+          color ?? AppColors.condFillDefault);
+      final xr = _selXlsxRange();
+      _commitCondRule(() => sheet.addCondRule(
+            range: xr,
+            type: 'expression',
+            formulas: [formula],
+            fillArgb: fill,
+          ));
+    });
+  }
 }
 
 /// Özet tablo ayar levhası: satır / sütun / değer alanı, işlev, süzgeç.
