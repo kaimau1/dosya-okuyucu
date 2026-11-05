@@ -6,6 +6,7 @@ import '../core/app_state.dart';
 
 import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
+import '../widgets/app_dialog.dart';
 import 'settings/settings_catalog.dart';
 import 'settings/settings_category_screen.dart';
 import 'settings/settings_group.dart';
@@ -142,7 +143,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             context, const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl)),
         itemCount: categories.length + 1,
         itemBuilder: (context, i) => i == 0
-            ? const _QuickHeader()
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const _QuickHeader(),
+                  _Suggestions(categories: categories),
+                ],
+              )
             : _CategoryCard(
                 category: categories[i - 1],
                 selected: categories[i - 1].id == selectedId,
@@ -345,6 +352,65 @@ class _CategoryCard extends StatelessWidget {
 /// tek dokunuş olmalı. Ayrıntılı tema ailesi seçimi yerinde duruyor.
 ///
 /// Bilinçli olarak TEK satır: kategori kartlarını ekranın dışına itmemeli.
+/// **Önerilenler** (Faz 40 / 5): tek satır kayan çip; dokununca ayarın
+/// kendi denetimi alt levhada açılır — kategoriye gitmeden değiştirilir.
+/// Kategori kartlarını aşağı itmemek için tek satır (bkz. [_QuickHeader]).
+class _Suggestions extends StatelessWidget {
+  final List<SettingsCategory> categories;
+  const _Suggestions({required this.categories});
+
+  @override
+  Widget build(BuildContext context) {
+    final (hasKey, lock, autoSave) = context.select<AppState, (bool, bool, bool)>(
+        (s) => (s.hasApiKey, s.appLock, s.autoSave));
+    final ids = suggestedSettingIds(
+        hasApiKey: hasKey, appLock: lock, autoSave: autoSave);
+    final rows = <SettingRow>[
+      for (final id in ids)
+        for (final c in categories)
+          for (final r in c.rows)
+            if (r.id == id) r,
+    ];
+    if (rows.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Gap.sm),
+      child: Semantics(
+        container: true,
+        label: context.t('set.suggested'),
+        child: SizedBox(
+          height: 48,
+          child: ListView(
+            key: const ValueKey('settings-suggested'),
+            scrollDirection: Axis.horizontal,
+            children: [
+              Padding(
+                padding: const EdgeInsetsDirectional.only(end: Gap.sm),
+                child: Center(
+                  child: Icon(AppIcons.ai,
+                      size: 18, color: Theme.of(context).colorScheme.primary),
+                ),
+              ),
+              for (final r in rows)
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(end: Gap.sm),
+                  child: ActionChip(
+                    key: ValueKey('suggest-${r.id}'),
+                    label: Text(context.t(r.titleKey)),
+                    onPressed: () => showAppSheet<void>(
+                      context,
+                      title: context.t(r.titleKey),
+                      builder: r.builder,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _QuickHeader extends StatelessWidget {
   const _QuickHeader();
 

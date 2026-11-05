@@ -347,3 +347,4 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - Yerel ağ kumandası: `HttpServer` rastgele bağlantı noktası + 8 harfli anahtar yolu; sayfa not METNİ göndermez (KVKK/ağ gizliliği).
 - Perf A/B: bekliyor (`docs/perf/2026-11-05-faz38.md`), cihaz listesi `CIHAZ_TESTI.md` Faz 38.
 
+- **Karar (2026-11-05, kullanıcı):** pano üst çubuğundaki AI Merkezi düğmesi (`dash-ai-hub`) KALDIRILDI; alt panelin sağ ek düğmesi varsayılan **AI** (eskiden "Yer aç"). "Yer aç" uzun bas → alt paneli düzenle'den seçilebilir; kayıtlı seçimi olan kullanıcının düzeni değişmez.

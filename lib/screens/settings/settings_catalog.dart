@@ -142,6 +142,25 @@ class SettingsCategory {
   List<SettingRow> get rows => [for (final s in sections) ...s.rows];
 }
 
+/// **Önerilen ayarlar** (Faz 40 / 5, 2026-11-05) — ayar ana ekranının
+/// üstündeki tek satır çip. Önce "yapılmamış ama işe yarar" olanlar (AI
+/// anahtarı yok, otomatik kaydetme kapalı, uygulama kilidi kapalı), sonra en
+/// sık değiştirilen görünüm ayarları. En çok [max] öğe; saf işlev (test).
+List<String> suggestedSettingIds({
+  required bool hasApiKey,
+  required bool appLock,
+  required bool autoSave,
+  int max = 4,
+}) =>
+    [
+      if (!hasApiKey) 'api_key',
+      if (!autoSave) 'auto_save',
+      if (!appLock) 'app_lock',
+      'ui_text_size',
+      'skin',
+      'language',
+    ].take(max).toList();
+
 /// Yedi kategori (+ [developer] açıksa Geliştirici). **Sıra bilinçli:** önce her açılışta göze çarpan şey
 /// (görünüm), sonra en çok kullanılan (dosya listeleri), sonra yetenek açan
 /// ayarlar (yapay zekâ, hesap), sonra koruma (gizlilik), sonra yer açma

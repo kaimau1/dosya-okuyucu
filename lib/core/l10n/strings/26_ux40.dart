@@ -62,4 +62,6 @@ const Map<String, (String, String, String)> _t26 = {
   'smp.note_1': ('Not ve Markdown dosyaları düz metin editöründe açılır', 'Notes and Markdown files open in the plain text editor', 'تُفتح الملاحظات وملفات Markdown في محرر النص العادي'),
   'smp.note_2': ('Başlık, liste ve kalın yazı önizlemede biçimlenir', 'Headings, lists and bold text are formatted in the preview', 'تُنسَّق العناوين والقوائم والنص العريض في المعاينة'),
   'smp.note_3': ('Bu dosyaları silmek güvenlidir', 'These files are safe to delete', 'حذف هذه الملفات آمن'),
+  // ── Madde 5: ayarlar ───────────────────────────────────────────────────
+  'set.suggested': ('Önerilenler', 'Suggested', 'مقترحة'),
 };

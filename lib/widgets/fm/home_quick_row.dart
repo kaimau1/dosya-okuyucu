@@ -309,9 +309,11 @@ abstract final class DockExtras {
   static const _leftKey = 'dock_extra_left_v1';
   static const _rightKey = 'dock_extra_right_v1';
 
-  /// (sol, sağ) — null = yok.
+  /// (sol, sağ) — null = yok. Sağ varsayılan **AI** (2026-11-05, kullanıcı:
+  /// AI düğmesi üst panelden alta, "Yer aç"ın yerine). "Yer aç" seçilebilir
+  /// kalır (uzun bas → alt paneli düzenle).
   static final value =
-      ValueNotifier<(String?, String?)>((null, 'free_space'));
+      ValueNotifier<(String?, String?)>((null, 'ai'));
   static Future<void>? _loading;
 
   /// Seçilebilen düğmeler (sıra = düzenleme sayfasındaki sıra).
@@ -338,7 +340,7 @@ abstract final class DockExtras {
           }
 
           value.value =
-              (read(_leftKey), read(_rightKey, fallback: 'free_space'));
+              (read(_leftKey), read(_rightKey, fallback: 'ai'));
         } catch (_) {
           // Bilinçli: okunamazsa ek düğme yok.
         }
