@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:dosya_okuyucu/services/pptx/pro/pptx_chart_ops.dart';
 import 'package:dosya_okuyucu/services/pptx/pro/pptx_master_ops.dart';
+import 'package:dosya_okuyucu/services/pptx/pro/pptx_media_ops.dart';
+import 'package:dosya_okuyucu/services/pptx/pro/pptx_show_info.dart';
 import 'package:dosya_okuyucu/services/pptx/pro/pptx_package.dart';
 import 'package:dosya_okuyucu/services/pptx/pro/pptx_templates.dart';
 import 'package:dosya_okuyucu/services/pptx_editor.dart';
@@ -172,6 +174,25 @@ void main() {
           .map((p) => p.plainText)
           .toList();
       expect(texts, containsAll(['Bir', 'İki', 'Üç']));
+    });
+  });
+
+  group('madde 4 — medya', () {
+    test('video + ses eklenir, sunum bilgisinde görünür', () async {
+      final media = Uint8List.fromList(List.filled(64, 7));
+      var b = await PptxPro.run(deck, PptxMediaOps.insert(0, media, 'mp4'));
+      b = await PptxPro.run(b, PptxMediaOps.insert(1, media, 'mp3'));
+      final info = PptxShowInfo.read(open(b));
+      expect(info, hasLength(2));
+      expect(info[0].media.single.video, isTrue);
+      expect(info[1].media.single.video, isFalse);
+      expect(open(b).bytes(info[0].media.single.part), media);
+      final ct = open(b).xml('[Content_Types].xml')!.toXmlString();
+      expect(ct, contains('video/mp4'));
+      expect(ct, contains('audio/mpeg'));
+      // Kapak görseli çizim modelinde resim olarak görünür.
+      expect(PptxEditor.parse(b).slides[1].view!.shapes.where((s) => s.image != null),
+          isNotEmpty);
     });
   });
 }

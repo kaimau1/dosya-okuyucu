@@ -537,25 +537,37 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
   /// Tam ekran sunum modunu [index]. slayttan başlatır. Gizli slaytlar
   /// atlanır — sunum gizli bir slayttan başlatıldıysa o slayt gösterilir
   /// (PowerPoint'teki gibi).
-  void _play(int index) {
+  Future<void> _play(int index) async {
+    final editor = _editor;
+    if (editor == null) return;
     final views = <SlideVM>[];
     final notes = <String>[];
+    final deckIndex = <int>[];
     var start = 0;
-    for (var i = 0; i < (_editor?.slides.length ?? 0); i++) {
-      final v = _editor!.slides[i].view;
+    for (var i = 0; i < editor.slides.length; i++) {
+      final v = editor.slides[i].view;
       if (v == null) continue;
-      if (i != index && _editor!.isHidden(_editor!.slides[i])) continue;
+      if (i != index && editor.isHidden(editor.slides[i])) continue;
       if (i <= index) start = views.length;
       views.add(v);
-      notes.add(_editor!.notesOf(_editor!.slides[i]));
+      notes.add(editor.notesOf(editor.slides[i]));
+      deckIndex.add(i);
     }
     if (views.isEmpty) {
       _snack(context.t('sl.nothing_to_play'));
       return;
     }
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) =>
-          SlideshowScreen(slides: views, initialIndex: start, notes: notes),
+    // Faz 38: medya/bağlantı/sayaç için destenin güncel baytı (zip izolatta).
+    final deck = _proOn ? await _deckBytes() : null;
+    if (!mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => SlideshowScreen(
+        slides: views,
+        initialIndex: start,
+        notes: notes,
+        deck: deck,
+        deckIndex: deckIndex,
+      ),
     ));
   }
 

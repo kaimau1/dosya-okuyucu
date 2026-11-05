@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:fc_native_video_thumbnail/fc_native_video_thumbnail.dart';
 import 'package:file_picker/file_picker.dart';
 
 import 'package:flutter/foundation.dart' show compute;
@@ -31,6 +32,7 @@ import '../../services/fm/activity_log.dart';
 import '../../services/fm/save_to_downloads.dart';
 import '../../services/ocr_service.dart' show OcrLine;
 import '../../services/pptx/pro/pptx_chart_ops.dart';
+import '../../services/pptx/pro/pptx_media_ops.dart';
 import '../../services/pptx/pro/pptx_package.dart';
 import '../../services/pptx/pro/pptx_templates.dart';
 import '../../services/pptx_editor.dart';

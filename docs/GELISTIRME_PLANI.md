@@ -202,7 +202,8 @@ düzeni **artımlı** (yalnız değişen paragraf ve sonrası), görünür sayfa
    (`pptx_templates.dart` — `PptxTemplates.suggest`; `ai_slides_flow` pptx çıktısında önerili galeri.)
 - [x] 3. Slayt içi grafik ekle/düzenle (tablo verisinden), SmartArt → düzenlenebilir şekil grubu.
    (`pptx_chart_ops.dart` — gömülü xlsx'li grafik parçası, `fromTable`, `smartArtToShapes`; `slides_pro/chart_page.dart`.)
-- [ ] 4. Ses/video ekleme + oynatma, sunum kipinde lazer işaretçi, kalem, zamanlayıcı.
+- [x] 4. Ses/video ekleme + oynatma, sunum kipinde lazer işaretçi, kalem, zamanlayıcı.
+   (`pptx_media_ops.dart` + `pptx_show_info.dart`; `slideshow/media.dart`, `slideshow/ink.dart`; klavye/kumanda tuşları.)
 - [ ] 5. Sunucu görünümü (not + sonraki slayt + süre), PDF/PNG/video dışa aktarım.
 - [ ] 6. Yardımcı çizgi/hizalama/dağıt, katman paneli, animasyon sırası paneli.
 **Ölçüt:** 5 gerçek pptx görsel fark < eşik (B4); sunum kipi 60 fps.

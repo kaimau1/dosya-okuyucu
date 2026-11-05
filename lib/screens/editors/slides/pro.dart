@@ -114,6 +114,11 @@ extension _SlidesProPart on _SlidesEditorScreenState {
                 icon: AppIcons.insertChart,
                 label: context.t('sp.chart_insert')),
             AppAction(
+                value: 'media',
+                icon: AppIcons.videoLibrary,
+                label: context.t('sp.media_insert'),
+                hint: context.t('sp.media_hint')),
+            AppAction(
                 value: 'smartart',
                 icon: AppIcons.accountTree,
                 label: context.t('sp.smartart'),
@@ -126,6 +131,8 @@ extension _SlidesProPart on _SlidesEditorScreenState {
         await _insertChart(_curIndex, SlideChartData.sample);
       case 'smartart':
         await _convertSmartArts();
+      case 'media':
+        await _insertMedia(_curIndex);
       case 'master':
         final bytes = await _deckBytes();
         if (bytes == null || !mounted) return;
@@ -188,6 +195,47 @@ extension _SlidesProPart on _SlidesEditorScreenState {
     }
     await _proApply(PptxChartOps.allSmartArtsToShapes(),
         doneKey: 'sp.smartart_done');
+  }
+
+  // ── Madde 4: ses / video ──────────────────────────────────────────────────
+
+  /// Bellek tavanı: medya baytı desteyle birlikte izolata kopyalanır.
+  static const _mediaMaxBytes = 150 * 1024 * 1024;
+
+  Future<void> _insertMedia(int slide) async {
+    final picked = await AppFilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: PptxMediaOps.mimes.keys.toList(),
+    );
+    final f = picked?.files.single;
+    final path = f?.path;
+    if (f == null || path == null || !mounted) return;
+    final ext = (f.extension ?? path.split('.').last).toLowerCase();
+    if (!PptxMediaOps.isMediaExt(ext)) return;
+    final file = File(path);
+    if (await file.length() > _mediaMaxBytes) {
+      if (mounted) _snack(context.t('sp.media_too_big'));
+      return;
+    }
+    final data = await file.readAsBytes();
+    Uint8List? poster;
+    if (PptxMediaOps.isVideoExt(ext)) {
+      // Kapak: ilk kare (yerel küçük resim üreticisi; olmazsa ses simgesi).
+      try {
+        final dest = '${Directory.systemTemp.path}/sp_poster_${data.length}.jpg';
+        final ok = await FcNativeVideoThumbnail().saveThumbnailToFile(
+            srcFile: path, destFile: dest, width: 960, height: 960,
+            format: 'jpeg', quality: 80);
+        if (ok && File(dest).existsSync()) poster = await File(dest).readAsBytes();
+      } catch (_) {
+        // En iyi çaba: kapaksız video da oynar.
+      }
+    }
+    if (!mounted) return;
+    await _proApply(
+        PptxMediaOps.insert(slide, data, ext,
+            poster: poster, posterExt: 'jpg', name: f.name),
+        doneKey: 'sp.media_added');
   }
 
   // ── Şekil araçları (seçili şekil) ─────────────────────────────────────────
