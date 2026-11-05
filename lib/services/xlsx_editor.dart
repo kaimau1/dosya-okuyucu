@@ -9,6 +9,7 @@ import 'xlsx_package.dart';
 import 'xlsx_reader.dart';
 import 'xlsx_save_patch.dart';
 import 'xlsx/notes_writer.dart';
+import 'xlsx/table_reader.dart';
 import 'csv_document.dart';
 import 'xlsx_chart.dart';
 import 'sheet_structure.dart';
@@ -19,6 +20,7 @@ import '../core/edit/save_coordinator.dart';
 // Görünüm modelinin tamamı (aralık, kenarlık, hizalama, koşullu biçim…)
 // ekranlara buradan açılır — ad çakışması yok.
 export 'xlsx_reader.dart';
+export 'xlsx/table_reader.dart' show XlsxFileTable;
 export 'xlsx_chart.dart';
 export 'sheet_structure.dart' show SheetShift;
 
@@ -847,6 +849,24 @@ class XlsxEditor {
   /// Dosyada zaten olan grafikler (salt çizim; kaydetme onları olduğu gibi
   /// taşır). İlk istendiğinde okunur.
   late final List<XlsxFileChart> fileCharts = XlsxFileCharts.read(_source);
+
+  /// Dosyada zaten olan tablolar (ListObject) — yapısal başvurular için
+  /// (Faz 36 madde 5). İlk istendiğinde okunur.
+  late final List<XlsxFileTable> fileTables = XlsxTableReader.read(_source);
+
+  /// Kullanılmayan ilk "TabloN" adı (dosyadaki ve bu oturumdaki tablolar).
+  String nextTableName() {
+    final used = {
+      for (final t in fileTables) t.name.toLowerCase(),
+      for (final t in tables)
+        if (t.name != null) t.name!.toLowerCase(),
+    };
+    var n = 1;
+    while (used.contains('tablo$n')) {
+      n++;
+    }
+    return 'Tablo$n';
+  }
 
   /// CSV/TSV olarak açıldıysa özgün yazım biçimi (Faz 27): kaydetme o
   /// biçimle CSV yazar, xlsx paketi kurulmaz. Biçim düzenlemeleri saklanmaz.

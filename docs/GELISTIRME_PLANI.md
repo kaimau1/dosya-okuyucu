@@ -131,7 +131,9 @@ Ek 9: dışa aktarma `TrackedTask` → `JobQueue` (ilerleme, iptal, bitince bild
    dinamik diziler (FILTER/SORT/UNIQUE), XLOOKUP, LET, SEQUENCE.
    (Balon/tamamlama/XLOOKUP vardı; `FormulaArray` + taşma (`CalcState._spills`), dizi bağlamı,
    LET, `formula_errors.dart` + formül çubuğunda "?" düğmesi.)
-5. Tablo nesnesi (ListObject) + biçimli tablo stilleri, yapısal başvuru.
+- [x] 5. Tablo nesnesi (ListObject) + biçimli tablo stilleri, yapısal başvuru.
+   (ListObject yazımı vardı; tablo adı + vurguya göre yerleşik stil, dosya tablolarını okuma
+   `xlsx/table_reader.dart`, `Tablo1[Sütun]`/`[@Sütun]`/`[#Veri]`/`[[#Başlıklar],[X]]` çözümü.)
 6. Yazdırma düzeni + PDF'e aktar (sayfa sığdır, başlık satırı yinele), parola ile aç/koru.
 7. Görünüm: şerit sadeleştirme, hücre düzenleme çubuğu, parmakla seçim tutamakları,
    kaydırmada sabit başlık gölgesi, yoğunluk (kompakt/rahat) ayarı.

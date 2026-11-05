@@ -59,8 +59,27 @@ class FormulaEngine {
   /// (her çizimde yeni motor) KALICIDIR — bkz. [CalcState] (Faz 26).
   final CalcState state;
 
-  FormulaEngine(this.grid, {this.sheets, this.sheetName = '', CalcState? state})
-      : state = state ?? CalcState();
+  FormulaEngine(this.grid,
+      {this.sheets,
+      this.sheetName = '',
+      CalcState? state,
+      List<FormulaTable> tables = const []})
+      : state = state ?? CalcState(),
+        tables = {for (final t in tables) t.name.toUpperCase(): t};
+
+  /// Yapısal başvuru tabloları: büyük harf ad → tablo (Faz 36 madde 5).
+  final Map<String, FormulaTable> tables;
+
+  /// (r, c) hücresini içeren tablo (`[@Sütun]` için).
+  FormulaTable? tableAt(String sheet, int r, int c) {
+    for (final t in tables.values) {
+      if (t.sheet.toLowerCase() == sheet.toLowerCase() &&
+          r >= t.top && r <= t.bottom && c >= t.left && c <= t.right) {
+        return t;
+      }
+    }
+    return null;
+  }
 
   /// (r,c) hücresinin görüntülenecek değeri — formülse hesaplanır (ya da
   /// kalıcı önbellekten gelir).
@@ -342,6 +361,39 @@ class FormulaArray {
 
   int get height => rows.length;
   int get width => rows.isEmpty ? 0 : rows.first.length;
+}
+
+/// Excel tablosu (ListObject) — yapısal başvuru çözümü için.
+class FormulaTable {
+  final String name;
+  final String sheet;
+  final int top, left, bottom, right;
+  final List<String> columns;
+  final bool hasHeader;
+  final bool hasTotals;
+  const FormulaTable({
+    required this.name,
+    required this.sheet,
+    required this.top,
+    required this.left,
+    required this.bottom,
+    required this.right,
+    required this.columns,
+    this.hasHeader = true,
+    this.hasTotals = false,
+  });
+
+  int get dataTop => hasHeader ? top + 1 : top;
+  int get dataBottom => hasTotals ? bottom - 1 : bottom;
+
+  /// Sütun adı → mutlak sütun (büyük/küçük harf duyarsız); yoksa -1.
+  int columnOf(String name) {
+    final want = name.trim().toLowerCase();
+    for (var i = 0; i < columns.length; i++) {
+      if (columns[i].trim().toLowerCase() == want) return left + i;
+    }
+    return -1;
+  }
 }
 
 /// Aralık değeri (A1:B3) — fonksiyon argümanlarında listelenir.

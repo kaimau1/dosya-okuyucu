@@ -554,6 +554,13 @@ class XlsxTableSpec {
   /// Başlık hücrelerinin metni (kayıt anında sayfadan okunur).
   final List<String> headers;
 
+  /// Tablo adı (`Tablo1`) — yapısal başvurular (`Tablo1[Tutar]`) bununla;
+  /// null → yazarken kimlikten üretilir.
+  final String? name;
+
+  /// Excel yerleşik stil adı (`TableStyleMedium2`…).
+  final String styleName;
+
   const XlsxTableSpec({
     required this.sheetName,
     required this.top,
@@ -561,6 +568,8 @@ class XlsxTableSpec {
     required this.bottom,
     required this.right,
     this.headers = const [],
+    this.name,
+    this.styleName = 'TableStyleMedium2',
   });
 
   XlsxTableSpec withHeaders(List<String> h) => XlsxTableSpec(
@@ -569,7 +578,18 @@ class XlsxTableSpec {
       left: left,
       bottom: bottom,
       right: right,
-      headers: h);
+      headers: h,
+      name: name,
+      styleName: styleName);
+
+  /// Vurgu renginden en yakın yerleşik Excel stili (Office teması).
+  static String styleForAccent(int argb) => switch (argb & 0xFFFFFF) {
+        0x70AD47 => 'TableStyleMedium7',
+        0xED7D31 => 'TableStyleMedium3',
+        0x7030A0 => 'TableStyleMedium12',
+        0x595959 => 'TableStyleMedium1',
+        _ => 'TableStyleMedium2',
+      };
 
   String get ref =>
       '${_col(left)}${top + 1}:${_col(right)}${bottom + 1}';
@@ -714,10 +734,11 @@ abstract final class XlsxTableWriter {
     }
     return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
         '<table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
-        'id="$id" name="Tablo$id" displayName="Tablo$id" ref="${t.ref}" '
+        'id="$id" name="${_esc(t.name ?? 'Tablo$id')}" '
+        'displayName="${_esc(t.name ?? 'Tablo$id')}" ref="${t.ref}" '
         'totalsRowShown="0"><autoFilter ref="${t.ref}"/>'
         '<tableColumns count="${t.headers.length}">$cols</tableColumns>'
-        '<tableStyleInfo name="TableStyleMedium2" showFirstColumn="0" '
+        '<tableStyleInfo name="${_esc(t.styleName)}" showFirstColumn="0" '
         'showLastColumn="0" showRowStripes="1" showColumnStripes="0"/></table>';
   }
 

@@ -140,7 +140,45 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
         for (final s in _editor?.sheets ?? const <XlsxSheet>[]) s.name: s.rows,
       },
       state: _calc,
+      tables: _formulaTables(),
     );
+  }
+
+  /// Yapısal başvuru tabloları: dosyadakiler + bu oturumda kurulanlar
+  /// (başlıklar sayfanın ilk satırından okunur).
+  List<FormulaTable> _formulaTables() {
+    final editor = _editor;
+    if (editor == null) return const [];
+    final out = <FormulaTable>[
+      for (final t in editor.fileTables)
+        FormulaTable(
+          name: t.name,
+          sheet: t.sheetName,
+          top: t.range.r1,
+          left: t.range.c1,
+          bottom: t.range.r2,
+          right: t.range.c2,
+          columns: t.columns,
+          hasHeader: t.headerRows > 0,
+          hasTotals: t.totalsRows > 0,
+        ),
+    ];
+    for (final t in editor.tables) {
+      final name = t.name;
+      if (name == null) continue;
+      final sheet = editor.sheets.where((s) => s.name == t.sheetName).firstOrNull;
+      if (sheet == null) continue;
+      out.add(FormulaTable(
+        name: name,
+        sheet: t.sheetName,
+        top: t.top,
+        left: t.left,
+        bottom: t.bottom,
+        right: t.right,
+        columns: [for (var c = t.left; c <= t.right; c++) sheet.rawAt(t.top, c)],
+      ));
+    }
+    return out;
   }
 
   /// Modelin değişiklik günlüğünü hesap durumuna işler: toplu değişiklikte

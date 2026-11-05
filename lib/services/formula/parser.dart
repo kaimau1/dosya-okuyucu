@@ -209,6 +209,8 @@ extension _ParserParserPart on _Parser {
     }
     if (ch == '"') return _parseString();
     if (ch == '{') return _parseArrayLiteral();
+    // Tablosuz yapısal başvuru: `[@Tutar]` (formülün bulunduğu tablo).
+    if (ch == '[') return _parseStructured(null);
     if (ch == "'") return _parseQuotedSheetRef();
     if (ch == '#') return _parseErrorLiteral();
     if (_Parser._isDigit(ch) || ch == '.') return _parseNumber();
@@ -366,6 +368,12 @@ extension _ParserParserPart on _Parser {
     // LET ile bağlanmış ad?
     final local = _locals?[_Parser._canonical(word)];
     if (local != null) return local;
+
+    // Yapısal başvuru: Tablo1[Tutar], Tablo1[#Veri], Tablo1[[#Başlıklar],[Ad]]
+    if (_i < s.length && s[_i] == '[' &&
+        eng.tables.containsKey(word.toUpperCase())) {
+      return _parseStructured(eng.tables[word.toUpperCase()]);
+    }
 
     // Sayfa referansı: Sayfa1!A1
     if (_i < s.length && s[_i] == '!') {
@@ -619,5 +627,104 @@ extension _ParserParserPart on _Parser {
     } finally {
       _locals = saved;
     }
+  }
+
+  // ── yapısal başvuru (Faz 36 madde 5) ───────────────────────────────────
+
+  /// `[` konumunda: köşeli parantez bloğunu okur ve aralığa çevirir.
+  /// [table] null → formülün içinde bulunduğu tablo (`[@Sütun]`).
+  Object _parseStructured(FormulaTable? table) {
+    // Dengeli köşeli parantez bloğu.
+    final start = _i;
+    var depth = 0;
+    while (_i < s.length) {
+      final ch = s[_i];
+      if (ch == "'" && _i + 1 < s.length) {
+        _i += 2; // kaçış: '[ '] '#
+        continue;
+      }
+      if (ch == '[') depth++;
+      if (ch == ']') {
+        depth--;
+        if (depth == 0) {
+          _i++;
+          break;
+        }
+      }
+      _i++;
+    }
+    if (depth != 0) throw const FormulaError('#BAŞV!');
+    final t = table ?? eng.tableAt(sheet, selfR, selfC);
+    if (t == null) throw const FormulaError('#BAŞV!');
+    var body = s.substring(start + 1, _i - 1).trim();
+    // Parçalar: [[#Başlıklar],[Ad]] / [@Tutar] / [Ad]:[Soyad] / [#Veri].
+    final parts = <String>[];
+    if (body.startsWith('[')) {
+      for (final m in RegExp(r"\[((?:[^\]']|'.)*)\]").allMatches(body)) {
+        parts.add(m.group(1)!);
+      }
+      if (body.contains(']:[') && parts.length == 2) {
+        parts
+          ..clear()
+          ..add('${RegExp(r"\[((?:[^\]']|'.)*)\]").allMatches(body).first.group(1)}'
+              ':${RegExp(r"\[((?:[^\]']|'.)*)\]").allMatches(body).last.group(1)}');
+      }
+    } else {
+      parts.add(body);
+    }
+    var thisRow = false;
+    var r1 = t.dataTop, r2 = t.dataBottom;
+    var c1 = t.left, c2 = t.right;
+    var colSet = false;
+    for (var raw in parts) {
+      raw = raw.replaceAllMapped(RegExp(r"'(.)"), (m) => m.group(1)!).trim();
+      if (raw.startsWith('@')) {
+        thisRow = true;
+        raw = raw.substring(1).trim();
+        if (raw.isEmpty) continue;
+      }
+      final up = raw.toUpperCase();
+      switch (up) {
+        case '#THIS ROW' || '#BU SATIR':
+          thisRow = true;
+          continue;
+        case '#ALL' || '#TÜMÜ':
+          r1 = t.top;
+          r2 = t.bottom;
+          continue;
+        case '#DATA' || '#VERİ' || '#VERI':
+          r1 = t.dataTop;
+          r2 = t.dataBottom;
+          continue;
+        case '#HEADERS' || '#BAŞLIKLAR' || '#BASLIKLAR':
+          if (!t.hasHeader) throw const FormulaError('#BAŞV!');
+          r1 = r2 = t.top;
+          continue;
+        case '#TOTALS' || '#TOPLAMLAR':
+          if (!t.hasTotals) throw const FormulaError('#BAŞV!');
+          r1 = r2 = t.bottom;
+          continue;
+      }
+      final range = raw.split(':');
+      final a = t.columnOf(range.first.replaceAll(RegExp(r'^\[|\]$'), ''));
+      final b = range.length > 1
+          ? t.columnOf(range.last.replaceAll(RegExp(r'^\[|\]$'), ''))
+          : a;
+      if (a < 0 || b < 0) throw const FormulaError('#BAŞV!');
+      c1 = math.min(a, b);
+      c2 = math.max(a, b);
+      colSet = true;
+    }
+    if (thisRow) {
+      if (selfR < t.dataTop || selfR > t.dataBottom) {
+        throw const FormulaError('#DEĞER!');
+      }
+      r1 = r2 = selfR;
+    }
+    if (!colSet && thisRow && parts.every((p) => p.trim() == '@')) {
+      c1 = t.left;
+      c2 = t.right;
+    }
+    return eng._noted(_RangeValue(r1, c1, r2, c2, t.sheet));
   }
 }
