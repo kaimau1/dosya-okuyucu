@@ -535,7 +535,9 @@ class _ContentIndexTileState extends State<ContentIndexTile> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(ContentIndexer.ocrPrefKey, v);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: yazılamazsa seçim yalnız bu oturumda geçerli.
+    }
   }
 
   @override

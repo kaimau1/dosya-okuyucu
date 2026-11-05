@@ -9,8 +9,9 @@ const _base = 'content://com.android.externalstorage.documents/tree/';
 void main() {
   group('SafWrite', () {
     test('birim yolu ayrıştırma', () {
-      expect(SafWrite.splitVolumePath('/storage/1A2B-3C4D/DCIM/Tatil'),
-          ('1A2B-3C4D', ['DCIM', 'Tatil']));
+      final v = SafWrite.splitVolumePath('/storage/1A2B-3C4D/DCIM/Tatil')!;
+      expect(v.$1, '1A2B-3C4D');
+      expect(v.$2, ['DCIM', 'Tatil']);
       expect(SafWrite.splitVolumePath('/storage/emulated/0/Download'), isNull);
       expect(SafWrite.splitVolumePath('/data/user/0/x'), isNull);
     });
@@ -22,9 +23,11 @@ void main() {
         SafRoot(uri: '${_base}9999-0000%3A', name: 'USB'),
       ];
       final r = SafWrite.resolve('/storage/1A2B-3C4D/DCIM/Tatil/2026', roots);
-      expect(r, ('${_base}1A2B-3C4D%3ADCIM', ['Tatil', '2026']));
+      expect(r!.$1, '${_base}1A2B-3C4D%3ADCIM');
+      expect(r.$2, ['Tatil', '2026']);
       final root = SafWrite.resolve('/storage/1A2B-3C4D/Muzik', roots);
-      expect(root, ('${_base}1A2B-3C4D%3A', ['Muzik']));
+      expect(root!.$1, '${_base}1A2B-3C4D%3A');
+      expect(root.$2, ['Muzik']);
     });
 
     test('izin yoksa, salt okunur ağaç ya da başka birim → null', () {

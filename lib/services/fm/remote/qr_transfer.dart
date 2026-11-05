@@ -101,14 +101,10 @@ class QrShareServer implements KeepableServer {
     _downloads++;
     onServed?.call(name);
     final max = maxDownloads;
-    if (max != null && _downloads >= max) {
-      // Süren başka bir indirme varsa ona dokunulmaz; boşalınca kapanır.
-      if (activeTransfers <= 0) {
-        _expire();
-      } else {
-        _expireWhenIdle = true;
-      }
-    }
+    // Kapanış yanıt KAPANDIKTAN sonra ([_handle] sonu): burada kapatmak
+    // biten indirmenin son baytlarını keserdi. Süren başka indirme varsa
+    // o da bitince kapanır.
+    if (max != null && _downloads >= max) _expireWhenIdle = true;
   }
 
   bool _expireWhenIdle = false;
@@ -262,6 +258,8 @@ class QrShareServer implements KeepableServer {
       try {
         await res.close();
       } catch (_) {}
+      // Tek seferlik bağlantı: son indirmenin yanıtı kapandı → kapan.
+      if (_expireWhenIdle && activeTransfers <= 0) _expire();
     }
   }
 
@@ -300,7 +298,6 @@ class QrShareServer implements KeepableServer {
       onActivity?.call(this);
     }
     _countServed(item.name);
-    if (_expireWhenIdle && activeTransfers <= 0) _expire();
   }
 
   static const _thumbExts = {

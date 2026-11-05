@@ -91,7 +91,7 @@ abstract class RemoteFs {
   /// devam desteklenmiyor — [part] baştan yazılır.
   Future<void> downloadFrom(RemoteEntry entry, File part, int offset) async {
     final tmp = await download(entry, '${part.path}.tmp');
-    await tmp.rename(part.path);
+    tmp.renameSync(part.path);
   }
 
   /// **Kaldığı yerden devam eden indirme** (Faz 41 / 8, 2026-11-05).
@@ -101,24 +101,27 @@ abstract class RemoteFs {
   /// (SFTP) kalan baytı çeker, ötekilerde baştan indirir. Boyut biliniyor ve
   /// parça tamsa yeniden indirilmez.
   Future<File> downloadResumable(RemoteEntry entry, String localPath) async {
+    // Eşzamanlı dosya sorguları bilinçli: `exists()/length()` (asenkron)
+    // `flutter_test`in sahte saat zonunda tamamlanmıyor (HAFIZA §F tuzağı);
+    // birkaç baytlık üstveri işi, ana iş parçacığını tutmaz.
     final target = File(localPath);
-    await target.parent.create(recursive: true);
+    target.parent.createSync(recursive: true);
     final part = File('$localPath.part');
-    var have = await part.exists() ? await part.length() : 0;
+    var have = part.existsSync() ? part.lengthSync() : 0;
     final size = entry.sizeBytes;
     if (size > 0 && have > size) {
-      await part.delete();
+      part.deleteSync();
       have = 0;
     }
     if (!(size > 0 && have == size)) {
       if (have > 0 && !canResume) {
-        await part.delete();
+        part.deleteSync();
         have = 0;
       }
       await downloadFrom(entry, part, have);
     }
-    if (await target.exists()) await target.delete();
-    return part.rename(localPath);
+    if (target.existsSync()) target.deleteSync();
+    return part.renameSync(localPath);
   }
 
   /// Saf: `.part` dosyasından devam edilecek ofset (boyut bilinmiyorsa ya da

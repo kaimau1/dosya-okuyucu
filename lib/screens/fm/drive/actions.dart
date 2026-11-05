@@ -343,13 +343,17 @@ extension _DriveScreenActionsPart on _DriveScreenState {
           // Drive sürümü taban olur; telefondaki kopya yeni adla yüklendi.
           try {
             Directory(DriveCache.dirFor(file, root)).deleteSync(recursive: true);
-          } catch (_) {}
+          } catch (_) {
+            // Bilinçli: silinemeyen eski kopya sonraki budamada gider.
+          }
           if (mounted) unawaited(_refresh());
           return null;
         case DriveConflictChoice.useDrive:
           try {
             Directory(DriveCache.dirFor(file, root)).deleteSync(recursive: true);
-          } catch (_) {}
+          } catch (_) {
+            // Bilinçli: silinemeyen eski kopya sonraki budamada gider.
+          }
           return null;
       }
       showSnackOn(messenger, strings.t('dro.uploaded', {'name': file.name}));
