@@ -6,6 +6,7 @@ import '../core/motion.dart';
 import '../core/theme.dart';
 import '../core/safe_insets.dart';
 import '../core/device_profile.dart';
+import 'empty_art.dart';
 
 /// **Ortak hareket parçaları** — kullanıcı isteği 2026-10-17 (Notlar ile
 /// aynı tur): *"UI/UX çalışmaları; iPhone gibi akıcılık, premium his"*.
@@ -268,12 +269,16 @@ class FmEmptyState extends StatelessWidget {
   final String? hint;
   final Widget? action;
 
+  /// Arkadaki sahne (Faz 40 / 2). Null ise simgeden seçilir.
+  final EmptyArtKind? art;
+
   const FmEmptyState({
     super.key,
     required this.icon,
     required this.title,
     this.hint,
     this.action,
+    this.art,
   });
 
   @override
@@ -287,15 +292,7 @@ class FmEmptyState extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 76,
-                height: 76,
-                decoration: BoxDecoration(
-                  color: scheme.primary.withValues(alpha: 0.10),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, size: 36, color: scheme.primary),
-              ),
+              EmptyArt(kind: art ?? EmptyArtKind.forIcon(icon), icon: icon),
               const SizedBox(height: Gap.md),
               Text(
                 title,

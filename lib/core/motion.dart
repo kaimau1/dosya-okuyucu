@@ -20,6 +20,10 @@ abstract final class Motion {
   /// Büyük yüzey: tam ekran geçiş, galeri açılışı.
   static const long = Duration(milliseconds: 320);
 
+  /// Sayfa geri dönüşü (geri tuşu): girişten biraz kısa — geri gitmek
+  /// "hemen" hissettirmeli (Faz 40 / 2; eskiden geçişte elle 170 ms).
+  static const pageReverse = Duration(milliseconds: 170);
+
   /// Metin imlecinin yarım yanıp sönme süresi (EditableText ile aynı).
   static const caretBlink = Duration(milliseconds: 500);
 
