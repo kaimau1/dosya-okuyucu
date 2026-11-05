@@ -269,7 +269,7 @@ testi, küçük resim şeridi yalnız açıkken üretilir.
 **Ek:** 6. [x] Ortak geri al/yinele ve taslak kurtarma altyapısı (SaveIsolate/EditorChrome üzerine) tüm
 editörlerde aynı davranış; kapanışta otomatik kaydet güvencesi. 7. [x] Tek "Paylaş/Dışa aktar" sayfası
 (PDF, docx/xlsx/pptx, görüntü, bağlantı). 8. [x] Tema: açık/koyu/AMOLED/kâğıt, vurgu rengi,
-yazı ölçeği ön ayarları. 9. Dil: TR/EN/AR (RTL bekçisi korunur) eksik çeviri taraması.
+yazı ölçeği ön ayarları. 9. [x] Dil: TR/EN/AR (RTL bekçisi korunur) eksik çeviri taraması.
 10. Boş/hata/yükleme durumları için iskelet (nabız hafifte kapalı) ve tek tip hata sayfası.
 **Perf:** hiçbir ortak bileşen `saveLayer`/geniş blur eklemez; token bekçisi ve hareket bekçisi
 yeşil; ortak bileşen değişince pano boşta-kare ve kaydırma ölçümü yenilenir.
