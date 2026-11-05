@@ -90,6 +90,9 @@ void main() {
     await t.tap(find.byKey(const ValueKey('ss-timer-toggle')));
     await t.pump();
     expect(find.byKey(const ValueKey('ss-timer')), findsNothing);
+    // Madde 9: kumanda düğmeleri araç çubuğunda.
+    expect(find.byKey(const ValueKey('ss-volume')), findsOneWidget);
+    expect(find.byKey(const ValueKey('ss-web')), findsOneWidget);
   });
 
   testWidgets('Faz 38: sunucu görünümü — not, sonraki slayt, süre', (t) async {

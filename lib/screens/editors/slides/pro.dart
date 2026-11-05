@@ -159,6 +159,11 @@ extension _SlidesProPart on _SlidesEditorScreenState {
                 label: context.t('ss.presenter'),
                 hint: context.t('sp.presenter_hint')),
             AppAction(
+                value: 'record',
+                icon: AppIcons.micNone,
+                label: context.t('sp.record'),
+                hint: context.t('sp.record_hint')),
+            AppAction(
                 value: 'png_one',
                 icon: AppIcons.image,
                 label: context.t('sp.png_one')),
@@ -201,6 +206,8 @@ extension _SlidesProPart on _SlidesEditorScreenState {
         if (play != null && play.isNotEmpty && mounted) await _playList(play);
       case 'presenter':
         await _play(_curIndex, presenter: true);
+      case 'record':
+        await _recordNarration();
       case 'png_one':
         await _exportImages(only: _curIndex);
       case 'png_all':
@@ -256,6 +263,49 @@ extension _SlidesProPart on _SlidesEditorScreenState {
     await Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => SlideshowScreen(
             slides: views, notes: notes, deck: deck, deckIndex: idx)));
+  }
+
+  // ── Madde 9: kayıtlı anlatım ──────────────────────────────────────────────
+
+  Future<void> _recordNarration() async {
+    final editor = _editor;
+    if (editor == null) return;
+    final perm = await Permission.microphone.request();
+    if (!mounted) return;
+    if (!perm.isGranted) {
+      _snack(context.t('sp.mic_denied'));
+      return;
+    }
+    final views = <SlideVM>[], notes = <String>[], idx = <int>[];
+    for (var i = 0; i < editor.slides.length; i++) {
+      final v = editor.slides[i].view;
+      if (v == null || editor.isHidden(editor.slides[i])) continue;
+      views.add(v);
+      notes.add(editor.notesOf(editor.slides[i]));
+      idx.add(i);
+    }
+    if (views.isEmpty) return;
+    final clips = await Navigator.of(context).push<List<NarrationClip>>(MaterialPageRoute(
+        builder: (_) => SlideshowScreen(
+            slides: views, notes: notes, deckIndex: idx, record: true, presenter: true)));
+    if (clips == null || clips.isEmpty || !mounted) return;
+    final ok = await showAppConfirm(context,
+        title: context.t('sp.record'),
+        message: context.t('sp.record_save', {'n': clips.length}),
+        confirmLabel: context.t('sp.apply'));
+    if (!ok || !mounted) return;
+    final data = <(int, Uint8List, int)>[
+      for (final c in clips) (c.slide, await File(c.path).readAsBytes(), c.ms),
+    ];
+    if (!mounted) return;
+    await _proApply(_narrationOp(data), doneKey: 'sp.record_done');
+    for (final c in clips) {
+      try {
+        File(c.path).deleteSync();
+      } catch (_) {
+        // Geçici dosya: sistem zaten temizler.
+      }
+    }
   }
 
   // ── Madde 3: grafik / SmartArt ─────────────────────────────────────────────
@@ -513,3 +563,9 @@ SlideChartData? Function(PptxPackage) _readChart(int slide, int id) =>
 
 SlideChartData? Function(PptxPackage) _readTable(int slide, int id) =>
     (pkg) => PptxChartOps.fromTable(pkg, slide, id);
+
+PptxOp _narrationOp(List<(int, Uint8List, int)> clips) => (pkg) {
+      for (final (slide, audio, ms) in clips) {
+        PptxMediaOps.setNarration(slide, audio, ms)(pkg);
+      }
+    };

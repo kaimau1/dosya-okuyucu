@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' show Random;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,14 +13,17 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
 import '../../services/pptx/pro/pptx_package.dart';
 import '../../services/pptx/pro/pptx_show_info.dart';
+import '../../services/pptx/pro/slides_native.dart';
 import '../../services/pptx_render.dart';
 import '../../widgets/slide_canvas.dart';
+import '../../widgets/slide_snapshot.dart';
 import '../../core/theme.dart';
 
 part 'slideshow/actions.dart';
 part 'slideshow/ink.dart';
 part 'slideshow/media.dart';
 part 'slideshow/presenter.dart';
+part 'slideshow/remote.dart';
 
 /// Tam ekran sunum modu — PowerPoint'in "Slayt Gösterisi"nin karşılığı.
 /// Yatay + tam ekran, kaydırarak veya sağ/sol yarıya dokunarak geçiş,
@@ -50,7 +54,12 @@ class SlideshowScreen extends StatefulWidget {
     this.deck,
     this.deckIndex = const [],
     this.presenter = false,
+    this.record = false,
   });
+
+  /// Anlatım kaydı (madde 9): her slayt ayrı kaydedilir; çıkışta
+  /// `List<NarrationClip>` döner.
+  final bool record;
 
   /// Sunucu görünümünde başla (madde 5).
   final bool presenter;
@@ -108,6 +117,18 @@ class _SlideshowScreenState extends State<SlideshowScreen>
   final ValueNotifier<int> _counterRev = ValueNotifier(0);
   Timer? _counterTick;
 
+  // ── Madde 9: kumanda, anlatım, ikinci ekran ───────────────────────────────
+  StreamSubscription<(String, Object?)>? _nativeSub;
+  bool _volumeKeys = false;
+  HttpServer? _server;
+  String? _remoteUrl;
+  int _screens = 0;
+  bool _second = false;
+  bool _recording = false;
+  int? _recSlide;
+  final Stopwatch _recClock = Stopwatch();
+  final List<NarrationClip> _clips = [];
+
   /// Otomatik ilerleme (`advTm`, ör. kayıtlı anlatım) — tek seferlik zamanlayıcı.
   Timer? _auto;
 
@@ -153,6 +174,12 @@ class _SlideshowScreenState extends State<SlideshowScreen>
       DeviceOrientation.landscapeRight,
     ]);
     if (_presenter) _syncTick();
+    unawaited(SlidesNative.screens().then((n) {
+      if (mounted && n > 0) setState(() => _screens = n);
+    }));
+    if (widget.record) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _recStart());
+    }
     final deck = widget.deck;
     if (deck != null) {
       // Açılışı beklemez; bilgi gelince medya/bağlantı etkinleşir.
@@ -161,6 +188,7 @@ class _SlideshowScreenState extends State<SlideshowScreen>
         setState(() => _info = v);
         _scheduleAdvance();
         _startCounters();
+        _autoPlayMedia();
       }, onError: (_) {}));
     }
   }
@@ -173,6 +201,7 @@ class _SlideshowScreenState extends State<SlideshowScreen>
     _auto?.cancel();
     _counterTick?.cancel();
     _counterRev.dispose();
+    unawaited(_remoteDispose());
     _media?.dispose();
     _pages.dispose();
     _zoom.dispose();
@@ -214,6 +243,9 @@ class _SlideshowScreenState extends State<SlideshowScreen>
     });
     _scheduleAdvance();
     _startCounters();
+    _autoPlayMedia();
+    unawaited(_recOnPage());
+    unawaited(_pushSecond());
   }
 
   void _scheduleAdvance() {
@@ -359,7 +391,12 @@ class _SlideshowScreenState extends State<SlideshowScreen>
       _stageSize = box.biggest;
       return _stage();
     });
-    return Focus(
+    return PopScope(
+      canPop: !widget.record,
+      onPopInvokedWithResult: (did, _) {
+        if (!did) unawaited(_exit());
+      },
+      child: Focus(
       focusNode: _focus,
       autofocus: true,
       onKeyEvent: _onKey,
@@ -375,7 +412,7 @@ class _SlideshowScreenState extends State<SlideshowScreen>
               ])
             : stage,
       ),
-    );
+    ));
   }
 
   Widget _stage() {
@@ -441,7 +478,7 @@ class _SlideshowScreenState extends State<SlideshowScreen>
               child: IconButton(
                 icon: const Icon(AppIcons.close, color: AppColors.onMediaSoft),
                 tooltip: context.t('ss.exit'),
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: _exit,
               ),
             ),
           ),
@@ -488,9 +525,35 @@ class _SlideshowScreenState extends State<SlideshowScreen>
                   },
                 ),
                 if (_showTimer && !_presenter) _timerChip(),
+                if (_recording)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: Icon(AppIcons.micNone,
+                        key: const ValueKey('ss-rec'), color: AppHues.red),
+                  ),
               ]),
             ),
           ),
+          if (_remoteUrl != null)
+            Positioned(
+              top: 8,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                child: Center(
+                  child: Container(
+                    key: const ValueKey('ss-web-url'),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.mediaChrome,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: SelectableText(_remoteUrl!,
+                        style: context.type.small.copyWith(color: AppColors.onMedia)),
+                  ),
+                ),
+              ),
+            ),
           if (_toolsOpen)
             Positioned(
               left: 0,
@@ -624,6 +687,16 @@ class _SlideshowScreenState extends State<SlideshowScreen>
           ],
           _toolButton(AppIcons.schedule, context.t('ss.timer'), _showTimer, _toggleTimer,
               key: const ValueKey('ss-timer-toggle')),
+          _toolButton(AppIcons.volumeUp, context.t('ss.volume_keys'), _volumeKeys,
+              () => unawaited(_toggleVolumeKeys()),
+              key: const ValueKey('ss-volume')),
+          _toolButton(AppIcons.wifi, context.t('ss.web_remote'), _server != null,
+              () => unawaited(_toggleWebRemote()),
+              key: const ValueKey('ss-web')),
+          if (_screens > 0)
+            _toolButton(AppIcons.phonelink, context.t('ss.second_screen'), _second,
+                () => unawaited(_toggleSecond()),
+                key: const ValueKey('ss-second')),
           _toolButton(AppIcons.chevron, context.t('ss.next'), false, _forward),
         ]),
       ),

@@ -221,4 +221,12 @@ const Map<String, (String, String, String)> _t25 = {
   'sp.link_slide': ('Belirli slayt', 'A specific slide', 'شريحة محددة'),
   'sp.link_end': ('Gösteriyi bitir', 'End show', 'إنهاء العرض'),
   'sp.link_none': ('Bağlantıyı kaldır', 'Remove link', 'إزالة الارتباط'),
+  'sp.record': ('Prova + anlatım kaydet', 'Rehearse & record narration', 'التمرين وتسجيل التعليق'),
+  'sp.record_hint': ('Her slayt sesi ve süresi kaydedilir; sunum kendi ilerler', 'Each slide\'s voice and timing are saved; the show advances itself', 'يُحفظ صوت كل شريحة وتوقيتها؛ يتقدم العرض تلقائيًا'),
+  'sp.record_save': ('{n} slayt için anlatım kaydedildi. Sunuma eklensin mi?', 'Narration recorded for {n} slides. Add it to the deck?', 'تم تسجيل التعليق لـ {n} شرائح. هل تريد إضافته إلى العرض؟'),
+  'sp.record_done': ('Anlatım eklendi', 'Narration added', 'تمت إضافة التعليق'),
+  'sp.mic_denied': ('Mikrofon izni verilmedi', 'Microphone permission denied', 'لم يُمنح إذن الميكروفون'),
+  'ss.volume_keys': ('Ses tuşlarıyla ilerle', 'Advance with volume keys', 'التقدم بأزرار الصوت'),
+  'ss.web_remote': ('Yerel ağdan kumanda', 'Remote over local network', 'التحكم عبر الشبكة المحلية'),
+  'ss.second_screen': ('İkinci ekranda göster', 'Show on second screen', 'العرض على شاشة ثانية'),
 };

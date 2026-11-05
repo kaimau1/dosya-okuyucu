@@ -363,4 +363,24 @@ void main() {
       expect(PptxEditor.parse(b).slides, hasLength(2));
     });
   });
+
+  group('madde 9 — anlatım', () {
+    test('anlatım gömülür: kendiliğinden çalar, süre advTm, tıklama adımı değil', () async {
+      final audio = Uint8List.fromList(List.filled(32, 3));
+      var b = await PptxPro.run(deck, PptxMediaOps.setNarration(0, audio, 4200));
+      var info = PptxShowInfo.read(open(b))[0];
+      expect(info.advanceMs, 4200);
+      expect(info.media.single.autoplay, isTrue);
+      expect(info.media.single.video, isFalse);
+      expect(PptxEditor.parse(b).slides[0].view!.steps, isEmpty);
+      // Yeniden kayıt öncekini değiştirir (iki ses olmaz).
+      b = await PptxPro.run(b, PptxMediaOps.setNarration(0, audio, 3000));
+      info = PptxShowInfo.read(open(b))[0];
+      expect(info.media, hasLength(1));
+      expect(info.advanceMs, 3000);
+      final x = open(b).xml(open(b).slidePart(0))!.toXmlString();
+      expect('<p:audio>'.allMatches(x), hasLength(1));
+      expect(x, contains('playFrom(0.0)'));
+    });
+  });
 }

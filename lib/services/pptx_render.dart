@@ -523,6 +523,13 @@ class PptxRender {
     final steps = <List<AnimTarget>>[];
     for (final par in childList.childElements) {
       if (par.name.qualified != 'p:par') continue;
+      // Faz 38: medya oynatma komutu (anlatım "playFrom") görünürlük adımı
+      // değildir — sayılırsa ses simgesi tıklamaya kadar gizlenirdi.
+      if (par.descendantElements.any((e) =>
+          e.name.qualified == 'p:cTn' &&
+          e.getAttribute('presetClass') == 'mediacall')) {
+        continue;
+      }
       final targets = <AnimTarget>[];
       for (final tgt in par.descendantElements) {
         if (tgt.name.qualified != 'p:spTgt') continue;

@@ -13,9 +13,16 @@ class SlideMediaRef {
   final double x, y, w, h;
   final String part;
   final bool video;
+
+  /// Slayta girince kendiliğinden çalar (kayıtlı anlatım).
+  final bool autoplay;
   const SlideMediaRef(
-      this.shapeId, this.x, this.y, this.w, this.h, this.part, this.video);
+      this.shapeId, this.x, this.y, this.w, this.h, this.part, this.video,
+      {this.autoplay = false});
 }
+
+/// Anlatım sesinin işareti (`p:cNvPr@descr`).
+const kNarrationMarker = 'dosya:anlatim';
 
 /// **Faz 38 / madde 4 — ses/video ekleme.** PowerPoint'in yazdığı yapı:
 /// `p:pic` + `a:videoFile|a:audioFile r:link` + `p14:media r:embed`, kapak
@@ -126,8 +133,97 @@ abstract final class PptxMediaOps {
         v('a:ext', 'cy'),
         target,
         file?.name.local == 'videoFile' || (file == null && isVideoExt(ext)),
+        autoplay: pic.findAllElements('p:cNvPr').firstOrNull?.getAttribute('descr') ==
+            kNarrationMarker,
       ));
     }
     return out;
   }
+
+  /// **Faz 38 / madde 9 — kayıtlı anlatım.** Slaytın önceki anlatımını
+  /// kaldırır, yeni sesi (M4A) sağ alt köşeye küçük simgeyle ekler, slayta
+  /// girince çalmasını (PowerPoint `playFrom` komutu) ve [ms] sonra sonraki
+  /// slayta geçmeyi (`p:transition@advTm`) yazar.
+  static PptxOp setNarration(int slide, Uint8List audio, int ms) => (pkg) {
+        final part = pkg.slidePart(slide);
+        final d = pkg.edit(part)!;
+        // Eski anlatım: şekil + oynatma düğümleri.
+        final old = [
+          for (final c in d.findAllElements('p:cNvPr'))
+            if (c.getAttribute('descr') == kNarrationMarker) c.getAttribute('id'),
+        ];
+        for (final id in old) {
+          final sh = PptxPackage.shapeById(d, int.tryParse(id ?? '') ?? -1);
+          sh?.parent?.children.remove(sh);
+        }
+        final timing = d.rootElement.getElement('p:timing');
+        if (timing != null && old.isNotEmpty) {
+          for (final t in timing.findAllElements('p:spTgt').toList()) {
+            if (!old.contains(t.getAttribute('spid'))) continue;
+            // Hedefi gidenin en dış düğümü: mainSeq'teki par ya da p:audio.
+            XmlElement? n = t;
+            while (n != null &&
+                !(n.name.qualified == 'p:audio' ||
+                    (n.name.qualified == 'p:par' &&
+                        n.parentElement?.parentElement?.getAttribute('nodeType') == 'mainSeq'))) {
+              n = n.parentElement;
+            }
+            n?.parent?.children.remove(n);
+          }
+        }
+        final (w, h) = pkg.slideSize();
+        final side = h ~/ 14;
+        insert(slide, audio, 'm4a',
+            name: 'Anlatım',
+            emu: [w - side * 3 ~/ 2, h - side * 3 ~/ 2, side, side])(pkg);
+        final id = PptxPackage.nextShapeId(d) - 1;
+        PptxPackage.shapeById(d, id)
+            ?.findAllElements('p:cNvPr')
+            .first
+            .setAttribute('descr', kNarrationMarker);
+        // Geçiş: advTm (ECMA sırası cSld, clrMapOvr, transition, timing).
+        var tr = d.rootElement.getElement('p:transition');
+        if (tr == null) {
+          tr = XmlElement(XmlName.fromString('p:transition'));
+          final after = d.rootElement.getElement('p:clrMapOvr') ??
+              d.rootElement.getElement('p:cSld');
+          final kids = d.rootElement.children;
+          kids.insert(after == null ? 0 : kids.indexOf(after) + 1, tr);
+        }
+        tr.setAttribute('advTm', '${ms.clamp(500, 86400000)}');
+        // Zamanlama: slayt başında oynat.
+        var t = d.rootElement.getElement('p:timing');
+        if (t == null || t.findAllElements('p:cTn').where((c) => c.getAttribute('nodeType') == 'mainSeq').isEmpty) {
+          t?.parent?.children.remove(t);
+          t = PptxPackage.frag('<p:timing><p:tnLst><p:par>'
+              '<p:cTn id="1" dur="indefinite" restart="never" nodeType="tmRoot"><p:childTnLst>'
+              '<p:seq concurrent="1" nextAc="seek"><p:cTn id="2" dur="indefinite" nodeType="mainSeq"><p:childTnLst/></p:cTn>'
+              '<p:prevCondLst><p:cond evt="onPrev" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:prevCondLst>'
+              '<p:nextCondLst><p:cond evt="onNext" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:nextCondLst>'
+              '</p:seq></p:childTnLst></p:cTn></p:par></p:tnLst></p:timing>');
+          final ext = d.rootElement.getElement('p:extLst');
+          final kids = d.rootElement.children;
+          kids.insert(ext == null ? kids.length : kids.indexOf(ext), t);
+        }
+        final main = t.findAllElements('p:cTn').firstWhere((c) => c.getAttribute('nodeType') == 'mainSeq');
+        main.getElement('p:childTnLst')!.children.insert(
+            0,
+            PptxPackage.frag('<p:par><p:cTn id="0" fill="hold"><p:stCondLst><p:cond delay="indefinite"/>'
+                '<p:cond evt="onBegin" delay="0"><p:tn val="2"/></p:cond></p:stCondLst><p:childTnLst>'
+                '<p:par><p:cTn id="0" fill="hold"><p:stCondLst><p:cond delay="0"/></p:stCondLst><p:childTnLst>'
+                '<p:par><p:cTn id="0" presetID="1" presetClass="mediacall" presetSubtype="0" fill="hold" nodeType="afterEffect">'
+                '<p:stCondLst><p:cond delay="0"/></p:stCondLst><p:childTnLst>'
+                '<p:cmd type="call" cmd="playFrom(0.0)"><p:cBhvr><p:cTn id="0" dur="$ms" fill="hold"/>'
+                '<p:tgtEl><p:spTgt spid="$id"/></p:tgtEl></p:cBhvr></p:cmd>'
+                '</p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:par>'));
+        main.parentElement!.parentElement!.children.add(PptxPackage.frag(
+            '<p:audio><p:cMediaNode vol="80000"><p:cTn id="0" display="0" fill="hold">'
+            '<p:stCondLst><p:cond delay="indefinite"/></p:stCondLst>'
+            '<p:endCondLst><p:cond evt="onStopAudio" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:endCondLst>'
+            '</p:cTn><p:tgtEl><p:spTgt spid="$id"/></p:tgtEl></p:cMediaNode></p:audio>'));
+        var n = 1;
+        for (final c in t.findAllElements('p:cTn')) {
+          c.setAttribute('id', '${n++}');
+        }
+      };
 }

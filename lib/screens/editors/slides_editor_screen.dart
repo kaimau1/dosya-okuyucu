@@ -14,6 +14,7 @@ import 'package:flutter/services.dart'
     show Clipboard, ClipboardData, LogicalKeyboardKey, PlatformException;
 import 'package:pdf/pdf.dart' show PdfPageFormat;
 import 'package:share_plus/share_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/app_icons.dart';

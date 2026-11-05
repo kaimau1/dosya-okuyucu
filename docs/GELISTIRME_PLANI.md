@@ -216,7 +216,8 @@ düzeni **artımlı** (yalnız değişen paragraf ve sonrası), görünür sayfa
 - [x] 8. Şekil kitaplığı, bağlayıcı çizgiler, gradyan/gölge/yansıma, görsel kırpma/şekle kırp, arka plan
 kaldırma (ML Kit, isteğe bağlı), tablo biçimleri, bağlantı/eylem düğmeleri, canlı sayaç.
    (`pptx_shape_ops.dart`, `kSlideShapeLibrary`, `slides_pro/shape_library.dart`, `slides/pro_shapes.dart`; arka plan `ci/Slayt.kt` konu bölütleme; sunumda köprü/eylem + sayaç `slideshow/actions.dart`.)
-- [ ] 9. Sunum: uzaktan kumanda (ses tuşları/yerel ağ), kayıtlı anlatım, HDMI/Cast ikinci ekran notları.
+- [x] 9. Sunum: uzaktan kumanda (ses tuşları/yerel ağ), kayıtlı anlatım, HDMI/Cast ikinci ekran notları.
+   (`slideshow/remote.dart` + `ci/Slayt.kt` — `dispatchKeyEvent`, MediaRecorder, `Presentation`; yerel ağ anahtarlı HTTP; `PptxMediaOps.setNarration` playFrom + advTm.)
 **Perf:** küçük resimler tek kez üretilir ve önbellekte (`slide_image_budget_test` korunur),
 yalnız görünür slayt tam çizilir, sunum kipinde sonraki slayt önceden rasterize, geçiş animasyonları
 `RepaintBoundary` içinde; hafif profilde karmaşık geçişler sadeleşir; `slides_perf_test` 300 slayt eşiği.

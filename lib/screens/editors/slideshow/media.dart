@@ -47,6 +47,17 @@ extension _SlideshowMedia on _SlideshowScreenState {
     await ctrl.play();
   }
 
+  /// Kayıtlı anlatım slayta girince çalar (prova kaydında çalmaz).
+  void _autoPlayMedia() {
+    if (widget.record) return;
+    for (final m in _curInfo?.media ?? const <SlideMediaRef>[]) {
+      if (m.autoplay) {
+        unawaited(_playMedia(m));
+        return;
+      }
+    }
+  }
+
   void _onMediaTick() {
     final m = _media;
     if (m == null) return;
