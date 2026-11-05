@@ -53,7 +53,7 @@ class SigningIdentity {
   });
 
   RSAPrivateKey get privateKey =>
-      RSAPrivateKey(modulus, privateExponent, p, q, publicExponent);
+      RSAPrivateKey(modulus, privateExponent, p, q);
 
   RSAPublicKey get publicKey => RSAPublicKey(modulus, publicExponent);
 
