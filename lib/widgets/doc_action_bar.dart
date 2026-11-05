@@ -39,7 +39,17 @@ class DocAction {
 class DocActionBar extends StatelessWidget {
   final List<DocAction> actions;
 
-  const DocActionBar(this.actions, {super.key});
+  /// **Bağlama duyarlı grup** (Faz 40 / 1): seçime özgü eylemler (aralık
+  /// seçiliyken Kopyala/Kes/Yapıştır …). Boş değilse şeridin BAŞINA, hafif
+  /// vurgulu bir hap içinde gelir ve şerit kaydırmalı düzene geçer — kalıcı
+  /// eylemler yerinde kalır, yalnız sağa kayar.
+  final List<DocAction> contextual;
+
+  /// Bağlam grubunun TalkBack etiketi ("Seçim").
+  final String? contextLabel;
+
+  const DocActionBar(this.actions,
+      {super.key, this.contextual = const [], this.contextLabel});
 
   /// Bir düğmenin en az genişliği; altına inilirse kaydırmaya geçilir.
   static const double _minSlot = 68;
@@ -50,6 +60,7 @@ class DocActionBar extends StatelessWidget {
       final width = box.maxWidth.isFinite
           ? box.maxWidth
           : MediaQuery.sizeOf(context).width;
+      if (contextual.isNotEmpty) return _withContext(context, width);
       final n = actions.isEmpty ? 1 : actions.length;
       final fits = width / n >= _minSlot;
       if (fits) {
@@ -76,6 +87,46 @@ class DocActionBar extends StatelessWidget {
         ),
       );
     });
+  }
+}
+
+extension on DocActionBar {
+  /// Bağlam grubu + kalıcı eylemler, tek kaydırmalı satır.
+  Widget _withContext(BuildContext context, double width) {
+    final scheme = Theme.of(context).colorScheme;
+    final visible = ((width - 8) / 76).floor().clamp(3, 12);
+    final slot = (width - 8) / (visible + 0.5);
+    return SingleChildScrollView(
+      key: const ValueKey('doc-bar-context'),
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      child: Row(
+        children: [
+          Semantics(
+            container: true,
+            label: contextLabel,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer.withValues(alpha: 0.45),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final a in contextual)
+                    SizedBox(width: slot, child: _DockButton(a)),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(
+            height: 40,
+            child: VerticalDivider(width: 9, color: scheme.outlineVariant),
+          ),
+          for (final a in actions) SizedBox(width: slot, child: _DockButton(a)),
+        ],
+      ),
+    );
   }
 }
 

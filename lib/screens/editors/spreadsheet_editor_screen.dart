@@ -61,6 +61,7 @@ import '../../services/xlsx_editor.dart';
 import '../../services/xlsx_file_charts.dart';
 import '../fm/pick_file_screen.dart' show AppFilePicker;
 import '../../widgets/doc_action_bar.dart';
+import '../../widgets/editor_top_bar.dart';
 import '../../widgets/doc_find_bar.dart';
 import '../../widgets/doc_more_sheet.dart';
 import '../../widgets/chart_insert_dialog.dart';
@@ -501,27 +502,35 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
           : null,
       // Kaydet/Paylaş/CSV/Çevir ALT çubukta; burada yalnız karşılığı olmayanlar
       // kalır (2026-07-28 kullanıcı isteği: tekrar eden düğmeler kalksın).
-      actions: [
-        // Geri al / yinele Excel'de de en görünür yerdedir: her düzenleme
-        // güvenle denenebilsin.
-        // Sayfa git / bölme / yön ve arama artık ŞERİTTE (Veri ve Görünüm
-        // sekmeleri) — üst çubukta yalnız her an lazım olan ikili kaldı.
-        IconButton(
-          tooltip: context.t('excel.undo'),
-          icon: const Icon(OfficeIcons.undo),
-          onPressed: editor == null || !_undo.canUndo ? null : _undoStep,
-        ),
-        IconButton(
-          tooltip: context.t('excel.redo'),
-          icon: const Icon(OfficeIcons.redo),
-          onPressed: editor == null || !_undo.canRedo ? null : _redoStep,
-        ),
-        IconButton(
-          tooltip: context.t('common.search'),
-          icon: const Icon(OfficeIcons.search),
-          onPressed: editor == null ? null : _toggleFind,
-        ),
-      ],
+      // Faz 40 / 1: ortak üst çubuk sırası (kaydet · ↶ · ↷ · ara · ⋮).
+      // Sayfa git / bölme / yön şeritte (Veri ve Görünüm sekmeleri).
+      actions: EditorTopBar.actions(
+        context,
+        onSave: editor == null ? null : _save,
+        undo: () => editor == null || !_undo.canUndo ? null : _undoStep,
+        redo: () => editor == null || !_undo.canRedo ? null : _redoStep,
+        extras: [
+          IconButton(
+            tooltip: context.t('common.search'),
+            icon: const Icon(OfficeIcons.search),
+            onPressed: editor == null ? null : _toggleFind,
+          ),
+        ],
+        menu: [
+          EditorMenuItem(
+            id: 'export',
+            icon: AppIcons.share,
+            label: context.t('ux.share_export'),
+            onTap: editor == null ? null : _export,
+          ),
+          EditorMenuItem(
+            id: 'csv',
+            icon: AppIcons.tableView,
+            label: 'CSV',
+            onTap: editor == null ? null : _exportCsv,
+          ),
+        ],
+      ),
       body: withDraftBanner(restore: _restoreDraft, EditorChrome(
         editing: _editing,
         accessory: _excelAccessory(),
@@ -567,9 +576,23 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
         mainAxisSize: MainAxisSize.min,
         children: [
           if (visibleSheets.length >= 2) _sheetTabs(visibleSheets),
-          DocActionBar([
-            DocAction(AppIcons.save, context.t('common.save'),
-                editor == null ? null : _save),
+          DocActionBar(
+            // Faz 40 / 1: aralık seçiliyken seçim eylemleri şeridin başında.
+            contextual: _anchorRow != _selRow || _anchorCol != _selCol
+                ? [
+                    DocAction(AppIcons.copyPlain, context.t('common.copy'),
+                        editor == null ? null : _copySelection),
+                    DocAction(AppIcons.cut, context.t('excel.cut'),
+                        editor == null
+                            ? null
+                            : () => _copySelection(cut: true)),
+                    DocAction(AppIcons.paste, context.t('common.paste'),
+                        editor == null ? null : _paste),
+                  ]
+                : const [],
+            contextLabel: context.t('ux.selection'),
+            [
+            // Kaydet üst çubukta (Faz 40 / 1).
             DocAction(AppIcons.share, context.t('common.share'),
                 editor == null ? null : _export),
             // Başka uygulamadan açıldıysa dosya özel önbellekte: doğrudan
