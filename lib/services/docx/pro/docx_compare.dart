@@ -8,7 +8,7 @@
 /// * [DocxCompare.append]: başka belgenin gövdesi imleçten sonra eklenir
 ///   (resim/bağlantı ilişkileri taşınamadığı için çizimler düşer, bağlantı
 ///   metni kalır).
-/// * [DocxReview]: izlenen değişiklik + yorum listesi ve TEK öğeyi kabul/ret.
+/// * [DocxReviewTools]: izlenen değişiklik + yorum listesi ve TEK öğeyi kabul/ret.
 library;
 
 import 'package:xml/xml.dart';
@@ -272,7 +272,7 @@ abstract final class DocxCompare {
       };
 }
 
-abstract final class DocxReview {
+abstract final class DocxReviewTools {
   static String _snippet(XmlElement e) {
     final t = e.descendantElements
         .where((x) => x.name.local == 't' || x.name.local == 'delText')

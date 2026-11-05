@@ -43,21 +43,21 @@ void main() {
     final newer = _edit(older, i, changed.join(' '));
     final out = _apply(newer, DocxCompare.compare(older, at: DateTime.utc(2026, 11, 5)));
     final pkg = DocxPackage.open(out);
-    final items = DocxReview.items(pkg);
+    final items = DocxReviewTools.items(pkg);
     expect(items.map((x) => x.kind), containsAll(['ins', 'del']));
     final at = items.firstWhere((x) => x.kind == 'ins').para;
     // Editör açar; görünen metin eski + yeni sözcüğü birlikte taşır.
     expect(DocxDocument.parse(out).paras, isNotEmpty);
-    final accepted = _apply(out, DocxReview.resolve(at, accept: true));
+    final accepted = _apply(out, DocxReviewTools.resolve(at, accept: true));
     expect(DocxDocument.parse(accepted).paras[at].text, changed.join(' '));
-    final rejected = _apply(out, DocxReview.resolve(at, accept: false));
+    final rejected = _apply(out, DocxReviewTools.resolve(at, accept: false));
     expect(DocxDocument.parse(rejected).paras[at].text, doc.paras[i].text);
   });
 
   test('aynı belge: değişiklik yok', () {
     final b = _fx('tablo');
     final out = _apply(b, DocxCompare.compare(b));
-    expect(DocxReview.items(DocxPackage.open(out)).where((x) => x.kind != 'comment'),
+    expect(DocxReviewTools.items(DocxPackage.open(out)).where((x) => x.kind != 'comment'),
         isEmpty);
   });
 

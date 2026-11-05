@@ -345,7 +345,7 @@ extension _WordProPart on _WordMobileEditorScreenState {
     final doc = _doc;
     if (doc == null) return;
     final bytes = await doc.saveAsync();
-    final items = await DocxPro.query(bytes, DocxReview.items);
+    final items = await DocxPro.query(bytes, DocxReviewTools.items);
     if (!mounted) return;
     if (items.isEmpty) {
       _setState(() => _review = null);
@@ -354,7 +354,7 @@ extension _WordProPart on _WordMobileEditorScreenState {
     }
     _setState(() {
       _review = items;
-      _reviewAt = keep.clamp(0, items.length - 1);
+      _reviewAt = keep.clamp(0, items.length - 1).toInt();
     });
     _placeCaret(items[_reviewAt].para);
   }
@@ -370,7 +370,7 @@ extension _WordProPart on _WordMobileEditorScreenState {
     final r = _review;
     if (r == null) return;
     final item = r[_reviewAt];
-    final ok = await _proApply(DocxReview.resolve(item.para, accept: accept),
+    final ok = await _proApply(DocxReviewTools.resolve(item.para, accept: accept),
         keepPara: item.para);
     if (ok) await _openReview(keep: _reviewAt);
   }
