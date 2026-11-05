@@ -258,7 +258,7 @@ karartma/sıkıştırma/OCR/karşılaştırma `JobQueue` + izolat, 500 sayfa PDF
 testi, küçük resim şeridi yalnız açıkken üretilir.
 
 ## Faz 40 — Ortak görünüm ve deneyim
-1. **Tasarım dili:** tüm editör üst çubukları tek yapı (başlık · kaydet · geri/ileri · ⋮),
+1. [x] **Tasarım dili:** tüm editör üst çubukları tek yapı (başlık · kaydet · geri/ileri · ⋮),
    alt araç şeridi kaydırılabilir + bağlama duyarlı (seçime göre).
 2. Animasyon/hareket: sayfa geçişleri `Motion` tokenlarıyla; boş durum çizimleri.
 3. Erişilebilirlik: 2× yazı, TalkBack etiketleri, kontrast denetimi (token bekçisi).
