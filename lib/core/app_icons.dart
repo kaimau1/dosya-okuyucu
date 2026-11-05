@@ -522,4 +522,6 @@ abstract final class AppIcons {
 
   // Faz 36 — Excel pro.
   static const IconData trafficLight = Icons.traffic_rounded;
+  static const IconData goalSeek = Icons.track_changes_rounded;
+  static const IconData traceDependents = Icons.call_split_rounded;
 }

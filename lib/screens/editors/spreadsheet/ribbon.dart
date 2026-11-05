@@ -199,6 +199,15 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
           ])
             RibbonButton(OfficeIcons.autoSum, context.t(key),
                 key: ValueKey('xl-fn-$fn'), onTap: () => _autoFunction(fn)),
+          const RibbonSep(),
+          RibbonButton(AppIcons.accountTree, context.t('xp.trace_prec'),
+              key: const ValueKey('xl-trace-prec'), onTap: _tracePrecedents),
+          RibbonButton(AppIcons.traceDependents, context.t('xp.trace_dep'),
+              key: const ValueKey('xl-trace-dep'), onTap: _traceDependents),
+          RibbonButton(AppIcons.close, context.t('xp.trace_clear'),
+              active: _arrows.isNotEmpty, onTap: _clearArrows),
+          RibbonButton(AppIcons.goalSeek, context.t('xp.goal_seek'),
+              key: const ValueKey('xl-goal-seek'), onTap: _goalSeek),
         ]),
         RibbonTab(context.t('excel.tab_data'), [
           RibbonButton(OfficeIcons.sortAsc, context.t('excel.sort_asc'),

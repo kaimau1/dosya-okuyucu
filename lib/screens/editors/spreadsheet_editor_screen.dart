@@ -51,6 +51,7 @@ import '../../services/sheet_edit.dart';
 import '../../services/sheet_input.dart';
 import '../../services/xlsx_save_patch.dart' show XlsxStyleEdit;
 import '../../services/xlsx/theme_palette.dart';
+import '../../services/formula_audit.dart';
 import '../../services/xlsx/data_tools.dart';
 import '../../services/xlsx/pivot.dart';
 import '../../services/xlsx/sheet_pdf.dart';
@@ -95,6 +96,7 @@ part 'spreadsheet/chart_layer.dart';
 part 'spreadsheet/keyboard.dart';
 part 'spreadsheet/pro_data.dart';
 part 'spreadsheet/pro_format.dart';
+part 'spreadsheet/pro_audit.dart';
 
 /// Excel görünümü — hedef: dosya telefonda **Excel'deki gibi** görünsün.
 ///
@@ -336,6 +338,10 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
 
   /// Biçim boyacısı kaynağı (üst, sol, satır, sütun) — Faz 36 madde 9.
   (int, int, int, int)? _painter;
+
+  /// Formül denetimi okları: (kaynak aralık, hedef satır, hedef sütun).
+  List<(AuditRef, int, int)> _arrows = const [];
+  String? _arrowsSheet;
 
   /// Başlık kenarından sürükleyerek boyutlandırma sürüyor mu (ve neyi)?
   /// `null` = sürükleme yok. Sürüklerken canlı ölçü rozeti gösterilir.

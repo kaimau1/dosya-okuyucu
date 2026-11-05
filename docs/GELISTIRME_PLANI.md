@@ -149,7 +149,9 @@ metni sütunlara böl, ara toplam, gruplama/anahat, hücre notları/yorum dizisi
 - [x] 9. Biçim boyacısı, koşullu biçim yöneticisi, hücre stilleri galerisi, tema renkleri.
    (Stil galerisi vardı; boyacı tek dokunuşluk, yönetici dosya kurallarını da siler (`condRemovals`),
    renk seçicide `xlsx/theme_palette.dart` tema ızgarası.)
-10. Formül denetimi (öncül/ardıl oklar), döngüsel başvuru uyarısı, "Ne-olursa" (hedef ara).
+- [x] 10. Formül denetimi (öncül/ardıl oklar), döngüsel başvuru uyarısı, "Ne-olursa" (hedef ara).
+   (`formula_audit.dart`: öncül/ardıl + kiriş/ikiye bölme çözücü; oklar ızgara üstü salt çizim;
+   döngü yazınca uyarı.)
 11. Grafik: kombinasyon, ikincil eksen, eğilim çizgisi, grafik stilleri; grafiği görüntü/PDF paylaş.
 12. Çok kişilik: sayfa/aralık koruma; yazdırma alanı. **Perf:** hesaplama **bağımlılık grafiği +
 kirli hücre** (tam yeniden hesap YOK), pivot/büyük yapıştır izolatta, görünür pencere dışı hücre

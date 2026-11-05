@@ -535,6 +535,7 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
         : null;
     _editCells('excel.undo_typing', {at: m.raw}, numberFormats: fmt);
     if (m.noteKey != null) _snack(context.t(m.noteKey!));
+    if (m.raw.startsWith('=')) _warnIfCycle(at.row, at.col);
   }
 
   /// Seçili aralık (tek hücrede de geçerli).

@@ -19,12 +19,15 @@ extension _SpreadsheetChartLayerPart on _SpreadsheetEditorScreenState {
       for (final c in editor.fileCharts)
         if (c.sheetName == sheet.name) c,
     ];
-    if (specs.isEmpty && fromFile.isEmpty) return list;
+    // Faz 36 madde 10: formül denetimi okları (yalnız çizildiği sayfada).
+    final arrows = _arrows.isNotEmpty && _arrowsSheet == sheet.name;
+    if (specs.isEmpty && fromFile.isEmpty && !arrows) return list;
     return Stack(
       children: [
         list,
         for (final chart in fromFile) _fileChartBox(chart, rows, cols),
         for (final spec in specs) _chartBox(spec, rows, cols),
+        if (arrows) _auditLayer(rows, cols),
       ],
     );
   }
