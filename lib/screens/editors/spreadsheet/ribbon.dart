@@ -17,6 +17,42 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
     final align = selStyle?.hAlign;
     final merged = _sheet?.mergeAt(_selRow, _selCol) != null;
 
+    // Sadeleştirilmiş şerit (Faz 36 madde 7): tek sekme, en sık işler.
+    // Tam şerit Görünüm sekmesinden ya da buradaki düğmeden geri gelir.
+    if (_simpleRibbon) {
+      return OfficeRibbon(
+        compact: true,
+        tabs: [
+          RibbonTab(context.t('xp.ribbon_simple'), [
+            RibbonButton(OfficeIcons.bold, context.t('common.bold'),
+                active: selStyle?.bold ?? false,
+                onTap: () => _applyStyle(bold: !(selStyle?.bold ?? false))),
+            RibbonButton(OfficeIcons.fillColor, context.t('excel.fill_color'),
+                onTap: () =>
+                    _pickColor(context.t('excel.fill_color'), _applyFillColor)),
+            RibbonButton(OfficeIcons.borders, context.t('excel.borders'),
+                onTap: _showBorders),
+            RibbonButton(OfficeIcons.autoSum, context.t('excel.autosum'),
+                onTap: _autoSum),
+            RibbonButton(OfficeIcons.sortAsc, context.t('excel.sort_asc'),
+                onTap: () => _sortSelection(true)),
+            RibbonButton(OfficeIcons.filter, context.t('excel.filter'),
+                onTap: _filterSelectedColumn),
+            RibbonButton(OfficeIcons.condFormat, context.t('excel.cond_format'),
+                onTap: _showCondFormat),
+            RibbonButton(AppIcons.insertChart, context.t('chart.insert'),
+                onTap: _insertChart),
+            RibbonButton(AppIcons.pdfTable, context.t('xp.pivot'),
+                onTap: _createPivot),
+            const RibbonSep(),
+            RibbonButton(AppIcons.tune, context.t('xp.ribbon_full'),
+                key: const ValueKey('xl-ribbon-full'),
+                onTap: () => _setSimpleRibbon(false)),
+          ]),
+        ],
+      );
+    }
+
     return OfficeRibbon(
       compact: true,
       tabs: [
@@ -213,6 +249,24 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
               onTap: _translate),
         ]),
         RibbonTab(context.t('excel.tab_view'), [
+          RibbonButton(AppIcons.tune, context.t('xp.ribbon_simple'),
+              key: const ValueKey('xl-ribbon-simple'),
+              onTap: () => _setSimpleRibbon(true)),
+          RibbonMenu<double>(
+            key: const ValueKey('xl-density'),
+            icon: AppIcons.formatLineSpacing,
+            tooltip: context.t('xp.density'),
+            onSelected: _setDensity,
+            itemBuilder: (ctx) => [
+              for (final (v, k) in const [
+                (0.85, 'xp.density_compact'),
+                (1.0, 'xp.density_normal'),
+                (1.2, 'xp.density_comfortable'),
+              ])
+                PopupMenuItem(value: v, child: Text(ctx.t(k))),
+            ],
+          ),
+          const RibbonSep(),
           RibbonButton(OfficeIcons.zoomOut, context.t('excel.zoom_out'),
               onTap: () => _zoomCtl.zoomBy(1 / 1.25)),
           RibbonChip(

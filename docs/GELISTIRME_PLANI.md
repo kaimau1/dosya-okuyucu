@@ -136,8 +136,9 @@ Ek 9: dışa aktarma `TrackedTask` → `JobQueue` (ilerleme, iptal, bitince bild
    `xlsx/table_reader.dart`, `Tablo1[Sütun]`/`[@Sütun]`/`[#Veri]`/`[[#Başlıklar],[X]]` çözümü.)
 - [x] 6. Yazdırma düzeni + PDF'e aktar (sayfa sığdır, başlık satırı yinele), parola ile aç/koru.
    (`xlsx/sheet_pdf.dart`; ECMA-376 Agile AES-256 `office_crypto.dart` + CFB yazıcı `ole_cfb_writer.dart`.)
-7. Görünüm: şerit sadeleştirme, hücre düzenleme çubuğu, parmakla seçim tutamakları,
+- [x] 7. Görünüm: şerit sadeleştirme, hücre düzenleme çubuğu, parmakla seçim tutamakları,
    kaydırmada sabit başlık gölgesi, yoğunluk (kompakt/rahat) ayarı.
+   (Düzenleme çubuğu + tutamaklar vardı; sade şerit, başlık gölgesi, yoğunluk — tercihler kalıcı.)
 **Ölçüt:** 5 örnek gerçek dosyada yaz→aç döngüsü kayıpsız (B4 uyumluluk turu).
 
 **Ek:** 8. Veri: CSV/ods içe aktar sihirbazı (ayraç/kodlama/tür önizleme), yinelenenleri kaldır,

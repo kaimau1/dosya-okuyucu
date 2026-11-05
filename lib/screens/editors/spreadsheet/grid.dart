@@ -233,6 +233,33 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
       ),
       )))),
           if (_editing) _floatingEditor(constraints),
+          // Kaydırınca sabit başlığın altında ince gölge (Faz 36 madde 7):
+          // yalnız kaydırma konumu değişince boyanır, boşta kare üretmez.
+          Positioned(
+            top: topH,
+            left: 0,
+            right: 0,
+            height: 6,
+            child: IgnorePointer(
+              child: RepaintBoundary(
+                child: AnimatedBuilder(
+                  animation: _vBody,
+                  builder: (context, _) =>
+                      _vBody.hasClients && _vBody.offset > 0.5
+                          ? const DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [AppColors.shadow, AppColors.none],
+                                ),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                ),
+              ),
+            ),
+          ),
           ..._selectionHandles(),
         ],
       );

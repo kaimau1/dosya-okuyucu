@@ -21,6 +21,7 @@ import 'package:flutter/services.dart'
         rootBundle;
 import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/app_icons.dart';
 import '../../core/excel_format.dart';
@@ -324,6 +325,9 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
   /// çift yönlü okla açılır. Veri girerken kapalı, biçim verirken açık —
   /// kullanıcı kendi ritmine göre seçer.
   bool _ribbonOpen = true;
+
+  /// Sadeleştirilmiş şerit (Faz 36 madde 7) — tercih kalıcı.
+  bool _simpleRibbon = false;
 
   /// Başlık kenarından sürükleyerek boyutlandırma sürüyor mu (ve neyi)?
   /// `null` = sürükleme yok. Sürüklerken canlı ölçü rozeti gösterilir.

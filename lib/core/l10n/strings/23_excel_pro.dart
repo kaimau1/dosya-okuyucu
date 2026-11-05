@@ -76,4 +76,11 @@ const Map<String, (String, String, String)> _t23 = {
   'xp.password_remove': ('Parolayı kaldır', 'Remove password', 'إزالة كلمة المرور'),
   'xp.password_removed': ('Parola kaldırıldı — kaydedince şifresiz yazılır', 'Password removed — saved unencrypted', 'أُزيلت كلمة المرور — سيُحفظ بلا تشفير'),
   'xp.password_mismatch': ('Parolalar aynı değil', 'Passwords do not match', 'كلمتا المرور غير متطابقتين'),
+  // ── Görünüm ──
+  'xp.ribbon_simple': ('Sade şerit', 'Simplified ribbon', 'شريط مبسّط'),
+  'xp.ribbon_full': ('Tam şerit', 'Full ribbon', 'الشريط الكامل'),
+  'xp.density': ('Yoğunluk', 'Density', 'الكثافة'),
+  'xp.density_compact': ('Kompakt', 'Compact', 'مضغوط'),
+  'xp.density_normal': ('Normal', 'Normal', 'عادي'),
+  'xp.density_comfortable': ('Rahat', 'Comfortable', 'مريح'),
 };

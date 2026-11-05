@@ -375,6 +375,44 @@ extension _SpreadsheetProDataPart on _SpreadsheetEditorScreenState {
     _snack(ok);
     await Share.shareXFiles([XFile(f.path)]);
   }
+
+  // ── 7. Görünüm: sade şerit, yoğunluk ───────────────────────────────────
+
+  static const _simpleRibbonKey = 'excel_simple_ribbon';
+  static const _densityKey = 'excel_density';
+
+  /// Görünüm tercihleri (açılışta bir kez; dosyanın kendi yakınlığı varsa o
+  /// kazanır — `_load` sonrası `zoomScale`).
+  Future<void> _loadViewPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final simple = prefs.getBool(_simpleRibbonKey) ?? false;
+      final density = prefs.getDouble(_densityKey);
+      if (!mounted) return;
+      if (simple != _simpleRibbon) _partSetState(() => _simpleRibbon = simple);
+      final fileZoom = _sheet?.layout.zoomScale ?? 1;
+      if (density != null && density != 1 && fileZoom == 1) {
+        _zoomCtl.setZoom(density);
+      }
+    } catch (_) {
+      // Tercih okunamazsa varsayılan görünüm.
+    }
+  }
+
+  void _setSimpleRibbon(bool on) {
+    _partSetState(() => _simpleRibbon = on);
+    unawaited(SharedPreferences.getInstance()
+        .then((p) => p.setBool(_simpleRibbonKey, on))
+        .catchError((_) => false));
+  }
+
+  /// Yoğunluk = taban yakınlık (kompakt 0,85 · normal 1 · rahat 1,2).
+  void _setDensity(double v) {
+    _zoomCtl.setZoom(v);
+    unawaited(SharedPreferences.getInstance()
+        .then((p) => p.setDouble(_densityKey, v))
+        .catchError((_) => false));
+  }
 }
 
 /// Yazdırma ayarları: yön, sayfaya sığdır, başlık yinele, ızgara.

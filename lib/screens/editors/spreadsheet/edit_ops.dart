@@ -115,6 +115,7 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     if (_editor?.truncated == true) _session.autoSaveForDoc = false;
     if (_editor != null) {
       unawaited(_warmCalc());
+      unawaited(_loadViewPrefs());
       unawaited(_session.captureSource());
       unawaited(lookForDraft(widget.savePath ?? widget.path));
     }
