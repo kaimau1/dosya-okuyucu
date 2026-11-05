@@ -83,9 +83,15 @@ jobs:
     name: Değişiklik süzgeci
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
+      checks: read
+      pull-requests: read
     outputs:
       app: ${{ steps.diff.outputs.app }}
       kotlin: ${{ steps.diff.outputs.kotlin }}
+      test_mod: ${{ steps.secim.outputs.mod }}
+      test_liste: ${{ steps.secim.outputs.liste }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -110,16 +116,41 @@ jobs:
           echo "kotlin=$KOTLIN" >> "$GITHUB_OUTPUT"
           echo "app=$APP kotlin=$KOTLIN"
 
+      # TEST SEÇİMİ (2026-11-05, kullanıcı kararı): dalda yalnız etkilenen
+      # testler (main'den ayrıldığı yerden bu yana); main'de PR başında yeşil
+      # olan aynı ağaç tekrar test edilmez. Tam takım: başlıkta [tam], etiket
+      # ya da elle tetik (tool/ci_test_secimi.sh).
+      - name: Test seçimi
+        id: secim
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash tool/ci_test_secimi.sh 'Doğrulama'
+
   # ── Doğrulama: her dalda (main dahil) ───────────────────────────────────
+  # 3 PARÇA PARALEL (2026-11-05): analyze + Kotlin denetimi 0. parçada.
+  # Kırmızı parça: Actions'ta "Re-run failed jobs" yalnız onu yeniden koşar.
+  # mod=atla → adımlar koşmaz, iş saniyede YEŞİL biter (release beklemesin).
   verify:
-    name: Doğrulama (analyze + test)
+    name: Doğrulama (${{ matrix.shard }}/3)
     needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2]
+    env:
+      MOD: ${{ needs.changes.outputs.test_mod }}
     steps:
+      - name: Atlandı (aynı ağaç PR başında yeşil)
+        if: env.MOD == 'atla'
+        run: echo "main ağacı, birleştirilen PR başıyla aynı ve orada yeşil — doğrulama atlandı."
+
       - uses: actions/checkout@v4
+        if: env.MOD != 'atla'
 
       - name: Flutter kurulumu (önbellekli)
+        if: env.MOD != 'atla'
         uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -130,23 +161,39 @@ jobs:
       # çözümlemiyor; kilit pubspec'le uyuşmazsa adım kırılır (yerelde
       # `flutter pub get` koşturup kilidi commit'le).
       - name: Bağımlılıklar
+        if: env.MOD != 'atla'
         run: flutter pub get --enforce-lockfile
 
       # KAPI (2026-08-28): `flutter analyze` info seviyesinde de sıfır dışı
       # çıkar — bu adım "hiç uyarı yok" demektir. Başka bir Flutter sürümü
       # denenirken kullanımdan kaldırma uyarıları BEKLENİR → bağlayıcı değil.
       - name: Statik çözümleme (analyze)
+        if: env.MOD != 'atla' && matrix.shard == 0
         continue-on-error: ${{ env.FLUTTER_VERSION != '3.44.6' }}
         run: flutter analyze
 
+      # -j verilmez: varsayılan eşzamanlılık (yükte süre sınırına takılan
+      # ölçüm testleri var — HAFIZA 2026-11-02).
       - name: Birim ve widget testleri
-        run: flutter test
+        if: env.MOD != 'atla'
+        env:
+          LISTE: ${{ needs.changes.outputs.test_liste }}
+        run: |
+          if [ "$MOD" = secili ]; then
+            printf '%s\n' "$LISTE" | sed '/^$/d' | while read -r f; do [ -f "$f" ] && echo "$f"; done | sort > /tmp/tum.txt
+          else
+            find test -name '*_test.dart' | sort > /tmp/tum.txt
+          fi
+          mapfile -t files < <(awk -v n=3 -v i=${{ matrix.shard }} '(NR-1) % n == i' /tmp/tum.txt)
+          echo "Seçim: $MOD — toplam $(wc -l < /tmp/tum.txt), bu parçada ${#files[@]} test dosyası."
+          if [ ${#files[@]} -eq 0 ]; then echo "Bu parçaya test düşmedi."; exit 0; fi
+          flutter test "${files[@]}"
 
       # C11: `ci/*.kt` yalnız APK derlemesinde derleniyordu; tek satırlık bir
       # tür hatası 13 dk'lık turun SONUNDA çıkıyordu (HAFIZA 2026-09-02).
       # kotlinc runner imajında yoksa betik sessizce atlar.
       - name: Kotlin tür denetimi (ci/ değiştiyse)
-        if: needs.changes.outputs.kotlin == 'true'
+        if: env.MOD != 'atla' && matrix.shard == 0 && needs.changes.outputs.kotlin == 'true'
         run: bash tool/check_kotlin.sh
 
   # ── Derleme: imzalı APK (+ istenirse AAB) ───────────────────────────────
