@@ -139,7 +139,8 @@ void main() {
       expect(PptxChartOps.tables(open(b), 1), [90]);
       final d = PptxChartOps.fromTable(open(b), 1, 90)!;
       expect(d.categories, ['Ocak', 'Şubat']);
-      expect(d.series.single, ('Satış', [1200.0, 950.5]));
+      expect(d.series.single.$1, 'Satış');
+      expect(d.series.single.$2, [1200.0, 950.5]);
       b = await PptxPro.run(b, PptxChartOps.insertFromTable(1, 90, SlideChartKind.line));
       expect(PptxEditor.parse(b).slides[1].view!.shapes.where((s) => s.chart != null), hasLength(1));
     });
