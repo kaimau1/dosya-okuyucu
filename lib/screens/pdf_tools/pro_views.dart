@@ -40,6 +40,11 @@ const _proTools = <List<_ProTool>>[
     _ProTool('numbering', AppIcons.formatListNumbered, 'pp.numbering', 'pp.numbering_sub'),
   ],
   [
+    _ProTool('form_create', AppIcons.pdfTextField, 'pp.form_create',
+        'pp.form_create_sub'),
+    _ProTool('form_profile', AppIcons.pdfAutofill, 'pp.profile', 'pp.profile_sub'),
+  ],
+  [
     _ProTool('compress_hard', AppIcons.pdfCompressHard, 'pp.compress_hard',
         'pp.compress_hard_sub'),
   ],

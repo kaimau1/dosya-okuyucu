@@ -200,7 +200,8 @@ yalnız görünür slayt tam çizilir, sunum kipinde sonraki slayt önceden rast
 - [x] 8. Sayfa küçük resim ızgarasında çoklu seç → döndür/sil/çıkar/yeniden sırala (var olanı
 genişlet), boş sayfa algıla ve sil, sayfaları kırp/boyutlandır, A4'e sığdır.
    (`pdf_page_pro.dart`, `pdf_reorder_screen.dart`; kırpma bölge ekranının `crop` kipi.)
-9. Formlar: alan vurgusu, otomatik doldurma profili (ad/adres), düzleştir, form oluştur (metin/onay/imza).
+- [x] 9. Formlar: alan vurgusu, otomatik doldurma profili (ad/adres), düzleştir, form oluştur (metin/onay/imza).
+   (Vurgu `PdfFormOverlay` + düzleştirme vardı; `pdf_form_pro.dart` profil/eşleme/alan ekleme.)
 10. Notlar: metin vurgusu/çizgi/not özeti dışa aktar; metinde ara + sonuç listesi + OCR'lı taranmış PDF'te ara.
 11. Görüntüden PDF / PDF'ten görüntü toplu, web sayfasından PDF, PDF'e Word/Excel/PPT aktarım.
 12. İmza yönetimi: kayıtlı imza/paraf/tarih/damga, toplu "her sayfaya paraf". **Perf:** sayfalar

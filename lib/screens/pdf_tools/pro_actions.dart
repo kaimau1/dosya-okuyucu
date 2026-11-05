@@ -29,6 +29,8 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       'blank' => _findBlankPages(),
       'crop' => _cropPages(),
       'fit_a4' => _fitA4(),
+      'form_create' => _createForm(),
+      'form_profile' => showAutofillProfileSheet(context),
       _ => Future<void>.value(),
     };
   }
@@ -613,5 +615,51 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
     final pages = _selectedOrNull();
     await _apply(_str.t('pp.fit_a4'),
         (b) => PdfPagePro.resizeInBackground(b, pages: pages, password: pw));
+  }
+
+  // ── 9. Form oluşturma ────────────────────────────────────────────────────
+
+  Future<void> _createForm() async {
+    final kind = await showAppSheet<NewFieldKind>(
+      context,
+      title: context.t('pp.form_create'),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final k in NewFieldKind.values)
+            ListTile(
+              leading: Icon(switch (k) {
+                NewFieldKind.text => AppIcons.pdfTextField,
+                NewFieldKind.checkbox => AppIcons.pdfCheckBox,
+                NewFieldKind.signature => AppIcons.draw,
+              }),
+              title: Text(ctx.t('pp.field_${k.name}')),
+              onTap: () => Navigator.pop(ctx, k),
+            ),
+        ],
+      ),
+    );
+    if (kind == null || !mounted) return;
+    final pw = _password;
+    final marks = await PdfRegionScreen.open(
+      context,
+      bytes: _bytes!,
+      mode: PdfRegionMode.field,
+      password: pw,
+      title: context.t('pp.field_${kind.name}'),
+    );
+    if (marks == null || marks.isEmpty || !mounted) return;
+    final base = _str.t('pp.field_${kind.name}');
+    var n = 0;
+    final fields = <NewFormField>[
+      for (final e in marks.entries)
+        for (final r in e.value) NewFormField(e.key, r, kind, '$base${++n}'),
+    ];
+    final font = await _unicodeFont();
+    await _apply(
+      _str.t('pp.form_create'),
+      (b) => PdfFormPro.addFieldsInBackground(b, fields,
+          fontBytes: font, password: pw),
+    );
   }
 }
