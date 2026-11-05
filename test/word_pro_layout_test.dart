@@ -68,15 +68,15 @@ void main() {
 
   test('baskı önizleme PDF: gömülü yazı tipi, sayfa sonu yeni sayfa', () async {
     for (final f in ['stiller_basliklar', 'tablo', 'liste_duzeyli', 'word_kaydedilmis_cok_sayfa']) {
-      final pdf = await DocxPdf.render(_fx(f), fonts: testFonts());
+      final pdf = await DocxPdf.render(_fx(f), fonts: testFonts(), compress: false);
       final head = String.fromCharCodes(pdf.take(5));
       expect(head, '%PDF-', reason: f);
       expect(String.fromCharCodes(pdf).contains('FontFile2'), isTrue,
           reason: '$f: yazı tipi gömülü değil');
     }
     final withBreak = _apply(_fx('stiller_basliklar'), DocxLayoutOps.pageBreakAfter(0));
-    final a = await DocxPdf.render(_fx('stiller_basliklar'), fonts: testFonts());
-    final b = await DocxPdf.render(withBreak, fonts: testFonts());
+    final a = await DocxPdf.render(_fx('stiller_basliklar'), fonts: testFonts(), compress: false);
+    final b = await DocxPdf.render(withBreak, fonts: testFonts(), compress: false);
     int pages(Uint8List p) =>
         RegExp(r'/Type\s*/Page[^s]').allMatches(String.fromCharCodes(p)).length;
     expect(pages(b), greaterThan(pages(a)));

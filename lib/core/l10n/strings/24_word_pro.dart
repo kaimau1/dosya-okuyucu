@@ -138,4 +138,13 @@ const Map<String, (String, String, String)> _t24 = {
   'wp.export_pdf': ('PDF (yazı tipleri gömülü)', 'PDF (fonts embedded)', 'PDF (مع تضمين الخطوط)'),
   'wp.export_docx_fonts': ('Word, yazı tipleri gömülü (.docx)', 'Word with embedded fonts (.docx)', 'Word مع تضمين الخطوط (.docx)'),
   'wp.export_save': ('İndirilenler\'e kaydet', 'Save to Downloads', 'الحفظ في التنزيلات'),
+
+  // Madde 8
+  'wp.stats_pages': ('Sayfa (tahmini)', 'Pages (estimated)', 'الصفحات (تقديري)'),
+  'wp.stats_headings': ('Başlık', 'Headings', 'العناوين'),
+  'wp.stats_reading': ('Okuma süresi', 'Reading time', 'وقت القراءة'),
+  'wp.stats_speaking': ('Sesli okuma süresi', 'Speaking time', 'وقت الإلقاء'),
+  'wp.stats_selection': ('Seçimdeki sözcük', 'Words in selection', 'الكلمات في التحديد'),
+  'wp.stats_min': ('{n} dk', '{n} min', '{n} د'),
+  'wp.stats_under_min': ('1 dk\'dan az', 'Under 1 min', 'أقل من دقيقة'),
 };

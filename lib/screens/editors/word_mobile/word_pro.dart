@@ -107,6 +107,12 @@ extension _WordProPart on _WordMobileEditorScreenState {
         await _passwordMenu();
       case 'export':
         await _export();
+      case 'outline':
+        await _outline();
+      case 'thumbnails':
+        await _thumbnails();
+      case 'stats':
+        await _stats();
       case 'dictate':
         await _dictate();
       case 'ai_inline':
@@ -602,6 +608,99 @@ extension _WordProPart on _WordMobileEditorScreenState {
       _setState(() => _proBusy = false);
     }
   }
+
+  // ── Madde 8: gezinti ağacı, küçük resimler, sayaç ────────────────────────
+
+  /// Sayfa tahmini (artımlı; yalnız değişen paragraflar ölçülür).
+  List<int> _layoutPages() {
+    final c = _ctrl!;
+    final ps = c.pageSetup;
+    // pgSz yönlü yazılır (yatayda w uzun kenar).
+    final wPt = ps.width / 20 - (ps.left + ps.right) / 20;
+    final hPt = ps.height / 20 - (ps.top + ps.bottom) / 20;
+    final g = DocxPageGeometry(wPt.clamp(100, 2000).toDouble(), hPt.clamp(100, 3000).toDouble());
+    if (_paginator.geometry.widthPt != g.widthPt || _paginator.geometry.heightPt != g.heightPt) {
+      _paginator = DocxPaginator(g);
+    }
+    return _paginator.layout(c.paras);
+  }
+
+  Future<void> _outline() async {
+    final c = _ctrl;
+    if (c == null) return;
+    final hs = c.headings();
+    if (hs.isEmpty) {
+      showSnack(context, context.t('word.no_headings'));
+      return;
+    }
+    final pages = _layoutPages();
+    final caret = c.extent.para;
+    var current = -1;
+    for (var k = 0; k < hs.length; k++) {
+      if (hs[k].$1 <= caret) current = k;
+    }
+    final i = await showAppSheet<int>(
+      context,
+      title: context.t('wp.outline'),
+      builder: (_) => _OutlineTree(headings: hs, pages: pages, current: current),
+    );
+    if (i == null || !mounted) return;
+    c.goToParagraph(i);
+    await _viewKey.currentState?.revealParagraph(i);
+  }
+
+  Future<void> _thumbnails() async {
+    final pdf = await _renderPdf();
+    if (pdf == null || !mounted) return;
+    _layoutPages();
+    final page = await showAppSheet<int>(
+      context,
+      title: context.t('wp.thumbnails'),
+      builder: (_) => _ThumbGrid(pdf: pdf),
+    );
+    if (page == null || !mounted) return;
+    final i = _paginator.firstParaOf(page);
+    _ctrl?.goToParagraph(i);
+    await _viewKey.currentState?.revealParagraph(i);
+  }
+
+  Future<void> _stats() async {
+    final c = _ctrl;
+    if (c == null) return;
+    _layoutPages();
+    final selected = !c.collapsed;
+    final st = DocxStats.of(c.paras, pages: _paginator.pageCount);
+    String dur(Duration d) => d.inMinutes < 1
+        ? context.t('wp.stats_under_min')
+        : context.t('wp.stats_min', {'n': d.inMinutes});
+    final rows = [
+      ('word.count_words', '${st.words}'),
+      ('word.count_chars', '${st.chars}'),
+      ('word.count_chars_ns', '${st.charsNoSpace}'),
+      ('word.count_paras', '${st.paragraphs}'),
+      ('wp.stats_pages', '~${st.pages}'),
+      ('wp.stats_headings', '${st.headings}'),
+      ('wp.stats_reading', dur(st.reading)),
+      ('wp.stats_speaking', dur(st.speaking)),
+      if (selected)
+        ('wp.stats_selection', '${RegExp(r'\S*[\p{L}\p{N}]\S*', unicode: true).allMatches(c.selectedText()).length}'),
+    ];
+    await showAppSheet<void>(
+      context,
+      title: context.t('wp.stats'),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final (k, v) in rows)
+            ListTile(
+              dense: true,
+              title: Text(ctx.t(k)),
+              trailing: Text(v, style: Theme.of(ctx).textTheme.titleMedium),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Sayfa düzeni levhası: kâğıt, yön, kenar boşlukları (cm), cilt payı,
@@ -1091,6 +1190,168 @@ class _AiInlineSheetState extends State<_AiInlineSheet> {
               ],
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+
+/// Başlık ağacı: alt başlıkları olan düğüm katlanır; imlecin bulunduğu
+/// başlık vurgulu; sağda tahmini sayfa.
+class _OutlineTree extends StatefulWidget {
+  final List<(int, int, String)> headings;
+  final List<int> pages;
+  final int current;
+  const _OutlineTree(
+      {required this.headings, required this.pages, required this.current});
+
+  @override
+  State<_OutlineTree> createState() => _OutlineTreeState();
+}
+
+class _OutlineTreeState extends State<_OutlineTree> {
+  final _collapsed = <int>{};
+
+  bool _hasKids(int k) {
+    final hs = widget.headings;
+    return k + 1 < hs.length && hs[k + 1].$2 > hs[k].$2;
+  }
+
+  bool _hidden(int k) {
+    final hs = widget.headings;
+    var level = hs[k].$2;
+    for (var j = k - 1; j >= 0; j--) {
+      if (hs[j].$2 < level) {
+        if (_collapsed.contains(j)) return true;
+        level = hs[j].$2;
+      }
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hs = widget.headings;
+    final scheme = Theme.of(context).colorScheme;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.7),
+      child: ListView.builder(
+        shrinkWrap: true,
+        itemCount: hs.length,
+        itemBuilder: (_, k) {
+          if (_hidden(k)) return const SizedBox.shrink();
+          final (i, level, text) = hs[k];
+          final kidsHere = _hasKids(k);
+          final page = i < widget.pages.length ? widget.pages[i] + 1 : null;
+          return ListTile(
+            key: ValueKey('word-outline-$i'),
+            selected: k == widget.current,
+            selectedTileColor: scheme.secondaryContainer,
+            contentPadding: EdgeInsetsDirectional.only(
+                start: 4.0 + (level - 1).clamp(0, 5) * 18, end: 12),
+            leading: kidsHere
+                ? IconButton(
+                    key: ValueKey('word-outline-fold-$i'),
+                    icon: Icon(_collapsed.contains(k)
+                        ? AppIcons.keyboardArrowRight
+                        : AppIcons.keyboardArrowDown),
+                    onPressed: () => setState(() => _collapsed.contains(k)
+                        ? _collapsed.remove(k)
+                        : _collapsed.add(k)),
+                  )
+                : const SizedBox(width: 48),
+            title: Text(text,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: level == 1 ? const TextStyle(fontWeight: FontWeight.w600) : null),
+            trailing: page == null ? null : Text('$page', style: context.type.small),
+            onTap: () => Navigator.pop(context, i),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Sayfa küçük resimleri: PDF sayfaları düşük çözünürlükte, geldikçe
+/// (akış); levha kapanınca akış durur. Görsel bütçesi: `cacheWidth`.
+class _ThumbGrid extends StatefulWidget {
+  final Uint8List pdf;
+  const _ThumbGrid({required this.pdf});
+
+  @override
+  State<_ThumbGrid> createState() => _ThumbGridState();
+}
+
+class _ThumbGridState extends State<_ThumbGrid> {
+  final _pages = <Uint8List>[];
+  StreamSubscription<dynamic>? _sub;
+  bool _done = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _sub = Printing.raster(widget.pdf, dpi: 28).asyncMap((r) => r.toPng()).listen(
+          (png) {
+            if (mounted) setState(() => _pages.add(png));
+          },
+          onDone: () {
+            if (mounted) setState(() => _done = true);
+          },
+          onError: (_) {
+            if (mounted) setState(() => _done = true);
+          },
+        );
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    const tileW = 104.0;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.7),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!_done) const LinearProgressIndicator(minHeight: 2),
+          Flexible(
+            child: GridView.builder(
+              padding: const EdgeInsets.all(12),
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: tileW + 16,
+                  mainAxisExtent: tileW * 1.414 + 28,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8),
+              itemCount: _pages.length,
+              itemBuilder: (_, i) => RepaintBoundary(
+                child: InkWell(
+                  key: ValueKey('word-thumb-$i'),
+                  onTap: () => Navigator.pop(context, i),
+                  child: Column(children: [
+                    Expanded(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                            border: Border.all(
+                                color: Theme.of(context).colorScheme.outlineVariant)),
+                        child: Image.memory(_pages[i],
+                            cacheWidth: (tileW * dpr).round(),
+                            fit: BoxFit.contain),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text('${i + 1}', style: context.type.small),
+                  ]),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

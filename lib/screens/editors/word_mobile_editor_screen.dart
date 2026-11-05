@@ -40,6 +40,7 @@ import '../../services/docx/pro/docx_table_ops.dart';
 import '../../services/docx/pro/docx_compare.dart';
 import '../../services/office_crypto.dart';
 import '../../services/dictation.dart';
+import '../../services/docx/pro/docx_paginator.dart';
 import '../../services/docx/pro/docx_fonts.dart';
 import '../../services/fm/save_to_downloads.dart';
 import '../../widgets/download_action.dart';
@@ -112,6 +113,9 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
   /// işlemden önceki belge baytı (en çok 5; bellek bütçesi).
   final List<Uint8List> _proUndo = [];
   bool _proBusy = false;
+
+  /// Madde 8/11: artımlı sayfa tahmini (gezinti, küçük resim, sayaç).
+  DocxPaginator _paginator = DocxPaginator();
 
   /// Madde 5: gözden geçirme çubuğu öğeleri (null → kapalı) ve parola.
   List<DocxReviewItem>? _review;
@@ -291,7 +295,7 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
         c: c,
         onPageLayout: _pageLayout,
         onNavigate: _navigate,
-        onWordCount: _wordCount,
+        onWordCount: _proOn ? _stats : _wordCount,
         onZoomIn: _scale < _scales.last ? () => _zoom(1) : null,
         onZoomOut: _scale > _scales.first ? () => _zoom(-1) : null,
         onTranslate: _translate,

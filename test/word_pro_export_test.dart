@@ -61,11 +61,11 @@ void main() {
 
   test('PDF: yeni sayfa bölüm sonu yeni sayfa, sürekli bölüm aynı sayfa', () async {
     final b = _fx('stiller_basliklar');
-    final base = _pages(await DocxPdf.render(b, fonts: testFonts()));
+    final base = _pages(await DocxPdf.render(b, fonts: testFonts(), compress: false));
     final next = _apply(b, DocxLayoutOps.sectionBreak(0, 'nextPage'));
-    expect(_pages(await DocxPdf.render(next, fonts: testFonts())), base + 1);
+    expect(_pages(await DocxPdf.render(next, fonts: testFonts(), compress: false)), base + 1);
     final cont = _apply(b, DocxLayoutOps.sectionBreak(0, 'continuous'));
-    expect(_pages(await DocxPdf.render(cont, fonts: testFonts())), base);
+    expect(_pages(await DocxPdf.render(cont, fonts: testFonts(), compress: false)), base);
   });
 
   test('üst/alt bilgi metni + PAGE alanı yer tutucusu', () {

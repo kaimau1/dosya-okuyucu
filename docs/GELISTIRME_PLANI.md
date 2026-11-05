@@ -182,7 +182,9 @@ yalnız görünürken boyanır.
    (`docx_pdf.dart`: sayfa sonu/pageBreakBefore/bölüm sonu türü, keepNext, üst/alt bilgi + PAGE/NUMPAGES, Carlito/Tinos gömülü; `docx_fonts.dart`: odttf gizleme + fontTable + embedTrueTypeFonts; Araçlar > Dışa aktar; `word_pro_export_test`.)
 **Ölçüt:** 5 gerçek docx düzen kaybı olmadan açılıp kaydedilir.
 
-**Ek:** 8. Gezinti bölmesi (başlık ağacı), sayfa küçük resimleri, kelime sayacı, okuma süresi.
+**Ek:**
+- [x] 8. Gezinti bölmesi (başlık ağacı), sayfa küçük resimleri, kelime sayacı, okuma süresi.
+   (`_OutlineTree` katlanır + tahmini sayfa; `_ThumbGrid` PDF akışı + `cacheWidth`; `docx_paginator.dart` artımlı + `DocxStats`; `word_pro_pages_test`.)
 9. Madde/numara çok düzeyli, sütun, kenarlık, metin kutusu, şekil, görsel sarma (satır içi/üstte/arkada),
 başlık/kapak sayfası, bölüm sonu, farklı ilk sayfa, alan kodları (tarih, sayfa), çapraz başvuru, kaynakça.
 10. Yazım/dilbilgisi (var olan yazım denetimi + AI düzeltme önerisi satır içi, kullanıcı onaylı).

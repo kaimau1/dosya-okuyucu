@@ -83,7 +83,8 @@ class DocxPdfPage {
 abstract final class DocxPdf {
   static Future<Uint8List> renderInBackground(Uint8List docx,
       {required DocxPdfFonts fonts, bool pageNumbers = true}) {
-    Future<Uint8List> work() => render(docx, fonts: fonts, pageNumbers: pageNumbers);
+    Future<Uint8List> work() =>
+        render(docx, fonts: fonts, pageNumbers: pageNumbers);
     return DocxPro.inIsolate ? Isolate.run(work) : work();
   }
 
@@ -134,8 +135,11 @@ abstract final class DocxPdf {
     return lines.isEmpty ? null : lines.join('  ·  ');
   }
 
+  /// [compress] yalnız testte kapatılır (sayfa nesneleri metinde sayılsın).
   static Future<Uint8List> render(Uint8List docx,
-      {required DocxPdfFonts fonts, bool pageNumbers = true}) async {
+      {required DocxPdfFonts fonts,
+      bool pageNumbers = true,
+      bool compress = true}) async {
     final doc = DocxDocument.parse(docx);
     final pkg = DocxPackage.open(docx);
     final page = DocxPdfPage.of(pkg);
@@ -145,7 +149,7 @@ abstract final class DocxPdf {
     String fill(String t, pw.Context ctx) => t
         .replaceAll('{p}', '${ctx.pageNumber}')
         .replaceAll('{n}', '${ctx.pagesCount}');
-    final out = pw.Document(compress: true);
+    final out = pw.Document(compress: compress);
     final format = PdfPageFormat(page.width, page.height,
         marginTop: page.top,
         marginBottom: page.bottom,
