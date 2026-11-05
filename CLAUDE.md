@@ -36,8 +36,9 @@ Kod değiştikten sonra `graphify update .` (API maliyeti yok).
 `changes` (+ test seçimi) → **`verify`** ×3 parça (pub get → analyze → seçili test [+ `ci/` değiştiyse Kotlin denetimi]; her dalda)
 ∥ **`apk`** (sürüm no → `ci/prepare_android.sh` [iskelet + tüm yamalar, yerelde de koşar] →
 `flutter build apk --obfuscate` → apksigner → içerik/16 KB/boyut bütçesi denetimi → artifact + Dart sembolleri)
-→ **`release`** (ikisi yeşilse): main → tek **`nightly`** sürüm (üzerine yazılır, "en son" işaretli,
+→ **`release`** (ikisi yeşilse): main (**başlıkta `[apk]`** ya da faz PR birleşmesi — 2026-11-05; işaretsiz main push'u APK/sürüm üretmez) → tek **`nightly`** sürüm (üzerine yazılır, "en son" işaretli,
 `releases/latest/download/dosya-okuyucu.apk` sabit); **`v*` etiketi** → kalıcı sürüm (arm + arm64 + AAB).
+**Sürüm adı** (2026-11-05): `ANA.ARA` `lib/core/app_version.dart`'ta (elle; başlıkta `[minor]` ara haneyi +1 yapar), son hane = main'de yayınlanan APK sayısı (`tool/surum_hesapla.sh`), versionCode = koşu no. Sürümde hem `dosya-okuyucu.apk` (sabit bağlantı) hem `dosya-okuyucu-v<sürüm>.apk`.
 Eski sürümler budanır (nightly hariç son 10). Push'ta yalnız arm64; 32-bit + AAB etikette/elle.
 Yalnız `test/**`/`tool/**` değişen push APK derlemez; `**.md`, `docs/**`, `graphify-out/**` hiç koşturmaz.
 Art arda push → önceki koşu iptal.
@@ -47,7 +48,8 @@ Art arda push → önceki koşu iptal.
   main'in gerisindeydi, hiçbirinde main'de olmayan iş yoktu.) Yeni dal AÇMA;
   iş doğrudan main'e commit edilir. Push: `git push`.
   Bulut oturumu (`claude/*`, `ccr-*`) dal açtıysa iş main'e girince o uzak dal silinir.
-  APK yalnız **main**'e push'ta derlenir (feature dalında sadece `flutter test`).
+  APK yalnız **main**'e push'ta, commit BAŞLIĞINDA `[apk]` varsa (ya da `faz-NN` PR birleşmesinde) derlenir;
+  uygulamayı değiştiren main commit'ine `[apk]` yaz (feature dalında sadece `flutter test`).
 - **İSTİSNA — Geliştirme fazları (2026-11-04, kullanıcı kararı):** `docs/GELISTIRME_PLANI.md`
   Faz 34–42 işleri **`faz-NN` dalında** yapılır ve iş sonunda **MUTLAKA PR açılıp main'e
   BİRLEŞTİRİLİR** (CI yeşilken; faz ancak birleşmeyle biter). Birleşince sıradaki faz görevi

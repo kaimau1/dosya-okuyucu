@@ -377,3 +377,12 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
   main → ağaç yeşil PR başıyla aynıysa `atla` (iş yeşil biter, release bekler). Tam: `[tam]`.
 - TUZAK: dal korumasında zorunlu kontrol adı "Doğrulama (analyze + test)" ise artık
   "Doğrulama (0/3)" … "(2/3)" seçilmeli.
+- **[apk] işareti (2026-11-05, kullanıcı kararı):** main push'u APK/nightly yalnız başlıkta `[apk]`
+  ya da `Merge pull request #N from …/faz-NN` başlığında derler (`changes` → `apk_isareti`).
+  CI/belge birleştirmesi sürüm üretmez. APK derlemesi tek adım (~7 dk, Dart AOT + Gradle) —
+  parçalara bölünemez; push'ta zaten yalnız arm64.
+- **Sürüm adı ilerler (2026-11-05, kullanıcı kararı):** eskiden `1.0.<koşu no>` (ilk iki hane hiç
+  değişmiyordu). Artık `ANA.ARA.N`: ANA.ARA `app_version.dart` (1.1'e çıkarıldı), N = o tabandan bu
+  yana main'de yayın işaretli commit sayısı ([apk] / faz PR birleşmesi; `tool/surum_hesapla.sh`,
+  `changes` işinde). Başlıkta `[minor]` → ARA +1, N sıfırlanır. versionCode yine koşu no (güncelleme
+  denetimi ona bakar). Nightly'de sabit ad + `dosya-okuyucu-v<ad>.apk`; eski sürümlü ad silinir.
