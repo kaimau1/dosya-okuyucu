@@ -108,9 +108,24 @@ extension _SlidesProPart on _SlidesEditorScreenState {
                 icon: AppIcons.autoAwesomeMosaic,
                 label: context.t('sp.templates')),
           ]),
+          AppActionGroup(title: context.t('sp.g_insert'), actions: [
+            AppAction(
+                value: 'chart',
+                icon: AppIcons.insertChart,
+                label: context.t('sp.chart_insert')),
+            AppAction(
+                value: 'smartart',
+                icon: AppIcons.accountTree,
+                label: context.t('sp.smartart'),
+                hint: context.t('sp.smartart_hint')),
+          ]),
         ]);
     if (pick == null || !mounted) return;
     switch (pick) {
+      case 'chart':
+        await _insertChart(_curIndex, SlideChartData.sample);
+      case 'smartart':
+        await _convertSmartArts();
       case 'master':
         final bytes = await _deckBytes();
         if (bytes == null || !mounted) return;
@@ -123,4 +138,93 @@ extension _SlidesProPart on _SlidesEditorScreenState {
         }
     }
   }
+
+  // ── Madde 3: grafik / SmartArt ─────────────────────────────────────────────
+
+  Future<void> _insertChart(int slide, SlideChartData initial,
+      {int? tableId}) async {
+    final d = await Navigator.of(context).push<SlideChartData>(
+        MaterialPageRoute(builder: (_) => SlideChartPage(initial: initial)));
+    if (d == null || !mounted) return;
+    await _proApply(PptxChartOps.insert(slide, d), doneKey: 'sp.applied');
+  }
+
+  Future<void> _editChart(int slide, int shapeId) async {
+    final bytes = await _deckBytes();
+    if (bytes == null) return;
+    final d = await PptxPro.query(bytes, _readChart(slide, shapeId));
+    if (!mounted) return;
+    if (d == null) {
+      _snack(context.t('sp.no_chart'));
+      return;
+    }
+    final next = await Navigator.of(context).push<SlideChartData>(
+        MaterialPageRoute(builder: (_) => SlideChartPage(initial: d)));
+    if (next == null || !mounted) return;
+    await _proApply(PptxChartOps.update(slide, shapeId, next),
+        doneKey: 'sp.applied');
+  }
+
+  Future<void> _chartFromTable(int slide, int tableId) async {
+    final bytes = await _deckBytes();
+    if (bytes == null) return;
+    final d = await PptxPro.query(bytes, _readTable(slide, tableId));
+    if (!mounted) return;
+    if (d == null) {
+      _snack(context.t('sp.table_no_data'));
+      return;
+    }
+    await _insertChart(slide, d);
+  }
+
+  Future<void> _convertSmartArts() async {
+    final bytes = await _deckBytes();
+    if (bytes == null) return;
+    final n = await PptxPro.query(bytes, PptxChartOps.countSmartArts);
+    if (!mounted) return;
+    if (n == 0) {
+      _snack(context.t('sp.no_smartart'));
+      return;
+    }
+    await _proApply(PptxChartOps.allSmartArtsToShapes(),
+        doneKey: 'sp.smartart_done');
+  }
+
+  // ── Şekil araçları (seçili şekil) ─────────────────────────────────────────
+
+  Future<void> _openShapeTools(PptxSlide slide, ShapeVM shape) async {
+    final i = slide.index - 1;
+    final isChart = shape.chart != null;
+    final isTable = shape.tableFrame;
+    final pick = await showAppActionSheet<String>(context,
+        title: context.t('sp.shape_tools'),
+        groups: [
+          AppActionGroup(actions: [
+            if (isChart)
+              AppAction(
+                  value: 'chart_edit',
+                  icon: AppIcons.insertChart,
+                  label: context.t('sp.chart_edit')),
+            if (isTable)
+              AppAction(
+                  value: 'chart_table',
+                  icon: AppIcons.barChart,
+                  label: context.t('sp.chart_from_table')),
+          ]),
+        ]);
+    if (pick == null || !mounted) return;
+    switch (pick) {
+      case 'chart_edit':
+        await _editChart(i, shape.id);
+      case 'chart_table':
+        await _chartFromTable(i, shape.id);
+    }
+  }
 }
+
+/// İzolata giden okuyucular yalnız sayıları yakalar (durum nesnesini değil).
+SlideChartData? Function(PptxPackage) _readChart(int slide, int id) =>
+    (pkg) => PptxChartOps.read(pkg, slide, id);
+
+SlideChartData? Function(PptxPackage) _readTable(int slide, int id) =>
+    (pkg) => PptxChartOps.fromTable(pkg, slide, id);

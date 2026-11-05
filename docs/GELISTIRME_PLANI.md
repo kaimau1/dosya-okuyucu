@@ -200,7 +200,8 @@ düzeni **artımlı** (yalnız değişen paragraf ve sonrası), görünür sayfa
    (`services/pptx/pro/pptx_package.dart` + `pptx_master_ops.dart`; `slides_pro/master_page.dart`, Araçlar → Ana slayt ve tema.)
 - [x] 2. Şablon galerisi (8 sade tema) + "metinden slayt" (`text_to_slides`, var) için tasarım önerisi.
    (`pptx_templates.dart` — `PptxTemplates.suggest`; `ai_slides_flow` pptx çıktısında önerili galeri.)
-- [ ] 3. Slayt içi grafik ekle/düzenle (tablo verisinden), SmartArt → düzenlenebilir şekil grubu.
+- [x] 3. Slayt içi grafik ekle/düzenle (tablo verisinden), SmartArt → düzenlenebilir şekil grubu.
+   (`pptx_chart_ops.dart` — gömülü xlsx'li grafik parçası, `fromTable`, `smartArtToShapes`; `slides_pro/chart_page.dart`.)
 - [ ] 4. Ses/video ekleme + oynatma, sunum kipinde lazer işaretçi, kalem, zamanlayıcı.
 - [ ] 5. Sunucu görünümü (not + sonraki slayt + süre), PDF/PNG/video dışa aktarım.
 - [ ] 6. Yardımcı çizgi/hizalama/dağıt, katman paneli, animasyon sırası paneli.

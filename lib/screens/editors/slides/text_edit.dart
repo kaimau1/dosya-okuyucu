@@ -803,6 +803,9 @@ extension _SlidesEditorScreenTextEditPart on _SlidesEditorScreenState {
                   () => editor.reorderShape(slide, shape, front: false));
               _partSetState(() => _selShape = _reselect(slide, shape));
             }),
+      if (_proOn)
+        DocAction(AppIcons.handyman, context.t('sp.shape_tools'),
+            _proBusy ? null : () => _openShapeTools(slide, shape)),
       DocAction(AppIcons.delete, context.t('common.delete'), !arrange
           ? null
           : () {
