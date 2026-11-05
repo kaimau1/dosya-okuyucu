@@ -196,4 +196,23 @@ const Map<String, (String, String, String)> _t22 = {
   'pp.nplace_topLeft': ('Üst sol', 'Top left', 'أعلى اليسار'),
   'pp.page_word': ('Sayfa', 'Page', 'صفحة'),
   'pp.preview': ('Önizleme: {text}', 'Preview: {text}', 'معاينة: {text}'),
+  // ── Okuma ──
+  'pp.book_view': ('Kitap', 'Book', 'كتاب'),
+  'pp.sepia': ('Kâğıt tonu (sepya)', 'Paper tone (sepia)', 'لون الورق (بني داكن)'),
+  'pp.sepia_hint': ('Beyazı yumuşatır; gece kipi açıkken kapalı', 'Softens white; off while night mode is on', 'يلطّف الأبيض؛ معطّل مع الوضع الليلي'),
+  'pp.scroll_lock': ('Kaydırma kilidi', 'Scroll lock', 'قفل التمرير'),
+  'pp.scroll_lock_hint': ('Yalnız dikey kaydırma, yakınlaştırma kapalı', 'Vertical scrolling only, zoom off', 'تمرير عمودي فقط، التكبير معطّل'),
+  'pp.notes_booklet': ('Vurgu ve not kitapçığı', 'Highlights and notes booklet', 'كتيّب التمييزات والملاحظات'),
+  'pp.notes_booklet_sub': ('Tüm işaretlemeleri tek listede paylaş (Markdown)', 'Share all markups in one list (Markdown)', 'شارك كل التعليقات في قائمة واحدة (Markdown)'),
+  'pp.notes_empty': ('Belgede vurgu ya da not yok', 'The document has no highlights or notes', 'لا توجد تمييزات أو ملاحظات'),
+  'pp.notes_count': ('{n} işaretleme', '{n} markups', '{n} تعليق'),
+  'pp.note_highlight': ('Vurgu', 'Highlight', 'تمييز'),
+  'pp.note_underline': ('Altı çizili', 'Underline', 'تسطير'),
+  'pp.note_strikethrough': ('Üstü çizili', 'Strikethrough', 'يتوسطه خط'),
+  'pp.note_squiggly': ('Dalgalı çizgi', 'Squiggly', 'خط متعرج'),
+  'pp.note_note': ('Not', 'Note', 'ملاحظة'),
+  // ── Arama listesi ──
+  'pp.find_list': ('Sonuç listesi', 'Result list', 'قائمة النتائج'),
+  'pp.find_results': ('{n} sonuç', '{n} results', '{n} نتيجة'),
+  'pp.find_ocr_hit': ('Taranmış sayfada eşleşme (OCR)', 'Match on a scanned page (OCR)', 'تطابق في صفحة ممسوحة (OCR)'),
 };

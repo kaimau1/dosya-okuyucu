@@ -189,8 +189,9 @@ yalnız görünür slayt tam çizilir, sunum kipinde sonraki slayt önceden rast
    (`pdf_compare.dart` + `pdf_compare_screen.dart`.)
 - [x] 5. Parola/izin düzenleme, yer imi düzenleme, damga/filigran şablonları, numaralandırma.
    (`pdf_doc_pro.dart`: izinler AES-256, yer imi ağacı, 7 damga şablonu + filigran, Bates/Romen/n-N.)
-6. Okuma: gece kipi (A9.2), kaydırma kilidi, çift sayfa/kitap görünümü, sesli okuma
+- [x] 6. Okuma: gece kipi (A9.2), kaydırma kilidi, çift sayfa/kitap görünümü, sesli okuma
    (var), metin işaretleme kitapçığı (tüm vurgular tek listede dışa aktar).
+   (Gece kipi vardı + kâğıt/sepya tonu; `viewer/pdf_reading_pro.dart`, `pdf_notes.dart`.)
 7. Agresif sıkıştırma (A7.4).
 **Ölçüt:** imzalı PDF Adobe/Chrome'da geçerli görünür (cihaz dışı doğrulama 💻).
 

@@ -78,6 +78,12 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         // ortasında kapatmak da işler; belge yeniden YÜKLENMEZ
                         // (pdfrx yalnız documentRef değişiminde yükler).
                         panEnabled: !_pdfSelecting,
+                        // Kaydırma kilidi (Faz 39): yalnız dikey eksen,
+                        // iki parmak yakınlaştırma kapalı.
+                        panAxis: _pdfScrollLock
+                            ? PanAxis.vertical
+                            : PanAxis.free,
+                        scaleEnabled: !_pdfScrollLock,
                         // Çok sütunlu dizilim (uzun belge). 1 sütunda pdfrx'in kendi
                         // düzeni kullanılır — gereksiz yere devralmıyoruz.
                         //
@@ -90,7 +96,9 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         layoutPages: (pages, params) => _insetPdfLayout(
                           _pdfColumns == 1
                               ? _plainPdfLayout(pages, params)
-                              : _layoutPdfColumns(pages, params),
+                              : _pdfColumns == kPdfBookLayout
+                                  ? _layoutPdfBook(pages, params)
+                                  : _layoutPdfColumns(pages, params),
                           context,
                           chrome,
                         ),

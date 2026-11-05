@@ -80,20 +80,7 @@ extension _ViewerScreenFindReplacePart on _ViewerScreenState {
         i = (i + delta) % entries.length;
         if (i < 0) i += entries.length;
       }
-      final e = entries[i];
-      _partSetState(() => _findEntry = e);
-      if (e.ocr) {
-        final o = _ocrSearch!;
-        o.currentIndex = e.index; // vurgu turuncuya döner
-        final m = o.matches[e.index];
-        _pdfJumpTarget = m.pageNumber;
-        _pdfController.goToRectInsidePage(
-            pageNumber: m.pageNumber, rect: m.bounds);
-      } else {
-        _ocrSearch?.currentIndex = -1;
-        _pdfJumpTarget = e.page;
-        _pdfSearcher?.goToMatchOfIndex(e.index);
-      }
+      _goToFindEntry(entries[i]);
       return;
     }
     if (_matchStarts.isEmpty) return;
@@ -200,6 +187,14 @@ extension _ViewerScreenFindReplacePart on _ViewerScreenState {
               ),
             // "Sayfaya git" arama çubuğunun içinde (2026-07-26 kullanıcı
             // isteği): aramayla aynı "belgede gezinme" kutusunda.
+            // Sonuç listesi (Faz 39): tüm eşleşmeler bağlamıyla.
+            if (_isPdf)
+              IconButton(
+                tooltip: context.t('pp.find_list'),
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(AppIcons.formatListBulleted),
+                onPressed: count == 0 ? null : _showFindResults,
+              ),
             if (_isPdf)
               IconButton(
                 tooltip: context.t('vw.goto_page_short'),
