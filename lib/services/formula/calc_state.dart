@@ -34,6 +34,11 @@ class CalcState {
   /// Hesaplanmakta olan formüllerin bağımlılık toplayıcıları (iç içe).
   final List<List<_Dep>> _collect = [];
 
+  /// Dinamik dizi taşmaları: çapa formül anahtarı → (sayfa, satır, sütun, dizi)
+  /// ve sayfa → hücre indeksi → çapa anahtarı.
+  final Map<String, (String, int, int, FormulaArray)> _spills = {};
+  final Map<String, Map<int, String>> _spillAt = {};
+
   static const _wideCols = 64;
 
   /// Formül hesap sayacı (kıyas/kabul testleri: "yalnız bağımlılar").
@@ -52,6 +57,56 @@ class CalcState {
     _wide.clear();
     _volatile.clear();
     _collect.clear();
+    _spills.clear();
+    _spillAt.clear();
+  }
+
+  /// Çapanın dizisini kaydeder; taşan hücrelere bakan formüller (dizi
+  /// hesaplanmadan önce boş okumuş olabilirler) geçersiz kılınır.
+  void _registerSpill(String key, String sheet, int r, int c, FormulaArray a) {
+    _dropSpill(key);
+    _spills[key] = (sheet, r, c, a);
+    final at = _spillAt[sheet] ??= {};
+    final stale = <(String, int, int)>[];
+    for (var rr = 0; rr < a.height; rr++) {
+      for (var cc = 0; cc < a.width; cc++) {
+        if (rr == 0 && cc == 0) continue;
+        at[_cellIndex(r + rr, c + cc)] = key;
+        for (final f in _dependentsOf(sheet, r + rr, c + cc)) {
+          final w = _where[f];
+          if (w != null && f != key) stale.add(w);
+        }
+      }
+    }
+    for (final w in stale) {
+      invalidate(w.$1, w.$2, w.$3);
+    }
+  }
+
+  void _dropSpill(String key) {
+    final old = _spills.remove(key);
+    if (old == null) return;
+    final (sheet, r, c, a) = old;
+    final at = _spillAt[sheet];
+    if (at == null) return;
+    for (var rr = 0; rr < a.height; rr++) {
+      for (var cc = 0; cc < a.width; cc++) {
+        final i = _cellIndex(r + rr, c + cc);
+        if (at[i] == key) at.remove(i);
+      }
+    }
+  }
+
+  /// Taşan bir hücrenin değeri (taşma yoksa null).
+  Object? _spillValue(String sheet, int r, int c) {
+    final key = _spillAt[sheet]?[_cellIndex(r, c)];
+    if (key == null) return null;
+    final s = _spills[key];
+    if (s == null) return null;
+    final (_, ar, ac, a) = s;
+    final rr = r - ar, cc = c - ac;
+    if (rr < 0 || cc < 0 || rr >= a.height || cc >= a.width) return null;
+    return a.rows[rr][cc];
   }
 
   void _note(String sheet, int r1, int c1, int r2, int c2) {
@@ -136,6 +191,27 @@ class CalcState {
       final self = FormulaEngine._key(s, rr, cc);
       if (!seen.add(self)) continue;
       if (_cache.remove(self) != null) count++;
+      // Taşan hücre değişti → çapası yeniden hesaplanmalı (#YAYILMA! olabilir).
+      final anchor = _spillAt[s]?[_cellIndex(rr, cc)];
+      if (anchor != null && !seen.contains(anchor)) {
+        final at = _where[anchor];
+        if (at != null) queue.add(at);
+      }
+      // Çapa geçersiz → taşma alanı kalkar, oradaki değerlere bakanlar da.
+      final spill = _spills[self];
+      if (spill != null) {
+        _dropSpill(self);
+        final (_, ar, ac, a) = spill;
+        for (var y = 0; y < a.height; y++) {
+          for (var x = 0; x < a.width; x++) {
+            if (x == 0 && y == 0) continue;
+            for (final f in _dependentsOf(s, ar + y, ac + x).toList()) {
+              final w = _where[f];
+              if (w != null && !seen.contains(f)) queue.add(w);
+            }
+          }
+        }
+      }
       for (final f in _dependentsOf(s, rr, cc).toList()) {
         final at = _where[f];
         if (at != null && !seen.contains(f)) queue.add(at);

@@ -34,7 +34,10 @@ extension _ParserParserPart on _Parser {
       final right = _parseConcat();
       if (left is FormulaError) return left;
       if (right is FormulaError) return right;
-      left = _compare(op, _single(left), _single(right));
+      final o = op;
+      left = _arrayDepth > 0
+          ? _elementwise(left, right, (x, y) => _compare(o, x, y))
+          : _compare(op, _single(left), _single(right));
     }
     return left;
   }
@@ -100,6 +103,15 @@ extension _ParserParserPart on _Parser {
         final right = _parseMulDiv();
         if (left is FormulaError) return left;
         if (right is FormulaError) return right;
+        if (_arrayDepth > 0) {
+          left = _elementwise(left, right, (x, y) {
+            if (x is FormulaError) return x;
+            if (y is FormulaError) return y;
+            final a = FormulaEngine.toNum(x), b = FormulaEngine.toNum(y);
+            return op == '+' ? a + b : a - b;
+          });
+          continue;
+        }
         final a = FormulaEngine.toNum(_single(left));
         final b = FormulaEngine.toNum(_single(right));
         left = op == '+' ? a + b : a - b;
@@ -120,6 +132,16 @@ extension _ParserParserPart on _Parser {
         final right = _parsePower();
         if (left is FormulaError) return left;
         if (right is FormulaError) return right;
+        if (_arrayDepth > 0) {
+          left = _elementwise(left, right, (x, y) {
+            if (x is FormulaError) return x;
+            if (y is FormulaError) return y;
+            final a = FormulaEngine.toNum(x), b = FormulaEngine.toNum(y);
+            if (op == '/') return b == 0 ? const FormulaError('#SAYI/0!') : a / b;
+            return a * b;
+          });
+          continue;
+        }
         final a = FormulaEngine.toNum(_single(left));
         final b = FormulaEngine.toNum(_single(right));
         if (op == '/') {
@@ -327,10 +349,23 @@ extension _ParserParserPart on _Parser {
     // Fonksiyon? (boşluk bırakılmaz — Excel de bırakılmasına izin vermez)
     if (_i < s.length && s[_i] == '(') {
       _i++;
-      final args = _parseArgs();
+      final canon = _Parser._canonical(word);
+      if (canon == 'LET') return _parseLet();
+      final arrayFn = _Parser._arrayFunctions.contains(canon);
+      if (arrayFn) _arrayDepth++;
+      final List<Object> args;
+      try {
+        args = _parseArgs();
+      } finally {
+        if (arrayFn) _arrayDepth--;
+      }
       if (!_match(')')) throw const FormulaError('#DEĞER!');
-      return _callFunc(_Parser._canonical(word), args);
+      return _callFunc(canon, args);
     }
+
+    // LET ile bağlanmış ad?
+    final local = _locals?[_Parser._canonical(word)];
+    if (local != null) return local;
 
     // Sayfa referansı: Sayfa1!A1
     if (_i < s.length && s[_i] == '!') {
@@ -439,7 +474,11 @@ extension _ParserParserPart on _Parser {
   List<Object> _flatten(List<Object> args) {
     final out = <Object>[];
     for (final a in args) {
-      if (a is _RangeValue) {
+      if (a is FormulaArray) {
+        for (final row in a.rows) {
+          out.addAll(row);
+        }
+      } else if (a is _RangeValue) {
         for (var r = a.r1; r <= a.r2; r++) {
           for (var c = a.c1; c <= a.c2; c++) {
             out.add(eng.cellValue(r, c, visiting, a.sheet));
@@ -471,6 +510,9 @@ extension _ParserParserPart on _Parser {
   }
 
   Object _single(Object a) {
+    if (a is FormulaArray) {
+      return a.height == 0 || a.width == 0 ? '' : a.rows[0][0];
+    }
     if (a is _RangeValue) {
       if (a.r1 == a.r2 && a.c1 == a.c2) {
         return eng.cellValue(a.r1, a.c1, visiting, a.sheet);
@@ -488,4 +530,94 @@ extension _ParserParserPart on _Parser {
 
   String _strArg(List<Object> args, int i) =>
       FormulaEngine.toStr(_arg(args, i));
+
+  // ── dinamik dizi yardımcıları (Faz 36) ─────────────────────────────────
+
+  /// Değerin matrisi; tek değerse null.
+  List<List<Object>>? _mat(Object v) {
+    if (v is FormulaArray) return v.rows;
+    if (v is _RangeValue && (v.r1 != v.r2 || v.c1 != v.c2)) {
+      return [
+        for (var r = v.r1; r <= v.r2; r++)
+          [for (var c = v.c1; c <= v.c2; c++) eng.cellValue(r, c, visiting, v.sheet)],
+      ];
+    }
+    return null;
+  }
+
+  /// Argümanın matrisi (tek değer → 1×1).
+  List<List<Object>> _matArg(List<Object> args, int i) {
+    if (i >= args.length) return const [];
+    return _mat(args[i]) ?? [
+      [_single(args[i])],
+    ];
+  }
+
+  /// Öğe öğe işlem; tek değer yayılır (Excel "broadcast").
+  Object _elementwise(Object a, Object b, Object Function(Object, Object) f) {
+    final ma = _mat(a), mb = _mat(b);
+    if (ma == null && mb == null) return f(_single(a), _single(b));
+    final sa = ma == null ? _single(a) : '', sb = mb == null ? _single(b) : '';
+    final h = math.max(ma?.length ?? 1, mb?.length ?? 1);
+    final w = math.max(ma?.first.length ?? 1, mb?.first.length ?? 1);
+    Object at(List<List<Object>>? m, Object scalar, int r, int c) {
+      if (m == null) return scalar;
+      final rr = m.length == 1 ? 0 : r, cc = m.first.length == 1 ? 0 : c;
+      if (rr >= m.length || cc >= m[rr].length) return const FormulaError('#YOK');
+      return m[rr][cc];
+    }
+
+    return FormulaArray([
+      for (var r = 0; r < h; r++)
+        [for (var c = 0; c < w; c++) f(at(ma, sa, r, c), at(mb, sb, r, c))],
+    ]);
+  }
+
+  /// `LET(ad; değer; …; hesap)` — adlar sırayla bağlanır, sonraki değerler
+  /// öncekileri kullanabilir. Adı hücre başvurusuna benzeyen bağlama
+  /// reddedilir (Excel de reddeder).
+  Object _parseLet() {
+    final saved = _locals;
+    _locals = {...?saved};
+    try {
+      while (true) {
+        _skip();
+        final start = _i;
+        while (_i < s.length &&
+            (_Parser._isAlpha(s[_i]) ||
+                _Parser._isDigit(s[_i]) ||
+                s[_i] == '_' ||
+                s[_i] == '.')) {
+          _i++;
+        }
+        final name = s.substring(start, _i);
+        _skip();
+        final sep = _i < s.length && (s[_i] == ',' || s[_i] == ';');
+        if (name.isNotEmpty && sep && _parseRef(name) == null &&
+            !_Parser._isDigit(name[0])) {
+          _i++;
+          _arrayDepth++;
+          final Object value;
+          try {
+            value = parseExpr();
+          } finally {
+            _arrayDepth--;
+          }
+          _locals![_Parser._canonical(name)] = value;
+          _skip();
+          if (_i < s.length && (s[_i] == ',' || s[_i] == ';')) {
+            _i++;
+            continue;
+          }
+          throw const FormulaError('#DEĞER!');
+        }
+        _i = start;
+        final result = parseExpr();
+        if (!_match(')')) throw const FormulaError('#DEĞER!');
+        return result;
+      }
+    } finally {
+      _locals = saved;
+    }
+  }
 }

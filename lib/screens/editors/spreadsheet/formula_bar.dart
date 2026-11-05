@@ -146,6 +146,16 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
               },
             ),
           ],
+          // Hata açıklaması (Faz 36): hücre #DEĞER! vb. gösteriyorsa "neden?".
+          if (!pending && _errorKeyHere() != null)
+            IconButton(
+              key: const ValueKey('xl-error-why'),
+              tooltip: context.t('xp.err_why'),
+              visualDensity: VisualDensity.compact,
+              iconSize: 20,
+              icon: const Icon(AppIcons.help),
+              onPressed: () => _snack(context.t(_errorKeyHere()!)),
+            ),
           IconButton(
             tooltip: context.t(_ribbonOpen ? 'excel.ribbon_hide' : 'excel.ribbon_show'),
             visualDensity: VisualDensity.compact,
@@ -157,6 +167,15 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
         ],
       ),
     );
+  }
+
+  /// Seçili hücre bir formül hatası gösteriyorsa açıklama anahtarı.
+  String? _errorKeyHere() {
+    final sheet = _sheet;
+    if (sheet == null) return null;
+    final raw = sheet.rawAt(_selRow, _selCol);
+    if (!raw.startsWith('=') && !raw.startsWith('#')) return null;
+    return formulaErrorKey(_engineFor(sheet).displayValue(_selRow, _selCol));
   }
 
   /// Seçili hücrenin veri doğrulama listesi (yoksa boş).

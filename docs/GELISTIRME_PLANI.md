@@ -127,8 +127,10 @@ Ek 9: dışa aktarma `TrackedTask` → `JobQueue` (ilerleme, iptal, bitince bild
    (`XlsxCondRuleWrite` görsel gövdeler + `expression`; ızgarada simge/formül boyama; `xlsx_cond_write_test`.)
 - [x] 3. Mini grafik (sparkline) çiz + yaz (`x14:sparklineGroups`).
    (okuma + yazma + hücre içi çizim — çizgi/sütun/kazanç-kayıp; Ekle sekmesi.)
-4. Formül: yardım balonu + otomatik tamamlama + hata açıklaması ("#DEĞER! neden"),
+- [x] 4. Formül: yardım balonu + otomatik tamamlama + hata açıklaması ("#DEĞER! neden"),
    dinamik diziler (FILTER/SORT/UNIQUE), XLOOKUP, LET, SEQUENCE.
+   (Balon/tamamlama/XLOOKUP vardı; `FormulaArray` + taşma (`CalcState._spills`), dizi bağlamı,
+   LET, `formula_errors.dart` + formül çubuğunda "?" düğmesi.)
 5. Tablo nesnesi (ListObject) + biçimli tablo stilleri, yapısal başvuru.
 6. Yazdırma düzeni + PDF'e aktar (sayfa sığdır, başlık satırı yinele), parola ile aç/koru.
 7. Görünüm: şerit sadeleştirme, hücre düzenleme çubuğu, parmakla seçim tutamakları,

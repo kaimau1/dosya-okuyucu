@@ -39,6 +39,7 @@ import '../../services/fm/save_to_downloads.dart';
 import '../../services/csv_codec.dart';
 import '../../services/text_decode.dart';
 import '../../services/formula_engine.dart';
+import '../../services/formula_errors.dart';
 import '../../services/formula_help.dart';
 import '../../services/sheet_data_ops.dart';
 import '../../services/sheet_edit.dart';

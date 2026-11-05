@@ -66,9 +66,14 @@ class FormulaEngine {
   /// kalıcı önbellekten gelir).
   String displayValue(int r, int c) {
     final raw = _rawAt(grid, r, c);
+    if (raw.isEmpty) {
+      // Dinamik dizi taşması (Faz 36): boş hücre bir dizinin parçası olabilir.
+      final spilled = state._spillValue(sheetName, r, c);
+      return spilled == null ? raw : fmt(spilled);
+    }
     if (raw.length < 2 || !raw.startsWith('=')) return raw;
     try {
-      return fmt(cellValue(r, c, const <String>{}));
+      return fmt(_cellValueRaw(r, c, const <String>{}));
     } on _CycleError {
       return '#DÖNGÜ';
     }
@@ -153,12 +158,22 @@ class FormulaEngine {
   }
 
   /// Bir hücrenin değeri (referanslar için). Formülse ardışık hesaplanır.
+  /// Dinamik dizi çapasında HÜCRENİN değeri dizinin sol-üst öğesidir
+  /// (Excel'de `=A1` taşan dizinin ilk değerini verir).
   Object cellValue(int r, int c, Set<String> visiting, [String? sheet]) {
+    final v = _cellValueRaw(r, c, visiting, sheet);
+    if (v is FormulaArray) {
+      return v.height == 0 || v.width == 0 ? '' : v.rows[0][0];
+    }
+    return v;
+  }
+
+  Object _cellValueRaw(int r, int c, Set<String> visiting, [String? sheet]) {
     final g = _gridFor(sheet);
     if (g == null) return const FormulaError('#BAŞV!');
     final name = _sheetKey(sheet);
     final raw = _rawAt(g, r, c);
-    if (raw.isEmpty) return '';
+    if (raw.isEmpty) return state._spillValue(name, r, c) ?? '';
     if (raw.startsWith('#') && _isErrorCode(raw)) return FormulaError(raw);
     if (!raw.startsWith('=') || raw.length < 2) return raw;
 
@@ -183,6 +198,24 @@ class FormulaEngine {
     } finally {
       st._collect.removeLast();
     }
+    if (value is FormulaArray && (value.height > 1 || value.width > 1)) {
+      // Taşma alanı boş olmalı; doluysa Excel gibi #YAYILMA!.
+      var blocked = false;
+      for (var rr = 0; rr < value.height && !blocked; rr++) {
+        for (var cc = 0; cc < value.width; cc++) {
+          if (rr == 0 && cc == 0) continue;
+          if (_rawAt(g, r + rr, c + cc).isNotEmpty) {
+            blocked = true;
+            break;
+          }
+        }
+      }
+      if (blocked) {
+        value = const FormulaError('#YAYILMA!');
+      } else {
+        st._registerSpill(k, name, r, c, value);
+      }
+    }
     st._cache[k] = value;
     st._register(k, name, r, c, deps, CalcState._isVolatile(raw));
     return value;
@@ -203,6 +236,10 @@ class FormulaEngine {
         '#N/A',
         '#NUM!',
         '#NULL!',
+        '#YAYILMA!',
+        '#SPILL!',
+        '#HESAP!',
+        '#CALC!',
       ].contains(s.trim());
 
   Object _eval(String src, Set<String> visiting,
@@ -221,6 +258,9 @@ class FormulaEngine {
   /// Hesap sonucunu HAM metne çevirir (ondalık `.` — gösterim biçimi ayrı
   /// katmanda uygulanır).
   static String fmt(Object v) {
+    if (v is FormulaArray) {
+      return v.height == 0 || v.width == 0 ? '' : fmt(v.rows[0][0]);
+    }
     if (v is FormulaError) return v.code;
     if (v is bool) return v ? 'DOĞRU' : 'YANLIŞ';
     if (v is num) {
@@ -294,6 +334,16 @@ class FormulaError implements Exception {
   int get hashCode => code.hashCode;
 }
 
+/// **Dinamik dizi** sonucu (FİLTRE/SIRALA/BENZERSİZ/SIRALI, Faz 36):
+/// formül hücresinden sağa/aşağı TAŞAR. Satırlar eşit uzunlukta.
+class FormulaArray {
+  final List<List<Object>> rows;
+  const FormulaArray(this.rows);
+
+  int get height => rows.length;
+  int get width => rows.isEmpty ? 0 : rows.first.length;
+}
+
 /// Aralık değeri (A1:B3) — fonksiyon argümanlarında listelenir.
 class _RangeValue {
   final int r1, c1, r2, c2;
@@ -315,6 +365,14 @@ class _Parser {
   final int selfR;
   final int selfC;
   int _i = 0;
+
+  /// LET ile bağlanmış adlar (kanonik ad → değer); iç içe LET kapsamı.
+  Map<String, Object>? _locals;
+
+  /// Dizi bağlamı derinliği: dizi işlevinin argümanındayken karşılaştırma
+  /// ve aritmetik ÖĞE ÖĞE yapılır (`FİLTRE(A1:A9; B1:B9>3)`). Dışarıda eski
+  /// tek değer davranışı korunur (eski dosyalar aynı hesaplanır).
+  int _arrayDepth = 0;
 
   /// Formül Türkçe yazımla mı (`;` ayırıcı) — öyleyse rakam arasındaki `,`
   /// ondalık ayırıcıdır (`0,5`), argüman ayırıcı değil.
@@ -363,6 +421,14 @@ class _Parser {
   // ── fonksiyonlar ──────────────────────────────────────────────────────────
 
   /// Türkçe/İngilizce fonksiyon adını tek biçime indirger.
+  /// Takma ad tablosundaki kanonik (İngilizce) adlar — bir kez kurulur.
+  static final Set<String> _englishValues = _aliases.values.toSet();
+
+  /// Argümanlarında öğe öğe işlem yapılan (dizi bağlamı) işlevler.
+  static const _arrayFunctions = {
+    'FILTER', 'SORT', 'UNIQUE', 'SUMPRODUCT', 'SEQUENCE',
+  };
+
   static String _canonical(String word) {
     word = _FormulaLocalePart._stripPrefix(word);
     final up = word.toUpperCase();
@@ -787,6 +853,10 @@ class _Parser {
     'ADRES': 'ADDRESS',
     'ARA': 'LOOKUP',
     'ÇAPRAZARA': 'XLOOKUP',
+    'FİLTRE': 'FILTER',
+    'SIRALA': 'SORT',
+    'BENZERSİZ': 'UNIQUE',
+    'SIRALI': 'SEQUENCE',
     'FORMÜLMETNİ': 'FORMULATEXT',
     'EFORMÜLSE': 'ISFORMULA',
     'EREFSE': 'ISREF',

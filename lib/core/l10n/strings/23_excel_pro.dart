@@ -41,4 +41,16 @@ const Map<String, (String, String, String)> _t23 = {
   'xp.spark_column': ('Sütun', 'Column', 'عمودي'),
   'xp.spark_stacked': ('Kazanç/kayıp', 'Win/loss', 'ربح/خسارة'),
   'xp.undo_sparkline': ('Mini grafik ekleme', 'Insert sparkline', 'إدراج خط مؤشر'),
+  // ── Formül hataları ──
+  'xp.err_why': ('Bu hata neden?', 'Why this error?', 'لماذا هذا الخطأ؟'),
+  'xp.err_value': ('#DEĞER!: yanlış türde değer — sayı beklenen yerde metin ya da boşluklu sayı var.', '#VALUE!: wrong type — text (or a number with spaces) where a number is expected.', '#VALUE!: نوع خاطئ — نص حيث يُتوقع رقم.'),
+  'xp.err_div0': ('#SAYI/0!: sıfıra ya da boş hücreye bölme.', '#DIV/0!: division by zero or by an empty cell.', '#DIV/0!: قسمة على صفر أو خلية فارغة.'),
+  'xp.err_ref': ('#BAŞV!: başvurulan hücre artık yok (satır/sütun silinmiş).', '#REF!: the referenced cell no longer exists (row/column deleted).', '#REF!: الخلية المشار إليها لم تعد موجودة.'),
+  'xp.err_name': ('#AD?: işlev ya da ad tanınmadı — yazımı kontrol et.', '#NAME?: function or name not recognised — check the spelling.', '#NAME?: الدالة أو الاسم غير معروف — تحقق من الكتابة.'),
+  'xp.err_na': ('#YOK: aranan değer bulunamadı.', '#N/A: the value looked up was not found.', '#N/A: القيمة المبحوث عنها غير موجودة.'),
+  'xp.err_num': ('#SAYI!: geçersiz sayı (çok büyük, negatifin kökü vb.).', '#NUM!: invalid number (too large, root of a negative…).', '#NUM!: رقم غير صالح.'),
+  'xp.err_null': ('#BOŞ!: iki aralığın kesişimi boş.', '#NULL!: the two ranges do not intersect.', '#NULL!: لا يتقاطع النطاقان.'),
+  'xp.err_spill': ('#YAYILMA!: dizi sonucunun taşacağı hücreler dolu — altını/sağını boşalt.', '#SPILL!: the cells the array would spill into are not empty — clear them.', '#SPILL!: الخلايا التي سيمتد إليها الناتج ليست فارغة.'),
+  'xp.err_calc': ('#HESAP!: sonuç boş (ör. FİLTRE hiçbir satır bulamadı).', '#CALC!: the result is empty (e.g. FILTER found no rows).', '#CALC!: الناتج فارغ.'),
+  'xp.err_cycle': ('#DÖNGÜ: formül dolaylı olarak kendine başvuruyor.', 'Circular reference: the formula refers to itself.', 'مرجع دائري: الصيغة تشير إلى نفسها.'),
 };
