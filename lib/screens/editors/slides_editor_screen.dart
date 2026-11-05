@@ -54,6 +54,9 @@ import '../../widgets/app_dialog.dart';
 import '../../widgets/fm/fm_type_chips.dart' show FmChoiceTile;
 import '../../core/theme.dart';
 import '../../widgets/doc_action_bar.dart';
+import '../../widgets/editor_top_bar.dart';
+import '../../widgets/state_views.dart';
+import '../../widgets/share_export_sheet.dart';
 import '../../widgets/doc_find_bar.dart';
 import '../../widgets/office_ribbon.dart';
 import '../../widgets/office_shell.dart';
@@ -87,6 +90,7 @@ part 'slides/pro_shapes.dart';
 part 'slides/sorter.dart';
 part 'slides/text_edit.dart';
 part 'slides/views.dart';
+part 'slides/share_export.dart';
 
 /// Slaytlar PowerPoint'teki gibi **gerçek tasarımıyla** çizilir. Faz 28
 /// (PowerPoint mobil dili): şekle dokunmak onu SEÇER (çerçeve + tutamaklar +
@@ -282,48 +286,49 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
         // Bütün eylemler ALT çubukta (2026-07-28 kullanıcı isteği: aynı işlev
         // iki yerde durmasın). Üstte yalnız geri al/yinele, anahat, arama;
         // metin düzenlenirken Kaydet (alt çubuk gizli).
-        actions: [
-          if (!editing) ...[
-            ListenableBuilder(
-              listenable: _history,
-              builder: (context, _) => IconButton(
-                key: const ValueKey('sl-undo'),
-                tooltip: context.t('excel.undo'),
-                icon: const Icon(OfficeIcons.undo),
-                onPressed: _history.canUndo || _proUndo.isNotEmpty
-                    ? _undoDeck
-                    : null,
+        // Faz 40 / 1: ortak üst çubuk sırası (kaydet · ↶ · ↷ · anahat · ara ·
+        // ⋮). Metin düzenlenirken ↶ ↷ metin alanının kendi geçmişinde.
+        actions: EditorTopBar.actions(
+          context,
+          onSave: editor == null ? null : _save,
+          history: _history,
+          undoKey: const ValueKey('sl-undo'),
+          undo: editing
+              ? null
+              : () =>
+                  _history.canUndo || _proUndo.isNotEmpty ? _undoDeck : null,
+          redo: editing ? null : () => _history.canRedo ? _redoDeck : null,
+          extras: [
+            if (!editing)
+              IconButton(
+                key: const ValueKey('sl-outline'),
+                tooltip: context.t('sl.outline'),
+                isSelected: _outline,
+                icon: const Icon(AppIcons.outline),
+                onPressed: editor == null ? null : _toggleOutline,
               ),
-            ),
-            ListenableBuilder(
-              listenable: _history,
-              builder: (context, _) => IconButton(
-                tooltip: context.t('excel.redo'),
-                icon: const Icon(OfficeIcons.redo),
-                onPressed: _history.canRedo ? _redoDeck : null,
+            if (!editing && !_outline)
+              IconButton(
+                tooltip: context.t('common.search'),
+                icon: const Icon(AppIcons.search),
+                onPressed: editor == null ? null : _toggleFind,
               ),
+          ],
+          menu: [
+            EditorMenuItem(
+              id: 'export',
+              icon: AppIcons.share,
+              label: context.t('ux.share_export'),
+              onTap: editor == null ? null : _shareExport,
             ),
-            IconButton(
-              key: const ValueKey('sl-outline'),
-              tooltip: context.t('sl.outline'),
-              isSelected: _outline,
-              icon: const Icon(AppIcons.outline),
-              onPressed: editor == null ? null : _toggleOutline,
+            EditorMenuItem(
+              id: 'pdf',
+              icon: AppIcons.pdf,
+              label: context.t('sl.to_pdf'),
+              onTap: editor == null ? null : _exportPdf,
             ),
           ],
-          if (editing)
-            IconButton(
-              tooltip: context.t('common.save'),
-              icon: const Icon(AppIcons.save),
-              onPressed: editor == null ? null : _save,
-            ),
-          if (!editing && !_outline)
-            IconButton(
-              tooltip: context.t('common.search'),
-              icon: const Icon(AppIcons.search),
-              onPressed: editor == null ? null : _toggleFind,
-            ),
-        ],
+        ),
         body: withDraftBanner(
           restore: _restoreDraft,
           EditorChrome(
@@ -337,9 +342,11 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
                   label: context.t('sl.tab_paragraph'), builder: _paragraphPanel),
             ],
             body: _error != null
-                ? Center(child: Text(context.t('sl.open_failed', {'error': _error})))
+                ? AppErrorView(
+                    message: context.t('ux.error_body'),
+                    details: context.t('sl.open_failed', {'error': _error}))
                 : editor == null
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const AppSkeleton(kind: SkeletonKind.slides)
                     : _outline && !editing
                         ? _outlineView(editor)
                         // Düzenlerken slayt listesi AĞAÇTA kalır (yalnız
@@ -408,8 +415,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
                         editor == null ? null : _openSorter),
                     DocAction(AppIcons.summarize, context.t('ai.summarize'),
                         editor == null ? null : _summarize),
-                    DocAction(AppIcons.save, context.t('common.save'),
-                        editor == null ? null : _save),
+                    // Kaydet üst çubukta (Faz 40 / 1).
                     DocAction(AppIcons.pdf, context.t('sl.to_pdf'),
                         editor == null ? null : _exportPdf),
                     DocAction(AppIcons.share, context.t('common.share'),

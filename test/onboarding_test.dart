@@ -50,6 +50,21 @@ void main() {
     expect(await OnboardingScreen.isDone(), isTrue);
   });
 
+  testWidgets('Faz 40 / 4: okuyucu · düzenleyici · tara; son sayfada örnekler',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(_app());
+    await tester.pumpAndSettle();
+    expect(find.text('Her dosyayı hızla oku'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('onboarding-next')));
+    await tester.pumpAndSettle();
+    expect(find.text('Düzenle, dönüştür, paylaş'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('onboarding-next')));
+    await tester.pumpAndSettle();
+    expect(find.text('Kâğıdı tara'), findsOneWidget);
+    expect(find.byKey(const ValueKey('onboarding-samples')), findsOneWidget);
+  });
+
   testWidgets('güncelleyen kullanıcı (eski kayıt var) rehberi görmez',
       (tester) async {
     SharedPreferences.setMockInitialValues({'recent_files': <String>['x']});

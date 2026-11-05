@@ -142,6 +142,25 @@ class SettingsCategory {
   List<SettingRow> get rows => [for (final s in sections) ...s.rows];
 }
 
+/// **Önerilen ayarlar** (Faz 40 / 5, 2026-11-05) — ayar ana ekranının
+/// üstündeki tek satır çip. Önce "yapılmamış ama işe yarar" olanlar (AI
+/// anahtarı yok, otomatik kaydetme kapalı, uygulama kilidi kapalı), sonra en
+/// sık değiştirilen görünüm ayarları. En çok [max] öğe; saf işlev (test).
+List<String> suggestedSettingIds({
+  required bool hasApiKey,
+  required bool appLock,
+  required bool autoSave,
+  int max = 4,
+}) =>
+    [
+      if (!hasApiKey) 'api_key',
+      if (!autoSave) 'auto_save',
+      if (!appLock) 'app_lock',
+      'ui_text_size',
+      'skin',
+      'language',
+    ].take(max).toList();
+
 /// Yedi kategori (+ [developer] açıksa Geliştirici). **Sıra bilinçli:** önce her açılışta göze çarpan şey
 /// (görünüm), sonra en çok kullanılan (dosya listeleri), sonra yetenek açan
 /// ayarlar (yapay zekâ, hesap), sonra koruma (gizlilik), sonra yer açma
@@ -213,6 +232,21 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                 titleKey: 'set.haptics',
                 subtitleKey: 'set.haptics_sub',
                 builder: _hapticsTile),
+          ]),
+          // Faz 40 / 8: hızlı tema + vurgu rengi — kategorinin SONUNDA
+          // (üstteki satırların yerleri testlerde sabit).
+          SettingsSection('thp.section', [
+            SettingRow(
+                id: 'theme_preset',
+                titleKey: 'thp.title',
+                subtitleKey: 'thp.sub',
+                altKeys: ['thp.amoled', 'thp.paper', 'set.kw_dark'],
+                builder: _themePresetTile),
+            SettingRow(
+                id: 'accent',
+                titleKey: 'acc.title',
+                altKeys: ['acc.blue', 'acc.teal'],
+                builder: _accentTile),
           ]),
         ],
       ),
@@ -667,6 +701,8 @@ String _themeModeLabel(BuildContext context, ThemeMode mode) => switch (mode) {
 Widget _themeTile(BuildContext _) => const ThemeTile();
 Widget _skinTile(BuildContext _) => const AppSkinTile();
 Widget _backgroundTile(BuildContext _) => const BackgroundColorTile();
+Widget _themePresetTile(BuildContext _) => const ThemePresetTile();
+Widget _accentTile(BuildContext _) => const AccentColorTile();
 Widget _hapticsTile(BuildContext _) => const HapticsTile();
 Widget _neuralVoicesTile(BuildContext context) => SettingTile(
       icon: AppIcons.voice,

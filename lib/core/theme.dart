@@ -196,6 +196,8 @@ class AppTheme {
     ('settings.size_medium', 1.0),
     ('settings.size_large', 1.15),
     ('settings.size_xlarge', 1.3),
+    // Faz 40 / 8: 2× ön ayarı (eskiden yalnız kaydırıcıyla).
+    ('thp.size_max', 2.0),
   ];
 
   /// [bodyFont] kullanıcının seçtiği aile ([uiFontDefault] ya da null =
@@ -205,23 +207,32 @@ class AppTheme {
     String? bodyFont,
     AppSkin skin = AppSkin.sage,
     String? background,
+    String? accent,
   }) =>
       _base(Brightness.light,
-          bodyFont: bodyFont, skin: skin, background: background);
+          bodyFont: bodyFont,
+          skin: skin,
+          background: background,
+          accent: accent);
 
   static ThemeData dark({
     String? bodyFont,
     AppSkin skin = AppSkin.sage,
     String? background,
+    String? accent,
   }) =>
       _base(Brightness.dark,
-          bodyFont: bodyFont, skin: skin, background: background);
+          bodyFont: bodyFont,
+          skin: skin,
+          background: background,
+          accent: accent);
 
   static ThemeData _base(
     Brightness brightness, {
     String? bodyFont,
     AppSkin skin = AppSkin.sage,
     String? background,
+    String? accent,
   }) {
     // Seçilen aile HER YERE: başlık ve veri satırları da. Gezgin listesinde
     // gövde metni yok (ad = başlık stili, tarih = tek aralıklı); yalnız
@@ -239,6 +250,13 @@ class AppTheme {
     final bgChoice = AppBackground.byId(background);
     if (!bgChoice.isDefault) {
       palette = palette.withBackground(isDark ? bgChoice.dark : bgChoice.light);
+    }
+    // Vurgu rengi (Faz 40 / 8): zeminden SONRA — kuyu yeni zemine karışsın.
+    final accentChoice = AppAccent.byId(accent);
+    if (!accentChoice.isDefault) {
+      palette = palette.withAccent(
+          isDark ? accentChoice.dark : accentChoice.light,
+          dark: isDark);
     }
     // Tohum korunur (türetilen ikincil/üçüncül roller ondan gelir) ama ailenin
     // kimliğini bozan türetilmiş YÜZEYLER elle geçersiz kılınır.

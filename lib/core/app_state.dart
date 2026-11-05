@@ -52,6 +52,7 @@ class AppState extends ChangeNotifier {
   static const _kThemeMode = 'theme_mode';
   static const _kAppSkin = 'app_skin';
   static const _kBackground = 'app_background';
+  static const _kAccent = 'app_accent';
   static const _kLanguage = 'app_language';
   static const _kRecents = 'recent_files';
   static const _kMemory = 'ai_memory';
@@ -119,6 +120,7 @@ class AppState extends ChangeNotifier {
         language: _language,
         uiFont: _uiFont,
         uiTextScale: _uiTextScale,
+        accent: _accent,
       );
 
   /// Görünüm ayarı değişimi: hem görünüm parçası hem (ayar ekranları için)
@@ -145,6 +147,9 @@ class AppState extends ChangeNotifier {
   /// Seçili hazır arka plan rengi (`AppBackground.id`); 'default' = ailenin
   /// kendi zemini.
   String _background = 'default';
+
+  /// Vurgu rengi (`AppAccent.id`, Faz 40 / 8); 'default' = ailenin kendi.
+  String _accent = 'default';
   AppLanguage _language = AppLanguage.system;
 
   /// Arayüz yazı tipi. Varsayılan `AppTheme.uiFontDefault` = tasarımın kendi
@@ -258,6 +263,7 @@ class AppState extends ChangeNotifier {
 
   /// Etkin arka plan rengi kimliği.
   String get background => _background;
+  String get accent => _accent;
 
   /// Arayüz dili. `system` = cihazın dili (desteklenmiyorsa Türkçe).
   AppLanguage get language => _language;
@@ -736,6 +742,7 @@ class AppState extends ChangeNotifier {
     _themeMode = _themeModeFromString(_prefs.getString(_kThemeMode));
     _appSkin = AppSkin.byName(_prefs.getString(_kAppSkin));
     _background = AppBackground.byId(_prefs.getString(_kBackground)).id;
+    _accent = AppAccent.byId(_prefs.getString(_kAccent)).id;
     _language = AppLanguageInfo.byCode(_prefs.getString(_kLanguage));
     _uiFont = AppTheme.migrateUiFont(_prefs.getString(_kUiFont));
     _uiTextScale = (_prefs.getDouble(_kUiTextScale) ?? 1.0).clamp(0.85, 2.0);
@@ -907,6 +914,12 @@ class AppState extends ChangeNotifier {
   Future<void> setAppSkin(AppSkin skin) async {
     _appSkin = skin;
     await _prefs.setString(_kAppSkin, skin.name);
+    _notifyAppearance();
+  }
+
+  Future<void> setAccent(String id) async {
+    _accent = AppAccent.byId(id).id;
+    await _prefs.setString(_kAccent, _accent);
     _notifyAppearance();
   }
 

@@ -22,6 +22,9 @@ import '../../services/docx/docx_document.dart';
 import '../../services/fm/activity_log.dart';
 import '../../services/fm/safe_write.dart';
 import '../../widgets/ai_rewrite_sheet.dart';
+import '../../widgets/editor_top_bar.dart';
+import '../../widgets/state_views.dart';
+import '../../widgets/share_export_sheet.dart';
 import '../../widgets/docx_editor/docx_edit_controller.dart';
 import '../../widgets/docx_editor/docx_editor_view.dart';
 import '../../widgets/office_ribbon.dart';
@@ -674,40 +677,41 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
           subtitle: context.t('word.mobile_view'),
           // ↶ ↷ hep üst çubukta (§5 madde 5); Sayfa düzeni M365'teki gibi
           // tepede — şerit yazı işlerine kalır.
-          actions: [
-            IconButton(
-              key: const ValueKey('word-undo'),
-              tooltip: context.t('word.undo'),
-              icon: const Icon(OfficeIcons.undo),
-              onPressed: c != null && c.canUndo
-                  ? c.undo
-                  : (_proUndo.isNotEmpty && !_proBusy ? _proUndoLast : null),
-            ),
-            IconButton(
-              tooltip: context.t('word.redo'),
-              icon: const Icon(OfficeIcons.redo),
-              onPressed: c != null && c.canRedo ? c.redo : null,
-            ),
-            IconButton(
-              key: const ValueKey('word-page-layout'),
-              tooltip: context.t('word.page_layout'),
-              icon: const Icon(AppIcons.newWord),
-              onPressed: c == null ? null : _pageLayout,
-            ),
-            IconButton(
-              tooltip: context.t('common.save'),
-              icon: const Icon(AppIcons.save),
-              onPressed: c == null ? null : _save,
-            ),
-          ],
+          // Faz 40 / 1: ortak üst çubuk sırası (kaydet · ↶ · ↷ · düzen · ⋮).
+          actions: EditorTopBar.actions(
+            context,
+            onSave: c == null ? null : _save,
+            undoKey: const ValueKey('word-undo'),
+            undo: () => c != null && c.canUndo
+                ? c.undo
+                : (_proUndo.isNotEmpty && !_proBusy ? _proUndoLast : null),
+            redo: () => c != null && c.canRedo ? c.redo : null,
+            extras: [
+              IconButton(
+                key: const ValueKey('word-page-layout'),
+                tooltip: context.t('word.page_layout'),
+                icon: const Icon(AppIcons.newWord),
+                onPressed: c == null ? null : _pageLayout,
+              ),
+            ],
+            menu: [
+              EditorMenuItem(
+                id: 'export',
+                icon: AppIcons.share,
+                label: context.t('ux.share_export'),
+                onTap: c == null ? null : _shareExport,
+              ),
+            ],
+          ),
           body: withDraftBanner(
             restore: _restoreDraft,
             _error != null
-                ? Center(
-                    child: Text(context.t('common.open_failed', {'error': _error})))
+                ? AppErrorView(
+                        message: context.t('ux.error_body'),
+                        details: context.t('common.open_failed', {'error': _error}))
                 : c == null
                     ? (_preview == null
-                        ? const Center(child: CircularProgressIndicator())
+                        ? const AppSkeleton()
                         : DocxLoadingPreview(paragraphs: _preview!))
                     : _chrome(c),
           ),

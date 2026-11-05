@@ -13,34 +13,27 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
       // Üst çubukta yalnız ALTTA KARŞILIĞI OLMAYANLAR kalır (2026-07-28
       // kullanıcı isteği: "bazı işlevler hem altta hem üstte var, gerek yok").
       // İstisna: düzenleme sırasında alt çubuk gizlendiği için Kaydet burada.
-      actions: [
+      // Faz 40 / 1: ortak üst çubuk sırası (kaydet · ↶ · ↷ · ara · ⋮).
+      actions: EditorTopBar.actions(
+        context,
+        onSave: editor == null ? null : _save,
         // Geri al / yinele: yapısal işlemler (paragraf ekle/sil) için —
         // paragraf silmenin geri dönüşü yoktu.
-        IconButton(
-          tooltip: context.t('word.undo'),
-          icon: const Icon(AppIcons.undo),
-          onPressed: !_canUndo ? null : _undoAny,
-        ),
-        IconButton(
-          tooltip: context.t('word.redo'),
-          icon: const Icon(AppIcons.redo),
-          onPressed: !_canRedo ? null : _redoAny,
-        ),
-        // Belge içi arama: slaytta ve Excel'de zaten vardı, Word'de yoktu.
-        if (!_plainMode)
-          IconButton(
-            tooltip: context.t('common.search'),
-            isSelected: _finding,
-            icon: const Icon(AppIcons.search),
-            onPressed: editor == null ? null : _toggleFind,
-          ),
-        if (_editing)
-          IconButton(
-            tooltip: context.t('common.save'),
-            icon: const Icon(AppIcons.save),
-            onPressed: editor == null ? null : _save,
-          ),
-        PopupMenuButton<String>(
+        undo: () => !_canUndo ? null : _undoAny,
+        redo: () => !_canRedo ? null : _redoAny,
+        extras: [
+          // Belge içi arama: slaytta ve Excel'de zaten vardı, Word'de yoktu.
+          if (!_plainMode)
+            IconButton(
+              tooltip: context.t('common.search'),
+              isSelected: _finding,
+              icon: const Icon(AppIcons.search),
+              onPressed: editor == null ? null : _toggleFind,
+            ),
+        ],
+        more: PopupMenuButton<String>(
+          key: EditorTopBar.moreKey,
+          tooltip: context.t('common.more'),
           onSelected: (v) async {
             switch (v) {
               case 'plain':
@@ -61,6 +54,9 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                     paragraphs: [for (final p in ed.paragraphs) p.text],
                   ),
                 ));
+                break;
+              case 'export':
+                if (editor != null) await _shareExport();
                 break;
               case 'page':
                 if (_dirty) await _save();
@@ -88,9 +84,11 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                     value: 'page', child: Text(context.t('word.page_view')))
                 : PopupMenuItem(
                     value: 'plain', child: Text(context.t('word.text_editor'))),
+            PopupMenuItem(
+                value: 'export', child: Text(context.t('ux.share_export'))),
           ],
         ),
-      ],
+      ),
       // Biçim çubuğu artık ÜSTTE değil (W7): klavye açıkken klavyenin hemen
       // üstünde tek satır hızlı çubuk, kapalıyken tam şerit — EditorChrome.
       // Etiketli eylem çubuğu (2026-07-28 kullanıcı isteği — PDF'teki gibi).
@@ -111,8 +109,7 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                   context.t(_flow ? 'word.page_layout' : 'word.mobile_flow'),
                   editor == null ? null : _toggleFlow,
                 ),
-              DocAction(AppIcons.save, context.t('common.save'),
-                  editor == null ? null : _save),
+              // Kaydet artık üst çubukta (Faz 40 / 1 — tek yapı).
               DocAction(AppIcons.share, context.t('common.share'),
                   editor == null ? null : _export),
               // Başka uygulamadan açıldıysa dosya özel önbellekte: doğrudan
@@ -143,10 +140,11 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                 ),
             ]),
       body: withDraftBanner(restore: _restoreDraft, _wordChrome(_error != null
-          ? Center(
-              child: Text(context.t('common.open_failed', {'error': _error})))
+          ? AppErrorView(
+                  message: context.t('ux.error_body'),
+                  details: context.t('common.open_failed', {'error': _error}))
           : editor == null || bytes == null
-              ? const Center(child: CircularProgressIndicator())
+              ? const AppSkeleton()
               : _plainMode
                   ? _buildPage(editor)
                   : Stack(

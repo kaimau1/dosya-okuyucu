@@ -5,11 +5,17 @@ import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
 import '../../core/theme.dart';
+import '../../core/snack.dart';
+import '../../services/sample_docs.dart';
 import '../../widgets/permission_gate.dart';
 
 /// **İlk açılış rehberi** (Faz 11a / N1, 2026-10-22).
 ///
-/// Üç sayfa: (1) uygulama ne yapar, (2) izinler — her biri NEDEN istenir,
+/// **Faz 40 / 4 (2026-11-05):** üç sayfa artık uygulamanın üç işi —
+/// okuyucu · düzenleyici · tara — ve son sayfada "örnek belgeler". Aşağıdaki
+/// ilkeler aynen geçerli (izin satırları ilgili işin sayfasında).
+///
+/// Eski düzen: (1) uygulama ne yapar, (2) izinler — her biri NEDEN istenir,
 /// vermezse ne olur (izin burada İSTENMEZ; yalnız durumu ve "aç" yolu
 /// gösterilir, asıl istek ilgili özelliğe ilk dokunuşta), (3) gizlilik ve
 /// AI veri açıklaması. Bir kez gösterilir (`onboarding_done`); seçici
@@ -114,29 +120,44 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 child: PageView(
                   controller: _pages,
                   onPageChanged: (i) => setState(() => _index = i),
+                  // Faz 40 / 4: üç ekran = uygulamanın üç işi — okuyucu ·
+                  // düzenleyici · tara. İzin satırları ilgili işin yanında,
+                  // gizlilik notu son sayfada (Faz 11a açıklaması korunur).
                   children: [
                     _Page(
-                      icon: AppIcons.folder,
-                      title: context.t('onb.p1_title'),
-                      body: context.t('onb.p1_body'),
-                    ),
-                    _Page(
-                      icon: AppIcons.lock,
-                      title: context.t('onb.p2_title'),
-                      body: context.t('onb.p2_body'),
-                      extra: [
-                        for (final p in const [
-                          AppPermission.allFiles,
-                          AppPermission.notifications,
-                          AppPermission.camera,
-                        ])
-                          PermissionStatusRow(permission: p),
+                      icon: AppIcons.menuBook,
+                      title: context.t('onb.reader_title'),
+                      body: context.t('onb.reader_body'),
+                      extra: const [
+                        PermissionStatusRow(permission: AppPermission.allFiles),
                       ],
                     ),
                     _Page(
-                      icon: AppIcons.ai,
-                      title: context.t('onb.p3_title'),
-                      body: context.t('onb.p3_body'),
+                      icon: AppIcons.edit,
+                      title: context.t('onb.editor_title'),
+                      body: context.t('onb.editor_body'),
+                      extra: const [
+                        PermissionStatusRow(
+                            permission: AppPermission.notifications),
+                      ],
+                    ),
+                    _Page(
+                      icon: AppIcons.scanHere,
+                      title: context.t('onb.scan_title'),
+                      body: context.t('onb.scan_body'),
+                      extra: [
+                        const PermissionStatusRow(
+                            permission: AppPermission.camera),
+                        const SizedBox(height: Gap.md),
+                        _SamplesButton(),
+                        const SizedBox(height: Gap.md),
+                        Text(
+                          context.t('onb.privacy_note'),
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -172,6 +193,48 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// "Örnek belgeleri ekle" — yalnız basılınca dört küçük dosya yazar
+/// ([SampleDocs]); bitince onay simgesi ve klasör adı.
+class _SamplesButton extends StatefulWidget {
+  @override
+  State<_SamplesButton> createState() => _SamplesButtonState();
+}
+
+class _SamplesButtonState extends State<_SamplesButton> {
+  bool _busy = false;
+  bool _done = false;
+
+  Future<void> _add() async {
+    setState(() => _busy = true);
+    final strings = AppStrings.of(context);
+    var ok = true;
+    try {
+      await SampleDocs.create(strings);
+    } catch (_) {
+      ok = false;
+    }
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _done = ok;
+    });
+    if (!ok) showSnack(context, context.t('onb.samples_failed'));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      key: const ValueKey('onboarding-samples'),
+      onPressed: _busy || _done ? null : _add,
+      icon: Icon(_done ? AppIcons.checkCircle : AppIcons.addFile),
+      label: Text(_done
+          ? context.t('onb.samples_done',
+              {'folder': context.t(SampleDocs.folderKey)})
+          : context.t('onb.samples')),
     );
   }
 }

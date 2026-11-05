@@ -64,8 +64,6 @@ import 'new_files_screen.dart';
 import 'swipe_pager.dart';
 import '../../services/fm/dashboard_layout.dart';
 import '../../widgets/fm/dashboard_layout_sheet.dart';
-import 'ai_hub_screen.dart';
-import '../../widgets/fm/ai_status_icon.dart';
 import 'operations_screen.dart';
 import 'photos_screen.dart';
 import 'search_screen.dart';
@@ -600,14 +598,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                       thickness: 1,
                       color: scheme.outlineVariant),
                 ),
-                // İnce küme: AI Merkezi (öneri varsa küçük kırmızı nokta),
-                // yenile, ayarlar.
-                trayButton(
-                  key: const ValueKey('dash-ai-hub'),
-                  tooltip: context.t('aih.title'),
-                  icon: const AiStatusIcon(dot: true),
-                  onPressed: () => _push(const AiHubScreen()),
-                ),
+                // İnce küme: yenile, ayarlar. AI Merkezi düğmesi 2026-11-05'te
+                // ALT PANELE taşındı (kullanıcı: *"üst paneldeki AI butonu
+                // oradan kalksın, alt panelde Yer aç yerine gelsin"*) — bkz.
+                // `DockExtras` varsayılanı.
                 trayButton(
                   key: const ValueKey('dash-rescan'),
                   tooltip: context.t('common.rescan'),

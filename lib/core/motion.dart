@@ -20,6 +20,14 @@ abstract final class Motion {
   /// Büyük yüzey: tam ekran geçiş, galeri açılışı.
   static const long = Duration(milliseconds: 320);
 
+  /// Sayfa geri dönüşü (geri tuşu): girişten biraz kısa — geri gitmek
+  /// "hemen" hissettirmeli (Faz 40 / 2; eskiden geçişte elle 170 ms).
+  static const pageReverse = Duration(milliseconds: 170);
+
+  /// Yükleme iskeletinin nabız yarım dönemi (Faz 40 / 10). Hafif profilde
+  /// nabız hiç çalışmaz (bkz. `AppSkeleton`).
+  static const pulse = Duration(milliseconds: 900);
+
   /// Metin imlecinin yarım yanıp sönme süresi (EditableText ile aynı).
   static const caretBlink = Duration(milliseconds: 500);
 

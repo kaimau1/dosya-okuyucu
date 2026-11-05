@@ -172,6 +172,36 @@ class SkinPalette {
     );
   }
 
+  /// **Vurgu rengini değiştirir** (Faz 40 / 8). Kuyu (seçili pil) zeminle
+  /// vurgunun karışımı; vurgunun üstündeki yazı beyaz ya da siyahtan hangisi
+  /// daha okunursa. Renkler [AppAccent]te `contrast_test` ile kilitli.
+  SkinPalette withAccent(Color newAccent, {required bool dark}) {
+    final white = _contrast(Colors.white, newAccent);
+    final black = _contrast(Colors.black, newAccent);
+    return SkinPalette(
+      bg: bg,
+      card: card,
+      band: band,
+      well: well,
+      rule: rule,
+      edge: edge,
+      ink: ink,
+      inkSoft: inkSoft,
+      inkFaint: inkFaint,
+      accent: newAccent,
+      accentWell: Color.lerp(bg, newAccent, dark ? 0.28 : 0.16) ?? newAccent,
+      onAccent: white >= black ? Colors.white : Colors.black,
+      danger: danger,
+      ok: ok,
+    );
+  }
+
+  static double _contrast(Color a, Color b) {
+    final la = a.computeLuminance(), lb = b.computeLuminance();
+    final hi = la > lb ? la : lb, lo = la > lb ? lb : la;
+    return (hi + 0.05) / (lo + 0.05);
+  }
+
   /// Metin rengi zemine göre okunur mu? Değilse zıt uca çevrilir.
   ///
   /// Kullanıcı 12 hazır renkten seçiyor ama "gece mavisi" gibi koyu bir zemin
@@ -492,6 +522,39 @@ class AppBackground {
   static AppBackground byId(String? id) {
     for (final b in values) {
       if (b.id == id) return b;
+    }
+    return values.first;
+  }
+}
+
+/// **Vurgu rengi** seçimi (Faz 40 / 8, 2026-11-05) — tema ailesinden
+/// BAĞIMSIZ: ailenin zemini/mürekkebi kalır, yalnız seçili sekme, birincil
+/// düğme ve vurgular değişir. Açık ve koyu karşılıklar ayrı: açıkta koyu
+/// ton (beyaz yazı ≥ 4,5:1), koyuda açık ton (siyah yazı). `default` =
+/// ailenin kendi vurgusu.
+class AppAccent {
+  final String id;
+  final String labelKey;
+  final Color light;
+  final Color dark;
+
+  const AppAccent(this.id, this.labelKey, this.light, this.dark);
+
+  bool get isDefault => id == 'default';
+
+  static const values = <AppAccent>[
+    AppAccent('default', 'acc.default', Color(0xFF106561), Color(0xFF78C8C1)),
+    AppAccent('teal', 'acc.teal', Color(0xFF0D5E5A), Color(0xFF7FD3CB)),
+    AppAccent('blue', 'acc.blue', Color(0xFF1B53A8), Color(0xFF9DC1FF)),
+    AppAccent('indigo', 'acc.indigo', Color(0xFF4B3FB5), Color(0xFFB4A9FF)),
+    AppAccent('plum', 'acc.plum', Color(0xFF7B2F6B), Color(0xFFF0A8DF)),
+    AppAccent('forest', 'acc.forest', Color(0xFF285E2D), Color(0xFF9FD8A4)),
+    AppAccent('rust', 'acc.rust', Color(0xFF9A3F1C), Color(0xFFFFB59A)),
+  ];
+
+  static AppAccent byId(String? id) {
+    for (final a in values) {
+      if (a.id == id) return a;
     }
     return values.first;
   }

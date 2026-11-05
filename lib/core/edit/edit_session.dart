@@ -281,8 +281,24 @@ class EditSession extends ChangeNotifier with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
-      unawaited(writeDraft());
+      unawaited(onBackground());
+    }
+  }
+
+  /// **Kapanış güvencesi** (Faz 40 / 6, 2026-11-05): uygulama arka plana
+  /// geçerken / kapanırken önce taslak yazılır (her editörde aynı), sonra
+  /// otomatik kaydetme açıksa dosyanın kendisi de kaydedilir — sistem süreci
+  /// öldürse bile en kötü durumda taslaktan kurtarılır. Dışarıda değişmiş
+  /// dosyanın üzerine yazılmaz ([saveNow] `auto` kipi). Testte doğrudan
+  /// çağrılır.
+  Future<void> onBackground() async {
+    if (!_dirty || _disposed) return;
+    await writeDraft();
+    if (_disposed || !_dirty) return;
+    if (autoSave && !_externalConflict && status != SaveStatus.saving) {
+      await saveNow(auto: true);
     }
   }
 

@@ -8,6 +8,7 @@ import '../../core/theme.dart';
 import '../../screens/fm/ai_hub_screen.dart';
 import '../../screens/fm/browser_screen.dart';
 import '../../screens/fm/dashboard_screen.dart';
+import 'ai_status_icon.dart';
 import '../../screens/fm/downloads_screen.dart';
 import '../../screens/fm/drive_screen.dart';
 import '../../screens/fm/history_screen.dart';
@@ -60,6 +61,9 @@ class HomeQuickRow extends StatelessWidget {
       icon: spec.icon,
       label: spec.label,
       color: spec.color,
+      // AI Merkezi üst çubuktan buraya taşındı (2026-11-05): durum simgesi
+      // (analiz halkası, öneri noktası) onunla geldi.
+      iconWidget: id == 'ai' ? const AiStatusIcon(dot: true) : null,
       onTap: () => spec.open(context),
     )),
     ];
@@ -159,6 +163,9 @@ class _DockItem extends StatelessWidget {
   final Color? color;
   final int count;
 
+  /// Düz simge yerine canlı simge (AI: analiz halkası / öneri noktası).
+  final Widget? iconWidget;
+
   const _DockItem({
     super.key,
     required this.icon,
@@ -167,6 +174,7 @@ class _DockItem extends StatelessWidget {
     this.semantics,
     this.color,
     this.count = 0,
+    this.iconWidget,
   });
 
   @override
@@ -189,7 +197,14 @@ class _DockItem extends StatelessWidget {
               Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  Icon(icon, size: 22, color: color ?? scheme.onSurfaceVariant),
+                  if (iconWidget != null)
+                    IconTheme.merge(
+                      data: IconThemeData(
+                          size: 22, color: color ?? scheme.onSurfaceVariant),
+                      child: iconWidget!,
+                    )
+                  else
+                    Icon(icon, size: 22, color: color ?? scheme.onSurfaceVariant),
                   if (count > 0)
                     PositionedDirectional(
                       top: -5,
@@ -309,9 +324,11 @@ abstract final class DockExtras {
   static const _leftKey = 'dock_extra_left_v1';
   static const _rightKey = 'dock_extra_right_v1';
 
-  /// (sol, sağ) — null = yok.
+  /// (sol, sağ) — null = yok. Sağ varsayılan **AI** (2026-11-05, kullanıcı:
+  /// AI düğmesi üst panelden alta, "Yer aç"ın yerine). "Yer aç" seçilebilir
+  /// kalır (uzun bas → alt paneli düzenle).
   static final value =
-      ValueNotifier<(String?, String?)>((null, 'free_space'));
+      ValueNotifier<(String?, String?)>((null, 'ai'));
   static Future<void>? _loading;
 
   /// Seçilebilen düğmeler (sıra = düzenleme sayfasındaki sıra).
@@ -338,7 +355,7 @@ abstract final class DockExtras {
           }
 
           value.value =
-              (read(_leftKey), read(_rightKey, fallback: 'free_space'));
+              (read(_leftKey), read(_rightKey, fallback: 'ai'));
         } catch (_) {
           // Bilinçli: okunamazsa ek düğme yok.
         }

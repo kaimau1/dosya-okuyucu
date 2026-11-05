@@ -624,6 +624,26 @@ extension _WordProPart on _WordMobileEditorScreenState {
   Future<void> _export() async {
     final fmt = await _choose('wp.export', _exportFormats);
     if (fmt == null || !mounted) return;
+    await _exportFormat(fmt);
+  }
+
+  /// Faz 40 / 7: tek "Paylaş / Dışa aktar" sayfası — biçimler (PDF, DOCX,
+  /// ODT, RTF, MD, TXT) üstte, gönderme yolları altta.
+  Future<void> _shareExport() => showShareExportSheet(context, entries: [
+        for (final (id, label) in _exportFormats)
+          ShareExportEntry(
+            id: id,
+            icon: id == 'pdf' ? AppIcons.pdf : AppIcons.newWord,
+            label: context.t(label),
+            run: () => _exportFormat(id),
+          ),
+        ShareExportEntry.nearby(context, path: widget.path,
+            beforeSend: () async {
+          if (_session.isDirty) await _session.saveNow();
+        }),
+      ]);
+
+  Future<void> _exportFormat(String fmt) async {
     final bytes = await _exportBytes(fmt);
     if (bytes == null || !mounted) return;
     final ext = fmt == 'docx_fonts' ? 'docx' : fmt;

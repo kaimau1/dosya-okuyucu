@@ -38,7 +38,7 @@ class FastPageTransitionsBuilder extends PageTransitionsBuilder {
   /// Geri dönüş daha kısa: kullanıcı geri gittiğinde **zaten gördüğü** bir
   /// sayfaya dönüyor, orada bekletmenin bir karşılığı yok.
   @override
-  Duration get reverseTransitionDuration => const Duration(milliseconds: 170);
+  Duration get reverseTransitionDuration => Motion.pageReverse;
 
   @override
   Widget buildTransitions<T>(
@@ -73,27 +73,38 @@ class _FastPageTransition extends StatelessWidget {
   /// Gelen sayfa ekranın %14'ü kadar sağdan girer. Tam genişlik (%100)
   /// "kaydırılan bir yüzey" hissi verir ama uzun mesafe = uzun süre demek;
   /// kısa mesafe hem hızlı hem yönü belli.
-  static final _enter = Tween<Offset>(
+  // Faz 40 / 2: eğri Motion tokenından; sağdan sola dilde (Arapça) yön
+  // aynalanır — yeni sayfa SOLDAN girer (okuma yönünde "ileri").
+  static final _enterLtr = Tween<Offset>(
     begin: const Offset(0.14, 0),
     end: Offset.zero,
-  ).chain(CurveTween(curve: Curves.easeOutCubic));
+  ).chain(CurveTween(curve: Motion.enter));
+  static final _enterRtl = Tween<Offset>(
+    begin: const Offset(-0.14, 0),
+    end: Offset.zero,
+  ).chain(CurveTween(curve: Motion.enter));
 
   /// Alttaki sayfanın paralaksı — derinlik hissini veren şey bu. Küçük
   /// tutuluyor: geri dönerken sayfanın uzaktan gelmesi yavaş görünürdü.
-  static final _exit = Tween<Offset>(
+  static final _exitLtr = Tween<Offset>(
     begin: Offset.zero,
     end: const Offset(-0.05, 0),
-  ).chain(CurveTween(curve: Curves.easeOutCubic));
+  ).chain(CurveTween(curve: Motion.enter));
+  static final _exitRtl = Tween<Offset>(
+    begin: Offset.zero,
+    end: const Offset(0.05, 0),
+  ).chain(CurveTween(curve: Motion.enter));
 
   @override
   Widget build(BuildContext context) {
+    final rtl = Directionality.maybeOf(context) == TextDirection.rtl;
     return SlideTransition(
-      position: secondaryAnimation.drive(_exit),
+      position: secondaryAnimation.drive(rtl ? _exitRtl : _exitLtr),
       // `transformHitTests: false`: çıkan sayfa kaydırılmış hâldeyken
       // dokunuşları yakalamasın (geçiş sırasında yanlış öğeye basılması).
       transformHitTests: false,
       child: SlideTransition(
-        position: animation.drive(_enter),
+        position: animation.drive(rtl ? _enterRtl : _enterLtr),
         child: child,
       ),
     );

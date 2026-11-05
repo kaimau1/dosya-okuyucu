@@ -408,3 +408,124 @@ class HapticsTile extends StatelessWidget {
         ),
       );
 }
+
+/// **Tema ön ayarları** (Faz 40 / 8): tek dokunuşla Açık · Koyu · AMOLED ·
+/// Kâğıt. Her biri bir (aile, mod) çifti; ayrıntılı seçim aşağıdaki aile ve
+/// tema satırlarında durur.
+class ThemePresetTile extends StatelessWidget {
+  const ThemePresetTile({super.key});
+
+  static const presets = <(String, String, AppSkin, ThemeMode)>[
+    ('light', 'thp.light', AppSkin.sage, ThemeMode.light),
+    ('dark', 'thp.dark', AppSkin.sage, ThemeMode.dark),
+    ('amoled', 'thp.amoled', AppSkin.night, ThemeMode.dark),
+    ('paper', 'thp.paper', AppSkin.clay, ThemeMode.light),
+  ];
+
+  static String? currentId(AppSkin skin, ThemeMode mode) {
+    for (final p in presets) {
+      if (p.$3 == skin && (skin.forcesDark || p.$4 == mode)) return p.$1;
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
+    final current = currentId(appState.appSkin, appState.themeMode);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SettingTile(
+          icon: AppIcons.palette,
+          title: context.t('thp.title'),
+          subtitle: context.t('thp.sub'),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.sm),
+          child: Wrap(
+            spacing: Gap.sm,
+            runSpacing: Gap.sm,
+            children: [
+              for (final p in presets)
+                ChoiceChip(
+                  key: ValueKey('theme-preset-${p.$1}'),
+                  label: Text(context.t(p.$2)),
+                  selected: current == p.$1,
+                  onSelected: (_) async {
+                    await appState.setAppSkin(p.$3);
+                    await appState.setThemeMode(p.$4);
+                  },
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// **Vurgu rengi** (Faz 40 / 8): ailenin zemini kalır, yalnız vurgu değişir.
+class AccentColorTile extends StatelessWidget {
+  const AccentColorTile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
+    final brightness = Theme.of(context).brightness;
+    final dark = brightness == Brightness.dark;
+    final current = AppAccent.byId(appState.accent);
+    final skinAccent = SkinPalette.of(appState.appSkin, brightness).accent;
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SettingTile(
+          icon: AppIcons.formatColorFill,
+          title: context.t('acc.title'),
+          value: context.t(current.labelKey),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.sm),
+          child: Wrap(
+            spacing: Gap.sm,
+            runSpacing: Gap.sm,
+            children: [
+              for (final a in AppAccent.values)
+                Semantics(
+                  selected: a.id == current.id,
+                  button: true,
+                  label: context.t(a.labelKey),
+                  excludeSemantics: true,
+                  child: Tooltip(
+                    message: context.t(a.labelKey),
+                    child: InkWell(
+                      key: ValueKey('accent-${a.id}'),
+                      onTap: () => appState.setAccent(a.id),
+                      customBorder: const CircleBorder(),
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: a.isDefault
+                              ? skinAccent
+                              : (dark ? a.dark : a.light),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: a.id == current.id
+                                ? scheme.onSurface
+                                : scheme.outlineVariant,
+                            width: a.id == current.id ? 3 : 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
