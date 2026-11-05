@@ -11,8 +11,12 @@ class AuditRef {
   bool get isCell => r1 == r2 && c1 == c2;
 
   @override
-  bool operator ==(Object o) =>
-      o is AuditRef && o.r1 == r1 && o.c1 == c1 && o.r2 == r2 && o.c2 == c2;
+  bool operator ==(Object other) =>
+      other is AuditRef &&
+      other.r1 == r1 &&
+      other.c1 == c1 &&
+      other.r2 == r2 &&
+      other.c2 == c2;
   @override
   int get hashCode => Object.hash(r1, c1, r2, c2);
   @override
