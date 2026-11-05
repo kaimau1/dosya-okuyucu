@@ -338,6 +338,53 @@ class XlsxSheet {
   /// Bu oturumda eklenen koşullu biçimlendirme kuralları (kaydetmede yazılır).
   final List<XlsxCondRuleWrite> condRuleEdits = [];
 
+  /// Faz 36: bu oturumda eklenen mini grafikler (kaydetmede `extLst`e).
+  final List<XlsxSparklineWrite> sparklineEdits = [];
+
+  /// Mini grafik ekler; kaynak aynı sayfadaysa sayfa adı başa yazılır.
+  XlsxSparkline addSparkline({
+    required XlsxRange source,
+    required int row,
+    required int col,
+    String type = 'line',
+    int colorArgb = 0xFF376092,
+  }) {
+    final quoted = RegExp(r'^[A-Za-z_][A-Za-z0-9_.]*$').hasMatch(name)
+        ? name
+        : "'${name.replaceAll("'", "''")}'";
+    final ref = '$quoted!${_rangeRef(source)}';
+    final sp = XlsxSparkline(
+        source: ref, row: row, col: col, type: type, colorArgb: colorArgb);
+    layout.sparklines.removeWhere((x) => x.row == row && x.col == col);
+    layout.sparklines.add(sp);
+    sparklineEdits.add(XlsxSparklineWrite(
+      source: ref,
+      cell: '${XlsxRange.colName(col)}${row + 1}',
+      type: type,
+      colorArgb: colorArgb,
+    ));
+    _touched();
+    return sp;
+  }
+
+  /// Bu oturumda eklenen mini grafiği geri alır.
+  void removeSparkline(XlsxSparkline sp) {
+    if (!layout.sparklines.remove(sp)) return;
+    final cell = '${XlsxRange.colName(sp.col)}${sp.row + 1}';
+    final i = sparklineEdits.lastIndexWhere(
+        (w) => w.cell == cell && w.source == sp.source);
+    if (i >= 0) sparklineEdits.removeAt(i);
+    _touched();
+  }
+
+  /// (r, c) hücresindeki mini grafik (yoksa null).
+  XlsxSparkline? sparklineAt(int r, int c) {
+    for (final sp in layout.sparklines) {
+      if (sp.row == r && sp.col == c) return sp;
+    }
+    return null;
+  }
+
   /// Bu oturumdaki satır/sütun ekle-sil işlemleri, sırayla (Faz 25 / X3):
   /// kaydetmede özgün XML'deki koşullu biçim, doğrulama, köprü ve notlar
   /// aynı kaydırmayı görür.
@@ -1556,6 +1603,7 @@ class XlsxEditor {
           styleEdits: s.styleEdits,
           styleCopies: s.styleCopies,
           condRules: s.condRuleEdits,
+          sparklines: s.sparklineEdits,
           validations: s.validationWrites,
           validationClears: s.validationClears,
           tabColorEdited: s.tabColorEdited,

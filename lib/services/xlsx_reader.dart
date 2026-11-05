@@ -686,6 +686,8 @@ class XlsxReader {
           }
         case 'autoFilter':
           layout.autoFilterRef = el.getAttribute('ref');
+        case 'extLst':
+          _readSparklines(el, layout, styles.theme);
       }
     }
     return layout;
@@ -1274,6 +1276,37 @@ class XlsxReader {
     return u > 127; // Türkçe harfli tanımlı adlar
   }
 
+  /// `x14:sparklineGroups` (Excel 2010 mini grafikleri) — Faz 36 madde 3.
+  static void _readSparklines(
+      XmlElement ext, XlsxSheetLayout layout, List<int> theme) {
+    for (final g in ext.descendants.whereType<XmlElement>()) {
+      if (g.name.local != 'sparklineGroup') continue;
+      final type = g.getAttribute('type') ?? 'line';
+      final colorEl = g.childElements
+          .where((e) => e.name.local == 'colorSeries')
+          .firstOrNull;
+      final color = colorEl == null ? null : _readColor(colorEl, theme);
+      for (final sp in g.descendants.whereType<XmlElement>()) {
+        if (sp.name.local != 'sparkline') continue;
+        String? text(String local) => sp.childElements
+            .where((e) => e.name.local == local)
+            .firstOrNull
+            ?.innerText
+            .trim();
+        final f = text('f');
+        final at = XlsxRange.cellRef(text('sqref'));
+        if (f == null || at == null) continue;
+        layout.sparklines.add(XlsxSparkline(
+          source: f,
+          row: at.$1,
+          col: at.$2,
+          type: type,
+          colorArgb: color ?? 0xFF376092,
+        ));
+      }
+    }
+  }
+
   static void _readCondFormat(
       XmlElement el, XlsxSheetLayout layout, List<int> theme) {
     final sqref = el.getAttribute('sqref') ?? '';
@@ -1751,6 +1784,44 @@ class XlsxCondRule {
   bool covers(int r, int c) => ranges.any((x) => x.contains(r, c));
 }
 
+/// Tek hücrelik mini grafik (`x14:sparkline`).
+class XlsxSparkline {
+  /// Kaynak aralık, sayfa adıyla ya da adsız (`Sayfa1!A1:E1` / `A1:E1`).
+  final String source;
+  final int row;
+  final int col;
+
+  /// `line` | `column` | `stacked` (kazanç/kayıp).
+  final String type;
+  final int colorArgb;
+
+  const XlsxSparkline({
+    required this.source,
+    required this.row,
+    required this.col,
+    this.type = 'line',
+    this.colorArgb = 0xFF376092,
+  });
+
+  /// Kaynağın aralık kısmı (sayfa adı ve `$` atılmış).
+  XlsxRange? get range {
+    final i = source.lastIndexOf('!');
+    return XlsxRange.parse(
+        (i < 0 ? source : source.substring(i + 1)).replaceAll(r'$', ''));
+  }
+
+  /// Kaynağın sayfa adı (yoksa null = aynı sayfa).
+  String? get sheet {
+    final i = source.lastIndexOf('!');
+    if (i < 0) return null;
+    var name = source.substring(0, i);
+    if (name.startsWith("'") && name.endsWith("'") && name.length >= 2) {
+      name = name.substring(1, name.length - 1).replaceAll("''", "'");
+    }
+    return name;
+  }
+}
+
 class XlsxDataValidation {
   final String type;
   final List<XlsxRange> ranges;
@@ -1873,6 +1944,9 @@ class XlsxSheetLayout {
   final List<XlsxRange> merges = [];
   final Map<int, XlsxCell> cells = {};
   final List<XlsxCondRule> condFormats = [];
+
+  /// Mini grafikler (Faz 36): hedef hücre + kaynak aralık.
+  final List<XlsxSparkline> sparklines = [];
   final Map<int, String> hyperlinks = {};
 
   /// Hücre notları (açıklama/yorum) — `cellKey(r, c)` → not.

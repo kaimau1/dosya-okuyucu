@@ -141,6 +141,8 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
           const RibbonSep(),
           RibbonButton(AppIcons.insertChart, context.t('chart.insert'),
               key: const ValueKey('xl-ins-chart'), onTap: _insertChart),
+          RibbonButton(AppIcons.trendingUp, context.t('xp.sparkline'),
+              key: const ValueKey('xl-ins-spark'), onTap: _insertSparklines),
           RibbonButton(AppIcons.comment, context.t('excel.note_new'),
               key: const ValueKey('xl-ins-note'), onTap: _editNote),
         ]),
@@ -460,6 +462,8 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
       DocMoreGroup(context.t('chart.group_insert'), [
         DocMoreItem(
             AppIcons.insertChart, context.t('chart.insert'), _insertChart),
+        DocMoreItem(
+            AppIcons.trendingUp, context.t('xp.sparkline'), _insertSparklines),
       ]),
       DocMoreGroup(context.t('excel.row'), [
         DocMoreItem(AppIcons.keyboardArrowUp,

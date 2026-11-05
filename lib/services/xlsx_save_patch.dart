@@ -68,6 +68,9 @@ class XlsxSheetPatch {
   /// ekrandaki modelin kullandığı indekslerle birebir örtüşmesi gerekiyor.
   final List<XlsxCondRuleWrite> condRules;
 
+  /// Faz 36: bu oturumda eklenen mini grafikler (`x14:sparklineGroups`).
+  final List<XlsxSparklineWrite> sparklines;
+
   /// Faz 27: eklenen veri doğrulamaları ve temizlenen aralıklar (önce
   /// temizleme, sonra ekleme uygulanır).
   final List<XlsxValidationWrite> validations;
@@ -100,6 +103,7 @@ class XlsxSheetPatch {
     this.styleEdits = const {},
     this.styleCopies = const {},
     this.condRules = const [],
+    this.sparklines = const [],
   });
 
   bool get isEmpty =>
@@ -116,10 +120,28 @@ class XlsxSheetPatch {
       styleEdits.isEmpty &&
       styleCopies.isEmpty &&
       condRules.isEmpty &&
+      sparklines.isEmpty &&
       validations.isEmpty &&
       validationClears.isEmpty &&
       !tabColorEdited &&
       !autoFilterEdited;
+}
+
+/// Dosyaya yazılacak mini grafik (yamanın girdisi; saf veri).
+class XlsxSparklineWrite {
+  /// `Sayfa1!A1:E1` (sayfa adı ŞART — Excel çıplak aralığı kabul etmez).
+  final String source;
+
+  /// Hedef hücre (`F1`).
+  final String cell;
+  final String type;
+  final int colorArgb;
+  const XlsxSparklineWrite({
+    required this.source,
+    required this.cell,
+    this.type = 'line',
+    this.colorArgb = 0xFF376092,
+  });
 }
 
 /// Dosyaya yazılacak veri doğrulama kuralı (yamanın girdisi; saf veri).
@@ -465,6 +487,7 @@ class XlsxSavePatch {
     if (_applyStyleEdits(root, patch.styleEdits, styles)) changed = true;
     if (_applyNumberFormats(root, patch.numberFormats, styles)) changed = true;
     if (_applyCondRules(root, patch.condRules, styles)) changed = true;
+    if (_applySparklines(root, patch.sparklines)) changed = true;
     if (_applyValidations(root, patch)) changed = true;
     if (_applyTabColor(root, patch)) changed = true;
 
@@ -594,6 +617,67 @@ class XlsxSavePatch {
           [cfRule],
         ),
       );
+    }
+    return true;
+  }
+
+  static const _x14 = 'http://schemas.microsoft.com/office/spreadsheetml/2009/9/main';
+  static const _xm = 'http://schemas.microsoft.com/office/excel/2006/main';
+  static const _sparkUri = '{05C60535-1F16-4fd2-B633-F4F36F0B64E0}';
+
+  /// Mini grafikler `extLst/ext[uri]/x14:sparklineGroups` altına; tür+renk
+  /// başına bir `sparklineGroup`. `extLst` sayfanın SON çocuğudur.
+  static bool _applySparklines(XmlElement root, List<XlsxSparklineWrite> list) {
+    if (list.isEmpty) return false;
+    var extLst = _firstChild(root, 'extLst');
+    if (extLst == null) {
+      extLst = XmlElement(XmlName('extLst'));
+      root.children.add(extLst);
+    }
+    XmlElement? ext;
+    for (final e in extLst.childElements) {
+      if (e.name.local == 'ext' && e.getAttribute('uri') == _sparkUri) ext = e;
+    }
+    if (ext == null) {
+      ext = XmlElement(XmlName('ext'), [
+        XmlAttribute(XmlName('uri'), _sparkUri),
+        XmlAttribute(XmlName('x14', 'xmlns'), _x14),
+      ]);
+      extLst.children.add(ext);
+    }
+    var groups = ext.childElements
+        .where((e) => e.name.local == 'sparklineGroups')
+        .firstOrNull;
+    if (groups == null) {
+      groups = XmlElement(XmlName('sparklineGroups', 'x14'), [
+        XmlAttribute(XmlName('xm', 'xmlns'), _xm),
+      ]);
+      ext.children.add(groups);
+    }
+    final byKey = <String, List<XlsxSparklineWrite>>{};
+    for (final s in list) {
+      (byKey['${s.type}|${s.colorArgb}'] ??= []).add(s);
+    }
+    for (final items in byKey.values) {
+      final first = items.first;
+      String hex(int argb) =>
+          argb.toUnsigned(32).toRadixString(16).padLeft(8, '0').toUpperCase();
+      groups.children.add(XmlElement(XmlName('sparklineGroup', 'x14'), [
+        if (first.type != 'line') XmlAttribute(XmlName('type'), first.type),
+        XmlAttribute(XmlName('displayEmptyCellsAs'), 'gap'),
+      ], [
+        XmlElement(XmlName('colorSeries', 'x14'),
+            [XmlAttribute(XmlName('rgb'), hex(first.colorArgb))]),
+        XmlElement(XmlName('colorNegative', 'x14'),
+            [XmlAttribute(XmlName('rgb'), 'FFD00000')]),
+        XmlElement(XmlName('sparklines', 'x14'), [], [
+          for (final s in items)
+            XmlElement(XmlName('sparkline', 'x14'), [], [
+              XmlElement(XmlName('f', 'xm'), [], [XmlText(s.source)]),
+              XmlElement(XmlName('sqref', 'xm'), [], [XmlText(s.cell)]),
+            ]),
+        ]),
+      ]));
     }
     return true;
   }

@@ -182,6 +182,75 @@ extension _SpreadsheetProDataPart on _SpreadsheetEditorScreenState {
           ));
     });
   }
+
+  // ── 3. Mini grafik ─────────────────────────────────────────────────────
+
+  /// Seçimin HER SATIRI için, seçimin sağındaki ilk sütuna bir mini grafik
+  /// (Excel'in "Konum aralığı" varsayılanı). Tek satırlık seçimde tek grafik.
+  Future<void> _insertSparklines() async {
+    final sheet = _sheet;
+    if (sheet == null) return;
+    _endEdit();
+    final r = _range;
+    if (r.right <= r.left && r.bottom <= r.top) {
+      _snack(context.t('xp.sparkline_needs_range'));
+      return;
+    }
+    final type = await showAppSheet<String>(
+      context,
+      title: context.t('xp.sparkline'),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final (t, icon) in const [
+            ('line', AppIcons.trendingUp),
+            ('column', AppIcons.barChart),
+            ('stacked', AppIcons.swapVert),
+          ])
+            ListTile(
+              key: ValueKey('spark-$t'),
+              leading: Icon(icon),
+              title: Text(ctx.t('xp.spark_$t')),
+              onTap: () => Navigator.pop(ctx, t),
+            ),
+        ],
+      ),
+    );
+    if (type == null || !mounted) return;
+    // Tek sütunlu seçim → dikey seri, hedef sütunun altındaki hücre.
+    final vertical = r.right == r.left;
+    final added = <XlsxSparkline>[];
+    void apply() {
+      added.clear();
+      if (vertical) {
+        added.add(sheet.addSparkline(
+          source: XlsxRange(r.top, r.left, r.bottom, r.right),
+          row: r.bottom + 1,
+          col: r.left,
+          type: type,
+        ));
+        return;
+      }
+      for (var row = r.top; row <= r.bottom; row++) {
+        added.add(sheet.addSparkline(
+          source: XlsxRange(row, r.left, row, r.right),
+          row: row,
+          col: r.right + 1,
+          type: type,
+        ));
+      }
+    }
+
+    apply();
+    _recordStep('xp.undo_sparkline', apply, () {
+      for (final sp in added) {
+        sheet.removeSparkline(sp);
+      }
+    });
+    _session.changed();
+    _gridVersion++;
+    _partSetState(() {});
+  }
 }
 
 /// Özet tablo ayar levhası: satır / sütun / değer alanı, işlev, süzgeç.

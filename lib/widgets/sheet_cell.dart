@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../core/app_colors.dart';
 import '../core/theme.dart';
 import '../services/xlsx_editor.dart';
 
@@ -42,6 +43,12 @@ class SheetCondPaint {
   /// Simge kümesi rengi (sol kenarda küçük daire; Faz 36).
   final Color? iconColor;
 
+  /// Mini grafik değerleri (NaN = boş), türü (`line`/`column`/`stacked`)
+  /// ve rengi (Faz 36 madde 3).
+  final List<double>? sparkValues;
+  final String? sparkType;
+  final Color? sparkColor;
+
   const SheetCondPaint({
     this.background,
     this.foreground,
@@ -50,6 +57,9 @@ class SheetCondPaint {
     this.barRatio,
     this.barColor,
     this.iconColor,
+    this.sparkValues,
+    this.sparkType,
+    this.sparkColor,
   });
 }
 
@@ -275,6 +285,9 @@ class SheetCell extends StatelessWidget {
               barRatio: cond?.barRatio,
               barColor: cond?.barColor,
               iconColor: cond?.iconColor,
+              sparkValues: cond?.sparkValues,
+              sparkType: cond?.sparkType,
+              sparkColor: cond?.sparkColor,
             ),
             child: SizedBox(width: width, height: height, child: body),
           ),
@@ -370,6 +383,9 @@ class _CellBorderPainter extends CustomPainter {
   final double? barRatio;
   final Color? barColor;
   final Color? iconColor;
+  final List<double>? sparkValues;
+  final String? sparkType;
+  final Color? sparkColor;
   final int rangeEdges;
   final Color rangeColor;
   final int refEdges;
@@ -388,6 +404,9 @@ class _CellBorderPainter extends CustomPainter {
     required this.barRatio,
     required this.barColor,
     this.iconColor,
+    this.sparkValues,
+    this.sparkType,
+    this.sparkColor,
   });
 
   @override
@@ -401,6 +420,10 @@ class _CellBorderPainter extends CustomPainter {
         Rect.fromLTWH(0, 1, size.width * barRatio!, size.height - 2),
         Paint()..color = barColor!.withValues(alpha: 0.45),
       );
+    }
+    if (sparkValues != null && sparkColor != null) {
+      paintSparkline(canvas, rect.deflate(2), sparkValues!, sparkType ?? 'line',
+          sparkColor!);
     }
     if (iconColor != null) {
       final r = math.min(size.height * 0.22, 5.0);
@@ -507,9 +530,69 @@ class _CellBorderPainter extends CustomPainter {
       old.barRatio != barRatio ||
       old.barColor != barColor ||
       old.iconColor != iconColor ||
+      !identical(old.sparkValues, sparkValues) ||
+      old.sparkColor != sparkColor ||
       old.gridColor != gridColor ||
       old.border != border ||
       old.rangeEdges != rangeEdges ||
       old.refEdges != refEdges ||
       old.refColor != refColor;
+}
+
+/// Mini grafik çizer (çizgi / sütun / kazanç-kayıp). Saf boya — hücre
+/// boyayıcısı ve testler ortak kullanır. NaN değerler boşluktur.
+void paintSparkline(
+    Canvas canvas, Rect box, List<double> values, String type, Color color) {
+  final finite = values.where((v) => v.isFinite).toList();
+  if (finite.isEmpty || box.width <= 2 || box.height <= 2) return;
+  var lo = finite.reduce(math.min), hi = finite.reduce(math.max);
+  final n = values.length;
+  final neg = AppHues.red;
+  if (type == 'column' || type == 'stacked') {
+    if (type == 'stacked') {
+      lo = -1;
+      hi = 1;
+    }
+    lo = math.min(lo, 0);
+    hi = math.max(hi, 0);
+    final span = hi - lo == 0 ? 1.0 : hi - lo;
+    final zeroY = box.bottom - (0 - lo) / span * box.height;
+    final w = box.width / n;
+    for (var i = 0; i < n; i++) {
+      var v = values[i];
+      if (!v.isFinite) continue;
+      if (type == 'stacked') v = v > 0 ? 1 : (v < 0 ? -1 : 0);
+      final y = box.bottom - (v - lo) / span * box.height;
+      canvas.drawRect(
+        Rect.fromLTRB(box.left + i * w + w * 0.15, math.min(y, zeroY),
+            box.left + (i + 1) * w - w * 0.15, math.max(y, zeroY)),
+        Paint()..color = v < 0 ? neg : color,
+      );
+    }
+    return;
+  }
+  final span = hi - lo == 0 ? 1.0 : hi - lo;
+  final paint = Paint()
+    ..color = color
+    ..strokeWidth = 1.4
+    ..style = PaintingStyle.stroke
+    ..strokeJoin = StrokeJoin.round;
+  final path = Path();
+  var pen = false;
+  for (var i = 0; i < n; i++) {
+    final v = values[i];
+    if (!v.isFinite) {
+      pen = false;
+      continue;
+    }
+    final x = n == 1 ? box.center.dx : box.left + i * box.width / (n - 1);
+    final y = box.bottom - (v - lo) / span * box.height;
+    if (pen) {
+      path.lineTo(x, y);
+    } else {
+      path.moveTo(x, y);
+      pen = true;
+    }
+  }
+  canvas.drawPath(path, paint);
 }

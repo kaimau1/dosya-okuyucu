@@ -34,4 +34,11 @@ const Map<String, (String, String, String)> _t23 = {
   'xp.icon_set': ('Simge kümesi: trafik ışığı', 'Icon set: traffic lights', 'مجموعة رموز: إشارات المرور'),
   'xp.cond_formula': ('Formülle kural…', 'Rule by formula…', 'قاعدة بصيغة…'),
   'xp.cond_formula_hint': ('{cell} hücresine göre koşul (ör. ={cell}>100)', 'Condition relative to {cell} (e.g. ={cell}>100)', 'شرط نسبةً إلى {cell} (مثل ={cell}>100)'),
+  // ── Mini grafik ──
+  'xp.sparkline': ('Mini grafik', 'Sparkline', 'خط مؤشر'),
+  'xp.sparkline_needs_range': ('Önce bir veri aralığı seç', 'Select a data range first', 'حدّد نطاق بيانات أولًا'),
+  'xp.spark_line': ('Çizgi', 'Line', 'خطي'),
+  'xp.spark_column': ('Sütun', 'Column', 'عمودي'),
+  'xp.spark_stacked': ('Kazanç/kayıp', 'Win/loss', 'ربح/خسارة'),
+  'xp.undo_sparkline': ('Mini grafik ekleme', 'Insert sparkline', 'إدراج خط مؤشر'),
 };

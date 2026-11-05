@@ -57,8 +57,47 @@ class _RenderContext {
     this.refs = const [],
   });
 
-  /// Hücrede uygulanacak koşullu biçim sonucu (yoksa null).
+  /// Hücrede uygulanacak koşullu biçim + mini grafik (yoksa null).
   SheetCondPaint? condFor(int r, int c) {
+    final base = _condRule(r, c);
+    final sp = sheet.sparklineAt(r, c);
+    if (sp == null) return base;
+    final values = _sparkValues(sp);
+    if (values == null) return base;
+    return SheetCondPaint(
+      background: base?.background,
+      foreground: base?.foreground,
+      bold: base?.bold ?? false,
+      italic: base?.italic ?? false,
+      barRatio: base?.barRatio,
+      barColor: base?.barColor,
+      iconColor: base?.iconColor,
+      sparkValues: values,
+      sparkType: sp.type,
+      sparkColor: Color(sp.colorArgb),
+    );
+  }
+
+  /// Mini grafiğin kaynak değerleri (yalnız aynı sayfa; boş hücre = NaN).
+  /// Yalnız GÖRÜNEN hücre boyanırken hesaplanır (anayasa k.5).
+  List<double>? _sparkValues(XlsxSparkline sp) {
+    final other = sp.sheet;
+    if (other != null && other.toLowerCase() != sheet.name.toLowerCase()) {
+      return null;
+    }
+    final range = sp.range;
+    if (range == null) return null;
+    final out = <double>[];
+    for (var rr = range.r1; rr <= range.r2; rr++) {
+      for (var cc = range.c1; cc <= range.c2; cc++) {
+        out.add(double.tryParse(engine.displayValue(rr, cc)) ?? double.nan);
+        if (out.length >= 400) return out;
+      }
+    }
+    return out;
+  }
+
+  SheetCondPaint? _condRule(int r, int c) {
     final rule = sheet.condRuleAt(r, c);
     if (rule == null) return null;
     final raw = engine.displayValue(r, c);
