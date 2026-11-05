@@ -152,6 +152,9 @@ class _ScanResultScreenState extends State<ScanResultScreen>
   int _index = 0;
   int _tab = 0;
 
+  /// Toplu inceleme ızgarası açık mı (Faz 35 / madde 2).
+  bool _grid = false;
+
   /// O an sürmekte olan sayfa işi ("Kırpılıyor…"); null = boşta.
   String? _work;
 
@@ -250,6 +253,12 @@ class _ScanResultScreenState extends State<ScanResultScreen>
           titleSpacing: 0,
           title: _titleBlock(context),
           actions: [
+            if (_tab == 0)
+              IconButton(
+                tooltip: context.t(_grid ? 'sg.single' : 'sg.grid'),
+                icon: Icon(_grid ? AppIcons.layoutDetail : AppIcons.layoutGrid),
+                onPressed: () => setState(() => _grid = !_grid),
+              ),
             if (_history.isNotEmpty)
               IconButton(
                 tooltip: context.t('common.undo'),
@@ -330,8 +339,11 @@ class _ScanResultScreenState extends State<ScanResultScreen>
             ),
             Divider(height: 1, color: scheme.outlineVariant),
             if (_suggestedFolder != null) _classBanner(context),
-            Expanded(child: _tab == 0 ? _pagesView(context) : _textView()),
-            if (_tab == 0) _thumbStrip(context),
+            Expanded(
+                child: _tab == 0
+                    ? (_grid ? _gridView(context) : _pagesView(context))
+                    : _textView()),
+            if (_tab == 0 && !_grid) _thumbStrip(context),
           ],
         ),
         bottomNavigationBar:

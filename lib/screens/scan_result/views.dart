@@ -227,6 +227,51 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
 
   /// Küçük resim şeridi: dokun = git, basılı tut + sürükle = sıra, "+" =
   /// sayfa ekle.
+  /// **Toplu inceleme ızgarası** (Faz 35 / madde 2): tüm sayfalar bir arada;
+  /// basılı tutup başka bir sayfanın üstüne bırakmak sırayı değiştirir,
+  /// sayfanın menüsü döndür / filtre / kırp / sil, sondaki kutu sayfa ekler.
+  /// Hücre boyu sabit (`childAspectRatio`), görseller `cacheWidth`'li.
+  Widget _gridView(BuildContext context) {
+    return LayoutBuilder(builder: (context, box) {
+      final cols = (box.maxWidth / 132).floor().clamp(2, 6);
+      return GridView.builder(
+        padding: const EdgeInsets.all(Gap.md),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: cols,
+          mainAxisSpacing: Gap.md,
+          crossAxisSpacing: Gap.md,
+          childAspectRatio: 0.7,
+        ),
+        itemCount: _pages.length + 1,
+        itemBuilder: (context, i) {
+          if (i == _pages.length) {
+            return _GridAddTile(onTap: _busy ? null : _addPages);
+          }
+          return RepaintBoundary(
+            child: _GridPageTile(
+              key: ValueKey('${_pages[i].source}#$i'),
+              path: _pages[i].display,
+              index: i,
+              selected: i == _index,
+              enabled: !_busy,
+              onOpen: () {
+                _partSetState(() {
+                  _index = i;
+                  _grid = false;
+                });
+              },
+              onMove: (from) {
+                if (from == i) return;
+                _reorder(from, i);
+              },
+              onAction: (action) => _gridAction(i, action),
+            ),
+          );
+        },
+      );
+    });
+  }
+
   Widget _thumbStrip(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Material(

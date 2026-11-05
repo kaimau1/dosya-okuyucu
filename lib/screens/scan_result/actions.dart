@@ -250,6 +250,23 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     if (_pager.hasClients) _pager.jumpToPage(to);
   }
 
+  /// Izgaradaki sayfa menüsü: işler "görünen sayfa"ya uygulandığı için önce
+  /// [index] seçilir.
+  Future<void> _gridAction(int index, String action) async {
+    if (_busy) return;
+    _partSetState(() => _index = index);
+    switch (action) {
+      case 'rotate':
+        await _rotate();
+      case 'filter':
+        await _filter();
+      case 'crop':
+        await _crop();
+      case 'delete':
+        _delete();
+    }
+  }
+
   void _goTo(int index) {
     _partSetState(() => _index = index);
     if (_pager.hasClients) {
