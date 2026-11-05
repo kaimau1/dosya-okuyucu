@@ -489,7 +489,11 @@ class DocxEditorViewState extends State<DocxEditorView> {
         final open = widget.actions.openComment;
         return WidgetSpan(
           alignment: PlaceholderAlignment.middle,
-          child: GestureDetector(
+          // Faz 40 / 3: TalkBack "Yorum, düğme" der (eskiden etiketsiz simge).
+          child: Semantics(
+            button: true,
+            label: context.t('wp.review_comment'),
+            child: GestureDetector(
             key: ValueKey('docx-comment-${a.display}'),
             onTap: open == null ? null : () => open(a.display),
             child: Padding(
@@ -497,6 +501,7 @@ class DocxEditorViewState extends State<DocxEditorView> {
               child: Icon(AppIcons.comment,
                   size: (st.fontSize ?? 14) * 0.9, color: AppHues.amber),
             ),
+          ),
           ),
         );
       case DocxAtomKind.pageBreak:

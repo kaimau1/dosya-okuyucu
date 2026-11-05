@@ -260,8 +260,8 @@ testi, küçük resim şeridi yalnız açıkken üretilir.
 ## Faz 40 — Ortak görünüm ve deneyim
 1. [x] **Tasarım dili:** tüm editör üst çubukları tek yapı (başlık · kaydet · geri/ileri · ⋮),
    alt araç şeridi kaydırılabilir + bağlama duyarlı (seçime göre).
-2. Animasyon/hareket: sayfa geçişleri `Motion` tokenlarıyla; boş durum çizimleri.
-3. Erişilebilirlik: 2× yazı, TalkBack etiketleri, kontrast denetimi (token bekçisi).
+2. [x] Animasyon/hareket: sayfa geçişleri `Motion` tokenlarıyla; boş durum çizimleri.
+3. [x] Erişilebilirlik: 2× yazı, TalkBack etiketleri, kontrast denetimi (token bekçisi).
 4. Onboarding: ilk açılış 3 ekran (okuyucu · düzenleyici · tara) + örnek belgeler.
 5. Ayarlar sadeleşmesi: arama kutusu, gruplar, "önerilenler".
 **Ölçüt:** token bekçisi yeşil; 2× yazıda taşma yok (widget testleri).
