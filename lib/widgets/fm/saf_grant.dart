@@ -19,7 +19,7 @@ Future<bool> requestSafGrant(BuildContext context, String path) async {
   final ok = uri != null && uri.isNotEmpty;
   if (messenger != null) {
     showSnackOn(messenger,
-        strings.t(ok ? 'saf.granted' : 'saf.not_granted'));
+        strings.t(ok ? 'sdw.granted' : 'sdw.not_granted'));
   }
   return ok;
 }
@@ -28,9 +28,9 @@ Future<bool> requestSafGrant(BuildContext context, String path) async {
 void showSafGrantSnack(BuildContext context, String path) {
   showSnack(
     context,
-    context.t('saf.needs_grant'),
+    context.t('sdw.needs_grant'),
     action: SnackBarAction(
-      label: context.t('saf.grant'),
+      label: context.t('sdw.grant'),
       onPressed: () => requestSafGrant(context, path),
     ),
   );

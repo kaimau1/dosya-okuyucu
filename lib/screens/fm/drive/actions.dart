@@ -281,7 +281,7 @@ extension _DriveScreenActionsPart on _DriveScreenState {
     final strings = AppStrings.of(context);
     if (on && await _localCopy(file) == null) return;
     DriveOffline.setPinned(root, file.id, on);
-    if (mounted) setState(() {});
+    if (mounted) _partSetState(() {});
     showSnackOn(messenger,
         strings.t(on ? 'dro.pinned' : 'dro.unpinned', {'name': file.name}));
   }

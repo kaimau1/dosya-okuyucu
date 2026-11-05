@@ -392,7 +392,7 @@ class _SearchScreenState extends State<SearchScreen> {
           if (_controller.text.trim().length >= 2)
             IconButton(
               key: const ValueKey('srch-save'),
-              tooltip: context.t('ss.save'),
+              tooltip: context.t('svs.save'),
               icon: const Icon(AppIcons.bookmark),
               onPressed: _saveSearch,
             ),
@@ -483,13 +483,13 @@ class _SearchScreenState extends State<SearchScreen> {
   Future<void> _saveSearch() async {
     final q = _controller.text.trim();
     final name = await showAppPrompt(context,
-        title: context.t('ss.save'), label: context.t('ss.name'), initial: q);
+        title: context.t('svs.save'), label: context.t('svs.name'), initial: q);
     if (name == null || name.trim().isEmpty || !mounted) return;
     final next = SavedSearches.add(
         _saved, SavedSearch(name.trim(), q, inContent: _inContent));
     setState(() => _saved = next);
     await SavedSearches.store(next);
-    if (mounted) showSnack(context, context.t('ss.saved', {'name': name.trim()}));
+    if (mounted) showSnack(context, context.t('svs.saved', {'name': name.trim()}));
   }
 
   void _runSaved(SavedSearch s) {

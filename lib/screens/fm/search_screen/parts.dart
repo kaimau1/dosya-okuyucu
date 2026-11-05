@@ -331,7 +331,7 @@ extension _SearchScreenStateParts on _SearchScreenState {
           // **Kayıtlı aramalar** (Faz 41 / 3) — son aramaların üstünde.
           if (_saved.isNotEmpty && _controller.text.trim().isEmpty) ...[
             const SizedBox(height: Gap.lg),
-            Text(context.t('ss.title'),
+            Text(context.t('svs.title'),
                 style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: Gap.xs),
             Wrap(

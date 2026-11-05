@@ -187,7 +187,7 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
                     ? null
                     : () => requestSafGrant(context, settings.sdPath),
                 icon: const Icon(AppIcons.sdCard),
-                label: Text(context.t('saf.grant')),
+                label: Text(context.t('sdw.grant')),
               ),
             ),
           ),
