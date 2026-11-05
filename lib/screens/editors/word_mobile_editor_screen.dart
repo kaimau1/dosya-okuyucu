@@ -35,6 +35,8 @@ import '../../services/docx/pro/docx_package.dart';
 import '../../services/docx/pro/docx_style_ops.dart';
 import '../../services/docx/pro/docx_layout_ops.dart';
 import '../../services/docx/pro/docx_pdf.dart';
+import '../../services/docx/pro/docx_math.dart';
+import '../../services/docx/pro/docx_table_ops.dart';
 import 'package:printing/printing.dart' show Printing;
 import 'package:shared_preferences/shared_preferences.dart';
 

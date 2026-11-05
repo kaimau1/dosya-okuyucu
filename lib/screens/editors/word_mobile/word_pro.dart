@@ -95,8 +95,65 @@ extension _WordProPart on _WordMobileEditorScreenState {
         await _pageSetup();
       case 'print_preview':
         await _printPreview();
+      case 'equation':
+        await _equation();
+      case 'tbl_merge':
+        final dir = await _choose('wp.tbl_merge', const [
+          ('right', 'wp.tbl_merge_right'),
+          ('down', 'wp.tbl_merge_down'),
+        ]);
+        if (dir == null) return;
+        await _tableOp(dir == 'right'
+            ? DocxTableOps.mergeRight(c.extent.para)
+            : DocxTableOps.mergeDown(c.extent.para));
+      case 'tbl_split':
+        await _tableOp(DocxTableOps.split(c.extent.para));
+      case 'tbl_borders':
+        final v = await _choose('wp.tbl_borders', const [
+          ('all', 'wp.tbl_b_all'),
+          ('outer', 'wp.tbl_b_outer'),
+          ('inner', 'wp.tbl_b_inner'),
+          ('none', 'wp.tbl_b_none'),
+        ]);
+        if (v != null) await _tableOp(DocxTableOps.borders(c.extent.para, v));
+      case 'tbl_autofit':
+        final v = await _choose('wp.tbl_autofit', const [
+          ('content', 'wp.tbl_fit_content'),
+          ('window', 'wp.tbl_fit_window'),
+          ('fixed', 'wp.tbl_fit_fixed'),
+        ]);
+        if (v != null) await _tableOp(DocxTableOps.autofit(c.extent.para, v));
+      case 'tbl_sort':
+        final v = await _choose('wp.tbl_sort', const [
+          ('asc_h', 'wp.tbl_sort_asc_h'),
+          ('desc_h', 'wp.tbl_sort_desc_h'),
+          ('asc', 'wp.tbl_sort_asc'),
+          ('desc', 'wp.tbl_sort_desc'),
+        ]);
+        if (v != null) {
+          await _tableOp(DocxTableOps.sort(c.extent.para,
+              descending: v.startsWith('desc'), header: v.endsWith('_h')));
+        }
     }
   }
+
+  /// Tek seçimli levha: (değer, etiket anahtarı) listesi.
+  Future<String?> _choose(String titleKey, List<(String, String)> items) =>
+      showAppSheet<String>(
+        context,
+        title: context.t(titleKey),
+        builder: (ctx) => Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final (v, k) in items)
+              ListTile(
+                key: ValueKey('word-choose-$v'),
+                title: Text(ctx.t(k)),
+                onTap: () => Navigator.pop(ctx, v),
+              ),
+          ],
+        ),
+      );
 
   // ── Madde 1: stil + tema ─────────────────────────────────────────────────
 
@@ -183,6 +240,55 @@ extension _WordProPart on _WordMobileEditorScreenState {
       _setState(() => _proBusy = false);
     }
   }
+
+  // ── Madde 3: denklem + tablo ─────────────────────────────────────────────
+
+  Future<void> _tableOp(DocxOp op) async {
+    final c = _ctrl;
+    if (c == null) return;
+    if (!c.inTable) {
+      showSnack(context, context.t('wp.tbl_err_no_table'));
+      return;
+    }
+    final msgs = {
+      for (final k in const ['no_table', 'no_neighbor', 'shape', 'not_merged', 'merged'])
+        k: context.t('wp.tbl_err_$k'),
+    };
+    final doc = _doc!;
+    // Tablo hatası işlemden önce denetlenir (yanlış yere yazılmasın).
+    final bytes = await doc.saveAsync();
+    try {
+      await DocxPro.run(bytes, op);
+    } on DocxTableException catch (e) {
+      if (mounted) showSnack(context, msgs[e.code] ?? e.code);
+      return;
+    } catch (_) {}
+    if (mounted) await _proApply(op);
+  }
+
+  Future<void> _equation() async {
+    final doc = _doc;
+    final c = _ctrl;
+    if (doc == null || c == null) return;
+    final i = c.extent.para;
+    final bytes = await doc.saveAsync();
+    final existing = await DocxPro.query(bytes, _readMath(i));
+    if (!mounted) return;
+    final latex = await showAppSheet<String>(
+      context,
+      title: context.t(existing.isEmpty ? 'wp.equation' : 'wp.equation_edit'),
+      builder: (_) => _EquationSheet(initial: existing.firstOrNull ?? ''),
+    );
+    if (latex == null || latex.trim().isEmpty || !mounted) return;
+    await _proApply(
+        existing.isEmpty
+            ? DocxMathOps.insert(i, latex.trim())
+            : DocxMathOps.replace(i, 0, latex.trim()),
+        keepPara: existing.isEmpty ? i + 1 : i);
+  }
+
+  static List<String> Function(DocxPackage) _readMath(int i) =>
+      (pkg) => DocxMathOps.read(pkg, i);
 }
 
 /// Sayfa düzeni levhası: kâğıt, yön, kenar boşlukları (cm), cilt payı,
@@ -346,6 +452,102 @@ class _PageSetupSheetState extends State<_PageSetupSheet> {
                 child: Text(context.t('common.apply')),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Denklem levhası: LaTeX girişi + hızlı simgeler.
+class _EquationSheet extends StatefulWidget {
+  final String initial;
+  const _EquationSheet({required this.initial});
+
+  @override
+  State<_EquationSheet> createState() => _EquationSheetState();
+}
+
+class _EquationSheetState extends State<_EquationSheet> {
+  late final _t = TextEditingController(text: widget.initial);
+
+  static const _snippets = [
+    (r'\frac{a}{b}', 'a/b'),
+    (r'x^{2}', 'x²'),
+    (r'x_{i}', 'xᵢ'),
+    (r'\sqrt{x}', '√x'),
+    (r'\sum_{i=1}^{n} ', '∑'),
+    (r'\int_{a}^{b} ', '∫'),
+    (r'\left( \right)', '( )'),
+    (r'\pi', 'π'),
+    (r'\alpha', 'α'),
+    (r'\theta', 'θ'),
+    (r'\infty', '∞'),
+    (r'\pm', '±'),
+    (r'\times', '×'),
+    (r'\leq', '≤'),
+    (r'\geq', '≥'),
+    (r'\neq', '≠'),
+  ];
+
+  @override
+  void dispose() {
+    _t.dispose();
+    super.dispose();
+  }
+
+  void _insert(String snippet) {
+    final sel = _t.selection;
+    final text = _t.text;
+    final at = sel.isValid ? sel.start : text.length;
+    final end = sel.isValid ? sel.end : text.length;
+    final out = text.replaceRange(at, end, snippet);
+    _t.value = TextEditingValue(
+        text: out,
+        selection: TextSelection.collapsed(offset: at + snippet.length));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          16, 0, 16, 16 + MediaQuery.viewInsetsOf(context).bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            key: const ValueKey('word-eq-field'),
+            controller: _t,
+            autofocus: true,
+            minLines: 2,
+            maxLines: 5,
+            style: context.type.body.copyWith(fontFamily: 'monospace'),
+            decoration: InputDecoration(
+              labelText: context.t('wp.equation_latex'),
+              hintText: r'\frac{-b \pm \sqrt{b^2-4ac}}{2a}',
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final (snip, label) in _snippets)
+                ActionChip(
+                  label: Text(label),
+                  onPressed: () => _insert(snip),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: FilledButton(
+              key: const ValueKey('word-eq-ok'),
+              onPressed: () => Navigator.pop(context, _t.text),
+              child: Text(context.t(widget.initial.isEmpty ? 'common.insert' : 'common.apply')),
+            ),
           ),
         ],
       ),

@@ -169,8 +169,9 @@ yalnız görünürken boyanır.
    (`docx/pro/docx_style_ops.dart`: stile taşı + 5 tema; Giriş > Stiller; `word_pro_style_test`.)
 - [x] 2. Sayfa düzeni ekranı (kenar boşluğu, yön, boyut, sütun, sayfa kesmesi), yazdır önizleme.
    (`docx_layout_ops.dart` + Araçlar > Sayfa düzeni levhası; önizleme = `docx_pdf.dart` → sistem yazdırma; `word_pro_layout_test`.)
-3. Denklem düzenleyici (OMML yaz/oku, temel LaTeX girişi), tablo: hücre birleştir/böl,
+- [x] 3. Denklem düzenleyici (OMML yaz/oku, temel LaTeX girişi), tablo: hücre birleştir/böl,
    kenarlık/gölge, otomatik sığdır, sıralama.
+   (`docx_math.dart` LaTeX↔OMML, `docx_table_ops.dart`; Araçlar > Denklem, Tablo sekmesi; `word_pro_math_table_test`.)
 4. Şablonlar (CV, mektup, rapor, fatura, tutanak) — "Yeni belge" sayfasına galeri.
 5. Karşılaştır/birleştir iki belge; yorum+değişiklik gezinme çubuğu; belge parolası.
 6. Sesle yazma (cihaz STT) ve AI ile yeniden yaz/özetle/çevir (Gemini var) — satır içi.
