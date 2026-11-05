@@ -615,3 +615,9 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
 ## Faz 34 — Pano cilası
 - [ ] 360×800 dp ve 2× yazı ölçeğinde 4 sıra kutu + araç satırı alt panelin üstünde, kayma yok.
 - [ ] Ayarlar > Görünüm'de "Alt çubuk kısayolları" satırı yok; Ana ekranı düzenle açılıyor.
+
+## Faz 35 / adım 0 — Belge tarayıcı v2 (ML Kit GmsDocumentScanner)
+- [ ] Tara → ML Kit arayüzü açılır (canlı kenar, otomatik çekim, leke silme); kaydet → PDF üretilir.
+- [ ] Çok sayfa (≥5) + galeriden içe aktar çalışır; vazgeçince hata/çökme yok.
+- [ ] Play Hizmetleri'siz / eski cihazda: galeriden içe aktar yedek akışı açılır (hata iletisi yok).
+- [ ] Soğuk açılışta tarayıcı yüklenmez (ilk dokunuşta kurulur); APK boyutu bütçesi CI'da yeşil.

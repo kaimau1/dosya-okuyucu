@@ -115,7 +115,7 @@ dependencies:
 
   # ── Dosya yöneticisi ────────────────────────────────────────────────────────
   # Depolama izni (Android 11+ "tüm dosyalara erişim" = MANAGE_EXTERNAL_STORAGE).
-  permission_handler: ^12.0.1  # 13: cunning_document_scanner en fazla ^12 kabul ediyor
+  permission_handler: ^12.0.1  # 13 engeli (cunning_document_scanner) kalktı — A3.4b ayrıca yükseltilir
   # Video oynarken ekranın sönmesini engeller. YALNIZ video OYNARKEN tutulur
   # (duraklatınca ve ekrandan çıkınca bırakılır) — ses oynatıcıda hiç
   # kullanılmaz, orada ekranın kapanması zaten istenen davranış.
@@ -187,12 +187,6 @@ dependencies:
   # KALDIRILDI: CI derlemesinde yapılandırma dosyası hiç yoktu, yani her
   # kullanıcıda "yerel mod"da, çalışmadan APK'ya ağırlık ekliyordu.
   google_sign_in: ^6.2.0
-  # Belge tarayıcı: Google ML Kit Belge Tarayıcı sarmalayıcısı (kenar tespiti,
-  # perspektif düzeltme, "taranmış" filtre — SCANNER_MODE_FULL, sonuç JPEG).
-  # 1.2.x SON uyumlu seri: 2.x Dart >=3.8 ister, biz 3.7'deyiz (CI 3.29.3).
-  # Play Services yoksa paket kendi yedek tarayıcısına düşer.
-  cunning_document_scanner: ^1.2.3
-
   # Sesli okuma (cihazın kendi TTS motoru; internet gerekmez).
   flutter_tts: ^4.2.5
 

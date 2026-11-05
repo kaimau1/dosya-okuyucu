@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
-import 'package:cunning_document_scanner/cunning_document_scanner.dart';
+import 'package:flutter/services.dart' show MethodChannel, PlatformException, MissingPluginException;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdf/pdf.dart' show PdfPageFormat;
 
@@ -16,11 +18,11 @@ import 'ocr_service.dart';
 /// gibi (kenar tespiti, perspektif düzeltme, kontrast/gri filtre) belgeye
 /// çevirir, çok sayfayı tek PDF'te toplar.
 ///
-/// Kenar bulma/kırpma/filtre işini **Google ML Kit Belge Tarayıcı** yapıyor
-/// (`cunning_document_scanner` → `play-services-mlkit-document-scanner`,
-/// SCANNER_MODE_FULL). Kendi kamera+kırpma ekranımızı yazmak yerine bu seçildi:
-/// kenar tespiti Google'ın modeli, bakımı bizde değil, sonuç JPEG olarak geliyor.
-/// Play Services yoksa paket kendi yedek tarayıcısına düşüyor.
+/// Kenar bulma/kırpma/filtre işini **Google ML Kit `GmsDocumentScanner`** yapıyor
+/// (Faz 35 / adım 0, 2026-11-05): `ci/DocScan.kt` köprüsü, kanal `dosya/docscan`,
+/// SCANNER_MODE_FULL, sonuç JPEG (+PDF). `cunning_document_scanner` bırakıldı.
+/// Play Hizmetleri yoksa/hata verirse (ya da `scan_engine_v2` bayrağı kapalıysa)
+/// **yedek akış**: galeriden içe aktar; kırpma/döndürme stüdyoda (`scan_edit_screen`).
 ///
 /// Bizim payımız: gelen sayfaları **tek PDF** yapmak, istenirse OCR ile
 /// görünmez metin katmanı ekleyip belgeyi **aranabilir** kılmak ve Belgeler
@@ -28,15 +30,57 @@ import 'ocr_service.dart';
 class DocumentScanner {
   const DocumentScanner._();
 
+  static const _chan = MethodChannel('dosya/docscan');
+
+  /// Özellik bayrağı (geri alma = tek satır): kapalıysa doğrudan yedek akış.
+  static const engineV2Key = 'scan_engine_v2';
+
+  static Future<bool> _engineV2() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(engineV2Key) ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
   /// Tarama arayüzünü açar; kullanıcı vazgeçerse `null`, aksi hâlde taranan
-  /// sayfaların (JPEG) yolları döner. Kamera izni paket tarafından isteniyor.
+  /// sayfaların (JPEG) yolları döner. Kamera izni gerekmez (Play Hizmetleri).
+  /// Tembel: köprü ilk kullanımda çağrılır, açılışta hiçbir şey kurulmaz.
   static Future<List<String>?> scanPages({int maxPages = 30}) async {
-    final pages = await CunningDocumentScanner.getPictures(
-      noOfPages: maxPages,
-      isGalleryImportAllowed: true,
+    if (await _engineV2()) {
+      try {
+        final res = await _chan.invokeMapMethod<String, dynamic>('start', {
+          'maxPages': maxPages,
+          'gallery': true,
+          'mode': 'full',
+        });
+        if (res == null) return null; // vazgeçildi
+        final pages = (res['pages'] as List?)?.cast<String>() ?? const [];
+        return pages.isEmpty ? null : pages;
+      } on PlatformException catch (e) {
+        // `unavailable`: Play Hizmetleri yok / model inemedi → yedek akış.
+        if (e.code != 'unavailable') rethrow;
+      } on MissingPluginException {
+        // Köprüsüz derleme → yedek akış.
+      }
+    }
+    return importFromGallery(maxPages: maxPages);
+  }
+
+  /// **Yedek akış:** galeriden görsel seç (otomatik kenar yok; kırpma/döndürme
+  /// tarama stüdyosunda). Vazgeçilirse `null`.
+  static Future<List<String>?> importFromGallery({int maxPages = 30}) async {
+    final r = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      allowMultiple: true,
     );
-    if (pages == null || pages.isEmpty) return null;
-    return pages;
+    final paths = [
+      for (final f in r?.files ?? const <PlatformFile>[])
+        if (f.path != null) f.path!,
+    ];
+    if (paths.isEmpty) return null;
+    return paths.length > maxPages ? paths.sublist(0, maxPages) : paths;
   }
 
   /// Taranan sayfalardan PDF üretip **Belgeler dizinine** yazar, yolunu döndürür.

@@ -46,13 +46,14 @@ grep -E "INTERNET|launchMode|action.VIEW|action.SEND|label=" \
 #   Extras (widget'lar, günlük iş, biyometri, Keystore, Geocoder),
 #   QrTransfer (QR ile paylaş: kod tarayıcı + yerel hotspot),
 #   NearbyBle (Yakındakiler: Bluetooth LE ile bulma + davet),
+#   DocScan (Belge tarayıcı v2: ML Kit GmsDocumentScanner, Faz 35),
 #   Ajan (Gemini işlevleri — AppFunctions, bkz. 7b),
 #   DosyaArama (Ajan'ın arama/kapsam kuralı).
 say "Kotlin kaynakları"
 DIR=android/app/src/main/kotlin/com/dosyaokuyucu/dosya_okuyucu
 mkdir -p "$DIR"
 for kt in MainActivity DosyaProvider PickerActivity UsbMass MediaSession MediaTranscode DosyaArama \
-          SdUnion Extras QrTransfer NearbyBle Ajan; do
+          SdUnion Extras QrTransfer NearbyBle Ajan DocScan; do
   cp "ci/$kt.kt" "$DIR/$kt.kt"
 done
 # `cp -r ci/res/.` mevcut res/ dosyalarını SİLMEZ, yalnız ekler.
@@ -181,7 +182,10 @@ for name in ('android/app/build.gradle.kts', 'android/app/build.gradle'):
                 'androidx.annotation:annotation-experimental:1.4.1',
                 # QR ile paylaş: Google kod tarayıcısı (kamera izni yok,
                 # model Play Hizmetleri'nden — APK'ya ~0 MB).
-                'com.google.android.gms:play-services-code-scanner:16.1.0']
+                'com.google.android.gms:play-services-code-scanner:16.1.0',
+                # Belge tarayıcı v2 (Faz 35): GmsDocumentScanner — arayüz ve
+                # model Play Hizmetleri'nde, APK'ya ~0 MB.
+                'com.google.android.gms:play-services-mlkit-document-scanner:16.0.0']
         dep = ('dependencies {\n    coreLibraryDesugaring('
                '"com.android.tools:desugar_jdk_libs:2.1.4")\n'
                + ''.join(f'    implementation("{l}")\n' for l in libs) + '}\n'

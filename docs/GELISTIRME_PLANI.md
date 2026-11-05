@@ -81,7 +81,7 @@ Karar: **ML Kit `GmsDocumentScanner`'ı doğrudan kullan** (Kotlin köprüsü,
 birlikte döner, **canlı kenar + otomatik çekim + parmak/gölge/leke silme + otomatik
 döndürme** Google'da hazır; sayfa sınırı, galeri içe aktarma, kip (BASE / BASE_WITH_FILTER /
 FULL) seçilebilir. Bizim katman: OCR, sıkıştırma, adlandırma, saklama.
-0. **ML Kit geçişi (ilk adım, ayrı commit):** `ci/` altında Kotlin köprüsü (`GmsDocumentScanner`,
+0. [x] **ML Kit geçişi (ilk adım, ayrı commit; 2026-11-05 yapıldı — `ci/DocScan.kt`, kanal `dosya/docscan`, bayrak `scan_engine_v2` varsayılan açık, yedek = galeriden içe aktar; cihazda doğrulama CIHAZ_TESTI):** `ci/` altında Kotlin köprüsü (`GmsDocumentScanner`,
    `play-services-mlkit-document-scanner`; MethodChannel `scan.start` → PDF + JPEG yolları),
    `ci/prepare_android.sh` yaması + `tool/check_kotlin.sh` uyumu; Dart'ta `DocumentScanner.scanPages`
    yeni köprüye bağlanır, `cunning_document_scanner` pubspec'ten çıkar (bu ayrıca `permission_handler`
