@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show compute, visibleForTesting;
 import 'package:flutter/gestures.dart'
@@ -97,6 +98,7 @@ part 'spreadsheet/keyboard.dart';
 part 'spreadsheet/pro_data.dart';
 part 'spreadsheet/pro_format.dart';
 part 'spreadsheet/pro_audit.dart';
+part 'spreadsheet/pro_chart.dart';
 
 /// Excel görünümü — hedef: dosya telefonda **Excel'deki gibi** görünsün.
 ///

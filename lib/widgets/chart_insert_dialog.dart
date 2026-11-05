@@ -36,16 +36,20 @@ ChartVM chartPreviewOf(XlsxChartSpec spec) => ChartVM(
         for (var i = 0; i < spec.series.length; i++)
           ChartSeries(
             name: spec.series[i].name,
-            color: _color(XlsxChartWriter.palette[
-                i % XlsxChartWriter.palette.length]),
+            color: _color(spec.colorOf(i)),
             values: [for (final v in spec.series[i].values) v ?? 0],
             pointColors: spec.kind == XlsxChartKind.pie
                 ? {
                     for (var k = 0; k < spec.series[i].values.length; k++)
-                      k: _color(XlsxChartWriter.palette[
-                          k % XlsxChartWriter.palette.length]),
+                      k: _color(spec.colorOf(k)),
                   }
                 : const {},
+            // Faz 36 madde 11: kombinasyon / ikincil eksen / eğilim.
+            asLine: spec.isCombo && i == spec.series.length - 1,
+            secondary: spec.isCombo &&
+                spec.secondaryAxis &&
+                i == spec.series.length - 1,
+            trend: spec.trendline && spec.kind != XlsxChartKind.pie,
           ),
       ],
     );

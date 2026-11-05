@@ -101,6 +101,19 @@ abstract final class SheetPdf {
     return doc.save();
   }
 
+  /// Tek görüntülük PDF (grafiği PDF olarak paylaş — Faz 36 madde 11):
+  /// görüntü yatay A4'e oranı korunarak sığdırılır.
+  static Future<Uint8List> image(Uint8List png) {
+    final doc = pw.Document();
+    final img = pw.MemoryImage(png);
+    doc.addPage(pw.Page(
+      pageFormat: PdfPageFormat.a4.landscape,
+      margin: const pw.EdgeInsets.all(28),
+      build: (_) => pw.Center(child: pw.Image(img, fit: pw.BoxFit.contain)),
+    ));
+    return doc.save();
+  }
+
   /// PDF İÇERİK yazı stili (arayüz tokenı değil — `design_tokens_baseline`).
   static pw.TextStyle _ts(pw.Font f, double size) =>
       pw.TextStyle(font: f, fontSize: size);

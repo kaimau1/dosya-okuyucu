@@ -152,7 +152,9 @@ metni sütunlara böl, ara toplam, gruplama/anahat, hücre notları/yorum dizisi
 - [x] 10. Formül denetimi (öncül/ardıl oklar), döngüsel başvuru uyarısı, "Ne-olursa" (hedef ara).
    (`formula_audit.dart`: öncül/ardıl + kiriş/ikiye bölme çözücü; oklar ızgara üstü salt çizim;
    döngü yazınca uyarı.)
-11. Grafik: kombinasyon, ikincil eksen, eğilim çizgisi, grafik stilleri; grafiği görüntü/PDF paylaş.
+- [x] 11. Grafik: kombinasyon, ikincil eksen, eğilim çizgisi, grafik stilleri; grafiği görüntü/PDF paylaş.
+   (`XlsxChartSpec.combo/secondaryAxis/trendline/style` → c:lineChart + 2. eksen çifti, c:trendline;
+   önizleme `ChartPainter` aynı bayraklarla; PNG/PDF paylaş `pro_chart.dart`.)
 12. Çok kişilik: sayfa/aralık koruma; yazdırma alanı. **Perf:** hesaplama **bağımlılık grafiği +
 kirli hücre** (tam yeniden hesap YOK), pivot/büyük yapıştır izolatta, görünür pencere dışı hücre
 çizilmez (mevcut sanal ızgara korunur), `excel_perf_test` 100 bin satır eşiği eklenir; grafik/sparkline

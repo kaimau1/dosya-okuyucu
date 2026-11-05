@@ -120,6 +120,9 @@ class AppColors extends ThemeExtension<AppColors> {
   /// Belgede bulunan eşleşme ve etkin eşleşme vurgusu.
   /// Koşullu biçimde renk seçilmezse Excel'in açık kırmızı dolgusu.
   static const condFillDefault = Color(0xFFFFC7CE);
+
+  /// Dışa aktarılan grafik görüntüsünün zemini (tema bağımsız beyaz kâğıt).
+  static const chartExportPaper = Color(0xFFFFFFFF);
   static const findMatch = Color(0x7FFFEB3B);
   static const findActive = Color(0x7FFF9800);
 

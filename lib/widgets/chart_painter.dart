@@ -54,9 +54,10 @@ class ChartPainter extends CustomPainter {
   String _fmt(double v) =>
       v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
 
-  ({double min, double max}) _range() {
+  ({double min, double max}) _range([bool secondary = false]) {
     var mn = 0.0, mx = 0.0;
     for (final s in chart.series) {
+      if (s.secondary != secondary) continue;
       for (final v in s.values) {
         mn = math.min(mn, v);
         mx = math.max(mx, v);
@@ -162,17 +163,38 @@ class ChartPainter extends CustomPainter {
     if (n == 0) return;
     final rng = _range();
     final span = rng.max - rng.min;
+    // İkincil eksen (Faz 36): ayrı ölçek, etiketleri sağda.
+    final hasSecondary = chart.series.any((x) => x.secondary);
+    final rng2 = hasSecondary ? _range(true) : rng;
+    final span2 = rng2.max - rng2.min;
 
     // Değer etiketleri için sol boşluk, kategori etiketleri için alt boşluk.
     final maxLbl = _tp(_fmt(rng.max), fs);
     final leftPad = maxLbl.width + 6;
     maxLbl.dispose();
+    var rightPad = fs * 0.5;
+    if (hasSecondary) {
+      final l2 = _tp(_fmt(rng2.max), fs);
+      rightPad = l2.width + 6;
+      l2.dispose();
+    }
     final bottomPad = fs * 1.5;
     final plot = Rect.fromLTRB(
-        area.left + leftPad, area.top + fs, area.right - fs * 0.5, area.bottom - bottomPad);
+        area.left + leftPad, area.top + fs, area.right - rightPad, area.bottom - bottomPad);
     if (plot.width <= 0 || plot.height <= 0) return;
 
     double yFor(double v) => plot.bottom - (v - rng.min) / span * plot.height;
+    double yOf(ChartSeries s, double v) => s.secondary
+        ? plot.bottom - (v - rng2.min) / span2 * plot.height
+        : yFor(v);
+    if (hasSecondary) {
+      for (final t in [rng2.min, rng2.min + span2 / 2, rng2.max]) {
+        final tp = _tp(_fmt(t), fs);
+        final y = plot.bottom - (t - rng2.min) / span2 * plot.height;
+        tp.paint(canvas, Offset(plot.right + 3, y - tp.height / 2));
+        tp.dispose();
+      }
+    }
 
     // Değer ızgarası (3 çizgi) + etiketleri.
     for (final t in [rng.min, rng.min + span / 2, rng.max]) {
@@ -187,14 +209,23 @@ class ChartPainter extends CustomPainter {
     final baseline = yFor(rng.min < 0 ? 0 : rng.min);
     final groupW = plot.width / n;
 
-    if (line) {
-      for (final s in chart.series) {
+    final barSeries = [
+      if (!line)
+        for (final s in chart.series)
+          if (!s.asLine) s,
+    ];
+    final lineSeries = [
+      for (final s in chart.series)
+        if (line || s.asLine) s,
+    ];
+    if (lineSeries.isNotEmpty) {
+      for (final s in lineSeries) {
         final path = Path();
         final dots = <Offset>[];
         for (var i = 0; i < n; i++) {
           final v = i < s.values.length ? s.values[i] : 0.0;
           final x = plot.left + groupW * (i + 0.5);
-          final o = Offset(x, yFor(v));
+          final o = Offset(x, yOf(s, v));
           if (i == 0) {
             path.moveTo(o.dx, o.dy);
           } else {
@@ -214,20 +245,56 @@ class ChartPainter extends CustomPainter {
               Paint()..color = s.color);
         }
       }
-    } else {
-      final m = chart.series.length;
+    }
+    if (barSeries.isNotEmpty) {
+      final m = barSeries.length;
       final gap = groupW * 0.15;
       final barW = (groupW - 2 * gap) / math.max(1, m);
       for (var c = 0; c < n; c++) {
         for (var si = 0; si < m; si++) {
-          final vals = chart.series[si].values;
+          final vals = barSeries[si].values;
           final v = c < vals.length ? vals[c] : 0.0;
           final x = plot.left + c * groupW + gap + si * barW;
-          final yv = yFor(v);
+          final yv = yOf(barSeries[si], v);
           final top = math.min(yv, baseline), bot = math.max(yv, baseline);
           canvas.drawRect(Rect.fromLTWH(x, top, barW * 0.88, bot - top),
-              Paint()..color = chart.series[si].color);
+              Paint()..color = barSeries[si].color);
         }
+      }
+    }
+    // Doğrusal eğilim çizgisi (en küçük kareler) — Faz 36.
+    for (final s in chart.series) {
+      if (!s.trend) continue;
+      final fit = linearFit(s.values.take(n).toList());
+      if (fit == null) continue;
+      final (a, b) = fit;
+      double xAt(int i) => plot.left + groupW * (i + 0.5);
+      canvas.drawLine(
+          Offset(xAt(0), yOf(s, a)),
+          Offset(xAt(n - 1), yOf(s, a + b * (n - 1))),
+          Paint()
+            ..color = s.color.withValues(alpha: 0.8)
+            ..strokeWidth = math.max(1.0, area.height * 0.004));
+    }
+    // Çizgiler çubukların ÜSTÜNDE kalsın diye yeniden (kombinasyon).
+    if (barSeries.isNotEmpty && lineSeries.isNotEmpty) {
+      for (final s in lineSeries) {
+        final path = Path();
+        for (var i = 0; i < n; i++) {
+          final v = i < s.values.length ? s.values[i] : 0.0;
+          final o = Offset(plot.left + groupW * (i + 0.5), yOf(s, v));
+          if (i == 0) {
+            path.moveTo(o.dx, o.dy);
+          } else {
+            path.lineTo(o.dx, o.dy);
+          }
+        }
+        canvas.drawPath(
+            path,
+            Paint()
+              ..color = s.color
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = math.max(1.5, area.height * 0.006));
       }
     }
     _catLabels(canvas, plot, fs, n, groupW);
@@ -296,6 +363,23 @@ class ChartPainter extends CustomPainter {
         tp.dispose();
       }
     }
+  }
+
+  /// En küçük kareler doğrusu `y = a + b·i` (i = 0..n-1); 2 noktadan azsa null.
+  static (double, double)? linearFit(List<double> ys) {
+    final n = ys.length;
+    if (n < 2) return null;
+    var sx = 0.0, sy = 0.0, sxx = 0.0, sxy = 0.0;
+    for (var i = 0; i < n; i++) {
+      sx += i;
+      sy += ys[i];
+      sxx += i * i;
+      sxy += i * ys[i];
+    }
+    final d = n * sxx - sx * sx;
+    if (d == 0) return null;
+    final b = (n * sxy - sx * sy) / d;
+    return ((sy - b * sx) / n, b);
   }
 
   @override

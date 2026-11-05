@@ -37,6 +37,26 @@ class XlsxChartSpec {
   /// ızgarada köşeden boyutlandırma).
   final int widthCols, heightRows;
 
+  /// Faz 36 madde 11: kombinasyon (sütun/çubuk + SON seri çizgi), çizgi
+  /// serisi ikincil eksende, doğrusal eğilim çizgisi, renk stili
+  /// ([XlsxChartWriter.styles] dizini).
+  final bool combo;
+  final bool secondaryAxis;
+  final bool trendline;
+  final int style;
+
+  /// Kombinasyon gerçekten uygulanabilir mi (sütun/çubuk ve ≥ 2 seri)?
+  bool get isCombo =>
+      combo &&
+      series.length >= 2 &&
+      (kind == XlsxChartKind.column || kind == XlsxChartKind.bar);
+
+  /// Seri [i]'nin rengi (stil paletinden).
+  String colorOf(int i) {
+    final p = XlsxChartWriter.styles[style.clamp(0, XlsxChartWriter.styles.length - 1)];
+    return p[i % p.length];
+  }
+
   const XlsxChartSpec({
     required this.sheetName,
     required this.kind,
@@ -52,6 +72,10 @@ class XlsxChartSpec {
     this.title = '',
     this.widthCols = 8,
     this.heightRows = 15,
+    this.combo = false,
+    this.secondaryAxis = false,
+    this.trendline = false,
+    this.style = 0,
   });
 
   XlsxChartSpec copyWith({
@@ -61,6 +85,10 @@ class XlsxChartSpec {
     int? widthCols,
     int? heightRows,
     String? sheetName,
+    bool? combo,
+    bool? secondaryAxis,
+    bool? trendline,
+    int? style,
   }) =>
       XlsxChartSpec(
         sheetName: sheetName ?? this.sheetName,
@@ -81,6 +109,10 @@ class XlsxChartSpec {
         anchorCol: anchorCol ?? this.anchorCol,
         widthCols: widthCols ?? this.widthCols,
         heightRows: heightRows ?? this.heightRows,
+        combo: combo ?? this.combo,
+        secondaryAxis: secondaryAxis ?? this.secondaryAxis,
+        trendline: trendline ?? this.trendline,
+        style: style ?? this.style,
       );
 
   /// Seçili aralıktan grafik kurar: ilk satır başlık, ilk sütun sayı DEĞİLSE
@@ -431,13 +463,25 @@ abstract final class XlsxChartWriter {
     switch (s.kind) {
       case XlsxChartKind.column:
       case XlsxChartKind.bar:
+        final combo = s.isCombo;
+        final last = s.series.length - 1;
         b.write('<c:barChart><c:barDir val="'
             '${s.kind == XlsxChartKind.bar ? 'bar' : 'col'}"/>'
             '<c:grouping val="clustered"/><c:varyColors val="0"/>');
-        _series(b, s, line: false);
+        _series(b, s, line: false, until: combo ? last : null);
         b.write('<c:gapWidth val="150"/><c:axId val="5000001"/>'
             '<c:axId val="5000002"/></c:barChart>');
+        if (combo) {
+          // Kombinasyon: son seri çizgi; ikincil eksende ise kendi eksen çifti.
+          final sec = s.secondaryAxis;
+          b.write('<c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>');
+          _series(b, s, line: true, from: last);
+          b.write('<c:marker val="1"/>'
+              '<c:axId val="${sec ? 5000003 : 5000001}"/>'
+              '<c:axId val="${sec ? 5000004 : 5000002}"/></c:lineChart>');
+        }
         _axes(b, horizontal: s.kind == XlsxChartKind.bar);
+        if (combo && s.secondaryAxis) _secondaryAxes(b);
       case XlsxChartKind.line:
         b.write('<c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>');
         _series(b, s, line: true);
@@ -465,14 +509,25 @@ abstract final class XlsxChartWriter {
     '4472C4', 'ED7D31', 'A5A5A5', 'FFC000', '5B9BD5', '70AD47',
   ];
 
+  /// Grafik stilleri (Faz 36 madde 11): renk dizileri — 0 Office, 1 mavi
+  /// tonlar, 2 sıcak, 3 yeşil, 4 gri.
+  static const styles = <List<String>>[
+    palette,
+    ['1F4E79', '2E75B6', '5B9BD5', '9DC3E6', 'BDD7EE', 'DEEBF7'],
+    ['C00000', 'ED7D31', 'FFC000', 'F4B183', 'FFD966', '843C0C'],
+    ['375623', '548235', '70AD47', 'A9D18E', 'C5E0B4', '1E3A13'],
+    ['262626', '595959', '7F7F7F', 'A6A6A6', 'BFBFBF', 'D9D9D9'],
+  ];
+
   static String _fill(String hex) =>
       '<a:solidFill><a:srgbClr val="$hex"/></a:solidFill>';
 
-  static void _series(StringBuffer b, XlsxChartSpec s, {required bool line}) {
+  static void _series(StringBuffer b, XlsxChartSpec s,
+      {required bool line, int from = 0, int? until}) {
     final r1 = s.top + 1, r2 = s.bottom;
-    for (var i = 0; i < s.series.length; i++) {
+    for (var i = from; i < (until ?? s.series.length); i++) {
       final ser = s.series[i];
-      final color = palette[i % palette.length];
+      final color = s.colorOf(i);
       b.write('<c:ser><c:idx val="$i"/><c:order val="$i"/>'
           '<c:tx><c:strRef><c:f>${_esc(ref(s.sheetName, s.top, ser.col))}</c:f>'
           '<c:strCache><c:ptCount val="1"/><c:pt idx="0"><c:v>${_esc(ser.name)}'
@@ -487,11 +542,18 @@ abstract final class XlsxChartWriter {
             '</a:solidFill></a:ln></c:spPr>');
         for (var k = 0; k < ser.values.length; k++) {
           b.write('<c:dPt><c:idx val="$k"/><c:bubble3D val="0"/><c:spPr>'
-              '${_fill(palette[k % palette.length])}</c:spPr></c:dPt>');
+              '${_fill(s.colorOf(k))}</c:spPr></c:dPt>');
         }
       } else {
         b.write('<c:spPr>${_fill(color)}</c:spPr>'
             '<c:invertIfNegative val="0"/>');
+      }
+      // Eğilim çizgisi: şemada spPr/marker/dPt'den sonra, cat'ten önce.
+      if (s.trendline && s.kind != XlsxChartKind.pie) {
+        b.write('<c:trendline><c:spPr><a:ln w="19050" cap="rnd">'
+            '${_fill(color)}<a:prstDash val="sysDot"/></a:ln></c:spPr>'
+            '<c:trendlineType val="linear"/><c:dispRSqr val="0"/>'
+            '<c:dispEq val="0"/></c:trendline>');
       }
       // Kategoriler: kategori sütunu yoksa sıra numarası önbelleği (başvuru
       // yok — Excel o zaman 1, 2, 3… yazar).
@@ -534,6 +596,21 @@ abstract final class XlsxChartWriter {
         '<c:numFmt formatCode="General" sourceLinked="1"/>'
         '<c:tickLblPos val="nextTo"/><c:crossAx val="5000001"/>'
         '<c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx>');
+  }
+
+  /// İkincil eksen çifti: kategori ekseni gizli, değer ekseni sağda.
+  static void _secondaryAxes(StringBuffer b) {
+    b.write('<c:catAx><c:axId val="5000003"/><c:scaling>'
+        '<c:orientation val="minMax"/></c:scaling><c:delete val="1"/>'
+        '<c:axPos val="b"/><c:numFmt formatCode="General" sourceLinked="1"/>'
+        '<c:tickLblPos val="nextTo"/><c:crossAx val="5000004"/>'
+        '<c:crosses val="autoZero"/><c:auto val="1"/><c:lblAlgn val="ctr"/>'
+        '<c:lblOffset val="100"/></c:catAx>'
+        '<c:valAx><c:axId val="5000004"/><c:scaling>'
+        '<c:orientation val="minMax"/></c:scaling><c:delete val="0"/>'
+        '<c:axPos val="r"/><c:numFmt formatCode="General" sourceLinked="1"/>'
+        '<c:tickLblPos val="nextTo"/><c:crossAx val="5000003"/>'
+        '<c:crosses val="max"/><c:crossBetween val="between"/></c:valAx>');
   }
 
   static String _esc(String s) => s

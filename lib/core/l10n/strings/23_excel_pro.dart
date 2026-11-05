@@ -143,4 +143,12 @@ const Map<String, (String, String, String)> _t23 = {
   'xp.goal_need_value': ('Değişecek hücre formül değil, değer içermeli', 'The changing cell must contain a value, not a formula', 'يجب أن تحتوي الخلية المتغيرة على قيمة لا صيغة'),
   'xp.goal_failed': ('Çözüm bulunamadı', 'No solution found', 'لم يُعثر على حل'),
   'xp.goal_done': ('Çözüm: {cell} = {value}', 'Solution: {cell} = {value}', 'الحل: {cell} = {value}'),
+  // ── Madde 11: grafik ──
+  'xp.chart_options': ('Grafik seçenekleri', 'Chart options', 'خيارات المخطط'),
+  'xp.chart_combo': ('Kombinasyon (son seri çizgi)', 'Combo (last series as line)', 'مختلط (آخر سلسلة كخط)'),
+  'xp.chart_secondary': ('Çizgi ikincil eksende', 'Line on secondary axis', 'الخط على المحور الثانوي'),
+  'xp.chart_trend': ('Eğilim çizgisi', 'Trendline', 'خط الاتجاه'),
+  'xp.chart_style': ('Stil {n}', 'Style {n}', 'النمط {n}'),
+  'xp.chart_share_png': ('Görüntü olarak paylaş', 'Share as image', 'مشاركة كصورة'),
+  'xp.chart_share_pdf': ('PDF olarak paylaş', 'Share as PDF', 'مشاركة كملف PDF'),
 };
