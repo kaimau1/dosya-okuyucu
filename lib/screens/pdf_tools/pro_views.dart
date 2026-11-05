@@ -345,9 +345,10 @@ class _OutlineEditorState extends State<_OutlineEditor> {
             ? Center(child: Text(context.t('pp.outline_empty')))
             : ReorderableListView.builder(
                 itemCount: _items.length,
-                onReorder: (from, to) => setState(() {
+                // `onReorderItem`: [to] öğenin varacağı son dizin.
+                onReorderItem: (from, to) => setState(() {
                   final item = _items.removeAt(from);
-                  _items.insert(to > from ? to - 1 : to, item);
+                  _items.insert(to, item);
                 }),
                 itemBuilder: (context, i) {
                   final item = _items[i];
@@ -522,7 +523,7 @@ class _StampSheetState extends State<_StampSheet> {
 // ── Numaralandırma ────────────────────────────────────────────────────────
 
 class _NumberingOptions {
-  final PdfNumberStyle style;
+  final PageNumberStyle style;
   final PdfNumberPlace place;
   final int startAt;
   final bool skipFirst;
@@ -540,7 +541,7 @@ class _NumberingSheet extends StatefulWidget {
 }
 
 class _NumberingSheetState extends State<_NumberingSheet> {
-  PdfNumberStyle _style = PdfNumberStyle.pageOfTotal;
+  PageNumberStyle _style = PageNumberStyle.pageOfTotal;
   PdfNumberPlace _place = PdfNumberPlace.bottomCenter;
   bool _skipFirst = false;
   final _start = TextEditingController(text: '1');
@@ -557,7 +558,7 @@ class _NumberingSheetState extends State<_NumberingSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bates = _style == PdfNumberStyle.bates;
+    final bates = _style == PageNumberStyle.bates;
     final preview = PdfDocPro.numberLabel(_style,
         number: int.tryParse(_start.text) ?? 1,
         total: 12,
@@ -570,11 +571,11 @@ class _NumberingSheetState extends State<_NumberingSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          DropdownButtonFormField<PdfNumberStyle>(
+          DropdownButtonFormField<PageNumberStyle>(
             initialValue: _style,
             decoration: InputDecoration(labelText: context.t('pp.number_style')),
             items: [
-              for (final st in PdfNumberStyle.values)
+              for (final st in PageNumberStyle.values)
                 DropdownMenuItem(
                     value: st, child: Text(context.t('pp.number_${st.name}'))),
             ],

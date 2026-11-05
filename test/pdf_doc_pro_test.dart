@@ -72,19 +72,19 @@ void main() {
     expect(PdfDocPro.roman(14), 'XIV');
     expect(PdfDocPro.roman(1999), 'MCMXCIX');
     expect(
-        PdfDocPro.numberLabel(PdfNumberStyle.bates,
+        PdfDocPro.numberLabel(PageNumberStyle.bates,
             number: 7, total: 9, prefix: 'DAVA-', digits: 5),
         'DAVA-00007');
     expect(
-        PdfDocPro.numberLabel(PdfNumberStyle.pageOfTotal,
+        PdfDocPro.numberLabel(PageNumberStyle.pageOfTotal,
             number: 2, total: 9, pageWord: 'Page'),
         'Page 2 / 9');
-    expect(PdfDocPro.numberLabel(PdfNumberStyle.roman, number: 4, total: 9), 'iv');
+    expect(PdfDocPro.numberLabel(PageNumberStyle.roman, number: 4, total: 9), 'iv');
   });
 
   test('Bates numarası her sayfaya, kapak atlanır', () async {
     final out = await PdfDocPro.addNumbering(await _doc(3),
-        style: PdfNumberStyle.bates,
+        style: PageNumberStyle.bates,
         prefix: 'EK',
         digits: 3,
         skipFirstPage: true,

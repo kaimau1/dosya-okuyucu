@@ -59,7 +59,7 @@ enum PdfStampKind {
 enum PdfStampPlace { topRight, topLeft, center, bottomRight, bottomLeft }
 
 /// Numara biçimi.
-enum PdfNumberStyle { plain, pageOfTotal, roman, bates }
+enum PageNumberStyle { plain, pageOfTotal, roman, bates }
 
 /// Numara konumu.
 enum PdfNumberPlace {
@@ -334,7 +334,7 @@ abstract final class PdfDocPro {
 
   /// Saf: bir sayfanın etiketi.
   static String numberLabel(
-    PdfNumberStyle style, {
+    PageNumberStyle style, {
     required int number,
     required int total,
     String prefix = '',
@@ -342,15 +342,15 @@ abstract final class PdfDocPro {
     String pageWord = 'Sayfa',
   }) =>
       switch (style) {
-        PdfNumberStyle.plain => '$prefix$number',
-        PdfNumberStyle.pageOfTotal => '$pageWord $number / $total',
-        PdfNumberStyle.roman => roman(number).toLowerCase(),
-        PdfNumberStyle.bates => '$prefix${number.toString().padLeft(digits, '0')}',
+        PageNumberStyle.plain => '$prefix$number',
+        PageNumberStyle.pageOfTotal => '$pageWord $number / $total',
+        PageNumberStyle.roman => roman(number).toLowerCase(),
+        PageNumberStyle.bates => '$prefix${number.toString().padLeft(digits, '0')}',
       };
 
   static Future<List<int>> addNumbering(
     List<int> bytes, {
-    PdfNumberStyle style = PdfNumberStyle.plain,
+    PageNumberStyle style = PageNumberStyle.plain,
     PdfNumberPlace place = PdfNumberPlace.bottomCenter,
     int startAt = 1,
     bool skipFirstPage = false,
@@ -404,7 +404,7 @@ abstract final class PdfDocPro {
 
   static Future<List<int>> addNumberingInBackground(
     List<int> bytes, {
-    PdfNumberStyle style = PdfNumberStyle.plain,
+    PageNumberStyle style = PageNumberStyle.plain,
     PdfNumberPlace place = PdfNumberPlace.bottomCenter,
     int startAt = 1,
     bool skipFirstPage = false,
