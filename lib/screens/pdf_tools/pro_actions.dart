@@ -16,6 +16,9 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       'dsign' => _digitalSign(),
       'dsign_list' => _showSignatures(),
       'redact' => _redact(),
+      'to_xlsx' => _exportTables(),
+      'to_docx' => _exportDocx(),
+      'pdfa' => _exportPdfA(),
       _ => Future<void>.value(),
     };
   }
@@ -200,4 +203,126 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
     _partSetState(() => _password = null);
     _snack(_str.t('pp.redact_done'));
   }
+
+  // ── 3. Excel / Word / PDF-A ──────────────────────────────────────────────
+
+  /// Çıktıyı özgünün yanına (yazılamazsa Belgeler'e) benzersiz adla yazar,
+  /// "Paylaş" eylemli şerit gösterir.
+  Future<void> _saveSibling(List<int> data, String suffix, String ext) async {
+    final base = '${p.basenameWithoutExtension(widget.path)}$suffix';
+    String path;
+    try {
+      path = LegacyConvert.uniquePath(File(widget.path).parent.path, base, ext);
+      await File(path).writeAsBytes(data, flush: true);
+    } on FileSystemException {
+      final dir = await DocsHome.resolve();
+      path = LegacyConvert.uniquePath(dir.path, base, ext);
+      await File(path).writeAsBytes(data, flush: true);
+    }
+    if (!mounted) return;
+    showSnack(
+      context,
+      _str.t('pp.saved_as', {'name': p.basename(path)}),
+      action: SnackBarAction(
+        label: _str.t('common.share'),
+        onPressed: () => unawaited(Share.shareXFiles([XFile(path)])),
+      ),
+    );
+  }
+
+  /// Dosya üreten (belgeyi değiştirmeyen) iş: meşgul şeridi + hata şeridi.
+  Future<void> _produce(String label, Future<void> Function() job) async {
+    if (_busy) return;
+    _partSetState(() => _busyLabel = '$label…');
+    try {
+      await job();
+    } catch (e) {
+      if (mounted) {
+        _snackError(
+            _str.t('pt.op_failed', {'label': label, 'error': userErrorText(e)}));
+      }
+    } finally {
+      if (mounted) _partSetState(() => _busyLabel = '');
+    }
+  }
+
+  List<int>? _selectedOrNull() =>
+      _selected.isEmpty ? null : (_selected.toList()..sort());
+
+  Future<void> _exportTables() async {
+    final bytes = _bytes!;
+    final pw = _password;
+    final pages = _selectedOrNull();
+    final prefix = _str.t('pp.sheet_prefix');
+    await _produce(_str.t('pp.to_xlsx'), () async {
+      final xlsx = await PdfExportPro.tablesToXlsxInBackground(bytes,
+          password: pw, pages: pages, sheetPrefix: prefix);
+      await _saveSibling(xlsx, '', 'xlsx');
+    });
+  }
+
+  Future<void> _exportDocx() async {
+    final bytes = _bytes!;
+    final pw = _password;
+    await _produce(_str.t('pp.to_docx'), () async {
+      final docx =
+          await PdfExportPro.toLayoutDocxInBackground(bytes, password: pw);
+      await _saveSibling(docx, '', 'docx');
+    });
+  }
+
+  /// PDF/A-2b: şablon kipi (metin/vektör korunur) ya da görüntü kipi (tam
+  /// gömülü; kaynağın gömülmeyen yazı tipleri sorun olmaz).
+  Future<void> _exportPdfA() async {
+    final mode = await showAppSheet<bool>(
+      context,
+      title: context.t('pp.pdfa'),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(AppIcons.pdfArchive),
+            title: Text(ctx.t('pp.pdfa_vector')),
+            subtitle: Text(ctx.t('pp.pdfa_vector_sub')),
+            onTap: () => Navigator.pop(ctx, false),
+          ),
+          ListTile(
+            leading: const Icon(AppIcons.image),
+            title: Text(ctx.t('pp.pdfa_image')),
+            subtitle: Text(ctx.t('pp.pdfa_image_sub')),
+            onTap: () => Navigator.pop(ctx, true),
+          ),
+        ],
+      ),
+    );
+    if (mode == null || !mounted) return;
+    final bytes = _bytes!;
+    final pw = _password;
+    final total = await _pageCount();
+    if (mode && total > _rasterPageLimit) {
+      _snack(_str.t('pp.too_many_pages', {'n': _rasterPageLimit}));
+      return;
+    }
+    final font = await _unicodeFont();
+    await _produce(_str.t('pp.pdfa'), () async {
+      final rasters = mode
+          ? await PdfRaster.renderJpegs(
+              bytes, List<int>.generate(total, (i) => i),
+              password: pw, dpi: 150, quality: 82)
+          : const <RasterPage>[];
+      final out = await PdfRedact.applyInBackground(
+        bytes,
+        rects: const {},
+        rasters: [for (final r in rasters) RedactedRaster(r.index, r.jpeg)],
+        fontBytes: font,
+        password: pw,
+        conformance: PdfConformanceLevel.a2b,
+      );
+      await _saveSibling(out, '-PDFA', 'pdf');
+    });
+  }
+
+  /// Sayfaları görüntüye çeviren işlerde tek seferde en çok sayfa: her
+  /// sayfa ~0,2–0,5 MB JPEG bellekte bekler (500 sayfa = yüzlerce MB).
+  static const _rasterPageLimit = 150;
 }

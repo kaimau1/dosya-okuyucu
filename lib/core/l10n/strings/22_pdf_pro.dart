@@ -76,4 +76,38 @@ const Map<String, (String, String, String)> _t22 = {
     'Redacted and verified: no text left inside the boxes.',
     'تم التنقيح والتحقق: لم يبقَ نص داخل المربعات.',
   ),
+  // ── Dışa aktarım ──
+  'pp.saved_as': ('Kaydedildi: {name}', 'Saved: {name}', 'حُفظ: {name}'),
+  'pp.sheet_prefix': ('Sayfa', 'Page', 'صفحة'),
+  'pp.to_xlsx': ('Tabloları Excel\'e aktar', 'Export tables to Excel', 'تصدير الجداول إلى Excel'),
+  'pp.to_xlsx_sub': (
+    'Satır/sütun algılanır; seçili sayfalar ya da tümü',
+    'Rows/columns detected; selected pages or all',
+    'تُكتشف الصفوف/الأعمدة؛ الصفحات المحددة أو الكل',
+  ),
+  'pp.to_docx': ('Word\'e aktar (düzen korunur)', 'Export to Word (keep layout)', 'تصدير إلى Word (مع الحفاظ على التخطيط)'),
+  'pp.to_docx_sub': (
+    'Satırlar, girinti, punto ve sayfa sonları',
+    'Lines, indents, font sizes and page breaks',
+    'الأسطر والمسافات البادئة والأحجام وفواصل الصفحات',
+  ),
+  'pp.pdfa': ('PDF/A olarak kaydet', 'Save as PDF/A', 'حفظ كـ PDF/A'),
+  'pp.pdfa_sub': ('Uzun süreli arşiv (PDF/A-2b)', 'Long-term archive (PDF/A-2b)', 'أرشيف طويل الأمد (PDF/A-2b)'),
+  'pp.pdfa_vector': ('Metin ve çizimler korunsun', 'Keep text and vectors', 'الحفاظ على النص والرسوم'),
+  'pp.pdfa_vector_sub': (
+    'Küçük dosya; kaynakta gömülmemiş yazı tipi varsa tam uyum garanti değil',
+    'Small file; full compliance not guaranteed if the source has non-embedded fonts',
+    'ملف صغير؛ لا يُضمن التوافق الكامل إن وُجدت خطوط غير مضمّنة',
+  ),
+  'pp.pdfa_image': ('Görüntü + aranabilir metin', 'Image + searchable text', 'صورة + نص قابل للبحث'),
+  'pp.pdfa_image_sub': (
+    'Her sayfa görüntü olur; uyum en güvenli, dosya büyür',
+    'Each page becomes an image; safest compliance, larger file',
+    'تصبح كل صفحة صورة؛ أكثر توافقًا وأكبر حجمًا',
+  ),
+  'pp.too_many_pages': (
+    'En çok {n} sayfa — önce sayfa seç ya da böl',
+    'At most {n} pages — select pages or split first',
+    'بحد أقصى {n} صفحة — حدّد صفحات أو قسّم أولًا',
+  ),
 };

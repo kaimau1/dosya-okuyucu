@@ -115,9 +115,13 @@ abstract final class PdfRedact {
     required List<RedactedRaster> rasters,
     List<int>? fontBytes,
     String? password,
+    PdfConformanceLevel? conformance,
   }) async {
     final src = PdfDocument(inputBytes: bytes, password: password);
-    final out = PdfDocument();
+    final out = PdfDocument(conformanceLevel: conformance);
+    // PDF/A standart (gömülmeyen) yazı tipine izin vermez: TrueType yoksa
+    // görünmez katman yazılmaz.
+    final textLayer = conformance == null || fontBytes != null;
     try {
       out.compressionLevel = PdfCompressionLevel.best;
       final byIndex = {for (final r in rasters) r.index: r.jpeg};
@@ -140,8 +144,9 @@ abstract final class PdfRedact {
         }
         g.drawImage(PdfBitmap(jpeg), Rect.fromLTWH(0, 0, t.size.width, t.size.height));
         final boxes = rects[i] ?? const <Rect>[];
-        final lines =
-            extractor.extractTextLines(startPageIndex: i, endPageIndex: i);
+        final lines = textLayer
+            ? extractor.extractTextLines(startPageIndex: i, endPageIndex: i)
+            : const <TextLine>[];
         g.save();
         g.setTransparency(0);
         for (final line in lines) {
@@ -191,6 +196,7 @@ abstract final class PdfRedact {
     required List<RedactedRaster> rasters,
     List<int>? fontBytes,
     String? password,
+    PdfConformanceLevel? conformance,
   }) =>
       Isolate.run(() async {
         try {
@@ -198,7 +204,8 @@ abstract final class PdfRedact {
               rects: rects,
               rasters: rasters,
               fontBytes: fontBytes,
-              password: password);
+              password: password,
+              conformance: conformance);
         } catch (e) {
           throw PdfToolsException('$e');
         }

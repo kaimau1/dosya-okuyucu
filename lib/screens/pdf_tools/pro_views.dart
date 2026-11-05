@@ -19,6 +19,11 @@ const _proTools = <List<_ProTool>>[
   [
     _ProTool('redact', AppIcons.pdfRedact, 'pp.redact', 'pp.redact_sub'),
   ],
+  [
+    _ProTool('to_xlsx', AppIcons.pdfTable, 'pp.to_xlsx', 'pp.to_xlsx_sub'),
+    _ProTool('to_docx', AppIcons.pdfToWord, 'pp.to_docx', 'pp.to_docx_sub'),
+    _ProTool('pdfa', AppIcons.pdfArchive, 'pp.pdfa', 'pp.pdfa_sub'),
+  ],
 ];
 
 class _ProToolsSheet extends StatelessWidget {
