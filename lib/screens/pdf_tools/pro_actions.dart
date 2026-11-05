@@ -523,9 +523,8 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
           onlyPages: pages,
         ));
       }
-      return parts.length == 1
-          ? parts.single
-          : PdfTools.mergeInBackground(parts);
+      if (parts.length == 1) return parts.single;
+      return PdfTools.mergeInBackground(parts);
     });
     if (!mounted || identical(prev, _bytes)) return;
     _partSetState(() => _password = null);
