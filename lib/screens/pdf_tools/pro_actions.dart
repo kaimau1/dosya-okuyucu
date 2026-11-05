@@ -30,6 +30,7 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       'crop' => _cropPages(),
       'fit_a4' => _fitA4(),
       'form_create' => _createForm(),
+      'notes' => _exportNotes(),
       'form_profile' => showAutofillProfileSheet(context),
       _ => Future<void>.value(),
     };
@@ -660,5 +661,28 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       (b) => PdfFormPro.addFieldsInBackground(b, fields,
           fontBytes: font, password: pw),
     );
+  }
+
+  // ── 10. Not özeti ────────────────────────────────────────────────────────
+
+  Future<void> _exportNotes() async {
+    final bytes = _bytes!;
+    final pw = _password;
+    await _produce(_str.t('pp.notes_booklet'), () async {
+      final items = await PdfNotes.collectInBackground(bytes, password: pw);
+      if (items.isEmpty) {
+        _snack(_str.t('pp.notes_empty'));
+        return;
+      }
+      final md = PdfNotes.toMarkdown(
+        items,
+        title: p.basename(widget.path),
+        labels: {
+          for (final k in PdfNoteKind.values) k: _str.t('pp.note_${k.name}'),
+        },
+        pageLabel: (n) => _str.t('pp.compare_page', {'n': n}),
+      );
+      await _saveSibling(utf8.encode(md), '-notlar', 'md');
+    });
   }
 }

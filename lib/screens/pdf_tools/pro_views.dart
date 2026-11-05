@@ -32,6 +32,7 @@ const _proTools = <List<_ProTool>>[
   ],
   [
     _ProTool('compare', AppIcons.pdfCompare, 'pp.compare', 'pp.compare_sub'),
+    _ProTool('notes', AppIcons.pdfNotes, 'pp.notes_booklet', 'pp.notes_booklet_sub'),
   ],
   [
     _ProTool('permissions', AppIcons.pdfKey, 'pp.permissions', 'pp.permissions_sub'),
