@@ -105,6 +105,10 @@ extension _WordProPart on _WordMobileEditorScreenState {
         await _openReview();
       case 'password':
         await _passwordMenu();
+      case 'dictate':
+        await _dictate();
+      case 'ai_inline':
+        await _aiInline();
       case 'tbl_merge':
         final dir = await _choose('wp.tbl_merge', const [
           ('right', 'wp.tbl_merge_right'),
@@ -483,6 +487,62 @@ extension _WordProPart on _WordMobileEditorScreenState {
     _session.changed();
     showSnack(context, context.t('xp.password_set_done'));
   }
+
+  // ── Madde 6: sesle yazma + satır içi AI ──────────────────────────────────
+
+  String get _speechLang => switch (AppStrings.of(context).language) {
+        AppLanguage.en => 'en-US',
+        AppLanguage.ar => 'ar',
+        _ => 'tr-TR',
+      };
+
+  Future<void> _dictate() async {
+    final c = _ctrl;
+    if (c == null) return;
+    final unavailable = context.t('wp.dictate_unavailable');
+    try {
+      final text = await Dictation.listen(
+          lang: _speechLang, prompt: context.t('wp.dictate_prompt'));
+      if (text == null || !mounted) return;
+      // Sözcük arası boşluk: imleç bir harfin hemen ardındaysa.
+      final p = c.paras[c.extent.para];
+      final before = c.extent.offset > 0 ? p.text[c.extent.offset - 1] : ' ';
+      c.replaceSelection(before.trim().isEmpty ? text : ' $text');
+    } on DictationUnavailable {
+      if (mounted) showSnack(context, unavailable);
+    } catch (e) {
+      if (mounted) showSnack(context, userErrorText(e));
+    }
+  }
+
+  /// Seçim (yoksa imleç paragrafı) üzerinde AI görevi; önizleme → onay.
+  Future<void> _aiInline() async {
+    final c = _ctrl;
+    if (c == null) return;
+    if (c.collapsed) {
+      final i = c.extent.para;
+      c.select(DocPos(i, 0), DocPos(i, c.paras[i].length));
+    }
+    final text = c.selectedText();
+    if (text.trim().isEmpty) {
+      showSnack(context, context.t('wp.ai_empty'));
+      return;
+    }
+    final r = await showAppSheet<(String, String)>(
+      context,
+      title: context.t('wp.ai_inline'),
+      builder: (_) => _AiInlineSheet(text: text),
+    );
+    if (r == null || !mounted) return;
+    if (r.$1 == 'below') {
+      final e = c.end;
+      c.select(DocPos(e.para, c.paras[e.para].length),
+          DocPos(e.para, c.paras[e.para].length));
+      c.insertText('\n${r.$2}');
+    } else {
+      c.replaceSelection(r.$2);
+    }
+  }
 }
 
 /// Sayfa düzeni levhası: kâğıt, yön, kenar boşlukları (cm), cilt payı,
@@ -829,6 +889,149 @@ class _WordPasswordSheetState extends State<_WordPasswordSheet> {
               child: Text(context.t('common.ok')),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+
+/// Satır içi AI levhası: görev çipleri → önizleme → Değiştir / Altına ekle.
+/// İstek sürerken "Vazgeç" yanıtı yok sayar (iptal; anayasa: AI çağrıları
+/// iptal edilebilir).
+class _AiInlineSheet extends StatefulWidget {
+  final String text;
+  const _AiInlineSheet({required this.text});
+
+  @override
+  State<_AiInlineSheet> createState() => _AiInlineSheetState();
+}
+
+class _AiInlineSheetState extends State<_AiInlineSheet> {
+  String? _task;
+  String? _result;
+  String? _error;
+  int _gen = 0;
+  bool _busy = false;
+  String _lang = 'en';
+
+  static const _langs = ['tr', 'en', 'de', 'fr', 'es', 'ar', 'ru'];
+
+  Future<void> _run(String task) async {
+    final state = context.read<AppState>();
+    if (!state.hasApiKey) {
+      setState(() => _error = context.t('aia.need_key'));
+      return;
+    }
+    final instruction = context.t('wp.ai_p_$task',
+        {'lang': context.t('wp.lang_$_lang')});
+    final gen = ++_gen;
+    setState(() {
+      _task = task;
+      _busy = true;
+      _error = null;
+      _result = null;
+    });
+    try {
+      final answer = await state.gemini.chat(history: [
+        ChatTurn(fromUser: true, text: DocxAi.prompt(instruction, widget.text)),
+      ]);
+      if (!mounted || gen != _gen) return;
+      setState(() {
+        _busy = false;
+        _result = DocxAi.clean(answer);
+      });
+    } catch (e) {
+      if (!mounted || gen != _gen) return;
+      setState(() {
+        _busy = false;
+        _error = userErrorText(e);
+      });
+    }
+  }
+
+  void _cancel() => setState(() {
+        _gen++;
+        _busy = false;
+      });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(widget.text,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: context.type.small.copyWith(color: scheme.onSurfaceVariant)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final t in kWordAiTasks)
+                ChoiceChip(
+                  key: ValueKey('word-ai-$t'),
+                  label: Text(context.t('wp.ai_$t')),
+                  selected: _task == t,
+                  onSelected: _busy ? null : (_) => _run(t),
+                ),
+            ],
+          ),
+          Row(children: [
+            Text(context.t('wp.ai_target')),
+            const SizedBox(width: 8),
+            DropdownButton<String>(
+              value: _lang,
+              onChanged: _busy ? null : (v) => setState(() => _lang = v ?? _lang),
+              items: [
+                for (final l in _langs)
+                  DropdownMenuItem(value: l, child: Text(context.t('wp.lang_$l'))),
+              ],
+            ),
+          ]),
+          if (_busy)
+            Row(children: [
+              const Expanded(child: LinearProgressIndicator()),
+              TextButton(
+                key: const ValueKey('word-ai-cancel'),
+                onPressed: _cancel,
+                child: Text(context.t('common.cancel')),
+              ),
+            ]),
+          if (_error != null)
+            Text(_error!, style: context.type.small.copyWith(color: scheme.error)),
+          if (_result != null) ...[
+            const SizedBox(height: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 220),
+              child: SingleChildScrollView(
+                child: SelectableText(_result!,
+                    key: const ValueKey('word-ai-result')),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              children: [
+                OutlinedButton(
+                  key: const ValueKey('word-ai-below'),
+                  onPressed: () => Navigator.pop(context, ('below', _result!)),
+                  child: Text(context.t('wp.ai_below')),
+                ),
+                FilledButton(
+                  key: const ValueKey('word-ai-replace'),
+                  onPressed: () => Navigator.pop(context, ('replace', _result!)),
+                  child: Text(context.t('wp.ai_replace')),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

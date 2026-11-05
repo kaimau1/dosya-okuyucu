@@ -39,6 +39,12 @@ import '../../services/docx/pro/docx_math.dart';
 import '../../services/docx/pro/docx_table_ops.dart';
 import '../../services/docx/pro/docx_compare.dart';
 import '../../services/office_crypto.dart';
+import '../../services/dictation.dart';
+import '../../services/docx/pro/docx_ai.dart';
+import '../../services/gemini_service.dart';
+import '../../core/app_state.dart';
+import '../../core/l10n/app_language.dart';
+import 'package:provider/provider.dart';
 import 'package:printing/printing.dart' show Printing;
 import 'package:shared_preferences/shared_preferences.dart';
 

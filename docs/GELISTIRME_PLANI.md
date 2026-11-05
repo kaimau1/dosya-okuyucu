@@ -176,7 +176,8 @@ yalnız görünürken boyanır.
    (`docx_templates.dart` tam OOXML paketleri tr/en; `new_document_sheet` Word → galeri; `word_pro_templates_test`.)
 - [x] 5. Karşılaştır/birleştir iki belge; yorum+değişiklik gezinme çubuğu; belge parolası.
    (`docx_compare.dart` LCS + sözcük farkı → w:ins/w:del, belge ekle, `DocxReview` tek öğe kabul/ret; parola = `OfficeCrypto` Agile; `word_pro_compare_test`.)
-6. Sesle yazma (cihaz STT) ve AI ile yeniden yaz/özetle/çevir (Gemini var) — satır içi.
+- [x] 6. Sesle yazma (cihaz STT) ve AI ile yeniden yaz/özetle/çevir (Gemini var) — satır içi.
+   (`ci/Dikte.kt` RecognizerIntent, kanal `dosya/dictate`, izin yok; `_AiInlineSheet` 6 görev, önizleme + Değiştir/Altına ekle, Vazgeç = iptal; `word_pro_ai_test`.)
 7. PDF/Docx dışa aktarım kalitesi: sayfa kırılımı, yazı tipi gömme.
 **Ölçüt:** 5 gerçek docx düzen kaybı olmadan açılıp kaydedilir.
 
