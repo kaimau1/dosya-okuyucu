@@ -74,7 +74,7 @@ bellek yoklaması 15 sn (P6), hafif profilde 120 Hz/otomatik tarama/nabız kapal
       "Ana ekranı düzenle" girişi) kaldırıldı (`NavTabs` altyapısı sekme durumu için duruyor).
 **Bitti ölçütü:** ekran görüntüsünde 4 sıra kutu + araç satırı + alt panel kayma yok.
 
-## Faz 35 — Pro belge tarayıcı (en büyük kullanıcı değeri)
+## Faz 35 — Pro belge tarayıcı — BİTTİ 2026-11-05 (kod; cihaz doğrulaması CIHAZ_TESTI.md'de, perf A/B bekliyor)
 **KARAR (kullanıcı onayladı, 2026-11-04): ML Kit geçişi Faz 35'in ilk adımıdır; kullanıcı başlatacak.**
 Karar: **ML Kit `GmsDocumentScanner`'ı doğrudan kullan** (Kotlin köprüsü,
 `ci/` yaması) — `cunning_document_scanner`'ı bırak. Gerekçe: sonuç olarak **PDF + JPEG**
@@ -90,28 +90,34 @@ FULL) seçilebilir. Bizim katman: OCR, sıkıştırma, adlandırma, saklama.
    eski yol). R8 kuralı + `.r8test` A/B; APK boyutu bütçesi; 16 KB denetimi. Perf: tarayıcı
    ilk kullanımda kurulur, açılışta yok; sonuç JPEG'leri `cacheWidth` ile gösterilir.
    **Bitti:** cihazda tara → PDF; Play Services'siz cihazda yedek akış; CI yeşil.
-1. **Belge türü kipleri** (tara ekranında hap seçici): Belge · Kimlik/Ehliyet (ön+arka tek A4)
+1. [x] **Belge türü kipleri** (`scan_kind.dart`, stüdyoda hap seçici) (tara ekranında hap seçici): Belge · Kimlik/Ehliyet (ön+arka tek A4)
    · Kitap (çift sayfa → 2 sayfaya böl) · Makbuz/Fiş (uzun, ince) · Beyaz tahta · Kartvizit
    (OCR → kişi) · Fotoğraf. Her kip filtre/kırpma varsayılanını belirler.
-2. **Toplu inceleme ızgarası:** sürükle-sırala, tek sayfa döndür/yeniden kırp/filtre
+2. [x] **Toplu inceleme ızgarası:** (stüdyo ızgara görünümü; yeni filtreler `vivid`/`shadowless`) sürükle-sırala, tek sayfa döndür/yeniden kırp/filtre
    (Orijinal · Otomatik · Gri · S/B · Renkli-canlı · Gölge-sil), sayfa sil, "sayfa ekle".
-3. **Akıllı çıktı:** aranabilir PDF (mevcut OCR katmanı), Word'e (düzenlenebilir), Excel'e
+3. [x] **Akıllı çıktı:** (`scan_export.dart`, stüdyo → Dışa aktar) aranabilir PDF (mevcut OCR katmanı), Word'e (düzenlenebilir), Excel'e
    (tablo algılama → hücreler), TXT; PDF boyutu önizlemesi + kalite (Küçük/Orta/Yüksek).
-4. **Otomatik ad + klasör:** `scan_title` (var) ile tarih + ilk başlık; "Taramalar"
+4. [x] **Otomatik ad + klasör:** (`Taramalar` alt klasörü; kimlik → kasa önerisi; bulut seçeneği mevcut paylaş/taşı akışıyla) `scan_title` (var) ile tarih + ilk başlık; "Taramalar"
    klasörü; bulut/kasa seçeneği (kimlik taramaları kasaya önerilir).
-5. **İyileştirme:** `scan_enhance`/`scan_dewarp` kalite metrikleri (keskinlik, eğiklik) ile
+5. [x] **İyileştirme:** (`scan_quality.dart`: Laplace keskinlik, parlaklık, izdüşüm eğikliği) `scan_enhance`/`scan_dewarp` kalite metrikleri (keskinlik, eğiklik) ile
    "yeniden çek" önerisi; düşük ışıkta fener önerisi.
-6. Test: sayfa işlem birim testleri (sıralama, böl, birleştir), PDF üretimi bayt testleri;
+6. [x] Test: sayfa işlem birim testleri (`scan_kind/export/quality/actions_test`, `test/perf/scan_perf_test`; cihaz turu CIHAZ_TESTI) (sıralama, böl, birleştir), PDF üretimi bayt testleri;
    cihaz: 10 gerçek belge (kağıt, fiş, kimlik, kitap, tahta) — `CIHAZ_TESTI.md`.
 **Bitti ölçütü:** tek dokunuşla Belge→PDF; kimlik iki yüz tek sayfa; kitap iki sayfa böler;
 OCR'lı PDF aranabilir; 20 sayfa < 15 sn işlenir (orta cihaz).
 
-**Ek (2026-11-04):** 6. Taramada tek tıkla "belge → önerilen eylem" (fatura → Faturalar/AI, kimlik → Kasa,
-makbuz → Excel gider satırı). 7. **Perf:** sayfa işleme tek izolatta, sırayla (eşzamanlılık
+**Ek (2026-11-04):** 6. [x] Taramada tek tıkla "belge → önerilen eylem" (fatura → Faturalar/AI, kimlik → Kasa,
+makbuz → Excel gider satırı). 7. [x] **Perf:** sayfa işleme tek izolatta, sırayla (eşzamanlılık
 `PerfBudget`); önizleme `cacheWidth`; 30 sayfa PDF üretimi akışla (tüm JPEG'ler belleğe
 alınmaz); OCR isteğe bağlı + arka planda, bitince bildirim. Ham JPEG'ler iş bitince silinir.
-8. Yeniden tara/ekle sırasında taslak kaydı (uygulama kapansa kaybolmasın). 9. Dışa aktarma kuyruğu `JobQueue`'da
+8. [x] Yeniden tara/ekle sırasında taslak kaydı (uygulama kapansa kaybolmasın). 9. [x] Dışa aktarma kuyruğu `JobQueue`'da
 (ilerleme, iptal, sonuç sayfası — A5 deseni).
+**Faz 35 notları (2026-11-05):** ek 6 = öneri şeridi (kimlik → Kasa, fiş/fatura → `Giderler.csv`;
+fatura → AI özet ayrı iş). Ek 7: işler izolatta sırayla, önizlemeler `cacheWidth`'li, ham/ara JPEG'ler
+ev temizliğinde (`docscan`, `_kalite_`, `_kimlik_`, `_kitap_`); **açık kalan:** `pdf` paketi sayfaları
+kayda dek bellekte tutuyor — 30 sayfa "akışla" üretim yapılmadı (ölçüm sonrası gerekirse ayrı iş).
+Ek 8: stüdyo her değişikliği PDF'e kendiliğinden yazıyor + arka plana geçerken bekleyen yazılıyor (taslak = PDF).
+Ek 9: dışa aktarma `TrackedTask` → `JobQueue` (ilerleme, iptal, bitince bildirim).
 
 ## Faz 36 — Excel
 1. Özet tablo (pivot) oluştur/yenile (satır/sütun/değer/süzgeç, topla-say-ort) — xlsx

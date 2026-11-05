@@ -296,3 +296,12 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 ## 2026-11-05 — Faz 35 adım 0 (faz-35 dalı)
 - `cunning_document_scanner` pubspec/lock'tan çıktı; yerine `ci/DocScan.kt` (ML Kit `GmsDocumentScanner`, `play-services-mlkit-document-scanner:16.0.0`, kanal `dosya/docscan`, istek kodu 7351, sonuç `MainActivity.onActivityResult` → `DocScan.handleResult`). Dart: `DocumentScanner.scanPages` önce köprü; `unavailable`/MissingPlugin ya da `scan_engine_v2=false` → `importFromGallery` (FilePicker görsel). `permission_handler` ^13 engeli kalktı (yükseltme ayrı iş, A3.4b).
 - Cihazda/CI'da doğrulanmadı; Perf A/B: bekliyor. Kalan: Faz 35 madde 1–9 (kipler, ızgara, akıllı çıktı…) sonraki oturumlarda.
+
+## 2026-11-05 — Faz 35 bitti (faz-35 dalı; kod — cihaz turu + perf A/B bekliyor)
+- **Kipler** `lib/services/scan_kind.dart` (Belge/Kimlik/Kitap/Fiş/Beyaz tahta/Kartvizit/Fotoğraf): stüdyoda hap seçici; kimlik ön+arka tek A4 (izolat), kitap cilt çizgisi = orta bandın en koyu sütunu, kartvizit OCR → .vcf (PDF yanında). Fiş/fotoğraf/kartvizit PDF'i A4 değil görsel oranında (`renderPdf(uniformA4:)`, stüdyo `_saver` seçili kipten).
+- **Filtreler** `ScanFilter.vivid` (renk sapması ×1.45) ve `shadowless` (düzeltilmiş parlaklık ≥214 ve resim maskesi 0 → saf beyaz). `ScanFilter.values` ev temizliği kalıbına da giriyor (yeni ad = yeni geçici dosya soneki).
+- **Izgara** stüdyoda (DragTarget+LongPressDraggable; `Opacity` yerine boş yuva — anayasa k.5). **Dışa aktar** `scan_export.dart`: tablo algılama (dikey örtüşme → satır, çok hücreli satırların sol kenarları → sütun çapası, tol = medyan yükseklik ×1.2), `parseNumber` (baştaki 0 → metin), kalite Küçük/Orta/Yüksek (1240/1754/2480 px, q60/75/88); sıkıştırılmış sayfada OCR kutuları oranla ölçeklenir (`scaleLines`) — unutulursa görünmez metin kayar.
+- **Öneri şeridi:** kimlik → `addToVault`, fiş/fatura → `Giderler.csv` (`;` ayraçlı, UTF-8 BOM). **Kalite** `scan_quality.dart` (640 px gri kopya; Laplace varyansı <45 bulanık, parlaklık <85 karanlık, izdüşüm profili ±6° eğiklik ≥2°), yalnız görünen sayfa, dosyası yoksa atlanır (widget testleri sahte yol kullanır).
+- **Taramalar** artık `Documents/Dosya Okuyucu/Taramalar`.
+- **Tuzak:** Dart `RegExp` `\b` ASCII — "A.Ş." gibi Türkçe harf/nokta ile biten kalıpta sınır yok; boşluk bakışı kullan.
+- **Açık:** `pdf` paketi 30 sayfayı kayda dek bellekte tutuyor (akışla üretim yok). Perf A/B: bekliyor (ölçüm yok). Kotlin köprüsü (`ci/DocScan.kt`) ilk kez `[release-apk]` ile faz dalında derlendi.
