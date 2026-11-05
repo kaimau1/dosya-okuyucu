@@ -781,7 +781,12 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       if (res.statusCode >= 400) {
         throw PdfToolsException('HTTP ${res.statusCode}');
       }
-      final pdf = await Printing.convertHtml(
+      final pdf = await Printing
+          // Kullanımdan kalkmış ama Android'de çalışan TEK HTML→PDF yolu
+          // (WebView yazdırma; yeni bağımlılık yok). printing yükseltilip
+          // kaldırılırsa: WebView + `PrintManager` köprüsü (HAFIZA Faz 39).
+          // ignore: deprecated_member_use
+          .convertHtml(
         html: res.body,
         baseUrl: uri.toString(),
         format: PdfPageFormat.a4,
@@ -805,7 +810,12 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       final html = await Isolate.run(
           () => OfficeHtml.fromBytes(bytes, ext, title: title));
       final landscape = ext.toLowerCase() != '.docx';
-      final pdf = await Printing.convertHtml(
+      final pdf = await Printing
+          // Kullanımdan kalkmış ama Android'de çalışan TEK HTML→PDF yolu
+          // (WebView yazdırma; yeni bağımlılık yok). printing yükseltilip
+          // kaldırılırsa: WebView + `PrintManager` köprüsü (HAFIZA Faz 39).
+          // ignore: deprecated_member_use
+          .convertHtml(
         html: html,
         format: landscape ? PdfPageFormat.a4.landscape : PdfPageFormat.a4,
       );
