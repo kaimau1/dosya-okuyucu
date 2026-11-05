@@ -33,6 +33,10 @@ const _proTools = <List<_ProTool>>[
     _ProTool('stamp', AppIcons.pdfStamp, 'pp.stamp', 'pp.stamp_sub'),
     _ProTool('numbering', AppIcons.formatListNumbered, 'pp.numbering', 'pp.numbering_sub'),
   ],
+  [
+    _ProTool('compress_hard', AppIcons.pdfCompressHard, 'pp.compress_hard',
+        'pp.compress_hard_sub'),
+  ],
 ];
 
 class _ProToolsSheet extends StatelessWidget {
@@ -641,4 +645,84 @@ class _NumberingSheetState extends State<_NumberingSheet> {
       ),
     );
   }
+}
+
+// ── Agresif sıkıştırma ────────────────────────────────────────────────────
+
+class _HardCompressOptions {
+  final int dpi;
+  final int quality;
+  final bool grayscale;
+  final bool keepText;
+  const _HardCompressOptions(this.dpi, this.quality, this.grayscale, this.keepText);
+}
+
+class _HardCompressSheet extends StatefulWidget {
+  const _HardCompressSheet();
+
+  @override
+  State<_HardCompressSheet> createState() => _HardCompressSheetState();
+}
+
+class _HardCompressSheetState extends State<_HardCompressSheet> {
+  int _dpi = 120;
+  int _quality = 65;
+  bool _gray = false;
+  bool _keepText = true;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(context.t('pp.compress_hard_warn'), style: context.type.small),
+            const SizedBox(height: Gap.sm),
+            Text(context.t('pp.resolution'), style: context.type.caption),
+            SegmentedButton<int>(
+              showSelectedIcon: false,
+              segments: [
+                for (final d in const [96, 120, 150])
+                  ButtonSegment(value: d, label: Text('$d dpi')),
+              ],
+              selected: {_dpi},
+              onSelectionChanged: (v) => setState(() => _dpi = v.first),
+            ),
+            const SizedBox(height: Gap.sm),
+            Text(context.t('pp.quality'), style: context.type.caption),
+            SegmentedButton<int>(
+              showSelectedIcon: false,
+              segments: [
+                ButtonSegment(value: 50, label: Text(context.t('pp.quality_low'))),
+                ButtonSegment(value: 65, label: Text(context.t('pp.quality_mid'))),
+                ButtonSegment(value: 80, label: Text(context.t('pp.quality_high'))),
+              ],
+              selected: {_quality},
+              onSelectionChanged: (v) => setState(() => _quality = v.first),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _gray,
+              onChanged: (v) => setState(() => _gray = v),
+              title: Text(context.t('pp.grayscale')),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _keepText,
+              onChanged: (v) => setState(() => _keepText = v),
+              title: Text(context.t('pp.keep_text')),
+              subtitle: Text(context.t('pp.keep_text_sub')),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+              child: FilledButton(
+                onPressed: () => Navigator.pop(context,
+                    _HardCompressOptions(_dpi, _quality, _gray, _keepText)),
+                child: Text(context.t('pt.compress')),
+              ),
+            ),
+          ],
+        ),
+      );
 }

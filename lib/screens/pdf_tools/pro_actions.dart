@@ -24,6 +24,7 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       'outline' => _editOutline(),
       'stamp' => _stamp(),
       'numbering' => _numbering(),
+      'compress_hard' => _compressHard(),
       _ => Future<void>.value(),
     };
   }
@@ -479,4 +480,54 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
           password: pw),
     );
   }
+
+  // ── 7. Agresif sıkıştırma (A7.4) ─────────────────────────────────────────
+
+  Future<void> _compressHard() async {
+    final opts = await showAppSheet<_HardCompressOptions>(
+      context,
+      title: context.t('pp.compress_hard'),
+      builder: (_) => const _HardCompressSheet(),
+    );
+    if (opts == null || !mounted) return;
+    final pw = _password;
+    final before = _bytes!.length;
+    final total = await _pageCount();
+    final font = opts.keepText ? await _unicodeFont() : null;
+    final prev = _bytes;
+    await _apply(_str.t('pp.compress_hard'), (b) async {
+      // Parça parça: bellekte aynı anda en çok [_hardChunk] sayfanın JPEG'i.
+      final parts = <List<int>>[];
+      for (var start = 0; start < total; start += _hardChunk) {
+        final pages = [
+          for (var i = start; i < math.min(total, start + _hardChunk); i++) i,
+        ];
+        final rasters = await PdfRaster.renderJpegs(b, pages,
+            password: pw,
+            dpi: opts.dpi.toDouble(),
+            quality: opts.quality,
+            grayscale: opts.grayscale);
+        parts.add(await PdfRedact.applyInBackground(
+          b,
+          rects: const {},
+          rasters: [for (final r in rasters) RedactedRaster(r.index, r.jpeg)],
+          fontBytes: font,
+          password: pw,
+          keepText: opts.keepText,
+          onlyPages: pages,
+        ));
+      }
+      return parts.length == 1
+          ? parts.single
+          : PdfTools.mergeInBackground(parts);
+    });
+    if (!mounted || identical(prev, _bytes)) return;
+    _partSetState(() => _password = null);
+    final after = _bytes!.length;
+    _snack(after < before
+        ? _str.t('pt.size_change', {'before': _kb(before), 'after': _kb(after)})
+        : _str.t('pp.compress_hard_bigger', {'size': _kb(after)}));
+  }
+
+  static const _hardChunk = 40;
 }

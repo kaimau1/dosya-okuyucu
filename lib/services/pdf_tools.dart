@@ -300,10 +300,12 @@ class PdfTools {
   /// Belgeyi yeniden yazarak küçültür: akışlar en yüksek seviyede sıkıştırılır,
   /// artımlı güncellemelerle biriken eski sürümler atılır.
   ///
-  /// ponytail: yalnız **akış** sıkıştırması — gömülü görseller yeniden
-  /// örneklenmez, o yüzden taranmış (resim ağırlıklı) PDF'te kazanç küçüktür.
-  /// Agresif mod gerekirse: sayfaları pdfrx ile bitmap'e render edip JPEG
-  /// kalitesi düşürülmüş yeni PDF kur (metin katmanı kaybolur — ayrı seçenek).
+  /// Yalnız **akış** sıkıştırması — gömülü görseller yeniden örneklenmez, o
+  /// yüzden taranmış (resim ağırlıklı) PDF'te kazanç küçüktür. Görsel ağırlıklı
+  /// belge için **agresif kip** (A7.4, Faz 39): sayfalar `PdfRaster` ile
+  /// seçilen DPI/kalitede JPEG'e çizilip `PdfRedact.apply` ile yeni belgeye
+  /// kurulur; metin isteğe bağlı görünmez katman olarak korunur
+  /// (`pdf_tools/pro_actions.dart` → `_compressHard`).
   static Future<List<int>> compress(
     List<int> bytes, {
     String? password,

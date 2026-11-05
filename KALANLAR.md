@@ -101,7 +101,7 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
       depolamanın `sd_readonly` uyarısı buna bağlanır. Aynı turda SD birleşik **(b)**
       "ana bellek %X'i aşınca" eşiği ve **(c)** serbest klasör seçimi (bugün yalnız
       Android'in standart ortak klasörleri).
-- [ ] **A7.4 Görüntüye çevirerek PDF sıkıştırma (agresif kip):** eski engel "cihazda JPEG
+- [x] **A7.4 Görüntüye çevirerek PDF sıkıştırma (agresif kip):** (Faz 39 madde 7, 2026-11-05) eski engel "cihazda JPEG
       kodlayıcı yok" kalktı (Faz 14b: Android `Bitmap.compress`, `image` paketi). Ayrı ve
       açıkça uyaran seçenek (metin katmanı kaybolur; isteğe bağlı OCR katmanı), DPI/kalite
       seçimi; `pdf_tools.dart:304` yorumu güncellenir.

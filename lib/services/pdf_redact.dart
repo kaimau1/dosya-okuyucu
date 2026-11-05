@@ -116,17 +116,21 @@ abstract final class PdfRedact {
     List<int>? fontBytes,
     String? password,
     PdfConformanceLevel? conformance,
+    bool keepText = true,
+    List<int>? onlyPages,
   }) async {
     final src = PdfDocument(inputBytes: bytes, password: password);
     final out = PdfDocument(conformanceLevel: conformance);
     // PDF/A standart (gömülmeyen) yazı tipine izin vermez: TrueType yoksa
     // görünmez katman yazılmaz.
-    final textLayer = conformance == null || fontBytes != null;
+    final textLayer = keepText && (conformance == null || fontBytes != null);
+    final only = onlyPages?.toSet();
     try {
       out.compressionLevel = PdfCompressionLevel.best;
       final byIndex = {for (final r in rasters) r.index: r.jpeg};
       final extractor = PdfTextExtractor(src);
       for (var i = 0; i < src.pages.count; i++) {
+        if (only != null && !only.contains(i)) continue;
         final page = src.pages[i];
         final turns = page.rotation.index;
         final t = composedPageTransform(page.size, turns);
@@ -197,6 +201,8 @@ abstract final class PdfRedact {
     List<int>? fontBytes,
     String? password,
     PdfConformanceLevel? conformance,
+    bool keepText = true,
+    List<int>? onlyPages,
   }) =>
       Isolate.run(() async {
         try {
@@ -205,7 +211,9 @@ abstract final class PdfRedact {
               rasters: rasters,
               fontBytes: fontBytes,
               password: password,
-              conformance: conformance);
+              conformance: conformance,
+              keepText: keepText,
+              onlyPages: onlyPages);
         } catch (e) {
           throw PdfToolsException('$e');
         }

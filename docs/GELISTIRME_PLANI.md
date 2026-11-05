@@ -192,7 +192,8 @@ yalnız görünür slayt tam çizilir, sunum kipinde sonraki slayt önceden rast
 - [x] 6. Okuma: gece kipi (A9.2), kaydırma kilidi, çift sayfa/kitap görünümü, sesli okuma
    (var), metin işaretleme kitapçığı (tüm vurgular tek listede dışa aktar).
    (Gece kipi vardı + kâğıt/sepya tonu; `viewer/pdf_reading_pro.dart`, `pdf_notes.dart`.)
-7. Agresif sıkıştırma (A7.4).
+- [x] 7. Agresif sıkıştırma (A7.4).
+   (DPI 96/120/150 + kalite + gri + görünmez metin; 40 sayfalık parçalarla, bellek tavanlı.)
 **Ölçüt:** imzalı PDF Adobe/Chrome'da geçerli görünür (cihaz dışı doğrulama 💻).
 
 **Ek:** 8. Sayfa küçük resim ızgarasında çoklu seç → döndür/sil/çıkar/yeniden sırala (var olanı

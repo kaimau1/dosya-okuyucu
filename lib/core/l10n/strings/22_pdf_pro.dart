@@ -215,4 +215,25 @@ const Map<String, (String, String, String)> _t22 = {
   'pp.find_list': ('Sonuç listesi', 'Result list', 'قائمة النتائج'),
   'pp.find_results': ('{n} sonuç', '{n} results', '{n} نتيجة'),
   'pp.find_ocr_hit': ('Taranmış sayfada eşleşme (OCR)', 'Match on a scanned page (OCR)', 'تطابق في صفحة ممسوحة (OCR)'),
+  // ── Agresif sıkıştırma ──
+  'pp.compress_hard': ('Agresif sıkıştırma', 'Aggressive compression', 'ضغط قوي'),
+  'pp.compress_hard_sub': ('Taranmış/görselli PDF\'te büyük kazanç', 'Big savings on scanned/image PDFs', 'توفير كبير في ملفات PDF الممسوحة/المصورة'),
+  'pp.compress_hard_warn': (
+    'Sayfalar görüntüye çevrilir: vektör çizim keskinliği, bağlantılar, formlar ve açıklamalar kaybolur. Metin görünmez katmanda aranabilir kalabilir.',
+    'Pages are turned into images: vector sharpness, links, forms and annotations are lost. Text can stay searchable in an invisible layer.',
+    'تتحول الصفحات إلى صور: تُفقد حدة الرسوم المتجهة والروابط والنماذج والتعليقات. قد يبقى النص قابلاً للبحث في طبقة مخفية.',
+  ),
+  'pp.resolution': ('Çözünürlük', 'Resolution', 'الدقة'),
+  'pp.quality': ('Kalite', 'Quality', 'الجودة'),
+  'pp.quality_low': ('Düşük', 'Low', 'منخفضة'),
+  'pp.quality_mid': ('Orta', 'Medium', 'متوسطة'),
+  'pp.quality_high': ('Yüksek', 'High', 'عالية'),
+  'pp.grayscale': ('Gri tonlama', 'Grayscale', 'تدرج الرمادي'),
+  'pp.keep_text': ('Metni koru (aranabilir)', 'Keep text (searchable)', 'الحفاظ على النص (قابل للبحث)'),
+  'pp.keep_text_sub': ('Görünmez metin katmanı yazılır', 'An invisible text layer is written', 'تُكتب طبقة نص مخفية'),
+  'pp.compress_hard_bigger': (
+    'Küçülmedi ({size}) — Geri al ile eskisine dön',
+    'Not smaller ({size}) — use Undo to go back',
+    'لم يصغر ({size}) — استخدم التراجع للعودة',
+  ),
 };
