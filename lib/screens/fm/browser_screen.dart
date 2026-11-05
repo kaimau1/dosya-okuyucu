@@ -49,6 +49,7 @@ import '../../widgets/motion.dart';
 import '../../core/user_error.dart';
 import '../../widgets/app_dialog.dart';
 import 'pick_file_screen.dart';
+import 'dual_pane_screen.dart';
 
 part 'browser/actions.dart';
 part 'browser/views.dart';

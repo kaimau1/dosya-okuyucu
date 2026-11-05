@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import 'fs_events.dart';
 import 'fs_scan.dart';
 import 'path_side_index.dart';
+import 'saf_write.dart';
 import 'search_index.dart';
 
 /// Hedefte aynı adlı dosya varsa ne yapılacağı.
@@ -144,6 +145,19 @@ abstract final class FileOps {
     bool Function()? isCancelled,
     String Function(String source)? renameTo,
   }) async {
+    // Faz 41 / 1 (A7.2): yol ile yazılamayan SD kart → SAF köprüsü
+    // (izin verilmiş ağaç). İç bellekte ve yazılabilir kartta hiç girilmez.
+    if (await SafWrite.needsSaf(destDir)) {
+      final (done, errs) = await SafWrite.transfer(sources, destDir,
+          move: move, isCancelled: isCancelled);
+      final moved = [
+        for (final s in done) FmTransfer(s, p.join(destDir, p.basename(s))),
+      ];
+      if (move && done.isNotEmpty) await SearchIndex.forget(done);
+      if (done.isNotEmpty) FsEvents.changed(_touched(moved, move));
+      return FmOpResult(
+          succeeded: done.length, errors: errs, transfers: moved);
+    }
     final errors = <String>[];
     final transfers = <FmTransfer>[];
     var done = 0;

@@ -91,6 +91,12 @@ extension _BrowserScreenViewsPart on _BrowserScreenState {
           DocMoreItem(AppIcons.exportList, context.t('fm.export_list'),
               () => unawaited(_exportListing())),
           DocMoreItem(AppIcons.refresh, context.t('common.refresh'), _load),
+          // Faz 41 / 1 (A7.1): bu klasör solda, ikinci bölme aynı yerden.
+          DocMoreItem(AppIcons.viewColumn, context.t('dp.title'), () {
+            Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) =>
+                    DualPaneScreen(left: widget.path, right: widget.path)));
+          }),
         ]),
       ],
       header: Row(

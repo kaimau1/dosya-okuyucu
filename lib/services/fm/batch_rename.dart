@@ -52,7 +52,12 @@ List<RenamePreview> planBatchRename(
         ? ''
         : _isoDate(DateTime.fromMillisecondsSinceEpoch(entry.modifiedMs));
 
+    // Faz 41 / 1: büyük/küçük harf ve klasör adı yer tutucuları. Türkçe
+    // i/İ ve ı/I doğru çevrilir (Dart'ın toUpperCase'i 'i'yi 'I' yapar).
     var name = pattern
+        .replaceAll('{AD}', trUpper(base))
+        .replaceAll('{ad_kucuk}', trLower(base))
+        .replaceAll('{klasor}', p.basename(p.dirname(entry.path)))
         .replaceAll('{ad}', base)
         .replaceAll('{n3}', index.toString().padLeft(3, '0'))
         .replaceAll('{n2}', index.toString().padLeft(2, '0'))
@@ -84,6 +89,14 @@ List<RenamePreview> planBatchRename(
 }
 
 /// Çakışma denetimi klasör bazlıdır: farklı klasörlerdeki aynı ad sorun değil.
+/// Türkçe kurallı büyük harf (i → İ, ı → I).
+String trUpper(String s) =>
+    s.replaceAll('i', 'İ').replaceAll('ı', 'I').toUpperCase();
+
+/// Türkçe kurallı küçük harf (I → ı, İ → i).
+String trLower(String s) =>
+    s.replaceAll('I', 'ı').replaceAll('İ', 'i').toLowerCase();
+
 String _key(FsEntry entry, String name) =>
     '${p.dirname(entry.path)}|${name.toLowerCase()}';
 
@@ -104,3 +117,24 @@ const batchRenamePresets = <({String labelKey, String pattern})>[
   (labelKey: 'br.preset_name_seq', pattern: '{ad}-{n2}'),
   (labelKey: 'br.preset_date_name', pattern: '{tarih}-{ad}'),
 ];
+
+/// Desteklenen yer tutucular (sayfadaki yardım satırı).
+const batchRenamePlaceholders =
+    '{ad} {AD} {ad_kucuk} {n} {n2} {n3} {tarih} {klasor} {uzanti}';
+
+/// **Kullanıcının kaydettiği kalıplar** (Faz 41 / 1). En çok [max]; en son
+/// kaydedilen başta; aynı kalıp ikinci kez eklenmez. Kalıcılık çağıranın
+/// işi değil: [load]/[save] `SharedPreferences` üzerinden.
+class BatchRenameTemplates {
+  static const prefKey = 'fm_rename_templates';
+  static const max = 12;
+
+  static List<String> add(List<String> current, String pattern) {
+    final t = pattern.trim();
+    if (t.isEmpty) return current;
+    return [t, ...current.where((e) => e != t)].take(max).toList();
+  }
+
+  static List<String> remove(List<String> current, String pattern) =>
+      current.where((e) => e != pattern).toList();
+}

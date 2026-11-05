@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../widgets/fm/saf_grant.dart';
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/snack.dart';
@@ -173,8 +174,24 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
         _hero(settings),
         if (!cardPresent && settings.sdPath.isNotEmpty)
           _warning(AppIcons.sdCardAlert, context.t('sdu.card_missing')),
-        if (_status.lastError == 'sd_readonly')
+        if (_status.lastError == 'sd_readonly') ...[
           _warning(AppIcons.lock, context.t('sdu.err_readonly')),
+          // Faz 41 / 1 (A7.2): yazma izni buradan istenir (SAF ağaç izni).
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(Gap.md, Gap.sm, Gap.md, 0),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: FilledButton.tonalIcon(
+                key: const ValueKey('sdu-saf-grant'),
+                onPressed: settings.sdPath.isEmpty
+                    ? null
+                    : () => requestSafGrant(context, settings.sdPath),
+                icon: const Icon(AppIcons.sdCard),
+                label: Text(context.t('saf.grant')),
+              ),
+            ),
+          ),
+        ],
         SettingsGroup(
           children: [
             SettingSwitch(

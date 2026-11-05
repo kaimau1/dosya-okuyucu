@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
@@ -46,6 +47,35 @@ class _BatchRenameSheetState extends State<_BatchRenameSheet> {
   final _replaceController = TextEditingController();
   int _startAt = 1;
   bool _running = false;
+
+  /// Kaydedilmiş kalıplar (Faz 41 / 1).
+  List<String> _saved = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSaved();
+  }
+
+  Future<void> _loadSaved() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final v = prefs.getStringList(BatchRenameTemplates.prefKey) ?? const [];
+      if (mounted) setState(() => _saved = v);
+    } catch (_) {
+      // Bilinçli: kayıt okunamazsa yalnız hazır kalıplar görünür.
+    }
+  }
+
+  Future<void> _storeSaved(List<String> next) async {
+    setState(() => _saved = next);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(BatchRenameTemplates.prefKey, next);
+    } catch (_) {
+      // Bilinçli: yazılamazsa yalnız bu oturumda geçerli.
+    }
+  }
 
   @override
   void dispose() {
@@ -143,6 +173,28 @@ class _BatchRenameSheetState extends State<_BatchRenameSheet> {
                             onPressed: () => setState(() =>
                                 _patternController.text = preset.pattern),
                           ),
+                        // Kullanıcının kalıpları: dokun = uygula, ✕ = sil.
+                        for (final t in _saved)
+                          InputChip(
+                            key: ValueKey('br-saved-$t'),
+                            avatar: const Icon(AppIcons.bookmark, size: 16),
+                            label: Text(t),
+                            onPressed: () =>
+                                setState(() => _patternController.text = t),
+                            onDeleted: () => _storeSaved(
+                                BatchRenameTemplates.remove(_saved, t)),
+                            deleteButtonTooltipMessage:
+                                context.t('common.delete'),
+                          ),
+                        ActionChip(
+                          key: const ValueKey('br-save-template'),
+                          avatar: const Icon(AppIcons.add, size: 16),
+                          label: Text(context.t('br.save_template')),
+                          onPressed: _patternController.text.trim().isEmpty
+                              ? null
+                              : () => _storeSaved(BatchRenameTemplates.add(
+                                  _saved, _patternController.text)),
+                        ),
                       ],
                     ),
                     const SizedBox(height: Gap.sm),
@@ -151,7 +203,7 @@ class _BatchRenameSheetState extends State<_BatchRenameSheet> {
                       decoration: InputDecoration(
                         labelText: context.t('br.pattern'),
                         // Yer tutucular ÇEVRİLMEZ (bkz. batchRenamePresets).
-                        helperText: '{ad} {n} {n2} {tarih} {uzanti}',
+                        helperText: batchRenamePlaceholders,
                         border: const OutlineInputBorder(),
                         isDense: true,
                       ),
