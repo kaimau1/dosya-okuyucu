@@ -431,6 +431,59 @@ extension _NearbySections on _NearbyScreenState {
                   onSelectionChanged: (s) => _update(() => _hotspotStep = s.first),
                 ),
               ),
+            // Faz 41 / 4: kısa ömürlü bağlantı — süre + tek seferlik.
+            Wrap(
+              key: const ValueKey('near-link-life'),
+              alignment: WrapAlignment.center,
+              spacing: Gap.xs,
+              runSpacing: Gap.xs,
+              children: [
+                for (final (d, key) in const [
+                  (null, 'lnk.forever'),
+                  (Duration(minutes: 15), 'lnk.min15'),
+                  (Duration(hours: 1), 'lnk.hour1'),
+                ])
+                  ChoiceChip(
+                    label: Text(context.t(key)),
+                    selected: _linkTtl == d,
+                    onSelected: (_) {
+                      _update(() => _linkTtl = d);
+                      unawaited(_restartWeb());
+                    },
+                  ),
+                FilterChip(
+                  key: const ValueKey('near-link-once'),
+                  label: Text(context.t('lnk.once')),
+                  selected: _linkOnce,
+                  onSelected: (v) {
+                    _update(() => _linkOnce = v);
+                    unawaited(_restartWeb());
+                  },
+                ),
+              ],
+            ),
+            if (web?.expiresAt case final at?)
+              Padding(
+                padding: const EdgeInsets.only(top: Gap.xs),
+                child: Text(
+                  context.t('lnk.until', {
+                    'time':
+                        '${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}'
+                  }),
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+            if (_linkExpired)
+              Center(
+                child: TextButton.icon(
+                  key: const ValueKey('near-link-renew'),
+                  onPressed: () => unawaited(_restartWeb()),
+                  icon: const Icon(AppIcons.refresh),
+                  label: Text(context.t('lnk.expired_renew')),
+                ),
+              ),
+            const SizedBox(height: Gap.sm),
             Center(
               child: qr == null
                   ? SizedBox.square(

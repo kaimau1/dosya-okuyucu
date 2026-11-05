@@ -187,6 +187,11 @@ class _NearbyScreenState extends State<NearbyScreen> {
   bool _hotspotBusy = false;
   int _hotspotStep = 0;
   int _served = 0;
+
+  /// Kısa ömürlü bağlantı (Faz 41 / 4): süre ve tek seferlik indirme.
+  Duration? _linkTtl;
+  bool _linkOnce = false;
+  bool _linkExpired = false;
   Timer? _webDebounce;
   String? _webError;
 

@@ -39,4 +39,10 @@ const Map<String, (String, String, String)> _t27 = {
   'ci.ocr_sub': ('İçerik dizini görsellerin metnini telefonda tanır; pil tasarrufunda durur', 'The content index recognises image text on the phone; pauses in battery saver', 'يتعرف فهرس المحتوى على نص الصور على الهاتف؛ ويتوقف في وضع توفير البطارية'),
   'ci.clear': ('İçerik dizinini sil', 'Delete content index', 'حذف فهرس المحتوى'),
   'ci.cleared': ('İçerik dizini silindi', 'Content index deleted', 'تم حذف فهرس المحتوى'),
+  'lnk.forever': ('Ekran açıkken', 'While open', 'أثناء الفتح'),
+  'lnk.min15': ('15 dk', '15 min', '15 دقيقة'),
+  'lnk.hour1': ('1 saat', '1 hour', 'ساعة واحدة'),
+  'lnk.once': ('Tek indirme', 'Single download', 'تنزيل واحد'),
+  'lnk.until': ('Bağlantı {time}\'a kadar geçerli', 'Link valid until {time}', 'الرابط صالح حتى {time}'),
+  'lnk.expired_renew': ('Bağlantının süresi doldu · yenile', 'Link expired · renew', 'انتهت صلاحية الرابط · تجديد'),
 };
