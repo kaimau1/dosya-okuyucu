@@ -449,6 +449,47 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     }
   }
 
+  /// Kimlik taraması şifreli kasaya: PDF kasaya girer, aslı silinir, stüdyo
+  /// kapanır (kasadaki dosya oradan açılır).
+  Future<void> _moveToVault() async {
+    await _flush();
+    if (!mounted) return;
+    final ok = await addToVault(context, [_pdfPath]);
+    if (!ok || !mounted) return;
+    _partSetState(() => _actionDismissed = true);
+    Navigator.of(context).pop();
+  }
+
+  /// Fiş/fatura → `Giderler.csv` satırı (tarih, satıcı, toplam, dosya adı).
+  Future<void> _addExpense() async {
+    final text = _text.map((page) => page.text).join('\n');
+    final info = ReceiptInfo.parse(text);
+    if (info.isEmpty) {
+      _snack(context.t('sa.expense_none'));
+      return;
+    }
+    try {
+      final path = await ScanActions.appendExpense(
+          _folder, info, p.basename(_pdfPath));
+      FsEvents.changed();
+      if (!mounted) return;
+      _partSetState(() => _actionDismissed = true);
+      showSnack(
+        context,
+        context.t('sa.expense_done'),
+        action: SnackBarAction(
+          label: context.t('common.open'),
+          onPressed: () => EntryOpener.open(context, path),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        showSnack(context, context.t('scr.add_failed', {'error': userErrorText(e)}),
+            copyable: true);
+      }
+    }
+  }
+
   /// Izgaradaki sayfa menüsü: işler "görünen sayfa"ya uygulandığı için önce
   /// [index] seçilir.
   Future<void> _gridAction(int index, String action) async {

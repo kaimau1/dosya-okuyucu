@@ -227,6 +227,44 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
 
   /// Küçük resim şeridi: dokun = git, basılı tut + sürükle = sıra, "+" =
   /// sayfa ekle.
+  /// Önerilen eylem şeridi: "Kimlik içeriyor → Kasaya taşı" ya da
+  /// "Fiş → Gider satırı ekle".
+  Widget _actionBanner(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final vault = _suggestedAction == 'vault';
+    return Material(
+      color: scheme.secondaryContainer,
+      child: Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(Gap.md, Gap.xs, Gap.xs, Gap.xs),
+        child: Row(
+          children: [
+            Icon(vault ? AppIcons.vault : AppIcons.receiptLong,
+                size: 20, color: scheme.onSecondaryContainer),
+            const SizedBox(width: Gap.sm),
+            Expanded(
+              child: Text(
+                context.t(vault ? 'sa.vault_hint' : 'sa.expense_hint'),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: scheme.onSecondaryContainer),
+              ),
+            ),
+            TextButton(
+              onPressed: _busy ? null : (vault ? _moveToVault : _addExpense),
+              child: Text(context.t(vault ? 'sa.vault_do' : 'sa.expense_do')),
+            ),
+            IconButton(
+              tooltip: context.t('common.close'),
+              icon: const Icon(AppIcons.close, size: 18),
+              onPressed: () => _partSetState(() => _actionDismissed = true),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// **Belge türü hapları** (Faz 35 / madde 1): Belge · Kimlik · Kitap · Fiş
   /// · Beyaz tahta · Kartvizit · Fotoğraf. Seçim filtreyi ve sayfa düzenini
   /// ayarlar; kimlik iki yüzü tek A4'te birleştirir, kitap çift sayfayı böler.

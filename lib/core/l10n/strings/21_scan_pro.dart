@@ -39,4 +39,10 @@ const Map<String, (String, String, String)> _t21 = {
   'sx.to_txt': ('Düz metin (TXT)', 'Plain text (TXT)', 'نص عادي (TXT)'),
   'sx.sheet': ('Sayfa', 'Page', 'صفحة'),
   'sx.saved': ('Kaydedildi: {name}', 'Saved: {name}', 'تم الحفظ: {name}'),
+  'sa.vault_hint': ('Kimlik belgesi: şifreli kasada saklamanız önerilir', 'ID document: keeping it in the encrypted vault is recommended', 'وثيقة هوية: يُنصح بحفظها في الخزنة المشفرة'),
+  'sa.vault_do': ('Kasaya taşı', 'Move to vault', 'نقل إلى الخزنة'),
+  'sa.expense_hint': ('Fiş/fatura: tutarı gider listesine ekleyebilirsiniz', 'Receipt/invoice: you can add the amount to your expense list', 'إيصال/فاتورة: يمكنك إضافة المبلغ إلى قائمة المصروفات'),
+  'sa.expense_do': ('Gider ekle', 'Add expense', 'إضافة مصروف'),
+  'sa.expense_none': ('Fişte tarih ya da tutar bulunamadı', 'No date or amount found on the receipt', 'لم يُعثر على تاريخ أو مبلغ في الإيصال'),
+  'sa.expense_done': ('Giderler.csv dosyasına eklendi', 'Added to Giderler.csv', 'أُضيف إلى Giderler.csv'),
 };

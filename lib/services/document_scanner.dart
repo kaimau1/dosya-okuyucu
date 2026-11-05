@@ -173,10 +173,22 @@ class DocumentScanner {
     return out;
   }
 
-  /// Yeni belgelerle aynı yer (bkz. `BlankDocs`): kullanıcı taramasını "Son
-  /// belgeler"de ve dosya yöneticisinde aynı klasörde bulsun.
-  /// Ana bellekte `Documents/Dosya Okuyucu` (bkz. [DocsHome]).
-  static Future<Directory> defaultDir() => DocsHome.resolve();
+  /// Taramaların alt klasörü (Faz 35 / madde 4): belgeler klasörü taramayla
+  /// dolup taşmasın; "Son belgeler" ve gezgin yine bulur.
+  static const scansFolder = 'Taramalar';
+
+  /// Ana bellekte `Documents/Dosya Okuyucu/Taramalar` (bkz. [DocsHome]).
+  /// Alt klasör kurulamazsa (izin) belgeler klasörünün kendisi.
+  static Future<Directory> defaultDir() async {
+    final home = await DocsHome.resolve();
+    final dir = Directory(p.join(home.path, scansFolder));
+    try {
+      await dir.create(recursive: true);
+      return dir;
+    } catch (_) {
+      return home;
+    }
+  }
 
   static String _stamp() {
     final d = DateTime.now();

@@ -27,6 +27,7 @@ import '../services/ocr_service.dart';
 import '../services/scan_dewarp.dart';
 import '../services/scan_enhance.dart';
 import '../services/scan_export.dart';
+import '../services/scan_actions.dart';
 import '../services/fm/job_queue.dart' show FmJobTarget;
 import '../services/fm/tracked_task.dart';
 import '../services/scan_kind.dart';
@@ -35,6 +36,7 @@ import '../services/scan_prepare.dart';
 import '../widgets/translate_flow.dart';
 import 'fm/folder_picker_screen.dart';
 import 'fm/important_screen.dart';
+import 'fm/vault_screen.dart' show addToVault;
 import 'scan_edit_screen.dart';
 import '../core/user_error.dart';
 import '../core/app_colors.dart';
@@ -207,6 +209,22 @@ class _ScanResultScreenState extends State<ScanResultScreen>
     return p.equals(target, _folder) ? null : target;
   }
 
+  /// **Önerilen eylem** (Faz 35 / ek 6): kimlik → şifreli kasa, fiş/fatura →
+  /// gider satırı (Giderler.csv). Kullanıcı kapatınca/uygulayınca gizlenir.
+  bool _actionDismissed = false;
+
+  String? get _suggestedAction {
+    if (_actionDismissed) return null;
+    final type = _classGuess?.type;
+    if (_kind == ScanKind.idCard || type == DocClass.kimlik) return 'vault';
+    if (_kind == ScanKind.receipt ||
+        type == DocClass.makbuz ||
+        type == DocClass.fatura) {
+      return 'expense';
+    }
+    return null;
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -361,6 +379,7 @@ class _ScanResultScreenState extends State<ScanResultScreen>
             Divider(height: 1, color: scheme.outlineVariant),
             if (_tab == 0) _kindPills(context),
             if (_suggestedFolder != null) _classBanner(context),
+            if (_suggestedAction != null) _actionBanner(context),
             Expanded(
                 child: _tab == 0
                     ? (_grid ? _gridView(context) : _pagesView(context))
