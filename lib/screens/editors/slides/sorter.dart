@@ -153,6 +153,8 @@ extension _SlidesEditorScreenSorterPart on _SlidesEditorScreenState {
       builder: (_) => _SlideSorterPage(
         editor: editor,
         current: _currentSlide,
+        // Faz 38 / madde 7: bölüm adları arkada okunur (sıralayıcı beklemez).
+        sections: _proOn ? _sectionStartsOf() : null,
         onMove: (slide, to) =>
             _mutate('sl.reorder', () => editor.moveSlideTo(slide, to)),
         onMenu: _openSlideSheet,
@@ -234,11 +236,15 @@ class _SlideSorterPage extends StatefulWidget {
   final bool Function(PptxSlide slide, int to) onMove;
   final Future<void> Function(PptxSlide slide) onMenu;
 
+  /// Slayt sırası → o slaytta başlayan bölümün adı.
+  final Future<Map<int, String>>? sections;
+
   const _SlideSorterPage({
     required this.editor,
     required this.current,
     required this.onMove,
     required this.onMenu,
+    this.sections,
   });
 
   @override
@@ -247,6 +253,15 @@ class _SlideSorterPage extends StatefulWidget {
 
 class _SlideSorterPageState extends State<_SlideSorterPage> {
   late int _current = widget.current;
+  Map<int, String> _sections = const {};
+
+  @override
+  void initState() {
+    super.initState();
+    widget.sections?.then((v) {
+      if (mounted) setState(() => _sections = v);
+    }, onError: (_) {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -278,6 +293,25 @@ class _SlideSorterPageState extends State<_SlideSorterPage> {
                     child: _slideThumb(context, editor, slide,
                         current: i + 1 == _current),
                   ),
+                  if (_sections[i] case final name?)
+                    PositionedDirectional(
+                      top: 2,
+                      start: 2,
+                      end: 40,
+                      child: Container(
+                        key: ValueKey('sorter-section-$i'),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: scheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text('§ $name',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: context.type.caption
+                                .copyWith(color: scheme.onPrimaryContainer)),
+                      ),
+                    ),
                   // Uzun basış sürüklemeye ayrıldı; menü köşedeki düğmede.
                   PositionedDirectional(
                     top: 0,

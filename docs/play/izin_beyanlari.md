@@ -55,6 +55,12 @@ notuyla işaretlenir.
 
 - **Neden:** Belge tarama (kenar algılama, PDF). Yalnız tarama açıkken.
 
+## RECORD_AUDIO (isteğe bağlı)
+
+- **Neden:** Slayt sunumunda anlatım kaydı (Faz 38). İzin yalnız kullanıcı
+  "Anlatım kaydet"e bastığında istenir; ses slayt dosyasına gömülür, hiçbir
+  yere gönderilmez. Reddedilirse yalnız anlatım kaydı kapanır.
+
 ## POST_NOTIFICATIONS
 
 - **Neden:** Uzun işlerin ilerlemesi/sonucu, fatura hatırlatması. Reddedilirse

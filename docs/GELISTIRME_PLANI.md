@@ -195,19 +195,29 @@ düzeni **artımlı** (yalnız değişen paragraf ve sonrası), görünür sayfa
 500 sayfa eşiği; yazım denetimi izolatta ve boşta; görsel `cacheWidth`; AI çağrıları iptal edilebilir.
    (`word_reader.dart` ListView.builder + gündüz/sepya/gece + yazı boyu; `docx_export_formats.dart` ODT/RTF/MD/TXT izolatta; artımlı `DocxPaginator`; `word_perf_test` 5000 paragraf ≈500 sayfa eşiği; AI yazım denetimi istek üzerine + Durdur; resimler `cacheWidth`; `word_pro_formats_test`.)
 
-## Faz 38 — Slayt
-1. Ana slayt/yerleşim (master/layout) düzenleme: yer tutucu, tema renk/yazı tipi.
-2. Şablon galerisi (8 sade tema) + "metinden slayt" (`text_to_slides`, var) için tasarım önerisi.
-3. Slayt içi grafik ekle/düzenle (tablo verisinden), SmartArt → düzenlenebilir şekil grubu.
-4. Ses/video ekleme + oynatma, sunum kipinde lazer işaretçi, kalem, zamanlayıcı.
-5. Sunucu görünümü (not + sonraki slayt + süre), PDF/PNG/video dışa aktarım.
-6. Yardımcı çizgi/hizalama/dağıt, katman paneli, animasyon sırası paneli.
+## Faz 38 — Slayt — BİTTİ 2026-11-05 (kod; cihaz doğrulaması CIHAZ_TESTI.md'de, perf A/B bekliyor)
+- [x] 1. Ana slayt/yerleşim (master/layout) düzenleme: yer tutucu, tema renk/yazı tipi.
+   (`services/pptx/pro/pptx_package.dart` + `pptx_master_ops.dart`; `slides_pro/master_page.dart`, Araçlar → Ana slayt ve tema.)
+- [x] 2. Şablon galerisi (8 sade tema) + "metinden slayt" (`text_to_slides`, var) için tasarım önerisi.
+   (`pptx_templates.dart` — `PptxTemplates.suggest`; `ai_slides_flow` pptx çıktısında önerili galeri.)
+- [x] 3. Slayt içi grafik ekle/düzenle (tablo verisinden), SmartArt → düzenlenebilir şekil grubu.
+   (`pptx_chart_ops.dart` — gömülü xlsx'li grafik parçası, `fromTable`, `smartArtToShapes`; `slides_pro/chart_page.dart`.)
+- [x] 4. Ses/video ekleme + oynatma, sunum kipinde lazer işaretçi, kalem, zamanlayıcı.
+   (`pptx_media_ops.dart` + `pptx_show_info.dart`; `slideshow/media.dart`, `slideshow/ink.dart`; klavye/kumanda tuşları.)
+- [x] 5. Sunucu görünümü (not + sonraki slayt + süre), PDF/PNG/video dışa aktarım.
+   (`slideshow/presenter.dart`; PNG/zip + MP4 `slides/pro.dart` → `ci/Slayt.kt` Media3 görüntü girdisi; PDF vardı.)
+- [x] 6. Yardımcı çizgi/hizalama/dağıt, katman paneli, animasyon sırası paneli.
+   (Yaslanma kılavuzları vardı — `SlideFrameEditor.snapRect`; `pptx_arrange_ops.dart` + `slides_pro/arrange_page.dart`; gizli şekil çizilmez.)
 **Ölçüt:** 5 gerçek pptx görsel fark < eşik (B4); sunum kipi 60 fps.
 
-**Ek:** 7. Slayt sıralayıcıda sürükle-bırak, bölüm (section) grupları, gizli slayt, özel gösteri.
-8. Şekil kitaplığı, bağlayıcı çizgiler, gradyan/gölge/yansıma, görsel kırpma/şekle kırp, arka plan
+**Ek:**
+- [x] 7. Slayt sıralayıcıda sürükle-bırak, bölüm (section) grupları, gizli slayt, özel gösteri.
+   (Sürükle-bırak + gizli slayt vardı; `pptx_deck_ops.dart` — `p14:sectionLst`, `p:custShowLst`, kayıtta `normalize`; `slides_pro/sections_page.dart`, sıralayıcıda § bölüm etiketi.)
+- [x] 8. Şekil kitaplığı, bağlayıcı çizgiler, gradyan/gölge/yansıma, görsel kırpma/şekle kırp, arka plan
 kaldırma (ML Kit, isteğe bağlı), tablo biçimleri, bağlantı/eylem düğmeleri, canlı sayaç.
-9. Sunum: uzaktan kumanda (ses tuşları/yerel ağ), kayıtlı anlatım, HDMI/Cast ikinci ekran notları.
+   (`pptx_shape_ops.dart`, `kSlideShapeLibrary`, `slides_pro/shape_library.dart`, `slides/pro_shapes.dart`; arka plan `ci/Slayt.kt` konu bölütleme; sunumda köprü/eylem + sayaç `slideshow/actions.dart`.)
+- [x] 9. Sunum: uzaktan kumanda (ses tuşları/yerel ağ), kayıtlı anlatım, HDMI/Cast ikinci ekran notları.
+   (`slideshow/remote.dart` + `ci/Slayt.kt` — `dispatchKeyEvent`, MediaRecorder, `Presentation`; yerel ağ anahtarlı HTTP; `PptxMediaOps.setNarration` playFrom + advTm.)
 **Perf:** küçük resimler tek kez üretilir ve önbellekte (`slide_image_budget_test` korunur),
 yalnız görünür slayt tam çizilir, sunum kipinde sonraki slayt önceden rasterize, geçiş animasyonları
 `RepaintBoundary` içinde; hafif profilde karmaşık geçişler sadeleşir; `slides_perf_test` 300 slayt eşiği.

@@ -523,6 +523,13 @@ class PptxRender {
     final steps = <List<AnimTarget>>[];
     for (final par in childList.childElements) {
       if (par.name.qualified != 'p:par') continue;
+      // Faz 38: medya oynatma komutu (anlatım "playFrom") görünürlük adımı
+      // değildir — sayılırsa ses simgesi tıklamaya kadar gizlenirdi.
+      if (par.descendantElements.any((e) =>
+          e.name.qualified == 'p:cTn' &&
+          e.getAttribute('presetClass') == 'mediacall')) {
+        continue;
+      }
       final targets = <AnimTarget>[];
       for (final tgt in par.descendantElements) {
         if (tgt.name.qualified != 'p:spTgt') continue;
@@ -542,6 +549,19 @@ class PptxRender {
   }
 
   // --------------------------------------------------------------- toplama
+
+  static bool _hiddenShape(XmlElement el) {
+    for (final nv in el.childElements) {
+      if (!nv.name.local.startsWith('nv')) continue;
+      for (final c in nv.childElements) {
+        if (c.name.qualified == 'p:cNvPr') {
+          final h = c.getAttribute('hidden');
+          return h == '1' || h == 'true';
+        }
+      }
+    }
+    return false;
+  }
 
   void _collect(
     XmlDocument doc,
@@ -575,6 +595,8 @@ class PptxRender {
     required bool editable,
   }) {
     for (final el in parent.childElements) {
+      // Faz 38: katman panelinde gizlenen şekil (`p:cNvPr@hidden`) çizilmez.
+      if (_hiddenShape(el)) continue;
       switch (el.name.qualified) {
         case 'p:sp':
         case 'p:pic':
@@ -656,6 +678,12 @@ class PptxRender {
       w: w,
       h: h,
       chart: chart,
+      // Faz 38: grafik seçilip verisi düzenlenebilsin (kimlik + XML düğümü).
+      id: int.tryParse(_first(_first(frame, 'p:nvGraphicFramePr'), 'p:cNvPr')
+                  ?.getAttribute('id') ??
+              '') ??
+          0,
+      element: editable ? frame : null,
     ));
   }
 

@@ -324,6 +324,15 @@ class MainActivity : FlutterActivity() {
     private var docScan: DocScan? = null
     private var dikte: Dikte? = null
 
+    /** Slayt pro köprüsü (Faz 38): video, arka plan, kumanda, anlatım, 2. ekran. */
+    private var slayt: Slayt? = null
+
+    /** Sunum kumandası: ses tuşları açıkken Slayt'a gider. */
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        if (slayt?.onKey(event) == true) return true
+        return super.dispatchKeyEvent(event)
+    }
+
     /** Yakındakiler (Bluetooth LE): yayın/tarama motor yıkılınca durur. */
     private var nearbyBle: NearbyBle? = null
 
@@ -333,6 +342,8 @@ class MainActivity : FlutterActivity() {
         nearbyBle?.dispose()
         nearbyBle = null
         docScan = null
+        slayt?.dispose()
+        slayt = null
         super.cleanUpFlutterEngine(flutterEngine)
     }
     private var pendingShortcutPath: String? = null
@@ -766,6 +777,10 @@ class MainActivity : FlutterActivity() {
             docScan = it
             MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DocScan.CHANNEL)
                 .setMethodCallHandler(it)
+        }
+        Slayt(this).also {
+            slayt = it
+            it.attach(MethodChannel(flutterEngine.dartExecutor.binaryMessenger, Slayt.CHANNEL))
         }
         Dikte(this).also {
             dikte = it

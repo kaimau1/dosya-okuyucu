@@ -524,4 +524,8 @@ abstract final class AppIcons {
   static const IconData trafficLight = Icons.traffic_rounded;
   static const IconData goalSeek = Icons.track_changes_rounded;
   static const IconData traceDependents = Icons.call_split_rounded;
+
+  // Faz 38 — slayt pro
+  static const IconData gradient = Icons.gradient_rounded;
+  static const IconData turnRight = Icons.turn_right_rounded;
 }

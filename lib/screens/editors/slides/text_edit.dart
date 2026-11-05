@@ -36,6 +36,10 @@ extension _SlidesEditorScreenTextEditPart on _SlidesEditorScreenState {
     }
     // Anahatta bekleyen yazı önce adım olur (geri al onu geri alsın).
     _flushOutline();
+    if (!_history.canUndo && _proUndo.isNotEmpty) {
+      unawaited(_proUndoLast());
+      return;
+    }
     if (_history.undo() == null) return;
     _selShape = null;
     _selSlide = null;
@@ -799,6 +803,9 @@ extension _SlidesEditorScreenTextEditPart on _SlidesEditorScreenState {
                   () => editor.reorderShape(slide, shape, front: false));
               _partSetState(() => _selShape = _reselect(slide, shape));
             }),
+      if (_proOn)
+        DocAction(AppIcons.handyman, context.t('sp.shape_tools'),
+            _proBusy ? null : () => _openShapeTools(slide, shape)),
       DocAction(AppIcons.delete, context.t('common.delete'), !arrange
           ? null
           : () {

@@ -1,6 +1,9 @@
 @Tags(['perf'])
 library;
 
+import 'package:dosya_okuyucu/services/pptx/pro/pptx_package.dart';
+import 'package:dosya_okuyucu/services/pptx/pro/pptx_show_info.dart';
+import 'package:dosya_okuyucu/services/pptx/pro/pptx_templates.dart';
 import 'package:dosya_okuyucu/services/pptx_editor.dart';
 import 'package:dosya_okuyucu/services/pptx_rich_text.dart';
 import 'package:dosya_okuyucu/services/pptx_writer.dart';
@@ -53,5 +56,42 @@ void main() {
     e.restore(after);
     expect(e.slides[24].paragraphs.map((p) => p.text),
         contains(startsWith('Madde bir')));
+  });
+
+  // Faz 38 perf kapısı: 300 slaytlık deste — açılış, sunum bilgisi (izolatta
+  // okunan medya/bağlantı/sayaç taraması) ve bir pro işlem gidiş-dönüşü.
+  group('300 slayt (Faz 38)', () {
+    final big = PptxWriter.build([
+      for (var i = 1; i <= 300; i++)
+        SlideDraft('Slayt $i', [for (var k = 1; k <= 4; k++) 'Madde $k / $i']),
+    ]);
+
+    test('aç ≤ 15 sn (debug)', () {
+      final sw = Stopwatch()..start();
+      final e = PptxEditor.parse(big);
+      sw.stop();
+      // ignore: avoid_print
+      print('PERF slides_open_300_ms=${sw.elapsedMilliseconds}');
+      expect(e.slides, hasLength(300));
+      expect(sw.elapsedMilliseconds, lessThan(15000));
+    });
+
+    test('sunum bilgisi ≤ 3 sn, tema işlemi ≤ 8 sn', () async {
+      PptxPro.inIsolate = false;
+      final sw = Stopwatch()..start();
+      final info = PptxShowInfo.read(PptxPackage.open(big));
+      sw.stop();
+      // ignore: avoid_print
+      print('PERF slides_show_info_300_ms=${sw.elapsedMilliseconds}');
+      expect(info, hasLength(300));
+      expect(sw.elapsedMilliseconds, lessThan(3000));
+      final op = Stopwatch()..start();
+      final out = await PptxPro.run(big, PptxTemplates.apply('mint'));
+      op.stop();
+      // ignore: avoid_print
+      print('PERF slides_template_300_ms=${op.elapsedMilliseconds}');
+      expect(out.length, greaterThan(0));
+      expect(op.elapsedMilliseconds, lessThan(8000));
+    });
   });
 }

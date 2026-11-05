@@ -13,6 +13,39 @@ const kPptxShapeKinds = [
   'rect', 'roundRect', 'ellipse', 'triangle', 'rightArrow', 'star5', 'line',
 ];
 
+/// Faz 38 / madde 8 — şekil kitaplığı (kategori anahtarı → önayarlar). Hepsi
+/// `PptxPresetShape` ile vektör çizilir; eylem düğmeleri kutu olarak.
+const kSlideShapeLibrary = <String, List<String>>{
+  'basic': [
+    'rect', 'roundRect', 'ellipse', 'triangle', 'rtTriangle', 'diamond',
+    'parallelogram', 'trapezoid', 'pentagon', 'hexagon', 'octagon', 'decagon',
+    'donut', 'pie', 'chord', 'blockArc', 'can', 'cube', 'teardrop', 'plus',
+  ],
+  'arrows': [
+    'rightArrow', 'leftArrow', 'upArrow', 'downArrow', 'leftRightArrow',
+    'upDownArrow', 'notchedRightArrow', 'chevron', 'homePlate', 'corner',
+  ],
+  'stars': [
+    'star4', 'star5', 'star6', 'star7', 'star8', 'star10', 'star12', 'star16',
+    'star24', 'star32',
+  ],
+  'callouts': [
+    'wedgeRectCallout', 'wedgeRoundRectCallout', 'wedgeEllipseCallout',
+    'cloudCallout', 'cloud',
+  ],
+  'flowchart': [
+    'flowChartProcess', 'flowChartAlternateProcess', 'flowChartDecision',
+    'flowChartInputOutput', 'flowChartPredefinedProcess', 'flowChartDocument',
+    'flowChartTerminator', 'flowChartPreparation', 'flowChartManualInput',
+    'flowChartConnector', 'flowChartOffpageConnector', 'flowChartExtract',
+    'flowChartMerge', 'flowChartSort', 'flowChartDelay', 'flowChartMagneticDisk',
+  ],
+  'actions': [
+    'actionButtonBackPrevious', 'actionButtonForwardNext', 'actionButtonBeginning',
+    'actionButtonEnd', 'actionButtonHome', 'actionButtonReturn',
+  ],
+};
+
 /// PowerPoint'in varsayılan tablo stili ("Orta Stil 2 - Vurgu 1"); yerleşik
 /// GUID — `tableStyles.xml`te tanımı gerekmez.
 const kPptxDefaultTableStyle = '{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}';
@@ -215,7 +248,10 @@ extension PptxObjects on PptxEditor {
       double? y,
       double w = 200,
       double h = 120}) {
-    if (!kPptxShapeKinds.contains(prst)) return null;
+    if (!kPptxShapeKinds.contains(prst) &&
+        !kSlideShapeLibrary.values.any((l) => l.contains(prst))) {
+      return null;
+    }
     final (sw, sh) = _slideSizeEmu;
     final px = x ?? (sw / _emuPt - w) / 2, py = y ?? (sh / _emuPt - h) / 2;
     final id = _nextShapeId(slide);
