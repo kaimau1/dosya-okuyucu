@@ -436,11 +436,13 @@ class _DosyaOkuyucuAppState extends State<DosyaOkuyucuApp> {
         bodyFont: look.uiFont,
         skin: look.skin,
         background: look.background,
+        accent: look.accent,
       ),
       darkTheme: AppTheme.dark(
         bodyFont: look.uiFont,
         skin: look.skin,
         background: look.background,
+        accent: look.accent,
       ),
       // "Gece (OLED)" ailesinin açık karşılığı yok: seçiliyken sistem açık
       // modda olsa da koyu kalır, yoksa kullanıcı OLED temayı seçtiği hâlde

@@ -88,14 +88,16 @@ void main() {
     expect(theme.extension<AppFonts>()?.mono, 'Carlito');
   });
 
-  test('hazır boyut kademeleri: küçük / orta / büyük / çok büyük', () {
+  test('hazır boyut kademeleri: küçük / orta / büyük / çok büyük / 2×', () {
     // Kullanıcı isteği 2026-08-07: kaydırıcı tek başına "kolay seçim" değil.
-    expect(AppTheme.uiTextScales.length, 4);
-    expect(AppTheme.uiTextScales.map((s) => s.$2), [0.9, 1.0, 1.15, 1.3]);
+    // Faz 40 / 8: 2× de hazır kademe (erişilebilirlik).
+    expect(AppTheme.uiTextScales.length, 5);
+    expect(
+        AppTheme.uiTextScales.map((s) => s.$2), [0.9, 1.0, 1.15, 1.3, 2.0]);
     // Hepsi AppState'in izin verdiği aralıkta olmalı, yoksa seçilen kademe
     // kısılıp çubukta başka bir yer seçili görünürdü.
     for (final s in AppTheme.uiTextScales) {
-      expect(s.$2, inInclusiveRange(0.85, 1.4));
+      expect(s.$2, inInclusiveRange(0.85, 2.0));
     }
   });
 

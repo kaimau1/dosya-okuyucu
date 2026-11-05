@@ -19,6 +19,7 @@ class AppearanceState extends ChangeNotifier {
   AppLanguage _language = AppLanguage.system;
   String _uiFont = AppTheme.uiFontDefault;
   double _uiTextScale = 1.0;
+  String _accent = 'default';
 
   ThemeMode get themeMode => _themeMode;
   AppSkin get skin => _skin;
@@ -26,6 +27,7 @@ class AppearanceState extends ChangeNotifier {
   AppLanguage get language => _language;
   String get uiFont => _uiFont;
   double get uiTextScale => _uiTextScale;
+  String get accent => _accent;
 
   /// `AppState` her görünüm ayarı değişiminde çağırır. Hiçbir değer
   /// değişmediyse dinleyiciler uyandırılmaz.
@@ -36,13 +38,15 @@ class AppearanceState extends ChangeNotifier {
     required AppLanguage language,
     required String uiFont,
     required double uiTextScale,
+    String accent = 'default',
   }) {
     if (themeMode == _themeMode &&
         skin == _skin &&
         background == _background &&
         language == _language &&
         uiFont == _uiFont &&
-        uiTextScale == _uiTextScale) {
+        uiTextScale == _uiTextScale &&
+        accent == _accent) {
       return;
     }
     _themeMode = themeMode;
@@ -51,6 +55,7 @@ class AppearanceState extends ChangeNotifier {
     _language = language;
     _uiFont = uiFont;
     _uiTextScale = uiTextScale;
+    _accent = accent;
     notifyListeners();
   }
 }

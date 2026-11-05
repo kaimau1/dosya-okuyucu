@@ -182,6 +182,12 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
         sections: const [
           SettingsSection('set.sec_theme', [
             SettingRow(
+                id: 'theme_preset',
+                titleKey: 'tp.title',
+                subtitleKey: 'tp.sub',
+                altKeys: ['tp.amoled', 'tp.paper', 'set.kw_dark'],
+                builder: _themePresetTile),
+            SettingRow(
                 id: 'skin',
                 titleKey: 'skin.title',
                 altKeys: [
@@ -203,6 +209,11 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                 id: 'background',
                 titleKey: 'bgc.title',
                 builder: _backgroundTile),
+            SettingRow(
+                id: 'accent',
+                titleKey: 'acc.title',
+                altKeys: ['acc.blue', 'acc.teal'],
+                builder: _accentTile),
           ]),
           SettingsSection('set.sec_text', [
             SettingRow(
@@ -686,6 +697,8 @@ String _themeModeLabel(BuildContext context, ThemeMode mode) => switch (mode) {
 Widget _themeTile(BuildContext _) => const ThemeTile();
 Widget _skinTile(BuildContext _) => const AppSkinTile();
 Widget _backgroundTile(BuildContext _) => const BackgroundColorTile();
+Widget _themePresetTile(BuildContext _) => const ThemePresetTile();
+Widget _accentTile(BuildContext _) => const AccentColorTile();
 Widget _hapticsTile(BuildContext _) => const HapticsTile();
 Widget _neuralVoicesTile(BuildContext context) => SettingTile(
       icon: AppIcons.voice,
