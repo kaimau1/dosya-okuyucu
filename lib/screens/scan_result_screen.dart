@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show compute;
@@ -25,6 +26,9 @@ import '../services/fm/safe_write.dart';
 import '../services/ocr_service.dart';
 import '../services/scan_dewarp.dart';
 import '../services/scan_enhance.dart';
+import '../services/scan_export.dart';
+import '../services/fm/job_queue.dart' show FmJobTarget;
+import '../services/fm/tracked_task.dart';
 import '../services/scan_kind.dart';
 import '../services/scan_page_ops.dart';
 import '../services/scan_prepare.dart';
@@ -282,12 +286,21 @@ class _ScanResultScreenState extends State<ScanResultScreen>
               tooltip: context.t('common.more'),
               enabled: !_busy,
               onSelected: (v) => switch (v) {
+                'export' => _export(),
                 'open' => _openPdf(),
                 'rename' => _rename(),
                 'move' => _changeLocation(),
                 _ => null,
               },
               itemBuilder: (ctx) => [
+                PopupMenuItem(
+                  value: 'export',
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(AppIcons.exportList),
+                    title: Text(ctx.t('sx.title')),
+                  ),
+                ),
                 PopupMenuItem(
                   value: 'open',
                   child: ListTile(

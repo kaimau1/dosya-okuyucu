@@ -349,6 +349,106 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     return context.t('sk.card_saved', {'name': name});
   }
 
+  /// **Akıllı çıktı** (Faz 35 / madde 3): Word · Excel (tablo algılama) ·
+  /// TXT · seçilen kalitede PDF. İş kuyruğunda izlenir (ilerleme, iptal,
+  /// bitince bildirim — `TrackedTask`); çıktı PDF'in yanına yazılır.
+  Future<void> _export() async {
+    if (_busy || _pages.isEmpty) return;
+    await _flush();
+    if (!mounted) return;
+    final displays = ScanPage.displays(_pages);
+    final choice = await showAppSheet<_ExportChoice>(
+      context,
+      title: context.t('sx.title'),
+      builder: (_) => _ExportSheet(pages: displays),
+    );
+    if (choice == null || !mounted) return;
+    final str = AppStrings.current;
+    final task = TrackedTask(title: str.t('sx.title'), name: p.basename(_pdfPath));
+    _partSetState(() => _work = context.t('sx.working'));
+    try {
+      // Metin gereken her çıktı için eksik sayfalar tanınır (bir kez).
+      final total = _pages.length;
+      for (var i = 0; i < total; i++) {
+        if (task.cancelRequested) break;
+        final page = _pages[i];
+        if (_ocr.containsKey(page.source)) continue;
+        task.report(
+            done: i, total: total, detail: str.t('sf.ocr_progress', {'n': i + 1, 'total': total}));
+        final lines = await DocumentScanner.recognizePages([page.display]);
+        _ocr[page.source] = lines.isEmpty ? const [] : lines.first;
+      }
+      if (task.cancelRequested) {
+        await task.stopped();
+        return;
+      }
+      final ocr = [for (final page in _pages) _ocr[page.source] ?? const <OcrLine>[]];
+      final base = p.basenameWithoutExtension(_pdfPath);
+      final Uint8List bytes;
+      final String ext;
+      var suffix = '';
+      switch (choice.format) {
+        case 'docx':
+          bytes = ScanExport.toDocx(ocr);
+          ext = 'docx';
+        case 'xlsx':
+          bytes = ScanExport.toXlsx(ocr, sheetPrefix: str.t('sx.sheet'));
+          ext = 'xlsx';
+        case 'txt':
+          bytes = ScanExport.toTxt(ocr);
+          ext = 'txt';
+        default:
+          final packed = await ScanExport.compressPages(
+            displays,
+            choice.quality,
+            isCancelled: () => task.cancelRequested,
+            onProgress: (done, all) => task.report(
+                done: done, total: all, detail: str.t('sf.building_pdf')),
+          );
+          if (task.cancelRequested) {
+            await task.stopped();
+            return;
+          }
+          bytes = await DocumentScanner.renderPdf(
+            [for (final c in packed) c.path],
+            ocrLinesPerPage: [
+              for (var i = 0; i < packed.length; i++)
+                ScanExport.scaleLines(ocr[i], packed[i].ratio),
+            ],
+            uniformA4: _kind.uniformA4,
+          );
+          // Ham sıkıştırılmış sayfalar iş bitince silinir.
+          for (final c in packed) {
+            unawaited(File(c.path).delete().then((_) {}, onError: (_) {}));
+          }
+          ext = 'pdf';
+          suffix = ' (${str.t(choice.quality.labelKey)})';
+      }
+      final out = FileOps.uniquePath(p.join(_folder, '$base$suffix.$ext'));
+      await File(out).writeAsBytes(bytes, flush: true);
+      FsEvents.changed();
+      task.target = FmJobTarget.files([out]);
+      await task.complete(detail: str.t('job.op_created', {'name': p.basename(out)}));
+      if (!mounted) return;
+      showSnack(
+        context,
+        context.t('sx.saved', {'name': p.basename(out)}),
+        action: SnackBarAction(
+          label: context.t('common.open'),
+          onPressed: () => EntryOpener.open(context, out),
+        ),
+      );
+    } catch (e) {
+      await task.fail(e);
+      if (mounted) {
+        showSnack(context, context.t('scr.add_failed', {'error': userErrorText(e)}),
+            copyable: true);
+      }
+    } finally {
+      if (mounted) _partSetState(() => _work = null);
+    }
+  }
+
   /// Izgaradaki sayfa menüsü: işler "görünen sayfa"ya uygulandığı için önce
   /// [index] seçilir.
   Future<void> _gridAction(int index, String action) async {

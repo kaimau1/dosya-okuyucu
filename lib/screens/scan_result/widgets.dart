@@ -477,3 +477,97 @@ class _GridAddTile extends StatelessWidget {
     );
   }
 }
+
+/// Dışa aktarma seçimi: biçim (`pdf`/`docx`/`xlsx`/`txt`) + PDF kalitesi.
+class _ExportChoice {
+  final String format;
+  final ScanQuality quality;
+  const _ExportChoice(this.format, [this.quality = ScanQuality.medium]);
+}
+
+/// Dışa aktarma levhası: PDF kalitesi (tahmini boyutla) + Word/Excel/TXT.
+class _ExportSheet extends StatefulWidget {
+  final List<String> pages;
+  const _ExportSheet({required this.pages});
+
+  @override
+  State<_ExportSheet> createState() => _ExportSheetState();
+}
+
+class _ExportSheetState extends State<_ExportSheet> {
+  ScanQuality _quality = ScanQuality.medium;
+  Map<ScanQuality, int>? _sizes;
+
+  @override
+  void initState() {
+    super.initState();
+    // Boyut önizlemesi izolatta, yalnız ilk sayfadan (hızlı).
+    ScanExport.estimateSizes(widget.pages).then((v) {
+      if (mounted) setState(() => _sizes = v);
+    }, onError: (_) {});
+  }
+
+  String _size(ScanQuality q) {
+    final b = _sizes?[q];
+    if (b == null) return '…';
+    final mb = b / (1024 * 1024);
+    return mb >= 1 ? '~${mb.toStringAsFixed(1)} MB' : '~${(b / 1024).round()} KB';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(context.t('sx.pdf_quality'), style: theme.textTheme.labelLarge),
+          const SizedBox(height: Gap.sm),
+          SegmentedButton<ScanQuality>(
+            showSelectedIcon: false,
+            segments: [
+              for (final q in ScanQuality.values)
+                ButtonSegment(
+                  value: q,
+                  label: Text('${context.t(q.labelKey)}\n${_size(q)}',
+                      textAlign: TextAlign.center, maxLines: 2),
+                ),
+            ],
+            selected: {_quality},
+            onSelectionChanged: (v) => setState(() => _quality = v.first),
+          ),
+          const SizedBox(height: Gap.sm),
+          FilledButton.icon(
+            onPressed: () =>
+                Navigator.pop(context, _ExportChoice('pdf', _quality)),
+            icon: const Icon(AppIcons.pdf, size: 20),
+            label: Text(context.t('sx.save_pdf')),
+          ),
+          const Divider(height: Gap.lg),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(AppIcons.newWord),
+            title: Text(context.t('sx.to_word')),
+            subtitle: Text(context.t('sx.to_word_sub')),
+            onTap: () => Navigator.pop(context, const _ExportChoice('docx')),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(AppIcons.newSheet),
+            title: Text(context.t('sx.to_excel')),
+            subtitle: Text(context.t('sx.to_excel_sub')),
+            onTap: () => Navigator.pop(context, const _ExportChoice('xlsx')),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(AppIcons.newText),
+            title: Text(context.t('sx.to_txt')),
+            onTap: () => Navigator.pop(context, const _ExportChoice('txt')),
+          ),
+        ],
+      ),
+    );
+  }
+}
