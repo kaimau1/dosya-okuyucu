@@ -8,6 +8,7 @@ import 'package:xml/xml.dart';
 
 import '../core/edit/save_coordinator.dart';
 
+import 'pptx/pro/pptx_deck_ops.dart';
 import 'pptx_render.dart';
 import 'pptx_rich_text.dart';
 import 'zip_carry.dart';
@@ -1379,6 +1380,8 @@ class PptxEditor {
       updated['[Content_Types].xml'] = _contentTypes.toXmlString();
     }
     if (_presentation != null) {
+      // Faz 38: slayt ekle/sil/taşı sonrası bölüm üyelikleri sıraya uyar.
+      PptxDeckOps.normalize(_presentation);
       updated['ppt/presentation.xml'] = _presentation.toXmlString();
     }
     if (_presRels != null) {

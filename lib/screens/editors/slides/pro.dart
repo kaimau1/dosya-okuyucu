@@ -135,6 +135,13 @@ extension _SlidesProPart on _SlidesEditorScreenState {
                 icon: AppIcons.autoAwesomeMotion,
                 label: context.t('sp.anim_order')),
           ]),
+          AppActionGroup(title: context.t('sp.g_slides'), actions: [
+            AppAction(
+                value: 'sections',
+                icon: AppIcons.bookmarks,
+                label: context.t('sp.sections_title'),
+                hint: context.t('sp.sections_hint')),
+          ]),
           AppActionGroup(title: context.t('sp.g_show'), actions: [
             AppAction(
                 value: 'presenter',
@@ -167,6 +174,21 @@ extension _SlidesProPart on _SlidesEditorScreenState {
                 slide: _curIndex,
                 apply: _proApply,
                 initialTab: pick == 'anims' ? 1 : 0)));
+      case 'sections':
+        final bytes = await _deckBytes();
+        if (bytes == null || !mounted) return;
+        final labels = [
+          for (final sl in _editor!.slides)
+            sl.paragraphs
+                    .map((p) => p.text.trim())
+                    .where((t) => t.isNotEmpty)
+                    .firstOrNull ??
+                context.t('sp.slide_n', {'n': sl.index}),
+        ];
+        final play = await Navigator.of(context).push<List<int>>(MaterialPageRoute(
+            builder: (_) =>
+                SlideSectionsPage(bytes: bytes, labels: labels, apply: _proApply)));
+        if (play != null && play.isNotEmpty && mounted) await _playList(play);
       case 'presenter':
         await _play(_curIndex, presenter: true);
       case 'png_one':
@@ -192,6 +214,34 @@ extension _SlidesProPart on _SlidesEditorScreenState {
           await _proApply(PptxTemplates.apply(id), doneKey: 'sp.applied');
         }
     }
+  }
+
+  /// Bölüm adları (sıralayıcı için), izolatta.
+  Future<Map<int, String>> _sectionStartsOf() async {
+    final bytes = await _deckBytes();
+    if (bytes == null) return const {};
+    return PptxPro.query(bytes, sectionStarts);
+  }
+
+  /// Özel gösteri: verilen sıralardaki slaytlar (gizli olsalar da) oynar.
+  Future<void> _playList(List<int> order) async {
+    final editor = _editor;
+    if (editor == null) return;
+    final views = <SlideVM>[], notes = <String>[], idx = <int>[];
+    for (final i in order) {
+      if (i < 0 || i >= editor.slides.length) continue;
+      final v = editor.slides[i].view;
+      if (v == null) continue;
+      views.add(v);
+      notes.add(editor.notesOf(editor.slides[i]));
+      idx.add(i);
+    }
+    if (views.isEmpty) return;
+    final deck = await _deckBytes();
+    if (!mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => SlideshowScreen(
+            slides: views, notes: notes, deck: deck, deckIndex: idx)));
   }
 
   // ── Madde 3: grafik / SmartArt ─────────────────────────────────────────────

@@ -68,6 +68,7 @@ import 'slides_pro/arrange_page.dart';
 import 'slides_pro/chart_page.dart';
 import 'slides_pro/master_page.dart';
 import 'slides_pro/pro_common.dart';
+import 'slides_pro/sections_page.dart';
 import '../../core/snack.dart';
 import '../../core/safe_insets.dart';
 import '../../core/user_error.dart';

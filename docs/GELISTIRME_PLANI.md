@@ -211,7 +211,8 @@ düzeni **artımlı** (yalnız değişen paragraf ve sonrası), görünür sayfa
 **Ölçüt:** 5 gerçek pptx görsel fark < eşik (B4); sunum kipi 60 fps.
 
 **Ek:**
-- [ ] 7. Slayt sıralayıcıda sürükle-bırak, bölüm (section) grupları, gizli slayt, özel gösteri.
+- [x] 7. Slayt sıralayıcıda sürükle-bırak, bölüm (section) grupları, gizli slayt, özel gösteri.
+   (Sürükle-bırak + gizli slayt vardı; `pptx_deck_ops.dart` — `p14:sectionLst`, `p:custShowLst`, kayıtta `normalize`; `slides_pro/sections_page.dart`, sıralayıcıda § bölüm etiketi.)
 - [ ] 8. Şekil kitaplığı, bağlayıcı çizgiler, gradyan/gölge/yansıma, görsel kırpma/şekle kırp, arka plan
 kaldırma (ML Kit, isteğe bağlı), tablo biçimleri, bağlantı/eylem düğmeleri, canlı sayaç.
 - [ ] 9. Sunum: uzaktan kumanda (ses tuşları/yerel ağ), kayıtlı anlatım, HDMI/Cast ikinci ekran notları.

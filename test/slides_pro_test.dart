@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:dosya_okuyucu/services/pptx/pro/pptx_arrange_ops.dart';
 import 'package:dosya_okuyucu/services/pptx/pro/pptx_chart_ops.dart';
+import 'package:dosya_okuyucu/services/pptx/pro/pptx_deck_ops.dart';
 import 'package:dosya_okuyucu/services/pptx/pro/pptx_master_ops.dart';
 import 'package:dosya_okuyucu/services/pptx/pro/pptx_media_ops.dart';
 import 'package:dosya_okuyucu/services/pptx/pro/pptx_show_info.dart';
@@ -242,6 +243,47 @@ void main() {
       expect(ids.toSet().length, ids.length); // kimlikler benzersiz
       b = await PptxPro.run(b, PptxArrangeOps.removeAnimation(1, 0));
       expect(PptxArrangeOps.animations(open(b), 1).single.shapeIds, [51]);
+    });
+  });
+
+  group('madde 7 — bölüm / özel gösteri', () {
+    final four = PptxWriter.build([
+      for (var i = 1; i <= 4; i++) SlideDraft('S$i', const []),
+    ]);
+
+    test('bölüm ekle, adlandır, taşı, sil; slayt silinince uyar', () async {
+      var b = await PptxPro.run(four, PptxDeckOps.addSection(0, 'Giriş'));
+      b = await PptxPro.run(b, PptxDeckOps.addSection(2, 'Sonuç'));
+      var s = PptxDeckOps.sections(open(b));
+      expect([for (final x in s) (x.name, x.start, x.count)], [('Giriş', 0, 2), ('Sonuç', 2, 2)]);
+      b = await PptxPro.run(b, PptxDeckOps.addSection(3, 'Ek'));
+      s = PptxDeckOps.sections(open(b));
+      expect([for (final x in s) x.count], [2, 1, 1]);
+      b = await PptxPro.run(b, PptxDeckOps.renameSection(1, 'Bulgular'));
+      b = await PptxPro.run(b, PptxDeckOps.moveSection(2, -2)); // Ek en başa
+      s = PptxDeckOps.sections(open(b));
+      expect([for (final x in s) x.name], ['Ek', 'Giriş', 'Bulgular']);
+      // Slayt sırası da değişti: S4 en başta.
+      final e = PptxEditor.parse(b);
+      expect(e.slides.first.paragraphs.first.text, 'S4');
+      b = await PptxPro.run(b, PptxDeckOps.removeSection(0));
+      expect(PptxDeckOps.sections(open(b)).first.count, 3);
+      // Editörde slayt silinir → kaydederken bölüm üyeliği uyar.
+      final e2 = PptxEditor.parse(b);
+      e2.deleteSlide(e2.slides.last);
+      final total = PptxDeckOps.sections(open(e2.save()))
+          .fold<int>(0, (a, x) => a + x.count);
+      expect(total, 3);
+    });
+
+    test('özel gösteri yaz / oku / sil', () async {
+      var b = await PptxPro.run(four, PptxDeckOps.setCustomShow('Kısa', [3, 0]));
+      expect(PptxDeckOps.customShows(open(b)).single.slides, [3, 0]);
+      b = await PptxPro.run(b, PptxDeckOps.setCustomShow('Kısa', [1]));
+      expect(PptxDeckOps.customShows(open(b)).single.slides, [1]);
+      b = await PptxPro.run(b, PptxDeckOps.removeCustomShow('Kısa'));
+      expect(PptxDeckOps.customShows(open(b)), isEmpty);
+      expect(PptxEditor.parse(b).slides, hasLength(4));
     });
   });
 }
