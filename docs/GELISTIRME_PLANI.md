@@ -141,8 +141,11 @@ Ek 9: dışa aktarma `TrackedTask` → `JobQueue` (ilerleme, iptal, bitince bild
    (Düzenleme çubuğu + tutamaklar vardı; sade şerit, başlık gölgesi, yoğunluk — tercihler kalıcı.)
 **Ölçüt:** 5 örnek gerçek dosyada yaz→aç döngüsü kayıpsız (B4 uyumluluk turu).
 
-**Ek:** 8. Veri: CSV/ods içe aktar sihirbazı (ayraç/kodlama/tür önizleme), yinelenenleri kaldır,
+**Ek:**
+- [x] 8. Veri: CSV/ods içe aktar sihirbazı (ayraç/kodlama/tür önizleme), yinelenenleri kaldır,
 metni sütunlara böl, ara toplam, gruplama/anahat, hücre notları/yorum dizisi, köprü + sayfa bağı.
+   (Yinelenen/böl/not vardı; `xlsx/data_tools.dart` içe aktar + ODS + ara toplam (SUBTOTAL iç içe
+   saymaz) + anahat (`outlineLevel` okuma/yazma) + not yanıtı; köprü `XlsxLinkWriter`.)
 9. Biçim boyacısı, koşullu biçim yöneticisi, hücre stilleri galerisi, tema renkleri.
 10. Formül denetimi (öncül/ardıl oklar), döngüsel başvuru uyarısı, "Ne-olursa" (hedef ara).
 11. Grafik: kombinasyon, ikincil eksen, eğilim çizgisi, grafik stilleri; grafiği görüntü/PDF paylaş.

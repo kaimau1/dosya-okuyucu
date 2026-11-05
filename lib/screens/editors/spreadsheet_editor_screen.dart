@@ -19,6 +19,7 @@ import 'package:flutter/services.dart'
         KeyUpEvent,
         LogicalKeyboardKey,
         rootBundle;
+import 'package:file_picker/file_picker.dart' show FileType;
 import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -49,10 +50,12 @@ import '../../services/sheet_data_ops.dart';
 import '../../services/sheet_edit.dart';
 import '../../services/sheet_input.dart';
 import '../../services/xlsx_save_patch.dart' show XlsxStyleEdit;
+import '../../services/xlsx/data_tools.dart';
 import '../../services/xlsx/pivot.dart';
 import '../../services/xlsx/sheet_pdf.dart';
 import '../../services/xlsx_editor.dart';
 import '../../services/xlsx_file_charts.dart';
+import '../fm/pick_file_screen.dart' show AppFilePicker;
 import '../../widgets/doc_action_bar.dart';
 import '../../widgets/doc_find_bar.dart';
 import '../../widgets/doc_more_sheet.dart';

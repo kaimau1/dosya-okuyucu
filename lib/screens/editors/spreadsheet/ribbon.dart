@@ -181,6 +181,8 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
               key: const ValueKey('xl-ins-spark'), onTap: _insertSparklines),
           RibbonButton(AppIcons.comment, context.t('excel.note_new'),
               key: const ValueKey('xl-ins-note'), onTap: _editNote),
+          RibbonButton(AppIcons.link, context.t('xp.link'),
+              key: const ValueKey('xl-ins-link'), onTap: _insertLink),
         ]),
         RibbonTab(context.t('excel.tab_formulas'), [
           RibbonButton(OfficeIcons.autoSum, context.t('excel.autosum'),
@@ -219,6 +221,16 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
               key: const ValueKey('xl-split'), onTap: _splitTextToColumns),
           RibbonButton(AppIcons.pdfTable, context.t('xp.pivot'),
               key: const ValueKey('xl-pivot'), onTap: _createPivot),
+          RibbonButton(AppIcons.download, context.t('xp.import'),
+              key: const ValueKey('xl-import'), onTap: _importData),
+          RibbonButton(AppIcons.functions, context.t('xp.subtotal'),
+              key: const ValueKey('xl-subtotal'), onTap: _insertSubtotals),
+          RibbonButton(AppIcons.formatIndentIncrease, context.t('xp.group'),
+              key: const ValueKey('xl-group'), onTap: () => _groupSelectedRows(true)),
+          RibbonButton(AppIcons.formatIndentDecrease, context.t('xp.ungroup'),
+              key: const ValueKey('xl-ungroup'), onTap: () => _groupSelectedRows(false)),
+          RibbonButton(AppIcons.expandLess, context.t('xp.toggle_group'),
+              key: const ValueKey('xl-toggle-group'), onTap: _toggleOutlineGroup),
           if (_pivots.containsKey(_sheet?.name))
             RibbonButton(AppIcons.refresh, context.t('xp.pivot_refresh'),
                 key: const ValueKey('xl-pivot-refresh'), onTap: _refreshPivot),
@@ -241,6 +253,9 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
           RibbonButton(AppIcons.comment,
               context.t(_noteHere ? 'excel.note_edit' : 'excel.note_new'),
               key: const ValueKey('xl-note'), onTap: _editNote),
+          if (_noteHere)
+            RibbonButton(AppIcons.comment, context.t('xp.note_reply'),
+                key: const ValueKey('xl-note-reply'), onTap: _replyToNote),
           if (_noteHere)
             RibbonButton(AppIcons.delete, context.t('excel.note_delete'),
                 key: const ValueKey('xl-note-delete'),

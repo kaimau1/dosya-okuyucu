@@ -413,6 +413,377 @@ extension _SpreadsheetProDataPart on _SpreadsheetEditorScreenState {
         .then((p) => p.setDouble(_densityKey, v))
         .catchError((_) => false));
   }
+
+  // ── 8. Veri: içe aktar, ara toplam, gruplama, not dizisi, köprü ────────
+
+  /// Yeni sayfaya hücre değerleri (ham) yazar ve oraya geçer.
+  void _writeNewSheet(String base, List<List<String>> rows) {
+    final editor = _editor;
+    if (editor == null) return;
+    var name = base.length > 28 ? base.substring(0, 28) : base;
+    name = name.replaceAll(RegExp(r'[\[\]:*?/\\]'), '_');
+    var candidate = name;
+    for (var n = 2; editor.hasSheet(candidate); n++) {
+      candidate = '$name ($n)';
+    }
+    final added = editor.addSheet(candidate);
+    if (added == null) return;
+    for (var r = 0; r < rows.length; r++) {
+      for (var c = 0; c < rows[r].length; c++) {
+        if (rows[r][c].isNotEmpty) editor.setCell(added.name, r, c, rows[r][c]);
+      }
+    }
+    _partSetState(() {
+      _sheetIndex = editor.sheets.indexOf(added);
+      _selRow = _selCol = _anchorRow = _anchorCol = 0;
+      _session.changed();
+      _gridVersion++;
+    });
+    _syncField();
+  }
+
+  Future<void> _importData() async {
+    _endEdit();
+    final res = await AppFilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['csv', 'tsv', 'txt', 'ods'],
+    );
+    final path = res?.files.single.path;
+    if (path == null || !mounted) return;
+    final bytes = await File(path).readAsBytes();
+    if (!mounted) return;
+    final base = p.basenameWithoutExtension(path);
+    if (p.extension(path).toLowerCase() == '.ods') {
+      try {
+        final sheets = await Isolate.run(() => SheetImport.parseOds(bytes));
+        if (!mounted) return;
+        for (final e in sheets.entries) {
+          _writeNewSheet(sheets.length == 1 ? base : e.key, e.value);
+        }
+        _snack(context.t('xp.import_done', {'n': sheets.length}));
+      } catch (e) {
+        if (mounted) _snack(userErrorText(e));
+      }
+      return;
+    }
+    final rows = await showAppSheet<List<List<String>>>(
+      context,
+      title: context.t('xp.import'),
+      builder: (_) => _ImportSheet(bytes: bytes),
+    );
+    if (rows == null || !mounted) return;
+    _writeNewSheet(base, rows);
+    _snack(context.t('xp.import_done', {'n': 1}));
+  }
+
+  Future<void> _insertSubtotals() async {
+    final sheet = _sheet;
+    if (sheet == null) return;
+    _endEdit();
+    final r = _dataRange(sheet);
+    if (r.bottom <= r.top) {
+      _snack(context.t('excel.dup_needs_range'));
+      return;
+    }
+    final raw = [
+      for (var row = r.top; row <= r.bottom; row++)
+        [for (var c = r.left; c <= r.right; c++) sheet.rawAt(row, c)],
+    ];
+    final header = [
+      for (var i = 0; i < raw.first.length; i++)
+        raw.first[i].trim().isEmpty ? CellRef.colName(r.left + i) : raw.first[i],
+    ];
+    final picked = await showAppSheet<(int, List<int>)>(
+      context,
+      title: context.t('xp.subtotal'),
+      builder: (_) => _SubtotalSheet(header: header),
+    );
+    if (picked == null || !mounted) return;
+    final out = Subtotals.build(
+      raw,
+      groupCol: picked.$1,
+      sumCols: picked.$2,
+      top: 0,
+      left: 0,
+      totalSuffix: context.t('xp.subtotal_suffix'),
+      grandLabel: context.t('xp.grand_total'),
+    );
+    // Özgün aralığa dokunulmaz: sonuç yeni sayfada (A1'den), formüller oraya göre.
+    _writeNewSheet(context.t('xp.subtotal_sheet', {'name': sheet.name}), out);
+  }
+
+  void _groupSelectedRows(bool group) {
+    final sheet = _sheet;
+    if (sheet == null) return;
+    _endEdit();
+    final r = _range;
+    void apply() => group
+        ? sheet.groupRows(r.top, r.bottom)
+        : sheet.ungroupRows(r.top, r.bottom);
+    void revert() => group
+        ? sheet.ungroupRows(r.top, r.bottom)
+        : sheet.groupRows(r.top, r.bottom);
+    apply();
+    _recordStep(group ? 'xp.group' : 'xp.ungroup', apply, revert);
+    _session.changed();
+    _gridVersion++;
+    _partSetState(() {});
+  }
+
+  /// İmlecin bulunduğu grubu daraltır/genişletir (satırları gizler/gösterir).
+  void _toggleOutlineGroup() {
+    final sheet = _sheet;
+    if (sheet == null) return;
+    final g = sheet.outlineGroupAt(_selRow);
+    if (g == null) {
+      _snack(context.t('xp.no_group'));
+      return;
+    }
+    final lines = [for (var i = g.$1; i <= g.$2; i++) i];
+    final hide = !lines.every(sheet.isRowHidden);
+    _setHidden(true, lines, hide, hide ? 'xp.collapse' : 'xp.expand');
+    if (hide) {
+      // İmleç görünür bir satıra (grubun üstü) çıkar.
+      _partSetState(() => _selRow = _anchorRow = math.max(0, g.$1 - 1));
+    }
+  }
+
+  Future<void> _replyToNote() async {
+    final sheet = _sheet;
+    final editor = _editor;
+    if (sheet == null || editor == null) return;
+    _endEdit();
+    final r = _selRow, c = _selCol;
+    final cur = editor.noteAt(sheet.name, r, c);
+    final reply = await showAppPrompt(
+      context,
+      title: context.t('xp.note_reply'),
+      label: context.t('excel.note_hint'),
+      multiline: true,
+    );
+    if (reply == null || !mounted) return;
+    _setNote(r, c,
+        NoteThread.appendReply(cur?.text ?? '', context.t('excel.note_author'),
+            reply, DateTime.now()));
+  }
+
+  Future<void> _insertLink() async {
+    final sheet = _sheet;
+    final editor = _editor;
+    if (sheet == null || editor == null) return;
+    _endEdit();
+    final kind = await showAppSheet<String>(
+      context,
+      title: context.t('xp.link'),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            key: const ValueKey('link-web'),
+            leading: const Icon(AppIcons.pdfWeb),
+            title: Text(ctx.t('xp.link_web')),
+            onTap: () => Navigator.pop(ctx, 'web'),
+          ),
+          for (final s in editor.sheets)
+            ListTile(
+              leading: const Icon(AppIcons.tableView),
+              title: Text(ctx.t('xp.link_sheet', {'name': s.name})),
+              onTap: () => Navigator.pop(ctx, 'sheet:${s.name}'),
+            ),
+        ],
+      ),
+    );
+    if (kind == null || !mounted) return;
+    final r = _selRow, c = _selCol;
+    String? url, location, display;
+    if (kind == 'web') {
+      final input = await showAppPrompt(context,
+          title: context.t('xp.link_web'), label: 'https://', initial: 'https://');
+      if (input == null || !mounted) return;
+      url = input.contains('://') || input.startsWith('mailto:')
+          ? input
+          : 'https://$input';
+      display = url;
+    } else {
+      final target = kind.substring(6);
+      final cell = await showAppPrompt(context,
+          title: context.t('xp.link_cell', {'name': target}), initial: 'A1');
+      if (cell == null || !mounted) return;
+      final quoted = "'${target.replaceAll("'", "''")}'";
+      location = '$quoted!${cell.toUpperCase()}';
+      display = '$target!${cell.toUpperCase()}';
+    }
+    editor.addLink(XlsxLinkSpec(
+      sheetName: sheet.name,
+      row: r,
+      col: c,
+      url: url,
+      location: location,
+      display: display,
+    ));
+    if (sheet.rawAt(r, c).isEmpty) {
+      _editCells('xp.link', {CellRef(r, c): display!});
+    }
+    _session.changed();
+    _gridVersion++;
+    _partSetState(() {});
+  }
+}
+
+/// İçe aktarma önizlemesi: ayraç, kodlama, başlık + ilk satırlar ve türler.
+class _ImportSheet extends StatefulWidget {
+  const _ImportSheet({required this.bytes});
+
+  final Uint8List bytes;
+
+  @override
+  State<_ImportSheet> createState() => _ImportSheetState();
+}
+
+class _ImportSheetState extends State<_ImportSheet> {
+  String? _delimiter;
+  String _encoding = 'auto';
+  bool _header = true;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = SheetImport.parseText(widget.bytes,
+        ImportOptions(delimiter: _delimiter, encoding: _encoding, header: _header));
+    final types = SheetImport.columnTypes(rows, header: _header);
+    final preview = rows.take(6).toList();
+    String typeLabel(ColumnType t) => context.t('xp.type_${t.name}');
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(context.t('xp.delimiter'), style: context.type.caption),
+          Wrap(spacing: Gap.xs, children: [
+            for (final (v, k) in const [
+              (null, 'xp.delim_auto'),
+              (',', 'xp.delim_comma'),
+              (';', 'xp.delim_semi'),
+              ('\t', 'xp.delim_tab'),
+              ('|', 'xp.delim_pipe'),
+            ])
+              ChoiceChip(
+                label: Text(context.t(k)),
+                selected: _delimiter == v,
+                onSelected: (_) => setState(() => _delimiter = v),
+              ),
+          ]),
+          Text(context.t('xp.encoding'), style: context.type.caption),
+          Wrap(spacing: Gap.xs, children: [
+            for (final (v, k) in const [
+              ('auto', 'xp.delim_auto'),
+              ('utf8', 'xp.enc_utf8'),
+              ('cp1254', 'xp.enc_cp1254'),
+            ])
+              ChoiceChip(
+                label: Text(context.t(k)),
+                selected: _encoding == v,
+                onSelected: (_) => setState(() => _encoding = v),
+              ),
+          ]),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _header,
+            onChanged: (v) => setState(() => _header = v),
+            title: Text(context.t('excel.dup_has_header')),
+          ),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              headingRowHeight: 28,
+              dataRowMinHeight: 24,
+              dataRowMaxHeight: 28,
+              columns: [
+                for (var c = 0; c < types.length; c++)
+                  DataColumn(
+                    label: Text(
+                      '${_header && preview.isNotEmpty && c < preview.first.length ? preview.first[c] : CellRef.colName(c)}\n${typeLabel(types[c])}',
+                      style: context.type.caption,
+                    ),
+                  ),
+              ],
+              rows: [
+                for (final row in preview.skip(_header ? 1 : 0))
+                  DataRow(cells: [
+                    for (var c = 0; c < types.length; c++)
+                      DataCell(Text(c < row.length ? row[c] : '',
+                          style: context.type.small)),
+                  ]),
+              ],
+            ),
+          ),
+          Text(context.t('xp.import_rows', {'n': rows.length}),
+              style: context.type.caption),
+          const SizedBox(height: Gap.sm),
+          FilledButton(
+            key: const ValueKey('xl-import-go'),
+            onPressed: () => Navigator.pop(context, rows),
+            child: Text(context.t('xp.import_go')),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Ara toplam: grup sütunu + toplanacak sütunlar.
+class _SubtotalSheet extends StatefulWidget {
+  const _SubtotalSheet({required this.header});
+
+  final List<String> header;
+
+  @override
+  State<_SubtotalSheet> createState() => _SubtotalSheetState();
+}
+
+class _SubtotalSheetState extends State<_SubtotalSheet> {
+  int _group = 0;
+  late final Set<int> _sum = {widget.header.length - 1};
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            DropdownButtonFormField<int>(
+              initialValue: _group,
+              decoration: InputDecoration(labelText: context.t('xp.subtotal_by')),
+              items: [
+                for (var i = 0; i < widget.header.length; i++)
+                  DropdownMenuItem(value: i, child: Text(widget.header[i])),
+              ],
+              onChanged: (v) => setState(() => _group = v ?? 0),
+            ),
+            const SizedBox(height: Gap.sm),
+            Text(context.t('xp.subtotal_sum'), style: context.type.caption),
+            Wrap(spacing: Gap.xs, children: [
+              for (var i = 0; i < widget.header.length; i++)
+                if (i != _group)
+                  FilterChip(
+                    label: Text(widget.header[i]),
+                    selected: _sum.contains(i),
+                    onSelected: (on) =>
+                        setState(() => on ? _sum.add(i) : _sum.remove(i)),
+                  ),
+            ]),
+            const SizedBox(height: Gap.sm),
+            FilledButton(
+              onPressed: _sum.isEmpty
+                  ? null
+                  : () => Navigator.pop(context,
+                      (_group, (_sum.where((c) => c != _group).toList()..sort()))),
+              child: Text(context.t('xp.subtotal_go')),
+            ),
+          ],
+        ),
+      );
 }
 
 /// Yazdırma ayarları: yön, sayfaya sığdır, başlık yinele, ızgara.

@@ -89,7 +89,9 @@ extension _ParserFunctionsPart on _Parser {
       case 'SUBTOTAL':
         if (args.isEmpty) return const FormulaError('#DEĞER!');
         final code = _numArg(args, 0).round() % 100;
-        final rest = args.sublist(1);
+        // Excel: SUBTOTAL aralıktaki başka SUBTOTAL hücrelerini SAYMAZ
+        // (iç içe ara toplamlar genel toplamda iki kez sayılmasın).
+        final rest = [for (final a in args.sublist(1)) _withoutSubtotals(a)];
         return switch (code) {
           1 => _callFunc('AVERAGE', rest),
           2 => _callFunc('COUNT', rest),
@@ -976,5 +978,27 @@ extension _ParserFunctionsPart on _Parser {
       return const FormulaError('#HESAP!');
     }
     return FormulaArray(out);
+  }
+
+  /// Aralıktaki SUBTOTAL/ARATOPLAM formüllü hücreleri boş sayan dizi.
+  Object _withoutSubtotals(Object a) {
+    if (a is! _RangeValue) return a;
+    var any = false;
+    final rows = <List<Object>>[];
+    for (var r = a.r1; r <= a.r2; r++) {
+      final row = <Object>[];
+      for (var c = a.c1; c <= a.c2; c++) {
+        final raw = eng.rawTextOf(r, c, a.sheet).trimLeft().toUpperCase();
+        if (raw.startsWith('=SUBTOTAL(') || raw.startsWith('=ARATOPLAM(') ||
+            raw.startsWith('=_XLFN.SUBTOTAL(')) {
+          any = true;
+          row.add('');
+        } else {
+          row.add(eng.cellValue(r, c, visiting, a.sheet));
+        }
+      }
+      rows.add(row);
+    }
+    return any ? FormulaArray(rows) : a;
   }
 }

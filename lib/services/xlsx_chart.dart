@@ -765,3 +765,118 @@ abstract final class XlsxTableWriter {
     return sheetXml.replaceRange(end, end, block);
   }
 }
+
+/// Bu oturumda eklenen köprü (Faz 36 madde 8): dış adres ya da sayfa içi
+/// konum (`'Sayfa 2'!A1`).
+class XlsxLinkSpec {
+  final String sheetName;
+  final int row, col;
+  final String? url;
+  final String? location;
+  final String display;
+  const XlsxLinkSpec({
+    required this.sheetName,
+    required this.row,
+    required this.col,
+    this.url,
+    this.location,
+    this.display = '',
+  });
+
+  String get ref => '${XlsxTableSpec._col(col)}${row + 1}';
+}
+
+/// Köprüleri sayfa XML'ine (`<hyperlinks>`) ve dış adresler için sayfa
+/// ilişkilerine (`TargetMode="External"`) yazar.
+abstract final class XlsxLinkWriter {
+  static const _relLink = '${XlsxChartWriter._nsRel}/hyperlink';
+  static const _after = [
+    '<printOptions', '<pageMargins', '<pageSetup', '<headerFooter',
+    '<rowBreaks', '<colBreaks', '<customProperties', '<cellWatches',
+    '<ignoredErrors', '<smartTags', '<drawing', '<legacyDrawing',
+    '<legacyDrawingHF', '<picture', '<oleObjects', '<controls',
+    '<webPublishItems', '<tableParts', '<extLst',
+  ];
+
+  static Uint8List apply(Uint8List xlsx, List<XlsxLinkSpec> links) {
+    if (links.isEmpty) return xlsx;
+    final files = <String, List<int>>{};
+    final order = <String>[];
+    for (final f in ZipDecoder().decodeBytes(xlsx).files) {
+      if (!f.isFile) continue;
+      files[f.name] = f.content as List<int>;
+      order.add(f.name);
+    }
+    String? text(String name) {
+      final d = files[name];
+      return d == null ? null : utf8.decode(d, allowMalformed: true);
+    }
+
+    void put(String name, String value) {
+      if (!files.containsKey(name)) order.add(name);
+      files[name] = utf8.encode(value);
+    }
+
+    final bySheet = <String, List<XlsxLinkSpec>>{};
+    for (final l in links) {
+      (bySheet[l.sheetName] ??= []).add(l);
+    }
+    bySheet.forEach((sheet, items) {
+      final part = XlsxChartWriter._sheetPart(text, sheet);
+      if (part == null) return;
+      var xml = text(part)!;
+      final relsPath = XlsxChartWriter._relsPathOf(part);
+      final rels = XlsxChartWriter._relsDoc(text(relsPath));
+      var relsChanged = false;
+      final tags = StringBuffer();
+      for (final l in items) {
+        // Aynı hücrenin eski köprüsü çıkar (yenisi geçerli).
+        xml = xml.replaceAll(
+            RegExp('<hyperlink\\b[^>]*\\bref="${l.ref}"[^>]*/>'), '');
+        final disp = l.display.isEmpty ? '' : ' display="${XlsxTableWriter._esc(l.display)}"';
+        if (l.url != null) {
+          final rid = XlsxChartWriter._addRel(rels, _relLink, l.url!);
+          for (final r in rels.rootElement.childElements) {
+            if (r.getAttribute('Id') == rid) r.setAttribute('TargetMode', 'External');
+          }
+          relsChanged = true;
+          tags.write('<hyperlink ref="${l.ref}" r:id="$rid"$disp/>');
+        } else if (l.location != null) {
+          tags.write('<hyperlink ref="${l.ref}" '
+              'location="${XlsxTableWriter._esc(l.location!)}"$disp/>');
+        }
+      }
+      if (tags.isEmpty) return;
+      if (!xml.contains('xmlns:r=')) {
+        xml = xml.replaceFirst(RegExp(r'<worksheet\b'),
+            '<worksheet xmlns:r="${XlsxChartWriter._nsRel}"');
+      }
+      final open = RegExp(r'<hyperlinks\b[^>]*>').firstMatch(xml);
+      if (open != null && xml.contains('</hyperlinks>')) {
+        final close = xml.indexOf('</hyperlinks>');
+        xml = xml.replaceRange(close, close, tags.toString());
+      } else {
+        // Boş kalmış `<hyperlinks/>` atılır, yenisi şema sırasında.
+        xml = xml.replaceAll(RegExp(r'<hyperlinks\s*/>'), '');
+        final block = '<hyperlinks>$tags</hyperlinks>';
+        var at = -1;
+        for (final t in _after) {
+          final i = xml.indexOf(t);
+          if (i >= 0 && (at < 0 || i < at)) at = i;
+        }
+        if (at < 0) at = xml.lastIndexOf('</worksheet>');
+        xml = xml.replaceRange(at, at, block);
+      }
+      put(part, xml);
+      if (relsChanged) put(relsPath, rels.toXmlString());
+    });
+
+    final out = Archive();
+    for (final name in order) {
+      final data = files[name];
+      if (data == null) continue;
+      out.addFile(ArchiveFile(name, data.length, data));
+    }
+    return Uint8List.fromList(ZipEncoder().encode(out));
+  }
+}

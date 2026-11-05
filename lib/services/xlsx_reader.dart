@@ -756,6 +756,8 @@ class XlsxReader {
           row.getAttribute('hidden') == 'true') {
         layout.hiddenRows.add(rIdx);
       }
+      final level = int.tryParse(row.getAttribute('outlineLevel') ?? '');
+      if (level != null && level > 0) layout.rowOutline[rIdx] = level;
       final rowStyle = int.tryParse(row.getAttribute('s') ?? '');
       if (rowStyle != null &&
           (row.getAttribute('customFormat') == '1' ||
@@ -957,6 +959,8 @@ class XlsxReader {
         if (ht != null) layout.rowHeights[rIdx] = ht;
         final hidden = _attr(s, from, attrEnd, 'hidden');
         if (hidden == '1' || hidden == 'true') layout.hiddenRows.add(rIdx);
+        final level = int.tryParse(_attr(s, from, attrEnd, 'outlineLevel') ?? '');
+        if (level != null && level > 0) layout.rowOutline[rIdx] = level;
         final rowStyle = int.tryParse(_attr(s, from, attrEnd, 's') ?? '');
         final custom = _attr(s, from, attrEnd, 'customFormat');
         if (rowStyle != null && (custom == '1' || custom == 'true')) {
@@ -1947,6 +1951,15 @@ class XlsxSheetLayout {
 
   /// Mini grafikler (Faz 36): hedef hücre + kaynak aralık.
   final List<XlsxSparkline> sparklines = [];
+
+  /// Satır anahat (gruplama) düzeyi 1–7 (Faz 36 madde 8).
+  final Map<int, int> rowOutline = {};
+
+  /// Anahat bu oturumda değişti — kaydetmede yazılsın.
+  bool outlineEdited = false;
+
+  /// Bu oturumda düzeyi sıfırlanan satırlar (dosyadaki `outlineLevel` silinsin).
+  final Set<int> outlineCleared = {};
   final Map<int, String> hyperlinks = {};
 
   /// Hücre notları (açıklama/yorum) — `cellKey(r, c)` → not.

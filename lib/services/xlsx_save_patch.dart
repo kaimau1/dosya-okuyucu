@@ -71,6 +71,9 @@ class XlsxSheetPatch {
   /// Faz 36: bu oturumda eklenen mini grafikler (`x14:sparklineGroups`).
   final List<XlsxSparklineWrite> sparklines;
 
+  /// Faz 36: satır anahat düzeyleri (satır → 1..7); yalnız düzenlendiyse.
+  final Map<int, int> rowOutline;
+
   /// Faz 27: eklenen veri doğrulamaları ve temizlenen aralıklar (önce
   /// temizleme, sonra ekleme uygulanır).
   final List<XlsxValidationWrite> validations;
@@ -104,6 +107,7 @@ class XlsxSheetPatch {
     this.styleCopies = const {},
     this.condRules = const [],
     this.sparklines = const [],
+    this.rowOutline = const {},
   });
 
   bool get isEmpty =>
@@ -121,6 +125,7 @@ class XlsxSheetPatch {
       styleCopies.isEmpty &&
       condRules.isEmpty &&
       sparklines.isEmpty &&
+      rowOutline.isEmpty &&
       validations.isEmpty &&
       validationClears.isEmpty &&
       !tabColorEdited &&
@@ -488,6 +493,7 @@ class XlsxSavePatch {
     if (_applyNumberFormats(root, patch.numberFormats, styles)) changed = true;
     if (_applyCondRules(root, patch.condRules, styles)) changed = true;
     if (_applySparklines(root, patch.sparklines)) changed = true;
+    if (_applyOutline(root, patch.rowOutline)) changed = true;
     if (_applyValidations(root, patch)) changed = true;
     if (_applyTabColor(root, patch)) changed = true;
 
@@ -1170,6 +1176,50 @@ class XlsxSavePatch {
       changed = true;
     }
     return changed;
+  }
+
+  /// Satır anahat düzeyleri + `sheetFormatPr/@outlineLevelRow` (Excel'in
+  /// gruplama çubuğu bununla görünür).
+  static bool _applyOutline(XmlElement root, Map<int, int> levels) {
+    if (levels.isEmpty) return false;
+    final data = _firstChild(root, 'sheetData');
+    if (data == null) return false;
+    final existing = <int, XmlElement>{};
+    for (final row in data.children.whereType<XmlElement>()) {
+      if (row.name.local != 'row') continue;
+      final r = int.tryParse(row.getAttribute('r') ?? '');
+      if (r != null) existing[r] = row;
+    }
+    var maxLevel = 0;
+    for (final e in levels.entries) {
+      final level = e.value.clamp(0, 7).toInt();
+      if (level > maxLevel) maxLevel = level;
+      final number = e.key + 1;
+      var row = existing[number];
+      if (row == null) {
+        if (level == 0) continue;
+        row = XmlElement(XmlName('row'), [XmlAttribute(XmlName('r'), '$number')]);
+        _insertRowSorted(data, row, number);
+        existing[number] = row;
+      }
+      if (level == 0) {
+        row.removeAttribute('outlineLevel');
+      } else {
+        row.setAttribute('outlineLevel', '$level');
+      }
+    }
+    var fmt = _firstChild(root, 'sheetFormatPr');
+    if (fmt == null) {
+      fmt = XmlElement(XmlName('sheetFormatPr'),
+          [XmlAttribute(XmlName('defaultRowHeight'), '15')]);
+      _insertOrdered(root, fmt);
+    }
+    if (maxLevel > 0) {
+      fmt.setAttribute('outlineLevelRow', '$maxLevel');
+    } else {
+      fmt.removeAttribute('outlineLevelRow');
+    }
+    return true;
   }
 
   static void _insertRowSorted(XmlElement data, XmlElement row, int number) {

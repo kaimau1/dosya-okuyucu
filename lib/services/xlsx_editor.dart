@@ -379,6 +379,47 @@ class XlsxSheet {
     _touched();
   }
 
+  /// Satırları bir düzey içeri gruplar (en çok 7).
+  void groupRows(int from, int to) {
+    for (var r = from; r <= to; r++) {
+      final l = (layout.rowOutline[r] ?? 0) + 1;
+      if (l > 7) continue;
+      layout.rowOutline[r] = l;
+      layout.outlineCleared.remove(r);
+    }
+    layout.outlineEdited = true;
+    _touched();
+  }
+
+  /// Satırları bir düzey dışarı alır.
+  void ungroupRows(int from, int to) {
+    for (var r = from; r <= to; r++) {
+      final l = (layout.rowOutline[r] ?? 0) - 1;
+      if (l <= 0) {
+        if (layout.rowOutline.remove(r) != null) layout.outlineCleared.add(r);
+      } else {
+        layout.rowOutline[r] = l;
+      }
+    }
+    layout.outlineEdited = true;
+    _touched();
+  }
+
+  /// [row] satırını içeren en iç grubun (aynı ya da daha derin düzeyli
+  /// ardışık satırlar) sınırları; grup yoksa null.
+  (int, int)? outlineGroupAt(int row) {
+    final level = layout.rowOutline[row];
+    if (level == null || level == 0) return null;
+    var a = row, b = row;
+    while ((layout.rowOutline[a - 1] ?? 0) >= level) {
+      a--;
+    }
+    while ((layout.rowOutline[b + 1] ?? 0) >= level) {
+      b++;
+    }
+    return (a, b);
+  }
+
   /// (r, c) hücresindeki mini grafik (yoksa null).
   XlsxSparkline? sparklineAt(int r, int c) {
     for (final sp in layout.sparklines) {
@@ -845,6 +886,19 @@ class XlsxEditor {
   /// kalanı). Kaydette başlık metinleri sayfadan okunur ve geçerliyse
   /// `xl/tables/tableN.xml` yazılır.
   final List<XlsxTableSpec> tables = [];
+
+  /// Bu oturumda eklenen köprüler (Faz 36 madde 8).
+  final List<XlsxLinkSpec> links = [];
+
+  /// Hücreye köprü ekler; ekranda hemen görünsün diye düzende de durur.
+  void addLink(XlsxLinkSpec link) {
+    links.removeWhere((l) =>
+        l.sheetName == link.sheetName && l.row == link.row && l.col == link.col);
+    links.add(link);
+    final sheet = sheets.where((s) => s.name == link.sheetName).firstOrNull;
+    sheet?.layout.hyperlinks[cellKey(link.row, link.col)] =
+        link.url ?? link.location ?? '';
+  }
 
   /// Dosyada zaten olan grafikler (salt çizim; kaydetme onları olduğu gibi
   /// taşır). İlk istendiğinde okunur.
@@ -1624,6 +1678,15 @@ class XlsxEditor {
           styleCopies: s.styleCopies,
           condRules: s.condRuleEdits,
           sparklines: s.sparklineEdits,
+          rowOutline: s.layout.outlineEdited
+              ? {
+                  for (final r in {
+                    ...s.layout.rowOutline.keys,
+                    ...s.layout.outlineCleared,
+                  })
+                    r: s.layout.rowOutline[r] ?? 0,
+                }
+              : const {},
           validations: s.validationWrites,
           validationClears: s.validationClears,
           tabColorEdited: s.tabColorEdited,
@@ -1650,6 +1713,9 @@ class XlsxEditor {
                   ? ''
                   : sheet.rawAt(t.top, c),
           ]),
+    ], [
+      for (final l in links)
+        if (hasSheet(l.sheetName)) l,
     ]);
   }
 
@@ -1687,7 +1753,9 @@ class XlsxEditor {
     // Notlar: sayfa XML'ine `<legacyDrawing>` ve yan parçalar ekler.
     final noted = XlsxNotesWriter.apply(charted, job.notes);
     // Tablolar en son: `<tableParts>` sayfanın sonuna (extLst'ten önce).
-    return XlsxTableWriter.apply(noted, job.tables);
+    final tabled = XlsxTableWriter.apply(noted, job.tables);
+    // Köprüler en son (Faz 36): sayfa XML'i + dış adres ilişkileri.
+    return XlsxLinkWriter.apply(tabled, job.links);
   }
 
   static bool _isEmptyRow(XlsxSheet sheet, int r) {
@@ -1757,6 +1825,7 @@ class _XlsxSaveJob {
   final List<XlsxChartSpec> charts;
   final List<XlsxNoteEdits> notes;
   final List<XlsxTableSpec> tables;
+  final List<XlsxLinkSpec> links;
   const _XlsxSaveJob(this.source, this.sheets, this.patches, this.charts,
-      this.notes, this.tables);
+      this.notes, this.tables, [this.links = const []]);
 }
