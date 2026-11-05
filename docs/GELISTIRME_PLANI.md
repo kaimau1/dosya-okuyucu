@@ -184,7 +184,7 @@ yalnız görünür slayt tam çizilir, sunum kipinde sonraki slayt önceden rast
 - [x] 2. Kalıcı karartma (redaction) — metin+görüntüyü gerçekten siler, doğrulama testi.
    (`pdf_redact.dart` + `pdf_raster.dart` + `pdf_region_screen.dart`; `test/pdf_redact_test.dart`.)
 - [x] 3. Tablo çıkarma → Excel; sayfa metnini Word'e (düzen korunarak); PDF/A dışa aktarım.
-   (`pdf_export_pro.dart`; PDF/A-2b `PdfRedact.apply(conformance:)` şablon ya da görüntü kipi.)
+   (`pdf_export_pro.dart`; PDF/A-2b `PdfRedact.apply(conformance:)` görüntü + görünmez metin kipi.)
 - [x] 4. İki PDF karşılaştırma (görsel fark + metin farkı).
    (`pdf_compare.dart` + `pdf_compare_screen.dart`.)
 - [x] 5. Parola/izin düzenleme, yer imi düzenleme, damga/filigran şablonları, numaralandırma.

@@ -93,17 +93,11 @@ const Map<String, (String, String, String)> _t22 = {
   ),
   'pp.pdfa': ('PDF/A olarak kaydet', 'Save as PDF/A', 'حفظ كـ PDF/A'),
   'pp.pdfa_sub': ('Uzun süreli arşiv (PDF/A-2b)', 'Long-term archive (PDF/A-2b)', 'أرشيف طويل الأمد (PDF/A-2b)'),
-  'pp.pdfa_vector': ('Metin ve çizimler korunsun', 'Keep text and vectors', 'الحفاظ على النص والرسوم'),
-  'pp.pdfa_vector_sub': (
-    'Küçük dosya; kaynakta gömülmemiş yazı tipi varsa tam uyum garanti değil',
-    'Small file; full compliance not guaranteed if the source has non-embedded fonts',
-    'ملف صغير؛ لا يُضمن التوافق الكامل إن وُجدت خطوط غير مضمّنة',
-  ),
   'pp.pdfa_image': ('Görüntü + aranabilir metin', 'Image + searchable text', 'صورة + نص قابل للبحث'),
   'pp.pdfa_image_sub': (
-    'Her sayfa görüntü olur; uyum en güvenli, dosya büyür',
-    'Each page becomes an image; safest compliance, larger file',
-    'تصبح كل صفحة صورة؛ أكثر توافقًا وأكبر حجمًا',
+    'Her sayfa görüntü + aranabilir metin olur (PDF/A-2b); dosya büyüyebilir, bağlantı ve formlar taşınmaz.',
+    'Each page becomes an image + searchable text (PDF/A-2b); the file may grow, links and forms are not kept.',
+    'تصبح كل صفحة صورة + نصًا قابلاً للبحث (PDF/A-2b)؛ قد يكبر الملف ولا تُنقل الروابط والنماذج.',
   ),
   'pp.too_many_pages': (
     'En çok {n} sayfa — önce sayfa seç ya da böl',

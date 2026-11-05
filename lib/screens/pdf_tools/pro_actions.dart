@@ -302,45 +302,31 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
     });
   }
 
-  /// PDF/A-2b: şablon kipi (metin/vektör korunur) ya da görüntü kipi (tam
-  /// gömülü; kaynağın gömülmeyen yazı tipleri sorun olmaz).
+  /// PDF/A-2b — her sayfa görüntü + görünmez (gömülü TrueType) metin.
+  /// Şablon (vektör) kipi YOK: Syncfusion PDF/A belgesine yüklü sayfa
+  /// şablonu çizemiyor (boş işaretçi, `pdf_export_pro_test`); görüntü kipi
+  /// kaynağın gömülmemiş yazı tiplerinden de etkilenmez.
   Future<void> _exportPdfA() async {
-    final mode = await showAppSheet<bool>(
-      context,
-      title: context.t('pp.pdfa'),
-      builder: (ctx) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            leading: const Icon(AppIcons.pdfArchive),
-            title: Text(ctx.t('pp.pdfa_vector')),
-            subtitle: Text(ctx.t('pp.pdfa_vector_sub')),
-            onTap: () => Navigator.pop(ctx, false),
-          ),
-          ListTile(
-            leading: const Icon(AppIcons.image),
-            title: Text(ctx.t('pp.pdfa_image')),
-            subtitle: Text(ctx.t('pp.pdfa_image_sub')),
-            onTap: () => Navigator.pop(ctx, true),
-          ),
-        ],
-      ),
-    );
-    if (mode == null || !mounted) return;
-    final bytes = _bytes!;
-    final pw = _password;
     final total = await _pageCount();
-    if (mode && total > _rasterPageLimit) {
+    if (!mounted) return;
+    if (total > _rasterPageLimit) {
       _snack(_str.t('pp.too_many_pages', {'n': _rasterPageLimit}));
       return;
     }
+    final ok = await showAppConfirm(
+      context,
+      title: context.t('pp.pdfa'),
+      message: context.t('pp.pdfa_image_sub'),
+      confirmLabel: context.t('common.save'),
+    );
+    if (!ok || !mounted) return;
+    final bytes = _bytes!;
+    final pw = _password;
     final font = await _unicodeFont();
     await _produce(_str.t('pp.pdfa'), () async {
-      final rasters = mode
-          ? await PdfRaster.renderJpegs(
-              bytes, List<int>.generate(total, (i) => i),
-              password: pw, dpi: 150, quality: 82)
-          : const <RasterPage>[];
+      final rasters = await PdfRaster.renderJpegs(
+          bytes, List<int>.generate(total, (i) => i),
+          password: pw, dpi: 150, quality: 82);
       final out = await PdfRedact.applyInBackground(
         bytes,
         rects: const {},

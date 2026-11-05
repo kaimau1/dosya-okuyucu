@@ -68,8 +68,10 @@ void main() {
 
   test('elle çizilen kutu: değen sözcük düşer', () async {
     final bytes = await _doc();
+    // Yeni belgede `drawString` kutuları 40 pt kenar boşluklu istemci
+    // alanına göredir; karartma kutusu SAYFA puntosunda (+40).
     final rects = {
-      0: [const Rect.fromLTWH(15, 115, 200, 30)],
+      0: [const Rect.fromLTWH(55, 155, 200, 30)],
     };
     final out = await PdfRedact.apply(bytes,
         rects: rects, rasters: [RedactedRaster(0, _whiteJpeg())]);

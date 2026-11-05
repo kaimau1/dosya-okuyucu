@@ -113,8 +113,11 @@ abstract final class PdfDocPro {
         final level = item.level.clamp(0, stack.length - 1).toInt();
         stack.removeRange(level + 1, stack.length);
         final page = doc.pages[item.page.clamp(0, doc.pages.count - 1).toInt()];
-        final b = stack.last.add(item.title.trim().isEmpty ? '—' : item.title.trim(),
-            destination: PdfDestination(page, Offset.zero));
+        // `add(destination:)` parametresi Syncfusion 33.2'de YOK SAYILIYOR
+        // (ölçüldü: okununca hep 1. sayfa) → ayarlayıcıyla verilir.
+        final b = stack.last
+            .add(item.title.trim().isEmpty ? '—' : item.title.trim())
+          ..destination = PdfDestination(page, Offset.zero);
         stack.add(b);
       }
       return await doc.save();

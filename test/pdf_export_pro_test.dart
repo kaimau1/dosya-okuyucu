@@ -5,6 +5,7 @@ import 'package:archive/archive.dart';
 import 'package:dosya_okuyucu/services/pdf_export_pro.dart';
 import 'package:dosya_okuyucu/services/pdf_redact.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as imglib;
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 /// Faz 39 madde 3 — PDF → Excel (tablo), Word (düzen), PDF/A.
@@ -69,9 +70,13 @@ void main() {
 
   test('PDF/A-2b: uyum düzeyi meta verisi yazılır, sayfa sayısı korunur',
       () async {
+    // PDF/A belgesine şablon çizilemiyor (Syncfusion boş işaretçi) →
+    // yalnız görüntü + görünmez metin kipi.
+    final white = imglib.encodeJpg(
+        imglib.Image(width: 60, height: 80)..clear(imglib.ColorRgb8(255, 255, 255)));
     final out = await PdfRedact.apply(await _tableDoc(),
         rects: const {},
-        rasters: const [],
+        rasters: [RedactedRaster(0, white)],
         conformance: PdfConformanceLevel.a2b);
     final text = latin1.decode(out);
     expect(text, contains('pdfaid:part'));

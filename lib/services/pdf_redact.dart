@@ -138,6 +138,10 @@ abstract final class PdfRedact {
           ..pageSettings = (PdfPageSettings(t.size)..margins.all = 0);
         final g = section.pages.add().graphics;
         final jpeg = byIndex[i];
+        if (jpeg == null && conformance != null) {
+          // Syncfusion PDF/A belgesine yüklü sayfa şablonu çizemiyor.
+          throw PdfToolsException('PDF/A: sayfa ${i + 1} görüntüsü eksik');
+        }
         if (jpeg == null) {
           if (t.angle != 0) {
             g.translateTransform(t.translate.dx, t.translate.dy);

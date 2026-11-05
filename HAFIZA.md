@@ -315,3 +315,4 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Tuzak:** `PdfGraphics`'te `scaleTransform` yok → sığdırmada şablon `drawPdfTemplate(size: page.size*scale)` ile çizilir, döndürme ötelemesi aynı ölçekle çarpılır.
 - Okuma: `kPdfBookLayout = 3` (`_pdfColumns`), kaydırma kilidi = `panAxis: vertical` + `scaleEnabled: false`, sepya `ColorFilter.matrix`. Doldurma profili cihazda (`pdf_autofill_profile`), kimlik no BİLİNÇLİ yok (KVKK).
 - Perf A/B: bekliyor (`docs/perf/2026-11-05-faz39.md`), cihaz listesi `CIHAZ_TESTI.md` Faz 39.
+- **Tuzak (Faz 39 CI):** Syncfusion 33.2 `PdfBookmarkBase.add(destination:)` parametreyi YOK SAYIYOR → `..destination =` ayarlayıcısı. PDF/A belgesine `drawPdfTemplate` boş işaretçi atıyor → PDF/A yalnız görüntü + görünmez metin. Yeni `PdfDocument`te `drawString` kutusu 40 pt kenar boşluklu istemci alanına göre; çıkarılan metin kutusu SAYFA koordinatında.
