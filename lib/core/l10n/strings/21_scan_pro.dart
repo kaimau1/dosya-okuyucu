@@ -45,4 +45,7 @@ const Map<String, (String, String, String)> _t21 = {
   'sa.expense_do': ('Gider ekle', 'Add expense', 'إضافة مصروف'),
   'sa.expense_none': ('Fişte tarih ya da tutar bulunamadı', 'No date or amount found on the receipt', 'لم يُعثر على تاريخ أو مبلغ في الإيصال'),
   'sa.expense_done': ('Giderler.csv dosyasına eklendi', 'Added to Giderler.csv', 'أُضيف إلى Giderler.csv'),
+  'sq.blurry': ('Sayfa bulanık görünüyor — yeniden çekmeniz önerilir', 'The page looks blurry — retaking is recommended', 'تبدو الصفحة ضبابية — يُنصح بإعادة الالتقاط'),
+  'sq.dark': ('Işık az — feneri açıp yeniden çekin', 'Low light — turn on the flash and retake', 'الإضاءة منخفضة — شغّل الفلاش وأعد الالتقاط'),
+  'sq.skewed': ('Sayfa eğik görünüyor', 'The page looks tilted', 'تبدو الصفحة مائلة'),
 };

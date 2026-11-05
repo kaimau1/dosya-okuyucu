@@ -14,6 +14,7 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
       _dirty = true;
     });
     _scheduleSave();
+    unawaited(_measureVisible());
   }
 
   void _scheduleSave() {

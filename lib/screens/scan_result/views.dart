@@ -121,7 +121,10 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
         PageView.builder(
           controller: _pager,
           itemCount: _pages.length,
-          onPageChanged: (i) => _partSetState(() => _index = i),
+          onPageChanged: (i) {
+            _partSetState(() => _index = i);
+            unawaited(_measureVisible());
+          },
           itemBuilder: (_, i) => InteractiveViewer(
             minScale: 1,
             maxScale: 5,
@@ -196,6 +199,13 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
             ),
           ),
         ),
+        if (_qualityHint != null)
+          Positioned(
+            left: Gap.md,
+            right: Gap.md,
+            top: Gap.xs,
+            child: _qualityBanner(context, _qualityHint!),
+          ),
         if (_work != null)
           Positioned.fill(
             child: ColoredBox(
@@ -258,6 +268,53 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
               tooltip: context.t('common.close'),
               icon: const Icon(AppIcons.close, size: 18),
               onPressed: () => _partSetState(() => _actionDismissed = true),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Görünen sayfanın kalite önerisi (bulanık / karanlık / eğik) — kullanıcı
+  /// kapattıysa ya da ölçüm yoksa null.
+  String? get _qualityHint {
+    if (_pages.isEmpty || _busy) return null;
+    final path = _pages[_index].display;
+    if (_qualityDismissed.contains(path)) return null;
+    return _quality[path]?.hint;
+  }
+
+  /// "Sayfa bulanık → Yeniden çek", "Işık az → Feneri açıp yeniden çek",
+  /// "Sayfa eğik → Düzleştir" (Faz 35 / madde 5).
+  Widget _qualityBanner(BuildContext context, String hint) {
+    final scheme = Theme.of(context).colorScheme;
+    final path = _pages[_index].display;
+    final (icon, text, actionKey, action) = switch (hint) {
+      'dark' => (AppIcons.lightbulbOutline, 'sq.dark', 'ss.tool_retake', _retake),
+      'skewed' => (AppIcons.straighten, 'sq.skewed', 'sr.straighten', _straighten),
+      _ => (AppIcons.warning, 'sq.blurry', 'ss.tool_retake', _retake),
+    };
+    return Material(
+      color: scheme.tertiaryContainer,
+      elevation: 2,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(Gap.sm, 2, 2, 2),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: scheme.onTertiaryContainer),
+            const SizedBox(width: Gap.sm),
+            Expanded(
+              child: Text(context.t(text),
+                  style: context.type.small
+                      .copyWith(color: scheme.onTertiaryContainer)),
+            ),
+            TextButton(onPressed: action, child: Text(context.t(actionKey))),
+            IconButton(
+              tooltip: context.t('common.close'),
+              icon: const Icon(AppIcons.close, size: 16),
+              onPressed: () =>
+                  _partSetState(() => _qualityDismissed.add(path)),
             ),
           ],
         ),

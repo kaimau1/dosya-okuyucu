@@ -28,6 +28,7 @@ import '../services/scan_dewarp.dart';
 import '../services/scan_enhance.dart';
 import '../services/scan_export.dart';
 import '../services/scan_actions.dart';
+import '../services/scan_quality.dart';
 import '../services/fm/job_queue.dart' show FmJobTarget;
 import '../services/fm/tracked_task.dart';
 import '../services/scan_kind.dart';
@@ -166,6 +167,12 @@ class _ScanResultScreenState extends State<ScanResultScreen>
   /// Seçili belge türü (Faz 35 / madde 1): filtre ve PDF sayfa düzeni.
   ScanKind _kind = ScanKind.document;
 
+  /// Sayfa kalite ölçümleri (Faz 35 / madde 5), görünen görselin yoluna
+  /// göre. Yalnız görünen sayfa, sırayla, izolatta ölçülür.
+  final Map<String, ScanQualityReport?> _quality = {};
+  bool _measuring = false;
+  final Set<String> _qualityDismissed = {};
+
   /// O an sürmekte olan sayfa işi ("Kırpılıyor…"); null = boşta.
   String? _work;
 
@@ -195,6 +202,24 @@ class _ScanResultScreenState extends State<ScanResultScreen>
       final guess = classifyDocumentText(text);
       if (guess.isConfident) _classGuess = guess;
     }
+    unawaited(_measureVisible());
+  }
+
+  /// Görünen sayfanın kalitesini (bir kez) ölçer; bitince sayfa değiştiyse
+  /// yenisini ölçer. Dosyası olmayan (test/silinmiş) sayfa atlanır.
+  Future<void> _measureVisible() async {
+    if (_measuring || _pages.isEmpty) return;
+    final path = _pages[_index.clamp(0, _pages.length - 1)].display;
+    if (_quality.containsKey(path) || !File(path).existsSync()) return;
+    _measuring = true;
+    try {
+      final report = await ScanQualityCheck.measure(path);
+      if (!mounted) return;
+      setState(() => _quality[path] = report);
+    } finally {
+      _measuring = false;
+    }
+    if (mounted) unawaited(_measureVisible());
   }
 
   /// Tarama sonrası tür tahmini (yalnız güvenliyse); kullanıcı kapatınca null.
