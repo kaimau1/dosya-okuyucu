@@ -18,7 +18,15 @@ abstract final class FsEvents {
 
   /// [paths] verilirse (değişen dosyaların eski ve yeni yolları) Android 10
   /// ve öncesinde galeriye de bildirilir — bkz. [MediaScan].
-  static void changed([Iterable<String> paths = const []]) {
+  /// Bu sürüm numaralı değişikliği arama dizini ZATEN işledi mi (Faz 41 /
+  /// 8 perf: artımlı dizin)? İşlediyse dizin "bayat" sayılmaz, tam yeniden
+  /// kurulum gerekmez.
+  static int indexedVersion = -1;
+
+  /// [indexed]: çağıran değişikliği arama dizinine kendisi yazdı
+  /// (`SearchIndex.applyChanges`).
+  static void changed([Iterable<String> paths = const [], bool indexed = false]) {
+    if (indexed) indexedVersion = version.value + 1;
     version.value = version.value + 1;
     MediaScan.request(paths);
   }

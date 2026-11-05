@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../services/fm/file_tags.dart';
+import '../../services/fm/fm_colors_store.dart';
+import 'label_color_sheet.dart';
 
 /// **Etiketle** sayfası: seçili dosyalara kişi/grup etiketi verir.
 ///
@@ -36,6 +38,14 @@ class _TagSheetState extends State<_TagSheet> {
   bool _changed = false;
 
   @override
+  void initState() {
+    super.initState();
+    FmColorsStore.ensureLoaded().then((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
@@ -66,6 +76,17 @@ class _TagSheetState extends State<_TagSheet> {
     await FileTags.add(widget.paths, name);
     _controller.clear();
     if (mounted) setState(() => _changed = true);
+  }
+
+  Future<void> _pickColor(String tag) async {
+    await FmColorsStore.ensureLoaded();
+    if (!mounted) return;
+    final pick = await showLabelColorSheet(context,
+        title: context.t('lcol.tag', {'tag': tag}),
+        current: FmColorsStore.tagIndex(tag));
+    if (pick == null) return;
+    await FmColorsStore.setTag(tag, pick.index);
+    if (mounted) setState(() {});
   }
 
   Future<void> _toggle(String tag, bool add) async {
@@ -145,12 +166,23 @@ class _TagSheetState extends State<_TagSheet> {
                         runSpacing: Gap.xs,
                         children: [
                           for (final tag in all)
-                            FilterChip(
-                              label: Text(partial.contains(tag)
-                                  ? context.t('tp.partial', {'tag': tag})
-                                  : tag),
-                              selected: common.contains(tag),
-                              onSelected: (v) => _toggle(tag, v),
+                            // Faz 41 / 6: uzun bas → etiket rengi.
+                            GestureDetector(
+                              key: ValueKey('tag-chip-$tag'),
+                              onLongPress: () => _pickColor(tag),
+                              child: FilterChip(
+                                avatar: FmColorsStore.tagColor(tag) == null
+                                    ? null
+                                    : CircleAvatar(
+                                        radius: 6,
+                                        backgroundColor:
+                                            FmColorsStore.tagColor(tag)),
+                                label: Text(partial.contains(tag)
+                                    ? context.t('tp.partial', {'tag': tag})
+                                    : tag),
+                                selected: common.contains(tag),
+                                onSelected: (v) => _toggle(tag, v),
+                              ),
                             ),
                         ],
                       ),

@@ -69,6 +69,16 @@ extension _NearbyLinks on _NearbyScreenState {
     try {
       final server = QrShareServer([..._selection],
           senderName: _deviceName,
+          ttl: _linkTtl,
+          maxDownloads: _linkOnce ? _selection.length : null,
+          onExpired: () {
+            if (mounted) {
+              _update(() {
+                _web = null;
+                _linkExpired = true;
+              });
+            }
+          },
           onActivity: TransferKeeper.instance.onActivity,
           thumbnail: TransferThumbs.of,
           onServed: (name) {
@@ -95,6 +105,7 @@ extension _NearbyLinks on _NearbyScreenState {
         _web = server;
         _webHost = host;
         _webError = null;
+        _linkExpired = false;
       });
       // Ortak Wi-Fi yoksa hotspot tek yol — sormadan kurulur.
       if (host == null && _hotspot == null) await _startHotspot();

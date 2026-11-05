@@ -77,6 +77,20 @@ extension _BrowserScreenViewsPart on _BrowserScreenState {
           ),
           DocMoreItem(AppIcons.selectAll, context.t('fm.select_all'),
               _toggleSelectAll),
+          // Faz 41 / 6: klasör rengi (gezginde ve listelerde klasör gövdesi).
+          DocMoreItem(AppIcons.palette, context.t('lcol.folder'), () async {
+            await FmColorsStore.ensureLoaded();
+            if (!context.mounted) return;
+            final pick = await showLabelColorSheet(context,
+                title: context.t('lcol.folder'),
+                current: FmColorsStore.folderIndex(widget.path));
+            if (pick == null) return;
+            await FmColorsStore.setFolder(widget.path, pick.index);
+            _load();
+          }),
+          if (appState.bookmarks.length >= 2)
+            DocMoreItem(AppIcons.sort, context.t('fav.reorder'),
+                () => unawaited(showFavoritesOrderSheet(context))),
         ]),
         DocMoreGroup(context.t('fm.other'), [
           DocMoreItem(AppIcons.organize, context.t('fm.auto_organize'),
@@ -91,6 +105,12 @@ extension _BrowserScreenViewsPart on _BrowserScreenState {
           DocMoreItem(AppIcons.exportList, context.t('fm.export_list'),
               () => unawaited(_exportListing())),
           DocMoreItem(AppIcons.refresh, context.t('common.refresh'), _load),
+          // Faz 41 / 1 (A7.1): bu klasör solda, ikinci bölme aynı yerden.
+          DocMoreItem(AppIcons.viewColumn, context.t('dp.title'), () {
+            Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) =>
+                    DualPaneScreen(left: widget.path, right: widget.path)));
+          }),
         ]),
       ],
       header: Row(

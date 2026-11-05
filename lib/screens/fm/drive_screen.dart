@@ -12,6 +12,7 @@ import '../../models/fs_entry.dart' show FmCategory, FmCategoryLabel;
 import '../../services/file_service.dart';
 import '../../services/fm/app_signature.dart';
 import '../../services/fm/drive_cache.dart';
+import '../../services/fm/drive_offline.dart';
 import '../../services/fm/drive_service.dart';
 import '../../services/fm/job_queue.dart' show FmJobTarget;
 import '../../services/fm/tracked_task.dart';

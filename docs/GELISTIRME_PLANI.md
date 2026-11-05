@@ -274,16 +274,16 @@ yazı ölçeği ön ayarları. 9. [x] Dil: TR/EN/AR (RTL bekçisi korunur) eksik
 **Perf:** hiçbir ortak bileşen `saveLayer`/geniş blur eklemez; token bekçisi ve hareket bekçisi
 yeşil; ortak bileşen değişince pano boşta-kare ve kaydırma ölçümü yenilenir.
 
-## Faz 41 — Dosya yöneticisi ve bulut
-1. Çift bölme (A7.1), SD kart SAF yazma (A7.2), toplu yeniden adlandırma şablonları.
-2. Drive: çevrimdışı kopya, çakışma çözümü, OneDrive/Dropbox (hesap kararı 👤).
-3. Arama: içerik içi arama (OCR dahil) dizini, kayıtlı aramalar, akıllı klasörler.
-4. Paylaşım: kısa ömürlü bağlantı (yerel ağ), QR ile aktar (var) → toplu.
+## Faz 41 — Dosya yöneticisi ve bulut — BİTTİ (2026-11-05; cihaz turu + perf A/B bekliyor)
+1. [x] Çift bölme (A7.1), SD kart SAF yazma (A7.2), toplu yeniden adlandırma şablonları.
+2. [x] Drive: çevrimdışı kopya, çakışma çözümü, OneDrive/Dropbox (hesap kararı 👤 — uygulama kaydı/istemci kimliği kullanıcıda; KALANLAR Faz B "B-bulut").
+3. [x] Arama: içerik içi arama (OCR dahil) dizini, kayıtlı aramalar, akıllı klasörler.
+4. [x] Paylaşım: kısa ömürlü bağlantı (yerel ağ), QR ile aktar (var) → toplu.
 **Ölçüt:** 50 bin dosyada arama < 1 sn (dizinli).
 
-**Ek:** 5. Çöp kutusu/kasa/yinelenenler/büyük dosya temizleyici akıllı öneriler (var olan
-Yer aç sekmesi); 6. Etiket + renk + favori klasör; 7. Arşiv: 7z/rar okuma, parola, bölünmüş zip;
-8. Yerel ağ: SMB/FTP/WebDAV istemci. **Perf:** dizin (indeks) **artımlı** ve olay güdümlü,
+**Ek:** 5. [x] Çöp kutusu/kasa/yinelenenler/büyük dosya temizleyici akıllı öneriler (var olan
+Yer aç sekmesi); 6. [x] Etiket + renk + favori klasör; 7. [x] Arşiv: 7z/rar okuma, parola, bölünmüş zip;
+8. [x] Yerel ağ: SMB/FTP/WebDAV istemci. **Perf:** dizin (indeks) **artımlı** ve olay güdümlü,
 arka planda düşük öncelik, pil tasarrufunda duraklar; `fs_sort_perf_test` ve gezgin liste önbelleği
 (P8/G13) korunur; küçük resim üretimi eşzamanlılığı `PerfBudget`te.
 

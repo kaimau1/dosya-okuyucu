@@ -598,14 +598,30 @@ Future<bool> zipEntries(
           : context.t('fm.encrypting'),
       name: context.t('fm.zipping_name'),
       cancellable: false,
-      task: (report, _) => ArchiveOps.compress(
-        paths,
-        destDir,
-        format: options.format,
-        password: options.password,
-        hideNames: options.hideNames,
-        onProgress: report,
-      ),
+      task: (report, _) async {
+        final vol = options.volumeBytes;
+        if (vol == null) {
+          return ArchiveOps.compress(
+            paths,
+            destDir,
+            format: options.format,
+            password: options.password,
+            hideNames: options.hideNames,
+            onProgress: report,
+          );
+        }
+        // Faz 41 / 7: bölünmüş arşiv — ilk cildin yolu gösterilir.
+        final parts = await ArchiveOps.compressSplit(
+          paths,
+          destDir,
+          volumeBytes: vol,
+          format: options.format,
+          password: options.password,
+          hideNames: options.hideNames,
+          onProgress: report,
+        );
+        return parts.first;
+      },
     );
     if (context.mounted) {
       _snack(context,

@@ -258,6 +258,8 @@ extension _DriveScreenViewsPart on _DriveScreenState {
         ),
       );
     }
+    // Çevrimdışı sabitlenenler (Faz 41 / 2) — liste başına bir kez okunur.
+    final pins = DriveOffline.pins(DriveCache.rootOf(FmEnv.appSupportDir));
     return RefreshIndicator(
       onRefresh: _refresh,
       child: ListView.separated(
@@ -277,6 +279,14 @@ extension _DriveScreenViewsPart on _DriveScreenState {
                   child: Text(f.name,
                       maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
+                if (pins.contains(f.id))
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(start: 4),
+                    child: Icon(AppIcons.cloudDone,
+                        size: 16,
+                        semanticLabel: context.t('dro.pinned_label'),
+                        color: Theme.of(context).colorScheme.primary),
+                  ),
               ],
             ),
             subtitle: Text(_subtitle(f),
@@ -289,6 +299,7 @@ extension _DriveScreenViewsPart on _DriveScreenState {
                 'copy' => _clipSet(f, cut: false),
                 'cut' => _clipSet(f, cut: true),
                 'star' => _toggleStar(f),
+                'offline' => _toggleOffline(f),
                 'info' => _info(f),
                 'rename' => _rename(f),
                 'delete' => _delete(f),
@@ -325,6 +336,13 @@ extension _DriveScreenViewsPart on _DriveScreenState {
                   PopupMenuItem(
                     value: 'cut',
                     child: Text(context.t('fm.move')),
+                  ),
+                if (!f.isFolder)
+                  PopupMenuItem(
+                    value: 'offline',
+                    child: Text(context.t(pins.contains(f.id)
+                        ? 'dro.unpin'
+                        : 'dro.pin')),
                   ),
                 PopupMenuItem(
                   value: 'star',

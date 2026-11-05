@@ -254,10 +254,112 @@ extension _DriveScreenActionsPart on _DriveScreenState {
   /// adlı/yüzdeli pencereyle indirir. Hata kullanıcıya bildirilir, null döner.
   Future<File?> _localCopy(DriveFile file) async {
     final root = DriveCache.rootOf(FmEnv.appSupportDir);
+    // Faz 41 / 2: telefondaki kopya düzenlendiyse ya da iki taraf da
+    // değiştiyse önce kullanıcıya sorulur (sessizce ezilmez).
+    final state = DriveOffline.stateOf(file, root);
+    if (state == DriveSyncState.localChanged ||
+        state == DriveSyncState.conflict) {
+      final keepLocal = await _resolveSync(file, root, state!);
+      if (keepLocal != null) return keepLocal;
+    }
     final cached = DriveCache.freshFile(file, root);
     if (cached != null) return cached;
     final local = await _downloadTo(file, DriveCache.dirFor(file, root));
-    if (local != null) DriveCache.prune(root);
+    if (local != null) {
+      DriveOffline.recordBase(file, root);
+      DriveCache.prune(root, keep: DriveOffline.pins(root));
+    }
+    return local;
+  }
+
+  /// "Çevrimdışı kullan" aç/kapat (Faz 41 / 2): açarken kopya iner ve
+  /// önbellek budamasından korunur.
+  Future<void> _toggleOffline(DriveFile file) async {
+    final root = DriveCache.rootOf(FmEnv.appSupportDir);
+    final on = !DriveOffline.pins(root).contains(file.id);
+    final messenger = ScaffoldMessenger.of(context);
+    final strings = AppStrings.of(context);
+    if (on && await _localCopy(file) == null) return;
+    DriveOffline.setPinned(root, file.id, on);
+    if (mounted) _partSetState(() {});
+    showSnackOn(messenger,
+        strings.t(on ? 'dro.pinned' : 'dro.unpinned', {'name': file.name}));
+  }
+
+  /// Telefondaki kopya değişti (ya da iki taraf da): Drive'a yükle / ikisini
+  /// de tut / Drive sürümünü al. Yerel kopya kullanılacaksa onu döndürür;
+  /// Drive sürümü istenirse null (çağıran yeniden indirir).
+  Future<File?> _resolveSync(
+      DriveFile file, String root, DriveSyncState state) async {
+    final local = File(DriveCache.pathFor(file, root));
+    final choice = await showAppSheet<DriveConflictChoice>(
+      context,
+      title: context.t(state == DriveSyncState.conflict
+          ? 'dro.conflict_title'
+          : 'dro.local_title'),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Text(ctx.t(state == DriveSyncState.conflict
+                ? 'dro.conflict_body'
+                : 'dro.local_body', {'name': file.name})),
+          ),
+          ListTile(
+            key: const ValueKey('dro-use-phone'),
+            leading: const Icon(AppIcons.upload),
+            title: Text(ctx.t('dro.use_phone')),
+            onTap: () => Navigator.pop(ctx, DriveConflictChoice.usePhone),
+          ),
+          ListTile(
+            key: const ValueKey('dro-keep-both'),
+            leading: const Icon(AppIcons.copy),
+            title: Text(ctx.t('dro.keep_both')),
+            onTap: () => Navigator.pop(ctx, DriveConflictChoice.keepBoth),
+          ),
+          ListTile(
+            key: const ValueKey('dro-use-drive'),
+            leading: const Icon(AppIcons.download),
+            title: Text(ctx.t('dro.use_drive')),
+            onTap: () => Navigator.pop(ctx, DriveConflictChoice.useDrive),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || choice == null) return local;
+    final messenger = ScaffoldMessenger.of(context);
+    final strings = AppStrings.of(context);
+    try {
+      switch (choice) {
+        case DriveConflictChoice.usePhone:
+          final up = await _drive.update(file.id, local, name: file.name);
+          DriveOffline.recordBase(up, root);
+        case DriveConflictChoice.keepBoth:
+          await _drive.upload(local,
+              name: DriveOffline.keepBothName(
+                  file.name, strings.t('dro.phone_suffix')),
+              parentId: _current.$1);
+          // Drive sürümü taban olur; telefondaki kopya yeni adla yüklendi.
+          try {
+            Directory(DriveCache.dirFor(file, root)).deleteSync(recursive: true);
+          } catch (_) {
+            // Bilinçli: silinemeyen eski kopya sonraki budamada gider.
+          }
+          if (mounted) unawaited(_refresh());
+          return null;
+        case DriveConflictChoice.useDrive:
+          try {
+            Directory(DriveCache.dirFor(file, root)).deleteSync(recursive: true);
+          } catch (_) {
+            // Bilinçli: silinemeyen eski kopya sonraki budamada gider.
+          }
+          return null;
+      }
+      showSnackOn(messenger, strings.t('dro.uploaded', {'name': file.name}));
+    } catch (e) {
+      showSnackOn(messenger, strings.t('dro.sync_failed'));
+    }
     return local;
   }
 

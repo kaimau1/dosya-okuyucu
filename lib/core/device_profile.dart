@@ -97,6 +97,20 @@ class PerfBudget {
         DeviceTier.high => 300,
       };
 
+  /// İçerik dizininde dosya başına saklanan en çok karakter (Faz 41 / 3).
+  int get contentIndexCharsPerFile => isLight ? 16 << 10 : 48 << 10;
+
+  /// İçerik dizininin toplam karakter tavanı (bellek + disk).
+  int get contentIndexTotalChars => switch (tier) {
+        DeviceTier.low => 12 << 20,
+        DeviceTier.mid => 32 << 20,
+        DeviceTier.high => 64 << 20,
+      };
+
+  /// Görsellerin OCR metni dizine girsin mi (varsayılan; hafifte kapalı —
+  /// ML Kit tanıma ağır).
+  bool get contentIndexOcrDefault => !isLight;
+
   /// Aynı anda çözülen video/PDF küçük resmi (yerel kanal işleri).
   int get thumbConcurrency => isLight ? 1 : 2;
 
@@ -142,6 +156,16 @@ abstract final class DeviceProfile {
   static DeviceTier get detected => _detected;
   static PerfMode get mode => _mode;
   static PerfBudget get budget => PerfBudget(tier.value);
+
+  /// Pil tasarrufu açık mı? (Faz 41 / 3: arka plan dizinleme durur.)
+  /// Kanal yoksa false.
+  static Future<bool> powerSave() async {
+    try {
+      return await _ch.invokeMethod<bool>('powerSave') ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
 
   /// Yerelden cihaz bilgisini okur. Kanal yoksa sessizce orta profil.
   static Future<void> load(PerfMode mode) async {

@@ -54,6 +54,7 @@ List<CleanupSuggestion> adviseCleanup({
   required int trashBytes,
   required int trashCount,
   DateTime? now,
+  List<String> emptyFolders = const [],
 }) {
   final today = (now ?? DateTime.now()).millisecondsSinceEpoch;
   final out = <CleanupSuggestion>[];
@@ -173,6 +174,77 @@ List<CleanupSuggestion> adviseCleanup({
     ));
   }
 
+  // ── Faz 41 / 5: akıllı öneriler ─────────────────────────────────────────
+  // Eski ekran görüntüleri: 90+ gün dokunulmamış. Çoğu "o an lazım olan"
+  // bir şeyin görüntüsü; varsayılan seçili DEĞİL (kullanıcı bakıp seçer).
+  final shots = index
+      .files(FmCategory.image)
+      .where((e) =>
+          isScreenshot(e) && (daysBetween(e.lastTouchedMs, today) ?? 0) >= 90)
+      .toList()
+    ..sort((a, b) => b.sizeBytes.compareTo(a.sizeBytes));
+  if (shots.isNotEmpty) {
+    out.add(CleanupSuggestion(
+      id: 'old_screenshots',
+      titleKey: 'cln.old_screenshots',
+      detailKey: 'cln.old_screenshots_detail',
+      detailVars: {'n': shots.length},
+      bytes: shots.fold(0, (s, e) => s + e.sizeBytes),
+      files: shots,
+    ));
+  }
+
+  // Bir yıldır açılmamış büyük (≥ 50 MB) dosyalar — video dışı (videolar
+  // yukarıda ayrı). Belge/arşiv/ses: kazanç büyük, karar kullanıcının.
+  final oldLarge = <FsEntry>[];
+  for (final c in const [
+    FmCategory.document,
+    FmCategory.archive,
+    FmCategory.audio,
+    FmCategory.other,
+  ]) {
+    for (final e in index.files(c)) {
+      if (e.sizeBytes >= 50 * 1024 * 1024 &&
+          (daysBetween(e.lastTouchedMs, today) ?? 0) >= 365 &&
+          !isAppBackup(e)) {
+        oldLarge.add(e);
+      }
+    }
+  }
+  if (oldLarge.isNotEmpty) {
+    oldLarge.sort((a, b) => b.sizeBytes.compareTo(a.sizeBytes));
+    final top = oldLarge.take(30).toList();
+    out.add(CleanupSuggestion(
+      id: 'old_large',
+      titleKey: 'cln.old_large',
+      detailKey: 'cln.old_large_detail',
+      detailVars: {'n': top.length},
+      bytes: top.fold(0, (s, e) => s + e.sizeBytes),
+      files: top,
+    ));
+  }
+
+  // Boş klasörler: yer kazancı yok ama düzen var; güvenli (içi boş).
+  if (emptyFolders.isNotEmpty) {
+    out.add(CleanupSuggestion(
+      id: 'empty_folders',
+      titleKey: 'cln.empty_folders',
+      detailKey: 'cln.empty_folders_detail',
+      detailVars: {'n': emptyFolders.length},
+      bytes: 0,
+      files: [
+        for (final path in emptyFolders)
+          FsEntry(
+              path: path,
+              name: path.split('/').last,
+              isDir: true,
+              sizeBytes: 0,
+              modifiedMs: 0),
+      ],
+      safeByDefault: true,
+    ));
+  }
+
   out.sort((a, b) {
     // Güvenli öneriler önce, sonra kazanca göre.
     if (a.safeByDefault != b.safeByDefault) return a.safeByDefault ? -1 : 1;
@@ -207,6 +279,15 @@ List<CleanupSuggestion> cleanupApplyOrder(
     ...list.where((s) => s.id == 'trash'),
     ...list.where((s) => s.id != 'trash'),
   ];
+}
+
+/// Ekran görüntüsü mü? (`Screenshots`/`Ekran görüntüleri` klasörü ya da
+/// `Screenshot_…` adı.)
+bool isScreenshot(FsEntry e) {
+  final lower = e.path.toLowerCase();
+  return lower.contains('/screenshots/') ||
+      lower.contains('/ekran görüntüleri/') ||
+      e.name.toLowerCase().startsWith('screenshot');
 }
 
 /// Dosya bir **uygulama yedeği** mi?

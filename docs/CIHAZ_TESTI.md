@@ -711,3 +711,16 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
 - [ ] Arapça arayüzde Faz 40 metinleri Arapça; bozuk dosya açınca tek tip hata yüzü (Ayrıntıyı kopyala); açılışta iskelet, hafif profilde nabızsız.
 - [ ] Pano: üst çubukta AI düğmesi YOK; alt panelin sağında varsayılan "AI" (Yer aç yerine; uzun bas → değiştirilebilir).
 - [ ] Perf: pano boşta 0 kare, büyük klasör kaydırma ve editör açılışı Faz 39 tablosuna göre gerilemiyor (`docs/perf/2026-11-05-faz40.md`).
+
+## Faz 41 — Dosya yöneticisi ve bulut (madde 1–8)
+- [ ] Gezgin ⋮ → Çift bölme: iki klasör, dokunulan bölme etkin; seç → "Öbür tarafa kopyala/taşı"; telefonda dikey, tablet/yatayda yan yana; Değiştir düğmesi.
+- [ ] SD kart (Android 11+): SD'ye kopyala → "SD karta yazmak için izin gerekli · İzin ver" → kart kökünü seç → kopyalama SAF ile tamamlanıyor; SD birleşimi ekranında "salt okunur" uyarısının altındaki izin düğmesi.
+- [ ] Toplu yeniden adlandır: {AD} (Türkçe İ/I), {ad_kucuk}, {klasor}; "Kalıbı kaydet" → çip olarak kalıyor, ✕ ile siliniyor.
+- [ ] Drive: ⋮ → Çevrimdışı kullan (bulut-tamam simgesi), uçak kipinde açılıyor; önbellek dolunca silinmiyor. Kopyayı telefonda düzenle → yeniden aç: "Telefondaki kopya değişti" → Drive'a yükle; iki taraf değişince üç seçenek (telefondakini yükle / ikisini tut → "Ad (telefon).ext" / Drive'dakini al).
+- [ ] Arama → "içinde ara": ilk aramada canlı tarama, sonra dizin; Word/Excel/PDF metni ve (ayar açıksa) görsel yazısı bulunuyor; pil tasarrufu açıkken dizinleme duruyor. Kayıtlı arama: 🔖 → ad → boş aramada çip.
+- [ ] Yakındakiler QR/bağlantı: 15 dk / 1 saat / tek indirme; süre dolunca tarayıcıda 410, ekranda "süresi doldu · yenile".
+- [ ] Yer aç: eski ekran görüntüleri, bir yıldır açılmamış büyük dosyalar, boş klasörler önerileri; boş klasörler varsayılan seçili, diğerleri değil.
+- [ ] Etiket sayfasında etikete uzun bas → renk; klasör ⋮ → Klasör rengi (listede klasör gövdesi o renkte; taşıyınca renk kalıyor); ⋮ → Favorileri sırala (sürükle).
+- [ ] Sıkıştır → Bölümlere ayır (25 MB) → `ad.zip.001…`; 7-Zip/WinRAR PC'de açıyor, uygulamada ilk cilde dokununca açılıyor.
+- [ ] SFTP'den büyük dosya indirirken Wi-Fi'yi kes → yeniden indir: kaldığı yerden sürüyor (`.part`).
+- [ ] Perf: 50 bin dosyalı telefonda ad araması < 1 sn; kopyala/taşı sonrası dizin "bayat" olmuyor (tam yeniden kurulum yok); pano boşta 0 kare, gezgin kaydırma Faz 40 tablosuna göre gerilemiyor (`docs/perf/2026-11-05-faz41.md`).

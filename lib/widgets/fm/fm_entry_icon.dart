@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 
+import '../../services/fm/fm_colors_store.dart';
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
@@ -415,7 +416,9 @@ class FmEntryIcon extends StatelessWidget {
         entry,
         outlined: context.fmOutlinedIcons,
         dark: dark,
-        folderColor: context.fmFolderColor,
+        // Faz 41 / 6: kullanıcının verdiği klasör rengi temanınkini ezer.
+        folderColor:
+            FmColorsStore.folderColor(entry.path) ?? context.fmFolderColor,
       ),
     );
   }

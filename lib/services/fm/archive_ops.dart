@@ -13,6 +13,7 @@ import 'file_ops.dart';
 import 'fs_events.dart';
 import 'fs_scan.dart';
 import 'job_queue.dart' show JobCancelled;
+import 'file_split.dart';
 
 /// Arşiv içindeki tek bir öğe (uygulama tarafı modeli).
 ///
@@ -334,6 +335,38 @@ abstract final class ArchiveOps {
     }
     FsEvents.changed();
     return target;
+  }
+
+  /// **Bölünmüş arşiv** (Faz 41 / 7): önce tek arşiv üretilir, sonra
+  /// 7-Zip'in cilt düzeninde (`ad.zip.001`, `ad.7z.002` …) bayt bayt
+  /// bölünür ve tek dosya silinir. 7-Zip, WinRAR ve bu uygulama (ilk cildi
+  /// açınca kalanları [volumePath] ile bulur) ciltleri birleştirerek açar.
+  /// Dönen: cilt yolları (sırayla). Arşiv tek cilde sığıyorsa bölünmez,
+  /// tek yol döner.
+  static Future<List<String>> compressSplit(
+    List<String> paths,
+    String destDir, {
+    required int volumeBytes,
+    String? archiveName,
+    CompressFormat format = CompressFormat.zip,
+    String? password,
+    bool hideNames = false,
+    void Function(FmProgress)? onProgress,
+  }) async {
+    final whole = await compress(paths, destDir,
+        archiveName: archiveName,
+        format: format,
+        password: password,
+        hideNames: hideNames,
+        onProgress: onProgress);
+    if (await File(whole).length() <= volumeBytes) return [whole];
+    final parts = await FileSplit.split(whole, partBytes: volumeBytes);
+    if (parts.isEmpty) return [whole];
+    try {
+      await File(whole).delete();
+    } catch (_) {}
+    FsEvents.changed();
+    return parts;
   }
 
   // ── çok parçalı arşivler ──────────────────────────────────────────────────

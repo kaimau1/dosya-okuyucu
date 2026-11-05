@@ -10,11 +10,23 @@ class CompressOptions {
   final CompressFormat format;
   final String? password;
   final bool hideNames;
+
+  /// Bölünmüş arşiv (Faz 41 / 7): cilt boyutu (bayt); null = tek dosya.
+  final int? volumeBytes;
   const CompressOptions({
     required this.format,
     this.password,
     this.hideNames = false,
+    this.volumeBytes,
   });
+
+  /// Hazır cilt boyutları: e-posta eki, bulut yüklemesi, CD, FAT32 sınırı.
+  static const volumeSizes = <(String, int)>[
+    ('cmp.vol_25', 25 << 20),
+    ('cmp.vol_100', 100 << 20),
+    ('cmp.vol_700', 700 << 20),
+    ('cmp.vol_4g', (4 << 30) - (1 << 20)),
+  ];
 }
 
 /// "Sıkıştır" seçenekleri: biçim (ZIP/7z), isteğe bağlı **parola** (AES-256)
@@ -46,6 +58,7 @@ class _CompressSheetState extends State<_CompressSheet> {
   CompressFormat _format = CompressFormat.zip;
   bool _protect = false;
   bool _hideNames = false;
+  int? _volume;
   final _password = TextEditingController();
 
   @override
@@ -122,6 +135,30 @@ class _CompressSheetState extends State<_CompressSheet> {
                     ),
               ),
             ],
+            // Faz 41 / 7: bölünmüş arşiv (7-Zip ciltleri: `.zip.001`/`.7z.001`).
+            const SizedBox(height: Gap.sm),
+            Text(context.t('cmp.split'),
+                style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: Gap.xs),
+            Wrap(
+              spacing: Gap.sm,
+              runSpacing: Gap.xs,
+              children: [
+                ChoiceChip(
+                  key: const ValueKey('cmp-vol-none'),
+                  label: Text(context.t('cmp.vol_none')),
+                  selected: _volume == null,
+                  onSelected: (_) => setState(() => _volume = null),
+                ),
+                for (final (key, bytes) in CompressOptions.volumeSizes)
+                  ChoiceChip(
+                    key: ValueKey('cmp-vol-$bytes'),
+                    label: Text(context.t(key)),
+                    selected: _volume == bytes,
+                    onSelected: (_) => setState(() => _volume = bytes),
+                  ),
+              ],
+            ),
             const SizedBox(height: Gap.md),
             Align(
               alignment: AlignmentDirectional.centerEnd,
@@ -134,6 +171,7 @@ class _CompressSheetState extends State<_CompressSheet> {
                             format: _format,
                             password: _protect ? _password.text : null,
                             hideNames: _hideNames,
+                            volumeBytes: _volume,
                           ),
                         ),
                 icon: const Icon(AppIcons.compress),

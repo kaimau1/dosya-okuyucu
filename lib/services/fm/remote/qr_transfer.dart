@@ -55,6 +55,17 @@ class QrShareServer implements KeepableServer {
   /// Tercih edilen port (kullanıcının alışık olduğu `:8080`).
   final int preferredPort;
 
+  /// **Kısa ömürlü bağlantı** (Faz 41 / 4): bu süre dolunca sunucu kendini
+  /// kapatır, adres 410 döner. null = ekran açık kaldıkça.
+  final Duration? ttl;
+
+  /// Bu kadar dosya indirildikten sonra (süren aktarım bitince) kapanır —
+  /// "tek seferlik" bağlantı. null = sınırsız.
+  final int? maxDownloads;
+
+  /// Süre/indirme sınırı dolup sunucu kendini kapatınca.
+  final void Function()? onExpired;
+
   QrShareServer(
     this.paths, {
     this.onServed,
@@ -62,7 +73,41 @@ class QrShareServer implements KeepableServer {
     this.senderName = '',
     this.preferredPort = 8080,
     this.onActivity,
+    this.ttl,
+    this.maxDownloads,
+    this.onExpired,
   }) : token = _newToken();
+
+  DateTime? _expiresAt;
+  Timer? _expiry;
+  int _downloads = 0;
+
+  /// Bağlantının bitiş anı (süre sınırı yoksa null).
+  DateTime? get expiresAt => _expiresAt;
+
+  /// Saf: bu anda bağlantı geçersiz mi?
+  static bool isExpired(DateTime now, DateTime? expiresAt) =>
+      expiresAt != null && !now.isBefore(expiresAt);
+
+  void _expire() {
+    _expiry?.cancel();
+    _expiry = null;
+    unawaited(stop());
+    onExpired?.call();
+  }
+
+  /// İndirme bitti: sayaç ve tek seferlik sınır.
+  void _countServed(String name) {
+    _downloads++;
+    onServed?.call(name);
+    final max = maxDownloads;
+    // Kapanış yanıt KAPANDIKTAN sonra ([_handle] sonu): burada kapatmak
+    // biten indirmenin son baytlarını keserdi. Süren başka indirme varsa
+    // o da bitince kapanır.
+    if (max != null && _downloads >= max) _expireWhenIdle = true;
+  }
+
+  bool _expireWhenIdle = false;
 
   /// Süren indirme sayısı değişince ([TransferKeeper.onActivity]).
   final void Function(QrShareServer server)? onActivity;
@@ -107,10 +152,17 @@ class QrShareServer implements KeepableServer {
     }
     _server = server;
     server.listen((r) => unawaited(_handle(r)), onError: (_) {});
+    final life = ttl;
+    if (life != null) {
+      _expiresAt = DateTime.now().add(life);
+      _expiry = Timer(life, _expire);
+    }
   }
 
   @override
   Future<void> stop() async {
+    _expiry?.cancel();
+    _expiry = null;
     final s = _server;
     _server = null;
     await s?.close(force: true);
@@ -122,6 +174,11 @@ class QrShareServer implements KeepableServer {
 
   Future<void> _handle(HttpRequest req) async {
     final res = req.response;
+    if (isExpired(DateTime.now(), _expiresAt)) {
+      res.statusCode = HttpStatus.gone;
+      await res.close();
+      return;
+    }
     try {
       final seg = req.uri.pathSegments.where((s) => s.isNotEmpty).toList();
       if ((req.method != 'GET' && req.method != 'HEAD') ||
@@ -201,6 +258,8 @@ class QrShareServer implements KeepableServer {
       try {
         await res.close();
       } catch (_) {}
+      // Tek seferlik bağlantı: son indirmenin yanıtı kapandı → kapan.
+      if (_expireWhenIdle && activeTransfers <= 0) _expire();
     }
   }
 
@@ -238,7 +297,7 @@ class QrShareServer implements KeepableServer {
       lastActivity = DateTime.now();
       onActivity?.call(this);
     }
-    onServed?.call(item.name);
+    _countServed(item.name);
   }
 
   static const _thumbExts = {

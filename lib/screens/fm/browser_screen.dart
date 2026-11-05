@@ -49,6 +49,10 @@ import '../../widgets/motion.dart';
 import '../../core/user_error.dart';
 import '../../widgets/app_dialog.dart';
 import 'pick_file_screen.dart';
+import 'dual_pane_screen.dart';
+import '../../services/fm/fm_colors_store.dart';
+import '../../widgets/fm/label_color_sheet.dart';
+import '../../widgets/fm/favorites_order_sheet.dart';
 
 part 'browser/actions.dart';
 part 'browser/views.dart';
@@ -171,6 +175,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
   @override
   void initState() {
     super.initState();
+    // Faz 41 / 6: klasör renkleri tembel yüklenir; gelince liste yeniden çizilir.
+    FmColorsStore.ensureLoaded().then((_) {
+      if (mounted) setState(() {});
+    });
     // Kilit denetimi ilk kareden sonra (context.read için mount gerekir).
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkLock());
     FolderSizeCache.revision.addListener(_onFolderSize);

@@ -593,6 +593,12 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                 titleKey: 'fmset.index',
                 builder: _searchIndexTile),
             SettingRow(
+                id: 'content_index',
+                titleKey: 'ci.ocr',
+                subtitleKey: 'ci.ocr_sub',
+                altKeys: ['ci.clear'],
+                builder: _contentIndexTile),
+            SettingRow(
                 id: 'volumes',
                 titleKey: 'fmset.volumes',
                 builder: _volumesTile),
@@ -752,6 +758,7 @@ Widget _perfModeTile(BuildContext _) => const PerfModeTile();
 Widget _highRefreshTile(BuildContext _) => const HighRefreshTile();
 Widget _autoRescanTile(BuildContext _) => const AutoRescanTile();
 Widget _searchIndexTile(BuildContext _) => const SearchIndexTile();
+Widget _contentIndexTile(BuildContext _) => const ContentIndexTile();
 Widget _appFootprintTile(BuildContext _) => const AppFootprintTile();
 Widget _sdUnionTile(BuildContext _) => const SdUnionTile();
 Widget _weeklyCleanupTile(BuildContext _) => const WeeklyCleanupTile();

@@ -75,7 +75,10 @@ abstract final class DriveCache {
   /// Sınır aşılmışsa **en eski dokunulan** klasörlerden başlayarak siler.
   /// İndirme bittikten sonra çağrılır; hata yutulur — temizlik başarısız diye
   /// kullanıcının açmak istediği dosya açılmamazlık etmemeli.
-  static void prune(String root, {int limitBytes = maxBytes}) {
+  /// [keep]: çevrimdışı sabitlenmiş dosya kimlikleri (Faz 41 / 2) — bütçe
+  /// aşılsa da silinmez.
+  static void prune(String root,
+      {int limitBytes = maxBytes, Set<String> keep = const {}}) {
     try {
       final dir = Directory(root);
       if (!dir.existsSync()) return;
@@ -91,6 +94,7 @@ abstract final class DriveCache {
           continue;
         }
         if (child is! Directory) continue;
+        if (keep.contains(p.basename(child.path))) continue;
         var bytes = 0;
         var at = DateTime.fromMillisecondsSinceEpoch(0);
         for (final f in child.listSync(recursive: true)) {

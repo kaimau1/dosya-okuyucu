@@ -3,7 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
-import 'package:flutter/foundation.dart' show ValueNotifier, compute;
+import 'package:flutter/foundation.dart'
+    show ValueNotifier, compute, visibleForTesting;
 import 'package:path/path.dart' as p;
 
 import '../../core/text_search.dart';
@@ -117,6 +118,8 @@ abstract final class SearchIndex {
   static void _onFsChanged() {
     if (_seenFsVersion == FsEvents.version.value) return;
     _seenFsVersion = FsEvents.version.value;
+    // Faz 41 / 8: değişiklik dizine zaten artımlı yazıldı → bayat değil.
+    if (FsEvents.indexedVersion == FsEvents.version.value) return;
     if (!isReady || _stale) return;
     _stale = true;
     unawaited(_writeMeta());
@@ -234,6 +237,39 @@ abstract final class SearchIndex {
     } catch (_) {}
   }
 
+  /// **Artımlı güncelleme** (Faz 41 / 8): uygulamanın kendi kopyala/taşı
+  /// işinde [removed] yolları (ve altları) dizinden düşer, [added] yollar
+  /// (klasörse içi dahil) dizine eklenir — tam yeniden kurulum yok.
+  /// Dizin hazır değilse hiçbir şey yapmaz ve false döner (çağıran olayı
+  /// "dizinlenmemiş" bildirir, dizin bayatlar).
+  static Future<bool> applyChanges(
+      {Iterable<String> removed = const [],
+      Iterable<String> added = const []}) async {
+    await ensureLoaded();
+    if (!isReady || _stale || _dir.isEmpty || _building != null) return false;
+    try {
+      final drop = {...removed, ...added}.toList();
+      if (drop.isNotEmpty) {
+        final left = await compute(
+            _forgetSync, _ForgetArgs(indexPath: indexPath, paths: drop));
+        if (left < 0) return false;
+        _entryCount = left;
+      }
+      final add = added.toList();
+      if (add.isNotEmpty) {
+        final n = await compute(
+            _appendSync, _ForgetArgs(indexPath: indexPath, paths: add));
+        if (n < 0) return false;
+        _entryCount += n;
+      }
+      await _writeMeta();
+      revision.value++;
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Dizini siler (ayarlardan "dizini temizle").
   static Future<void> clear() async {
     await ensureLoaded();
@@ -248,6 +284,29 @@ abstract final class SearchIndex {
     _stale = false;
     revision.value++;
   }
+
+  /// Artımlı ekleme çekirdeği (test).
+  @visibleForTesting
+  static int appendSyncForTest(String indexPath, List<String> paths) =>
+      _appendSync(_ForgetArgs(indexPath: indexPath, paths: paths));
+
+  /// Artımlı düşme çekirdeği (test).
+  @visibleForTesting
+  static int forgetSyncForTest(String indexPath, List<String> paths) =>
+      _forgetSync(_ForgetArgs(indexPath: indexPath, paths: paths));
+
+  /// Dizin dosyası üzerinde eşzamanlı sorgu çekirdeği — perf kapısı testi
+  /// için (Faz 41 / 3: 50 bin dosyada < 1 sn). Uygulamada [query] kullanılır.
+  @visibleForTesting
+  static List<FsEntry> querySyncForTest(String indexPath, String query,
+          {int limit = 500}) =>
+      _querySync(_QueryArgs(
+          indexPath: indexPath,
+          query: query,
+          root: null,
+          categoryName: null,
+          includeDirs: true,
+          limit: limit));
 
   /// Dizinde arama. Dizin yoksa canlı taramaya ([FsScan.search]) düşer —
   /// kullanıcı ilk taramayı beklemek zorunda kalmaz.
@@ -468,6 +527,42 @@ class _ForgetArgs {
 /// **Geçici dosyaya yazıp `rename`:** yerinde yazmak, iş yarıda kesilirse
 /// (uygulama öldürüldü, disk doldu) dizini yarım bırakırdı. `rename` aynı
 /// klasörde atomik.
+/// [_ForgetArgs.paths] yollarını (klasörse içindekilerle) dizinin sonuna
+/// ekler; eklenen satır sayısı, dosya yoksa −1.
+int _appendSync(_ForgetArgs args) {
+  final file = File(args.indexPath);
+  if (!file.existsSync()) return -1;
+  final sink = file.openSync(mode: FileMode.append);
+  var n = 0;
+  void add(FileSystemEntity e) {
+    final entry = FsEntry.fromEntity(e);
+    if (entry.isHidden) return;
+    sink.writeStringSync('${encodeIndexRow(entry)}\n');
+    n++;
+  }
+
+  try {
+    for (final path in args.paths) {
+      final type = FileSystemEntity.typeSync(path, followLinks: false);
+      if (type == FileSystemEntityType.notFound) continue;
+      final root = type == FileSystemEntityType.directory
+          ? Directory(path)
+          : File(path);
+      add(root);
+      if (root is Directory) {
+        try {
+          for (final child in root.listSync(recursive: true, followLinks: false)) {
+            add(child);
+          }
+        } catch (_) {}
+      }
+    }
+  } finally {
+    sink.closeSync();
+  }
+  return n;
+}
+
 int _forgetSync(_ForgetArgs args) {
   final file = File(args.indexPath);
   if (!file.existsSync()) return -1;

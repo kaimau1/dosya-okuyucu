@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
+import '../../services/fm/empty_folders.dart';
 import '../../services/fm/important_files.dart';
 import '../../services/fm/cleanup_advisor.dart';
 import '../../services/fm/duplicate_finder.dart';
@@ -181,6 +182,10 @@ class _CleanupScreenState extends State<CleanupScreen> {
         // Kopya taraması pahalıdır; yalnız burada, bir kez.
         final duplicates = await DuplicateFinder.scan(FmEnv.volumeRoots);
         handle.throwIfCancelled();
+        // Faz 41 / 5: boş klasörler (ana bellek; ucuz yürüyüş).
+        final empty = await EmptyFolders.find(FmEnv.primaryRoot,
+            isCancelled: () => handle.cancelled);
+        handle.throwIfCancelled();
 
         final list = adviseCleanup(
           index: index,
@@ -188,6 +193,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
           duplicates: duplicates,
           trashBytes: trashBytes,
           trashCount: trash.length,
+          emptyFolders: empty,
         );
         handle.result = CleanupScanResult(list);
         // Haftalık temizlik bildirimi bu sayıyı söyler (bkz. NativeExtras).

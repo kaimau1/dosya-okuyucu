@@ -98,6 +98,29 @@ class SftpFs extends RemoteFs {
     }
   }
 
+  /// SFTP ofsetli okur: kopan indirme kaldığı yerden sürer (Faz 41 / 8).
+  @override
+  bool get canResume => true;
+
+  @override
+  Future<void> downloadFrom(RemoteEntry entry, File part, int offset) async {
+    try {
+      final remote = await _need.open(entry.path);
+      final sink = part.openWrite(
+          mode: offset > 0 ? FileMode.append : FileMode.write);
+      try {
+        await for (final chunk in remote.read(offset: offset)) {
+          sink.add(chunk);
+        }
+      } finally {
+        await sink.close();
+        await remote.close();
+      }
+    } catch (e) {
+      throw RemoteFs.mapError(e);
+    }
+  }
+
   @override
   Future<void> upload(File local, String remoteDir, {String? name}) async {
     try {
