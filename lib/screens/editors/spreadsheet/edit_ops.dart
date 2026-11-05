@@ -87,7 +87,11 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
 
   Future<void> _load() async {
     try {
-      if (SpreadsheetEditorScreen.parseInIsolate) {
+      // Parolalı xlsx (Faz 36 madde 6): önce parola sorulur, çözülmüş paket
+      // izolatta ayrıştırılır; kaydederken aynı parolayla yeniden şifrelenir.
+      if (await _openEncrypted()) {
+        // _openEncrypted modeli kurdu (ya da vazgeçildi → _error).
+      } else if (SpreadsheetEditorScreen.parseInIsolate) {
         try {
           _editor = await compute(_SpreadsheetEditorScreenState._readAndParse, widget.path);
         } catch (_) {

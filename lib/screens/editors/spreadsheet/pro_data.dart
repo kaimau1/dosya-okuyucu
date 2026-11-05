@@ -251,6 +251,271 @@ extension _SpreadsheetProDataPart on _SpreadsheetEditorScreenState {
     _gridVersion++;
     _partSetState(() {});
   }
+
+  // ── 6. Parola ile aç / koru ────────────────────────────────────────────
+
+  /// Dosya parolalıysa sorar, çözer ve modeli kurar (true). Parolasızsa
+  /// false (normal açılış). Vazgeçilirse `_error`.
+  Future<bool> _openEncrypted() async {
+    final ext = p.extension(widget.path).toLowerCase();
+    if (ext != '.xlsx' && ext != '.xlsm') return false;
+    final bytes = await File(widget.path).readAsBytes();
+    if (!OfficeCrypto.isEncrypted(bytes)) return false;
+    String? hint;
+    for (var attempt = 0; attempt < 5; attempt++) {
+      if (!mounted) return true;
+      final pw = await _askFilePassword(context.t('xp.password_open'), hint);
+      if (pw == null) {
+        _error = AppStrings.current.t('xp.password_cancelled');
+        return true;
+      }
+      try {
+        final plain = await OfficeCrypto.decryptInBackground(bytes, pw);
+        _editor = await compute(XlsxEditor.parse, plain);
+        _filePassword = pw;
+        return true;
+      } on OfficeCryptoException catch (e) {
+        if (e.code != 'wrong_password') {
+          _error = AppStrings.current.t('xp.password_unsupported');
+          return true;
+        }
+        hint = AppStrings.current.t('xp.password_wrong');
+      }
+    }
+    _error = AppStrings.current.t('xp.password_wrong');
+    return true;
+  }
+
+  /// Gizli girişli parola levhası; [error] altta kırmızı.
+  Future<String?> _askFilePassword(String title, String? error,
+      {bool confirm = false}) {
+    return showAppSheet<String>(
+      context,
+      title: title,
+      builder: (_) => _PasswordSheet(error: error, confirm: confirm),
+    );
+  }
+
+  Future<void> _protectWithPassword() async {
+    _endEdit();
+    final pw = await _askFilePassword(context.t('xp.password_set'), null,
+        confirm: true);
+    if (pw == null || pw.isEmpty || !mounted) return;
+    _partSetState(() => _filePassword = pw);
+    _session.changed();
+    _snack(context.t('xp.password_set_done'));
+  }
+
+  void _removePassword() {
+    if (_filePassword == null) return;
+    _partSetState(() => _filePassword = null);
+    _session.changed();
+    _snack(context.t('xp.password_removed'));
+  }
+
+  // ── 6. Yazdırma düzeni → PDF ───────────────────────────────────────────
+
+  Future<void> _printToPdf() async {
+    final sheet = _sheet;
+    if (sheet == null) return;
+    _endEdit();
+    final spec = await showAppSheet<SheetPrintSpec>(
+      context,
+      title: context.t('xp.print_pdf'),
+      builder: (_) => _PrintSheet(title: sheet.name),
+    );
+    if (spec == null || !mounted) return;
+    // Seçim varsa yalnız seçim, yoksa kullanılan alan; gizli satır/sütun yok.
+    final r = _hasRange
+        ? _range
+        : CellRange(0, 0, math.max(0, sheet.maxRows - 1),
+            math.max(0, sheet.maxCols - 1));
+    final engine = _engineFor(sheet);
+    final cols = [
+      for (var c = r.left; c <= r.right; c++)
+        if (!sheet.isColHidden(c)) c,
+    ];
+    final cells = <List<String>>[];
+    final numeric = <int>{};
+    for (var row = r.top; row <= r.bottom; row++) {
+      if (sheet.isRowHidden(row)) continue;
+      final out = <String>[];
+      for (var k = 0; k < cols.length; k++) {
+        final view = sheet.viewAt(row, cols[k], engine.displayValue(row, cols[k]));
+        out.add(view.text);
+        if (view.numeric) numeric.add(cells.length * 16384 + k);
+      }
+      cells.add(out);
+    }
+    // Sondaki boş satırlar atılır.
+    while (cells.isNotEmpty && cells.last.every((v) => v.isEmpty)) {
+      cells.removeLast();
+    }
+    if (cells.isEmpty) {
+      _snack(context.t('xp.print_empty'));
+      return;
+    }
+    final widths = [for (final c in cols) sheet.colWidth(c)];
+    final label = context.t('xp.print_page');
+    final ok = context.t('xp.print_done');
+    final font = await rootBundle.load('assets/fonts/Carlito-Regular.ttf');
+    final fontBytes = font.buffer.asUint8List();
+    final pdf = await Isolate.run(() => SheetPdf.build(
+          cells: cells,
+          colWidthsPx: widths,
+          spec: spec,
+          numeric: numeric,
+          fontBytes: fontBytes,
+          pageLabel: (n, t) => label.replaceAll('{n}', '$n').replaceAll('{t}', '$t'),
+        ));
+    final f = File(p.join(Directory.systemTemp.path,
+        '${p.basenameWithoutExtension(widget.name)}-${sheet.name}.pdf'));
+    await f.writeAsBytes(pdf, flush: true);
+    if (!mounted) return;
+    _snack(ok);
+    await Share.shareXFiles([XFile(f.path)]);
+  }
+}
+
+/// Yazdırma ayarları: yön, sayfaya sığdır, başlık yinele, ızgara.
+class _PrintSheet extends StatefulWidget {
+  const _PrintSheet({required this.title});
+
+  final String title;
+
+  @override
+  State<_PrintSheet> createState() => _PrintSheetState();
+}
+
+class _PrintSheetState extends State<_PrintSheet> {
+  bool _landscape = false;
+  bool _fit = true;
+  int _repeat = 1;
+  bool _grid = true;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SegmentedButton<bool>(
+              showSelectedIcon: false,
+              segments: [
+                ButtonSegment(value: false, label: Text(context.t('xp.portrait'))),
+                ButtonSegment(value: true, label: Text(context.t('xp.landscape'))),
+              ],
+              selected: {_landscape},
+              onSelectionChanged: (v) => setState(() => _landscape = v.first),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _fit,
+              onChanged: (v) => setState(() => _fit = v),
+              title: Text(context.t('xp.fit_width')),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _grid,
+              onChanged: (v) => setState(() => _grid = v),
+              title: Text(context.t('xp.print_grid')),
+            ),
+            Text(context.t('xp.repeat_rows'), style: context.type.caption),
+            SegmentedButton<int>(
+              showSelectedIcon: false,
+              segments: [
+                for (final n in const [0, 1, 2])
+                  ButtonSegment(value: n, label: Text('$n')),
+              ],
+              selected: {_repeat},
+              onSelectionChanged: (v) => setState(() => _repeat = v.first),
+            ),
+            const SizedBox(height: Gap.sm),
+            FilledButton(
+              key: const ValueKey('xl-print-go'),
+              onPressed: () => Navigator.pop(
+                context,
+                SheetPrintSpec(
+                  landscape: _landscape,
+                  fitWidth: _fit,
+                  repeatRows: _repeat,
+                  gridLines: _grid,
+                  title: widget.title,
+                ),
+              ),
+              child: Text(context.t('xp.print_go')),
+            ),
+          ],
+        ),
+      );
+}
+
+/// Parola girişi (gizli) + isteğe bağlı doğrulama alanı.
+class _PasswordSheet extends StatefulWidget {
+  const _PasswordSheet({this.error, this.confirm = false});
+
+  final String? error;
+  final bool confirm;
+
+  @override
+  State<_PasswordSheet> createState() => _PasswordSheetState();
+}
+
+class _PasswordSheetState extends State<_PasswordSheet> {
+  final _pw = TextEditingController();
+  final _again = TextEditingController();
+  late String? _error = widget.error;
+
+  @override
+  void dispose() {
+    _pw.dispose();
+    _again.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (_pw.text.isEmpty) return;
+    if (widget.confirm && _pw.text != _again.text) {
+      setState(() => _error = context.t('xp.password_mismatch'));
+      return;
+    }
+    Navigator.pop(context, _pw.text);
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              key: const ValueKey('xl-password'),
+              controller: _pw,
+              autofocus: true,
+              obscureText: true,
+              decoration: InputDecoration(
+                labelText: context.t('xp.password'),
+                errorText: widget.confirm ? null : _error,
+              ),
+              onSubmitted: widget.confirm ? null : (_) => _submit(),
+            ),
+            if (widget.confirm)
+              TextField(
+                key: const ValueKey('xl-password-again'),
+                controller: _again,
+                obscureText: true,
+                decoration: InputDecoration(
+                    labelText: context.t('xp.password_again'),
+                    errorText: _error),
+                onSubmitted: (_) => _submit(),
+              ),
+            const SizedBox(height: Gap.sm),
+            FilledButton(onPressed: _submit, child: Text(context.t('common.ok'))),
+          ],
+        ),
+      );
 }
 
 /// Özet tablo ayar levhası: satır / sütun / değer alanı, işlev, süzgeç.

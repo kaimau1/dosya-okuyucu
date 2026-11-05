@@ -134,7 +134,8 @@ Ek 9: dışa aktarma `TrackedTask` → `JobQueue` (ilerleme, iptal, bitince bild
 - [x] 5. Tablo nesnesi (ListObject) + biçimli tablo stilleri, yapısal başvuru.
    (ListObject yazımı vardı; tablo adı + vurguya göre yerleşik stil, dosya tablolarını okuma
    `xlsx/table_reader.dart`, `Tablo1[Sütun]`/`[@Sütun]`/`[#Veri]`/`[[#Başlıklar],[X]]` çözümü.)
-6. Yazdırma düzeni + PDF'e aktar (sayfa sığdır, başlık satırı yinele), parola ile aç/koru.
+- [x] 6. Yazdırma düzeni + PDF'e aktar (sayfa sığdır, başlık satırı yinele), parola ile aç/koru.
+   (`xlsx/sheet_pdf.dart`; ECMA-376 Agile AES-256 `office_crypto.dart` + CFB yazıcı `ole_cfb_writer.dart`.)
 7. Görünüm: şerit sadeleştirme, hücre düzenleme çubuğu, parmakla seçim tutamakları,
    kaydırmada sabit başlık gölgesi, yoğunluk (kompakt/rahat) ayarı.
 **Ölçüt:** 5 örnek gerçek dosyada yaz→aç döngüsü kayıpsız (B4 uyumluluk turu).

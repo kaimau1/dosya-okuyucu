@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -16,7 +17,8 @@ import 'package:flutter/services.dart'
         HardwareKeyboard,
         KeyEvent,
         KeyUpEvent,
-        LogicalKeyboardKey;
+        LogicalKeyboardKey,
+        rootBundle;
 import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart';
 
@@ -40,12 +42,14 @@ import '../../services/csv_codec.dart';
 import '../../services/text_decode.dart';
 import '../../services/formula_engine.dart';
 import '../../services/formula_errors.dart';
+import '../../services/office_crypto.dart';
 import '../../services/formula_help.dart';
 import '../../services/sheet_data_ops.dart';
 import '../../services/sheet_edit.dart';
 import '../../services/sheet_input.dart';
 import '../../services/xlsx_save_patch.dart' show XlsxStyleEdit;
 import '../../services/xlsx/pivot.dart';
+import '../../services/xlsx/sheet_pdf.dart';
 import '../../services/xlsx_editor.dart';
 import '../../services/xlsx_file_charts.dart';
 import '../../widgets/doc_action_bar.dart';
@@ -158,6 +162,10 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
 
   /// Faz 36 özet tabloları: özet sayfa adı → kaynak bağı (oturum içi).
   final Map<String, _PivotLink> _pivots = {};
+
+  /// Dosya parolası (parolalı açıldıysa ya da "Parola ile koru"); kaydetme
+  /// bununla şifreler. Bellekte kalır, hiçbir yere yazılmaz.
+  String? _filePassword;
   String? _error;
 
   /// Faz 26: kalıcı hesap durumu (değer önbelleği + bağımlılık grafiği) ve

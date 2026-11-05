@@ -280,6 +280,9 @@
  "lib/services/xls_legacy.dart": {
   "font_size": 1
  },
+ "lib/services/xlsx/sheet_pdf.dart": {
+  "font_size": 1
+ },
  "lib/services/xlsx_editor.dart": {
   "font_size": 4
  },

@@ -459,6 +459,16 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
         DocMoreItem(AppIcons.rule, context.t('excel.cond_format'),
             _showCondFormat),
       ]),
+      // Faz 36 madde 6: yazdırma düzeni / PDF + parola.
+      DocMoreGroup(context.t('xp.print_group'), [
+        DocMoreItem(AppIcons.pdf, context.t('xp.print_pdf'), _printToPdf),
+        if (_filePassword == null)
+          DocMoreItem(AppIcons.lock, context.t('xp.password_set'),
+              _protectWithPassword)
+        else
+          DocMoreItem(AppIcons.unlock, context.t('xp.password_remove'),
+              _removePassword),
+      ]),
       DocMoreGroup(context.t('chart.group_insert'), [
         DocMoreItem(
             AppIcons.insertChart, context.t('chart.insert'), _insertChart),
