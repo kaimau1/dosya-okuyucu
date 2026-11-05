@@ -165,6 +165,8 @@ extension _WordProPart on _WordMobileEditorScreenState {
         await _dictate();
       case 'ai_inline':
         await _aiInline();
+      case 'ai_proof':
+        await _aiProof();
       case 'tbl_merge':
         final dir = await _choose('wp.tbl_merge', const [
           ('right', 'wp.tbl_merge_right'),
@@ -887,6 +889,52 @@ extension _WordProPart on _WordMobileEditorScreenState {
         DocxSource(r[0].trim(), r[1].trim(), r[2].trim(), r[3].trim()),
         heading: heading));
   }
+
+  // ── Madde 10: AI yazım denetimi (kullanıcı onaylı) ───────────────────────
+
+  Future<void> _aiProof() async {
+    final c = _ctrl;
+    if (c == null) return;
+    final scope = await _choose('wp.ai_proof', const [
+      ('para', 'wp.proof_para'),
+      ('doc', 'wp.proof_doc'),
+    ]);
+    if (scope == null || !mounted) return;
+    final from = scope == 'doc' ? 0 : c.start.para;
+    final to = scope == 'doc' ? c.paras.length - 1 : c.end.para;
+    final chunks = proofChunks([
+      for (var i = from; i <= to; i++)
+        if (!c.paras[i].opaque) (i, c.paras[i].text.replaceAll(kDocxAtom, ' ')),
+    ]);
+    if (chunks.isEmpty) {
+      showSnack(context, context.t('wp.ai_empty'));
+      return;
+    }
+    await showAppSheet<void>(
+      context,
+      title: context.t('wp.ai_proof'),
+      builder: (_) => _ProofSheet(
+        chunks: chunks,
+        language: switch (AppStrings.of(context).language) {
+          AppLanguage.en => 'English',
+          AppLanguage.ar => 'Arabic',
+          _ => 'Türkçe',
+        },
+        apply: _applyFix,
+      ),
+    );
+  }
+
+  /// Öneriyi uygular: paragrafta ilk geçişi değiştirir (geri alınabilir).
+  bool _applyFix(int para, String wrong, String right) {
+    final c = _ctrl;
+    if (c == null || para >= c.paras.length) return false;
+    final k = c.paras[para].text.indexOf(wrong);
+    if (k < 0) return false;
+    c.select(DocPos(para, k), DocPos(para, k + wrong.length));
+    c.replaceSelection(right);
+    return true;
+  }
 }
 
 /// Sayfa düzeni levhası: kâğıt, yön, kenar boşlukları (cm), cilt payı,
@@ -1596,6 +1644,188 @@ class _FormSheetState extends State<_FormSheet> {
               child: Text(context.t('common.insert')),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+
+/// Paragrafları ~3000 harflik parçalara toplar (tek istek = tek parça).
+List<List<(int, String)>> proofChunks(List<(int, String)> paras, {int limit = 3000}) {
+  final out = <List<(int, String)>>[];
+  var cur = <(int, String)>[];
+  var size = 0;
+  for (final p in paras) {
+    if (p.$2.trim().isEmpty) continue;
+    if (size + p.$2.length > limit && cur.isNotEmpty) {
+      out.add(cur);
+      cur = [];
+      size = 0;
+    }
+    cur.add(p);
+    size += p.$2.length;
+  }
+  if (cur.isNotEmpty) out.add(cur);
+  return out;
+}
+
+/// AI yazım denetimi levhası: parçalar sırayla gönderilir; her öneri
+/// "Uygula / Atla" (belgeye kendiliğinden yazılmaz); "Durdur" iptal eder.
+class _ProofSheet extends StatefulWidget {
+  final List<List<(int, String)>> chunks;
+  final String language;
+  final bool Function(int para, String wrong, String right) apply;
+  const _ProofSheet(
+      {required this.chunks, required this.language, required this.apply});
+
+  @override
+  State<_ProofSheet> createState() => _ProofSheetState();
+}
+
+class _ProofSheetState extends State<_ProofSheet> {
+  final _items = <(int, ProofSuggestion)>[];
+  int _done = 0;
+  bool _stopped = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _run());
+  }
+
+  @override
+  void dispose() {
+    _stopped = true;
+    super.dispose();
+  }
+
+  Future<void> _run() async {
+    final state = context.read<AppState>();
+    if (!state.hasApiKey) {
+      setState(() => _error = context.t('aia.need_key'));
+      return;
+    }
+    for (final chunk in widget.chunks) {
+      if (_stopped || !mounted) return;
+      final text = chunk.map((p) => p.$2).join('\n');
+      try {
+        final answer = await state.gemini.chat(history: [
+          ChatTurn(fromUser: true, text: DocxAi.proofPrompt(text, widget.language)),
+        ]);
+        if (_stopped || !mounted) return;
+        final found = DocxAi.parseProof(answer, text);
+        setState(() {
+          for (final s in found) {
+            final p = chunk.firstWhere((x) => x.$2.contains(s.wrong), orElse: () => chunk.first);
+            _items.add((p.$1, s));
+          }
+          _done++;
+        });
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _error = userErrorText(e);
+          _done = widget.chunks.length;
+        });
+        return;
+      }
+    }
+  }
+
+  void _apply(int k) {
+    final (para, s) = _items[k];
+    widget.apply(para, s.wrong, s.right);
+    setState(() => _items.removeAt(k));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final busy = _done < widget.chunks.length && !_stopped && _error == null;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.7),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (busy)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(children: [
+                Expanded(
+                    child: LinearProgressIndicator(
+                        value: (_done + 0.5) / widget.chunks.length)),
+                TextButton(
+                  key: const ValueKey('word-proof-stop'),
+                  onPressed: () => setState(() => _stopped = true),
+                  child: Text(context.t('wp.proof_stop')),
+                ),
+              ]),
+            ),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(_error!, style: context.type.small.copyWith(color: scheme.error)),
+            ),
+          if (!busy && _items.isEmpty && _error == null)
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(context.t('wp.proof_clean'), textAlign: TextAlign.center),
+            ),
+          Flexible(
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: _items.length,
+              itemBuilder: (_, k) {
+                final s = _items[k].$2;
+                return ListTile(
+                  key: ValueKey('word-proof-$k'),
+                  title: Text.rich(TextSpan(children: [
+                    TextSpan(
+                        text: s.wrong,
+                        style: TextStyle(
+                            decoration: TextDecoration.lineThrough,
+                            color: scheme.error)),
+                    const TextSpan(text: '  →  '),
+                    TextSpan(
+                        text: s.right,
+                        style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w600)),
+                  ])),
+                  subtitle: s.reason.isEmpty ? null : Text(s.reason),
+                  trailing: Wrap(spacing: 4, children: [
+                    IconButton(
+                      key: ValueKey('word-proof-skip-$k'),
+                      tooltip: context.t('wp.proof_skip'),
+                      icon: const Icon(AppIcons.close),
+                      onPressed: () => setState(() => _items.removeAt(k)),
+                    ),
+                    IconButton(
+                      key: ValueKey('word-proof-apply-$k'),
+                      tooltip: context.t('wp.proof_apply'),
+                      icon: const Icon(AppIcons.check),
+                      onPressed: () => _apply(k),
+                    ),
+                  ]),
+                );
+              },
+            ),
+          ),
+          if (_items.length > 1)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+              child: FilledButton(
+                key: const ValueKey('word-proof-all'),
+                onPressed: () {
+                  for (final (para, s) in _items) {
+                    widget.apply(para, s.wrong, s.right);
+                  }
+                  setState(_items.clear);
+                },
+                child: Text(context.t('wp.proof_apply_all', {'n': _items.length})),
+              ),
+            ),
         ],
       ),
     );

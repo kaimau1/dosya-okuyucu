@@ -188,7 +188,8 @@ yalnız görünürken boyanır.
 - [x] 9. Madde/numara çok düzeyli, sütun, kenarlık, metin kutusu, şekil, görsel sarma (satır içi/üstte/arkada),
 başlık/kapak sayfası, bölüm sonu, farklı ilk sayfa, alan kodları (tarih, sayfa), çapraz başvuru, kaynakça.
    (çok düzeyli liste + sütun Faz 23–24'te vardı; `docx_insert_pro.dart` kenarlık/metin kutusu/şekil/sarma/kapak/alan/çapraz başvuru/kaynakça — imleç işareti yöntemi; bölüm sonu + farklı ilk sayfa `docx_layout_ops`; `word_pro_insert_test`.)
-10. Yazım/dilbilgisi (var olan yazım denetimi + AI düzeltme önerisi satır içi, kullanıcı onaylı).
+- [x] 10. Yazım/dilbilgisi (var olan yazım denetimi + AI düzeltme önerisi satır içi, kullanıcı onaylı).
+   (cihaz yazım denetimi korunur; `_ProofSheet` paragraf/belge, 3000 harflik parçalar, öneri başına Uygula/Atla + Tümü, Durdur; `DocxAi.parseProof`; `word_pro_ai_test`.)
 11. Okuma kipi (yeniden akış) + gece kipi; PDF/ODT/RTF/MD dışa aktarma kalitesi. **Perf:** sayfa
 düzeni **artımlı** (yalnız değişen paragraf ve sonrası), görünür sayfa ±1 çizilir, `word_perf_test`
 500 sayfa eşiği; yazım denetimi izolatta ve boşta; görsel `cacheWidth`; AI çağrıları iptal edilebilir.

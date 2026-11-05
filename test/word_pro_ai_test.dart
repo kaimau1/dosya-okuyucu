@@ -1,5 +1,6 @@
 import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/screens/editors/word_mobile/word_format_ui.dart';
+import 'package:dosya_okuyucu/screens/editors/word_mobile_editor_screen.dart' show proofChunks;
 import 'package:dosya_okuyucu/services/dictation.dart';
 import 'package:dosya_okuyucu/services/docx/pro/docx_ai.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -50,5 +51,15 @@ void main() {
       expect(keys, contains('wp.ai_$t'));
       expect(keys, contains('wp.ai_p_$t'));
     }
+  });
+
+  test('yazım denetimi parçaları: boşlar atlanır, sınır aşılmaz', () {
+    final paras = [for (var i = 0; i < 10; i++) (i, i == 3 ? '  ' : 'x' * 1000)];
+    final chunks = proofChunks(paras, limit: 3000);
+    expect(chunks.expand((c) => c).map((p) => p.$1), isNot(contains(3)));
+    for (final c in chunks) {
+      expect(c.fold<int>(0, (a, p) => a + p.$2.length), lessThanOrEqualTo(3000));
+    }
+    expect(chunks.expand((c) => c), hasLength(9));
   });
 }

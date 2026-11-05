@@ -192,4 +192,13 @@ const Map<String, (String, String, String)> _t24 = {
   'wp.src_year': ('Yıl', 'Year', 'السنة'),
   'wp.src_title': ('Eser adı', 'Title', 'العنوان'),
   'wp.src_publisher': ('Yayıncı / adres', 'Publisher / URL', 'الناشر / الرابط'),
+
+  // Madde 10
+  'wp.proof_para': ('Seçili paragraflar', 'Selected paragraphs', 'الفقرات المحددة'),
+  'wp.proof_doc': ('Bütün belge', 'Whole document', 'المستند كله'),
+  'wp.proof_stop': ('Durdur', 'Stop', 'إيقاف'),
+  'wp.proof_clean': ('Öneri yok — metin temiz görünüyor', 'No suggestions — the text looks clean', 'لا اقتراحات — يبدو النص سليمًا'),
+  'wp.proof_apply': ('Uygula', 'Apply', 'تطبيق'),
+  'wp.proof_skip': ('Atla', 'Skip', 'تخطي'),
+  'wp.proof_apply_all': ('Tümünü uygula ({n})', 'Apply all ({n})', 'تطبيق الكل ({n})'),
 };
