@@ -34,6 +34,7 @@ extension _ParserLookupStatsPart on _Parser {
   }
 
   List<Object> _rangeValues(Object a) {
+    if (a is FormulaArray) return [for (final row in a.rows) ...row];
     if (a is _RangeValue) {
       final out = <Object>[];
       for (var r = a.r1; r <= a.r2; r++) {

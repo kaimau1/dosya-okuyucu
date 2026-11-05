@@ -57,8 +57,47 @@ class _RenderContext {
     this.refs = const [],
   });
 
-  /// Hücrede uygulanacak koşullu biçim sonucu (yoksa null).
+  /// Hücrede uygulanacak koşullu biçim + mini grafik (yoksa null).
   SheetCondPaint? condFor(int r, int c) {
+    final base = _condRule(r, c);
+    final sp = sheet.sparklineAt(r, c);
+    if (sp == null) return base;
+    final values = _sparkValues(sp);
+    if (values == null) return base;
+    return SheetCondPaint(
+      background: base?.background,
+      foreground: base?.foreground,
+      bold: base?.bold ?? false,
+      italic: base?.italic ?? false,
+      barRatio: base?.barRatio,
+      barColor: base?.barColor,
+      iconColor: base?.iconColor,
+      sparkValues: values,
+      sparkType: sp.type,
+      sparkColor: Color(sp.colorArgb),
+    );
+  }
+
+  /// Mini grafiğin kaynak değerleri (yalnız aynı sayfa; boş hücre = NaN).
+  /// Yalnız GÖRÜNEN hücre boyanırken hesaplanır (anayasa k.5).
+  List<double>? _sparkValues(XlsxSparkline sp) {
+    final other = sp.sheet;
+    if (other != null && other.toLowerCase() != sheet.name.toLowerCase()) {
+      return null;
+    }
+    final range = sp.range;
+    if (range == null) return null;
+    final out = <double>[];
+    for (var rr = range.r1; rr <= range.r2; rr++) {
+      for (var cc = range.c1; cc <= range.c2; cc++) {
+        out.add(double.tryParse(engine.displayValue(rr, cc)) ?? double.nan);
+        if (out.length >= 400) return out;
+      }
+    }
+    return out;
+  }
+
+  SheetCondPaint? _condRule(int r, int c) {
     final rule = sheet.condRuleAt(r, c);
     if (rule == null) return null;
     final raw = engine.displayValue(r, c);
@@ -83,6 +122,16 @@ class _RenderContext {
           barRatio: ratio,
           barColor: Color(rule.barColorArgb ?? 0xFF638EC6),
         );
+      case 'iconSet':
+        if (value == null) return null;
+        final stats = _statsFor(rule);
+        final t = stats.max <= stats.min
+            ? 1.0
+            : ((value - stats.min) / (stats.max - stats.min)).clamp(0.0, 1.0);
+        return SheetCondPaint(iconColor: _iconColor(t));
+      case 'expression':
+        if (!_expressionMatch(rule, r, c)) return null;
+        return _dxfPaint(rule);
       case 'cellIs':
         if (!_cellIsMatch(rule, value, raw)) return null;
         return _dxfPaint(rule);
@@ -109,6 +158,23 @@ class _RenderContext {
       default:
         return null;
     }
+  }
+
+  /// Üç kademeli simge (trafik ışığı): alt üçte bir kırmızı, orta sarı,
+  /// üst yeşil — Excel `3TrafficLights1` eşikleri (yüzde 33/67).
+  static Color _iconColor(double t) =>
+      t < 0.33 ? AppHues.red : (t < 0.67 ? AppHues.amber : AppHues.green);
+
+  /// Formül kuralı: formül aralığın SOL-ÜST hücresine göre yazılır (Excel
+  /// gibi); her hücre için göreli başvurular kaydırılıp değerlendirilir.
+  bool _expressionMatch(XlsxCondRule rule, int r, int c) {
+    if (rule.formulas.isEmpty || rule.ranges.isEmpty) return false;
+    final anchor = rule.ranges.first;
+    final f = shiftFormula(rule.formulas.first, r - anchor.r1, c - anchor.c1);
+    final v = engine.preview('=$f', r, c).trim().toUpperCase();
+    if (v == 'TRUE' || v == 'DOĞRU') return true;
+    final n = double.tryParse(v);
+    return n != null && n != 0;
   }
 
   SheetCondPaint? _dxfPaint(XlsxCondRule rule) {

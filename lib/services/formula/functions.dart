@@ -89,7 +89,9 @@ extension _ParserFunctionsPart on _Parser {
       case 'SUBTOTAL':
         if (args.isEmpty) return const FormulaError('#DEĞER!');
         final code = _numArg(args, 0).round() % 100;
-        final rest = args.sublist(1);
+        // Excel: SUBTOTAL aralıktaki başka SUBTOTAL hücrelerini SAYMAZ
+        // (iç içe ara toplamlar genel toplamda iki kez sayılmasın).
+        final rest = [for (final a in args.sublist(1)) _withoutSubtotals(a)];
         return switch (code) {
           1 => _callFunc('AVERAGE', rest),
           2 => _callFunc('COUNT', rest),
@@ -531,6 +533,15 @@ extension _ParserFunctionsPart on _Parser {
         return _lookupVector(args);
       case 'XLOOKUP':
         return _xlookup(args);
+      // ── dinamik diziler (Faz 36) ──────────────────────────────────────
+      case 'SEQUENCE':
+        return _sequence(args);
+      case 'UNIQUE':
+        return _unique(args);
+      case 'SORT':
+        return _sortArray(args);
+      case 'FILTER':
+        return _filterArray(args);
       case 'FORMULATEXT':
         if (args.isEmpty || args.first is! _RangeValue) {
           return const FormulaError('#DEĞER!');
@@ -844,5 +855,150 @@ extension _ParserFunctionsPart on _Parser {
     } catch (_) {
       return const FormulaError('#DEĞER!');
     }
+  }
+
+  // ── dinamik dizi işlevleri (Faz 36) ────────────────────────────────────
+
+  /// Atlanmış/boş argüman → varsayılan.
+  double _optNum(List<Object> args, int i, double fallback) {
+    if (i >= args.length) return fallback;
+    final v = _single(args[i]);
+    if (v is String && v.trim().isEmpty) return fallback;
+    return FormulaEngine.toNum(v);
+  }
+
+  static const _maxCells = 100000;
+
+  Object _sequence(List<Object> args) {
+    final rows = _optNum(args, 0, 1).truncate();
+    final cols = _optNum(args, 1, 1).truncate();
+    final start = _optNum(args, 2, 1);
+    final step = _optNum(args, 3, 1);
+    if (rows < 1 || cols < 1) return const FormulaError('#HESAP!');
+    if (rows * cols > _maxCells) return const FormulaError('#SAYI!');
+    var v = start;
+    return FormulaArray([
+      for (var r = 0; r < rows; r++)
+        [
+          for (var c = 0; c < cols; c++) () {
+            final out = v;
+            v += step;
+            return out;
+          }(),
+        ],
+    ]);
+  }
+
+  static String _rowKey(List<Object> row) =>
+      row.map((v) => FormulaEngine.toStr(v).toLowerCase()).join('\u0000');
+
+  Object _unique(List<Object> args) {
+    final m = _matArg(args, 0);
+    if (m.isEmpty) return const FormulaError('#DEĞER!');
+    final exactlyOnce = _optNum(args, 2, 0) != 0;
+    final counts = <String, int>{};
+    for (final row in m) {
+      final k = _rowKey(row);
+      counts[k] = (counts[k] ?? 0) + 1;
+    }
+    final seen = <String>{};
+    final out = <List<Object>>[
+      for (final row in m)
+        if ((!exactlyOnce || counts[_rowKey(row)] == 1) && seen.add(_rowKey(row)))
+          row,
+    ];
+    return out.isEmpty ? const FormulaError('#HESAP!') : FormulaArray(out);
+  }
+
+  int _cmpValues(Object a, Object b) {
+    final na = _Parser._asNumber(a), nb = _Parser._asNumber(b);
+    if (na != null && nb != null) return na.compareTo(nb);
+    if (na != null) return -1; // sayı < metin (Excel)
+    if (nb != null) return 1;
+    return FormulaEngine.toStr(a)
+        .toLowerCase()
+        .compareTo(FormulaEngine.toStr(b).toLowerCase());
+  }
+
+  Object _sortArray(List<Object> args) {
+    final m = _matArg(args, 0);
+    if (m.isEmpty) return const FormulaError('#DEĞER!');
+    final index = _optNum(args, 1, 1).truncate() - 1;
+    final desc = _optNum(args, 2, 1) < 0;
+    if (index < 0 || index >= m.first.length) return const FormulaError('#DEĞER!');
+    final rows = [...m]..sort((a, b) {
+        final c = _cmpValues(a[index], b[index]);
+        return desc ? -c : c;
+      });
+    return FormulaArray(rows);
+  }
+
+  static bool _truthy(Object v) {
+    if (v is bool) return v;
+    if (v is num) return v != 0;
+    if (v is String) {
+      final t = v.trim().toUpperCase();
+      if (t == 'TRUE' || t == 'DOĞRU') return true;
+      return (double.tryParse(t) ?? 0) != 0;
+    }
+    return false;
+  }
+
+  Object _filterArray(List<Object> args) {
+    if (args.length < 2) return const FormulaError('#DEĞER!');
+    final m = _matArg(args, 0);
+    final inc = _matArg(args, 1);
+    if (m.isEmpty || inc.isEmpty) return const FormulaError('#DEĞER!');
+    List<List<Object>> out;
+    if (inc.length == m.length && inc.first.length == 1) {
+      out = [
+        for (var r = 0; r < m.length; r++)
+          if (_truthy(inc[r][0])) m[r],
+      ];
+    } else if (inc.length == 1 && inc.first.length == m.first.length) {
+      final keep = [
+        for (var c = 0; c < m.first.length; c++)
+          if (_truthy(inc[0][c])) c,
+      ];
+      out = keep.isEmpty
+          ? const []
+          : [
+              for (final row in m) [for (final c in keep) row[c]],
+            ];
+    } else {
+      return const FormulaError('#DEĞER!');
+    }
+    for (final row in inc) {
+      for (final v in row) {
+        if (v is FormulaError) return v;
+      }
+    }
+    if (out.isEmpty) {
+      if (args.length > 2) return _single(args[2]);
+      return const FormulaError('#HESAP!');
+    }
+    return FormulaArray(out);
+  }
+
+  /// Aralıktaki SUBTOTAL/ARATOPLAM formüllü hücreleri boş sayan dizi.
+  Object _withoutSubtotals(Object a) {
+    if (a is! _RangeValue) return a;
+    var any = false;
+    final rows = <List<Object>>[];
+    for (var r = a.r1; r <= a.r2; r++) {
+      final row = <Object>[];
+      for (var c = a.c1; c <= a.c2; c++) {
+        final raw = eng.rawTextOf(r, c, a.sheet).trimLeft().toUpperCase();
+        if (raw.startsWith('=SUBTOTAL(') || raw.startsWith('=ARATOPLAM(') ||
+            raw.startsWith('=_XLFN.SUBTOTAL(')) {
+          any = true;
+          row.add('');
+        } else {
+          row.add(eng.cellValue(r, c, visiting, a.sheet));
+        }
+      }
+      rows.add(row);
+    }
+    return any ? FormulaArray(rows) : a;
   }
 }

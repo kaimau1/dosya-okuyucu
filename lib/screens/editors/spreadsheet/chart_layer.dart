@@ -19,12 +19,15 @@ extension _SpreadsheetChartLayerPart on _SpreadsheetEditorScreenState {
       for (final c in editor.fileCharts)
         if (c.sheetName == sheet.name) c,
     ];
-    if (specs.isEmpty && fromFile.isEmpty) return list;
+    // Faz 36 madde 10: formül denetimi okları (yalnız çizildiği sayfada).
+    final arrows = _arrows.isNotEmpty && _arrowsSheet == sheet.name;
+    if (specs.isEmpty && fromFile.isEmpty && !arrows) return list;
     return Stack(
       children: [
         list,
         for (final chart in fromFile) _fileChartBox(chart, rows, cols),
         for (final spec in specs) _chartBox(spec, rows, cols),
+        if (arrows) _auditLayer(rows, cols),
       ],
     );
   }
@@ -45,6 +48,8 @@ extension _SpreadsheetChartLayerPart on _SpreadsheetEditorScreenState {
       animation: _vBody,
       builder: (context, child) {
         final dy = _vBody.hasClients ? _vBody.offset : 0.0;
+        // Faz 36 perf: görünür pencere dışındaki grafik boyanmaz.
+        if (_offscreenY(top, h, dy)) return const SizedBox.shrink();
         return Positioned(
             left: left, top: top - dy, width: w, height: h, child: child!);
       },
@@ -83,6 +88,16 @@ extension _SpreadsheetChartLayerPart on _SpreadsheetEditorScreenState {
   }
 
   /// Satır/sütun ölçüsünde [index]'in başlangıcı (gizli/donmuşsa yaklaşık).
+  /// Dikeyde görünür pencerenin tamamen dışında mı?
+  bool _offscreenY(double top, double h, double dy) {
+    if (!_vBody.hasClients) return false;
+    final pos = _vBody.position;
+    // İlk yerleşimden önce ölçü yok → çiz (boyamayı atlamak yalnız ölçülünce).
+    if (!pos.hasViewportDimension) return false;
+    final vh = pos.viewportDimension;
+    return top - dy > vh || top + h - dy < 0;
+  }
+
   static double _axisStart(SheetAxisMetrics m, int index) {
     final at = m.indices.indexOf(index);
     if (at >= 0) return m.startAt(at);
@@ -119,6 +134,7 @@ extension _SpreadsheetChartLayerPart on _SpreadsheetEditorScreenState {
       builder: (context, child) {
         final dy = _vBody.hasClients ? _vBody.offset : 0.0;
         final off = selected ? _chartDrag : Offset.zero;
+        if (!selected && _offscreenY(top, h, dy)) return const SizedBox.shrink();
         return Positioned(
           left: left + off.dx,
           top: top - dy + off.dy,
@@ -184,6 +200,7 @@ extension _SpreadsheetChartLayerPart on _SpreadsheetEditorScreenState {
                           ),
                       ],
                     ),
+                    if (_excelPro) _chartOptionsButton(spec),
                     IconButton(
                       key: const ValueKey('xl-chart-delete'),
                       tooltip: context.t('common.delete'),

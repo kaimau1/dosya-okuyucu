@@ -257,11 +257,21 @@ class ChartSeries {
   final Color color;
   final List<double> values;
   final Map<int, Color> pointColors;
+
+  /// Faz 36 madde 11 (Excel grafikleri): sütun grafiğinde bu seri ÇİZGİ
+  /// olarak (kombinasyon), [secondary] ise sağdaki ikincil eksene göre
+  /// çizilir; [trend] doğrusal eğilim çizgisi ekler.
+  final bool asLine;
+  final bool secondary;
+  final bool trend;
   const ChartSeries({
     required this.name,
     required this.color,
     required this.values,
     this.pointColors = const {},
+    this.asLine = false,
+    this.secondary = false,
+    this.trend = false,
   });
 }
 

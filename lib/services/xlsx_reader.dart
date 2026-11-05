@@ -105,6 +105,16 @@ class XlsxReader {
         if (target != null) _readComments(layout, target, doc);
         sheets.add(layout);
       }
+      // Yazdırma alanı: yerel ad `_xlnm.Print_Area` (localSheetId = sıra).
+      for (final dn in wb.findAllElements('definedName')) {
+        if (dn.getAttribute('name') != '_xlnm.Print_Area') continue;
+        final i = int.tryParse(dn.getAttribute('localSheetId') ?? '');
+        if (i == null || i < 0 || i >= sheets.length) continue;
+        final v = dn.innerText.split(',').first;
+        final bang = v.lastIndexOf('!');
+        sheets[i].printArea =
+            (bang < 0 ? v : v.substring(bang + 1)).replaceAll(r'$', '');
+      }
     }
     if (sheets.isEmpty) {
       // workbook.xml okunamadıysa: sheet1'i doğrudan dene.
@@ -686,6 +696,23 @@ class XlsxReader {
           }
         case 'autoFilter':
           layout.autoFilterRef = el.getAttribute('ref');
+        case 'sheetProtection':
+          final on = el.getAttribute('sheet');
+          layout.protected = on == '1' || on == 'true';
+          layout.protectionHash = el.getAttribute('password');
+          layout.protectionStrong = el.getAttribute('hashValue') != null;
+          for (final a in el.attributes) {
+            layout.protectionAttrs[a.name.local] = a.value;
+          }
+        case 'protectedRanges':
+          for (final pr in el.childElements) {
+            for (final t in (pr.getAttribute('sqref') ?? '').split(' ')) {
+              final range = XlsxRange.parse(t);
+              if (range != null) layout.allowEditRanges.add(range);
+            }
+          }
+        case 'extLst':
+          _readSparklines(el, layout, styles.theme);
       }
     }
     return layout;
@@ -754,6 +781,8 @@ class XlsxReader {
           row.getAttribute('hidden') == 'true') {
         layout.hiddenRows.add(rIdx);
       }
+      final level = int.tryParse(row.getAttribute('outlineLevel') ?? '');
+      if (level != null && level > 0) layout.rowOutline[rIdx] = level;
       final rowStyle = int.tryParse(row.getAttribute('s') ?? '');
       if (rowStyle != null &&
           (row.getAttribute('customFormat') == '1' ||
@@ -955,6 +984,8 @@ class XlsxReader {
         if (ht != null) layout.rowHeights[rIdx] = ht;
         final hidden = _attr(s, from, attrEnd, 'hidden');
         if (hidden == '1' || hidden == 'true') layout.hiddenRows.add(rIdx);
+        final level = int.tryParse(_attr(s, from, attrEnd, 'outlineLevel') ?? '');
+        if (level != null && level > 0) layout.rowOutline[rIdx] = level;
         final rowStyle = int.tryParse(_attr(s, from, attrEnd, 's') ?? '');
         final custom = _attr(s, from, attrEnd, 'customFormat');
         if (rowStyle != null && (custom == '1' || custom == 'true')) {
@@ -1274,6 +1305,37 @@ class XlsxReader {
     return u > 127; // Türkçe harfli tanımlı adlar
   }
 
+  /// `x14:sparklineGroups` (Excel 2010 mini grafikleri) — Faz 36 madde 3.
+  static void _readSparklines(
+      XmlElement ext, XlsxSheetLayout layout, List<int> theme) {
+    for (final g in ext.descendants.whereType<XmlElement>()) {
+      if (g.name.local != 'sparklineGroup') continue;
+      final type = g.getAttribute('type') ?? 'line';
+      final colorEl = g.childElements
+          .where((e) => e.name.local == 'colorSeries')
+          .firstOrNull;
+      final color = colorEl == null ? null : _readColor(colorEl, theme);
+      for (final sp in g.descendants.whereType<XmlElement>()) {
+        if (sp.name.local != 'sparkline') continue;
+        String? text(String local) => sp.childElements
+            .where((e) => e.name.local == local)
+            .firstOrNull
+            ?.innerText
+            .trim();
+        final f = text('f');
+        final at = XlsxRange.cellRef(text('sqref'));
+        if (f == null || at == null) continue;
+        layout.sparklines.add(XlsxSparkline(
+          source: f,
+          row: at.$1,
+          col: at.$2,
+          type: type,
+          colorArgb: color ?? 0xFF376092,
+        ));
+      }
+    }
+  }
+
   static void _readCondFormat(
       XmlElement el, XlsxSheetLayout layout, List<int> theme) {
     final sqref = el.getAttribute('sqref') ?? '';
@@ -1314,7 +1376,12 @@ class XlsxReader {
         barColor =
             c == null ? 0xFF638EC6 : (_readColor(c, theme) ?? 0xFF638EC6);
       }
+      final iconSet = rule.childElements
+          .where((e) => e.name.local == 'iconSet')
+          .firstOrNull
+          ?.getAttribute('iconSet');
       layout.condFormats.add(XlsxCondRule(
+        iconSet: type == 'iconSet' ? (iconSet ?? '3TrafficLights1') : null,
         ranges: ranges,
         type: type,
         operator: rule.getAttribute('operator'),
@@ -1726,7 +1793,11 @@ class XlsxCondRule {
   final List<double>? scaleValues;
   final int? barColorArgb;
 
+  /// `iconSet` kuralının simge kümesi adı (`3TrafficLights1`, `3Arrows`…).
+  final String? iconSet;
+
   const XlsxCondRule({
+    this.iconSet,
     required this.ranges,
     required this.type,
     required this.formulas,
@@ -1740,6 +1811,44 @@ class XlsxCondRule {
   });
 
   bool covers(int r, int c) => ranges.any((x) => x.contains(r, c));
+}
+
+/// Tek hücrelik mini grafik (`x14:sparkline`).
+class XlsxSparkline {
+  /// Kaynak aralık, sayfa adıyla ya da adsız (`Sayfa1!A1:E1` / `A1:E1`).
+  final String source;
+  final int row;
+  final int col;
+
+  /// `line` | `column` | `stacked` (kazanç/kayıp).
+  final String type;
+  final int colorArgb;
+
+  const XlsxSparkline({
+    required this.source,
+    required this.row,
+    required this.col,
+    this.type = 'line',
+    this.colorArgb = 0xFF376092,
+  });
+
+  /// Kaynağın aralık kısmı (sayfa adı ve `$` atılmış).
+  XlsxRange? get range {
+    final i = source.lastIndexOf('!');
+    return XlsxRange.parse(
+        (i < 0 ? source : source.substring(i + 1)).replaceAll(r'$', ''));
+  }
+
+  /// Kaynağın sayfa adı (yoksa null = aynı sayfa).
+  String? get sheet {
+    final i = source.lastIndexOf('!');
+    if (i < 0) return null;
+    var name = source.substring(0, i);
+    if (name.startsWith("'") && name.endsWith("'") && name.length >= 2) {
+      name = name.substring(1, name.length - 1).replaceAll("''", "'");
+    }
+    return name;
+  }
 }
 
 class XlsxDataValidation {
@@ -1864,6 +1973,42 @@ class XlsxSheetLayout {
   final List<XlsxRange> merges = [];
   final Map<int, XlsxCell> cells = {};
   final List<XlsxCondRule> condFormats = [];
+
+  /// Mini grafikler (Faz 36): hedef hücre + kaynak aralık.
+  final List<XlsxSparkline> sparklines = [];
+
+  /// Satır anahat (gruplama) düzeyi 1–7 (Faz 36 madde 8).
+  final Map<int, int> rowOutline = {};
+
+  /// Anahat bu oturumda değişti — kaydetmede yazılsın.
+  bool outlineEdited = false;
+
+  /// Bu oturumda düzeyi sıfırlanan satırlar (dosyadaki `outlineLevel` silinsin).
+  final Set<int> outlineCleared = {};
+
+  /// Faz 36 madde 12 — sayfa koruması (`<sheetProtection sheet="1">`),
+  /// eski 16 bit parola özeti ([protectionHash]) ya da güçlü özet
+  /// ([protectionStrong] — SHA-512 `hashValue`, parolası doğrulanamaz) ve
+  /// korumalı sayfada düzenlenebilir aralıklar (`protectedRanges`).
+  bool protected = false;
+  String? protectionHash;
+  bool protectionStrong = false;
+
+  /// Güçlü özet öznitelikleri (`algorithmName`, `saltValue`, `hashValue`,
+  /// `spinCount`) — parolayla kaldırırken doğrulamak için.
+  final Map<String, String> protectionAttrs = {};
+  final List<XlsxRange> allowEditRanges = [];
+
+  /// Koruma bu oturumda değişti — kaydetmede yazılsın.
+  bool protectionEdited = false;
+
+  /// Yazdırma alanı (`_xlnm.Print_Area`, ör. `A1:D20`); null = yok.
+  String? printArea;
+  bool printAreaEdited = false;
+
+  /// Korumalı sayfada (r,c) düzenlenebilir mi?
+  bool canEdit(int r, int c) =>
+      !protected || allowEditRanges.any((x) => x.contains(r, c));
   final Map<int, String> hyperlinks = {};
 
   /// Hücre notları (açıklama/yorum) — `cellKey(r, c)` → not.

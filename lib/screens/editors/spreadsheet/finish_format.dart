@@ -724,7 +724,10 @@ extension _SpreadsheetFinishPart on _SpreadsheetEditorScreenState {
         top: range.top,
         left: range.left,
         bottom: range.bottom,
-        right: range.right);
+        right: range.right,
+        // Yapısal başvuru (`Tablo1[Tutar]`) için ad hemen belli olmalı.
+        name: editor.nextTableName(),
+        styleName: XlsxTableSpec.styleForAccent(accent));
     void applyNow() {
       for (var r = range.top; r <= range.bottom; r++) {
         for (var c = range.left; c <= range.right; c++) {

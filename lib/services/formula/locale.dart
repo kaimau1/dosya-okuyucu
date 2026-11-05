@@ -100,6 +100,9 @@ extension _FormulaLocalePart on _Parser {
       name = _Parser._aliases[trUp]!;
     } else if (_Parser._aliases.containsKey(up)) {
       name = _Parser._aliases[up]!;
+    } else if (_Parser._englishValues.contains(up)) {
+      // Zaten İngilizce (kanonik) yazılmış ad: `_xlfn.` öneki yine eklenir.
+      name = up;
     } else if (trUp == 'DOĞRU') {
       name = 'TRUE';
     } else if (trUp == 'YANLIŞ') {
@@ -108,6 +111,8 @@ extension _FormulaLocalePart on _Parser {
       // Tanınmayan ad (kullanıcının özel işlevi / eklenti) olduğu gibi kalır.
       return word;
     }
+    // FILTER/SORT Excel'de `_xlfn._xlws.` önekiyle saklanır.
+    if (name == 'FILTER' || name == 'SORT') return '_xlfn._xlws.$name';
     return _xlfn.contains(name) ? '_xlfn.$name' : name;
   }
 

@@ -105,7 +105,7 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
       kodlayıcı yok" kalktı (Faz 14b: Android `Bitmap.compress`, `image` paketi). Ayrı ve
       açıkça uyaran seçenek (metin katmanı kaybolur; isteğe bağlı OCR katmanı), DPI/kalite
       seçimi; `pdf_tools.dart:304` yorumu güncellenir.
-- [ ] **A7.5 Excel koşullu biçim yazma:** renk ölçeği / veri çubuğu / simge kümesi bugün
+- [x] **A7.5 Excel koşullu biçim yazma:** renk ölçeği / veri çubuğu / simge kümesi bugün (Faz 36 madde 2, 2026-11-05)
       yalnız okunup çiziliyor; "Koşullu biçimlendirme" levhasına eklenir (`<cfRule>` +
       `<colorScale>/<dataBar>/<iconSet>`), LibreOffice ile gidiş-dönüş testi.
 
@@ -140,7 +140,7 @@ Ayrıntı ve bitti ölçütleri: **`docs/GELISTIRME_PLANI.md`** (Faz 34–42: pa
 pro belge tarayıcı · Excel · Word · Slayt · PDF · ortak görünüm · dosya yöneticisi · kalite).
 **Her faz `GELISTIRME_PLANI.md` baştaki PERFORMANS KORUMA ANAYASASI'na uyar** (izolat, tembel yükleme, PerfBudget, boşta 0 kare, perf kapısı + A/B tablo).
 Faz 35'in ilk adımı **ML Kit geçişi** (onaylandı; kullanıcı başlatacak).
-Önerilen sıra: 34 → 35 → 39 → 36 → 37 → 38 → 40 → 41 → 42. **Faz 34 BİTTİ** (kod; cihaz doğrulaması `CIHAZ_TESTI.md`). **Faz 35 BİTTİ** 2026-11-05 (ML Kit `GmsDocumentScanner` + pro tarayıcı; cihaz turu + perf A/B bekliyor). **Faz 39 BİTTİ** 2026-11-05 (PDF pro: dijital imza, karartma, Excel/Word/PDF-A, karşılaştırma, izin/yer imi/damga/numara, okuma, agresif sıkıştırma, sayfa/form/dönüştürme/paraf; cihaz turu + perf A/B bekliyor).
+Önerilen sıra: 34 → 35 → 39 → 36 → 37 → 38 → 40 → 41 → 42. **Faz 34 BİTTİ** (kod; cihaz doğrulaması `CIHAZ_TESTI.md`). **Faz 35 BİTTİ** 2026-11-05 (ML Kit `GmsDocumentScanner` + pro tarayıcı; cihaz turu + perf A/B bekliyor). **Faz 39 BİTTİ** 2026-11-05 (PDF pro: dijital imza, karartma, Excel/Word/PDF-A, karşılaştırma, izin/yer imi/damga/numara, okuma, agresif sıkıştırma, sayfa/form/dönüştürme/paraf; cihaz turu + perf A/B bekliyor). **Faz 36 BİTTİ** 2026-11-05 (Excel pro: özet tablo, koşullu biçim yazma/yönetici, mini grafik, dinamik dizi/LET/yapısal başvuru, parolalı xlsx, yazdırma alanı/PDF, içe aktarma/ara toplam/anahat, biçim boyacısı/tema, formül denetimi/hedef ara, grafik kombinasyon/eğilim, sayfa koruması; cihaz turu + perf A/B bekliyor).
 
 ---
 

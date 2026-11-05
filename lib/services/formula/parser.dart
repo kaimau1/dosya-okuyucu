@@ -34,7 +34,10 @@ extension _ParserParserPart on _Parser {
       final right = _parseConcat();
       if (left is FormulaError) return left;
       if (right is FormulaError) return right;
-      left = _compare(op, _single(left), _single(right));
+      final o = op;
+      left = _arrayDepth > 0
+          ? _elementwise(left, right, (x, y) => _compare(o, x, y))
+          : _compare(op, _single(left), _single(right));
     }
     return left;
   }
@@ -100,6 +103,15 @@ extension _ParserParserPart on _Parser {
         final right = _parseMulDiv();
         if (left is FormulaError) return left;
         if (right is FormulaError) return right;
+        if (_arrayDepth > 0) {
+          left = _elementwise(left, right, (x, y) {
+            if (x is FormulaError) return x;
+            if (y is FormulaError) return y;
+            final a = FormulaEngine.toNum(x), b = FormulaEngine.toNum(y);
+            return op == '+' ? a + b : a - b;
+          });
+          continue;
+        }
         final a = FormulaEngine.toNum(_single(left));
         final b = FormulaEngine.toNum(_single(right));
         left = op == '+' ? a + b : a - b;
@@ -120,6 +132,16 @@ extension _ParserParserPart on _Parser {
         final right = _parsePower();
         if (left is FormulaError) return left;
         if (right is FormulaError) return right;
+        if (_arrayDepth > 0) {
+          left = _elementwise(left, right, (x, y) {
+            if (x is FormulaError) return x;
+            if (y is FormulaError) return y;
+            final a = FormulaEngine.toNum(x), b = FormulaEngine.toNum(y);
+            if (op == '/') return b == 0 ? const FormulaError('#SAYI/0!') : a / b;
+            return a * b;
+          });
+          continue;
+        }
         final a = FormulaEngine.toNum(_single(left));
         final b = FormulaEngine.toNum(_single(right));
         if (op == '/') {
@@ -187,6 +209,8 @@ extension _ParserParserPart on _Parser {
     }
     if (ch == '"') return _parseString();
     if (ch == '{') return _parseArrayLiteral();
+    // Tablosuz yapısal başvuru: `[@Tutar]` (formülün bulunduğu tablo).
+    if (ch == '[') return _parseStructured(null);
     if (ch == "'") return _parseQuotedSheetRef();
     if (ch == '#') return _parseErrorLiteral();
     if (_Parser._isDigit(ch) || ch == '.') return _parseNumber();
@@ -327,9 +351,28 @@ extension _ParserParserPart on _Parser {
     // Fonksiyon? (boşluk bırakılmaz — Excel de bırakılmasına izin vermez)
     if (_i < s.length && s[_i] == '(') {
       _i++;
-      final args = _parseArgs();
+      final canon = _Parser._canonical(word);
+      if (canon == 'LET') return _parseLet();
+      final arrayFn = _Parser._arrayFunctions.contains(canon);
+      if (arrayFn) _arrayDepth++;
+      final List<Object> args;
+      try {
+        args = _parseArgs();
+      } finally {
+        if (arrayFn) _arrayDepth--;
+      }
       if (!_match(')')) throw const FormulaError('#DEĞER!');
-      return _callFunc(_Parser._canonical(word), args);
+      return _callFunc(canon, args);
+    }
+
+    // LET ile bağlanmış ad?
+    final local = _locals?[_Parser._canonical(word)];
+    if (local != null) return local;
+
+    // Yapısal başvuru: Tablo1[Tutar], Tablo1[#Veri], Tablo1[[#Başlıklar],[Ad]]
+    if (_i < s.length && s[_i] == '[' &&
+        eng.tables.containsKey(word.toUpperCase())) {
+      return _parseStructured(eng.tables[word.toUpperCase()]);
     }
 
     // Sayfa referansı: Sayfa1!A1
@@ -439,7 +482,11 @@ extension _ParserParserPart on _Parser {
   List<Object> _flatten(List<Object> args) {
     final out = <Object>[];
     for (final a in args) {
-      if (a is _RangeValue) {
+      if (a is FormulaArray) {
+        for (final row in a.rows) {
+          out.addAll(row);
+        }
+      } else if (a is _RangeValue) {
         for (var r = a.r1; r <= a.r2; r++) {
           for (var c = a.c1; c <= a.c2; c++) {
             out.add(eng.cellValue(r, c, visiting, a.sheet));
@@ -471,6 +518,9 @@ extension _ParserParserPart on _Parser {
   }
 
   Object _single(Object a) {
+    if (a is FormulaArray) {
+      return a.height == 0 || a.width == 0 ? '' : a.rows[0][0];
+    }
     if (a is _RangeValue) {
       if (a.r1 == a.r2 && a.c1 == a.c2) {
         return eng.cellValue(a.r1, a.c1, visiting, a.sheet);
@@ -488,4 +538,193 @@ extension _ParserParserPart on _Parser {
 
   String _strArg(List<Object> args, int i) =>
       FormulaEngine.toStr(_arg(args, i));
+
+  // ── dinamik dizi yardımcıları (Faz 36) ─────────────────────────────────
+
+  /// Değerin matrisi; tek değerse null.
+  List<List<Object>>? _mat(Object v) {
+    if (v is FormulaArray) return v.rows;
+    if (v is _RangeValue && (v.r1 != v.r2 || v.c1 != v.c2)) {
+      return [
+        for (var r = v.r1; r <= v.r2; r++)
+          [for (var c = v.c1; c <= v.c2; c++) eng.cellValue(r, c, visiting, v.sheet)],
+      ];
+    }
+    return null;
+  }
+
+  /// Argümanın matrisi (tek değer → 1×1).
+  List<List<Object>> _matArg(List<Object> args, int i) {
+    if (i >= args.length) return const [];
+    return _mat(args[i]) ?? [
+      [_single(args[i])],
+    ];
+  }
+
+  /// Öğe öğe işlem; tek değer yayılır (Excel "broadcast").
+  Object _elementwise(Object a, Object b, Object Function(Object, Object) f) {
+    final ma = _mat(a), mb = _mat(b);
+    if (ma == null && mb == null) return f(_single(a), _single(b));
+    final sa = ma == null ? _single(a) : '', sb = mb == null ? _single(b) : '';
+    final h = math.max(ma?.length ?? 1, mb?.length ?? 1);
+    final w = math.max(ma?.first.length ?? 1, mb?.first.length ?? 1);
+    Object at(List<List<Object>>? m, Object scalar, int r, int c) {
+      if (m == null) return scalar;
+      final rr = m.length == 1 ? 0 : r, cc = m.first.length == 1 ? 0 : c;
+      if (rr >= m.length || cc >= m[rr].length) return const FormulaError('#YOK');
+      return m[rr][cc];
+    }
+
+    return FormulaArray([
+      for (var r = 0; r < h; r++)
+        [for (var c = 0; c < w; c++) f(at(ma, sa, r, c), at(mb, sb, r, c))],
+    ]);
+  }
+
+  /// `LET(ad; değer; …; hesap)` — adlar sırayla bağlanır, sonraki değerler
+  /// öncekileri kullanabilir. Adı hücre başvurusuna benzeyen bağlama
+  /// reddedilir (Excel de reddeder).
+  Object _parseLet() {
+    final saved = _locals;
+    _locals = {...?saved};
+    try {
+      while (true) {
+        _skip();
+        final start = _i;
+        while (_i < s.length &&
+            (_Parser._isAlpha(s[_i]) ||
+                _Parser._isDigit(s[_i]) ||
+                s[_i] == '_' ||
+                s[_i] == '.')) {
+          _i++;
+        }
+        final name = s.substring(start, _i);
+        _skip();
+        final sep = _i < s.length && (s[_i] == ',' || s[_i] == ';');
+        if (name.isNotEmpty && sep && _parseRef(name) == null &&
+            !_Parser._isDigit(name[0])) {
+          _i++;
+          _arrayDepth++;
+          final Object value;
+          try {
+            value = parseExpr();
+          } finally {
+            _arrayDepth--;
+          }
+          _locals![_Parser._canonical(name)] = value;
+          _skip();
+          if (_i < s.length && (s[_i] == ',' || s[_i] == ';')) {
+            _i++;
+            continue;
+          }
+          throw const FormulaError('#DEĞER!');
+        }
+        _i = start;
+        final result = parseExpr();
+        if (!_match(')')) throw const FormulaError('#DEĞER!');
+        return result;
+      }
+    } finally {
+      _locals = saved;
+    }
+  }
+
+  // ── yapısal başvuru (Faz 36 madde 5) ───────────────────────────────────
+
+  /// `[` konumunda: köşeli parantez bloğunu okur ve aralığa çevirir.
+  /// [table] null → formülün içinde bulunduğu tablo (`[@Sütun]`).
+  Object _parseStructured(FormulaTable? table) {
+    // Dengeli köşeli parantez bloğu.
+    final start = _i;
+    var depth = 0;
+    while (_i < s.length) {
+      final ch = s[_i];
+      if (ch == "'" && _i + 1 < s.length) {
+        _i += 2; // kaçış: '[ '] '#
+        continue;
+      }
+      if (ch == '[') depth++;
+      if (ch == ']') {
+        depth--;
+        if (depth == 0) {
+          _i++;
+          break;
+        }
+      }
+      _i++;
+    }
+    if (depth != 0) throw const FormulaError('#BAŞV!');
+    final t = table ?? eng.tableAt(sheet, selfR, selfC);
+    if (t == null) throw const FormulaError('#BAŞV!');
+    var body = s.substring(start + 1, _i - 1).trim();
+    // Parçalar: [[#Başlıklar],[Ad]] / [@Tutar] / [Ad]:[Soyad] / [#Veri].
+    final parts = <String>[];
+    if (body.startsWith('[')) {
+      for (final m in RegExp(r"\[((?:[^\]']|'.)*)\]").allMatches(body)) {
+        parts.add(m.group(1)!);
+      }
+      if (body.contains(']:[') && parts.length == 2) {
+        parts
+          ..clear()
+          ..add('${RegExp(r"\[((?:[^\]']|'.)*)\]").allMatches(body).first.group(1)}'
+              ':${RegExp(r"\[((?:[^\]']|'.)*)\]").allMatches(body).last.group(1)}');
+      }
+    } else {
+      parts.add(body);
+    }
+    var thisRow = false;
+    var r1 = t.dataTop, r2 = t.dataBottom;
+    var c1 = t.left, c2 = t.right;
+    var colSet = false;
+    for (var raw in parts) {
+      raw = raw.replaceAllMapped(RegExp(r"'(.)"), (m) => m.group(1)!).trim();
+      if (raw.startsWith('@')) {
+        thisRow = true;
+        raw = raw.substring(1).trim();
+        if (raw.isEmpty) continue;
+      }
+      final up = raw.toUpperCase();
+      switch (up) {
+        case '#THIS ROW' || '#BU SATIR':
+          thisRow = true;
+          continue;
+        case '#ALL' || '#TÜMÜ':
+          r1 = t.top;
+          r2 = t.bottom;
+          continue;
+        case '#DATA' || '#VERİ' || '#VERI':
+          r1 = t.dataTop;
+          r2 = t.dataBottom;
+          continue;
+        case '#HEADERS' || '#BAŞLIKLAR' || '#BASLIKLAR':
+          if (!t.hasHeader) throw const FormulaError('#BAŞV!');
+          r1 = r2 = t.top;
+          continue;
+        case '#TOTALS' || '#TOPLAMLAR':
+          if (!t.hasTotals) throw const FormulaError('#BAŞV!');
+          r1 = r2 = t.bottom;
+          continue;
+      }
+      final range = raw.split(':');
+      final a = t.columnOf(range.first.replaceAll(RegExp(r'^\[|\]$'), ''));
+      final b = range.length > 1
+          ? t.columnOf(range.last.replaceAll(RegExp(r'^\[|\]$'), ''))
+          : a;
+      if (a < 0 || b < 0) throw const FormulaError('#BAŞV!');
+      c1 = math.min(a, b);
+      c2 = math.max(a, b);
+      colSet = true;
+    }
+    if (thisRow) {
+      if (selfR < t.dataTop || selfR > t.dataBottom) {
+        throw const FormulaError('#DEĞER!');
+      }
+      r1 = r2 = selfR;
+    }
+    if (!colSet && thisRow && parts.every((p) => p.trim() == '@')) {
+      c1 = t.left;
+      c2 = t.right;
+    }
+    return eng._noted(_RangeValue(r1, c1, r2, c2, t.sheet));
+  }
 }

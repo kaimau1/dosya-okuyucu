@@ -37,6 +37,26 @@ class XlsxChartSpec {
   /// ızgarada köşeden boyutlandırma).
   final int widthCols, heightRows;
 
+  /// Faz 36 madde 11: kombinasyon (sütun/çubuk + SON seri çizgi), çizgi
+  /// serisi ikincil eksende, doğrusal eğilim çizgisi, renk stili
+  /// ([XlsxChartWriter.styles] dizini).
+  final bool combo;
+  final bool secondaryAxis;
+  final bool trendline;
+  final int style;
+
+  /// Kombinasyon gerçekten uygulanabilir mi (sütun/çubuk ve ≥ 2 seri)?
+  bool get isCombo =>
+      combo &&
+      series.length >= 2 &&
+      (kind == XlsxChartKind.column || kind == XlsxChartKind.bar);
+
+  /// Seri [i]'nin rengi (stil paletinden).
+  String colorOf(int i) {
+    final p = XlsxChartWriter.styles[style.clamp(0, XlsxChartWriter.styles.length - 1)];
+    return p[i % p.length];
+  }
+
   const XlsxChartSpec({
     required this.sheetName,
     required this.kind,
@@ -52,6 +72,10 @@ class XlsxChartSpec {
     this.title = '',
     this.widthCols = 8,
     this.heightRows = 15,
+    this.combo = false,
+    this.secondaryAxis = false,
+    this.trendline = false,
+    this.style = 0,
   });
 
   XlsxChartSpec copyWith({
@@ -61,6 +85,10 @@ class XlsxChartSpec {
     int? widthCols,
     int? heightRows,
     String? sheetName,
+    bool? combo,
+    bool? secondaryAxis,
+    bool? trendline,
+    int? style,
   }) =>
       XlsxChartSpec(
         sheetName: sheetName ?? this.sheetName,
@@ -81,6 +109,10 @@ class XlsxChartSpec {
         anchorCol: anchorCol ?? this.anchorCol,
         widthCols: widthCols ?? this.widthCols,
         heightRows: heightRows ?? this.heightRows,
+        combo: combo ?? this.combo,
+        secondaryAxis: secondaryAxis ?? this.secondaryAxis,
+        trendline: trendline ?? this.trendline,
+        style: style ?? this.style,
       );
 
   /// Seçili aralıktan grafik kurar: ilk satır başlık, ilk sütun sayı DEĞİLSE
@@ -431,13 +463,25 @@ abstract final class XlsxChartWriter {
     switch (s.kind) {
       case XlsxChartKind.column:
       case XlsxChartKind.bar:
+        final combo = s.isCombo;
+        final last = s.series.length - 1;
         b.write('<c:barChart><c:barDir val="'
             '${s.kind == XlsxChartKind.bar ? 'bar' : 'col'}"/>'
             '<c:grouping val="clustered"/><c:varyColors val="0"/>');
-        _series(b, s, line: false);
+        _series(b, s, line: false, until: combo ? last : null);
         b.write('<c:gapWidth val="150"/><c:axId val="5000001"/>'
             '<c:axId val="5000002"/></c:barChart>');
+        if (combo) {
+          // Kombinasyon: son seri çizgi; ikincil eksende ise kendi eksen çifti.
+          final sec = s.secondaryAxis;
+          b.write('<c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>');
+          _series(b, s, line: true, from: last);
+          b.write('<c:marker val="1"/>'
+              '<c:axId val="${sec ? 5000003 : 5000001}"/>'
+              '<c:axId val="${sec ? 5000004 : 5000002}"/></c:lineChart>');
+        }
         _axes(b, horizontal: s.kind == XlsxChartKind.bar);
+        if (combo && s.secondaryAxis) _secondaryAxes(b);
       case XlsxChartKind.line:
         b.write('<c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>');
         _series(b, s, line: true);
@@ -465,14 +509,25 @@ abstract final class XlsxChartWriter {
     '4472C4', 'ED7D31', 'A5A5A5', 'FFC000', '5B9BD5', '70AD47',
   ];
 
+  /// Grafik stilleri (Faz 36 madde 11): renk dizileri — 0 Office, 1 mavi
+  /// tonlar, 2 sıcak, 3 yeşil, 4 gri.
+  static const styles = <List<String>>[
+    palette,
+    ['1F4E79', '2E75B6', '5B9BD5', '9DC3E6', 'BDD7EE', 'DEEBF7'],
+    ['C00000', 'ED7D31', 'FFC000', 'F4B183', 'FFD966', '843C0C'],
+    ['375623', '548235', '70AD47', 'A9D18E', 'C5E0B4', '1E3A13'],
+    ['262626', '595959', '7F7F7F', 'A6A6A6', 'BFBFBF', 'D9D9D9'],
+  ];
+
   static String _fill(String hex) =>
       '<a:solidFill><a:srgbClr val="$hex"/></a:solidFill>';
 
-  static void _series(StringBuffer b, XlsxChartSpec s, {required bool line}) {
+  static void _series(StringBuffer b, XlsxChartSpec s,
+      {required bool line, int from = 0, int? until}) {
     final r1 = s.top + 1, r2 = s.bottom;
-    for (var i = 0; i < s.series.length; i++) {
+    for (var i = from; i < (until ?? s.series.length); i++) {
       final ser = s.series[i];
-      final color = palette[i % palette.length];
+      final color = s.colorOf(i);
       b.write('<c:ser><c:idx val="$i"/><c:order val="$i"/>'
           '<c:tx><c:strRef><c:f>${_esc(ref(s.sheetName, s.top, ser.col))}</c:f>'
           '<c:strCache><c:ptCount val="1"/><c:pt idx="0"><c:v>${_esc(ser.name)}'
@@ -487,11 +542,18 @@ abstract final class XlsxChartWriter {
             '</a:solidFill></a:ln></c:spPr>');
         for (var k = 0; k < ser.values.length; k++) {
           b.write('<c:dPt><c:idx val="$k"/><c:bubble3D val="0"/><c:spPr>'
-              '${_fill(palette[k % palette.length])}</c:spPr></c:dPt>');
+              '${_fill(s.colorOf(k))}</c:spPr></c:dPt>');
         }
       } else {
         b.write('<c:spPr>${_fill(color)}</c:spPr>'
             '<c:invertIfNegative val="0"/>');
+      }
+      // Eğilim çizgisi: şemada spPr/marker/dPt'den sonra, cat'ten önce.
+      if (s.trendline && s.kind != XlsxChartKind.pie) {
+        b.write('<c:trendline><c:spPr><a:ln w="19050" cap="rnd">'
+            '${_fill(color)}<a:prstDash val="sysDot"/></a:ln></c:spPr>'
+            '<c:trendlineType val="linear"/><c:dispRSqr val="0"/>'
+            '<c:dispEq val="0"/></c:trendline>');
       }
       // Kategoriler: kategori sütunu yoksa sıra numarası önbelleği (başvuru
       // yok — Excel o zaman 1, 2, 3… yazar).
@@ -536,6 +598,21 @@ abstract final class XlsxChartWriter {
         '<c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx>');
   }
 
+  /// İkincil eksen çifti: kategori ekseni gizli, değer ekseni sağda.
+  static void _secondaryAxes(StringBuffer b) {
+    b.write('<c:catAx><c:axId val="5000003"/><c:scaling>'
+        '<c:orientation val="minMax"/></c:scaling><c:delete val="1"/>'
+        '<c:axPos val="b"/><c:numFmt formatCode="General" sourceLinked="1"/>'
+        '<c:tickLblPos val="nextTo"/><c:crossAx val="5000004"/>'
+        '<c:crosses val="autoZero"/><c:auto val="1"/><c:lblAlgn val="ctr"/>'
+        '<c:lblOffset val="100"/></c:catAx>'
+        '<c:valAx><c:axId val="5000004"/><c:scaling>'
+        '<c:orientation val="minMax"/></c:scaling><c:delete val="0"/>'
+        '<c:axPos val="r"/><c:numFmt formatCode="General" sourceLinked="1"/>'
+        '<c:tickLblPos val="nextTo"/><c:crossAx val="5000003"/>'
+        '<c:crosses val="max"/><c:crossBetween val="between"/></c:valAx>');
+  }
+
   static String _esc(String s) => s
       .replaceAll('&', '&amp;')
       .replaceAll('<', '&lt;')
@@ -554,6 +631,13 @@ class XlsxTableSpec {
   /// Başlık hücrelerinin metni (kayıt anında sayfadan okunur).
   final List<String> headers;
 
+  /// Tablo adı (`Tablo1`) — yapısal başvurular (`Tablo1[Tutar]`) bununla;
+  /// null → yazarken kimlikten üretilir.
+  final String? name;
+
+  /// Excel yerleşik stil adı (`TableStyleMedium2`…).
+  final String styleName;
+
   const XlsxTableSpec({
     required this.sheetName,
     required this.top,
@@ -561,6 +645,8 @@ class XlsxTableSpec {
     required this.bottom,
     required this.right,
     this.headers = const [],
+    this.name,
+    this.styleName = 'TableStyleMedium2',
   });
 
   XlsxTableSpec withHeaders(List<String> h) => XlsxTableSpec(
@@ -569,7 +655,18 @@ class XlsxTableSpec {
       left: left,
       bottom: bottom,
       right: right,
-      headers: h);
+      headers: h,
+      name: name,
+      styleName: styleName);
+
+  /// Vurgu renginden en yakın yerleşik Excel stili (Office teması).
+  static String styleForAccent(int argb) => switch (argb & 0xFFFFFF) {
+        0x70AD47 => 'TableStyleMedium7',
+        0xED7D31 => 'TableStyleMedium3',
+        0x7030A0 => 'TableStyleMedium12',
+        0x595959 => 'TableStyleMedium1',
+        _ => 'TableStyleMedium2',
+      };
 
   String get ref =>
       '${_col(left)}${top + 1}:${_col(right)}${bottom + 1}';
@@ -714,10 +811,11 @@ abstract final class XlsxTableWriter {
     }
     return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
         '<table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
-        'id="$id" name="Tablo$id" displayName="Tablo$id" ref="${t.ref}" '
+        'id="$id" name="${_esc(t.name ?? 'Tablo$id')}" '
+        'displayName="${_esc(t.name ?? 'Tablo$id')}" ref="${t.ref}" '
         'totalsRowShown="0"><autoFilter ref="${t.ref}"/>'
         '<tableColumns count="${t.headers.length}">$cols</tableColumns>'
-        '<tableStyleInfo name="TableStyleMedium2" showFirstColumn="0" '
+        '<tableStyleInfo name="${_esc(t.styleName)}" showFirstColumn="0" '
         'showLastColumn="0" showRowStripes="1" showColumnStripes="0"/></table>';
   }
 
@@ -742,5 +840,120 @@ abstract final class XlsxTableWriter {
     if (ext >= 0) return sheetXml.replaceRange(ext, ext, block);
     final end = sheetXml.lastIndexOf('</worksheet>');
     return sheetXml.replaceRange(end, end, block);
+  }
+}
+
+/// Bu oturumda eklenen köprü (Faz 36 madde 8): dış adres ya da sayfa içi
+/// konum (`'Sayfa 2'!A1`).
+class XlsxLinkSpec {
+  final String sheetName;
+  final int row, col;
+  final String? url;
+  final String? location;
+  final String display;
+  const XlsxLinkSpec({
+    required this.sheetName,
+    required this.row,
+    required this.col,
+    this.url,
+    this.location,
+    this.display = '',
+  });
+
+  String get ref => '${XlsxTableSpec._col(col)}${row + 1}';
+}
+
+/// Köprüleri sayfa XML'ine (`<hyperlinks>`) ve dış adresler için sayfa
+/// ilişkilerine (`TargetMode="External"`) yazar.
+abstract final class XlsxLinkWriter {
+  static const _relLink = '${XlsxChartWriter._nsRel}/hyperlink';
+  static const _after = [
+    '<printOptions', '<pageMargins', '<pageSetup', '<headerFooter',
+    '<rowBreaks', '<colBreaks', '<customProperties', '<cellWatches',
+    '<ignoredErrors', '<smartTags', '<drawing', '<legacyDrawing',
+    '<legacyDrawingHF', '<picture', '<oleObjects', '<controls',
+    '<webPublishItems', '<tableParts', '<extLst',
+  ];
+
+  static Uint8List apply(Uint8List xlsx, List<XlsxLinkSpec> links) {
+    if (links.isEmpty) return xlsx;
+    final files = <String, List<int>>{};
+    final order = <String>[];
+    for (final f in ZipDecoder().decodeBytes(xlsx).files) {
+      if (!f.isFile) continue;
+      files[f.name] = f.content as List<int>;
+      order.add(f.name);
+    }
+    String? text(String name) {
+      final d = files[name];
+      return d == null ? null : utf8.decode(d, allowMalformed: true);
+    }
+
+    void put(String name, String value) {
+      if (!files.containsKey(name)) order.add(name);
+      files[name] = utf8.encode(value);
+    }
+
+    final bySheet = <String, List<XlsxLinkSpec>>{};
+    for (final l in links) {
+      (bySheet[l.sheetName] ??= []).add(l);
+    }
+    bySheet.forEach((sheet, items) {
+      final part = XlsxChartWriter._sheetPart(text, sheet);
+      if (part == null) return;
+      var xml = text(part)!;
+      final relsPath = XlsxChartWriter._relsPathOf(part);
+      final rels = XlsxChartWriter._relsDoc(text(relsPath));
+      var relsChanged = false;
+      final tags = StringBuffer();
+      for (final l in items) {
+        // Aynı hücrenin eski köprüsü çıkar (yenisi geçerli).
+        xml = xml.replaceAll(
+            RegExp('<hyperlink\\b[^>]*\\bref="${l.ref}"[^>]*/>'), '');
+        final disp = l.display.isEmpty ? '' : ' display="${XlsxTableWriter._esc(l.display)}"';
+        if (l.url != null) {
+          final rid = XlsxChartWriter._addRel(rels, _relLink, l.url!);
+          for (final r in rels.rootElement.childElements) {
+            if (r.getAttribute('Id') == rid) r.setAttribute('TargetMode', 'External');
+          }
+          relsChanged = true;
+          tags.write('<hyperlink ref="${l.ref}" r:id="$rid"$disp/>');
+        } else if (l.location != null) {
+          tags.write('<hyperlink ref="${l.ref}" '
+              'location="${XlsxTableWriter._esc(l.location!)}"$disp/>');
+        }
+      }
+      if (tags.isEmpty) return;
+      if (!xml.contains('xmlns:r=')) {
+        xml = xml.replaceFirst(RegExp(r'<worksheet\b'),
+            '<worksheet xmlns:r="${XlsxChartWriter._nsRel}"');
+      }
+      final open = RegExp(r'<hyperlinks\b[^>]*>').firstMatch(xml);
+      if (open != null && xml.contains('</hyperlinks>')) {
+        final close = xml.indexOf('</hyperlinks>');
+        xml = xml.replaceRange(close, close, tags.toString());
+      } else {
+        // Boş kalmış `<hyperlinks/>` atılır, yenisi şema sırasında.
+        xml = xml.replaceAll(RegExp(r'<hyperlinks\s*/>'), '');
+        final block = '<hyperlinks>$tags</hyperlinks>';
+        var at = -1;
+        for (final t in _after) {
+          final i = xml.indexOf(t);
+          if (i >= 0 && (at < 0 || i < at)) at = i;
+        }
+        if (at < 0) at = xml.lastIndexOf('</worksheet>');
+        xml = xml.replaceRange(at, at, block);
+      }
+      put(part, xml);
+      if (relsChanged) put(relsPath, rels.toXmlString());
+    });
+
+    final out = Archive();
+    for (final name in order) {
+      final data = files[name];
+      if (data == null) continue;
+      out.addFile(ArchiveFile(name, data.length, data));
+    }
+    return Uint8List.fromList(ZipEncoder().encode(out));
   }
 }

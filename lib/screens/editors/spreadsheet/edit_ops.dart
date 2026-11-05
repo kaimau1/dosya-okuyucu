@@ -87,7 +87,11 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
 
   Future<void> _load() async {
     try {
-      if (SpreadsheetEditorScreen.parseInIsolate) {
+      // Parolalı xlsx (Faz 36 madde 6): önce parola sorulur, çözülmüş paket
+      // izolatta ayrıştırılır; kaydederken aynı parolayla yeniden şifrelenir.
+      if (await _openEncrypted()) {
+        // _openEncrypted modeli kurdu (ya da vazgeçildi → _error).
+      } else if (SpreadsheetEditorScreen.parseInIsolate) {
         try {
           _editor = await compute(_SpreadsheetEditorScreenState._readAndParse, widget.path);
         } catch (_) {
@@ -111,6 +115,7 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     if (_editor?.truncated == true) _session.autoSaveForDoc = false;
     if (_editor != null) {
       unawaited(_warmCalc());
+      unawaited(_loadViewPrefs());
       unawaited(_session.captureSource());
       unawaited(lookForDraft(widget.savePath ?? widget.path));
     }
@@ -140,7 +145,45 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
         for (final s in _editor?.sheets ?? const <XlsxSheet>[]) s.name: s.rows,
       },
       state: _calc,
+      tables: _formulaTables(),
     );
+  }
+
+  /// Yapısal başvuru tabloları: dosyadakiler + bu oturumda kurulanlar
+  /// (başlıklar sayfanın ilk satırından okunur).
+  List<FormulaTable> _formulaTables() {
+    final editor = _editor;
+    if (editor == null) return const [];
+    final out = <FormulaTable>[
+      for (final t in editor.fileTables)
+        FormulaTable(
+          name: t.name,
+          sheet: t.sheetName,
+          top: t.range.r1,
+          left: t.range.c1,
+          bottom: t.range.r2,
+          right: t.range.c2,
+          columns: t.columns,
+          hasHeader: t.headerRows > 0,
+          hasTotals: t.totalsRows > 0,
+        ),
+    ];
+    for (final t in editor.tables) {
+      final name = t.name;
+      if (name == null) continue;
+      final sheet = editor.sheets.where((s) => s.name == t.sheetName).firstOrNull;
+      if (sheet == null) continue;
+      out.add(FormulaTable(
+        name: name,
+        sheet: t.sheetName,
+        top: t.top,
+        left: t.left,
+        bottom: t.bottom,
+        right: t.right,
+        columns: [for (var c = t.left; c <= t.right; c++) sheet.rawAt(t.top, c)],
+      ));
+    }
+    return out;
   }
 
   /// Modelin değişiklik günlüğünü hesap durumuna işler: toplu değişiklikte
@@ -359,6 +402,11 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
   void _syncField() => _cellField.text = _displayAt(_selRow, _selCol);
 
   void _select(int r, int c, {bool extend = false}) {
+    // Biçim boyacısı açıksa dokunuş biçimi uygular (Faz 36 madde 9).
+    if (!extend && _painter != null) {
+      _applyFormatPainter(r, c);
+      return;
+    }
     // İşaret kipi: formül yazarken hücreye dokunmak başvuru EKLER.
     if (!extend && _pointInsertable()) {
       _insertPointRef(r, c);
@@ -390,7 +438,10 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
   /// Faz 25: düzenleme HER yakınlaştırmada hücrenin üstündeki yüzer
   /// editörde açılır (eski 30×72 dp eşiği kalktı — 100 %'de hücre ~20×64 dp
   /// olduğundan düzenleme hep formül çubuğuna kaçıyordu).
-  void _beginEdit(int r, int c, {bool caret = true}) => _openEditor(caret: caret);
+  void _beginEdit(int r, int c, {bool caret = true}) {
+    if (!_guardEditable([CellRef(r, c)])) return;
+    _openEditor(caret: caret);
+  }
 
   /// Seçimi taşır — [_select]'in aksine aynı hücreye ikinci kez gelince
   /// düzenlemeye GEÇMEZ (Hücreye git / Bul bunu istemez).
@@ -487,6 +538,7 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
         : null;
     _editCells('excel.undo_typing', {at: m.raw}, numberFormats: fmt);
     if (m.noteKey != null) _snack(context.t(m.noteKey!));
+    if (m.raw.startsWith('=')) _warnIfCycle(at.row, at.col);
   }
 
   /// Seçili aralık (tek hücrede de geçerli).
@@ -508,6 +560,11 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     final sheet = _sheet;
     final editor = _editor;
     if (sheet == null || editor == null || values.isEmpty) return;
+    // Faz 36 madde 12: korumalı sayfada kilitli hücre yazılmaz.
+    if (!_guardEditable(values.keys)) {
+      _syncField();
+      return;
+    }
     final name = sheet.name;
     final valueStep = SheetValueStep(
       label: label,
@@ -723,8 +780,13 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     var clip = _clip;
     if (clip == null) {
       final data = await Clipboard.getData('text/plain');
-      clip = SheetClip.fromTsv(data?.text ?? '',
-          origin: CellRef(_selRow, _selCol));
+      final text = data?.text ?? '';
+      final origin = CellRef(_selRow, _selCol);
+      // Büyük yapıştırma (Faz 36 perf): TSV ayrıştırması izolatta.
+      clip = text.length > 200000
+          ? await Isolate.run(() => SheetClip.fromTsv(text, origin: origin))
+          : SheetClip.fromTsv(text, origin: origin);
+      if (!mounted) return;
     }
     if (clip == null || clip.isEmpty) {
       if (mounted) _snack(context.t('excel.clipboard_empty'));

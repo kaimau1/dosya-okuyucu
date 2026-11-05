@@ -17,6 +17,42 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
     final align = selStyle?.hAlign;
     final merged = _sheet?.mergeAt(_selRow, _selCol) != null;
 
+    // Sadeleştirilmiş şerit (Faz 36 madde 7): tek sekme, en sık işler.
+    // Tam şerit Görünüm sekmesinden ya da buradaki düğmeden geri gelir.
+    if (_simpleRibbon && _excelPro) {
+      return OfficeRibbon(
+        compact: true,
+        tabs: [
+          RibbonTab(context.t('xp.ribbon_simple'), [
+            RibbonButton(OfficeIcons.bold, context.t('common.bold'),
+                active: selStyle?.bold ?? false,
+                onTap: () => _applyStyle(bold: !(selStyle?.bold ?? false))),
+            RibbonButton(OfficeIcons.fillColor, context.t('excel.fill_color'),
+                onTap: () =>
+                    _pickColor(context.t('excel.fill_color'), _applyFillColor)),
+            RibbonButton(OfficeIcons.borders, context.t('excel.borders'),
+                onTap: _showBorders),
+            RibbonButton(OfficeIcons.autoSum, context.t('excel.autosum'),
+                onTap: _autoSum),
+            RibbonButton(OfficeIcons.sortAsc, context.t('excel.sort_asc'),
+                onTap: () => _sortSelection(true)),
+            RibbonButton(OfficeIcons.filter, context.t('excel.filter'),
+                onTap: _filterSelectedColumn),
+            RibbonButton(OfficeIcons.condFormat, context.t('excel.cond_format'),
+                onTap: _showCondFormat),
+            RibbonButton(AppIcons.insertChart, context.t('chart.insert'),
+                onTap: _insertChart),
+            RibbonButton(AppIcons.pdfTable, context.t('xp.pivot'),
+                onTap: _createPivot),
+            const RibbonSep(),
+            RibbonButton(AppIcons.tune, context.t('xp.ribbon_full'),
+                key: const ValueKey('xl-ribbon-full'),
+                onTap: () => _setSimpleRibbon(false)),
+          ]),
+        ],
+      );
+    }
+
     return OfficeRibbon(
       compact: true,
       tabs: [
@@ -107,6 +143,11 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
               onTap: () => _showFormatCells()),
           RibbonButton(AppIcons.palette, context.t('excel.cell_styles'),
               key: const ValueKey('xl-cell-styles'), onTap: _showCellStyles),
+          if (_excelPro)
+          RibbonButton(AppIcons.formatPaint, context.t('xp.painter'),
+              key: const ValueKey('xl-format-painter'),
+              active: _painter != null,
+              onTap: _toggleFormatPainter),
         ]),
         RibbonTab(context.t('excel.tab_insert'), [
           RibbonButton(AppIcons.keyboardArrowUp,
@@ -141,8 +182,14 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
           const RibbonSep(),
           RibbonButton(AppIcons.insertChart, context.t('chart.insert'),
               key: const ValueKey('xl-ins-chart'), onTap: _insertChart),
+          if (_excelPro)
+          RibbonButton(AppIcons.trendingUp, context.t('xp.sparkline'),
+              key: const ValueKey('xl-ins-spark'), onTap: _insertSparklines),
           RibbonButton(AppIcons.comment, context.t('excel.note_new'),
               key: const ValueKey('xl-ins-note'), onTap: _editNote),
+          if (_excelPro)
+          RibbonButton(AppIcons.link, context.t('xp.link'),
+              key: const ValueKey('xl-ins-link'), onTap: _insertLink),
         ]),
         RibbonTab(context.t('excel.tab_formulas'), [
           RibbonButton(OfficeIcons.autoSum, context.t('excel.autosum'),
@@ -155,6 +202,17 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
           ])
             RibbonButton(OfficeIcons.autoSum, context.t(key),
                 key: ValueKey('xl-fn-$fn'), onTap: () => _autoFunction(fn)),
+          if (_excelPro) ...[
+          const RibbonSep(),
+          RibbonButton(AppIcons.accountTree, context.t('xp.trace_prec'),
+              key: const ValueKey('xl-trace-prec'), onTap: _tracePrecedents),
+          RibbonButton(AppIcons.traceDependents, context.t('xp.trace_dep'),
+              key: const ValueKey('xl-trace-dep'), onTap: _traceDependents),
+          RibbonButton(AppIcons.close, context.t('xp.trace_clear'),
+              active: _arrows.isNotEmpty, onTap: _clearArrows),
+          RibbonButton(AppIcons.goalSeek, context.t('xp.goal_seek'),
+              key: const ValueKey('xl-goal-seek'), onTap: _goalSeek),
+          ],
         ]),
         RibbonTab(context.t('excel.tab_data'), [
           RibbonButton(OfficeIcons.sortAsc, context.t('excel.sort_asc'),
@@ -179,6 +237,23 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
               key: const ValueKey('xl-dedup'), onTap: _removeDuplicates),
           RibbonButton(AppIcons.viewColumn, context.t('excel.split_title'),
               key: const ValueKey('xl-split'), onTap: _splitTextToColumns),
+          if (_excelPro) ...[
+          RibbonButton(AppIcons.pdfTable, context.t('xp.pivot'),
+              key: const ValueKey('xl-pivot'), onTap: _createPivot),
+          RibbonButton(AppIcons.download, context.t('xp.import'),
+              key: const ValueKey('xl-import'), onTap: _importData),
+          RibbonButton(AppIcons.functions, context.t('xp.subtotal'),
+              key: const ValueKey('xl-subtotal'), onTap: _insertSubtotals),
+          RibbonButton(AppIcons.formatIndentIncrease, context.t('xp.group'),
+              key: const ValueKey('xl-group'), onTap: () => _groupSelectedRows(true)),
+          RibbonButton(AppIcons.formatIndentDecrease, context.t('xp.ungroup'),
+              key: const ValueKey('xl-ungroup'), onTap: () => _groupSelectedRows(false)),
+          RibbonButton(AppIcons.expandLess, context.t('xp.toggle_group'),
+              key: const ValueKey('xl-toggle-group'), onTap: _toggleOutlineGroup),
+          ],
+          if (_pivots.containsKey(_sheet?.name))
+            RibbonButton(AppIcons.refresh, context.t('xp.pivot_refresh'),
+                key: const ValueKey('xl-pivot-refresh'), onTap: _refreshPivot),
           const RibbonSep(),
           RibbonButton(OfficeIcons.condFormat, context.t('excel.cond_format'),
               onTap: _showCondFormat),
@@ -198,14 +273,51 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
           RibbonButton(AppIcons.comment,
               context.t(_noteHere ? 'excel.note_edit' : 'excel.note_new'),
               key: const ValueKey('xl-note'), onTap: _editNote),
+          if (_noteHere && _excelPro)
+            RibbonButton(AppIcons.comment, context.t('xp.note_reply'),
+                key: const ValueKey('xl-note-reply'), onTap: _replyToNote),
           if (_noteHere)
             RibbonButton(AppIcons.delete, context.t('excel.note_delete'),
                 key: const ValueKey('xl-note-delete'),
                 onTap: () => _setNote(_selRow, _selCol, null)),
           RibbonButton(OfficeIcons.translate, context.t('common.translate'),
               onTap: _translate),
+          // Faz 36 madde 12: sayfa koruması + düzenlenebilir aralık.
+          if (_excelPro || (_sheet?.isProtected ?? false)) ...[
+          const RibbonSep(),
+          RibbonButton(
+              (_sheet?.isProtected ?? false) ? AppIcons.unlock : AppIcons.lock,
+              context.t((_sheet?.isProtected ?? false)
+                  ? 'xp.unprotect'
+                  : 'xp.protect_sheet'),
+              key: const ValueKey('xl-protect'),
+              active: _sheet?.isProtected ?? false,
+              onTap: _toggleSheetProtection),
+          RibbonButton(AppIcons.editNote, context.t('xp.allow_edit'),
+              key: const ValueKey('xl-allow-edit'), onTap: _toggleAllowEdit),
+          ],
         ]),
         RibbonTab(context.t('excel.tab_view'), [
+          if (_excelPro) ...[
+          RibbonButton(AppIcons.tune, context.t('xp.ribbon_simple'),
+              key: const ValueKey('xl-ribbon-simple'),
+              onTap: () => _setSimpleRibbon(true)),
+          RibbonMenu<double>(
+            key: const ValueKey('xl-density'),
+            icon: AppIcons.formatLineSpacing,
+            tooltip: context.t('xp.density'),
+            onSelected: _setDensity,
+            itemBuilder: (ctx) => [
+              for (final (v, k) in const [
+                (0.85, 'xp.density_compact'),
+                (1.0, 'xp.density_normal'),
+                (1.2, 'xp.density_comfortable'),
+              ])
+                PopupMenuItem(value: v, child: Text(ctx.t(k))),
+            ],
+          ),
+          const RibbonSep(),
+          ],
           RibbonButton(OfficeIcons.zoomOut, context.t('excel.zoom_out'),
               onTap: () => _zoomCtl.zoomBy(1 / 1.25)),
           RibbonChip(
@@ -452,9 +564,28 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
         DocMoreItem(AppIcons.rule, context.t('excel.cond_format'),
             _showCondFormat),
       ]),
+      // Faz 36 madde 6: yazdırma düzeni / PDF + parola.
+      if (_excelPro)
+      DocMoreGroup(context.t('xp.print_group'), [
+        DocMoreItem(AppIcons.pdf, context.t('xp.print_pdf'), _printToPdf),
+        DocMoreItem(AppIcons.print, context.t('xp.print_area_set_btn'),
+            () => _setPrintArea(clear: false)),
+        if (_sheet?.printArea != null)
+          DocMoreItem(AppIcons.close, context.t('xp.print_area_clear'),
+              () => _setPrintArea(clear: true)),
+        if (_filePassword == null)
+          DocMoreItem(AppIcons.lock, context.t('xp.password_set'),
+              _protectWithPassword)
+        else
+          DocMoreItem(AppIcons.unlock, context.t('xp.password_remove'),
+              _removePassword),
+      ]),
       DocMoreGroup(context.t('chart.group_insert'), [
         DocMoreItem(
             AppIcons.insertChart, context.t('chart.insert'), _insertChart),
+        if (_excelPro)
+        DocMoreItem(
+            AppIcons.trendingUp, context.t('xp.sparkline'), _insertSparklines),
       ]),
       DocMoreGroup(context.t('excel.row'), [
         DocMoreItem(AppIcons.keyboardArrowUp,

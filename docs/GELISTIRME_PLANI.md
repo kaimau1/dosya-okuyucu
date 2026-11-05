@@ -119,28 +119,50 @@ kayda dek bellekte tutuyor — 30 sayfa "akışla" üretim yapılmadı (ölçüm
 Ek 8: stüdyo her değişikliği PDF'e kendiliğinden yazıyor + arka plana geçerken bekleyen yazılıyor (taslak = PDF).
 Ek 9: dışa aktarma `TrackedTask` → `JobQueue` (ilerleme, iptal, bitince bildirim).
 
-## Faz 36 — Excel
-1. Özet tablo (pivot) oluştur/yenile (satır/sütun/değer/süzgeç, topla-say-ort) — xlsx
+## Faz 36 — Excel — BİTTİ 2026-11-05 (kod; cihaz doğrulaması CIHAZ_TESTI.md'de, perf A/B bekliyor)
+- [x] 1. Özet tablo (pivot) oluştur/yenile (satır/sütun/değer/süzgeç, topla-say-ort) — xlsx
    `pivotCache` yazımı veya salt "değer anlık görüntüsü" ilk sürüm.
-2. Koşullu biçim yazma: renk ölçeği, veri çubuğu, simge kümesi, formül kuralı (A7.5).
-3. Mini grafik (sparkline) çiz + yaz (`x14:sparklineGroups`).
-4. Formül: yardım balonu + otomatik tamamlama + hata açıklaması ("#DEĞER! neden"),
+   (`services/xlsx/pivot.dart` değer anlık görüntüsü + "Özeti yenile"; Veri sekmesi.)
+- [x] 2. Koşullu biçim yazma: renk ölçeği, veri çubuğu, simge kümesi, formül kuralı (A7.5).
+   (`XlsxCondRuleWrite` görsel gövdeler + `expression`; ızgarada simge/formül boyama; `xlsx_cond_write_test`.)
+- [x] 3. Mini grafik (sparkline) çiz + yaz (`x14:sparklineGroups`).
+   (okuma + yazma + hücre içi çizim — çizgi/sütun/kazanç-kayıp; Ekle sekmesi.)
+- [x] 4. Formül: yardım balonu + otomatik tamamlama + hata açıklaması ("#DEĞER! neden"),
    dinamik diziler (FILTER/SORT/UNIQUE), XLOOKUP, LET, SEQUENCE.
-5. Tablo nesnesi (ListObject) + biçimli tablo stilleri, yapısal başvuru.
-6. Yazdırma düzeni + PDF'e aktar (sayfa sığdır, başlık satırı yinele), parola ile aç/koru.
-7. Görünüm: şerit sadeleştirme, hücre düzenleme çubuğu, parmakla seçim tutamakları,
+   (Balon/tamamlama/XLOOKUP vardı; `FormulaArray` + taşma (`CalcState._spills`), dizi bağlamı,
+   LET, `formula_errors.dart` + formül çubuğunda "?" düğmesi.)
+- [x] 5. Tablo nesnesi (ListObject) + biçimli tablo stilleri, yapısal başvuru.
+   (ListObject yazımı vardı; tablo adı + vurguya göre yerleşik stil, dosya tablolarını okuma
+   `xlsx/table_reader.dart`, `Tablo1[Sütun]`/`[@Sütun]`/`[#Veri]`/`[[#Başlıklar],[X]]` çözümü.)
+- [x] 6. Yazdırma düzeni + PDF'e aktar (sayfa sığdır, başlık satırı yinele), parola ile aç/koru.
+   (`xlsx/sheet_pdf.dart`; ECMA-376 Agile AES-256 `office_crypto.dart` + CFB yazıcı `ole_cfb_writer.dart`.)
+- [x] 7. Görünüm: şerit sadeleştirme, hücre düzenleme çubuğu, parmakla seçim tutamakları,
    kaydırmada sabit başlık gölgesi, yoğunluk (kompakt/rahat) ayarı.
+   (Düzenleme çubuğu + tutamaklar vardı; sade şerit, başlık gölgesi, yoğunluk — tercihler kalıcı.)
 **Ölçüt:** 5 örnek gerçek dosyada yaz→aç döngüsü kayıpsız (B4 uyumluluk turu).
 
-**Ek:** 8. Veri: CSV/ods içe aktar sihirbazı (ayraç/kodlama/tür önizleme), yinelenenleri kaldır,
+**Ek:**
+- [x] 8. Veri: CSV/ods içe aktar sihirbazı (ayraç/kodlama/tür önizleme), yinelenenleri kaldır,
 metni sütunlara böl, ara toplam, gruplama/anahat, hücre notları/yorum dizisi, köprü + sayfa bağı.
-9. Biçim boyacısı, koşullu biçim yöneticisi, hücre stilleri galerisi, tema renkleri.
-10. Formül denetimi (öncül/ardıl oklar), döngüsel başvuru uyarısı, "Ne-olursa" (hedef ara).
-11. Grafik: kombinasyon, ikincil eksen, eğilim çizgisi, grafik stilleri; grafiği görüntü/PDF paylaş.
-12. Çok kişilik: sayfa/aralık koruma; yazdırma alanı. **Perf:** hesaplama **bağımlılık grafiği +
+   (Yinelenen/böl/not vardı; `xlsx/data_tools.dart` içe aktar + ODS + ara toplam (SUBTOTAL iç içe
+   saymaz) + anahat (`outlineLevel` okuma/yazma) + not yanıtı; köprü `XlsxLinkWriter`.)
+- [x] 9. Biçim boyacısı, koşullu biçim yöneticisi, hücre stilleri galerisi, tema renkleri.
+   (Stil galerisi vardı; boyacı tek dokunuşluk, yönetici dosya kurallarını da siler (`condRemovals`),
+   renk seçicide `xlsx/theme_palette.dart` tema ızgarası.)
+- [x] 10. Formül denetimi (öncül/ardıl oklar), döngüsel başvuru uyarısı, "Ne-olursa" (hedef ara).
+   (`formula_audit.dart`: öncül/ardıl + kiriş/ikiye bölme çözücü; oklar ızgara üstü salt çizim;
+   döngü yazınca uyarı.)
+- [x] 11. Grafik: kombinasyon, ikincil eksen, eğilim çizgisi, grafik stilleri; grafiği görüntü/PDF paylaş.
+   (`XlsxChartSpec.combo/secondaryAxis/trendline/style` → c:lineChart + 2. eksen çifti, c:trendline;
+   önizleme `ChartPainter` aynı bayraklarla; PNG/PDF paylaş `pro_chart.dart`.)
+- [x] 12. Çok kişilik: sayfa/aralık koruma; yazdırma alanı. **Perf:** hesaplama **bağımlılık grafiği +
 kirli hücre** (tam yeniden hesap YOK), pivot/büyük yapıştır izolatta, görünür pencere dışı hücre
 çizilmez (mevcut sanal ızgara korunur), `excel_perf_test` 100 bin satır eşiği eklenir; grafik/sparkline
 yalnız görünürken boyanır.
+   (Koruma: 16 bit özet yazılır, dosyadaki SHA-512 doğrulanır; `protectedRanges` = düzenlenebilir aralık;
+   `_xlnm.Print_Area` → `xlsx/print_area_writer.dart`. Perf: kirli hücre `CalcState` zaten vardı — 100 bin
+   satır testi; pivot ve büyük yapıştırma izolatta; grafik pencere dışında boyanmaz, mini grafik sanal
+   ızgara hücresinde.)
 
 ## Faz 37 — Word
 1. Stil galerisi (Başlık 1–3, Alıntı, Liste) + "stili güncelle"; belge teması/yazı tipleri.

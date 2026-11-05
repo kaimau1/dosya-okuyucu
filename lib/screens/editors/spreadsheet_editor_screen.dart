@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show compute, visibleForTesting;
 import 'package:flutter/gestures.dart'
@@ -16,9 +18,12 @@ import 'package:flutter/services.dart'
         HardwareKeyboard,
         KeyEvent,
         KeyUpEvent,
-        LogicalKeyboardKey;
+        LogicalKeyboardKey,
+        rootBundle;
+import 'package:file_picker/file_picker.dart' show FileType;
 import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/app_icons.dart';
 import '../../core/excel_format.dart';
@@ -39,13 +44,22 @@ import '../../services/fm/save_to_downloads.dart';
 import '../../services/csv_codec.dart';
 import '../../services/text_decode.dart';
 import '../../services/formula_engine.dart';
+import '../../services/formula_errors.dart';
+import '../../services/office_crypto.dart';
+import '../../services/ole_cfb.dart' show OleFile;
 import '../../services/formula_help.dart';
 import '../../services/sheet_data_ops.dart';
 import '../../services/sheet_edit.dart';
 import '../../services/sheet_input.dart';
 import '../../services/xlsx_save_patch.dart' show XlsxStyleEdit;
+import '../../services/xlsx/theme_palette.dart';
+import '../../services/formula_audit.dart';
+import '../../services/xlsx/data_tools.dart';
+import '../../services/xlsx/pivot.dart';
+import '../../services/xlsx/sheet_pdf.dart';
 import '../../services/xlsx_editor.dart';
 import '../../services/xlsx_file_charts.dart';
+import '../fm/pick_file_screen.dart' show AppFilePicker;
 import '../../widgets/doc_action_bar.dart';
 import '../../widgets/doc_find_bar.dart';
 import '../../widgets/doc_more_sheet.dart';
@@ -82,6 +96,11 @@ part 'spreadsheet/finish_format.dart';
 part 'spreadsheet/finish_data.dart';
 part 'spreadsheet/chart_layer.dart';
 part 'spreadsheet/keyboard.dart';
+part 'spreadsheet/pro_data.dart';
+part 'spreadsheet/pro_format.dart';
+part 'spreadsheet/pro_audit.dart';
+part 'spreadsheet/pro_chart.dart';
+part 'spreadsheet/pro_protect.dart';
 
 /// Excel görünümü — hedef: dosya telefonda **Excel'deki gibi** görünsün.
 ///
@@ -152,6 +171,13 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
 
   XlsxEditor? _editor;
   int _sheetIndex = 0;
+
+  /// Faz 36 özet tabloları: özet sayfa adı → kaynak bağı (oturum içi).
+  final Map<String, _PivotLink> _pivots = {};
+
+  /// Dosya parolası (parolalı açıldıysa ya da "Parola ile koru"); kaydetme
+  /// bununla şifreler. Bellekte kalır, hiçbir yere yazılmaz.
+  String? _filePassword;
   String? _error;
 
   /// Faz 26: kalıcı hesap durumu (değer önbelleği + bağımlılık grafiği) ve
@@ -310,6 +336,20 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
   /// çift yönlü okla açılır. Veri girerken kapalı, biçim verirken açık —
   /// kullanıcı kendi ritmine göre seçer.
   bool _ribbonOpen = true;
+
+  /// Sadeleştirilmiş şerit (Faz 36 madde 7) — tercih kalıcı.
+  bool _simpleRibbon = false;
+
+  /// Faz 36 özellik bayrağı (`excel_pro_v1`, varsayılan açık): kapalıysa
+  /// Excel pro düğmeleri gizlenir, eski şerit aynen kalır.
+  bool _excelPro = true;
+
+  /// Biçim boyacısı kaynağı (üst, sol, satır, sütun) — Faz 36 madde 9.
+  (int, int, int, int)? _painter;
+
+  /// Formül denetimi okları: (kaynak aralık, hedef satır, hedef sütun).
+  List<(AuditRef, int, int)> _arrows = const [];
+  String? _arrowsSheet;
 
   /// Başlık kenarından sürükleyerek boyutlandırma sürüyor mu (ve neyi)?
   /// `null` = sürükleme yok. Sürüklerken canlı ölçü rozeti gösterilir.

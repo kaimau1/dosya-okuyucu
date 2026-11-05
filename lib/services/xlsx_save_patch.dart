@@ -68,6 +68,21 @@ class XlsxSheetPatch {
   /// ekrandaki modelin kullandığı indekslerle birebir örtüşmesi gerekiyor.
   final List<XlsxCondRuleWrite> condRules;
 
+  /// Faz 36 madde 9: dosyadaki silinecek kurallar (`sqref`, `priority`) —
+  /// yeni kurallardan ÖNCE sökülür (öncelik kaydırması onları etkilemesin).
+  final List<(String, int)> condRemovals;
+
+  /// Faz 36 madde 12: sayfa koruması — [protectionEdited] değilse
+  /// dokunulmaz; [protection] null → koruma kaldırılır.
+  final bool protectionEdited;
+  final XlsxProtectionWrite? protection;
+
+  /// Faz 36: bu oturumda eklenen mini grafikler (`x14:sparklineGroups`).
+  final List<XlsxSparklineWrite> sparklines;
+
+  /// Faz 36: satır anahat düzeyleri (satır → 1..7); yalnız düzenlendiyse.
+  final Map<int, int> rowOutline;
+
   /// Faz 27: eklenen veri doğrulamaları ve temizlenen aralıklar (önce
   /// temizleme, sonra ekleme uygulanır).
   final List<XlsxValidationWrite> validations;
@@ -100,6 +115,11 @@ class XlsxSheetPatch {
     this.styleEdits = const {},
     this.styleCopies = const {},
     this.condRules = const [],
+    this.condRemovals = const [],
+    this.protectionEdited = false,
+    this.protection,
+    this.sparklines = const [],
+    this.rowOutline = const {},
   });
 
   bool get isEmpty =>
@@ -116,10 +136,57 @@ class XlsxSheetPatch {
       styleEdits.isEmpty &&
       styleCopies.isEmpty &&
       condRules.isEmpty &&
+      condRemovals.isEmpty &&
+      !protectionEdited &&
+      sparklines.isEmpty &&
+      rowOutline.isEmpty &&
       validations.isEmpty &&
       validationClears.isEmpty &&
       !tabColorEdited &&
       !autoFilterEdited;
+}
+
+/// Sayfa koruması (yamanın girdisi). [hash] eski 16 bit parola özeti
+/// ([legacyHash]) — null ise parolasız koruma; [allowRanges] korumalı
+/// sayfada düzenlenebilen aralıklar (`A1:B5`).
+class XlsxProtectionWrite {
+  final String? hash;
+  final List<String> allowRanges;
+
+  /// Dosyadan gelen güçlü özet öznitelikleri (aynen yazılır).
+  final Map<String, String> attrs;
+  const XlsxProtectionWrite(
+      {this.hash, this.allowRanges = const [], this.attrs = const {}});
+
+  /// Excel'in `sheetProtection/@password` özeti (ECMA-376 Bölüm 4, 16 bit).
+  static String legacyHash(String password) {
+    var h = 0;
+    for (var i = password.length - 1; i >= 0; i--) {
+      h = ((h >> 14) & 0x01) | ((h << 1) & 0x7FFF);
+      h ^= password.codeUnitAt(i);
+    }
+    h = ((h >> 14) & 0x01) | ((h << 1) & 0x7FFF);
+    h ^= password.length;
+    h ^= 0xCE4B;
+    return h.toRadixString(16).toUpperCase().padLeft(4, '0');
+  }
+}
+
+/// Dosyaya yazılacak mini grafik (yamanın girdisi; saf veri).
+class XlsxSparklineWrite {
+  /// `Sayfa1!A1:E1` (sayfa adı ŞART — Excel çıplak aralığı kabul etmez).
+  final String source;
+
+  /// Hedef hücre (`F1`).
+  final String cell;
+  final String type;
+  final int colorArgb;
+  const XlsxSparklineWrite({
+    required this.source,
+    required this.cell,
+    this.type = 'line',
+    this.colorArgb = 0xFF376092,
+  });
 }
 
 /// Dosyaya yazılacak veri doğrulama kuralı (yamanın girdisi; saf veri).
@@ -180,6 +247,15 @@ class XlsxCondRuleWrite {
   final int? fillArgb;
   final int? fontArgb;
 
+  /// `colorScale`: 2 ya da 3 renk (en küçük → [orta] → en büyük).
+  final List<int>? scaleColors;
+
+  /// `dataBar`: çubuk rengi.
+  final int? barColorArgb;
+
+  /// `iconSet`: simge kümesi adı (`3TrafficLights1`, `3Arrows`, `3Symbols`).
+  final String? iconSet;
+
   const XlsxCondRuleWrite({
     required this.sqref,
     required this.type,
@@ -188,7 +264,14 @@ class XlsxCondRuleWrite {
     this.text,
     this.fillArgb,
     this.fontArgb,
+    this.scaleColors,
+    this.barColorArgb,
+    this.iconSet,
   });
+
+  /// Görünümü dxf'te değil kuralın kendisinde duran türler.
+  bool get visual =>
+      type == 'colorScale' || type == 'dataBar' || type == 'iconSet';
 }
 
 /// Tek hücrenin görünüm değişikliği. Verilmeyen (null) alan **dokunulmaz**:
@@ -448,7 +531,14 @@ class XlsxSavePatch {
     if (_applyStyleCopies(root, patch.styleCopies)) changed = true;
     if (_applyStyleEdits(root, patch.styleEdits, styles)) changed = true;
     if (_applyNumberFormats(root, patch.numberFormats, styles)) changed = true;
+    if (patch.protectionEdited) {
+      _applyProtection(root, patch.protection);
+      changed = true;
+    }
+    if (_removeCondRules(root, patch.condRemovals)) changed = true;
     if (_applyCondRules(root, patch.condRules, styles)) changed = true;
+    if (_applySparklines(root, patch.sparklines)) changed = true;
+    if (_applyOutline(root, patch.rowOutline)) changed = true;
     if (_applyValidations(root, patch)) changed = true;
     if (_applyTabColor(root, patch)) changed = true;
 
@@ -557,15 +647,16 @@ class XlsxSavePatch {
 
     var priority = 0;
     for (final rule in rules) {
-      final dxfId = styles.addDxf(rule.fillArgb, rule.fontArgb);
+      final dxfId = rule.visual ? null : styles.addDxf(rule.fillArgb, rule.fontArgb);
       final cfRule = XmlElement(XmlName('cfRule'), [
         XmlAttribute(XmlName('type'), rule.type),
-        XmlAttribute(XmlName('dxfId'), '$dxfId'),
+        if (dxfId != null) XmlAttribute(XmlName('dxfId'), '$dxfId'),
         XmlAttribute(XmlName('priority'), '${++priority}'),
         if (rule.operator != null)
           XmlAttribute(XmlName('operator'), rule.operator!),
         if (rule.text != null) XmlAttribute(XmlName('text'), rule.text!),
       ], [
+        ..._visualChildren(rule),
         for (final f in rule.formulas)
           XmlElement(XmlName('formula'), [], [XmlText(f)]),
       ]);
@@ -579,6 +670,180 @@ class XlsxSavePatch {
       );
     }
     return true;
+  }
+
+  /// Eski `sheetProtection`/`protectedRanges` sökülür, istenirse yenisi
+  /// şema sırasıyla yazılır.
+  static void _applyProtection(XmlElement root, XlsxProtectionWrite? p) {
+    for (final el in root.childElements
+        .where((e) =>
+            e.name.local == 'sheetProtection' ||
+            e.name.local == 'protectedRanges')
+        .toList()) {
+      root.children.remove(el);
+    }
+    if (p == null) return;
+    _insertOrdered(
+      root,
+      XmlElement(XmlName('sheetProtection'), [
+        if (p.hash != null) XmlAttribute(XmlName('password'), p.hash!),
+        for (final e in p.attrs.entries) XmlAttribute(XmlName(e.key), e.value),
+        XmlAttribute(XmlName('sheet'), '1'),
+        XmlAttribute(XmlName('objects'), '1'),
+        XmlAttribute(XmlName('scenarios'), '1'),
+      ]),
+    );
+    if (p.allowRanges.isEmpty) return;
+    _insertOrdered(
+      root,
+      XmlElement(XmlName('protectedRanges'), [], [
+        for (var i = 0; i < p.allowRanges.length; i++)
+          XmlElement(XmlName('protectedRange'), [
+            XmlAttribute(XmlName('name'), 'AllowEdit${i + 1}'),
+            XmlAttribute(XmlName('sqref'), p.allowRanges[i]),
+          ]),
+      ]),
+    );
+  }
+
+  /// `A1 $B$2:C3` → `A1:A1 B2:C3` (karşılaştırma için).
+  static String normSqref(String s) => s
+      .replaceAll(r'$', '')
+      .toUpperCase()
+      .split(RegExp(r'\s+'))
+      .where((t) => t.isNotEmpty)
+      .map((t) => t.contains(':') ? t : '$t:$t')
+      .join(' ');
+
+  static bool _removeCondRules(XmlElement root, List<(String, int)> removals) {
+    if (removals.isEmpty) return false;
+    final want = {for (final (q, p) in removals) (normSqref(q), p)};
+    var changed = false;
+    for (final cf in root.childElements
+        .where((e) => e.name.local == 'conditionalFormatting')
+        .toList()) {
+      final sqref = cf.getAttribute('sqref');
+      if (sqref == null) continue;
+      final q = normSqref(sqref);
+      for (final rule in cf.childElements
+          .where((e) => e.name.local == 'cfRule')
+          .toList()) {
+        final p = int.tryParse(rule.getAttribute('priority') ?? '') ?? 0;
+        if (want.contains((q, p))) {
+          rule.parent?.children.remove(rule);
+          changed = true;
+        }
+      }
+      if (!cf.childElements.any((e) => e.name.local == 'cfRule')) {
+        cf.parent?.children.remove(cf);
+      }
+    }
+    return changed;
+  }
+
+  static const _x14 = 'http://schemas.microsoft.com/office/spreadsheetml/2009/9/main';
+  static const _xm = 'http://schemas.microsoft.com/office/excel/2006/main';
+  static const _sparkUri = '{05C60535-1F16-4fd2-B633-F4F36F0B64E0}';
+
+  /// Mini grafikler `extLst/ext[uri]/x14:sparklineGroups` altına; tür+renk
+  /// başına bir `sparklineGroup`. `extLst` sayfanın SON çocuğudur.
+  static bool _applySparklines(XmlElement root, List<XlsxSparklineWrite> list) {
+    if (list.isEmpty) return false;
+    var extLst = _firstChild(root, 'extLst');
+    if (extLst == null) {
+      extLst = XmlElement(XmlName('extLst'));
+      root.children.add(extLst);
+    }
+    XmlElement? ext;
+    for (final e in extLst.childElements) {
+      if (e.name.local == 'ext' && e.getAttribute('uri') == _sparkUri) ext = e;
+    }
+    if (ext == null) {
+      ext = XmlElement(XmlName('ext'), [
+        XmlAttribute(XmlName('uri'), _sparkUri),
+        XmlAttribute(XmlName('x14', 'xmlns'), _x14),
+      ]);
+      extLst.children.add(ext);
+    }
+    var groups = ext.childElements
+        .where((e) => e.name.local == 'sparklineGroups')
+        .firstOrNull;
+    if (groups == null) {
+      groups = XmlElement(XmlName('sparklineGroups', 'x14'), [
+        XmlAttribute(XmlName('xm', 'xmlns'), _xm),
+      ]);
+      ext.children.add(groups);
+    }
+    final byKey = <String, List<XlsxSparklineWrite>>{};
+    for (final s in list) {
+      (byKey['${s.type}|${s.colorArgb}'] ??= []).add(s);
+    }
+    for (final items in byKey.values) {
+      final first = items.first;
+      String hex(int argb) =>
+          argb.toUnsigned(32).toRadixString(16).padLeft(8, '0').toUpperCase();
+      groups.children.add(XmlElement(XmlName('sparklineGroup', 'x14'), [
+        if (first.type != 'line') XmlAttribute(XmlName('type'), first.type),
+        XmlAttribute(XmlName('displayEmptyCellsAs'), 'gap'),
+      ], [
+        XmlElement(XmlName('colorSeries', 'x14'),
+            [XmlAttribute(XmlName('rgb'), hex(first.colorArgb))]),
+        XmlElement(XmlName('colorNegative', 'x14'),
+            [XmlAttribute(XmlName('rgb'), 'FFD00000')]),
+        XmlElement(XmlName('sparklines', 'x14'), [], [
+          for (final s in items)
+            XmlElement(XmlName('sparkline', 'x14'), [], [
+              XmlElement(XmlName('f', 'xm'), [], [XmlText(s.source)]),
+              XmlElement(XmlName('sqref', 'xm'), [], [XmlText(s.cell)]),
+            ]),
+        ]),
+      ]));
+    }
+    return true;
+  }
+
+  /// Renk ölçeği / veri çubuğu / simge kümesi gövdesi (ECMA-376 §18.3.1).
+  static List<XmlElement> _visualChildren(XlsxCondRuleWrite rule) {
+    XmlElement cfvo(String type, [String? val]) => XmlElement(XmlName('cfvo'), [
+          XmlAttribute(XmlName('type'), type),
+          if (val != null) XmlAttribute(XmlName('val'), val),
+        ]);
+    XmlElement color(int argb) => XmlElement(XmlName('color'), [
+          XmlAttribute(XmlName('rgb'),
+              argb.toUnsigned(32).toRadixString(16).padLeft(8, '0').toUpperCase()),
+        ]);
+    switch (rule.type) {
+      case 'colorScale':
+        final colors = rule.scaleColors ?? const [0xFFF8696B, 0xFF63BE7B];
+        return [
+          XmlElement(XmlName('colorScale'), [], [
+            cfvo('min'),
+            if (colors.length > 2) cfvo('percentile', '50'),
+            cfvo('max'),
+            for (final c in colors) color(c),
+          ]),
+        ];
+      case 'dataBar':
+        return [
+          XmlElement(XmlName('dataBar'), [], [
+            cfvo('min'),
+            cfvo('max'),
+            color(rule.barColorArgb ?? 0xFF638EC6),
+          ]),
+        ];
+      case 'iconSet':
+        return [
+          XmlElement(XmlName('iconSet'), [
+            XmlAttribute(XmlName('iconSet'), rule.iconSet ?? '3TrafficLights1'),
+          ], [
+            cfvo('percent', '0'),
+            cfvo('percent', '33'),
+            cfvo('percent', '67'),
+          ]),
+        ];
+      default:
+        return const [];
+    }
   }
 
   /// Biçim yapıştırma: kaynak hücrenin `s` indeksi hedefe kopyalanır.
@@ -1025,6 +1290,50 @@ class XlsxSavePatch {
       changed = true;
     }
     return changed;
+  }
+
+  /// Satır anahat düzeyleri + `sheetFormatPr/@outlineLevelRow` (Excel'in
+  /// gruplama çubuğu bununla görünür).
+  static bool _applyOutline(XmlElement root, Map<int, int> levels) {
+    if (levels.isEmpty) return false;
+    final data = _firstChild(root, 'sheetData');
+    if (data == null) return false;
+    final existing = <int, XmlElement>{};
+    for (final row in data.children.whereType<XmlElement>()) {
+      if (row.name.local != 'row') continue;
+      final r = int.tryParse(row.getAttribute('r') ?? '');
+      if (r != null) existing[r] = row;
+    }
+    var maxLevel = 0;
+    for (final e in levels.entries) {
+      final level = e.value.clamp(0, 7).toInt();
+      if (level > maxLevel) maxLevel = level;
+      final number = e.key + 1;
+      var row = existing[number];
+      if (row == null) {
+        if (level == 0) continue;
+        row = XmlElement(XmlName('row'), [XmlAttribute(XmlName('r'), '$number')]);
+        _insertRowSorted(data, row, number);
+        existing[number] = row;
+      }
+      if (level == 0) {
+        row.removeAttribute('outlineLevel');
+      } else {
+        row.setAttribute('outlineLevel', '$level');
+      }
+    }
+    var fmt = _firstChild(root, 'sheetFormatPr');
+    if (fmt == null) {
+      fmt = XmlElement(XmlName('sheetFormatPr'),
+          [XmlAttribute(XmlName('defaultRowHeight'), '15')]);
+      _insertOrdered(root, fmt);
+    }
+    if (maxLevel > 0) {
+      fmt.setAttribute('outlineLevelRow', '$maxLevel');
+    } else {
+      fmt.removeAttribute('outlineLevelRow');
+    }
+    return true;
   }
 
   static void _insertRowSorted(XmlElement data, XmlElement row, int number) {

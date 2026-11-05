@@ -28,7 +28,12 @@ extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
     final editor = _editor;
     if (editor == null) return;
     final target = widget.savePath ?? widget.path;
-    final bytes = await editor.saveAsync();
+    final plain = await editor.saveAsync();
+    // Parolalıysa (Faz 36) aynı parolayla yeniden şifrelenir.
+    final password = _filePassword;
+    final bytes = password == null || editor.csv != null
+        ? plain
+        : await OfficeCrypto.encryptInBackground(plain, password);
     await SafeWrite.bytes(target, bytes);
     // Çevrilmiş dosyada çalışma kopyası da tazelenir: kullanıcı kaydettikten
     // sonra düzenlemeye devam edip yine kaydedebilsin.
@@ -83,7 +88,11 @@ extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
       return;
     }
     final f = File('${Directory.systemTemp.path}/${widget.name}');
-    await f.writeAsBytes(await editor.saveAsync());
+    final plain = await editor.saveAsync();
+    final password = _filePassword;
+    await f.writeAsBytes(password == null || editor.csv != null
+        ? plain
+        : await OfficeCrypto.encryptInBackground(plain, password));
     await Share.shareXFiles([XFile(f.path)], text: widget.name);
   }
 

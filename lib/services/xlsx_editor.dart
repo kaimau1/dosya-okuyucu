@@ -9,16 +9,20 @@ import 'xlsx_package.dart';
 import 'xlsx_reader.dart';
 import 'xlsx_save_patch.dart';
 import 'xlsx/notes_writer.dart';
+import 'xlsx/table_reader.dart';
+import 'xlsx/print_area_writer.dart';
 import 'csv_document.dart';
 import 'xlsx_chart.dart';
 import 'sheet_structure.dart';
 import 'calc_log.dart';
+import 'office_crypto.dart' show OfficeCrypto;
 import '../core/app_colors.dart';
 import '../core/edit/save_coordinator.dart';
 
 // Görünüm modelinin tamamı (aralık, kenarlık, hizalama, koşullu biçim…)
 // ekranlara buradan açılır — ad çakışması yok.
 export 'xlsx_reader.dart';
+export 'xlsx/table_reader.dart' show XlsxFileTable;
 export 'xlsx_chart.dart';
 export 'sheet_structure.dart' show SheetShift;
 
@@ -338,6 +342,179 @@ class XlsxSheet {
   /// Bu oturumda eklenen koşullu biçimlendirme kuralları (kaydetmede yazılır).
   final List<XlsxCondRuleWrite> condRuleEdits = [];
 
+  /// Oturumda eklenen kural → yazma kaydı (yönetici ortadakini de siler).
+  final Map<XlsxCondRule, XlsxCondRuleWrite> _condWrite = Map.identity();
+
+  /// Faz 36: dosyadan silinen kurallar (`sqref`, `priority`).
+  final List<(String, int)> condRemovals = [];
+
+  /// Faz 36: bu oturumda eklenen mini grafikler (kaydetmede `extLst`e).
+  final List<XlsxSparklineWrite> sparklineEdits = [];
+
+  // ── Faz 36 madde 12: koruma, düzenlenebilir aralık, yazdırma alanı ──
+
+  bool get isProtected => layout.protected;
+
+  /// Korumayı kaldırmak parola ister mi?
+  bool get protectionNeedsPassword =>
+      layout.protected &&
+      (layout.protectionHash != null || layout.protectionStrong);
+
+  /// Sayfayı korur ([password] boşsa parolasız).
+  void protect({String? password}) {
+    layout.protected = true;
+    layout.protectionHash = password == null || password.isEmpty
+        ? null
+        : XlsxProtectionWrite.legacyHash(password);
+    layout.protectionStrong = false;
+    layout.protectionAttrs.clear();
+    layout.protectionEdited = true;
+    _touched();
+  }
+
+  /// Parola doğruysa (ya da parola yoksa) korumayı kaldırır.
+  bool unprotect([String password = '']) {
+    if (!layout.protected) return true;
+    final legacy = layout.protectionHash;
+    final a = layout.protectionAttrs;
+    final ok = layout.protectionStrong
+        ? OfficeCrypto.verifySheetHash(password,
+            algorithm: a['algorithmName'] ?? '',
+            saltB64: a['saltValue'] ?? '',
+            hashB64: a['hashValue'] ?? '',
+            spin: int.tryParse(a['spinCount'] ?? '') ?? 0)
+        : legacy == null ||
+            XlsxProtectionWrite.legacyHash(password) == legacy.toUpperCase();
+    if (!ok) return false;
+    layout.protected = false;
+    layout.protectionHash = null;
+    layout.protectionStrong = false;
+    layout.protectionAttrs.clear();
+    layout.protectionEdited = true;
+    _touched();
+    return true;
+  }
+
+  /// Korumalı sayfada [range] düzenlenebilir olsun mu?
+  void setAllowEdit(XlsxRange range, bool allow) {
+    layout.allowEditRanges.removeWhere((x) =>
+        x.r1 == range.r1 && x.c1 == range.c1 && x.r2 == range.r2 && x.c2 == range.c2);
+    if (allow) layout.allowEditRanges.add(range);
+    layout.protectionEdited = true;
+    _touched();
+  }
+
+  /// Yazdırma alanı ([range] null = kaldır).
+  void setPrintArea(XlsxRange? range) {
+    layout.printArea = range == null ? null : _rangeRef(range);
+    layout.printAreaEdited = true;
+    _touched();
+  }
+
+  XlsxRange? get printArea => XlsxRange.parse(layout.printArea);
+
+  XlsxProtectionWrite? get _protectionWrite => layout.protected
+      ? XlsxProtectionWrite(
+          hash: layout.protectionHash,
+          allowRanges: [for (final r in layout.allowEditRanges) _rangeRef(r)],
+          // Güçlü özet (dosyadan) olduğu gibi korunur.
+          attrs: layout.protectionStrong
+              ? {
+                  for (final k in const [
+                    'algorithmName', 'hashValue', 'saltValue', 'spinCount',
+                  ])
+                    if (layout.protectionAttrs[k] != null)
+                      k: layout.protectionAttrs[k]!,
+                }
+              : const {},
+        )
+      : null;
+
+  /// Mini grafik ekler; kaynak aynı sayfadaysa sayfa adı başa yazılır.
+  XlsxSparkline addSparkline({
+    required XlsxRange source,
+    required int row,
+    required int col,
+    String type = 'line',
+    int colorArgb = 0xFF376092,
+  }) {
+    final quoted = RegExp(r'^[A-Za-z_][A-Za-z0-9_.]*$').hasMatch(name)
+        ? name
+        : "'${name.replaceAll("'", "''")}'";
+    final ref = '$quoted!${_rangeRef(source)}';
+    final sp = XlsxSparkline(
+        source: ref, row: row, col: col, type: type, colorArgb: colorArgb);
+    layout.sparklines.removeWhere((x) => x.row == row && x.col == col);
+    layout.sparklines.add(sp);
+    sparklineEdits.add(XlsxSparklineWrite(
+      source: ref,
+      cell: '${XlsxRange.colName(col)}${row + 1}',
+      type: type,
+      colorArgb: colorArgb,
+    ));
+    _touched();
+    return sp;
+  }
+
+  /// Bu oturumda eklenen mini grafiği geri alır.
+  void removeSparkline(XlsxSparkline sp) {
+    if (!layout.sparklines.remove(sp)) return;
+    final cell = '${XlsxRange.colName(sp.col)}${sp.row + 1}';
+    final i = sparklineEdits.lastIndexWhere(
+        (w) => w.cell == cell && w.source == sp.source);
+    if (i >= 0) sparklineEdits.removeAt(i);
+    _touched();
+  }
+
+  /// Satırları bir düzey içeri gruplar (en çok 7).
+  void groupRows(int from, int to) {
+    for (var r = from; r <= to; r++) {
+      final l = (layout.rowOutline[r] ?? 0) + 1;
+      if (l > 7) continue;
+      layout.rowOutline[r] = l;
+      layout.outlineCleared.remove(r);
+    }
+    layout.outlineEdited = true;
+    _touched();
+  }
+
+  /// Satırları bir düzey dışarı alır.
+  void ungroupRows(int from, int to) {
+    for (var r = from; r <= to; r++) {
+      final l = (layout.rowOutline[r] ?? 0) - 1;
+      if (l <= 0) {
+        if (layout.rowOutline.remove(r) != null) layout.outlineCleared.add(r);
+      } else {
+        layout.rowOutline[r] = l;
+      }
+    }
+    layout.outlineEdited = true;
+    _touched();
+  }
+
+  /// [row] satırını içeren en iç grubun (aynı ya da daha derin düzeyli
+  /// ardışık satırlar) sınırları; grup yoksa null.
+  (int, int)? outlineGroupAt(int row) {
+    final level = layout.rowOutline[row];
+    if (level == null || level == 0) return null;
+    var a = row, b = row;
+    while ((layout.rowOutline[a - 1] ?? 0) >= level) {
+      a--;
+    }
+    while ((layout.rowOutline[b + 1] ?? 0) >= level) {
+      b++;
+    }
+    return (a, b);
+  }
+
+  /// (r, c) hücresindeki mini grafik (yoksa null).
+  XlsxSparkline? sparklineAt(int r, int c) {
+    for (final sp in layout.sparklines) {
+      if (sp.row == r && sp.col == c) return sp;
+    }
+    return null;
+  }
+
   /// Bu oturumdaki satır/sütun ekle-sil işlemleri, sırayla (Faz 25 / X3):
   /// kaydetmede özgün XML'deki koşullu biçim, doğrulama, köprü ve notlar
   /// aynı kaydırmayı görür.
@@ -357,15 +534,26 @@ class XlsxSheet {
     String? text,
     int? fillArgb,
     int? fontArgb,
+    List<int>? scaleColors,
+    int? barColorArgb,
+    String? iconSet,
   }) {
-    final dxfId = styles.dxfs.length;
-    styles.dxfs.add(XlsxDxf(
-      fill: fillArgb == null
-          ? null
-          : XlsxFill(pattern: 'solid', fgArgb: fillArgb),
-      font: fontArgb == null ? null : XlsxFont(colorArgb: fontArgb),
-    ));
+    final visual =
+        type == 'colorScale' || type == 'dataBar' || type == 'iconSet';
+    int? dxfId;
+    if (!visual) {
+      dxfId = styles.dxfs.length;
+      styles.dxfs.add(XlsxDxf(
+        fill: fillArgb == null
+            ? null
+            : XlsxFill(pattern: 'solid', fgArgb: fillArgb),
+        font: fontArgb == null ? null : XlsxFont(colorArgb: fontArgb),
+      ));
+    }
     final rule = XlsxCondRule(
+      scaleColors: scaleColors,
+      barColorArgb: barColorArgb,
+      iconSet: type == 'iconSet' ? (iconSet ?? '3TrafficLights1') : null,
       ranges: [range],
       type: type,
       operator: operator,
@@ -377,7 +565,7 @@ class XlsxSheet {
     );
     layout.condFormats.insert(0, rule);
     _touched();
-    condRuleEdits.add(XlsxCondRuleWrite(
+    final write = XlsxCondRuleWrite(
       sqref: _rangeRef(range),
       type: type,
       operator: operator,
@@ -385,7 +573,12 @@ class XlsxSheet {
       text: text,
       fillArgb: fillArgb,
       fontArgb: fontArgb,
-    ));
+      scaleColors: scaleColors,
+      barColorArgb: barColorArgb,
+      iconSet: iconSet,
+    );
+    condRuleEdits.add(write);
+    _condWrite[rule] = write;
     return rule;
   }
 
@@ -400,14 +593,47 @@ class XlsxSheet {
     if (at < 0) return;
     layout.condFormats.removeAt(at);
     _touched();
+    final write = _condWrite.remove(rule);
+    if (write != null) condRuleEdits.remove(write);
     final dxfId = rule.dxfId;
-    if (dxfId != null && dxfId == styles.dxfs.length - 1) {
-      // Yalnız SON dxf sökülebilir; ortadakini silmek kalan kuralların
-      // indekslerini kaydırırdı.
+    // Yalnız SON dxf sökülebilir; ortadakini silmek kalan kuralların
+    // indekslerini kaydırırdı (kalan dxf yazılmaz — zararsız).
+    if (write != null && dxfId != null && dxfId == styles.dxfs.length - 1) {
       styles.dxfs.removeLast();
-      if (condRuleEdits.isNotEmpty) condRuleEdits.removeLast();
     }
   }
+
+  /// Faz 36 madde 9 — koşullu biçim yöneticisi: oturumda eklenen YA DA
+  /// dosyadan okunan kuralı siler; geri alma kapanışı döner. Dosya kuralı
+  /// kaydederken `sqref`+`priority` ile sökülür ([condRemovals]).
+  void Function() deleteCondRule(XlsxCondRule rule) {
+    final at = layout.condFormats.indexOf(rule);
+    if (at < 0) return () {};
+    final write = _condWrite[rule];
+    final writeAt = write == null ? -1 : condRuleEdits.indexOf(write);
+    final key = (condSqref(rule), rule.priority);
+    layout.condFormats.removeAt(at);
+    if (write != null) {
+      condRuleEdits.remove(write);
+    } else {
+      condRemovals.add(key);
+    }
+    _touched();
+    return () {
+      layout.condFormats.insert(at.clamp(0, layout.condFormats.length), rule);
+      if (write != null) {
+        condRuleEdits.insert(writeAt.clamp(0, condRuleEdits.length), write);
+      } else {
+        condRemovals.remove(key);
+      }
+      _touched();
+    };
+  }
+
+  /// Kuralın aralıkları `A1:B5 D1:D9` biçiminde.
+  static String condSqref(XlsxCondRule rule) =>
+      rule.ranges.map(_rangeRef).join(' ');
+
 
   bool isRowHidden(int r) => layout.hiddenRows.contains(r);
   bool isColHidden(int c) => layout.hiddenCols.contains(c);
@@ -778,9 +1004,40 @@ class XlsxEditor {
   /// `xl/tables/tableN.xml` yazılır.
   final List<XlsxTableSpec> tables = [];
 
+  /// Bu oturumda eklenen köprüler (Faz 36 madde 8).
+  final List<XlsxLinkSpec> links = [];
+
+  /// Hücreye köprü ekler; ekranda hemen görünsün diye düzende de durur.
+  void addLink(XlsxLinkSpec link) {
+    links.removeWhere((l) =>
+        l.sheetName == link.sheetName && l.row == link.row && l.col == link.col);
+    links.add(link);
+    final sheet = sheets.where((s) => s.name == link.sheetName).firstOrNull;
+    sheet?.layout.hyperlinks[cellKey(link.row, link.col)] =
+        link.url ?? link.location ?? '';
+  }
+
   /// Dosyada zaten olan grafikler (salt çizim; kaydetme onları olduğu gibi
   /// taşır). İlk istendiğinde okunur.
   late final List<XlsxFileChart> fileCharts = XlsxFileCharts.read(_source);
+
+  /// Dosyada zaten olan tablolar (ListObject) — yapısal başvurular için
+  /// (Faz 36 madde 5). İlk istendiğinde okunur.
+  late final List<XlsxFileTable> fileTables = XlsxTableReader.read(_source);
+
+  /// Kullanılmayan ilk "TabloN" adı (dosyadaki ve bu oturumdaki tablolar).
+  String nextTableName() {
+    final used = {
+      for (final t in fileTables) t.name.toLowerCase(),
+      for (final t in tables)
+        if (t.name != null) t.name!.toLowerCase(),
+    };
+    var n = 1;
+    while (used.contains('tablo$n')) {
+      n++;
+    }
+    return 'Tablo$n';
+  }
 
   /// CSV/TSV olarak açıldıysa özgün yazım biçimi (Faz 27): kaydetme o
   /// biçimle CSV yazar, xlsx paketi kurulmaz. Biçim düzenlemeleri saklanmaz.
@@ -1537,6 +1794,19 @@ class XlsxEditor {
           styleEdits: s.styleEdits,
           styleCopies: s.styleCopies,
           condRules: s.condRuleEdits,
+          condRemovals: s.condRemovals,
+          protectionEdited: s.layout.protectionEdited,
+          protection: s._protectionWrite,
+          sparklines: s.sparklineEdits,
+          rowOutline: s.layout.outlineEdited
+              ? {
+                  for (final r in {
+                    ...s.layout.rowOutline.keys,
+                    ...s.layout.outlineCleared,
+                  })
+                    r: s.layout.rowOutline[r] ?? 0,
+                }
+              : const {},
           validations: s.validationWrites,
           validationClears: s.validationClears,
           tabColorEdited: s.tabColorEdited,
@@ -1563,6 +1833,13 @@ class XlsxEditor {
                   ? ''
                   : sheet.rawAt(t.top, c),
           ]),
+    ], [
+      for (final l in links)
+        if (hasSheet(l.sheetName)) l,
+    ], [
+      for (var i = 0; i < sheets.length; i++)
+        if (sheets[i].layout.printAreaEdited)
+          XlsxPrintAreaSpec(i, sheets[i].name, sheets[i].layout.printArea),
     ]);
   }
 
@@ -1600,7 +1877,11 @@ class XlsxEditor {
     // Notlar: sayfa XML'ine `<legacyDrawing>` ve yan parçalar ekler.
     final noted = XlsxNotesWriter.apply(charted, job.notes);
     // Tablolar en son: `<tableParts>` sayfanın sonuna (extLst'ten önce).
-    return XlsxTableWriter.apply(noted, job.tables);
+    final tabled = XlsxTableWriter.apply(noted, job.tables);
+    // Köprüler en son (Faz 36): sayfa XML'i + dış adres ilişkileri.
+    final linked = XlsxLinkWriter.apply(tabled, job.links);
+    // Yazdırma alanı (Faz 36 madde 12): workbook.xml `definedNames`.
+    return XlsxPrintAreaWriter.apply(linked, job.printAreas);
   }
 
   static bool _isEmptyRow(XlsxSheet sheet, int r) {
@@ -1670,6 +1951,9 @@ class _XlsxSaveJob {
   final List<XlsxChartSpec> charts;
   final List<XlsxNoteEdits> notes;
   final List<XlsxTableSpec> tables;
+  final List<XlsxLinkSpec> links;
+  final List<XlsxPrintAreaSpec> printAreas;
   const _XlsxSaveJob(this.source, this.sheets, this.patches, this.charts,
-      this.notes, this.tables);
+      this.notes, this.tables,
+      [this.links = const [], this.printAreas = const []]);
 }

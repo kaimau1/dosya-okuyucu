@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:dosya_okuyucu/screens/editors/spreadsheet_editor_screen.dart';
 import 'package:dosya_okuyucu/services/formula_engine.dart';
+import 'package:dosya_okuyucu/services/xlsx/pivot.dart';
 import 'package:dosya_okuyucu/services/xlsx_editor.dart';
 import 'package:dosya_okuyucu/services/xlsx_writer.dart';
 import 'package:flutter/material.dart';
@@ -78,6 +79,62 @@ void main() {
     expect(st.evaluations - before, 1000); // yalnız bağımlılar
     expect(e.displayValue(999, 1), '7000');
     expect(sw.elapsedMilliseconds, lessThan(150));
+  });
+
+  // ── Faz 36 perf: 100 bin satır eşikleri (gerileme bekçisi, debug/JIT) ──
+
+  test('100 bin satır: aç (ayrıştır) ≤ 25 sn', () {
+    final bytes = XlsxWriter.build([sheetOf(100000, 3)]);
+    final sw = Stopwatch()..start();
+    final editor = XlsxEditor.parse(bytes);
+    sw.stop();
+    // ignore: avoid_print
+    print('PERF excel_open_100k_rows_ms=${sw.elapsedMilliseconds}');
+    expect(editor.sheets.first.layout.maxRow, 99999);
+    expect(sw.elapsedMilliseconds, lessThan(25000));
+  }, timeout: const Timeout(Duration(minutes: 3)));
+
+  test('100 bin satır: tek hücre değişince yalnız kirli bağımlılar (≤ 500 ms)', () {
+    const n = 100000;
+    final g = <List<String>>[
+      for (var i = 0; i < n; i++)
+        ['${i + 1}', '=A${i + 1}*2', if (i == 0) '=SUM(B1:B$n)'],
+    ];
+    final st = CalcState();
+    FormulaEngine eng() =>
+        FormulaEngine(g, sheetName: 'S', sheets: {'S': g}, state: st);
+    final e0 = eng();
+    expect(e0.displayValue(0, 2), '${n * (n + 1)}');
+    final before = st.evaluations;
+    final sw = Stopwatch()..start();
+    g[49999][0] = '0';
+    st.invalidate('S', 49999, 0);
+    final e = eng();
+    final total = e.displayValue(0, 2);
+    sw.stop();
+    // ignore: avoid_print
+    print('PERF excel_100k_dirty_ms=${sw.elapsedMilliseconds} '
+        'evals=${st.evaluations - before}');
+    expect(total, '${n * (n + 1) - 100000}');
+    // Tam yeniden hesap YOK: B50000 + toplam (+ pay) — 100 bin değil.
+    expect(st.evaluations - before, lessThan(10));
+    expect(sw.elapsedMilliseconds, lessThan(500));
+  }, timeout: const Timeout(Duration(minutes: 3)));
+
+  test('100 bin satır özet tablo ≤ 5 sn (UI izleğinde değil: izolatta koşar)', () {
+    final data = <List<String>>[
+      ['Bölge', 'Ürün', 'Tutar'],
+      for (var i = 0; i < 100000; i++) ['B${i % 12}', 'U${i % 40}', '${i % 97}'],
+    ];
+    final sw = Stopwatch()..start();
+    final r = Pivot.build(
+        data, const PivotSpec(rowField: 0, colField: 1, valueField: 2));
+    sw.stop();
+    // ignore: avoid_print
+    print('PERF excel_pivot_100k_ms=${sw.elapsedMilliseconds}');
+    expect(r.rowKeys, 12);
+    expect(r.colKeys, 40);
+    expect(sw.elapsedMilliseconds, lessThan(5000));
   });
 
   testWidgets('K23 prototip kıyası: (a) widget satırları vs (b) tek boyacı',

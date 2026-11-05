@@ -18,6 +18,31 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
             () => _askCondRule('cellIs', operator: 'equal')),
         DocMoreItem(AppIcons.textFields, context.t('excel.cond_contains'),
             () => _askCondRule('containsText')),
+        if (_excelPro) ...[
+        DocMoreItem(AppIcons.functions, context.t('xp.cond_formula'),
+            _askFormulaCond),
+        DocMoreItem(AppIcons.listAlt, context.t('xp.cond_manage'),
+            _showCondManager),
+        ],
+      ]),
+      // Faz 36 madde 2: görsel kurallar (dosyaya yazılır).
+      if (_excelPro)
+      DocMoreGroup(context.t('xp.cond_visual'), [
+        DocMoreItem(AppIcons.formatColorFill, context.t('xp.scale_rg'),
+            () => _addVisualCond('colorScale',
+                scale: const [0xFFF8696B, 0xFF63BE7B])),
+        DocMoreItem(AppIcons.formatColorFill, context.t('xp.scale_ryg'),
+            () => _addVisualCond('colorScale',
+                scale: const [0xFFF8696B, 0xFFFFEB84, 0xFF63BE7B])),
+        DocMoreItem(AppIcons.formatColorFill, context.t('xp.scale_wb'),
+            () => _addVisualCond('colorScale',
+                scale: const [0xFFFFFFFF, 0xFF5A8AC6])),
+        DocMoreItem(AppIcons.barChart, context.t('xp.data_bar'),
+            () => _addVisualCond('dataBar', bar: 0xFF638EC6)),
+        DocMoreItem(AppIcons.barChart, context.t('xp.data_bar_green'),
+            () => _addVisualCond('dataBar', bar: 0xFF63C384)),
+        DocMoreItem(AppIcons.trafficLight, context.t('xp.icon_set'),
+            () => _addVisualCond('iconSet')),
       ]),
     ]);
   }
