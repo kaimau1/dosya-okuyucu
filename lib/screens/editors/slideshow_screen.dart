@@ -526,10 +526,10 @@ class _SlideshowScreenState extends State<SlideshowScreen>
                 ),
                 if (_showTimer && !_presenter) _timerChip(),
                 if (_recording)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 6),
                     child: Icon(AppIcons.micNone,
-                        key: const ValueKey('ss-rec'), color: AppHues.red),
+                        key: ValueKey('ss-rec'), color: AppHues.red),
                   ),
               ]),
             ),
