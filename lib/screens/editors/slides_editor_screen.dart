@@ -55,6 +55,7 @@ import '../../widgets/fm/fm_type_chips.dart' show FmChoiceTile;
 import '../../core/theme.dart';
 import '../../widgets/doc_action_bar.dart';
 import '../../widgets/editor_top_bar.dart';
+import '../../widgets/share_export_sheet.dart';
 import '../../widgets/doc_find_bar.dart';
 import '../../widgets/office_ribbon.dart';
 import '../../widgets/office_shell.dart';
@@ -88,6 +89,7 @@ part 'slides/pro_shapes.dart';
 part 'slides/sorter.dart';
 part 'slides/text_edit.dart';
 part 'slides/views.dart';
+part 'slides/share_export.dart';
 
 /// Slaytlar PowerPoint'teki gibi **gerçek tasarımıyla** çizilir. Faz 28
 /// (PowerPoint mobil dili): şekle dokunmak onu SEÇER (çerçeve + tutamaklar +
@@ -316,7 +318,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
               id: 'export',
               icon: AppIcons.share,
               label: context.t('ux.share_export'),
-              onTap: editor == null ? null : _export,
+              onTap: editor == null ? null : _shareExport,
             ),
             EditorMenuItem(
               id: 'pdf',

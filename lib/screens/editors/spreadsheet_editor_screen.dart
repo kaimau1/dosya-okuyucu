@@ -62,6 +62,7 @@ import '../../services/xlsx_file_charts.dart';
 import '../fm/pick_file_screen.dart' show AppFilePicker;
 import '../../widgets/doc_action_bar.dart';
 import '../../widgets/editor_top_bar.dart';
+import '../../widgets/share_export_sheet.dart';
 import '../../widgets/doc_find_bar.dart';
 import '../../widgets/doc_more_sheet.dart';
 import '../../widgets/chart_insert_dialog.dart';
@@ -102,6 +103,7 @@ part 'spreadsheet/pro_format.dart';
 part 'spreadsheet/pro_audit.dart';
 part 'spreadsheet/pro_chart.dart';
 part 'spreadsheet/pro_protect.dart';
+part 'spreadsheet/share_export.dart';
 
 /// Excel görünümü — hedef: dosya telefonda **Excel'deki gibi** görünsün.
 ///
@@ -521,7 +523,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
             id: 'export',
             icon: AppIcons.share,
             label: context.t('ux.share_export'),
-            onTap: editor == null ? null : _export,
+            onTap: editor == null ? null : _shareExport,
           ),
           EditorMenuItem(
             id: 'csv',

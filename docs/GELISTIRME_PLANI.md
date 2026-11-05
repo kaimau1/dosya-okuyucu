@@ -267,7 +267,7 @@ testi, küçük resim şeridi yalnız açıkken üretilir.
 **Ölçüt:** token bekçisi yeşil; 2× yazıda taşma yok (widget testleri).
 
 **Ek:** 6. [x] Ortak geri al/yinele ve taslak kurtarma altyapısı (SaveIsolate/EditorChrome üzerine) tüm
-editörlerde aynı davranış; kapanışta otomatik kaydet güvencesi. 7. Tek "Paylaş/Dışa aktar" sayfası
+editörlerde aynı davranış; kapanışta otomatik kaydet güvencesi. 7. [x] Tek "Paylaş/Dışa aktar" sayfası
 (PDF, docx/xlsx/pptx, görüntü, bağlantı). 8. Tema: açık/koyu/AMOLED/kâğıt, vurgu rengi,
 yazı ölçeği ön ayarları. 9. Dil: TR/EN/AR (RTL bekçisi korunur) eksik çeviri taraması.
 10. Boş/hata/yükleme durumları için iskelet (nabız hafifte kapalı) ve tek tip hata sayfası.

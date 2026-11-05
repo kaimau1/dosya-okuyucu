@@ -64,4 +64,9 @@ const Map<String, (String, String, String)> _t26 = {
   'smp.note_3': ('Bu dosyaları silmek güvenlidir', 'These files are safe to delete', 'حذف هذه الملفات آمن'),
   // ── Madde 5: ayarlar ───────────────────────────────────────────────────
   'set.suggested': ('Önerilenler', 'Suggested', 'مقترحة'),
+  // ── Madde 7: Paylaş / Dışa aktar ───────────────────────────────────────
+  'ux.group_format': ('Biçim', 'Format', 'الصيغة'),
+  'ux.group_send': ('Gönder', 'Send', 'إرسال'),
+  'ux.send_nearby': ('Yakındaki cihaza gönder', 'Send to a nearby device', 'إرسال إلى جهاز قريب'),
+  'ux.send_nearby_hint': ('Kayıtlı hâli · QR ya da yerel ağ', 'Saved version · QR or local network', 'النسخة المحفوظة · رمز QR أو الشبكة المحلية'),
 };

@@ -56,7 +56,7 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                 ));
                 break;
               case 'export':
-                if (editor != null) await _export();
+                if (editor != null) await _shareExport();
                 break;
               case 'page':
                 if (_dirty) await _save();

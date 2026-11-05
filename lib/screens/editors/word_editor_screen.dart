@@ -30,6 +30,7 @@ import '../../services/docx_editor.dart';
 import '../../services/office_crypto.dart';
 import '../../widgets/doc_action_bar.dart';
 import '../../widgets/editor_top_bar.dart';
+import '../../widgets/share_export_sheet.dart';
 import '../../widgets/doc_find_bar.dart';
 import '../../widgets/ai_rewrite_sheet.dart';
 import '../../widgets/docx_view.dart';
@@ -48,6 +49,7 @@ import '../fm/pick_file_screen.dart';
 part 'word/actions.dart';
 part 'word/shell.dart';
 part 'word/page.dart';
+part 'word/share_export.dart';
 
 /// Word ekranı: belge **gerçek sayfa düzeniyle** açılır (docx-preview) ve
 /// kalem moduna geçince **sayfanın üzerinde** düzenlenir — popup/sekme yok.

@@ -23,6 +23,7 @@ import '../../services/fm/activity_log.dart';
 import '../../services/fm/safe_write.dart';
 import '../../widgets/ai_rewrite_sheet.dart';
 import '../../widgets/editor_top_bar.dart';
+import '../../widgets/share_export_sheet.dart';
 import '../../widgets/docx_editor/docx_edit_controller.dart';
 import '../../widgets/docx_editor/docx_editor_view.dart';
 import '../../widgets/office_ribbon.dart';
@@ -697,7 +698,7 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
                 id: 'export',
                 icon: AppIcons.share,
                 label: context.t('ux.share_export'),
-                onTap: c == null ? null : _export,
+                onTap: c == null ? null : _shareExport,
               ),
             ],
           ),
