@@ -281,7 +281,7 @@ yeşil; ortak bileşen değişince pano boşta-kare ve kaydırma ölçümü yeni
 4. [x] Paylaşım: kısa ömürlü bağlantı (yerel ağ), QR ile aktar (var) → toplu.
 **Ölçüt:** 50 bin dosyada arama < 1 sn (dizinli).
 
-**Ek:** 5. Çöp kutusu/kasa/yinelenenler/büyük dosya temizleyici akıllı öneriler (var olan
+**Ek:** 5. [x] Çöp kutusu/kasa/yinelenenler/büyük dosya temizleyici akıllı öneriler (var olan
 Yer aç sekmesi); 6. Etiket + renk + favori klasör; 7. Arşiv: 7z/rar okuma, parola, bölünmüş zip;
 8. Yerel ağ: SMB/FTP/WebDAV istemci. **Perf:** dizin (indeks) **artımlı** ve olay güdümlü,
 arka planda düşük öncelik, pil tasarrufunda duraklar; `fs_sort_perf_test` ve gezgin liste önbelleği

@@ -45,4 +45,10 @@ const Map<String, (String, String, String)> _t27 = {
   'lnk.once': ('Tek indirme', 'Single download', 'تنزيل واحد'),
   'lnk.until': ('Bağlantı {time}\'a kadar geçerli', 'Link valid until {time}', 'الرابط صالح حتى {time}'),
   'lnk.expired_renew': ('Bağlantının süresi doldu · yenile', 'Link expired · renew', 'انتهت صلاحية الرابط · تجديد'),
+  'cln.old_screenshots': ('Eski ekran görüntüleri', 'Old screenshots', 'لقطات شاشة قديمة'),
+  'cln.old_screenshots_detail': ('{n} görüntü · 3 aydır bakılmamış', '{n} images · not viewed for 3 months', '{n} صورة · لم تُعرض منذ 3 أشهر'),
+  'cln.old_large': ('Bir yıldır açılmamış büyük dosyalar', 'Large files unopened for a year', 'ملفات كبيرة لم تُفتح منذ عام'),
+  'cln.old_large_detail': ('{n} dosya · 50 MB ve üstü', '{n} files · 50 MB or more', '{n} ملف · 50 ميغابايت أو أكثر'),
+  'cln.empty_folders': ('Boş klasörler', 'Empty folders', 'مجلدات فارغة'),
+  'cln.empty_folders_detail': ('{n} klasör · içinde hiçbir şey yok', '{n} folders · nothing inside', '{n} مجلد · لا شيء بداخلها'),
 };
