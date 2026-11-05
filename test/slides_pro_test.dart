@@ -5,6 +5,7 @@ import 'package:dosya_okuyucu/services/pptx/pro/pptx_chart_ops.dart';
 import 'package:dosya_okuyucu/services/pptx/pro/pptx_deck_ops.dart';
 import 'package:dosya_okuyucu/services/pptx/pro/pptx_master_ops.dart';
 import 'package:dosya_okuyucu/services/pptx/pro/pptx_media_ops.dart';
+import 'package:dosya_okuyucu/services/pptx/pro/pptx_shape_ops.dart';
 import 'package:dosya_okuyucu/services/pptx/pro/pptx_show_info.dart';
 import 'package:dosya_okuyucu/services/pptx/pro/pptx_package.dart';
 import 'package:dosya_okuyucu/services/pptx/pro/pptx_templates.dart';
@@ -284,6 +285,82 @@ void main() {
       b = await PptxPro.run(b, PptxDeckOps.removeCustomShow('Kısa'));
       expect(PptxDeckOps.customShows(open(b)), isEmpty);
       expect(PptxEditor.parse(b).slides, hasLength(4));
+    });
+  });
+
+  group('madde 8 — şekil araçları', () {
+    Future<Uint8List> boxes() => PptxPro.run(deck, (pkg) {
+          final d = pkg.edit(pkg.slidePart(1))!;
+          final tree = PptxPackage.spTree(d)!;
+          for (final (id, x) in [(61, 100000), (62, 3000000)]) {
+            tree.children.add(PptxPackage.frag('<p:sp><p:nvSpPr><p:cNvPr id="$id" name="K$id"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>'
+                '<p:spPr><a:xfrm><a:off x="$x" y="100000"/><a:ext cx="500000" cy="500000"/></a:xfrm>'
+                '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="FF0000"/></a:solidFill></p:spPr></p:sp>'));
+          }
+        });
+
+    test('bağlayıcı, gradyan, gölge, yansıma; deste açılır', () async {
+      var b = await boxes();
+      b = await PptxPro.run(b, PptxShapeOps.connect(1, 61, 62));
+      b = await PptxPro.run(b, PptxShapeOps.setGradient(1, 61, '112233', 'AABBCC'));
+      b = await PptxPro.run(b, PptxShapeOps.setShadow(1, 61, true));
+      b = await PptxPro.run(b, PptxShapeOps.setReflection(1, 61, true));
+      final x = open(b).xml(open(b).slidePart(1))!.toXmlString();
+      expect(x, contains('<a:stCxn id="61" idx="3"/>'));
+      expect(x, contains('<a:endCxn id="62" idx="1"/>'));
+      expect(x, contains('a:gradFill'));
+      expect(RegExp('outerShdw.*reflection').hasMatch(x), isTrue); // ECMA sırası
+      final v = PptxEditor.parse(b).slides[1].view!;
+      expect(v.shapes.firstWhere((s) => s.id == 61).gradient, isNotNull);
+      expect(v.shapes.where((s) => s.isLine), isNotEmpty);
+    });
+
+    test('köprü/eylem + sayaç sunum bilgisinde', () async {
+      var b = await boxes();
+      b = await PptxPro.run(b, PptxShapeOps.setLink(1, 61, SlideLinkKind.url, url: 'https://ornek.com'));
+      b = await PptxPro.run(b, PptxShapeOps.setLink(1, 62, SlideLinkKind.slide, target: 0));
+      b = await PptxPro.run(b, PptxShapeOps.addActionButton(1, 'actionButtonForwardNext'));
+      b = await PptxPro.run(b, PptxShapeOps.addCounter(1, 90));
+      final info = PptxShowInfo.read(open(b))[1];
+      expect(info.links.map((l) => l.kind),
+          containsAll([SlideLinkKind.url, SlideLinkKind.slide, SlideLinkKind.next]));
+      expect(info.links.firstWhere((l) => l.kind == SlideLinkKind.url).url, 'https://ornek.com');
+      expect(info.links.firstWhere((l) => l.kind == SlideLinkKind.slide).slide, 0);
+      expect(info.counters.single.seconds, 90);
+      b = await PptxPro.run(b, PptxShapeOps.setLink(1, 61, SlideLinkKind.none));
+      expect(PptxShowInfo.read(open(b))[1].links.where((l) => l.kind == SlideLinkKind.url), isEmpty);
+    });
+
+    test('görsel kırp, şekle kırp, değiştir', () async {
+      final png = PptxMediaOps.audioPoster();
+      var b = await PptxPro.run(deck, PptxMediaOps.insert(0, Uint8List(8), 'mp3', poster: png));
+      final id = PptxMediaOps.mediaOf(open(b), open(b).slidePart(0)).single.shapeId;
+      b = await PptxPro.run(b, PptxShapeOps.setCrop(0, id, 0.1, 0, 0.2, 0));
+      b = await PptxPro.run(b, PptxShapeOps.cropToShape(0, id, 'ellipse'));
+      final pic = PptxEditor.parse(b).slides[0].view!.shapes.firstWhere((s) => s.id == id);
+      expect(pic.crop!.left, closeTo(0.1, 1e-6));
+      expect(open(b).xml(open(b).slidePart(0))!.toXmlString(), contains('prst="ellipse"'));
+      expect(PptxShapeOps.imageOf(open(b), 0, id)!.$2, 'png');
+      b = await PptxPro.run(b, PptxShapeOps.replaceImage(0, id, png));
+      expect(PptxShapeOps.imageOf(open(b), 0, id)!.$1, png);
+    });
+
+    test('tablo biçimi hücrelere yazılır', () async {
+      var b = await PptxPro.run(deck, (pkg) {
+        final d = pkg.edit(pkg.slidePart(1))!;
+        PptxPackage.spTree(d)!.children.add(PptxPackage.frag(
+            '<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="95" name="T"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr>'
+            '<p:xfrm><a:off x="0" y="0"/><a:ext cx="100" cy="100"/></p:xfrm><a:graphic>'
+            '<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table"><a:tbl><a:tblGrid><a:gridCol w="50"/></a:tblGrid>'
+            '<a:tr h="10"><a:tc><a:txBody><a:bodyPr/><a:p><a:r><a:rPr/><a:t>Başlık</a:t></a:r></a:p></a:txBody></a:tc></a:tr>'
+            '<a:tr h="10"><a:tc><a:txBody><a:bodyPr/><a:p><a:r><a:rPr/><a:t>1</a:t></a:r></a:p></a:txBody></a:tc></a:tr>'
+            '</a:tbl></a:graphicData></a:graphic></p:graphicFrame>'));
+      });
+      b = await PptxPro.run(b, PptxShapeOps.applyTableStyle(1, 95, 'green'));
+      final x = open(b).xml(open(b).slidePart(1))!.toXmlString();
+      expect(x, contains('2E7D32'));
+      expect(x, contains('firstRow="1"'));
+      expect(PptxEditor.parse(b).slides, hasLength(2));
     });
   });
 }

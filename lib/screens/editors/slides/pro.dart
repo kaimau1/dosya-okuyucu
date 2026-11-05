@@ -114,6 +114,16 @@ extension _SlidesProPart on _SlidesEditorScreenState {
                 icon: AppIcons.insertChart,
                 label: context.t('sp.chart_insert')),
             AppAction(
+                value: 'shapes',
+                icon: AppIcons.dashboardCustomize,
+                label: context.t('sp.shape_library'),
+                hint: context.t('sp.shape_library_hint')),
+            AppAction(
+                value: 'counter',
+                icon: AppIcons.hourglassEmpty,
+                label: context.t('sp.counter'),
+                hint: context.t('sp.counter_hint')),
+            AppAction(
                 value: 'media',
                 icon: AppIcons.videoLibrary,
                 label: context.t('sp.media_insert'),
@@ -203,6 +213,10 @@ extension _SlidesProPart on _SlidesEditorScreenState {
         await _convertSmartArts();
       case 'media':
         await _insertMedia(_curIndex);
+      case 'shapes':
+        await _insertFromLibrary(editor.slides[_curIndex]);
+      case 'counter':
+        await _insertCounter(_curIndex);
       case 'master':
         final bytes = await _deckBytes();
         if (bytes == null || !mounted) return;
@@ -478,6 +492,7 @@ extension _SlidesProPart on _SlidesEditorScreenState {
                   value: 'chart_table',
                   icon: AppIcons.barChart,
                   label: context.t('sp.chart_from_table')),
+            ..._shapeProActions(shape),
           ]),
         ]);
     if (pick == null || !mounted) return;
@@ -486,6 +501,8 @@ extension _SlidesProPart on _SlidesEditorScreenState {
         await _editChart(i, shape.id);
       case 'chart_table':
         await _chartFromTable(i, shape.id);
+      default:
+        await _runShapePro(pick, slide, shape);
     }
   }
 }

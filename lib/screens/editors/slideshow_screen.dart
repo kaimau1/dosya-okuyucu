@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../core/app_colors.dart';
@@ -15,6 +16,7 @@ import '../../services/pptx_render.dart';
 import '../../widgets/slide_canvas.dart';
 import '../../core/theme.dart';
 
+part 'slideshow/actions.dart';
 part 'slideshow/ink.dart';
 part 'slideshow/media.dart';
 part 'slideshow/presenter.dart';
@@ -100,6 +102,12 @@ class _SlideshowScreenState extends State<SlideshowScreen>
   /// Slayt sahnesinin ölçüsü (sunucu görünümünde ekrandan dar).
   Size _stageSize = Size.zero;
 
+  /// Canlı sayaçlar (geçerli slayt): kalan saniye, duraklatıldı mı.
+  final Map<int, int> _counterLeft = {};
+  final Map<int, bool> _counterPaused = {};
+  final ValueNotifier<int> _counterRev = ValueNotifier(0);
+  Timer? _counterTick;
+
   /// Otomatik ilerleme (`advTm`, ör. kayıtlı anlatım) — tek seferlik zamanlayıcı.
   Timer? _auto;
 
@@ -152,6 +160,7 @@ class _SlideshowScreenState extends State<SlideshowScreen>
         if (!mounted) return;
         setState(() => _info = v);
         _scheduleAdvance();
+        _startCounters();
       }, onError: (_) {}));
     }
   }
@@ -162,6 +171,8 @@ class _SlideshowScreenState extends State<SlideshowScreen>
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     _tick?.cancel();
     _auto?.cancel();
+    _counterTick?.cancel();
+    _counterRev.dispose();
     _media?.dispose();
     _pages.dispose();
     _zoom.dispose();
@@ -202,6 +213,7 @@ class _SlideshowScreenState extends State<SlideshowScreen>
       _step = 0;
     });
     _scheduleAdvance();
+    _startCounters();
   }
 
   void _scheduleAdvance() {
@@ -324,6 +336,7 @@ class _SlideshowScreenState extends State<SlideshowScreen>
     if (_zoomed) return;
     final at = _toSlide(d.localPosition);
     final info = _curInfo;
+    if (at != null && _hitLink(at)) return;
     if (at != null && info != null) {
       for (final m in info.media) {
         if (Rect.fromLTWH(m.x, m.y, m.w, m.h).contains(at)) {
@@ -419,6 +432,7 @@ class _SlideshowScreenState extends State<SlideshowScreen>
                     onTapUp: _onTapUp,
                   ),
           ),
+          ..._counterOverlays(),
           if (_media != null) _mediaOverlay(_media!),
           PositionedDirectional(
             top: 8,
