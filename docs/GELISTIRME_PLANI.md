@@ -120,8 +120,9 @@ Ek 8: stüdyo her değişikliği PDF'e kendiliğinden yazıyor + arka plana geç
 Ek 9: dışa aktarma `TrackedTask` → `JobQueue` (ilerleme, iptal, bitince bildirim).
 
 ## Faz 36 — Excel
-1. Özet tablo (pivot) oluştur/yenile (satır/sütun/değer/süzgeç, topla-say-ort) — xlsx
+- [x] 1. Özet tablo (pivot) oluştur/yenile (satır/sütun/değer/süzgeç, topla-say-ort) — xlsx
    `pivotCache` yazımı veya salt "değer anlık görüntüsü" ilk sürüm.
+   (`services/xlsx/pivot.dart` değer anlık görüntüsü + "Özeti yenile"; Veri sekmesi.)
 2. Koşullu biçim yazma: renk ölçeği, veri çubuğu, simge kümesi, formül kuralı (A7.5).
 3. Mini grafik (sparkline) çiz + yaz (`x14:sparklineGroups`).
 4. Formül: yardım balonu + otomatik tamamlama + hata açıklaması ("#DEĞER! neden"),

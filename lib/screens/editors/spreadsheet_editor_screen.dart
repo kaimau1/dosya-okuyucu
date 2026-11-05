@@ -44,6 +44,7 @@ import '../../services/sheet_data_ops.dart';
 import '../../services/sheet_edit.dart';
 import '../../services/sheet_input.dart';
 import '../../services/xlsx_save_patch.dart' show XlsxStyleEdit;
+import '../../services/xlsx/pivot.dart';
 import '../../services/xlsx_editor.dart';
 import '../../services/xlsx_file_charts.dart';
 import '../../widgets/doc_action_bar.dart';
@@ -82,6 +83,7 @@ part 'spreadsheet/finish_format.dart';
 part 'spreadsheet/finish_data.dart';
 part 'spreadsheet/chart_layer.dart';
 part 'spreadsheet/keyboard.dart';
+part 'spreadsheet/pro_data.dart';
 
 /// Excel görünümü — hedef: dosya telefonda **Excel'deki gibi** görünsün.
 ///
@@ -152,6 +154,9 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
 
   XlsxEditor? _editor;
   int _sheetIndex = 0;
+
+  /// Faz 36 özet tabloları: özet sayfa adı → kaynak bağı (oturum içi).
+  final Map<String, _PivotLink> _pivots = {};
   String? _error;
 
   /// Faz 26: kalıcı hesap durumu (değer önbelleği + bağımlılık grafiği) ve

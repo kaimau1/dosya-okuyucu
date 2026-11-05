@@ -179,6 +179,11 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
               key: const ValueKey('xl-dedup'), onTap: _removeDuplicates),
           RibbonButton(AppIcons.viewColumn, context.t('excel.split_title'),
               key: const ValueKey('xl-split'), onTap: _splitTextToColumns),
+          RibbonButton(AppIcons.pdfTable, context.t('xp.pivot'),
+              key: const ValueKey('xl-pivot'), onTap: _createPivot),
+          if (_pivots.containsKey(_sheet?.name))
+            RibbonButton(AppIcons.refresh, context.t('xp.pivot_refresh'),
+                key: const ValueKey('xl-pivot-refresh'), onTap: _refreshPivot),
           const RibbonSep(),
           RibbonButton(OfficeIcons.condFormat, context.t('excel.cond_format'),
               onTap: _showCondFormat),

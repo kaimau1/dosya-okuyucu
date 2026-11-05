@@ -1,0 +1,223 @@
+part of '../spreadsheet_editor_screen.dart';
+
+/// Özet tablo bağı: hangi sayfa hangi kaynaktan, hangi ayarla üretildi
+/// (oturum içi; "Özeti yenile" bununla kaynağı yeniden okur).
+class _PivotLink {
+  final String source;
+  final CellRange range;
+  final PivotSpec spec;
+  const _PivotLink(this.source, this.range, this.spec);
+}
+
+/// Faz 36 — Excel pro veri araçları (özet tablo …).
+extension _SpreadsheetProDataPart on _SpreadsheetEditorScreenState {
+  /// Aralığın GÖRÜNEN değerleri (formül sonucu dahil).
+  List<List<String>> _rangeValues(XlsxSheet sheet, CellRange r) {
+    final engine = _engineFor(sheet);
+    String shown(int row, int col) => sheet.rawAt(row, col).startsWith('=')
+        ? engine.displayValue(row, col)
+        : sheet.rawAt(row, col);
+    return [
+      for (var row = r.top; row <= r.bottom; row++)
+        [for (var c = r.left; c <= r.right; c++) shown(row, c)],
+    ];
+  }
+
+  // ── 1. Özet tablo ──────────────────────────────────────────────────────
+
+  Future<void> _createPivot() async {
+    final sheet = _sheet;
+    final editor = _editor;
+    if (sheet == null || editor == null) return;
+    _endEdit();
+    final r = _dataRange(sheet);
+    if (r.bottom <= r.top) {
+      _snack(context.t('excel.dup_needs_range'));
+      return;
+    }
+    final data = _rangeValues(sheet, r);
+    final header = [
+      for (var i = 0; i < data.first.length; i++)
+        data.first[i].trim().isEmpty ? CellRef.colName(r.left + i) : data.first[i].trim(),
+    ];
+    final spec = await showAppSheet<PivotSpec>(
+      context,
+      title: context.t('xp.pivot'),
+      builder: (_) => _PivotSheet(header: header, data: data),
+    );
+    if (spec == null || !mounted) return;
+    final link = _PivotLink(sheet.name, r, spec);
+    var n = 1;
+    while (editor.hasSheet(context.t('xp.pivot_sheet', {'n': n}))) {
+      n++;
+    }
+    final added = editor.addSheet(context.t('xp.pivot_sheet', {'n': n}));
+    if (added == null) return;
+    _writePivot(added.name, link, data);
+    _partSetState(() {
+      _pivots[added.name] = link;
+      _sheetIndex = editor.sheets.indexOf(added);
+      _selRow = 0;
+      _selCol = 0;
+      _anchorRow = 0;
+      _anchorCol = 0;
+      _session.changed();
+      _gridVersion++;
+    });
+    _syncField();
+  }
+
+  /// Özet sonucunu [target] sayfasına düz değer olarak yazar (önce temizler).
+  void _writePivot(String target, _PivotLink link, List<List<String>> data) {
+    final editor = _editor!;
+    final result = Pivot.build(
+      data,
+      link.spec,
+      totalLabel: context.t('xp.grand_total'),
+      blankLabel: context.t('xp.blank'),
+      valueHeader: context.t('xp.agg_header', {
+        'agg': context.t('xp.agg_${link.spec.agg.name}'),
+        'field': data.first[link.spec.valueField],
+      }),
+    );
+    final model = editor.sheets.firstWhere((s) => s.name == target);
+    for (var row = 0; row < model.rows.length; row++) {
+      for (var c = 0; c < model.rows[row].length; c++) {
+        if (model.rows[row][c].isNotEmpty) editor.setCell(target, row, c, '');
+      }
+    }
+    for (var row = 0; row < result.cells.length; row++) {
+      for (var c = 0; c < result.cells[row].length; c++) {
+        editor.setCell(target, row, c, result.cells[row][c]);
+      }
+    }
+  }
+
+  /// Etkin sayfa bir özetse kaynağını yeniden okuyup sonucu tazeler.
+  void _refreshPivot() {
+    final sheet = _sheet;
+    final editor = _editor;
+    final link = sheet == null ? null : _pivots[sheet.name];
+    if (sheet == null || editor == null || link == null) return;
+    _endEdit();
+    final source = editor.sheets.where((s) => s.name == link.source).firstOrNull;
+    if (source == null) {
+      _snack(context.t('xp.pivot_source_gone'));
+      return;
+    }
+    _writePivot(sheet.name, link, _rangeValues(source, link.range));
+    _partSetState(() {
+      _session.changed();
+      _gridVersion++;
+    });
+    _syncField();
+    _snack(context.t('xp.pivot_refreshed'));
+  }
+}
+
+/// Özet tablo ayar levhası: satır / sütun / değer alanı, işlev, süzgeç.
+class _PivotSheet extends StatefulWidget {
+  const _PivotSheet({required this.header, required this.data});
+
+  final List<String> header;
+  final List<List<String>> data;
+
+  @override
+  State<_PivotSheet> createState() => _PivotSheetState();
+}
+
+class _PivotSheetState extends State<_PivotSheet> {
+  int _row = 0;
+  int? _col;
+  late int _value = widget.header.length - 1;
+  PivotAgg _agg = PivotAgg.sum;
+  int? _filter;
+  Set<String> _allowed = {};
+
+  DropdownButtonFormField<int?> _field(String key, String label, int? value,
+          ValueChanged<int?> onChanged, {bool optional = false}) =>
+      DropdownButtonFormField<int?>(
+        key: ValueKey(key),
+        initialValue: value,
+        isExpanded: true,
+        decoration: InputDecoration(labelText: label),
+        items: [
+          if (optional)
+            DropdownMenuItem<int?>(value: null, child: Text(context.t('xp.none'))),
+          for (var i = 0; i < widget.header.length; i++)
+            DropdownMenuItem<int?>(value: i, child: Text(widget.header[i])),
+        ],
+        onChanged: onChanged,
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final values = _filter == null
+        ? const <String>[]
+        : Pivot.distinct(widget.data, _filter!, limit: 60);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _field('pv-row', context.t('xp.rows'), _row,
+              (v) => setState(() => _row = v ?? 0)),
+          _field('pv-col', context.t('xp.cols'), _col,
+              (v) => setState(() => _col = v), optional: true),
+          _field('pv-value', context.t('xp.values'), _value,
+              (v) => setState(() => _value = v ?? _value)),
+          DropdownButtonFormField<PivotAgg>(
+            key: const ValueKey('pv-agg'),
+            initialValue: _agg,
+            decoration: InputDecoration(labelText: context.t('xp.agg')),
+            items: [
+              for (final a in PivotAgg.values)
+                DropdownMenuItem(value: a, child: Text(context.t('xp.agg_${a.name}'))),
+            ],
+            onChanged: (v) => setState(() => _agg = v ?? _agg),
+          ),
+          _field('pv-filter', context.t('xp.filter'), _filter,
+              (v) => setState(() {
+                    _filter = v;
+                    _allowed = {};
+                  }),
+              optional: true),
+          if (values.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: Gap.sm),
+              child: Wrap(
+                spacing: Gap.xs,
+                runSpacing: Gap.xs,
+                children: [
+                  for (final v in values)
+                    FilterChip(
+                      label: Text(v.isEmpty ? context.t('xp.blank') : v),
+                      selected: _allowed.contains(v),
+                      onSelected: (on) => setState(
+                          () => on ? _allowed.add(v) : _allowed.remove(v)),
+                    ),
+                ],
+              ),
+            ),
+          const SizedBox(height: Gap.sm),
+          FilledButton(
+            key: const ValueKey('pv-run'),
+            onPressed: () => Navigator.pop(
+              context,
+              PivotSpec(
+                rowField: _row,
+                colField: _col,
+                valueField: _value,
+                agg: _agg,
+                filterField: _filter,
+                filterValues: {..._allowed},
+              ),
+            ),
+            child: Text(context.t('xp.pivot_create')),
+          ),
+        ],
+      ),
+    );
+  }
+}
