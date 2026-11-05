@@ -70,6 +70,7 @@ const Map<String, (String, String, String)> _t26 = {
   'ux.send_nearby': ('Yakındaki cihaza gönder', 'Send to a nearby device', 'إرسال إلى جهاز قريب'),
   'ux.send_nearby_hint': ('Kayıtlı hâli · QR ya da yerel ağ', 'Saved version · QR or local network', 'النسخة المحفوظة · رمز QR أو الشبكة المحلية'),
   // ── Madde 8: tema ──────────────────────────────────────────────────────
+  'thp.section': ('Hızlı tema ve vurgu', 'Quick theme & accent', 'سمة سريعة ولون التمييز'),
   'thp.title': ('Tema ön ayarı', 'Theme preset', 'سمة جاهزة'),
   'thp.sub': ('Tek dokunuşla açık, koyu, AMOLED ya da kâğıt', 'Light, dark, AMOLED or paper in one tap', 'فاتح أو داكن أو AMOLED أو ورقي بلمسة واحدة'),
   'thp.light': ('Açık', 'Light', 'فاتح'),

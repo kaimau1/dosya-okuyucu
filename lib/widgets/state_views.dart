@@ -149,7 +149,9 @@ class _AppSkeletonState extends State<AppSkeleton>
         ),
       );
 
-  Widget _slides(Color c) => Padding(
+  Widget _slides(Color c) => ClipRect(
+        child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
         padding: const EdgeInsets.all(Gap.md),
         child: Column(
           children: [
@@ -177,6 +179,7 @@ class _AppSkeletonState extends State<AppSkeleton>
               ),
             ),
           ],
+        ),
         ),
       );
 }

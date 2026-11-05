@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// Faz 40 / 6: ortak geri al/yinele + taslak kurtarma + kapanış güvencesi
 /// DÖRT editörde aynı yapıdan geçer.
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   const editors = {
     'word_editor_screen': 'word',
     'word_mobile_editor_screen': 'word_mobile',

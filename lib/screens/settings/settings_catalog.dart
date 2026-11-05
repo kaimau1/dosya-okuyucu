@@ -182,12 +182,6 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
         sections: const [
           SettingsSection('set.sec_theme', [
             SettingRow(
-                id: 'theme_preset',
-                titleKey: 'thp.title',
-                subtitleKey: 'thp.sub',
-                altKeys: ['thp.amoled', 'thp.paper', 'set.kw_dark'],
-                builder: _themePresetTile),
-            SettingRow(
                 id: 'skin',
                 titleKey: 'skin.title',
                 altKeys: [
@@ -209,11 +203,6 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                 id: 'background',
                 titleKey: 'bgc.title',
                 builder: _backgroundTile),
-            SettingRow(
-                id: 'accent',
-                titleKey: 'acc.title',
-                altKeys: ['acc.blue', 'acc.teal'],
-                builder: _accentTile),
           ]),
           SettingsSection('set.sec_text', [
             SettingRow(
@@ -243,6 +232,21 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                 titleKey: 'set.haptics',
                 subtitleKey: 'set.haptics_sub',
                 builder: _hapticsTile),
+          ]),
+          // Faz 40 / 8: hızlı tema + vurgu rengi — kategorinin SONUNDA
+          // (üstteki satırların yerleri testlerde sabit).
+          SettingsSection('thp.section', [
+            SettingRow(
+                id: 'theme_preset',
+                titleKey: 'thp.title',
+                subtitleKey: 'thp.sub',
+                altKeys: ['thp.amoled', 'thp.paper', 'set.kw_dark'],
+                builder: _themePresetTile),
+            SettingRow(
+                id: 'accent',
+                titleKey: 'acc.title',
+                altKeys: ['acc.blue', 'acc.teal'],
+                builder: _accentTile),
           ]),
         ],
       ),

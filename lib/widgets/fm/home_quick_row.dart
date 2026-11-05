@@ -8,6 +8,7 @@ import '../../core/theme.dart';
 import '../../screens/fm/ai_hub_screen.dart';
 import '../../screens/fm/browser_screen.dart';
 import '../../screens/fm/dashboard_screen.dart';
+import 'ai_status_icon.dart';
 import '../../screens/fm/downloads_screen.dart';
 import '../../screens/fm/drive_screen.dart';
 import '../../screens/fm/history_screen.dart';
@@ -60,6 +61,9 @@ class HomeQuickRow extends StatelessWidget {
       icon: spec.icon,
       label: spec.label,
       color: spec.color,
+      // AI Merkezi üst çubuktan buraya taşındı (2026-11-05): durum simgesi
+      // (analiz halkası, öneri noktası) onunla geldi.
+      iconWidget: id == 'ai' ? const AiStatusIcon(dot: true) : null,
       onTap: () => spec.open(context),
     )),
     ];
@@ -159,6 +163,9 @@ class _DockItem extends StatelessWidget {
   final Color? color;
   final int count;
 
+  /// Düz simge yerine canlı simge (AI: analiz halkası / öneri noktası).
+  final Widget? iconWidget;
+
   const _DockItem({
     super.key,
     required this.icon,
@@ -167,6 +174,7 @@ class _DockItem extends StatelessWidget {
     this.semantics,
     this.color,
     this.count = 0,
+    this.iconWidget,
   });
 
   @override
@@ -189,7 +197,14 @@ class _DockItem extends StatelessWidget {
               Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  Icon(icon, size: 22, color: color ?? scheme.onSurfaceVariant),
+                  if (iconWidget != null)
+                    IconTheme.merge(
+                      data: IconThemeData(
+                          size: 22, color: color ?? scheme.onSurfaceVariant),
+                      child: iconWidget!,
+                    )
+                  else
+                    Icon(icon, size: 22, color: color ?? scheme.onSurfaceVariant),
                   if (count > 0)
                     PositionedDirectional(
                       top: -5,
