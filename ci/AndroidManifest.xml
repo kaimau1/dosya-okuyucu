@@ -100,6 +100,8 @@
          GİZLER. Dosya okuyucu kamerasız da tam çalıştığı için zorunluluk
          kaldırılıyor — tarama, kamerası olan cihazlarda çalışır. -->
     <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- Faz 38: slayt anlatımı kaydı (ci/Slayt.kt recStart; izin ilk kayıtta istenir). -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-feature android:name="android.hardware.camera"
         android:required="false"
         tools:replace="android:required"/>

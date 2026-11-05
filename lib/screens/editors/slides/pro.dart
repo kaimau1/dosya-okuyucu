@@ -124,9 +124,37 @@ extension _SlidesProPart on _SlidesEditorScreenState {
                 label: context.t('sp.smartart'),
                 hint: context.t('sp.smartart_hint')),
           ]),
+          AppActionGroup(title: context.t('sp.g_show'), actions: [
+            AppAction(
+                value: 'presenter',
+                icon: AppIcons.chromeReaderMode,
+                label: context.t('ss.presenter'),
+                hint: context.t('sp.presenter_hint')),
+            AppAction(
+                value: 'png_one',
+                icon: AppIcons.image,
+                label: context.t('sp.png_one')),
+            AppAction(
+                value: 'png_all',
+                icon: AppIcons.photos,
+                label: context.t('sp.png_all')),
+            AppAction(
+                value: 'video',
+                icon: AppIcons.video,
+                label: context.t('sp.video_export'),
+                hint: context.t('sp.video_hint')),
+          ]),
         ]);
     if (pick == null || !mounted) return;
     switch (pick) {
+      case 'presenter':
+        await _play(_curIndex, presenter: true);
+      case 'png_one':
+        await _exportImages(only: _curIndex);
+      case 'png_all':
+        await _exportImages();
+      case 'video':
+        await _exportVideo();
       case 'chart':
         await _insertChart(_curIndex, SlideChartData.sample);
       case 'smartart':
@@ -235,6 +263,129 @@ extension _SlidesProPart on _SlidesEditorScreenState {
         PptxMediaOps.insert(slide, data, ext,
             poster: poster, posterExt: 'jpg', name: f.name),
         doneKey: 'sp.media_added');
+  }
+
+  // ── Madde 5: PNG / video dışa aktarım ─────────────────────────────────────
+
+  /// Slaytları PNG'e basar (ekrandaki çizimle aynı); [ratio] punto başına
+  /// piksel. İlerleme [progress]'e yazılır. Ekran kapanırsa null.
+  Future<List<String>?> _renderPngs(Directory dir, double Function(SlideVM) ratio,
+      ValueNotifier<String> progress, {int? only}) async {
+    final editor = _editor!;
+    final out = <String>[];
+    for (var i = 0; i < editor.slides.length; i++) {
+      if (only != null && i != only) continue;
+      if (only == null && editor.isHidden(editor.slides[i])) continue;
+      final view = editor.slides[i].view;
+      if (view == null) continue;
+      if (!mounted) return null;
+      progress.value =
+          context.t('sl.pdf_progress', {'n': i + 1, 'total': editor.slides.length});
+      final png = await SlideSnapshot.toPng(context, view, pixelRatio: ratio(view));
+      if (png == null) return null;
+      final f = File('${dir.path}/${_stem(widget.name)}-${(i + 1).toString().padLeft(3, '0')}.png');
+      await f.writeAsBytes(png);
+      out.add(f.path);
+    }
+    return out;
+  }
+
+  BusyDialog _progressDialog(ValueNotifier<String> progress) => showBusyDialog(
+        context,
+        builder: (_) => AlertDialog(
+          content: Row(children: [
+            const SizedBox(width: 24, height: 24, child: CircularProgressIndicator()),
+            const SizedBox(width: 16),
+            Expanded(
+              child: ValueListenableBuilder<String>(
+                valueListenable: progress,
+                builder: (_, v, __) => Text(v),
+              ),
+            ),
+          ]),
+        ),
+      );
+
+  Future<void> _exportImages({int? only}) async {
+    if (_editor == null) return;
+    await _deckBytes(); // açık düzenleme modele yazılsın
+    if (!mounted) return;
+    final progress = ValueNotifier<String>('');
+    final busy = _progressDialog(progress);
+    try {
+      final dir = await Directory.systemTemp.createTemp('slayt-png');
+      // 1920 px genişlik (Full HD) — tek tek paylaşımda okunur, zip'te makul.
+      final paths = await _renderPngs(dir, (v) => 1920 / v.widthPt, progress, only: only);
+      if (paths == null || paths.isEmpty) return;
+      String share;
+      if (paths.length == 1) {
+        share = paths.single;
+      } else {
+        final archive = Archive();
+        for (final p in paths) {
+          final b = await File(p).readAsBytes();
+          archive.addFile(ArchiveFile(p.split('/').last, b.length, b));
+        }
+        final zip = await SaveIsolate.encodeZip(archive);
+        final f = File('${dir.path}/${_stem(widget.name)}-png.zip');
+        await f.writeAsBytes(zip);
+        share = f.path;
+      }
+      busy.close();
+      if (!mounted) return;
+      await Share.shareXFiles([XFile(share)], text: widget.name);
+    } catch (e) {
+      busy.close();
+      if (mounted) showUserError(context, e);
+    } finally {
+      busy.close();
+      progress.dispose();
+    }
+  }
+
+  Future<void> _exportVideo() async {
+    final editor = _editor;
+    if (editor == null) return;
+    final secs = await promptNumber(context, context.t('sp.video_seconds'),
+        initial: 5, min: 1, max: 600);
+    if (secs == null || !mounted) return;
+    final bytes = await _deckBytes();
+    if (bytes == null || !mounted) return;
+    // Kayıtlı zamanlama (advTm, ör. anlatım) varsa o kullanılır.
+    final info = await PptxPro.query(bytes, PptxShowInfo.read);
+    if (!mounted) return;
+    final progress = ValueNotifier<String>('');
+    final busy = _progressDialog(progress);
+    try {
+      final dir = await Directory.systemTemp.createTemp('slayt-video');
+      final paths = await _renderPngs(dir, (v) => 1920 / v.widthPt, progress);
+      if (paths == null || paths.isEmpty || !mounted) return;
+      final durations = <int>[];
+      for (var i = 0; i < editor.slides.length; i++) {
+        if (editor.isHidden(editor.slides[i]) || editor.slides[i].view == null) continue;
+        durations.add(i < info.length && (info[i].advanceMs ?? 0) > 0
+            ? info[i].advanceMs!
+            : (secs * 1000).round());
+      }
+      progress.value = context.t('sp.video_encoding');
+      final first = editor.slides.firstWhere((s) => s.view != null).view!;
+      final h = (1920 * first.heightPt / first.widthPt).round();
+      final out = '${dir.path}/${_stem(widget.name)}.mp4';
+      final done = await SlidesNative.video(paths, durations, out, 1920, h);
+      busy.close();
+      if (!mounted) return;
+      if (done == null) {
+        _snack(context.t('sp.video_unavailable'));
+        return;
+      }
+      await Share.shareXFiles([XFile(done)], text: widget.name);
+    } catch (e) {
+      busy.close();
+      if (mounted) showUserError(context, e);
+    } finally {
+      busy.close();
+      progress.dispose();
+    }
   }
 
   // ── Şekil araçları (seçili şekil) ─────────────────────────────────────────

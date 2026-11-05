@@ -91,4 +91,26 @@ void main() {
     await t.pump();
     expect(find.byKey(const ValueKey('ss-timer')), findsNothing);
   });
+
+  testWidgets('Faz 38: sunucu görünümü — not, sonraki slayt, süre', (t) async {
+    await t.pumpWidget(const MaterialApp(
+      home: SlideshowScreen(
+        slides: [_slide, _slide],
+        notes: ['Birinci not', ''],
+        presenter: true,
+      ),
+    ));
+    await t.pump();
+    expect(find.byKey(const ValueKey('ss-presenter-panel')), findsOneWidget);
+    expect(find.byKey(const ValueKey('ss-next-preview')), findsOneWidget);
+    expect(find.text('Birinci not'), findsOneWidget);
+    expect(find.byKey(const ValueKey('ss-presenter-clock')), findsOneWidget);
+    await t.tap(find.byKey(const ValueKey('ss-presenter-next')));
+    await t.pumpAndSettle();
+    expect(find.text('2 / 2'), findsWidgets);
+    expect(find.byKey(const ValueKey('ss-next-preview')), findsNothing);
+    await t.tap(find.byKey(const ValueKey('ss-presenter')));
+    await t.pump();
+    expect(find.byKey(const ValueKey('ss-presenter-panel')), findsNothing);
+  });
 }

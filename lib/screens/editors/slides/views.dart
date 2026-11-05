@@ -537,7 +537,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
   /// Tam ekran sunum modunu [index]. slayttan başlatır. Gizli slaytlar
   /// atlanır — sunum gizli bir slayttan başlatıldıysa o slayt gösterilir
   /// (PowerPoint'teki gibi).
-  Future<void> _play(int index) async {
+  Future<void> _play(int index, {bool presenter = false}) async {
     final editor = _editor;
     if (editor == null) return;
     final views = <SlideVM>[];
@@ -567,6 +567,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
         notes: notes,
         deck: deck,
         deckIndex: deckIndex,
+        presenter: presenter,
       ),
     ));
   }

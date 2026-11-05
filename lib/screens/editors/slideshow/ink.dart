@@ -22,8 +22,8 @@ class _Stroke {
 /// [_inkRev]/[_laser] değişince yeniden çizer.
 extension _SlideshowInk on _SlideshowScreenState {
   Offset? _norm(Offset p) {
-    final size = context.size;
-    if (size == null) return null;
+    final size = _stageSize;
+    if (size.isEmpty) return null;
     final r = _SlideshowScreenState.slideRect(size, widget.slides[_index]);
     return Offset(((p.dx - r.left) / r.width).clamp(0.0, 1.0),
         ((p.dy - r.top) / r.height).clamp(0.0, 1.0));

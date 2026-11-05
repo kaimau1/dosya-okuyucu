@@ -63,7 +63,7 @@ extension _SlideshowMedia on _SlideshowScreenState {
   }
 
   Widget _mediaOverlay(_MediaPlay m) {
-    final size = MediaQuery.sizeOf(context);
+    final size = _stageSize;
     final slide = widget.slides[_index];
     final r = _SlideshowScreenState.slideRect(size, slide);
     final k = r.width / slide.widthPt;

@@ -18,6 +18,7 @@ import '../../core/theme.dart';
 
 part 'slideshow/ink.dart';
 part 'slideshow/media.dart';
+part 'slideshow/presenter.dart';
 
 /// Tam ekran sunum modu — PowerPoint'in "Slayt Gösterisi"nin karşılığı.
 /// Yatay + tam ekran, kaydırarak veya sağ/sol yarıya dokunarak geçiş,
@@ -47,7 +48,11 @@ class SlideshowScreen extends StatefulWidget {
     this.notes = const [],
     this.deck,
     this.deckIndex = const [],
+    this.presenter = false,
   });
+
+  /// Sunucu görünümünde başla (madde 5).
+  final bool presenter;
 
   @override
   State<SlideshowScreen> createState() => _SlideshowScreenState();
@@ -89,6 +94,12 @@ class _SlideshowScreenState extends State<SlideshowScreen>
   /// Destenin sunum bilgisi (medya …), izolatta okunur; gelene dek boş.
   List<SlideShowInfo> _info = const [];
   _MediaPlay? _media;
+
+  /// Sunucu görünümü (madde 5): slayt solda; not + sonraki slayt + süre sağda.
+  late bool _presenter = widget.presenter;
+
+  /// Slayt sahnesinin ölçüsü (sunucu görünümünde ekrandan dar).
+  Size _stageSize = Size.zero;
 
   /// Otomatik ilerleme (`advTm`, ör. kayıtlı anlatım) — tek seferlik zamanlayıcı.
   Timer? _auto;
@@ -134,6 +145,7 @@ class _SlideshowScreenState extends State<SlideshowScreen>
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
+    if (_presenter) _syncTick();
     final deck = widget.deck;
     if (deck != null) {
       // Açılışı beklemez; bilgi gelince medya/bağlantı etkinleşir.
@@ -241,9 +253,14 @@ class _SlideshowScreenState extends State<SlideshowScreen>
 
   void _toggleTimer() {
     setState(() => _showTimer = !_showTimer);
+    _syncTick();
+  }
+
+  /// Saniye vuruşu yalnız saat görünürken (çip ya da sunucu görünümü).
+  void _syncTick() {
     _tick?.cancel();
     _tick = null;
-    if (_showTimer) {
+    if (_showTimer || _presenter) {
       _seconds.value = _clock.elapsed.inSeconds;
       _tick = Timer.periodic(const Duration(seconds: 1), (_) {
         _seconds.value = _clock.elapsed.inSeconds;
@@ -278,8 +295,8 @@ class _SlideshowScreenState extends State<SlideshowScreen>
 
   /// Ekran noktası → slayt punto koordinatı (slayt dışında null).
   Offset? _toSlide(Offset p) {
-    final size = context.size;
-    if (size == null) return null;
+    final size = _stageSize;
+    if (size.isEmpty) return null;
     final s = widget.slides[_index];
     final r = slideRect(size, s);
     if (!r.contains(p)) return null;
@@ -316,7 +333,7 @@ class _SlideshowScreenState extends State<SlideshowScreen>
         }
       }
     }
-    final w = context.size?.width ?? 0;
+    final w = _stageSize.width;
     if (d.localPosition.dx > w * 0.6) {
       _forward();
     } else if (d.localPosition.dx < w * 0.4) {
@@ -326,17 +343,37 @@ class _SlideshowScreenState extends State<SlideshowScreen>
 
   @override
   Widget build(BuildContext context) {
-    final drawing = _tool != _Tool.none;
+    final stage = LayoutBuilder(builder: (context, box) {
+      _stageSize = box.biggest;
+      return _stage();
+    });
     return Focus(
       focusNode: _focus,
       autofocus: true,
       onKeyEvent: _onKey,
       child: Scaffold(
-      backgroundColor: AppColors.mediaSurface,
-      body: Stack(
+        backgroundColor: AppColors.mediaSurface,
+        body: _presenter
+            ? Row(children: [
+                Expanded(child: stage),
+                SizedBox(
+                  width: MediaQuery.sizeOf(context).width * 0.36,
+                  child: _presenterPanel(),
+                ),
+              ])
+            : stage,
+      ),
+    );
+  }
+
+  Widget _stage() {
+    final drawing = _tool != _Tool.none;
+    return Stack(
         children: [
           PageView.builder(
             controller: _pages,
+            // Komşu slaytlar önceden kurulup çizilir (sonraki slayt hazır).
+            allowImplicitScrolling: true,
             itemCount: widget.slides.length,
             // Yakınlaştırılmışken (ya da kalem/lazer açıkken) sayfa kaydırma
             // kapanır, parmak çizer/gezdirir.
@@ -424,7 +461,20 @@ class _SlideshowScreenState extends State<SlideshowScreen>
                     if (!_toolsOpen) _tool = _Tool.none;
                   }),
                 ),
-                if (_showTimer) _timerChip(),
+                IconButton(
+                  key: const ValueKey('ss-presenter'),
+                  isSelected: _presenter,
+                  icon: Icon(AppIcons.chromeReaderMode,
+                      color: _presenter
+                          ? AppColors.onMedia
+                          : AppColors.onMediaSoft),
+                  tooltip: context.t('ss.presenter'),
+                  onPressed: () {
+                    setState(() => _presenter = !_presenter);
+                    _syncTick();
+                  },
+                ),
+                if (_showTimer && !_presenter) _timerChip(),
               ]),
             ),
           ),
@@ -435,7 +485,7 @@ class _SlideshowScreenState extends State<SlideshowScreen>
               bottom: 44,
               child: SafeArea(top: false, child: Center(child: _toolbar())),
             ),
-          if (_showNotes && _note.isNotEmpty)
+          if (_showNotes && _note.isNotEmpty && !_presenter)
             Positioned(
               left: 0,
               right: 0,
@@ -491,8 +541,7 @@ class _SlideshowScreenState extends State<SlideshowScreen>
             ),
           ),
         ],
-      ),
-    ));
+      );
   }
 
   Widget _timerChip() => GestureDetector(

@@ -54,7 +54,7 @@ say "Kotlin kaynakları"
 DIR=android/app/src/main/kotlin/com/dosyaokuyucu/dosya_okuyucu
 mkdir -p "$DIR"
 for kt in MainActivity DosyaProvider PickerActivity UsbMass MediaSession MediaTranscode DosyaArama \
-          SdUnion Extras QrTransfer NearbyBle Ajan DocScan Dikte; do
+          SdUnion Extras QrTransfer NearbyBle Ajan DocScan Dikte Slayt; do
   cp "ci/$kt.kt" "$DIR/$kt.kt"
 done
 # `cp -r ci/res/.` mevcut res/ dosyalarını SİLMEZ, yalnız ekler.
@@ -186,7 +186,10 @@ for name in ('android/app/build.gradle.kts', 'android/app/build.gradle'):
                 'com.google.android.gms:play-services-code-scanner:16.1.0',
                 # Belge tarayıcı v2 (Faz 35): GmsDocumentScanner — arayüz ve
                 # model Play Hizmetleri'nde, APK'ya ~0 MB.
-                'com.google.android.gms:play-services-mlkit-document-scanner:16.0.0']
+                'com.google.android.gms:play-services-mlkit-document-scanner:16.0.0',
+                # Slayt arka plan kaldırma (Faz 38, ci/Slayt.kt): konu bölütleme
+                # modeli Play Hizmetleri'nden iner, APK'ya ~0 MB.
+                'com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1']
         dep = ('dependencies {\n    coreLibraryDesugaring('
                '"com.android.tools:desugar_jdk_libs:2.1.4")\n'
                + ''.join(f'    implementation("{l}")\n' for l in libs) + '}\n'
