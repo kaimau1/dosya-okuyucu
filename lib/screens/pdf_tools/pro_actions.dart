@@ -31,6 +31,10 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       'fit_a4' => _fitA4(),
       'form_create' => _createForm(),
       'notes' => _exportNotes(),
+      'images_to_pdf' => _imagesToPdf(),
+      'pdf_to_images' => _pdfToImages(),
+      'web_to_pdf' => _webToPdf(),
+      'office_to_pdf' => _officeToPdf(),
       'form_profile' => showAutofillProfileSheet(context),
       _ => Future<void>.value(),
     };
@@ -683,6 +687,128 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
         pageLabel: (n) => _str.t('pp.compare_page', {'n': n}),
       );
       await _saveSibling(utf8.encode(md), '-notlar', 'md');
+    });
+  }
+
+  // ── 11. Dönüştürmeler ────────────────────────────────────────────────────
+
+  /// Yeni üretilen (bu PDF'ten bağımsız) dosyayı Belgeler klasörüne yazar.
+  Future<void> _saveToDocs(List<int> data, String base, String ext) async {
+    final dir = await DocsHome.resolve();
+    final path = LegacyConvert.uniquePath(dir.path, base, ext);
+    await File(path).writeAsBytes(data, flush: true);
+    if (!mounted) return;
+    showSnack(
+      context,
+      _str.t('pp.saved_as', {'name': p.basename(path)}),
+      action: SnackBarAction(
+        label: _str.t('common.share'),
+        onPressed: () => unawaited(Share.shareXFiles([XFile(path)])),
+      ),
+    );
+  }
+
+  Future<void> _imagesToPdf() async {
+    final res = await AppFilePicker.pickFiles(
+        type: FileType.image, allowMultiple: true);
+    final paths = [
+      for (final f in res?.files ?? const <PlatformFile>[])
+        if (f.path != null) f.path!,
+    ];
+    if (paths.isEmpty || !mounted) return;
+    final a4 = await showAppConfirm(
+      context,
+      title: context.t('pp.images_to_pdf'),
+      message: context.t('pp.images_a4_q', {'n': paths.length}),
+      confirmLabel: context.t('pp.images_a4'),
+    );
+    if (!mounted) return;
+    await _produce(_str.t('pp.images_to_pdf'), () async {
+      final pdf = await _conversion.imagesToPdf(paths,
+          uniformPage: a4 ? PdfPageFormat.a4 : null);
+      await _saveToDocs(pdf, p.basenameWithoutExtension(paths.first), 'pdf');
+    });
+  }
+
+  /// Tüm sayfalar JPEG olarak bir klasöre (paylaşım sınırı olan
+  /// "Görsel olarak dışa aktar"ın toplu karşılığı); parça parça çizilir.
+  Future<void> _pdfToImages() async {
+    final bytes = _bytes!;
+    final pw = _password;
+    final pages = _selectedOrNull() ?? List<int>.generate(await _pageCount(), (i) => i);
+    if (!mounted) return;
+    await _produce(_str.t('pp.pdf_to_images'), () async {
+      final root = await DocsHome.resolve();
+      final stem = p.basenameWithoutExtension(widget.path);
+      var dir = Directory(p.join(root.path, '$stem-sayfalar'));
+      for (var n = 2; await dir.exists(); n++) {
+        dir = Directory(p.join(root.path, '$stem-sayfalar ($n)'));
+      }
+      await dir.create(recursive: true);
+      for (var start = 0; start < pages.length; start += _hardChunk) {
+        final chunk = pages.sublist(start, math.min(pages.length, start + _hardChunk));
+        final rasters = await PdfRaster.renderJpegs(bytes, chunk,
+            password: pw, dpi: 150, quality: 88);
+        for (final r in rasters) {
+          await File(p.join(dir.path, '$stem-${r.index + 1}.jpg'))
+              .writeAsBytes(r.jpeg, flush: true);
+        }
+        if (mounted) {
+          _partSetState(() => _busyLabel =
+              '${_str.t('pp.pdf_to_images')} ${math.min(pages.length, start + _hardChunk)}/${pages.length}…');
+        }
+      }
+      _snack(_str.t('pp.images_saved', {'n': pages.length, 'dir': p.basename(dir.path)}));
+    });
+  }
+
+  Future<void> _webToPdf() async {
+    final url = await showAppPrompt(
+      context,
+      title: context.t('pp.web_to_pdf'),
+      label: context.t('pp.web_url'),
+      initial: 'https://',
+    );
+    if (url == null || !mounted) return;
+    final uri = Uri.tryParse(url.contains('://') ? url : 'https://$url');
+    if (uri == null || !(uri.scheme == 'http' || uri.scheme == 'https')) {
+      _snack(_str.t('pp.web_bad_url'));
+      return;
+    }
+    await _produce(_str.t('pp.web_to_pdf'), () async {
+      final res = await http.get(uri).timeout(const Duration(seconds: 25));
+      if (res.statusCode >= 400) {
+        throw PdfToolsException('HTTP ${res.statusCode}');
+      }
+      final pdf = await Printing.convertHtml(
+        html: res.body,
+        baseUrl: uri.toString(),
+        format: PdfPageFormat.a4,
+      );
+      final host = uri.host.replaceAll(RegExp(r'[^\w.-]+'), '_');
+      await _saveToDocs(pdf, host.isEmpty ? 'web' : host, 'pdf');
+    });
+  }
+
+  Future<void> _officeToPdf() async {
+    final res = await AppFilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['docx', 'xlsx', 'pptx'],
+    );
+    final path = res?.files.single.path;
+    if (path == null || !mounted) return;
+    await _produce(_str.t('pp.office_to_pdf'), () async {
+      final bytes = await File(path).readAsBytes();
+      final ext = p.extension(path);
+      final title = p.basenameWithoutExtension(path);
+      final html = await Isolate.run(
+          () => OfficeHtml.fromBytes(bytes, ext, title: title));
+      final landscape = ext.toLowerCase() != '.docx';
+      final pdf = await Printing.convertHtml(
+        html: html,
+        format: landscape ? PdfPageFormat.a4.landscape : PdfPageFormat.a4,
+      );
+      await _saveToDocs(pdf, title, 'pdf');
     });
   }
 }

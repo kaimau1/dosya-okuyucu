@@ -46,6 +46,15 @@ const _proTools = <List<_ProTool>>[
     _ProTool('form_profile', AppIcons.pdfAutofill, 'pp.profile', 'pp.profile_sub'),
   ],
   [
+    _ProTool('images_to_pdf', AppIcons.pdfImages, 'pp.images_to_pdf',
+        'pp.images_to_pdf_sub'),
+    _ProTool('pdf_to_images', AppIcons.image, 'pp.pdf_to_images',
+        'pp.pdf_to_images_sub'),
+    _ProTool('web_to_pdf', AppIcons.pdfWeb, 'pp.web_to_pdf', 'pp.web_to_pdf_sub'),
+    _ProTool('office_to_pdf', AppIcons.pdfToWord, 'pp.office_to_pdf',
+        'pp.office_to_pdf_sub'),
+  ],
+  [
     _ProTool('compress_hard', AppIcons.pdfCompressHard, 'pp.compress_hard',
         'pp.compress_hard_sub'),
   ],

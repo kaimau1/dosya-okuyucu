@@ -275,4 +275,22 @@ const Map<String, (String, String, String)> _t22 = {
   'pp.field_text': ('Metin alanı', 'Text field', 'حقل نص'),
   'pp.field_checkbox': ('Onay kutusu', 'Checkbox', 'مربع اختيار'),
   'pp.field_signature': ('İmza alanı', 'Signature field', 'حقل توقيع'),
+  // ── Dönüştürmeler ──
+  'pp.images_to_pdf': ('Görsellerden PDF', 'PDF from images', 'PDF من الصور'),
+  'pp.images_to_pdf_sub': ('Çok görsel seç → tek PDF', 'Pick many images → one PDF', 'اختر صورًا متعددة ← ملف PDF واحد'),
+  'pp.images_a4_q': (
+    '{n} görsel. Her sayfa A4 olsun mu? (Hayır: her sayfa görselin boyunda)',
+    '{n} images. Make every page A4? (No: each page matches its image)',
+    '{n} صورة. هل تكون كل صفحة A4؟ (لا: كل صفحة بحجم صورتها)',
+  ),
+  'pp.images_a4': ('A4 yap', 'Use A4', 'استخدم A4'),
+  'pp.pdf_to_images': ('PDF\'ten görseller (toplu)', 'PDF to images (batch)', 'PDF إلى صور (دفعة)'),
+  'pp.pdf_to_images_sub': ('Seçili ya da tüm sayfalar JPEG klasörüne', 'Selected or all pages into a JPEG folder', 'الصفحات المحددة أو الكل في مجلد JPEG'),
+  'pp.images_saved': ('{n} görsel kaydedildi: {dir}', '{n} images saved: {dir}', 'حُفظت {n} صورة: {dir}'),
+  'pp.web_to_pdf': ('Web sayfasından PDF', 'PDF from a web page', 'PDF من صفحة ويب'),
+  'pp.web_to_pdf_sub': ('Adresi yaz, A4 PDF olarak kaydet', 'Enter the address, save as A4 PDF', 'أدخل العنوان واحفظ كـ PDF بحجم A4'),
+  'pp.web_url': ('Sayfa adresi', 'Page address', 'عنوان الصفحة'),
+  'pp.web_bad_url': ('Geçerli bir http(s) adresi gir', 'Enter a valid http(s) address', 'أدخل عنوان http(s) صالحًا'),
+  'pp.office_to_pdf': ('Word/Excel/PowerPoint → PDF', 'Word/Excel/PowerPoint → PDF', 'Word/Excel/PowerPoint ← PDF'),
+  'pp.office_to_pdf_sub': ('Metin, başlık ve tablolar korunur', 'Text, headings and tables kept', 'يُحافظ على النص والعناوين والجداول'),
 };
