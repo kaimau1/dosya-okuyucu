@@ -45,4 +45,40 @@ void main() {
     final back = XlsxEditor.parse(ed.save()).sheets.first.layout.condFormats;
     expect(back.where((r) => r.type == 'dataBar'), isEmpty);
   });
+
+  test('yönetici: dosyadaki kural silinir, geri alınınca yerinde kalır', () {
+    final ed = book();
+    ed.sheets.first.addCondRule(
+        range: const XlsxRange(0, 0, 4, 0), type: 'dataBar', barColorArgb: 0xFF638EC6);
+    ed.sheets.first.addCondRule(
+        range: const XlsxRange(0, 0, 0, 0), type: 'iconSet', iconSet: '3Arrows');
+    final saved = ed.save();
+
+    final ed2 = XlsxEditor.parse(saved);
+    final s2 = ed2.sheets.first;
+    expect(s2.layout.condFormats.length, 2);
+    final bar = s2.layout.condFormats.firstWhere((r) => r.type == 'dataBar');
+    s2.deleteCondRule(bar);
+    final back = XlsxEditor.parse(ed2.save()).sheets.first.layout.condFormats;
+    expect(back.map((r) => r.type), ['iconSet']);
+
+    final ed3 = XlsxEditor.parse(saved);
+    final s3 = ed3.sheets.first;
+    final undo = s3.deleteCondRule(s3.layout.condFormats.first);
+    undo();
+    expect(XlsxEditor.parse(ed3.save()).sheets.first.layout.condFormats.length, 2);
+  });
+
+  test('yönetici: oturumda eklenen ortadaki kural silinir', () {
+    final ed = book();
+    final sheet = ed.sheets.first;
+    const range = XlsxRange(0, 0, 4, 0);
+    sheet.addCondRule(range: range, type: 'dataBar', barColorArgb: 0xFF638EC6);
+    final mid = sheet.addCondRule(range: range, type: 'iconSet', iconSet: '3Arrows');
+    sheet.addCondRule(
+        range: range, type: 'colorScale', scaleColors: const [0xFFFFFFFF, 0xFF5A8AC6]);
+    sheet.deleteCondRule(mid);
+    final back = XlsxEditor.parse(ed.save()).sheets.first.layout.condFormats;
+    expect(back.map((r) => r.type).toSet(), {'dataBar', 'colorScale'});
+  });
 }

@@ -20,6 +20,8 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
             () => _askCondRule('containsText')),
         DocMoreItem(AppIcons.functions, context.t('xp.cond_formula'),
             _askFormulaCond),
+        DocMoreItem(AppIcons.listAlt, context.t('xp.cond_manage'),
+            _showCondManager),
       ]),
       // Faz 36 madde 2: görsel kurallar (dosyaya yazılır).
       DocMoreGroup(context.t('xp.cond_visual'), [

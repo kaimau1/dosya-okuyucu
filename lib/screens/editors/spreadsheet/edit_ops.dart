@@ -402,6 +402,11 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
   void _syncField() => _cellField.text = _displayAt(_selRow, _selCol);
 
   void _select(int r, int c, {bool extend = false}) {
+    // Biçim boyacısı açıksa dokunuş biçimi uygular (Faz 36 madde 9).
+    if (!extend && _painter != null) {
+      _applyFormatPainter(r, c);
+      return;
+    }
     // İşaret kipi: formül yazarken hücreye dokunmak başvuru EKLER.
     if (!extend && _pointInsertable()) {
       _insertPointRef(r, c);

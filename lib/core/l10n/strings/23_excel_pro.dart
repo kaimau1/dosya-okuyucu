@@ -118,4 +118,14 @@ const Map<String, (String, String, String)> _t23 = {
   'xp.link_web': ('Web adresi', 'Web address', 'عنوان ويب'),
   'xp.link_sheet': ('Bu kitapta: {name}', 'In this workbook: {name}', 'في هذا المصنف: {name}'),
   'xp.link_cell': ('{name} sayfasında hücre', 'Cell on {name}', 'خلية في {name}'),
+  // ── Madde 9: biçim boyacısı, kural yöneticisi, tema renkleri ──
+  'xp.painter': ('Biçim boyacısı', 'Format painter', 'ناسخ التنسيق'),
+  'xp.painter_hint': ('Biçimi uygulamak için bir hücreye dokunun', 'Tap a cell to apply the format', 'انقر على خلية لتطبيق التنسيق'),
+  'xp.cond_manage': ('Kuralları yönet…', 'Manage rules…', 'إدارة القواعد…'),
+  'xp.cond_none': ('Bu sayfada koşullu biçim kuralı yok', 'No conditional formatting rules on this sheet', 'لا توجد قواعد تنسيق شرطي في هذه الورقة'),
+  'xp.color_scale': ('Renk ölçeği', 'Color scale', 'مقياس ألوان'),
+  'xp.data_bar_plain': ('Veri çubuğu', 'Data bar', 'شريط بيانات'),
+  'xp.icon_set_plain': ('Simge kümesi', 'Icon set', 'مجموعة رموز'),
+  'xp.theme_colors': ('Tema renkleri', 'Theme colors', 'ألوان النسق'),
+  'xp.std_colors': ('Standart renkler', 'Standard colors', 'ألوان قياسية'),
 };

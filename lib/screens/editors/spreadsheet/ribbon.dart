@@ -143,6 +143,10 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
               onTap: () => _showFormatCells()),
           RibbonButton(AppIcons.palette, context.t('excel.cell_styles'),
               key: const ValueKey('xl-cell-styles'), onTap: _showCellStyles),
+          RibbonButton(AppIcons.formatPaint, context.t('xp.painter'),
+              key: const ValueKey('xl-format-painter'),
+              active: _painter != null,
+              onTap: _toggleFormatPainter),
         ]),
         RibbonTab(context.t('excel.tab_insert'), [
           RibbonButton(AppIcons.keyboardArrowUp,

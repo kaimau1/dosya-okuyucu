@@ -68,6 +68,10 @@ class XlsxSheetPatch {
   /// ekrandaki modelin kullandığı indekslerle birebir örtüşmesi gerekiyor.
   final List<XlsxCondRuleWrite> condRules;
 
+  /// Faz 36 madde 9: dosyadaki silinecek kurallar (`sqref`, `priority`) —
+  /// yeni kurallardan ÖNCE sökülür (öncelik kaydırması onları etkilemesin).
+  final List<(String, int)> condRemovals;
+
   /// Faz 36: bu oturumda eklenen mini grafikler (`x14:sparklineGroups`).
   final List<XlsxSparklineWrite> sparklines;
 
@@ -106,6 +110,7 @@ class XlsxSheetPatch {
     this.styleEdits = const {},
     this.styleCopies = const {},
     this.condRules = const [],
+    this.condRemovals = const [],
     this.sparklines = const [],
     this.rowOutline = const {},
   });
@@ -124,6 +129,7 @@ class XlsxSheetPatch {
       styleEdits.isEmpty &&
       styleCopies.isEmpty &&
       condRules.isEmpty &&
+      condRemovals.isEmpty &&
       sparklines.isEmpty &&
       rowOutline.isEmpty &&
       validations.isEmpty &&
@@ -491,6 +497,7 @@ class XlsxSavePatch {
     if (_applyStyleCopies(root, patch.styleCopies)) changed = true;
     if (_applyStyleEdits(root, patch.styleEdits, styles)) changed = true;
     if (_applyNumberFormats(root, patch.numberFormats, styles)) changed = true;
+    if (_removeCondRules(root, patch.condRemovals)) changed = true;
     if (_applyCondRules(root, patch.condRules, styles)) changed = true;
     if (_applySparklines(root, patch.sparklines)) changed = true;
     if (_applyOutline(root, patch.rowOutline)) changed = true;
@@ -625,6 +632,41 @@ class XlsxSavePatch {
       );
     }
     return true;
+  }
+
+  /// `A1 $B$2:C3` → `A1:A1 B2:C3` (karşılaştırma için).
+  static String normSqref(String s) => s
+      .replaceAll(r'$', '')
+      .toUpperCase()
+      .split(RegExp(r'\s+'))
+      .where((t) => t.isNotEmpty)
+      .map((t) => t.contains(':') ? t : '$t:$t')
+      .join(' ');
+
+  static bool _removeCondRules(XmlElement root, List<(String, int)> removals) {
+    if (removals.isEmpty) return false;
+    final want = {for (final (q, p) in removals) (normSqref(q), p)};
+    var changed = false;
+    for (final cf in root.childElements
+        .where((e) => e.name.local == 'conditionalFormatting')
+        .toList()) {
+      final sqref = cf.getAttribute('sqref');
+      if (sqref == null) continue;
+      final q = normSqref(sqref);
+      for (final rule in cf.childElements
+          .where((e) => e.name.local == 'cfRule')
+          .toList()) {
+        final p = int.tryParse(rule.getAttribute('priority') ?? '') ?? 0;
+        if (want.contains((q, p))) {
+          rule.parent?.children.remove(rule);
+          changed = true;
+        }
+      }
+      if (!cf.childElements.any((e) => e.name.local == 'cfRule')) {
+        cf.parent?.children.remove(cf);
+      }
+    }
+    return changed;
   }
 
   static const _x14 = 'http://schemas.microsoft.com/office/spreadsheetml/2009/9/main';

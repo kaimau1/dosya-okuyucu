@@ -146,7 +146,9 @@ Ek 9: dışa aktarma `TrackedTask` → `JobQueue` (ilerleme, iptal, bitince bild
 metni sütunlara böl, ara toplam, gruplama/anahat, hücre notları/yorum dizisi, köprü + sayfa bağı.
    (Yinelenen/böl/not vardı; `xlsx/data_tools.dart` içe aktar + ODS + ara toplam (SUBTOTAL iç içe
    saymaz) + anahat (`outlineLevel` okuma/yazma) + not yanıtı; köprü `XlsxLinkWriter`.)
-9. Biçim boyacısı, koşullu biçim yöneticisi, hücre stilleri galerisi, tema renkleri.
+- [x] 9. Biçim boyacısı, koşullu biçim yöneticisi, hücre stilleri galerisi, tema renkleri.
+   (Stil galerisi vardı; boyacı tek dokunuşluk, yönetici dosya kurallarını da siler (`condRemovals`),
+   renk seçicide `xlsx/theme_palette.dart` tema ızgarası.)
 10. Formül denetimi (öncül/ardıl oklar), döngüsel başvuru uyarısı, "Ne-olursa" (hedef ara).
 11. Grafik: kombinasyon, ikincil eksen, eğilim çizgisi, grafik stilleri; grafiği görüntü/PDF paylaş.
 12. Çok kişilik: sayfa/aralık koruma; yazdırma alanı. **Perf:** hesaplama **bağımlılık grafiği +

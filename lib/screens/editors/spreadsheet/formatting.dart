@@ -144,6 +144,7 @@ extension _SpreadsheetEditorScreenFormattingPart on _SpreadsheetEditorScreenStat
   Future<void> _pickColor(String title, void Function(Color?) onPick) async {
     final chosen = await showModalBottomSheet<Object?>(
       context: context,
+      isScrollControlled: true,
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -152,6 +153,38 @@ extension _SpreadsheetEditorScreenFormattingPart on _SpreadsheetEditorScreenStat
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
               child: Text(title, style: Theme.of(ctx).textTheme.titleMedium),
+            ),
+            // Faz 36 madde 9: dosyanın tema renkleri + beş ton satırı.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              child: Text(ctx.t('xp.theme_colors'), style: ctx.type.caption),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                children: [
+                  for (final row in _themeGrid)
+                    Row(
+                      children: [
+                        for (final argb in row)
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => Navigator.pop(ctx, Color(argb)),
+                              child: Container(
+                                height: 22,
+                                margin: const EdgeInsets.all(1),
+                                color: Color(argb),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Text(ctx.t('xp.std_colors'), style: ctx.type.caption),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),

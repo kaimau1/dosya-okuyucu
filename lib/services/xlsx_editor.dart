@@ -340,6 +340,12 @@ class XlsxSheet {
   /// Bu oturumda eklenen koşullu biçimlendirme kuralları (kaydetmede yazılır).
   final List<XlsxCondRuleWrite> condRuleEdits = [];
 
+  /// Oturumda eklenen kural → yazma kaydı (yönetici ortadakini de siler).
+  final Map<XlsxCondRule, XlsxCondRuleWrite> _condWrite = Map.identity();
+
+  /// Faz 36: dosyadan silinen kurallar (`sqref`, `priority`).
+  final List<(String, int)> condRemovals = [];
+
   /// Faz 36: bu oturumda eklenen mini grafikler (kaydetmede `extLst`e).
   final List<XlsxSparklineWrite> sparklineEdits = [];
 
@@ -478,7 +484,7 @@ class XlsxSheet {
     );
     layout.condFormats.insert(0, rule);
     _touched();
-    condRuleEdits.add(XlsxCondRuleWrite(
+    final write = XlsxCondRuleWrite(
       sqref: _rangeRef(range),
       type: type,
       operator: operator,
@@ -489,7 +495,9 @@ class XlsxSheet {
       scaleColors: scaleColors,
       barColorArgb: barColorArgb,
       iconSet: iconSet,
-    ));
+    );
+    condRuleEdits.add(write);
+    _condWrite[rule] = write;
     return rule;
   }
 
@@ -504,19 +512,47 @@ class XlsxSheet {
     if (at < 0) return;
     layout.condFormats.removeAt(at);
     _touched();
+    final write = _condWrite.remove(rule);
+    if (write != null) condRuleEdits.remove(write);
     final dxfId = rule.dxfId;
-    if (dxfId == null) {
-      // Görsel kural (ölçek/çubuk/simge): dxf yok, son yazma kaydı düşer.
-      if (condRuleEdits.isNotEmpty) condRuleEdits.removeLast();
-      return;
-    }
-    if (dxfId == styles.dxfs.length - 1) {
-      // Yalnız SON dxf sökülebilir; ortadakini silmek kalan kuralların
-      // indekslerini kaydırırdı.
+    // Yalnız SON dxf sökülebilir; ortadakini silmek kalan kuralların
+    // indekslerini kaydırırdı (kalan dxf yazılmaz — zararsız).
+    if (write != null && dxfId != null && dxfId == styles.dxfs.length - 1) {
       styles.dxfs.removeLast();
-      if (condRuleEdits.isNotEmpty) condRuleEdits.removeLast();
     }
   }
+
+  /// Faz 36 madde 9 — koşullu biçim yöneticisi: oturumda eklenen YA DA
+  /// dosyadan okunan kuralı siler; geri alma kapanışı döner. Dosya kuralı
+  /// kaydederken `sqref`+`priority` ile sökülür ([condRemovals]).
+  void Function() deleteCondRule(XlsxCondRule rule) {
+    final at = layout.condFormats.indexOf(rule);
+    if (at < 0) return () {};
+    final write = _condWrite[rule];
+    final writeAt = write == null ? -1 : condRuleEdits.indexOf(write);
+    final key = (condSqref(rule), rule.priority);
+    layout.condFormats.removeAt(at);
+    if (write != null) {
+      condRuleEdits.remove(write);
+    } else {
+      condRemovals.add(key);
+    }
+    _touched();
+    return () {
+      layout.condFormats.insert(at.clamp(0, layout.condFormats.length), rule);
+      if (write != null) {
+        condRuleEdits.insert(writeAt.clamp(0, condRuleEdits.length), write);
+      } else {
+        condRemovals.remove(key);
+      }
+      _touched();
+    };
+  }
+
+  /// Kuralın aralıkları `A1:B5 D1:D9` biçiminde.
+  static String condSqref(XlsxCondRule rule) =>
+      rule.ranges.map(_rangeRef).join(' ');
+
 
   bool isRowHidden(int r) => layout.hiddenRows.contains(r);
   bool isColHidden(int c) => layout.hiddenCols.contains(c);
@@ -1677,6 +1713,7 @@ class XlsxEditor {
           styleEdits: s.styleEdits,
           styleCopies: s.styleCopies,
           condRules: s.condRuleEdits,
+          condRemovals: s.condRemovals,
           sparklines: s.sparklineEdits,
           rowOutline: s.layout.outlineEdited
               ? {
