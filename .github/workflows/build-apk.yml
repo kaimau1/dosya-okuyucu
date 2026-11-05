@@ -91,6 +91,7 @@ jobs:
       app: ${{ steps.diff.outputs.app }}
       kotlin: ${{ steps.diff.outputs.kotlin }}
       apk_isareti: ${{ steps.isaret.outputs.apk }}
+      surum: ${{ steps.surum.outputs.name }}
       test_mod: ${{ steps.secim.outputs.mod }}
       test_liste: ${{ steps.secim.outputs.liste }}
     steps:
@@ -130,6 +131,20 @@ jobs:
           if [[ "$title" == *'[apk]'* ]] || [[ "$title" =~ ^Merge\ pull\ request\ \#[0-9]+\ from\ [^/]+/faz- ]]; then
             echo "apk=true" >> "$GITHUB_OUTPUT"; echo "APK derlenecek: $title"
           else echo "apk=false" >> "$GITHUB_OUTPUT"; echo "Başlıkta [apk] yok → main'de APK derlenmez."; fi
+
+      # SÜRÜM ADI (2026-11-05, kullanıcı kararı): ANA.ARA lib/core/app_version.dart'tan,
+      # son hane main'de yayınlanan APK sayısı (tool/surum_hesapla.sh; işaret =
+      # [apk] ya da faz PR birleşmesi). Başlıkta [minor] → ARA +1. versionCode koşu no.
+      - name: Sürüm adı
+        id: surum
+        run: |
+          F=lib/core/app_version.dart
+          MAJOR=$(sed -nE 's/^const appVersionMajor = ([0-9]+);/\1/p' "$F")
+          MINOR=$(sed -nE 's/^const appVersionMinor = ([0-9]+);/\1/p' "$F")
+          name=$(bash tool/surum_hesapla.sh "$F" '^const appVersion(Major|Minor) =' "$MAJOR.$MINOR" \
+            '\[apk\]|^Merge pull request #[0-9]+ from [^/]+/faz-')
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "Sürüm: $name"
 
       # TEST SEÇİMİ (2026-11-05, kullanıcı kararı): dalda yalnız etkilenen
       # testler (main'den ayrıldığı yerden bu yana); main'de PR başında yeşil
@@ -262,11 +277,10 @@ jobs:
         run: |
           set -e
           F=lib/core/app_version.dart
-          MAJOR=$(sed -nE 's/^const appVersionMajor = ([0-9]+);/\1/p' "$F")
-          MINOR=$(sed -nE 's/^const appVersionMinor = ([0-9]+);/\1/p' "$F")
+          # Ad `changes` işinde hesaplandı (tool/surum_hesapla.sh); derleme no = koşu no.
+          NAME="${{ needs.changes.outputs.surum }}"
           PATCH=${{ github.run_number }}
-          NAME="$MAJOR.$MINOR.$PATCH"
-          sed -i -E "s/^const appVersionPatch = [0-9]+;/const appVersionPatch = $PATCH;/" "$F"
+          sed -i -E "s/^const appVersionPatch = [0-9]+;/const appVersionPatch = ${NAME##*.};/" "$F"
           sed -i -E "s/^const appBuildNumber = [0-9]+;/const appBuildNumber = $PATCH;/" "$F"
           sed -i -E "s/^version: [0-9]+\.[0-9]+\.[0-9]+\+[0-9]+/version: $NAME+$PATCH/" pubspec.yaml
           # Etiket ya da elle AAB isteği → tam derleme (arm + arm64 + AAB).
@@ -389,6 +403,8 @@ jobs:
           set -e
           mkdir -p dist
           cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk dist/dosya-okuyucu.apk
+          # Sürümlü ad da (2026-11-05): sabit ad bağlantı için, sürümlü ad indirilenler için.
+          cp dist/dosya-okuyucu.apk "dist/dosya-okuyucu-v${BUILD_NAME}.apk"
           if [ -f build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk ]; then
             cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk \
               dist/dosya-okuyucu-32bit-armeabi-v7a.apk
@@ -580,6 +596,12 @@ jobs:
       - name: Release yayımla (3 deneme)
         run: |
           set -u
+          # Üzerine yazılan sürümde (nightly/kisisel) eski sürümlü APK'lar birikmesin.
+          eski_sil() {
+            gh release view "$1" --json assets --jq '.assets[].name' 2>/dev/null \
+              | grep -E '^dosya-okuyucu-v.*\.apk$' | grep -vxF "dosya-okuyucu-v${BUILD_NAME}.apk" \
+              | while read -r a; do gh release delete-asset "$1" "$a" -y || true; done
+          }
           publish() {
             if [ "${{ (inputs.kisisel || contains(github.event.head_commit.message, '[kisisel]')) && '1' || '0' }}" = "1" ]; then
               TAG=kisisel
@@ -589,7 +611,7 @@ jobs:
                   -f sha="$GITHUB_SHA" -F force=true >/dev/null &&
                 gh release edit "$TAG" --title "$TITLE" \
                   --notes-file RELEASE_NOTES.md --prerelease --latest=false &&
-                gh release upload "$TAG" dist/*.apk --clobber
+                gh release upload "$TAG" dist/*.apk --clobber && eski_sil "$TAG"
               else
                 gh release create "$TAG" dist/*.apk --target "$GITHUB_SHA" \
                   --title "$TITLE" --notes-file RELEASE_NOTES.md \
@@ -612,7 +634,7 @@ jobs:
                   -f sha="$GITHUB_SHA" -F force=true >/dev/null &&
                 gh release edit "$TAG" --title "$TITLE" \
                   --notes-file RELEASE_NOTES.md --prerelease=false --latest &&
-                gh release upload "$TAG" dist/*.apk --clobber
+                gh release upload "$TAG" dist/*.apk --clobber && eski_sil "$TAG"
               else
                 gh release create "$TAG" dist/*.apk --target "$GITHUB_SHA" \
                   --title "$TITLE" --notes-file RELEASE_NOTES.md --latest

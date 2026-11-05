@@ -38,6 +38,7 @@ Kod değiştikten sonra `graphify update .` (API maliyeti yok).
 `flutter build apk --obfuscate` → apksigner → içerik/16 KB/boyut bütçesi denetimi → artifact + Dart sembolleri)
 → **`release`** (ikisi yeşilse): main (**başlıkta `[apk]`** ya da faz PR birleşmesi — 2026-11-05; işaretsiz main push'u APK/sürüm üretmez) → tek **`nightly`** sürüm (üzerine yazılır, "en son" işaretli,
 `releases/latest/download/dosya-okuyucu.apk` sabit); **`v*` etiketi** → kalıcı sürüm (arm + arm64 + AAB).
+**Sürüm adı** (2026-11-05): `ANA.ARA` `lib/core/app_version.dart`'ta (elle; başlıkta `[minor]` ara haneyi +1 yapar), son hane = main'de yayınlanan APK sayısı (`tool/surum_hesapla.sh`), versionCode = koşu no. Sürümde hem `dosya-okuyucu.apk` (sabit bağlantı) hem `dosya-okuyucu-v<sürüm>.apk`.
 Eski sürümler budanır (nightly hariç son 10). Push'ta yalnız arm64; 32-bit + AAB etikette/elle.
 Yalnız `test/**`/`tool/**` değişen push APK derlemez; `**.md`, `docs/**`, `graphify-out/**` hiç koşturmaz.
 Art arda push → önceki koşu iptal.
