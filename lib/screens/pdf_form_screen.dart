@@ -8,6 +8,8 @@ import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
 import '../services/pdf/pdf_form.dart';
+import '../services/pdf_form_pro.dart';
+import '../widgets/autofill_profile_sheet.dart';
 import '../widgets/pdf_save_dialog.dart';
 import '../core/snack.dart';
 import '../core/safe_insets.dart';
@@ -84,6 +86,39 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
     }
   }
 
+  /// Profille doldur: yalnız BOŞ metin alanları; profil yoksa önce
+  /// düzenleme levhası açılır.
+  Future<void> _autofill() async {
+    final fields = _fields;
+    if (fields == null) return;
+    var profile = await PdfFormPro.loadProfile();
+    if (!mounted) return;
+    if (profile.isEmpty) {
+      profile = await showAutofillProfileSheet(context) ?? const {};
+      if (!mounted || profile.isEmpty) return;
+    }
+    final suggestion = PdfFormPro.suggest([
+      for (final f in fields)
+        if (f.kind == PdfFormFieldKind.text && !f.readOnly)
+          (
+            name: f.name,
+            label: f.label,
+            value: _values[f.name] ?? _controllers[f.name]?.text ?? f.value,
+          ),
+    ], profile);
+    if (suggestion.isEmpty) {
+      showSnack(context, context.t('pp.autofill_none'));
+      return;
+    }
+    setState(() {
+      suggestion.forEach((name, value) {
+        _values[name] = value;
+        _controllers[name]?.text = value;
+      });
+    });
+    showSnack(context, context.t('pp.autofill_done', {'n': suggestion.length}));
+  }
+
   Future<void> _save() async {
     if (_busy) return;
     setState(() => _busy = true);
@@ -128,6 +163,22 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
       appBar: AppBar(
         title: Text(context.t('pf.title', {'name': p.basename(widget.path)}),
             maxLines: 1, overflow: TextOverflow.ellipsis),
+        actions: [
+          // Otomatik doldurma profili (Faz 39 madde 9): boş alanlara ad,
+          // e-posta, telefon, adres… Uzun basış profili düzenletir.
+          if (fillable > 0)
+            IconButton(
+              tooltip: context.t('pp.autofill'),
+              icon: const Icon(AppIcons.pdfAutofill),
+              onPressed: _autofill,
+            ),
+          if (fillable > 0)
+            IconButton(
+              tooltip: context.t('pp.profile'),
+              icon: const Icon(AppIcons.tune),
+              onPressed: () => showAutofillProfileSheet(context),
+            ),
+        ],
       ),
       body: _error != null
           ? Center(

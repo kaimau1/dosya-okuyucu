@@ -17,8 +17,15 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
         await PdfTools.pageCount(bytes, password: pw);
         _password = pw;
       }
+      // Pro araçlar bayrağı — dosya okunurken (açılışta değil, k.2).
+      final pro = (await SharedPreferences.getInstance())
+              .getBool(_PdfToolsProPart.flagKey) ??
+          true;
       if (!mounted) return;
-      _partSetState(() => _bytes = bytes);
+      _partSetState(() {
+        _bytes = bytes;
+        _proEnabled = pro;
+      });
     } catch (e) {
       if (mounted) _partSetState(() => _error = userErrorText(e));
     }

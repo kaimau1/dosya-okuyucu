@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert' show utf8;
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -57,6 +58,7 @@ import '../services/pdf/page_arrival.dart';
 import '../services/pdf/pdf_form.dart';
 import '../services/pdf/pdf_ocr_search.dart';
 import '../services/pdf_annotator.dart';
+import '../services/pdf_notes.dart';
 import '../services/pdf_reload.dart';
 import '../services/pdf_tools.dart';
 import '../services/tts_service.dart';
@@ -112,6 +114,7 @@ part 'viewer/pdf_navigation.dart';
 part 'viewer/body.dart';
 part 'viewer/code_tools.dart';
 part 'viewer/widgets.dart';
+part 'viewer/pdf_reading_pro.dart';
 
 /// PDF vurgu renkleri (0xAARRGGBB) — vurgu kipindeki sıra. Pastel tonlar
 /// (2026-09-27): eski doygun pembe (F06292) çarpımsal harmanda bile kelimeyi
@@ -484,6 +487,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// PDF gece modu: sayfayı renk matrisiyle TERSLER (beyaz kağıt → siyah).
   /// Salt görsel; dosyaya dokunmaz.
   bool _pdfNight = false;
+
+  /// Kâğıt (sepya) tonu — gece kipinin gündüz karşılığı (A9.2, Faz 39).
+  bool _pdfSepia = false;
+
+  /// Kaydırma kilidi: yalnız dikey kaydırma, yakınlaştırma/yatay kayma
+  /// kapalı (Faz 39) — okurken sayfa yana kaçmasın.
+  bool _pdfScrollLock = false;
 
   /// Sesli okuma. Yalnız kullanıcı başlatınca kurulur (motor uyandırmayalım).
   TtsService? _tts;

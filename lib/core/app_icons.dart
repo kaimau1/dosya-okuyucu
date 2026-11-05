@@ -494,4 +494,29 @@ abstract final class AppIcons {
   static const IconData nearMe = Icons.near_me_rounded;
   static const IconData addFile = Icons.note_add_rounded;
   static const IconData addFolder = Icons.create_new_folder_rounded;
+
+  // Faz 39 — PDF pro araçları.
+  static const IconData pdfSignCert = Icons.verified_user_rounded;
+  static const IconData pdfRedact = Icons.hide_source_rounded;
+  static const IconData pdfTable = Icons.table_view_rounded;
+  static const IconData pdfToWord = Icons.description_rounded;
+  static const IconData pdfArchive = Icons.inventory_2_rounded;
+  static const IconData pdfCompare = Icons.difference_rounded;
+  static const IconData pdfKey = Icons.key_rounded;
+  static const IconData pdfStamp = Icons.approval_rounded;
+  static const IconData pdfBlankPage = Icons.layers_clear_rounded;
+  static const IconData pdfFitPage = Icons.aspect_ratio_rounded;
+  static const IconData pdfAutofill = Icons.badge_rounded;
+  static const IconData pdfFlatten = Icons.layers_rounded;
+  static const IconData pdfTextField = Icons.text_fields_rounded;
+  static const IconData pdfNotes = Icons.summarize_rounded;
+  static const IconData pdfWeb = Icons.language_rounded;
+  static const IconData pdfCompressHard = Icons.compress_rounded;
+  static const IconData pdfBook = Icons.menu_book_rounded;
+  static const IconData pdfPanLock = Icons.pan_tool_rounded;
+  static const IconData pdfInitials = Icons.edit_note_rounded;
+  static const IconData pdfCheckBox = Icons.check_box_rounded;
+  static const IconData pdfPro = Icons.auto_awesome_rounded;
+  static const IconData pdfSepia = Icons.wb_twilight_rounded;
+  static const IconData pdfImages = Icons.collections_rounded;
 }

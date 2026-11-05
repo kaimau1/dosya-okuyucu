@@ -1,14 +1,21 @@
 import 'dart:async';
+import 'dart:convert' show utf8;
 import 'dart:io';
+import 'dart:isolate';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:path/path.dart' as p;
+import 'package:http/http.dart' as http;
 import 'package:pdf/pdf.dart' show PdfPageFormat;
 import 'package:pdfrx/pdfrx.dart';
+import 'package:printing/printing.dart' show Printing;
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/app_icons.dart';
 import '../core/busy_dialog.dart';
@@ -16,6 +23,18 @@ import '../core/l10n/app_strings.dart';
 import '../services/conversion_service.dart';
 import '../services/document_scanner.dart';
 import '../services/ocr_service.dart';
+import '../services/pdf_digital_sign.dart';
+import '../services/docs_home.dart';
+import '../services/legacy_convert.dart';
+import '../services/office_html.dart';
+import '../services/pdf_doc_pro.dart';
+import '../services/pdf_export_pro.dart';
+import '../services/pdf_form_pro.dart';
+import '../services/pdf_notes.dart';
+import '../services/pdf_page_pro.dart';
+import '../services/pdf_raster.dart';
+import '../services/pdf_redact.dart';
+import 'package:syncfusion_flutter_pdf/pdf.dart' show PdfConformanceLevel;
 import '../services/pdf_tools.dart';
 import '../services/scan_prepare.dart';
 import '../widgets/pdf_save_dialog.dart';
@@ -25,10 +44,18 @@ import '../core/user_error.dart';
 import '../core/theme.dart';
 import '../core/app_colors.dart';
 import '../widgets/app_dialog.dart';
+import '../widgets/autofill_profile_sheet.dart';
+import '../widgets/signature_pad.dart';
 import 'fm/pick_file_screen.dart';
+import 'pdf_compare_screen.dart';
+import 'pdf_region_screen.dart';
+import 'pdf_reorder_screen.dart';
+import 'pdf_sign_screen.dart';
 
 part 'pdf_tools/actions.dart';
 part 'pdf_tools/views.dart';
+part 'pdf_tools/pro_actions.dart';
+part 'pdf_tools/pro_views.dart';
 
 /// **PDF Araçları** — sayfa ızgarası üzerinden birleştir / çıkar / sil / sırala /
 /// döndür, ayrıca parola ve sıkıştırma.
@@ -96,6 +123,10 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
   final _undo = <Uint8List>[];
 
   bool _dirty = false;
+
+  /// Faz 39 Pro araçlar bayrağı (anayasa k.9): `pdf_pro_v1` (varsayılan
+  /// açık). Kapalıyken menü girdisi görünmez, eski araçlar aynen çalışır.
+  bool _proEnabled = true;
 
   /// Süren işin etiketi (boşsa iş yok). Kullanıcı ne olduğunu görsün diye
   /// yazıyla gösteriliyor — eskiden yalnız ince bir çubuk vardı.
@@ -183,6 +214,7 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
                 'lock' => _setPassword(),
                 'unlock' => _removePassword(),
                 'share' => _share(),
+                'pro' => _openProTools(),
                 _ => null,
               },
               itemBuilder: (_) => [
@@ -231,6 +263,11 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
                       child: Text(context.t('pt.remove_password'))),
                 PopupMenuItem(
                     value: 'share', child: Text(context.t('common.share'))),
+                if (_proEnabled) ...[
+                  const PopupMenuDivider(),
+                  PopupMenuItem(
+                      value: 'pro', child: Text(context.t('pp.menu'))),
+                ],
               ],
             ),
           ],

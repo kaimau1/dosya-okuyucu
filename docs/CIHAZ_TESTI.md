@@ -633,3 +633,17 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
 - [ ] Dışa aktar: Word açılır/düzenlenir; Excel tablolu fişte sütunlar doğru; TXT Türkçe karakter; PDF Küçük/Orta/Yüksek boyut tahmini gerçeğe yakın.
 - [ ] Kalite şeridi: bulanık çekimde "yeniden çek", loş ortamda "fener", eğik sayfada "düzleştir" çıkıyor; net sayfada çıkmıyor.
 - [ ] Bitti ölçütü: 20 sayfa < 15 sn işlenir (orta cihaz); OCR'lı PDF aranabilir.
+
+## Faz 39 — PDF pro araçları (madde 1–12)
+- [ ] 💻 Dijital imza: öz-imzalı imzalı PDF Adobe Reader'da "belge değiştirilmedi" (kimlik bilinmiyor) ve Chrome'da imza paneli; .pfx (e-imza) ile imza geçerli, parola yanlışsa anlaşılır hata.
+- [ ] Karartma: "Gizli" araması + elle kutu → kaydet → başka okuyucuda metin seçilemiyor/kopyalanamıyor, görselde siyah; kutu dışı metin aranabilir.
+- [ ] Tablo → Excel: fatura/ekstre PDF'inde sütunlar doğru, sayılar sayı; Word'e aktarım satır/girinti/punto korunmuş açılıyor; PDF/A (veraPDF) iki kipte de geçer.
+- [ ] Karşılaştırma: iki sözleşme sürümü — metin farkı (kırmızı/yeşil) ve görsel fark kırmızı; 50 sayfada takılma yok.
+- [ ] İzinler: yazdırma kapalı PDF Adobe'da yazdırılamıyor; yer imleri Adobe/Chrome'da görünüyor; damga/filigran Türkçe harfli.
+- [ ] Okuma: kitap görünümü (kapak sağda, çiftler yan yana), kaydırma kilidinde yatay kayma/yakınlaştırma yok, sepya tonu, vurgu kitapçığı .md paylaşılıyor; arama sonuç listesi + taranmış PDF OCR araması.
+- [ ] Agresif sıkıştırma: 100 sayfa taranmış PDF küçülüyor, metin (açıksa) aranabilir; düşük RAM cihazda çökme yok.
+- [ ] Sayfa: sürükleyerek sırala 200 sayfada akıcı; boş sayfa algılama taranmış arka yüzleri buluyor; kırp/A4'e sığdır.
+- [ ] Formlar: profille doldur boş alanlara doğru değer; yeni metin/onay/imza alanı başka okuyucuda doldurulabiliyor.
+- [ ] Dönüştürme: görsellerden PDF (A4/özgün), toplu PDF→JPEG klasörü, web sayfası → PDF, docx/xlsx/pptx → PDF.
+- [ ] İmza yönetimi: imza/paraf çiz-sil, her sayfaya paraf + tarih 100 sayfada.
+- [ ] Perf: `docs/perf/2026-11-05-faz39.md` tablosu doldurulur (gerileme > %10 ya da p99 > 24 ms → `pdf_pro_v1` kapatılır).

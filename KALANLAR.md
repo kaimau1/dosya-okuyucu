@@ -101,7 +101,7 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
       depolamanın `sd_readonly` uyarısı buna bağlanır. Aynı turda SD birleşik **(b)**
       "ana bellek %X'i aşınca" eşiği ve **(c)** serbest klasör seçimi (bugün yalnız
       Android'in standart ortak klasörleri).
-- [ ] **A7.4 Görüntüye çevirerek PDF sıkıştırma (agresif kip):** eski engel "cihazda JPEG
+- [x] **A7.4 Görüntüye çevirerek PDF sıkıştırma (agresif kip):** (Faz 39 madde 7, 2026-11-05) eski engel "cihazda JPEG
       kodlayıcı yok" kalktı (Faz 14b: Android `Bitmap.compress`, `image` paketi). Ayrı ve
       açıkça uyaran seçenek (metin katmanı kaybolur; isteğe bağlı OCR katmanı), DPI/kalite
       seçimi; `pdf_tools.dart:304` yorumu güncellenir.
@@ -140,7 +140,7 @@ Ayrıntı ve bitti ölçütleri: **`docs/GELISTIRME_PLANI.md`** (Faz 34–42: pa
 pro belge tarayıcı · Excel · Word · Slayt · PDF · ortak görünüm · dosya yöneticisi · kalite).
 **Her faz `GELISTIRME_PLANI.md` baştaki PERFORMANS KORUMA ANAYASASI'na uyar** (izolat, tembel yükleme, PerfBudget, boşta 0 kare, perf kapısı + A/B tablo).
 Faz 35'in ilk adımı **ML Kit geçişi** (onaylandı; kullanıcı başlatacak).
-Önerilen sıra: 34 → 35 → 39 → 36 → 37 → 38 → 40 → 41 → 42. **Faz 34 BİTTİ** (kod; cihaz doğrulaması `CIHAZ_TESTI.md`). **Faz 35 BİTTİ** 2026-11-05 (ML Kit `GmsDocumentScanner` + pro tarayıcı; cihaz turu + perf A/B bekliyor).
+Önerilen sıra: 34 → 35 → 39 → 36 → 37 → 38 → 40 → 41 → 42. **Faz 34 BİTTİ** (kod; cihaz doğrulaması `CIHAZ_TESTI.md`). **Faz 35 BİTTİ** 2026-11-05 (ML Kit `GmsDocumentScanner` + pro tarayıcı; cihaz turu + perf A/B bekliyor). **Faz 39 BİTTİ** 2026-11-05 (PDF pro: dijital imza, karartma, Excel/Word/PDF-A, karşılaştırma, izin/yer imi/damga/numara, okuma, agresif sıkıştırma, sayfa/form/dönüştürme/paraf; cihaz turu + perf A/B bekliyor).
 
 ---
 

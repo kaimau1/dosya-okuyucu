@@ -178,23 +178,37 @@ kaldırma (ML Kit, isteğe bağlı), tablo biçimleri, bağlantı/eylem düğmel
 yalnız görünür slayt tam çizilir, sunum kipinde sonraki slayt önceden rasterize, geçiş animasyonları
 `RepaintBoundary` içinde; hafif profilde karmaşık geçişler sadeleşir; `slides_perf_test` 300 slayt eşiği.
 
-## Faz 39 — PDF
-1. **Dijital imza (PKCS#7)** — kullanıcı sertifikası/self-signed, görünür imza alanı.
-2. Kalıcı karartma (redaction) — metin+görüntüyü gerçekten siler, doğrulama testi.
-3. Tablo çıkarma → Excel; sayfa metnini Word'e (düzen korunarak); PDF/A dışa aktarım.
-4. İki PDF karşılaştırma (görsel fark + metin farkı).
-5. Parola/izin düzenleme, yer imi düzenleme, damga/filigran şablonları, numaralandırma.
-6. Okuma: gece kipi (A9.2), kaydırma kilidi, çift sayfa/kitap görünümü, sesli okuma
+## Faz 39 — PDF — BİTTİ 2026-11-05 (kod; cihaz doğrulaması CIHAZ_TESTI.md'de, perf A/B bekliyor)
+- [x] 1. **Dijital imza (PKCS#7)** — kullanıcı sertifikası/self-signed, görünür imza alanı.
+   (`services/pdf_digital_sign.dart` + `pdf/der.dart`; Pro araçlar levhası.)
+- [x] 2. Kalıcı karartma (redaction) — metin+görüntüyü gerçekten siler, doğrulama testi.
+   (`pdf_redact.dart` + `pdf_raster.dart` + `pdf_region_screen.dart`; `test/pdf_redact_test.dart`.)
+- [x] 3. Tablo çıkarma → Excel; sayfa metnini Word'e (düzen korunarak); PDF/A dışa aktarım.
+   (`pdf_export_pro.dart`; PDF/A-2b `PdfRedact.apply(conformance:)` görüntü + görünmez metin kipi.)
+- [x] 4. İki PDF karşılaştırma (görsel fark + metin farkı).
+   (`pdf_compare.dart` + `pdf_compare_screen.dart`.)
+- [x] 5. Parola/izin düzenleme, yer imi düzenleme, damga/filigran şablonları, numaralandırma.
+   (`pdf_doc_pro.dart`: izinler AES-256, yer imi ağacı, 7 damga şablonu + filigran, Bates/Romen/n-N.)
+- [x] 6. Okuma: gece kipi (A9.2), kaydırma kilidi, çift sayfa/kitap görünümü, sesli okuma
    (var), metin işaretleme kitapçığı (tüm vurgular tek listede dışa aktar).
-7. Agresif sıkıştırma (A7.4).
+   (Gece kipi vardı + kâğıt/sepya tonu; `viewer/pdf_reading_pro.dart`, `pdf_notes.dart`.)
+- [x] 7. Agresif sıkıştırma (A7.4).
+   (DPI 96/120/150 + kalite + gri + görünmez metin; 40 sayfalık parçalarla, bellek tavanlı.)
 **Ölçüt:** imzalı PDF Adobe/Chrome'da geçerli görünür (cihaz dışı doğrulama 💻).
 
-**Ek:** 8. Sayfa küçük resim ızgarasında çoklu seç → döndür/sil/çıkar/yeniden sırala (var olanı
+**Ek:**
+- [x] 8. Sayfa küçük resim ızgarasında çoklu seç → döndür/sil/çıkar/yeniden sırala (var olanı
 genişlet), boş sayfa algıla ve sil, sayfaları kırp/boyutlandır, A4'e sığdır.
-9. Formlar: alan vurgusu, otomatik doldurma profili (ad/adres), düzleştir, form oluştur (metin/onay/imza).
-10. Notlar: metin vurgusu/çizgi/not özeti dışa aktar; metinde ara + sonuç listesi + OCR'lı taranmış PDF'te ara.
-11. Görüntüden PDF / PDF'ten görüntü toplu, web sayfasından PDF, PDF'e Word/Excel/PPT aktarım.
-12. İmza yönetimi: kayıtlı imza/paraf/tarih/damga, toplu "her sayfaya paraf". **Perf:** sayfalar
+   (`pdf_page_pro.dart`, `pdf_reorder_screen.dart`; kırpma bölge ekranının `crop` kipi.)
+- [x] 9. Formlar: alan vurgusu, otomatik doldurma profili (ad/adres), düzleştir, form oluştur (metin/onay/imza).
+   (Vurgu `PdfFormOverlay` + düzleştirme vardı; `pdf_form_pro.dart` profil/eşleme/alan ekleme.)
+- [x] 10. Notlar: metin vurgusu/çizgi/not özeti dışa aktar; metinde ara + sonuç listesi + OCR'lı taranmış PDF'te ara.
+   (`pdf_notes.dart` Markdown kitapçık — görüntüleyici + Pro araçlar; arama çubuğunda sonuç listesi; OCR arama vardı.)
+- [x] 11. Görüntüden PDF / PDF'ten görüntü toplu, web sayfasından PDF, PDF'e Word/Excel/PPT aktarım.
+   (`office_html.dart` + `Printing.convertHtml`; toplu JPEG klasörü 40'lık parçalarla.)
+- [x] 12. İmza yönetimi: kayıtlı imza/paraf/tarih/damga, toplu "her sayfaya paraf".
+   (`PdfDocPro.initialPages` tek geçiş; Pro araçlar → İmza ve paraf yönetimi.)
+**Perf:** sayfalar
 tembel render (görünür ±1, kova cacheWidth), metin çıkarma **istek üzerine** (P4 korunur),
 karartma/sıkıştırma/OCR/karşılaştırma `JobQueue` + izolat, 500 sayfa PDF'te bellek tavanı
 testi, küçük resim şeridi yalnız açıkken üretilir.

@@ -118,6 +118,9 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
   /// siyah yazı beyaz olur — karanlıkta göz yormaz. `AppColors.onMedia` yerine
   /// matris kullanılıyor çünkü sayfadaki resim/grafikler de terslenmeli.
   Widget _nightFilter({required Widget child}) {
+    if (!_pdfNight && _pdfSepia) {
+      return ColorFiltered(colorFilter: _sepiaFilter, child: child);
+    }
     if (!_pdfNight) return child;
     return ColorFiltered(
       colorFilter: const ColorFilter.matrix(<double>[

@@ -556,6 +556,10 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                           value: 4,
                           icon: const Icon(AppIcons.layoutGrid),
                           label: Text(context.t('vw.four_columns'))),
+                      ButtonSegment(
+                          value: kPdfBookLayout,
+                          icon: const Icon(AppIcons.pdfBook),
+                          label: Text(context.t('pp.book_view'))),
                     ],
                     selected: {_pdfColumns},
                     showSelectedIcon: false,
@@ -578,6 +582,34 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                           title: Text(context.t('vw.night_on')),
                           value: _pdfNight,
                           onChanged: (v) => apply(() => _pdfNight = v),
+                        ),
+                        if (_isPdf)
+                        SwitchListTile(
+                          secondary: const Icon(AppIcons.pdfSepia),
+                          title: Text(context.t('pp.sepia')),
+                          subtitle: Text(context.t('pp.sepia_hint')),
+                          value: _pdfSepia,
+                          onChanged: _pdfNight
+                              ? null
+                              : (v) => apply(() => _pdfSepia = v),
+                        ),
+                        if (_isPdf)
+                        SwitchListTile(
+                          secondary: const Icon(AppIcons.pdfPanLock),
+                          title: Text(context.t('pp.scroll_lock')),
+                          subtitle: Text(context.t('pp.scroll_lock_hint')),
+                          value: _pdfScrollLock,
+                          onChanged: (v) => apply(() => _pdfScrollLock = v),
+                        ),
+                        if (_isPdf)
+                        ListTile(
+                          leading: const Icon(AppIcons.pdfNotes),
+                          title: Text(context.t('pp.notes_booklet')),
+                          subtitle: Text(context.t('pp.notes_booklet_sub')),
+                          onTap: () {
+                            Navigator.of(sheetContext).pop();
+                            unawaited(_exportNotesBooklet());
+                          },
                         ),
                         SwitchListTile(
                           secondary: const Icon(AppIcons.bookmarkOutline),
