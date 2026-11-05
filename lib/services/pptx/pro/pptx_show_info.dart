@@ -1,3 +1,5 @@
+import 'package:xml/xml.dart';
+
 import 'pptx_media_ops.dart';
 import 'pptx_package.dart';
 

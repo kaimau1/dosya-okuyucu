@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
+import 'package:xml/xml.dart';
 
 import 'pptx_package.dart';
 
