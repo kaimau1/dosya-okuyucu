@@ -195,7 +195,7 @@ düzeni **artımlı** (yalnız değişen paragraf ve sonrası), görünür sayfa
 500 sayfa eşiği; yazım denetimi izolatta ve boşta; görsel `cacheWidth`; AI çağrıları iptal edilebilir.
    (`word_reader.dart` ListView.builder + gündüz/sepya/gece + yazı boyu; `docx_export_formats.dart` ODT/RTF/MD/TXT izolatta; artımlı `DocxPaginator`; `word_perf_test` 5000 paragraf ≈500 sayfa eşiği; AI yazım denetimi istek üzerine + Durdur; resimler `cacheWidth`; `word_pro_formats_test`.)
 
-## Faz 38 — Slayt
+## Faz 38 — Slayt — BİTTİ 2026-11-05 (kod; cihaz doğrulaması CIHAZ_TESTI.md'de, perf A/B bekliyor)
 - [x] 1. Ana slayt/yerleşim (master/layout) düzenleme: yer tutucu, tema renk/yazı tipi.
    (`services/pptx/pro/pptx_package.dart` + `pptx_master_ops.dart`; `slides_pro/master_page.dart`, Araçlar → Ana slayt ve tema.)
 - [x] 2. Şablon galerisi (8 sade tema) + "metinden slayt" (`text_to_slides`, var) için tasarım önerisi.

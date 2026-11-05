@@ -679,3 +679,20 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
 - [ ] Metin kutusu, şekil, resim sarma (kare/üst-alt/arkada/önde), kapak, bölüm sonu, alan (tarih/sayfa), çapraz başvuru, kaynakça Word'de doğru.
 - [ ] Okuma kipi: gündüz/sepya/gece, yazı boyu kalıcı; 300 sayfada akıcı kaydırma.
 - [ ] Perf: `word_pro_v1=false` → eski arayüz; boşta 0 kare; 300 sayfa docx açılış/kaydırma/kayıt A/B (`docs/perf/2026-11-05-faz37.md`).
+
+## Faz 38 — Slayt pro (madde 1–9)
+- [ ] Araçlar → Ana slayt ve tema: tema rengi/yazı tipi değişince bütün slaytlar uyuyor; yerleşimde yer tutucu sürükle/boyutlandır/ekle/sil, yerleşim kopyala/adlandır → PowerPoint'te onarımsız açılıyor, "Asıl Slayt Görünümü"nde aynı.
+- [ ] Şablon galerisi (8 tema) uygulanıyor, geri al çalışıyor; PDF/metin → "Slayt üret" (pptx) önerili galeriyi açıyor, önerilen içerikle uyumlu.
+- [ ] Grafik ekle (sütun/çubuk/çizgi/pasta), veri düzenle; tablodan grafik; PowerPoint'te "Verileri Düzenle" gömülü kitabı açıyor. SmartArt'lı pptx → "SmartArt'ı şekle çevir" → metinli şekil grubu.
+- [ ] Ses/video ekle (mp4, mp3, m4a): sunumda dokununca oynuyor (video şeklin yerinde, ses alt çubukta), slayt değişince duruyor; PowerPoint'te oynuyor.
+- [ ] Sunumda araç çubuğu: lazer, kalem (renkler, sil), zamanlayıcı (dokun dur/başla, uzun bas sıfırla); kalem kipinde kaydırma slayt değiştirmiyor; klavye/Bluetooth sunum kumandası (PageUp/PageDown, oklar) çalışıyor.
+- [ ] Sunucu görünümü: süre, sonraki slayt, notlar, önceki/sonraki; 60 fps geçiş (`FrameTiming`).
+- [ ] Dışa aktar: bu slayt PNG, tüm slaytlar PNG zip, MP4 video (slayt başı süre; anlatımlı destede kayıtlı süreler) — video galeride oynuyor.
+- [ ] Katmanlar: sürükle → z sırası, göz → gizle (sunumda/PowerPoint'te gizli), uzun bas → ad; çoklu seçimle hizala (6) ve dağıt (≥3). Animasyon sırası: sürükle, sil, ekle (Belir/Soldur/Sil/Yakınlaştır) → sunumda tıklama sırası doğru, PowerPoint'te "Animasyon Bölmesi" aynı.
+- [ ] Bölümler: ekle/adlandır/yukarı-aşağı taşı/sil; sıralayıcıda § etiketi; slayt silince/taşıyınca PowerPoint'te bölümler bozulmuyor. Özel gösteri: oluştur, oynat (gizli slayt da), PowerPoint'te "Özel Slayt Gösterisi"nde var.
+- [ ] Şekil kitaplığı (6 kategori), eylem düğmesi (sunumda ileri/geri), bağlayıcı (düz/dirsekli; PowerPoint'te şekil taşınınca çizgi izliyor), gradyan/gölge/yansıma/parıltı, kırp + şekle kırp, tablo biçimi (6), köprü (web/slayt/ileri/bitir), canlı sayaç (sunumda geri sayıyor, dokun dur).
+- [ ] Arka planı kaldır: ilk kullanımda "model iniyor", sonra kişi/nesne saydam PNG olarak yerinde.
+- [ ] Kumanda: ses tuşları (aşağı ileri, yukarı geri; kapalıyken ses ayarı normal); yerel ağ: gösterilen adres aynı Wi-Fi'deki tarayıcıda açılıyor, ileri/geri çalışıyor, sunum kapanınca adres yanıt vermiyor.
+- [ ] Anlatım kaydı: mikrofon izni ilk kayıtta; her slayt ayrı ses; kaydet → sunum kendi ilerliyor ve ses çalıyor; PowerPoint'te "Kayıtlı zamanlamaları kullan" aynı.
+- [ ] İkinci ekran: HDMI/USB-C ya da Cast (ekran yansıtma "ikinci ekran" kipi) → slayt TV'de, telefonda sunucu görünümü; kablo çekilince sorunsuz.
+- [ ] Perf: `slides_pro_v1=false` → eski arayüz aynen; boşta 0 kare; 300 slayt açılış/kaydırma/kayıt A/B (`docs/perf/2026-11-05-faz38.md`); APK boyutu (+ML Kit konu bölütleme istemcisi) CI bütçesinde.
