@@ -258,7 +258,7 @@ class _Renderer {
     DocxRunLook? cur;
     void flush() {
       if (sb.isEmpty || cur == null) return;
-      final l = cur!;
+      final l = cur;
       spans.add(l.vertAlign == null
           ? pw.TextSpan(text: sb.toString(), style: _style(l))
           : pw.TextSpan(
@@ -303,7 +303,7 @@ class _Renderer {
         cur = null;
         continue;
       }
-      if (cur != null && !identical(cur, l) && !_same(cur!, l)) flush();
+      if (cur != null && !identical(cur, l) && !_same(cur, l)) flush();
       cur = l;
       final ch = p.text[k];
       sb.write(ch == '\t' ? '    ' : ch);

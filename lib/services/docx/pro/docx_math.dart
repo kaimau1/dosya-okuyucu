@@ -35,7 +35,7 @@ const _nary = {'sum': '∑', 'prod': '∏', 'int': '∫', 'oint': '∮', 'iint':
 XmlElement _m(String local, [List<XmlNode> kids = const [],
         Map<String, String> attrs = const {}]) =>
     XmlElement(XmlName.fromString('m:$local'), [
-      for (final MapEntry(:key, :value) in attrs)
+      for (final MapEntry(:key, :value) in attrs.entries)
         XmlAttribute(XmlName.fromString('m:$key'), value),
     ], kids);
 

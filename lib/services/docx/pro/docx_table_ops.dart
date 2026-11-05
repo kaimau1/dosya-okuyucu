@@ -20,7 +20,7 @@ class _Cell {
   const _Cell(this.tbl, this.tr, this.tc);
 }
 
-abstract final class DocxTableOps {
+abstract final class DocxTableTools {
   static _Cell? _at(DocxPackage pkg, int i) {
     final paras = pkg.modelParagraphs();
     if (i < 0 || i >= paras.length) return null;

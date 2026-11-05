@@ -6,6 +6,7 @@ import 'package:dosya_okuyucu/services/docx/pro/docx_math.dart';
 import 'package:dosya_okuyucu/services/docx/pro/docx_package.dart';
 import 'package:dosya_okuyucu/services/docx/pro/docx_style_ops.dart';
 import 'package:dosya_okuyucu/services/docx/pro/docx_table_ops.dart';
+import 'package:xml/xml.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Faz 37 madde 3 — denklem (LaTeX ↔ OMML) + tablo işlemleri.
@@ -66,20 +67,20 @@ void main() {
     test('sağa birleştir → böl', () {
       final b = _fx('tablo');
       final i = _firstCell(b);
-      final merged = _apply(b, DocxTableOps.mergeRight(i));
+      final merged = _apply(b, DocxTableTools.mergeRight(i));
       final tc = DocxPackage.open(merged).body.findAllElements('w:tc').first;
       expect(attrOf(tc.findAllElements('w:gridSpan').first), '2');
-      final split = _apply(merged, DocxTableOps.split(i));
+      final split = _apply(merged, DocxTableTools.split(i));
       final row = DocxPackage.open(split).body.findAllElements('w:tr').first;
       final orig = DocxPackage.open(b).body.findAllElements('w:tr').first;
       expect(row.findElements('w:tc').length, orig.findElements('w:tc').length);
-      expect(() => _apply(split, DocxTableOps.split(i)),
+      expect(() => _apply(split, DocxTableTools.split(i)),
           throwsA(isA<DocxTableException>()));
     });
 
     test('aşağı birleştir: vMerge restart + devam', () {
       final b = _fx('tablo');
-      final out = _apply(b, DocxTableOps.mergeDown(_firstCell(b)));
+      final out = _apply(b, DocxTableTools.mergeDown(_firstCell(b)));
       final vm = DocxPackage.open(out).body.findAllElements('w:vMerge').toList();
       expect(vm, hasLength(2));
       expect(attrOf(vm.first), 'restart');
@@ -89,22 +90,22 @@ void main() {
     test('kenarlık, sığdır, sırala', () {
       final b = _fx('tablo');
       final i = _firstCell(b);
-      final none = _apply(b, DocxTableOps.borders(i, 'none'));
+      final none = _apply(b, DocxTableTools.borders(i, 'none'));
       expect(attrOf(DocxPackage.open(none).body.findAllElements('w:insideH').single),
           'nil');
-      final fixed = _apply(b, DocxTableOps.autofit(i, 'fixed'));
+      final fixed = _apply(b, DocxTableTools.autofit(i, 'fixed'));
       expect(attrOf(DocxPackage.open(fixed).body.findAllElements('w:tblLayout').single, 'type'),
           'fixed');
-      final sorted = _apply(b, DocxTableOps.sort(i, descending: true));
+      final sorted = _apply(b, DocxTableTools.sort(i, descending: true));
       expect(DocxDocument.parse(sorted).paras.length, DocxDocument.parse(b).paras.length);
     });
 
     test('Türkçe sıra ve sayılar', () {
       final list = ['şeker', 'Çay', 'cam', 'ısı', 'iz', 'su', ''];
-      list.sort(DocxTableOps.compareCells);
+      list.sort(DocxTableTools.compareCells);
       expect(list, ['cam', 'Çay', 'ısı', 'iz', 'su', 'şeker', '']);
       final n = ['10', '2', '1.234,5', '3,5'];
-      n.sort(DocxTableOps.compareCells);
+      n.sort(DocxTableTools.compareCells);
       expect(n, ['2', '3,5', '10', '1.234,5']);
     });
   });

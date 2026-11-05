@@ -31,7 +31,7 @@ XmlElement w(String local,
         {Map<String, String> attrs = const {},
         List<XmlNode> kids = const []}) =>
     XmlElement(XmlName.fromString('w:$local'), [
-      for (final MapEntry(:key, :value) in attrs)
+      for (final MapEntry(:key, :value) in attrs.entries)
         XmlAttribute(XmlName.fromString(key.contains(':') ? key : 'w:$key'), value),
     ], kids);
 
@@ -383,12 +383,14 @@ abstract final class DocxPro {
       return pkg.save();
     }
 
-    return inIsolate ? Isolate.run(work) : work();
+    if (inIsolate) return Isolate.run(work);
+    return work();
   }
 
   /// Sonuç döndüren salt okuma işlemi.
-  static Future<T> query<T>(Uint8List bytes, T Function(DocxPackage pkg) op) =>
-      inIsolate
-          ? Isolate.run(() => op(DocxPackage.open(bytes)))
-          : Future.value(op(DocxPackage.open(bytes)));
+  static Future<T> query<T>(
+      Uint8List bytes, T Function(DocxPackage pkg) op) async {
+    if (inIsolate) return Isolate.run(() => op(DocxPackage.open(bytes)));
+    return op(DocxPackage.open(bytes));
+  }
 }

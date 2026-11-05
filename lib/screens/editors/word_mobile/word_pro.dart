@@ -104,10 +104,10 @@ extension _WordProPart on _WordMobileEditorScreenState {
         ]);
         if (dir == null) return;
         await _tableOp(dir == 'right'
-            ? DocxTableOps.mergeRight(c.extent.para)
-            : DocxTableOps.mergeDown(c.extent.para));
+            ? DocxTableTools.mergeRight(c.extent.para)
+            : DocxTableTools.mergeDown(c.extent.para));
       case 'tbl_split':
-        await _tableOp(DocxTableOps.split(c.extent.para));
+        await _tableOp(DocxTableTools.split(c.extent.para));
       case 'tbl_borders':
         final v = await _choose('wp.tbl_borders', const [
           ('all', 'wp.tbl_b_all'),
@@ -115,14 +115,14 @@ extension _WordProPart on _WordMobileEditorScreenState {
           ('inner', 'wp.tbl_b_inner'),
           ('none', 'wp.tbl_b_none'),
         ]);
-        if (v != null) await _tableOp(DocxTableOps.borders(c.extent.para, v));
+        if (v != null) await _tableOp(DocxTableTools.borders(c.extent.para, v));
       case 'tbl_autofit':
         final v = await _choose('wp.tbl_autofit', const [
           ('content', 'wp.tbl_fit_content'),
           ('window', 'wp.tbl_fit_window'),
           ('fixed', 'wp.tbl_fit_fixed'),
         ]);
-        if (v != null) await _tableOp(DocxTableOps.autofit(c.extent.para, v));
+        if (v != null) await _tableOp(DocxTableTools.autofit(c.extent.para, v));
       case 'tbl_sort':
         final v = await _choose('wp.tbl_sort', const [
           ('asc_h', 'wp.tbl_sort_asc_h'),
@@ -131,7 +131,7 @@ extension _WordProPart on _WordMobileEditorScreenState {
           ('desc', 'wp.tbl_sort_desc'),
         ]);
         if (v != null) {
-          await _tableOp(DocxTableOps.sort(c.extent.para,
+          await _tableOp(DocxTableTools.sort(c.extent.para,
               descending: v.startsWith('desc'), header: v.endsWith('_h')));
         }
     }

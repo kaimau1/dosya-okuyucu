@@ -1,6 +1,8 @@
 /// **Faz 37 madde 2 + 9 — sayfa düzeni ve bölüm işlemleri** (sectPr).
 library;
 
+import 'package:xml/xml.dart';
+
 import 'docx_package.dart';
 import 'docx_style_ops.dart' show DocxOp;
 
