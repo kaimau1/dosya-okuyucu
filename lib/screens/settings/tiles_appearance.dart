@@ -416,10 +416,10 @@ class ThemePresetTile extends StatelessWidget {
   const ThemePresetTile({super.key});
 
   static const presets = <(String, String, AppSkin, ThemeMode)>[
-    ('light', 'tp.light', AppSkin.sage, ThemeMode.light),
-    ('dark', 'tp.dark', AppSkin.sage, ThemeMode.dark),
-    ('amoled', 'tp.amoled', AppSkin.night, ThemeMode.dark),
-    ('paper', 'tp.paper', AppSkin.clay, ThemeMode.light),
+    ('light', 'thp.light', AppSkin.sage, ThemeMode.light),
+    ('dark', 'thp.dark', AppSkin.sage, ThemeMode.dark),
+    ('amoled', 'thp.amoled', AppSkin.night, ThemeMode.dark),
+    ('paper', 'thp.paper', AppSkin.clay, ThemeMode.light),
   ];
 
   static String? currentId(AppSkin skin, ThemeMode mode) {
@@ -438,8 +438,8 @@ class ThemePresetTile extends StatelessWidget {
       children: [
         SettingTile(
           icon: AppIcons.palette,
-          title: context.t('tp.title'),
-          subtitle: context.t('tp.sub'),
+          title: context.t('thp.title'),
+          subtitle: context.t('thp.sub'),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.sm),

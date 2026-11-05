@@ -183,9 +183,9 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
           SettingsSection('set.sec_theme', [
             SettingRow(
                 id: 'theme_preset',
-                titleKey: 'tp.title',
-                subtitleKey: 'tp.sub',
-                altKeys: ['tp.amoled', 'tp.paper', 'set.kw_dark'],
+                titleKey: 'thp.title',
+                subtitleKey: 'thp.sub',
+                altKeys: ['thp.amoled', 'thp.paper', 'set.kw_dark'],
                 builder: _themePresetTile),
             SettingRow(
                 id: 'skin',

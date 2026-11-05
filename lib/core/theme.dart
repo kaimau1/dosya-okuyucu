@@ -197,7 +197,7 @@ class AppTheme {
     ('settings.size_large', 1.15),
     ('settings.size_xlarge', 1.3),
     // Faz 40 / 8: 2× ön ayarı (eskiden yalnız kaydırıcıyla).
-    ('tp.size_max', 2.0),
+    ('thp.size_max', 2.0),
   ];
 
   /// [bodyFont] kullanıcının seçtiği aile ([uiFontDefault] ya da null =
