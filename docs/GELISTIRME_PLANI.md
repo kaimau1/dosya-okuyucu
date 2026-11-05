@@ -178,7 +178,7 @@ kaldırma (ML Kit, isteğe bağlı), tablo biçimleri, bağlantı/eylem düğmel
 yalnız görünür slayt tam çizilir, sunum kipinde sonraki slayt önceden rasterize, geçiş animasyonları
 `RepaintBoundary` içinde; hafif profilde karmaşık geçişler sadeleşir; `slides_perf_test` 300 slayt eşiği.
 
-## Faz 39 — PDF
+## Faz 39 — PDF — BİTTİ 2026-11-05 (kod; cihaz doğrulaması CIHAZ_TESTI.md'de, perf A/B bekliyor)
 - [x] 1. **Dijital imza (PKCS#7)** — kullanıcı sertifikası/self-signed, görünür imza alanı.
    (`services/pdf_digital_sign.dart` + `pdf/der.dart`; Pro araçlar levhası.)
 - [x] 2. Kalıcı karartma (redaction) — metin+görüntüyü gerçekten siler, doğrulama testi.

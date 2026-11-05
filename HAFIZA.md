@@ -305,3 +305,13 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Taramalar** artık `Documents/Dosya Okuyucu/Taramalar`.
 - **Tuzak:** Dart `RegExp` `\b` ASCII — "A.Ş." gibi Türkçe harf/nokta ile biten kalıpta sınır yok; boşluk bakışı kullan.
 - **Açık:** `pdf` paketi 30 sayfayı kayda dek bellekte tutuyor (akışla üretim yok). Perf A/B: bekliyor (ölçüm yok). Kotlin köprüsü (`ci/DocScan.kt`) ilk kez `[release-apk]` ile faz dalında derlendi.
+
+## 2026-11-05 — Faz 39 bitti (faz-39 dalı; kod — cihaz turu + perf A/B bekliyor)
+- **Pro araçlar** tek girdi: PDF Araçları menüsü → "Pro araçlar…" levhası (`pdf_tools/pro_actions.dart` + `pro_views.dart`); bayrak `pdf_pro_v1` (varsayılan açık). Yeni bağımlılık yok.
+- **Dijital imza:** Syncfusion `addExternalSigner` + kendi DER yazıcımız (`pdf/der.dart`) ile öz-imzalı X.509 (RSA-2048, pointycastle); anahtar uygulama destek klasöründe `signing/identity.json`. `.pfx` parolası saklanmaz. **Tuzak:** `RSAPrivateKey` 5. parametre (publicExponent) kullanımdan kalktı → analyze kırar.
+- **Karartma:** Syncfusion'da redaction YOK → sayfa pdfium'la çizilir, kutu pikselleri siyah (`PdfRaster.encodeJpeg`), sayfa YENİ belgede görüntüden kurulur, kutu dışı sözcükler görünmez metin (`setTransparency(0)`); `leakedWords` çıktıyı yeniden açıp doğrular. Görünmez sözcük ölçüsü kutuya taşarsa YAZILMAZ (yazı tipi farkı sızıntı sanılırdı).
+- **PDF/A-2b, agresif sıkıştırma, PDF→Word/Excel** hep `PdfRedact.apply` / `PdfExportPro` üzerinden; görüntüye çizen işler 40'lık parça (`_hardChunk`).
+- **Tuzak:** `printing` paketi `PdfRaster` sınıfı dışa veriyor → `pdf_tools_screen` onu `show Printing` ile alır. Syncfusion `PdfNumberStyle` dışa veriyor → bizimki `PageNumberStyle`. `Printing.convertHtml` kullanımdan kalktı (gerekçeli `ignore`); printing yükseltilirse WebView + PrintManager köprüsü gerekir.
+- **Tuzak:** `PdfGraphics`'te `scaleTransform` yok → sığdırmada şablon `drawPdfTemplate(size: page.size*scale)` ile çizilir, döndürme ötelemesi aynı ölçekle çarpılır.
+- Okuma: `kPdfBookLayout = 3` (`_pdfColumns`), kaydırma kilidi = `panAxis: vertical` + `scaleEnabled: false`, sepya `ColorFilter.matrix`. Doldurma profili cihazda (`pdf_autofill_profile`), kimlik no BİLİNÇLİ yok (KVKK).
+- Perf A/B: bekliyor (`docs/perf/2026-11-05-faz39.md`), cihaz listesi `CIHAZ_TESTI.md` Faz 39.

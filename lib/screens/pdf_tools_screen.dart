@@ -15,6 +15,7 @@ import 'package:pdf/pdf.dart' show PdfPageFormat;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:printing/printing.dart' show Printing;
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/app_icons.dart';
 import '../core/busy_dialog.dart';
@@ -122,6 +123,10 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
   final _undo = <Uint8List>[];
 
   bool _dirty = false;
+
+  /// Faz 39 Pro araçlar bayrağı (anayasa k.9): `pdf_pro_v1` (varsayılan
+  /// açık). Kapalıyken menü girdisi görünmez, eski araçlar aynen çalışır.
+  bool _proEnabled = true;
 
   /// Süren işin etiketi (boşsa iş yok). Kullanıcı ne olduğunu görsün diye
   /// yazıyla gösteriliyor — eskiden yalnız ince bir çubuk vardı.
@@ -258,9 +263,11 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
                       child: Text(context.t('pt.remove_password'))),
                 PopupMenuItem(
                     value: 'share', child: Text(context.t('common.share'))),
-                const PopupMenuDivider(),
-                PopupMenuItem(
-                    value: 'pro', child: Text(context.t('pp.menu'))),
+                if (_proEnabled) ...[
+                  const PopupMenuDivider(),
+                  PopupMenuItem(
+                      value: 'pro', child: Text(context.t('pp.menu'))),
+                ],
               ],
             ),
           ],

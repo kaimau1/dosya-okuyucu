@@ -4,6 +4,9 @@ part of '../pdf_tools_screen.dart';
 /// levha açar; her araç [_PdfToolsScreenState._apply] kapısından geçer
 /// (geri alma, iz, izolat). Ağır işlerin hepsi `…InBackground`.
 extension _PdfToolsProPart on _PdfToolsScreenState {
+  /// Özellik bayrağı anahtarı (anayasa k.9; geri alma: `false` yaz).
+  static const flagKey = 'pdf_pro_v1';
+
   Future<void> _openProTools() async {
     if (_bytes == null || _busy) return;
     final id = await showAppSheet<String>(
@@ -249,12 +252,22 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
   }
 
   /// Dosya üreten (belgeyi değiştirmeyen) iş: meşgul şeridi + hata şeridi.
+  ///
+  /// `_apply` gibi `TrackedTask`'a (İşlemler kuyruğu, `JobQueue`) bağlı:
+  /// 1,5 sn'yi geçen iş şeritte/bildirimde görünür.
   Future<void> _produce(String label, Future<void> Function() job) async {
     if (_busy) return;
     _partSetState(() => _busyLabel = '$label…');
+    final task = TrackedTask(
+      title: '$label…',
+      name: _str.t('pt.job_name', {'label': label}),
+    )..report(detail: p.basename(widget.path));
+    bool watched() => TrackedTask.userWatching;
     try {
       await job();
+      await task.complete(quiet: watched());
     } catch (e) {
+      await task.fail(e, quiet: watched());
       if (mounted) {
         _snackError(
             _str.t('pt.op_failed', {'label': label, 'error': userErrorText(e)}));
