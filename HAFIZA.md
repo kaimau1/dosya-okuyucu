@@ -358,3 +358,11 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - Durum yüzleri `widgets/state_views.dart`: `AppSkeleton` (nabız `Motion.pulse`, hafif/azaltılmışta yok), `AppErrorView` (editör hata satırlarının yerine). Boş durum çizimi `widgets/empty_art.dart` (FmEmptyState otomatik).
 - Rehber: okuyucu · düzenleyici · tara + `SampleDocs` (yalnız düğmeyle, `Documents/Dosya Okuyucu/<Örnekler>`). Ayarlar: `suggestedSettingIds` → "Önerilenler" çipleri.
 - Perf A/B: bekliyor (`docs/perf/2026-11-05-faz40.md`), cihaz listesi `CIHAZ_TESTI.md` Faz 40.
+## 2026-11-05 — Faz 41 bitti (faz-41 dalı; kod — cihaz turu + perf A/B bekliyor)
+- **Zincir:** `fire_trigger` bu oturumda da yoktu → yedek kural: Faz 41 aynı oturumda sürdü (Faz 40 PR #60 birleşti).
+- **Çift bölme** `screens/fm/dual_pane_screen.dart` (`DualPaneModel` saf); gezgin ⋮'den. **SD SAF yazma** `services/fm/saf_write.dart`: `FileOps._transfer` başında `needsSaf` (çıkarılabilir birimde deneme dosyası yazılamazsa) → izinli ağaca (`SafRoot`) eşleme + `safCopyFromFile`; izin yoksa hata `SafWrite.noGrant` → `showSafGrantSnack`.
+- **Drive** `drive_offline.dart`: sabitleme (`offline_pins.json`, `DriveCache.prune(keep:)`), taban kaydı `<id>/.base.json` → `DriveSyncState` (yerel/uzak/çakışma). OneDrive/Dropbox → KALANLAR B5.8 (uygulama kaydı 👤).
+- **İçerik dizini** `content_index.dart` + `content_indexer.dart` (JSONL, artımlı; `textOf` null = sonraki tura, boş = metinsiz kaydı); `DeviceProfile.powerSave()` → Kotlin `Extras` kanalı `powerSave`. Kayıtlı aramalar `saved_searches.dart`.
+- **Arama dizini artımlı:** `SearchIndex.applyChanges` + `FsEvents.changed(paths, indexed)` → `indexedVersion` eşitse dizin bayatlamaz.
+- **Tuzak (CI, 3 kez):** çeviri anahtarı ÖNEKLERİ başka tablolarla çakışıyor (`tp.`, `saf.granted`, `ss.saved`) → `equal_keys_in_const_map`. Yeni anahtar eklemeden önce tüm `strings/*.dart`ta yinelenen anahtar taraması yap (python tek satır). `JobHandle`ta iptal = `cancelled` (JobRecord'da `cancelRequested`). `daysBetween` `int?` döner. `dart:ui` olmadan servis dosyasında `Color` yok.
+- Perf A/B: bekliyor (`docs/perf/2026-11-05-faz41.md`), cihaz listesi `CIHAZ_TESTI.md` Faz 41.

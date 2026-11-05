@@ -5,7 +5,6 @@ import 'dart:io';
 
 import 'package:dosya_okuyucu/models/fs_entry.dart';
 import 'package:dosya_okuyucu/services/fm/content_index.dart';
-import 'package:dosya_okuyucu/services/fm/fs_scan.dart';
 import 'package:dosya_okuyucu/services/fm/search_index.dart';
 import 'package:flutter_test/flutter_test.dart';
 

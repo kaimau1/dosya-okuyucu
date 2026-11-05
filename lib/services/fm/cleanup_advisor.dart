@@ -180,7 +180,7 @@ List<CleanupSuggestion> adviseCleanup({
   final shots = index
       .files(FmCategory.image)
       .where((e) =>
-          isScreenshot(e) && daysBetween(e.lastTouchedMs, today) >= 90)
+          isScreenshot(e) && (daysBetween(e.lastTouchedMs, today) ?? 0) >= 90)
       .toList()
     ..sort((a, b) => b.sizeBytes.compareTo(a.sizeBytes));
   if (shots.isNotEmpty) {
@@ -205,7 +205,7 @@ List<CleanupSuggestion> adviseCleanup({
   ]) {
     for (final e in index.files(c)) {
       if (e.sizeBytes >= 50 * 1024 * 1024 &&
-          daysBetween(e.lastTouchedMs, today) >= 365 &&
+          (daysBetween(e.lastTouchedMs, today) ?? 0) >= 365 &&
           !isAppBackup(e)) {
         oldLarge.add(e);
       }

@@ -184,7 +184,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
         handle.throwIfCancelled();
         // Faz 41 / 5: boş klasörler (ana bellek; ucuz yürüyüş).
         final empty = await EmptyFolders.find(FmEnv.primaryRoot,
-            isCancelled: () => handle.cancelRequested);
+            isCancelled: () => handle.cancelled);
         handle.throwIfCancelled();
 
         final list = adviseCleanup(
