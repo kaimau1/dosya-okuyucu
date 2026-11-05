@@ -124,6 +124,17 @@ extension _SlidesProPart on _SlidesEditorScreenState {
                 label: context.t('sp.smartart'),
                 hint: context.t('sp.smartart_hint')),
           ]),
+          AppActionGroup(title: context.t('sp.g_arrange'), actions: [
+            AppAction(
+                value: 'layers',
+                icon: AppIcons.layers,
+                label: context.t('sp.layers_align'),
+                hint: context.t('sp.layers_hint')),
+            AppAction(
+                value: 'anims',
+                icon: AppIcons.autoAwesomeMotion,
+                label: context.t('sp.anim_order')),
+          ]),
           AppActionGroup(title: context.t('sp.g_show'), actions: [
             AppAction(
                 value: 'presenter',
@@ -147,6 +158,15 @@ extension _SlidesProPart on _SlidesEditorScreenState {
         ]);
     if (pick == null || !mounted) return;
     switch (pick) {
+      case 'layers' || 'anims':
+        final bytes = await _deckBytes();
+        if (bytes == null || !mounted) return;
+        await Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => SlideArrangePage(
+                bytes: bytes,
+                slide: _curIndex,
+                apply: _proApply,
+                initialTab: pick == 'anims' ? 1 : 0)));
       case 'presenter':
         await _play(_curIndex, presenter: true);
       case 'png_one':

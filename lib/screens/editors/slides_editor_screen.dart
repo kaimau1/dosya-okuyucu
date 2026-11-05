@@ -64,6 +64,7 @@ import '../../widgets/quick_sheets.dart';
 import '../../widgets/download_action.dart';
 import '../chat_screen.dart';
 import 'slideshow_screen.dart';
+import 'slides_pro/arrange_page.dart';
 import 'slides_pro/chart_page.dart';
 import 'slides_pro/master_page.dart';
 import 'slides_pro/pro_common.dart';

@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:dosya_okuyucu/services/pptx/pro/pptx_arrange_ops.dart';
 import 'package:dosya_okuyucu/services/pptx/pro/pptx_chart_ops.dart';
 import 'package:dosya_okuyucu/services/pptx/pro/pptx_master_ops.dart';
 import 'package:dosya_okuyucu/services/pptx/pro/pptx_media_ops.dart';
@@ -9,6 +10,7 @@ import 'package:dosya_okuyucu/services/pptx/pro/pptx_templates.dart';
 import 'package:dosya_okuyucu/services/pptx_editor.dart';
 import 'package:dosya_okuyucu/services/pptx_writer.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:xml/xml.dart';
 
 /// Faz 38 — slayt pro işlemleri (paket düzeyi). Her işlem sonrası deste
 /// `PptxEditor.parse` ile yeniden açılabilmeli (bozuk paket üretmez).
@@ -193,6 +195,53 @@ void main() {
       // Kapak görseli çizim modelinde resim olarak görünür.
       expect(PptxEditor.parse(b).slides[1].view!.shapes.where((s) => s.image != null),
           isNotEmpty);
+    });
+  });
+
+  group('madde 6 — katman / hizala / animasyon', () {
+    Future<Uint8List> threeBoxes() => PptxPro.run(deck, (pkg) {
+          final d = pkg.edit(pkg.slidePart(1))!;
+          final tree = PptxPackage.spTree(d)!;
+          for (final (id, x) in [(51, 100), (52, 900), (53, 5000)]) {
+            tree.children.add(PptxPackage.frag('<p:sp><p:nvSpPr><p:cNvPr id="$id" name="K$id"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>'
+                '<p:spPr><a:xfrm><a:off x="$x" y="${x * 2}"/><a:ext cx="100" cy="100"/></a:xfrm>'
+                '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:sp>'));
+          }
+        });
+
+    test('hizala, dağıt, z sırası, gizle', () async {
+      var b = await threeBoxes();
+      b = await PptxPro.run(b, PptxArrangeOps.align(1, [51, 52, 53], SlideAlign.top));
+      var l = {for (final x in PptxArrangeOps.layers(open(b), 1)) x.id: x};
+      expect([l[51]!.frame![1], l[52]!.frame![1], l[53]!.frame![1]], [200, 200, 200]);
+      b = await PptxPro.run(b, PptxArrangeOps.distribute(1, [53, 51, 52], horizontal: true));
+      l = {for (final x in PptxArrangeOps.layers(open(b), 1)) x.id: x};
+      // 100..5100 arası, toplam genişlik 300 → aralık 2350; ortadaki 2550'de.
+      expect(l[52]!.frame![0], 2550);
+      b = await PptxPro.run(b, PptxArrangeOps.moveLayer(1, 53, 0));
+      expect(PptxArrangeOps.layers(open(b), 1).first.id, 53);
+      b = await PptxPro.run(b, PptxArrangeOps.setHidden(1, 52, true));
+      expect(PptxArrangeOps.layers(open(b), 1).firstWhere((x) => x.id == 52).hidden, isTrue);
+      // Gizli şekil çizilmez.
+      expect(PptxEditor.parse(b).slides[1].view!.shapes.where((s) => s.id == 52), isEmpty);
+    });
+
+    test('animasyon ekle / sırala / sil — çizim modeline yansır', () async {
+      var b = await threeBoxes();
+      b = await PptxPro.run(b, PptxArrangeOps.addEntrance(1, 51, SlideEntrance.fade));
+      b = await PptxPro.run(b, PptxArrangeOps.addEntrance(1, 52, SlideEntrance.zoom));
+      var a = PptxArrangeOps.animations(open(b), 1);
+      expect([for (final s in a) s.shapeIds.single], [51, 52]);
+      expect(a.first.presetId, 10);
+      expect(PptxEditor.parse(b).slides[1].view!.steps, hasLength(2));
+      b = await PptxPro.run(b, PptxArrangeOps.moveAnimation(1, 1, 0));
+      a = PptxArrangeOps.animations(open(b), 1);
+      expect([for (final s in a) s.shapeIds.single], [52, 51]);
+      final ids = open(b).xml(open(b).slidePart(1))!.findAllElements('p:cTn')
+          .map((c) => c.getAttribute('id')).toList();
+      expect(ids.toSet().length, ids.length); // kimlikler benzersiz
+      b = await PptxPro.run(b, PptxArrangeOps.removeAnimation(1, 0));
+      expect(PptxArrangeOps.animations(open(b), 1).single.shapeIds, [51]);
     });
   });
 }

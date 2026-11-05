@@ -543,6 +543,19 @@ class PptxRender {
 
   // --------------------------------------------------------------- toplama
 
+  static bool _hiddenShape(XmlElement el) {
+    for (final nv in el.childElements) {
+      if (!nv.name.local.startsWith('nv')) continue;
+      for (final c in nv.childElements) {
+        if (c.name.qualified == 'p:cNvPr') {
+          final h = c.getAttribute('hidden');
+          return h == '1' || h == 'true';
+        }
+      }
+    }
+    return false;
+  }
+
   void _collect(
     XmlDocument doc,
     String file,
@@ -575,6 +588,8 @@ class PptxRender {
     required bool editable,
   }) {
     for (final el in parent.childElements) {
+      // Faz 38: katman panelinde gizlenen şekil (`p:cNvPr@hidden`) çizilmez.
+      if (_hiddenShape(el)) continue;
       switch (el.name.qualified) {
         case 'p:sp':
         case 'p:pic':
