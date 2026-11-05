@@ -91,7 +91,10 @@ extension _SpreadsheetChartLayerPart on _SpreadsheetEditorScreenState {
   /// Dikeyde görünür pencerenin tamamen dışında mı?
   bool _offscreenY(double top, double h, double dy) {
     if (!_vBody.hasClients) return false;
-    final vh = _vBody.position.viewportDimension;
+    final pos = _vBody.position;
+    // İlk yerleşimden önce ölçü yok → çiz (boyamayı atlamak yalnız ölçülünce).
+    if (!pos.hasViewportDimension) return false;
+    final vh = pos.viewportDimension;
     return top - dy > vh || top + h - dy < 0;
   }
 
