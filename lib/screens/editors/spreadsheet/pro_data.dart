@@ -264,6 +264,19 @@ extension _SpreadsheetProDataPart on _SpreadsheetEditorScreenState {
   Future<bool> _openEncrypted() async {
     final ext = p.extension(widget.path).toLowerCase();
     if (ext != '.xlsx' && ext != '.xlsm') return false;
+    // Önce 8 baytlık imza EŞZAMANLI okunur: sıradan xlsx (ZIP) burada
+    // döner, açılış yolu eskisi gibi kalır (zaman uyumsuz okuma test
+    // saatinde ve açılışta gereksiz bekleme yaratıyordu).
+    try {
+      final raf = File(widget.path).openSync();
+      try {
+        if (!OleFile.looksLikeOle(raf.readSync(8))) return false;
+      } finally {
+        raf.closeSync();
+      }
+    } on FileSystemException {
+      return false;
+    }
     final bytes = await File(widget.path).readAsBytes();
     if (!OfficeCrypto.isEncrypted(bytes)) return false;
     String? hint;

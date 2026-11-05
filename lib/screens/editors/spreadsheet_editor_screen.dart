@@ -46,6 +46,7 @@ import '../../services/text_decode.dart';
 import '../../services/formula_engine.dart';
 import '../../services/formula_errors.dart';
 import '../../services/office_crypto.dart';
+import '../../services/ole_cfb.dart' show OleFile;
 import '../../services/formula_help.dart';
 import '../../services/sheet_data_ops.dart';
 import '../../services/sheet_edit.dart';
