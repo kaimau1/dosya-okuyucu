@@ -185,8 +185,9 @@ yalnız görünürken boyanır.
 **Ek:**
 - [x] 8. Gezinti bölmesi (başlık ağacı), sayfa küçük resimleri, kelime sayacı, okuma süresi.
    (`_OutlineTree` katlanır + tahmini sayfa; `_ThumbGrid` PDF akışı + `cacheWidth`; `docx_paginator.dart` artımlı + `DocxStats`; `word_pro_pages_test`.)
-9. Madde/numara çok düzeyli, sütun, kenarlık, metin kutusu, şekil, görsel sarma (satır içi/üstte/arkada),
+- [x] 9. Madde/numara çok düzeyli, sütun, kenarlık, metin kutusu, şekil, görsel sarma (satır içi/üstte/arkada),
 başlık/kapak sayfası, bölüm sonu, farklı ilk sayfa, alan kodları (tarih, sayfa), çapraz başvuru, kaynakça.
+   (çok düzeyli liste + sütun Faz 23–24'te vardı; `docx_insert_pro.dart` kenarlık/metin kutusu/şekil/sarma/kapak/alan/çapraz başvuru/kaynakça — imleç işareti yöntemi; bölüm sonu + farklı ilk sayfa `docx_layout_ops`; `word_pro_insert_test`.)
 10. Yazım/dilbilgisi (var olan yazım denetimi + AI düzeltme önerisi satır içi, kullanıcı onaylı).
 11. Okuma kipi (yeniden akış) + gece kipi; PDF/ODT/RTF/MD dışa aktarma kalitesi. **Perf:** sayfa
 düzeni **artımlı** (yalnız değişen paragraf ve sonrası), görünür sayfa ±1 çizilir, `word_perf_test`

@@ -107,6 +107,54 @@ extension _WordProPart on _WordMobileEditorScreenState {
         await _passwordMenu();
       case 'export':
         await _export();
+      case 'para_border':
+        final v = await _choose('wp.para_border', const [
+          ('box', 'wp.bdr_box'),
+          ('top', 'wp.bdr_top'),
+          ('bottom', 'wp.bdr_bottom'),
+          ('shade', 'wp.bdr_shade'),
+          ('none', 'wp.bdr_none'),
+        ]);
+        if (v != null) await _proApply(DocxInsertPro.paraBorder(c.extent.para, v));
+      case 'textbox':
+        final t = await showWordTextSheet(context,
+            title: context.t('wp.textbox'),
+            label: context.t('wp.textbox_text'),
+            action: context.t('common.insert'),
+            fieldKey: const ValueKey('word-textbox-field'));
+        if (t != null && t.trim().isNotEmpty && mounted) {
+          await _proApply(DocxInsertPro.textBox(c.extent.para, t.trim()),
+              keepPara: c.extent.para + 1);
+        }
+      case 'shape':
+        final v = await _choose('wp.shape', [
+          for (final g in kDocxShapes) (g, 'wp.shape_$g'),
+        ]);
+        if (v != null) {
+          await _proApply(DocxInsertPro.shape(c.extent.para, v),
+              keepPara: c.extent.para + 1);
+        }
+      case 'img_wrap':
+        await _imageWrap();
+      case 'cover':
+        await _cover();
+      case 'section_break':
+        final v = await _choose('wp.section_break', const [
+          ('nextPage', 'wp.sb_next'),
+          ('continuous', 'wp.sb_cont'),
+          ('evenPage', 'wp.sb_even'),
+          ('oddPage', 'wp.sb_odd'),
+        ]);
+        if (v != null) {
+          await _proApply(DocxLayoutOps.sectionBreak(c.extent.para, v),
+              doneKey: 'wp.sb_done');
+        }
+      case 'field':
+        await _field();
+      case 'cross_ref':
+        await _crossRef();
+      case 'bibliography':
+        await _cite();
       case 'outline':
         await _outline();
       case 'thumbnails':
@@ -700,6 +748,144 @@ extension _WordProPart on _WordMobileEditorScreenState {
         ],
       ),
     );
+  }
+
+  // ── Madde 9: yerleşim öğeleri ────────────────────────────────────────────
+
+  /// İmlece işaret yazıp paket işlemini koşturur; başarısızsa işaret geri
+  /// alınır.
+  Future<void> _atCaret(DocxOp op) async {
+    final c = _ctrl;
+    if (c == null) return;
+    final caret = c.extent.para;
+    c.replaceSelection(kDocxMarker);
+    final ok = await _proApply(op, keepPara: caret);
+    if (!ok && mounted) c.undo();
+  }
+
+  Future<void> _imageWrap() async {
+    final doc = _doc;
+    final c = _ctrl;
+    if (doc == null || c == null) return;
+    final i = c.extent.para;
+    final cur = await DocxPro.query(await doc.saveAsync(), _wrapQuery(i));
+    if (!mounted) return;
+    final v = await showAppSheet<String>(
+      context,
+      title: context.t('wp.img_wrap'),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final m in kDocxWrapModes)
+            ListTile(
+              key: ValueKey('word-choose-$m'),
+              title: Text(ctx.t('wp.wrap_$m')),
+              trailing: m == cur ? const Icon(AppIcons.check) : null,
+              onTap: () => Navigator.pop(ctx, m),
+            ),
+        ],
+      ),
+    );
+    if (v != null && v != cur) await _proApply(DocxInsertPro.imageWrap(i, v));
+  }
+
+  static String? Function(DocxPackage) _wrapQuery(int i) =>
+      (pkg) => DocxInsertPro.wrapOf(pkg, i);
+
+  Future<void> _cover() async {
+    final now = DateTime.now();
+    final r = await showAppSheet<List<String>>(
+      context,
+      title: context.t('wp.cover'),
+      builder: (_) => _FormSheet(fields: [
+        ('title', context.t('wp.cover_title'), ''),
+        ('subtitle', context.t('wp.cover_subtitle'), ''),
+        ('author', context.t('wp.cover_author'), ''),
+        ('date', context.t('wp.cover_date'),
+            '${now.day.toString().padLeft(2, '0')}.${now.month.toString().padLeft(2, '0')}.${now.year}'),
+      ]),
+    );
+    if (r == null || r.first.trim().isEmpty || !mounted) return;
+    await _proApply(DocxInsertPro.cover(r[0].trim(), r[1].trim(), r[2].trim(), r[3].trim()),
+        keepPara: 0, doneKey: 'wp.cover_done');
+  }
+
+  Future<void> _field() async {
+    final v = await _choose('wp.field', [
+      for (final k in kDocxFieldCodes.keys) (k, 'wp.field_$k'),
+    ]);
+    if (v == null || !mounted) return;
+    final now = DateTime.now();
+    String two(int n) => n.toString().padLeft(2, '0');
+    final result = switch (v) {
+      'date' => '${two(now.day)}.${two(now.month)}.${now.year}',
+      'time' => '${two(now.hour)}:${two(now.minute)}',
+      'page' => '1',
+      'numpages' => '${_paginator.pageCount}',
+      'filename' => widget.name,
+      _ => '',
+    };
+    await _atCaret(DocxInsertPro.field(kDocxFieldCodes[v]!, result));
+  }
+
+  Future<void> _crossRef() async {
+    final c = _ctrl;
+    if (c == null) return;
+    final hs = c.headings();
+    if (hs.isEmpty) {
+      showSnack(context, context.t('word.no_headings'));
+      return;
+    }
+    final target = await showAppSheet<int>(
+      context,
+      title: context.t('wp.cross_ref'),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final (i, level, text) in hs)
+            ListTile(
+              key: ValueKey('word-xref-$i'),
+              contentPadding: EdgeInsetsDirectional.only(
+                  start: 16.0 + (level - 1).clamp(0, 4) * 16, end: 16),
+              title: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis),
+              onTap: () => Navigator.pop(ctx, i),
+            ),
+        ],
+      ),
+    );
+    if (target == null || !mounted) return;
+    final kind = await _choose('wp.cross_ref', const [
+      ('text', 'wp.xref_text'),
+      ('page', 'wp.xref_page'),
+      ('above', 'wp.xref_above'),
+    ]);
+    if (kind == null || !mounted) return;
+    final pages = _layoutPages();
+    final heading = hs.firstWhere((h) => h.$1 == target).$3;
+    final result = switch (kind) {
+      'page' => '${target < pages.length ? pages[target] + 1 : 1}',
+      'above' => context.t(target < c.extent.para ? 'wp.xref_is_above' : 'wp.xref_is_below'),
+      _ => heading,
+    };
+    await _atCaret(DocxInsertPro.crossRef(target, kind, result: result));
+  }
+
+  Future<void> _cite() async {
+    final r = await showAppSheet<List<String>>(
+      context,
+      title: context.t('wp.bibliography'),
+      builder: (_) => _FormSheet(fields: [
+        ('author', context.t('wp.src_author'), ''),
+        ('year', context.t('wp.src_year'), ''),
+        ('title', context.t('wp.src_title'), ''),
+        ('publisher', context.t('wp.src_publisher'), ''),
+      ]),
+    );
+    if (r == null || r[0].trim().isEmpty || r[2].trim().isEmpty || !mounted) return;
+    final heading = context.t('wp.bibliography');
+    await _atCaret(DocxInsertPro.cite(
+        DocxSource(r[0].trim(), r[1].trim(), r[2].trim(), r[3].trim()),
+        heading: heading));
   }
 }
 
@@ -1350,6 +1536,64 @@ class _ThumbGridState extends State<_ThumbGrid> {
                   ]),
                 ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+/// Birkaç metin alanlı form levhası; değerleri sırayla döndürür.
+class _FormSheet extends StatefulWidget {
+  /// (kimlik, etiket, başlangıç değeri)
+  final List<(String, String, String)> fields;
+  const _FormSheet({required this.fields});
+
+  @override
+  State<_FormSheet> createState() => _FormSheetState();
+}
+
+class _FormSheetState extends State<_FormSheet> {
+  late final _c = [
+    for (final f in widget.fields) TextEditingController(text: f.$3),
+  ];
+
+  @override
+  void dispose() {
+    for (final c in _c) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          16, 0, 16, 16 + MediaQuery.viewInsetsOf(context).bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < widget.fields.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: TextField(
+                key: ValueKey('word-form-${widget.fields[i].$1}'),
+                controller: _c[i],
+                autofocus: i == 0,
+                decoration: InputDecoration(labelText: widget.fields[i].$2),
+              ),
+            ),
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: FilledButton(
+              key: const ValueKey('word-form-ok'),
+              onPressed: () =>
+                  Navigator.pop(context, [for (final c in _c) c.text]),
+              child: Text(context.t('common.insert')),
             ),
           ),
         ],

@@ -345,6 +345,10 @@ class WordFormatUi {
           active: align == 'right',
           onTap: () => c.alignImage('right')),
       const RibbonSep(),
+      if (onPro != null)
+        RibbonButton(AppIcons.wrapText, _t('wp.img_wrap'),
+            key: const ValueKey('word-pro-img_wrap'),
+            onTap: () => onPro!('img_wrap')),
       RibbonButton(AppIcons.altText, _t('word.img_alt'),
           key: const ValueKey('word-img-alt'), onTap: onImageAlt),
       RibbonButton(AppIcons.image, _t('word.img_replace'),
