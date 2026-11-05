@@ -85,4 +85,13 @@ const Map<String, (String, String, String)> _t26 = {
   'acc.plum': ('Erik', 'Plum', 'برقوقي'),
   'acc.forest': ('Orman', 'Forest', 'أخضر غامق'),
   'acc.rust': ('Kiremit', 'Rust', 'قرميدي'),
+  // ── Madde 10: durum yüzleri ────────────────────────────────────────────
+  'ux.loading': ('Yükleniyor', 'Loading', 'جارٍ التحميل'),
+  'ux.error_title': ('Açılamadı', 'Could not open', 'تعذّر الفتح'),
+  'ux.error_body': (
+    'Dosya bozuk, desteklenmeyen bir sürümde ya da başka bir uygulama tarafından kilitli olabilir.',
+    'The file may be damaged, in an unsupported version, or locked by another app.',
+    'قد يكون الملف تالفًا أو بإصدار غير مدعوم أو مقفلًا من تطبيق آخر.',
+  ),
+  'ux.copy_details': ('Ayrıntıyı kopyala', 'Copy details', 'نسخ التفاصيل'),
 };

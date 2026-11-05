@@ -62,6 +62,7 @@ import '../../services/xlsx_file_charts.dart';
 import '../fm/pick_file_screen.dart' show AppFilePicker;
 import '../../widgets/doc_action_bar.dart';
 import '../../widgets/editor_top_bar.dart';
+import '../../widgets/state_views.dart';
 import '../../widgets/share_export_sheet.dart';
 import '../../widgets/doc_find_bar.dart';
 import '../../widgets/doc_more_sheet.dart';
@@ -542,10 +543,11 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
               label: context.t('excel.keyboard_123'), builder: (_) => _keypadGrid()),
         ],
         body: _error != null
-          ? Center(
-              child: Text(context.t('common.open_failed', {'error': _error})))
+          ? AppErrorView(
+                  message: context.t('ux.error_body'),
+                  details: context.t('common.open_failed', {'error': _error}))
           : editor == null
-              ? const Center(child: CircularProgressIndicator())
+              ? const AppSkeleton(kind: SkeletonKind.grid)
               : Column(
                   children: [
                     if (editor.truncated) _truncatedBanner(),

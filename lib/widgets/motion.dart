@@ -169,7 +169,7 @@ class _FmListSkeletonState extends State<FmListSkeleton>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulse = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 900),
+    duration: Motion.pulse,
   );
 
   @override

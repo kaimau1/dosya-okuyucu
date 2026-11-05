@@ -23,6 +23,7 @@ import '../../services/fm/activity_log.dart';
 import '../../services/fm/safe_write.dart';
 import '../../widgets/ai_rewrite_sheet.dart';
 import '../../widgets/editor_top_bar.dart';
+import '../../widgets/state_views.dart';
 import '../../widgets/share_export_sheet.dart';
 import '../../widgets/docx_editor/docx_edit_controller.dart';
 import '../../widgets/docx_editor/docx_editor_view.dart';
@@ -705,11 +706,12 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
           body: withDraftBanner(
             restore: _restoreDraft,
             _error != null
-                ? Center(
-                    child: Text(context.t('common.open_failed', {'error': _error})))
+                ? AppErrorView(
+                        message: context.t('ux.error_body'),
+                        details: context.t('common.open_failed', {'error': _error}))
                 : c == null
                     ? (_preview == null
-                        ? const Center(child: CircularProgressIndicator())
+                        ? const AppSkeleton()
                         : DocxLoadingPreview(paragraphs: _preview!))
                     : _chrome(c),
           ),

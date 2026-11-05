@@ -140,10 +140,11 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                 ),
             ]),
       body: withDraftBanner(restore: _restoreDraft, _wordChrome(_error != null
-          ? Center(
-              child: Text(context.t('common.open_failed', {'error': _error})))
+          ? AppErrorView(
+                  message: context.t('ux.error_body'),
+                  details: context.t('common.open_failed', {'error': _error}))
           : editor == null || bytes == null
-              ? const Center(child: CircularProgressIndicator())
+              ? const AppSkeleton()
               : _plainMode
                   ? _buildPage(editor)
                   : Stack(
