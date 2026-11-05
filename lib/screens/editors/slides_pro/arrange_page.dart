@@ -120,8 +120,7 @@ class _SlideArrangePageState extends State<SlideArrangePage> {
             : ReorderableListView.builder(
                 key: const ValueKey('sp-layers'),
                 itemCount: rows.length,
-                onReorder: (from, to) {
-                  if (to > from) to--;
+                onReorderItem: (from, to) {
                   final l = rows[from];
                   // Görünüm sırası → z sırası (ters).
                   _run(PptxArrangeOps.moveLayer(
@@ -242,8 +241,7 @@ class _SlideArrangePageState extends State<SlideArrangePage> {
           : ReorderableListView.builder(
               key: const ValueKey('sp-anims'),
               itemCount: _anims.length,
-              onReorder: (from, to) {
-                if (to > from) to--;
+              onReorderItem: (from, to) {
                 _run(PptxArrangeOps.moveAnimation(widget.slide, from, to));
               },
               itemBuilder: (context, i) {
