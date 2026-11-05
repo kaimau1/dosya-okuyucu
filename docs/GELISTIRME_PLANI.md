@@ -119,7 +119,7 @@ kayda dek bellekte tutuyor — 30 sayfa "akışla" üretim yapılmadı (ölçüm
 Ek 8: stüdyo her değişikliği PDF'e kendiliğinden yazıyor + arka plana geçerken bekleyen yazılıyor (taslak = PDF).
 Ek 9: dışa aktarma `TrackedTask` → `JobQueue` (ilerleme, iptal, bitince bildirim).
 
-## Faz 36 — Excel
+## Faz 36 — Excel — BİTTİ 2026-11-05 (kod; cihaz doğrulaması CIHAZ_TESTI.md'de, perf A/B bekliyor)
 - [x] 1. Özet tablo (pivot) oluştur/yenile (satır/sütun/değer/süzgeç, topla-say-ort) — xlsx
    `pivotCache` yazımı veya salt "değer anlık görüntüsü" ilk sürüm.
    (`services/xlsx/pivot.dart` değer anlık görüntüsü + "Özeti yenile"; Veri sekmesi.)

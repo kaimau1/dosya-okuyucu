@@ -19,7 +19,7 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
 
     // Sadeleştirilmiş şerit (Faz 36 madde 7): tek sekme, en sık işler.
     // Tam şerit Görünüm sekmesinden ya da buradaki düğmeden geri gelir.
-    if (_simpleRibbon) {
+    if (_simpleRibbon && _excelPro) {
       return OfficeRibbon(
         compact: true,
         tabs: [
@@ -143,6 +143,7 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
               onTap: () => _showFormatCells()),
           RibbonButton(AppIcons.palette, context.t('excel.cell_styles'),
               key: const ValueKey('xl-cell-styles'), onTap: _showCellStyles),
+          if (_excelPro)
           RibbonButton(AppIcons.formatPaint, context.t('xp.painter'),
               key: const ValueKey('xl-format-painter'),
               active: _painter != null,
@@ -181,10 +182,12 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
           const RibbonSep(),
           RibbonButton(AppIcons.insertChart, context.t('chart.insert'),
               key: const ValueKey('xl-ins-chart'), onTap: _insertChart),
+          if (_excelPro)
           RibbonButton(AppIcons.trendingUp, context.t('xp.sparkline'),
               key: const ValueKey('xl-ins-spark'), onTap: _insertSparklines),
           RibbonButton(AppIcons.comment, context.t('excel.note_new'),
               key: const ValueKey('xl-ins-note'), onTap: _editNote),
+          if (_excelPro)
           RibbonButton(AppIcons.link, context.t('xp.link'),
               key: const ValueKey('xl-ins-link'), onTap: _insertLink),
         ]),
@@ -199,6 +202,7 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
           ])
             RibbonButton(OfficeIcons.autoSum, context.t(key),
                 key: ValueKey('xl-fn-$fn'), onTap: () => _autoFunction(fn)),
+          if (_excelPro) ...[
           const RibbonSep(),
           RibbonButton(AppIcons.accountTree, context.t('xp.trace_prec'),
               key: const ValueKey('xl-trace-prec'), onTap: _tracePrecedents),
@@ -208,6 +212,7 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
               active: _arrows.isNotEmpty, onTap: _clearArrows),
           RibbonButton(AppIcons.goalSeek, context.t('xp.goal_seek'),
               key: const ValueKey('xl-goal-seek'), onTap: _goalSeek),
+          ],
         ]),
         RibbonTab(context.t('excel.tab_data'), [
           RibbonButton(OfficeIcons.sortAsc, context.t('excel.sort_asc'),
@@ -232,6 +237,7 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
               key: const ValueKey('xl-dedup'), onTap: _removeDuplicates),
           RibbonButton(AppIcons.viewColumn, context.t('excel.split_title'),
               key: const ValueKey('xl-split'), onTap: _splitTextToColumns),
+          if (_excelPro) ...[
           RibbonButton(AppIcons.pdfTable, context.t('xp.pivot'),
               key: const ValueKey('xl-pivot'), onTap: _createPivot),
           RibbonButton(AppIcons.download, context.t('xp.import'),
@@ -244,6 +250,7 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
               key: const ValueKey('xl-ungroup'), onTap: () => _groupSelectedRows(false)),
           RibbonButton(AppIcons.expandLess, context.t('xp.toggle_group'),
               key: const ValueKey('xl-toggle-group'), onTap: _toggleOutlineGroup),
+          ],
           if (_pivots.containsKey(_sheet?.name))
             RibbonButton(AppIcons.refresh, context.t('xp.pivot_refresh'),
                 key: const ValueKey('xl-pivot-refresh'), onTap: _refreshPivot),
@@ -266,7 +273,7 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
           RibbonButton(AppIcons.comment,
               context.t(_noteHere ? 'excel.note_edit' : 'excel.note_new'),
               key: const ValueKey('xl-note'), onTap: _editNote),
-          if (_noteHere)
+          if (_noteHere && _excelPro)
             RibbonButton(AppIcons.comment, context.t('xp.note_reply'),
                 key: const ValueKey('xl-note-reply'), onTap: _replyToNote),
           if (_noteHere)
@@ -275,8 +282,9 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
                 onTap: () => _setNote(_selRow, _selCol, null)),
           RibbonButton(OfficeIcons.translate, context.t('common.translate'),
               onTap: _translate),
-          const RibbonSep(),
           // Faz 36 madde 12: sayfa koruması + düzenlenebilir aralık.
+          if (_excelPro || (_sheet?.isProtected ?? false)) ...[
+          const RibbonSep(),
           RibbonButton(
               (_sheet?.isProtected ?? false) ? AppIcons.unlock : AppIcons.lock,
               context.t((_sheet?.isProtected ?? false)
@@ -287,8 +295,10 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
               onTap: _toggleSheetProtection),
           RibbonButton(AppIcons.editNote, context.t('xp.allow_edit'),
               key: const ValueKey('xl-allow-edit'), onTap: _toggleAllowEdit),
+          ],
         ]),
         RibbonTab(context.t('excel.tab_view'), [
+          if (_excelPro) ...[
           RibbonButton(AppIcons.tune, context.t('xp.ribbon_simple'),
               key: const ValueKey('xl-ribbon-simple'),
               onTap: () => _setSimpleRibbon(true)),
@@ -307,6 +317,7 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
             ],
           ),
           const RibbonSep(),
+          ],
           RibbonButton(OfficeIcons.zoomOut, context.t('excel.zoom_out'),
               onTap: () => _zoomCtl.zoomBy(1 / 1.25)),
           RibbonChip(
@@ -554,6 +565,7 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
             _showCondFormat),
       ]),
       // Faz 36 madde 6: yazdırma düzeni / PDF + parola.
+      if (_excelPro)
       DocMoreGroup(context.t('xp.print_group'), [
         DocMoreItem(AppIcons.pdf, context.t('xp.print_pdf'), _printToPdf),
         DocMoreItem(AppIcons.print, context.t('xp.print_area_set_btn'),
@@ -571,6 +583,7 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
       DocMoreGroup(context.t('chart.group_insert'), [
         DocMoreItem(
             AppIcons.insertChart, context.t('chart.insert'), _insertChart),
+        if (_excelPro)
         DocMoreItem(
             AppIcons.trendingUp, context.t('xp.sparkline'), _insertSparklines),
       ]),

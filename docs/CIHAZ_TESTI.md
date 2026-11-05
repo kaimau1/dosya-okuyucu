@@ -647,3 +647,19 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
 - [ ] Dönüştürme: görsellerden PDF (A4/özgün), toplu PDF→JPEG klasörü, web sayfası → PDF, docx/xlsx/pptx → PDF.
 - [ ] İmza yönetimi: imza/paraf çiz-sil, her sayfaya paraf + tarih 100 sayfada.
 - [ ] Perf: `docs/perf/2026-11-05-faz39.md` tablosu doldurulur (gerileme > %10 ya da p99 > 24 ms → `pdf_pro_v1` kapatılır).
+
+## Faz 36 — Excel pro (madde 1–12)
+- [ ] Özet tablo: 10 bin satırlık satış dosyasında bölge × ürün toplamı, süzgeç; kaynak değişince "Özeti yenile" doğru; 100 bin satırda donma yok.
+- [ ] Koşullu biçim: renk ölçeği / veri çubuğu / simge kümesi / formül kuralı kaydet → Excel ve Google E-Tablolar'da aynı görünüyor; "Kuralları yönet" dosyadaki kuralı siliyor.
+- [ ] Mini grafik: çizgi/sütun/kazanç-kayıp Excel'de görünüyor; kaydırma akıcı.
+- [ ] Dinamik dizi: `=FİLTRE(...)`, `=SIRALA(...)`, `=BENZERSİZ(...)`, `=SIRALI(5)` taşıyor; engel varsa #YAYILMA!; LET ve formül "?" açıklaması.
+- [ ] Tablo: `Tablo1[Tutar]`, `[@Tutar]` formülleri; tablo stili Excel'de Tablo Tasarımı'nda.
+- [ ] Parolalı xlsx: Excel'de parolayla korunan dosya açılıyor; uygulamada parola konan dosya Excel'de parola istiyor; yanlış parola uyarısı.
+- [ ] Yazdırma → PDF: yatay/sığdır/başlık yinele; yazdırma alanı ayarlıysa yalnız o alan; Excel'de yazdırma alanı görünüyor.
+- [ ] Görünüm: sade şerit, kaydırınca başlık gölgesi, yoğunluk (kompakt/rahat) yeniden açılışta kalıyor.
+- [ ] Veri: CSV/TSV/ODS içe aktarma (Türkçe ANSI dosya), ara toplam, satır gruplama + aç/kapa, not yanıtı, köprü (web + sayfa bağı) Excel'de çalışıyor.
+- [ ] Biçim boyacısı tek dokunuşta biçimi taşıyor; renk seçicide dosyanın tema renkleri.
+- [ ] Formüller: öncül/ardıl okları doğru hücreye; döngüsel formül yazınca uyarı; Hedef ara (ör. kredi taksiti) doğru sonuç.
+- [ ] Grafik: kombinasyon + ikincil eksen + eğilim çizgisi Excel'de aynı; stil değişiyor; PNG/PDF paylaşımı.
+- [ ] Koruma: parolalı sayfa koruması Excel'de aynı parolayla kalkıyor; düzenlenebilir aralık dışı hücre uygulamada kilitli; Excel'de korunmuş dosyanın korumasını parolayla kaldırma.
+- [ ] Perf: `docs/perf/2026-11-05-faz36.md` tablosu doldurulur (gerileme > %10 ya da p99 > 24 ms → `excel_pro_v1` kapatılır).

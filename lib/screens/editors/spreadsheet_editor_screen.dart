@@ -340,6 +340,10 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
   /// Sadeleştirilmiş şerit (Faz 36 madde 7) — tercih kalıcı.
   bool _simpleRibbon = false;
 
+  /// Faz 36 özellik bayrağı (`excel_pro_v1`, varsayılan açık): kapalıysa
+  /// Excel pro düğmeleri gizlenir, eski şerit aynen kalır.
+  bool _excelPro = true;
+
   /// Biçim boyacısı kaynağı (üst, sol, satır, sütun) — Faz 36 madde 9.
   (int, int, int, int)? _painter;
 

@@ -18,12 +18,15 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
             () => _askCondRule('cellIs', operator: 'equal')),
         DocMoreItem(AppIcons.textFields, context.t('excel.cond_contains'),
             () => _askCondRule('containsText')),
+        if (_excelPro) ...[
         DocMoreItem(AppIcons.functions, context.t('xp.cond_formula'),
             _askFormulaCond),
         DocMoreItem(AppIcons.listAlt, context.t('xp.cond_manage'),
             _showCondManager),
+        ],
       ]),
       // Faz 36 madde 2: görsel kurallar (dosyaya yazılır).
+      if (_excelPro)
       DocMoreGroup(context.t('xp.cond_visual'), [
         DocMoreItem(AppIcons.formatColorFill, context.t('xp.scale_rg'),
             () => _addVisualCond('colorScale',

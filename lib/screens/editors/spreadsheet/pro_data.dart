@@ -410,7 +410,9 @@ extension _SpreadsheetProDataPart on _SpreadsheetEditorScreenState {
       final prefs = await SharedPreferences.getInstance();
       final simple = prefs.getBool(_simpleRibbonKey) ?? false;
       final density = prefs.getDouble(_densityKey);
+      final pro = prefs.getBool('excel_pro_v1') ?? true;
       if (!mounted) return;
+      if (pro != _excelPro) _partSetState(() => _excelPro = pro);
       if (simple != _simpleRibbon) _partSetState(() => _simpleRibbon = simple);
       final fileZoom = _sheet?.layout.zoomScale ?? 1;
       if (density != null && density != 1 && fileZoom == 1) {

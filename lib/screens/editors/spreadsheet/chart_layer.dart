@@ -197,7 +197,7 @@ extension _SpreadsheetChartLayerPart on _SpreadsheetEditorScreenState {
                           ),
                       ],
                     ),
-                    _chartOptionsButton(spec),
+                    if (_excelPro) _chartOptionsButton(spec),
                     IconButton(
                       key: const ValueKey('xl-chart-delete'),
                       tooltip: context.t('common.delete'),
