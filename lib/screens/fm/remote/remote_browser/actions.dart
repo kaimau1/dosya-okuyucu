@@ -94,7 +94,7 @@ extension _RemoteBrowserScreenActionsPart on _RemoteBrowserScreenState {
     try {
       final dir =
           p.join(FmEnv.appSupportDir, 'remote', safeCacheName(widget.connection.id));
-      final local = await _fs.download(entry, p.join(dir, entry.name));
+      final local = await _fs.downloadResumable(entry, p.join(dir, entry.name));
       // Düzenleme geri yazımının ölçütü: dosyanın açılmadan ÖNCEKİ hâli.
       // Boyut + değiştirilme damgası birlikte alınıyor; yalnız damga
       // güvenilmez (aynı saniyede kaydeden editörler var), yalnız boyut da

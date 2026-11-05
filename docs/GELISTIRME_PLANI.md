@@ -283,7 +283,7 @@ yeşil; ortak bileşen değişince pano boşta-kare ve kaydırma ölçümü yeni
 
 **Ek:** 5. [x] Çöp kutusu/kasa/yinelenenler/büyük dosya temizleyici akıllı öneriler (var olan
 Yer aç sekmesi); 6. [x] Etiket + renk + favori klasör; 7. [x] Arşiv: 7z/rar okuma, parola, bölünmüş zip;
-8. Yerel ağ: SMB/FTP/WebDAV istemci. **Perf:** dizin (indeks) **artımlı** ve olay güdümlü,
+8. [x] Yerel ağ: SMB/FTP/WebDAV istemci. **Perf:** dizin (indeks) **artımlı** ve olay güdümlü,
 arka planda düşük öncelik, pil tasarrufunda duraklar; `fs_sort_perf_test` ve gezgin liste önbelleği
 (P8/G13) korunur; küçük resim üretimi eşzamanlılığı `PerfBudget`te.
 

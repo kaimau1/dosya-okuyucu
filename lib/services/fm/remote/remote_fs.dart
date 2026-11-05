@@ -83,6 +83,49 @@ abstract class RemoteFs {
   /// Uzak dosyayı yerel [localPath]'e indirir.
   Future<File> download(RemoteEntry entry, String localPath);
 
+  /// Ofsetli okuma destekleniyor mu (kaldığı yerden devam)? Gerçekleme
+  /// [downloadFrom]'u geçersiz kılıyorsa true döner.
+  bool get canResume => false;
+
+  /// [offset] baytından itibaren [part] dosyasının SONUNA ekler. Varsayılan:
+  /// devam desteklenmiyor — [part] baştan yazılır.
+  Future<void> downloadFrom(RemoteEntry entry, File part, int offset) async {
+    final tmp = await download(entry, '${part.path}.tmp');
+    await tmp.rename(part.path);
+  }
+
+  /// **Kaldığı yerden devam eden indirme** (Faz 41 / 8, 2026-11-05).
+  ///
+  /// Önce `<hedef>.part`a yazılır, bitince adı değişir. Bağlantı koparsa
+  /// `.part` kalır; aynı hedefe ikinci deneme [canResume] protokollerde
+  /// (SFTP) kalan baytı çeker, ötekilerde baştan indirir. Boyut biliniyor ve
+  /// parça tamsa yeniden indirilmez.
+  Future<File> downloadResumable(RemoteEntry entry, String localPath) async {
+    final target = File(localPath);
+    await target.parent.create(recursive: true);
+    final part = File('$localPath.part');
+    var have = await part.exists() ? await part.length() : 0;
+    final size = entry.sizeBytes;
+    if (size > 0 && have > size) {
+      await part.delete();
+      have = 0;
+    }
+    if (!(size > 0 && have == size)) {
+      if (have > 0 && !canResume) {
+        await part.delete();
+        have = 0;
+      }
+      await downloadFrom(entry, part, have);
+    }
+    if (await target.exists()) await target.delete();
+    return part.rename(localPath);
+  }
+
+  /// Saf: `.part` dosyasından devam edilecek ofset (boyut bilinmiyorsa ya da
+  /// parça büyükse 0).
+  static int resumeOffset({required int have, required int size}) =>
+      size > 0 && have > 0 && have < size ? have : 0;
+
   /// Yerel dosyayı [remoteDir] altına yükler.
   Future<void> upload(File local, String remoteDir, {String? name});
 

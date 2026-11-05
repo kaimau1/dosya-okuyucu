@@ -237,10 +237,20 @@ abstract final class FileOps {
     }
     // Taşımada ESKİ yol dizinde kalmasın (kopyalamada kaynak yerinde duruyor,
     // dokunulmaz). Yeni yol bir sonraki tam kurulumda dizine girer.
-    if (move && transfers.isNotEmpty) {
-      await SearchIndex.forget([for (final t in transfers) t.source]);
+    // Faz 41 / 8: dizin ARTIMLI güncellenir (eski yol düşer, yeni yol
+    // eklenir); dizin hazır değilse eski davranış: kaynaklar düşer, dizin
+    // bayatlar ve sonraki aramada arka planda yeniden kurulur.
+    var indexed = false;
+    if (transfers.isNotEmpty) {
+      indexed = await SearchIndex.applyChanges(
+        removed: move ? [for (final t in transfers) t.source] : const [],
+        added: [for (final t in transfers) t.dest],
+      );
+      if (!indexed && move) {
+        await SearchIndex.forget([for (final t in transfers) t.source]);
+      }
     }
-    if (succeeded > 0) FsEvents.changed(_touched(transfers, move));
+    if (succeeded > 0) FsEvents.changed(_touched(transfers, move), indexed);
     return FmOpResult(
       succeeded: succeeded,
       skipped: skipped,

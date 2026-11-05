@@ -130,7 +130,13 @@ extension _RemoteBrowserScreenViewsPart on _RemoteBrowserScreenState {
       await Directory(dir).create(recursive: true);
       for (final entry in files) {
         try {
-          await _fs.download(entry, _RemoteBrowserScreenState._uniquePath(dir, entry.name));
+          // Faz 41 / 8: yarım kalmış indirme (`.part`) aynı ada sürer.
+          final plain = p.join(dir, entry.name);
+          await _fs.downloadResumable(
+              entry,
+              File('$plain.part').existsSync()
+                  ? plain
+                  : _RemoteBrowserScreenState._uniquePath(dir, entry.name));
           done++;
         } catch (e) {
           failed ??= entry.name;
