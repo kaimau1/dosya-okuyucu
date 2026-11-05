@@ -252,8 +252,8 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
   }
 
   /// Belge türünü uygular (Faz 35 / madde 1). Ağır işler izolatta, sayfa
-  /// sayfa sırayla (aynı anda tek büyük görsel bellekte); "Geri al" tek
-  /// adımda eski sayfalara döner.
+  /// sayfa sırayla (aynı anda tek büyük görsel bellekte); her adım "Geri
+  /// al" yığınına girer.
   Future<void> _applyKind(ScanKind kind) async {
     if (_busy || _pages.isEmpty) return;
     final label = context.t(kind.labelKey);

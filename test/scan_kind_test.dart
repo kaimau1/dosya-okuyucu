@@ -1,4 +1,6 @@
+import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/services/scan_enhance.dart';
+import 'package:dosya_okuyucu/services/scan_export.dart';
 import 'package:dosya_okuyucu/services/scan_kind.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
@@ -31,6 +33,15 @@ void main() {
     test('her kipin çeviri anahtarı ayrı', () {
       final keys = ScanKind.values.map((k) => k.labelKey).toSet();
       expect(keys.length, ScanKind.values.length);
+    });
+
+    test('kurulan anahtarların hepsi tabloda (kip, filtre, kalite)', () {
+      final keys = [
+        for (final k in ScanKind.values) k.labelKey,
+        for (final f in ScanFilter.values) ...[f.labelKey, f.shortLabelKey],
+        for (final q in ScanQuality.values) q.labelKey,
+      ];
+      expect(keys.where((k) => !AppStrings.keys.contains(k)), isEmpty);
     });
   });
 
