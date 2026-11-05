@@ -178,7 +178,8 @@ yalnız görünürken boyanır.
    (`docx_compare.dart` LCS + sözcük farkı → w:ins/w:del, belge ekle, `DocxReview` tek öğe kabul/ret; parola = `OfficeCrypto` Agile; `word_pro_compare_test`.)
 - [x] 6. Sesle yazma (cihaz STT) ve AI ile yeniden yaz/özetle/çevir (Gemini var) — satır içi.
    (`ci/Dikte.kt` RecognizerIntent, kanal `dosya/dictate`, izin yok; `_AiInlineSheet` 6 görev, önizleme + Değiştir/Altına ekle, Vazgeç = iptal; `word_pro_ai_test`.)
-7. PDF/Docx dışa aktarım kalitesi: sayfa kırılımı, yazı tipi gömme.
+- [x] 7. PDF/Docx dışa aktarım kalitesi: sayfa kırılımı, yazı tipi gömme.
+   (`docx_pdf.dart`: sayfa sonu/pageBreakBefore/bölüm sonu türü, keepNext, üst/alt bilgi + PAGE/NUMPAGES, Carlito/Tinos gömülü; `docx_fonts.dart`: odttf gizleme + fontTable + embedTrueTypeFonts; Araçlar > Dışa aktar; `word_pro_export_test`.)
 **Ölçüt:** 5 gerçek docx düzen kaybı olmadan açılıp kaydedilir.
 
 **Ek:** 8. Gezinti bölmesi (başlık ağacı), sayfa küçük resimleri, kelime sayacı, okuma süresi.

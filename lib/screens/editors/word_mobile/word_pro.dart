@@ -105,6 +105,8 @@ extension _WordProPart on _WordMobileEditorScreenState {
         await _openReview();
       case 'password':
         await _passwordMenu();
+      case 'export':
+        await _export();
       case 'dictate':
         await _dictate();
       case 'ai_inline':
@@ -541,6 +543,63 @@ extension _WordProPart on _WordMobileEditorScreenState {
       c.insertText('\n${r.$2}');
     } else {
       c.replaceSelection(r.$2);
+    }
+  }
+
+  // ── Madde 7 + 11: dışa aktarım ───────────────────────────────────────────
+
+  String get _baseName {
+    final n = widget.name;
+    final dot = n.lastIndexOf('.');
+    return dot > 0 ? n.substring(0, dot) : n;
+  }
+
+  Future<void> _export() async {
+    final fmt = await _choose('wp.export', _exportFormats);
+    if (fmt == null || !mounted) return;
+    final bytes = await _exportBytes(fmt);
+    if (bytes == null || !mounted) return;
+    final ext = fmt == 'docx_fonts' ? 'docx' : fmt;
+    final name = '$_baseName.$ext';
+    final how = await _choose('wp.export', const [
+      ('save', 'wp.export_save'),
+      ('share', 'common.share'),
+    ]);
+    if (how == null || !mounted) return;
+    if (how == 'share') {
+      final f = File('${Directory.systemTemp.path}/$name');
+      await f.writeAsBytes(bytes);
+      await Share.shareXFiles([XFile(f.path)], text: name);
+    } else {
+      await runDownloadAction(context, () => SaveToDownloads.saveBytes(name, bytes));
+    }
+  }
+
+  /// Dışa aktarım biçimleri (kimlik, etiket).
+  List<(String, String)> get _exportFormats => const [
+        ('pdf', 'wp.export_pdf'),
+        ('docx_fonts', 'wp.export_docx_fonts'),
+      ];
+
+  Future<Uint8List?> _exportBytes(String fmt) async {
+    final doc = _doc;
+    if (doc == null) return null;
+    if (fmt == 'pdf') return _renderPdf();
+    final failed = context.t('wp.failed');
+    _setState(() => _proBusy = true);
+    try {
+      final bytes = await doc.saveAsync();
+      switch (fmt) {
+        case 'docx_fonts':
+          final fonts = await DocxPdfFonts.load();
+          return await DocxPro.run(bytes, DocxFonts.embed(fonts.files));
+      }
+      return null;
+    } catch (e) {
+      if (mounted) showSnack(context, failed.replaceAll('{error}', userErrorText(e)));
+      return null;
+    } finally {
+      _setState(() => _proBusy = false);
     }
   }
 }

@@ -87,11 +87,64 @@ abstract final class DocxPdf {
     return DocxPro.inIsolate ? Isolate.run(work) : work();
   }
 
+  /// Belge sonu bölümünün varsayılan üst/alt bilgi metni; PAGE alanı
+  /// `{p}`, NUMPAGES `{n}` yer tutucusu olur. Yoksa null.
+  static String? headerFooterText(DocxPackage pkg, String refName) {
+    final s = kid(pkg.body, 'sectPr');
+    XmlElement? ref;
+    for (final r in kids(s, refName)) {
+      final t = attrOf(r, 'type') ?? 'default';
+      if (t == 'default') ref = r;
+    }
+    final id = attrOf(ref, 'id');
+    final target = id == null ? null : pkg.relTarget(id);
+    if (target == null) return null;
+    final part = pkg.read('word/${target.replaceFirst(RegExp(r'^/?word/'), '')}');
+    if (part == null) return null;
+    final lines = <String>[];
+    for (final p in part.rootElement.descendantElements.where((e) => e.name.local == 'p')) {
+      final sb = StringBuffer();
+      var instr = '';
+      for (final e in p.descendantElements) {
+        switch (e.name.local) {
+          case 't':
+            if (instr.isEmpty) sb.write(e.innerText);
+          case 'tab':
+            sb.write('   ');
+          case 'fldSimple':
+            final code = (attrOf(e, 'instr') ?? '').trim().toUpperCase();
+            sb.write(code.startsWith('NUMPAGES') ? '{n}' : code.startsWith('PAGE') ? '{p}' : '');
+          case 'instrText':
+            instr += e.innerText;
+          case 'fldChar':
+            final t = attrOf(e, 'fldCharType');
+            if ((t == 'separate' || t == 'end') && instr != '\u0000') {
+              final code = instr.trim().toUpperCase();
+              if (code.startsWith('NUMPAGES')) sb.write('{n}');
+              if (code.startsWith('PAGE')) sb.write('{p}');
+            }
+            if (t == 'separate') instr = '\u0000';
+            if (t == 'end') instr = '';
+        }
+      }
+      // fldSimple içindeki sonuç metni ayrıca yazılmasın.
+      final line = sb.toString().replaceAll(RegExp(r'\{p\}\d+'), '{p}').trim();
+      if (line.isNotEmpty) lines.add(line);
+    }
+    return lines.isEmpty ? null : lines.join('  ·  ');
+  }
+
   static Future<Uint8List> render(Uint8List docx,
       {required DocxPdfFonts fonts, bool pageNumbers = true}) async {
     final doc = DocxDocument.parse(docx);
-    final page = DocxPdfPage.of(DocxPackage.open(docx));
+    final pkg = DocxPackage.open(docx);
+    final page = DocxPdfPage.of(pkg);
     final r = _Renderer(doc, fonts);
+    final header = headerFooterText(pkg, 'headerReference');
+    final footer = headerFooterText(pkg, 'footerReference');
+    String fill(String t, pw.Context ctx) => t
+        .replaceAll('{p}', '${ctx.pageNumber}')
+        .replaceAll('{n}', '${ctx.pagesCount}');
     final out = pw.Document(compress: true);
     final format = PdfPageFormat(page.width, page.height,
         marginTop: page.top,
@@ -106,15 +159,24 @@ abstract final class DocxPdf {
         pageFormat: format,
         theme: r.theme,
         maxPages: 2000,
-        footer: !pageNumbers
+        header: header == null
+            ? null
+            : (ctx) => (page.titlePage && ctx.pageNumber == 1)
+                ? pw.SizedBox()
+                : pw.Container(
+                    alignment: pw.Alignment.center,
+                    margin: const pw.EdgeInsets.only(bottom: 8),
+                    child: pw.Text(fill(header, ctx), style: r.small)),
+        footer: footer == null && !pageNumbers
             ? null
             : (ctx) => (page.titlePage && ctx.pageNumber == 1)
                 ? pw.SizedBox()
                 : pw.Container(
                     alignment: pw.Alignment.center,
                     margin: const pw.EdgeInsets.only(top: 8),
-                    child: pw.Text('${ctx.pageNumber}',
-                        style: const pw.TextStyle(fontSize: 9))),
+                    child: pw.Text(
+                        footer == null ? '${ctx.pageNumber}' : fill(footer, ctx),
+                        style: r.small)),
         // Çok sütunlu bölüm PDF'te tek sütun akar (pdf paketinde gazete
         // sütunu yok); sütun ayarı belgede korunur.
         build: (_) => chunk,
@@ -189,9 +251,36 @@ class _Renderer {
         _ => bidi ? pw.TextAlign.right : pw.TextAlign.left,
       };
 
+  late final pw.TextStyle small = pw.TextStyle(font: _sans, fontSize: 9, color: PdfColors.grey700);
+
   late final List<String> _labels = doc.listLabels();
   late final Map<DocxPara, int> _index = Map.identity()
     ..addAll({for (var i = 0; i < doc.paras.length; i++) doc.paras[i]: i});
+
+  /// Yeni sayfada başlayan bölümlerin ilk paragrafları: paragraf sectPr'si
+  /// bir bölümü bitirir; sonraki bölümün türü `continuous` değilse yeni sayfa.
+  late final Set<int> _sectionStartsPage = () {
+    final out = <int>{};
+    final ends = <int>[];
+    for (var i = 0; i < doc.paras.length; i++) {
+      final pPr = doc.paras[i].pPr;
+      if (pPr != null && pPr.childElements.any((e) => e.name.local == 'sectPr')) {
+        ends.add(i);
+      }
+    }
+    for (var k = 0; k < ends.length; k++) {
+      XmlElement? next;
+      if (k + 1 < ends.length) {
+        next = doc.paras[ends[k + 1]].pPr!.childElements.firstWhere((e) => e.name.local == 'sectPr');
+      } else {
+        next = doc.body.childElements.where((e) => e.name.local == 'sectPr').firstOrNull;
+      }
+      final type = next?.childElements.where((e) => e.name.local == 'type').firstOrNull;
+      final v = type?.attributes.where((a) => a.name.local == 'val').firstOrNull?.value;
+      if (v != 'continuous') out.add(ends[k] + 1);
+    }
+    return out;
+  }();
 
   /// Belge → sayfa sonu atomlarına göre bölünmüş widget dizileri.
   List<List<pw.Widget>> build(double width) {
@@ -211,6 +300,9 @@ class _Renderer {
         continue;
       }
       if (p.look.pageBreakBefore && chunks.last.isNotEmpty) chunks.add([]);
+      if (i > 0 && _sectionStartsPage.contains(i) && chunks.last.isNotEmpty) {
+        chunks.add([]);
+      }
       final parts = _paraParts(p, i, width);
       for (var k = 0; k < parts.length; k++) {
         if (k > 0) chunks.add([]);

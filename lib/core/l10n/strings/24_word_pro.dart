@@ -133,4 +133,9 @@ const Map<String, (String, String, String)> _t24 = {
   'wp.thumbnails': ('Sayfa küçük resimleri', 'Page thumbnails', 'مصغرات الصفحات'),
   'wp.stats': ('Sayaç ve okuma süresi', 'Counts and reading time', 'العدّ ووقت القراءة'),
   'wp.ai_proof': ('AI yazım denetimi', 'AI proofreading', 'تدقيق بالذكاء الاصطناعي'),
+
+  // Madde 7
+  'wp.export_pdf': ('PDF (yazı tipleri gömülü)', 'PDF (fonts embedded)', 'PDF (مع تضمين الخطوط)'),
+  'wp.export_docx_fonts': ('Word, yazı tipleri gömülü (.docx)', 'Word with embedded fonts (.docx)', 'Word مع تضمين الخطوط (.docx)'),
+  'wp.export_save': ('İndirilenler\'e kaydet', 'Save to Downloads', 'الحفظ في التنزيلات'),
 };
