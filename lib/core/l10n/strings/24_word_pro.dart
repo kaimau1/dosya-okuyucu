@@ -14,4 +14,16 @@ const Map<String, (String, String, String)> _t24 = {
   'wp.theme_modern': ('Modern', 'Modern', 'حديث'),
   'wp.theme_elegant': ('Zarif', 'Elegant', 'أنيق'),
   'wp.theme_formal': ('Resmî', 'Formal', 'رسمي'),
+
+  // Madde 2
+  'wp.page_setup': ('Sayfa düzeni', 'Page setup', 'إعداد الصفحة'),
+  'wp.page_applied': ('Sayfa düzeni uygulandı', 'Page setup applied', 'تم تطبيق إعداد الصفحة'),
+  'wp.print_preview': ('Baskı önizleme', 'Print preview', 'معاينة الطباعة'),
+  'wp.custom': ('Özel', 'Custom', 'مخصص'),
+  'wp.margin_top': ('Üst', 'Top', 'أعلى'),
+  'wp.margin_bottom': ('Alt', 'Bottom', 'أسفل'),
+  'wp.margin_left': ('Sol', 'Left', 'يسار'),
+  'wp.margin_right': ('Sağ', 'Right', 'يمين'),
+  'wp.margin_gutter': ('Cilt payı', 'Gutter', 'هامش التجليد'),
+  'wp.title_page': ('Farklı ilk sayfa', 'Different first page', 'صفحة أولى مختلفة'),
 };

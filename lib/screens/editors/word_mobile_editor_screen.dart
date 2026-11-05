@@ -33,6 +33,9 @@ import 'word_mobile/word_insert_ui.dart';
 import '../fm/pick_file_screen.dart';
 import '../../services/docx/pro/docx_package.dart';
 import '../../services/docx/pro/docx_style_ops.dart';
+import '../../services/docx/pro/docx_layout_ops.dart';
+import '../../services/docx/pro/docx_pdf.dart';
+import 'package:printing/printing.dart' show Printing;
 import 'package:shared_preferences/shared_preferences.dart';
 
 part 'word_mobile/word_pro.dart';

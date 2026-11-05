@@ -167,7 +167,8 @@ yalnız görünürken boyanır.
 ## Faz 37 — Word
 - [x] 1. Stil galerisi (Başlık 1–3, Alıntı, Liste) + "stili güncelle"; belge teması/yazı tipleri.
    (`docx/pro/docx_style_ops.dart`: stile taşı + 5 tema; Giriş > Stiller; `word_pro_style_test`.)
-2. Sayfa düzeni ekranı (kenar boşluğu, yön, boyut, sütun, sayfa kesmesi), yazdır önizleme.
+- [x] 2. Sayfa düzeni ekranı (kenar boşluğu, yön, boyut, sütun, sayfa kesmesi), yazdır önizleme.
+   (`docx_layout_ops.dart` + Araçlar > Sayfa düzeni levhası; önizleme = `docx_pdf.dart` → sistem yazdırma; `word_pro_layout_test`.)
 3. Denklem düzenleyici (OMML yaz/oku, temel LaTeX girişi), tablo: hücre birleştir/böl,
    kenarlık/gölge, otomatik sığdır, sıralama.
 4. Şablonlar (CV, mektup, rapor, fatura, tutanak) — "Yeni belge" sayfasına galeri.

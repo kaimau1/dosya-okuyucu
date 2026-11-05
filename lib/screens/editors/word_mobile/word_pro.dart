@@ -91,6 +91,10 @@ extension _WordProPart on _WordMobileEditorScreenState {
             doneKey: 'wp.style_updated');
       case 'theme':
         await _pickTheme();
+      case 'page_setup':
+        await _pageSetup();
+      case 'print_preview':
+        await _printPreview();
     }
   }
 
@@ -125,5 +129,226 @@ extension _WordProPart on _WordMobileEditorScreenState {
     );
     if (set == null || !mounted) return;
     await _proApply(DocxStyleOps.applyStyleSet(set), doneKey: 'wp.theme_applied');
+  }
+
+  // ── Madde 2: sayfa düzeni + baskı önizleme ───────────────────────────────
+
+  Future<void> _pageSetup() async {
+    final doc = _doc;
+    final c = _ctrl;
+    if (doc == null || c == null) return;
+    final bytes = await doc.saveAsync();
+    final spec = await DocxPro.query(bytes, DocxLayoutOps.read);
+    if (!mounted) return;
+    final r = await showAppSheet<(String, DocxPageSpec)>(
+      context,
+      title: context.t('wp.page_setup'),
+      builder: (_) => _PageSetupSheet(spec: spec),
+    );
+    if (r == null || !mounted) return;
+    switch (r.$1) {
+      case 'break':
+        c.insertPageBreak();
+      case 'preview':
+        await _proApply(DocxLayoutOps.apply(r.$2));
+        await _printPreview();
+      default:
+        await _proApply(DocxLayoutOps.apply(r.$2), doneKey: 'wp.page_applied');
+    }
+  }
+
+  /// Yazdırma önizlemesi: kendi PDF çizicimiz (gömülü yazı tipleri) →
+  /// sistemin yazdırma ekranı (önizleme + yazıcı/PDF kaydı).
+  Future<void> _printPreview() async {
+    final pdf = await _renderPdf();
+    if (pdf == null || !mounted) return;
+    await Printing.layoutPdf(onLayout: (_) async => pdf, name: widget.name);
+  }
+
+  Future<Uint8List?> _renderPdf() async {
+    final doc = _doc;
+    if (doc == null) return null;
+    final failed = context.t('wp.failed');
+    _setState(() => _proBusy = true);
+    try {
+      final bytes = await doc.saveAsync();
+      final fonts = await DocxPdfFonts.load();
+      return await DocxPdf.renderInBackground(bytes, fonts: fonts);
+    } catch (e) {
+      if (mounted) {
+        showSnack(context, failed.replaceAll('{error}', userErrorText(e)));
+      }
+      return null;
+    } finally {
+      _setState(() => _proBusy = false);
+    }
+  }
+}
+
+/// Sayfa düzeni levhası: kâğıt, yön, kenar boşlukları (cm), cilt payı,
+/// sütun, farklı ilk sayfa. Döner: ('apply' | 'preview' | 'break', değerler).
+class _PageSetupSheet extends StatefulWidget {
+  final DocxPageSpec spec;
+  const _PageSetupSheet({required this.spec});
+
+  @override
+  State<_PageSetupSheet> createState() => _PageSetupSheetState();
+}
+
+class _PageSetupSheetState extends State<_PageSetupSheet> {
+  late DocxPageSpec _s = widget.spec;
+  late final _fields = {
+    'top': TextEditingController(text: _cm(_s.top)),
+    'bottom': TextEditingController(text: _cm(_s.bottom)),
+    'left': TextEditingController(text: _cm(_s.left)),
+    'right': TextEditingController(text: _cm(_s.right)),
+    'gutter': TextEditingController(text: _cm(_s.gutter)),
+  };
+
+  static String _cm(int tw) =>
+      DocxPageSpec.twipToCm(tw).toStringAsFixed(2).replaceAll(RegExp(r'0$'), '');
+
+  @override
+  void dispose() {
+    for (final f in _fields.values) {
+      f.dispose();
+    }
+    super.dispose();
+  }
+
+  String get _paper {
+    final short = _s.width < _s.height ? _s.width : _s.height;
+    final long = _s.width < _s.height ? _s.height : _s.width;
+    for (final e in kDocxPaperSizes.entries) {
+      if ((e.value.$1 - short).abs() <= 40 && (e.value.$2 - long).abs() <= 40) {
+        return e.key;
+      }
+    }
+    return 'custom';
+  }
+
+  DocxPageSpec _collect() {
+    int f(String k, int def) {
+      final v = double.tryParse(_fields[k]!.text.replaceAll(',', '.'));
+      if (v == null || v < 0 || v > 20) return def;
+      return DocxPageSpec.cmToTwip(v);
+    }
+
+    return _s.copyWith(
+      top: f('top', _s.top),
+      bottom: f('bottom', _s.bottom),
+      left: f('left', _s.left),
+      right: f('right', _s.right),
+      gutter: f('gutter', _s.gutter),
+    );
+  }
+
+  Widget _field(String k) => Expanded(
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: TextField(
+            key: ValueKey('word-ps-$k'),
+            controller: _fields[k],
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+                labelText: context.t('wp.margin_$k'), suffixText: 'cm',
+                isDense: true),
+          ),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final paper = _paper;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(children: [
+            Expanded(child: Text(context.t('word.paper_size'))),
+            DropdownButton<String>(
+              key: const ValueKey('word-ps-paper'),
+              value: paper,
+              onChanged: (k) {
+                final v = kDocxPaperSizes[k];
+                if (v == null) return;
+                setState(() => _s = _s.copyWith(width: v.$1, height: v.$2));
+              },
+              items: [
+                for (final k in kDocxPaperSizes.keys)
+                  DropdownMenuItem(value: k, child: Text(k.toUpperCase())),
+                if (paper == 'custom')
+                  DropdownMenuItem(
+                      value: 'custom', child: Text(context.t('wp.custom'))),
+              ],
+            ),
+          ]),
+          const SizedBox(height: 8),
+          SegmentedButton<bool>(
+            key: const ValueKey('word-ps-orient'),
+            segments: [
+              ButtonSegment(value: false, label: Text(context.t('word.portrait'))),
+              ButtonSegment(value: true, label: Text(context.t('word.landscape'))),
+            ],
+            selected: {_s.landscape},
+            onSelectionChanged: (v) =>
+                setState(() => _s = _s.copyWith(landscape: v.first)),
+          ),
+          const SizedBox(height: 12),
+          Text(context.t('word.margins'), style: context.type.small),
+          Row(children: [_field('top'), _field('bottom')]),
+          Row(children: [_field('left'), _field('right')]),
+          Row(children: [_field('gutter'), const Spacer()]),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(child: Text(context.t('word.columns'))),
+            SegmentedButton<int>(
+              key: const ValueKey('word-ps-cols'),
+              segments: [
+                for (final n in const [1, 2, 3])
+                  ButtonSegment(value: n, label: Text('$n')),
+              ],
+              selected: {_s.columns.clamp(1, 3)},
+              onSelectionChanged: (v) =>
+                  setState(() => _s = _s.copyWith(columns: v.first)),
+            ),
+          ]),
+          SwitchListTile(
+            key: const ValueKey('word-ps-title'),
+            contentPadding: EdgeInsets.zero,
+            title: Text(context.t('wp.title_page')),
+            value: _s.titlePage,
+            onChanged: (v) => setState(() => _s = _s.copyWith(titlePage: v)),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.end,
+            children: [
+              OutlinedButton.icon(
+                key: const ValueKey('word-ps-break'),
+                icon: const Icon(AppIcons.wrapText),
+                label: Text(context.t('word.insert_break')),
+                onPressed: () => Navigator.pop(context, ('break', _s)),
+              ),
+              OutlinedButton.icon(
+                key: const ValueKey('word-ps-preview'),
+                icon: const Icon(AppIcons.print),
+                label: Text(context.t('wp.print_preview')),
+                onPressed: () => Navigator.pop(context, ('preview', _collect())),
+              ),
+              FilledButton(
+                key: const ValueKey('word-ps-apply'),
+                onPressed: () => Navigator.pop(context, ('apply', _collect())),
+                child: Text(context.t('common.apply')),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
