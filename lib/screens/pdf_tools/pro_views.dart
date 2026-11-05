@@ -24,6 +24,9 @@ const _proTools = <List<_ProTool>>[
     _ProTool('to_docx', AppIcons.pdfToWord, 'pp.to_docx', 'pp.to_docx_sub'),
     _ProTool('pdfa', AppIcons.pdfArchive, 'pp.pdfa', 'pp.pdfa_sub'),
   ],
+  [
+    _ProTool('compare', AppIcons.pdfCompare, 'pp.compare', 'pp.compare_sub'),
+  ],
 ];
 
 class _ProToolsSheet extends StatelessWidget {

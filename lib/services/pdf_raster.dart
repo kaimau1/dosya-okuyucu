@@ -48,6 +48,19 @@ class GrayPage {
 }
 
 abstract final class PdfRaster {
+  /// Sayfa sayısı (pdfium).
+  static Future<int> pageCount(List<int> bytes, {String? password}) async {
+    final doc = await PdfDocument.openData(
+      Uint8List.fromList(bytes),
+      passwordProvider: password == null ? null : () async => password,
+    );
+    try {
+      return doc.pages.length;
+    } finally {
+      await doc.dispose();
+    }
+  }
+
   /// [pages] sayfalarını JPEG'e çizer. [blackout] sayfa → görünen sayfa
   /// koordinatında (sol-üst, pt) dikdörtgenler: pikseller SİYAHA boyanır
   /// (karartma). [dpi] istenen çözünürlük; uzun kenar bütçeyi aşmaz.

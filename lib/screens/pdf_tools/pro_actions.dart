@@ -19,6 +19,7 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       'to_xlsx' => _exportTables(),
       'to_docx' => _exportDocx(),
       'pdfa' => _exportPdfA(),
+      'compare' => _compare(),
       _ => Future<void>.value(),
     };
   }
@@ -325,4 +326,42 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
   /// Sayfaları görüntüye çeviren işlerde tek seferde en çok sayfa: her
   /// sayfa ~0,2–0,5 MB JPEG bellekte bekler (500 sayfa = yüzlerce MB).
   static const _rasterPageLimit = 150;
+
+  // ── 4. İki PDF karşılaştırma ─────────────────────────────────────────────
+
+  Future<void> _compare() async {
+    final a = _bytes!;
+    final res = await AppFilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+    );
+    final path = res?.files.single.path;
+    if (path == null || !mounted) return;
+    final b = await File(path).readAsBytes();
+    String? pwB;
+    try {
+      await PdfTools.pageCount(b);
+    } catch (_) {
+      pwB = await _askPassword(
+          _str.t('pt.locked_title'), _str.t('pt.enter_password'));
+      if (pwB == null) return;
+      try {
+        await PdfTools.pageCount(b, password: pwB);
+      } catch (e) {
+        if (mounted) _snackError(userErrorText(e));
+        return;
+      }
+    }
+    if (!mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => PdfCompareScreen(
+        a: a,
+        b: b,
+        nameA: p.basename(widget.path),
+        nameB: p.basename(path),
+        passwordA: _password,
+        passwordB: pwB,
+      ),
+    ));
+  }
 }

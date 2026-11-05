@@ -185,7 +185,8 @@ yalnız görünür slayt tam çizilir, sunum kipinde sonraki slayt önceden rast
    (`pdf_redact.dart` + `pdf_raster.dart` + `pdf_region_screen.dart`; `test/pdf_redact_test.dart`.)
 - [x] 3. Tablo çıkarma → Excel; sayfa metnini Word'e (düzen korunarak); PDF/A dışa aktarım.
    (`pdf_export_pro.dart`; PDF/A-2b `PdfRedact.apply(conformance:)` şablon ya da görüntü kipi.)
-4. İki PDF karşılaştırma (görsel fark + metin farkı).
+- [x] 4. İki PDF karşılaştırma (görsel fark + metin farkı).
+   (`pdf_compare.dart` + `pdf_compare_screen.dart`.)
 5. Parola/izin düzenleme, yer imi düzenleme, damga/filigran şablonları, numaralandırma.
 6. Okuma: gece kipi (A9.2), kaydırma kilidi, çift sayfa/kitap görünümü, sesli okuma
    (var), metin işaretleme kitapçığı (tüm vurgular tek listede dışa aktar).

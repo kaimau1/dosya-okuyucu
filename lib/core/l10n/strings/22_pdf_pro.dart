@@ -110,4 +110,25 @@ const Map<String, (String, String, String)> _t22 = {
     'At most {n} pages — select pages or split first',
     'بحد أقصى {n} صفحة — حدّد صفحات أو قسّم أولًا',
   ),
+  // ── Karşılaştırma ──
+  'pp.compare': ('İki PDF\'i karşılaştır', 'Compare two PDFs', 'مقارنة ملفي PDF'),
+  'pp.compare_sub': ('Metin ve görsel farklar', 'Text and visual differences', 'الفروق النصية والمرئية'),
+  'pp.compare_text': ('Metin', 'Text', 'النص'),
+  'pp.compare_visual': ('Görsel', 'Visual', 'مرئي'),
+  'pp.compare_names': ('{a} → {b}', '{a} → {b}', '{a} ← {b}'),
+  'pp.compare_summary': (
+    '{pages} sayfa değişti · +{added} / −{removed} sözcük',
+    '{pages} pages changed · +{added} / −{removed} words',
+    'تغيّرت {pages} صفحة · +{added} / −{removed} كلمة',
+  ),
+  'pp.compare_only_changed': ('Yalnız farklar', 'Only changes', 'الفروق فقط'),
+  'pp.compare_same': ('Metin farkı yok', 'No text differences', 'لا فروق نصية'),
+  'pp.compare_page': ('Sayfa {n}', 'Page {n}', 'الصفحة {n}'),
+  'pp.compare_visual_page': ('Sayfa {n} · %{pct} farklı', 'Page {n} · {pct}% different', 'الصفحة {n} · {pct}% مختلف'),
+  'pp.compare_progress': ('{done}/{total} sayfa karşılaştırıldı', '{done}/{total} pages compared', 'قورنت {done}/{total} صفحة'),
+  'pp.compare_visual_note': (
+    'Görsel karşılaştırma en çok {n} sayfa',
+    'Visual comparison covers at most {n} pages',
+    'المقارنة المرئية حتى {n} صفحة',
+  ),
 };

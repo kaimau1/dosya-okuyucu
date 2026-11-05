@@ -34,6 +34,7 @@ import '../core/theme.dart';
 import '../core/app_colors.dart';
 import '../widgets/app_dialog.dart';
 import 'fm/pick_file_screen.dart';
+import 'pdf_compare_screen.dart';
 import 'pdf_region_screen.dart';
 
 part 'pdf_tools/actions.dart';
