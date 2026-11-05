@@ -42,6 +42,8 @@ import '../../services/office_crypto.dart';
 import '../../services/dictation.dart';
 import '../../services/docx/pro/docx_paginator.dart';
 import '../../services/docx/pro/docx_insert_pro.dart';
+import '../../services/docx/pro/docx_export_formats.dart';
+import 'word_mobile/word_reader.dart';
 import '../../services/docx/pro/docx_fonts.dart';
 import '../../services/fm/save_to_downloads.dart';
 import '../../widgets/download_action.dart';

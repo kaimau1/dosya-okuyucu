@@ -155,6 +155,12 @@ extension _WordProPart on _WordMobileEditorScreenState {
         await _crossRef();
       case 'bibliography':
         await _cite();
+      case 'reader':
+        final doc = _doc;
+        if (doc == null) return;
+        await Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => WordReaderScreen(
+                doc: doc, title: widget.name, startPara: c.extent.para)));
       case 'outline':
         await _outline();
       case 'thumbnails':
@@ -635,6 +641,10 @@ extension _WordProPart on _WordMobileEditorScreenState {
   List<(String, String)> get _exportFormats => const [
         ('pdf', 'wp.export_pdf'),
         ('docx_fonts', 'wp.export_docx_fonts'),
+        ('odt', 'wp.export_odt'),
+        ('rtf', 'wp.export_rtf'),
+        ('md', 'wp.export_md'),
+        ('txt', 'wp.export_txt'),
       ];
 
   Future<Uint8List?> _exportBytes(String fmt) async {
@@ -649,8 +659,9 @@ extension _WordProPart on _WordMobileEditorScreenState {
         case 'docx_fonts':
           final fonts = await DocxPdfFonts.load();
           return await DocxPro.run(bytes, DocxFonts.embed(fonts.files));
+        default:
+          return await DocxExportFormats.inBackground(bytes, fmt);
       }
-      return null;
     } catch (e) {
       if (mounted) showSnack(context, failed.replaceAll('{error}', userErrorText(e)));
       return null;

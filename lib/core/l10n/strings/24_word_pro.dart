@@ -201,4 +201,14 @@ const Map<String, (String, String, String)> _t24 = {
   'wp.proof_apply': ('Uygula', 'Apply', 'تطبيق'),
   'wp.proof_skip': ('Atla', 'Skip', 'تخطي'),
   'wp.proof_apply_all': ('Tümünü uygula ({n})', 'Apply all ({n})', 'تطبيق الكل ({n})'),
+
+  // Madde 11
+  'wp.export_odt': ('OpenDocument metni (.odt)', 'OpenDocument text (.odt)', 'نص OpenDocument (.odt)'),
+  'wp.export_rtf': ('Zengin metin (.rtf)', 'Rich text (.rtf)', 'نص منسق (.rtf)'),
+  'wp.export_md': ('Markdown (.md)', 'Markdown (.md)', 'Markdown (.md)'),
+  'wp.export_txt': ('Düz metin (.txt)', 'Plain text (.txt)', 'نص عادي (.txt)'),
+  'wp.reader_theme': ('Zemin', 'Background', 'الخلفية'),
+  'wp.reader_day': ('Gündüz', 'Day', 'نهاري'),
+  'wp.reader_sepia': ('Sepya', 'Sepia', 'بني داكن'),
+  'wp.reader_night': ('Gece', 'Night', 'ليلي'),
 };

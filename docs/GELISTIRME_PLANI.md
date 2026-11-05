@@ -190,9 +190,10 @@ başlık/kapak sayfası, bölüm sonu, farklı ilk sayfa, alan kodları (tarih, 
    (çok düzeyli liste + sütun Faz 23–24'te vardı; `docx_insert_pro.dart` kenarlık/metin kutusu/şekil/sarma/kapak/alan/çapraz başvuru/kaynakça — imleç işareti yöntemi; bölüm sonu + farklı ilk sayfa `docx_layout_ops`; `word_pro_insert_test`.)
 - [x] 10. Yazım/dilbilgisi (var olan yazım denetimi + AI düzeltme önerisi satır içi, kullanıcı onaylı).
    (cihaz yazım denetimi korunur; `_ProofSheet` paragraf/belge, 3000 harflik parçalar, öneri başına Uygula/Atla + Tümü, Durdur; `DocxAi.parseProof`; `word_pro_ai_test`.)
-11. Okuma kipi (yeniden akış) + gece kipi; PDF/ODT/RTF/MD dışa aktarma kalitesi. **Perf:** sayfa
+- [x] 11. Okuma kipi (yeniden akış) + gece kipi; PDF/ODT/RTF/MD dışa aktarma kalitesi. **Perf:** sayfa
 düzeni **artımlı** (yalnız değişen paragraf ve sonrası), görünür sayfa ±1 çizilir, `word_perf_test`
 500 sayfa eşiği; yazım denetimi izolatta ve boşta; görsel `cacheWidth`; AI çağrıları iptal edilebilir.
+   (`word_reader.dart` ListView.builder + gündüz/sepya/gece + yazı boyu; `docx_export_formats.dart` ODT/RTF/MD/TXT izolatta; artımlı `DocxPaginator`; `word_perf_test` 5000 paragraf ≈500 sayfa eşiği; AI yazım denetimi istek üzerine + Durdur; resimler `cacheWidth`; `word_pro_formats_test`.)
 
 ## Faz 38 — Slayt
 1. Ana slayt/yerleşim (master/layout) düzenleme: yer tutucu, tema renk/yazı tipi.
