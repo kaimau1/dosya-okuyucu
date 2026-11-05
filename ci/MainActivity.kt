@@ -287,6 +287,7 @@ class MainActivity : FlutterActivity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (docScan?.handleResult(requestCode, resultCode, data) == true) return
         if (requestCode != REQ_PICK_TREE) return
         val pending = pendingPick ?: return
         pendingPick = null
@@ -319,6 +320,7 @@ class MainActivity : FlutterActivity() {
 
     /** QR ile paylaş: hotspot/ağ bağı motor yıkılınca bırakılır. */
     private var qrTransfer: QrTransfer? = null
+    private var docScan: DocScan? = null
 
     /** Yakındakiler (Bluetooth LE): yayın/tarama motor yıkılınca durur. */
     private var nearbyBle: NearbyBle? = null
@@ -328,6 +330,7 @@ class MainActivity : FlutterActivity() {
         qrTransfer = null
         nearbyBle?.dispose()
         nearbyBle = null
+        docScan = null
         super.cleanUpFlutterEngine(flutterEngine)
     }
     private var pendingShortcutPath: String? = null
@@ -755,6 +758,11 @@ class MainActivity : FlutterActivity() {
         QrTransfer(this).also {
             qrTransfer = it
             MethodChannel(flutterEngine.dartExecutor.binaryMessenger, QrTransfer.CHANNEL)
+                .setMethodCallHandler(it)
+        }
+        DocScan(this).also {
+            docScan = it
+            MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DocScan.CHANNEL)
                 .setMethodCallHandler(it)
         }
         NearbyBle(this).also {

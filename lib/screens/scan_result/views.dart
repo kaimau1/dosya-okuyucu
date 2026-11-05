@@ -121,7 +121,10 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
         PageView.builder(
           controller: _pager,
           itemCount: _pages.length,
-          onPageChanged: (i) => _partSetState(() => _index = i),
+          onPageChanged: (i) {
+            _partSetState(() => _index = i);
+            unawaited(_measureVisible());
+          },
           itemBuilder: (_, i) => InteractiveViewer(
             minScale: 1,
             maxScale: 5,
@@ -196,6 +199,13 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
             ),
           ),
         ),
+        if (_qualityHint != null)
+          Positioned(
+            left: Gap.md,
+            right: Gap.md,
+            top: Gap.xs,
+            child: _qualityBanner(context, _qualityHint!),
+          ),
         if (_work != null)
           Positioned.fill(
             child: ColoredBox(
@@ -227,6 +237,165 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
 
   /// Küçük resim şeridi: dokun = git, basılı tut + sürükle = sıra, "+" =
   /// sayfa ekle.
+  /// Önerilen eylem şeridi: "Kimlik içeriyor → Kasaya taşı" ya da
+  /// "Fiş → Gider satırı ekle".
+  Widget _actionBanner(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final vault = _suggestedAction == 'vault';
+    return Material(
+      color: scheme.secondaryContainer,
+      child: Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(Gap.md, Gap.xs, Gap.xs, Gap.xs),
+        child: Row(
+          children: [
+            Icon(vault ? AppIcons.vault : AppIcons.receiptLong,
+                size: 20, color: scheme.onSecondaryContainer),
+            const SizedBox(width: Gap.sm),
+            Expanded(
+              child: Text(
+                context.t(vault ? 'sa.vault_hint' : 'sa.expense_hint'),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: scheme.onSecondaryContainer),
+              ),
+            ),
+            TextButton(
+              onPressed: _busy ? null : (vault ? _moveToVault : _addExpense),
+              child: Text(context.t(vault ? 'sa.vault_do' : 'sa.expense_do')),
+            ),
+            IconButton(
+              tooltip: context.t('common.close'),
+              icon: const Icon(AppIcons.close, size: 18),
+              onPressed: () => _partSetState(() => _actionDismissed = true),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Görünen sayfanın kalite önerisi (bulanık / karanlık / eğik) — kullanıcı
+  /// kapattıysa ya da ölçüm yoksa null.
+  String? get _qualityHint {
+    if (_pages.isEmpty || _busy) return null;
+    final path = _pages[_index].display;
+    if (_qualityDismissed.contains(path)) return null;
+    return _quality[path]?.hint;
+  }
+
+  /// "Sayfa bulanık → Yeniden çek", "Işık az → Feneri açıp yeniden çek",
+  /// "Sayfa eğik → Düzleştir" (Faz 35 / madde 5).
+  Widget _qualityBanner(BuildContext context, String hint) {
+    final scheme = Theme.of(context).colorScheme;
+    final path = _pages[_index].display;
+    final (icon, text, actionKey, action) = switch (hint) {
+      'dark' => (AppIcons.lightbulbOutline, 'sq.dark', 'ss.tool_retake', _retake),
+      'skewed' => (AppIcons.straighten, 'sq.skewed', 'sr.straighten', _straighten),
+      _ => (AppIcons.warning, 'sq.blurry', 'ss.tool_retake', _retake),
+    };
+    return Material(
+      color: scheme.tertiaryContainer,
+      elevation: 2,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(Gap.sm, 2, 2, 2),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: scheme.onTertiaryContainer),
+            const SizedBox(width: Gap.sm),
+            Expanded(
+              child: Text(context.t(text),
+                  style: context.type.small
+                      .copyWith(color: scheme.onTertiaryContainer)),
+            ),
+            TextButton(onPressed: action, child: Text(context.t(actionKey))),
+            IconButton(
+              tooltip: context.t('common.close'),
+              icon: const Icon(AppIcons.close, size: 16),
+              onPressed: () =>
+                  _partSetState(() => _qualityDismissed.add(path)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// **Belge türü hapları** (Faz 35 / madde 1): Belge · Kimlik · Kitap · Fiş
+  /// · Beyaz tahta · Kartvizit · Fotoğraf. Seçim filtreyi ve sayfa düzenini
+  /// ayarlar; kimlik iki yüzü tek A4'te birleştirir, kitap çift sayfayı böler.
+  Widget _kindPills(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.surface,
+      child: SizedBox(
+        height: 48,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+          children: [
+            for (final kind in ScanKind.values)
+              Padding(
+                padding: const EdgeInsetsDirectional.only(end: Gap.xs),
+                child: ChoiceChip(
+                  label: Text(context.t(kind.labelKey)),
+                  selected: kind == _kind,
+                  onSelected: _busy ? null : (_) => _applyKind(kind),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// **Toplu inceleme ızgarası** (Faz 35 / madde 2): tüm sayfalar bir arada;
+  /// basılı tutup başka bir sayfanın üstüne bırakmak sırayı değiştirir,
+  /// sayfanın menüsü döndür / filtre / kırp / sil, sondaki kutu sayfa ekler.
+  /// Hücre boyu sabit (`childAspectRatio`), görseller `cacheWidth`'li.
+  Widget _gridView(BuildContext context) {
+    return LayoutBuilder(builder: (context, box) {
+      final cols = (box.maxWidth / 132).floor().clamp(2, 6);
+      return GridView.builder(
+        padding: const EdgeInsets.all(Gap.md),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: cols,
+          mainAxisSpacing: Gap.md,
+          crossAxisSpacing: Gap.md,
+          childAspectRatio: 0.7,
+        ),
+        itemCount: _pages.length + 1,
+        itemBuilder: (context, i) {
+          if (i == _pages.length) {
+            return _GridAddTile(onTap: _busy ? null : _addPages);
+          }
+          return RepaintBoundary(
+            child: _GridPageTile(
+              key: ValueKey('${_pages[i].source}#$i'),
+              path: _pages[i].display,
+              index: i,
+              selected: i == _index,
+              enabled: !_busy,
+              onOpen: () {
+                _partSetState(() {
+                  _index = i;
+                  _grid = false;
+                });
+              },
+              onMove: (from) {
+                if (from == i) return;
+                _reorder(from, i);
+              },
+              onAction: (action) => _gridAction(i, action),
+            ),
+          );
+        },
+      );
+    });
+  }
+
   Widget _thumbStrip(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Material(

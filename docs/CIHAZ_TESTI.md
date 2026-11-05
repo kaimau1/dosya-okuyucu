@@ -615,3 +615,21 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
 ## Faz 34 — Pano cilası
 - [ ] 360×800 dp ve 2× yazı ölçeğinde 4 sıra kutu + araç satırı alt panelin üstünde, kayma yok.
 - [ ] Ayarlar > Görünüm'de "Alt çubuk kısayolları" satırı yok; Ana ekranı düzenle açılıyor.
+
+## Faz 35 / adım 0 — Belge tarayıcı v2 (ML Kit GmsDocumentScanner)
+- [ ] Tara → ML Kit arayüzü açılır (canlı kenar, otomatik çekim, leke silme); kaydet → PDF üretilir.
+- [ ] Çok sayfa (≥5) + galeriden içe aktar çalışır; vazgeçince hata/çökme yok.
+- [ ] Play Hizmetleri'siz / eski cihazda: galeriden içe aktar yedek akışı açılır (hata iletisi yok).
+- [ ] Soğuk açılışta tarayıcı yüklenmez (ilk dokunuşta kurulur); APK boyutu bütçesi CI'da yeşil.
+
+## Faz 35 — Pro belge tarayıcı (madde 1–9)
+- [ ] 10 gerçek belge: kâğıt, fiş, kimlik (ön+arka), kitap çift sayfa, beyaz tahta, kartvizit, fotoğraf.
+- [ ] Kimlik kipi: iki yüz tek A4'te, kartlar okunur boyda; "Kasaya taşı" şeridi → kasaya girer, aslı silinir.
+- [ ] Kitap kipi: çift sayfa cilt çizgisinden doğru bölünür (sağ/sol sırası doğru).
+- [ ] Fiş kipi: PDF sayfası fiş oranında (A4'e küçülmüyor); "Gider ekle" → Giderler.csv'de tarih/tutar doğru.
+- [ ] Kartvizit: .vcf Kişiler'e içe aktarılır (ad, telefon, e-posta).
+- [ ] Izgara: basılı tut-sürükle sırası, sayfa menüsü (döndür/filtre/kırp/sil), 30 sayfada akıcı (p99 ≤ 24 ms).
+- [ ] Filtre levhası 6 önizleme (Canlı, Gölgesiz) 360 dp'de sığıyor.
+- [ ] Dışa aktar: Word açılır/düzenlenir; Excel tablolu fişte sütunlar doğru; TXT Türkçe karakter; PDF Küçük/Orta/Yüksek boyut tahmini gerçeğe yakın.
+- [ ] Kalite şeridi: bulanık çekimde "yeniden çek", loş ortamda "fener", eğik sayfada "düzleştir" çıkıyor; net sayfada çıkmıyor.
+- [ ] Bitti ölçütü: 20 sayfa < 15 sn işlenir (orta cihaz); OCR'lı PDF aranabilir.

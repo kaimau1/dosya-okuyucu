@@ -14,6 +14,7 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
       _dirty = true;
     });
     _scheduleSave();
+    unawaited(_measureVisible());
   }
 
   void _scheduleSave() {
@@ -248,6 +249,264 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     next.insert(to, page);
     _commit(next, index: to);
     if (_pager.hasClients) _pager.jumpToPage(to);
+  }
+
+  /// Belge türünü uygular (Faz 35 / madde 1). Ağır işler izolatta, sayfa
+  /// sayfa sırayla (aynı anda tek büyük görsel bellekte); her adım "Geri
+  /// al" yığınına girer.
+  Future<void> _applyKind(ScanKind kind) async {
+    if (_busy || _pages.isEmpty) return;
+    final label = context.t(kind.labelKey);
+    if (kind == ScanKind.idCard && _pages.length < 2) {
+      _snack(context.t('sk.id_need_two'));
+      return;
+    }
+    _partSetState(() => _work = context.t('sk.working'));
+    String? done;
+    try {
+      switch (kind) {
+        case ScanKind.idCard:
+          final merged = await ScanKindOps.combineId(
+              _pages[0].source, _pages[1].source);
+          if (!mounted) return;
+          _commit([ScanPage.raw(merged), ..._pages.skip(2)], index: 0);
+          done = context.t('sk.id_combined');
+        case ScanKind.book:
+          final next = <ScanPage>[];
+          for (final page in _pages) {
+            final parts = await ScanKindOps.splitBook(page.source);
+            if (parts.length == 1) {
+              next.add(page);
+              continue;
+            }
+            for (final part in parts) {
+              next.add(page.filter == ScanFilter.original
+                  ? ScanPage.raw(part)
+                  : await _ScanResultScreenState._withFilter(part, page.filter));
+            }
+          }
+          if (!mounted) return;
+          if (next.length != _pages.length) {
+            _commit(next, index: 0);
+            done = context.t('sk.book_split', {'n': next.length});
+          }
+        case ScanKind.businessCard:
+          done = await _saveContactCard();
+        case ScanKind.document:
+        case ScanKind.receipt:
+        case ScanKind.whiteboard:
+        case ScanKind.photo:
+          break;
+      }
+      if (!mounted) return;
+      // Filtre varsayılanı (kimlikte birleşik sayfa da dahil).
+      final filter = kind.defaultFilter;
+      if (kind != ScanKind.businessCard &&
+          _pages.any((page) => page.filter != filter)) {
+        final next = <ScanPage>[];
+        for (final page in _pages) {
+          next.add(page.filter == filter
+              ? page
+              : await _ScanResultScreenState._withFilter(page.source, filter));
+        }
+        if (!mounted) return;
+        _commit(next);
+      }
+      if (!mounted) return;
+      _partSetState(() => _kind = kind);
+      // Sayfa düzeni (A4 / görsel oranı) değişti → PDF yeniden yazılsın.
+      _partSetState(() => _dirty = true);
+      _scheduleSave();
+      _snack(done ?? context.t('sk.applied', {'type': label}));
+    } catch (e) {
+      if (mounted) {
+        showSnack(context, context.t('scr.add_failed', {'error': userErrorText(e)}),
+            copyable: true);
+      }
+    } finally {
+      if (mounted) _partSetState(() => _work = null);
+    }
+  }
+
+  /// Kartvizit: görünen sayfanın metninden kişi kartı (.vcf) üretir, PDF'in
+  /// yanına yazar. Metin cihazda tanınır, hiçbir yere gönderilmez.
+  Future<String> _saveContactCard() async {
+    final page = _pages[_index];
+    var lines = _ocr[page.source];
+    if (lines == null) {
+      final got = await DocumentScanner.recognizePages([page.display]);
+      lines = got.isEmpty ? const <OcrLine>[] : got.first;
+      _ocr[page.source] = lines;
+    }
+    final card =
+        BusinessCard.parse(lines.map((line) => line.text).join('\n'));
+    if (!mounted) return '';
+    if (card.isEmpty) return context.t('sk.card_none');
+    final name = card.name ?? card.company ?? p.basenameWithoutExtension(_pdfPath);
+    final safe = name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+    final path = FileOps.uniquePath(p.join(_folder, '$safe.vcf'));
+    await File(path).writeAsString(card.toVcf(), flush: true);
+    FsEvents.changed();
+    if (!mounted) return '';
+    return context.t('sk.card_saved', {'name': name});
+  }
+
+  /// **Akıllı çıktı** (Faz 35 / madde 3): Word · Excel (tablo algılama) ·
+  /// TXT · seçilen kalitede PDF. İş kuyruğunda izlenir (ilerleme, iptal,
+  /// bitince bildirim — `TrackedTask`); çıktı PDF'in yanına yazılır.
+  Future<void> _export() async {
+    if (_busy || _pages.isEmpty) return;
+    await _flush();
+    if (!mounted) return;
+    final displays = ScanPage.displays(_pages);
+    final choice = await showAppSheet<_ExportChoice>(
+      context,
+      title: context.t('sx.title'),
+      builder: (_) => _ExportSheet(pages: displays),
+    );
+    if (choice == null || !mounted) return;
+    final str = AppStrings.current;
+    final task = TrackedTask(title: str.t('sx.title'), name: p.basename(_pdfPath));
+    _partSetState(() => _work = context.t('sx.working'));
+    try {
+      // Metin gereken her çıktı için eksik sayfalar tanınır (bir kez).
+      final total = _pages.length;
+      for (var i = 0; i < total; i++) {
+        if (task.cancelRequested) break;
+        final page = _pages[i];
+        if (_ocr.containsKey(page.source)) continue;
+        task.report(
+            done: i, total: total, detail: str.t('sf.ocr_progress', {'n': i + 1, 'total': total}));
+        final lines = await DocumentScanner.recognizePages([page.display]);
+        _ocr[page.source] = lines.isEmpty ? const [] : lines.first;
+      }
+      if (task.cancelRequested) {
+        await task.stopped();
+        return;
+      }
+      final ocr = [for (final page in _pages) _ocr[page.source] ?? const <OcrLine>[]];
+      final base = p.basenameWithoutExtension(_pdfPath);
+      final Uint8List bytes;
+      final String ext;
+      var suffix = '';
+      switch (choice.format) {
+        case 'docx':
+          bytes = ScanExport.toDocx(ocr);
+          ext = 'docx';
+        case 'xlsx':
+          bytes = ScanExport.toXlsx(ocr, sheetPrefix: str.t('sx.sheet'));
+          ext = 'xlsx';
+        case 'txt':
+          bytes = ScanExport.toTxt(ocr);
+          ext = 'txt';
+        default:
+          final packed = await ScanExport.compressPages(
+            displays,
+            choice.quality,
+            isCancelled: () => task.cancelRequested,
+            onProgress: (done, all) => task.report(
+                done: done, total: all, detail: str.t('sf.building_pdf')),
+          );
+          if (task.cancelRequested) {
+            await task.stopped();
+            return;
+          }
+          bytes = await DocumentScanner.renderPdf(
+            [for (final c in packed) c.path],
+            ocrLinesPerPage: [
+              for (var i = 0; i < packed.length; i++)
+                ScanExport.scaleLines(ocr[i], packed[i].ratio),
+            ],
+            uniformA4: _kind.uniformA4,
+          );
+          // Ham sıkıştırılmış sayfalar iş bitince silinir.
+          for (final c in packed) {
+            unawaited(File(c.path).delete().then((_) {}, onError: (_) {}));
+          }
+          ext = 'pdf';
+          suffix = ' (${str.t(choice.quality.labelKey)})';
+      }
+      final out = FileOps.uniquePath(p.join(_folder, '$base$suffix.$ext'));
+      await File(out).writeAsBytes(bytes, flush: true);
+      FsEvents.changed();
+      task.target = FmJobTarget.files([out]);
+      await task.complete(detail: str.t('job.op_created', {'name': p.basename(out)}));
+      if (!mounted) return;
+      showSnack(
+        context,
+        context.t('sx.saved', {'name': p.basename(out)}),
+        action: SnackBarAction(
+          label: context.t('common.open'),
+          onPressed: () => EntryOpener.open(context, out),
+        ),
+      );
+    } catch (e) {
+      await task.fail(e);
+      if (mounted) {
+        showSnack(context, context.t('scr.add_failed', {'error': userErrorText(e)}),
+            copyable: true);
+      }
+    } finally {
+      if (mounted) _partSetState(() => _work = null);
+    }
+  }
+
+  /// Kimlik taraması şifreli kasaya: PDF kasaya girer, aslı silinir, stüdyo
+  /// kapanır (kasadaki dosya oradan açılır).
+  Future<void> _moveToVault() async {
+    await _flush();
+    if (!mounted) return;
+    final ok = await addToVault(context, [_pdfPath]);
+    if (!ok || !mounted) return;
+    _partSetState(() => _actionDismissed = true);
+    Navigator.of(context).pop();
+  }
+
+  /// Fiş/fatura → `Giderler.csv` satırı (tarih, satıcı, toplam, dosya adı).
+  Future<void> _addExpense() async {
+    final text = _text.map((page) => page.text).join('\n');
+    final info = ReceiptInfo.parse(text);
+    if (info.isEmpty) {
+      _snack(context.t('sa.expense_none'));
+      return;
+    }
+    try {
+      final path = await ScanActions.appendExpense(
+          _folder, info, p.basename(_pdfPath));
+      FsEvents.changed();
+      if (!mounted) return;
+      _partSetState(() => _actionDismissed = true);
+      showSnack(
+        context,
+        context.t('sa.expense_done'),
+        action: SnackBarAction(
+          label: context.t('common.open'),
+          onPressed: () => EntryOpener.open(context, path),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        showSnack(context, context.t('scr.add_failed', {'error': userErrorText(e)}),
+            copyable: true);
+      }
+    }
+  }
+
+  /// Izgaradaki sayfa menüsü: işler "görünen sayfa"ya uygulandığı için önce
+  /// [index] seçilir.
+  Future<void> _gridAction(int index, String action) async {
+    if (_busy) return;
+    _partSetState(() => _index = index);
+    switch (action) {
+      case 'rotate':
+        await _rotate();
+      case 'filter':
+        await _filter();
+      case 'crop':
+        await _crop();
+      case 'delete':
+        _delete();
+    }
   }
 
   void _goTo(int index) {

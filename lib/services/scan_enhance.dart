@@ -25,6 +25,15 @@ enum ScanFilter {
   /// Saf siyah-beyaz (uyarlamalı eşikleme) — masaüstü tarayıcı görünümü.
   /// Fotoğrafları mahveder, düz metinde en net sonuç.
   blackWhite,
+
+  /// **Renkli-canlı** (Faz 35): otomatik + doygunluk artışı — renkli
+  /// broşür, harita, çocuk çizimi soluk çıkmasın.
+  vivid,
+
+  /// **Gölge-sil** (Faz 35): otomatik + açık zemin tam beyaza çekilir — el
+  /// gölgesi, beyaz tahta yansıması ve kâğıt sarılığı kalmaz; mürekkep rengi
+  /// korunur.
+  shadowless,
 }
 
 extension ScanFilterLabel on ScanFilter {
@@ -34,6 +43,8 @@ extension ScanFilterLabel on ScanFilter {
         ScanFilter.auto => 'scan.filter_auto',
         ScanFilter.gray => 'scan.filter_gray',
         ScanFilter.blackWhite => 'scan.filter_bw',
+        ScanFilter.vivid => 'scan.filter_vivid',
+        ScanFilter.shadowless => 'scan.filter_shadowless',
       };
 
   /// Önizleme kartının altına sığan kısa ad.
@@ -42,6 +53,8 @@ extension ScanFilterLabel on ScanFilter {
         ScanFilter.auto => 'scan.short_auto',
         ScanFilter.gray => 'scan.short_gray',
         ScanFilter.blackWhite => 'scan.short_bw',
+        ScanFilter.vivid => 'scan.short_vivid',
+        ScanFilter.shadowless => 'scan.short_shadowless',
       };
 }
 
@@ -192,9 +205,14 @@ abstract final class ScanEnhance {
       // çarpılıyordu: gölgedeki renkli bir alanda oran ×3-4'e çıkınca
       // kanallar 255'e dayanıp renk "patlıyordu". Koyulaşan (oran < 1)
       // mürekkepte sonuç eskisiyle birebir aynı (k = oran).
-      final k = ratio < maxChromaGain ? ratio : maxChromaGain;
+      var k = ratio < maxChromaGain ? ratio : maxChromaGain;
+      if (filter == ScanFilter.vivid) k *= vividGain;
+      // Gölge-sil: düzeltilmiş zemin neredeyse beyazsa (kâğıt) renk sapması
+      // da silinir → saf beyaz; mürekkep/çizim (koyu) olduğu gibi kalır.
+      final paper =
+          filter == ScanFilter.shadowless && after >= paperWhite && picture[i] == 0;
       for (var c = 0; c < 3; c++) {
-        final v = (after + (rgb[j + c] - before) * k).round();
+        final v = paper ? 255 : (after + (rgb[j + c] - before) * k).round();
         out[j + c] = v < 0 ? 0 : (v > 255 ? 255 : v);
       }
     }
@@ -204,6 +222,12 @@ abstract final class ScanEnhance {
 
   /// Renkli modda rengin (parlaklıktan sapmanın) en çok kaç kat büyüyebileceği.
   static const maxChromaGain = 1.6;
+
+  /// Renkli-canlı filtrede renk sapmasının ek çarpanı (doygunluk artışı).
+  static const vividGain = 1.45;
+
+  /// Gölge-sil filtresinde bu parlaklığın üstü "kâğıt" sayılıp beyaza çekilir.
+  static const paperWhite = 214;
 
   /// [enhanced] ile [original] arasında [mask]'e göre karışım: maske 0 →
   /// düzeltilmiş, 255 → özgün.

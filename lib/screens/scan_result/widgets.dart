@@ -218,17 +218,23 @@ class _FilterSheetState extends State<_FilterSheet> {
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: Paper.faint(context))),
             const SizedBox(height: Gap.md),
-            Row(
-              children: [
-                for (final filter in ScanFilter.values)
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: _preview(context, filter),
-                    ),
-                  ),
-              ],
-            ),
+            // 6 filtre: 3'lü iki sıra (tek sırada önizlemeler okunmayacak
+            // kadar küçülüyordu — Faz 35).
+            for (var r = 0; r < ScanFilter.values.length; r += 3)
+              Padding(
+                padding: const EdgeInsets.only(bottom: Gap.sm),
+                child: Row(
+                  children: [
+                    for (final filter in ScanFilter.values.skip(r).take(3))
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: _preview(context, filter),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             if (widget.pageCount > 1) ...[
               const SizedBox(height: Gap.sm),
               SwitchListTile(
@@ -303,6 +309,262 @@ class _FilterSheetState extends State<_FilterSheet> {
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   color: selected ? scheme.primary : null,
                 ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Izgaradaki tek sayfa: basılı tut-sürükle ile taşınır, başka sayfanın
+/// üstüne bırakılınca o yere girer.
+class _GridPageTile extends StatelessWidget {
+  final String path;
+  final int index;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback onOpen;
+  final ValueChanged<int> onMove;
+  final ValueChanged<String> onAction;
+
+  const _GridPageTile({
+    super.key,
+    required this.path,
+    required this.index,
+    required this.selected,
+    required this.enabled,
+    required this.onOpen,
+    required this.onMove,
+    required this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    Widget card({bool lifted = false}) => LayoutBuilder(
+          builder: (context, box) => Container(
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: selected ? scheme.primary : scheme.outlineVariant,
+                width: selected ? 2.2 : 1,
+              ),
+              color: AppColors.onMedia,
+            ),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(7),
+                  child: Image.file(
+                    File(path),
+                    key: ValueKey(path),
+                    fit: BoxFit.cover,
+                    // Kademeli kova: hücre genişliği × dpr, 64'e yuvarlanır.
+                    cacheWidth: (((box.maxWidth * dpr) / 64).ceil() * 64)
+                        .clamp(64, 1024),
+                    gaplessPlayback: true,
+                    errorBuilder: (_, __, ___) =>
+                        ColoredBox(color: scheme.surfaceContainerHigh),
+                  ),
+                ),
+                PositionedDirectional(
+                  start: 4,
+                  bottom: 4,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: scheme.surface,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 1),
+                      child: Text('${index + 1}',
+                          style: Theme.of(context).textTheme.labelSmall),
+                    ),
+                  ),
+                ),
+                if (!lifted)
+                  PositionedDirectional(
+                    end: 0,
+                    top: 0,
+                    child: PopupMenuButton<String>(
+                      enabled: enabled,
+                      tooltip: context.t('common.more'),
+                      icon: Icon(AppIcons.moreHoriz,
+                          color: scheme.onSurface, size: 20),
+                      onSelected: onAction,
+                      itemBuilder: (ctx) => [
+                        PopupMenuItem(
+                            value: 'rotate',
+                            child: Text(ctx.t('ss.tool_rotate'))),
+                        PopupMenuItem(
+                            value: 'filter',
+                            child: Text(ctx.t('ss.tool_filter'))),
+                        PopupMenuItem(
+                            value: 'crop', child: Text(ctx.t('ss.tool_crop'))),
+                        PopupMenuItem(
+                            value: 'delete',
+                            child: Text(ctx.t('ss.tool_delete'))),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+    return DragTarget<int>(
+      onWillAcceptWithDetails: (d) => enabled && d.data != index,
+      onAcceptWithDetails: (d) => onMove(d.data),
+      builder: (context, candidates, _) => LongPressDraggable<int>(
+        data: index,
+        maxSimultaneousDrags: enabled ? 1 : 0,
+        feedback: Material(
+          color: Colors.transparent,
+          elevation: 6,
+          child: SizedBox(width: 96, height: 136, child: card(lifted: true)),
+        ),
+        // Boş yuva (Opacity/saveLayer liste hücresinde yasak — anayasa k.5).
+        childWhenDragging: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: scheme.primary, width: 1.4),
+            color: scheme.surfaceContainerHigh,
+          ),
+        ),
+        child: GestureDetector(
+          onTap: onOpen,
+          child: AnimatedScale(
+            duration: Motion.of(context, Motion.short),
+            scale: candidates.isNotEmpty ? 0.94 : 1,
+            child: card(),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Izgaranın sonundaki "Sayfa ekle" kutusu.
+class _GridAddTile extends StatelessWidget {
+  final VoidCallback? onTap;
+  const _GridAddTile({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.primaryContainer,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(AppIcons.noteAdd, color: scheme.onPrimaryContainer, size: 28),
+            const SizedBox(height: Gap.xs),
+            Text(context.t('scr.add_pages'),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: scheme.onPrimaryContainer,
+                    fontWeight: FontWeight.w700)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Dışa aktarma seçimi: biçim (`pdf`/`docx`/`xlsx`/`txt`) + PDF kalitesi.
+class _ExportChoice {
+  final String format;
+  final ScanQuality quality;
+  const _ExportChoice(this.format, [this.quality = ScanQuality.medium]);
+}
+
+/// Dışa aktarma levhası: PDF kalitesi (tahmini boyutla) + Word/Excel/TXT.
+class _ExportSheet extends StatefulWidget {
+  final List<String> pages;
+  const _ExportSheet({required this.pages});
+
+  @override
+  State<_ExportSheet> createState() => _ExportSheetState();
+}
+
+class _ExportSheetState extends State<_ExportSheet> {
+  ScanQuality _quality = ScanQuality.medium;
+  Map<ScanQuality, int>? _sizes;
+
+  @override
+  void initState() {
+    super.initState();
+    // Boyut önizlemesi izolatta, yalnız ilk sayfadan (hızlı).
+    ScanExport.estimateSizes(widget.pages).then((v) {
+      if (mounted) setState(() => _sizes = v);
+    }, onError: (_) {});
+  }
+
+  String _size(ScanQuality q) {
+    final b = _sizes?[q];
+    if (b == null) return '…';
+    final mb = b / (1024 * 1024);
+    return mb >= 1 ? '~${mb.toStringAsFixed(1)} MB' : '~${(b / 1024).round()} KB';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(context.t('sx.pdf_quality'), style: theme.textTheme.labelLarge),
+          const SizedBox(height: Gap.sm),
+          SegmentedButton<ScanQuality>(
+            showSelectedIcon: false,
+            segments: [
+              for (final q in ScanQuality.values)
+                ButtonSegment(
+                  value: q,
+                  label: Text('${context.t(q.labelKey)}\n${_size(q)}',
+                      textAlign: TextAlign.center, maxLines: 2),
+                ),
+            ],
+            selected: {_quality},
+            onSelectionChanged: (v) => setState(() => _quality = v.first),
+          ),
+          const SizedBox(height: Gap.sm),
+          FilledButton.icon(
+            onPressed: () =>
+                Navigator.pop(context, _ExportChoice('pdf', _quality)),
+            icon: const Icon(AppIcons.pdf, size: 20),
+            label: Text(context.t('sx.save_pdf')),
+          ),
+          const Divider(height: Gap.lg),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(AppIcons.newWord),
+            title: Text(context.t('sx.to_word')),
+            subtitle: Text(context.t('sx.to_word_sub')),
+            onTap: () => Navigator.pop(context, const _ExportChoice('docx')),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(AppIcons.newSheet),
+            title: Text(context.t('sx.to_excel')),
+            subtitle: Text(context.t('sx.to_excel_sub')),
+            onTap: () => Navigator.pop(context, const _ExportChoice('xlsx')),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(AppIcons.newText),
+            title: Text(context.t('sx.to_txt')),
+            onTap: () => Navigator.pop(context, const _ExportChoice('txt')),
           ),
         ],
       ),

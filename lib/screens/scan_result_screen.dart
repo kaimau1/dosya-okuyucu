@@ -25,11 +25,18 @@ import '../services/fm/safe_write.dart';
 import '../services/ocr_service.dart';
 import '../services/scan_dewarp.dart';
 import '../services/scan_enhance.dart';
+import '../services/scan_export.dart';
+import '../services/scan_actions.dart';
+import '../services/scan_quality.dart';
+import '../services/fm/job_queue.dart' show FmJobTarget;
+import '../services/fm/tracked_task.dart';
+import '../services/scan_kind.dart';
 import '../services/scan_page_ops.dart';
 import '../services/scan_prepare.dart';
 import '../widgets/translate_flow.dart';
 import 'fm/folder_picker_screen.dart';
 import 'fm/important_screen.dart';
+import 'fm/vault_screen.dart' show addToVault;
 import 'scan_edit_screen.dart';
 import '../core/user_error.dart';
 import '../core/app_colors.dart';
@@ -114,7 +121,7 @@ class ScanResultScreen extends StatefulWidget {
   /// Varsayılan kaydetme: OCR'ı eksik sayfaları tanır, PDF'i kurar, aynı
   /// yola bölünmez yazar ve "değişti" der.
   static Future<void> defaultSaver(String pdfPath, List<ScanPage> pages,
-      Map<String, List<OcrLine>> ocr) async {
+      Map<String, List<OcrLine>> ocr, {bool uniformA4 = true}) async {
     for (final page in pages) {
       if (ocr.containsKey(page.source)) continue;
       final lines = await DocumentScanner.recognizePages([page.display]);
@@ -123,6 +130,7 @@ class ScanResultScreen extends StatefulWidget {
     final bytes = await DocumentScanner.renderPdf(
       ScanPage.displays(pages),
       ocrLinesPerPage: [for (final page in pages) ocr[page.source] ?? const []],
+      uniformA4: uniformA4,
     );
     await SafeWrite.bytes(pdfPath, bytes);
     FsEvents.changed();
@@ -152,6 +160,18 @@ class _ScanResultScreenState extends State<ScanResultScreen>
   int _index = 0;
   int _tab = 0;
 
+  /// Toplu inceleme ızgarası açık mı (Faz 35 / madde 2).
+  bool _grid = false;
+
+  /// Seçili belge türü (Faz 35 / madde 1): filtre ve PDF sayfa düzeni.
+  ScanKind _kind = ScanKind.document;
+
+  /// Sayfa kalite ölçümleri (Faz 35 / madde 5), görünen görselin yoluna
+  /// göre. Yalnız görünen sayfa, sırayla, izolatta ölçülür.
+  final Map<String, ScanQualityReport?> _quality = {};
+  bool _measuring = false;
+  final Set<String> _qualityDismissed = {};
+
   /// O an sürmekte olan sayfa işi ("Kırpılıyor…"); null = boşta.
   String? _work;
 
@@ -161,7 +181,14 @@ class _ScanResultScreenState extends State<ScanResultScreen>
   Timer? _saveTimer;
   bool _logged = false;
 
-  ScanSaver get _saver => widget.saver ?? ScanResultScreen.defaultSaver;
+  ScanSaver get _saver {
+    final custom = widget.saver;
+    if (custom != null) return custom;
+    // Sayfa düzeni seçili belge türünden (fiş/fotoğraf görsel oranında).
+    return (path, pages, ocr) => ScanResultScreen.defaultSaver(
+        path, pages, ocr,
+        uniformA4: _kind.uniformA4);
+  }
 
   @override
   void initState() {
@@ -178,6 +205,24 @@ class _ScanResultScreenState extends State<ScanResultScreen>
       final guess = classifyDocumentText(text);
       if (guess.isConfident) _classGuess = guess;
     }
+    unawaited(_measureVisible());
+  }
+
+  /// Görünen sayfanın kalitesini (bir kez) ölçer; bitince sayfa değiştiyse
+  /// yenisini ölçer. Dosyası olmayan (test/silinmiş) sayfa atlanır.
+  Future<void> _measureVisible() async {
+    if (_measuring || _pages.isEmpty) return;
+    final path = _pages[_index.clamp(0, _pages.length - 1)].display;
+    if (_quality.containsKey(path) || !File(path).existsSync()) return;
+    _measuring = true;
+    try {
+      final report = await ScanQualityCheck.measure(path);
+      if (!mounted) return;
+      setState(() => _quality[path] = report);
+    } finally {
+      _measuring = false;
+    }
+    if (mounted) unawaited(_measureVisible());
   }
 
   /// Tarama sonrası tür tahmini (yalnız güvenliyse); kullanıcı kapatınca null.
@@ -190,6 +235,22 @@ class _ScanResultScreenState extends State<ScanResultScreen>
     final target = p.join(
         ImportantScreen.pathIn(FmEnv.primaryRoot), guess.type.folder);
     return p.equals(target, _folder) ? null : target;
+  }
+
+  /// **Önerilen eylem** (Faz 35 / ek 6): kimlik → şifreli kasa, fiş/fatura →
+  /// gider satırı (Giderler.csv). Kullanıcı kapatınca/uygulayınca gizlenir.
+  bool _actionDismissed = false;
+
+  String? get _suggestedAction {
+    if (_actionDismissed) return null;
+    final type = _classGuess?.type;
+    if (_kind == ScanKind.idCard || type == DocClass.kimlik) return 'vault';
+    if (_kind == ScanKind.receipt ||
+        type == DocClass.makbuz ||
+        type == DocClass.fatura) {
+      return 'expense';
+    }
+    return null;
   }
 
   @override
@@ -250,6 +311,12 @@ class _ScanResultScreenState extends State<ScanResultScreen>
           titleSpacing: 0,
           title: _titleBlock(context),
           actions: [
+            if (_tab == 0)
+              IconButton(
+                tooltip: context.t(_grid ? 'sg.single' : 'sg.grid'),
+                icon: Icon(_grid ? AppIcons.layoutDetail : AppIcons.layoutGrid),
+                onPressed: () => setState(() => _grid = !_grid),
+              ),
             if (_history.isNotEmpty)
               IconButton(
                 tooltip: context.t('common.undo'),
@@ -265,12 +332,21 @@ class _ScanResultScreenState extends State<ScanResultScreen>
               tooltip: context.t('common.more'),
               enabled: !_busy,
               onSelected: (v) => switch (v) {
+                'export' => _export(),
                 'open' => _openPdf(),
                 'rename' => _rename(),
                 'move' => _changeLocation(),
                 _ => null,
               },
               itemBuilder: (ctx) => [
+                PopupMenuItem(
+                  value: 'export',
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(AppIcons.exportList),
+                    title: Text(ctx.t('sx.title')),
+                  ),
+                ),
                 PopupMenuItem(
                   value: 'open',
                   child: ListTile(
@@ -329,9 +405,14 @@ class _ScanResultScreenState extends State<ScanResultScreen>
               ),
             ),
             Divider(height: 1, color: scheme.outlineVariant),
+            if (_tab == 0) _kindPills(context),
             if (_suggestedFolder != null) _classBanner(context),
-            Expanded(child: _tab == 0 ? _pagesView(context) : _textView()),
-            if (_tab == 0) _thumbStrip(context),
+            if (_suggestedAction != null) _actionBanner(context),
+            Expanded(
+                child: _tab == 0
+                    ? (_grid ? _gridView(context) : _pagesView(context))
+                    : _textView()),
+            if (_tab == 0 && !_grid) _thumbStrip(context),
           ],
         ),
         bottomNavigationBar:
