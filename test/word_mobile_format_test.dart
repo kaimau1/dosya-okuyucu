@@ -86,9 +86,11 @@ void main() {
   Future<void> tapIn(WidgetTester t, List<String> labels, String label) async {
     if (find.text(label).evaluate().isEmpty) {
       final seen = labels.firstWhere((l) => find.text(l).evaluate().isNotEmpty);
-      final sc = find
+      // Kaydırılabilir bir kez çözülür: tembel bulucu, kaydırma sırasında
+      // [seen] ekran dışına çıkınca boşa düşüyordu (Araçlar sekmesi, Faz 37).
+      final sc = find.byWidget(t.widget(find
           .ancestor(of: find.text(seen).last, matching: find.byType(Scrollable))
-          .first;
+          .first));
       final forward = labels.indexOf(label) > labels.indexOf(seen);
       await t.scrollUntilVisible(find.text(label), forward ? 60 : -60,
           scrollable: sc);
