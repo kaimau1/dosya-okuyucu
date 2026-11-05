@@ -137,13 +137,11 @@ extension _ViewerScreenPdfReadingProPart on _ViewerScreenState {
         },
         pageLabel: (n) => context.t('pp.compare_page', {'n': n}),
       );
+      final shareText = context.t('pp.notes_count', {'n': items.length});
       final path = await ConversionService().writeToTemp(
           '${p.basenameWithoutExtension(widget.doc.name)}-notlar.md',
           utf8.encode(md));
-      await Share.shareXFiles([XFile(path)],
-          text: context.mounted
-              ? context.t('pp.notes_count', {'n': items.length})
-              : null);
+      await Share.shareXFiles([XFile(path)], text: shareText);
     } catch (e) {
       if (mounted) _snack(userErrorText(e));
     }
