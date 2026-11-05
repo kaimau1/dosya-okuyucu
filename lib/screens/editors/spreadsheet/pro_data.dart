@@ -622,7 +622,7 @@ extension _SpreadsheetProDataPart on _SpreadsheetEditorScreenState {
       display: display,
     ));
     if (sheet.rawAt(r, c).isEmpty) {
-      _editCells('xp.link', {CellRef(r, c): display!});
+      _editCells('xp.link', {CellRef(r, c): display});
     }
     _session.changed();
     _gridVersion++;

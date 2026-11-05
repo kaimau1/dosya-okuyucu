@@ -56,7 +56,8 @@ abstract final class SheetPdf {
     final head = style.copyWith(fontWeight: pw.FontWeight.bold);
     final rows = [
       for (var r = 0; r < cells.length; r++)
-        pw.TableRow(children: [
+        // Başlık yinele: ilk N satır her sayfanın başında tekrar edilir.
+        pw.TableRow(repeat: r < spec.repeatRows, children: [
           for (var c = 0; c < cols; c++)
             pw.Padding(
               padding: const pw.EdgeInsets.symmetric(horizontal: 2, vertical: 1),
@@ -93,7 +94,6 @@ abstract final class SheetPdf {
             for (var c = 0; c < cols; c++)
               c: pw.FixedColumnWidth(widths[c] * scale),
           },
-          headerCount: spec.repeatRows.clamp(0, cells.length).toInt(),
           children: rows,
         ),
       ],
