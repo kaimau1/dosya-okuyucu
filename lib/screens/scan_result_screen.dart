@@ -25,6 +25,7 @@ import '../services/fm/safe_write.dart';
 import '../services/ocr_service.dart';
 import '../services/scan_dewarp.dart';
 import '../services/scan_enhance.dart';
+import '../services/scan_kind.dart';
 import '../services/scan_page_ops.dart';
 import '../services/scan_prepare.dart';
 import '../widgets/translate_flow.dart';
@@ -114,7 +115,7 @@ class ScanResultScreen extends StatefulWidget {
   /// Varsayılan kaydetme: OCR'ı eksik sayfaları tanır, PDF'i kurar, aynı
   /// yola bölünmez yazar ve "değişti" der.
   static Future<void> defaultSaver(String pdfPath, List<ScanPage> pages,
-      Map<String, List<OcrLine>> ocr) async {
+      Map<String, List<OcrLine>> ocr, {bool uniformA4 = true}) async {
     for (final page in pages) {
       if (ocr.containsKey(page.source)) continue;
       final lines = await DocumentScanner.recognizePages([page.display]);
@@ -123,6 +124,7 @@ class ScanResultScreen extends StatefulWidget {
     final bytes = await DocumentScanner.renderPdf(
       ScanPage.displays(pages),
       ocrLinesPerPage: [for (final page in pages) ocr[page.source] ?? const []],
+      uniformA4: uniformA4,
     );
     await SafeWrite.bytes(pdfPath, bytes);
     FsEvents.changed();
@@ -155,6 +157,9 @@ class _ScanResultScreenState extends State<ScanResultScreen>
   /// Toplu inceleme ızgarası açık mı (Faz 35 / madde 2).
   bool _grid = false;
 
+  /// Seçili belge türü (Faz 35 / madde 1): filtre ve PDF sayfa düzeni.
+  ScanKind _kind = ScanKind.document;
+
   /// O an sürmekte olan sayfa işi ("Kırpılıyor…"); null = boşta.
   String? _work;
 
@@ -164,7 +169,10 @@ class _ScanResultScreenState extends State<ScanResultScreen>
   Timer? _saveTimer;
   bool _logged = false;
 
-  ScanSaver get _saver => widget.saver ?? ScanResultScreen.defaultSaver;
+  ScanSaver get _saver =>
+      widget.saver ??
+      (path, pages, ocr) => ScanResultScreen.defaultSaver(path, pages, ocr,
+          uniformA4: _kind.uniformA4);
 
   @override
   void initState() {
@@ -338,6 +346,7 @@ class _ScanResultScreenState extends State<ScanResultScreen>
               ),
             ),
             Divider(height: 1, color: scheme.outlineVariant),
+            if (_tab == 0) _kindPills(context),
             if (_suggestedFolder != null) _classBanner(context),
             Expanded(
                 child: _tab == 0

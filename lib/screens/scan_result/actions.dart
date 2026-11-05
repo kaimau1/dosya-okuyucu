@@ -250,6 +250,105 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     if (_pager.hasClients) _pager.jumpToPage(to);
   }
 
+  /// Belge türünü uygular (Faz 35 / madde 1). Ağır işler izolatta, sayfa
+  /// sayfa sırayla (aynı anda tek büyük görsel bellekte); "Geri al" tek
+  /// adımda eski sayfalara döner.
+  Future<void> _applyKind(ScanKind kind) async {
+    if (_busy || _pages.isEmpty) return;
+    final label = context.t(kind.labelKey);
+    if (kind == ScanKind.idCard && _pages.length < 2) {
+      _snack(context.t('sk.id_need_two'));
+      return;
+    }
+    _partSetState(() => _work = context.t('sk.working'));
+    String? done;
+    try {
+      switch (kind) {
+        case ScanKind.idCard:
+          final merged = await ScanKindOps.combineId(
+              _pages[0].source, _pages[1].source);
+          if (!mounted) return;
+          _commit([ScanPage.raw(merged), ..._pages.skip(2)], index: 0);
+          done = context.t('sk.id_combined');
+        case ScanKind.book:
+          final next = <ScanPage>[];
+          for (final page in _pages) {
+            final parts = await ScanKindOps.splitBook(page.source);
+            if (parts.length == 1) {
+              next.add(page);
+              continue;
+            }
+            for (final part in parts) {
+              next.add(page.filter == ScanFilter.original
+                  ? ScanPage.raw(part)
+                  : await _ScanResultScreenState._withFilter(part, page.filter));
+            }
+          }
+          if (!mounted) return;
+          if (next.length != _pages.length) {
+            _commit(next, index: 0);
+            done = context.t('sk.book_split', {'n': next.length});
+          }
+        case ScanKind.businessCard:
+          done = await _saveContactCard();
+        case ScanKind.document:
+        case ScanKind.receipt:
+        case ScanKind.whiteboard:
+        case ScanKind.photo:
+          break;
+      }
+      if (!mounted) return;
+      // Filtre varsayılanı (kimlikte birleşik sayfa da dahil).
+      final filter = kind.defaultFilter;
+      if (kind != ScanKind.businessCard &&
+          _pages.any((page) => page.filter != filter)) {
+        final next = <ScanPage>[];
+        for (final page in _pages) {
+          next.add(page.filter == filter
+              ? page
+              : await _ScanResultScreenState._withFilter(page.source, filter));
+        }
+        if (!mounted) return;
+        _commit(next);
+      }
+      _partSetState(() => _kind = kind);
+      // Sayfa düzeni (A4 / görsel oranı) değişti → PDF yeniden yazılsın.
+      _partSetState(() => _dirty = true);
+      _scheduleSave();
+      _snack(done ?? context.t('sk.applied', {'type': label}));
+    } catch (e) {
+      if (mounted) {
+        showSnack(context, context.t('scr.add_failed', {'error': userErrorText(e)}),
+            copyable: true);
+      }
+    } finally {
+      if (mounted) _partSetState(() => _work = null);
+    }
+  }
+
+  /// Kartvizit: görünen sayfanın metninden kişi kartı (.vcf) üretir, PDF'in
+  /// yanına yazar. Metin cihazda tanınır, hiçbir yere gönderilmez.
+  Future<String> _saveContactCard() async {
+    final page = _pages[_index];
+    var lines = _ocr[page.source];
+    if (lines == null) {
+      final got = await DocumentScanner.recognizePages([page.display]);
+      lines = got.isEmpty ? const <OcrLine>[] : got.first;
+      _ocr[page.source] = lines;
+    }
+    final card =
+        BusinessCard.parse(lines.map((line) => line.text).join('\n'));
+    if (!mounted) return '';
+    if (card.isEmpty) return context.t('sk.card_none');
+    final name = card.name ?? card.company ?? p.basenameWithoutExtension(_pdfPath);
+    final safe = name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+    final path = FileOps.uniquePath(p.join(_folder, '$safe.vcf'));
+    await File(path).writeAsString(card.toVcf(), flush: true);
+    FsEvents.changed();
+    if (!mounted) return '';
+    return context.t('sk.card_saved', {'name': name});
+  }
+
   /// Izgaradaki sayfa menüsü: işler "görünen sayfa"ya uygulandığı için önce
   /// [index] seçilir.
   Future<void> _gridAction(int index, String action) async {

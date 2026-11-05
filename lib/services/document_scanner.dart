@@ -124,14 +124,18 @@ class DocumentScanner {
   ///
   /// Her sayfa A4: gerçek bir tarayıcı gibi tek boy kâğıt. Görsel oranı
   /// korunarak sayfaya tam oturtulur (kırpılmaz), yatay sayfa yatay basılır.
+  ///
+  /// [uniformA4] false ise (fiş, fotoğraf, kartvizit — Faz 35) her sayfa
+  /// görselin kendi oranında: uzun fiş A4'e sığdırılıp küçülmez.
   static Future<Uint8List> renderPdf(
     List<String> imagePaths, {
     List<List<OcrLine>> ocrLinesPerPage = const [],
+    bool uniformA4 = true,
   }) =>
       ConversionService().imagesToPdf(
         imagePaths,
         ocrLinesPerPage: ocrLinesPerPage,
-        uniformPage: PdfPageFormat.a4,
+        uniformPage: uniformA4 ? PdfPageFormat.a4 : null,
       );
 
   /// PDF'i diske yazar ve yolunu döner. [dir] verilmezse Belgeler dizini

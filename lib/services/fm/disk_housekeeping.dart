@@ -97,6 +97,7 @@ abstract final class TempSweep {
     'pdf_editor', // PDF düzenleyici çalışma kopyası + geri alma noktaları
     'slayt-pdf', // slayt → PDF aktarımı
     'peer-zip', // yakındaki cihaza gönderme
+    'docscan', // ML Kit tarayıcı ham sayfaları (Faz 35, ci/DocScan.kt)
   ];
 
   /// İçindekiler tek tek yaşlandırılan kalıcı klasörler.
@@ -104,7 +105,7 @@ abstract final class TempSweep {
 
   static final RegExp _ownFile = RegExp(
     r'(^ocr_page_.+\.png$)|'
-    r'(_(duzeltildi|donduruldu|duzlestirildi|'
+    r'(_(duzeltildi|donduruldu|duzlestirildi|kimlik|kitap|kitap_\d+|'
     '${ScanFilter.values.map((f) => f.name).join('|')}'
     r')_\d+\.(png|jpg)$)',
   );

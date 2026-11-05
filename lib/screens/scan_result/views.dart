@@ -227,6 +227,35 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
 
   /// Küçük resim şeridi: dokun = git, basılı tut + sürükle = sıra, "+" =
   /// sayfa ekle.
+  /// **Belge türü hapları** (Faz 35 / madde 1): Belge · Kimlik · Kitap · Fiş
+  /// · Beyaz tahta · Kartvizit · Fotoğraf. Seçim filtreyi ve sayfa düzenini
+  /// ayarlar; kimlik iki yüzü tek A4'te birleştirir, kitap çift sayfayı böler.
+  Widget _kindPills(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.surface,
+      child: SizedBox(
+        height: 48,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+          children: [
+            for (final kind in ScanKind.values)
+              Padding(
+                padding: const EdgeInsetsDirectional.only(end: Gap.xs),
+                child: ChoiceChip(
+                  label: Text(context.t(kind.labelKey)),
+                  selected: kind == _kind,
+                  onSelected: _busy ? null : (_) => _applyKind(kind),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// **Toplu inceleme ızgarası** (Faz 35 / madde 2): tüm sayfalar bir arada;
   /// basılı tutup başka bir sayfanın üstüne bırakmak sırayı değiştirir,
   /// sayfanın menüsü döndür / filtre / kırp / sil, sondaki kutu sayfa ekler.
