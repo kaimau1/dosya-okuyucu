@@ -663,3 +663,19 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
 - [ ] Grafik: kombinasyon + ikincil eksen + eğilim çizgisi Excel'de aynı; stil değişiyor; PNG/PDF paylaşımı.
 - [ ] Koruma: parolalı sayfa koruması Excel'de aynı parolayla kalkıyor; düzenlenebilir aralık dışı hücre uygulamada kilitli; Excel'de korunmuş dosyanın korumasını parolayla kaldırma.
 - [ ] Perf: `docs/perf/2026-11-05-faz36.md` tablosu doldurulur (gerileme > %10 ya da p99 > 24 ms → `excel_pro_v1` kapatılır).
+
+## Faz 37 — Word pro (madde 1–11)
+- [ ] Stil: başlığı kalın/ortala yap → Giriş > "Stili güncelle" → aynı stildeki bütün başlıklar değişiyor; Word'de stil tanımı güncel. Belge teması (Klasik/Modern…) yazı tiplerini ve başlık rengini değiştiriyor.
+- [ ] Sayfa düzeni levhası: cm kenar boşluğu, yatay, A5, 2 sütun, cilt payı, farklı ilk sayfa → Word'de aynı; "Baskı önizleme" sistem yazdırma ekranını açıyor, Türkçe harfler doğru, sayfa sonları yerinde.
+- [ ] Denklem: `\frac{-b \pm \sqrt{b^2-4ac}}{2a}` ekle → Word'de düzgün denklem; Word'de yazılmış denklemi aç → düzenle kutusunda LaTeX geliyor.
+- [ ] Tablo: sağa/aşağı birleştir, böl, kenarlık hazırları, sığdır (içerik/pencere/sabit), sırala (Türkçe ç/ğ/ı/ö/ş/ü ve 1.234,5 sayıları doğru).
+- [ ] Yeni belge > Word: şablon galerisi (CV, mektup, rapor, fatura, tutanak) Word ve LibreOffice'te onarımsız açılıyor.
+- [ ] Karşılaştır: eski sürümü seç → izlenen değişiklikler; gözden geçirme çubuğu ↑↓, tek tek kabul/ret; yorumda "Yorumlar" açılıyor. Belge ekle imleçten sonra.
+- [ ] Belge parolası: parola koy → kaydet → Word parola istiyor; Word'de parolalanmış docx uygulamada parolayla açılıyor (sayfa görünümünden Mobil editöre yönleniyor).
+- [ ] Sesle yaz: Google tanıyıcı açılıyor (Türkçe), metin imlece; tanıyıcı yoksa uyarı.
+- [ ] AI ile yaz: 6 görev, önizleme, Değiştir / Altına ekle, Vazgeç isteği iptal ediyor. AI yazım denetimi: öneri başına Uygula/Atla, Tümünü uygula, Durdur.
+- [ ] Dışa aktar: PDF, yazı tipi gömülü docx (başka telefonda Word'de aynı satır kırılımı), ODT/RTF/MD/TXT LibreOffice/Word'de açılıyor.
+- [ ] Gezinti ağacı katlanıyor, imleçteki başlık vurgulu; küçük resimler geldikçe doluyor, dokununca o sayfaya; sayaç okuma süresi.
+- [ ] Metin kutusu, şekil, resim sarma (kare/üst-alt/arkada/önde), kapak, bölüm sonu, alan (tarih/sayfa), çapraz başvuru, kaynakça Word'de doğru.
+- [ ] Okuma kipi: gündüz/sepya/gece, yazı boyu kalıcı; 300 sayfada akıcı kaydırma.
+- [ ] Perf: `word_pro_v1=false` → eski arayüz; boşta 0 kare; 300 sayfa docx açılış/kaydırma/kayıt A/B (`docs/perf/2026-11-05-faz37.md`).
