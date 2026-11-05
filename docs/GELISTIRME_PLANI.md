@@ -257,7 +257,7 @@ tembel render (görünür ±1, kova cacheWidth), metin çıkarma **istek üzerin
 karartma/sıkıştırma/OCR/karşılaştırma `JobQueue` + izolat, 500 sayfa PDF'te bellek tavanı
 testi, küçük resim şeridi yalnız açıkken üretilir.
 
-## Faz 40 — Ortak görünüm ve deneyim
+## Faz 40 — Ortak görünüm ve deneyim — BİTTİ (2026-11-05; cihaz turu + perf A/B bekliyor)
 1. [x] **Tasarım dili:** tüm editör üst çubukları tek yapı (başlık · kaydet · geri/ileri · ⋮),
    alt araç şeridi kaydırılabilir + bağlama duyarlı (seçime göre).
 2. [x] Animasyon/hareket: sayfa geçişleri `Motion` tokenlarıyla; boş durum çizimleri.

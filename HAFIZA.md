@@ -348,3 +348,13 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - Perf A/B: bekliyor (`docs/perf/2026-11-05-faz38.md`), cihaz listesi `CIHAZ_TESTI.md` Faz 38.
 
 - **Karar (2026-11-05, kullanıcı):** pano üst çubuğundaki AI Merkezi düğmesi (`dash-ai-hub`) KALDIRILDI; alt panelin sağ ek düğmesi varsayılan **AI** (eskiden "Yer aç"). "Yer aç" uzun bas → alt paneli düzenle'den seçilebilir; kayıtlı seçimi olan kullanıcının düzeni değişmez.
+## 2026-11-05 — Faz 40 bitti (faz-40 dalı; kod — cihaz turu + perf A/B bekliyor)
+- **Ortak üst çubuk** `widgets/editor_top_bar.dart` (`EditorTopBar.actions`): sıra SABİT kaydet · ↶ · ↷ · ekler · ⋮; dört editörde. Kaydet alt çubuklardan kalktı (tekrar yok). ⋮ → `showShareExportSheet` (`widgets/share_export_sheet.dart`, biçim + gönder; satırlar editörün mevcut işini çağırır, sayfa kapandıktan sonra).
+- **Bağlam şeridi:** `DocActionBar(contextual:)` — Excel aralık seçiliyken Kopyala/Kes/Yapıştır başta.
+- **Kapanış güvencesi:** `EditSession.onBackground()` (paused/hidden/detached) = taslak + otomatik kaydet açıksa dosyaya kayıt; bekçi `editor_uniform_test` (dört editör EditSession + withDraftBanner + EditExitGuard + EditorTopBar).
+- **Tema:** `AppAccent` (skin.dart, 7 vurgu; açıkta koyu ton, koyuda açık ton; `accent_theme_test` her aile × zemin ≥ 4,5/3) + `SkinPalette.withAccent`; pref `app_accent`; ön ayar `ThemePresetTile` (Açık/Koyu/AMOLED/Kâğıt); yazı ölçeği kademesi 2,0 eklendi.
+- **Tuzak (CI):** çeviri anahtar öneki `tp.` etiket seçicide (13_smart) kullanılıyor → `equal_keys_in_const_map`; yeni önek eklemeden önce `grep "'önek\."` yap. Faz 40 tema anahtarları `thp.*`.
+- **Eksik çeviri bekçisi** `l10n_missing_scan_test`: EN'de ğışİĞŞ, AR'de Arap harfsiz Latin kelime yasak; istisna (marka/klasör adı) listesi gerekçeli.
+- Durum yüzleri `widgets/state_views.dart`: `AppSkeleton` (nabız `Motion.pulse`, hafif/azaltılmışta yok), `AppErrorView` (editör hata satırlarının yerine). Boş durum çizimi `widgets/empty_art.dart` (FmEmptyState otomatik).
+- Rehber: okuyucu · düzenleyici · tara + `SampleDocs` (yalnız düğmeyle, `Documents/Dosya Okuyucu/<Örnekler>`). Ayarlar: `suggestedSettingIds` → "Önerilenler" çipleri.
+- Perf A/B: bekliyor (`docs/perf/2026-11-05-faz40.md`), cihaz listesi `CIHAZ_TESTI.md` Faz 40.

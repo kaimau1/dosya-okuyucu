@@ -696,3 +696,18 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
 - [ ] Anlatım kaydı: mikrofon izni ilk kayıtta; her slayt ayrı ses; kaydet → sunum kendi ilerliyor ve ses çalıyor; PowerPoint'te "Kayıtlı zamanlamaları kullan" aynı.
 - [ ] İkinci ekran: HDMI/USB-C ya da Cast (ekran yansıtma "ikinci ekran" kipi) → slayt TV'de, telefonda sunucu görünümü; kablo çekilince sorunsuz.
 - [ ] Perf: `slides_pro_v1=false` → eski arayüz aynen; boşta 0 kare; 300 slayt açılış/kaydırma/kayıt A/B (`docs/perf/2026-11-05-faz38.md`); APK boyutu (+ML Kit konu bölütleme istemcisi) CI bütçesinde.
+
+## Faz 40 — Ortak görünüm ve deneyim (madde 1–10)
+- [ ] Dört editörde (Word sayfa/mobil, Excel, Slayt) üst çubuk aynı sıra: 💾 · ↶ · ↷ · [ara/anahat/düzen] · ⋮; ⋮ → "Paylaş / Dışa aktar" aynı sayfayı açıyor.
+- [ ] Excel'de aralık seç → alt şeridin başında Kopyala/Kes/Yapıştır grubu; tek hücreye dönünce kayboluyor.
+- [ ] Sayfa geçişleri akıcı (220 ms giriş / 170 ms geri); Arapçada yeni sayfa soldan giriyor; "animasyonları kaldır" açıkken anında.
+- [ ] Boş klasör / arama sonucu yok / çöp boş ekranlarında çizim; koyu, AMOLED ve kâğıt temada okunur.
+- [ ] TalkBack: üst çubuk düğmeleri, ⋮, bağlam grubu ("Seçim"), Word'deki yorum simgesi okunuyor; 2× yazıda editör çubukları ve ayarlar taşmıyor.
+- [ ] Temiz kurulum: rehber 3 sayfa (okuyucu · düzenleyici · tara); "Örnek belgeleri ekle" → Belgeler/Dosya Okuyucu/Örnekler'de 4 dosya, her biri kendi editöründe açılıyor.
+- [ ] Ayarlar: arama, "Önerilenler" çipleri (AI anahtarı / otomatik kaydet / kilit / yazı boyutu) alt levhada ayarı açıyor.
+- [ ] Editörde değişiklik yap → ana ekrana dön (arka plan) → uygulamayı görev yöneticisinden kapat → yeniden aç: değişiklik kayıtlı (otomatik kaydet açık) ya da taslak şeridi çıkıyor.
+- [ ] Paylaş / Dışa aktar: Word mobil (PDF, DOCX, ODT, RTF, MD, TXT), Excel (PDF, CSV), Slayt (PDF, PNG, MP4); Gönder → paylaş, indir, yakındaki cihaza (kayıtlı hâl gidiyor).
+- [ ] Tema ön ayarı (Açık/Koyu/AMOLED/Kâğıt) ve 7 vurgu rengi her ailede okunur; yazı ölçeği "2×" kademesi.
+- [ ] Arapça arayüzde Faz 40 metinleri Arapça; bozuk dosya açınca tek tip hata yüzü (Ayrıntıyı kopyala); açılışta iskelet, hafif profilde nabızsız.
+- [ ] Pano: üst çubukta AI düğmesi YOK; alt panelin sağında varsayılan "AI" (Yer aç yerine; uzun bas → değiştirilebilir).
+- [ ] Perf: pano boşta 0 kare, büyük klasör kaydırma ve editör açılışı Faz 39 tablosuna göre gerilemiyor (`docs/perf/2026-11-05-faz40.md`).
