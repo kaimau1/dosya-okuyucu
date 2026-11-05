@@ -8,6 +8,9 @@ import '../core/l10n/app_language.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/ai_slides.dart';
 import '../services/conversion_service.dart';
+import '../screens/editors/slides_pro/master_page.dart' show showTemplateGallery;
+import '../services/pptx/pro/pptx_package.dart' show PptxPro;
+import '../services/pptx/pro/pptx_templates.dart';
 import '../services/pptx_writer.dart';
 import '../services/text_to_slides.dart';
 import 'tracked_busy.dart';
@@ -105,8 +108,14 @@ class AiSlidesFlow {
     final stem = _stem(fileName);
     try {
       if (format == SlidesFormat.pptx) {
-        final path = await ConversionService()
-            .writeToTemp('$stem.pptx', PptxWriter.build(plan.slides));
+        // Faz 38 / madde 2: tasarım önerisi — içeriğe göre sıralı şablon
+        // galerisi; vazgeçilirse sade deste.
+        var deck = PptxWriter.build(plan.slides);
+        final tpl = await showTemplateGallery(context,
+            suggested: PptxTemplates.suggest(plan.slides));
+        if (!context.mounted) return;
+        if (tpl != null) deck = await PptxPro.run(deck, PptxTemplates.apply(tpl));
+        final path = await ConversionService().writeToTemp('$stem.pptx', deck);
         if (!context.mounted) return;
         await Share.shareXFiles([XFile(path)],
             text: str.t('vw.slides_share'));
