@@ -12,6 +12,7 @@ import '../../services/fm/native_extras.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/crash_log.dart';
+import '../../services/fm/content_indexer.dart';
 import '../../services/fm/search_index.dart';
 import '../fm/sd_union_screen.dart';
 import '../fm/usb_diagnostics_screen.dart';
@@ -508,4 +509,58 @@ class _WeeklyCleanupTileState extends State<WeeklyCleanupTile> {
           NativeExtras.setWeeklyCleanup(v);
         },
       );
+}
+
+/// **İçerik dizini** (Faz 41 / 3): görsel OCR'ı aç/kapat + dizini sil.
+class ContentIndexTile extends StatefulWidget {
+  const ContentIndexTile({super.key});
+
+  @override
+  State<ContentIndexTile> createState() => _ContentIndexTileState();
+}
+
+class _ContentIndexTileState extends State<ContentIndexTile> {
+  bool? _ocr;
+
+  @override
+  void initState() {
+    super.initState();
+    ContentIndexer.ocrEnabled().then((v) {
+      if (mounted) setState(() => _ocr = v);
+    });
+  }
+
+  Future<void> _setOcr(bool v) async {
+    setState(() => _ocr = v);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(ContentIndexer.ocrPrefKey, v);
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SettingSwitch(
+          icon: AppIcons.ocr,
+          title: context.t('ci.ocr'),
+          subtitle: context.t('ci.ocr_sub'),
+          value: _ocr ?? false,
+          onChanged: _ocr == null ? null : _setOcr,
+        ),
+        SettingTile(
+          icon: AppIcons.delete,
+          title: context.t('ci.clear'),
+          onTap: () async {
+            final messenger = ScaffoldMessenger.of(context);
+            final done = context.t('ci.cleared');
+            await ContentIndexer.clear();
+            showSnackOn(messenger, done);
+          },
+        ),
+      ],
+    );
+  }
 }

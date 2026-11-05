@@ -31,4 +31,12 @@ const Map<String, (String, String, String)> _t27 = {
   'dro.phone_suffix': ('telefon', 'phone', 'الهاتف'),
   'dro.uploaded': ('{name} Drive\'a yüklendi', '{name} uploaded to Drive', 'تم رفع {name} إلى Drive'),
   'dro.sync_failed': ('Eşitlenemedi', 'Could not sync', 'تعذّرت المزامنة'),
+  'ss.title': ('Kayıtlı aramalar', 'Saved searches', 'عمليات البحث المحفوظة'),
+  'ss.save': ('Aramayı kaydet', 'Save search', 'حفظ البحث'),
+  'ss.name': ('Ad', 'Name', 'الاسم'),
+  'ss.saved': ('"{name}" kaydedildi', '"{name}" saved', 'تم حفظ "{name}"'),
+  'ci.ocr': ('Görsellerdeki yazı da aransın (OCR)', 'Also search text in images (OCR)', 'البحث أيضًا في نص الصور (OCR)'),
+  'ci.ocr_sub': ('İçerik dizini görsellerin metnini telefonda tanır; pil tasarrufunda durur', 'The content index recognises image text on the phone; pauses in battery saver', 'يتعرف فهرس المحتوى على نص الصور على الهاتف؛ ويتوقف في وضع توفير البطارية'),
+  'ci.clear': ('İçerik dizinini sil', 'Delete content index', 'حذف فهرس المحتوى'),
+  'ci.cleared': ('İçerik dizini silindi', 'Content index deleted', 'تم حذف فهرس المحتوى'),
 };

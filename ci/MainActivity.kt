@@ -382,6 +382,11 @@ class MainActivity : FlutterActivity() {
                     Extras.saveWidgetData(ctx, call.arguments as? String ?: "{}")
                 )
                 "deviceClass" -> result.success(Extras.deviceClass(ctx))
+                // Faz 41 / 3: pil tasarrufunda arka plan dizinleme durur.
+                "powerSave" -> result.success(
+                    (ctx.getSystemService(android.content.Context.POWER_SERVICE)
+                        as android.os.PowerManager).isPowerSaveMode
+                )
                 "exitReasons" -> result.success(
                     Extras.exitReasons(ctx, (call.arguments as? Number)?.toLong() ?: 0L)
                 )

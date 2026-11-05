@@ -328,6 +328,30 @@ extension _SearchScreenStateParts on _SearchScreenState {
         padding: withNavInset(context, const EdgeInsets.all(Gap.lg)),
         children: [
           Text(message, textAlign: TextAlign.center),
+          // **Kayıtlı aramalar** (Faz 41 / 3) — son aramaların üstünde.
+          if (_saved.isNotEmpty && _controller.text.trim().isEmpty) ...[
+            const SizedBox(height: Gap.lg),
+            Text(context.t('ss.title'),
+                style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: Gap.xs),
+            Wrap(
+              spacing: Gap.sm,
+              runSpacing: Gap.xs,
+              children: [
+                for (final s in _saved)
+                  InputChip(
+                    key: ValueKey('saved-search-${s.query}'),
+                    label: Text(s.name),
+                    avatar: Icon(
+                        s.inContent ? AppIcons.newWord : AppIcons.bookmark,
+                        size: 18),
+                    onPressed: () => _runSaved(s),
+                    onDeleted: () => _removeSaved(s),
+                    deleteButtonTooltipMessage: context.t('common.delete'),
+                  ),
+              ],
+            ),
+          ],
           // **Son aramalar** — sorgu kutusu boşken gösteriliyor: bir sonuç
           // listesinin üstüne geçmiş koymak, kullanıcının baktığı şeyi
           // aşağı iterdi.

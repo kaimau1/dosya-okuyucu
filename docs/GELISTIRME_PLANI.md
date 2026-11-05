@@ -277,7 +277,7 @@ yeşil; ortak bileşen değişince pano boşta-kare ve kaydırma ölçümü yeni
 ## Faz 41 — Dosya yöneticisi ve bulut
 1. [x] Çift bölme (A7.1), SD kart SAF yazma (A7.2), toplu yeniden adlandırma şablonları.
 2. [x] Drive: çevrimdışı kopya, çakışma çözümü, OneDrive/Dropbox (hesap kararı 👤 — uygulama kaydı/istemci kimliği kullanıcıda; KALANLAR Faz B "B-bulut").
-3. Arama: içerik içi arama (OCR dahil) dizini, kayıtlı aramalar, akıllı klasörler.
+3. [x] Arama: içerik içi arama (OCR dahil) dizini, kayıtlı aramalar, akıllı klasörler.
 4. Paylaşım: kısa ömürlü bağlantı (yerel ağ), QR ile aktar (var) → toplu.
 **Ölçüt:** 50 bin dosyada arama < 1 sn (dizinli).
 

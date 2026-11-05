@@ -14,7 +14,10 @@ import '../../models/fs_entry.dart';
 import '../../models/media_bucket.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/ai_meaning_search.dart';
+import '../../services/fm/content_indexer.dart';
 import '../../services/fm/content_search.dart';
+import '../../services/fm/saved_searches.dart';
+import '../../widgets/app_dialog.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/file_tags.dart';
 import '../../services/fm/fs_scan.dart';
@@ -159,6 +162,7 @@ class _SearchScreenState extends State<SearchScreen> {
     SearchIndex.ensureBuilt();
     SearchIndex.openSession(); // P10: dizin ekran açıkken bellekte
     // Geçmiş, kullanıcı yazmaya başlamadan önce (boş ekranda) gösteriliyor.
+    unawaited(_loadSaved());
     SearchHistory.ensureLoaded().then((_) {
       if (mounted) setState(() {});
     });
@@ -243,14 +247,30 @@ class _SearchScreenState extends State<SearchScreen> {
       _searching = true;
       _smart = null;
     });
-    final hits = await ContentSearch.search(
-      _root ?? FmEnv.primaryRoot,
-      query,
-      // Sorgu değişirse tarama kendini durdursun: kullanıcı yazmaya devam
-      // ederken eski taramanın diski okumaya devam etmesi hem yavaş hem
-      // yanlış sonuç demek.
-      isCancelled: () => token != _queryToken,
-    );
+    // Faz 41 / 3: içerik DİZİNİ hazırsa disk taranmaz (Office, PDF ve OCR
+    // metni dahil); dizin arka planda artımlı tazelenir. İlk kez (dizin
+    // boş) eski canlı tarama çalışır, dizin bu arada kurulur.
+    final index = ContentIndexer.index;
+    await index.load();
+    unawaited(ContentIndexer.refresh());
+    final List<ContentHit> hits;
+    if (index.length > 0) {
+      final found = await index.query(query, root: _root ?? FmEnv.primaryRoot);
+      hits = [
+        for (final h in found)
+          ContentHit(
+              path: h.path, line: h.line, snippet: h.snippet, total: h.total),
+      ];
+    } else {
+      hits = await ContentSearch.search(
+        _root ?? FmEnv.primaryRoot,
+        query,
+        // Sorgu değişirse tarama kendini durdursun: kullanıcı yazmaya devam
+        // ederken eski taramanın diski okumaya devam etmesi hem yavaş hem
+        // yanlış sonuç demek.
+        isCancelled: () => token != _queryToken,
+      );
+    }
     if (!mounted || token != _queryToken) return;
     setState(() {
       _contentHits = hits;
@@ -368,6 +388,14 @@ class _SearchScreenState extends State<SearchScreen> {
           },
         ),
         actions: [
+          // Faz 41 / 3: sorguyu adlandırıp kaydet.
+          if (_controller.text.trim().length >= 2)
+            IconButton(
+              key: const ValueKey('srch-save'),
+              tooltip: context.t('ss.save'),
+              icon: const Icon(AppIcons.bookmark),
+              onPressed: _saveSearch,
+            ),
           if (_controller.text.isNotEmpty)
             IconButton(
               tooltip: context.t('common.clear'),
@@ -442,6 +470,40 @@ class _SearchScreenState extends State<SearchScreen> {
         ],
       ),
     );
+  }
+
+  /// Kayıtlı aramalar (Faz 41 / 3).
+  List<SavedSearch> _saved = const [];
+
+  Future<void> _loadSaved() async {
+    final v = await SavedSearches.load();
+    if (mounted) setState(() => _saved = v);
+  }
+
+  Future<void> _saveSearch() async {
+    final q = _controller.text.trim();
+    final name = await showAppPrompt(context,
+        title: context.t('ss.save'), label: context.t('ss.name'), initial: q);
+    if (name == null || name.trim().isEmpty || !mounted) return;
+    final next = SavedSearches.add(
+        _saved, SavedSearch(name.trim(), q, inContent: _inContent));
+    setState(() => _saved = next);
+    await SavedSearches.store(next);
+    if (mounted) showSnack(context, context.t('ss.saved', {'name': name.trim()}));
+  }
+
+  void _runSaved(SavedSearch s) {
+    setState(() {
+      _inContent = s.inContent;
+      _controller.text = s.query;
+    });
+    unawaited(_run(s.query));
+  }
+
+  Future<void> _removeSaved(SavedSearch s) async {
+    final next = SavedSearches.remove(_saved, s);
+    setState(() => _saved = next);
+    await SavedSearches.store(next);
   }
 
   /// Bölüm dosyası (extension) `setState`i doğrudan çağıramaz (korumalı üye).

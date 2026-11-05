@@ -3,7 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
-import 'package:flutter/foundation.dart' show ValueNotifier, compute;
+import 'package:flutter/foundation.dart'
+    show ValueNotifier, compute, visibleForTesting;
 import 'package:path/path.dart' as p;
 
 import '../../core/text_search.dart';
@@ -257,6 +258,19 @@ abstract final class SearchIndex {
   /// [matchAll] true ise **boş sorgu** tüm girdileri döndürür — akıllı arama
   /// cümleyi tamamen ölçüte çevirdiğinde ("bu hafta videolar") ad araması
   /// kalmaz, süzülecek bir listeye yine de ihtiyaç vardır.
+  /// Dizin dosyası üzerinde eşzamanlı sorgu çekirdeği — perf kapısı testi
+  /// için (Faz 41 / 3: 50 bin dosyada < 1 sn). Uygulamada [query] kullanılır.
+  @visibleForTesting
+  static List<FsEntry> querySyncForTest(String indexPath, String query,
+          {int limit = 500}) =>
+      _querySync(_QueryArgs(
+          indexPath: indexPath,
+          query: query,
+          root: null,
+          categoryName: null,
+          includeDirs: true,
+          limit: limit));
+
   static Future<List<FsEntry>> query(
     String query, {
     String? root,
