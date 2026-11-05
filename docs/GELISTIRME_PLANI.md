@@ -172,7 +172,8 @@ yalnız görünürken boyanır.
 - [x] 3. Denklem düzenleyici (OMML yaz/oku, temel LaTeX girişi), tablo: hücre birleştir/böl,
    kenarlık/gölge, otomatik sığdır, sıralama.
    (`docx_math.dart` LaTeX↔OMML, `docx_table_ops.dart`; Araçlar > Denklem, Tablo sekmesi; `word_pro_math_table_test`.)
-4. Şablonlar (CV, mektup, rapor, fatura, tutanak) — "Yeni belge" sayfasına galeri.
+- [x] 4. Şablonlar (CV, mektup, rapor, fatura, tutanak) — "Yeni belge" sayfasına galeri.
+   (`docx_templates.dart` tam OOXML paketleri tr/en; `new_document_sheet` Word → galeri; `word_pro_templates_test`.)
 5. Karşılaştır/birleştir iki belge; yorum+değişiklik gezinme çubuğu; belge parolası.
 6. Sesle yazma (cihaz STT) ve AI ile yeniden yaz/özetle/çevir (Gemini var) — satır içi.
 7. PDF/Docx dışa aktarım kalitesi: sayfa kırılımı, yazı tipi gömme.

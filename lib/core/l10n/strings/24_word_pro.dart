@@ -54,4 +54,19 @@ const Map<String, (String, String, String)> _t24 = {
   'wp.tbl_err_shape': ('Hücre genişlikleri farklı; birleştirilemez', 'Cell widths differ; cannot merge', 'عرض الخلايا مختلف؛ لا يمكن الدمج'),
   'wp.tbl_err_not_merged': ('Hücre birleşik değil', 'The cell is not merged', 'الخلية غير مدمجة'),
   'wp.tbl_err_merged': ('Dikey birleşik hücreli tablo sıralanamaz', 'Tables with vertically merged cells cannot be sorted', 'لا يمكن فرز جدول به خلايا مدمجة رأسيًا'),
+
+  // Madde 4
+  'wt.title': ('Yeni Word belgesi', 'New Word document', 'مستند Word جديد'),
+  'wt.blank': ('Boş belge', 'Blank document', 'مستند فارغ'),
+  'wt.blank_hint': ('Sıfırdan başla', 'Start from scratch', 'ابدأ من الصفر'),
+  'wt.cv': ('Özgeçmiş', 'Résumé', 'سيرة ذاتية'),
+  'wt.cv_hint': ('Profil, deneyim, eğitim, yetenekler', 'Profile, experience, education, skills', 'الملف، الخبرة، التعليم، المهارات'),
+  'wt.letter': ('Mektup', 'Letter', 'رسالة'),
+  'wt.letter_hint': ('Resmî mektup / dilekçe', 'Formal letter', 'رسالة رسمية'),
+  'wt.report': ('Rapor', 'Report', 'تقرير'),
+  'wt.report_hint': ('Başlıklar, tablo, sonuç', 'Headings, table, conclusion', 'عناوين، جدول، خلاصة'),
+  'wt.invoice': ('Fatura', 'Invoice', 'فاتورة'),
+  'wt.invoice_hint': ('Kalemler, KDV, toplam', 'Items, VAT, total', 'البنود، الضريبة، الإجمالي'),
+  'wt.minutes': ('Toplantı tutanağı', 'Meeting minutes', 'محضر اجتماع'),
+  'wt.minutes_hint': ('Gündem, kararlar, imza', 'Agenda, decisions, signatures', 'جدول الأعمال، القرارات، التوقيعات'),
 };
