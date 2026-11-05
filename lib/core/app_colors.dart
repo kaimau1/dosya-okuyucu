@@ -241,4 +241,8 @@ abstract final class AppHues {
   static const gray = Color(0xFF76808C);
   static const silver = Color(0xFF9E9E9E);
   static const amberBright = Color(0xFFFFD740);
+
+  /// Etiket ve klasör renkleri (Faz 41 / 6) — sıra KALICI (kayıtta indeks
+  /// tutulur); yeni renk yalnız SONA eklenir.
+  static const labels = [red, orange, amber, green, teal, blue, violet, pink, slate];
 }

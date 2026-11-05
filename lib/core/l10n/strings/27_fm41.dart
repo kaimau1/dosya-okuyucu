@@ -51,4 +51,10 @@ const Map<String, (String, String, String)> _t27 = {
   'cln.old_large_detail': ('{n} dosya · 50 MB ve üstü', '{n} files · 50 MB or more', '{n} ملف · 50 ميغابايت أو أكثر'),
   'cln.empty_folders': ('Boş klasörler', 'Empty folders', 'مجلدات فارغة'),
   'cln.empty_folders_detail': ('{n} klasör · içinde hiçbir şey yok', '{n} folders · nothing inside', '{n} مجلد · لا شيء بداخلها'),
+  'lcol.color': ('Renk', 'Color', 'لون'),
+  'lcol.none': ('Renksiz', 'No color', 'بلا لون'),
+  'lcol.folder': ('Klasör rengi', 'Folder color', 'لون المجلد'),
+  'lcol.tag': ('"{tag}" etiket rengi', '"{tag}" tag color', 'لون الوسم "{tag}"'),
+  'fav.reorder': ('Favorileri sırala', 'Reorder favorites', 'ترتيب المفضلة'),
+  'fav.drag': ('Sürükleyerek taşı', 'Drag to move', 'اسحب للنقل'),
 };

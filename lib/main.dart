@@ -31,6 +31,7 @@ import 'screens/fm/pick_file_screen.dart';
 import 'core/app_haptics.dart';
 import 'screens/home_screen.dart';
 import 'screens/onboarding/onboarding_screen.dart';
+import 'services/fm/fm_colors_store.dart';
 import 'services/fm/native_extras.dart';
 import 'services/fm/secure_vault.dart';
 import 'services/fm/disk_housekeeping.dart';
@@ -192,6 +193,7 @@ Future<void> main() async {
   PathSideIndex.register((from, to) async {
     await FileTags.movePath(from, to);
     await OpenHistory.movePath(from, to);
+    await FmColorsStore.moveFolder(from, to); // Faz 41 / 6
   });
   // İş listesi artık diske yazılıyor (kullanıcı hatası 2026-07-31: "uygulamayı
   // alta alıp geri aldığımda diğer tüm işlemler kayboluyor"). Kanca hemen

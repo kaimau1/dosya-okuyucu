@@ -615,6 +615,16 @@ class AppState extends ChangeNotifier {
   bool isFolderLocked(String path) =>
       FolderLock.isLocked(path, _lockedFolders);
 
+  /// Favori klasörleri yeniden sırala (Faz 41 / 6; [to] varış dizini —
+  /// `onReorderItem` sözleşmesi).
+  Future<void> moveBookmark(int from, int to) async {
+    if (from < 0 || from >= _bookmarks.length) return;
+    final item = _bookmarks.removeAt(from);
+    _bookmarks.insert(to.clamp(0, _bookmarks.length), item);
+    await _prefs.setStringList(_kBookmarks, _bookmarks);
+    notifyListeners();
+  }
+
   Future<void> toggleBookmark(String path) async {
     if (!_bookmarks.remove(path)) _bookmarks.insert(0, path);
     await _prefs.setStringList(_kBookmarks, _bookmarks);
