@@ -129,7 +129,10 @@ abstract final class DocxPdf {
         }
       }
       // fldSimple içindeki sonuç metni ayrıca yazılmasın.
-      final line = sb.toString().replaceAll(RegExp(r'\{p\}\d+'), '{p}').trim();
+      final line = sb
+          .toString()
+          .replaceAllMapped(RegExp(r'\{([pn])\}\d+'), (m) => '{${m[1]}}')
+          .trim();
       if (line.isNotEmpty) lines.add(line);
     }
     return lines.isEmpty ? null : lines.join('  ·  ');
@@ -319,6 +322,8 @@ class _Renderer {
           parts.single != null &&
           i + 1 < paras.length &&
           paras[i + 1].cell == null &&
+          !paras[i + 1].look.pageBreakBefore &&
+          !_sectionStartsPage.contains(i + 1) &&
           paras[i + 1].length < 600 &&
           !paras[i + 1].text.contains(kDocxAtom)) {
         final next = _paraParts(paras[i + 1], i + 1, width);

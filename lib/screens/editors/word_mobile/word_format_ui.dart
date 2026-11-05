@@ -270,7 +270,6 @@ class WordFormatUi {
           RibbonButton(OfficeIcons.navigation, _t('word.navigation'),
               key: const ValueKey('word-nav'), onTap: onNavigate),
         ]),
-        if (onPro != null) RibbonTab(_t('wp.tab'), proTab()),
         RibbonTab(_t('word.tab_review'), [
           if (onFind != null)
             RibbonButton(OfficeIcons.search, _t('word.find'),
@@ -297,6 +296,8 @@ class WordFormatUi {
                 onTap: () => onResolveTracked!(false)),
           ],
         ]),
+        // Faz 37: en sonda — eski sekmelerin yeri değişmesin.
+        if (onPro != null) RibbonTab(_t('wp.tab'), proTab()),
       ];
 
   /// Faz 37 Araçlar sekmesi: gruplar [RibbonSep] ile ayrılır.

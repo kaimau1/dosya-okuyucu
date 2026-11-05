@@ -46,8 +46,9 @@ void main() {
     expect(pkg.document.rootElement.getAttribute('xmlns:wps'), kWps);
     expect(DocxDocument.parse(tb).paras.length, DocxDocument.parse(b).paras.length + 1);
     final sh = _apply(tb, DocxInsertPro.shape(0, 'ellipse'));
-    final ids = DocxPackage.open(sh).body.findAllElements('wp:docPr').map((e) => e.getAttribute('id')).toSet();
-    expect(ids.length, 2, reason: 'docPr kimlikleri tekil');
+    final ids = DocxPackage.open(sh).body.findAllElements('wp:docPr').map((e) => e.getAttribute('id')).toList();
+    expect(ids.toSet().length, ids.length, reason: 'docPr kimlikleri tekil');
+    expect(ids.length, greaterThanOrEqualTo(2));
   });
 
   test('sarma: satır içi → kare → arkada → satır içi', () {

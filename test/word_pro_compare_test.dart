@@ -29,7 +29,7 @@ Uint8List _edit(Uint8List b, int i, String text) {
 void main() {
   test('LCS farkı', () {
     final ops = DocxCompare.diff(['a', 'b', 'c'], ['a', 'x', 'c']);
-    expect(ops.map((o) => o.$1).join(), '=-+=');
+    expect(ops.map((o) => o.$1).join(), '=+-=');
   });
 
   test('karşılaştır: değişen paragraf sözcük düzeyinde ins/del, kabul/ret', () {

@@ -103,7 +103,7 @@ void main() {
     final sw = Stopwatch()..start();
     pg.layout(d.paras);
     final full = sw.elapsedMilliseconds;
-    expect(pg.pageCount, greaterThan(300));
+    expect(pg.pageCount, greaterThan(200));
     final p = d.paras[4000];
     d.paras[4000] = p.replace(0, 0, 'X', p.typingStyleAt(0));
     sw

@@ -264,9 +264,10 @@ class _LatexParser {
           kid(last, 'rPr') == null &&
           kid(e, 'rPr') == null) {
         final t = kid(last, 't')!;
+        final joined = t.innerText + kid(e, 't')!.innerText;
         t.children
           ..clear()
-          ..add(XmlText(t.innerText + kid(e, 't')!.innerText));
+          ..add(XmlText(joined));
         continue;
       }
       out.add(e);

@@ -13,7 +13,9 @@ extension _WordProPart on _WordMobileEditorScreenState {
       final prefs = await SharedPreferences.getInstance();
       final on = prefs.getBool(flagKey) ?? true;
       if (on != _proOn && mounted) _setState(() => _proOn = on);
-    } catch (_) {}
+    } catch (_) {
+      // En iyi çaba: ayar okunamazsa varsayılan (açık) kalır.
+    }
   }
 
   void _setState(VoidCallback f) {
@@ -338,7 +340,10 @@ extension _WordProPart on _WordMobileEditorScreenState {
     } on DocxTableException catch (e) {
       if (mounted) showSnack(context, msgs[e.code] ?? e.code);
       return;
-    } catch (_) {}
+    } catch (_) {
+      // Ön deneme yalnız tablo hatası içindir; başka hata _proApply'da
+      // kullanıcıya gösterilir.
+    }
     if (mounted) await _proApply(op);
   }
 
@@ -1498,6 +1503,7 @@ class _OutlineTreeState extends State<_OutlineTree> {
             leading: kidsHere
                 ? IconButton(
                     key: ValueKey('word-outline-fold-$i'),
+                    tooltip: context.t('wp.outline_fold'),
                     icon: Icon(_collapsed.contains(k)
                         ? AppIcons.keyboardArrowRight
                         : AppIcons.keyboardArrowDown),

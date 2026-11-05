@@ -63,7 +63,9 @@ class _WordReaderScreenState extends State<WordReaderScreen> {
           _theme = WordReaderTheme.values[t];
         }
       });
-    } catch (_) {}
+    } catch (_) {
+      // En iyi çaba: tercih okunamazsa varsayılan görünüm.
+    }
   }
 
   Future<void> _save() async {
@@ -71,7 +73,9 @@ class _WordReaderScreenState extends State<WordReaderScreen> {
       final p = await SharedPreferences.getInstance();
       await p.setDouble(_scaleKey, _scale);
       await p.setInt(_themeKey, _theme.index);
-    } catch (_) {}
+    } catch (_) {
+      // En iyi çaba: tercih yazılamazsa yalnız bu oturumda geçerli.
+    }
   }
 
   /// Kaba konum: ortalama paragraf yüksekliğiyle atla.

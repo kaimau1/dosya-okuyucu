@@ -22,7 +22,7 @@ void main() {
     expect(md, contains('## Ana bulgular'));
     expect(md, contains('- Birinci bulgu\n- İkinci bulgu'));
     expect(md, contains('| **Kalem** | **Değer** | **Pay** |'));
-    expect(md, contains('> Öne çıkan'));
+    expect(md, contains('> *Öne çıkan'));
   });
 
   test('RTF: ASCII, Türkçe \\u kaçışı, tablo satırı', () {

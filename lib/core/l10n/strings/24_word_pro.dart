@@ -211,4 +211,6 @@ const Map<String, (String, String, String)> _t24 = {
   'wp.reader_day': ('Gündüz', 'Day', 'نهاري'),
   'wp.reader_sepia': ('Sepya', 'Sepia', 'بني داكن'),
   'wp.reader_night': ('Gece', 'Night', 'ليلي'),
+
+  'wp.outline_fold': ('Aç / kapat', 'Expand / collapse', 'توسيع / طي'),
 };
