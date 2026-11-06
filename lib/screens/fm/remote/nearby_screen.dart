@@ -47,6 +47,7 @@ import '../pick_file_screen.dart';
 
 part 'nearby/links.dart';
 part 'nearby/sections.dart';
+part 'nearby/tabs.dart';
 part 'nearby/widgets.dart';
 
 /// Gelen dosya bildiriminin kimliği (uygulamadaki öteki kimliklerden farklı).
@@ -793,75 +794,54 @@ class _NearbyScreenState extends State<NearbyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(context.t('near.title')),
-        actions: [
-          IconButton(
-            key: const ValueKey('near-scan-qr'),
-            tooltip: context.t('qrf.scan'),
-            icon: const Icon(AppIcons.qrScan),
-            onPressed: _scanQr,
-          ),
-          _menu(context),
-        ],
-      ),
-      // Güvenilenler listesi değişince (ekle/kaldır) rozetler ve bölüm tazelenir.
-      body: ListenableBuilder(
-        listenable: TrustedPeers.instance,
-        builder: (context, _) => LayoutBuilder(builder: (context, box) {
-        final send = [
-          _statusCard(context),
-          ..._transfers(context),
-          const SizedBox(height: Gap.md),
-          _selectionCard(context),
-          const SizedBox(height: Gap.md),
-          _devicesCard(context),
-        ];
-        // İki sütunda sağın ilk başlığı soldaki durum kartıyla aynı hizada başlar.
-        List<Widget> more({required bool first}) => [
-          SectionHeader(context.t('near.no_app'),
-              padding: first ? _section.copyWith(top: 0) : _section),
-          _webCard(context),
-          SectionHeader(context.t('near.history'), padding: _section),
-          _history(context),
-          if (TrustedPeers.instance.items.isNotEmpty) ...[
-            SectionHeader(context.t('near.trusted'), padding: _section),
-            _trustedCard(context),
-          ],
-          SectionHeader(context.t('near.other_ways'), padding: _section),
-          _otherWays(context),
-        ];
-        const pad = EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.md);
-        if (box.maxWidth < _wideFrom) {
-          return ListView(
-            padding: withNavInset(context, pad),
-            children: [...send, ...more(first: false)],
-          );
-        }
-        return Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1480),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  key: const ValueKey('near-col-send'),
-                  child: ListView(padding: withNavInset(context, pad), children: send),
-                ),
-                Expanded(
-                  key: const ValueKey('near-col-more'),
-                  child: ListView(
-                    padding: withNavInset(context, pad.copyWith(left: 0)),
-                    // Sağ sütunun ilk başlığı solun durum kartıyla hizalı başlasın.
-                    children: more(first: true),
-                  ),
-                ),
-              ],
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(context.t('xfer.title')),
+          actions: [
+            IconButton(
+              key: const ValueKey('near-scan-qr'),
+              tooltip: context.t('qrf.scan'),
+              icon: const Icon(AppIcons.qrScan),
+              onPressed: _scanQr,
             ),
+            _menu(context),
+          ],
+          bottom: TabBar(
+            tabs: [
+              Tab(
+                key: const ValueKey('near-tab-quick'),
+                icon: const Icon(AppIcons.bolt, size: AppIcons.small),
+                iconMargin: const EdgeInsets.only(bottom: 2),
+                text: context.t('xft.tab_quick'),
+              ),
+              Tab(
+                key: const ValueKey('near-tab-other'),
+                icon: const Icon(AppIcons.computer, size: AppIcons.small),
+                iconMargin: const EdgeInsets.only(bottom: 2),
+                text: context.t('near.other_ways'),
+              ),
+              Tab(
+                key: const ValueKey('near-tab-history'),
+                icon: const Icon(AppIcons.history, size: AppIcons.small),
+                iconMargin: const EdgeInsets.only(bottom: 2),
+                text: context.t('near.history'),
+              ),
+            ],
           ),
-        );
-      }),
+        ),
+        // Güvenilenler listesi değişince (ekle/kaldır) rozetler ve bölüm tazelenir.
+        body: ListenableBuilder(
+          listenable: TrustedPeers.instance,
+          builder: (context, _) => TabBarView(
+            children: [
+              _quickTab(context),
+              _otherTab(context),
+              _historyTab(context),
+            ],
+          ),
+        ),
       ),
     );
   }

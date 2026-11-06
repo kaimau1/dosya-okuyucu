@@ -79,9 +79,9 @@ const Map<String, (String, String, String)> _t4 = {
     'جارٍ النسخ إلى {volume}…',
   ),
   'fm.external_copied': (
-    '{n} öğe {volume} birimine kopyalandı (Dosya Okuyucu klasörü).',
-    '{n} item(s) copied to {volume} (Dosya Okuyucu folder).',
-    'تم نسخ {n} عنصر إلى {volume} (مجلد Dosya Okuyucu).',
+    '{n} öğe {volume} birimine kopyalandı (Dosyalarım klasörü).',
+    '{n} item(s) copied to {volume} (Dosyalarım folder).',
+    'تم نسخ {n} عنصر إلى {volume} (مجلد Dosyalarım).',
   ),
   'fm.usb_attached': (
     '{volume} takıldı — açmak için dokunun.',
@@ -634,11 +634,11 @@ const Map<String, (String, String, String)> _t4 = {
   'dl.size_unknown': ('Boyut bilinmiyor', 'Size unknown', 'الحجم غير معروف'),
   'dl.step1_title': ('1) Paylaş (en kolayı)', '1) Share (easiest)', '1) المشاركة (الأسهل)'),
   'dl.step1_body': (
-    'Bağlantıya uzun basın → “Bağlantıyı paylaş” → Dosya Okuyucu. '
+    'Bağlantıya uzun basın → “Bağlantıyı paylaş” → Dosyalarım. '
         'Sayfadaki paylaş düğmesi de olur.',
-    'Long-press the link → “Share link” → Dosya Okuyucu. The page’s own share '
+    'Long-press the link → “Share link” → Dosyalarım. The page’s own share '
         'button works too.',
-    'اضغط مطوّلًا على الرابط ← «مشاركة الرابط» ← Dosya Okuyucu. زر المشاركة في '
+    'اضغط مطوّلًا على الرابط ← «مشاركة الرابط» ← Dosyalarım. زر المشاركة في '
         'الصفحة يعمل أيضًا.',
   ),
   'dl.step2_title': ('2) Kopyala-yapıştır', '2) Copy and paste', '2) نسخ ولصق'),

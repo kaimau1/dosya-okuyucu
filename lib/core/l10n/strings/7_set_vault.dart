@@ -369,11 +369,11 @@ const Map<String, (String, String, String)> _t7 = {
 
   // ── Kurulu uygulamalar ────────────────────────────────────────────────────
   'ia.permission_hint': (
-    'Açılan ayar sayfasından “Dosya Okuyucu”ya izin verip geri dönün, '
+    'Açılan ayar sayfasından “Dosyalarım”a izin verip geri dönün, '
         'sonra yenileyin.',
-    'Grant permission to “Dosya Okuyucu” on the settings page that opens, come '
+    'Grant permission to “Dosyalarım” on the settings page that opens, come '
         'back, then refresh.',
-    'امنح الإذن لـ «Dosya Okuyucu» في صفحة الإعدادات التي تُفتح، ثم عُد وحدّث.',
+    'امنح الإذن لـ «Dosyalarım» في صفحة الإعدادات التي تُفتح، ثم عُد وحدّث.',
   ),
 
   // ── Boyut düşürme işi ─────────────────────────────────────────────────────

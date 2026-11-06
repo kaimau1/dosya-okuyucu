@@ -20,6 +20,7 @@ import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
+import '../../services/fm/ai_auto.dart';
 import '../../services/fm/ai_index.dart';
 import '../fm/folder_picker_screen.dart';
 import 'settings_widgets.dart';
@@ -176,6 +177,32 @@ class AiScopeTypesTile extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// **Yeni dosyaları otomatik analiz et** (2026-11-06). Açıldığı andan sonra
+/// gelen/değişen dosyalar açılışta ve uygulama öne gelince analiz edilir.
+class AiAutoNewTile extends StatelessWidget {
+  const AiAutoNewTile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final scope = context.watch<AppState>().aiScope;
+    return SettingSwitch(
+      key: const ValueKey('ai-auto-new'),
+      icon: AppIcons.autoAwesomeMotion,
+      title: context.t('aiset.auto_new'),
+      subtitle: context.t('aiset.auto_new_sub'),
+      value: scope.autoNewFiles,
+      onChanged: (v) async {
+        await context.read<AppState>().setAiScope(scope.copyWith(
+              autoNewFiles: v,
+              // Her açılışta taban yenilenir: kapalıyken birikenler elle.
+              autoSinceMs: v ? DateTime.now().millisecondsSinceEpoch : null,
+            ));
+        if (v) await AiAutoAnalyze.kick();
+      },
     );
   }
 }

@@ -43,6 +43,17 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  // 2026-11-06: ilk sekme (hızlı aktar + QR) telefon ekranına KAYDIRMADAN
+  // sığar — kullanıcı isteği "ilk sekme hızlı aktar ve qr olsun ve ekrana
+  // sığsın".
+  testWidgets('hızlı aktar sekmesi 360×780 ekrana sığar', (tester) async {
+    await pump(tester, const Size(360, 780));
+    final qr = find.byKey(const ValueKey('near-qr-idle'));
+    expect(qr, findsOneWidget);
+    expect(tester.getBottomLeft(qr).dy, lessThanOrEqualTo(780));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('geniş ekranda iki sütun', (tester) async {
     await pump(tester, const Size(1200, 800));
     expect(find.byKey(const ValueKey('near-col-send')), findsOneWidget);

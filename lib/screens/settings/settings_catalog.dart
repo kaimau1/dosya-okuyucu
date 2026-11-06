@@ -405,6 +405,12 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
           ]),
           SettingsSection('set.sec_ai_scope', [
             SettingRow(
+              id: 'ai_auto_new',
+              titleKey: 'aiset.auto_new',
+              subtitleKey: 'aiset.auto_new_sub',
+              builder: _aiAutoNewTile,
+            ),
+            SettingRow(
               id: 'ai_excluded',
               titleKey: 'aiset.excluded',
               subtitleKey: 'aiset.excluded_sub',
@@ -745,6 +751,7 @@ Widget _aiExcludedTile(BuildContext _) => const AiExcludedFoldersTile();
 Widget _aiTypesTile(BuildContext _) => const AiScopeTypesTile();
 Widget _aiPrivacyTile(BuildContext _) => const AiPrivacyTile();
 Widget _aiBudgetTile(BuildContext _) => const AiBudgetTile();
+Widget _aiAutoNewTile(BuildContext _) => const AiAutoNewTile();
 Widget _pinTile(BuildContext _) => const PinTile();
 Widget _appLockTile(BuildContext _) => const AppLockTile();
 Widget _lockedFoldersTile(BuildContext _) => const LockedFoldersTile();

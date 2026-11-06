@@ -3,8 +3,9 @@ part of '../nearby_screen.dart';
 /// Durum kartındaki küçük "yayında" halkası.
 class _Radar extends StatefulWidget {
   final bool active;
+  final double size;
 
-  const _Radar({required this.active});
+  const _Radar({required this.active, this.size = 56});
 
   @override
   State<_Radar> createState() => _RadarState();
@@ -47,7 +48,7 @@ class _RadarState extends State<_Radar> with SingleTickerProviderStateMixin {
     final scheme = Theme.of(context).colorScheme;
     final color = widget.active ? scheme.primary : scheme.outline;
     return SizedBox.square(
-      dimension: 56,
+      dimension: widget.size,
       child: AnimatedBuilder(
         animation: _c,
         builder: (_, __) => CustomPaint(
@@ -87,41 +88,6 @@ class _RadarPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_RadarPainter old) => old.t != t || old.color != color;
-}
-
-class _Pill extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool ok;
-  final VoidCallback? onTap;
-
-  const _Pill({required this.icon, required this.label, required this.ok, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final fg = ok ? Paper.success(context) : scheme.onSurfaceVariant;
-    return Material(
-      color: scheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(999),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 14, color: fg),
-              const SizedBox(width: 4),
-              Text(label,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(color: fg)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _PeerAvatar extends StatelessWidget {

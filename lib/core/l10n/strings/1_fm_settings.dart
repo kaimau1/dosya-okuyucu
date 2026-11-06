@@ -263,7 +263,7 @@ const Map<String, (String, String, String)> _t1 = {
   'settings.size_large': ('Büyük', 'Large', 'كبير'),
   'settings.size_xlarge': ('Çok büyük', 'Extra large', 'كبير جدًا'),
   'settings.font_sample': (
-    'Örnek: Dosya Okuyucu — 0123456789',
+    'Örnek: Dosyalarım — 0123456789',
     'Sample: File Reader — 0123456789',
     'مثال: قارئ الملفات — 0123456789',
   ),
@@ -352,11 +352,11 @@ const Map<String, (String, String, String)> _t1 = {
   ),
   'settings.about': ('Hakkında', 'About', 'حول'),
   'settings.about_body': (
-    'Dosya Okuyucu • sürüm {version}\n'
+    'Dosyalarım • sürüm {version}\n'
         'Çok formatlı, hızlı ve sade dosya okuyucu/düzenleyici.',
-    'Dosya Okuyucu • version {version}\n'
+    'Dosyalarım • version {version}\n'
         'A fast, simple multi-format file reader/editor.',
-    'Dosya Okuyucu • الإصدار {version}\n'
+    'Dosyalarım • الإصدار {version}\n'
         'قارئ/محرر ملفات سريع وبسيط يدعم صيغًا متعددة.',
   ),
   // ── Gizlilik politikası ve hata kayıtları (2026-08-28) ──────────────────
@@ -897,7 +897,7 @@ const Map<String, (String, String, String)> _t1 = {
   'err.go_back': ('Geri dön', 'Go back', 'رجوع'),
   'err.go_home': ('Ana ekran', 'Home', 'الشاشة الرئيسية'),
 
-  // ── Yakındaki cihaza gönder (iki Dosya Okuyucu arası) ─────────────────────
+  // ── Yakındaki cihaza gönder (iki Dosyalarım arası) ─────────────────────
   'peer.title': ('Yakındaki cihaz', 'Nearby device', 'جهاز قريب'),
   'peer.send_action': (
     'Yakındaki cihaza gönder',
@@ -905,20 +905,20 @@ const Map<String, (String, String, String)> _t1 = {
     'إرسال إلى جهاز قريب',
   ),
   'peer.send_hint': (
-    'Aynı Wi-Fi\'deki Dosya Okuyucu\'ya doğrudan',
-    'Straight to Dosya Okuyucu on the same Wi-Fi',
-    'مباشرة إلى Dosya Okuyucu على نفس شبكة Wi-Fi',
+    'Aynı Wi-Fi\'deki Dosyalarım\'a doğrudan',
+    'Straight to Dosyalarım on the same Wi-Fi',
+    'مباشرة إلى Dosyalarım على نفس شبكة Wi-Fi',
   ),
   'peer.tab_send': ('Gönder', 'Send', 'إرسال'),
   'peer.tab_receive': ('Al', 'Receive', 'استقبال'),
   'peer.searching': ('Cihazlar aranıyor…', 'Looking for devices…', 'جارٍ البحث عن الأجهزة…'),
   'peer.search_again': ('Yeniden ara', 'Search again', 'إعادة البحث'),
   'peer.none_found': (
-    'Cihaz bulunamadı. Karşı telefonda Dosya Okuyucu > Yakındaki cihaz > Al '
+    'Cihaz bulunamadı. Karşı telefonda Dosyalarım > Yakındaki cihaz > Al '
     'ekranı açık olmalı ve iki cihaz aynı Wi-Fi ağında olmalı.',
-    'No device found. On the other phone open Dosya Okuyucu > Nearby device > '
+    'No device found. On the other phone open Dosyalarım > Nearby device > '
     'Receive, and make sure both are on the same Wi-Fi network.',
-    'لم يتم العثور على جهاز. افتح في الهاتف الآخر Dosya Okuyucu > جهاز قريب > '
+    'لم يتم العثور على جهاز. افتح في الهاتف الآخر Dosyalarım > جهاز قريب > '
     'استقبال، وتأكد من أن الجهازين على نفس شبكة Wi-Fi.',
   ),
   'peer.files_to_send': (
@@ -949,11 +949,11 @@ const Map<String, (String, String, String)> _t1 = {
   ),
   'peer.receiving_off': ('Kapalı', 'Off', 'مغلق'),
   'peer.receive_explain': (
-    'Bu ekran açıkken aynı Wi-Fi ağındaki Dosya Okuyucu\'lar bu cihaza dosya '
+    'Bu ekran açıkken aynı Wi-Fi ağındaki Dosyalarım uygulamaları bu cihaza dosya '
     'gönderebilir. Ekranı kapatınca kapanır.',
-    'While this screen is open, Dosya Okuyucu apps on the same Wi-Fi can send '
+    'While this screen is open, Dosyalarım apps on the same Wi-Fi can send '
     'files here. It closes when you leave the screen.',
-    'أثناء فتح هذه الشاشة، يمكن لتطبيقات Dosya Okuyucu على نفس شبكة Wi-Fi '
+    'أثناء فتح هذه الشاشة، يمكن لتطبيقات Dosyalarım على نفس شبكة Wi-Fi '
     'إرسال ملفات إلى هنا. يتوقف عند مغادرة الشاشة.',
   ),
   'peer.receive_warning': (
@@ -979,9 +979,9 @@ const Map<String, (String, String, String)> _t1 = {
   'peer.address': ('Adres (192.168.1.42)', 'Address (192.168.1.42)', 'العنوان (192.168.1.42)'),
   'peer.connect': ('Bağlan', 'Connect', 'اتصال'),
   'peer.not_found_at': (
-    'Bu adreste Dosya Okuyucu bulunamadı',
-    'No Dosya Okuyucu found at that address',
-    'لم يتم العثور على Dosya Okuyucu على هذا العنوان',
+    'Bu adreste Dosyalarım bulunamadı',
+    'No Dosyalarım found at that address',
+    'لم يتم العثور على Dosyalarım على هذا العنوان',
   ),
   'peer.this_device': ('Bu cihaz: {name}', 'This device: {name}', 'هذا الجهاز: {name}'),
   'peer.other_apps': (
