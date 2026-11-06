@@ -242,7 +242,7 @@ class FmPill extends StatelessWidget {
       return SizedBox(
         height: kFmFilterBarHeight,
         child: Padding(
-          padding: const EdgeInsets.all(4),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
           child: AnimatedContainer(
             duration: Motion.of(context, Motion.short),
             curve: Curves.easeOut,
@@ -308,36 +308,36 @@ class FmFilterBar extends StatelessWidget {
         height: kFmFilterBarHeight,
         child: Padding(
           // Kenar payı ızgaranın/listenin metin hizasıyla aynı (12 dp).
-          padding: const EdgeInsetsDirectional.fromSTEB(12, 2, 12, 2),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: pal.card,
-              borderRadius: radius,
-              border: Border.all(color: pal.rule),
-            ),
-            child: ClipRRect(
-              borderRadius: radius,
-              child: Material(
-                type: MaterialType.transparency,
-                child: OverflowBox(
-                  // Bölmeler 48 dp dokunma alanını korur; kart 44 dp görünür.
-                  maxHeight: kFmFilterBarHeight,
-                  child: Row(
-                    children: [
-                      for (var i = 0; i < children.length; i++) ...[
-                        if (i > 0)
-                          SizedBox(
-                            height: 22,
-                            child: VerticalDivider(
-                                width: 1, thickness: 1, color: pal.rule),
-                          ),
-                        Expanded(child: children[i]),
-                      ],
-                    ],
+          padding: const EdgeInsetsDirectional.symmetric(horizontal: 12),
+          child: Stack(
+            children: [
+              // Kart arka planda, 2 dp içeride çizilir; bölmeler şeridin tam
+              // yüksekliğini (48 dp dokunma alanı) korur — kırpılmaz.
+              Positioned.fill(
+                top: 2,
+                bottom: 2,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: pal.card,
+                    borderRadius: radius,
+                    border: Border.all(color: pal.rule),
                   ),
                 ),
               ),
-            ),
+              Row(
+                children: [
+                  for (var i = 0; i < children.length; i++) ...[
+                    if (i > 0)
+                      SizedBox(
+                        height: 22,
+                        child: VerticalDivider(
+                            width: 1, thickness: 1, color: pal.rule),
+                      ),
+                    Expanded(child: children[i]),
+                  ],
+                ],
+              ),
+            ],
           ),
         ),
       ),

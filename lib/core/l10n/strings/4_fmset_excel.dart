@@ -79,9 +79,9 @@ const Map<String, (String, String, String)> _t4 = {
     'جارٍ النسخ إلى {volume}…',
   ),
   'fm.external_copied': (
-    '{n} öğe {volume} birimine kopyalandı (Dosyalarım klasörü).',
-    '{n} item(s) copied to {volume} (Dosyalarım folder).',
-    'تم نسخ {n} عنصر إلى {volume} (مجلد Dosyalarım).',
+    '{n} öğe {volume} birimine kopyalandı (Dosya Okuyucu klasörü).',
+    '{n} item(s) copied to {volume} (Dosya Okuyucu folder).',
+    'تم نسخ {n} عنصر إلى {volume} (مجلد Dosya Okuyucu).',
   ),
   'fm.usb_attached': (
     '{volume} takıldı — açmak için dokunun.',

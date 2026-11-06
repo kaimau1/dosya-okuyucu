@@ -35,8 +35,12 @@ void main() {
     final bad = <String>[];
     for (final k in AppStrings.keys) {
       if (_allowed.contains(k)) continue;
+      // Uygulamanın adı "Dosyalarım" (2026-11-06) her dilde aynı yazılır —
+      // marka, çeviri değil.
       final en = AppStrings.variants(k)[1];
-      if (_turkishOnly.hasMatch(en)) bad.add('$k → $en');
+      if (_turkishOnly.hasMatch(en.replaceAll('Dosyalarım', ''))) {
+        bad.add('$k → $en');
+      }
     }
     expect(bad, isEmpty, reason: 'Çevrilmemiş İngilizce:\n${bad.join('\n')}');
   });

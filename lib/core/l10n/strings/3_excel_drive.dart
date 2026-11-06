@@ -10,8 +10,8 @@ const Map<String, (String, String, String)> _t3 = {
     'نسخ إلى الهاتف',
   ),
   'nas.copied_to_phone': (
-    'İndirilenler/Dosyalarım klasörüne kopyalandı',
-    'Copied to Download/Dosyalarım',
+    'İndirilenler/Dosya Okuyucu klasörüne kopyalandı',
+    'Copied to Download/Dosya Okuyucu',
     'تم النسخ إلى مجلد التنزيلات',
   ),
   'nas.copy_only_files': (
