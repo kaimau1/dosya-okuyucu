@@ -11,7 +11,7 @@ import 'package:integration_test/integration_test.dart';
 ///
 /// Koşu (telefon bağlı, profil derlemesi):
 ///   python3 tool/make_test_tree.py olcum_verisi
-///   adb push olcum_verisi /sdcard/Android/data/<paket>/files/olcum
+///   adb push olcum_verisi /sdcard/Android/data/PAKET/files/olcum
 ///   bash tool/perf_senaryo.sh
 /// Her senaryo `traceAction` ile ayrı zaman çizelgesi üretir; sürücü
 /// (`test_driver/perf_driver.dart`) `build/<anahtar>.timeline_summary.json`

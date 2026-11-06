@@ -8,10 +8,7 @@
 tags:
   live:
     description: Gerçek FTP/SFTP/WebDAV/SMB sunucusu ister; yoksa atlanır.
+  # Faz 42 / 5: CI perf gerileme kapısı da bu etiketi kullanır (verify 0/3,
+  # ayrı adım; seçili test adımında perf dosyaları çıkarılır).
   perf:
     description: Kıyas testleri (test/perf/) — DUZENLEME_PLANI §7; eşikler debug/JIT için gevşek.
-  # Faz 42 / 5: performans gerileme kapısı. Eşikler testlerin içinde (cihaz
-  # bütçesinin ×3 gevşek hâli); CI `verify` 0/3'te ayrı adımda koşar, seçili
-  # test adımında dışlanır (çift koşmasın).
-  perf:
-    description: Performans eşik testleri (CI perf kapısı).
