@@ -83,6 +83,14 @@ Hata metni, hataya yol açan dosyanın adını/yolunu içerebilir. Bu yüzden
 paylaşmadan önce metnin tamamı ekranda gösterilir — ne gönderdiğinizi görerek
 karar verirsiniz.
 
+**Sorunu bildir (anonim özet).** Hata kayıtları ekranındaki bu düğme, hata
+sayılarını (çökme, yanıt vermeme/ANR, bellek yetersizliği), hataların ilk
+satırlarını ve isterseniz kare süresi dağılımını içeren kısa bir özet
+hazırlar. Dosya adları, yollar, e-posta adresleri ve 6 haneden uzun sayılar
+(T.C. kimlik no, telefon vb.) maskelenir; belge içeriği hiç girmez. Özet
+önce ekranda gösterilir, yalnız siz **Paylaş**'a basarsanız gider. "Kare
+ölçümü" varsayılan olarak kapalıdır ve yalnız sayısal bir dağılım tutar.
+
 ## 4. İzinler ve nedenleri
 
 | İzin | Niçin |

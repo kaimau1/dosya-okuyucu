@@ -295,7 +295,9 @@ arka planda düşük öncelik, pil tasarrufunda duraklar; `fs_sort_perf_test` ve
    PDF görüntüleyici zaten `PdfViewer.file` (pdfium akışı), araçlar `pdfInMemoryMaxBytes` bekçisi; `test/large_file_test.dart`; `make_test_tree.py --buyuk`.)
 3. [x] Çökme günlüğü → "bildir" akışı; A8 ölçüm altyapısı.
    (Hata kayıtları → 🐞 Bildir: `DiagReport` önizleme + onay + paylaş; `FrameStats` kare dağılımı, `StartupQueue`'da, varsayılan kapalı.)
-4. Sürüm adayı turu (B6) ve mağaza varlıkları.
+4. [x] Sürüm adayı turu (B6) ve mağaza varlıkları.
+   (`docs/SURUM_ADAYI.md` tur listesi; `tool/magaza_varliklari.py` → `fastlane/metadata/android/` TR/EN/AR metin + 512 simge + 1024×500 tanıtım;
+   bekçi `test/store_assets_test.dart`; başlıklar 30 sınırına indirildi; gizlilik metnine "Sorunu bildir".)
 
 **Ek:** 5. [x] Otomatik perf gerileme kapısı: CI'da `flutter test --tags perf` eşikleri + APK boyutu
 tabanı (artış %2'yi aşarsa kırmızı).
