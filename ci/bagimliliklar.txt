@@ -1,0 +1,65 @@
+# BAĞIMLILIK BÜTÇESİ (Faz 42 / 1 — performans anayasası kural 7)
+#
+# pubspec.yaml'daki HER doğrudan bağımlılık burada olmalı; olmayan yeni paket
+# CI `verify` (0/3) adımında KIRMIZI (tool/bagimlilik_denetimi.py).
+# Yeni paket eklerken:
+#   1. HAFIZA.md'ye gerekçe + alternatif (APK'ya +1,5 MB üstü her ekleme için zorunlu),
+#   2. bu listeye `ad  # gerekçe · ölçülen APK farkı (MB)` satırı,
+#   3. APK boyut tabanı (ci/apk_boyut_tabani.txt) yalnız bilinçli artışta güncellenir.
+# Kaldırılan paketin satırı da silinir (denetim uyarır).
+#
+# [dependencies]
+flutter
+flutter_localizations
+crypto
+pointycastle
+mime
+barcode
+file_picker
+path_provider
+path
+receive_sharing_intent
+pdfrx
+syncfusion_flutter_pdf
+syncfusion_flutter_core
+google_mlkit_text_recognition
+google_mlkit_translation
+webview_flutter
+webview_flutter_android
+archive
+xml
+koni_archive
+http
+shared_preferences
+shared_preferences_android
+pdf
+printing
+share_plus
+provider
+permission_handler
+wakelock_plus
+video_player
+fc_native_video_thumbnail
+installed_apps
+app_usage
+open_filex
+flutter_displaymode
+flutter_local_notifications
+image
+google_sign_in
+flutter_tts
+url_launcher
+background_downloader
+dartssh2
+ftpconnect
+webdav_client
+multicast_dns
+smb_connect
+video_player_media_kit
+media_kit_libs_android_video
+video_player_platform_interface
+tflite_flutter
+# [dev_dependencies]
+flutter_test
+flutter_lints
+flutter_launcher_icons

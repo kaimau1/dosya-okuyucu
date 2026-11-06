@@ -288,7 +288,8 @@ arka planda düşük öncelik, pil tasarrufunda duraklar; `fs_sort_perf_test` ve
 (P8/G13) korunur; küçük resim üretimi eşzamanlılığı `PerfBudget`te.
 
 ## Faz 42 — Kalite, performans, yayın
-1. Başlangıç süresi/APK boyutu bütçeleri (CI var) — yeni bağımlılık eklenince bütçe kontrolü.
+1. [x] Başlangıç süresi/APK boyutu bütçeleri (CI var) — yeni bağımlılık eklenince bütçe kontrolü.
+   (`tool/bagimlilik_denetimi.py` + `ci/bagimliliklar.txt` CI 0/3'te; `test/startup_budget_test.dart` main() `await` listesi.)
 2. Büyük dosya: 100 MB xlsx/pdf akış okuma, bellek tavanı testleri.
 3. Çökme günlüğü → "bildir" akışı; A8 ölçüm altyapısı.
 4. Sürüm adayı turu (B6) ve mağaza varlıkları.
