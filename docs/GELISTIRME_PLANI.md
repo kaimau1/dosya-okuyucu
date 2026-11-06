@@ -290,7 +290,9 @@ arka planda düşük öncelik, pil tasarrufunda duraklar; `fs_sort_perf_test` ve
 ## Faz 42 — Kalite, performans, yayın
 1. [x] Başlangıç süresi/APK boyutu bütçeleri (CI var) — yeni bağımlılık eklenince bütçe kontrolü.
    (`tool/bagimlilik_denetimi.py` + `ci/bagimliliklar.txt` CI 0/3'te; `test/startup_budget_test.dart` main() `await` listesi.)
-2. Büyük dosya: 100 MB xlsx/pdf akış okuma, bellek tavanı testleri.
+2. [x] Büyük dosya: 100 MB xlsx/pdf akış okuma, bellek tavanı testleri.
+   (`services/xlsx/xlsx_stream.dart` olay akışlı okuyucu → `XlsxEditor.fromStream` salt okunur; eşik/tavan `PerfBudget`;
+   PDF görüntüleyici zaten `PdfViewer.file` (pdfium akışı), araçlar `pdfInMemoryMaxBytes` bekçisi; `test/large_file_test.dart`; `make_test_tree.py --buyuk`.)
 3. Çökme günlüğü → "bildir" akışı; A8 ölçüm altyapısı.
 4. Sürüm adayı turu (B6) ve mağaza varlıkları.
 

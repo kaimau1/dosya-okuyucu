@@ -91,6 +91,8 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
       // izolatta ayrıştırılır; kaydederken aynı parolayla yeniden şifrelenir.
       if (await _openEncrypted()) {
         // _openEncrypted modeli kurdu (ya da vazgeçildi → _error).
+      } else if (await _openLargeStream()) {
+        // Faz 42 / 2: bütçe üstü xlsx → akış önizlemesi (salt okunur).
       } else if (SpreadsheetEditorScreen.parseInIsolate) {
         try {
           _editor = await compute(_SpreadsheetEditorScreenState._readAndParse, widget.path);
@@ -125,6 +127,32 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
       if (mounted && z != 1) _zoomCtl.setZoom(z.clamp(0.3, 3).toDouble());
       _updateColWindow();
     });
+  }
+
+  /// **Büyük xlsx** (Faz 42 / 2, anayasa k.10): dosya `PerfBudget`
+  /// eşiğinden büyükse tam ayrıştırma (dosyanın ~10-20 katı bellek) yerine
+  /// akış okuyucusu en çok `xlsxStreamMaxCells` hücre okur. Açıldıysa true.
+  Future<bool> _openLargeStream() async {
+    final ext = p.extension(widget.path).toLowerCase();
+    if (ext != '.xlsx' && ext != '.xlsm') return false;
+    final budget = DeviceProfile.budget;
+    final int size;
+    try {
+      size = await File(widget.path).length();
+    } catch (_) {
+      return false;
+    }
+    if (size <= budget.xlsxFullParseMaxBytes) return false;
+    final tmp = (await getTemporaryDirectory()).path;
+    _editor = await compute(
+        _SpreadsheetEditorScreenState._streamPreview,
+        XlsxStreamRequest(widget.path,
+            tempDir: tmp,
+            maxCells: budget.xlsxStreamMaxCells,
+            maxSharedChars: budget.xlsxStreamSharedChars));
+    _streamPreviewOpen = true;
+    _streamPreviewMb = size >> 20;
+    return true;
   }
 
   XlsxSheet? get _sheet {

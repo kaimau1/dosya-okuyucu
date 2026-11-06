@@ -111,10 +111,12 @@ extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                context.t('excel.truncated', {
-                  'rows': XlsxReader.maxRows,
-                  'cols': XlsxReader.maxColumns,
-                }),
+                _streamPreviewOpen
+                    ? context.t('lf.xlsx_stream', {'mb': _streamPreviewMb})
+                    : context.t('excel.truncated', {
+                        'rows': XlsxReader.maxRows,
+                        'cols': XlsxReader.maxColumns,
+                      }),
                 style: Theme.of(context)
                     .textTheme
                     .bodySmall
