@@ -102,8 +102,14 @@ void main() {
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('crash-report')));
-    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
-    await tester.pumpAndSettle();
+    // Özet dosyadan okunur (gerçek G/Ç) → runAsync; levha açılış animasyonu
+    // için sabit adımlar (ekranda yükleme göstergesi varken pumpAndSettle
+    // hiç durulmaz).
+    for (var i = 0; i < 6; i++) {
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 60)));
+      await tester.pump(const Duration(milliseconds: 200));
+    }
     expect(find.byKey(const ValueKey('dg-preview')), findsOneWidget);
     expect(find.byKey(const ValueKey('dg-send')), findsOneWidget);
     final preview =
