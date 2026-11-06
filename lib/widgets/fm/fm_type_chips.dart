@@ -275,7 +275,8 @@ Future<void> showFmTypeSheet(
         final shown = current.isEmpty
             ? total
             : current.fold<int>(0, (a, t) => a + (counts[t] ?? 0));
-        return Padding(
+        return SingleChildScrollView(
+          child: Padding(
           padding: const EdgeInsetsDirectional.fromSTEB(
               Gap.md, 0, Gap.md, Gap.md),
           child: Column(
@@ -328,17 +329,66 @@ Future<void> showFmTypeSheet(
                 );
               }),
               const SizedBox(height: Gap.md),
-              FilledButton(
-                key: const ValueKey('type-done'),
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: Text(ctx.t('typ.show_n', {'n': shown})),
+              FmSheetFooter(
+                doneKey: const ValueKey('type-done'),
+                shown: shown,
+                onClear: current.isEmpty ? null : () => set(const {}),
+                onDone: () => Navigator.of(ctx).pop(),
               ),
             ],
+          ),
           ),
         );
       },
     ),
   );
+}
+
+/// Süzgeç levhalarının ortak alt satırı (Faz 42 süzgeç cilası, 2026-11-06):
+/// solda **Temizle** (yalnız bir şey seçiliyken etkin — levhayı kapatmadan
+/// her şeyi bırakır), sağda "N dosyayı göster". Sonuç 0 ise birincil düğme
+/// bunu açıkça söyler; kullanıcı boş listeye düşmeden önce görür.
+class FmSheetFooter extends StatelessWidget {
+  final int shown;
+  final VoidCallback? onClear;
+  final VoidCallback onDone;
+  final Key? doneKey;
+
+  const FmSheetFooter({
+    super.key,
+    required this.shown,
+    required this.onClear,
+    required this.onDone,
+    this.doneKey,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        TextButton.icon(
+          key: const ValueKey('filter-clear'),
+          onPressed: onClear,
+          icon: const Icon(AppIcons.clearAll, size: 20),
+          label: Text(context.t('flt.clear')),
+        ),
+        const SizedBox(width: Gap.sm),
+        Expanded(
+          child: FilledButton(
+            key: doneKey,
+            onPressed: onDone,
+            child: Text(
+              shown == 0
+                  ? context.t('flt.none_left')
+                  : context.t('typ.show_n', {'n': shown}),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 /// Levhalardaki kart kutusu (tür, kaynak, zaman, boyut için ortak).
@@ -366,6 +416,13 @@ class FmChoiceTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    // Sıfır sonuçlu kutu SOLUK (dokunulabilir kalır ama "boş" olduğu bir
+    // bakışta görünür) — `Opacity` değil renk: kare başına katman yok.
+    final empty = count == 0 && !selected;
+    final tint = empty ? color.withValues(alpha: 0.45) : color;
+    final labelColor = selected
+        ? scheme.onPrimaryContainer
+        : (empty ? scheme.onSurfaceVariant : scheme.onSurface);
     return SizedBox(
       width: width,
       child: Semantics(
@@ -396,7 +453,11 @@ class FmChoiceTile extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
                     Gap.sm, Gap.md, Gap.sm, Gap.sm),
+                // KÖK NEDEN (2026-11-06, tasarım görüntüsü): Stack çocuğu
+                // başa yaslıyordu — kısa adlı kutularda simge solda, uzun
+                // adlılarda ortada duruyordu. Kutunun içi hep ortalı.
                 child: Stack(
+                  alignment: AlignmentDirectional.topCenter,
                   children: [
                     Column(
                       mainAxisSize: MainAxisSize.min,
@@ -405,10 +466,10 @@ class FmChoiceTile extends StatelessWidget {
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: color.withValues(alpha: 0.14),
+                            color: tint.withValues(alpha: empty ? 0.08 : 0.14),
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(icon, color: color, size: 22),
+                          child: Icon(icon, color: tint, size: 22),
                         ),
                         const SizedBox(height: Gap.xs),
                         Text(
@@ -419,9 +480,7 @@ class FmChoiceTile extends StatelessWidget {
                           style: theme.textTheme.labelLarge?.copyWith(
                             fontWeight:
                                 selected ? FontWeight.w700 : FontWeight.w600,
-                            color: selected
-                                ? scheme.onPrimaryContainer
-                                : scheme.onSurface,
+                            color: labelColor,
                           ),
                         ),
                         if (count >= 0)

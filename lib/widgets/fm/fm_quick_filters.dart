@@ -13,7 +13,7 @@ import '../../services/fm/fm_env.dart';
 import '../../services/fm/open_history.dart';
 import '../../services/fm/storage_stats.dart';
 import '../app_dialog.dart';
-import 'fm_type_chips.dart' show FmChoiceTile;
+import 'fm_type_chips.dart' show FmChoiceTile, FmSheetFooter;
 
 /// Süzgeç satırının **tek ve sabit** yüksekliği (dp).
 ///
@@ -417,8 +417,12 @@ class _Counts {
   /// "Ana bellek" tek başına hiçbir şey süzmez, yalnız yer kaplardı.
   final List<(StorageVolume, int)> volumes;
 
+  /// Listede etiketli dosya var mı (her çizimde 20 bin dosyayı yeniden
+  /// gezmemek için sayımla birlikte önbellekte).
+  final bool anyTagged;
+
   const _Counts(this.buckets, this.untouched, this.openedWithin, this.large,
-      this.volumes);
+      this.volumes, this.anyTagged);
 }
 
 /// [probe] ölçütü eklenmiş süzgeçten kaç dosya geçer?
@@ -484,6 +488,7 @@ _Counts _computeCounts(
             ? f
             : f.withSizeRange(FmSizeRange.large)),
     volumes,
+    source.any((e) => !e.isDir && FileTags.forPath(e.path).isNotEmpty),
   );
 }
 
@@ -651,10 +656,13 @@ Future<void> showFmSourceSheet(
                 section(ctx.t('src.when'), when),
                 section(ctx.t('more.tags'), tagTiles),
                 const SizedBox(height: Gap.md),
-                FilledButton(
-                  key: const ValueKey('src-done'),
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  child: Text(ctx.t('typ.show_n', {'n': shown})),
+                FmSheetFooter(
+                  doneKey: const ValueKey('src-done'),
+                  shown: shown,
+                  onClear: _sourceActive(f) == 0
+                      ? null
+                      : () => apply(_clearSource(f)),
+                  onDone: () => Navigator.of(ctx).pop(),
                 ),
               ],
             ),
@@ -663,6 +671,33 @@ Future<void> showFmSourceSheet(
       },
     ),
   );
+}
+
+/// Kaynak hapının saydığı etkin ölçüt sayısı (birim, kaynak, zaman, büyük, etiket).
+int _sourceActive(FmFilter f) =>
+    f.volumeRoots.length +
+    f.buckets.length +
+    (f.openedWithinDays != null ? 1 : 0) +
+    (f.untouchedDays != null ? 1 : 0) +
+    (f.sizeRange == FmSizeRange.large ? 1 : 0) +
+    f.tags.length;
+
+/// Yalnız kaynak levhasının ölçütlerini bırakır (tür/tarih/sıra korunur).
+FmFilter _clearSource(FmFilter f) {
+  var g = f;
+  for (final v in f.volumeRoots.toList()) {
+    g = g.toggleVolumeRoot(v);
+  }
+  for (final b in f.buckets.toList()) {
+    g = g.toggleBucket(b);
+  }
+  for (final t in f.tags.toList()) {
+    g = g.toggleTag(t);
+  }
+  if (g.openedWithinDays != null) g = g.withOpenedWithinDays(null);
+  if (g.untouchedDays != null) g = g.withUntouchedDays(null);
+  if (g.sizeRange == FmSizeRange.large) g = g.withSizeRange(FmSizeRange.any);
+  return g;
 }
 
 IconData _bucketIcon(MediaBucket b) => switch (b) {
@@ -695,7 +730,7 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
       '${widget.untouchedDays}|${widget.showBuckets}|'
       // Birim listesi takma/çıkarmayla değişir; çipler o an tazelenmeli.
       '${FmEnv.volumes.map((v) => v.path).join(',')}|'
-      '${OpenHistory.revision}';
+      '${OpenHistory.revision}|${FileTags.revision}';
 
   _Counts get _counts {
     final key = _key;
@@ -715,8 +750,7 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
     final counts = _counts;
     final f = widget.filter;
     // Etiketli dosya varsa levha (ve içindeki Etiketler bölümü) hep açılabilir.
-    final tagged = f.tags.isNotEmpty ||
-        widget.source.any((e) => !e.isDir && FileTags.forPath(e.path).isNotEmpty);
+    final tagged = f.tags.isNotEmpty || counts.anyTagged;
     if (!tagged &&
         counts.buckets.isEmpty &&
         counts.volumes.isEmpty &&
@@ -729,12 +763,7 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
     }
 
     // Tüm kaynak/zaman/boyut süzgeçleri TEK hapta; dokununca kart levhası.
-    final active = f.volumeRoots.length +
-        f.buckets.length +
-        (f.openedWithinDays != null ? 1 : 0) +
-        (f.untouchedDays != null ? 1 : 0) +
-        (f.sizeRange == FmSizeRange.large ? 1 : 0) +
-        f.tags.length;
+    final active = _sourceActive(f);
     final hasAny = tagged ||
         counts.buckets.isNotEmpty ||
         counts.volumes.isNotEmpty ||

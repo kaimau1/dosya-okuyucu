@@ -40,6 +40,10 @@ abstract final class FileTags {
   /// gelinebiliyor ve bir kez boş kilitlenmek tüm etiketleri kaybettirirdi.
   static Future<void>? _loadFuture;
 
+  /// Etiketler her değiştiğinde (yükleme dahil) artar — süzgeç sayım
+  /// önbellekleri bununla tazelenir (Faz 42 süzgeç cilası).
+  static int revision = 0;
+
   static String get _path => p.join(FmEnv.appSupportDir, _fileName);
 
   /// Diskten okur (bir kez) ve **artık var olmayan** dosyaların kayıtlarını
@@ -66,6 +70,7 @@ abstract final class FileTags {
         };
         if (tags.isNotEmpty) _byPath[key] = tags;
       }
+      revision++;
       // Ölü kayıtlar burada diske YAZILMAZ: temizlik bir sonraki gerçek
       // değişiklikte (add/remove/setTags) kendiliğinden diske iner.
     } catch (_) {
@@ -100,6 +105,7 @@ abstract final class FileTags {
   /// Çözüm: yazmalar zincire alınır. Her yazma o anki **tam** durumu
   /// serileştirdiği için sıradaki yazma her zaman en güncel hâli diske indirir.
   static Future<void> _save() {
+    revision++;
     if (FmEnv.appSupportDir.isEmpty) return Future<void>.value();
     final previous = _saving ?? Future<void>.value();
     final next = previous.then((_) => _writeNow());
