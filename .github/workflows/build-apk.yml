@@ -223,7 +223,26 @@ jobs:
           mapfile -t files < <(awk -v n=3 -v i=${{ matrix.shard }} '(NR-1) % n == i' /tmp/tum.txt)
           echo "Seçim: $MOD — toplam $(wc -l < /tmp/tum.txt), bu parçada ${#files[@]} test dosyası."
           if [ ${#files[@]} -eq 0 ]; then echo "Bu parçaya test düşmedi."; exit 0; fi
+          # Perf etiketli dosyalar ayrı kapıda koşar (aşağıda) — burada çift
+          # koşmasın (--exclude-tags yalnız perf dosyası kalınca "No tests ran" = 79).
+          mapfile -t files < <(for f in "${files[@]}"; do grep -qE "@Tags\(\[.perf.\]\)" "$f" || echo "$f"; done)
+          if [ ${#files[@]} -eq 0 ]; then echo "Bu parçada yalnız perf testleri vardı."; exit 0; fi
           flutter test "${files[@]}"
+
+      # PERF GERİLEME KAPISI (Faz 42 / 5): `perf` etiketli eşik testleri HER
+      # koşuda (seçimden bağımsız) 0. parçada; eşik aşımı kırmızı. Ölçülen
+      # `PERF anahtar=değer` satırları iş özetine yazılır (A/B pusulası).
+      - name: Perf gerileme kapısı (--tags perf)
+        if: env.MOD != 'atla' && matrix.shard == 0
+        run: |
+          set -o pipefail
+          mapfile -t perf < <(grep -rlE "@Tags\(\[.perf.\]\)" test | sort)
+          echo "Perf test dosyaları: ${#perf[@]}"
+          flutter test --tags perf "${perf[@]}" 2>&1 | tee perf.log
+          {
+            echo "## Perf ölçümleri (CI, debug JIT — cihaz değil)"
+            echo '```'; grep -oE 'PERF [a-z0-9_]+=[^ ]+( [a-z0-9_]+=[^ ]+)*' perf.log | sort -u; echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # C11: `ci/*.kt` yalnız APK derlemesinde derleniyordu; tek satırlık bir
       # tür hatası 13 dk'lık turun SONUNDA çıkıyordu (HAFIZA 2026-09-02).
@@ -498,6 +517,19 @@ jobs:
           if [ "$SIZE" -gt $((BUDGET_MB * 1048576)) ]; then
             echo "::error::arm64 APK $SIZE_MB MB — bütçe $BUDGET_MB MB"; exit 1
           fi
+          # Faz 42 / 5: TABAN kapısı — tabandan %2 fazla büyüme kırmızı
+          # (başlıkta [boyut] → bilinçli büyüme, yalnız uyarı).
+          BASE=$(grep -vE '^\s*(#|$)' ci/apk_boyut_tabani.txt | head -1 | tr -d ' ')
+          LIMIT=$((BASE * 102 / 100))
+          GROW=$(python3 -c "print(f'{($SIZE-$BASE)*100/$BASE:+.2f}')")
+          TITLE=$(git log -1 --pretty=%s)
+          if [ "$SIZE" -gt "$LIMIT" ]; then
+            if [[ "$TITLE" == *'[boyut]'* ]]; then
+              echo "::warning::APK tabandan %$GROW büyük ([boyut] işaretli) — ci/apk_boyut_tabani.txt → $SIZE"
+            else
+              echo "::error::arm64 APK tabandan %$GROW büyük (sınır %2; taban $BASE, şimdi $SIZE). Gerekçeyle başlığa [boyut] yaz ve tabanı güncelle."; exit 1
+            fi
+          fi
           LIBAPP=$(unzip -l "$APK" | awk '$4=="lib/arm64-v8a/libapp.so"{printf "%.1f", $1/1048576}')
           {
             echo "## İçerik denetimi"
@@ -506,6 +538,7 @@ jobs:
             echo "- targetSdk: $TARGET ✔"
             echo "- 16 KB hiza (zip + ELF): ✔"
             echo "- arm64 APK: $SIZE_MB MB / bütçe $BUDGET_MB MB ✔"
+            echo "- taban farkı: %$GROW (taban $BASE B, sınır %2)"
             echo "- libapp.so (karartılmış): $LIBAPP MB"
           } >> "$GITHUB_STEP_SUMMARY"
 

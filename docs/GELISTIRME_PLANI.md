@@ -297,8 +297,9 @@ arka planda düşük öncelik, pil tasarrufunda duraklar; `fs_sort_perf_test` ve
    (Hata kayıtları → 🐞 Bildir: `DiagReport` önizleme + onay + paylaş; `FrameStats` kare dağılımı, `StartupQueue`'da, varsayılan kapalı.)
 4. Sürüm adayı turu (B6) ve mağaza varlıkları.
 
-**Ek:** 5. Otomatik perf gerileme kapısı: CI'da `flutter test --tags perf` eşikleri + APK boyutu
-tabanı (artış %2'yi aşarsa kırmızı). 6. `integration_test` cihaz senaryoları (P13): soğuk açılış,
+**Ek:** 5. [x] Otomatik perf gerileme kapısı: CI'da `flutter test --tags perf` eşikleri + APK boyutu
+tabanı (artış %2'yi aşarsa kırmızı).
+   (verify 0/3 "Perf gerileme kapısı" + `PERF` satırları özete; `ci/apk_boyut_tabani.txt` 83.237.758 B, `[boyut]` bilinçli büyüme.) 6. `integration_test` cihaz senaryoları (P13): soğuk açılış,
 5.000 öğe kaydırma, 100 sayfa PDF, 100 bin satır xlsx — `tool/make_test_tree.py` verisiyle.
 7. [x] Çökme/ANR ve yavaş kare (`KARE` günlüğü) için kullanıcı onaylı anonim özet (A8).
    (`services/diag_report.dart`: ANR/bellek öldürmesi/yerel çökme sayıları, KVKK maskesi `scrub`, p90/p99 + >24/>50 ms oranı; `test/diag_report_test.dart`.)
