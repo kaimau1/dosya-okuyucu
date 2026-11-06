@@ -287,7 +287,7 @@ Yer aç sekmesi); 6. [x] Etiket + renk + favori klasör; 7. [x] Arşiv: 7z/rar o
 arka planda düşük öncelik, pil tasarrufunda duraklar; `fs_sort_perf_test` ve gezgin liste önbelleği
 (P8/G13) korunur; küçük resim üretimi eşzamanlılığı `PerfBudget`te.
 
-## Faz 42 — Kalite, performans, yayın
+## Faz 42 — Kalite, performans, yayın — BİTTİ (2026-11-06; cihaz turu + perf A/B bekliyor)
 1. [x] Başlangıç süresi/APK boyutu bütçeleri (CI var) — yeni bağımlılık eklenince bütçe kontrolü.
    (`tool/bagimlilik_denetimi.py` + `ci/bagimliliklar.txt` CI 0/3'te; `test/startup_budget_test.dart` main() `await` listesi.)
 2. [x] Büyük dosya: 100 MB xlsx/pdf akış okuma, bellek tavanı testleri.

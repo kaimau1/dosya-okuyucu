@@ -386,3 +386,13 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
   yana main'de yayın işaretli commit sayısı ([apk] / faz PR birleşmesi; `tool/surum_hesapla.sh`,
   `changes` işinde). Başlıkta `[minor]` → ARA +1, N sıfırlanır. versionCode yine koşu no (güncelleme
   denetimi ona bakar). Nightly'de sabit ad + `dosya-okuyucu-v<ad>.apk`; eski sürümlü ad silinir.
+
+## 2026-11-06 — Faz 42 bitti (faz-42 dalı; SON geliştirme fazı — cihaz turu + perf A/B bekliyor)
+- **Bütçeler:** `tool/bagimlilik_denetimi.py` + `ci/bagimliliklar.txt` (verify 0/3; yeni paket listede yoksa kırmızı — gerekçe HAFIZA'ya). `test/startup_budget_test.dart`: `main()` içindeki `await` adları onaylı listede; yeni iş → `unawaited`/`StartupQueue`.
+- **Perf kapısı:** `perf` etiketli dosyalar (`@Tags(['perf'])`) seçili test adımından ÇIKARILIR, 0/3'te ayrı "Perf gerileme kapısı" adımında hep koşar (`--exclude-tags` kullanılmadı: yalnız perf dosyası kalan parçada "No tests ran" = 79). APK taban `ci/apk_boyut_tabani.txt` (+%2 kırmızı, başlıkta `[boyut]` uyarı).
+- **Büyük xlsx:** `services/xlsx/xlsx_stream.dart` — `InputFileStream` + `writeContent(OutputFileStream)` ile girdiyi geçici dosyaya açıp `xml_events` akışıyla okur; tavan `PerfBudget.xlsxStreamMaxCells`, eşik `xlsxFullParseMaxBytes` (8/20/40 MB). Sonuç `XlsxEditor.fromStream` → tüm sayfalar `truncated` (kaydetme kapalı, şerit `lf.xlsx_stream`). PDF görüntüleyici zaten `PdfViewer.file`; araçlar `pdfInMemoryMaxBytes` üstünde açılmaz.
+- **Bildir (A8):** `services/diag_report.dart` — `DiagReport.scrub` (tırnaklı yol, URI, e-posta, `(?<![\w.])` yol, belge adı, 6+ hane) + `FrameStats` (kova sayacı, `diag_frame_stats` varsayılan kapalı, `StartupQueue`'da). Hata kayıtları AppBar 🐞 → önizleme + onay + paylaş. Gizlilik metni (3 dil) güncellendi.
+- **integration_test:** `pubspec.lock`'a elle girildi (Flutter yok): sdk `integration_test`/`flutter_driver`/`fuchsia_remote_debug_protocol` + hosted `process 5.0.6`, `sync_http 0.3.1`, `webdriver 3.2.0` (Flutter 3.44 sdk paketleri `any` — pub en yeniyi seçer; sha256 pub.dev API'den). CI `--enforce-lockfile` kırarsa çıktıdaki sürümü yaz.
+- **R8:** `ci/proguard-rules.pro` Faz 42 bloğu; `DOSYA_R8TEST=1 bash ci/prepare_android.sh` `.r8test` kimliğini otomatik kurar (eski 3 elle düzenleme); `tool/r8_ab.sh` = yayın kipi logcat denetimi + profil senaryoları (integration_test yayın kipinde koşmaz).
+- **Mağaza:** tek kaynak `docs/play/magaza_metinleri.md` → `tool/magaza_varliklari.py` → `fastlane/metadata/android/` (Pillow yerelde bozuk → venv). TR/EN başlıklar 33 karakterdi (Play sınırı 30) → kısaltıldı. Tur: `docs/SURUM_ADAYI.md`.
+- Perf A/B: bekliyor (`docs/perf/2026-11-06-faz42.md`), cihaz listesi `CIHAZ_TESTI.md` Faz 42.
