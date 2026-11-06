@@ -6,7 +6,7 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
       // Faz 42 / 2 (anayasa k.10): araçlar belgeyi bayt olarak tutar; bütçe
       // üstü PDF'te bellek öldürmesi yerine açıklayıcı hata (görüntüleyici
       // pdfium ile dosyadan akışla okur, orada sınır yok).
-      final size = await File(widget.path).length();
+      final size = File(widget.path).lengthSync();
       final max = DeviceProfile.budget.pdfInMemoryMaxBytes;
       if (size > max) {
         if (mounted) {

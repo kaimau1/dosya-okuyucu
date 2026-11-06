@@ -136,9 +136,11 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     final ext = p.extension(widget.path).toLowerCase();
     if (ext != '.xlsx' && ext != '.xlsm') return false;
     final budget = DeviceProfile.budget;
+    // Eşzamanlı stat (ucuz): eşzamansız G/Ç burada açılışa bir tur daha
+    // ekler ve widget testlerinin sahte saatinde hiç tamamlanmaz.
     final int size;
     try {
-      size = await File(widget.path).length();
+      size = File(widget.path).lengthSync();
     } catch (_) {
       return false;
     }
