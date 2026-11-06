@@ -304,7 +304,9 @@ tabanı (artış %2'yi aşarsa kırmızı).
    (`integration_test/perf_senaryolari_test.dart` traceAction ×9 + `test_driver/perf_driver.dart` + `tool/perf_senaryo.sh` → `docs/perf/`; koşu cihazda.)
 7. [x] Çökme/ANR ve yavaş kare (`KARE` günlüğü) için kullanıcı onaylı anonim özet (A8).
    (`services/diag_report.dart`: ANR/bellek öldürmesi/yerel çökme sayıları, KVKK maskesi `scrub`, p90/p99 + >24/>50 ms oranı; `test/diag_report_test.dart`.)
-8. R8/obfuscate kuralları: ML Kit ve yeni yerel köprüler için kural ekle, `.r8test` yan yana A/B.
+8. [x] R8/obfuscate kuralları: ML Kit ve yeni yerel köprüler için kural ekle, `.r8test` yan yana A/B.
+   (`ci/proguard-rules.pro`: belge tarayıcı, konu bölütleme, Parcelable CREATOR, AppFunctions KSP, JavascriptInterface, LiteRT;
+   `DOSYA_R8TEST=1 ci/prepare_android.sh` + `tool/r8_ab.sh` yayın kipi logcat denetimi + profil senaryoları.)
 
 ## Sıra önerisi
 **34 → 35 (tarayıcı) → 39 (PDF imza/karartma) → 36 (Excel) → 37 (Word) → 38 (Slayt) → 40 → 41 → 42.**

@@ -10,9 +10,12 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 CIHAZ="${1:-cihaz}"
+EK=()
+[ -n "${OLCUM_VERISI:-}" ] && EK=(--dart-define=OLCUM_VERISI="$OLCUM_VERISI")
+rm -f build/*.timeline_summary.json
 flutter drive --profile \
   --driver=test_driver/perf_driver.dart \
-  --target=integration_test/perf_senaryolari_test.dart
+  --target=integration_test/perf_senaryolari_test.dart "${EK[@]}"
 OUT="docs/perf/$(date +%F)-senaryo.md"
 python3 - "$OUT" "$CIHAZ" <<'PY'
 import glob, json, os, sys
