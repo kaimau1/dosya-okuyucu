@@ -59,6 +59,7 @@ import 'services/fm/remote/transfer_keeper.dart';
 import 'services/fm/open_history.dart';
 import 'services/fm/path_side_index.dart';
 import 'services/crash_log.dart';
+import 'services/diag_report.dart';
 import 'services/voice/neural_engine.dart';
 
 Future<void> main() async {
@@ -295,6 +296,8 @@ Future<void> _restoreJobs() async {
     // SD kartla birleşik depolama açıksa şarj işi yeniden kurulur (güncelleme
     // sonrası da sürsün, bildirim metni geçerli dilde olsun). Beklenmez.
     StartupQueue.instance.add('sd-union', SdUnion.syncOnLaunch);
+    // Faz 42 / 7: kare dağılımı — yalnız kullanıcı açtıysa (varsayılan kapalı).
+    StartupQueue.instance.add('kare-ozeti', FrameStats.startIfEnabled);
     JobQueue.instance.restore(await JobStore.load());
     // Fatura hatırlatması + haftalık temizlik işini kur/tazele, widget'ları
     // güncelle (dil değişmiş olabilir). Beklenmez.

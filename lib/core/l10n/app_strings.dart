@@ -30,6 +30,7 @@ part 'strings/24_word_pro.dart';
 part 'strings/25_slides_pro.dart';
 part 'strings/26_ux40.dart';
 part 'strings/27_fm41.dart';
+part 'strings/28_faz42.dart';
 
 /// Uygulama metinleri — Türkçe / İngilizce / Arapça.
 ///
@@ -159,4 +160,5 @@ const Map<String, (String, String, String)> _table = {
   ..._t25,
   ..._t26,
   ..._t27,
+  ..._t28,
 };

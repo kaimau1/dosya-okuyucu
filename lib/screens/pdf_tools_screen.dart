@@ -19,6 +19,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/app_icons.dart';
 import '../core/busy_dialog.dart';
+import '../core/device_profile.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/conversion_service.dart';
 import '../services/document_scanner.dart';

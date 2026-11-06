@@ -134,6 +134,39 @@ class PerfBudget {
   /// İki PDF görsel karşılaştırmasında sayfa genişliği (piksel).
   int get pdfCompareWidthPx => isLight ? 800 : 1200;
 
+  /// **Büyük dosya (Faz 42 / 2, anayasa k.10).** Bu boyutun (sıkıştırılmış
+  /// dosya) üstündeki xlsx tam ayrıştırılmaz: akış önizlemesi açılır
+  /// (`XlsxStream`, salt okunur). Tam ayrıştırma dosyanın ~10-20 katı bellek
+  /// ister (paylaşılan dizeler + hücre haritası + XML metni).
+  int get xlsxFullParseMaxBytes => switch (tier) {
+        DeviceTier.low => 8 << 20,
+        DeviceTier.mid => 20 << 20,
+        DeviceTier.high => 40 << 20,
+      };
+
+  /// Akış önizlemesinde tutulan en çok hücre (bellek tavanı).
+  int get xlsxStreamMaxCells => switch (tier) {
+        DeviceTier.low => 150000,
+        DeviceTier.mid => 400000,
+        DeviceTier.high => 1000000,
+      };
+
+  /// Akış önizlemesinde paylaşılan dizelerin toplam karakter tavanı.
+  int get xlsxStreamSharedChars => switch (tier) {
+        DeviceTier.low => 8 << 20,
+        DeviceTier.mid => 24 << 20,
+        DeviceTier.high => 48 << 20,
+      };
+
+  /// PDF araçları (sayfa işlemleri, birleştir, sıkıştır…) belgeyi BAYT olarak
+  /// tutar; bunun üstünde araçlar açılmaz (görüntüleyici pdfium ile dosyadan
+  /// akışla okur, sınırsız).
+  int get pdfInMemoryMaxBytes => switch (tier) {
+        DeviceTier.low => 64 << 20,
+        DeviceTier.mid => 128 << 20,
+        DeviceTier.high => 200 << 20,
+      };
+
   /// Açılış kuyruğunun ilk kareden sonra bekleme süresi (P11).
   Duration get startupDelay =>
       isLight ? const Duration(seconds: 3) : const Duration(seconds: 2);

@@ -47,3 +47,40 @@
 # mpv motoru (media_kit, 2026-11-02): libmpv yardımcı sınıfa (`MediaKitAndroidHelper`)
 # yerel koddan JNI ile ADIYLA ulaşıyor; R8 adını değiştirirse video açılırken çöker.
 -keep class com.alexmercerind.** { *; }
+
+# ── Faz 42 / 8 (2026-11-06): ML Kit + yeni yerel köprüler ───────────────────
+# Doğrulama: `bash tool/r8_ab.sh` (yan yana `.r8test` APK, aynı senaryolar).
+#
+# ML Kit belge tarayıcı (DocScan.kt, Faz 35), konu bölütleme (Slayt.kt, Faz 38),
+# kod tarayıcı (QrTransfer.kt): modeller Play Hizmetleri'nde; istemci sınıfları
+# Play Hizmetleri'nin dinamik modülüne ADLA bağlanıyor (Dynamite). Sonuç
+# nesneleri (GmsDocumentScanningResult / SubjectSegmentationResult) Parcelable
+# — CREATOR alanı yansımayla okunur; R8 silerse sonuç boş döner.
+-keep class com.google.mlkit.vision.documentscanner.** { *; }
+-keep class com.google.mlkit.vision.segmentation.subject.** { *; }
+-keepclassmembers class * implements android.os.Parcelable {
+    public static final ** CREATOR;
+}
+-dontwarn com.google.mlkit.vision.segmentation.**
+
+# Gemini işlevleri (Ajan.kt, AppFunctions + KSP, 2026-10-28): KSP'nin ürettiği
+# envanter/çağırıcı sınıfları kütüphane tarafından ADLA, boş yapıcıyla kurulur.
+-keep class **.*AppFunctionInventory* { <init>(); *; }
+-keep class **.*AppFunctionInvoker* { <init>(); *; }
+-keep @androidx.appfunctions.** class * { *; }
+-dontwarn androidx.appfunctions.**
+
+# WebView köprüsü (Word/Office görüntüleyici, viewer.html): @JavascriptInterface
+# yöntemleri JS'ten ADLA çağrılır.
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
+# LiteRT (tflite_flutter, görsel büyütme): GPU temsilcisi ve yerel kod Java
+# sınıflarına JNI ile ADLA ulaşıyor.
+-keep class org.tensorflow.lite.** { *; }
+-dontwarn org.tensorflow.lite.**
+
+# Kotlin köprülerimiz (MainActivity, Extras, Slayt, DocScan…): MethodChannel
+# adla değil nesneyle bağlanır → kural GEREKMEZ; yansımalı tek sınıf yukarıda
+# (NearbyBgService$Control). Yeni yansımalı köprü eklenirse kuralı buraya.

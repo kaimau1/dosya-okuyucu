@@ -1,0 +1,1 @@
+Large Excel files open as a streaming preview, memory guard for PDF tools, "Report a problem" in Error logs (anonymous, consent-based), speed and stability fixes.

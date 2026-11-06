@@ -410,4 +410,25 @@ else:
 PY
 dart run flutter_launcher_icons
 rm -rf .backup
+
+# ── 10) Yan yana R8 ölçüm APK'sı (DOSYA_R8TEST=1, Faz 42 / 8 — yalnız yerel) ─
+# Ayrı paket kimliği (`.r8test`) + ayrı belge sağlayıcı yetkisi: yayın
+# uygulamasının ÜSTÜNE kurulmaz (anahtar farkı), ikisi aynı telefonda A/B
+# ölçülür (tool/r8_ab.sh). Eskiden elle yapılan 3 düzenleme (HAFIZA 2026-11-02).
+if [ "${DOSYA_R8TEST:-0}" = "1" ]; then
+  say ".r8test yan yana kimlik"
+  sed -i 's/com\.dosyaokuyucu\.dosya_okuyucu\.documents/com.dosyaokuyucu.dosya_okuyucu.r8test.documents/' \
+    android/app/src/main/AndroidManifest.xml "$DIR/PickerActivity.kt"
+  python3 - <<'PY'
+import pathlib, re
+a = pathlib.Path('android/app/build.gradle.kts')
+t = a.read_text()
+if 'applicationIdSuffix' not in t:
+    t, n = re.subn(r'(defaultConfig\s*\{)', r'\1\n        applicationIdSuffix = ".r8test"', t, count=1)
+    if n != 1:
+        raise SystemExit('defaultConfig bulunamadı (.r8test)')
+    a.write_text(t)
+PY
+  grep -c "r8test" android/app/build.gradle.kts android/app/src/main/AndroidManifest.xml "$DIR/PickerActivity.kt"
+fi
 echo "Android iskeleti hazır."

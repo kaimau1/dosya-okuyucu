@@ -242,6 +242,12 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  # Faz 42 / 6 (A8.1, P13): cihaz senaryoları — integration_test/ + test_driver/;
+  # yalnız `flutter drive --profile` ile koşar, yayın APK'sına girmez.
+  integration_test:
+    sdk: flutter
+  flutter_driver:
+    sdk: flutter
   flutter_lints: ^6.0.0
   # Uygulama ikonunu (launcher + adaptive) tek kaynaktan üretir.
   flutter_launcher_icons: ^0.14.1

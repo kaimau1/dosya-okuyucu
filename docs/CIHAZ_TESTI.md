@@ -724,3 +724,13 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
 - [ ] Sıkıştır → Bölümlere ayır (25 MB) → `ad.zip.001…`; 7-Zip/WinRAR PC'de açıyor, uygulamada ilk cilde dokununca açılıyor.
 - [ ] SFTP'den büyük dosya indirirken Wi-Fi'yi kes → yeniden indir: kaldığı yerden sürüyor (`.part`).
 - [ ] Perf: 50 bin dosyalı telefonda ad araması < 1 sn; kopyala/taşı sonrası dizin "bayat" olmuyor (tam yeniden kurulum yok); pano boşta 0 kare, gezgin kaydırma Faz 40 tablosuna göre gerilemiyor (`docs/perf/2026-11-05-faz41.md`).
+
+## Faz 42 — Kalite, performans, yayın (madde 1–8)
+- [ ] Ölçüm verisi: `python3 tool/make_test_tree.py olcum --buyuk` → `adb push olcum/. /sdcard/Android/data/com.dosyaokuyucu.dosya_okuyucu/files/olcum/` (iş bitince SİL).
+- [ ] `bash tool/perf_senaryo.sh 13T` ve düşük RAM cihazda → `docs/perf/<tarih>-senaryo.md`; tabloyu `docs/perf/2026-11-06-faz42.md`ye taşı (p99 > 24 ms ya da > %10 gerileme → kırmızı).
+- [ ] `bash tool/r8_ab.sh`: `.r8test` yayın kipinde OCR, belge tara, QR, slayt arka plan kaldır, Gemini işlevi, görsel büyütme, Word görüntüleyici → logcat'te ClassNotFound/NoSuchMethod YOK.
+- [ ] `buyuk_100mb.xlsx` aç: kırmızı şerit "Büyük dosya (… MB): akış önizlemesi"; kaydırma akıcı, uygulama kapanmıyor (Hata kayıtları'nda `exit · LOW_MEMORY` yok); kaydet → "kaydedilemez" uyarısı, özgün dosya değişmedi.
+- [ ] `buyuk_100mb.pdf` görüntüleyicide açılıyor/kayıyor; Ayarlar › Depolama ve hız › Başarım = Hafif iken PDF araçları "çok büyük (sınır 64 MB)" açıklaması gösteriyor, Tam'da açılıyor.
+- [ ] Ayarlar › Hakkında › Hata kayıtları › 🐞 Sorunu bildir: önizlemede dosya adı/yol/uzun sayı maskeli; "Kare ölçümünü topla" aç → bir gün kullan → özet `kare: n=… p90≤… p99≤…`; Paylaş yalnız dokununca.
+- [ ] Mağaza: `fastlane/metadata/android/tr-TR/images/featureGraphic.png` Play önizlemesinde kırpılmadan görünüyor; ekran görüntüleri seçimi (`docs/SURUM_ADAYI.md` §3).
+- [ ] Sürüm adayı turu: `docs/SURUM_ADAYI.md` adım adım (B6).

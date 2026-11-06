@@ -11,6 +11,7 @@ import 'xlsx_save_patch.dart';
 import 'xlsx/notes_writer.dart';
 import 'xlsx/table_reader.dart';
 import 'xlsx/print_area_writer.dart';
+import 'xlsx/xlsx_stream.dart';
 import 'csv_document.dart';
 import 'xlsx_chart.dart';
 import 'sheet_structure.dart';
@@ -1059,6 +1060,38 @@ class XlsxEditor {
     // Açılış "değişiklik" sayılmasın: hesap günlüğü toplu yeniden kurulur.
     ed.calcLog.bulk();
     ed.csv = doc.format;
+    return ed;
+  }
+
+  /// **Büyük dosyanın akış önizlemesinden** kitap (Faz 42 / 2). Yalnız
+  /// hücre değerleri (biçim/formül/grafik yok); kesildiyse sayfalar
+  /// `truncated` işaretlenir → otomatik kaydetme kapanır, kaydetme
+  /// `XlsxTruncatedException` verir (özgün dosya ezilmez).
+  static XlsxEditor fromStream(XlsxStreamResult r) {
+    final wb = XlsxWorkbook(
+      sheets: [for (final s in r.sheets) XlsxSheetLayout(name: s.name)],
+      styles: XlsxStyles(
+          numFmts: const {},
+          formats: [XlsxFormat.fallback()],
+          dxfs: const [],
+          theme: const []),
+      theme: const [],
+      date1904: false,
+    );
+    final ed = XlsxEditor._(Uint8List(0), _buildSheets(wb), wb);
+    for (final s in r.sheets) {
+      for (final row in s.cells.entries) {
+        for (final c in row.value.entries) {
+          ed.setCell(s.name, row.key, c.key, c.value);
+        }
+      }
+    }
+    ed.calcLog.bulk();
+    // Önizleme her durumda özgün kitabın tamamı değil (biçim/formül yok):
+    // kaydetme kapalı.
+    for (final s in ed.sheets) {
+      s.layout.truncated = true;
+    }
     return ed;
   }
 

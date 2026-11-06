@@ -1,0 +1,1 @@
+Büyük Excel dosyaları akışla açılır, PDF araçlarında bellek koruması, Hata kayıtları'nda "Sorunu bildir" (anonim, onaylı), hız ve kararlılık iyileştirmeleri.

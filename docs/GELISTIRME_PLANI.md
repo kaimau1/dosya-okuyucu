@@ -287,17 +287,28 @@ Yer aç sekmesi); 6. [x] Etiket + renk + favori klasör; 7. [x] Arşiv: 7z/rar o
 arka planda düşük öncelik, pil tasarrufunda duraklar; `fs_sort_perf_test` ve gezgin liste önbelleği
 (P8/G13) korunur; küçük resim üretimi eşzamanlılığı `PerfBudget`te.
 
-## Faz 42 — Kalite, performans, yayın
-1. Başlangıç süresi/APK boyutu bütçeleri (CI var) — yeni bağımlılık eklenince bütçe kontrolü.
-2. Büyük dosya: 100 MB xlsx/pdf akış okuma, bellek tavanı testleri.
-3. Çökme günlüğü → "bildir" akışı; A8 ölçüm altyapısı.
-4. Sürüm adayı turu (B6) ve mağaza varlıkları.
+## Faz 42 — Kalite, performans, yayın — BİTTİ (2026-11-06; cihaz turu + perf A/B bekliyor)
+1. [x] Başlangıç süresi/APK boyutu bütçeleri (CI var) — yeni bağımlılık eklenince bütçe kontrolü.
+   (`tool/bagimlilik_denetimi.py` + `ci/bagimliliklar.txt` CI 0/3'te; `test/startup_budget_test.dart` main() `await` listesi.)
+2. [x] Büyük dosya: 100 MB xlsx/pdf akış okuma, bellek tavanı testleri.
+   (`services/xlsx/xlsx_stream.dart` olay akışlı okuyucu → `XlsxEditor.fromStream` salt okunur; eşik/tavan `PerfBudget`;
+   PDF görüntüleyici zaten `PdfViewer.file` (pdfium akışı), araçlar `pdfInMemoryMaxBytes` bekçisi; `test/large_file_test.dart`; `make_test_tree.py --buyuk`.)
+3. [x] Çökme günlüğü → "bildir" akışı; A8 ölçüm altyapısı.
+   (Hata kayıtları → 🐞 Bildir: `DiagReport` önizleme + onay + paylaş; `FrameStats` kare dağılımı, `StartupQueue`'da, varsayılan kapalı.)
+4. [x] Sürüm adayı turu (B6) ve mağaza varlıkları.
+   (`docs/SURUM_ADAYI.md` tur listesi; `tool/magaza_varliklari.py` → `fastlane/metadata/android/` TR/EN/AR metin + 512 simge + 1024×500 tanıtım;
+   bekçi `test/store_assets_test.dart`; başlıklar 30 sınırına indirildi; gizlilik metnine "Sorunu bildir".)
 
-**Ek:** 5. Otomatik perf gerileme kapısı: CI'da `flutter test --tags perf` eşikleri + APK boyutu
-tabanı (artış %2'yi aşarsa kırmızı). 6. `integration_test` cihaz senaryoları (P13): soğuk açılış,
+**Ek:** 5. [x] Otomatik perf gerileme kapısı: CI'da `flutter test --tags perf` eşikleri + APK boyutu
+tabanı (artış %2'yi aşarsa kırmızı).
+   (verify 0/3 "Perf gerileme kapısı" + `PERF` satırları özete; `ci/apk_boyut_tabani.txt` 83.237.758 B, `[boyut]` bilinçli büyüme.) 6. [x] `integration_test` cihaz senaryoları (P13): soğuk açılış,
 5.000 öğe kaydırma, 100 sayfa PDF, 100 bin satır xlsx — `tool/make_test_tree.py` verisiyle.
-7. Çökme/ANR ve yavaş kare (`KARE` günlüğü) için kullanıcı onaylı anonim özet (A8).
-8. R8/obfuscate kuralları: ML Kit ve yeni yerel köprüler için kural ekle, `.r8test` yan yana A/B.
+   (`integration_test/perf_senaryolari_test.dart` traceAction ×9 + `test_driver/perf_driver.dart` + `tool/perf_senaryo.sh` → `docs/perf/`; koşu cihazda.)
+7. [x] Çökme/ANR ve yavaş kare (`KARE` günlüğü) için kullanıcı onaylı anonim özet (A8).
+   (`services/diag_report.dart`: ANR/bellek öldürmesi/yerel çökme sayıları, KVKK maskesi `scrub`, p90/p99 + >24/>50 ms oranı; `test/diag_report_test.dart`.)
+8. [x] R8/obfuscate kuralları: ML Kit ve yeni yerel köprüler için kural ekle, `.r8test` yan yana A/B.
+   (`ci/proguard-rules.pro`: belge tarayıcı, konu bölütleme, Parcelable CREATOR, AppFunctions KSP, JavascriptInterface, LiteRT;
+   `DOSYA_R8TEST=1 ci/prepare_android.sh` + `tool/r8_ab.sh` yayın kipi logcat denetimi + profil senaryoları.)
 
 ## Sıra önerisi
 **34 → 35 (tarayıcı) → 39 (PDF imza/karartma) → 36 (Excel) → 37 (Word) → 38 (Slayt) → 40 → 41 → 42.**

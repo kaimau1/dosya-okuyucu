@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show compute, visibleForTesting;
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/gestures.dart'
     show Drag, DoubleTapGestureRecognizer, ImmediateMultiDragGestureRecognizer;
 import 'package:flutter/material.dart';
@@ -57,7 +58,9 @@ import '../../services/formula_audit.dart';
 import '../../services/xlsx/data_tools.dart';
 import '../../services/xlsx/pivot.dart';
 import '../../services/xlsx/sheet_pdf.dart';
+import '../../core/device_profile.dart';
 import '../../services/xlsx_editor.dart';
+import '../../services/xlsx/xlsx_stream.dart';
 import '../../services/xlsx_file_charts.dart';
 import '../fm/pick_file_screen.dart' show AppFilePicker;
 import '../../widgets/doc_action_bar.dart';
@@ -419,6 +422,14 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
     }
     return XlsxEditor.parse(bytes);
   }
+
+  /// Büyük xlsx akış önizlemesi (Faz 42 / 2): okuma + kitap kurma izolatta.
+  static Future<XlsxEditor> _streamPreview(XlsxStreamRequest r) async =>
+      XlsxEditor.fromStream(await XlsxStream.readInBackground(r));
+
+  /// Akış önizlemesiyle açıldı mı (şerit metni; kaydetme kapalı).
+  bool _streamPreviewOpen = false;
+  int _streamPreviewMb = 0;
 
   /// Excel sayfa adı kuralı: en çok 31 karakter, `[]:*?/\` yok.
   static String _csvSheetName(String base) {

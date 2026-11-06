@@ -6,14 +6,20 @@
   galeri_2000/    2.000 PNG (galeri kaydırma, RSS)
   belge_100.pdf   100 sayfalık metinli PDF (açılış süresi)
   tablo_10k.csv   10.000 satırlık tablo (Excel ekranı CSV'yi de açar)
+  tablo_100k.xlsx 100.000 satırlık xlsx (integration_test, Faz 42 / 6)
+  --buyuk ile ek olarak (Faz 42 / 2, büyük dosya tavanı):
+  buyuk_100mb.xlsx ~100 MB xlsx (akış önizlemesi, bellek tavanı)
+  buyuk_100mb.pdf  ~100 MB PDF (görüntüleyici akışla; araçlar bütçe uyarısı)
 
-Kullanım:  python3 tool/make_test_tree.py <hedef> ; sonra
+Kullanım:  python3 tool/make_test_tree.py <hedef> [--buyuk] ; sonra
            adb push <hedef> /sdcard/DosyaOkuyucuOlcum
 Bağımlılık yok (yalnız standart kütüphane).
 """
 import os
+import random
 import struct
 import sys
+import zipfile
 import zlib
 
 
@@ -51,8 +57,94 @@ def pdf(pages):
     return out
 
 
+_XLSX_PARTS = {
+    '[Content_Types].xml': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+    '<Default Extension="xml" ContentType="application/xml"/>'
+    '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+    '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+    '</Types>',
+    '_rels/.rels': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+    '</Relationships>',
+    'xl/workbook.xml': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+    'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+    '<sheets><sheet name="Veri" sheetId="1" r:id="rId1"/></sheets></workbook>',
+    'xl/_rels/workbook.xml.rels': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+    '</Relationships>',
+}
+
+
+def xlsx(path, rows=None, target_bytes=None):
+    """Satır içi dizeli (sharedStrings yok) tek sayfalık xlsx — akışla yazılır.
+
+    [rows] verilirse o kadar satır; [target_bytes] verilirse dosya o boyuta
+    ulaşana dek (rastgele sayılar: sıkışmaz, 100 MB gerçekçi kalır).
+    """
+    rnd = random.Random(42)
+    with open(path, 'wb') as raw, zipfile.ZipFile(raw, 'w', zipfile.ZIP_DEFLATED) as z:
+        for n, body in _XLSX_PARTS.items():
+            z.writestr(n, body)
+        with z.open('xl/worksheets/sheet1.xml', 'w', force_zip64=True) as s:
+            s.write(b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+                    b'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>')
+            i = 0
+            while True:
+                if rows is not None and i >= rows:
+                    break
+                if target_bytes is not None and i % 5000 == 0 and raw.tell() >= target_bytes:
+                    break
+                r = i + 1
+                cells = ''.join(f'<c r="{c}{r}"><v>{rnd.random() * 1e6:.6f}</v></c>' for c in 'ABCDEF')
+                s.write(f'<row r="{r}">{cells}<c r="G{r}" t="inlineStr"><is><t>satir {r}</t></is></c></row>'.encode())
+                i += 1
+            s.write(b'</sheetData></worksheet>')
+
+
+def big_pdf(path, target_bytes):
+    """Sıkıştırılmamış rastgele gri görselli sayfalarla ~[target_bytes] PDF."""
+    rnd = random.Random(7)
+    side = 1024  # sayfa başına ~1 MB görsel
+    pages = max(1, target_bytes // (side * side))
+    objs = ['<< /Type /Catalog /Pages 2 0 R >>',
+            '<< /Type /Pages /Kids [' + ' '.join(f'{3 + 3 * i} 0 R' for i in range(pages)) + f'] /Count {pages} >>']
+    with open(path, 'wb') as f:
+        offs = []
+        f.write(b'%PDF-1.4\n')
+
+        def put(n, body):
+            offs.append(f.tell())
+            f.write(f'{n} 0 obj\n'.encode())
+            f.write(body)
+            f.write(b'\nendobj\n')
+
+        put(1, objs[0].encode())
+        put(2, objs[1].encode())
+        for i in range(pages):
+            page, content, img = 3 + 3 * i, 4 + 3 * i, 5 + 3 * i
+            put(page, (f'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] '
+                       f'/Resources << /XObject << /Im{i} {img} 0 R >> >> /Contents {content} 0 R >>').encode())
+            draw = f'q 595 0 0 842 0 0 cm /Im{i} Do Q'
+            put(content, f'<< /Length {len(draw)} >>\nstream\n{draw}\nendstream'.encode())
+            data = rnd.randbytes(side * side)
+            put(img, f'<< /Type /XObject /Subtype /Image /Width {side} /Height {side} '
+                     f'/ColorSpace /DeviceGray /BitsPerComponent 8 /Length {len(data)} >>\nstream\n'.encode()
+                + data + b'\nendstream')
+        xref = f.tell()
+        n = len(offs) + 1
+        f.write(f'xref\n0 {n}\n0000000000 65535 f \n'.encode())
+        f.write(''.join(f'{o:010d} 00000 n \n' for o in offs).encode())
+        f.write(f'trailer\n<< /Size {n} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n'.encode())
+
+
 def main():
-    root = sys.argv[1] if len(sys.argv) > 1 else 'olcum_verisi'
+    args = [a for a in sys.argv[1:] if not a.startswith('--')]
+    root = args[0] if args else 'olcum_verisi'
     d = os.path.join(root, 'klasor_5000')
     os.makedirs(d, exist_ok=True)
     for i in range(5000):
@@ -69,6 +161,10 @@ def main():
         f.write('no,ad,tutar,tarih\n')
         for i in range(10000):
             f.write(f'{i},satir {i},{i * 3.5:.2f},2026-{1 + i % 12:02d}-{1 + i % 28:02d}\n')
+    xlsx(os.path.join(root, 'tablo_100k.xlsx'), rows=100000)
+    if '--buyuk' in sys.argv:
+        xlsx(os.path.join(root, 'buyuk_100mb.xlsx'), target_bytes=100 << 20)
+        big_pdf(os.path.join(root, 'buyuk_100mb.pdf'), 100 << 20)
     print('hazır:', root)
 
 

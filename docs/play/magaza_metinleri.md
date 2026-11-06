@@ -1,11 +1,13 @@
 # Play Store mağaza metinleri (Faz 11a, 2026-10-22; güncelleme 2026-11-02)
 
-Başlık ≤ 30, kısa açıklama ≤ 80 karakter. Ekran görüntüleri:
+Başlık ≤ 30, kısa açıklama ≤ 80, uzun ≤ 4000 karakter (bekçi: `test/store_assets_test.dart`).
+**Tek kaynak bu dosya:** `python3 tool/magaza_varliklari.py` → `fastlane/metadata/android/` (metin + 512 simge +
+1024×500 tanıtım görseli; Faz 42 / 4). Metni burada değiştir, betiği yeniden koştur. Ekran görüntüleri:
 `flutter test tool/design_shots_test.dart` → `docs/design/` (son görünüm).
 
 ## Türkçe
 
-**Başlık:** Dosya Okuyucu: PDF, Office, Dosya
+**Başlık:** Dosya Okuyucu: PDF ve Office
 
 **Kısa açıklama:** PDF, Word, Excel, slayt aç-düzenle; dosya yöneticisi, temizlik, sesli kitap.
 
@@ -42,7 +44,7 @@ markalarıdır; bu uygulama Microsoft ile bağlantılı değildir.
 
 ## English
 
-**Title:** Dosya Okuyucu: PDF, Office, Files
+**Title:** Dosya Okuyucu: PDF & Office
 
 **Short description:** Open & edit PDF, Word, Excel, slides; file manager, cleanup, audiobooks.
 

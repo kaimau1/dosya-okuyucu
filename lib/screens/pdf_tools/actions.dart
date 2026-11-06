@@ -3,6 +3,18 @@ part of '../pdf_tools_screen.dart';
 extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
   Future<void> _load() async {
     try {
+      // Faz 42 / 2 (anayasa k.10): araçlar belgeyi bayt olarak tutar; bütçe
+      // üstü PDF'te bellek öldürmesi yerine açıklayıcı hata (görüntüleyici
+      // pdfium ile dosyadan akışla okur, orada sınır yok).
+      final size = File(widget.path).lengthSync();
+      final max = DeviceProfile.budget.pdfInMemoryMaxBytes;
+      if (size > max) {
+        if (mounted) {
+          _partSetState(() => _error = _str.t(
+              'lf.pdf_too_big', {'mb': size >> 20, 'max': max >> 20}));
+        }
+        return;
+      }
       final bytes = await File(widget.path).readAsBytes();
       // Şifreli belge: sayfa sayısı okunamıyorsa parola sor.
       try {

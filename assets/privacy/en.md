@@ -84,6 +84,14 @@ An error message may contain the name or path of the file that caused it.
 That is why the full text is shown on screen before sharing — you decide with
 the content in front of you.
 
+**Report a problem (anonymous summary).** This button on the Crash reports
+screen prepares a short summary with error counts (crashes, not responding/ANR,
+low memory), the first lines of the errors and, if you allow it, the
+frame-time distribution. File names, paths, email addresses and numbers longer
+than 6 digits (ID, phone, etc.) are masked; no document content is included.
+The summary is shown on screen first and leaves the device only if you press
+**Share**. "Frame timing" is off by default and keeps only numeric counts.
+
 ## 4. Permissions and why
 
 | Permission | Why |
