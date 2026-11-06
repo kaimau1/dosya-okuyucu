@@ -299,8 +299,9 @@ arka planda düşük öncelik, pil tasarrufunda duraklar; `fs_sort_perf_test` ve
 
 **Ek:** 5. [x] Otomatik perf gerileme kapısı: CI'da `flutter test --tags perf` eşikleri + APK boyutu
 tabanı (artış %2'yi aşarsa kırmızı).
-   (verify 0/3 "Perf gerileme kapısı" + `PERF` satırları özete; `ci/apk_boyut_tabani.txt` 83.237.758 B, `[boyut]` bilinçli büyüme.) 6. `integration_test` cihaz senaryoları (P13): soğuk açılış,
+   (verify 0/3 "Perf gerileme kapısı" + `PERF` satırları özete; `ci/apk_boyut_tabani.txt` 83.237.758 B, `[boyut]` bilinçli büyüme.) 6. [x] `integration_test` cihaz senaryoları (P13): soğuk açılış,
 5.000 öğe kaydırma, 100 sayfa PDF, 100 bin satır xlsx — `tool/make_test_tree.py` verisiyle.
+   (`integration_test/perf_senaryolari_test.dart` traceAction ×9 + `test_driver/perf_driver.dart` + `tool/perf_senaryo.sh` → `docs/perf/`; koşu cihazda.)
 7. [x] Çökme/ANR ve yavaş kare (`KARE` günlüğü) için kullanıcı onaylı anonim özet (A8).
    (`services/diag_report.dart`: ANR/bellek öldürmesi/yerel çökme sayıları, KVKK maskesi `scrub`, p90/p99 + >24/>50 ms oranı; `test/diag_report_test.dart`.)
 8. R8/obfuscate kuralları: ML Kit ve yeni yerel köprüler için kural ekle, `.r8test` yan yana A/B.

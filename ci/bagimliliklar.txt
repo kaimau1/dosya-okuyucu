@@ -63,3 +63,5 @@ tflite_flutter
 flutter_test
 flutter_lints
 flutter_launcher_icons
+integration_test  # Faz 42 / 6 — cihaz senaryoları (integration_test/), APK'ya girmez
+flutter_driver  # Faz 42 / 6 — senaryo zaman çizelgesi özeti (test_driver/)
