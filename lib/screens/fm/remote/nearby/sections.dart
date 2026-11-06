@@ -40,84 +40,6 @@ extension _NearbySections on _NearbyScreenState {
     );
   }
 
-  Widget _statusCard(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final visible = _receiver?.running ?? false;
-    final bleOk = _ble == BleStart.ok;
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(Gap.md),
-        child: Row(
-          children: [
-            _Radar(active: visible || bleOk),
-            const SizedBox(width: Gap.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  InkWell(
-                    onTap: _editDeviceName,
-                    borderRadius: BorderRadius.circular(Radii.control),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            _deviceName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.titleMedium,
-                          ),
-                        ),
-                        const SizedBox(width: Gap.xs),
-                        Icon(AppIcons.edit, size: 16, color: scheme.onSurfaceVariant),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    context.t(visible || bleOk ? 'near.visible' : 'near.starting'),
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: scheme.onSurfaceVariant),
-                  ),
-                  const SizedBox(height: Gap.sm),
-                  Wrap(
-                    spacing: Gap.xs,
-                    runSpacing: Gap.xs,
-                    children: [
-                      _Pill(
-                        icon: AppIcons.wifi,
-                        label: context.t(_hasWifi ? 'near.wifi_on' : 'near.wifi_off'),
-                        ok: _hasWifi,
-                      ),
-                      _Pill(
-                        icon: AppIcons.bluetooth,
-                        label: context.t(switch (_ble) {
-                          BleStart.ok => 'near.bt_on',
-                          BleStart.off => 'near.bt_off',
-                          BleStart.denied => 'near.bt_denied',
-                          BleStart.unsupported => 'near.bt_none',
-                          BleStart.failed => 'near.bt_failed',
-                          null => 'near.bt_wait',
-                        }),
-                        ok: bleOk,
-                        onTap: bleOk || _ble == BleStart.unsupported || !widget.services
-                            ? null
-                            : _startBle,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   /// **1 · Ne gönderilecek?** — üç büyük kutu (Dosya / Klasör / Yazı), altında
   /// seçilenler. 2026-11-03 yeniden tasarım: eskiden iki çerçeveli düğme ve
   /// uzun bir açıklama vardı; "yazı" yolu yoktu.
@@ -205,31 +127,6 @@ extension _NearbySections on _NearbyScreenState {
     );
   }
 
-  /// **2 · Kime?** — yakındaki cihazlar; güvenilenlerde rozet.
-  Widget _devicesCard(BuildContext context) {
-    final ready = _selection.isNotEmpty || _text != null;
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(Gap.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _StepHeader(
-              title: context.t('near.step_who'),
-              sub: ready ? context.t('near.tap_device') : null,
-              trailing: _near.isEmpty
-                  ? null
-                  : Text('${_near.length}',
-                      style: Theme.of(context).textTheme.labelLarge),
-            ),
-            _devices(context),
-          ],
-        ),
-      ),
-    );
-  }
-
   /// Güvenilen cihazlar (yalnız varsa): kaldırmak tek dokunuş.
   Widget _trustedCard(BuildContext context) {
     final items = TrustedPeers.instance.items;
@@ -251,51 +148,6 @@ extension _NearbySections on _NearbyScreenState {
             ),
         ],
       ),
-    );
-  }
-
-  Widget _devices(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final list = _near.values.toList()
-      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-    if (list.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: Gap.md),
-        child: Column(
-          children: [
-            Icon(AppIcons.nearMe, size: AppIcons.large, color: scheme.onSurfaceVariant),
-            const SizedBox(height: Gap.sm),
-            Text(
-              context.t('near.searching'),
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: Gap.xs),
-            Text(
-              context.t('near.searching_sub'),
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-          ],
-        ),
-      );
-    }
-    return Wrap(
-      spacing: Gap.md,
-      runSpacing: Gap.md,
-      children: [
-        for (final n in list)
-          _PeerAvatar(
-            name: n.name,
-            wifi: n.wifi != null,
-            ble: n.ble != null,
-            busy: _out != null,
-            trusted: TrustedPeers.instance.isTrusted(n.name, n.wifi?.id ?? n.ble?.id ?? ''),
-            onTap: () => _tapPeer(n),
-          ),
-      ],
     );
   }
 

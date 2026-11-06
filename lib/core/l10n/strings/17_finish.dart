@@ -150,7 +150,7 @@ const Map<String, (String, String, String)> _t17 = {
   'excel.note_edit': ('Notu düzenle', 'Edit note', 'تحرير الملاحظة'),
   'excel.note_delete': ('Notu sil', 'Delete note', 'حذف الملاحظة'),
   'excel.note_hint': ('Not (deneysel — masaüstü Excel\'de doğrulayın)', 'Note (experimental — check in desktop Excel)', 'ملاحظة (تجريبية)'),
-  'excel.note_author': ('Dosya Okuyucu', 'File Reader', 'قارئ الملفات'),
+  'excel.note_author': ('Dosyalarım', 'File Reader', 'قارئ الملفات'),
   'excel.undo_note': ('Not', 'Note', 'ملاحظة'),
   'excel.gridlines': ('Kılavuz çizgileri', 'Gridlines', 'خطوط الشبكة'),
   'excel.undo_gridlines': ('Kılavuz çizgileri', 'Gridlines', 'خطوط الشبكة'),

@@ -619,10 +619,10 @@ const Map<String, (String, String, String)> _t2 = {
         'فتحت فيها كل تطبيق وتُميَّز التطبيقات غير المستخدمة. لا تغادر أي بيانات الجهاز.',
   ),
   'apps.usage_hint': (
-    'Açılan ayar sayfasından “Dosya Okuyucu”ya izin verip geri dönün.',
-    'Grant the permission to “Dosya Okuyucu” on the settings page that opens, '
+    'Açılan ayar sayfasından “Dosyalarım”a izin verip geri dönün.',
+    'Grant the permission to “Dosyalarım” on the settings page that opens, '
         'then come back.',
-    'امنح الإذن لتطبيق «Dosya Okuyucu» في صفحة الإعدادات التي تُفتح ثم عُد.',
+    'امنح الإذن لتطبيق «Dosyalarım» في صفحة الإعدادات التي تُفتح ثم عُد.',
   ),
 
   // ── Yer aç (temizlik) ─────────────────────────────────────────────────────

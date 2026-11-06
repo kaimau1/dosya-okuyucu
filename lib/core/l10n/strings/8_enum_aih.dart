@@ -9,6 +9,48 @@ const Map<String, (String, String, String)> _t8 = {
     'Warm rosy-beige ground, plum accent, paper-white cards',
     'خلفية دافئة وردية بيج ولون برقوقي وبطاقات بيضاء',
   ),
+  'skin.lavender': ('Lavanta', 'Lavender', 'خزامى'),
+  'skin.lavender_sub': (
+    'Leylak grisi zemin, mürdüm mor vurgu',
+    'Lilac-grey ground, plum-purple accent',
+    'خلفية رمادية ليلكية ولون بنفسجي',
+  ),
+  'skin.olive': ('Zeytin', 'Olive', 'زيتون'),
+  'skin.olive_sub': (
+    'Zeytin taşı zemin, zeytin yeşili vurgu',
+    'Olive-stone ground, olive-green accent',
+    'خلفية زيتونية ولون أخضر زيتوني',
+  ),
+  'skin.white': ('Klasik beyaz', 'Classic white', 'أبيض كلاسيكي'),
+  'skin.white_sub': (
+    'Açık gri zemin, bembeyaz kartlar, mavi vurgu',
+    'Light grey ground, pure white cards, blue accent',
+    'خلفية رمادية فاتحة وبطاقات بيضاء ولون أزرق',
+  ),
+  'skin.straw': ('Saman kâğıdı', 'Straw paper', 'ورق القش'),
+  'skin.straw_sub': (
+    'Saman zemin, krem kartlar, sepya mürekkep',
+    'Straw ground, cream cards, sepia ink',
+    'خلفية قشية وبطاقات كريمية وحبر بني',
+  ),
+  'skin.cream': ('Krem', 'Cream', 'كريمي'),
+  'skin.cream_sub': (
+    'Açık krem zemin, fildişi kartlar, kehribar vurgu',
+    'Light cream ground, ivory cards, amber accent',
+    'خلفية كريمية فاتحة وبطاقات عاجية ولون كهرماني',
+  ),
+  'skin.peach': ('Şeftali', 'Peach', 'خوخي'),
+  'skin.peach_sub': (
+    'Göz yormayan sıcak pastel zemin, uzun okuma için',
+    'Warm, easy-on-the-eyes pastel ground for long reading',
+    'خلفية باستيل دافئة مريحة للعين للقراءة الطويلة',
+  ),
+  'skin.mint': ('Nane', 'Mint', 'نعناع'),
+  'skin.mint_sub': (
+    'Sakin yeşil-mavi zemin, deniz yeşili vurgu',
+    'Calm green-blue ground, sea-green accent',
+    'خلفية خضراء زرقاء هادئة ولون أخضر بحري',
+  ),
   'skin.porcelain': ('Porselen', 'Porcelain', 'خزف'),
   'skin.porcelain_sub': (
     'Serin mavi-gri zemin, lacivert vurgu, kâğıt beyazı kartlar',
@@ -535,6 +577,16 @@ const Map<String, (String, String, String)> _t8 = {
     'Types left off are never read.',
     'الأنواع المغلقة لا تُقرأ إطلاقًا.',
   ),
+  'aiset.auto_new': (
+    'Yeni dosyaları otomatik analiz et',
+    'Analyse new files automatically',
+    'تحليل الملفات الجديدة تلقائيًا',
+  ),
+  'aiset.auto_new_sub': (
+    'Açtıktan sonra gelen dosyalar arka planda AI ile etiketlenir ve özetlenir',
+    'Files arriving after you turn this on are tagged and summarised in the background',
+    'تُوسَم الملفات الواردة بعد التفعيل وتُلخَّص في الخلفية',
+  ),
   'aiset.send_text': ('Metin özünü gönder', 'Send text excerpt', 'أرسل مقتطف النص'),
   'aiset.send_text_sub': (
     'Belgenin ilk {kb} KB metni Gemini\'ye gider. Kapalıyken yalnız dosya adı '
@@ -620,6 +672,7 @@ const Map<String, (String, String, String)> _t8 = {
   'apps.size_data': ('Veri', 'Data', 'البيانات'),
   'apps.installed_on': ('Kuruldu', 'Installed', 'تاريخ التثبيت'),
   'apps.copy_package': ('Paket adını kopyala', 'Copy package name', 'نسخ اسم الحزمة'),
+  'apps.uninstalled': ('{name} kaldırıldı', '{name} uninstalled', 'تمت إزالة {name}'),
   'apps.package_copied': ('Paket adı kopyalandı', 'Package name copied', 'تم نسخ اسم الحزمة'),
   'aih.mode_cloud': (
     'Gemini ile: tür, önem ve kısa özet çıkarılır.',

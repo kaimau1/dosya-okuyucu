@@ -229,7 +229,7 @@ class FmTypePill extends StatelessWidget {
       child: Semantics(
         button: true,
         child: InkWell(
-          customBorder: const StadiumBorder(),
+          borderRadius: BorderRadius.circular(12),
           onTap: () => showFmTypeSheet(
             context,
             counts: counts,
@@ -375,13 +375,17 @@ class FmChoiceTile extends StatelessWidget {
           duration: Motion.of(context, Motion.short),
           curve: Motion.standard,
           decoration: BoxDecoration(
+            // 2026-11-06: masa ve kâğıt — kutu kart renginde, ince kenarlı;
+            // seçili kutu vurgu kuyusu + vurgu kenarı.
             color: selected
                 ? scheme.primaryContainer
-                : scheme.surfaceContainerHighest,
+                : AppSkinData.of(context).palette.card,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: selected ? scheme.primary : Colors.transparent,
-              width: 1.5,
+              color: selected
+                  ? scheme.primary
+                  : AppSkinData.of(context).palette.rule,
+              width: selected ? 1.5 : 1,
             ),
           ),
           child: Material(

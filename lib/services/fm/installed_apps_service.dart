@@ -41,6 +41,18 @@ class InstalledAppEntry {
   /// Uygulama + veri (önbellek dahil). Bilinmiyorsa 0 — SIRALAMA için.
   int get totalBytes => size?.totalBytes ?? 0;
 
+  /// Simgesi eklenmiş kopya (simgeler ikinci aşamada gelir).
+  InstalledAppEntry withIcon(Uint8List? value) => InstalledAppEntry(
+        name: name,
+        packageName: packageName,
+        versionName: versionName,
+        icon: value ?? icon,
+        installedAtMs: installedAtMs,
+        lastUsedMs: lastUsedMs,
+        usageKnown: usageKnown,
+        size: size,
+      );
+
   /// Android'in kullanım verisini tuttuğu en uzun süre (gün).
   ///
   /// Bunun ötesi SORULAMAZ: sistem eski kovaları siliyor. Bu yüzden "kayıt
@@ -184,39 +196,125 @@ abstract final class InstalledAppsService {
     int usageWindowDays = 365,
     bool withSizes = true,
   }) async {
-    List<AppInfo> apps;
-    try {
-      apps = await InstalledApps.getInstalledApps(
-        excludeSystemApps: !includeSystemApps,
-        excludeNonLaunchableApps: !includeSystemApps,
-        withIcon: true,
-      );
-    } catch (_) {
-      return const [];
+    List<InstalledAppEntry> last = const [];
+    await for (final step in listStaged(
+      includeSystemApps: includeSystemApps,
+      usageWindowDays: usageWindowDays,
+      withSizes: withSizes,
+      useCache: false,
+    )) {
+      last = step;
+    }
+    return last;
+  }
+
+  /// Son tam liste (simgeli) — sistem/sistem dışı ayrı. Ekran yeniden
+  /// açılınca ÖNCE bu gösterilir, tazesi arkadan gelir (2026-11-06,
+  /// kullanıcı: *"uygulamalar ekranı çok geç açılıyor"*).
+  static final Map<bool, List<InstalledAppEntry>> _listCache = {};
+
+  /// Kaldırılan paketi önbellekten de düşürür (canlı silme).
+  static void forget(String packageName) {
+    for (final key in _listCache.keys.toList()) {
+      _listCache[key] = [
+        for (final a in _listCache[key]!)
+          if (a.packageName != packageName) a
+      ];
+    }
+    _summaryCache = null;
+  }
+
+  /// **Aşamalı liste** (2026-11-06). Eskiden tek çağrıda simgeler (her
+  /// uygulama için PNG kodlama), son kullanım ve boyutlar SIRAYLA bekleniyor,
+  /// ekran ancak hepsi bitince doluyordu (200 uygulamada saniyeler). Şimdi:
+  /// 1. önbellek varsa hemen,
+  /// 2. simgesiz liste + son kullanım + boyut (ikisi PARALEL),
+  /// 3. simgeler eklenmiş hâli.
+  static Stream<List<InstalledAppEntry>> listStaged({
+    bool includeSystemApps = false,
+    int usageWindowDays = 365,
+    bool withSizes = true,
+    bool useCache = true,
+  }) async* {
+    final cached = _listCache[includeSystemApps];
+    if (useCache && cached != null && cached.isNotEmpty) yield cached;
+
+    // Simgeler AYRI istek: kanalın en pahalı kısmı (bitmap → PNG). Erken
+    // başlatılır, ad/boyut listesi çizilirken arkada sürer.
+    final iconsFuture = _fetch(includeSystemApps, withIcon: true);
+    final apps = await _fetch(includeSystemApps, withIcon: false);
+    if (apps == null) {
+      final withIcons = await iconsFuture;
+      if (withIcons == null) {
+        yield const [];
+        return;
+      }
+      final entries = await _merge(withIcons, usageWindowDays, withSizes);
+      _listCache[includeSystemApps] = entries;
+      yield entries;
+      return;
     }
 
+    final entries = await _merge(apps, usageWindowDays, withSizes);
+    // Önbellekte simge varsa koru — ikinci karede simgeler kaybolup geri
+    // gelmesin (titreme).
+    final oldIcons = {
+      for (final a in cached ?? const <InstalledAppEntry>[])
+        if (a.icon != null) a.packageName: a.icon,
+    };
+    yield [for (final e in entries) e.withIcon(oldIcons[e.packageName])];
+
+    final withIcons = await iconsFuture;
+    final icons = {
+      for (final a in withIcons ?? const <AppInfo>[])
+        if (a.icon != null) a.packageName: a.icon,
+    };
+    final full = [
+      for (final e in entries)
+        e.withIcon(icons[e.packageName] ?? oldIcons[e.packageName])
+    ];
+    _listCache[includeSystemApps] = full;
+    yield full;
+  }
+
+  static Future<List<AppInfo>?> _fetch(bool includeSystemApps,
+      {required bool withIcon}) async {
+    try {
+      return await InstalledApps.getInstalledApps(
+        excludeSystemApps: !includeSystemApps,
+        excludeNonLaunchableApps: !includeSystemApps,
+        withIcon: withIcon,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<List<InstalledAppEntry>> _merge(
+      List<AppInfo> apps, int usageWindowDays, bool withSizes) async {
     // İzin bayrağı kapalıysa sorgu YAPILMAZ (yoksa ayar sayfası açılırdı).
     // Kendi kanalımız izni GERÇEKTEN sorabiliyor (`AppOpsManager`); bayrak
     // yalnız kanalın olmadığı yapılar için yedek kaldı — izin ayarlardan geri
     // alındığında bayrak yanlış "açık" kalabiliyordu.
     var usageKnown = await AppStorageService.hasUsageAccess() ||
         await hasUsagePermission();
-    var usage = const <String, int>{};
-    if (usageKnown) {
-      usage = await _lastUsedByPackage(windowDays: usageWindowDays);
-      if (usage.isEmpty) {
-        // İzin geri alınmış olabilir.
-        usageKnown = false;
-        await _setGranted(false);
-      }
-    }
 
+    // Son kullanım ve boyutlar birbirinden bağımsız → paralel.
     // Boyutlar AYNI izne bağlı (Kullanım erişimi); izin yoksa kanal boş
     // döner ve liste boyutsuz gelir — ekran bunu "bilinmiyor" gösterir.
-    final sizes = withSizes
-        ? await AppStorageService.sizesOf(
-            [for (final a in apps) a.packageName])
-        : const <String, AppStorageSize>{};
+    final usageFuture = usageKnown
+        ? _lastUsedByPackage(windowDays: usageWindowDays)
+        : Future.value(const <String, int>{});
+    final sizesFuture = withSizes
+        ? AppStorageService.sizesOf([for (final a in apps) a.packageName])
+        : Future.value(const <String, AppStorageSize>{});
+    final usage = await usageFuture;
+    final sizes = await sizesFuture;
+    if (usageKnown && usage.isEmpty) {
+      // İzin geri alınmış olabilir.
+      usageKnown = false;
+      await _setGranted(false);
+    }
 
     return [
       for (final app in apps)
@@ -231,6 +329,15 @@ abstract final class InstalledAppsService {
           size: sizes[app.packageName],
         ),
     ];
+  }
+
+  /// Paket hâlâ yüklü mü? Okunamazsa `true` (listeden yanlışlıkla düşmesin).
+  static Future<bool> isInstalled(String packageName) async {
+    try {
+      return await InstalledApps.isAppInstalled(packageName) ?? true;
+    } catch (_) {
+      return true;
+    }
   }
 
   /// Yüklü uygulamaların TOPLAM kapladığı alan + en büyükleri.

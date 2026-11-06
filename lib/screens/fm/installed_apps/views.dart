@@ -315,10 +315,10 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
       case 'apk_save':
         await _exportApk(app, share: false);
       case 'uninstall':
+        // Pencere kapanıp uygulama öne gelince [_confirmUninstall] bakar;
+        // satır o an düşer (yenilemeyi beklemeden).
+        _pendingUninstall = app.packageName;
         await InstalledAppsService.uninstall(app.packageName);
-        // Sistem kaldırma penceresi kapanınca liste tazelensin — sessizce
-        // (tüm ekranı döner çarka çevirmeden, kaydırma yeri korunur).
-        if (mounted) await _load(quiet: true);
     }
   }
 

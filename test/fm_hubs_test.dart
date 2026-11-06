@@ -16,8 +16,9 @@ void main() {
   });
 
   // 2026-10-29: Aktar = birleşik Yakındakiler ekranı. Gönder/Al sekmesi
-  // yok; cihazlar, QR, geçmiş ve diğer yollar aynı sayfada.
-  testWidgets('Aktar tek birleşik ekran: Gönder/Al yok, diğer yollar içinde',
+  // yok. 2026-11-06: üç sekme — Hızlı aktar (cihazlar + QR) · Diğer yollar
+  // · Geçmiş.
+  testWidgets('Aktar sekmeli: Gönder/Al yok, diğer yollar ve geçmiş sekmede',
       (tester) async {
     tester.view.physicalSize = const Size(1080, 4000);
     tester.view.devicePixelRatio = 2;
@@ -27,18 +28,22 @@ void main() {
       child: const MaterialApp(home: TransferScreen(services: false)),
     ));
     await tester.pump();
-    expect(find.text('Yakındakiler'), findsOneWidget);
+    expect(find.text('Aktar'), findsOneWidget);
     expect(find.text('Gönder'), findsNothing);
     expect(find.text('Al'), findsNothing);
-    for (final label in [
-      'Dosya ekle',
-      'Klasör ekle',
-      'Son alınanlar',
-      'Bilgisayarla',
-      'Ağ depolama',
-      'İndirmeler',
-    ]) {
+    // 1. sekme: hızlı aktar + QR aynı sayfada.
+    for (final label in ['Hızlı aktar', 'Dosya ekle', 'Klasör ekle', 'QR ile paylaş']) {
       expect(find.text(label), findsOneWidget, reason: label);
     }
+    await tester.tap(find.byKey(const ValueKey('near-tab-other')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+    for (final label in ['Bilgisayarla', 'Ağ depolama', 'İndirmeler']) {
+      expect(find.text(label), findsOneWidget, reason: label);
+    }
+    await tester.tap(find.byKey(const ValueKey('near-tab-history')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.text('Son alınanlar'), findsOneWidget);
   });
 }

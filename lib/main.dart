@@ -31,6 +31,7 @@ import 'screens/fm/pick_file_screen.dart';
 import 'core/app_haptics.dart';
 import 'screens/home_screen.dart';
 import 'screens/onboarding/onboarding_screen.dart';
+import 'services/fm/ai_auto.dart';
 import 'services/fm/fm_colors_store.dart';
 import 'services/fm/native_extras.dart';
 import 'services/fm/secure_vault.dart';
@@ -220,6 +221,14 @@ Future<void> main() async {
   // **Açılış bütçesi** (Faz 4, P11): kritik olmayan açılış işleri ilk
   // kareden sonra, TEK sırada (bkz. StartupQueue).
   StartupQueue.instance.start(delay: DeviceProfile.budget.startupDelay);
+  // Yeni dosyaların otomatik AI analizi (2026-11-06; ayar kapalıysa iş yok).
+  StartupQueue.instance.add(
+    'ai-auto',
+    () async => AiAutoAnalyze.install(
+      scope: () => appState.aiScopeRules,
+      credentials: () => appState.aiCredentials,
+    ),
+  );
   runApp(
     AppProviders(
       appState: appState,
@@ -431,7 +440,7 @@ class _DosyaOkuyucuAppState extends State<DosyaOkuyucuApp> {
     // bağlantı kaydetmek artık iki `ThemeData`yı baştan üretmiyor.
     final look = context.watch<AppearanceState>();
     return MaterialApp(
-      title: 'Dosya Okuyucu',
+      title: 'Dosyalarım',
       navigatorKey: navigatorKey,
       // Yığın boşalırsa (bir yerde bir sayfa fazladan kapatıldıysa) kök ekran
       // geri konur — kararan ekran yerine ana ekran (bkz. navigator_guard).

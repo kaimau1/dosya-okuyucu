@@ -68,6 +68,17 @@ class AiScopeSettings {
   /// koyabilir.
   final int dailyFileBudget;
 
+  /// **Yeni dosyaları otomatik analiz et** (2026-11-06, kullanıcı isteği:
+  /// *"yeni dosyaların otomatik ai analizi açılıp kapanır özellik"*).
+  /// Varsayılan KAPALI — "uygulama kendi kendine token harcamaz" kararı
+  /// (2026-08-10) kullanıcı açmadıkça geçerli.
+  final bool autoNewFiles;
+
+  /// Otomatik analizin açıldığı an (ms). Yalnız bundan SONRA değişen
+  /// dosyalar otomatik analiz edilir: anahtarı açmak telefondaki binlerce
+  /// eski dosyanın kotayı yemesi demek olmasın (onlar elle "Analiz et").
+  final int autoSinceMs;
+
   const AiScopeSettings({
     this.excludedFolders = const [],
     this.categories = defaultCategories,
@@ -77,6 +88,8 @@ class AiScopeSettings {
     this.sendImages = false,
     this.excerptKb = 6,
     this.dailyFileBudget = 0,
+    this.autoNewFiles = false,
+    this.autoSinceMs = 0,
   });
 
   /// Varsayılan türler: **belge, görsel, ses, video, arşiv**.
@@ -107,6 +120,8 @@ class AiScopeSettings {
         'sendImages': sendImages,
         'excerptKb': excerptKb,
         'dailyBudget': dailyFileBudget,
+        'autoNew': autoNewFiles,
+        'autoSince': autoSinceMs,
       };
 
   /// Bozuk/eksik alanlarda varsayılana düşer — kaydı okuyamamak yüzünden
@@ -138,6 +153,8 @@ class AiScopeSettings {
       excerptKb: (raw['excerptKb'] as num?)?.toInt() ?? fallback.excerptKb,
       dailyFileBudget:
           (raw['dailyBudget'] as num?)?.toInt() ?? fallback.dailyFileBudget,
+      autoNewFiles: raw['autoNew'] == true,
+      autoSinceMs: (raw['autoSince'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -150,6 +167,8 @@ class AiScopeSettings {
     bool? sendImages,
     int? excerptKb,
     int? dailyFileBudget,
+    bool? autoNewFiles,
+    int? autoSinceMs,
   }) =>
       AiScopeSettings(
         excludedFolders: excludedFolders ?? this.excludedFolders,
@@ -160,6 +179,8 @@ class AiScopeSettings {
         sendImages: sendImages ?? this.sendImages,
         excerptKb: excerptKb ?? this.excerptKb,
         dailyFileBudget: dailyFileBudget ?? this.dailyFileBudget,
+        autoNewFiles: autoNewFiles ?? this.autoNewFiles,
+        autoSinceMs: autoSinceMs ?? this.autoSinceMs,
       );
 }
 

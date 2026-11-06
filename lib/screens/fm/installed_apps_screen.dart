@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -58,6 +59,21 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen>
   /// izin kartını görüyor, elle yenilemek zorunda kalıyordu.
   bool _awaitingPermission = false;
 
+  /// Kaldırma penceresi açılan paket. Sistem penceresi kapanıp uygulama öne
+  /// gelince yüklü mü diye bakılır, değilse satır HEMEN düşer (2026-11-06,
+  /// kullanıcı: *"bir uygulama sildikten sonra canlı olarak silindiği
+  /// gözükmüyor"*). Kök neden: `uninstallApp` yalnız sistem penceresini
+  /// açıp ANINDA dönüyordu; ardından gelen yenileme, uygulama henüz
+  /// kaldırılmadan koşup eski listeyi geri yazıyordu.
+  String? _pendingUninstall;
+
+  /// Bu oturumda kaldırılanlar: yarıda kalan eski bir yükleme geç gelip
+  /// satırı geri getirmesin.
+  final Set<String> _gone = {};
+
+  /// Aşamalı yüklemenin aboneliği — yeni yükleme eskisini keser.
+  StreamSubscription<List<InstalledAppEntry>>? _loadSub;
+
   static const _unusedDays = 30;
 
   @override
@@ -70,34 +86,89 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _loadSub?.cancel();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _awaitingPermission) {
+    if (state != AppLifecycleState.resumed) return;
+    if (_awaitingPermission) {
       _awaitingPermission = false;
       _load();
     }
+    final pkg = _pendingUninstall;
+    if (pkg != null) unawaited(_confirmUninstall(pkg));
   }
 
-  Future<void> _load({bool quiet = false}) async {
-    if (!quiet) setState(() => _loading = true);
-    final apps =
-        await InstalledAppsService.list(includeSystemApps: _showSystem);
-    // **İzin durumu listenin KENDİSİNDEN okunur.** Eskiden yalnız kalıcı
-    // bayraka bakılıyordu; izin Android ayarlarından doğrudan verildiğinde
-    // (bayrak hiç açılmadan) liste son kullanım verisiyle gelirken üstte hâlâ
-    // "izin gerekli" kartı duruyordu.
-    final permission = apps.isNotEmpty
-        ? apps.first.usageKnown
-        : await InstalledAppsService.hasUsagePermission();
+  /// Kaldırma sonrası: paket gittiyse satırı düşür. Paket yöneticisi
+  /// kaldırmayı pencere kapandıktan biraz SONRA bitirebiliyor → birkaç kez
+  /// kısa aralıkla bakılır.
+  Future<void> _confirmUninstall(String pkg) async {
+    for (final wait in const [0, 400, 1200, 2500]) {
+      if (wait > 0) await Future<void>.delayed(Duration(milliseconds: wait));
+      if (!mounted || _pendingUninstall != pkg) return;
+      if (!await InstalledAppsService.isInstalled(pkg)) {
+        _removeApp(pkg);
+        return;
+      }
+    }
+    // Kullanıcı vazgeçti — liste olduğu gibi kalır.
+    if (_pendingUninstall == pkg) _pendingUninstall = null;
+  }
+
+  void _removeApp(String pkg) {
+    _pendingUninstall = null;
+    _gone.add(pkg);
+    InstalledAppsService.forget(pkg);
     if (!mounted) return;
+    final name = _apps
+        .where((a) => a.packageName == pkg)
+        .map((a) => a.name)
+        .firstOrNull;
     setState(() {
-      _apps = apps;
-      _usageKnown = permission;
-      _loading = false;
+      _apps = [for (final a in _apps) if (a.packageName != pkg) a];
     });
+    if (name != null) {
+      showSnack(context, context.t('apps.uninstalled', {'name': name}));
+    }
+  }
+
+  Completer<void>? _loadDone;
+
+  Future<void> _load({bool quiet = false}) async {
+    await _loadSub?.cancel();
+    // Kesilen yüklemeyi bekleyen (aşağı çek → yenile) takılı kalmasın.
+    if (_loadDone?.isCompleted == false) _loadDone!.complete();
+    if (!quiet && _apps.isEmpty) setState(() => _loading = true);
+    final done = _loadDone = Completer<void>();
+    var first = true;
+    _loadSub = InstalledAppsService.listStaged(includeSystemApps: _showSystem)
+        .listen((apps) async {
+      // **İzin durumu listenin KENDİSİNDEN okunur.** Eskiden yalnız kalıcı
+      // bayraka bakılıyordu; izin Android ayarlarından doğrudan verildiğinde
+      // (bayrak hiç açılmadan) liste son kullanım verisiyle gelirken üstte
+      // hâlâ "izin gerekli" kartı duruyordu.
+      final permission = apps.isNotEmpty
+          ? apps.first.usageKnown
+          : (first ? await InstalledAppsService.hasUsagePermission() : _usageKnown);
+      first = false;
+      if (!mounted) return;
+      setState(() {
+        _apps = _gone.isEmpty
+            ? apps
+            : [for (final a in apps) if (!_gone.contains(a.packageName)) a];
+        _usageKnown = permission;
+        _loading = false;
+      });
+    }, onDone: () {
+      if (mounted && _loading) setState(() => _loading = false);
+      if (!done.isCompleted) done.complete();
+    }, onError: (Object _) {
+      if (mounted) setState(() => _loading = false);
+      if (!done.isCompleted) done.complete();
+    }, cancelOnError: true);
+    return done.future;
   }
 
   Future<void> _grant() async {

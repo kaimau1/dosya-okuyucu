@@ -34,7 +34,14 @@ void main() {
     // zeminden AÇIK, zemin beyaz değil (parlamaz).
     test('masa ve kâğıt: açık ailelerde kart zeminden açık, zemin beyaz değil',
         () {
-      for (final skin in [AppSkin.sage, AppSkin.porcelain, AppSkin.clay]) {
+      for (final skin in [
+        AppSkin.sage,
+        AppSkin.porcelain,
+        AppSkin.clay,
+        AppSkin.lavender,
+        AppSkin.straw,
+        AppSkin.mint,
+      ]) {
         final p = SkinPalette.of(skin, Brightness.light);
         expect(p.card.computeLuminance(),
             greaterThan(p.bg.computeLuminance()),
@@ -112,6 +119,13 @@ void main() {
         AppSkin.sage,
         AppSkin.porcelain,
         AppSkin.clay,
+        AppSkin.lavender,
+        AppSkin.olive,
+        AppSkin.white,
+        AppSkin.straw,
+        AppSkin.cream,
+        AppSkin.peach,
+        AppSkin.mint,
         AppSkin.modern,
         AppSkin.night,
         AppSkin.system,

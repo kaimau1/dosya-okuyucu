@@ -4,6 +4,9 @@ part of '../app_strings.dart';
 /// tema ve görsel birlik turu.
 const Map<String, (String, String, String)> _t19 = {
   'near.title': ('Yakındakiler', 'Nearby', 'القريبون'),
+  'xft.tab_quick': ('Hızlı aktar', 'Quick send', 'إرسال سريع'),
+  'xft.qr_title': ('QR ile paylaş', 'Share with QR', 'المشاركة عبر QR'),
+  'xft.scan_short': ('Tara', 'Scan', 'مسح'),
 'pick.select_all': ('Tümünü seç', 'Select all', 'تحديد الكل'),
 'pick.last_folder': ('Son kullanılan klasör', 'Last used folder', 'آخر مجلد مستخدم'),
 'near.keep_title': ('Dosya aktarılıyor', 'Transferring files', 'جارٍ نقل الملفات'),
@@ -45,7 +48,7 @@ const Map<String, (String, String, String)> _t19 = {
   'near.pick_this_folder': ('Bu klasörü gönder', 'Send this folder', 'أرسل هذا المجلد'),
   'near.what_to_send': ('{name} cihazına ne gönderilsin?', 'What to send to {name}?', 'ماذا ترسل إلى {name}؟'),
   'near.devices': ('Yakındaki cihazlar', 'Nearby devices', 'الأجهزة القريبة'),
-  'near.searching': ('Yakındaki Dosya Okuyucu aranıyor…', 'Looking for nearby Dosya Okuyucu…', 'جارٍ البحث عن Dosya Okuyucu قريب…'),
+  'near.searching': ('Yakındaki Dosyalarım aranıyor…', 'Looking for nearby Dosyalarım…', 'جارٍ البحث عن Dosyalarım قريب…'),
   'near.searching_sub': (
     'Karşı telefonda da Yakındakiler\'i açın. Aynı Wi-Fi ya da açık Bluetooth yeterli.',
     'Open Nearby on the other phone too. Same Wi-Fi or Bluetooth on is enough.',

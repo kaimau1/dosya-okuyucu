@@ -464,7 +464,7 @@ Future<void> showOpenSourceLicenses(BuildContext context) => showDialog<void>(
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
-              showLicensePage(context: context, applicationName: 'Dosya Okuyucu');
+              showLicensePage(context: context, applicationName: 'Dosyalarım');
             },
             child: Text(context.t('oss.all')),
           ),

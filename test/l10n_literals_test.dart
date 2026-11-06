@@ -127,7 +127,8 @@ final _skipLine = RegExp(
 
 /// Çevrilmeyecek dizeler — her biri gerekçesiyle.
 const _allowed = <String>{
-  'Dosya Okuyucu', // marka adı (MaterialApp.title)
+  'Dosya Okuyucu', // eski marka adı (klasör adı, belge yazarı)
+  'Dosyalarım', // marka adı (MaterialApp.title, 2026-11-06)
   'Google Drive', // marka adı
   'ZIP', // biçim adı
   'title', // JSON anahtarı (JobRecipe çözümlemesi)

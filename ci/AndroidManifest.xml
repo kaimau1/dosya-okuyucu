@@ -124,7 +124,7 @@
          Kotlin'de `onBackPressed` geçersiz kılınmıyor. API 37'de kaçış yolu
          kalmıyor. Cihazda doğrulama: docs/CIHAZ_TESTI.md (Faz 11a). -->
     <application
-        android:label="Dosya Okuyucu"
+        android:label="Dosyalarım"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:localeConfig="@xml/locales_config"

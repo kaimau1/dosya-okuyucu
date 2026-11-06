@@ -36,6 +36,30 @@ enum AppSkin {
   /// (sıcak aile; belge kanvası kâğıt sayfa çerçevesini bu ailede çizer).
   clay,
 
+  // 2026-11-06 (kullanıcı: "notlardan örnek alıp temalar ekleyelim"):
+  // Notlar'ın `ThemeFamily` D–J aileleri, aynı "masa ve kâğıt" belirteçleri.
+
+  /// **Lavanta**: leylak grisi masa, mürdüm mor vurgu.
+  lavender,
+
+  /// **Zeytin**: zeytin taşı masa, zeytin yeşili vurgu.
+  olive,
+
+  /// **Klasik beyaz**: açık gri masa, bembeyaz kâğıt, mavi vurgu.
+  white,
+
+  /// **Saman kâğıdı**: saman masa, krem kâğıt, sepya vurgu.
+  straw,
+
+  /// **Krem**: açık krem masa, fildişi kâğıt, kehribar vurgu.
+  cream,
+
+  /// **Şeftali**: okuma rahatlığı için sıcak pastel zemin.
+  peach,
+
+  /// **Nane**: yeşil-mavi, uzun okumada göz yormayan ton.
+  mint,
+
   /// **Modern:** canlı mor-mavi vurgu, büyük yuvarlak köşeler, büyük simgeler,
   /// rahat satır aralığı. Material 3'ün kendi hissine en yakın aile.
   modern,
@@ -58,6 +82,13 @@ enum AppSkin {
         AppSkin.sage => 'skin.sage',
         AppSkin.porcelain => 'skin.porcelain',
         AppSkin.clay => 'skin.clay',
+        AppSkin.lavender => 'skin.lavender',
+        AppSkin.olive => 'skin.olive',
+        AppSkin.white => 'skin.white',
+        AppSkin.straw => 'skin.straw',
+        AppSkin.cream => 'skin.cream',
+        AppSkin.peach => 'skin.peach',
+        AppSkin.mint => 'skin.mint',
         AppSkin.modern => 'skin.modern',
         AppSkin.night => 'skin.night',
         AppSkin.system => 'skin.system',
@@ -67,6 +98,13 @@ enum AppSkin {
         AppSkin.sage => 'skin.sage_sub',
         AppSkin.porcelain => 'skin.porcelain_sub',
         AppSkin.clay => 'skin.clay_sub',
+        AppSkin.lavender => 'skin.lavender_sub',
+        AppSkin.olive => 'skin.olive_sub',
+        AppSkin.white => 'skin.white_sub',
+        AppSkin.straw => 'skin.straw_sub',
+        AppSkin.cream => 'skin.cream_sub',
+        AppSkin.peach => 'skin.peach_sub',
+        AppSkin.mint => 'skin.mint_sub',
         AppSkin.modern => 'skin.modern_sub',
         AppSkin.night => 'skin.night_sub',
         AppSkin.system => 'skin.system_sub',
@@ -189,11 +227,25 @@ class SkinPalette {
       inkSoft: inkSoft,
       inkFaint: inkFaint,
       accent: newAccent,
-      accentWell: Color.lerp(bg, newAccent, dark ? 0.28 : 0.16) ?? newAccent,
+      accentWell: _wellFor(newAccent, dark: dark),
       onAccent: white >= black ? Colors.white : Colors.black,
       danger: danger,
       ok: ok,
     );
+  }
+
+  /// Seçili pil kuyusu: zeminle vurgunun karışımı. Kuyunun üstündeki yazı
+  /// (açıkta vurgu, koyuda mürekkep) ≥ 4,5:1 kalana dek karışım azaltılır —
+  /// sarımsı zeminli ailelerde (Saman kâğıdı) %16 kiremit yazıyı boğuyordu.
+  Color _wellFor(Color newAccent, {required bool dark}) {
+    final text = dark ? ink : newAccent;
+    var t = dark ? 0.28 : 0.16;
+    var well = Color.lerp(bg, newAccent, t) ?? newAccent;
+    while (t > 0.04 && _contrast(text, well) < 4.5) {
+      t -= 0.02;
+      well = Color.lerp(bg, newAccent, t) ?? newAccent;
+    }
+    return well;
   }
 
   static double _contrast(Color a, Color b) {
@@ -224,6 +276,13 @@ class SkinPalette {
       AppSkin.sage => dark ? _sageDark : _sageLight,
       AppSkin.porcelain => dark ? _porcelainDark : _porcelainLight,
       AppSkin.clay => dark ? _clayDark : _clayLight,
+      AppSkin.lavender => dark ? _lavenderDark : _lavenderLight,
+      AppSkin.olive => dark ? _oliveDark : _oliveLight,
+      AppSkin.white => dark ? _whiteDark : _whiteLight,
+      AppSkin.straw => dark ? _strawDark : _strawLight,
+      AppSkin.cream => dark ? _creamDark : _creamLight,
+      AppSkin.peach => dark ? _peachDark : _peachLight,
+      AppSkin.mint => dark ? _mintDark : _mintLight,
       AppSkin.modern => dark ? _modernDark : _modernLight,
       AppSkin.night => _nightDark,
       AppSkin.system => SystemAccent.apply(
@@ -340,6 +399,246 @@ class SkinPalette {
     ok: Color(0xFF8FC79E),
   );
 
+  // ── Notlar D–J aileleri (2026-11-06) — Notlar `app_palette.dart`tan;
+  // soluk mürekkepler kontrast için bir tık koyulaştırıldı.
+  static const _lavenderLight = SkinPalette(
+    bg: Color(0xFFEDEBF3),
+    card: Color(0xFFFCFBFE),
+    band: Color(0xFFF7F5FB),
+    well: Color(0xFFF1EFF6),
+    rule: Color(0xFFD4D1DD),
+    edge: Color(0xFFADAAB8),
+    ink: Color(0xFF211F2A),
+    inkSoft: Color(0xFF55525F),
+    inkFaint: Color(0xFF5F5C6A),
+    accent: Color(0xFF5B4B8A),
+    accentWell: Color(0xFFE5DEFA),
+    onAccent: Color(0xFFFFFFFF),
+    danger: Color(0xFFB0402F),
+    ok: Color(0xFF2F6B4A),
+  );
+
+  static const _lavenderDark = SkinPalette(
+    bg: Color(0xFF16151B),
+    card: Color(0xFF1F1D26),
+    band: Color(0xFF24222B),
+    well: Color(0xFF24222B),
+    rule: Color(0xFF3C3A45),
+    edge: Color(0xFF63606C),
+    ink: Color(0xFFE7E4EF),
+    inkSoft: Color(0xFFB8B5C2),
+    inkFaint: Color(0xFFAEACB8),
+    accent: Color(0xFFC6B8F4),
+    accentWell: Color(0xFF433669),
+    onAccent: Color(0xFF2C2152),
+    danger: Color(0xFFE8897F),
+    ok: Color(0xFF8FC79E),
+  );
+
+  static const _oliveLight = SkinPalette(
+    bg: Color(0xFFEDEEE6),
+    card: Color(0xFFFBFCF8),
+    band: Color(0xFFF6F7F1),
+    well: Color(0xFFF0F1EA),
+    rule: Color(0xFFD4D6CB),
+    edge: Color(0xFFADAFA4),
+    ink: Color(0xFF1F221B),
+    inkSoft: Color(0xFF52564B),
+    inkFaint: Color(0xFF5D6056),
+    accent: Color(0xFF4F6A2A),
+    accentWell: Color(0xFFD9EBC0),
+    onAccent: Color(0xFFFFFFFF),
+    danger: Color(0xFFB0402F),
+    ok: Color(0xFF2F6B4A),
+  );
+
+  static const _oliveDark = SkinPalette(
+    bg: Color(0xFF161813),
+    card: Color(0xFF1F221B),
+    band: Color(0xFF242720),
+    well: Color(0xFF242720),
+    rule: Color(0xFF3C3F37),
+    edge: Color(0xFF62655C),
+    ink: Color(0xFFE4E6DD),
+    inkSoft: Color(0xFFB6B9AE),
+    inkFaint: Color(0xFFADB0A5),
+    accent: Color(0xFFB2D18A),
+    accentWell: Color(0xFF384F18),
+    onAccent: Color(0xFF203606),
+    danger: Color(0xFFE8897F),
+    ok: Color(0xFF8FC79E),
+  );
+
+  static const _whiteLight = SkinPalette(
+    bg: Color(0xFFF3F4F6),
+    card: Color(0xFFFFFFFF),
+    band: Color(0xFFFAFAFB),
+    well: Color(0xFFF1F2F4),
+    rule: Color(0xFFD6D9DE),
+    edge: Color(0xFFAAADB3),
+    ink: Color(0xFF1A1C1F),
+    inkSoft: Color(0xFF4A4E55),
+    inkFaint: Color(0xFF545860),
+    accent: Color(0xFF1F5FBF),
+    accentWell: Color(0xFFD8E4FA),
+    onAccent: Color(0xFFFFFFFF),
+    danger: Color(0xFFB0402F),
+    ok: Color(0xFF2F6B4A),
+  );
+
+  static const _whiteDark = SkinPalette(
+    bg: Color(0xFF121314),
+    card: Color(0xFF1C1D1F),
+    band: Color(0xFF212224),
+    well: Color(0xFF212224),
+    rule: Color(0xFF3A3B3F),
+    edge: Color(0xFF616268),
+    ink: Color(0xFFE6E7EA),
+    inkSoft: Color(0xFFB7B9BE),
+    inkFaint: Color(0xFFADAFB5),
+    accent: Color(0xFFA8C5F5),
+    accentWell: Color(0xFF22437A),
+    onAccent: Color(0xFF0B2A5C),
+    danger: Color(0xFFE8897F),
+    ok: Color(0xFF8FC79E),
+  );
+
+  static const _strawLight = SkinPalette(
+    bg: Color(0xFFEDE3C8),
+    card: Color(0xFFFCF8EC),
+    band: Color(0xFFF8F2E1),
+    well: Color(0xFFF3EBD6),
+    rule: Color(0xFFD6CAAB),
+    edge: Color(0xFFAEA286),
+    ink: Color(0xFF2A2216),
+    inkSoft: Color(0xFF574C38),
+    inkFaint: Color(0xFF605640),
+    accent: Color(0xFF7A4A1E),
+    accentWell: Color(0xFFF2DCC0),
+    onAccent: Color(0xFFFFFFFF),
+    danger: Color(0xFFB0402F),
+    ok: Color(0xFF2F6B4A),
+  );
+
+  static const _strawDark = SkinPalette(
+    bg: Color(0xFF1A1711),
+    card: Color(0xFF24201A),
+    band: Color(0xFF29251E),
+    well: Color(0xFF29251E),
+    rule: Color(0xFF423C32),
+    edge: Color(0xFF6A6255),
+    ink: Color(0xFFEDE5D3),
+    inkSoft: Color(0xFFC0B6A2),
+    inkFaint: Color(0xFFB6AD9A),
+    accent: Color(0xFFE5B98A),
+    accentWell: Color(0xFF5E3E1C),
+    onAccent: Color(0xFF452A0D),
+    danger: Color(0xFFE8897F),
+    ok: Color(0xFF8FC79E),
+  );
+
+  static const _creamLight = SkinPalette(
+    bg: Color(0xFFF6F0DE),
+    card: Color(0xFFFFFDF6),
+    band: Color(0xFFFBF7EC),
+    well: Color(0xFFF7F1E2),
+    rule: Color(0xFFE1D8BF),
+    edge: Color(0xFFB4AC94),
+    ink: Color(0xFF2B261C),
+    inkSoft: Color(0xFF5A5241),
+    inkFaint: Color(0xFF635B49),
+    accent: Color(0xFF8A5A22),
+    accentWell: Color(0xFFF6E3C4),
+    onAccent: Color(0xFFFFFFFF),
+    danger: Color(0xFFB0402F),
+    ok: Color(0xFF2F6B4A),
+  );
+
+  static const _creamDark = SkinPalette(
+    bg: Color(0xFF1B1914),
+    card: Color(0xFF25221C),
+    band: Color(0xFF2A2721),
+    well: Color(0xFF2A2721),
+    rule: Color(0xFF433F36),
+    edge: Color(0xFF6B6659),
+    ink: Color(0xFFEEE8D8),
+    inkSoft: Color(0xFFC2BAA7),
+    inkFaint: Color(0xFFB8B19E),
+    accent: Color(0xFFE8BE87),
+    accentWell: Color(0xFF63431D),
+    onAccent: Color(0xFF47290A),
+    danger: Color(0xFFE8897F),
+    ok: Color(0xFF8FC79E),
+  );
+
+  static const _peachLight = SkinPalette(
+    bg: Color(0xFFF7EAE2),
+    card: Color(0xFFFFF9F5),
+    band: Color(0xFFFCF2EC),
+    well: Color(0xFFF8EDE6),
+    rule: Color(0xFFE2CFC3),
+    edge: Color(0xFFB6A49B),
+    ink: Color(0xFF2B211D),
+    inkSoft: Color(0xFF5C4D46),
+    inkFaint: Color(0xFF65564F),
+    accent: Color(0xFFA3432C),
+    accentWell: Color(0xFFFBDCD2),
+    onAccent: Color(0xFFFFFFFF),
+    danger: Color(0xFFB0402F),
+    ok: Color(0xFF2F6B4A),
+  );
+
+  static const _peachDark = SkinPalette(
+    bg: Color(0xFF1C1715),
+    card: Color(0xFF27201D),
+    band: Color(0xFF2C2522),
+    well: Color(0xFF2C2522),
+    rule: Color(0xFF453B37),
+    edge: Color(0xFF6D625D),
+    ink: Color(0xFFF0E5E0),
+    inkSoft: Color(0xFFC6B8B1),
+    inkFaint: Color(0xFFBCAEA8),
+    accent: Color(0xFFF4B39F),
+    accentWell: Color(0xFF77311F),
+    onAccent: Color(0xFF561D0D),
+    danger: Color(0xFFE8897F),
+    ok: Color(0xFF8FC79E),
+  );
+
+  static const _mintLight = SkinPalette(
+    bg: Color(0xFFE5F2EE),
+    card: Color(0xFFF9FDFB),
+    band: Color(0xFFF2FAF7),
+    well: Color(0xFFECF6F2),
+    rule: Color(0xFFCCDCD6),
+    edge: Color(0xFFA4B5AF),
+    ink: Color(0xFF182623),
+    inkSoft: Color(0xFF475A55),
+    inkFaint: Color(0xFF526560),
+    accent: Color(0xFF0E6B5C),
+    accentWell: Color(0xFFC3EDE3),
+    onAccent: Color(0xFFFFFFFF),
+    danger: Color(0xFFB0402F),
+    ok: Color(0xFF2F6B4A),
+  );
+
+  static const _mintDark = SkinPalette(
+    bg: Color(0xFF111A18),
+    card: Color(0xFF1A2421),
+    band: Color(0xFF1F2A26),
+    well: Color(0xFF1F2A26),
+    rule: Color(0xFF37433E),
+    edge: Color(0xFF5C6A65),
+    ink: Color(0xFFDFEDE8),
+    inkSoft: Color(0xFFAEC0BA),
+    inkFaint: Color(0xFFA5B6B1),
+    accent: Color(0xFF7FD6C3),
+    accentWell: Color(0xFF0B5146),
+    onAccent: Color(0xFF00382F),
+    danger: Color(0xFFE8897F),
+    ok: Color(0xFF8FC79E),
+  );
+
   // ── Modern ────────────────────────────────────────────────────────────────
   static const _modernLight = SkinPalette(
     bg: Color(0xFFF7F6FC),
@@ -450,7 +749,17 @@ class SkinMetrics {
 
   static SkinMetrics of(AppSkin skin) => switch (skin) {
         // Notlar'la aynı ölçü: kart 16, levha 24 (TEMA_PLANI F30.2).
-        AppSkin.sage || AppSkin.porcelain || AppSkin.clay => const SkinMetrics(
+        AppSkin.sage ||
+        AppSkin.porcelain ||
+        AppSkin.clay ||
+        AppSkin.lavender ||
+        AppSkin.olive ||
+        AppSkin.white ||
+        AppSkin.straw ||
+        AppSkin.cream ||
+        AppSkin.peach ||
+        AppSkin.mint =>
+          const SkinMetrics(
             radiusControl: 12,
             radiusCard: 16,
             radiusSheet: 24,

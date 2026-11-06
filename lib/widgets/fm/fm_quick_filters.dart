@@ -70,9 +70,18 @@ class FmChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final skin = AppSkinData.of(context);
+    final pal = skin.palette;
     final n = count ?? 0;
-    final fg = selected ? scheme.onPrimary : scheme.onSurface;
+    final fg = selected ? pal.onAccent : pal.ink;
+    // 2026-11-06 (kullanıcı: *"filtre alanları yeni temaya uygun, buton
+    // şekilleri tipleri değişsin"*): tam yuvarlak gri hap → "masa ve kâğıt"
+    // dilinde KÂĞIT düğme: kart renginde, ince kenarlı, ailenin kontrol
+    // köşesiyle (Adaçayı 12 dp, Modern 18 dp). Seçili = dolu vurgu.
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(skin.metrics.radiusControl),
+      side: BorderSide(color: selected ? pal.accent : pal.rule),
+    );
     return Padding(
       padding: const EdgeInsetsDirectional.only(end: _kChipGap),
       child: Semantics(
@@ -83,13 +92,13 @@ class FmChip extends StatelessWidget {
           curve: Curves.easeOut,
           height: kFmChipHeight,
           decoration: ShapeDecoration(
-            shape: const StadiumBorder(),
-            color: selected ? scheme.primary : scheme.surfaceContainerHighest,
+            shape: shape,
+            color: selected ? pal.accent : pal.card,
           ),
           child: Material(
             type: MaterialType.transparency,
             child: InkWell(
-              customBorder: const StadiumBorder(),
+              customBorder: shape,
               onTap: onTap,
               child: _ChipBody(
                 icon: icon,
@@ -151,8 +160,8 @@ class _ChipBody extends StatelessWidget {
                   TextSpan(
                     text: ' · $count',
                     style: TextStyle(
-                      color: fg.withValues(alpha: 0.62),
-                      fontWeight: FontWeight.w500,
+                      color: fg.withValues(alpha: bold ? 0.85 : 0.62),
+                      fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
                       fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
@@ -204,16 +213,17 @@ class FmPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final skin = AppSkinData.of(context);
+    final pal = skin.palette;
     final Color fg;
     if (disabled) {
       fg = Paper.faint(context);
     } else if (highlighted) {
-      fg = scheme.onSecondaryContainer;
+      fg = pal.accent;
     } else {
-      fg = scheme.onSurface;
+      fg = pal.ink;
     }
-    // Süzgeç şeridinde (üç kart) hap genişliği PAYLAŞIR: kaydırma yok,
+    // Süzgeç şeridinde (üç bölme) hap genişliği PAYLAŞIR: kaydırma yok,
     // yazı sığmazsa küçülür; sayı yalnız vurguluyken yazılır.
     final fill = _FilterBarScope.of(context);
     final body = _ChipBody(
@@ -224,23 +234,37 @@ class FmPill extends StatelessWidget {
       bold: highlighted,
       dropdown: dropdown,
     );
+    final radius = BorderRadius.circular(skin.metrics.radiusControl);
+    if (fill) {
+      // Şerit TEK kâğıt kart; bölme kendi kenarını çizmez. Etkin bölme
+      // kartın içinde vurgu kuyusuyla dolar (2026-11-06 yeniden tasarım).
+      // Dokunma alanı şeridin tamamı (48 dp) — erişilebilirlik.
+      return SizedBox(
+        height: kFmFilterBarHeight,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          child: AnimatedContainer(
+            duration: Motion.of(context, Motion.short),
+            curve: Curves.easeOut,
+            decoration: BoxDecoration(
+              color: highlighted ? pal.accentWell : Colors.transparent,
+              borderRadius: BorderRadius.circular(
+                  (skin.metrics.radiusControl - 4).clamp(4, 40).toDouble()),
+            ),
+            child: Center(child: FittedBox(fit: BoxFit.scaleDown, child: body)),
+          ),
+        ),
+      );
+    }
     final pill = Container(
       height: kFmChipHeight,
-      decoration: ShapeDecoration(
-        shape: const StadiumBorder(),
-        color: highlighted
-            ? scheme.secondaryContainer
-            : scheme.surfaceContainerHighest,
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        color: highlighted ? pal.accentWell : pal.card,
+        border: Border.all(color: highlighted ? pal.accent : pal.rule),
       ),
-      child: fill
-          ? Center(child: FittedBox(fit: BoxFit.scaleDown, child: body))
-          : body,
+      child: body,
     );
-    // Şeritte dokunma alanı 48 dp (görünen hap 34 dp) — erişilebilirlik.
-    if (fill) {
-      return SizedBox(
-          height: kFmFilterBarHeight, child: Center(child: pill));
-    }
     return Padding(
       padding: const EdgeInsetsDirectional.only(end: _kChipGap),
       child: pill,
@@ -272,18 +296,47 @@ class FmFilterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (children.isEmpty) return const SizedBox.shrink();
+    final skin = AppSkinData.of(context);
+    final pal = skin.palette;
+    final radius = BorderRadius.circular(skin.metrics.radiusControl);
+    // 2026-11-06 yeniden tasarım (kullanıcı ekran görüntüsü: üç ayrı gri hap
+    // masanın üstünde "soluk" duruyordu): üç bölmeli TEK kâğıt kart — zemin
+    // (masa) üstünde kart renginde, ince kenarlı, bölmeler arası tüy çizgi.
+    // Etkin bölme vurgu kuyusuyla dolar ([FmPill]).
     return _FilterBarScope(
       child: SizedBox(
         height: kFmFilterBarHeight,
         child: Padding(
           // Kenar payı ızgaranın/listenin metin hizasıyla aynı (12 dp).
           padding: const EdgeInsetsDirectional.symmetric(horizontal: 12),
-          child: Row(
+          child: Stack(
             children: [
-              for (var i = 0; i < children.length; i++) ...[
-                if (i > 0) const SizedBox(width: _kChipGap),
-                Expanded(child: children[i]),
-              ],
+              // Kart arka planda, 2 dp içeride çizilir; bölmeler şeridin tam
+              // yüksekliğini (48 dp dokunma alanı) korur — kırpılmaz.
+              Positioned.fill(
+                top: 2,
+                bottom: 2,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: pal.card,
+                    borderRadius: radius,
+                    border: Border.all(color: pal.rule),
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  for (var i = 0; i < children.length; i++) ...[
+                    if (i > 0)
+                      SizedBox(
+                        height: 22,
+                        child: VerticalDivider(
+                            width: 1, thickness: 1, color: pal.rule),
+                      ),
+                    Expanded(child: children[i]),
+                  ],
+                ],
+              ),
             ],
           ),
         ),
@@ -695,7 +748,7 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
         if (hasAny)
           InkWell(
             key: const ValueKey('source-pill'),
-            customBorder: const StadiumBorder(),
+            borderRadius: BorderRadius.circular(12),
             onTap: () => showFmSourceSheet(
               context,
               source: widget.source,

@@ -171,6 +171,8 @@ abstract final class AiAnalyzer {
     required AiScope scope,
     required AiCredentials credentials,
     bool reanalyze = false,
+    int newerThanMs = 0,
+    List<FsEntry>? candidates,
   }) async {
     if (_running) return;
     _running = true;
@@ -203,6 +205,8 @@ abstract final class AiAnalyzer {
             credentials: credentials.normalized,
             reanalyze: reanalyze,
             handle: handle,
+            newerThanMs: newerThanMs,
+            preset: candidates,
           );
         } catch (e) {
           progress.value = progress.value
@@ -264,6 +268,8 @@ abstract final class AiAnalyzer {
     required AiCredentials credentials,
     required bool reanalyze,
     JobHandle? handle,
+    int newerThanMs = 0,
+    List<FsEntry>? preset,
   }) async {
     final aiEnabled = credentials.keys.isNotEmpty;
     progress.value = AiProgress(
@@ -273,10 +279,12 @@ abstract final class AiAnalyzer {
     await FmEnv.ensureInit();
     await AiIndex.ensureLoaded();
 
-    final candidates = await _orCancel(collectCandidates(
-      scope: scope,
-      reanalyze: reanalyze,
-    ));
+    final candidates = preset ??
+        await _orCancel(collectCandidates(
+          scope: scope,
+          reanalyze: reanalyze,
+          newerThanMs: newerThanMs,
+        ));
     if (candidates == null || _cancelRequested) {
       progress.value = const AiProgress(phase: AiRunPhase.idle);
       return;
@@ -453,6 +461,7 @@ abstract final class AiAnalyzer {
   static Future<List<FsEntry>> collectCandidates({
     required AiScope scope,
     bool reanalyze = false,
+    int newerThanMs = 0,
   }) async {
     await AiIndex.ensureLoaded();
     var entries = const <FsEntry>[];
@@ -472,6 +481,7 @@ abstract final class AiAnalyzer {
     final out = <FsEntry>[
       for (final entry in entries)
         if (!entry.isDir &&
+            entry.modifiedMs >= newerThanMs &&
             scope.allowsFile(entry) &&
             (reanalyze || !AiIndex.isFresh(entry)))
           entry

@@ -69,7 +69,7 @@ class FmMoreChip extends StatelessWidget {
           button: true,
           child: InkWell(
             key: const ValueKey('more-pill'),
-            customBorder: const StadiumBorder(),
+            borderRadius: BorderRadius.circular(12),
             onTap: () => showFmMoreSheet(context, sections),
             child: FmPill(
               icon: AppIcons.insights,
