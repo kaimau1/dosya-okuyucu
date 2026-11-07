@@ -9,9 +9,12 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show clampDouble;
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/physics.dart';
+import 'package:flutter/services.dart';
 import 'package:vector_math/vector_math_64.dart' show Matrix4, Quad, Vector3;
+
+import '../utils/double_extensions.dart';
 
 // Examples can assume:
 // late BuildContext context;
@@ -75,13 +78,23 @@ class InteractiveViewer extends StatefulWidget {
     this.onInteractionUpdate,
     this.panEnabled = true,
     this.scaleEnabled = true,
+    this.scaleInertiaMaxExcursion,
+    this.scaleGestureSensitivity = 1.0,
     this.scaleFactor = kDefaultMouseScrollToScaleFactor,
     this.transformationController,
     this.alignment,
     this.trackpadScrollCausesScale = false,
     this.onWheelDelta,
+    this.ignoresWheelDelta,
+    this.onPointerScale,
+    this.scrollPhysics,
+    this.scrollPhysicsScale,
+    this.scrollPhysicsAutoAdjustBoundaries = true,
   }) : assert(minScale > 0),
        assert(interactionEndFrictionCoefficient > 0),
+       assert(scaleInertiaMaxExcursion == null || (scaleInertiaMaxExcursion > 0 && scaleInertiaMaxExcursion < 1)),
+       assert(scaleGestureSensitivity > 0),
+       assert(scaleGestureSensitivity.isFinite),
        assert(minScale.isFinite),
        assert(maxScale > 0),
        assert(!maxScale.isNaN),
@@ -120,13 +133,23 @@ class InteractiveViewer extends StatefulWidget {
     this.onInteractionUpdate,
     this.panEnabled = true,
     this.scaleEnabled = true,
+    this.scaleInertiaMaxExcursion,
+    this.scaleGestureSensitivity = 1.0,
     this.scaleFactor = 200.0,
     this.transformationController,
     this.alignment,
     this.trackpadScrollCausesScale = false,
     this.onWheelDelta,
+    this.ignoresWheelDelta,
+    this.onPointerScale,
+    this.scrollPhysics,
+    this.scrollPhysicsScale,
+    this.scrollPhysicsAutoAdjustBoundaries = true,
   }) : assert(minScale > 0),
        assert(interactionEndFrictionCoefficient > 0),
+       assert(scaleInertiaMaxExcursion == null || (scaleInertiaMaxExcursion > 0 && scaleInertiaMaxExcursion < 1)),
+       assert(scaleGestureSensitivity > 0),
+       assert(scaleGestureSensitivity.isFinite),
        assert(minScale.isFinite),
        assert(maxScale > 0),
        assert(!maxScale.isNaN),
@@ -251,6 +274,28 @@ class InteractiveViewer extends StatefulWidget {
   ///   * [panEnabled], which is similar but for panning.
   final bool scaleEnabled;
 
+  /// Sensitivity of the live pinch/scale gesture, applied as an exponent to the
+  /// gesture's scale ratio.
+  ///
+  /// Defaults to `1.0`, which preserves the existing behavior: the viewer scale
+  /// follows the finger spread one-to-one. Values greater than `1.0` make the
+  /// same finger movement produce more zoom: a pinch that spreads the fingers by
+  /// a factor of `r` scales by `r ^ scaleGestureSensitivity` instead of `r`.
+  /// Values between `0.0` and `1.0` make the response gentler. The value must be
+  /// finite and greater than zero.
+  ///
+  /// Because the mapping is an exponent, it is symmetric between pinch-in and
+  /// pinch-out (`f(1/x) == 1 / f(x)`), and the amplification is comparable at
+  /// every zoom level.
+  ///
+  /// This affects only scale gestures handled through this widget's
+  /// `GestureDetector` / `ScaleGestureRecognizer`: touchscreen multi-pointer pinch
+  /// gestures and trackpad pan/zoom (`PointerPanZoom*`) scale gestures. It does
+  /// not affect pdfrx's separate pointer-signal path — `PointerScaleEvent` and
+  /// Ctrl+mouse-wheel zoom, tuned by `PdfViewerParams.scaleByPointerScale` — nor
+  /// buttons or programmatic zoom.
+  final double scaleGestureSensitivity;
+
   /// {@macro flutter.gestures.scale.trackpadScrollCausesScale}
   final bool trackpadScrollCausesScale;
 
@@ -291,6 +336,36 @@ class InteractiveViewer extends StatefulWidget {
   ///
   /// Must be a finite number greater than zero and less than [maxScale].
   final double minScale;
+
+  /// The maximum post-release scale inertia excursion, expressed as a signed
+  /// fraction of the scale at the moment the gesture ends.
+  ///
+  /// When null (the default), the target of the scroll-physics-free scale fling
+  /// is the raw, unbounded friction simulation target and the behavior is
+  /// unchanged.
+  ///
+  /// When set to a value in (0, 1), the fling target is bounded relative to the
+  /// release scale `s` to `s - s * scaleInertiaMaxExcursion ..
+  /// s + s * scaleInertiaMaxExcursion`, and then clamped to
+  /// [minScale]..[maxScale]. This is a signed fractional excursion about the
+  /// release scale, not a reciprocal or geometric ratio: the same fraction
+  /// applies below and above `s`. It retains useful post-release momentum while
+  /// preventing a fast pinch from coasting far past the release scale; in
+  /// particular it stops an aggressive pinch-in from travelling all the way to
+  /// [minScale] after the fingers have already been lifted.
+  ///
+  /// This only affects the post-release scale fling that runs when
+  /// [scrollPhysics] is null. It is part of the scale gesture path, so it
+  /// applies to both touchscreen multi-pointer pinches and trackpad pan/zoom
+  /// gestures (`PointerPanZoom*` events), which Flutter routes through the same
+  /// scale recognizer and `_onScaleEnd`. The live gesture mapping itself is
+  /// unchanged. The separate pointer-signal paths -- [PointerScaleEvent] and
+  /// mouse-wheel / Ctrl-wheel ([PointerScrollEvent]) -- do not run this code and
+  /// are unaffected, as are pan inertia and the `scrollPhysics != null` scale
+  /// snap-back.
+  ///
+  /// Must be null or a finite value in (0, 1).
+  final double? scaleInertiaMaxExcursion;
 
   /// Changes the deceleration behavior after a gesture.
   ///
@@ -383,16 +458,32 @@ class InteractiveViewer extends StatefulWidget {
 
   /// To override the default mouse wheel behavior.
   ///
-  final void Function(Offset scrollDelta)? onWheelDelta;
+  final void Function(PointerScrollEvent event)? onWheelDelta;
+
+  /// Whether [onWheelDelta] would ignore the event; such events are not claimed, so an ancestor can handle them.
+  final bool Function(PointerScrollEvent event)? ignoresWheelDelta;
+
+  /// To override the default pointer scale behavior.
+  final void Function(PointerScaleEvent event)? onPointerScale;
 
   // Used as the coefficient of friction in the inertial translation animation.
   // This value was eyeballed to give a feel similar to Google Photos.
   static const double _kDrag = 0.0000135;
 
+  /// ScrollPhysics to use for panning
+  final ScrollPhysics? scrollPhysics;
+
+  /// ScrollPhysic to use for scaling
+  final ScrollPhysics? scrollPhysicsScale;
+
+  /// Whether to automatically increase the ScrollPhysics boundaries when the
+  /// child size is smaller than the viewport size.
+  final bool scrollPhysicsAutoAdjustBoundaries;
+
   /// Returns the closest point to the given point on the given line segment.
   @visibleForTesting
   static Vector3 getNearestPointOnLine(Vector3 point, Vector3 l1, Vector3 l2) {
-    final double lengthSquared = math.pow(l2.x - l1.x, 2.0).toDouble() + math.pow(l2.y - l1.y, 2.0).toDouble();
+    final lengthSquared = math.pow(l2.x - l1.x, 2.0).toDouble() + math.pow(l2.y - l1.y, 2.0).toDouble();
 
     // In this case, l1 == l2.
     if (lengthSquared == 0) {
@@ -401,9 +492,9 @@ class InteractiveViewer extends StatefulWidget {
 
     // Calculate how far down the line segment the closest point is and return
     // the point.
-    final Vector3 l1P = point - l1;
-    final Vector3 l1L2 = l2 - l1;
-    final double fraction = clampDouble(l1P.dot(l1L2) / lengthSquared, 0.0, 1.0);
+    final l1P = point - l1;
+    final l1L2 = l2 - l1;
+    final fraction = clampDouble(l1P.dot(l1L2) / lengthSquared, 0.0, 1.0);
     return l1 + l1L2 * fraction;
   }
 
@@ -422,14 +513,14 @@ class InteractiveViewer extends StatefulWidget {
   /// Algorithm from https://math.stackexchange.com/a/190373.
   @visibleForTesting
   static bool pointIsInside(Vector3 point, Quad quad) {
-    final Vector3 aM = point - quad.point0;
-    final Vector3 aB = quad.point1 - quad.point0;
-    final Vector3 aD = quad.point3 - quad.point0;
+    final aM = point - quad.point0;
+    final aB = quad.point1 - quad.point0;
+    final aD = quad.point3 - quad.point0;
 
-    final double aMAB = aM.dot(aB);
-    final double aBAB = aB.dot(aB);
-    final double aMAD = aM.dot(aD);
-    final double aDAD = aD.dot(aD);
+    final aMAB = aM.dot(aB);
+    final aBAB = aB.dot(aB);
+    final aMAD = aM.dot(aD);
+    final aDAD = aD.dot(aD);
 
     return 0 <= aMAB && aMAB <= aBAB && 0 <= aMAD && aMAD <= aDAD;
   }
@@ -445,16 +536,16 @@ class InteractiveViewer extends StatefulWidget {
     }
 
     // Otherwise, return the nearest point on the quad.
-    final List<Vector3> closestPoints = <Vector3>[
+    final closestPoints = <Vector3>[
       InteractiveViewer.getNearestPointOnLine(point, quad.point0, quad.point1),
       InteractiveViewer.getNearestPointOnLine(point, quad.point1, quad.point2),
       InteractiveViewer.getNearestPointOnLine(point, quad.point2, quad.point3),
       InteractiveViewer.getNearestPointOnLine(point, quad.point3, quad.point0),
     ];
-    double minDistance = double.infinity;
+    var minDistance = double.infinity;
     late Vector3 closestOverall;
-    for (final Vector3 closePoint in closestPoints) {
-      final double distance = math.sqrt(math.pow(point.x - closePoint.x, 2) + math.pow(point.y - closePoint.y, 2));
+    for (final closePoint in closestPoints) {
+      final distance = math.sqrt(math.pow(point.x - closePoint.x, 2) + math.pow(point.y - closePoint.y, 2));
       if (distance < minDistance) {
         minDistance = distance;
         closestOverall = closePoint;
@@ -463,11 +554,37 @@ class InteractiveViewer extends StatefulWidget {
     return closestOverall;
   }
 
+  /// Returns the target scale for the post-release scale fling, optionally
+  /// bounded to a signed fractional excursion about [releaseScale].
+  ///
+  /// When [maxExcursion] is null, [rawTarget] is returned unchanged, which
+  /// preserves the unbounded default behavior. Otherwise the result is limited
+  /// to `releaseScale - maxExcursion * releaseScale ..
+  /// releaseScale + maxExcursion * releaseScale` and then clamped to
+  /// [minScale]..[maxScale].
+  @visibleForTesting
+  static double getBoundedScaleFlingTarget({
+    required double releaseScale,
+    required double rawTarget,
+    required double? maxExcursion,
+    required double minScale,
+    required double maxScale,
+  }) {
+    if (maxExcursion == null) {
+      return rawTarget;
+    }
+    final lower = releaseScale * (1 - maxExcursion);
+    final upper = releaseScale * (1 + maxExcursion);
+    return clampDouble(clampDouble(rawTarget, lower, upper), minScale, maxScale);
+  }
+
   @override
-  State<InteractiveViewer> createState() => _InteractiveViewerState();
+  State<InteractiveViewer> createState() => InteractiveViewerState();
 }
 
-class _InteractiveViewerState extends State<InteractiveViewer> with TickerProviderStateMixin {
+class InteractiveViewerState extends State<InteractiveViewer> with TickerProviderStateMixin {
+  // Preserve the originally provided boundaryMargin for recalculation overrides.
+  late final EdgeInsets _originalBoundaryMargin = widget.boundaryMargin;
   late TransformationController _transformer = widget.transformationController ?? TransformationController();
 
   final GlobalKey _childKey = GlobalKey();
@@ -484,6 +601,18 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
   double _currentRotation = 0.0; // Rotation of _transformationController.value.
   _GestureType? _gestureType;
 
+  // For ScrollPhysics
+  late AnimationController _snapController; // Snap-back animation controller and matrices/scales
+  late Matrix4 _snapStartMatrix; // Snap-back for matrix interpolation
+  Matrix4? _snapTargetMatrix; // Holds the transform at the exact moment the pinch ends
+  late Offset _snapFocalPoint; // Focal point for matrix snap-back interpolation
+  double _lastScale = 1.0; // to enable us to work in incremental scale changes for pinch zoom
+  Simulation? simulationX; // Simulations to use if scrollPhysics is specified
+  Simulation? simulationY;
+  Simulation? combinedSimulation;
+  Simulation? simulationScale; // Simulation for scale fling
+  // end ScrollPhysics
+
   // TODO(justinmc): Add rotateEnabled parameter to the widget and remove this
   // hardcoded value when the rotation feature is implemented.
   // https://github.com/flutter/flutter/issues/57698
@@ -498,9 +627,9 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
     assert(!widget.boundaryMargin.top.isNaN);
     assert(!widget.boundaryMargin.bottom.isNaN);
 
-    final RenderBox childRenderBox = _childKey.currentContext!.findRenderObject()! as RenderBox;
-    final Size childSize = childRenderBox.size;
-    final Rect boundaryRect = widget.boundaryMargin.inflateRect(Offset.zero & childSize);
+    final childRenderBox = _childKey.currentContext!.findRenderObject()! as RenderBox;
+    final childSize = childRenderBox.size;
+    final boundaryRect = widget.boundaryMargin.inflateRect(Offset.zero & childSize);
     assert(!boundaryRect.isEmpty, "InteractiveViewer's child must have nonzero dimensions.");
     // Boundaries that are partially infinite are not allowed because Matrix4's
     // rotation and translation methods don't handle infinites well.
@@ -518,7 +647,7 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
   // The Rect representing the child's parent.
   Rect get _viewport {
     assert(_parentKey.currentContext != null);
-    final RenderBox parentRenderBox = _parentKey.currentContext!.findRenderObject()! as RenderBox;
+    final parentRenderBox = _parentKey.currentContext!.findRenderObject()! as RenderBox;
     return Offset.zero & parentRenderBox.size;
   }
 
@@ -531,7 +660,7 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
 
     final Offset alignedTranslation;
 
-    if (_currentAxis != null) {
+    if (_currentAxis != null && _gestureType == _GestureType.pan) {
       alignedTranslation = switch (widget.panAxis) {
         PanAxis.horizontal => _alignAxis(translation, Axis.horizontal),
         PanAxis.vertical => _alignAxis(translation, Axis.vertical),
@@ -542,11 +671,11 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
       alignedTranslation = translation;
     }
 
-    final Matrix4 nextMatrix = matrix.clone()..translate(alignedTranslation.dx, alignedTranslation.dy);
+    final nextMatrix = matrix.clone()..translateByDouble(alignedTranslation.dx, alignedTranslation.dy, 0, 1);
 
     // Transform the viewport to determine where its four corners will be after
     // the child has been transformed.
-    final Quad nextViewport = _transformViewport(nextMatrix, _viewport);
+    final nextViewport = _transformViewport(nextMatrix, _viewport);
 
     // If the boundaries are infinite, then no need to check if the translation
     // fits within them.
@@ -554,23 +683,68 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
       return nextMatrix;
     }
 
+    /// ScrollPhysics
+    /// If the ScrollPhysics is defined we apply physics (bouncing or clamping) during pan.
+    if (widget.scrollPhysics != null) {
+      // Scale translations keep the gesture focal point stable and are expressed in scene units.
+      // ScrollPhysics operates on viewport pixels, so applying it here mixes coordinate systems and
+      // can produce page-sized jumps near a boundary in long documents.
+      if (_gestureType == _GestureType.scale) return nextMatrix;
+
+      final physics = widget.scrollPhysics!;
+      // current translation in scene coordinates (negative because controller stores inverse)
+      final currentOffset = _getMatrixTranslation(_transformer.value) * -1;
+      // build scroll metrics
+      final metricsX = _calculateScrollMetrics(currentOffset.dx, AxisDirection.right);
+      final metricsY = _calculateScrollMetrics(currentOffset.dy, AxisDirection.down);
+
+      final proposedX = currentOffset.dx - alignedTranslation.dx;
+      final proposedY = currentOffset.dy - alignedTranslation.dy;
+
+      final overscrollX = proposedX == currentOffset.dx
+          ? 0
+          : physics.applyBoundaryConditions(metricsX, proposedX); // : 0.
+      final overscrollY = proposedY == currentOffset.dy
+          ? 0
+          : physics.applyBoundaryConditions(metricsY, proposedY); // : 0.
+
+      // If the overscroll is zero, the ScrollPhysics (such as BouncingScrollPhysics) is
+      // enabling us to go out of boundaries, so we apply physics to the translation.
+      if (overscrollX == 0 && overscrollY == 0) {
+        // Check if the offset is accepted by the ScrollPhysics, and so apply it.
+        var dx = 0.0;
+        if (alignedTranslation.dx != 0 && physics.shouldAcceptUserOffset(_normalizeScrollMetrics(metricsX))) {
+          dx = physics.applyPhysicsToUserOffset(metricsX, alignedTranslation.dx);
+        }
+        var dy = 0.0;
+        if (alignedTranslation.dy != 0 && physics.shouldAcceptUserOffset(_normalizeScrollMetrics(metricsY))) {
+          dy = physics.applyPhysicsToUserOffset(metricsY, alignedTranslation.dy);
+        }
+        return matrix.clone()..translateByDouble(dx, dy, 0, 1);
+      } else {
+        // correct any overscroll
+        return matrix.clone()
+          ..translateByDouble(alignedTranslation.dx + overscrollX, alignedTranslation.dy + overscrollY, 0, 1);
+      }
+    }
+
     // Expand the boundaries with rotation. This prevents the problem where a
     // mismatch in orientation between the viewport and boundaries effectively
     // limits translation. With this approach, all points that are visible with
     // no rotation are visible after rotation.
-    final Quad boundariesAabbQuad = _getAxisAlignedBoundingBoxWithRotation(_boundaryRect, _currentRotation);
+    final boundariesAabbQuad = _getAxisAlignedBoundingBoxWithRotation(_boundaryRect, _currentRotation);
 
     // If the given translation fits completely within the boundaries, allow it.
-    final Offset offendingDistance = _exceedsBy(boundariesAabbQuad, nextViewport);
+    final offendingDistance = _exceedsBy(boundariesAabbQuad, nextViewport);
     if (offendingDistance == Offset.zero) {
       return nextMatrix;
     }
 
     // Desired translation goes out of bounds, so translate to the nearest
     // in-bounds point instead.
-    final Offset nextTotalTranslation = _getMatrixTranslation(nextMatrix);
-    final double currentScale = matrix.getMaxScaleOnAxis();
-    final Offset correctedTotalTranslation = Offset(
+    final nextTotalTranslation = _getMatrixTranslation(nextMatrix);
+    final currentScale = matrix.getMaxScaleOnAxis();
+    final correctedTotalTranslation = Offset(
       nextTotalTranslation.dx - offendingDistance.dx * currentScale,
       nextTotalTranslation.dy - offendingDistance.dy * currentScale,
     );
@@ -579,12 +753,12 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
     // calculating the translation to put the viewport inside that Quad is more
     // complicated than this when rotated.
     // https://github.com/flutter/flutter/issues/57698
-    final Matrix4 correctedMatrix =
-        matrix.clone()..setTranslation(Vector3(correctedTotalTranslation.dx, correctedTotalTranslation.dy, 0.0));
+    final correctedMatrix = matrix.clone()
+      ..setTranslation(Vector3(correctedTotalTranslation.dx, correctedTotalTranslation.dy, 0.0));
 
     // Double check that the corrected translation fits.
-    final Quad correctedViewport = _transformViewport(correctedMatrix, _viewport);
-    final Offset offendingCorrectedDistance = _exceedsBy(boundariesAabbQuad, correctedViewport);
+    final correctedViewport = _transformViewport(correctedMatrix, _viewport);
+    final offendingCorrectedDistance = _exceedsBy(boundariesAabbQuad, correctedViewport);
     if (offendingCorrectedDistance == Offset.zero) {
       return correctedMatrix;
     }
@@ -598,7 +772,7 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
 
     // Otherwise, allow translation in only the direction that fits. This
     // happens when the viewport is larger than the boundary in one direction.
-    final Offset unidirectionalCorrectedTotalTranslation = Offset(
+    final unidirectionalCorrectedTotalTranslation = Offset(
       offendingCorrectedDistance.dx == 0.0 ? correctedTotalTranslation.dx : 0.0,
       offendingCorrectedDistance.dy == 0.0 ? correctedTotalTranslation.dy : 0.0,
     );
@@ -610,23 +784,104 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
   // Return a new matrix representing the given matrix after applying the given
   // scale.
   Matrix4 _matrixScale(Matrix4 matrix, double scale) {
+    // No-op for unity scale
     if (scale == 1.0) {
       return matrix.clone();
     }
     assert(scale != 0.0);
 
-    // Don't allow a scale that results in an overall scale beyond min/max
-    // scale.
-    final double currentScale = _transformer.value.getMaxScaleOnAxis();
-    final double totalScale = math.max(
-      currentScale * scale,
-      // Ensure that the scale cannot make the child so big that it can't fit
-      // inside the boundaries (in either direction).
-      math.max(_viewport.width / _boundaryRect.width, _viewport.height / _boundaryRect.height),
-    );
-    final double clampedTotalScale = clampDouble(totalScale, widget.minScale, widget.maxScale);
-    final double clampedScale = clampedTotalScale / currentScale;
-    return matrix.clone()..scale(clampedScale);
+    // fallback to widget.scrollPhysics if widget.scrollPhysicsScale not specified
+    final scrollPhysics = widget.scrollPhysicsScale ?? widget.scrollPhysics;
+
+    if (scrollPhysics != null) {
+      // Compute current and desired scales
+      final currentScale = _transformer.value.getMaxScaleOnAxis();
+      // scale provided is a desired change in scale between the current scale
+      // and the start of the gesture
+      final scaleChange = scale;
+
+      // desired but not necessarily achieved if physics is applied
+      final desiredScale = currentScale * scale;
+
+      final allowedScale = _getAllowedScale(desiredScale);
+      // Early return if not allowed to zoom outside bounds
+      if (allowedScale != desiredScale) {
+        return matrix.clone()..scaleByDouble(allowedScale, allowedScale, allowedScale, 1);
+      }
+
+      // Compute ratio of this update's scale to the previous update
+      final scaleRatio = scaleChange / _lastScale;
+      // Store for next frame
+      _lastScale = scaleChange;
+      // Physics requires the incremental scale change since last update
+      final incrementalScale = currentScale * scaleRatio;
+
+      // Content-space-based scrollPhysics for scale overscroll and undershoot
+      if (_gestureType == _GestureType.scale &&
+          !_snapController.isAnimating &&
+          ((desiredScale < widget.minScale) || (desiredScale > widget.maxScale))) {
+        final contentSize = _boundaryRect.isInfinite ? _childSize() : _boundaryRect.size;
+
+        // Compute current and desired absolute scale
+        final contentWidth = contentSize.width * currentScale;
+        final desiredContentWidth = contentSize.width * incrementalScale;
+        final contentHeight = contentSize.height * currentScale;
+        final desiredContentHeight = contentSize.height * incrementalScale;
+
+        // Build horizontal and vertical metrics
+        final ScrollMetrics metricsX = FixedScrollMetrics(
+          pixels: contentWidth,
+          minScrollExtent: contentSize.width * widget.minScale,
+          maxScrollExtent: contentSize.width * widget.maxScale,
+          viewportDimension: contentSize.width * widget.maxScale,
+          axisDirection: AxisDirection.right,
+          devicePixelRatio: 1.0,
+        );
+        final ScrollMetrics metricsY = FixedScrollMetrics(
+          pixels: contentHeight,
+          minScrollExtent: contentSize.height * widget.minScale,
+          maxScrollExtent: contentSize.height * widget.maxScale,
+          viewportDimension: contentSize.height * widget.maxScale,
+          axisDirection: AxisDirection.down,
+          devicePixelRatio: 1.0,
+        );
+
+        // Compute content deltas
+        final deltaX = desiredContentWidth - contentWidth;
+        final deltaY = desiredContentHeight - contentHeight;
+
+        // Apply scroll physics half the delta to simulate exceeding a boundary
+        // on one side
+        final adjustedX = scrollPhysics.applyPhysicsToUserOffset(metricsX, deltaX / 2) * 2;
+        final adjustedY = scrollPhysics.applyPhysicsToUserOffset(metricsY, deltaY / 2) * 2;
+
+        // Convert back to scale factors
+        final newScaleX = (contentWidth + adjustedX) / contentWidth;
+        final newScaleY = (contentHeight + adjustedY) / contentHeight;
+        final factor = (newScaleX + newScaleY) / 2;
+
+        return matrix.clone()..scaleByDouble(factor, factor, factor, 1);
+      } else {
+        final clampedTotalScale = clampDouble(desiredScale, widget.minScale, widget.maxScale);
+        final clampedScale = clampedTotalScale / currentScale;
+
+        // Apply the scale factor to the matrix
+        return matrix.clone()..scaleByDouble(clampedScale, clampedScale, clampedScale, 1);
+      }
+    } else {
+      // Don't allow a scale that results in an overall scale beyond min/max
+      // scale.
+      final currentScale = _transformer.value.getMaxScaleOnAxis();
+      final double totalScale = math.max(
+        currentScale * scale,
+        // Ensure that the scale cannot make the child so big that it can't fit
+        // inside the boundaries (in either direction).
+        math.max(_viewport.width / _boundaryRect.width, _viewport.height / _boundaryRect.height),
+      );
+      final clampedTotalScale = clampDouble(totalScale, widget.minScale, widget.maxScale);
+      final clampedScale = clampedTotalScale / currentScale;
+      return matrix.clone()..scaleByDouble(clampedScale, clampedScale, clampedScale, 1);
+    }
   }
 
   // Return a new matrix representing the given matrix after applying the given
@@ -635,11 +890,11 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
     if (rotation == 0) {
       return matrix.clone();
     }
-    final Offset focalPointScene = _transformer.toScene(focalPoint);
+    final focalPointScene = _transformer.toScene(focalPoint);
     return matrix.clone()
-      ..translate(focalPointScene.dx, focalPointScene.dy)
+      ..translateByDouble(focalPointScene.dx, focalPointScene.dy, 0, 1)
       ..rotateZ(-rotation)
-      ..translate(-focalPointScene.dx, -focalPointScene.dy);
+      ..translateByDouble(-focalPointScene.dx, -focalPointScene.dy, 0, 1);
   }
 
   // Returns true iff the given _GestureType is enabled.
@@ -656,14 +911,49 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
   // starts at 0. Pan will have no scale and no rotation because it uses only one
   // finger.
   _GestureType _getGestureType(ScaleUpdateDetails details) {
-    final double scale = !widget.scaleEnabled ? 1.0 : details.scale;
-    final double rotation = !_rotateEnabled ? 0.0 : details.rotation;
+    final scale = !widget.scaleEnabled ? 1.0 : details.scale;
+    final rotation = !_rotateEnabled ? 0.0 : details.rotation;
     if ((scale - 1).abs() > rotation.abs()) {
       return _GestureType.scale;
     } else if (rotation != 0.0) {
       return _GestureType.rotate;
     } else {
       return _GestureType.pan;
+    }
+  }
+
+  /// Forwards an overlay-owned pan/zoom gesture through the native scale behavior.
+  /// Send start, cumulative updates, then end or cancel, without also forwarding it to another recognizer.
+  void handlePointerPanZoomEvent(PointerEvent event) {
+    final box = _parentKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    if (event is PointerPanZoomStartEvent) {
+      _onScaleStart(
+        ScaleStartDetails(
+          focalPoint: event.position,
+          localFocalPoint: box.globalToLocal(event.position),
+          pointerCount: 2,
+          sourceTimeStamp: event.timeStamp,
+          kind: event.kind,
+        ),
+      );
+    } else if (event is PointerPanZoomUpdateEvent) {
+      final focalPoint = event.position + event.pan;
+      _onScaleUpdate(
+        ScaleUpdateDetails(
+          focalPoint: focalPoint,
+          localFocalPoint: box.globalToLocal(focalPoint),
+          focalPointDelta: box.globalToLocal(focalPoint) - box.globalToLocal(focalPoint - event.panDelta),
+          scale: event.scale,
+          horizontalScale: event.scale,
+          verticalScale: event.scale,
+          rotation: event.rotation,
+          pointerCount: 2,
+          sourceTimeStamp: event.timeStamp,
+        ),
+      );
+    } else if (event is PointerPanZoomEndEvent || event is PointerCancelEvent) {
+      _onScaleEnd(ScaleEndDetails());
     }
   }
 
@@ -678,6 +968,7 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
       _animation?.removeListener(_handleInertiaAnimation);
       _animation = null;
     }
+
     if (_scaleController.isAnimating) {
       _scaleController.stop();
       _scaleController.reset();
@@ -688,16 +979,18 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
     _gestureType = null;
     _currentAxis = null;
     _scaleStart = _transformer.value.getMaxScaleOnAxis();
+    _lastScale = 1.0; // ScrollPhysics
     _referenceFocalPoint = _transformer.toScene(details.localFocalPoint);
+    _snapFocalPoint = details.localFocalPoint;
     _rotationStart = _currentRotation;
   }
 
   // Handle an update to an ongoing gesture. All of pan, scale, and rotate are
   // handled with GestureDetector's scale gesture.
   void _onScaleUpdate(ScaleUpdateDetails details) {
-    final double scale = _transformer.value.getMaxScaleOnAxis();
+    final scale = _transformer.value.getMaxScaleOnAxis();
     _scaleAnimationFocalPoint = details.localFocalPoint;
-    final Offset focalPointScene = _transformer.toScene(details.localFocalPoint);
+    final focalPointScene = _transformer.toScene(details.localFocalPoint);
 
     if (_gestureType == _GestureType.pan) {
       // When a gesture first starts, it sometimes has no change in scale and
@@ -719,15 +1012,20 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
         // details.scale gives us the amount to change the scale as of the
         // start of this gesture, so calculate the amount to scale as of the
         // previous call to _onScaleUpdate.
-        final double desiredScale = _scaleStart! * details.scale;
-        final double scaleChange = desiredScale / scale;
+        // scaleGestureSensitivity raises the gesture ratio to a power; 1.0 leaves the mapping unchanged.
+        final gestureScale = widget.scaleGestureSensitivity == 1.0
+            ? details.scale
+            : math.pow(details.scale, widget.scaleGestureSensitivity).toDouble();
+        final desiredScale = _scaleStart! * gestureScale;
+        final scaleChange = desiredScale / scale;
+        _snapFocalPoint = details.localFocalPoint;
         _transformer.value = _matrixScale(_transformer.value, scaleChange);
 
         // While scaling, translate such that the user's two fingers stay on
         // the same places in the scene. That means that the focal point of
         // the scale should be on the same place in the scene before and after
         // the scale.
-        final Offset focalPointSceneScaled = _transformer.toScene(details.localFocalPoint);
+        final focalPointSceneScaled = _transformer.toScene(details.localFocalPoint);
         _transformer.value = _matrixTranslate(_transformer.value, focalPointSceneScaled - _referenceFocalPoint!);
 
         // details.localFocalPoint should now be at the same location as the
@@ -735,8 +1033,8 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
         // the translate came in contact with a boundary. In that case, update
         // _referenceFocalPoint so subsequent updates happen in relation to
         // the new effective focal point.
-        final Offset focalPointSceneCheck = _transformer.toScene(details.localFocalPoint);
-        if (_round(_referenceFocalPoint!) != _round(focalPointSceneCheck)) {
+        final focalPointSceneCheck = _transformer.toScene(details.localFocalPoint);
+        if (_referenceFocalPoint!.round10BitFrac() != focalPointSceneCheck.round10BitFrac()) {
           _referenceFocalPoint = focalPointSceneCheck;
         }
 
@@ -745,7 +1043,7 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
           widget.onInteractionUpdate?.call(details);
           return;
         }
-        final double desiredRotation = _rotationStart! + details.rotation;
+        final desiredRotation = _rotationStart! + details.rotation;
         _transformer.value = _matrixRotate(
           _transformer.value,
           _currentRotation - desiredRotation,
@@ -765,7 +1063,7 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
         _currentAxis ??= _getPanAxis(_referenceFocalPoint!, focalPointScene);
         // Translate so that the same point in the scene is underneath the
         // focal point before and after the movement.
-        final Offset translationChange = focalPointScene - _referenceFocalPoint!;
+        final translationChange = focalPointScene - _referenceFocalPoint!;
         _transformer.value = _matrixTranslate(_transformer.value, translationChange);
         _referenceFocalPoint = _transformer.toScene(details.localFocalPoint);
     }
@@ -776,7 +1074,6 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
   // are handled with GestureDetector's scale gesture.
   void _onScaleEnd(ScaleEndDetails details) {
     widget.onInteractionEnd?.call(details);
-    _scaleStart = null;
     _rotationStart = null;
     _referenceFocalPoint = null;
 
@@ -792,72 +1089,162 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
 
     switch (_gestureType) {
       case _GestureType.pan:
-        if (details.velocity.pixelsPerSecond.distance < kMinFlingVelocity) {
-          _currentAxis = null;
-          return;
+        if (widget.scrollPhysics != null) {
+          if (_snapController.isAnimating) return;
+
+          final currentTranslation = _transformer.value.getTranslation();
+          final currentOffset = Offset(currentTranslation.x, currentTranslation.y);
+          final adjustedOffset = currentOffset * -1;
+
+          final flingVelocityX =
+              math.min(details.velocity.pixelsPerSecond.dx.abs(), widget.scrollPhysics!.maxFlingVelocity) *
+              details.velocity.pixelsPerSecond.dx.sign;
+          final flingVelocityY =
+              math.min(details.velocity.pixelsPerSecond.dy.abs(), widget.scrollPhysics!.maxFlingVelocity) *
+              details.velocity.pixelsPerSecond.dy.sign;
+
+          final metricsX = _calculateScrollMetrics(adjustedOffset.dx, AxisDirection.right);
+          final metricsY = _calculateScrollMetrics(adjustedOffset.dy, AxisDirection.down);
+
+          if (details.velocity.pixelsPerSecond.distance <= widget.scrollPhysics!.minFlingVelocity &&
+              !metricsX.outOfRange &&
+              !metricsY.outOfRange) {
+            return;
+          }
+
+          simulationX = widget.scrollPhysics!.createBallisticSimulation(metricsX, -flingVelocityX);
+          simulationY = widget.scrollPhysics!.createBallisticSimulation(metricsY, -flingVelocityY);
+          combinedSimulation = _getCombinedSimulation(simulationX, simulationY);
+
+          if (combinedSimulation == null) {
+            return;
+          }
+
+          _controller.addListener(_handleInertiaAnimation);
+          _controller.animateWith(combinedSimulation!);
+        } else {
+          if (details.velocity.pixelsPerSecond.distance < kMinFlingVelocity) {
+            _currentAxis = null;
+            return;
+          }
+          final translationVector = _transformer.value.getTranslation();
+          final translation = Offset(translationVector.x, translationVector.y);
+          // (Removed FrictionSimulation logic for scale; only pan uses it.)
+          final frictionSimulationX = FrictionSimulation(
+            widget.interactionEndFrictionCoefficient,
+            translation.dx,
+            details.velocity.pixelsPerSecond.dx,
+          );
+          final frictionSimulationY = FrictionSimulation(
+            widget.interactionEndFrictionCoefficient,
+            translation.dy,
+            details.velocity.pixelsPerSecond.dy,
+          );
+          final tFinal = _getFinalTime(
+            details.velocity.pixelsPerSecond.distance,
+            widget.interactionEndFrictionCoefficient,
+          );
+          _animation = Tween<Offset>(
+            begin: translation,
+            end: Offset(frictionSimulationX.finalX, frictionSimulationY.finalX),
+          ).animate(CurvedAnimation(parent: _controller, curve: Curves.decelerate));
+          _controller.duration = Duration(milliseconds: (tFinal * 1000).round());
+          _animation!.addListener(_handleInertiaAnimation);
+          _controller.forward();
         }
-        final Vector3 translationVector = _transformer.value.getTranslation();
-        final Offset translation = Offset(translationVector.x, translationVector.y);
-        final FrictionSimulation frictionSimulationX = FrictionSimulation(
-          widget.interactionEndFrictionCoefficient,
-          translation.dx,
-          details.velocity.pixelsPerSecond.dx,
-        );
-        final FrictionSimulation frictionSimulationY = FrictionSimulation(
-          widget.interactionEndFrictionCoefficient,
-          translation.dy,
-          details.velocity.pixelsPerSecond.dy,
-        );
-        final double tFinal = _getFinalTime(
-          details.velocity.pixelsPerSecond.distance,
-          widget.interactionEndFrictionCoefficient,
-        );
-        _animation = Tween<Offset>(
-          begin: translation,
-          end: Offset(frictionSimulationX.finalX, frictionSimulationY.finalX),
-        ).animate(CurvedAnimation(parent: _controller, curve: Curves.decelerate));
-        _controller.duration = Duration(milliseconds: (tFinal * 1000).round());
-        _animation!.addListener(_handleInertiaAnimation);
-        _controller.forward();
+        break;
       case _GestureType.scale:
-        if (details.scaleVelocity.abs() < 0.1) {
-          _currentAxis = null;
-          return;
+        if (widget.scrollPhysics != null) {
+          final endScale = _transformer.value.getMaxScaleOnAxis();
+          final clampedScale = endScale.clamp(widget.minScale, widget.maxScale);
+
+          if (clampedScale != endScale) {
+            HapticFeedback.lightImpact();
+          }
+          // even if the the scale doesn't change, we may be out of bounds, and
+          // want to animate the snap back to bounds
+          _snapStartMatrix = _transformer.value.clone();
+          final pivotScene = _transformer.toScene(_snapFocalPoint);
+          final endMatrix = _snapStartMatrix.clone()
+            ..translateByDouble(pivotScene.dx, pivotScene.dy, 0, 1)
+            ..scaleByDouble(clampedScale / endScale, clampedScale / endScale, clampedScale / endScale, 1)
+            ..translateByDouble(-pivotScene.dx, -pivotScene.dy, 0, 1);
+          _snapTargetMatrix = _matrixClamp(endMatrix);
+
+          _snapController
+            ..removeListener(_animateSnap)
+            ..addListener(_animateSnap)
+            ..forward(from: 0.0).then((_) {
+              _snapTargetMatrix = null;
+            });
+          break;
+        } else {
+          if (details.scaleVelocity.abs() < 0.1) {
+            _currentAxis = null;
+            return;
+          }
+          final scale = _transformer.value.getMaxScaleOnAxis();
+          final frictionSimulation = FrictionSimulation(
+            widget.interactionEndFrictionCoefficient * widget.scaleFactor,
+            scale,
+            details.scaleVelocity / 10,
+          );
+          final tFinal = _getFinalTime(
+            details.scaleVelocity.abs(),
+            widget.interactionEndFrictionCoefficient,
+            effectivelyMotionless: 0.1,
+          );
+          _scaleAnimation = Tween<double>(
+            begin: scale,
+            end: InteractiveViewer.getBoundedScaleFlingTarget(
+              releaseScale: scale,
+              rawTarget: frictionSimulation.x(tFinal),
+              maxExcursion: widget.scaleInertiaMaxExcursion,
+              minScale: widget.minScale,
+              maxScale: widget.maxScale,
+            ),
+          ).animate(CurvedAnimation(parent: _scaleController, curve: Curves.decelerate));
+          _scaleController.duration = Duration(milliseconds: (tFinal * 1000).round());
+          _scaleAnimation!.addListener(_handleScaleAnimation);
+          _scaleController.forward();
         }
-        final double scale = _transformer.value.getMaxScaleOnAxis();
-        final FrictionSimulation frictionSimulation = FrictionSimulation(
-          widget.interactionEndFrictionCoefficient * widget.scaleFactor,
-          scale,
-          details.scaleVelocity / 10,
-        );
-        final double tFinal = _getFinalTime(
-          details.scaleVelocity.abs(),
-          widget.interactionEndFrictionCoefficient,
-          effectivelyMotionless: 0.1,
-        );
-        _scaleAnimation = Tween<double>(
-          begin: scale,
-          end: frictionSimulation.x(tFinal),
-        ).animate(CurvedAnimation(parent: _scaleController, curve: Curves.decelerate));
-        _scaleController.duration = Duration(milliseconds: (tFinal * 1000).round());
-        _scaleAnimation!.addListener(_handleScaleAnimation);
-        _scaleController.forward();
-      case _GestureType.rotate || null:
+      case _GestureType.rotate:
+      case null:
         break;
     }
   }
 
+  // (Removed: _handleScaleEndAnimation)
+
+  // Wheel events go through the resolver so that a deeper handler (e.g. an app overlay
+  // forwarding to PdfViewerController.handlePointerSignalEvent) wins and the event is handled once.
+  void _onPointerSignal(PointerSignalEvent event) {
+    if (event is PointerScrollEvent) {
+      if (_ignoresScroll(event)) return;
+      GestureBinding.instance.pointerSignalResolver.register(event, _receivedPointerSignal);
+    } else {
+      _receivedPointerSignal(event);
+    }
+  }
+
+  // Mirrors the early returns of [_receivedPointerSignal] for scroll events it would not act on.
+  bool _ignoresScroll(PointerScrollEvent event) {
+    if (event.kind == PointerDeviceKind.trackpad && !widget.trackpadScrollCausesScale) return false;
+    if (widget.onWheelDelta != null) return widget.ignoresWheelDelta?.call(event) ?? false;
+    return event.scrollDelta.dy == 0.0;
+  }
+
   // Handle mousewheel and web trackpad scroll events.
   void _receivedPointerSignal(PointerSignalEvent event) {
-    final Offset local = event.localPosition;
-    final Offset global = event.position;
+    final local = event.localPosition;
+    final global = event.position;
     final double scaleChange;
     if (event is PointerScrollEvent) {
       if (event.kind == PointerDeviceKind.trackpad && !widget.trackpadScrollCausesScale) {
         // Trackpad scroll, so treat it as a pan.
         widget.onInteractionStart?.call(ScaleStartDetails(focalPoint: global, localFocalPoint: local));
 
-        final Offset localDelta = PointerEvent.transformDeltaViaPositions(
+        final localDelta = PointerEvent.transformDeltaViaPositions(
           untransformedEndPosition: global + event.scrollDelta,
           untransformedDelta: event.scrollDelta,
           transform: event.transform,
@@ -875,10 +1262,10 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
           return;
         }
 
-        final Offset focalPointScene = _transformer.toScene(local);
-        final Offset newFocalPointScene = _transformer.toScene(local - localDelta);
+        final focalPointScene = _transformer.toScene(local);
+        final newFocalPointScene = _transformer.toScene(local - localDelta);
 
-        _transformer.value = _matrixTranslate(_transformer.value, newFocalPointScene - focalPointScene);
+        _transformer.value = _matrixClamp(_matrixTranslate(_transformer.value, newFocalPointScene - focalPointScene));
 
         widget.onInteractionUpdate?.call(
           ScaleUpdateDetails(
@@ -893,7 +1280,7 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
 
       // We can handle mouse-wheel event here for our own purposes
       if (widget.onWheelDelta != null) {
-        widget.onWheelDelta!(event.scrollDelta);
+        widget.onWheelDelta!(event);
         return;
       }
 
@@ -903,6 +1290,10 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
       }
       scaleChange = math.exp(-event.scrollDelta.dy / widget.scaleFactor);
     } else if (event is PointerScaleEvent) {
+      if (widget.onPointerScale != null) {
+        widget.onPointerScale!(event);
+        return;
+      }
       scaleChange = event.scale;
     } else {
       return;
@@ -917,13 +1308,13 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
       return;
     }
 
-    final Offset focalPointScene = _transformer.toScene(local);
+    final focalPointScene = _transformer.toScene(local);
     _transformer.value = _matrixScale(_transformer.value, scaleChange);
 
     // After scaling, translate such that the event's position is at the
     // same scene point before and after the scale.
-    final Offset focalPointSceneScaled = _transformer.toScene(local);
-    _transformer.value = _matrixTranslate(_transformer.value, focalPointSceneScaled - focalPointScene);
+    final focalPointSceneScaled = _transformer.toScene(local);
+    _transformer.value = _matrixClamp(_matrixTranslate(_transformer.value, focalPointSceneScaled - focalPointScene));
 
     widget.onInteractionUpdate?.call(
       ScaleUpdateDetails(focalPoint: global, localFocalPoint: local, scale: scaleChange),
@@ -933,21 +1324,288 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
 
   void _handleInertiaAnimation() {
     if (!_controller.isAnimating) {
+      if (widget.scrollPhysics != null) {
+        _controller.removeListener(_handleInertiaAnimation);
+      } else {
+        _animation?.removeListener(_handleInertiaAnimation);
+        _animation = null;
+      }
       _currentAxis = null;
-      _animation?.removeListener(_handleInertiaAnimation);
-      _animation = null;
       _controller.reset();
       return;
     }
     // Translate such that the resulting translation is _animation.value.
-    final Vector3 translationVector = _transformer.value.getTranslation();
-    final Offset translation = Offset(translationVector.x, translationVector.y);
-    _transformer.value = _matrixTranslate(
-      _transformer.value,
-      _transformer.toScene(_animation!.value) - _transformer.toScene(translation),
+    final translationVector = _transformer.value.getTranslation();
+    final translation = Offset(translationVector.x, translationVector.y);
+    final translationScene = _transformer.toScene(translation);
+
+    if (widget.scrollPhysics != null) {
+      /// When using scrollPhysics, we apply a simulation rather than an animation to the offsets
+      final t = _controller.lastElapsedDuration!.inMilliseconds / 1000.0;
+      final simulationOffsetX = simulationX != null ? -simulationX!.x(t) : translationVector.x;
+      final simulationOffsetY = simulationY != null ? -simulationY!.x(t) : translationVector.y;
+      final simulationOffset = Offset(simulationOffsetX, simulationOffsetY);
+      final simulationScene = _transformer.toScene(simulationOffset);
+      final translationChangeScene = simulationScene - translationScene;
+      _transformer.value = _matrixTranslate(_transformer.value, translationChangeScene);
+    } else {
+      // Translate such that the resulting translation is _animation.value.
+      final animationScene = _transformer.toScene(_animation!.value);
+      final translationChangeScene = animationScene - translationScene;
+      _transformer.value = _matrixTranslate(_transformer.value, translationChangeScene);
+    }
+  }
+
+  /// ScrollPhysics helpers
+  /// ChildSize is the size of the child (without the boundary margin).
+  Size _childSize() {
+    final childRenderBox = _childKey.currentContext!.findRenderObject()! as RenderBox;
+    final childSize = childRenderBox.size;
+    return childSize;
+  }
+
+  /// These are the boundaries for constructing a ScrollMetrics object.
+  Rect _computePanBoundaries({
+    required Size viewportSize,
+    required double scale,
+    EdgeInsets? boundaryMargin,
+    bool overrideAutoAdjustBoundaries = false,
+  }) {
+    // Use original boundaryMargin unless a specific one is passed for override.
+    final baseMargin =
+        (overrideAutoAdjustBoundaries && !widget.scrollPhysicsAutoAdjustBoundaries) || boundaryMargin == null
+        ? _originalBoundaryMargin
+        : boundaryMargin;
+
+    // If boundaries are infinite, provide very large finite extents to disable clamping
+    if (_boundaryRect.isInfinite) {
+      return const Rect.fromLTRB(-double.maxFinite, -double.maxFinite, double.maxFinite, double.maxFinite);
+    }
+    // Compute the raw boundary rect using the baseMargin, then scale it
+    final baseBoundaryRect = baseMargin.inflateRect(Offset.zero & _childSize());
+    final effectiveWidth = baseBoundaryRect.width * scale;
+    final effectiveHeight = baseBoundaryRect.height * scale;
+
+    final extraWidth = effectiveWidth - viewportSize.width;
+    final extraHeight = effectiveHeight - viewportSize.height;
+
+    // Always center when content is smaller than viewport, using a small tolerance for floating imprecision.
+    const kOverflowTolerance = 0.1; // logical pixels
+    final extraBoundaryHorizontal = extraWidth < -kOverflowTolerance ? (extraWidth.abs() / 2) : 0.0;
+    final extraBoundaryVertical = extraHeight < -kOverflowTolerance ? (extraHeight.abs() / 2) : 0.0;
+
+    // When content is smaller than viewport, force centering by making min==max
+    final minX = -((baseMargin.left * scale + extraBoundaryHorizontal));
+    final maxX = extraWidth < -kOverflowTolerance
+        ? minX // Force centering
+        : -((baseMargin.left * scale + extraBoundaryHorizontal)) + extraWidth;
+    final minY = -((baseMargin.top * scale + extraBoundaryVertical));
+    final maxY = extraHeight < -kOverflowTolerance
+        ? minY // Force centering
+        : -((baseMargin.bottom * scale + extraBoundaryVertical)) + extraHeight;
+    return Rect.fromLTRB(minX, minY, maxX, maxY).round10BitFrac();
+  }
+
+  // Normalize ScrollMetrics such that minScrollExtent = 0 and pixels shift accordingly.
+  // ScrollPhysics.shouldAcceptUserOffset() does not work where minScrollExtent and pixels
+  // are both the same value but not 0.0.
+  ScrollMetrics _normalizeScrollMetrics(ScrollMetrics scrollMetrics) {
+    var range = scrollMetrics.maxScrollExtent - scrollMetrics.minScrollExtent;
+    var pixels = scrollMetrics.pixels - scrollMetrics.minScrollExtent;
+
+    // Define a small tolerance around zero to ignore tiny drifts
+    const kTolerance = 0.01;
+    range = range.abs() < kTolerance ? 0.0 : range;
+    pixels = pixels.abs() < kTolerance ? 0.0 : pixels;
+
+    return FixedScrollMetrics(
+      pixels: pixels,
+      minScrollExtent: 0.0,
+      maxScrollExtent: range < 0.0 ? 0.0 : range,
+      viewportDimension: scrollMetrics.viewportDimension,
+      axisDirection: scrollMetrics.axisDirection,
+      devicePixelRatio: scrollMetrics.devicePixelRatio,
     );
   }
 
+  /// Creates a synthetic ScrollMetrics objects for the
+  /// InteractiveViewer so that we can use ScrollPhysics
+  ScrollMetrics _calculateScrollMetrics(double pixels, AxisDirection axisDirection) {
+    final panBoundaries = _computePanBoundaries(
+      viewportSize: _viewport.size,
+      scale: _transformer.value.getMaxScaleOnAxis(),
+      boundaryMargin: widget.boundaryMargin,
+    );
+
+    final axis = switch (axisDirection) {
+      AxisDirection.left => Axis.horizontal,
+      AxisDirection.right => Axis.horizontal,
+      AxisDirection.up => Axis.vertical,
+      AxisDirection.down => Axis.vertical,
+    };
+
+    final minX = panBoundaries.left;
+    final maxX = panBoundaries.right;
+    final minY = panBoundaries.top;
+    final maxY = panBoundaries.bottom;
+
+    final scrollMetrics = FixedScrollMetrics(
+      pixels: pixels,
+      minScrollExtent: axis == Axis.horizontal ? minX : minY,
+      maxScrollExtent: axis == Axis.horizontal ? maxX : maxY,
+      viewportDimension: axis == Axis.horizontal ? _viewport.width : _viewport.height,
+      axisDirection: axisDirection,
+      devicePixelRatio: MediaQuery.of(context).devicePixelRatio,
+    );
+    return scrollMetrics;
+  }
+
+  /// ScrollPhysics
+  /// Clamp the given full transform matrix to the content boundaries by
+  /// directly clamping its translation component.
+  Matrix4 _matrixClamp(Matrix4 matrix) {
+    final totalTranslation = _getMatrixTranslation(matrix);
+    final scale = matrix.getMaxScaleOnAxis();
+    final viewSize = _viewport.size;
+    final panBoundaries = _computePanBoundaries(
+      viewportSize: viewSize,
+      scale: scale,
+      boundaryMargin: widget.boundaryMargin,
+      overrideAutoAdjustBoundaries: false, // Use adjusted boundaries to respect centering logic
+    );
+
+    // Ensure bounds are ordered correctly for clamp.
+    final minX = math.min(-panBoundaries.left, -panBoundaries.right);
+    final maxX = math.max(-panBoundaries.left, -panBoundaries.right);
+    final minY = math.min(-panBoundaries.top, -panBoundaries.bottom);
+    final maxY = math.max(-panBoundaries.top, -panBoundaries.bottom);
+    final clampedX = totalTranslation.dx.clamp(minX, maxX);
+    final clampedY = totalTranslation.dy.clamp(minY, maxY);
+
+    return matrix.clone()..setTranslation(Vector3(clampedX, clampedY, 0.0));
+  }
+
+  /// Animate snap-back by interpolating scale and translation in scene-space.
+  void _animateSnap() {
+    if (_snapTargetMatrix == null) {
+      return;
+    }
+    final t = Curves.ease.transform(_snapController.value);
+    final lerped = Matrix4Tween(begin: _snapStartMatrix, end: _snapTargetMatrix!).transform(t);
+    _transformer.value = lerped;
+  }
+
+  /// Determines whether [proposedScale] can be applied without clamping,
+  /// by probing the widget.scrollPhysics.
+  double _getAllowedScale(double proposedScale) {
+    final scrollPhysics = widget.scrollPhysicsScale ?? widget.scrollPhysics;
+    if (scrollPhysics == null) {
+      return proposedScale.clamp(widget.minScale, widget.maxScale);
+    }
+
+    final contentSize = _boundaryRect.isInfinite ? _childSize() : _boundaryRect.size;
+
+    final currentScale = _transformer.value.getMaxScaleOnAxis();
+    final contentWidth = contentSize.width * currentScale;
+    final desiredContentWidth = contentSize.width * proposedScale;
+    final contentHeight = contentSize.height * currentScale;
+    final desiredContentHeight = contentSize.height * proposedScale;
+
+    final ScrollMetrics metricsX = FixedScrollMetrics(
+      pixels: contentWidth,
+      minScrollExtent: contentSize.width * widget.minScale,
+      maxScrollExtent: contentSize.width * widget.maxScale,
+      viewportDimension: _viewport.width,
+      axisDirection: AxisDirection.right,
+      devicePixelRatio: 1.0,
+    );
+    final ScrollMetrics metricsY = FixedScrollMetrics(
+      pixels: contentHeight,
+      minScrollExtent: contentSize.height * widget.minScale,
+      maxScrollExtent: contentSize.height * widget.maxScale,
+      viewportDimension: _viewport.height,
+      axisDirection: AxisDirection.down,
+      devicePixelRatio: 1.0,
+    );
+
+    final adjustmentX = scrollPhysics.applyBoundaryConditions(metricsX, desiredContentWidth);
+    final adjustmentY = scrollPhysics.applyBoundaryConditions(metricsY, desiredContentHeight);
+
+    if (adjustmentX == 0.0 && adjustmentY == 0.0) {
+      // No adjustment needed, so the proposed scale is allowed.
+      return proposedScale;
+    } else {
+      final allowedContentWidth = desiredContentWidth - adjustmentX;
+      final allowedContentHeight = desiredContentHeight - adjustmentY;
+
+      if (proposedScale > widget.maxScale) {
+        return math.max(allowedContentWidth / contentWidth, allowedContentHeight / contentHeight);
+      } else {
+        return math.max(allowedContentWidth / contentWidth, allowedContentHeight / contentHeight);
+      }
+    }
+  }
+
+  Simulation? _getCombinedSimulation(Simulation? simulationX, Simulation? simulationY) {
+    if (simulationX == null && simulationY == null) {
+      return null;
+    }
+    if (simulationX == null) {
+      return simulationY;
+    }
+    if (simulationY == null) {
+      return simulationX;
+    }
+    return CombinedSimulation(simulationX: simulationX, simulationY: simulationY);
+  }
+
+  void _onPointerDown(PointerDownEvent event) {
+    if (widget.scrollPhysics != null && _controller.isAnimating) {
+      // ability to stop a in-progress pan fling is particularly important
+      // when scroll physics is enabled as the duration and distance of the
+      // pan can be considerable.
+      stopAllAnimations();
+    }
+  }
+
+  /// Check if any animations are currently active
+  bool get hasActiveAnimations =>
+      _controller.isAnimating || _scaleController.isAnimating || _snapController.isAnimating;
+
+  /// Stop all active animations without saving state
+  void stopAllAnimations() {
+    // Stop pan animations
+    if (_controller.isAnimating) {
+      _controller.stop();
+      _controller.reset();
+      _animation?.removeListener(_handleInertiaAnimation);
+      _animation = null;
+    }
+
+    // Stop scale animations
+    if (_scaleController.isAnimating) {
+      _scaleController.stop();
+      _scaleController.reset();
+      _scaleAnimation?.removeListener(_handleScaleAnimation);
+      _scaleAnimation = null;
+    }
+
+    // Stop snap animations
+    if (_snapController.isAnimating) {
+      _snapController.stop();
+      _snapController.reset();
+      _snapTargetMatrix = null;
+    }
+
+    // Clear simulations
+    simulationX = null;
+    simulationY = null;
+    combinedSimulation = null;
+  }
+
+  // end ScrollPhysics
+
+  // Handle inertia scale animation.
   void _handleScaleAnimation() {
     if (!_scaleController.isAnimating) {
       _currentAxis = null;
@@ -956,16 +1614,16 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
       _scaleController.reset();
       return;
     }
-    final double desiredScale = _scaleAnimation!.value;
-    final double scaleChange = desiredScale / _transformer.value.getMaxScaleOnAxis();
-    final Offset referenceFocalPoint = _transformer.toScene(_scaleAnimationFocalPoint);
+    final desiredScale = _scaleAnimation!.value;
+    final scaleChange = desiredScale / _transformer.value.getMaxScaleOnAxis();
+    final referenceFocalPoint = _transformer.toScene(_scaleAnimationFocalPoint);
     _transformer.value = _matrixScale(_transformer.value, scaleChange);
 
     // While scaling, translate such that the user's two fingers stay on
     // the same places in the scene. That means that the focal point of
     // the scale should be on the same place in the scene before and after
     // the scale.
-    final Offset focalPointSceneScaled = _transformer.toScene(_scaleAnimationFocalPoint);
+    final focalPointSceneScaled = _transformer.toScene(_scaleAnimationFocalPoint);
     _transformer.value = _matrixTranslate(_transformer.value, focalPointSceneScaled - referenceFocalPoint);
   }
 
@@ -980,6 +1638,7 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
     super.initState();
     _controller = AnimationController(vsync: this);
     _scaleController = AnimationController(vsync: this);
+    _snapController = AnimationController(vsync: this, duration: const Duration(milliseconds: 250));
 
     _transformer.addListener(_handleTransformation);
   }
@@ -988,7 +1647,7 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
   void didUpdateWidget(InteractiveViewer oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    final TransformationController? newController = widget.transformationController;
+    final newController = widget.transformationController;
     if (newController == oldWidget.transformationController) {
       return;
     }
@@ -1004,6 +1663,7 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
   void dispose() {
     _controller.dispose();
     _scaleController.dispose();
+    _snapController.dispose();
     _transformer.removeListener(_handleTransformation);
     if (widget.transformationController == null) {
       _transformer.dispose();
@@ -1030,7 +1690,7 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
       assert(!widget.constrained);
       child = LayoutBuilder(
         builder: (context, constraints) {
-          final Matrix4 matrix = _transformer.value;
+          final matrix = _transformer.value;
           return _InteractiveViewerBuilt(
             childKey: _childKey,
             clipBehavior: widget.clipBehavior,
@@ -1045,9 +1705,11 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
 
     return Listener(
       key: _parentKey,
-      onPointerSignal: _receivedPointerSignal,
+      onPointerSignal: _onPointerSignal,
+      onPointerDown: _onPointerDown, // ScrollPhysics
       child: GestureDetector(
-        behavior: HitTestBehavior.opaque, // Necessary when panning off screen.
+        behavior: HitTestBehavior.opaque,
+        // Necessary when panning off screen.
         onScaleEnd: _onScaleEnd,
         onScaleStart: _onScaleStart,
         onScaleUpdate: _onScaleUpdate,
@@ -1107,13 +1769,17 @@ enum _GestureType { pan, scale, rotate }
 
 // Given a velocity and drag, calculate the time at which motion will come to
 // a stop, within the margin of effectivelyMotionless.
-double _getFinalTime(double velocity, double drag, {double effectivelyMotionless = 10}) {
-  return math.log(effectivelyMotionless / velocity) / math.log(drag / 100);
+double _getFinalTime(double velocity, double drag, {double effectivelyMotionless = 0.5}) {
+  final t = math.log(effectivelyMotionless / velocity) / math.log(drag / 100);
+  // log(x/0) or log(1)==0 in the denominator can produce NaN/Infinity, which
+  // later crashes Duration.round() with "Infinity or NaN toInt". See #587.
+  if (!t.isFinite || t < 0) return 0;
+  return t;
 }
 
 // Return the translation from the given Matrix4 as an Offset.
 Offset _getMatrixTranslation(Matrix4 matrix) {
-  final Vector3 nextTranslation = matrix.getTranslation();
+  final nextTranslation = matrix.getTranslation();
   return Offset(nextTranslation.x, nextTranslation.y);
 }
 
@@ -1122,7 +1788,7 @@ Offset _getMatrixTranslation(Matrix4 matrix) {
 // given matrix. The viewport transforms as the inverse of the child (i.e.
 // moving the child left is equivalent to moving the viewport right).
 Quad _transformViewport(Matrix4 matrix, Rect viewport) {
-  final Matrix4 inverseMatrix = matrix.clone()..invert();
+  final inverseMatrix = matrix.clone()..invert();
   return Quad.points(
     inverseMatrix.transform3(Vector3(viewport.topLeft.dx, viewport.topLeft.dy, 0.0)),
     inverseMatrix.transform3(Vector3(viewport.topRight.dx, viewport.topRight.dy, 0.0)),
@@ -1134,12 +1800,11 @@ Quad _transformViewport(Matrix4 matrix, Rect viewport) {
 // Find the axis aligned bounding box for the rect rotated about its center by
 // the given amount.
 Quad _getAxisAlignedBoundingBoxWithRotation(Rect rect, double rotation) {
-  final Matrix4 rotationMatrix =
-      Matrix4.identity()
-        ..translate(rect.size.width / 2, rect.size.height / 2)
-        ..rotateZ(rotation)
-        ..translate(-rect.size.width / 2, -rect.size.height / 2);
-  final Quad boundariesRotated = Quad.points(
+  final rotationMatrix = Matrix4.identity()
+    ..translateByDouble(rect.size.width / 2, rect.size.height / 2, 0, 1)
+    ..rotateZ(rotation)
+    ..translateByDouble(-rect.size.width / 2, -rect.size.height / 2, 0, 1);
+  final boundariesRotated = Quad.points(
     rotationMatrix.transform3(Vector3(rect.left, rect.top, 0.0)),
     rotationMatrix.transform3(Vector3(rect.right, rect.top, 0.0)),
     rotationMatrix.transform3(Vector3(rect.right, rect.bottom, 0.0)),
@@ -1152,11 +1817,11 @@ Quad _getAxisAlignedBoundingBoxWithRotation(Rect rect, double rotation) {
 // is completely contained within the boundary (inclusively), then returns
 // Offset.zero.
 Offset _exceedsBy(Quad boundary, Quad viewport) {
-  final List<Vector3> viewportPoints = <Vector3>[viewport.point0, viewport.point1, viewport.point2, viewport.point3];
-  Offset largestExcess = Offset.zero;
-  for (final Vector3 point in viewportPoints) {
-    final Vector3 pointInside = InteractiveViewer.getNearestPointInside(point, boundary);
-    final Offset excess = Offset(pointInside.x - point.x, pointInside.y - point.y);
+  final viewportPoints = <Vector3>[viewport.point0, viewport.point1, viewport.point2, viewport.point3];
+  var largestExcess = Offset.zero;
+  for (final point in viewportPoints) {
+    final pointInside = InteractiveViewer.getNearestPointInside(point, boundary);
+    final excess = Offset(pointInside.x - point.x, pointInside.y - point.y);
     if (excess.dx.abs() > largestExcess.dx.abs()) {
       largestExcess = Offset(excess.dx, largestExcess.dy);
     }
@@ -1165,13 +1830,7 @@ Offset _exceedsBy(Quad boundary, Quad viewport) {
     }
   }
 
-  return _round(largestExcess);
-}
-
-// Round the output values. This works around a precision problem where
-// values that should have been zero were given as within 10^-10 of zero.
-Offset _round(Offset offset) {
-  return Offset(double.parse(offset.dx.toStringAsFixed(9)), double.parse(offset.dy.toStringAsFixed(9)));
+  return largestExcess.round10BitFrac();
 }
 
 // Align the given offset to the given axis by allowing movement only in the
@@ -1189,7 +1848,44 @@ Axis? _getPanAxis(Offset point1, Offset point2) {
   if (point1 == point2) {
     return null;
   }
-  final double x = point2.dx - point1.dx;
-  final double y = point2.dy - point1.dy;
+  final x = point2.dx - point1.dx;
+  final y = point2.dy - point1.dy;
   return x.abs() > y.abs() ? Axis.horizontal : Axis.vertical;
+}
+
+/// A simulation that combines two one-dimensional simulations into one,
+/// one for the x axis and one for the y axis.
+class CombinedSimulation extends Simulation {
+  CombinedSimulation({required this.simulationX, required this.simulationY});
+  final Simulation simulationX;
+  final Simulation simulationY;
+
+  // For a combined simulation you don’t necessarily need to use x(t) directly.
+  // It is provided here so that animateWith() can drive a time value.
+  @override
+  double x(double time) => simulationX.x(time);
+
+  // Returns the combined velocity magnitude of the two simulations.
+  @override
+  double dx(double time) {
+    final dxX = simulationX.dx(time);
+    final dxY = simulationY.dx(time);
+    return math.sqrt(dxX * dxX + dxY * dxY);
+  }
+
+  @override
+  bool isDone(double time) {
+    return simulationX.isDone(time) && simulationY.isDone(time);
+  }
+}
+
+extension _OffsetRounder on Offset {
+  /// Round the double to keep 10-bits of precision under the binary point.
+  Offset round10BitFrac() => Offset(dx.round10BitFrac(), dy.round10BitFrac());
+}
+
+extension _RectRounder on Rect {
+  /// Round the double to keep 10-bits of precision under the binary point.
+  Rect round10BitFrac() =>
+      Rect.fromLTRB(left.round10BitFrac(), top.round10BitFrac(), right.round10BitFrac(), bottom.round10BitFrac());
 }

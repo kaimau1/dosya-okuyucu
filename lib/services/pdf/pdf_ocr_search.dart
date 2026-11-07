@@ -83,7 +83,7 @@ class PdfOcrSearch extends ChangeNotifier {
       if (gen != _generation) return; // yeni arama başladı: sessizce çekil
       PdfPageText? layer;
       try {
-        layer = await page.loadText();
+        layer = await page.loadStructuredText();
       } catch (_) {}
       if (gen != _generation) return;
       if ((layer?.fullText.trim().length ?? 0) >= thinTextThreshold) {

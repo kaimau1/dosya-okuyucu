@@ -126,7 +126,7 @@ extension _ViewerScreenPdfMarksPart on _ViewerScreenState {
         ..blendMode = BlendMode.multiply;
       for (final r in m.rects) {
         canvas.drawRect(
-            r.toRectInPageRect(page: page, pageRect: pageRect), paint);
+            r.toRectInDocument(page: page, pageRect: pageRect), paint);
       }
     }
   }

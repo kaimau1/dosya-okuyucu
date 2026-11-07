@@ -90,11 +90,11 @@ abstract final class PdfRaster {
         final img = await page.render(
           fullWidth: page.width * scale,
           fullHeight: page.height * scale,
-          backgroundColor: AppColors.page,
+          backgroundColor: AppColors.page.toARGB32(),
         );
         if (img == null) throw StateError('Sayfa ${index + 1} çizilemedi');
         final w = img.width, h = img.height;
-        final bgra = img.format == ui.PixelFormat.bgra8888;
+        const bgra = true; // pdfrx 2.x: PdfImage her yerde BGRA
         final TransferableTypedData pixels;
         try {
           pixels = TransferableTypedData.fromList([img.pixels]);
@@ -151,11 +151,11 @@ abstract final class PdfRaster {
         final img = await page.render(
           fullWidth: width.toDouble(),
           fullHeight: page.height * scale,
-          backgroundColor: AppColors.page,
+          backgroundColor: AppColors.page.toARGB32(),
         );
         if (img == null) throw StateError('Sayfa ${index + 1} çizilemedi');
         final w = img.width, h = img.height;
-        final bgra = img.format == ui.PixelFormat.bgra8888;
+        const bgra = true; // pdfrx 2.x: PdfImage her yerde BGRA
         final TransferableTypedData pixels;
         try {
           pixels = TransferableTypedData.fromList([img.pixels]);

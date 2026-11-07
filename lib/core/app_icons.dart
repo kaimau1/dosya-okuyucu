@@ -399,6 +399,8 @@ abstract final class AppIcons {
   static const IconData smartToy = Icons.smart_toy_rounded;
   static const IconData spaceDashboard = Icons.space_dashboard_rounded;
   static const IconData speed = Icons.speed_rounded;
+  /// PDF otomatik kaydırma (Faz 48).
+  static const IconData autoScroll = Icons.keyboard_double_arrow_down_rounded;
   static const IconData starOutline = Icons.star_outline_rounded;
   static const IconData stop = Icons.stop_rounded;
   static const IconData database = Icons.storage_rounded;

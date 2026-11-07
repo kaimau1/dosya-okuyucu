@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:provider/provider.dart';
 
+import '../core/device_profile.dart';
 import '../core/app_icons.dart';
 import '../core/app_state.dart';
 import '../core/edit/edit_session.dart';
@@ -18,6 +19,7 @@ import '../core/l10n/app_strings.dart';
 import '../services/gemini_service.dart';
 import '../services/pdf/pdf_edit_history.dart';
 import '../services/pdf/pdf_fling.dart';
+import '../services/pdf/pdf_viewer_defaults.dart';
 import '../services/pdf/pdf_form.dart';
 import '../services/pdf/pdf_pending_objects.dart';
 import '../services/pdf/pdf_ocr_text.dart';

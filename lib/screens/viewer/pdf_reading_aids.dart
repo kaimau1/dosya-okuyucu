@@ -1,0 +1,127 @@
+part of '../viewer_screen.dart';
+
+/// **Okuma yardımcıları** (Faz 48, rakip okuyucularda olup bizde olmayan üç
+/// şey): okurken ekran açık, ses tuşlarıyla sayfa çevirme, otomatik kaydırma.
+/// Üçü de yalnız PDF'te ve yalnız açıkça istenince çalışır — kapalıyken hiçbir
+/// dinleyici, kare geri çağrısı ya da kilit yoktur (kasma/pil bedeli sıfır).
+extension _ViewerScreenPdfReadingAidsPart on _ViewerScreenState {
+  static const _kKeepAwake = 'pdf_keep_awake';
+  static const _kVolumeKeys = 'pdf_volume_keys';
+
+  /// Otomatik kaydırma hızları (mantıksal piksel / saniye): kapalı, yavaş,
+  /// orta, hızlı.
+  static const autoScrollSpeeds = [0.0, 24.0, 48.0, 96.0];
+
+  Future<void> _loadReadingAids() async {
+    if (!_isPdf) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!mounted) return;
+      if (prefs.getBool(_kKeepAwake) ?? false) _setKeepAwake(true, save: false);
+      if (prefs.getBool(_kVolumeKeys) ?? false) {
+        _setVolumeKeys(true, save: false);
+      }
+    } catch (_) {
+      // Tercih okunamadı: ikisi de kapalı başlar (zararsız varsayılan).
+    }
+  }
+
+  void _saveAid(String key, bool on) {
+    SharedPreferences.getInstance()
+        .then((p) => p.setBool(key, on))
+        .catchError((_) => false);
+  }
+
+  /// Ekran sönmesin. Kilit [ScreenAwake] sayacıyla tutulur; otomatik kaydırma
+  /// da kendi başına bir sahip olarak ister (ikisi birbirini bırakmaz).
+  void _setKeepAwake(bool on, {bool save = true}) {
+    _keepAwakeRelease?.call();
+    _keepAwakeRelease = on ? ScreenAwake.request() : null;
+    _partSetState(() => _keepAwake = on);
+    if (save) _saveAid(_kKeepAwake, on);
+  }
+
+  /// Ses kısma = sonraki sayfa, açma = önceki (Moon+/Librera alışkanlığı).
+  /// Sunum kumandasının yerel köprüsü (`ci/Slayt.kt`) aynen kullanılır.
+  void _setVolumeKeys(bool on, {bool save = true}) {
+    unawaited(SlidesNative.volumeKeys(on));
+    _volumeSub?.cancel();
+    _volumeSub = on
+        ? SlidesNative.events.listen((e) {
+            if (e.$1 != 'volume' || !_pdfController.isReady) return;
+            _turnPdfPage(e.$2 == 'next' ? 1 : -1);
+          })
+        : null;
+    _partSetState(() => _volumeKeys = on);
+    if (save) _saveAid(_kVolumeKeys, on);
+  }
+
+  void _turnPdfPage(int delta) {
+    final total = _pageCount;
+    if (total == 0) return;
+    final from = _pdfJumpTarget ?? _livePdfPage() ?? _pdfPage;
+    final target = (from + delta).clamp(1, total);
+    if (target == from) return;
+    _pdfJumpTarget = target;
+    _pdfController
+        .goToPage(
+            pageNumber: target,
+            duration: Motion.of(context, Motion.short))
+        .catchError((_) {});
+  }
+
+  /// Otomatik kaydırma: [autoScrollSpeeds] dizinindeki hız. 0 = kapalı.
+  /// Kare geri çağrısı yalnız açıkken kurulur; parmak ekrandayken durur,
+  /// kalkınca kaldığı yerden sürer; belgenin sonunda kendiliğinden kapanır.
+  void _setAutoScroll(int level) {
+    _partSetState(() => _autoScroll = level);
+    _autoScrollLast = null;
+    _autoScrollAwake?.call();
+    _autoScrollAwake = level > 0 ? ScreenAwake.request() : null;
+    if (level > 0) _readingBars.hide();
+    _scheduleAutoScroll();
+  }
+
+  void _scheduleAutoScroll() {
+    if (_autoScroll == 0 || _autoScrollFrame != null) return;
+    _autoScrollFrame =
+        WidgetsBinding.instance.scheduleFrameCallback(_autoScrollTick);
+  }
+
+  void _autoScrollTick(Duration now) {
+    _autoScrollFrame = null;
+    if (!mounted || _autoScroll == 0) return;
+    final last = _autoScrollLast;
+    _autoScrollLast = now;
+    if (last != null && !_autoScrollHeld && _pdfController.isReady) {
+      final dt = (now - last).inMicroseconds / 1e6;
+      // Uzun ara (arka plan, takılma) sıçratmasın.
+      final dy = autoScrollSpeeds[_autoScroll] * dt.clamp(0.0, 0.05);
+      final m = _pdfController.value;
+      final t = m.getTranslation();
+      _pdfController.value = m.clone()..setTranslationRaw(t.x, t.y - dy, t.z);
+      if (_pdfController.value.getTranslation().y >= t.y - 0.01 && dy > 0) {
+        _setAutoScroll(0); // belgenin sonu
+        return;
+      }
+    }
+    _scheduleAutoScroll();
+  }
+
+  /// Görüntüleyicinin [Listener]'ından: parmak ekrandayken kaydırma bekler.
+  void _holdAutoScroll(bool held) {
+    if (_autoScroll == 0) return;
+    _autoScrollHeld = held;
+    _autoScrollLast = null;
+  }
+
+  void _disposeReadingAids() {
+    _keepAwakeRelease?.call();
+    _autoScrollAwake?.call();
+    if (_autoScrollFrame != null) {
+      WidgetsBinding.instance.cancelFrameCallbackWithId(_autoScrollFrame!);
+    }
+    if (_volumeKeys) unawaited(SlidesNative.volumeKeys(false));
+    _volumeSub?.cancel();
+  }
+}

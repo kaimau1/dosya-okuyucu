@@ -23,6 +23,9 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/app_icons.dart';
 import '../core/line_endings.dart';
 import '../core/motion.dart';
+import '../core/device_profile.dart';
+import '../core/screen_awake.dart';
+import '../services/pptx/pro/slides_native.dart';
 import '../core/pretty_format.dart';
 import '../core/text_replace.dart';
 import '../core/doc_fonts.dart';
@@ -54,6 +57,7 @@ import '../services/pdf/edge_auto_scroll.dart';
 import '../services/fm/save_to_downloads.dart';
 import '../services/pdf/current_page.dart';
 import '../services/pdf/pdf_fling.dart';
+import '../services/pdf/pdf_viewer_defaults.dart';
 import '../services/pdf/page_arrival.dart';
 import '../services/pdf/pdf_form.dart';
 import '../services/pdf/pdf_ocr_search.dart';
@@ -115,6 +119,7 @@ part 'viewer/body.dart';
 part 'viewer/code_tools.dart';
 part 'viewer/widgets.dart';
 part 'viewer/pdf_reading_pro.dart';
+part 'viewer/pdf_reading_aids.dart';
 
 /// PDF vurgu renkleri (0xAARRGGBB) — vurgu kipindeki sıra. Pastel tonlar
 /// (2026-09-27): eski doygun pembe (F06292) çarpımsal harmanda bile kelimeyi
@@ -386,16 +391,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// PDF'te de açık — çubuklar artık gövdenin boyunu değiştirmiyor.
   final ReadingBars _readingBars = ReadingBars();
 
-  /// pdfrx jesti (kaydırma/iki parmak) sürüyor mu — sürerken sayfa bitmap
-  /// ölçeği değişmez (bkz. [_pdfRenderScale]).
-  bool _pdfInteracting = false;
-
   /// Süren jest iki parmaklı mı (yakınlaştırma)? Fırlatma sürtünmesi buna
   /// göre seçilir (bkz. [kPdfPanFriction]).
   bool _pdfPinch = false;
-
-  /// Son seçilen sayfa bitmap ölçeği (basamaklı, bkz. [_pdfRenderScale]).
-  double? _pdfBaseScale;
 
   /// Önceki matris (PDF kaydırma yönünü çıkarmak için).
   double? _pdfLastTy;
@@ -424,6 +422,17 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// kalıcı (`reading_fullscreen`); ekrandan çıkınca sistem çubukları döner.
   bool _fullscreen = false;
   static const _kFullscreen = 'reading_fullscreen';
+
+  // Okuma yardımcıları (Faz 48) — bkz. viewer/pdf_reading_aids.dart.
+  bool _keepAwake = false;
+  VoidCallback? _keepAwakeRelease;
+  bool _volumeKeys = false;
+  StreamSubscription<(String, Object?)>? _volumeSub;
+  int _autoScroll = 0;
+  int? _autoScrollFrame;
+  Duration? _autoScrollLast;
+  bool _autoScrollHeld = false;
+  VoidCallback? _autoScrollAwake;
 
   Future<void> _loadFullscreen() async {
     try {
@@ -508,6 +517,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   void initState() {
     super.initState();
     unawaited(_loadFullscreen());
+    unawaited(_loadReadingAids());
     final doc = widget.doc;
     if (doc.kind == DocKind.text ||
         doc.kind == DocKind.word ||
@@ -677,6 +687,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     unawaited(ReadingPositions.save());
     _pdfController.removeListener(_onPdfMatrix);
     _readingBars.dispose();
+    _disposeReadingAids();
     if (_fullscreen) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     }

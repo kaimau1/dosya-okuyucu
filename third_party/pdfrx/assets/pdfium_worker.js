@@ -16,6 +16,7 @@ const Pdfium = {
     Pdfium.stackSave = Pdfium.wasmExports['emscripten_stack_get_current'];
     Pdfium.stackRestore = Pdfium.wasmExports['_emscripten_stack_restore'];
     Pdfium.setThrew = Pdfium.wasmExports['setThrew'];
+    Pdfium.__emscripten_stack_alloc = wasmExports['_emscripten_stack_alloc'];
   },
 
   /**
@@ -31,6 +32,18 @@ const Pdfium = {
    */
   wasmTable: null,
   /**
+   * @type {WebAssembly.Table}
+   */
+  wasmTableMirror: [],
+  /**
+   * @type {WeakMap<Function, number>}
+   */
+  functionsInTableMap: null,
+  /**
+   * @type {number[]}
+   */
+  freeTableIndexes: [],
+  /**
    * @type {function():number}
    */
   stackSave: null,
@@ -42,6 +55,10 @@ const Pdfium = {
    * @type {function(number, number):void}
    */
   setThrew: null,
+  /**
+   * @type {function(number):number}
+   */
+  __emscripten_stack_alloc: null,
 
   /**
    * Invoke a function from the WASM table
@@ -58,6 +75,178 @@ const Pdfium = {
       if (e !== e + 0) throw e;
       Pdfium.setThrew(1, 0);
     }
+  },
+
+  getCFunc: (ident) => Pdfium.wasmExports['_' + ident],
+  writeArrayToMemory: (array, buffer) => HEAP8.set(array, buffer),
+  stackAlloc: (sz) => Pdfium.__emscripten_stack_alloc(sz),
+  stringToUTF8OnStack: (str) => {
+    const size = StringUtils.lengthBytesUTF8(str) + 1;
+    const ret = Pdfium.stackAlloc(size);
+    StringUtils.stringToUtf8Bytes(str, ret);
+    return ret;
+  },
+  ccall: (ident, returnType, argTypes, args, opts) => {
+    const toC = {
+      string: (str) => {
+        let ret = 0;
+        if (str !== null && str !== undefined && str !== 0) {
+          ret = Pdfium.stringToUTF8OnStack(str);
+        }
+        return ret;
+      },
+      array: (arr) => {
+        const ret = Pdfium.stackAlloc(arr.length);
+        Pdfium.writeArrayToMemory(arr, ret);
+        return ret;
+      },
+    };
+    function convertReturnValue(ret) {
+      if (returnType === 'string') return UTF8ToString(ret);
+      if (returnType === 'boolean') return Boolean(ret);
+      return ret;
+    }
+    const func = Pdfium.getCFunc(ident);
+    const cArgs = [];
+    let stack = 0;
+    if (args) {
+      for (let i = 0; i < args.length; i++) {
+        const converter = toC[argTypes[i]];
+        if (converter) {
+          if (stack === 0) stack = Pdfium.stackSave();
+          cArgs[i] = converter(args[i]);
+        } else {
+          cArgs[i] = args[i];
+        }
+      }
+    }
+    let ret = func(...cArgs);
+    function onDone(ret) {
+      if (stack !== 0) Pdfium.stackRestore(stack);
+      return convertReturnValue(ret);
+    }
+    ret = onDone(ret);
+    return ret;
+  },
+  cwrap: (ident, returnType, argTypes, opts) => {
+    const numericArgs = !argTypes || argTypes.every((type) => type === 'number' || type === 'boolean');
+    const numericRet = returnType !== 'string';
+    if (numericRet && numericArgs && !opts) {
+      return Pdfium.getCFunc(ident);
+    }
+    return (...args) => Pdfium.ccall(ident, returnType, argTypes, args, opts);
+  },
+  uleb128Encode: (n, target) => {
+    if (n < 128) {
+      target.push(n);
+    } else {
+      target.push(n % 128 | 128, n >> 7);
+    }
+  },
+  sigToWasmTypes: (sig) => {
+    const typeNames = {
+      i: 'i32',
+      j: 'i64',
+      f: 'f32',
+      d: 'f64',
+      e: 'externref',
+      p: 'i32',
+    };
+    const type = {
+      parameters: [],
+      results: sig[0] == 'v' ? [] : [typeNames[sig[0]]],
+    };
+    for (let i = 1; i < sig.length; ++i) {
+      type.parameters.push(typeNames[sig[i]]);
+    }
+    return type;
+  },
+  generateFuncType: (sig, target) => {
+    const sigRet = sig.slice(0, 1);
+    const sigParam = sig.slice(1);
+    const typeCodes = { i: 127, p: 127, j: 126, f: 125, d: 124, e: 111 };
+    target.push(96);
+    Pdfium.uleb128Encode(sigParam.length, target);
+    for (let i = 0; i < sigParam.length; ++i) {
+      target.push(typeCodes[sigParam[i]]);
+    }
+    if (sigRet == 'v') {
+      target.push(0);
+    } else {
+      target.push(1, typeCodes[sigRet]);
+    }
+  },
+  convertJsFunctionToWasm: (func, sig) => {
+    if (typeof WebAssembly.Function == 'function') {
+      return new WebAssembly.Function(Pdfium.sigToWasmTypes(sig), func);
+    }
+    const typeSectionBody = [1];
+    Pdfium.generateFuncType(sig, typeSectionBody);
+    const bytes = [0, 97, 115, 109, 1, 0, 0, 0, 1];
+    Pdfium.uleb128Encode(typeSectionBody.length, bytes);
+    bytes.push(...typeSectionBody);
+    bytes.push(2, 7, 1, 1, 101, 1, 102, 0, 0, 7, 5, 1, 1, 102, 0, 0);
+    const module = new WebAssembly.Module(new Uint8Array(bytes));
+    const instance = new WebAssembly.Instance(module, { e: { f: func } });
+    const wrappedFunc = instance.exports['f'];
+    return wrappedFunc;
+  },
+  updateTableMap: (offset, count) => {
+    if (Pdfium.functionsInTableMap) {
+      for (let i = offset; i < offset + count; i++) {
+        const item = Pdfium.wasmTable.get(i);
+        if (item) {
+          Pdfium.functionsInTableMap.set(item, i);
+        }
+      }
+    }
+  },
+  getFunctionAddress: (func) => {
+    if (!Pdfium.functionsInTableMap) {
+      Pdfium.functionsInTableMap = new WeakMap();
+      Pdfium.updateTableMap(0, Pdfium.wasmTable.length);
+    }
+    return Pdfium.functionsInTableMap.get(func) || 0;
+  },
+  getEmptyTableSlot: () => {
+    if (Pdfium.freeTableIndexes.length) return Pdfium.freeTableIndexes.pop();
+    try {
+      Pdfium.wasmTable.grow(1);
+    } catch (err) {
+      if (!(err instanceof RangeError)) {
+        throw err;
+      }
+      throw 'Unable to grow wasm table. Set ALLOW_TABLE_GROWTH.';
+    }
+    return Pdfium.wasmTable.length - 1;
+  },
+  /**
+   * @param {function} func Function to add
+   * @param {string} sig Signature of the function
+   * @return {number} Function index in the table
+   */
+  addFunction: (func, sig) => {
+    const rtn = Pdfium.getFunctionAddress(func);
+    if (rtn) {
+      return rtn;
+    }
+    const ret = Pdfium.getEmptyTableSlot();
+    try {
+      Pdfium.wasmTable.set(ret, func);
+    } catch (err) {
+      if (!(err instanceof TypeError)) {
+        throw err;
+      }
+      const wrapped = Pdfium.convertJsFunctionToWasm(func, sig);
+      Pdfium.wasmTable.set(ret, wrapped);
+    }
+    Pdfium.functionsInTableMap.set(func, ret);
+    return ret;
+  },
+  removeFunction: (index) => {
+    Pdfium.functionsInTableMap.delete(Pdfium.wasmTable.get(index));
+    Pdfium.wasmTable.set(index, null);
+    Pdfium.freeTableIndexes.push(index);
   },
 };
 
@@ -124,7 +313,7 @@ class FileSystemEmulator {
   /**
    * Register file
    * @param {string} fn Filename
-   * @param {FileContext} context I/O functions/data
+   * @param {FileContext|DirectoryContext} context I/O functions/data
    */
   registerFile(fn, context) {
     this.fn2context[fn] = context;
@@ -152,15 +341,6 @@ class FileSystemEmulator {
         }
       },
     });
-  }
-
-  /**
-   * Register directory
-   * @param {string} fn Filename
-   * @param {*} entries Directory entries (For directories, the name should be terminated with /)
-   */
-  registerDirectoryWithEntries(fn, entries) {
-    this.registerFile(fn, { entries });
   }
 
   /**
@@ -199,36 +379,46 @@ class FileSystemEmulator {
     const context = this.fd2context[fd];
     context.close?.call(context);
     delete this.fd2context[fd];
+    return 0;
   }
 
   /**
    * Seek to a position in a file
    * @param {number} fd File descriptor
-   * @param {number} offset_low Offset low
-   * @param {number} offset_high Offset high
-   * @param {number} whence Whence
-   * @param {number} newOffset New offset
    * @returns {number} New offset
    */
-  seek(fd, offset_low, offset_high, whence, newOffset) {
-    const context = this.fd2context[fd];
-    if (offset_high !== 0) {
-      throw new Error('seek: offset_high is not supported');
+  seek(fd) {
+    let offset, whence, newOffset;
+    if (arguments.length == 4) {
+      // (fd: number, offset: BigInt, whence: number, newOffset: number)
+      offset = Number(arguments[1]); // BigInt to Number
+      whence = arguments[2];
+      newOffset = arguments[3];
+    } else if (arguments.length == 5) {
+      // (fd: number, offset_low: number, offset_high: number, whence: number, newOffset: number)
+      offset = arguments[1]; // offset_low; offset_high is ignored
+      whence = arguments[3];
+      newOffset = arguments[4];
+    } else {
+      throw new Error(`seek: invalid arguments count: ${arguments.length}`);
     }
+
+    const context = this.fd2context[fd];
     switch (whence) {
       case 0: // SEEK_SET
-        context.position = offset_low;
+        context.position = offset;
         break;
       case 1: // SEEK_CUR
-        context.position += offset_low;
+        context.position += offset;
         break;
       case 2: // SEEK_END
-        context.position = context.size + offset_low;
+        context.position = context.size + offset;
         break;
     }
     const offsetLowHigh = new Uint32Array(Pdfium.memory.buffer, newOffset, 2);
     offsetLowHigh[0] = context.position;
     offsetLowHigh[1] = 0;
+    return 0;
   }
 
   /**
@@ -251,6 +441,7 @@ class FileSystemEmulator {
     }
     const bytes_written = new Uint32Array(Pdfium.memory.buffer, ret_ptr, 1);
     bytes_written[0] = written;
+    return 0;
   }
 
   /**
@@ -274,6 +465,7 @@ class FileSystemEmulator {
     }
     const bytes_read = new Uint32Array(Pdfium.memory.buffer, ret_ptr, 1);
     bytes_read[0] = total;
+    return 0;
   }
 
   sync(fd) {
@@ -316,7 +508,7 @@ class FileSystemEmulator {
   /**
    * __syscall_getdents64
    * @param {num} fd
-   * @param {num} dirp
+   * @param {num} dirp struct linux_dirent64
    * @param {num} count
    * @returns {num}
    */
@@ -324,12 +516,14 @@ class FileSystemEmulator {
     /** @type {DirectoryFileDescriptorContext} */
     const context = this.fd2context[fd];
     const entries = context.entries;
-    if (entries == null) return 0;
+    if (entries == null) return -1; // not a directory
+    context.getdents_position = context.getdents_position || 0;
     let written = 0;
     const DT_REG = 8,
       DT_DIR = 4;
     _memset(dirp, 0, count);
-    for (let i = context.position; i < entries.length; i++) {
+    for (; context.position < entries.length; context.position++) {
+      const i = context.position;
       let d_type, d_name;
       if (entries[i].endsWith('/')) {
         d_type = DT_DIR;
@@ -340,13 +534,15 @@ class FileSystemEmulator {
       }
       const d_nameLength = StringUtils.lengthBytesUTF8(d_name) + 1;
       const size = 8 + 8 + 2 + 1 + d_nameLength;
-
       if (written + size > count) break;
+
       const buffer = new Uint8Array(Pdfium.memory.buffer, dirp + written, size);
       // d_off
       const d_off = written + size;
       buffer[8] = d_off & 255;
       buffer[9] = (d_off >> 8) & 255;
+      buffer[10] = (d_off >> 16) & 255;
+      buffer[11] = (d_off >> 24) & 255;
       // d_reclen
       buffer[16] = size & 255;
       buffer[17] = (size >> 8) & 255;
@@ -408,7 +604,8 @@ const emEnv = {
   _emscripten_throw_longjmp: function () {
     throw Infinity;
   },
-  _gmtime_js: function (time, tmPtr) {
+  _gmtime_js: function (timeLow, timeHigh, tmPtr) {
+    const time = (timeLow >>> 0) + timeHigh * 0x100000000;
     const date = new Date(time * 1000);
     const tm = new Int32Array(Pdfium.memory.buffer, tmPtr, 9);
     tm[0] = date.getUTCSeconds();
@@ -421,8 +618,25 @@ const emEnv = {
     tm[7] = 0; // dst
     tm[8] = 0; // gmtoff
   },
-  _localtime_js: function (time, tmPtr) {
-    _notImplemented('_localtime_js');
+  _mmap_js: function (len, prot, flags, fd, offset_low, offset_high, allocated, addr) {
+    _notImplemented('_mmap_js');
+  },
+  _munmap_js: function (addr, len, prot, flags, fd, offset_low, offset_high) {
+    _notImplemented('_munmap_js');
+  },
+  _localtime_js: function (timeLow, timeHigh, tmPtr) {
+    const time = (timeLow >>> 0) + timeHigh * 0x100000000;
+    const date = new Date(time * 1000);
+    const tm = new Int32Array(Pdfium.memory.buffer, tmPtr, 9);
+    tm[0] = date.getSeconds();
+    tm[1] = date.getMinutes();
+    tm[2] = date.getHours();
+    tm[3] = date.getDate();
+    tm[4] = date.getMonth();
+    tm[5] = date.getFullYear() - 1900;
+    tm[6] = date.getDay();
+    tm[7] = 0; // dst
+    tm[8] = 0; // gmtoff
   },
   _tzset_js: function () {},
   emscripten_date_now: function () {
@@ -526,6 +740,19 @@ async function loadDocumentFromUrl(params) {
   const headers = params.headers || {};
   const withCredentials = params.withCredentials || false;
   const progressCallbackId = params.progressCallbackId;
+  const preferRangeAccess = params.preferRangeAccess || false;
+
+  if (preferRangeAccess) {
+    const result = await loadDocumentFromUrlWithRangeAccess({
+      url,
+      password,
+      useProgressiveLoading,
+      headers,
+      withCredentials,
+      progressCallbackId,
+    });
+    if (result) return result;
+  }
 
   const response = await fetch(url, {
     headers: headers,
@@ -575,6 +802,502 @@ async function loadDocumentFromUrl(params) {
 }
 
 /**
+ * @typedef {{offset: number, end: number}} ByteRange
+ */
+
+const PDF_RANGE_DOWNLOAD_BLOCK_SIZE = 64 * 1024;
+
+class PdfRangeCache {
+  /**
+   * @param {string} url
+   * @param {Object.<string, string>} headers
+   * @param {boolean} withCredentials
+   * @param {number|undefined} progressCallbackId
+   */
+  constructor(url, headers, withCredentials, progressCallbackId) {
+    this.url = url;
+    this.headers = headers;
+    this.withCredentials = withCredentials;
+    this.progressCallbackId = progressCallbackId;
+    this.fileSize = 0;
+    /** @type {ByteRange[]} */
+    this.ranges = [];
+    /** @type {{offset: number, data: Uint8Array}[]} */
+    this.chunks = [];
+    this.bytesCached = 0;
+    this.nextUnhintedBlockOffset = 0;
+  }
+
+  /**
+   * @param {number} offset
+   * @param {number} size
+   * @returns {ByteRange|null}
+   */
+  blockAlignedRange(offset, size) {
+    if (offset < 0 || size <= 0) return null;
+    if (this.fileSize > 0 && offset >= this.fileSize) return null;
+
+    const end = offset + size;
+    const alignedOffset = Math.floor(offset / PDF_RANGE_DOWNLOAD_BLOCK_SIZE) * PDF_RANGE_DOWNLOAD_BLOCK_SIZE;
+    let alignedEnd = Math.ceil(end / PDF_RANGE_DOWNLOAD_BLOCK_SIZE) * PDF_RANGE_DOWNLOAD_BLOCK_SIZE;
+    if (this.fileSize > 0) {
+      alignedEnd = Math.min(alignedEnd, this.fileSize);
+    }
+    if (alignedEnd <= alignedOffset) return null;
+
+    return { offset: alignedOffset, end: alignedEnd };
+  }
+
+  get fetchCredentials() {
+    return this.withCredentials ? 'include' : 'same-origin';
+  }
+
+  async ensureFileSize() {
+    if (this.fileSize > 0) return this.fileSize;
+    const response = await fetch(this.url, {
+      method: 'HEAD',
+      headers: this.headers,
+      mode: 'cors',
+      credentials: this.fetchCredentials,
+      redirect: 'follow',
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to get PDF file size: ${response.status} ${response.statusText}`);
+    }
+    const contentLength = parseInt(response.headers.get('content-length') || '0', 10);
+    if (!contentLength) {
+      throw new Error('Failed to get PDF file size from Content-Length');
+    }
+    this.fileSize = contentLength;
+    return this.fileSize;
+  }
+
+  /**
+   * @param {number} offset
+   * @param {number} size
+   * @returns {boolean}
+   */
+  isDataAvailable(offset, size) {
+    if (size <= 0) return true;
+    const end = offset + size;
+    for (const range of this.ranges) {
+      if (offset >= range.offset && end <= range.end) return true;
+      if (range.offset > offset) return false;
+    }
+    return false;
+  }
+
+  /**
+   * @param {number} offset
+   * @param {number} size
+   * @returns {ByteRange[]}
+   */
+  missingRanges(offset, size) {
+    if (size <= 0) return [];
+    const end = offset + size;
+    let position = offset;
+    /** @type {ByteRange[]} */
+    const missing = [];
+
+    for (const range of this.ranges) {
+      if (range.end <= position) continue;
+      if (range.offset >= end) break;
+      if (position < range.offset) {
+        missing.push({ offset: position, end: Math.min(range.offset, end) });
+      }
+      position = Math.max(position, range.end);
+      if (position >= end) break;
+    }
+
+    if (position < end) {
+      missing.push({ offset: position, end });
+    }
+    return missing;
+  }
+
+  /**
+   * @returns {Promise<ByteRange|null>}
+   */
+  async nextUnhintedBlock() {
+    await this.ensureFileSize();
+
+    const tailOffset = Math.floor((this.fileSize - 1) / PDF_RANGE_DOWNLOAD_BLOCK_SIZE) * PDF_RANGE_DOWNLOAD_BLOCK_SIZE;
+    if (!this.isDataAvailable(tailOffset, this.fileSize - tailOffset)) {
+      return { offset: tailOffset, end: this.fileSize };
+    }
+
+    for (let offset = this.nextUnhintedBlockOffset; offset < this.fileSize; offset += PDF_RANGE_DOWNLOAD_BLOCK_SIZE) {
+      const end = Math.min(offset + PDF_RANGE_DOWNLOAD_BLOCK_SIZE, this.fileSize);
+      this.nextUnhintedBlockOffset = end;
+      if (!this.isDataAvailable(offset, end - offset)) {
+        return { offset, end };
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * @param {number} offset
+   * @param {Uint8Array} data
+   */
+  addData(offset, data) {
+    if (data.length === 0) return;
+    this.chunks.push({ offset, data });
+    this._addRange(offset, offset + data.length);
+    this.bytesCached = this.ranges.reduce((sum, range) => sum + range.end - range.offset, 0);
+    invokeCallback(this.progressCallbackId, this.bytesCached, this.fileSize || undefined);
+  }
+
+  /**
+   * @param {number} offset
+   * @param {number} end
+   */
+  _addRange(offset, end) {
+    const ranges = [...this.ranges, { offset, end }].sort((a, b) => a.offset - b.offset);
+    /** @type {ByteRange[]} */
+    const merged = [];
+    for (const range of ranges) {
+      const last = merged[merged.length - 1];
+      if (!last || range.offset > last.end) {
+        merged.push({ offset: range.offset, end: range.end });
+      } else {
+        last.end = Math.max(last.end, range.end);
+      }
+    }
+    this.ranges = merged;
+  }
+
+  /**
+   * @param {number} offset
+   * @param {number} pBuf
+   * @param {number} size
+   * @returns {number}
+   */
+  read(offset, pBuf, size) {
+    if (!this.isDataAvailable(offset, size)) return 0;
+
+    const dst = new Uint8Array(Pdfium.memory.buffer, pBuf, size);
+    let copied = 0;
+    let position = offset;
+    while (copied < size) {
+      const chunk = this.chunks.find((candidate) => {
+        const end = candidate.offset + candidate.data.length;
+        return position >= candidate.offset && position < end;
+      });
+      if (!chunk) return 0;
+
+      const chunkOffset = position - chunk.offset;
+      const bytesToCopy = Math.min(size - copied, chunk.data.length - chunkOffset);
+      dst.set(chunk.data.subarray(chunkOffset, chunkOffset + bytesToCopy), copied);
+      copied += bytesToCopy;
+      position += bytesToCopy;
+    }
+    return 1;
+  }
+
+  /**
+   * @param {number} offset
+   * @param {number} size
+   * @returns {Promise<boolean>} true if range access is usable; false if the caller should use full download.
+   */
+  async download(offset, size) {
+    const range = this.blockAlignedRange(offset, size);
+    if (!range || this.isDataAvailable(range.offset, range.end - range.offset)) return true;
+
+    const response = await fetch(this.url, {
+      headers: {
+        ...this.headers,
+        Range: `bytes=${range.offset}-${range.end - 1}`,
+      },
+      mode: 'cors',
+      credentials: this.fetchCredentials,
+      redirect: 'follow',
+    });
+    if (response.status === 200) {
+      const data = new Uint8Array(await response.arrayBuffer());
+      this.fileSize = data.length;
+      this.addData(0, data);
+      return false;
+    }
+
+    if (response.status !== 206) {
+      throw new Error(`Failed to download PDF range: ${response.status} ${response.statusText}`);
+    }
+
+    const contentRange = response.headers.get('content-range');
+    let start = range.offset;
+    let total = this.fileSize;
+    const match = /^bytes\s+(\d+)-(\d+)\/(\d+|\*)$/i.exec(contentRange);
+    if (match && match[3] !== '*') {
+      start = parseInt(match[1], 10);
+      total = parseInt(match[3], 10);
+    } else {
+      total = await this.ensureFileSize();
+    }
+
+    const data = new Uint8Array(await response.arrayBuffer());
+    this.fileSize = total;
+    this.addData(start, data);
+    return true;
+  }
+}
+
+const PDF_DATA_ERROR = -1;
+const PDF_DATA_NOTAVAIL = 0;
+const PDF_DATA_AVAIL = 1;
+const PDF_FORM_ERROR = -1;
+const PDF_FORM_NOTAVAIL = 0;
+const PDF_FORM_AVAIL = 1;
+const PDF_FORM_NOTEXIST = 2;
+
+/** @type {Object<number, {avail: number, cache: PdfRangeCache, downloadHintsPtr: number, takeSegments: function():ByteRange[]}>} */
+const rangeDocumentAvailabilities = {};
+
+/**
+ * @param {{url: string, password: string, useProgressiveLoading: boolean, headers: Object.<string, string>, withCredentials: boolean, progressCallbackId: number|undefined}} params
+ * @returns {Promise<PdfDocument|PdfError|null>} null means range access was not usable and the caller should fall back.
+ */
+async function loadDocumentFromUrlWithRangeAccess(params) {
+  const requiredExports = [
+    'FPDFAvail_Create',
+    'FPDFAvail_Destroy',
+    'FPDFAvail_IsDocAvail',
+    'FPDFAvail_GetDocument',
+    'FPDFAvail_IsPageAvail',
+    'FPDFAvail_IsFormAvail',
+  ];
+  if (!requiredExports.every((name) => typeof Pdfium.wasmExports[name] === 'function')) {
+    return null;
+  }
+
+  const cache = new PdfRangeCache(params.url, params.headers, params.withCredentials, params.progressCallbackId);
+  const initialRangeSize = 64 * 1024;
+  const rangeUsable = await cache.download(0, initialRangeSize);
+  if (!rangeUsable || cache.fileSize <= 0) return null;
+
+  const fileAvailSize = 8; // FX_FILEAVAIL: int version + function pointer
+  const downloadHintsSize = 8; // FX_DOWNLOADHINTS: int version + function pointer
+  const fileAccessSize = 12; // FPDF_FILEACCESS: length + getBlock + param
+  let fileAvailPtr = 0;
+  let downloadHintsPtr = 0;
+  let fileAccessPtr = 0;
+  let isDataAvailCallback = 0;
+  let addSegmentCallback = 0;
+  let getBlockCallback = 0;
+  let avail = 0;
+  let docHandle = 0;
+  let disposed = false;
+  /** @type {ByteRange[]} */
+  let pendingSegments = [];
+
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    if (docHandle) delete rangeDocumentAvailabilities[docHandle];
+    if (avail) Pdfium.wasmExports.FPDFAvail_Destroy(avail);
+    if (isDataAvailCallback) Pdfium.removeFunction(isDataAvailCallback);
+    if (addSegmentCallback) Pdfium.removeFunction(addSegmentCallback);
+    if (getBlockCallback) Pdfium.removeFunction(getBlockCallback);
+    if (fileAvailPtr) Pdfium.wasmExports.free(fileAvailPtr);
+    if (downloadHintsPtr) Pdfium.wasmExports.free(downloadHintsPtr);
+    if (fileAccessPtr) Pdfium.wasmExports.free(fileAccessPtr);
+  };
+
+  try {
+    fileAvailPtr = Pdfium.wasmExports.malloc(fileAvailSize);
+    downloadHintsPtr = Pdfium.wasmExports.malloc(downloadHintsSize);
+    fileAccessPtr = Pdfium.wasmExports.malloc(fileAccessSize);
+    if (!fileAvailPtr || !downloadHintsPtr || !fileAccessPtr) {
+      throw new Error('Failed to allocate PDF range access structures');
+    }
+
+    isDataAvailCallback = Pdfium.addFunction((_pThis, offset, size) => {
+      return cache.isDataAvailable(offset, size) ? 1 : 0;
+    }, 'iiii');
+    addSegmentCallback = Pdfium.addFunction((_pThis, offset, size) => {
+      pendingSegments.push({ offset, end: offset + size });
+    }, 'viii');
+    getBlockCallback = Pdfium.addFunction((_param, position, pBuf, size) => {
+      return cache.read(position, pBuf, size);
+    }, 'iiiii');
+
+    const fileAvail = new Uint32Array(Pdfium.memory.buffer, fileAvailPtr, fileAvailSize >> 2);
+    fileAvail[0] = 1;
+    fileAvail[1] = isDataAvailCallback;
+
+    const downloadHints = new Uint32Array(Pdfium.memory.buffer, downloadHintsPtr, downloadHintsSize >> 2);
+    downloadHints[0] = 1;
+    downloadHints[1] = addSegmentCallback;
+
+    const fileAccess = new Uint32Array(Pdfium.memory.buffer, fileAccessPtr, fileAccessSize >> 2);
+    fileAccess[0] = cache.fileSize;
+    fileAccess[1] = getBlockCallback;
+    fileAccess[2] = 0;
+
+    avail = Pdfium.wasmExports.FPDFAvail_Create(fileAvailPtr, fileAccessPtr);
+    if (!avail) {
+      dispose();
+      return null;
+    }
+
+    const docResult = await _waitForPdfAvailability(cache, () => Pdfium.wasmExports.FPDFAvail_IsDocAvail(avail, downloadHintsPtr), () => {
+      const segments = pendingSegments;
+      pendingSegments = [];
+      return segments;
+    });
+    if (docResult === PDF_DATA_ERROR) {
+      throw new Error('Failed to make PDF document data available');
+    }
+
+    const passwordPtr = StringUtils.allocateUTF8(params.password);
+    try {
+      docHandle = Pdfium.wasmExports.FPDFAvail_GetDocument(avail, passwordPtr);
+    } finally {
+      StringUtils.freeUTF8(passwordPtr);
+    }
+    if (!docHandle) {
+      dispose();
+      return _loadDocument(docHandle, params.useProgressiveLoading, () => {});
+    }
+
+    const formResult = await _waitForPdfAvailability(
+      cache,
+      () => Pdfium.wasmExports.FPDFAvail_IsFormAvail(avail, downloadHintsPtr),
+      () => {
+        const segments = pendingSegments;
+        pendingSegments = [];
+        return segments;
+      },
+      [PDF_FORM_AVAIL, PDF_FORM_NOTEXIST],
+      PDF_FORM_ERROR
+    );
+    if (formResult === PDF_FORM_ERROR) {
+      throw new Error('Failed to make PDF form data available');
+    }
+
+    rangeDocumentAvailabilities[docHandle] = {
+      avail,
+      cache,
+      downloadHintsPtr,
+      takeSegments: () => {
+        const segments = pendingSegments;
+        pendingSegments = [];
+        return segments;
+      },
+    };
+
+    const pageCount = Pdfium.wasmExports.FPDF_GetPageCount(docHandle);
+    if (params.useProgressiveLoading) {
+      await _ensurePageAvailable(docHandle, 0);
+    } else {
+      for (let i = 0; i < pageCount; i++) {
+        await _ensurePageAvailable(docHandle, i);
+      }
+    }
+
+    return _loadDocument(docHandle, params.useProgressiveLoading, dispose);
+  } catch (e) {
+    if (docHandle) {
+      try {
+        Pdfium.wasmExports.FPDF_CloseDocument(docHandle);
+      } catch (_) {}
+    }
+    dispose();
+    throw e;
+  }
+}
+
+/**
+ * @param {number} docHandle
+ * @param {number} pageIndex
+ */
+async function _ensurePageAvailable(docHandle, pageIndex) {
+  const availability = rangeDocumentAvailabilities[docHandle];
+  if (!availability) return;
+
+  const result = await _waitForPdfAvailability(
+    availability.cache,
+    () => Pdfium.wasmExports.FPDFAvail_IsPageAvail(availability.avail, pageIndex, availability.downloadHintsPtr),
+    availability.takeSegments
+  );
+  if (result === PDF_DATA_ERROR) {
+    throw new Error(`Failed to make PDF page ${pageIndex} data available`);
+  }
+}
+
+/**
+ * @param {PdfRangeCache} cache
+ * @param {function():number} check
+ * @param {function():ByteRange[]} takeSegments
+ * @param {number[]} availableResults
+ * @param {number} errorResult
+ * @returns {Promise<number>}
+ */
+async function _waitForPdfAvailability(
+  cache,
+  check,
+  takeSegments,
+  availableResults = [PDF_DATA_AVAIL],
+  errorResult = PDF_DATA_ERROR
+) {
+  for (let i = 0; i < 1000; i++) {
+    const result = check();
+    const segments = takeSegments();
+    if (availableResults.includes(result)) return result;
+    if (result === errorResult) return result;
+    if (result !== PDF_DATA_NOTAVAIL && result !== PDF_FORM_NOTAVAIL) return result;
+    if (segments.length === 0) {
+      const segment = await cache.nextUnhintedBlock();
+      if (!segment) {
+        return availableResults[0];
+      }
+      const size = segment.end - segment.offset;
+      const rangeUsable = await cache.download(segment.offset, size);
+      if (!rangeUsable && !cache.isDataAvailable(segment.offset, size)) {
+        throw new Error('PDF range response did not expose usable Content-Range metadata');
+      }
+      continue;
+    }
+    for (const segment of _mergeDownloadSegments(segments)) {
+      for (const missing of cache.missingRanges(segment.offset, segment.end - segment.offset)) {
+        const size = missing.end - missing.offset;
+        const rangeUsable = await cache.download(missing.offset, size);
+        if (!rangeUsable && !cache.isDataAvailable(missing.offset, size)) {
+          throw new Error('PDF range response did not expose usable Content-Range metadata');
+        }
+      }
+    }
+  }
+  throw new Error('Timed out while waiting for PDF range data availability');
+}
+
+/**
+ * @param {ByteRange[]} segments
+ * @returns {ByteRange[]}
+ */
+function _mergeDownloadSegments(segments) {
+  const sorted = segments
+    .filter((segment) => segment.end > segment.offset)
+    .map((segment) => ({
+      offset: Math.floor(segment.offset / PDF_RANGE_DOWNLOAD_BLOCK_SIZE) * PDF_RANGE_DOWNLOAD_BLOCK_SIZE,
+      end: Math.ceil(segment.end / PDF_RANGE_DOWNLOAD_BLOCK_SIZE) * PDF_RANGE_DOWNLOAD_BLOCK_SIZE,
+    }))
+    .sort((a, b) => a.offset - b.offset);
+  /** @type {ByteRange[]} */
+  const merged = [];
+  for (const segment of sorted) {
+    const last = merged[merged.length - 1];
+    if (!last || segment.offset > last.end) {
+      merged.push({ offset: segment.offset, end: segment.end });
+    } else {
+      last.end = Math.max(last.end, segment.end);
+    }
+  }
+  return merged;
+}
+
+/**
  * @param {{data: ArrayBuffer, password: string|undefined, useProgressiveLoading: boolean|undefined}} params
  */
 function loadDocumentFromData(params) {
@@ -609,9 +1332,37 @@ function loadDocumentFromData(params) {
 /** @type {Object<number, function():void>} */
 const disposers = {};
 
+/** @typedef {{face: string, weight: number, italic: boolean, charset: number, pitch_family: number}} FontQuery
+ * @typedef {Object<string, FontQuery>} FontQueries
+ */
+/** @type {FontQueries} */
+let lastMissingFonts = {};
+
+/** @type {Object<number, FontQueries>} */
+let missingFonts = {};
+
 /**
- * @typedef {{docHandle: number,permissions: number, securityHandlerRevision: number, pages: PdfPage[], formHandle: number, formInfo: number}} PdfDocument
- * @typedef {{pageIndex: number, width: number, height: number, rotation: number, isLoaded: boolean}} PdfPage
+ *
+ * @param {number} docHandle
+ * @returns {FontQueries} Missing fonts new found.
+ */
+function _updateMissingFonts(docHandle) {
+  if (Object.keys(lastMissingFonts).length === 0) return;
+
+  const existing = missingFonts[docHandle] ?? {};
+  missingFonts[docHandle] = { ...existing, ...lastMissingFonts };
+  const result = lastMissingFonts;
+  lastMissingFonts = {};
+  return result;
+}
+
+function _resetMissingFonts() {
+  missingFonts = {};
+}
+
+/**
+ * @typedef {{docHandle: number,permissions: number, securityHandlerRevision: number, pages: PdfPage[], formHandle: number, formInfo: number, missingFonts: FontQueries}} PdfDocument
+ * @typedef {{pageIndex: number, width: number, height: number, rotation: number, isLoaded: boolean, bbLeft: number, bbBottom: number}} PdfPage
  * @typedef {{errorCode: number, errorCodeStr: string|undefined, message: string}} PdfError
  */
 
@@ -635,6 +1386,9 @@ function _loadDocument(docHandle, useProgressiveLoading, onDispose) {
       };
     }
 
+    missingFonts[docHandle] = {};
+    lastMissingFonts = {};
+
     const pageCount = Pdfium.wasmExports.FPDF_GetPageCount(docHandle);
     const permissions = Pdfium.wasmExports.FPDF_GetDocPermissions(docHandle);
     const securityHandlerRevision = Pdfium.wasmExports.FPDF_GetSecurityHandlerRevision(docHandle);
@@ -655,10 +1409,14 @@ function _loadDocument(docHandle, useProgressiveLoading, onDispose) {
           height: firstPage.height,
           rotation: firstPage.rotation,
           isLoaded: false,
+          bbLeft: 0,
+          bbBottom: 0,
         });
       }
     }
     disposers[docHandle] = onDispose;
+    _updateMissingFonts(docHandle);
+
     return {
       docHandle: docHandle,
       permissions: permissions,
@@ -666,6 +1424,7 @@ function _loadDocument(docHandle, useProgressiveLoading, onDispose) {
       pages: pages,
       formHandle: formHandle,
       formInfo: formInfo,
+      missingFonts: missingFonts[docHandle],
     };
   } catch (e) {
     try {
@@ -687,43 +1446,173 @@ function _loadDocument(docHandle, useProgressiveLoading, onDispose) {
  */
 function _loadPagesInLimitedTime(docHandle, pagesLoadedCountSoFar, maxPageCountToLoadAdditionally, timeoutMs) {
   const pageCount = Pdfium.wasmExports.FPDF_GetPageCount(docHandle);
-  const end =
-    maxPageCountToLoadAdditionally == null
-      ? pageCount
-      : Math.min(pageCount, pagesLoadedCountSoFar + maxPageCountToLoadAdditionally);
   const t = timeoutMs != null ? Date.now() + timeoutMs : null;
   /** @type {PdfPage[]} */
   const pages = [];
-  for (let i = pagesLoadedCountSoFar; i < end; i++) {
-    const pageHandle = Pdfium.wasmExports.FPDF_LoadPage(docHandle, i);
-    if (!pageHandle) {
-      const error = Pdfium.wasmExports.FPDF_GetLastError();
-      throw new Error(`FPDF_LoadPage failed (${_getErrorMessage(error)})`);
+  _resetMissingFonts();
+  for (let i = pagesLoadedCountSoFar; i < pageCount; i++) {
+    pages.push(_loadPageMetadata(docHandle, i));
+    if (maxPageCountToLoadAdditionally != null && pages.length >= maxPageCountToLoadAdditionally) {
+      break;
     }
-
-    pages.push({
-      pageIndex: i,
-      width: Pdfium.wasmExports.FPDF_GetPageWidth(pageHandle),
-      height: Pdfium.wasmExports.FPDF_GetPageHeight(pageHandle),
-      rotation: Pdfium.wasmExports.FPDFPage_GetRotation(pageHandle),
-      isLoaded: true,
-    });
-    Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
     if (t != null && Date.now() > t) {
       break;
     }
   }
+  _updateMissingFonts(docHandle);
   return pages;
 }
 
 /**
- * @param {{docHandle: number, loadUnitDuration: number}} params
- * @returns {{pages: PdfPage[]}}
+ * @param {number} docHandle
+ * @param {number} pagesLoadedCountSoFar
+ * @param {number[]} loadedPageIndices
+ * @param {number|null} maxPageCountToLoadAdditionally
+ * @param {number} timeoutMs
+ * @returns {Promise<PdfPage[]>}
  */
-function loadPagesProgressively(params) {
-  const { docHandle, firstPageIndex, loadUnitDuration } = params;
-  const pages = _loadPagesInLimitedTime(docHandle, firstPageIndex, null, loadUnitDuration);
-  return { pages };
+async function _loadPagesInLimitedTimeAsync(
+  docHandle,
+  pagesLoadedCountSoFar,
+  loadedPageIndices,
+  maxPageCountToLoadAdditionally,
+  timeoutMs,
+) {
+  const pageCount = Pdfium.wasmExports.FPDF_GetPageCount(docHandle);
+  const loadedPages = new Set(loadedPageIndices);
+  const t = timeoutMs != null ? Date.now() + timeoutMs : null;
+  /** @type {PdfPage[]} */
+  const pages = [];
+  _resetMissingFonts();
+  for (let i = pagesLoadedCountSoFar; i < pageCount; i++) {
+    if (loadedPages.has(i)) {
+      continue;
+    }
+    await _ensurePageAvailable(docHandle, i);
+    pages.push(_loadPageMetadata(docHandle, i));
+    if (maxPageCountToLoadAdditionally != null && pages.length >= maxPageCountToLoadAdditionally) {
+      break;
+    }
+    if (t != null && Date.now() > t) {
+      break;
+    }
+  }
+  _updateMissingFonts(docHandle);
+  return pages;
+}
+
+/**
+ * Loads the pages listed in `pageIndices`, in that order, until `timeoutMs` elapses.
+ * At least one page is loaded per call. Indices outside the document are ignored.
+ * @param {number} docHandle
+ * @param {number[]} pageIndices
+ * @param {number} timeoutMs
+ * @returns {Promise<PdfPage[]>}
+ */
+async function _loadPageIndicesInLimitedTimeAsync(docHandle, pageIndices, timeoutMs) {
+  const pageCount = Pdfium.wasmExports.FPDF_GetPageCount(docHandle);
+  const t = Date.now() + timeoutMs;
+  /** @type {PdfPage[]} */
+  const pages = [];
+  _resetMissingFonts();
+  for (const i of pageIndices) {
+    if (i < 0 || i >= pageCount) {
+      continue;
+    }
+    await _ensurePageAvailable(docHandle, i);
+    pages.push(_loadPageMetadata(docHandle, i));
+    if (Date.now() > t) {
+      break;
+    }
+  }
+  _updateMissingFonts(docHandle);
+  return pages;
+}
+
+/**
+ * `pageIndices`, when present, lists the unloaded pages in the order they should be measured
+ * (e.g. spreading outward from the page being displayed); otherwise pages are measured from
+ * `firstPageIndex` onward, skipping `loadedPageIndices`.
+ * @param {{docHandle: number, firstPageIndex: number, loadedPageIndices: number[], pageIndices?: number[], loadUnitDuration: number}} params
+ * @returns {{pages: PdfPage[], missingFonts: FontQueries}}
+ */
+async function loadPagesProgressively(params) {
+  const { docHandle, firstPageIndex, loadedPageIndices, pageIndices, loadUnitDuration } = params;
+  const pages = pageIndices
+    ? await _loadPageIndicesInLimitedTimeAsync(docHandle, pageIndices, loadUnitDuration)
+    : await _loadPagesInLimitedTimeAsync(docHandle, firstPageIndex, loadedPageIndices, null, loadUnitDuration);
+  return { pages, missingFonts: missingFonts[docHandle] };
+}
+
+/**
+ * 
+ * @param {{docHandle: number, pageIndices: number[]|undefined, currentPagesCount: number}} params
+ * @returns {{pages: PdfPage[], missingFonts: FontQueries}}
+ */
+async function reloadPages(params) {
+  const { docHandle, pageIndices, currentPagesCount } = params;
+  /** @type {PdfPage[]} */
+  const pages = [];
+  const pageCount = Pdfium.wasmExports.FPDF_GetPageCount(docHandle);
+  /** @type {number[]} */
+  const indicesToLoad = [];
+  if (pageIndices) {
+    const requestedPageIndices = [...new Set(pageIndices)].sort((a, b) => a - b);
+    for (const pageIndex of requestedPageIndices) {
+      if (pageIndex < 0 || pageIndex >= pageCount) {
+        throw new Error(`Invalid page index ${pageIndex} (page count: ${pageCount})`);
+      }
+      if (pageIndex < currentPagesCount) {
+        indicesToLoad.push(pageIndex);
+      }
+    }
+    for (let i = currentPagesCount; i < pageCount; i++) {
+      indicesToLoad.push(i);
+    }
+  } else {
+    for (let i = 0; i < pageCount; i++) {
+      indicesToLoad.push(i);
+    }
+  }
+
+  _resetMissingFonts();
+  for (const pageIndex of indicesToLoad) {
+    await _ensurePageAvailable(docHandle, pageIndex);
+    pages.push(_loadPageMetadata(docHandle, pageIndex));
+  }
+  return { pages, missingFonts: missingFonts[docHandle] };
+}
+
+/**
+ * @param {number} docHandle
+ * @param {number} pageIndex
+ * @returns {PdfPage}
+ */
+function _loadPageMetadata(docHandle, pageIndex) {
+  const pageHandle = Pdfium.wasmExports.FPDF_LoadPage(docHandle, pageIndex);
+  if (!pageHandle) {
+    const error = Pdfium.wasmExports.FPDF_GetLastError();
+    throw new Error(`FPDF_LoadPage failed (${_getErrorMessage(error)})`);
+  }
+  const rectBuffer = Pdfium.wasmExports.malloc(4 * 4);
+  try {
+    Pdfium.wasmExports.FPDF_GetPageBoundingBox(pageHandle, rectBuffer);
+    const rect = new Float32Array(Pdfium.memory.buffer, rectBuffer, 4);
+    const bbLeft = rect[0];
+    const bbBottom = rect[3];
+    return {
+      pageIndex: pageIndex,
+      width: Pdfium.wasmExports.FPDF_GetPageWidthF(pageHandle),
+      height: Pdfium.wasmExports.FPDF_GetPageHeightF(pageHandle),
+      rotation: Pdfium.wasmExports.FPDFPage_GetRotation(pageHandle),
+      isLoaded: true,
+      bbLeft,
+      bbBottom,
+    };
+  } finally {
+    Pdfium.wasmExports.free(rectBuffer);
+    Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
+  }
 }
 
 /**
@@ -739,6 +1628,7 @@ function closeDocument(params) {
   Pdfium.wasmExports.FPDF_CloseDocument(params.docHandle);
   disposers[params.docHandle]();
   delete disposers[params.docHandle];
+  delete missingFonts[params.docHandle];
   return { message: 'Document closed' };
 }
 
@@ -788,7 +1678,8 @@ function _getOutlineNodeSiblings(bookmark, docHandle) {
  * @param {{docHandle: number, pageIndex: number}} params
  * @return {number} Page handle
  */
-function loadPage(params) {
+async function loadPage(params) {
+  await _ensurePageAvailable(params.docHandle, params.pageIndex);
   const pageHandle = Pdfium.wasmExports.FPDF_LoadPage(params.docHandle, params.pageIndex);
   if (!pageHandle) {
     throw new Error(`Failed to load page ${params.pageIndex} from document ${params.docHandle}`);
@@ -816,13 +1707,19 @@ function closePage(params) {
  * fullWidth: number,
  * fullHeight: number,
  * backgroundColor: number,
+ * rotation: number,
  * annotationRenderingMode: number,
  * flags: number,
  * formHandle: number
  * }} params
- * @returns
+ * @returns {{
+ * imageData: ArrayBuffer,
+ * width: number,
+ * height: number,
+ * missingFonts: FontQueries
+ * }}
  */
-function renderPage(params) {
+async function renderPage(params) {
   const {
     docHandle,
     pageIndex,
@@ -833,6 +1730,7 @@ function renderPage(params) {
     fullWidth = width,
     fullHeight = height,
     backgroundColor,
+    rotation,
     annotationRenderingMode = 0,
     flags = 0,
     formHandle,
@@ -843,6 +1741,8 @@ function renderPage(params) {
   let bitmap = 0;
 
   try {
+    _resetMissingFonts();
+    await _ensurePageAvailable(docHandle, pageIndex);
     pageHandle = Pdfium.wasmExports.FPDF_LoadPage(docHandle, pageIndex);
     if (!pageHandle) {
       throw new Error(`Failed to load page ${pageIndex} from document ${docHandle}`);
@@ -864,38 +1764,89 @@ function renderPage(params) {
     const FPDF_ANNOT = 1;
     const PdfAnnotationRenderingMode_none = 0;
     const PdfAnnotationRenderingMode_annotationAndForms = 2;
+    const premultipliedAlpha = 0x80000000;
 
-    Pdfium.wasmExports.FPDF_RenderPageBitmap(
-      bitmap,
-      pageHandle,
-      -x,
-      -y,
-      fullWidth,
-      fullHeight,
-      0,
-      flags | (annotationRenderingMode !== PdfAnnotationRenderingMode_none ? FPDF_ANNOT : 0)
-    );
+    const pdfiumFlags =
+      (flags & 0xffff) | (annotationRenderingMode !== PdfAnnotationRenderingMode_none ? FPDF_ANNOT : 0);
+    Pdfium.wasmExports.FPDF_RenderPageBitmap(bitmap, pageHandle, -x, -y, fullWidth, fullHeight, rotation, pdfiumFlags);
 
     if (formHandle && annotationRenderingMode == PdfAnnotationRenderingMode_annotationAndForms) {
-      Pdfium.wasmExports.FPDF_FFLDraw(formHandle, bitmap, pageHandle, -x, -y, fullWidth, fullHeight, 0, flags);
+      Pdfium.wasmExports.FPDF_FFLDraw(
+        formHandle,
+        bitmap,
+        pageHandle,
+        -x,
+        -y,
+        fullWidth,
+        fullHeight,
+        rotation,
+        pdfiumFlags,
+      );
+    }
+    const src = new Uint8Array(Pdfium.memory.buffer, bufferPtr, bufferSize);
+    let copiedBuffer = new ArrayBuffer(bufferSize);
+    let dest = new Uint8Array(copiedBuffer);
+    if (flags & premultipliedAlpha) {
+      for (let i = 0; i < src.length; i += 4) {
+        const a = src[i + 3];
+        dest[i] = (src[i] * a + 128) >> 8;
+        dest[i + 1] = (src[i + 1] * a + 128) >> 8;
+        dest[i + 2] = (src[i + 2] * a + 128) >> 8;
+        dest[i + 3] = a;
+      }
+    } else {
+      dest.set(src);
     }
 
-    let copiedBuffer = new ArrayBuffer(bufferSize);
-    let b = new Uint8Array(copiedBuffer);
-    b.set(new Uint8Array(Pdfium.memory.buffer, bufferPtr, bufferSize));
+    // Preserve the raw rendering behavior for transparent and premultiplied images.
+    const useBitmap = (flags & 0x40000000) && !(flags & premultipliedAlpha) && (backgroundColor >>> 24) === 255;
+    const imageBitmap = useBitmap ? _createImageBitmapFromBgra(src, width, height) : null;
+
+    _updateMissingFonts(docHandle);
 
     return {
       result: {
         imageData: copiedBuffer,
+        imageBitmap: imageBitmap,
         width: width,
         height: height,
+        missingFonts: missingFonts[docHandle],
       },
-      transfer: [copiedBuffer],
+      transfer: imageBitmap ? [copiedBuffer, imageBitmap] : [copiedBuffer],
     };
   } finally {
     Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
     Pdfium.wasmExports.FPDFBitmap_Destroy(bitmap);
     Pdfium.wasmExports.free(bufferPtr);
+  }
+}
+
+/**
+ * Converts PDFium's (non-premultiplied) BGRA output into an ImageBitmap, so the main thread can hand it to the
+ * renderer without touching pixels (`ui_web.createImageFromImageBitmap`). Returns null where OffscreenCanvas is
+ * unavailable or the canvas cannot be allocated; callers then fall back to the BGRA buffer.
+ * @param {Uint8Array} src BGRA pixels
+ * @param {number} width
+ * @param {number} height
+ * @returns {ImageBitmap|null}
+ */
+function _createImageBitmapFromBgra(src, width, height) {
+  if (typeof OffscreenCanvas === 'undefined' || typeof ImageData === 'undefined') return null;
+  try {
+    const rgba = new Uint8ClampedArray(width * height * 4);
+    const s32 = new Uint32Array(src.buffer, src.byteOffset, width * height);
+    const d32 = new Uint32Array(rgba.buffer);
+    for (let i = 0; i < d32.length; i++) {
+      const p = s32[i];
+      d32[i] = (p & 0xff00ff00) | ((p & 0xff) << 16) | ((p >>> 16) & 0xff); // BGRA -> RGBA (little endian)
+    }
+    const canvas = new OffscreenCanvas(width, height);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.putImageData(new ImageData(rgba, width, height), 0, 0);
+    return canvas.transferToImageBitmap();
+  } catch (e) {
+    return null;
   }
 }
 
@@ -906,179 +1857,44 @@ function _memset(ptr, value, num) {
   }
 }
 
-const CR = 0x0d,
-  LF = 0x0a,
-  SPC = 0x20;
-
 /**
  *
  * @param {{pageIndex: number, docHandle: number}} params
- * @returns {{fullText: string, charRects: number[][], fragments: number[]}}
+ * @returns {{fullText: string, charRects: number[][], missingFonts: FontQueries}}
  */
-function loadText(params) {
+async function loadText(params) {
+  _resetMissingFonts();
   const { pageIndex, docHandle } = params;
+  await _ensurePageAvailable(docHandle, pageIndex);
   const pageHandle = Pdfium.wasmExports.FPDF_LoadPage(docHandle, pageIndex);
   const textPage = Pdfium.wasmExports.FPDFText_LoadPage(pageHandle);
-  if (textPage == null) return { fullText: '', charRects: [], fragments: [] };
-  const charCount = Pdfium.wasmExports.FPDFText_CountChars(textPage);
-  /** @type {number[][]} */
-  const charRects = [];
-  /** @type {number[]} */
-  const fragments = [];
-  const fullText = _loadTextInternal(textPage, 0, charCount, charRects, fragments);
-  Pdfium.wasmExports.FPDFText_ClosePage(textPage);
-  Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
-  return { fullText, charRects, fragments };
-}
+  if (textPage == null) return { fullText: '' };
 
-/**
- * @param {number} textPage
- * @param {number} from
- * @param {number} length
- * @param {number[][]} charRects
- * @param {number[]} fragments
- * @returns
- */
-function _loadTextInternal(textPage, from, length, charRects, fragments) {
-  const fullText = _getText(textPage, from, length);
+  const count = Pdfium.wasmExports.FPDFText_CountChars(textPage);
+  let fullText = '';
+
   const rectBuffer = Pdfium.wasmExports.malloc(8 * 4); // double[4]
-  const sb = {
-    str: '',
-    push(text) {
-      this.str += text;
-    },
-    get length() {
-      return this.str.length;
-    },
-  };
-  let lineStart = 0,
-    wordStart = 0;
-  let lastChar;
-  for (let i = 0; i < length; i++) {
-    const char = fullText.charCodeAt(i);
-    if (char == CR) {
-      if (i + 1 < length && fullText.codePointAt(i + 1) == LF) {
-        lastChar = char;
-        continue;
-      }
-    }
-    if (char === CR || char === LF) {
-      if (_makeLineFlat(charRects, lineStart, sb.length, sb)) {
-        sb.push('\r\n');
-        _appendDummy(charRects);
-        _appendDummy(charRects);
-        fragments.push(sb.length - wordStart);
-        lineStart = wordStart = sb.length;
-      }
-      lastChar = char;
-      continue;
-    }
-
+  const rect = new Float64Array(Pdfium.memory.buffer, rectBuffer, 4);
+  let charRects = [];
+  for (let i = 0; i < count; i++) {
+    fullText += String.fromCodePoint(Pdfium.wasmExports.FPDFText_GetUnicode(textPage, i));
     Pdfium.wasmExports.FPDFText_GetCharBox(
       textPage,
-      from + i,
+      i,
       rectBuffer, // L
       rectBuffer + 8 * 2, // R
       rectBuffer + 8 * 3, // B
-      rectBuffer + 8
-    ); // T
-    const rect = Array.from(new Float64Array(Pdfium.memory.buffer, rectBuffer, 4));
-    if (char === SPC) {
-      if (lastChar == SPC) continue;
-      if (sb.length > wordStart) {
-        fragments.push(sb.length - wordStart);
-      }
-      sb.push(String.fromCharCode(char));
-      charRects.push(rect);
-      fragments.push(1);
-      wordStart = sb.length;
-      lastChar = char;
-      continue;
-    }
-
-    if (sb.length > lineStart) {
-      const columnHeightThreshold = 72.0; // 1 inch
-      const prev = charRects[charRects.length - 1];
-      if (prev[0] > rect[0] || prev[3] + columnHeightThreshold < rect[3]) {
-        if (_makeLineFlat(charRects, lineStart, sb.length, sb)) {
-          if (sb.length > wordStart) {
-            fragments.push(sb.length - wordStart);
-          }
-          lineStart = wordStart = sb.length;
-        }
-      }
-    }
-
-    sb.push(String.fromCharCode(char));
-    charRects.push(rect);
-    lastChar = char;
+      rectBuffer + 8 // T
+    );
+    charRects.push(Array.from(rect));
   }
-
-  if (_makeLineFlat(charRects, lineStart, sb.length, sb)) {
-    if (sb.length > wordStart) {
-      fragments.push(sb.length - wordStart);
-    }
-  }
-
   Pdfium.wasmExports.free(rectBuffer);
-  return sb.str;
-}
 
-function _appendDummy(rects, width = 1) {
-  if (rects.length === 0) return;
-  const last = rects[rects.length - 1];
-  rects.push([last[0], last[1], last[2] + width, last[3]]);
-}
+  Pdfium.wasmExports.FPDFText_ClosePage(textPage);
+  Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
 
-/// return true if any meaningful characters in the line (start -> end)
-function _makeLineFlat(rects, start, end, sb) {
-  if (start >= end) return false;
-  const str = sb.str;
-  const bounds = _boundingRect(rects, start, end);
-  let prev;
-  for (let i = start; i < end; i++) {
-    const rect = rects[i];
-    const char = str.codePointAt(i);
-    if (char === SPC) {
-      const next = i + 1 < end ? rects[i + 1][0] : null;
-      rects[i] = [prev != null ? prev : rect[0], bounds[1], next != null ? next : rect[2], bounds[3]];
-      prev = null;
-    } else {
-      rects[i] = [prev != null ? prev : rect[0], bounds[1], rect[2], bounds[3]];
-      prev = rect[2]; // right
-    }
-  }
-  return true;
-}
-
-function _boundingRect(rects, start, end) {
-  let l = Number.MAX_VALUE,
-    t = 0,
-    r = 0,
-    b = Number.MAX_VALUE;
-  for (let i = start; i < end; i++) {
-    const rect = rects[i];
-    l = Math.min(l, rect[0]);
-    t = Math.max(t, rect[1]);
-    r = Math.max(r, rect[2]);
-    b = Math.min(b, rect[3]);
-  }
-  return [l, t, r, b];
-}
-
-function _getText(textPage, from, length) {
-  const count = Pdfium.wasmExports.FPDFText_CountChars(textPage);
-  let sb = '';
-  for (let i = 0; i < count; i++) {
-    sb += String.fromCodePoint(Pdfium.wasmExports.FPDFText_GetUnicode(textPage, i));
-  }
-  return sb;
-
-  // const textBuffer = Pdfium.wasmExports.malloc(length * 2 + 2);
-  // const count = Pdfium.wasmExports.FPDFText_GetText(textPage, from, length, textBuffer);
-  // const text = StringUtils.utf16BytesToString(new Uint8Array(Pdfium.memory.buffer, textBuffer, count * 2));
-  // Pdfium.wasmExports.free(textBuffer);
-  // return text;
+  _updateMissingFonts(docHandle);
+  return { fullText, charRects, missingFonts: missingFonts[docHandle] };
 }
 
 /**
@@ -1090,11 +1906,9 @@ function _getText(textPage, from, length) {
  * @param {{docHandle: number, pageIndex: number, enableAutoLinkDetection: boolean}} params
  * @returns {{links: Array<PdfUrlLink|PdfDestLink>}}
  */
-function loadLinks(params) {
-  const links = [
-    ..._loadAnnotLinks(params), 
-    ...(params.enableAutoLinkDetection ? _loadWebLinks(params) : []),
-  ];
+async function loadLinks(params) {
+  await _ensurePageAvailable(params.docHandle, params.pageIndex);
+  const links = [..._loadAnnotLinks(params), ...(params.enableAutoLinkDetection ? _loadWebLinks(params) : [])];
   return {
     links: links,
   };
@@ -1156,20 +1970,31 @@ function _loadAnnotLinks(params) {
   const { pageIndex, docHandle } = params;
   const pageHandle = Pdfium.wasmExports.FPDF_LoadPage(docHandle, pageIndex);
   const count = Pdfium.wasmExports.FPDFPage_GetAnnotCount(pageHandle);
-  const rectF = Pdfium.wasmExports.malloc(4 * 4); // float[4]
+  const rectF = Pdfium.wasmExports.malloc(4 * 4);
   const links = [];
   for (let i = 0; i < count; i++) {
     const annot = Pdfium.wasmExports.FPDFPage_GetAnnot(pageHandle, i);
     Pdfium.wasmExports.FPDFAnnot_GetRect(annot, rectF);
     const [l, t, r, b] = new Float32Array(Pdfium.memory.buffer, rectF, 4);
     const rect = [l, t > b ? t : b, r, t > b ? b : t];
+
+    const annotation = _getAnnotationContent(annot);
+
     const dest = _processAnnotDest(annot, docHandle);
     if (dest) {
-      links.push({ rects: [rect], dest: _pdfDestFromDest(dest, docHandle) });
+      links.push({
+        rects: [rect],
+        dest: _pdfDestFromDest(dest, docHandle),
+        annotation: annotation,
+      });
     } else {
       const url = _processAnnotLink(annot, docHandle);
-      if (url) {
-        links.push({ rects: [rect], url: url });
+      if (url || annotation) {
+        links.push({
+          rects: [rect],
+          url: url,
+          annotation: annotation,
+        });
       }
     }
     Pdfium.wasmExports.FPDFPage_CloseAnnot(annot);
@@ -1177,6 +2002,58 @@ function _loadAnnotLinks(params) {
   Pdfium.wasmExports.free(rectF);
   Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
   return links;
+}
+
+/**
+ * @typedef {{title: string|null, content: string|null, modificationDate: string|null, creationDate: string|null, subject: string|null}} PdfAnnotationContent
+ */
+
+/**
+ * Get annotation content with all metadata fields
+ * @param {number} annot Annotation handle
+ * @returns {PdfAnnotationContent|null} Annotation object or null if no content
+ */
+function _getAnnotationContent(annot) {
+  const title = _getAnnotField('T', annot); // Title (Author)
+  const content = _getAnnotField('Contents', annot); // Content
+  const modDate = _getAnnotField('M', annot); // Modification date
+  const creationDate = _getAnnotField('CreationDate', annot); // Creation date
+  const subject = _getAnnotField('Subj', annot); // Subject
+  if (!title && !content && !modDate && !creationDate && !subject) {
+    return null;
+  }
+
+  return {
+    title: title,
+    content: content,
+    modificationDate: modDate,
+    creationDate: creationDate,
+    subject: subject,
+  };
+}
+
+/**
+ * Helper function to get annotation field value
+ * @param {string} fieldName PDF annotation field name
+ * @returns {string|null}
+ */
+function _getAnnotField(fieldName, annot) {
+  const key = StringUtils.allocateUTF8(fieldName);
+  try {
+    const length = Pdfium.wasmExports.FPDFAnnot_GetStringValue(annot, key, null, 0);
+    if (length <= 0) return null;
+
+    const buffer = Pdfium.wasmExports.malloc(length * 2);
+    try {
+      Pdfium.wasmExports.FPDFAnnot_GetStringValue(annot, key, buffer, length);
+      const value = StringUtils.utf16BytesToString(new Uint8Array(Pdfium.memory.buffer, buffer, length * 2));
+      return value && value.trim() !== '' ? value : null;
+    } finally {
+      Pdfium.wasmExports.free(buffer);
+    }
+  } finally {
+    StringUtils.freeUTF8(key);
+  }
 }
 
 /**
@@ -1253,12 +2130,821 @@ function _pdfDestFromDest(dest, docHandle) {
 }
 
 /**
+ * Install the system font info in PDFium.
+ */
+async function _installFontMapper() {
+  if (pdfFontMapper) return;
+  const fontMapper = new PdfFontMapper();
+  fontMapper.install();
+  pdfFontMapper = fontMapper;
+  Pdfium.wasmExports.FPDF_SetSystemFontInfo(fontMapper.sysFontInfo);
+  await _reloadFontCache();
+}
+
+async function _reloadFontCache() {
+  for (const font of await PdfFontPersistentCache.instance.loadAll()) {
+    pdfFontMapper?.addFontData(font);
+  }
+}
+
+/**
+ * Reload fonts into the current mapper.
+ */
+async function reloadFonts() {
+  console.log('Reloading fonts in PDFium font mapper...');
+  await _reloadFontCache();
+  return { message: 'Fonts reloaded' };
+}
+let pdfFontMapper = null;
+
+const fontNamesToIgnore = {
+  Symbol: true,
+  ZapfDingbats: true,
+};
+
+class PdfFontPersistentCache {
+  static instance = new PdfFontPersistentCache();
+
+  constructor() {
+    this.dbName = 'pdfrx.fonts';
+    this.storeName = 'fonts';
+    this.dbPromise = null;
+  }
+
+  async open() {
+    if (this.dbPromise) return this.dbPromise;
+    if (!self.indexedDB) {
+      this.dbPromise = Promise.resolve(null);
+      return this.dbPromise;
+    }
+    this.dbPromise = new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          db.createObjectStore(this.storeName, { keyPath: 'face' });
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+      request.onblocked = () => reject(new Error(`Opening IndexedDB ${this.dbName} was blocked.`));
+    }).catch((error) => {
+      console.warn('Failed to open font cache database:', error);
+      return null;
+    });
+    return this.dbPromise;
+  }
+
+  async loadAll() {
+    const db = await this.open();
+    if (!db) return [];
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(this.storeName, 'readonly');
+      const request = transaction.objectStore(this.storeName).getAll();
+      request.onsuccess = () => resolve(request.result ?? []);
+      request.onerror = () => reject(request.error);
+      transaction.onerror = () => reject(transaction.error);
+    }).catch((error) => {
+      console.warn('Failed to load cached fonts:', error);
+      return [];
+    });
+  }
+
+  async put({ face, data, resolvedFace }) {
+    const db = await this.open();
+    if (!db) return;
+    const storedData = data instanceof ArrayBuffer ? data.slice(0) : data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(this.storeName, 'readwrite');
+      transaction.objectStore(this.storeName).put({ face, resolvedFace, data: storedData });
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    }).catch((error) => {
+      console.warn(`Failed to store cached font "${face}":`, error);
+    });
+  }
+
+  async clear() {
+    const db = await this.open();
+    if (!db) return;
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(this.storeName, 'readwrite');
+      transaction.objectStore(this.storeName).clear();
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    }).catch((error) => {
+      console.warn('Failed to clear cached fonts:', error);
+    });
+  }
+}
+
+class PdfFontMapper {
+  constructor() {
+    this.sysFontInfo = Pdfium.wasmExports.malloc(9 * 4);
+    new Int32Array(Pdfium.memory.buffer, this.sysFontInfo, 9).fill(0);
+    new Int32Array(Pdfium.memory.buffer, this.sysFontInfo, 1)[0] = 2;
+    this.missingFonts = {};
+    this.cachedFontsByFace = {};
+    this.mappedFonts = {};
+    this.aliases = {};
+    this.functionPointers = [];
+    this.nextMappedFontHandle = 1;
+  }
+
+  install() {
+    const sysFontInfo = new Int32Array(Pdfium.memory.buffer, this.sysFontInfo, 9);
+    sysFontInfo[3] = this._addFunction(
+      (pThis, weight, bItalic, charset, pitchFamily, face, bExact) =>
+        this.mapFont(pThis, weight, bItalic, charset, pitchFamily, face, bExact),
+      'iiiiiiii'
+    );
+    sysFontInfo[5] = this._addFunction(
+      (pThis, hFont, table, buffer, bufSize) => this.getFontData(pThis, hFont, table, buffer, bufSize),
+      'iiiiii'
+    );
+    sysFontInfo[6] = this._addFunction((pThis, hFont, buffer, bufSize) => this.getFaceName(pThis, hFont, buffer, bufSize), 'iiiii');
+    sysFontInfo[7] = this._addFunction((pThis, hFont) => this.getFontCharset(pThis, hFont), 'iii');
+    sysFontInfo[8] = this._addFunction((pThis, hFont) => this.deleteFont(pThis, hFont), 'vii');
+  }
+
+  dispose() {
+    this.mappedFonts = {};
+    for (const pointer of this.functionPointers) {
+      Pdfium.removeFunction(pointer);
+    }
+    this.functionPointers = [];
+    Pdfium.wasmExports.free(this.sysFontInfo);
+  }
+
+  _addFunction(func, sig) {
+    const pointer = Pdfium.addFunction(func, sig);
+    this.functionPointers.push(pointer);
+    return pointer;
+  }
+
+  addFontData({ face, data, resolvedFace }) {
+    const font = { face, resolvedFace, data: new Uint8Array(data), charset: null };
+    this.cachedFontsByFace[face] = font;
+    if (resolvedFace && resolvedFace !== face) {
+      this.aliases[face] = resolvedFace;
+      this.cachedFontsByFace[resolvedFace] = font;
+    }
+    delete this.missingFonts[face];
+    delete lastMissingFonts[face];
+  }
+
+  clear() {
+    this.cachedFontsByFace = {};
+    this.aliases = {};
+    this.missingFonts = {};
+  }
+
+  getAndClearMissingFonts() {
+    const result = this.missingFonts;
+    this.missingFonts = {};
+    return result;
+  }
+
+  mapFont(_pThis, weight, bItalic, charset, pitchFamily, face, bExact) {
+    const faceName = StringUtils.utf8BytesToString(new Uint8Array(Pdfium.memory.buffer, face));
+    const cachedFont = this.cachedFontsByFace[faceName] ?? this.cachedFontsByFace[this.aliases[faceName]];
+    if (cachedFont) {
+      cachedFont.charset ??= charset;
+      if (bExact) new Int32Array(Pdfium.memory.buffer, bExact, 1)[0] = 1;
+      return this._createMappedFontHandle(cachedFont);
+    }
+    if (!fontNamesToIgnore[faceName] && !this.missingFonts[faceName]) {
+      this.missingFonts[faceName] = {
+        face: faceName,
+        weight: weight,
+        italic: !!bItalic,
+        charset: charset,
+        pitchFamily: pitchFamily,
+      };
+      lastMissingFonts[faceName] = this.missingFonts[faceName];
+    }
+    return 0;
+  }
+
+  getFontData(_pThis, hFont, table, buffer, bufSize) {
+    const font = this.mappedFonts[hFont];
+    if (!font) return 0;
+    const data = table === 0 ? font.data : getFontTableData(font.data, table);
+    if (!data) return 0;
+    if (!buffer || bufSize < data.byteLength) return data.byteLength;
+    new Uint8Array(Pdfium.memory.buffer, buffer, data.byteLength).set(data);
+    return data.byteLength;
+  }
+
+  getFaceName(_pThis, hFont, buffer, bufSize) {
+    const font = this.mappedFonts[hFont];
+    if (!font) return 0;
+    const name = font.resolvedFace ?? font.face;
+    const length = StringUtils.lengthBytesUTF8(name) + 1;
+    if (!buffer || bufSize < length) return length;
+    StringUtils.stringToUtf8Bytes(name, new Uint8Array(Pdfium.memory.buffer, buffer, length));
+    return length;
+  }
+
+  getFontCharset(_pThis, hFont) {
+    const font = this.mappedFonts[hFont];
+    return font?.charset ?? 1;
+  }
+
+  deleteFont(_pThis, hFont) {
+    if (!this.mappedFonts[hFont]) return;
+    delete this.mappedFonts[hFont];
+  }
+
+  _createMappedFontHandle(font) {
+    const handle = this.nextMappedFontHandle++;
+    this.mappedFonts[handle] = font;
+    return handle;
+  }
+}
+
+function getFontTableData(data, table) {
+  const fontOffset = getFontOffset(data);
+  if (fontOffset === null || fontOffset + 12 > data.byteLength) return null;
+  const numTables = readUint16(data, fontOffset + 4);
+  let tableRecordOffset = fontOffset + 12;
+  for (let i = 0; i < numTables; i++) {
+    if (tableRecordOffset + 16 > data.byteLength) return null;
+    if (readUint32(data, tableRecordOffset) === table) {
+      const offset = readUint32(data, tableRecordOffset + 8);
+      const length = readUint32(data, tableRecordOffset + 12);
+      if (offset + length > data.byteLength) return null;
+      return data.subarray(offset, offset + length);
+    }
+    tableRecordOffset += 16;
+  }
+  return null;
+}
+
+function getFontOffset(data) {
+  if (data.byteLength < 12) return null;
+  const ttcTag = 0x74746366;
+  if (readUint32(data, 0) !== ttcTag) return 0;
+  if (data.byteLength < 16) return null;
+  const numFonts = readUint32(data, 8);
+  if (numFonts < 1) return null;
+  const offset = readUint32(data, 12);
+  if (offset >= data.byteLength) return null;
+  return offset;
+}
+
+function readUint16(data, offset) {
+  return (data[offset] << 8) | data[offset + 1];
+}
+
+function readUint32(data, offset) {
+  return (data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | data[offset + 3];
+}
+
+/**
+ * Add font data to the font cache.
+ * @param {{face: string, data: ArrayBuffer, resolvedFace: string|undefined}} params
+ */
+async function addFontData(params) {
+  console.log(`Adding font data for face: ${params.face}`);
+  const { face, data, resolvedFace } = params;
+  pdfFontMapper?.addFontData({ face, data, resolvedFace });
+  await PdfFontPersistentCache.instance.put({ face, data, resolvedFace });
+  return { message: `Font ${face} added`, face: face };
+}
+
+async function clearAllFontData() {
+  console.log(`Clearing all font data`);
+  pdfFontMapper?.clear();
+  await PdfFontPersistentCache.instance.clear();
+  return { message: 'All font data cleared' };
+}
+
+/**
+ * Assemble the document (apply page manipulations if any)
+ * @param {{docHandle: number, pageIndices: number[]|undefined, importedPages: Object.<number, {docHandle: number, pageNumber: number}>|undefined, rotations: (number|null)[]|undefined}} params
+ * @returns {{modified: boolean}}
+ */
+function assemble(params) {
+  const { docHandle, pageIndices, importedPages, rotations } = params;
+
+  // If no page indices specified, no modifications needed
+  if (!pageIndices || pageIndices.length === 0) {
+    return { modified: false };
+  }
+
+  const originalLength = Pdfium.wasmExports.FPDF_GetPageCount(docHandle);
+
+  // Check if there are any changes
+  let hasChanges = pageIndices.length !== originalLength;
+  if (!hasChanges) {
+    for (let i = 0; i < pageIndices.length; i++) {
+      if (pageIndices[i] !== i) {
+        hasChanges = true;
+        break;
+      }
+    }
+  }
+
+  // Check for rotation changes
+  if (!hasChanges && rotations) {
+    for (let i = 0; i < rotations.length; i++) {
+      if (rotations[i] != null) {
+        hasChanges = true;
+        break;
+      }
+    }
+  }
+
+  if (!hasChanges) {
+    return { modified: false };
+  }
+
+  // Perform the shuffle using the PDFium page manipulation functions
+  _shuffleInPlaceAccordingToIndices(docHandle, pageIndices, originalLength, importedPages);
+
+  // Apply rotations if specified
+  if (rotations) {
+    for (let i = 0; i < rotations.length; i++) {
+      const rotation = rotations[i];
+      if (rotation != null) {
+        const page = Pdfium.wasmExports.FPDF_LoadPage(docHandle, i);
+        Pdfium.wasmExports.FPDFPage_SetRotation(page, rotation);
+        Pdfium.wasmExports.FPDF_ClosePage(page);
+      }
+    }
+  }
+
+  return { modified: true };
+}
+
+/**
+ * Internal class to track page tokens during shuffling
+ */
+class _ArrayOfItemsToken {
+  /**
+   * @param {number|null} originalIndex
+   * @param {boolean} isOriginal
+   */
+  constructor(originalIndex, isOriginal) {
+    this.originalIndex = originalIndex;
+    this.isOriginal = isOriginal;
+  }
+}
+
+/**
+ * Shuffle pages in place according to the given list of resulting item indices
+ * @param {number} docHandle Document handle
+ * @param {number[]} resultingItemIndices Array of page indices representing the desired order
+ * @param {number} originalLength Original number of pages
+ * @param {Object.<number, {docHandle: number, pageNumber: number}>|undefined} importedPages Map of negative indices to import info
+ */
+function _shuffleInPlaceAccordingToIndices(docHandle, resultingItemIndices, originalLength, importedPages) {
+  if (resultingItemIndices.length === 0) {
+    if (originalLength > 0) {
+      _removePages(docHandle, 0, originalLength);
+    }
+    return;
+  }
+
+  const tokens = [];
+  for (let i = 0; i < originalLength; i++) {
+    tokens.push(new _ArrayOfItemsToken(i, true));
+  }
+
+  // Count usage of each original page
+  const usageCounts = new Array(originalLength).fill(0);
+  for (let i = 0; i < resultingItemIndices.length; i++) {
+    const index = resultingItemIndices[i];
+    if (index >= 0) {
+      if (index >= originalLength) {
+        throw new Error(`resultingItemIndices[${i}] = ${index} is out of range for current length ${originalLength}`);
+      }
+      usageCounts[index]++;
+    }
+  }
+
+  // Remove unused pages (from end to beginning to maintain indices)
+  for (let i = originalLength - 1; i >= 0; i--) {
+    if (usageCounts[i] === 0) {
+      _removePages(docHandle, i, 1);
+      tokens.splice(i, 1);
+    }
+  }
+
+  const placedCounts = new Array(originalLength).fill(0);
+  let currentIndex = 0;
+
+  while (currentIndex < resultingItemIndices.length) {
+    if (currentIndex > tokens.length) {
+      throw new Error(`Destination index ${currentIndex} is out of range for current length ${tokens.length}.`);
+    }
+
+    const target = resultingItemIndices[currentIndex];
+    if (target >= 0) {
+      const isFirst = placedCounts[target] === 0;
+      if (isFirst) {
+        // Find the original page
+        let fromIndex = -1;
+        for (let i = 0; i < tokens.length; i++) {
+          if (tokens[i].originalIndex === target && tokens[i].isOriginal) {
+            fromIndex = i;
+            break;
+          }
+        }
+        if (fromIndex === -1) {
+          throw new Error(`Item at index ${target} could not be found for initial placement.`);
+        }
+
+        // Try to find consecutive pages to move as a chunk
+        let chunkLength = 1;
+        while (currentIndex + chunkLength < resultingItemIndices.length && fromIndex + chunkLength < tokens.length) {
+          const nextTarget = resultingItemIndices[currentIndex + chunkLength];
+          if (nextTarget < 0 || placedCounts[nextTarget] > 0) break;
+          const nextToken = tokens[fromIndex + chunkLength];
+          if (!nextToken.isOriginal || nextToken.originalIndex !== nextTarget) break;
+          chunkLength++;
+        }
+
+        let placementIndex = currentIndex;
+        if (fromIndex !== currentIndex) {
+          const removalIndices = [];
+          for (let offset = 0; offset < chunkLength; offset++) {
+            removalIndices.push(fromIndex + offset);
+          }
+
+          _movePages(docHandle, fromIndex, currentIndex, chunkLength);
+
+          // Update tokens
+          const removedTokens = [];
+          for (let i = removalIndices.length - 1; i >= 0; i--) {
+            removedTokens.unshift(tokens.splice(removalIndices[i], 1)[0]);
+          }
+
+          let insertIndex = currentIndex;
+          for (const index of removalIndices) {
+            if (index < currentIndex) {
+              insertIndex--;
+            }
+          }
+          if (insertIndex < 0) insertIndex = 0;
+          if (insertIndex > tokens.length) insertIndex = tokens.length;
+          tokens.splice(insertIndex, 0, ...removedTokens);
+          placementIndex = insertIndex;
+        }
+
+        for (let offset = 0; offset < chunkLength; offset++) {
+          const token = tokens[placementIndex + offset];
+          if (token.originalIndex !== null) {
+            placedCounts[token.originalIndex]++;
+          }
+        }
+        currentIndex += chunkLength;
+        continue;
+      } else {
+        // Duplicate page
+        let sourceIndex = -1;
+        for (let i = 0; i < tokens.length; i++) {
+          if (tokens[i].originalIndex === target) {
+            sourceIndex = i;
+            break;
+          }
+        }
+        if (sourceIndex === -1) {
+          throw new Error(`Item at index ${target} could not be found for duplication.`);
+        }
+        _duplicatePages(docHandle, sourceIndex, currentIndex, 1);
+        tokens.splice(currentIndex, 0, new _ArrayOfItemsToken(target, false));
+        placedCounts[target]++;
+      }
+    } else {
+      // Negative index means importing from another document
+      if (!importedPages || !importedPages[target]) {
+        throw new Error(`Imported page info not found for negative index ${target}`);
+      }
+      const importInfo = importedPages[target];
+      _insertImportedPage(docHandle, importInfo.docHandle, importInfo.pageNumber, currentIndex);
+      tokens.splice(currentIndex, 0, new _ArrayOfItemsToken(null, false));
+    }
+    currentIndex++;
+  }
+
+  const expectedLength = resultingItemIndices.length;
+  if (tokens.length > expectedLength) {
+    const extra = tokens.length - expectedLength;
+    _removePages(docHandle, expectedLength, extra);
+    tokens.splice(expectedLength, extra);
+  } else if (tokens.length < expectedLength) {
+    throw new Error(`Internal length mismatch after shuffling (expected ${expectedLength}, got ${tokens.length}).`);
+  }
+}
+
+/**
+ * Move pages within a document
+ * @param {number} docHandle Document handle
+ * @param {number} fromIndex Starting index of pages to move
+ * @param {number} toIndex Destination index
+ * @param {number} count Number of pages to move
+ */
+function _movePages(docHandle, fromIndex, toIndex, count) {
+  const pageIndices = Pdfium.wasmExports.malloc(count * 4); // Int32 array
+  const pageIndicesView = new Int32Array(Pdfium.memory.buffer, pageIndices, count);
+  for (let i = 0; i < count; i++) {
+    pageIndicesView[i] = fromIndex + i;
+  }
+  Pdfium.wasmExports.FPDF_MovePages(docHandle, pageIndices, count, toIndex);
+  Pdfium.wasmExports.free(pageIndices);
+}
+
+/**
+ * Remove pages from a document
+ * @param {number} docHandle Document handle
+ * @param {number} index Starting index
+ * @param {number} count Number of pages to remove
+ */
+function _removePages(docHandle, index, count) {
+  for (let i = count - 1; i >= 0; i--) {
+    Pdfium.wasmExports.FPDFPage_Delete(docHandle, index + i);
+  }
+}
+
+/**
+ * Duplicate pages within a document
+ * @param {number} docHandle Document handle
+ * @param {number} fromIndex Index of page to duplicate
+ * @param {number} toIndex Destination index for the duplicate
+ * @param {number} count Number of pages to duplicate
+ */
+function _duplicatePages(docHandle, fromIndex, toIndex, count) {
+  const pageIndices = Pdfium.wasmExports.malloc(count * 4); // Int32 array
+  const pageIndicesView = new Int32Array(Pdfium.memory.buffer, pageIndices, count);
+  for (let i = 0; i < count; i++) {
+    pageIndicesView[i] = fromIndex + i;
+  }
+  Pdfium.wasmExports.FPDF_ImportPagesByIndex(docHandle, docHandle, pageIndices, count, toIndex);
+  Pdfium.wasmExports.free(pageIndices);
+}
+
+/**
+ * Insert a page from another document
+ * @param {number} destDocHandle Destination document handle
+ * @param {number} srcDocHandle Source document handle
+ * @param {number} srcPageIndex Source page index (0-based)
+ * @param {number} destIndex Destination index
+ */
+function _insertImportedPage(destDocHandle, srcDocHandle, srcPageIndex, destIndex) {
+  const pageIndices = Pdfium.wasmExports.malloc(4); // Int32 for one page
+  const pageIndicesView = new Int32Array(Pdfium.memory.buffer, pageIndices, 1);
+  pageIndicesView[0] = srcPageIndex;
+  Pdfium.wasmExports.FPDF_ImportPagesByIndex(destDocHandle, srcDocHandle, pageIndices, 1, destIndex);
+  Pdfium.wasmExports.free(pageIndices);
+}
+
+/**
+ * Encode PDF document to bytes
+ * @param {{docHandle: number, incremental: boolean, removeSecurity: boolean}} params
+ * @returns {{data: ArrayBuffer}}
+ */
+function encodePdf(params) {
+  const { docHandle, incremental = false, removeSecurity = false } = params;
+
+  let buffer = new Uint8Array(1024 * 1024); // Start with 1MB buffer
+  let totalSize = 0;
+
+  // Create a callback function that will be called by PDFium to write data
+  const writeCallback = Pdfium.addFunction((pThis, pData, size) => {
+    void pThis; // Suppress unused parameter warning
+
+    // Grow buffer if needed
+    if (totalSize + size > buffer.length) {
+      const newSize = Math.max(buffer.length * 2, totalSize + size);
+      const newBuffer = new Uint8Array(newSize);
+      newBuffer.set(buffer.subarray(0, totalSize));
+      buffer = newBuffer;
+    }
+
+    // Copy data directly into buffer
+    const chunk = new Uint8Array(Pdfium.memory.buffer, pData, size);
+    buffer.set(chunk, totalSize);
+    totalSize += size;
+
+    return size;
+  }, 'iiii');
+
+  try {
+    const fileWriteSize = 8; // sizeof(FPDF_FILEWRITE): version(4) + WriteBlock(4)
+    const fileWrite = Pdfium.wasmExports.malloc(fileWriteSize);
+    const fileWriteView = new Int32Array(Pdfium.memory.buffer, fileWrite, 2);
+    fileWriteView[0] = 1; // version
+    fileWriteView[1] = writeCallback; // WriteBlock function pointer
+
+    // Determine flags based on parameters
+    let flags;
+    if (removeSecurity) {
+      flags = 3; // FPDF_SAVE_NO_SECURITY(3)
+    } else {
+      flags = incremental ? 1 : 2; // FPDF_INCREMENTAL(1) or FPDF_NO_INCREMENTAL(2)
+    }
+
+    const result = Pdfium.wasmExports.FPDF_SaveAsCopy(docHandle, fileWrite, flags);
+    Pdfium.wasmExports.free(fileWrite);
+
+    if (!result) {
+      throw new Error('FPDF_SaveAsCopy failed');
+    }
+
+    // Trim to the bytes actually written: subarray would keep the whole
+    // (over-allocated, zero-padded) buffer alive behind combined.buffer.
+    const combined = buffer.slice(0, totalSize);
+
+    return {
+      result: { data: combined.buffer },
+      transfer: [combined.buffer],
+    };
+  } finally {
+    Pdfium.removeFunction(writeCallback);
+  }
+}
+
+/**
+ * Create a new empty PDF document
+ * @returns {PdfDocument|PdfError}
+ */
+function createNewDocument() {
+  const docHandle = Pdfium.wasmExports.FPDF_CreateNewDocument();
+  return _loadDocument(docHandle, false, () => {});
+}
+
+/**
+ * Create a PDF document from JPEG data
+ * @param {Object} params Parameters object
+ * @param {ArrayBuffer} params.jpegData JPEG image data
+ * @param {number} params.width Page width in PDF units
+ * @param {number} params.height Page height in PDF units
+ * @returns {PdfDocument|PdfError}
+ */
+function createDocumentFromJpegData(params) {
+  const { jpegData, width, height } = params;
+
+  if (!jpegData || !(jpegData instanceof ArrayBuffer)) {
+    return { errorCode: -1, errorCodeStr: 'Invalid JPEG data' };
+  }
+  if (typeof width !== 'number' || width <= 0) {
+    return { errorCode: -1, errorCodeStr: 'Invalid width' };
+  }
+  if (typeof height !== 'number' || height <= 0) {
+    return { errorCode: -1, errorCodeStr: 'Invalid height' };
+  }
+
+  // Create a new PDF document
+  const docHandle = Pdfium.wasmExports.FPDF_CreateNewDocument();
+  if (!docHandle) {
+    return { errorCode: -1, errorCodeStr: 'Failed to create PDF document' };
+  }
+
+  // Create a new page
+  const pageHandle = Pdfium.wasmExports.FPDFPage_New(docHandle, 0, width, height);
+  if (!pageHandle) {
+    Pdfium.wasmExports.FPDF_CloseDocument(docHandle);
+    return { errorCode: -1, errorCodeStr: 'Failed to create PDF page' };
+  }
+
+  // Create an image object
+  const imageObj = Pdfium.wasmExports.FPDFPageObj_NewImageObj(docHandle);
+  if (!imageObj) {
+    Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
+    Pdfium.wasmExports.FPDF_CloseDocument(docHandle);
+    return { errorCode: -1, errorCodeStr: 'Failed to create image object' };
+  }
+
+  // Create a FPDF_FILEACCESS structure in WASM memory
+  const fileAccessSize = 12; // sizeof(FPDF_FILEACCESS) - 3 pointers (each 4 bytes in wasm32)
+  const fileAccessPtr = Pdfium.wasmExports.malloc(fileAccessSize);
+  if (!fileAccessPtr) {
+    Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
+    Pdfium.wasmExports.FPDF_CloseDocument(docHandle);
+    return { errorCode: -1, errorCodeStr: 'Failed to allocate file access structure' };
+  }
+
+  // Set up file access structure
+  const fa = new Uint32Array(Pdfium.memory.buffer, fileAccessPtr, fileAccessSize >> 2);
+  fa[0] = jpegData.byteLength; // m_FileLen
+  const getBlockCallback = (param, position, pBuf, size) => {
+    const toCopy = Math.min(size, jpegData.byteLength - position);
+    const src = new Uint8Array(jpegData, position, toCopy);
+    const dst = new Uint8Array(Pdfium.memory.buffer, pBuf, toCopy);
+    dst.set(src);
+    return toCopy;
+  };
+  const callbackIndex = Pdfium.addFunction(getBlockCallback, 'iiiii');
+  fa[1] = callbackIndex; // m_GetBlock function pointer
+
+  // Allocate page array (pointer to single page handle)
+  const pageArrayPtr = Pdfium.wasmExports.malloc(4);
+  if (!pageArrayPtr) {
+    Pdfium.removeFunction(callbackIndex);
+    Pdfium.wasmExports.free(fileAccessPtr);
+    Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
+    Pdfium.wasmExports.FPDF_CloseDocument(docHandle);
+    return { errorCode: -1, errorCodeStr: 'Failed to allocate page array' };
+  }
+  new Int32Array(Pdfium.memory.buffer, pageArrayPtr, 1)[0] = pageHandle;
+
+  // Load JPEG data into the image object
+  const loadResult = Pdfium.wasmExports.FPDFImageObj_LoadJpegFileInline(pageArrayPtr, 1, imageObj, fileAccessPtr);
+  Pdfium.wasmExports.free(pageArrayPtr);
+  Pdfium.removeFunction(callbackIndex);
+  Pdfium.wasmExports.free(fileAccessPtr);
+
+  if (!loadResult) {
+    Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
+    Pdfium.wasmExports.FPDF_CloseDocument(docHandle);
+    return { errorCode: -1, errorCodeStr: 'Failed to load JPEG data into image object' };
+  }
+
+  // Set image transformation matrix to fill the page
+  const setMatrixResult = Pdfium.wasmExports.FPDFImageObj_SetMatrix(
+    imageObj,
+    width,  // a (horizontal scaling)
+    0,      // b (horizontal skewing)
+    0,      // c (vertical skewing)
+    height, // d (vertical scaling)
+    0,      // e (horizontal translation)
+    0       // f (vertical translation)
+  );
+
+  if (!setMatrixResult) {
+    Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
+    Pdfium.wasmExports.FPDF_CloseDocument(docHandle);
+    return { errorCode: -1, errorCodeStr: 'Failed to set image matrix' };
+  }
+
+  // Insert the image object into the page
+  Pdfium.wasmExports.FPDFPage_InsertObject(pageHandle, imageObj);
+
+  // Generate page content
+  const generateResult = Pdfium.wasmExports.FPDFPage_GenerateContent(pageHandle);
+  if (!generateResult) {
+    Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
+    Pdfium.wasmExports.FPDF_CloseDocument(docHandle);
+    return { errorCode: -1, errorCodeStr: 'Failed to generate page content' };
+  }
+
+  // Close the page (transfers ownership to document)
+  Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
+
+  // Load and return the document
+  return _loadDocument(docHandle, false, () => {});
+}
+
+/**
+ * Set pixel data for an image object
+ * @param {number} pageHandle Page handle
+ * @param {number} imageObj Image object handle
+ * @param {ArrayBuffer} pixels BGRA8888 pixel data
+ * @param {number} pixelWidth Image width in pixels
+ * @param {number} pixelHeight Image height in pixels
+ * @returns {PdfDocument|PdfError}
+ */
+function _setImageObjPixels(pageHandle, imageObj, pixels, pixelWidth, pixelHeight) {
+  const pixelDataPtr = Pdfium.wasmExports.malloc(pixels.byteLength);
+  if (!pixelDataPtr) throw new Error('Failed to allocate memory for image pixels');
+  new Uint8Array(Pdfium.memory.buffer, pixelDataPtr, pixels.byteLength).set(new Uint8Array(pixels));
+  const FPDFBitmap_BGRA = 4;
+  const bitmapHandle = Pdfium.wasmExports.FPDFBitmap_CreateEx(
+    pixelWidth,
+    pixelHeight,
+    FPDFBitmap_BGRA,
+    pixelDataPtr,
+    pixelWidth * 4
+  );
+  if (!bitmapHandle) {
+    Pdfium.wasmExports.free(pixelDataPtr);
+    throw new Error('Failed to create bitmap for image object');
+  }
+  const pageArrayPtr = Pdfium.wasmExports.malloc(4); // Allocate space for one pointer
+  new Int32Array(Pdfium.memory.buffer, pageArrayPtr, 1)[0] = pageHandle;
+  const result = Pdfium.wasmExports.FPDFImageObj_SetBitmap(pageArrayPtr, 1, imageObj, bitmapHandle);
+  Pdfium.wasmExports.free(pageArrayPtr);
+  Pdfium.wasmExports.free(pixelDataPtr);
+  Pdfium.wasmExports.FPDFBitmap_Destroy(bitmapHandle);
+  if (!result) {
+    throw new Error('Failed to set bitmap for image object');
+  }
+}
+
+/**
  * Functions that can be called from the main thread
  */
 const functions = {
   loadDocumentFromUrl,
   loadDocumentFromData,
+  createNewDocument,
+  createDocumentFromJpegData,
   loadPagesProgressively,
+  reloadPages,
   closeDocument,
   loadOutline,
   loadPage,
@@ -1266,6 +2952,11 @@ const functions = {
   renderPage,
   loadText,
   loadLinks,
+  reloadFonts,
+  addFontData,
+  clearAllFontData,
+  assemble,
+  encodePdf,
 };
 
 /**
@@ -1337,7 +3028,7 @@ async function initializePdfium(params = {}) {
       // Hot-restart or such may call this multiple times, so we can skip re-initialization
       return;
     }
-    
+
     console.log(`Loading PDFium WASM module from ${pdfiumWasmUrl}`);
 
     const fetchOptions = {
@@ -1348,13 +3039,31 @@ async function initializePdfium(params = {}) {
       fetchOptions.headers = params.headers;
     }
 
-    const result = await WebAssembly.instantiateStreaming(fetch(pdfiumWasmUrl, fetchOptions), {
-      env: emEnv,
-      wasi_snapshot_preview1: wasi,
-    });
+    let result;
+    try {
+      result = await WebAssembly.instantiateStreaming(fetch(pdfiumWasmUrl, fetchOptions), {
+        env: emEnv,
+        wasi_snapshot_preview1: wasi,
+      });
+    } catch (e) {
+      // Fallback for browsers that do not support instantiateStreaming
+      console.warn(
+        '%cWebAssembly.instantiateStreaming failed, falling back to ArrayBuffer instantiation. Consider to configure your server to serve wasm files as application/wasm',
+        'background: red; color: white',
+        e
+      );
+      const response = await fetch(pdfiumWasmUrl, fetchOptions);
+      const buffer = await response.arrayBuffer();
+      result = await WebAssembly.instantiate(buffer, {
+        env: emEnv,
+        wasi_snapshot_preview1: wasi,
+      });
+    }
 
     Pdfium.initWith(result.instance.exports);
     Pdfium.wasmExports.FPDF_InitLibrary();
+    await _installFontMapper();
+
     pdfiumInitialized = true;
 
     postMessage({ type: 'ready' });

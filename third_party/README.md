@@ -1,12 +1,13 @@
-# third_party — yamalı paket kopyaları (Faz 44, 2026-11-07)
+# third_party — yamalı paket kopyaları
 
-Flutter 3.47.9 / **Dart 3.13** await sonrası tip daraltmasını sıkılaştırdı; sabit paket
-derlenmiyor. Yeni sürümlere geçiş kendi fazında (perf kapılı) yapılacağı için şimdilik
-**birebir kopya + en küçük yama** (`pubspec.yaml` → `dependency_overrides`):
+Yukarı akışta karşılığı olmayan, **ölçümle gerekçelenmiş** en küçük yamalar
+(`pubspec.yaml` → `dependency_overrides: path:`). Paket yükseltilirken yama
+yeniden uygulanır ya da yukarı akış düzelttiyse klasör SİLİNİR (usta 4b).
 
-| Paket | Sürüm | Yama | Kalkacağı faz |
+| Paket | Sürüm | Yama | Ne zaman kalkar |
 |---|---|---|---|
-| pdfrx | 1.3.5 | `lib/src/pdfium/pdf_file_cache.dart` 351, 353: `cache` → `cache!` · `assets/pdfium.wasm` çıkarıldı (zaten `ci/prepare_android.sh` siliyordu) · `example/`, `test/`, ekran görüntüsü yok | 48 (pdfrx 2.12) |
+| pdfrx | 2.12.0 | `pdfrx/YAMA.md` (tek satır: erişilebilirlik açıkken satır başına Semantics) | yukarı akış kapatma parametresi ekleyince |
 
-Davranış değişikliği yok (değer aynı satırdan önce zaten null değil). Yükseltme fazında bu
-klasör ve override **silinir** (usta 4b).
+Kopyada yalnız `lib/`, `bin/`, `pubspec.yaml`, `LICENSE`, web `assets/*.js` var
+(`example/`, `test/`, `screenshot.jpg`, `assets/pdfium.wasm` yok — wasm'ı
+`ci/prepare_android.sh` zaten siliyordu).

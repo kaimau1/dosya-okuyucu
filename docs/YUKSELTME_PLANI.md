@@ -34,7 +34,7 @@ yürütülür. Kural seti: `GELISTIRME_PLANI.md` → **Performans Koruma Anayasa
 
 | Paket | Şimdi | En son | Engel / risk | Faz |
 |---|---|---|---|---|
-| **pdfrx** | 1.3.5 (sabit) | 2.12.0 | 2.4.8 geri alındı (yoğun PDF ~5 FPS) — §Faz 48 | 48 |
+| **pdfrx** | 2.12.0 ✅ (Faz 48, N1 yamalı kopya) | 2.12.0 | 2.4.8 geri alınmıştı; 2.12 ölçerek — `docs/perf/2026-11-48-pdfrx.md` | 48 |
 | xml | 6.6.1 | 7.1.0 | API kırılımı; 39 dosya | 45 |
 | pdf / printing | 3.12 / 5.14 | 3.13.1 / 5.15.1 | pdf 3.13 artık `xml ^7` → zinciri açıyor | 45 |
 | syncfusion pdf/core | 33.2 | 35.1.43 | `xml ^7` istiyordu (pdf tutuyordu) — artık çözülür | 45 |

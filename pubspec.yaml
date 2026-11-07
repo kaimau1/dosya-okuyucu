@@ -51,12 +51,11 @@ dependencies:
   # Görüntüleyiciler
   # PDF: pdfium tabanlı pdfrx — sayfa üzerinde METİN SEÇME/kopyalama destekler
   # (pdfx bitmap çizdiği için seçim imkânsızdı). 1.3.x = Dart 3.7/Flutter 3.29
-  # uyumlu son seri. 2.4.8 denendi (A3.2, 2026-11-02) ve 2026-11-03'te GERİ
-  # ALINDI: yoğun PDF'lerde açılış çok geç, kaydırma ~5 FPS (kullanıcı bulgusu);
-  # 2.x her karede satır başına erişilebilirlik düğümü kurar, görünen her
-  # sayfanın metnini yükler — parametreyle kapatılamıyor. Ayrıntı HAFIZA.
-  # Seçim arayüzü bizim katmanımız: widgets/pdf_select_layer.dart.
-  pdfrx: 1.3.5
+  # 2.x (Faz 48, 2026-11-08): 2.4.8'deki kasma (HAFIZA 2026-11-03) 2.12'de
+  # ölçülerek denetlendi — docs/perf/2026-11-48-pdfrx.md. Kendi metin seçimi
+  # kapalı (kPdfOwnSelectionOff); seçim arayüzü bizim katmanımız:
+  # widgets/pdf_select_layer.dart.
+  pdfrx: 2.12.0
 
   # PDF YAZMA işleri (annotation gömme, sayfa döndür/sil/sırala, form doldurma).
   # Görüntüleme yine pdfrx/pdfium; Syncfusion yalnız düzenlenmiş PDF ÜRETİR.
@@ -332,8 +331,12 @@ flutter_launcher_icons:
   # yani ikinci bir küçültmeye gerek yok: inset sıfırlanıyor.
   adaptive_icon_foreground_inset: 0
 
-# Faz 44 (Dart 3.13): sabit iki paketin yamalı kopyası — gerekçe third_party/README.md.
+# Sürüm kilidi açılmamış paketler için zorunlu geçersiz kılmalar (her satırda gerekçe).
 dependency_overrides:
+  # Faz 48: pdfrx 2.12.0 + tek satır yama (erişilebilirlik açıkken satır başına
+  # Semantics — ölçüldü). Gerekçe third_party/pdfrx/YAMA.md.
+  pdfrx:
+    path: third_party/pdfrx
   # Faz 45: webdav_client 1.2.2 (son sürüm) xml ^6'ya kilitli; yalnız
   # findAllElements(namespace:'*') + .text kullanıyor, 7'de ikisi de duruyor
   # (test/…webdav…). Paket xml 7'yi açınca bu satır silinir.
@@ -347,5 +350,3 @@ dependency_overrides:
   # aynı (SSHClient/SftpClient/SftpFileAttrs…); biz SFTP'yi doğrudan dartssh2
   # ile yapıyoruz. ftpconnect dartssh2 4'ü açınca silinir.
   dartssh2: ^4.1.0
-  pdfrx:
-    path: third_party/pdfrx
