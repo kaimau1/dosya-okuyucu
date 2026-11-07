@@ -18,9 +18,9 @@
 ///    bildirimde ilerleme, bildirimden iptal.
 ///
 /// 2026-11-07 (kullanıcı: *"kendi kendine önemli dosyalara taşıma yapıyor"*):
-/// klasör önerileri eskiden **Önemli Dosyalar/<klasör>** altına taşınıyordu —
+/// klasör önerileri eskiden `Önemli Dosyalar/<klasör>` altına taşınıyordu —
 /// "önemli" işareti (yıldız, silme koruması) kullanıcı istemeden yüzlerce
-/// dosyaya yayılıyordu. Artık hedef sıradan **Documents/<klasör>**; ad ve
+/// dosyaya yayılıyordu. Artık hedef sıradan `Documents/<klasör>`; ad ve
 /// klasör ayrı ayrı seçilir ve iş yalnız onay penceresinden başlar.
 library;
 

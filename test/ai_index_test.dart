@@ -123,7 +123,7 @@ void main() {
           suggestedFolder: 'Faturalar',
           analyzedMs: 5);
       expect(local.hasSuggestion, isFalse);
-      final ai = AiRecord(
+      const ai = AiRecord(
           path: '/a/x.pdf',
           sizeBytes: 1,
           modifiedMs: 1,
@@ -133,7 +133,7 @@ void main() {
           source: 'ai');
       expect(ai.hasFolderSuggestion, isTrue);
       expect(ai.hasSuggestion, isTrue);
-      final filed = AiRecord(
+      const filed = AiRecord(
           path: '/a/rapor_onemli.pdf',
           sizeBytes: 1,
           modifiedMs: 1,

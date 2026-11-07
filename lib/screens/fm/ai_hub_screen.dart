@@ -8,7 +8,7 @@
 ///   sonra temizleniyordu. Artık açılışta, dosya sistemi her değiştiğinde
 ///   ([FsEvents]) ve her analiz bitince `AiIndex.pruneMissing` koşar; satıra
 ///   dokununca dosya yoksa kayıt düşer.
-/// - **"Kendi kendine taşıma":** öneriler eskiden Önemli Dosyalar/<klasör>'e
+/// - **"Kendi kendine taşıma":** öneriler eskiden `Önemli Dosyalar/<klasör>`'e
 ///   taşıyordu ve yerel kural her belgeye klasör yazıyordu. Artık klasör
 ///   önerisi yalnız AI'dan, hedef `Documents/<klasör>`, iş yalnız ne olacağını
 ///   sayılarla gösteren onay levhasından başlar.
