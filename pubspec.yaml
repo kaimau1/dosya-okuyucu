@@ -158,7 +158,7 @@ dependencies:
   # desugaring açık olmalı — CI'da build.gradle'a yamalanıyor (bkz. workflow).
   # Zamanlanmış bildirim kullanmıyoruz → `timezone` ilklendirmesi ve
   # SCHEDULE_EXACT_ALARM izni gerekmiyor.
-  flutter_local_notifications: ^22.3.3
+  flutter_local_notifications: ^23.0.0
 
   # Görüntü boyut düşürme/format çevirme (saf Dart; platform kodu yok).
   # Faz 45: pdf 3.13 xml 7'ye geçince eski aralık engeli (A3.1) kalktı.
