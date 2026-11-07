@@ -103,6 +103,9 @@ dependencies:
   # kaydı da gidiyor → "No instance with no name has been registered".
   # 2.5.0/2.5.1 ayrıca R8'de `getAll` silinip NoSuchMethodError veriyordu.
   # 2.4.x yöntem kanalı (motor başına BinaryMessenger) kullanıyor.
+  # Faz 46 sınavı: 2.5.4'te de AYNI — `onDetachedFromEngine` →
+  # `SharedPreferencesApiRegistrar().register(null)` süreç geneli
+  # `SharedPreferencesApiInstances`tan varsayılan kaydı siliyor (kaynak okundu).
   shared_preferences_android: 2.4.28
 
   # Dönüştürme (PDF üretimi) & paylaşım / yazdırma
