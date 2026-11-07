@@ -92,6 +92,7 @@ class AiAutoAnalyze with WidgetsBindingObserver {
         scope: scope,
         credentials: _credentials(),
         candidates: candidates,
+        auto: true,
       );
     } catch (_) {
       // Otomatik tur bir kolaylık; başarısızsa bir sonraki öne gelişte denenir.

@@ -112,6 +112,52 @@ void main() {
           reason: 'uygulanan öneri tekrar önerilmemeli');
     });
 
+    // 2026-11-07: "kendi kendine önemli dosyalara taşıma" kökü — yerel kural
+    // klasör önerisi sayılmaz, Önemli Dosyalar'daki dosyaya öneri yok.
+    test('klasör önerisi yalnız AI kaynaklı kayıtta sayılır', () {
+      const local = AiRecord(
+          path: '/a/x.pdf',
+          sizeBytes: 1,
+          modifiedMs: 1,
+          category: FmCategory.document,
+          suggestedFolder: 'Faturalar',
+          analyzedMs: 5);
+      expect(local.hasSuggestion, isFalse);
+      final ai = AiRecord(
+          path: '/a/x.pdf',
+          sizeBytes: 1,
+          modifiedMs: 1,
+          category: FmCategory.document,
+          suggestedFolder: 'Faturalar',
+          analyzedMs: 5,
+          source: 'ai');
+      expect(ai.hasFolderSuggestion, isTrue);
+      expect(ai.hasSuggestion, isTrue);
+      final filed = AiRecord(
+          path: '/a/rapor_onemli.pdf',
+          sizeBytes: 1,
+          modifiedMs: 1,
+          category: FmCategory.document,
+          suggestedName: 'Rapor.pdf',
+          analyzedMs: 5,
+          source: 'ai');
+      expect(filed.hasSuggestion, isFalse);
+    });
+
+    test('silinen dosyaların kaydı düşer, öneri yok sayılabilir', () async {
+      await AiIndex.putAll([
+        _record('/yok/1.pdf'),
+        _record('/yok/2.pdf', suggestedName: 'Fatura.pdf'),
+      ]);
+      expect(AiIndex.removeAllNow(['/yok/1.pdf']), 1);
+      expect(AiIndex.of('/yok/1.pdf'), isNull);
+      await AiIndex.dismissSuggestion('/yok/2.pdf');
+      expect(AiIndex.of('/yok/2.pdf')!.hasSuggestion, isFalse);
+      expect(await AiIndex.pruneMissing(), 1,
+          reason: 'diskte olmayan son kayıt da temizlenir');
+      expect(AiIndex.count, 0);
+    });
+
     test('süzgeç: tür, önem ve öneri', () async {
       await AiIndex.putAll([
         _record('/a/1.pdf', type: 'fatura', importance: 80),

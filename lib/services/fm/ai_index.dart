@@ -30,6 +30,7 @@ import 'package:path/path.dart' as p;
 import '../../models/fs_entry.dart';
 import 'chat_media_guard.dart';
 import 'fm_env.dart';
+import 'important_files.dart';
 
 /// Bir dosya hakkında bilinenler.
 class AiRecord {
@@ -89,10 +90,25 @@ class AiRecord {
   ///
   /// Sohbet uygulamalarının medyasında (WhatsApp/Telegram…) **hiç öneri
   /// yoktur**: ad/yer değişince sohbet dosyayı bulamaz (bkz. [ChatMediaGuard]).
+  ///
+  /// 2026-11-07 (kullanıcı: *"kendi kendine önemli dosyalara taşıma
+  /// yapıyor"*): **klasör önerisi yalnız AI'dan** gelir. Yerel kural
+  /// sınıflandırıcısı her tanıdığı belgeye bir klasör yazıyordu → anahtarsız
+  /// analizde her belge "taşınacak" görünüyor, "Tümünü uygula" da hepsini
+  /// Önemli Dosyalar'a yığıyordu. Önemli Dosyalar'a zaten konmuş dosyaya da
+  /// öneri yok (kullanıcı onu oraya kendisi koydu).
   bool get hasSuggestion =>
       !ChatMediaGuard.isChatPath(path) &&
-      ((suggestedName.isNotEmpty && suggestedName != name) ||
-          suggestedFolder.isNotEmpty);
+      !ImportantFiles.isImportant(path) &&
+      (hasNameSuggestion || hasFolderSuggestion);
+
+  /// Anlamlı bir ad önerisi var mı?
+  bool get hasNameSuggestion =>
+      suggestedName.isNotEmpty && suggestedName != name;
+
+  /// AI'nın verdiği bir klasör önerisi var mı? (Yerel kural sayılmaz.)
+  bool get hasFolderSuggestion =>
+      suggestedFolder.isNotEmpty && source == 'ai';
 
   /// Kayıt hâlâ dosyanın bugünkü hâlini mi anlatıyor?
   ///
@@ -348,20 +364,72 @@ abstract final class AiIndex {
   }
 
   /// Diskte artık olmayan kayıtları temizler.
+  ///
+  /// KÖK NEDEN (2026-11-07, kullanıcı: *"silinenler hâlâ gösteriliyor"*):
+  /// temizlik yalnız AI listesinin KENDİ silme düğmesinden sonra koşuyordu.
+  /// Dosya Galeri'den, WhatsApp'tan ya da uygulamanın başka bir ekranından
+  /// silinince kayıt indekste kalıyor, satıra dokununca "Dosya bulunamadı"
+  /// çıkıyordu. Artık AI Merkezi her açılışta, dosya sistemi her değiştiğinde
+  /// ve her analiz bitince bunu çağırır. Varlık denetimi asenkron ve
+  /// parçalı: on binlerce `existsSync` ana izleği kilitlerdi.
   static Future<int> pruneMissing() async {
     await ensureLoaded();
-    final gone = [
-      for (final path in _records.keys)
-        if (!File(path).existsSync()) path
-    ];
-    if (gone.isEmpty) return 0;
-    for (final path in gone) {
-      _records.remove(path);
+    if (_pruning != null) return _pruning!;
+    final run = _pruneNow();
+    _pruning = run;
+    try {
+      return await run;
+    } finally {
+      _pruning = null;
     }
+  }
+
+  static Future<int>? _pruning;
+
+  static Future<int> _pruneNow() async {
+    final paths = _records.keys.toList(growable: false);
+    final gone = <String>[];
+    const chunk = 200;
+    for (var i = 0; i < paths.length; i += chunk) {
+      final part = paths.skip(i).take(chunk).toList(growable: false);
+      final alive = await Future.wait([
+        for (final path in part)
+          File(path).exists().catchError((Object _) => true)
+      ]);
+      for (var j = 0; j < part.length; j++) {
+        if (!alive[j]) gone.add(part[j]);
+      }
+    }
+    if (gone.isEmpty) return 0;
+    removeAllNow(gone);
     await _rewrite();
+    return gone.length;
+  }
+
+  /// Verilen yolların kayıtlarını bellekten düşürür (diske [_rewrite] yazar).
+  @visibleForTesting
+  static int removeAllNow(Iterable<String> paths) {
+    var n = 0;
+    for (final path in paths) {
+      if (_records.remove(path) != null) n++;
+    }
+    if (n > 0) {
+      _recount();
+      revision.value++;
+    }
+    return n;
+  }
+
+  /// Bir kaydın ad/klasör önerisini siler ("Öneriyi yok say"). Analizin geri
+  /// kalanı (tür, önem, özet) durur.
+  static Future<void> dismissSuggestion(String filePath) async {
+    await ensureLoaded();
+    final old = _records[filePath];
+    if (old == null) return;
+    _records[filePath] = old.copyWith(suggestedName: '', suggestedFolder: '');
+    await _append([_records[filePath]!]);
     _recount();
     revision.value++;
-    return gone.length;
   }
 
   /// Tüm analizi siler (ayarlardan "AI belleğini temizle").
@@ -466,6 +534,7 @@ abstract final class AiIndex {
     _lines = 0;
     _suggestionCount = 0;
     _writing = null;
+    _pruning = null;
     _loaded = true;
   }
 }

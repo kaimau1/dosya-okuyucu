@@ -49,17 +49,23 @@ void main() {
     expect(state.themeMode, ThemeMode.dark);
   });
 
-  testWidgets('AI Analiz sekmesinde tek başlat düğmesi; sohbette durum çubuğu',
+  testWidgets('AI Analiz sekmesinde tek başlat düğmesi; diğer sekmede yok',
       (tester) async {
     await tester.pumpWidget(_wrap(AppState(), const AiHubScreen()));
     await tester.pump();
     expect(tester.takeException(), isNull);
     expect(find.text('Analizi başlat'), findsOneWidget);
+    // 2026-11-07: "kendi kendine hiçbir şey yapmaz" açıklaması ve otomatik
+    // analiz anahtarı Analiz sekmesinde görünür.
+    expect(find.text('Kendi kendine hiçbir şey yapmaz', skipOffstage: false),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('ai-auto-new'), skipOffstage: false),
+        findsOneWidget);
 
-    // Sohbet sekmesinde durum çubuğu (ve onun düğmesi) geri gelir.
+    // Analiz koşmuyorken diğer sekmelerde ilerleme şeridi/başlat düğmesi yok.
     await tester.tap(find.text('Sohbet'));
     await tester.pumpAndSettle();
-    expect(find.text('Analizi başlat'), findsOneWidget);
+    expect(find.text('Analizi başlat'), findsNothing);
   });
 
   testWidgets('sohbet sekme değişince silinmez', (tester) async {

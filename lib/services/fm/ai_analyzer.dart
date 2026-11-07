@@ -69,6 +69,11 @@ class AiProgress {
   /// Geri çekilme bitiş anı (ms) — "kota doldu, 32 sn bekleniyor".
   final int waitUntilMs;
 
+  /// Bu tur "yeni dosyaları otomatik analiz et" ayarıyla mı başladı?
+  /// Arayüz bunu açıkça yazar: kullanıcı (2026-11-07) analizin kendiliğinden
+  /// başladığını görüp "ne yapıyor hiç anlaşılmıyor" dedi.
+  final bool auto;
+
   const AiProgress({
     this.phase = AiRunPhase.idle,
     this.total = 0,
@@ -77,6 +82,7 @@ class AiProgress {
     this.currentName = '',
     this.message = '',
     this.waitUntilMs = 0,
+    this.auto = false,
   });
 
   bool get isBusy =>
@@ -95,6 +101,7 @@ class AiProgress {
     String? currentName,
     String? message,
     int? waitUntilMs,
+    bool? auto,
   }) =>
       AiProgress(
         phase: phase ?? this.phase,
@@ -104,6 +111,7 @@ class AiProgress {
         currentName: currentName ?? this.currentName,
         message: message ?? this.message,
         waitUntilMs: waitUntilMs ?? this.waitUntilMs,
+        auto: auto ?? this.auto,
       );
 }
 
@@ -173,6 +181,7 @@ abstract final class AiAnalyzer {
     bool reanalyze = false,
     int newerThanMs = 0,
     List<FsEntry>? candidates,
+    bool auto = false,
   }) async {
     if (_running) return;
     _running = true;
@@ -207,6 +216,7 @@ abstract final class AiAnalyzer {
             handle: handle,
             newerThanMs: newerThanMs,
             preset: candidates,
+            auto: auto,
           );
         } catch (e) {
           progress.value = progress.value
@@ -215,6 +225,8 @@ abstract final class AiAnalyzer {
         } finally {
           watch.cancel();
           _running = false;
+          // Analiz sürerken silinen dosyalar listede hayalet kalmasın.
+          unawaited(AiIndex.pruneMissing());
         }
       },
     );
@@ -270,11 +282,13 @@ abstract final class AiAnalyzer {
     JobHandle? handle,
     int newerThanMs = 0,
     List<FsEntry>? preset,
+    bool auto = false,
   }) async {
     final aiEnabled = credentials.keys.isNotEmpty;
     progress.value = AiProgress(
       phase: AiRunPhase.collecting,
       message: _str.t('aiq.collecting'),
+      auto: auto,
     );
     await FmEnv.ensureInit();
     await AiIndex.ensureLoaded();
@@ -293,6 +307,7 @@ abstract final class AiAnalyzer {
       progress.value = AiProgress(
         phase: AiRunPhase.done,
         message: _str.t('aiq.all_fresh'),
+        auto: auto,
       );
       return;
     }
@@ -308,6 +323,7 @@ abstract final class AiAnalyzer {
     progress.value = AiProgress(
       phase: AiRunPhase.running,
       total: planned,
+      auto: auto,
       message: planned < candidates.length
           ? _str.t('aiq.budget_split',
               {'n': planned, 'rest': candidates.length - planned})
@@ -669,7 +685,9 @@ abstract final class AiAnalyzer {
       tags: confident ? [guess.type.label] : const [],
       docType: confident ? AiBuckets.canonicalDocType(guess.type.label) : '',
       importance: confident ? _localImportance(guess.type) : 0,
-      suggestedFolder: confident ? guess.type.folder : '',
+      // Klasör önerisi YOK (2026-11-07): kural tahmini her tanıdığı belgeye
+      // klasör yazıyordu; kullanıcı bunu "kendi kendine taşıma" olarak yaşadı.
+      // Yer önerisi yalnız AI'dan gelir (bkz. AiRecord.hasFolderSuggestion).
       // Yerel geçiş de "analiz edildi" sayılır: aynı dosya her turda yeniden
       // okunursa artımlılık anlamını yitirir. AI kipine geçilince kullanıcı
       // "yeniden analiz et" ile hepsini tazeleyebilir.

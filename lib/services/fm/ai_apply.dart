@@ -16,6 +16,12 @@
 /// 2. **Ön planda koşuyordu.** Uygulama arka plana alınınca (ya da ekran
 ///    kapanınca) iş duruyordu. Artık `JobQueue`ya giriyor: ön plan servisi,
 ///    bildirimde ilerleme, bildirimden iptal.
+///
+/// 2026-11-07 (kullanıcı: *"kendi kendine önemli dosyalara taşıma yapıyor"*):
+/// klasör önerileri eskiden **Önemli Dosyalar/<klasör>** altına taşınıyordu —
+/// "önemli" işareti (yıldız, silme koruması) kullanıcı istemeden yüzlerce
+/// dosyaya yayılıyordu. Artık hedef sıradan **Documents/<klasör>**; ad ve
+/// klasör ayrı ayrı seçilir ve iş yalnız onay penceresinden başlar.
 library;
 
 import 'dart:io';
@@ -60,21 +66,33 @@ abstract final class AiApply {
 
   static AppStrings get _str => AppStrings.current;
 
+  /// Klasör önerilerinin açılacağı kök: `<bellek>/Documents`.
+  static String folderRootIn(String volumeRoot) =>
+      p.join(volumeRoot, 'Documents');
+
+  /// Bu kayıt seçilen öneri türleriyle bir değişikliğe yol açar mı?
+  static bool wants(AiRecord r, {required bool rename, required bool move}) =>
+      r.hasSuggestion &&
+      ((rename && r.hasNameSuggestion) || (move && r.hasFolderSuggestion));
+
   /// Önerileri **iş kuyruğunda** uygular. Aynı anda tek iş koşar.
   ///
-  /// [importantRoot] önerilen klasörlerin altına açılacağı kök
-  /// ("Önemli Dosyalar"). Ekrandan geliyor: servis katmanı arayüz sabitlerini
-  /// bilmemeli.
+  /// [folderRoot] klasör önerilerinin altına açılacağı kök (bkz.
+  /// [folderRootIn]). [rename]/[move] kullanıcının onay penceresinde seçtiği
+  /// öneri türleri; seçilmeyen tür hiç uygulanmaz.
   static void start(
     List<AiRecord> records, {
-    required String importantRoot,
+    required String folderRoot,
+    bool rename = true,
+    bool move = true,
   }) {
-    if (_running || records.isEmpty) return;
+    final targets = List<AiRecord>.unmodifiable(
+        records.where((r) => wants(r, rename: rename, move: move)));
+    if (_running || targets.isEmpty) return;
     _running = true;
     progress.value = 0;
     lastResult.value = null;
 
-    final targets = List<AiRecord>.unmodifiable(records);
     JobQueue.instance.enqueue(
       id: jobId,
       title: _str.t('aiap.job_title'),
@@ -83,7 +101,8 @@ abstract final class AiApply {
       target: const FmJobTarget.aiHub(),
       run: (handle) async {
         try {
-          lastResult.value = await _run(targets, importantRoot, handle);
+          lastResult.value = await _run(targets, folderRoot, handle,
+              rename: rename, move: move);
         } finally {
           _running = false;
           progress.value = null;
@@ -94,9 +113,11 @@ abstract final class AiApply {
 
   static Future<AiApplyResult> _run(
     List<AiRecord> targets,
-    String importantRoot,
-    JobHandle handle,
-  ) async {
+    String folderRoot,
+    JobHandle handle, {
+    required bool rename,
+    required bool move,
+  }) async {
     var renamed = 0;
     var moved = 0;
     var failed = 0;
@@ -120,7 +141,8 @@ abstract final class AiApply {
         // kaybeder. Eski kayıtlarda öneri durabilir → burada da durdurulur.
         if (ChatMediaGuard.isChatPath(path)) continue;
 
-        if (record.suggestedName.isNotEmpty &&
+        if (rename &&
+            record.hasNameSuggestion &&
             record.suggestedName != p.basename(path)) {
           final wanted = p.join(p.dirname(path), record.suggestedName);
           // Çakışma = hata DEĞİL, numaralandırma sebebi.
@@ -129,8 +151,8 @@ abstract final class AiApply {
           renamed++;
         }
 
-        if (record.suggestedFolder.isNotEmpty) {
-          final dest = p.join(importantRoot, record.suggestedFolder);
+        if (move && record.hasFolderSuggestion) {
+          final dest = p.join(folderRoot, _safeFolder(record.suggestedFolder));
           final dir = Directory(dest);
           if (!dir.existsSync()) await dir.create(recursive: true);
           final result = await FileOps.moveAll([path], dest);
@@ -167,6 +189,12 @@ abstract final class AiApply {
       failed: failed,
       lastError: lastError,
     );
+  }
+
+  /// Model "Faturalar/2026" ya da "../x" yazabilir: tek düzey, güvenli ad.
+  static String _safeFolder(String raw) {
+    final clean = raw.replaceAll(RegExp(r'[\\/:*?"<>|]'), ' ').trim();
+    return clean.isEmpty || clean == '.' || clean == '..' ? 'Diğer' : clean;
   }
 
   static bool _exists(String path) =>
