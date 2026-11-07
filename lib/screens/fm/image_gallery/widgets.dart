@@ -212,8 +212,8 @@ class _FilmStripState extends State<_FilmStrip> {
                         const ColoredBox(color: Color(0xFF222222)),
                    ),
                    if (sel != null)
-                     Positioned(
-                       right: 2,
+                     PositionedDirectional(
+                       end: 2,
                        top: 2,
                        child: Icon(
                          picked
@@ -222,7 +222,7 @@ class _FilmStripState extends State<_FilmStrip> {
                          size: 18,
                          color: AppColors.onMedia,
                          shadows: const [
-                           Shadow(color: Color(0xAA000000), blurRadius: 3)
+                           Shadow(color: AppColors.mediaChrome, blurRadius: 3)
                          ],
                        ),
                      ),
