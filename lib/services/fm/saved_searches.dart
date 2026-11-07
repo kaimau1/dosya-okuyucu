@@ -46,7 +46,7 @@ abstract final class SavedSearches {
       if (raw == null) return const [];
       return [
         for (final e in jsonDecode(raw) as List)
-          if (SavedSearch.fromJson(e) case final s?) s,
+          ?SavedSearch.fromJson(e),
       ];
     } catch (_) {
       return const [];

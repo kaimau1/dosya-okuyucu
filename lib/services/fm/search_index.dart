@@ -135,7 +135,7 @@ abstract final class SearchIndex {
           'builtAt': _builtAtMs,
           'count': _entryCount,
           'stale': _stale,
-          if (roots != null) 'roots': roots,
+          'roots': ?roots,
         }),
         flush: true,
       );

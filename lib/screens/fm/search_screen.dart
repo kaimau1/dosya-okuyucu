@@ -276,7 +276,7 @@ class _SearchScreenState extends State<SearchScreen> {
       _contentHits = hits;
       _results = [
         for (final hit in hits)
-          if (FsEntry.ofPath(hit.path) case final entry?) entry,
+          ?FsEntry.ofPath(hit.path),
       ];
       _searching = false;
       _searched = true;

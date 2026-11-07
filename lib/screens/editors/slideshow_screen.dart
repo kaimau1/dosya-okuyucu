@@ -632,7 +632,7 @@ class _SlideshowScreenState extends State<SlideshowScreen>
           ),
           child: ValueListenableBuilder<int>(
             valueListenable: _seconds,
-            builder: (_, s, __) => Text(
+            builder: (_, s, _) => Text(
               clock(s),
               style: context.type.body.copyWith(
                   color: _clock.isRunning

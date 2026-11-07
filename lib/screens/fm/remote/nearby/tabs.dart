@@ -189,7 +189,7 @@ extension _NearbyTabs on _NearbyScreenState {
                   key: const ValueKey('near-devices'),
                   scrollDirection: Axis.horizontal,
                   itemCount: list.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: Gap.sm),
+                  separatorBuilder: (_, _) => const SizedBox(width: Gap.sm),
                   itemBuilder: (_, i) {
                     final n = list[i];
                     return _PeerAvatar(

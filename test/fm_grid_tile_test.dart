@@ -33,7 +33,7 @@ void main() {
                 builder: (context, constraints) => GridView.builder(
                   gridDelegate: fmGridDelegate(layout, constraints.maxWidth),
                   itemCount: 12,
-                  itemBuilder: (_, __) => FmEntryCard(
+                  itemBuilder: (_, _) => FmEntryCard(
                     entry: entry,
                     layout: layout,
                     selected: false,

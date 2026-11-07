@@ -71,7 +71,7 @@ void main() {
     final receiver = PeerReceiver(
       deviceName: 'Alıcı',
       saveDir: inbox.path,
-      onProgress: (name, _, __) => progress.add(name),
+      onProgress: (name, _, _) => progress.add(name),
       onDone: done.add,
     );
     await receiver.start();

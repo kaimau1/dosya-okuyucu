@@ -204,7 +204,7 @@ class _PdfRegionScreenState extends State<PdfRegionScreen> {
                                 painter: _RegionPainter(
                                   rects: [
                                     ...?_marks[_page],
-                                    if (_dragRect != null) _dragRect!,
+                                    ?_dragRect,
                                   ],
                                   scale: scale,
                                   mode: widget.mode,

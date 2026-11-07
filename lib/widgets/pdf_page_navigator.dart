@@ -417,7 +417,7 @@ class _PdfPageNavigatorState extends State<PdfPageNavigator> {
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: _marks.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+                  separatorBuilder: (_, _) => const SizedBox(width: 10),
                   itemBuilder: (_, i) {
                     final page = _marks[i];
                     return InkWell(

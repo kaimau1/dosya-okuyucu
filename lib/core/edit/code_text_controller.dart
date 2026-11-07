@@ -20,9 +20,7 @@ class CodeTextController extends TextEditingController {
   CodeLang _lang;
   bool _enabled;
 
-  CodeTextController({super.text, CodeLang lang = CodeLang.plain, bool enabled = true})
-      : _lang = lang,
-        _enabled = enabled;
+  CodeTextController({super.text, this._lang = CodeLang.plain, this._enabled = true});
 
   CodeLang get lang => _lang;
   set lang(CodeLang v) {

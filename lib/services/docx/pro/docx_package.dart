@@ -40,7 +40,7 @@ XmlElement wv(String local, String val) => w(local, attrs: {'val': val});
 
 /// Düz metin run'ı (`xml:space="preserve"`), isteğe bağlı rPr ile.
 XmlElement wRun(String text, {XmlElement? rPr}) => w('r', kids: [
-      if (rPr != null) rPr,
+      ?rPr,
       XmlElement(XmlName.fromString('w:t'),
           [XmlAttribute(XmlName.fromString('xml:space'), 'preserve')], [XmlText(text)]),
     ]);

@@ -50,8 +50,8 @@ class PdfBackgroundItem {
     required this.isImage,
     required this.pageCount,
     required this.rotated,
-    required List<PdfDrawRef> hits,
-  }) : _hits = hits;
+    required this._hits,
+  });
 
   /// Kaç çizim kaldırılacak.
   int get drawCount => _hits.length;

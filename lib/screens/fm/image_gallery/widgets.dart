@@ -82,7 +82,7 @@ class _RepairedImageState extends State<_RepairedImage> {
           fit: StackFit.expand,
           children: [
             Image.memory(data,
-                fit: widget.fit, errorBuilder: (_, __, ___) => failed()),
+                fit: widget.fit, errorBuilder: (_, _, _) => failed()),
             Positioned(
               left: Gap.md,
               right: Gap.md,
@@ -175,7 +175,7 @@ class _FilmStripState extends State<_FilmStrip> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         itemCount: widget.paths.length,
-        separatorBuilder: (_, __) => const SizedBox(width: _gap),
+        separatorBuilder: (_, _) => const SizedBox(width: _gap),
         itemBuilder: (context, i) {
           final active = i == widget.index;
           final sel = widget.selected;
@@ -208,7 +208,7 @@ class _FilmStripState extends State<_FilmStrip> {
                             cacheWidth: fmThumbWidth(_item, dpr)),
                     fit: BoxFit.cover,
                     gaplessPlayback: true,
-                    errorBuilder: (_, __, ___) =>
+                    errorBuilder: (_, _, _) =>
                         const ColoredBox(color: Color(0xFF222222)),
                    ),
                    if (sel != null)
@@ -343,7 +343,7 @@ class _ZoomableImageState extends State<_ZoomableImage> {
       setState(() => _aspect = w / h);
       // Dinleyici kendi çağrısı içinde kaldırılmasın: bir sonraki karede.
       WidgetsBinding.instance.addPostFrameCallback((_) => _stopAspect());
-    }, onError: (_, __) {});
+    }, onError: (_, _) {});
     _aspectStream = stream;
     _aspectListener = listener;
     stream.addListener(listener);
@@ -390,7 +390,7 @@ class _ZoomableImageState extends State<_ZoomableImage> {
               ? Image(image: thumb, fit: fit, gaplessPlayback: true)
               : child,
       // Çözücü reddetti → kurtarmayı dene (başında çöp, yarım JPEG …).
-      errorBuilder: (_, __, ___) => _RepairedImage(widget.path, fit: fit),
+      errorBuilder: (_, _, _) => _RepairedImage(widget.path, fit: fit),
     );
     final tag = widget.heroTag;
     if (tag != null) image = Hero(tag: tag, child: image);

@@ -113,7 +113,7 @@ class _CodeGutterState extends State<CodeGutter> {
     final scheme = Theme.of(context).colorScheme;
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: widget.controller,
-      builder: (_, value, __) {
+      builder: (_, value, _) {
         final tops = _computeTops(value.text);
         final lh = widget.size * widget.lineHeight;
         final height = tops.last + lh;

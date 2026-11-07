@@ -415,12 +415,12 @@ extension _PickFileScreenStateParts on _PickFileScreenState {
           subtitle: context.t('common.open'),
           onTap: () => _openFolder(important),
         ),
-      if (category('image', FmCategory.image, label: context.t('fm.photos')) case final t?) t,
-      if (category('video', FmCategory.video) case final t?) t,
-      if (category('document', FmCategory.document) case final t?) t,
-      if (category('audio', FmCategory.audio) case final t?) t,
-      if (category('archive', FmCategory.archive) case final t?) t,
-      if (category('apk', FmCategory.apk, label: context.t('fm.apk_files')) case final t?) t,
+      ?category('image', FmCategory.image, label: context.t('fm.photos')),
+      ?category('video', FmCategory.video),
+      ?category('document', FmCategory.document),
+      ?category('audio', FmCategory.audio),
+      ?category('archive', FmCategory.archive),
+      ?category('apk', FmCategory.apk, label: context.t('fm.apk_files')),
       if (_request.otherSources)
         FmTileData(
           id: 'drive',

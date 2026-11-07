@@ -523,7 +523,7 @@ class _EditPainter extends CustomPainter {
         ..color = AppColors.onMedia
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2;
-      for (final h in [scale, if (rotate != null) rotate]) {
+      for (final h in [scale, ?rotate]) {
         canvas.drawCircle(h, 9, fill);
         canvas.drawCircle(h, 9, ring);
       }

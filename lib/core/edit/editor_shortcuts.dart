@@ -69,20 +69,20 @@ class EditorShortcuts extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final map = <ShortcutActivator, VoidCallback>{
-      if (undo != null) _ctrl(LogicalKeyboardKey.keyZ): undo!,
-      if (redo != null) _ctrl(LogicalKeyboardKey.keyY): redo!,
-      if (redo != null) _ctrl(LogicalKeyboardKey.keyZ, shift: true): redo!,
-      if (save != null) _ctrl(LogicalKeyboardKey.keyS): save!,
-      if (find != null) _ctrl(LogicalKeyboardKey.keyF): find!,
-      if (bold != null) _ctrl(LogicalKeyboardKey.keyB): bold!,
-      if (italic != null) _ctrl(LogicalKeyboardKey.keyI): italic!,
-      if (underline != null) _ctrl(LogicalKeyboardKey.keyU): underline!,
-      if (copy != null) _ctrl(LogicalKeyboardKey.keyC): copy!,
-      if (cut != null) _ctrl(LogicalKeyboardKey.keyX): cut!,
-      if (paste != null) _ctrl(LogicalKeyboardKey.keyV): paste!,
-      if (selectAll != null) _ctrl(LogicalKeyboardKey.keyA): selectAll!,
-      if (escape != null) const SingleActivator(LogicalKeyboardKey.escape):
-          escape!,
+      _ctrl(LogicalKeyboardKey.keyZ): ?undo,
+      _ctrl(LogicalKeyboardKey.keyY): ?redo,
+      _ctrl(LogicalKeyboardKey.keyZ, shift: true): ?redo,
+      _ctrl(LogicalKeyboardKey.keyS): ?save,
+      _ctrl(LogicalKeyboardKey.keyF): ?find,
+      _ctrl(LogicalKeyboardKey.keyB): ?bold,
+      _ctrl(LogicalKeyboardKey.keyI): ?italic,
+      _ctrl(LogicalKeyboardKey.keyU): ?underline,
+      _ctrl(LogicalKeyboardKey.keyC): ?copy,
+      _ctrl(LogicalKeyboardKey.keyX): ?cut,
+      _ctrl(LogicalKeyboardKey.keyV): ?paste,
+      _ctrl(LogicalKeyboardKey.keyA): ?selectAll,
+      const SingleActivator(LogicalKeyboardKey.escape):
+          ?escape,
       _ctrl(LogicalKeyboardKey.slash): () => showShortcutHelp(context, this),
     };
     return CallbackShortcuts(bindings: map, child: child);

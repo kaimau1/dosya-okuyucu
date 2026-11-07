@@ -114,7 +114,7 @@ BusyDialog showTaskDialog(
               children: [
                 ValueListenableBuilder<String>(
                   valueListenable: message,
-                  builder: (_, v, __) => Text(v),
+                  builder: (_, v, _) => Text(v),
                 ),
                 _LiveStatus(task: task),
               ],

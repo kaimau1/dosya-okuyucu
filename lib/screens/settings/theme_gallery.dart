@@ -81,7 +81,7 @@ class _ThemeGalleryState extends State<ThemeGallery> {
                 index <= 1 ? 0 : (index - 1) * (cardWidth + Gap.sm),
           ),
           itemCount: skins.length,
-          separatorBuilder: (_, __) => const SizedBox(width: Gap.sm),
+          separatorBuilder: (_, _) => const SizedBox(width: Gap.sm),
           itemBuilder: (_, i) =>
               SizedBox(width: cardWidth, child: card(skins[i])),
         ),

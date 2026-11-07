@@ -84,7 +84,7 @@ class _SmartFoldersScreenState extends State<SmartFoldersScreen> {
             padding: withNavInset(
                 context, const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 96)),
             itemCount: folders.length,
-            separatorBuilder: (_, __) => const SizedBox(height: Gap.sm),
+            separatorBuilder: (_, _) => const SizedBox(height: Gap.sm),
             itemBuilder: (context, i) {
               final folder = folders[i];
               final items = SmartFolders.contents(folder, scope);

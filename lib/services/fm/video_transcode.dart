@@ -199,7 +199,7 @@ abstract final class VideoTranscoder {
         'target': target,
         'width': wanted.width,
         'height': wanted.height,
-        if (fps != null) 'fps': fps,
+        'fps': ?fps,
         'bitrate': bitrate,
         'removeAudio': options.removeAudio,
         'layout': videoLayoutFor(options).name,

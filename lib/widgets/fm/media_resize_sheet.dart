@@ -1013,7 +1013,7 @@ class _ResizeSheetState extends State<_ResizeSheet> {
         alignment: alignment,
         cacheWidth: 360,
         gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => const SizedBox.shrink());
+        errorBuilder: (_, _, _) => const SizedBox.shrink());
     final background = fit != ResizeFit.pad
         ? null
         : switch (o.padColor) {
@@ -1024,7 +1024,7 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                 imageFilter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
                 child: Image.file(File(src.path!),
                     fit: BoxFit.cover, cacheWidth: 120,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+                    errorBuilder: (_, _, _) => const SizedBox.shrink()),
               ),
           };
     return Padding(
@@ -1043,7 +1043,7 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                       border: Border.all(color: scheme.primary, width: 1.5)),
                   child: ClipRect(
                     child: Stack(fit: StackFit.expand, children: [
-                      if (background != null) background,
+                      ?background,
                       image,
                     ]),
                   ),

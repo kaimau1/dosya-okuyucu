@@ -60,7 +60,7 @@ Art arda push → önceki koşu iptal.
   `flutter test`/`analyze` KOŞTURMA, Flutter İNDİRME. Push et → CI `verify` işi test eder;
   Actions sonucuna koşu bitince bir kez bak (sık yoklama yapma), kırmızıysa logdan
   yalnız hatalı adımı oku ve sormadan düzelt. Kullanıcı açıkça isterse yerel test yapılır
-  (Windows: `C:\src\flutter-3446\bin\flutter.bat`, CI **3.44.6**; `C:\src\flutter`
+  (Windows: `C:\src\flutter-3479\bin\flutter.bat`, CI **3.47.9** — Faz 44; `C:\src\flutter`
   3.47.7 `pub get` kilidini bozar — HAFIZA).
   `ci/*.kt` değişikliğini de CI `verify` (Kotlin denetimi) yakalar; `tool/check_kotlin.sh`
   yalnız kotlinc zaten kuruluysa koşturulur (HAFIZA 2026-09-02).

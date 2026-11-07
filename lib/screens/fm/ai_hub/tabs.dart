@@ -57,7 +57,7 @@ class _TypesTabState extends State<_TypesTab>
     super.build(context);
     return ValueListenableBuilder<int>(
       valueListenable: AiIndex.revision,
-      builder: (context, _, __) {
+      builder: (context, _, _) {
         final all = AiBuckets.of(AiBucket.all);
         if (all.isEmpty) {
           return _EmptyHint(
@@ -218,7 +218,7 @@ class _SuggestionsTabState extends State<_SuggestionsTab>
         _TabIntro(icon: AppIcons.shield, text: context.t('aih2.sug_intro')),
         ValueListenableBuilder<AiApplyResult?>(
           valueListenable: AiApply.lastResult,
-          builder: (context, result, __) => result == null
+          builder: (context, result, _) => result == null
               ? const SizedBox.shrink()
               : _TabIntro(
                   icon: AppIcons.info,
@@ -338,7 +338,7 @@ class _ReportTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<int>(
       valueListenable: AiIndex.revision,
-      builder: (context, _, __) {
+      builder: (context, _, _) {
         final analyzed = AiBuckets.of(AiBucket.all);
         if (analyzed.isEmpty) {
           return _EmptyHint(

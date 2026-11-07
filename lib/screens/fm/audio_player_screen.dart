@@ -283,7 +283,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                           // (bkz. core/image_budget.dart dersi).
                           cacheWidth: 480,
                           gaplessPlayback: true,
-                          errorBuilder: (_, __, ___) => _coverFallback(scheme),
+                          errorBuilder: (_, _, _) => _coverFallback(scheme),
                         )
                       : _coverFallback(scheme),
                 ),
@@ -336,7 +336,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                 // ekranın geri kalanı durum değişince.
                 child: ValueListenableBuilder<Duration>(
                   valueListenable: _p.positionListenable,
-                  builder: (context, _, __) => Row(
+                  builder: (context, _, _) => Row(
                     children: [
                       Text(_fmt(_position), style: theme.textTheme.bodySmall),
                       Expanded(

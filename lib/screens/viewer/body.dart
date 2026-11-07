@@ -213,7 +213,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                           }
                         },
                         pageOverlaysBuilder: (context, pageRect, page) => [
-                          if (_bookmarkRibbon(page, pageRect) case final r?) r,
+                          ?_bookmarkRibbon(page, pageRect),
                           PdfSelectLayer(
                               page: page,
                               pageSize: pageRect.size,
@@ -222,7 +222,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                               activeSelectionPage:
                                   _pdfSelection.isEmpty ? 0 : _pdfSelPage,
                               onSelected:
-                                  (t, rects, pageNo, _, __) {
+                                  (t, rects, pageNo, _, _) {
                                 if (mounted) {
                                   _partSetState(() {
                                     // Yeni seçim: çubuk vurgu kipinden çıkar.
@@ -307,7 +307,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                     // bir fotoğraf tam açıldığında 48 MB bitmap ediyordu.
                     cacheWidth: _imgDecodeWidth,
                     gaplessPlayback: true,
-                    errorBuilder: (_, __, ___) => Text(
+                    errorBuilder: (_, _, _) => Text(
                       context.t('vw.image_failed'),
                       style: const TextStyle(color: AppColors.onMedia),
                     ),
@@ -373,7 +373,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         Expanded(
                           child: ValueListenableBuilder<TextEditingValue>(
                             valueListenable: _textController!,
-                            builder: (_, __, ___) => _markdownPreview(),
+                            builder: (_, _, _) => _markdownPreview(),
                           ),
                         ),
                       ],

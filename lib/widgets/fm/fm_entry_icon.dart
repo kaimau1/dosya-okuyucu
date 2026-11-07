@@ -369,7 +369,7 @@ class FmEntryIcon extends StatelessWidget {
           // Açılamayan resim: dosya silinmiş olabilir (Galeri/WhatsApp
           // temizliği). Bildir — gerçekten yoksa listeden düşürülür, duruyorsa
           // (bozuk dosya) rozet kalır. Bkz. FsEvents.reportUnreadable.
-          errorBuilder: (_, __, ___) {
+          errorBuilder: (_, _, _) {
             FsEvents.reportUnreadable(entry.path);
             return _badge(context, category);
           },
@@ -597,7 +597,7 @@ class _SniffedImageState extends State<_SniffedImage> {
         filterQuality: FilterQuality.low,
         gaplessPlayback: true,
         frameBuilder: _placeholder(widget.size),
-        errorBuilder: (_, __, ___) => widget.fallback,
+        errorBuilder: (_, _, _) => widget.fallback,
       ),
     );
   }
@@ -664,7 +664,7 @@ class _ApkIconImageState extends State<_ApkIconImage> {
         fit: BoxFit.contain,
         filterQuality: FilterQuality.medium,
         gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => widget.fallback,
+        errorBuilder: (_, _, _) => widget.fallback,
       ),
     );
   }
@@ -763,7 +763,7 @@ class _PdfThumbState extends State<_PdfThumb> {
               fit: BoxFit.contain,
               filterQuality: FilterQuality.low,
               gaplessPlayback: true,
-              errorBuilder: (_, __, ___) => widget.fallback,
+              errorBuilder: (_, _, _) => widget.fallback,
             ),
           ),
         ),
@@ -877,7 +877,7 @@ class _PhotoThumbState extends State<_PhotoThumb> {
         filterQuality: FilterQuality.low,
         gaplessPlayback: true,
         frameBuilder: _placeholder(widget.size),
-        errorBuilder: (_, __, ___) => widget.fallback,
+        errorBuilder: (_, _, _) => widget.fallback,
       ),
     );
   }
@@ -988,7 +988,7 @@ class _VideoThumbState extends State<_VideoThumb> {
             fit: BoxFit.cover,
             filterQuality: FilterQuality.low,
             gaplessPlayback: true,
-            errorBuilder: (_, __, ___) => widget.fallback,
+            errorBuilder: (_, _, _) => widget.fallback,
           ),
           // **Tek rozet: ▶ + süre, SAĞ ALT köşe** (2026-09-26 galeri turu).
           // Eskiden iki ayrı rozet vardı — sol altta oynat dairesi, sağ altta

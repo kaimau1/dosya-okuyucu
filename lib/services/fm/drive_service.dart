@@ -180,7 +180,7 @@ class DriveService {
       'orderBy': sort.orderBy,
       'pageSize': '$pageSize',
       'fields': _fields,
-      if (pageToken != null) 'pageToken': pageToken,
+      'pageToken': ?pageToken,
     });
   }
 
@@ -216,8 +216,8 @@ class DriveService {
           {String? addParents, String? removeParents}) =>
       Uri.parse('$_api/files/$id').replace(queryParameters: {
         'fields': _fields2,
-        if (addParents != null) 'addParents': addParents,
-        if (removeParents != null) 'removeParents': removeParents,
+        'addParents': ?addParents,
+        'removeParents': ?removeParents,
       });
 
   static Uri copyUri(String id) => Uri.parse('$_api/files/$id/copy')
@@ -429,7 +429,7 @@ class DriveService {
       headers: {...headers, 'Content-Type': 'application/json; charset=UTF-8'},
       body: jsonEncode({
         'parents': [toParentId],
-        if (name != null) 'name': name,
+        'name': ?name,
       }),
     );
     _check(res.statusCode, res.body);

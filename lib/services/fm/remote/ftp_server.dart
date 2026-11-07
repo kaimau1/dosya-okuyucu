@@ -104,8 +104,8 @@ class FtpServer {
     this.lockedFolders = const [],
     this.collectCategory,
     this.freshFiles,
-    ShareScope scope = ShareScope.all,
-  }) : _scope = scope;
+    this._scope = ShareScope.all,
+  });
 
   ServerSocket? _server;
   final _clients = <_FtpSession>[];

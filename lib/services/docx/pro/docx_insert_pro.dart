@@ -189,7 +189,7 @@ abstract final class DocxInsertPro {
         XmlElement out;
         if (mode == 'inline') {
           out = _x('wp:inline', attrs: {'distT': '0', 'distB': '0', 'distL': '0', 'distR': '0'},
-              kids: [extent, docPr, if (frame != null) frame, graphic]);
+              kids: [extent, docPr, ?frame, graphic]);
         } else {
           final behind = mode == 'behind';
           final wrap = switch (mode) {
@@ -209,7 +209,7 @@ abstract final class DocxInsertPro {
             _x('wp:effectExtent', attrs: {'l': '0', 't': '0', 'r': '0', 'b': '0'}),
             wrap,
             docPr,
-            if (frame != null) frame,
+            ?frame,
             graphic,
           ]);
         }

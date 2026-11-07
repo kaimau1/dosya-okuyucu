@@ -84,7 +84,7 @@ void main() {
           active: filter.activeCount,
           sections: (c) => [
             fmSortSection(c,
-                sort: FmSort.date, descending: true, onSort: (_, __) {}),
+                sort: FmSort.date, descending: true, onSort: (_, _) {}),
             ...fmDateSizeSections(c,
                 filter: filter, onChanged: (v) => set(() => filter = v)),
           ],

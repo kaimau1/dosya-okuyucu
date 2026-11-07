@@ -342,7 +342,7 @@ class _Bubble extends StatelessWidget {
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: message.sources.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: Gap.sm),
+                  separatorBuilder: (_, _) => const SizedBox(width: Gap.sm),
                   itemBuilder: (context, i) =>
                       AiPreviewCard(record: message.sources[i]),
                 ),

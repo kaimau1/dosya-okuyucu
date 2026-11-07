@@ -112,7 +112,7 @@ extension _NearbySections on _NearbyScreenState {
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: _selection.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: Gap.sm),
+                  separatorBuilder: (_, _) => const SizedBox(width: Gap.sm),
                   itemBuilder: (_, i) => _SelectedTile(
                     key: ValueKey(_selection[i]),
                     path: _selection[i],

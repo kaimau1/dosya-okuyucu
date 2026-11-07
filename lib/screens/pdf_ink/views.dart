@@ -105,7 +105,7 @@ extension _PdfInkScreenViewsPart on _PdfInkScreenState {
                       painter: InkPainter([
                         for (final m in pageMarks)
                           if (m is InkMark) m,
-                        if (_live != null) _live!,
+                        ?_live,
                       ]),
                     ),
                   ),

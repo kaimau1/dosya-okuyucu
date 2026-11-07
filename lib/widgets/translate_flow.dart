@@ -443,7 +443,7 @@ class TranslateFlow {
             Expanded(
               child: ValueListenableBuilder<String>(
                 valueListenable: progress.message,
-                builder: (_, v, __) {
+                builder: (_, v, _) {
                   // "~2 dk kaldı" — iş kaydedildikten sonra (bkz. `task`).
                   final eta = progress.task?.statusLine ?? '';
                   return Column(

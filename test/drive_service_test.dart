@@ -402,7 +402,7 @@ void main() {
           DriveFile(id: 'a', name: 'rapor.pdf', mimeType: 'application/pdf');
       expect(
         _withMock(
-          () => _service().download(pdf, dir.path, onProgress: (_, __) {}),
+          () => _service().download(pdf, dir.path, onProgress: (_, _) {}),
           (_) async => http.Response('{"error":{"message":"x"}}', 404),
         ),
         throwsA(isA<DriveException>()

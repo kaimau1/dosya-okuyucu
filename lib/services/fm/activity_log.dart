@@ -110,7 +110,7 @@ abstract final class ActivityLog {
       if (raw is! List) return _cache = const [];
       return _cache = [
         for (final item in raw)
-          if (ActivityRecord.fromJson(item) case final r?) r,
+          ?ActivityRecord.fromJson(item),
       ]..sort((a, b) => b.whenMs.compareTo(a.whenMs));
     } catch (_) {
       return _cache = const [];

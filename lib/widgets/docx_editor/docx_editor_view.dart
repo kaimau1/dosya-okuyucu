@@ -998,7 +998,7 @@ class _ImageAtomState extends State<_ImageAtom> {
             height: h,
             fit: BoxFit.contain,
             gaplessPlayback: true,
-            errorBuilder: (_, __, ___) => SizedBox(width: w, height: h ?? 40));
+            errorBuilder: (_, _, _) => SizedBox(width: w, height: h ?? 40));
     img = GestureDetector(onTap: widget.onTap, child: img);
     if (!widget.selected) return img;
     const hs = 22.0;

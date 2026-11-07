@@ -264,7 +264,7 @@ extension _DriveScreenViewsPart on _DriveScreenState {
       onRefresh: _refresh,
       child: ListView.separated(
         itemCount: _files.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
+        separatorBuilder: (_, _) => const Divider(height: 1),
         itemBuilder: (_, i) {
           final f = _files[i];
           return ListTile(

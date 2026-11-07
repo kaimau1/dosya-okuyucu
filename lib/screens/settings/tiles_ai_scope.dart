@@ -290,7 +290,7 @@ class AiBudgetTile extends StatelessWidget {
         ),
         ValueListenableBuilder<int>(
           valueListenable: AiIndex.revision,
-          builder: (context, _, __) => SettingTile(
+          builder: (context, _, _) => SettingTile(
             icon: AppIcons.deleteSweep,
             title: context.t('aiset.forget'),
             subtitle: context.t('aiset.forget_sub'),

@@ -208,7 +208,7 @@ class NeuralVoiceHostLayer extends StatelessWidget {
           Positioned.fill(child: child),
           ValueListenableBuilder<NeuralVoiceEngine?>(
             valueListenable: NeuralVoiceEngine.active,
-            builder: (_, engine, __) => engine == null
+            builder: (_, engine, _) => engine == null
                 ? const SizedBox.shrink()
                 : Positioned(
                     left: 0,

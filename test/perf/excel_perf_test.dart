@@ -280,7 +280,7 @@ class _PainterGridState extends State<_PainterGrid> {
             controller: _v,
             itemCount: _protoRows,
             itemExtent: _rh,
-            itemBuilder: (_, __) => const SizedBox.shrink(),
+            itemBuilder: (_, _) => const SizedBox.shrink(),
           ),
         ),
       ]);

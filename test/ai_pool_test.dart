@@ -59,7 +59,7 @@ void main() {
   });
 
   test('hepsi doluysa açık hata verir ve 429 taşır', () async {
-    final r = recorder((_, __) => GeminiException('kota', statusCode: 429));
+    final r = recorder((_, _) => GeminiException('kota', statusCode: 429));
     await expectLater(
       AiPool.run(creds, r.action),
       throwsA(isA<GeminiException>().having((e) => e.statusCode, 'kod', 429)),
@@ -74,7 +74,7 @@ void main() {
     await AiPool.run(creds, first.action);
 
     // İkinci iş model-a'yı hiç denememeli (soğumada).
-    final second = recorder((_, __) => null);
+    final second = recorder((_, _) => null);
     await AiPool.run(creds, second.action);
     expect(second.tried, isNot(contains('anahtar1/model-a')));
   });
@@ -91,7 +91,7 @@ void main() {
   test('içerik engelinde en çok iki model denenir (30 değil)', () async {
     // Güvenlik eşiği modele göre değişebildiği için bir alternatif denemek
     // mantıklı; aynı metni otuz kez göndermek israf.
-    final r = recorder((_, __) => GeminiException('Yanıt engellendi: SAFETY'));
+    final r = recorder((_, _) => GeminiException('Yanıt engellendi: SAFETY'));
     await expectLater(
         AiPool.run(creds, r.action), throwsA(isA<GeminiException>()));
     expect(r.tried.length, 2);
@@ -122,7 +122,7 @@ void main() {
 
   test('ağ hatasında sınırlı deneme yapılır (offline\'da 30 bekleme yok)',
       () async {
-    final r = recorder((_, __) => GeminiException('Ağ hatası: SocketException'));
+    final r = recorder((_, _) => GeminiException('Ağ hatası: SocketException'));
     await expectLater(
         AiPool.run(creds, r.action), throwsA(isA<GeminiException>()));
     expect(r.tried.length, 2);
@@ -164,7 +164,7 @@ void main() {
   });
 
   test('anahtar yoksa açık ve yönlendirici hata verir', () async {
-    final r = recorder((_, __) => null);
+    final r = recorder((_, _) => null);
     await expectLater(
       AiPool.run(const AiCredentials(models: ['m']), r.action),
       throwsA(isA<GeminiException>()),

@@ -76,7 +76,7 @@ class TransferKeeper {
   }
 
   /// Yeni ekran geçici ağı kendisi kuracak: devralınan oturum onu kapatmasın.
-  void detachClosers() => _adopted.updateAll((_, __) => null);
+  void detachClosers() => _adopted.updateAll((_, _) => null);
 
   /// Bildirimdeki "Durdur": devralınan her şey hemen kapanır.
   Future<void> stopAdopted() async {

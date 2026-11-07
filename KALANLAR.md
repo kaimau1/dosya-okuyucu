@@ -149,7 +149,8 @@ saf Dart zinciri (xml 7/pdf/syncfusion 35) · Android eklentileri · google_sign
 kapısı (> %10 ya da p99 > 24 ms → birleşmez). Sıra 43 → 50. A3.4b bu fazlara taşındı.
 - [ ] Faz 43 artığı 📱 (taban MatePad’da alındı → `docs/perf/2026-11-43-taban.md`): Xiaomi 13T + Mi Note 10 Lite tabanı (P1–P12), P6 (erişilebilirlik açık), P4/P5 ekran kaydı + yakınlaştırma, P12 video; duman turunun elle maddeleri.
 - [ ] İncele 📱: `VIEW video/*` (file://) oynatıcı yerine panoyu açıyor; Paylaş (`SEND`) Aktar ekranına gidip konum + yakın cihaz izni istiyor (MatePad, Faz 43).
-- [ ] Sıradaki: **Faz 44** (Flutter 3.47.9).
+- [ ] Sıradaki: **Faz 45** (saf Dart zinciri; Faz 44 birleşti — taban `docs/perf/2026-11-44.md` "sonra" sütunu). `third_party/` yamalı pdfrx/dartssh2 Faz 47/48'de silinecek.
+- [ ] Faz 44 artığı 📱: P9/P12 ve duman turunun elle maddeleri 3.47'de; Xiaomi'de P5 kuyruğu (+%14–18 MatePad'de) yeniden ölç.
 
 ---
 

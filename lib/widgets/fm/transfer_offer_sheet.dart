@@ -174,7 +174,7 @@ class _OfferBody extends StatelessWidget {
           if (trust != null)
             ValueListenableBuilder<bool>(
               valueListenable: trust!,
-              builder: (_, on, __) => CheckboxListTile(
+              builder: (_, on, _) => CheckboxListTile(
                 key: const ValueKey('offer-trust'),
                 value: on,
                 onChanged: (v) => trust!.value = v ?? false,
@@ -234,7 +234,7 @@ class _Tile extends StatelessWidget {
     Widget image(Uint8List bytes) => Image.memory(bytes,
         fit: BoxFit.cover,
         gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => Center(child: icon()));
+        errorBuilder: (_, _, _) => Center(child: icon()));
 
     final Widget media;
     if (row.thumb != null) {

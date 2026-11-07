@@ -10,7 +10,7 @@
 # 3) Yeşilse ve çalışma ağacı temizse HEAD'in ağacı damgalanır
 #    (.git/test-green). Kanca aynı ağacı ikinci kez test etmez.
 #
-# Kullanım: bash tool/test_gate.sh   (PATH'te proje SDK'sı: /c/src/flutter-3446/bin)
+# Kullanım: bash tool/test_gate.sh   (PATH'te proje SDK'sı: /c/src/flutter-3479/bin)
 FLUTTER=$(command -v flutter 2>/dev/null)
 [ -z "$FLUTTER" ] && FLUTTER="/c/src/flutter/bin/flutter.bat"
 ROOT=$(git rev-parse --show-toplevel) || exit 1

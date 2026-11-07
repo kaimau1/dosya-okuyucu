@@ -153,7 +153,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
                       key: ValueKey(_pages[i].display),
                       cacheWidth: cacheWidth,
                       gaplessPlayback: true,
-                      errorBuilder: (_, __, ___) => SizedBox(
+                      errorBuilder: (_, _, _) => SizedBox(
                         width: 220,
                         height: 300,
                         child: Center(
@@ -408,10 +408,10 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
           padding: const EdgeInsets.symmetric(
               horizontal: Gap.sm + 4, vertical: Gap.sm + 2),
           itemCount: _pages.length,
-          onReorderItem: _busy ? (_, __) {} : _reorder,
+          onReorderItem: _busy ? (_, _) {} : _reorder,
           proxyDecorator: (child, _, animation) => AnimatedBuilder(
             animation: animation,
-            builder: (_, __) => Transform.scale(
+            builder: (_, _) => Transform.scale(
               scale: 1 + 0.08 * Curves.easeOut.transform(animation.value),
               child: Material(
                 color: Colors.transparent,

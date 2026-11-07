@@ -99,7 +99,7 @@ class _RecentStripState extends State<RecentStrip> {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: _items.length,
-            separatorBuilder: (_, __) => const SizedBox(width: Gap.sm),
+            separatorBuilder: (_, _) => const SizedBox(width: Gap.sm),
             itemBuilder: (context, i) {
               final e = _items[i];
               return Semantics(

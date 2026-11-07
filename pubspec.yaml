@@ -7,7 +7,7 @@ publish_to: "none"
 version: 1.1.0+1
 
 environment:
-  sdk: ">=3.3.0 <4.0.0"
+  sdk: ">=3.13.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -332,3 +332,10 @@ flutter_launcher_icons:
   # `tool/gen_icon.py` işaretin boyunu zaten maskeye göre ölçüyor (max_fit),
   # yani ikinci bir küçültmeye gerek yok: inset sıfırlanıyor.
   adaptive_icon_foreground_inset: 0
+
+# Faz 44 (Dart 3.13): sabit iki paketin yamalı kopyası — gerekçe third_party/README.md.
+dependency_overrides:
+  pdfrx:
+    path: third_party/pdfrx
+  dartssh2:
+    path: third_party/dartssh2

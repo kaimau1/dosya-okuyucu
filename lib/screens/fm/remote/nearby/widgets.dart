@@ -51,7 +51,7 @@ class _RadarState extends State<_Radar> with SingleTickerProviderStateMixin {
       dimension: widget.size,
       child: AnimatedBuilder(
         animation: _c,
-        builder: (_, __) => CustomPaint(
+        builder: (_, _) => CustomPaint(
           painter: _RadarPainter(color, widget.active ? _c.value : 0),
           child: Center(child: Icon(AppIcons.device, color: color)),
         ),
@@ -261,7 +261,7 @@ class _StepHeader extends StatelessWidget {
               ],
             ),
           ),
-          if (trailing != null) trailing!,
+          ?trailing,
         ],
       ),
     );
@@ -302,7 +302,7 @@ class _SelectedTile extends StatelessWidget {
                         ? Image.file(File(path),
                             fit: BoxFit.cover,
                             cacheWidth: 160,
-                            errorBuilder: (_, __, ___) =>
+                            errorBuilder: (_, _, _) =>
                                 Center(child: Icon(glyph, color: color)))
                         : Center(child: Icon(glyph, color: color, size: 30)),
                   ),
@@ -392,7 +392,7 @@ class _TransferCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (action != null) action!,
+                  ?action,
                 ],
               ),
               for (final r in rows) ...[const SizedBox(height: Gap.md), r],

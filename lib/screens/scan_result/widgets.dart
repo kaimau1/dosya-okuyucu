@@ -107,7 +107,7 @@ class _Thumb extends StatelessWidget {
                 fit: BoxFit.cover,
                 cacheWidth: (54 * dpr).round(),
                 gaplessPlayback: true,
-                errorBuilder: (_, __, ___) =>
+                errorBuilder: (_, _, _) =>
                     ColoredBox(color: scheme.surfaceContainerHigh),
               ),
             ),
@@ -366,7 +366,7 @@ class _GridPageTile extends StatelessWidget {
                     cacheWidth: (((box.maxWidth * dpr) / 64).ceil() * 64)
                         .clamp(64, 1024),
                     gaplessPlayback: true,
-                    errorBuilder: (_, __, ___) =>
+                    errorBuilder: (_, _, _) =>
                         ColoredBox(color: scheme.surfaceContainerHigh),
                   ),
                 ),

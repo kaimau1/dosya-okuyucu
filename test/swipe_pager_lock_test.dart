@@ -18,7 +18,7 @@ void main() {
               builder: (_) => Scaffold(
                 body: ValueListenableBuilder<bool>(
                   valueListenable: holding,
-                  builder: (_, hold, __) => Column(
+                  builder: (_, hold, _) => Column(
                     children: [
                       const Expanded(child: Center(child: Text('sayfa-1'))),
                       if (hold) const SwipeHold(child: Text('seçim çubuğu')),

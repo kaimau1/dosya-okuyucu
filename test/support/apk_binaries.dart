@@ -214,7 +214,7 @@ abstract final class ApkBinaries {
       pathData,
       _fmt(viewportWidth),
       _fmt(viewportHeight),
-      if (groupTranslate != null) groupTranslate,
+      ?groupTranslate,
     ];
     final pool = stringPool(strings);
     int idx(String s) => strings.indexOf(s);

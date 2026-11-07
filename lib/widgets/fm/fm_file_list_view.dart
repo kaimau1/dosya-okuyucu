@@ -286,8 +286,10 @@ class FmGroupHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // 3.47: Android/iOS'ta `header` etkisiz, başlık `headingLevel` ile bildirilir.
     return Semantics(
       header: true,
+      headingLevel: 2,
       child: Padding(
         padding: const EdgeInsetsDirectional.fromSTEB(
             Gap.md, Gap.md, Gap.md, Gap.xs),

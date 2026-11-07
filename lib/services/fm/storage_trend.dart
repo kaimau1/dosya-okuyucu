@@ -113,7 +113,7 @@ abstract final class StorageTrend {
       if (raw is! List) return const [];
       return [
         for (final item in raw)
-          if (TrendPoint.fromJson(item) case final point?) point,
+          ?TrendPoint.fromJson(item),
       ]..sort((a, b) => a.dayMs.compareTo(b.dayMs));
     } catch (_) {
       return const [];

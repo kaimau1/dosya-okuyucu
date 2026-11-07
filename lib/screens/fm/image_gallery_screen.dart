@@ -56,9 +56,9 @@ Route<void> imageGalleryRoute({
       opaque: false,
       transitionDuration: Motion.long,
       reverseTransitionDuration: Motion.medium,
-      pageBuilder: (_, __, ___) =>
+      pageBuilder: (_, _, _) =>
           ImageGalleryScreen(paths: paths, initialIndex: initialIndex),
-      transitionsBuilder: (_, animation, __, child) => FadeTransition(
+      transitionsBuilder: (_, animation, _, child) => FadeTransition(
         opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
         child: child,
       ),
@@ -194,7 +194,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       precacheImage(
         FmFileImage(_paths[j], cacheWidth: width),
         context,
-        onError: (_, __) {},
+        onError: (_, _) {},
       );
     }
   }

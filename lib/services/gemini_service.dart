@@ -151,7 +151,7 @@ class GeminiService {
     }
 
     final parts = <String>[
-      if (systemInstruction != null) systemInstruction,
+      ?systemInstruction,
       if (fileContext != null && fileContext.trim().isNotEmpty)
         'Kaynak belge:\n"""\n${_truncate(fileContext, 24000)}\n"""',
     ];

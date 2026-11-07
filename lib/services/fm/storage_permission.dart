@@ -26,7 +26,7 @@ abstract final class StoragePermission {
     if (!Platform.isAndroid) return true;
     try {
       if (await Permission.manageExternalStorage.isGranted) return true;
-      if (await _legacyDevice()) return Permission.storage.isGranted;
+      if (await _legacyDevice()) return await Permission.storage.isGranted;
       return false;
     } catch (_) {
       return false; // eklenti yok (test/masaüstü)

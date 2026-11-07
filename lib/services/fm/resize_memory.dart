@@ -62,7 +62,7 @@ abstract final class ResizeMemory {
       if (list is! List) return const [];
       return [
         for (final item in list)
-          if (ResizePreset.fromJson(item) case final p?) p,
+          ?ResizePreset.fromJson(item),
       ];
     } catch (_) {
       return const []; // bozuk kayıt: ön ayarsız açılır

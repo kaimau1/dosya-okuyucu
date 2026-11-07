@@ -107,7 +107,7 @@ extension _RemoteBrowserScreenViewsPart on _RemoteBrowserScreenState {
   Future<void> _copyToPhone() async {
     final targets = [
       for (final path in _selected)
-        if (_entryOf(path) case final e?) e,
+        ?_entryOf(path),
     ];
     final files = [for (final e in targets) if (!e.isDir) e];
     final skippedDirs = targets.length - files.length;
@@ -174,7 +174,7 @@ extension _RemoteBrowserScreenViewsPart on _RemoteBrowserScreenState {
   Future<void> _deleteSelected() async {
     final entries = [
       for (final path in _selected)
-        if (_entryOf(path) case final e?) e,
+        ?_entryOf(path),
     ];
     if (entries.isEmpty) return;
     // Tek dosyada ADIYLA sor: "1 öğe silinsin mi?" demek, yanlış dosyayı
@@ -267,7 +267,7 @@ extension _RemoteBrowserScreenViewsPart on _RemoteBrowserScreenState {
                   onRefresh: () => _load(_path),
                   child: ListView.separated(
                     itemCount: _visible.length + (_atRoot ? 0 : 1),
-                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    separatorBuilder: (_, _) => const Divider(height: 1),
                     itemBuilder: (_, i) {
                       if (!_atRoot && i == 0) {
                         return ListTile(

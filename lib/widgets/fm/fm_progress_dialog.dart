@@ -97,7 +97,7 @@ Future<T> showFmProgress<T>(
       context.mounted ? context : null,
       ValueListenableBuilder<FmProgress>(
         valueListenable: progress,
-        builder: (_, value, __) => Row(
+        builder: (_, value, _) => Row(
           children: [
             const SizedBox(
               width: 16,
@@ -157,7 +157,7 @@ Future<T> showFmProgress<T>(
             width: (MediaQuery.sizeOf(ctx).width * 0.78).clamp(240.0, 420.0),
             child: ValueListenableBuilder<FmProgress>(
               valueListenable: progress,
-              builder: (_, value, __) => Column(
+              builder: (_, value, _) => Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

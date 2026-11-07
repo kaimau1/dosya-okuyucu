@@ -220,12 +220,12 @@ void main() {
     });
 
     test('hiç sayı yoksa null', () {
-      expect(autoSumRange(0, 0, (_, __) => false), isNull);
-      expect(autoSumRange(5, 5, (_, __) => false), isNull);
+      expect(autoSumRange(0, 0, (_, _) => false), isNull);
+      expect(autoSumRange(5, 5, (_, _) => false), isNull);
     });
 
     test('kenar hücrede taşma yok', () {
-      expect(autoSumRange(0, 0, (_, __) => true), isNull);
+      expect(autoSumRange(0, 0, (_, _) => true), isNull);
       expect(numericAt(const {}), isFalse);
     });
   });
