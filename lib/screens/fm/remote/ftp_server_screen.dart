@@ -309,7 +309,8 @@ class _FtpServerScreenState extends State<FtpServerScreen> {
             const SizedBox(height: Gap.md),
             // **QR** (2026-10-18): adresi yazmak yerine başka bir telefonun
             // ya da bilgisayarın kamerasıyla okut.
-            QrCode(data: webAddresses.first),
+            QrCode(
+                data: webAddresses.first, size: QrCode.fitSize(context, max: 180)),
             const SizedBox(height: Gap.xs),
             Text(
               context.t('ftpd.qr_hint'),

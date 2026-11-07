@@ -262,8 +262,7 @@ extension _NearbySections on _NearbyScreenState {
     } else {
       hint = context.t('qrf.preparing');
     }
-    final size =
-        (MediaQuery.sizeOf(context).shortestSide - 140).clamp(160.0, 260.0);
+    final size = QrCode.fitSize(context, max: 200);
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(

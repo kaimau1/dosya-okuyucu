@@ -104,6 +104,9 @@ class QrTransfer(private val activity: Activity) : MethodChannel.MethodCallHandl
     private fun scan(result: MethodChannel.Result) {
         val options = GmsBarcodeScannerOptions.Builder()
             .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+            // Uzaktaki/küçük QR'a kendiliğinden yakınlaş (code-scanner 16.1.0+;
+            // 2026-11-07 — ekrandaki QR artık küçük, okuyan taraf yaklaşsın).
+            .enableAutoZoom()
             .build()
         try {
             GmsBarcodeScanning.getClient(activity, options).startScan()

@@ -10,6 +10,7 @@ import '../widgets/app_dialog.dart';
 import 'settings/settings_catalog.dart';
 import 'settings/settings_category_screen.dart';
 import 'settings/settings_group.dart';
+import 'settings/theme_gallery.dart';
 import '../core/safe_insets.dart';
 
 export 'settings/tiles_system.dart' show showOpenSourceLicenses;
@@ -134,28 +135,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  /// Kategori kartları — ana görünüm. En üstte hızlı tema seçici
-  /// ([_QuickHeader]).
+  /// **Ana görünüm (2026-11-07 yeniden yazıldı).** Üstte görünüm kartı
+  /// (açık/koyu/otomatik + önizlemeli tema şeridi — kullanıcı: *"temaların
+  /// görünür biçimde seçilebilmesi örnek görseliyle"*), altında önerilenler,
+  /// sonra kategoriler TEK kartta, ince ayraçlarla (eskiden yedi ayrı ağır
+  /// kart; ekran boyu iki kat uzundu).
   Widget _categoryList(List<SettingsCategory> categories,
-          {String? selectedId, ValueChanged<SettingsCategory>? onPick}) =>
-      ListView.builder(
-        padding: withNavInset(
-            context, const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl)),
-        itemCount: categories.length + 1,
-        itemBuilder: (context, i) => i == 0
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const _QuickHeader(),
-                  _Suggestions(categories: categories),
-                ],
-              )
-            : _CategoryCard(
-                category: categories[i - 1],
-                selected: categories[i - 1].id == selectedId,
-                onTap: onPick == null ? null : () => onPick(categories[i - 1]),
-              ),
-      );
+      {String? selectedId, ValueChanged<SettingsCategory>? onPick}) {
+    final scheme = Theme.of(context).colorScheme;
+    return ListView(
+      padding: withNavInset(
+          context, const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl)),
+      children: [
+        const _AppearanceHero(),
+        const SizedBox(height: Gap.sm + 2),
+        _Suggestions(categories: categories),
+        Material(
+          key: const ValueKey('settings-categories'),
+          color: scheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(Radii.card + 2),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              for (var i = 0; i < categories.length; i++) ...[
+                if (i > 0)
+                  Divider(
+                      height: 1,
+                      indent: Gap.md + 44 + Gap.md,
+                      color: scheme.outlineVariant.withValues(alpha: 0.5)),
+                _CategoryCard(
+                  category: categories[i],
+                  selected: categories[i].id == selectedId,
+                  onTap: onPick == null ? null : () => onPick(categories[i]),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
   /// **Arama sonuçları — 2026-08-29.**
   ///
@@ -268,21 +287,16 @@ class _CategoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: Gap.sm + 2),
-      child: Material(
-        color: selected
-            ? scheme.secondaryContainer
-            : scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(Radii.card + 2),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(Radii.card + 2),
+    return Material(
+      color: selected ? scheme.secondaryContainer : Colors.transparent,
+      child: InkWell(
           onTap: onTap ??
               () => Navigator.of(context).push(MaterialPageRoute(
                     builder: (_) => SettingsCategoryScreen(category: category),
                   )),
           child: Padding(
-            padding: const EdgeInsets.all(Gap.md),
+            padding: const EdgeInsets.symmetric(
+                horizontal: Gap.md, vertical: Gap.sm + 4),
             child: Row(
               children: [
                 // Simge kutusu: 44 dp, %12 vurgu dolgusu. Sabit ölçü, kartlar
@@ -341,7 +355,6 @@ class _CategoryCard extends StatelessWidget {
             ),
           ),
         ),
-      ),
     );
   }
 }
@@ -366,7 +379,8 @@ class _Suggestions extends StatelessWidget {
     final ids = suggestedSettingIds(
         hasApiKey: hasKey, appLock: lock, autoSave: autoSave);
     final rows = <SettingRow>[
-      for (final id in ids)
+      // Tema galerisi zaten ekranın üstünde — öneri yinelenmesin.
+      for (final id in ids.where((id) => id != 'skin'))
         for (final c in categories)
           for (final r in c.rows)
             if (r.id == id) r,
@@ -411,14 +425,47 @@ class _Suggestions extends StatelessWidget {
   }
 }
 
+/// Görünüm kartı: parlaklık + önizlemeli tema şeridi. Dokunulan tema
+/// anında uygulanır; ayrıntı (arka plan, vurgu, yazı) Görünüm kategorisinde.
+class _AppearanceHero extends StatelessWidget {
+  const _AppearanceHero();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      key: const ValueKey('settings-appearance-hero'),
+      color: scheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(Radii.card + 2),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, Gap.sm + 2),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(context.t('skin.title'),
+                style: Theme.of(context)
+                    .textTheme
+                    .titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: Gap.sm),
+            const ThemeGallery(strip: true),
+            const SizedBox(height: Gap.sm),
+            const _QuickHeader(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _QuickHeader extends StatelessWidget {
   const _QuickHeader();
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
-    return Padding(
-      padding: const EdgeInsets.only(bottom: Gap.sm + 2),
+    final mode = context.select<AppState, ThemeMode>((s) => s.themeMode);
+    return SizedBox(
+      width: double.infinity,
       child: SegmentedButton<ThemeMode>(
         showSelectedIcon: false,
         // Dokunma alanı en az 48 dp (Faz 16, `androidTapTargetGuideline`;
@@ -442,7 +489,7 @@ class _QuickHeader extends StatelessWidget {
             label: Text(context.t('set.theme_auto')),
           ),
         ],
-        selected: {state.themeMode},
+        selected: {mode},
         onSelectionChanged: (v) =>
             context.read<AppState>().setThemeMode(v.first),
       ),

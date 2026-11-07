@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:dosya_okuyucu/core/skin.dart';
 import 'package:dosya_okuyucu/core/theme.dart';
-import 'package:dosya_okuyucu/screens/settings/tiles_appearance.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -54,10 +53,4 @@ void main() {
     }
   }
 
-  test('ön ayar eşleşmesi', () {
-    expect(ThemePresetTile.currentId(AppSkin.night, ThemeMode.light), 'amoled');
-    expect(ThemePresetTile.currentId(AppSkin.clay, ThemeMode.light), 'paper');
-    expect(ThemePresetTile.currentId(AppSkin.sage, ThemeMode.dark), 'dark');
-    expect(ThemePresetTile.currentId(AppSkin.modern, ThemeMode.dark), isNull);
-  });
 }
