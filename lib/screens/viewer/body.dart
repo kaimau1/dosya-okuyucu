@@ -116,10 +116,12 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                           context,
                           chrome,
                         ),
-                        // **Yakınlaştırmada titreme** (2026-10-28): bkz.
-                        // [_pdfRenderScale] — sayfa bitmap'i yakınlığa göre
-                        // basamaklı keskinleşir, jest sürerken değişmez.
-                        getPageRenderingScale: _pdfRenderScale,
+                        // Bitmap ölçeği pdfrx 2.12'nin kendisinde (basamaklı
+                        // `getPageRenderingScale` 2.x'te fazladan çizim
+                        // tetikliyordu — Faz 48.4 ölçümü). Önbellek tavanı
+                        // cihaz profilinden.
+                        maxImageBytesCachedOnMemory:
+                            DeviceProfile.budget.pdfImageCacheBytes,
                         // Güncel sayfa: sayfalar ekrana sığınca rozet geri
                         // kalıyordu (bkz. [currentPdfPage]).
                         calculateCurrentPageNumber: _currentPdfPage,
@@ -127,7 +129,6 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         // tercihi artık geçerli değil.
                         onInteractionStart: (_) {
                           _pdfJumpTarget = null;
-                          _pdfInteracting = true;
                           if (_pdfPinch) _partSetState(() => _pdfPinch = false);
                         },
                         // **Kaydırma "birazcık gidip duruyordu"** (2026-10-29
@@ -146,7 +147,6 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                             _partSetState(() => _pdfPinch = true);
                           }
                         },
-                        onInteractionEnd: (_) => _pdfInteracting = false,
                         // Arama eşleşmelerini sayfada vurgula: metin katmanı
                         // (pdfrx, Faz 1) + taranmış sayfaların OCR eşleşmeleri
                         // (Faz 2) — renkler aynı, kullanıcı fark görmez.
@@ -495,40 +495,6 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
       documentSize: Size(base.documentSize.width,
           base.documentSize.height + top + bottom),
     );
-  }
-
-  /// **Yakınlaştırırken titreme/bozulma** (kullanıcı 2026-10-28: *"zoom
-  /// yaparken anlık görüntü değişmesi, bozulması, titremesi oluyor"*).
-  ///
-  /// KÖK NEDEN (pdfrx 1.3.5): sayfanın tam bitmap'i SABİT bir ölçekte
-  /// (200 dpi) çiziliyor; daha yakında pdfrx görünen parçayı ayrıca keskin
-  /// çizip üstüne yapıştırıyor ve bu "kısmi" görüntüyü her jest karesinde
-  /// iptal edip 50 ms sonra yeniden istiyor. Parmak hareket ettikçe keskin
-  /// dikdörtgen eski yerinde kalıyor, kenarında bulanık zemin görünüyor,
-  /// yenisi gelince görüntü "atlıyor"; eşiğin altına inince de keskinlik
-  /// birden kayboluyor.
-  ///
-  /// Çözüm: tam sayfa bitmap'inin ölçeği yakınlığa göre **basamaklı**
-  /// yükselir (×1,5 adımlar, sayfa başına ~12 MP tavan) — kısmi yamaya ancak
-  /// tavanın ötesinde gerek kalır. Jest SÜRERKEN ölçek değişmez (yeniden
-  /// çizim yok, titreme yok); parmak kalkınca bir kez keskinleşir. Geri
-  /// uzaklaşınca ölçek ancak yarıdan fazla düşünce iner (gidip gelmesin).
-  double _pdfRenderScale(BuildContext context, PdfPage page,
-      PdfViewerController controller, double estimated) {
-    var current = _pdfBaseScale ?? estimated;
-    if (!_pdfInteracting && controller.isReady) {
-      final need =
-          MediaQuery.devicePixelRatioOf(context) * controller.currentZoom;
-      var step = estimated;
-      while (step < need) {
-        step *= 1.5;
-      }
-      if (step > current || step < current / 2.3) current = step;
-      _pdfBaseScale = current;
-    }
-    final area = page.width * page.height;
-    final cap = area <= 0 ? current : math.sqrt(12e6 / area);
-    return math.max(estimated, math.min(current, cap));
   }
 
   /// **Geniş ekranda sayfa küçük resimleri** (Faz 18 / G17): ≥ 840 dp'de

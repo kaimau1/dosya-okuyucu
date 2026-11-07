@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:provider/provider.dart';
 
+import '../core/device_profile.dart';
 import '../core/app_icons.dart';
 import '../core/app_state.dart';
 import '../core/edit/edit_session.dart';

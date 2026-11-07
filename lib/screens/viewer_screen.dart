@@ -23,6 +23,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/app_icons.dart';
 import '../core/line_endings.dart';
 import '../core/motion.dart';
+import '../core/device_profile.dart';
 import '../core/screen_awake.dart';
 import '../services/pptx/pro/slides_native.dart';
 import '../core/pretty_format.dart';
@@ -390,16 +391,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// PDF'te de açık — çubuklar artık gövdenin boyunu değiştirmiyor.
   final ReadingBars _readingBars = ReadingBars();
 
-  /// pdfrx jesti (kaydırma/iki parmak) sürüyor mu — sürerken sayfa bitmap
-  /// ölçeği değişmez (bkz. [_pdfRenderScale]).
-  bool _pdfInteracting = false;
-
   /// Süren jest iki parmaklı mı (yakınlaştırma)? Fırlatma sürtünmesi buna
   /// göre seçilir (bkz. [kPdfPanFriction]).
   bool _pdfPinch = false;
-
-  /// Son seçilen sayfa bitmap ölçeği (basamaklı, bkz. [_pdfRenderScale]).
-  double? _pdfBaseScale;
 
   /// Önceki matris (PDF kaydırma yönünü çıkarmak için).
   double? _pdfLastTy;

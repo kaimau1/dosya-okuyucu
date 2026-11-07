@@ -26,6 +26,8 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
                   // pdfrx'in kendi metin seçimi kapalı: düzenleme katmanı
                   // dokunuşları kendisi yorumlar (bkz. viewer/body.dart).
                   textSelectionParams: kPdfOwnSelectionOff,
+                  maxImageBytesCachedOnMemory:
+                      DeviceProfile.budget.pdfImageCacheBytes,
                   // Görüntüleyiciyle aynı fırlatma (bkz. [kPdfPanFriction]).
                   interactionEndFrictionCoefficient:
                       _pinch ? kPdfPinchFriction : kPdfPanFriction,
