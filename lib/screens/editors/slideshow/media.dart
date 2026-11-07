@@ -87,7 +87,7 @@ extension _SlideshowMedia on _SlideshowScreenState {
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         ValueListenableBuilder<VideoPlayerValue>(
           valueListenable: m.ctrl,
-          builder: (_, v, __) => IconButton(
+          builder: (_, v, _) => IconButton(
             tooltip: context.t(v.isPlaying ? 'ss.pause' : 'ss.play'),
             icon: Icon(v.isPlaying ? AppIcons.pause : AppIcons.play,
                 color: AppColors.onMedia),

@@ -306,7 +306,7 @@ List<DownloadTask> decodeQueue(String raw) {
     if (data is! List) return const [];
     return [
       for (final item in data)
-        if (DownloadTask.fromJson(item) case final task?) task,
+        ?DownloadTask.fromJson(item),
     ];
   } catch (_) {
     return const [];

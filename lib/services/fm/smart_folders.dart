@@ -94,7 +94,7 @@ class SmartFolders extends ChangeNotifier {
         if (list is List) {
           _folders = [
             for (final e in list)
-              if (SmartFolder.fromJson(e) case final f?) f,
+              ?SmartFolder.fromJson(e),
           ];
         }
       }

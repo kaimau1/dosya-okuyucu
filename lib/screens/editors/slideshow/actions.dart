@@ -86,7 +86,7 @@ extension _SlideshowActions on _SlideshowScreenState {
           child: IgnorePointer(
             child: ValueListenableBuilder<int>(
               valueListenable: _counterRev,
-              builder: (context, _, __) {
+              builder: (context, _, _) {
                 final left = _counterLeft[i] ?? c.seconds;
                 return Container(
                   key: ValueKey('ss-counter-$i'),

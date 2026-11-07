@@ -89,7 +89,7 @@ class _AnalysisTab extends StatelessWidget {
       valueListenable: AiAnalyzer.progress,
       builder: (context, progress, _) => ValueListenableBuilder<int>(
         valueListenable: AiIndex.revision,
-        builder: (context, _, __) => _body(context, progress),
+        builder: (context, _, _) => _body(context, progress),
       ),
     );
   }

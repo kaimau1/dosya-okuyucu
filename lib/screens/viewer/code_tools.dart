@@ -180,7 +180,7 @@ extension _ViewerCodeToolsPart on _ViewerScreenState {
         height: 28,
         child: ValueListenableBuilder<TextEditingValue>(
           valueListenable: _textController!,
-          builder: (_, v, __) {
+          builder: (_, v, _) {
             final off = v.selection.isValid
                 ? v.selection.extentOffset.clamp(0, v.text.length)
                 : 0;

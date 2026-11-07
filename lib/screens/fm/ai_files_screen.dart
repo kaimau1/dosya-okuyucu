@@ -43,7 +43,7 @@ class _AiFilesScreenState extends State<AiFilesScreen> {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<int>(
       valueListenable: AiIndex.revision,
-      builder: (context, _, __) {
+      builder: (context, _, _) {
         final records = _load();
         final bytes = AiBuckets.totalBytes(records);
         final suggestions = widget.bucket == AiBucket.suggestions;

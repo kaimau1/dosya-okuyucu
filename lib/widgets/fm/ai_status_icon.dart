@@ -27,7 +27,7 @@ class AiStatusIcon extends StatelessWidget {
       valueListenable: AiAnalyzer.progress,
       builder: (context, progress, _) => ValueListenableBuilder<int>(
         valueListenable: AiIndex.revision,
-        builder: (context, _, __) {
+        builder: (context, _, _) {
           final pending = AiIndex.suggestionCount;
           if (progress.isBusy) {
             return Stack(

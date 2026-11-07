@@ -142,7 +142,7 @@ class FmEntryRow extends StatelessWidget {
                     const SizedBox(width: Gap.sm),
                     badge!,
                   ],
-                  if (more != null) more,
+                  ?more,
                 ],
               ),
             ),
@@ -166,7 +166,7 @@ class FmEntryRow extends StatelessWidget {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (more != null) more,
+          ?more,
           Icon(AppIcons.chevron,
               size: AppIcons.small, color: scheme.onSurfaceVariant),
         ],

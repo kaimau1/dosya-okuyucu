@@ -154,7 +154,7 @@ class PickerRequest {
         ? (extensions.toList()..sort())
         : [
             for (final m in effectiveMimes)
-              if (_extensionOfMime(m) case final e?) e,
+              ?_extensionOfMime(m),
           ];
     if (exts.isEmpty) return '';
     final shown = exts.take(4).map((e) => e.toUpperCase()).join(' · ');

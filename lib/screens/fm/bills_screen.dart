@@ -233,7 +233,7 @@ class _BillsScreenState extends State<BillsScreen> {
             b.amount == null
                 ? context.t('bills.no_amount')
                 : Bills.formatAmount(b.amount!, b.currency),
-            if (dueText != null) dueText,
+            ?dueText,
           ].join(' · '),
           style: TextStyle(
               color: overdue ? scheme.error : null,

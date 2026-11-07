@@ -119,7 +119,7 @@ extension _NearbyLinks on _NearbyScreenState {
     if (_hotspotBusy) return false;
     TransferKeeper.instance.detachClosers();
     _update(() => _hotspotBusy = true);
-    final before = <String>{if (_webHost != null) _webHost!};
+    final before = <String>{?_webHost};
     try {
       final h = await QrNative.startHotspot();
       String? host;

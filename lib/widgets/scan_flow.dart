@@ -206,7 +206,7 @@ class ScanFlow {
           contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
           content: ValueListenableBuilder<({String text, double? value})>(
             valueListenable: progress,
-            builder: (_, v, __) => Column(
+            builder: (_, v, _) => Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(

@@ -57,9 +57,9 @@ class AudiobookMaker {
   AudiobookMaker({
     required this.voice,
     this.engine,
-    TtsService? tts,
+    this._tts,
     this.speed = 1.0,
-  }) : _tts = tts;
+  });
 
   final AudiobookVoice voice;
   final NeuralVoiceEngine? engine;

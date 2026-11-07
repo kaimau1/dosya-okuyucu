@@ -97,7 +97,7 @@ Future<void> _shot(WidgetTester tester, String name, Widget body,
           backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
           body: Column(children: [
             Expanded(child: body),
-            if (bottom != null) bottom,
+            ?bottom,
           ]),
         ),
       ),

@@ -292,9 +292,7 @@ class PptxPackage {
     if (pres == null) return const [];
     return [
       for (final m in pres.findAllElements('p:sldMasterId'))
-        if (relTarget(presentation, m.getAttribute('r:id') ?? '')
-            case final t?)
-          t,
+        ?relTarget(presentation, m.getAttribute('r:id') ?? ''),
     ];
   }
 
@@ -304,7 +302,7 @@ class PptxPackage {
     if (d == null) return const [];
     return [
       for (final l in d.findAllElements('p:sldLayoutId'))
-        if (relTarget(master, l.getAttribute('r:id') ?? '') case final t?) t,
+        ?relTarget(master, l.getAttribute('r:id') ?? ''),
     ];
   }
 

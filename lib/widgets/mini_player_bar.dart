@@ -251,7 +251,7 @@ class _MiniPlayerBarState extends State<MiniPlayerBar> {
         cacheWidth: (44 * MediaQuery.devicePixelRatioOf(context)).round(),
         fit: BoxFit.cover,
         gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => _artFallback(scheme),
+        errorBuilder: (_, _, _) => _artFallback(scheme),
       );
     }
     return _artFallback(scheme);
@@ -277,13 +277,13 @@ class _MiniPlayerBarState extends State<MiniPlayerBar> {
       if (c == null) return const SizedBox(height: 2);
       return ValueListenableBuilder<VideoPlayerValue>(
         valueListenable: c,
-        builder: (_, live, __) =>
+        builder: (_, live, _) =>
             _progressLine(scheme, live.position, live.duration),
       );
     }
     return ValueListenableBuilder<Duration>(
       valueListenable: _audio.positionListenable,
-      builder: (_, position, __) =>
+      builder: (_, position, _) =>
           _progressLine(scheme, position, _audio.duration),
     );
   }

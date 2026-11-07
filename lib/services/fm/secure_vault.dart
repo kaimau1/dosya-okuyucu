@@ -236,7 +236,7 @@ class SecureVault extends ChangeNotifier {
     _items = [
       if (list is List)
         for (final e in list)
-          if (VaultItem.fromJson(e) case final item?) item,
+          ?VaultItem.fromJson(e),
     ]..sort((a, b) => b.addedMs.compareTo(a.addedMs));
   }
 

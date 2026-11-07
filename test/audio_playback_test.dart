@@ -120,7 +120,7 @@ void main() {
 
     test('geri yükleme kancayı ÇAĞIRMAZ (aynı değeri yeniden yazma)', () {
       var calls = 0;
-      AudioPlayback.persistModes = (_, __) => calls++;
+      AudioPlayback.persistModes = (_, _) => calls++;
 
       player.restoreModes(shuffle: true, repeat: AudioRepeatMode.all.index);
 

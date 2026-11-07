@@ -90,7 +90,7 @@ abstract final class DocxFonts {
         final used = usedFonts(pkg);
         final families = {
           for (final f in used)
-            if (kEmbedFamilyFor[f.toLowerCase()] case final fam?) fam,
+            ?kEmbedFamilyFor[f.toLowerCase()],
         };
         if (families.isEmpty) return;
         // 1) Adlar metrik eşine çevrilir (belge + stiller + tema).

@@ -64,7 +64,7 @@ class JobStore implements JobPersistence {
       if (raw is! List) return const [];
       return [
         for (final item in raw)
-          if (FmJob.fromJson(item) case final job?) job,
+          ?FmJob.fromJson(item),
       ];
     } catch (_) {
       return const [];

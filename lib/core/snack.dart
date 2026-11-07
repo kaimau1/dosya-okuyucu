@@ -285,7 +285,7 @@ class _ToastLayerState extends State<ToastLayer> {
                   children: [
                     ValueListenableBuilder<_Toast?>(
                       valueListenable: _ToastCenter.transient,
-                      builder: (_, toast, __) => toast == null
+                      builder: (_, toast, _) => toast == null
                           ? const SizedBox.shrink()
                           : _ToastCard(
                               key: ValueKey(toast.id),
@@ -296,7 +296,7 @@ class _ToastLayerState extends State<ToastLayer> {
                     ),
                     ValueListenableBuilder<_Toast?>(
                       valueListenable: _ToastCenter.sticky,
-                      builder: (_, toast, __) => toast == null
+                      builder: (_, toast, _) => toast == null
                           ? const SizedBox.shrink()
                           : Padding(
                               padding: const EdgeInsets.only(top: 8),
@@ -466,7 +466,7 @@ class _ToastCardState extends State<_ToastCard>
                 if (!_sticky)
                   AnimatedBuilder(
                     animation: _life,
-                    builder: (_, __) => Align(
+                    builder: (_, _) => Align(
                       alignment: AlignmentDirectional.centerStart,
                       child: FractionallySizedBox(
                         widthFactor: _remaining(_life.value),

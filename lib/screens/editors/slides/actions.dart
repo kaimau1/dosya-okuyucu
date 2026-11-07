@@ -121,7 +121,7 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
             Expanded(
               child: ValueListenableBuilder<String>(
                 valueListenable: progress,
-                builder: (_, v, __) => Text(v),
+                builder: (_, v, _) => Text(v),
               ),
             ),
           ],

@@ -566,7 +566,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: Gap.md),
                 itemCount: reading.length,
-                separatorBuilder: (_, __) => const SizedBox(width: Gap.md),
+                separatorBuilder: (_, _) => const SizedBox(width: Gap.md),
                 itemBuilder: (context, i) => SizedBox(
                   width: 120,
                   child: _BookTile(
@@ -735,7 +735,7 @@ class _BookCoverState extends State<_BookCover> {
         ? Image.file(File(cover),
             fit: BoxFit.cover,
             gaplessPlayback: true,
-            errorBuilder: (_, __, ___) => _drawnCover(hue, ext))
+            errorBuilder: (_, _, _) => _drawnCover(hue, ext))
         : _drawnCover(hue, ext);
     return AspectRatio(
       aspectRatio: 2 / 3,

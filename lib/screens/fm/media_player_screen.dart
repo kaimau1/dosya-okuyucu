@@ -346,7 +346,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                 bottom: _controlsVisible ? 140 : 32,
                 child: ValueListenableBuilder<VideoPlayerValue>(
                   valueListenable: c,
-                  builder: (_, live, __) => _captionLayer(live.position),
+                  builder: (_, live, _) => _captionLayer(live.position),
                 ),
               ),
             if (_volumeHint != null)
@@ -395,7 +395,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                 // alanı BURAYA hapsediyoruz (bkz. [_onTick]).
                 child: ValueListenableBuilder<VideoPlayerValue>(
                   valueListenable: c,
-                  builder: (_, live, __) => _controls(c, live),
+                  builder: (_, live, _) => _controls(c, live),
                 ),
               ),
           ],

@@ -76,7 +76,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
     final shown = _filter == null
         ? groups
         : {
-            if (groups[_filter] case final list?) _filter!: list,
+            _filter!: ?groups[_filter],
           };
     return Scaffold(
       appBar: AppBar(

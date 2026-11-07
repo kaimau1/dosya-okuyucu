@@ -61,7 +61,7 @@ class _TextEditor extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, box) => ValueListenableBuilder<TextEditingValue>(
           valueListenable: controller,
-          builder: (_, value, __) {
+          builder: (_, value, _) {
             final count = _lineCount(value.text);
             // Metin sütununun genişliği: şerit + dış boşluklar düşülür —
             // sarmalı satırların numarası bu genişlikte ölçülür.

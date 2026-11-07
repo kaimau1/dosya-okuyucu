@@ -330,7 +330,7 @@ class _TrashScreenState extends State<TrashScreen> {
                       // temasının kuralı (kart yalnız pano ve son belgelerde).
                       child: ListView.separated(
                         itemCount: shown.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        separatorBuilder: (_, _) => const Divider(height: 1),
                         itemBuilder: (context, i) {
                           final item = shown[i];
                           return FmEntryRow(

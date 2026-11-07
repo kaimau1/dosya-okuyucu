@@ -137,7 +137,7 @@ class SlideCanvas extends StatelessWidget {
                       : Image(
                           image: slideImageProvider(slide.backgroundImage!),
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const SizedBox(),
+                          errorBuilder: (_, _, _) => const SizedBox(),
                         ),
                 ),
               ),
@@ -706,7 +706,7 @@ class _CroppedImage extends StatelessWidget {
     final img = Image(
       image: slideImageProvider(bytes),
       fit: BoxFit.fill,
-      errorBuilder: (_, __, ___) => const SizedBox(),
+      errorBuilder: (_, _, _) => const SizedBox(),
     );
     final c = crop;
     if (c == null) return img;

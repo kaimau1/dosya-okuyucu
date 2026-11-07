@@ -385,7 +385,7 @@ class _SingleImage extends StatelessWidget {
           child: Image(
             image: FmFileImage(path, cacheWidth: 1200),
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) =>
+            errorBuilder: (_, _, _) =>
                 const Center(child: Icon(AppIcons.brokenImage)),
           ),
         ),
@@ -417,7 +417,7 @@ class _BeforeAfterState extends State<_BeforeAfter> {
         fit: BoxFit.contain,
         width: double.infinity,
         height: double.infinity,
-        errorBuilder: (_, __, ___) =>
+        errorBuilder: (_, _, _) =>
             const Center(child: Icon(AppIcons.brokenImage)),
       );
 
@@ -508,7 +508,7 @@ class _SideBySide extends StatelessWidget {
                   Image(
                     image: FmFileImage(path, cacheWidth: 900),
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) =>
+                    errorBuilder: (_, _, _) =>
                         const Center(child: Icon(AppIcons.brokenImage)),
                   ),
                   PositionedDirectional(start: 8, top: 8, child: _Tag(label)),

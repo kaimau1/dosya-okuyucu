@@ -566,7 +566,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
                     _cellBar(),
                     _formulaSuggestions(),
                     _formulaPreview(),
-                    if (_argumentHint() case final hint?) hint,
+                    ?_argumentHint(),
                     if (_ribbonOpen) _ribbon(),
                     Expanded(
                       child: PinchZoomArea(

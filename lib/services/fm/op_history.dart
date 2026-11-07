@@ -113,7 +113,7 @@ abstract final class OpHistory {
       if (raw is! List) return const [];
       return [
         for (final item in raw)
-          if (OpRecord.fromJson(item) case final record?) record,
+          ?OpRecord.fromJson(item),
       ]..sort((a, b) => b.whenMs.compareTo(a.whenMs));
     } catch (_) {
       return const [];

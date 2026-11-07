@@ -48,7 +48,7 @@ void main() {
           pdfPath: '/yok/Tarama.pdf',
           pages: pages,
           textPages: const [OcrPage(1, 'merhaba')],
-          saver: (_, __, ___) async {},
+          saver: (_, _, _) async {},
         ),
         textScale: scale,
       );
@@ -73,7 +73,7 @@ void main() {
       ScanResultScreen(
         pdfPath: '/yok/Tarama.pdf',
         pages: pages,
-        saver: (_, pages, __) async =>
+        saver: (_, pages, _) async =>
             saved.add([for (final page in pages) page.source]),
       ),
     );
@@ -103,7 +103,7 @@ void main() {
       ScanResultScreen(
         pdfPath: '/yok/Tarama.pdf',
         pages: const [ScanPage.raw('/yok/1.jpg')],
-        saver: (_, __, ___) async => fail('kaydedilmemeli'),
+        saver: (_, _, _) async => fail('kaydedilmemeli'),
       ),
     );
     await tester.tap(find.text('Sil'));
@@ -122,7 +122,7 @@ void main() {
             builder: (_) => ScanResultScreen(
               pdfPath: '/yok/Tarama.pdf',
               pages: pages,
-              saver: (_, __, ___) async => saves++,
+              saver: (_, _, _) async => saves++,
             ),
           )),
           child: const Text('aç'),

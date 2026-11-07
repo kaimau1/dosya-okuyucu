@@ -21,7 +21,7 @@ extension _SlideshowPresenter on _SlideshowScreenState {
                 Expanded(
                   child: ValueListenableBuilder<int>(
                     valueListenable: _seconds,
-                    builder: (_, s, __) => Text(
+                    builder: (_, s, _) => Text(
                       _SlideshowScreenState.clock(s),
                       key: const ValueKey('ss-presenter-clock'),
                       style: context.type.heading.copyWith(

@@ -75,7 +75,7 @@ class NavigatorStackGuard extends NavigatorObserver {
       // o zaman kurtarmaya gerek yok.
       if (nav == null || _count > 0) return;
       nav.push(PageRouteBuilder<void>(
-        pageBuilder: (context, _, __) => rootBuilder(context),
+        pageBuilder: (context, _, _) => rootBuilder(context),
         transitionDuration: Duration.zero,
       ));
     });

@@ -167,7 +167,7 @@ double? fmCachedAspect(ImageProvider<Object> provider) {
     final h = info.image.height;
     info.dispose();
     if (w > 0 && h > 0) aspect = w / h;
-  }, onError: (_, __) {});
+  }, onError: (_, _) {});
   stream.addListener(listener);
   stream.removeListener(listener);
   return aspect;

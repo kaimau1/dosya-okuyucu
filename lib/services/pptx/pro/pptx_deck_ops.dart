@@ -44,7 +44,7 @@ abstract final class PptxDeckOps {
     for (final s in lst.findElements('p14:section')) {
       final ids = [
         for (final e in s.findAllElements('p14:sldId'))
-          if (pos[e.getAttribute('id')] case final p?) p,
+          ?pos[e.getAttribute('id')],
       ];
       if (ids.isEmpty) continue;
       secs.add((ids.reduce(math.min), s));
