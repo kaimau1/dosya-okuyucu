@@ -333,6 +333,10 @@ flutter_launcher_icons:
 
 # Sürüm kilidi açılmamış paketler için zorunlu geçersiz kılmalar (her satırda gerekçe).
 dependency_overrides:
+  # Faz 48: pdfrx 2.12.0 + tek satır yama (erişilebilirlik açıkken satır başına
+  # Semantics — ölçüldü). Gerekçe third_party/pdfrx/YAMA.md.
+  pdfrx:
+    path: third_party/pdfrx
   # Faz 45: webdav_client 1.2.2 (son sürüm) xml ^6'ya kilitli; yalnız
   # findAllElements(namespace:'*') + .text kullanıyor, 7'de ikisi de duruyor
   # (test/…webdav…). Paket xml 7'yi açınca bu satır silinir.

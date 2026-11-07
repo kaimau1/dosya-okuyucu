@@ -943,10 +943,9 @@ packages:
   pdfrx:
     dependency: "direct main"
     description:
-      name: pdfrx
-      sha256: b3bd49fd0918ba7f807ceb0860f4110c346fc70dd96bd68b992418cf17f97650
-      url: "https://pub.dev"
-    source: hosted
+      path: "third_party/pdfrx"
+      relative: true
+    source: path
     version: "2.12.0"
   pdfrx_engine:
     dependency: transitive
