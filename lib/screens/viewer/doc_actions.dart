@@ -57,7 +57,7 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
       '${_stem(widget.doc.name)}.pdf',
       bytes,
     );
-    await Share.shareXFiles([XFile(path)], text: exportedLabel);
+    await SharePlus.instance.share(ShareParams(files: [XFile(path)], text: exportedLabel));
   }
 
   /// Görseli tam çözünürlükte PDF'e gömer; istenirse OCR ile görünmez metin
@@ -118,7 +118,7 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
       _snack(context.t('vw.pdf_failed', {'error': error}));
       return;
     }
-    await Share.shareXFiles([XFile(path!)], text: context.t('vw.pdf_exported'));
+    await SharePlus.instance.share(ShareParams(files: [XFile(path!)], text: context.t('vw.pdf_exported')));
   }
 
   /// Belgeyi **düzenlenebilir bir sunuma** (.pptx) çevirir.
@@ -161,7 +161,7 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
     if (_dirty && widget.doc.isEditableText) await _save();
     if (!mounted) return;
     if (await showShareChoice(context, [widget.doc.path])) return;
-    await Share.shareXFiles([XFile(widget.doc.path)]);
+    await SharePlus.instance.share(ShareParams(files: [XFile(widget.doc.path)]));
   }
 
   Future<void> _print() async {

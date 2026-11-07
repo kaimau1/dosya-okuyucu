@@ -93,7 +93,7 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
     _flushOutline();
     final f = File('${Directory.systemTemp.path}/${widget.name}');
     await f.writeAsBytes(await editor.saveAsync());
-    await Share.shareXFiles([XFile(f.path)], text: widget.name);
+    await SharePlus.instance.share(ShareParams(files: [XFile(f.path)], text: widget.name));
   }
 
   /// Slaytların **ekranda göründüğü hâlini** PDF'e basar.
@@ -170,8 +170,7 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
 
       close();
       if (!mounted) return;
-      await Share.shareXFiles([XFile(out.path)],
-          text: context.t('sl.pdf_share'));
+      await SharePlus.instance.share(ShareParams(files: [XFile(out.path)], text: context.t('sl.pdf_share')));
     } catch (e) {
       close();
       _snack(AppStrings.current.t('sl.pdf_failed', {'error': userErrorText(e)}));

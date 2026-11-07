@@ -574,7 +574,7 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     final res = await AppFilePicker
         .pickFiles(type: FileType.image, allowMultiple: true);
     final paths = [
-      for (final f in res?.files ?? const <PlatformFile>[])
+      for (final f in res?.files ?? const <PickedFile>[])
         if (f.path != null) f.path!,
     ];
     if (paths.isEmpty || !mounted) return;
@@ -604,7 +604,7 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
   Future<void> _share() async {
     await _flush();
     if (!mounted) return;
-    await Share.shareXFiles([XFile(_pdfPath)], text: p.basename(_pdfPath));
+    await SharePlus.instance.share(ShareParams(files: [XFile(_pdfPath)], text: p.basename(_pdfPath)));
   }
 
   Future<void> _openPdf() async {

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -513,7 +512,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
     try {
       final picked = await AppFilePicker.pickFiles(allowMultiple: true);
       final paths = [
-        for (final f in picked?.files ?? const <PlatformFile>[])
+        for (final f in picked?.files ?? const <PickedFile>[])
           if (f.path != null) f.path!,
       ];
       if (paths.isEmpty || !mounted) return;

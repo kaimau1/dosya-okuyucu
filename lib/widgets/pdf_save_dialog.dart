@@ -47,7 +47,7 @@ Future<PdfSaveOutcome?> savePdfWithChoice(
   String written;
   try {
     if (choice == _SaveChoice.chooseFolder) {
-      final dir = await FilePicker.platform.getDirectoryPath();
+      final dir = await FilePicker.getDirectoryPath();
       if (dir == null || !context.mounted) return null;
       written = await _writeInto(dir, originalPath, bytes);
     } else {

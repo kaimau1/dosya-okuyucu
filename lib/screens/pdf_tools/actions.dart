@@ -223,8 +223,7 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
         if (mounted) _snack(_str.t('pt.export_images_failed'));
         return;
       }
-      await Share.shareXFiles(files,
-          text: _str.t('pt.export_images_count', {'n': files.length}));
+      await SharePlus.instance.share(ShareParams(files: files, text: _str.t('pt.export_images_count', {'n': files.length})));
     } catch (e) {
       if (mounted) {
         _snack(_str.t('pt.op_failed',
@@ -262,8 +261,7 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
           '_sayfa${pages.length == 1 ? pages.first + 1 : '${pages.length}'}.pdf';
       final path =
           await _conversion.writeToTemp(name, Uint8List.fromList(out));
-      await Share.shareXFiles([XFile(path)],
-          text: str.t('pt.extracted'));
+      await SharePlus.instance.share(ShareParams(files: [XFile(path)], text: str.t('pt.extracted')));
     } catch (e) {
       if (mounted) _snack(str.t('pt.extract_failed', {'error': userErrorText(e)}));
     } finally {
@@ -540,7 +538,7 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
     if (_bytes == null) return;
     final path = await _conversion.writeToTemp(
         p.basename(widget.path), _bytes!);
-    await Share.shareXFiles([XFile(path)], text: 'PDF');
+    await SharePlus.instance.share(ShareParams(files: [XFile(path)], text: 'PDF'));
   }
 
   void _undoLast() {

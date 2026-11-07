@@ -413,7 +413,7 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
     final res = await AppFilePicker
         .pickFiles(allowMultiple: true, withData: false);
     final paths = [
-      for (final f in res?.files ?? const <PlatformFile>[])
+      for (final f in res?.files ?? const <PickedFile>[])
         if (f.path != null) f.path!,
     ];
     if (paths.isEmpty || !mounted) return;

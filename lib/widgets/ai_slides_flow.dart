@@ -117,15 +117,14 @@ class AiSlidesFlow {
         if (tpl != null) deck = await PptxPro.run(deck, PptxTemplates.apply(tpl));
         final path = await ConversionService().writeToTemp('$stem.pptx', deck);
         if (!context.mounted) return;
-        await Share.shareXFiles([XFile(path)],
-            text: str.t('vw.slides_share'));
+        await SharePlus.instance.share(ShareParams(files: [XFile(path)], text: str.t('vw.slides_share')));
       } else {
         final title = plan.title.isEmpty ? stem : plan.title;
         final bytes = await ConversionService().slidesToPdf(title, plan.slides);
         final path =
             await ConversionService().writeToTemp('$stem-slayt.pdf', bytes);
         if (!context.mounted) return;
-        await Share.shareXFiles([XFile(path)], text: str.t('sl.pdf_share'));
+        await SharePlus.instance.share(ShareParams(files: [XFile(path)], text: str.t('sl.pdf_share')));
       }
     } catch (e) {
       if (!context.mounted) return;

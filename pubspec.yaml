@@ -39,7 +39,7 @@ dependencies:
   barcode: ^2.2.9
 
   # Dosya seçme / yol
-  file_picker: ^8.1.2
+  file_picker: ^13.3.2
   path_provider: ^2.1.4
   path: ^1.9.0
 
@@ -108,18 +108,18 @@ dependencies:
   # Dönüştürme (PDF üretimi) & paylaşım / yazdırma
   pdf: ^3.13.1
   printing: ^5.15.1
-  share_plus: ^10.0.2
+  share_plus: ^13.3.1
 
   # Durum yönetimi (hafif)
   provider: ^6.1.2
 
   # ── Dosya yöneticisi ────────────────────────────────────────────────────────
   # Depolama izni (Android 11+ "tüm dosyalara erişim" = MANAGE_EXTERNAL_STORAGE).
-  permission_handler: ^12.0.1  # 13 engeli (cunning_document_scanner) kalktı — A3.4b ayrıca yükseltilir
+  permission_handler: ^13.0.2
   # Video oynarken ekranın sönmesini engeller. YALNIZ video OYNARKEN tutulur
   # (duraklatınca ve ekrandan çıkınca bırakılır) — ses oynatıcıda hiç
   # kullanılmaz, orada ekranın kapanması zaten istenen davranış.
-  wakelock_plus: ^1.4.0
+  wakelock_plus: ^1.8.2
 
   # Uygulama içi video + ses oynatıcı (ExoPlayer/Media3).
   video_player: ^2.14.1

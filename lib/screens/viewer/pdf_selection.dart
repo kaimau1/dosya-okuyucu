@@ -103,7 +103,7 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
           label: context.t('common.share'),
           onTap: () {
             final text = cleanPdfCopyText(_pdfSelection);
-            if (text.isNotEmpty) Share.share(text);
+            if (text.isNotEmpty) SharePlus.instance.share(ShareParams(text: text));
           },
         ),
       ],

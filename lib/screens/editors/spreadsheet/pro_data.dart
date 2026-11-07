@@ -395,7 +395,7 @@ extension _SpreadsheetProDataPart on _SpreadsheetEditorScreenState {
     await f.writeAsBytes(pdf, flush: true);
     if (!mounted) return;
     _snack(ok);
-    await Share.shareXFiles([XFile(f.path)]);
+    await SharePlus.instance.share(ShareParams(files: [XFile(f.path)]));
   }
 
   // ── 7. Görünüm: sade şerit, yoğunluk ───────────────────────────────────
