@@ -45,8 +45,8 @@ dependencies:
 
   # Başka uygulamalardan "Birlikte aç" / paylaş ile gelen dosyaları yakalama
   # (WhatsApp/Gmail'den atılan dosya doğrudan uygulamada açılır).
-  # 1.9.0 compileSdk 37 istiyor (AGP 9.0.1 en çok 36) — Flutter 3.44 onu çözüyordu.
-  receive_sharing_intent: 1.8.1
+  # 1.9 (Faz 46): Android tarafı yalnız yerleşik Kotlin'e geçti; API aynı.
+  receive_sharing_intent: 1.9.0
 
   # Görüntüleyiciler
   # PDF: pdfium tabanlı pdfrx — sayfa üzerinde METİN SEÇME/kopyalama destekler
