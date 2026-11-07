@@ -184,6 +184,11 @@ abstract final class NativeExtras {
   /// Pencerenin o anki parlaklığı; sistem ayarı izleniyorsa negatif.
   static Future<double?> brightness() => _call<double>('getBrightness');
 
+  /// Dosyayı sistemin varsayılan uygulamasında açar (Faz 46, open_filex yerine).
+  /// `done` · `no_app` · `missing` · `error:<ileti>`; kanal yoksa `null`.
+  static Future<String?> openExternal(String path) =>
+      _call<String>('openExternal', {'path': path});
+
   /// Sistemin "Farklı kullan" seçicisi (duvar kâğıdı, kişi fotoğrafı…).
   static Future<bool> attachData(String path, String mime, String title) async =>
       await _call<bool>(
