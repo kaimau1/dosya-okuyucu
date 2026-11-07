@@ -9,4 +9,6 @@ const Map<String, (String, String, String)> _t28 = {
   'dg.frames': ('Kare ölçümünü topla', 'Collect frame timing', 'جمع توقيت الإطارات'),
   'dg.frames_hint': ('Yavaş karelerin yalnız sayısal dağılımı, cihazda; ekran/dosya adı tutulmaz.', 'Only a numeric distribution of slow frames, on device; no screen or file names.', 'توزيع رقمي فقط للإطارات البطيئة على الجهاز؛ دون أسماء شاشات أو ملفات.'),
   'dg.send': ('Paylaş', 'Share', 'مشاركة'),
+  'flt.clear': ('Temizle', 'Clear', 'مسح'),
+  'flt.none_left': ('Hiç dosya kalmadı', 'No files left', 'لم يتبق أي ملف'),
 };
