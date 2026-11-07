@@ -124,23 +124,43 @@ class _TypesTabState extends State<_TypesTab>
 
 // ── sekme 4: öneriler ───────────────────────────────────────────────────────
 
-/// Öneriler sekmesi — **yalnız onayla**.
+/// Öneriler sekmesi — **Bekleyen** ve **Yapılanlar** iki ayrı liste.
 ///
-/// Eskiden başlıkta büyük bir "Tümünü uygula (N)" düğmesi vardı ve tek
-/// dokunuş, onaysız, yüzlerce dosyayı Önemli Dosyalar'a taşıyordu. Artık
-/// düğme "Gözden geçir" der ve önce ne olacağını sayılarla gösteren levhayı
-/// açar (bkz. [confirmApplyAiSuggestions]); satır menüsünde "yalnız bunu
-/// uygula" ve "yok say" var.
-class _SuggestionsTab extends StatelessWidget {
+/// Kullanıcı (2026-11-07): *"eski yapılanlar hâlâ yapılabilir gibi görünüyor,
+/// ne yapıldı ne yapılmadı anlaşılmıyor"*. Uygulanan öneri sessizce
+/// kayboluyordu; şimdi "Yapılanlar"da eski ad → yeni ad/yer ve tarihiyle
+/// durur. Bekleyenler yalnız onay levhasıyla uygulanır
+/// ([confirmApplyAiSuggestions]); zaten yerinde olan dosyaya öneri çıkmaz
+/// (bkz. `AiRecord.hasNameSuggestion`/`hasFolderSuggestion`).
+class _SuggestionsTab extends StatefulWidget {
   const _SuggestionsTab();
 
   @override
+  State<_SuggestionsTab> createState() => _SuggestionsTabState();
+}
+
+class _SuggestionsTabState extends State<_SuggestionsTab>
+    with AutomaticKeepAliveClientMixin {
+  bool _showDone = false;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    AiApplyLog.ensureLoaded();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<int>(
-      valueListenable: AiIndex.revision,
-      builder: (context, _, __) {
-        final suggestions = AiBuckets.of(AiBucket.suggestions);
-        if (suggestions.isEmpty) {
+    super.build(context);
+    return AnimatedBuilder(
+      animation: Listenable.merge([AiIndex.revision, AiApplyLog.entries]),
+      builder: (context, _) {
+        final pending = AiBuckets.of(AiBucket.suggestions);
+        final done = AiApplyLog.entries.value;
+        if (pending.isEmpty && done.isEmpty) {
           return _EmptyHint(
             icon: AppIcons.organize,
             title: context.t('aih.sug_empty'),
@@ -149,47 +169,161 @@ class _SuggestionsTab extends StatelessWidget {
         }
         return Column(
           children: [
-            _TabIntro(
-              icon: AppIcons.shield,
-              text: context.t('aih2.sug_intro'),
-            ),
-            ValueListenableBuilder<AiApplyResult?>(
-              valueListenable: AiApply.lastResult,
-              builder: (context, result, __) => result == null
-                  ? const SizedBox.shrink()
-                  : _TabIntro(
-                      icon: AppIcons.checkCircle,
-                      text: context.t('aiap.result', {
-                        'ok': result.changed,
-                        'fail': result.failed,
-                      }),
-                    ),
-            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 0),
               child: SizedBox(
                 width: double.infinity,
-                child: FilledButton.tonalIcon(
-                  key: const ValueKey('aih-review-all'),
-                  icon: const Icon(AppIcons.organize),
-                  label: Text(context
-                      .t('aih2.review_all', {'n': suggestions.length})),
-                  onPressed: () =>
-                      confirmApplyAiSuggestions(context, suggestions),
+                child: SegmentedButton<bool>(
+                  key: const ValueKey('aih-sug-segments'),
+                  showSelectedIcon: false,
+                  segments: [
+                    ButtonSegment(
+                      value: false,
+                      icon: const Icon(AppIcons.schedule),
+                      label: Text(context
+                          .t('aih2.seg_pending', {'n': pending.length})),
+                    ),
+                    ButtonSegment(
+                      value: true,
+                      icon: const Icon(AppIcons.checkCircle),
+                      label: Text(
+                          context.t('aih2.seg_done', {'n': done.length})),
+                    ),
+                  ],
+                  selected: {_showDone},
+                  onSelectionChanged: (v) =>
+                      setState(() => _showDone = v.first),
                 ),
               ),
             ),
             Expanded(
-              child: AiFileList(
-                records: suggestions,
-                showSuggestion: true,
-                onApply: (selected) =>
-                    confirmApplyAiSuggestions(context, selected),
-              ),
+              child: _showDone ? _doneList(done) : _pendingList(pending),
             ),
           ],
         );
       },
+    );
+  }
+
+  Widget _pendingList(List<AiRecord> pending) {
+    if (pending.isEmpty) {
+      return _EmptyHint(
+        icon: AppIcons.checkCircle,
+        title: context.t('aih2.pending_none'),
+        body: context.t('aih2.pending_none_sub'),
+      );
+    }
+    return Column(
+      children: [
+        _TabIntro(icon: AppIcons.shield, text: context.t('aih2.sug_intro')),
+        ValueListenableBuilder<AiApplyResult?>(
+          valueListenable: AiApply.lastResult,
+          builder: (context, result, __) => result == null
+              ? const SizedBox.shrink()
+              : _TabIntro(
+                  icon: AppIcons.info,
+                  text: context.t('aiap.result', {
+                    'ok': result.changed,
+                    'fail': result.failed,
+                  }),
+                ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 0),
+          child: SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              key: const ValueKey('aih-review-all'),
+              icon: const Icon(AppIcons.organize),
+              label:
+                  Text(context.t('aih2.review_all', {'n': pending.length})),
+              onPressed: () => confirmApplyAiSuggestions(context, pending),
+            ),
+          ),
+        ),
+        Expanded(
+          child: AiFileList(
+            records: pending,
+            showSuggestion: true,
+            onApply: (selected) =>
+                confirmApplyAiSuggestions(context, selected),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _doneList(List<AiApplyEntry> done) {
+    if (done.isEmpty) {
+      return _EmptyHint(
+        icon: AppIcons.history,
+        title: context.t('aih2.done_none'),
+        body: context.t('aih2.done_none_sub'),
+      );
+    }
+    final faint = Paper.faint(context);
+    final primary = Theme.of(context).colorScheme.primary;
+    return Column(
+      children: [
+        _TabIntro(
+          icon: AppIcons.info,
+          text: context.t('aih2.done_intro'),
+          trailing: TextButton(
+            onPressed: () async {
+              final ok = await showAppConfirm(
+                context,
+                message: context.t('aih2.done_clear_confirm'),
+                confirmLabel: context.t('aih2.done_clear'),
+              );
+              if (ok) await AiApplyLog.clear();
+            },
+            child: Text(context.t('aih2.done_clear')),
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: withNavInset(
+                context, const EdgeInsets.only(top: Gap.xs, bottom: Gap.xl)),
+            itemCount: done.length,
+            itemBuilder: (context, i) {
+              final e = done[i];
+              final when = DateTime.fromMillisecondsSinceEpoch(e.atMs);
+              final what = [
+                if (e.renamed)
+                  context.t('aih2.done_was', {'name': p.basename(e.from)}),
+                if (e.moved)
+                  context.t('aih2.done_moved',
+                      {'folder': p.basename(p.dirname(e.to))}),
+              ].join(' · ');
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: primary.withValues(alpha: 0.12),
+                  child: Icon(e.moved ? AppIcons.move : AppIcons.rename,
+                      color: primary, size: 20),
+                ),
+                title: Text(p.basename(e.to),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Text(
+                  '$what\n${MaterialLocalizations.of(context).formatShortDate(when)}',
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.type.small.copyWith(color: faint),
+                ),
+                isThreeLine: true,
+                onTap: () async {
+                  if (!await File(e.to).exists()) {
+                    if (context.mounted) {
+                      showSnack(context, context.t('aih2.gone_done'));
+                    }
+                    return;
+                  }
+                  if (context.mounted) await EntryOpener.open(context, e.to);
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

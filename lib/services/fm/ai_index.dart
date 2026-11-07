@@ -27,6 +27,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show ValueNotifier, visibleForTesting;
 import 'package:path/path.dart' as p;
 
+import '../../core/text_search.dart';
 import '../../models/fs_entry.dart';
 import 'chat_media_guard.dart';
 import 'fm_env.dart';
@@ -103,12 +104,30 @@ class AiRecord {
       (hasNameSuggestion || hasFolderSuggestion);
 
   /// Anlamlı bir ad önerisi var mı?
+  ///
+  /// Ad zaten öneriyle aynıysa (büyük/küçük harf, Türkçe harf, `_`/boşluk
+  /// farkı dışında) öneri YOK — kullanıcı (2026-11-07): *"eski yapılanlar
+  /// hâlâ yapılabilir gibi görünüyor"*.
   bool get hasNameSuggestion =>
-      suggestedName.isNotEmpty && suggestedName != name;
+      suggestedName.isNotEmpty &&
+      _fold(p.basenameWithoutExtension(suggestedName)) !=
+          _fold(p.basenameWithoutExtension(name));
 
   /// AI'nın verdiği bir klasör önerisi var mı? (Yerel kural sayılmaz.)
+  /// Dosya zaten o adlı bir klasördeyse öneri YOK (ör. "Sözleşmeler"deki
+  /// sözleşmeye "Sözleşmeler'e taşı" demek).
   bool get hasFolderSuggestion =>
-      suggestedFolder.isNotEmpty && source == 'ai';
+      suggestedFolder.isNotEmpty &&
+      source == 'ai' &&
+      _stem(suggestedFolder) != _stem(p.basename(p.dirname(path)));
+
+  /// Klasör karşılaştırması için çoğul eki de atılır: "Sözleşme" ile
+  /// "Sözleşmeler" aynı klasördür.
+  static String _stem(String s) =>
+      _fold(s).replaceAll(RegExp(r'(ler|lar)$'), '');
+
+  static String _fold(String s) =>
+      asciiFold(s).replaceAll(RegExp(r'[\s_\-.]+'), ' ').trim();
 
   /// Kayıt hâlâ dosyanın bugünkü hâlini mi anlatıyor?
   ///

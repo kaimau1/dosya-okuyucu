@@ -23,8 +23,10 @@
 library;
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
 import '../../core/app_colors.dart';
@@ -35,9 +37,11 @@ import '../../core/motion.dart';
 import '../../core/theme.dart';
 import '../../services/fm/ai_analyzer.dart';
 import '../../services/fm/ai_apply.dart';
+import '../../services/fm/ai_apply_log.dart';
 import '../../services/fm/ai_ask.dart';
 import '../../services/fm/ai_buckets.dart';
 import '../../services/fm/ai_index.dart';
+import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/gemini_service.dart';

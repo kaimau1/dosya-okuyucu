@@ -30,6 +30,7 @@ import 'package:flutter/foundation.dart' show ValueNotifier;
 import 'package:path/path.dart' as p;
 
 import '../../core/l10n/app_strings.dart';
+import 'ai_apply_log.dart';
 import 'ai_index.dart';
 import 'chat_media_guard.dart';
 import 'file_ops.dart';
@@ -149,6 +150,12 @@ abstract final class AiApply {
           final free = _exists(wanted) ? FileOps.uniquePath(wanted) : wanted;
           path = await FileOps.rename(path, p.basename(free));
           renamed++;
+          // Kayıt HEMEN yeni yola: ardından taşıma başarısız olursa eski
+          // yolda (artık olmayan) öneriyle hayalet satır kalıyordu.
+          await AiIndex.movePath(record.path, path);
+          if (!(move && record.hasFolderSuggestion)) {
+            await AiApplyLog.add(record.path, path);
+          }
         }
 
         if (move && record.hasFolderSuggestion) {
@@ -163,19 +170,20 @@ abstract final class AiApply {
           }
           moved++;
           final landed = p.join(dest, p.basename(path));
+          await AiApplyLog.add(record.path, landed);
           // Hedefte ad çakıştıysa `moveAll` numaralandırmış olabilir; yeni yolu
           // kesin bilemediğimiz durumda kaydı düşürüyoruz (bir sonraki analiz
           // dosyayı yeni yerinde bulur). Yanlış yola işaret eden bir kayıt
           // bırakmak, kayıt bırakmamaktan daha kötü.
           if (File(landed).existsSync()) {
-            await AiIndex.movePath(record.path, landed);
+            await AiIndex.movePath(path, landed);
           } else {
-            await AiIndex.remove(record.path);
+            await AiIndex.remove(path);
           }
           continue;
         }
 
-        await AiIndex.movePath(record.path, path);
+        if (path == record.path) await AiIndex.movePath(record.path, path);
       } catch (e) {
         failed++;
         lastError = '$e';

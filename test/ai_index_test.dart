@@ -144,6 +144,26 @@ void main() {
       expect(filed.hasSuggestion, isFalse);
     });
 
+    test('zaten yapılmış öneri görünmez (aynı klasör / aynı ad)', () {
+      AiRecord rec(String path, {String name = '', String folder = ''}) =>
+          AiRecord(
+              path: path,
+              sizeBytes: 1,
+              modifiedMs: 1,
+              category: FmCategory.document,
+              suggestedName: name,
+              suggestedFolder: folder,
+              analyzedMs: 5,
+              source: 'ai');
+      expect(rec('/a/Sözleşmeler/x.doc', folder: 'Sözleşme').hasSuggestion,
+          isFalse);
+      expect(rec('/a/Belgeler/x.doc', folder: 'Sözleşmeler').hasSuggestion,
+          isTrue);
+      expect(rec('/a/Derya_Soyalp.doc', name: 'derya soyalp.doc').hasSuggestion,
+          isFalse);
+      expect(rec('/a/IMG_1.pdf', name: 'Fatura.pdf').hasSuggestion, isTrue);
+    });
+
     test('silinen dosyaların kaydı düşer, öneri yok sayılabilir', () async {
       await AiIndex.putAll([
         _record('/yok/1.pdf'),

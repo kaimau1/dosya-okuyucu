@@ -1169,4 +1169,36 @@ const Map<String, (String, String, String)> _t8 = {
   ),
   'aih2.important_tag': ('Önemli', 'Important', 'مهم'),
   'aih2.report_summary': ('Özet', 'Summary', 'ملخص'),
+  'aih2.seg_pending': ('Bekleyen ({n})', 'Pending ({n})', 'معلّقة ({n})'),
+  'aih2.seg_done': ('Yapılanlar ({n})', 'Done ({n})', 'المنجزة ({n})'),
+  'aih2.pending_none': ('Bekleyen öneri kalmadı', 'No pending suggestions left', 'لم تبقَ اقتراحات معلّقة'),
+  'aih2.pending_none_sub': (
+    'Uygulananları "Yapılanlar"da görebilirsin.',
+    'You can see the applied ones under "Done".',
+    'يمكنك رؤية المطبَّقة في «المنجزة».',
+  ),
+  'aih2.done_none': ('Henüz hiçbir öneri uygulanmadı', 'No suggestion applied yet', 'لم يُطبَّق أي اقتراح بعد'),
+  'aih2.done_none_sub': (
+    'Bir öneriyi onayladığında burada eski ve yeni hâliyle görünür.',
+    'When you confirm a suggestion it shows up here with its old and new state.',
+    'عند تأكيد اقتراح يظهر هنا بحالته القديمة والجديدة.',
+  ),
+  'aih2.done_intro': (
+    'Onayınla değiştirilen dosyalar. Bunlar bir daha önerilmez.',
+    'Files changed with your approval. They will not be suggested again.',
+    'ملفات غُيّرت بموافقتك. لن تُقترح مرة أخرى.',
+  ),
+  'aih2.done_was': ('Önceki ad: {name}', 'Was: {name}', 'الاسم السابق: {name}'),
+  'aih2.done_moved': ('{folder} klasörüne taşındı', 'Moved to {folder}', 'نُقل إلى {folder}'),
+  'aih2.done_clear': ('Listeyi temizle', 'Clear list', 'مسح القائمة'),
+  'aih2.done_clear_confirm': (
+    'Yapılanlar listesi silinsin mi? Dosyalar değişmez, yalnız bu kayıt temizlenir.',
+    'Clear the Done list? Files are not changed; only this record is cleared.',
+    'مسح قائمة المنجزة؟ لا تتغير الملفات؛ يُمسح هذا السجل فقط.',
+  ),
+  'aih2.gone_done': (
+    'Bu dosya artık burada değil (sonradan taşınmış ya da silinmiş).',
+    'This file is no longer here (moved or deleted later).',
+    'لم يعد هذا الملف هنا (نُقل أو حُذف لاحقًا).',
+  ),
 };
