@@ -734,3 +734,24 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
 - [ ] Ayarlar › Hakkında › Hata kayıtları › 🐞 Sorunu bildir: önizlemede dosya adı/yol/uzun sayı maskeli; "Kare ölçümünü topla" aç → bir gün kullan → özet `kare: n=… p90≤… p99≤…`; Paylaş yalnız dokununca.
 - [ ] Mağaza: `fastlane/metadata/android/tr-TR/images/featureGraphic.png` Play önizlemesinde kırpılmadan görünüyor; ekran görüntüleri seçimi (`docs/SURUM_ADAYI.md` §3).
 - [ ] Sürüm adayı turu: `docs/SURUM_ADAYI.md` adım adım (B6).
+
+## Yükseltme duman turu (Faz 43–50, her faz sonunda ~10 dk — KALICI, maddeler silinmez)
+> `docs/YUKSELTME_PLANI.md` §0.7: her faz birleşmeden önce bu tur koşulur, sonuç fazın
+> `docs/perf/2026-11-<faz>.md` belgesine "duman turu" satırı olarak yazılır. Profil ya da
+> nightly APK; çökme → `adb logcat -b crash` + `flutter symbolize` (tahminle düzeltme yok).
+> GMS'siz cihazda (Huawei) Google hizmeti isteyen maddeler "GMS'li cihazda" diye geçilir.
+1. Soğuk açılış: ilk kare geliyor, `adb logcat -s flutter | grep KARE` ilk 6 sn'de 100 ms üstü kare yok.
+2. Pano: kartlar dolu, 10 sn boşta kare üretmiyor; süzgeç şeridi açılıyor.
+3. Gezgin: `/sdcard` → derin klasör, kaydırma akıcı; kopyala/taşı/sil (çöpe) + geri al.
+4. Paylaş ile gelen dosya (başka uygulamadan "Paylaş → Dosya Okuyucu") doğru görüntüleyicide açılıyor.
+5. Dosya seçici (PickerActivity): başka uygulamanın "dosya ekle"sinden seçim, dosya geri dönüyor.
+6. PDF: aç → kaydır → yakınlaştır → vurgula/işaretle → kaydet; yeniden açınca işaret duruyor.
+7. Word / Excel / Slayt: her biri aç → küçük düzenleme → kaydet → yeniden aç.
+8. Belge tara + OCR (ML Kit — **GMS'li cihazda**; model indirme Play Hizmetleri ister).
+9. Çeviri (ML Kit çeviri modeli — **GMS'li cihazda**).
+10. Bildirim + ön plan iş: büyük kopyalama/indirme sürerken bildirim ilerliyor, bitince kapanıyor.
+11. Video: Exo + mpv ile birer video, ilk kare < 1 sn, ses senkron.
+12. Drive giriş (**GMS'li cihazda**), SFTP/FTP bağlan + listele, Yakındakiler keşfi.
+
+**Koşu kaydı**
+- 2026-11-07 · Faz 43 · MatePad DBY-W09 (GMS'siz): 1–3, 6–7 açılış ✅ · 4 ⚠ Paylaş → Aktar ekranı + konum/yakın cihaz izni · 11 ❌ `VIEW video/*` panoya düşüyor · 8, 9, Drive GMS'li cihazda · kalanlar elle bekliyor → ayrıntı `docs/perf/2026-11-43-taban.md`.
