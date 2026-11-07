@@ -343,13 +343,13 @@ void main() {
     expect(state.appSkin, AppSkin.porcelain);
   });
 
-  testWidgets('Görünüm sayfasında tema ızgarası; hızlı tema çipleri kalktı',
+  testWidgets('Görünüm sayfasında tema şeridi; hızlı tema çipleri kalktı',
       (tester) async {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(_wrap(AppState(),
         SettingsCategoryScreen(category: _category('appearance'))));
     await tester.pump();
-    expect(find.byKey(const ValueKey('theme-gallery-grid')), findsOneWidget);
+    expect(find.byKey(const ValueKey('theme-gallery-strip')), findsOneWidget);
     expect(find.byKey(const ValueKey('theme-preset-light')), findsNothing);
     final ids = _category('appearance').rows.map((r) => r.id).toList();
     expect(ids, isNot(contains('theme_preset')));

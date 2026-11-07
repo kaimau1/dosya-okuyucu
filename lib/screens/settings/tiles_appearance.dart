@@ -204,7 +204,9 @@ class AppSkinTile extends StatelessWidget {
         ),
         const Padding(
           padding: EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
-          child: ThemeGallery(),
+          // Tek satır şerit: ızgara 13 aileyi üç satıra yayıp yazı/dil
+          // satırlarını ekranın altına itiyordu.
+          child: ThemeGallery(strip: true),
         ),
       ],
     );

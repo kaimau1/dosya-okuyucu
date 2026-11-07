@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:dosya_okuyucu/core/skin.dart';
 import 'package:dosya_okuyucu/core/theme.dart';
-import 'package:dosya_okuyucu/screens/settings/tiles_appearance.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

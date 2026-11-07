@@ -207,11 +207,6 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                 id: 'background',
                 titleKey: 'bgc.title',
                 builder: _backgroundTile),
-            SettingRow(
-                id: 'accent',
-                titleKey: 'acc.title',
-                altKeys: ['acc.blue', 'acc.teal'],
-                builder: _accentTile),
           ]),
           SettingsSection('set.sec_text', [
             SettingRow(
@@ -241,6 +236,15 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                 titleKey: 'set.haptics',
                 subtitleKey: 'set.haptics_sub',
                 builder: _hapticsTile),
+          ]),
+          // Vurgu rengi kategorinin SONUNDA (üstteki satırların yerleri
+          // testlerde sabit; 2026-11-07'de hızlı tema çipleri kalktı).
+          SettingsSection('acc.title', [
+            SettingRow(
+                id: 'accent',
+                titleKey: 'acc.title',
+                altKeys: ['acc.blue', 'acc.teal'],
+                builder: _accentTile),
           ]),
         ],
       ),
