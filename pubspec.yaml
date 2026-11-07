@@ -146,7 +146,7 @@ dependencies:
   open_filex: ^4.7.0
 
   # 120Hz+ ekran desteği (Android 60Hz kilidini açar; diğer platformlarda pasif)
-  flutter_displaymode: ^0.6.0
+  flutter_displaymode: ^0.7.0
 
   # ── Uzun işler: bildirim + medya dönüştürme ────────────────────────────────
   # İş kuyruğunun (services/fm/job_queue.dart) sistem bildirimi. 17.2.4'e
