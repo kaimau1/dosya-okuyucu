@@ -10,6 +10,12 @@ Future<void> main() => integrationDriver(
         for (final entry in data.entries) {
           final timeline =
               driver.Timeline.fromJson(entry.value as Map<String, dynamic>);
+          // Boş çizelge (o aralıkta hiç kare yok) özetlenemez → yalnız o
+          // senaryo atlanır, ötekiler yazılır (Faz 44: tüm koşu düşüyordu).
+          if (timeline.events?.isEmpty ?? true) {
+            print('PERF ${entry.key}: kare yok, atlandı');
+            continue;
+          }
           final summary = driver.TimelineSummary.summarize(timeline);
           await summary.writeTimelineToFile(entry.key,
               pretty: true, includeSummary: true);
