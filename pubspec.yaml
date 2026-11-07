@@ -60,9 +60,9 @@ dependencies:
 
   # PDF YAZMA işleri (annotation gömme, sayfa döndür/sil/sırala, form doldurma).
   # Görüntüleme yine pdfrx/pdfium; Syncfusion yalnız düzenlenmiş PDF ÜRETİR.
-  # 33.2.x: 35.x `xml ^7` ister, `pdf` paketi xml'i ^6'da tutuyor (A3.1 notu).
-  syncfusion_flutter_pdf: ^33.2.13
-  syncfusion_flutter_core: ^33.2.15
+  # Faz 45: 35.x (xml ^7 — pdf 3.13 ile engel kalktı).
+  syncfusion_flutter_pdf: ^35.1.43
+  syncfusion_flutter_core: ^35.1.43
 
   # OCR: cihaz-içi ML Kit metin tanıma (Latin — Türkçe dahil), internet gerekmez.
   # (Eski "Dart 3.7 sabiti" 2026-11-02'de kalktı: CI 3.44.6.)
