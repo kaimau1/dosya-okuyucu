@@ -44,6 +44,7 @@ import '../../services/fm/ai_index.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/smart_folders.dart';
 import '../../services/gemini_service.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/fm/ai_file_list.dart';
