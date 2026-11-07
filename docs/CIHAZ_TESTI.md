@@ -769,3 +769,20 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
 
 **Koşu kaydı**
 - 2026-11-07 · Faz 43 · MatePad DBY-W09 (GMS'siz): 1–3, 6–7 açılış ✅ · 4 ⚠ Paylaş → Aktar ekranı + konum/yakın cihaz izni · 11 ❌ `VIEW video/*` panoya düşüyor · 8, 9, Drive GMS'li cihazda · kalanlar elle bekliyor → ayrıntı `docs/perf/2026-11-43-taban.md`.
+
+## Faz 45–47 — Paket yükseltmeleri (2026-11-08)
+Otomatik kısım (ölçüm + duman) `docs/perf/2026-11-45.md`'de. Elle bakılacaklar:
+1. **Başka uygulamada aç** (open_filex yerine kendi `ACTION_VIEW` köprüsü, READ_MEDIA_* yok): video, ses, apk ve
+   bilinmeyen biçimde bir dosya → sistem seçicisi/uygulaması açılıyor, dosya okunuyor; uygulama yoksa "uygulama yok" iletisi.
+2. Dosya seçici (file_picker 13): sistem seçicisinden tek + çoklu seçim; büyük (>500 MB) dosyada bellek şişmiyor.
+3. Paylaş (share_plus 13): bir PDF ve birkaç görseli paylaş; metin paylaş (AI özet).
+4. Bildirim (flutter_local_notifications 23): uzun kopyalama/indirme ilerlemesi + iptal.
+5. İzin kapısı (permission_handler 13): bildirim/kamera iznini reddet → düğme "Ayarları aç"a dönüyor (bir dokunuş).
+6. **GMS'li cihazda:** Drive girişi (google_sign_in 7 — yalnız yetkilendirme yolu, kurulum değişmedi), sessiz giriş
+   (uygulamayı kapat-aç), çıkış (izin iptali); ML Kit OCR + çeviri model indirme.
+7. Gerçek SFTP/FTP sunucusu (NAS): bağlan, listele, büyük dosya aktar (yerelde asyncssh/pyftpdlib ile SFTP 14 MB/sn,
+   FTP 24 MB/sn — main ile aynı). Çok eski NAS (yalnız ssh-rsa/CBC) bağlanamayabilir (dartssh2 4).
+8. Uygulamalar ekranı (installed_apps 2.2.1, `detectPlatformType:false`): liste açılış süresi.
+
+**Koşu kaydı**
+- 2026-11-08 · Faz 45–47 · MatePad DBY-W09 (GMS'siz): ölçüm kapısı ✅ (`docs/perf/2026-11-45.md`), senaryolar 3/3 çökmesiz, SFTP/FTP yerel sunucuyla ✅ · 1–5, 7–8 elle bekliyor · 6 GMS'li cihazda.
