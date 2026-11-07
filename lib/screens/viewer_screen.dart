@@ -23,6 +23,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/app_icons.dart';
 import '../core/line_endings.dart';
 import '../core/motion.dart';
+import '../core/screen_awake.dart';
+import '../services/pptx/pro/slides_native.dart';
 import '../core/pretty_format.dart';
 import '../core/text_replace.dart';
 import '../core/doc_fonts.dart';
@@ -116,6 +118,7 @@ part 'viewer/body.dart';
 part 'viewer/code_tools.dart';
 part 'viewer/widgets.dart';
 part 'viewer/pdf_reading_pro.dart';
+part 'viewer/pdf_reading_aids.dart';
 
 /// PDF vurgu renkleri (0xAARRGGBB) — vurgu kipindeki sıra. Pastel tonlar
 /// (2026-09-27): eski doygun pembe (F06292) çarpımsal harmanda bile kelimeyi
@@ -426,6 +429,17 @@ class _ViewerScreenState extends State<ViewerScreen> {
   bool _fullscreen = false;
   static const _kFullscreen = 'reading_fullscreen';
 
+  // Okuma yardımcıları (Faz 48) — bkz. viewer/pdf_reading_aids.dart.
+  bool _keepAwake = false;
+  VoidCallback? _keepAwakeRelease;
+  bool _volumeKeys = false;
+  StreamSubscription<(String, Object?)>? _volumeSub;
+  int _autoScroll = 0;
+  int? _autoScrollFrame;
+  Duration? _autoScrollLast;
+  bool _autoScrollHeld = false;
+  VoidCallback? _autoScrollAwake;
+
   Future<void> _loadFullscreen() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -509,6 +523,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   void initState() {
     super.initState();
     unawaited(_loadFullscreen());
+    unawaited(_loadReadingAids());
     final doc = widget.doc;
     if (doc.kind == DocKind.text ||
         doc.kind == DocKind.word ||
@@ -678,6 +693,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     unawaited(ReadingPositions.save());
     _pdfController.removeListener(_onPdfMatrix);
     _readingBars.dispose();
+    _disposeReadingAids();
     if (_fullscreen) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     }

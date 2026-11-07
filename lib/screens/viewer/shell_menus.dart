@@ -601,6 +601,62 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                           value: _pdfScrollLock,
                           onChanged: (v) => apply(() => _pdfScrollLock = v),
                         ),
+                        // Okuma yardımcıları (Faz 48) — pdf_reading_aids.dart.
+                        if (_isPdf)
+                        SwitchListTile(
+                          key: const ValueKey('pdf-keep-awake'),
+                          secondary: const Icon(AppIcons.lightMode),
+                          title: Text(context.t('pp.keep_awake')),
+                          subtitle: Text(context.t('pp.keep_awake_hint')),
+                          value: _keepAwake,
+                          onChanged: (v) {
+                            _setKeepAwake(v);
+                            setSheet(() {});
+                          },
+                        ),
+                        if (_isPdf)
+                        SwitchListTile(
+                          key: const ValueKey('pdf-volume-keys'),
+                          secondary: const Icon(AppIcons.volumeUp),
+                          title: Text(context.t('pp.volume_keys')),
+                          subtitle: Text(context.t('pp.volume_keys_hint')),
+                          value: _volumeKeys,
+                          onChanged: (v) {
+                            _setVolumeKeys(v);
+                            setSheet(() {});
+                          },
+                        ),
+                        if (_isPdf)
+                        ListTile(
+                          leading: const Icon(AppIcons.autoScroll),
+                          title: Text(context.t('pp.auto_scroll')),
+                          subtitle: Text(context.t('pp.auto_scroll_hint')),
+                        ),
+                        if (_isPdf)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                          child: SegmentedButton<int>(
+                            key: const ValueKey('pdf-auto-scroll'),
+                            showSelectedIcon: false,
+                            segments: [
+                              ButtonSegment(
+                                  value: 0, label: Text(context.t('pp.as_off'))),
+                              ButtonSegment(
+                                  value: 1, label: Text(context.t('pp.as_slow'))),
+                              ButtonSegment(
+                                  value: 2, label: Text(context.t('pp.as_mid'))),
+                              ButtonSegment(
+                                  value: 3, label: Text(context.t('pp.as_fast'))),
+                            ],
+                            selected: {_autoScroll},
+                            onSelectionChanged: (v) {
+                              _setAutoScroll(v.first);
+                              setSheet(() {});
+                              // Başlayınca levha kapanır: belge görünsün.
+                              if (v.first > 0) Navigator.of(sheetContext).pop();
+                            },
+                          ),
+                        ),
                         if (_isPdf)
                         ListTile(
                           leading: const Icon(AppIcons.pdfNotes),

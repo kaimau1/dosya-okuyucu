@@ -50,7 +50,12 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                   //
                   // Gece modu: sayfa görüntüsü renk matrisiyle terslenir. Dosyaya
                   // dokunmaz, seçim/arama koordinatlarını da etkilemez (yalnız boya).
-                  child: _nightFilter(
+                  child: Listener(
+                    // Otomatik kaydırma parmak ekrandayken bekler (Faz 48).
+                    onPointerDown: (_) => _holdAutoScroll(true),
+                    onPointerUp: (_) => _holdAutoScroll(false),
+                    onPointerCancel: (_) => _holdAutoScroll(false),
+                    child: _nightFilter(
                     child: PdfViewer.file(
                       doc.path,
                       controller: _pdfController,
@@ -263,7 +268,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         ],
                       ),
                     ),
-                  ),
+                  )),
                 ),
                 // Seçim çubuğu açıkken rozet gizli: çubuğun altından yarım
                 // görünüyordu ("1 / 1 · sayfaya git" kartın altına sıkışmıştı).
