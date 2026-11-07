@@ -148,10 +148,10 @@ class XlsxNotesWriter {
 
     var relsChanged = false;
     void addRel(String type, String target, [String? id]) {
-      relsDoc.rootElement.children.add(XmlElement(XmlName('Relationship'), [
-        XmlAttribute(XmlName('Id'), id ?? 'rId${++maxId}'),
-        XmlAttribute(XmlName('Type'), type),
-        XmlAttribute(XmlName('Target'), _relTarget(dir, target)),
+      relsDoc.rootElement.children.add(XmlElement(const XmlName.qualified('Relationship'), [
+        XmlAttribute(const XmlName.qualified('Id'), id ?? 'rId${++maxId}'),
+        XmlAttribute(const XmlName.qualified('Type'), type),
+        XmlAttribute(const XmlName.qualified('Target'), _relTarget(dir, target)),
       ]));
       relsChanged = true;
     }
@@ -165,7 +165,7 @@ class XlsxNotesWriter {
       for (final k in p.childElements) {
         if (k.name.local == local) return k;
       }
-      final el = XmlElement(XmlName(local));
+      final el = XmlElement(XmlName.qualified(local));
       p.children.add(el);
       return el;
     }
@@ -178,7 +178,7 @@ class XlsxNotesWriter {
         .indexWhere((a) => a.innerText == e.author);
     if (authorId < 0) {
       authors.children.add(
-          XmlElement(XmlName('author'), const [], [XmlText(e.author)]));
+          XmlElement(const XmlName.qualified('author'), const [], [XmlText(e.author)]));
       authorId = authors.childElements.length - 1;
     }
     for (final MapEntry(key: (r, c), value: t) in e.notes.entries) {
@@ -186,13 +186,13 @@ class XlsxNotesWriter {
       list.children.removeWhere(
           (n) => n is XmlElement && n.getAttribute('ref') == ref);
       if (t == null) continue;
-      list.children.add(XmlElement(XmlName('comment'), [
-        XmlAttribute(XmlName('ref'), ref),
-        XmlAttribute(XmlName('authorId'), '$authorId'),
+      list.children.add(XmlElement(const XmlName.qualified('comment'), [
+        XmlAttribute(const XmlName.qualified('ref'), ref),
+        XmlAttribute(const XmlName.qualified('authorId'), '$authorId'),
       ], [
-        XmlElement(XmlName('text'), const [], [
-          XmlElement(XmlName('r'), const [], [
-            XmlElement(XmlName('t'), [XmlAttribute(XmlName('xml:space'), 'preserve')],
+        XmlElement(const XmlName.qualified('text'), const [], [
+          XmlElement(const XmlName.qualified('r'), const [], [
+            XmlElement(const XmlName.qualified('t'), [XmlAttribute(const XmlName.qualified('xml:space'), 'preserve')],
                 [XmlText(t)]),
           ]),
         ]),
@@ -232,10 +232,10 @@ class XlsxNotesWriter {
     final has = ws.childElements.any((x) => x.name.local == 'legacyDrawing');
     if (!has) {
       if (ws.getAttribute('xmlns:r') == null) {
-        ws.attributes.add(XmlAttribute(XmlName('xmlns:r'), _rel));
+        ws.attributes.add(XmlAttribute(const XmlName.qualified('xmlns:r'), _rel));
       }
-      final el = XmlElement(XmlName('legacyDrawing'),
-          [XmlAttribute(XmlName('r:id'), vmlRid)]);
+      final el = XmlElement(const XmlName.qualified('legacyDrawing'),
+          [XmlAttribute(const XmlName.qualified('r:id'), vmlRid)]);
       // CT_Worksheet: … drawing, legacyDrawing, legacyDrawingHF, picture,
       // oleObjects, controls, webPublishItems, tableParts, extLst.
       const after = {
@@ -264,18 +264,18 @@ class XlsxNotesWriter {
         (x.getAttribute('Extension') ?? '').toLowerCase() == 'vml')) {
       types.children.insert(
           0,
-          XmlElement(XmlName('Default'), [
-            XmlAttribute(XmlName('Extension'), 'vml'),
-            XmlAttribute(XmlName('ContentType'), _ctVml),
+          XmlElement(const XmlName.qualified('Default'), [
+            XmlAttribute(const XmlName.qualified('Extension'), 'vml'),
+            XmlAttribute(const XmlName.qualified('ContentType'), _ctVml),
           ]));
       ctChanged = true;
     }
     if (!types.childElements.any((x) =>
         x.name.local == 'Override' &&
         x.getAttribute('PartName') == '/$commentsPart')) {
-      types.children.add(XmlElement(XmlName('Override'), [
-        XmlAttribute(XmlName('PartName'), '/$commentsPart'),
-        XmlAttribute(XmlName('ContentType'), _ctComments),
+      types.children.add(XmlElement(const XmlName.qualified('Override'), [
+        XmlAttribute(const XmlName.qualified('PartName'), '/$commentsPart'),
+        XmlAttribute(const XmlName.qualified('ContentType'), _ctComments),
       ]));
       ctChanged = true;
     }

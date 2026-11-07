@@ -266,7 +266,7 @@ class ConversionService {
         build: (context) => pw.Center(
           child: pw.Text(
             title,
-            style: pw.TextStyle(fontSize: 32, fontWeight: pw.FontWeight.bold),
+            style: const pw.TextStyle(fontSize: 32, fontWeight: pw.FontWeight.bold),
           ),
         ),
       ),
@@ -284,7 +284,7 @@ class ConversionService {
               pw.Text(
                 slide.title,
                 style:
-                    pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+                    const pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
               ),
               pw.Divider(),
               pw.SizedBox(height: 12),

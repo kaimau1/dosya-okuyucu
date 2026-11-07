@@ -193,12 +193,12 @@ class PptxPackage {
       n++;
     }
     final full = type.contains('://') ? type : '$relBase/$type';
-    d.rootElement.children.add(XmlElement(XmlName('Relationship'), [
-      XmlAttribute(XmlName('Id'), 'rId$n'),
-      XmlAttribute(XmlName('Type'), full),
+    d.rootElement.children.add(XmlElement(const XmlName.qualified('Relationship'), [
+      XmlAttribute(const XmlName.qualified('Id'), 'rId$n'),
+      XmlAttribute(const XmlName.qualified('Type'), full),
       XmlAttribute(
-          XmlName('Target'), external ? target : relative(part, target)),
-      if (external) XmlAttribute(XmlName('TargetMode'), 'External'),
+          const XmlName.qualified('Target'), external ? target : relative(part, target)),
+      if (external) XmlAttribute(const XmlName.qualified('TargetMode'), 'External'),
     ]));
     return 'rId$n';
   }
@@ -218,9 +218,9 @@ class PptxPackage {
     for (final o in d.findAllElements('Override')) {
       if (o.getAttribute('PartName') == name) return;
     }
-    d.rootElement.children.add(XmlElement(XmlName('Override'), [
-      XmlAttribute(XmlName('PartName'), name),
-      XmlAttribute(XmlName('ContentType'), contentType),
+    d.rootElement.children.add(XmlElement(const XmlName.qualified('Override'), [
+      XmlAttribute(const XmlName.qualified('PartName'), name),
+      XmlAttribute(const XmlName.qualified('ContentType'), contentType),
     ]));
   }
 
@@ -234,9 +234,9 @@ class PptxPackage {
     }
     d.rootElement.children.insert(
         0,
-        XmlElement(XmlName('Default'), [
-          XmlAttribute(XmlName('Extension'), ext),
-          XmlAttribute(XmlName('ContentType'), mime),
+        XmlElement(const XmlName.qualified('Default'), [
+          XmlAttribute(const XmlName.qualified('Extension'), ext),
+          XmlAttribute(const XmlName.qualified('ContentType'), mime),
         ]));
   }
 

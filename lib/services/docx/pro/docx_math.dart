@@ -34,14 +34,14 @@ const _nary = {'sum': '∑', 'prod': '∏', 'int': '∫', 'oint': '∮', 'iint':
 
 XmlElement _m(String local, [List<XmlNode> kids = const [],
         Map<String, String> attrs = const {}]) =>
-    XmlElement(XmlName.fromString('m:$local'), [
+    XmlElement(XmlName.qualified('m:$local'), [
       for (final MapEntry(:key, :value) in attrs.entries)
-        XmlAttribute(XmlName.fromString('m:$key'), value),
+        XmlAttribute(XmlName.qualified('m:$key'), value),
     ], kids);
 
 XmlElement _mr(String text) => _m('r', [
-      XmlElement(XmlName.fromString('m:t'),
-          [XmlAttribute(XmlName.fromString('xml:space'), 'preserve')],
+      XmlElement(const XmlName.qualified('m:t'),
+          [XmlAttribute(const XmlName.qualified('xml:space'), 'preserve')],
           [XmlText(text)]),
     ]);
 
@@ -199,8 +199,8 @@ class _LatexParser {
             i = close < 0 ? s.length : close + 1;
             return _m('r', [
               _m('rPr', [_m('sty', const [], {'val': 'p'})]),
-              XmlElement(XmlName.fromString('m:t'),
-                  [XmlAttribute(XmlName.fromString('xml:space'), 'preserve')],
+              XmlElement(const XmlName.qualified('m:t'),
+                  [XmlAttribute(const XmlName.qualified('xml:space'), 'preserve')],
                   [XmlText(t)]),
             ]);
           }

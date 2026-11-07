@@ -40,7 +40,7 @@ abstract final class XlsxPrintAreaWriter {
         utf8.decode(wbFile.content as List<int>, allowMalformed: true));
     final root = doc.rootElement;
     final prefix = root.name.prefix;
-    XmlName n(String local) => XmlName(local, prefix);
+    XmlName n(String local) => XmlName.parts(local, prefix: prefix);
     var names = root.childElements
         .where((e) => e.name.local == 'definedNames')
         .firstOrNull;
@@ -71,8 +71,8 @@ abstract final class XlsxPrintAreaWriter {
         root.children.insert(at + 1, target);
       }
       target.children.add(XmlElement(n('definedName'), [
-        XmlAttribute(XmlName('name'), _name),
-        XmlAttribute(XmlName('localSheetId'), '${s.index}'),
+        XmlAttribute(const XmlName.qualified('name'), _name),
+        XmlAttribute(const XmlName.qualified('localSheetId'), '${s.index}'),
       ], [
         XmlText(formula(s.sheetName, ref)),
       ]));

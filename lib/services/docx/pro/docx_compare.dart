@@ -104,8 +104,8 @@ abstract final class DocxCompare {
   static XmlElement _textRun(String text, XmlElement? rPr, {bool deleted = false}) =>
       w('r', kids: [
         if (rPr != null) rPr.copy(),
-        XmlElement(XmlName.fromString(deleted ? 'w:delText' : 'w:t'),
-            [XmlAttribute(XmlName.fromString('xml:space'), 'preserve')],
+        XmlElement(XmlName.qualified(deleted ? 'w:delText' : 'w:t'),
+            [XmlAttribute(const XmlName.qualified('xml:space'), 'preserve')],
             [XmlText(text)]),
       ]);
 
@@ -129,8 +129,8 @@ abstract final class DocxCompare {
         r.children.removeWhere((n) =>
             n is XmlElement && (n.name.local == 'drawing' || n.name.local == 'pict' || n.name.local == 'object'));
         for (final t in r.childElements.where((e) => e.name.local == 't').toList()) {
-          t.replace(XmlElement(XmlName.fromString('w:delText'),
-              [XmlAttribute(XmlName.fromString('xml:space'), 'preserve')],
+          t.replace(XmlElement(const XmlName.qualified('w:delText'),
+              [XmlAttribute(const XmlName.qualified('xml:space'), 'preserve')],
               [XmlText(t.innerText)]));
         }
       }
@@ -343,8 +343,8 @@ abstract final class DocxReviewTools {
           if (keep) {
             if (e.name.local == 'del') {
               for (final t in e.descendantElements.where((x) => x.name.local == 'delText').toList()) {
-                t.replace(XmlElement(XmlName.fromString('w:t'),
-                    [XmlAttribute(XmlName.fromString('xml:space'), 'preserve')],
+                t.replace(XmlElement(const XmlName.qualified('w:t'),
+                    [XmlAttribute(const XmlName.qualified('xml:space'), 'preserve')],
                     [XmlText(t.innerText)]));
               }
             }

@@ -42,9 +42,9 @@ extension DocxLiveEdit on DocxEditor {
         real[k]: copies[k],
     };
     var bid = 900000;
-    XmlElement mark(String name) => XmlElement(XmlName('w:bookmarkStart'), [
-          XmlAttribute(XmlName('w:id'), '${bid++}'),
-          XmlAttribute(XmlName('w:name'), name),
+    XmlElement mark(String name) => XmlElement(const XmlName.qualified('w:bookmarkStart'), [
+          XmlAttribute(const XmlName.qualified('w:id'), '${bid++}'),
+          XmlAttribute(const XmlName.qualified('w:name'), name),
         ]);
     for (var i = 0; i < paragraphs.length; i++) {
       final p = copyOf[paragraphs[i]._element];
@@ -95,7 +95,7 @@ extension DocxLiveEdit on DocxEditor {
     _prepare(para);
     final atoms = _atomsOf(el);
     final at = offset.clamp(0, atoms.length);
-    final newEl = XmlElement(XmlName('w:p'));
+    final newEl = XmlElement(const XmlName.qualified('w:p'));
     final pPr = DocxEditor._firstOrNull(el.findElements('w:pPr'));
     if (pPr != null) {
       final copy = pPr.copy();
@@ -284,7 +284,7 @@ void _splitMixedRuns(XmlElement p) {
     var at = parent.children.indexOf(r);
     parent.children.removeAt(at);
     for (final g in groups) {
-      final nr = XmlElement(XmlName('w:r'));
+      final nr = XmlElement(const XmlName.qualified('w:r'));
       if (rPr != null) nr.children.add(rPr.copy());
       for (final k in g) {
         nr.children.add(k.copy());
@@ -413,7 +413,7 @@ extension _DocxLiveInternals on DocxEditor {
       final tmplRPr = a.run == null
           ? null
           : DocxEditor._firstOrNull(a.run!.findElements('w:rPr'));
-      final rPr = tmplRPr?.copy() ?? XmlElement(XmlName('w:rPr'));
+      final rPr = tmplRPr?.copy() ?? XmlElement(const XmlName.qualified('w:rPr'));
       _adjust(rPr, a.fmt!, a.templateFmt);
       nodes.add(_buildRun(rPr.children.isEmpty ? null : rPr,
           atoms.sublist(k, j + 1).map((x) => x.ch).join()));
@@ -440,14 +440,14 @@ extension _DocxLiveInternals on DocxEditor {
   }
 
   XmlElement _buildRun(XmlElement? rPr, String text) {
-    final run = XmlElement(XmlName('w:r'));
+    final run = XmlElement(const XmlName.qualified('w:r'));
     if (rPr != null) run.children.add(rPr);
     final parts = text.split('\n');
     for (var i = 0; i < parts.length; i++) {
-      if (i > 0) run.children.add(XmlElement(XmlName('w:br')));
+      if (i > 0) run.children.add(XmlElement(const XmlName.qualified('w:br')));
       if (parts[i].isEmpty) continue;
-      run.children.add(XmlElement(XmlName('w:t'),
-          [XmlAttribute(XmlName('xml:space'), 'preserve')], [XmlText(parts[i])]));
+      run.children.add(XmlElement(const XmlName.qualified('w:t'),
+          [XmlAttribute(const XmlName.qualified('xml:space'), 'preserve')], [XmlText(parts[i])]));
     }
     return run;
   }
@@ -459,10 +459,10 @@ extension _DocxLiveInternals on DocxEditor {
       if (was != null && now == was) return;
       DocxEditor._removeElems(rPr, (e) => e.name.qualified == name);
       if (now) {
-        DocxEditor._putOrdered(rPr, XmlElement(XmlName(name)));
+        DocxEditor._putOrdered(rPr, XmlElement(XmlName.qualified(name)));
       } else if (was == true) {
         DocxEditor._putOrdered(rPr,
-            XmlElement(XmlName(name), [XmlAttribute(XmlName('w:val'), '0')]));
+            XmlElement(XmlName.qualified(name), [XmlAttribute(const XmlName.qualified('w:val'), '0')]));
       }
     }
 
@@ -473,10 +473,10 @@ extension _DocxLiveInternals on DocxEditor {
       DocxEditor._removeElems(rPr, (e) => e.name.qualified == 'w:u');
       if (f.underline) {
         DocxEditor._putOrdered(rPr,
-            XmlElement(XmlName('w:u'), [XmlAttribute(XmlName('w:val'), 'single')]));
+            XmlElement(const XmlName.qualified('w:u'), [XmlAttribute(const XmlName.qualified('w:val'), 'single')]));
       } else if (t?.underline == true) {
         DocxEditor._putOrdered(rPr,
-            XmlElement(XmlName('w:u'), [XmlAttribute(XmlName('w:val'), 'none')]));
+            XmlElement(const XmlName.qualified('w:u'), [XmlAttribute(const XmlName.qualified('w:val'), 'none')]));
       }
     }
     if (f.font != null && f.font != t?.font) _setFont(rPr, f.font!);

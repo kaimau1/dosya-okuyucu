@@ -63,7 +63,7 @@ extension DocxReview on DocxDocument {
         if (k is! XmlElement) continue;
         for (final d in k.descendantElements.toList()) {
           if (d.name.local != 'delText') continue;
-          final t = XmlElement(XmlName.fromString('w:t'),
+          final t = XmlElement(const XmlName.qualified('w:t'),
               d.attributes.map((a) => a.copy()), d.children.map((c) => c.copy()));
           d.parent!.children[d.parent!.children.indexOf(d)] = t;
         }
@@ -260,10 +260,10 @@ extension DocxReview on DocxDocument {
       if (m != null) maxId = math.max(maxId, int.parse(m[1]!));
     }
     final id = 'rId${maxId + 1}';
-    rels.rootElement.children.add(XmlElement(XmlName('Relationship'), [
-      XmlAttribute(XmlName('Id'), id),
-      XmlAttribute(XmlName('Type'), '$_wRel/$kind'),
-      XmlAttribute(XmlName('Target'), '$kind$n.xml'),
+    rels.rootElement.children.add(XmlElement(const XmlName.qualified('Relationship'), [
+      XmlAttribute(const XmlName.qualified('Id'), id),
+      XmlAttribute(const XmlName.qualified('Type'), '$_wRel/$kind'),
+      XmlAttribute(const XmlName.qualified('Target'), '$kind$n.xml'),
     ]));
     _dirtyParts.add('word/_rels/document.xml.rels');
     _parts[name] = XmlDocument.parse(
@@ -272,9 +272,9 @@ extension DocxReview on DocxDocument {
     final ct = _parts['[Content_Types].xml'] ??
         _partReader?.call('[Content_Types].xml');
     if (ct != null) {
-      ct.rootElement.children.add(XmlElement(XmlName('Override'), [
-        XmlAttribute(XmlName('PartName'), '/$name'),
-        XmlAttribute(XmlName('ContentType'),
+      ct.rootElement.children.add(XmlElement(const XmlName.qualified('Override'), [
+        XmlAttribute(const XmlName.qualified('PartName'), '/$name'),
+        XmlAttribute(const XmlName.qualified('ContentType'),
             'application/vnd.openxmlformats-officedocument.wordprocessingml.$kind+xml'),
       ]));
       _parts['[Content_Types].xml'] = ct;
@@ -283,12 +283,12 @@ extension DocxReview on DocxDocument {
     // `r:` ad alanı kökte tanımlı olsun.
     final root = doc.rootElement;
     if (root.getAttribute('xmlns:r') == null) {
-      root.attributes.add(XmlAttribute(XmlName.fromString('xmlns:r'), _wRel));
+      root.attributes.add(XmlAttribute(const XmlName.qualified('xmlns:r'), _wRel));
     }
     final sect = _mainSect();
-    final ref = XmlElement(XmlName.fromString('w:${kind}Reference'), [
-      XmlAttribute(XmlName.fromString('w:type'), 'default'),
-      XmlAttribute(XmlName.fromString('r:id'), id),
+    final ref = XmlElement(XmlName.qualified('w:${kind}Reference'), [
+      XmlAttribute(const XmlName.qualified('w:type'), 'default'),
+      XmlAttribute(const XmlName.qualified('r:id'), id),
     ]);
     var at = 0;
     if (!header) {

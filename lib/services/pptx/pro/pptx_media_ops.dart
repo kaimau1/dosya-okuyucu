@@ -184,7 +184,7 @@ abstract final class PptxMediaOps {
         // Geçiş: advTm (ECMA sırası cSld, clrMapOvr, transition, timing).
         var tr = d.rootElement.getElement('p:transition');
         if (tr == null) {
-          tr = XmlElement(XmlName.fromString('p:transition'));
+          tr = XmlElement(const XmlName.qualified('p:transition'));
           final after = d.rootElement.getElement('p:clrMapOvr') ??
               d.rootElement.getElement('p:cSld');
           final kids = d.rootElement.children;

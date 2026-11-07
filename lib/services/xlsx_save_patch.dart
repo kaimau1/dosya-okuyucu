@@ -481,7 +481,7 @@ class XlsxSavePatch {
     for (final sheet in XmlDocument.parse(_textOf(wb)).findAllElements('sheet')) {
       final name = sheet.getAttribute('name');
       final rid = sheet.getAttribute('r:id') ??
-          sheet.getAttribute('id', namespace: '*');
+          sheet.getAttribute('id', namespaceUri: '*');
       if (name == null || rid == null) continue;
       final target = relTargets[rid];
       if (target == null) continue;
@@ -569,24 +569,24 @@ class XlsxSavePatch {
     }
     if (patch.validations.isNotEmpty) {
       if (dvs == null) {
-        dvs = XmlElement(XmlName('dataValidations'));
+        dvs = XmlElement(const XmlName.qualified('dataValidations'));
         _insertOrdered(root, dvs);
       }
       for (final v in patch.validations) {
-        dvs.children.add(XmlElement(XmlName('dataValidation'), [
-          XmlAttribute(XmlName('type'), v.type),
+        dvs.children.add(XmlElement(const XmlName.qualified('dataValidation'), [
+          XmlAttribute(const XmlName.qualified('type'), v.type),
           if (v.type != 'list' && v.operator != 'between')
-            XmlAttribute(XmlName('operator'), v.operator),
-          if (v.allowBlank) XmlAttribute(XmlName('allowBlank'), '1'),
-          XmlAttribute(XmlName('showErrorMessage'), '1'),
+            XmlAttribute(const XmlName.qualified('operator'), v.operator),
+          if (v.allowBlank) XmlAttribute(const XmlName.qualified('allowBlank'), '1'),
+          XmlAttribute(const XmlName.qualified('showErrorMessage'), '1'),
           if (v.error != null && v.error!.isNotEmpty)
-            XmlAttribute(XmlName('error'), v.error!),
-          XmlAttribute(XmlName('sqref'), v.sqref),
+            XmlAttribute(const XmlName.qualified('error'), v.error!),
+          XmlAttribute(const XmlName.qualified('sqref'), v.sqref),
         ], [
           if (v.formula1 != null)
-            XmlElement(XmlName('formula1'), const [], [XmlText(v.formula1!)]),
+            XmlElement(const XmlName.qualified('formula1'), const [], [XmlText(v.formula1!)]),
           if (v.formula2 != null)
-            XmlElement(XmlName('formula2'), const [], [XmlText(v.formula2!)]),
+            XmlElement(const XmlName.qualified('formula2'), const [], [XmlText(v.formula2!)]),
         ]));
       }
       changed = true;
@@ -609,7 +609,7 @@ class XlsxSavePatch {
     final argb = patch.tabColorArgb;
     if (pr == null) {
       if (argb == null) return false;
-      pr = XmlElement(XmlName('sheetPr'));
+      pr = XmlElement(const XmlName.qualified('sheetPr'));
       _insertOrdered(root, pr);
     }
     pr.children.removeWhere(
@@ -618,8 +618,8 @@ class XlsxSavePatch {
       // CT_SheetPr: tabColor → outlinePr → pageSetUpPr (ilk çocuk).
       pr.children.insert(
           0,
-          XmlElement(XmlName('tabColor'),
-              [XmlAttribute(XmlName('rgb'),
+          XmlElement(const XmlName.qualified('tabColor'),
+              [XmlAttribute(const XmlName.qualified('rgb'),
                   argb.toUnsigned(32).toRadixString(16).padLeft(8, '0').toUpperCase())]));
     }
     return true;
@@ -648,23 +648,23 @@ class XlsxSavePatch {
     var priority = 0;
     for (final rule in rules) {
       final dxfId = rule.visual ? null : styles.addDxf(rule.fillArgb, rule.fontArgb);
-      final cfRule = XmlElement(XmlName('cfRule'), [
-        XmlAttribute(XmlName('type'), rule.type),
-        if (dxfId != null) XmlAttribute(XmlName('dxfId'), '$dxfId'),
-        XmlAttribute(XmlName('priority'), '${++priority}'),
+      final cfRule = XmlElement(const XmlName.qualified('cfRule'), [
+        XmlAttribute(const XmlName.qualified('type'), rule.type),
+        if (dxfId != null) XmlAttribute(const XmlName.qualified('dxfId'), '$dxfId'),
+        XmlAttribute(const XmlName.qualified('priority'), '${++priority}'),
         if (rule.operator != null)
-          XmlAttribute(XmlName('operator'), rule.operator!),
-        if (rule.text != null) XmlAttribute(XmlName('text'), rule.text!),
+          XmlAttribute(const XmlName.qualified('operator'), rule.operator!),
+        if (rule.text != null) XmlAttribute(const XmlName.qualified('text'), rule.text!),
       ], [
         ..._visualChildren(rule),
         for (final f in rule.formulas)
-          XmlElement(XmlName('formula'), [], [XmlText(f)]),
+          XmlElement(const XmlName.qualified('formula'), [], [XmlText(f)]),
       ]);
       _insertOrdered(
         root,
         XmlElement(
-          XmlName('conditionalFormatting'),
-          [XmlAttribute(XmlName('sqref'), rule.sqref)],
+          const XmlName.qualified('conditionalFormatting'),
+          [XmlAttribute(const XmlName.qualified('sqref'), rule.sqref)],
           [cfRule],
         ),
       );
@@ -685,22 +685,22 @@ class XlsxSavePatch {
     if (p == null) return;
     _insertOrdered(
       root,
-      XmlElement(XmlName('sheetProtection'), [
-        if (p.hash != null) XmlAttribute(XmlName('password'), p.hash!),
-        for (final e in p.attrs.entries) XmlAttribute(XmlName(e.key), e.value),
-        XmlAttribute(XmlName('sheet'), '1'),
-        XmlAttribute(XmlName('objects'), '1'),
-        XmlAttribute(XmlName('scenarios'), '1'),
+      XmlElement(const XmlName.qualified('sheetProtection'), [
+        if (p.hash != null) XmlAttribute(const XmlName.qualified('password'), p.hash!),
+        for (final e in p.attrs.entries) XmlAttribute(XmlName.qualified(e.key), e.value),
+        XmlAttribute(const XmlName.qualified('sheet'), '1'),
+        XmlAttribute(const XmlName.qualified('objects'), '1'),
+        XmlAttribute(const XmlName.qualified('scenarios'), '1'),
       ]),
     );
     if (p.allowRanges.isEmpty) return;
     _insertOrdered(
       root,
-      XmlElement(XmlName('protectedRanges'), [], [
+      XmlElement(const XmlName.qualified('protectedRanges'), [], [
         for (var i = 0; i < p.allowRanges.length; i++)
-          XmlElement(XmlName('protectedRange'), [
-            XmlAttribute(XmlName('name'), 'AllowEdit${i + 1}'),
-            XmlAttribute(XmlName('sqref'), p.allowRanges[i]),
+          XmlElement(const XmlName.qualified('protectedRange'), [
+            XmlAttribute(const XmlName.qualified('name'), 'AllowEdit${i + 1}'),
+            XmlAttribute(const XmlName.qualified('sqref'), p.allowRanges[i]),
           ]),
       ]),
     );
@@ -751,7 +751,7 @@ class XlsxSavePatch {
     if (list.isEmpty) return false;
     var extLst = _firstChild(root, 'extLst');
     if (extLst == null) {
-      extLst = XmlElement(XmlName('extLst'));
+      extLst = XmlElement(const XmlName.qualified('extLst'));
       root.children.add(extLst);
     }
     XmlElement? ext;
@@ -759,9 +759,9 @@ class XlsxSavePatch {
       if (e.name.local == 'ext' && e.getAttribute('uri') == _sparkUri) ext = e;
     }
     if (ext == null) {
-      ext = XmlElement(XmlName('ext'), [
-        XmlAttribute(XmlName('uri'), _sparkUri),
-        XmlAttribute(XmlName('x14', 'xmlns'), _x14),
+      ext = XmlElement(const XmlName.qualified('ext'), [
+        XmlAttribute(const XmlName.qualified('uri'), _sparkUri),
+        XmlAttribute(const XmlName.parts('x14', prefix: 'xmlns'), _x14),
       ]);
       extLst.children.add(ext);
     }
@@ -769,8 +769,8 @@ class XlsxSavePatch {
         .where((e) => e.name.local == 'sparklineGroups')
         .firstOrNull;
     if (groups == null) {
-      groups = XmlElement(XmlName('sparklineGroups', 'x14'), [
-        XmlAttribute(XmlName('xm', 'xmlns'), _xm),
+      groups = XmlElement(const XmlName.parts('sparklineGroups', prefix: 'x14'), [
+        XmlAttribute(const XmlName.parts('xm', prefix: 'xmlns'), _xm),
       ]);
       ext.children.add(groups);
     }
@@ -782,19 +782,19 @@ class XlsxSavePatch {
       final first = items.first;
       String hex(int argb) =>
           argb.toUnsigned(32).toRadixString(16).padLeft(8, '0').toUpperCase();
-      groups.children.add(XmlElement(XmlName('sparklineGroup', 'x14'), [
-        if (first.type != 'line') XmlAttribute(XmlName('type'), first.type),
-        XmlAttribute(XmlName('displayEmptyCellsAs'), 'gap'),
+      groups.children.add(XmlElement(const XmlName.parts('sparklineGroup', prefix: 'x14'), [
+        if (first.type != 'line') XmlAttribute(const XmlName.qualified('type'), first.type),
+        XmlAttribute(const XmlName.qualified('displayEmptyCellsAs'), 'gap'),
       ], [
-        XmlElement(XmlName('colorSeries', 'x14'),
-            [XmlAttribute(XmlName('rgb'), hex(first.colorArgb))]),
-        XmlElement(XmlName('colorNegative', 'x14'),
-            [XmlAttribute(XmlName('rgb'), 'FFD00000')]),
-        XmlElement(XmlName('sparklines', 'x14'), [], [
+        XmlElement(const XmlName.parts('colorSeries', prefix: 'x14'),
+            [XmlAttribute(const XmlName.qualified('rgb'), hex(first.colorArgb))]),
+        XmlElement(const XmlName.parts('colorNegative', prefix: 'x14'),
+            [XmlAttribute(const XmlName.qualified('rgb'), 'FFD00000')]),
+        XmlElement(const XmlName.parts('sparklines', prefix: 'x14'), [], [
           for (final s in items)
-            XmlElement(XmlName('sparkline', 'x14'), [], [
-              XmlElement(XmlName('f', 'xm'), [], [XmlText(s.source)]),
-              XmlElement(XmlName('sqref', 'xm'), [], [XmlText(s.cell)]),
+            XmlElement(const XmlName.parts('sparkline', prefix: 'x14'), [], [
+              XmlElement(const XmlName.parts('f', prefix: 'xm'), [], [XmlText(s.source)]),
+              XmlElement(const XmlName.parts('sqref', prefix: 'xm'), [], [XmlText(s.cell)]),
             ]),
         ]),
       ]));
@@ -804,19 +804,19 @@ class XlsxSavePatch {
 
   /// Renk ölçeği / veri çubuğu / simge kümesi gövdesi (ECMA-376 §18.3.1).
   static List<XmlElement> _visualChildren(XlsxCondRuleWrite rule) {
-    XmlElement cfvo(String type, [String? val]) => XmlElement(XmlName('cfvo'), [
-          XmlAttribute(XmlName('type'), type),
-          if (val != null) XmlAttribute(XmlName('val'), val),
+    XmlElement cfvo(String type, [String? val]) => XmlElement(const XmlName.qualified('cfvo'), [
+          XmlAttribute(const XmlName.qualified('type'), type),
+          if (val != null) XmlAttribute(const XmlName.qualified('val'), val),
         ]);
-    XmlElement color(int argb) => XmlElement(XmlName('color'), [
-          XmlAttribute(XmlName('rgb'),
+    XmlElement color(int argb) => XmlElement(const XmlName.qualified('color'), [
+          XmlAttribute(const XmlName.qualified('rgb'),
               argb.toUnsigned(32).toRadixString(16).padLeft(8, '0').toUpperCase()),
         ]);
     switch (rule.type) {
       case 'colorScale':
         final colors = rule.scaleColors ?? const [0xFFF8696B, 0xFF63BE7B];
         return [
-          XmlElement(XmlName('colorScale'), [], [
+          XmlElement(const XmlName.qualified('colorScale'), [], [
             cfvo('min'),
             if (colors.length > 2) cfvo('percentile', '50'),
             cfvo('max'),
@@ -825,7 +825,7 @@ class XlsxSavePatch {
         ];
       case 'dataBar':
         return [
-          XmlElement(XmlName('dataBar'), [], [
+          XmlElement(const XmlName.qualified('dataBar'), [], [
             cfvo('min'),
             cfvo('max'),
             color(rule.barColorArgb ?? 0xFF638EC6),
@@ -833,8 +833,8 @@ class XlsxSavePatch {
         ];
       case 'iconSet':
         return [
-          XmlElement(XmlName('iconSet'), [
-            XmlAttribute(XmlName('iconSet'), rule.iconSet ?? '3TrafficLights1'),
+          XmlElement(const XmlName.qualified('iconSet'), [
+            XmlAttribute(const XmlName.qualified('iconSet'), rule.iconSet ?? '3TrafficLights1'),
           ], [
             cfvo('percent', '0'),
             cfvo('percent', '33'),
@@ -980,7 +980,7 @@ class XlsxSavePatch {
       if (int.tryParse(row.getAttribute('r') ?? '') == number) return row;
     }
     final created =
-        XmlElement(XmlName('row'), [XmlAttribute(XmlName('r'), '$number')]);
+        XmlElement(const XmlName.qualified('row'), [XmlAttribute(const XmlName.qualified('r'), '$number')]);
     _insertRowSorted(data, created, number);
     return created;
   }
@@ -994,7 +994,7 @@ class XlsxSavePatch {
       if (c.getAttribute('r') == ref) return c;
     }
     final created =
-        XmlElement(XmlName('c'), [XmlAttribute(XmlName('r'), ref)]);
+        XmlElement(const XmlName.qualified('c'), [XmlAttribute(const XmlName.qualified('r'), ref)]);
     for (var i = 0; i < row.children.length; i++) {
       final node = row.children[i];
       if (node is! XmlElement || node.name.local != 'c') continue;
@@ -1042,14 +1042,14 @@ class XlsxSavePatch {
     var views = _firstChild(root, 'sheetViews');
     if (views == null) {
       if (!needsView) return false;
-      views = XmlElement(XmlName('sheetViews'));
+      views = XmlElement(const XmlName.qualified('sheetViews'));
       _insertOrdered(root, views);
     }
     var view = _firstChild(views, 'sheetView');
     if (view == null) {
       if (!needsView) return false;
-      view = XmlElement(XmlName('sheetView'), [
-        XmlAttribute(XmlName('workbookViewId'), '0'),
+      view = XmlElement(const XmlName.qualified('sheetView'), [
+        XmlAttribute(const XmlName.qualified('workbookViewId'), '0'),
       ]);
       views.children.add(view);
     }
@@ -1116,12 +1116,12 @@ class XlsxSavePatch {
     final activePane = rows > 0 && cols > 0
         ? 'bottomRight'
         : (rows > 0 ? 'bottomLeft' : 'topRight');
-    final pane = XmlElement(XmlName('pane'), [
-      if (cols > 0) XmlAttribute(XmlName('xSplit'), '$cols'),
-      if (rows > 0) XmlAttribute(XmlName('ySplit'), '$rows'),
-      XmlAttribute(XmlName('topLeftCell'), _cellRef(rows, cols)),
-      XmlAttribute(XmlName('activePane'), activePane),
-      XmlAttribute(XmlName('state'), 'frozen'),
+    final pane = XmlElement(const XmlName.qualified('pane'), [
+      if (cols > 0) XmlAttribute(const XmlName.qualified('xSplit'), '$cols'),
+      if (rows > 0) XmlAttribute(const XmlName.qualified('ySplit'), '$rows'),
+      XmlAttribute(const XmlName.qualified('topLeftCell'), _cellRef(rows, cols)),
+      XmlAttribute(const XmlName.qualified('activePane'), activePane),
+      XmlAttribute(const XmlName.qualified('state'), 'frozen'),
     ]);
     if (existing != null) {
       if (_sameAttributes(existing, pane)) return false;
@@ -1167,7 +1167,7 @@ class XlsxSavePatch {
     }
     _insertOrdered(
       root,
-      XmlElement(XmlName('autoFilter'), [XmlAttribute(XmlName('ref'), ref)]),
+      XmlElement(const XmlName.qualified('autoFilter'), [XmlAttribute(const XmlName.qualified('ref'), ref)]),
     );
     return true;
   }
@@ -1179,7 +1179,7 @@ class XlsxSavePatch {
     if (hidden.isEmpty) return false;
     var cols = _firstChild(root, 'cols');
     if (cols == null) {
-      cols = XmlElement(XmlName('cols'));
+      cols = XmlElement(const XmlName.qualified('cols'));
       _insertOrdered(root, cols);
     }
     var changed = false;
@@ -1219,12 +1219,12 @@ class XlsxSavePatch {
       cols.children.insertAll(at, pieces);
       return true;
     }
-    cols.children.add(XmlElement(XmlName('col'), [
-      XmlAttribute(XmlName('min'), '$number'),
-      XmlAttribute(XmlName('max'), '$number'),
-      XmlAttribute(XmlName('width'), '0'),
-      XmlAttribute(XmlName('hidden'), '1'),
-      XmlAttribute(XmlName('customWidth'), '1'),
+    cols.children.add(XmlElement(const XmlName.qualified('col'), [
+      XmlAttribute(const XmlName.qualified('min'), '$number'),
+      XmlAttribute(const XmlName.qualified('max'), '$number'),
+      XmlAttribute(const XmlName.qualified('width'), '0'),
+      XmlAttribute(const XmlName.qualified('hidden'), '1'),
+      XmlAttribute(const XmlName.qualified('customWidth'), '1'),
     ]));
     return true;
   }
@@ -1236,13 +1236,13 @@ class XlsxSavePatch {
         if (a.name.local != 'min' &&
             a.name.local != 'max' &&
             a.name.local != 'hidden')
-          XmlAttribute(XmlName(a.name.qualified), a.value),
+          XmlAttribute(XmlName.qualified(a.name.qualified), a.value),
     ];
-    return XmlElement(XmlName('col'), [
-      XmlAttribute(XmlName('min'), '$min'),
-      XmlAttribute(XmlName('max'), '$max'),
+    return XmlElement(const XmlName.qualified('col'), [
+      XmlAttribute(const XmlName.qualified('min'), '$min'),
+      XmlAttribute(const XmlName.qualified('max'), '$max'),
       ...attrs,
-      if (hidden) XmlAttribute(XmlName('hidden'), '1'),
+      if (hidden) XmlAttribute(const XmlName.qualified('hidden'), '1'),
     ]);
   }
 
@@ -1277,13 +1277,13 @@ class XlsxSavePatch {
         continue;
       }
       if (!hide && height == null) continue;
-      final created = XmlElement(XmlName('row'), [
-        XmlAttribute(XmlName('r'), '$number'),
+      final created = XmlElement(const XmlName.qualified('row'), [
+        XmlAttribute(const XmlName.qualified('r'), '$number'),
         if (height != null) ...[
-          XmlAttribute(XmlName('ht'), height.toStringAsFixed(2)),
-          XmlAttribute(XmlName('customHeight'), '1'),
+          XmlAttribute(const XmlName.qualified('ht'), height.toStringAsFixed(2)),
+          XmlAttribute(const XmlName.qualified('customHeight'), '1'),
         ],
-        if (hide) XmlAttribute(XmlName('hidden'), '1'),
+        if (hide) XmlAttribute(const XmlName.qualified('hidden'), '1'),
       ]);
       _insertRowSorted(data, created, number);
       existing[number] = created;
@@ -1312,7 +1312,7 @@ class XlsxSavePatch {
       var row = existing[number];
       if (row == null) {
         if (level == 0) continue;
-        row = XmlElement(XmlName('row'), [XmlAttribute(XmlName('r'), '$number')]);
+        row = XmlElement(const XmlName.qualified('row'), [XmlAttribute(const XmlName.qualified('r'), '$number')]);
         _insertRowSorted(data, row, number);
         existing[number] = row;
       }
@@ -1324,8 +1324,8 @@ class XlsxSavePatch {
     }
     var fmt = _firstChild(root, 'sheetFormatPr');
     if (fmt == null) {
-      fmt = XmlElement(XmlName('sheetFormatPr'),
-          [XmlAttribute(XmlName('defaultRowHeight'), '15')]);
+      fmt = XmlElement(const XmlName.qualified('sheetFormatPr'),
+          [XmlAttribute(const XmlName.qualified('defaultRowHeight'), '15')]);
       _insertOrdered(root, fmt);
     }
     if (maxLevel > 0) {
@@ -1477,13 +1477,13 @@ class _StyleTable {
     final numFmtId = _numFmtIdFor(formatCode);
     final base = baseXf >= 0 && baseXf < xfs.length ? xfs[baseXf] : null;
     final wanted = base == null
-        ? XmlElement(XmlName('xf'), [
-            XmlAttribute(XmlName('numFmtId'), '$numFmtId'),
-            XmlAttribute(XmlName('fontId'), '0'),
-            XmlAttribute(XmlName('fillId'), '0'),
-            XmlAttribute(XmlName('borderId'), '0'),
-            XmlAttribute(XmlName('xfId'), '0'),
-            XmlAttribute(XmlName('applyNumberFormat'), '1'),
+        ? XmlElement(const XmlName.qualified('xf'), [
+            XmlAttribute(const XmlName.qualified('numFmtId'), '$numFmtId'),
+            XmlAttribute(const XmlName.qualified('fontId'), '0'),
+            XmlAttribute(const XmlName.qualified('fillId'), '0'),
+            XmlAttribute(const XmlName.qualified('borderId'), '0'),
+            XmlAttribute(const XmlName.qualified('xfId'), '0'),
+            XmlAttribute(const XmlName.qualified('applyNumberFormat'), '1'),
           ])
         : _cloneXf(base, numFmtId);
 
@@ -1505,18 +1505,18 @@ class _StyleTable {
     final base = baseXf >= 0 && baseXf < xfs.length ? xfs[baseXf] : null;
 
     final wanted = base == null
-        ? XmlElement(XmlName('xf'), [
-            XmlAttribute(XmlName('numFmtId'), '0'),
-            XmlAttribute(XmlName('fontId'), '0'),
-            XmlAttribute(XmlName('fillId'), '0'),
-            XmlAttribute(XmlName('borderId'), '0'),
-            XmlAttribute(XmlName('xfId'), '0'),
+        ? XmlElement(const XmlName.qualified('xf'), [
+            XmlAttribute(const XmlName.qualified('numFmtId'), '0'),
+            XmlAttribute(const XmlName.qualified('fontId'), '0'),
+            XmlAttribute(const XmlName.qualified('fillId'), '0'),
+            XmlAttribute(const XmlName.qualified('borderId'), '0'),
+            XmlAttribute(const XmlName.qualified('xfId'), '0'),
           ])
         : XmlElement(
-            XmlName('xf'),
+            const XmlName.qualified('xf'),
             [
               for (final a in base.attributes)
-                XmlAttribute(XmlName(a.name.qualified), a.value),
+                XmlAttribute(XmlName.qualified(a.name.qualified), a.value),
             ],
             [for (final c in base.childElements) c.copy()],
           );
@@ -1600,20 +1600,20 @@ class _StyleTable {
   int addDxf(int? fillArgb, int? fontArgb) {
     final dxfs = _childOrCreate(root, 'dxfs');
     final index = dxfs.childElements.where((e) => e.name.local == 'dxf').length;
-    dxfs.children.add(XmlElement(XmlName('dxf'), const [], [
+    dxfs.children.add(XmlElement(const XmlName.qualified('dxf'), const [], [
       // CT_Dxf sırası: font, numFmt, fill, alignment, border, protection.
       if (fontArgb != null)
-        XmlElement(XmlName('font'), const [], [
-          XmlElement(XmlName('color'),
-              [XmlAttribute(XmlName('rgb'), _argbHex(fontArgb))]),
+        XmlElement(const XmlName.qualified('font'), const [], [
+          XmlElement(const XmlName.qualified('color'),
+              [XmlAttribute(const XmlName.qualified('rgb'), _argbHex(fontArgb))]),
         ]),
       if (fillArgb != null)
-        XmlElement(XmlName('fill'), const [], [
+        XmlElement(const XmlName.qualified('fill'), const [], [
           // `<dxf>` dolgusunda Excel rengi **bgColor**a yazar (hücre
           // stilindeki `fgColor`un aksine) — ters yazılırsa dolgu görünmez.
-          XmlElement(XmlName('patternFill'), const [], [
-            XmlElement(XmlName('bgColor'),
-                [XmlAttribute(XmlName('rgb'), _argbHex(fillArgb))]),
+          XmlElement(const XmlName.qualified('patternFill'), const [], [
+            XmlElement(const XmlName.qualified('bgColor'),
+                [XmlAttribute(const XmlName.qualified('rgb'), _argbHex(fillArgb))]),
           ]),
         ]),
     ]));
@@ -1638,7 +1638,7 @@ class _StyleTable {
     void setFlag(String local, bool? on) {
       if (on == null) return;
       children.removeWhere((e) => e.name.local == local);
-      if (on) children.add(XmlElement(XmlName(local)));
+      if (on) children.add(XmlElement(XmlName.qualified(local)));
     }
 
     setFlag('b', edit.bold);
@@ -1647,24 +1647,24 @@ class _StyleTable {
     setFlag('strike', edit.strike);
     if (edit.fontSize != null) {
       children.removeWhere((e) => e.name.local == 'sz');
-      children.add(XmlElement(XmlName('sz'),
-          [XmlAttribute(XmlName('val'), _sizeText(edit.fontSize!))]));
+      children.add(XmlElement(const XmlName.qualified('sz'),
+          [XmlAttribute(const XmlName.qualified('val'), _sizeText(edit.fontSize!))]));
     }
     if (edit.fontName != null) {
       children.removeWhere((e) => e.name.local == 'name');
-      children.add(XmlElement(XmlName('name'),
-          [XmlAttribute(XmlName('val'), edit.fontName!)]));
+      children.add(XmlElement(const XmlName.qualified('name'),
+          [XmlAttribute(const XmlName.qualified('val'), edit.fontName!)]));
       // Tema yazı tipine bağlı `scheme` kalırsa Excel adı yok sayıp temanınkini
       // kullanır — kullanıcının seçtiği yazı tipi görünmezdi.
       children.removeWhere((e) => e.name.local == 'scheme');
     }
     if (edit.fontArgb != null) {
       children.removeWhere((e) => e.name.local == 'color');
-      children.add(XmlElement(XmlName('color'),
-          [XmlAttribute(XmlName('rgb'), _argbHex(edit.fontArgb!))]));
+      children.add(XmlElement(const XmlName.qualified('color'),
+          [XmlAttribute(const XmlName.qualified('rgb'), _argbHex(edit.fontArgb!))]));
     }
 
-    final font = XmlElement(XmlName('font'), const [], _ordered(children, _fontOrder));
+    final font = XmlElement(const XmlName.qualified('font'), const [], _ordered(children, _fontOrder));
     return _indexOfOrAdd(fonts, font);
   }
 
@@ -1674,17 +1674,17 @@ class _StyleTable {
   int _fillIdFor(int argb) {
     if (argb == XlsxStyleEdit.noFill) return 0;
     final fills = _childOrCreate(root, 'fills');
-    final fill = XmlElement(XmlName('fill'), const [], [
+    final fill = XmlElement(const XmlName.qualified('fill'), const [], [
       XmlElement(
-        XmlName('patternFill'),
-        [XmlAttribute(XmlName('patternType'), 'solid')],
+        const XmlName.qualified('patternFill'),
+        [XmlAttribute(const XmlName.qualified('patternType'), 'solid')],
         [
-          XmlElement(XmlName('fgColor'),
-              [XmlAttribute(XmlName('rgb'), _argbHex(argb))]),
+          XmlElement(const XmlName.qualified('fgColor'),
+              [XmlAttribute(const XmlName.qualified('rgb'), _argbHex(argb))]),
           // Excel `bgColor indexed="64"` (= "otomatik") yazar; bırakılırsa
           // bazı sürümler dolguyu desen sanıp farklı çiziyor.
-          XmlElement(XmlName('bgColor'),
-              [XmlAttribute(XmlName('indexed'), '64')]),
+          XmlElement(const XmlName.qualified('bgColor'),
+              [XmlAttribute(const XmlName.qualified('indexed'), '64')]),
         ],
       ),
     ]);
@@ -1710,16 +1710,16 @@ class _StyleTable {
       if (style == null) {
         // Boş kenar da YAZILIR: `<left/>` "çizgi yok" demektir ve taban
         // kenarlıktan miras kalan çizgiyi bastırır.
-        children.add(XmlElement(XmlName(side)));
+        children.add(XmlElement(XmlName.qualified(side)));
       } else {
         children.add(XmlElement(
-          XmlName(side),
-          [XmlAttribute(XmlName('style'), style)],
+          XmlName.qualified(side),
+          [XmlAttribute(const XmlName.qualified('style'), style)],
           [
-            XmlElement(XmlName('color'), [
+            XmlElement(const XmlName.qualified('color'), [
               argb == null
-                  ? XmlAttribute(XmlName('indexed'), '64')
-                  : XmlAttribute(XmlName('rgb'), _argbHex(argb)),
+                  ? XmlAttribute(const XmlName.qualified('indexed'), '64')
+                  : XmlAttribute(const XmlName.qualified('rgb'), _argbHex(argb)),
             ]),
           ],
         ));
@@ -1727,7 +1727,7 @@ class _StyleTable {
     });
 
     final border =
-        XmlElement(XmlName('border'), const [], _ordered(children, _borderOrder));
+        XmlElement(const XmlName.qualified('border'), const [], _ordered(children, _borderOrder));
     return _indexOfOrAdd(borders, border);
   }
 
@@ -1790,7 +1790,7 @@ class _StyleTable {
   static XmlElement _childOrAppend(XmlElement parent, String local) {
     final existing = _child(parent, local);
     if (existing != null) return existing;
-    final created = XmlElement(XmlName(local));
+    final created = XmlElement(XmlName.qualified(local));
     parent.children.add(created);
     return created;
   }
@@ -1800,9 +1800,9 @@ class _StyleTable {
     if (existing != null) return existing;
     final id = _nextCustomId++;
     final numFmts = _childOrCreate(root, 'numFmts');
-    numFmts.children.add(XmlElement(XmlName('numFmt'), [
-      XmlAttribute(XmlName('numFmtId'), '$id'),
-      XmlAttribute(XmlName('formatCode'), code),
+    numFmts.children.add(XmlElement(const XmlName.qualified('numFmt'), [
+      XmlAttribute(const XmlName.qualified('numFmtId'), '$id'),
+      XmlAttribute(const XmlName.qualified('formatCode'), code),
     ]));
     _setCount(numFmts, numFmts.childElements.length);
     _idByCode[code] = id;
@@ -1811,12 +1811,12 @@ class _StyleTable {
   }
 
   static XmlElement _cloneXf(XmlElement src, int numFmtId) {
-    final el = XmlElement(XmlName('xf'), [
+    final el = XmlElement(const XmlName.qualified('xf'), [
       for (final a in src.attributes)
         if (a.name.local != 'numFmtId' && a.name.local != 'applyNumberFormat')
-          XmlAttribute(XmlName(a.name.qualified), a.value),
-      XmlAttribute(XmlName('numFmtId'), '$numFmtId'),
-      XmlAttribute(XmlName('applyNumberFormat'), '1'),
+          XmlAttribute(XmlName.qualified(a.name.qualified), a.value),
+      XmlAttribute(const XmlName.qualified('numFmtId'), '$numFmtId'),
+      XmlAttribute(const XmlName.qualified('applyNumberFormat'), '1'),
     ]);
     // `<alignment>` / `<protection>` alt düğümleri de taşınmalı.
     for (final child in src.childElements) {
@@ -1854,7 +1854,7 @@ class _StyleTable {
   XmlElement _childOrCreate(XmlElement parent, String local) {
     final existing = _child(parent, local);
     if (existing != null) return existing;
-    final created = XmlElement(XmlName(local));
+    final created = XmlElement(XmlName.qualified(local));
     XlsxSavePatch.insertOrderedIn(parent, created, _order);
     changed = true;
     return created;

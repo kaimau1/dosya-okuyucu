@@ -147,7 +147,7 @@ abstract final class PptxShapeOps {
   static XmlElement _effectLst(XmlElement spPr) {
     var e = spPr.getElement('a:effectLst');
     if (e == null) {
-      e = XmlElement(XmlName.fromString('a:effectLst'));
+      e = XmlElement(const XmlName.qualified('a:effectLst'));
       _putInSpPr(spPr, e, const ['scene3d', 'sp3d']);
     }
     return e;
@@ -262,7 +262,7 @@ abstract final class PptxShapeOps {
         if (tbl == null) throw StateError('table');
         var pr = tbl.getElement('a:tblPr');
         if (pr == null) {
-          pr = XmlElement(XmlName.fromString('a:tblPr'));
+          pr = XmlElement(const XmlName.qualified('a:tblPr'));
           tbl.children.insert(0, pr);
         }
         pr.setAttribute('firstRow', '1');

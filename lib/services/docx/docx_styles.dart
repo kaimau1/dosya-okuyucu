@@ -20,7 +20,7 @@ XmlElement? _child(XmlElement? e, String local) {
 }
 
 String? _val(XmlElement? e) =>
-    e?.getAttribute('val', namespace: _ns) ?? e?.getAttribute('w:val');
+    e?.getAttribute('val', namespaceUri: _ns) ?? e?.getAttribute('w:val');
 
 const _ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 
@@ -124,7 +124,7 @@ class _Style {
 
   factory _Style.of(XmlElement s, String id) => _Style(
         id,
-        s.getAttribute('type', namespace: _ns) ??
+        s.getAttribute('type', namespaceUri: _ns) ??
             s.getAttribute('w:type') ??
             'paragraph',
         _val(_child(s, 'name')),
@@ -233,13 +233,13 @@ class DocxStyles {
       defP = _child(_child(dd, 'pPrDefault'), 'pPr');
       for (final s in root.childElements) {
         if (s.name.local != 'style') continue;
-        final id = s.getAttribute('styleId', namespace: _ns) ??
+        final id = s.getAttribute('styleId', namespaceUri: _ns) ??
             s.getAttribute('w:styleId');
         if (id == null) continue;
         final st = _Style.of(s, id);
         final type = st.type;
         map[id] = st;
-        final isDefault = s.getAttribute('default', namespace: _ns) ??
+        final isDefault = s.getAttribute('default', namespaceUri: _ns) ??
             s.getAttribute('w:default');
         if (type == 'paragraph' && (isDefault == '1' || isDefault == 'true')) {
           defaultPara = id;
@@ -343,9 +343,9 @@ class DocxStyles {
 
   final _pStyleCache = <String, XmlElement>{};
   XmlElement _pStyleOnly(String id) => _pStyleCache[id] ??= XmlElement(
-          XmlName.fromString('w:pPr'), [], [
-        XmlElement(XmlName.fromString('w:pStyle'),
-            [XmlAttribute(XmlName.fromString('w:val'), id)]),
+          const XmlName.qualified('w:pPr'), [], [
+        XmlElement(const XmlName.qualified('w:pStyle'),
+            [XmlAttribute(const XmlName.qualified('w:val'), id)]),
       ]);
 
   /// Stil adı / kimliği (yoksa null).
@@ -417,10 +417,10 @@ class DocxStyles {
         final a = _twips(sp, 'after');
         if (b != null) before = b;
         if (a != null) after = a;
-        final ln = double.tryParse(sp.getAttribute('line', namespace: _ns) ??
+        final ln = double.tryParse(sp.getAttribute('line', namespaceUri: _ns) ??
             sp.getAttribute('w:line') ??
             '');
-        final rule = sp.getAttribute('lineRule', namespace: _ns) ??
+        final rule = sp.getAttribute('lineRule', namespaceUri: _ns) ??
             sp.getAttribute('w:lineRule') ??
             'auto';
         if (ln != null && rule == 'auto') line = ln / 240;
@@ -497,7 +497,7 @@ class DocxStyles {
       final hl = _val(_child(l, 'highlight'));
       if (hl != null) highlight = _highlightArgb(hl);
       final shd = _child(l, 'shd');
-      final fill = shd?.getAttribute('fill', namespace: _ns) ??
+      final fill = shd?.getAttribute('fill', namespaceUri: _ns) ??
           shd?.getAttribute('w:fill');
       if (fill != null && fill != 'auto' && highlight == null) {
         highlight = _argb(fill);
@@ -505,7 +505,7 @@ class DocxStyles {
       final f = _child(l, 'rFonts');
       if (f != null) {
         String? a(String n) =>
-            f.getAttribute(n, namespace: _ns) ?? f.getAttribute('w:$n');
+            f.getAttribute(n, namespaceUri: _ns) ?? f.getAttribute('w:$n');
         final theme = a('asciiTheme');
         if (theme != null) {
           font = theme.startsWith('major') ? _majorFont : _minorFont;
@@ -530,7 +530,7 @@ class DocxStyles {
   }
 
   static double? _twips(XmlElement e, String name) {
-    final v = e.getAttribute(name, namespace: _ns) ?? e.getAttribute('w:$name');
+    final v = e.getAttribute(name, namespaceUri: _ns) ?? e.getAttribute('w:$name');
     final d = v == null ? null : double.tryParse(v);
     return d == null ? null : d / 20;
   }
@@ -598,13 +598,13 @@ class DocxNumbering {
     if (doc != null) {
       for (final a in doc.rootElement.childElements) {
         if (a.name.local != 'abstractNum') continue;
-        final id = a.getAttribute('abstractNumId', namespace: _ns) ??
+        final id = a.getAttribute('abstractNumId', namespaceUri: _ns) ??
             a.getAttribute('w:abstractNumId');
         if (id == null) continue;
         final levels = <int, _Level>{};
         for (final l in a.childElements) {
           if (l.name.local != 'lvl') continue;
-          final ilvl = int.tryParse(l.getAttribute('ilvl', namespace: _ns) ??
+          final ilvl = int.tryParse(l.getAttribute('ilvl', namespaceUri: _ns) ??
                   l.getAttribute('w:ilvl') ??
                   '') ??
               0;
@@ -619,7 +619,7 @@ class DocxNumbering {
             _val(_child(l, 'numFmt')) ?? 'decimal',
             _val(_child(l, 'lvlText')) ?? '',
             int.tryParse(_val(_child(l, 'start')) ?? '') ?? 1,
-            fonts?.getAttribute('ascii', namespace: _ns) ??
+            fonts?.getAttribute('ascii', namespaceUri: _ns) ??
                 fonts?.getAttribute('w:ascii'),
             left,
           );
@@ -628,7 +628,7 @@ class DocxNumbering {
       }
       for (final n in doc.rootElement.childElements) {
         if (n.name.local != 'num') continue;
-        final id = int.tryParse(n.getAttribute('numId', namespace: _ns) ??
+        final id = int.tryParse(n.getAttribute('numId', namespaceUri: _ns) ??
             n.getAttribute('w:numId') ??
             '');
         final abs = _val(_child(n, 'abstractNumId'));

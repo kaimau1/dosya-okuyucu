@@ -82,7 +82,7 @@ dependencies:
   # `xlsx_writer` (yeni belge). archive ^3'ün tek kilidi kalktı; ^4'e geçiş
   # Flutter yükseltmesiyle birlikte (pdfrx 2.x, image 4.4+) yapılacak.
   archive: ^4.0.9
-  xml: ^6.5.0
+  xml: ^7.1.0
 
   # Arşiv okuma: RAR4/RAR5 + 7z + zip/tar/gz — SAF DART (MIT), platform kodu yok.
   # `archive` paketi RAR/7z okumaz; junrar saran Android eklentileri yalnız RAR4
@@ -106,8 +106,8 @@ dependencies:
   shared_preferences_android: 2.4.28
 
   # Dönüştürme (PDF üretimi) & paylaşım / yazdırma
-  pdf: ^3.11.1
-  printing: ^5.13.2
+  pdf: ^3.13.1
+  printing: ^5.15.1
   share_plus: ^10.0.2
 
   # Durum yönetimi (hafif)
@@ -335,6 +335,10 @@ flutter_launcher_icons:
 
 # Faz 44 (Dart 3.13): sabit iki paketin yamalı kopyası — gerekçe third_party/README.md.
 dependency_overrides:
+  # Faz 45: webdav_client 1.2.2 (son sürüm) xml ^6'ya kilitli; yalnız
+  # findAllElements(namespace:'*') + .text kullanıyor, 7'de ikisi de duruyor
+  # (test/…webdav…). Paket xml 7'yi açınca bu satır silinir.
+  xml: ^7.1.0
   pdfrx:
     path: third_party/pdfrx
   dartssh2:

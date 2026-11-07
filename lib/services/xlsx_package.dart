@@ -153,7 +153,7 @@ class XlsxPackageWriter {
 
     final sheetsEl = wbDoc.rootElement.childElements
         .firstWhere((e) => e.name.local == 'sheets', orElse: () {
-      final el = XmlElement(XmlName('sheets'));
+      final el = XmlElement(const XmlName.qualified('sheets'));
       wbDoc.rootElement.children.insert(0, el);
       return el;
     });
@@ -217,17 +217,17 @@ class XlsxPackageWriter {
         relSeq++;
         part = 'xl/worksheets/sheet$partSeq.xml';
         final rid = 'rId$relSeq';
-        relsDoc.rootElement.children.add(XmlElement(XmlName('Relationship'), [
-          XmlAttribute(XmlName('Id'), rid),
-          XmlAttribute(XmlName('Type'), _relWorksheet),
-          XmlAttribute(XmlName('Target'), 'worksheets/sheet$partSeq.xml'),
+        relsDoc.rootElement.children.add(XmlElement(const XmlName.qualified('Relationship'), [
+          XmlAttribute(const XmlName.qualified('Id'), rid),
+          XmlAttribute(const XmlName.qualified('Type'), _relWorksheet),
+          XmlAttribute(const XmlName.qualified('Target'), 'worksheets/sheet$partSeq.xml'),
         ]));
         _addOverride(ctDoc, '/$part', _ctWorksheet);
         maxSheetId++;
-        el = XmlElement(XmlName('sheet'), [
-          XmlAttribute(XmlName('name'), s.name),
-          XmlAttribute(XmlName('sheetId'), '$maxSheetId'),
-          XmlAttribute(XmlName('r:id'), rid),
+        el = XmlElement(const XmlName.qualified('sheet'), [
+          XmlAttribute(const XmlName.qualified('name'), s.name),
+          XmlAttribute(const XmlName.qualified('sheetId'), '$maxSheetId'),
+          XmlAttribute(const XmlName.qualified('r:id'), rid),
         ]);
         put(part,
             '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
@@ -309,10 +309,10 @@ class XlsxPackageWriter {
     if (sharedPart == null) {
       relSeq++;
       sharedPart = 'xl/sharedStrings.xml';
-      relsDoc.rootElement.children.add(XmlElement(XmlName('Relationship'), [
-        XmlAttribute(XmlName('Id'), 'rId$relSeq'),
-        XmlAttribute(XmlName('Type'), _relShared),
-        XmlAttribute(XmlName('Target'), 'sharedStrings.xml'),
+      relsDoc.rootElement.children.add(XmlElement(const XmlName.qualified('Relationship'), [
+        XmlAttribute(const XmlName.qualified('Id'), 'rId$relSeq'),
+        XmlAttribute(const XmlName.qualified('Type'), _relShared),
+        XmlAttribute(const XmlName.qualified('Target'), 'sharedStrings.xml'),
       ]));
       _addOverride(ctDoc, '/$sharedPart', _ctShared);
     }
@@ -346,10 +346,10 @@ class XlsxPackageWriter {
     if (doc.rootElement.childElements.any((e) => e.getAttribute('Type') == type)) {
       return;
     }
-    doc.rootElement.children.add(XmlElement(XmlName('Relationship'), [
-      XmlAttribute(XmlName('Id'), 'rIdS${doc.rootElement.childElements.length + 1}'),
-      XmlAttribute(XmlName('Type'), type),
-      XmlAttribute(XmlName('Target'), target),
+    doc.rootElement.children.add(XmlElement(const XmlName.qualified('Relationship'), [
+      XmlAttribute(const XmlName.qualified('Id'), 'rIdS${doc.rootElement.childElements.length + 1}'),
+      XmlAttribute(const XmlName.qualified('Type'), type),
+      XmlAttribute(const XmlName.qualified('Target'), target),
     ]));
     put('xl/_rels/workbook.xml.rels', doc.toXmlString());
   }
@@ -366,9 +366,9 @@ class XlsxPackageWriter {
         .any((e) => e.getAttribute('PartName') == part)) {
       return;
     }
-    ct.rootElement.children.add(XmlElement(XmlName('Override'), [
-      XmlAttribute(XmlName('PartName'), part),
-      XmlAttribute(XmlName('ContentType'), type),
+    ct.rootElement.children.add(XmlElement(const XmlName.qualified('Override'), [
+      XmlAttribute(const XmlName.qualified('PartName'), part),
+      XmlAttribute(const XmlName.qualified('ContentType'), type),
     ]));
   }
 
@@ -410,7 +410,7 @@ class XlsxPackageWriter {
         .where((e) => e.name.local == 'calcPr')
         .firstOrNull;
     if (calc == null) {
-      calc = XmlElement(XmlName('calcPr'));
+      calc = XmlElement(const XmlName.qualified('calcPr'));
       // calcPr, sheets/definedNames'ten SONRA, oleSize/customWorkbookViews
       // vb.'den ÖNCE gelir.
       final after = {'sheets', 'functionGroups', 'externalReferences', 'definedNames'};

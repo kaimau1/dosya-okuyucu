@@ -97,7 +97,7 @@ abstract final class XlsxFileCharts {
     final wbRels = _rels(a, wbPath);
     final render = PptxRender(a);
     final out = <XlsxFileChart>[];
-    for (final sheet in wb.findAllElements('sheet', namespace: '*')) {
+    for (final sheet in wb.findAllElements('sheet', namespaceUri: '*')) {
       final name = sheet.getAttribute('name');
       final rid = _attr(sheet, 'id');
       final sheetPath = rid == null ? null : wbRels[rid]?.$1;

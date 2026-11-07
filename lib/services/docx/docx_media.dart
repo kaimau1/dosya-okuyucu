@@ -57,10 +57,10 @@ extension DocxMedia on DocxDocument {
       if (m != null) maxId = math.max(maxId, int.parse(m[1]!));
     }
     final id = 'rId${maxId + 1}';
-    rels.rootElement.children.add(XmlElement(XmlName('Relationship'), [
-      XmlAttribute(XmlName('Id'), id),
-      XmlAttribute(XmlName('Type'), type),
-      XmlAttribute(XmlName('Target'), target),
+    rels.rootElement.children.add(XmlElement(const XmlName.qualified('Relationship'), [
+      XmlAttribute(const XmlName.qualified('Id'), id),
+      XmlAttribute(const XmlName.qualified('Type'), type),
+      XmlAttribute(const XmlName.qualified('Target'), target),
     ]));
     _dirtyParts.add('word/_rels/document.xml.rels');
     return id;
@@ -82,9 +82,9 @@ extension DocxMedia on DocxDocument {
     if (has) return;
     ct.rootElement.children.insert(
         0,
-        XmlElement(XmlName('Default'), [
-          XmlAttribute(XmlName('Extension'), ext),
-          XmlAttribute(XmlName('ContentType'), mime),
+        XmlElement(const XmlName.qualified('Default'), [
+          XmlAttribute(const XmlName.qualified('Extension'), ext),
+          XmlAttribute(const XmlName.qualified('ContentType'), mime),
         ]));
     _dirtyParts.add('[Content_Types].xml');
   }
@@ -95,9 +95,9 @@ extension DocxMedia on DocxDocument {
     final has = ct.rootElement.childElements.any((e) =>
         e.name.local == 'Override' && e.getAttribute('PartName') == '/$name');
     if (has) return;
-    ct.rootElement.children.add(XmlElement(XmlName('Override'), [
-      XmlAttribute(XmlName('PartName'), '/$name'),
-      XmlAttribute(XmlName('ContentType'), contentType),
+    ct.rootElement.children.add(XmlElement(const XmlName.qualified('Override'), [
+      XmlAttribute(const XmlName.qualified('PartName'), '/$name'),
+      XmlAttribute(const XmlName.qualified('ContentType'), contentType),
     ]));
     _dirtyParts.add('[Content_Types].xml');
   }
@@ -196,7 +196,7 @@ extension DocxMedia on DocxDocument {
     final id = _nextDocPrId();
     final root = doc.rootElement;
     if (root.getAttribute('xmlns:r') == null) {
-      root.attributes.add(XmlAttribute(XmlName.fromString('xmlns:r'), _relBase));
+      root.attributes.add(XmlAttribute(const XmlName.qualified('xmlns:r'), _relBase));
     }
     final node = XmlDocument.parse(
             '<w:r $_wMain xmlns:r="$_relBase"><w:drawing>'
@@ -428,7 +428,7 @@ extension DocxMedia on DocxDocument {
   String _paraIdOf(XmlElement comment) {
     final ps = comment.childElements.where((e) => e.name.local == 'p').toList();
     if (ps.isEmpty) {
-      final p = XmlElement(XmlName.fromString('w:p'));
+      final p = XmlElement(const XmlName.qualified('w:p'));
       comment.children.add(p);
       ps.add(p);
     }
@@ -439,10 +439,10 @@ extension DocxMedia on DocxDocument {
     final id = (0x10000000 + math.Random().nextInt(0x6FFFFFFF))
         .toRadixString(16)
         .toUpperCase();
-    last.attributes.add(XmlAttribute(XmlName.fromString('w14:paraId'), id));
+    last.attributes.add(XmlAttribute(const XmlName.qualified('w14:paraId'), id));
     final root = comment.parent;
     if (root is XmlElement && root.getAttribute('xmlns:w14') == null) {
-      root.attributes.add(XmlAttribute(XmlName.fromString('xmlns:w14'), _w14Ns));
+      root.attributes.add(XmlAttribute(const XmlName.qualified('xmlns:w14'), _w14Ns));
     }
     return id;
   }
@@ -572,10 +572,10 @@ extension DocxMedia on DocxDocument {
       final id = c.getAttribute('w:id')!;
       final ext = _commentsExt();
       ext.rootElement.children.add(XmlElement(
-          XmlName.fromString('w15:commentEx'), [
-        XmlAttribute(XmlName.fromString('w15:paraId'), _paraIdOf(c)),
-        XmlAttribute(XmlName.fromString('w15:paraIdParent'), _paraIdOf(parent)),
-        XmlAttribute(XmlName.fromString('w15:done'), '0'),
+          const XmlName.qualified('w15:commentEx'), [
+        XmlAttribute(const XmlName.qualified('w15:paraId'), _paraIdOf(c)),
+        XmlAttribute(const XmlName.qualified('w15:paraIdParent'), _paraIdOf(parent)),
+        XmlAttribute(const XmlName.qualified('w15:done'), '0'),
       ]));
       _dirtyParts.add(_sidePartName('/commentsExtended', 'word/commentsExtended.xml'));
       return (i, insertAtom(p, k + 1, _commentRefAtom(id), p.styles[k]));
@@ -606,14 +606,14 @@ extension DocxMedia on DocxDocument {
       }
     }
     if (row == null) {
-      row = XmlElement(XmlName.fromString('w15:commentEx'), [
-        XmlAttribute(XmlName.fromString('w15:paraId'), pid),
+      row = XmlElement(const XmlName.qualified('w15:commentEx'), [
+        XmlAttribute(const XmlName.qualified('w15:paraId'), pid),
       ]);
       ext.rootElement.children.add(row);
     }
     row.attributes.removeWhere((a) => a.name.local == 'done');
     row.attributes
-        .add(XmlAttribute(XmlName.fromString('w15:done'), done ? '1' : '0'));
+        .add(XmlAttribute(const XmlName.qualified('w15:done'), done ? '1' : '0'));
     _dirtyParts.add(_sidePartName('/commentsExtended', 'word/commentsExtended.xml'));
     return true;
   }

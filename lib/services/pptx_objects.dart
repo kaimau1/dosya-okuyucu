@@ -83,14 +83,14 @@ extension PptxObjects on PptxEditor {
     if (spPr == null) return null;
     var x = PptxEditor._firstOrNull(spPr.findElements('a:xfrm'));
     if (x == null && create) {
-      x = XmlElement(XmlName.fromString('a:xfrm'), const [], [
-        XmlElement(XmlName.fromString('a:off'), [
-          XmlAttribute(XmlName.fromString('x'), '0'),
-          XmlAttribute(XmlName.fromString('y'), '0')
+      x = XmlElement(const XmlName.qualified('a:xfrm'), const [], [
+        XmlElement(const XmlName.qualified('a:off'), [
+          XmlAttribute(const XmlName.qualified('x'), '0'),
+          XmlAttribute(const XmlName.qualified('y'), '0')
         ]),
-        XmlElement(XmlName.fromString('a:ext'), [
-          XmlAttribute(XmlName.fromString('cx'), '0'),
-          XmlAttribute(XmlName.fromString('cy'), '0')
+        XmlElement(const XmlName.qualified('a:ext'), [
+          XmlAttribute(const XmlName.qualified('cx'), '0'),
+          XmlAttribute(const XmlName.qualified('cy'), '0')
         ]),
       ]);
       spPr.children.insert(0, x);
@@ -293,7 +293,7 @@ extension PptxObjects on PptxEditor {
     spPr.children.removeWhere(
         (n) => n is XmlElement && fills.contains(n.name.qualified));
     final fill = color == null
-        ? XmlElement(XmlName.fromString('a:noFill'))
+        ? XmlElement(const XmlName.qualified('a:noFill'))
         : XmlDocument.parse('<a:solidFill $_aNs><a:srgbClr val="${_hex(color)}"/></a:solidFill>')
             .rootElement
             .copy();
@@ -328,7 +328,7 @@ extension PptxObjects on PptxEditor {
     if (spPr == null) return false;
     var ln = PptxEditor._firstOrNull(spPr.findElements('a:ln'));
     if (ln == null) {
-      ln = XmlElement(XmlName.fromString('a:ln'));
+      ln = XmlElement(const XmlName.qualified('a:ln'));
       PptxEditor._insertBefore(
           spPr, ln, const {'a:effectLst', 'a:effectDag', 'a:scene3d', 'a:sp3d', 'a:extLst'});
     }
@@ -339,7 +339,7 @@ extension PptxObjects on PptxEditor {
             .contains(n.name.qualified));
     if (color == null) {
       ln.removeAttribute('w');
-      ln.children.insert(0, XmlElement(XmlName.fromString('a:noFill')));
+      ln.children.insert(0, XmlElement(const XmlName.qualified('a:noFill')));
     } else {
       ln.setAttribute('w', '${(math.max(widthPt, 0.25) * _emuPt).round()}');
       ln.children.insert(
@@ -350,8 +350,8 @@ extension PptxObjects on PptxEditor {
       if (dashed) {
         ln.children.insert(
             1,
-            XmlElement(XmlName.fromString('a:prstDash'),
-                [XmlAttribute(XmlName.fromString('val'), 'dash')]));
+            XmlElement(const XmlName.qualified('a:prstDash'),
+                [XmlAttribute(const XmlName.qualified('val'), 'dash')]));
       }
     }
     _rerender(slide);
@@ -382,8 +382,8 @@ extension PptxObjects on PptxEditor {
     c.children.removeWhere((n) => n is XmlElement && n.name.qualified == 'a:alpha');
     final t = transparency.clamp(0.0, 1.0);
     if (t > 0) {
-      c.children.add(XmlElement(XmlName.fromString('a:alpha'),
-          [XmlAttribute(XmlName.fromString('val'), '${((1 - t) * 100000).round()}')]));
+      c.children.add(XmlElement(const XmlName.qualified('a:alpha'),
+          [XmlAttribute(const XmlName.qualified('val'), '${((1 - t) * 100000).round()}')]));
     }
     _rerender(slide);
     return true;

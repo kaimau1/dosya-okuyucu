@@ -349,9 +349,9 @@ class DocxEditor {
   /// [ref] paragrafından sonra boş bir paragraf ekler (ref null ise belge sonuna,
   /// ama daima `<w:sectPr>`'den önce kalır çünkü onun kardeşi olarak eklenir).
   DocxParagraph addParagraphAfter(DocxParagraph? ref) {
-    final newP = XmlElement(XmlName('w:p'));
-    final run = XmlElement(XmlName('w:r'));
-    final t = XmlElement(XmlName('w:t'))..setAttribute('xml:space', 'preserve');
+    final newP = XmlElement(const XmlName.qualified('w:p'));
+    final run = XmlElement(const XmlName.qualified('w:r'));
+    final t = XmlElement(const XmlName.qualified('w:t'))..setAttribute('xml:space', 'preserve');
     run.children.add(t);
     newP.children.add(run);
     final para = DocxParagraph('', false, 1, newP);
@@ -530,10 +530,10 @@ class DocxEditor {
     while (used.contains('rId$n')) {
       n++;
     }
-    doc.rootElement.children.add(XmlElement(XmlName('Relationship'), [
-      XmlAttribute(XmlName('Id'), 'rId$n'),
-      XmlAttribute(XmlName('Type'), type),
-      XmlAttribute(XmlName('Target'), target),
+    doc.rootElement.children.add(XmlElement(const XmlName.qualified('Relationship'), [
+      XmlAttribute(const XmlName.qualified('Id'), 'rId$n'),
+      XmlAttribute(const XmlName.qualified('Type'), type),
+      XmlAttribute(const XmlName.qualified('Target'), target),
     ]));
     _partEdits[name] = doc.toXmlString();
     return 'rId$n';
@@ -549,9 +549,9 @@ class DocxEditor {
     if (has) return;
     doc.rootElement.children.insert(
         0,
-        XmlElement(XmlName('Default'), [
-          XmlAttribute(XmlName('Extension'), ext),
-          XmlAttribute(XmlName('ContentType'), mime),
+        XmlElement(const XmlName.qualified('Default'), [
+          XmlAttribute(const XmlName.qualified('Extension'), ext),
+          XmlAttribute(const XmlName.qualified('ContentType'), mime),
         ]));
     _partEdits[name] = doc.toXmlString();
   }
@@ -676,9 +676,9 @@ class DocxEditor {
 
     final numId = kind == 'number' ? _numIdNumber : _numIdBullet;
     _usedLists.add(kind);
-    final numPr = XmlElement(XmlName('w:numPr'), [], [
-      XmlElement(XmlName('w:ilvl'))..setAttribute('w:val', '0'),
-      XmlElement(XmlName('w:numId'))..setAttribute('w:val', '$numId'),
+    final numPr = XmlElement(const XmlName.qualified('w:numPr'), [], [
+      XmlElement(const XmlName.qualified('w:ilvl'))..setAttribute('w:val', '0'),
+      XmlElement(const XmlName.qualified('w:numId'))..setAttribute('w:val', '$numId'),
     ]);
     // CT_PPr sırasında `w:numPr`, `w:pStyle`den hemen sonra gelir.
     final style = _firstOrNull(pPr.findElements('w:pStyle'));
@@ -715,10 +715,10 @@ class DocxEditor {
       if (has) continue;
       // `w:abstractNum` HEPSİNDEN ÖNCE, `w:num` ondan sonra gelmeli.
       root.children.insert(0, _abstractNum(numId, kind));
-      root.children.add(XmlElement(XmlName('w:num'), [
-        XmlAttribute(XmlName('w:numId'), '$numId'),
+      root.children.add(XmlElement(const XmlName.qualified('w:num'), [
+        XmlAttribute(const XmlName.qualified('w:numId'), '$numId'),
       ], [
-        XmlElement(XmlName('w:abstractNumId'))..setAttribute('w:val', '$numId'),
+        XmlElement(const XmlName.qualified('w:abstractNumId'))..setAttribute('w:val', '$numId'),
       ]));
     }
     out['word/numbering.xml'] = doc.toXmlString();
@@ -732,28 +732,28 @@ class DocxEditor {
 
   static XmlElement _abstractNum(int id, String kind) {
     final bullet = kind != 'number';
-    return XmlElement(XmlName('w:abstractNum'), [
-      XmlAttribute(XmlName('w:abstractNumId'), '$id'),
+    return XmlElement(const XmlName.qualified('w:abstractNum'), [
+      XmlAttribute(const XmlName.qualified('w:abstractNumId'), '$id'),
     ], [
-      XmlElement(XmlName('w:multiLevelType'))
+      XmlElement(const XmlName.qualified('w:multiLevelType'))
         ..setAttribute('w:val', 'hybridMultilevel'),
-      XmlElement(XmlName('w:lvl'), [
-        XmlAttribute(XmlName('w:ilvl'), '0'),
+      XmlElement(const XmlName.qualified('w:lvl'), [
+        XmlAttribute(const XmlName.qualified('w:ilvl'), '0'),
       ], [
-        XmlElement(XmlName('w:start'))..setAttribute('w:val', '1'),
-        XmlElement(XmlName('w:numFmt'))
+        XmlElement(const XmlName.qualified('w:start'))..setAttribute('w:val', '1'),
+        XmlElement(const XmlName.qualified('w:numFmt'))
           ..setAttribute('w:val', bullet ? 'bullet' : 'decimal'),
-        XmlElement(XmlName('w:lvlText'))
+        XmlElement(const XmlName.qualified('w:lvlText'))
           ..setAttribute('w:val', bullet ? '•' : '%1.'),
-        XmlElement(XmlName('w:lvlJc'))..setAttribute('w:val', 'left'),
-        XmlElement(XmlName('w:pPr'), [], [
-          XmlElement(XmlName('w:ind'))
+        XmlElement(const XmlName.qualified('w:lvlJc'))..setAttribute('w:val', 'left'),
+        XmlElement(const XmlName.qualified('w:pPr'), [], [
+          XmlElement(const XmlName.qualified('w:ind'))
             ..setAttribute('w:left', '720')
             ..setAttribute('w:hanging', '360'),
         ]),
         if (bullet)
-          XmlElement(XmlName('w:rPr'), [], [
-            XmlElement(XmlName('w:rFonts'))
+          XmlElement(const XmlName.qualified('w:rPr'), [], [
+            XmlElement(const XmlName.qualified('w:rFonts'))
               ..setAttribute('w:ascii', 'Symbol')
               ..setAttribute('w:hAnsi', 'Symbol')
               ..setAttribute('w:hint', 'default'),
@@ -772,9 +772,9 @@ class DocxEditor {
     final has = doc.rootElement.findElements('Override').any(
         (e) => e.getAttribute('PartName') == '/word/numbering.xml');
     if (has) return null;
-    doc.rootElement.children.add(XmlElement(XmlName('Override'), [
-      XmlAttribute(XmlName('PartName'), '/word/numbering.xml'),
-      XmlAttribute(XmlName('ContentType'), type),
+    doc.rootElement.children.add(XmlElement(const XmlName.qualified('Override'), [
+      XmlAttribute(const XmlName.qualified('PartName'), '/word/numbering.xml'),
+      XmlAttribute(const XmlName.qualified('ContentType'), type),
     ]));
     return doc.toXmlString();
   }
@@ -794,10 +794,10 @@ class DocxEditor {
     while (used.contains('rId$n')) {
       n++;
     }
-    doc.rootElement.children.add(XmlElement(XmlName('Relationship'), [
-      XmlAttribute(XmlName('Id'), 'rId$n'),
-      XmlAttribute(XmlName('Type'), relType),
-      XmlAttribute(XmlName('Target'), 'numbering.xml'),
+    doc.rootElement.children.add(XmlElement(const XmlName.qualified('Relationship'), [
+      XmlAttribute(const XmlName.qualified('Id'), 'rId$n'),
+      XmlAttribute(const XmlName.qualified('Type'), relType),
+      XmlAttribute(const XmlName.qualified('Target'), 'numbering.xml'),
     ]));
     return doc.toXmlString();
   }
@@ -818,7 +818,7 @@ class DocxEditor {
       final runs = para._element.findElements('w:r').toList();
       final XmlElement run =
           runs.isNotEmpty ? runs.first : _appendRun(para._element);
-      final t = XmlElement(XmlName('w:t'));
+      final t = XmlElement(const XmlName.qualified('w:t'));
       t.setAttribute('xml:space', 'preserve');
       t.children.add(XmlText(para.text));
       run.children.add(t);
@@ -860,7 +860,7 @@ class DocxEditor {
   XmlElement _ensureRPr(XmlElement run) {
     final existing = _firstOrNull(run.findElements('w:rPr'));
     if (existing != null) return existing;
-    final rPr = XmlElement(XmlName('w:rPr'));
+    final rPr = XmlElement(const XmlName.qualified('w:rPr'));
     run.children.insert(0, rPr);
     return rPr;
   }
@@ -868,14 +868,14 @@ class DocxEditor {
   XmlElement _ensurePPr(XmlElement p) {
     final existing = _firstOrNull(p.findElements('w:pPr'));
     if (existing != null) return existing;
-    final pPr = XmlElement(XmlName('w:pPr'));
+    final pPr = XmlElement(const XmlName.qualified('w:pPr'));
     p.children.insert(0, pPr); // pPr, paragrafın ilk çocuğu olmalı
     return pPr;
   }
 
   void _setToggle(XmlElement rPr, String name, bool on) {
     _removeElems(rPr, (e) => e.name.qualified == name);
-    if (on) _putOrdered(rPr, XmlElement(XmlName(name)));
+    if (on) _putOrdered(rPr, XmlElement(XmlName.qualified(name)));
   }
 
   /// `w:rPr` çocuklarının şema sırası (CT_RPr). Word sıra dışı öğeyi
@@ -914,7 +914,7 @@ class DocxEditor {
   /// (Türkçe'de sorun yok ama Arapça/Yunanca'da var) eski fontta kalırdı.
   void _setFont(XmlElement rPr, String font) {
     _removeElems(rPr, (e) => e.name.qualified == 'w:rFonts');
-    final el = XmlElement(XmlName('w:rFonts'))
+    final el = XmlElement(const XmlName.qualified('w:rFonts'))
       ..setAttribute('w:ascii', font)
       ..setAttribute('w:hAnsi', font)
       ..setAttribute('w:cs', font);
@@ -928,15 +928,15 @@ class DocxEditor {
     final half = (pt.clamp(1.0, 409.0) * 2).round();
     _removeElems(rPr,
         (e) => e.name.qualified == 'w:sz' || e.name.qualified == 'w:szCs');
-    _putOrdered(rPr, XmlElement(XmlName('w:sz'))..setAttribute('w:val', '$half'));
+    _putOrdered(rPr, XmlElement(const XmlName.qualified('w:sz'))..setAttribute('w:val', '$half'));
     _putOrdered(
-        rPr, XmlElement(XmlName('w:szCs'))..setAttribute('w:val', '$half'));
+        rPr, XmlElement(const XmlName.qualified('w:szCs'))..setAttribute('w:val', '$half'));
   }
 
   void _setUnderline(XmlElement rPr, bool on) {
     _removeElems(rPr, (e) => e.name.qualified == 'w:u');
     if (on) {
-      final u = XmlElement(XmlName('w:u'))..setAttribute('w:val', 'single');
+      final u = XmlElement(const XmlName.qualified('w:u'))..setAttribute('w:val', 'single');
       _putOrdered(rPr, u);
     }
   }
@@ -946,7 +946,7 @@ class DocxEditor {
   void _setColor(XmlElement rPr, String hex) {
     _removeElems(rPr, (e) => e.name.qualified == 'w:color');
     _putOrdered(rPr,
-        XmlElement(XmlName('w:color'))..setAttribute('w:val', hex.toUpperCase()));
+        XmlElement(const XmlName.qualified('w:color'))..setAttribute('w:val', hex.toUpperCase()));
   }
 
   /// Word'ün **adlandırılmış** vurgu paleti. `w:highlight` yalnız bu adları
@@ -978,10 +978,10 @@ class DocxEditor {
     final named = _highlightNames[upper];
     if (named != null) {
       _putOrdered(rPr,
-          XmlElement(XmlName('w:highlight'))..setAttribute('w:val', named));
+          XmlElement(const XmlName.qualified('w:highlight'))..setAttribute('w:val', named));
       return;
     }
-    _putOrdered(rPr, XmlElement(XmlName('w:shd'))
+    _putOrdered(rPr, XmlElement(const XmlName.qualified('w:shd'))
       ..setAttribute('w:val', 'clear')
       ..setAttribute('w:color', 'auto')
       ..setAttribute('w:fill', upper));
@@ -989,7 +989,7 @@ class DocxEditor {
 
   void _setJc(XmlElement pPr, String align) {
     _removeElems(pPr, (e) => e.name.qualified == 'w:jc');
-    final jc = XmlElement(XmlName('w:jc'))..setAttribute('w:val', align);
+    final jc = XmlElement(const XmlName.qualified('w:jc'))..setAttribute('w:val', align);
     pPr.children.add(jc);
   }
 
@@ -1004,7 +1004,7 @@ class DocxEditor {
   }
 
   XmlElement _appendRun(XmlElement paragraph) {
-    final run = XmlElement(XmlName('w:r'));
+    final run = XmlElement(const XmlName.qualified('w:r'));
     paragraph.children.add(run);
     return run;
   }

@@ -349,7 +349,7 @@ class PptxEditor {
       if (m != null) maxRid = maxRid < int.parse(m[1]!) ? int.parse(m[1]!) : maxRid;
     }
     final rid = 'rId${maxRid + 1}';
-    rels.rootElement.children.add(XmlElement(XmlName('Relationship'))
+    rels.rootElement.children.add(XmlElement(const XmlName.qualified('Relationship'))
       ..setAttribute('Id', rid)
       ..setAttribute('Type', '$_nsR/image')
       ..setAttribute('Target', '../media/fkimage$n.$e'));
@@ -407,7 +407,7 @@ class PptxEditor {
     if (has) return;
     ct.rootElement.children.insert(
         0,
-        XmlElement(XmlName('Default'))
+        XmlElement(const XmlName.qualified('Default'))
           ..setAttribute('Extension', ext)
           ..setAttribute('ContentType', mime));
   }
@@ -490,7 +490,7 @@ class PptxEditor {
     for (final r in para.element.findElements('a:r')) {
       var rPr = _firstOrNull(r.findElements('a:rPr'));
       if (rPr == null) {
-        rPr = XmlElement(XmlName('a:rPr'));
+        rPr = XmlElement(const XmlName.qualified('a:rPr'));
         r.children.insert(0, rPr);
       }
       if (bold != null) rPr.setAttribute('b', bold ? '1' : '0');
@@ -517,7 +517,7 @@ class PptxEditor {
     for (final tag in const ['a:latin', 'a:ea', 'a:cs']) {
       var node = _firstOrNull(rPr.findElements(tag));
       if (node == null) {
-        node = XmlElement(XmlName(tag));
+        node = XmlElement(XmlName.qualified(tag));
         _insertBefore(rPr, node, _afterFontTags);
       }
       node.setAttribute('typeface', typeface);
@@ -609,7 +609,7 @@ class PptxEditor {
     final end = _firstOrNull(el.findElements('a:endParaRPr'));
     XmlElement makeRPr() {
       if (template != null) return template.copy();
-      final rPr = XmlElement(XmlName('a:rPr'));
+      final rPr = XmlElement(const XmlName.qualified('a:rPr'));
       if (end != null) {
         for (final a in end.attributes) {
           rPr.setAttribute(a.name.qualified, a.value);
@@ -628,12 +628,12 @@ class PptxEditor {
     final lines = para.text.split('\n');
     for (var k = 0; k < lines.length; k++) {
       if (k > 0) {
-        nodes.add(XmlElement(XmlName('a:br'), [], [makeRPr()]));
+        nodes.add(XmlElement(const XmlName.qualified('a:br'), [], [makeRPr()]));
       }
       if (lines[k].isEmpty) continue;
-      nodes.add(XmlElement(XmlName('a:r'), [], [
+      nodes.add(XmlElement(const XmlName.qualified('a:r'), [], [
         makeRPr(),
-        XmlElement(XmlName('a:t'), [], [XmlText(lines[k])]),
+        XmlElement(const XmlName.qualified('a:t'), [], [XmlText(lines[k])]),
       ]));
     }
     final at = end == null ? el.children.length : el.children.indexOf(end);
@@ -713,9 +713,9 @@ class PptxEditor {
   XmlElement _ensureTxBody(XmlElement sp) {
     final existing = _firstOrNull(sp.findElements('p:txBody'));
     if (existing != null) return existing;
-    final body = XmlElement(XmlName('p:txBody'), [], [
-      XmlElement(XmlName('a:bodyPr')),
-      XmlElement(XmlName('a:lstStyle')),
+    final body = XmlElement(const XmlName.qualified('p:txBody'), [], [
+      XmlElement(const XmlName.qualified('a:bodyPr')),
+      XmlElement(const XmlName.qualified('a:lstStyle')),
     ]);
     _insertBefore(sp, body, const {'p:extLst'});
     return body;
@@ -723,7 +723,7 @@ class PptxEditor {
 
   /// [model]'in `a:pPr` ve `a:endParaRPr`'ini taşıyan boş paragraf.
   static XmlElement _newParagraph(XmlElement? model) {
-    final p = XmlElement(XmlName('a:p'));
+    final p = XmlElement(const XmlName.qualified('a:p'));
     final pPr = model == null ? null : _firstOrNull(model.findElements('a:pPr'));
     if (pPr != null) p.children.add(pPr.copy());
     final end =
@@ -745,7 +745,7 @@ class PptxEditor {
       final own = src == null ? null : _firstOrNull(src.findElements('a:rPr'));
       if (own != null) return own.copy();
       if (src == null && template != null) return template.copy();
-      final rPr = XmlElement(XmlName('a:rPr'));
+      final rPr = XmlElement(const XmlName.qualified('a:rPr'));
       if (end != null && (src == null || own == null)) {
         for (final a in end.attributes) {
           rPr.setAttribute(a.name.qualified, a.value);
@@ -761,7 +761,7 @@ class PptxEditor {
     for (final (text, st) in groups) {
       if (text == kSlideLineBreak) {
         nodes.add(XmlElement(
-            XmlName('a:br'), [], [_withOverrides(baseRPr(st), st)]));
+            const XmlName.qualified('a:br'), [], [_withOverrides(baseRPr(st), st)]));
         continue;
       }
       final src = st.source;
@@ -772,9 +772,9 @@ class PptxEditor {
         nodes.add(src.copy());
         continue;
       }
-      nodes.add(XmlElement(XmlName('a:r'), [], [
+      nodes.add(XmlElement(const XmlName.qualified('a:r'), [], [
         _withOverrides(baseRPr(st), st),
-        XmlElement(XmlName('a:t'), [], [XmlText(text)]),
+        XmlElement(const XmlName.qualified('a:t'), [], [XmlText(text)]),
       ]));
     }
     p.children.removeWhere((n) =>
@@ -821,8 +821,8 @@ class PptxEditor {
         .toRadixString(16)
         .padLeft(6, '0')
         .toUpperCase();
-    final fill = XmlElement(XmlName('a:solidFill'), [], [
-      XmlElement(XmlName('a:srgbClr'), [XmlAttribute(XmlName('val'), hex)]),
+    final fill = XmlElement(const XmlName.qualified('a:solidFill'), [], [
+      XmlElement(const XmlName.qualified('a:srgbClr'), [XmlAttribute(const XmlName.qualified('val'), hex)]),
     ]);
     final ln = _firstOrNull(rPr.findElements('a:ln'));
     if (ln != null) {
@@ -837,7 +837,7 @@ class PptxEditor {
     if (ps.align == null && ps.bullet == null && ps.level == null) return;
     var pPr = _firstOrNull(p.findElements('a:pPr'));
     if (pPr == null) {
-      pPr = XmlElement(XmlName('a:pPr'));
+      pPr = XmlElement(const XmlName.qualified('a:pPr'));
       p.children.insert(0, pPr);
     }
     if (ps.align != null) {
@@ -866,13 +866,13 @@ class PptxEditor {
           const {'a:buNone', 'a:buAutoNum', 'a:buChar', 'a:buBlip', 'a:buFont'}
               .contains(n.name.qualified));
       final XmlElement bu = switch (ps.bullet!) {
-        'char' => XmlElement(XmlName('a:buChar'), [
-            XmlAttribute(XmlName('char'), '•'),
+        'char' => XmlElement(const XmlName.qualified('a:buChar'), [
+            XmlAttribute(const XmlName.qualified('char'), '•'),
           ]),
-        'num' => XmlElement(XmlName('a:buAutoNum'), [
-            XmlAttribute(XmlName('type'), 'arabicPeriod'),
+        'num' => XmlElement(const XmlName.qualified('a:buAutoNum'), [
+            XmlAttribute(const XmlName.qualified('type'), 'arabicPeriod'),
           ]),
-        _ => XmlElement(XmlName('a:buNone')),
+        _ => XmlElement(const XmlName.qualified('a:buNone')),
       };
       _insertBefore(pPr, bu, const {'a:tabLst', 'a:defRPr', 'a:extLst'});
       if (ps.bullet != 'none' && pPr.getAttribute('marL') == null) {
@@ -1085,10 +1085,10 @@ class PptxEditor {
   }
 
   static void _addRel(XmlDocument rels, String id, String type, String target) {
-    rels.rootElement.children.add(XmlElement(XmlName('Relationship'), [
-      XmlAttribute(XmlName('Id'), id),
-      XmlAttribute(XmlName('Type'), type),
-      XmlAttribute(XmlName('Target'), target),
+    rels.rootElement.children.add(XmlElement(const XmlName.qualified('Relationship'), [
+      XmlAttribute(const XmlName.qualified('Id'), id),
+      XmlAttribute(const XmlName.qualified('Type'), type),
+      XmlAttribute(const XmlName.qualified('Target'), target),
     ]));
   }
 
@@ -1174,9 +1174,9 @@ class PptxEditor {
     for (final line in lines) {
       final p = _newParagraph(model);
       if (line.isNotEmpty) {
-        final r = XmlElement(XmlName('a:r'), [], [
-          rPr?.copy() ?? XmlElement(XmlName('a:rPr')),
-          XmlElement(XmlName('a:t'), [], [XmlText(line)]),
+        final r = XmlElement(const XmlName.qualified('a:r'), [], [
+          rPr?.copy() ?? XmlElement(const XmlName.qualified('a:rPr')),
+          XmlElement(const XmlName.qualified('a:t'), [], [XmlText(line)]),
         ]);
         final end = _firstOrNull(p.findElements('a:endParaRPr'));
         if (end == null) {
@@ -1233,8 +1233,8 @@ class PptxEditor {
     _addPresRel(rid, _notesMasterType, 'notesMasters/${master.split('/').last}');
     // `p:notesMasterIdLst` şemada `p:sldMasterIdLst`'ten hemen sonra.
     final root = pres.rootElement;
-    final lst = XmlElement(XmlName('p:notesMasterIdLst'), [], [
-      XmlElement(XmlName('p:notesMasterId'), [XmlAttribute(XmlName('r:id'), rid)]),
+    final lst = XmlElement(const XmlName.qualified('p:notesMasterIdLst'), [], [
+      XmlElement(const XmlName.qualified('p:notesMasterId'), [XmlAttribute(const XmlName.qualified('r:id'), rid)]),
     ]);
     if (root.getAttribute('xmlns:r') == null) root.setAttribute('xmlns:r', _nsR);
     final sm = _firstOrNull(root.findElements('p:sldMasterIdLst'));
@@ -1426,7 +1426,7 @@ class PptxEditor {
   void _addContentOverride(String fileName, String contentType) {
     final ct = _contentTypes;
     if (ct == null) return;
-    final o = XmlElement(XmlName('Override'))
+    final o = XmlElement(const XmlName.qualified('Override'))
       ..setAttribute('PartName', '/$fileName')
       ..setAttribute('ContentType', contentType);
     ct.rootElement.children.add(o);
@@ -1443,7 +1443,7 @@ class PptxEditor {
   }
 
   void _addPresRel(String rid, String type, String target) {
-    final r = XmlElement(XmlName('Relationship'))
+    final r = XmlElement(const XmlName.qualified('Relationship'))
       ..setAttribute('Id', rid)
       ..setAttribute('Type', type)
       ..setAttribute('Target', target);
@@ -1462,7 +1462,7 @@ class PptxEditor {
   void _appendSldId(int id, String rid) {
     final lst = _sldIdLst;
     if (lst == null) return;
-    final e = XmlElement(XmlName('p:sldId'))
+    final e = XmlElement(const XmlName.qualified('p:sldId'))
       ..setAttribute('id', '$id')
       ..setAttribute('r:id', rid);
     lst.children.add(e);
