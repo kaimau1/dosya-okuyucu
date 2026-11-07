@@ -21,8 +21,11 @@ notuyla işaretlenir.
   dosyalarını kapsamaz; Storage Access Framework klasör bazında izin verdiği
   için tüm depolamayı yöneten bir dosya yöneticisi için yetersizdir.
 - **Reddedilirse:** Uygulama açılır; belge görüntüleyici/düzenleyici
-  "Birlikte aç" ve paylaşım yoluyla gelen dosyalarla çalışır. Gezgin, pano
-  analizi ve temizlik "izin gerekli" kartı gösterir.
+  "Birlikte aç", paylaşım ve sistem dosya seçicisiyle (SAF) gelen dosyalarla
+  çalışır. Gezgin, pano analizi ve temizlik "izin gerekli" kartı gösterir;
+  ardından başka izin sorulmaz, "Dosya aç" önerilir.
+- **Ne zaman istenir:** Açılışta değil; kullanıcı panodaki/gezgindeki
+  "İzin ver"e bastığında (ya da rehberdeki satırdan).
 - **Video senaryosu (30 sn):** ilk açılış → İzinler sayfası → "Tüm
   dosyalara erişim"e dokun → sistem ayarı → geri dön → pano dolu bellek
   halkası → İndirilenler'de bir PDF'i aç → çöp kutusuna taşı → geri al.
@@ -146,10 +149,13 @@ notuyla işaretlenir.
 
 ## READ_MEDIA_IMAGES · READ_MEDIA_VIDEO · READ_MEDIA_AUDIO · READ_EXTERNAL_STORAGE · WRITE_EXTERNAL_STORAGE
 
-- **Neden:** `MANAGE_EXTERNAL_STORAGE` verilmezse yedek yol: en azından
-  galeri, videolar ve müzik görünsün. `READ_EXTERNAL_STORAGE` ≤ Android 12L,
-  `WRITE_EXTERNAL_STORAGE` ≤ Android 10 (`maxSdkVersion`). `open_filex` ve
-  `cunning_document_scanner` eklentileri de aynılarını bildiriyor.
+- **Neden:** `READ_EXTERNAL_STORAGE` ≤ Android 12L, `WRITE_EXTERNAL_STORAGE`
+  ≤ Android 10 (`maxSdkVersion`): Android 10 ve altında tüm depolamaya erişimi
+  klasik izin verir. Medya izinlerini uygulama kendisi **istemez**
+  (2026-11-07: "tüm dosyalar" reddedilince ardından medya izni sorma zinciri
+  kaldırıldı); `open_filex` eklentisi bildirir ve bir görsel/video/sesi başka
+  uygulamada açarken (Android 13+) gerekirse ister. Eklenti yerine kendi
+  `ACTION_VIEW` köprümüz yazılınca bu üçü manifestten çıkarılabilir.
 
 ## VIBRATE (eklentiden: `flutter_local_notifications`)
 

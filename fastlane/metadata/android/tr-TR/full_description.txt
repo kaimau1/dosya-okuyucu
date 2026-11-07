@@ -12,5 +12,6 @@ Dosya Okuyucu, telefonunuzdaki her dosya için tek, hızlı ve reklamsız bir uy
 • Kitaplık: PDF ve e-kitaplar kapaklı rafta, "okumaya devam et"
 • Göz yormayan kırık beyaz ve koyu tema; Türkçe, İngilizce, Arapça
 • Gizlilik: dosyalarınız cihazda kalır; reklam ve takip yok
+• İzinler: uygulama açılışta izin istemez. Gelen dosyayı açmak, düzenlemek ve kaydetmek için hiçbir izin gerekmez. "Tüm dosyalara erişim" yalnız dosya yöneticisini (klasörleri gezmek, yer açmak, taşımak) ilk açtığınızda istenir; kamera, mikrofon ve bildirim de yalnız ilgili özellikte sorulur.
 
 Microsoft Word, Excel ve PowerPoint, Microsoft Corporation'ın ticari markalarıdır; bu uygulama Microsoft ile bağlantılı değildir.

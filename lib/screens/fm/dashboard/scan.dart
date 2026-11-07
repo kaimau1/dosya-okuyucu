@@ -7,14 +7,14 @@ extension _DashboardScreenScanPart on _DashboardScreenState {
     _partSetState(() => _hasAccess = granted);
     await FmEnv.ensureInit(force: true);
     await _scan();
+    // Reddedince başka izin sorulmaz, ayarlara da itilmez (2026-11-07):
+    // izinsiz yol önerilir — sistem seçicisiyle tek dosya aç.
     if (!granted && mounted) {
-      showSnackBarReplacing(ScaffoldMessenger.of(context), SnackBar(
-          content: Text(context.t('fm.permission_denied')),
-          action: SnackBarAction(
-            label: context.t('common.settings'),
-            onPressed: StoragePermission.openSettings,
-          ),
-        ),);
+      showStorageDeniedHint(context, () async {
+        final path = await FileService().pickFilePath();
+        if (path == null || !mounted) return;
+        await EntryOpener.open(context, path);
+      });
     }
   }
 

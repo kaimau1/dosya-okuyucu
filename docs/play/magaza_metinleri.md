@@ -9,7 +9,7 @@ Başlık ≤ 30, kısa açıklama ≤ 80, uzun ≤ 4000 karakter (bekçi: `test/
 
 **Başlık:** Dosya Okuyucu: PDF ve Office
 
-**Kısa açıklama:** PDF, Word, Excel, slayt aç-düzenle; dosya yöneticisi, temizlik, sesli kitap.
+**Kısa açıklama:** Reklamsız PDF ve Office okuyucu. İzin istemeden açılır, dosyan telefonda kalır.
 
 **Uzun açıklama:**
 
@@ -38,6 +38,10 @@ uygulama.
 • Kitaplık: PDF ve e-kitaplar kapaklı rafta, "okumaya devam et"
 • Göz yormayan kırık beyaz ve koyu tema; Türkçe, İngilizce, Arapça
 • Gizlilik: dosyalarınız cihazda kalır; reklam ve takip yok
+• İzinler: uygulama açılışta izin istemez. Gelen dosyayı açmak, düzenlemek
+  ve kaydetmek için hiçbir izin gerekmez. "Tüm dosyalara erişim" yalnız
+  dosya yöneticisini (klasörleri gezmek, yer açmak, taşımak) ilk açtığınızda
+  istenir; kamera, mikrofon ve bildirim de yalnız ilgili özellikte sorulur.
 
 Microsoft Word, Excel ve PowerPoint, Microsoft Corporation'ın ticari
 markalarıdır; bu uygulama Microsoft ile bağlantılı değildir.
@@ -46,7 +50,7 @@ markalarıdır; bu uygulama Microsoft ile bağlantılı değildir.
 
 **Title:** Dosya Okuyucu: PDF & Office
 
-**Short description:** Open & edit PDF, Word, Excel, slides; file manager, cleanup, audiobooks.
+**Short description:** Ad-free PDF & Office reader. Opens with no permission prompts; files stay local.
 
 **Full description:** One fast, ad-free app for every file on your phone —
 PDF reading and in-place paragraph editing with OCR and password support;
@@ -62,6 +66,12 @@ memes and blurry shots in WhatsApp; QR-code note sharing; precise image
 resizing; gentle off-white and dark themes. Your files stay on your device
 — no ads, no tracking.
 
+Permissions: the app asks for nothing at launch. Opening, editing and saving a
+file you receive needs no permission. "All files access" is requested only
+when you first open the file manager (browse folders, free up space, move
+files); camera, microphone and notifications are asked only in the feature
+that uses them.
+
 Microsoft Word, Excel and PowerPoint are trademarks of Microsoft
 Corporation; this app is not affiliated with Microsoft.
 
@@ -69,7 +79,7 @@ Corporation; this app is not affiliated with Microsoft.
 
 **العنوان:** Dosya Okuyucu: PDF وOffice
 
-**وصف قصير:** افتح وحرّر PDF وWord وExcel والعروض؛ مدير ملفات وتنظيف وكتب صوتية.
+**وصف قصير:** قارئ PDF وOffice بلا إعلانات. يفتح دون طلب أذونات، وتبقى ملفاتك على هاتفك.
 
 **الوصف الكامل:** تطبيق واحد سريع وبلا إعلانات لكل ملفات هاتفك: قراءة PDF
 وتحريره مع التعرّف على النصوص، تحرير مستندات Office مع الحفاظ على

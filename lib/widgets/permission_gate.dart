@@ -7,6 +7,7 @@ import '../core/app_icons.dart';
 import '../core/app_navigator.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/snack.dart';
+import '../services/fm/storage_permission.dart';
 
 /// Uygulamanın istediği izinler — her biri için tek tip açıklama.
 enum AppPermission { allFiles, notifications, camera, location, overlay }
@@ -42,6 +43,13 @@ class PluginPermissionProbe extends PermissionProbe {
 
   @override
   Future<GateStatus> status(AppPermission p) async {
+    // "Tüm dosyalar" Android sürümüne göre iki ayrı izindir (≤10 klasik
+    // depolama); tek doğru kaynak [StoragePermission].
+    if (p == AppPermission.allFiles) {
+      return await StoragePermission.hasFullAccess()
+          ? GateStatus.granted
+          : GateStatus.denied;
+    }
     try {
       return _map(await _of(p).status);
     } catch (_) {
@@ -52,6 +60,11 @@ class PluginPermissionProbe extends PermissionProbe {
 
   @override
   Future<GateStatus> request(AppPermission p) async {
+    if (p == AppPermission.allFiles) {
+      return await StoragePermission.request()
+          ? GateStatus.granted
+          : GateStatus.denied;
+    }
     try {
       return _map(await _of(p).request());
     } catch (_) {
@@ -228,7 +241,15 @@ class PermissionCard extends StatelessWidget {
 class PermissionStatusRow extends StatefulWidget {
   final AppPermission permission;
 
-  const PermissionStatusRow({super.key, required this.permission});
+  /// İzin verilmişse satır hiç çizilmez (özellik ekranlarındaki satır için;
+  /// rehberde "verildi" görünsün diye varsayılan kapalı).
+  final bool hideWhenGranted;
+
+  const PermissionStatusRow({
+    super.key,
+    required this.permission,
+    this.hideWhenGranted = false,
+  });
 
   @override
   State<PermissionStatusRow> createState() => _PermissionStatusRowState();
@@ -265,6 +286,9 @@ class _PermissionStatusRowState extends State<PermissionStatusRow>
   Widget build(BuildContext context) {
     final k = PermissionCard.keyOf(widget.permission);
     final granted = _status == GateStatus.granted;
+    if (widget.hideWhenGranted && (granted || _status == null)) {
+      return const SizedBox.shrink();
+    }
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: Icon(PermissionCard.iconOf(widget.permission)),
@@ -293,18 +317,43 @@ class _PermissionStatusRowState extends State<PermissionStatusRow>
 /// İlk uzun iş başlarken bildirim izni kapalıysa BİR KEZ söyler (Faz 5, I6):
 /// "işler sürüyor ama haber gelmiyor" sorusunun cevabı. `JobQueue.onFirstJob`
 /// kancası olarak `main` bağlar.
+///
+/// **Bildirim izni yalnız burada istenir** (2026-11-07, izin sadeliği):
+/// eskiden `NotificationHub.init` açılışta sistem penceresini açıyordu —
+/// kullanıcı daha hiçbir şey yapmadan izin soruluyordu. Artık ilk uzun iş
+/// başlayınca, gerekçesiyle ("ilerleme bildirimde görünsün") ve kullanıcı
+/// "İzin ver"e basarsa.
 Future<void> tellIfNotificationsOff() async {
-  final status = await PermissionGate.probe.status(AppPermission.notifications);
+  final probe = PermissionGate.probe;
+  final status = await probe.status(AppPermission.notifications);
   if (status == GateStatus.granted) return;
   final context = navigatorKey.currentContext;
   if (context == null || !context.mounted) return;
+  final blocked = status == GateStatus.permanentlyDenied;
   showSnack(
     context,
     context.t('uerr.notif_off'),
     duration: const Duration(seconds: 6),
     action: SnackBarAction(
-      label: context.t('perm.open_settings'),
-      onPressed: () => unawaited(PermissionGate.probe.openSettings()),
+      label: context.t(blocked ? 'perm.open_settings' : 'perm.allow'),
+      onPressed: () => unawaited(blocked
+          ? probe.openSettings()
+          : probe.request(AppPermission.notifications)),
+    ),
+  );
+}
+
+/// "Tüm dosyalara erişim" reddedilince gösterilir: başka izin SORULMAZ,
+/// yerine izinsiz yol önerilir — sistem seçicisiyle tek dosya açmak.
+/// [onOpenFile] çağıranın "dosya seç → aç" akışıdır.
+void showStorageDeniedHint(BuildContext context, VoidCallback onOpenFile) {
+  showSnack(
+    context,
+    context.t('fm.permission_denied'),
+    duration: const Duration(seconds: 6),
+    action: SnackBarAction(
+      label: context.t('home.open_file'),
+      onPressed: onOpenFile,
     ),
   );
 }

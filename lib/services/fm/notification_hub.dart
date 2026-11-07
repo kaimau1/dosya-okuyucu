@@ -72,7 +72,10 @@ class NotificationHub {
       plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
 
-  /// Eklentiyi ilklendirir ve (Android 13+) bildirim izni ister.
+  /// Eklentiyi ilklendirir. **İzin İSTEMEZ** (2026-11-07, izin sadeliği):
+  /// açılışta sistem penceresi çıkmasın; Android 13+ bildirim izni ilk uzun
+  /// işte `tellIfNotificationsOff` ile, kullanıcı "İzin ver"e basınca istenir.
+  /// İzin yokken gösterilen bildirimler sistemce sessizce düşer.
   /// **Birden çok kez çağrılabilir**; yalnız ilki iş yapar.
   Future<void> init() async {
     if (_tried) return;
@@ -84,7 +87,6 @@ class NotificationHub {
         ),
         onDidReceiveNotificationResponse: _handleResponse,
       );
-      await _android?.requestNotificationsPermission();
       _ready = true;
       // Uygulama KAPALIYKEN bildirime dokunulduysa yanıt `initialize`
       // geri çağrısına düşmez; başlatma ayrıntılarından okunur. Kanca henüz

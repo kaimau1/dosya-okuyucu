@@ -10,41 +10,41 @@ import 'package:permission_handler/permission_handler.dart';
 /// kullanıcıya her klasörü tek tek seçtirir (dosya yöneticisinde kullanılamaz).
 /// Bu izin ÖZEL bir sistem ayar sayfası açar — normal izin penceresi değildir.
 ///
-/// Not: Google Play bu izni gerekçe ister; uygulama GitHub Releases ile
-/// dağıtıldığı için engel yok (bkz. HAFIZA).
+/// **Tek istek kuralı (2026-11-07, izin sadeliği aşama 1):** bir dokunuş =
+/// en çok BİR sistem penceresi. Eskiden "tüm dosyalar" reddedilince ardından
+/// klasik depolama + üç medya izni daha soruluyordu ("izin yağmuru" — Play
+/// yorumlarındaki başlıca şikâyet). Reddeden kullanıcı okuyucuyu "Birlikte
+/// aç" / sistem seçicisiyle (SAF, izinsiz) kullanmaya devam eder.
 abstract final class StoragePermission {
+  /// Android 10 ve altı: `MANAGE_EXTERNAL_STORAGE` yok (eklenti `restricted`
+  /// döner); tüm depolamaya erişimi klasik depolama izni verir.
+  static Future<bool> _legacyDevice() async =>
+      (await Permission.manageExternalStorage.status).isRestricted;
+
   /// Tüm dosyalara erişim verilmiş mi?
   static Future<bool> hasFullAccess() async {
     if (!Platform.isAndroid) return true;
     try {
-      return await Permission.manageExternalStorage.isGranted;
+      if (await Permission.manageExternalStorage.isGranted) return true;
+      if (await _legacyDevice()) return Permission.storage.isGranted;
+      return false;
     } catch (_) {
       return false; // eklenti yok (test/masaüstü)
     }
   }
 
-  /// İzin ister. Sırayla: klasik depolama izni (Android ≤12'de gerçek erişim
-  /// verir) → tüm dosyalara erişim (Android 11+ ayar sayfası).
-  /// Kullanıcı reddederse `false` döner; uygulama kilitlenmez, yalnızca
-  /// gezilebilir alan (uygulama klasörü + medya) daralır.
+  /// İzni ister — cihaza göre TEK yol: Android 11+ "tüm dosyalara erişim"
+  /// ayar sayfası, Android ≤10 klasik depolama penceresi.
+  /// Kullanıcı reddederse `false` döner; uygulama kilitlenmez, ardından başka
+  /// izin sorulmaz (çağıran "tek tek aç" yolunu gösterir).
   static Future<bool> request() async {
     if (!Platform.isAndroid) return true;
     try {
       if (await Permission.manageExternalStorage.isGranted) return true;
-
-      final legacy = await Permission.storage.request();
-      if (legacy.isGranted) return true;
-
-      final full = await Permission.manageExternalStorage.request();
-      if (full.isGranted) return true;
-
-      // Son çare: yalnız medya izinleri (Android 13+ bölünmüş izinler).
-      final media = await [
-        Permission.photos,
-        Permission.videos,
-        Permission.audio,
-      ].request();
-      return media.values.any((s) => s.isGranted);
+      if (await _legacyDevice()) {
+        return (await Permission.storage.request()).isGranted;
+      }
+      return (await Permission.manageExternalStorage.request()).isGranted;
     } catch (_) {
       return false;
     }

@@ -46,6 +46,8 @@ import '../../widgets/fm/home_quick_row.dart';
 import '../../widgets/new_document_sheet.dart';
 import '../../widgets/section_header.dart';
 import '../../services/fm/entry_opener.dart';
+import '../../services/file_service.dart' show FileService;
+import '../../widgets/permission_gate.dart' show showStorageDeniedHint;
 import '../../widgets/fm/recent_strip.dart';
 import 'open_history_screen.dart';
 import '../audiobook/audiobook_library_screen.dart';

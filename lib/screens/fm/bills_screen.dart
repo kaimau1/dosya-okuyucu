@@ -13,6 +13,7 @@ import '../../services/fm/entry_opener.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/native_extras.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/permission_gate.dart';
 
 /// **Faturalar ve giderler** ekranı (bkz. [Bills]).
 ///
@@ -96,6 +97,12 @@ class _BillsScreenState extends State<BillsScreen> {
           body: ListView(
             padding: withNavInset(context, const EdgeInsets.all(Gap.md)),
             children: [
+              // Hatırlatmalar bildirimle gelir; izin artık açılışta değil,
+              // burada — işe yaradığı yerde — istenir (2026-11-07).
+              const PermissionStatusRow(
+                permission: AppPermission.notifications,
+                hideWhenGranted: true,
+              ),
               if (_progress != null) ...[
                 Text(context.t('bills.reading', {
                   'n': _progress!.done + 1,

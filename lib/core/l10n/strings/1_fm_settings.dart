@@ -498,9 +498,9 @@ const Map<String, (String, String, String)> _t1 = {
         'الملفات» من Android. يُستخدم الإذن على الجهاز فقط ولا تُرسل أي بيانات.',
   ),
   'fm.permission_denied': (
-    'Tüm dosyalara erişim verilmedi — yalnızca izin verilen klasörler görünür.',
-    'All-files access was not granted — only permitted folders are shown.',
-    'لم يُمنح الوصول إلى كل الملفات — تظهر المجلدات المسموح بها فقط.',
+    'Sorun değil — dosyaları tek tek seçerek açabilirsin; başka izin gerekmez.',
+    'No problem — you can still open files one by one; no other permission needed.',
+    'لا بأس — يمكنك فتح الملفات واحدًا تلو الآخر دون أي إذن آخر.',
   ),
   'fm.permission_grant': ('İzin ver', 'Grant permission', 'منح الإذن'),
 

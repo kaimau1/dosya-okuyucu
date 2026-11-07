@@ -81,9 +81,9 @@ const Map<String, (String, String, String)> _t9 = {
   'uerr.details': ('Ayrıntı', 'Details', 'التفاصيل'),
   'uerr.retry': ('Yeniden dene', 'Try again', 'أعد المحاولة'),
   'uerr.notif_off': (
-    'Bildirimler kapalı: işin ilerlemesi yalnız uygulama içinde görünecek. Ayarlar\'dan açabilirsiniz.',
-    'Notifications are off: progress will only show inside the app. You can turn them on in Settings.',
-    'الإشعارات متوقفة: سيظهر التقدم داخل التطبيق فقط. يمكنك تشغيلها من الإعدادات.',
+    'Bildirimler kapalı: işin ilerlemesi yalnız uygulama içinde görünecek. Bildirimde de görmek ister misin?',
+    'Notifications are off: progress will only show inside the app. Show it in a notification too?',
+    'الإشعارات متوقفة: سيظهر التقدم داخل التطبيق فقط. هل تريد رؤيته في إشعار أيضًا؟',
   ),
   // ── İzinler (Faz 5) ───────────────────────────────────────────────────────
   'perm.allow': ('İzin ver', 'Allow', 'السماح'),
