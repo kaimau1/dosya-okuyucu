@@ -266,6 +266,106 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     return entry;
   }
 
+  // ── Seçim kipi (kullanıcı isteği 2026-11-07: *"alt alanda seç seçeneği …
+  // toplu silme"*): alttaki "Seç" ile açılır; küçük resim şeridine dokunmak
+  // ilgili fotoğrafı seçer/bırakır (ve ona geçer). Silme/paylaşma seçilenlere.
+  bool _selecting = false;
+  final Set<String> _selected = {};
+
+  void _startSelect() => setState(() {
+        _selecting = true;
+        _selected
+          ..clear()
+          ..add(_current);
+      });
+
+  void _endSelect() => setState(() {
+        _selecting = false;
+        _selected.clear();
+      });
+
+  void _toggle(String path) => setState(() {
+        if (!_selected.remove(path)) _selected.add(path);
+      });
+
+  void _pickInSelect(int i) {
+    _toggle(_paths[i]);
+    _jumpTo(i);
+  }
+
+  void _selectAllOrNone() => setState(() {
+        if (_selected.length == _paths.length) {
+          _selected.clear();
+        } else {
+          _selected.addAll(_paths);
+        }
+      });
+
+  Future<void> _deleteSelected() async {
+    if (_selected.isEmpty) return;
+    final victims = [for (final p0 in _paths) if (_selected.contains(p0)) p0];
+    await deleteEntries(context, [for (final v in victims) _entryFor(v)]);
+    if (!mounted) return;
+    // Başarıyı dosyanın yokluğundan ölç (kısmi başarısızlıkta kalanlar kalır).
+    final gone = {for (final v in victims) if (!File(v).existsSync()) v};
+    if (gone.isEmpty) return;
+    final current = _current;
+    setState(() {
+      _paths.removeWhere(gone.contains);
+      _selected.removeAll(gone);
+      for (final g in gone) {
+        _statCache.remove(g);
+        _turns.remove(g);
+      }
+      if (_paths.isNotEmpty) {
+        final at = _paths.indexOf(current);
+        _index = at >= 0 ? at : _index.clamp(0, _paths.length - 1);
+      }
+      if (_selected.isEmpty) _selecting = false;
+    });
+    if (_paths.isEmpty) {
+      popOwnPage(context);
+      return;
+    }
+    _pages.jumpToPage(_index);
+  }
+
+  Widget _selectionBar() {
+    final total = _paths.length;
+    return Row(
+      children: [
+        IconButton(
+          key: const ValueKey<String>('gal-select-close'),
+          tooltip: context.t('common.cancel'),
+          icon: const Icon(AppIcons.close, color: AppColors.onMedia),
+          onPressed: _endSelect,
+        ),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Text(
+            context.t('fm.selected_count',
+                {'n': _selected.length, 'total': total}),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: OverlayBar.title(context),
+          ),
+        ),
+        IconButton(
+          key: const ValueKey<String>('gal-select-all'),
+          tooltip: context.t(_selected.length == total
+              ? 'fm.select_none'
+              : 'fm.select_all'),
+          icon: Icon(
+              _selected.length == total
+                  ? AppIcons.selectNone
+                  : AppIcons.selectAll,
+              color: AppColors.onMedia),
+          onPressed: _selectAllOrNone,
+        ),
+      ],
+    );
+  }
+
   Future<void> _delete() async {
     final entry = _currentEntry;
     if (!await deleteEntries(context, [entry])) return;
@@ -565,7 +665,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
-      child: Scaffold(
+      child: PopScope(
+        canPop: !_selecting,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && _selecting) _endSelect();
+        },
+        child: Scaffold(
         // Rota saydam: siyah zemin burada, sürüklendikçe incelir ve arkadaki
         // ızgara görünür.
         backgroundColor: Colors.transparent,
@@ -644,7 +749,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                   ),
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(4, padding.top + 4, 4, 28),
-                    child: Row(
+                    child: _selecting
+                        ? _selectionBar()
+                        : Row(
                       children: [
                         const BackButton(color: AppColors.onMedia),
                         const SizedBox(width: 4),
@@ -762,8 +869,35 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                           _FilmStrip(
                             paths: _paths,
                             index: _index,
-                            onPick: _jumpTo,
+                            onPick: _selecting ? _pickInSelect : _jumpTo,
+                            selected: _selecting ? _selected : null,
                           ),
+                        if (_selecting)
+                          Row(
+                            children: [
+                              _GalleryAction(
+                                icon: _selected.contains(_current)
+                                    ? AppIcons.checkCircle
+                                    : AppIcons.checkCircleOutline,
+                                label: context.t('ied.select'),
+                                onTap: () => _toggle(_current),
+                              ),
+                              _GalleryAction(
+                                icon: AppIcons.share,
+                                label: context.t('common.share'),
+                                onTap: _selected.isEmpty
+                                    ? () {}
+                                    : () => shareEntriesFrom(
+                                        context, _selected.toList()),
+                              ),
+                              _GalleryAction(
+                                icon: AppIcons.delete,
+                                label: context.t('common.delete'),
+                                onTap: _deleteSelected,
+                              ),
+                            ],
+                          )
+                        else
                         Row(
                           children: [
                             _GalleryAction(
@@ -802,6 +936,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                                   showProperties(context, _currentEntry),
                             ),
                             _GalleryAction(
+                              icon: AppIcons.checkCircleOutline,
+                              label: context.t('ied.select'),
+                              onTap: _startSelect,
+                            ),
+                            _GalleryAction(
                               icon: AppIcons.delete,
                               label: context.t('common.delete'),
                               onTap: _delete,
@@ -816,6 +955,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
             ),
           ],
         ),
+      ),
       ),
     );
   }

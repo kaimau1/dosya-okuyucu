@@ -115,10 +115,14 @@ class _FilmStrip extends StatefulWidget {
   final int index;
   final ValueChanged<int> onPick;
 
+  /// Seçim kipinde seçili yollar (null = seçim kipi kapalı).
+  final Set<String>? selected;
+
   const _FilmStrip({
     required this.paths,
     required this.index,
     required this.onPick,
+    this.selected,
   });
 
   @override
@@ -174,6 +178,8 @@ class _FilmStripState extends State<_FilmStrip> {
         separatorBuilder: (_, __) => const SizedBox(width: _gap),
         itemBuilder: (context, i) {
           final active = i == widget.index;
+          final sel = widget.selected;
+          final picked = sel != null && sel.contains(widget.paths[i]);
           return GestureDetector(
             onTap: () => widget.onPick(i),
             child: AnimatedContainer(
@@ -190,8 +196,9 @@ class _FilmStripState extends State<_FilmStrip> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: Opacity(
-                  opacity: active ? 1 : 0.6,
-                  child: Image(
+                  opacity: active || picked ? 1 : 0.6,
+                  child: Stack(fit: StackFit.expand, children: [
+                   Image(
                     // Izgaranın çözdüğü küçük resim önbellekteyse o (disk
                     // okuması yok); değilse kademeli küçük bir çözme.
                     // `Image.file` DEĞİL: baytları Dart yığınına kopyalıyordu
@@ -203,7 +210,23 @@ class _FilmStripState extends State<_FilmStrip> {
                     gaplessPlayback: true,
                     errorBuilder: (_, __, ___) =>
                         const ColoredBox(color: Color(0xFF222222)),
-                  ),
+                   ),
+                   if (sel != null)
+                     Positioned(
+                       right: 2,
+                       top: 2,
+                       child: Icon(
+                         picked
+                             ? AppIcons.checkCircle
+                             : AppIcons.checkCircleOutline,
+                         size: 18,
+                         color: AppColors.onMedia,
+                         shadows: const [
+                           Shadow(color: Color(0xAA000000), blurRadius: 3)
+                         ],
+                       ),
+                     ),
+                  ]),
                 ),
               ),
             ),
