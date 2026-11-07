@@ -256,12 +256,10 @@ class OcrService {
     final img = await page.render(
       fullWidth: page.width * scale,
       fullHeight: page.height * scale,
-      backgroundColor: AppColors.page,
+      backgroundColor: AppColors.page.toARGB32(),
     );
     if (img == null) return null;
     final int w = img.width, h = img.height;
-    // pdfium çıktısı platforma göre RGBA ya da BGRA (pdfrx 1.3.x `format`).
-    final bgraOrder = img.format == ui.PixelFormat.bgra8888;
     final TransferableTypedData pixels;
     try {
       // pdfium belleği `dispose`ta kalkar: izolata gitmeden önce kopya.
@@ -271,14 +269,14 @@ class OcrService {
     }
     final path =
         '${Directory.systemTemp.path}/ocr_page_${tag}_${page.pageNumber}.jpg';
-    final ok = await _encodeJpegInIsolate(pixels, w, h, bgraOrder, path);
+    final ok = await _encodeJpegInIsolate(pixels, w, h, path);
     return ok ? (path: path, scale: scale) : null;
   }
 
   /// Ayrı fonksiyon: izolata giden kapanış yalnız bu ilkel değerleri taşısın
   /// (sayfa/pdfium nesneleri yakalanmasın).
   static Future<bool> _encodeJpegInIsolate(
-          TransferableTypedData pixels, int w, int h, bool bgraOrder, String path) =>
+          TransferableTypedData pixels, int w, int h, String path) =>
       Isolate.run(() {
         final bgra = pixels.materialize().asUint8List();
         final image = imglib.Image.fromBytes(
@@ -287,7 +285,7 @@ class OcrService {
           bytes: bgra.buffer,
           bytesOffset: bgra.offsetInBytes,
           numChannels: 4,
-          order: bgraOrder ? imglib.ChannelOrder.bgra : imglib.ChannelOrder.rgba,
+          order: imglib.ChannelOrder.bgra,
         );
         File(path).writeAsBytesSync(imglib.encodeJpg(image, quality: 90));
         return true;
@@ -304,7 +302,7 @@ class OcrService {
     final img = await page.render(
       fullWidth: page.width * scale,
       fullHeight: page.height * scale,
-      backgroundColor: AppColors.page,
+      backgroundColor: AppColors.page.toARGB32(),
     );
     if (img == null) return null;
     try {
@@ -313,7 +311,8 @@ class OcrService {
         img.pixels,
         img.width,
         img.height,
-        img.format,
+        // pdfrx 2.x: pdfium çıktısı her platformda BGRA.
+        ui.PixelFormat.bgra8888,
         completer.complete,
       );
       final uiImage = await completer.future;

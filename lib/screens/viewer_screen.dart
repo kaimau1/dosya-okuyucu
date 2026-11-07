@@ -54,6 +54,7 @@ import '../services/pdf/edge_auto_scroll.dart';
 import '../services/fm/save_to_downloads.dart';
 import '../services/pdf/current_page.dart';
 import '../services/pdf/pdf_fling.dart';
+import '../services/pdf/pdf_viewer_defaults.dart';
 import '../services/pdf/page_arrival.dart';
 import '../services/pdf/pdf_form.dart';
 import '../services/pdf/pdf_ocr_search.dart';

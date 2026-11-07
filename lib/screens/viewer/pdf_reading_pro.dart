@@ -76,9 +76,7 @@ extension _ViewerScreenPdfReadingProPart on _ViewerScreenState {
       if (e.ocr || searcher == null || e.index >= searcher.matches.length) {
         return '';
       }
-      final text = searcher.matches[e.index].fragments
-          .map((f) => f.text)
-          .join()
+      final text = searcher.matches[e.index].text
           .replaceAll(RegExp(r'\s+'), ' ')
           .trim();
       return text.length > 120 ? '${text.substring(0, 120)}…' : text;
