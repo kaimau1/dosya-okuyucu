@@ -24,6 +24,7 @@ paylaşım. (Firebase senkronu 2026-09-26'da kaldırıldı — HAFIZA.) Piyasada
 > yapılabilenler** ve **Faz B 📱💻👤 diğerleri** (telefon, yerel Windows, hesap/karar); her
 > bölümün bitti ölçütü ve açılış istemi orada. Yeni oturum işe Faz A'nın ilk açık bölümünden
 > başlar; telefonda bakılacaklar `docs/CIHAZ_TESTI.md`.
+> **Yükseltme fazları (2026-11-07) → `docs/YUKSELTME_PLANI.md`** (Faz 43–50, yerel + telefon; bu fazlarda yerel test serbest).
 > Bulgu/karar kaynağı (tarihsel): `docs/FAZ_PLANI.md` (Faz 0–19, K1–K17) ve
 > `docs/DUZENLEME_PLANI.md` (Faz 20–33, K18–K25).
 

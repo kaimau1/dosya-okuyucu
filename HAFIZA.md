@@ -419,3 +419,12 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Tuzak — READ_MEDIA_* manifestten çıkarılamaz (henüz):** `open_filex` 4.7.0 Android 13+'ta görsel/video/sesi dış uygulamada açarken bu izinleri denetler/İSTER; bildirilmezse açma "Permission denied" ile düşer. Çıkarmak için önce `EntryOpener.openExternally`'yi kendi `ACTION_VIEW` + FileProvider köprüsüne taşı (aşama 2 adayı).
 - Mağaza kısa açıklaması "Reklamsız… İzin istemeden açılır, dosyan telefonda kalır." + uzun açıklamada İzinler bloku (Play "tüm dosyalar" kullanımının mağazada belirgin anlatılmasını istiyor).
 - **2026-11-07 — main APK'sı iki koşudur çıkmıyordu:** #608 (QR/Ayarlar/tema galerisi) #609'la iptal, #609 (Galeri Seç) kırmızı: `image_gallery/widgets.dart` seçim simgesi `Positioned(right:)` (rtl_guard) + ham `Color(0xAA000000)` (design_tokens hex tavanı). → `PositionedDirectional(end:)` + `AppColors.mediaChrome`. Ders: `[apk]` push'tan sonra Actions sonucuna bir kez bak; kırmızıysa APK hiç yayımlanmaz.
+
+## 2026-11-07 — Yükseltme planı (Faz 43–50) + pdfrx 2.12 ön incelemesi
+- Plan: `docs/YUKSELTME_PLANI.md` (KALANLAR Faz D). Yerel Windows + USB telefon; bu fazlarda yerel test serbest (kullanıcı kararı).
+- **Flutter son kararlı 3.47.9 (Dart 3.13.7)**; pdfrx 2.12 ve background_downloader 9.6 Flutter ≥3.47 istiyor → Flutter önce.
+- **Zincir açıldı:** `pdf 3.13.1` artık `xml ^7` → syncfusion 35, image 4.12, xml 7 birlikte çözülebilir (A3.4b engeli).
+- **pdfrx 2.12.0 kaynağı (pub arşivi) okundu:** N2 (boyamada her sayfanın metnini yükleme) DÜZELTİLMİŞ — `isTextSelectionEnabled` koşullu.
+  N1 (erişilebilirlik açıkken satır başına Semantics) HÂLÂ VAR, kapatma parametresi yok (`forceEnableTextSemantics || semanticsEnabled`)
+  → yukarı akış PR'ı ya da `third_party/pdfrx` yaması. `ExcludeSemantics` yetmez (bayrak `SemanticsBinding`'den).
+  Hangi nedenin baskın olduğu hâlâ ÖLÇÜLMEDİ — Faz 48.1'de cihazda A/B.

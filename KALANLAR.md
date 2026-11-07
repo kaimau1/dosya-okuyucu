@@ -52,7 +52,7 @@ sürüm" diye sabitlenmiş paketler ve onlara karşı yazılmış geçici çöz�
 Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu bütçesi
 (CI) geçmeli; cihazda bakılacaklar `CIHAZ_TESTI.md`'ye.
 
-- [ ] **A3.4b Kalan sabitler:** `wakelock_plus 1.4.0` (1.6.1+ `win32 ^6` → `share_plus` 10 → 13 birlikte),
+- [ ] **A3.4b Kalan sabitler** (→ artık **Faz D / `docs/YUKSELTME_PLANI.md` Faz 45–46**): `wakelock_plus 1.4.0` (1.6.1+ `win32 ^6` → `share_plus` 10 → 13 birlikte),
       `permission_handler` 12 (13'ü `cunning_document_scanner` 3.x ister), `syncfusion` 33 (35 `xml ^7`; `pdf`
       paketi ^6'da tutuyor), `shared_preferences_android 2.4.28` (JNI çökmesi düzeldiği cihazda doğrulanırsa).
 
@@ -141,6 +141,12 @@ pro belge tarayıcı · Excel · Word · Slayt · PDF · ortak görünüm · dos
 **Her faz `GELISTIRME_PLANI.md` baştaki PERFORMANS KORUMA ANAYASASI'na uyar** (izolat, tembel yükleme, PerfBudget, boşta 0 kare, perf kapısı + A/B tablo).
 Faz 35'in ilk adımı **ML Kit geçişi** (onaylandı; kullanıcı başlatacak).
 Önerilen sıra: 34 → 35 → 39 → 36 → 37 → 38 → 40 → 41 → 42. **Faz 34 BİTTİ** (kod; cihaz doğrulaması `CIHAZ_TESTI.md`). **Faz 35 BİTTİ** 2026-11-05 (ML Kit `GmsDocumentScanner` + pro tarayıcı; cihaz turu + perf A/B bekliyor). **Faz 39 BİTTİ** 2026-11-05 (PDF pro: dijital imza, karartma, Excel/Word/PDF-A, karşılaştırma, izin/yer imi/damga/numara, okuma, agresif sıkıştırma, sayfa/form/dönüştürme/paraf; cihaz turu + perf A/B bekliyor). **Faz 36 BİTTİ** 2026-11-05 (Excel pro: özet tablo, koşullu biçim yazma/yönetici, mini grafik, dinamik dizi/LET/yapısal başvuru, parolalı xlsx, yazdırma alanı/PDF, içe aktarma/ara toplam/anahat, biçim boyacısı/tema, formül denetimi/hedef ara, grafik kombinasyon/eğilim, sayfa koruması; cihaz turu + perf A/B bekliyor). **Faz 37 BİTTİ** 2026-11-05 (Word pro: stil güncelle/tema, sayfa düzeni + baskı önizleme, denklem LaTeX↔OMML, tablo birleştir/böl/kenarlık/sığdır/sırala, şablon galerisi, karşılaştır/belge ekle/gözden geçirme çubuğu/parola, sesle yazma + satır içi AI, PDF/yazı tipi gömülü docx/ODT/RTF/MD, gezinti ağacı/küçük resim/okuma süresi, metin kutusu/şekil/sarma/kapak/bölüm/alan/çapraz başvuru/kaynakça, AI yazım denetimi, okuma kipi; cihaz turu + perf A/B bekliyor). **Faz 38 BİTTİ** 2026-11-05 (Slayt pro: ana slayt/yerleşim + tema, 8 şablon + metinden slayt önerisi, grafik/tablodan grafik/SmartArt→şekil, ses/video + lazer/kalem/zamanlayıcı, sunucu görünümü + PNG/MP4, hizala/dağıt/katman/animasyon sırası, bölüm/özel gösteri, şekil kitaplığı/bağlayıcı/efekt/kırpma/arka plan/tablo biçimi/köprü/sayaç, ses tuşu + yerel ağ kumanda/anlatım/ikinci ekran; cihaz turu + perf A/B bekliyor). **Faz 40 BİTTİ** 2026-11-05 (ortak görünüm: tek üst çubuk + bağlam şeridi, Motion geçişleri + boş durum çizimleri, 2×/TalkBack/kontrast bekçileri, rehber + örnek belgeler, ayarlarda Önerilenler, kapanış güvencesi, tek Paylaş/Dışa aktar, tema ön ayarı + vurgu rengi, eksik çeviri taraması, iskelet + tek tip hata yüzü; cihaz turu + perf A/B bekliyor). **Faz 41 BİTTİ** 2026-11-05 (çift bölme, SD SAF yazma, ad kalıpları; Drive çevrimdışı + çakışma; içerik dizini (OCR dahil) + kayıtlı aramalar; kısa ömürlü bağlantı; akıllı temizlik önerileri; etiket/klasör rengi + favori sırası; bölünmüş arşiv; uzak indirmede devam + artımlı arama dizini; OneDrive/Dropbox B5.8'de hesap kararı bekliyor; cihaz turu + perf A/B bekliyor). **Faz 42 BİTTİ** 2026-11-06 (bağımlılık bütçesi + açılış bekçisi; 100 MB xlsx akış önizlemesi + PDF araç bellek bekçisi; Hata kayıtları → Sorunu bildir (anonim özet, kare dağılımı); sürüm adayı turu + fastlane mağaza varlıkları; CI perf kapısı + APK taban %2; integration_test senaryoları; R8 kuralları + `.r8test` A/B betiği; cihaz turu + perf A/B bekliyor). **Faz C'nin tüm fazları bitti.**
+
+## Faz D — Yükseltme fazları (2026-11-07, kullanıcı isteği) 💻📱
+Ayrıntı ve kapılar: **`docs/YUKSELTME_PLANI.md`** (Faz 43–50: ölçüm tabanı · Flutter 3.47.9 ·
+saf Dart zinciri (xml 7/pdf/syncfusion 35) · Android eklentileri · google_sign_in 7/ML Kit 1.0/SSH ·
+**pdfrx 2.12 (önce kök neden ölçümü)** · temizlik · sürüm adayı). Yerel Windows + USB telefon; cihaz
+kapısı (> %10 ya da p99 > 24 ms → birleşmez). Sıra 43 → 50. A3.4b bu fazlara taşındı.
 
 ---
 
