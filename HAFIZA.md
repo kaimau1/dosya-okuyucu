@@ -116,8 +116,8 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 ## 3. Tuzaklar (hâlâ geçerli)
 
 **Ortam, CI, süreç**
-- **Bulut oturumu:** Flutter 3.44.6 Linux tarball'ı indirilebilir
-  (`storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.44.6-stable.tar.xz`),
+- **Bulut oturumu:** Flutter 3.47.9 Linux (Faz 44; önce 3.44.6) tarball'ı indirilebilir
+  (`storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.47.9-stable.tar.xz`),
   `git config --global --add safe.directory '*'` şart. Telefon/ölçüm/`graphify` YOK.
 - **`dart format` KOŞTURMA** — depo biçimlendirilmiş değil; tek dosyada yüzlerce satır gürültü
   (2026-10-23'te 172 dosya geri alındı).
