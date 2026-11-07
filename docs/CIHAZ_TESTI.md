@@ -786,3 +786,16 @@ Otomatik kısım (ölçüm + duman) `docs/perf/2026-11-45.md`'de. Elle bakılaca
 
 **Koşu kaydı**
 - 2026-11-08 · Faz 45–47 · MatePad DBY-W09 (GMS'siz): ölçüm kapısı ✅ (`docs/perf/2026-11-45.md`), senaryolar 3/3 çökmesiz, SFTP/FTP yerel sunucuyla ✅ · 1–5, 7–8 elle bekliyor · 6 GMS'li cihazda.
+
+## Faz 48 — pdfrx 2.12 + okuma yardımcıları (2026-11-08)
+Otomatik kısım (A/B ölçüm) `docs/perf/2026-11-48-pdfrx.md`'de. Elle bakılacaklar:
+1. **"40 Hadis" PDF'i** (kullanıcının asıl dosyası): açılış ve kaydırma akıcı (2.4.8'deki ~5 FPS yok).
+2. **Erişilebilirlik hizmeti AÇIK** (GMS'li/Xiaomi; parola yöneticisi ya da TalkBack) → aynı PDF'te kaydırma akıcı (P6).
+3. **İki parmakla yakınlaştır:** yazı keskinleşiyor, jest sırasında titreme/atlama yok (1.3.5 basamaklı ölçek kalktı, 2.12'nin kendi kısmi çizimi).
+4. Uzun basış seçim, arama + sonuç listesi, işaretleme, form, imza, taranmış sayfa OCR metni, PDF düzenleyici açılışı.
+5. **Aa → Ekran açık kalsın:** okurken ekran sönmüyor; kapatınca normal zaman aşımı.
+6. **Aa → Ses tuşlarıyla sayfa çevir:** kısma sonraki, açma önceki sayfa; kapalıyken ses düğmesi sesi değiştiriyor.
+7. **Aa → Otomatik kaydırma:** Yavaş/Orta/Hızlı; parmak ekrandayken duruyor, kalkınca sürüyor; belgenin sonunda kendiliğinden kapanıyor.
+
+**Koşu kaydı**
+- 2026-11-08 · Faz 48 · MatePad DBY-W09 (GMS'siz): ölçüm kapısı ✅ (`docs/perf/2026-11-48-pdfrx.md`), çökme 0 · 5–7 adb ile ✅ (`KEEP_SCREEN_ON`, ses tuşu 98→100→99, kaydırma 1→3. sayfa) · 1–4 elle bekliyor · 2 GMS'li/Xiaomi cihazda.

@@ -202,9 +202,10 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
   deflate (telefonda Wi-Fi'den yavaş) · QR/aktarımda üçüncü taraf yükleme (gizlilik) · Firebase
   senkronu (kaldırıldı) · FFmpeg (Media3'e geçildi) · `insertUnorderedList` (Word paragraf
   eşlemesini bozuyordu) · çift dokunuşla yakınlaştırma editörlerde · `usage_stats` paketi
-  (compileSdk 30, derlemeyi kırıyor) · **pdfrx 2.x** (2.4.8 denendi, 2026-11-03'te geri alındı:
-  yoğun PDF'te açılış çok geç, kaydırma ~5 FPS — ayrıntı 2026-11-03 kaydı; tekrar denenecekse önce
-  cihazda o PDF'le profil ölçümü).
+  (compileSdk 30, derlemeyi kırıyor) · **pdfrx 2.x'te erişilebilirlik satır Semantics'i ve bizim
+  basamaklı `getPageRenderingScale`'imiz** (2.4.8 2026-11-03'te geri alındı; 2.12'ye 2026-11-08'de
+  ölçerek geçildi: N1 `third_party/pdfrx` tek satır yama, N5 kaldırıldı — `docs/perf/2026-11-48-pdfrx.md`;
+  pdfrx yükseltilirken önce A/B, yama YAMA.md'ye göre yeniden).
 
 ## 5. Tarihli kayıtlar (yeni kayıt en alta; `## YYYY-MM-DD — başlık`)
 
@@ -461,3 +462,13 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **shared_preferences_android 2.4.28 sabit kalır:** 2.5.4 kaynağında `onDetachedFromEngine` → `SharedPreferencesApiRegistrar().register(null)` süreç geneli `SharedPreferencesApiInstances`tan siliyor (çökme kökü aynı). Cihaz denemesi gerekmedi.
 - **Reddedilen:** `dart format` ile toplu biçimleme (30 dosyada 3.600 satır gürültü) — yalnız betikli düzenleme.
 - **Tuzak (Windows yerel):** `PATH`'e `C:/...` yazma (iki nokta PATH'i böler) → `/c/...`; heredoc'ta `\`/`\r` kaçışları kanca tarafından bozuluyor → Python betiğini dosyaya yaz; CRLF dosyalarda betik `\r\n`'yi normalize etmeli.
+
+## 2026-11-08 — Faz 48: pdfrx 1.3.5 → 2.12.0 (ölçerek) → `docs/perf/2026-11-48-pdfrx.md`
+- **Kök neden ölçümle (MatePad A/B, PDF-B 54 s.):** 2.x'in kendisi 1.3.5'ten kötü değil (B ≈ A). İki ek yük vardı:
+  **N1** erişilebilirlik açıkken satır başına Focus+Semantics (`forceEnableTextSemantics` ile taklit: UI kare p99 3,3 → 5,8–6,3 ms, PSS +%20)
+  → `third_party/pdfrx` tek satır yama (`YAMA.md`); **N5** bizim 1.3.5 dönemi basamaklı `getPageRenderingScale`'imiz 2.x'te fazladan
+  çizim → kaldırıldı (FrameTiming p99 19 → 13, ≥25 ms kare 15 → 9). Son yapı: p99 11,3 (A 15–20), açılış aynı, PSS +%21 medyan (aralık A'nınkinin içinde).
+- **P6 (erişilebilirlik gerçekten açık) bu tablette ölçülemez** (hizmet yok, ayara dokunma) → GMS/Xiaomi cihazda; B2 taklidi yerine geçti.
+- **Tuzak (Windows yerel):** pdfrx 2.x `pdfium_dart` native-assets hook'u C derleyicisi ister → Windows'ta `flutter test` PDF testleri derlenmez (MSVC yok); testler CI'da (Linux). Windows'ta Git Bash `/c/...` yolu adb/python'a VERİLMEZ (`pwd -W` ile `C:/...`); PATH'e ise `/c/...`.
+- **Huawei yükleme onayı otomatik:** uiautomator dökümünde "DEVAM ET/YÜKLE" (UTF-8 okunmalı: `sys.stdin.buffer…decode('utf-8')`).
+- **Okuma yardımcıları (Aa levhası, yalnız PDF):** ekran açık · ses tuşuyla sayfa (Slayt.kt köprüsü, yeni Kotlin yok) · otomatik kaydırma (kare geri çağrısı yalnız açıkken, parmak değince bekler). Kapalıyken sıfır maliyet.

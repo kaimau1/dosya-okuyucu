@@ -127,7 +127,7 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
 - [ ] **A9.2 Belge gece kipi ve PDF kâğıt zemini** (A7.6/A7.7 kalanı, 2026-11-02): koyu temada
       Word kanvası artık koyu ama sayfa beyaz; isteğe bağlı "gece kipi" (PDF'teki gibi ters
       renk, `viewer.html` CSS `filter`). PDF'te kâğıt temasında yalnız çerçeve var — sayfanın
-      içi pdfium beyazı (pdfrx 1.3.5 zemin rengini açmıyor; 2.x'e geçiş 2026-11-03'te geri alındı — HAFIZA).
+      içi pdfium beyazı (pdfrx 2.12'de `render(backgroundColor:)` var — Faz 48 sonrası yapılabilir).
 
 ---
 
@@ -145,7 +145,8 @@ saf Dart zinciri (xml 7/pdf/syncfusion 35) · Android eklentileri · google_sign
 kapısı (> %10 ya da p99 > 24 ms → birleşmez). Sıra 43 → 50. A3.4b bu fazlara taşındı.
 - [ ] Faz 43 artığı 📱 (taban MatePad’da alındı → `docs/perf/2026-11-43-taban.md`): Xiaomi 13T + Mi Note 10 Lite tabanı (P1–P12), P6 (erişilebilirlik açık), P4/P5 ekran kaydı + yakınlaştırma, P12 video; duman turunun elle maddeleri.
 - [ ] İncele 📱: `VIEW video/*` (file://) oynatıcı yerine panoyu açıyor; Paylaş (`SEND`) Aktar ekranına gidip konum + yakın cihaz izni istiyor (MatePad, Faz 43).
-- [ ] Sıradaki: **Faz 48** (pdfrx 2.12; Faz 45–47 birleşti — taban `docs/perf/2026-11-45-temiz-taban.md`, sonuç `docs/perf/2026-11-45.md`). `third_party/` yalnız pdfrx kaldı.
+- [ ] Sıradaki: **Faz 49** (temizlik). Faz 48 bitti: pdfrx 2.12 + N1 yaması (`third_party/pdfrx/YAMA.md`) — `docs/perf/2026-11-48-pdfrx.md`.
+- [ ] Faz 48 artığı 📱: **P6** (erişilebilirlik hizmeti gerçekten açık, PDF-B kaydırma) GMS'li/Xiaomi cihazda; yakınlaştırma keskinliği (basamaklı ölçek kalktı — iki parmak elle); `CIHAZ_TESTI.md` "Faz 48".
 - [ ] Faz 45–47 artığı 📱: GMS'li cihazda Drive girişi (google_sign_in 7 yetkilendirme yolu) + ML Kit OCR/çeviri model indirme; gerçek SFTP/FTP sunucusunda (NAS) bağlan/aktar (yerel asyncssh/pyftpdlib ile yeşil); "Başka uygulamada aç" köprüsü (video/ses/apk, READ_MEDIA_* yok) elle; dosya seçici (file_picker 13) çoklu seçim + büyük dosya; paylaş (share_plus 13); bildirim (flutter_local_notifications 23) — `docs/CIHAZ_TESTI.md` "Faz 45–47".
 - [ ] Override'lar (Faz 45/47): `xml` (webdav_client), `pointycastle` (smb_connect), `dartssh2` (ftpconnect) — paketler yeni sürüm çıkarınca sil; `shared_preferences_android` 2.4.28 sabit (2.5.4'te de süreç geneli kayıt silinmesi).
 - [ ] Faz 44 artığı 📱: P9/P12 ve duman turunun elle maddeleri 3.47'de; Xiaomi'de P5 kuyruğu (+%14–18 MatePad'de) yeniden ölç.
