@@ -400,6 +400,8 @@ roots = [p['rootUri'] for p in cfg['packages'] if p['name'] == 'pdfrx']
 if not roots:
     print('::warning::pdfrx paketi bulunamadı, wasm silinmedi'); raise SystemExit(0)
 root = pathlib.Path(urllib.parse.urlparse(roots[0]).path)
+if not root.is_absolute():  # path bağımlılığı (third_party/, Faz 44): .dart_tool'a göreli
+    root = (pathlib.Path('.dart_tool') / root).resolve()
 wasm = root / 'assets' / 'pdfium.wasm'
 if wasm.exists():
     size = wasm.stat().st_size
