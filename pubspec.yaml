@@ -206,7 +206,7 @@ dependencies:
   # aralık o yüzden açıktı; artık her ortam 3.44.6 ve 2.0.10 çözümlüyor.
   # Enum ADLARI sürümler arasında değiştiği için (`SecurityType.FTPS` → `ftps`)
   # `ftp_fs.dart` sabitleri yine harf duyarsız arar. Bkz. HAFIZA 2026-08-05.
-  ftpconnect: ^2.0.10
+  ftpconnect: ^3.0.0
   # WebDAV (Nextcloud/ownCloud/Synology) — BSD 3-Clause, `dio` üstünde.
   webdav_client: ^1.2.2
   # Yerel ağ keşfi (mDNS/Bonjour) — Flutter ekibi, BSD. Tek başına yetmiyor
@@ -342,5 +342,10 @@ dependency_overrides:
   # 4.0'ın tek kırılımı generateKeyPair jenerikleri — smb_connect kullanmıyor.
   # dartssh2 4 pointycastle ^4 istediği için zorunlu. smb_connect açınca silinir.
   pointycastle: ^4.0.0
+  # Faz 47: ftpconnect 3.0.0 (tek yayımlı 3.x; FTPS 425 düzeltmeleri) kendi
+  # SFTPConnect'i için dartssh2 ^3.3.1 ister. Kullandığı türlerin hepsi 4.x'te
+  # aynı (SSHClient/SftpClient/SftpFileAttrs…); biz SFTP'yi doğrudan dartssh2
+  # ile yapıyoruz. ftpconnect dartssh2 4'ü açınca silinir.
+  dartssh2: ^4.1.0
   pdfrx:
     path: third_party/pdfrx
