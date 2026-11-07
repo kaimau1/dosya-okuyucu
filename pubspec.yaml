@@ -30,7 +30,7 @@ dependencies:
   # **Şifreli kasa** (2026-10-18): AES-256 (GCM/CTR) + PBKDF2. Saf Dart, eklenti
   # yok; zaten `pdf`/`syncfusion` üzerinden ağaçtaydı (3.9.1), doğrudan
   # kullandığımız için açıkça yazılıyor. Bkz. lib/services/fm/vault_crypto.dart.
-  pointycastle: ^3.9.1
+  pointycastle: ^4.0.0
   # Tarayıcıdan telefona yükleme (2026-10-18): çok parçalı form ayrıştırıcı.
   # `http` paketinin bağımlılığı olarak zaten ağaçta (2.1.0), saf Dart.
   mime: ^2.0.0
@@ -199,7 +199,9 @@ dependencies:
   #
   # SFTP — saf Dart SSH istemcisi (MIT). Tercih edilen protokol: tek şifreli
   # bağlantı, FTP'nin pasif mod port pazarlığı yok.
-  dartssh2: ^2.14.0
+  # 4.x (Faz 45, pointycastle 4 ile birlikte): eski algoritmalar (ssh-rsa, CBC,
+  # SHA-1 KEX) varsayılan kapalı — OpenSSH ile aynı; çok eski NAS bağlanamaz (HAFIZA).
+  dartssh2: ^4.1.0
   # FTP + FTPS (örtük) + FTPES (açık TLS) — saf Dart (MIT). Üç protokol tek
   # sınıfta (`FtpFs`), aradaki tek fark `SecurityType` ve varsayılan port.
   # Alt sınır 2.0.10 (2026-11-02): eski CI (Flutter 3.29.3) 2.0.7'de kalıyordu,
@@ -338,7 +340,9 @@ dependency_overrides:
   # findAllElements(namespace:'*') + .text kullanıyor, 7'de ikisi de duruyor
   # (test/…webdav…). Paket xml 7'yi açınca bu satır silinir.
   xml: ^7.1.0
+  # Faz 45: smb_connect 0.0.9 (son sürüm, 2025-01) pointycastle ^3'e kilitli;
+  # 4.0'ın tek kırılımı generateKeyPair jenerikleri — smb_connect kullanmıyor.
+  # dartssh2 4 pointycastle ^4 istediği için zorunlu. smb_connect açınca silinir.
+  pointycastle: ^4.0.0
   pdfrx:
     path: third_party/pdfrx
-  dartssh2:
-    path: third_party/dartssh2
