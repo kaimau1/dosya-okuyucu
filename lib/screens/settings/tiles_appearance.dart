@@ -8,8 +8,8 @@ import '../../core/l10n/app_language.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/skin.dart';
 import '../../core/theme.dart';
-import '../../widgets/fm/fm_category_tile.dart' show FmTintedIcon;
 import 'settings_widgets.dart';
+import 'theme_gallery.dart';
 import '../../core/app_haptics.dart';
 
 /// Tema: sistem / açık / koyu.
@@ -182,118 +182,31 @@ class LanguageTile extends StatelessWidget {
   }
 }
 
-/// **Tema ailesi** — kağıt / açık / modern / iş programı / gece.
+/// **Tema ailesi** — önizlemeli kart ızgarası (2026-11-07, [ThemeGallery]).
 ///
-/// Kullanıcı isteği (2026-08-25): *"şuan ki tema açık ama bu aslında kağıt
-/// teması, bunu kağıt tema olarak adlandır ve yeni olarak açık tema getir …
-/// genel temalarda farklı klasör simgeleri boyutları gibi sanki telefonun ana
-/// temasını değiştirir gibi temalar olsun"*.
-///
-/// Açılır menü değil alt sayfa, ve her satırda **canlı önizleme**: aile yalnız
-/// renk değil köşe/simge/yoğunluk da değiştiriyor, adı okumak neyi seçtiğini
-/// anlatmıyor. Önizleme o ailenin kendi paletiyle, kendi köşesiyle çizilir.
+/// Eskiden satırın arkasında alt sayfa + 44 dp renk lekesiydi; kullanıcı
+/// *"temaların görünür biçimde seçilebilmesi örnek görseliyle beraber"*
+/// istedi. Artık her aile kendi küçük ekranıyla sayfada açıkça duruyor.
 class AppSkinTile extends StatelessWidget {
   const AppSkinTile({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
-    return SettingTile(
-      icon: AppIcons.style,
-      title: context.t('skin.title'),
-      value: context.t(appState.appSkin.labelKey),
-      onTap: () async {
-        final pick = await showModalBottomSheet<AppSkin>(
-          context: context,
-          isScrollControlled: true,
-          builder: (ctx) => SafeArea(
-            child: ListView(
-              shrinkWrap: true,
-              children: [
-                Padding(
-                  padding:
-                      const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, Gap.sm),
-                  child: Text(ctx.t('skin.title'),
-                      style: Theme.of(ctx).textTheme.titleMedium),
-                ),
-                for (final skin in AppSkin.values)
-                  if (skin.available || skin == appState.appSkin)
-                    ListTile(
-                      leading: _SkinSwatch(skin: skin),
-                      title: Text(ctx.t(skin.labelKey)),
-                      subtitle: Text(
-                        skin.forcesDark
-                            ? '${ctx.t(skin.descriptionKey)} · '
-                                '${ctx.t('skin.forces_dark')}'
-                            : ctx.t(skin.descriptionKey),
-                      ),
-                      trailing: skin == appState.appSkin
-                          ? const Icon(AppIcons.check)
-                          : null,
-                      onTap: () => Navigator.pop(ctx, skin),
-                    ),
-              ],
-            ),
-          ),
-        );
-        if (pick != null) await appState.setAppSkin(pick);
-      },
-    );
-  }
-}
-
-/// Bir ailenin üç satırlık minyatürü: zemin, kart, vurgu — ve ailenin kendi
-/// köşe yarıçapı. Renk lekesi tek başına "keskin köşe / yuvarlak köşe" farkını
-/// göstermiyordu.
-class _SkinSwatch extends StatelessWidget {
-  final AppSkin skin;
-  const _SkinSwatch({required this.skin});
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final palette =
-        SkinPalette.of(skin, dark ? Brightness.dark : Brightness.light);
-    final metrics = SkinMetrics.of(skin);
-    // Önizleme ailenin SİMGE DİLİNİ de gösterir (2026-10-18): tema artık
-    // simgeleri de değiştiriyor; seçmeden önce görülmeli.
-    final folder = metrics.folderColor ?? AppHues.honey;
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: palette.bg,
-        borderRadius: BorderRadius.circular(metrics.radiusCard * 0.6),
-        border: Border.all(color: palette.edge),
-      ),
-      child: Stack(
-        children: [
-          Center(
-            child: FmTintedIcon(
-              icon: metrics.outlinedIcons
-                  ? AppIcons.folder
-                  : AppIcons.folder,
-              color: folder,
-              size: 26,
-              style: metrics.iconStyle,
-            ),
-          ),
-          // Vurgu rengi köşede küçük bir nokta.
-          PositionedDirectional(
-            end: 4,
-            bottom: 4,
-            child: Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: palette.accent,
-                shape: BoxShape.circle,
-                border: Border.all(color: palette.bg, width: 1.2),
-              ),
-            ),
-          ),
-        ],
-      ),
+    final skin = context.select<AppState, AppSkin>((s) => s.appSkin);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SettingTile(
+          icon: AppIcons.style,
+          title: context.t('skin.title'),
+          value: context.t(skin.labelKey),
+          subtitle: skin.forcesDark ? context.t('skin.forces_dark') : null,
+        ),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+          child: ThemeGallery(),
+        ),
+      ],
     );
   }
 }
@@ -407,62 +320,6 @@ class HapticsTile extends StatelessWidget {
           onChanged: AppHaptics.setEnabled,
         ),
       );
-}
-
-/// **Tema ön ayarları** (Faz 40 / 8): tek dokunuşla Açık · Koyu · AMOLED ·
-/// Kâğıt. Her biri bir (aile, mod) çifti; ayrıntılı seçim aşağıdaki aile ve
-/// tema satırlarında durur.
-class ThemePresetTile extends StatelessWidget {
-  const ThemePresetTile({super.key});
-
-  static const presets = <(String, String, AppSkin, ThemeMode)>[
-    ('light', 'thp.light', AppSkin.sage, ThemeMode.light),
-    ('dark', 'thp.dark', AppSkin.sage, ThemeMode.dark),
-    ('amoled', 'thp.amoled', AppSkin.night, ThemeMode.dark),
-    ('paper', 'thp.paper', AppSkin.clay, ThemeMode.light),
-  ];
-
-  static String? currentId(AppSkin skin, ThemeMode mode) {
-    for (final p in presets) {
-      if (p.$3 == skin && (skin.forcesDark || p.$4 == mode)) return p.$1;
-    }
-    return null;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
-    final current = currentId(appState.appSkin, appState.themeMode);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SettingTile(
-          icon: AppIcons.palette,
-          title: context.t('thp.title'),
-          subtitle: context.t('thp.sub'),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.sm),
-          child: Wrap(
-            spacing: Gap.sm,
-            runSpacing: Gap.sm,
-            children: [
-              for (final p in presets)
-                ChoiceChip(
-                  key: ValueKey('theme-preset-${p.$1}'),
-                  label: Text(context.t(p.$2)),
-                  selected: current == p.$1,
-                  onSelected: (_) async {
-                    await appState.setAppSkin(p.$3);
-                    await appState.setThemeMode(p.$4);
-                  },
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 /// **Vurgu rengi** (Faz 40 / 8): ailenin zemini kalır, yalnız vurgu değişir.

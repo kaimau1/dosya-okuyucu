@@ -190,6 +190,10 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                   'skin.clay',
                   'skin.modern',
                   'skin.night',
+                  'skin.lavender',
+                  'skin.mint',
+                  'thp.amoled',
+                  'thp.paper',
                   'set.kw_dark',
                 ],
                 builder: _skinTile),
@@ -203,6 +207,11 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                 id: 'background',
                 titleKey: 'bgc.title',
                 builder: _backgroundTile),
+            SettingRow(
+                id: 'accent',
+                titleKey: 'acc.title',
+                altKeys: ['acc.blue', 'acc.teal'],
+                builder: _accentTile),
           ]),
           SettingsSection('set.sec_text', [
             SettingRow(
@@ -232,21 +241,6 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                 titleKey: 'set.haptics',
                 subtitleKey: 'set.haptics_sub',
                 builder: _hapticsTile),
-          ]),
-          // Faz 40 / 8: hızlı tema + vurgu rengi — kategorinin SONUNDA
-          // (üstteki satırların yerleri testlerde sabit).
-          SettingsSection('thp.section', [
-            SettingRow(
-                id: 'theme_preset',
-                titleKey: 'thp.title',
-                subtitleKey: 'thp.sub',
-                altKeys: ['thp.amoled', 'thp.paper', 'set.kw_dark'],
-                builder: _themePresetTile),
-            SettingRow(
-                id: 'accent',
-                titleKey: 'acc.title',
-                altKeys: ['acc.blue', 'acc.teal'],
-                builder: _accentTile),
           ]),
         ],
       ),
@@ -713,7 +707,6 @@ String _themeModeLabel(BuildContext context, ThemeMode mode) => switch (mode) {
 Widget _themeTile(BuildContext _) => const ThemeTile();
 Widget _skinTile(BuildContext _) => const AppSkinTile();
 Widget _backgroundTile(BuildContext _) => const BackgroundColorTile();
-Widget _themePresetTile(BuildContext _) => const ThemePresetTile();
 Widget _accentTile(BuildContext _) => const AccentColorTile();
 Widget _hapticsTile(BuildContext _) => const HapticsTile();
 Widget _neuralVoicesTile(BuildContext context) => SettingTile(

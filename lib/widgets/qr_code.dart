@@ -12,7 +12,19 @@ class QrCode extends StatelessWidget {
   final String data;
   final double size;
 
-  const QrCode({super.key, required this.data, this.size = 180});
+  const QrCode({super.key, required this.data, this.size = 160});
+
+  /// **Ekrana sığan QR kenarı** (2026-11-07, kullanıcı: *"QR daha küçük
+  /// oluşsun ekrana sığsın"*). Kısa kenarın yarısı, kullanılabilir yüksekliğin
+  /// en çok üçte biri; 132–220 dp arası. Telefon kamerası 132 dp'lik QR'ı
+  /// 20–30 cm'den rahat okur — daha büyüğü yalnız ekranı kaplıyordu.
+  static double fitSize(BuildContext context, {double max = 220}) {
+    final mq = MediaQuery.of(context);
+    final s = mq.size;
+    final usableH = s.height - mq.padding.vertical - mq.viewInsets.bottom;
+    final v = (s.shortestSide * 0.5).clamp(0.0, usableH / 3);
+    return v.clamp(132.0, max);
+  }
 
   @override
   Widget build(BuildContext context) => Container(
@@ -35,18 +47,32 @@ class _QrPainter extends CustomPainter {
   final String data;
   _QrPainter(this.data);
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = AppColors.pageInk;
+  /// Matris + yol bir kez kurulur (2026-11-07): eskiden HER boyamada
+  /// `Barcode.make` yeniden koşuyordu — kaydırma/yeniden çizimde boşa CPU.
+  Path? _path;
+  Size? _pathSize;
+
+  Path _build(Size size) {
+    final path = Path();
     final elements = Barcode.qrCode()
         .make(data, width: size.width, height: size.height, drawText: false);
     for (final e in elements) {
       if (e is BarcodeBar && e.black) {
         // Yarım pikselli boşluk kalmasın diye hafif taşırılır.
-        canvas.drawRect(
-            Rect.fromLTWH(e.left, e.top, e.width + 0.5, e.height + 0.5), paint);
+        path.addRect(
+            Rect.fromLTWH(e.left, e.top, e.width + 0.5, e.height + 0.5));
       }
     }
+    return path;
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (_path == null || _pathSize != size) {
+      _path = _build(size);
+      _pathSize = size;
+    }
+    canvas.drawPath(_path!, Paint()..color = AppColors.pageInk);
   }
 
   @override

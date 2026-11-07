@@ -3,6 +3,7 @@ import 'package:dosya_okuyucu/core/app_state.dart';
 import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/screens/settings/settings_catalog.dart';
 import 'package:dosya_okuyucu/screens/settings/settings_category_screen.dart';
+import 'package:dosya_okuyucu/core/skin.dart';
 import 'package:dosya_okuyucu/screens/settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -324,5 +325,34 @@ void main() {
     expect(find.byKey(const ValueKey('settings-list-detail')), findsOneWidget);
     expect(find.byType(SettingsCategoryScreen), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  /// 2026-11-07: temalar önizlemeli kartlarla, ana ekranda görünür seçilir.
+  testWidgets('tema galerisi ana ekranda; karta dokununca aile uygulanır',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final state = AppState();
+    await tester.runAsync(state.init);
+    await tester.pumpWidget(_wrap(state, const SettingsScreen()));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('theme-gallery-strip')), findsOneWidget);
+    final porcelain = find.byKey(const ValueKey('skin-card-porcelain'));
+    expect(porcelain, findsOneWidget);
+    await tester.tap(porcelain);
+    await tester.pump();
+    expect(state.appSkin, AppSkin.porcelain);
+  });
+
+  testWidgets('Görünüm sayfasında tema ızgarası; hızlı tema çipleri kalktı',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(_wrap(AppState(),
+        SettingsCategoryScreen(category: _category('appearance'))));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('theme-gallery-grid')), findsOneWidget);
+    expect(find.byKey(const ValueKey('theme-preset-light')), findsNothing);
+    final ids = _category('appearance').rows.map((r) => r.id).toList();
+    expect(ids, isNot(contains('theme_preset')));
+    expect(ids, contains('accent'));
   });
 }

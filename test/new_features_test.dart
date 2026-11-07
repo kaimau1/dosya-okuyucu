@@ -165,4 +165,19 @@ void main() {
     expect(find.byType(QrCode), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('QR ekrana sığar: küçük telefonda kısa kenarın yarısı', (tester) async {
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    late double size;
+    await tester.pumpWidget(MaterialApp(
+      home: Builder(builder: (context) {
+        size = QrCode.fitSize(context);
+        return const SizedBox();
+      }),
+    ));
+    expect(size, inInclusiveRange(132, 220));
+    expect(size, lessThanOrEqualTo(640 / 3));
+  });
 }

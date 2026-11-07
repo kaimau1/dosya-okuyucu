@@ -97,8 +97,6 @@ class _QrShareScreenState extends State<QrShareScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final size =
-        (MediaQuery.sizeOf(context).shortestSide - 64).clamp(180.0, 420.0);
     return Scaffold(
       appBar: AppBar(title: Text(context.t('qr.title'))),
       body: Column(
@@ -118,9 +116,17 @@ class _QrShareScreenState extends State<QrShareScreen> {
               controller: _pages,
               itemCount: _parts.length,
               onPageChanged: (i) => setState(() => _index = i),
-              itemBuilder: (_, i) => Center(
-                child:
-                    QrCode(key: ValueKey('qr-$i'), data: _parts[i], size: size),
+              // Kullanılabilir alana sığar (2026-11-07): eskiden kısa kenar
+              // − 64 (en çok 420 dp) → küçük ekranda sayfa taşıyordu.
+              itemBuilder: (_, i) => LayoutBuilder(
+                builder: (context, c) {
+                  final fit = (c.biggest.shortestSide - 2 * Gap.lg - 20)
+                      .clamp(132.0, 300.0);
+                  return Center(
+                    child: QrCode(
+                        key: ValueKey('qr-$i'), data: _parts[i], size: fit),
+                  );
+                },
               ),
             ),
           ),

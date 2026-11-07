@@ -54,10 +54,4 @@ void main() {
     }
   }
 
-  test('ön ayar eşleşmesi', () {
-    expect(ThemePresetTile.currentId(AppSkin.night, ThemeMode.light), 'amoled');
-    expect(ThemePresetTile.currentId(AppSkin.clay, ThemeMode.light), 'paper');
-    expect(ThemePresetTile.currentId(AppSkin.sage, ThemeMode.dark), 'dark');
-    expect(ThemePresetTile.currentId(AppSkin.modern, ThemeMode.dark), isNull);
-  });
 }
