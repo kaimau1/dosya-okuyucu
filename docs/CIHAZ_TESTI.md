@@ -25,6 +25,20 @@
 - Kare ölçümü `FrameTiming` / logcat `KARE` (`adb logcat -s flutter | grep KARE`).
   **SurfaceFlinger `--latency` aralığı takılma ölçüsü DEĞİLDİR** (HAFIZA). Git Bash'te adb:
   `MSYS_NO_PATHCONV=1`.
+- **Cihaz notu — MatePad DBY-W09 (2026-11-07, kullanıcı isteği):** reklam/gereksiz paketler
+  `adb shell pm uninstall --user 0 <paket>` ile kaldırıldı (geri: `adb shell cmd package
+  install-existing <paket>`). Başarılı: com.huawei.intelligent, com.huawei.hwsearch,
+  com.huawei.search, com.huawei.fastapp, com.huawei.gamebox, com.huawei.gameassistant,
+  com.huawei.game.kitserver, com.huawei.tips, com.huawei.tipsove, com.huawei.browser,
+  com.huawei.browser.fa, com.huawei.browserhomepage, com.huawei.himovie.overseas,
+  com.huawei.music, com.huawei.health, com.huawei.ohos.health, com.huawei.email,
+  com.huawei.calendar, trendyol.com, com.pozitron.hepsiburada,
+  com.amazon.mShop.android.shopping, com.getir, com.sahibinden, com.akakce.akakce,
+  com.dmall.mfandroid, **com.huawei.appmarket** (AppGallery; ana oturumda kaldırıldı —
+  kurulumda "güvenlik taraması" reklamı açıyordu). **Başarısız (bırakıldı):**
+  com.huawei.hitouch (`DELETE_FAILED_INTERNAL_ERROR`). Dokunulmadı: com.huawei.hwid,
+  com.huawei.searchservice. Sonrasında yeni ölçüm tabanı: `docs/perf/2026-11-45-temiz-taban.md`.
+  Kurulum onayı artık standart `PackageInstallerActivity` (DEVAM ET → YÜKLE).
 
 ## 1. Ölçümler (sayıyla doldur — FAZ_PLANI Faz 4 + DUZENLEME §7)
 
