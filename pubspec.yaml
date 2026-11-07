@@ -183,7 +183,7 @@ dependencies:
   # (`firebase_core`/`firebase_auth`/`cloud_firestore`) 2026-09-26'da
   # KALDIRILDI: CI derlemesinde yapılandırma dosyası hiç yoktu, yani her
   # kullanıcıda "yerel mod"da, çalışmadan APK'ya ağırlık ekliyordu.
-  google_sign_in: ^6.2.0
+  google_sign_in: ^7.2.0
   # Sesli okuma (cihazın kendi TTS motoru; internet gerekmez).
   flutter_tts: ^4.2.5
 

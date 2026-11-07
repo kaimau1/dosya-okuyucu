@@ -5,6 +5,7 @@ import 'package:dosya_okuyucu/models/drive_file.dart';
 import 'package:dosya_okuyucu/models/fs_entry.dart';
 import 'package:dosya_okuyucu/services/fm/drive_service.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'support/temp_dir.dart';
@@ -33,6 +34,21 @@ http.Response _json(Object body, [int status = 200]) =>
         headers: {'content-type': 'application/json'});
 
 void main() {
+  test('giriş hatası sınıflandırma: google_sign_in 7 kodları + eski ApiException metni', () {
+    DriveSignInError c(Object e) => DriveService.classifySignInError(e);
+    const canceled =
+        GoogleSignInException(code: GoogleSignInExceptionCode.canceled);
+    const config = GoogleSignInException(
+        code: GoogleSignInExceptionCode.clientConfigurationError);
+    const net = GoogleSignInException(
+        code: GoogleSignInExceptionCode.unknownError,
+        description: 'ApiException: 7: network');
+    expect(c(canceled), DriveSignInError.cancelled);
+    expect(c(config), DriveSignInError.notConfigured);
+    expect(c(net), DriveSignInError.network);
+    expect(c(Exception('ApiException: 10:')), DriveSignInError.notConfigured);
+  });
+
   group('DriveFile', () {
     test('size METİN gelir, sayıya çevrilir', () {
       final f = DriveFile.fromJson({

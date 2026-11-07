@@ -43,15 +43,24 @@ class DriveService {
   /// döndürür ve boyut/tarih sütunları sessizce boş kalırdı.
   static const _fields = 'nextPageToken,files($_fields2)';
 
-  final GoogleSignIn _google;
+  /// google_sign_in 7 (Faz 47): tekil örnek, ilk kullanımdan önce BİR KEZ
+  /// `initialize`. Yalnız **yetkilendirme** (`authorizationClient`) kullanılır:
+  /// Android'de bu Identity `AuthorizationClient`'ı — Android OAuth istemcisiyle
+  /// (paket + SHA-1) çalışır. `authenticate()` (Credential Manager) ise web
+  /// istemci kimliği (`serverClientId`) ister; bizde yok, gerek de yok —
+  /// Drive'a yalnız erişim belirteci lazım (docs/GOOGLE-DRIVE-KURULUM.md).
+  static Future<void>? _init;
+  static Future<GoogleSignInAuthorizationClient> _client() async {
+    await (_init ??= GoogleSignIn.instance.initialize());
+    return GoogleSignIn.instance.authorizationClient;
+  }
 
   /// Yetki başlıklarını üreten kanca. Üretimde Google oturumundan gelir;
   /// testte sahte başlık verilerek ağ katmanı gerçek oturum olmadan
   /// sınanabiliyor.
   final Future<Map<String, String>?> Function()? authHeadersOverride;
 
-  DriveService({GoogleSignIn? googleSignIn, this.authHeadersOverride})
-      : _google = googleSignIn ?? GoogleSignIn(scopes: const [scope]);
+  DriveService({this.authHeadersOverride});
 
   // ── oturum ────────────────────────────────────────────────────────────────
 
@@ -64,7 +73,8 @@ class DriveService {
     final override = authHeadersOverride;
     if (override != null) return (await override()) != null;
     try {
-      return await _google.signInSilently() != null;
+      return await (await _client()).authorizationForScopes(const [scope]) !=
+          null;
     } catch (_) {
       return false;
     }
@@ -86,10 +96,8 @@ class DriveService {
           : const DriveSignIn(DriveSignInError.failed);
     }
     try {
-      final account = await _google.signIn();
-      return account != null
-          ? const DriveSignIn.ok()
-          : const DriveSignIn(DriveSignInError.cancelled);
+      await (await _client()).authorizeScopes(const [scope]);
+      return const DriveSignIn.ok();
     } catch (e) {
       return DriveSignIn(classifySignInError(e), detail: '$e');
     }
@@ -101,6 +109,18 @@ class DriveService {
   /// okuyoruz çünkü `google_sign_in` bunları `PlatformException`ın mesajına
   /// gömüyor (`ApiException: 10:`), ayrı bir alanda vermiyor.
   static DriveSignInError classifySignInError(Object error) {
+    if (error is GoogleSignInException) {
+      switch (error.code) {
+        case GoogleSignInExceptionCode.canceled:
+        case GoogleSignInExceptionCode.interrupted:
+          return DriveSignInError.cancelled;
+        case GoogleSignInExceptionCode.clientConfigurationError:
+        case GoogleSignInExceptionCode.providerConfigurationError:
+          return DriveSignInError.notConfigured;
+        default:
+        // Ayrıntı (ApiException kodu) açıklama metninde: aşağıda okunur.
+      }
+    }
     final text = '$error';
     // 10 = DEVELOPER_ERROR. Android'de neredeyse HER ZAMAN tek bir anlama
     // gelir: bu APK'nın paket adı + imza parmak izi (SHA-1) ikilisi Google
@@ -130,11 +150,18 @@ class DriveService {
   Future<void> signOut() async {
     if (authHeadersOverride != null) return;
     try {
-      await _google.disconnect();
+      final client = await _client();
+      // Sessiz yetki hesabı eklentiye tanıtır; `disconnect` yalnız tanıdığı
+      // hesapların iznini iptal edebiliyor (yeniden açılıştan sonra boş).
+      final auth = await client.authorizationForScopes(const [scope]);
+      if (auth != null) {
+        await client.clearAuthorizationToken(accessToken: auth.accessToken);
+      }
+      await GoogleSignIn.instance.disconnect();
     } catch (_) {
-      // disconnect izin iptali de yapar; desteklenmiyorsa düz çıkışa düş.
+      // İzin iptali olmadıysa en azından yerel oturumu kapat.
       try {
-        await _google.signOut();
+        await GoogleSignIn.instance.signOut();
       } catch (_) {}
     }
   }
@@ -143,8 +170,7 @@ class DriveService {
     final override = authHeadersOverride;
     if (override != null) return override();
     try {
-      final account = _google.currentUser ?? await _google.signInSilently();
-      return await account?.authHeaders;
+      return await (await _client()).authorizationHeaders(const [scope]);
     } catch (_) {
       return null;
     }
