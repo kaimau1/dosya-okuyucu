@@ -71,7 +71,7 @@ class _ThemeGalleryState extends State<ThemeGallery> {
     if (strip) {
       final index = skins.indexOf(current);
       return SizedBox(
-        height: ThemeSkinCard.height,
+        height: ThemeSkinCard.heightOf(context),
         child: ListView.separated(
           key: const ValueKey('theme-gallery-strip'),
           scrollDirection: Axis.horizontal,
@@ -121,7 +121,15 @@ class ThemeSkinCard extends StatelessWidget {
   });
 
   static const previewHeight = 92.0;
-  static const height = previewHeight + 26;
+  /// Kartın toplam yüksekliği YAZI ÖLÇEĞİYLE büyür (2,0× yazıda sabit 26 dp
+  /// ad satırı 12 dp taşıyordu — `a11y_guidelines_test`).
+  static double heightOf(BuildContext context) {
+    final style = Theme.of(context).textTheme.labelMedium;
+    final size = style?.fontSize ?? 12;
+    final line = MediaQuery.textScalerOf(context).scale(size) *
+        (style?.height ?? 1.34);
+    return previewHeight + 6 + line + 4;
+  }
 
   @override
   Widget build(BuildContext context) {

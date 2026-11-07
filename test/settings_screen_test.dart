@@ -252,6 +252,9 @@ void main() {
     await tester.pumpWidget(_wrap(AppState(),
         SettingsCategoryScreen(category: _category('appearance'))));
     await tester.pump();
+    // Tema şeridi (2026-11-07) satırı ilk ekranın altına itebilir.
+    await tester.ensureVisible(find.text('Yazı tipi'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Yazı tipi'));
     await tester.pumpAndSettle();
     // Her seçenek KENDİ yazı tipiyle + Türkçe örnek satırla listeleniyor.
