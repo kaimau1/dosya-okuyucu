@@ -15,6 +15,18 @@ class SftpFs extends RemoteFs {
   SSHClient? _client;
   SftpClient? _sftp;
 
+  /// Şifre sırası: **AES-CTR önce** (Faz 47, ölçüldü). dartssh2 3.1'den beri
+  /// varsayılan AES-GCM önde; saf Dart GCM yavaş — yerel sunucuda aktarım
+  /// ~14 MB/sn'den ~1 MB/sn'ye düştü. CTR + ETM HMAC güvenli (OpenSSH de
+  /// sunar); GCM/ChaCha yalnız CTR'siz sunucu için arkada.
+  static const _algorithms = SSHAlgorithms(cipher: [
+    SSHCipherType.aes128ctr,
+    SSHCipherType.aes256ctr,
+    SSHCipherType.aes256gcm,
+    SSHCipherType.aes128gcm,
+    SSHCipherType.chacha20poly1305,
+  ]);
+
   @override
   Future<void> connect() async {
     try {
@@ -27,6 +39,7 @@ class SftpFs extends RemoteFs {
         socket,
         username: connection.user.isEmpty ? 'root' : connection.user,
         onPasswordRequest: () => connection.password,
+        algorithms: _algorithms,
       );
       _client = client;
       _sftp = await client.sftp();
@@ -39,10 +52,14 @@ class SftpFs extends RemoteFs {
   @override
   Future<void> close() async {
     _sftp = null;
-    try {
-      _client?.close();
-    } catch (_) {}
+    final client = _client;
     _client = null;
+    // dartssh2 4: close() Future döner ve soketi zarifçe kapatır; karşı taraf
+    // önce kapattıysa "Write failed" ile biter. Beklenmezse yakalanmamış hata
+    // olur (Faz 47, yerel SFTP sunucusuyla görüldü) → bekle, hatayı yut.
+    try {
+      await client?.close().timeout(const Duration(seconds: 3));
+    } catch (_) {}
   }
 
   SftpClient get _need {

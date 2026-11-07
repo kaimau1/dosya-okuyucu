@@ -524,7 +524,7 @@ class TranslateFlow {
                   IconButton(
                     tooltip: ctx.t('common.share'),
                     icon: const Icon(AppIcons.share, size: 20),
-                    onPressed: () => Share.share(text, subject: title),
+                    onPressed: () => SharePlus.instance.share(ShareParams(text: text, subject: title)),
                   ),
                   TextButton.icon(
                     onPressed: () async {

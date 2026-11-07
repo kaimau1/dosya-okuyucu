@@ -43,8 +43,7 @@ class _CrashLogScreenState extends State<CrashLogScreen> {
   Future<void> _share() async {
     final records = _records;
     if (records == null || records.isEmpty) return;
-    await Share.share(CrashLog.asShareText(records),
-        subject: 'Dosya Okuyucu $appVersionFull — hata kaydı');
+    await SharePlus.instance.share(ShareParams(text: CrashLog.asShareText(records), subject: 'Dosya Okuyucu $appVersionFull — hata kaydı'));
   }
 
   /// **Bildir** (Faz 42 / 3·7, A8): anonim özet — önce önizleme + onay,
@@ -113,8 +112,7 @@ class _CrashLogScreenState extends State<CrashLogScreen> {
       ),
     );
     if (send != true) return;
-    await Share.share(text,
-        subject: 'Dosya Okuyucu $appVersionFull — tanılama özeti');
+    await SharePlus.instance.share(ShareParams(text: text, subject: 'Dosya Okuyucu $appVersionFull — tanılama özeti'));
   }
 
   Future<void> _clear() async {

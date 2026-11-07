@@ -82,7 +82,7 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
     if (editor == null) return;
     final f = File('${Directory.systemTemp.path}/${widget.name}');
     await f.writeAsBytes(editor.save());
-    await Share.shareXFiles([XFile(f.path)], text: widget.name);
+    await SharePlus.instance.share(ShareParams(files: [XFile(f.path)], text: widget.name));
   }
 
   void _snack(String m) {

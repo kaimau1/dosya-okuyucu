@@ -119,7 +119,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       dialogTitle: context.t('lib.add'),
     );
     final paths = [
-      for (final f in res?.files ?? const <PlatformFile>[])
+      for (final f in res?.files ?? const <PickedFile>[])
         if (f.path != null) f.path!,
     ];
     if (paths.isEmpty) return;

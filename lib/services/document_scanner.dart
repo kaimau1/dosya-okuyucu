@@ -71,12 +71,9 @@ class DocumentScanner {
   /// **Yedek akış:** galeriden görsel seç (otomatik kenar yok; kırpma/döndürme
   /// tarama stüdyosunda). Vazgeçilirse `null`.
   static Future<List<String>?> importFromGallery({int maxPages = 30}) async {
-    final r = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      allowMultiple: true,
-    );
+    final r = await FilePicker.pickFiles(type: FileType.image);
     final paths = [
-      for (final f in r?.files ?? const <PlatformFile>[])
+      for (final f in r)
         if (f.path != null) f.path!,
     ];
     if (paths.isEmpty) return null;

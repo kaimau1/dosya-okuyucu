@@ -83,7 +83,7 @@ void _set(XmlElement e, String attr, Object v) {
       return;
     }
   }
-  e.attributes.add(XmlAttribute(XmlName.fromString('w:$attr'), '$v'));
+  e.attributes.add(XmlAttribute(XmlName.qualified('w:$attr'), '$v'));
 }
 
 
@@ -100,18 +100,18 @@ extension DocxInsert on DocxDocument {
       if (m != null) maxId = math.max(maxId, int.parse(m[1]!));
     }
     final id = 'rId${maxId + 1}';
-    rels.rootElement.children.add(XmlElement(XmlName('Relationship'), [
-      XmlAttribute(XmlName('Id'), id),
-      XmlAttribute(XmlName('Type'),
+    rels.rootElement.children.add(XmlElement(const XmlName.qualified('Relationship'), [
+      XmlAttribute(const XmlName.qualified('Id'), id),
+      XmlAttribute(const XmlName.qualified('Type'),
           'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink'),
-      XmlAttribute(XmlName('Target'), url),
-      XmlAttribute(XmlName('TargetMode'), 'External'),
+      XmlAttribute(const XmlName.qualified('Target'), url),
+      XmlAttribute(const XmlName.qualified('TargetMode'), 'External'),
     ]));
     _dirtyParts.add('word/_rels/document.xml.rels');
     // `r:` ad alanı kökte tanımlı değilse tanımla.
     final root = doc.rootElement;
     if (root.getAttribute('xmlns:r') == null) {
-      root.attributes.add(XmlAttribute(XmlName.fromString('xmlns:r'),
+      root.attributes.add(XmlAttribute(const XmlName.qualified('xmlns:r'),
           'http://schemas.openxmlformats.org/officeDocument/2006/relationships'));
     }
     final node = XmlDocument.parse(
@@ -351,7 +351,7 @@ extension DocxInsert on DocxDocument {
     for (final k in s.childElements) {
       if (k.name.local == name) return k;
     }
-    final el = XmlElement(XmlName.fromString('w:$name'));
+    final el = XmlElement(XmlName.qualified('w:$name'));
     final rank = _sectOrder.indexOf(name);
     var at = s.children.length;
     for (var k = 0; k < s.children.length; k++) {

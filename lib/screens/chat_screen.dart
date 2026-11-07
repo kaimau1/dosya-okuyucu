@@ -167,7 +167,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _shareBytes(String fileName, List<int> bytes) async {
     final f = File('${Directory.systemTemp.path}/$fileName');
     await f.writeAsBytes(bytes);
-    await Share.shareXFiles([XFile(f.path)], text: fileName);
+    await SharePlus.instance.share(ShareParams(files: [XFile(f.path)], text: fileName));
   }
 
   /// AI yanıtını seçilen Office biçiminde dışa aktarır.

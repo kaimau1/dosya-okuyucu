@@ -308,7 +308,7 @@ abstract final class XlsxChartWriter {
   static String? _sheetPart(String? Function(String) text, String name) {
     final wb = XmlDocument.parse(text('xl/workbook.xml')!);
     final rels = _relsDoc(text('xl/_rels/workbook.xml.rels'));
-    for (final el in wb.findAllElements('sheet', namespace: '*')) {
+    for (final el in wb.findAllElements('sheet', namespaceUri: '*')) {
       if (el.getAttribute('name') != name) continue;
       String? rid;
       for (final a in el.attributes) {
@@ -349,10 +349,10 @@ abstract final class XlsxChartWriter {
     while (used.contains('rId$n')) {
       n++;
     }
-    rels.rootElement.children.add(XmlElement(XmlName('Relationship'), [
-      XmlAttribute(XmlName('Id'), 'rId$n'),
-      XmlAttribute(XmlName('Type'), type),
-      XmlAttribute(XmlName('Target'), target),
+    rels.rootElement.children.add(XmlElement(const XmlName.qualified('Relationship'), [
+      XmlAttribute(const XmlName.qualified('Id'), 'rId$n'),
+      XmlAttribute(const XmlName.qualified('Type'), type),
+      XmlAttribute(const XmlName.qualified('Target'), target),
     ]));
     return 'rId$n';
   }
@@ -361,9 +361,9 @@ abstract final class XlsxChartWriter {
     final exists = ct.rootElement.childElements
         .any((e) => e.getAttribute('PartName') == part);
     if (exists) return;
-    ct.rootElement.children.add(XmlElement(XmlName('Override'), [
-      XmlAttribute(XmlName('PartName'), part),
-      XmlAttribute(XmlName('ContentType'), type),
+    ct.rootElement.children.add(XmlElement(const XmlName.qualified('Override'), [
+      XmlAttribute(const XmlName.qualified('PartName'), part),
+      XmlAttribute(const XmlName.qualified('ContentType'), type),
     ]));
   }
 

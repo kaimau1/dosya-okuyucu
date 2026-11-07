@@ -112,8 +112,8 @@ abstract final class DocxInsertPro {
   }
 
   static XmlElement _x(String q, {Map<String, String> attrs = const {}, List<XmlNode> kids = const []}) =>
-      XmlElement(XmlName.fromString(q), [
-        for (final e in attrs.entries) XmlAttribute(XmlName.fromString(e.key), e.value),
+      XmlElement(XmlName.qualified(q), [
+        for (final e in attrs.entries) XmlAttribute(XmlName.qualified(e.key), e.value),
       ], kids);
 
   /// Satır içi DrawingML şekli; [text] verilirse metin kutusu.

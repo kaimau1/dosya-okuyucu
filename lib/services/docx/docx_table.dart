@@ -97,13 +97,13 @@ extension DocxTableOps on DocxDocument {
   }
 
   XmlElement _newCellLike(XmlElement ref) {
-    final tc = XmlElement(XmlName.fromString('w:tc'));
+    final tc = XmlElement(const XmlName.qualified('w:tc'));
     XmlElement? w;
     for (final k in ref.childElements) {
       if (k.name.local != 'tcPr') continue;
       for (final g in k.childElements) {
         if (g.name.local == 'tcW' || g.name.local == 'gridSpan') {
-          (w ??= XmlElement(XmlName.fromString('w:tcPr'))).children.add(g.copy());
+          (w ??= XmlElement(const XmlName.qualified('w:tcPr'))).children.add(g.copy());
         }
       }
     }
@@ -123,7 +123,7 @@ extension DocxTableOps on DocxDocument {
     final tbl = ref.table;
     _manage(tbl);
     final rowIdx = _idx((c) => identical(_rowOf(c), tr));
-    final newTr = XmlElement(XmlName.fromString('w:tr'));
+    final newTr = XmlElement(const XmlName.qualified('w:tr'));
     final cells = <XmlElement>[];
     for (final tc in tr.childElements.where((e) => e.name.local == 'tc')) {
       final n = _newCellLike(tc);
@@ -213,8 +213,8 @@ extension DocxTableOps on DocxDocument {
     if (grid != null) {
       final cols = grid.childElements.where((e) => e.name.local == 'gridCol').toList();
       final w = cols.isEmpty ? '2000' : (cols[math.min(target, cols.length - 1)].getAttribute('w:w') ?? '2000');
-      final el = XmlElement(XmlName.fromString('w:gridCol'),
-          [XmlAttribute(XmlName.fromString('w:w'), w)]);
+      final el = XmlElement(const XmlName.qualified('w:gridCol'),
+          [XmlAttribute(const XmlName.qualified('w:w'), w)]);
       final pos = math.min(right ? target + 1 : target, cols.length);
       if (pos >= cols.length) {
         grid.children.add(el);
@@ -315,7 +315,7 @@ extension DocxTableOps on DocxDocument {
     for (final k in tbl.childElements) {
       if (k.name.local == 'tblPr') return k;
     }
-    final el = XmlElement(XmlName.fromString('w:tblPr'));
+    final el = XmlElement(const XmlName.qualified('w:tblPr'));
     tbl.children.insert(0, el);
     return el;
   }
@@ -329,14 +329,14 @@ extension DocxTableOps on DocxDocument {
     for (final k in pr.childElements) {
       if (k.name.local == 'tblLook') return k;
     }
-    final el = XmlElement(XmlName.fromString('w:tblLook'), [
-      XmlAttribute(XmlName.fromString('w:val'), '04A0'),
-      XmlAttribute(XmlName.fromString('w:firstRow'), '1'),
-      XmlAttribute(XmlName.fromString('w:lastRow'), '0'),
-      XmlAttribute(XmlName.fromString('w:firstColumn'), '1'),
-      XmlAttribute(XmlName.fromString('w:lastColumn'), '0'),
-      XmlAttribute(XmlName.fromString('w:noHBand'), '0'),
-      XmlAttribute(XmlName.fromString('w:noVBand'), '1'),
+    final el = XmlElement(const XmlName.qualified('w:tblLook'), [
+      XmlAttribute(const XmlName.qualified('w:val'), '04A0'),
+      XmlAttribute(const XmlName.qualified('w:firstRow'), '1'),
+      XmlAttribute(const XmlName.qualified('w:lastRow'), '0'),
+      XmlAttribute(const XmlName.qualified('w:firstColumn'), '1'),
+      XmlAttribute(const XmlName.qualified('w:lastColumn'), '0'),
+      XmlAttribute(const XmlName.qualified('w:noHBand'), '0'),
+      XmlAttribute(const XmlName.qualified('w:noVBand'), '1'),
     ]);
     pr.children.add(el);
     return el;
@@ -355,7 +355,7 @@ extension DocxTableOps on DocxDocument {
     for (final k in tc.childElements) {
       if (k.name.local == 'tcPr') return k;
     }
-    final pr = XmlElement(XmlName.fromString('w:tcPr'));
+    final pr = XmlElement(const XmlName.qualified('w:tcPr'));
     tc.children.insert(0, pr);
     return pr;
   }
@@ -418,10 +418,10 @@ extension DocxTableOps on DocxDocument {
     _trackProp(pr);
     pr.children.removeWhere((n) => n is XmlElement && n.name.local == 'shd');
     if (rgb != null) {
-      final shd = XmlElement(XmlName.fromString('w:shd'), [
-        XmlAttribute(XmlName.fromString('w:val'), 'clear'),
-        XmlAttribute(XmlName.fromString('w:color'), 'auto'),
-        XmlAttribute(XmlName.fromString('w:fill'),
+      final shd = XmlElement(const XmlName.qualified('w:shd'), [
+        XmlAttribute(const XmlName.qualified('w:val'), 'clear'),
+        XmlAttribute(const XmlName.qualified('w:color'), 'auto'),
+        XmlAttribute(const XmlName.qualified('w:fill'),
             (rgb & 0xFFFFFF).toRadixString(16).toUpperCase().padLeft(6, '0')),
       ]);
       // Şema sırası: tcW, gridSpan, vMerge, tcBorders, shd, …
@@ -497,8 +497,8 @@ extension DocxTableOps on DocxDocument {
       if (cs.length < width) {
         final w = cs.isEmpty ? '2000' : (cs.last.getAttribute('w:w') ?? '2000');
         for (var k = cs.length; k < width; k++) {
-          grid.children.add(XmlElement(XmlName.fromString('w:gridCol'),
-              [XmlAttribute(XmlName.fromString('w:w'), w)]));
+          grid.children.add(XmlElement(const XmlName.qualified('w:gridCol'),
+              [XmlAttribute(const XmlName.qualified('w:w'), w)]));
         }
         changed = true;
       } else if (cs.length > width) {

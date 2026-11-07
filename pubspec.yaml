@@ -30,7 +30,7 @@ dependencies:
   # **Şifreli kasa** (2026-10-18): AES-256 (GCM/CTR) + PBKDF2. Saf Dart, eklenti
   # yok; zaten `pdf`/`syncfusion` üzerinden ağaçtaydı (3.9.1), doğrudan
   # kullandığımız için açıkça yazılıyor. Bkz. lib/services/fm/vault_crypto.dart.
-  pointycastle: ^3.9.1
+  pointycastle: ^4.0.0
   # Tarayıcıdan telefona yükleme (2026-10-18): çok parçalı form ayrıştırıcı.
   # `http` paketinin bağımlılığı olarak zaten ağaçta (2.1.0), saf Dart.
   mime: ^2.0.0
@@ -39,14 +39,14 @@ dependencies:
   barcode: ^2.2.9
 
   # Dosya seçme / yol
-  file_picker: ^8.1.2
+  file_picker: ^13.3.2
   path_provider: ^2.1.4
   path: ^1.9.0
 
   # Başka uygulamalardan "Birlikte aç" / paylaş ile gelen dosyaları yakalama
   # (WhatsApp/Gmail'den atılan dosya doğrudan uygulamada açılır).
-  # 1.9.0 compileSdk 37 istiyor (AGP 9.0.1 en çok 36) — Flutter 3.44 onu çözüyordu.
-  receive_sharing_intent: 1.8.1
+  # 1.9 (Faz 46): Android tarafı yalnız yerleşik Kotlin'e geçti; API aynı.
+  receive_sharing_intent: 1.9.0
 
   # Görüntüleyiciler
   # PDF: pdfium tabanlı pdfrx — sayfa üzerinde METİN SEÇME/kopyalama destekler
@@ -60,15 +60,15 @@ dependencies:
 
   # PDF YAZMA işleri (annotation gömme, sayfa döndür/sil/sırala, form doldurma).
   # Görüntüleme yine pdfrx/pdfium; Syncfusion yalnız düzenlenmiş PDF ÜRETİR.
-  # 33.2.x: 35.x `xml ^7` ister, `pdf` paketi xml'i ^6'da tutuyor (A3.1 notu).
-  syncfusion_flutter_pdf: ^33.2.13
-  syncfusion_flutter_core: ^33.2.15
+  # Faz 45: 35.x (xml ^7 — pdf 3.13 ile engel kalktı).
+  syncfusion_flutter_pdf: ^35.1.43
+  syncfusion_flutter_core: ^35.1.43
 
   # OCR: cihaz-içi ML Kit metin tanıma (Latin — Türkçe dahil), internet gerekmez.
   # (Eski "Dart 3.7 sabiti" 2026-11-02'de kalktı: CI 3.44.6.)
-  google_mlkit_text_recognition: ^0.17.1
+  google_mlkit_text_recognition: ^1.0.1
   # Çeviri: cihaz-içi ML Kit (internet yalnız dil modeli ilk indirilirken gerekir).
-  google_mlkit_translation: ^0.15.1
+  google_mlkit_translation: ^1.0.1
   # Word'ü gerçek sayfa düzeniyle çizmek için (assets/word içindeki docx-preview
   # motoru gömülü çalışır — internet gerekmez)
   webview_flutter: ^4.10.0
@@ -81,8 +81,8 @@ dependencies:
   # D6): okuma `xlsx_reader`, yazma `xlsx_package` (özgün paketi koruyarak) +
   # `xlsx_writer` (yeni belge). archive ^3'ün tek kilidi kalktı; ^4'e geçiş
   # Flutter yükseltmesiyle birlikte (pdfrx 2.x, image 4.4+) yapılacak.
-  archive: ^4.0.9
-  xml: ^6.5.0
+  archive: ^4.6.0
+  xml: ^7.1.0
 
   # Arşiv okuma: RAR4/RAR5 + 7z + zip/tar/gz — SAF DART (MIT), platform kodu yok.
   # `archive` paketi RAR/7z okumaz; junrar saran Android eklentileri yalnız RAR4
@@ -103,23 +103,26 @@ dependencies:
   # kaydı da gidiyor → "No instance with no name has been registered".
   # 2.5.0/2.5.1 ayrıca R8'de `getAll` silinip NoSuchMethodError veriyordu.
   # 2.4.x yöntem kanalı (motor başına BinaryMessenger) kullanıyor.
+  # Faz 46 sınavı: 2.5.4'te de AYNI — `onDetachedFromEngine` →
+  # `SharedPreferencesApiRegistrar().register(null)` süreç geneli
+  # `SharedPreferencesApiInstances`tan varsayılan kaydı siliyor (kaynak okundu).
   shared_preferences_android: 2.4.28
 
   # Dönüştürme (PDF üretimi) & paylaşım / yazdırma
-  pdf: ^3.11.1
-  printing: ^5.13.2
-  share_plus: ^10.0.2
+  pdf: ^3.13.1
+  printing: ^5.15.1
+  share_plus: ^13.3.1
 
   # Durum yönetimi (hafif)
   provider: ^6.1.2
 
   # ── Dosya yöneticisi ────────────────────────────────────────────────────────
   # Depolama izni (Android 11+ "tüm dosyalara erişim" = MANAGE_EXTERNAL_STORAGE).
-  permission_handler: ^12.0.1  # 13 engeli (cunning_document_scanner) kalktı — A3.4b ayrıca yükseltilir
+  permission_handler: ^13.0.2
   # Video oynarken ekranın sönmesini engeller. YALNIZ video OYNARKEN tutulur
   # (duraklatınca ve ekrandan çıkınca bırakılır) — ses oynatıcıda hiç
   # kullanılmaz, orada ekranın kapanması zaten istenen davranış.
-  wakelock_plus: ^1.4.0
+  wakelock_plus: ^1.8.2
 
   # Uygulama içi video + ses oynatıcı (ExoPlayer/Media3).
   video_player: ^2.14.1
@@ -132,21 +135,16 @@ dependencies:
 
   # Telefonda yüklü uygulamaların listesi (ad, ikon, sürüm, kurulum tarihi)
   # ve son kullanım zamanı (UsageStats — kullanıcı "kullanım erişimi" verirse).
-  installed_apps: 2.1.1
+  installed_apps: 2.2.1
   # Son kullanım: app_usage (compileSdk 35, namespace'li — modern).
   # `usage_stats` KULLANILAMADI: compileSdkVersion 30 ile yayınlanmış,
   # AGP kaynak bağlamada "resource android:attr/lStar not found" ile APK
   # derlemesini kırıyor (CI #103). app_usage ayrıca izin sayfasını da
   # kendisi açıyor (Settings.ACTION_USAGE_ACCESS_SETTINGS).
-  app_usage: 4.0.1
-
-  # Yerleşik görüntüleyicimiz olmayan dosyaları (apk/rar dışı biçimler…) sistemin
-  # varsayılan uygulamasında açar. 4.x: sdk >=2.17 <4.0 → CI Dart 3.7 uyumlu.
-  # Kendi FileProvider'ını manifest'ine gömer, ek manifest düzenlemesi gerekmez.
-  open_filex: ^4.7.0
+  app_usage: 4.1.0
 
   # 120Hz+ ekran desteği (Android 60Hz kilidini açar; diğer platformlarda pasif)
-  flutter_displaymode: ^0.6.0
+  flutter_displaymode: ^0.7.0
 
   # ── Uzun işler: bildirim + medya dönüştürme ────────────────────────────────
   # İş kuyruğunun (services/fm/job_queue.dart) sistem bildirimi. 17.2.4'e
@@ -158,14 +156,13 @@ dependencies:
   # desugaring açık olmalı — CI'da build.gradle'a yamalanıyor (bkz. workflow).
   # Zamanlanmış bildirim kullanmıyoruz → `timezone` ilklendirmesi ve
   # SCHEDULE_EXACT_ALARM izni gerekmiyor.
-  flutter_local_notifications: ^22.3.3
+  flutter_local_notifications: ^23.0.0
 
   # Görüntü boyut düşürme/format çevirme (saf Dart; platform kodu yok).
-  # `archive ^4` ile uyumlu en yeni aralık (2026-11-02, A3.1): `pdf` paketi
-  # archive'i <4.1'de tutuyor; image 4.9+ xml ^7, 4.11+ archive'in yeni API'sini
-  # (`ZLibDecoder.decodeLazy`) istiyor. Zaten `pdf` image'ı çektiği için APK'ya
-  # yeni ağırlık girmiyor, yalnız doğrudan kullanabilmek için bildiriliyor.
-  image: ">=4.4.0 <4.9.0"
+  # Faz 45: pdf 3.13 xml 7'ye geçince eski aralık engeli (A3.1) kalktı.
+  # Zaten `pdf` image'ı çektiği için APK'ya yeni ağırlık girmiyor, yalnız
+  # doğrudan kullanabilmek için bildiriliyor.
+  image: ^4.12.0
 
   # Video küçültme: Media3 Transformer (ci/MediaTranscode.kt, Faz 10/K2 (b)).
   # FFmpeg (ffmpeg_kit_flutter_new_min, LGPL, ~15 MB) ve video_compress
@@ -186,28 +183,30 @@ dependencies:
   # (`firebase_core`/`firebase_auth`/`cloud_firestore`) 2026-09-26'da
   # KALDIRILDI: CI derlemesinde yapılandırma dosyası hiç yoktu, yani her
   # kullanıcıda "yerel mod"da, çalışmadan APK'ya ağırlık ekliyordu.
-  google_sign_in: ^6.2.0
+  google_sign_in: ^7.2.0
   # Sesli okuma (cihazın kendi TTS motoru; internet gerekmez).
   flutter_tts: ^4.2.5
 
   # PDF içindeki dış bağlantıları tarayıcıda açmak için. Zaten printing üzerinden
   # dolaylı geliyordu; doğrudan bağımlılık yapıldı (dolaylıya güvenmek kırılgan).
   url_launcher: ^6.3.2
-  background_downloader: ^8.9.0
+  background_downloader: ^9.6.6
   # ── Ağ depolama (NAS): FTP/FTPS/FTPES · SFTP · SMB · WebDAV · LAN ─────────
   # Hepsinin uyumluluğu bizim sürüm duvarımıza (Flutter 3.29.3 / Dart 3.7)
   # karşı `pub add --dry-run` ile ÖLÇÜLDÜ; hiçbiri çözümlemeyi kırmıyor.
   #
   # SFTP — saf Dart SSH istemcisi (MIT). Tercih edilen protokol: tek şifreli
   # bağlantı, FTP'nin pasif mod port pazarlığı yok.
-  dartssh2: ^2.14.0
+  # 4.x (Faz 45, pointycastle 4 ile birlikte): eski algoritmalar (ssh-rsa, CBC,
+  # SHA-1 KEX) varsayılan kapalı — OpenSSH ile aynı; çok eski NAS bağlanamaz (HAFIZA).
+  dartssh2: ^4.1.0
   # FTP + FTPS (örtük) + FTPES (açık TLS) — saf Dart (MIT). Üç protokol tek
   # sınıfta (`FtpFs`), aradaki tek fark `SecurityType` ve varsayılan port.
   # Alt sınır 2.0.10 (2026-11-02): eski CI (Flutter 3.29.3) 2.0.7'de kalıyordu,
   # aralık o yüzden açıktı; artık her ortam 3.44.6 ve 2.0.10 çözümlüyor.
   # Enum ADLARI sürümler arasında değiştiği için (`SecurityType.FTPS` → `ftps`)
   # `ftp_fs.dart` sabitleri yine harf duyarsız arar. Bkz. HAFIZA 2026-08-05.
-  ftpconnect: ^2.0.10
+  ftpconnect: ^3.0.0
   # WebDAV (Nextcloud/ownCloud/Synology) — BSD 3-Clause, `dio` üstünde.
   webdav_client: ^1.2.2
   # Yerel ağ keşfi (mDNS/Bonjour) — Flutter ekibi, BSD. Tek başına yetmiyor
@@ -335,7 +334,18 @@ flutter_launcher_icons:
 
 # Faz 44 (Dart 3.13): sabit iki paketin yamalı kopyası — gerekçe third_party/README.md.
 dependency_overrides:
+  # Faz 45: webdav_client 1.2.2 (son sürüm) xml ^6'ya kilitli; yalnız
+  # findAllElements(namespace:'*') + .text kullanıyor, 7'de ikisi de duruyor
+  # (test/…webdav…). Paket xml 7'yi açınca bu satır silinir.
+  xml: ^7.1.0
+  # Faz 45: smb_connect 0.0.9 (son sürüm, 2025-01) pointycastle ^3'e kilitli;
+  # 4.0'ın tek kırılımı generateKeyPair jenerikleri — smb_connect kullanmıyor.
+  # dartssh2 4 pointycastle ^4 istediği için zorunlu. smb_connect açınca silinir.
+  pointycastle: ^4.0.0
+  # Faz 47: ftpconnect 3.0.0 (tek yayımlı 3.x; FTPS 425 düzeltmeleri) kendi
+  # SFTPConnect'i için dartssh2 ^3.3.1 ister. Kullandığı türlerin hepsi 4.x'te
+  # aynı (SSHClient/SftpClient/SftpFileAttrs…); biz SFTP'yi doğrudan dartssh2
+  # ile yapıyoruz. ftpconnect dartssh2 4'ü açınca silinir.
+  dartssh2: ^4.1.0
   pdfrx:
     path: third_party/pdfrx
-  dartssh2:
-    path: third_party/dartssh2

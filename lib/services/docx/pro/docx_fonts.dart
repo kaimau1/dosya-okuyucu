@@ -127,7 +127,7 @@ abstract final class DocxFonts {
         }
         final root = ft.rootElement;
         if (!root.attributes.any((a) => a.name.prefix == 'xmlns' && a.name.local == 'r')) {
-          root.attributes.add(XmlAttribute(XmlName('r', 'xmlns'), kR));
+          root.attributes.add(XmlAttribute(const XmlName.parts('r', prefix: 'xmlns'), kR));
         }
         pkg.ensureDefault('odttf', kOdttfCt);
         const rels = 'word/_rels/fontTable.xml.rels';
@@ -164,10 +164,10 @@ abstract final class DocxFonts {
             final file = 'font${n++}.odttf';
             pkg.putBytes('word/fonts/$file', obfuscate(ttf, guid));
             final id = 'rIdF${n - 1}';
-            rd.rootElement.children.add(XmlElement(XmlName('Relationship'), [
-              XmlAttribute(XmlName('Id'), id),
-              XmlAttribute(XmlName('Type'), kFontRel),
-              XmlAttribute(XmlName('Target'), 'fonts/$file'),
+            rd.rootElement.children.add(XmlElement(const XmlName.qualified('Relationship'), [
+              XmlAttribute(const XmlName.qualified('Id'), id),
+              XmlAttribute(const XmlName.qualified('Type'), kFontRel),
+              XmlAttribute(const XmlName.qualified('Target'), 'fonts/$file'),
             ]));
             font.children.add(w(tag, attrs: {'fontKey': guid, 'r:id': id}));
           }

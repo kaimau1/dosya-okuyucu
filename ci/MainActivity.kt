@@ -428,6 +428,32 @@ class MainActivity : FlutterActivity() {
                 // Faz 18 / G19: galeride "Farklı kullan" (duvar kâğıdı, kişi
                 // fotoğrafı). Medya taramasının verdiği content:// adresiyle —
                 // FileProvider bağımlılığı gerekmez.
+                // Faz 46: open_filex yerine dış uygulamada açma. Adres kendi belge
+                // sağlayıcımızın (DosyaProvider, belge kimliği = mutlak yol) content://
+                // adresi; alıcıya YALNIZ bu dosya için okuma yetkisi verilir →
+                // READ_MEDIA_* izni gerekmez (HAFIZA "izin sadeliği").
+                "openExternal" -> {
+                    val file = java.io.File(call.argument<String>("path") ?: "")
+                    if (!file.isFile) {
+                        result.success("missing")
+                    } else {
+                        val mime = android.webkit.MimeTypeMap.getSingleton()
+                            .getMimeTypeFromExtension(file.extension.lowercase()) ?: "*/*"
+                        val uri = android.provider.DocumentsContract.buildDocumentUri(
+                            "$packageName.documents", file.absolutePath)
+                        val i = Intent(Intent.ACTION_VIEW)
+                            .setDataAndType(uri, mime)
+                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        try {
+                            startActivity(i)
+                            result.success("done")
+                        } catch (e: android.content.ActivityNotFoundException) {
+                            result.success("no_app")
+                        } catch (e: Exception) {
+                            result.success("error:" + (e.message ?: e.javaClass.simpleName))
+                        }
+                    }
+                }
                 "attachData" -> {
                     val path = call.argument<String>("path") ?: ""
                     val mime = call.argument<String>("mime") ?: "image/*"

@@ -70,7 +70,7 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
     if (opts.exportCertificate) {
       if (existing == null) return;
       final path = await PdfDigitalSign.exportCertificate(existing);
-      await Share.shareXFiles([XFile(path)]);
+      await SharePlus.instance.share(ShareParams(files: [XFile(path)]));
       return;
     }
     final pages = await _pageCount();
@@ -246,7 +246,7 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       _str.t('pp.saved_as', {'name': p.basename(path)}),
       action: SnackBarAction(
         label: _str.t('common.share'),
-        onPressed: () => unawaited(Share.shareXFiles([XFile(path)])),
+        onPressed: () => unawaited(SharePlus.instance.share(ShareParams(files: [XFile(path)]))),
       ),
     );
   }
@@ -703,7 +703,7 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       _str.t('pp.saved_as', {'name': p.basename(path)}),
       action: SnackBarAction(
         label: _str.t('common.share'),
-        onPressed: () => unawaited(Share.shareXFiles([XFile(path)])),
+        onPressed: () => unawaited(SharePlus.instance.share(ShareParams(files: [XFile(path)]))),
       ),
     );
   }
@@ -712,7 +712,7 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
     final res = await AppFilePicker.pickFiles(
         type: FileType.image, allowMultiple: true);
     final paths = [
-      for (final f in res?.files ?? const <PlatformFile>[])
+      for (final f in res?.files ?? const <PickedFile>[])
         if (f.path != null) f.path!,
     ];
     if (paths.isEmpty || !mounted) return;

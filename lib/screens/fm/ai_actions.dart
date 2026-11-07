@@ -359,7 +359,7 @@ class _ResultSheet extends StatelessWidget {
                   IconButton(
                     tooltip: context.t('common.share'),
                     icon: const Icon(AppIcons.share, size: 20),
-                    onPressed: () => Share.share(body, subject: name),
+                    onPressed: () => SharePlus.instance.share(ShareParams(text: body, subject: name)),
                   ),
                   if (canRegenerate)
                     IconButton(

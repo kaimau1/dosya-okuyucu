@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:open_filex/open_filex.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
@@ -25,6 +24,7 @@ import '../../screens/fm/media_player_screen.dart';
 import '../../screens/viewer_screen.dart';
 import '../file_service.dart';
 import 'archive_ops.dart';
+import 'native_extras.dart';
 import 'fs_events.dart';
 import 'open_history.dart';
 import '../../core/snack.dart';
@@ -291,17 +291,18 @@ abstract final class EntryOpener {
   /// Sistemin varsayılan uygulamasına devreder (video, ses, apk, bilinmeyen).
   static Future<void> openExternally(BuildContext context, String path) async {
     try {
-      final result = await OpenFilex.open(path);
-      if (result.type == ResultType.done) {
+      final result = await NativeExtras.openExternal(path);
+      if (result == 'done') {
         unawaited(OpenHistory.record(path));
         return;
       }
       if (!context.mounted) return;
       _snack(
         context,
-        result.type == ResultType.noAppToOpen
+        result == 'no_app'
             ? context.t('open.no_app')
-            : context.t('home.open_error', {'error': result.message}),
+            : context.t('home.open_error',
+                {'error': result?.replaceFirst('error:', '') ?? '-'}),
       );
     } catch (e) {
       if (context.mounted) {

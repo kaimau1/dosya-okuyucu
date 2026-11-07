@@ -176,7 +176,7 @@ class AiSummaryFlow {
                   IconButton(
                     tooltip: ctx.t('common.share'),
                     icon: const Icon(AppIcons.share, size: 20),
-                    onPressed: () => Share.share(summary, subject: title),
+                    onPressed: () => SharePlus.instance.share(ShareParams(text: summary, subject: title)),
                   ),
                   TextButton.icon(
                     onPressed: () async {

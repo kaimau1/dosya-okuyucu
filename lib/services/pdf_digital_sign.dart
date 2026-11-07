@@ -149,8 +149,8 @@ abstract final class PdfDigitalSign {
       ..init(ParametersWithRandom(
           RSAKeyGeneratorParameters(BigInt.from(65537), bits, 64), random));
     final pair = gen.generateKeyPair();
-    final pub = pair.publicKey as RSAPublicKey;
-    final priv = pair.privateKey as RSAPrivateKey;
+    final pub = pair.publicKey;
+    final priv = pair.privateKey;
     final start = (now ?? DateTime.now()).toUtc();
     final serial = BigInt.parse(
         List<String>.generate(

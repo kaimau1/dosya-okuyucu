@@ -217,7 +217,7 @@ abstract final class PptxMasterOps {
             if (!RegExp(r'^[0-9A-F]{6}$').hasMatch(v)) continue;
             var el = scheme.getElement('a:$key');
             if (el == null) {
-              el = XmlElement(XmlName.fromString('a:$key'));
+              el = XmlElement(XmlName.qualified('a:$key'));
               // ECMA sırası korunur: yuvayı doğru yere koy.
               final at = kThemeSlots.indexOf(key);
               final after = scheme.childElements
@@ -271,7 +271,7 @@ abstract final class PptxMasterOps {
               // … hf, txStyles, extLst; txStyles içinde title, body, other.
               var tx = d.rootElement.getElement('p:txStyles');
               if (tx == null) {
-                tx = XmlElement(XmlName.fromString('p:txStyles'));
+                tx = XmlElement(const XmlName.qualified('p:txStyles'));
                 final ext = d.rootElement.getElement('p:extLst');
                 final kids = d.rootElement.children;
                 kids.insert(ext == null ? kids.length : kids.indexOf(ext), tx);
@@ -287,7 +287,7 @@ abstract final class PptxMasterOps {
             }
             var l1 = l1p.getElement('a:defRPr');
             if (l1 == null) {
-              l1 = XmlElement(XmlName.fromString('a:defRPr'));
+              l1 = XmlElement(const XmlName.qualified('a:defRPr'));
               l1p.children.add(l1);
             }
             final old = int.tryParse(l1.getAttribute('sz') ?? '');
@@ -342,7 +342,7 @@ abstract final class PptxMasterOps {
         if (sp == null) throw StateError('placeholder');
         var spPr = sp.getElement('p:spPr');
         if (spPr == null) {
-          spPr = XmlElement(XmlName.fromString('p:spPr'));
+          spPr = XmlElement(const XmlName.qualified('p:spPr'));
           final nv = sp.getElement('p:nvSpPr');
           sp.children.insert(nv == null ? 0 : sp.children.indexOf(nv) + 1, spPr);
         }
@@ -453,7 +453,7 @@ abstract final class PptxMasterOps {
         final md = pkg.edit(master)!;
         var lst = md.findAllElements('p:sldLayoutIdLst').firstOrNull;
         if (lst == null) {
-          lst = XmlElement(XmlName.fromString('p:sldLayoutIdLst'));
+          lst = XmlElement(const XmlName.qualified('p:sldLayoutIdLst'));
           final tx = md.findAllElements('p:txStyles').firstOrNull;
           final root = md.rootElement.children;
           root.insert(tx == null ? root.length : root.indexOf(tx), lst);

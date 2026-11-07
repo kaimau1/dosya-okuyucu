@@ -147,15 +147,13 @@ notuyla işaretlenir.
   oynatma) ortak izni; uzun kopyalama/aktarım ve çalma sürerken işlemcinin
   uyumaması (`PARTIAL_WAKE_LOCK`, iş bitince bırakılır; 2 sa tavan).
 
-## READ_MEDIA_IMAGES · READ_MEDIA_VIDEO · READ_MEDIA_AUDIO · READ_EXTERNAL_STORAGE · WRITE_EXTERNAL_STORAGE
+## READ_EXTERNAL_STORAGE · WRITE_EXTERNAL_STORAGE
 
 - **Neden:** `READ_EXTERNAL_STORAGE` ≤ Android 12L, `WRITE_EXTERNAL_STORAGE`
   ≤ Android 10 (`maxSdkVersion`): Android 10 ve altında tüm depolamaya erişimi
-  klasik izin verir. Medya izinlerini uygulama kendisi **istemez**
-  (2026-11-07: "tüm dosyalar" reddedilince ardından medya izni sorma zinciri
-  kaldırıldı); `open_filex` eklentisi bildirir ve bir görsel/video/sesi başka
-  uygulamada açarken (Android 13+) gerekirse ister. Eklenti yerine kendi
-  `ACTION_VIEW` köprümüz yazılınca bu üçü manifestten çıkarılabilir.
+  klasik izin verir. Android 13+ medya izinleri (READ_MEDIA_*) **bildirilmez**
+  (Faz 46): başka uygulamada açma kendi `ACTION_VIEW` köprümüzle, yalnız o
+  dosyaya verilen okuma yetkisiyle yapılır.
 
 ## VIBRATE (eklentiden: `flutter_local_notifications`)
 

@@ -93,7 +93,7 @@ extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
     await f.writeAsBytes(password == null || editor.csv != null
         ? plain
         : await OfficeCrypto.encryptInBackground(plain, password));
-    await Share.shareXFiles([XFile(f.path)], text: widget.name);
+    await SharePlus.instance.share(ShareParams(files: [XFile(f.path)], text: widget.name));
   }
 
   /// Okuma sınırı şeridi (Faz 26b, plan madde 6): sayfa 200 bin satır /
@@ -179,7 +179,7 @@ extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
           ? TextDecode.encodeCp1254(csv)
           : utf8.encode('\u{FEFF}$csv');
       await f.writeAsBytes(bytes);
-      await Share.shareXFiles([XFile(f.path)], text: '$base.csv');
+      await SharePlus.instance.share(ShareParams(files: [XFile(f.path)], text: '$base.csv'));
     } catch (e) {
       _snack(csvFailed.replaceAll('{error}', userErrorText(e)));
     }

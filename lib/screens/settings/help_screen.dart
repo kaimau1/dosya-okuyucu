@@ -39,7 +39,7 @@ class HelpScreen extends StatelessWidget {
     final records = await CrashLog.load();
     final text =
         '${CrashLog.asShareText(records.take(5).toList())}\n$ask';
-    await Share.share(text, subject: 'Dosya Okuyucu $appVersionFull');
+    await SharePlus.instance.share(ShareParams(text: text, subject: 'Dosya Okuyucu $appVersionFull'));
   }
 
   @override

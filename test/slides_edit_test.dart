@@ -43,7 +43,7 @@ Uint8List _deck({bool growTitle = false}) {
       final body = sp.findAllElements('a:bodyPr').first;
       body.children
         ..clear()
-        ..add(XmlElement(XmlName('a:spAutoFit')));
+        ..add(XmlElement(const XmlName.qualified('a:spAutoFit')));
       final data = utf8.encode(doc.toXmlString());
       out.addFile(ArchiveFile(f.name, data.length, data));
     } else if (f.name == 'ppt/slides/slide2.xml') {

@@ -92,6 +92,6 @@ extension _SpreadsheetProChartPart on _SpreadsheetEditorScreenState {
     final f = File(p.join(Directory.systemTemp.path, '$base.${pdf ? 'pdf' : 'png'}'));
     await f.writeAsBytes(bytes, flush: true);
     if (!mounted) return;
-    await Share.shareXFiles([XFile(f.path)]);
+    await SharePlus.instance.share(ShareParams(files: [XFile(f.path)]));
   }
 }

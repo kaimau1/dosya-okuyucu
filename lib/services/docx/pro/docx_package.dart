@@ -30,9 +30,9 @@ const kCt = 'http://schemas.openxmlformats.org/package/2006/content-types';
 XmlElement w(String local,
         {Map<String, String> attrs = const {},
         List<XmlNode> kids = const []}) =>
-    XmlElement(XmlName.fromString('w:$local'), [
+    XmlElement(XmlName.qualified('w:$local'), [
       for (final MapEntry(:key, :value) in attrs.entries)
-        XmlAttribute(XmlName.fromString(key.contains(':') ? key : 'w:$key'), value),
+        XmlAttribute(XmlName.qualified(key.contains(':') ? key : 'w:$key'), value),
     ], kids);
 
 /// `w:val` öznitelikli kısa öğe.
@@ -41,8 +41,8 @@ XmlElement wv(String local, String val) => w(local, attrs: {'val': val});
 /// Düz metin run'ı (`xml:space="preserve"`), isteğe bağlı rPr ile.
 XmlElement wRun(String text, {XmlElement? rPr}) => w('r', kids: [
       ?rPr,
-      XmlElement(XmlName.fromString('w:t'),
-          [XmlAttribute(XmlName.fromString('xml:space'), 'preserve')], [XmlText(text)]),
+      XmlElement(const XmlName.qualified('w:t'),
+          [XmlAttribute(const XmlName.qualified('xml:space'), 'preserve')], [XmlText(text)]),
     ]);
 
 /// Yerel adla ilk alt öğe.
@@ -74,7 +74,7 @@ void setW(XmlElement e, String local, String value) {
       return;
     }
   }
-  e.attributes.add(XmlAttribute(XmlName.fromString('w:$local'), value));
+  e.attributes.add(XmlAttribute(XmlName.qualified('w:$local'), value));
 }
 
 /// Verilen yerel adlı alt öğeyi döndürür; yoksa [order] sırasına uygun
@@ -210,7 +210,7 @@ class DocxPackage {
     if (root.attributes.any((a) => a.name.prefix == 'xmlns' && a.name.local == prefix)) {
       return;
     }
-    root.attributes.add(XmlAttribute(XmlName(prefix, 'xmlns'), uri));
+    root.attributes.add(XmlAttribute(XmlName.parts(prefix, prefix: 'xmlns'), uri));
   }
 
   /// İçerik türü bildirimi (Override) — yoksa ekler.
@@ -219,9 +219,9 @@ class DocxPackage {
     final root = ct.rootElement;
     final pn = '/$partName';
     if (root.childElements.any((e) => e.getAttribute('PartName') == pn)) return;
-    root.children.add(XmlElement(XmlName('Override'), [
-      XmlAttribute(XmlName('PartName'), pn),
-      XmlAttribute(XmlName('ContentType'), contentType),
+    root.children.add(XmlElement(const XmlName.qualified('Override'), [
+      XmlAttribute(const XmlName.qualified('PartName'), pn),
+      XmlAttribute(const XmlName.qualified('ContentType'), contentType),
     ]));
   }
 
@@ -231,9 +231,9 @@ class DocxPackage {
         .any((e) => e.getAttribute('Extension')?.toLowerCase() == ext)) {
       return;
     }
-    root.children.insert(0, XmlElement(XmlName('Default'), [
-      XmlAttribute(XmlName('Extension'), ext),
-      XmlAttribute(XmlName('ContentType'), contentType),
+    root.children.insert(0, XmlElement(const XmlName.qualified('Default'), [
+      XmlAttribute(const XmlName.qualified('Extension'), ext),
+      XmlAttribute(const XmlName.qualified('ContentType'), contentType),
     ]));
   }
 
@@ -258,11 +258,11 @@ class DocxPackage {
     while (ids.contains('rId$n')) {
       n++;
     }
-    root.children.add(XmlElement(XmlName('Relationship'), [
-      XmlAttribute(XmlName('Id'), 'rId$n'),
-      XmlAttribute(XmlName('Type'), type),
-      XmlAttribute(XmlName('Target'), target),
-      if (external) XmlAttribute(XmlName('TargetMode'), 'External'),
+    root.children.add(XmlElement(const XmlName.qualified('Relationship'), [
+      XmlAttribute(const XmlName.qualified('Id'), 'rId$n'),
+      XmlAttribute(const XmlName.qualified('Type'), type),
+      XmlAttribute(const XmlName.qualified('Target'), target),
+      if (external) XmlAttribute(const XmlName.qualified('TargetMode'), 'External'),
     ]));
     return 'rId$n';
   }

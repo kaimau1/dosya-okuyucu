@@ -467,7 +467,7 @@ extension _SlidesProPart on _SlidesEditorScreenState {
       }
       busy.close();
       if (!mounted) return;
-      await Share.shareXFiles([XFile(share)], text: widget.name);
+      await SharePlus.instance.share(ShareParams(files: [XFile(share)], text: widget.name));
     } catch (e) {
       busy.close();
       if (mounted) showUserError(context, e);
@@ -512,7 +512,7 @@ extension _SlidesProPart on _SlidesEditorScreenState {
         _snack(context.t('sp.video_unavailable'));
         return;
       }
-      await Share.shareXFiles([XFile(done)], text: widget.name);
+      await SharePlus.instance.share(ShareParams(files: [XFile(done)], text: widget.name));
     } catch (e) {
       busy.close();
       if (mounted) showUserError(context, e);

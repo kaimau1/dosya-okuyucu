@@ -320,7 +320,7 @@ Future<void> shareEntries(List<String> paths) async {
       files.add(path);
     }
   }
-  await Share.shareXFiles(files.map((f) => XFile(f)).toList());
+  await SharePlus.instance.share(ShareParams(files: files.map((f) => XFile(f)).toList()));
 }
 
 /// "Paylaş" düğmesinin gerçek akışı: **önce nasıl** diye sorar.

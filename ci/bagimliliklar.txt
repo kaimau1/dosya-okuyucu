@@ -42,7 +42,6 @@ video_player
 fc_native_video_thumbnail
 installed_apps
 app_usage
-open_filex
 flutter_displaymode
 flutter_local_notifications
 image

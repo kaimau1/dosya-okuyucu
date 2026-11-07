@@ -141,7 +141,7 @@ extension _ViewerScreenPdfReadingProPart on _ViewerScreenState {
       final path = await ConversionService().writeToTemp(
           '${p.basenameWithoutExtension(widget.doc.name)}-notlar.md',
           utf8.encode(md));
-      await Share.shareXFiles([XFile(path)], text: shareText);
+      await SharePlus.instance.share(ShareParams(files: [XFile(path)], text: shareText));
     } catch (e) {
       if (mounted) _snack(userErrorText(e));
     }

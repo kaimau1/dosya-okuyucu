@@ -656,7 +656,7 @@ extension _WordProPart on _WordMobileEditorScreenState {
     if (how == 'share') {
       final f = File('${Directory.systemTemp.path}/$name');
       await f.writeAsBytes(bytes);
-      await Share.shareXFiles([XFile(f.path)], text: name);
+      await SharePlus.instance.share(ShareParams(files: [XFile(f.path)], text: name));
     } else {
       await runDownloadAction(context, () => SaveToDownloads.saveBytes(name, bytes));
     }

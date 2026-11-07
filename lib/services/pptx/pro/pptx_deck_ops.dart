@@ -99,7 +99,7 @@ abstract final class PptxDeckOps {
     final root = pres.rootElement;
     var extLst = root.getElement('p:extLst');
     if (extLst == null) {
-      extLst = XmlElement(XmlName.fromString('p:extLst'));
+      extLst = XmlElement(const XmlName.qualified('p:extLst'));
       root.children.add(extLst); // extLst her zaman sonda
     }
     final ext = PptxPackage.frag('<p:ext uri="$_sectionExt">'
@@ -226,7 +226,7 @@ abstract final class PptxDeckOps {
         }
         var lst = pres.findAllElements('p:custShowLst').firstOrNull;
         if (lst == null) {
-          lst = XmlElement(XmlName.fromString('p:custShowLst'));
+          lst = XmlElement(const XmlName.qualified('p:custShowLst'));
           final root = pres.rootElement;
           // ECMA sırası: … sldSz, notesSz, smartTags, embeddedFontLst, custShowLst …
           XmlElement? after;

@@ -342,7 +342,7 @@ class _QuickTranslateState extends State<_QuickTranslate> {
                 label: Text(context.t('common.copy')),
               ),
               TextButton.icon(
-                onPressed: result == null ? null : () => Share.share(result),
+                onPressed: result == null ? null : () => SharePlus.instance.share(ShareParams(text: result)),
                 icon: const Icon(AppIcons.share, size: 18),
                 label: Text(context.t('common.share')),
               ),

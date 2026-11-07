@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
 import 'package:app_usage/app_usage.dart';
-import 'package:installed_apps/app_info.dart';
 import 'package:installed_apps/installed_apps.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -284,6 +283,8 @@ abstract final class InstalledAppsService {
         excludeSystemApps: !includeSystemApps,
         excludeNonLaunchableApps: !includeSystemApps,
         withIcon: withIcon,
+        // Platform türünü (Flutter/RN…) kullanmıyoruz; tespit listeyi yavaşlatır.
+        detectPlatformType: false,
       );
     } catch (_) {
       return null;
@@ -367,6 +368,7 @@ abstract final class InstalledAppsService {
         excludeSystemApps: true,
         excludeNonLaunchableApps: true,
         withIcon: false,
+        detectPlatformType: false,
       );
     } catch (_) {
       return const AppStorageSummary(totalBytes: 0, cacheBytes: 0, top: []);

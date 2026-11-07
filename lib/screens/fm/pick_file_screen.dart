@@ -42,6 +42,7 @@ library;
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -84,27 +85,74 @@ part 'pick_file_screen/parts.dart';
 /// Ekranın hangi görünümde olduğu.
 enum _PickView { home, folder, category, search, matches }
 
-/// Uygulamanın kendi dosya seçimleri için `FilePicker.platform.pickFiles`in
-/// yerine geçer — aynı parametreler, aynı [FilePickerResult]; arayüz BİZİM
-/// seçicimiz ([PickFileScreen]).
+/// Seçilen dosya. file_picker 13 `FilePickerResult`'ı ve somut `PlatformFile`'ı
+/// kaldırdı (Faz 46); çağıranlar yalnız bu dört alanı okuyor.
+class PickedFile {
+  const PickedFile({
+    required this.path,
+    required this.name,
+    required this.size,
+    this.bytes,
+  });
+
+  final String? path;
+  final String name;
+  final int size;
+
+  /// Noktasız uzantı ya da `null` (eski `PlatformFile.extension` ile aynı).
+  String? get extension {
+    final ext = p.extension(name);
+    return ext.isEmpty ? null : ext.substring(1);
+  }
+
+  /// Yalnız `withData: true` istendiyse dolu (büyük dosyada bellek — P10).
+  final Uint8List? bytes;
+}
+
+class PickResult {
+  const PickResult(this.files);
+  final List<PickedFile> files;
+}
+
+/// Uygulamanın kendi dosya seçimleri için sistem seçicisinin yerine geçer —
+/// aynı parametreler; arayüz BİZİM seçicimiz ([PickFileScreen]).
 abstract final class AppFilePicker {
   /// "Diğer kaynaklar" dönüşü: çağıran sistem seçicisini açar.
   static const _system = '\u0000system';
 
-  static Future<FilePickerResult?> pickFiles({
+  static Future<PickResult?> pickFiles({
     String? dialogTitle,
     FileType type = FileType.any,
     List<String>? allowedExtensions,
     bool allowMultiple = false,
     bool withData = false,
   }) async {
-    Future<FilePickerResult?> system() => FilePicker.platform.pickFiles(
-          dialogTitle: dialogTitle,
-          type: type,
-          allowedExtensions: allowedExtensions,
-          allowMultiple: allowMultiple,
-          withData: withData,
-        );
+    Future<PickResult?> system() async {
+      final picked = allowMultiple
+          ? await FilePicker.pickFiles(
+              dialogTitle: dialogTitle,
+              type: type,
+              allowedExtensions: allowedExtensions,
+            )
+          : [
+              ?await FilePicker.pickFile(
+                dialogTitle: dialogTitle,
+                type: type,
+                allowedExtensions: allowedExtensions,
+              ),
+            ];
+      if (picked.isEmpty) return null;
+      return PickResult([
+        for (final f in picked)
+          PickedFile(
+            path: f.path,
+            name: f.name,
+            size: await f.length() ?? 0,
+            bytes: withData ? await f.readAsBytes() : null,
+          ),
+      ]);
+    }
+
     final nav = navigatorKey.currentState;
     // İzinsiz bizim seçicimiz hiçbir şey listeleyemez: sistem seçicisi.
     if (nav == null || !await StoragePermission.hasFullAccess()) {
@@ -140,19 +188,19 @@ abstract final class AppFilePicker {
     ));
     if (paths == null || paths.isEmpty) return null;
     if (paths.first == _system) return system();
-    final files = <PlatformFile>[];
+    final files = <PickedFile>[];
     for (final path in paths) {
       final file = File(path);
       // Seçimle teslim arasında silinmiş olabilir: çağıran çökmesin.
       if (!await file.exists()) continue;
-      files.add(PlatformFile(
+      files.add(PickedFile(
         path: path,
         name: p.basename(path),
         size: await file.length(),
         bytes: withData ? await file.readAsBytes() : null,
       ));
     }
-    return files.isEmpty ? null : FilePickerResult(files);
+    return files.isEmpty ? null : PickResult(files);
   }
 }
 

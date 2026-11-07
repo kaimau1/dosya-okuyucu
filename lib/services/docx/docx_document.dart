@@ -689,7 +689,7 @@ class DocxDocument {
       text(buf.toString(), style);
       return;
     }
-    XmlElement wrap(XmlElement child) => XmlElement(XmlName.fromString('w:r'), [], [
+    XmlElement wrap(XmlElement child) => XmlElement(const XmlName.qualified('w:r'), [], [
           if (rPr != null) rPr.copy(),
           child.copy(),
         ]);
@@ -746,7 +746,7 @@ class DocxDocument {
       if (e.name.local != 'blip') continue;
       final rid = e.getAttribute('r:embed') ??
           e.getAttribute('embed',
-              namespace:
+              namespaceUri:
                   'http://schemas.openxmlformats.org/officeDocument/2006/relationships');
       final target = rid == null ? null : _rels[rid];
       Uint8List? bytes;
@@ -829,20 +829,20 @@ class DocxDocument {
     if (p.look.headingLevel == 0 || next == null || next == id) {
       return (p.pPr, p.look);
     }
-    final pPr = (p.pPr?.copy() ?? XmlElement(XmlName.fromString('w:pPr')));
+    final pPr = (p.pPr?.copy() ?? XmlElement(const XmlName.qualified('w:pPr')));
     _setPStyle(pPr, next);
     return (pPr, styles.paraLook(pPr));
   }
 
   /// Boş liste öğesinde Enter: paragraf listeden çıkar (numPr kalkar).
   DocxPara withoutList(DocxPara p) {
-    final pPr = p.pPr?.copy() ?? XmlElement(XmlName.fromString('w:pPr'));
+    final pPr = p.pPr?.copy() ?? XmlElement(const XmlName.qualified('w:pPr'));
     pPr.children.removeWhere((n) => n is XmlElement && n.name.local == 'numPr');
     // Stilden gelen liste de kapansın: numId 0. (Sınama KOPYADA: görünüş
     // pPr düğümü başına önbelleklenir.)
     if (styles.paraLook(pPr.copy()).numId != null) {
-      pPr.children.add(XmlElement(XmlName.fromString('w:numPr'), [], [
-        XmlElement(XmlName.fromString('w:numId'), [XmlAttribute(XmlName.fromString('w:val'), '0')]),
+      pPr.children.add(XmlElement(const XmlName.qualified('w:numPr'), [], [
+        XmlElement(const XmlName.qualified('w:numId'), [XmlAttribute(const XmlName.qualified('w:val'), '0')]),
       ]));
     }
     return p.copyWith(pPr: pPr, look: styles.paraLook(pPr));
@@ -851,7 +851,7 @@ class DocxDocument {
   static void _setPStyle(XmlElement pPr, String id) {
     var ps = _child(pPr, 'pStyle');
     if (ps == null) {
-      ps = XmlElement(XmlName.fromString('w:pStyle'));
+      ps = XmlElement(const XmlName.qualified('w:pStyle'));
       pPr.children.insert(0, ps);
     }
     ps.setAttribute('w:val', id);
@@ -873,9 +873,9 @@ class DocxDocument {
   ];
 
   static XmlElement _w(String local, [Map<String, String> attrs = const {}]) =>
-      XmlElement(XmlName.fromString('w:$local'), [
+      XmlElement(XmlName.qualified('w:$local'), [
         for (final MapEntry(:key, :value) in attrs.entries)
-          XmlAttribute(XmlName.fromString('w:$key'), value),
+          XmlAttribute(XmlName.qualified('w:$key'), value),
       ]);
 
   static void _putP(XmlElement pPr, XmlElement el) {
@@ -902,7 +902,7 @@ class DocxDocument {
   /// stili değiştiyse harflerin görünüşü de (stilden gelen biçim).
   DocxPara editPPr(DocxPara p, void Function(XmlElement pPr) edit) {
     if (p.opaque) return p;
-    final pPr = p.pPr?.copy() ?? XmlElement(XmlName.fromString('w:pPr'));
+    final pPr = p.pPr?.copy() ?? XmlElement(const XmlName.qualified('w:pPr'));
     edit(pPr);
     final look = styles.paraLook(pPr);
     if (look.styleId == p.look.styleId) {
@@ -1198,18 +1198,18 @@ class DocxDocument {
       final m = RegExp(r'^rId(\d+)$').firstMatch(r.getAttribute('Id') ?? '');
       if (m != null) maxId = math.max(maxId, int.parse(m[1]!));
     }
-    rels.rootElement.children.add(XmlElement(XmlName('Relationship'), [
-      XmlAttribute(XmlName('Id'), 'rId${maxId + 1}'),
-      XmlAttribute(XmlName('Type'), relType),
-      XmlAttribute(XmlName('Target'), name.substring('word/'.length)),
+    rels.rootElement.children.add(XmlElement(const XmlName.qualified('Relationship'), [
+      XmlAttribute(const XmlName.qualified('Id'), 'rId${maxId + 1}'),
+      XmlAttribute(const XmlName.qualified('Type'), relType),
+      XmlAttribute(const XmlName.qualified('Target'), name.substring('word/'.length)),
     ]));
     _dirtyParts.add('word/_rels/document.xml.rels');
     final ct = _parts['[Content_Types].xml'] ??
         _partReader?.call('[Content_Types].xml');
     if (ct != null) {
-      ct.rootElement.children.add(XmlElement(XmlName('Override'), [
-        XmlAttribute(XmlName('PartName'), '/$name'),
-        XmlAttribute(XmlName('ContentType'), contentType),
+      ct.rootElement.children.add(XmlElement(const XmlName.qualified('Override'), [
+        XmlAttribute(const XmlName.qualified('PartName'), '/$name'),
+        XmlAttribute(const XmlName.qualified('ContentType'), contentType),
       ]));
       _parts['[Content_Types].xml'] = ct;
       _dirtyParts.add('[Content_Types].xml');
@@ -1235,7 +1235,7 @@ class DocxDocument {
       }
       var el = p.source;
       final fresh = el == null || used.contains(el);
-      if (fresh) el = XmlElement(XmlName.fromString('w:p'));
+      if (fresh) el = XmlElement(const XmlName.qualified('w:p'));
       final stale = fresh ||
           el.parent == null ||
           !identical(_writtenAs[el], p);
@@ -1365,7 +1365,7 @@ class DocxDocument {
       (identical(a.rPr, b.rPr) && a.patch == b.patch);
 
   static XmlElement _newRun(DocxCharStyle style, String text) {
-    final rPr = style.rPr?.copy() ?? XmlElement(XmlName.fromString('w:rPr'));
+    final rPr = style.rPr?.copy() ?? XmlElement(const XmlName.qualified('w:rPr'));
     // Paragraf işaretinin rPr'ine (`w:pPr/w:rPr`) özgü öğeler run'da geçersiz.
     rPr.children.removeWhere((n) =>
         n is XmlElement &&
@@ -1376,7 +1376,7 @@ class DocxDocument {
     if (style.underline != null) {
       rPr.children.removeWhere((n) => n is XmlElement && n.name.local == 'u');
       _putOrdered(rPr,
-          XmlElement(XmlName.fromString('w:u'), [XmlAttribute(XmlName.fromString('w:val'), style.underline! ? 'single' : 'none')]));
+          XmlElement(const XmlName.qualified('w:u'), [XmlAttribute(const XmlName.qualified('w:val'), style.underline! ? 'single' : 'none')]));
     }
     final pt = style.patch;
     if (pt.strike != null) _setToggle(rPr, 'strike', pt.strike!);
@@ -1412,7 +1412,7 @@ class DocxDocument {
     if (pt.vertAlign != null) {
       put('vertAlign', pt.vertAlign!.isEmpty ? null : {'val': pt.vertAlign!});
     }
-    final r = XmlElement(XmlName.fromString('w:r'));
+    final r = XmlElement(const XmlName.qualified('w:r'));
     if (rPr.childElements.isNotEmpty || rPr.attributes.isNotEmpty) {
       r.children.add(rPr);
     }
@@ -1420,9 +1420,9 @@ class DocxDocument {
     void flush() {
       if (buf.isEmpty) return;
       final s = buf.toString();
-      r.children.add(XmlElement(XmlName.fromString('w:t'), [
+      r.children.add(XmlElement(const XmlName.qualified('w:t'), [
         if (s.trim() != s || s.contains('  '))
-          XmlAttribute(XmlName.fromString('xml:space'), 'preserve'),
+          XmlAttribute(const XmlName.qualified('xml:space'), 'preserve'),
       ], [XmlText(s)]));
       buf.clear();
     }
@@ -1431,16 +1431,16 @@ class DocxDocument {
       switch (ch) {
         case '\t':
           flush();
-          r.children.add(XmlElement(XmlName.fromString('w:tab')));
+          r.children.add(XmlElement(const XmlName.qualified('w:tab')));
         case kDocxLineBreak:
           flush();
-          r.children.add(XmlElement(XmlName.fromString('w:br')));
+          r.children.add(XmlElement(const XmlName.qualified('w:br')));
         case '‑':
           flush();
-          r.children.add(XmlElement(XmlName.fromString('w:noBreakHyphen')));
+          r.children.add(XmlElement(const XmlName.qualified('w:noBreakHyphen')));
         case '­':
           flush();
-          r.children.add(XmlElement(XmlName.fromString('w:softHyphen')));
+          r.children.add(XmlElement(const XmlName.qualified('w:softHyphen')));
         default:
           buf.write(ch);
       }
@@ -1478,8 +1478,8 @@ class DocxDocument {
     rPr.children.removeWhere((n) => n is XmlElement && n.name.local == name);
     _putOrdered(
         rPr,
-        XmlElement(XmlName.fromString('w:$name'), [
-          if (!on) XmlAttribute(XmlName.fromString('w:val'), '0'),
+        XmlElement(XmlName.qualified('w:$name'), [
+          if (!on) XmlAttribute(const XmlName.qualified('w:val'), '0'),
         ]));
   }
 

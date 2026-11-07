@@ -247,7 +247,7 @@ extension _DriveScreenActionsPart on _DriveScreenState {
   Future<void> _shareFile(DriveFile file) async {
     final local = await _localCopy(file);
     if (local == null) return;
-    await Share.shareXFiles([XFile(local.path)], text: file.name);
+    await SharePlus.instance.share(ShareParams(files: [XFile(local.path)], text: file.name));
   }
 
   /// Dosyanın yerel kopyası: önbellek tazeyse indirmez, değilse aşağıdaki
@@ -447,7 +447,7 @@ extension _DriveScreenActionsPart on _DriveScreenState {
       final link = await _drive.shareLink(file.id);
       if (!mounted) return;
       _partSetState(() => _busy = false);
-      await Share.share(link, subject: file.name);
+      await SharePlus.instance.share(ShareParams(text: link, subject: file.name));
     } catch (e) {
       if (!mounted) return;
       _partSetState(() => _busy = false);
