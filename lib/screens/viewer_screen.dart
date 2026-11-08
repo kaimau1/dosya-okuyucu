@@ -196,6 +196,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
   List<PdfRect> _pdfSelRects = const [];
   int _pdfSelPage = 0;
 
+  /// PS5 (PDF Pro Faz 51): seçim çubuğunun önizlemesi açık mı (yeni seçimde
+  /// kapanır) ve çubuk seçimi ÖRTTÜĞÜ için ekranın üstüne mi alındı.
+  bool _pdfSelExpanded = false;
+  bool _pdfSelBarTop = false;
+
   /// Sürükleyerek seçim ŞU AN sürüyor mu? (Uzun basış sonrası parmak yerde ya
   /// da fare metin üzerinde basılı.) True iken pdfrx'in pan'ı kilitlenir ki
   /// sürükleme sayfayı kaydırmasın; işaretçi kalkar kalkmaz katman false

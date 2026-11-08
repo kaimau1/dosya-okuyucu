@@ -166,7 +166,7 @@ Amaç: bundan sonraki her kararı sayıyla vermek ve bildirilen sorunların hız
        anında düşer (`AppState.addRecent` + `FsEvents.changed`, genel klasörse MediaStore taraması);
        görüntüleyici kopya kaydedildiyse **kopyayı** açar. Test: bildirim eylemi editör kapandıktan
        sonra dosyayı açıyor.
-5. [ ] **PS5 düzeltmesi:** seçim çubuğunda önizleme genişletilebilir (dokun → tüm seçim kaydırılabilir
+5. [x] **PS5 düzeltmesi:** seçim çubuğunda önizleme genişletilebilir (dokun → tüm seçim kaydırılabilir
        alanda, karakter/sözcük sayısı); çubuk seçimi örtüyorsa seçimin üstüne yerleşir.
 6. [ ] **PS1 ara düzeltme:** "Düzenle" seçimin dikdörtgenini ve metnini geçirir; editör o sayfada
        seçimle en çok örtüşen paragrafı **doğrudan düzenleme kipinde** açar, imleç seçimin başına.

@@ -241,6 +241,10 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                                   _partSetState(() {
                                     // Yeni seçim: çubuk vurgu kipinden çıkar.
                                     _lastMark = null;
+                                    if (t != _pdfSelection) {
+                                      _pdfSelExpanded = false;
+                                      _pdfSelBarTop = false;
+                                    }
                                     _pdfSelection = t;
                                     _pdfSelRects = rects;
                                     _pdfSelPage = t.isEmpty ? 0 : pageNo;
@@ -289,10 +293,19 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                       if (mounted) _partSetState(() => _resumeNotePage = null);
                     },
                   ),
-                if (_pdfSelection.trim().isNotEmpty)
+                if (_pdfSelection.trim().isNotEmpty && !_pdfSelBarTop)
                   ReadingFloat(
                     start: 8,
                     end: 8,
+                    child: Center(child: _selectionBar()),
+                  ),
+                // PS5: kaydırarak açılamayan seçimde (sayfa sonu, uzun seçim)
+                // çubuk seçimin ÜSTÜNE, ekranın tepesine geçer.
+                if (_pdfSelection.trim().isNotEmpty && _pdfSelBarTop)
+                  PositionedDirectional(
+                    start: 8,
+                    end: 8,
+                    top: ReadingChrome.insetsOf(context).top + 8,
                     child: Center(child: _selectionBar()),
                   ),
               ],

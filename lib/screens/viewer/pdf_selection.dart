@@ -79,6 +79,21 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
     final marking = _lastMark != null && _pendingMarks.contains(_lastMark);
     return PdfSelectionBar(
       preview: _ViewerScreenState._shorten(_pdfSelection, 34),
+      fullText: cleanPdfCopyText(_pdfSelection),
+      countLabel: _selectionCountLabel(),
+      expanded: _pdfSelExpanded,
+      onToggleExpanded: () {
+        _partSetState(() => _pdfSelExpanded = !_pdfSelExpanded);
+        // Açılan alan çubuğu büyüttü: seçim yine çubuğun arkasında kalmasın.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _revealAboveBar(_pdfSelPage, _pdfSelRects,
+                barHeight: _pdfSelExpanded ? 420 : 190);
+          }
+        });
+      },
+      expandTooltip: context.t('vw.sel_expand'),
+      collapseTooltip: context.t('vw.sel_collapse'),
       colors: _highlightColors,
       selectedColor: _highlightColor,
       marking: marking,
@@ -473,6 +488,12 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
   /// üstünde yüzüyor; seçilen satır ekranın alt ~yarısındaysa çubuğun altında
   /// kalıyordu. [barHeight] kadar pay bırakılarak satır görünür alana
   /// kaydırılır (yakınlaştırma değişmez, en az kaydırma).
+  String _selectionCountLabel() {
+    final t = cleanPdfCopyText(_pdfSelection);
+    final words = t.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+    return context.t('vw.sel_count', {'chars': t.length, 'words': words});
+  }
+
   void _revealAboveBar(int page, List<PdfRect> rects,
       {double barHeight = 190}) {
     if (rects.isEmpty || page < 1) return;
@@ -491,11 +512,41 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
           area.bottom + (barHeight + 24) / zoom);
       // Çok uzun seçim (ekrandan büyük) için kaydırma anlamsız; pdfrx o
       // durumda yakınlaştırmayı değiştirirdi.
-      if (want.height >= visible.height) return;
-      if (want.bottom <= visible.bottom && want.top >= visible.top) return;
+      if (want.height >= visible.height) {
+        _placeSelectionBar(area, barHeight);
+        return;
+      }
+      if (want.bottom <= visible.bottom && want.top >= visible.top) {
+        _placeSelectionBar(area, barHeight);
+        return;
+      }
       _pdfController.ensureVisible(want);
+      // Kaydırma sınıra dayandıysa (sayfa/belge sonu) seçim yine çubuğun
+      // arkasında kalabilir → kaydırma oturunca yerleşim yeniden karar verir.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _placeSelectionBar(area!, barHeight);
+      });
     } catch (_) {
       // Görüntüleyici henüz hazır değilse sessizce atla.
+    }
+  }
+
+  /// PS5: seçimin alt kenarı alttaki çubuğun bölgesine düşüyorsa çubuk
+  /// ekranın üstüne geçer (seçimin üstü de çubuğun altına giriyorsa — çok
+  /// uzun seçim — alttaki yerinde kalır, önizleme alanı zaten tamamını
+  /// gösteriyor).
+  void _placeSelectionBar(Rect area, double barHeight) {
+    try {
+      final zoom =
+          _pdfController.currentZoom <= 0 ? 1.0 : _pdfController.currentZoom;
+      final visible = _pdfController.visibleRect;
+      final barTopDoc = visible.bottom - (barHeight + 24) / zoom;
+      final topZoneDoc = visible.top + (barHeight + 24) / zoom;
+      final covered = area.bottom > barTopDoc && area.top < visible.bottom;
+      final top = covered && area.top > topZoneDoc;
+      if (top != _pdfSelBarTop) _partSetState(() => _pdfSelBarTop = top);
+    } catch (_) {
+      // Görüntüleyici hazır değil: yerleşim değişmez.
     }
   }
 }
