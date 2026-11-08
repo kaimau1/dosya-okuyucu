@@ -58,11 +58,25 @@ class PdfFile {
         if (endStream > 0 && endStream <= endObj) {
           dataStart = p;
           dataEnd = endStream;
-          // `endstream`den önceki satır sonunu veriden çıkar.
-          while (dataEnd! > dataStart &&
-              (raw.codeUnitAt(dataEnd - 1) == 0x0A ||
-                  raw.codeUnitAt(dataEnd - 1) == 0x0D)) {
-            dataEnd = dataEnd - 1;
+          // Doğrudan /Length geçerliyse (ardından yalnız boşluk + endstream)
+          // ona güven. KÖK NEDEN (Faz 54): sondaki satır sonunu kırpmak,
+          // sıkıştırılmış verinin SON BAYTI tesadüfen 0x0A/0x0D olduğunda onu
+          // da kesiyordu → zlib sağlama hatası (mutool "incorrect data check").
+          final len = RegExp(r'/Length\s+(\d+)(?!\s+\d+\s+R)')
+              .firstMatch(raw.substring(bodyStart, streamKeyword))
+              ?.group(1);
+          final end = len == null ? -1 : p + int.parse(len);
+          if (end >= p &&
+              end <= endStream &&
+              raw.substring(end, endStream).trim().isEmpty) {
+            dataEnd = end;
+          } else {
+            // `endstream`den önceki satır sonunu veriden çıkar.
+            while (dataEnd! > dataStart &&
+                (raw.codeUnitAt(dataEnd - 1) == 0x0A ||
+                    raw.codeUnitAt(dataEnd - 1) == 0x0D)) {
+              dataEnd = dataEnd - 1;
+            }
           }
           dictEnd = streamKeyword;
         }
@@ -681,12 +695,12 @@ class PdfFile {
     final entries = updates.entries.toList()
       ..sort((a, b) => a.key.number.compareTo(b.key.number));
 
-    final offsets = <PdfObject, int>{};
+    final written = <(int, int, int)>[];
     for (final entry in entries) {
       final obj = entry.key;
       final compressed = const ZLibEncoder().encode(entry.value);
       final dict = _rebuildStreamDict(obj.dict, compressed.length);
-      offsets[obj] = out.length;
+      written.add((obj.number, obj.generation, out.length));
       out
         ..add(latin1
             .encode('${obj.number} ${obj.generation} obj\n$dict\nstream\n'))
@@ -694,9 +708,37 @@ class PdfFile {
         ..add(latin1.encode('\nendstream\nendobj\n'));
     }
 
-    _appendXref(out, offsets, [for (final e in entries) e.key]);
+    _appendXref(out, written, maxObjectNumber + 1);
     return out.takeBytes();
   }
+
+  /// Gövdesi hazır nesneleri ([body] = `N G obj … endobj` baytları) TEK
+  /// eklemede yazar; numarası dosyada olmayan (yeni) nesneler de olabilir.
+  /// PDF Pro artımlı kayıt kırpması kullanır (Faz 54 / 0): PDFium'un
+  /// eklemesinden yalnız GERÇEKTEN değişen nesneler buraya gelir.
+  List<int> appendRawObjects(
+      List<({int number, int generation, List<int> body})> objs) {
+    if (objs.isEmpty) return List<int>.of(bytes);
+    final out = BytesBuilder()..add(bytes);
+    if (bytes.isNotEmpty && bytes.last != 0x0A) out.add([0x0A]);
+    final sorted = [...objs]..sort((a, b) => a.number.compareTo(b.number));
+    final written = <(int, int, int)>[];
+    var size = maxObjectNumber + 1;
+    for (final o in sorted) {
+      written.add((o.number, o.generation, out.length));
+      if (o.number + 1 > size) size = o.number + 1;
+      out
+        ..add(o.body)
+        ..add(const [0x0A]);
+    }
+    _appendXref(out, written, size);
+    return out.takeBytes();
+  }
+
+  /// [_rebuildStreamDict]'in dış kullanımı (PDF Pro kırpması sıkıştırılmamış
+  /// PDFium akışlarını Flate'le yeniden yazar).
+  static String rebuildStreamDict(String dict, int length) =>
+      _rebuildStreamDict(dict, length);
 
   /// Akış sözlüğünü yeniden kurar: filtre/uzunluk bizim, kalan her şey aynen.
   ///
@@ -723,22 +765,22 @@ class PdfFile {
   /// TUZAK: taban dosya xref AKIŞI kullanıyorsa (PDF 1.5+, çok yaygın) güncelleme
   /// de akış olmalı. Klasik tablo eklemek "hibrit" bir dosya üretir ve birçok
   /// okuyucu bunu reddeder.
-  void _appendXref(
-      BytesBuilder out, Map<PdfObject, int> offsets, List<PdfObject> order) {
+  /// [order]: (numara, üretim, uzaklık), numaraya göre artan; [size] = en
+  /// büyük numara + 1.
+  void _appendXref(BytesBuilder out, List<(int, int, int)> order, int size) {
     final prev = _lastStartXref();
     final rootRef = pdfRef(trailerText, 'Root');
     final infoRef = pdfRef(trailerText, 'Info');
     final usesXrefStream = !_prevIsClassicTable(prev);
 
     if (!usesXrefStream) {
-      final size = maxObjectNumber + 1;
       final xrefOffset = out.length;
       final buffer = StringBuffer()..write('xref\n');
-      for (final obj in order) {
+      for (final (number, generation, offset) in order) {
         buffer
-          ..write('${obj.number} 1\n')
-          ..write('${offsets[obj]!.toString().padLeft(10, '0')} '
-              '${obj.generation.toString().padLeft(5, '0')} n \n');
+          ..write('$number 1\n')
+          ..write('${offset.toString().padLeft(10, '0')} '
+              '${generation.toString().padLeft(5, '0')} n \n');
       }
       buffer.write('trailer\n<< /Size $size');
       if (rootRef != null) buffer.write(' /Root $rootRef 0 R');
@@ -751,15 +793,15 @@ class PdfFile {
     }
 
     // XRef akışı: kendisi de bir nesne olduğu için yeni bir numara alır.
-    final xrefNumber = maxObjectNumber + 1;
-    final size = xrefNumber + 1;
+    final xrefNumber = size;
+    size = xrefNumber + 1;
     final xrefOffset = out.length;
 
     final entries = BytesBuilder();
     final index = StringBuffer();
-    for (final obj in order) {
-      entries.add(_xrefEntry(offsets[obj]!, obj.generation));
-      index.write('${obj.number} 1 ');
+    for (final (number, generation, offset) in order) {
+      entries.add(_xrefEntry(offset, generation));
+      index.write('$number 1 ');
     }
     entries.add(_xrefEntry(xrefOffset, 0));
     index.write('$xrefNumber 1');
