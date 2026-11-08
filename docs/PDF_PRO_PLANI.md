@@ -214,7 +214,7 @@ bayrağında. Rapor `docs/perf/2026-11-pdfpro-52-motor.md`.
        satır aralığı · liste · ⋯); blok çerçevesi dili (dokunmadan önce hafif, dokununca belirgin —
        her satırı gri kutuya boğmak YOK); boş/yükleniyor/hata durumları; tablet: sol araç rayı + sağ
        özellik paneli; RTL ayna.
-3. [ ] Etkileşim belirtimi `docs/design/pdf_pro/etkilesim.md`: dokun/uzun bas/sürükle/iki parmak,
+3. [x] Etkileşim belirtimi `docs/design/pdf_pro/etkilesim.md`: dokun/uzun bas/sürükle/iki parmak,
        imleç yerleştirme, seçim tutamaçları, yakınlaştırma kuralları (klavye açılınca küçülme YOK,
        okunur boy hedefi 16–20 sp), haptik, Motion süreleri, geri tuşu davranışı.
 4. [ ] Tasarım tokenları: düzenleme yüzeyine özel renk/aralık/yarıçap tokenları `AppHues` içinde.
