@@ -10,5 +10,8 @@ const Map<String, (String, String, String)> _t28 = {
   'dg.frames_hint': ('Yavaş karelerin yalnız sayısal dağılımı, cihazda; ekran/dosya adı tutulmaz.', 'Only a numeric distribution of slow frames, on device; no screen or file names.', 'توزيع رقمي فقط للإطارات البطيئة على الجهاز؛ دون أسماء شاشات أو ملفات.'),
   'dg.send': ('Paylaş', 'Share', 'مشاركة'),
   'flt.clear': ('Temizle', 'Clear', 'مسح'),
+  'alias.action': ('AI ile ikinci ad ver', 'Give a second name with AI', 'إعطاء اسم ثانٍ بالذكاء الاصطناعي'),
+  'alias.started': ('İkinci ad hazırlanıyor — bitince satırda görünür. Dosyanın adı değişmez.', 'Preparing a second name — it appears on the row when done. The file name is not changed.', 'جارٍ إعداد اسم ثانٍ — يظهر في الصف عند الانتهاء. لا يتغير اسم الملف.'),
+  'alias.busy': ('AI analizi zaten sürüyor; bitince yeniden deneyin.', 'AI analysis is already running; try again when it finishes.', 'تحليل الذكاء الاصطناعي قيد التشغيل؛ أعد المحاولة عند انتهائه.'),
   'flt.none_left': ('Hiç dosya kalmadı', 'No files left', 'لم يتبق أي ملف'),
 };

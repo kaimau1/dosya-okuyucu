@@ -8,6 +8,7 @@ import '../../core/theme.dart';
 import '../../models/fm_layout.dart';
 import '../../models/fm_type.dart';
 import '../../models/fs_entry.dart';
+import '../../services/fm/ai_index.dart';
 import 'fm_entry_icon.dart';
 import 'fm_inline_play.dart';
 import '../motion.dart';
@@ -129,16 +130,34 @@ class FmEntryRow extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 2),
-                          Text(
-                            bidiParts(context, subtitle),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                              fontFeatures: const [
-                                FontFeature.tabularFigures()
-                              ],
-                            ),
+                          // İkinci ad (AI, 2026-11-08) alt satırın başında;
+                          // tek satır kalır → satır yüksekliği sabit (G14).
+                          ValueListenableBuilder<int>(
+                            valueListenable: AiIndex.revision,
+                            builder: (context, _, _) {
+                              final alias = AiIndex.aliasOf(entry.path);
+                              return Text.rich(
+                                TextSpan(children: [
+                                  if (alias.isNotEmpty)
+                                    TextSpan(
+                                      text: '$alias · ',
+                                      style: TextStyle(
+                                        color: scheme.primary,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  TextSpan(text: bidiParts(context, subtitle)),
+                                ]),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures()
+                                  ],
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -310,9 +329,11 @@ class FmEntryCard extends StatelessWidget {
 String fmEntrySemanticsLabel(
     BuildContext context, FsEntry entry, String? subtitle) {
   final type = FmType.of(entry);
+  final alias = AiIndex.aliasOf(entry.path);
   final parts = [
     if (type != FmType.folder && type != FmType.other) context.t(type.labelKey),
     entry.name,
+    if (alias.isNotEmpty) alias,
     if (subtitle != null && subtitle.isNotEmpty) subtitle,
   ];
   return parts.join(', ');
