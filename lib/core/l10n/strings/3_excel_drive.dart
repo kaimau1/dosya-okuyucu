@@ -887,6 +887,11 @@ const Map<String, (String, String, String)> _t3 = {
     'المتابعة من الصفحة {n}',
   ),
   'vw.restart_doc': ('Baştan başla', 'Start over', 'ابدأ من جديد'),
+  'vw.resumed_slide': (
+    '{n}. slayttan devam ediliyor',
+    'Resuming from slide {n}',
+    'المتابعة من الشريحة {n}',
+  ),
   'pt.move_to': ('Sayfayı taşı…', 'Move page to…', 'نقل الصفحة إلى…'),
   'pt.move_to_hint': (
     'Hedef sayfa numarası (1-{n})',

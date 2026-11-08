@@ -34,6 +34,7 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
       _error = userErrorText(e);
     }
     if (mounted) _partSetState(() {});
+    if (_editor != null) _resumeSlide();
     // Ekran açılmayı BEKLEMEZ: kaynak damgası + taslak araması arkada.
     if (_editor != null) {
       unawaited(_session.captureSource());
@@ -350,7 +351,35 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
     if (next != _currentSlide) {
       _partSetState(() => _currentSlide = next);
       _followStrip(index);
+      ReadingPositions.record(widget.path, next, _slideCount, size: _docSize);
     }
+  }
+
+  /// Kaldığın yerden devam (Word/PDF ile aynı kayıt): çizilen ilk karede
+  /// kayıtlı slayda atlanır (yükseklikler analitik — ölçüm beklemez) ve bir
+  /// kez "N. sayfadan devam · Baştan başla" notu çıkar.
+  void _resumeSlide() {
+    try {
+      _docSize = File(widget.path).lengthSync();
+    } catch (_) {}
+    final n = ReadingPositions.pageOf(widget.path, size: _docSize);
+    if (n == null || n <= 1 || n > _slideCount) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_vCtrl.hasClients || _baseW <= 0) return;
+      _vCtrl.jumpTo(_slideOffset(n - 1)
+          .clamp(0.0, _vCtrl.position.maxScrollExtent));
+      showSnack(
+        context,
+        context.t('vw.resumed_slide', {'n': n}),
+        action: SnackBarAction(
+          label: context.t('vw.restart_doc'),
+          onPressed: () {
+            ReadingPositions.clear(widget.path);
+            if (_vCtrl.hasClients) _vCtrl.jumpTo(0);
+          },
+        ),
+      );
+    });
   }
 
   /// [number] 1 tabanlı slayt numarasına kaydırır.
