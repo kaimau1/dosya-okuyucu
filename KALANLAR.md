@@ -153,6 +153,15 @@ kapısı (> %10 ya da p99 > 24 ms → birleşmez). Sıra 43 → 50. A3.4b bu faz
 - [ ] Override'lar (Faz 45/47): `xml` (webdav_client), `pointycastle` (smb_connect), `dartssh2` (ftpconnect) — paketler yeni sürüm çıkarınca sil; `shared_preferences_android` 2.4.28 sabit (2.5.4'te de süreç geneli kayıt silinmesi).
 - [ ] Faz 44 artığı 📱: P9/P12 ve duman turunun elle maddeleri 3.47'de; Xiaomi'de P5 kuyruğu (+%14–18 MatePad'de) yeniden ölç.
 
+## Faz E — PDF Pro: profesyonel PDF düzenleyici (2026-11-08, kullanıcı isteği) ☁️💻📱
+Ayrıntı, kök nedenler, mimari kararlar (PK1–PK8) ve bitti ölçütleri: **`docs/PDF_PRO_PLANI.md`**
+(Faz 51–68: külliyat + ölçüm + kanama durdurma · PDFium düzenleme köprüsü + karar kapısı · tasarım
+dili (👤 onay) · oturum çekirdeği + tek yüzey + kaydetme · metin anlama · yazı tipi sadakati ·
+WYSIWYG yerinde düzenleme · metin araçları · nesneler · işaretleme · form/imza · OCR Pro · sayfa
+stüdyosu · güvenlik/çıktı · AI · performans · görsel cila · sürüm adayı + rakip turu).
+Sıra 51 → 68 (atlama yok). Bildirilen 6 sorun (PS1–PS6) Faz 51'de ara, 54/57'de kalıcı çözülür.
+- [ ] **Faz 51** — sıradaki (külliyat + tezgâh ☁️; PS1/3/4/5 ara düzeltmeleri; kısa cihaz turu 📱).
+
 ---
 
 ## Faz B — Diğerleri 📱💻👤
