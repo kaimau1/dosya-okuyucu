@@ -7,6 +7,7 @@ import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../services/fm/app_storage_service.dart';
 import '../../services/fm/installed_apps_service.dart';
+import '../../services/fm/storage_permission.dart';
 import '../../widgets/ai_send_consent.dart';
 import '../../widgets/fm/pin_dialog.dart';
 import 'settings_widgets.dart';
@@ -227,7 +228,9 @@ class _UsageAccessTileState extends State<UsageAccessTile> {
   }
 
   @override
-  Widget build(BuildContext context) => SettingTile(
+  Widget build(BuildContext context) => StoragePermission.readerBuild
+      ? const SizedBox.shrink()
+      : SettingTile(
         icon: AppIcons.queryStats,
         title: context.t('fmset.usage_access'),
         subtitle: context

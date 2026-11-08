@@ -305,6 +305,12 @@ class _PermissionStatusRowState extends State<PermissionStatusRow>
 
   @override
   Widget build(BuildContext context) {
+    // Okuyucu derlemesinde bu izinler manifestte yok: satır anlamsız.
+    if (StoragePermission.readerBuild &&
+        const {AppPermission.allFiles, AppPermission.location,
+            AppPermission.overlay}.contains(widget.permission)) {
+      return const SizedBox.shrink();
+    }
     final k = PermissionCard.keyOf(widget.permission);
     final granted = _status == GateStatus.granted;
     if (widget.hideWhenGranted && (granted || _status == null)) {

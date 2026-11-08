@@ -67,6 +67,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
                     icon: const Icon(AppIcons.addFolder),
                     label: Text(context.t('fm.add_folder')),
                   ),
+                  if (!StoragePermission.readerBuild)
                   FilledButton.icon(
                     onPressed: _requestAccess,
                     icon: const Icon(AppIcons.unlock),

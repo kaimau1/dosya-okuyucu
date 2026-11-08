@@ -1,0 +1,96 @@
+# İzinsiz okuyucu derlemesi (Play yorum çalışması aşama 3, 2026-11-08).
+#
+# Yalnız ELLE tetiklenir (Actions › "Okuyucu derlemesi (izinsiz)" › Run).
+# Ayrı paket kimliği `…dosya_okuyucu.okuyucu` (ayrı Play kaydı, tam uygulamayla
+# yan yana kurulur) ve manifestte HASSAS izin YOK — liste
+# `ci/prepare_android.sh` §11 (OKUYUCU_REMOVE); derleme sonrası birleşmiş
+# manifestte `ci/play_variant.py verify` ile denetlenir. Dart tarafı
+# `DOSYA_OKUYUCU=true` → izin düğmeleri gizli, dosyalar "Dosya aç" ve
+# "Klasör ekle" (SAF) ile. Sonuç: artifact (arm64 APK + AAB); Release'e girmez.
+name: Okuyucu derlemesi (izinsiz)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: '3.47.9'
+
+jobs:
+  okuyucu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+
+      - name: Android iskeleti + okuyucu varyantı
+        env:
+          DOSYA_OKUYUCU: '1'
+        run: bash ci/prepare_android.sh
+
+      - name: İmza anahtarı
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'DosyaOkuyucuGecici' }}
+        run: |
+          set -e
+          if [ -n "$KS_B64" ]; then
+            printf '%s' "$KS_B64" | tr -d '\r\n \t' | base64 -d > release.jks
+          else
+            keytool -genkeypair -keystore release.jks -storetype PKCS12 \
+              -keyalg RSA -keysize 2048 -validity 10000 -alias dosyaokuyucu \
+              -storepass "$KS_PASS" -keypass "$KS_PASS" \
+              -dname "CN=Dosya Okuyucu, O=DosyaOkuyucu, C=TR"
+            echo "::warning::Geçici anahtarla imzalandı (SIGNING.md)."
+          fi
+
+      - name: Derle (APK arm64 + AAB), izinleri denetle, imzala
+        env:
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'DosyaOkuyucuGecici' }}
+        run: |
+          set -e
+          DEFINES="--dart-define=DOSYA_OKUYUCU=true"
+          flutter build apk --release --split-per-abi --obfuscate \
+            --split-debug-info=build/symbols --build-number=${{ github.run_number }} \
+            --target-platform android-arm64 $DEFINES
+          flutter build appbundle --release --obfuscate \
+            --split-debug-info=build/symbols-aab --build-number=${{ github.run_number }} \
+            --target-platform android-arm,android-arm64,android-x64 $DEFINES
+          OKUYUCU_REMOVE=$(grep -oP "^OKUYUCU_REMOVE='\K[^']+" ci/prepare_android.sh)
+          DOSYA_PLAY_REMOVE="$OKUYUCU_REMOVE" python3 ci/play_variant.py verify $(find build/app/intermediates \
+            -path '*merged_manifest*' -path '*release*' -name AndroidManifest.xml)
+          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          APKSIGNER=$(ls "$SDK"/build-tools/*/apksigner | sort -V | tail -1)
+          APK=build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+          "$APKSIGNER" sign --ks release.jks --ks-key-alias dosyaokuyucu \
+            --ks-pass "pass:$KS_PASS" --key-pass "pass:$KS_PASS" "$APK"
+          AAB=build/app/outputs/bundle/release/app-release.aab
+          jarsigner -keystore release.jks -storepass "$KS_PASS" -keypass "$KS_PASS" \
+            -sigalg SHA256withRSA -digestalg SHA-256 "$AAB" dosyaokuyucu
+          mkdir -p out && cp "$APK" out/dosya-okuyucu-okuyucu.apk && cp "$AAB" out/dosya-okuyucu-okuyucu.aab
+          {
+            echo "### Okuyucu derlemesi (izinsiz)"
+            echo "Kalan izinler:"
+            AAPT2=$(ls "$SDK"/build-tools/*/aapt2 | sort -V | tail -1)
+            "$AAPT2" dump permissions "$APK" 2>/dev/null | sed 's/^/- /' || true
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dosya-okuyucu-okuyucu
+          path: out/
+          retention-days: 30

@@ -417,20 +417,33 @@ rm -rf .backup
 # Ayrı paket kimliği (`.r8test`) + ayrı belge sağlayıcı yetkisi: yayın
 # uygulamasının ÜSTÜNE kurulmaz (anahtar farkı), ikisi aynı telefonda A/B
 # ölçülür (tool/r8_ab.sh). Eskiden elle yapılan 3 düzenleme (HAFIZA 2026-11-02).
-if [ "${DOSYA_R8TEST:-0}" = "1" ]; then
-  say ".r8test yan yana kimlik"
-  sed -i 's/com\.dosyaokuyucu\.dosya_okuyucu\.documents/com.dosyaokuyucu.dosya_okuyucu.r8test.documents/' \
+# Kimlik eki §11 ile ortak (aşağıdaki SUFFIX bloğu).
+# ── 11) İzinsiz okuyucu derlemesi (DOSYA_OKUYUCU=1, Play aşama 3) ────────────
+# Ayrı kimlik (`.okuyucu`, ayrı Play kaydı) + manifestte HASSAS izin yok
+# (ci/play_variant.py ile çıkarılır, derleme sonrası `verify`). Dart tarafı
+# `--dart-define=DOSYA_OKUYUCU=true` (StoragePermission.readerBuild).
+OKUYUCU_REMOVE='MANAGE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE,REQUEST_INSTALL_PACKAGES,QUERY_ALL_PACKAGES,REQUEST_DELETE_PACKAGES,ACCESS_FINE_LOCATION,ACCESS_COARSE_LOCATION,NEARBY_WIFI_DEVICES,BLUETOOTH,BLUETOOTH_ADMIN,BLUETOOTH_SCAN,BLUETOOTH_ADVERTISE,BLUETOOTH_CONNECT,PACKAGE_USAGE_STATS,SYSTEM_ALERT_WINDOW,RECORD_AUDIO,READ_MEDIA_IMAGES,READ_MEDIA_VIDEO,READ_MEDIA_AUDIO,READ_MEDIA_VISUAL_USER_SELECTED'
+SUFFIX=''
+[ "${DOSYA_R8TEST:-0}" = "1" ] && SUFFIX=r8test
+[ "${DOSYA_OKUYUCU:-0}" = "1" ] && SUFFIX=okuyucu
+if [ -n "$SUFFIX" ]; then
+  say ".$SUFFIX yan yana kimlik"
+  sed -i "s/com\.dosyaokuyucu\.dosya_okuyucu\.documents/com.dosyaokuyucu.dosya_okuyucu.$SUFFIX.documents/" \
     android/app/src/main/AndroidManifest.xml "$DIR/PickerActivity.kt"
-  python3 - <<'PY'
-import pathlib, re
+  SUFFIX="$SUFFIX" python3 - <<'PY'
+import os, pathlib, re
+suffix = os.environ['SUFFIX']
 a = pathlib.Path('android/app/build.gradle.kts')
 t = a.read_text()
 if 'applicationIdSuffix' not in t:
-    t, n = re.subn(r'(defaultConfig\s*\{)', r'\1\n        applicationIdSuffix = ".r8test"', t, count=1)
+    t, n = re.subn(r'(defaultConfig\s*\{)', rf'\1\n        applicationIdSuffix = ".{suffix}"', t, count=1)
     if n != 1:
-        raise SystemExit('defaultConfig bulunamadı (.r8test)')
+        raise SystemExit(f'defaultConfig bulunamadı (.{suffix})')
     a.write_text(t)
 PY
-  grep -c "r8test" android/app/build.gradle.kts android/app/src/main/AndroidManifest.xml "$DIR/PickerActivity.kt"
+  grep -c "$SUFFIX" android/app/build.gradle.kts android/app/src/main/AndroidManifest.xml "$DIR/PickerActivity.kt"
+fi
+if [ "${DOSYA_OKUYUCU:-0}" = "1" ]; then
+  DOSYA_PLAY_REMOVE="$OKUYUCU_REMOVE" python3 ci/play_variant.py apply
 fi
 echo "Android iskeleti hazır."

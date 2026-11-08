@@ -8,6 +8,7 @@ import '../../core/theme.dart';
 import '../../core/snack.dart';
 import '../../services/file_service.dart' show FileService;
 import '../../services/fm/entry_opener.dart';
+import '../../services/fm/storage_permission.dart';
 import '../../services/sample_docs.dart';
 import '../../widgets/permission_gate.dart';
 
@@ -174,6 +175,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           body: context.t('onb.choice_open_sub'),
                           onTap: _openFile,
                         ),
+                        if (!StoragePermission.readerBuild) ...[
                         const SizedBox(height: Gap.sm),
                         _Choice(
                           key: const ValueKey('onb-manage-all'),
@@ -184,6 +186,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               : context.t('fm.permission_body'),
                           onTap: _manageAll,
                         ),
+                        ],
                       ],
                     ),
                     _Page(
