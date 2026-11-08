@@ -1442,7 +1442,13 @@ class MainActivity : FlutterActivity() {
      */
     private fun appSignatureSha1(): String? {
         return try {
-            val signatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val signatures = if (Build.VERSION.SDK_INT >= 33) {
+                packageManager.getPackageInfo(
+                    packageName,
+                    PackageManager.PackageInfoFlags.of(PackageManager.GET_SIGNING_CERTIFICATES.toLong())
+                ).signingInfo?.apkContentsSigners
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                @Suppress("DEPRECATION")
                 packageManager.getPackageInfo(
                     packageName, PackageManager.GET_SIGNING_CERTIFICATES
                 ).signingInfo?.apkContentsSigners
@@ -1485,11 +1491,23 @@ class MainActivity : FlutterActivity() {
     private fun apkPaths(pkg: String?): Map<String, Any?>? {
         if (pkg.isNullOrEmpty()) return null
         return try {
-            val info = packageManager.getApplicationInfo(pkg, 0)
+            // API 33+: int bayraklı aşırı yükleme kalktı → *Flags (Faz 49 / 3).
+            val info = if (Build.VERSION.SDK_INT >= 33) {
+                packageManager.getApplicationInfo(pkg, PackageManager.ApplicationInfoFlags.of(0))
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getApplicationInfo(pkg, 0)
+            }
             val source = info.sourceDir ?: return null
             val splits = info.splitSourceDirs?.filterNotNull() ?: emptyList()
             val version = try {
-                packageManager.getPackageInfo(pkg, 0).versionName ?: ""
+                val pi = if (Build.VERSION.SDK_INT >= 33) {
+                    packageManager.getPackageInfo(pkg, PackageManager.PackageInfoFlags.of(0))
+                } else {
+                    @Suppress("DEPRECATION")
+                    packageManager.getPackageInfo(pkg, 0)
+                }
+                pi.versionName ?: ""
             } catch (e: Exception) {
                 ""
             }
