@@ -88,7 +88,8 @@ class PdfiumEngine extends BenchEngine {
       final after = await PdfEditBridge.markedObjects(doc, page);
       final mine = target.objectIndexes.toSet();
       final outside = before.where((i) => !mine.contains(i)).length;
-      return BenchEditResult(await PdfEditBridge.saveIncremental(doc),
+      return BenchEditResult(
+          await PdfEditBridge.saveIncremental(doc, original: pdf),
           // Geri okuma doğrulaması eşlenemeyen karakteri reddeder; alt küme
           // fontta glifin VARLIĞI ayrıca ölçülmüyor (Faz 56) → null.
           fallbackChars: 0,

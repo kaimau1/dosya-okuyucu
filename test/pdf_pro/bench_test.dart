@@ -42,6 +42,11 @@ Future<BenchReport> _runAndGuard(BenchEngine engine, String baseline) async {
         reason: '${engine.name} $k başarı oranı tabanın altında');
     expect(cur['pixelDirty'] as int, lessThanOrEqualTo(b['pixelDirty'] as int),
         reason: '${engine.name} $k: değişmeyen bölgede piksel farkı arttı');
+    final growthMax = b['growthP50Max'] as num?;
+    if (growthMax != null) {
+      expect(cur['growthP50'] as double, lessThanOrEqualTo(growthMax),
+          reason: '${engine.name} $k: artımlı kayıt büyümesi (PK1 koşulu 2)');
+    }
   }
   return report;
 }

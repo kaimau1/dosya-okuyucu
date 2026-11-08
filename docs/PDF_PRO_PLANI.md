@@ -227,10 +227,18 @@ değişikliğine açık olduğunu söylemişti → 5. madde **👤 KALANLAR'da a
 bloklanmadı; Faz 54+ bu maketlerle sürer.
 
 ### Faz 54 — Düzenleme oturumu çekirdeği + tek yüzey + kaydetme akışı ☁️ + 📱 (3 oturum)
-0. [ ] **PK1 koşulları (Faz 52 kararı — bu faz bitmeden PDFium yolu varsayılan olmaz):** (a) değişmeyen
+0. [x] **PK1 koşulları (Faz 52 kararı — bu faz bitmeden PDFium yolu varsayılan olmaz):** (a) değişmeyen
        bölge piksel farkı 0, ReportLab ailesi dahil (`GenerateContent` `Tw`/`Tc` yazmıyor → hibrit yazım:
        yeni nesneler ayrı akışa, eski blok baytları Dart artımlı yazıcıyla akıştan çıkar); (b) artımlı
        kayıt büyümesi p50 ≤ 4 KB (font sözlüğü/akışı yeniden yazılmasın). Ölçüt: `baseline_pdfium.json`.
+       **Sonuç:** (a) piksel farkı **0/0** (ReportLab dahil) — hibrit yazım yerine *prova + sabitleme*:
+       düzenleme önce sayfanın geçici kopyasında yapılır, üretilen akış yeniden ayrıştırılır, kayan
+       dokunulmamış nesne katı kaymadaysa taşınır, değilse sözcük/harf parçalarına bölünür; güvenle
+       düzeltilemiyorsa canlı belgeye dokunmadan ret (harf birleştirmeli Arapça, matplotlib döndürülmüş
+       etiket: 5 ret). Glif reddi artık akış üretmeden geri alınır (kusursuz). (b) büyüme p50 36,5 KB →
+       **2,7 KB**: `PdfIncrementalTrim` PDFium ekindeki özgünle anlamca aynı nesneleri atar, sıkıştırmasız
+       akışları Flate'ler (şifreli belgede kırpma yok — PDFium şifreleme sözlüğünü yeniliyor). RTL blok
+       açık ret (PK7; RTL Faz 55/57).
 1. [ ] `PdfEditSession`: görüntüleyicinin belgesine bağlı oturum; sayfa bazlı kirli izleme; komut
        yığını (her komut: uygula/geri al — sayfa içerik akışı + kaynak sözlüğü anlık görüntüsü, tüm
        belge kopyası YOK); sınırsız geri al/yinele, adım adları ("Paragraf düzenlendi: 'Ancak…'").
