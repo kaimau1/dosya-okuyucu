@@ -24,7 +24,7 @@ library;
 const appVersionMajor = 1;
 
 /// Ara sürüm (elle artırılır — yeni özellik kümesinde).
-const appVersionMinor = 1;
+const appVersionMinor = 2;
 
 /// Yama — **CI bu satırı değiştirir**, elle dokunulmaz.
 /// Yerel derlemede 0 kalır ("1.0.0" = "geliştirici derlemesi").
