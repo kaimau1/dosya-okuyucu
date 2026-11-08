@@ -502,6 +502,10 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
   void _revealAboveBar(int page, List<PdfRect> rects,
       {double barHeight = 190}) {
     if (rects.isEmpty || page < 1) return;
+    // Seçim çubuğu alttaki okuma çubuğunun ÜSTÜNDE yüzer (ReadingFloat):
+    // görüntüleyici o çubuğun arkasına da uzandığı için onun yüksekliği de
+    // örtüye girer (cihaz turu: son satır çubuğun kenarında kalıyordu).
+    barHeight += ReadingChrome.insetsOf(context).bottom;
     try {
       Rect? area;
       for (final r in rects) {

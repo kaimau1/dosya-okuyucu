@@ -40,4 +40,11 @@ void main() {
     expect(pdfHasTextLayer(''), isFalse);
     expect(pdfHasTextLayer('  \r\n ￾ 12 '), isFalse);
   });
+
+  test('kutu örtüşmezse seçimin başını metninde taşıyan blok', () {
+    const blocks = ['Müze Rehberi', 'Öğretmenler odasındaki yazıcı… İğne oyası, nesilden nesile'];
+    expect(bestTextMatch(blocks, 'oyası,\r\nnesilden'), 1);
+    expect(bestTextMatch(blocks, 'yok böyle'), isNull);
+    expect(bestTextMatch(blocks, 'ab'), isNull);
+  });
 }

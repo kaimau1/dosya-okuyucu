@@ -33,6 +33,19 @@ int? bestOverlap(List<PdfRect> selection, List<PdfRect> boxes) {
   return best;
 }
 
+/// Kutular örtüşmüyorsa (motorun paragraf kutusu birleşik paragrafın yalnız
+/// ilk satırlarını kapsayabiliyor — cihaz turu) seçimin başını METNİNDE
+/// taşıyan ilk blok; yoksa null.
+int? bestTextMatch(List<String> blocks, String selection) {
+  final needle = selection.replaceAll(RegExp(r'\s+'), '');
+  if (needle.length < 3) return null;
+  final head = needle.length > 24 ? needle.substring(0, 24) : needle;
+  for (var i = 0; i < blocks.length; i++) {
+    if (blocks[i].replaceAll(RegExp(r'\s+'), '').contains(head)) return i;
+  }
+  return null;
+}
+
 /// Seçimin [blockText] içindeki BAŞLANGICI (imleç oraya konur). Boşluk ve
 /// satır sonu farkları yok sayılır (pdfium satır sonlarında `\r\n` verir,
 /// blok metni tek satırdır); bulunamazsa 0.

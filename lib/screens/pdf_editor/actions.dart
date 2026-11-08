@@ -267,9 +267,10 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
       return;
     }
     final par = bestOverlap(sel.rects, [
-      for (final p in _outline.paragraphs)
-        PdfRect(p.left, p.top, p.right, p.bottom),
-    ]);
+          for (final p in _outline.paragraphs)
+            PdfRect(p.left, p.top, p.right, p.bottom),
+        ]) ??
+        bestTextMatch([for (final p in _outline.paragraphs) p.text], sel.text);
     if (par != null) {
       _pendingSelection = null;
       _editParagraph(par);
