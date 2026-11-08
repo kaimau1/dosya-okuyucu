@@ -709,7 +709,6 @@ const Map<String, (String, String, String)> _t8 = {
   'aih.ex4': ('Sözleşmelerim', 'My contracts', 'عقودي'),
   'aih.thinking': ('Dosyalarına bakıyorum…', 'Looking through your files…', 'أبحث في ملفاتك…'),
   'aih.ask_files': ('Dosyalara sor', 'Ask your files', 'اسأل ملفاتك'),
-  'set.theme_auto': ('Otomatik', 'Auto', 'تلقائي'),
   'vw.saving_wait': (
     'Kaydediliyor, bir saniye…',
     'Saving, one moment…',
