@@ -204,7 +204,7 @@ büyüme 36 KB p50 → ikisi **Faz 54 bitti ölçütüne** eklendi; o zamana dek
 bayrağında. Rapor `docs/perf/2026-11-pdfpro-52-motor.md`.
 
 ### Faz 53 — Tasarım dili ve etkileşim prototipi 👤 onay kapısı ☁️ (1–2 oturum)
-1. [ ] Rakip akış analizi (Acrobat, Foxit, PDFelement, Xodo, Nutrient) → `docs/design/pdf_pro/analiz.md`:
+1. [x] Rakip akış analizi (Acrobat, Foxit, PDFelement, Xodo, Nutrient) → `docs/design/pdf_pro/analiz.md`:
        giriş, blok seçimi, biçim çubuğu, nesne tutamaçları, kaydetme — her birinde "biz nasıl daha iyi".
 2. [ ] **Yüksek çözünürlüklü maketler** (telefon dikey/yatay + tablet, açık/koyu): görüntüleyici ↔
        düzenleme kipi geçişi; üst çubuk (geri · başlık + "kaydedilmedi" durumu · geri al · yinele ·
