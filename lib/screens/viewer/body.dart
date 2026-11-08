@@ -58,6 +58,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                     child: _nightFilter(
                     child: PdfViewer.file(
                       doc.path,
+                      key: _pdfViewerKey,
                       controller: _pdfController,
                       initialPageNumber: _pdfPage,
                       passwordProvider: _askPdfPassword,

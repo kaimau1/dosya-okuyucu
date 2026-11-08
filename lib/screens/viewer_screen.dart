@@ -203,6 +203,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
   bool _pdfSelBarTop = false;
   Timer? _pdfSelRevealTimer;
 
+  /// Seçim çubuğunun örttüğü yeri ÖLÇMEK için (tahmin yerine).
+  final GlobalKey _pdfViewerKey = GlobalKey();
+  final GlobalKey _pdfSelBarKey = GlobalKey();
+
   /// Sürükleyerek seçim ŞU AN sürüyor mu? (Uzun basış sonrası parmak yerde ya
   /// da fare metin üzerinde basılı.) True iken pdfrx'in pan'ı kilitlenir ki
   /// sürükleme sayfayı kaydırmasın; işaretçi kalkar kalkmaz katman false

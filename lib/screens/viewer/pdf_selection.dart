@@ -79,6 +79,7 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
   Widget _selectionBar() {
     final marking = _lastMark != null && _pendingMarks.contains(_lastMark);
     return PdfSelectionBar(
+      key: _pdfSelBarKey,
       preview: _ViewerScreenState._shorten(_pdfSelection, 34),
       fullText: cleanPdfCopyText(_pdfSelection),
       countLabel: _selectionCountLabel(),
@@ -499,60 +500,85 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
     return context.t('vw.sel_count', {'chars': t.length, 'words': words});
   }
 
+  /// Seçim çubuğunun üst kenarı, görüntüleyicinin YEREL koordinatında —
+  /// ölçülür (cihaz turu: tahmin alt okuma çubuğunu kaçırıyordu); çubuk henüz
+  /// yoksa görüntüleyici altından [fallbackHeight] kadar yukarısı.
+  double? _selBarTopLocal(double fallbackHeight) {
+    final viewer = _pdfViewerKey.currentContext?.findRenderObject();
+    if (viewer is! RenderBox || !viewer.attached) return null;
+    final bar = _pdfSelBarKey.currentContext?.findRenderObject();
+    if (bar is RenderBox && bar.attached) {
+      return bar.localToGlobal(Offset.zero).dy -
+          viewer.localToGlobal(Offset.zero).dy;
+    }
+    return viewer.size.height - fallbackHeight;
+  }
+
+  /// Seçimin (belge koordinatında) birleşik kutusu.
+  Rect? _selArea(int page, List<PdfRect> rects) {
+    Rect? area;
+    for (final r in rects) {
+      final rect =
+          _pdfController.calcRectForRectInsidePage(pageNumber: page, rect: r);
+      area = area == null ? rect : area.expandToInclude(rect);
+    }
+    return area;
+  }
+
+  /// Seçim çubuğun arkasında kalıyorsa belge (yakınlık değişmeden) yukarı
+  /// kaydırılır; kaydırılamıyorsa (sayfa/belge sonu, çok uzun seçim) çubuk
+  /// ekranın üstüne geçer ([_placeSelectionBar]).
   void _revealAboveBar(int page, List<PdfRect> rects,
       {double barHeight = 190}) {
     if (rects.isEmpty || page < 1) return;
-    // Seçim çubuğu alttaki okuma çubuğunun ÜSTÜNDE yüzer (ReadingFloat):
-    // görüntüleyici o çubuğun arkasına da uzandığı için onun yüksekliği de
-    // örtüye girer (cihaz turu: son satır çubuğun kenarında kalıyordu).
-    barHeight += ReadingChrome.insetsOf(context).bottom;
     try {
-      Rect? area;
-      for (final r in rects) {
-        final rect =
-            _pdfController.calcRectForRectInsidePage(pageNumber: page, rect: r);
-        area = area == null ? rect : area.expandToInclude(rect);
-      }
-      if (area == null) return;
+      final area = _selArea(page, rects);
+      final barTopLocal = _selBarTopLocal(barHeight);
+      if (area == null || barTopLocal == null) return;
       final zoom =
           _pdfController.currentZoom <= 0 ? 1.0 : _pdfController.currentZoom;
       final visible = _pdfController.visibleRect;
-      final want = Rect.fromLTRB(area.left, area.top - 24 / zoom, area.right,
-          area.bottom + (barHeight + 24) / zoom);
-      // Çok uzun seçim (ekrandan büyük) için kaydırma anlamsız; pdfrx o
-      // durumda yakınlaştırmayı değiştirirdi.
-      if (want.height >= visible.height) {
-        _placeSelectionBar(area, barHeight);
+      final gap = 16 / zoom;
+      final barTopDoc = visible.top + barTopLocal / zoom;
+      final shift = area.bottom + gap - barTopDoc;
+      // Zaten görünür ya da seçim çubuğun üstündeki alana sığmıyor.
+      if (shift <= 0 || area.top - shift < visible.top + gap) {
+        _placeSelectionBar(page, rects);
         return;
       }
-      if (want.bottom <= visible.bottom && want.top >= visible.top) {
-        _placeSelectionBar(area, barHeight);
-        return;
-      }
-      _pdfController.ensureVisible(want);
-      // Kaydırma sınıra dayandıysa (sayfa/belge sonu) seçim yine çubuğun
-      // arkasında kalabilir → kaydırma oturunca yerleşim yeniden karar verir.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _placeSelectionBar(area!, barHeight);
+      _pdfController.goTo(
+          _pdfController.value.clone()
+            ..leftTranslateByDouble(0, -shift * zoom, 0, 1),
+          duration: Motion.short);
+      // pdfrx belge sınırında kaydırmayı kıstırabilir → oturunca yeniden bak.
+      Future<void>.delayed(Motion.medium, () {
+        if (mounted) _placeSelectionBar(page, rects);
       });
     } catch (_) {
       // Görüntüleyici henüz hazır değilse sessizce atla.
     }
   }
 
-  /// PS5: seçimin alt kenarı alttaki çubuğun bölgesine düşüyorsa çubuk
-  /// ekranın üstüne geçer (seçimin üstü de çubuğun altına giriyorsa — çok
-  /// uzun seçim — alttaki yerinde kalır, önizleme alanı zaten tamamını
-  /// gösteriyor).
-  void _placeSelectionBar(Rect area, double barHeight) {
+  /// PS5: seçimin alt kenarı çubuğun arkasına düşüyorsa ve seçimin üstünde
+  /// çubuğa yer varsa çubuk ekranın üstüne geçer; değilse altta kalır
+  /// (önizleme alanı zaten seçimin tamamını gösterir).
+  void _placeSelectionBar(int page, List<PdfRect> rects) {
     try {
+      // Üste geçtiyse bu seçim boyunca orada kalır (yeni seçimde sıfırlanır):
+      // alttaki yeri artık ölçülemez, gidip gelmesin.
+      if (_pdfSelBarTop) return;
+      final area = _selArea(page, rects);
+      final bar = _pdfSelBarKey.currentContext?.findRenderObject();
+      final barTopLocal = _selBarTopLocal(0);
+      if (area == null || bar is! RenderBox || barTopLocal == null) return;
       final zoom =
           _pdfController.currentZoom <= 0 ? 1.0 : _pdfController.currentZoom;
       final visible = _pdfController.visibleRect;
-      final barTopDoc = visible.bottom - (barHeight + 24) / zoom;
-      final topZoneDoc = visible.top + (barHeight + 24) / zoom;
+      final barH = bar.size.height;
+      final barTopDoc = visible.top + (barTopLocal - 16) / zoom;
       final covered = area.bottom > barTopDoc && area.top < visible.bottom;
-      final top = covered && area.top > topZoneDoc;
+      final roomAbove = area.top - visible.top > (barH + 32) / zoom;
+      final top = covered && roomAbove;
       if (top != _pdfSelBarTop) _partSetState(() => _pdfSelBarTop = top);
     } catch (_) {
       // Görüntüleyici hazır değil: yerleşim değişmez.
