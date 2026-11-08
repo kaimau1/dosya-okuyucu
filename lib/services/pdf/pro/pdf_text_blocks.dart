@@ -13,7 +13,8 @@ class PdfTextObjectInfo {
   final int index;
   final String text;
   final double left, bottom, right, top;
-  final double fontSize;
+  /// `Tf` puntosu (ekrandaki boy için [visualSize]).
+  final double tfSize;
   final String fontName;
 
   /// Nesne matrisi `[a, b, c, d, e, f]` (e, f = taban çizgisi başlangıcı).
@@ -27,7 +28,7 @@ class PdfTextObjectInfo {
     required this.bottom,
     required this.right,
     required this.top,
-    required this.fontSize,
+    required this.tfSize,
     required this.fontName,
     required this.matrix,
     required this.renderMode,
@@ -35,7 +36,7 @@ class PdfTextObjectInfo {
 
   /// Ekranda görünen punto (Tf × matris ölçeği).
   double get visualSize =>
-      fontSize * math.sqrt(matrix[2] * matrix[2] + matrix[3] * matrix[3]);
+      tfSize * math.sqrt(matrix[2] * matrix[2] + matrix[3] * matrix[3]);
   double get baseline => matrix[5];
   bool get rotated => matrix[1].abs() > 1e-3 || matrix[2].abs() > 1e-3;
 }

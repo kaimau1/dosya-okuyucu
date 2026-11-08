@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 PdfTextObjectInfo o(int i, String t, double x, double y, {double w = 80, double size = 10, bool rot = false}) =>
     PdfTextObjectInfo(
       index: i, text: t, left: x, bottom: y - 2, right: x + w, top: y + size * 0.8,
-      fontSize: size, fontName: 'Carlito',
+      tfSize: size, fontName: 'Carlito',
       matrix: rot ? [0, 1, -1, 0, x, y] : [1, 0, 0, 1, x, y], renderMode: 0);
 
 void main() {
