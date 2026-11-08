@@ -255,3 +255,65 @@ abstract final class AppHues {
   /// tutulur); yeni renk yalnız SONA eklenir.
   static const labels = [red, orange, amber, green, teal, blue, violet, pink, slate];
 }
+
+/// **PDF Pro düzenleme yüzeyi tokenları** (Faz 53 / 4, 2026-11-08).
+///
+/// Sözleşme: `docs/design/pdf_pro/etkilesim.md` + maketler
+/// (`docs/design/pdf_pro/maket/`). Vurgu rengi temadan gelir
+/// (`colorScheme.primary` / `primaryContainer`); burada yalnız temadan
+/// bağımsız roller, vurgu oranları ve ölçüler durur — düzenleme yüzeyinde
+/// sabit sayı yazılmaz.
+abstract final class PdfEditTokens {
+  // ── renk rolleri ───────────────────────────────────────────────────────
+  /// "Kaydedilmedi" noktası ve düzenlenemeyen bloğun kesik çerçevesi.
+  static const pendingLight = Color(0xFFB86A00);
+  static const pendingDark = Color(0xFFFFB74D);
+  static Color pending(bool dark) => dark ? pendingDark : pendingLight;
+
+  /// Seçili bloğun üstündeki yüzen eylem çubuğu (her temada koyu).
+  static const floatBar = Color(0xFF1A1F2A);
+  static const onFloatBar = Color(0xFFFFFFFF);
+  static const floatBarWell = Color(0x1FFFFFFF);
+  static const floatBarDanger = Color(0xFFF2B8B5);
+
+  // ── vurgu oranları (vurgu rengine `withValues(alpha:)`) ──────────────────
+  /// Dinlenmedeki blok kılavuzu — "her satırı gri kutuya boğma" YOK.
+  static const frameIdleAlpha = 0.14;
+
+  /// Seçili blok dolgusu.
+  static const frameFillAlpha = 0.06;
+
+  /// Metin seçimi dolgusu (yazma kipinde).
+  static const textSelectionAlpha = 0.28;
+
+  // ── ölçüler (dp) ───────────────────────────────────────────────────────
+  static const topBar = 56.0;
+  static const topBarTablet = 60.0;
+  static const toolBar = 64.0;
+  static const contextBar = 52.0;
+  static const formatBar = 52.0;
+  static const railCompact = 64.0;
+  static const railWide = 84.0;
+  static const propertyPanel = 320.0;
+  static const frameIdleWidth = 1.0;
+  static const frameActiveWidth = 2.0;
+  static const handle = 8.0;
+  static const handleTablet = 10.0;
+  static const caretWidth = 2.0;
+  static const minHit = 44.0;
+  static const chip = 36.0;
+  static const floatGap = 8.0;
+  static const floatRadius = 12.0;
+  static const chipRadius = 18.0;
+
+  /// Tablet düzeni (sol ray + sağ panel) bu kısa kenardan itibaren.
+  static const tabletShortestSide = 600.0;
+
+  /// Yazmaya girerken düzenlenen satırın ekrandaki yazı boyu (sp).
+  static const readableMin = 16.0;
+  static const readableMax = 20.0;
+  static const readableTarget = 18.0;
+
+  /// Yükleniyor göstergesi yalnız bu süreyi aşan işte çıkar (zamanlayıcı).
+  static const loadingDelay = Duration(milliseconds: 300);
+}

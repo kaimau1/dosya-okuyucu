@@ -217,7 +217,8 @@ bayrağında. Rapor `docs/perf/2026-11-pdfpro-52-motor.md`.
 3. [x] Etkileşim belirtimi `docs/design/pdf_pro/etkilesim.md`: dokun/uzun bas/sürükle/iki parmak,
        imleç yerleştirme, seçim tutamaçları, yakınlaştırma kuralları (klavye açılınca küçülme YOK,
        okunur boy hedefi 16–20 sp), haptik, Motion süreleri, geri tuşu davranışı.
-4. [ ] Tasarım tokenları: düzenleme yüzeyine özel renk/aralık/yarıçap tokenları `AppHues` içinde.
+4. [x] Tasarım tokenları: düzenleme yüzeyine özel renk/aralık/yarıçap tokenları `AppHues` içinde
+       (sonuç: `app_colors.dart` → `PdfEditTokens`; vurgu temadan, burada roller/oranlar/ölçüler).
 5. [ ] Kullanıcı onayı (maketler artefakt/ekran görüntüsü olarak sunulur); düzeltmeler işlenir.
 **Bitti:** kullanıcı maketleri onayladı; sonraki UX fazları bu maketlere göre yapılır.
 
