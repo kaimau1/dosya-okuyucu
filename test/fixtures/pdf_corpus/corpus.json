@@ -1,0 +1,567 @@
+[
+ {
+  "file": "rl_paragraflar.pdf",
+  "producer": "ReportLab",
+  "features": [
+   "ttf-alt-kume",
+   "carlito"
+  ],
+  "expected_paragraphs": 7,
+  "pages": 1
+ },
+ {
+  "file": "rl_iki_yana.pdf",
+  "producer": "ReportLab",
+  "features": [
+   "iki-yana",
+   "tinos"
+  ],
+  "expected_paragraphs": 6,
+  "pages": 1
+ },
+ {
+  "file": "rl_kucuk_punto.pdf",
+  "producer": "ReportLab",
+  "features": [
+   "8pt"
+  ],
+  "expected_paragraphs": 5,
+  "pages": 1
+ },
+ {
+  "file": "rl_iki_sutun.pdf",
+  "producer": "ReportLab",
+  "features": [
+   "iki-sutun",
+   "iki-yana"
+  ],
+  "expected_paragraphs": 9,
+  "pages": 1
+ },
+ {
+  "file": "rl_tablo.pdf",
+  "producer": "ReportLab",
+  "features": [
+   "tablo"
+  ],
+  "expected_paragraphs": 26,
+  "pages": 1
+ },
+ {
+  "file": "rl_liste.pdf",
+  "producer": "ReportLab",
+  "features": [
+   "madde-listesi"
+  ],
+  "expected_paragraphs": 6,
+  "pages": 1
+ },
+ {
+  "file": "rl_numarali.pdf",
+  "producer": "ReportLab",
+  "features": [
+   "numarali-liste"
+  ],
+  "expected_paragraphs": 6,
+  "pages": 1
+ },
+ {
+  "file": "rl_karma_logo.pdf",
+  "producer": "ReportLab",
+  "features": [
+   "logo+metin",
+   "PS2-benzeri"
+  ],
+  "expected_paragraphs": 5,
+  "pages": 1
+ },
+ {
+  "file": "rl_cok_sayfa.pdf",
+  "producer": "ReportLab",
+  "features": [
+   "cok-sayfa"
+  ],
+  "expected_paragraphs": 15,
+  "pages": 3
+ },
+ {
+  "file": "rl_yatay.pdf",
+  "producer": "ReportLab",
+  "features": [
+   "yatay-sayfa"
+  ],
+  "expected_paragraphs": 5,
+  "pages": 1
+ },
+ {
+  "file": "rl_sifreli.pdf",
+  "producer": "ReportLab",
+  "features": [
+   "sifreli-sahip-parolasi"
+  ],
+  "expected_paragraphs": 5,
+  "pages": 1
+ },
+ {
+  "file": "rl_dondurulmus_sayfa.pdf",
+  "producer": "ReportLab",
+  "features": [
+   "sayfa-rotate-90"
+  ],
+  "expected_paragraphs": 4,
+  "pages": 1
+ },
+ {
+  "file": "rl_dondurulmus_metin.pdf",
+  "producer": "ReportLab",
+  "features": [
+   "dondurulmus-metin-30",
+   "dikey-metin"
+  ],
+  "expected_paragraphs": 5,
+  "pages": 1
+ },
+ {
+  "file": "rl_base14.pdf",
+  "producer": "ReportLab",
+  "features": [
+   "standart-14-font",
+   "gomulu-degil"
+  ],
+  "expected_paragraphs": 3,
+  "pages": 1
+ },
+ {
+  "file": "fp_paragraflar.pdf",
+  "producer": "fpdf2",
+  "features": [
+   "ttf-alt-kume",
+   "arimo"
+  ],
+  "expected_paragraphs": 6,
+  "pages": 1
+ },
+ {
+  "file": "fp_iki_yana.pdf",
+  "producer": "fpdf2",
+  "features": [
+   "iki-yana"
+  ],
+  "expected_paragraphs": 6,
+  "pages": 1
+ },
+ {
+  "file": "fp_tablo.pdf",
+  "producer": "fpdf2",
+  "features": [
+   "tablo"
+  ],
+  "expected_paragraphs": 29,
+  "pages": 1
+ },
+ {
+  "file": "fp_liste.pdf",
+  "producer": "fpdf2",
+  "features": [
+   "madde-listesi"
+  ],
+  "expected_paragraphs": 7,
+  "pages": 1
+ },
+ {
+  "file": "fp_karma_logo.pdf",
+  "producer": "fpdf2",
+  "features": [
+   "logo+metin",
+   "PS2-benzeri"
+  ],
+  "expected_paragraphs": 5,
+  "pages": 1
+ },
+ {
+  "file": "fp_core_font.pdf",
+  "producer": "fpdf2",
+  "features": [
+   "standart-14-font",
+   "latin1"
+  ],
+  "expected_paragraphs": 4,
+  "pages": 1
+ },
+ {
+  "file": "mu_taranmis.pdf",
+  "producer": "PyMuPDF",
+  "features": [
+   "taranmis",
+   "metin-katmani-yok"
+  ],
+  "expected_paragraphs": 0,
+  "pages": 1
+ },
+ {
+  "file": "mu_taranmis_ocr.pdf",
+  "producer": "PyMuPDF",
+  "features": [
+   "taranmis",
+   "gorunmez-ocr-katmani"
+  ],
+  "expected_paragraphs": 8,
+  "pages": 1
+ },
+ {
+  "file": "mu_textbox.pdf",
+  "producer": "PyMuPDF",
+  "features": [
+   "insert_textbox"
+  ],
+  "expected_paragraphs": 4,
+  "pages": 1
+ },
+ {
+  "file": "mu_dondurulmus.pdf",
+  "producer": "PyMuPDF",
+  "features": [
+   "dondurulmus-metin-90-180"
+  ],
+  "expected_paragraphs": 3,
+  "pages": 1
+ },
+ {
+  "file": "mu_form.pdf",
+  "producer": "PyMuPDF",
+  "features": [
+   "acroform"
+  ],
+  "expected_paragraphs": 4,
+  "pages": 1
+ },
+ {
+  "file": "mpl_type3.pdf",
+  "producer": "matplotlib",
+  "features": [
+   "type3",
+   "dejavu"
+  ],
+  "expected_paragraphs": 7,
+  "pages": 1
+ },
+ {
+  "file": "mpl_type42.pdf",
+  "producer": "matplotlib",
+  "features": [
+   "type42",
+   "dejavu"
+  ],
+  "expected_paragraphs": 7,
+  "pages": 1
+ },
+ {
+  "file": "mpl_grafik.pdf",
+  "producer": "matplotlib",
+  "features": [
+   "type3",
+   "grafik-etiketleri"
+  ],
+  "expected_paragraphs": 3,
+  "pages": 1
+ },
+ {
+  "file": "ch_paragraflar.pdf",
+  "producer": "Chrome/Skia",
+  "features": [
+   "web-font",
+   "carlito"
+  ],
+  "expected_paragraphs": 7,
+  "pages": 1
+ },
+ {
+  "file": "ch_iki_yana.pdf",
+  "producer": "Chrome/Skia",
+  "features": [
+   "iki-yana"
+  ],
+  "expected_paragraphs": 6,
+  "pages": 1
+ },
+ {
+  "file": "ch_iki_sutun.pdf",
+  "producer": "Chrome/Skia",
+  "features": [
+   "iki-sutun"
+  ],
+  "expected_paragraphs": 9,
+  "pages": 1
+ },
+ {
+  "file": "ch_tablo.pdf",
+  "producer": "Chrome/Skia",
+  "features": [
+   "tablo"
+  ],
+  "expected_paragraphs": 25,
+  "pages": 1
+ },
+ {
+  "file": "ch_liste.pdf",
+  "producer": "Chrome/Skia",
+  "features": [
+   "madde-listesi",
+   "numarali-liste"
+  ],
+  "expected_paragraphs": 10,
+  "pages": 1
+ },
+ {
+  "file": "ch_karma_logo.pdf",
+  "producer": "Chrome/Skia",
+  "features": [
+   "logo+metin",
+   "PS2-benzeri"
+  ],
+  "expected_paragraphs": 5,
+  "pages": 1
+ },
+ {
+  "file": "ch_dondurulmus.pdf",
+  "producer": "Chrome/Skia",
+  "features": [
+   "dondurulmus-metin",
+   "dikey-metin"
+  ],
+  "expected_paragraphs": 4,
+  "pages": 1
+ },
+ {
+  "file": "ch_arapca.pdf",
+  "producer": "Chrome/Skia",
+  "features": [
+   "arapca",
+   "rtl",
+   "karma-yon"
+  ],
+  "expected_paragraphs": 7,
+  "pages": 1
+ },
+ {
+  "file": "ch_sistem_serif.pdf",
+  "producer": "Chrome/Skia",
+  "features": [
+   "sistem-fontu",
+   "times"
+  ],
+  "expected_paragraphs": 5,
+  "pages": 1
+ },
+ {
+  "file": "ch_basliklar.pdf",
+  "producer": "Chrome/Skia",
+  "features": [
+   "baslik-hiyerarsisi",
+   "karma-bicim"
+  ],
+  "expected_paragraphs": 8,
+  "pages": 1
+ },
+ {
+  "file": "ch_cok_sayfa.pdf",
+  "producer": "Chrome/Skia",
+  "features": [
+   "cok-sayfa"
+  ],
+  "expected_paragraphs": 13,
+  "pages": 2
+ },
+ {
+  "file": "wd_mektup_logo.pdf",
+  "producer": "Microsoft Word",
+  "features": [
+   "logo+metin",
+   "PS2-birebir",
+   "calibri",
+   "iki-yana"
+  ],
+  "expected_paragraphs": 6,
+  "pages": 1
+ },
+ {
+  "file": "wd_paragraflar.pdf",
+  "producer": "Microsoft Word",
+  "features": [
+   "calibri",
+   "alt-kume"
+  ],
+  "expected_paragraphs": 7,
+  "pages": 1
+ },
+ {
+  "file": "wd_iki_yana.pdf",
+  "producer": "Microsoft Word",
+  "features": [
+   "iki-yana"
+  ],
+  "expected_paragraphs": 6,
+  "pages": 1
+ },
+ {
+  "file": "wd_times.pdf",
+  "producer": "Microsoft Word",
+  "features": [
+   "times-new-roman"
+  ],
+  "expected_paragraphs": 6,
+  "pages": 1
+ },
+ {
+  "file": "wd_arial.pdf",
+  "producer": "Microsoft Word",
+  "features": [
+   "arial"
+  ],
+  "expected_paragraphs": 6,
+  "pages": 1
+ },
+ {
+  "file": "wd_ortali.pdf",
+  "producer": "Microsoft Word",
+  "features": [
+   "ortali"
+  ],
+  "expected_paragraphs": 5,
+  "pages": 1
+ },
+ {
+  "file": "wd_iki_sutun.pdf",
+  "producer": "Microsoft Word",
+  "features": [
+   "iki-sutun"
+  ],
+  "expected_paragraphs": 9,
+  "pages": 1
+ },
+ {
+  "file": "wd_tablo.pdf",
+  "producer": "Microsoft Word",
+  "features": [
+   "tablo"
+  ],
+  "expected_paragraphs": 26,
+  "pages": 1
+ },
+ {
+  "file": "wd_madde.pdf",
+  "producer": "Microsoft Word",
+  "features": [
+   "madde-listesi"
+  ],
+  "expected_paragraphs": 6,
+  "pages": 1
+ },
+ {
+  "file": "wd_numarali.pdf",
+  "producer": "Microsoft Word",
+  "features": [
+   "numarali-liste"
+  ],
+  "expected_paragraphs": 6,
+  "pages": 1
+ },
+ {
+  "file": "wd_karisik_bicim.pdf",
+  "producer": "Microsoft Word",
+  "features": [
+   "kalin-italik-renk-karisik"
+  ],
+  "expected_paragraphs": 5,
+  "pages": 1
+ },
+ {
+  "file": "wd_yatay.pdf",
+  "producer": "Microsoft Word",
+  "features": [
+   "yatay-sayfa"
+  ],
+  "expected_paragraphs": 5,
+  "pages": 1
+ },
+ {
+  "file": "wd_basliklar.pdf",
+  "producer": "Microsoft Word",
+  "features": [
+   "baslik-stilleri",
+   "renkli-baslik"
+  ],
+  "expected_paragraphs": 9,
+  "pages": 1
+ },
+ {
+  "file": "wd_arapca.pdf",
+  "producer": "Microsoft Word",
+  "features": [
+   "arapca",
+   "rtl",
+   "karma-yon"
+  ],
+  "expected_paragraphs": 7,
+  "pages": 1
+ },
+ {
+  "file": "wd_ust_alt_bilgi.pdf",
+  "producer": "Microsoft Word",
+  "features": [
+   "ust-bilgi",
+   "alt-bilgi",
+   "sayfa-no"
+  ],
+  "expected_paragraphs": 7,
+  "pages": 1
+ },
+ {
+  "file": "wd_dipnot.pdf",
+  "producer": "Microsoft Word",
+  "features": [
+   "dipnot",
+   "ust-simge"
+  ],
+  "expected_paragraphs": 7,
+  "pages": 1
+ },
+ {
+  "file": "wd_cok_sayfa.pdf",
+  "producer": "Microsoft Word",
+  "features": [
+   "cok-sayfa"
+  ],
+  "expected_paragraphs": 13,
+  "pages": 2
+ },
+ {
+  "file": "wd_sifreli.pdf",
+  "producer": "Microsoft Word + qpdf (AES-256)",
+  "features": [
+   "sifreli-sahip-parolasi",
+   "aes256"
+  ],
+  "expected_paragraphs": 7,
+  "pages": 1
+ },
+ {
+  "file": "ch_objstm.pdf",
+  "producer": "Chrome/Skia + qpdf",
+  "features": [
+   "nesne-akisi-ObjStm",
+   "xref-akisi"
+  ],
+  "expected_paragraphs": 7,
+  "pages": 1
+ },
+ {
+  "file": "rl_artimli.pdf",
+  "producer": "ReportLab + qpdf",
+  "features": [
+   "yeniden-yazilmis"
+  ],
+  "expected_paragraphs": 7,
+  "pages": 1
+ }
+]

@@ -1,0 +1,86 @@
+[
+ {
+  "file": "dp_paragraflar.pdf",
+  "producer": "pdf (Dart)",
+  "features": [
+   "ttf-alt-kume",
+   "carlito"
+  ],
+  "expected_paragraphs": 6,
+  "pages": 1
+ },
+ {
+  "file": "dp_iki_yana.pdf",
+  "producer": "pdf (Dart)",
+  "features": [
+   "iki-yana"
+  ],
+  "expected_paragraphs": 5,
+  "pages": 1
+ },
+ {
+  "file": "dp_tablo.pdf",
+  "producer": "pdf (Dart)",
+  "features": [
+   "tablo"
+  ],
+  "expected_paragraphs": 13,
+  "pages": 1
+ },
+ {
+  "file": "dp_liste.pdf",
+  "producer": "pdf (Dart)",
+  "features": [
+   "madde-listesi"
+  ],
+  "expected_paragraphs": 6,
+  "pages": 1
+ },
+ {
+  "file": "sf_paragraflar.pdf",
+  "producer": "Syncfusion",
+  "features": [
+   "ttf",
+   "carlito"
+  ],
+  "expected_paragraphs": 6,
+  "pages": 1
+ },
+ {
+  "file": "sf_iki_yana.pdf",
+  "producer": "Syncfusion",
+  "features": [
+   "iki-yana",
+   "tinos"
+  ],
+  "expected_paragraphs": 5,
+  "pages": 1
+ },
+ {
+  "file": "sf_tablo.pdf",
+  "producer": "Syncfusion",
+  "features": [
+   "tablo"
+  ],
+  "expected_paragraphs": 12,
+  "pages": 1
+ },
+ {
+  "file": "sf_form.pdf",
+  "producer": "Syncfusion",
+  "features": [
+   "acroform"
+  ],
+  "expected_paragraphs": 3,
+  "pages": 1
+ },
+ {
+  "file": "sf_sifreli.pdf",
+  "producer": "Syncfusion",
+  "features": [
+   "sifreli-sahip-parolasi"
+  ],
+  "expected_paragraphs": 4,
+  "pages": 1
+ }
+]

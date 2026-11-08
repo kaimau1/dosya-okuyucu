@@ -147,7 +147,7 @@ Sıra bağımlılığa göre. ☁️ = bulut, 💻📱 = yerel + cihaz. Tahmini 
 
 ### Faz 51 — Temel: külliyat, ölçüm tezgâhı ve kanamayı durdurma ☁️ + 📱 (2–3 oturum)
 Amaç: bundan sonraki her kararı sayıyla vermek ve bildirilen sorunların hızlı kısmını hemen gidermek.
-1. [ ] **Külliyat** `test/fixtures/pdf_corpus/` (≥ 60 PDF, her biri ≤ 300 KB, Türkçe karakterli,
+1. [x] **Külliyat** `test/fixtures/pdf_corpus/` (≥ 60 PDF, her biri ≤ 300 KB, Türkçe karakterli,
        kişisel veri yok): Word (Windows'ta "PDF olarak kaydet" — 💻 kullanıcı üretir, sentetik metin),
        LibreOffice, Google Docs, Chrome/Skia (headless baskı), Syncfusion, `pdf` paketi, ReportLab,
        LaTeX, Quartz benzeri; çok sütunlu, tablolu, listeli, iki yana yaslı, döndürülmüş sayfa, Arapça
