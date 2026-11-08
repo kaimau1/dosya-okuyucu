@@ -172,6 +172,9 @@ kapısı (> %10 ya da p99 > 24 ms → birleşmez). Sıra 43 → 50. A3.4b bu faz
       bulutta `tool/design_shots_test.dart` geçici klasör yolunu ve eksik rozetleri gösteriyor,
       mağazaya uygun değil. Düzenleme turu (Word/Excel/Slayt/PDF), Yakındakiler, kırık beyaz
       tema, iş sonucu ekranı; TR/EN/AR.
+- [ ] **Galeri/tema geliştirmesi elle kalanlar** (2026-11-08, CIHAZ_TESTI "Galeri/tema geliştirme"): AI anahtarlı
+      cihazda "AI ile ikinci ad ver" + ikinci adla arama (3); Xiaomi'de uzun ses listesi kaydırma (2) ve Gece'nin
+      OLED'de görünümü (1). Önce görüntüsü alınmadı (ana uygulamanın teması değiştirilmedi) — yalnız "sonra" var.
 
 ### B3 — Cihaz sonucuna bağlı takip işleri (B2 içinde ya da hemen sonra; kod bulutta da yazılabilir)
 
