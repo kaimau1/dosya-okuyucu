@@ -184,7 +184,7 @@ harf) / %34,2 (Türkçe harf), Word'de 0 paragraf (kök: satır başına kırpma
 sahip parolalı belgede kilit açma düzeltildi; AES-256 kopyası KALANLAR'da.
 
 ### Faz 52 — Motor köprüsü: PDFium düzenleme API'si + karar kapısı ☁️ (2–3 oturum)
-1. [ ] `third_party/pdfrx_engine` (0.9.x) depoya alınır, `YAMA.md`; pdfrx bağımlılığı yerel yola.
+1. [x] `third_party/pdfrx_engine` (0.9.x) depoya alınır, `YAMA.md`; pdfrx bağımlılığı yerel yola.
 2. [ ] `PdfEditBridge` (pdfrx işçisinde, belge kilidiyle): sayfa yükle/tut, metin nesnelerini sırala
        (kutu, matris, font, punto, renk, metin), `FPDFText_GetTextObject` ile karakter → nesne eşlemesi,
        `SetText`/yeni metin nesnesi/sil/dönüştür, `GenerateContent`, `SaveAsCopy(INCREMENTAL)`.

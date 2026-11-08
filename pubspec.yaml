@@ -330,6 +330,10 @@ dependency_overrides:
   # Semantics — ölçüldü). Gerekçe third_party/pdfrx/YAMA.md.
   pdfrx:
     path: third_party/pdfrx
+  # PDF Pro Faz 52: pdfrx_engine 0.9.1 + tek yöntem (işçide, çizim bekçisiyle
+  # belge işi — düzenleme köprüsü). Gerekçe third_party/pdfrx_engine/YAMA.md.
+  pdfrx_engine:
+    path: third_party/pdfrx_engine
   # Faz 45: webdav_client 1.2.2 (son sürüm) xml ^6'ya kilitli; yalnız
   # findAllElements(namespace:'*') + .text kullanıyor, 7'de ikisi de duruyor
   # (test/…webdav…). Paket xml 7'yi açınca bu satır silinir.
