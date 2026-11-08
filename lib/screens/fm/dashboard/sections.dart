@@ -386,6 +386,8 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
       // Alt yazı ölçülmüş toplamı gösterir (Bellek Analizi'ndeki sayının
       // aynısı); ölçüm "Kullanım erişimi" iznine bağlı olduğu için izin yokken
       // sayı UYDURULMAZ, alt satır boş bırakılır.
+      // Okuyucu derlemesinde QUERY_ALL_PACKAGES yok → liste eksik olur, kutu gizli.
+      if (!StoragePermission.readerBuild)
       FmTileData(
         id: 'apps',
         icon: AppIcons.android,

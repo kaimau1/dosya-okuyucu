@@ -19,6 +19,7 @@ import '../../screens/fm/transfer_screen.dart';
 import '../../screens/fm/trash_screen.dart';
 import '../../screens/fm/vault_screen.dart';
 import '../../services/fm/fm_env.dart';
+import '../../services/fm/storage_permission.dart';
 import '../app_dialog.dart';
 import '../new_document_sheet.dart';
 import '../scan_flow.dart';
@@ -401,7 +402,7 @@ abstract final class DockExtras {
                 downloadsPathIn(FmEnv.primaryRoot) ?? FmEnv.primaryRoot;
             Navigator.of(c).push(browserRoute(BrowserScreen(path: path)));
           }),
-        'apps' => DockExtraSpec(AppIcons.android, context.t('dock.apps'),
+        'apps' when !StoragePermission.readerBuild => DockExtraSpec(AppIcons.android, context.t('dock.apps'),
             AppHues.green, (c) => _push(c, const InstalledAppsScreen())),
         'ai' => DockExtraSpec(AppIcons.ai, context.t('dock.ai'),
             AppHues.violet, (c) => _push(c, const AiHubScreen())),

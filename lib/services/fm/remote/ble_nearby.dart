@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../storage_permission.dart';
 import 'peer_share.dart';
 
 /// Bluetooth ile görülen yakındaki Dosya Okuyucu.
@@ -129,6 +130,8 @@ abstract final class BleNearby {
 
   /// Görünmeyi ve taramayı başlatır. İzin eksikse bir kez ister.
   static Future<BleStart> start({required String id, required String name}) async {
+    // Okuyucu derlemesinde Bluetooth/konum izni manifestte yok → hiç isteme.
+    if (StoragePermission.readerBuild) return BleStart.unsupported;
     _wire();
     Future<void> call() =>
         _ch.invokeMethod<bool>('start', {'id': id, 'name': name});

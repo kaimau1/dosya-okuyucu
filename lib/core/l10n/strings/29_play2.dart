@@ -64,4 +64,5 @@ const Map<String, (String, String, String)> _t29 = {
   'whatsnew.add_folder': ('Tüm dosyalara izin vermeden "Klasör ekle" ile yalnız seçtiğin klasörleri kullan.', 'Use "Add folder" to work with just the folders you choose, without all-files access.', 'استخدم «إضافة مجلد» للعمل بالمجلدات التي تختارها فقط دون إذن كل الملفات.'),
   'whatsnew.reading': ('PDF’te okuma yardımcıları; Word/Slayt kaldığı yerden, Excel kaydedildiği sayfada açılır.', 'Reading helpers in PDF; Word/Slides reopen where you left off, Excel on its saved sheet.', 'أدوات قراءة في PDF؛ Word والشرائح تُفتح من حيث توقفت، وExcel على الورقة المحفوظة.'),
   'whatsnew.faster': ('Yeni Flutter ve paketler: daha akıcı PDF kaydırma, daha hızlı SFTP.', 'New Flutter and packages: smoother PDF scrolling, faster SFTP.', 'Flutter وحزم جديدة: تمرير PDF أنعم وSFTP أسرع.'),
+  'ia.reader_off': ('Bu sürüm uygulama listesine erişmez. Tam sürümde yüklü uygulamaları görebilirsin.', 'This edition can’t list installed apps. The full edition shows them.', 'هذا الإصدار لا يصل إلى قائمة التطبيقات. يعرضها الإصدار الكامل.'),
 };
