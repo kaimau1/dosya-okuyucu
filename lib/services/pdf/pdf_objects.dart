@@ -58,11 +58,25 @@ class PdfFile {
         if (endStream > 0 && endStream <= endObj) {
           dataStart = p;
           dataEnd = endStream;
-          // `endstream`den önceki satır sonunu veriden çıkar.
-          while (dataEnd! > dataStart &&
-              (raw.codeUnitAt(dataEnd - 1) == 0x0A ||
-                  raw.codeUnitAt(dataEnd - 1) == 0x0D)) {
-            dataEnd = dataEnd - 1;
+          // Doğrudan /Length geçerliyse (ardından yalnız boşluk + endstream)
+          // ona güven. KÖK NEDEN (Faz 54): sondaki satır sonunu kırpmak,
+          // sıkıştırılmış verinin SON BAYTI tesadüfen 0x0A/0x0D olduğunda onu
+          // da kesiyordu → zlib sağlama hatası (mutool "incorrect data check").
+          final len = RegExp(r'/Length\s+(\d+)(?!\s+\d+\s+R)')
+              .firstMatch(raw.substring(bodyStart, streamKeyword))
+              ?.group(1);
+          final end = len == null ? -1 : p + int.parse(len);
+          if (end >= p &&
+              end <= endStream &&
+              raw.substring(end, endStream).trim().isEmpty) {
+            dataEnd = end;
+          } else {
+            // `endstream`den önceki satır sonunu veriden çıkar.
+            while (dataEnd! > dataStart &&
+                (raw.codeUnitAt(dataEnd - 1) == 0x0A ||
+                    raw.codeUnitAt(dataEnd - 1) == 0x0D)) {
+              dataEnd = dataEnd - 1;
+            }
           }
           dictEnd = streamKeyword;
         }
