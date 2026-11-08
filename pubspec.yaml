@@ -56,6 +56,10 @@ dependencies:
   # kapalı (kPdfOwnSelectionOff); seçim arayüzü bizim katmanımız:
   # widgets/pdf_select_layer.dart.
   pdfrx: 2.12.0
+  # PDF Pro Faz 52: düzenleme köprüsü PDFium C API'sini doğrudan çağırır
+  # (pdfrx'in kendi bağları; ikisi de zaten ağaçta — APK farkı 0).
+  pdfium_dart: ^0.4.1
+  ffi: ^2.2.0
 
   # PDF YAZMA işleri (annotation gömme, sayfa döndür/sil/sırala, form doldurma).
   # Görüntüleme yine pdfrx/pdfium; Syncfusion yalnız düzenlenmiş PDF ÜRETİR.

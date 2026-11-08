@@ -1629,10 +1629,13 @@ class _PdfDocumentPdfium extends PdfDocument {
 
   // YAMA (dosya-okuyucu, Faz 52): bkz. PdfDocument.computeOnIdleDocument.
   @override
-  Future<R> computeOnIdleDocument<M, R>(R Function(int nativeDocumentHandle, M message) callback, M message) {
+  Future<R> computeOnIdleDocument<M, R>(
+    R Function(pdfium_bindings.PDFium pdfium, int nativeDocumentHandle, M message) callback,
+    M message,
+  ) {
     _ensureNotDisposed();
     return _computeWithArena(
-      (arena, params) => params.callback(params.document, params.message),
+      (arena, params) => params.callback(pdfium, params.document, params.message),
       (callback: callback, document: document.address, message: message),
       priority: BackgroundWorkerPriority.high,
     );

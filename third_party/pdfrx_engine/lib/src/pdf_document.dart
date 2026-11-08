@@ -2,6 +2,7 @@
 /// Pdfrx API
 library;
 
+import 'package:pdfium_dart/pdfium_dart.dart' as pdfium_bindings;
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -305,9 +306,13 @@ abstract class PdfDocument {
   /// YAMA (dosya-okuyucu, PDF Pro Faz 52 — `third_party/pdfrx_engine/YAMA.md`):
   /// runs [callback] on the PDFium worker isolate, with the same idle guard pdfrx uses for its own
   /// document modifications (no render of this document is active while it runs). [callback] receives the
-  /// native `FPDF_DOCUMENT` address and must be sendable (top-level/static function or a closure capturing
-  /// only sendable values). Call [reloadPages] afterwards for pages whose content changed.
-  Future<R> computeOnIdleDocument<M, R>(R Function(int nativeDocumentHandle, M message) callback, M message) =>
+  /// worker's loaded PDFium bindings and the native `FPDF_DOCUMENT` address and must be sendable
+  /// (top-level/static function or a closure capturing only sendable values). Call [reloadPages] afterwards
+  /// for pages whose content changed.
+  Future<R> computeOnIdleDocument<M, R>(
+    R Function(pdfium_bindings.PDFium pdfium, int nativeDocumentHandle, M message) callback,
+    M message,
+  ) =>
       throw UnsupportedError('computeOnIdleDocument is not supported by $runtimeType');
 
   /// Reload specified pages.

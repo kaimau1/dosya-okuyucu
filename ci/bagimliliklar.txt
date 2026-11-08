@@ -20,6 +20,8 @@ path_provider
 path
 receive_sharing_intent
 pdfrx
+pdfium_dart  # PDF Pro Faz 52 düzenleme köprüsü (pdfrx'in bağları, zaten ağaçta) · 0 MB
+ffi  # pdfium_dart çağrıları için bellek (zaten ağaçta) · 0 MB
 syncfusion_flutter_pdf
 syncfusion_flutter_core
 google_mlkit_text_recognition
