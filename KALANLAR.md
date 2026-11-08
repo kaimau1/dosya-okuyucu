@@ -160,9 +160,10 @@ dili (👤 onay) · oturum çekirdeği + tek yüzey + kaydetme · metin anlama �
 WYSIWYG yerinde düzenleme · metin araçları · nesneler · işaretleme · form/imza · OCR Pro · sayfa
 stüdyosu · güvenlik/çıktı · AI · performans · görsel cila · sürüm adayı + rakip turu).
 Sıra 51 → 68 (atlama yok). Bildirilen 6 sorun (PS1–PS6) Faz 51'de ara, 54/57'de kalıcı çözülür.
-- [ ] **Faz 52** — sıradaki (PDFium düzenleme köprüsü + karar kapısı PK1/PK1-B; tezgâh `tool/pdf_pro_bench.dart` ikinci motorla).
+- [ ] **Faz 53** — sıradaki (tasarım dili + etkileşim prototipi, 👤 onay kapısı).
+- [ ] **PK1 koşulları → Faz 54 bitti ölçütüne** (Faz 52 kararı, `docs/perf/2026-11-pdfpro-52-motor.md`): (1) PDFium yolunda değişmeyen bölge piksel farkı 0 — ReportLab ailesi dahil (`GenerateContent` `Tw`/`Tc` yazmıyor → hibrit yazım); (2) artımlı kayıt büyümesi p50 ≤ 4 KB (font sözlüğü/akışı yeniden yazılmasın). İkisi tezgâhta (`baseline_pdfium.json`) sağlanmadan `pdf_pro_engine` varsayılan olmaz.
 - [ ] 👤 **Külliyata eksik üreticiler** (Faz 51'de bu makinede yoktu): LibreOffice "PDF olarak dışa aktar", Google Docs "İndir → PDF", LaTeX (pdfTeX/XeTeX), macOS Quartz (Önizleme/Sayfalar). Uydurma metinle (kişisel veri yok) birer–ikişer PDF üretip `test/fixtures/pdf_corpus/` + `corpus.json`'a eklenir (≤ 300 KB, Yazar alanı boş). Bitti: CORPUS.md'de üretici sayısı 12.
-- [ ] **AES-256 (R6) sahip parolalı belgede kilit açma sayfasız çıktı veriyor** (`wd_sifreli.pdf`, Faz 51 tezgâhı: Syncfusion `removePassword` sonrası "Sayfa bulunamadı"). Faz 52 PDFium yolu R6'yı kendisi açar; PK1-B seçilirse Faz 64'te kök neden. Bitti: tezgâhta `pageErrors` 0.
+- [ ] **AES-256 (R6) sahip parolalı belgede kilit açma sayfasız çıktı veriyor** (`wd_sifreli.pdf`, Faz 51 tezgâhı: Syncfusion `removePassword` sonrası "Sayfa bulunamadı"). Faz 52: PDFium yolu R6'yı kendisi açıyor (pdfium-nesne `pageErrors` 0) → PK1 varsayılan olunca bu madde kendiliğinden kapanır; Syncfusion `removePassword` yolu Faz 54'te emekliye ayrılırken silinir.
 
 ---
 
