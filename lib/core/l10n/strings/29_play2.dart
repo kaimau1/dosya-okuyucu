@@ -50,4 +50,11 @@ const Map<String, (String, String, String)> _t29 = {
     'None yet. If you’d rather not allow all files, use "Add folder" on the home screen to add only the folders you pick.',
     'لا شيء بعد. إن لم ترغب في السماح بكل الملفات، استخدم «إضافة مجلد» في الشاشة الرئيسية لإضافة ما تختاره فقط.',
   ),
+  'onb.choice_open': ('Bir dosya aç', 'Open a file', 'افتح ملفًا'),
+  'onb.choice_open_sub': (
+    'İzin gerekmez: Android’in seçicisinden dosyayı seç, hemen açılsın.',
+    'No permission needed: pick the file in Android’s picker and it opens right away.',
+    'لا حاجة لأي إذن: اختر الملف من منتقي Android ليُفتح فورًا.',
+  ),
+  'onb.choice_manage': ('Telefonumdaki tüm dosyaları yönet', 'Manage all files on my phone', 'إدارة كل الملفات على هاتفي'),
 };

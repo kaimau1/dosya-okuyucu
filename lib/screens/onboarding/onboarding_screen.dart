@@ -6,6 +6,8 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
 import '../../core/theme.dart';
 import '../../core/snack.dart';
+import '../../services/file_service.dart' show FileService;
+import '../../services/fm/entry_opener.dart';
 import '../../services/sample_docs.dart';
 import '../../widgets/permission_gate.dart';
 
@@ -82,6 +84,39 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
+  GateStatus? _allFiles;
+
+  @override
+  void initState() {
+    super.initState();
+    PermissionGate.probe.status(AppPermission.allFiles).then((s) {
+      if (mounted) setState(() => _allFiles = s);
+    });
+  }
+
+  /// "Bir dosya aç": sistem seçicisi (izin yok); seçilirse rehber biter ve
+  /// dosya açılır.
+  Future<void> _openFile() async {
+    final nav = Navigator.of(context);
+    final path = await FileService().pickFilePath();
+    if (path == null || !mounted) return;
+    await OnboardingScreen.markDone();
+    nav.pop();
+    if (nav.mounted) await EntryOpener.open(nav.context, path);
+  }
+
+  /// "Tüm dosyaları yönet": tek sistem penceresi; ret → izinsiz yol önerisi.
+  Future<void> _manageAll() async {
+    final s = await PermissionGate.probe.request(AppPermission.allFiles);
+    if (!mounted) return;
+    setState(() => _allFiles = s);
+    if (s == GateStatus.granted) {
+      _next();
+    } else {
+      showStorageDeniedHint(context, _openFile);
+    }
+  }
+
   Future<void> _finish() async {
     await OnboardingScreen.markDone();
     if (mounted) Navigator.of(context).pop();
@@ -128,8 +163,27 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       icon: AppIcons.menuBook,
                       title: context.t('onb.reader_title'),
                       body: context.t('onb.reader_body'),
-                      extra: const [
-                        PermissionStatusRow(permission: AppPermission.allFiles),
+                      // Play yorum çalışması (2026-11-08): okumak için
+                      // gelen kullanıcı hiç izin görmez — iki yol, izin
+                      // yalnız ikincisinde ve gerekçesiyle.
+                      extra: [
+                        _Choice(
+                          key: const ValueKey('onb-open-file'),
+                          icon: AppIcons.insertDriveFile,
+                          title: context.t('onb.choice_open'),
+                          body: context.t('onb.choice_open_sub'),
+                          onTap: _openFile,
+                        ),
+                        const SizedBox(height: Gap.sm),
+                        _Choice(
+                          key: const ValueKey('onb-manage-all'),
+                          icon: AppIcons.folderSpecial,
+                          title: context.t('onb.choice_manage'),
+                          body: _allFiles == GateStatus.granted
+                              ? context.t('perm.granted')
+                              : context.t('fm.permission_body'),
+                          onTap: _manageAll,
+                        ),
                       ],
                     ),
                     _Page(
@@ -235,6 +289,56 @@ class _SamplesButtonState extends State<_SamplesButton> {
           ? context.t('onb.samples_done',
               {'folder': context.t(SampleDocs.folderKey)})
           : context.t('onb.samples')),
+    );
+  }
+}
+
+/// İlk sayfadaki iki büyük seçenekten biri.
+class _Choice extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String body;
+  final VoidCallback onTap;
+
+  const _Choice({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.body,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(Gap.md),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: 32, color: theme.colorScheme.primary),
+              const SizedBox(width: Gap.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: theme.textTheme.titleMedium),
+                    const SizedBox(height: Gap.xs),
+                    Text(body,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
