@@ -226,6 +226,8 @@ jobs:
           # Perf etiketli dosyalar ayrı kapıda koşar (aşağıda) — burada çift
           # koşmasın (--exclude-tags yalnız perf dosyası kalınca "No tests ran" = 79).
           mapfile -t files < <(for f in "${files[@]}"; do grep -qE "@Tags\(\[.perf.\]\)" "$f" || echo "$f"; done)
+          # PDF Pro tezgâhı kendi adımında (qpdf + mutool ile) koşar.
+          mapfile -t files < <(for f in "${files[@]}"; do [ "$f" = test/pdf_pro/bench_test.dart ] || echo "$f"; done)
           if [ ${#files[@]} -eq 0 ]; then echo "Bu parçada yalnız perf testleri vardı."; exit 0; fi
           flutter test "${files[@]}"
 
@@ -242,6 +244,24 @@ jobs:
           {
             echo "## Perf ölçümleri (CI, debug JIT — cihaz değil)"
             echo '```'; grep -oE 'PERF [a-z0-9_]+=[^ ]+( [a-z0-9_]+=[^ ]+)*' perf.log | sort -u; echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # PDF PRO TEZGÂHI (Faz 51, PK8): külliyatta düzenleme motoru ölçülür;
+      # taban (test/pdf_pro/baseline.json) altına düşmek kırmızı. Bağımsız
+      # doğrulayıcılar: qpdf --check + mutool draw (ikinci çizici). Yalnız
+      # tezgâh seçime girdiyse (PDF kodu/külliyat değişti) ya da tam takımda.
+      - name: PDF Pro tezgâhı (qpdf + mutool)
+        if: >-
+          env.MOD != 'atla' && matrix.shard == 0 &&
+          (env.MOD != 'secili' || contains(needs.changes.outputs.test_liste, 'test/pdf_pro/bench_test.dart'))
+        run: |
+          set -o pipefail
+          sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends qpdf mupdf-tools >/dev/null
+          qpdf --version | head -1
+          flutter test test/pdf_pro/bench_test.dart 2>&1 | tee bench.log
+          {
+            echo "## PDF Pro tezgâhı"
+            echo '```'; grep -E '^PDFPRO_' bench.log; echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
       # C11: `ci/*.kt` yalnız APK derlemesinde derleniyordu; tek satırlık bir

@@ -153,7 +153,7 @@ Amaç: bundan sonraki her kararı sayıyla vermek ve bildirilen sorunların hız
        LaTeX, Quartz benzeri; çok sütunlu, tablolu, listeli, iki yana yaslı, döndürülmüş sayfa, Arapça
        (RTL), Type3 fontlu, şifreli (sahip parolalı), formlu, taranmış + OCR katmanlı, karma (logo +
        metin — PS2'nin birebir benzeri). `CORPUS.md`: üretici, özellik, beklenen paragraf sayısı.
-2. [ ] **Ölçüm tezgâhı** `tool/pdf_pro_bench.dart` + `test/pdf_pro/bench_test.dart` (CI'da):
+2. [x] **Ölçüm tezgâhı** `tool/pdf_pro_bench.dart` + `test/pdf_pro/bench_test.dart` (CI'da):
        paragraf kapsaması (% karakter düzenlenebilir blokta), düzenleme başarı oranı (her paragrafı
        değiştir → yeniden çıkar → metin doğru mu), **değişmeyen bölge piksel farkı** (PDFium çizimi,
        blok kutusu + 2 pt dışında 0 olmalı), font sadakati (yedek fonta düşen harf oranı, `.notdef`
