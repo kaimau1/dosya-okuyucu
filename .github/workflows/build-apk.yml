@@ -200,6 +200,21 @@ jobs:
         if: env.MOD != 'atla'
         run: flutter pub get --enforce-lockfile
 
+      # PDFium ikilisi (pdfium_dart kancası): önbellek + `gh` ile önceden
+      # indirme — GitHub indirme ucu 504 verince bütün testler kırılıyordu
+      # (2026-11-08). Bkz. tool/pdfium_onyukle.sh.
+      - name: PDFium önbelleği
+        if: env.MOD != 'atla'
+        uses: actions/cache@v4
+        with:
+          path: .dart_tool/hooks_runner/shared/pdfium_dart/build/chromium_*
+          key: pdfium-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
+      - name: PDFium önden indir
+        if: env.MOD != 'atla'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash tool/pdfium_onyukle.sh linux-x64
+
       # KAPI (2026-08-28): `flutter analyze` info seviyesinde de sıfır dışı
       # çıkar — bu adım "hiç uyarı yok" demektir. Başka bir Flutter sürümü
       # denenirken kullanımdan kaldırma uyarıları BEKLENİR → bağlayıcı değil.
@@ -346,6 +361,19 @@ jobs:
         env:
           DOSYA_KISISEL: ${{ (inputs.kisisel || contains(github.event.head_commit.message, '[kisisel]')) && '1' || '0' }}
         run: bash ci/prepare_android.sh
+
+      - name: PDFium önbelleği (Android)
+        uses: actions/cache@v4
+        with:
+          path: .dart_tool/hooks_runner/shared/pdfium_dart/build/chromium_*
+          key: pdfium-android-${{ hashFiles('pubspec.lock') }}-${{ env.FULL_BUILD }}
+      - name: PDFium önden indir (Android)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          T="android-arm64"
+          [ "$FULL_BUILD" = "true" ] && T="$T android-arm android-x64"
+          bash tool/pdfium_onyukle.sh $T
 
       # C4: push'ta yalnız arm64 (pratikte her telefon). 32-bit yalnız tam
       # derlemede. `--split-per-abi` her mimariye ayrı versionCode verir.
