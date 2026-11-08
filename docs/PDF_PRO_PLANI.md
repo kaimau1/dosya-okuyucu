@@ -188,7 +188,7 @@ sahip parolalı belgede kilit açma düzeltildi; AES-256 kopyası KALANLAR'da.
 2. [x] `PdfEditBridge` (pdfrx işçisinde, belge kilidiyle): sayfa yükle/tut, metin nesnelerini sırala
        (kutu, matris, font, punto, renk, metin), `FPDFText_GetTextObject` ile karakter → nesne eşlemesi,
        `SetText`/yeni metin nesnesi/sil/dönüştür, `GenerateContent`, `SaveAsCopy(INCREMENTAL)`.
-3. [ ] pdfrx'e **sayfa değişti** olayı: o sayfanın görüntü/metin önbelleği düşer, görüntüleyici yalnız
+3. [x] pdfrx'e **sayfa değişti** olayı: o sayfanın görüntü/metin önbelleği düşer, görüntüleyici yalnız
        o sayfayı yeniden çizer, matris değişmez (widget testi: düzenleme sonrası `value` aynı).
 4. [ ] Prototip düzenleyici yolu (gizli bayrak `pdf_pro_engine`): paragraf değiştir → bellek → çizim.
 5. [ ] **Karar kapısı:** külliyatta iki motor yan yana (tezgâh): başarı oranı, piksel farkı, `qpdf
