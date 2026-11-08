@@ -273,6 +273,10 @@ jobs:
           set -o pipefail
           sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends qpdf mupdf-tools >/dev/null
           qpdf --version | head -1
+          # Linux flutter_tester'da pdfium_dart yerel varlığı yüklenemiyor
+          # ("Native assets file not found") → önden indirilen kütüphane.
+          export PDFIUM_PATH=$(ls "$PWD"/.dart_tool/hooks_runner/shared/pdfium_dart/build/chromium_*/linux-x64/libpdfium.so | head -1)
+          echo "PDFIUM_PATH=$PDFIUM_PATH"
           flutter test test/pdf_pro/bench_test.dart 2>&1 | tee bench.log
           {
             echo "## PDF Pro tezgâhı"
