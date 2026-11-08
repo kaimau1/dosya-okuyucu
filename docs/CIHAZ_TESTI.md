@@ -820,3 +820,14 @@ Ekran görüntüleri `docs/design/2026-11-galeri/` (örnek ağaç `/sdcard/Ornek
 
 **Koşu kaydı**
 - 2026-11-08 · MatePad DBY-W09: 1, 2, 4, 5, 6 adb + ekran görüntüsüyle ✅ (`.r8test` profil APK) · 3 anahtarsız cihazda yalnız menü girdisi görüldü (AI isteği elle bekliyor).
+
+## Faz 49 — Play yorum çalışması aşama 2–3 + temizlik (2026-11-08, dal `faz-49`)
+1. **İlk açılış (temiz kurulum):** okuyucu sayfasında iki büyük seçenek. "Bir dosya aç" → sistem seçicisi, izin penceresi YOK, seçilen dosya açılır ve rehber kapanır. "Telefonumdaki tüm dosyaları yönet" → tek sistem penceresi; reddedince "Sorun değil — tek tek aç" notu, başka izin sorulmaz.
+2. **Pano izin kartı (izin yokken):** başlık "Tüm dosyalarını burada görelim mi?", üç düğme: Şimdilik tek dosya aç · Klasör ekle · İzin ver. **Klasör ekle** → Download seç → panoda kart olarak çıkar, dokununca gezgin açılır; uygulamayı kapat-aç → kart duruyor.
+3. **Ayarlar › Gizlilik ve izinler:** "Ağ ve yapay zekâ" (Çevrimdışı kip, AI'ya göndermeden önce sor) + İzinler (tüm dosyalar, bildirim, kamera, konum, üstte gösterme, eklenen klasörler, kullanım): her satırda neden + durum; verilmişse **Geri al** sistem ayarını açar, dönünce satır tazelenir; eklenen klasörde Geri al kartı panodan kaldırır.
+4. **Çevrimdışı kip AÇIK:** AI özeti/sohbet → "Çevrimdışı kip açık — internete bağlanılmadı…" (bekleme/yeniden deneme yok); Drive ve altyazı aynı mesaj; yerel ağ (NAS/SFTP, yakındaki cihaz) çalışıyor. Kapatınca AI yine çalışıyor.
+5. **AI onayı (anahtar gerekli):** ilk AI işinde "Dosya Google'a gönderilsin mi?" — Vazgeç → "Yapay zekâya gönderilmedi"; Gönder → aynı oturumda bir daha sorulmaz; "Bir daha sorma" → kalıcı, ayardaki anahtar kapalı görünür, yeniden açınca yine sorar.
+6. **Neler yeni:** 1.1'den 1.2'ye güncellemede bir kez levha (6 madde); ikinci açılışta yok; temiz kurulumda hiç yok.
+7. **Okuyucu derlemesi** (Actions › "Okuyucu derlemesi (izinsiz)" artifact'i, `…okuyucu` kimliği, tam uygulamanın yanına kurulur): uygulama bilgisinde hassas izin yok; pano kartında "İzin ver" yok, Klasör ekle + Dosya aç çalışıyor; ilk açılışta tek seçenek.
+
+**Koşu kaydı**
