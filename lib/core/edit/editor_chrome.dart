@@ -11,8 +11,6 @@
 ///   klavye kapalıyken editörün tam şeridi, açıkken hızlı çubuk.
 library;
 
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -320,11 +318,6 @@ class EditorChrome extends StatefulWidget {
   /// büyüyüp küçülmesin).
   final bool freezeBody;
 
-  /// [overlayKeyboard] kipinde hızlı çubuğun yaklaşık yüksekliği (gövdenin
-  /// klavye + çubuk tarafından örtülen kısmını hesaplamak için, bkz.
-  /// [EditorChrome.coveredBottom]).
-  static const double accessoryHeight = 56;
-
   /// Bu genişlikten itibaren (dp) biçim paneli yan bölmede açılır.
   static const double sidePanelWidth = 840;
 
@@ -340,17 +333,6 @@ class EditorChrome extends StatefulWidget {
     this.overlayKeyboard = false,
     this.freezeBody = false,
   });
-
-  /// [overlayKeyboard] kipinde [box] (gövdedeki bir alan, ör. görüntüleyici)
-  /// alt kenarından klavye + hızlı çubuğun ÖRTTÜĞÜ yükseklik (mantıksal px).
-  static double coveredBottom(BuildContext context, RenderBox box) {
-    final view = View.of(context);
-    final inset = view.viewInsets.bottom / view.devicePixelRatio;
-    if (inset <= 0) return 0;
-    final screenH = view.physicalSize.height / view.devicePixelRatio;
-    final bottom = box.localToGlobal(Offset(0, box.size.height)).dy;
-    return math.max(0, bottom - (screenH - inset - accessoryHeight));
-  }
 
   @override
   State<EditorChrome> createState() => _EditorChromeState();

@@ -201,6 +201,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// kapanır) ve çubuk seçimi ÖRTTÜĞÜ için ekranın üstüne mi alındı.
   bool _pdfSelExpanded = false;
   bool _pdfSelBarTop = false;
+  Timer? _pdfSelRevealTimer;
 
   /// Sürükleyerek seçim ŞU AN sürüyor mu? (Uzun basış sonrası parmak yerde ya
   /// da fare metin üzerinde basılı.) True iken pdfrx'in pan'ı kilitlenir ki
@@ -698,6 +699,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     }
     _pdfEdgeScrollTimer?.cancel();
+    _pdfSelRevealTimer?.cancel();
     _textController?.dispose();
     _undoCtl.dispose();
     _textScroll.dispose();

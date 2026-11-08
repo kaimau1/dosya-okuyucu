@@ -121,7 +121,8 @@ typedef _InlineGeom = ({
   TextAlign align,
 });
 
-class _PdfEditorScreenState extends State<PdfEditorScreen> {
+class _PdfEditorScreenState extends State<PdfEditorScreen>
+    with WidgetsBindingObserver {
   /// Bu ekranın mesajları uzun asenkron işlerin **içinden** üretiliyor
   /// (`_run`, `_apply`, `catch` dalları); orada `context` kullanmak
   /// `use_build_context_synchronously` demektir. Dil uygulama genelinde tek
@@ -225,8 +226,11 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   TextEditingController? _inlineCtrl;
   final FocusNode _inlineFocus = FocusNode();
 
-  /// Görüntüleyicinin kutusu: klavyenin örttüğü payı ölçmek için (PS4).
+  /// Görüntüleyicinin ve düzenleme çubuğunun kutusu: klavye + çubuğun
+  /// örttüğü payı ÖLÇMEK için (PS4).
   final GlobalKey _viewerKey = GlobalKey();
+  final GlobalKey _editBarKey = GlobalKey();
+  Timer? _revealTimer;
 
   /// Kullanıcının seçtiği punto (null → özgün).
   double? _inlineSize;
@@ -261,11 +265,27 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
     super.initState();
     _page = widget.initialPage;
     PdfEditorScreen.lastPage = _page;
+    WidgetsBinding.instance.addObserver(this);
     _prepare();
+  }
+
+  /// PS4 (Faz 51, cihaz turu): görüntüleyici artık klavyeyle küçülmüyor;
+  /// klavye alan AÇIKKEN çıkınca düzenlenen satır klavyenin arkasında
+  /// kalıyordu (yatay tablette görünür şerit çok dar) → klavye payı oturunca
+  /// satır örtülmeyen bölgeye kaydırılır.
+  @override
+  void didChangeMetrics() {
+    if (!_inlineOpen) return;
+    _revealTimer?.cancel();
+    _revealTimer = Timer(Motion.medium, () {
+      if (mounted) _revealInline();
+    });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _revealTimer?.cancel();
     _inlineTimer?.cancel();
     _inlineCtrl?.dispose();
     _pendingCtrl?.dispose();

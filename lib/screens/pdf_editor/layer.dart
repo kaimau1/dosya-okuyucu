@@ -143,6 +143,7 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
       final paragraph = _inlineIndex != null;
       final applying = _inlineApplying;
       return Column(
+        key: _editBarKey,
         mainAxisSize: MainAxisSize.min,
         children: [
           _inlineStatus(),
@@ -469,27 +470,57 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
   /// satırında da). [stillOpen] false olduysa (alan kapandı) vazgeçer.
   void _zoomToBox(PdfRect box, double pointSize, bool Function() stillOpen) {
     // Klavye açıldıktan SONRA (örtülen pay o zaman bilinir).
-    Future.delayed(Motion.long, () {
+    Future.delayed(Motion.long, () async {
       if (!mounted || !stillOpen()) return;
       try {
         final onScreen = pointSize * _pageScale;
         final zoom = (18 / onScreen).clamp(1.0, 4.0);
         final rect =
             _controller.calcRectForRectInsidePage(pageNumber: _page, rect: box);
-        final m = _controller.calcMatrixForRect(rect,
-            zoomMax: math.max(zoom, _controller.currentZoom), margin: 16);
-        // Görüntüleyici artık klavyeyle küçülmüyor: alan, örtülmeyen
-        // bölgenin ortasına gelsin diye örtülen payın yarısı kadar yukarı.
-        final viewer = _viewerKey.currentContext?.findRenderObject();
-        final covered = viewer is RenderBox
-            ? EditorChrome.coveredBottom(context, viewer)
-            : 0.0;
-        if (covered > 0) m.leftTranslateByDouble(0, -covered / 2, 0, 1);
-        _controller.goTo(m);
+        await _controller.goTo(_controller.calcMatrixForRect(rect,
+            zoomMax: math.max(zoom, _controller.currentZoom), margin: 16));
+        // Klavye zaten açıksa satır örtülmeyen bölgeye (açılırsa
+        // didChangeMetrics aynı işi yapar).
+        if (mounted) _revealInline();
       } catch (_) {
         // Görüntüleyici hazır değilse yakınlaşma kritik değil.
       }
     });
+  }
+
+  /// İmlecin bulunduğu satır klavye + düzenleme çubuğunun örttüğü bölgedeyse
+  /// görüntü (yakınlık değişmeden) kaydırılır: satır, örtülmeyen şeridin
+  /// ortasına gelir. Örtü ÖLÇÜLÜR (çubuğun gerçek üst kenarı), tahmin değil.
+  void _revealInline() {
+    final geom = _inlineGeom;
+    final ctrl = _inlineCtrl;
+    final viewer = _viewerKey.currentContext?.findRenderObject();
+    if (geom == null || ctrl == null || viewer is! RenderBox) return;
+    try {
+      final top = viewer.localToGlobal(Offset.zero).dy;
+      final bar = _editBarKey.currentContext?.findRenderObject();
+      final barTop = bar is RenderBox && bar.attached
+          ? bar.localToGlobal(Offset.zero).dy
+          : top + viewer.size.height;
+      final visibleH = math.min(barTop, top + viewer.size.height) - top;
+      if (visibleH < 24) return;
+      final doc = _controller.calcRectForRectInsidePage(
+          pageNumber: _page, rect: geom.box);
+      final frac = ctrl.text.isEmpty
+          ? 0.0
+          : (ctrl.selection.extentOffset.clamp(0, ctrl.text.length) /
+              ctrl.text.length);
+      final docY = doc.top + frac * doc.height;
+      final local = MatrixUtils.transformPoint(
+          _controller.value, Offset(doc.left, docY));
+      final margin = math.min(48.0, visibleH / 4);
+      if (local.dy >= margin && local.dy <= visibleH - margin) return;
+      final m = _controller.value.clone()
+        ..leftTranslateByDouble(0, visibleH / 2 - local.dy, 0, 1);
+      _controller.goTo(m);
+    } catch (_) {
+      // Görüntüleyici hazır değil: kaydırma kritik değil.
+    }
   }
 
   List<Widget> _inlineLayer(PdfPage page, Size pageSize) {

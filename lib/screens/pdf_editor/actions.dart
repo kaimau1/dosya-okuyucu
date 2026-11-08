@@ -255,10 +255,10 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
   Future<void> _openInitialSelection() async {
     final sel = _pendingSelection;
     if (sel == null || sel.rects.isEmpty) return;
-    // Çağıranın `finally`si meşgul bayrağını indirsin (yoksa "bekleyin").
+    // Meşgul (anahat/başka iş) ve başlangıç sayfasına atlama bitsin: yoksa
+    // _editParagraph "bekleyin" deyip açmıyordu (cihaz turu: yarış).
     await Future<void>.delayed(Duration.zero);
-    // Başlangıç sayfasına atlama sürerken yakınlaşma yarışmasın.
-    for (var i = 0; i < 20 && _startJumping && mounted; i++) {
+    for (var i = 0; i < 40 && (_busy || _startJumping) && mounted; i++) {
       await Future<void>.delayed(Motion.short);
     }
     if (!mounted || _pendingSelection == null) return;

@@ -249,6 +249,22 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                                     _pdfSelRects = rects;
                                     _pdfSelPage = t.isEmpty ? 0 : pageNo;
                                   });
+                                  // PS5 (cihaz turu): seçim TUTAMAÇLA
+                                  // uzatılınca "parmak kalktı" olayı gelmiyor
+                                  // → seçim durulunca çubuğun yerine yine
+                                  // karar verilir (sürükleme boyunca değil).
+                                  _pdfSelRevealTimer?.cancel();
+                                  if (t.trim().isNotEmpty && !_pdfSelecting) {
+                                    _pdfSelRevealTimer =
+                                        Timer(Motion.long, () {
+                                      if (mounted) {
+                                        _revealAboveBar(
+                                            _pdfSelPage, _pdfSelRects,
+                                            barHeight:
+                                                _pdfSelExpanded ? 420 : 190);
+                                      }
+                                    });
+                                  }
                                 }
                               },
                               onSelectingChanged: (s) {
