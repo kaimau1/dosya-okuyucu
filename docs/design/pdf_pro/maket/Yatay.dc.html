@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Yatay düzenleme kipi</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Carlito:wght@400;700&amp;family=Tinos:wght@400;700&amp;display=swap">
+<style>
+body{margin:0}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+svg{display:block}
+</style>
+</helmet>
+<div style="width:844px;height:390px;box-sizing:border-box;display:flex;background:#000000;color:#E6E6EA;font-family:Carlito,'Segoe UI',sans-serif;overflow:hidden">
+  <!-- Kompakt ray: yatayda alt çubuk yerine solda -->
+  <nav aria-label="Araçlar" style="width:64px;flex-shrink:0;background:#0A0A0C;border-right:1px solid #26262E;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px">
+    <button aria-label="Metin" style="width:48px;height:44px;border-radius:12px;background:#10243A;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64B5FF" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 6V4h14v2"/><path d="M12 4v16"/><path d="M9 20h6"/></svg></button>
+    <button aria-label="Görsel" style="width:48px;height:44px;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A0A0AA" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/></svg></button>
+    <button aria-label="İşaretle" style="width:48px;height:44px;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A0A0AA" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h7"/><path d="M14 4l6 6-8 8H6v-6z"/></svg></button>
+    <button aria-label="İmza" style="width:48px;height:44px;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A0A0AA" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 17c3-6 5-9 7-9s-1 9 2 9 3-5 5-5 2 3 4 3"/></svg></button>
+    <button aria-label="Form" style="width:48px;height:44px;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A0A0AA" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 14h10"/></svg></button>
+    <button aria-label="Sayfalar" style="width:48px;height:44px;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A0A0AA" stroke-width="2" aria-hidden="true"><rect x="4" y="3" width="7" height="8" rx="1"/><rect x="13" y="3" width="7" height="8" rx="1"/><rect x="4" y="13" width="7" height="8" rx="1"/><rect x="13" y="13" width="7" height="8" rx="1"/></svg></button>
+    <button aria-label="Daha fazla" style="width:48px;height:44px;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="#A0A0AA" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
+  </nav>
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+    <header style="height:48px;flex-shrink:0;display:flex;align-items:center;gap:2px;padding:0 6px;background:#0A0A0C;border-bottom:1px solid #26262E">
+      <button aria-label="Geri" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E6E6EA" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <span style="font-size:15px;font-weight:700">proje-ozeti.pdf</span>
+      <span style="font-size:12px;color:#A0A0AA;margin:0 auto 0 10px;display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:#FFB74D"></span>Kaydedilmedi</span>
+      <button aria-label="Geri al" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E6E6EA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 010 11H11"/></svg></button>
+      <button aria-label="Yinele" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4A4A55" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 000 11H13"/></svg></button>
+      <button style="height:34px;padding:0 16px;border-radius:17px;background:#64B5FF;color:#00121F;font-size:14px;font-weight:700">Kaydet</button>
+    </header>
+    <main style="flex:1;display:flex;justify-content:center;overflow:hidden;padding-top:12px">
+      <div style="width:560px;background:#FFFFFF;padding:22px 34px;box-sizing:border-box;color:#111;font-family:Carlito,sans-serif;height:420px">
+        <div style="font-family:Tinos,serif;font-size:20px;font-weight:700;margin-bottom:10px">Yıllık Çalışma Özeti</div>
+        <p style="margin:0 0 10px;font-size:13px;line-height:1.45">Bu belge, ekibin yıl boyunca yürüttüğü çalışmaları ve bir sonraki döneme taşınan hedefleri özetler.</p>
+        <p style="margin:0 0 10px;font-size:13px;line-height:1.45;padding:2px 4px;outline:2px solid #1F6FC7;background:rgba(31,111,199,.06)">Ancak ikinci çeyrekte tedarik süreçlerindeki gecikmeler, planlanan teslim tarihlerinin bir kısmını ileri taşımıştır.</p>
+        <p style="margin:0;font-size:13px;line-height:1.45">Gelecek dönemde öncelik, ölçüm altyapısının yenilenmesidir.</p>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":844,"height":390}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
