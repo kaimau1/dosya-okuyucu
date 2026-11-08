@@ -190,7 +190,7 @@ sahip parolalı belgede kilit açma düzeltildi; AES-256 kopyası KALANLAR'da.
        `SetText`/yeni metin nesnesi/sil/dönüştür, `GenerateContent`, `SaveAsCopy(INCREMENTAL)`.
 3. [x] pdfrx'e **sayfa değişti** olayı: o sayfanın görüntü/metin önbelleği düşer, görüntüleyici yalnız
        o sayfayı yeniden çizer, matris değişmez (widget testi: düzenleme sonrası `value` aynı).
-4. [ ] Prototip düzenleyici yolu (gizli bayrak `pdf_pro_engine`): paragraf değiştir → bellek → çizim.
+4. [x] Prototip düzenleyici yolu (gizli bayrak `pdf_pro_engine`): paragraf değiştir → bellek → çizim.
 5. [ ] **Karar kapısı:** külliyatta iki motor yan yana (tezgâh): başarı oranı, piksel farkı, `qpdf
        --check`, çıktı büyümesi, p95 gecikme, bellek. Tablo `docs/perf/2026-11-pdfpro-52-motor.md`.
        PK1 mi PK1-B mi → HAFIZA "karar". (`GenerateContent`'in işaretli içerik/etiketli PDF davranışı
