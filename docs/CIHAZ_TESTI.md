@@ -799,3 +799,12 @@ Otomatik kısım (A/B ölçüm) `docs/perf/2026-11-48-pdfrx.md`'de. Elle bakıla
 
 **Koşu kaydı**
 - 2026-11-08 · Faz 48 · MatePad DBY-W09 (GMS'siz): ölçüm kapısı ✅ (`docs/perf/2026-11-48-pdfrx.md`), çökme 0 · 5–7 adb ile ✅ (`KEEP_SCREEN_ON`, ses tuşu 98→100→99, kaydırma 1→3. sayfa) · 1–4 elle bekliyor · 2 GMS'li/Xiaomi cihazda.
+
+## Office geliştirme (2026-11-08, PR #67)
+1. **Excel:** masaüstü Excel'de 2. sayfada C5 seçiliyken kaydedilen dosya bu sayfa ve hücrede açılıyor; gizli sayfa etkinse ilk görünür sayfa.
+2. **Word:** çok sayfalı belgeyi 5. sayfada kapat → yeniden aç: 5. sayfadan açılıyor + "devam ediliyor · Baştan başla" notu; Baştan başla 1. sayfaya döner.
+3. **Slayt:** aynı şekilde N. slayttan açılıyor + not; ayarlardaki okuma konumu kapalıyken hep baştan.
+4. **Gösteri:** B / `.` siyah, W / `,` beyaz ekran; dokunma ya da herhangi bir tuş kapatır · araç çubuğu düğmeleri · sayaca dokun / G → "Tüm slaytlar" ızgarası, dokunulan slayta atlar; takılma yok.
+
+**Koşu kaydı**
+- 2026-11-08 · MatePad DBY-W09: ölçüm kapısı ✅ (`docs/perf/2026-11-08-office.md`), çökme 0 · 1–4 elle bekliyor.
