@@ -24,6 +24,7 @@ import '../services/pdf/pdf_form.dart';
 import '../services/pdf/pdf_pending_objects.dart';
 import '../services/pdf/pdf_ocr_text.dart';
 import '../services/pdf/pdf_scanned_retype.dart';
+import '../services/pdf/pdf_selection_target.dart';
 import '../services/pdf_page_edit.dart';
 import '../services/pdf_reload.dart';
 import '../services/pdf_tools.dart';
@@ -72,10 +73,16 @@ class PdfEditorScreen extends StatefulWidget {
   final String path;
   final int initialPage;
 
+  /// PS1 (Faz 51): görüntüleyicide seçili metin. Verilirse editör
+  /// [initialPage]'de seçimle en çok örtüşen paragrafı DOĞRUDAN düzenleme
+  /// kipinde açar, imleç seçimin başında.
+  final PdfEditSelection? selection;
+
   const PdfEditorScreen({
     super.key,
     required this.path,
     this.initialPage = 1,
+    this.selection,
   });
 
   /// Ekranı açar; kaydedildiyse YAZILAN dosyanın yolu döner (özgünün
@@ -85,11 +92,12 @@ class PdfEditorScreen extends StatefulWidget {
     BuildContext context, {
     required String path,
     int initialPage = 1,
+    PdfEditSelection? selection,
   }) {
     return Navigator.of(context).push<String>(
       MaterialPageRoute(
-        builder: (_) =>
-            PdfEditorScreen(path: path, initialPage: initialPage),
+        builder: (_) => PdfEditorScreen(
+            path: path, initialPage: initialPage, selection: selection),
       ),
     );
   }
@@ -133,6 +141,9 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
 
   /// Son kaydın yazıldığı yol (ekran kapanınca çağırana döner).
   String? _savedPath;
+
+  /// Henüz açılmamış başlangıç seçimi (PS1) — bir kez tüketilir.
+  late PdfEditSelection? _pendingSelection = widget.selection;
   PdfOverlayLayer get _layer => _history?.layer ?? PdfOverlayLayer.empty;
 
   _EditMode _mode = _EditMode.text;

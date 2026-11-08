@@ -72,6 +72,7 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
           _scannedPages.add(_page);
         }
       });
+      unawaited(_openInitialSelection());
     } on PdfPageRefused catch (e) {
       if (mounted) {
         _partSetState(() {
@@ -212,7 +213,49 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
         _scannedLines = _withoutParagraphOverlaps(lines);
         _scannedLoading = false;
       });
+      unawaited(_openInitialSelection());
     });
+  }
+
+  /// PS1: görüntüleyicide seçilen yerin bloğu doğrudan düzenlemede açılır.
+  /// Önce paragraflar, eşleşme yoksa (OCR satırları yüklenince) satırlar.
+  Future<void> _openInitialSelection() async {
+    final sel = _pendingSelection;
+    if (sel == null || sel.rects.isEmpty) return;
+    // Çağıranın `finally`si meşgul bayrağını indirsin (yoksa "bekleyin").
+    await Future<void>.delayed(Duration.zero);
+    // Başlangıç sayfasına atlama sürerken yakınlaşma yarışmasın.
+    for (var i = 0; i < 20 && _startJumping && mounted; i++) {
+      await Future<void>.delayed(Motion.short);
+    }
+    if (!mounted || _pendingSelection == null) return;
+    if (_page != widget.initialPage) {
+      _pendingSelection = null; // kullanıcı başka sayfaya geçti
+      return;
+    }
+    final par = bestOverlap(sel.rects, [
+      for (final p in _outline.paragraphs)
+        PdfRect(p.left, p.top, p.right, p.bottom),
+    ]);
+    if (par != null) {
+      _pendingSelection = null;
+      _editParagraph(par);
+      _placeCaret(_outline.paragraphs[par].text, sel.text);
+      return;
+    }
+    final line = bestOverlap(sel.rects, [for (final l in _scannedLines) l.box]);
+    if (line != null) {
+      _pendingSelection = null;
+      _editScannedLine(line);
+      _placeCaret(_scannedLines[line].text, sel.text);
+    }
+  }
+
+  void _placeCaret(String blockText, String selection) {
+    final ctrl = _inlineCtrl;
+    if (ctrl == null) return;
+    final at = selectionCaret(blockText, selection).clamp(0, ctrl.text.length);
+    ctrl.selection = TextSelection.collapsed(offset: at);
   }
 
   /// Paragraf kutusuyla örtüşen OCR satırlarını eler: üstüne yazılmış satır

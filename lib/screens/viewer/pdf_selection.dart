@@ -13,7 +13,7 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
   }
 
   /// Tek PDF düzenleme ekranı: metin (paragraf), görsel, filigran ve sayfa.
-  Future<void> _openPdfEditor({int? page}) async {
+  Future<void> _openPdfEditor({int? page, PdfEditSelection? selection}) async {
     // Editör ÖZGÜN dosyanın kopyası üzerinde çalışır; bekleyen düzenlemeler
     // önce kaydedilmezse sessizce kaybolurdu.
     if (!await _confirmLeavePending() || !mounted) return;
@@ -21,6 +21,7 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
       context,
       path: widget.doc.path,
       initialPage: (page != null && page > 0) ? page : (_livePdfPage() ?? _pdfPage),
+      selection: selection,
     );
     if (saved == null || !mounted) return;
     // PS3 (Faz 51): KOPYA kaydedildiyse görüntüleyici özgünü tazelemez,
@@ -106,7 +107,11 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
       // düzenleyicisi açılır (paragraf motoru; taranmış sayfada OCR satırı,
       // ikisi de olmazsa "sayfaya yazı ekle"). Eski kelime-bazlı yerinde
       // düzenleme kalktı.
-      onEdit: () => _openPdfEditor(page: _pdfSelPage),
+      // PS1 (Faz 51): seçimin kutuları + metni de gider; editör o bloğu
+      // doğrudan düzenlemede açar.
+      onEdit: () => _openPdfEditor(
+          page: _pdfSelPage,
+          selection: PdfEditSelection(_pdfSelection, _pdfSelRects)),
       onTranslate: _translateSelection,
       moreItems: [
         PdfBarMenuItem(

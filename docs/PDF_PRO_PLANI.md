@@ -168,7 +168,7 @@ Amaç: bundan sonraki her kararı sayıyla vermek ve bildirilen sorunların hız
        sonra dosyayı açıyor.
 5. [x] **PS5 düzeltmesi:** seçim çubuğunda önizleme genişletilebilir (dokun → tüm seçim kaydırılabilir
        alanda, karakter/sözcük sayısı); çubuk seçimi örtüyorsa seçimin üstüne yerleşir.
-6. [ ] **PS1 ara düzeltme:** "Düzenle" seçimin dikdörtgenini ve metnini geçirir; editör o sayfada
+6. [x] **PS1 ara düzeltme:** "Düzenle" seçimin dikdörtgenini ve metnini geçirir; editör o sayfada
        seçimle en çok örtüşen paragrafı **doğrudan düzenleme kipinde** açar, imleç seçimin başına.
 7. [ ] **PS4 ara düzeltme:** düzenleyicide klavye görüntüleyiciyi küçültmez
        (`resizeToAvoidBottomInset: false` + düzenlenen satırı klavyenin üstüne kaydırma); OCR satırında
