@@ -320,7 +320,8 @@ class _FmGlyphPainter extends CustomPainter {
 
     if (spec.classic) {
       // Beyaz sayfa + ince gri kontur; rengi yalnız tür şeridi taşır.
-      final edge = spec.dark ? const Color(0xFF8C8F95) : const Color(0xFF7A7E86);
+      final edge =
+          spec.dark ? AppColors.classicEdgeDark : AppColors.classicEdge;
       final stroke = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 0.03
@@ -330,13 +331,13 @@ class _FmGlyphPainter extends CustomPainter {
           page,
           Paint()
             ..color =
-                spec.dark ? const Color(0xFF2B2C2F) : const Color(0xFFFFFFFF));
+                spec.dark ? AppColors.classicPageDark : AppColors.classicPage);
       canvas.drawPath(page, stroke);
       canvas.drawPath(
           earPath,
           Paint()
             ..color =
-                spec.dark ? const Color(0xFF45474C) : const Color(0xFFDDDFE3));
+                spec.dark ? AppColors.classicEarDark : AppColors.classicEar);
       canvas.drawPath(earPath, stroke);
       _paintLabelOrOverlay(canvas, side, classicLines: edge);
       return;
