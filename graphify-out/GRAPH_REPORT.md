@@ -1,17 +1,17 @@
 # Graph Report - dosya okuyucu  (2026-11-08)
 
 ## Corpus Check
-- 1388 files · ~1,571,536 words
+- 1400 files · ~1,563,443 words
 - Verdict: corpus is large enough that graph structure adds value.
-- Unclassified: 63 file(s) not represented in the graph (top: .xml 29, .ttf 11, (none) 6)
+- Unclassified: 60 file(s) not represented in the graph (top: .xml 28, .ttf 11, (none) 5)
 
 ## Summary
-- 29628 nodes · 44370 edges · 809 communities (731 shown, 78 thin omitted)
-- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 319 edges (avg confidence: 0.88)
+- 29051 nodes · 43879 edges · 836 communities (761 shown, 75 thin omitted)
+- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 337 edges (avg confidence: 0.88)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `3f8ef6ac`
+- Built from commit: `2f654b47`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -37,18 +37,18 @@
 - chart_insert_dialog.dart
 - pptx_editor.dart
 - markdown.dart
-- pdfium_bindings.dart
+- dart:convert
 - pdf_editor_screen.dart
 - dashboard_screen.dart
-- pdf_tools_screen.dart
+- pro_views.dart
 - package:flutter_test/flutter_test.dart
-- library_screen.dart
+- downloads_screen.dart
 - xlsx_save_patch.dart
 - docx_editor.dart
-- dart:async
+- folder_size_cache.dart
 - ftp_server.dart
 - browser_screen.dart
-- smart_redesign_test.dart
+- package:dosya_okuyucu/models/fs_entry.dart
 - category_screen.dart
 - search_index.dart
 - docx-preview.min.js
@@ -79,14 +79,14 @@
 - xlsx_save_patch_test.dart
 - String?
 - drag_select.dart
-- ../core/snack.dart
-- _
+- sd_union_screen.dart
+- List
 - audio_player_screen.dart
 - search_screen.dart
 - smart_query.dart
 - package:path/path.dart
 - file_ops.dart
-- chat_screen.dart
+- ai_actions.dart
 - fm_settings_screen.dart
 - trash_service.dart
 - remote_browser_screen.dart
@@ -94,7 +94,7 @@
 - remote_edit_screen.dart
 - category_tools.dart
 - storage_trend.dart
-- labs_thin_editor_test.dart
+- package:flutter/services.dart
 - fm_entry_icon.dart
 - fs_entry.dart
 - signature_pad.dart
@@ -102,7 +102,7 @@
 - media_resize.dart
 - package:dosya_okuyucu/services/docx/docx_document.dart
 - List
-- ai_tag_flow.dart
+- pdf_tools_screen.dart
 - scan_edit_screen.dart
 - s
 - ../models/fs_entry.dart
@@ -124,7 +124,7 @@
 - AuditResult
 - tts_service.dart
 - remote_connection.dart
-- fm_resize_sheet_test.dart
+- media_fixture_smoke_test.dart
 - ../../services/fm/fs_scan.dart
 - op_history.dart
 - CHANGELOG.md
@@ -137,8 +137,8 @@
 - firebase_service.dart
 - job_notifications.dart
 - scan_result_screen.dart
-- ../core/snack.dart
-- pdf_api.dart
+- ../core/l10n/app_strings.dart
+- pdf_viewer_scroll_interaction_delegate_physics.dart
 - xls_legacy.dart
 - media_player_layout_test.dart
 - scan_enhance.dart
@@ -153,22 +153,22 @@
 - HAFIZA arşivi — 2026-09
 - legacy_text.dart
 - pinch_zoom_area.dart
-- dart:typed_data
+- package:archive/archive.dart
 - app_strings.dart
 - text_search.dart
-- ../core/app_icons.dart
-- drive_cache.dart
+- ../../models/fs_entry.dart
+- package:xml/xml.dart
 - github_release.dart
 - pptx_render_test.dart
 - docx_document.dart
 - design_shots_faz23_test.dart
 - doc_edges.dart
-- open_history.dart
+- thumbnail_cache.dart
 - docx_styles.dart
 - pdf_paragraph_test.dart
 - Gallery
 - office_shell.dart
-- pdfrx_pdfium.dart
+- design_shots_faz28_test.dart
 - sheet_metrics.dart
 - batch_rename.dart
 - doc_classifier.dart
@@ -181,14 +181,14 @@
 - storage_stats.dart
 - chat_media.dart
 - ocr_service.dart
-- settings_backup.dart
+- download_manager_screen.dart
 - remote_live_test.dart
 - smb_fs.dart
 - pdf_object_layer.dart
 - @visibleForTesting
 - translate_service.dart
 - pdf_viewer_params.dart
-- double?
+- docx_live_edit_test.dart
 - interactive_viewer.dart
 - nearby/widgets.dart
 - neural_voices.dart
@@ -207,13 +207,13 @@
 - sftp_fs.dart
 - text_decode.dart
 - ai_rewrite_sheet.dart
-- pdf_page_text_overlay.dart
+- library_screen.dart
 - fm_layout.dart
 - photo_group.dart
 - nav_tabs.dart
 - MediaTranscode.kt
 - pdf_dict.dart
-- xlsx_file_charts.dart
+- search_history.dart
 - QrTransfer.kt
 - sheet_structure.dart
 - drive_file.dart
@@ -235,7 +235,7 @@
 - word_format_ui.dart
 - pptx_gradient_test.dart
 - سياسة الخصوصية — Dosya Okuyucu
-- Image?
+- dart:async
 - vault_screen.dart
 - APK İmzalama (sabit anahtar = kolay güncelleme)
 - editor_chrome.dart
@@ -256,7 +256,7 @@
 - Google Drive Setup Guide
 - markdown_edit.dart
 - pro_data.dart
-- pdf_file_cache.dart
+- bills.dart
 - MainActivity
 - FmSizeRange
 - _SpreadsheetEditorScreenState
@@ -271,7 +271,7 @@
 - editors/spreadsheet_editor_screen.dart
 - editors/word_editor_screen.dart
 - Context
-- static final
+- docx_templates.dart
 - NearbyBgService
 - İndirme Servisi
 - Arka Plan İş Kuyruğu
@@ -292,7 +292,7 @@
 - usb_image.dart
 - slide_text_controller.dart
 - slide_frame_editor.dart
-- playback_positions.dart
+- ../core/app_colors.dart
 - photo_grid_plan.dart
 - usb_fs.dart
 - fm_glyph.dart
@@ -300,18 +300,18 @@
 - motion.dart
 - device_profile.dart
 - permission_gate.dart
-- sd_union_screen.dart
+- Rect
 - pptx_writer.dart
-- apk_icon.dart
+- audiobook_screen.dart
 - usb_filesystem_test.dart
 - quick_sheets.dart
 - mini_player_bar.dart
 - properties.dart
 - ai_summary_store.dart
-- disk_housekeeping.dart
+- scan_page_ops.dart
 - pdf_markup.dart
-- pdf_page_navigator.dart
-- conversion_service.dart
+- pro_actions.dart
+- important_screen.dart
 - swipe_pager.dart
 - FloatingPlayerService
 - MediaBridge
@@ -319,25 +319,25 @@
 - job_report_screen.dart
 - DosyaProvider
 - arrange_page.dart
-- crash_log.dart
+- static final
 - xls_legacy_rich_test.dart
 - usb_host.dart
 - pdf_form.dart
 - notification_hub.dart
 - sheet_overflow.dart
-- collection_insights.dart
+- share_folders_screen_test.dart
 - subtitles.dart
-- volume_watcher.dart
+- Timer
 - dart:isolate
 - MediaPlayer
 - nearby_screen.dart
 - fm_fast_scroller.dart
-- http_cache_control.dart
+- entry_opener.dart
 - app_footprint.dart
-- fm_env.dart
+- playback_positions.dart
 - pptx_package.dart
 - package:syncfusion_flutter_pdf/pdf.dart
-- int?
+- xlsx_data_tools_test.dart
 - exif_reader.dart
 - dashboard_layout.dart
 - pdf_select_layer_widget_test.dart
@@ -351,17 +351,17 @@
 - tracked_busy.dart
 - ai_scope.dart
 - audio_tags.dart
-- folder_usage.dart
+- package:flutter/foundation.dart
 - activity_log.dart
 - hidden_vault.dart
 - ai_hub_screen.dart
 - transfer_keeper.dart
 - pdf_text_searcher.dart
 - fm_list_groups.dart
-- package:flutter/material.dart
+- ftp_server_screen.dart
 - image_gallery/widgets.dart
 - pdf_form_screen.dart
-- reader_screen.dart
+- ai_buckets.dart
 - picker_bridge.dart
 - usb_block_device.dart
 - pdf_filters.dart
@@ -374,14 +374,14 @@
 - Core.cs
 - user_error.dart
 - return
-- pdf_edit_journal.dart
+- app_footprint_screen.dart
 - usb_fs_types.dart
 - ai_apply.dart
 - SeekBar
 - int get
-- Pointer
+- pinch_layout.dart
 - pdf_fixtures.dart
-- ai_extract.dart
+- package:pdfrx/pdfrx.dart
 - usb_diagnostics_screen.dart
 - Receiver
 - usb_report.dart
@@ -391,26 +391,26 @@
 - appearance_state.dart
 - ble_nearby.dart
 - code_gutter.dart
-- fs_scan.dart
+- T
 - chart_insert_dialog.dart
-- GELİŞTİRME PLANI — Faz 34–42 (2026-11-04)
+- 2026-07-26 — PDF turu: vurgu KÖK NEDENİ, donma, seçim UX, tarama düzeltme
 - sample_docs.dart
-- share_scope.dart
-- large_text.dart
-- scan_text_fix.dart
+- pdf_image_cache_budget.dart
+- pro.dart
+- sections_page.dart
 - xlsx_reader_fast_test.dart
 - audio_tags_test.dart
-- scan_result/actions.dart
+- hero.dart
 - pptx_master_ops.dart
 - bool get
-- ai_tagger.dart
+- ai_meaning_search.dart
 - Flutter UI System
-- Exception
+- pdf_ocr_text.dart
 - scan_dewarp.dart
 - pdf_export_pro.dart
-- scan_title.dart
+- vault_crypto.dart
 - master_page.dart
-- IntentFilter
+- 2026-09-03 (on sekizinci tur) — USB sertleştirme, vektör simge, yüzen oynatıcı
 - pdf_doc_pro.dart
 - finish_data.dart
 - busy_dialog.dart
@@ -419,11 +419,11 @@
 - File
 - 2026-07-29 (VIII) — SADAKAT DENETİMİ, 2. TUR: hata avı (12 bulgu, hepsi kapatıldı)
 - ai_slides.dart
-- current_page.dart
+- find_package_path.dart
 - pdf_tools_test.dart
 - docx_table.dart
 - thumbnail_queue_test.dart
-- @immutable
+- fixed_overscroll_physics.dart
 - docx_insert.dart
 - Flutter Animations
 - Flutter Navigation
@@ -434,9 +434,9 @@
 - Flutter Custom Paint
 - Flutter Layout System
 - Flutter Performance
-- fm_apk_resources_test.dart
+- image_decode_budget_screen_test.dart
 - 2026-07-26 — PDF turu: vurgu KÖK NEDENİ, donma, seçim UX, tarama düzeltme
-- List
+- policy_doc.dart
 - slides_screen_test.dart
 - fm_apk_icon_test.dart
 - _ViewerScreenState
@@ -458,11 +458,11 @@
 - recent_file.dart
 - scan_kind.dart
 - _DashboardScreenState
-- Dosya Okuyucu — Çalışma Kuralları (CLAUDE.md)
+- verify
 - Sender
 - 2026-08-07 (5) — Yarıda kalan işe "Devam et", Yaptıklarım defteri, video özeti
 - pdf_widgets.dart
-- design_shots_faz20_test.dart
+- design_shots_faz31_test.dart
 - text_replace.dart
 - neural_engine.dart
 - formula_help.dart
@@ -479,7 +479,7 @@
 - 2026-07-30 (IV) — NAS istemcileri GERÇEK sunuculara karşı sınandı: SMB hatası bizdeymiş
 - 2026-07-31 — Tüm belge çevirisi · işlemden ilgili yere gezinme · tarama sonucu
 - 2026-08-02 — Slayt sadakati: ön tanımlı şekiller ARTIK KUTU DEĞİL
-- media_library.dart
+- Uint8List
 - 2026-08-07 — Excel turu: eski .xls, şerit, zoom, beyaz zemin, ortak simge dili
 - app_version.dart
 - line_endings.dart
@@ -489,11 +489,11 @@
 - 2026-07-30 — Video küçültme: dikey→yatay bozulması, hız ve "İşlemler" ekranı
 - pptx_chart_ops.dart
 - pptx_shape_ops.dart
-- text_edit.dart
+- pdf_export_pro_test.dart
 - pdf_compare_screen.dart
 - pdf_region_screen.dart
 - pptx_arrange_ops.dart
-- ffi.Opaque
+- sorter.dart
 - parser.dart
 - audiobook_job.dart
 - onboarding_screen.dart
@@ -520,7 +520,7 @@
 - 2026-08-05 (3. tur) — "Mükemmel belge tarama": tamamen otomatik boru hattı
 - docx_export_formats.dart
 - der.dart
-- image_edit_screen/parts.dart
+- web.dart
 - Timer
 - settings_search.dart
 - docx_insert_pro.dart
@@ -528,7 +528,7 @@
 - ole_cfb_writer.dart
 - pdf_ink/views.dart
 - Başarım ölçümü — 2026-10-21 (Faz 4)
-- pdfium_interop.cpp
+- ai_tagger.dart
 - pdf_editor/actions.dart
 - scan_result/widgets.dart
 - 2026-07-26 (12. tur) — "sayfaya git 1 sayfa ilerliyor": pdfrx AŞAMALI YÜKLEME yapıyor
@@ -540,12 +540,12 @@
 - 2026-08-07 (5) — Yarıda kalan işe "Devam et", Yaptıklarım defteri, video özeti
 - 2026-08-07 — Drive listesinde eksik üstveri: tarih, tür ikonu, sayfalama
 - 2026-08-08 (4) — Slayt ↔ PDF: iki yön de yazıldı
-- Resources
+- pdf_tools/views.dart
 - make_word_fixtures.py
 - sheet_input.dart
-- undo_stack.dart
+- SheetUndoStep
 - prepare_android.sh
-- user_communication_test.dart
+- package:shared_preferences/shared_preferences.dart
 - InheritedWidget
 - AppFonts
 - chat_media_guard.dart
@@ -586,7 +586,7 @@
 - 2026-07-22 — 3 KULLANICI HATASI: XLSX çökme, WhatsApp PDF tanınmama, slayt zoom zıplama
 - 2026-07-25 — Excel: sabit bölme ekranı yiyordu ("sağ tarafı göremiyorum") + hesap sadakati
 - 2026-07-25 — Faz 2: İmza + Faz 1'de bulunan VERİ KAYBI hatası
-- _loadPagesInLimitedTime
+- 2026-07-26 (12. tur) — "sayfaya git 1 sayfa ilerliyor": pdfrx AŞAMALI YÜKLEME yapıyor
 - 2026-07-26 (8. tur) — GERİ ALMA: "sayfa kaynıyor, zoom gidiyor" — kendi eklediğimiz koruma bozmuş
 - 2026-07-26 (9. tur) — "hiç sayfa geçemiyorum, zoom yapamıyorum": çalışma kopyası yolu geri alındı
 - zip_stream.dart
@@ -594,10 +594,10 @@
 - Ajan.kt
 - pdf_selection.dart
 - HAFIZA arşivi — 2026-11
-- fm_smart_features_test.dart
-- pdfrx/CLAUDE.md
-- ai_apply.dart
-- pro_common.dart
+- nav_tabs.dart
+- PdfRangeCache
+- package:path/path.dart
+- _
 - lookup_stats.dart
 - fm_type.dart
 - _
@@ -606,12 +606,12 @@
 - Cihaz doğrulama listesi (KALANLAR Faz B2'nin eki)
 - wav.dart
 - csv_document.dart
-- Dosya Okuyucu — Kapsamlı İnceleme Raporu ve Faz Planı
+- pick_file_screen/parts.dart
 - ribbon.dart
 - crop.dart
 - docx_style_ops.dart
 - volume_watch.dart
-- external_volume_detect_test.dart
+- pdf_scanned_retype.dart
 - 9. Fazlar
 - core/motion.dart
 - toolbar.dart
@@ -620,8 +620,8 @@
 - with
 - audiobook_test.dart
 - data.dart
-- pdf_editor/views.dart
-- xlsx_fixture.dart
+- notes_writer.dart
+- pdf_font_metrics_test.dart
 - lab_word_screen.dart
 - app_language.dart
 - excel_perf_test.dart
@@ -650,7 +650,7 @@
 - voice_engine_check.mjs
 - tiles.dart
 - external_open.dart
-- shell_menus.dart
+- startup_queue.dart
 - flutter
 - flutter_launcher_icons
 - dialogs.dart
@@ -662,18 +662,18 @@
 - 2. Bugünkü durum
 - 3. Araştırma: alışık olunan uygulamalar
 - env
-- WidgetsBindingObserver
+- trusted_peers.dart
 - outputs
 - duplicate_finder.dart
 - pubspec.yaml
 - tags
-- playlist_m3u.dart
+- Duration?
 - static const
 - dev_dependencies
 - links.dart
 - Play Store mağaza metinleri (Faz 11a, 2026-10-22)
 - calc_log.dart
-- play_permissions_doc_test.dart
+- Exception
 - cards.dart
 - functions.dart
 - docx_paginator.dart
@@ -695,13 +695,13 @@
 - CustomPainter
 - formula_audit.dart
 - Outcome
-- storage_permission.dart
+- docx_table_review_test.dart
 - flutter
 - flutter_localizations
 - remote.dart
-- 2026-07-26 — PDF turu: vurgu KÖK NEDENİ, donma, seçim UX, tarama düzeltme
+- structure_edit.dart
 - pptx_media_ops.dart
-- InheritedWidget
+- DateTime
 - office_html.dart
 - scan_quality.dart
 - 2026-07-25 — Uygulama artık aynı zamanda TAM DOSYA YÖNETİCİSİ
@@ -709,7 +709,7 @@
 - remote_resume_test.dart
 - DriveService
 - DosyaAktar.csproj
-- rules
+- partition_table.dart
 - pdfrx
 - _FilterSheetState
 - YÜKSELTME PLANI — Faz 43–50 (2026-11-07)
@@ -722,66 +722,66 @@
 - test_gate.sh
 - page_transitions.dart
 - docx_layout_ops.dart
-- scan_page_ops.dart
-- code_edit_test.dart
-- platforms
+- BleLink
+- pdf_reading_aids.dart
+- navigator_guard.dart
 - qr_code.dart
 - pdf_resume_note.dart
-- pdf_viewer_scroll_thumb.dart
+- int get
 - ink.dart
-- markdown_export.dart
-- ffi.Struct
+- PdfFontMapper
+- sheet_ops.dart
 - pdf_notes.dart
-- pdf_error_widget.dart
-- dependencies
-- slides/views.dart
+- pdfrx_flutter.dart
+- GELİŞTİRME PLANI — Faz 34–42 (2026-11-04)
+- scan_ai_fix.dart
 - nearby/tabs.dart
-- pdfium_interop.dart
+- albums.dart
 - docx_fonts.dart
-- content_search.dart
-- safe_write.dart
+- scan_prepare_test.dart
+- formatting.dart
 - saved_searches.dart
 - _SlideshowScreenState
-- drive_offline.dart
-- pdfrx/pubspec.yaml
+- doc_edges_test.dart
+- dependencies
 - editor_shortcuts.dart
-- sheet_pdf.dart
+- conversion_service.dart
 - analysis.dart
-- toast_avoider_test.dart
+- pro_shapes.dart
 - verify
 - contrast_test.dart
-- ffigen
+- media_bucket.dart
 - media.dart
-- image_edit_test.dart
+- design_shots_faz32_test.dart
 - pro_format.dart
-- data_ops.dart
+- _
 - Faz B — Diğerleri 📱💻👤
-- pdf_digital_sign_test.dart
+- 2026-09-04 (on dokuzuncu tur) — otonom denetim: 22 madde
 - pdf_reading_pro.dart
-- media_open_with.dart
-- Contributor Covenant Code of Conduct
+- widget_size_sniffer.dart
+- 2026-07-30 (III) — NAS: FTP/FTPS/FTPES · SFTP · SMB · WebDAV · LAN + PC'den FTP
 - _ChatTabState
-- Sürüm adayı turu (B6 / Faz 42 / 4)
-- pdf_glyph_names.dart
+- 2026-09-02 (on beşinci tur) — Kullanıcı bulguları: müzik bildirimi, donma, çıkarma
+- Faz 48 — pdfrx 1.3.5 → 2.12.0: A/B ölçümü (2026-11-08)
 - Dosya Okuyucu
-- build
+- doc_fonts.dart
 - dependency_overrides
-- dev_dependencies
-- 2026-10-21 (2) — Faz 0 kararları + Faz 1 (CI/CD) + Faz 2 (sadeleştirme I)
+- image_repair.dart
+- 2026-09-02 (sekizinci tur) — Ölçüm karşılık verdi: 3 gerçek hata + NTFS
 - Faz 43 — Ölçüm tabanı (2026-11-07)
-- AuthenticationCallback
+- Extras.kt
 - Başarım A/B — Faz 35 (Pro belge tarayıcı), 2026-11-05
 - Başarım A/B — Faz 36 (Excel pro), 2026-11-05
 - Başarım A/B — Faz 37 (Word pro), 2026-11-05
 - Başarım A/B — Faz 38 (Slayt pro), 2026-11-05
 - Başarım A/B — Faz 39 (PDF pro araçları), 2026-11-05
-- pdf_fling_test.dart
+- 2026-09-04 (yirminci tur) — PDF çözümlemesi, sürüm numarası, üç çökme
 - perf_driver.dart
 - pdf_profil.sh
 - Zamanlanmış görev istemi — olay zinciri (2026-11-05, 3. sürüm)
 - Iterable
-- PdfPageRenderCancellationToken
-- InteractiveViewer
+- 2026-09-26 (3) — Fotoğraflar/Videolar: modern galeri turu + çipler her yerde
+- 2026-09-27 — Kullanıcı turu (18 madde, 12 ekran görüntüsü): veri güvenliği, vurgu akışı, bildirimler, gezinme, AI
 - 2026-11-05-faz40.md
 - 2026-11-05-faz41.md
 - 2026-11-06-faz42.md
@@ -789,24 +789,53 @@
 - 2026-11-45.md
 - 2026-11-45-temiz-taban.md
 - play_yorum_analizi.md
-- CropAnchor
-- ImageOutputFormat
-- PadColor
-- ResizeFit
-- ResolutionChoice
-- VideoQualityChoice
+- remove_darwin_pdfium_modules.dart
+- @JS
+- slideshow/actions.dart
+- js_utils.dart
+- 2026-09-01 — PDF puntosu, form XObject'teki görseller ve USB/harici bellek
+- 2026-09-02 (altıncı tur) — USB hâlâ görünmüyordu: `state` YALAN SÖYLÜYOR
 - formula_errors.dart
-- PackageDescription
-- TransformationController
+- 2026-09-02 (on üçüncü tur) — Kullanılabilirlik turu + arka planda müzik
+- 2026-09-03 (on yedinci tur) — MediaSession, ekran altı çubuk, APK simgesi
 - third_party/README.md
 - ci_test_secimi.sh
 - perf_senaryo.sh
 - r8_ab.sh
 - surum_hesapla.sh
+- 2026-09-06 (yirmi birinci tur) — KARARAN EKRANIN kök nedeni, yakındaki cihaza gönderme, geçiş performansı
+- 2026-09-23 (3) — Belge ekranlarının görsel dili baştan (PDF, Word, Slayt, Excel, not, görsel)
+- 2026-09-23 (4) — Pano, klasör listesi ve Belgeler: simge ve düzen turu
+- PdfFontPersistentCache
+- _PhotosScreenState
+- 2026-09-02 (beşinci tur) — SAF: klasör izniyle harici bellek
+- 2026-09-02 (dokuzuncu tur) — FAT'a YAZMA + çökme sınıfının kapatılması
+- 2026-09-02 (yedinci tur) — Ölçüm + HAM USB YIĞIN DEPOLAMA SÜRÜCÜSÜ
+- 2026-09-06 (yirmi ikinci tur) — otonom denetim: 50 madde
+- Office geliştirme (gelistirme-office, PR #67) — tablet A/B ölçümü
+- 2026-08-05 (5. tur / gece) — Düzenlemede isabet, ana ekran hızlı erişim, Drive terfisi
+- 2026-09-02 (ikinci tur) — Harici bellek: nereden açılacak?
+- 2026-09-02 (on dördüncü tur) — Güvenle çıkar, kısa şerit, uçtan uca test
+- 2026-09-02 (onuncu tur) — exFAT YAZMA + ham USB'nin arayüze tam bağlanması
+- 2026-09-02 (üçüncü tur) — SD kart uyumu: kapsam ana bellekle SINIRLIYDI
+- 2026-09-23 (2) — Tasarım denetimi: veri güvenliği, disk düzeni, erişilebilirlik
+- 2026-09-26 — Klasik simge, "550 MB" kök nedeni, harici bellek durumu
+- _PickFileScreenState
+- 2026-07-24 — PPTX + PDF sadakat araştırması ve PPTX iyileştirmeleri
+- 2026-07-25 — Pano her açılışta tüm depolamayı baştan tarıyordu
+- 2026-07-26 (11. tur) — ASIL KÖK NEDEN BULUNDU: `CustomPaint` bütün dokunuşları yutuyordu
+- _FilmStrip
+- _RepairedImage
+- _StampSheet
+- 2026-11-08-galeri.md
+- Image?
+- FmFileImage
+- PdfrxEntryFunctionsWasmImpl
+- YAMA.md
 
 ## God Nodes (most connected - your core abstractions)
-1. `AppState` - 246 edges
-2. `_State` - 228 edges
+1. `AppState` - 247 edges
+2. `_State` - 229 edges
 3. `_` - 179 edges
 4. `_` - 111 edges
 5. `Context` - 92 edges
@@ -834,11 +863,11 @@
 ## Hyperedges (group relationships)
 - **Font Metric Compatibility Pattern** — assets_fonts_fonts_notice, assets_word_viewer, lib_services_pptx_render [EXTRACTED 1.00]
 
-## Communities (809 total, 78 thin omitted)
+## Communities (836 total, 75 thin omitted)
 
 ### Community 0 - "xlsx_reader.dart"
 Cohesion: 0.01
-Nodes (187): accepts, align, allowBlank, allowEditRanges, any, _applyTint, _attr, author (+179 more)
+Nodes (188): accepts, activeTab, align, allowBlank, allowEditRanges, any, _applyTint, _attr (+180 more)
 
 ### Community 1 - "PPTX Render Service"
 Cohesion: 0.01
@@ -846,7 +875,7 @@ Nodes (157): adjust, _adjustValues, align, AnimTarget, _archive, arrowEnd, arrow
 
 ### Community 2 - "viewer_screen.dart"
 Cohesion: 0.01
-Nodes (105): _applyResumePage, _conversion, createState, build, _fontFamily, _fontSize, _lineHeight, _lineNumbers (+97 more)
+Nodes (111): _applyResumePage, _autoScroll, _autoScrollAwake, _autoScrollFrame, _autoScrollHeld, _autoScrollLast, _conversion, createState (+103 more)
 
 ### Community 3 - "spreadsheet_editor_screen.dart"
 Cohesion: 0.01
@@ -862,7 +891,7 @@ Nodes (90): _aliases, _arrayDepth, _arrayFunctions, _asNumber, _canonical, canon
 
 ### Community 6 - "xlsx_editor.dart"
 Cohesion: 0.01
-Nodes (211): _, addValidation, _applyStructural, autoFilterRef, captureStructure, clearValidations, comments, condFormats (+203 more)
+Nodes (185): addChart, addCondRule, addLink, addMerge, addSheet, addSparkline, align, alignFor (+177 more)
 
 ### Community 7 - "app_state.dart"
 Cohesion: 0.01
@@ -874,7 +903,7 @@ Nodes (108): acc, add, _buffer, build, byCategory, bytes, cap, category (+100 mo
 
 ### Community 9 - "ue"
 Cohesion: 0.07
-Nodes (3): c(), l(), ue()
+Nodes (5): c(), je(), l(), qe(), ue()
 
 ### Community 10 - "pdf_syntax.dart"
 Cohesion: 0.02
@@ -902,15 +931,15 @@ Nodes (45): 0, answer, confirm, confirmed, _confirmExtensionChange, copyToExtern
 
 ### Community 16 - "photos_screen.dart"
 Cohesion: 0.03
-Nodes (55): _appBarExtent, _bottomSpacer, _bucketCache, _cell, _chatKindCache, _columnsIcon, _countsKey, createState (+47 more)
+Nodes (57): _appBarExtent, _bottomSpacer, _bucketCache, _cell, _chatKindCache, _columnsIcon, _countsKey, createState (+49 more)
 
 ### Community 17 - "pdf_paragraph_layout.dart"
 Cohesion: 0.03
 Nodes (61): advance, _advanceOf, _allowedInSpan, availableFor, baseY, best, buffer, c (+53 more)
 
 ### Community 18 - "chart_insert_dialog.dart"
-Cohesion: 0.10
-Nodes (16): XlsxChartSpec, build, _ChartInsertDialog, _ChartInsertDialogState, chartPreviewOf, _color, createState, dispose (+8 more)
+Cohesion: 0.14
+Nodes (12): XlsxChartSpec, build, _ChartInsertDialog, _ChartInsertDialogState, chartPreviewOf, _color, createState, dispose (+4 more)
 
 ### Community 19 - "pptx_editor.dart"
 Cohesion: 0.02
@@ -920,29 +949,29 @@ Nodes (155): addShape, addSlideFromLayout, addTable, addTextBox, _addToTree, _aN
 Cohesion: 0.04
 Nodes (54): after, aligns, before, blocks, bold, buf, _bulletRe, _canToggle (+46 more)
 
-### Community 21 - "pdfium_bindings.dart"
-Cohesion: 0.00
-Nodes (947): a, b, bits_per_pixel, bottom, c, clientData, colorspace, d (+939 more)
+### Community 21 - "dart:convert"
+Cohesion: 0.03
+Nodes (55): json, pretty, PrettyFormat, supports, xml, clean, DocxAi, kWordAiTasks (+47 more)
 
 ### Community 22 - "pdf_editor_screen.dart"
 Cohesion: 0.02
-Nodes (105): _accessory, _addImage, _addSignature, _applyInline, _cancelInline, _centerBox, _checkInline, _closeEditors (+97 more)
+Nodes (117): _accessory, _addImage, _addSignature, _applyInline, _backgroundPanel, _body, _cancelInline, _centerBox (+109 more)
 
 ### Community 23 - "dashboard_screen.dart"
 Cohesion: 0.03
-Nodes (73): audio, device, document, _HeroAction, highlight, icon, image, label (+65 more)
+Nodes (51): active, _appsBytes, _cachedAtMs, cachedFiles, _cachedIndex, cachedStat, _catchingUp, _catchUpEvery (+43 more)
 
-### Community 24 - "pdf_tools_screen.dart"
-Cohesion: 0.02
-Nodes (188): _actionBar, _addPageNumbers, _addWatermark, allow, _apply, _askPassword, _askText, _barButton (+180 more)
+### Community 24 - "pro_views.dart"
+Cohesion: 0.03
+Nodes (81): allow, _clear, color, _custom, _date, _DigitalSignSheet, _DigitalSignSheetState, digits (+73 more)
 
 ### Community 25 - "package:flutter_test/flutter_test.dart"
-Cohesion: 0.01
-Nodes (87): main, main, _record, _file, main, root, main, main (+79 more)
+Cohesion: 0.02
+Nodes (49): main, main, kinds, main, v, main, main, main (+41 more)
 
-### Community 26 - "library_screen.dart"
+### Community 26 - "downloads_screen.dart"
 Cohesion: 0.01
-Nodes (134): build, createState, _delete, initState, _load, _play, _attach, audiobookExtensions (+126 more)
+Nodes (177): build, createState, _delete, initState, _load, _play, line, paint (+169 more)
 
 ### Community 27 - "xlsx_save_patch.dart"
 Cohesion: 0.01
@@ -952,33 +981,33 @@ Nodes (139): addDxf, allowBlank, allowRanges, apply, _applyAutoFilter, _applyCon
 Cohesion: 0.02
 Nodes (154): _adjust, applyLiveMessage, _applySegs, _Atom, _atomsOf, _buildRun, ch, char (+146 more)
 
-### Community 29 - "dart:async"
-Cohesion: 0.03
-Nodes (50): deleteAll, EmptyFolders, find, maxDepth, _enhance, EnhanceJobs, EnhanceResult, _kindLabel (+42 more)
+### Community 29 - "folder_size_cache.dart"
+Cohesion: 0.10
+Nodes (19): clear, debugReset, _failed, FolderSizeCache, invalidate, _listen, _listening, maxConcurrent (+11 more)
 
 ### Community 30 - "ftp_server.dart"
 Cohesion: 0.03
 Nodes (69): _acceptData, addresses, allowWrite, anonymous, _authed, boundPort, _categoryRows, _changeDirectory (+61 more)
 
 ### Community 31 - "browser_screen.dart"
-Cohesion: 0.03
-Nodes (71): _askName, _body, _BrowserScreenActionsPart, _BrowserScreenViewsPart, _checkLock, _cleanEmptyFolders, _exportListing, _folderSubtitle (+63 more)
+Cohesion: 0.04
+Nodes (58): _askName, _body, _BrowserScreenActionsPart, _BrowserScreenViewsPart, _checkLock, _cleanEmptyFolders, _exportListing, _folderSubtitle (+50 more)
 
-### Community 32 - "smart_redesign_test.dart"
-Cohesion: 0.07
-Nodes (15): entry, main, temp, file, _gun, main, now, entries (+7 more)
+### Community 32 - "package:dosya_okuyucu/models/fs_entry.dart"
+Cohesion: 0.02
+Nodes (73): FsEntry, main, main, _record, main, _record, _file, main (+65 more)
 
 ### Community 33 - "category_screen.dart"
-Cohesion: 0.01
-Nodes (169): _bytesOf, _CategoryScreenStateParts, _controls, _normalBar, _open, _openFilterSheet, _openTools, _reveal (+161 more)
+Cohesion: 0.03
+Nodes (69): _bytesOf, _CategoryScreenStateParts, _controls, _normalBar, _open, _openFilterSheet, _openTools, _reveal (+61 more)
 
 ### Community 34 - "search_index.dart"
 Cohesion: 0.03
-Nodes (73): add, adoptBuilt, _appendSync, applyChanges, buffer, _BuildArgs, _building, _buildSync (+65 more)
+Nodes (74): add, adoptBuilt, _appendSync, applyChanges, buffer, _BuildArgs, _building, _buildSync (+66 more)
 
 ### Community 35 - "docx-preview.min.js"
 Cohesion: 0.04
-Nodes (38): ae(), b(), be, ce, D(), de, E(), ee (+30 more)
+Nodes (34): ae(), b(), be, D(), de, E(), ee, F() (+26 more)
 
 ### Community 36 - "fm_filter.dart"
 Cohesion: 0.03
@@ -994,7 +1023,7 @@ Nodes (62): XlsxCellStyle, XlsxCellView, XlsxBorder, _alignFor, background, barC
 
 ### Community 39 - "word_editor_screen.dart"
 Cohesion: 0.02
-Nodes (111): _accessoryBar, _addParagraph, _afterHistory, _alignIcon, _buildPage, _buildShell, _canRedo, _canUndo (+103 more)
+Nodes (115): _accessoryBar, _addParagraph, _afterHistory, _alignIcon, _buildPage, _buildShell, _canRedo, _canUndo (+107 more)
 
 ### Community 40 - "download_task.dart"
 Cohesion: 0.05
@@ -1002,7 +1031,7 @@ Nodes (42): bytesPerSecond, copyWith, decodeQueue, destPath, disposition, Downlo
 
 ### Community 41 - "app_icons.dart"
 Cohesion: 0.00
-Nodes (460): abc, accountCircle, accountTree, add, addCircleOutline, addComment, addFile, addFolder (+452 more)
+Nodes (463): abc, accountCircle, accountTree, add, addCircleOutline, addComment, addFile, addFolder (+455 more)
 
 ### Community 42 - "docx_edit_controller.dart"
 Cohesion: 0.01
@@ -1022,11 +1051,11 @@ Nodes (111): adjust, adjustMatrix, amount, angle, at, background, brightness, bu
 
 ### Community 46 - "slides_editor_screen.dart"
 Cohesion: 0.02
-Nodes (148): _chartFromTable, _commitFrame, _connect, _convertSmartArts, _crop, _curIndex, current, _deckBytes (+140 more)
+Nodes (141): _alignIcon, _beginEdit, _buildSlides, _canEditText, _clearSelection, _commitEdit, _commitFrame, _confirmDeleteSlide (+133 more)
 
 ### Community 47 - ".elements"
-Cohesion: 0.09
-Nodes (3): k, oe, ze
+Cohesion: 0.08
+Nodes (5): ce, k, oe, xe(), ze
 
 ### Community 48 - "pdf_objects.dart"
 Cohesion: 0.04
@@ -1038,7 +1067,7 @@ Nodes (55): _api, _check, classify, classifySignInError, _client, copy, copyUri,
 
 ### Community 50 - "analysis_screen.dart"
 Cohesion: 0.02
-Nodes (119): _openMobileEditor, _AnalysisScreenActionsPart, _appsBar, bytes, capacity, _CapacityBar, _CategoryBar, color (+111 more)
+Nodes (106): _AnalysisScreenActionsPart, _appsBar, bytes, capacity, _CapacityBar, _CategoryBar, color, count (+98 more)
 
 ### Community 51 - "drive_screen.dart"
 Cohesion: 0.05
@@ -1054,7 +1083,7 @@ Nodes (50): applied, backgroundItems, backgroundItemsInBackground, bytes, delete
 
 ### Community 54 - "dart:io"
 Cohesion: 0.01
-Nodes (173): applyRefreshRate, FsEntry, FootprintRoots, ArchiveError, JobCancelled, TrashService, VaultCorrupt, dir (+165 more)
+Nodes (177): applyRefreshRate, FootprintRoots, ArchiveError, JobCancelled, TrashService, VaultCorrupt, dir, main (+169 more)
 
 ### Community 55 - "chat_junk.dart"
 Cohesion: 0.05
@@ -1062,39 +1091,39 @@ Nodes (36): buckets, byKind, bytes, ChatJunkKind, ChatJunkKindLabel, ChatJunkRep
 
 ### Community 56 - "_State"
 Cohesion: 0.02
-Nodes (133): _WordProPart, DraftRecoveryMixin, DosyaOkuyucuApp, _DosyaOkuyucuAppState, openAppLink, AudiobookLibraryScreen, _AudiobookLibraryScreenState, WordMobileEditorScreen (+125 more)
+Nodes (132): _WordProPart, DraftRecoveryMixin, DosyaOkuyucuApp, _DosyaOkuyucuAppState, openAppLink, AudiobookLibraryScreen, _AudiobookLibraryScreenState, WordMobileEditorScreen (+124 more)
 
 ### Community 57 - "home_screen.dart"
-Cohesion: 0.03
-Nodes (38): push, build, _built, createState, debugResetStartFolder, dispose, _downloadsTab, HomeScreen (+30 more)
+Cohesion: 0.05
+Nodes (18): push, build, _built, createState, debugResetStartFolder, dispose, _downloadsTab, HomeScreen (+10 more)
 
 ### Community 58 - "thumbnail_cache.dart"
 Cohesion: 0.02
-Nodes (85): changed, _flush, _flushScheduled, FsEvents, indexedVersion, reportUnreadable, _unreadable, version (+77 more)
+Nodes (82): ApkIcon, _argb, _cacheDir, _cacheLimit, colorOf, composeAdaptive, debugReset, _decode (+74 more)
 
 ### Community 59 - "main.dart"
 Cohesion: 0.02
-Nodes (58): _applyPerfBudget, AppProviders, appState, budget, cb, child, context, createState (+50 more)
+Nodes (62): _applyPerfBudget, AppProviders, appState, budget, cb, child, context, createState (+54 more)
 
 ### Community 60 - "xlsx_save_patch_test.dart"
-Cohesion: 0.02
-Nodes (97): DraftJournal, OfficeCryptoException, XlsxTruncatedException, eng, main, dir, main, path (+89 more)
+Cohesion: 0.03
+Nodes (71): OfficeCryptoException, XlsxTruncatedException, eng, main, main, book, main, a (+63 more)
 
 ### Community 61 - "String?"
 Cohesion: 0.01
-Nodes (165): build, children, createState, inset, _open, SettingsGroup, title, trailing (+157 more)
+Nodes (150): build, children, createState, inset, _open, SettingsGroup, title, trailing (+142 more)
 
 ### Community 62 - "drag_select.dart"
 Cohesion: 0.06
 Nodes (33): _anchor, _applyPointer, _autoScroll, autoScrollInsets, build, child, createState, _curEnd (+25 more)
 
-### Community 63 - "../core/snack.dart"
-Cohesion: 0.01
-Nodes (169): AiFilesScreen, _AiFilesScreenState, bucket, build, createState, docType, _load, title (+161 more)
+### Community 63 - "sd_union_screen.dart"
+Cohesion: 0.02
+Nodes (75): actionLabel, _allowed, _body, _breadcrumb, build, createState, _dirs, _enter (+67 more)
 
-### Community 64 - "_"
-Cohesion: 0.20
-Nodes (9): _, copyTargetFor, _documentsDir, _isWritable, PdfSave, PdfSaveMode, _unique, write (+1 more)
+### Community 64 - "List"
+Cohesion: 0.03
+Nodes (54): build, bytes, _changed, createState, dispose, _doc, initState, open (+46 more)
 
 ### Community 65 - "audio_player_screen.dart"
 Cohesion: 0.05
@@ -1109,16 +1138,16 @@ Cohesion: 0.06
 Nodes (32): buckets, bucketWords, category, categoryName, dateName, end, extensions, extWords (+24 more)
 
 ### Community 68 - "package:path/path.dart"
-Cohesion: 0.04
-Nodes (50): 2026-07-21 — APK derleme tetikleyicisi (dispatch API yasak!), 2026-07-21 — CI politikası: APK yalnızca istendiğinde (limit tasarrufu), 2026-07-21 — Eski Office (.doc/.xls/.ppt) SALT-OKUNUR görüntüleme, 2026-07-21 — Excel sayı biçimleri (görüntüleme sadakati), 2026-07-21 — TUZAK: commit mesajı işaretiyle CI tetikleme kırılgan, 2026-07-22 — 2. TUR (build-56 sonrası kullanıcı testi): XLSX hâlâ çöküyor, slayt zoom hâlâ sorunlu, 2026-07-22 — TUZAK+ÇÖZÜM: APK derlemesi geçici Gradle stall'ında 55 dk takılıp çöktü, 2026-07-23 — AI yanıtlarında Markdown temizliği + "Word'e aktar" (+42 more)
+Cohesion: 0.05
+Nodes (41): 2026-07-21 — APK derleme tetikleyicisi (dispatch API yasak!), 2026-07-21 — CI politikası: APK yalnızca istendiğinde (limit tasarrufu), 2026-07-21 — Eski Office (.doc/.xls/.ppt) SALT-OKUNUR görüntüleme, 2026-07-21 — Excel sayı biçimleri (görüntüleme sadakati), 2026-07-21 — TUZAK: commit mesajı işaretiyle CI tetikleme kırılgan, 2026-07-22 — 2. TUR (build-56 sonrası kullanıcı testi): XLSX hâlâ çöküyor, slayt zoom hâlâ sorunlu, 2026-07-22 — TUZAK+ÇÖZÜM: APK derlemesi geçici Gradle stall'ında 55 dk takılıp çöktü, 2026-07-23 — AI yanıtlarında Markdown temizliği + "Word'e aktar" (+33 more)
 
 ### Community 69 - "file_ops.dart"
 Cohesion: 0.06
-Nodes (33): cancelled, copyAll, _countFiles, createFile, createFolder, currentName, deleteAll, dest (+25 more)
+Nodes (34): cancelled, copyAll, _countFiles, createFile, createFolder, currentName, deleteAll, dest (+26 more)
 
-### Community 70 - "chat_screen.dart"
-Cohesion: 0.05
-Nodes (38): _actionStyle, _badge, _Bubble, _busy, _ChatHint, ChatScreen, _ChatScreenState, _Composer (+30 more)
+### Community 70 - "ai_actions.dart"
+Cohesion: 0.02
+Nodes (91): _actionStyle, _badge, _Bubble, _busy, _ChatHint, ChatScreen, _ChatScreenState, _Composer (+83 more)
 
 ### Community 71 - "fm_settings_screen.dart"
 Cohesion: 0.02
@@ -1137,28 +1166,28 @@ Cohesion: 0.03
 Nodes (88): _boostEnd, _boostStart, _brightnessBadge, captionAt, _captionLayer, _controls, _gestureBubble, _handleBrightnessDrag (+80 more)
 
 ### Community 75 - "remote_edit_screen.dart"
-Cohesion: 0.04
-Nodes (46): _FormulaFieldController, CodeTextController, _build, createState, dispose, _domain, errorTextFor, existing (+38 more)
+Cohesion: 0.07
+Nodes (28): _build, createState, dispose, _domain, errorTextFor, existing, _host, initState (+20 more)
 
 ### Community 76 - "category_tools.dart"
 Cohesion: 0.03
 Nodes (64): _ActionRow, _aiAnalysis, _AiReport, _AiReportView, appState, _BarRow, build, busy (+56 more)
 
 ### Community 77 - "storage_trend.dart"
-Cohesion: 0.07
-Nodes (29): base, byCategory, computeTrend, dayMs, days, deltaBytes, _fileName, fromJson (+21 more)
+Cohesion: 0.06
+Nodes (31): FmCategory, FmCategoryLabel, base, byCategory, computeTrend, dayMs, days, deltaBytes (+23 more)
 
-### Community 78 - "labs_thin_editor_test.dart"
-Cohesion: 0.20
-Nodes (8): c, _d, _deltas, g, main, _open, pump, pumpWidget
+### Community 78 - "package:flutter/services.dart"
+Cohesion: 0.06
+Nodes (21): main, main, c, _d, _deltas, g, main, _open (+13 more)
 
 ### Community 79 - "fm_entry_icon.dart"
 Cohesion: 0.03
-Nodes (62): apk, _ApkIconImage, _ApkIconImageState, archive, _archiveExt, audio, _badge, build (+54 more)
+Nodes (61): apk, _ApkIconImage, _ApkIconImageState, archive, _archiveExt, audio, _badge, build (+53 more)
 
 ### Community 80 - "fs_entry.dart"
 Cohesion: 0.08
-Nodes (26): accessedMs, apk, archive, audio, category, categoryForExtension, document, exists (+18 more)
+Nodes (24): accessedMs, apk, archive, audio, category, categoryForExtension, document, exists (+16 more)
 
 ### Community 81 - "signature_pad.dart"
 Cohesion: 0.08
@@ -1170,23 +1199,23 @@ Nodes (25): ansiOff, ansiText, buildCfb, bytesAtom, chars, fromList, lcbPlc, mai
 
 ### Community 83 - "media_resize.dart"
 Cohesion: 0.02
-Nodes (79): after, all, anchor, aspectH, aspectW, audio, _audioBitrate, average (+71 more)
+Nodes (91): after, all, anchor, aspectH, aspectW, audio, _audioBitrate, average (+83 more)
 
 ### Community 84 - "package:dosya_okuyucu/services/docx/docx_document.dart"
-Cohesion: 0.03
-Nodes (49): DocxTableException, _apply, doc, _edit, _fx, main, p, pkg (+41 more)
+Cohesion: 0.04
+Nodes (44): DocxTableException, _apply, doc, _edit, _fx, main, p, pkg (+36 more)
 
 ### Community 85 - "List"
 Cohesion: 0.05
 Nodes (46): _actions, _askSplit, _exportApk, _InstalledAppsScreenViewsPart, _permissionCard, _row, _snack, _style (+38 more)
 
-### Community 86 - "ai_tag_flow.dart"
-Cohesion: 0.09
-Nodes (18): appState, build, busy, byFold, createState, ensureLoaded, existing, files (+10 more)
+### Community 86 - "pdf_tools_screen.dart"
+Cohesion: 0.04
+Nodes (55): _addPageNumbers, _addWatermark, _apply, _askPassword, _askText, _compress, _confirmAnnotationLoss, _confirmLeave (+47 more)
 
 ### Community 87 - "scan_edit_screen.dart"
-Cohesion: 0.05
-Nodes (42): _accent, autoDetect, build, busy, color, _controls, _cornerHandle, _corners (+34 more)
+Cohesion: 0.04
+Nodes (41): _accent, autoDetect, build, busy, color, _controls, _cornerHandle, _corners (+33 more)
 
 ### Community 88 - "s"
 Cohesion: 0.13
@@ -1225,28 +1254,28 @@ Cohesion: 0.08
 Nodes (24): already, alreadyPlaced, bytes, counts, d, description, descriptionKey, empty (+16 more)
 
 ### Community 97 - "remote_browser_screen_test.dart"
-Cohesion: 0.07
-Nodes (26): RemoteError, canWrite, close, closed, connect, _connection, created, _delegates (+18 more)
+Cohesion: 0.03
+Nodes (44): RemoteError, channel, filesRoots, install, main, platformVolumes, _secondStickRegressions, tmp (+36 more)
 
 ### Community 98 - "pdf_edit_overlay.dart"
-Cohesion: 0.10
-Nodes (17): PdfPageOutline, build, lines, minTouch, _objectBox, orderByAreaDesc, outline, page (+9 more)
+Cohesion: 0.07
+Nodes (21): PdfPageOutline, build, lines, minTouch, _objectBox, orderByAreaDesc, outline, page (+13 more)
 
 ### Community 99 - "jszip.min.js"
 Cohesion: 0.25
 Nodes (23): a(), A(), c(), d(), i(), n(), f(), G() (+15 more)
 
 ### Community 100 - "file_service.dart"
-Cohesion: 0.07
-Nodes (24): _cellText, _decodeSpreadsheet, FileService, iconKindForExtension, _imageExts, isLegacyOffice, kindForExtension, _legacyOffice (+16 more)
+Cohesion: 0.05
+Nodes (33): _cellText, _decodeSpreadsheet, FileService, iconKindForExtension, _imageExts, isLegacyOffice, kindForExtension, _legacyOffice (+25 more)
 
 ### Community 101 - "pdf_viewer.dart"
-Cohesion: 0.01
-Nodes (183): _addCancellationToken, addListener, _alternativeFitScale, _animationResettingGuard, _animController, _animGoTo, _areZoomsAlmostIdentical, _attach (+175 more)
+Cohesion: 0.00
+Nodes (409): addCancellationToken, addListener, _adjustBoundaryMargins, _adjustedBoundaryMargins, alternativeFitScale, _anchorARect, _anchorBRect, _animationResettingGuard (+401 more)
 
 ### Community 102 - "archive_screen.dart"
-Cohesion: 0.08
-Nodes (25): 2026-08-01 (2. tur) — Cihaz bulguları: sayfa ekrana sığmıyordu · FAB çakışmaları, 2026-08-05 (4. tur) — Taranmış PDF'te ARAMA + OCR disk önbelleği, 2026-08-05 (5. tur / gece) — Düzenlemede isabet, ana ekran hızlı erişim, Drive terfisi, 2026-08-05 (III) — Slayt sadakati: custGeom (serbest çizim) + tema çizgi kalınlığı, 2026-08-06 (2. tur) — Drive önbelleği + Word'de telefonda akış varsayılanı, 2026-08-06 (4. tur) — Okuma görünümüne SESLİ KİTAP, 2026-08-06 (5. tur) — Word: SAYFA görünümü varsayılana döndü + netlik düzeltmesi, 2026-08-07 (3) — Yazı tipi/boyutu HER TELEFONDA sabit, varsayılan Carlito (+17 more)
+Cohesion: 0.09
+Nodes (21): 2026-08-01 (2. tur) — Cihaz bulguları: sayfa ekrana sığmıyordu · FAB çakışmaları, 2026-08-05 (4. tur) — Taranmış PDF'te ARAMA + OCR disk önbelleği, 2026-08-05 (III) — Slayt sadakati: custGeom (serbest çizim) + tema çizgi kalınlığı, 2026-08-06 (2. tur) — Drive önbelleği + Word'de telefonda akış varsayılanı, 2026-08-06 (4. tur) — Okuma görünümüne SESLİ KİTAP, 2026-08-06 (5. tur) — Word: SAYFA görünümü varsayılana döndü + netlik düzeltmesi, 2026-08-07 (3) — Yazı tipi/boyutu HER TELEFONDA sabit, varsayılan Carlito, 2026-08-07 (3b) — DÜZELTME: yazı tipi ayarı yalnız gövdeyi değiştiriyordu (+13 more)
 
 ### Community 103 - "image_gallery_screen.dart"
 Cohesion: 0.03
@@ -1268,13 +1297,13 @@ Nodes (56): _applyPrefs, buffer, _chunks, clean, cleanForSpeech, _clearNeural, c
 Cohesion: 0.09
 Nodes (23): byName, copyWith, defaultPort, domain, encode, host, id, initialPath (+15 more)
 
-### Community 108 - "fm_resize_sheet_test.dart"
-Cohesion: 0.02
-Nodes (46): main, _record, body, fromList, _id3, main, _pictureFrame, size (+38 more)
+### Community 108 - "media_fixture_smoke_test.dart"
+Cohesion: 0.05
+Nodes (21): job, main, main, size, main, photo, dünya, main (+13 more)
 
 ### Community 109 - "../../services/fm/fs_scan.dart"
 Cohesion: 0.02
-Nodes (74): _again, _bucketCard, build, _busy, ChatJunkLive, createState, dispose, embedded (+66 more)
+Nodes (105): build, createState, _date, initState, _monthLabel, _refresh, _row, _again (+97 more)
 
 ### Community 110 - "op_history.dart"
 Cohesion: 0.09
@@ -1282,7 +1311,7 @@ Nodes (23): add, canUndo, clear, _fileName, fromJson, kind, label, labelKey (+15
 
 ### Community 111 - "CHANGELOG.md"
 Cohesion: 0.01
-Nodes (174): 0.1.0, 0.1.1, 0.2.0, 0.2.1, 0.2.2, 0.2.3, 0.2.4, 0.3.0 (+166 more)
+Nodes (256): 0.1.0, 0.1.1, 0.2.0, 0.2.1, 0.2.2, 0.2.3, 0.2.4, 0.3.0 (+248 more)
 
 ### Community 112 - "docx_view.dart"
 Cohesion: 0.03
@@ -1290,7 +1319,7 @@ Nodes (72): align, background, _badge, build, bytes, _canvas, caretParagraph, _c
 
 ### Community 113 - "design_shots_faz25_test.dart"
 Cohesion: 0.03
-Nodes (67): SheetCell, _app, main, bar, cellText, dir, editor, editorField (+59 more)
+Nodes (55): SheetCell, bar, cellText, dir, editor, editorField, main, path (+47 more)
 
 ### Community 114 - "fm_category_tile.dart"
 Cohesion: 0.05
@@ -1302,11 +1331,11 @@ Nodes (48): byStream, _Candidate, drawCount, end, findBackgroundItems, _hits, im
 
 ### Community 116 - "slide_canvas.dart"
 Cohesion: 0.04
-Nodes (42): SlideVM, _anchor, _arrow, build, bytes, _canvas, child, crop (+34 more)
+Nodes (44): _LeftClipper, SlideVM, _anchor, _arrow, build, bytes, _canvas, child (+36 more)
 
 ### Community 117 - "dart:math"
 Cohesion: 0.05
-Nodes (32): decodeWidth, forViewport, ImageBudget, maxWidth, minWidth, step, apply, applyMany (+24 more)
+Nodes (31): decodeWidth, forViewport, ImageBudget, maxWidth, minWidth, step, currentPdfPage, docBottom (+23 more)
 
 ### Community 118 - "firebase_service.dart"
 Cohesion: 0.15
@@ -1317,24 +1346,24 @@ Cohesion: 0.07
 Nodes (21): actionCancel, bodyOf, _channelDescription, _channelId, _channelName, expandedText, _held, _hub (+13 more)
 
 ### Community 120 - "scan_result_screen.dart"
-Cohesion: 0.04
-Nodes (39): _actionDismissed, _busy, _classGuess, build, createState, _index, initState, pages (+31 more)
+Cohesion: 0.03
+Nodes (71): _acceptClassFolder, _addExpense, _addFromGallery, _addPages, _applyKind, _changeLocation, _commit, _crop (+63 more)
 
-### Community 121 - "../core/snack.dart"
-Cohesion: 0.02
-Nodes (88): ToastHandle, again, appState, body, build, _Busy, canRegenerate, context (+80 more)
-
-### Community 122 - "pdf_api.dart"
+### Community 121 - "../core/l10n/app_strings.dart"
 Cohesion: 0.01
-Nodes (133): allMatches, allowsCopying, allowsDocumentAssembly, allowsModifyAnnotations, allowsPrinting, appendAllRanges, appendRange, bottom (+125 more)
+Nodes (146): ToastHandle, _askPassword, build, createState, _error, _errorView, _extractOne, _header (+138 more)
+
+### Community 122 - "pdf_viewer_scroll_interaction_delegate_physics.dart"
+Cohesion: 0.04
+Nodes (52): bidiParts, split, create, dispose, hashCode, init, _controller, create (+44 more)
 
 ### Community 123 - "xls_legacy.dart"
 Cohesion: 0.03
 Nodes (68): _advance, atBlockEnd, _block, blocks, bold, boolean, _Bound, cells (+60 more)
 
 ### Community 124 - "media_player_layout_test.dart"
-Cohesion: 0.05
-Nodes (30): VideoPlayback, _gestureTests, main, buildView, buildViewWithOptions, create, createWithOptions, dir (+22 more)
+Cohesion: 0.04
+Nodes (34): EnhanceCancelled, main, dir, main, onFinished, onIdle, onProgress, photo (+26 more)
 
 ### Community 125 - "scan_enhance.dart"
 Cohesion: 0.06
@@ -1357,24 +1386,24 @@ Cohesion: 0.10
 Nodes (17): build, _busy, _controls, createState, _drawSignature, initState, open, _page (+9 more)
 
 ### Community 130 - "package:shared_preferences/shared_preferences.dart"
-Cohesion: 0.01
-Nodes (128): ac, bekle, binding, kapat, kaydir, main, _veri, FmFilter (+120 more)
+Cohesion: 0.02
+Nodes (106): ac, bekle, binding, kapat, kaydir, main, _veri, FmEntryRow (+98 more)
 
 ### Community 131 - "ftp_fs.dart"
 Cohesion: 0.06
 Nodes (22): close, connect, delete, download, _ftp, list, makeDirectory, rename (+14 more)
 
 ### Community 132 - "resize_actions.dart"
-Cohesion: 0.04
-Nodes (47): alreadyRunning, before, _describeSources, done, failed, hasImages, hasVideos, id (+39 more)
+Cohesion: 0.05
+Nodes (34): alreadyRunning, before, _describeSources, done, failed, hasImages, hasVideos, id (+26 more)
 
 ### Community 133 - "media_resize_sheet.dart"
 Cohesion: 0.04
 Nodes (54): _applyPreset, _aspectControls, _aspectHController, _aspectWController, build, _chips, _choice, createState (+46 more)
 
 ### Community 134 - "HAFIZA arşivi — 2026-09"
-Cohesion: 0.01
-Nodes (140): 2026-09-02 (altıncı tur) — USB hâlâ görünmüyordu: `state` YALAN SÖYLÜYOR, 2026-09-02 (beşinci tur) — SAF: klasör izniyle harici bellek, 2026-09-02 (dokuzuncu tur) — FAT'a YAZMA + çökme sınıfının kapatılması, 2026-09-02 (ikinci tur) — Harici bellek: nereden açılacak?, 2026-09-02 (on altıncı tur) — Bildirimde süre (çubuğun dürüst karşılığı), 2026-09-02 (on beşinci tur) — Kullanıcı bulguları: müzik bildirimi, donma, çıkarma, 2026-09-02 (on birinci tur) — Kotlin artık YERELDE derleniyor, 2026-09-02 (on dördüncü tur) — Güvenle çıkar, kısa şerit, uçtan uca test (+132 more)
+Cohesion: 0.09
+Nodes (21): 2026-09-02 (on altıncı tur) — Bildirimde süre (çubuğun dürüst karşılığı), 2026-09-02 (on birinci tur) — Kotlin artık YERELDE derleniyor, 2026-09-02 (on ikinci tur) — Gerçek donanımda ısıracak iki nokta, 2026-09-02 — ÇÖKME: `existsSync()` izin hatasında FIRLATIR (dün eklenen kök), 2026-09-22 — PR #51 (melihsenel38): dilimli doluluk halkası alındı, 2026-09-22 — Üç kullanıcı isteği: sayfa numarası, "İndir", tarayıcıdan açılan PDF, 2026-09-24 (2) — PDF yerinde düzenleme: klavye, "Uygula", görünüm, 2026-09-24 (3) — Uygulama simgesi: maske payı + dişli (+13 more)
 
 ### Community 135 - "legacy_text.dart"
 Cohesion: 0.10
@@ -1384,9 +1413,9 @@ Nodes (19): _accept, _best, _cleanDocText, _cp1252, _cp1252Hi, _cp1252Runs, _doc
 Cohesion: 0.07
 Nodes (28): _badge, build, _commit, controller, createState, currentZoom, didUpdateWidget, dispose (+20 more)
 
-### Community 137 - "dart:typed_data"
-Cohesion: 0.01
-Nodes (241): json, pretty, PrettyFormat, supports, xml, extractDocxText, extractPptxText, _fileByName (+233 more)
+### Community 137 - "package:archive/archive.dart"
+Cohesion: 0.03
+Nodes (54): extractDocxText, extractPptxText, _fileByName, OfficeReader, _slideIndex, apply, formula, index (+46 more)
 
 ### Community 138 - "app_strings.dart"
 Cohesion: 0.04
@@ -1396,21 +1425,21 @@ Nodes (12): AppStrings, _AppStringsDelegate, current, delegate, isSupported, key
 Cohesion: 0.05
 Nodes (36): asciiFold, _blankLine, body, characters, charactersNoSpaces, _charClass, context, false (+28 more)
 
-### Community 140 - "../core/app_icons.dart"
+### Community 140 - "../../models/fs_entry.dart"
 Cohesion: 0.02
-Nodes (106): _askPassword, build, createState, _error, _errorView, _extractOne, _header, initState (+98 more)
+Nodes (101): FmFilter, FmSort, FmSortLabel, asCsv, asText, _csvField, FolderReport, _isoDate (+93 more)
 
-### Community 141 - "drive_cache.dart"
-Cohesion: 0.20
-Nodes (8): dirFor, DriveCache, freshFile, isFresh, maxBytes, pathFor, prune, rootOf
+### Community 141 - "package:xml/xml.dart"
+Cohesion: 0.04
+Nodes (36): deck, main, main, _open, _slideXml, arc, at, _bytes (+28 more)
 
 ### Community 142 - "github_release.dart"
 Cohesion: 0.10
 Nodes (19): assets, base, downloadUrl, GithubAsset, GithubRelease, githubReleaseApiUrl, host, index (+11 more)
 
 ### Community 143 - "pptx_render_test.dart"
-Cohesion: 0.03
-Nodes (42): build, grid, main, dir, _fixture, main, _names, null (+34 more)
+Cohesion: 0.04
+Nodes (40): build, grid, main, dir, _fixture, main, _names, null (+32 more)
 
 ### Community 144 - "docx_document.dart"
 Cohesion: 0.01
@@ -1418,15 +1447,15 @@ Nodes (134): apply, applyStyle, _archive, atoms, _attr, autoColor, _binParts, bo
 
 ### Community 145 - "design_shots_faz23_test.dart"
 Cohesion: 0.02
-Nodes (124): DocxAtom, DocxEditorView, main, main, board, main, open, app (+116 more)
+Nodes (95): DocxAtom, board, main, open, app, dir, excel, main (+87 more)
 
 ### Community 146 - "doc_edges.dart"
 Cohesion: 0.11
 Nodes (18): analysisSize, boxBlur, _direction, DocEdges, _luminance, _maxPeaks, minEdgeStrength, otsuThreshold (+10 more)
 
-### Community 147 - "open_history.dart"
-Cohesion: 0.09
-Nodes (20): all, _byPath, clearAll, ensureLoaded, _fileName, forPath, _load, _loadFuture (+12 more)
+### Community 147 - "thumbnail_cache.dart"
+Cohesion: 0.03
+Nodes (62): _apply, debugReset, _holders, isHeld, request, ScreenAwake, changed, _flush (+54 more)
 
 ### Community 148 - "docx_styles.dart"
 Cohesion: 0.02
@@ -1441,12 +1470,12 @@ Cohesion: 0.07
 Nodes (4): Gallery, IShellItemImageFactory, NativeSize, Program
 
 ### Community 151 - "office_shell.dart"
-Cohesion: 0.02
-Nodes (104): DocKind, DocKindLabel, brightness, build, cardWidth, createState, dispose, heightOf (+96 more)
+Cohesion: 0.03
+Nodes (72): DocKind, DocKindLabel, EmbeddedToolbar, build, FileTypeIcon, framed, kind, size (+64 more)
 
-### Community 152 - "pdfrx_pdfium.dart"
-Cohesion: 0.02
-Nodes (84): PdfDocumentFactory, FPDF_DWORD, FPDF_WCHAR, FS_FLOAT, appendDummy, attach, backgroundWorker, bounds (+76 more)
+### Community 152 - "design_shots_faz28_test.dart"
+Cohesion: 0.04
+Nodes (44): SlideCanvas, main, main, main, grid, main, rawAt, src (+36 more)
 
 ### Community 153 - "sheet_metrics.dart"
 Cohesion: 0.11
@@ -1457,8 +1486,8 @@ Cohesion: 0.08
 Nodes (24): add, batchRenamePlaceholders, batchRenamePresets, BatchRenameTemplates, changed, entry, find, index (+16 more)
 
 ### Community 155 - "doc_classifier.dart"
-Cohesion: 0.12
-Nodes (17): best, bestMatches, bestScore, classifyDocumentText, DocClass, DocClassInfo, DocGuess, folder (+9 more)
+Cohesion: 0.07
+Nodes (26): best, bestMatches, bestScore, classifyDocumentText, DocClass, DocClassInfo, DocGuess, folder (+18 more)
 
 ### Community 156 - "gemini_service.dart"
 Cohesion: 0.09
@@ -1496,9 +1525,9 @@ Nodes (15): byPath, ChatDirection, ChatDirectionLabel, chatKindCounts, chatKindF
 Cohesion: 0.09
 Nodes (19): box, _encodeJpegInIsolate, isModelDownloading, joinPages, maxPdfPages, modelRetryDelays, number, OcrLine (+11 more)
 
-### Community 165 - "settings_backup.dart"
-Cohesion: 0.20
-Nodes (9): export, formatVersion, import, isSecret, restoreFrom, saveTo, secretPrefixes, SettingsBackup (+1 more)
+### Community 165 - "download_manager_screen.dart"
+Cohesion: 0.04
+Nodes (44): actual, _addFromClipboard, _addManual, apiUrl, body, _boot, build, busy (+36 more)
 
 ### Community 166 - "remote_live_test.dart"
 Cohesion: 0.07
@@ -1513,24 +1542,24 @@ Cohesion: 0.03
 Nodes (62): activeController, activeFocus, activeName, applying, _bare, bold, _border, build (+54 more)
 
 ### Community 169 - "@visibleForTesting"
-Cohesion: 0.03
-Nodes (80): closesOnExit, docTypeCounts, removeAllNow, onComplete, all, amount, _askGemini, BillMonth (+72 more)
+Cohesion: 0.04
+Nodes (48): closesOnExit, docTypeCounts, removeAllNow, readIconBytes, onComplete, add, _byPath, counts (+40 more)
 
 ### Community 170 - "translate_service.dart"
-Cohesion: 0.08
-Nodes (21): detect, LangDetect, _latin, _stopwords, _byCode, deleteDownloadedModels, downloadModel, isModelReady (+13 more)
+Cohesion: 0.10
+Nodes (17): _byCode, deleteDownloadedModels, downloadModel, isModelReady, _kFrom, _kTo, languages, maxChunk (+9 more)
 
 ### Community 171 - "pdf_viewer_params.dart"
-Cohesion: 0.02
-Nodes (92): PdfAnnotationRenderingMode, activeMatchTextColor, annotationRenderingMode, autofocus, backgroundColor, boundaryMargin, calculateCurrentPageNumber, calculateInitialPageNumber (+84 more)
+Cohesion: 0.01
+Nodes (181): a, activeMatchTextColor, anchorA, anchorB, animationDuration, annotationRenderingMode, autofocus, b (+173 more)
 
-### Community 172 - "double?"
-Cohesion: 0.40
-Nodes (3): DoubleExtensions, isAlmostIdentical, isAlmostIdenticalRationally
+### Community 172 - "docx_live_edit_test.dart"
+Cohesion: 0.04
+Nodes (37): main, add, archive, data, doc, _docXml, f, fromList (+29 more)
 
 ### Community 173 - "interactive_viewer.dart"
 Cohesion: 0.02
-Nodes (73): abs, _alignAxis, alignment, _animation, boundariesRotated, boundaryMargin, build, builder (+65 more)
+Nodes (109): main, OffsetPdfPointExt, abs, _alignAxis, alignment, _animateSnap, _animation, boundariesRotated (+101 more)
 
 ### Community 174 - "nearby/widgets.dart"
 Cohesion: 0.05
@@ -1542,7 +1571,7 @@ Nodes (57): _antalia, approxBytes, buf, charset, close, _complete, data, deliver
 
 ### Community 176 - "pdfrx_wasm.dart"
 Cohesion: 0.03
-Nodes (68): PdfImage, PdfPageRotation, PdfPermissions, _PdfImagePdfium, _determineWhetherSharedArrayBufferSupportedOrNot, isSharedArrayBufferSupported, bounds, cancel (+60 more)
+Nodes (68): addFontData, addFontFile, assemble, backendType, bbBottom, bbLeft, cancel, clearAllFontData (+60 more)
 
 ### Community 177 - "code_text_controller.dart"
 Cohesion: 0.10
@@ -1550,11 +1579,11 @@ Nodes (17): CodeLang, backgroundDelay, backgroundHighlighting, _bgSeq, _bgTimer,
 
 ### Community 178 - "photos/widgets.dart"
 Cohesion: 0.10
-Nodes (19): allSelected, _CheckBadge, child, count, entry, heroTag, _identity, onTap (+11 more)
+Nodes (19): allSelected, _CheckBadge, child, entry, heroTag, _identity, onTap, onToggle (+11 more)
 
 ### Community 179 - "fm_env.dart"
 Cohesion: 0.03
-Nodes (54): debugPublicRoot, DocsHome, folderName, publicPath, resolve, _writable, appSupportDir, ensureInit (+46 more)
+Nodes (60): asShareText, asText, clear, _clip, context, count, CrashLog, _dir (+52 more)
 
 ### Community 180 - "word_mobile_editor_screen.dart"
 Cohesion: 0.02
@@ -1577,16 +1606,16 @@ Cohesion: 0.03
 Nodes (64): activeTransfers, _canThumb, _ch, class, _countServed, download, _downloads, encode (+56 more)
 
 ### Community 185 - "package:flutter/services.dart"
-Cohesion: 0.01
-Nodes (109): navigatorKey, _contrast, _editorLike, _host, la, lb, main, _contrast (+101 more)
+Cohesion: 0.02
+Nodes (81): navigatorKey, _contrast, _editorLike, _host, la, lb, main, _contrast (+73 more)
 
 ### Community 186 - "ai_file_list.dart"
-Cohesion: 0.04
-Nodes (48): _askText, build, controller, _create, createState, _delete, folder, folderId (+40 more)
+Cohesion: 0.02
+Nodes (91): bucket, build, createState, docType, _load, title, build, capacityBytes (+83 more)
 
 ### Community 187 - "slideshow_screen.dart"
 Cohesion: 0.03
-Nodes (71): _auto, _backward, build, _clips, _clock, _counterLeft, _counterPaused, _counterRev (+63 more)
+Nodes (72): _auto, _backward, _blank, build, _clips, _clock, _counterLeft, _counterPaused (+64 more)
 
 ### Community 188 - "sftp_fs.dart"
 Cohesion: 0.12
@@ -1598,11 +1627,11 @@ Nodes (12): _c1, decode, decodeCp1254, _decodeUtf16, describeEncoding, encodeCp1
 
 ### Community 190 - "ai_rewrite_sheet.dart"
 Cohesion: 0.01
-Nodes (210): _AnalysisTab, AppState, AppBackground, build, _install, onSelect, selected, selectHint (+202 more)
+Nodes (215): _AnalysisTab, AppState, AppBackground, build, _install, onSelect, selected, selectHint (+207 more)
 
-### Community 191 - "pdf_page_text_overlay.dart"
-Cohesion: 0.03
-Nodes (59): PdfTextRanges, addListener, boundingBoxes, build, contentLength, createRenderObject, createState, didUpdateWidget (+51 more)
+### Community 191 - "library_screen.dart"
+Cohesion: 0.05
+Nodes (40): _add, _BookCaption, _BookTile, _boot, build, _cover, createState, didUpdateWidget (+32 more)
 
 ### Community 192 - "fm_layout.dart"
 Cohesion: 0.12
@@ -1613,8 +1642,8 @@ Cohesion: 0.12
 Nodes (16): byName, d, label, labelKey, _months, _monthsShort, PhotoGroup, photoGroupKey (+8 more)
 
 ### Community 194 - "nav_tabs.dart"
-Cohesion: 0.04
-Nodes (42): FormatPanelController, RecentsState, AudiobookJob, Bills, DashboardLayout, DownloadService, clear, debugReset (+34 more)
+Cohesion: 0.08
+Nodes (24): FormatPanelController, RecentsState, AudiobookJob, Bills, DashboardLayout, DownloadService, clear, debugReset (+16 more)
 
 ### Community 195 - "MediaTranscode.kt"
 Cohesion: 0.10
@@ -1624,13 +1653,13 @@ Nodes (4): MediaTranscodeBridge, Runnable, Listener, Listener
 Cohesion: 0.12
 Nodes (15): at, body, close, depth, m, null, open, pdfArray (+7 more)
 
-### Community 197 - "xlsx_file_charts.dart"
-Cohesion: 0.14
-Nodes (11): _attr, chart, _child, _int, read, sheetName, title, toCol (+3 more)
+### Community 197 - "search_history.dart"
+Cohesion: 0.05
+Nodes (34): build, child, EditorPerf, EditorPerfOverlay, lastMs, mark, overlayEnabled, _pending (+26 more)
 
 ### Community 198 - "QrTransfer.kt"
 Cohesion: 0.08
-Nodes (7): QrTransfer, NetworkCallback, LocalOnlyHotspotCallback, Build, Looper, VERSION, VERSION_CODES
+Nodes (6): QrTransfer, NetworkCallback, LocalOnlyHotspotCallback, ApplicationInfo, PackageManager, ServiceInfo
 
 ### Community 199 - "sheet_structure.dart"
 Cohesion: 0.04
@@ -1641,20 +1670,20 @@ Cohesion: 0.11
 Nodes (17): category, createdAtMs, DriveFile, _firstOwner, folderMime, fromJson, id, isFolder (+9 more)
 
 ### Community 201 - "drive_screen_test.dart"
-Cohesion: 0.06
-Nodes (24): DriveDownloadCancelled, DriveException, GeminiException, creds, main, _delegates, locale, main (+16 more)
+Cohesion: 0.04
+Nodes (30): DriveDownloadCancelled, DriveException, GeminiException, creds, main, main, recordFor, tmp (+22 more)
 
 ### Community 202 - "Map"
 Cohesion: 0.05
-Nodes (31): f, mapSymbolFont, out, _symbol, table, toString, _wingdings, codeBytes (+23 more)
+Nodes (30): f, mapSymbolFont, out, _symbol, table, toString, _wingdings, codeBytes (+22 more)
 
 ### Community 203 - "list_prefix.dart"
 Cohesion: 0.12
 Nodes (13): cleanPdfCopyText, _invisible, s, split, _bullet, hasBullet, hasNumber, m (+5 more)
 
 ### Community 204 - "MethodChannel"
-Cohesion: 0.06
-Nodes (9): Dikte, DocScan, Slayt, DisplayPresentation, Listener, MethodCall, MethodCallHandler, MethodChannel (+1 more)
+Cohesion: 0.05
+Nodes (10): Dikte, DocScan, Slayt, DisplayPresentation, Listener, Handler, MethodCall, MethodCallHandler (+2 more)
 
 ### Community 205 - "docx_media.dart"
 Cohesion: 0.04
@@ -1666,19 +1695,19 @@ Nodes (46): ParaVM, RunVM, align, _append, applyText, bullet, charStyle, cloneOf
 
 ### Community 207 - "package:flutter/material.dart"
 Cohesion: 0.02
-Nodes (113): active, build, color, count, fmDateSizeSections, FmMoreChip, FmMoreSection, FmMoreTile (+105 more)
+Nodes (99): accent, background, build, colorHex, heightEmu, hexColor, kProPalette, label (+91 more)
 
 ### Community 208 - "package:pdfrx/pdfrx.dart"
-Cohesion: 0.06
-Nodes (25): encodeJpeg, GrayPage, height, heightPt, heightPx, index, jpeg, luma (+17 more)
+Cohesion: 0.11
+Nodes (17): encodeJpeg, GrayPage, height, heightPt, heightPx, index, jpeg, luma (+9 more)
 
 ### Community 209 - "word_insert_ui.dart"
 Cohesion: 0.04
 Nodes (45): _at, build, _case, controller, createState, _ctl, dispose, editing (+37 more)
 
 ### Community 210 - "package:image/image.dart"
-Cohesion: 0.02
-Nodes (52): EnhanceCancelled, main, dir, main, onFinished, onIdle, onProgress, photo (+44 more)
+Cohesion: 0.08
+Nodes (20): main, inkOf, main, page, blank, main, gray, h (+12 more)
 
 ### Community 211 - "package:pdfrx/pdfrx.dart"
 Cohesion: 0.11
@@ -1693,8 +1722,8 @@ Cohesion: 0.22
 Nodes (8): _countOutsideQuotes, CsvCodec, detectDelimiter, encode, _escape, _firstRecordLines, parse, _sanitize
 
 ### Community 214 - "media_duration.dart"
-Cohesion: 0.05
-Nodes (34): _acquire, _cache, _dirty, _ensureLoaded, _fileName, format, forVideo, _inFlight (+26 more)
+Cohesion: 0.08
+Nodes (24): _acquire, _cache, _dirty, _ensureLoaded, _fileName, format, forVideo, _inFlight (+16 more)
 
 ### Community 215 - "smart_inbox.dart"
 Cohesion: 0.04
@@ -1712,9 +1741,9 @@ Nodes (15): 2026-07-29 (IX) — SADAKAT DENETİMİ, 3. TUR: iki bağımsız hata
 Cohesion: 0.22
 Nodes (9): سياسة الخصوصية — Dosya Okuyucu, ملخّص, ١. بيانات تبقى على جهازك, ٢. بيانات تغادر الجهاز — فقط بإجراءات تبدأها أنت, ٣. سجلّات الأعطال, ٤. الأذونات وأسبابها, ٥. الأطفال, ٦. التغييرات (+1 more)
 
-### Community 219 - "Image?"
-Cohesion: 0.20
-Nodes (6): decodePng, main, twoTone, eps, expectClose, main
+### Community 219 - "dart:async"
+Cohesion: 0.04
+Nodes (41): _channel, maxPaths, MediaScan, request, at, _byPath, debugReset, _Doc (+33 more)
 
 ### Community 220 - "vault_screen.dart"
 Cohesion: 0.02
@@ -1754,7 +1783,7 @@ Nodes (15): 2026-07-29 (X) — SADAKAT DENETİMİ, 4. TUR: veri taşıma çekird
 
 ### Community 229 - "@visibleForTesting"
 Cohesion: 0.03
-Nodes (62): _apply, debugReset, _holders, isHeld, request, ScreenAwake, AiIndex, all (+54 more)
+Nodes (59): AiIndex, _aliasKey, aliasMatches, aliasOf, all, analyzedMs, _append, category (+51 more)
 
 ### Community 230 - "build-apk.yml"
 Cohesion: 0.14
@@ -1762,7 +1791,7 @@ Nodes (13): App Icon, concurrency, cancel-in-progress, group, env, FLUTTER_VERSI
 
 ### Community 231 - "edit_ops.dart"
 Cohesion: 0.04
-Nodes (47): _afterHistory, _afterStructural, _applyCell, _applyFill, _autoFitRows, _autoFitText, _autoSum, _beginEdit (+39 more)
+Nodes (48): _afterHistory, _afterStructural, _applyCell, _applyFill, _autoFitRows, _autoFitText, _autoSum, _beginEdit (+40 more)
 
 ### Community 232 - "pdf_pending_objects.dart"
 Cohesion: 0.05
@@ -1773,8 +1802,8 @@ Cohesion: 0.03
 Nodes (54): armAutoPip, audioTracks, _audioTracksOf, _autoPip, _awake, backgroundAllowed, _clearSession, close (+46 more)
 
 ### Community 234 - "MainForm"
-Cohesion: 0.08
-Nodes (4): BleLink, AskForm, MainForm, Settings
+Cohesion: 0.09
+Nodes (8): Peer, IsBle, Key, Scanner, SendResult, AskForm, MainForm, Settings
 
 ### Community 235 - "code_editing.dart"
 Cohesion: 0.05
@@ -1796,13 +1825,13 @@ Nodes (41): allHave, block, body, end, first, formatEditUpdate, hasAfter, hasBef
 Cohesion: 0.03
 Nodes (67): _addVisualCond, _again, _agg, _allowed, _askFilePassword, _askFormulaCond, bytes, _col (+59 more)
 
-### Community 241 - "pdf_file_cache.dart"
-Cohesion: 0.03
-Nodes (58): blockOffset, blockSize, _cacheBlockCount, _cacheBlockSize, _cacheControlState, cachedBytesSoFar, _cacheState, _cacheStatePosition (+50 more)
+### Community 241 - "bills.dart"
+Cohesion: 0.05
+Nodes (38): all, amount, _askGemini, BillMonth, _busy, candidates, copyWith, currency (+30 more)
 
 ### Community 242 - "MainActivity"
 Cohesion: 0.04
-Nodes (20): MainActivity, BroadcastReceiver, 2026-09-01 — PDF puntosu, form XObject'teki görseller ve USB/harici bellek, 2026-09-02 (dördüncü tur) — USB "görünmüyor": yol TAHMİN etmek yanlış yolmuş, 2026-09-22 (2) — Chrome'un PDF kalem düğmesi → bizim kalem ekranımız, A) KÖK NEDEN — `/storage` altını listeleyerek birim aramak, A) "Punto tutmadı" — KÖK NEDEN: punto `Tf`de değil `Tm`de, B) "Basıyorum tepki vermiyor" (+12 more)
+Nodes (17): MainActivity, BroadcastReceiver, 2026-09-02 (dördüncü tur) — USB "görünmüyor": yol TAHMİN etmek yanlış yolmuş, 2026-09-22 (2) — Chrome'un PDF kalem düğmesi → bizim kalem ekranımız, A) KÖK NEDEN — `/storage` altını listeleyerek birim aramak, A) "Çok geç düşüyor" — kök neden: HİÇBİR kanal itmiyordu, B) "Basıyorum tepki vermiyor", C) "Takılı değil" DÜRÜST DEĞİLDİ (+9 more)
 
 ### Community 243 - "FmSizeRange"
 Cohesion: 0.04
@@ -1810,7 +1839,7 @@ Nodes (49): AiAnalyzer, AiRunPhase, _askGemini, auto, _backoffMs, _batchSize, ca
 
 ### Community 244 - "_SpreadsheetEditorScreenState"
 Cohesion: 0.06
-Nodes (32): _applyBorder, _applyCellFormat, _applyFillColor, _applyFontColor, _applyNumberFormat, _applyStyle, _applyWrap, _guardEditable (+24 more)
+Nodes (30): _dataRange, _guardEditable, _hideLines, _keyboardGrid, _keyMove, _onGridKey, _protectNow, _refocusGridAfterEdit (+22 more)
 
 ### Community 245 - "MediaPlayerScreen"
 Cohesion: 0.04
@@ -1821,8 +1850,8 @@ Cohesion: 0.12
 Nodes (12): SdUnionEngine, SdUnionResult, SdUnionRules, 2026-10-17 (3) — SD kartla birleşik depolama (şarjda), tarama akışı baştan, seçimde kaydırma kilidi, başarım turu, A) Seçimde kaydırma kilidi (`swipe_pager.dart`), B) Tarama akışı — "kesme sorunu" ve "doğrudan kaydet", C) SD kartla birleşik depolama — yalnız şarjda (`ci/SdUnion.kt`, `sd_union.dart`), D) Başarım / görsel turu (+4 more)
 
 ### Community 248 - "Dosya İşlemleri (Taşı/Kopyala)"
-Cohesion: 0.04
-Nodes (49): ageChoices, bytes, candidateFolders, _channel, charging, _configure, copyWith, debugSupported (+41 more)
+Cohesion: 0.03
+Nodes (65): FmLocation, label, shortDate, subtitle, FolderLock, hashPin, isLocked, _prefix (+57 more)
 
 ### Community 249 - "entry.dart"
 Cohesion: 0.05
@@ -1842,15 +1871,15 @@ Nodes (50): AndroidBinaryXml, anyDensity, ArscTable, ArscValue, _at, attrDrawabl
 
 ### Community 254 - "editors/word_editor_screen.dart"
 Cohesion: 0.03
-Nodes (70): accent, accentWell, AppAccent, apply, available, band, bg, byId (+62 more)
+Nodes (74): accent, accentWell, AppAccent, apply, available, band, bg, byId (+66 more)
 
 ### Community 258 - "Context"
-Cohesion: 0.04
-Nodes (16): DailyJob, Extras, RecentWidget, StorageWidget, SdUnion, SdUnionConfig, SdUnionJob, Faz 19 — Sistem entegrasyonu ve ilk izlenim (+8 more)
+Cohesion: 0.08
+Nodes (8): Extras, SdUnion, SdUnionConfig, 2026-11-03 — Aktar turu: yazı gönderme, güvenilen cihaz, Paylaş→Aktar, yeni düzen; iyileştirme devamı, Context, Resources, DisplayMetrics, main()
 
-### Community 259 - "static final"
-Cohesion: 0.03
-Nodes (60): AppHaptics, destructive, done, enabled, load, prefKey, selection, setEnabled (+52 more)
+### Community 259 - "docx_templates.dart"
+Cohesion: 0.10
+Nodes (20): build, _bullet, _cv, DocxTemplates, _en, _esc, _invoice, kDocxTemplateIds (+12 more)
 
 ### Community 260 - "NearbyBgService"
 Cohesion: 0.06
@@ -1882,7 +1911,7 @@ Nodes (53): _, actionLabel, _avoid, avoidLift, build, child, clear, close (+45 m
 
 ### Community 267 - "fm_file_list_view.dart"
 Cohesion: 0.02
-Nodes (83): FmLayout, FmLayoutInfo, badge, build, entry, FmEntryCard, fmEntrySemanticsLabel, fmSelectAction (+75 more)
+Nodes (93): FmLayout, FmLayoutInfo, byMonth, bySource, bytes, byType, CollectionInsights, copies (+85 more)
 
 ### Community 268 - "xlsx_chart.dart"
 Cohesion: 0.03
@@ -1890,23 +1919,23 @@ Nodes (68): _addOverride, _addRel, _addTablePart, _after, _afterDrawing, anchorC
 
 ### Community 269 - "pick_file_screen.dart"
 Cohesion: 0.04
-Nodes (69): _body, _categoryAccepted, _chip, dirs, _filterBar, _home, keepOrder, _matchesView (+61 more)
+Nodes (49): _allOf, AppFilePicker, _atRoot, _boot, build, bytes, _cancel, _category (+41 more)
 
 ### Community 270 - "ntfs_fs.dart"
 Cohesion: 0.05
 Nodes (41): applyFixups, bytesPerSector, clusters, clusterSize, _collect, compressed, device, fileTimeToMs (+33 more)
 
 ### Community 271 - "pdf_document_ref.dart"
-Cohesion: 0.04
-Nodes (53): PdfPasswordProvider, _additionalRefs, addListener, allowDataOwnershipTransfer, autoDispose, _bytesDownloaded, data, document (+45 more)
+Cohesion: 0.03
+Nodes (58): _additionalRefs, addListener, allowDataOwnershipTransfer, autoDispose, _bytesDownloaded, copyWith, data, document (+50 more)
 
 ### Community 272 - "pdf_digital_sign.dart"
 Cohesion: 0.04
 Nodes (49): _addField, _bg, bounds, certificate, createIdentity, createIdentityInBackground, defaultBounds, deleteIdentity (+41 more)
 
 ### Community 273 - "video_transcode.dart"
-Cohesion: 0.05
-Nodes (34): ApkExport, extract, fileNameFor, _meaningful, _childDir, _copyInto, needsSaf, noGrant (+26 more)
+Cohesion: 0.04
+Nodes (40): _enhance, EnhanceJobs, EnhanceResult, _kindLabel, output, recipeKind, registerRunner, _results (+32 more)
 
 ### Community 274 - "peer_share.dart"
 Cohesion: 0.02
@@ -1932,9 +1961,9 @@ Nodes (33): RunStyle, SlideRichText, all, baseStyle, buildTextSpan, canRedo, can
 Cohesion: 0.05
 Nodes (33): build, child, _commit, createState, didUpdateWidget, dispose, _guideY, initState (+25 more)
 
-### Community 280 - "playback_positions.dart"
-Cohesion: 0.07
-Nodes (26): at, _byPath, clear, count, debugReset, duration, enabled, endFraction (+18 more)
+### Community 280 - "../core/app_colors.dart"
+Cohesion: 0.05
+Nodes (31): brightness, build, cardWidth, createState, dispose, heightOf, onTap, previewHeight (+23 more)
 
 ### Community 281 - "photo_grid_plan.dart"
 Cohesion: 0.05
@@ -1946,7 +1975,7 @@ Nodes (30): canWrite, close, connect, connectionFor, delete, device, _dirHandle,
 
 ### Community 283 - "fm_glyph.dart"
 Cohesion: 0.05
-Nodes (37): _bodyTop, _bottom, build, color, dark, FmGlyph, FmGlyphMetrics, _fold (+29 more)
+Nodes (37): _bodyTop, _bottom, build, classic, color, dark, FmGlyph, FmGlyphMetrics (+29 more)
 
 ### Community 284 - "docx_package.dart"
 Cohesion: 0.04
@@ -1957,32 +1986,32 @@ Cohesion: 0.06
 Nodes (36): action, animate, art, build, child, createState, _delay, dispose (+28 more)
 
 ### Community 286 - "device_profile.dart"
-Cohesion: 0.04
-Nodes (39): autoRescanDefault, budget, _ch, classifyDevice, contentIndexCharsPerFile, contentIndexOcrDefault, contentIndexTotalChars, cores (+31 more)
+Cohesion: 0.03
+Nodes (55): autoRescanDefault, budget, _ch, classifyDevice, contentIndexCharsPerFile, contentIndexOcrDefault, contentIndexTotalChars, cores (+47 more)
 
 ### Community 287 - "permission_gate.dart"
-Cohesion: 0.06
-Nodes (35): AppPermission, _ask, blocked, build, child, context, createState, didChangeAppLifecycleState (+27 more)
+Cohesion: 0.04
+Nodes (51): EditSession, didPushRouteInformation, install, _instance, RouteInformationGuard, NewFilesScreen, _NewFilesScreenState, AiAutoAnalyze (+43 more)
 
-### Community 288 - "sd_union_screen.dart"
+### Community 288 - "Rect"
 Cohesion: 0.06
-Nodes (33): _ageTile, _body, build, _cards, createState, dispose, _folderIcon, _folderLabel (+25 more)
+Nodes (32): assembleOcrPageText, box, buffer, buildOcrPageText, decodeOcrPageText, encodeOcrPageText, fnv1a, fragments (+24 more)
 
 ### Community 289 - "pptx_writer.dart"
 Cohesion: 0.06
 Nodes (35): _aNs, _bodyW, _bodyX, build, bullets, _contentTypes, _esc, notes (+27 more)
 
-### Community 290 - "apk_icon.dart"
-Cohesion: 0.05
-Nodes (33): ApkIcon, _argb, _cacheDir, _cacheLimit, colorOf, composeAdaptive, debugReset, _decode (+25 more)
+### Community 290 - "audiobook_screen.dart"
+Cohesion: 0.06
+Nodes (29): _attach, audiobookExtensions, AudiobookScreen, _AudiobookScreenState, build, canMakeAudiobook, _chapters, chaptersForTest (+21 more)
 
 ### Community 291 - "usb_filesystem_test.dart"
-Cohesion: 0.03
-Nodes (63): RemoteException, BlockDevice, CachedBlockDevice, MemoryBlockDevice, PartitionBlockDevice, ExfatFileSystem, FatFileSystem, NtfsFileSystem (+55 more)
+Cohesion: 0.05
+Nodes (36): RemoteException, MemoryBlockDevice, b, fs, image, main, readAll, reopen (+28 more)
 
 ### Community 292 - "quick_sheets.dart"
-Cohesion: 0.04
-Nodes (49): _activeKey, _answer, _ask, _auto, build, _busy, _CardHeader, createState (+41 more)
+Cohesion: 0.03
+Nodes (71): build, count, displayName, false, folderFiles, from, isFolder, items (+63 more)
 
 ### Community 293 - "mini_player_bar.dart"
 Cohesion: 0.06
@@ -1993,28 +2022,28 @@ Cohesion: 0.06
 Nodes (36): addHomeShortcut, addToVault, build, _calculate, _calculating, color, _computeDigest, context (+28 more)
 
 ### Community 295 - "ai_summary_store.dart"
-Cohesion: 0.02
-Nodes (74): AiSummaryRecord, AiSummaryStore, createdAtMs, _fileFor, forFile, fromJson, key, read (+66 more)
+Cohesion: 0.03
+Nodes (54): AiSummaryRecord, AiSummaryStore, createdAtMs, _fileFor, forFile, fromJson, key, read (+46 more)
 
-### Community 296 - "disk_housekeeping.dart"
-Cohesion: 0.12
-Nodes (14): DiskCache, isOwn, maxAge, ownContainers, ownDirPrefixes, _ownFile, pickerDir, pluginMaxAge (+6 more)
+### Community 296 - "scan_page_ops.dart"
+Cohesion: 0.04
+Nodes (40): DiskCache, isOwn, maxAge, ownContainers, ownDirPrefixes, _ownFile, pickerDir, pluginMaxAge (+32 more)
 
 ### Community 297 - "pdf_markup.dart"
 Cohesion: 0.06
 Nodes (33): ab, applyPdfMarks, c, _color, colorArgb, copyWith, doc, _drawInk (+25 more)
 
-### Community 298 - "pdf_page_navigator.dart"
-Cohesion: 0.04
-Nodes (53): build, count, displayName, false, folderFiles, from, isFolder, items (+45 more)
+### Community 298 - "pro_actions.dart"
+Cohesion: 0.06
+Nodes (32): _compare, _compressHard, _createForm, _cropPages, _digitalSign, _editOutline, _exportDocx, _exportNotes (+24 more)
 
-### Community 299 - "conversion_service.dart"
-Cohesion: 0.17
-Nodes (9): ConversionService, imagesToPdf, imageToPdf, slidesToPdf, textToPdf, textToSlidesPdf, _theme, _turkishTheme (+1 more)
+### Community 299 - "important_screen.dart"
+Cohesion: 0.07
+Nodes (28): build, _bytesIn, _categoryTiles, _countIn, _createRoot, createState, dispose, dot (+20 more)
 
 ### Community 300 - "swipe_pager.dart"
 Cohesion: 0.06
-Nodes (32): _, build, builder, child, color, _controller, createState, didChangeDependencies (+24 more)
+Nodes (36): _, build, builder, child, color, _controller, createState, didChangeDependencies (+28 more)
 
 ### Community 301 - "FloatingPlayerService"
 Cohesion: 0.10
@@ -2037,24 +2066,24 @@ Cohesion: 0.07
 Nodes (14): DosyaProvider, isEditableText, kind, labelKey, largeText, legacyExt, LoadedDoc, name (+6 more)
 
 ### Community 306 - "arrange_page.dart"
-Cohesion: 0.04
-Nodes (43): _addAnim, _alignBar, _anims, _animTab, apply, build, _busy, bytes (+35 more)
+Cohesion: 0.08
+Nodes (23): _addAnim, _alignBar, _anims, _animTab, apply, build, _busy, bytes (+15 more)
 
-### Community 307 - "crash_log.dart"
-Cohesion: 0.04
-Nodes (48): asShareText, asText, clear, _clip, context, count, CrashLog, _dir (+40 more)
+### Community 307 - "static final"
+Cohesion: 0.08
+Nodes (23): AppHaptics, destructive, done, enabled, load, prefKey, selection, setEnabled (+15 more)
 
 ### Community 308 - "xls_legacy_rich_test.dart"
-Cohesion: 0.07
-Nodes (27): ascii, blank, _Book, boolErr, build, cellLabelSst, cellNumber, colInfo (+19 more)
+Cohesion: 0.06
+Nodes (28): ascii, blank, _Book, boolErr, build, cellLabelSst, cellNumber, colInfo (+20 more)
 
 ### Community 309 - "usb_host.dart"
 Cohesion: 0.07
 Nodes (29): _channel, classId, deviceClass, devices, endpointCount, fromMap, hasPermission, hex4 (+21 more)
 
 ### Community 310 - "pdf_form.dart"
-Cohesion: 0.06
-Nodes (29): _apply, bounds, _contains, _describe, fill, fillSync, isChecked, kind (+21 more)
+Cohesion: 0.07
+Nodes (26): _apply, bounds, _contains, _describe, fill, fillSync, isChecked, kind (+18 more)
 
 ### Community 311 - "notification_hub.dart"
 Cohesion: 0.07
@@ -2064,25 +2093,25 @@ Nodes (25): acquireService, _android, body, cancel, debugMarkReady, debugReset, 
 Cohesion: 0.07
 Nodes (27): align, autoRowHeightPt, col, columnWidth, covered, empty, isCovered, isEmpty (+19 more)
 
-### Community 313 - "collection_insights.dart"
-Cohesion: 0.09
-Nodes (19): byMonth, bySource, bytes, byType, CollectionInsights, copies, copyBytes, count (+11 more)
+### Community 313 - "share_folders_screen_test.dart"
+Cohesion: 0.07
+Nodes (17): main, file, main, root, tree, main, _delegates, main (+9 more)
 
 ### Community 314 - "subtitles.dart"
 Cohesion: 0.07
 Nodes (26): _cp1254High, decodeBytes, _decodeUtf16, _decodeWindows1254, end, extensions, findFor, label (+18 more)
 
-### Community 315 - "volume_watcher.dart"
-Cohesion: 0.07
-Nodes (26): attached, attachedButUnusable, changes, _controller, copyTargets, detached, dispose, isEmpty (+18 more)
+### Community 315 - "Timer"
+Cohesion: 0.03
+Nodes (58): folderIn, folderName, hasMark, ImportantFiles, isImportant, _marked, markedName, markedNameFor (+50 more)
 
 ### Community 316 - "dart:isolate"
 Cohesion: 0.04
 Nodes (44): _, addHighlight, addHighlightsInBackground, _addHighlightsSync, _addTo, highlightOpacity, PdfAnnotator, PdfHighlightSpec (+36 more)
 
 ### Community 317 - "MediaPlayer"
-Cohesion: 0.09
-Nodes (22): 6. Fazlar, Faz 0 — Kararlar ve proje hijyeni, Faz 10 — Medya akışları (görsel, video, ses, galeri), Faz 11 — Ticari yayın hazırlığı, Faz 12 — Kapanış: hata avı, cihaz doğrulama turu, sürüm adayı, Faz 13 — Ortak tür süzgeci ve "Son açılanlar" yenilemesi, Faz 15 — Görsel dil birliği: simge, renk, yazı, hareket, Faz 16 — Erişilebilirlik, Arapça (RTL) ve büyük yazı (+14 more)
+Cohesion: 0.08
+Nodes (23): 6. Fazlar, Faz 0 — Kararlar ve proje hijyeni, Faz 10 — Medya akışları (görsel, video, ses, galeri), Faz 11 — Ticari yayın hazırlığı, Faz 12 — Kapanış: hata avı, cihaz doğrulama turu, sürüm adayı, Faz 13 — Ortak tür süzgeci ve "Son açılanlar" yenilemesi, Faz 15 — Görsel dil birliği: simge, renk, yazı, hareket, Faz 16 — Erişilebilirlik, Arapça (RTL) ve büyük yazı (+15 more)
 
 ### Community 318 - "nearby_screen.dart"
 Cohesion: 0.02
@@ -2092,17 +2121,17 @@ Nodes (77): _addFiles, _addFolder, _askIncoming, _bgAvailable, _bgOn, _bleFound,
 Cohesion: 0.08
 Nodes (25): build, controller, createState, didUpdateWidget, dispose, _dragging, _dragTo, _endDrag (+17 more)
 
-### Community 320 - "http_cache_control.dart"
-Cohesion: 0.04
-Nodes (55): _bitImmutable, _bitMustRevalidate, _bitMustUnderstand, _bitNoCache, _bitNoStore, _bitNoTransform, _bitPrivate, _bitPublic (+47 more)
+### Community 320 - "entry_opener.dart"
+Cohesion: 0.07
+Nodes (20): appState, build, createState, EntryOpener, _ext, _fileService, isMediaRoute, kind (+12 more)
 
 ### Community 321 - "app_footprint.dart"
-Cohesion: 0.07
-Nodes (26): AppFootprint, bytes, cacheBucketOf, cacheDir, clean, cleanSync, clearable, dataDir (+18 more)
+Cohesion: 0.08
+Nodes (25): AppFootprint, bytes, cacheBucketOf, cacheDir, clean, cleanSync, clearable, dataDir (+17 more)
 
-### Community 322 - "fm_env.dart"
-Cohesion: 0.02
-Nodes (105): browserPackages, IncomingFiles, isBrowserPackage, keepIfFromBrowser, at, _byPath, debugReset, _Doc (+97 more)
+### Community 322 - "playback_positions.dart"
+Cohesion: 0.03
+Nodes (65): at, _byPath, clear, count, debugReset, duration, enabled, endFraction (+57 more)
 
 ### Community 323 - "pptx_package.dart"
 Cohesion: 0.04
@@ -2110,11 +2139,11 @@ Nodes (52): addOverride, addRel, _archive, _bin, bytes, _dirty, edit, ensureDefa
 
 ### Community 324 - "package:syncfusion_flutter_pdf/pdf.dart"
 Cohesion: 0.04
-Nodes (34): doc, f, g, main, out, doc, main, out (+26 more)
+Nodes (32): PdfFormException, doc, f, g, main, out, doc, _docSync (+24 more)
 
-### Community 325 - "int?"
-Cohesion: 0.33
-Nodes (5): FPDF_ANNOT_APPEARANCEMODE, FPDF_ANNOTATION_SUBTYPE, FPDF_BOOL, FPDF_OBJECT_TYPE, FPDF_RESULT
+### Community 325 - "xlsx_data_tools_test.dart"
+Cohesion: 0.07
+Nodes (18): main, _engine, main, f, main, decode, f, main (+10 more)
 
 ### Community 326 - "exif_reader.dart"
 Cohesion: 0.08
@@ -2126,15 +2155,15 @@ Nodes (28): debugReset, defaultHiddenSections, defaultHiddenTiles, ensureLoaded,
 
 ### Community 328 - "pdf_select_layer_widget_test.dart"
 Cohesion: 0.04
-Nodes (48): OcrPageText, document, FakeOcrDoc, height, isLoaded, loadText, main, noSuchMethod (+40 more)
+Nodes (42): OcrPageText, document, FakeOcrDoc, height, isLoaded, loadText, main, noSuchMethod (+34 more)
 
 ### Community 329 - "pdf_replace_text_test.dart"
-Cohesion: 0.02
-Nodes (66): PdfPageRefused, PdfParagraphRefused, carlito, main, buildPdf, lockPermissions, main, main (+58 more)
+Cohesion: 0.03
+Nodes (44): PdfPageRefused, PdfParagraphRefused, carlito, main, buildPdf, lockPermissions, main, main (+36 more)
 
 ### Community 330 - "Callback"
-Cohesion: 0.05
-Nodes (24): MediaService, Bilinen eksik-risk, Dosya yöneticisi (2026-07-25) — cihaz doğrulaması gereken/ertelenen işler, Dosya yöneticisi — araştırma karşılaştırmasından KALAN maddeler (2026-07-25), Excel "gerçek mobil Excel gibi olsun" — kalan yol haritası, KALANLAR — canlı kalan-iş listesi (biten madde silinir), Kağıt teması — 2. tur devir notundan kalanlar (2026-08-05), PDF sadakat/deneyim — araştırıldı, cihaz doğrulaması gerekli (kör push yok) (+16 more)
+Cohesion: 0.06
+Nodes (18): MediaService, Bilinen eksik-risk, Dosya yöneticisi (2026-07-25) — cihaz doğrulaması gereken/ertelenen işler, Dosya yöneticisi — araştırma karşılaştırmasından KALAN maddeler (2026-07-25), Excel "gerçek mobil Excel gibi olsun" — kalan yol haritası, KALANLAR — canlı kalan-iş listesi (biten madde silinir), Kağıt teması — 2. tur devir notundan kalanlar (2026-08-05), PDF sadakat/deneyim — araştırıldı, cihaz doğrulaması gerekli (kör push yok) (+10 more)
 
 ### Community 331 - "smart_folders.dart"
 Cohesion: 0.08
@@ -2149,8 +2178,8 @@ Cohesion: 0.07
 Nodes (27): FmJobTarget, TrackedJob, cancelRequested, complete, _detail, _done, _end, _ended (+19 more)
 
 ### Community 334 - "block_device.dart"
-Cohesion: 0.12
-Nodes (15): blockCount, blockSize, bytes, _cache, capacity, close, firstLba, inner (+7 more)
+Cohesion: 0.09
+Nodes (22): blockCount, BlockDevice, blockSize, bytes, _cache, CachedBlockDevice, capacity, close (+14 more)
 
 ### Community 335 - "fm_job_queue_test.dart"
 Cohesion: 0.12
@@ -2168,17 +2197,17 @@ Nodes (25): AiScope, AiScopeSettings, allowsContent, allowsDir, allowsFile, allo
 Cohesion: 0.08
 Nodes (23): album, artist, AudioTagReader, AudioTags, cover, _decodePicture, _decodeTextFrame, _decodeUtf16 (+15 more)
 
-### Community 339 - "folder_usage.dart"
-Cohesion: 0.09
-Nodes (22): bytes, children, childSegment, _collect, dir, empty, files, FolderBreakdown (+14 more)
+### Community 339 - "package:flutter/foundation.dart"
+Cohesion: 0.04
+Nodes (49): _asset, eklentileri, _entries, fonts, _mlkit, ofl, _pdfium, registerThirdPartyLicenses (+41 more)
 
 ### Community 340 - "activity_log.dart"
 Cohesion: 0.10
 Nodes (21): ActivityKind, ActivityKindInfo, ActivityLog, ActivityRecord, add, _cache, clear, detail (+13 more)
 
 ### Community 341 - "hidden_vault.dart"
-Cohesion: 0.09
-Nodes (20): at, contains, debugRoot, _ensureRoot, folderName, forget, HiddenItem, HiddenVault (+12 more)
+Cohesion: 0.03
+Nodes (52): deleteAll, EmptyFolders, find, maxDepth, at, contains, debugRoot, _ensureRoot (+44 more)
 
 ### Community 342 - "ai_hub_screen.dart"
 Cohesion: 0.07
@@ -2189,44 +2218,44 @@ Cohesion: 0.07
 Nodes (26): PeerReceiver, QrShareServer, actionStop, activeTransfers, _adopted, adoptedCount, _channel, _close (+18 more)
 
 ### Community 344 - "pdf_text_searcher.dart"
-Cohesion: 0.05
-Nodes (35): PdfDocumentListenable, addListener, _cachedText, _cancelTextSearch, _controller, _currentIndex, _currentMatch, dispose (+27 more)
+Cohesion: 0.03
+Nodes (72): PdfDocumentListenable, a, add, addListener, _allMatchesOf, _beginTextSearch, _boundsOf, _cancelLoading (+64 more)
 
 ### Community 345 - "fm_list_groups.dart"
 Cohesion: 0.11
 Nodes (20): categoryCounts, count, counts, dateGroupOf, entry, FmDateGroup, FmDateGroupKey, FmEntryItem (+12 more)
 
-### Community 346 - "package:flutter/material.dart"
-Cohesion: 0.01
-Nodes (127): _addressBlock, _advanced, _advancedSection, build, _card, _check, _copy, createState (+119 more)
+### Community 346 - "ftp_server_screen.dart"
+Cohesion: 0.03
+Nodes (52): _addressBlock, _advanced, _advancedSection, build, _card, _check, _copy, createState (+44 more)
 
 ### Community 347 - "image_gallery/widgets.dart"
-Cohesion: 0.05
-Nodes (39): _aspect, _aspectListener, _aspectStream, _bytes, _center, _decodeWidth, didChangeDependencies, didUpdateWidget (+31 more)
+Cohesion: 0.06
+Nodes (35): _aspect, _aspectListener, _aspectStream, _bytes, _center, _decodeWidth, didChangeDependencies, didUpdateWidget (+27 more)
 
 ### Community 348 - "pdf_form_screen.dart"
-Cohesion: 0.09
-Nodes (20): _autofill, build, _busy, _controllers, createState, dispose, _empty, _error (+12 more)
-
-### Community 349 - "reader_screen.dart"
 Cohesion: 0.06
-Nodes (27): _advanceSpeech, build, createState, dispose, document, _fontSize, _load, _loading (+19 more)
+Nodes (31): _autofill, build, _busy, _controllers, createState, dispose, _empty, _error (+23 more)
+
+### Community 349 - "ai_buckets.dart"
+Cohesion: 0.07
+Nodes (24): AiBucket, AiBuckets, canonicalDocType, _disposableTypes, entryOf, isDisposable, isLowValue, label (+16 more)
 
 ### Community 350 - "picker_bridge.dart"
 Cohesion: 0.10
 Nodes (20): accepts, acceptsAll, acceptsEntry, allowMultiple, caller, cancel, _channel, deliver (+12 more)
 
 ### Community 351 - "usb_block_device.dart"
-Cohesion: 0.05
-Nodes (35): blockCount, firstLba, isUsable, looksLikeFilesystem, mbrType, name, parseGptEntries, parseMbr (+27 more)
+Cohesion: 0.10
+Nodes (20): blockCount, blockSize, _channel, _chunk, chunkBlocks, close, device, deviceName (+12 more)
 
 ### Community 352 - "pdf_filters.dart"
 Cohesion: 0.10
 Nodes (20): bits, buffer, bytes, clearCode, codeBits, _emit85, eodCode, group (+12 more)
 
 ### Community 353 - "fm_file_image.dart"
-Cohesion: 0.07
-Nodes (27): alias, aspect, cache, cacheWidth, cover, fmCachedAspect, fmCachedThumb, fmCoverTargetSize (+19 more)
+Cohesion: 0.05
+Nodes (35): alias, aspect, cache, cacheWidth, cover, fmCachedAspect, fmCachedThumb, fmCoverTargetSize (+27 more)
 
 ### Community 354 - "large_text_view.dart"
 Cohesion: 0.10
@@ -2245,8 +2274,8 @@ Cohesion: 0.07
 Nodes (26): attachData, authenticate, brightness, canAuthenticate, _ch, dailyConfig, decodeImageToJpeg, encodeWebp (+18 more)
 
 ### Community 358 - "settings_widgets.dart"
-Cohesion: 0.11
-Nodes (18): 2026-07-29 (5. tur) — On yeni yetenek: AI arama, sınıflandırma, düzenleme, kilit…, A. Akıllı arama — `services/fm/smart_query.dart`, B. Görselde ne var? — `doc_classifier.dart` + `ai_actions.dart`, C. Otomatik düzenle — `auto_organize.dart` + `organize_screen.dart`, D. Yer açma asistanı — `cleanup_advisor.dart` + `cleanup_screen.dart`, E. Belge özeti (AI) — `ai_actions.dart`, F. Galeriden GERÇEK kopya temizliği, G. Klasör kilidi — `folder_lock.dart` + `pin_dialog.dart` (+10 more)
+Cohesion: 0.15
+Nodes (13): 2026-07-29 (5. tur) — On yeni yetenek: AI arama, sınıflandırma, düzenleme, kilit…, A. Akıllı arama — `services/fm/smart_query.dart`, B. Görselde ne var? — `doc_classifier.dart` + `ai_actions.dart`, C. Otomatik düzenle — `auto_organize.dart` + `organize_screen.dart`, D. Yer açma asistanı — `cleanup_advisor.dart` + `cleanup_screen.dart`, E. Belge özeti (AI) — `ai_actions.dart`, F. Galeriden GERÇEK kopya temizliği, G. Klasör kilidi — `folder_lock.dart` + `pin_dialog.dart` (+5 more)
 
 ### Community 360 - "user_error.dart"
 Cohesion: 0.10
@@ -2254,11 +2283,11 @@ Nodes (18): action, classify, context, detail, e, from, _fromOs, _keyOf (+10 mor
 
 ### Community 361 - "return"
 Cohesion: 0.06
-Nodes (25): DocFont, kDocFonts, kDocFontSizes, name, needle, render, renderFamilyFor, compareTo (+17 more)
+Nodes (26): compareTo, _digitsEnd, i, _isDigit, j, naturalCompare, base, dot (+18 more)
 
-### Community 362 - "pdf_edit_journal.dart"
-Cohesion: 0.10
-Nodes (19): add, backupRoot, backups, debugReset, _deleteBackup, _fileName, hasStale, _live (+11 more)
+### Community 362 - "app_footprint_screen.dart"
+Cohesion: 0.08
+Nodes (22): AppFootprintScreen, _AppFootprintScreenState, _body, bucket, _BucketRow, build, _busy, bytes (+14 more)
 
 ### Community 363 - "usb_fs_types.dart"
 Cohesion: 0.10
@@ -2274,26 +2303,26 @@ Nodes (12): 2026-08-08 (2) — Bekçi testi kendi sınırını gösterdi, 2026-0
 
 ### Community 366 - "int get"
 Cohesion: 0.04
-Nodes (49): after, apply, at, before, breakMerge, bytes, _canRedo, canRedoListenable (+41 more)
+Nodes (55): after, apply, at, before, breakMerge, bytes, CallbackEdit, _canRedo (+47 more)
 
-### Community 367 - "Pointer"
-Cohesion: 0.05
-Nodes (41): FPDF_ACTION, FPDF_ANNOTATION, FPDF_ATTACHMENT, FPDF_AVAIL, FPDF_BITMAP, FPDF_BOOKMARK, FPDF_BYTESTRING, FPDF_CLIPPATH (+33 more)
+### Community 367 - "pinch_layout.dart"
+Cohesion: 0.08
+Nodes (23): _base, build, child, createState, _current, didUpdateWidget, _distance, _end (+15 more)
 
 ### Community 368 - "pdf_fixtures.dart"
 Cohesion: 0.11
 Nodes (18): _code, cropped, _differences, doc, extractText, extractTextLines, form, hand (+10 more)
 
-### Community 369 - "ai_extract.dart"
-Cohesion: 0.08
-Nodes (18): collectPdfPages, DocTranslate, maxPages, _sorted, translatePages, AiExcerpt, AiExtract, _dateOnly (+10 more)
+### Community 369 - "package:pdfrx/pdfrx.dart"
+Cohesion: 0.10
+Nodes (13): collectPdfPages, DocTranslate, maxPages, _sorted, translatePages, kPdfOwnSelectionOff, _, _noop (+5 more)
 
 ### Community 370 - "usb_diagnostics_screen.dart"
 Cohesion: 0.12
 Nodes (14): build, _copy, createState, initState, _load, _loading, _opening, _openRaw (+6 more)
 
 ### Community 371 - "Receiver"
-Cohesion: 0.13
+Cohesion: 0.14
 Nodes (5): Offer, OfferItem, Receiver, Active, Port
 
 ### Community 372 - "usb_report.dart"
@@ -2305,16 +2334,16 @@ Cohesion: 0.12
 Nodes (15): childPath, close, connect, connectionFor, delete, download, list, makeDirectory (+7 more)
 
 ### Community 374 - "home_quick_row.dart"
-Cohesion: 0.05
-Nodes (27): BottomDock, build, children, color, count, DockExtras, DockExtraSpec, _DockItem (+19 more)
+Cohesion: 0.03
+Nodes (59): _openMobileEditor, _openFromNotification, _listen, build, build, build, _openMenu, _openList (+51 more)
 
 ### Community 375 - "pdfium_worker.js"
-Cohesion: 0.07
-Nodes (33): 2026-11-02 — A3.2 pdfrx 1.3.5 → 2.4.8 (**2026-11-03 GERİ ALINDI**, aşağıya bak), 48.2 Geçiş (A3.2'nin 17 dosyası; API eşlemesi HAFIZA 2026-11-02'de hazır), _appendDummy(), _boundingRect(), disposers, emEnv, _error(), _errorMappings (+25 more)
+Cohesion: 0.05
+Nodes (52): 2026-07-26 (13. tur) — 12. TURUN TANISI YANLIŞTI (düzeltme) + "sayfaya git" doğrulamalı, DÜZELTME: 12. turdaki "aşamalı yükleme sayfa sayısını bozuyor" iddiası YANLIŞ, Gerçek kalan sorun ve alınan yol, 2026-11-02 — A3.2 pdfrx 1.3.5 → 2.4.8 (**2026-11-03 GERİ ALINDI**, aşağıya bak), 48.2 Geçiş (A3.2'nin 17 dosyası; API eşlemesi HAFIZA 2026-11-02'de hazır), _ArrayOfItemsToken, assemble(), createDocumentFromJpegData() (+44 more)
 
 ### Community 376 - "appearance_state.dart"
-Cohesion: 0.10
-Nodes (13): AppSkin, _accent, AppearanceState, apply, _background, changed, _language, _skin (+5 more)
+Cohesion: 0.09
+Nodes (15): AppLanguage, AppLanguageInfo, AppSkin, _accent, AppearanceState, apply, _background, changed (+7 more)
 
 ### Community 377 - "ble_nearby.dart"
 Cohesion: 0.06
@@ -2324,45 +2353,45 @@ Nodes (33): address, bgClearAsk, bgDisable, bgEnable, BleInvite, BleNearby, BleP
 Cohesion: 0.06
 Nodes (30): activeColor, base, build, caretLine, CodeGutter, _CodeGutterState, codeGutterWidth, codeLineTops (+22 more)
 
-### Community 379 - "fs_scan.dart"
-Cohesion: 0.13
-Nodes (10): inset, out, T, FolderLock, hashPin, isLocked, _prefix, _rounds (+2 more)
+### Community 379 - "T"
+Cohesion: 0.12
+Nodes (10): inset, out, T, build, DashboardTools, listenable, rowLength, ToolsScreen (+2 more)
 
 ### Community 380 - "chart_insert_dialog.dart"
 Cohesion: 0.12
 Nodes (16): ChartVM, _axis, _bars, _barsOrLine, _catCount, _catLabels, chart, ChartPainter (+8 more)
 
-### Community 381 - "GELİŞTİRME PLANI — Faz 34–42 (2026-11-04)"
-Cohesion: 0.07
-Nodes (29): Faz 34 — Pano cilası — BİTTİ 2026-11-04 (cihaz doğrulaması CIHAZ_TESTI.md'de), Faz 35 — Pro belge tarayıcı — BİTTİ 2026-11-05 (kod; cihaz doğrulaması CIHAZ_TESTI.md'de, perf A/B bekliyor), Faz 36 — Excel — BİTTİ 2026-11-05 (kod; cihaz doğrulaması CIHAZ_TESTI.md'de, perf A/B bekliyor), Faz 37 — Word — BİTTİ 2026-11-05 (kod; cihaz doğrulaması CIHAZ_TESTI.md'de, perf A/B bekliyor), Faz 38 — Slayt — BİTTİ 2026-11-05 (kod; cihaz doğrulaması CIHAZ_TESTI.md'de, perf A/B bekliyor), Faz 39 — PDF — BİTTİ 2026-11-05 (kod; cihaz doğrulaması CIHAZ_TESTI.md'de, perf A/B bekliyor), Faz 40 — Ortak görünüm ve deneyim — BİTTİ (2026-11-05; cihaz turu + perf A/B bekliyor), Faz 41 — Dosya yöneticisi ve bulut — BİTTİ (2026-11-05; cihaz turu + perf A/B bekliyor) (+21 more)
+### Community 381 - "2026-07-26 — PDF turu: vurgu KÖK NEDENİ, donma, seçim UX, tarama düzeltme"
+Cohesion: 0.05
+Nodes (42): 0.1 Yürütme sırası (2026-10-22) — bulutta yapılabilenler önce, 0. Bu belge nasıl kullanılır, 1. Yönetici özeti, 2. Mevcut durum — ölçümler, 4. Kararlar, 5. Hedef bilgi mimarisi, 7. Ekler, Dosya Okuyucu — Kapsamlı İnceleme Raporu ve Faz Planı (+34 more)
 
 ### Community 382 - "sample_docs.dart"
-Cohesion: 0.07
-Nodes (23): BlankDocs, blankDocx, blankXlsx, create, createFrom, docxWithParagraphs, _paragraphsXml, _stamp (+15 more)
+Cohesion: 0.05
+Nodes (32): BlankDocs, blankDocx, blankXlsx, create, createFrom, docxWithParagraphs, _paragraphsXml, _stamp (+24 more)
 
-### Community 383 - "share_scope.dart"
-Cohesion: 0.13
-Nodes (14): all, allows, boxes, copyWith, hashCode, isEmpty, mode, operator (+6 more)
+### Community 383 - "pdf_image_cache_budget.dart"
+Cohesion: 0.08
+Nodes (25): _budget, bytes, clear, commit, dispose, _disposed, _entries, estimatedBytes (+17 more)
 
-### Community 384 - "large_text.dart"
-Cohesion: 0.13
-Nodes (14): _decodeLine, detectEncoding, encoding, encodingLabel, LargeTextEncoding, LargeTextFile, length, lineCount (+6 more)
+### Community 384 - "pro.dart"
+Cohesion: 0.08
+Nodes (23): _chartFromTable, _convertSmartArts, _curIndex, _deckBytes, _editChart, _exportImages, _exportVideo, flagKey (+15 more)
 
-### Community 385 - "scan_text_fix.dart"
-Cohesion: 0.13
-Nodes (14): _backVowels, _digitLetter, _digitsInsideLetters, _dottedUppercaseWords, _dottedWords, _fixPunctuationSpacing, _fixWord, _fixWords (+6 more)
+### Community 385 - "sections_page.dart"
+Cohesion: 0.09
+Nodes (20): _addSection, apply, build, _busy, bytes, createState, _editShow, initState (+12 more)
 
 ### Community 386 - "xlsx_reader_fast_test.dart"
-Cohesion: 0.06
-Nodes (24): XlsxSheetLayout, XlsxWorkbook, archive, decode, _documentXml, file, main, f (+16 more)
+Cohesion: 0.04
+Nodes (40): covers, TtfCoverage, XlsxSheetLayout, XlsxWorkbook, archive, decode, _documentXml, file (+32 more)
 
 ### Community 387 - "audio_tags_test.dart"
 Cohesion: 0.20
 Nodes (10): 2026-07-29 (6. tur) — Uygulama içi indirme (bağlantıdan / GitHub sürümünden), A. Neden kendi indiricimiz, B. Parçalar, C. Kritik kararlar (ve niye), D. Doğrulama, E. "İndirme kısmında seçenek olarak çıkmalıyız" (aynı gün, ek istek), F. "Arka planda mutlaka devam etmeli" — motor değiştirildi, G. CI TUZAĞI — build 156 kırmızı: paket sürümü AGP'yi aştı (+2 more)
 
-### Community 388 - "scan_result/actions.dart"
-Cohesion: 0.06
-Nodes (32): _acceptClassFolder, _addExpense, _addFromGallery, _addPages, _applyKind, _changeLocation, _commit, _crop (+24 more)
+### Community 388 - "hero.dart"
+Cohesion: 0.09
+Nodes (22): audio, device, document, _HeroAction, highlight, icon, image, label (+14 more)
 
 ### Community 389 - "pptx_master_ops.dart"
 Cohesion: 0.05
@@ -2372,37 +2401,37 @@ Nodes (34): addPlaceholder, background, bodyPt, colors, cy, duplicateLayout, id,
 Cohesion: 0.15
 Nodes (11): bytes, cancelled, changed, maxPages, pages, PdfInPlaceTranslate, PdfTranslateOutcome, run (+3 more)
 
-### Community 391 - "ai_tagger.dart"
-Cohesion: 0.02
-Nodes (93): AiAnswer, AiAsk, ask, _date, _dirOf, empty, _maxContext, _parseAnswer (+85 more)
+### Community 391 - "ai_meaning_search.dart"
+Cohesion: 0.05
+Nodes (34): AiAnswer, AiAsk, ask, _date, _dirOf, empty, _maxContext, _parseAnswer (+26 more)
 
 ### Community 392 - "Flutter UI System"
 Cohesion: 0.14
 Nodes (13): 🎬 Animation Selection, ⚠️ ASK BEFORE ASSUMING, 📋 Checklists, 🧠 CHECKPOINT (Fill Before Any Flutter Work), Flutter UI System, 🔴 MANDATORY: Read Reference Files First, Per Animation, Per Screen (+5 more)
 
-### Community 393 - "Exception"
-Cohesion: 0.06
-Nodes (32): DictationUnavailable, _ResizeFailure, apiKey, available, _base, download, downloads, fileId (+24 more)
+### Community 393 - "pdf_ocr_text.dart"
+Cohesion: 0.04
+Nodes (45): apiKey, available, _base, download, downloads, fileId, hashMatch, _headers (+37 more)
 
 ### Community 394 - "scan_dewarp.dart"
 Cohesion: 0.07
 Nodes (26): _applyShifts, bandCount, _bestOffset, _cap, columnShifts, _downscaledHeight, _downscaleGray, estimateSkewDegrees (+18 more)
 
 ### Community 395 - "pdf_export_pro.dart"
-Cohesion: 0.06
-Nodes (31): bold, bounds, buildDocx, chunks, chunksOf, _esc, fontSize, PdfExportPro (+23 more)
+Cohesion: 0.05
+Nodes (32): bold, bounds, buildDocx, chunks, chunksOf, _esc, fontSize, PdfExportPro (+24 more)
 
-### Community 396 - "scan_title.dart"
-Cohesion: 0.14
-Nodes (13): bestIndex, bestScore, _cleanup, date, _letterCount, maxCandidates, maxLen, pool (+5 more)
+### Community 396 - "vault_crypto.dart"
+Cohesion: 0.09
+Nodes (20): _DigestSink, add, _chunk, _chunks, close, decryptFile, deriveKey, _DigestSink (+12 more)
 
 ### Community 397 - "master_page.dart"
-Cohesion: 0.04
-Nodes (40): apply, build, _busy, bytes, createState, _dot, _drag, _font (+32 more)
+Cohesion: 0.06
+Nodes (33): apply, build, _busy, bytes, createState, _dot, _drag, _font (+25 more)
 
-### Community 398 - "IntentFilter"
-Cohesion: 0.11
-Nodes (12): 2026-09-03 (on sekizinci tur) — USB sertleştirme, vektör simge, yüzen oynatıcı, A) "Çok geç düşüyor" — kök neden: HİÇBİR kanal itmiyordu, B) USB sürücüsü — UAS'lı belleklerde arayüz seçimi, C) Arayüzdeki metin YALAN söylüyordu (exFAT), D) Eski APK simgeleri — kök neden VEKTÖR ön plandı, E) Ekran üstünde yüzen oynatıcı (`ci/FloatingPlayer.kt`), F) Oynatıcı premium ekleri, G) PDF araçları (+4 more)
+### Community 398 - "2026-09-03 (on sekizinci tur) — USB sertleştirme, vektör simge, yüzen oynatıcı"
+Cohesion: 0.22
+Nodes (9): 2026-09-03 (on sekizinci tur) — USB sertleştirme, vektör simge, yüzen oynatıcı, B) USB sürücüsü — UAS'lı belleklerde arayüz seçimi, C) Arayüzdeki metin YALAN söylüyordu (exFAT), D) Eski APK simgeleri — kök neden VEKTÖR ön plandı, E) Ekran üstünde yüzen oynatıcı (`ci/FloatingPlayer.kt`), F) Oynatıcı premium ekleri, G) PDF araçları, H) Kotlin tür denetimi artık yüzen oynatıcıyı da kapsıyor (+1 more)
 
 ### Community 399 - "pdf_doc_pro.dart"
 Cohesion: 0.06
@@ -2425,8 +2454,8 @@ Cohesion: 0.07
 Nodes (29): _act, action, allowReveal, canRotate, canSplit, compareTwoFiles, digests, _EntryAction (+21 more)
 
 ### Community 404 - "File"
-Cohesion: 0.02
-Nodes (63): clean, DocxAi, kWordAiTasks, parseProof, prompt, proofPrompt, ProofSuggestion, reason (+55 more)
+Cohesion: 0.03
+Nodes (58): _baselinePath, files, main, _measure, _metrics, out, _tokenFiles, main (+50 more)
 
 ### Community 405 - "2026-07-29 (VIII) — SADAKAT DENETİMİ, 2. TUR: hata avı (12 bulgu, hepsi kapatıldı)"
 Cohesion: 0.22
@@ -2436,9 +2465,9 @@ Nodes (9): 1. Data that stays on your device, 2. Data that leaves the device —
 Cohesion: 0.15
 Nodes (11): AiSlides, generate, maxChars, parse, prompt, schema, SlidePlan, slides (+3 more)
 
-### Community 407 - "current_page.dart"
-Cohesion: 0.15
-Nodes (12): currentPdfPage, docBottom, docTop, maxRatio, maxTop, progress, ratioOf, ratios (+4 more)
+### Community 407 - "find_package_path.dart"
+Cohesion: 0.09
+Nodes (21): colonIndex, current, desc, findPackagePubspecPath, _findPubspecLock, _getPackageDirectory, _gitRepoName, _guessPubCacheDir (+13 more)
 
 ### Community 408 - "pdf_tools_test.dart"
 Cohesion: 0.07
@@ -2452,9 +2481,9 @@ Nodes (30): _cellPr, cellShade, deleteTable, deleteTableColumn, deleteTableRow, 
 Cohesion: 0.22
 Nodes (9): 1. Cihazda kalan veriler, 2. Cihazdan çıkan veriler — yalnız sizin başlattığınız işlemlerde, 3. Hata (çökme) kayıtları, 4. İzinler ve nedenleri, 5. Çocuklar, 6. Değişiklikler, 7. İletişim, Gizlilik Politikası — Dosya Okuyucu (+1 more)
 
-### Community 411 - "@immutable"
-Cohesion: 0.11
-Nodes (19): DeviceInfo, PerfBudget, ThinPos, Bill, FgNotice, VaultItem, SmartFolder, DocPos (+11 more)
+### Community 411 - "fixed_overscroll_physics.dart"
+Cohesion: 0.10
+Nodes (17): applyBoundaryConditions, applyTo, createBallisticSimulation, _createBouncingSimulation, _currentSimulation, dx, FixedOverscrollPhysics, _hasSwitchedToBouncing (+9 more)
 
 ### Community 412 - "docx_insert.dart"
 Cohesion: 0.06
@@ -2496,29 +2525,29 @@ Nodes (11): 10. Responsive Image, 1. Responsive Breakpoints, 2. Adaptive Layout 
 Cohesion: 0.18
 Nodes (11): 10. Key Rules for Lists, 1. const Everywhere (Most Impactful), 2. Targeted Rebuilds, 3. RepaintBoundary, 4. List Performance, 5. Image Performance, 6. Shader Warmup, 7. Heavy Computation Off UI Thread (+3 more)
 
-### Community 422 - "fm_apk_resources_test.dart"
-Cohesion: 0.10
-Nodes (13): _be32, body, _chunk, ihdr, main, out, _png, raw (+5 more)
+### Community 422 - "image_decode_budget_screen_test.dart"
+Cohesion: 0.04
+Nodes (32): _be32, body, _chunk, ihdr, main, out, _png, raw (+24 more)
 
 ### Community 423 - "2026-07-26 — PDF turu: vurgu KÖK NEDENİ, donma, seçim UX, tarama düzeltme"
 Cohesion: 0.22
 Nodes (9): 2026-07-26 (3. tur) — PDF metnini GERÇEKTEN yerinde düzenleme, Arama neden "boşluksuz" ve neden bağlamlı, Bilinen sınır (bilinçli), Güvenlik kapıları — hepsi "yazmadan önce reddet", KARAR — özgün baytlara asla dokunulmuyor (incremental update), Kodlama, TUZAK — sayfa sözlükleri `/ObjStm` içinde olabilir, TUZAK — taban dosya xref AKIŞI kullanıyorsa güncelleme de akış olmalı (+1 more)
 
-### Community 424 - "List"
-Cohesion: 0.08
-Nodes (22): cells, inline, _isTableDivider, kind, level, parse, PolicyBlock, PolicyBlockKind (+14 more)
+### Community 424 - "policy_doc.dart"
+Cohesion: 0.22
+Nodes (10): cells, inline, _isTableDivider, kind, level, parse, PolicyBlock, PolicyBlockKind (+2 more)
 
 ### Community 425 - "slides_screen_test.dart"
-Cohesion: 0.04
-Nodes (32): AudioPlayback, main, player, dir, main, _t, dir, main (+24 more)
+Cohesion: 0.06
+Nodes (22): dir, main, _t, dir, main, dir, main, pump (+14 more)
 
 ### Community 426 - "fm_apk_icon_test.dart"
 Cohesion: 0.22
 Nodes (9): 2026-07-29 (VII) — SADAKAT DENETİMİ: verilen sözler kodda tek tek doğrulandı, AÇIK 1 (CİDDİ — veri kaybı): etiketler taşımada sessizce siliniyordu, AÇIK 2: "video ve fotoğraflarda AI ile tespit" — AI yalnız fotoğrafta, AÇIK 3: erişilemeyen özellikler, AÇIK 4: yanıltıcı doküman (kuyruk kapsamı), AÇIK 5: "son açılma tarihi TÜM DOSYALAR içinde" — özellikler penceresi, AÇIK 6 (var olan hata, denetimde çıktı): çöpten geri yükleme yanlış ad, AÇIK 7: boyut düşürmede küçük sadakat kusurları (+1 more)
 
 ### Community 427 - "_ViewerScreenState"
-Cohesion: 0.14
-Nodes (13): _buildBody, _insetPdfLayout, _pdfRenderScale, _plainPdfLayout, _ViewerCodeToolsPart, _ViewerScreenBodyPart, _ViewerScreenDocActionsPart, _ViewerScreenFindReplacePart (+5 more)
+Cohesion: 0.09
+Nodes (21): _actionBar, _buildBody, _buildShell, _insetPdfLayout, _pdfBarShown, _plainPdfLayout, _showMore, _showPdfEditModes (+13 more)
 
 ### Community 428 - ".deliver"
 Cohesion: 0.22
@@ -2545,8 +2574,8 @@ Cohesion: 0.06
 Nodes (32): a, active, b, build, _busy, canTransfer, createState, current (+24 more)
 
 ### Community 434 - "pdf_font_class.dart"
-Cohesion: 0.10
-Nodes (18): bucketCounts, bucketForPath, counts, has, label, labelKey, lower, MediaBucket (+10 more)
+Cohesion: 0.11
+Nodes (16): byName, description, descriptionKey, label, labelKey, MediaOpenWith, MediaOpenWithLabel, bold (+8 more)
 
 ### Community 435 - "Flutter Design Thinking"
 Cohesion: 0.22
@@ -2561,12 +2590,12 @@ Cohesion: 0.08
 Nodes (19): PickerActivity, 2026-09-26 (2) — Önerilerin uygulanması: Firebase gitti, OCR Play Hizmetleri'nde, targetSdk 36, A) Firebase KALDIRILDI (`firebase_core`/`firebase_auth`/`cloud_firestore`), B) OCR modeli APK'dan çıktı (Play Hizmetleri, ~12 MB), C) pdfium.wasm (2 MB) APK'dan çıktı, D) targetSdk 36 — Flutter yükseltmeden, E) CI — Release YALNIZ main'de, F) Pano sadeleştirmesi + "Yer aç" canlı alt yazı (+11 more)
 
 ### Community 438 - "HAFIZA arşivi — 2026-10"
-Cohesion: 0.04
-Nodes (53): 2026-10-17 (2) — UI/UX turu: basma hissi, liste iskeletleri, boş liste yüzü, 2026-10-18 (2. tur) — Önerilen 8 özellik: akıllı klasör, fatura, sınıflandırma, widget, haftalık bildirim, şifreli kasa, QR/yükleme, anılar, 2026-10-18 (2) — Tüm uzun işler iş sisteminde: ana ekran şeridi + bildirim + kalan/geçen süre, 2026-10-18 — Tarama baştan (otomatik "iyileştirme" kalktı), alt çubuk altında kalanlar, menü/pano cilası, "bitti ama sürüyor" başlıkları, 2026-10-18 — Tarama rehberi, 5 yeni tema + simge dilleri, bellek panosu, özelleştirilebilir alt çubuk, 2026-10-21 (4) — Faz 8 (PDF tek çatı) · Faz 9 (Office ve metin akışları), 2026-10-21 (5) — Faz 0 hijyen · P10 · Faz 7b (Flutter 3.44.6) · Faz 10 (medya), 2026-10-21 — Kapsamlı inceleme ve faz planı (kod değişikliği YOK) (+45 more)
+Cohesion: 0.03
+Nodes (57): 2026-10-17 (2) — UI/UX turu: basma hissi, liste iskeletleri, boş liste yüzü, 2026-10-18 (2. tur) — Önerilen 8 özellik: akıllı klasör, fatura, sınıflandırma, widget, haftalık bildirim, şifreli kasa, QR/yükleme, anılar, 2026-10-18 (2) — Tüm uzun işler iş sisteminde: ana ekran şeridi + bildirim + kalan/geçen süre, 2026-10-18 — Tarama baştan (otomatik "iyileştirme" kalktı), alt çubuk altında kalanlar, menü/pano cilası, "bitti ama sürüyor" başlıkları, 2026-10-18 — Tarama rehberi, 5 yeni tema + simge dilleri, bellek panosu, özelleştirilebilir alt çubuk, 2026-10-21 (2) — Faz 0 kararları + Faz 1 (CI/CD) + Faz 2 (sadeleştirme I), 2026-10-21 (4) — Faz 8 (PDF tek çatı) · Faz 9 (Office ve metin akışları), 2026-10-21 (5) — Faz 0 hijyen · P10 · Faz 7b (Flutter 3.44.6) · Faz 10 (medya) (+49 more)
 
 ### Community 439 - "dart:ui"
 Cohesion: 0.05
-Nodes (25): axis, edgeAutoScrollDelta, margin, maxStep, arrivedAtPage, minRatio, overlap, ratio (+17 more)
+Nodes (23): axis, edgeAutoScrollDelta, margin, maxStep, arrivedAtPage, minRatio, overlap, ratio (+15 more)
 
 ### Community 440 - "2026-08-01 — Slaytta gezinme/arama/AI özet · Word bulanıklığı ve font · Excel bölme sadakati"
 Cohesion: 0.25
@@ -2577,8 +2606,8 @@ Cohesion: 0.25
 Nodes (8): 2026-07-30 — 7 KULLANICI HATASI: bildirim çubuğu, arka plan, Drive, tarama, galeri, oynatıcı, PIN, A) Bildirim ilerleme çubuğu hep boş, B) Arka plana alınca iş duraklıyor, C) "drive olmadı", D) Belge tarama kalitesi, E) Galeride dokununca resim zıplıyor, F) Video oynatıcı düğmeleri ortalı değil, G) "eski pin girmedim ki" — TEMA HATASI, PIN hatası değil
 
 ### Community 442 - "os"
-Cohesion: 0.10
-Nodes (15): 2026-07-30 (III) — NAS: FTP/FTPS/FTPES · SFTP · SMB · WebDAV · LAN + PC'den FTP, A) Mimari — ortak `RemoteFs` arayüzü, `FileOps`a DOKUNULMADI, B) Protokole özgü tuzaklar (hepsi kodda yazılı), C) LAN keşfi — iki yöntem birlikte, çünkü tek başına ikisi de yetmiyor, D) PC'den telefona FTP **sunucusu** — paketsiz, `dart:io`, Doğrulama, E) YENİ VE ÖNEMLİ — FTP sunucusu bu ortamda GERÇEKTEN koşturulabiliyor, F) Parola saklama — bilinçli sınır, kullanıcıya SÖYLENİYOR (+7 more)
+Cohesion: 0.16
+Nodes (7): main(), check(), images(), main(), parse(), _plain(), main()
 
 ### Community 443 - "recent_file.dart"
 Cohesion: 0.22
@@ -2589,28 +2618,28 @@ Cohesion: 0.06
 Nodes (32): a4Ratio, BusinessCard, combineId, combineIdImages, combineIdRequest, company, _companyHint, defaultFilter (+24 more)
 
 ### Community 445 - "_DashboardScreenState"
-Cohesion: 0.25
-Nodes (7): _categoryScreen, _loadFolderSizes, _loadTrash, _mediaScreen, _push, _requestAccess, _scan
+Cohesion: 0.13
+Nodes (14): _categoryScreen, _DashboardScreenExternalOpenPart, _DashboardScreenScanPart, _DashboardScreenSectionsPart, _DashboardScreenTilesPart, _DashboardScreenVolumeWatchPart, _loadFolderSizes, _loadTrash (+6 more)
 
-### Community 446 - "Dosya Okuyucu — Çalışma Kuralları (CLAUDE.md)"
-Cohesion: 0.25
-Nodes (7): 1) Amaç, 2) Mimari / Dosya Haritası, 3) CI/CD (.github/workflows/build-apk.yml — Faz 1 düzeni, 2026-10-21), 4) Çalışma Kuralları, 5) Bağlantılar, Dosya Okuyucu — Çalışma Kuralları (CLAUDE.md), Hafıza (usta koordineli — 3 katman)
+### Community 446 - "verify"
+Cohesion: 0.12
+Nodes (16): verify(), 1) Amaç, 2) Mimari / Dosya Haritası, 3) CI/CD (.github/workflows/build-apk.yml — Faz 1 düzeni, 2026-10-21), 4) Çalışma Kuralları, 5) Bağlantılar, Dosya Okuyucu — Çalışma Kuralları (CLAUDE.md), Hafıza (usta koordineli — 3 katman) (+8 more)
 
 ### Community 447 - "Sender"
-Cohesion: 0.11
-Nodes (8): Item, Peer, IsBle, Key, Proto, Scanner, Sender, SendResult
+Cohesion: 0.18
+Nodes (3): Item, Proto, Sender
 
 ### Community 448 - "2026-08-07 (5) — Yarıda kalan işe "Devam et", Yaptıklarım defteri, video özeti"
 Cohesion: 0.50
 Nodes (4): 2026-08-07 (5) — Yarıda kalan işe "Devam et", Yaptıklarım defteri, video özeti, A) "Devam et" gerçekten çalışıyor — `JobRecipe`, B) Yaptıklarım defteri (`ActivityLog` + `ActivityScreen`), C) Boyut düşürme sayfasında "Şu an → Sonra"
 
 ### Community 449 - "pdf_widgets.dart"
-Cohesion: 0.06
-Nodes (30): alignment, backgroundColor, build, builder, _cancellationToken, createState, decoration, decorationBuilder (+22 more)
+Cohesion: 0.05
+Nodes (37): _PdfPageRenderCancellationTokenWasm, alignment, backgroundColor, build, builder, _cancellationToken, _clearCache, createState (+29 more)
 
-### Community 450 - "design_shots_faz20_test.dart"
-Cohesion: 0.04
-Nodes (33): main, svc, main, _decodeWidthOf, _delegates, dir, imagePath, images (+25 more)
+### Community 450 - "design_shots_faz31_test.dart"
+Cohesion: 0.03
+Nodes (48): dir, main, path, main, svc, main, pump, host (+40 more)
 
 ### Community 451 - "text_replace.dart"
 Cohesion: 0.20
@@ -2629,8 +2658,8 @@ Cohesion: 0.07
 Nodes (27): blockClose, blockOpen, caseInsensitive, _Cfg, _cfgs, codeHighlightIsolateMaxChars, codeHighlightMaxChars, codeLangFor (+19 more)
 
 ### Community 455 - "re"
-Cohesion: 0.11
-Nodes (14): apply(), main(), removals(), verify(), 3.8 GitHub APK derleme akışı, Faz 1 — CI/CD hızlandırma ve sürüm hattı, allowed(), main() (+6 more)
+Cohesion: 0.10
+Nodes (16): apply(), main(), removals(), allowed(), main(), pubspec_deps(), dart_files(), main() (+8 more)
 
 ### Community 456 - "docx_pdf.dart"
 Cohesion: 0.06
@@ -2676,9 +2705,9 @@ Nodes (7): 2026-07-30 (II) — Google Drive bağlantısı (`drive.file`) ve NAS 
 Cohesion: 0.29
 Nodes (7): 2026-07-30 (IV) — NAS istemcileri GERÇEK sunuculara karşı sınandı: SMB hatası bizdeymiş, A) YENİ VE ÖNEMLİ — dört protokolün de sunucusu bu ortamda kurulabiliyor, B) BULUNAN GERÇEK HATA — SMB yolunu ters eğik çizgiye çevirmek, C) `smb_connect` PORT AYARINI YOK SAYIYOR, D) TUZAKLAR (test ortamı kurarken), Doğrulama, Ek (2026-07-30 IV) — uzak dosyada düzenleme artık sunucuya geri yazılıyor
 
-### Community 467 - "media_library.dart"
-Cohesion: 0.07
-Nodes (17): FmLocation, label, shortDate, subtitle, categoryFiles, freshLimit, freshTail, maxItems (+9 more)
+### Community 467 - "Uint8List"
+Cohesion: 0.10
+Nodes (20): ExfatFileSystem, FatFileSystem, NtfsFileSystem, UsbFileSystem, b, blockCount, blockSize, _bulkScanTest (+12 more)
 
 ### Community 468 - "2026-08-07 — Excel turu: eski .xls, şerit, zoom, beyaz zemin, ortak simge dili"
 Cohesion: 0.29
@@ -2716,9 +2745,9 @@ Nodes (31): allSmartArtsToShapes, categories, _chartCt, _chartPartOf, _chartUri,
 Cohesion: 0.06
 Nodes (30): addActionButton, addCounter, applyTableStyle, border, _cNvPr, connect, cropToShape, _doc (+22 more)
 
-### Community 478 - "text_edit.dart"
-Cohesion: 0.06
-Nodes (30): _alignIcon, _beginEdit, _canEditText, _clearSelection, _commitEdit, _finishEdit, _firstFont, _focusEditor (+22 more)
+### Community 478 - "pdf_export_pro_test.dart"
+Cohesion: 0.09
+Nodes (18): cols, data, doc, f, g, main, out, _part (+10 more)
 
 ### Community 479 - "pdf_compare_screen.dart"
 Cohesion: 0.06
@@ -2726,15 +2755,15 @@ Nodes (28): a, b, build, _count, createState, dispose, _disposed, initState (+20
 
 ### Community 480 - "pdf_region_screen.dart"
 Cohesion: 0.07
-Nodes (29): accent, _addRect, build, bytes, createState, dispose, _doc, _dragRect (+21 more)
+Nodes (28): accent, _addRect, build, bytes, createState, dispose, _doc, _dragRect (+20 more)
 
 ### Community 481 - "pptx_arrange_ops.dart"
 Cohesion: 0.06
 Nodes (30): addEntrance, align, animations, _cNvPr, distribute, frame, hidden, id (+22 more)
 
-### Community 482 - "ffi.Opaque"
-Cohesion: 0.07
-Nodes (29): fpdf_action_t__, fpdf_annotation_t__, fpdf_attachment_t__, fpdf_avail_t__, fpdf_bitmap_t__, fpdf_bookmark_t__, fpdf_clippath_t__, fpdf_dest_t__ (+21 more)
+### Community 482 - "sorter.dart"
+Cohesion: 0.10
+Nodes (20): current, _followStrip, hidden, _openSlideSheet, _openSorter, ratio, scheme, sections (+12 more)
 
 ### Community 483 - "parser.dart"
 Cohesion: 0.06
@@ -2749,12 +2778,12 @@ Cohesion: 0.07
 Nodes (29): _add, body, build, _busy, _check, child, _count, createState (+21 more)
 
 ### Community 486 - "library_store.dart"
-Cohesion: 0.04
-Nodes (44): build, child, EditorPerf, EditorPerfOverlay, lastMs, mark, overlayEnabled, _pending (+36 more)
+Cohesion: 0.08
+Nodes (22): add, _added, addedAt, bookExtensions, contains, count, coverOf, debugReset (+14 more)
 
 ### Community 488 - "transfer_history.dart"
-Cohesion: 0.03
-Nodes (52): add, debugLog, debugReset, _drain, _idle, instance, _jobs, _ready (+44 more)
+Cohesion: 0.08
+Nodes (24): add, at, clear, debugReset, ensureLoaded, exists, fromJson, incoming (+16 more)
 
 ### Community 489 - "2026-07-30 — Video küçültme: dikey→yatay bozulması, hız ve "İşlemler" ekranı"
 Cohesion: 0.33
@@ -2832,13 +2861,13 @@ Nodes (26): DocxPara, DocxRunLook, _Block, _blocks, DocxExportFormats, inBackgro
 Cohesion: 0.07
 Nodes (28): bigIntBytes, bitString, boolean, _compareBytes, Der, explicit, integer, length (+20 more)
 
-### Community 509 - "image_edit_screen/parts.dart"
-Cohesion: 0.09
-Nodes (21): _adjustPanel, _canvas, clip, cropRect, _EditPainter, edits, _filterPanel, fineGrid (+13 more)
+### Community 509 - "web.dart"
+Cohesion: 0.10
+Nodes (16): bitmap, _createImageFromBitmap, createImageFromWorkerBitmap, _factoryWasm, _focusObject, focusReportForPreventingContextMenuWeb, getCacheDirectory, isAndroid (+8 more)
 
 ### Community 510 - "Timer"
-Cohesion: 0.07
-Nodes (24): _auto, build, createState, dispose, _index, maxBytes, _pages, _parts (+16 more)
+Cohesion: 0.14
+Nodes (13): _auto, build, createState, dispose, _index, maxBytes, _pages, _parts (+5 more)
 
 ### Community 511 - "settings_search.dart"
 Cohesion: 0.40
@@ -2864,9 +2893,9 @@ Nodes (10): _colorDot, _pageArea, _PdfInkScreenInputPart, _PdfInkScreenViewsPart
 Cohesion: 0.29
 Nodes (6): Başarım ölçümü — 2026-10-21 (Faz 4), Düzeltme ve A/B — 2026-10-23 (aynı telefon, `.r8test` yan yana APK'ları), Telefon ölçümü — 2026-10-22 akşam (aynı Xiaomi 13T; 1.0.397 + yerel R8'li test APK'sı), Telefon ölçümü — 2026-10-22 (Xiaomi 13T, 120 Hz; "güncel cihaz", Ek D düşük cihazı DEĞİL), Yapılanlar (FAZ_PLANI §3.1), Ölçüm protokolü (Ek D)
 
-### Community 517 - "pdfium_interop.cpp"
-Cohesion: 0.10
-Nodes (12): pdfrx_file_access, cond, pdfrx_file_access_create(), pdfrx_file_access_destroy(), fileAccess, mutex, param, readBlock (+4 more)
+### Community 517 - "ai_tagger.dart"
+Cohesion: 0.11
+Nodes (17): add, AiTagger, batchSize, _capitalize, cloudCandidates, _display, fromIndex, map (+9 more)
 
 ### Community 518 - "pdf_editor/actions.dart"
 Cohesion: 0.08
@@ -2912,6 +2941,10 @@ Nodes (5): 2026-08-02 (5. tur) — Arayüz: "sade ama kullanışlı" (araç çub
 Cohesion: 0.40
 Nodes (5): 2026-08-05 (2. tur) — Seçim tamamen otomatik + üç premium dokunuş, A) OCR artık KENDİLİĞİNDEN (`_maybeAutoOcr`), B) Çift dokunuş kelime seçer (mobil Chrome paritesi), C) Kenar oto-kaydırması (Chrome'un seçim akışı), D) Tek etkin seçim (`activeSelectionPage`)
 
+### Community 529 - "pdf_tools/views.dart"
+Cohesion: 0.11
+Nodes (18): _actionBar, _barButton, _busyOverlay, _NumberOptions, _pageGrid, _PageNumberSheet, _PageNumberSheetState, _pageTile (+10 more)
+
 ### Community 530 - "make_word_fixtures.py"
 Cohesion: 0.11
 Nodes (6): big_pdf(), main(), png(), xlsx(), png(), stiller()
@@ -2920,13 +2953,13 @@ Nodes (6): big_pdf(), main(), png(), xlsx(), png(), stiller()
 Cohesion: 0.08
 Nodes (23): base, cm, contains, date, difference, dm, dn, _monthsTr (+15 more)
 
-### Community 532 - "undo_stack.dart"
-Cohesion: 0.20
-Nodes (9): _CallbackStep, CallbackEdit, EditHistory, CallbackUndoStep, UndoStack, UndoStep, SheetUndoStack, SheetUndoStep (+1 more)
+### Community 532 - "SheetUndoStep"
+Cohesion: 0.67
+Nodes (3): _CallbackStep, SheetUndoStep, SheetValueStep
 
-### Community 534 - "user_communication_test.dart"
-Cohesion: 0.04
-Nodes (31): GateStatus, _delegates, gb, main, pump, volume, main, _delegates (+23 more)
+### Community 534 - "package:shared_preferences/shared_preferences.dart"
+Cohesion: 0.02
+Nodes (79): export, formatVersion, import, isSecret, restoreFrom, saveTo, secretPrefixes, SettingsBackup (+71 more)
 
 ### Community 535 - "InheritedWidget"
 Cohesion: 0.40
@@ -2942,7 +2975,7 @@ Nodes (35): _apply, cancel, _cellIsMatch, _ColumnFilterSheet, _ColumnFilterSheet
 
 ### Community 540 - "image_edit_screen.dart"
 Cohesion: 0.02
-Nodes (81): _addText, _adjustKey, _adjustKeys, _askText, _avail, _before, _box, build (+73 more)
+Nodes (102): _adjustPanel, _canvas, clip, cropRect, _EditPainter, edits, _filterPanel, fineGrid (+94 more)
 
 ### Community 541 - "_FilmStrip"
 Cohesion: 0.40
@@ -2965,8 +2998,8 @@ Cohesion: 0.08
 Nodes (19): build, clean, confirmLabel, _controller, createState, destructive, dispose, false (+11 more)
 
 ### Community 546 - "pdf_page_links_overlay.dart"
-Cohesion: 0.11
-Nodes (19): FakeOcrPage, _FakePage, PdfPage, _PdfPagePdfium, _PdfPageWasm, build, createState, didUpdateWidget (+11 more)
+Cohesion: 0.05
+Nodes (36): containsInfinite, EdgeInsetsExtensions, inflateRectIfFinite, _FallbackMaterialLocalizationsDelegate, isSupported, load, override, shouldReload (+28 more)
 
 ### Community 547 - "ImageOutputFormat"
 Cohesion: 0.40
@@ -3009,12 +3042,12 @@ Cohesion: 0.09
 Nodes (21): _createHf, DocxHeaderFooter, DocxInsert, DocxMedia, DocxReview, DocxTableOps, editable, headerFooter (+13 more)
 
 ### Community 564 - "slide_box_editor.dart"
-Cohesion: 0.10
-Nodes (20): ShapeVM, build, _changed, controller, createState, didUpdateWidget, dispose, _fieldKey (+12 more)
+Cohesion: 0.04
+Nodes (42): _FormulaFieldController, CodeTextController, ShapeVM, autofocus, build, controller, countLabel, decoration (+34 more)
 
 ### Community 565 - "content_indexer.dart"
-Cohesion: 0.05
-Nodes (32): busy, candidates, clear, ContentIndexer, debugIndex, _index, ocrEnabled, ocrMaxBytes (+24 more)
+Cohesion: 0.04
+Nodes (42): AiExcerpt, AiExtract, _dateOnly, error, excerpt, isEmpty, metaLine, normalize (+34 more)
 
 ### Community 566 - "save_coordinator.dart"
 Cohesion: 0.10
@@ -3029,8 +3062,8 @@ Cohesion: 0.10
 Nodes (20): _arrivedAtPdfPage, _askGoToPage, _askPdfPassword, _bookmarkRibbon, _currentPdfPage, _fitPdfWidth, _goToPdfPage, _layoutPdfColumns (+12 more)
 
 ### Community 570 - "draft_journal.dart"
-Cohesion: 0.11
-Nodes (17): _bin, _binPath, discard, DraftInfo, editor, find, findSync, _instance (+9 more)
+Cohesion: 0.07
+Nodes (27): _bin, _binPath, discard, DraftInfo, DraftJournal, editor, find, findSync (+19 more)
 
 ### Community 571 - "doc_chapters.dart"
 Cohesion: 0.10
@@ -3064,9 +3097,9 @@ Nodes (4): 2026-07-25 — Excel: sabit bölme ekranı yiyordu ("sağ tarafı gö
 Cohesion: 0.50
 Nodes (4): 2026-07-25 — Faz 2: İmza + Faz 1'de bulunan VERİ KAYBI hatası, Bulunan hata: sayfa kopyalama vurguları siliyordu (Faz 1), Döndürme matematiği artık ÖLÇÜLDÜ (varsayım değil), İmza — resim değil VEKTÖR
 
-### Community 580 - "_loadPagesInLimitedTime"
-Cohesion: 0.20
-Nodes (11): 2026-07-26 (12. tur) — "sayfaya git 1 sayfa ilerliyor": pdfrx AŞAMALI YÜKLEME yapıyor, 2026-07-26 (13. tur) — 12. TURUN TANISI YANLIŞTI (düzeltme) + "sayfaya git" doğrulamalı, Bulunabilirlik, DÜZELTME: 12. turdaki "aşamalı yükleme sayfa sayısını bozuyor" iddiası YANLIŞ, Gerçek kalan sorun ve alınan yol, KÖK NEDEN — `document.pages` açılışta TAM DEĞİL, Çözüm, _getErrorMessage() (+3 more)
+### Community 580 - "2026-07-26 (12. tur) — "sayfaya git 1 sayfa ilerliyor": pdfrx AŞAMALI YÜKLEME yapıyor"
+Cohesion: 0.50
+Nodes (4): 2026-07-26 (12. tur) — "sayfaya git 1 sayfa ilerliyor": pdfrx AŞAMALI YÜKLEME yapıyor, Bulunabilirlik, KÖK NEDEN — `document.pages` açılışta TAM DEĞİL, Çözüm
 
 ### Community 581 - "2026-07-26 (8. tur) — GERİ ALMA: "sayfa kaynıyor, zoom gidiyor" — kendi eklediğimiz koruma bozmuş"
 Cohesion: 0.50
@@ -3093,24 +3126,24 @@ Cohesion: 0.11
 Nodes (17): _aiEditPdf, _copyPdfSelection, _fillPdfForm, _onPdfLink, _onPdfSelDragAt, _openInk, _openPdfEditor, _openPdfTools (+9 more)
 
 ### Community 587 - "HAFIZA arşivi — 2026-11"
-Cohesion: 0.08
-Nodes (23): 2026-11-01 — Aktarım ekrandan bağımsız; düzenleme dönüşü odağı; seçici 2. tur, 2026-11-01 — İlk cihaz turu (Mi Note 10 Lite, ADB): bulgular ve tuzaklar, 2026-11-01 — Kalan işler iki fazda toplandı; HAFIZA, KALANLAR, CIHAZ_TESTI temizlendi, 2026-11-01 — Kişisel derleme Release'e çıkar (dal `ccr-0ba9d97d-1mtuwm` main'e alındı), 2026-11-01 — Uygulama içi seçici, düzenleme dönüşü, dock, kırık beyaz, 2026-11-02 — A3.3 ML Kit tazelendi, 2026-11-02 — A3.4 bağımlılık tazeleme, 2026-11-02 — A4.1 800+ satırlı ekranlar bölündü (+15 more)
-
-### Community 588 - "fm_smart_features_test.dart"
-Cohesion: 0.08
-Nodes (11): main, pump, stateWith, _f, main, f, main, now (+3 more)
-
-### Community 589 - "pdfrx/CLAUDE.md"
-Cohesion: 0.08
-Nodes (22): Android, Architecture Overview, Basic Flutter Commands, Code Style, Commenting Guidelines, Core Components, Dependency Version Policy, Development Commands (+14 more)
-
-### Community 590 - "ai_apply.dart"
 Cohesion: 0.09
-Nodes (19): AiApply, AiApplyResult, changed, _exists, failed, folderRootIn, isRunning, jobId (+11 more)
+Nodes (22): 2026-11-01 — Aktarım ekrandan bağımsız; düzenleme dönüşü odağı; seçici 2. tur, 2026-11-01 — İlk cihaz turu (Mi Note 10 Lite, ADB): bulgular ve tuzaklar, 2026-11-01 — Kalan işler iki fazda toplandı; HAFIZA, KALANLAR, CIHAZ_TESTI temizlendi, 2026-11-01 — Kişisel derleme Release'e çıkar (dal `ccr-0ba9d97d-1mtuwm` main'e alındı), 2026-11-01 — Uygulama içi seçici, düzenleme dönüşü, dock, kırık beyaz, 2026-11-02 — A3.3 ML Kit tazelendi, 2026-11-02 — A3.4 bağımlılık tazeleme, 2026-11-02 — A4.1 800+ satırlı ekranlar bölündü (+14 more)
 
-### Community 591 - "pro_common.dart"
-Cohesion: 0.09
-Nodes (20): accent, background, build, colorHex, heightEmu, hexColor, kProPalette, label (+12 more)
+### Community 588 - "nav_tabs.dart"
+Cohesion: 0.11
+Nodes (18): add, available, debugReset, defaults, ensureLoaded, home, instance, isDefault (+10 more)
+
+### Community 589 - "PdfRangeCache"
+Cohesion: 0.20
+Nodes (8): _ensurePageAvailable(), invokeCallback(), loadDocumentFromUrl(), loadDocumentFromUrlWithRangeAccess(), loadPage(), _mergeDownloadSegments(), PdfRangeCache, _waitForPdfAvailability()
+
+### Community 590 - "package:path/path.dart"
+Cohesion: 0.03
+Nodes (55): AiApply, AiApplyResult, changed, _exists, failed, folderRootIn, isRunning, jobId (+47 more)
+
+### Community 591 - "_"
+Cohesion: 0.11
+Nodes (17): _, build, danger, DocMoreGroup, DocMoreItem, DocMoreSheet, group, _GroupCard (+9 more)
 
 ### Community 592 - "lookup_stats.dart"
 Cohesion: 0.11
@@ -3134,19 +3167,19 @@ Nodes (10): build, _built, createState, HistoryScreen, _HistoryScreenState, Hist
 
 ### Community 597 - "Cihaz doğrulama listesi (KALANLAR Faz B2'nin eki)"
 Cohesion: 0.06
-Nodes (33): 0. Hazırlık, 10. Slayt, 11. Metin, kod, Markdown, eski biçimler, 12. Görsel, galeri, video, ses, 13. Office uyumluluk tablosu (masaüstü — KALANLAR B4), 14. Görünüm, dil, erişilebilirlik, sistem, 15. Kurulum, kararlılık, kişisel derleme, 16. Dosya seçici ana sayfası ve devam notu (2026-11-02) (+25 more)
+Nodes (36): 0. Hazırlık, 10. Slayt, 11. Metin, kod, Markdown, eski biçimler, 12. Görsel, galeri, video, ses, 13. Office uyumluluk tablosu (masaüstü — KALANLAR B4), 14. Görünüm, dil, erişilebilirlik, sistem, 15. Kurulum, kararlılık, kişisel derleme, 16. Dosya seçici ana sayfası ve devam notu (2026-11-02) (+28 more)
 
 ### Community 598 - "wav.dart"
-Cohesion: 0.06
-Nodes (27): _checkEmpty, _count, didPop, didPush, didRemove, didReplace, NavigatorStackGuard, _recovering (+19 more)
+Cohesion: 0.12
+Nodes (16): bitsPerSample, build, channels, concat, dataLength, dataOffset, durationMs, format (+8 more)
 
 ### Community 599 - "csv_document.dart"
-Cohesion: 0.12
-Nodes (16): columns, CsvDocument, CsvEncoding, CsvFormat, delimiter, encode, encoding, encodingLabel (+8 more)
+Cohesion: 0.06
+Nodes (29): columns, CsvDocument, CsvEncoding, CsvFormat, delimiter, encode, encoding, encodingLabel (+21 more)
 
-### Community 600 - "Dosya Okuyucu — Kapsamlı İnceleme Raporu ve Faz Planı"
-Cohesion: 0.13
-Nodes (15): 0.1 Yürütme sırası (2026-10-22) — bulutta yapılabilenler önce, 0. Bu belge nasıl kullanılır, 1. Yönetici özeti, 2. Mevcut durum — ölçümler, 4. Kararlar, 5. Hedef bilgi mimarisi, 7. Ekler, Dosya Okuyucu — Kapsamlı İnceleme Raporu ve Faz Planı (+7 more)
+### Community 600 - "pick_file_screen/parts.dart"
+Cohesion: 0.11
+Nodes (17): _body, _categoryAccepted, _chip, dirs, _filterBar, _home, keepOrder, _matchesView (+9 more)
 
 ### Community 601 - "ribbon.dart"
 Cohesion: 0.12
@@ -3164,9 +3197,9 @@ Nodes (21): applyStyleSet, bodyFont, bodyPt, _builtinName, DocxOp, DocxStyleOps,
 Cohesion: 0.13
 Nodes (14): _boot, _catchUp, _indexTooOld, _loadAppsSize, _onFsChanged, _onLayoutChanged, _onUsbBroadcast, _openUsbIfLaunchedByIt (+6 more)
 
-### Community 605 - "external_volume_detect_test.dart"
-Cohesion: 0.09
-Nodes (12): channel, filesRoots, install, main, platformVolumes, _secondStickRegressions, tmp, main (+4 more)
+### Community 605 - "pdf_scanned_retype.dart"
+Cohesion: 0.11
+Nodes (15): apply, applyMany, box, _font, _fontCache, PdfScannedRetype, ScannedEdit, ScannedLine (+7 more)
 
 ### Community 606 - "9. Fazlar"
 Cohesion: 0.13
@@ -3177,12 +3210,12 @@ Cohesion: 0.12
 Nodes (15): caretBlink, enter, exit, long, medium, Motion, of, pageReverse (+7 more)
 
 ### Community 608 - "toolbar.dart"
-Cohesion: 0.13
-Nodes (14): _appBar, _cleanDuplicates, _ensureCounts, _filterStrip, _moreSections, _openFilterSheet, _openSimilar, _PhotosScreenDataPart (+6 more)
+Cohesion: 0.18
+Nodes (10): _appBar, _cleanDuplicates, _ensureCounts, _filterStrip, _moreSections, _openFilterSheet, _openSimilar, _pinToHome (+2 more)
 
 ### Community 609 - "package:flutter/foundation.dart"
-Cohesion: 0.03
-Nodes (66): _asset, eklentileri, _entries, fonts, _mlkit, ofl, _pdfium, registerThirdPartyLicenses (+58 more)
+Cohesion: 0.04
+Nodes (48): add, AiApplyEntry, AiApplyLog, atMs, clear, ensureLoaded, entries, _fileName (+40 more)
 
 ### Community 610 - "Telefonda Office Gibi Düzenleme — Araştırma ve Faz Planı (Faz 20–33)"
 Cohesion: 0.11
@@ -3200,21 +3233,21 @@ Nodes (9): build, calls, d, main, pcm, synthesizeToFile, _tone, _cleanForSpeechT
 Cohesion: 0.15
 Nodes (12): _cellFor, _clearSearchAndSelection, _dropMissing, _loadAll, _open, _planFor, _sections, _selectFromAnchor (+4 more)
 
-### Community 614 - "pdf_editor/views.dart"
-Cohesion: 0.15
-Nodes (12): _backgroundPanel, _body, _confirm, _hintBar, _longSnack, _objectToolbar, _PdfEditorScreenActionsPart, _PdfEditorScreenLayerPart (+4 more)
+### Community 614 - "notes_writer.dart"
+Cohesion: 0.11
+Nodes (17): apply, _applySheet, author, _ctComments, _ctVml, _norm, _ns, _patchVml (+9 more)
 
-### Community 615 - "xlsx_fixture.dart"
-Cohesion: 0.14
-Nodes (13): build, cellRef, col, colWidths, extraSheets, m, merges, out (+5 more)
+### Community 615 - "pdf_font_metrics_test.dart"
+Cohesion: 0.11
+Nodes (14): add, _buildPdf, content, main, noResolve, offsets, out, takeBytes (+6 more)
 
 ### Community 616 - "lab_word_screen.dart"
 Cohesion: 0.12
 Nodes (12): DocxEditInsert, build, _c, createState, dispose, LabWordEditorScreen, _LabWordEditorScreenState, paragraphs (+4 more)
 
 ### Community 617 - "app_language.dart"
-Cohesion: 0.17
-Nodes (9): AppLanguage, AppLanguageInfo, byCode, code, direction, locale, nativeLabel, resolve (+1 more)
+Cohesion: 0.18
+Nodes (7): byCode, code, direction, locale, nativeLabel, resolve, supportedLocales
 
 ### Community 618 - "excel_perf_test.dart"
 Cohesion: 0.08
@@ -3253,8 +3286,8 @@ Cohesion: 0.18
 Nodes (10): _addSheet, _askSheetName, _deleteSheet, _draggableTab, _moveSheet, _renameSheet, _sheetActions, _sheetTabs (+2 more)
 
 ### Community 627 - "FileSystemEmulator"
-Cohesion: 0.13
-Nodes (4): FileSystemEmulator, loadDocumentFromData(), _memset(), StringUtils
+Cohesion: 0.08
+Nodes (17): FileSystemEmulator, _getAnnotationContent(), _getAnnotField(), _getLinkUrl(), _getOutlineNodeSiblings(), _loadAnnotLinks(), loadDocumentFromData(), loadLinks() (+9 more)
 
 ### Community 628 - "release"
 Cohesion: 0.18
@@ -3320,9 +3353,9 @@ Nodes (8): _categoryLabel, _categoryTile, _importantStat, _mediaTile, _openSwipe
 Cohesion: 0.22
 Nodes (8): _ejectVolume, _openDiagnostics, _openExternal, _openRawUsb, _openSafRoot, _openViaSaf, _pickUsbVolume, _volumeMenu
 
-### Community 644 - "shell_menus.dart"
-Cohesion: 0.22
-Nodes (8): _actionBar, _buildShell, _pdfBarShown, _showMore, _showPdfEditModes, _showPdfReadingSettings, _showReadingSettings, _ViewerScreenShellMenusPart
+### Community 644 - "startup_queue.dart"
+Cohesion: 0.12
+Nodes (13): add, debugLog, debugReset, _drain, _idle, instance, _jobs, _ready (+5 more)
 
 ### Community 645 - "flutter"
 Cohesion: 0.22
@@ -3349,8 +3382,8 @@ Cohesion: 0.25
 Nodes (7): _arrangedGrid, _categoryGrid, _categoryTilesRaw, _dashSection, _editLayout, _permissionCard, _toolFrame
 
 ### Community 651 - "tools.dart"
-Cohesion: 0.13
-Nodes (14): _DashboardScreenExternalOpenPart, _DashboardScreenScanPart, _DashboardScreenSectionsPart, _DashboardScreenTilesPart, _DashboardScreenToolsPart, _DashboardScreenVolumeWatchPart, _externalTile, _inboxEvents (+6 more)
+Cohesion: 0.25
+Nodes (7): _DashboardScreenToolsPart, _externalTile, _inboxEvents, _loadRawUsb, _loadSafRoots, _safCards, _tools
 
 ### Community 652 - "pending_save.dart"
 Cohesion: 0.25
@@ -3368,9 +3401,9 @@ Nodes (8): 3.1 Microsoft 365 — Word (Android telefon), 3.2 Microsoft 365 — E
 Cohesion: 0.17
 Nodes (12): BEFORE, BUDGET_MB, DOSYA_KISISEL, DOSYA_PLAY, DOSYA_PLAY_REMOVE, KEEP, KS_B64, KS_PASS (+4 more)
 
-### Community 656 - "WidgetsBindingObserver"
-Cohesion: 0.22
-Nodes (6): EditSession, didPushRouteInformation, install, _instance, RouteInformationGuard, AiAutoAnalyze
+### Community 656 - "trusted_peers.dart"
+Cohesion: 0.12
+Nodes (16): add, debugReset, ensureLoaded, id, instance, isTrusted, _items, _key (+8 more)
 
 ### Community 657 - "outputs"
 Cohesion: 0.12
@@ -3388,13 +3421,13 @@ Nodes (6): description, environment, sdk, name, publish_to, version
 Cohesion: 0.33
 Nodes (5): description, description, tags, live, perf
 
-### Community 661 - "playlist_m3u.dart"
-Cohesion: 0.15
-Nodes (12): build, extension, _p, parse, path, PlaylistEntry, PlaylistM3u, read (+4 more)
+### Community 661 - "Duration?"
+Cohesion: 0.12
+Nodes (10): AudioPlayback, audio, build, color, FmInlinePlay, path, _Progress, size (+2 more)
 
 ### Community 662 - "static const"
 Cohesion: 0.03
-Nodes (51): _ch, Dictation, listen, AppSignature, _channel, ciSha1Hex, colonize, packageName (+43 more)
+Nodes (67): AppSignature, _channel, ciSha1Hex, colonize, packageName, sha1Colonized, dirFor, DriveCache (+59 more)
 
 ### Community 663 - "dev_dependencies"
 Cohesion: 0.22
@@ -3412,9 +3445,9 @@ Nodes (4): English, Play Store mağaza metinleri (Faz 11a, 2026-10-22; güncelle
 Cohesion: 0.40
 Nodes (4): bulk, CalcLog, cell, generation
 
-### Community 667 - "play_permissions_doc_test.dart"
-Cohesion: 0.17
-Nodes (11): config, doc, documented, headings, main, out, packages, _permissionsIn (+3 more)
+### Community 667 - "Exception"
+Cohesion: 0.12
+Nodes (14): _ch, Dictation, DictationUnavailable, listen, _ResizeFailure, BlockDeviceException, UsbFsException, VaultCancelled (+6 more)
 
 ### Community 668 - "cards.dart"
 Cohesion: 0.10
@@ -3433,8 +3466,8 @@ Cohesion: 0.09
 Nodes (20): addSection, count, customShows, _ensureSectionLst, _guid, moveSection, name, normalize (+12 more)
 
 ### Community 672 - "static const int"
-Cohesion: 0.14
-Nodes (10): bidiParts, split, clear, heightOf, _heights, _key, limit, SheetTextMeasure (+2 more)
+Cohesion: 0.20
+Nodes (8): clear, heightOf, _heights, _key, limit, SheetTextMeasure, widthOf, _widths
 
 ### Community 673 - "2026-08-07 — Drive listesinde eksik üstveri: tarih, tür ikonu, sayfalama"
 Cohesion: 0.50
@@ -3449,8 +3482,8 @@ Cohesion: 0.10
 Nodes (20): _addRow, _addSeries, build, _cats, _cell, createState, dispose, _fmt (+12 more)
 
 ### Community 679 - "fm_tile_art.dart"
-Cohesion: 0.06
-Nodes (29): _archive, art, _audio, build, color, dark, _deep, _document (+21 more)
+Cohesion: 0.08
+Nodes (22): _archive, art, _audio, build, color, dark, _deep, _document (+14 more)
 
 ### Community 685 - "docx_compare.dart"
 Cohesion: 0.09
@@ -3468,29 +3501,29 @@ Nodes (18): AuditRef, c2, _col, contains, converged, FormulaAudit, GoalSeek, Goa
 Cohesion: 0.29
 Nodes (7): Outcome, Cancelled, Declined, Fatal, Network, Ok, WrongCode
 
-### Community 689 - "storage_permission.dart"
-Cohesion: 0.29
-Nodes (5): hasFullAccess, _legacyDevice, openSettings, request, StoragePermission
+### Community 689 - "docx_table_review_test.dart"
+Cohesion: 0.12
+Nodes (15): a, add, _bytes, _docx, _expectConsistent, _fixture, _fresh, fromList (+7 more)
 
 ### Community 693 - "remote.dart"
 Cohesion: 0.11
 Nodes (18): charset, class, _exit, NarrationClip, onclick, _pushSecond, _recCut, _recOnPage (+10 more)
 
-### Community 694 - "2026-07-26 — PDF turu: vurgu KÖK NEDENİ, donma, seçim UX, tarama düzeltme"
-Cohesion: 0.20
-Nodes (10): 10) Tarama: tek boy kâğıt + köşe düzeltme, 1) TUZAK — pdfrx belgeleri STATİK haritada dosya YOLUNA göre önbelleğe alır, 2026-07-26 — PDF turu: vurgu KÖK NEDENİ, donma, seçim UX, tarama düzeltme, 2) TUZAK — PDF Araçları'nda her dokunuş belgeyi DISPOSE edip yeniden yüklüyordu, 3) Donma: ağır iş ana izlekteydi, 4) Uzun süren işler artık arka plana alınabiliyor, 5) Metin seçimi: mod zorunluluğu kaldırıldı, 6) Uzun belgede gezinme (+2 more)
+### Community 694 - "structure_edit.dart"
+Cohesion: 0.13
+Nodes (14): _, _applyStructural, autoFilterRef, captureStructure, comments, condFormats, hyperlinks, opCount (+6 more)
 
 ### Community 695 - "pptx_media_ops.dart"
 Cohesion: 0.11
 Nodes (17): audioPoster, autoplay, h, insert, isMediaExt, isVideoExt, kNarrationMarker, _mediaExt (+9 more)
 
-### Community 696 - "InheritedWidget"
-Cohesion: 0.40
-Nodes (4): SwipeLock, _FilterBarScope, RibbonStyle, ReadingChrome
+### Community 696 - "DateTime"
+Cohesion: 0.14
+Nodes (9): check, _checking, didChangeAppLifecycleState, install, _instance, kick, _lastTry, minGap (+1 more)
 
 ### Community 697 - "office_html.dart"
-Cohesion: 0.11
-Nodes (17): docx, esc, fromBytes, _kid, _kids, maxCols, maxRows, _num (+9 more)
+Cohesion: 0.06
+Nodes (28): docx, esc, fromBytes, _kid, _kids, maxCols, maxRows, _num (+20 more)
 
 ### Community 698 - "scan_quality.dart"
 Cohesion: 0.11
@@ -3512,13 +3545,13 @@ Nodes (17): canResume, close, connect, data, delete, dir, download, downloadFrom
 Cohesion: 0.50
 Nodes (3): net48, Microsoft.Windows.SDK.Contracts (10.0.19041.2), Microsoft.NET.Sdk
 
-### Community 704 - "rules"
-Cohesion: 0.11
-Nodes (18): analyzer, exclude, formatter, page_width, include, linter, rules, always_put_required_named_parameters_first (+10 more)
+### Community 704 - "partition_table.dart"
+Cohesion: 0.14
+Nodes (12): blockCount, firstLba, isUsable, looksLikeFilesystem, mbrType, name, parseGptEntries, parseMbr (+4 more)
 
 ### Community 705 - "pdfrx"
-Cohesion: 0.11
-Nodes (18): Additional Customizations, Additional Widgets, Customizations/Features, Deal with Password Protected PDF Files, Example Code, Getting Started, Installation, Interactive Demo (+10 more)
+Cohesion: 0.10
+Nodes (20): Additional Widgets, API Documentation, Breaking change: Material UI migration, Customizations/Features, Example Code, Flutter Widgets (pdfrx), Getting Started, Initialization (+12 more)
 
 ### Community 707 - "YÜKSELTME PLANI — Faz 43–50 (2026-11-07)"
 Cohesion: 0.11
@@ -3537,8 +3570,8 @@ Cohesion: 0.11
 Nodes (14): all, apply, background, byId, colors, id, keywords, labelKey (+6 more)
 
 ### Community 713 - "data_tools.dart"
-Cohesion: 0.11
-Nodes (17): appendReply, build, _col, ColumnType, columnTypes, decode, delimiter, encoding (+9 more)
+Cohesion: 0.04
+Nodes (43): ContentHit, ContentSearch, isSearchable, line, maxFileBytes, path, search, _searchFile (+35 more)
 
 ### Community 721 - "page_transitions.dart"
 Cohesion: 0.12
@@ -3548,109 +3581,101 @@ Nodes (12): animation, build, child, _enterLtr, _enterRtl, _exitLtr, _exitRtl, _
 Cohesion: 0.12
 Nodes (14): apply, cmToTwip, columns, columnSpace, copyWith, DocxLayoutOps, DocxPageSpec, height (+6 more)
 
-### Community 723 - "scan_page_ops.dart"
-Cohesion: 0.12
-Nodes (14): decode, maxSourceEdge, quad, quarterTurns, rotate, runRequest, ScanPageOpRequest, ScanPageOps (+6 more)
+### Community 724 - "pdf_reading_aids.dart"
+Cohesion: 0.14
+Nodes (13): autoScrollSpeeds, _autoScrollTick, _disposeReadingAids, _holdAutoScroll, _kKeepAwake, _kVolumeKeys, _loadReadingAids, _saveAid (+5 more)
 
-### Community 724 - "code_edit_test.dart"
-Cohesion: 0.12
-Nodes (5): kinds, main, v, main, main
-
-### Community 725 - "platforms"
-Cohesion: 0.12
-Nodes (17): ffiPlugin, flutter, assets, plugin, ffiPlugin, sharedDarwinSource, ffiPlugin, ffiPlugin (+9 more)
+### Community 725 - "navigator_guard.dart"
+Cohesion: 0.14
+Nodes (11): _checkEmpty, _count, didPop, didPush, didRemove, didReplace, NavigatorStackGuard, _recovering (+3 more)
 
 ### Community 726 - "qr_code.dart"
-Cohesion: 0.12
-Nodes (12): _LeftClipper, build, data, fitSize, paint, _path, _pathSize, QrCode (+4 more)
+Cohesion: 0.17
+Nodes (10): build, data, fitSize, paint, _path, _pathSize, QrCode, _QrPainter (+2 more)
 
 ### Community 727 - "pdf_resume_note.dart"
-Cohesion: 0.13
+Cohesion: 0.14
 Nodes (14): build, createState, dispose, initState, _leave, onDismiss, onRestart, page (+6 more)
 
-### Community 728 - "pdf_viewer_scroll_thumb.dart"
-Cohesion: 0.13
-Nodes (12): build, _buildHorizontal, _buildVertical, controller, createState, isVertical, margin, orientation (+4 more)
+### Community 728 - "int get"
+Cohesion: 0.03
+Nodes (77): PdfViewerCalculateZoomFunction, PdfMatrix4Ext, PdfPageLayout, PdfViewerController, alternativeFitScale, calculateMetrics, coverScale, create (+69 more)
 
 ### Community 729 - "ink.dart"
 Cohesion: 0.13
 Nodes (14): _clearInk, color, _inkEnd, _inkMove, _InkPainter, _inkStart, _norm, paint (+6 more)
 
-### Community 730 - "markdown_export.dart"
-Cohesion: 0.13
-Nodes (13): _edge, _esc, MarkdownExport, _para, _rows, _run, _spansPlain, _table (+5 more)
-
-### Community 731 - "ffi.Struct"
-Cohesion: 0.13
-Nodes (14): FPDF_BSTR_, FPDF_COLORSCHEME_, FPDF_FILEACCESS, FPDF_FILEHANDLER_, _FPDF_FORMFILLINFO, FPDF_IMAGEOBJ_METADATA, FPDF_LIBRARY_CONFIG_, _FPDF_SYSTEMTIME (+6 more)
+### Community 731 - "sheet_ops.dart"
+Cohesion: 0.15
+Nodes (12): addValidation, clearValidations, duplicateSheet, noteAt, restoreValidations, setAutoFilter, setNote, setSheetHidden (+4 more)
 
 ### Community 732 - "pdf_notes.dart"
 Cohesion: 0.13
 Nodes (14): collect, collectInBackground, color, comment, _hex, kind, page, PdfNoteItem (+6 more)
 
-### Community 733 - "pdf_error_widget.dart"
-Cohesion: 0.14
-Nodes (11): build, builder, createState, dispose, _GestureRecognizerDisposer, _GestureRecognizerDisposerBuilderFunction, _GestureRecognizerDisposerFunction, _GestureRecognizerDisposerState (+3 more)
+### Community 733 - "pdfrx_flutter.dart"
+Cohesion: 0.05
+Nodes (34): createImage, dismissPdfiumWasmWarnings, _isInitialized, PdfImageExt, PdfPointExt, PdfRectExt, pdfrxFlutterInitialize, platformInitialize (+26 more)
 
-### Community 734 - "dependencies"
-Cohesion: 0.13
-Nodes (15): dependencies, collection, crypto, dart_pubspec_licenses, ffi, flutter, http, path (+7 more)
+### Community 734 - "GELİŞTİRME PLANI — Faz 34–42 (2026-11-04)"
+Cohesion: 0.15
+Nodes (12): Faz 34 — Pano cilası — BİTTİ 2026-11-04 (cihaz doğrulaması CIHAZ_TESTI.md'de), Faz 36 — Excel — BİTTİ 2026-11-05 (kod; cihaz doğrulaması CIHAZ_TESTI.md'de, perf A/B bekliyor), Faz 37 — Word — BİTTİ 2026-11-05 (kod; cihaz doğrulaması CIHAZ_TESTI.md'de, perf A/B bekliyor), Faz 38 — Slayt — BİTTİ 2026-11-05 (kod; cihaz doğrulaması CIHAZ_TESTI.md'de, perf A/B bekliyor), Faz 39 — PDF — BİTTİ 2026-11-05 (kod; cihaz doğrulaması CIHAZ_TESTI.md'de, perf A/B bekliyor), Faz 40 — Ortak görünüm ve deneyim — BİTTİ (2026-11-05; cihaz turu + perf A/B bekliyor), Faz 41 — Dosya yöneticisi ve bulut — BİTTİ (2026-11-05; cihaz turu + perf A/B bekliyor), Faz 42 — Kalite, performans, yayın — BİTTİ (2026-11-06; cihaz turu + perf A/B bekliyor) (+4 more)
 
-### Community 735 - "slides/views.dart"
-Cohesion: 0.14
-Nodes (13): _buildSlides, _confirmDeleteSlide, _fallbackText, _findBar, _insertImage, _notesStrip, _onSlideAction, _play (+5 more)
+### Community 735 - "scan_ai_fix.dart"
+Cohesion: 0.15
+Nodes (10): buildPrompt, chunkSize, message, parseAnswer, polish, ScanAiFix, ScanAiFixRefused, toString (+2 more)
 
 ### Community 736 - "nearby/tabs.dart"
 Cohesion: 0.14
 Nodes (13): _devicesStrip, _Dot, _historyTab, ok, _otherTab, _pad, _qrCard, _quickTab (+5 more)
 
-### Community 737 - "pdfium_interop.dart"
-Cohesion: 0.14
-Nodes (10): dispose, FileAccess, _getModule, _getModuleFileName, interopLib, _nativeCallable, _NativeFileReadCallable, _pdfrx_file_access_create (+2 more)
+### Community 737 - "albums.dart"
+Cohesion: 0.17
+Nodes (11): _albums, _clearScope, cover, d, dir, _isOnThisDay, _scopeActive, _scoped (+3 more)
 
 ### Community 738 - "docx_fonts.dart"
 Cohesion: 0.14
 Nodes (12): DocxFonts, embed, kEmbedFamilyFor, kFontRel, kFontTableCt, kFontTableRel, kOdttfCt, kSettingsCt (+4 more)
 
-### Community 739 - "content_search.dart"
-Cohesion: 0.14
-Nodes (12): ContentHit, ContentSearch, isSearchable, line, maxFileBytes, path, search, _searchFile (+4 more)
+### Community 739 - "scan_prepare_test.dart"
+Cohesion: 0.18
+Nodes (7): dir, framedPage, main, request, main, pages, pumpAt
 
-### Community 740 - "safe_write.dart"
-Cohesion: 0.14
-Nodes (13): bytes, cleanupLeftovers, _commit, copy, copySync, _deleteQuietly, fileLooksValid, fileLooksValidSync (+5 more)
+### Community 740 - "formatting.dart"
+Cohesion: 0.18
+Nodes (10): _applyBorder, _applyCellFormat, _applyFillColor, _applyFontColor, _applyNumberFormat, _applyStyle, _applyWrap, _pickColor (+2 more)
 
 ### Community 741 - "saved_searches.dart"
 Cohesion: 0.14
 Nodes (13): add, fromJson, inContent, load, max, name, prefKey, query (+5 more)
 
 ### Community 742 - "_SlideshowScreenState"
-Cohesion: 0.15
-Nodes (11): _counterOverlays, _hitLink, _presenterPanel, _SlideshowActions, _SlideshowInk, _SlideshowMedia, _SlideshowPresenter, _SlideshowRemote (+3 more)
+Cohesion: 0.25
+Nodes (7): _presenterPanel, _SlideshowInk, _SlideshowMedia, _SlideshowPresenter, _SlideshowRemote, SlideshowScreen, _SlideshowScreenState
 
-### Community 743 - "drive_offline.dart"
-Cohesion: 0.15
-Nodes (11): _baseFile, decide, DriveConflictChoice, DriveOffline, DriveSyncState, keepBothName, pins, _pinsFile (+3 more)
+### Community 743 - "doc_edges_test.dart"
+Cohesion: 0.18
+Nodes (9): image, _inPolygon, inside, main, _maxCornerError, paper, _sheetOn, table (+1 more)
 
-### Community 744 - "pdfrx/pubspec.yaml"
-Cohesion: 0.15
-Nodes (12): description, environment, flutter, sdk, homepage, issue_tracker, name, repository (+4 more)
+### Community 744 - "dependencies"
+Cohesion: 0.05
+Nodes (43): path, platforms, dependencies, collection, crypto, flutter, material_ui, path (+35 more)
 
 ### Community 745 - "editor_shortcuts.dart"
 Cohesion: 0.17
 Nodes (9): build, child, _ctrl, EditorShortcuts, entries, extraHelp, helpEntries, ShortcutHelpEntry (+1 more)
 
-### Community 746 - "sheet_pdf.dart"
-Cohesion: 0.17
-Nodes (10): build, fitWidth, gridLines, image, landscape, repeatRows, SheetPdf, SheetPrintSpec (+2 more)
+### Community 746 - "conversion_service.dart"
+Cohesion: 0.07
+Nodes (22): ConversionService, imagesToPdf, imageToPdf, slidesToPdf, textToPdf, textToSlidesPdf, _theme, _turkishTheme (+14 more)
 
 ### Community 747 - "analysis.dart"
 Cohesion: 0.18
 Nodes (10): _HowItWorks, progress, _ProgressStrip, start, _startAnalysis, state, _StatusCard, _body (+2 more)
 
-### Community 748 - "toast_avoider_test.dart"
-Cohesion: 0.18
-Nodes (7): host, main, app, barTop, main, nav, toastBottom
+### Community 748 - "pro_shapes.dart"
+Cohesion: 0.20
+Nodes (9): _connect, _crop, _insertCounter, _insertFromLibrary, _link, _removeBg, _runShapePro, _shapeProActions (+1 more)
 
 ### Community 749 - "verify"
 Cohesion: 0.18
@@ -3660,77 +3685,85 @@ Nodes (11): MOD, verify, shard, fail-fast, matrix, env, name, needs (+3 more)
 Cohesion: 0.18
 Nodes (7): cases, contrast, la, lb, main, dir, main
 
-### Community 751 - "ffigen"
-Cohesion: 0.18
-Nodes (11): length, style, ffigen, comments, headers, name, output, preamble (+3 more)
+### Community 751 - "media_bucket.dart"
+Cohesion: 0.22
+Nodes (9): bucketCounts, bucketForPath, counts, has, label, labelKey, lower, MediaBucket (+1 more)
 
 ### Community 752 - "media.dart"
 Cohesion: 0.20
 Nodes (9): _autoPlayMedia, ctrl, _mediaOverlay, _MediaPlay, _onMediaTick, _playMedia, ref, _stopMedia (+1 more)
 
-### Community 753 - "image_edit_test.dart"
-Cohesion: 0.20
-Nodes (9): d, endRecording, main, pattern, pixels, rec, red, rgba (+1 more)
+### Community 753 - "design_shots_faz32_test.dart"
+Cohesion: 0.06
+Nodes (30): edits, main, open, path, tapKey, d, endRecording, main (+22 more)
 
 ### Community 754 - "pro_format.dart"
 Cohesion: 0.22
 Nodes (8): _applyFormatPainter, _condDetail, _condLabel, _deleteCondRule, _showCondManager, _SpreadsheetProFormatPart, _themeGrid, _toggleFormatPainter
 
-### Community 755 - "data_ops.dart"
+### Community 755 - "_"
 Cohesion: 0.22
-Nodes (8): _dataRange, _hideLines, _removeDuplicates, _setFreeze, _setHidden, _showHiddenLines, _splitTextToColumns, _SpreadsheetEditorScreenDataPart
+Nodes (7): _, enabled, of, paint, PdfPageFrame, _pdfrxDefault, shadowOrDefault
 
 ### Community 756 - "Faz B — Diğerleri 📱💻👤"
 Cohesion: 0.22
 Nodes (9): A10 — Kişisel sürümde sesli not (Asistan yerine; Harita KALANLAR "Asistan'sız ses planı" Faz D), A11 — Dosya seçici: süzgeç + sade ana sayfa, B1 — Yerel Windows oturumu küçük işleri 💻, B2 — Cihaz turu 📱 (FAZ_PLANI 12b + DUZENLEME 33 cihaz kısmı + Faz 4 ölçümleri), B3 — Cihaz sonucuna bağlı takip işleri (B2 içinde ya da hemen sonra; kod bulutta da yazılabilir), B4 — Office uyumluluk turu 💻👤 (DUZENLEME Faz 33 madde 5), B5 — Hesap ve kararlar 👤 (Faz 11b), B6 — Sürüm adayı ve yayın 👤 (Faz 12c) (+1 more)
 
-### Community 757 - "pdf_digital_sign_test.dart"
+### Community 757 - "2026-09-04 (on dokuzuncu tur) — otonom denetim: 22 madde"
 Cohesion: 0.22
-Nodes (5): doc, _docSync, _hex, main, out
+Nodes (9): 2026-09-04 (on dokuzuncu tur) — otonom denetim: 22 madde, A) Kaldığın yerden devam — belgeler de (yeni `ReadingPositions`), B) Arama geçmişi (yeni `SearchHistory`), C) Dosya yöneticisi, D) USB, E) APK simgeleri (üçüncü tur), F) PDF, G) Oynatıcı (+1 more)
 
 ### Community 759 - "pdf_reading_pro.dart"
 Cohesion: 0.25
 Nodes (7): _exportNotesBooklet, _goToFindEntry, kPdfBookLayout, _layoutPdfBook, _sepiaFilter, _showFindResults, _ViewerScreenPdfReadingProPart
 
-### Community 760 - "media_open_with.dart"
-Cohesion: 0.29
-Nodes (7): byName, description, descriptionKey, label, labelKey, MediaOpenWith, MediaOpenWithLabel
-
-### Community 761 - "Contributor Covenant Code of Conduct"
+### Community 760 - "widget_size_sniffer.dart"
 Cohesion: 0.25
-Nodes (7): Attribution, Contributor Covenant Code of Conduct, Enforcement, Our Pledge, Our Responsibilities, Our Standards, Scope
+Nodes (8): build, child, createState, GlobalRect, _rect, toLocal, WidgetSizeSniffer, _WidgetSizeSnifferState
+
+### Community 761 - "2026-07-30 (III) — NAS: FTP/FTPS/FTPES · SFTP · SMB · WebDAV · LAN + PC'den FTP"
+Cohesion: 0.25
+Nodes (8): 2026-07-30 (III) — NAS: FTP/FTPS/FTPES · SFTP · SMB · WebDAV · LAN + PC'den FTP, A) Mimari — ortak `RemoteFs` arayüzü, `FileOps`a DOKUNULMADI, B) Protokole özgü tuzaklar (hepsi kodda yazılı), C) LAN keşfi — iki yöntem birlikte, çünkü tek başına ikisi de yetmiyor, D) PC'den telefona FTP **sunucusu** — paketsiz, `dart:io`, Doğrulama, E) YENİ VE ÖNEMLİ — FTP sunucusu bu ortamda GERÇEKTEN koşturulabiliyor, F) Parola saklama — bilinçli sınır, kullanıcıya SÖYLENİYOR
 
 ### Community 762 - "_ChatTabState"
 Cohesion: 0.29
 Nodes (6): _ChatTab, _ChatTabState, _SuggestionsTab, _SuggestionsTabState, _TypesTab, _TypesTabState
 
-### Community 763 - "Sürüm adayı turu (B6 / Faz 42 / 4)"
-Cohesion: 0.29
-Nodes (6): 0. Ön koşullar, 1. Aday derlemesi, 2. 48 saat iç test 📱, 3. Mağaza 👤, 4. Sonrası, Sürüm adayı turu (B6 / Faz 42 / 4)
+### Community 763 - "2026-09-02 (on beşinci tur) — Kullanıcı bulguları: müzik bildirimi, donma, çıkarma"
+Cohesion: 0.25
+Nodes (8): 2026-09-02 (on beşinci tur) — Kullanıcı bulguları: müzik bildirimi, donma, çıkarma, A) Müzik bildirimi "premium" değildi, B) USB'den kopyalarken uygulama dondu (siyah ekran), C) "Güvenle çıkar" bulunamıyordu, D) USB ve SD kartta bellek analizi, E) Oynatıcı düğmeleri sistem çubuğunun altında kalıyordu, F) Yüzen düğmeler içeriği kapatıyordu, G) `MEDIA_ERROR_SERVER_DIED`
 
-### Community 764 - "pdf_glyph_names.dart"
-Cohesion: 0.29
-Nodes (6): base, dot, glyphNameToRune, mapped, null, _table
+### Community 764 - "Faz 48 — pdfrx 1.3.5 → 2.12.0: A/B ölçümü (2026-11-08)"
+Cohesion: 0.25
+Nodes (7): Baskın nedenler (48.1), Bellek satırı (+%21) neden birleşmeye engel değil, Faz 48 — pdfrx 1.3.5 → 2.12.0: A/B ölçümü (2026-11-08), Okuma yardımcıları (aynı PR), P5 — PDF-B (54 s.), P6 — erişilebilirlik gerçekten açık, P7 — 100 sayfalık metin PDF
 
 ### Community 765 - "Dosya Okuyucu"
 Cohesion: 0.29
 Nodes (7): Derleme (CI), Dosya Okuyucu, Gizlilik, Yapay zeka anahtarı, Yerel geliştirme, Yol haritası, Özellikler
 
+### Community 766 - "doc_fonts.dart"
+Cohesion: 0.25
+Nodes (7): DocFont, kDocFonts, kDocFontSizes, name, needle, render, renderFamilyFor
+
 ### Community 767 - "dependency_overrides"
 Cohesion: 0.33
 Nodes (6): dependency_overrides, dartssh2, pdfrx, pointycastle, xml, path
 
-### Community 768 - "dev_dependencies"
-Cohesion: 0.33
-Nodes (6): dev_dependencies, archive, ffigen, flutter_lints, flutter_test, sdk
+### Community 768 - "image_repair.dart"
+Cohesion: 0.25
+Nodes (7): _find, ImageRepair, _jpeg, _png, repair, repairFile, _repairPath
 
-### Community 769 - "2026-10-21 (2) — Faz 0 kararları + Faz 1 (CI/CD) + Faz 2 (sadeleştirme I)"
-Cohesion: 0.40
-Nodes (5): 2026-10-21 (2) — Faz 0 kararları + Faz 1 (CI/CD) + Faz 2 (sadeleştirme I), Faz 1 — CI/CD (build-apk.yml baştan), Faz 2 kabul ölçütleri — DÜRÜST durum, Faz 2 — yapılanlar, Kararlar (K1–K12, kullanıcıyla tek tek — tablo `docs/FAZ_PLANI.md` §4)
+### Community 769 - "2026-09-02 (sekizinci tur) — Ölçüm karşılık verdi: 3 gerçek hata + NTFS"
+Cohesion: 0.29
+Nodes (7): 2026-09-02 (sekizinci tur) — Ölçüm karşılık verdi: 3 gerçek hata + NTFS, A) TEŞHİS KARARI YANLIŞTI — "listede var" ≠ "bağlı", B) YANLIŞ ALARM — `/mnt/media_rw` asla gezilemez, C) "USB takıldı → aç" akışı belleği GÖRMÜYORDU, D) TUZAK — indirilen kopyanın KLASÖR ADI dosyayı bozuyordu, E) NTFS OKUMA (kullanıcı isteği: *"NTFS bile okuyalım"*), F) Ham sürücü ilk denemede AÇILAMADI → sağlamlaştırma
 
 ### Community 770 - "Faz 43 — Ölçüm tabanı (2026-11-07)"
 Cohesion: 0.40
 Nodes (4): Duman turu — koşu 1 (Faz 43, MatePad, otomatik `am start` + uiautomator), Faz 43 — Ölçüm tabanı (2026-11-07), Taban tablosu — MatePad DBY-W09, Yeniden üretme
+
+### Community 771 - "Extras.kt"
+Cohesion: 0.05
+Nodes (12): DailyJob, AuthenticationCallback, RecentWidget, StorageWidget, SdUnionJob, Faz 19 — Sistem entegrasyonu ve ilk izlenim, D) Yerel Android ekleri (`ci/Extras.kt` + `lib/services/fm/native_extras.dart`, kanal `dosya/extras`), Faz 47 — API'si kırılan büyükler: google_sign_in 7 · ML Kit 1.0 · dartssh2 4 · ftpconnect 3 · background_downloader 9 (+4 more)
 
 ### Community 772 - "Başarım A/B — Faz 35 (Pro belge tarayıcı), 2026-11-05"
 Cohesion: 0.50
@@ -3752,33 +3785,149 @@ Nodes (3): Başarım A/B — Faz 38 (Slayt pro), 2026-11-05, Performans anayasas
 Cohesion: 0.50
 Nodes (3): Başarım A/B — Faz 39 (PDF pro araçları), 2026-11-05, Performans anayasası denetimi (kodla), Önce / sonra (doldurulacak)
 
+### Community 777 - "2026-09-04 (yirminci tur) — PDF çözümlemesi, sürüm numarası, üç çökme"
+Cohesion: 0.29
+Nodes (7): 2026-09-04 (yirminci tur) — PDF çözümlemesi, sürüm numarası, üç çökme, A) KÖK NEDEN — "sayfada ne metin ne görsel var" diyen PDF, B) Yapıdaki öteki sessiz boşluklar, C) Arayüz: "yok" ile "çözümlenemedi" artık ayrı, D) SÜRÜM NUMARASI — artık her derlemede ilerliyor, E) Üç çökme — biri kullanıcının kaydından, İKİSİ yeni testin bulduğu, F) Oynatıcı çağrıları artık yakalanıyor
+
 ### Community 779 - "pdf_profil.sh"
 Cohesion: 0.50
 Nodes (3): MSYS_NO_PATHCONV, PYTHONIOENCODING, pdf_profil.sh script
 
-### Community 783 - "PdfPageRenderCancellationToken"
+### Community 783 - "2026-09-26 (3) — Fotoğraflar/Videolar: modern galeri turu + çipler her yerde"
+Cohesion: 0.29
+Nodes (7): 2026-09-26 (3) — Fotoğraflar/Videolar: modern galeri turu + çipler her yerde, A) Galeri (`photos_screen.dart`) — yapı, B2) Küçük gruplar SATIRI PAYLAŞIR (kullanıcının Videolar görüntüsü), B) İki parmakla yakınlaştırma, C) Hücre ve performans, D) Görüntüleyici (`image_gallery_screen.dart`), E) Çipler — "tüm alanlarda"
+
+### Community 784 - "2026-09-27 — Kullanıcı turu (18 madde, 12 ekran görüntüsü): veri güvenliği, vurgu akışı, bildirimler, gezinme, AI"
+Cohesion: 0.29
+Nodes (7): 2026-09-27 — Kullanıcı turu (18 madde, 12 ekran görüntüsü): veri güvenliği, vurgu akışı, bildirimler, gezinme, AI, A) KÖK NEDEN — PDF 0 bayta düştü (VERİ KAYBI), B) Vurgu akışı baştan — "PDF kapanıp açılıyor", "yanlışlıkla vurguluyor", C) Bildirimler (toast) — "çok yukarıda", "gitmiyor", D) Kaldığı yer + yer imleri + sayfaya git, E) Diğer istekler, F) AI gözden geçirme
+
+### Community 792 - "remove_darwin_pdfium_modules.dart"
+Cohesion: 0.29
+Nodes (5): _commentPlatforms, main, _printUsage, _uncommentPlatforms, yaml
+
+### Community 793 - "@JS"
+Cohesion: 0.33
+Nodes (4): _PdfiumWasmCommunicator, registerCallback, sendCommand, unregisterCallback
+
+### Community 794 - "slideshow/actions.dart"
+Cohesion: 0.33
+Nodes (5): _counterOverlays, _hitLink, _showAllSlides, _SlideshowActions, _startCounters
+
+### Community 796 - "2026-09-01 — PDF puntosu, form XObject'teki görseller ve USB/harici bellek"
+Cohesion: 0.33
+Nodes (6): 2026-09-01 — PDF puntosu, form XObject'teki görseller ve USB/harici bellek, A) "Punto tutmadı" — KÖK NEDEN: punto `Tf`de değil `Tm`de, B) Üstü-kapatma yedeğinde İKİNCİ punto hatası, C) "Görselleri tam tanıyamadı" — form XObject'in içine BAKILMIYORDU, D) USB / harici bellek, Yeni testler
+
+### Community 797 - "2026-09-02 (altıncı tur) — USB hâlâ görünmüyordu: `state` YALAN SÖYLÜYOR"
+Cohesion: 0.33
+Nodes (6): 2026-09-02 (altıncı tur) — USB hâlâ görünmüyordu: `state` YALAN SÖYLÜYOR, Kapsam sınırı — dürüstçe, Klasör izni (SAF) tarafı — "diğer uygulama bu şekilde ekliyor", KÖK NEDEN — `StorageVolume.getState()` bağlı birimde de `unknown` diyebilir, TUZAK — kaydırılarak kapatılan sayfa ile "Klasör seç" satırı, Yeni testler — `test/external_volume_detect_test.dart`
+
+### Community 799 - "2026-09-02 (on üçüncü tur) — Kullanılabilirlik turu + arka planda müzik"
+Cohesion: 0.33
+Nodes (6): 2026-09-02 (on üçüncü tur) — Kullanılabilirlik turu + arka planda müzik, A) Aynı bellek panoda İKİ KEZ görünüyordu, B) Bellek üst üste İKİ KEZ açılıyordu, C) Uzak/USB gezgini ikinci sınıftı — birleştirildi, D) Çeviri anahtarı bekçisi (`l10n_keys_used_test`), E) Arka planda müzik (yeni istek)
+
+### Community 800 - "2026-09-03 (on yedinci tur) — MediaSession, ekran altı çubuk, APK simgesi"
+Cohesion: 0.33
+Nodes (6): 2026-09-03 (on yedinci tur) — MediaSession, ekran altı çubuk, APK simgesi, B) Ekran altı mini çubuk (`widgets/mini_player_bar.dart`), C) Video oynatıcı servise taşındı (`services/fm/video_playback.dart`), D) APK simgesi — kök neden bulundu ve doğru yol yapıldı, E) "Yeni ekran görüntüsü görünüp kayboluyor" — kök neden, F) USB: gezilmemiş klasör artık açılabiliyor
+
+### Community 806 - "2026-09-06 (yirmi birinci tur) — KARARAN EKRANIN kök nedeni, yakındaki cihaza gönderme, geçiş performansı"
+Cohesion: 0.33
+Nodes (6): 2026-09-06 (yirmi birinci tur) — KARARAN EKRANIN kök nedeni, yakındaki cihaza gönderme, geçiş performansı, A) KÖK NEDEN — `Navigator.pop` "şu pencereyi kapat" DEMEK DEĞİL, B) İkinci ve üçüncü savunma hattı, C) Yakındaki cihaza gönderme (iki Dosya Okuyucu arası), D) Geçiş ve kopyalama performansı, E) Tuzak — `l10n_literals_test` yeni ekranı da denetliyor
+
+### Community 807 - "2026-09-23 (3) — Belge ekranlarının görsel dili baştan (PDF, Word, Slayt, Excel, not, görsel)"
+Cohesion: 0.33
+Nodes (6): 2026-09-23 (3) — Belge ekranlarının görsel dili baştan (PDF, Word, Slayt, Excel, not, görsel), Bilinçli YAPILMAYAN, Galeri (`image_gallery_screen.dart`), Görüntüleyici (`viewer_screen.dart`), KARAR — üst çubuk artık NÖTR yüzey (dolu marka rengi bant KALKTI), Yeni ortak bileşenler
+
+### Community 809 - "2026-09-23 (4) — Pano, klasör listesi ve Belgeler: simge ve düzen turu"
+Cohesion: 0.33
+Nodes (6): 2026-09-23 (4) — Pano, klasör listesi ve Belgeler: simge ve düzen turu, Belgeler (kategori + arama) — alt yazıda yol yerine KAYNAK, HATA — klasör ekranında başlığın altında BOŞ şerit, Klasör satırı: ⋮ ve › birlikte → yalnız ⋮, Palet — `FmColors` canlandı, klasör okradan KEHRİBARA, Pano simgeleri — çerçevesiz KALDI, malzeme değişti
+
+### Community 811 - "_PhotosScreenState"
+Cohesion: 0.40
+Nodes (5): _PhotosScreenAlbumsPart, _PhotosScreenDataPart, _PhotosScreenGridPart, _PhotosScreenToolbarPart, _PhotosScreenState
+
+### Community 812 - "2026-09-02 (beşinci tur) — SAF: klasör izniyle harici bellek"
+Cohesion: 0.40
+Nodes (5): 2026-09-02 (beşinci tur) — SAF: klasör izniyle harici bellek, Arayüz, TUZAK — URI yol DEĞİLDİR, Uyarı yine de kayda geçiyor, Yeni testler
+
+### Community 813 - "2026-09-02 (dokuzuncu tur) — FAT'a YAZMA + çökme sınıfının kapatılması"
+Cohesion: 0.40
+Nodes (5): 2026-09-02 (dokuzuncu tur) — FAT'a YAZMA + çökme sınıfının kapatılması, Native yazma, TUZAK — kök kümesi "boş" görünebilir, Yazma — FAT16/FAT32 (exFAT ve NTFS bilerek DIŞARIDA), Çökme sınıfı kapatıldı — `existsSync` her yerde korunuyor
+
+### Community 814 - "2026-09-02 (yedinci tur) — Ölçüm + HAM USB YIĞIN DEPOLAMA SÜRÜCÜSÜ"
+Cohesion: 0.40
+Nodes (5): 2026-09-02 (yedinci tur) — Ölçüm + HAM USB YIĞIN DEPOLAMA SÜRÜCÜSÜ, A) Niye önce ÖLÇÜM (ve niye yine de sürücü yazıldı), B) Ham sürücü — sınır bilerek çizildi, C) TUZAK — eksik veriyle dosya sistemi çözümlemek, D) Testler — `test/helpers/usb_image.dart` + `usb_filesystem_test.dart`
+
+### Community 815 - "2026-09-06 (yirmi ikinci tur) — otonom denetim: 50 madde"
+Cohesion: 0.40
+Nodes (5): 2026-09-06 (yirmi ikinci tur) — otonom denetim: 50 madde, A) GERÇEK HATALAR, B) YENİ SERVİSLER (saf Dart, test edilebilir), C) TUZAKLAR — bu turda yakalananlar, D) `crypto` artık DOĞRUDAN bağımlılık
+
+### Community 816 - "Office geliştirme (gelistirme-office, PR #67) — tablet A/B ölçümü"
+Cohesion: 0.40
+Nodes (4): Koşu notları (tuzak), Office geliştirme (gelistirme-office, PR #67) — tablet A/B ölçümü, P8 — xlsx 100k (perf senaryosu `P13`, KARE_OZET toplam kare süresi p99, ms), P9 — docx / pptx soğuk açılış (`am start -W` VIEW, 6 koşu, medyan)
+
+### Community 817 - "2026-08-05 (5. tur / gece) — Düzenlemede isabet, ana ekran hızlı erişim, Drive terfisi"
+Cohesion: 0.50
+Nodes (4): 2026-08-05 (5. tur / gece) — Düzenlemede isabet, ana ekran hızlı erişim, Drive terfisi, A) PDF yerinde düzenleme: kademeli eşleşme + konumla hedefleme, B) Ana ekran: hızlı erişim şeridi (Son belgeler sekmesi), C) Google Drive: araç simgesinden BÜYÜK karta terfi (dashboard)
+
+### Community 818 - "2026-09-02 (ikinci tur) — Harici bellek: nereden açılacak?"
+Cohesion: 0.50
+Nodes (4): 2026-09-02 (ikinci tur) — Harici bellek: nereden açılacak?, A) Kalıcı giriş noktası yoktu, B) TUZAK — kırılım çubuğu harici bellekte YANILTICIYDI, C) UUID adlı birimde tarayıcı başlığı BOŞTU
+
+### Community 819 - "2026-09-02 (on dördüncü tur) — Güvenle çıkar, kısa şerit, uçtan uca test"
+Cohesion: 0.50
+Nodes (4): 2026-09-02 (on dördüncü tur) — Güvenle çıkar, kısa şerit, uçtan uca test, Güvenle çıkar — YALNIZ ham USB'de, `test/usb_fs_test.dart` — Kotlin hariç HER katman, Uzun şerit → kısa şerit + "Ayrıntı" penceresi
+
+### Community 820 - "2026-09-02 (onuncu tur) — exFAT YAZMA + ham USB'nin arayüze tam bağlanması"
+Cohesion: 0.50
+Nodes (4): 2026-09-02 (onuncu tur) — exFAT YAZMA + ham USB'nin arayüze tam bağlanması, Biçim desteği — bugünkü durum, exFAT yazma — FAT'tan ÜÇ ek yapı ister, Ham USB artık arayüzde tam bağlı
+
+### Community 821 - "2026-09-02 (üçüncü tur) — SD kart uyumu: kapsam ana bellekle SINIRLIYDI"
+Cohesion: 0.50
+Nodes (4): 2026-09-02 (üçüncü tur) — SD kart uyumu: kapsam ana bellekle SINIRLIYDI, A) KÖK BULGU — üç yerde "yalnız ana bellek" varsayımı, B) Harici Bellek kutusu artık KALICI, Yeni testler
+
+### Community 822 - "2026-09-23 (2) — Tasarım denetimi: veri güvenliği, disk düzeni, erişilebilirlik"
+Cohesion: 0.50
+Nodes (4): 2026-09-23 (2) — Tasarım denetimi: veri güvenliği, disk düzeni, erişilebilirlik, A) VERİ GÜVENLİĞİ — kaydedilmemiş PDF düzenlemesi, çökmede dosyada KALIYORDU, B) Disk düzeni — `DiskCache` + `TempSweep` (`services/fm/disk_housekeeping.dart`), C) Erişilebilirlik — 33 simge düğmesinde `tooltip` yoktu
+
+### Community 823 - "2026-09-26 — Klasik simge, "550 MB" kök nedeni, harici bellek durumu"
+Cohesion: 0.50
+Nodes (4): 2026-09-26 — Klasik simge, "550 MB" kök nedeni, harici bellek durumu, A) Simge — SARI KLASÖR (klasik), belge+AI parıltısı bırakıldı, B) "550 MB" — ÖLÇÜLDÜ: APK 93,5 MB, geri kalanı VERİ + ÖNBELLEK, C) Harici bellek — bugünkü durum (değişiklik yok, değerlendirme)
+
+### Community 824 - "_PickFileScreenState"
 Cohesion: 0.67
-Nodes (3): PdfPageRenderCancellationToken, PdfPageRenderCancellationTokenPdfium, _PdfPageRenderCancellationTokenWasm
+Nodes (3): _PickFileScreenStateParts, PickFileScreen, _PickFileScreenState
+
+### Community 825 - "2026-07-24 — PPTX + PDF sadakat araştırması ve PPTX iyileştirmeleri"
+Cohesion: 0.67
+Nodes (3): 2026-07-24 — PPTX + PDF sadakat araştırması ve PPTX iyileştirmeleri, PDF — araştırma bulguları (UI/koordinat kodu, cihaz doğrulaması gerekli → KALANLAR), PPTX — 4 iyileştirme (parser deterministik, birim-testli, düşük risk)
+
+### Community 826 - "2026-07-25 — Pano her açılışta tüm depolamayı baştan tarıyordu"
+Cohesion: 0.67
+Nodes (3): 2026-07-25 — Pano her açılışta tüm depolamayı baştan tarıyordu, KÖK NEDEN — pano indeksi yalnız SÜREÇ İÇİ önbellekteydi, ÇÖZÜM — pano, arama dizininin kendisinden kuruluyor (disk yürüyüşü YOK)
+
+### Community 827 - "2026-07-26 (11. tur) — ASIL KÖK NEDEN BULUNDU: `CustomPaint` bütün dokunuşları yutuyordu"
+Cohesion: 0.67
+Nodes (3): 2026-07-26 (11. tur) — ASIL KÖK NEDEN BULUNDU: `CustomPaint` bütün dokunuşları yutuyordu, KÖK NEDEN — Flutter'ın arka plan boyayıcısı tuzağı, Niye 6 tur boyunca bulunamadı
 
 ## Knowledge Gaps
-- **19143 isolated node(s):** `_veri`, `binding`, `bekle`, `kaydir`, `kapat` (+19138 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 22195 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **78 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **18497 isolated node(s):** `_veri`, `binding`, `bekle`, `kaydir`, `kapat` (+18492 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 21618 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **75 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `HAFIZA arşivi — 2026-11` connect `HAFIZA arşivi — 2026-11` to `Context`, `Ajan.kt`, `pdfium_worker.js`, `GELİŞTİRME PLANI — Faz 34–42 (2026-11-04)`, `NearbyBle.kt`?**
-  _High betweenness centrality (0.045) - this node is a cross-community bridge._
+- **Why does `HAFIZA arşivi — 2026-11` connect `HAFIZA arşivi — 2026-11` to `Context`, `verify`, `Ajan.kt`, `pdfium_worker.js`, `2026-07-26 — PDF turu: vurgu KÖK NEDENİ, donma, seçim UX, tarama düzeltme`, `NearbyBle.kt`?**
+  _High betweenness centrality (0.034) - this node is a cross-community bridge._
 - **What connects `_veri`, `binding`, `bekle` to the rest of the system?**
-  _19143 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _18497 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `xlsx_reader.dart` be split into smaller, more focused modules?**
-  _Cohesion score 0.010526315789473684 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.010471204188481676 - nodes in this community are weakly interconnected._
 - **Why does `2026-11-02 — Asistan köprüsü kaldırıldı` connect `Ajan.kt` to `HAFIZA arşivi — 2026-11`?**
-  _High betweenness centrality (0.043) - this node is a cross-community bridge._
+  _High betweenness centrality (0.032) - this node is a cross-community bridge._
 - **Should `PPTX Render Service` be split into smaller, more focused modules?**
-  _Cohesion score 0.012269938650306749 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.012195121951219513 - nodes in this community are weakly interconnected._
 - **Should `viewer_screen.dart` be split into smaller, more focused modules?**
-  _Cohesion score 0.014285714285714285 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.014084507042253521 - nodes in this community are weakly interconnected._
 - **Should `spreadsheet_editor_screen.dart` be split into smaller, more focused modules?**
   _Cohesion score 0.0141280353200883 - nodes in this community are weakly interconnected._
