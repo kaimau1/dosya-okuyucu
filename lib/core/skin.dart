@@ -786,7 +786,11 @@ class SkinMetrics {
             iconScale: 1,
             rowPadding: 4,
             density: VisualDensity.standard,
-            iconStyle: SkinIconStyle.outlined,
+            // 2026-11-08 bug (kullanıcı: *"Gece OLED temada simgeler eskiye
+            // dönüyor"*): burada `outlined` vardı → 2026-11-04 squircle/2.5D
+            // çizimleri atlanıp eski düz glifler çiziliyordu. Koyu ailede de
+            // yeni çizim (koyu varyantı `FmSquircleIcon`/`FmGlyph` içinde).
+            iconStyle: SkinIconStyle.gradient,
           ),
       };
 }
