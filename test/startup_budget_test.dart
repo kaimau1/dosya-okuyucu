@@ -26,7 +26,8 @@ void main() {
 
   String mainBody() {
     final src = File('lib/main.dart').readAsStringSync();
-    final start = src.indexOf('Future<void> main() async {');
+    // main() artık tek satır: _main'i çevrimdışı kip bölgesinde koşturur (offline_mode.dart).
+    final start = src.indexOf('Future<void> _main() async {');
     expect(start, isNonNegative, reason: 'main() imzası bulunamadı');
     final end = src.indexOf('\n}\n', start);
     return src.substring(start, end);
