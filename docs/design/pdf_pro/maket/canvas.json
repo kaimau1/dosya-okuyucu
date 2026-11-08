@@ -1,0 +1,17 @@
+{"v":3,"createdOnFiles":{"v":1,"at":"2026-11-08T12:00:00Z"},"title":"PDF Pro düzenleme maketleri","launch":{"view":"canvas"},"pages":[],
+"boards":{
+"Main.dc.html":{"x":0,"y":0,"w":390,"h":844,"title":"1 · Telefon — düzenleme kipi, paragraf seçili (açık)"},
+"Yazarken.dc.html":{"x":470,"y":0,"w":390,"h":844,"title":"2 · Telefon — yazarken, klavye üstü biçim çubuğu (koyu)"},
+"Gecis.dc.html":{"x":940,"y":0,"w":390,"h":844,"title":"3 · Telefon — okuma kipi → Düzenle (seçim korunur)"},
+"Rtl.dc.html":{"x":1410,"y":0,"w":390,"h":844,"title":"4 · Telefon — Arapça (RTL ayna)"},
+"Tablet.dc.html":{"x":0,"y":1064,"w":1280,"h":800,"title":"5 · Tablet — sol araç rayı + sağ özellik paneli (açık)"},
+"Yatay.dc.html":{"x":1360,"y":1064,"w":844,"h":390,"title":"6 · Telefon yatay — AMOLED (Gece)"},
+"Durumlar.dc.html":{"x":0,"y":2104,"w":1280,"h":560,"title":"7 · Durumlar — blok çerçeve dili, yükleniyor, boş, hata, düzenlenemeyen blok"}
+},
+"order":["Main.dc.html","Yazarken.dc.html","Gecis.dc.html","Rtl.dc.html","Tablet.dc.html","Yatay.dc.html","Durumlar.dc.html"],
+"notes":{
+"t1":{"x":0,"y":-300,"text":"Telefon — dikey","kind":"title1","maxW":1800},
+"t2":{"x":0,"y":764,"text":"Tablet ve yatay","kind":"title1","maxW":2200},
+"t3":{"x":0,"y":1804,"text":"Durumlar ve çerçeve dili","kind":"title1","maxW":1280}
+},
+"designSystems":[]}

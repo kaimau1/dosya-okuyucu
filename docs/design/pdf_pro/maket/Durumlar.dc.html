@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Durumlar ve çerçeve dili</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Carlito:wght@400;700&amp;display=swap">
+<style>
+body{margin:0}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+svg{display:block}
+</style>
+</helmet>
+<div style="width:1280px;height:560px;box-sizing:border-box;padding:32px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:20px;background:#ECEFF4;color:#1A1F2A;font-family:Carlito,'Segoe UI',sans-serif">
+
+  <!-- 1 Çerçeve dili -->
+  <section style="background:#FAFCFE;border:1px solid #D2D8DF;border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:14px">
+    <h2 style="margin:0;font-size:17px">Blok çerçeve dili</h2>
+    <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;color:#545B66">Dinlenme — çok hafif kılavuz</span>
+      <div style="background:#FFFFFF;padding:8px"><p style="margin:0;font-size:12px;line-height:1.4;padding:2px 4px;outline:1px solid rgba(48,77,140,.14)">Her satır gri kutuya boğulmaz.</p></div></div>
+    <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;color:#545B66">Dokunuldu — vurgu + 4 tutamaç</span>
+      <div style="background:#FFFFFF;padding:8px;position:relative"><p style="margin:0;font-size:12px;line-height:1.4;padding:2px 4px;outline:2px solid #304D8C;background:rgba(48,77,140,.06)">Seçili blok belirgin.</p></div></div>
+    <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;color:#545B66">Yazılıyor — imleç, tutamaçsız</span>
+      <div style="background:#FFFFFF;padding:8px"><p style="margin:0;font-size:12px;line-height:1.4;padding:2px 4px;outline:2px solid #304D8C">Belgenin fontuyla yazılır<span style="display:inline-block;width:2px;height:14px;background:#304D8C;vertical-align:-2px"></span></p></div></div>
+    <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;color:#545B66">Doğrudan düzenlenemez — kesik çizgi</span>
+      <div style="background:#FFFFFF;padding:8px"><p style="margin:0;font-size:12px;line-height:1.4;padding:2px 4px;outline:1.5px dashed #B86A00">Type3 yazı tipli başlık</p></div></div>
+  </section>
+
+  <!-- 2 Yükleniyor -->
+  <section style="background:#FAFCFE;border:1px solid #D2D8DF;border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:12px">
+    <h2 style="margin:0;font-size:17px">Yükleniyor</h2>
+    <div style="flex:1;background:#FFFFFF;padding:16px;display:flex;flex-direction:column;gap:9px;position:relative">
+      <span style="height:12px;width:70%;background:#F0F4F8;border-radius:4px"></span>
+      <span style="height:9px;width:100%;background:#F0F4F8;border-radius:4px"></span>
+      <span style="height:9px;width:94%;background:#F0F4F8;border-radius:4px"></span>
+      <span style="height:9px;width:88%;background:#F0F4F8;border-radius:4px"></span>
+      <span style="height:9px;width:97%;background:#F0F4F8;border-radius:4px"></span>
+      <div style="position:absolute;left:12px;right:12px;bottom:12px;background:#1A1F2A;color:#FFFFFF;border-radius:10px;padding:8px 10px;font-size:13px;display:flex;align-items:center;gap:8px">
+        <span style="width:14px;height:14px;border-radius:50%;border:2px solid #9FB6EA;border-top-color:transparent"></span>Sayfa 3 çözümleniyor…</div>
+    </div>
+    <p style="margin:0;font-size:12px;color:#545B66">Gösterge yalnız 300 ms'yi aşarsa çıkar; sayfa bu arada okunur kalır.</p>
+  </section>
+
+  <!-- 3 Boş -->
+  <section style="background:#FAFCFE;border:1px solid #D2D8DF;border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:12px">
+    <h2 style="margin:0;font-size:17px">Metin yok</h2>
+    <div style="flex:1;background:#FFFFFF;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px;text-align:center">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#545B66" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M9 13h6M9 17h4"/></svg>
+      <span style="font-size:15px;font-weight:700">Bu sayfa taranmış görünüyor</span>
+      <span style="font-size:13px;color:#545B66">Düzenlenebilir metin katmanı yok.</span>
+      <button style="height:40px;padding:0 14px;border-radius:20px;background:#304D8C;color:#FFFFFF;font-size:14px;font-weight:700">Metni tanı (OCR)</button>
+      <button style="height:40px;padding:0 14px;border-radius:20px;border:1px solid #ABB2BC;font-size:14px">Metin kutusu ekle</button>
+    </div>
+  </section>
+
+  <!-- 4 Hata -->
+  <section style="background:#FAFCFE;border:1px solid #D2D8DF;border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:12px">
+    <h2 style="margin:0;font-size:17px">Kayıt hatası</h2>
+    <div style="border:1px solid #E7B7B3;background:#FCEDEC;border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px">
+      <span style="font-size:15px;font-weight:700;color:#8C1D18">Bu klasöre yazılamıyor</span>
+      <span style="font-size:13px;color:#4A2523">Dosya salt okunur bir konumda. Değişiklikler kaybolmadı; bellekte duruyor.</span>
+      <button style="height:44px;border-radius:12px;background:#304D8C;color:#FFFFFF;font-size:14px;font-weight:700">Belgeler'e kopya kaydet</button>
+      <button style="height:40px;border-radius:12px;border:1px solid #ABB2BC;background:#FFFFFF;font-size:14px">Başka konum seç</button>
+    </div>
+    <div style="margin-top:auto;background:#1A1F2A;color:#FFFFFF;border-radius:12px;padding:10px 12px;font-size:13px;display:flex;align-items:center;gap:8px">
+      <span style="flex:1">Kopya kaydedildi · Belgeler</span><button style="height:32px;padding:0 10px;color:#9FB6EA;font-weight:700">Aç</button></div>
+  </section>
+
+  <!-- 5 Düzenlenemeyen blok (PK7) -->
+  <section style="background:#FAFCFE;border:1px solid #D2D8DF;border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:12px">
+    <h2 style="margin:0;font-size:17px">Sessiz geri düşüş yok</h2>
+    <div style="background:#FFFFFF;border-radius:16px 16px 0 0;box-shadow:0 -4px 18px rgba(26,31,42,.12);padding:14px;display:flex;flex-direction:column;gap:8px;margin-top:auto">
+      <span style="width:36px;height:4px;border-radius:2px;background:#ABB2BC;align-self:center"></span>
+      <span style="font-size:15px;font-weight:700">Bu başlık doğrudan düzenlenemiyor</span>
+      <span style="font-size:13px;color:#545B66">Neden: belge bu yazı tipini çizim komutu (Type3) olarak saklıyor.</span>
+      <button style="min-height:44px;border-radius:12px;background:#F0F4F8;font-size:14px;text-align:left;padding:6px 12px">Eşleşen yazı tipiyle yaz<br><span style="font-size:12px;color:#545B66">Tinos · görünüm çok yakın</span></button>
+      <button style="height:44px;border-radius:12px;background:#F0F4F8;font-size:14px;text-align:left;padding:0 12px">Satır kipine geç</button>
+      <button style="height:44px;border-radius:12px;background:#F0F4F8;font-size:14px;text-align:left;padding:0 12px">Üstüne metin kutusu ekle</button>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":560}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

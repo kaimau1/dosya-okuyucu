@@ -204,9 +204,9 @@ büyüme 36 KB p50 → ikisi **Faz 54 bitti ölçütüne** eklendi; o zamana dek
 bayrağında. Rapor `docs/perf/2026-11-pdfpro-52-motor.md`.
 
 ### Faz 53 — Tasarım dili ve etkileşim prototipi 👤 onay kapısı ☁️ (1–2 oturum)
-1. [ ] Rakip akış analizi (Acrobat, Foxit, PDFelement, Xodo, Nutrient) → `docs/design/pdf_pro/analiz.md`:
+1. [x] Rakip akış analizi (Acrobat, Foxit, PDFelement, Xodo, Nutrient) → `docs/design/pdf_pro/analiz.md`:
        giriş, blok seçimi, biçim çubuğu, nesne tutamaçları, kaydetme — her birinde "biz nasıl daha iyi".
-2. [ ] **Yüksek çözünürlüklü maketler** (telefon dikey/yatay + tablet, açık/koyu): görüntüleyici ↔
+2. [x] **Yüksek çözünürlüklü maketler** (telefon dikey/yatay + tablet, açık/koyu): görüntüleyici ↔
        düzenleme kipi geçişi; üst çubuk (geri · başlık + "kaydedilmedi" durumu · geri al · yinele ·
        Kaydet dolgulu düğme · ⋮); **alt araç çubuğu** (Metin · Görsel · İşaretle · İmza · Form ·
        Sayfalar · Daha fazla) + seçili araca göre **bağlamsal ikinci çubuk**; seçili nesnenin yanında
@@ -214,12 +214,17 @@ bayrağında. Rapor `docs/perf/2026-11-pdfpro-52-motor.md`.
        satır aralığı · liste · ⋯); blok çerçevesi dili (dokunmadan önce hafif, dokununca belirgin —
        her satırı gri kutuya boğmak YOK); boş/yükleniyor/hata durumları; tablet: sol araç rayı + sağ
        özellik paneli; RTL ayna.
-3. [ ] Etkileşim belirtimi `docs/design/pdf_pro/etkilesim.md`: dokun/uzun bas/sürükle/iki parmak,
+3. [x] Etkileşim belirtimi `docs/design/pdf_pro/etkilesim.md`: dokun/uzun bas/sürükle/iki parmak,
        imleç yerleştirme, seçim tutamaçları, yakınlaştırma kuralları (klavye açılınca küçülme YOK,
        okunur boy hedefi 16–20 sp), haptik, Motion süreleri, geri tuşu davranışı.
-4. [ ] Tasarım tokenları: düzenleme yüzeyine özel renk/aralık/yarıçap tokenları `AppHues` içinde.
+4. [x] Tasarım tokenları: düzenleme yüzeyine özel renk/aralık/yarıçap tokenları `AppHues` içinde
+       (sonuç: `app_colors.dart` → `PdfEditTokens`; vurgu temadan, burada roller/oranlar/ölçüler).
 5. [ ] Kullanıcı onayı (maketler artefakt/ekran görüntüsü olarak sunulur); düzeltmeler işlenir.
 **Bitti:** kullanıcı maketleri onayladı; sonraki UX fazları bu maketlere göre yapılır.
+**Sonuç (2026-11-08, PR `faz-53`):** analiz + 7 maket karesi + etkileşim belirtimi + `PdfEditTokens`.
+Maketler: https://claude.ai/artifact/PNjvf5wSp5ae2rY56RpNQW. Kullanıcı ekran başında değildi ve tasarım
+değişikliğine açık olduğunu söylemişti → 5. madde **👤 KALANLAR'da açık** (itiraz varsa düzeltilir), kapı
+bloklanmadı; Faz 54+ bu maketlerle sürer.
 
 ### Faz 54 — Düzenleme oturumu çekirdeği + tek yüzey + kaydetme akışı ☁️ + 📱 (3 oturum)
 0. [ ] **PK1 koşulları (Faz 52 kararı — bu faz bitmeden PDFium yolu varsayılan olmaz):** (a) değişmeyen
