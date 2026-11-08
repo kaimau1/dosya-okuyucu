@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../services/fm/app_storage_service.dart';
 import '../../services/fm/installed_apps_service.dart';
 import '../../widgets/ai_send_consent.dart';
 import '../../widgets/fm/pin_dialog.dart';
@@ -146,6 +147,59 @@ class AiSendAskTile extends StatelessWidget {
         if (v) AiSendConsent.forget();
         context.read<AppState>().setAiSendConsent(!v);
       },
+    );
+  }
+}
+
+/// **Eklenen klasörler** (SAF ağaç izinleri) — her biri "Geri al" ile
+/// bırakılır; Android kalıcı izni de geri verilir.
+class SafFoldersTile extends StatefulWidget {
+  const SafFoldersTile({super.key});
+
+  @override
+  State<SafFoldersTile> createState() => _SafFoldersTileState();
+}
+
+class _SafFoldersTileState extends State<SafFoldersTile> {
+  List<SafRoot>? _roots;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final roots = await AppStorageService.safRoots();
+    if (mounted) setState(() => _roots = roots);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final roots = _roots ?? const <SafRoot>[];
+    return Column(
+      children: [
+        SettingTile(
+          icon: AppIcons.folderSpecial,
+          title: context.t('saf.folders_title'),
+          subtitle: context.t(
+              roots.isEmpty ? 'saf.folders_none' : 'saf.folders_sub'),
+          wrapSubtitle: true,
+        ),
+        for (final r in roots)
+          ListTile(
+            dense: true,
+            leading: const Icon(AppIcons.folder),
+            title: Text(r.name),
+            trailing: TextButton(
+              onPressed: () async {
+                await AppStorageService.safForget(r.uri);
+                await _refresh();
+              },
+              child: Text(context.t('perm.revoke')),
+            ),
+          ),
+      ],
     );
   }
 }

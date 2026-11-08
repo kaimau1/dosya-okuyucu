@@ -9,13 +9,26 @@ extension _DashboardScreenScanPart on _DashboardScreenState {
     await _scan();
     // Reddedince başka izin sorulmaz, ayarlara da itilmez (2026-11-07):
     // izinsiz yol önerilir — sistem seçicisiyle tek dosya aç.
-    if (!granted && mounted) {
-      showStorageDeniedHint(context, () async {
-        final path = await FileService().pickFilePath();
-        if (path == null || !mounted) return;
-        await EntryOpener.open(context, path);
-      });
-    }
+    if (!granted && mounted) showStorageDeniedHint(context, _openOneFile);
+  }
+
+  /// İzinsiz yol 1: sistem seçicisiyle tek dosya aç.
+  Future<void> _openOneFile() async {
+    final path = await FileService().pickFilePath();
+    if (path == null || !mounted) return;
+    await EntryOpener.open(context, path);
+  }
+
+  /// İzinsiz yol 2 — **Klasör ekle** (SAF ağaç izni): kullanıcı Download,
+  /// Documents gibi bir klasörü seçer, uygulama kalıcı izin alır; klasör
+  /// panoda kart olur ve gezgin onu açar (`SafFs`). Geri alma: Ayarlar ›
+  /// Gizlilik ve izinler › Eklenen klasörler.
+  Future<void> _addSafFolder() async {
+    final picked = await AppStorageService.safPickTree();
+    if (picked == null || !mounted) return;
+    await _loadSafRoots();
+    final root = _safRoots.where((r) => r.uri == picked).firstOrNull;
+    if (root != null && mounted) await _openSafRoot(root);
   }
 
   /// [allowRepeat] false ise, tarama sırasında dosya sistemi değişse bile

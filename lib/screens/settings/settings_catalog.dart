@@ -544,6 +544,11 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                 titleKey: 'perm.overlay_title',
                 builder: _overlayAccessTile),
             SettingRow(
+                id: 'saf_folders',
+                titleKey: 'saf.folders_title',
+                subtitleKey: 'saf.folders_sub',
+                builder: _safFoldersTile),
+            SettingRow(
                 id: 'usage_access',
                 titleKey: 'fmset.usage_access',
                 builder: _usageAccessTile),
@@ -798,6 +803,7 @@ Widget _locationAccessTile(BuildContext _) => const PermissionStatusRow(
 Widget _overlayAccessTile(BuildContext _) =>
     const PermissionStatusRow(permission: AppPermission.overlay, detailed: true);
 Widget _offlineTile(BuildContext _) => const OfflineModeTile();
+Widget _safFoldersTile(BuildContext _) => const SafFoldersTile();
 Widget _aiSendAskTile(BuildContext _) => const AiSendAskTile();
 Widget _usageAccessTile(BuildContext _) => const UsageAccessTile();
 Widget _useTrashTile(BuildContext _) => const UseTrashTile();

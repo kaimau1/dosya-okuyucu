@@ -37,4 +37,17 @@ const Map<String, (String, String, String)> _t29 = {
   'aisend.remember': ('Bir daha sorma', 'Don’t ask again', 'لا تسأل مجددًا'),
   'aisend.send': ('Gönder', 'Send', 'إرسال'),
   'aisend.cancelled': ('Yapay zekâya gönderilmedi.', 'Not sent to AI.', 'لم يُرسل إلى الذكاء الاصطناعي.'),
+  'fm.add_folder': ('Klasör ekle', 'Add folder', 'إضافة مجلد'),
+  'fm.open_one': ('Şimdilik tek dosya aç', 'Just open a file', 'افتح ملفًا واحدًا الآن'),
+  'saf.folders_title': ('Eklenen klasörler', 'Added folders', 'المجلدات المضافة'),
+  'saf.folders_sub': (
+    'Yalnız bu klasörlere izin verdin; panoda kart olarak görünürler. "Geri al" izni bırakır, dosyalara dokunmaz.',
+    'You allowed only these folders; they show as cards on the home screen. "Revoke" drops the access, files stay.',
+    'سمحت بهذه المجلدات فقط؛ تظهر كبطاقات في الشاشة الرئيسية. «إلغاء» يسحب الإذن ولا يمس الملفات.',
+  ),
+  'saf.folders_none': (
+    'Henüz yok. Tüm dosyalara izin vermek istemezsen panodan "Klasör ekle" ile yalnız seçtiğin klasörleri ekleyebilirsin.',
+    'None yet. If you’d rather not allow all files, use "Add folder" on the home screen to add only the folders you pick.',
+    'لا شيء بعد. إن لم ترغب في السماح بكل الملفات، استخدم «إضافة مجلد» في الشاشة الرئيسية لإضافة ما تختاره فقط.',
+  ),
 };

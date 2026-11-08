@@ -50,13 +50,29 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
                 context.t('fm.permission_body'),
               ),
               const SizedBox(height: Gap.sm),
-              Align(
-                alignment: AlignmentDirectional.centerEnd,
-                child: FilledButton.icon(
-                  onPressed: _requestAccess,
-                  icon: const Icon(AppIcons.unlock),
-                  label: Text(context.t('fm.permission_grant')),
-                ),
+              // Üç yol, hiçbiri "İptal" değil (Play yorum çalışması): tam
+              // izin · yalnız seçilen klasörler (SAF) · tek dosya.
+              Wrap(
+                alignment: WrapAlignment.end,
+                spacing: Gap.sm,
+                runSpacing: Gap.xs,
+                children: [
+                  TextButton(
+                    onPressed: _openOneFile,
+                    child: Text(context.t('fm.open_one')),
+                  ),
+                  FilledButton.tonalIcon(
+                    key: const ValueKey('fm-add-folder'),
+                    onPressed: _addSafFolder,
+                    icon: const Icon(AppIcons.addFolder),
+                    label: Text(context.t('fm.add_folder')),
+                  ),
+                  FilledButton.icon(
+                    onPressed: _requestAccess,
+                    icon: const Icon(AppIcons.unlock),
+                    label: Text(context.t('fm.permission_grant')),
+                  ),
+                ],
               ),
             ],
           ),
