@@ -318,8 +318,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                               // düzenlemede klasör adı üretiyor), ekranda gösterilen
                               // ad ondan bağımsız olmalı.
                               label: context.t(c.labelKey),
-                              icon: FmColors.iconFor(c,
-                                  outlined: context.fmOutlinedIcons),
+                              icon: FmColors.iconFor(c),
                               bytes: index.stat(c).bytes,
                               count: index.stat(c).count,
                               fraction: index.stat(c).bytes / maxBytes,

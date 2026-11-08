@@ -85,6 +85,15 @@ void main() {
           reason: 'kağıt ailesinin kehribar klasörü değişmedi');
     });
 
+    test('klasik aileler klasik simge dilinde; her dil kullanılıyor', () {
+      expect(SkinMetrics.of(AppSkin.classic).classicIcons, isTrue);
+      expect(SkinMetrics.of(AppSkin.ledger).classicIcons, isTrue);
+      final styles = {
+        for (final s in AppSkin.values) SkinMetrics.of(s).iconStyle,
+      };
+      expect(styles, containsAll(SkinIconStyle.values));
+    });
+
     for (final skin in AppSkin.values) {
       testWidgets('$skin: simge çizilir', (tester) async {
         await tester.pumpWidget(MaterialApp(

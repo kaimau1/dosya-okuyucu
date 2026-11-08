@@ -23,7 +23,7 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
     final stat = _index.stat(category);
     return FmTileData(
       id: category.name,
-      icon: FmColors.iconFor(category, outlined: context.fmOutlinedIcons),
+      icon: FmColors.iconFor(category),
       color: FmColors.forCategory(category),
       art: switch (category) {
         FmCategory.image => FmTileArt.photos,
@@ -99,7 +99,7 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
         category.name,
         SwipePage(
           label: _categoryLabel(category),
-          icon: FmColors.iconFor(category, outlined: context.fmOutlinedIcons),
+          icon: FmColors.iconFor(category),
           color: FmColors.forCategory(category),
           builder: (_) => _categoryScreen(category, grid: grid),
         ),

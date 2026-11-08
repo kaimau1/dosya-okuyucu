@@ -693,10 +693,10 @@ class AppSkinData extends ThemeExtension<AppSkinData> {
 extension SkinContext on BuildContext {
   double get fmIconScale => AppSkinData.of(this).metrics.iconScale;
 
-  /// Ailenin glif stili: çizgi mi (outlined) dolu mu (rounded)?
-  bool get fmOutlinedIcons => AppSkinData.of(this).metrics.outlinedIcons;
+  /// Dosya/klasör glifleri klasik düz çizim mi ([SkinIconStyle.classic])?
+  bool get fmClassicIcons => AppSkinData.of(this).metrics.classicIcons;
 
-  /// Ailenin simge dili (degrade / çizgi / rozet / çift ton / tek renk).
+  /// Ailenin simge dili (degrade / klasik).
   SkinIconStyle get fmIconStyle => AppSkinData.of(this).metrics.iconStyle;
 
   /// Ailenin klasör rengi (null = uygulamanın kehribarı).

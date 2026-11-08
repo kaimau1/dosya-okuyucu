@@ -65,23 +65,8 @@ abstract final class FmColors {
         FmCategory.other => other,
       };
 
-  /// Kategori glifi. [outlined] tema ailesinden gelir (2026-08-25): "İş
-  /// programı" ve "Gece" ailelerinde dolu glifler ekranı ağırlaştırıyordu,
-  /// çizgi glif aynı bilgiyi daha sakin veriyor. Aynı kategori, aynı yer —
-  /// yalnız çizim ağırlığı değişiyor.
-  static IconData iconFor(FmCategory c, {bool outlined = false}) =>
-      outlined ? _outlined(c) : switch (c) {
-        FmCategory.folder => AppIcons.folder,
-        FmCategory.image => AppIcons.image,
-        FmCategory.video => AppIcons.video,
-        FmCategory.audio => AppIcons.audio,
-        FmCategory.archive => AppIcons.archiveView,
-        FmCategory.apk => AppIcons.android,
-        FmCategory.document => AppIcons.newWord,
-        FmCategory.other => AppIcons.insertDriveFile,
-      };
-
-  static IconData _outlined(FmCategory c) => switch (c) {
+  /// Kategori glifi (tema ailesinden bağımsız; çizim dili [FmTintedIcon]'da).
+  static IconData iconFor(FmCategory c) => switch (c) {
         FmCategory.folder => AppIcons.folder,
         FmCategory.image => AppIcons.image,
         FmCategory.video => AppIcons.video,
@@ -187,7 +172,7 @@ abstract final class FmColors {
   /// kararlaştırılır.
   static FmGlyphSpec glyphFor(
     FsEntry entry, {
-    bool outlined = false,
+    bool classic = false,
     bool dark = false,
     Color? folderColor,
   }) {
@@ -198,7 +183,7 @@ abstract final class FmColors {
         color: folderColor ?? folder,
         // Bilinen klasörün glifi klasörün YERİNE geçmez, gövdesine biner.
         overlay: forFolderName(entry.name),
-        outlined: outlined,
+        classic: classic,
         dark: dark,
       );
     }
@@ -215,7 +200,7 @@ abstract final class FmColors {
       color = OfficeColors.forKind(FileService.iconKindForExtension(ext));
     } else {
       color = forCategory(entry.category);
-      overlay = iconFor(entry.category, outlined: outlined);
+      overlay = iconFor(entry.category);
     }
     final label = labelForExtension(ext);
     return FmGlyphSpec(
@@ -226,7 +211,7 @@ abstract final class FmColors {
       // söyleyip kağıdı kalabalıklaştırırdı. Glif yalnız uzantısız dosyada.
       overlay: label.isEmpty ? overlay : null,
       label: label,
-      outlined: outlined,
+      classic: classic,
       dark: dark,
     );
   }
@@ -414,7 +399,7 @@ class FmEntryIcon extends StatelessWidget {
       size: size,
       spec: FmColors.glyphFor(
         entry,
-        outlined: context.fmOutlinedIcons,
+        classic: context.fmClassicIcons,
         dark: dark,
         // Faz 41 / 6: kullanıcının verdiği klasör rengi temanınkini ezer.
         folderColor:

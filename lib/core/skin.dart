@@ -64,6 +64,16 @@ enum AppSkin {
   /// rahat satır aralığı. Material 3'ün kendi hissine en yakın aile.
   modern,
 
+  /// **Klasik** (2026-11-08, kullanıcı: *"eski tip dosya yöneticisi
+  /// simgeleri, sade, amaca yönelik"*): nötr gri masa, beyaz kâğıt, lacivert
+  /// vurgu; sarı manila klasör + türüne göre renk şeritli düz sayfa
+  /// ([SkinIconStyle.classic]), küçük köşe, sık satır.
+  classic,
+
+  /// **Defter** (2026-11-08): aynı klasik simge dili, sıcak bej masa ve
+  /// kahve vurgu — eski arşiv dolabı/defter hissi.
+  ledger,
+
   /// **Gece (OLED):** saf siyah zemin. Koyu temadan farkı, `#000000` pikselin
   /// OLED ekranda kapalı olması — hem pil hem gece okunurluğu.
   night,
@@ -90,6 +100,8 @@ enum AppSkin {
         AppSkin.peach => 'skin.peach',
         AppSkin.mint => 'skin.mint',
         AppSkin.modern => 'skin.modern',
+        AppSkin.classic => 'skin.classic',
+        AppSkin.ledger => 'skin.ledger',
         AppSkin.night => 'skin.night',
         AppSkin.system => 'skin.system',
       };
@@ -106,6 +118,8 @@ enum AppSkin {
         AppSkin.peach => 'skin.peach_sub',
         AppSkin.mint => 'skin.mint_sub',
         AppSkin.modern => 'skin.modern_sub',
+        AppSkin.classic => 'skin.classic_sub',
+        AppSkin.ledger => 'skin.ledger_sub',
         AppSkin.night => 'skin.night_sub',
         AppSkin.system => 'skin.system_sub',
       };
@@ -284,6 +298,8 @@ class SkinPalette {
       AppSkin.peach => dark ? _peachDark : _peachLight,
       AppSkin.mint => dark ? _mintDark : _mintLight,
       AppSkin.modern => dark ? _modernDark : _modernLight,
+      AppSkin.classic => dark ? _classicDark : _classicLight,
+      AppSkin.ledger => dark ? _ledgerDark : _ledgerLight,
       AppSkin.night => _nightDark,
       AppSkin.system => SystemAccent.apply(
           dark ? _porcelainDark : _porcelainLight, dark: dark),
@@ -678,6 +694,75 @@ class SkinPalette {
   //
   // `bg` **tam siyah**: OLED'de kapalı piksel = harcanmayan pil. Basamaklar
   // siyahın üstünde çok az açılır; kenarlık ayrımı taşır, dolgu değil.
+  // ── Klasik simgeli aileler (2026-11-08) ───────────────────────────────
+  static const _classicLight = SkinPalette(
+    bg: Color(0xFFE9EAEC),
+    card: Color(0xFFFFFFFF),
+    band: Color(0xFFF6F6F7),
+    well: Color(0xFFF0F1F2),
+    rule: Color(0xFFD0D3D8),
+    edge: Color(0xFFA4A8AF),
+    ink: Color(0xFF16181B),
+    inkSoft: Color(0xFF43474E),
+    inkFaint: Color(0xFF50545B),
+    accent: Color(0xFF24549E),
+    accentWell: Color(0xFFD6E2F5),
+    onAccent: Color(0xFFFFFFFF),
+    danger: Color(0xFFB0402F),
+    ok: Color(0xFF2F6B4A),
+  );
+
+  static const _classicDark = SkinPalette(
+    bg: Color(0xFF151618),
+    card: Color(0xFF1E1F22),
+    band: Color(0xFF232427),
+    well: Color(0xFF232427),
+    rule: Color(0xFF3B3D41),
+    edge: Color(0xFF63656B),
+    ink: Color(0xFFE6E7EA),
+    inkSoft: Color(0xFFB7B9BE),
+    inkFaint: Color(0xFFADAFB5),
+    accent: Color(0xFF9DBBEF),
+    accentWell: Color(0xFF213F72),
+    onAccent: Color(0xFF0B2552),
+    danger: Color(0xFFE8897F),
+    ok: Color(0xFF8FC79E),
+  );
+
+  static const _ledgerLight = SkinPalette(
+    bg: Color(0xFFEDE6D6),
+    card: Color(0xFFFBF8F0),
+    band: Color(0xFFF5EFE2),
+    well: Color(0xFFF0E9DA),
+    rule: Color(0xFFD8CCB2),
+    edge: Color(0xFFA6987A),
+    ink: Color(0xFF2A2418),
+    inkSoft: Color(0xFF52473A),
+    inkFaint: Color(0xFF5A4F40),
+    accent: Color(0xFF74461A),
+    accentWell: Color(0xFFEFDCC2),
+    onAccent: Color(0xFFFFFFFF),
+    danger: Color(0xFFA63A2A),
+    ok: Color(0xFF2F6B4A),
+  );
+
+  static const _ledgerDark = SkinPalette(
+    bg: Color(0xFF17140F),
+    card: Color(0xFF211D16),
+    band: Color(0xFF27221A),
+    well: Color(0xFF27221A),
+    rule: Color(0xFF3F382C),
+    edge: Color(0xFF6C614F),
+    ink: Color(0xFFEDE6D6),
+    inkSoft: Color(0xFFC6BBA6),
+    inkFaint: Color(0xFFB8AD98),
+    accent: Color(0xFFE3B57E),
+    accentWell: Color(0xFF5A3B17),
+    onAccent: Color(0xFF2A1906),
+    danger: Color(0xFFE8897F),
+    ok: Color(0xFF8FC79E),
+  );
+
   static const _nightDark = SkinPalette(
     bg: Color(0xFF000000),
     card: Color(0xFF0A0A0C),
@@ -703,8 +788,11 @@ enum SkinIconStyle {
   /// Üstten açık, alttan koyu degrade glif (varsayılan, çerçevesiz).
   gradient,
 
-  /// Düz tek renk çizgi glif — sakin ağırlık (İş programı, Gece).
-  outlined,
+  /// **Klasik** (2026-11-08): eski tip dosya yöneticisi dili — düz renk,
+  /// gölge/degrade yok. Pano kutusu düz dolu glif; klasör sarı manila,
+  /// dosya beyaz sayfa + türüne göre renk şeridi ([FmGlyphSpec.classic]).
+  /// (Eski `outlined` dili Gece/Sistem'den kalkınca bunun yerine geçti.)
+  classic,
 }
 
 /// Bir ailenin **renk dışı** kimliği: köşe, simge ölçeği, satır sıklığı.
@@ -744,8 +832,8 @@ class SkinMetrics {
     this.folderColor,
   });
 
-  /// Klasör/dosya glifleri çizgi mi (`outlined`) dolu mu (`rounded`)?
-  bool get outlinedIcons => iconStyle == SkinIconStyle.outlined;
+  /// Klasör/dosya glifleri klasik düz çizim mi?
+  bool get classicIcons => iconStyle == SkinIconStyle.classic;
 
   static SkinMetrics of(AppSkin skin) => switch (skin) {
         // Notlar'la aynı ölçü: kart 16, levha 24 (TEMA_PLANI F30.2).
@@ -778,6 +866,17 @@ class SkinMetrics {
             density: VisualDensity.comfortable,
             iconStyle: SkinIconStyle.gradient,
             folderColor: Color(0xFF7C5CFA),
+          ),
+        // Klasik: küçük köşe, sık satır, sarı manila klasör.
+        AppSkin.classic || AppSkin.ledger => const SkinMetrics(
+            radiusControl: 6,
+            radiusCard: 8,
+            radiusSheet: 16,
+            iconScale: 1,
+            rowPadding: 2,
+            density: VisualDensity.compact,
+            iconStyle: SkinIconStyle.classic,
+            folderColor: Color(0xFFE3B655),
           ),
         AppSkin.night || AppSkin.system => const SkinMetrics(
             radiusControl: 12,

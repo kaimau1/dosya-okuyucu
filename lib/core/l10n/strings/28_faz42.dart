@@ -13,5 +13,9 @@ const Map<String, (String, String, String)> _t28 = {
   'alias.action': ('AI ile ikinci ad ver', 'Give a second name with AI', 'إعطاء اسم ثانٍ بالذكاء الاصطناعي'),
   'alias.started': ('İkinci ad hazırlanıyor — bitince satırda görünür. Dosyanın adı değişmez.', 'Preparing a second name — it appears on the row when done. The file name is not changed.', 'جارٍ إعداد اسم ثانٍ — يظهر في الصف عند الانتهاء. لا يتغير اسم الملف.'),
   'alias.busy': ('AI analizi zaten sürüyor; bitince yeniden deneyin.', 'AI analysis is already running; try again when it finishes.', 'تحليل الذكاء الاصطناعي قيد التشغيل؛ أعد المحاولة عند انتهائه.'),
+  'skin.classic': ('Klasik', 'Classic', 'كلاسيكي'),
+  'skin.classic_sub': ('Sarı klasörler, sade sayfa simgeleri — eski tip dosya yöneticisi', 'Yellow folders, plain page icons — old-school file manager', 'مجلدات صفراء وأيقونات صفحات بسيطة — مدير ملفات كلاسيكي'),
+  'skin.ledger': ('Defter', 'Ledger', 'دفتر'),
+  'skin.ledger_sub': ('Bej zemin, manila klasörler, sade simgeler', 'Beige background, manila folders, plain icons', 'خلفية بيج ومجلدات مانيلا وأيقونات بسيطة'),
   'flt.none_left': ('Hiç dosya kalmadı', 'No files left', 'لم يتبق أي ملف'),
 };

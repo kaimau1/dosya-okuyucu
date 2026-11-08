@@ -86,8 +86,9 @@ void main() {
       expect(spec.overlay, isNotNull);
     });
 
-    test('çizgi glifli tema ailesinde kontur bayrağı taşınır', () {
-      expect(FmColors.glyphFor(dir('X'), outlined: true).outlined, isTrue);
+    test('klasik simgeli tema ailesinde klasik bayrağı taşınır', () {
+      expect(FmColors.glyphFor(dir('X'), classic: true).classic, isTrue);
+      expect(FmColors.glyphFor(file('a.pdf'), classic: true).classic, isTrue);
       expect(FmColors.glyphFor(file('a.pdf'), dark: true).dark, isTrue);
     });
   });

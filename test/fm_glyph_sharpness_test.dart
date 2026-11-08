@@ -142,7 +142,7 @@ void main() {
           folder: false,
           color: Color(0xFF3A6EA5),
           label: 'PDF',
-          outlined: true,
+          classic: true,
           dark: true,
         ),
         64,

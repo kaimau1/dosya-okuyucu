@@ -67,8 +67,8 @@ class FmTileData {
 /// kararı) KALIYOR; değişen, simgenin kendisi. Düz tek renk Material glifi
 /// dosya listesindeki çizilmiş, degradeli klasörlerin yanında "yapıştırma"
 /// duruyordu. Şimdi aynı malzeme dili: üstten açık, alttan koyu tonlu geçiş —
-/// klasör simgesiyle aynı ışık yönü. Çizgi (outlined) tema ailelerinde düz
-/// kalır: o ailelerin sakin ağırlığı bilinçli.
+/// klasör simgesiyle aynı ışık yönü. Klasik tema ailelerinde düz dolu
+/// glif (eski tip dosya yöneticisi dili, 2026-11-08).
 class FmTintedIcon extends StatelessWidget {
   final IconData icon;
   final Color color;
@@ -89,7 +89,7 @@ class FmTintedIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     switch (style ?? context.fmIconStyle) {
-      case SkinIconStyle.outlined:
+      case SkinIconStyle.classic:
         return Icon(icon, color: color, size: size);
       case SkinIconStyle.gradient:
         // **Katmansız degrade** (2026-10-17 başarım turu). Eskiden
@@ -284,7 +284,7 @@ class FmCategoryTile extends StatelessWidget {
     // köşeli (squircle), açık renkli, gölgeli bir zemine oturur; Fotoğraflar,
     // Videolar, Arşivler… kendi 2.5D çizimiyle (bkz. [FmSquircleIcon]).
     // Çizgi ailelerinde sade glif kalır (o ailelerin sakin ağırlığı).
-    final Widget icon = context.fmIconStyle == SkinIconStyle.outlined
+    final Widget icon = context.fmIconStyle == SkinIconStyle.classic
         ? FmTintedIcon(
             icon: data.icon,
             color: tint,
