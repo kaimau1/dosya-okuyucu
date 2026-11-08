@@ -7,6 +7,7 @@ import '../../core/safe_insets.dart';
 import '../../core/theme.dart';
 import '../../models/fm_layout.dart';
 import '../../models/fm_list_groups.dart';
+import '../../models/fm_type.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/fs_scan.dart';
 import '../motion.dart';
@@ -215,9 +216,16 @@ class FmFileListView extends StatelessWidget {
         onTap: () => _tap(entry),
         onCheck: () => onToggle(entry),
         onMore: onMore == null || _selecting ? null : () => onMore!(entry),
+        audioQueue: _audioQueue,
       ),
     );
   }
+
+  /// Satır içi oynatmanın listesi: bu görünümdeki sesler, sırasıyla.
+  List<String> _audioQueue() => [
+        for (final e in entries)
+          if (!e.isDir && FmType.of(e) == FmType.audio) e.path,
+      ];
 
   Widget _grid(BuildContext context, List<FmListItem> items) {
     // Izgarada başlıklar için gruplar ayrı `SliverGrid`lere bölünür.

@@ -9,6 +9,7 @@ import '../../models/fm_layout.dart';
 import '../../models/fm_type.dart';
 import '../../models/fs_entry.dart';
 import 'fm_entry_icon.dart';
+import 'fm_inline_play.dart';
 import '../motion.dart';
 
 /// Dosya/klasör satırı ve ızgara hücresi — gözatıcı, kategori ve arama
@@ -51,6 +52,10 @@ class FmEntryRow extends StatelessWidget {
   /// Küçük resim (bkz. [FmSelectableIcon.thumbnails]).
   final bool thumbnails;
 
+  /// Ses dosyasında simge oynat/duraklat düğmesine döner ([FmInlinePlay]);
+  /// dokunulunca bu liste çalınır. Null = satır içi oynatma yok.
+  final List<String> Function()? audioQueue;
+
   const FmEntryRow({
     super.key,
     required this.entry,
@@ -64,6 +69,7 @@ class FmEntryRow extends StatelessWidget {
     this.showChevron = false,
     this.badge,
     this.thumbnails = true,
+    this.audioQueue,
   });
 
   @override
@@ -98,14 +104,14 @@ class FmEntryRow extends StatelessWidget {
                   more == null && badge == null ? Gap.md : Gap.xs, vPad),
               child: Row(
                 children: [
-                  FmSelectableIcon(
+                  _withPlay(FmSelectableIcon(
                     entry: entry,
                     size: iconSize,
                     selecting: selecting,
                     selected: selected,
                     onCheck: onCheck,
                     thumbnails: thumbnails,
-                  ),
+                  ), iconSize),
                   const SizedBox(width: 14),
                   Expanded(
                     child: ExcludeSemantics(
@@ -150,6 +156,19 @@ class FmEntryRow extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _withPlay(Widget icon, double size) {
+    if (audioQueue == null ||
+        selecting ||
+        entry.isDir ||
+        FmType.of(entry) != FmType.audio) {
+      return icon;
+    }
+    return Stack(children: [
+      icon,
+      FmInlinePlay(path: entry.path, size: size, queue: audioQueue),
+    ]);
   }
 
   Widget? _trailing(BuildContext context, ColorScheme scheme) {
