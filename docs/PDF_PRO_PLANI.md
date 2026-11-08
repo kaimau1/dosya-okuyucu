@@ -159,7 +159,7 @@ Amaç: bundan sonraki her kararı sayıyla vermek ve bildirilen sorunların hız
        blok kutusu + 2 pt dışında 0 olmalı), font sadakati (yedek fonta düşen harf oranı, `.notdef`
        sayısı = 0), çıktı büyümesi, gecikme. Bağımsız doğrulama: CI'da `qpdf --check` + `mutool draw`
        (ikinci çizici) — kurulum CI adımına.
-3. [ ] **Taban raporu** `docs/perf/2026-11-pdfpro-51-taban.md`: şimdiki motorun sayıları (ileride
+3. [x] **Taban raporu** `docs/perf/2026-11-pdfpro-51-taban.md`: şimdiki motorun sayıları (ileride
        karşılaştırma tabanı).
 4. [x] **PS3 düzeltmesi:** kayıt bildirimi kök gezgin anahtarıyla açar (ekran kapansa da çalışır);
        bildirimin gövdesine dokunmak da açar; kopya **son dosyalar + Belgeler** listesinin başına
@@ -178,6 +178,10 @@ Amaç: bundan sonraki her kararı sayıyla vermek ve bildirilen sorunların hız
        alanı Carlito yerine belgenin fontuna en yakın gömülü aileyle (Carlito/Tinos/Arimo) çizilir.
 **Bitti:** külliyat + tezgâh CI'da yeşil, taban raporu yazıldı; PS1/3/4/5 ara düzeltmeleri cihazda
 doğrulandı (📱 kısa tur: 6 ekran görüntüsünün her biri yeniden denenir).
+**Sonuç (2026-11-08, PR `faz-51`):** 68 PDF / 8 üretici; taban kapsama %63,6, başarı %54,2 (aynı
+harf) / %34,2 (Türkçe harf), Word'de 0 paragraf (kök: satır başına kırpma bloğu) →
+`docs/perf/2026-11-pdfpro-51-taban.md`. PS1–PS5 MatePad'de ✅ (`docs/CIHAZ_TESTI.md`). Ek bulgu:
+sahip parolalı belgede kilit açma düzeltildi; AES-256 kopyası KALANLAR'da.
 
 ### Faz 52 — Motor köprüsü: PDFium düzenleme API'si + karar kapısı ☁️ (2–3 oturum)
 1. [ ] `third_party/pdfrx_engine` (0.9.x) depoya alınır, `YAMA.md`; pdfrx bağımlılığı yerel yola.

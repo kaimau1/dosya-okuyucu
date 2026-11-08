@@ -831,3 +831,14 @@ Ekran görüntüleri `docs/design/2026-11-galeri/` (örnek ağaç `/sdcard/Ornek
 7. **Okuyucu derlemesi** (Actions › "Okuyucu derlemesi (izinsiz)" artifact'i, `…okuyucu` kimliği, tam uygulamanın yanına kurulur): uygulama bilgisinde hassas izin yok; pano kartında "İzin ver" yok, Klasör ekle + Dosya aç çalışıyor; ilk açılışta tek seçenek.
 
 **Koşu kaydı**
+
+## PDF Pro Faz 51 — kanamayı durdurma (2026-11-08, dal `faz-51`)
+Külliyat belgeleri: `test/fixtures/pdf_corpus/rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `ch_cok_sayfa.pdf` → `/sdcard/Download/PdfPro/`.
+1. **PS5 — uzun seçim:** metne uzun bas, tutamaçla 3 paragraf uzat → çubuk seçimi örtmüyor (örtüyorsa belge kayar ya da çubuk üste geçer); önizlemedeki ⌄'ye dokun → seçimin tamamı + "N karakter · M sözcük", alan kendi içinde kayar.
+2. **PS1 — Düzenle seçimi taşır:** seçim çubuğunda **Düzenle** → editör AYNI sayfada, seçilen paragraf doğrudan düzenleme kipinde, imleç seçimin başında (sayfa baştan çerçevelenip yeniden seçtirilmiyor).
+3. **PS4 — klavye:** düzenleme alanı açıkken klavye çıkınca sayfa küçülmüyor/uzaklaşmıyor; imlecin satırı klavye + çubuğun üstünde görünür (yatay tablette de). OCR satırında da okunur boya yakınlaşma. Uygula'dan sonra yakınlık/konum aynı.
+4. **PS3 — kaydet:** Yazı ekle → Kaydet → "Kopyasını kaydet" → görüntüleyici **kopyayı** açar; bildirimde **AÇ** (ve bildirimin gövdesi) editör kapanmış olsa da dosyayı açar; Geçmiş › Son açılanlar'ın başında kopya.
+5. **PS2 — Word logolu mektup:** editörde doğal metne OCR kutusu YOK; ipucu "Bu sayfanın metni bu sürümde yerinde düzenlenemiyor…" + **OCR ile düzenle** (bilerek seçilince satırlar gelir). Düzenleme alanı belgenin ailesiyle (Calibri→Carlito, Arial→Arimo, Times→Tinos).
+
+**Koşu kaydı**
+- 2026-11-08 · MatePad DBY-W09 (yatay, `.r8test` profil APK, adb + uiautomator): 1 ✅ (tutamaçla uzatılan seçim çubuğun üstünde; tam metin + "528 karakter · 66 sözcük") · 2 ✅ (Düzenle → paragraf doğrudan düzenlemede, imleç seçimin başında) · 3 ✅ (görüntü küçülmüyor; klavye açılınca satır örtülmeyen şeritte) · 4 ✅ (kopya doğrudan açıldı, Son açılanlar'ın başında; "AÇ" dokunuşu zaman aşımına denk geldi → widget testiyle doğrulandı) · 5 ✅ (OCR kutusu yok, ipucu + OCR ile düzenle). Turda bulunan 4 sorun aynı dalda düzeltildi (klavye sonrası kaydırma, Düzenle meşgul yarışı + kutu/metin eşleşmesi, seçim çubuğu örtüsü ölçümü).
