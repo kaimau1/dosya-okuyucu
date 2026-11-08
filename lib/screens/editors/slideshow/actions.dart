@@ -111,4 +111,72 @@ extension _SlideshowActions on _SlideshowScreenState {
         ),
     ];
   }
+  /// **Tüm slaytlar** (PowerPoint "Tüm slaytları gör"): sunumdan çıkmadan
+  /// küçük resim ızgarasından slayta atla. `GridView.builder` yalnız görünen
+  /// küçük resimleri kurar; her biri ayrı `RepaintBoundary`.
+  Future<void> _showAllSlides() async {
+    final slides = widget.slides;
+    final picked = await showAppSheet<int>(
+      context,
+      scrollable: false,
+      backgroundColor: AppColors.mediaChrome,
+      builder: (ctx) => SizedBox(
+        height: MediaQuery.sizeOf(ctx).height * 0.8,
+        child: GridView.builder(
+            key: const ValueKey('ss-grid-sheet'),
+            padding: const EdgeInsets.all(12),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 220,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 16 / 10,
+            ),
+            itemCount: slides.length,
+            itemBuilder: (ctx, i) {
+              final s = slides[i];
+              final current = i == _index;
+              return Semantics(
+                button: true,
+                selected: current,
+                label: '${i + 1} / ${slides.length}',
+                child: GestureDetector(
+                  onTap: () => Navigator.of(ctx).pop(i),
+                  child: Column(children: [
+                    Expanded(
+                      child: Center(
+                        child: AspectRatio(
+                          aspectRatio: s.widthPt / s.heightPt,
+                          child: Container(
+                            clipBehavior: Clip.hardEdge,
+                            decoration: BoxDecoration(
+                              color: AppColors.page,
+                              border: Border.all(
+                                color: current
+                                    ? AppColors.onMedia
+                                    : AppColors.onMediaWell,
+                                width: current ? 2.5 : 1,
+                              ),
+                            ),
+                            child: RepaintBoundary(
+                                child:
+                                    IgnorePointer(child: SlideCanvas(slide: s))),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text('${i + 1}',
+                        style: ctx.type.small.copyWith(
+                            color: current
+                                ? AppColors.onMedia
+                                : AppColors.onMediaSoft)),
+                  ]),
+                ),
+              );
+            },
+        ),
+      ),
+    );
+    if (picked != null && mounted && picked != _index) _goTo(picked);
+  }
 }

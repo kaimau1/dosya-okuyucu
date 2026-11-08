@@ -181,6 +181,8 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                           },
                           onPage: (n) {
                             if (n != _page) _partSetState(() => _page = n);
+                            ReadingPositions.record(widget.path, n, _pageCount,
+                                size: _docSize);
                           },
                           onStatus: (ok) {
                             if (!ok && mounted) {
@@ -205,6 +207,7 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                             } else if (ok && _resumePage > 1) {
                               _viewKey.currentState?.goToPage(_resumePage);
                               _resumePage = 0;
+                              _showResumeNote();
                             }
                             if (ok && _resumeEditing) {
                               _resumeEditing = false;

@@ -116,4 +116,25 @@ void main() {
     await t.pump();
     expect(find.byKey(const ValueKey('ss-presenter-panel')), findsNothing);
   });
+  testWidgets('siyah ekran (B) + tüm slaytlar ızgarasından atlama', (t) async {
+    await t.pumpWidget(const MaterialApp(
+      home: SlideshowScreen(slides: [_slide, _slide, _slide]),
+    ));
+    await t.pump();
+    await t.sendKeyEvent(LogicalKeyboardKey.keyB);
+    await t.pump();
+    expect(find.byKey(const ValueKey('ss-blank')), findsOneWidget);
+    // Herhangi bir tuş sunuma döner, slayt ilerlemez.
+    await t.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await t.pump();
+    expect(find.byKey(const ValueKey('ss-blank')), findsNothing);
+    expect(find.text('1 / 3'), findsOneWidget);
+
+    await t.tap(find.byKey(const ValueKey('ss-counter')));
+    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('ss-grid-sheet')), findsOneWidget);
+    await t.tap(find.text('3'));
+    await t.pumpAndSettle();
+    expect(find.text('3 / 3'), findsOneWidget);
+  });
 }

@@ -23,6 +23,7 @@ import '../../core/list_prefix.dart';
 import '../../core/theme.dart';
 import '../../core/undo_stack.dart';
 import '../../models/document.dart';
+import '../../services/fm/reading_positions.dart';
 import '../../services/fm/safe_write.dart';
 import '../../services/fm/activity_log.dart';
 import '../../services/fm/save_to_downloads.dart';
@@ -131,6 +132,13 @@ class _WordEditorScreenState extends State<WordEditorScreen>
   /// Mobil editörden dönüşte yeniden çizim bitince gidilecek sayfa (0: yok).
   int _resumePage = 0;
 
+  /// Kaldığın yerden devam (PDF'teki [ReadingPositions] kaydı): açılışta
+  /// gidilen sayfa — çizim bitince bir kez "N. sayfadan devam" notu (0: yok).
+  int _resumedNote = 0;
+
+  /// Dosya boyutu: taşınan/kopyalanan dosyada kaydı ad + boyutla bulmak için.
+  int _docSize = 0;
+
   /// Mobil editörden dönüşte odaklanılacak paragraf (-1: yok).
   int _resumePara = -1;
 
@@ -183,10 +191,40 @@ class _WordEditorScreenState extends State<WordEditorScreen>
   void initState() {
     super.initState();
     _load();
+    _initResume();
+  }
+
+  /// Kayıt açılışta yüklü (main); ayar kapalıysa `pageOf` null döner.
+  void _initResume() {
+    try {
+      _docSize = File(widget.path).lengthSync();
+    } catch (_) {
+      // en iyi çaba: boyut okunamazsa kayıt yalnız yola göre eşleşir
+    }
+    final page = ReadingPositions.pageOf(widget.path, size: _docSize);
+    if (page != null && page > 1) _resumePage = _resumedNote = page;
+  }
+
+  void _showResumeNote() {
+    final page = _resumedNote;
+    _resumedNote = 0;
+    if (page <= 1 || !mounted) return;
+    showSnack(
+      context,
+      context.t('vw.resumed_page', {'n': page}),
+      action: SnackBarAction(
+        label: context.t('vw.restart_doc'),
+        onPressed: () {
+          ReadingPositions.clear(widget.path);
+          _viewKey.currentState?.goToPage(1);
+        },
+      ),
+    );
   }
 
   @override
   void dispose() {
+    unawaited(ReadingPositions.save());
     _session.dispose();
     _panel.dispose();
     _readingBars.dispose();

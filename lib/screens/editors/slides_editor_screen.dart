@@ -29,6 +29,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
 import '../../core/text_search.dart';
 import '../../models/document.dart';
+import '../../services/fm/reading_positions.dart';
 import '../../services/fm/safe_write.dart';
 import '../../services/conversion_service.dart';
 import '../../services/fm/activity_log.dart';
@@ -166,6 +167,9 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
   double _baseW = 0;
   int _currentSlide = 1;
 
+  /// Kaldığın yerden devam: dosya boyutu (kayıt anahtarı, bkz. [ReadingPositions]).
+  int _docSize = 0;
+
   /// Arama çubuğu açık mı, eşleşmeler ve etkin eşleşme.
   bool _finding = false;
   final _findCtrl = TextEditingController();
@@ -235,6 +239,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
     _zoomAnim.dispose();
     _focusH?.dispose();
     _focusV?.dispose();
+    unawaited(ReadingPositions.save());
     _vCtrl.removeListener(_onScroll);
     _hCtrl.dispose();
     _vCtrl.dispose();

@@ -15,6 +15,7 @@ import '../../services/pptx/pro/pptx_package.dart';
 import '../../services/pptx/pro/pptx_show_info.dart';
 import '../../services/pptx/pro/slides_native.dart';
 import '../../services/pptx_render.dart';
+import '../../widgets/app_dialog.dart';
 import '../../widgets/slide_canvas.dart';
 import '../../widgets/slide_snapshot.dart';
 import '../../core/theme.dart';
@@ -98,6 +99,10 @@ class _SlideshowScreenState extends State<SlideshowScreen>
   /// saniyede bir güncellenir (boşta kare yok — anayasa k.6).
   final Stopwatch _clock = Stopwatch();
   bool _showTimer = false;
+
+  /// Siyah/beyaz ekran (PowerPoint B/W): slayt gizlenir, dokunuş ya da tuş
+  /// sunuma döner. null = kapalı.
+  Color? _blank;
   Timer? _tick;
   final ValueNotifier<int> _seconds = ValueNotifier(0);
 
@@ -266,6 +271,22 @@ class _SlideshowScreenState extends State<SlideshowScreen>
   KeyEventResult _onKey(FocusNode _, KeyEvent e) {
     if (e is! KeyDownEvent && e is! KeyRepeatEvent) return KeyEventResult.ignored;
     final k = e.logicalKey;
+    if (_blank != null) {
+      setState(() => _blank = null);
+      return KeyEventResult.handled;
+    }
+    if (k == LogicalKeyboardKey.keyB || k == LogicalKeyboardKey.period) {
+      setState(() => _blank = AppColors.mediaSurface);
+      return KeyEventResult.handled;
+    }
+    if (k == LogicalKeyboardKey.keyW || k == LogicalKeyboardKey.comma) {
+      setState(() => _blank = AppColors.page);
+      return KeyEventResult.handled;
+    }
+    if (k == LogicalKeyboardKey.keyG) {
+      unawaited(_showAllSlides());
+      return KeyEventResult.handled;
+    }
     if (k == LogicalKeyboardKey.arrowRight ||
         k == LogicalKeyboardKey.arrowDown ||
         k == LogicalKeyboardKey.pageDown ||
@@ -471,6 +492,15 @@ class _SlideshowScreenState extends State<SlideshowScreen>
           ),
           ..._counterOverlays(),
           if (_media != null) _mediaOverlay(_media!),
+          if (_blank != null)
+            Positioned.fill(
+              child: GestureDetector(
+                key: const ValueKey('ss-blank'),
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() => _blank = null),
+                child: ColoredBox(color: _blank!),
+              ),
+            ),
           PositionedDirectional(
             top: 8,
             end: 8,
@@ -602,7 +632,10 @@ class _SlideshowScreenState extends State<SlideshowScreen>
                   color: AppColors.mediaScrim,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(
+                child: GestureDetector(
+                  key: const ValueKey('ss-counter'),
+                  onTap: () => unawaited(_showAllSlides()),
+                  child: Text(
                   _maxStep == 0
                       ? '${_index + 1} / ${widget.slides.length}'
                       : context.t('ss.step', {
@@ -612,6 +645,7 @@ class _SlideshowScreenState extends State<SlideshowScreen>
                           'max': _maxStep,
                         }),
                   style: context.type.small.copyWith(color: AppColors.onMediaSoft),
+                ),
                 ),
               ),
             ),
@@ -685,6 +719,15 @@ class _SlideshowScreenState extends State<SlideshowScreen>
             _toolButton(AppIcons.eraser, context.t('ss.clear_ink'), false, _clearInk,
                 key: const ValueKey('ss-clear-ink')),
           ],
+          _toolButton(AppIcons.slidesGrid, context.t('ss.all_slides'), false,
+              () => unawaited(_showAllSlides()),
+              key: const ValueKey('ss-grid')),
+          _toolButton(AppIcons.blankScreen, context.t('ss.blank_black'), false,
+              () => setState(() => _blank = AppColors.mediaSurface),
+              key: const ValueKey('ss-black')),
+          _toolButton(AppIcons.brightness, context.t('ss.blank_white'), false,
+              () => setState(() => _blank = AppColors.page),
+              key: const ValueKey('ss-white')),
           _toolButton(AppIcons.schedule, context.t('ss.timer'), _showTimer, _toggleTimer,
               key: const ValueKey('ss-timer-toggle')),
           _toolButton(AppIcons.volumeUp, context.t('ss.volume_keys'), _volumeKeys,

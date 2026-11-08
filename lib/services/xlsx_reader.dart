@@ -65,11 +65,15 @@ class XlsxReader {
     }
 
     var date1904 = false;
+    var activeTab = 0;
     if (wb != null) {
       for (final pr in wb.findAllElements('workbookPr')) {
         final d = pr.getAttribute('date1904') ?? pr.getAttribute('dateCompatibility');
         if (d == '1' || d == 'true') date1904 = true;
       }
+      // Excel'in kaydettiği etkin sayfa: dosya bırakıldığı sayfada açılır.
+      final view = wb.findAllElements('workbookView').firstOrNull;
+      activeTab = int.tryParse(view?.getAttribute('activeTab') ?? '') ?? 0;
     }
 
     // Sayfanın hücreleri DOM'a alınmaz (2026-11-01 cihaz ölçümü: 200 bin
@@ -127,6 +131,7 @@ class XlsxReader {
       styles: styles,
       theme: theme,
       date1904: date1904,
+      activeTab: activeTab,
     );
   }
 
@@ -729,6 +734,15 @@ class XlsxReader {
     if (zoom != null && zoom > 0) layout.zoomScale = zoom / 100.0;
     final rtl = view.getAttribute('rightToLeft');
     layout.rightToLeft = rtl == '1' || rtl == 'true';
+    // Etkin hücre: bölmeli görünümde `activePane`in seçimi, yoksa ilki.
+    final panes = view.childElements.where((e) => e.name.local == 'pane');
+    final activePane = panes.firstOrNull?.getAttribute('activePane');
+    final sels = view.childElements.where((e) => e.name.local == 'selection');
+    final sel = sels
+            .where((e) => e.getAttribute('pane') == activePane)
+            .firstOrNull ??
+        sels.firstOrNull;
+    layout.activeCell = XlsxRange.cellRef(sel?.getAttribute('activeCell'));
     final pane =
         view.childElements.where((e) => e.name.local == 'pane').firstOrNull;
     if (pane == null) return;
@@ -1482,11 +1496,15 @@ class XlsxWorkbook {
   final List<int> theme;
   final bool date1904;
 
+  /// `workbookView/@activeTab`: dosyanın kaydedildiği etkin sayfa sırası.
+  final int activeTab;
+
   XlsxWorkbook({
     required this.sheets,
     required this.styles,
     required this.theme,
     required this.date1904,
+    this.activeTab = 0,
   });
 }
 
@@ -2029,6 +2047,9 @@ class XlsxSheetLayout {
   bool showGridLines = true;
   bool rightToLeft = false;
   double zoomScale = 1;
+
+  /// Dosyada kayıtlı etkin hücre (satır, sütun; 0 tabanlı), yoksa null.
+  (int, int)? activeCell;
   String? autoFilterRef;
   int maxRow = -1;
   int maxCol = -1;
