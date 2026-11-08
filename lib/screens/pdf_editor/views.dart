@@ -238,6 +238,21 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
               child: Text(busyNote ?? text,
                   key: const ValueKey('pe-hint-text'),
                   style: context.type.compact)),
+          // PK7: sessiz OCR düşüşü yok ama kullanıcı BİLEREK seçebilir.
+          if (busyNote == null &&
+              _mode == _EditMode.text &&
+              _outline.paragraphs.isEmpty &&
+              _naturalTextPages.contains(_page) &&
+              !_ocrForcedPages.contains(_page) &&
+              PdfOcrText.isSupported)
+            TextButton(
+              key: const ValueKey('pe-force-ocr'),
+              onPressed: () => _partSetState(() {
+                _ocrForcedPages.add(_page);
+                _scannedKey = ''; // satırlar yeniden okunsun
+              }),
+              child: Text(context.t('pe.force_ocr')),
+            ),
           if (_pageCount > 0)
             Text('$_page / $_pageCount',
                 style:

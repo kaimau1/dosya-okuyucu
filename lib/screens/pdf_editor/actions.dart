@@ -225,6 +225,7 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
         // yazılıyordu (ekrandaki minik "taşımak").
         final raw = await page.loadText();
         natural = !_outline.scanned &&
+            !_ocrForcedPages.contains(page.pageNumber) &&
             pdfHasTextLayer(raw?.fullText ?? '');
         if (!natural || _outline.objects.isNotEmpty) {
           final ocr = await PdfOcrText.forPage(page);
@@ -243,11 +244,7 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
         _scannedKey = key;
         _scannedLines = _withoutParagraphOverlaps(lines);
         _scannedLoading = false;
-        if (natural) {
-          _naturalTextPages.add(page.pageNumber);
-        } else {
-          _naturalTextPages.remove(page.pageNumber);
-        }
+        if (natural) _naturalTextPages.add(page.pageNumber);
       });
       unawaited(_openInitialSelection());
     });

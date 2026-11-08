@@ -144,6 +144,9 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   /// okuyamadıysa "taranmış" değil "bu sürümde düzenlenemiyor" denir.
   final Set<int> _naturalTextPages = {};
 
+  /// Kullanıcının bilerek "OCR satırlarıyla düzenle" dediği sayfalar (PK7).
+  final Set<int> _ocrForcedPages = {};
+
   /// Yerinde alanın yazı tipi ailesi (PS2c).
   String _inlineFamily = 'Carlito';
 
