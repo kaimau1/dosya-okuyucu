@@ -289,7 +289,12 @@ class PdfTools {
     try {
       doc.security
         ..userPassword = ''
-        ..ownerPassword = '';
+        ..ownerPassword = ''
+        // Faz 51 tezgâh bulgusu: izin bayrakları kalırsa Syncfusion
+        // şifreleme sözlüğünü YAZMAYA DEVAM EDİYOR → sahip parolalı (kullanıcı
+        // parolası boş) belgede "kilidi aç" sonrası belge hâlâ şifreli,
+        // düzenleme yine reddediliyordu.
+        ..permissions.clear();
       doc.fileStructure.incrementalUpdate = false;
       return await doc.save();
     } finally {

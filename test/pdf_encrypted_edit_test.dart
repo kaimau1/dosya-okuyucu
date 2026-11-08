@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:dosya_okuyucu/services/pdf/pdf_objects.dart' show PdfFile;
 import 'package:dosya_okuyucu/services/pdf_page_edit.dart';
 import 'package:dosya_okuyucu/services/pdf_tools.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -96,6 +98,19 @@ void main() {
     ).extractText(startPageIndex: 0);
     expect(text, contains('Sube'));
     expect(text, isNot(contains('Genel')));
+  });
+
+  test('İZİN bayraklı sahip parolası da kalkar (ReportLab/Word/Syncfusion)',
+      () async {
+    // Faz 51 tezgâh bulgusu: izin bayrağı (yazdırma serbest, değiştirme yasak)
+    // olan belgede "kilidi aç" çıktısı hâlâ şifreliydi.
+    for (final f in ['rl_sifreli.pdf', 'wd_sifreli.pdf', 'sf_sifreli.pdf']) {
+      final locked = File('test/fixtures/pdf_corpus/$f').readAsBytesSync();
+      expect(PdfFile.parse(locked).isEncrypted, isTrue, reason: f);
+      final unlocked =
+          await PdfTools.removePassword(locked, currentPassword: '');
+      expect(PdfFile.parse(unlocked).isEncrypted, isFalse, reason: f);
+    }
   });
 
   test('şifresiz belgede red şifre sebebiyle DEĞİLDİR', () async {
