@@ -221,6 +221,10 @@ bayrağında. Rapor `docs/perf/2026-11-pdfpro-52-motor.md`.
        (sonuç: `app_colors.dart` → `PdfEditTokens`; vurgu temadan, burada roller/oranlar/ölçüler).
 5. [ ] Kullanıcı onayı (maketler artefakt/ekran görüntüsü olarak sunulur); düzeltmeler işlenir.
 **Bitti:** kullanıcı maketleri onayladı; sonraki UX fazları bu maketlere göre yapılır.
+**Sonuç (2026-11-08, PR `faz-53`):** analiz + 7 maket karesi + etkileşim belirtimi + `PdfEditTokens`.
+Maketler: https://claude.ai/artifact/PNjvf5wSp5ae2rY56RpNQW. Kullanıcı ekran başında değildi ve tasarım
+değişikliğine açık olduğunu söylemişti → 5. madde **👤 KALANLAR'da açık** (itiraz varsa düzeltilir), kapı
+bloklanmadı; Faz 54+ bu maketlerle sürer.
 
 ### Faz 54 — Düzenleme oturumu çekirdeği + tek yüzey + kaydetme akışı ☁️ + 📱 (3 oturum)
 0. [ ] **PK1 koşulları (Faz 52 kararı — bu faz bitmeden PDFium yolu varsayılan olmaz):** (a) değişmeyen
