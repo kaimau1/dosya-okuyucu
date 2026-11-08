@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 
 import '../../core/text_search.dart';
 import '../../models/fs_entry.dart';
+import 'ai_index.dart';
 import 'fm_env.dart';
 import 'fs_events.dart';
 import 'fs_scan.dart';
@@ -317,6 +318,42 @@ abstract final class SearchIndex {
   /// cümleyi tamamen ölçüte çevirdiğinde ("bu hafta videolar") ad araması
   /// kalmaz, süzülecek bir listeye yine de ihtiyaç vardır.
   static Future<List<FsEntry>> query(
+    String query, {
+    String? root,
+    FmCategory? category,
+    bool includeDirs = true,
+    bool matchAll = false,
+    int limit = 500,
+  }) async {
+    final names = await _queryNames(query,
+        root: root,
+        category: category,
+        includeDirs: includeDirs,
+        matchAll: matchAll,
+        limit: limit);
+    final q = query.trim();
+    if (q.isEmpty || names.length >= limit) return names;
+    // **İkinci ad** (2026-11-08): AI'nın verdiği takma adla da bulunur.
+    await AiIndex.ensureLoaded();
+    final seen = {for (final e in names) e.path};
+    final out = [...names];
+    for (final r in AiIndex.aliasMatches(q, limit: limit - names.length)) {
+      if (!seen.add(r.path)) continue;
+      if (root != null && !p.isWithin(root, r.path)) continue;
+      final e = FsEntry(
+          path: r.path,
+          name: p.basename(r.path),
+          isDir: false,
+          sizeBytes: r.sizeBytes,
+          modifiedMs: r.modifiedMs);
+      if (category != null && e.category != category) continue;
+      if (e.exists) out.add(e);
+    }
+    return out;
+  }
+
+  /// Yalnız dosya ADINDA arama (dizin ya da canlı tarama).
+  static Future<List<FsEntry>> _queryNames(
     String query, {
     String? root,
     FmCategory? category,

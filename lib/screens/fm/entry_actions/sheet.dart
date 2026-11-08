@@ -35,6 +35,7 @@ enum _EntryAction {
   audiobook,
   quickShare,
   aiTag,
+  aiAlias,
 }
 
 /// Uzun basınca (ya da ⋮ ile) açılan işlem sayfası. Dosya sistemi değiştiyse
@@ -268,6 +269,9 @@ Future<bool> showEntryActions(
             // YALNIZ çoklu seçim çubuğundaydı: kullanıcı tek bir fotoğrafa
             // uzun basınca bulamıyordu (2026-07-29 sadakat denetimi).
             _section(ctx, ctx.t('ea.sec_ai'), [
+              if (!entry.isDir)
+                _act(ctx, AppIcons.ai, ctx.t('alias.action'),
+                    _EntryAction.aiAlias),
               if (!entry.isDir &&
                   entry.category != FmCategory.image &&
                   entry.category != FmCategory.video &&
@@ -367,6 +371,10 @@ Future<bool> showEntryActions(
 
     case _EntryAction.aiSummary:
       await showAiSummary(context, entry);
+      return false;
+
+    case _EntryAction.aiAlias:
+      await giveAiAlias(context, entry);
       return false;
 
     case _EntryAction.resize:

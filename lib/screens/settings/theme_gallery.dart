@@ -8,7 +8,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
 import '../../core/skin.dart';
 import '../../core/theme.dart';
-import '../../widgets/fm/fm_category_tile.dart' show FmTintedIcon;
+import '../../widgets/fm/fm_glyph.dart';
 
 /// **Tema galerisi** (2026-11-07, kullanıcı: *"temaların görünür biçimde
 /// seçilebilmesi örnek görseliyle beraber notlardaki gibi"*).
@@ -246,11 +246,16 @@ class _SkinPreview extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      FmTintedIcon(
-                        icon: AppIcons.folder,
-                        color: m.folderColor ?? AppHues.honey,
+                      // Gerçek klasör çizimi: klasik ailede düz manila,
+                      // ötekilerde degradeli gövde (2026-11-08).
+                      FmGlyph(
                         size: 18,
-                        style: m.iconStyle,
+                        spec: FmGlyphSpec(
+                          folder: true,
+                          color: m.folderColor ?? AppHues.honey,
+                          classic: m.classicIcons,
+                          dark: brightness == Brightness.dark,
+                        ),
                       ),
                       const SizedBox(width: 5),
                       Expanded(

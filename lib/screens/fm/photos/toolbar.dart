@@ -103,7 +103,7 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            widget.title,
+            _scopeTitle,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.titleLarge
@@ -120,6 +120,20 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
         ],
       ),
       actions: [
+        if (_scopeActive)
+          IconButton(
+            key: const ValueKey('ph-scope-clear'),
+            tooltip: context.t('ph.show_all'),
+            icon: const Icon(AppIcons.close),
+            onPressed: _clearScope,
+          )
+        else
+          IconButton(
+            key: const ValueKey('ph-albums'),
+            tooltip: context.t('ph.albums'),
+            icon: const Icon(AppIcons.folderCopy),
+            onPressed: _showAlbums,
+          ),
         IconButton(
           tooltip: context.t('ph.search_in', {'title': widget.title}),
           icon: const Icon(AppIcons.search),

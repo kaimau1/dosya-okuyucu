@@ -127,6 +127,8 @@ void main() {
         AppSkin.peach,
         AppSkin.mint,
         AppSkin.modern,
+        AppSkin.classic,
+        AppSkin.ledger,
         AppSkin.night,
         AppSkin.system,
       ]);

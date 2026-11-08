@@ -268,4 +268,26 @@ void main() {
       expect(hits.first.path, '/a/fatura-b.pdf');
     });
   });
+  group('ikinci ad (2026-11-08)', () {
+    test('AI başlığı ikinci addır; aramada Türkçe katlamalı bulunur', () async {
+      await AiIndex.putAll([
+        const AiRecord(
+          path: '/a/IMG_2041.pdf',
+          sizeBytes: 1,
+          modifiedMs: 1,
+          category: FmCategory.document,
+          title: 'Temmuz elektrik faturası',
+          source: 'ai',
+        ),
+        _record('/a/baska.pdf'),
+      ]);
+      expect(AiIndex.aliasOf('/a/IMG_2041.pdf'), 'Temmuz elektrik faturası');
+      expect(AiIndex.aliasOf('/a/baska.pdf'), '');
+      expect(AiIndex.aliasMatches('fatura elektrik').map((r) => r.path),
+          ['/a/IMG_2041.pdf']);
+      expect(AiIndex.aliasMatches('FATURASI'), hasLength(1));
+      expect(AiIndex.aliasMatches('su faturası'), isEmpty);
+      expect(AiIndex.aliasMatches('  '), isEmpty);
+    });
+  });
 }

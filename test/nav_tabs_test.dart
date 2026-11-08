@@ -75,11 +75,19 @@ void main() {
   });
 
   group('tema simge dilleri', () {
-    test('her simge dili en az bir ailede kullanılır', () {
-      expect(SkinMetrics.of(AppSkin.night).outlinedIcons, isTrue);
-      expect(SkinMetrics.of(AppSkin.modern).outlinedIcons, isFalse);
+    test('Gece/Sistem varsayılanın simge dilini kullanır (bug 2026-11-08)',
+        () {
+      // Bekçi: koyu/OLED aile eski düz gliflere düşmesin.
+      final def = SkinMetrics.of(AppSkin.sage).iconStyle;
+      expect(SkinMetrics.of(AppSkin.night).iconStyle, def);
+      expect(SkinMetrics.of(AppSkin.system).iconStyle, def);
       expect(SkinMetrics.of(AppSkin.sage).folderColor, isNull,
           reason: 'kağıt ailesinin kehribar klasörü değişmedi');
+    });
+
+    test('klasik aileler klasik simge dilinde; her dil kullanılıyor', () {
+      expect(SkinMetrics.of(AppSkin.classic).classicIcons, isTrue);
+      expect(SkinMetrics.of(AppSkin.ledger).classicIcons, isTrue);
       final styles = {
         for (final s in AppSkin.values) SkinMetrics.of(s).iconStyle,
       };

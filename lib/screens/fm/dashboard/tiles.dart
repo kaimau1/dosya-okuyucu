@@ -23,7 +23,7 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
     final stat = _index.stat(category);
     return FmTileData(
       id: category.name,
-      icon: FmColors.iconFor(category, outlined: context.fmOutlinedIcons),
+      icon: FmColors.iconFor(category),
       color: FmColors.forCategory(category),
       art: switch (category) {
         FmCategory.image => FmTileArt.photos,
@@ -99,7 +99,7 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
         category.name,
         SwipePage(
           label: _categoryLabel(category),
-          icon: FmColors.iconFor(category, outlined: context.fmOutlinedIcons),
+          icon: FmColors.iconFor(category),
           color: FmColors.forCategory(category),
           builder: (_) => _categoryScreen(category, grid: grid),
         ),
@@ -186,9 +186,14 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
         // panonun açılışını saniyelerce geciktirirdi, bilinçli olarak yapılmadı.
         for (final f in folders)
           ActionChip(
+            // Klasör simgesi temanın klasör rengini taşır (listedeki
+            // klasörlerle aynı — 2026-11-08 tasarım turu; vurgu mavisiydi).
             avatar: Icon(
                 f.volume.isEmpty ? AppIcons.folder : AppIcons.storage,
-                size: 18),
+                size: 18,
+                color: f.volume.isEmpty
+                    ? context.fmFolderColor ?? FmColors.folder
+                    : null),
             label: Text(
               [
                 f.label,

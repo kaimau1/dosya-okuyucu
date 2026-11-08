@@ -293,6 +293,34 @@ abstract final class AiIndex {
 
   static AiRecord? of(String filePath) => _records[filePath];
 
+  /// **İkinci ad** (2026-11-08, kullanıcı): AI'nın verdiği okunur başlık
+  /// ([AiRecord.title]) dosyanın takma adıdır — orijinal ad DEĞİŞMEZ. Satırda
+  /// ikincil metin olarak görünür; boşsa (yerel kayıt / analiz yok) ''.
+  static String aliasOf(String filePath) => _records[filePath]?.title ?? '';
+
+  /// Katlanmış başlık önbelleği (her tuşta 20 bin kaydı yeniden katlamamak
+  /// için; kayıt nesnesi değişince kendiliğinden düşer).
+  static final Expando<String> _aliasKey = Expando<String>();
+
+  /// İkinci adı [query]'nin TÜM sözcüklerini içeren kayıtlar (Türkçe
+  /// katlamalı). Arama bunu ad eşleşmelerine ekler ([SearchIndex.query]).
+  static List<AiRecord> aliasMatches(String query, {int limit = 200}) {
+    final terms = asciiFold(query)
+        .split(RegExp(r'\s+'))
+        .where((t) => t.isNotEmpty)
+        .toList();
+    if (terms.isEmpty) return const [];
+    final out = <AiRecord>[];
+    for (final r in _records.values) {
+      if (r.title.isEmpty) continue;
+      final key = _aliasKey[r] ??= asciiFold(r.title);
+      if (!terms.every(key.contains)) continue;
+      out.add(r);
+      if (out.length >= limit) break;
+    }
+    return out;
+  }
+
   /// Bu dosya güncel bir analizle indekste var mı?
   static bool isFresh(FsEntry entry) {
     final record = _records[entry.path];

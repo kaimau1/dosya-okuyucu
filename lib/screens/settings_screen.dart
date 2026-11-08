@@ -472,21 +472,24 @@ class _QuickHeader extends StatelessWidget {
         // sıkı yoğunlukta 40 dp'ye iniyordu).
         style: const ButtonStyle(
             minimumSize: WidgetStatePropertyAll(Size(0, 48))),
+        // Sıra ve adlar Görünüm sayfasındaki seçiciyle AYNI (2026-11-08
+        // tasarım turu): "Otomatik" dar panelde "Otomati/k" diye bölünüyordu
+        // ve aynı seçenek orada "Sistem" adını taşıyordu.
         segments: [
+          ButtonSegment(
+            value: ThemeMode.system,
+            icon: const Icon(AppIcons.brightnessAuto, size: 18),
+            label: Text(context.t('settings.theme_system'), softWrap: false),
+          ),
           ButtonSegment(
             value: ThemeMode.light,
             icon: const Icon(AppIcons.lightMode, size: 18),
-            label: Text(context.t('settings.theme_light')),
+            label: Text(context.t('settings.theme_light'), softWrap: false),
           ),
           ButtonSegment(
             value: ThemeMode.dark,
             icon: const Icon(AppIcons.dark, size: 18),
-            label: Text(context.t('settings.theme_dark')),
-          ),
-          ButtonSegment(
-            value: ThemeMode.system,
-            icon: const Icon(AppIcons.brightnessAuto, size: 18),
-            label: Text(context.t('set.theme_auto')),
+            label: Text(context.t('settings.theme_dark'), softWrap: false),
           ),
         ],
         selected: {mode},

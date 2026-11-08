@@ -377,7 +377,6 @@ extension _PickFileScreenStateParts on _PickFileScreenState {
   /// kategori kutusu hiç çizilmez (`image/*` isteyen yerde "Belgeler"e girip
   /// boş liste görmek zaman kaybı).
   List<FmTileData> _tiles() {
-    final outlined = context.fmOutlinedIcons;
     String sub(CategoryStat stat) => stat.count == 0
         ? context.t('fm.none')
         : '${FsPaths.humanSize(stat.bytes)} (${stat.count})';
@@ -386,7 +385,7 @@ extension _PickFileScreenStateParts on _PickFileScreenState {
       if (!_categoryAccepted(c)) return null;
       return FmTileData(
         id: id,
-        icon: FmColors.iconFor(c, outlined: outlined),
+        icon: FmColors.iconFor(c),
         color: FmColors.forCategory(c),
         label: label ?? c.label,
         subtitle: sub(DashboardScreen.cachedStat(c)),

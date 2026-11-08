@@ -8,7 +8,9 @@ import '../../core/theme.dart';
 import '../../models/fm_layout.dart';
 import '../../models/fm_type.dart';
 import '../../models/fs_entry.dart';
+import '../../services/fm/ai_index.dart';
 import 'fm_entry_icon.dart';
+import 'fm_inline_play.dart';
 import '../motion.dart';
 
 /// Dosya/klasör satırı ve ızgara hücresi — gözatıcı, kategori ve arama
@@ -51,6 +53,10 @@ class FmEntryRow extends StatelessWidget {
   /// Küçük resim (bkz. [FmSelectableIcon.thumbnails]).
   final bool thumbnails;
 
+  /// Ses dosyasında simge oynat/duraklat düğmesine döner ([FmInlinePlay]);
+  /// dokunulunca bu liste çalınır. Null = satır içi oynatma yok.
+  final List<String> Function()? audioQueue;
+
   const FmEntryRow({
     super.key,
     required this.entry,
@@ -64,6 +70,7 @@ class FmEntryRow extends StatelessWidget {
     this.showChevron = false,
     this.badge,
     this.thumbnails = true,
+    this.audioQueue,
   });
 
   @override
@@ -98,14 +105,14 @@ class FmEntryRow extends StatelessWidget {
                   more == null && badge == null ? Gap.md : Gap.xs, vPad),
               child: Row(
                 children: [
-                  FmSelectableIcon(
+                  _withPlay(FmSelectableIcon(
                     entry: entry,
                     size: iconSize,
                     selecting: selecting,
                     selected: selected,
                     onCheck: onCheck,
                     thumbnails: thumbnails,
-                  ),
+                  ), iconSize),
                   const SizedBox(width: 14),
                   Expanded(
                     child: ExcludeSemantics(
@@ -123,16 +130,34 @@ class FmEntryRow extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 2),
-                          Text(
-                            bidiParts(context, subtitle),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                              fontFeatures: const [
-                                FontFeature.tabularFigures()
-                              ],
-                            ),
+                          // İkinci ad (AI, 2026-11-08) alt satırın başında;
+                          // tek satır kalır → satır yüksekliği sabit (G14).
+                          ValueListenableBuilder<int>(
+                            valueListenable: AiIndex.revision,
+                            builder: (context, _, _) {
+                              final alias = AiIndex.aliasOf(entry.path);
+                              return Text.rich(
+                                TextSpan(children: [
+                                  if (alias.isNotEmpty)
+                                    TextSpan(
+                                      text: '$alias · ',
+                                      style: TextStyle(
+                                        color: scheme.primary,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  TextSpan(text: bidiParts(context, subtitle)),
+                                ]),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures()
+                                  ],
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -150,6 +175,19 @@ class FmEntryRow extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _withPlay(Widget icon, double size) {
+    if (audioQueue == null ||
+        selecting ||
+        entry.isDir ||
+        FmType.of(entry) != FmType.audio) {
+      return icon;
+    }
+    return Stack(children: [
+      icon,
+      FmInlinePlay(path: entry.path, size: size, queue: audioQueue),
+    ]);
   }
 
   Widget? _trailing(BuildContext context, ColorScheme scheme) {
@@ -291,9 +329,11 @@ class FmEntryCard extends StatelessWidget {
 String fmEntrySemanticsLabel(
     BuildContext context, FsEntry entry, String? subtitle) {
   final type = FmType.of(entry);
+  final alias = AiIndex.aliasOf(entry.path);
   final parts = [
     if (type != FmType.folder && type != FmType.other) context.t(type.labelKey),
     entry.name,
+    if (alias.isNotEmpty) alias,
     if (subtitle != null && subtitle.isNotEmpty) subtitle,
   ];
   return parts.join(', ');

@@ -107,6 +107,15 @@ class AppColors extends ThemeExtension<AppColors> {
   static const mixLight = Color(0xFFFFFFFF);
   static const mixDark = Color(0xFF000000);
 
+  /// Klasik simge dili (2026-11-08, `FmGlyphSpec.classic`): beyaz sayfa,
+  /// gri kontur ve kıvrık köşe — açık / koyu.
+  static const classicPage = Color(0xFFFFFFFF);
+  static const classicPageDark = Color(0xFF2B2C2F);
+  static const classicEdge = Color(0xFF7A7E86);
+  static const classicEdgeDark = Color(0xFF8C8F95);
+  static const classicEar = Color(0xFFDDDFE3);
+  static const classicEarDark = Color(0xFF45474C);
+
   /// Gölge/karartma tabanı — saydamlık çağıranda (`withValues(alpha:)`).
   static const shade = Color(0xFF000000);
 

@@ -30,9 +30,10 @@
 ///   kadar iyi" isteğinin (2026-08-17) doğrudan karşılığı: tür artık glif
 ///   tahmininden değil yazıdan anlaşılıyor.
 ///
-/// ## Çizgi (outlined) tema aileleri
-/// "İş programı" / "Gece" ailelerinde dolgu yerine **ince kontur** çizilir
-/// (bkz. `SkinContext.fmOutlinedIcons`): aynı biçim, daha sakin ağırlık.
+/// ## Klasik tema aileleri (2026-11-08)
+/// "Klasik" / "Defter" ailelerinde eski tip dosya yöneticisi dili çizilir
+/// (bkz. `SkinContext.fmClassicIcons`): düz sarı manila klasör, beyaz sayfa +
+/// ince gri kontur + türün renkli şeridi; degrade, ışık çizgisi yok.
 library;
 
 import 'dart:math' as math;
@@ -58,8 +59,8 @@ class FmGlyphSpec {
   /// yerine metin satırları uzatılır.
   final String label;
 
-  /// Dolgu yerine kontur çiz (çizgi glifli tema aileleri).
-  final bool outlined;
+  /// Klasik düz çizim (klasik simgeli tema aileleri).
+  final bool classic;
 
   /// Koyu tema: kağıt beyazı yerine koyu yüzey kullanılır.
   final bool dark;
@@ -75,7 +76,7 @@ class FmGlyphSpec {
     required this.color,
     this.overlay,
     this.label = '',
-    this.outlined = false,
+    this.classic = false,
     this.dark = false,
     this.zipper = false,
   });
@@ -87,13 +88,13 @@ class FmGlyphSpec {
       other.color == color &&
       other.overlay == overlay &&
       other.label == label &&
-      other.outlined == outlined &&
+      other.classic == classic &&
       other.dark == dark &&
       other.zipper == zipper;
 
   @override
   int get hashCode =>
-      Object.hash(folder, color, overlay, label, outlined, dark, zipper);
+      Object.hash(folder, color, overlay, label, classic, dark, zipper);
 }
 
 /// Çizim ölçüleri — **cihaz pikseli** cinsinden, birim karede değil.
@@ -193,8 +194,8 @@ class _FmGlyphPainter extends CustomPainter {
   /// taştığı için kutu o kadar genişletilir, yoksa kontur kenarda kırpılırdı.
   Rect get _fitBox {
     final base = spec.folder ? _folderBox : _sheetBox;
-    final bleed = spec.outlined
-        ? 0.031 // kontur fırçası 0,062
+    final bleed = spec.classic
+        ? 0.015 // klasik kontur fırçası 0,03
         : (spec.folder ? 0.0 : 0.014); // kağıdın ince kenarlığı 0,028
     return bleed == 0 ? base : base.inflate(bleed);
   }
@@ -221,15 +222,22 @@ class _FmGlyphPainter extends CustomPainter {
       ..quadraticBezierTo(_l, _tabTop, _l + 0.055, _tabTop)
       ..close();
 
-    if (spec.outlined) {
+    if (spec.classic) {
+      // Düz manila: sekme bir ton koyu, gövde düz, koyu ince kontur.
+      final edge = Color.lerp(spec.color, AppColors.mixDark, 0.48)!;
+      final flatBody = RRect.fromLTRBR(
+          _l, _bodyTop, _r, _bottom, const Radius.circular(0.03));
+      canvas.drawPath(
+          tab, Paint()..color = Color.lerp(spec.color, AppColors.mixDark, 0.14)!);
+      canvas.drawRRect(flatBody, Paint()..color = spec.color);
       final stroke = Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.062
+        ..strokeWidth = 0.03
         ..strokeJoin = StrokeJoin.round
-        ..color = spec.color;
+        ..color = edge;
       canvas.drawPath(tab, stroke);
-      canvas.drawRRect(body, stroke);
-      _paintOverlay(canvas, side, spec.color, const Offset(0.5, 0.565), 0.34);
+      canvas.drawRRect(flatBody, stroke);
+      _paintOverlay(canvas, side, edge, const Offset(0.5, 0.575), 0.34);
       return;
     }
 
@@ -310,15 +318,28 @@ class _FmGlyphPainter extends CustomPainter {
       ..lineTo(_pr - _fold, _pt + _fold)
       ..close();
 
-    if (spec.outlined) {
+    if (spec.classic) {
+      // Beyaz sayfa + ince gri kontur; rengi yalnız tür şeridi taşır.
+      final edge =
+          spec.dark ? AppColors.classicEdgeDark : AppColors.classicEdge;
       final stroke = Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.062
+        ..strokeWidth = 0.03
         ..strokeJoin = StrokeJoin.round
-        ..color = spec.color;
+        ..color = edge;
+      canvas.drawPath(
+          page,
+          Paint()
+            ..color =
+                spec.dark ? AppColors.classicPageDark : AppColors.classicPage);
       canvas.drawPath(page, stroke);
+      canvas.drawPath(
+          earPath,
+          Paint()
+            ..color =
+                spec.dark ? AppColors.classicEarDark : AppColors.classicEar);
       canvas.drawPath(earPath, stroke);
-      _paintLabelOrOverlay(canvas, side, outlinedTint: spec.color);
+      _paintLabelOrOverlay(canvas, side, classicLines: edge);
       return;
     }
 
@@ -347,14 +368,15 @@ class _FmGlyphPainter extends CustomPainter {
   }
 
   /// Kağıdın içi: uzantı varsa **renkli şerit + yazı**, yoksa glif/çizgiler.
-  void _paintLabelOrOverlay(Canvas canvas, double side, {Color? outlinedTint}) {
+  void _paintLabelOrOverlay(Canvas canvas, double side, {Color? classicLines}) {
     if (spec.zipper) {
-      _paintZipper(canvas, outlined: outlinedTint != null);
+      _paintZipper(canvas, classic: classicLines != null);
     } else {
-      // Metin satırları — şeridin üstünde, "bu bir belge" fikri.
+      // Metin satırları — şeridin üstünde, "bu bir belge" fikri. Klasikte
+      // gri (sayfa nötr, renk yalnız şeritte).
       final line = Paint()
-        ..color =
-            spec.color.withValues(alpha: outlinedTint != null ? 0.55 : 0.38)
+        ..color = classicLines?.withValues(alpha: 0.55) ??
+            spec.color.withValues(alpha: 0.38)
         ..strokeCap = StrokeCap.round
         ..strokeWidth = 0.038;
       for (var i = 0; i < 2; i++) {
@@ -413,7 +435,7 @@ class _FmGlyphPainter extends CustomPainter {
   ///
   /// Dişler dönüşümlü sola/sağa (gerçek fermuar gibi); rengi arşiv
   /// biçiminin rengi (ZIP kehribar, RAR mor, 7Z arduvaz…).
-  void _paintZipper(Canvas canvas, {required bool outlined}) {
+  void _paintZipper(Canvas canvas, {required bool classic}) {
     const x = 0.425;
     const top = _pt + 0.02;
     const bottom = 0.455;
@@ -423,7 +445,7 @@ class _FmGlyphPainter extends CustomPainter {
     canvas.drawRRect(
       RRect.fromLTRBR(x - 0.012, top, x + 0.012, bottom,
           const Radius.circular(0.012)),
-      Paint()..color = spec.color.withValues(alpha: outlined ? 0.35 : 0.28),
+      Paint()..color = spec.color.withValues(alpha: classic ? 0.35 : 0.28),
     );
     var left = true;
     for (var y = top + 0.012; y + 0.03 <= bottom; y += tooth) {

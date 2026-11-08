@@ -808,3 +808,15 @@ Otomatik kısım (A/B ölçüm) `docs/perf/2026-11-48-pdfrx.md`'de. Elle bakıla
 
 **Koşu kaydı**
 - 2026-11-08 · MatePad DBY-W09: ölçüm kapısı ✅ (`docs/perf/2026-11-08-office.md`), çökme 0 · 1–4 elle bekliyor.
+
+## Galeri/tema geliştirme (2026-11-08, dal `faz-galeri`)
+Ekran görüntüleri `docs/design/2026-11-galeri/` (örnek ağaç `/sdcard/Ornek`, kişisel ad yok). Elle bakılacaklar:
+1. **Gece (OLED):** pano kutuları ve dosya listesi Adaçayı ile aynı yeni (squircle/dolu) simgelerle; eski düz glif yok. Sistem rengi ailesinde de aynı.
+2. **Ses listesi:** Ses kategorisi / müzik klasöründe simgeye dokun → çalar, simge duraklat olur + ilerleme halkası; mini çubukla iki yönde senkron; satıra dokunmak yine tam oynatıcıyı açar. 50+ sesli listede kaydırma akıcı.
+3. **AI ikinci ad (anahtar gerekli):** 3 nokta → "AI ile ikinci ad ver" → bir süre sonra satırın alt yazısında renkli ikinci ad; dosya adı DEĞİŞMEDİ; üst aramada ikinci addaki bir sözcükle dosya bulunuyor. Anahtarsızken "AI'yı etkinleştir" penceresi.
+4. **Klasik / Defter temaları:** tema galerisinde önizleme manila klasör; gezginde sarı düz klasör + beyaz sayfa ve türün renkli şeridi (PDF kırmızı, XLSX yeşil…); açık ve koyu mod okunur.
+5. **Galeri → Albümler** (çubuktaki klasör simgesi): "Bu gün geçmişte" (varsa) + kapaklı klasör ızgarası; albüm seçince başlık albüm adı, ✕ ve geri tuşu süzgeci kaldırır; pinch/hızlı kaydırma aynı.
+6. **Ayarlar (tablet sol panel):** tema modu seçici "Sistem · Açık · Koyu", yazı bölünmüyor; pano hızlı klasör çiplerinde klasör simgesi temanın klasör renginde.
+
+**Koşu kaydı**
+- 2026-11-08 · MatePad DBY-W09: 1, 2, 4, 5, 6 adb + ekran görüntüsüyle ✅ (`.r8test` profil APK) · 3 anahtarsız cihazda yalnız menü girdisi görüldü (AI isteği elle bekliyor).

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
 import '../../core/app_colors.dart';
@@ -49,6 +50,7 @@ part 'photos/data.dart';
 part 'photos/toolbar.dart';
 part 'photos/grid.dart';
 part 'photos/widgets.dart';
+part 'photos/albums.dart';
 
 /// **Fotoğraflar** — Google Fotoğraflar tarzı zaman ekseni.
 ///
@@ -147,6 +149,10 @@ class _PhotosScreenState extends State<PhotosScreen>
   bool _searching = false;
   bool _loadingAll = false;
   String _query = '';
+
+  /// Seçili albüm (klasör yolu) ya da "Bu gün geçmişte" (bkz. albums.dart).
+  String? _album;
+  bool _onThisDay = false;
 
   bool get _selecting => _selected.isNotEmpty;
 
@@ -309,9 +315,15 @@ class _PhotosScreenState extends State<PhotosScreen>
     return PopScope(
       // Geri tuşu önce seçimi/aramayı kapatır (Google Foto davranışı);
       // ekranı ancak ondan sonra kapatır.
-      canPop: !_selecting && !_searching,
+      // Albüm/anı süzgeci de geri tuşuyla kalkar (ekran kapanmadan önce).
+      canPop: !_selecting && !_searching && !_scopeActive,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _clearSearchAndSelection();
+        if (didPop) return;
+        if (_selecting || _searching) {
+          _clearSearchAndSelection();
+        } else {
+          _clearScope();
+        }
       },
       child: Scaffold(
         // **Stack**, bottomNavigationBar DEĞİL: alt çubuk görünür/kaybolur

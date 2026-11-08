@@ -15,6 +15,7 @@ import '../../models/document.dart';
 import '../../models/fs_entry.dart';
 import '../../services/ai_summary_store.dart';
 import '../../services/file_service.dart';
+import '../../services/fm/ai_analyzer.dart';
 import '../../services/fm/doc_classifier.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
@@ -74,6 +75,26 @@ Future<void> showAiSummary(BuildContext context, FsEntry entry,
   }
   if (!context.mounted) return;
   await _watchSummary(context, entry, run);
+}
+
+/// **AI ile ikinci ad** (2026-11-08): AI analizini YALNIZ bu dosya için
+/// koşar; AI'nın okunur başlığı ([AiRecord.title]) dosyanın ikinci adı olur
+/// (satırda ikincil metin, aramada bulunur). Orijinal ad DEĞİŞMEZ; ad önerisi
+/// yine AI Merkezi'nin onaylı akışında kalır. Ağ isteği yalnız bu eylemle.
+Future<void> giveAiAlias(BuildContext context, FsEntry entry) async {
+  if (!await ensureAiKey(context) || !context.mounted) return;
+  if (AiAnalyzer.isRunning) {
+    showSnack(context, context.t('alias.busy'));
+    return;
+  }
+  final state = context.read<AppState>();
+  showSnack(context, context.t('alias.started'));
+  await AiAnalyzer.start(
+    scope: state.aiScopeRules,
+    credentials: state.aiCredentials,
+    reanalyze: true,
+    candidates: [entry],
+  );
 }
 
 /// Kaydedilmiş özeti açar (iş bildirimi/şeridi buraya gelir). Özet yoksa
