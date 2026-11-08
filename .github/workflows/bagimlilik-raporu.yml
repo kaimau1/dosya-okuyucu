@@ -1,0 +1,31 @@
+# Aylık bağımlılık raporu (YUKSELTME_PLANI Faz 49 / 2, 2026-11-08).
+# `flutter pub outdated` özeti Actions özetine yazılır; OTOMATİK YÜKSELTME YOK
+# (her yükseltme ölçümle, faz dalında — docs/YUKSELTME_PLANI.md §0).
+name: Bağımlılık raporu
+
+on:
+  schedule:
+    - cron: '0 6 1 * *'   # her ayın 1'i 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rapor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.9'
+          cache: true
+      - name: pub outdated → özet
+        run: |
+          set -e
+          flutter pub get > /dev/null
+          flutter pub outdated --json > outdated.json
+          python3 tool/bagimlilik_denetimi.py rapor < outdated.json >> "$GITHUB_STEP_SUMMARY"
+          python3 tool/bagimlilik_denetimi.py
