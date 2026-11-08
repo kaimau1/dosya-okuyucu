@@ -75,4 +75,8 @@ Glif eksikliği (169 ret) Faz 56'nın işi (glif bazlı yedek, PK5); OCR/taranm�
 
 ## CI (Linux, qpdf + mutool)
 
-_Birleşmeden önce doldurulur._
+CI koşusu 42486812745 (ubuntu, qpdf 12.3.2 + mupdf-tools): başarı/kapsama/piksel sayıları yerelle
+**birebir** (deterministik). `qpdf --check` ve `mutool draw` hatası **A 0/138, B 0/400** — PDFium'un
+artımlı kaydı (AES-256 sahip parolalı `wd_sifreli` dahil) iki bağımsız okuyucudan geçti. Gecikme
+p50/p95 CI: A 33,5/125,9 · 35,1/129,7 ms; B 9,5/51,3 · 10,4/60,8 ms. Bellek tepe artışı CI:
+A +139 MB, B +66 MB.
