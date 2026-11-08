@@ -2,5 +2,5 @@
 # CI `apk` işi: boyut > taban × 1,02 → KIRMIZI. Bilinçli büyümede (yeni özellik,
 # HAFIZA'da gerekçe) commit başlığına [boyut] yaz: kapı uyarıya iner ve özet yeni
 # değeri gösterir; sonra bu sayıyı o değerle güncelle.
-# Kaynak: nightly 1.1.0 (derleme 590, 2026-11-05) dosya-okuyucu.apk.
-83237758
+# Kaynak: Faz 48 main birleşmesi (2026-11-08) — pdfrx 2.12 libpdfium (chromium/8125) + pdfium gate, +3,2 MB.
+86429449
