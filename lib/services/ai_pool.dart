@@ -37,7 +37,9 @@ import 'dart:typed_data';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/l10n/app_strings.dart';
 import 'gemini_service.dart';
+import 'offline_mode.dart';
 
 /// Kullanıcının girdiği anahtarlar ve model sırası.
 class AiCredentials {
@@ -342,10 +344,20 @@ abstract final class AiPool {
   /// - Kalıcı içerik hatası: doğrudan yukarı fırlatılır — aynı isteği altı
   ///   modelde tekrarlamak altı kat bekleme ve altı kat token demek.
   /// - Hiçbiri çalışmazsa: en erken açılacak ikilinin süresiyle birlikte hata.
+  /// **AI'ya gönderim onayı** kancası (Play yorum çalışması aşama 2):
+  /// dosya metni Gemini'ye gitmeden önce kullanıcıya sorulur. `main` kurar
+  /// (`AiSendConsent.ask`); testlerde null = serbest. Tüm AI çağrıları bu
+  /// işlevden geçtiği için tek yer yeter.
+  static Future<bool> Function()? consent;
+
   static Future<T> run<T>(
     AiCredentials credentials,
     Future<T> Function(GeminiService gemini) action,
   ) async {
+    // Çevrimdışı kip: anahtar/onay sormadan, kalıcı hata (-1).
+    if (OfflineMode.enabled) {
+      throw GeminiException(const OfflineException().message, statusCode: -1);
+    }
     await ensureLoaded();
     final creds = credentials.normalized;
     if (creds.keys.isEmpty) {
@@ -355,6 +367,11 @@ abstract final class AiPool {
     if (creds.models.isEmpty) {
       throw GeminiException('Önce Ayarlar > Yapay zekâ bölümünden en az bir '
           'model seçin.');
+    }
+    final ask = consent;
+    if (ask != null && !await ask()) {
+      throw GeminiException(AppStrings.current.t('aisend.cancelled'),
+          statusCode: -2);
     }
 
     final now = DateTime.now().millisecondsSinceEpoch;

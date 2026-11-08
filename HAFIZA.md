@@ -84,7 +84,7 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Slayt:** kendi renderer (`pptx_render` + `slide_canvas`); yerinde zengin metin
   (`pptx_rich_text`), kutuya yakınlaşan odak görünümü; dikey akış + ham pointer pinch
   (`PinchZoomArea`, Excel ile ortak).
-- **PDF:** görüntüleme pdfrx 1.3.x (pdfium) + kendi seçim katmanı; yazma Syncfusion 31.1.19
+- **PDF:** görüntüleme pdfrx 2.12 (pdfium; `third_party/pdfrx` tek satır yama) + kendi seçim katmanı; yazma Syncfusion 35
   (K1 a Community License); paragraf motoru yerinde düzenler, reddederse "Üstüne yaz"
   (eski span akıştan çıkarılır + gömülü yazı tipi/Carlito); düzenleme işlem listesi bellekte.
 - **Ortak düzenleme çekirdeği** `lib/core/edit/` (EditHistory, EditSession, DraftJournal,
@@ -178,9 +178,9 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
   yer imleri (W1). Office Symbol/Wingdings madde imleri Android'de ▯ → `fixSymbolFonts` /
   `core/symbol_fonts.dart`; `viewer.html`'de charset yok → `\uXXXX`.
 - WebView: meta viewport'u JS ile değiştirmek yeniden sığdırmaz → CSS `zoom`.
-- **pdfrx 1.3.5:** görüntüleyicinin boyunu jest sırasında değiştirme (sayfa başına atlar);
-  `layoutPages` aynı girdide eşit düzen döndürmeli; yakınlaştırmada basamaklı çizim ölçeği;
-  çok sütunda `useAlternativeFitScaleAsMinScale` kapalı. (2.x'e geçiş KALANLAR A3.2.)
+- **pdfrx (2.12, Faz 48):** görüntüleyicinin boyunu jest sırasında değiştirme (sayfa başına atlar);
+  `layoutPages` aynı girdide eşit düzen döndürmeli; basamaklı çizim ölçeği 2.x'te KALDIRILDI (N5,
+  fazladan çizim); çok sütunda `useAlternativeFitScaleAsMinScale` kapalı.
 - PDF adları `[A-Za-z0-9]` dışını da içerir (`/ABCDEF+Arial-BoldMT`); yalnız kapak bırakmak eski
   metni aramada bırakır → span akıştan çıkarılmalı; PDF düzenleme op kapanışına yerel
   `pageIndex` kopyası.
@@ -483,3 +483,15 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Satır içi oynatma:** `FmInlinePlay` yalnız `FmFileListView` satırlarında (`audioQueue`); durum bildirimini dinler, konumu yalnız çalan satırın halkası (`positionListenable`).
 - **Galeri:** mevcut olanlar tekrar yazılmadı (zaman ekseni, pinch yoğunluk, yıl çubuklu kaydırıcı, slayt, benzer/kopya). Eklenen: Albümler levhası + "Bu gün geçmişte" — yalnız `_visible`'ı daraltır, ızgara çizimi aynı.
 - **Tuzak (yerel ölçüm/kurulum):** `android/` önceki R8 A/B'den `.r8test` kimliğinde kalmış olabilir → `flutter build apk --profile` AYRI paket kurar (`adb install` "Success" der ama ana uygulama değişmez; `aapt dump badging` ile bak). Git Bash'te `--dart-define=...=/sdcard/...` yolu `C:/Program Files/Git/sdcard` olur → `MSYS_NO_PATHCONV=1` (P13 tablo_100k "PathNotFound").
+
+## 2026-11-08 — Play yorum çalışması aşama 2–3 + Faz 49 temizlik (dal `faz-49`)
+- **Çevrimdışı kip tek noktada:** `main()` = `http.runWithClient(_main, OfflineAwareClient.new)` → `package:http`'in üst düzey işlevleri ve `http.Client()` hep `OfflineMode.check`'ten geçer; yerel ağ (10/172.16–31/192.168, .local, loopback, link-local, ULA) serbest. dio/dart:io HttpClient KAPSANMAZ (webdav_client, peer_share/qr_transfer — yerel ağ). Yeni internet çağrısı `package:http` ile yazılmalı. AI ayrıca `AiPool.run` başında `statusCode: -1` (kalıcı) — 0 dönseydi toplu kuyruk "ağ hatası" sanıp yeniden denerdi.
+- **Tuzak:** `test/startup_budget_test.dart` `main` gövdesini METİNLE arar → artık `Future<void> _main() async {`.
+- **AI onayı = `AiPool.consent` kancası** (tüm AI çağrıları `PooledGemini` → `AiPool.run`): oturumluk "Gönder" (500 dosyalık toplu analizde 500 pencere olmasın) + kalıcı "Bir daha sorma" (`ai_send_consent`). Ekran yoksa (arka plan) sorulmadan GÖNDERİLMEZ.
+- **Klasör ekle:** SAF altyapısı (SafFs, safPickTree, panoda SAF kartı) zaten vardı; eksik olan pano kartındaki düğme + Gizlilik sayfasında "Eklenen klasörler / Geri al" (safForget). İzin kartı dili belgedeki örnek; "İptal" yok.
+- **İzinsiz okuyucu derlemesi:** `.github/workflows/build-okuyucu.yml` (yalnız elle; workflow main'de olmadan `gh workflow run` çalışmaz) → `ci/prepare_android.sh` §11 `DOSYA_OKUYUCU=1`: `.okuyucu` kimliği (r8test ile ortak SUFFIX bloğu) + `play_variant.py` ile 21 hassas izin çıkar, birleşmiş manifest `verify`; Dart `StoragePermission.readerBuild` izin düğmelerini gizler. Bilinçli sınır: yakındakiler/uygulamalar gibi izinli özellikler arayüzde duruyor ama izin alamaz — gizlemek ayrı iş.
+- **Play AAB varsayılan çıkarma:** QUERY_ALL_PACKAGES + READ_MEDIA_* (ana manifestte Faz 46'dan beri yok; eklenti sızıntısına karşı).
+- **Neler yeni:** `WhatsNew` ANA.ARA anahtarlı; yeni kurulum görüldü sayılır; perf senaryosu önceden işaretler (açılış ölçümü bozulmasın). ARA hane artınca `WhatsNew.items` yenilenir.
+- **Sürüm ara hanesi elle:** CI yalnız `appVersionPatch`'i sed'liyor; başlıkta `[minor]` yalnız hesaplanan adı +1 yapar, uygulama içi `appVersionMinor` değişmez → ARA'yı `app_version.dart`'ta artır, başlığa `[minor]` YAZMA (çift artar).
+- **Faz 49:** override'ların dördü hâlâ gerekli (yukarı akışta yeni sürüm yok); `convertHtml` ignore'ları kalır (printing 5.15'te hâlâ deprecated). Aylık rapor `bagimlilik-raporu.yml` (otomatik yükseltme yok). Kotlin: kalkan API'lerin hepsi zaten sürüm korumalıydı, yalnız PackageManager int-bayrak çağrıları 33+ `*Flags.of`. CI APK logunda Kotlin uyarısı basılmıyor → kaynak taramasıyla bakıldı.
+- **Tuzak (yerel ölçüm):** `ci/prepare_android.sh` var olan `android/` üstünde ikinci kez KOŞMAZ (desugaring "build.gradle bulunamadı" — zaten yamalı) → önce `rm -rf android .backup`. Git Bash'te `python3` Windows'un sahte kısayolu olabilir → PATH'e `exec python "$@"` sarmalayıcı.

@@ -482,20 +482,24 @@ const Map<String, (String, String, String)> _t1 = {
     'Could not create folder: {error}',
     'تعذّر إنشاء المجلد: {error}',
   ),
+  // Kart dili: Play yorum çalışması (2026-11-08) — "gerekli" değil, soru;
+  // izinsiz yol (klasör ekle / tek dosya) kartın kendisinde.
   'fm.permission_title': (
-    'Tüm dosyalara erişim gerekli',
-    'All-files access is required',
-    'مطلوب الوصول إلى كل الملفات',
+    'Tüm dosyalarını burada görelim mi?',
+    'Shall we show all your files here?',
+    'هل نعرض كل ملفاتك هنا؟',
   ),
   'fm.permission_body': (
-    'Telefonundaki tüm klasörleri görebilmek, kopyalayıp taşıyabilmek için '
-        'Android’in “Tüm dosyalara erişim” iznini vermen gerekiyor. İzin '
-        'yalnızca cihazda kullanılır; hiçbir veri gönderilmez.',
-    'To see, copy and move every folder on your phone, Android’s “All files '
-        'access” permission is required. The permission is used only on the '
-        'device; no data is sent anywhere.',
-    'لرؤية جميع المجلدات على هاتفك ونسخها ونقلها، يلزم إذن «الوصول إلى كل '
-        'الملفات» من Android. يُستخدم الإذن على الجهاز فقط ولا تُرسل أي بيانات.',
+    'Telefonundaki klasörleri gezmek, yer açmak ve dosya taşımak için Android '
+        '“tüm dosyalara erişim” istiyor. Dosyaların telefondan çıkmaz; '
+        'uygulamada reklam ve izleme yok. İstersen yalnız seçtiğin klasörleri '
+        'ekleyebilirsin.',
+    'To browse folders, free up space and move files, Android asks for “all '
+        'files access”. Your files never leave the phone; the app has no ads '
+        'or tracking. You can also add only the folders you choose.',
+    'لتصفح المجلدات وتوفير المساحة ونقل الملفات يطلب Android «الوصول إلى كل '
+        'الملفات». ملفاتك لا تغادر الهاتف؛ لا إعلانات ولا تتبع. يمكنك أيضًا '
+        'إضافة المجلدات التي تختارها فقط.',
   ),
   'fm.permission_denied': (
     'Sorun değil — dosyaları tek tek seçerek açabilirsin; başka izin gerekmez.',

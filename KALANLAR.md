@@ -145,7 +145,10 @@ saf Dart zinciri (xml 7/pdf/syncfusion 35) · Android eklentileri · google_sign
 kapısı (> %10 ya da p99 > 24 ms → birleşmez). Sıra 43 → 50. A3.4b bu fazlara taşındı.
 - [ ] Faz 43 artığı 📱 (taban MatePad’da alındı → `docs/perf/2026-11-43-taban.md`): Xiaomi 13T + Mi Note 10 Lite tabanı (P1–P12), P6 (erişilebilirlik açık), P4/P5 ekran kaydı + yakınlaştırma, P12 video; duman turunun elle maddeleri.
 - [ ] İncele 📱: `VIEW video/*` (file://) oynatıcı yerine panoyu açıyor; Paylaş (`SEND`) Aktar ekranına gidip konum + yakın cihaz izni istiyor (MatePad, Faz 43).
-- [ ] Sıradaki: **Faz 49** (temizlik). Faz 48 bitti: pdfrx 2.12 + N1 yaması (`third_party/pdfrx/YAMA.md`) — `docs/perf/2026-11-48-pdfrx.md`.
+- [ ] **Faz 43–50 bitti** (son tablo `docs/perf/2026-11-50-sonuc.md`). Kalan 👤: `v1.2.N` etiketi (kullanıcı atar — kalıcı sürüm arm + arm64 + AAB).
+- [ ] Faz 50 artığı 📱: ikinci cihaz (Xiaomi/Mi Note 10 Lite) tam §2; xlsx 100 bin için daha uzun kaydırma senaryosu (şimdiki 3–34 kare, p99 ≈ en kötü kare); `CIHAZ_TESTI.md` "Faz 49" elle maddeleri (çevrimdışı kip, AI onayı, Klasör ekle, Neler yeni).
+- [ ] Play aşama 3 artığı: izinsiz okuyucu derlemesinde (`build-okuyucu.yml`) izin isteyen özellikler (Yakındakiler, Uygulamalar, konum) arayüzde duruyor ama izin alamaz → `StoragePermission.readerBuild` ile gizle; derlemeyi main'de bir kez elle tetikle, artifact'te izin listesi boş mu bak.
+- [ ] UDF (UYAP) okuyucu — Play yorum çalışmasında aday (P2, orta-büyük); biçim araştırılmadı.
 - [ ] Faz 48 artığı 📱: **P6** (erişilebilirlik hizmeti gerçekten açık, PDF-B kaydırma) GMS'li/Xiaomi cihazda; yakınlaştırma keskinliği (basamaklı ölçek kalktı — iki parmak elle); `CIHAZ_TESTI.md` "Faz 48".
 - [ ] Faz 45–47 artığı 📱: GMS'li cihazda Drive girişi (google_sign_in 7 yetkilendirme yolu) + ML Kit OCR/çeviri model indirme; gerçek SFTP/FTP sunucusunda (NAS) bağlan/aktar (yerel asyncssh/pyftpdlib ile yeşil); "Başka uygulamada aç" köprüsü (video/ses/apk, READ_MEDIA_* yok) elle; dosya seçici (file_picker 13) çoklu seçim + büyük dosya; paylaş (share_plus 13); bildirim (flutter_local_notifications 23) — `docs/CIHAZ_TESTI.md` "Faz 45–47".
 - [ ] Override'lar (Faz 45/47): `xml` (webdav_client), `pointycastle` (smb_connect), `dartssh2` (ftpconnect) — paketler yeni sürüm çıkarınca sil; `shared_preferences_android` 2.4.28 sabit (2.5.4'te de süreç geneli kayıt silinmesi).
@@ -228,7 +231,7 @@ kapısı (> %10 ya da p99 > 24 ms → birleşmez). Sıra 43 → 50. A3.4b bu faz
       iskeletine bağlanır; test hesabında satın alma ve geri yükleme.
 - [ ] **B5.3 Play izin varyantı kararı:** Play derlemesinden hangi izinler çıkacak
       (kod hazır: `ci/play_variant.py`, elle tetiklemede `aab: true` + `play: true` +
-      `play_remove`; varsayılan yalnız `QUERY_ALL_PACKAGES`). Karardan sonra `v*` etiketinde
+      `play_remove`; varsayılan `QUERY_ALL_PACKAGES` + `READ_MEDIA_*` — 2026-11-08). Karardan sonra `v*` etiketinde
       varsayılan açılabilir.
 - [ ] **B5.4 K7 — depo private + `LICENSE`** ("Tüm hakları saklıdır") + README lisans notu.
       Önce iki sonucu karara bağla: Actions dakikası 2.000/ay sınırı (HAFIZA kota tuzağı)

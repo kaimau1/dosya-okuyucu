@@ -1,6 +1,7 @@
 import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/screens/onboarding/onboarding_screen.dart';
 import 'package:dosya_okuyucu/widgets/permission_gate.dart';
+import 'package:dosya_okuyucu/widgets/whats_new.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -71,6 +72,27 @@ void main() {
     await tester.pumpWidget(_app());
     await tester.pumpAndSettle();
     expect(find.byType(OnboardingScreen), findsNothing);
+  });
+
+  testWidgets('"Neler yeni": güncelleyene bir kez, yeni kuruluma hiç',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({'onboarding_done': true});
+    await tester.pumpWidget(_app());
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('whats-new-ok')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('whats-new-ok')));
+    await tester.pumpAndSettle();
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString(WhatsNew.prefKey), WhatsNew.current);
+
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(_app());
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('whats-new-ok')), findsNothing);
+    expect(
+        (await SharedPreferences.getInstance()).getString(WhatsNew.prefKey),
+        WhatsNew.current);
   });
 
   testWidgets('"Atla" da bitirmiş sayılır', (tester) async {

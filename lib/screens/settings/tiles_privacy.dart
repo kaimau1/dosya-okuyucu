@@ -5,9 +5,10 @@ import 'package:provider/provider.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
-import '../../services/fm/fm_env.dart';
+import '../../services/fm/app_storage_service.dart';
 import '../../services/fm/installed_apps_service.dart';
 import '../../services/fm/storage_permission.dart';
+import '../../widgets/ai_send_consent.dart';
 import '../../widgets/fm/pin_dialog.dart';
 import 'settings_widgets.dart';
 
@@ -112,16 +113,56 @@ class LockedFoldersTile extends StatelessWidget {
   }
 }
 
-/// Tüm dosyalara erişim izni (Android "Tüm dosyaları yönet").
-class FullAccessTile extends StatefulWidget {
-  const FullAccessTile({super.key});
+/// **Çevrimdışı kip** — açıkken uygulama internete çıkmaz (`OfflineMode`).
+class OfflineModeTile extends StatelessWidget {
+  const OfflineModeTile({super.key});
 
   @override
-  State<FullAccessTile> createState() => _FullAccessTileState();
+  Widget build(BuildContext context) {
+    final on = context.select<AppState, bool>((s) => s.offlineMode);
+    return SwitchListTile(
+      key: const ValueKey('offline-mode'),
+      secondary: Icon(on ? AppIcons.cloudOff : AppIcons.cloud),
+      title: Text(context.t('offline.title')),
+      subtitle: Text(context.t(on ? 'offline.on' : 'offline.sub')),
+      isThreeLine: true,
+      value: on,
+      onChanged: (v) => context.read<AppState>().setOfflineMode(v),
+    );
+  }
 }
 
-class _FullAccessTileState extends State<FullAccessTile> {
-  bool _granted = true;
+/// AI'ya dosya metni göndermeden önce sorulsun mu ("hatırla" geri alınır).
+class AiSendAskTile extends StatelessWidget {
+  const AiSendAskTile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final ask = !context.select<AppState, bool>((s) => s.aiSendConsent);
+    return SwitchListTile(
+      secondary: const Icon(AppIcons.ai),
+      title: Text(context.t('aisend.setting')),
+      subtitle: Text(context.t('aisend.setting_sub')),
+      value: ask,
+      onChanged: (v) {
+        if (v) AiSendConsent.forget();
+        context.read<AppState>().setAiSendConsent(!v);
+      },
+    );
+  }
+}
+
+/// **Eklenen klasörler** (SAF ağaç izinleri) — her biri "Geri al" ile
+/// bırakılır; Android kalıcı izni de geri verilir.
+class SafFoldersTile extends StatefulWidget {
+  const SafFoldersTile({super.key});
+
+  @override
+  State<SafFoldersTile> createState() => _SafFoldersTileState();
+}
+
+class _SafFoldersTileState extends State<SafFoldersTile> {
+  List<SafRoot>? _roots;
 
   @override
   void initState() {
@@ -130,28 +171,38 @@ class _FullAccessTileState extends State<FullAccessTile> {
   }
 
   Future<void> _refresh() async {
-    final access = await StoragePermission.hasFullAccess();
-    if (mounted) setState(() => _granted = access);
+    final roots = await AppStorageService.safRoots();
+    if (mounted) setState(() => _roots = roots);
   }
 
   @override
-  Widget build(BuildContext context) => SettingTile(
-        icon: _granted ? AppIcons.unlock : AppIcons.lock,
-        title: context.t('fmset.full_access'),
-        subtitle: context
-            .t(_granted ? 'fmset.full_access_on' : 'fmset.full_access_off'),
-        wrapSubtitle: true,
-        trailing: _granted
-            ? null
-            : FilledButton.tonal(
-                onPressed: () async {
-                  await StoragePermission.request();
-                  await FmEnv.ensureInit(force: true);
-                  await _refresh();
-                },
-                child: Text(context.t('fmset.grant')),
-              ),
-      );
+  Widget build(BuildContext context) {
+    final roots = _roots ?? const <SafRoot>[];
+    return Column(
+      children: [
+        SettingTile(
+          icon: AppIcons.folderSpecial,
+          title: context.t('saf.folders_title'),
+          subtitle: context.t(
+              roots.isEmpty ? 'saf.folders_none' : 'saf.folders_sub'),
+          wrapSubtitle: true,
+        ),
+        for (final r in roots)
+          ListTile(
+            dense: true,
+            leading: const Icon(AppIcons.folder),
+            title: Text(r.name),
+            trailing: TextButton(
+              onPressed: () async {
+                await AppStorageService.safForget(r.uri);
+                await _refresh();
+              },
+              child: Text(context.t('perm.revoke')),
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 /// Kullanım erişimi (kurulu uygulamaların son kullanım zamanı).
@@ -177,7 +228,9 @@ class _UsageAccessTileState extends State<UsageAccessTile> {
   }
 
   @override
-  Widget build(BuildContext context) => SettingTile(
+  Widget build(BuildContext context) => StoragePermission.readerBuild
+      ? const SizedBox.shrink()
+      : SettingTile(
         icon: AppIcons.queryStats,
         title: context.t('fmset.usage_access'),
         subtitle: context

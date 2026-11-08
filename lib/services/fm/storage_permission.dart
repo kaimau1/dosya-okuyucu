@@ -22,6 +22,11 @@ abstract final class StoragePermission {
       (await Permission.manageExternalStorage.status).isRestricted;
 
   /// Tüm dosyalara erişim verilmiş mi?
+  /// **İzinsiz okuyucu derlemesi** (Play aşama 3, `--dart-define=DOSYA_OKUYUCU=true`):
+  /// manifestte hassas izin yok (`ci/prepare_android.sh` §11) → izin hiç
+  /// istenmez; kullanıcı "Klasör ekle" (SAF) ve "Dosya aç" ile çalışır.
+  static const readerBuild = bool.fromEnvironment('DOSYA_OKUYUCU');
+
   static Future<bool> hasFullAccess() async {
     if (!Platform.isAndroid) return true;
     try {
@@ -39,6 +44,7 @@ abstract final class StoragePermission {
   /// izin sorulmaz (çağıran "tek tek aç" yolunu gösterir).
   static Future<bool> request() async {
     if (!Platform.isAndroid) return true;
+    if (readerBuild) return false;
     try {
       if (await Permission.manageExternalStorage.isGranted) return true;
       if (await _legacyDevice()) {

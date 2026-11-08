@@ -23,6 +23,7 @@ import '../../core/app_version.dart';
 import '../audiobook/voices_screen.dart';
 import '../audiobook/audiobook_library_screen.dart';
 import 'settings_widgets.dart';
+import '../../widgets/permission_gate.dart';
 
 /// **Ayarların tek kaynağı.**
 ///
@@ -503,11 +504,50 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                 titleKey: 'fmset.unlock',
                 builder: _lockedFoldersTile),
           ]),
+          // Play yorum çalışması aşama 2 (2026-11-08): "verim nereye gidiyor"
+          // sorusunun cevabı tek sayfada — ağ önce, sonra her izin (neden ·
+          // durum · ver/geri al).
+          SettingsSection('set.sec_network', [
+            SettingRow(
+              id: 'offline_mode',
+              titleKey: 'offline.title',
+              subtitleKey: 'offline.sub',
+              altKeys: ['set.kw_offline'],
+              builder: _offlineTile,
+            ),
+            SettingRow(
+              id: 'ai_send_ask',
+              titleKey: 'aisend.setting',
+              subtitleKey: 'aisend.setting_sub',
+              builder: _aiSendAskTile,
+            ),
+          ]),
           SettingsSection('fmset.sec_permissions', [
             SettingRow(
                 id: 'full_access',
                 titleKey: 'fmset.full_access',
                 builder: _fullAccessTile),
+            SettingRow(
+                id: 'notif_access',
+                titleKey: 'perm.notifications_title',
+                builder: _notifAccessTile),
+            SettingRow(
+                id: 'camera_access',
+                titleKey: 'perm.camera_title',
+                builder: _cameraAccessTile),
+            SettingRow(
+                id: 'location_access',
+                titleKey: 'perm.location_title',
+                builder: _locationAccessTile),
+            SettingRow(
+                id: 'overlay_access',
+                titleKey: 'perm.overlay_title',
+                builder: _overlayAccessTile),
+            SettingRow(
+                id: 'saf_folders',
+                titleKey: 'saf.folders_title',
+                subtitleKey: 'saf.folders_sub',
+                builder: _safFoldersTile),
             SettingRow(
                 id: 'usage_access',
                 titleKey: 'fmset.usage_access',
@@ -752,7 +792,19 @@ Widget _aiAutoNewTile(BuildContext _) => const AiAutoNewTile();
 Widget _pinTile(BuildContext _) => const PinTile();
 Widget _appLockTile(BuildContext _) => const AppLockTile();
 Widget _lockedFoldersTile(BuildContext _) => const LockedFoldersTile();
-Widget _fullAccessTile(BuildContext _) => const FullAccessTile();
+Widget _fullAccessTile(BuildContext _) =>
+    const PermissionStatusRow(permission: AppPermission.allFiles, detailed: true);
+Widget _notifAccessTile(BuildContext _) => const PermissionStatusRow(
+    permission: AppPermission.notifications, detailed: true);
+Widget _cameraAccessTile(BuildContext _) =>
+    const PermissionStatusRow(permission: AppPermission.camera, detailed: true);
+Widget _locationAccessTile(BuildContext _) => const PermissionStatusRow(
+    permission: AppPermission.location, detailed: true);
+Widget _overlayAccessTile(BuildContext _) =>
+    const PermissionStatusRow(permission: AppPermission.overlay, detailed: true);
+Widget _offlineTile(BuildContext _) => const OfflineModeTile();
+Widget _safFoldersTile(BuildContext _) => const SafFoldersTile();
+Widget _aiSendAskTile(BuildContext _) => const AiSendAskTile();
 Widget _usageAccessTile(BuildContext _) => const UsageAccessTile();
 Widget _useTrashTile(BuildContext _) => const UseTrashTile();
 Widget _confirmDeleteTile(BuildContext _) => const ConfirmDeleteTile();

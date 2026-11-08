@@ -26,6 +26,7 @@ import '../services/fm/ai_scope.dart';
 import '../services/fm/folder_lock.dart';
 import '../services/fm/storage_stats.dart' show StorageStats;
 import '../services/tts_service.dart' show TtsPrefs;
+import '../services/offline_mode.dart';
 
 /// Uygulama genel durumu: tema, AI ayarları, son açılan dosyalar.
 /// SharedPreferences ile kalıcı. (Firebase giriş/senkronu 2026-09-26'da
@@ -75,6 +76,8 @@ class AppState extends ChangeNotifier {
   static const _kFmStartFolder = 'fm_start_folder';
   static const _kPeerName = 'peer_device_name';
   static const _kAppLock = 'app_lock_on';
+  static const _kOffline = 'offline_mode';
+  static const _kAiSendOk = 'ai_send_consent';
   static const _kPeerRecent = 'peer_recent_devices';
   static const _kResumePosition = 'resume_position';
   static const _kAutoSave = 'doc_auto_save';
@@ -201,6 +204,12 @@ class AppState extends ChangeNotifier {
   /// Uygulama açılışında PIN sorulsun mu (2026-09-06 denetim turu).
   bool _appLock = false;
 
+  /// Çevrimdışı kip: açıkken internete çıkılmaz (`OfflineMode`).
+  bool _offline = false;
+
+  /// AI'ya dosya metni göndermeden önceki onay "hatırla" ile verildi mi.
+  bool _aiSendOk = false;
+
   /// Son gönderilen cihazlar — `ad|adres|port` biçiminde.
   List<String> _peerRecent = [];
   List<RecentFile> _recents = [];
@@ -319,6 +328,22 @@ class AppState extends ChangeNotifier {
   Future<void> setAppLock(bool value) async {
     _appLock = value && fmHasLockPin;
     await _prefs.setBool(_kAppLock, _appLock);
+    notifyListeners();
+  }
+
+  bool get offlineMode => _offline;
+
+  Future<void> setOfflineMode(bool value) async {
+    _offline = OfflineMode.enabled = value;
+    await _prefs.setBool(_kOffline, value);
+    notifyListeners();
+  }
+
+  bool get aiSendConsent => _aiSendOk;
+
+  Future<void> setAiSendConsent(bool value) async {
+    _aiSendOk = value;
+    await _prefs.setBool(_kAiSendOk, value);
     notifyListeners();
   }
 
@@ -816,6 +841,8 @@ class AppState extends ChangeNotifier {
     _fmStartFolder = _prefs.getString(_kFmStartFolder) ?? '';
     _peerName = _prefs.getString(_kPeerName) ?? '';
     _appLock = _prefs.getBool(_kAppLock) ?? false;
+    _offline = OfflineMode.enabled = _prefs.getBool(_kOffline) ?? false;
+    _aiSendOk = _prefs.getBool(_kAiSendOk) ?? false;
     _peerRecent = _prefs.getStringList(_kPeerRecent) ?? [];
     _remotes = (_prefs.getStringList(_kRemotes) ?? [])
         .map(RemoteConnection.tryDecode)

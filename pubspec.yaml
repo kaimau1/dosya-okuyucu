@@ -16,8 +16,8 @@ dependencies:
   # metinleri (takvim, "Kes/Kopyala/Yapıştır", tarih biçimi) ve Arapça'da
   # sağdan sola akış bu paketten gelir. Bizim metinlerimiz kod tablosunda
   # (`lib/core/l10n/`), bu paket YALNIZ Flutter'ın kendi metinleri için.
-  # Sürüm SDK'dan: Flutter 3.29.3 `intl 0.20.2` pinliyor — syncfusion_flutter_pdf
-  # zaten aynı sürümü çekiyor, çakışma yok.
+  # Sürüm SDK'dan (Flutter `intl`i pinliyor); syncfusion_flutter_pdf aynı
+  # sürümü çekiyor, çakışma yok.
   flutter_localizations:
     sdk: flutter
 
@@ -50,7 +50,7 @@ dependencies:
 
   # Görüntüleyiciler
   # PDF: pdfium tabanlı pdfrx — sayfa üzerinde METİN SEÇME/kopyalama destekler
-  # (pdfx bitmap çizdiği için seçim imkânsızdı). 1.3.x = Dart 3.7/Flutter 3.29
+  # (pdfx bitmap çizdiği için seçim imkânsızdı).
   # 2.x (Faz 48, 2026-11-08): 2.4.8'deki kasma (HAFIZA 2026-11-03) 2.12'de
   # ölçülerek denetlendi — docs/perf/2026-11-48-pdfrx.md. Kendi metin seçimi
   # kapalı (kPdfOwnSelectionOff); seçim arayüzü bizim katmanımız:
@@ -64,7 +64,6 @@ dependencies:
   syncfusion_flutter_core: ^35.1.43
 
   # OCR: cihaz-içi ML Kit metin tanıma (Latin — Türkçe dahil), internet gerekmez.
-  # (Eski "Dart 3.7 sabiti" 2026-11-02'de kalktı: CI 3.44.6.)
   google_mlkit_text_recognition: ^1.0.1
   # Çeviri: cihaz-içi ML Kit (internet yalnız dil modeli ilk indirilirken gerekir).
   google_mlkit_translation: ^1.0.1
@@ -86,8 +85,7 @@ dependencies:
   # Arşiv okuma: RAR4/RAR5 + 7z + zip/tar/gz — SAF DART (MIT), platform kodu yok.
   # `archive` paketi RAR/7z okumaz; junrar saran Android eklentileri yalnız RAR4
   # çözer ve CI'da üretilen android/ iskeletine platform kodu ekletirdi.
-  # sdk ^3.7.0 → CI Flutter 3.29.3 (Dart 3.7.2) ile uyumlu; ek bağımlılığı yok
-  # (glob/path/web). Çıkarma isolate'te koşar (LZMA/PPMd CPU-yoğun).
+  # Ek bağımlılığı yok (glob/path/web). Çıkarma isolate'te koşar (LZMA/PPMd CPU-yoğun).
   koni_archive: ^0.9.0
 
   # AI (Gemini REST) & ağ
@@ -146,11 +144,8 @@ dependencies:
   flutter_displaymode: ^0.7.0
 
   # ── Uzun işler: bildirim + medya dönüştürme ────────────────────────────────
-  # İş kuyruğunun (services/fm/job_queue.dart) sistem bildirimi. 17.2.4'e
-  # SABİT: sdk >=2.17 / flutter >=3.0 ister (CI 3.29.3 = Dart 3.7 rahat
-  # kapsıyor) ve Android tarafı compileSdk 34 + Java 8 ile derleniyor.
-  # 19.x KULLANILMADI: compileSdk 35 + Java 11 + desugar 2.1.4 dayatıyor,
-  # tek bir bildirim için CI'daki derleme zincirini yukarı çekmeye değmez.
+  # İş kuyruğunun (services/fm/job_queue.dart) sistem bildirimi.
+  # (Eski "17.2.4 sabiti" düştü: derleme zinciri compileSdk 37 / Java 17'de.)
   # NOT: paket java.time kullandığı için UYGULAMA modülünde de core library
   # desugaring açık olmalı — CI'da build.gradle'a yamalanıyor (bkz. workflow).
   # Zamanlanmış bildirim kullanmıyoruz → `timezone` ilklendirmesi ve
@@ -191,8 +186,8 @@ dependencies:
   url_launcher: ^6.3.2
   background_downloader: ^9.6.6
   # ── Ağ depolama (NAS): FTP/FTPS/FTPES · SFTP · SMB · WebDAV · LAN ─────────
-  # Hepsinin uyumluluğu bizim sürüm duvarımıza (Flutter 3.29.3 / Dart 3.7)
-  # karşı `pub add --dry-run` ile ÖLÇÜLDÜ; hiçbiri çözümlemeyi kırmıyor.
+  # Uyumluluk Faz 45–47'de (Flutter 3.47.9 / Dart 3.13) yeniden çözümlendi;
+  # kilitli olanlar aşağıda dependency_overrides'ta gerekçesiyle.
   #
   # SFTP — saf Dart SSH istemcisi (MIT). Tercih edilen protokol: tek şifreli
   # bağlantı, FTP'nin pasif mod port pazarlığı yok.
@@ -201,8 +196,6 @@ dependencies:
   dartssh2: ^4.1.0
   # FTP + FTPS (örtük) + FTPES (açık TLS) — saf Dart (MIT). Üç protokol tek
   # sınıfta (`FtpFs`), aradaki tek fark `SecurityType` ve varsayılan port.
-  # Alt sınır 2.0.10 (2026-11-02): eski CI (Flutter 3.29.3) 2.0.7'de kalıyordu,
-  # aralık o yüzden açıktı; artık her ortam 3.44.6 ve 2.0.10 çözümlüyor.
   # Enum ADLARI sürümler arasında değiştiği için (`SecurityType.FTPS` → `ftps`)
   # `ftp_fs.dart` sabitleri yine harf duyarsız arar. Bkz. HAFIZA 2026-08-05.
   ftpconnect: ^3.0.0

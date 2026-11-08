@@ -55,6 +55,51 @@ Future<bool> showAppConfirm(
   return ok ?? false;
 }
 
+/// [showAppConfirm] + "bir daha sorma" kutusu. Vazgeçme `null`; onayda
+/// kutunun durumu döner.
+Future<({bool remember})?> showAppConfirmRemember(
+  BuildContext context, {
+  String? title,
+  required String message,
+  required String rememberLabel,
+  String? confirmLabel,
+}) {
+  var remember = false;
+  return showDialog<({bool remember})>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setState) => AlertDialog(
+        title: title == null ? null : Text(title),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(message),
+            const SizedBox(height: 8),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              value: remember,
+              onChanged: (v) => setState(() => remember = v ?? false),
+              title: Text(rememberLabel),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(ctx.t('common.cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, (remember: remember)),
+            child: Text(confirmLabel ?? ctx.t('common.ok')),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 /// Alt levha: tutamaç (tema), isteğe bağlı başlık, kaydırılabilir gövde,
 /// alt sistem çubuğu ve klavye payı.
 Future<T?> showAppSheet<T>(

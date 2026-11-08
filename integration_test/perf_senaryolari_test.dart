@@ -1,3 +1,4 @@
+import 'package:dosya_okuyucu/widgets/whats_new.dart';
 import 'package:dosya_okuyucu/core/app_navigator.dart';
 import 'package:dosya_okuyucu/main.dart' as app;
 import 'package:dosya_okuyucu/screens/fm/browser_screen.dart';
@@ -56,6 +57,8 @@ void main() {
   }
 
   testWidgets('P13: açılış, klasör, galeri, PDF, Excel', (tester) async {
+    // "Neler yeni" levhası açılış ölçümüne girmesin (taban Faz 43'te yoktu).
+    await WhatsNew.markSeen();
     await binding.traceAction(() async {
       await app.main();
       await bekle(tester, 3000);

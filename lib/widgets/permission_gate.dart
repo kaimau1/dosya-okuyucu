@@ -7,6 +7,7 @@ import '../core/app_icons.dart';
 import '../core/app_navigator.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/snack.dart';
+import '../services/fm/fm_env.dart';
 import '../services/fm/storage_permission.dart';
 
 /// Uygulamanın istediği izinler — her biri için tek tip açıklama.
@@ -245,10 +246,16 @@ class PermissionStatusRow extends StatefulWidget {
   /// rehberde "verildi" görünsün diye varsayılan kapalı).
   final bool hideWhenGranted;
 
+  /// Gizlilik ve izinler sayfası: alt yazıda "neden" de yazar, izin
+  /// verilmişse "Geri al" (Android izni uygulama kendisi geri alamaz —
+  /// sistem ayarı açılır; dönünce satır tazelenir).
+  final bool detailed;
+
   const PermissionStatusRow({
     super.key,
     required this.permission,
     this.hideWhenGranted = false,
+    this.detailed = false,
   });
 
   @override
@@ -282,33 +289,51 @@ class _PermissionStatusRowState extends State<PermissionStatusRow>
     if (mounted) setState(() => _status = s);
   }
 
+  Future<void> _act() async {
+    final probe = PermissionGate.probe;
+    if (_status == GateStatus.granted ||
+        _status == GateStatus.permanentlyDenied) {
+      await probe.openSettings();
+      return;
+    }
+    final s = await probe.request(widget.permission);
+    if (s == GateStatus.granted && widget.permission == AppPermission.allFiles) {
+      await FmEnv.ensureInit(force: true);
+    }
+    if (mounted) setState(() => _status = s);
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Okuyucu derlemesinde bu izinler manifestte yok: satır anlamsız.
+    if (StoragePermission.readerBuild &&
+        const {AppPermission.allFiles, AppPermission.location,
+            AppPermission.overlay}.contains(widget.permission)) {
+      return const SizedBox.shrink();
+    }
     final k = PermissionCard.keyOf(widget.permission);
     final granted = _status == GateStatus.granted;
     if (widget.hideWhenGranted && (granted || _status == null)) {
       return const SizedBox.shrink();
     }
+    final state = context.t(granted ? 'perm.granted' : 'perm.${k}_without');
     return ListTile(
-      contentPadding: EdgeInsets.zero,
+      contentPadding: widget.detailed ? null : EdgeInsets.zero,
       leading: Icon(PermissionCard.iconOf(widget.permission)),
       title: Text(context.t('perm.${k}_title')),
-      subtitle: Text(context.t(granted ? 'perm.granted' : 'perm.${k}_without')),
-      trailing: _status == null || granted
+      subtitle: Text(widget.detailed
+          ? '${context.t('perm.${k}_why')}\n$state'
+          : state),
+      isThreeLine: widget.detailed,
+      trailing: _status == null || (granted && !widget.detailed)
           ? null
           : TextButton(
-              onPressed: () async {
-                final probe = PermissionGate.probe;
-                if (_status == GateStatus.permanentlyDenied) {
-                  await probe.openSettings();
-                } else {
-                  final s = await probe.request(widget.permission);
-                  if (mounted) setState(() => _status = s);
-                }
-              },
-              child: Text(context.t(_status == GateStatus.permanentlyDenied
-                  ? 'perm.open_settings'
-                  : 'perm.allow')),
+              onPressed: _act,
+              child: Text(context.t(granted
+                  ? 'perm.revoke'
+                  : _status == GateStatus.permanentlyDenied
+                      ? 'perm.open_settings'
+                      : 'perm.allow')),
             ),
     );
   }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show kProfileMode;
 import 'package:flutter/scheduler.dart' show SchedulerBinding, TimingsCallback;
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
@@ -60,10 +61,17 @@ import 'services/fm/remote/transfer_keeper.dart';
 import 'services/fm/open_history.dart';
 import 'services/fm/path_side_index.dart';
 import 'services/crash_log.dart';
+import 'services/ai_pool.dart';
+import 'services/offline_mode.dart';
+import 'widgets/ai_send_consent.dart';
 import 'services/diag_report.dart';
 import 'services/voice/neural_engine.dart';
 
-Future<void> main() async {
+/// Tüm uygulama [OfflineAwareClient] bölgesinde: çevrimdışı kipin tek
+/// kesim noktası (bkz. `services/offline_mode.dart`).
+Future<void> main() => http.runWithClient(_main, OfflineAwareClient.new);
+
+Future<void> _main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // **Hata yakalayıcı EN BAŞTA** (2026-08-28): bundan sonraki her satır —
   // seçici kipi dahil — kapsam içinde olsun. Uygulama mağazadan değil GitHub
@@ -222,6 +230,7 @@ Future<void> main() async {
   // kareden sonra, TEK sırada (bkz. StartupQueue).
   StartupQueue.instance.start(delay: DeviceProfile.budget.startupDelay);
   // Yeni dosyaların otomatik AI analizi (2026-11-06; ayar kapalıysa iş yok).
+  AiPool.consent = () => AiSendConsent.ask(appState);
   StartupQueue.instance.add(
     'ai-auto',
     () async => AiAutoAnalyze.install(
