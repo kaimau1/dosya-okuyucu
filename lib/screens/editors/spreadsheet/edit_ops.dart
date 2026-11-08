@@ -103,6 +103,7 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
       } else {
         _editor = _SpreadsheetEditorScreenState._readAndParse(widget.path);
       }
+      _openAtSavedView();
       _syncField();
       if (SpreadsheetEditorScreen.exposeForTest) {
         SpreadsheetEditorScreen.testEditor = _editor;
@@ -126,6 +127,26 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
       final z = _sheet?.layout.zoomScale ?? 1;
       if (mounted && z != 1) _zoomCtl.setZoom(z.clamp(0.3, 3).toDouble());
       _updateColWindow();
+    });
+  }
+
+  /// Dosyayı Excel'in bıraktığı yerde açar (uyumluluk): `activeTab`
+  /// sayfası (gizliyse ilk görünür) ve o sayfanın kayıtlı etkin hücresi.
+  /// Eskiden her dosya 1. sayfa A1'de açılıyordu.
+  void _openAtSavedView() {
+    final e = _editor;
+    if (e == null || e.sheets.isEmpty) return;
+    var i = e.workbook.activeTab;
+    if (i < 0 || i >= e.sheets.length || e.sheets[i].layout.hidden) {
+      i = e.sheets.indexWhere((s) => !s.layout.hidden);
+    }
+    _sheetIndex = i < 0 ? 0 : i;
+    final at = e.sheets[_sheetIndex].layout.activeCell;
+    if (at == null || (at.$1 == 0 && at.$2 == 0)) return;
+    _selRow = _anchorRow = at.$1;
+    _selCol = _anchorCol = at.$2;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _ensureVisible(_selRow, _selCol);
     });
   }
 
