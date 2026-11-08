@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import '../core/l10n/app_strings.dart';
+import 'offline_mode.dart';
 
 class ChatTurn {
   final bool fromUser;
@@ -40,6 +41,14 @@ class GeminiService {
 
   GeminiService({required this.apiKey, required this.model});
 
+  /// Çevrimdışı kipte istek hiç kurulmaz; kalıcı hata (-1) — toplu kuyruk
+  /// "ağ hatası" (0) sanıp yeniden denemesin.
+  static void _offlineGuard() {
+    if (OfflineMode.enabled) {
+      throw GeminiException(const OfflineException().message, statusCode: -1);
+    }
+  }
+
   static const _base = 'https://generativelanguage.googleapis.com/v1beta';
 
   Uri _endpoint() =>
@@ -55,6 +64,7 @@ class GeminiService {
       throw GeminiException('Önce Ayarlar > API anahtarı bölümünden '
           'Gemini API anahtarınızı girin.');
     }
+    _offlineGuard();
 
     // Yanıt dili ARAYÜZ dili (2026-09-27): istem "Türkçe yanıt ver" diye
     // sabitti; İngilizce/Arapça arayüzde de Türkçe yanıt geliyordu.
@@ -149,6 +159,7 @@ class GeminiService {
       throw GeminiException('Önce Ayarlar > API anahtarı bölümünden '
           'Gemini API anahtarınızı girin.');
     }
+    _offlineGuard();
 
     final parts = <String>[
       ?systemInstruction,
@@ -237,6 +248,7 @@ class GeminiService {
       throw GeminiException('Önce Ayarlar > API anahtarı bölümünden '
           'Gemini API anahtarınızı girin.');
     }
+    _offlineGuard();
     if (previews.length < 2) {
       throw GeminiException('Karşılaştırmak için en az iki görsel gerekir.');
     }
@@ -302,6 +314,7 @@ class GeminiService {
     if (key.isEmpty) {
       throw GeminiException('API anahtarı boş.');
     }
+    _offlineGuard();
     late http.Response resp;
     try {
       resp = await http.get(Uri.parse('$_base/models?key=$key&pageSize=200'));
