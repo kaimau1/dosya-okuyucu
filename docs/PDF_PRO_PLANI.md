@@ -161,7 +161,7 @@ Amaç: bundan sonraki her kararı sayıyla vermek ve bildirilen sorunların hız
        (ikinci çizici) — kurulum CI adımına.
 3. [ ] **Taban raporu** `docs/perf/2026-11-pdfpro-51-taban.md`: şimdiki motorun sayıları (ileride
        karşılaştırma tabanı).
-4. [ ] **PS3 düzeltmesi:** kayıt bildirimi kök gezgin anahtarıyla açar (ekran kapansa da çalışır);
+4. [x] **PS3 düzeltmesi:** kayıt bildirimi kök gezgin anahtarıyla açar (ekran kapansa da çalışır);
        bildirimin gövdesine dokunmak da açar; kopya **son dosyalar + Belgeler** listesinin başına
        anında düşer (`AppState.addRecent` + `FsEvents.changed`, genel klasörse MediaStore taraması);
        görüntüleyici kopya kaydedildiyse **kopyayı** açar. Test: bildirim eylemi editör kapandıktan

@@ -78,19 +78,20 @@ class PdfEditorScreen extends StatefulWidget {
     this.initialPage = 1,
   });
 
-  /// Ekranı açar; bir şey kaydedildiyse `true` döner (çağıran tazelesin).
-  static Future<bool> open(
+  /// Ekranı açar; kaydedildiyse YAZILAN dosyanın yolu döner (özgünün
+  /// üzerine yazıldıysa özgün yol, kopyaysa kopyanın yolu), yoksa null.
+  /// PS3 (Faz 51): görüntüleyici kopyayı açabilsin diye yol taşınır.
+  static Future<String?> open(
     BuildContext context, {
     required String path,
     int initialPage = 1,
-  }) async {
-    final saved = await Navigator.of(context).push<bool>(
+  }) {
+    return Navigator.of(context).push<String>(
       MaterialPageRoute(
         builder: (_) =>
             PdfEditorScreen(path: path, initialPage: initialPage),
       ),
     );
-    return saved ?? false;
   }
 
   @override
@@ -129,6 +130,9 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   PdfEditHistory<PdfOverlayLayer>? _history;
 
   bool get _dirty => _history?.dirty ?? false;
+
+  /// Son kaydın yazıldığı yol (ekran kapanınca çağırana döner).
+  String? _savedPath;
   PdfOverlayLayer get _layer => _history?.layer ?? PdfOverlayLayer.empty;
 
   _EditMode _mode = _EditMode.text;
@@ -275,7 +279,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         // ekran kapanmışsa hatalı (use_build_context_synchronously).
         final navigator = Navigator.of(context);
         final leave = await _confirmLeave();
-        if (leave && mounted) navigator.pop(!_dirty);
+        if (leave && mounted) navigator.pop(_savedPath);
       },
       child: Scaffold(
         appBar: AppBar(
@@ -305,7 +309,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                   ? null
                   : () async {
                       final navigator = Navigator.of(context);
-                      if (await _save() && mounted) navigator.pop(true);
+                      if (await _save() && mounted) navigator.pop(_savedPath);
                     },
             ),
           ],
@@ -326,7 +330,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
               ? null
               : () async {
                   final navigator = Navigator.of(context);
-                  if (await _save() && mounted) navigator.pop(true);
+                  if (await _save() && mounted) navigator.pop(_savedPath);
                 },
           escape: _inlineOpen && !_inlineApplying ? _cancelInline : null,
           child: EditorChrome(

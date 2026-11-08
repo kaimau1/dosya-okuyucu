@@ -22,14 +22,25 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
       path: widget.doc.path,
       initialPage: (page != null && page > 0) ? page : (_livePdfPage() ?? _pdfPage),
     );
-    if (saved && mounted) {
-      _partSetState(() => _pdfText = '');
-      final page = PdfEditorScreen.lastPage;
-      await _reloadPdf();
-      // Düzenlenen sayfada kalınsın.
-      if (mounted && page > 0 && _pdfCount > 0) {
-        await _goToPdfPage(page, _pdfCount);
+    if (saved == null || !mounted) return;
+    // PS3 (Faz 51): KOPYA kaydedildiyse görüntüleyici özgünü tazelemez,
+    // kopyayı açar — düzenlenen sayfada ([PdfEditorScreen.lastPage]).
+    if (!p.equals(saved, widget.doc.path)) {
+      final file = File(saved);
+      if (file.existsSync() && _pdfCount > 0) {
+        ReadingPositions.record(saved, PdfEditorScreen.lastPage, _pdfCount,
+            size: file.lengthSync());
       }
+      Navigator.of(context).pop();
+      await openSavedPdf(saved);
+      return;
+    }
+    _partSetState(() => _pdfText = '');
+    final editedPage = PdfEditorScreen.lastPage;
+    await _reloadPdf();
+    // Düzenlenen sayfada kalınsın.
+    if (mounted && editedPage > 0 && _pdfCount > 0) {
+      await _goToPdfPage(editedPage, _pdfCount);
     }
   }
 

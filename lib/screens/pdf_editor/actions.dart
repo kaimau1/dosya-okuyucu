@@ -463,6 +463,7 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
       note: _str.t('pe.save_note'),
     );
     if (outcome == null) return false;
+    _savedPath = outcome.path;
     if (mounted) _partSetState(() => _history!.markSaved());
     return true;
   }
