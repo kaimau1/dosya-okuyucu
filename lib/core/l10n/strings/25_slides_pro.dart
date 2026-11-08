@@ -229,4 +229,7 @@ const Map<String, (String, String, String)> _t25 = {
   'ss.volume_keys': ('Ses tuşlarıyla ilerle', 'Advance with volume keys', 'التقدم بأزرار الصوت'),
   'ss.web_remote': ('Yerel ağdan kumanda', 'Remote over local network', 'التحكم عبر الشبكة المحلية'),
   'ss.second_screen': ('İkinci ekranda göster', 'Show on second screen', 'العرض على شاشة ثانية'),
+  'ss.blank_black': ('Siyah ekran', 'Black screen', 'شاشة سوداء'),
+  'ss.blank_white': ('Beyaz ekran', 'White screen', 'شاشة بيضاء'),
+  'ss.all_slides': ('Tüm slaytlar', 'All slides', 'كل الشرائح'),
 };

@@ -301,6 +301,8 @@ abstract final class AppIcons {
   static const IconData gifBox = Icons.gif_box_rounded;
   static const IconData graphicEq = Icons.graphic_eq_rounded;
   static const IconData gridOn = Icons.grid_on_rounded;
+  static const IconData blankScreen = Icons.tv_off_rounded;
+  static const IconData slidesGrid = Icons.view_module_rounded;
   static const IconData handyman = Icons.handyman_rounded;
   static const IconData height = Icons.height_rounded;
   static const IconData hideImage = Icons.hide_image_rounded;
