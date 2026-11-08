@@ -55,7 +55,7 @@ on:
       play_remove:
         description: 'Play AAB''sinden çıkarılacak izinler (virgüllü kısa adlar)'
         type: string
-        default: 'QUERY_ALL_PACKAGES'
+        default: 'QUERY_ALL_PACKAGES,READ_MEDIA_IMAGES,READ_MEDIA_VIDEO,READ_MEDIA_AUDIO,READ_MEDIA_VISUAL_USER_SELECTED'
 
 permissions:
   contents: write
@@ -397,7 +397,7 @@ jobs:
         env:
           KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'DosyaOkuyucuGecici' }}
           DOSYA_PLAY: ${{ inputs.play && '1' || '0' }}
-          DOSYA_PLAY_REMOVE: ${{ inputs.play_remove || 'QUERY_ALL_PACKAGES' }}
+          DOSYA_PLAY_REMOVE: ${{ inputs.play_remove || 'QUERY_ALL_PACKAGES,READ_MEDIA_IMAGES,READ_MEDIA_VIDEO,READ_MEDIA_AUDIO,READ_MEDIA_VISUAL_USER_SELECTED' }}
         run: |
           set -e
           # Play izin varyantı (A6.4): APK'lar ZATEN derlendi; manifest yalnız
