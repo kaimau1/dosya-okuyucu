@@ -440,6 +440,10 @@ class PdfInlineParagraphEditor extends StatelessWidget {
   final bool? bold;
   final int? colorArgb;
 
+  /// Alanın çizildiği aile — belgenin fontuna en yakın gömülü aile
+  /// (`PdfFontClass.previewFamily`; PS2c, Faz 51).
+  final String fontFamily;
+
   const PdfInlineParagraphEditor({
     super.key,
     required this.rect,
@@ -455,6 +459,7 @@ class PdfInlineParagraphEditor extends StatelessWidget {
     this.applying = false,
     this.bold,
     this.colorArgb,
+    this.fontFamily = 'Carlito',
   });
 
   static const _border = 1.5;
@@ -473,9 +478,10 @@ class PdfInlineParagraphEditor extends StatelessWidget {
     required int lines,
     required double height,
     TextDirection direction = TextDirection.ltr,
+    String family = 'Carlito',
   }) {
     if (text.trim().isEmpty || width <= 0 || size <= 0) return 1;
-    final key = '$width|$size|$lines|$height|$text';
+    final key = '$family|$width|$size|$lines|$height|$text';
     final cached = _fitCache[key];
     if (cached != null) return cached;
     var ratio = 1.0;
@@ -484,7 +490,7 @@ class PdfInlineParagraphEditor extends StatelessWidget {
       painter.text = TextSpan(
           text: text,
           style: TextStyle(
-              fontFamily: 'Carlito',
+              fontFamily: family,
               fontSize: size * ratio,
               height: height,
               letterSpacing: 0,
@@ -518,6 +524,7 @@ class PdfInlineParagraphEditor extends StatelessWidget {
             lines: originalLines,
             height: height,
             direction: Directionality.of(context),
+            family: fontFamily,
           );
     return Positioned(
       // Kenarlık ve iç boşluk DIŞA açılır: yazının sığdığı genişlik
@@ -555,7 +562,7 @@ class PdfInlineParagraphEditor extends StatelessWidget {
                   // karışmasın — sayfadaki yazının harf aralığı yok; o 0,5 px
                   // tek satırı iki satıra itiyordu.
                   style: TextStyle(
-                    fontFamily: 'Carlito',
+                    fontFamily: fontFamily,
                     fontSize: pointSize * ratio,
                     height: height,
                     letterSpacing: 0,

@@ -33,6 +33,8 @@
 /// 320/360/412 dp genişliklerde çizip taşma olmadığını doğruluyor.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../core/app_icons.dart';
@@ -247,6 +249,20 @@ class PdfSelectionBar extends StatelessWidget {
   final String doneLabel;
   final String colorTooltip;
 
+  /// PS5 (PDF Pro Faz 51): seçimin TAMAMI. Verilirse önizlemeye dokununca
+  /// kaydırılabilir alanda açılır (eskiden 34 karakterde kesiliyordu ve
+  /// uzun seçimin neyi kapsadığını görmenin yolu yoktu).
+  final String? fullText;
+
+  /// Genişletilmiş alanın üstündeki "N karakter · M sözcük" satırı.
+  final String countLabel;
+
+  /// Önizleme genişletilmiş mi (durum çağıranda; seçim değişince kapanır).
+  final bool expanded;
+  final VoidCallback? onToggleExpanded;
+  final String expandTooltip;
+  final String collapseTooltip;
+
   const PdfSelectionBar({
     super.key,
     required this.preview,
@@ -272,12 +288,30 @@ class PdfSelectionBar extends StatelessWidget {
     this.undoLabel = '',
     this.doneLabel = '',
     this.colorTooltip = '',
+    this.fullText,
+    this.countLabel = '',
+    this.expanded = false,
+    this.onToggleExpanded,
+    this.expandTooltip = '',
+    this.collapseTooltip = '',
   });
+
+  bool get _canExpand =>
+      fullText != null && onToggleExpanded != null && !marking;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
+    final previewText = Text(
+      marking && markedLabel.isNotEmpty ? '$markedLabel · $preview' : preview,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: text.bodyMedium?.copyWith(
+        color: scheme.onSurface,
+        fontWeight: FontWeight.w500,
+      ),
+    );
     return PdfFloatingCard(
       child: AnimatedSize(
         duration: Motion.of(context, Motion.short),
@@ -309,17 +343,35 @@ class PdfSelectionBar extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      marking && markedLabel.isNotEmpty
-                          ? '$markedLabel · $preview'
-                          : preview,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: text.bodyMedium?.copyWith(
-                        color: scheme.onSurface,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                    child: !_canExpand
+                        ? previewText
+                        : Semantics(
+                            button: true,
+                            expanded: expanded,
+                            label: expanded ? collapseTooltip : expandTooltip,
+                            excludeSemantics: false,
+                            child: InkWell(
+                              key: const ValueKey('pdf-sel-expand'),
+                              borderRadius: BorderRadius.circular(8),
+                              onTap: onToggleExpanded,
+                              child: ConstrainedBox(
+                                constraints:
+                                    const BoxConstraints(minHeight: 40),
+                                child: Row(
+                                  children: [
+                                    Expanded(child: previewText),
+                                    Icon(
+                                      expanded
+                                          ? AppIcons.expandLess
+                                          : AppIcons.expandMore,
+                                      size: 20,
+                                      color: scheme.onSurfaceVariant,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
                   ),
                   if (moreItems.isNotEmpty && !marking)
                     PopupMenuButton<int>(
@@ -358,6 +410,8 @@ class PdfSelectionBar extends StatelessWidget {
                 ],
               ),
             ),
+            if (_canExpand && expanded)
+              _SelectionFullText(text: fullText!, countLabel: countLabel),
             if (marking)
               _MarkingRow(
                 colors: colors,
@@ -523,6 +577,57 @@ class _Swatch extends StatelessWidget {
                     : null,
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Seçimin tamamı — en fazla ekranın üçte biri kadar yer kaplar, fazlası
+/// kendi içinde kayar (seçim çubuğu belgeyi örtmesin).
+class _SelectionFullText extends StatelessWidget {
+  final String text;
+  final String countLabel;
+  const _SelectionFullText({required this.text, required this.countLabel});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final type = Theme.of(context).textTheme;
+    final maxH = math.min(220.0, MediaQuery.sizeOf(context).height / 3);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (countLabel.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(countLabel,
+                      style: type.labelSmall
+                          ?.copyWith(color: scheme.onSurfaceVariant)),
+                ),
+              ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: maxH),
+                child: Scrollbar(
+                  child: SingleChildScrollView(
+                    key: const ValueKey('pdf-sel-full'),
+                    child: Text(text,
+                        style:
+                            type.bodyMedium?.copyWith(color: scheme.onSurface)),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

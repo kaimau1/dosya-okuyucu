@@ -6,9 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
 import '../core/app_icons.dart';
+import '../core/app_navigator.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/fm/entry_opener.dart';
 import '../services/fm/activity_log.dart';
+import '../services/fm/fs_events.dart';
 import '../services/pdf_save.dart';
 import '../core/snack.dart';
 import '../core/user_error.dart';
@@ -71,8 +73,14 @@ Future<PdfSaveOutcome?> savePdfWithChoice(
   // klasör klasör aramasın (istek 2026-08-07).
   unawaited(ActivityLog.add(ActivityKind.pdfEdit, written,
       detail: note ?? ''));
+  // PS3 (PDF Pro Faz 51): kopya SON DOSYALAR'ın ve Belgeler'in başına hemen
+  // düşer; genel klasördeyse MediaStore'a da bildirilir (FsEvents → MediaScan).
+  FsEvents.changed([written]);
   if (context.mounted) {
-    _announce(context, written, choice == _SaveChoice.overwrite);
+    await EntryOpener.rememberFile(context, written);
+  }
+  if (context.mounted) {
+    announcePdfSaved(context, written, choice == _SaveChoice.overwrite);
   }
   return PdfSaveOutcome(
     path: written,
@@ -95,22 +103,41 @@ Future<String> _writeInto(
 }
 
 /// Nereye kaydedildiğini söyler; kopyaysa klasörü de yazar ve "AÇ" sunar.
-void _announce(BuildContext context, String written, bool overwritten) {
+///
+/// PS3 kök nedeni (Faz 51): eylem çağıranın (editör ekranının) `context`iyle
+/// açıyordu; kayıttan hemen sonra editör kapandığı için `context.mounted`
+/// false → "Aç"a dokunmak sessizce boşa gidiyordu. Bildirim küresel katmanda
+/// yaşıyor; açma da KÖK gezgin üzerinden yapılır ([openSavedPdf]).
+@visibleForTesting
+void announcePdfSaved(BuildContext context, String written, bool overwritten) {
   final messenger = ScaffoldMessenger.of(context);
-  showSnackBarReplacing(messenger, SnackBar(
+  ToastHandle? handle;
+  void open() {
+    handle?.close();
+    openSavedPdf(written);
+  }
+
+  handle = showSnackBarReplacing(messenger, SnackBar(
     duration: const Duration(seconds: 8),
-    content: Text(
-      overwritten
-          ? context.t('ps.saved_as', {'name': p.basename(written)})
-          : '${p.basename(written)}\n${p.dirname(written)}',
+    // Gövdeye dokunmak da açar (kullanıcı küçük "AÇ" düğmesini aramasın).
+    content: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: open,
+      child: Text(
+        overwritten
+            ? context.t('ps.saved_as', {'name': p.basename(written)})
+            : '${p.basename(written)}\n${p.dirname(written)}',
+      ),
     ),
-    action: SnackBarAction(
-      label: context.t('ps.open'),
-      onPressed: () {
-        if (context.mounted) EntryOpener.open(context, written);
-      },
-    ),
+    action: SnackBarAction(label: context.t('ps.open'), onPressed: open),
   ));
+}
+
+/// Kaydedilen PDF'i KÖK gezginle açar — çağıran ekran kapanmış olsa da.
+Future<void> openSavedPdf(String path) async {
+  final root = navigatorKey.currentContext;
+  if (root == null || !root.mounted) return;
+  await EntryOpener.open(root, path);
 }
 
 enum _SaveChoice { overwrite, copy, chooseFolder }

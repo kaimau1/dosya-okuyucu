@@ -143,6 +143,7 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
       final paragraph = _inlineIndex != null;
       final applying = _inlineApplying;
       return Column(
+        key: _editBarKey,
         mainAxisSize: MainAxisSize.min,
         children: [
           _inlineStatus(),
@@ -383,6 +384,18 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
     _closeEditors();
     _openInline(_outline.paragraphs[index].text, paragraph: index);
     _zoomToParagraph(index);
+    unawaited(_loadInlineFamily(index));
+  }
+
+  /// PS2c (Faz 51): alan belgenin fontuna en yakın gömülü aileyle çizilir.
+  Future<void> _loadInlineFamily(int index) async {
+    final bytes = _history?.bytes;
+    if (bytes == null) return;
+    final base = await PdfPageEdit.paragraphBaseFontInBackground(bytes,
+        pageIndex: _page - 1, paragraphIndex: index);
+    if (!mounted || _inlineIndex != index) return;
+    final family = PdfFontClass.of(base ?? '').previewFamily;
+    if (family != _inlineFamily) _partSetState(() => _inlineFamily = family);
   }
 
   /// Ortak açılış: paragraf ([paragraph]) ya da OCR satırı ([scanned]).
@@ -446,25 +459,68 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
 
   /// Paragrafı görünür ve okunur boyda gösterir: hedef, ekranda ~18 px yazı.
   void _zoomToParagraph(int index) {
-    // Klavye açılıp görünüm küçüldükten SONRA (yoksa paragraf klavyenin
-    // altında kalır).
-    Future.delayed(Motion.long, () {
-      if (!mounted || _inlineIndex != index) return;
+    final par = _outline.paragraphs[index];
+    final pt = paragraphPointSize(par);
+    _zoomToBox(PdfRect(par.left, par.top, par.right, par.bottom),
+        pt > 0 ? pt : 11, () => _inlineIndex == index);
+  }
+
+  /// Yerinde alanı ([box], PDF noktası) okunur boya (~18 px) getirir ve
+  /// klavye + hızlı çubuğun örtmediği bölgede ortalar (PS4, Faz 51: OCR
+  /// satırında da). [stillOpen] false olduysa (alan kapandı) vazgeçer.
+  void _zoomToBox(PdfRect box, double pointSize, bool Function() stillOpen) {
+    // Klavye açıldıktan SONRA (örtülen pay o zaman bilinir).
+    Future.delayed(Motion.long, () async {
+      if (!mounted || !stillOpen()) return;
       try {
-        final par = _outline.paragraphs[index];
-        final pt = paragraphPointSize(par);
-        final onScreen = (pt > 0 ? pt : 11) * _pageScale;
+        final onScreen = pointSize * _pageScale;
         final zoom = (18 / onScreen).clamp(1.0, 4.0);
-        final rect = _controller.calcRectForRectInsidePage(
-          pageNumber: _page,
-          rect: PdfRect(par.left, par.top, par.right, par.bottom),
-        );
-        _controller.goTo(_controller.calcMatrixForRect(rect,
+        final rect =
+            _controller.calcRectForRectInsidePage(pageNumber: _page, rect: box);
+        await _controller.goTo(_controller.calcMatrixForRect(rect,
             zoomMax: math.max(zoom, _controller.currentZoom), margin: 16));
+        // Klavye zaten açıksa satır örtülmeyen bölgeye (açılırsa
+        // didChangeMetrics aynı işi yapar).
+        if (mounted) _revealInline();
       } catch (_) {
         // Görüntüleyici hazır değilse yakınlaşma kritik değil.
       }
     });
+  }
+
+  /// İmlecin bulunduğu satır klavye + düzenleme çubuğunun örttüğü bölgedeyse
+  /// görüntü (yakınlık değişmeden) kaydırılır: satır, örtülmeyen şeridin
+  /// ortasına gelir. Örtü ÖLÇÜLÜR (çubuğun gerçek üst kenarı), tahmin değil.
+  void _revealInline() {
+    final geom = _inlineGeom;
+    final ctrl = _inlineCtrl;
+    final viewer = _viewerKey.currentContext?.findRenderObject();
+    if (geom == null || ctrl == null || viewer is! RenderBox) return;
+    try {
+      final top = viewer.localToGlobal(Offset.zero).dy;
+      final bar = _editBarKey.currentContext?.findRenderObject();
+      final barTop = bar is RenderBox && bar.attached
+          ? bar.localToGlobal(Offset.zero).dy
+          : top + viewer.size.height;
+      final visibleH = math.min(barTop, top + viewer.size.height) - top;
+      if (visibleH < 24) return;
+      final doc = _controller.calcRectForRectInsidePage(
+          pageNumber: _page, rect: geom.box);
+      final frac = ctrl.text.isEmpty
+          ? 0.0
+          : (ctrl.selection.extentOffset.clamp(0, ctrl.text.length) /
+              ctrl.text.length);
+      final docY = doc.top + frac * doc.height;
+      final local = MatrixUtils.transformPoint(
+          _controller.value, Offset(doc.left, docY));
+      final margin = math.min(48.0, visibleH / 4);
+      if (local.dy >= margin && local.dy <= visibleH - margin) return;
+      final m = _controller.value.clone()
+        ..leftTranslateByDouble(0, visibleH / 2 - local.dy, 0, 1);
+      _controller.goTo(m);
+    } catch (_) {
+      // Görüntüleyici hazır değil: kaydırma kritik değil.
+    }
   }
 
   List<Widget> _inlineLayer(PdfPage page, Size pageSize) {
@@ -496,6 +552,7 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
         applying: _inlineApplying,
         bold: _inlineBold,
         colorArgb: _inlineColor,
+        fontFamily: _inlineScanned == null ? _inlineFamily : 'Carlito',
       ),
     ];
   }

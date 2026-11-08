@@ -147,37 +147,41 @@ Sıra bağımlılığa göre. ☁️ = bulut, 💻📱 = yerel + cihaz. Tahmini 
 
 ### Faz 51 — Temel: külliyat, ölçüm tezgâhı ve kanamayı durdurma ☁️ + 📱 (2–3 oturum)
 Amaç: bundan sonraki her kararı sayıyla vermek ve bildirilen sorunların hızlı kısmını hemen gidermek.
-1. [ ] **Külliyat** `test/fixtures/pdf_corpus/` (≥ 60 PDF, her biri ≤ 300 KB, Türkçe karakterli,
+1. [x] **Külliyat** `test/fixtures/pdf_corpus/` (≥ 60 PDF, her biri ≤ 300 KB, Türkçe karakterli,
        kişisel veri yok): Word (Windows'ta "PDF olarak kaydet" — 💻 kullanıcı üretir, sentetik metin),
        LibreOffice, Google Docs, Chrome/Skia (headless baskı), Syncfusion, `pdf` paketi, ReportLab,
        LaTeX, Quartz benzeri; çok sütunlu, tablolu, listeli, iki yana yaslı, döndürülmüş sayfa, Arapça
        (RTL), Type3 fontlu, şifreli (sahip parolalı), formlu, taranmış + OCR katmanlı, karma (logo +
        metin — PS2'nin birebir benzeri). `CORPUS.md`: üretici, özellik, beklenen paragraf sayısı.
-2. [ ] **Ölçüm tezgâhı** `tool/pdf_pro_bench.dart` + `test/pdf_pro/bench_test.dart` (CI'da):
+2. [x] **Ölçüm tezgâhı** `tool/pdf_pro_bench.dart` + `test/pdf_pro/bench_test.dart` (CI'da):
        paragraf kapsaması (% karakter düzenlenebilir blokta), düzenleme başarı oranı (her paragrafı
        değiştir → yeniden çıkar → metin doğru mu), **değişmeyen bölge piksel farkı** (PDFium çizimi,
        blok kutusu + 2 pt dışında 0 olmalı), font sadakati (yedek fonta düşen harf oranı, `.notdef`
        sayısı = 0), çıktı büyümesi, gecikme. Bağımsız doğrulama: CI'da `qpdf --check` + `mutool draw`
        (ikinci çizici) — kurulum CI adımına.
-3. [ ] **Taban raporu** `docs/perf/2026-11-pdfpro-51-taban.md`: şimdiki motorun sayıları (ileride
+3. [x] **Taban raporu** `docs/perf/2026-11-pdfpro-51-taban.md`: şimdiki motorun sayıları (ileride
        karşılaştırma tabanı).
-4. [ ] **PS3 düzeltmesi:** kayıt bildirimi kök gezgin anahtarıyla açar (ekran kapansa da çalışır);
+4. [x] **PS3 düzeltmesi:** kayıt bildirimi kök gezgin anahtarıyla açar (ekran kapansa da çalışır);
        bildirimin gövdesine dokunmak da açar; kopya **son dosyalar + Belgeler** listesinin başına
        anında düşer (`AppState.addRecent` + `FsEvents.changed`, genel klasörse MediaStore taraması);
        görüntüleyici kopya kaydedildiyse **kopyayı** açar. Test: bildirim eylemi editör kapandıktan
        sonra dosyayı açıyor.
-5. [ ] **PS5 düzeltmesi:** seçim çubuğunda önizleme genişletilebilir (dokun → tüm seçim kaydırılabilir
+5. [x] **PS5 düzeltmesi:** seçim çubuğunda önizleme genişletilebilir (dokun → tüm seçim kaydırılabilir
        alanda, karakter/sözcük sayısı); çubuk seçimi örtüyorsa seçimin üstüne yerleşir.
-6. [ ] **PS1 ara düzeltme:** "Düzenle" seçimin dikdörtgenini ve metnini geçirir; editör o sayfada
+6. [x] **PS1 ara düzeltme:** "Düzenle" seçimin dikdörtgenini ve metnini geçirir; editör o sayfada
        seçimle en çok örtüşen paragrafı **doğrudan düzenleme kipinde** açar, imleç seçimin başına.
-7. [ ] **PS4 ara düzeltme:** düzenleyicide klavye görüntüleyiciyi küçültmez
+7. [x] **PS4 ara düzeltme:** düzenleyicide klavye görüntüleyiciyi küçültmez
        (`resizeToAvoidBottomInset: false` + düzenlenen satırı klavyenin üstüne kaydırma); OCR satırında
        da okunur boya yakınlaşma; uygulamadan sonra yakınlaştırma matrisi geri yüklenir.
-8. [ ] **PS2 ara düzeltme:** `_ocrEditable` doğal metinli sayfada logo yüzünden OCR açmaz (yalnız
+8. [x] **PS2 ara düzeltme:** `_ocrEditable` doğal metinli sayfada logo yüzünden OCR açmaz (yalnız
        sayfanın metin katmanı gerçekten yoksa ya da OCR satırı görsel bölgesinin içindeyse); düzenleme
        alanı Carlito yerine belgenin fontuna en yakın gömülü aileyle (Carlito/Tinos/Arimo) çizilir.
 **Bitti:** külliyat + tezgâh CI'da yeşil, taban raporu yazıldı; PS1/3/4/5 ara düzeltmeleri cihazda
 doğrulandı (📱 kısa tur: 6 ekran görüntüsünün her biri yeniden denenir).
+**Sonuç (2026-11-08, PR `faz-51`):** 68 PDF / 8 üretici; taban kapsama %63,6, başarı %54,2 (aynı
+harf) / %34,2 (Türkçe harf), Word'de 0 paragraf (kök: satır başına kırpma bloğu) →
+`docs/perf/2026-11-pdfpro-51-taban.md`. PS1–PS5 MatePad'de ✅ (`docs/CIHAZ_TESTI.md`). Ek bulgu:
+sahip parolalı belgede kilit açma düzeltildi; AES-256 kopyası KALANLAR'da.
 
 ### Faz 52 — Motor köprüsü: PDFium düzenleme API'si + karar kapısı ☁️ (2–3 oturum)
 1. [ ] `third_party/pdfrx_engine` (0.9.x) depoya alınır, `YAMA.md`; pdfrx bağımlılığı yerel yola.

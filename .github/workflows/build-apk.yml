@@ -200,6 +200,21 @@ jobs:
         if: env.MOD != 'atla'
         run: flutter pub get --enforce-lockfile
 
+      # PDFium ikilisi (pdfium_dart kancası): önbellek + `gh` ile önceden
+      # indirme — GitHub indirme ucu 504 verince bütün testler kırılıyordu
+      # (2026-11-08). Bkz. tool/pdfium_onyukle.sh.
+      - name: PDFium önbelleği
+        if: env.MOD != 'atla'
+        uses: actions/cache@v4
+        with:
+          path: .dart_tool/hooks_runner/shared/pdfium_dart/build/chromium_*
+          key: pdfium-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
+      - name: PDFium önden indir
+        if: env.MOD != 'atla'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash tool/pdfium_onyukle.sh linux-x64
+
       # KAPI (2026-08-28): `flutter analyze` info seviyesinde de sıfır dışı
       # çıkar — bu adım "hiç uyarı yok" demektir. Başka bir Flutter sürümü
       # denenirken kullanımdan kaldırma uyarıları BEKLENİR → bağlayıcı değil.
@@ -226,6 +241,8 @@ jobs:
           # Perf etiketli dosyalar ayrı kapıda koşar (aşağıda) — burada çift
           # koşmasın (--exclude-tags yalnız perf dosyası kalınca "No tests ran" = 79).
           mapfile -t files < <(for f in "${files[@]}"; do grep -qE "@Tags\(\[.perf.\]\)" "$f" || echo "$f"; done)
+          # PDF Pro tezgâhı kendi adımında (qpdf + mutool ile) koşar.
+          mapfile -t files < <(for f in "${files[@]}"; do [ "$f" = test/pdf_pro/bench_test.dart ] || echo "$f"; done)
           if [ ${#files[@]} -eq 0 ]; then echo "Bu parçada yalnız perf testleri vardı."; exit 0; fi
           flutter test "${files[@]}"
 
@@ -242,6 +259,28 @@ jobs:
           {
             echo "## Perf ölçümleri (CI, debug JIT — cihaz değil)"
             echo '```'; grep -oE 'PERF [a-z0-9_]+=[^ ]+( [a-z0-9_]+=[^ ]+)*' perf.log | sort -u; echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # PDF PRO TEZGÂHI (Faz 51, PK8): külliyatta düzenleme motoru ölçülür;
+      # taban (test/pdf_pro/baseline.json) altına düşmek kırmızı. Bağımsız
+      # doğrulayıcılar: qpdf --check + mutool draw (ikinci çizici). Yalnız
+      # tezgâh seçime girdiyse (PDF kodu/külliyat değişti) ya da tam takımda.
+      - name: PDF Pro tezgâhı (qpdf + mutool)
+        if: >-
+          env.MOD != 'atla' && matrix.shard == 0 &&
+          (env.MOD != 'secili' || contains(needs.changes.outputs.test_liste, 'test/pdf_pro/bench_test.dart'))
+        run: |
+          set -o pipefail
+          sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends qpdf mupdf-tools >/dev/null
+          qpdf --version | head -1
+          # Linux flutter_tester'da pdfium_dart yerel varlığı yüklenemiyor
+          # ("Native assets file not found") → önden indirilen kütüphane.
+          export PDFIUM_PATH=$(ls "$PWD"/.dart_tool/hooks_runner/shared/pdfium_dart/build/chromium_*/linux-x64/libpdfium.so | head -1)
+          echo "PDFIUM_PATH=$PDFIUM_PATH"
+          flutter test test/pdf_pro/bench_test.dart 2>&1 | tee bench.log
+          {
+            echo "## PDF Pro tezgâhı"
+            echo '```'; grep -E '^PDFPRO_' bench.log; echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
       # C11: `ci/*.kt` yalnız APK derlemesinde derleniyordu; tek satırlık bir
@@ -326,6 +365,19 @@ jobs:
         env:
           DOSYA_KISISEL: ${{ (inputs.kisisel || contains(github.event.head_commit.message, '[kisisel]')) && '1' || '0' }}
         run: bash ci/prepare_android.sh
+
+      - name: PDFium önbelleği (Android)
+        uses: actions/cache@v4
+        with:
+          path: .dart_tool/hooks_runner/shared/pdfium_dart/build/chromium_*
+          key: pdfium-android-${{ hashFiles('pubspec.lock') }}-${{ env.FULL_BUILD }}
+      - name: PDFium önden indir (Android)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          T="android-arm64"
+          [ "$FULL_BUILD" = "true" ] && T="$T android-arm android-x64"
+          bash tool/pdfium_onyukle.sh $T
 
       # C4: push'ta yalnız arm64 (pratikte her telefon). 32-bit yalnız tam
       # derlemede. `--split-per-abi` her mimariye ayrı versionCode verir.

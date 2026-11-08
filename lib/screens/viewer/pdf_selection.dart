@@ -13,7 +13,7 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
   }
 
   /// Tek PDF düzenleme ekranı: metin (paragraf), görsel, filigran ve sayfa.
-  Future<void> _openPdfEditor({int? page}) async {
+  Future<void> _openPdfEditor({int? page, PdfEditSelection? selection}) async {
     // Editör ÖZGÜN dosyanın kopyası üzerinde çalışır; bekleyen düzenlemeler
     // önce kaydedilmezse sessizce kaybolurdu.
     if (!await _confirmLeavePending() || !mounted) return;
@@ -21,15 +21,27 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
       context,
       path: widget.doc.path,
       initialPage: (page != null && page > 0) ? page : (_livePdfPage() ?? _pdfPage),
+      selection: selection,
     );
-    if (saved && mounted) {
-      _partSetState(() => _pdfText = '');
-      final page = PdfEditorScreen.lastPage;
-      await _reloadPdf();
-      // Düzenlenen sayfada kalınsın.
-      if (mounted && page > 0 && _pdfCount > 0) {
-        await _goToPdfPage(page, _pdfCount);
+    if (saved == null || !mounted) return;
+    // PS3 (Faz 51): KOPYA kaydedildiyse görüntüleyici özgünü tazelemez,
+    // kopyayı açar — düzenlenen sayfada ([PdfEditorScreen.lastPage]).
+    if (!p.equals(saved, widget.doc.path)) {
+      final file = File(saved);
+      if (file.existsSync() && _pdfCount > 0) {
+        ReadingPositions.record(saved, PdfEditorScreen.lastPage, _pdfCount,
+            size: file.lengthSync());
       }
+      Navigator.of(context).pop();
+      await openSavedPdf(saved);
+      return;
+    }
+    _partSetState(() => _pdfText = '');
+    final editedPage = PdfEditorScreen.lastPage;
+    await _reloadPdf();
+    // Düzenlenen sayfada kalınsın.
+    if (mounted && editedPage > 0 && _pdfCount > 0) {
+      await _goToPdfPage(editedPage, _pdfCount);
     }
   }
 
@@ -67,7 +79,23 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
   Widget _selectionBar() {
     final marking = _lastMark != null && _pendingMarks.contains(_lastMark);
     return PdfSelectionBar(
+      key: _pdfSelBarKey,
       preview: _ViewerScreenState._shorten(_pdfSelection, 34),
+      fullText: cleanPdfCopyText(_pdfSelection),
+      countLabel: _selectionCountLabel(),
+      expanded: _pdfSelExpanded,
+      onToggleExpanded: () {
+        _partSetState(() => _pdfSelExpanded = !_pdfSelExpanded);
+        // Açılan alan çubuğu büyüttü: seçim yine çubuğun arkasında kalmasın.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _revealAboveBar(_pdfSelPage, _pdfSelRects,
+                barHeight: _pdfSelExpanded ? 420 : 190);
+          }
+        });
+      },
+      expandTooltip: context.t('vw.sel_expand'),
+      collapseTooltip: context.t('vw.sel_collapse'),
       colors: _highlightColors,
       selectedColor: _highlightColor,
       marking: marking,
@@ -80,7 +108,11 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
       // düzenleyicisi açılır (paragraf motoru; taranmış sayfada OCR satırı,
       // ikisi de olmazsa "sayfaya yazı ekle"). Eski kelime-bazlı yerinde
       // düzenleme kalktı.
-      onEdit: () => _openPdfEditor(page: _pdfSelPage),
+      // PS1 (Faz 51): seçimin kutuları + metni de gider; editör o bloğu
+      // doğrudan düzenlemede açar.
+      onEdit: () => _openPdfEditor(
+          page: _pdfSelPage,
+          selection: PdfEditSelection(_pdfSelection, _pdfSelRects)),
       onTranslate: _translateSelection,
       moreItems: [
         PdfBarMenuItem(
@@ -462,29 +494,94 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
   /// üstünde yüzüyor; seçilen satır ekranın alt ~yarısındaysa çubuğun altında
   /// kalıyordu. [barHeight] kadar pay bırakılarak satır görünür alana
   /// kaydırılır (yakınlaştırma değişmez, en az kaydırma).
+  String _selectionCountLabel() {
+    final t = cleanPdfCopyText(_pdfSelection);
+    final words = t.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+    return context.t('vw.sel_count', {'chars': t.length, 'words': words});
+  }
+
+  /// Seçim çubuğunun üst kenarı, görüntüleyicinin YEREL koordinatında —
+  /// ölçülür (cihaz turu: tahmin alt okuma çubuğunu kaçırıyordu); çubuk henüz
+  /// yoksa görüntüleyici altından [fallbackHeight] kadar yukarısı.
+  double? _selBarTopLocal(double fallbackHeight) {
+    final viewer = _pdfViewerKey.currentContext?.findRenderObject();
+    if (viewer is! RenderBox || !viewer.attached) return null;
+    final bar = _pdfSelBarKey.currentContext?.findRenderObject();
+    if (bar is RenderBox && bar.attached) {
+      return bar.localToGlobal(Offset.zero).dy -
+          viewer.localToGlobal(Offset.zero).dy;
+    }
+    return viewer.size.height - fallbackHeight;
+  }
+
+  /// Seçimin (belge koordinatında) birleşik kutusu.
+  Rect? _selArea(int page, List<PdfRect> rects) {
+    Rect? area;
+    for (final r in rects) {
+      final rect =
+          _pdfController.calcRectForRectInsidePage(pageNumber: page, rect: r);
+      area = area == null ? rect : area.expandToInclude(rect);
+    }
+    return area;
+  }
+
+  /// Seçim çubuğun arkasında kalıyorsa belge (yakınlık değişmeden) yukarı
+  /// kaydırılır; kaydırılamıyorsa (sayfa/belge sonu, çok uzun seçim) çubuk
+  /// ekranın üstüne geçer ([_placeSelectionBar]).
   void _revealAboveBar(int page, List<PdfRect> rects,
       {double barHeight = 190}) {
     if (rects.isEmpty || page < 1) return;
     try {
-      Rect? area;
-      for (final r in rects) {
-        final rect =
-            _pdfController.calcRectForRectInsidePage(pageNumber: page, rect: r);
-        area = area == null ? rect : area.expandToInclude(rect);
-      }
-      if (area == null) return;
+      final area = _selArea(page, rects);
+      final barTopLocal = _selBarTopLocal(barHeight);
+      if (area == null || barTopLocal == null) return;
       final zoom =
           _pdfController.currentZoom <= 0 ? 1.0 : _pdfController.currentZoom;
       final visible = _pdfController.visibleRect;
-      final want = Rect.fromLTRB(area.left, area.top - 24 / zoom, area.right,
-          area.bottom + (barHeight + 24) / zoom);
-      // Çok uzun seçim (ekrandan büyük) için kaydırma anlamsız; pdfrx o
-      // durumda yakınlaştırmayı değiştirirdi.
-      if (want.height >= visible.height) return;
-      if (want.bottom <= visible.bottom && want.top >= visible.top) return;
-      _pdfController.ensureVisible(want);
+      final gap = 16 / zoom;
+      final barTopDoc = visible.top + barTopLocal / zoom;
+      final shift = area.bottom + gap - barTopDoc;
+      // Zaten görünür ya da seçim çubuğun üstündeki alana sığmıyor.
+      if (shift <= 0 || area.top - shift < visible.top + gap) {
+        _placeSelectionBar(page, rects);
+        return;
+      }
+      _pdfController.goTo(
+          _pdfController.value.clone()
+            ..leftTranslateByDouble(0, -shift * zoom, 0, 1),
+          duration: Motion.short);
+      // pdfrx belge sınırında kaydırmayı kıstırabilir → oturunca yeniden bak.
+      Future<void>.delayed(Motion.medium, () {
+        if (mounted) _placeSelectionBar(page, rects);
+      });
     } catch (_) {
       // Görüntüleyici henüz hazır değilse sessizce atla.
+    }
+  }
+
+  /// PS5: seçimin alt kenarı çubuğun arkasına düşüyorsa ve seçimin üstünde
+  /// çubuğa yer varsa çubuk ekranın üstüne geçer; değilse altta kalır
+  /// (önizleme alanı zaten seçimin tamamını gösterir).
+  void _placeSelectionBar(int page, List<PdfRect> rects) {
+    try {
+      // Üste geçtiyse bu seçim boyunca orada kalır (yeni seçimde sıfırlanır):
+      // alttaki yeri artık ölçülemez, gidip gelmesin.
+      if (_pdfSelBarTop) return;
+      final area = _selArea(page, rects);
+      final bar = _pdfSelBarKey.currentContext?.findRenderObject();
+      final barTopLocal = _selBarTopLocal(0);
+      if (area == null || bar is! RenderBox || barTopLocal == null) return;
+      final zoom =
+          _pdfController.currentZoom <= 0 ? 1.0 : _pdfController.currentZoom;
+      final visible = _pdfController.visibleRect;
+      final barH = bar.size.height;
+      final barTopDoc = visible.top + (barTopLocal - 16) / zoom;
+      final covered = area.bottom > barTopDoc && area.top < visible.bottom;
+      final roomAbove = area.top - visible.top > (barH + 32) / zoom;
+      final top = covered && roomAbove;
+      if (top != _pdfSelBarTop) _partSetState(() => _pdfSelBarTop = top);
+    } catch (_) {
+      // Görüntüleyici hazır değil: yerleşim değişmez.
     }
   }
 }

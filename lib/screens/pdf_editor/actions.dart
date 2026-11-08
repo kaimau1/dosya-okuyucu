@@ -72,6 +72,7 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
           _scannedPages.add(_page);
         }
       });
+      unawaited(_openInitialSelection());
     } on PdfPageRefused catch (e) {
       if (mounted) {
         _partSetState(() {
@@ -140,11 +141,26 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
   Future<void> _syncDocument() async {
     if (_busy) _setBusy(_str.t('pe.busy_refresh'));
     final path = _workPath!;
+    // PS4 ara düzeltme (Faz 51): yeniden yükleme yakınlaştırma/konumu
+    // sıfırlıyordu → matris saklanır, yüklemeden sonra geri konur. (Yeniden
+    // yüklemenin kendisi PK2 ile Faz 52–54'te kalkar.)
+    final keep = _controller.isReady ? _controller.value.clone() : null;
     await File(path).writeAsBytes(_history!.bytes, flush: true);
     await PdfReload.reloadFile(path);
     if (!mounted) return;
     _partSetState(() => _docRev++);
+    if (keep != null) unawaited(_restoreMatrix(keep));
     await _loadOutline();
+  }
+
+  Future<void> _restoreMatrix(Matrix4 keep) async {
+    // Yeni belge düzeni kurulana kadar birkaç kare bekle.
+    for (var i = 0; i < 10 && mounted; i++) {
+      await Future<void>.delayed(Motion.short);
+      if (!_controller.isReady) continue;
+      await _controller.goTo(keep, duration: Duration.zero);
+      return;
+    }
   }
 
   Future<void> _undoLast() async {
@@ -183,6 +199,9 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
   /// bloğu taşıyan karma sayfalarda kullanıcı "metin var ama düzenletmiyor"
   /// diyordu. Tamamen metin olan sayfalarda (görsel yok) OCR çalıştırılmaz —
   /// gereksiz iş ve zaten paragraf kutuları var.
+  ///
+  /// PS2a (Faz 51): sınıf/görsel yalnız ADAYLIK verir; gerçek metin katmanı
+  /// olan sayfada satırlar [_maybeLoadScanned]'da görsel bölgesine süzülür.
   bool get _ocrEditable =>
       _scannedPages.contains(_page) || _outline.objects.isNotEmpty;
 
@@ -197,12 +216,26 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
     _scannedLoading = true;
     Future(() async {
       var lines = const <ScannedLine>[];
+      var natural = false;
       try {
-        final ocr = await PdfOcrText.forPage(page);
-        lines = [
-          for (final f in ocr?.fragments ?? const <PdfPageTextFragment>[])
-            if (f.text.trim().isNotEmpty) ScannedLine(f.text.trim(), f.bounds),
-        ];
+        // PS2a (Faz 51): sayfanın GERÇEK metin katmanı varsa (görünmez OCR
+        // katmanı değil) OCR yalnız görsel bölgesinin içinde açılır. Eskiden
+        // tek bir logo yüzünden doğal metnin her satırı "taranmış satır"
+        // oluyor, beyaz örtü + Carlito + kutudan tahmin punto ile
+        // yazılıyordu (ekrandaki minik "taşımak").
+        final raw = await page.loadText();
+        natural = !_outline.scanned &&
+            !_ocrForcedPages.contains(page.pageNumber) &&
+            pdfHasTextLayer(raw?.fullText ?? '');
+        if (!natural || _outline.objects.isNotEmpty) {
+          final ocr = await PdfOcrText.forPage(page);
+          lines = [
+            for (final f in ocr?.fragments ?? const <PdfPageTextFragment>[])
+              if (f.text.trim().isNotEmpty &&
+                  (!natural || _insideImage(f.bounds)))
+                ScannedLine(f.text.trim(), f.bounds),
+          ];
+        }
       } catch (_) {
         // Bilinçli en iyi çaba: OCR yoksa/başarısızsa satır listesi boş kalır ve kullanıcı taranmış sayfa yerine normal düzenlemeyi görür.
       }
@@ -211,8 +244,67 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
         _scannedKey = key;
         _scannedLines = _withoutParagraphOverlaps(lines);
         _scannedLoading = false;
+        if (natural) _naturalTextPages.add(page.pageNumber);
       });
+      unawaited(_openInitialSelection());
     });
+  }
+
+  /// PS1: görüntüleyicide seçilen yerin bloğu doğrudan düzenlemede açılır.
+  /// Önce paragraflar, eşleşme yoksa (OCR satırları yüklenince) satırlar.
+  Future<void> _openInitialSelection() async {
+    final sel = _pendingSelection;
+    if (sel == null || sel.rects.isEmpty) return;
+    // Meşgul (anahat/başka iş) ve başlangıç sayfasına atlama bitsin: yoksa
+    // _editParagraph "bekleyin" deyip açmıyordu (cihaz turu: yarış).
+    await Future<void>.delayed(Duration.zero);
+    for (var i = 0; i < 40 && (_busy || _startJumping) && mounted; i++) {
+      await Future<void>.delayed(Motion.short);
+    }
+    if (!mounted || _pendingSelection == null) return;
+    if (_page != widget.initialPage) {
+      _pendingSelection = null; // kullanıcı başka sayfaya geçti
+      return;
+    }
+    final par = bestOverlap(sel.rects, [
+          for (final p in _outline.paragraphs)
+            PdfRect(p.left, p.top, p.right, p.bottom),
+        ]) ??
+        bestTextMatch([for (final p in _outline.paragraphs) p.text], sel.text);
+    if (par != null) {
+      _pendingSelection = null;
+      _editParagraph(par);
+      _placeCaret(_outline.paragraphs[par].text, sel.text);
+      return;
+    }
+    final line = bestOverlap(sel.rects, [for (final l in _scannedLines) l.box]);
+    if (line != null) {
+      _pendingSelection = null;
+      _editScannedLine(line);
+      _placeCaret(_scannedLines[line].text, sel.text);
+    }
+  }
+
+  void _placeCaret(String blockText, String selection) {
+    final ctrl = _inlineCtrl;
+    if (ctrl == null) return;
+    final at = selectionCaret(blockText, selection).clamp(0, ctrl.text.length);
+    ctrl.selection = TextSelection.collapsed(offset: at);
+  }
+
+  /// OCR satırı ([box], PDF sayfa uzayı) bir görselin içinde mi (merkezi)?
+  bool _insideImage(PdfRect box) {
+    final cx = (box.left + box.right) / 2;
+    final cy = (box.top + box.bottom) / 2;
+    for (final o in _outline.objects) {
+      if (cx >= o.left &&
+          cx <= o.left + o.width &&
+          cy >= o.bottom &&
+          cy <= o.bottom + o.height) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /// Paragraf kutusuyla örtüşen OCR satırlarını eler: üstüne yazılmış satır
@@ -252,7 +344,10 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
       return;
     }
     _closeEditors();
-    _openInline(_scannedLines[index].text, scanned: index);
+    final line = _scannedLines[index];
+    _openInline(line.text, scanned: index);
+    _zoomToBox(line.box, math.max(4.0, line.box.height / 1.2),
+        () => _inlineScanned == index);
   }
 
   /// **Sayfayı düzelt** — taranmış sayfanın TÜM satırlarını bir geçişte
@@ -463,6 +558,7 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
       note: _str.t('pe.save_note'),
     );
     if (outcome == null) return false;
+    _savedPath = outcome.path;
     if (mounted) _partSetState(() => _history!.markSaved());
     return true;
   }

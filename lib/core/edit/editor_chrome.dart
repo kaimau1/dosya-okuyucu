@@ -304,6 +304,20 @@ class EditorChrome extends StatefulWidget {
   /// Testte klavye payı benzetimi (null → pencerenin gerçek klavye payı).
   final double? keyboardInsetOverride;
 
+  /// Klavye belgeyi KÜÇÜLTMESİN (PDF Pro Faz 51 / PS4): `Scaffold`
+  /// `resizeToAvoidBottomInset: false` ile kullanılır. Klavye açılınca
+  /// [body]'nin boyu DEĞİŞMEZ (alt şerit klavyenin arkasında yerinde kalır),
+  /// [accessory] gövdenin üstüne, klavyenin hemen üstüne bindirilir.
+  ///
+  /// Niye: PDF görüntüleyicisi (pdfrx) boyu değişince sayfayı yeni boya
+  /// "sığdırıyordu" — klavye açılınca sayfa pul gibi küçülüyordu.
+  final bool overlayKeyboard;
+
+  /// [overlayKeyboard] kipinde gövde boyu sabitlensin mi (ör. PDF'te yerinde
+  /// düzenleme açıkken şerit kısa düzenleme çubuğuna dönüyor — gövde yine
+  /// büyüyüp küçülmesin).
+  final bool freezeBody;
+
   /// Bu genişlikten itibaren (dp) biçim paneli yan bölmede açılır.
   static const double sidePanelWidth = 840;
 
@@ -316,6 +330,8 @@ class EditorChrome extends StatefulWidget {
     this.panelTabs = const [],
     this.editing = true,
     this.keyboardInsetOverride,
+    this.overlayKeyboard = false,
+    this.freezeBody = false,
   });
 
   @override
@@ -367,6 +383,9 @@ class _EditorChromeState extends State<EditorChrome>
       // Geniş ekran: panel sağ bölmede, belge solda; yazarken açık kalır.
       final sideOpen = wide && panelOpen;
       final bottomOpen = !wide && panelOpen;
+      if (widget.overlayKeyboard) {
+        return _overlay(context, inset, keyboardUp, sideOpen, bottomOpen);
+      }
       return Column(
         children: [
           Expanded(
@@ -403,6 +422,73 @@ class _EditorChromeState extends State<EditorChrome>
     return ListenableBuilder(
       listenable: p,
       builder: (context, _) => build(p.isOpen),
+    );
+  }
+
+  /// [EditorChrome.overlayKeyboard] kipinde son ölçülen (klavyesiz,
+  /// düzenleme dışı) gövde yüksekliği.
+  double? _frozenHeight;
+
+  /// [EditorChrome.overlayKeyboard] düzeni: gövdenin boyu klavye açılınca
+  /// ve şerit düzenleme çubuğuna dönünce DEĞİŞMEZ — son ölçülen boyda
+  /// "dondurulur", çubuklar üstüne bindirilir. Ağaç yapısı hep aynı (gövde
+  /// `Stack > Positioned` altında) → görüntüleyici yeniden kurulmaz.
+  Widget _overlay(BuildContext context, double inset, bool keyboardUp,
+      bool sideOpen, bool bottomOpen) {
+    final p = widget.panel;
+    final accessory = widget.accessory;
+    final ribbon = widget.ribbon;
+    final frozen =
+        (keyboardUp || widget.freezeBody || bottomOpen) && _frozenHeight != null;
+    final body = sideOpen
+        ? Row(
+            children: [
+              Expanded(child: widget.body),
+              VerticalDivider(
+                  width: 1, color: Theme.of(context).colorScheme.outlineVariant),
+              SizedBox(
+                width: 320,
+                child: FormatPanelHost(
+                    controller: p!, tabs: widget.panelTabs, side: true),
+              ),
+            ],
+          )
+        : widget.body;
+    final bars = <Widget>[
+      if ((keyboardUp || bottomOpen) && accessory != null) accessory,
+      if (bottomOpen && !keyboardUp)
+        FormatPanelHost(controller: p!, tabs: widget.panelTabs),
+      if (!keyboardUp && !bottomOpen && ribbon != null)
+        SafeArea(top: false, left: false, right: false, child: ribbon),
+    ];
+    return Column(
+      children: [
+        Expanded(
+          child: LayoutBuilder(builder: (context, inner) {
+            if (!frozen) _frozenHeight = inner.maxHeight;
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: frozen ? _frozenHeight : inner.maxHeight,
+                  child: body,
+                ),
+                if (frozen && bars.isNotEmpty)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: keyboardUp ? inset : 0,
+                    child: Column(mainAxisSize: MainAxisSize.min, children: bars),
+                  ),
+              ],
+            );
+          }),
+        ),
+        if (!frozen) ...bars,
+      ],
     );
   }
 }

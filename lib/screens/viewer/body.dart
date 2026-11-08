@@ -58,6 +58,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                     child: _nightFilter(
                     child: PdfViewer.file(
                       doc.path,
+                      key: _pdfViewerKey,
                       controller: _pdfController,
                       initialPageNumber: _pdfPage,
                       passwordProvider: _askPdfPassword,
@@ -241,10 +242,30 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                                   _partSetState(() {
                                     // Yeni seçim: çubuk vurgu kipinden çıkar.
                                     _lastMark = null;
+                                    if (t != _pdfSelection) {
+                                      _pdfSelExpanded = false;
+                                      _pdfSelBarTop = false;
+                                    }
                                     _pdfSelection = t;
                                     _pdfSelRects = rects;
                                     _pdfSelPage = t.isEmpty ? 0 : pageNo;
                                   });
+                                  // PS5 (cihaz turu): seçim TUTAMAÇLA
+                                  // uzatılınca "parmak kalktı" olayı gelmiyor
+                                  // → seçim durulunca çubuğun yerine yine
+                                  // karar verilir (sürükleme boyunca değil).
+                                  _pdfSelRevealTimer?.cancel();
+                                  if (t.trim().isNotEmpty && !_pdfSelecting) {
+                                    _pdfSelRevealTimer =
+                                        Timer(Motion.long, () {
+                                      if (mounted) {
+                                        _revealAboveBar(
+                                            _pdfSelPage, _pdfSelRects,
+                                            barHeight:
+                                                _pdfSelExpanded ? 420 : 190);
+                                      }
+                                    });
+                                  }
                                 }
                               },
                               onSelectingChanged: (s) {
@@ -289,10 +310,19 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                       if (mounted) _partSetState(() => _resumeNotePage = null);
                     },
                   ),
-                if (_pdfSelection.trim().isNotEmpty)
+                if (_pdfSelection.trim().isNotEmpty && !_pdfSelBarTop)
                   ReadingFloat(
                     start: 8,
                     end: 8,
+                    child: Center(child: _selectionBar()),
+                  ),
+                // PS5: kaydırarak açılamayan seçimde (sayfa sonu, uzun seçim)
+                // çubuk seçimin ÜSTÜNE, ekranın tepesine geçer.
+                if (_pdfSelection.trim().isNotEmpty && _pdfSelBarTop)
+                  PositionedDirectional(
+                    start: 8,
+                    end: 8,
+                    top: ReadingChrome.insetsOf(context).top + 8,
                     child: Center(child: _selectionBar()),
                   ),
               ],

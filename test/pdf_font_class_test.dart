@@ -44,6 +44,11 @@ void main() {
           'assets/fonts/Carlito-Bold.ttf');
       expect(PdfFontClass.of('').assetPath, 'assets/fonts/Carlito-Regular.ttf');
       expect(PdfFontClass.of('Times-Roman').previewFamily, 'Tinos');
+      // PS2c (Faz 51): Calibri → Carlito, Arial/Helvetica → Arimo.
+      expect(PdfFontClass.of('Calibri-Bold').previewFamily, 'Carlito');
+      expect(PdfFontClass.of('ArialMT').previewFamily, 'Arimo');
+      expect(PdfFontClass.of('Helvetica').previewFamily, 'Arimo');
+      expect(PdfFontClass.of('CourierNewPSMT').previewFamily, 'JetBrains Mono');
     });
   });
 

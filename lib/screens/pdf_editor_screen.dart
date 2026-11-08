@@ -24,6 +24,8 @@ import '../services/pdf/pdf_form.dart';
 import '../services/pdf/pdf_pending_objects.dart';
 import '../services/pdf/pdf_ocr_text.dart';
 import '../services/pdf/pdf_scanned_retype.dart';
+import '../services/pdf/pdf_selection_target.dart';
+import '../services/pdf/pdf_font_class.dart';
 import '../services/pdf_page_edit.dart';
 import '../services/pdf_reload.dart';
 import '../services/pdf_tools.dart';
@@ -72,25 +74,33 @@ class PdfEditorScreen extends StatefulWidget {
   final String path;
   final int initialPage;
 
+  /// PS1 (Faz 51): görüntüleyicide seçili metin. Verilirse editör
+  /// [initialPage]'de seçimle en çok örtüşen paragrafı DOĞRUDAN düzenleme
+  /// kipinde açar, imleç seçimin başında.
+  final PdfEditSelection? selection;
+
   const PdfEditorScreen({
     super.key,
     required this.path,
     this.initialPage = 1,
+    this.selection,
   });
 
-  /// Ekranı açar; bir şey kaydedildiyse `true` döner (çağıran tazelesin).
-  static Future<bool> open(
+  /// Ekranı açar; kaydedildiyse YAZILAN dosyanın yolu döner (özgünün
+  /// üzerine yazıldıysa özgün yol, kopyaysa kopyanın yolu), yoksa null.
+  /// PS3 (Faz 51): görüntüleyici kopyayı açabilsin diye yol taşınır.
+  static Future<String?> open(
     BuildContext context, {
     required String path,
     int initialPage = 1,
-  }) async {
-    final saved = await Navigator.of(context).push<bool>(
+    PdfEditSelection? selection,
+  }) {
+    return Navigator.of(context).push<String>(
       MaterialPageRoute(
-        builder: (_) =>
-            PdfEditorScreen(path: path, initialPage: initialPage),
+        builder: (_) => PdfEditorScreen(
+            path: path, initialPage: initialPage, selection: selection),
       ),
     );
-    return saved ?? false;
   }
 
   @override
@@ -111,7 +121,8 @@ typedef _InlineGeom = ({
   TextAlign align,
 });
 
-class _PdfEditorScreenState extends State<PdfEditorScreen> {
+class _PdfEditorScreenState extends State<PdfEditorScreen>
+    with WidgetsBindingObserver {
   /// Bu ekranın mesajları uzun asenkron işlerin **içinden** üretiliyor
   /// (`_run`, `_apply`, `catch` dalları); orada `context` kullanmak
   /// `use_build_context_synchronously` demektir. Dil uygulama genelinde tek
@@ -129,6 +140,22 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   PdfEditHistory<PdfOverlayLayer>? _history;
 
   bool get _dirty => _history?.dirty ?? false;
+
+  /// Gerçek metin katmanı olan sayfalar (PS2a): paragraf motoru metni
+  /// okuyamadıysa "taranmış" değil "bu sürümde düzenlenemiyor" denir.
+  final Set<int> _naturalTextPages = {};
+
+  /// Kullanıcının bilerek "OCR satırlarıyla düzenle" dediği sayfalar (PK7).
+  final Set<int> _ocrForcedPages = {};
+
+  /// Yerinde alanın yazı tipi ailesi (PS2c).
+  String _inlineFamily = 'Carlito';
+
+  /// Son kaydın yazıldığı yol (ekran kapanınca çağırana döner).
+  String? _savedPath;
+
+  /// Henüz açılmamış başlangıç seçimi (PS1) — bir kez tüketilir.
+  late PdfEditSelection? _pendingSelection = widget.selection;
   PdfOverlayLayer get _layer => _history?.layer ?? PdfOverlayLayer.empty;
 
   _EditMode _mode = _EditMode.text;
@@ -199,6 +226,12 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   TextEditingController? _inlineCtrl;
   final FocusNode _inlineFocus = FocusNode();
 
+  /// Görüntüleyicinin ve düzenleme çubuğunun kutusu: klavye + çubuğun
+  /// örttüğü payı ÖLÇMEK için (PS4).
+  final GlobalKey _viewerKey = GlobalKey();
+  final GlobalKey _editBarKey = GlobalKey();
+  Timer? _revealTimer;
+
   /// Kullanıcının seçtiği punto (null → özgün).
   double? _inlineSize;
 
@@ -232,11 +265,27 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
     super.initState();
     _page = widget.initialPage;
     PdfEditorScreen.lastPage = _page;
+    WidgetsBinding.instance.addObserver(this);
     _prepare();
+  }
+
+  /// PS4 (Faz 51, cihaz turu): görüntüleyici artık klavyeyle küçülmüyor;
+  /// klavye alan AÇIKKEN çıkınca düzenlenen satır klavyenin arkasında
+  /// kalıyordu (yatay tablette görünür şerit çok dar) → klavye payı oturunca
+  /// satır örtülmeyen bölgeye kaydırılır.
+  @override
+  void didChangeMetrics() {
+    if (!_inlineOpen) return;
+    _revealTimer?.cancel();
+    _revealTimer = Timer(Motion.medium, () {
+      if (mounted) _revealInline();
+    });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _revealTimer?.cancel();
     _inlineTimer?.cancel();
     _inlineCtrl?.dispose();
     _pendingCtrl?.dispose();
@@ -275,9 +324,13 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         // ekran kapanmışsa hatalı (use_build_context_synchronously).
         final navigator = Navigator.of(context);
         final leave = await _confirmLeave();
-        if (leave && mounted) navigator.pop(!_dirty);
+        if (leave && mounted) navigator.pop(_savedPath);
       },
       child: Scaffold(
+        // PS4 (Faz 51): klavye görüntüleyiciyi KÜÇÜLTMEZ (pdfrx sayfayı yeni
+        // boya sığdırıp uzaklaşıyordu); çubuk EditorChrome'da klavyenin
+        // üstüne bindirilir.
+        resizeToAvoidBottomInset: false,
         appBar: AppBar(
           title: Text(p.basename(widget.path),
               overflow: TextOverflow.ellipsis),
@@ -305,7 +358,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                   ? null
                   : () async {
                       final navigator = Navigator.of(context);
-                      if (await _save() && mounted) navigator.pop(true);
+                      if (await _save() && mounted) navigator.pop(_savedPath);
                     },
             ),
           ],
@@ -326,10 +379,12 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
               ? null
               : () async {
                   final navigator = Navigator.of(context);
-                  if (await _save() && mounted) navigator.pop(true);
+                  if (await _save() && mounted) navigator.pop(_savedPath);
                 },
           escape: _inlineOpen && !_inlineApplying ? _cancelInline : null,
           child: EditorChrome(
+            overlayKeyboard: true,
+            freezeBody: _inlineOpen,
             accessory: _accessory(),
             ribbon: _ribbon(),
             body: _body(),

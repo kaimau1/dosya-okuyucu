@@ -57,6 +57,7 @@ import '../services/pdf/edge_auto_scroll.dart';
 import '../services/fm/save_to_downloads.dart';
 import '../services/pdf/current_page.dart';
 import '../services/pdf/pdf_fling.dart';
+import '../services/pdf/pdf_selection_target.dart';
 import '../services/pdf/pdf_viewer_defaults.dart';
 import '../services/pdf/page_arrival.dart';
 import '../services/pdf/pdf_form.dart';
@@ -195,6 +196,16 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// vurgu annotation'ı bunları Syncfusion'a verir (bkz. PdfSelectLayer.onSelected).
   List<PdfRect> _pdfSelRects = const [];
   int _pdfSelPage = 0;
+
+  /// PS5 (PDF Pro Faz 51): seçim çubuğunun önizlemesi açık mı (yeni seçimde
+  /// kapanır) ve çubuk seçimi ÖRTTÜĞÜ için ekranın üstüne mi alındı.
+  bool _pdfSelExpanded = false;
+  bool _pdfSelBarTop = false;
+  Timer? _pdfSelRevealTimer;
+
+  /// Seçim çubuğunun örttüğü yeri ÖLÇMEK için (tahmin yerine).
+  final GlobalKey _pdfViewerKey = GlobalKey();
+  final GlobalKey _pdfSelBarKey = GlobalKey();
 
   /// Sürükleyerek seçim ŞU AN sürüyor mu? (Uzun basış sonrası parmak yerde ya
   /// da fare metin üzerinde basılı.) True iken pdfrx'in pan'ı kilitlenir ki
@@ -692,6 +703,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     }
     _pdfEdgeScrollTimer?.cancel();
+    _pdfSelRevealTimer?.cancel();
     _textController?.dispose();
     _undoCtl.dispose();
     _textScroll.dispose();

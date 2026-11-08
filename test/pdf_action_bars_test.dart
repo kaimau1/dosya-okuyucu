@@ -166,4 +166,65 @@ void main() {
       expect(find.text('Çevir'), findsOneWidget);
     });
   });
+
+  group('PS5 — uzun seçimin önizlemesi', () {
+    final long = List.filled(40, 'Uzun seçimin bütün metni görünmeli.').join(' ');
+
+    Widget expandable(bool expanded, VoidCallback onToggle,
+            {double width = 360, double textScale = 1.0}) =>
+        harness(
+          PdfSelectionBar(
+            preview: '“Uzun seçimin bütün…”',
+            colors: colors,
+            selectedColor: colors.first,
+            onHighlight: () {},
+            onPickColor: (_) {},
+            onUndoHighlight: () {},
+            onDone: () {},
+            onCopy: () {},
+            onEdit: () {},
+            onTranslate: () {},
+            highlightLabel: 'Vurgula',
+            copyLabel: 'Kopyala',
+            editLabel: 'Düzenle',
+            translateLabel: 'Çevir',
+            fullText: long,
+            countLabel: '${long.length} karakter · 240 sözcük',
+            expanded: expanded,
+            onToggleExpanded: onToggle,
+            expandTooltip: 'Seçimin tamamını göster',
+            collapseTooltip: 'Önizlemeyi daralt',
+          ),
+          width: width,
+          textScale: textScale,
+        );
+
+    testWidgets('önizlemeye dokununca tamamı + sayaç görünür, kayar',
+        (tester) async {
+      var expanded = false;
+      await tester.pumpWidget(StatefulBuilder(
+        builder: (context, setState) =>
+            expandable(expanded, () => setState(() => expanded = !expanded)),
+      ));
+      expect(find.text(long), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('pdf-sel-expand')));
+      await tester.pumpAndSettle();
+      expect(find.text(long), findsOneWidget);
+      expect(find.textContaining('240 sözcük'), findsOneWidget);
+      // Alan ekranın üçte birini geçmez; metin kendi içinde kayar.
+      final box = tester.getSize(find.byKey(const ValueKey('pdf-sel-full')));
+      expect(box.height, lessThanOrEqualTo(720 / 3 + 0.5));
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.byKey(const ValueKey('pdf-sel-expand')));
+      await tester.pumpAndSettle();
+      expect(find.text(long), findsNothing);
+    });
+
+    testWidgets('açık önizleme 320 dp + büyük yazıda taşmaz', (tester) async {
+      await tester.pumpWidget(
+          expandable(true, () {}, width: 320, textScale: 1.6));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+  });
 }

@@ -1,0 +1,13 @@
+{
+ "_not": "Faz 51 tabanı (şimdiki Dart paragraf motoru). Bilerek iyileşince güncelle; kötüleşme CI kırmızı.",
+ "pageErrors": 2,
+ "coveragePct": 63.6,
+ "same": {
+  "successPct": 54.2,
+  "pixelDirty": 10
+ },
+ "turkish": {
+  "successPct": 34.2,
+  "pixelDirty": 13
+ }
+}

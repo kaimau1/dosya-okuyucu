@@ -223,4 +223,63 @@ void main() {
     expect(find.byKey(const ValueKey('format-panel')), findsNothing);
     expect(tester.getRect(find.byKey(docKey)), withKeyboard);
   });
+
+  testWidgets('overlayKeyboard (PDF, PS4): klavye ve şerit değişince gövde boyu SABİT',
+      (tester) async {
+    final docKey = GlobalKey();
+    var inits = 0;
+    Widget app(double keyboard, {required bool editing}) => MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(
+              size: const Size(400, 800),
+              viewInsets: EdgeInsets.only(bottom: keyboard),
+            ),
+            child: Scaffold(
+              resizeToAvoidBottomInset: false,
+              body: EditorChrome(
+                overlayKeyboard: true,
+                freezeBody: editing,
+                keyboardInsetOverride: keyboard,
+                body: _InitCounter(key: docKey, onInit: () => inits++),
+                accessory: const SizedBox(
+                    key: ValueKey('acc'), height: 56, child: Text('çubuk')),
+                // Düzenlemede şerit kısa düzenleme çubuğuna döner.
+                ribbon: SizedBox(height: editing ? 64 : 120, child: const Text('şerit')),
+              ),
+            ),
+          ),
+        );
+
+    await tester.pumpWidget(app(0, editing: false));
+    final before = tester.getRect(find.byKey(docKey));
+    await tester.pumpWidget(app(0, editing: true)); // alan açıldı
+    expect(tester.getRect(find.byKey(docKey)), before);
+    await tester.pumpWidget(app(300, editing: true)); // klavye açıldı
+    expect(tester.getRect(find.byKey(docKey)), before,
+        reason: 'görüntüleyici küçülürse pdfrx sayfayı uzaklaştırır');
+    // Çubuk klavyenin hemen üstünde.
+    final screenH = tester.view.physicalSize.height / tester.view.devicePixelRatio;
+    expect(tester.getRect(find.byKey(const ValueKey('acc'))).bottom, screenH - 300);
+    await tester.pumpWidget(app(0, editing: false)); // bitti
+    expect(tester.getRect(find.byKey(docKey)), before);
+    expect(inits, 1, reason: 'gövde yeniden kurulmamalı');
+  });
+}
+
+class _InitCounter extends StatefulWidget {
+  final VoidCallback onInit;
+  const _InitCounter({super.key, required this.onInit});
+  @override
+  State<_InitCounter> createState() => _InitCounterState();
+}
+
+class _InitCounterState extends State<_InitCounter> {
+  @override
+  void initState() {
+    super.initState();
+    widget.onInit();
+  }
+
+  @override
+  Widget build(BuildContext context) => const ColoredBox(color: Color(0xFFFFFFFF));
 }
