@@ -361,7 +361,9 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
   void _resumeSlide() {
     try {
       _docSize = File(widget.path).lengthSync();
-    } catch (_) {}
+    } catch (_) {
+      // en iyi çaba: boyut okunamazsa kayıt yalnız yola göre eşleşir
+    }
     final n = ReadingPositions.pageOf(widget.path, size: _docSize);
     if (n == null || n <= 1 || n > _slideCount) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {

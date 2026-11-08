@@ -116,14 +116,13 @@ extension _SlideshowActions on _SlideshowScreenState {
   /// küçük resimleri kurar; her biri ayrı `RepaintBoundary`.
   Future<void> _showAllSlides() async {
     final slides = widget.slides;
-    final picked = await showModalBottomSheet<int>(
-      context: context,
-      isScrollControlled: true,
+    final picked = await showAppSheet<int>(
+      context,
+      scrollable: false,
       backgroundColor: AppColors.mediaChrome,
       builder: (ctx) => SizedBox(
-        height: MediaQuery.sizeOf(ctx).height * 0.85,
-        child: SafeArea(
-          child: GridView.builder(
+        height: MediaQuery.sizeOf(ctx).height * 0.8,
+        child: GridView.builder(
             key: const ValueKey('ss-grid-sheet'),
             padding: const EdgeInsets.all(12),
             gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -175,7 +174,6 @@ extension _SlideshowActions on _SlideshowScreenState {
                 ),
               );
             },
-          ),
         ),
       ),
     );

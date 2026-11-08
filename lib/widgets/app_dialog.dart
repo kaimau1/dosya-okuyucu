@@ -62,9 +62,11 @@ Future<T?> showAppSheet<T>(
   String? title,
   required WidgetBuilder builder,
   bool scrollable = true,
+  Color? backgroundColor,
 }) {
   return showModalBottomSheet<T>(
     context: context,
+    backgroundColor: backgroundColor,
     isScrollControlled: true,
     useSafeArea: true,
     builder: (ctx) {

@@ -198,7 +198,9 @@ class _WordEditorScreenState extends State<WordEditorScreen>
   void _initResume() {
     try {
       _docSize = File(widget.path).lengthSync();
-    } catch (_) {}
+    } catch (_) {
+      // en iyi çaba: boyut okunamazsa kayıt yalnız yola göre eşleşir
+    }
     final page = ReadingPositions.pageOf(widget.path, size: _docSize);
     if (page != null && page > 1) _resumePage = _resumedNote = page;
   }

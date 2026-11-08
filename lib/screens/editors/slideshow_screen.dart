@@ -15,6 +15,7 @@ import '../../services/pptx/pro/pptx_package.dart';
 import '../../services/pptx/pro/pptx_show_info.dart';
 import '../../services/pptx/pro/slides_native.dart';
 import '../../services/pptx_render.dart';
+import '../../widgets/app_dialog.dart';
 import '../../widgets/slide_canvas.dart';
 import '../../widgets/slide_snapshot.dart';
 import '../../core/theme.dart';
@@ -275,11 +276,11 @@ class _SlideshowScreenState extends State<SlideshowScreen>
       return KeyEventResult.handled;
     }
     if (k == LogicalKeyboardKey.keyB || k == LogicalKeyboardKey.period) {
-      setState(() => _blank = Colors.black);
+      setState(() => _blank = AppColors.mediaSurface);
       return KeyEventResult.handled;
     }
     if (k == LogicalKeyboardKey.keyW || k == LogicalKeyboardKey.comma) {
-      setState(() => _blank = Colors.white);
+      setState(() => _blank = AppColors.page);
       return KeyEventResult.handled;
     }
     if (k == LogicalKeyboardKey.keyG) {
@@ -722,10 +723,10 @@ class _SlideshowScreenState extends State<SlideshowScreen>
               () => unawaited(_showAllSlides()),
               key: const ValueKey('ss-grid')),
           _toolButton(AppIcons.blankScreen, context.t('ss.blank_black'), false,
-              () => setState(() => _blank = Colors.black),
+              () => setState(() => _blank = AppColors.mediaSurface),
               key: const ValueKey('ss-black')),
           _toolButton(AppIcons.brightness, context.t('ss.blank_white'), false,
-              () => setState(() => _blank = Colors.white),
+              () => setState(() => _blank = AppColors.page),
               key: const ValueKey('ss-white')),
           _toolButton(AppIcons.schedule, context.t('ss.timer'), _showTimer, _toggleTimer,
               key: const ValueKey('ss-timer-toggle')),
