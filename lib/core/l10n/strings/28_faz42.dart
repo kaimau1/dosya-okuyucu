@@ -17,5 +17,9 @@ const Map<String, (String, String, String)> _t28 = {
   'skin.classic_sub': ('Sarı klasörler, sade sayfa simgeleri — eski tip dosya yöneticisi', 'Yellow folders, plain page icons — old-school file manager', 'مجلدات صفراء وأيقونات صفحات بسيطة — مدير ملفات كلاسيكي'),
   'skin.ledger': ('Defter', 'Ledger', 'دفتر'),
   'skin.ledger_sub': ('Bej zemin, manila klasörler, sade simgeler', 'Beige background, manila folders, plain icons', 'خلفية بيج ومجلدات مانيلا وأيقونات بسيطة'),
+  'ph.albums': ('Albümler', 'Albums', 'الألبومات'),
+  'ph.show_all': ('Tümünü göster', 'Show all', 'عرض الكل'),
+  'ph.on_this_day': ('Bu gün geçmişte', 'On this day', 'في مثل هذا اليوم'),
+  'ph.on_this_day_sub': ('Önceki yıllarda bugün · {n}', 'Today in past years · {n}', 'اليوم في السنوات الماضية · {n}'),
   'flt.none_left': ('Hiç dosya kalmadı', 'No files left', 'لم يتبق أي ملف'),
 };

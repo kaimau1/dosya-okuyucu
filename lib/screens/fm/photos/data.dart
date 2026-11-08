@@ -40,14 +40,16 @@ extension _PhotosScreenDataPart on _PhotosScreenState {
   /// Süzülmüş ve sıralı dosyalar (düz liste). Sonuç önbelleklenir.
   List<FsEntry> get _visible {
     final key = '${identityHashCode(_files)}|${_files.length}|$_query|'
-        '${_filter.signature}|${_sort.name}|$_desc|${OpenHistory.revision}';
+        '${_filter.signature}|${_sort.name}|$_desc|${OpenHistory.revision}|'
+        '$_album|$_onThisDay';
     final cached = _visibleCache;
     if (cached != null && _visibleKey == key) return cached;
     // Yinelenen ayıklaması SIRALAMADAN SONRA anlamlı olsun diye önce sıralanır:
     // "en yeni kopya kalsın" gibi bir tercihte hangi kopyanın kaldığı sıraya
     // bağlıdır (apply listedeki İLK kopyayı tutar).
     final sorted =
-        FsScan.sort(_files, _sort, descending: _desc, foldersFirst: false);
+        FsScan.sort(_scoped(_files), _sort, descending: _desc,
+            foldersFirst: false);
     // **Süzgeç TEK kez uygulanır** (2026-08-17 donma bulgusu). Eskiden liste
     // için bir, "kaç kopya gizlendi" sayısı için bir daha uygulanıyordu: 6500
     // fotoğraflı bir galeride pahalı olan `matches` (etiket + açılma geçmişi
