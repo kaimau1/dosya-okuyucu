@@ -34,4 +34,10 @@ void main() {
     expect(selectionCaret(block, 'bulunmayan metin'), 0);
     expect(selectionCaret(block, ''), 0);
   });
+
+  test('PS2a: gerçek metin katmanı ayrımı (logo tek başına OCR açtırmaz)', () {
+    expect(pdfHasTextLayer('T.C. ÖRNEK KURUM MÜDÜRLÜĞÜ\r\nİğne oyası'), isTrue);
+    expect(pdfHasTextLayer(''), isFalse);
+    expect(pdfHasTextLayer('  \r\n ￾ 12 '), isFalse);
+  });
 }

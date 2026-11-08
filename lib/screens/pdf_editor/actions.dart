@@ -199,6 +199,9 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
   /// bloğu taşıyan karma sayfalarda kullanıcı "metin var ama düzenletmiyor"
   /// diyordu. Tamamen metin olan sayfalarda (görsel yok) OCR çalıştırılmaz —
   /// gereksiz iş ve zaten paragraf kutuları var.
+  ///
+  /// PS2a (Faz 51): sınıf/görsel yalnız ADAYLIK verir; gerçek metin katmanı
+  /// olan sayfada satırlar [_maybeLoadScanned]'da görsel bölgesine süzülür.
   bool get _ocrEditable =>
       _scannedPages.contains(_page) || _outline.objects.isNotEmpty;
 
@@ -213,12 +216,25 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
     _scannedLoading = true;
     Future(() async {
       var lines = const <ScannedLine>[];
+      var natural = false;
       try {
-        final ocr = await PdfOcrText.forPage(page);
-        lines = [
-          for (final f in ocr?.fragments ?? const <PdfPageTextFragment>[])
-            if (f.text.trim().isNotEmpty) ScannedLine(f.text.trim(), f.bounds),
-        ];
+        // PS2a (Faz 51): sayfanın GERÇEK metin katmanı varsa (görünmez OCR
+        // katmanı değil) OCR yalnız görsel bölgesinin içinde açılır. Eskiden
+        // tek bir logo yüzünden doğal metnin her satırı "taranmış satır"
+        // oluyor, beyaz örtü + Carlito + kutudan tahmin punto ile
+        // yazılıyordu (ekrandaki minik "taşımak").
+        final raw = await page.loadText();
+        natural = !_outline.scanned &&
+            pdfHasTextLayer(raw?.fullText ?? '');
+        if (!natural || _outline.objects.isNotEmpty) {
+          final ocr = await PdfOcrText.forPage(page);
+          lines = [
+            for (final f in ocr?.fragments ?? const <PdfPageTextFragment>[])
+              if (f.text.trim().isNotEmpty &&
+                  (!natural || _insideImage(f.bounds)))
+                ScannedLine(f.text.trim(), f.bounds),
+          ];
+        }
       } catch (_) {
         // Bilinçli en iyi çaba: OCR yoksa/başarısızsa satır listesi boş kalır ve kullanıcı taranmış sayfa yerine normal düzenlemeyi görür.
       }
@@ -227,6 +243,11 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
         _scannedKey = key;
         _scannedLines = _withoutParagraphOverlaps(lines);
         _scannedLoading = false;
+        if (natural) {
+          _naturalTextPages.add(page.pageNumber);
+        } else {
+          _naturalTextPages.remove(page.pageNumber);
+        }
       });
       unawaited(_openInitialSelection());
     });
@@ -271,6 +292,21 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
     if (ctrl == null) return;
     final at = selectionCaret(blockText, selection).clamp(0, ctrl.text.length);
     ctrl.selection = TextSelection.collapsed(offset: at);
+  }
+
+  /// OCR satırı ([box], PDF sayfa uzayı) bir görselin içinde mi (merkezi)?
+  bool _insideImage(PdfRect box) {
+    final cx = (box.left + box.right) / 2;
+    final cy = (box.top + box.bottom) / 2;
+    for (final o in _outline.objects) {
+      if (cx >= o.left &&
+          cx <= o.left + o.width &&
+          cy >= o.bottom &&
+          cy <= o.bottom + o.height) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /// Paragraf kutusuyla örtüşen OCR satırlarını eler: üstüne yazılmış satır

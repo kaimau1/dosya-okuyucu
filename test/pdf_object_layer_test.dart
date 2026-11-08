@@ -178,4 +178,17 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('form-field-Onay')));
     expect(tapped?.name, 'Onay');
   });
+
+  testWidgets('PS2c: alan belgenin ailesiyle çizilir (Carlito sabit değil)',
+      (tester) async {
+    final ctrl = TextEditingController(text: 'Işığı gördü');
+    addTearDown(ctrl.dispose);
+    await tester.pumpWidget(host(PdfInlineParagraphEditor(
+        rect: const Rect.fromLTWH(10, 10, 200, 20),
+        controller: ctrl,
+        pointSize: 12,
+        fontFamily: 'Tinos')));
+    final field = tester.widget<EditableText>(find.byType(EditableText));
+    expect(field.style.fontFamily, 'Tinos');
+  });
 }

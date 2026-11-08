@@ -25,6 +25,7 @@ import '../services/pdf/pdf_pending_objects.dart';
 import '../services/pdf/pdf_ocr_text.dart';
 import '../services/pdf/pdf_scanned_retype.dart';
 import '../services/pdf/pdf_selection_target.dart';
+import '../services/pdf/pdf_font_class.dart';
 import '../services/pdf_page_edit.dart';
 import '../services/pdf_reload.dart';
 import '../services/pdf_tools.dart';
@@ -138,6 +139,13 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   PdfEditHistory<PdfOverlayLayer>? _history;
 
   bool get _dirty => _history?.dirty ?? false;
+
+  /// Gerçek metin katmanı olan sayfalar (PS2a): paragraf motoru metni
+  /// okuyamadıysa "taranmış" değil "bu sürümde düzenlenemiyor" denir.
+  final Set<int> _naturalTextPages = {};
+
+  /// Yerinde alanın yazı tipi ailesi (PS2c).
+  String _inlineFamily = 'Carlito';
 
   /// Son kaydın yazıldığı yol (ekran kapanınca çağırana döner).
   String? _savedPath;

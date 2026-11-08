@@ -187,7 +187,11 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
             ? context.t('pe.hint_failed', {'error': failure})
             : context.t(switch (_mode) {
                 _EditMode.text => _outline.paragraphs.isEmpty
-                    ? (_scannedPages.contains(_page) && PdfOcrText.isSupported
+                    // PS2a/PK7: metin katmanı var ama motor okuyamadı —
+                    // sessizce OCR'a düşmek yerine nedeni söylenir.
+                    ? _naturalTextPages.contains(_page)
+                        ? 'pe.hint_text_unsupported'
+                        : (_scannedPages.contains(_page) && PdfOcrText.isSupported
                         ? 'pe.hint_text_scanned'
                         : 'pe.hint_text_none')
                     : 'pe.hint_text',

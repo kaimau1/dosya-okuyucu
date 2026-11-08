@@ -55,3 +55,17 @@ int selectionCaret(String blockText, String selection) {
 
 double _min(double a, double b) => a < b ? a : b;
 double _max(double a, double b) => a > b ? a : b;
+
+/// Sayfanın GERÇEK (görünür ya da görünmez fark etmez) metin katmanı var mı?
+/// pdfium'un sayfa metninde en az [minChars] boşluk dışı karakter. (Taranmış
+/// sayfanın görünmez OCR katmanı ayrıca `PdfPageOutline.scanned` ile ayrılır.)
+bool pdfHasTextLayer(String fullText, {int minChars = 20}) {
+  var n = 0;
+  for (final r in fullText.runes) {
+    if (String.fromCharCode(r).trim().isEmpty || r == 0xfffe || r == 0x2) {
+      continue;
+    }
+    if (++n >= minChars) return true;
+  }
+  return false;
+}

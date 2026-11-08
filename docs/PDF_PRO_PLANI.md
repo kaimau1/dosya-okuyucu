@@ -173,7 +173,7 @@ Amaç: bundan sonraki her kararı sayıyla vermek ve bildirilen sorunların hız
 7. [x] **PS4 ara düzeltme:** düzenleyicide klavye görüntüleyiciyi küçültmez
        (`resizeToAvoidBottomInset: false` + düzenlenen satırı klavyenin üstüne kaydırma); OCR satırında
        da okunur boya yakınlaşma; uygulamadan sonra yakınlaştırma matrisi geri yüklenir.
-8. [ ] **PS2 ara düzeltme:** `_ocrEditable` doğal metinli sayfada logo yüzünden OCR açmaz (yalnız
+8. [x] **PS2 ara düzeltme:** `_ocrEditable` doğal metinli sayfada logo yüzünden OCR açmaz (yalnız
        sayfanın metin katmanı gerçekten yoksa ya da OCR satırı görsel bölgesinin içindeyse); düzenleme
        alanı Carlito yerine belgenin fontuna en yakın gömülü aileyle (Carlito/Tinos/Arimo) çizilir.
 **Bitti:** külliyat + tezgâh CI'da yeşil, taban raporu yazıldı; PS1/3/4/5 ara düzeltmeleri cihazda

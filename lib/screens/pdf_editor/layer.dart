@@ -383,6 +383,18 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
     _closeEditors();
     _openInline(_outline.paragraphs[index].text, paragraph: index);
     _zoomToParagraph(index);
+    unawaited(_loadInlineFamily(index));
+  }
+
+  /// PS2c (Faz 51): alan belgenin fontuna en yakın gömülü aileyle çizilir.
+  Future<void> _loadInlineFamily(int index) async {
+    final bytes = _history?.bytes;
+    if (bytes == null) return;
+    final base = await PdfPageEdit.paragraphBaseFontInBackground(bytes,
+        pageIndex: _page - 1, paragraphIndex: index);
+    if (!mounted || _inlineIndex != index) return;
+    final family = PdfFontClass.of(base ?? '').previewFamily;
+    if (family != _inlineFamily) _partSetState(() => _inlineFamily = family);
   }
 
   /// Ortak açılış: paragraf ([paragraph]) ya da OCR satırı ([scanned]).
@@ -509,6 +521,7 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
         applying: _inlineApplying,
         bold: _inlineBold,
         colorArgb: _inlineColor,
+        fontFamily: _inlineScanned == null ? _inlineFamily : 'Carlito',
       ),
     ];
   }

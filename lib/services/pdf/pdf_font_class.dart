@@ -11,11 +11,16 @@ class PdfFontClass {
   final bool bold;
   final bool italic;
 
+  /// Calibri ailesi (ölçü uyumlu karşılığı Carlito). Arial/Helvetica ve
+  /// bilinmeyen sans → Arimo.
+  final bool calibri;
+
   const PdfFontClass({
     this.serif = false,
     this.mono = false,
     this.bold = false,
     this.italic = false,
+    this.calibri = false,
   });
 
   static const _serifHints = [
@@ -74,7 +79,12 @@ class PdfFontClass {
     final italic = n.contains('italic') ||
         n.contains('oblique') ||
         RegExp(r'[-,](i|it)$').hasMatch(n);
-    return PdfFontClass(serif: serif, mono: mono, bold: bold, italic: italic);
+    return PdfFontClass(
+        serif: serif,
+        mono: mono,
+        bold: bold,
+        italic: italic,
+        calibri: n.contains('calibri') || n.contains('carlito'));
   }
 
   /// Üstünü kapatma yedeğinde kullanılacak gömülü TTF.
@@ -90,10 +100,15 @@ class PdfFontClass {
     return 'assets/fonts/$family-$style.ttf';
   }
 
-  /// Yerinde düzenleme kutusunun (ekrandaki önizleme) yazı tipi ailesi.
+  /// Yerinde düzenleme kutusunun (ekrandaki önizleme) yazı tipi ailesi —
+  /// belgenin fontuna ÖLÇÜ olarak en yakın gömülü aile (PS2c, Faz 51:
+  /// eskiden alan her belgede Carlito çiziliyordu, yazarken görülen sonuçla
+  /// aynı değildi).
   String get previewFamily => serif
       ? 'Tinos'
       : mono
           ? 'JetBrains Mono'
-          : 'Arimo';
+          : calibri
+              ? 'Carlito'
+              : 'Arimo';
 }
