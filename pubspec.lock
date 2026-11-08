@@ -250,7 +250,7 @@ packages:
     source: hosted
     version: "4.0.0"
   ffi:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: ffi
       sha256: "6d7fd89431262d8f3125e81b50d3847a091d846eafcd4fdb88dd06f36d705a45"
@@ -925,7 +925,7 @@ packages:
     source: hosted
     version: "1.0.4"
   pdfium_dart:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: pdfium_dart
       sha256: "3e250021b2f462058aae216837902fdc8b2cb7f0657e4ec2bc9ac541f960ff84"
@@ -948,12 +948,11 @@ packages:
     source: path
     version: "2.12.0"
   pdfrx_engine:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: pdfrx_engine
-      sha256: "4f86165b90c8ae7647747e2d2f9880727f0480caab976a712de1c95076c48762"
-      url: "https://pub.dev"
-    source: hosted
+      path: "third_party/pdfrx_engine"
+      relative: true
+    source: path
     version: "0.9.1"
   permission_handler:
     dependency: "direct main"

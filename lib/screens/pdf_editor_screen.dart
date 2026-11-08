@@ -25,6 +25,8 @@ import '../services/pdf/pdf_pending_objects.dart';
 import '../services/pdf/pdf_ocr_text.dart';
 import '../services/pdf/pdf_scanned_retype.dart';
 import '../services/pdf/pdf_selection_target.dart';
+import '../services/pdf/pro/pdf_edit_bridge.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/pdf/pdf_font_class.dart';
 import '../services/pdf_page_edit.dart';
 import '../services/pdf_reload.dart';
@@ -153,6 +155,11 @@ class _PdfEditorScreenState extends State<PdfEditorScreen>
 
   /// Son kaydın yazıldığı yol (ekran kapanınca çağırana döner).
   String? _savedPath;
+
+  /// PDF Pro prototip motoru (Faz 52, gizli bayrak `pdf_pro_engine` ya da
+  /// `--dart-define=PDF_PRO_ENGINE=true`): paragraf PDFium köprüsüyle
+  /// görüntüleyicinin AÇIK belgesinde değişir, belge yeniden yüklenmez.
+  bool _proEngine = const bool.fromEnvironment('PDF_PRO_ENGINE');
 
   /// Henüz açılmamış başlangıç seçimi (PS1) — bir kez tüketilir.
   late PdfEditSelection? _pendingSelection = widget.selection;

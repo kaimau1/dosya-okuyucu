@@ -45,7 +45,12 @@ class BenchEditResult {
   /// Yedek fonta düşen karakter sayısı (glif bazlı yedek); bilinmiyorsa null.
   final int? fallbackChars;
 
-  const BenchEditResult(this.bytes, {this.notdefChars, this.fallbackChars});
+  /// Düzenlenen bloğun DIŞINDA işaretli içerik (BDC/MCID — etiketli PDF)
+  /// taşıyan nesne kaybı; bilinmiyorsa null.
+  final int? markedLost;
+
+  const BenchEditResult(this.bytes,
+      {this.notdefChars, this.fallbackChars, this.markedLost});
 }
 
 /// Motor bir düzenlemeyi reddetti. [glyph] = neden eksik glif.
@@ -117,7 +122,7 @@ class EditRecord {
   final bool ok, glyphRefused;
   final String? reason;
   final double? ms;
-  final int? growth, pixelDiff, notdef, fallback;
+  final int? growth, pixelDiff, notdef, fallback, markedLost;
   final bool? qpdfOk, mutoolOk;
   EditRecord({
     required this.file,
@@ -133,6 +138,7 @@ class EditRecord {
     this.pixelDiff,
     this.notdef,
     this.fallback,
+    this.markedLost,
     this.qpdfOk,
     this.mutoolOk,
   });
@@ -150,6 +156,7 @@ class EditRecord {
         'pixelDiff': pixelDiff,
         'notdef': notdef,
         'fallback': fallback,
+        'markedLost': markedLost,
         'qpdfOk': qpdfOk,
         'mutoolOk': mutoolOk,
       };
@@ -180,8 +187,11 @@ class BenchReport {
   final List<PageRecord> pages;
   final List<EditRecord> edits;
   final bool qpdfAvailable, mutoolAvailable;
+
+  /// Koşu boyunca süreç belleğinin (RSS) başlangıca göre en büyük artışı (MB).
+  final double rssPeakDeltaMb;
   BenchReport(this.engine, this.pages, this.edits, this.qpdfAvailable,
-      this.mutoolAvailable);
+      this.mutoolAvailable, {this.rssPeakDeltaMb = 0});
 
   /// Özet sayılar — rapor tablosu ve taban karşılaştırması bunlardan.
   Map<String, Object?> summary({bool includeLocal = false}) {
@@ -208,6 +218,8 @@ class BenchReport {
         'notdef': ok.fold<int>(0, (s, x) => s + (x.notdef ?? 0)),
         'notdefUnknown': ok.where((x) => x.notdef == null).length,
         'fallbackChars': ok.fold<int>(0, (s, x) => s + (x.fallback ?? 0)),
+        'markedLost': ok.fold<int>(0, (s, x) => s + (x.markedLost ?? 0)),
+        'markedUnknown': ok.where((x) => x.markedLost == null).length,
         'msP50': _q(ms, .5),
         'msP95': _q(ms, .95),
         'growthP50': _q(growth.map((g) => g.toDouble()).toList(), .5),
@@ -232,6 +244,7 @@ class BenchReport {
       'turkish': kind('turkce'),
       'qpdf': qpdfAvailable,
       'mutool': mutoolAvailable,
+      'rssPeakDeltaMb': rssPeakDeltaMb,
     };
   }
 
@@ -440,6 +453,8 @@ Future<BenchReport> runBench(
   final qpdf = await _toolAvailable('qpdf');
   final mutool = await _toolAvailable('mutool');
   final tmp = await Directory.systemTemp.createTemp('pdfbench_');
+  final rss0 = ProcessInfo.currentRss;
+  var rssMax = rss0;
   final pages = <PageRecord>[];
   final edits = <EditRecord>[];
 
@@ -521,6 +536,7 @@ Future<BenchReport> runBench(
             continue;
           }
           final ms = sw.elapsedMicroseconds / 1000;
+          rssMax = math.max(rssMax, ProcessInfo.currentRss);
           // Yeniden çıkar: PDFium sayfa metninde yeni metin var mı?
           var ok = false;
           int? pixel;
@@ -578,6 +594,7 @@ Future<BenchReport> runBench(
               pixelDiff: pixel,
               notdef: res.notdefChars,
               fallback: res.fallbackChars,
+              markedLost: res.markedLost,
               qpdfOk: qpdfOk,
               mutoolOk: mutoolOk));
         }
@@ -587,7 +604,8 @@ Future<BenchReport> runBench(
     log?.call('${cf.file}: ${pages.where((p) => p.file == cf.file).map((p) => p.blocks).join('+')} blok');
   }
   await tmp.delete(recursive: true);
-  return BenchReport(engine.name, pages, edits, qpdf, mutool);
+  return BenchReport(engine.name, pages, edits, qpdf, mutool,
+      rssPeakDeltaMb: ((rssMax - rss0) / 1048576 * 10).round() / 10);
 }
 
 String _short(String s) => s.length > 140 ? '${s.substring(0, 140)}…' : s;

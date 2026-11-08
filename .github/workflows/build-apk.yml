@@ -244,6 +244,9 @@ jobs:
           # PDF Pro tezgâhı kendi adımında (qpdf + mutool ile) koşar.
           mapfile -t files < <(for f in "${files[@]}"; do [ "$f" = test/pdf_pro/bench_test.dart ] || echo "$f"; done)
           if [ ${#files[@]} -eq 0 ]; then echo "Bu parçada yalnız perf testleri vardı."; exit 0; fi
+          # PDFium'lu testler (PDF Pro köprüsü): Linux flutter_tester yerel
+          # varlığı yükleyemiyor → önden indirilen kütüphane.
+          export PDFIUM_PATH=$(ls "$PWD"/.dart_tool/hooks_runner/shared/pdfium_dart/build/chromium_*/linux-x64/libpdfium.so 2>/dev/null | head -1)
           flutter test "${files[@]}"
 
       # PERF GERİLEME KAPISI (Faz 42 / 5): `perf` etiketli eşik testleri HER

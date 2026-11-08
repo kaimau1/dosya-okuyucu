@@ -184,19 +184,24 @@ harf) / %34,2 (Türkçe harf), Word'de 0 paragraf (kök: satır başına kırpma
 sahip parolalı belgede kilit açma düzeltildi; AES-256 kopyası KALANLAR'da.
 
 ### Faz 52 — Motor köprüsü: PDFium düzenleme API'si + karar kapısı ☁️ (2–3 oturum)
-1. [ ] `third_party/pdfrx_engine` (0.9.x) depoya alınır, `YAMA.md`; pdfrx bağımlılığı yerel yola.
-2. [ ] `PdfEditBridge` (pdfrx işçisinde, belge kilidiyle): sayfa yükle/tut, metin nesnelerini sırala
+1. [x] `third_party/pdfrx_engine` (0.9.x) depoya alınır, `YAMA.md`; pdfrx bağımlılığı yerel yola.
+2. [x] `PdfEditBridge` (pdfrx işçisinde, belge kilidiyle): sayfa yükle/tut, metin nesnelerini sırala
        (kutu, matris, font, punto, renk, metin), `FPDFText_GetTextObject` ile karakter → nesne eşlemesi,
        `SetText`/yeni metin nesnesi/sil/dönüştür, `GenerateContent`, `SaveAsCopy(INCREMENTAL)`.
-3. [ ] pdfrx'e **sayfa değişti** olayı: o sayfanın görüntü/metin önbelleği düşer, görüntüleyici yalnız
+3. [x] pdfrx'e **sayfa değişti** olayı: o sayfanın görüntü/metin önbelleği düşer, görüntüleyici yalnız
        o sayfayı yeniden çizer, matris değişmez (widget testi: düzenleme sonrası `value` aynı).
-4. [ ] Prototip düzenleyici yolu (gizli bayrak `pdf_pro_engine`): paragraf değiştir → bellek → çizim.
-5. [ ] **Karar kapısı:** külliyatta iki motor yan yana (tezgâh): başarı oranı, piksel farkı, `qpdf
+4. [x] Prototip düzenleyici yolu (gizli bayrak `pdf_pro_engine`): paragraf değiştir → bellek → çizim.
+5. [x] **Karar kapısı:** külliyatta iki motor yan yana (tezgâh): başarı oranı, piksel farkı, `qpdf
        --check`, çıktı büyümesi, p95 gecikme, bellek. Tablo `docs/perf/2026-11-pdfpro-52-motor.md`.
        PK1 mi PK1-B mi → HAFIZA "karar". (`GenerateContent`'in işaretli içerik/etiketli PDF davranışı
        ayrıca ölçülür; kayıp varsa yalnız kirli akış yeniden üretimi doğrulanır.)
 **Bitti:** karar sayıyla verildi; seçilen yol külliyatta şimdiki motorun **en az** başarı oranında ve
 değişmeyen bölge farkı 0.
+**Sonuç (2026-11-08, PR `faz-52`): PK1 (PDFium) — koşullu.** Kapsama %100 / %63,6, başarı %81,8 / %54,2
+ve %44,9 / %34,2, gecikme 3×, bellek ⅓, işaretli içerik kaybı 0. Değişmeyen bölge farkı ReportLab
+dışında 1/284; ReportLab ailesinde PDFium `GenerateContent`'in `Tw`/`Tc` yazmaması yüzünden fark var,
+büyüme 36 KB p50 → ikisi **Faz 54 bitti ölçütüne** eklendi; o zamana dek yol `pdf_pro_engine`
+bayrağında. Rapor `docs/perf/2026-11-pdfpro-52-motor.md`.
 
 ### Faz 53 — Tasarım dili ve etkileşim prototipi 👤 onay kapısı ☁️ (1–2 oturum)
 1. [ ] Rakip akış analizi (Acrobat, Foxit, PDFelement, Xodo, Nutrient) → `docs/design/pdf_pro/analiz.md`:
@@ -217,6 +222,10 @@ değişmeyen bölge farkı 0.
 **Bitti:** kullanıcı maketleri onayladı; sonraki UX fazları bu maketlere göre yapılır.
 
 ### Faz 54 — Düzenleme oturumu çekirdeği + tek yüzey + kaydetme akışı ☁️ + 📱 (3 oturum)
+0. [ ] **PK1 koşulları (Faz 52 kararı — bu faz bitmeden PDFium yolu varsayılan olmaz):** (a) değişmeyen
+       bölge piksel farkı 0, ReportLab ailesi dahil (`GenerateContent` `Tw`/`Tc` yazmıyor → hibrit yazım:
+       yeni nesneler ayrı akışa, eski blok baytları Dart artımlı yazıcıyla akıştan çıkar); (b) artımlı
+       kayıt büyümesi p50 ≤ 4 KB (font sözlüğü/akışı yeniden yazılmasın). Ölçüt: `baseline_pdfium.json`.
 1. [ ] `PdfEditSession`: görüntüleyicinin belgesine bağlı oturum; sayfa bazlı kirli izleme; komut
        yığını (her komut: uygula/geri al — sayfa içerik akışı + kaynak sözlüğü anlık görüntüsü, tüm
        belge kopyası YOK); sınırsız geri al/yinele, adım adları ("Paragraf düzenlendi: 'Ancak…'").

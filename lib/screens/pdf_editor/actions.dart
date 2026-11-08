@@ -21,6 +21,8 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
 
   Future<void> _prepare() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      _proEngine = _proEngine || (prefs.getBool('pdf_pro_engine') ?? false);
       final dir = await Directory.systemTemp.createTemp('pdf_editor');
       final work = p.join(dir.path, p.basename(widget.path));
       // `copy`: dosya Dart belleğine alınmadan kopyalanır (2026-09-23).
@@ -150,6 +152,16 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
     if (!mounted) return;
     _partSetState(() => _docRev++);
     if (keep != null) unawaited(_restoreMatrix(keep));
+    await _loadOutline();
+  }
+
+  /// PK2 (Faz 52 prototip): köprü belgeyi BELLEKTE değiştirdi ve sayfa
+  /// önbelleğini kendisi düşürdü → yeniden yükleme yok; çalışma dosyası ve
+  /// anahat yalnız tutarlılık için güncellenir.
+  Future<void> _syncLive() async {
+    await File(_workPath!).writeAsBytes(_history!.bytes, flush: true);
+    if (!mounted) return;
+    _partSetState(() => _docRev++);
     await _loadOutline();
   }
 

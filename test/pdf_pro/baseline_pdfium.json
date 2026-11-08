@@ -1,0 +1,13 @@
+{
+ "_not": "Faz 52 tabanı (PDFium nesne motoru, PdfEditBridge). Bilerek iyileşince güncelle; kötüleşme CI kırmızı.",
+ "pageErrors": 0,
+ "coveragePct": 100.0,
+ "same": {
+  "successPct": 81.8,
+  "pixelDirty": 30
+ },
+ "turkish": {
+  "successPct": 44.9,
+  "pixelDirty": 24
+ }
+}

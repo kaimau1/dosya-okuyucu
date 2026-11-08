@@ -678,7 +678,8 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
   /// alan hemen kapanıyor, birkaç saniye ESKİ metin görünüyor, sonra
   /// birdenbire yenisi geliyordu (kullanıcı 2026-10-30).
   Future<void> _applyInline(
-      String label, Future<List<int>> Function(List<int>) op) async {
+      String label, Future<List<int>> Function(List<int>) op,
+      {bool live = false}) async {
     _inlineTimer?.cancel();
     _inlineSeq++;
     _inlineFocus.unfocus();
@@ -690,7 +691,7 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
     });
     try {
       await _history!.applyOp(label, op);
-      await _syncDocument();
+      await (live ? _syncLive() : _syncDocument());
       _cancelInline();
       _snack(label);
     } on PdfParagraphRefused catch (e) {
@@ -748,6 +749,12 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
       _partSetState(() => _inlineRefusal = _str.t('pe.inline_empty'));
       return;
     }
+    if (_proEngine && !sizeChanged && bold == null && color == null) {
+      await _applyInline(_str.t('pe.paragraph_updated'),
+          (_) => _replaceWithBridge(pageIndex, paragraph, text),
+          live: true);
+      return;
+    }
     await _applyInline(
         _str.t('pe.paragraph_updated'),
         (b) => PdfPageEdit.replaceParagraphInBackground(
@@ -759,6 +766,30 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
               bold: bold,
               colorArgb: color,
             ));
+  }
+
+  /// Faz 52 prototip: paragrafı görüntüleyicinin açık belgesinde PDFium
+  /// köprüsüyle değiştirir; bloğu kutu kesişimiyle (yoksa metinle) eşler.
+  Future<List<int>> _replaceWithBridge(
+      int pageIndex, PdfParagraph paragraph, String text) async {
+    final doc = _controller.document;
+    final blocks = await PdfEditBridge.blocks(doc, pageIndex);
+    final i = bestOverlap([
+          PdfRect(paragraph.left, paragraph.top, paragraph.right,
+              paragraph.bottom)
+        ], [
+          for (final b in blocks) PdfRect(b.left, b.top, b.right, b.bottom)
+        ]) ??
+        bestTextMatch([for (final b in blocks) b.text], paragraph.text);
+    if (i == null) {
+      throw const PdfParagraphRefused('Paragraf PDFium bloğuyla eşlenemedi.');
+    }
+    try {
+      await PdfEditBridge.replaceBlock(doc, pageIndex, blocks[i], text);
+    } on PdfEditBridgeRefused catch (e) {
+      throw PdfParagraphRefused(e.message);
+    }
+    return PdfEditBridge.saveIncremental(doc);
   }
 
   /// "Üstüne yaz": paragrafın kutusu beyazla örtülür, yeni metin aynı yere
