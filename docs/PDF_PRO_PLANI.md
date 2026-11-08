@@ -170,7 +170,7 @@ Amaç: bundan sonraki her kararı sayıyla vermek ve bildirilen sorunların hız
        alanda, karakter/sözcük sayısı); çubuk seçimi örtüyorsa seçimin üstüne yerleşir.
 6. [x] **PS1 ara düzeltme:** "Düzenle" seçimin dikdörtgenini ve metnini geçirir; editör o sayfada
        seçimle en çok örtüşen paragrafı **doğrudan düzenleme kipinde** açar, imleç seçimin başına.
-7. [ ] **PS4 ara düzeltme:** düzenleyicide klavye görüntüleyiciyi küçültmez
+7. [x] **PS4 ara düzeltme:** düzenleyicide klavye görüntüleyiciyi küçültmez
        (`resizeToAvoidBottomInset: false` + düzenlenen satırı klavyenin üstüne kaydırma); OCR satırında
        da okunur boya yakınlaşma; uygulamadan sonra yakınlaştırma matrisi geri yüklenir.
 8. [ ] **PS2 ara düzeltme:** `_ocrEditable` doğal metinli sayfada logo yüzünden OCR açmaz (yalnız

@@ -214,6 +214,9 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   TextEditingController? _inlineCtrl;
   final FocusNode _inlineFocus = FocusNode();
 
+  /// Görüntüleyicinin kutusu: klavyenin örttüğü payı ölçmek için (PS4).
+  final GlobalKey _viewerKey = GlobalKey();
+
   /// Kullanıcının seçtiği punto (null → özgün).
   double? _inlineSize;
 
@@ -293,6 +296,10 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         if (leave && mounted) navigator.pop(_savedPath);
       },
       child: Scaffold(
+        // PS4 (Faz 51): klavye görüntüleyiciyi KÜÇÜLTMEZ (pdfrx sayfayı yeni
+        // boya sığdırıp uzaklaşıyordu); çubuk EditorChrome'da klavyenin
+        // üstüne bindirilir.
+        resizeToAvoidBottomInset: false,
         appBar: AppBar(
           title: Text(p.basename(widget.path),
               overflow: TextOverflow.ellipsis),
@@ -345,6 +352,8 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                 },
           escape: _inlineOpen && !_inlineApplying ? _cancelInline : null,
           child: EditorChrome(
+            overlayKeyboard: true,
+            freezeBody: _inlineOpen,
             accessory: _accessory(),
             ribbon: _ribbon(),
             body: _body(),

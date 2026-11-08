@@ -21,6 +21,7 @@ extension _PdfEditorScreenViewsPart on _PdfEditorScreenState {
             children: [
               PdfViewer.file(
                 _workPath!,
+                key: _viewerKey,
                 controller: _controller,
                 params: PdfViewerParams(
                   // pdfrx'in kendi metin seçimi kapalı: düzenleme katmanı

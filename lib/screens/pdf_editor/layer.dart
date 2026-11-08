@@ -446,21 +446,34 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
 
   /// Paragrafı görünür ve okunur boyda gösterir: hedef, ekranda ~18 px yazı.
   void _zoomToParagraph(int index) {
-    // Klavye açılıp görünüm küçüldükten SONRA (yoksa paragraf klavyenin
-    // altında kalır).
+    final par = _outline.paragraphs[index];
+    final pt = paragraphPointSize(par);
+    _zoomToBox(PdfRect(par.left, par.top, par.right, par.bottom),
+        pt > 0 ? pt : 11, () => _inlineIndex == index);
+  }
+
+  /// Yerinde alanı ([box], PDF noktası) okunur boya (~18 px) getirir ve
+  /// klavye + hızlı çubuğun örtmediği bölgede ortalar (PS4, Faz 51: OCR
+  /// satırında da). [stillOpen] false olduysa (alan kapandı) vazgeçer.
+  void _zoomToBox(PdfRect box, double pointSize, bool Function() stillOpen) {
+    // Klavye açıldıktan SONRA (örtülen pay o zaman bilinir).
     Future.delayed(Motion.long, () {
-      if (!mounted || _inlineIndex != index) return;
+      if (!mounted || !stillOpen()) return;
       try {
-        final par = _outline.paragraphs[index];
-        final pt = paragraphPointSize(par);
-        final onScreen = (pt > 0 ? pt : 11) * _pageScale;
+        final onScreen = pointSize * _pageScale;
         final zoom = (18 / onScreen).clamp(1.0, 4.0);
-        final rect = _controller.calcRectForRectInsidePage(
-          pageNumber: _page,
-          rect: PdfRect(par.left, par.top, par.right, par.bottom),
-        );
-        _controller.goTo(_controller.calcMatrixForRect(rect,
-            zoomMax: math.max(zoom, _controller.currentZoom), margin: 16));
+        final rect =
+            _controller.calcRectForRectInsidePage(pageNumber: _page, rect: box);
+        final m = _controller.calcMatrixForRect(rect,
+            zoomMax: math.max(zoom, _controller.currentZoom), margin: 16);
+        // Görüntüleyici artık klavyeyle küçülmüyor: alan, örtülmeyen
+        // bölgenin ortasına gelsin diye örtülen payın yarısı kadar yukarı.
+        final viewer = _viewerKey.currentContext?.findRenderObject();
+        final covered = viewer is RenderBox
+            ? EditorChrome.coveredBottom(context, viewer)
+            : 0.0;
+        if (covered > 0) m.leftTranslateByDouble(0, -covered / 2, 0, 1);
+        _controller.goTo(m);
       } catch (_) {
         // Görüntüleyici hazır değilse yakınlaşma kritik değil.
       }

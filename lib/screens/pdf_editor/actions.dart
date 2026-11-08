@@ -141,11 +141,26 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
   Future<void> _syncDocument() async {
     if (_busy) _setBusy(_str.t('pe.busy_refresh'));
     final path = _workPath!;
+    // PS4 ara düzeltme (Faz 51): yeniden yükleme yakınlaştırma/konumu
+    // sıfırlıyordu → matris saklanır, yüklemeden sonra geri konur. (Yeniden
+    // yüklemenin kendisi PK2 ile Faz 52–54'te kalkar.)
+    final keep = _controller.isReady ? _controller.value.clone() : null;
     await File(path).writeAsBytes(_history!.bytes, flush: true);
     await PdfReload.reloadFile(path);
     if (!mounted) return;
     _partSetState(() => _docRev++);
+    if (keep != null) unawaited(_restoreMatrix(keep));
     await _loadOutline();
+  }
+
+  Future<void> _restoreMatrix(Matrix4 keep) async {
+    // Yeni belge düzeni kurulana kadar birkaç kare bekle.
+    for (var i = 0; i < 10 && mounted; i++) {
+      await Future<void>.delayed(Motion.short);
+      if (!_controller.isReady) continue;
+      await _controller.goTo(keep, duration: Duration.zero);
+      return;
+    }
   }
 
   Future<void> _undoLast() async {
@@ -295,7 +310,10 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
       return;
     }
     _closeEditors();
-    _openInline(_scannedLines[index].text, scanned: index);
+    final line = _scannedLines[index];
+    _openInline(line.text, scanned: index);
+    _zoomToBox(line.box, math.max(4.0, line.box.height / 1.2),
+        () => _inlineScanned == index);
   }
 
   /// **Sayfayı düzelt** — taranmış sayfanın TÜM satırlarını bir geçişte
