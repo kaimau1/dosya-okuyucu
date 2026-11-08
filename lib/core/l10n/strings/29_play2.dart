@@ -57,4 +57,11 @@ const Map<String, (String, String, String)> _t29 = {
     'لا حاجة لأي إذن: اختر الملف من منتقي Android ليُفتح فورًا.',
   ),
   'onb.choice_manage': ('Telefonumdaki tüm dosyaları yönet', 'Manage all files on my phone', 'إدارة كل الملفات على هاتفي'),
+  'whatsnew.title': ('Neler yeni — {v}', 'What’s new — {v}', 'ما الجديد — {v}'),
+  'whatsnew.privacy': ('Ayarlar › Gizlilik ve izinler: her izin neden istenir, durumu ne, tek dokunuşla geri al.', 'Settings › Privacy & permissions: why each permission is asked, its status, revoke in one tap.', 'الإعدادات › الخصوصية والأذونات: سبب كل إذن وحالته وإلغاؤه بلمسة.'),
+  'whatsnew.offline': ('Çevrimdışı kip: açınca uygulama internete hiç çıkmaz.', 'Offline mode: when on, the app never goes online.', 'وضع عدم الاتصال: عند تشغيله لا يتصل التطبيق بالإنترنت أبدًا.'),
+  'whatsnew.ai_ask': ('Yapay zekâya dosya gitmeden önce sorulur.', 'You’re asked before a file goes to AI.', 'يُطلب إذنك قبل إرسال أي ملف إلى الذكاء الاصطناعي.'),
+  'whatsnew.add_folder': ('Tüm dosyalara izin vermeden "Klasör ekle" ile yalnız seçtiğin klasörleri kullan.', 'Use "Add folder" to work with just the folders you choose, without all-files access.', 'استخدم «إضافة مجلد» للعمل بالمجلدات التي تختارها فقط دون إذن كل الملفات.'),
+  'whatsnew.reading': ('PDF’te okuma yardımcıları; Word/Slayt kaldığı yerden, Excel kaydedildiği sayfada açılır.', 'Reading helpers in PDF; Word/Slides reopen where you left off, Excel on its saved sheet.', 'أدوات قراءة في PDF؛ Word والشرائح تُفتح من حيث توقفت، وExcel على الورقة المحفوظة.'),
+  'whatsnew.faster': ('Yeni Flutter ve paketler: daha akıcı PDF kaydırma, daha hızlı SFTP.', 'New Flutter and packages: smoother PDF scrolling, faster SFTP.', 'Flutter وحزم جديدة: تمرير PDF أنعم وSFTP أسرع.'),
 };

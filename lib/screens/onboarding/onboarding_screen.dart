@@ -11,6 +11,7 @@ import '../../services/fm/entry_opener.dart';
 import '../../services/fm/storage_permission.dart';
 import '../../services/sample_docs.dart';
 import '../../widgets/permission_gate.dart';
+import '../../widgets/whats_new.dart';
 
 /// **İlk açılış rehberi** (Faz 11a / N1, 2026-10-22).
 ///
@@ -403,7 +404,15 @@ class _OnboardingGateState extends State<OnboardingGate> {
   }
 
   Future<void> _check() async {
-    if (await OnboardingScreen.isDone() || !mounted) return;
+    if (await OnboardingScreen.isDone()) {
+      // Güncelleyen kullanıcı: büyük değişiklikte bir kez "Neler yeni".
+      if (mounted) await WhatsNew.maybeShow(context);
+      return;
+    }
+    if (!mounted) return;
+    // Yeni kurulum rehberi görür; bu sürümün yenilikleri ona "yeni" değil.
+    await WhatsNew.markSeen();
+    if (!mounted) return;
     await Navigator.of(context).push(MaterialPageRoute(
       fullscreenDialog: true,
       builder: (_) => const OnboardingScreen(),
