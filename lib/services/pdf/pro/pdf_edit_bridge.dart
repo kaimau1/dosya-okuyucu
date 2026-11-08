@@ -88,6 +88,12 @@ abstract final class PdfEditBridge {
     await doc.reloadPages(pageNumbersToReload: [pageIndex + 1]);
   }
 
+  /// İşaretli içerik (BDC/MCID — etiketli PDF yapısı) taşıyan nesnelerin
+  /// sırası. `GenerateContent`'in işaretleri koruyup korumadığını ölçmek için
+  /// (karar kapısı).
+  static Future<List<int>> markedObjects(PdfDocument doc, int pageIndex) =>
+      doc.computeOnIdleDocument(_markedObjects, pageIndex);
+
   /// Artımlı kayıt baytları (özgün baytlar başta aynen durur).
   static Future<Uint8List> saveIncremental(PdfDocument doc) =>
       doc.encodePdf(incremental: true);
@@ -178,6 +184,22 @@ PdfTextObjectInfo _info(pdfium_bindings.PDFium p, Arena arena,
     matrix: [m.ref.a, m.ref.b, m.ref.c, m.ref.d, m.ref.e, m.ref.f],
     renderMode: p.FPDFTextObj_GetTextRenderMode(obj).value,
   );
+}
+
+List<int> _markedObjects(
+    pdfium_bindings.PDFium p, int docAddr, int pageIndex) {
+  final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(docAddr);
+  final page = p.FPDF_LoadPage(doc, pageIndex);
+  if (page == nullptr) return const [];
+  try {
+    final n = p.FPDFPage_CountObjects(page);
+    return [
+      for (var i = 0; i < n; i++)
+        if (p.FPDFPageObj_CountMarks(p.FPDFPage_GetObject(page, i)) > 0) i,
+    ];
+  } finally {
+    p.FPDF_ClosePage(page);
+  }
 }
 
 List<int> _charObjects(pdfium_bindings.PDFium p, int docAddr, int pageIndex) {
@@ -337,12 +359,26 @@ bool _readsBack(pdfium_bindings.PDFium p, pdfium_bindings.FPDF_PAGE page,
     final mine = {for (final o in created) o.address};
     final b = StringBuffer();
     final n = p.FPDFText_CountChars(tp);
+    var inMine = false;
     for (var i = 0; i < n; i++) {
-      if (!mine.contains(p.FPDFText_GetTextObject(tp, i).address)) continue;
-      b.writeCharCode(p.FPDFText_GetUnicode(tp, i));
+      final obj = p.FPDFText_GetTextObject(tp, i);
+      if (mine.contains(obj.address)) {
+        inMine = true;
+        b.writeCharCode(p.FPDFText_GetUnicode(tp, i));
+      } else if (obj == nullptr && inMine) {
+        // PDFium'un geometriden ÜRETTİĞİ boşluk/satır sonu: nesnesi yok.
+        b.writeCharCode(p.FPDFText_GetUnicode(tp, i));
+      } else {
+        inMine = false;
+      }
     }
-    String squash(String s) => s.replaceAll(RegExp(r'[\s\u0000-\u001f￾]'), '');
-    return squash(b.toString()) == squash(text);
+    // Boşluklar da ŞART: fontta boşluk glifi yoksa (ör. Dart `pdf` paketi
+    // alt kümeleri) sözcükler bitişik çıkar — sessizce "başarılı" denmez.
+    String norm(String s) => s
+        .replaceAll(RegExp(r'[\u0000-\u0008\u000e-\u001f￾]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return norm(b.toString()) == norm(text);
   } finally {
     p.FPDFText_ClosePage(tp);
   }
