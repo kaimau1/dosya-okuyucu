@@ -202,6 +202,10 @@ abstract final class AiAnalyzer {
       name: _str.t('aiq.job_title'),
       detail: _str.t('aiq.collecting'),
       target: const FmJobTarget.aiHub(),
+      // Otomatik tur bildirimsiz (2026-11-09 kullanıcı isteği): ne sistem
+      // bildirimi ne şerit; ilerleme yalnız AI simgesinin halkasında ve AI
+      // ekranında görünür.
+      silent: auto,
       run: (handle) async {
         // Bildirimdeki/şeritteki/İşlemler ekranındaki iptal `handle`a düşer;
         // onu analizin kendi iptaline burada bağlarız (250 ms yoklama).

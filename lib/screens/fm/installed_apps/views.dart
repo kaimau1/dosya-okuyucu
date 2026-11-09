@@ -280,11 +280,14 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
             ListTile(
               leading: const Icon(AppIcons.share),
               title: Text(context.t('apk.share')),
+              subtitle: Text(context.t('apk.share_sub')),
               onTap: () => Navigator.pop(ctx, 'apk_share'),
             ),
+            // 2026-11-09: tek dokunuşla, SORUSUZ kayıt (parçalıysa .apks).
             ListTile(
               leading: const Icon(AppIcons.download),
               title: Text(context.t('apk.save')),
+              subtitle: Text(context.t('apk.save_sub')),
               onTap: () => Navigator.pop(ctx, 'apk_save'),
             ),
             ListTile(
@@ -311,9 +314,9 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
         await Clipboard.setData(ClipboardData(text: app.packageName));
         if (mounted) _snack(context.t('apps.package_copied'));
       case 'apk_share':
-        await _exportApk(app, share: true);
+        await _exportApk(app);
       case 'apk_save':
-        await _exportApk(app, share: false);
+        await _exportApk(app, direct: true);
       case 'uninstall':
         // Pencere kapanıp uygulama öne gelince [_confirmUninstall] bakar;
         // satır o an düşer (yenilemeyi beklemeden).
@@ -322,13 +325,18 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
     }
   }
 
-  /// APK'yı çıkarır ve paylaşır ya da İndirilenler'e kaydeder.
+  /// APK'yı çıkarır; paylaşır ve/veya kaydeder (2026-11-09 geliştirmesi).
   ///
-  /// **Paylaşırken hedef uygulamanın önbelleği:** paylaşım için dosyanın
-  /// kalıcı olması gerekmiyor ve kullanıcının İndirilenler klasörünü
-  /// paylaştığı her uygulamanın APK'sıyla doldurmak istemeyiz. "Kaydet"
-  /// bilinçli olarak AYRI bir eylem ve İndirilenler'e yazar.
-  Future<void> _exportApk(InstalledAppEntry app, {required bool share}) async {
+  /// * [direct] `true`: soru yok — parçalıysa `.apks`, kayıt yeri
+  ///   `İndirilenler/APK`; bitince kartta "Paylaş" ve "Göster".
+  /// * Aksi hâlde [_ApkExportSheet]: biçim (parçalıysa), kayıt yeri ve
+  ///   Paylaş / Kaydet / Kaydet ve paylaş.
+  ///
+  /// **Yalnız paylaşırken** kopya uygulama verisinde geçici durur ve her
+  /// seferinde silinir (APK'lar 100 MB'ı geçebilir; `share_plus` zaten kendi
+  /// önbelleğine kopyalıyor). Kaydedilen kopya kalıcıdır ve paylaşım ondan
+  /// yapılır — ikinci kopya yok.
+  Future<void> _exportApk(InstalledAppEntry app, {bool direct = false}) async {
     final source = await AppStorageService.apkPathsOf(app.packageName);
     if (!mounted) return;
     if (source == null) {
@@ -336,24 +344,26 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
       return;
     }
 
-    // Parçalı kurulumda kullanıcıya SORULUR: tek base.apk karşı tarafta
-    // kurulmayabilir (bkz. ApkExport sınıf notu). Sessizce base.apk paylaşmak
-    // "paylaştım ama kurulmadı" demek olurdu.
-    var includeSplits = true;
-    if (source.isSplit) {
-      final choice = await _askSplit(source.splitPaths.length + 1);
-      if (choice == null || !mounted) return;
-      includeSplits = choice;
+    final defaultDir = apkSaveDir();
+    final _ApkPlan plan;
+    if (direct) {
+      plan = _ApkPlan(includeSplits: true, save: true, share: false,
+          destDir: defaultDir);
+    } else {
+      final picked = await showModalBottomSheet<_ApkPlan>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (_) => _ApkExportSheet(
+            app: app, source: source, defaultDir: defaultDir),
+      );
+      if (picked == null || !mounted) return;
+      plan = picked;
     }
 
-    final destDir = share
-        ? p.join(FmEnv.appSupportDir, 'apk')
-        : (downloadsPathIn(FmEnv.primaryRoot) ?? FmEnv.primaryRoot);
-    if (share) {
-      // Paylaşma klasörü her seferinde BOŞALTILIR: APK'lar 100 MB'ı geçebilir
-      // ve `share_plus` dosyayı zaten kendi önbelleğine kopyalıyor, yani bu
-      // kopya paylaşımdan sonra ölü. Biriktirmek kullanıcının yerini sessizce
-      // yerdi — üstelik "Yer aç"ın göremeyeceği bir yerde (uygulama verisi).
+    final destDir =
+        plan.save ? plan.destDir : p.join(FmEnv.appSupportDir, 'apk');
+    if (!plan.save) {
       try {
         final dir = Directory(destDir);
         if (dir.existsSync()) dir.deleteSync(recursive: true);
@@ -370,54 +380,212 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
         task: (report, _) => ApkExport.extract(
           source,
           destDir,
-          includeSplits: includeSplits,
+          includeSplits: plan.includeSplits,
           appName: app.name,
           packageName: app.packageName,
         ),
       );
       if (!mounted) return;
-      if (share) {
+      if (plan.share) {
         await shareEntries([path]);
-      } else {
-        _snack(context.t('apk.saved', {'name': p.basename(path)}));
+        if (plan.save && mounted) {
+          _snack(context.t('apk.saved_in',
+              {'name': p.basename(path), 'dir': _shortDir(p.dirname(path))}));
+        }
+        return;
       }
+      showSnack(
+        context,
+        context.t('apk.saved_in',
+            {'name': p.basename(path), 'dir': _shortDir(p.dirname(path))}),
+        duration: const Duration(seconds: 8),
+        action: SnackBarAction(
+          label: context.t('common.share'),
+          onPressed: () => unawaited(shareEntries([path])),
+        ),
+      );
     } catch (e) {
       if (mounted) _snack(context.t('apk.failed', {'error': userErrorText(e)}));
     }
   }
 
-  /// Parçalı kurulumda ne paylaşılsın? `true` = hepsi (.apks), `false` =
-  /// yalnız base.apk, `null` = vazgeçildi.
-  Future<bool?> _askSplit(int parts) => showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(ctx.t('apk.split_title')),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(ctx.t('apk.split_body', {'n': parts})),
-              const SizedBox(height: Gap.sm),
-              Text(ctx.t('apk.split_note'),
-                  style: Theme.of(ctx).textTheme.bodySmall),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(ctx.t('common.cancel')),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(ctx.t('apk.split_base')),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(ctx.t('apk.split_all')),
-            ),
-          ],
-        ),
-      );
+  /// `/storage/emulated/0/Download/APK` → `Download/APK`.
+  String _shortDir(String dir) {
+    final root = FmEnv.primaryRoot;
+    return dir.startsWith(root)
+        ? dir.substring(root.length).replaceFirst(RegExp(r'^/'), '')
+        : dir;
+  }
 
   void _snack(String message) => showSnack(context, message);
+}
+
+/// APK'ların varsayılan kayıt yeri: `İndirilenler/APK` (2026-11-09). Eskiden
+/// İndirilenler'in köküne yazılıyordu; dışa aktarılan APK'lar oradaki öteki
+/// dosyaların arasına karışıyordu.
+String apkSaveDir() => p.join(
+    downloadsPathIn(FmEnv.primaryRoot) ?? p.join(FmEnv.primaryRoot, 'Download'),
+    'APK');
+
+/// [_ApkExportSheet]'in sonucu.
+class _ApkPlan {
+  final bool includeSplits;
+  final bool save;
+  final bool share;
+  final String destDir;
+  const _ApkPlan({
+    required this.includeSplits,
+    required this.save,
+    required this.share,
+    required this.destDir,
+  });
+}
+
+/// "APK olarak paylaş" sayfası: ne çıkacak (biçim + boyut), nereye
+/// kaydedilecek, ve üç eylem. Parçalı kurulumda biçim burada seçilir — tek
+/// base.apk'nın kurulmama riski seçeneğin altında yazılı.
+class _ApkExportSheet extends StatefulWidget {
+  final InstalledAppEntry app;
+  final ApkSource source;
+  final String defaultDir;
+  const _ApkExportSheet({
+    required this.app,
+    required this.source,
+    required this.defaultDir,
+  });
+
+  @override
+  State<_ApkExportSheet> createState() => _ApkExportSheetState();
+}
+
+class _ApkExportSheetState extends State<_ApkExportSheet> {
+  bool _all = true;
+  late String _dir = widget.defaultDir;
+
+  int _sizeOf(Iterable<String> paths) {
+    var total = 0;
+    for (final path in paths) {
+      try {
+        total += File(path).lengthSync();
+      } catch (_) {
+        // Okunamayan parça boyuta katılmaz; çıkarma sırasında hata zaten söylenir.
+      }
+    }
+    return total;
+  }
+
+  String _fileName() => ApkExport.fileNameFor(
+        appName: widget.app.name.isEmpty ? widget.source.label : widget.app.name,
+        versionName: widget.source.versionName,
+        packageName: widget.app.packageName,
+        split: widget.source.isSplit && _all,
+      );
+
+  Future<void> _pickDir() async {
+    final dest = await Navigator.of(context).push<String>(MaterialPageRoute(
+      builder: (_) => FolderPickerScreen(
+        sources: const [],
+        actionLabel: context.t('apk.save_here'),
+        startPath: Directory(_dir).existsSync() ? _dir : FmEnv.primaryRoot,
+      ),
+    ));
+    if (dest != null && mounted) setState(() => _dir = dest);
+  }
+
+  void _done({required bool save, required bool share}) => Navigator.pop(
+        context,
+        _ApkPlan(includeSplits: _all, save: save, share: share, destDir: _dir),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final src = widget.source;
+    final parts = src.splitPaths.length + 1;
+    final size = _all && src.isSplit
+        ? _sizeOf(src.allPaths)
+        : _sizeOf([src.sourcePath]);
+    final root = FmEnv.primaryRoot;
+    final shownDir = _dir.startsWith(root)
+        ? _dir.substring(root.length).replaceFirst(RegExp(r'^/'), '')
+        : _dir;
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(context.t('apk.sheet_title'), style: theme.textTheme.titleLarge),
+            const SizedBox(height: Gap.xs),
+            Text(
+              '${_fileName()} · ${FsPaths.humanSize(size)}',
+              style: theme.textTheme.bodyMedium,
+            ),
+            if (src.isSplit) ...[
+              const SizedBox(height: Gap.md),
+              Text(context.t('apk.split_title'),
+                  style: theme.textTheme.titleSmall),
+              const SizedBox(height: Gap.xs),
+              Text(context.t('apk.split_body', {'n': parts}),
+                  style: theme.textTheme.bodySmall),
+              RadioGroup<bool>(
+                groupValue: _all,
+                onChanged: (v) => setState(() => _all = v ?? true),
+                child: Column(children: [
+                  RadioListTile<bool>(
+                    contentPadding: EdgeInsets.zero,
+                    value: true,
+                    title: Text(context.t('apk.split_all')),
+                    subtitle: Text(context.t('apk.split_note')),
+                  ),
+                  RadioListTile<bool>(
+                    contentPadding: EdgeInsets.zero,
+                    value: false,
+                    title: Text(context.t('apk.split_base')),
+                    subtitle: Text(context.t('apk.split_base_note')),
+                  ),
+                ]),
+              ),
+            ],
+            const SizedBox(height: Gap.sm),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(AppIcons.folder),
+              title: Text(context.t('apk.dest')),
+              subtitle: Text(shownDir),
+              trailing: TextButton(
+                onPressed: _pickDir,
+                child: Text(context.t('apk.change')),
+              ),
+            ),
+            const SizedBox(height: Gap.sm),
+            FilledButton.icon(
+              onPressed: () => _done(save: true, share: true),
+              icon: const Icon(AppIcons.share),
+              label: Text(context.t('apk.do_both')),
+            ),
+            const SizedBox(height: Gap.sm),
+            Row(children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _done(save: false, share: true),
+                  icon: const Icon(AppIcons.share),
+                  label: Text(context.t('apk.do_share')),
+                ),
+              ),
+              const SizedBox(width: Gap.sm),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _done(save: true, share: false),
+                  icon: const Icon(AppIcons.download),
+                  label: Text(context.t('apk.do_save')),
+                ),
+              ),
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
 }
