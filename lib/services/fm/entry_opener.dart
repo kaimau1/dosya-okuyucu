@@ -148,6 +148,10 @@ abstract final class EntryOpener {
         siblings == null ? <String>[path] : siblingsFor(path, siblings);
 
     if (route == OpenRoute.external) {
+      if (isSplitPackage(path)) {
+        await installSplitPackage(context, path);
+        return;
+      }
       await openExternally(context, path);
       return;
     }
@@ -286,6 +290,39 @@ abstract final class EntryOpener {
       context: context,
       builder: (ctx) => _MediaChoiceDialog(kind: kind, appState: appState),
     );
+  }
+
+  /// Parçalı paket mi? (`.apks` / `.xapk` / `.apkm` — ZIP içinde birden çok
+  /// APK.) Sistemin paket yükleyicisi bunları TANIMAZ (2026-11-09 kullanıcı
+  /// bulgusu: ".apks kurulmuyor") → kendi kurucumuz ([installSplitPackage]).
+  static bool isSplitPackage(String path) =>
+      const {'apks', 'xapk', 'apkm'}.contains(_ext(path));
+
+  /// Parçalı paketi PackageInstaller oturumuyla kurar (bkz. `ci/ApkKurulum.kt`).
+  /// Sonuç kullanıcı sistem onayını verince/vazgeçince söylenir.
+  static Future<void> installSplitPackage(
+      BuildContext context, String path) async {
+    final str = AppStrings.of(context);
+    final toast = showSnack(context, str.t('apk.installing'));
+    final result = await NativeExtras.installPackageFile(path);
+    toast.close();
+    if (!context.mounted) return;
+    if (result == null) {
+      // Kanal yok (test/ana olmayan platform): eski yola düş.
+      await openExternally(context, path);
+      return;
+    }
+    if (result == 'done') unawaited(OpenHistory.record(path));
+    final text = switch (result) {
+      'done' => str.t('apk.installed'),
+      'aborted' => str.t('apk.install_aborted'),
+      'need_permission' => str.t('apk.install_permission'),
+      'no_apk' => str.t('apk.install_no_apk'),
+      'missing' => str.t('open.not_found'),
+      _ => str.t('apk.install_failed',
+          {'error': result.replaceFirst('error:', '')}),
+    };
+    _snack(context, text);
   }
 
   /// Sistemin varsayılan uygulamasına devreder (video, ses, apk, bilinmeyen).

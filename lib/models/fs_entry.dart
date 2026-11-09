@@ -74,7 +74,7 @@ abstract final class FmExtensions {
     'xz', 'txz', 'lz', 'lzma', 'lz4', 'zst', 'zstd', 'arj', 'ace', 'iso',
     'jar', 'cab', 'dmg', 'z',
   };
-  static const apk = {'apk', 'apks', 'xapk', 'aab'};
+  static const apk = {'apk', 'apks', 'xapk', 'apkm', 'aab'};
 
   /// Belge sayılan uzantılar (ofis + PDF + metin/kod/veri).
   static const document = {

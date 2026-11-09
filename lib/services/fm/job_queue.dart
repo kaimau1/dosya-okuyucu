@@ -376,6 +376,14 @@ class FmJob {
   /// İşlemler'de görünür; ikinci bir bildirim açılmaz.
   bool ownNotification = false;
 
+  /// **Sessiz iş** (2026-11-09, kullanıcı isteği: *"oto ai analizi bildirim
+  /// olarak görülmesin, uygulama içi ve dışında da"*). Ne sistem bildirimi
+  /// (dolayısıyla ön plan servisi de) ne alt şerit ne gelen kutusu satırı
+  /// açılır; iş yalnız İşlemler geçmişinde durur. Bedeli: ön plan servisi
+  /// olmadığı için uygulama arka plandayken Android işi dondurabilir — otomatik
+  /// tur zaten öne gelişte başladığı için kabul edildi.
+  bool silent = false;
+
   /// Yumuşatılmış kalan süre tahmini (ms) ve alındığı an — bkz.
   /// [remaining]. Her ilerleme bildiriminde [noteProgress] günceller.
   int? _etaMs;
@@ -844,7 +852,9 @@ class JobQueue extends ChangeNotifier {
   /// Yeniden eskiye: en son eklenen üstte.
   List<FmJob> get jobs => List.unmodifiable(_jobs.reversed);
 
-  List<FmJob> get activeJobs => _jobs.where((j) => j.status.isActive).toList();
+  /// Süren/bekleyen işler — [FmJob.silent] işler HARİÇ (arayüz görmez).
+  List<FmJob> get activeJobs =>
+      _jobs.where((j) => j.status.isActive && !j.silent).toList();
 
   /// Süren işlerden EN ÖNCE başlayanı — şerit ve bildirim bunu gösterir
   /// (kuyruk işi ile izlenen bir kopyalama aynı anda sürebilir; bildirim iki
@@ -852,7 +862,7 @@ class JobQueue extends ChangeNotifier {
   FmJob? get currentJob {
     FmJob? first;
     for (final j in _jobs) {
-      if (j.status != JobStatus.running) continue;
+      if (j.status != JobStatus.running || j.silent) continue;
       if (first == null || j.startedAtMs < first.startedAtMs) first = j;
     }
     return first;
@@ -888,7 +898,7 @@ class JobQueue extends ChangeNotifier {
   /// oldu göremiyorum"* — sonuç, kullanıcı görüp kapatana kadar durmalı.
   FmJob? get lastFinished {
     for (final job in _jobs.reversed) {
-      if (!job.status.isActive && !job.dismissed) return job;
+      if (!job.status.isActive && !job.dismissed && !job.silent) return job;
     }
     return null;
   }
@@ -931,6 +941,7 @@ class JobQueue extends ChangeNotifier {
     int total = 0,
     FmJobTarget? target,
     JobRecipe? recipe,
+    bool silent = false,
   }) {
     final existing = find(id);
     if (existing != null && existing.status.isActive) return existing;
@@ -946,12 +957,17 @@ class JobQueue extends ChangeNotifier {
       total: total,
       target: target,
       recipe: recipe,
-    ).._run = run;
+    )
+      .._run = run
+      ..silent = silent
+      // Sessiz iş sistem bildirimine hiç girmesin (ilerleme + sonuç).
+      ..ownNotification = silent
+      ..dismissed = silent;
     _jobs.add(job);
     _trimHistory();
     notifyListeners();
     _persist();
-    _noteJobStarted();
+    if (!silent) _noteJobStarted();
     unawaited(_pump());
     return job;
   }

@@ -520,11 +520,32 @@ const Map<String, (String, String, String)> _t2 = {
   'apps.uninstall': ('Kaldır', 'Uninstall', 'إلغاء التثبيت'),
 
   // ── Uygulamayı APK olarak paylaşma (kullanıcı isteği 2026-08-29) ─────────
-  'apk.share': ('APK olarak paylaş', 'Share as APK', 'مشاركة كملف APK'),
-  'apk.save': (
-    'APK\'yı İndirilenler\'e kaydet',
-    'Save APK to Downloads',
-    'حفظ APK في التنزيلات',
+  'apk.share': ('APK olarak paylaş / kaydet', 'Share / save as APK',
+      'مشاركة / حفظ كملف APK'),
+  'apk.share_sub': (
+    'Biçim, kayıt yeri ve paylaşım seçenekleri',
+    'Format, save location and sharing options',
+    'الصيغة ومكان الحفظ وخيارات المشاركة',
+  ),
+  'apk.save': ('APK\'yı doğrudan kaydet', 'Save APK directly',
+      'حفظ APK مباشرة'),
+  'apk.save_sub': (
+    'Sorusuz, İndirilenler/APK klasörüne',
+    'No questions, to Downloads/APK',
+    'بدون أسئلة، إلى التنزيلات/APK',
+  ),
+  'apk.sheet_title': ('APK dışa aktar', 'Export APK', 'تصدير APK'),
+  'apk.dest': ('Kayıt yeri', 'Save location', 'مكان الحفظ'),
+  'apk.change': ('Değiştir', 'Change', 'تغيير'),
+  'apk.save_here': ('Buraya kaydet', 'Save here', 'احفظ هنا'),
+  'apk.do_both': ('Kaydet ve paylaş', 'Save and share', 'حفظ ومشاركة'),
+  'apk.do_share': ('Yalnız paylaş', 'Share only', 'مشاركة فقط'),
+  'apk.do_save': ('Yalnız kaydet', 'Save only', 'حفظ فقط'),
+  'apk.saved_in': ('{name} → {dir}', '{name} → {dir}', '{name} ← {dir}'),
+  'apk.split_base_note': (
+    'Daha küçük; ama karşı tarafta kurulmayabilir ya da açılınca çökebilir.',
+    'Smaller, but may fail to install or crash on the other phone.',
+    'أصغر، لكن قد لا يُثبَّت أو ينهار على الهاتف الآخر.',
   ),
   'apk.extracting': ('APK hazırlanıyor…', 'Preparing APK…', 'جارٍ تحضير APK…'),
   'apk.not_found': (
@@ -534,7 +555,6 @@ const Map<String, (String, String, String)> _t2 = {
   ),
   'apk.failed': ('APK çıkarılamadı: {error}', 'Could not extract APK: {error}',
       'تعذّر استخراج APK: {error}'),
-  'apk.saved': ('{name} kaydedildi', '{name} saved', 'تم حفظ {name}'),
   // Parçalı (App Bundle) kurulum uyarısı — dürüstlük meselesi: yalnız
   // base.apk paylaşmak karşı tarafta "uygulama yüklenmedi" demek olabilir.
   'apk.split_title': (
@@ -562,12 +582,27 @@ const Map<String, (String, String, String)> _t2 = {
   ),
   'apk.split_base': ('Yalnız base.apk', 'base.apk only', 'base.apk فقط'),
   'apk.split_note': (
-    '.apks dosyası bütün parçaları taşır; karşı tarafta "Split APKs Installer" '
-        'gibi bir kurulum aracıyla açılır.',
-    'An .apks file carries every part; the receiver installs it with a tool '
-        'such as “Split APKs Installer”.',
-    'يحمل ملف .apks كل الأجزاء؛ يثبّته المستلم بأداة مثل «Split APKs Installer».',
+    'Bütün parçalar tek dosyada. Bu uygulamayla dokunarak kurulur; '
+        'SAI gibi araçlar da açar.',
+    'Every part in one file. Installs with a tap in this app; tools such as '
+        'SAI open it too.',
+    'كل الأجزاء في ملف واحد. يُثبَّت بلمسة في هذا التطبيق؛ وتفتحه أدوات مثل SAI أيضًا.',
   ),
+  // .apks / .xapk kurulumu (2026-11-09, "apks kurulmuyor").
+  'apk.installing': ('Kurulum hazırlanıyor…', 'Preparing install…',
+      'جارٍ تحضير التثبيت…'),
+  'apk.installed': ('Uygulama kuruldu', 'App installed', 'تم تثبيت التطبيق'),
+  'apk.install_aborted': ('Kurulum iptal edildi', 'Install cancelled',
+      'أُلغي التثبيت'),
+  'apk.install_permission': (
+    'Bilinmeyen uygulama kurma iznini açın, sonra dosyaya yeniden dokunun.',
+    'Allow installing unknown apps, then tap the file again.',
+    'اسمح بتثبيت التطبيقات غير المعروفة ثم المس الملف مرة أخرى.',
+  ),
+  'apk.install_no_apk': ('Paketin içinde APK yok', 'No APK inside the package',
+      'لا يوجد APK داخل الحزمة'),
+  'apk.install_failed': ('Kurulamadı: {error}', 'Install failed: {error}',
+      'فشل التثبيت: {error}'),
   'apps.app_info': ('Uygulama bilgisi (sistem ayarı)', 'App info (system settings)', 'معلومات التطبيق (إعدادات النظام)'),
   'apps.color_legend': ('Renk = kullanılmama süresi', 'Colour = time unused', 'اللون = مدة عدم الاستخدام'),
   'apps.never_opened': ('hiç açılmadı', 'never opened', 'لم يُفتح قط'),

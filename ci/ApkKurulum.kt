@@ -1,0 +1,191 @@
+package com.dosyaokuyucu.dosya_okuyucu
+
+import android.app.Activity
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageInstaller
+import android.net.Uri
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.provider.Settings
+import java.io.File
+import java.util.zip.ZipFile
+
+/**
+ * **Parçalı paket kurulumu** — `.apks` / `.xapk` / `.apkm` (2026-11-09,
+ * kullanıcı bulgusu: *".apks kurulmuyor"*).
+ *
+ * Kök neden: `.apks` bir ZIP; sistemin paket yükleyicisi (ACTION_VIEW) yalnız
+ * TEK `.apk` kurar, ZIP'i tanımaz → "uygulama yok"/"ayrıştırma hatası". Kendi
+ * dışa aktardığımız `.apks` (bkz. `ApkExport`) bile bu uygulamada kurulamıyordu.
+ *
+ * Çözüm: `PackageInstaller` oturumu — ZIP içindeki her `.apk` aynı oturuma
+ * yazılır, commit edilir; sistem onay penceresini kendisi gösterir. İmza/sürüm
+ * denetimi sistemde; burada yeniden paketleme YOK.
+ *
+ * ABİ süzgeci: SAI/APKMirror paketleri bütün mimarilerin
+ * `split_config.<abi>.apk` parçalarını taşıyabilir; cihazın desteklemediği
+ * mimari parçası oturuma girerse kurulum düşer. Desteklenen mimariden en az
+ * bir parça varsa ötekiler atlanır. OBB (xapk) kurulmaz — yalnız APK'lar.
+ *
+ * Sonuç kodu (Dart `NativeExtras.installPackageFile`): `done` · `aborted` ·
+ * `need_permission` (bilinmeyen kaynak izni ayarı açıldı) · `no_apk` ·
+ * `missing` · `error:<ileti>`.
+ */
+object ApkKurulum {
+    private const val ACTION = "com.dosyaokuyucu.dosya_okuyucu.APK_KURULUM"
+    private val main = Handler(Looper.getMainLooper())
+
+    private val abiNames = mapOf(
+        "arm64_v8a" to "arm64-v8a",
+        "armeabi_v7a" to "armeabi-v7a",
+        "armeabi" to "armeabi",
+        "x86_64" to "x86_64",
+        "x86" to "x86",
+    )
+
+    /** `split_config.arm64_v8a.apk` → `arm64-v8a`; mimari parçası değilse null. */
+    fun abiOf(entryName: String): String? {
+        val base = entryName.substringAfterLast('/').removeSuffix(".apk")
+        return abiNames[base.substringAfterLast('.')]
+    }
+
+    /** Kurulacak ZIP girdileri (mimari süzgeci uygulanmış). */
+    fun pickEntries(names: List<String>, supported: List<String>): List<String> {
+        val apks = names.filter { it.lowercase().endsWith(".apk") && !it.endsWith("/") }
+        val withAbi = apks.filter { abiOf(it) != null }
+        if (withAbi.isEmpty()) return apks
+        val ok = withAbi.filter { abiOf(it) in supported }
+        if (ok.isEmpty()) return apks // süzgeç her şeyi atarsa sisteme bırak
+        // Birden çok uygun mimari varsa yalnız EN ÖNCELİKLİ olanı (SUPPORTED_ABIS sırası).
+        val best = supported.first { abi -> ok.any { abiOf(it) == abi } }
+        return apks.filter { abiOf(it) == null || abiOf(it) == best }
+    }
+
+    fun install(activity: Activity, path: String, done: (String) -> Unit) {
+        val file = File(path)
+        if (!file.isFile) {
+            done("missing"); return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            !activity.packageManager.canRequestPackageInstalls()
+        ) {
+            try {
+                activity.startActivity(
+                    Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
+                        .setData(Uri.parse("package:" + activity.packageName))
+                )
+            } catch (_: Exception) {
+            }
+            done("need_permission"); return
+        }
+        val ctx = activity.applicationContext
+        Thread {
+            var session: PackageInstaller.Session? = null
+            try {
+                val installer = ctx.packageManager.packageInstaller
+                ZipFile(file).use { zip ->
+                    val names = zip.entries().toList().map { it.name }
+                    val picked = pickEntries(names, Build.SUPPORTED_ABIS.toList())
+                    if (picked.isEmpty()) {
+                        main.post { done("no_apk") }; return@Thread
+                    }
+                    val params = PackageInstaller.SessionParams(
+                        PackageInstaller.SessionParams.MODE_FULL_INSTALL
+                    )
+                    val id = installer.createSession(params)
+                    val s = installer.openSession(id)
+                    session = s
+                    picked.forEachIndexed { i, name ->
+                        val entry = zip.getEntry(name)
+                        val size = if (entry.size >= 0) entry.size else -1L
+                        s.openWrite("p$i.apk", 0, size).use { out ->
+                            zip.getInputStream(entry).use { it.copyTo(out, 1 shl 16) }
+                            s.fsync(out)
+                        }
+                    }
+                    main.post { commit(activity, s, id, done) }
+                }
+            } catch (e: Exception) {
+                try {
+                    session?.abandon()
+                } catch (_: Exception) {
+                }
+                main.post { done("error:" + (e.message ?: e.javaClass.simpleName)) }
+            }
+        }.start()
+    }
+
+    private fun commit(
+        activity: Activity,
+        session: PackageInstaller.Session,
+        id: Int,
+        done: (String) -> Unit,
+    ) {
+        val ctx = activity.applicationContext
+        val action = "$ACTION.$id"
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(c: Context, intent: Intent) {
+                val status = intent.getIntExtra(
+                    PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE
+                )
+                if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+                    @Suppress("DEPRECATION")
+                    val confirm = if (Build.VERSION.SDK_INT >= 33) {
+                        intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)
+                    } else {
+                        intent.getParcelableExtra(Intent.EXTRA_INTENT)
+                    }
+                    if (confirm != null) {
+                        try {
+                            activity.startActivity(
+                                confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        } catch (e: Exception) {
+                            finish(c, this, done, "error:" + (e.message ?: "confirm"))
+                        }
+                    }
+                    return
+                }
+                val result = when (status) {
+                    PackageInstaller.STATUS_SUCCESS -> "done"
+                    PackageInstaller.STATUS_FAILURE_ABORTED -> "aborted"
+                    else -> "error:" + (
+                        intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
+                            ?: "status $status")
+                }
+                finish(c, this, done, result)
+            }
+        }
+        val filter = IntentFilter(action)
+        if (Build.VERSION.SDK_INT >= 33) {
+            ctx.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            ctx.registerReceiver(receiver, filter)
+        }
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or
+            (if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0)
+        val pi = PendingIntent.getBroadcast(
+            ctx, id, Intent(action).setPackage(ctx.packageName), flags
+        )
+        try {
+            session.commit(pi.intentSender)
+            session.close()
+        } catch (e: Exception) {
+            finish(ctx, receiver, done, "error:" + (e.message ?: e.javaClass.simpleName))
+        }
+    }
+
+    private fun finish(c: Context, r: BroadcastReceiver, done: (String) -> Unit, v: String) {
+        try {
+            c.applicationContext.unregisterReceiver(r)
+        } catch (_: Exception) {
+        }
+        done(v)
+    }
+}
