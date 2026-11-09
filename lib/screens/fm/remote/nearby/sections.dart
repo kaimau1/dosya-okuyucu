@@ -89,7 +89,7 @@ extension _NearbySections on _NearbyScreenState {
                 ),
               ],
             ),
-            const SizedBox(height: Gap.sm),
+            const SizedBox(height: Gap.xs),
             TextField(
               key: const ValueKey('near-paste-field'),
               controller: _textCtrl,
@@ -111,6 +111,12 @@ extension _NearbySections on _NearbyScreenState {
                         onPressed: _textCtrl.clear,
                       ),
                 border: const OutlineInputBorder(),
+                // Sıkı: ilk sekme (hızlı aktar + QR) 360×780'e kaydırmasız sığar.
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: Gap.sm, vertical: Gap.sm),
+                prefixIconConstraints:
+                    const BoxConstraints(minWidth: 40, minHeight: 36),
               ),
             ),
             if (_clipSuggestion != null ||
