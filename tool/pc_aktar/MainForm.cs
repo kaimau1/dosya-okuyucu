@@ -78,7 +78,10 @@ namespace DosyaAktar
         readonly TextBox ipBox = new TextBox();
         readonly Label drop = new Label();
         readonly Button pickFiles = new Button(), pickFolder = new Button(), cancelBtn = new Button();
-        readonly ProgressBar bar = new ProgressBar();
+        readonly ProgressBar bar = new ProgressBar(), recvBar = new ProgressBar();
+        readonly Label recvBadge = new Label();
+        DateTime sendStarted;
+        string baseTitle = "Dosya Aktar — Dosya Okuyucu";
         readonly Label status = new Label(), recvStatus = new Label(), info = new Label();
         Gallery gallery;
         readonly Button copyBtn = new Button();
@@ -112,9 +115,15 @@ namespace DosyaAktar
                     if (receiver.Active <= 1) recvStatus.Text = lastReceived;
                     gallery.Poke();
                 }),
-                Progress = (name, got, total) => Ui(() => recvStatus.Text = "Alınıyor: " + name + "  " +
-                    (total > 0 ? (got * 100 / total) + "%  (" + Proto.Size(got) + " / " + Proto.Size(total) + ")" : Proto.Size(got))),
-                Done = name => Ui(() => { if (receiver.Active <= 1) recvStatus.Text = lastReceived; }),
+                Progress = (name, got, total) => Ui(() => ShowIncoming(name, got, total)),
+                Done = name => Ui(() =>
+                {
+                    if (receiver.Active <= 1)
+                    {
+                        recvStatus.Text = lastReceived;
+                        HideIncoming();
+                    }
+                }),
             };
             scanner = new Scanner { OwnId = deviceId };
 
@@ -125,7 +134,7 @@ namespace DosyaAktar
 
         void BuildUi()
         {
-            Text = "Dosya Aktar — Dosya Okuyucu";
+            Text = baseTitle;
             Font = new Font("Segoe UI", 10f);
             StartPosition = FormStartPosition.CenterScreen;
             ClientSize = new Size(S(960), S(720));
@@ -258,7 +267,20 @@ namespace DosyaAktar
             recvStatus.AutoSize = true;
             recvStatus.Margin = new Padding(S(10), S(8), 0, 0);
             recvStatus.ForeColor = Color.FromArgb(0x1A, 0x5F, 0xB4);
-            foreach (var c in new Control[] { copyBtn, all, open, change, recvStatus }) bb.Controls.Add(c);
+            // Gelirken belirgin işaret: "⬇ Geliyor %42" rozeti + çubuk (2026-11-09 kullanıcı isteği).
+            recvBadge.AutoSize = true;
+            recvBadge.Margin = new Padding(S(10), S(6), 0, 0);
+            recvBadge.Padding = new Padding(S(6), S(2), S(6), S(2));
+            recvBadge.BackColor = Color.FromArgb(0x1A, 0x5F, 0xB4);
+            recvBadge.ForeColor = Color.White;
+            recvBadge.Font = new Font("Segoe UI Semibold", 10f);
+            recvBadge.Visible = false;
+            recvBar.Width = S(160);
+            recvBar.Height = S(18);
+            recvBar.Maximum = 1000;
+            recvBar.Margin = new Padding(S(6), S(8), 0, 0);
+            recvBar.Visible = false;
+            foreach (var c in new Control[] { copyBtn, all, open, change, recvBadge, recvBar, recvStatus }) bb.Controls.Add(c);
             bottomGrid.Controls.Add(bb, 0, 1);
             UpdateCopyButton();
             bottom.Controls.Add(bottomGrid);
@@ -366,6 +388,7 @@ namespace DosyaAktar
             cancel = false;
             SetSending(true);
             bar.Value = 0;
+            sendStarted = DateTime.Now;
             var sender = new Sender
             {
                 Name = deviceName, Id = deviceId,
@@ -375,7 +398,9 @@ namespace DosyaAktar
                 Progress = (name, done, total) => Ui(() =>
                 {
                     bar.Value = total > 0 ? (int)Math.Min(1000, done * 1000 / total) : 0;
-                    status.Text = "Gönderiliyor: " + name + "   " + Proto.Size(done) + " / " + Proto.Size(total);
+                    var pct = total > 0 ? (int)Math.Min(100, done * 100 / total) : 0;
+                    status.Text = "⬆ " + peer.Name + " cihazına gidiyor  %" + pct + "   " + name + "   " + Proto.Size(done) + " / " + Proto.Size(total);
+                    SetTitleProgress("⬆ %" + pct, done, total);
                 }),
             };
             Task.Run(async () =>
@@ -451,9 +476,52 @@ namespace DosyaAktar
             else if (r.Cancelled) text = "İptal edildi (" + r.Sent + " dosya gitti).";
             else if (r.Errors.Count > 0) text = "⚠  " + r.Sent + " dosya gitti, " + r.Errors.Count + " gitmedi: " + string.Join("; ", r.Errors);
             else text = "✓  " + r.Sent + " dosya gönderildi  →  " + peer.Name;
-            if (!r.Declined && !r.Cancelled && r.Errors.Count == 0) bar.Value = bar.Maximum;
+            var ok = !r.Declined && !r.Cancelled && !r.WrongCode && r.Errors.Count == 0;
+            if (ok) bar.Value = bar.Maximum;
+            text += "   ·   " + (ok ? "Başarılı" : "Başarısız") + " %" + (bar.Value / 10) + "   ·   " + Duration(DateTime.Now - sendStarted);
             status.Text = text;
+            ClearTitleProgress();
             RefreshDevices();
+        }
+
+        static string Duration(TimeSpan d)
+        {
+            var s = (int)d.TotalSeconds;
+            if (s < 1) return "1 sn'den az";
+            return s < 60 ? s + " sn" : (s / 60) + " dk " + (s % 60) + " sn";
+        }
+
+        void ShowIncoming(string name, long got, long total)
+        {
+            var pct = total > 0 ? (int)Math.Min(100, got * 100 / total) : -1;
+            recvBadge.Text = pct >= 0 ? "⬇ Geliyor  %" + pct : "⬇ Geliyor";
+            recvBadge.Visible = true;
+            recvBar.Visible = true;
+            recvBar.Style = pct >= 0 ? ProgressBarStyle.Continuous : ProgressBarStyle.Marquee;
+            if (pct >= 0) recvBar.Value = (int)Math.Min(1000, got * 1000 / total);
+            recvStatus.Text = name + "  (" + Proto.Size(got) + (total > 0 ? " / " + Proto.Size(total) : "") + ")";
+            if (!sending) SetTitleProgress(pct >= 0 ? "⬇ %" + pct : "⬇", got, total);
+        }
+
+        void HideIncoming()
+        {
+            recvBadge.Visible = false;
+            recvBar.Visible = false;
+            recvBar.Value = 0;
+            if (!sending) ClearTitleProgress();
+        }
+
+        /// <summary>Pencere başlığı + görev çubuğu düğmesinde ilerleme (pencere küçültülmüşken de görünsün).</summary>
+        void SetTitleProgress(string prefix, long done, long total)
+        {
+            Text = prefix + "  —  " + baseTitle;
+            Taskbar.Set(Handle, done, total);
+        }
+
+        void ClearTitleProgress()
+        {
+            Text = baseTitle;
+            Taskbar.Clear(Handle);
         }
 
         void SetSending(bool on)
@@ -572,6 +640,60 @@ namespace DosyaAktar
             };
             Shown += (s, e) => { Activate(); timer.Start(); };
             FormClosed += (s, e) => timer.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Görev çubuğu düğmesinde yeşil ilerleme (ITaskbarList3). COM yoksa (eski Windows) sessizce atlanır.
+    /// </summary>
+    static class Taskbar
+    {
+        [ComImport, Guid("ea1afb91-9e28-4b86-90e9-9e9f8a5eefaf"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        interface ITaskbarList3
+        {
+            void HrInit();
+            void AddTab(IntPtr hwnd);
+            void DeleteTab(IntPtr hwnd);
+            void ActivateTab(IntPtr hwnd);
+            void SetActiveAlt(IntPtr hwnd);
+            void MarkFullscreenWindow(IntPtr hwnd, [MarshalAs(UnmanagedType.Bool)] bool fullscreen);
+            void SetProgressValue(IntPtr hwnd, ulong completed, ulong total);
+            void SetProgressState(IntPtr hwnd, int state);
+        }
+
+        [ComImport, Guid("56fdf344-fd6d-11d0-958a-006097c9a090"), ClassInterface(ClassInterfaceType.None)]
+        class TaskbarInstance { }
+
+        static ITaskbarList3 list;
+        static bool failed;
+
+        static ITaskbarList3 Get()
+        {
+            if (list != null || failed) return list;
+            try { list = (ITaskbarList3)new TaskbarInstance(); list.HrInit(); }
+            catch { failed = true; list = null; }
+            return list;
+        }
+
+        public static void Set(IntPtr hwnd, long done, long total)
+        {
+            try
+            {
+                var l = Get();
+                if (l == null) return;
+                if (total > 0)
+                {
+                    l.SetProgressState(hwnd, 2); // TBPF_NORMAL
+                    l.SetProgressValue(hwnd, (ulong)Math.Max(0, done), (ulong)total);
+                }
+                else l.SetProgressState(hwnd, 1); // TBPF_INDETERMINATE
+            }
+            catch { }
+        }
+
+        public static void Clear(IntPtr hwnd)
+        {
+            try { Get()?.SetProgressState(hwnd, 0); } catch { }
         }
     }
 }

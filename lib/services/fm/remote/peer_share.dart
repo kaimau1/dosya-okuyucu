@@ -391,6 +391,10 @@ class PeerReceiver implements KeepableServer {
   }
 
   Future<void> _tracked(HttpRequest request) async {
+    // Gönderen (ör. Windows "Dosya Aktar") bağlantıyı sıfırlarsa yanıtın
+    // `done`'u hata ile biter; dinleyen yoksa "[async] SocketException:
+    // Connection reset by peer" hata kaydına düşer (2026-11-09 kullanıcı kaydı).
+    request.response.done.ignore();
     activeTransfers++;
     lastActivity = DateTime.now();
     onActivity?.call(this);
@@ -1015,6 +1019,9 @@ abstract final class PeerSender {
         if (pairingCode.isNotEmpty) 'kod': pairingCode,
         if (grant.isNotEmpty) 'izin': grant,
       }));
+      // İptalde `abort()` sonrası ya da alıcı bağlantıyı kesince `done` hata
+      // ile biter; sonuç `close()`tan okunur, ayrıca dinleyen yoksa yakalanmaz.
+      request.done.ignore();
       request.contentLength = item.size - have;
       var n = have;
       // Akış hâlinde gönderilir: 2 GB'lık bir video belleğe alınmaz.

@@ -66,7 +66,19 @@ object ApkKurulum {
         return apks.filter { abiOf(it) == null || abiOf(it) == best }
     }
 
-    fun install(activity: Activity, path: String, done: (String) -> Unit) {
+    /**
+     * [selfUpdate]: uygulamanın kendi güncellemesi (2026-11-09 oto güncelleme).
+     * Android 12+'da `USER_ACTION_NOT_REQUIRED` istenir — sistem izin verirse
+     * (bu uygulama kurulumun sahibiyse) onay penceresi ÇIKMADAN kurulur;
+     * vermezse yine onay penceresi gelir. Tek `.apk` dosyası (ZIP içinde
+     * `.apk` yoksa ve dosyanın kendisi `.apk` ise) olduğu gibi yazılır.
+     */
+    fun install(
+        activity: Activity,
+        path: String,
+        selfUpdate: Boolean = false,
+        done: (String) -> Unit,
+    ) {
         val file = File(path)
         if (!file.isFile) {
             done("missing"); return
@@ -88,15 +100,34 @@ object ApkKurulum {
             var session: PackageInstaller.Session? = null
             try {
                 val installer = ctx.packageManager.packageInstaller
+                val params = PackageInstaller.SessionParams(
+                    PackageInstaller.SessionParams.MODE_FULL_INSTALL
+                )
+                if (selfUpdate && Build.VERSION.SDK_INT >= 31) {
+                    params.setRequireUserAction(
+                        PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED
+                    )
+                }
                 ZipFile(file).use { zip ->
                     val names = zip.entries().toList().map { it.name }
                     val picked = pickEntries(names, Build.SUPPORTED_ABIS.toList())
                     if (picked.isEmpty()) {
+                        if (file.name.lowercase().endsWith(".apk") &&
+                            names.contains("AndroidManifest.xml")
+                        ) {
+                            // Tek APK: dosyanın kendisi oturuma yazılır.
+                            val id = installer.createSession(params)
+                            val s = installer.openSession(id)
+                            session = s
+                            s.openWrite("base.apk", 0, file.length()).use { out ->
+                                file.inputStream().use { it.copyTo(out, 1 shl 16) }
+                                s.fsync(out)
+                            }
+                            main.post { commit(activity, s, id, done) }
+                            return@Thread
+                        }
                         main.post { done("no_apk") }; return@Thread
                     }
-                    val params = PackageInstaller.SessionParams(
-                        PackageInstaller.SessionParams.MODE_FULL_INSTALL
-                    )
                     val id = installer.createSession(params)
                     val s = installer.openSession(id)
                     session = s

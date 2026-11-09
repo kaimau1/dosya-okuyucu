@@ -193,8 +193,10 @@ abstract final class NativeExtras {
   /// oturumu (2026-11-09, ".apks kurulmuyor"). Kullanıcı onayından SONRA döner:
   /// `done` · `aborted` · `need_permission` · `no_apk` · `missing` ·
   /// `error:<ileti>`; kanal yoksa `null`.
-  static Future<String?> installPackageFile(String path) =>
-      _call<String>('installPackageFile', {'path': path});
+  static Future<String?> installPackageFile(String path,
+          {bool selfUpdate = false}) =>
+      _call<String>('installPackageFile',
+          {'path': path, if (selfUpdate) 'self': true});
 
   /// Sistemin "Farklı kullan" seçicisi (duvar kâğıdı, kişi fotoğrafı…).
   static Future<bool> attachData(String path, String mime, String title) async =>

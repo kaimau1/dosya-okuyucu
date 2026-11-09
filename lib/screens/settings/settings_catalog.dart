@@ -684,6 +684,12 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
             SettingRow(
                 id: 'about', titleKey: 'settings.about', builder: _aboutTile),
             SettingRow(
+                id: 'app_update',
+                titleKey: 'upd.title',
+                subtitleKey: 'upd.auto_sub',
+                altKeys: ['upd.check', 'upd.auto'],
+                builder: _appUpdateTile),
+            SettingRow(
                 id: 'help',
                 titleKey: 'help.title',
                 subtitleKey: 'help.tile_sub',
@@ -828,6 +834,7 @@ Widget _formulaEnTile(BuildContext _) => const FormulaEnglishTile();
 Widget _editorPerfTile(BuildContext _) => const EditorPerfTile();
 Widget _labWordTile(BuildContext _) => const LabWordEditorTile();
 Widget _aboutTile(BuildContext _) => const AboutTile();
+Widget _appUpdateTile(BuildContext _) => const AppUpdateTile();
 Widget _ttsVoiceTile(BuildContext _) => const TtsVoiceTile();
 Widget _ttsAiReadTile(BuildContext _) => const TtsAiReadTile();
 Widget _crashLogTile(BuildContext _) => const CrashLogTile();

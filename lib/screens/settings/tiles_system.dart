@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
@@ -12,6 +14,7 @@ import '../../services/fm/native_extras.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/crash_log.dart';
+import '../../services/app_update.dart';
 import '../../services/fm/content_indexer.dart';
 import '../../services/fm/search_index.dart';
 import '../fm/sd_union_screen.dart';
@@ -396,6 +399,97 @@ class _CrashLogTileState extends State<CrashLogTile> {
           // Ekranda "Temizle" denmiş olabilir — dönüşte sayı tazelenir.
           await _refresh();
         },
+      );
+}
+
+/// GitHub'dan güncelleme: oto anahtarı + elle denetle/kur (2026-11-09).
+class AppUpdateTile extends StatefulWidget {
+  const AppUpdateTile({super.key});
+
+  @override
+  State<AppUpdateTile> createState() => _AppUpdateTileState();
+}
+
+class _AppUpdateTileState extends State<AppUpdateTile> {
+  bool _auto = true;
+  bool _busy = false;
+  String? _note;
+
+  @override
+  void initState() {
+    super.initState();
+    AppUpdate.autoEnabled().then((v) {
+      if (mounted) setState(() => _auto = v);
+    });
+  }
+
+  Future<void> _checkNow() async {
+    final str = AppStrings.of(context);
+    if (!AppUpdate.supported) {
+      setState(() => _note = str.t('upd.unsupported'));
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _note = str.t('upd.checking');
+    });
+    try {
+      final info = AppUpdate.ready.value ?? await AppUpdate.check();
+      if (!mounted) return;
+      if (info == null) {
+        setState(() => _note = str.t('upd.latest', {'v': appVersionName}));
+        return;
+      }
+      void onProgress() {
+        final p = AppUpdate.progress.value;
+        if (mounted && p != null) {
+          setState(() => _note = str.t('upd.downloading', {'v': info.version, 'p': p}));
+        }
+      }
+
+      AppUpdate.progress.addListener(onProgress);
+      final file = info.url.isEmpty ? null : await AppUpdate.download(info);
+      AppUpdate.progress.removeListener(onProgress);
+      if (!mounted) return;
+      if (file == null && info.url.isNotEmpty) {
+        setState(() => _note = str.t('upd.download_failed'));
+        return;
+      }
+      setState(() => _note = str.t('upd.ready', {'v': info.version}));
+      final result = await AppUpdate.install(info);
+      if (mounted && result == 'need_permission') {
+        setState(() => _note = str.t('upd.permission'));
+      }
+    } catch (_) {
+      if (mounted) setState(() => _note = str.t('upd.failed'));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SettingSwitch(
+            icon: AppIcons.refresh,
+            title: context.t('upd.auto'),
+            subtitle: context.t('upd.auto_sub'),
+            value: _auto,
+            onChanged: (v) {
+              setState(() => _auto = v);
+              unawaited(AppUpdate.setAutoEnabled(v));
+            },
+          ),
+          SettingTile(
+            key: const ValueKey('upd-check'),
+            icon: AppIcons.download,
+            title: context.t('upd.check'),
+            subtitle: _note ?? 'v$appVersionName',
+            wrapSubtitle: true,
+            onTap: _busy ? null : _checkNow,
+          ),
+        ],
       );
 }
 

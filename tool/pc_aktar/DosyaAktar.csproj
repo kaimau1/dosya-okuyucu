@@ -19,5 +19,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Windows.SDK.Contracts" Version="10.0.19041.2" />
+    <!-- Linux/macOS dotnet SDK ile derlemek icin; Windows derlemesinde etkisiz. -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
   </ItemGroup>
 </Project>

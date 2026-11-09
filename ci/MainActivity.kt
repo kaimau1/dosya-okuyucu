@@ -457,7 +457,8 @@ class MainActivity : FlutterActivity() {
                 // 2026-11-09: .apks/.xapk/.apkm kurulumu (PackageInstaller oturumu,
                 // bkz. ApkKurulum.kt). Sonuç kullanıcı onayından SONRA döner.
                 "installPackageFile" -> ApkKurulum.install(
-                    this@MainActivity, call.argument<String>("path") ?: ""
+                    this@MainActivity, call.argument<String>("path") ?: "",
+                    call.argument<Boolean>("self") ?: false
                 ) { result.success(it) }
                 "attachData" -> {
                     val path = call.argument<String>("path") ?: ""

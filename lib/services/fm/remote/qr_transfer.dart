@@ -151,7 +151,11 @@ class QrShareServer implements KeepableServer {
       server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
     }
     _server = server;
-    server.listen((r) => unawaited(_handle(r)), onError: (_) {});
+    server.listen((r) {
+      // İstemci bağlantıyı sıfırlarsa yakalanmamış hata kalmasın.
+      r.response.done.ignore();
+      unawaited(_handle(r));
+    }, onError: (_) {});
     final life = ttl;
     if (life != null) {
       _expiresAt = DateTime.now().add(life);

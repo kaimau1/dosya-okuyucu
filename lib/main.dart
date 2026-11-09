@@ -32,6 +32,7 @@ import 'screens/fm/pick_file_screen.dart';
 import 'core/app_haptics.dart';
 import 'screens/home_screen.dart';
 import 'screens/onboarding/onboarding_screen.dart';
+import 'services/app_update.dart';
 import 'services/fm/ai_auto.dart';
 import 'services/fm/fm_colors_store.dart';
 import 'services/fm/native_extras.dart';
@@ -238,10 +239,31 @@ Future<void> _main() async {
       credentials: () => appState.aiCredentials,
     ),
   );
+  // GitHub'dan oto güncelleme (2026-11-09): indirilmiş sürüm varsa kurar,
+  // yoksa denetler/indirir ve "Şimdi güncelle" önerir.
+  StartupQueue.instance.add(
+    'app-update',
+    () => AppUpdate.runOnStartup(onReady: _offerUpdate),
+  );
   runApp(
     AppProviders(
       appState: appState,
       child: const DosyaOkuyucuApp(),
+    ),
+  );
+}
+
+void _offerUpdate(AppUpdateInfo info) {
+  final context = navigatorKey.currentContext;
+  if (context == null || !context.mounted) return;
+  final str = AppStrings.of(context);
+  showSnack(
+    context,
+    str.t('upd.ready', {'v': info.version}),
+    duration: const Duration(seconds: 10),
+    action: SnackBarAction(
+      label: str.t('upd.install_now'),
+      onPressed: () => unawaited(AppUpdate.install(info)),
     ),
   );
 }

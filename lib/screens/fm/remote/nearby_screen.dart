@@ -706,22 +706,40 @@ class _NearbyScreenState extends State<NearbyScreen> {
     } finally {
       if (mounted) setState(() => _out = null);
     }
-    if (result.sent > 0 && !result.hasError && !result.cancelled) {
-      await TransferHistory.instance.add([
-        for (final path in payload)
-          TransferRecord(
+    // Her deneme (başarılı da başarısız da) geçmişe yazılır: kime, sonuç,
+    // giden yüzde, süre. Kalem adı tek dosyada dosyanın adıdır; küçük
+    // dosyalar pakete girdiyse dosyanın kendi satırı yoktur → genel yüzde.
+    final elapsed = DateTime.now().difference(out.startedAt);
+    final allOk = result.sent > 0 && !result.hasError && !result.cancelled &&
+        !result.declined && !result.wrongCode;
+    final overall = out.totalBytes > 0
+        ? (out.sentBytes * 100 ~/ out.totalBytes).clamp(0, 100).toInt()
+        : (allOk ? 100 : 0);
+    await TransferHistory.instance.add([
+      for (final path in payload)
+        () {
+          final f = out.files[p.basename(path)];
+          final pct = allOk
+              ? 100
+              : (f != null && f.size > 0
+                  ? (f.sent * 100 ~/ f.size).clamp(0, 100).toInt()
+                  : overall);
+          return TransferRecord(
             incoming: false,
             path: path,
             name: p.basename(path),
             size: _sizeOf(path),
             peer: peer.name,
             at: DateTime.now(),
-          ),
-      ]);
-      await appState.rememberPeer(peer.name, peer.host, peer.port);
-    }
+            ok: allOk || pct >= 100,
+            percent: pct,
+            duration: elapsed,
+          );
+        }(),
+    ]);
+    if (allOk) await appState.rememberPeer(peer.name, peer.host, peer.port);
     if (!mounted) return;
-    if (result.sent > 0) setState(() => _historyIncoming = false);
+    setState(() => _historyIncoming = false);
     showSnackBarReplacing(
       messenger,
       SnackBar(

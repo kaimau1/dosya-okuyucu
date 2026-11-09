@@ -182,7 +182,9 @@ extension _NearbySections on _NearbyScreenState {
     return _TransferCard(
       key: const ValueKey('near-outgoing'),
       icon: AppIcons.uploadArrow,
-      title: context.t('near.sending_to', {'name': out.to}),
+      title: out.totalBytes > 0
+          ? '${context.t('near.sending_to', {'name': out.to})} · %${(out.sentBytes * 100 ~/ out.totalBytes).clamp(0, 100).toInt()}'
+          : context.t('near.sending_to', {'name': out.to}),
       detail: detail,
       tint: scheme.secondaryContainer,
       action: TextButton(
@@ -211,9 +213,12 @@ extension _NearbySections on _NearbyScreenState {
     return _TransferCard(
       key: const ValueKey('near-incoming'),
       icon: AppIcons.download,
-      title: files.length == 1
-          ? context.t('near.receiving')
-          : context.t('near.receiving_n', {'n': files.length}),
+      title: [
+        files.length == 1
+            ? context.t('near.receiving')
+            : context.t('near.receiving_n', {'n': files.length}),
+        if (all > 0) '%${(got * 100 ~/ all).clamp(0, 100).toInt()}',
+      ].join(' · '),
       detail: all > 0 ? '${FsPaths.humanSize(got)} / ${FsPaths.humanSize(all)}' : null,
       tint: scheme.primaryContainer,
       rows: [
@@ -490,6 +495,16 @@ extension _NearbySections on _NearbyScreenState {
     );
   }
 
+  /// "1 dk 5 sn" / "12 sn" / "1 sn'den az".
+  static String _durationText(BuildContext context, Duration d) {
+    final s = d.inSeconds;
+    if (s < 1) return context.t('near.dur_lt1');
+    final m = s ~/ 60;
+    final rest = s % 60;
+    if (m == 0) return context.t('near.dur_s', {'s': rest});
+    return context.t('near.dur_ms', {'m': m, 's': rest});
+  }
+
   Widget _historyRow(BuildContext context, TransferRecord r) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
@@ -505,16 +520,47 @@ extension _NearbySections on _NearbyScreenState {
     return ListTile(
       leading: Icon(glyph, color: exists ? color : scheme.outline),
       title: Text(r.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(
-        [
-          r.peer,
-          '$when $time',
-          if (r.size > 0) FsPaths.humanSize(r.size),
-          if (!exists) context.t('near.missing'),
-        ].join(' · '),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
+      subtitle: r.incoming || (r.percent == null && r.duration == null)
+          ? Text(
+              [
+                r.peer,
+                '$when $time',
+                if (r.size > 0) FsPaths.humanSize(r.size),
+                if (!exists) context.t('near.missing'),
+              ].join(' · '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  [
+                    context.t('near.sent_to', {'name': r.peer}),
+                    '$when $time',
+                    if (r.size > 0) FsPaths.humanSize(r.size),
+                  ].join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  [
+                    r.ok ? '✓ ${context.t('near.sent_ok')}' : '✗ ${context.t('near.sent_fail')}',
+                    if (r.percent != null) '%${r.percent}',
+                    if (r.duration != null) _durationText(context, r.duration!),
+                    if (!exists) context.t('near.missing'),
+                  ].join(' · '),
+                  key: ValueKey('near-sent-status-${r.name}'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: r.ok ? scheme.primary : scheme.error,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
       onTap: !exists
           ? null
           : () {

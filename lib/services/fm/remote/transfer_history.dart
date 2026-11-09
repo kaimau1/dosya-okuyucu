@@ -18,6 +18,18 @@ class TransferRecord {
   final String peer;
   final DateTime at;
 
+  /// Aktarım sonucu (2026-11-09 kullanıcı isteği: *"gönderilen dosyanın
+  /// altında kime gönderildi, başarılı/başarısız, yüzdesi, kaç dk sn'de
+  /// gönderildi yazmalı"*). Eski kayıtlarda alan yok → başarılı sayılır,
+  /// yüzde/süre bilinmez (null).
+  final bool ok;
+
+  /// Giden baytın yüzdesi (0–100); bilinmiyorsa null.
+  final int? percent;
+
+  /// Aktarımın sürdüğü süre; bilinmiyorsa null.
+  final Duration? duration;
+
   const TransferRecord({
     required this.incoming,
     required this.path,
@@ -25,6 +37,9 @@ class TransferRecord {
     required this.size,
     required this.peer,
     required this.at,
+    this.ok = true,
+    this.percent,
+    this.duration,
   });
 
   bool get exists =>
@@ -37,6 +52,9 @@ class TransferRecord {
         's': size,
         'k': peer,
         't': at.millisecondsSinceEpoch,
+        if (!ok) 'ok': false,
+        if (percent != null) 'y': percent!,
+        if (duration != null) 'd': duration!.inMilliseconds,
       };
 
   static TransferRecord? fromJson(Object? raw) {
@@ -50,6 +68,11 @@ class TransferRecord {
       size: (raw['s'] as num?)?.toInt() ?? 0,
       peer: '${raw['k'] ?? ''}',
       at: DateTime.fromMillisecondsSinceEpoch((raw['t'] as num?)?.toInt() ?? 0),
+      ok: raw['ok'] != false,
+      percent: (raw['y'] as num?)?.toInt(),
+      duration: raw['d'] is num
+          ? Duration(milliseconds: (raw['d'] as num).toInt())
+          : null,
     );
   }
 }

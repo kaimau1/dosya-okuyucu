@@ -373,6 +373,8 @@ class _FtpSession {
 
   _FtpSession(this.server, this.socket) {
     _authed = server.anonymous;
+    // Kontrol soketi sıfırlanırsa `done` hatası yakalanmamış kalmasın.
+    socket.done.ignore();
     _send('220 Dosya Okuyucu FTP');
     socket
         .cast<List<int>>()
@@ -384,6 +386,16 @@ class _FtpSession {
           onDone: close,
           cancelOnError: false,
         );
+  }
+
+  /// Veri soketini sessizce kapatır: karşı taraf bağlantıyı sıfırladıysa
+  /// (`errno 104`) `close()` hata fırlatır — aktarım zaten bitmiş/kesilmiştir.
+  static Future<void> _closeData(Socket data) async {
+    try {
+      await data.close();
+    } catch (_) {
+      data.destroy();
+    }
   }
 
   void _send(String line) {
@@ -632,6 +644,10 @@ class _FtpSession {
     _pasv = null;
     try {
       final data = await pasv.first.timeout(const Duration(seconds: 20));
+      // İstemci (ör. Windows Gezgini küçük resim/iptal) veri bağlantısını
+      // sıfırlarsa `done` hata ile biter; dinleyen yoksa "[async]
+      // SocketException: Connection reset by peer" olarak hata kaydına düşer.
+      data.done.ignore();
       return data;
     } catch (_) {
       _send('425 Veri bağlantısı kurulamadı');
@@ -722,7 +738,7 @@ class _FtpSession {
     } catch (e) {
       _send('550 Liste alınamadı: $e');
     } finally {
-      await data.close();
+      await _closeData(data);
     }
   }
 
@@ -793,7 +809,7 @@ class _FtpSession {
     } catch (e) {
       _send('426 Aktarım kesildi: $e');
     } finally {
-      await data.close();
+      await _closeData(data);
     }
   }
 
@@ -837,7 +853,7 @@ class _FtpSession {
     } catch (e) {
       _send('426 Yazılamadı: $e');
     } finally {
-      await data.close();
+      await _closeData(data);
     }
   }
 

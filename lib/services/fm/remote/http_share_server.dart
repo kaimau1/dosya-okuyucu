@@ -106,7 +106,11 @@ class HttpShareServer {
     _server = server;
     // `listen` bilinçli olarak beklenmiyor: sunucu arka planda yaşıyor.
     server.listen(
-      (request) => unawaited(_handle(request)),
+      (request) {
+        // İstemci bağlantıyı sıfırlarsa yakalanmamış hata kalmasın.
+        request.response.done.ignore();
+        unawaited(_handle(request));
+      },
       onError: (_) {},
       cancelOnError: false,
     );
