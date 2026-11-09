@@ -89,20 +89,67 @@ extension _NearbySections on _NearbyScreenState {
                 ),
               ],
             ),
-            if (text != null) ...[
-              const SizedBox(height: Gap.sm),
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: InputChip(
-                  key: const ValueKey('near-text-chip'),
-                  avatar: const Icon(AppIcons.textSnippet, size: AppIcons.small),
-                  label: Text(
-                    context.t('near.text_chip', {'n': text.characters.length}),
-                  ),
-                  tooltip: text.length > 200 ? '${text.substring(0, 200)}…' : text,
-                  onPressed: _editText,
-                  onDeleted: () => _update(() => _text = null),
-                ),
+            const SizedBox(height: Gap.xs),
+            TextField(
+              key: const ValueKey('near-paste-field'),
+              controller: _textCtrl,
+              minLines: 1,
+              maxLines: 5,
+              keyboardType: TextInputType.multiline,
+              // Android klavyesinden görsel/GIF/çıkartma yapıştırma.
+              contentInsertionConfiguration: ContentInsertionConfiguration(
+                onContentInserted: _onKeyboardContent,
+              ),
+              decoration: InputDecoration(
+                hintText: context.t('near.paste_hint'),
+                prefixIcon: const Icon(AppIcons.paste),
+                suffixIcon: text == null
+                    ? null
+                    : IconButton(
+                        tooltip: context.t('common.clear'),
+                        icon: const Icon(AppIcons.close),
+                        onPressed: _textCtrl.clear,
+                      ),
+                border: const OutlineInputBorder(),
+                // Sıkı: ilk sekme (hızlı aktar + QR) 360×780'e kaydırmasız sığar.
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: Gap.sm, vertical: Gap.sm),
+                prefixIconConstraints:
+                    const BoxConstraints(minWidth: 40, minHeight: 36),
+              ),
+            ),
+            if (_clipSuggestion != null ||
+                context.watch<AppState>().hasClipboard) ...[
+              const SizedBox(height: Gap.xs),
+              Wrap(
+                spacing: Gap.xs,
+                runSpacing: Gap.xs,
+                children: [
+                  if (_clipSuggestion != null)
+                    ActionChip(
+                      key: const ValueKey('near-clip-text'),
+                      avatar: const Icon(AppIcons.paste, size: AppIcons.small),
+                      label: Text(
+                        context.t('near.clip_text', {
+                          'text': _clipSuggestion!.length > 40
+                              ? '${_clipSuggestion!.substring(0, 40)}…'
+                              : _clipSuggestion!.replaceAll('\n', ' '),
+                        }),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      onPressed: _useClipboardText,
+                    ),
+                  if (context.watch<AppState>().hasClipboard)
+                    ActionChip(
+                      key: const ValueKey('near-clip-files'),
+                      avatar: const Icon(AppIcons.copy, size: AppIcons.small),
+                      label: Text(context.t('near.clip_files',
+                          {'n': context.watch<AppState>().clipboard.length})),
+                      onPressed: _addAppClipboard,
+                    ),
+                ],
               ),
             ],
             if (_selection.isNotEmpty) ...[

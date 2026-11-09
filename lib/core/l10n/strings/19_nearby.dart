@@ -202,6 +202,13 @@ const Map<String, (String, String, String)> _t19 = {
   ),
   // ── Aktar 2026-11-03: yazı gönderme, güvenilen cihazlar, yeni düzen ───────
   'near.add_text': ('Yazı', 'Text', 'نص'),
+  'near.paste_hint': (
+    'Buraya yazın ya da yapıştırın (klavyeden görsel de olur)',
+    'Type or paste here (images from the keyboard too)',
+    'اكتب أو الصق هنا (والصور من لوحة المفاتيح أيضًا)',
+  ),
+  'near.clip_text': ('Panodan ekle: {text}', 'Add from clipboard: {text}', 'إضافة من الحافظة: {text}'),
+  'near.clip_files': ('Kopyalanan {n} dosyayı ekle', 'Add {n} copied files', 'إضافة {n} ملفات منسوخة'),
   'near.text_title': ('Gönderilecek yazı', 'Text to send', 'النص المراد إرساله'),
   'near.text_hint': (
     'Yaz ya da yapıştır — karşı cihazda kopyalanabilir olarak görünür',

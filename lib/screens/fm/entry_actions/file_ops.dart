@@ -440,13 +440,20 @@ Future<bool> copyToImportant(BuildContext context, List<String> paths) async {
     return false;
   }
   if (!context.mounted) return false;
+  // Kategori (alt klasör) varsa ya da kullanıcı yeni açmak isterse sorulur
+  // (kullanıcı isteği 2026-11-09: "önemli dosyaya taşırken kategoriye göre
+  // seçim yapabilme"). Kategori yoksa soru çıkmaz — tek dokunuş korunur;
+  // kategoriler Önemli Dosyalar ekranında açılır/yeniden adlandırılır.
+  final picked = await pickImportantCategory(context, dest);
+  if (picked == null || !context.mounted) return false;
+  final target = picked;
   final result = await showFmProgress<FmOpResult>(
     context,
     title: context.t('fm.copying_important'),
     name: context.t('fm.copying_important_name'),
     // Kopyanın adına `_onemli` eklenir (kullanıcı isteği 2026-11-04):
     // özgünüyle karışmasın, yanlışlıkla silinmesin (bkz. [ImportantFiles]).
-    task: (report, isCancelled) => FileOps.copyAll(paths, dest,
+    task: (report, isCancelled) => FileOps.copyAll(paths, target,
         onProgress: report,
         isCancelled: isCancelled,
         renameTo: ImportantFiles.markedNameFor),
@@ -458,10 +465,75 @@ Future<bool> copyToImportant(BuildContext context, List<String> paths) async {
         ? context.t('fm.copy_failed', {'error': result.errors.first})
         : context.t('fm.important_copied', {
             'n': paths.length,
-            'folder': ImportantScreen.folderName,
+            'folder': p.equals(target, dest)
+                ? ImportantScreen.folderName
+                : p.basename(target),
           }),
   );
   return true;
+}
+
+/// Önemli Dosyalar'ın kategorisini (alt klasörünü) seçtirir; seçilen yolu,
+/// vazgeçilirse null döner. Kategori yoksa doğrudan [root].
+Future<String?> pickImportantCategory(BuildContext context, String root) async {
+  List<String> cats;
+  try {
+    cats = Directory(root)
+        .listSync()
+        .whereType<Directory>()
+        .map((d) => d.path)
+        .where((d) => !p.basename(d).startsWith('.'))
+        .toList()
+      ..sort((a, b) =>
+          p.basename(a).toLowerCase().compareTo(p.basename(b).toLowerCase()));
+  } catch (_) {
+    cats = const [];
+  }
+  if (cats.isEmpty) return root;
+  const newKey = '\u0000new';
+  final choice = await showAppSheet<String>(
+    context,
+    title: context.t('important.pick_category'),
+    builder: (ctx) => Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ListTile(
+          leading: const Icon(AppIcons.star),
+          title: Text(ctx.t('important.general')),
+          onTap: () => Navigator.pop(ctx, root),
+        ),
+        for (final c in cats)
+          ListTile(
+            leading: const Icon(AppIcons.folder),
+            title: Text(p.basename(c)),
+            onTap: () => Navigator.pop(ctx, c),
+          ),
+        ListTile(
+          leading: const Icon(AppIcons.newFolder),
+          title: Text(ctx.t('important.new_category')),
+          onTap: () => Navigator.pop(ctx, newKey),
+        ),
+      ],
+    ),
+  );
+  if (choice != newKey || !context.mounted) return choice;
+  final failed = context.t('fm.folder_create_failed');
+  final name = await showAppPrompt(
+    context,
+    title: context.t('important.new_category'),
+    label: context.t('fm.folder_name'),
+    initial: '',
+    confirmLabel: context.t('fm.create'),
+  );
+  if (name == null || name.trim().isEmpty) return null;
+  try {
+    return await FileOps.createFolder(root, name.trim());
+  } catch (e) {
+    if (context.mounted) {
+      _snack(context, failed.replaceAll('{error}', userErrorText(e)));
+    }
+    return null;
+  }
 }
 
 /// Seçilenleri **takılı harici belleğe** (USB / SD kart) kopyalar.
