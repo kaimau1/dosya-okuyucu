@@ -21,6 +21,7 @@ import 'downloads_screen.dart' show downloadsPathIn;
 import 'entry_actions.dart' show shareEntries;
 import 'folder_picker_screen.dart';
 import '../../core/snack.dart';
+import '../../widgets/app_dialog.dart';
 import '../../widgets/motion.dart';
 import '../../core/user_error.dart';
 

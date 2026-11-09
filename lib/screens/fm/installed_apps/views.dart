@@ -350,10 +350,9 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
       plan = _ApkPlan(includeSplits: true, save: true, share: false,
           destDir: defaultDir);
     } else {
-      final picked = await showModalBottomSheet<_ApkPlan>(
-        context: context,
-        isScrollControlled: true,
-        showDragHandle: true,
+      final picked = await showAppSheet<_ApkPlan>(
+        context,
+        scrollable: false,
         builder: (_) => _ApkExportSheet(
             app: app, source: source, defaultDir: defaultDir),
       );
