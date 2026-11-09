@@ -53,7 +53,7 @@ class TransferRecord {
         'k': peer,
         't': at.millisecondsSinceEpoch,
         if (!ok) 'ok': false,
-        if (percent != null) 'y': percent!,
+        'y': ?percent,
         if (duration != null) 'd': duration!.inMilliseconds,
       };
 
