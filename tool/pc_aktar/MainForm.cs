@@ -77,7 +77,7 @@ namespace DosyaAktar
         readonly ListBox devices = new ListBox();
         readonly TextBox ipBox = new TextBox();
         readonly Label drop = new Label();
-        readonly Button pickFiles = new Button(), pickFolder = new Button(), cancelBtn = new Button();
+        readonly Button pickFiles = new Button(), pickFolder = new Button(), cancelBtn = new Button(), pasteBtn = new Button();
         readonly ProgressBar bar = new ProgressBar(), recvBar = new ProgressBar();
         readonly Label recvBadge = new Label();
         DateTime sendStarted;
@@ -217,7 +217,17 @@ namespace DosyaAktar
             pickFiles.Text = "Dosya seç…";
             pickFolder.Text = "Klasör seç…";
             cancelBtn.Text = "İptal";
-            foreach (var b in new[] { pickFiles, pickFolder, cancelBtn }) { b.AutoSize = true; b.Padding = new Padding(S(6), S(2), S(6), S(2)); buttons.Controls.Add(b); }
+            pasteBtn.Text = "Panodan yapıştır (Ctrl+V)";
+            pasteBtn.Click += (s, e) => PasteFromClipboard();
+            // Pano otomatik algılama (2026-11-09 kullanıcı isteği): pencereye
+            // dönüldüğünde panoda ne olduğu düğmede yazar.
+            Activated += (s, e) => UpdatePasteButton();
+            KeyPreview = true;
+            KeyDown += (s, e) =>
+            {
+                if (e.Control && e.KeyCode == Keys.V && !ipBox.Focused) { e.SuppressKeyPress = true; PasteFromClipboard(); }
+            };
+            foreach (var b in new[] { pickFiles, pickFolder, pasteBtn, cancelBtn }) { b.AutoSize = true; b.Padding = new Padding(S(6), S(2), S(6), S(2)); buttons.Controls.Add(b); }
             cancelBtn.Enabled = false;
             pickFiles.Click += (s, e) => PickFiles();
             pickFolder.Click += (s, e) =>
@@ -364,6 +374,63 @@ namespace DosyaAktar
                 ipBox.Text = "";
                 RefreshDevices();
             }));
+        }
+
+        /// Panodaki dosya / görsel / yazıyı gönderir. Görsel PNG, yazı .txt olarak
+        /// geçici klasöre yazılır (telefonda dosya olarak gelir).
+        void PasteFromClipboard()
+        {
+            if (sending) return;
+            try
+            {
+                if (Clipboard.ContainsFileDropList())
+                {
+                    var list = Clipboard.GetFileDropList();
+                    var paths = new string[list.Count];
+                    list.CopyTo(paths, 0);
+                    StartSend(paths);
+                    return;
+                }
+                var dir = Path.Combine(Path.GetTempPath(), "DosyaAktar_pano");
+                Directory.CreateDirectory(dir);
+                var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                if (Clipboard.ContainsImage())
+                {
+                    using (var img = Clipboard.GetImage())
+                    {
+                        if (img == null) return;
+                        var file = Path.Combine(dir, "pano_" + stamp + ".png");
+                        img.Save(file, System.Drawing.Imaging.ImageFormat.Png);
+                        StartSend(new[] { file });
+                    }
+                    return;
+                }
+                if (Clipboard.ContainsText())
+                {
+                    var file = Path.Combine(dir, "pano_" + stamp + ".txt");
+                    File.WriteAllText(file, Clipboard.GetText(), new System.Text.UTF8Encoding(false));
+                    StartSend(new[] { file });
+                    return;
+                }
+                status.Text = "Panoda gönderilecek dosya, görsel ya da yazı yok.";
+            }
+            catch (Exception ex)
+            {
+                status.Text = "Pano okunamadı: " + ex.Message;
+            }
+        }
+
+        void UpdatePasteButton()
+        {
+            string what = null;
+            try
+            {
+                if (Clipboard.ContainsFileDropList()) what = Clipboard.GetFileDropList().Count + " dosya";
+                else if (Clipboard.ContainsImage()) what = "görsel";
+                else if (Clipboard.ContainsText()) what = "yazı";
+            }
+            catch { /* pano başka uygulamada kilitli */ }
+            pasteBtn.Text = what == null ? "Panodan yapıştır (Ctrl+V)" : "Panodan yapıştır: " + what + " (Ctrl+V)";
         }
 
         void PickFiles()
@@ -527,7 +594,7 @@ namespace DosyaAktar
         void SetSending(bool on)
         {
             cancelBtn.Enabled = on;
-            pickFiles.Enabled = pickFolder.Enabled = !on;
+            pickFiles.Enabled = pickFolder.Enabled = pasteBtn.Enabled = !on;
             drop.Cursor = on ? Cursors.Default : Cursors.Hand;
             if (on) drop.Text = "Gönderiliyor…";
         }

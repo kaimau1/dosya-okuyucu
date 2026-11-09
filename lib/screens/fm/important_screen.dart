@@ -9,6 +9,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
+import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_events.dart';
@@ -65,6 +66,11 @@ class _ImportantScreenState extends State<ImportantScreen> {
   List<FsEntry> _subFolders = const [];
   bool _loading = true;
   bool _exists = false;
+
+  /// Galeri süzgeci (null = tümü) ve "tümünü göster" durumu.
+  FmCategory? _galleryFilter;
+  bool _galleryAll = false;
+  static const _galleryPreview = 24;
 
   @override
   void initState() {
@@ -252,6 +258,8 @@ class _ImportantScreenState extends State<ImportantScreen> {
               const SizedBox(height: Gap.sm),
               FmCategoryGrid(tiles: _categoryTiles()),
               const SizedBox(height: Gap.lg),
+              ..._gallery(context),
+              const SizedBox(height: Gap.lg),
               Row(
                 children: [
                   Expanded(
@@ -280,8 +288,21 @@ class _ImportantScreenState extends State<ImportantScreen> {
                     '${context.t('count.files', {'n': _countIn(f.path)})} · '
                     '${FsPaths.humanSize(_bytesIn(f.path))}',
                   ),
-                  trailing: const Icon(AppIcons.chevron),
+                  trailing: PopupMenuButton<String>(
+                    onSelected: (v) => v == 'rename'
+                        ? _renameCategory(f)
+                        : _deleteCategory(f),
+                    itemBuilder: (ctx) => [
+                      PopupMenuItem(
+                          value: 'rename',
+                          child: Text(ctx.t('important.rename_category'))),
+                      PopupMenuItem(
+                          value: 'delete',
+                          child: Text(ctx.t('important.delete_category'))),
+                    ],
+                  ),
                   onTap: () => _push(BrowserScreen(path: f.path)),
+                  onLongPress: () => _renameCategory(f),
                 ),
             ],
           ],
@@ -301,6 +322,127 @@ class _ImportantScreenState extends State<ImportantScreen> {
                   child: const Icon(AppIcons.newFolder),
                 )),
     );
+  }
+
+  // ── Kategoriler (alt klasörler) ─────────────────────────────────────────
+
+  Future<void> _renameCategory(FsEntry f) async {
+    final failed = context.t('fm.rename_failed');
+    final name = await showAppPrompt(
+      context,
+      title: context.t('important.rename_category'),
+      label: context.t('fm.folder_name'),
+      initial: f.name,
+      confirmLabel: context.t('common.ok'),
+    );
+    if (name == null || name.trim().isEmpty || name == f.name) return;
+    try {
+      await FileOps.rename(f.path, name.trim());
+      FsEvents.changed();
+    } catch (e) {
+      _snack(failed.replaceAll('{error}', userErrorText(e)));
+    }
+    await _load();
+  }
+
+  /// Önemli klasör: onay HİÇBİR ayarla atlanmaz (bkz. [ImportantFiles]).
+  Future<void> _deleteCategory(FsEntry f) async {
+    final ok = await showAppConfirm(
+      context,
+      title: context.t('important.delete_category'),
+      message: context.t('important.delete_category_msg',
+          {'name': f.name, 'n': _countIn(f.path)}),
+      confirmLabel: context.t('common.delete'),
+      destructive: true,
+    );
+    if (!ok) return;
+    final result = await FileOps.deleteAll([f.path]);
+    FsEvents.changed();
+    if (result.hasError) _snack(result.errors.first);
+    await _load();
+  }
+
+  // ── Galeri: tüm önemli dosyalar önizlemeli ızgarada ────────────────────
+
+  static const _galleryKinds = [
+    FmCategory.image,
+    FmCategory.video,
+    FmCategory.document,
+    FmCategory.audio,
+    FmCategory.other,
+  ];
+
+  List<Widget> _gallery(BuildContext context) {
+    final all = [..._files]
+      ..sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
+    final kinds = {for (final f in all) f.category};
+    final filter = _galleryFilter;
+    final items = filter == null
+        ? all
+        : all.where((f) => f.category == filter).toList();
+    final shown =
+        _galleryAll ? items : items.take(_galleryPreview).toList();
+    final paths = [for (final f in items) f.path];
+    return [
+      Text(context.t('important.gallery'),
+          style: Theme.of(context).textTheme.titleMedium),
+      const SizedBox(height: Gap.sm),
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            ChoiceChip(
+              label: Text(context.t('important.gallery_all')),
+              selected: filter == null,
+              onSelected: (_) => setState(() => _galleryFilter = null),
+            ),
+            for (final c in _galleryKinds)
+              if (kinds.contains(c))
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(start: Gap.xs),
+                  child: ChoiceChip(
+                    avatar: Icon(FmColors.iconFor(c), size: 18),
+                    label: Text(c.label),
+                    selected: filter == c,
+                    onSelected: (_) => setState(() => _galleryFilter = c),
+                  ),
+                ),
+          ],
+        ),
+      ),
+      const SizedBox(height: Gap.sm),
+      if (items.isEmpty)
+        Text(context.t('important.gallery_empty'))
+      else
+        LayoutBuilder(builder: (context, box) {
+          final cols = (box.maxWidth / 120).floor().clamp(3, 8);
+          final cell = (box.maxWidth - (cols - 1) * 4) / cols;
+          return Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            children: [
+              for (final f in shown)
+                _GalleryTile(
+                  key: ValueKey(f.path),
+                  entry: f,
+                  size: cell,
+                  onTap: () =>
+                      EntryOpener.open(context, f.path, siblings: paths),
+                ),
+            ],
+          );
+        }),
+      if (items.length > _galleryPreview)
+        Align(
+          alignment: AlignmentDirectional.centerEnd,
+          child: TextButton(
+            onPressed: () => setState(() => _galleryAll = !_galleryAll),
+            child: Text(_galleryAll
+                ? context.t('important.show_less')
+                : context.t('important.show_all', {'n': items.length})),
+          ),
+        ),
+    ];
   }
 
   int _countIn(String dir) =>
@@ -396,6 +538,71 @@ class _ImportantScreenState extends State<ImportantScreen> {
           onTap: () => _openCategory(c),
         ),
     ];
+  }
+}
+
+/// Galeri hücresi: kare önizleme (fotoğraf/video/PDF/Office küçük resmi),
+/// görsel olmayanlarda altta ad.
+class _GalleryTile extends StatelessWidget {
+  final FsEntry entry;
+  final double size;
+  final VoidCallback onTap;
+
+  const _GalleryTile(
+      {super.key, required this.entry, required this.size, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final media = entry.category == FmCategory.image ||
+        entry.category == FmCategory.video;
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(Radii.control),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Padding(
+                padding: media
+                    ? EdgeInsets.zero
+                    : EdgeInsets.fromLTRB(8, 8, 8, size * 0.28),
+                child: Center(
+                  child: FmEntryIcon(
+                    entry: entry,
+                    size: media ? size : size * 0.62,
+                    radius: media ? 0 : Radii.control,
+                  ),
+                ),
+              ),
+              if (entry.category == FmCategory.video)
+                Center(
+                  child: Icon(AppIcons.playCircleFill,
+                      color: scheme.surface.withValues(alpha: 0.85), size: 36),
+                ),
+              if (!media)
+                PositionedDirectional(
+                  start: 4,
+                  end: 4,
+                  bottom: 4,
+                  child: Text(
+                    entry.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

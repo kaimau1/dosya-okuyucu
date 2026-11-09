@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/app_colors.dart';
@@ -146,6 +147,88 @@ class _NearbyScreenState extends State<NearbyScreen> {
   /// Gönderilecek yazı (dosyalarla birlikte de gidebilir).
   late String? _text = widget.sendText;
 
+  /// Ekrandaki yapıştırma alanı (2026-11-09 kullanıcı isteği: "aktar
+  /// ekranında direkt yapıştırabilme… tıklanabilir yazı alanı; Android
+  /// klavyeden görsel vs. yapıştırabilme"). [_text] bunun aynasıdır.
+  late final TextEditingController _textCtrl =
+      TextEditingController(text: widget.sendText)..addListener(_onTextEdited);
+
+  /// Sistem panosunda bulunan, henüz eklenmemiş yazı (öneri çipi).
+  String? _clipSuggestion;
+  String? _clipDismissed;
+  AppLifecycleListener? _life;
+
+  void _onTextEdited() {
+    final v = _textCtrl.text;
+    final next = v.isEmpty ? null : v;
+    if (next != _text) setState(() => _text = next);
+  }
+
+  /// Panodaki yazıyı yoklar (açılışta ve uygulamaya dönüşte).
+  Future<void> _probeClipboard() async {
+    String? clip;
+    try {
+      clip = await Clipboard.hasStrings()
+          ? (await Clipboard.getData(Clipboard.kTextPlain))?.text
+          : null;
+    } catch (_) {
+      clip = null; // pano okunamadı — öneri gösterilmez
+    }
+    if (!mounted) return;
+    final c = (clip == null || clip.trim().isEmpty) ? null : clip;
+    final show = c != null && c != _text && c != _clipDismissed ? c : null;
+    if (show != _clipSuggestion) setState(() => _clipSuggestion = show);
+  }
+
+  void _useClipboardText() {
+    final c = _clipSuggestion;
+    if (c == null) return;
+    _textCtrl.text = _text == null ? c : '$_text\n$c';
+    setState(() {
+      _clipDismissed = c;
+      _clipSuggestion = null;
+    });
+  }
+
+  /// Klavyeden (Gboard panosu, çıkartma, GIF) gelen görseli dosyaya yazıp
+  /// gönderilecekler listesine ekler.
+  Future<void> _onKeyboardContent(KeyboardInsertedContent content) async {
+    final data = content.data;
+    if (data == null || data.isEmpty) return;
+    try {
+      final dir = Directory(p.join((await getTemporaryDirectory()).path, 'aktar_yapistir'));
+      await dir.create(recursive: true);
+      final ext = switch (content.mimeType) {
+        'image/png' => 'png',
+        'image/gif' => 'gif',
+        'image/webp' => 'webp',
+        'image/jpeg' || 'image/jpg' => 'jpg',
+        final m when m.contains('/') => m.split('/').last,
+        _ => 'bin',
+      };
+      final stamp = DateTime.now().millisecondsSinceEpoch;
+      final file = File(p.join(dir.path, 'yapistirilan_$stamp.$ext'));
+      await file.writeAsBytes(data, flush: true);
+      if (!mounted) return;
+      setState(() => _selection.add(file.path));
+      _scheduleWeb();
+    } catch (e) {
+      if (mounted) showSnack(context, userErrorText(e));
+    }
+  }
+
+  /// Uygulama içinde "Kopyala/Kes" ile panoya alınmış dosyaları ekler.
+  void _addAppClipboard() {
+    final paths = context.read<AppState>().clipboard;
+    if (paths.isEmpty) return;
+    setState(() {
+      for (final path in paths) {
+        if (!_selection.contains(path)) _selection.add(path);
+      }
+    });
+    _scheduleWeb();
+  }
+
   String _id = '';
   String _saveDir = QrReceiveFlow.defaultSaveDir();
   bool _confirmIncoming = true;
@@ -204,10 +287,16 @@ class _NearbyScreenState extends State<NearbyScreen> {
     unawaited(TransferHistory.instance.ensureLoaded());
     unawaited(TrustedPeers.instance.ensureLoaded());
     if (widget.services) unawaited(_boot());
+    if (widget.services) {
+      unawaited(_probeClipboard());
+      _life = AppLifecycleListener(onResume: () => unawaited(_probeClipboard()));
+    }
   }
 
   @override
   void dispose() {
+    _life?.dispose();
+    _textCtrl.dispose();
     _scanTimer?.cancel();
     _pruneTimer?.cancel();
     _webDebounce?.cancel();
@@ -645,14 +734,14 @@ class _NearbyScreenState extends State<NearbyScreen> {
       multiline: true,
     );
     if (text == null || !mounted) return;
-    setState(() => _text = text);
+    _textCtrl.text = text;
   }
 
   Future<bool> _sendText(Peer peer) async {
     final strings = AppStrings.of(context);
     final ok = await PeerSender.sendText(peer, _text!, senderName: _deviceName);
     if (!mounted) return ok;
-    if (ok) setState(() => _text = null);
+    if (ok) _textCtrl.clear();
     showSnack(context,
         ok ? strings.t('near.text_sent', {'name': peer.name}) : strings.t('near.text_failed'));
     return ok;
