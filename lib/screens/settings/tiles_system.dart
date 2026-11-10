@@ -508,7 +508,7 @@ class _AppUpdateTileState extends State<AppUpdateTile> {
                 ? str.t('upd.downloading', {'v': info?.version ?? '', 'p': pct})
                 : _note ??
                     (newer
-                        ? str.t('upd.found', {'v': info!.version})
+                        ? str.t('upd.found', {'v': info.version})
                         : str.t('upd.current', {'v': appVersionName}));
             return Column(
               mainAxisSize: MainAxisSize.min,
@@ -527,9 +527,9 @@ class _AppUpdateTileState extends State<AppUpdateTile> {
                         )
                       : newer
                           ? FilledButton.tonal(
-                              onPressed: () => _update(info!),
+                              onPressed: () => _update(info),
                               child: Text(str.t(
-                                  AppUpdate.ready.value?.version == info!.version
+                                  AppUpdate.ready.value?.version == info.version
                                       ? 'upd.b_install'
                                       : 'upd.b_update')),
                             )
