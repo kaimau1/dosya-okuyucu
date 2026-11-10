@@ -20,6 +20,7 @@ import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import 'browser_screen.dart';
 import 'category_screen.dart';
+import 'important_gallery_screen.dart';
 import 'photos_screen.dart';
 import 'search_screen.dart';
 import '../../core/snack.dart';
@@ -67,10 +68,9 @@ class _ImportantScreenState extends State<ImportantScreen> {
   bool _loading = true;
   bool _exists = false;
 
-  /// Galeri süzgeci (null = tümü) ve "tümünü göster" durumu.
+  /// Galeri süzgeci (null = tümü); önizleme ilk [_galleryPreview] dosya.
   FmCategory? _galleryFilter;
-  bool _galleryAll = false;
-  static const _galleryPreview = 24;
+  static const _galleryPreview = 12;
 
   @override
   void initState() {
@@ -380,8 +380,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
     final items = filter == null
         ? all
         : all.where((f) => f.category == filter).toList();
-    final shown =
-        _galleryAll ? items : items.take(_galleryPreview).toList();
+    final shown = items.take(_galleryPreview).toList();
     final paths = [for (final f in items) f.path];
     return [
       Text(context.t('important.gallery'),
@@ -422,7 +421,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
             runSpacing: 4,
             children: [
               for (final f in shown)
-                _GalleryTile(
+                ImportantGalleryTile(
                   key: ValueKey(f.path),
                   entry: f,
                   size: cell,
@@ -432,14 +431,15 @@ class _ImportantScreenState extends State<ImportantScreen> {
             ],
           );
         }),
-      if (items.length > _galleryPreview)
+      // 2026-11-10: tümü artık ayrı **Önemli Galeri** ekranında (ana ekranda
+      // da kendi kartı var) — geniş, kategorize süzgeçlerle.
+      if (all.isNotEmpty)
         Align(
           alignment: AlignmentDirectional.centerEnd,
-          child: TextButton(
-            onPressed: () => setState(() => _galleryAll = !_galleryAll),
-            child: Text(_galleryAll
-                ? context.t('important.show_less')
-                : context.t('important.show_all', {'n': items.length})),
+          child: TextButton.icon(
+            onPressed: () => _push(const ImportantGalleryScreen()),
+            icon: const Icon(AppIcons.importantGallery, size: 18),
+            label: Text(context.t('ig.open_gallery', {'n': all.length})),
           ),
         ),
     ];
@@ -543,12 +543,12 @@ class _ImportantScreenState extends State<ImportantScreen> {
 
 /// Galeri hücresi: kare önizleme (fotoğraf/video/PDF/Office küçük resmi),
 /// görsel olmayanlarda altta ad.
-class _GalleryTile extends StatelessWidget {
+class ImportantGalleryTile extends StatelessWidget {
   final FsEntry entry;
   final double size;
   final VoidCallback onTap;
 
-  const _GalleryTile(
+  const ImportantGalleryTile(
       {super.key, required this.entry, required this.size, required this.onTap});
 
   @override

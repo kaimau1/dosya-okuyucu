@@ -60,6 +60,7 @@ import 'cleanup_screen.dart';
 import 'downloads_screen.dart';
 import 'drive_screen.dart';
 import '../settings_screen.dart';
+import 'important_gallery_screen.dart';
 import 'important_screen.dart';
 import 'installed_apps_screen.dart';
 import 'new_files_screen.dart';

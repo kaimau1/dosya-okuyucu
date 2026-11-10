@@ -34,6 +34,7 @@ import '../services/scan_kind.dart';
 import '../services/scan_page_ops.dart';
 import '../services/scan_prepare.dart';
 import '../widgets/translate_flow.dart';
+import 'fm/browser_screen.dart' show BrowserScreen, browserRoute;
 import 'fm/folder_picker_screen.dart';
 import 'fm/important_screen.dart';
 import 'fm/vault_screen.dart' show addToVault;

@@ -108,7 +108,8 @@ abstract final class ScanEnhance {
   /// zemin sanılıp silinir), sayfadan küçük olmalı (yoksa gölgeyi göremez).
   static const backgroundRadiusRatio = 0.06;
 
-  /// Keskinleştirme miktarı.
+  /// Tek geçişli eski keskinleştirme miktarı (yalnız [sharpen] çağıranlar
+  /// için; boru hattı artık [sharpenText] kullanır).
   static const sharpenAmount = 0.8;
 
   /// Çıktı JPEG kalitesi. 92: gözle kayıp yok, dosya makul.
@@ -179,7 +180,7 @@ abstract final class ScanEnhance {
     // 1-3: gri kanal üstünde tüm düzeltmeler.
     var corrected = flattenIllumination(gray, w, h, radius);
     corrected = stretchContrast(corrected);
-    corrected = sharpen(corrected, w, h, sharpenAmount);
+    corrected = sharpenText(corrected, w, h);
 
     if (filter == ScanFilter.blackWhite) {
       final bw = adaptiveThreshold(corrected, w, h,
@@ -557,6 +558,82 @@ abstract final class ScanEnhance {
     for (var i = 0; i < gray.length; i++) {
       final v = (gray[i] + amount * (gray[i] - blur[i])).round();
       out[i] = v < 0 ? 0 : (v > 255 ? 255 : v);
+    }
+    return out;
+  }
+
+  /// **Yazı netleştirme** (2026-11-10, kullanıcı: *"taramada otomatik
+  /// netleştirme yok ya da iyi değil"*). Eski tek geçişli maske (yarıçap 1,
+  /// 0,8) 2480 px'e indirilmiş telefon çekiminde neredeyse görünmüyordu:
+  /// kamera yumuşaklığı 2–3 piksele yayılıyor, 3×3 bulanık fark onu
+  /// yakalamıyor. Şimdi:
+  ///  1. **İki ölçek**: ince (yarıçap 1) + orta (yarıçap 2) fark birlikte
+  ///     eklenir → hem harf kenarı hem harf gövdesi toparlanır.
+  ///  2. **Gürültü eşiği**: küçük farklar (kâğıt dokusu, sensör gürültüsü,
+  ///     JPEG kırıntısı) keskinleştirilmez → "kirli" sayfa olmaz.
+  ///  3. **Hale sınırı**: sonuç 3×3 komşuluğun en küçük/en büyük değerinden
+  ///     en çok [haloMargin] taşabilir → harf çevresinde beyaz/siyah çember
+  ///     oluşmaz, güçlü miktar güvenle kullanılır.
+  static Uint8List sharpenText(Uint8List gray, int w, int h) {
+    final b1 = DocEdges.boxBlur(gray, w, h, 1);
+    final b2 = DocEdges.boxBlur(gray, w, h, 2);
+    final lo = _minMax3(gray, w, h, min: true);
+    final hi = _minMax3(gray, w, h, min: false);
+    final out = Uint8List(gray.length);
+    for (var i = 0; i < gray.length; i++) {
+      final g = gray[i];
+      var d1 = g - b1[i];
+      var d2 = g - b2[i];
+      if (d1.abs() < fineNoise) d1 = 0;
+      if (d2.abs() < mediumNoise) d2 = 0;
+      var v = (g + fineAmount * d1 + mediumAmount * d2).round();
+      final floor = lo[i] - haloMargin, ceil = hi[i] + haloMargin;
+      if (v < floor) v = floor;
+      if (v > ceil) v = ceil;
+      out[i] = v < 0 ? 0 : (v > 255 ? 255 : v);
+    }
+    return out;
+  }
+
+  static const fineAmount = 0.9;
+  static const mediumAmount = 0.7;
+  static const fineNoise = 3;
+  static const mediumNoise = 4;
+  static const haloMargin = 10;
+
+  /// 3×3 komşuluk en küçüğü/en büyüğü (ayrılabilir: önce satır, sonra sütun).
+  static Uint8List _minMax3(Uint8List g, int w, int h, {required bool min}) {
+    final tmp = Uint8List(g.length);
+    for (var y = 0; y < h; y++) {
+      final row = y * w;
+      for (var x = 0; x < w; x++) {
+        var v = g[row + x];
+        if (x > 0) {
+          final o = g[row + x - 1];
+          if (min ? o < v : o > v) v = o;
+        }
+        if (x < w - 1) {
+          final o = g[row + x + 1];
+          if (min ? o < v : o > v) v = o;
+        }
+        tmp[row + x] = v;
+      }
+    }
+    final out = Uint8List(g.length);
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        final i = y * w + x;
+        var v = tmp[i];
+        if (y > 0) {
+          final o = tmp[i - w];
+          if (min ? o < v : o > v) v = o;
+        }
+        if (y < h - 1) {
+          final o = tmp[i + w];
+          if (min ? o < v : o > v) v = o;
+        }
+        out[i] = v;
+      }
     }
     return out;
   }

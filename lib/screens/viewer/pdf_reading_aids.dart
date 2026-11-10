@@ -77,7 +77,8 @@ extension _ViewerScreenPdfReadingAidsPart on _ViewerScreenState {
     _partSetState(() => _autoScroll = level);
     _autoScrollLast = null;
     _autoScrollAwake?.call();
-    _autoScrollAwake = level > 0 ? ScreenAwake.request() : null;
+    _autoScrollAwake =
+        level > 0 ? ScreenAwake.request(motion: true) : null;
     if (level > 0) _readingBars.hide();
     _scheduleAutoScroll();
   }

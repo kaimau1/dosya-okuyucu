@@ -300,6 +300,19 @@ const Map<String, (String, String, String)> _t1 = {
     'High refresh rate',
     'معدل تحديث مرتفع',
   ),
+  'settings.perf_dynamic_refresh': (
+    'Dinamik tazeleme hızı',
+    'Dynamic refresh rate',
+    'معدل تحديث ديناميكي',
+  ),
+  'settings.perf_dynamic_refresh_sub': (
+    'Pil tasarrufu: kaydırırken 120 Hz, ekran dururken 60 Hz ya da daha '
+        'düşük (ekran destekliyorsa 30 Hz).',
+    'Saves battery: 120 Hz while scrolling, 60 Hz or lower when the screen '
+        'is still (30 Hz if supported).',
+    'توفير البطارية: 120 هرتز أثناء التمرير، و60 هرتز أو أقل عند ثبات '
+        'الشاشة (30 هرتز إن كانت مدعومة).',
+  ),
   'settings.perf_high_refresh_sub': (
     '120 Hz ekranlarda kaydırma daha akıcı. Kapatınca ekran 60 Hz\'de kalır '
         've pil daha az harcanır.',

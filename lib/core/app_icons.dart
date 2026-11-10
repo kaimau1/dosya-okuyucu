@@ -450,6 +450,21 @@ abstract final class AppIcons {
   static const IconData mediaAll = Icons.perm_media_rounded;
   /// Fotoğraflar (yalnız görsel) kutusu.
   static const IconData photos = Icons.photo_library_rounded;
+  // Önemli Galeri (2026-11-10)
+  static const IconData importantGallery = Icons.collections_bookmark_rounded;
+  static const IconData kindWord = Icons.description_rounded;
+  static const IconData kindSheet = Icons.grid_on_rounded;
+  static const IconData kindSlides = Icons.slideshow_rounded;
+  static const IconData kindText = Icons.notes_rounded;
+  static const IconData kindBook = Icons.menu_book_rounded;
+  static const IconData kindOther = Icons.insert_drive_file_rounded;
+  static const IconData topicInvoice = Icons.request_quote_rounded;
+  static const IconData topicHealth = Icons.medical_services_rounded;
+  static const IconData topicBank = Icons.account_balance_rounded;
+  static const IconData topicContract = Icons.handshake_rounded;
+  static const IconData topicEducation = Icons.school_rounded;
+  static const IconData topicTicket = Icons.confirmation_number_rounded;
+  static const IconData dateRange = Icons.date_range_rounded;
   /// QR ile al (tarayıcı).
   static const IconData qrScan = Icons.qr_code_scanner_rounded;
   /// Gelen dosya isteği.

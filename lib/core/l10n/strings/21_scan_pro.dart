@@ -48,4 +48,6 @@ const Map<String, (String, String, String)> _t21 = {
   'sq.blurry': ('Sayfa bulanık görünüyor — yeniden çekmeniz önerilir', 'The page looks blurry — retaking is recommended', 'تبدو الصفحة ضبابية — يُنصح بإعادة الالتقاط'),
   'sq.dark': ('Işık az — feneri açıp yeniden çekin', 'Low light — turn on the flash and retake', 'الإضاءة منخفضة — شغّل الفلاش وأعد الالتقاط'),
   'sq.skewed': ('Sayfa eğik görünüyor', 'The page looks tilted', 'تبدو الصفحة مائلة'),
+  // 2026-11-10: tarama sonrası "Kaydet" → kayıt klasörü açılır, belge vurgulanır.
+  'scr.saved_here': ('{name} kaydedildi — klasörde gösteriliyor', '{name} saved — shown in its folder', 'تم حفظ {name} — معروض في مجلده'),
 };

@@ -50,4 +50,21 @@ void main() {
     expect(old.percent, isNull);
     expect(old.duration, isNull);
   });
+
+  test('sürüm notu: yalnız <!-- notlar --> kısmı, düz metin', () {
+    const body = '## Sürüm 1.2.3\n\n<!-- notlar -->\n### ✨ Yenilikler\n'
+        '- Galeri kartı\n\n### 🛠 Düzeltmeler\n- Eğik uyarısı\n'
+        '<!-- /notlar -->\n\nHangi dosya…';
+    expect(AppUpdate.extractNotes(body),
+        '✨ Yenilikler\n• Galeri kartı\n\n🛠 Düzeltmeler\n• Eğik uyarısı');
+    expect(AppUpdate.extractNotes('işaretsiz eski not'), '');
+    expect(AppUpdate.extractNotes(null), '');
+    final info = AppUpdateInfo.pickAsset({
+      'body': body,
+      'assets': [
+        {'name': 'dosya-okuyucu-v1.2.3.apk', 'browser_download_url': 'u', 'size': 5},
+      ],
+    });
+    expect(info!.notes, contains('Galeri kartı'));
+  });
 }

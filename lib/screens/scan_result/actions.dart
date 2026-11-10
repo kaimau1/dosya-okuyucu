@@ -607,6 +607,38 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     await SharePlus.instance.share(ShareParams(files: [XFile(_pdfPath)], text: p.basename(_pdfPath)));
   }
 
+  /// **Kaydet** (2026-11-10, kullanıcı: *"PDF'i aç dedik, kişi eee diye
+  /// kalıyor; kaydet seçeneği olmalı, kaydedildiği konum açılıp belgeye
+  /// odaklanmalı"*). PDF zaten arka planda yazılıyor; burada son yazım
+  /// beklenir, tarama ekranı kapanır ve belgenin klasörü açılıp dosya
+  /// hafif bir çerçeveyle vurgulanır (BrowserScreen.focusPath).
+  Future<void> _saveAndReveal() async {
+    final busy = showBusyDialog(
+      context,
+      builder: (ctx) => AlertDialog(
+        content: Row(
+          children: [
+            const SizedBox(
+                width: 22, height: 22, child: CircularProgressIndicator()),
+            const SizedBox(width: Gap.md),
+            Expanded(child: Text(ctx.t('ss.finishing'))),
+          ],
+        ),
+      ),
+    );
+    await _flush();
+    busy.close();
+    if (!mounted) return;
+    final path = _pdfPath;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final strings = AppStrings.of(context);
+    unawaited(Navigator.of(context).pushReplacement(browserRoute(
+        BrowserScreen(path: p.dirname(path), focusPath: path))));
+    messenger?.showSnackBar(SnackBar(
+        content:
+            Text(strings.t('scr.saved_here', {'name': p.basename(path)}))));
+  }
+
   Future<void> _openPdf() async {
     await _flush();
     if (!mounted) return;

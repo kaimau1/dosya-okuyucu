@@ -32,6 +32,9 @@ class DashboardLayout extends ChangeNotifier {
   static const tiles = [
     'downloads',
     'important',
+    // **Önemli Galeri** (2026-11-10): Önemli Dosyalar'ın tümü önizlemeli,
+    // geniş süzgeçli — ayrı kart (kullanıcı isteği).
+    'important_gallery',
     'image',
     'video',
     // **Görüntüler** (2026-10-28): fotoğraf + video TEK zaman ekseninde.

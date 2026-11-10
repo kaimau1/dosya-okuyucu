@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+import 'display_mode.dart' show DynamicRefresh;
+
 /// Ekranın sönmesini engelleme (wakelock) — **tek kapı**.
 ///
 /// **Niye var (2026-08-08'de kapandı):** uzun bir videoyu
@@ -47,13 +49,18 @@ abstract final class ScreenAwake {
   /// Ekranı açık tutmayı ister. Dönen işlev kilidi BIRAKIR ve **birden çok kez
   /// çağrılsa da sayacı bir kez düşürür** — `dispose` ile duraklatma aynı anda
   /// bırakmaya çalışırsa sayaç eksiye düşmemeli.
-  static VoidCallback request() {
+  ///
+  /// [motion]: ekranda hareketli içerik var (video, otomatik kaydırma) →
+  /// dinamik tazeleme bu süre boyunca düşük hıza inmez (2026-11-10).
+  static VoidCallback request({bool motion = false}) {
     _holders++;
     if (_holders == 1) unawaited(_apply(true));
+    final unhold = motion ? DynamicRefresh.hold() : null;
     var released = false;
     return () {
       if (released) return;
       released = true;
+      unhold?.call();
       _holders--;
       if (_holders == 0) unawaited(_apply(false));
     };

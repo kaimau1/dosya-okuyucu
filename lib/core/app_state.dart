@@ -92,6 +92,7 @@ class AppState extends ChangeNotifier {
   static const _kUiTextScale = 'ui_text_scale';
   // Pil ve başarım
   static const _kHighRefresh = 'perf_high_refresh';
+  static const _kDynamicRefresh = 'perf_dynamic_refresh';
   static const _kAutoRescan = 'perf_auto_rescan';
   static const _kPerfMode = 'perf_mode';
   static const _kDeveloperMode = 'developer_mode';
@@ -175,6 +176,10 @@ class AppState extends ChangeNotifier {
   /// **Faz 4:** kullanıcı hiç seçmediyse (null) varsayılan cihaz profilinden
   /// gelir — hafif profilde 60 Hz (P12).
   bool? _highRefreshRate;
+
+  /// Dinamik tazeleme (2026-11-10): yüksek hız yalnız etkileşimde; boşta
+  /// en düşük moda iner. Varsayılan AÇIK.
+  bool _dynamicRefresh = true;
 
   /// Başarım kipi: Otomatik / Hafif / Tam (bkz. [DeviceProfile]).
   PerfMode _perfMode = PerfMode.auto;
@@ -293,6 +298,9 @@ class AppState extends ChangeNotifier {
   bool get highRefreshRate =>
       _highRefreshRate ?? DeviceProfile.budget.highRefreshDefault;
 
+  /// Dinamik tazeleme tercihi (yalnız [highRefreshRate] açıkken etkili).
+  bool get dynamicRefresh => _dynamicRefresh;
+
   /// Başarım kipi (Ayarlar > Depolama ve hız).
   PerfMode get perfMode => _perfMode;
 
@@ -384,6 +392,12 @@ class AppState extends ChangeNotifier {
   Future<void> setHighRefreshRate(bool value) async {
     _highRefreshRate = value;
     await _prefs.setBool(_kHighRefresh, value);
+    notifyListeners();
+  }
+
+  Future<void> setDynamicRefresh(bool value) async {
+    _dynamicRefresh = value;
+    await _prefs.setBool(_kDynamicRefresh, value);
     notifyListeners();
   }
 
@@ -782,6 +796,7 @@ class AppState extends ChangeNotifier {
     _uiFont = AppTheme.migrateUiFont(_prefs.getString(_kUiFont));
     _uiTextScale = (_prefs.getDouble(_kUiTextScale) ?? 1.0).clamp(0.85, 2.0);
     _highRefreshRate = _prefs.getBool(_kHighRefresh);
+    _dynamicRefresh = _prefs.getBool(_kDynamicRefresh) ?? true;
     _autoRescan = _prefs.getBool(_kAutoRescan);
     _perfMode = PerfMode.values.firstWhere(
       (m) => m.name == _prefs.getString(_kPerfMode),

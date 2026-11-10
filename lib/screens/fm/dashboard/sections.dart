@@ -302,6 +302,19 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
           if (mounted) _partSetState(() {});
         },
       ),
+      FmTileData(
+        id: 'important_gallery',
+        icon: AppIcons.importantGallery,
+        color: AppHues.honey,
+        label: context.t('ig.title'),
+        subtitle: (importantStat?.count ?? 0) == 0
+            ? context.t('ig.tile_empty')
+            : context.t('count.files', {'n': importantStat!.count}),
+        onTap: () async {
+          await _push(const ImportantGalleryScreen());
+          if (mounted) _partSetState(() {});
+        },
+      ),
       _categoryTile(FmCategory.image, grid: true),
       _categoryTile(FmCategory.video, grid: true),
       _mediaTile(),

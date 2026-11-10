@@ -16,8 +16,14 @@ class AppUpdateInfo {
   final String version;
   final String url;
   final int size;
+
+  /// Son kullanıcı sürüm notu (sürüm gövdesindeki `<!-- notlar -->` kısmı).
+  final String notes;
   const AppUpdateInfo(
-      {required this.version, required this.url, required this.size});
+      {required this.version,
+      required this.url,
+      required this.size,
+      this.notes = ''});
 }
 
 /// **GitHub'dan otomatik güncelleme** (2026-11-09 kullanıcı isteği: *"Gitten
@@ -44,6 +50,12 @@ abstract final class AppUpdate {
   /// Kullanıcının sistem penceresinde vazgeçtiği sürüm: açılışta yeniden
   /// sorulmaz (Ayarlar'daki "Şimdi güncelle" yine kurar).
   static const _prefDeclined = 'app_update_declined';
+
+  /// "Yenilikler" (2026-11-10): indirilen sürümün notu saklanır; o sürüm
+  /// kurulup uygulama ilk açıldığında bir kez gösterilir.
+  static const _prefNotesVersion = 'app_update_notes_v';
+  static const _prefNotes = 'app_update_notes';
+  static const _prefNotesSeen = 'app_update_notes_seen';
   static const checkEvery = Duration(hours: 6);
 
   /// Kişisel derleme `kisisel` ön-sürümünü izler; genel sürüm kişisel
@@ -104,7 +116,8 @@ abstract final class AppUpdate {
       final info = AppUpdateInfo(
           version: m.group(1)!,
           url: url,
-          size: (a['size'] as num?)?.toInt() ?? 0);
+          size: (a['size'] as num?)?.toInt() ?? 0,
+          notes: AppUpdate.extractNotes(release['body']));
       if (best == null || isNewer(info.version, best.version)) best = info;
     }
     return best;
@@ -133,6 +146,11 @@ abstract final class AppUpdate {
       if (res.statusCode != HttpStatus.ok) return null;
       final info = pickAsset(jsonDecode(body));
       if (info == null || !isNewer(info.version, appVersionName)) return null;
+      if (info.notes.isNotEmpty) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_prefNotesVersion, info.version);
+        await prefs.setString(_prefNotes, info.notes);
+      }
       return info;
     } finally {
       client.close(force: true);
@@ -219,11 +237,48 @@ abstract final class AppUpdate {
     }
   }
 
+  /// Sürüm gövdesinden son kullanıcı notunu düz metin olarak çıkarır:
+  /// `<!-- notlar -->` … `<!-- /notlar -->` arası (tool/surum_notu.sh);
+  /// `### ✨ Yenilikler` başlıkları `✨ Yenilikler` olur, maddeler `• `.
+  static String extractNotes(Object? body) {
+    if (body is! String) return '';
+    final start = body.indexOf('<!-- notlar -->');
+    final end = body.indexOf('<!-- /notlar -->');
+    if (start < 0 || end <= start) return '';
+    final lines = body
+        .substring(start + '<!-- notlar -->'.length, end)
+        .split('\n')
+        .map((l) => l.trimRight())
+        .map((l) => l.startsWith('### ')
+            ? l.substring(4)
+            : (l.startsWith('- ') ? '• ${l.substring(2)}' : l))
+        .toList();
+    return lines.join('\n').trim();
+  }
+
+  /// Bu sürüm kurulduktan sonraki ilk açılışta gösterilecek not (bir kez).
+  static Future<String?> takeWhatsNew() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getString(_prefNotesVersion) != appVersionName) return null;
+      if (prefs.getString(_prefNotesSeen) == appVersionName) return null;
+      final notes = prefs.getString(_prefNotes) ?? '';
+      await prefs.setString(_prefNotesSeen, appVersionName);
+      return notes.isEmpty ? null : notes;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Açılış işi: bekleyen indirme varsa kur; yoksa (süresi geldiyse) denetle,
   /// yeniyse indir ve [onReady] ile haber ver.
   static Future<void> runOnStartup(
-      {void Function(AppUpdateInfo info)? onReady}) async {
-    if (!supported || OfflineMode.enabled || !await autoEnabled()) return;
+      {void Function(AppUpdateInfo info)? onReady,
+      void Function(String notes)? onWhatsNew}) async {
+    if (!supported) return;
+    final news = await takeWhatsNew();
+    if (news != null) onWhatsNew?.call(news);
+    if (OfflineMode.enabled || !await autoEnabled()) return;
     final prefs = await SharedPreferences.getInstance();
     final pending = await _pending();
     if (pending != null) {

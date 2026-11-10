@@ -550,9 +550,9 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
                     child: FilledButton.icon(
                       style: FilledButton.styleFrom(
                           minimumSize: const Size.fromHeight(48)),
-                      onPressed: _busy ? null : _openPdf,
-                      icon: const Icon(AppIcons.pdf, size: 20),
-                      label: Text(context.t('scr.open_pdf'),
+                      onPressed: _busy ? null : _saveAndReveal,
+                      icon: const Icon(AppIcons.save, size: 20),
+                      label: Text(context.t('common.save'),
                           maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                   ),

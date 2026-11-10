@@ -17,6 +17,7 @@ import 'core/device_profile.dart';
 import 'core/startup_queue.dart';
 import 'widgets/permission_gate.dart';
 import 'core/state/appearance_state.dart';
+import 'core/app_version.dart';
 import 'core/display_mode.dart';
 import 'core/l10n/app_language.dart';
 import 'core/l10n/app_strings.dart';
@@ -226,7 +227,8 @@ Future<void> _main() async {
   // Tazeleme hızı tercihi AYARLARDAN okunur → `init()` sonrasında uygulanır.
   // (Eskiden koşulsuz "en yüksek" isteniyordu; artık kullanıcı pil için
   // 60 Hz'de kalmayı seçebiliyor — bkz. AppState.highRefreshRate.)
-  unawaited(applyRefreshRate(appState.highRefreshRate));
+  unawaited(applyRefreshRate(appState.highRefreshRate,
+      adaptive: appState.dynamicRefresh));
   // **Açılış bütçesi** (Faz 4, P11): kritik olmayan açılış işleri ilk
   // kareden sonra, TEK sırada (bkz. StartupQueue).
   StartupQueue.instance.start(delay: DeviceProfile.budget.startupDelay);
@@ -243,7 +245,8 @@ Future<void> _main() async {
   // yoksa denetler/indirir ve "Şimdi güncelle" önerir.
   StartupQueue.instance.add(
     'app-update',
-    () => AppUpdate.runOnStartup(onReady: _offerUpdate),
+    () => AppUpdate.runOnStartup(
+        onReady: _offerUpdate, onWhatsNew: _showWhatsNew),
   );
   runApp(
     AppProviders(
@@ -266,6 +269,26 @@ void _offerUpdate(AppUpdateInfo info) {
       onPressed: () => unawaited(AppUpdate.install(info)),
     ),
   );
+}
+
+/// Güncellemeden sonraki ilk açılış: bu sürümde ne değişti (2026-11-10).
+void _showWhatsNew(String notes) {
+  final context = navigatorKey.currentContext;
+  if (context == null || !context.mounted) return;
+  final str = AppStrings.of(context);
+  unawaited(showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(str.t('upd.whats_new', {'v': appVersionName})),
+      content: SingleChildScrollView(child: Text(notes)),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: Text(str.t('common.ok')),
+        ),
+      ],
+    ),
+  ));
 }
 
 /// **Açılış kare ölçümü** (2026-10-22, kullanıcı: *"açılışta donma"*).

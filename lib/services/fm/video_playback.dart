@@ -299,7 +299,7 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
   void _syncAwake(bool wanted) {
     if (wanted == (_awake != null)) return;
     if (wanted) {
-      _awake = ScreenAwake.request();
+      _awake = ScreenAwake.request(motion: true);
     } else {
       _awake?.call();
       _awake = null;

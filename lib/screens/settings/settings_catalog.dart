@@ -570,9 +570,11 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
           final s = context.watch<AppState>();
           final trash = context.t(
               s.fmUseTrash ? 'fmset.use_trash' : 'set.trash_off');
-          final refresh = s.highRefreshRate
-              ? context.t('settings.perf_high_refresh')
-              : context.t('set.refresh_60');
+          final refresh = !s.highRefreshRate
+              ? context.t('set.refresh_60')
+              : s.dynamicRefresh
+                  ? context.t('settings.perf_dynamic_refresh')
+                  : context.t('settings.perf_high_refresh');
           return '$trash · $refresh';
         },
         sections: const [
@@ -625,6 +627,11 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                 titleKey: 'settings.perf_high_refresh',
                 subtitleKey: 'settings.perf_high_refresh_sub',
                 builder: _highRefreshTile),
+            SettingRow(
+                id: 'dynamic_refresh',
+                titleKey: 'settings.perf_dynamic_refresh',
+                subtitleKey: 'settings.perf_dynamic_refresh_sub',
+                builder: _dynamicRefreshTile),
             SettingRow(
                 id: 'auto_rescan',
                 titleKey: 'settings.perf_auto_rescan',
@@ -818,6 +825,7 @@ Widget _trashAutoTile(BuildContext _) => const TrashAutoTile();
 Widget _emptyTrashTile(BuildContext _) => const EmptyTrashTile();
 Widget _perfModeTile(BuildContext _) => const PerfModeTile();
 Widget _highRefreshTile(BuildContext _) => const HighRefreshTile();
+Widget _dynamicRefreshTile(BuildContext _) => const DynamicRefreshTile();
 Widget _autoRescanTile(BuildContext _) => const AutoRescanTile();
 Widget _searchIndexTile(BuildContext _) => const SearchIndexTile();
 Widget _contentIndexTile(BuildContext _) => const ContentIndexTile();

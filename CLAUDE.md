@@ -72,6 +72,10 @@ Art arda push → önceki koşu iptal.
   pubspec/assets/fixture/.github değişirse tam takım). main'de birleştirme ağacı yeşil PR
   başıyla aynıysa doğrulama atlanır. Tam takım: başlıkta `[tam]`, `v*` etiketi, elle tetik.
   `hooks/pre-push` kaldırıldı (push öncesi yerel tam test YOK); `tool/test_gate.sh` elle kalır.
+- **Sürüm notu (2026-11-10, kullanıcı kararı):** uygulamayı değiştiren her commit'in GÖVDESİNE
+  son kullanıcının anlayacağı dille satırlar yaz: `Yeni: …` · `İyileştirme: …` · `Düzeltme: …`
+  (teknik terim/dosya adı yok, tek cümle). CI `tool/surum_notu.sh` bir önceki sürümden bu yana
+  bu satırları toplayıp Release notuna, uygulama da güncelleme sonrası "Yenilikler" penceresine koyar.
 - **Commit mesajı sonu:** `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
   ve `Claude-Session:` satırı.
 - Bilinen derleme tuzakları (CardThemeData, platform klasörleri, keystore) → **HAFIZA.md**

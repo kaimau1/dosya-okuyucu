@@ -47,8 +47,32 @@ class HighRefreshTile extends StatelessWidget {
       value: appState.highRefreshRate,
       onChanged: (v) async {
         await appState.setHighRefreshRate(v);
-        await applyRefreshRate(v);
+        await applyRefreshRate(v, adaptive: appState.dynamicRefresh);
       },
+    );
+  }
+}
+
+/// **Dinamik tazeleme** (2026-11-10): yüksek hız açıkken ekran yalnız
+/// dokunma/kaydırma sürerken 120 Hz'e çıkar, boşta cihazın en düşük moduna
+/// (60/48/30 Hz) iner. Yüksek hız kapalıysa anlamı yok → pasif.
+class DynamicRefreshTile extends StatelessWidget {
+  const DynamicRefreshTile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
+    return SettingSwitch(
+      icon: AppIcons.speed,
+      title: context.t('settings.perf_dynamic_refresh'),
+      subtitle: context.t('settings.perf_dynamic_refresh_sub'),
+      value: appState.highRefreshRate && appState.dynamicRefresh,
+      onChanged: appState.highRefreshRate
+          ? (v) async {
+              await appState.setDynamicRefresh(v);
+              await applyRefreshRate(true, adaptive: v);
+            }
+          : null,
     );
   }
 }
@@ -86,7 +110,8 @@ class PerfModeTile extends StatelessWidget {
         tooltip: context.t('perf.mode'),
         onSelected: (m) async {
           await appState.setPerfMode(m);
-          await applyRefreshRate(appState.highRefreshRate);
+          await applyRefreshRate(appState.highRefreshRate,
+              adaptive: appState.dynamicRefresh);
         },
         itemBuilder: (ctx) => [
           for (final m in PerfMode.values)

@@ -152,6 +152,29 @@ abstract final class ScanDewarp {
     return changed ? result : null;
   }
 
+  /// [straighten]'ın uygulayacağı eğim (derece) — uygulamayacaksa 0.
+  ///
+  /// **Kalite uyarısı bununla ölçülür** (2026-11-10, kullanıcı: *"sayfa eğik
+  /// görünüyor diyor, Düzleştir deyince zaten düz diyor"*). Eskiden uyarı
+  /// `ScanQualityCheck.estimateSkew`'in kaba eşikli kendi tahmininden
+  /// geliyordu; resim/fotoğraf ayıklaması yoktu, masa dokusunu "satır"
+  /// sanıyordu, düğme ise buradaki boru hattına gidip "değişmedi" diyordu.
+  /// Artık uyarı ve düğme AYNI kapılardan ve aynı kestiriciden geçer.
+  static double measureSkew(img.Image image) {
+    final measure = _downscaleGray(image, measureLongEdge);
+    final ink = inkMap(measure.gray, measure.width, measure.height);
+    final picture =
+        ScanEnhance.pictureMask(measure.gray, measure.width, measure.height);
+    if (ScanEnhance.pictureShare(picture) > 0.5) return 0;
+    for (var i = 0; i < ink.length; i++) {
+      if (picture[i] > 0) ink[i] = 255;
+    }
+    final ratio = _inkRatio(ink);
+    if (ratio < 0.005 || ratio > 0.45) return 0;
+    final skew = estimateSkewDegrees(ink, measure.width, measure.height);
+    return skew.abs() >= minSkewDegrees ? skew : 0;
+  }
+
   // ── eğim ─────────────────────────────────────────────────────────────────
 
   /// [ink] (0 = mürekkep, 255 = kâğıt) haritasından sayfanın eğimini derece

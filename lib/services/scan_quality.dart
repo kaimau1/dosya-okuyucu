@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show compute;
 import 'package:image/image.dart' as img;
 
+import 'scan_dewarp.dart' show ScanDewarp;
 import 'scan_page_ops.dart';
 
 /// Tek sayfanın kalite ölçümü (Faz 35 / madde 5).
@@ -62,6 +63,9 @@ abstract final class ScanQualityCheck {
   }
 
   static ScanQualityReport measureImage(img.Image source) {
+    // Eğim, Düzleştir düğmesinin boru hattıyla ölçülür (aksi hâlde uyarı
+    // "eğik" deyip düğme "zaten düz" diyebiliyordu — 2026-11-10).
+    final skew = ScanDewarp.measureSkew(source);
     var image = source;
     final long = math.max(image.width, image.height);
     if (long > sampleEdge) {
@@ -83,7 +87,7 @@ abstract final class ScanQualityCheck {
     return ScanQualityReport(
       sharpness: laplacianVariance(gray, w, h),
       brightness: gray.isEmpty ? 0 : sum / gray.length,
-      skew: estimateSkew(gray, w, h),
+      skew: skew,
     );
   }
 
@@ -104,54 +108,5 @@ abstract final class ScanQualityCheck {
       }
     }
     return n < 2 ? 0 : m2 / (n - 1);
-  }
-
-  /// İzdüşüm profili: koyu pikseller [-maxDeg, maxDeg] açılarla kaydırılıp
-  /// satır histogramı çıkarılır; metin satırları hizalandığında histogram
-  /// varyansı en yüksek olur. Az mürekkepli sayfada 0 döner.
-  static double estimateSkew(Uint8List g, int w, int h,
-      {double maxDeg = 6, double stepDeg = 0.5}) {
-    if (w < 16 || h < 16) return 0;
-    // Uyarlamasız basit eşik: ortalamanın %75'inin altı "mürekkep".
-    var total = 0;
-    for (final v in g) {
-      total += v;
-    }
-    final limit = total / g.length * 0.75;
-    final xs = <int>[], ys = <int>[];
-    for (var y = 0; y < h; y += 1) {
-      for (var x = 0; x < w; x += 2) {
-        if (g[y * w + x] < limit) {
-          xs.add(x);
-          ys.add(y);
-        }
-      }
-    }
-    if (xs.length < 200 || xs.length > g.length ~/ 3) return 0;
-    var bestAngle = 0.0;
-    var bestScore = -1.0;
-    final bins = Float64List(h * 2);
-    // 0'dan dışa doğru: eşitlikte (düz/boş sayfa) küçük açı kazanır.
-    final angles = <double>[0];
-    for (var a = stepDeg; a <= maxDeg + 1e-9; a += stepDeg) {
-      angles..add(a)..add(-a);
-    }
-    for (final a in angles) {
-      final t = math.tan(a * math.pi / 180);
-      bins.fillRange(0, bins.length, 0);
-      for (var k = 0; k < xs.length; k++) {
-        final row = (ys[k] - xs[k] * t).round() + h ~/ 2;
-        if (row >= 0 && row < bins.length) bins[row] += 1;
-      }
-      var s = 0.0;
-      for (final b in bins) {
-        s += b * b;
-      }
-      if (bestScore < 0 || s > bestScore * 1.01) {
-        bestScore = s;
-        bestAngle = a;
-      }
-    }
-    return bestAngle;
   }
 }

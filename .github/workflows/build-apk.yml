@@ -648,10 +648,11 @@ jobs:
       BUILD_NAME: ${{ needs.apk.outputs.name }}
       BUILD_NUMBER: ${{ needs.apk.outputs.number }}
     steps:
-      # `fetch-depth: 20` — sürüm notundaki son değişiklikler `git log`dan.
+      # `fetch-depth: 200` — sürüm notu bir önceki sürümden bu yana yapılan
+      # commit'lerin gövdelerinden (tool/surum_notu.sh) çıkarılır.
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 20
+          fetch-depth: 200
 
       - uses: actions/download-artifact@v4
         with:
@@ -662,15 +663,34 @@ jobs:
       - name: Sürüm notunu hazırla
         run: |
           set -e
+          # Bir önceki sürümün commit'i: üzerine yazılan etiket (nightly /
+          # kisisel) henüz taşınmadı; v* için bir önceki v* etiketi.
+          if [ "${{ (inputs.kisisel || contains(github.event.head_commit.message, '[kisisel]')) && '1' || '0' }}" = "1" ]; then
+            PREV_TAG=kisisel
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            git fetch --quiet --force origin 'refs/tags/v*:refs/tags/v*' || true
+            PREV_TAG=$(git describe --tags --abbrev=0 --match 'v*' HEAD^ 2>/dev/null || true)
+          else
+            PREV_TAG=nightly
+          fi
+          PREV_SHA=""
+          if [ -n "$PREV_TAG" ]; then
+            git fetch --quiet --force origin "refs/tags/$PREV_TAG:refs/tags/$PREV_TAG" || true
+            PREV_SHA=$(git rev-parse -q --verify "refs/tags/$PREV_TAG^{commit}" || true)
+          fi
+          echo "Önceki sürüm: ${PREV_TAG:-yok} ${PREV_SHA:-}"
           {
             if [ "${{ (inputs.kisisel || contains(github.event.head_commit.message, '[kisisel]')) && '1' || '0' }}" = "1" ]; then
               echo "> **KİŞİSEL derleme** — kişisel özellikleri içerir; genel dağıtım değildir."
               echo
             fi
-            echo "**Sürüm ${BUILD_NAME}** (derleme ${BUILD_NUMBER}) — \`$(git rev-parse --short HEAD)\`"
+            echo "## Sürüm ${BUILD_NAME}"
             echo
-            echo "**Bu derlemedeki son değişiklikler:**"
-            git log -8 --pretty='- %s'
+            # Son kullanıcı notu (2026-11-10): bir önceki sürümden bu yana
+            # commit gövdelerindeki "Yeni:/Düzeltme:/İyileştirme:" satırları.
+            bash tool/surum_notu.sh "$PREV_SHA"
+            echo
+            echo "<sub>Derleme ${BUILD_NUMBER} · \`$(git rev-parse --short HEAD)\`</sub>"
             echo
             echo "**Hangi dosyayı indirmeliyim?** → \`dosya-okuyucu.apk\` (64-bit / arm64-v8a)."
             if [ -f dist/dosya-okuyucu-32bit-armeabi-v7a.apk ]; then

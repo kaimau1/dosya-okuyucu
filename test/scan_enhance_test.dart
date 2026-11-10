@@ -109,6 +109,31 @@ void main() {
     expect(sharp[w - 1], greaterThanOrEqualTo(soft[w - 1]));
   });
 
+  test('yazı netleştirme: yumuşak kenarı dikleştirir, hale bırakmaz', () {
+    // 24x6: ortada 6 piksele yayılmış yumuşak koyu→açık kenar.
+    const w = 24, h = 6;
+    final src = Uint8List(w * h);
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        final t = ((x - 9) / 6).clamp(0.0, 1.0);
+        src[y * w + x] = (40 + t * 180).round();
+      }
+    }
+    final out = ScanEnhance.sharpenText(src, w, h);
+    final r = 2 * w; // orta satır
+    // Kenarın iki yanı birbirinden uzaklaşır (karşıtlık artar).
+    expect(out[r + 10], lessThan(src[r + 10]));
+    expect(out[r + 14], greaterThan(src[r + 14]));
+    // Hale sınırı: düz bölgeler taşmaz.
+    for (var x = 0; x < w; x++) {
+      expect(out[r + x], inInclusiveRange(40 - ScanEnhance.haloMargin,
+          220 + ScanEnhance.haloMargin));
+    }
+    // Düz alan (gürültü eşiği altında) değişmez.
+    expect(out[r + 1], src[r + 1]);
+    expect(out[r + 22], src[r + 22]);
+  });
+
   group('uyarlamalı eşikleme', () {
     test('gölgeli sayfada yazıyı DOĞRU ayırır', () {
       final page = _shadowedPage();

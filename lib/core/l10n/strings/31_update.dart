@@ -16,6 +16,7 @@ const Map<String, (String, String, String)> _t31 = {
   'upd.downloading': ('v{v} indiriliyor… %{p}', 'Downloading v{v}… {p}%', 'جارٍ تنزيل v{v}… {p}%'),
   'upd.download_failed': ('İndirme başarısız.', 'Download failed.', 'فشل التنزيل.'),
   'upd.ready': ('Yeni sürüm v{v} hazır.', 'New version v{v} is ready.', 'الإصدار الجديد v{v} جاهز.'),
+  'upd.whats_new': ('v{v} — Yenilikler', 'v{v} — What\'s new', 'v{v} — الجديد'),
   'upd.install_now': ('Şimdi güncelle', 'Update now', 'حدّث الآن'),
   'upd.unsupported': (
     'Bu derlemede otomatik güncelleme yok.',
