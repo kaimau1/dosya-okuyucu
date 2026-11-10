@@ -39,6 +39,7 @@ import '../../services/fm/volume_watcher.dart';
 import 'remote/remote_browser_screen.dart';
 import 'usb_diagnostics_screen.dart';
 import '../../widgets/crash_notice.dart';
+import '../../widgets/update_banner.dart';
 import '../../widgets/fm/fm_category_tile.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/smart_inbox.dart';
@@ -418,6 +419,8 @@ class _DashboardScreenState extends State<DashboardScreen>
             // koymak olurdu — geri bildirim döngüsü ancak kullanıcı olayı
             // gördüğünde kuruluyor (bkz. widgets/crash_notice.dart).
             const CrashNoticeBanner(),
+            // Yeni sürüm uyarısı (kalıcı; dokununca indir + kur).
+            const UpdateBanner(),
             // **Paylaşım açıkken panonun en üstünde bir şerit** (kullanıcı
             // isteği 2026-08-29: *"çalışırken uygulama içinde … görülmeli"*).
             // Bildirim paneli telefonun dışı; bu şerit uygulamanın içi. Telefonu

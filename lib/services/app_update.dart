@@ -29,7 +29,7 @@ class AppUpdateInfo {
 /// **GitHub'dan otomatik güncelleme** (2026-11-09 kullanıcı isteği: *"Gitten
 /// oto güncelleme getirelim, yeni sürüm gelince oto güncellensin"*).
 ///
-/// Akış: açılıştan sonra (en çok 6 saatte bir) `releases/latest` sorulur;
+/// Akış: açılışta ve öne gelişte (en çok 30 dk'da bir, [detect]) `releases/latest` sorulur;
 /// `dosya-okuyucu-v<ANA.ARA.YAMA>.apk` bu kurulumdan yeniyse arka planda
 /// uygulamanın önbelleğine indirilir (boyut denetimli), sonra sistem
 /// kurucusuna verilir. Android 12+'da uygulama kendi kurulumunun sahibiyse
@@ -45,7 +45,6 @@ class AppUpdateInfo {
 abstract final class AppUpdate {
   static const repo = 'kaimau1/dosya-okuyucu';
   static const _prefAuto = 'app_update_auto';
-  static const _prefLastCheck = 'app_update_last_check';
 
   /// Kullanıcının sistem penceresinde vazgeçtiği sürüm: açılışta yeniden
   /// sorulmaz (Ayarlar'daki "Şimdi güncelle" yine kurar).
@@ -56,7 +55,12 @@ abstract final class AppUpdate {
   static const _prefNotesVersion = 'app_update_notes_v';
   static const _prefNotes = 'app_update_notes';
   static const _prefNotesSeen = 'app_update_notes_seen';
-  static const checkEvery = Duration(hours: 6);
+  /// Ana sayfa uyarısı için algılama aralığı (2026-11-10, kullanıcı: *"yeni
+  /// güncelleme gelince ana sayfada otomatik algılasın"*). Açılışta ve
+  /// uygulama öne gelince en çok bu sıklıkta sorulur (GitHub kotası 60/saat).
+  static const detectEvery = Duration(minutes: 30);
+  static int _lastDetectMs = 0;
+  static bool _detecting = false;
 
   /// Kişisel derleme `kisisel` ön-sürümünü izler; genel sürüm kişisel
   /// özellikleri (arka planda görünürlük) silerdi.
@@ -68,6 +72,49 @@ abstract final class AppUpdate {
 
   /// İndirme yüzdesi (0–100), indirme yoksa null.
   static final progress = ValueNotifier<int?>(null);
+
+  /// GitHub'da bulunan yeni sürüm (henüz inmemiş olabilir) — ana sayfadaki
+  /// kalıcı "Yeni sürüm var" uyarısı bunu izler.
+  static final available = ValueNotifier<AppUpdateInfo?>(null);
+
+  /// Uyarıya dokunulunca: inmediyse indirir, sonra kurar. Sonuç [install]
+  /// ile aynı, indirme başarısızsa `download_failed`.
+  static Future<String?> downloadAndInstall(AppUpdateInfo info) async {
+    if (progress.value != null) return 'busy';
+    if (info.url.isNotEmpty) {
+      final file = await download(info);
+      if (file == null) return 'download_failed';
+      ready.value = info;
+    }
+    return install(info);
+  }
+
+  /// Arka planda sessiz algılama ([detectEvery] sıklığında, [force] hariç).
+  /// Bulursa [available]'ı doldurur; hata/çevrimdışı sessiz geçer.
+  static Future<AppUpdateInfo?> detect({bool force = false}) async {
+    if (!supported || OfflineMode.enabled || _detecting) {
+      return available.value;
+    }
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (!force && now - _lastDetectMs < detectEvery.inMilliseconds) {
+      return available.value;
+    }
+    _detecting = true;
+    _lastDetectMs = now;
+    try {
+      final info = await check();
+      if (info != null &&
+          (available.value == null ||
+              isNewer(info.version, available.value!.version))) {
+        available.value = info;
+      }
+      return available.value;
+    } catch (_) {
+      return available.value;
+    } finally {
+      _detecting = false;
+    }
+  }
 
   static Future<bool> autoEnabled() async {
     try {
@@ -294,11 +341,23 @@ abstract final class AppUpdate {
     if (!supported) return;
     final news = await takeWhatsNew();
     if (news != null) onWhatsNew?.call(news);
-    if (OfflineMode.enabled || !await autoEnabled()) return;
-    final prefs = await SharedPreferences.getInstance();
+    if (OfflineMode.enabled) return;
     final pending = await _pending();
     if (pending != null) {
       ready.value = pending;
+      if (available.value == null ||
+          isNewer(pending.version, available.value!.version)) {
+        available.value = pending;
+      }
+    }
+    // Oto güncelleme kapalı olsa da yeni sürüm ana sayfada duyurulur
+    // (indirme/kurulum yalnız kullanıcı dokununca).
+    if (!await autoEnabled()) {
+      if (pending == null) await detect(force: true);
+      return;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    if (pending != null) {
       if (prefs.getString(_prefDeclined) == pending.version) return;
       final result = await install(pending);
       if (result == 'aborted') {
@@ -306,12 +365,8 @@ abstract final class AppUpdate {
       }
       return;
     }
-    final last = prefs.getInt(_prefLastCheck) ?? 0;
-    final now = DateTime.now().millisecondsSinceEpoch;
-    if (now - last < checkEvery.inMilliseconds) return;
-    await prefs.setInt(_prefLastCheck, now);
     try {
-      final info = await check();
+      final info = await detect(force: true);
       if (info == null) return;
       final file = await download(info);
       if (file == null) return;

@@ -17,6 +17,16 @@ const Map<String, (String, String, String)> _t31 = {
   'upd.download_failed': ('İndirme başarısız.', 'Download failed.', 'فشل التنزيل.'),
   'upd.ready': ('Yeni sürüm v{v} hazır.', 'New version v{v} is ready.', 'الإصدار الجديد v{v} جاهز.'),
   'upd.whats_new': ('v{v} — Yenilikler', 'v{v} — What\'s new', 'v{v} — الجديد'),
+  'upd.banner': (
+    'Yeni sürüm v{v} var — yüklemek için dokunun',
+    'New version v{v} available — tap to install',
+    'الإصدار الجديد v{v} متاح — اضغط للتثبيت',
+  ),
+  'upd.banner_ready': (
+    'Yeni sürüm v{v} indirildi — kurmak için dokunun',
+    'New version v{v} downloaded — tap to install',
+    'تم تنزيل الإصدار v{v} — اضغط للتثبيت',
+  ),
   'upd.install_now': ('Şimdi güncelle', 'Update now', 'حدّث الآن'),
   'upd.unsupported': (
     'Bu derlemede otomatik güncelleme yok.',
