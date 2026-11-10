@@ -570,3 +570,8 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Bug kökü (oto güncelleme "en son sürüm kurulu" diyordu, 2026-11-10):** `apk` işinin artifact'i yalnız `dist/dosya-okuyucu.apk` yüklüyordu; `dosya-okuyucu-v<sürüm>.apk` Release'e HİÇ gitmedi, `pickAsset` onu aradığı için yeni sürümü göremiyordu. Artifact iki adı da yükler; `pickAsset` yedek olarak başlıktaki `v<sürüm>` + sabit adı kullanır. 1.2.9–1.2.12 kurulu cihazlar bu düzeltmeden sonraki ilk sürümü kendiliğinden bulur.
 
 - **Karar (Aramadan açılanlar, 2026-11-10):** arama sonucundan açılan dosya `SearchHistory.recordOpened` ile `search_opened.json`'a (en çok 60, yol tekil, en yeni üstte, sorgu + zaman). Arama kutusu boşken "Son aramalar"ın altında liste + tür çipleri (FmChip); silinmiş dosya gösterilmez ama kayıttan düşmez.
+
+## 2026-11-10 — Güvenlik planı (G0–G12)
+- **Karar:** güvenlik işleri `docs/GUVENLIK_PLANI.md` fazlarıyla (`faz-GN` dalı + PR). Kod okunarak 18 bulgu (B1–B18): uzak sunucu + FTP parolaları prefs'te düz, `allowBackup` açık, `MainActivity` `dosya_link` eki doğrulanmıyor (şüphe), yerel sunucular `0.0.0.0` + 4 haneli güvensiz eşleştirme kodu, Word WebView'da CSP/gezinti kilidi yok, Gemini anahtarı URL'de, PBKDF2 120k, Action'lar SHA'ya sabit değil.
+- **Reddedilen (şimdilik):** root/hata ayıklayıcı tespiti, sertifika sabitleme, ücretli pentest — korunacak sunucu sırrı/ücretli içerik yok; Pro gelince yeniden bakılır.
+- **Sınır:** cihazda sızma testi yapılmadı; "ÖNCE DOĞRULA" işaretli maddeler varsayım.

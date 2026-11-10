@@ -26,6 +26,7 @@ paylaşım. (Firebase senkronu 2026-09-26'da kaldırıldı — HAFIZA.) Piyasada
 > başlar; telefonda bakılacaklar `docs/CIHAZ_TESTI.md`.
 > **Yükseltme fazları (2026-11-07) → `docs/YUKSELTME_PLANI.md`** (Faz 43–50, yerel + telefon; bu fazlarda yerel test serbest).
 > **PDF Pro fazları (2026-11-08) → `docs/PDF_PRO_PLANI.md`** (Faz 51–68: profesyonel PDF düzenleyici; kök nedenler, PK1–PK8 kararları, bütçeler; 💻📱 fazlarda yerel test serbest).
+> **Güvenlik fazları (2026-11-10) → `docs/GUVENLIK_PLANI.md`** (Faz G0–G12: tehdit modeli, bulgular B1–B18, madde madde yapılış; `faz-GN` dalı + PR).
 > Bulgu/karar kaynağı (tarihsel): `docs/FAZ_PLANI.md` (Faz 0–19, K1–K17) ve
 > `docs/DUZENLEME_PLANI.md` (Faz 20–33, K18–K25).
 

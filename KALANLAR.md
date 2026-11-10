@@ -167,6 +167,15 @@ Sıra 51 → 68 (atlama yok). Bildirilen 6 sorun (PS1–PS6) Faz 51'de ara, 54/5
 
 ---
 
+## Faz F — Güvenlik fazları (2026-11-10, kullanıcı isteği) ☁️📱👤
+
+Plan: `docs/GUVENLIK_PLANI.md` (G0–G12; sıra ve açılış istemi orada). Play için asgari küme: G0, G1, G2, G4, G6, G9.1–9.3, G10.1.
+
+- [ ] **Faz G0** — denetim betiği + envanter (ilk iş)
+- [ ] Faz G1 platform · G2 sırlar · G3 kasa/PIN · G4 yerel sunucular · G6 WebView · G7 dosya girdisi · G8 uzak istemci · G9 tedarik zinciri · G10 AI/KVKK · G12 süreç (G5, G11 isteğe bağlı)
+
+---
+
 ## Faz B — Diğerleri 📱💻👤
 
 ### B1 — Yerel Windows oturumu küçük işleri 💻
