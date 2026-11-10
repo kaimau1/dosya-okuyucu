@@ -547,14 +547,24 @@ class ImportantGalleryTile extends StatelessWidget {
   final FsEntry entry;
   final double size;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+
+  /// Kapalıysa yalnız tür simgesi (kasa: düz kopya hazır olana kadar).
+  final bool thumbnails;
 
   const ImportantGalleryTile(
-      {super.key, required this.entry, required this.size, required this.onTap});
+      {super.key,
+      required this.entry,
+      required this.size,
+      required this.onTap,
+      this.onLongPress,
+      this.thumbnails = true});
 
   @override
   Widget build(BuildContext context) {
-    final media = entry.category == FmCategory.image ||
-        entry.category == FmCategory.video;
+    final media = thumbnails &&
+        (entry.category == FmCategory.image ||
+            entry.category == FmCategory.video);
     final scheme = Theme.of(context).colorScheme;
     return Material(
       color: scheme.surfaceContainerHighest,
@@ -562,6 +572,7 @@ class ImportantGalleryTile extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
+        onLongPress: onLongPress,
         child: SizedBox(
           width: size,
           height: size,
@@ -575,12 +586,13 @@ class ImportantGalleryTile extends StatelessWidget {
                 child: Center(
                   child: FmEntryIcon(
                     entry: entry,
+                    thumbnails: thumbnails,
                     size: media ? size : size * 0.62,
                     radius: media ? 0 : Radii.control,
                   ),
                 ),
               ),
-              if (entry.category == FmCategory.video)
+              if (media && entry.category == FmCategory.video)
                 Center(
                   child: Icon(AppIcons.playCircleFill,
                       color: scheme.surface.withValues(alpha: 0.85), size: 36),

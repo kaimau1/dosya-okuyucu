@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import '../../widgets/fm/fm_entry_tiles.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:path/path.dart' as p;
@@ -9,10 +8,10 @@ import 'package:path/path.dart' as p;
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/motion.dart';
 import '../../core/safe_insets.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
-import '../../models/fm_type.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_ops.dart';
@@ -24,9 +23,9 @@ import '../../services/fm/native_extras.dart';
 import '../../services/fm/secure_vault.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
-import '../../widgets/fm/fm_quick_filters.dart';
-import '../../widgets/fm/fm_type_chips.dart';
+import '../../widgets/fm/fm_category_tile.dart';
 import 'hidden_files_screen.dart';
+import 'important_screen.dart' show ImportantGalleryTile;
 import '../../core/user_error.dart';
 import '../../widgets/app_dialog.dart';
 
@@ -56,9 +55,10 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
   /// Eski (şifresiz) gizli dosya sayısı — kasa açılınca taşıma kartı için.
   int _legacyHidden = 0;
 
-  /// Tür süzgeci (Faz 13; boş = tümü). Ad kasada düz tutulduğu için türü
+  /// Galeri tür süzgeci (null = tümü). Ad kasada düz tutulduğu için tür
   /// addan çıkar — içerik çözülmez.
-  Set<FmType> _types = const {};
+  FmCategory? _cat;
+  final _galleryKey = GlobalKey();
 
   @override
   void initState() {
@@ -400,26 +400,62 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
         ],
       );
 
+  static const _kinds = [
+    FmCategory.image,
+    FmCategory.video,
+    FmCategory.document,
+    FmCategory.audio,
+    FmCategory.archive,
+    FmCategory.apk,
+    FmCategory.other,
+  ];
+
+  static FmCategory _catOf(VaultItem i) =>
+      FsEntry.categoryForExtension(p.extension(i.name).replaceFirst('.', ''));
+
+  /// 2026-11-10 (kullanıcı): kasa içi Önemli Dosyalar'ın aynısı — özet kart,
+  /// "Türlere göre" kutuları, süzgeçli galeri. Fark: içerik şifreli; küçük
+  /// resim için görsel/PDF geçici düz kopyaya açılır (kilitlenince silinir).
   Widget _content(BuildContext context) {
-    final all = SecureVault.instance.items;
-    final items = _types.isEmpty
-        ? all
-        : [
-            for (final i in all)
-              if (_types.contains(FmType.ofName(i.name))) i,
-          ];
+    final all = [...SecureVault.instance.items]
+      ..sort((a, b) => b.addedMs.compareTo(a.addedMs));
+    final filter = _cat;
+    final items =
+        filter == null ? all : [for (final i in all) if (_catOf(i) == filter) i];
+    final kinds = {for (final i in all) _catOf(i)};
     final theme = Theme.of(context);
+    final total = all.fold<int>(0, (s, i) => s + i.size);
     return ListView(
       padding: withNavInset(
-          context, const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 96)),
+          context, const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, 96)),
       children: [
         Card(
           child: Column(
             children: [
-              ListTile(
-                leading: const Icon(AppIcons.vault),
-                title: Text(context.t('vault.summary', {'n': all.length})),
-                subtitle: Text(context.t('vault.encrypted_note')),
+              Padding(
+                padding: const EdgeInsets.all(Gap.md),
+                child: Row(
+                  children: [
+                    Icon(AppIcons.shield,
+                        color: theme.colorScheme.primary, size: 32),
+                    const SizedBox(width: Gap.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${context.t('count.files', {'n': all.length})} · '
+                            '${FsPaths.humanSize(total)}',
+                            style: theme.textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(context.t('vault.encrypted_note'),
+                              style: theme.textTheme.bodySmall),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
               if (_canBio)
                 SwitchListTile(
@@ -468,39 +504,176 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
             ),
           ),
         ],
+        const SizedBox(height: Gap.md),
+        Text(context.t('important.by_type'), style: theme.textTheme.titleMedium),
         const SizedBox(height: Gap.sm),
-        FmFilterBar(
-          children: FmTypeChips.build(
-            context,
-            counts: fmTypeCounts(all.map((i) => FmType.ofName(i.name))),
-            selected: _types,
-            onChanged: (t) => setState(() => _types = t),
+        FmCategoryGrid(tiles: _categoryTiles(all)),
+        const SizedBox(height: Gap.lg),
+        Text(context.t('important.gallery'),
+            key: _galleryKey, style: theme.textTheme.titleMedium),
+        const SizedBox(height: Gap.sm),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              ChoiceChip(
+                label: Text(context.t('important.gallery_all')),
+                selected: filter == null,
+                onSelected: (_) => setState(() => _cat = null),
+              ),
+              for (final c in _kinds)
+                if (kinds.contains(c))
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(start: Gap.xs),
+                    child: ChoiceChip(
+                      avatar: Icon(FmColors.iconFor(c), size: 18),
+                      label: Text(c.label),
+                      selected: filter == c,
+                      onSelected: (_) => setState(() => _cat = c),
+                    ),
+                  ),
+            ],
           ),
         ),
+        const SizedBox(height: Gap.sm),
         if (all.isEmpty)
           Padding(
             padding: const EdgeInsets.all(Gap.xl),
             child: Text(context.t('vault.empty'),
                 textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+          )
+        else if (items.isEmpty)
+          Text(context.t('important.gallery_empty'))
+        else
+          LayoutBuilder(builder: (context, box) {
+            final cols = (box.maxWidth / 120).floor().clamp(3, 8);
+            final cell = (box.maxWidth - (cols - 1) * 4) / cols;
+            return Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: [
+                for (final item in items)
+                  _VaultTile(
+                    key: ValueKey(item.id),
+                    item: item,
+                    size: cell,
+                    onTap: () => _open(item),
+                    onMore: () => _itemMenu(item),
+                  ),
+              ],
+            );
+          }),
+      ],
+    );
+  }
+
+  /// Önemli Dosyalar'daki kutuların aynısı; dokununca galeri o türe süzülür.
+  List<FmTileData> _categoryTiles(List<VaultItem> all) {
+    final counts = <FmCategory, int>{};
+    final bytes = <FmCategory, int>{};
+    for (final i in all) {
+      final c = _catOf(i);
+      counts[c] = (counts[c] ?? 0) + 1;
+      bytes[c] = (bytes[c] ?? 0) + i.size;
+    }
+    return [
+      for (final c in _kinds)
+        FmTileData(
+          icon: FmColors.iconFor(c),
+          color: FmColors.forCategory(c),
+          label: c.label,
+          subtitle: (counts[c] ?? 0) == 0
+              ? context.t('fm.none')
+              : '${FsPaths.humanSize(bytes[c] ?? 0)} (${counts[c]})',
+          onTap: () {
+            setState(() => _cat = (counts[c] ?? 0) == 0 ? null : c);
+            final target = _galleryKey.currentContext;
+            if (target != null) {
+              Scrollable.ensureVisible(target,
+                  duration: Motion.medium);
+            }
+          },
+        ),
+    ];
+  }
+}
+
+/// Kasa galerisi hücresi. Görsel ve PDF (≤ [_thumbLimit]) küçük resim için
+/// geçici düz kopyaya açılır — açma sırayla (aynı anda tek isolate), kopya
+/// kasa kilitlenince silinir. Diğerleri tür simgesi.
+class _VaultTile extends StatefulWidget {
+  final VaultItem item;
+  final double size;
+  final VoidCallback onTap;
+  final VoidCallback onMore;
+
+  const _VaultTile({
+    super.key,
+    required this.item,
+    required this.size,
+    required this.onTap,
+    required this.onMore,
+  });
+
+  @override
+  State<_VaultTile> createState() => _VaultTileState();
+}
+
+class _VaultTileState extends State<_VaultTile> {
+  static const _thumbLimit = 15 * 1024 * 1024;
+  static Future<void> _queue = Future.value();
+
+  String? _plain;
+
+  @override
+  void initState() {
+    super.initState();
+    final item = widget.item;
+    final ext = p.extension(item.name).toLowerCase();
+    final cat = _VaultScreenState._catOf(item);
+    final eligible = item.size <= _thumbLimit &&
+        (cat == FmCategory.image || ext == '.pdf');
+    if (!eligible) return;
+    _queue = _queue.then((_) async {
+      if (!mounted || !SecureVault.instance.unlocked) return;
+      try {
+        final path = await SecureVault.instance.openTemp(item);
+        if (mounted) setState(() => _plain = path);
+      } catch (_) {}
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final item = widget.item;
+    return Stack(
+      children: [
+        ImportantGalleryTile(
+          entry: FsEntry(
+            path: _plain ?? item.name,
+            name: item.name,
+            isDir: false,
+            sizeBytes: item.size,
+            modifiedMs: item.addedMs,
           ),
-        for (final item in items)
-          FmEntryRow(
-            // Küçük resim ÇIKARILMAZ (düz içerik yok) — türün simgesi.
-            entry: FsEntry(
-              path: item.name,
-              name: item.name,
-              isDir: false,
-              sizeBytes: item.size,
-              modifiedMs: item.addedMs,
+          size: widget.size,
+          thumbnails: _plain != null,
+          onTap: widget.onTap,
+          onLongPress: widget.onMore,
+        ),
+        PositionedDirectional(
+          top: 4,
+          end: 4,
+          child: Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.85),
+              shape: BoxShape.circle,
             ),
-            thumbnails: false,
-            selected: false,
-            selecting: false,
-            subtitle: '${FsPaths.humanSize(item.size)} · '
-                '${FsPaths.humanDate(item.addedMs)}',
-            onTap: () => _open(item),
-            onMore: () => _itemMenu(item),
+            child: Icon(AppIcons.lock,
+                size: 14, color: Theme.of(context).colorScheme.primary),
           ),
+        ),
       ],
     );
   }
