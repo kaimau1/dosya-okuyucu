@@ -639,7 +639,10 @@ class _VaultTileState extends State<_VaultTile> {
       try {
         final path = await SecureVault.instance.openTemp(item);
         if (mounted) setState(() => _plain = path);
-      } catch (_) {}
+      } catch (_) {
+        // En iyi çaba: önizleme açılamazsa tür simgesi kalır; dokununca
+        // açma hatası kullanıcıya zaten söylenir.
+      }
     });
   }
 
