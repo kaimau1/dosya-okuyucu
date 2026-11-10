@@ -481,6 +481,17 @@
                 android:resource="@xml/widget_recent_info"/>
         </receiver>
 
+        <!-- Kendi güncellemesinden sonra yeniden aç (2026-11-10,
+             ci/ApkKurulum.kt GuncellemeSonrasi). MY_PACKAGE_REPLACED
+             yalnız bu pakete gelir; dışa açık olması gerekmez. -->
+        <receiver
+            android:name=".GuncellemeSonrasi"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+            </intent-filter>
+        </receiver>
+
         <!-- Günlük iş: fatura son ödeme hatırlatması + haftalık temizlik
              önerisi (uygulama kapalıyken de). JobScheduler, setPersisted →
              RECEIVE_BOOT_COMPLETED izni yukarıda zaten var (SD kart işi). -->

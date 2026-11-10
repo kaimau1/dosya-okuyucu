@@ -16,6 +16,8 @@ import '../../models/fs_entry.dart';
 import '../../services/ai_summary_store.dart';
 import '../../services/file_service.dart';
 import '../../services/fm/ai_analyzer.dart';
+import '../../services/fm/ai_index.dart';
+import '../../widgets/app_dialog.dart';
 import '../../services/fm/doc_classifier.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
@@ -81,6 +83,10 @@ Future<void> showAiSummary(BuildContext context, FsEntry entry,
 /// koşar; AI'nın okunur başlığı ([AiRecord.title]) dosyanın ikinci adı olur
 /// (satırda ikincil metin, aramada bulunur). Orijinal ad DEĞİŞMEZ; ad önerisi
 /// yine AI Merkezi'nin onaylı akışında kalır. Ağ isteği yalnız bu eylemle.
+///
+/// 2026-11-10 (kullanıcı: *"ne yaptı hemen görülmeli"*): iş sürerken altta
+/// kalıcı kart, bitince "Şu adı koydum: …" kartı + **Değiştir** (elle yaz).
+/// AI'dan istendiği için önceki elle ad bırakılır, AI başlığı görünür.
 Future<void> giveAiAlias(BuildContext context, FsEntry entry) async {
   if (!await ensureAiKey(context) || !context.mounted) return;
   if (AiAnalyzer.isRunning) {
@@ -88,13 +94,71 @@ Future<void> giveAiAlias(BuildContext context, FsEntry entry) async {
     return;
   }
   final state = context.read<AppState>();
-  showSnack(context, context.t('alias.started'));
+  final nav = Navigator.of(context, rootNavigator: true);
+  final str = AppStrings.of(context);
+  final live = showStickyToast(
+    context,
+    Row(children: [
+      const SizedBox(
+        width: 16,
+        height: 16,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      ),
+      const SizedBox(width: Gap.md),
+      Expanded(child: Text(str.t('alias.started'))),
+    ]),
+  );
   await AiAnalyzer.start(
     scope: state.aiScopeRules,
     credentials: state.aiCredentials,
     reanalyze: true,
     candidates: [entry],
   );
+  await AiAnalyzer.whenIdle
+      .timeout(const Duration(minutes: 5), onTimeout: () {});
+  live.close();
+  final rec = AiIndex.of(entry.path);
+  if (rec != null && rec.alias.isNotEmpty && rec.title.isNotEmpty) {
+    await AiIndex.put(rec.copyWith(alias: ''));
+  }
+  final alias = AiIndex.aliasOf(entry.path);
+  if (!nav.mounted) return;
+  if (alias.isEmpty) {
+    showSnack(nav.context, str.t('alias.failed'));
+    return;
+  }
+  showSnack(
+    nav.context,
+    str.t('alias.done', {'name': alias}),
+    duration: const Duration(seconds: 8),
+    action: SnackBarAction(
+      label: str.t('alias.change'),
+      onPressed: () {
+        if (nav.mounted) editAlias(nav.context, entry);
+      },
+    ),
+  );
+}
+
+/// İkinci adı **elle** yazdırır (2026-11-10). Orijinal dosya adı değişmez;
+/// ad satırda ve aramada görünür, AI yeniden analizi bunu ezmez.
+Future<void> editAlias(BuildContext context, FsEntry entry) async {
+  await AiIndex.ensureLoaded();
+  if (!context.mounted) return;
+  final current = AiIndex.aliasOf(entry.path);
+  final text = await showAppPrompt(
+    context,
+    title: context.t('alias.manual'),
+    label: context.t('alias.label'),
+    initial: current,
+    confirmLabel: context.t('common.save'),
+    maxLength: 80,
+  );
+  if (text == null || text == current) return;
+  await AiIndex.setAlias(entry, text);
+  if (context.mounted) {
+    showSnack(context, context.t('alias.saved', {'name': text}));
+  }
 }
 
 /// Kaydedilmiş özeti açar (iş bildirimi/şeridi buraya gelir). Özet yoksa

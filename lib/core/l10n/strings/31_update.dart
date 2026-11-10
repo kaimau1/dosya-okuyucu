@@ -3,12 +3,21 @@ part of '../app_strings.dart';
 /// Çeviri tablosunun 31. bölümü (2026-11-09): GitHub'dan oto güncelleme.
 const Map<String, (String, String, String)> _t31 = {
   'upd.title': ('Güncellemeler', 'Updates', 'التحديثات'),
-  'upd.auto': ('Otomatik güncelle', 'Update automatically', 'تحديث تلقائي'),
+  'upd.auto': ('Yeni sürümleri haber ver', 'Notify about new versions', 'الإشعار بالإصدارات الجديدة'),
   'upd.auto_sub': (
-    'Yeni sürüm GitHub\'da çıkınca arka planda indirilir, sonraki açılışta kurulur.',
-    'New GitHub releases download in the background and install on next launch.',
-    'تُنزَّل الإصدارات الجديدة في الخلفية وتُثبَّت عند الفتح التالي.',
+    'Yeni sürüm çıkınca ana sayfada görünür. İndirme ve kurulum yalnız siz dokununca başlar; kurulumdan sonra uygulama kendiliğinden yeniden açılır.',
+    'New versions appear on the home screen. Download and install start only when you tap; the app reopens by itself afterwards.',
+    'تظهر الإصدارات الجديدة في الشاشة الرئيسية. يبدأ التنزيل والتثبيت فقط عند الضغط؛ ويُعاد فتح التطبيق تلقائيًا بعدها.',
   ),
+  'upd.b_title': ('Yeni sürüm var', 'New version available', 'إصدار جديد متاح'),
+  'upd.b_sub': ('v{v} · indirmek için Güncelle\'ye dokunun', 'v{v} · tap Update to download', 'v{v} · اضغط تحديث للتنزيل'),
+  'upd.b_ready_title': ('Güncelleme indirildi', 'Update downloaded', 'تم تنزيل التحديث'),
+  'upd.b_ready_sub': ('v{v} · kurulunca uygulama yeniden açılır', 'v{v} · the app reopens after installing', 'v{v} · يُعاد فتح التطبيق بعد التثبيت'),
+  'upd.b_downloading': ('İndiriliyor · %{p}', 'Downloading · {p}%', 'جارٍ التنزيل · {p}%'),
+  'upd.b_update': ('Güncelle', 'Update', 'تحديث'),
+  'upd.b_install': ('Kur', 'Install', 'تثبيت'),
+  'upd.current': ('Kurulu sürüm v{v}', 'Installed version v{v}', 'الإصدار المثبت v{v}'),
+  'upd.found': ('Yeni sürüm v{v} var', 'New version v{v} available', 'الإصدار الجديد v{v} متاح'),
   'upd.check': ('Güncellemeleri denetle', 'Check for updates', 'التحقق من التحديثات'),
   'upd.checking': ('Denetleniyor…', 'Checking…', 'جارٍ التحقق…'),
   'upd.latest': ('En son sürüm kurulu (v{v}).', 'You have the latest version (v{v}).', 'لديك أحدث إصدار (v{v}).'),
@@ -17,16 +26,6 @@ const Map<String, (String, String, String)> _t31 = {
   'upd.download_failed': ('İndirme başarısız.', 'Download failed.', 'فشل التنزيل.'),
   'upd.ready': ('Yeni sürüm v{v} hazır.', 'New version v{v} is ready.', 'الإصدار الجديد v{v} جاهز.'),
   'upd.whats_new': ('v{v} — Yenilikler', 'v{v} — What\'s new', 'v{v} — الجديد'),
-  'upd.banner': (
-    'Yeni sürüm v{v} var — yüklemek için dokunun',
-    'New version v{v} available — tap to install',
-    'الإصدار الجديد v{v} متاح — اضغط للتثبيت',
-  ),
-  'upd.banner_ready': (
-    'Yeni sürüm v{v} indirildi — kurmak için dokunun',
-    'New version v{v} downloaded — tap to install',
-    'تم تنزيل الإصدار v{v} — اضغط للتثبيت',
-  ),
   'upd.install_now': ('Şimdi güncelle', 'Update now', 'حدّث الآن'),
   'upd.unsupported': (
     'Bu derlemede otomatik güncelleme yok.',

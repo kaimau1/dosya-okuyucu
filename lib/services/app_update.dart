@@ -46,10 +46,6 @@ abstract final class AppUpdate {
   static const repo = 'kaimau1/dosya-okuyucu';
   static const _prefAuto = 'app_update_auto';
 
-  /// Kullanıcının sistem penceresinde vazgeçtiği sürüm: açılışta yeniden
-  /// sorulmaz (Ayarlar'daki "Şimdi güncelle" yine kurar).
-  static const _prefDeclined = 'app_update_declined';
-
   /// "Yenilikler" (2026-11-10): indirilen sürümün notu saklanır; o sürüm
   /// kurulup uygulama ilk açıldığında bir kez gösterilir.
   static const _prefNotesVersion = 'app_update_notes_v';
@@ -99,6 +95,8 @@ abstract final class AppUpdate {
     if (!force && now - _lastDetectMs < detectEvery.inMilliseconds) {
       return available.value;
     }
+    // Denetim kapalıysa kendiliğinden sorulmaz (elle denetim [force] ile).
+    if (!force && !await autoEnabled()) return available.value;
     _detecting = true;
     _lastDetectMs = now;
     try {
@@ -139,7 +137,6 @@ abstract final class AppUpdate {
   }
 
   /// [remote] [local]'den yeni mi? (ANA, ARA, YAMA sırasıyla.)
-  @visibleForTesting
   static bool isNewer(String remote, String local) {
     final r = parseVersion(remote), l = parseVersion(local);
     if (r == null || l == null) return false;
@@ -333,8 +330,14 @@ abstract final class AppUpdate {
     }
   }
 
-  /// Açılış işi: bekleyen indirme varsa kur; yoksa (süresi geldiyse) denetle,
-  /// yeniyse indir ve [onReady] ile haber ver.
+  /// Açılış işi: bekleyen indirme varsa "indirildi" diye duyurur; yoksa
+  /// (denetim açıksa) GitHub'a sorar ve yeni sürümü ana sayfada gösterir.
+  ///
+  /// 2026-11-10 (kullanıcı: *"ana ekranda çıkan güncelleme direkt indirmeye
+  /// başlıyor, tıklanmadan indirmesin"*): açılışta İNDİRME ve KURMA YOK —
+  /// ikisi de yalnız şeride/düğmeye dokununca ([downloadAndInstall]). Kurulum
+  /// uygulamayı kapatır; yeni sürüm kendiliğinden yeniden açılır
+  /// (ci/ApkKurulum.kt `GuncellemeSonrasi`).
   static Future<void> runOnStartup(
       {void Function(AppUpdateInfo info)? onReady,
       void Function(String notes)? onWhatsNew}) async {
@@ -349,29 +352,11 @@ abstract final class AppUpdate {
           isNewer(pending.version, available.value!.version)) {
         available.value = pending;
       }
-    }
-    // Oto güncelleme kapalı olsa da yeni sürüm ana sayfada duyurulur
-    // (indirme/kurulum yalnız kullanıcı dokununca).
-    if (!await autoEnabled()) {
-      if (pending == null) await detect(force: true);
       return;
     }
-    final prefs = await SharedPreferences.getInstance();
-    if (pending != null) {
-      if (prefs.getString(_prefDeclined) == pending.version) return;
-      final result = await install(pending);
-      if (result == 'aborted') {
-        await prefs.setString(_prefDeclined, pending.version);
-      }
-      return;
-    }
+    if (!await autoEnabled()) return;
     try {
-      final info = await detect(force: true);
-      if (info == null) return;
-      final file = await download(info);
-      if (file == null) return;
-      ready.value = info;
-      onReady?.call(info);
+      await detect(force: true);
     } catch (_) {
       // Ağ yok / GitHub yanıtsız: bir sonraki açılışta yeniden denenir.
     }

@@ -155,6 +155,11 @@ abstract final class AiAnalyzer {
 
   static bool get isRunning => _running;
 
+  /// Süren analiz bitince (iptal/hata dahil) tamamlanır; analiz yoksa hemen.
+  /// Tekli "AI ile ikinci ad" sonucu canlı bildirimde göstermek için bekler.
+  static Future<void> get whenIdle => _idle?.future ?? Future<void>.value();
+  static Completer<void>? _idle;
+
   /// Bağlamsız metin kaynağı: kuyruk arka planda koşar, `BuildContext`i yok.
   /// `AppStrings.current` uygulamanın o anki dilini tutar (bkz. delegate).
   static AppStrings get _str => AppStrings.current;
@@ -185,6 +190,7 @@ abstract final class AiAnalyzer {
   }) async {
     if (_running) return;
     _running = true;
+    final idle = _idle = Completer<void>();
     _cancelRequested = false;
     _pauseRequested = false;
     _cancelSignal = Completer<void>();
@@ -229,6 +235,7 @@ abstract final class AiAnalyzer {
         } finally {
           watch.cancel();
           _running = false;
+          if (!idle.isCompleted) idle.complete();
           // Analiz sürerken silinen dosyalar listede hayalet kalmasın.
           unawaited(AiIndex.pruneMissing());
         }

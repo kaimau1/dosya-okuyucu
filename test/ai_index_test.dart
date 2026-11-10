@@ -289,5 +289,32 @@ void main() {
       expect(AiIndex.aliasMatches('su faturası'), isEmpty);
       expect(AiIndex.aliasMatches('  '), isEmpty);
     });
+
+    test('elle ad AI başlığının önüne geçer ve yeniden analizde korunur',
+        () async {
+      const entry = FsEntry(
+          path: '/a/IMG_9.pdf',
+          name: 'IMG_9.pdf',
+          isDir: false,
+          sizeBytes: 1,
+          modifiedMs: 1);
+      await AiIndex.setAlias(entry, '  Kira sözleşmesi ');
+      expect(AiIndex.aliasOf(entry.path), 'Kira sözleşmesi');
+      await AiIndex.putAll([
+        const AiRecord(
+          path: '/a/IMG_9.pdf',
+          sizeBytes: 1,
+          modifiedMs: 1,
+          category: FmCategory.document,
+          title: 'Ev kira kontratı',
+          source: 'ai',
+        ),
+      ]);
+      expect(AiIndex.aliasOf(entry.path), 'Kira sözleşmesi');
+      expect(AiIndex.aliasMatches('kontrati'), hasLength(1));
+      expect(AiIndex.aliasMatches('sozlesmesi'), hasLength(1));
+      await AiIndex.setAlias(entry, '');
+      expect(AiIndex.aliasOf(entry.path), 'Ev kira kontratı');
+    });
   });
 }

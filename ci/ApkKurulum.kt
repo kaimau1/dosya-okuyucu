@@ -1,6 +1,9 @@
 package com.dosyaokuyucu.dosya_okuyucu
 
 import android.app.Activity
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -96,6 +99,9 @@ object ApkKurulum {
             done("need_permission"); return
         }
         val ctx = activity.applicationContext
+        // Kurulum süreci kapatır; MY_PACKAGE_REPLACED gelince yeniden açmak
+        // için işaret (bkz. [GuncellemeSonrasi]).
+        if (selfUpdate) GuncellemeSonrasi.mark(ctx)
         Thread {
             var session: PackageInstaller.Session? = null
             try {
@@ -218,5 +224,79 @@ object ApkKurulum {
         } catch (_: Exception) {
         }
         done(v)
+    }
+}
+
+/**
+ * **Kendi güncellemesinden sonra yeniden aç** (2026-11-10, kullanıcı:
+ * *"otomatik güncellendikten sonra uygulama kapanıyor, sonra otomatik geri
+ * açılsın"*). Kurulum süreci uygulamayı öldürür; sistem yeni sürümde
+ * `MY_PACKAGE_REPLACED` yayınlar. İşaret (son 30 dk'da uygulamanın KENDİ
+ * başlattığı güncelleme) varsa ana ekran açılır. Android 10+ arka plandan
+ * ekran açmayı yalnız "diğer uygulamaların üstünde göster" izniyle bırakır;
+ * izin yoksa "Güncellendi — açmak için dokunun" bildirimi düşer.
+ */
+class GuncellemeSonrasi : BroadcastReceiver() {
+    companion object {
+        private const val PREFS = "guncelleme_sonrasi"
+        private const val KEY = "self_update_ms"
+        private const val CHANNEL = "guncelleme"
+
+        fun mark(c: Context) {
+            c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                .putLong(KEY, System.currentTimeMillis()).apply()
+        }
+    }
+
+    override fun onReceive(c: Context, intent: Intent) {
+        if (intent.action != Intent.ACTION_MY_PACKAGE_REPLACED) return
+        val prefs = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val at = prefs.getLong(KEY, 0L)
+        prefs.edit().remove(KEY).apply()
+        if (at == 0L || System.currentTimeMillis() - at > 30 * 60 * 1000L) return
+        val launch = c.packageManager.getLaunchIntentForPackage(c.packageName)
+            ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            ?: return
+        val canStart = Build.VERSION.SDK_INT < 29 || Settings.canDrawOverlays(c)
+        if (canStart) {
+            try {
+                c.startActivity(launch)
+                return
+            } catch (_: Exception) {
+            }
+        }
+        notifyDone(c, launch)
+    }
+
+    private fun notifyDone(c: Context, launch: Intent) {
+        try {
+            val nm = c.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            if (Build.VERSION.SDK_INT >= 26) {
+                nm.createNotificationChannel(
+                    NotificationChannel(
+                        CHANNEL, "Uygulama güncellemesi",
+                        NotificationManager.IMPORTANCE_HIGH
+                    )
+                )
+            }
+            val pi = PendingIntent.getActivity(
+                c, 7301, launch,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val b = if (Build.VERSION.SDK_INT >= 26) {
+                Notification.Builder(c, CHANNEL)
+            } else {
+                @Suppress("DEPRECATION")
+                Notification.Builder(c)
+            }
+            val n = b.setSmallIcon(android.R.drawable.stat_sys_download_done)
+                .setContentTitle("Güncelleme kuruldu")
+                .setContentText("Uygulamayı açmak için dokunun")
+                .setContentIntent(pi)
+                .setAutoCancel(true)
+                .build()
+            nm.notify(7301, n)
+        } catch (_: Exception) {
+        }
     }
 }

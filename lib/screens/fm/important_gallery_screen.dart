@@ -17,6 +17,8 @@ import '../../services/fm/fs_scan.dart';
 import '../../services/fm/important_gallery_filter.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/fm/fm_file_list_view.dart' show FmSelectionActions;
+import '../../widgets/fm/fm_selection_bar.dart';
 import '../../widgets/fm/fm_quick_filters.dart' show FmFilterBar, FmPill;
 import '../../widgets/fm/fm_type_chips.dart' show FmChoiceTile, FmSheetFooter;
 import 'browser_screen.dart';
@@ -45,6 +47,14 @@ class _ImportantGalleryScreenState extends State<ImportantGalleryScreen> {
   ImpFilter _filter = const ImpFilter();
   bool _searching = false;
   final _query = TextEditingController();
+
+  /// Basılı tutunca açılan seçim (2026-11-10, kullanıcı): yollar.
+  final Set<String> _selected = {};
+  bool get _selecting => _selected.isNotEmpty;
+
+  void _toggle(String path) => setState(() {
+        if (!_selected.remove(path)) _selected.add(path);
+      });
 
   @override
   void initState() {
@@ -76,6 +86,8 @@ class _ImportantGalleryScreenState extends State<ImportantGalleryScreen> {
         for (final f in files)
           if (!f.isDir) ImpItem.of(root, f, tags: FileTags.forPath(f.path)),
       ];
+      final alive = {for (final i in _items) i.entry.path};
+      _selected.removeWhere((p) => !alive.contains(p));
       _loading = false;
     });
   }
@@ -87,8 +99,19 @@ class _ImportantGalleryScreenState extends State<ImportantGalleryScreen> {
     final now = DateTime.now();
     final shown = _filter.apply(_items, now);
     final paths = [for (final i in shown) i.entry.path];
-    return Scaffold(
-      appBar: AppBar(
+    final selectedEntries = [
+      for (final i in shown)
+        if (_selected.contains(i.entry.path)) i.entry,
+    ];
+    return PopScope(
+      canPop: !_selecting,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _selecting) setState(_selected.clear);
+      },
+      child: Scaffold(
+      appBar: _selecting
+          ? _selectionAppBar(shown, selectedEntries)
+          : AppBar(
         title: _searching
             ? TextField(
                 controller: _query,
@@ -174,8 +197,61 @@ class _ImportantGalleryScreenState extends State<ImportantGalleryScreen> {
               ),
             ),
           Expanded(child: _grid(context, shown, paths)),
+          if (_selecting)
+            FmSelectionBar(
+              selected: selectedEntries,
+              onChanged: () async {
+                if (!mounted) return;
+                setState(_selected.clear);
+                await _load();
+              },
+            ),
         ],
       ),
+    ),
+    );
+  }
+
+  PreferredSizeWidget _selectionAppBar(
+      List<ImpItem> shown, List<FsEntry> selectedEntries) {
+    final all = shown.isNotEmpty &&
+        shown.every((i) => _selected.contains(i.entry.path));
+    void range({required bool above}) {
+      if (_selected.length != 1) return;
+      final i = shown.indexWhere((e) => e.entry.path == _selected.first);
+      if (i < 0) return;
+      setState(() {
+        final from = above ? 0 : i;
+        final to = above ? i : shown.length - 1;
+        for (var k = from; k <= to; k++) {
+          _selected.add(shown[k].entry.path);
+        }
+      });
+    }
+
+    return AppBar(
+      leading: IconButton(
+        tooltip: context.t('common.clear_selection'),
+        icon: const Icon(AppIcons.close),
+        onPressed: () => setState(_selected.clear),
+      ),
+      title: Text(context.t('ph.selected_of',
+          {'n': selectedEntries.length, 'total': shown.length})),
+      actions: [
+        FmSelectionActions(
+          allSelected: all,
+          single: _selected.length == 1,
+          onToggleAll: () => setState(() {
+            if (all) {
+              _selected.clear();
+            } else {
+              _selected.addAll(shown.map((e) => e.entry.path));
+            }
+          }),
+          onAbove: () => range(above: true),
+          onBelow: () => range(above: false),
+        ),
+      ],
     );
   }
 
@@ -222,7 +298,11 @@ class _ImportantGalleryScreenState extends State<ImportantGalleryScreen> {
               key: ValueKey(f.path),
               entry: f,
               size: cell,
-              onTap: () => EntryOpener.open(context, f.path, siblings: paths),
+              selected: _selected.contains(f.path),
+              onTap: _selecting
+                  ? () => _toggle(f.path)
+                  : () => EntryOpener.open(context, f.path, siblings: paths),
+              onLongPress: () => _toggle(f.path),
             );
           },
         );

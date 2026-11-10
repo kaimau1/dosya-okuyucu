@@ -448,6 +448,8 @@ class _AppUpdateTileState extends State<AppUpdateTile> {
     });
   }
 
+  /// Denetle: YALNIZ sorar (indirmez); yeni sürüm varsa ana sayfa şeridi de
+  /// görünür ve satırda "Güncelle" düğmesi çıkar (2026-11-10).
   Future<void> _checkNow() async {
     final str = AppStrings.of(context);
     if (!AppUpdate.supported) {
@@ -459,32 +461,11 @@ class _AppUpdateTileState extends State<AppUpdateTile> {
       _note = str.t('upd.checking');
     });
     try {
-      final info = AppUpdate.ready.value ?? await AppUpdate.check();
+      final info = await AppUpdate.detect(force: true);
       if (!mounted) return;
-      if (info == null) {
-        setState(() => _note = str.t('upd.latest', {'v': appVersionName}));
-        return;
-      }
-      void onProgress() {
-        final p = AppUpdate.progress.value;
-        if (mounted && p != null) {
-          setState(() => _note = str.t('upd.downloading', {'v': info.version, 'p': p}));
-        }
-      }
-
-      AppUpdate.progress.addListener(onProgress);
-      final file = info.url.isEmpty ? null : await AppUpdate.download(info);
-      AppUpdate.progress.removeListener(onProgress);
-      if (!mounted) return;
-      if (file == null && info.url.isNotEmpty) {
-        setState(() => _note = str.t('upd.download_failed'));
-        return;
-      }
-      setState(() => _note = str.t('upd.ready', {'v': info.version}));
-      final result = await AppUpdate.install(info);
-      if (mounted && result == 'need_permission') {
-        setState(() => _note = str.t('upd.permission'));
-      }
+      setState(() => _note = info == null
+          ? str.t('upd.latest', {'v': appVersionName})
+          : null);
     } catch (_) {
       if (mounted) setState(() => _note = str.t('upd.failed'));
     } finally {
@@ -492,29 +473,83 @@ class _AppUpdateTileState extends State<AppUpdateTile> {
     }
   }
 
+  /// Güncelle: indir (yüzde) + kur. Kurulum uygulamayı kapatır, yeni sürüm
+  /// kendiliğinden açılır.
+  Future<void> _update(AppUpdateInfo info) async {
+    final str = AppStrings.of(context);
+    setState(() {
+      _busy = true;
+      _note = null;
+    });
+    try {
+      final result = await AppUpdate.downloadAndInstall(info);
+      if (!mounted) return;
+      setState(() => _note = switch (result) {
+            'download_failed' => str.t('upd.download_failed'),
+            'need_permission' => str.t('upd.permission'),
+            final r? when r.startsWith('error') => str.t('upd.failed'),
+            _ => null,
+          });
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
-  Widget build(BuildContext context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SettingSwitch(
-            icon: AppIcons.refresh,
-            title: context.t('upd.auto'),
-            subtitle: context.t('upd.auto_sub'),
-            value: _auto,
-            onChanged: (v) {
-              setState(() => _auto = v);
-              unawaited(AppUpdate.setAutoEnabled(v));
-            },
-          ),
-          SettingTile(
-            key: const ValueKey('upd-check'),
-            icon: AppIcons.download,
-            title: context.t('upd.check'),
-            subtitle: _note ?? 'v$appVersionName',
-            wrapSubtitle: true,
-            onTap: _busy ? null : _checkNow,
-          ),
-        ],
+  Widget build(BuildContext context) => ValueListenableBuilder<AppUpdateInfo?>(
+        valueListenable: AppUpdate.available,
+        builder: (context, info, _) => ValueListenableBuilder<int?>(
+          valueListenable: AppUpdate.progress,
+          builder: (context, pct, _) {
+            final str = AppStrings.of(context);
+            final newer = info != null &&
+                AppUpdate.isNewer(info.version, appVersionName);
+            final subtitle = pct != null
+                ? str.t('upd.downloading', {'v': info?.version ?? '', 'p': pct})
+                : _note ??
+                    (newer
+                        ? str.t('upd.found', {'v': info!.version})
+                        : str.t('upd.current', {'v': appVersionName}));
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SettingTile(
+                  key: const ValueKey('upd-check'),
+                  icon: newer ? AppIcons.download : AppIcons.refresh,
+                  title: str.t('upd.check'),
+                  subtitle: subtitle,
+                  wrapSubtitle: true,
+                  trailing: _busy || pct != null
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : newer
+                          ? FilledButton.tonal(
+                              onPressed: () => _update(info!),
+                              child: Text(str.t(
+                                  AppUpdate.ready.value?.version == info!.version
+                                      ? 'upd.b_install'
+                                      : 'upd.b_update')),
+                            )
+                          : null,
+                  onTap: _busy || pct != null ? null : _checkNow,
+                ),
+                SettingSwitch(
+                  icon: AppIcons.notificationsNone,
+                  title: str.t('upd.auto'),
+                  subtitle: str.t('upd.auto_sub'),
+                  value: _auto,
+                  onChanged: (v) {
+                    setState(() => _auto = v);
+                    unawaited(AppUpdate.setAutoEnabled(v));
+                  },
+                ),
+              ],
+            );
+          },
+        ),
       );
 }
 

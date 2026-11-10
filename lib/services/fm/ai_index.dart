@@ -69,6 +69,10 @@ class AiRecord {
   /// `local` (cihazda, ücretsiz) ya da `ai` (Gemini).
   final String source;
 
+  /// Kullanıcının elle verdiği ikinci ad (2026-11-10). Doluysa [title]'ın
+  /// önüne geçer; AI yeniden analizi bunu EZMEZ ([AiIndex.putAll] korur).
+  final String alias;
+
   const AiRecord({
     required this.path,
     required this.sizeBytes,
@@ -83,6 +87,7 @@ class AiRecord {
     this.suggestedFolder = '',
     this.analyzedMs = 0,
     this.source = 'local',
+    this.alias = '',
   });
 
   String get name => p.basename(path);
@@ -151,6 +156,7 @@ class AiRecord {
         if (suggestedFolder.isNotEmpty) 'f': suggestedFolder,
         if (analyzedMs != 0) 'a': analyzedMs,
         if (source != 'local') 'src': source,
+        if (alias.isNotEmpty) 'al': alias,
       };
 
   static AiRecord? fromJson(Map<String, Object?> raw) {
@@ -176,6 +182,7 @@ class AiRecord {
       suggestedFolder: raw['f'] as String? ?? '',
       analyzedMs: (raw['a'] as num?)?.toInt() ?? 0,
       source: raw['src'] as String? ?? 'local',
+      alias: raw['al'] as String? ?? '',
     );
   }
 
@@ -189,6 +196,7 @@ class AiRecord {
     String? suggestedFolder,
     int? analyzedMs,
     String? source,
+    String? alias,
   }) =>
       AiRecord(
         path: path,
@@ -204,6 +212,7 @@ class AiRecord {
         suggestedFolder: suggestedFolder ?? this.suggestedFolder,
         analyzedMs: analyzedMs ?? this.analyzedMs,
         source: source ?? this.source,
+        alias: alias ?? this.alias,
       );
 }
 
@@ -296,7 +305,30 @@ abstract final class AiIndex {
   /// **İkinci ad** (2026-11-08, kullanıcı): AI'nın verdiği okunur başlık
   /// ([AiRecord.title]) dosyanın takma adıdır — orijinal ad DEĞİŞMEZ. Satırda
   /// ikincil metin olarak görünür; boşsa (yerel kayıt / analiz yok) ''.
-  static String aliasOf(String filePath) => _records[filePath]?.title ?? '';
+  /// Elle verilen ad ([AiRecord.alias]) AI başlığının önüne geçer.
+  static String aliasOf(String filePath) {
+    final r = _records[filePath];
+    if (r == null) return '';
+    return r.alias.isNotEmpty ? r.alias : r.title;
+  }
+
+  /// İkinci adı ELLE koyar (boş = elle adı siler, AI başlığı varsa o görünür).
+  /// Kayıt yoksa yalnız adı taşıyan yerel bir kayıt açılır.
+  static Future<void> setAlias(FsEntry entry, String alias) async {
+    await ensureLoaded();
+    final clean = alias.trim();
+    final old = _records[entry.path];
+    final record = old != null
+        ? old.copyWith(alias: clean)
+        : AiRecord(
+            path: entry.path,
+            sizeBytes: entry.sizeBytes,
+            modifiedMs: entry.modifiedMs,
+            category: entry.category,
+            alias: clean,
+          );
+    await put(record);
+  }
 
   /// Katlanmış başlık önbelleği (her tuşta 20 bin kaydı yeniden katlamamak
   /// için; kayıt nesnesi değişince kendiliğinden düşer).
@@ -312,8 +344,9 @@ abstract final class AiIndex {
     if (terms.isEmpty) return const [];
     final out = <AiRecord>[];
     for (final r in _records.values) {
-      if (r.title.isEmpty) continue;
-      final key = _aliasKey[r] ??= asciiFold(r.title);
+      if (r.title.isEmpty && r.alias.isEmpty) continue;
+      final key =
+          _aliasKey[r] ??= asciiFold('${r.alias} ${r.title}'.trim());
       if (!terms.every(key.contains)) continue;
       out.add(r);
       if (out.length >= limit) break;
@@ -368,10 +401,17 @@ abstract final class AiIndex {
   static Future<void> putAll(Iterable<AiRecord> records) async {
     if (records.isEmpty) return;
     await ensureLoaded();
+    // Elle verilen ikinci ad AI yeniden analizinde korunur.
+    final kept = <AiRecord>[];
     for (final record in records) {
-      _records[record.path] = record;
+      final old = _records[record.path];
+      final r = record.alias.isEmpty && old != null && old.alias.isNotEmpty
+          ? record.copyWith(alias: old.alias)
+          : record;
+      _records[record.path] = r;
+      kept.add(r);
     }
-    await _append(records);
+    await _append(kept);
     _recount();
     revision.value++;
   }
@@ -404,6 +444,7 @@ abstract final class AiIndex {
       // Öneri uygulandı: bir daha önerilmesin.
       analyzedMs: old.analyzedMs,
       source: old.source,
+      alias: old.alias,
     );
     await _rewrite();
     _recount();

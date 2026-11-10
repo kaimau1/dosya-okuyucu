@@ -36,6 +36,7 @@ enum _EntryAction {
   quickShare,
   aiTag,
   aiAlias,
+  alias,
 }
 
 /// Uzun basınca (ya da ⋮ ile) açılan işlem sayfası. Dosya sistemi değiştiyse
@@ -270,6 +271,9 @@ Future<bool> showEntryActions(
             // uzun basınca bulamıyordu (2026-07-29 sadakat denetimi).
             _section(ctx, ctx.t('ea.sec_ai'), [
               if (!entry.isDir)
+                _act(ctx, AppIcons.rename, ctx.t('alias.manual'),
+                    _EntryAction.alias),
+              if (!entry.isDir)
                 _act(ctx, AppIcons.ai, ctx.t('alias.action'),
                     _EntryAction.aiAlias),
               if (!entry.isDir &&
@@ -375,6 +379,10 @@ Future<bool> showEntryActions(
 
     case _EntryAction.aiAlias:
       await giveAiAlias(context, entry);
+      return false;
+
+    case _EntryAction.alias:
+      await editAlias(context, entry);
       return false;
 
     case _EntryAction.resize:

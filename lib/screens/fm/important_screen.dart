@@ -9,6 +9,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
+import '../../services/fm/ai_index.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
@@ -552,13 +553,17 @@ class ImportantGalleryTile extends StatelessWidget {
   /// Kapalıysa yalnız tür simgesi (kasa: düz kopya hazır olana kadar).
   final bool thumbnails;
 
+  /// Seçim kipinde işaretli mi (çerçeve + onay rozeti).
+  final bool selected;
+
   const ImportantGalleryTile(
       {super.key,
       required this.entry,
       required this.size,
       required this.onTap,
       this.onLongPress,
-      this.thumbnails = true});
+      this.thumbnails = true,
+      this.selected = false});
 
   @override
   Widget build(BuildContext context) {
@@ -603,11 +608,35 @@ class ImportantGalleryTile extends StatelessWidget {
                   end: 4,
                   bottom: 4,
                   child: Text(
-                    entry.name,
+                    // İkinci ad varsa (elle/AI) adla birlikte görünür.
+                    [
+                      if (AiIndex.aliasOf(entry.path).isNotEmpty)
+                        AiIndex.aliasOf(entry.path),
+                      entry.name,
+                    ].join('\n'),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ),
+              if (selected)
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: scheme.primary.withValues(alpha: 0.18),
+                    border: Border.all(color: scheme.primary, width: 3),
+                    borderRadius: BorderRadius.circular(Radii.control),
+                  ),
+                ),
+              if (selected)
+                PositionedDirectional(
+                  top: 6,
+                  end: 6,
+                  child: CircleAvatar(
+                    radius: 11,
+                    backgroundColor: scheme.primary,
+                    child: Icon(AppIcons.check,
+                        size: 16, color: scheme.onPrimary),
                   ),
                 ),
             ],

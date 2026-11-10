@@ -80,48 +80,80 @@ class _UpdateBannerState extends State<UpdateBanner>
         },
       );
 
+  /// 2026-11-10 (kullanıcı: *"görsel olarak uygulamaya uymuyor, yerleşimi ve
+  /// dili düzgün ayarla"*): pano kartlarının dili — yüzey kartı, solda
+  /// yuvarlak simge, iki satır (başlık + sürüm/açıklama), sağda tek düğme.
+  /// İndirme YALNIZ düğmeye/karta dokununca başlar.
   Widget _card(
       BuildContext context, AppUpdateInfo info, bool downloaded, int? pct) {
-    final scheme = Theme.of(context).colorScheme;
-    final fg = scheme.onPrimaryContainer;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final str = AppStrings.of(context);
-    final text = pct != null
-        ? str.t('upd.downloading', {'v': info.version, 'p': pct})
-        : str.t(downloaded ? 'upd.banner_ready' : 'upd.banner',
-            {'v': info.version});
+    final working = pct != null || _busy;
+    final title = pct != null
+        ? str.t('upd.b_downloading', {'p': pct})
+        : str.t(downloaded ? 'upd.b_ready_title' : 'upd.b_title');
+    final sub = str.t(
+        downloaded ? 'upd.b_ready_sub' : 'upd.b_sub', {'v': info.version});
     return Padding(
       padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 0),
       child: Material(
         key: const ValueKey('update-banner'),
-        color: scheme.primaryContainer,
+        color: scheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(Radii.card),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: (_busy || pct != null) ? null : () => _tap(info),
+          onTap: working ? null : () => _tap(info),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Padding(
-                padding: const EdgeInsets.all(Gap.md),
+                padding: const EdgeInsetsDirectional.fromSTEB(
+                    Gap.md, Gap.sm, Gap.sm, Gap.sm),
                 child: Row(
                   children: [
-                    Icon(AppIcons.download, color: fg),
-                    const SizedBox(width: Gap.sm),
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor: scheme.primaryContainer,
+                      child: Icon(
+                          downloaded ? AppIcons.checkCircle : AppIcons.download,
+                          size: 20,
+                          color: scheme.onPrimaryContainer),
+                    ),
+                    const SizedBox(width: Gap.md),
                     Expanded(
-                      child: Text(
-                        text,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(color: fg, fontWeight: FontWeight.w600),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.titleSmall),
+                          const SizedBox(height: 2),
+                          Text(sub,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                  color: scheme.onSurfaceVariant)),
+                        ],
                       ),
                     ),
-                    if (_busy && pct == null)
-                      SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: fg),
+                    const SizedBox(width: Gap.sm),
+                    if (working)
+                      const Padding(
+                        padding: EdgeInsets.all(Gap.sm),
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    else
+                      FilledButton.tonal(
+                        onPressed: () => _tap(info),
+                        child: Text(str.t(
+                            downloaded ? 'upd.b_install' : 'upd.b_update')),
                       ),
                   ],
                 ),
