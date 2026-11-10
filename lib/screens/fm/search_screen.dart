@@ -31,6 +31,7 @@ import '../../widgets/fm/fm_more_sheet.dart';
 import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_type_chips.dart';
 import '../../models/fm_layout.dart';
+import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_file_list_view.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
@@ -163,6 +164,9 @@ class _SearchScreenState extends State<SearchScreen> {
     SearchIndex.openSession(); // P10: dizin ekran açıkken bellekte
     // Geçmiş, kullanıcı yazmaya başlamadan önce (boş ekranda) gösteriliyor.
     unawaited(_loadSaved());
+    SearchHistory.ensureOpenedLoaded().then((_) {
+      if (mounted) setState(() {});
+    });
     SearchHistory.ensureLoaded().then((_) {
       if (mounted) setState(() {});
     });
@@ -474,6 +478,9 @@ class _SearchScreenState extends State<SearchScreen> {
 
   /// Kayıtlı aramalar (Faz 41 / 3).
   List<SavedSearch> _saved = const [];
+
+  /// "Aramadan açılanlar" tür süzgeci (null = tümü).
+  FmCategory? _openedKind;
 
   Future<void> _loadSaved() async {
     final v = await SavedSearches.load();

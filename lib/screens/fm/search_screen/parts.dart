@@ -394,6 +394,7 @@ extension _SearchScreenStateParts on _SearchScreenState {
               ],
             ),
           ],
+          if (_controller.text.trim().isEmpty) ..._openedSection(),
         ],
       );
     }
@@ -433,6 +434,95 @@ extension _SearchScreenStateParts on _SearchScreenState {
     );
   }
 
+  /// **Aramadan açılanlar** (2026-11-10): aramada bulunup açılan dosyalar
+  /// kalıcı listede, en yeni üstte; tür çipleriyle süzülür. Silinmiş dosya
+  /// gösterilmez (kayıtta kalır, yeniden oluşursa döner).
+  List<Widget> _openedSection() {
+    final all = <(SearchOpened, FsEntry)>[
+      for (final o in SearchHistory.opened)
+        if (FsEntry.ofPath(o.path) case final e? when !e.isDir) (o, e),
+    ];
+    if (all.isEmpty) return const [];
+    final kinds = <FmCategory>{for (final (_, e) in all) e.category};
+    final kind = kinds.contains(_openedKind) ? _openedKind : null;
+    final shown = [
+      for (final r in all)
+        if (kind == null || r.$2.category == kind) r,
+    ];
+    final paths = [for (final (_, e) in shown) e.path];
+    final theme = Theme.of(context);
+    return [
+      const SizedBox(height: Gap.lg),
+      Row(
+        children: [
+          Expanded(
+            child: Text(context.t('srch.opened'),
+                style: theme.textTheme.titleSmall),
+          ),
+          TextButton(
+            onPressed: () async {
+              await SearchHistory.clearOpened();
+              if (mounted) _update(() {});
+            },
+            child: Text(context.t('srch.clear_history')),
+          ),
+        ],
+      ),
+      if (kinds.length > 1)
+        SizedBox(
+          height: kFmFilterBarHeight,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              FmChip(
+                label: context.t('important.gallery_all'),
+                count: all.length,
+                selected: kind == null,
+                onTap: () => _update(() => _openedKind = null),
+              ),
+              for (final c in FmCategory.values)
+                if (kinds.contains(c))
+                  FmChip(
+                    icon: FmColors.iconFor(c),
+                    label: context.t(c.labelKey),
+                    count: all.where((r) => r.$2.category == c).length,
+                    selected: kind == c,
+                    onTap: () => _update(() => _openedKind = c),
+                  ),
+            ],
+          ),
+        ),
+      for (final (o, e) in shown)
+        ListTile(
+          key: ValueKey('opened-${e.path}'),
+          contentPadding: EdgeInsets.zero,
+          leading: FmEntryIcon(entry: e, size: 44),
+          title: Text(e.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text(
+            [
+              if (o.query.isNotEmpty) '“${o.query}”',
+              FsPaths.humanDate(o.openedMs),
+            ].join(' · '),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: IconButton(
+            tooltip: context.t('common.delete'),
+            icon: const Icon(AppIcons.close, size: 20),
+            onPressed: () async {
+              await SearchHistory.removeOpened(e.path);
+              if (mounted) _update(() {});
+            },
+          ),
+          onTap: () async {
+            unawaited(SearchHistory.recordOpened(e.path, o.query));
+            await EntryOpener.open(context, e.path, siblings: paths);
+            if (mounted) _update(() {});
+          },
+        ),
+    ];
+  }
+
   Future<void> _open(FsEntry entry) async {
     // Bir sonucu açmak, sorgunun İŞE YARADIĞININ kanıtı: geçmişe o an
     // giriyor (arama düğmesine basmayan kullanıcı da geçmişini görsün).
@@ -441,6 +531,7 @@ extension _SearchScreenStateParts on _SearchScreenState {
       _reveal(entry.path);
       return;
     }
+    unawaited(SearchHistory.recordOpened(entry.path, _controller.text));
     await EntryOpener.open(
       context,
       entry.path,

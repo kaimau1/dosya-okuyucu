@@ -49,5 +49,6 @@ const Map<String, (String, String, String)> _t32 = {
   'ig.sort_name': ('Ada göre (A–Z)', 'By name (A–Z)', 'بالاسم (أ–ي)'),
   'ig.sort_largest': ('En büyük', 'Largest', 'الأكبر'),
   'ig.clear_all': ('Tüm süzgeçleri temizle', 'Clear all filters', 'مسح كل المرشحات'),
+  'srch.opened': ('Aramadan açılanlar', 'Opened from search', 'فُتحت من البحث'),
   'ig.result': ('{n} dosya', '{n} files', '{n} ملف'),
 };

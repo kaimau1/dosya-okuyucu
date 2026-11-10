@@ -97,9 +97,99 @@ abstract final class SearchHistory {
     }
   }
 
+  // ── Aramadan açılan dosyalar (2026-11-10, kullanıcı: *"aramalarda son
+  // aranıp açılan dosyalar görülsün ve orada kalsın, en yeni en üstte"*) ──
+
+  static const _openedFile = 'search_opened.json';
+
+  /// En çok kaç açılan dosya saklansın.
+  static const maxOpened = 60;
+
+  static final List<SearchOpened> _opened = [];
+  static Future<void>? _openedLoad;
+
+  /// En yeniden eskiye.
+  static List<SearchOpened> get opened => List.unmodifiable(_opened);
+
+  static String get _openedPath => p.join(FmEnv.appSupportDir, _openedFile);
+
+  static Future<void> ensureOpenedLoaded() {
+    if (FmEnv.appSupportDir.isEmpty) return Future<void>.value();
+    return _openedLoad ??= _loadOpened();
+  }
+
+  static Future<void> _loadOpened() async {
+    try {
+      final file = File(_openedPath);
+      if (!file.existsSync()) return;
+      final raw = jsonDecode(await file.readAsString());
+      if (raw is! List) return;
+      _opened
+        ..clear()
+        ..addAll([
+          for (final m in raw)
+            if (m is Map && m['p'] is String)
+              SearchOpened(
+                path: m['p'] as String,
+                openedMs: (m['t'] as num?)?.toInt() ?? 0,
+                query: m['q'] is String ? m['q'] as String : '',
+              ),
+        ].take(maxOpened));
+    } catch (_) {}
+  }
+
+  /// Aramadan açılan dosyayı en üste koyar (aynı yol yukarı taşınır).
+  static Future<void> recordOpened(String path, String query) async {
+    _opened.removeWhere((o) => o.path == path);
+    _opened.insert(
+        0,
+        SearchOpened(
+            path: path,
+            openedMs: DateTime.now().millisecondsSinceEpoch,
+            query: query.trim()));
+    if (_opened.length > maxOpened) {
+      _opened.removeRange(maxOpened, _opened.length);
+    }
+    await _saveOpened();
+  }
+
+  static Future<void> removeOpened(String path) async {
+    final before = _opened.length;
+    _opened.removeWhere((o) => o.path == path);
+    if (_opened.length != before) await _saveOpened();
+  }
+
+  static Future<void> clearOpened() async {
+    if (_opened.isEmpty) return;
+    _opened.clear();
+    await _saveOpened();
+  }
+
+  static Future<void> _saveOpened() async {
+    if (FmEnv.appSupportDir.isEmpty) return;
+    try {
+      await File(_openedPath).writeAsString(
+          jsonEncode([
+            for (final o in _opened) {'p': o.path, 't': o.openedMs, 'q': o.query},
+          ]),
+          flush: true);
+    } catch (_) {}
+  }
+
   /// Yalnız test.
   static void debugReset() {
     _queries.clear();
     _loadFuture = null;
+    _opened.clear();
+    _openedLoad = null;
   }
+}
+
+/// Aramadan açılmış bir dosya: yol, açılma zamanı, hangi sorguyla bulunduğu.
+class SearchOpened {
+  final String path;
+  final int openedMs;
+  final String query;
+  const SearchOpened(
+      {required this.path, required this.openedMs, required this.query});
 }
