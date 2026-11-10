@@ -54,6 +54,13 @@ notuyla işaretlenir.
 - **Neden:** Dosya yöneticisinde kullanıcının dokunduğu APK dosyasını
   sistemin kurulum ekranına vermek. Uygulama kendiliğinden hiçbir şey kurmaz.
 
+## SYSTEM_ALERT_WINDOW (isteğe bağlı)
+
+- **Neden:** Uygulama kendi güncellemesini kurduktan sonra kendiliğinden
+  yeniden açılsın (Android 10+ arka plandan ekran açmayı yalnız bu izinle
+  bırakır). Hiçbir pencere başka uygulamaların üstüne çizilmez; izni
+  kullanıcı Ayarlar'dan kendisi verir. Okuyucu (Play) derlemesinde yok.
+
 ## CAMERA
 
 - **Neden:** Belge tarama (kenar algılama, PDF). Yalnız tarama açıkken.
