@@ -96,6 +96,9 @@ class _ImportantGalleryScreenState extends State<ImportantGalleryScreen> {
                 decoration: InputDecoration(
                   hintText: context.t('ig.search_hint'),
                   border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  filled: false,
                 ),
                 onChanged: (v) => _set(_filter.copyWith(query: v)),
               )

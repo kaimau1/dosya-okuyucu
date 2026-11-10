@@ -59,7 +59,7 @@ void main() {
         '✨ Yenilikler\n• Galeri kartı\n\n🛠 Düzeltmeler\n• Eğik uyarısı');
     expect(AppUpdate.extractNotes('işaretsiz eski not'), '');
     expect(AppUpdate.extractNotes(null), '');
-    final info = AppUpdateInfo.pickAsset({
+    final info = AppUpdate.pickAsset({
       'body': body,
       'assets': [
         {'name': 'dosya-okuyucu-v1.2.3.apk', 'browser_download_url': 'u', 'size': 5},
