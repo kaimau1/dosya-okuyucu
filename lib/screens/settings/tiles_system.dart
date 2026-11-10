@@ -435,17 +435,42 @@ class AppUpdateTile extends StatefulWidget {
   State<AppUpdateTile> createState() => _AppUpdateTileState();
 }
 
-class _AppUpdateTileState extends State<AppUpdateTile> {
+class _AppUpdateTileState extends State<AppUpdateTile>
+    with WidgetsBindingObserver {
   bool _auto = true;
   bool _busy = false;
   String? _note;
 
+  /// "Diğer uygulamaların üzerinde göster" izni (kurulumdan sonra
+  /// kendiliğinden açılma için); null = henüz bilinmiyor.
+  bool? _overlay;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     AppUpdate.autoEnabled().then((v) {
       if (mounted) setState(() => _auto = v);
     });
+    _readOverlay();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // İzin sayfasından dönünce durum tazelensin.
+    if (state == AppLifecycleState.resumed) _readOverlay();
+  }
+
+  Future<void> _readOverlay() async {
+    if (!AppUpdate.supported) return;
+    final v = await NativeExtras.canDrawOverlays();
+    if (mounted) setState(() => _overlay = v);
   }
 
   /// Denetle: YALNIZ sorar (indirmez); yeni sürüm varsa ana sayfa şeridi de
@@ -536,6 +561,16 @@ class _AppUpdateTileState extends State<AppUpdateTile> {
                           : null,
                   onTap: _busy || pct != null ? null : _checkNow,
                 ),
+                if (AppUpdate.supported && _overlay != null)
+                  SettingTile(
+                    key: const ValueKey('upd-reopen'),
+                    icon: AppIcons.refresh,
+                    title: str.t('upd.reopen'),
+                    subtitle: str.t(
+                        _overlay! ? 'upd.reopen_on' : 'upd.reopen_off'),
+                    wrapSubtitle: true,
+                    onTap: NativeExtras.openOverlaySettings,
+                  ),
                 SettingSwitch(
                   icon: AppIcons.notificationsNone,
                   title: str.t('upd.auto'),

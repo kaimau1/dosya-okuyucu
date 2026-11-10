@@ -71,6 +71,11 @@
         android:maxSdkVersion="29"/>
     <!-- APK dosyasına dokununca kurulum ekranını açabilmek için. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+    <!-- Kendi güncellemesinden sonra uygulamayı yeniden açmak (2026-11-10,
+         ApkKurulum.kt GuncellemeSonrasi): Android 10+ arka plandan ekran
+         açmayı yalnız bu izinle bırakır. Kullanıcı Ayarlar'dan verir;
+         okuyucu derlemesi bunu çıkarır (OKUYUCU_REMOVE). -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
 
     <!-- ── USB OTG (harici bellek) ─────────────────────────────────────────
          Kullanıcı isteği (2026-09-01): *"harici USB taktığımda göremiyorum…

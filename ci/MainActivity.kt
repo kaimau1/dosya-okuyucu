@@ -456,6 +456,24 @@ class MainActivity : FlutterActivity() {
                 }
                 // 2026-11-09: .apks/.xapk/.apkm kurulumu (PackageInstaller oturumu,
                 // bkz. ApkKurulum.kt). Sonuç kullanıcı onayından SONRA döner.
+                // 2026-11-10: güncellemeden sonra kendiliğinden açılma için
+                // "Diğer uygulamaların üzerinde göster" izni.
+                "canDrawOverlays" -> result.success(
+                    Build.VERSION.SDK_INT < 23 || Settings.canDrawOverlays(this)
+                )
+                "openOverlaySettings" -> {
+                    try {
+                        startActivity(
+                            Intent(
+                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                Uri.parse("package:$packageName")
+                            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                        result.success(true)
+                    } catch (_: Exception) {
+                        result.success(false)
+                    }
+                }
                 "installPackageFile" -> ApkKurulum.install(
                     this@MainActivity, call.argument<String>("path") ?: "",
                     call.argument<Boolean>("self") ?: false

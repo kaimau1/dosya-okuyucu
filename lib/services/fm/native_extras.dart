@@ -193,6 +193,15 @@ abstract final class NativeExtras {
   /// oturumu (2026-11-09, ".apks kurulmuyor"). Kullanıcı onayından SONRA döner:
   /// `done` · `aborted` · `need_permission` · `no_apk` · `missing` ·
   /// `error:<ileti>`; kanal yoksa `null`.
+  /// "Diğer uygulamaların üzerinde göster" izni var mı (güncelleme sonrası
+  /// kendiliğinden açılma için). Kanal yoksa false.
+  static Future<bool> canDrawOverlays() async =>
+      await _call<bool>('canDrawOverlays') ?? false;
+
+  /// Bu uygulamanın "üzerinde göster" izin sayfasını açar.
+  static Future<bool> openOverlaySettings() async =>
+      await _call<bool>('openOverlaySettings') ?? false;
+
   static Future<String?> installPackageFile(String path,
           {bool selfUpdate = false}) =>
       _call<String>('installPackageFile',
