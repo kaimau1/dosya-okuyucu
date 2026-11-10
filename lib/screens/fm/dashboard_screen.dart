@@ -56,6 +56,7 @@ import 'analysis_screen.dart';
 import 'history_screen.dart';
 import 'remote/ftp_server_screen.dart';
 import 'browser_screen.dart';
+import 'apk_archive_screen.dart';
 import 'category_screen.dart';
 import 'cleanup_screen.dart';
 import 'downloads_screen.dart';

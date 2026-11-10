@@ -335,19 +335,12 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
         },
       ),
       _categoryTile(FmCategory.audio),
-      _categoryTile(FmCategory.archive),
-      // Kurulum dosyaları ayrı kutuda (kullanıcı isteği 2026-07-25).
-      FmTileData(
-        id: 'apk',
-        icon: AppIcons.installMobile,
-        color: AppHues.teal,
-        label: context.t('fm.apk_files'),
-        subtitle: _index.stat(FmCategory.apk).count == 0
-            ? (_scanning ? context.t('fm.scanning') : context.t('fm.none'))
-            : '${FsPaths.humanSize(_index.stat(FmCategory.apk).bytes)} '
-                '(${_index.stat(FmCategory.apk).count})',
-        onTap: () => _openSwipe('apk'),
-      ),
+      // **APK ve Arşivler** (2026-11-10, kullanıcı: *"arşivler çok
+      // kullanılan bir sekme değil"*): iki seyrek kutu tek kutuda, içeride
+      // APK · Arşivler sekmeleri (ilk APK, yana kaydırınca Arşivler).
+      // Kimlik 'apk' KALDI — kayıtlı pano sırası bununla duruyor; eski
+      // 'archive' kimliği düzenden düştü.
+      _apkArchiveTile(),
       // **Yeni dosyalar** — bkz. `NewFilesScreen`. Simge `fiber_new` idi:
       // Material o glifi "NEW" YAZISI olarak çiziyor, dört sütunlu ızgarada
       // tek harf yığını gibi duruyordu (kullanıcı 2026-08-17: *"yeni dosyalar

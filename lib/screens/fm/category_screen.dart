@@ -91,6 +91,10 @@ class CategoryScreen extends StatefulWidget {
   /// üstte" demek.
   final bool initialDescending;
 
+  /// Gövdenin en üstünde (başlık çubuğunun altında) gösterilecek şerit —
+  /// ör. "APK · Arşivler" sekmeleri (2026-11-10).
+  final Widget? header;
+
   const CategoryScreen({
     super.key,
     required this.title,
@@ -101,6 +105,7 @@ class CategoryScreen extends StatefulWidget {
     this.replaceOnLoad = false,
     this.initialSort = FmSort.date,
     this.initialDescending = true,
+    this.header,
   });
 
   @override
@@ -558,6 +563,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
         children: [
           Column(
         children: [
+          if (widget.header != null) widget.header!,
           if (_loadingAll) const LinearProgressIndicator(minHeight: 2),
           if (_searching && !_selecting) _modeStrip(),
           // **Hızlı süzgeç çipleri** (2026-08-05 kullanıcı isteği): kaynak

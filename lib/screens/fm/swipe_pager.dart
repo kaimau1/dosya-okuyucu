@@ -47,7 +47,23 @@ class SwipePager extends StatefulWidget {
   final List<SwipePage> pages;
   final int initial;
 
-  const SwipePager({super.key, required this.pages, this.initial = 0});
+  /// Dışarıdan sayfa denetimi (sekme şeridi dokunuşu için); verilirse
+  /// [initial] yerine onun `initialPage`'i geçerlidir, sahibi atar.
+  final PageController? controller;
+
+  /// Sayfa değişince (sekme şeridi vurgusu için).
+  final ValueChanged<int>? onPageChanged;
+
+  /// Alttaki "nerede olduğun" şeridi; sekmeli ekranda gereksiz.
+  final bool showHint;
+
+  const SwipePager(
+      {super.key,
+      required this.pages,
+      this.initial = 0,
+      this.controller,
+      this.onPageChanged,
+      this.showHint = true});
 
   @override
   State<SwipePager> createState() => _SwipePagerState();
@@ -55,8 +71,8 @@ class SwipePager extends StatefulWidget {
 
 class _SwipePagerState extends State<SwipePager> {
   late final PageController _controller =
-      PageController(initialPage: widget.initial);
-  late int _index = widget.initial;
+      widget.controller ?? PageController(initialPage: widget.initial);
+  late int _index = widget.controller?.initialPage ?? widget.initial;
   bool _hintVisible = true;
   Timer? _hintTimer;
 
@@ -80,7 +96,7 @@ class _SwipePagerState extends State<SwipePager> {
     _hintTimer?.cancel();
     _holds.removeListener(_onHoldsChanged);
     _holds.dispose();
-    _controller.dispose();
+    if (widget.controller == null) _controller.dispose();
     super.dispose();
   }
 
@@ -135,12 +151,14 @@ class _SwipePagerState extends State<SwipePager> {
                   _hintVisible = true;
                 });
                 _scheduleHide(const Duration(milliseconds: 1400));
+                widget.onPageChanged?.call(i);
               },
               itemBuilder: (context, i) => pages[i].builder(context),
             ),
           ),
         ),
         // Nerede olduğunu gösteren şerit: dokunuşları YUTMAZ.
+        if (widget.showHint)
         Positioned(
           left: 0,
           right: 0,

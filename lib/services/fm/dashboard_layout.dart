@@ -43,7 +43,7 @@ class DashboardLayout extends ChangeNotifier {
     'media',
     'document',
     'audio',
-    'archive',
+    // 'archive' 2026-11-10'da 'apk' kutusuna katıldı (APK ve Arşivler).
     'apk',
     'new',
     'recent',

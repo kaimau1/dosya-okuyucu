@@ -41,6 +41,26 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
     );
   }
 
+  FmTileData _apkArchiveTile() {
+    final apk = _index.stat(FmCategory.apk), arc = _index.stat(FmCategory.archive);
+    final count = apk.count + arc.count;
+    return FmTileData(
+      id: 'apk',
+      icon: AppIcons.installMobile,
+      color: AppHues.teal,
+      label: context.t('fm.apk_archives'),
+      subtitle: count == 0
+          ? (_scanning ? context.t('fm.scanning') : context.t('fm.none'))
+          : '${FsPaths.humanSize(apk.bytes + arc.bytes)} ($count)',
+      // Kendi sekmeli kaydırıcısı var; dış kaydırıcıya girmez (iç içe yatay
+      // kaydırma çakışırdı).
+      onTap: () => _push(ApkArchiveScreen(
+        apkFiles: _index.files(FmCategory.apk),
+        archiveFiles: _index.files(FmCategory.archive),
+      )),
+    );
+  }
+
   /// Panodaki ad: görsel kutusu artık **Fotoğraflar** (2026-10-28 —
   /// "Görüntüler" adı fotoğraf + video birleşik ekranına geçti).
   String _categoryLabel(FmCategory category) =>
@@ -93,7 +113,6 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
       (FmCategory.video, true),
       (FmCategory.document, false),
       (FmCategory.audio, false),
-      (FmCategory.archive, false),
     ]) {
       pages.add((
         category.name,
@@ -112,18 +131,6 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
         icon: AppIcons.mediaAll,
         color: AppHues.purple,
         builder: (_) => _mediaScreen(),
-      ),
-    ));
-    pages.add((
-      'apk',
-      SwipePage(
-        label: context.t('fm.apk_files'),
-        icon: AppIcons.installMobile,
-        color: AppHues.teal,
-        builder: (context) => CategoryScreen(
-          title: context.t('fm.apk_files'),
-          files: _index.files(FmCategory.apk),
-        ),
       ),
     ));
     pages.add((
