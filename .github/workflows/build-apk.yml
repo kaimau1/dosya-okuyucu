@@ -604,7 +604,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dosya-okuyucu-apk
-          path: dist/dosya-okuyucu.apk
+          # Sürümlü ad da yüklenir: uygulama içi güncelleme sürümü bu addan
+          # okur (2026-11-10 kök neden: yalnız sabit ad gidiyordu → "güncel").
+          path: |
+            dist/dosya-okuyucu.apk
+            dist/dosya-okuyucu-v*.apk
           if-no-files-found: error
 
       - name: Artifact — APK (32-bit, tam derlemede)

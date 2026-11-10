@@ -120,7 +120,23 @@ abstract final class AppUpdate {
           notes: AppUpdate.extractNotes(release['body']));
       if (best == null || isNewer(info.version, best.version)) best = info;
     }
-    return best;
+    if (best != null) return best;
+    // Yedek: sürümlü dosya yoksa sabit `dosya-okuyucu.apk` + başlıktaki
+    // sürüm ("Dosya Okuyucu nightly v1.2.12").
+    final title = RegExp(r'v(\d+\.\d+\.\d+)\s*$')
+        .firstMatch('${release['name'] ?? ''}'.trim());
+    if (title == null) return null;
+    for (final a in release['assets'] as List) {
+      if (a is! Map || a['name'] != 'dosya-okuyucu.apk') continue;
+      final url = a['browser_download_url'];
+      if (url is! String) continue;
+      return AppUpdateInfo(
+          version: title.group(1)!,
+          url: url,
+          size: (a['size'] as num?)?.toInt() ?? 0,
+          notes: AppUpdate.extractNotes(release['body']));
+    }
+    return null;
   }
 
   static bool get supported =>

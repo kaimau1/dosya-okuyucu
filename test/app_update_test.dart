@@ -67,4 +67,15 @@ void main() {
     });
     expect(info!.notes, contains('Galeri kartı'));
   });
+
+  test('sürümlü APK yoksa başlıktaki sürüm + sabit ad', () {
+    final info = AppUpdate.pickAsset({
+      'name': 'Dosya Okuyucu nightly v1.2.12',
+      'assets': [
+        {'name': 'dosya-okuyucu.apk', 'browser_download_url': 'u', 'size': 9},
+      ],
+    });
+    expect(info!.version, '1.2.12');
+    expect(info.url, 'u');
+  });
 }
