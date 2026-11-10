@@ -337,7 +337,8 @@ abstract final class AppUpdate {
   /// başlıyor, tıklanmadan indirmesin"*): açılışta İNDİRME ve KURMA YOK —
   /// ikisi de yalnız şeride/düğmeye dokununca ([downloadAndInstall]). Kurulum
   /// uygulamayı kapatır; yeni sürüm kendiliğinden yeniden açılır
-  /// (ci/ApkKurulum.kt `GuncellemeSonrasi`).
+  /// (ci/ApkKurulum.kt `GuncellemeSonrasi`; Android 10+'da "Diğer uygulamaların
+  /// üzerinde göster" izni gerekir — yoksa bildirim düşer).
   static Future<void> runOnStartup(
       {void Function(AppUpdateInfo info)? onReady,
       void Function(String notes)? onWhatsNew}) async {
