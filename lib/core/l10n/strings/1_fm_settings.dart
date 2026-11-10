@@ -458,7 +458,7 @@ const Map<String, (String, String, String)> _t1 = {
   'ana.chat_note': ('WhatsApp ve Telegram medyası', 'WhatsApp and Telegram media', 'وسائط واتساب وتيليجرام'),
   'fm.apk_files': ('APK dosyaları', 'APK files', 'ملفات APK'),
   'fm.apk_archives': ('APK ve Arşivler', 'APKs & archives', 'APK والأرشيفات'),
-  'fm.apk_tab': ('APK', 'APK', 'APK'),
+  'fm.apk_tab': ('APK', 'APK', 'ملفات APK'),
   'fm.network_storage': ('Ağ depolama', 'Network storage', 'التخزين الشبكي'),
   'xfer.title': ('Aktar', 'Transfer', 'نقل'),
   'xfer.computer': ('Bilgisayarla', 'With a computer', 'مع حاسوب'),
