@@ -23,7 +23,7 @@ const _allowed = {
   // Biçim / kısaltma / adres.
   'prop.iso', 'xp.enc_utf8', 'wp.export_md', 'nas.subtitle',
   'nas.webdav_host_hint', 'fm.external_usb_count', 'sl.to_pdf',
-  'enum.doc_pdf', 'enum.res_1080',
+  'enum.doc_pdf', 'enum.res_1080', 'ig.kind_pdf', 'ig.kind_word',
 };
 
 final _turkishOnly = RegExp(r'[ğışİĞŞ]');

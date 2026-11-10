@@ -18,6 +18,7 @@ import 'core/startup_queue.dart';
 import 'widgets/permission_gate.dart';
 import 'core/state/appearance_state.dart';
 import 'core/app_version.dart';
+import 'widgets/app_dialog.dart';
 import 'core/display_mode.dart';
 import 'core/l10n/app_language.dart';
 import 'core/l10n/app_strings.dart';
@@ -276,17 +277,12 @@ void _showWhatsNew(String notes) {
   final context = navigatorKey.currentContext;
   if (context == null || !context.mounted) return;
   final str = AppStrings.of(context);
-  unawaited(showDialog<void>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(str.t('upd.whats_new', {'v': appVersionName})),
-      content: SingleChildScrollView(child: Text(notes)),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(ctx).pop(),
-          child: Text(str.t('common.ok')),
-        ),
-      ],
+  unawaited(showAppSheet<void>(
+    context,
+    title: str.t('upd.whats_new', {'v': appVersionName}),
+    builder: (ctx) => Padding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      child: Text(notes),
     ),
   ));
 }
