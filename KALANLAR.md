@@ -167,6 +167,15 @@ Sıra 51 → 68 (atlama yok). Bildirilen 6 sorun (PS1–PS6) Faz 51'de ara, 54/5
 
 ---
 
+## Faz S — Sürümler: Lite / Pro / Kişisel (2026-11-10, kullanıcı kararı) ☁️📱👤
+
+Plan: `docs/SURUM_PLANI.md`. A6.5 (Billing iskeleti) ve B5.2 bu kararla **düştü** (Pro ayrı ücretli uygulama).
+
+- [ ] S1 sürüm kapısı · S2 arayüz kapıları · S3 Pro levhası · S4 manifest varyantları · S5 paket kimlikleri · S6 CI · S7 Lite→Pro geçiş · S8 mağaza · S9 Kişisel
+- [ ] 👤 fiyat, uygulama adları, taramanın yeri, "Tüm dosyalar" reddinde yol (§5)
+
+---
+
 ## Faz F — Güvenlik fazları (2026-11-10, kullanıcı isteği) ☁️📱👤
 
 Plan: `docs/GUVENLIK_PLANI.md` (G0–G12; sıra ve açılış istemi orada). Play için asgari küme: G0, G1, G2, G4, G6, G9.1–9.3, G10.1.

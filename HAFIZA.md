@@ -575,3 +575,8 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Karar:** güvenlik işleri `docs/GUVENLIK_PLANI.md` fazlarıyla (`faz-GN` dalı + PR). Kod okunarak 18 bulgu (B1–B18): uzak sunucu + FTP parolaları prefs'te düz, `allowBackup` açık, `MainActivity` `dosya_link` eki doğrulanmıyor (şüphe), yerel sunucular `0.0.0.0` + 4 haneli güvensiz eşleştirme kodu, Word WebView'da CSP/gezinti kilidi yok, Gemini anahtarı URL'de, PBKDF2 120k, Action'lar SHA'ya sabit değil.
 - **Reddedilen (şimdilik):** root/hata ayıklayıcı tespiti, sertifika sabitleme, ücretli pentest — korunacak sunucu sırrı/ücretli içerik yok; Pro gelince yeniden bakılır.
 - **Sınır:** cihazda sızma testi yapılmadı; "ÖNCE DOĞRULA" işaretli maddeler varsayım.
+
+## 2026-11-10 — Üç sürüm kararı (Lite / Pro / Kişisel)
+- **Karar (kullanıcı):** Lite = ücretsiz reklamsız okuyucu (izinsiz okuyucu derlemesi tabanı; oku + ara + form doldur + imza + yazdır/paylaş), Pro = ayrı ÜCRETLİ uygulama (düzenleme, PDF araçları, tarama, dosya yöneticisi, aktarım, kasa, AI, sesli kitap), Kişisel = GitHub, deneysel + Play dışı (APK kurma, yüklü uygulamalar, oto güncelleme, indirme yöneticisi, Drive tam kapsam, FTP sunucu). Ayrıntı `docs/SURUM_PLANI.md`.
+- **Sonuç:** uygulama içi satın alma (K6'nın Billing kısmı, A6.5) düştü; tek kapı `Edition`/`Feature` tablosu olacak. Yeni özellik önce Kişisel'e girer.
+- **Bedel:** iki mağaza kaydı, Lite verisi Pro'ya kendiliğinden geçmez (dışa/içe aktarma ile).
