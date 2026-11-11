@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/app_icons.dart';
+import '../core/secure_screen.dart';
 import '../core/app_state.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/fm/folder_lock.dart';
@@ -94,7 +95,8 @@ class _AppLockGateState extends State<AppLockGate> {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     if (_unlocked || !appState.appLock) return widget.child;
-    return Scaffold(
+    return SecureScreen(
+        child: Scaffold(
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 320),
@@ -142,6 +144,6 @@ class _AppLockGateState extends State<AppLockGate> {
           ),
         ),
       ),
-    );
+    ));
   }
 }

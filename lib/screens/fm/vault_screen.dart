@@ -1,3 +1,4 @@
+import '../../core/secure_screen.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -260,7 +261,10 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      SecureScreen(child: _secureBody(context));
+
+  Widget _secureBody(BuildContext context) {
     return ListenableBuilder(
       listenable: SecureVault.instance,
       builder: (context, _) {

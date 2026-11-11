@@ -121,6 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
       await openAppLink(context, path);
       return;
     }
+    if (!isSafeLinkPath(path)) return; // G1.2: özel dizin / kasa / `..` açılmaz
     if (Directory(path).existsSync()) {
       await Navigator.of(context).push(browserRoute(
         BrowserScreen(path: path),

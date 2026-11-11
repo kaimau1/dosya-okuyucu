@@ -602,3 +602,14 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Tek yüzey:** bayrak `pdf_pro_engine` açıkken "Düzenle" `ViewerScreen` kipidir (`viewer/pdf_pro_edit.dart`, `widgets/pdf_pro/`); gövde boyu/çubuk payı değişmesin diye alt çubuk yerinde kalır, çubuklar sabitlenir. `PdfEditorScreen` bayrak kapalıyken hâlâ tek yol — silinmesi bayrak varsayılan olunca.
 - **Bekçi tuzakları (CI'da yakalandı):** `try` içinde `return gelecek;` → `unawaited_return_in_try_block`; hiçbir ekrandan içe aktarılmayan `lib/` dosyası `reachability_test`'i kırar (servis commit'i tek başına yeşil olmaz); ham `HapticFeedback` yasak (`AppHaptics`).
 
+## 2026-11-11 — Güvenlik Faz G0: denetim betiği + envanter
+- **Karar:** `tool/guvenlik_denetimi.sh` (9 kural, Flutter'sız) CI `verify` 0. parçada her dalda koşar. `BEKLEYEN="3 4 6"` uyarı kipinde: 3 → G2.4 (Gemini `?key=`), 4 → G1 (`allowBackup=false`), 6 → G9.1 (Actions SHA). Faz bitince numara listeden ÇIKARILIR (yoksa kural hiç kırmızı olmaz).
+- **Karar:** izin listeleri (Random, exported bileşen, bind, JS) betiğin başında; yeni giriş gerekçeli olmalı, `docs/guvenlik/ENVANTER.md` ile birlikte güncellenir. `peer_share.dart` Random() girişi GEÇİCİ (G4.2'de kalkar).
+- **Tuzak:** manifestte `exported="true"` metni yorum satırlarında da geçiyor — grep yanıltır; betik XML'i `xml.etree` ile ayrıştırır (yorumlar düşer). Ayrıca `docx_fonts.dart` tohumlu `Random(seed)` kullanıyor (yalnız seed≠0; varsayılan `Random.secure()`), listeye alındı.
+- `SECURITY.md` bildirim e-postası yer tutucu: 👤 depo sahibinden adres gerekli (KALANLAR).
+
+## 2026-11-11 — Güvenlik Faz G1: Android platform sertleştirme
+- **Karar:** `allowBackup=false` + `data_extraction_rules` (bulut+cihaz aktarımı) ; `dosya_link`/kısayol yolu eki HMAC-SHA256 imzalı (`Extras.EXTRA_SIG`, anahtar `filesDir/link_key`). İmzasız: yalnız `app:` bağlantısı (statik kısayol XML'i imzalanamaz) ve özel dizin dışı yol (eski sabitlenmiş kısayollar kırılmasın). Dart tarafı `isSafeLinkPath`/`isAllowedAppLink` beyaz listesi (`..`, `/data`, `Android/data`, kasa klasörleri red).
+- **Karar:** `FLAG_SECURE` sayaçlı tek kapı `SecureScreenGate`/`SecureScreen` (kasa, PIN, uygulama kilidi, AI anahtarı, uzak parola); kasadan açılan görüntüleyici VaultScreen altta olduğu için kendiliğinden kapsanır.
+- **Doğrulandı, DEĞİŞMEDİ:** `host="*"` süzgeci indirme bağlantısı özelliği (zaten uzantı kalıplı); `file://` süzgeçleri (eski dosya yöneticileri); `requestLegacyExternalStorage` (Android 10); `FLAG_MUTABLE` PendingIntent'ler (PackageInstaller/UsbManager şart, setPackage var); `RECEIVER_EXPORTED` USB/medya sistem yayınları.
+- **Tuzak:** Play izin çıkarma listesi iş akışında zaten vardı; `REQUEST_INSTALL_PACKAGES`/`PACKAGE_USAGE_STATS` çıkarmak özellik gizleme ister → G1 artığı (KALANLAR). Denetim kural 4 hata kipine alındı.

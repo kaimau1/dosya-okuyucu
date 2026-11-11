@@ -1,3 +1,4 @@
+import '../../../core/secure_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -126,7 +127,10 @@ class _RemoteEditScreenState extends State<RemoteEditScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      SecureScreen(child: _secureBody(context));
+
+  Widget _secureBody(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(

@@ -28,5 +28,25 @@ fun main() {
     check("temizlik: bilinen gereksiz yeterli",
         Extras.shouldSuggestClean(true, 40, Extras.CLEAN_BYTES, 0, now))
     check("temizlik: kapalı", !Extras.shouldSuggestClean(false, 95, 0, 0, now))
+    // G1.2 (B4): bağlantı/kısayol imzası.
+    val key = ByteArray(32) { (it * 7 + 1).toByte() }
+    val other = ByteArray(32) { (it * 5 + 3).toByte() }
+    val sig = Extras.hmacHex(key, "file:/storage/emulated/0/a.pdf")
+    check("imza 64 hex", sig.length == 64)
+    check("imza doğru", Extras.sigOk(key, "file:/storage/emulated/0/a.pdf", sig))
+    check("imza başka metinde geçmez", !Extras.sigOk(key, "file:/storage/emulated/0/b.pdf", sig))
+    check("imza başka anahtarla geçmez", !Extras.sigOk(other, "file:/storage/emulated/0/a.pdf", sig))
+    check("imza boş geçmez", !Extras.sigOk(key, "x", null) && !Extras.sigOk(key, "x", ""))
+    check("imzalı file: kabul", Extras.linkAccepted("file:/storage/emulated/0/a.pdf", sig, key))
+    check("imzasız file: red", !Extras.linkAccepted("file:/storage/emulated/0/a.pdf", null, key))
+    check("sahte imzalı file: red", !Extras.linkAccepted("file:/data/data/x/y", sig, key))
+    check("imzasız davet: red", !Extras.linkAccepted("davet:abc", null, key))
+    check("imzasız app: kabul (statik kısayol)", Extras.linkAccepted("app:scan", null, key))
+    check("boş bağlantı red", !Extras.linkAccepted("", null, key))
+    check("imzalı yol kabul", Extras.pathAccepted("/storage/emulated/0/a.pdf", sig.let { Extras.hmacHex(key, "/storage/emulated/0/a.pdf") }, key))
+    check("imzasız özel dizin yolu red", !Extras.pathAccepted("/data/data/com.x/files/a", null, key))
+    check("imzasız ../ red", !Extras.pathAccepted("/storage/emulated/0/../../data/a", null, key))
+    check("imzasız Android/data red", !Extras.pathAccepted("/storage/emulated/0/Android/data/x/a", null, key))
+    check("imzasız eski kısayol (ortak depolama) kabul", Extras.pathAccepted("/storage/emulated/0/Download/a.pdf", null, key))
     println("Extras denemesi temiz.")
 }

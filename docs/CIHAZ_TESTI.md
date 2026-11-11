@@ -861,3 +861,10 @@ Belgeler: `rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `rl_cok_sayfa.pdf`, `rl_si
 
 **Koşu kaydı**
 - (bekliyor)
+## Faz G1 — Android platform sertleştirme (2026-11-11, dal `faz-G1`)
+1. **Widget dokunuşu:** ana ekran widget'larındaki Tara / Ara / Temizle düğmeleri ve "son dosyalar" satırı doğru ekranı/dosyayı açıyor (bağlantılar artık imzalı).
+2. **Başlatıcı kısayolları:** uygulama simgesine uzun bas → Ara / Tara / İndirilenler / Son açılanlar çalışıyor.
+3. **Sabitlenmiş dosya kısayolu:** (a) güncellemeden ÖNCE sabitlenmiş bir dosya kısayolu hâlâ açıyor; (b) yeni sabitlenen de açıyor.
+4. **"Birlikte aç" / Paylaş:** başka uygulamadan PDF/resim "Dosyalarım ile aç" çalışıyor; tarayıcıda dosya bağlantısına dokununca seçenekte çıkıyor.
+5. **Ekran görüntüsü engeli:** Kasa, PIN/parola pencereleri, uygulama kilidi, AI anahtarı alanı, uzak bağlantı ekranı açıkken ekran görüntüsü alınamıyor ("güvenlik nedeniyle alınamıyor"), son uygulamalar önizlemesi boş; ana gezginde alınabiliyor. Kasadan açılan dosya görüntüleyicide de engelli; kasa kapanınca bayrak kalkıyor.
+6. **Yedek:** `adb shell bmgr`/ayarlardan yedek alıp geri yüklemede uygulama verisi gelmiyor (ayarlar için uygulamanın kendi "Ayar yedeği" kullanılır).
