@@ -118,7 +118,7 @@ Bitti: betik CI'da koşuyor, bekleyen kurallar listeli, envanter dolu.
 
 ## Faz G1 — Android platform sertleştirme
 
-- [ ] **G1.1 Yedeklemeyi kapat (B3).** `ci/AndroidManifest.xml` `<application>`'a `android:allowBackup="false"`
+- [x] **G1.1 Yedeklemeyi kapat (B3).** `ci/AndroidManifest.xml` `<application>`'a `android:allowBackup="false"`
       ve `android:dataExtractionRules="@xml/data_extraction_rules"` ekle. `ci/res/xml/data_extraction_rules.xml` oluştur:
       `<data-extraction-rules><cloud-backup><exclude domain="root"/><exclude domain="sharedpref"/><exclude domain="database"/><exclude domain="file"/></cloud-backup><device-transfer>` (aynı dışlamalar) `</device-transfer></data-extraction-rules>`.
       `ci/prepare_android.sh` `res/xml` kopyalıyor mu doğrula (diğer xml'lerin nasıl taşındığına bak, aynısını yap).
