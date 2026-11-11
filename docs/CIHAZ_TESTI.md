@@ -877,3 +877,11 @@ Belgeler: `rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `rl_cok_sayfa.pdf`, `rl_si
 5. **Ayar yedeği:** dışa aktarılan JSON'da AI anahtarı ve parola yok; geri yüklemede kayıtlı bağlantılar (parolasız) geliyor.
 6. **Hata kaydı:** Ayarlar › Hakkında › hata kaydında dosya yolu/anahtar görünmüyor, `package:` satırları okunuyor.
 
+
+## Faz G3 — Kasa, PIN, uygulama kilidi (2026-11-11, dal `ccr-092fb36d-pwtgo8`)
+1. **Eski kasa göçü:** güncellemeden ÖNCE kurulu kasa güncellemeden sonra AYNI PIN'le açılıyor; ilk açılış bir kez biraz uzun sürebilir (yeniden sarma), ikincisi ≤ ~1 sn. 10 sn+ sürüyorsa yerel PBKDF2 düşmüyor — not et (Android sürümü).
+2. **Parmak izi göçü:** eski sürümde parmak izi açıktıysa güncellemeden sonra parmak izi düğmesi görünmüyor; PIN'le açınca parmak izi penceresi kendiliğinden çıkıyor, onaylayınca sonraki açılışta parmak iziyle açılıyor.
+3. **Parmak izi gerçekten zorunlu:** parmak izi penceresinde "PIN kullan"a basınca kasa AÇILMIYOR. Ayarlar'dan yeni bir parmak izi ekle → kasada parmak iziyle açma "yeni parmak izi eklendi" uyarısıyla kapanıyor, PIN'le açılıyor.
+4. **Yanlış PIN beklemesi:** 5 yanlış PIN → "0:30 bekleyin"; uygulamayı kapatıp açınca bekleme sürüyor (uygulama kilidinde de, kasada da — sayaç ortak). Doğru PIN sonrası sayaç sıfırlanıyor.
+5. **Uygulama/klasör kilidi göçü:** eski PIN güncellemeden sonra uygulama kilidini ve kilitli klasörü açıyor; PIN değiştirme (eski PIN sorulur) çalışıyor.
+6. **Otomatik kilit:** kasa açıkken "Arka planda kilitlenme"yi "30 sn sonra" yap → ana ekrana çık, 10 sn içinde dön → açık; 40 sn sonra dön → kilitli. "Hemen"de her arka plana geçişte kilitli.

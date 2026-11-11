@@ -191,7 +191,8 @@ Plan: `docs/GUVENLIK_PLANI.md` (G0–G12; sıra ve açılış istemi orada). Pla
 - [ ] G1 artığı: (a) `REQUEST_INSTALL_PACKAGES` / `PACKAGE_USAGE_STATS` Play'den çıkarılırken özelliklerin Play derlemesinde gizlenmesi (dart-define bayrağı) + B5.3 kararı; (b) dışarıdan gelen VIEW `file://` yolu için özel dizin denetimi (Dart giriş yolu); (c) eski (imzasız) sabitlenmiş ana ekran kısayolu uyumu `Extras.pathAccepted` — eski kısayollar kalmayınca imzasız kolu kaldır
 - [x] Faz G2 sırlar (kod bitti, 2026-11-11; cihaz maddeleri `docs/CIHAZ_TESTI.md` "Faz G2")
 - [ ] G2 artığı: Keystore sarılı sırlar (Gemini, uzak/FTP parola) eski bir sürüme geri dönülürse okunamaz — kullanıcı yeniden girer (bilinçli ödün, sürüm notunda); OpenSubtitles anahtarı APK ikilisinde (dart-define) — Pro'da vekil sunucu düşünülür
-- [ ] G3 kasa/PIN · G4 yerel sunucular · G6 WebView · G7 dosya girdisi · G8 uzak istemci · G9 tedarik zinciri · G10 AI/KVKK · G12 süreç (G5, G11 isteğe bağlı)
+- [ ] G3 artığı 📱: `docs/CIHAZ_TESTI.md` "Faz G3" (yerel PBKDF2 süresi, parmak izi CryptoObject, yeni parmak izi ekleyince geçersizleşme, eski kayıt göçü). Android 7'de (yerel PBKDF2 yok) saf Dart 600 bin tur ≈ 10 sn+ — ölçülmedi; uzun sürerse Android 7 için tur düşürme kararı 👤
+- [ ] G4 yerel sunucular · G6 WebView · G7 dosya girdisi · G8 uzak istemci · G9 tedarik zinciri · G10 AI/KVKK · G12 süreç (G5, G11 isteğe bağlı)
 
 ---
 
