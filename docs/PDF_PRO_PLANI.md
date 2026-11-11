@@ -273,7 +273,10 @@ bloklanmadı; Faz 54+ bu maketlerle sürer.
        **Sonuç:** `PdfEditAccessCheck` (Tablo 22 bit 4); yasaksa levha + "Sahip parolasıyla aç" — parola,
        belge onunla ayrıca açılıp izne bakılarak doğrulanır (ekran yeniden yüklenmez). Şifreli belgede
        ek kırpılmaz (Faz 54 / 0 tuzağı) → kayıt büyümesi şifresize göre büyük.
-6. [ ] Ölçüm: uygula → piksel p95, geri al p95, 50 sayfa artımlı kayıt süresi, oturum ek belleği.
+6. [x] Ölçüm: uygula → piksel p95, geri al p95, 50 sayfa artımlı kayıt süresi, oturum ek belleği.
+       **Sonuç (CI, debug JIT — cihaz değil):** uygula → piksel p50 14,0 / p95 58,8 ms; geri al p50 6,8 /
+       p95 10,7 ms (n=28). **Bekliyor:** 50 sayfa kaydı (tezgâh belgesinde düzenleme uygulanamadı), tek
+       oturumun ek belleği, bütün cihaz sayıları → `docs/perf/2026-11-pdfpro-54-oturum.md`.
 **Bitti:** §6 bütçeleri tutuyor; düzenleme sonrası yakınlaştırma/kaydırma değişmiyor (test + 📱);
 kayıt/kopya/sürüm geçmişi cihazda doğrulandı.
 
