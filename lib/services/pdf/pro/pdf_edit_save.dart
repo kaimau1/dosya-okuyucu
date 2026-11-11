@@ -13,6 +13,7 @@
 library;
 
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
@@ -23,6 +24,7 @@ import '../../fm/safe_write.dart';
 import '../../pdf_save.dart';
 import 'pdf_edit_bridge.dart';
 import 'pdf_edit_session.dart';
+import 'pdf_incremental_trim.dart';
 import 'pdf_version_history.dart';
 
 class PdfEditSaveResult {
@@ -93,19 +95,26 @@ class PdfEditSaver {
     if (live == null) throw StateError('Oturum bir belgeye bağlı değil.');
     final base = await baseBytes();
     final ops = session.needsReplay ? session.ops : null;
-    if (ops == null) {
-      return PdfEditBridge.saveIncremental(live, original: base);
-    }
+    if (ops == null) return _trimmed(base, await _raw(live));
     final fresh = await PdfDocument.openData(base, passwordProvider: password);
     try {
       for (final op in ops) {
         await op.applyTo(fresh);
       }
-      return await PdfEditBridge.saveIncremental(fresh, original: base);
+      return _trimmed(base, await _raw(fresh));
     } finally {
       await fresh.dispose();
     }
   }
+
+  static Future<Uint8List> _raw(PdfDocument doc) =>
+      PdfEditBridge.saveIncremental(doc);
+
+  /// PDFium ekinin kırpılması saf Dart'tır ve büyük belgede ana iş
+  /// parçacığını tutardı (30 sn'lik geçici kayıt yazarken takılma) → ayrı
+  /// izolatta.
+  static Future<Uint8List> _trimmed(Uint8List base, Uint8List saved) =>
+      Isolate.run(() => PdfIncrementalTrim.trim(base, saved));
 
   /// Özgüne artımlı yazar; yazılamıyorsa Belgeler'e kopya.
   Future<PdfEditSaveResult> save() async {

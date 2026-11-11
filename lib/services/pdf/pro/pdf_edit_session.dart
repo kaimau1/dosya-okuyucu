@@ -202,6 +202,16 @@ class PdfEditSession extends ChangeNotifier {
     return out;
   }
 
+  /// Son kayıttan SONRAKİ işlemler (çökme günlüğü için): diskteki dosyanın
+  /// üstüne oynatılınca şimdiki hâli verir. Kaydın altına inildiyse ya da
+  /// oynatılamaz adım varsa null (günlük yalnız geçici kayda güvenir).
+  List<PdfEditStep>? get stepsSinceSaved {
+    final k = _prefix;
+    if (k != _savedIds.length) return null;
+    final out = _done.sublist(k);
+    return out.any((s) => s.op == null) ? null : out;
+  }
+
   int get _prefix {
     var i = 0;
     while (i < _done.length &&
