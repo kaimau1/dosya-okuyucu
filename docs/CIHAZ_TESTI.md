@@ -868,3 +868,12 @@ Belgeler: `rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `rl_cok_sayfa.pdf`, `rl_si
 4. **"Birlikte aç" / Paylaş:** başka uygulamadan PDF/resim "Dosyalarım ile aç" çalışıyor; tarayıcıda dosya bağlantısına dokununca seçenekte çıkıyor.
 5. **Ekran görüntüsü engeli:** Kasa, PIN/parola pencereleri, uygulama kilidi, AI anahtarı alanı, uzak bağlantı ekranı açıkken ekran görüntüsü alınamıyor ("güvenlik nedeniyle alınamıyor"), son uygulamalar önizlemesi boş; ana gezginde alınabiliyor. Kasadan açılan dosya görüntüleyicide de engelli; kasa kapanınca bayrak kalkıyor.
 6. **Yedek:** `adb shell bmgr`/ayarlardan yedek alıp geri yüklemede uygulama verisi gelmiyor (ayarlar için uygulamanın kendi "Ayar yedeği" kullanılır).
+
+## Faz G2 — Sırlar: diskte, ağda, logda (2026-11-11, dal `faz-G2`)
+1. **Uzak bağlantı göçü:** güncellemeden ÖNCE parolası kayıtlı bir SMB/FTP/SFTP/WebDAV bağlantısı güncellemeden sonra parola sormadan bağlanıyor; uygulamayı kapatıp açınca da.
+2. **Yeni bağlantı:** parola kaydedilerek eklenen bağlantı yeniden açılışta bağlanıyor; "Parolayı kaydet" kapalıysa her bağlanışta soruyor. Bağlantılar ekranında "korumasız saklanıyor" uyarısı ÇIKMIYOR (çıkıyorsa Keystore sorunu — not et).
+3. **Ağdan erişim (FTP sunucu):** elle parola kipinde önceden girilen parola güncellemeden sonra duruyor; rastgele kipte her açılışta yeni parola üretiliyor.
+4. **AI:** sohbet, belge özeti ve Ayarlar'da "modelleri listele" çalışıyor (anahtar artık başlıkta gidiyor).
+5. **Ayar yedeği:** dışa aktarılan JSON'da AI anahtarı ve parola yok; geri yüklemede kayıtlı bağlantılar (parolasız) geliyor.
+6. **Hata kaydı:** Ayarlar › Hakkında › hata kaydında dosya yolu/anahtar görünmüyor, `package:` satırları okunuyor.
+

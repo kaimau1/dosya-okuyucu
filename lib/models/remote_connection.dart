@@ -34,13 +34,10 @@ extension RemoteProtocolInfo on RemoteProtocol {
 
 /// Kayıtlı bir uzak depolama bağlantısı.
 ///
-/// **Parola saklama — bilinçli sınır:** parola cihazda `shared_preferences`
-/// içinde DÜZ METİN durur. Android'de uygulama verisi başka uygulamalara
-/// kapalıdır (sandbox), ama root'lu ya da yedeği alınmış bir cihazda okunabilir.
-/// Bu yüzden [savePassword] var: kapatılırsa parola diske hiç yazılmaz ve her
-/// bağlanışta sorulur. Şifreli anahtar deposu (`flutter_secure_storage`) yeni
-/// bir platform bağımlılığı demekti; kullanıcıya seçenek sunmak, ona
-/// söylemeden düz metin yazmaktan dürüst.
+/// **Parola saklama (G2.1, 2026-11-11):** parola Android Keystore'la sarılı
+/// ayrı kayıtta durur (`RemoteSecrets`); bağlantı JSON'u parolasız. Keystore
+/// yoksa eski düz yol sürer (ekranda uyarı). [savePassword] kapatılırsa
+/// parola diske hiç yazılmaz ve her bağlanışta sorulur.
 class RemoteConnection {
   /// Kalıcı kimlik (yol/ad değişse de kayıt izlenebilsin).
   final String id;
@@ -109,20 +106,24 @@ class RemoteConnection {
   /// Diske yazılan biçim. [savePassword] kapalıysa parola **yazılmaz** —
   /// `copyWith(password: '')` demek yerine burada kesiliyor ki bellekteki
   /// nesne oturum boyunca parolayı taşımaya devam etsin.
-  Map<String, Object?> toMap() => {
+  ///
+  /// [withPassword] false → parola hiç yazılmaz (G2.1: parola Keystore'la
+  /// sarılı ayrı kayıtta, bkz. `RemoteSecrets`).
+  Map<String, Object?> toMap({bool withPassword = true}) => {
         'id': id,
         'name': name,
         'protocol': protocol.name,
         'host': host,
         'port': port,
         'user': user,
-        if (savePassword) 'password': password,
+        if (withPassword && savePassword) 'password': password,
         'domain': domain,
         'initialPath': initialPath,
         'savePassword': savePassword,
       };
 
-  String encode() => jsonEncode(toMap());
+  String encode({bool withPassword = true}) =>
+      jsonEncode(toMap(withPassword: withPassword));
 
   static RemoteConnection? tryDecode(String raw) {
     try {

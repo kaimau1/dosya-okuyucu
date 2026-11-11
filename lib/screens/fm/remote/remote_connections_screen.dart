@@ -127,7 +127,8 @@ class _RemoteConnectionsScreenState extends State<RemoteConnectionsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final remotes = context.watch<AppState>().remotes;
+    final state = context.watch<AppState>();
+    final remotes = state.remotes;
     return Scaffold(
       appBar: AppBar(
         title: Text(context.t('nas.title')),
@@ -146,6 +147,13 @@ class _RemoteConnectionsScreenState extends State<RemoteConnectionsScreen> {
       ),
       body: ListView(
         children: [
+          // G2.1: Keystore yoksa parola düz kalıyor — kullanıcı bilmeli.
+          if (state.remotePasswordsUnprotected && remotes.isNotEmpty)
+            ListTile(
+              leading: Icon(AppIcons.warning,
+                  color: Theme.of(context).colorScheme.error),
+              title: Text(context.t('nas.unprotected_note')),
+            ),
           if (remotes.isEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 32, 24, 16),

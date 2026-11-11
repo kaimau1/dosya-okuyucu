@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/app_version.dart';
 import '../core/device_profile.dart';
 import 'crash_log.dart';
+import 'log_scrub.dart';
 
 /// **Kare ölçümü (A8 / Faz 42 / 3·7)** — yavaş karelerin (`KARE` günlüğü)
 /// cihazda biriken, anonim **dağılımı**.
@@ -160,30 +161,9 @@ class FrameStats {
 /// KVKK: dosya adı/yol, URI, e-posta, 6+ haneli sayı (TC no, telefon,
 /// hesap no) ve bağlantılar [scrub] ile maskelenir; belge içeriği hiç girmez.
 abstract final class DiagReport {
-  static final _rules = <(RegExp, String)>[
-    // Tırnak içindeki yol (FileSystemException biçimi; boşluklu adlar dahil).
-    (RegExp(r"'[^'\n]*[/\\][^'\n]*'"), "'<yol>'"),
-    (RegExp(r'"[^"\n]*[/\\][^"\n]*"'), '"<yol>"'),
-    (RegExp(r'[\w.+-]+@[\w-]+\.[\w.]+'), '<eposta>'),
-    (RegExp(r'(content|file|https?|ftp|smb|sftp|webdav)://\S+'), '<uri>'),
-    (RegExp(r'(?<![\w.])(/[^\s/:,;()\[\]"' "'" r']+){2,}/?'), '<yol>'),
-    (
-      RegExp(
-          r'[^\s/\\:"' "'" r'()\[\]]+\.(pdf|docx?|xlsx?|xlsm|csv|pptx?|odt|ods|odp|rtf|txt|md|epub|jpe?g|png|webp|heic|gif|mp[34]|mkv|zip|rar|7z|apk)\b',
-          caseSensitive: false),
-      '<dosya>'
-    ),
-    (RegExp(r'\d{6,}'), '<n>'),
-  ];
-
-  /// Kişisel olabilecek parçaları maskeler.
-  static String scrub(String s) {
-    var out = s;
-    for (final (re, rep) in _rules) {
-      out = out.replaceAll(re, rep);
-    }
-    return out;
-  }
+  /// Kişisel olabilecek parçaları ve sırları maskeler (ortak işlev:
+  /// [LogScrub.scrub] — çökme kaydı da aynısını kullanır, G2.5).
+  static String scrub(String s) => LogScrub.scrub(s);
 
   /// Saf kurucu (test edilir): kayıtlar + kare sayaçları → düz metin.
   static String build({

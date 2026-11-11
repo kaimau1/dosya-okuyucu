@@ -1082,11 +1082,20 @@ const Map<String, (String, String, String)> _t2 = {
   'nas.initial_path': ('Başlangıç klasörü', 'Starting folder', 'المجلد الابتدائي'),
   'nas.save_password': ('Parolayı kaydet', 'Save password', 'حفظ كلمة المرور'),
   'nas.save_password_note': (
-    'Parola cihazda DÜZ METİN saklanır. Kapatırsanız her bağlanışta sorulur.',
-    'The password is stored on the device in PLAIN TEXT. If you turn this off, '
-        'it is asked each time you connect.',
-    'تُحفظ كلمة المرور على الجهاز كنص عادي. إذا أوقفت هذا الخيار، سيتم سؤالك '
-        'عند كل اتصال.',
+    'Parola cihaza bağlı anahtarla şifreli saklanır. Kapatırsanız her '
+        'bağlanışta sorulur.',
+    'The password is stored encrypted with a device-bound key. If you turn '
+        'this off, it is asked each time you connect.',
+    'تُحفظ كلمة المرور مشفّرة بمفتاح مرتبط بالجهاز. إذا أوقفت هذا الخيار، '
+        'سيتم سؤالك عند كل اتصال.',
+  ),
+  'nas.unprotected_note': (
+    'Bu cihazda güvenli anahtar deposu çalışmıyor: kayıtlı parolalar '
+        'korumasız saklanıyor.',
+    'The secure key store is not working on this device: saved passwords '
+        'are stored unprotected.',
+    'مخزن المفاتيح الآمن لا يعمل على هذا الجهاز: كلمات المرور المحفوظة '
+        'مخزّنة دون حماية.',
   ),
   'nas.password_prompt': (
     '“{name}” için parola',

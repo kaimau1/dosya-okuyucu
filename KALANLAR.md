@@ -187,7 +187,9 @@ Plan: `docs/GUVENLIK_PLANI.md` (G0–G12; sıra ve açılış istemi orada). Pla
 - [ ] 👤 G0 artığı: `SECURITY.md` içindeki `GUVENLIK_ADRESI_BELIRLENECEK` yer tutucusuna güvenlik e-posta adresi (G0 kodu bitti)
 - [x] Faz G1 platform (kod bitti, 2026-11-11; cihaz maddeleri `docs/CIHAZ_TESTI.md` "Faz G1")
 - [ ] G1 artığı: (a) `REQUEST_INSTALL_PACKAGES` / `PACKAGE_USAGE_STATS` Play'den çıkarılırken özelliklerin Play derlemesinde gizlenmesi (dart-define bayrağı) + B5.3 kararı; (b) dışarıdan gelen VIEW `file://` yolu için özel dizin denetimi (Dart giriş yolu); (c) eski (imzasız) sabitlenmiş ana ekran kısayolu uyumu `Extras.pathAccepted` — eski kısayollar kalmayınca imzasız kolu kaldır
-- [ ] Faz G2 sırlar · G3 kasa/PIN · G4 yerel sunucular · G6 WebView · G7 dosya girdisi · G8 uzak istemci · G9 tedarik zinciri · G10 AI/KVKK · G12 süreç (G5, G11 isteğe bağlı)
+- [x] Faz G2 sırlar (kod bitti, 2026-11-11; cihaz maddeleri `docs/CIHAZ_TESTI.md` "Faz G2")
+- [ ] G2 artığı: Keystore sarılı sırlar (Gemini, uzak/FTP parola) eski bir sürüme geri dönülürse okunamaz — kullanıcı yeniden girer (bilinçli ödün, sürüm notunda); OpenSubtitles anahtarı APK ikilisinde (dart-define) — Pro'da vekil sunucu düşünülür
+- [ ] G3 kasa/PIN · G4 yerel sunucular · G6 WebView · G7 dosya girdisi · G8 uzak istemci · G9 tedarik zinciri · G10 AI/KVKK · G12 süreç (G5, G11 isteğe bağlı)
 
 ---
 

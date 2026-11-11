@@ -38,13 +38,17 @@ Hepsi `0.0.0.0` (tüm arayüzler; mobil veri dahil) üzerinde, **şifresiz** —
 | Sır | Nerede | Nasıl saklanıyor | Bulgu / Faz |
 |---|---|---|---|
 | Gemini API anahtarı(ları) | SharedPreferences `gemini_api_keys_sealed` (`core/app_state.dart`, `services/key_vault.dart`) | Android Keystore ile sarılı (AES-GCM). Kanal yoksa eski düz anahtar yedeği `gemini_api_key(s)` | İyi. Ağda anahtar URL `?key=` ile gidiyor (B8). **G2** |
-| Uzak sunucu parolaları (SMB/FTP/SFTP/WebDAV) | SharedPreferences, kayıtlı bağlantı JSON'u (`models/remote_connection.dart`, `app_state.dart`) | **Düz metin** (`savePassword` açıksa) | B1, **G2** |
-| Telefon FTP sunucusu parolası | SharedPreferences `ftpd_password` (+ `ftpd_user`, `ftpd_random_password`) (`fm/remote/ftp_service.dart`) | **Düz metin** | B2, **G2** |
+| Uzak sunucu parolaları (SMB/FTP/SFTP/WebDAV) | SharedPreferences `fm_remote_secrets` (`services/remote_secrets.dart`); bağlantı JSON'u `fm_remote_connections` parolasız | Keystore ile sarılı `{id: parola}` haritası (G2.1). Keystore yoksa düz JSON'a düşer + ekranda uyarı. Eski düz kayıt açılışta göç eder | B1 kapandı (G2.1) |
+| Telefon FTP sunucusu parolası | SharedPreferences `ftpd_password_sealed` (`fm/remote/ftp_service.dart`); eski `ftpd_password` yalnız göç/Keystore'suz | Elle parola Keystore ile sarılı; **rastgele kipte diske hiç yazılmaz** (oturumluk) | B2 kapandı (G2.2) |
+| Gemini anahtarı (ağda) | `gemini_service.dart` | `x-goog-api-key` başlığı; URL'de `key=` yok (G2.4, denetim kural 3) | B8 kapandı (G2.4) |
+| Eşler arası cihaz kimliği / güvenilen eşler | `ble_nearby.dart` (8 haneli kimlik), `trusted_peers.dart` (`{name, id}` listesi) | Düz — sır değil (kimlik, kimlik doğrulama sırrı yok) | G4'te eşleştirme ile birlikte bakılır |
+| OpenSubtitles API anahtarı | `fm/opensubtitles.dart` `String.fromEnvironment` (derleme anında) | APK ikilisinde; diske yazılmaz. İkiliden çıkarılabilir (ücretsiz anahtar, kabul) | Bilinçli |
+| Google Drive erişimi | `fm/drive_service.dart` | Belirteç uygulamada saklanmıyor (oturum eklentide); sayfa belirteci yalnız bellekte | İyi |
 | Kasa ana anahtarı | `.DosyaOkuyucuKasa/vault.json` (PIN'den PBKDF2 ile türetilen anahtarla sarılı; tuz dosyada) | AES-256-CTR+HMAC; PBKDF2 120.000 tur (B9). Uygulama silinse de dosya kalır | B9, **G3** |
 | Kasa parmak izi kopyası | SharedPreferences `vault_bio_key` (`fm/secure_vault.dart`) | Ana anahtarın Android Keystore ile sarılmış kopyası | İyi |
 | Uygulama kilidi PIN özeti | SharedPreferences `fm_lock_pin` (`core/app_state.dart`) | Özet (algoritma/tur **G3'te doğrulanacak**) | **G3** |
 | İmza anahtarı (APK) | Yalnız GitHub Secrets; depoda yok | Denetim kural 9 | B12, **G9** |
-| Ayar yedeği | `services/settings_backup.dart` | `secretPrefixes` ile sırlar dışarıda bırakılıyor | İyi |
+| Ayar yedeği | `services/settings_backup.dart` | `secretPrefixes` ile sırlar dışarıda. **G2.3 düzeltmesi:** asıl Gemini kayıtları (`gemini_api_key*`) öneklerce kapsanmıyordu → yedeğe giriyordu; eklendi. Ayrıca `fm_remote_secrets`, `ftpd_password*`, `vault_bio_key` dışarıda; `fm_remote_connections` içindeki `password` alanı dışa/içe aktarımda sökülür | Düzeltildi (G2.3) |
 | Tanı raporu | `services/diag_report.dart` | `scrub` ile kişisel veri maskeleniyor | İyi |
 
 Not: `android:allowBackup` açıkken yukarıdaki SharedPreferences sırları bulut/ADB yedeğine girebilir (B3, G1).

@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 # Henüz kapanmamış kurallar (uyarı kipi). İlgili faz bitince numarayı buradan ÇIKAR:
 #   3 -> G2.4 (Gemini anahtarı URL'den çıkınca)   (kural 4 G1 ile kapandı, 2026-11-11)
 #   6 -> G9.1 (Actions SHA'ya sabitlenince)
-BEKLEYEN="3 6"
+BEKLEYEN="6"
 
 # ── İzin listeleri (yeni giriş = bilinçli güvenlik kararı; gerekçe şart) ──────────
 # Kural 2: güvenli olmayan Random() kullanabilen dosyalar (sır/kod ÜRETMEZ).
@@ -79,7 +79,7 @@ kural2() {
   done < <(grep -rlE '(^|[^.A-Za-z_])(math\.)?Random\(' lib || true)
 }
 
-# 3) Uri.parse içinde ?key= / &key= / password= (sır URL'ye konmaz). G2.4'ten sonra açılır.
+# 3) Uri.parse içinde ?key= / &key= / password= (sır URL'ye konmaz). G2.4 ile hata kipinde (2026-11-11).
 kural3() {
   local r; r=$(grep -rnE 'Uri\.parse\(.*(\?key=|&key=|password=)' lib || true)
   [ -z "$r" ] || ihlal 3 "Sır URL sorgusunda (vekil/log'a düşer); başlık kullan: $r"

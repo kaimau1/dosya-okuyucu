@@ -22,6 +22,7 @@ import '../services/fm/reading_positions.dart';
 import '../services/ai_pool.dart';
 import '../services/gemini_service.dart';
 import '../services/key_vault.dart';
+import '../services/remote_secrets.dart';
 import '../services/fm/ai_scope.dart';
 import '../services/fm/folder_lock.dart';
 import '../services/fm/storage_stats.dart' show StorageStats;
@@ -87,7 +88,6 @@ class AppState extends ChangeNotifier {
   static const _kFmFolderSizes = 'fm_folder_sizes';
   static const _kMediaShuffle = 'media_shuffle';
   static const _kMediaRepeat = 'media_repeat';
-  static const _kRemotes = 'fm_remote_connections';
   static const _kUiFont = 'ui_font';
   static const _kUiTextScale = 'ui_text_scale';
   // Pil ve başarım
@@ -859,10 +859,7 @@ class AppState extends ChangeNotifier {
     _offline = OfflineMode.enabled = _prefs.getBool(_kOffline) ?? false;
     _aiSendOk = _prefs.getBool(_kAiSendOk) ?? false;
     _peerRecent = _prefs.getStringList(_kPeerRecent) ?? [];
-    _remotes = (_prefs.getStringList(_kRemotes) ?? [])
-        .map(RemoteConnection.tryDecode)
-        .whereType<RemoteConnection>()
-        .toList();
+    _remotes = await RemoteSecrets.load(_prefs);
     _ttsPrefs = TtsPrefs.decode(_prefs.getString(_kTtsPrefs));
     _ttsAiRead = _prefs.getBool(_kTtsAiRead) ?? false;
     _syncAppearance();
@@ -981,8 +978,12 @@ class AppState extends ChangeNotifier {
     _notifyAppearance();
   }
 
-  Future<void> _persistRemotes() => _prefs.setStringList(
-      _kRemotes, _remotes.map((r) => r.encode()).toList());
+  /// Parolalar Keystore'la sarılı ayrı kayıtta (G2.1, `RemoteSecrets`).
+  Future<void> _persistRemotes() => RemoteSecrets.persist(_prefs, _remotes);
+
+  /// Keystore çalışmadığı için parolalar bu cihazda düz saklanıyorsa true
+  /// (bağlantılar ekranı uyarı satırı gösterir).
+  bool get remotePasswordsUnprotected => !RemoteSecrets.lastPersistProtected;
 
   /// Bağlantıyı ekler ya da (aynı `id` varsa) günceller.
   Future<void> saveRemote(RemoteConnection connection) async {
