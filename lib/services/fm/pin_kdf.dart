@@ -15,9 +15,8 @@ import 'vault_crypto.dart';
 /// (Java `char[]` → bayt dönüşümü sağlayıcıya göre değişebilir; rakam PIN'de
 /// fark yok).
 ///
-/// Yerel yol yoksa (Android 7, test) saf Dart: küçük tur sayısı yerinde
-/// (widget testinin sahte saatinde de tamamlanır), büyüğü ayrı izolatta
-/// (arayüz donmasın).
+/// Küçük tur sayısı (≤ [inlineMaxIterations], testler) her zaman yerinde saf
+/// Dart; büyüğü yerel yol yoksa (Android 7) ayrı izolatta (arayüz donmasın).
 abstract final class PinKdf {
   /// Bu turun altı ayrı izolata değmez (ve testte yerinde koşar).
   static const inlineMaxIterations = 20000;
@@ -25,12 +24,14 @@ abstract final class PinKdf {
   static Future<Uint8List> derive(
       String pin, Uint8List salt, int iterations) async {
     final p = pin.trim();
+    // Küçük tur yerinde: kanala gitmeye değmez. Ayrıca widget testinde
+    // karşılıksız kanal çağrısı sahte saatte HİÇ tamamlanmaz (HAFIZA §F).
+    if (iterations <= inlineMaxIterations) {
+      return VaultCrypto.deriveKey(p, salt, iterations: iterations);
+    }
     if (_ascii(p)) {
       final native = await NativeExtras.pbkdf2(p, salt, iterations);
       if (native != null && native.length == 32) return native;
-    }
-    if (iterations <= inlineMaxIterations) {
-      return VaultCrypto.deriveKey(p, salt, iterations: iterations);
     }
     return Isolate.run(
         () => VaultCrypto.deriveKey(p, salt, iterations: iterations));
