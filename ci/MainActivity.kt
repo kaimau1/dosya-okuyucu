@@ -423,6 +423,29 @@ class MainActivity : FlutterActivity() {
                 "unwrapKey" -> result.success(
                     (call.arguments as? ByteArray)?.let { Extras.unwrap(it) }
                 )
+                "pbkdf2" -> {
+                    val pin = call.argument<String>("pin")
+                    val salt = call.argument<ByteArray>("salt")
+                    val iter = call.argument<Number>("iter")?.toInt() ?: 0
+                    if (pin == null || salt == null || iter <= 0) result.success(null)
+                    else Extras.pbkdf2(pin, salt, iter) { out -> result.success(out) }
+                }
+                "bioCrypt" -> {
+                    val data = call.argument<ByteArray>("data")
+                    if (data == null) result.success(mapOf("status" to "error"))
+                    else Extras.bioCrypt(
+                        this,
+                        call.argument<Boolean>("encrypt") == true,
+                        data,
+                        call.argument<String>("title") ?: "",
+                        call.argument<String>("subtitle") ?: "",
+                        call.argument<String>("cancel") ?: "",
+                    ) { map -> result.success(map) }
+                }
+                "bioDeleteKey" -> {
+                    Extras.bioDeleteKey()
+                    result.success(true)
+                }
                 // Faz 18 / G18: video oynatıcıda sol yarıda kaydırma = PENCERE
                 // parlaklığı (sistem ayarı değişmez, izin gerekmez). -1 → sistem.
                 "setBrightness" -> {

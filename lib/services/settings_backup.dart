@@ -44,6 +44,8 @@ abstract final class SettingsBackup {
     'vault_bio_key',
     'fm_lock_pin',
     'app_lock_pin',
+    // G3.2: yanlış PIN sayacı — eski yedekten geri yüklenip bekleme sıfırlanmasın.
+    'pin_fail_',
     'account_',
     'firebase_',
   ];

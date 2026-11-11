@@ -4,11 +4,14 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as crypto;
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:pointycastle/export.dart';
 
 /// **Şifreli kasanın kriptografisi** (2026-10-18) — saf Dart, test edilir.
 ///
 /// - PIN → anahtar: PBKDF2-HMAC-SHA256 ([pinIterations] tur, 16 bayt tuz).
+///   Telefonda türetmeyi Android'in yerel PBKDF2'si yapar (`PinKdf`); bu
+///   sınıftaki saf Dart [deriveKey] aynı çıktıyı veren yedek yoldur.
 /// - Küçük veri (ana anahtar, dizin): AES-256-GCM (doğrulamalı — yanlış PIN
 ///   ya da bozuk veri sessizce çöp üretmez, hata verir).
 /// - Dosyalar: **AES-256-CTR + HMAC-SHA256** (şifrele-sonra-doğrula).
@@ -21,7 +24,10 @@ import 'package:pointycastle/export.dart';
 /// Şifreleme ve doğrulama anahtarları ana anahtardan ayrı türetilir.
 abstract final class VaultCrypto {
   static const magic = [0x44, 0x56, 0x4B, 0x31]; // "DVK1"
-  static const pinIterations = 120000;
+  /// G3.1 (2026-11-11): 120.000 → 600.000 (güncel OWASP önerisi). Kasa
+  /// başlığı tur sayısını saklar; eski başlık doğru PIN'le ilk açılışta
+  /// yeni turla yeniden sarılır (`SecureVault.unlockWithPin`).
+  static const pinIterations = 600000;
   static const _chunk = 1 << 20;
 
   static final _rng = Random.secure();
@@ -64,8 +70,10 @@ abstract final class VaultCrypto {
 
   /// [src]i şifreleyip [dst]ye yazar. [onBytes] işlenen bayt sayısını bildirir.
   static Future<void> encryptFile(String src, String dst, Uint8List master,
-      {void Function(int bytes)? onBytes, bool Function()? isCancelled}) async {
-    final iv = randomBytes(16);
+      {void Function(int bytes)? onBytes,
+      bool Function()? isCancelled,
+      @visibleForTesting Uint8List? debugIv}) async {
+    final iv = debugIv ?? randomBytes(16);
     final ctr = CTRStreamCipher(AESEngine())
       ..init(true, ParametersWithIV(KeyParameter(_sub(master, 'enc')), iv));
     final macSink = _DigestSink();
@@ -158,6 +166,8 @@ abstract final class VaultCrypto {
   }
 
   /// Sabit zamanlı karşılaştırma.
+  static bool constantTimeEquals(List<int> a, List<int> b) => _equal(a, b);
+
   static bool _equal(List<int> a, List<int> b) {
     if (a.length != b.length) return false;
     var diff = 0;

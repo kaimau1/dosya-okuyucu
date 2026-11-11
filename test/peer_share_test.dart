@@ -269,6 +269,29 @@ void main() {
           reason: 'kod yayınlanırsa kodun anlamı kalmaz');
     });
 
+    test('G4.4: 5 yanlış koddan sonra doğru kod da 60 sn reddedilir', () async {
+      final receiver = PeerReceiver(
+        deviceName: 'A',
+        saveDir: inbox.path,
+        pairingCode: '4271',
+      );
+      await receiver.start();
+      addTearDown(receiver.stop);
+      final source = File(p.join(temp.path, 'k.txt'))
+        ..writeAsStringSync('içerik');
+      final peer = Peer(
+          name: 'A', host: '127.0.0.1', port: receiver.port, needsCode: true);
+      for (var i = 0; i < 5; i++) {
+        final bad = await PeerSender.send(peer, [source.path],
+            senderName: 'G', pairingCode: '000$i');
+        expect(bad.wrongCode, isTrue);
+      }
+      final ok = await PeerSender.send(peer, [source.path],
+          senderName: 'G', pairingCode: '4271');
+      expect(ok.sent, 0, reason: 'tahmin denemesi sınırlı');
+      expect(File(p.join(inbox.path, 'k.txt')).existsSync(), isFalse);
+    });
+
     test('kod dört haneli üretilir', () {
       for (var i = 0; i < 50; i++) {
         final code = PeerReceiver.newCode();

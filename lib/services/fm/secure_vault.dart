@@ -14,6 +14,7 @@ import 'fm_env.dart';
 import 'fs_events.dart';
 import 'hidden_vault.dart';
 import 'native_extras.dart';
+import 'pin_kdf.dart';
 import 'vault_crypto.dart';
 
 /// Kasadaki bir dosya.
@@ -71,7 +72,10 @@ class VaultItem {
 /// - Ana anahtar PIN'den türetilen anahtarla sarılı olarak kasanın kendi
 ///   klasöründe (`vault.json`): uygulama silinip kurulsa da PIN'le açılır.
 /// - Parmak izi açıksa ana anahtarın Android Keystore ile sarılmış bir kopyası
-///   ayarlarda: yalnız BU telefonda, biyometrik doğrulamadan sonra açılır.
+///   ayarlarda: yalnız BU telefonda açılır. G3.4 (2026-11-11): sarma anahtarı
+///   **kimlik doğrulama zorunlu** (`vault_bio_key2`, `NativeExtras.bioCrypt`) —
+///   eski `vault_bio_key` doğrulamasız anahtarla sarılıydı (parmak izi yalnız
+///   arayüz kapısıydı); okunmaz, silinir, kullanıcı PIN'le açınca yeniden kurulur.
 ///
 /// Kilit açıkken ana anahtar yalnız bellekte; [lock] onu siler. Açılan
 /// dosyanın düz kopyası uygulamanın önbelleğinde durur ve kilitlenince
@@ -82,7 +86,13 @@ class SecureVault extends ChangeNotifier {
   static final instance = SecureVault._();
 
   static const folderName = '.DosyaOkuyucuKasa';
-  static const _kBio = 'vault_bio_key';
+  static const _kBio = 'vault_bio_key2';
+  static const _kBioLegacy = 'vault_bio_key';
+
+  /// Yeni kasa başlığının tur sayısı (testler küçültür; açılış başlıktakini
+  /// kullanır).
+  @visibleForTesting
+  static int targetIterations = VaultCrypto.pinIterations;
   static const _metaFile = 'vault.json';
   static const _indexFile = 'index.dvk';
 
@@ -119,14 +129,26 @@ class SecureVault extends ChangeNotifier {
 
   Future<void> _writeMeta(String pin, Uint8List master) async {
     final salt = VaultCrypto.randomBytes(16);
-    final kek = await Isolate.run(() => VaultCrypto.deriveKey(pin, salt));
-    await _meta.writeAsString(jsonEncode({
-      'v': 1,
-      'salt': base64Encode(salt),
-      'iter': VaultCrypto.pinIterations,
-      'key': base64Encode(VaultCrypto.seal(kek, master)),
-    }));
+    final iter = targetIterations;
+    final kek = await PinKdf.derive(pin, salt, iter);
+    // Geçici dosya + yeniden adlandırma: göç yarıda kesilirse eski başlık
+    // sağlam kalır (yarım yazılmış vault.json kasayı kilitli bırakırdı).
+    final tmp = File('${_meta.path}.tmp');
+    await tmp.writeAsString(
+        jsonEncode({
+          'v': 1,
+          'salt': base64Encode(salt),
+          'iter': iter,
+          'key': base64Encode(VaultCrypto.seal(kek, master)),
+        }),
+        flush: true);
+    await tmp.rename(_meta.path);
   }
+
+  /// Başlıktaki tur sayısı (göç testi için).
+  @visibleForTesting
+  Future<int> debugMetaIterations() async =>
+      ((jsonDecode(await _meta.readAsString()) as Map)['iter'] as num).toInt();
 
   /// PIN'le açar; PIN yanlışsa false.
   Future<bool> unlockWithPin(String pin) async {
@@ -134,11 +156,17 @@ class SecureVault extends ChangeNotifier {
       final meta = jsonDecode(await _meta.readAsString()) as Map;
       final salt = base64Decode(meta['salt'] as String);
       final iter = (meta['iter'] as num).toInt();
-      final kek = await Isolate.run(
-          () => VaultCrypto.deriveKey(pin, salt, iterations: iter));
+      final kek = await PinKdf.derive(pin, salt, iter);
       final master =
           VaultCrypto.open(kek, base64Decode(meta['key'] as String));
       if (master == null) return false;
+      // G3.1 göçü: eski (az turlu) başlık doğru PIN'le yeni turla yeniden
+      // sarılır. Başarısızsa kasa yine açılır; sıradaki açılışta denenir.
+      if (iter < targetIterations) {
+        try {
+          await _writeMeta(pin, master);
+        } catch (_) {}
+      }
       await _open(master);
       return true;
     } catch (_) {
@@ -162,14 +190,36 @@ class SecureVault extends ChangeNotifier {
     }
   }
 
-  /// Kilit AÇIKKEN çağrılır: ana anahtarın Keystore sarılı kopyasını saklar.
-  Future<bool> enableBiometric() async {
+  /// Eski (doğrulamasız anahtarla sarılı) parmak izi kaydı vardı mı? Varsa
+  /// SİLİNİR ve true döner — çağıran PIN'le açılıştan sonra parmak izini
+  /// yeni (doğrulama zorunlu) anahtarla yeniden kurar.
+  Future<bool> takeLegacyBiometric() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getString(_kBioLegacy) == null) return false;
+      await prefs.remove(_kBioLegacy);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Kilit AÇIKKEN çağrılır: parmak izi penceresi açılır, doğrulanınca ana
+  /// anahtar kimlik doğrulama zorunlu Keystore anahtarıyla sarılıp saklanır.
+  Future<bool> enableBiometric(
+      {required String title, String subtitle = '', required String cancel}) async {
     final master = _master;
     if (master == null) return false;
-    final wrapped = await NativeExtras.wrapKey(master);
-    if (wrapped == null) return false;
+    final res = await NativeExtras.bioCrypt(
+        encrypt: true,
+        data: master,
+        title: title,
+        subtitle: subtitle,
+        cancel: cancel);
+    final data = res?['data'];
+    if (res?['status'] != 'ok' || data is! Uint8List) return false;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_kBio, base64Encode(wrapped));
+    await prefs.setString(_kBio, base64Encode(data));
     notifyListeners();
     return true;
   }
@@ -177,21 +227,38 @@ class SecureVault extends ChangeNotifier {
   Future<void> disableBiometric() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_kBio);
+    await NativeExtras.bioDeleteKey();
     notifyListeners();
   }
 
-  /// Biyometrik doğrulama (çağıran yapar) SONRASI açma.
-  Future<bool> unlockWithBiometricKey() async {
+  /// Parmak izi penceresini açar; doğrulanırsa kasayı açar.
+  /// `ok` · `cancel` · `invalidated` (yeni parmak izi eklendi — kayıt silinir,
+  /// PIN gerekir) · `error`.
+  Future<String> unlockWithBiometric(
+      {required String title, String subtitle = '', required String cancel}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(_kBio);
-      if (raw == null) return false;
-      final master = await NativeExtras.unwrapKey(base64Decode(raw));
-      if (master == null || master.length != 32) return false;
+      if (raw == null) return 'error';
+      final res = await NativeExtras.bioCrypt(
+          encrypt: false,
+          data: base64Decode(raw),
+          title: title,
+          subtitle: subtitle,
+          cancel: cancel);
+      final status = res?['status'] as String? ?? 'error';
+      if (status == 'invalidated') {
+        await prefs.remove(_kBio);
+        notifyListeners();
+        return status;
+      }
+      final master = res?['data'];
+      if (status != 'ok') return status;
+      if (master is! Uint8List || master.length != 32) return 'error';
       await _open(master);
-      return true;
+      return 'ok';
     } catch (_) {
-      return false;
+      return 'error';
     }
   }
 
@@ -505,5 +572,33 @@ class SecureVault extends ChangeNotifier {
   void debugReset() {
     _master = null;
     _items = const [];
+  }
+}
+
+/// **Kasanın arka planda kilitlenme gecikmesi** (G3.5, 2026-11-11).
+/// `vault_autolock_secs`; varsayılan 0 = uygulama arka plana geçer geçmez.
+abstract final class VaultAutoLock {
+  static const key = 'vault_autolock_secs';
+  static const choices = [0, 30, 60, 300];
+
+  static Future<int> seconds() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getInt(key) ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  static Future<void> setSeconds(int secs) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(key, secs < 0 ? 0 : secs);
+  }
+
+  /// [pausedAt]'ta arka plana geçen kasa [now]'da kilitli olmalı mı? Saat
+  /// geri alındıysa (now < pausedAt) güvenli taraf: kilitle.
+  static bool expired(DateTime pausedAt, DateTime now, int secs) {
+    if (secs <= 0 || now.isBefore(pausedAt)) return true;
+    return now.difference(pausedAt) >= Duration(seconds: secs);
   }
 }

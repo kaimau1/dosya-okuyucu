@@ -11,6 +11,7 @@ import 'package:path/path.dart' as p;
 import '../archive_ops.dart';
 import '../file_ops.dart';
 import '../fs_events.dart';
+import 'lan_guard.dart';
 import 'transfer_keeper.dart';
 import 'zip_stream.dart';
 
@@ -251,10 +252,16 @@ class PeerReceiver implements KeepableServer {
     return until != null && until.isAfter(DateTime.now());
   }
 
-  /// Rastgele dört haneli kod. `Random.secure` DEĞİL: bu bir sır değil,
-  /// ekranda yazan ve karşı tarafa okunan bir eşleştirme numarası.
+  /// Rastgele dört haneli kod. G4.4 (2026-11-11): `Random.secure` — kod
+  /// ağdaki bir saldırganın tahmin etmemesi gereken tek engel; düz `Random`un
+  /// tohumu tahmin edilebilir. Dört hane eski sürümler ve Windows "Dosya
+  /// Aktar" ile uyum için kaldı; tahmin denemesi [_codeThrottle] ile sınırlı.
   static String newCode() =>
-      (1000 + Random().nextInt(9000)).toString();
+      (1000 + Random.secure().nextInt(9000)).toString();
+
+  /// G4.4: adres başına 5 yanlış kod → 60 sn red (10 bin olasılık / 5 deneme
+  /// dakikada ≈ 33 saat).
+  final _codeThrottle = AuthThrottle(limit: 5);
 
   HttpServer? _http;
   RawDatagramSocket? _udp;
@@ -352,6 +359,8 @@ class PeerReceiver implements KeepableServer {
           return;
         }
         if (text != PeerShare._magic) return;
+        // G4.1: mobil veri arayüzünden gelen yayına kimlik verilmez.
+        if (!LanGuard.isPrivate(packet.address)) return;
         // Cevap TEK ADRESE (soranın adresine) gider.
         final reply = utf8.encode(jsonEncode(_identity()));
         try {
@@ -384,6 +393,19 @@ class PeerReceiver implements KeepableServer {
     await response.close();
   }
 
+  /// Kod denetimi (G4.4): sabit zamanlı; adres başına deneme sınırlı.
+  /// Kodsuz kipte (onay penceresi) her zaman geçer.
+  bool _checkCode(String ip, String? given) {
+    if (pairingCode.isEmpty) return true;
+    if (_codeThrottle.blocked(ip)) return false;
+    if (given != null && LanGuard.safeEquals(given, pairingCode)) {
+      _codeThrottle.success(ip);
+      return true;
+    }
+    _codeThrottle.fail(ip);
+    return false;
+  }
+
   Future<void> _deny(HttpResponse response, String body) async {
     response.statusCode = HttpStatus.forbidden;
     response.write(body);
@@ -409,6 +431,8 @@ class PeerReceiver implements KeepableServer {
 
   Future<void> _handle(HttpRequest request) async {
     final response = request.response;
+    // G4.1: yalnız yerel ağdan.
+    if (!await LanGuard.admit(request)) return;
     try {
       final q = request.uri.queryParameters;
       // Elle IP yazan gönderen için kimlik ucu.
@@ -416,7 +440,10 @@ class PeerReceiver implements KeepableServer {
         await _json(response, _identity());
         return;
       }
-      final codeOk = pairingCode.isEmpty || q['kod'] == pairingCode;
+      final ip = request.connectionInfo?.remoteAddress.address ?? '';
+      // `late`: kod yalnız ucun gerçekten istediği yerde denetlenir (bilinmeyen
+      // yola gelen istek deneme sayılmasın).
+      late final codeOk = _checkCode(ip, q['kod']);
       // **Ön soru** (onay): ne geleceği — eski sürüm sorgu, yeni sürüm
       // gövdede liste + küçük önizlemeler gönderir.
       if (request.method == 'POST' && request.uri.path == '/sor') {

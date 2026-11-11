@@ -17,6 +17,8 @@ void main() {
 
   setUp(() async {
     root = Directory.systemTemp.createTempSync('vault_merge');
+    // G3.1: üretim 600 bin tur; testte küçük (saf Dart yolu yavaş).
+    SecureVault.targetIterations = 1000;
     FmEnv.primaryRoot = root.path;
     HiddenVault.debugRoot = root.path;
     SecureVault.debugRoot = p.join(root.path, '.kasa');
@@ -135,6 +137,5 @@ void main() {
     await vault.lock();
     expect(await syncVaultPin('0000', '9999'), isFalse);
     expect(await vault.unlockWithPin('1357'), isTrue);
-    // PBKDF2 (120 bin tur) yedi kez koşuyor — varsayılan 30 sn yetmiyor.
-  }, timeout: const Timeout(Duration(minutes: 3)));
+  });
 }

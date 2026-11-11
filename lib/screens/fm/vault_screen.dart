@@ -16,7 +16,7 @@ import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_ops.dart';
-import '../../services/fm/folder_lock.dart';
+import '../../services/fm/pin_backoff.dart';
 import '../../services/fm/hidden_vault.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
@@ -66,6 +66,7 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initBio();
+    unawaited(_loadAutoLock());
     _countLegacy();
   }
 
@@ -109,14 +110,50 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
     }
   }
 
+  /// G3.5: arka plana geçiş anı ve gecikmeli kilit sayacı.
+  DateTime? _pausedAt;
+  Timer? _autoLock;
+  int _autoLockSecs = 0;
+
+  Future<void> _loadAutoLock() async {
+    final secs = await VaultAutoLock.seconds();
+    if (mounted) setState(() => _autoLockSecs = secs);
+  }
+
+  Future<void> _setAutoLock(int? secs) async {
+    if (secs == null) return;
+    await VaultAutoLock.setSeconds(secs);
+    if (mounted) setState(() => _autoLockSecs = secs);
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Uygulama arka plana geçince kasa kilitlenir.
-    if (state == AppLifecycleState.paused) unawaited(SecureVault.instance.lock());
+    // Uygulama arka plana geçince kasa kilitlenir — G3.5: ayarlı gecikmeyle
+    // (`vault_autolock_secs`, varsayılan 0 = hemen). Dönüşte geçen süreye de
+    // bakılır: arka planda sayaç durmuş olsa bile süre dolduysa kilitli kalır.
+    if (state == AppLifecycleState.paused) {
+      _pausedAt = DateTime.now();
+      _autoLock?.cancel();
+      if (_autoLockSecs <= 0) {
+        unawaited(SecureVault.instance.lock());
+      } else {
+        _autoLock = Timer(Duration(seconds: _autoLockSecs),
+            () => unawaited(SecureVault.instance.lock()));
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      _autoLock?.cancel();
+      final at = _pausedAt;
+      _pausedAt = null;
+      if (at != null &&
+          VaultAutoLock.expired(at, DateTime.now(), _autoLockSecs)) {
+        unawaited(SecureVault.instance.lock());
+      }
+    }
   }
 
   @override
   void dispose() {
+    _autoLock?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _pin.dispose();
     _pin2.dispose();
@@ -138,15 +175,35 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
     // AYNI PIN'i kullanır. PIN zaten kuruluysa o girilmeli; değilse kasanın
     // PIN'i klasör/uygulama kilidinin de PIN'i olur.
     final appState = context.read<AppState>();
-    if (appState.fmHasLockPin &&
-        !FolderLock.verify(pin, appState.fmLockPinHash)) {
-      setState(() => _error = context.t('vault.pin_use_lock'));
-      return;
-    }
+    final strings = AppStrings.of(context);
     setState(() {
       _busy = true;
       _error = null;
     });
+    if (appState.fmHasLockPin) {
+      final backoff = await PinBackoff.instance();
+      final wait = backoff.remaining();
+      if (wait > Duration.zero) {
+        if (mounted) {
+          setState(() {
+            _busy = false;
+            _error = pinWaitText(strings, wait);
+          });
+        }
+        return;
+      }
+      if (!await appState.verifyLockPin(pin)) {
+        await backoff.recordFailure();
+        if (mounted) {
+          setState(() {
+            _busy = false;
+            _error = strings.t('vault.pin_use_lock');
+          });
+        }
+        return;
+      }
+      await backoff.recordSuccess();
+    }
     await SecureVault.instance.create(pin);
     if (!appState.fmHasLockPin) await appState.setFmLockPin(pin);
     _pin.clear();
@@ -156,33 +213,71 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _unlockPin() async {
+    final strings = AppStrings.of(context);
     setState(() {
       _busy = true;
       _error = null;
     });
+    // G3.2: kalıcı yanlış deneme beklemesi (uygulama/klasör kilidiyle ortak).
+    final backoff = await PinBackoff.instance();
+    final wait = backoff.remaining();
+    if (wait > Duration.zero) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error = pinWaitText(strings, wait);
+        });
+      }
+      return;
+    }
     final ok = await SecureVault.instance.unlockWithPin(_pin.text);
+    if (ok) {
+      await backoff.recordSuccess();
+    } else {
+      await backoff.recordFailure();
+    }
     if (!mounted) return;
     _pin.clear();
+    final after = backoff.remaining();
     setState(() {
       _busy = false;
-      if (!ok) _error = context.t('vault.wrong_pin');
+      if (!ok) {
+        _error = after > Duration.zero
+            ? pinWaitText(strings, after)
+            : strings.t('vault.wrong_pin');
+      }
     });
+    // G3.4 göçü: eski (doğrulamasız anahtarlı) parmak izi kaydı silindi —
+    // PIN'le açılınca yeni anahtarla yeniden kur (parmak izi penceresi açılır).
+    if (ok && await SecureVault.instance.takeLegacyBiometric() && _canBio) {
+      await _toggleBio(true);
+    }
   }
 
   Future<void> _unlockBio() async {
-    final ok = await NativeExtras.authenticate(
+    final status = await SecureVault.instance.unlockWithBiometric(
       title: context.t('vault.title'),
       subtitle: context.t('vault.bio_prompt'),
       cancel: context.t('vault.use_pin'),
     );
-    if (!ok || !mounted) return;
-    final opened = await SecureVault.instance.unlockWithBiometricKey();
-    if (!opened && mounted) setState(() => _error = context.t('vault.bio_failed'));
+    if (!mounted) return;
+    if (status == 'invalidated') {
+      setState(() {
+        _bioOn = false;
+        _error = context.t('vault.bio_invalidated');
+      });
+    } else if (status == 'error') {
+      setState(() => _error = context.t('vault.bio_failed'));
+    }
   }
 
   Future<void> _toggleBio(bool on) async {
     if (on) {
-      final ok = await SecureVault.instance.enableBiometric();
+      final ok = await SecureVault.instance.enableBiometric(
+        title: context.t('vault.title'),
+        subtitle: context.t('vault.bio_prompt'),
+        cancel: context.t('common.cancel'),
+      );
       if (!ok && mounted) showSnack(context, context.t('vault.bio_failed'));
     } else {
       await SecureVault.instance.disableBiometric();
@@ -468,6 +563,29 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
                   value: _bioOn,
                   onChanged: _toggleBio,
                 ),
+              ListTile(
+                leading: const Icon(AppIcons.lock),
+                title: Text(context.t('vault.autolock')),
+                trailing: DropdownButton<int>(
+                  value: VaultAutoLock.choices.contains(_autoLockSecs)
+                      ? _autoLockSecs
+                      : 0,
+                  underline: const SizedBox.shrink(),
+                  onChanged: _setAutoLock,
+                  items: [
+                    for (final secs in VaultAutoLock.choices)
+                      DropdownMenuItem(
+                        value: secs,
+                        child: Text(secs == 0
+                            ? context.t('vault.autolock_now')
+                            : secs < 60
+                                ? context.t('vault.autolock_secs', {'n': secs})
+                                : context.t('vault.autolock_mins',
+                                    {'n': secs ~/ 60})),
+                      ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),

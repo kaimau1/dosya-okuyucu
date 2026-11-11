@@ -89,7 +89,9 @@ abstract final class MimeTypes {
   ///   eksikliğidir.
   static bool opensInBrowser(String mime) =>
       mime == 'application/pdf' ||
-      mime.startsWith('image/') ||
+      // G4.6: SVG betik taşıyabilir — tarayıcıda açılırsa paylaşım
+      // sunucusunun kökeninde çalışır (yükleme/indirme uçlarına erişir).
+      (mime.startsWith('image/') && !mime.contains('svg')) ||
       mime.startsWith('video/') ||
       mime.startsWith('audio/') ||
       mime == 'text/plain' ||
