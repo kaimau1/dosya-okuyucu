@@ -380,6 +380,17 @@ class MainActivity : FlutterActivity() {
         ch.setMethodCallHandler { call, result ->
             val ctx = applicationContext
             when (call.method) {
+                // G1.4 (B10): FLAG_SECURE — ekran görüntüsü/kaydı/son uygulamalar önizlemesi.
+                "setSecure" -> {
+                    val on = call.arguments as? Boolean ?: false
+                    runOnUiThread {
+                        if (on) window.setFlags(
+                            android.view.WindowManager.LayoutParams.FLAG_SECURE,
+                            android.view.WindowManager.LayoutParams.FLAG_SECURE
+                        ) else window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                    }
+                    result.success(true)
+                }
                 "takeLink" -> {
                     result.success(pendingLink)
                     pendingLink = null

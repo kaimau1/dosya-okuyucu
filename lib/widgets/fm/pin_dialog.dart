@@ -1,3 +1,4 @@
+import '../../core/secure_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -123,7 +124,10 @@ class _PinDialogState extends State<_PinDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
+  Widget build(BuildContext context) =>
+      SecureScreen(child: _secureBody(context));
+
+  Widget _secureBody(BuildContext context) => AlertDialog(
         title: Text(widget.title),
         content: Column(
           mainAxisSize: MainAxisSize.min,

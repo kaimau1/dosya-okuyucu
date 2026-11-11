@@ -12,6 +12,7 @@
 /// model listesi çekme orada); burası **2. sıradan itibaren** yedekleri ekler.
 library;
 
+import '../../core/secure_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -67,7 +68,10 @@ class _AiBackupKeysTileState extends State<AiBackupKeysTile> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      SecureScreen(child: _secureBody(context));
+
+  Widget _secureBody(BuildContext context) {
     final state = context.watch<AppState>();
     final canAdd = _controllers.length + 1 < AiCredentials.maxKeys;
     return Column(

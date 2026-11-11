@@ -1,3 +1,4 @@
+import '../../core/secure_screen.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -108,7 +109,10 @@ class _AiAccessTileState extends State<AiAccessTile> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      SecureScreen(child: _secureBody(context));
+
+  Widget _secureBody(BuildContext context) {
     final appState = context.watch<AppState>();
     final modelsError =
         _noModels ? context.t('settings.model_none') : _modelsError;
