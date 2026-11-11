@@ -29,7 +29,12 @@ import android.text.format.Formatter
 import android.view.View
 import android.widget.RemoteViews
 import org.json.JSONObject
+import java.io.File
 import java.security.KeyStore
+import java.security.MessageDigest
+import java.security.SecureRandom
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -114,6 +119,72 @@ object Extras {
         )
     }
     const val EXTRA_LINK = "dosya_link"
+    /** G1.2 (B4): [EXTRA_LINK] / kısayol yolu için HMAC-SHA256 imzası (hex). */
+    const val EXTRA_SIG = "dosya_sig"
+    private const val LINK_KEY_FILE = "link_key"
+
+    /**
+     * Bağlantı imza anahtarı: ilk kullanımda 32 rastgele bayt, `filesDir/link_key`.
+     * Kalıcı (sabitlenmiş kısayol/widget uygulama kapanıp açılınca da geçerli kalsın);
+     * yedeğe girmez (allowBackup=false). Başka uygulama okuyamaz.
+     */
+    @Synchronized
+    fun linkKey(ctx: Context): ByteArray {
+        val f = File(ctx.filesDir, LINK_KEY_FILE)
+        try {
+            if (f.isFile && f.length() == 32L) return f.readBytes()
+        } catch (_: Exception) {
+        }
+        val key = ByteArray(32).also { SecureRandom().nextBytes(it) }
+        try {
+            f.writeBytes(key)
+        } catch (_: Exception) {
+        }
+        return key
+    }
+
+    fun hmacHex(key: ByteArray, text: String): String {
+        val mac = Mac.getInstance("HmacSHA256")
+        mac.init(SecretKeySpec(key, "HmacSHA256"))
+        return mac.doFinal(text.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+    }
+
+    fun sign(ctx: Context, text: String): String = hmacHex(linkKey(ctx), text)
+
+    fun sigOk(key: ByteArray, text: String, sig: String?): Boolean {
+        if (sig.isNullOrEmpty()) return false
+        return MessageDigest.isEqual(
+            hmacHex(key, text).toByteArray(Charsets.UTF_8),
+            sig.toByteArray(Charsets.UTF_8)
+        )
+    }
+
+    /**
+     * Dışarıdan gelebilecek [EXTRA_LINK]'i süz. İmzalı → kabul. İmzasız → yalnız
+     * `app:` (salt gezinme; başlatıcı kısayolları XML'den sabit gelir, imzalanamaz).
+     * `file:`, `davet:` vb. imzasızsa YOK SAYILIR.
+     */
+    fun linkAccepted(link: String?, sig: String?, key: ByteArray): Boolean {
+        if (link.isNullOrEmpty()) return false
+        if (sigOk(key, link, sig)) return true
+        return link.startsWith("app:")
+    }
+
+    /**
+     * Kısayol yolunu süz. İmzalı → kabul. İmzasız (bu sürümden önce sabitlenmiş
+     * ana ekran kısayolları imzasızdır; kırılmasın) → yalnız özel uygulama
+     * dizinleri dışındaki mutlak yol. Asıl beyaz liste Dart'ta (`isSafeLinkPath`).
+     * G1 artığı: eski kısayollar kalmayınca imzasız kolu kaldır.
+     */
+    fun pathAccepted(path: String?, sig: String?, key: ByteArray): Boolean {
+        if (path.isNullOrEmpty()) return false
+        if (sigOk(key, path, sig)) return true
+        if (!path.startsWith("/") || path.split('/').contains("..")) return false
+        val c = try { File(path).canonicalPath } catch (_: Exception) { return false }
+        return !c.startsWith("/data/") && !c.contains("/Android/data/") &&
+            !c.contains("/Android/obb/")
+    }
     const val JOB_ID = 0x5E01
     private const val PREFS = "dosya_extras"
     private const val KEY_DAILY = "daily"
@@ -140,6 +211,7 @@ object Extras {
         val launch = ctx.packageManager.getLaunchIntentForPackage(ctx.packageName)
             ?: return null
         launch.putExtra(EXTRA_LINK, link)
+        launch.putExtra(EXTRA_SIG, sign(ctx, link))
         launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         // Ayrı istek kodu: aynı kodla FLAG_UPDATE_CURRENT öteki bağlantının
         // ekini ezerdi (dört widget düğmesi aynı hedefi açardı).

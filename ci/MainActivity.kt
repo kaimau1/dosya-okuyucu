@@ -120,7 +120,7 @@ class MainActivity : FlutterActivity() {
         launchAction = intent?.action
         launchReferrer = callerPackage()
         MediaBridge.rememberPayload(intent?.getStringExtra(MediaBridge.EXTRA_PAYLOAD))
-        pendingLink = intent?.getStringExtra(Extras.EXTRA_LINK)
+        pendingLink = verifiedLink(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -147,7 +147,7 @@ class MainActivity : FlutterActivity() {
         }
         // Widget/yerel bildirim bağlantısı (2026-10-18): uygulama açıkken
         // Dart'a it; kanal henüz yoksa `takeLink` ile alınır.
-        val link = intent.getStringExtra(Extras.EXTRA_LINK)
+        val link = verifiedLink(intent)
         if (!link.isNullOrEmpty()) {
             val ch = extrasChannel
             if (ch != null) ch.invokeMethod("link", link) else pendingLink = link
@@ -348,10 +348,19 @@ class MainActivity : FlutterActivity() {
     }
     private var pendingShortcutPath: String? = null
 
+    /** [Extras.EXTRA_LINK]'i imzasına göre süz (G1.2); geçmezse null. */
+    private fun verifiedLink(intent: Intent?): String? {
+        val link = intent?.getStringExtra(Extras.EXTRA_LINK)
+        return if (Extras.linkAccepted(link, intent?.getStringExtra(Extras.EXTRA_SIG),
+                Extras.linkKey(applicationContext))) link else null
+    }
+
     private fun rememberShortcut(intent: Intent?): String? {
         if (intent?.action != ACTION_OPEN_PATH) return null
         val path = intent.getStringExtra(EXTRA_SHORTCUT_PATH)
-        if (path.isNullOrEmpty()) return null
+        // G1.2 (B4): imza yok/yanlış ve yol özel dizindeyse yok say.
+        if (path == null || !Extras.pathAccepted(path, intent.getStringExtra(Extras.EXTRA_SIG),
+                Extras.linkKey(applicationContext))) return null
         pendingShortcutPath = path
         return path
     }
@@ -514,6 +523,7 @@ class MainActivity : FlutterActivity() {
                             val open = Intent(this, MainActivity::class.java).apply {
                                 action = ACTION_OPEN_PATH
                                 putExtra(EXTRA_SHORTCUT_PATH, path)
+                                putExtra(Extras.EXTRA_SIG, Extras.sign(applicationContext, path))
                             }
                             ShortcutInfo.Builder(this, "recent" + Integer.toHexString(path.hashCode()))
                                 .setShortLabel(label)
@@ -771,6 +781,7 @@ class MainActivity : FlutterActivity() {
         val open = Intent(this, MainActivity::class.java).apply {
             action = ACTION_OPEN_PATH
             putExtra(EXTRA_SHORTCUT_PATH, path)
+                                putExtra(Extras.EXTRA_SIG, Extras.sign(applicationContext, path))
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
         val name = (if (label.isEmpty()) path.substringAfterLast('/') else label).take(40)

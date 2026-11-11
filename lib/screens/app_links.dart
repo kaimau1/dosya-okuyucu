@@ -19,6 +19,48 @@ import '../core/l10n/app_strings.dart';
 import 'fm/library_screen.dart';
 import 'fm/remote/nearby_screen.dart';
 import '../services/fm/remote/ble_nearby.dart';
+import '../services/fm/hidden_vault.dart';
+import '../services/fm/secure_vault.dart';
+
+/// **Bağlantı yolu beyaz listesi (G1.2 / B4).** `file:` bağlantısı ve ana ekran
+/// kısayolu yolu dışarıdan (başka uygulamanın Intent'i) gelmiş olabilir; yalnız
+/// ortak depolamadaki, uygulamanın özel dizinini ve kasayı göstermeyen yollar açılır.
+bool isSafeLinkPath(String path) {
+  if (path.isEmpty || path.contains('\u0000')) return false;
+  if (!p.isAbsolute(path)) return false;
+  // Ham `..` parçası (normalize sonrası görünmez olur): doğrudan reddet.
+  if (p.split(path).contains('..')) return false;
+  final n = p.normalize(path);
+  final parts = p.split(n);
+  // Uygulamanın özel dizini ve sistem alanları (/data/data, /data/user/0, /proc, /system …).
+  const blockedRoots = {'data', 'proc', 'system', 'sys', 'dev', 'vendor', 'apex', 'etc'};
+  if (parts.length > 1 && blockedRoots.contains(parts[1])) return false;
+  // Başka uygulamaların / bizim harici özel dizinimiz (Android/data, Android/obb).
+  for (var i = 0; i + 1 < parts.length; i++) {
+    if (parts[i] == 'Android' && (parts[i + 1] == 'data' || parts[i + 1] == 'obb')) {
+      return false;
+    }
+  }
+  // Kasa klasörleri (şifreli kasa + gizli kasa).
+  if (parts.contains(SecureVault.folderName) ||
+      parts.contains(HiddenVault.folderName)) {
+    return false;
+  }
+  return true;
+}
+
+/// `openAppLink` kabul listesi: bilinen `app:` adları, `davet:`/`davetsor:` ve güvenli `file:`.
+bool isAllowedAppLink(String link) {
+  if (link.startsWith('file:')) return isSafeLinkPath(link.substring(5));
+  if (link.startsWith('davet:') || link.startsWith('davetsor:')) return true;
+  return _knownAppLinks.contains(link);
+}
+
+const _knownAppLinks = {
+  'app:nearby', 'app:scan', 'app:search', 'app:clean', 'app:bills',
+  'app:downloads', 'app:recent', 'app:images', 'app:photos', 'app:videos',
+  'app:files', 'app:library',
+};
 
 /// **Uygulama içi bağlantılar** (2026-10-18): ana ekran widget'ları ve yerel
 /// iş bildirimleri uygulamayı bir bağlantıyla açar. Biçim:
@@ -34,6 +76,7 @@ import '../services/fm/remote/ble_nearby.dart';
 Future<void> openAppLink(BuildContext context, String link) async {
   Future<void> push(Widget screen) =>
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+  if (!isAllowedAppLink(link)) return;
   if (link.startsWith('file:')) {
     final path = link.substring(5);
     if (path.isNotEmpty) await EntryOpener.open(context, path);

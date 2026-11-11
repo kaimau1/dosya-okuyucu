@@ -123,7 +123,7 @@ Bitti: betik CI'da koşuyor, bekleyen kurallar listeli, envanter dolu.
       `<data-extraction-rules><cloud-backup><exclude domain="root"/><exclude domain="sharedpref"/><exclude domain="database"/><exclude domain="file"/></cloud-backup><device-transfer>` (aynı dışlamalar) `</device-transfer></data-extraction-rules>`.
       `ci/prepare_android.sh` `res/xml` kopyalıyor mu doğrula (diğer xml'lerin nasıl taşındığına bak, aynısını yap).
       **Bedel:** telefon değiştirirken ayarlar taşınmaz → uygulamanın kendi "Ayar yedeği" zaten var; sürüm notuna yaz.
-- [ ] **G1.2 Dışa açık `MainActivity` girdilerini doğrula (B4).**
+- [x] **G1.2 Dışa açık `MainActivity` girdilerini doğrula (B4).**
   - `ci/MainActivity.kt`: `EXTRA_LINK` ve `EXTRA_SHORTCUT_PATH` okunan her yeri bul. Bu ekler yalnız **bizim** widget/bildirim/kısayolumuzdan gelmeli.
     Çözüm: bu Intent'leri üreten her yerde (`Extras.kt`, widget'lar, kısayol) ek olarak `EXTRA_SIG = HMAC-SHA256(süreçte bir kez üretilip `filesDir/link_key` içine yazılan 32 rastgele bayt, link metni)` koy; `MainActivity` imza tutmuyorsa eki **yok say**.
   - Dart: `lib/screens/app_links.dart` `openAppLink` — kabul edilen bağlantı biçimlerini **beyaz liste** yap (bilinen ekran adları + var olan dosya yolu). Yol: `p.normalize` sonrası uygulamanın özel dizinini (`/data/`), kasa dizinini gösteriyorsa reddet.
