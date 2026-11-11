@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// (Tüm değerler uydurma; anahtar biçimi parçalardan kurulur ki depo
 /// taraması — denetim kural 9 — gerçek anahtar sanmasın.)
 void main() {
-  final fakeGoogleKey = 'AI' 'za' + 'x' * 35;
+  final fakeGoogleKey = 'AI' 'za${'x' * 35}';
 
   test('Google API anahtarı maskelenir', () {
     final s = LogScrub.scrub('istek başarısız: anahtar $fakeGoogleKey geçersiz');
