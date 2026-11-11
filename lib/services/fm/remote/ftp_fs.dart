@@ -67,7 +67,9 @@ class FtpFs extends RemoteFs {
   Future<void> close() async {
     try {
       await _ftp?.disconnect();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+    }
     _ftp = null;
   }
 

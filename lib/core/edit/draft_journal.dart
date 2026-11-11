@@ -113,7 +113,9 @@ class DraftJournal {
     for (final f in [_bin(key), _meta(key)]) {
       try {
         if (await f.exists()) await f.delete();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+      }
     }
   }
 
@@ -130,7 +132,9 @@ class DraftJournal {
           await e.delete();
           n++;
         }
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+      }
     }
     return n;
   }

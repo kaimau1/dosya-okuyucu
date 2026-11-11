@@ -179,7 +179,9 @@ class ContentIndex {
     _docs.clear();
     try {
       if (await file.exists()) await file.delete();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+    }
   }
 
   /// Sorgu (izolatta). Tüm kelimeler aynı belgede geçmeli; sonuçlar eşleşme

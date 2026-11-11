@@ -1043,7 +1043,9 @@ class PptxEditor {
     if (bytes != null && !_removed.contains(_relsPathOf(part))) {
       try {
         return XmlDocument.parse(utf8.decode(bytes, allowMalformed: true));
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: bozuk/eksik veri — varsayılan değer kalır.
+      }
     }
     return XmlDocument.parse('<?xml version="1.0" encoding="UTF-8" '
         'standalone="yes"?>\n<Relationships xmlns="$_relsNs"/>');
@@ -1112,7 +1114,9 @@ class PptxEditor {
       if (bytes != null) {
         try {
           doc = XmlDocument.parse(utf8.decode(bytes, allowMalformed: true));
-        } catch (_) {}
+        } catch (_) {
+          // Bilinçli: bozuk/eksik veri — varsayılan değer kalır.
+        }
       }
     }
     if (doc == null) {

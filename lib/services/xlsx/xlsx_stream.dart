@@ -120,7 +120,9 @@ abstract final class XlsxStream {
       input.closeSync();
       try {
         work.deleteSync(recursive: true);
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+      }
     }
   }
 

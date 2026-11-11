@@ -1059,7 +1059,9 @@ class JobQueue extends ChangeNotifier {
     if (_busy || _hasNotifiable) return;
     try {
       await reporter?.onIdle();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: bildirim katmanındaki hata işin kendisini bozmamalı.
+    }
   }
 
   /// Yarıda kalan / başarısız olan işi **kaldığı yerden yeniden başlatır**.
@@ -1189,7 +1191,9 @@ class JobQueue extends ChangeNotifier {
       if (!_hasNotifiable) {
         try {
           await reporter?.onIdle();
-        } catch (_) {}
+        } catch (_) {
+          // Bilinçli: bildirim katmanındaki hata işin kendisini bozmamalı.
+        }
       }
     }
   }
@@ -1225,7 +1229,9 @@ class JobQueue extends ChangeNotifier {
     if (job.ownNotification) return; // sonucu kendi bildirimi söylüyor
     try {
       await reporter?.onFinished(job);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: bildirim katmanındaki hata işin kendisini bozmamalı.
+    }
   }
 }
 

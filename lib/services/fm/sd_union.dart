@@ -234,7 +234,9 @@ abstract final class SdUnion {
       if (raw == null) return const SdUnionSettings();
       final json = jsonDecode(raw);
       if (json is Map<String, Object?>) return SdUnionSettings.fromJson(json);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: bozuk/eksik veri — varsayılan değer kalır.
+    }
     return const SdUnionSettings();
   }
 
@@ -245,7 +247,9 @@ abstract final class SdUnion {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_prefKey, jsonEncode(settings.toJson()));
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
     return _configure(settings, strings ?? AppStrings.current);
   }
 
@@ -364,7 +368,9 @@ abstract final class SdUnion {
     if (!Platform.isAndroid) return;
     try {
       await _channel.invokeMethod<bool>('stop');
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+    }
   }
 
   /// Takılı SD kartlar (USB bellekler hedef OLMAZ: çıkarılıp takılan bir
@@ -449,7 +455,9 @@ abstract final class SdUnion {
               files++;
               bytes += stat.size;
             }
-          } catch (_) {}
+          } catch (_) {
+            // Bilinçli: dosya okunamadı — bilgi eksik kalır, iş sürer.
+          }
         }
       }
     }

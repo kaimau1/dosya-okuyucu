@@ -642,3 +642,8 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Bug kökü (G4.6):** `MimeTypes.opensInBrowser` `image/*` diye SVG'yi de tarayıcıda açtırıyordu → SVG içindeki betik paylaşım kökeninde çalışırdı. SVG artık indirilir; HTML sayfalarda CSP/nosniff/DENY/no-referrer (`LanGuard.secureHeaders`, betikli sayfada `script: true`). Yükleme POST'u `LanGuard.sameOrigin` (Origin/Host) ister; yükleme sonrası "Geri" bağlantısı Referer'ın yalnız YOLU.
 - **Karar:** FTP pasif veri bağlantısı yalnız denetim bağlantısının adresinden kabul edilir.
 
+
+## 2026-11-11 — A4.3 boş catch sınıflandırması + A5 sil/üretilen kayıtları
+- **Karar (A4.3):** `catch (_) {}` 191 → 12. Gerekçe biçimi gövdede tek satır `// Bilinçli: …`; bekçi `test/empty_catch_ratchet_test.dart` (lib içinde gövdesi BOŞ `catch`'leri sayar, yorumlu gövde sayılmaz; tavan 12, yalnız iner). Sınıflama gövdedeki çağrıya göre yapıldı (delete → temizlik, close/stop/cancel → kapatma, prefs.set/writeAsString → kalıcı kayıt, decode/parse → bozuk veri …); kalan 12 elle düşünülmeli (KALANLAR A4.3).
+- **Karar (A5):** `FmOpResult.deleted` (kalıcı silinen yollar) → `jobChangesOf` `delete` türü (geri alınamaz, yalnız liste). `showFmProgress` String döndüren işte yol varsa `createdChangeOf` → `create` türü; rapor sayfasında "Çöp kutusuna at" kaydı `trash`a çevirir (aynı sayfadan Geri yükle). List<String> sonuçlar BİLEREK kaydedilmez: bazıları üretilen yol değil (arama sonucu, özet listesi).
+- A4.4: 50 → 44 (async işlevlerde zaten gerçek G/Ç bekleyen `existsSync`/`deleteSync`/`listSync`ler).

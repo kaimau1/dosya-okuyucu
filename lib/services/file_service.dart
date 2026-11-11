@@ -408,7 +408,9 @@ class FileService {
       if (names.any((n) => n.startsWith('word/'))) return DocKind.word;
       if (names.any((n) => n.startsWith('xl/'))) return DocKind.spreadsheet;
       if (names.any((n) => n.startsWith('ppt/'))) return DocKind.slides;
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: zip okunamadı — tür uzantıdan tahmin edilir.
+    }
     return DocKind.unknown;
   }
 

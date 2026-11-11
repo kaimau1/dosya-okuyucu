@@ -145,7 +145,9 @@ class TransferHistory extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
           _key, jsonEncode([for (final e in _items) e.toJson()]));
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
   }
 
   @visibleForTesting

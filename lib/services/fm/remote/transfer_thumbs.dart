@@ -23,7 +23,9 @@ abstract final class TransferThumbs {
         final thumb = await ThumbnailCache.forVideo(path, size: 200);
         return thumb == null ? null : await File(thumb).readAsBytes();
       }
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: dosya okunamadı — bilgi eksik kalır, iş sürer.
+    }
     return null;
   }
 }

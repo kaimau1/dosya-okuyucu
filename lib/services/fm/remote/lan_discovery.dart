@@ -99,7 +99,9 @@ class LanDiscovery {
     } finally {
       try {
         socket?.destroy();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+      }
     }
   }
 
@@ -138,7 +140,9 @@ class LanDiscovery {
     } finally {
       try {
         client.stop();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+      }
     }
   }
 

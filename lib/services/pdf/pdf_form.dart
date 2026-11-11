@@ -158,7 +158,9 @@ abstract final class PdfFormFiller {
     } finally {
       try {
         raf?.closeSync();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+      }
     }
     return false;
   }

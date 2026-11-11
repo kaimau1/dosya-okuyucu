@@ -43,7 +43,9 @@ abstract final class LibraryStore {
     if (FmEnv.appSupportDir.isEmpty) {
       try {
         await FmEnv.ensureInit();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: ortam hazırlanamadı (testte yol sağlayıcı yok) — ardından gelen okuma boş sonuçla sürer.
+      }
     }
     if (FmEnv.appSupportDir.isEmpty) {
       _loadFuture = null;

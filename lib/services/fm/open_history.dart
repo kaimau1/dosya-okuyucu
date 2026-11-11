@@ -105,7 +105,9 @@ abstract final class OpenHistory {
       final tmp = File('$_path.tmp');
       await tmp.writeAsString(jsonEncode(_byPath), flush: true);
       await tmp.rename(_path);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
   }
 
   /// [path] için "şimdi açıldı" damgası.

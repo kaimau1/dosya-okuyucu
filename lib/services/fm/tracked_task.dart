@@ -192,7 +192,12 @@ class TrackedTask {
 ///
 /// Çöpe taşımada (2026-11-02) tür `trash`, değer boş (tek grup), [path]
 /// çöpteki yol, [JobChange.before] özgün yol — "Geri yükle" bununla.
+///
+/// Kalıcı silmede (2026-11-11, A5) tür `delete`, değer boş, [path] silinen
+/// yol — geri alınamaz, yalnız "ne silindi" listesi.
 List<JobChange> jobChangesOf(FmOpResult result) => [
+      for (final path in result.deleted)
+        JobChange(path: path, kind: 'delete', value: ''),
       for (final t in result.transfers)
         if (result.trashed)
           JobChange(path: t.dest, kind: 'trash', value: '', before: t.source)
@@ -214,3 +219,16 @@ JobChange renamedChange(String oldPath, String newPath) => JobChange(
       before: oldPath,
     );
 
+
+/// İşin ÜRETTİĞİ dosya/klasör (2026-11-11, A5): arşive ekle (zip), arşivden
+/// çıkar (hedef klasör), dışa aktarılan APK, indirilen dosya … İş gövdesi
+/// yolu döndürür (`showFmProgress<String>`); yol gerçekten varsa tür
+/// `create`, değer boş. Ayrıntı sayfası bunları açar, taşır ya da çöpe atar.
+JobChange? createdChangeOf(Object? result) {
+  if (result is! String || result.isEmpty || !p.isAbsolute(result)) {
+    return null;
+  }
+  final there = FileSystemEntity.typeSync(result) !=
+      FileSystemEntityType.notFound;
+  return there ? JobChange(path: result, kind: 'create', value: '') : null;
+}

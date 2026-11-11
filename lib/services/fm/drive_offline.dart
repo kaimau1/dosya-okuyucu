@@ -98,7 +98,9 @@ abstract final class DriveOffline {
         'remote': file.modifiedAtMs,
         'local': local.statSync().modified.millisecondsSinceEpoch,
       }));
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
   }
 
   /// Önbellekteki kopyanın durumu; kopya ya da taban yoksa null.

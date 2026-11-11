@@ -66,7 +66,9 @@ abstract final class FmColorsStore {
     try {
       await File(_path).writeAsString(
           jsonEncode({'tags': _tags, 'folders': _folders}));
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
     revision.value++;
   }
 

@@ -94,7 +94,7 @@ Future<String> _writeInto(
   final stem = p.basenameWithoutExtension(originalPath);
   var target = p.join(dir, '$stem.pdf');
   var n = 2;
-  while (File(target).existsSync()) {
+  while (await File(target).exists()) {
     target = p.join(dir, '$stem ($n).pdf');
     n++;
   }

@@ -153,7 +153,9 @@ abstract final class PdfEditJournal {
       backup.deleteSync();
       final dir = backup.parent;
       if (dir.existsSync() && dir.listSync().isEmpty) dir.deleteSync();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+    }
   }
 }
 

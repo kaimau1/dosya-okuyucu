@@ -48,6 +48,10 @@ class FmOpResult {
   /// çöp klasörüdür: iş kartı oraya "git" demez, kayıt türü `trash` olur.
   final bool trashed;
 
+  /// Kalıcı olarak silinen yollar (2026-11-11, A5) — iş sonucu sayfası
+  /// "ne silindi" listesini bundan kurar; geri alınamaz.
+  final List<String> deleted;
+
   const FmOpResult({
     this.succeeded = 0,
     this.skipped = 0,
@@ -55,6 +59,7 @@ class FmOpResult {
     this.cancelled = false,
     this.transfers = const [],
     this.trashed = false,
+    this.deleted = const [],
   });
 
   bool get hasError => errors.isNotEmpty;
@@ -423,7 +428,9 @@ abstract final class FileOps {
       if (copiedSize != sourceSize) {
         try {
           if (_exists(target)) File(target).deleteSync();
-        } catch (_) {}
+        } catch (_) {
+          // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+        }
         throw FileSystemException(
             'kopya eksik yazıldı ($copiedSize/$sourceSize bayt), '
             'kaynak silinmedi',
@@ -453,7 +460,9 @@ abstract final class FileOps {
   static Future<void> _keepModified(String target, DateTime modified) async {
     try {
       await File(target).setLastModified(modified);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: değiştirilme tarihi korunamadı — içerik tamam, yalnız tarih yeni.
+    }
   }
 
   /// Kalıcı silme (çöp kutusuna göndermeden). Klasörler özyinelemeli silinir.
@@ -488,7 +497,7 @@ abstract final class FileOps {
     // günlerce yaşıyordu (bkz. `SearchIndex.forget`).
     if (gone.isNotEmpty) await SearchIndex.forget(gone);
     if (ok > 0) FsEvents.changed(gone);
-    return FmOpResult(succeeded: ok, errors: errors);
+    return FmOpResult(succeeded: ok, errors: errors, deleted: gone);
   }
 
   /// Aktarımın galeriye bildirilecek yolları: yeni yerler, taşımada eski

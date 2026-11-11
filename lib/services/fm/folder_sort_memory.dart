@@ -34,7 +34,9 @@ class FolderSortMemory extends ChangeNotifier {
         if (sort.isEmpty) continue; // eski/bilinmeyen ölçüt sessizce düşer
         _map[parts[0]] = (sort.first, parts[2] == '1');
       }
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kayıt okunamadı ya da bozuk — boş/varsayılan durumla sürülür.
+    }
     _loaded = true;
     notifyListeners();
   }
@@ -71,7 +73,9 @@ class FolderSortMemory extends ChangeNotifier {
         for (final e in _map.entries)
           '${e.key}\t${e.value.$1.name}\t${e.value.$2 ? 1 : 0}',
       ]);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
   }
 
   @visibleForTesting

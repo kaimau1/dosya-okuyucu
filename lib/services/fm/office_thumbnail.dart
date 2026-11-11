@@ -76,7 +76,9 @@ abstract final class OfficeThumbnail {
     } finally {
       try {
         input?.closeSync();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+      }
     }
   }
 

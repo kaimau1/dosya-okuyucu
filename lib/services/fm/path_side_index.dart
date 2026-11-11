@@ -38,7 +38,9 @@ abstract final class PathSideIndex {
     for (final hook in _hooks) {
       try {
         await hook(from, to);
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: yan kayıt (etiket/geçmiş) taşınamadı — dosyanın kendisi yerinde, yalnız yan bilgi eski yolda kalır.
+      }
     }
   }
 

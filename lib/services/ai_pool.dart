@@ -270,7 +270,9 @@ abstract final class AiPool {
             entry.key: {'u': entry.value.untilMs, 's': entry.value.strikes},
       };
       await prefs.setString(_kCooldowns, jsonEncode(out));
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
   }
 
   /// Tüm soğumaları siler (ayarlardaki "kotaları sıfırla").

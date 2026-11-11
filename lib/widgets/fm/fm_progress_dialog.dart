@@ -254,8 +254,14 @@ Future<T> showFmProgress<T>(
     // İş kartından "ne yapıldı" görülsün (2026-10-30 (2): "tüm bu tür
     // işlerde"): dosya dosya nereye taşındı / kopyalandı. Yalnız iş kaydı
     // oluşmuşsa (uzun ya da arka plana alınmış iş) — kısa işler kart açmaz.
-    if (result is FmOpResult && tracked.job != null) {
-      tracked.recordChanges(jobChangesOf(result));
+    if (tracked.job != null) {
+      if (result is FmOpResult) {
+        tracked.recordChanges(jobChangesOf(result));
+      } else {
+        // Üretilen dosya/klasör (arşiv, çıkarılan klasör …) — 2026-11-11.
+        final created = createdChangeOf(result);
+        if (created != null) tracked.recordChanges([created]);
+      }
     }
     return result;
   } on JobCancelled {

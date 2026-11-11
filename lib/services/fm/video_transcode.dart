@@ -260,7 +260,9 @@ abstract final class VideoTranscoder {
     try {
       final file = File(path);
       if (file.existsSync()) file.deleteSync();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+    }
   }
 
   /// Yalnız ses: [path] (WAV) → [target] (AAC/M4A). Sesli kitap üretimi
@@ -287,7 +289,9 @@ abstract final class VideoTranscoder {
   static Future<void> cancel() async {
     try {
       await _channel.invokeMethod<bool>('cancel');
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+    }
   }
 }
 

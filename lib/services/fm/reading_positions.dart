@@ -68,7 +68,9 @@ abstract final class ReadingPositions {
     if (FmEnv.appSupportDir.isEmpty) {
       try {
         await FmEnv.ensureInit();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: ortam hazırlanamadı (testte yol sağlayıcı yok) — ardından gelen okuma boş sonuçla sürer.
+      }
     }
     if (FmEnv.appSupportDir.isEmpty) {
       // Hâlâ yok (test/masaüstü erken açılış): bir dahaki çağrı yeniden

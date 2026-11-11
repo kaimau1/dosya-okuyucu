@@ -283,13 +283,17 @@ abstract final class PickerBridge {
   static Future<void> otherSources() async {
     try {
       await _channel.invokeMethod<void>('other');
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: bu cihazda/sürümde yerel karşılığı yok — özellik sessizce kapalı kalır.
+    }
   }
 
   /// Kullanıcı vazgeçti — çağırana "iptal" döner.
   static Future<void> cancel() async {
     try {
       await _channel.invokeMethod<void>('cancel');
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+    }
   }
 }

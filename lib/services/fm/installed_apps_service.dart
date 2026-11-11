@@ -142,7 +142,9 @@ abstract final class InstalledAppsService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_kUsageGranted, value);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
   }
 
   /// Kullanım erişimi ister: sorgu denenir, izin yoksa eklenti Android'in
@@ -412,19 +414,25 @@ abstract final class InstalledAppsService {
   static Future<void> open(String packageName) async {
     try {
       await InstalledApps.startApp(packageName);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: sistem ekranı açılamadı (bu cihazda yok) — kullanıcı bulunduğu yerde kalır.
+    }
   }
 
   static void openSettings(String packageName) {
     try {
       InstalledApps.openSettings(packageName);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: sistem ekranı açılamadı (bu cihazda yok) — kullanıcı bulunduğu yerde kalır.
+    }
   }
 
   static Future<void> uninstall(String packageName) async {
     try {
       await InstalledApps.uninstallApp(packageName);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: sistem ekranı açılamadı (bu cihazda yok) — kullanıcı bulunduğu yerde kalır.
+    }
   }
 }
 

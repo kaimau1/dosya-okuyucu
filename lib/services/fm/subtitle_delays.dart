@@ -83,7 +83,9 @@ abstract final class SubtitleDelays {
         _byPath.remove(_byPath.keys.first);
       }
       await File(_path).writeAsString(jsonEncode(_byPath), flush: true);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
   }
 
   /// Testler için: belleği ve zamanlayıcıyı temizler.

@@ -162,19 +162,25 @@ class TtsService {
       if (await _tts.isLanguageAvailable(locale) == true) {
         await _tts.setLanguage(locale);
       }
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: motor bu dili desteklemiyor — varsayılan dille okur.
+    }
     if (prefs.voiceName.isNotEmpty &&
         prefs.voiceLocale.isNotEmpty &&
         NeuralVoiceId.parse(prefs.voiceName) == null) {
       try {
         await _tts
             .setVoice({'name': prefs.voiceName, 'locale': prefs.voiceLocale});
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: seçilen ses bu cihazda yok — varsayılan sesle okur.
+      }
     }
     try {
       await _tts.setSpeechRate(platformRate(prefs.rate));
       await _tts.setPitch(prefs.pitch.clamp(0.5, 2.0));
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: motor hız/perde ayarını reddetti — varsayılanla okur.
+    }
   }
 
   /// Hız çarpanını platformun beklediği değere çevirir.
@@ -342,7 +348,9 @@ class TtsService {
     if (pl == null) return;
     try {
       await pl.pause();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kapatma/durdurma — zaten durmuşsa ya da yerel taraf yoksa yapılacak bir şey yok.
+    }
     await pl.dispose();
   }
 

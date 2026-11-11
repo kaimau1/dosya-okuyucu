@@ -60,7 +60,9 @@ abstract final class AppStorageService {
   static Future<void> openUsageAccessSettings() async {
     try {
       await _channel.invokeMethod<bool>('openUsageAccessSettings');
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: sistem ekranı açılamadı (bu cihazda yok) — kullanıcı bulunduğu yerde kalır.
+    }
   }
 
   /// Uygulamanın **depolama / önbellek temizleme** sayfasını açar.

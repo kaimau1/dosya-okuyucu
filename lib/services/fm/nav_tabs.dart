@@ -89,7 +89,9 @@ class NavTabs extends ChangeNotifier {
     try {
       final p = await SharedPreferences.getInstance();
       await p.setStringList(_kTabs, _tabs);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
   }
 
   /// Sekme ekler; sınır doluysa ya da zaten varsa `false`.

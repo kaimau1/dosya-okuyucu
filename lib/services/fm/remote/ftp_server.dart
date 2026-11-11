@@ -436,7 +436,9 @@ class _FtpSession {
   void _send(String line) {
     try {
       socket.write('$line\r\n');
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: karşı taraf bağlantıyı kopardıysa yanıt gönderilemez; yapılacak bir şey yok.
+    }
   }
 
   void close() {
@@ -444,10 +446,14 @@ class _FtpSession {
     _doneCompleter.complete();
     try {
       _pasv?.close();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+    }
     try {
       socket.destroy();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+    }
   }
 
   Future<void> _onLine(String line) async {
@@ -566,7 +572,9 @@ class _FtpSession {
         // pasif dinleyiciyi bırakmak, yoksa 20 sn boyunca askıda kalırdı.
         try {
           await _pasv?.close();
-        } catch (_) {}
+        } catch (_) {
+          // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+        }
         _pasv = null;
         _send('226 Durduruldu');
       case 'DELE':
@@ -650,7 +658,9 @@ class _FtpSession {
   Future<void> _openPassive({required bool extended}) async {
     try {
       await _pasv?.close();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+    }
     _pasv = await ServerSocket.bind(InternetAddress.anyIPv4, 0);
     final port = _pasv!.port;
     if (extended) {
@@ -708,7 +718,9 @@ class _FtpSession {
     } finally {
       try {
         await pasv.close();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+      }
     }
   }
 

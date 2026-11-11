@@ -30,7 +30,9 @@ abstract final class DiskCache {
         if (extension != null && !entity.path.endsWith(extension)) continue;
         try {
           files.add((entity, entity.statSync().modified.millisecondsSinceEpoch));
-        } catch (_) {}
+        } catch (_) {
+          // Bilinçli: dosya okunamadı — bilgi eksik kalır, iş sürer.
+        }
       }
       if (files.length <= limit) return 0;
       files.sort((a, b) => a.$2.compareTo(b.$2));
@@ -39,7 +41,9 @@ abstract final class DiskCache {
         try {
           file.deleteSync();
           removed++;
-        } catch (_) {}
+        } catch (_) {
+          // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+        }
       }
       return removed;
     } catch (_) {
@@ -154,7 +158,9 @@ abstract final class TempSweep {
       try {
         e.deleteSync(recursive: true);
         removed++;
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+      }
     }
 
     List<FileSystemEntity> list(Directory dir) {
@@ -220,7 +226,9 @@ abstract final class TempSweep {
       try {
         cacheRoot = (await getTemporaryDirectory()).path;
         roots.add(cacheRoot);
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: geçici dizin yok (test ortamı) — yalnız öteki kökler temizlenir.
+      }
       final now = DateTime.now().millisecondsSinceEpoch;
       final isAndroid = Platform.isAndroid;
       await Isolate.run(() {

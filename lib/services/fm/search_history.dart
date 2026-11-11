@@ -135,7 +135,9 @@ abstract final class SearchHistory {
                 query: m['q'] is String ? m['q'] as String : '',
               ),
         ].take(maxOpened));
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kayıt okunamadı ya da bozuk — boş/varsayılan durumla sürülür.
+    }
   }
 
   /// Aramadan açılan dosyayı en üste koyar (aynı yol yukarı taşınır).
@@ -173,7 +175,9 @@ abstract final class SearchHistory {
             for (final o in _opened) {'p': o.path, 't': o.openedMs, 'q': o.query},
           ]),
           flush: true);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
   }
 
   /// Yalnız test.

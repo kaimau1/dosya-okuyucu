@@ -84,7 +84,9 @@ class PdfOcrSearch extends ChangeNotifier {
       PdfPageText? layer;
       try {
         layer = await page.loadStructuredText();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: sayfanın metni okunamadı — o sayfa aramada atlanır.
+      }
       if (gen != _generation) return;
       if ((layer?.fullText.trim().length ?? 0) >= thinTextThreshold) {
         continue; // metin katmanı var: o sayfa pdfrx arayıcısının işi

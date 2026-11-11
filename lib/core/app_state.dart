@@ -717,7 +717,9 @@ class AppState extends ChangeNotifier {
     try {
       await _prefs.setString(_kFmPhotoLayout, layout.name);
       await _prefs.setString(_kFmPhotoGroup, group.name);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
   }
 
   Future<void> setFmMediaOpenWith(MediaOpenWith value) async {
@@ -779,7 +781,9 @@ class AppState extends ChangeNotifier {
       if (json != null) {
         try {
           return [for (final k in jsonDecode(json) as List) '$k'];
-        } catch (_) {}
+        } catch (_) {
+          // Bilinçli: bozuk/eksik veri — varsayılan değer kalır.
+        }
       }
     }
     final single = _prefs.getString(_kApiKey) ?? '';

@@ -140,7 +140,9 @@ abstract final class SearchIndex {
         }),
         flush: true,
       );
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
   }
 
   /// Dizini (yeniden) kurar. Aynı anda ikinci çağrı yeni tarama BAŞLATMAZ,
@@ -235,7 +237,9 @@ abstract final class SearchIndex {
       _entryCount = left;
       await _writeMeta();
       revision.value++;
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
   }
 
   /// **Artımlı güncelleme** (Faz 41 / 8): uygulamanın kendi kopyala/taşı
@@ -278,7 +282,9 @@ abstract final class SearchIndex {
     for (final f in [File(indexPath), File(_metaPath)]) {
       try {
         if (f.existsSync()) f.deleteSync();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+      }
     }
     _builtAtMs = 0;
     _entryCount = 0;
@@ -634,7 +640,9 @@ int _forgetSync(_ForgetArgs args) {
   } catch (_) {
     try {
       if (tmp.existsSync()) tmp.deleteSync();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+    }
     return -1;
   }
 }

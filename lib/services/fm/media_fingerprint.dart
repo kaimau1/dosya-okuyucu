@@ -74,7 +74,9 @@ abstract final class MediaFingerprint {
       final tmp = File('$_cachePath.tmp');
       await tmp.writeAsString(sink.toString(), flush: true);
       await tmp.rename(_cachePath);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
   }
 
   /// [entry] için parmak izi (önbellekten ya da üreterek). Üretilemezse null.

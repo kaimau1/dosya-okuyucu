@@ -97,7 +97,9 @@ abstract final class EmptyFolders {
       try {
         Directory(paths[i]).deleteSync();
         deleted++;
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+      }
       onProgress?.call(i + 1, paths.length);
     }
     if (deleted > 0) FsEvents.changed();

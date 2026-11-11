@@ -94,7 +94,9 @@ abstract final class AiApplyLog {
     try {
       await File(_path).writeAsString(
           jsonEncode([for (final e in entries.value) e.toJson()]));
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
   }
 
   @visibleForTesting

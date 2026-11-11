@@ -594,7 +594,9 @@ void forEachIndexRow(String path, bool Function(FsEntry) onRow) {
   } finally {
     try {
       raf.closeSync();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+    }
   }
 }
 
@@ -830,7 +832,9 @@ class _SearchIndexWriter {
     } catch (_) {
       try {
         if (_tmp.existsSync()) _tmp.deleteSync();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+      }
       return false;
     }
   }

@@ -60,6 +60,8 @@ abstract final class StoragePermission {
   static Future<void> openSettings() async {
     try {
       await openAppSettings();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: sistem ekranı açılamadı (bu cihazda yok) — kullanıcı bulunduğu yerde kalır.
+    }
   }
 }

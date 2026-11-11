@@ -59,7 +59,9 @@ class SftpFs extends RemoteFs {
     // olur (Faz 47, yerel SFTP sunucusuyla görüldü) → bekle, hatayı yut.
     try {
       await client?.close().timeout(const Duration(seconds: 3));
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+    }
   }
 
   SftpClient get _need {

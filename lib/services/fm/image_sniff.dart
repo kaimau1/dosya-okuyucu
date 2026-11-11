@@ -64,7 +64,9 @@ abstract final class ImageSniff {
     } finally {
       try {
         await raf?.close();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+      }
     }
     if (_cache.length >= _maxCache) {
       for (final key in _cache.keys.take(_maxCache ~/ 2).toList()) {

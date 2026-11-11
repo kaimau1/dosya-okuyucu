@@ -390,7 +390,9 @@ class GeminiService {
       final map = jsonDecode(resp.body) as Map<String, dynamic>;
       final msg = map['error']?['message'];
       if (msg is String) return 'Gemini hatası (${resp.statusCode}): $msg';
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: bozuk/eksik veri — varsayılan değer kalır.
+    }
     return 'Gemini hatası (${resp.statusCode}).';
   }
 }

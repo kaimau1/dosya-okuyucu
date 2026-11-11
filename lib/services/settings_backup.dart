@@ -67,7 +67,9 @@ abstract final class SettingsBackup {
             if (map is Map && map.containsKey('password')) {
               return jsonEncode(Map.of(map)..remove('password'));
             }
-          } catch (_) {}
+          } catch (_) {
+            // Bilinçli: bozuk/eksik veri — varsayılan değer kalır.
+          }
           return '$item';
         }(),
     ];

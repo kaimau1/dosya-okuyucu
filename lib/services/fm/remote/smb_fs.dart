@@ -77,7 +77,9 @@ class SmbFs extends RemoteFs {
   Future<void> close() async {
     try {
       await _smb?.close();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+    }
     _smb = null;
   }
 

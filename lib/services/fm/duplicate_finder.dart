@@ -161,7 +161,9 @@ abstract final class DuplicateFinder {
     } finally {
       try {
         raf?.closeSync();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+      }
     }
   }
 
@@ -193,10 +195,14 @@ abstract final class DuplicateFinder {
     } finally {
       try {
         fa?.closeSync();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+      }
       try {
         fb?.closeSync();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+      }
     }
   }
 }

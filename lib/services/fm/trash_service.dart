@@ -157,7 +157,9 @@ class TrashService {
             }
             back = true;
             await PathSideIndex.moved(item.storedPath, item.originalPath);
-          } catch (_) {}
+          } catch (_) {
+            // Bilinçli: yan kayıt (etiket/geçmiş) taşınamadı — dosyanın kendisi yerinde, yalnız yan bilgi eski yolda kalır.
+          }
           final why = back
               ? 'dosya yerinde bırakıldı'
               : 'dosya şurada: ${item.storedPath}';
@@ -256,7 +258,9 @@ class TrashService {
             } else {
               File(storedAt).deleteSync();
             }
-          } catch (_) {}
+          } catch (_) {
+            // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+          }
           throw const FileSystemException(
               'dosya taşınamadı (yerinde kaldı), çöp kaydı oluşturulmadı');
         }
@@ -410,7 +414,9 @@ class TrashService {
       if (p.basename(dir) == 'files') continue;
       try {
         Directory(dir).deleteSync();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+      }
     }
   }
 

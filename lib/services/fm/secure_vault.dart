@@ -165,7 +165,9 @@ class SecureVault extends ChangeNotifier {
       if (iter < targetIterations) {
         try {
           await _writeMeta(pin, master);
-        } catch (_) {}
+        } catch (_) {
+          // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+        }
       }
       await _open(master);
       return true;
@@ -287,7 +289,9 @@ class SecureVault extends ChangeNotifier {
     try {
       final d = await _tempDir();
       if (d.existsSync()) await d.delete(recursive: true);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+    }
   }
 
   Future<void> _loadIndex() async {
@@ -374,7 +378,9 @@ class SecureVault extends ChangeNotifier {
           .list(recursive: true, followLinks: false)
           .any((e) => e is File);
       if (!hasFile) await d.delete(recursive: true);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+    }
   }
 
   Future<FmOpResult> _addFiles(
@@ -439,7 +445,9 @@ class SecureVault extends ChangeNotifier {
         errors.add('${f.name}: $e');
         try {
           if (File(dst).existsSync()) await File(dst).delete();
-        } catch (_) {}
+        } catch (_) {
+          // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+        }
       }
     }
     onProgress?.call(FmProgress(files.length, files.length, ''));
@@ -464,7 +472,9 @@ class SecureVault extends ChangeNotifier {
     } finally {
       try {
         if (File(check).existsSync()) await File(check).delete();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+      }
     }
   }
 
@@ -562,7 +572,9 @@ class SecureVault extends ChangeNotifier {
   Future<void> _remove(VaultItem item) async {
     try {
       await File(p.join(dir, '${item.id}.dvk')).delete();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+    }
     _items = [for (final i in _items) if (i.id != item.id) i];
     await _saveIndex();
     notifyListeners();

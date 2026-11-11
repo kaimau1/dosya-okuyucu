@@ -99,7 +99,9 @@ class SmartFolders extends ChangeNotifier {
         }
       }
       notifyListeners();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kayıt okunamadı ya da bozuk — boş/varsayılan durumla sürülür.
+    }
   }
 
   Future<void> _save() async {
@@ -108,7 +110,9 @@ class SmartFolders extends ChangeNotifier {
       final p = await SharedPreferences.getInstance();
       await p.setString(
           _kFolders, jsonEncode([for (final f in _folders) f.toJson()]));
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
   }
 
   /// Sorudan okunur bir klasör adı: ilk harf büyük, fazla boşluk yok.

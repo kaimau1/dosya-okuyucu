@@ -211,7 +211,9 @@ class OcrService {
         } finally {
           try {
             File(path).deleteSync();
-          } catch (_) {}
+          } catch (_) {
+            // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+          }
         }
       }
       onProgress?.call(total, total);

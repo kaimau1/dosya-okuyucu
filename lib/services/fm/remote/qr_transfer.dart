@@ -264,7 +264,9 @@ class QrShareServer implements KeepableServer {
     } finally {
       try {
         await res.close();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+      }
       // Tek seferlik bağlantı: son indirmenin yanıtı kapandı → kapan.
       if (_expireWhenIdle && activeTransfers <= 0) _expire();
     }
@@ -515,7 +517,9 @@ class QrPayload {
         ssid = j['s'] as String?;
         pass = j['p'] as String?;
         sec = j['k'] as String?;
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: bozuk/eksik veri — varsayılan değer kalır.
+      }
     }
     return QrPayload(
         url: Uri(
@@ -759,7 +763,9 @@ abstract final class QrNative {
   static Future<void> stopHotspot() async {
     try {
       await _ch.invokeMethod('stopHotspot');
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kapatma/durdurma — zaten durmuşsa ya da yerel taraf yoksa yapılacak bir şey yok.
+    }
   }
 
   /// Alıcı: verilen ağa bağlanıp süreci o ağa bağlar (Android 10+; sistem
@@ -777,6 +783,8 @@ abstract final class QrNative {
   static Future<void> leaveWifi() async {
     try {
       await _ch.invokeMethod('leaveWifi');
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kapatma/durdurma — zaten durmuşsa ya da yerel taraf yoksa yapılacak bir şey yok.
+    }
   }
 }

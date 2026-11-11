@@ -90,7 +90,9 @@ abstract final class DriveCache {
           // gelmeden inen kopyalar. Artık hiç okunmuyorlar, yer tutmasınlar.
           try {
             child.deleteSync();
-          } catch (_) {}
+          } catch (_) {
+            // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+          }
           continue;
         }
         if (child is! Directory) continue;
@@ -113,8 +115,12 @@ abstract final class DriveCache {
         try {
           e.dir.deleteSync(recursive: true);
           total -= e.bytes;
-        } catch (_) {}
+        } catch (_) {
+          // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+        }
       }
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+    }
   }
 }

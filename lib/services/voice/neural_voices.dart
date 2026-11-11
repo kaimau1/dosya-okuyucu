@@ -311,7 +311,9 @@ class VoiceServer {
       try {
         res.statusCode = 500;
         await res.close();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+      }
     }
   }
 
@@ -411,7 +413,9 @@ class EngineMessage {
       if (m is Map<String, dynamic> && m['type'] is String) {
         return EngineMessage(m['type'] as String, m);
       }
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: bozuk/eksik veri — varsayılan değer kalır.
+    }
     return null;
   }
 }

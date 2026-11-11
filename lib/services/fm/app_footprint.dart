@@ -163,7 +163,9 @@ abstract final class AppFootprint {
         if (child is File) {
           try {
             total += child.lengthSync();
-          } catch (_) {}
+          } catch (_) {
+            // Bilinçli: dosya okunamadı — bilgi eksik kalır, iş sürer.
+          }
         }
       }
       return total;
@@ -285,7 +287,9 @@ abstract final class AppFootprint {
         }
         try {
           if (_list(e.path).isEmpty) e.deleteSync();
-        } catch (_) {}
+        } catch (_) {
+          // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+        }
         return;
       }
       if (young(e)) return;
@@ -293,7 +297,9 @@ abstract final class AppFootprint {
       try {
         e.deleteSync();
         freed += n;
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+      }
     }
 
     if (buckets.contains(FootprintBucket.shared) ||

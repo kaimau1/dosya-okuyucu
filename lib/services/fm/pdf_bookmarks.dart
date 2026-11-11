@@ -41,7 +41,9 @@ abstract final class PdfBookmarks {
     if (FmEnv.appSupportDir.isEmpty) {
       try {
         await FmEnv.ensureInit();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: ortam hazırlanamadı (testte yol sağlayıcı yok) — ardından gelen okuma boş sonuçla sürer.
+      }
     }
     if (FmEnv.appSupportDir.isEmpty) {
       _loadFuture = null;
@@ -122,7 +124,9 @@ abstract final class PdfBookmarks {
             },
       };
       await File(_path).writeAsString(jsonEncode(data), flush: true);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
   }
 
   /// Yalnız test.

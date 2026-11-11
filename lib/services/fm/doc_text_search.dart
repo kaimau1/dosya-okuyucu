@@ -101,7 +101,9 @@ abstract final class DocTextSearch {
         try {
           final dynamic layer = await page.loadText();
           if (layer != null) out.writeln(layer.fullText as String? ?? '');
-        } catch (_) {}
+        } catch (_) {
+          // Bilinçli: sayfanın metni okunamadı — o sayfa aramada atlanır.
+        }
       }
       return out.toString();
     } finally {

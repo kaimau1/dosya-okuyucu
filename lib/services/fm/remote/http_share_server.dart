@@ -124,7 +124,9 @@ class HttpShareServer {
     // `force`: yarım kalmış bir indirme kapanışı süresiz bekletmesin.
     try {
       await server.close(force: true);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+    }
   }
 
   /// G4.3: adres başına 10 hatalı parola → 60 sn 429.
@@ -206,7 +208,9 @@ class HttpShareServer {
       // patlar; sunucu bu yüzden çökmemeli.
       try {
         await response.close();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+      }
     }
   }
 
@@ -242,7 +246,9 @@ class HttpShareServer {
         await sink.close();
         try {
           await File(target).delete();
-        } catch (_) {}
+        } catch (_) {
+          // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+        }
       }
     }
     if (saved.isNotEmpty) onUploaded?.call(saved);
@@ -270,7 +276,9 @@ class HttpShareServer {
     if (star != null) {
       try {
         raw = Uri.decodeComponent(star[1]!.trim());
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: bozuk/eksik veri — varsayılan değer kalır.
+      }
     }
     raw ??= RegExp(r'filename="([^"]*)"').firstMatch(disposition)?[1];
     if (raw == null) return null;

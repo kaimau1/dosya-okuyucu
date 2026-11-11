@@ -142,7 +142,9 @@ class FrameStats {
       for (var i = 0; i < counts.length && i < list.length; i++) {
         counts[i] += list[i].toInt();
       }
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: bozuk/eksik veri — varsayılan değer kalır.
+    }
   }
 
   Future<void> flush() async {
@@ -150,7 +152,9 @@ class FrameStats {
     try {
       final f = await _fileRef();
       await f?.writeAsString(jsonEncode(counts));
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
   }
 }
 

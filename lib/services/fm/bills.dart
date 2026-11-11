@@ -155,7 +155,9 @@ class Bills extends ChangeNotifier {
         }
       }
       notifyListeners();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kayıt okunamadı ya da bozuk — boş/varsayılan durumla sürülür.
+    }
   }
 
   Future<void> _save() async {
@@ -165,7 +167,9 @@ class Bills extends ChangeNotifier {
       await p.setString(
           _kBills, jsonEncode([for (final b in _bills.values) b.toJson()]));
       await p.setString(kReminderPrefs, jsonEncode(reminders()));
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
   }
 
   /// Yerel işin (Kotlin) okuduğu hatırlatma listesi anahtarı.

@@ -114,7 +114,9 @@ abstract final class AiSummaryStore {
           st.modified.millisecondsSinceEpoch != r.sourceModifiedMs) {
         return null;
       }
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: dosya okunamadı — bilgi eksik kalır, iş sürer.
+    }
     return r;
   }
 
@@ -128,7 +130,9 @@ abstract final class AiSummaryStore {
     try {
       final f = File(_fileFor(key));
       if (await f.exists()) await f.delete();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+    }
   }
 
   /// Dosyanın şu anki boy/zaman damgası (kayda yazılır).

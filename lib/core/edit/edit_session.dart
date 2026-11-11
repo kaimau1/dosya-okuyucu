@@ -230,7 +230,9 @@ class EditSession extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _dropDraft() async {
     try {
       await (await DraftJournal.shared()).discard(sourcePath);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: temizlik — silinemezse işin sonucu değişmez; sonraki fırsatta yeniden denenir.
+    }
   }
 
   /// Editör kendi yolundan kaydettiyse (Farklı kaydet …) temiz işaretler.
@@ -480,7 +482,9 @@ mixin DraftRecoveryMixin<T extends StatefulWidget> on State<T> {
             setState(() => pendingDraft = null);
             try {
               await (await DraftJournal.shared()).discard(draft.sourcePath);
-            } catch (_) {}
+            } catch (_) {
+              // Bilinçli: temizlik — silinemezse işin sonucu değişmez; sonraki fırsatta yeniden denenir.
+            }
           },
         ),
         Expanded(child: body),

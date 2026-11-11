@@ -301,7 +301,7 @@ extension _SlidesProPart on _SlidesEditorScreenState {
     await _proApply(_narrationOp(data), doneKey: 'sp.record_done');
     for (final c in clips) {
       try {
-        File(c.path).deleteSync();
+        await File(c.path).delete();
       } catch (_) {
         // Geçici dosya: sistem zaten temizler.
       }
@@ -387,7 +387,7 @@ extension _SlidesProPart on _SlidesEditorScreenState {
         final ok = await FcNativeVideoThumbnail().saveThumbnailToFile(
             srcFile: path, destFile: dest, width: 960, height: 960,
             format: 'jpeg', quality: 80);
-        if (ok && File(dest).existsSync()) poster = await File(dest).readAsBytes();
+        if (ok && await File(dest).exists()) poster = await File(dest).readAsBytes();
       } catch (_) {
         // En iyi çaba: kapaksız video da oynar.
       }

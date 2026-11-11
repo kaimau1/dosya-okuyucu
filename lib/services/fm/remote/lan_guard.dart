@@ -50,7 +50,9 @@ abstract final class LanGuard {
       res.statusCode = HttpStatus.forbidden;
       res.write('403');
       await res.close();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+    }
     return false;
   }
 

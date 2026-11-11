@@ -75,7 +75,9 @@ class DownloadService extends ChangeNotifier {
             ..clear()
             ..addAll(decodeQueue(await file.readAsString()));
         }
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: kayıt okunamadı ya da bozuk — boş/varsayılan durumla sürülür.
+      }
     }
     await _initEngine();
     await _reconcileWithEngine();
@@ -168,7 +170,9 @@ class DownloadService extends ChangeNotifier {
     if (FmEnv.appSupportDir.isEmpty) return;
     try {
       await File(_queuePath).writeAsString(encodeQueue(_tasks));
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
   }
 
   // ── paket → bizim model ────────────────────────────────────────────────────
@@ -227,7 +231,9 @@ class DownloadService extends ChangeNotifier {
       if (file.existsSync()) {
         _update(id, (t) => t.copyWith(received: file.lengthSync()));
       }
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: dosya okunamadı — bilgi eksik kalır, iş sürer.
+    }
   }
 
   // ── genel API ─────────────────────────────────────────────────────────────
@@ -310,7 +316,9 @@ class DownloadService extends ChangeNotifier {
     try {
       // `pause` yalnız taskId kullanır; görevi yeniden kurmak yeterli.
       await bg.FileDownloader().pause(await _nativeTaskFor(task));
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kapatma/durdurma — zaten durmuşsa ya da yerel taraf yoksa yapılacak bir şey yok.
+    }
     _update(id, (t) => t.copyWith(
           state: DownloadState.paused,
           bytesPerSecond: 0,
@@ -340,7 +348,9 @@ class DownloadService extends ChangeNotifier {
   Future<void> cancel(String id) async {
     try {
       await bg.FileDownloader().cancelTaskWithId(id);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kapatma/durdurma — zaten durmuşsa ya da yerel taraf yoksa yapılacak bir şey yok.
+    }
     _update(id, (t) => t.copyWith(
           state: DownloadState.canceled,
           bytesPerSecond: 0,

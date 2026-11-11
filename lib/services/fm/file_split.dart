@@ -90,7 +90,9 @@ abstract final class FileSplit {
             for (final part in written) {
               try {
                 File(part).deleteSync();
-              } catch (_) {}
+              } catch (_) {
+                // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+              }
             }
             return const [];
           }
@@ -174,7 +176,9 @@ abstract final class FileSplit {
             await sink.close();
             try {
               File(target).deleteSync();
-            } catch (_) {}
+            } catch (_) {
+              // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+            }
             return '';
           }
           sink.add(chunk);

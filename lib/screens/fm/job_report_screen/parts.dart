@@ -243,7 +243,9 @@ extension _JobReportScreenStateParts on _JobReportScreenState {
           Icon(
             isTag
                 ? (applied > 0 ? AppIcons.tag : AppIcons.labelOutline)
-                : AppIcons.edit,
+                : first.kind == 'delete' || first.kind == 'trash'
+                    ? AppIcons.delete
+                    : AppIcons.edit,
             color: applied > 0 ? scheme.primary : scheme.onSurfaceVariant,
           ),
           const SizedBox(width: Gap.sm),
@@ -256,7 +258,8 @@ extension _JobReportScreenStateParts on _JobReportScreenState {
                         ? '#$value'
                         : (first.kind == 'move' || first.kind == 'copy')
                             ? context.t('jr.kind_${first.kind}', {'dir': value})
-                            : first.kind == 'rename' || first.kind == 'trash'
+                            : const {'rename', 'trash', 'delete', 'create'}
+                                    .contains(first.kind)
                                 ? context.t('jr.kind_${first.kind}')
                                 : value,
                     style: theme.textTheme.titleMedium,
@@ -301,6 +304,8 @@ extension _JobReportScreenStateParts on _JobReportScreenState {
                   _undoRename(list);
                 case 'untrash':
                   _untrash(list);
+                case 'trashnew':
+                  _trashCreated(list);
               }
             },
             itemBuilder: (ctx) => [
@@ -327,7 +332,15 @@ extension _JobReportScreenStateParts on _JobReportScreenState {
                     key: const ValueKey('jr-untrash'),
                     value: 'untrash',
                     child: Text(ctx.t('jr.untrash'))),
-              PopupMenuItem(value: 'move', child: Text(ctx.t('jr.move_files'))),
+              if (first.kind == 'create')
+                PopupMenuItem(
+                    key: const ValueKey('jr-trashnew'),
+                    value: 'trashnew',
+                    child: Text(ctx.t('jr.trash_created'))),
+              // Kalıcı silinen dosya artık yok — taşınacak bir şey kalmadı.
+              if (first.kind != 'delete')
+                PopupMenuItem(
+                    value: 'move', child: Text(ctx.t('jr.move_files'))),
             ],
           ),
         ],

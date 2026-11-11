@@ -54,7 +54,9 @@ class TranslateService {
       try {
         if (!await _models.isModelDownloaded(lang.bcpCode)) continue;
         if (await _models.deleteModel(lang.bcpCode)) deleted++;
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: temizlik — silinemezse işin sonucu değişmez; sonraki fırsatta yeniden denenir.
+      }
     }
     return deleted;
   }

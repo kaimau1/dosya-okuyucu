@@ -55,7 +55,9 @@ abstract final class Pip {
     _wire();
     try {
       await _channel.invokeMethod<bool>('auto', {'on': on, ..._ratio(aspect)});
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: bu cihazda/sürümde yerel karşılığı yok — özellik sessizce kapalı kalır.
+    }
   }
 
   static Map<String, int> _ratio(Size s) => {

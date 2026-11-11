@@ -312,7 +312,9 @@ class PeerReceiver implements KeepableServer {
     if (server != null) {
       try {
         await server.close(force: true);
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+      }
     }
   }
 
@@ -326,7 +328,9 @@ class PeerReceiver implements KeepableServer {
           await e.delete(recursive: true);
         }
       }
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+    }
   }
 
   Map<String, Object> _identity() => {
@@ -365,7 +369,9 @@ class PeerReceiver implements KeepableServer {
         final reply = utf8.encode(jsonEncode(_identity()));
         try {
           socket.send(reply, packet.address, packet.port);
-        } catch (_) {}
+        } catch (_) {
+          // Bilinçli: karşı taraf bağlantıyı kopardıysa yanıt gönderilemez; yapılacak bir şey yok.
+        }
         // Ağ/güvenlik duvarı UDP göndermeyi reddederse (EPERM) hata akışa
         // düşer; yakalanmazsa "[async] SocketException" olarak tekrar eder.
       }, onError: (Object _) {}, cancelOnError: false);
@@ -590,7 +596,9 @@ class PeerReceiver implements KeepableServer {
       try {
         response.statusCode = HttpStatus.internalServerError;
         await response.close();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+      }
     }
   }
 
@@ -619,7 +627,9 @@ class PeerReceiver implements KeepableServer {
     if (total > 0 && received < total) {
       try {
         await file.delete();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+      }
       response.statusCode = HttpStatus.badRequest;
       await response.close();
       return;
@@ -654,10 +664,14 @@ class PeerReceiver implements KeepableServer {
     } finally {
       try {
         await zip.delete();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+      }
       try {
         await tmp.delete(recursive: true);
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+      }
     }
   }
 }
@@ -762,7 +776,9 @@ abstract final class PeerSender {
         for (final target in targets) {
           try {
             sock.send(payload, InternetAddress(target), PeerShare.discoveryPort);
-          } catch (_) {}
+          } catch (_) {
+            // Bilinçli: karşı taraf bağlantıyı kopardıysa yanıt gönderilemez; yapılacak bir şey yok.
+          }
         }
       }
 
@@ -855,7 +871,9 @@ abstract final class PeerSender {
     } else {
       try {
         parts.add('${(await File(s.path).lastModified()).millisecondsSinceEpoch}');
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: dosya okunamadı — bilgi eksik kalır, iş sürer.
+      }
     }
     return md5.convert(utf8.encode(parts.join('/'))).toString().substring(0, 24);
   }
@@ -1102,7 +1120,9 @@ abstract final class PeerSender {
       } else {
         try {
           size = await File(path).length();
-        } catch (_) {}
+        } catch (_) {
+          // Bilinçli: dosya okunamadı — bilgi eksik kalır, iş sürer.
+        }
       }
       final item = <String, Object>{
         'n': p.basename(path),
@@ -1177,7 +1197,9 @@ class PeerOfferItem {
     if (raw['t'] is String) {
       try {
         thumb = base64Decode(raw['t'] as String);
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: bozuk/eksik veri — varsayılan değer kalır.
+      }
     }
     return PeerOfferItem(
       name: name,

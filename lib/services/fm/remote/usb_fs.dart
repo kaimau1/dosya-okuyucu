@@ -242,7 +242,9 @@ class UsbFs extends RemoteFs {
       // Yarım inen dosyayı BIRAKMA: kullanıcı onu açtığında bozuk sanır.
       try {
         await file.delete();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+      }
       throw RemoteException(RemoteError.unreachable, detail: e.message);
     } finally {
       await sink.flush();

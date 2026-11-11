@@ -139,7 +139,9 @@ abstract final class OpHistory {
           (r) => r.whenMs == record.whenMs && r.summary == record.summary);
     try {
       await _writeAtomic(all);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
   }
 
   /// **Atomik** yazma: geçici dosya + `rename`.
@@ -161,7 +163,9 @@ abstract final class OpHistory {
     try {
       final file = File(_path);
       if (file.existsSync()) await file.delete();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+    }
   }
 
   /// En yeniden eskiye sıralar ve [maxRecords] ile sınırlar (saf → testli).

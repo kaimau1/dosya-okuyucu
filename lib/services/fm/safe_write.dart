@@ -76,7 +76,9 @@ abstract final class SafeWrite {
     } catch (_) {
       try {
         if (temp.existsSync()) temp.deleteSync();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+      }
       File(source).copySync(target);
       return;
     }
@@ -136,7 +138,9 @@ abstract final class SafeWrite {
   static Future<void> _deleteQuietly(File f) async {
     try {
       if (await f.exists()) await f.delete();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+    }
   }
 }
 

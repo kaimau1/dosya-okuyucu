@@ -186,7 +186,9 @@ abstract final class BleNearby {
   static Future<void> stop() async {
     try {
       await _ch.invokeMethod('stop');
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kapatma/durdurma — zaten durmuşsa ya da yerel taraf yoksa yapılacak bir şey yok.
+    }
   }
 
   /// **Arka planda görünürlük** (yalnız kişisel derleme, `ci/kisisel/NearbyBgService.kt`):
@@ -225,14 +227,18 @@ abstract final class BleNearby {
   static Future<void> bgDisable() async {
     try {
       await _ch.invokeMethod('bgDisable');
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kapatma/durdurma — zaten durmuşsa ya da yerel taraf yoksa yapılacak bir şey yok.
+    }
   }
 
   /// Bildirimden gelinen isteğin bildirimi kalksın.
   static Future<void> bgClearAsk() async {
     try {
       await _ch.invokeMethod('bgClearAsk');
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kapatma/durdurma — zaten durmuşsa ya da yerel taraf yoksa yapılacak bir şey yok.
+    }
   }
 
   /// [address]'teki cihaza daveti yazar; ulaştıysa true.

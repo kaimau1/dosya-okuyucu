@@ -291,7 +291,9 @@ abstract final class ImageResizer {
     } catch (_) {
       try {
         if (file.existsSync()) file.deleteSync();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+      }
       rethrow;
     }
     return (width: out.width, height: out.height);

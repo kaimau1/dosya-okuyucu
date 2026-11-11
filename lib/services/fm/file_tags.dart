@@ -123,7 +123,9 @@ abstract final class FileTags {
       final tmp = File('$_path.tmp');
       await tmp.writeAsString(jsonEncode(data), flush: true);
       await tmp.rename(_path);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
   }
 
   /// [path] dosyasının etiketleri (yoksa boş küme).

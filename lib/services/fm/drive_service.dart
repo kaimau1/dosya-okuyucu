@@ -162,7 +162,9 @@ class DriveService {
       // İzin iptali olmadıysa en azından yerel oturumu kapat.
       try {
         await GoogleSignIn.instance.signOut();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: kapatma/durdurma — zaten durmuşsa ya da yerel taraf yoksa yapılacak bir şey yok.
+      }
     }
   }
 
@@ -545,7 +547,9 @@ class DriveService {
         // en kötü sonuç olurdu: dosya "inmiş" görünür, açılınca hata verir.
         try {
           await target.delete();
-        } catch (_) {}
+        } catch (_) {
+          // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+        }
         throw const DriveDownloadCancelled();
       }
       return target;
@@ -645,7 +649,9 @@ class DriveService {
         final message = (json['error'] as Map)['message'];
         if (message is String && message.isNotEmpty) return message;
       }
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: bozuk/eksik veri — varsayılan değer kalır.
+    }
     return null;
   }
 }

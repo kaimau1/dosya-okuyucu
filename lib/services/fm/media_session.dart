@@ -166,7 +166,9 @@ abstract final class MediaSession {
       await _channel.invokeMethod<bool>('clear');
     } on MissingPluginException {
       _unavailable = true;
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: bu cihazda/sürümde yerel karşılığı yok — özellik sessizce kapalı kalır.
+    }
   }
 
   /// Uygulama medya bildirimine dokunularak açıldıysa o yükü verir.

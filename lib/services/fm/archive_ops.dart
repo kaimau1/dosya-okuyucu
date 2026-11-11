@@ -364,7 +364,9 @@ abstract final class ArchiveOps {
     if (parts.isEmpty) return [whole];
     try {
       await File(whole).delete();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+    }
     FsEvents.changed();
     return parts;
   }

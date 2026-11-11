@@ -304,6 +304,39 @@ class _JobReportScreenState extends State<JobReportScreen> {
     });
   }
 
+  /// Üretileni çöpe at (2026-11-11, A5): arşiv/çıkarılan klasör/dışa aktarılan
+  /// dosya istenmediyse tek dokunuşla geri alınır. Kayıt `trash` türüne
+  /// döner, böylece aynı sayfadan "Geri yükle" yapılabilir.
+  Future<void> _trashCreated(List<JobChange> list) async {
+    final str = AppStrings.of(context);
+    await _guard(() async {
+      final byPath = <String, JobChange>{};
+      for (final c in list) {
+        if (c.kind != 'create') continue;
+        if (await FileSystemEntity.type(c.path) ==
+            FileSystemEntityType.notFound) {
+          continue;
+        }
+        byPath[c.path] = c;
+      }
+      if (byPath.isEmpty) return;
+      await FmEnv.ensureInit();
+      final result = await FmEnv.trash.moveToTrash(byPath.keys.toList());
+      for (final t in result.transfers) {
+        final c = byPath[t.source];
+        if (c == null) continue;
+        final at = _job.changes.indexOf(c);
+        if (at < 0) continue;
+        _job.changes[at] =
+            JobChange(path: t.dest, kind: 'trash', value: '', before: t.source);
+        _entries.remove(t.source);
+      }
+      if (mounted) {
+        showSnack(context, str.t('jr.trashed', {'n': result.succeeded}));
+      }
+    });
+  }
+
   Future<void> _moveGroup(List<JobChange> list) async {
     final paths = <String>{
       for (final c in list)

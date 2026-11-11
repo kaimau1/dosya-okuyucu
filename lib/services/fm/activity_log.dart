@@ -175,7 +175,9 @@ abstract final class ActivityLog {
     try {
       final file = File(_path);
       if (file.existsSync()) await file.delete();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+    }
   }
 
   /// Yalnız testlerde: bellekteki kopyayı düşürür.

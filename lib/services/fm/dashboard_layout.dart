@@ -146,7 +146,9 @@ class DashboardLayout extends ChangeNotifier {
       await p.setStringList(_kHiddenSections, _hiddenSections.toList());
       await p.setStringList(_kTiles, _tileOrder);
       await p.setStringList(_kHiddenTiles, _hiddenTiles.toList());
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
   }
 
   Future<void> moveSection(int from, int to) {

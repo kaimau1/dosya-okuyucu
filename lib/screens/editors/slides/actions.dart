@@ -181,10 +181,10 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
       // Geçici PNG'ler destede onlarca MB tutabilir; paylaşım PDF'i okuduktan
       // sonra silmek yerine burada silmek dosyayı da götürürdü, o yüzden
       // PNG'ler gidiyor, PDF sistemin geçici klasöründe kalıyor.
-      for (final p in Directory(dir.path).listSync()) {
+      await for (final p in Directory(dir.path).list()) {
         if (p.path.endsWith('.png')) {
           try {
-            p.deleteSync();
+            await p.delete();
           } catch (_) {
             // silinemedi — işletim sistemi geçici klasörü zaten toplar
           }

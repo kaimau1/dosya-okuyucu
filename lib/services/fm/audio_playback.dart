@@ -171,7 +171,9 @@ class AudioPlayback extends ChangeNotifier {
   Future<void> _recreateEngine() async {
     try {
       await _engine?.stop();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+    }
     _engine = null;
   }
 
@@ -395,7 +397,9 @@ class AudioPlayback extends ChangeNotifier {
     if (engineEnabled && _engine != null) {
       try {
         await _player.stop();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+      }
     }
     playing = false;
     playlist = const [];
@@ -647,7 +651,9 @@ class AudioPlayback extends ChangeNotifier {
         await NotificationHub.instance.releaseService(_owner);
       }
       await NotificationHub.instance.cancel(_notificationId);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+    }
   }
 
   @override

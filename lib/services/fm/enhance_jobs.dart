@@ -144,7 +144,9 @@ abstract final class EnhanceJobs {
       if (cancelled()) {
         try {
           File(out).deleteSync();
-        } catch (_) {}
+        } catch (_) {
+          // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+        }
         return null;
       }
       FsEvents.changed([out]); // galeriye de bildirir (MediaScan)

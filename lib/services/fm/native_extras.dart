@@ -75,7 +75,9 @@ abstract final class NativeExtras {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_kRecoverable, bytes);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
     await syncDailyJob();
   }
 
@@ -88,7 +90,9 @@ abstract final class NativeExtras {
       final prefs = await SharedPreferences.getInstance();
       cleanup = prefs.getBool(kWeeklyCleanup) ?? true;
       recoverable = prefs.getInt(_kRecoverable) ?? 0;
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kayıt okunamadı ya da bozuk — boş/varsayılan durumla sürülür.
+    }
     await Bills.instance.ensureLoaded();
     final s = AppStrings.current;
     await _call<bool>('configureDaily', jsonEncode(dailyConfig(
@@ -127,7 +131,9 @@ abstract final class NativeExtras {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(kWeeklyCleanup, on);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
     await syncDailyJob();
   }
 
@@ -138,7 +144,9 @@ abstract final class NativeExtras {
   static Future<void> updateWidgets() async {
     try {
       await OpenHistory.ensureLoaded();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: ortam hazırlanamadı (testte yol sağlayıcı yok) — ardından gelen okuma boş sonuçla sürer.
+    }
     final recent = <Map<String, String>>[];
     for (final path in OpenHistory.pathsByRecency()) {
       recent.add({'name': p.basename(path), 'path': path});

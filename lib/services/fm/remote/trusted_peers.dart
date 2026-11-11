@@ -71,7 +71,9 @@ class TrustedPeers extends ChangeNotifier {
     try {
       await (await SharedPreferences.getInstance())
           .setString(_key, jsonEncode([for (final t in _items) t.toJson()]));
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
   }
 
   @visibleForTesting

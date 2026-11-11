@@ -109,7 +109,9 @@ class PdfOcrText {
       final decoded = decodeOcrPageText(raw);
       if (decoded != null) return (hit: true, text: decoded);
       f.deleteSync(); // bozuk girdi: at, OCR yeniden koşsun
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+    }
     return (hit: false, text: null);
   }
 
@@ -121,7 +123,9 @@ class PdfOcrText {
       await f.writeAsString(text == null ? 'yok' : encodeOcrPageText(text),
           flush: true);
       _pruneDisk(dir);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
   }
 
   /// Taşan önbelleği buda: en eski değiştirilenler gider. Her yazımda koşar —
@@ -139,7 +143,9 @@ class PdfOcrText {
       for (final f in files.take(files.length - _diskCap)) {
         f.deleteSync();
       }
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: temizlik — silinemezse işin sonucu değişmez; sonraki fırsatta yeniden denenir.
+    }
   }
 
   /// Bu sayfanın sonucu önbellekte (bellek ya da disk) hazır mı? OCR arama
@@ -201,7 +207,9 @@ class PdfOcrText {
           } finally {
             try {
               File(rendered.path).deleteSync();
-            } catch (_) {}
+            } catch (_) {
+              // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+            }
           }
         }
       }

@@ -528,7 +528,9 @@ abstract final class AiIndex {
     try {
       final file = File(path);
       if (file.existsSync()) await file.delete();
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+    }
     _recount();
     revision.value++;
   }
@@ -612,7 +614,9 @@ abstract final class AiIndex {
         await temp.writeAsString(text);
         await temp.rename(path);
         _lines = count;
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+      }
     });
   }
 

@@ -217,4 +217,38 @@ void main() {
     expect(c.first.value, 'Y');
     expect(c.last.before, '${dir.path}/gitti.txt');
   });
+
+  // 2026-11-11 (KALANLAR A5): kalıcı silme ve üretilen dosyalar da kayda girer.
+  test('kalıcı silme sonucu "delete" kaydı verir', () async {
+    final r = await FileOps.deleteAll([a]);
+    expect(r.deleted, [a]);
+    final c = jobChangesOf(r);
+    expect(c.single.kind, 'delete');
+    expect(c.single.path, a);
+    expect(c.single.before, isNull);
+  });
+
+  test('createdChangeOf: yalnız var olan mutlak yol "create" olur', () {
+    expect(createdChangeOf(a)?.kind, 'create');
+    expect(createdChangeOf(dir.path)?.kind, 'create', reason: 'çıkarılan klasör');
+    expect(createdChangeOf('${dir.path}/yok.zip'), isNull);
+    expect(createdChangeOf('goreli.zip'), isNull);
+    expect(createdChangeOf(42), isNull);
+    expect(createdChangeOf(''), isNull);
+  });
+
+  testWidgets('silinen ve oluşturulan gruplar adıyla listelenir', (tester) async {
+    final job = FmJob(id: 'j6', title: 'Karışık', status: JobStatus.done)
+      ..changes.addAll([
+        JobChange(path: '${dir.path}/gitti.txt', kind: 'delete', value: ''),
+        createdChangeOf(b)!,
+      ]);
+    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(app(job));
+    await tester.pump();
+    expect(find.text('Kalıcı olarak silindi'), findsOneWidget);
+    expect(find.text('Oluşturuldu'), findsOneWidget);
+  });
 }

@@ -148,14 +148,18 @@ class NotificationHub {
           body: body,
           notificationDetails: NotificationDetails(android: details),
           payload: payload);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: bildirim gösterilemedi (izin yok) — iş sonucu uygulama içinde yine görünür.
+    }
   }
 
   Future<void> cancel(int id) async {
     if (!_ready) return;
     try {
       await plugin.cancel(id: id);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+    }
   }
 
   // ── ön plan servisi ───────────────────────────────────────────────────────
@@ -255,7 +259,9 @@ class NotificationHub {
     if (_ready) {
       try {
         await _android?.stopForegroundService();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: kapatma/durdurma — zaten durmuşsa ya da yerel taraf yoksa yapılacak bir şey yok.
+      }
     }
     // Servis durdurulunca bildirimi Android kaldırır; kalıntı ihtimaline karşı
     // (bazı cihazlarda ongoing bildirim asılı kalıyor) açıkça da silinir.

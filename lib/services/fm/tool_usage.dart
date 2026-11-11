@@ -101,7 +101,9 @@ abstract final class ToolUsage {
       final tmp = File('$_path.tmp');
       await tmp.writeAsString(jsonEncode(_counts), flush: true);
       await tmp.rename(_path);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı (disk dolu/izin) — bellekteki durum geçerli kalır, sonraki kayıtta yeniden denenir.
+    }
   }
 
   /// Yalnız test için: bellekteki sayaçları sıfırlar.

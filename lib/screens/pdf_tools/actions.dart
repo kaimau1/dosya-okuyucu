@@ -396,7 +396,7 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
         // Var olan dosyanın üstüne YAZMA: kullanıcının belgesi gitmesin.
         var target = p.join(dir, '$base-${i + 1}.pdf');
         var n = 1;
-        while (File(target).existsSync()) {
+        while (await File(target).exists()) {
           target = p.join(dir, '$base-${i + 1}($n).pdf');
           n++;
         }

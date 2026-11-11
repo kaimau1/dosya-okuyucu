@@ -165,7 +165,9 @@ abstract final class ApkIcon {
     } finally {
       try {
         input?.closeSync();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+      }
     }
   }
 
@@ -245,7 +247,9 @@ abstract final class ApkIcon {
     } finally {
       try {
         input?.closeSync();
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
+      }
     }
   }
 
