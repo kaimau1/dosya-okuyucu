@@ -843,6 +843,24 @@ Külliyat belgeleri: `test/fixtures/pdf_corpus/rl_paragraflar.pdf`, `wd_mektup_l
 **Koşu kaydı**
 - 2026-11-08 · MatePad DBY-W09 (yatay, `.r8test` profil APK, adb + uiautomator): 1 ✅ (tutamaçla uzatılan seçim çubuğun üstünde; tam metin + "528 karakter · 66 sözcük") · 2 ✅ (Düzenle → paragraf doğrudan düzenlemede, imleç seçimin başında) · 3 ✅ (görüntü küçülmüyor; klavye açılınca satır örtülmeyen şeritte) · 4 ✅ (kopya doğrudan açıldı, Son açılanlar'ın başında; "AÇ" dokunuşu zaman aşımına denk geldi → widget testiyle doğrulandı) · 5 ✅ (OCR kutusu yok, ipucu + OCR ile düzenle). Turda bulunan 4 sorun aynı dalda düzeltildi (klavye sonrası kaydırma, Düzenle meşgul yarışı + kutu/metin eşleşmesi, seçim çubuğu örtüsü ölçümü).
 
+## PDF Pro Faz 54 — düzenleme oturumu, tek yüzey, artımlı kayıt (2026-11-11, dal `faz-54`)
+Önkoşul: gizli bayrak `pdf_pro_engine` AÇIK (geliştirici menüsü ya da `--dart-define=PDF_PRO_ENGINE=true`).
+Belgeler: `rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `rl_cok_sayfa.pdf`, `rl_sifreli.pdf` → `/sdcard/Download/PdfPro/`.
+1. **Tek yüzey:** belgeyi yakınlaştırıp ortasına kaydır → alt çubuk **Düzenle → Metin** → ekran DEĞİŞMİYOR, yakınlaştırma ve kaydırma aynı; üst çubukta geri al · yinele · Kaydet · ⋮, alt satırda "Düzenleme kipi"; paragraflar ince çerçeveli. Sayfa hâlâ tek parmakla kayıyor, iki parmakla yakınlaşıyor.
+2. **Düzenle + geri al:** paragrafa dokun (seçilir, 4 tutamaç) → yeniden dokun → levhada metni değiştir → Uygula → sayfa aynı yerde, yalnız o paragraf değişti; durum "Kaydedilmedi · 1 değişiklik". Geri al → paragraf eski hâlinde (komşu satırlar kıpırdamadı), durum "Düzenleme kipi"; Yinele → yeni metin. Geri al düğmesine uzun bas → "Geri al: Paragraf düzenlendi: “…”".
+3. **Ret (PK7):** başlığa fontta olmayan harfler (ör. Çince) yaz → "Belgenin yazı tipinde bu harflerin bazıları yok…" ve belge değişmedi.
+4. **Kaydet + sürüm geçmişi:** iki paragraf düzenle → **Kaydet** → "Kaydedildi", ekran yerinde. ⋮ → **Sürüm geçmişi** → az önceki sürüm (tarih + boyut) → **Bu sürüme dön** → belge eski hâliyle açılıyor; geçmişte şimdi iki sürüm var. Dosya yöneticisinde dosya boyu yalnız birkaç KB büyümüş.
+5. **Çıkış sorusu:** düzenle → geri tuşu → "Kaydet · Kaydetme · Vazgeç"; **Kaydetme** → okuma kipi, belge özgün hâlinde; yeniden Düzenle → düzenle → geri → **Kaydet** → okuma kipi, değişiklik dosyada.
+6. **Farklı kaydet:** düzenle → ⋮ → **Aynı klasöre kopya** → görüntüleyici kopyayı AYNI sayfada açıyor, bildirim "Kopya kaydedildi: …"; Geçmiş › Son açılanlar'ın başında kopya; özgün dosya değişmemiş. **Belgeler'e kopya** → kopya `Documents/Dosya Okuyucu/` altında.
+7. **Salt okunur konum:** başka uygulamadan (ör. e-posta eki / WhatsApp) "birlikte aç" ile gelen PDF'i düzenle → **Kaydet** → "Bu konuma yazılamıyor. Kopya Belgeler'e kaydedildi: …" ve kopya açılıyor.
+8. **Çökme kurtarma:** düzenle (kaydetme) → 35 sn bekle → son uygulamalardan uygulamayı at (ya da `adb shell am kill`) → belgeyi yeniden aç → "Kaydedilmemiş düzenlemeler bulundu · N değişiklik" → **Geri yükle** → düzenleme kipi, değişiklikler yerinde ve "Kaydedilmedi"; Geri al çalışıyor. Aynı senaryoda **Sil** → bir daha sorulmuyor.
+9. **Şifreli belge:** `rl_sifreli.pdf` → Düzenle → "Bu belge düzenlemeye karşı korunuyor" → **Sahip parolasıyla aç** → yanlış parola: "Bu parola belgenin sahip parolası değil"; `sahip` → düzenleme kipi açılıyor, düzenle + Kaydet → dosya yeniden açılınca hâlâ şifreli ve değişiklik yerinde.
+10. **Başka araca geçiş:** kirliyken alt çubuktan Kalem/İmza/Araçlar → önce kaydetme sorusu geliyor; Vazgeç'te kip sürüyor.
+11. **Bütçeler (§6, profil APK, `tool/perf_senaryo.sh`):** kipe geçiş ≤ 150 ms · uygula → güncel sayfa p95 ≤ 250 ms · geri al/yinele p95 ≤ 150 ms · 50 sayfada Kaydet ≤ 500 ms (`rl_cok_sayfa` ×17 birleştir) · oturum ek belleği ≤ +40 MB · düzenleme kipinde boşta 0 kare. Sayılar `docs/perf/2026-11-pdfpro-54-oturum.md` "Cihaz" sütununa.
+12. **Bayrak kapalı:** bayrak kapalıyken Düzenle eski düzenleyici ekranını açıyor (davranış değişmedi).
+
+**Koşu kaydı**
+- (bekliyor)
 ## Faz G1 — Android platform sertleştirme (2026-11-11, dal `faz-G1`)
 1. **Widget dokunuşu:** ana ekran widget'larındaki Tara / Ara / Temizle düğmeleri ve "son dosyalar" satırı doğru ekranı/dosyayı açıyor (bağlantılar artık imzalı).
 2. **Başlatıcı kısayolları:** uygulama simgesine uzun bas → Ara / Tara / İndirilenler / Son açılanlar çalışıyor.

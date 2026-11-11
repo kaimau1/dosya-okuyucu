@@ -94,6 +94,10 @@ Sırayla, ilk uyan tüketir:
 5. Okuma kipi, kaydedilmemiş değişiklik var → "Değişiklikler kaydedilsin mi?" (Kaydet · Kaydetme · Vazgeç).
 6. Aksi halde ekran kapanır.
 
+> **Faz 54 ara durumu (2026-11-11):** oturum henüz okuma kipinde yaşamıyor — düzenleme kipinden
+> çıkış (4) kirliyse soruyu (5) HEMEN sorar ve oturumu kapatır; "değişiklik bellekte kalır" Faz 57'de
+> gelir. Blok seçimi geri tuşuyla değil boşluğa dokunarak bırakılır (3 atlanır).
+
 ## 9. Durumlar
 
 - **Yükleniyor:** gösterge yalnız 300 ms'yi aşarsa; sayfa okunur kalır, dokunuşlar kuyruğa alınmaz.

@@ -109,6 +109,17 @@ import 'audiobook/audiobook_screen.dart';
 import 'fm/remote/peer_share_screen.dart' show showShareChoice;
 import '../core/app_colors.dart';
 import '../widgets/app_dialog.dart';
+import '../widgets/app_action_sheet.dart';
+import '../widgets/pdf_pro/pdf_block_layer.dart';
+import '../widgets/pdf_pro/pdf_pro_edit_controller.dart';
+import '../widgets/pdf_pro/pdf_pro_sheets.dart';
+import '../services/docs_home.dart';
+import '../services/pdf_save.dart';
+import '../services/pdf/pro/pdf_edit_access.dart';
+import '../services/pdf/pro/pdf_edit_bridge.dart';
+import '../services/pdf/pro/pdf_edit_recovery.dart';
+import '../services/pdf/pro/pdf_edit_session.dart';
+import '../services/pdf/pro/pdf_version_history.dart';
 part 'viewer/pending_save.dart';
 part 'viewer/find_replace.dart';
 part 'viewer/doc_actions.dart';
@@ -121,6 +132,7 @@ part 'viewer/code_tools.dart';
 part 'viewer/widgets.dart';
 part 'viewer/pdf_reading_pro.dart';
 part 'viewer/pdf_reading_aids.dart';
+part 'viewer/pdf_pro_edit.dart';
 
 /// PDF vurgu renkleri (0xAARRGGBB) — vurgu kipindeki sıra. Pastel tonlar
 /// (2026-09-27): eski doygun pembe (F06292) çarpımsal harmanda bile kelimeyi
@@ -166,6 +178,20 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   /// Elimizdeki parola bu açılışta denendi mi (denendiyse yanlıştır).
   bool _pdfPasswordTried = false;
+
+  /// PDF Pro düzenleme kipi (Faz 54, bayrak `pdf_pro_engine`): null = okuma.
+  /// Aynı ekran, aynı belge — bkz. `viewer/pdf_pro_edit.dart`.
+  PdfProEditController? _pro;
+
+  /// Kısıtlı belgede sahip parolası bu ekranda doğrulandı.
+  bool _proOwnerOk = false;
+
+  /// Yarıda kalmış oturum bu açılışta bir kez sorulur.
+  bool _proRecoveryAsked = false;
+
+  void _onProChanged() {
+    if (mounted) setState(() {});
+  }
 
   /// Az önce kodla gidilen sayfa ("sayfaya git", arama, içindekiler,
   /// bağlantı). Birden çok sayfa ekrana tam sığdığında rozet bu sayfayı
@@ -697,6 +723,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
     // sayfa" çalışsın (kayıt üç saniyelik gecikmeyle yazılıyor).
     unawaited(ReadingPositions.save());
     _pdfController.removeListener(_onPdfMatrix);
+    // Kaydedilmemiş düzenleme varsa çökme kaydı kalır (yeniden açılışta sunulur).
+    _pro
+      ?..removeListener(_onProChanged)
+      ..dispose();
     _readingBars.dispose();
     _disposeReadingAids();
     if (_fullscreen) {
@@ -735,9 +765,15 @@ class _ViewerScreenState extends State<ViewerScreen> {
     // "kaydetmek ister misiniz?" sorulur (2026-07-26 kullanıcı isteği).
     final textUnsaved = _dirty && doc.kind == DocKind.text;
     return PopScope(
-      canPop: !_hasUnsaved && !textUnsaved && _pdfWriting == 0,
+      canPop:
+          !_hasUnsaved && !textUnsaved && _pdfWriting == 0 && _pro == null,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
+        // Düzenleme kipi: geri önce okuma kipine döndürür (etkileşim §8).
+        if (_pro != null) {
+          await _exitProEdit();
+          return;
+        }
         if (textUnsaved) {
           // Metin düzenleyici: altı editörün ortak çıkış sorusu (Faz 20) —
           // eskiden yazılan metin geri tuşuyla sessizce kayboluyordu.

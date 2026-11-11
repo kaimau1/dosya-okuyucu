@@ -104,6 +104,35 @@ abstract final class PdfEditBridge {
   static Future<List<int>> markedObjects(PdfDocument doc, int pageIndex) =>
       doc.computeOnIdleDocument(_markedObjects, pageIndex);
 
+  /// Sayfanın **anlık görüntüsü** (Faz 54 / 1): sayfa — içerik akışı + kaynak
+  /// sözlüğü — geçici bir PDFium belgesine kopyalanır (tüm belge kopyası YOK).
+  /// Dönen tutamaç [restorePage] ve [releaseSnapshot] içindir; 0 = alınamadı.
+  static Future<int> snapshotPage(PdfDocument doc, int pageIndex) =>
+      doc.computeOnIdleDocument(_snapTake, pageIndex);
+
+  /// [snapshot]'taki sayfayı [pageIndex]'e geri koyar: kopya aynı sıraya
+  /// eklenir, eski sayfa silinir, yalnız o sayfanın önbelleği düşer (PK2).
+  /// Geri konamazsa canlı belgeye dokunulmaz ve false döner.
+  ///
+  /// **Bedel:** geri konan sayfa belgede YENİ bir nesnedir; eski sayfaya
+  /// nesne numarasıyla bakan yer imleri/bağlantılar kayıtta boşa düşerdi →
+  /// oturum böyle bir geri almadan sonra kaydı canlı belgeden değil, özgünün
+  /// üstünde komutları yeniden oynatarak üretir ([PdfEditSession.needsReplay]).
+  static Future<bool> restorePage(
+      PdfDocument doc, int pageIndex, int snapshot) async {
+    if (snapshot == 0) return false;
+    final ok =
+        await doc.computeOnIdleDocument(_snapRestore, (pageIndex, snapshot));
+    if (ok) await doc.reloadPages(pageNumbersToReload: [pageIndex + 1]);
+    return ok;
+  }
+
+  /// Anlık görüntünün geçici belgesini kapatır.
+  static Future<void> releaseSnapshot(PdfDocument doc, int snapshot) async {
+    if (snapshot == 0) return;
+    await doc.computeOnIdleDocument(_snapRelease, snapshot);
+  }
+
   /// Artımlı kayıt baytları (özgün baytlar başta aynen durur). [original]
   /// verilirse (belgenin açıldığı baytlar) PDFium'un eki kırpılır: yalnız
   /// gerçekten değişen nesneler kalır ([PdfIncrementalTrim], PK1 koşulu 2).
@@ -112,6 +141,41 @@ abstract final class PdfEditBridge {
     final out = await doc.encodePdf(incremental: true);
     return original == null ? out : PdfIncrementalTrim.trim(original, out);
   }
+}
+
+int _snapTake(pdfium_bindings.PDFium p, int docAddr, int pageIndex) {
+  final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(docAddr);
+  final temp = p.FPDF_CreateNewDocument();
+  if (temp == nullptr) return 0;
+  final ok = using((arena) {
+    final idx = arena<Int>()..value = pageIndex;
+    return p.FPDF_ImportPagesByIndex(temp, doc, idx, 1, 0) != 0;
+  });
+  if (!ok) {
+    p.FPDF_CloseDocument(temp);
+    return 0;
+  }
+  return temp.address;
+}
+
+bool _snapRestore(pdfium_bindings.PDFium p, int docAddr, (int, int) m) {
+  final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(docAddr);
+  final snap = pdfium_bindings.FPDF_DOCUMENT.fromAddress(m.$2);
+  final count = p.FPDF_GetPageCount(doc);
+  if (m.$1 < 0 || m.$1 >= count) return false;
+  final ok = using((arena) {
+    final idx = arena<Int>()..value = 0;
+    return p.FPDF_ImportPagesByIndex(doc, snap, idx, 1, m.$1) != 0;
+  });
+  // Kopya eklenemediyse eski sayfa yerinde: hiçbir şey değişmedi.
+  if (!ok || p.FPDF_GetPageCount(doc) != count + 1) return false;
+  p.FPDFPage_Delete(doc, m.$1 + 1);
+  return true;
+}
+
+bool _snapRelease(pdfium_bindings.PDFium p, int docAddr, int snapshot) {
+  p.FPDF_CloseDocument(pdfium_bindings.FPDF_DOCUMENT.fromAddress(snapshot));
+  return true;
 }
 
 class _ReplaceMsg {
