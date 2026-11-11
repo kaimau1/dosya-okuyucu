@@ -70,9 +70,13 @@ extension _SlideshowRemote on _SlideshowScreenState {
   }
 
   Future<void> _serve(HttpRequest req, String token) async {
+    // G4.1/G4.9: yalnız yerel ağdan; jeton (8 karakter, Random.secure ≈ 40
+    // bit) sabit zamanlı karşılaştırılır. Kumanda yalnız ileri/geri ve sıra
+    // numarası verir (not metni gönderilmez).
+    if (!await LanGuard.admit(req)) return;
     final seg = req.uri.pathSegments;
     final res = req.response;
-    if (seg.isEmpty || seg.first != token) {
+    if (seg.isEmpty || !LanGuard.safeEquals(seg.first, token)) {
       res.statusCode = HttpStatus.notFound;
       await res.close();
       return;
@@ -86,6 +90,7 @@ extension _SlideshowRemote on _SlideshowScreenState {
           _backward();
       }
     }
+    LanGuard.secureHeaders(res, script: true);
     if (cmd.isEmpty) {
       res.headers.contentType = ContentType.html;
       res.write(_remotePage(context.t('ss.prev'), context.t('ss.next')));

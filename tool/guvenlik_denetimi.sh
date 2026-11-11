@@ -13,13 +13,11 @@ BEKLEYEN="6"
 
 # ── İzin listeleri (yeni giriş = bilinçli güvenlik kararı; gerekçe şart) ──────────
 # Kural 2: güvenli olmayan Random() kullanabilen dosyalar (sır/kod ÜRETMEZ).
-# peer_share.dart eşleştirme kodu için kullanıyor -> G4.2'de Random.secure() olunca listeden çıkar.
 RANDOM_IZIN="
 lib/services/fm/audio_playback.dart|karıştırma (shuffle), sır değil
 lib/services/docx/docx_media.dart|belge içi şekil kimliği, sır değil
 lib/services/pptx/pro/pptx_deck_ops.dart|tohumlu rastgele kimlik, sır değil
 lib/services/docx/pro/docx_fonts.dart|tohumlu Random(seed) yalnız seed!=0 (belirlenimli test); varsayılan Random.secure()
-lib/services/fm/remote/peer_share.dart|GEÇİCİ: eşleştirme kodu Random() (B6, G4.2'de kalkar)
 "
 # Kural 4: dışa açık (exported=true) manifest bileşenleri: ad|gerekçe
 EXPORTED_IZIN="

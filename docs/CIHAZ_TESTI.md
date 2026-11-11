@@ -885,3 +885,11 @@ Belgeler: `rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `rl_cok_sayfa.pdf`, `rl_si
 4. **Yanlış PIN beklemesi:** 5 yanlış PIN → "0:30 bekleyin"; uygulamayı kapatıp açınca bekleme sürüyor (uygulama kilidinde de, kasada da — sayaç ortak). Doğru PIN sonrası sayaç sıfırlanıyor.
 5. **Uygulama/klasör kilidi göçü:** eski PIN güncellemeden sonra uygulama kilidini ve kilitli klasörü açıyor; PIN değiştirme (eski PIN sorulur) çalışıyor.
 6. **Otomatik kilit:** kasa açıkken "Arka planda kilitlenme"yi "30 sn sonra" yap → ana ekrana çık, 10 sn içinde dön → açık; 40 sn sonra dön → kilitli. "Hemen"de her arka plana geçişte kilitli.
+
+## Faz G4 — Yerel sunucular (2026-11-11, dal `ccr-092fb36d-pwtgo8`)
+1. **Ağdan erişim (HTTP):** Wi-Fi'daki bilgisayardan tarayıcıyla klasör listesi açılıyor, PDF/fotoğraf/video tarayıcıda açılıyor; SVG dosyası indiriliyor (açılmıyor). Bilgisayardan dosya yükleme çalışıyor.
+2. **Yanlış parola:** tarayıcıda 10 kez yanlış parola → "429"; 1 dk sonra doğru parolayla giriliyor.
+3. **FTP:** Windows Gezgini / FileZilla ile bağlan, indir, yükle, yeniden adlandır (pasif kip). 10 yanlış parola → bağlantı reddi.
+4. **Mobil veri:** Wi-Fi kapalı, mobil veri açık, sunucu açık → dışarıdan (başka bir ağdan) port ERİŞİLEMİYOR. Telefon erişim noktası açıkken bağlanan bilgisayardan erişiliyor.
+5. **Eşler arası:** iki telefon + Windows "Dosya Aktar" ile kodlu/kodsuz gönder-al; yanlış kod 5 kez → doğru kod da 1 dk reddediliyor.
+6. **QR aktarım + slayt kumandası:** QR'dan indirme sayfası açılıyor (küçük resimler, "Tümünü indir"); slayt kumandası ileri/geri çalışıyor.

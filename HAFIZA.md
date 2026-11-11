@@ -635,3 +635,10 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Dürüst sınır:** 4–6 haneli PIN'de 600 bin tur çevrim dışı kaba kuvveti yalnız yavaşlatır (10^4 olasılık); `vault.json` paylaşılan depolamada. Asıl koruma PIN uzunluğu — kullanıcıya söylendi.
 - G3.5 `vault_autolock_secs` (0/30/60/300), dönüşte geçen süreye de bakılır. G3.6 metinler zaten dürüsttü (değişiklik yok).
 
+## 2026-11-11 — Güvenlik Faz G4 (kısmi): yerel sunucular
+- **Karar (G4.1):** sunucular `anyIPv4`'e bağlı KALDI (arayüze bağlamak IP/erişim noktası değişince sunucuyu sağır bırakırdı); her istekte/bağlantıda `LanGuard.isPrivate(karşı adres)` — 10/8, 172.16/12, 192.168/16, 169.254/16, geri döngü, fe80/fc00 kabul; CGNAT 100.64/10 ve genel adres 403. UDP keşfi de yalnız özel adrese yanıt verir.
+- **Karar (G4.3/G4.4):** `AuthThrottle` adres başına (HTTP Basic + FTP PASS 10/60 sn, eşleştirme kodu 5/60 sn); karşılaştırmalar `LanGuard.safeEquals`. Eşleştirme kodu 4 hane KALDI (Windows exe/eski sürüm uyumu) ama `Random.secure`; denetim betiği Random izin listesinden çıktı. Peer'de kod denetimi `late final` — bilinmeyen yola gelen istek deneme sayılmaz.
+- **Bug kökü (G4.10):** `FtpServer.resolve` yorumu "gerçek yol" diyordu ama yalnız METİN karşılaştırıyordu → kök içindeki sembolik bağ kök dışını okutuyordu (HTTP paylaşımı da aynı yolu kullanır). `withinRealRoot`: var olan en yakın ata `resolveSymbolicLinksSync` ile kökün çözülmüş yoluna göre denetlenir (kök yoksa — testler — metin denetimi yeterli).
+- **Bug kökü (G4.6):** `MimeTypes.opensInBrowser` `image/*` diye SVG'yi de tarayıcıda açtırıyordu → SVG içindeki betik paylaşım kökeninde çalışırdı. SVG artık indirilir; HTML sayfalarda CSP/nosniff/DENY/no-referrer (`LanGuard.secureHeaders`, betikli sayfada `script: true`). Yükleme POST'u `LanGuard.sameOrigin` (Origin/Host) ister; yükleme sonrası "Geri" bağlantısı Referer'ın yalnız YOLU.
+- **Karar:** FTP pasif veri bağlantısı yalnız denetim bağlantısının adresinden kabul edilir.
+

@@ -11,6 +11,7 @@ import '../fs_scan.dart';
 import '../mime_types.dart';
 import 'ftp_server.dart';
 import 'ftp_tree.dart';
+import 'lan_guard.dart';
 
 /// **Tarayıcıdan erişim** — ağ paylaşımının HTTP yüzü.
 ///
@@ -126,10 +127,27 @@ class HttpShareServer {
     } catch (_) {}
   }
 
+  /// G4.3: adres başına 10 hatalı parola → 60 sn 429.
+  final _throttle = AuthThrottle();
+
   Future<void> _handle(HttpRequest request) async {
     final response = request.response;
     try {
+      // G4.1: yalnız yerel ağdan (mobil veri arayüzünden gelen reddedilir).
+      if (!await LanGuard.admit(request)) return;
+      final ip = request.connectionInfo?.remoteAddress.address ?? '';
+      if (!share.anonymous && _throttle.blocked(ip)) {
+        response.statusCode = HttpStatus.tooManyRequests;
+        response.headers.set(HttpHeaders.retryAfterHeader, '60');
+        response.write('429');
+        await response.close();
+        return;
+      }
       if (!_authorized(request)) {
+        // Başlıksız ilk istek (tarayıcı henüz sormadı) deneme sayılmaz.
+        if (request.headers.value(HttpHeaders.authorizationHeader) != null) {
+          _throttle.fail(ip);
+        }
         response.statusCode = HttpStatus.unauthorized;
         response.headers.set(
             HttpHeaders.wwwAuthenticateHeader, 'Basic realm="Dosya Okuyucu"');
@@ -137,7 +155,15 @@ class HttpShareServer {
         await response.close();
         return;
       }
+      if (!share.anonymous) _throttle.success(ip);
       if (request.method == 'POST' && request.uri.path == uploadPath) {
+        // G4.7: başka bir siteden gönderilen form (CSRF) yüklenmez.
+        if (!LanGuard.sameOrigin(request)) {
+          response.statusCode = HttpStatus.forbidden;
+          response.write('403');
+          await response.close();
+          return;
+        }
         await _receiveUpload(request);
         return;
       }
@@ -220,7 +246,9 @@ class HttpShareServer {
       }
     }
     if (saved.isNotEmpty) onUploaded?.call(saved);
-    final back = request.headers.value('referer') ?? '/';
+    // Yalnız YOL alınır: `Referer` başka bir site ya da `javascript:` olabilir.
+    final ref = Uri.tryParse(request.headers.value('referer') ?? '');
+    final back = ref != null && ref.path.startsWith('/') ? ref.path : '/';
     await _sendHtml(
       response,
       '<!doctype html><html lang="tr"><head><meta charset="utf-8">'
@@ -246,9 +274,32 @@ class HttpShareServer {
     }
     raw ??= RegExp(r'filename="([^"]*)"').firstMatch(disposition)?[1];
     if (raw == null) return null;
-    final name = raw.split(RegExp(r'[\\/]')).last.trim();
-    if (name.isEmpty || name == '.' || name == '..') return null;
-    return name.replaceAll(RegExp(r'[\x00-\x1f]'), '');
+    var name = raw
+        .split(RegExp(r'[\\/]'))
+        .last
+        .replaceAll(RegExp(r'[\x00-\x1f\x7f]'), '')
+        .trim();
+    // G4.5: yalnız noktalardan oluşan ad (`.`, `..`, `...`) yok.
+    if (name.isEmpty || RegExp(r'^\.+$').hasMatch(name)) return null;
+    // Windows'un ayrılmış adları (dosya sonra bilgisayara kopyalanırsa
+    // açılamaz/aygıta yazılır): `CON.txt` → `_CON.txt`.
+    final stem = name.split('.').first.toUpperCase();
+    if (RegExp(r'^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$').hasMatch(stem)) {
+      name = '_$name';
+    }
+    // Dosya sistemi sınırı 255 BAYT: uzantı korunarak kısaltılır.
+    if (utf8.encode(name).length > 255) {
+      final ext = p.extension(name);
+      var base = p.basenameWithoutExtension(name);
+      final keepExt = utf8.encode(ext).length <= 32 ? ext : '';
+      while (base.isNotEmpty &&
+          utf8.encode(base).length + utf8.encode(keepExt).length > 255) {
+        base = base.substring(0, base.length - 1);
+      }
+      name = '$base$keepExt';
+      if (name.isEmpty) return null;
+    }
+    return name;
   }
 
   /// Parola varsa HTTP Basic. Anonim paylaşımda herkes girebilir (kullanıcı
@@ -316,7 +367,8 @@ class HttpShareServer {
   Future<void> _sendHtml(HttpResponse response, String html) async {
     response.headers.contentType = ContentType.html;
     // Listeleme ÖNBELLEKLENMEZ: klasör içeriği telefonda her an değişiyor.
-    response.headers.set(HttpHeaders.cacheControlHeader, 'no-store');
+    // G4.6: CSP, nosniff, çerçeveleme yasağı.
+    LanGuard.secureHeaders(response);
     response.write(html);
     await response.close();
   }
@@ -324,6 +376,7 @@ class HttpShareServer {
   Future<void> _sendNotFound(HttpResponse response) async {
     response.statusCode = HttpStatus.notFound;
     response.headers.contentType = ContentType.html;
+    LanGuard.secureHeaders(response);
     response.write('<h1>404</h1>');
     await response.close();
   }
@@ -346,6 +399,8 @@ class HttpShareServer {
     // `HttpHeaders`ta sabiti yok; başlık adı düz metin.
     response.headers.set('content-disposition', contentDisposition(name, inline));
     response.headers.set(HttpHeaders.acceptRangesHeader, 'bytes');
+    // G4.6: tarayıcı türü tahmin edip (ör. .txt içindeki HTML) çalıştırmasın.
+    response.headers.set('X-Content-Type-Options', 'nosniff');
 
     final range = parseRange(
         request.headers.value(HttpHeaders.rangeHeader), length);
@@ -549,8 +604,10 @@ bool checkBasicAuth(String? header, String username, String password) {
     final decoded = utf8.decode(base64.decode(header.substring(6).trim()));
     final colon = decoded.indexOf(':');
     if (colon < 0) return false;
-    return decoded.substring(0, colon) == username &&
-        decoded.substring(colon + 1) == password;
+    // G4.3: sabit zamanlı (ikisi de her durumda karşılaştırılır).
+    final userOk = LanGuard.safeEquals(decoded.substring(0, colon), username);
+    final passOk = LanGuard.safeEquals(decoded.substring(colon + 1), password);
+    return userOk & passOk;
   } catch (_) {
     return false;
   }

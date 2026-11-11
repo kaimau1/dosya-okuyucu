@@ -9,6 +9,7 @@ import '../../../models/fs_entry.dart';
 import '../fs_scan.dart';
 import '../storage_stats.dart';
 import 'ftp_tree.dart';
+import 'lan_guard.dart';
 import 'share_scope.dart';
 
 /// Telefonu **FTP sunucusuna** çevirir: PC'den tarayıcı ya da herhangi bir FTP
@@ -153,6 +154,11 @@ class FtpServer {
     _server = server;
     server.listen(
       (socket) {
+        // G4.1: yalnız yerel ağdan (mobil veri arayüzünden gelen kapatılır).
+        if (!LanGuard.isPrivate(socket.remoteAddress)) {
+          socket.destroy();
+          return;
+        }
         final session = _FtpSession(this, socket);
         _clients.add(session);
         onClients?.call(_clients.length);
@@ -165,6 +171,9 @@ class FtpServer {
       cancelOnError: false,
     );
   }
+
+  /// G4.3: adres başına 10 hatalı `PASS` → 60 sn red.
+  final passThrottle = AuthThrottle();
 
   Future<void> stop() async {
     final server = _server;
@@ -199,14 +208,40 @@ class FtpServer {
     final relative =
         normalized.startsWith('/') ? normalized.substring(1) : normalized;
     final real = p.normalize(p.join(rootDirectory, relative));
-    // Son kontrol GERÇEK yol üzerinde: sembolik bağ/normalize kaçaklarına karşı.
+    // Normalize kaçaklarına karşı metin denetimi…
     if (!p.equals(real, rootDirectory) && !p.isWithin(rootDirectory, real)) {
       return null;
     }
+    // …ve G4.10 (2026-11-11): sembolik bağ denetimi. Eskiden yorum "gerçek
+    // yol" diyordu ama yalnız METİN karşılaştırılıyordu: kök içindeki bir bağ
+    // (`bag` → `/data/...`) kök dışını okutuyordu.
+    if (!withinRealRoot(rootDirectory, real)) return null;
     // Güvenlik kontrolü normalize edilmiş yol üzerinde yapıldı; DÖNÜŞ ise
     // kök + '/' + sanal parça. p.normalize Windows'ta '\' basar — sözleşme
     // (test: yol çözümü) '/' bekler, File() iki ayırıcıyı da açar.
     return relative.isEmpty ? rootDirectory : '$rootDirectory/$relative';
+  }
+
+  /// [real]in (yoksa var olan en yakın atasının) bağları çözülmüş yolu
+  /// [root]un bağları çözülmüş yolunun içinde mi? Kök yoksa (test, henüz
+  /// takılmamış birim) yalnız metin denetimi geçerlidir. Çözülemeyen (kırık
+  /// bağ, izin) → hayır.
+  static bool withinRealRoot(String root, String real) {
+    try {
+      if (!Directory(root).existsSync()) return true;
+      final realRoot = Directory(root).resolveSymbolicLinksSync();
+      var probe = real;
+      while (FileSystemEntity.typeSync(probe, followLinks: false) ==
+          FileSystemEntityType.notFound) {
+        final parent = p.dirname(probe);
+        if (parent == probe) return true;
+        probe = parent;
+      }
+      final resolved = File(probe).resolveSymbolicLinksSync();
+      return p.equals(resolved, realRoot) || p.isWithin(realRoot, resolved);
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Bir düğümün GERÇEK disk yolu (yoksa null).
@@ -448,11 +483,20 @@ class _FtpSession {
           _send('331 Parola gerekli');
         }
       case 'PASS':
-        if (server.anonymous ||
-            (_pendingUser == server.username && argument == server.password)) {
+        final ip = socket.remoteAddress.address;
+        if (!server.anonymous && server.passThrottle.blocked(ip)) {
+          _send('421 Çok fazla hatalı deneme, sonra yeniden deneyin');
+          return;
+        }
+        // G4.3: sabit zamanlı (ikisi de her durumda karşılaştırılır).
+        final userOk = LanGuard.safeEquals(_pendingUser, server.username);
+        final passOk = LanGuard.safeEquals(argument, server.password);
+        if (server.anonymous || (userOk & passOk)) {
+          if (!server.anonymous) server.passThrottle.success(ip);
           _authed = true;
           _send('230 Giriş yapıldı');
         } else {
+          server.passThrottle.fail(ip);
           // Kullanıcı adı mı parola mı yanlış SÖYLENMEZ (kaba kuvvet için ipucu).
           _send('530 Giriş başarısız');
         }
@@ -643,7 +687,16 @@ class _FtpSession {
     }
     _pasv = null;
     try {
-      final data = await pasv.first.timeout(const Duration(seconds: 20));
+      // G4: veri bağlantısı YALNIZ denetim bağlantısının adresinden kabul
+      // edilir — ağdaki başkası pasif porta önce bağlanıp dosyayı alamasın.
+      final data = await pasv
+          .where((d) {
+            final ok = d.remoteAddress.address == socket.remoteAddress.address;
+            if (!ok) d.destroy();
+            return ok;
+          })
+          .first
+          .timeout(const Duration(seconds: 20));
       // İstemci (ör. Windows Gezgini küçük resim/iptal) veri bağlantısını
       // sıfırlarsa `done` hata ile biter; dinleyen yoksa "[async]
       // SocketException: Connection reset by peer" olarak hata kaydına düşer.

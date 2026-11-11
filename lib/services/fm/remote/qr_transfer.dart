@@ -10,6 +10,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../archive_ops.dart';
 import '../file_ops.dart';
+import 'lan_guard.dart';
 import 'transfer_keeper.dart';
 import 'zip_stream.dart';
 
@@ -183,12 +184,14 @@ class QrShareServer implements KeepableServer {
       await res.close();
       return;
     }
+    // G4.1: yalnız yerel ağdan.
+    if (!await LanGuard.admit(req)) return;
     try {
       final seg = req.uri.pathSegments.where((s) => s.isNotEmpty).toList();
       if ((req.method != 'GET' && req.method != 'HEAD') ||
           seg.length < 2 ||
           seg[0] != 'q' ||
-          seg[1] != token) {
+          !LanGuard.safeEquals(seg[1], token)) {
         // Jetonsuz adres (`/q/<jeton>` sonu eğik çizgisiz) yönlendirilir:
         // elle yazan çizgiyi unutabilir.
         if (req.method == 'GET' &&
@@ -379,9 +382,8 @@ class QrShareServer implements KeepableServer {
     }
     final who = senderName.trim().isEmpty ? '' : esc.convert(senderName.trim());
     final single = _items.length == 1;
-    res.headers
-      ..contentType = ContentType.html
-      ..set(HttpHeaders.cacheControlHeader, 'no-store');
+    res.headers.contentType = ContentType.html;
+    LanGuard.secureHeaders(res, script: true);
     res.write('''<!doctype html><html lang="tr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
