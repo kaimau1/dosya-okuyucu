@@ -187,6 +187,11 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                               .withValues(alpha: 0.15),
                         ),
                         onViewerReady: (document, controller) {
+                          // Belge arkamızdan yeniden yüklendiyse oturum eski
+                          // belgeye bağlıdır: bırakılır (çökme kaydı kalır).
+                          if (_pro != null && _pro!.document != document) {
+                            unawaited(_closePro(keepRecovery: true));
+                          }
                           _pdfDoc = document;
                           _pdfPasswordTried = false;
                           // Her (yeniden) yüklemede yeni arayıcı: eskisi önceki
@@ -207,6 +212,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                           // şerit ilk kareyle birlikte kayboluyordu.
                           WidgetsBinding.instance
                               .addPostFrameCallback((_) => _showResumeNotice());
+                          unawaited(_proCheckRecovery());
                           if (widget.startInk && !_inkStarted) {
                             _inkStarted = true;
                             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -229,6 +235,16 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         },
                         pageOverlaysBuilder: (context, pageRect, page) => [
                           ?_bookmarkRibbon(page, pageRect),
+                          // Düzenleme kipi (Faz 54): seçim katmanının yerine
+                          // blok katmanı — aynı ekran, aynı yakınlaştırma.
+                          if (_pro != null)
+                            PdfProBlockLayer(
+                              page: page,
+                              pageSize: pageRect.size,
+                              controller: _pro!,
+                              onEdit: _proEditBlock,
+                            )
+                          else
                           PdfSelectLayer(
                               page: page,
                               pageSize: pageRect.size,

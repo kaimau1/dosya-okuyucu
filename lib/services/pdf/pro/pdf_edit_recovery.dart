@@ -227,6 +227,10 @@ abstract final class PdfEditRecovery {
     return clear(path);
   }
 
+  /// Oturum kaydedilmeden koptu (ekran arkadan kapandı): kayıt KALIR ve
+  /// belge yeniden açılınca kurtarma olarak sunulur.
+  static void abandon(String path) => _live.remove(p.normalize(path));
+
   /// Kurtarma kaydını siler (oturum canlı kalır).
   static Future<void> clear(String path) {
     final job = _queue.then((_) => _delete(path));

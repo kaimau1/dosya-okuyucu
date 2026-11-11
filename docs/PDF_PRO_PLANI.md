@@ -246,16 +246,33 @@ bloklanmadı; Faz 54+ bu maketlerle sürer.
        belgesine kopyası (`FPDF_ImportPagesByIndex`); geri al kopyayı aynı sıraya ekleyip eski sayfayı
        siler (piksel piksel aynı — test). Geri konan sayfa yeni nesne olduğundan böyle bir oturumda
        kayıt canlı belgeden değil, özgünün üstünde komutlar yeniden oynatılarak üretilir (madde 3).
-2. [ ] **Tek yüzey:** görüntüleyicide "Düzenle" → düzenleme kipi (aynı ekran, aynı yakınlaştırma);
+2. [x] **Tek yüzey:** görüntüleyicide "Düzenle" → düzenleme kipi (aynı ekran, aynı yakınlaştırma);
        çıkışta kaydedilmemiş değişiklik sorusu. `PdfEditorScreen` ve çalışma kopyası emekli
        (işlevleri taşındıkça; sonunda dosya silinir, testler taşınır).
-3. [ ] **Artımlı kayıt:** Kaydet = özgüne artımlı yaz (yazılabilirse) + önceki sürüm **sürüm
+       **Sonuç:** bayrak `pdf_pro_engine` açıkken "Düzenle" `ViewerScreen`'in kipini açar
+       (`lib/screens/viewer/pdf_pro_edit.dart`, `lib/widgets/pdf_pro/`): belge yeniden yüklenmez,
+       gövde boyu ve çubuk payı değişmez (yakınlaştırma/kaydırma yerinde), seçim katmanının yerine blok
+       katmanı gelir; üst çubuk geri al · yinele · Kaydet · ⋮; geri tuşu/⋮ "Düzenlemeyi bitir" kirliyse
+       Kaydet · Kaydetme · Vazgeç sorar. Metin bu fazda levhada düzenlenir (yerinde yazma Faz 57).
+       **Kalan (bilerek):** `PdfEditorScreen` bayrak KAPALIYKEN hâlâ tek yol — görsel/filigran/form/OCR
+       işlevleri Faz 57–62'de taşındıkça ve bayrak varsayılan olunca dosya silinir (KALANLAR Faz E).
+3. [x] **Artımlı kayıt:** Kaydet = özgüne artımlı yaz (yazılabilirse) + önceki sürüm **sürüm
        geçmişine** (uygulama içi, 14 gün, "önceki sürüme dön"); Farklı kaydet = aynı klasör ya da
        Belgeler; salt okunur konumda otomatik Belgeler'e kopya + açık bildirim. Kopya kaydedilince
        oturum kopyaya geçer, son dosyalar/Belgeler'e düşer (PS3 kalıcı çözümü).
-4. [ ] **Çökme kurtarma:** komut günlüğü + 30 sn'de bir artımlı geçici kayıt; süreç ölürse açılışta
+       **Sonuç:** `PdfEditSaver` + `PdfVersionHistory` (uygulama içi, 14 gün, belge başına 20; ⋮ →
+       Sürüm geçmişi → "Bu sürüme dön", dönüş de geri alınabilir). Her kayıt "açılış baytları + bugüne
+       kadarki değişiklikler"dir (kayıt başına ek birikmez); geri alma içeren oturum özgünün üstünde
+       komutlar yeniden oynatılarak kaydedilir. Kopya kaydedilince görüntüleyici kopyayı aynı sayfada açar.
+4. [x] **Çökme kurtarma:** komut günlüğü + 30 sn'de bir artımlı geçici kayıt; süreç ölürse açılışta
        "Kaydedilmemiş düzenlemeleri geri yükle".
-5. [ ] Şifreli belge: sahip parolası/izin bayrakları; düzenleme yasaksa açık uyarı + "parolayla aç".
+       **Sonuç:** `PdfEditRecovery` — günlük her değişiklikte, geçici kayıt 30 sn'de bir (kırpma ayrı
+       izolatta). Açılışta günlük belgeye yeniden oynatılır (adımlar yine geri alınabilir, kaydedilmemiş);
+       belge dışarıda değiştiyse ya da adım tutmuyorsa geçici kayıt Belgeler'e kopya olarak kurtarılır.
+5. [x] Şifreli belge: sahip parolası/izin bayrakları; düzenleme yasaksa açık uyarı + "parolayla aç".
+       **Sonuç:** `PdfEditAccessCheck` (Tablo 22 bit 4); yasaksa levha + "Sahip parolasıyla aç" — parola,
+       belge onunla ayrıca açılıp izne bakılarak doğrulanır (ekran yeniden yüklenmez). Şifreli belgede
+       ek kırpılmaz (Faz 54 / 0 tuzağı) → kayıt büyümesi şifresize göre büyük.
 6. [ ] Ölçüm: uygula → piksel p95, geri al p95, 50 sayfa artımlı kayıt süresi, oturum ek belleği.
 **Bitti:** §6 bütçeleri tutuyor; düzenleme sonrası yakınlaştırma/kaydırma değişmiyor (test + 📱);
 kayıt/kopya/sürüm geçmişi cihazda doğrulandı.

@@ -101,7 +101,7 @@ class PdfEditSaver {
       for (final op in ops) {
         await op.applyTo(fresh);
       }
-      return _trimmed(base, await _raw(fresh));
+      return await _trimmed(base, await _raw(fresh));
     } finally {
       await fresh.dispose();
     }

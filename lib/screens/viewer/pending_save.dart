@@ -177,6 +177,11 @@ extension _ViewerScreenPendingSavePart on _ViewerScreenState {
   /// Ekrandan çıkarken / başka bir PDF aracına geçerken sorulan soru.
   /// Devam edilebilirse true döner.
   Future<bool> _confirmLeavePending() async {
+    // Düzenleme kipindeyken başka bir araca geçiş: önce kipten çıkılır
+    // (kaydedilmemiş değişiklik sorulur) — araçlar belgeyi yeniden okutur.
+    if (_pro != null) {
+      if (!await _exitProEdit() || !mounted) return false;
+    }
     if (_pdfWriting > 0) {
       _snack(context.t('vw.saving_wait'));
       return false;

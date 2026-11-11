@@ -16,7 +16,11 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
   Future<void> _openPdfEditor({int? page, PdfEditSelection? selection}) async {
     // Editör ÖZGÜN dosyanın kopyası üzerinde çalışır; bekleyen düzenlemeler
     // önce kaydedilmezse sessizce kaybolurdu.
+    if (_pro != null) return; // zaten düzenleme kipinde
     if (!await _confirmLeavePending() || !mounted) return;
+    // PDF Pro (Faz 54, bayrak `pdf_pro_engine`): düzenleme bu ekranın kipi —
+    // ayrı ekran ve çalışma kopyası yok (PK3). Bayrak kapalıysa eski ekran.
+    if (await _enterProEdit() || !mounted) return;
     final saved = await PdfEditorScreen.open(
       context,
       path: widget.doc.path,

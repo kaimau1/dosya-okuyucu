@@ -79,7 +79,7 @@ abstract final class PdfVersionHistory {
       final dir = _dirFor(path);
       if (!await dir.exists()) return const [];
       await _prune(dir, now ?? DateTime.now());
-      return _read(dir);
+      return await _read(dir);
     } catch (_) {
       return const [];
     }

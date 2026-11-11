@@ -5,7 +5,7 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
     return OfficeShell(
       kind: doc.kind,
       title: doc.name,
-      dirty: _dirty || _hasUnsaved,
+      dirty: _dirty || _hasUnsaved || (_pro?.session.dirty ?? false),
       tabBar: _findOpen ? _findBar() : null,
       // **Okuma kipi her belgede** (2026-10-28). 2026-10-23'te PDF'te
       // kapatılmıştı: çubuklar çekilirken gövde her karede büyüyor, pdfrx
@@ -13,15 +13,17 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
       // Artık çubuklar gövdenin ÜSTÜNDE kayan katman — gövde boyu sabit
       // (bkz. `OfficeShell`). Arama açıkken çubuklar sabit durur.
       readingBars: _readingBars,
-      subtitle: _isPdf && _pageCount > 0
-          ? context.t('shell.pages', {'n': _pageCount})
-          : null,
+      subtitle: _pro != null
+          ? _proStatus(_pro!)
+          : _isPdf && _pageCount > 0
+              ? context.t('shell.pages', {'n': _pageCount})
+              : null,
       // 2026-09-23 tasarım turu: üst çubukta en çok üç simge + "daha fazla".
       // Sayfa düzeni (1/2/4 sütun), görsel yakınlaştırma ve üç ayrı yazı
       // düğmesi (küçült/büyüt/yazı tipi) buradan kalktı: sütunlar ve
       // yakınlaştırma "Daha fazla" sayfasının Görünüm grubunda, yazı ayarları
       // tek bir "Aa" düğmesinin açtığı okuma ayarları sayfasında.
-      actions: [
+      actions: _pro != null ? _proActions(_pro!) : [
         if (doc.kind == DocKind.pdf) ...[
           IconButton(
             tooltip: context.t('vw.toc'),
@@ -90,7 +92,7 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
       // düzenleme çubuğunun sağ ucunun üstüne biniyordu ve "Uygula"ya basan
       // parmak aslında AI sohbetini açıyordu (kullanıcı 2026-09-24:
       // "uygulaya basmak işlevsiz"). Çubukta zaten "AI ile düzelt" var.
-      fab: _pdfBarShown
+      fab: _pdfBarShown || _pro != null
           ? null
           : DocAiButton(
               kind: doc.kind,
