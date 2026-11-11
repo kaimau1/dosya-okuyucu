@@ -110,7 +110,7 @@ Amaç: açıkların geri gelmesini CI yakalasın.
       `changes` süzgecine `tool/guvenlik_denetimi.sh` ve `ci/AndroidManifest.xml` ekli mi bak.
 - [x] **G0.3 `docs/guvenlik/ENVANTER.md`:** üç tablo — (a) dışa açık bileşenler + koruması, (b) açılan ağ
       portları + kimlik doğrulaması, (c) diske yazılan sırlar + nerede/nasıl. Bu belgenin §2'sinden başla, kodu okuyarak tamamla.
-- [ ] **G0.4 `SECURITY.md`** (kök): açık bildirme adresi (kullanıcıdan iste — 👤), desteklenen sürüm = son sürüm, 90 gün açıklama süresi.
+- [x] **G0.4 `SECURITY.md`** (kök): açık bildirme adresi (kullanıcıdan iste — 👤), desteklenen sürüm = son sürüm, 90 gün açıklama süresi.
 
 Bitti: betik CI'da koşuyor, bekleyen kurallar listeli, envanter dolu.
 
