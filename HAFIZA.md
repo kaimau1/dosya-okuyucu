@@ -603,3 +603,10 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Karar:** `FLAG_SECURE` sayaçlı tek kapı `SecureScreenGate`/`SecureScreen` (kasa, PIN, uygulama kilidi, AI anahtarı, uzak parola); kasadan açılan görüntüleyici VaultScreen altta olduğu için kendiliğinden kapsanır.
 - **Doğrulandı, DEĞİŞMEDİ:** `host="*"` süzgeci indirme bağlantısı özelliği (zaten uzantı kalıplı); `file://` süzgeçleri (eski dosya yöneticileri); `requestLegacyExternalStorage` (Android 10); `FLAG_MUTABLE` PendingIntent'ler (PackageInstaller/UsbManager şart, setPackage var); `RECEIVER_EXPORTED` USB/medya sistem yayınları.
 - **Tuzak:** Play izin çıkarma listesi iş akışında zaten vardı; `REQUEST_INSTALL_PACKAGES`/`PACKAGE_USAGE_STATS` çıkarmak özellik gizleme ister → G1 artığı (KALANLAR). Denetim kural 4 hata kipine alındı.
+
+## 2026-11-11 — Güvenlik Faz G2: sırlar (diskte, ağda, logda)
+- **Karar:** uzak sunucu parolaları `RemoteSecrets` (services/remote_secrets.dart): `fm_remote_connections` PAROLASIZ, `{id: parola}` KeyVault ile sarılı `fm_remote_secrets`. FTP sunucu elle parolası `ftpd_password_sealed`; rastgele kipte parola diske YAZILMAZ. Eski düz kayıtlar açılışta göç eder (test: `remote_secret_migration_test`, `ftpd_password_migration_test`). Keystore yoksa düz yol + bağlantılar ekranında uyarı (`remotePasswordsUnprotected`).
+- **Karar:** Gemini anahtarı `x-goog-api-key` başlığında (`GeminiService.debugClient` testte sahte istemci); denetim kural 3 hata kipinde (`BEKLEYEN="6"`).
+- **Bug kökü (G2.3):** `SettingsBackup.secretPrefixes` `gemini_key`/`ai_api_key` önekleri asıl kayıtları (`gemini_api_key*`) kapsamıyordu → AI anahtarı ayar yedeğine giriyordu. Önek + G2 sırları eklendi; bağlantı JSON'undaki `password` dışa/içe aktarımda sökülür.
+- **Karar:** `LogScrub.scrub` ortak (DiagReport.scrub delege); `CrashLog.record` diske yazmadan önce uygular. **Tuzak:** testte sahte Google anahtarı parçalardan kurulmalı (`'AI' 'za' + 'x' * 35`), yoksa denetim kural 9 depoyu kırmızı yapar.
+
