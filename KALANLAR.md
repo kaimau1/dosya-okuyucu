@@ -180,7 +180,7 @@ Plan: `docs/SURUM_PLANI.md`. A6.5 (Billing iskeleti) ve B5.2 bu kararla **düşt
 
 Plan: `docs/GUVENLIK_PLANI.md` (G0–G12; sıra ve açılış istemi orada). Play için asgari küme: G0, G1, G2, G4, G6, G9.1–9.3, G10.1.
 
-- [ ] **Faz G0** — denetim betiği + envanter (ilk iş)
+- [ ] 👤 G0 artığı: `SECURITY.md` içindeki `GUVENLIK_ADRESI_BELIRLENECEK` yer tutucusuna güvenlik e-posta adresi (G0 kodu bitti)
 - [ ] Faz G1 platform · G2 sırlar · G3 kasa/PIN · G4 yerel sunucular · G6 WebView · G7 dosya girdisi · G8 uzak istemci · G9 tedarik zinciri · G10 AI/KVKK · G12 süreç (G5, G11 isteğe bağlı)
 
 ---
