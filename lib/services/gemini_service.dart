@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../core/l10n/app_strings.dart';
@@ -51,8 +51,29 @@ class GeminiService {
 
   static const _base = 'https://generativelanguage.googleapis.com/v1beta';
 
-  Uri _endpoint() =>
-      Uri.parse('$_base/models/$model:generateContent?key=$apiKey');
+  /// Testler sahte istemci takar (G2.4).
+  @visibleForTesting
+  static http.Client? debugClient;
+
+  static Future<http.Response> _post(Uri url,
+          {Map<String, String>? headers, Object? body}) =>
+      debugClient != null
+          ? debugClient!.post(url, headers: headers, body: body)
+          : http.post(url, headers: headers, body: body);
+
+  static Future<http.Response> _get(Uri url, {Map<String, String>? headers}) =>
+      debugClient != null
+          ? debugClient!.get(url, headers: headers)
+          : http.get(url, headers: headers);
+
+  /// G2.4 (B8): anahtar URL sorgusunda (`?key=`) değil başlıkta gider —
+  /// URL vekil/sunucu günlüklerine ve hata metinlerine düşer, başlık düşmez.
+  static Map<String, String> _headers(String key, {bool json = true}) => {
+        if (json) 'Content-Type': 'application/json',
+        'x-goog-api-key': key.trim(),
+      };
+
+  Uri _endpoint() => Uri.parse('$_base/models/$model:generateContent');
 
   /// Sohbet geçmişi + opsiyonel dosya bağlamı + kalıcı hafıza ile yanıt üretir.
   Future<String> chat({
@@ -109,9 +130,9 @@ class GeminiService {
 
     late http.Response resp;
     try {
-      resp = await http.post(
+      resp = await _post(
         _endpoint(),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(apiKey),
         body: jsonEncode(body),
       );
     } catch (e) {
@@ -193,9 +214,9 @@ class GeminiService {
 
     late http.Response resp;
     try {
-      resp = await http.post(
+      resp = await _post(
         _endpoint(),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(apiKey),
         body: jsonEncode(body),
       );
     } catch (e) {
@@ -277,9 +298,9 @@ class GeminiService {
 
     late http.Response resp;
     try {
-      resp = await http.post(
+      resp = await _post(
         _endpoint(),
-        headers: {'Content-Type': 'application/json'},
+        headers: _headers(apiKey),
         body: jsonEncode({
           'contents': [
             {'role': 'user', 'parts': parts}
@@ -317,7 +338,8 @@ class GeminiService {
     _offlineGuard();
     late http.Response resp;
     try {
-      resp = await http.get(Uri.parse('$_base/models?key=$key&pageSize=200'));
+      resp = await _get(Uri.parse('$_base/models?pageSize=200'),
+          headers: _headers(key, json: false));
     } catch (e) {
       throw GeminiException('Ağ hatası: $e');
     }

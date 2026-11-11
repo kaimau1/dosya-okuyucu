@@ -90,4 +90,48 @@ void main() {
     expect(SettingsBackup.suggestedName(DateTime(2026, 9, 6)),
         'dosya-okuyucu-ayarlar-2026-09-06.json');
   });
+
+  // Güvenlik G2.3: asıl Gemini anahtar kayıtları ve G2 sırları da dışarıda.
+  test('Gemini anahtarı, uzak/FTP parola sırları yedeğe GİRMEZ', () async {
+    SharedPreferences.setMockInitialValues({
+      'gemini_api_key': 'sahte-anahtar-1',
+      'gemini_api_keys': ['sahte-anahtar-2'],
+      'gemini_api_keys_sealed': 'c2FodGUtc2FyaWxp',
+      'fm_remote_secrets': 'c2FodGUtc2Vy',
+      'ftpd_password': 'sahte-ftp',
+      'ftpd_password_sealed': 'c2FodGUtZnRw',
+      'vault_bio_key': 'c2FodGUtYmlv',
+      'fm_remote_connections': [
+        '{"id":"r1","host":"10.0.0.2","password":"sahte-uzak"}',
+      ],
+      'theme_mode': 'light',
+    });
+    final prefs = await SharedPreferences.getInstance();
+    final json = SettingsBackup.export(prefs);
+    for (final s in [
+      'sahte-anahtar',
+      'c2FodGU',
+      'sahte-ftp',
+      'sahte-uzak',
+      'gemini_api_key',
+      'ftpd_password',
+      'vault_bio_key',
+      'fm_remote_secrets',
+    ]) {
+      expect(json.contains(s), isFalse, reason: s);
+    }
+    // Bağlantının kendisi (parolasız) yedekte kalır.
+    expect(json.contains('10.0.0.2'), isTrue);
+
+    // Eski yedekteki düz parola geri yüklemede de sökülür.
+    const old = '{"format":1,"values":{"fm_remote_connections":'
+        '["{\\"id\\":\\"r1\\",\\"host\\":\\"h\\",\\"password\\":\\"p-eski\\"}"]}}';
+    SharedPreferences.setMockInitialValues({});
+    final fresh = await SharedPreferences.getInstance();
+    await SettingsBackup.import(old, fresh);
+    final list = fresh.getStringList('fm_remote_connections')!;
+    expect(list.single.contains('p-eski'), isFalse);
+    expect(list.single.contains('"host":"h"'), isTrue);
+  });
 }
+

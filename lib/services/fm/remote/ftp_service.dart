@@ -9,6 +9,7 @@ import '../../../core/l10n/app_strings.dart';
 import '../fm_env.dart';
 import '../fs_events.dart';
 import '../notification_hub.dart';
+import '../../key_vault.dart';
 import 'ftp_server.dart';
 import 'http_share_server.dart';
 import 'ftp_tree.dart';
@@ -65,7 +66,12 @@ class FtpService extends ChangeNotifier {
   static const _kShowHidden = 'ftpd_show_hidden';
   static const _kAllowWrite = 'ftpd_allow_write';
   static const _kUser = 'ftpd_user';
-  static const _kPassword = 'ftpd_password';
+  /// Eski DÜZ parola kaydı — yalnız göç (ve Keystore'suz ortam) için okunur.
+  static const kPlainPassword = 'ftpd_password';
+
+  /// Keystore'la sarılı elle parola (G2.2). Rastgele kipte parola DİSKE HİÇ
+  /// yazılmaz: oturumluk, bellekte.
+  static const kSealedPassword = 'ftpd_password_sealed';
   static const _kShareMode = 'ftpd_share_mode';
   static const _kShareBoxes = 'ftpd_share_boxes';
 
@@ -144,6 +150,49 @@ class FtpService extends ChangeNotifier {
     return prefs;
   }
 
+  /// Testler sahte tercihlerle yeniden başlasın.
+  @visibleForTesting
+  void resetForTest() {
+    _prefs = null;
+    _password = '';
+    _randomPassword = true;
+  }
+
+  /// Elle parolayı okur: önce sarılı kayıt, yoksa eski düz kayıt — düz kayıt
+  /// bulunursa sarılı biçime GÖÇ eder (G2.2; parola kaybolmaz).
+  @visibleForTesting
+  static Future<String> readStoredPassword(SharedPreferences prefs) async {
+    final sealed = prefs.getString(kSealedPassword);
+    if (sealed != null && sealed.isNotEmpty) {
+      final value = await KeyVault.open(sealed);
+      if (value != null) return value;
+    }
+    final plain = prefs.getString(kPlainPassword);
+    if (plain == null) return '';
+    await writeStoredPassword(prefs, plain);
+    return plain;
+  }
+
+  /// Elle parolayı yazar: Keystore varsa sarılı (düz kopya silinir), yoksa
+  /// eski düz yol (parola kaybolmasın).
+  @visibleForTesting
+  static Future<void> writeStoredPassword(
+      SharedPreferences prefs, String value) async {
+    if (value.isEmpty) {
+      await prefs.remove(kSealedPassword);
+      await prefs.remove(kPlainPassword);
+      return;
+    }
+    final sealed = await KeyVault.seal(value);
+    if (sealed != null) {
+      await prefs.setString(kSealedPassword, sealed);
+      await prefs.remove(kPlainPassword);
+    } else {
+      await prefs.remove(kSealedPassword);
+      await prefs.setString(kPlainPassword, value);
+    }
+  }
+
   /// Ayarları diskten okur. Ekran açılışında çağrılır; iki kez çağrılması
   /// zararsız.
   Future<void> load() async {
@@ -153,9 +202,11 @@ class FtpService extends ChangeNotifier {
     _allowWrite = prefs.getBool(_kAllowWrite) ?? true;
     _user = prefs.getString(_kUser) ?? 'pc';
     if (_user.trim().isEmpty) _user = 'pc';
-    // Paylaşım kapalıyken gösterilen parola: son kullanılan (rastgele kipte
-    // başlatınca üzerine yazılır). Boşsa ilk başlatmada üretilir.
-    if (!running) _password = prefs.getString(_kPassword) ?? '';
+    // Elle kipte kayıtlı (sarılı) parola okunur; eski düz kayıt göç eder.
+    // Rastgele kipte parola diske yazılmadığı için bellekteki (son oturum)
+    // değer kalır — ama eski sürümün düz bıraktığı kayıt yine sarılır.
+    final stored = await readStoredPassword(prefs);
+    if (!running && !_randomPassword) _password = stored;
     _scope = _readScope(prefs);
     notifyListeners();
   }
@@ -220,7 +271,7 @@ class FtpService extends ChangeNotifier {
     notifyListeners();
     final prefs = await _ensurePrefs();
     await prefs.setString(_kUser, _user);
-    await prefs.setString(_kPassword, _password);
+    if (password != null) await writeStoredPassword(prefs, _password);
   }
 
   // ── başlat / durdur ───────────────────────────────────────────────────────
@@ -247,7 +298,11 @@ class FtpService extends ChangeNotifier {
     // demekti.
     if (_randomPassword || _password.isEmpty) {
       _password = FtpServer.randomPassword();
-      await (await _ensurePrefs()).setString(_kPassword, _password);
+      // G2.2: rastgele parola oturumluk — diske yazılmaz. Elle kipte boş
+      // parola yerine üretilen ise kullanıcının parolası olur, saklanır.
+      if (!_randomPassword) {
+        await writeStoredPassword(await _ensurePrefs(), _password);
+      }
     }
     // "Paylaşılan" kutusu paylaşımda ise klasörü ÖNCE kur: PC'de görünüp
     // açılmayan bir klasör, hiç görünmemesinden kötü.

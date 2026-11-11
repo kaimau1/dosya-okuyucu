@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../core/app_version.dart';
+import 'log_scrub.dart';
 
 /// **Çökme/hata günlüğü — cihazda, gönderimsiz.**
 ///
@@ -172,9 +173,10 @@ abstract final class CrashLog {
       final entry = CrashRecord(
         time: DateTime.now(),
         kind: kind,
-        error: _clip(error.toString(), 1000),
-        stack: _trimStack(stack),
-        context: context == null ? null : _clip(context, 200),
+        // G2.5: sır/kişisel veri DİSKE yazılmadan önce maskelenir.
+        error: LogScrub.scrub(_clip(error.toString(), 1000)),
+        stack: LogScrub.scrub(_trimStack(stack)),
+        context: context == null ? null : LogScrub.scrub(_clip(context, 200)),
         version: appVersionFull,
       );
       // Aynı hata art arda tekrarlıyorsa (çizim döngüsü) yeni satır açmak
