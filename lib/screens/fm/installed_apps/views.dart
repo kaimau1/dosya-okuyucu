@@ -365,7 +365,7 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
     if (!plan.save) {
       try {
         final dir = Directory(destDir);
-        if (dir.existsSync()) dir.deleteSync(recursive: true);
+        if (await dir.exists()) await dir.delete(recursive: true);
       } catch (_) {
         // Bilinçli: eski paylaşım kopyasının temizliği; silinemezse bir sonraki dışa aktarmada yeniden denenir.
       }

@@ -312,7 +312,7 @@ Future<void> shareEntries(List<String> paths) async {
   // taşıyamaz — klasörler geçici bir ZIP'e çevrilip öyle gider.
   final files = <String>[];
   for (final path in paths) {
-    if (Directory(path).existsSync()) {
+    if (await Directory(path).exists()) {
       final tmp = await Directory.systemTemp.createTemp('share-zip');
       files.add(await ArchiveOps.zip([path], tmp.path,
           archiveName: p.basename(path)));
@@ -432,7 +432,7 @@ Future<bool> copyToImportant(BuildContext context, List<String> paths) async {
   final dest = ImportantScreen.pathIn(FmEnv.primaryRoot);
   try {
     final dir = Directory(dest);
-    if (!dir.existsSync()) await dir.create(recursive: true);
+    await dir.create(recursive: true); // varsa dokunmaz
   } catch (e) {
     if (context.mounted) {
       _snack(context, context.t('fm.folder_create_failed', {'error': userErrorText(e)}));
@@ -478,8 +478,7 @@ Future<bool> copyToImportant(BuildContext context, List<String> paths) async {
 Future<String?> pickImportantCategory(BuildContext context, String root) async {
   List<String> cats;
   try {
-    cats = Directory(root)
-        .listSync()
+    cats = (await Directory(root).list().toList())
         .whereType<Directory>()
         .map((d) => d.path)
         .where((d) => !p.basename(d).startsWith('.'))
@@ -490,6 +489,7 @@ Future<String?> pickImportantCategory(BuildContext context, String root) async {
     cats = const [];
   }
   if (cats.isEmpty) return root;
+  if (!context.mounted) return null;
   const newKey = '\u0000new';
   final choice = await showAppSheet<String>(
     context,
@@ -584,7 +584,7 @@ Future<bool> copyToExternal(BuildContext context, List<String> paths) async {
   final dest = VolumeWatcher.targetFolder(volume);
   try {
     final dir = Directory(dest);
-    if (!dir.existsSync()) await dir.create(recursive: true);
+    await dir.create(recursive: true); // varsa dokunmaz
   } catch (e) {
     if (context.mounted) {
       _snack(context, context.t('fm.folder_create_failed', {'error': userErrorText(e)}));

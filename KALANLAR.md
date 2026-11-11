@@ -63,9 +63,11 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
 - [ ] **A4.3 166 boş `catch (_) {}`** (161'i `lib/services`) — Faz 5'in sınıflandırılmayan
       kalanı: (a) beklenen → tek satır gerekçe yorumu, (b) `CrashLog`'a yazılmalı,
       (c) kullanıcıya `UserError`. Bekçi: gerekçesiz yeni boş `catch` testi kırar.
-- [ ] **A4.4 Ekran/widget kodunda 51 senkron G/Ç** (`existsSync/statSync/listSync/
-      readAsBytesSync…`; Faz 12a'da 39'du) → `async`/`compute`; bekçi testi tavanla
-      (cırcır, yalnız azalabilir).
+- [~] **A4.4 Ekran/widget kodunda senkron G/Ç** (2026-11-11: 87 → 50; bekçi
+      `test/sync_io_ratchet_test.dart` tavan 50, yalnız iner). Kalan 50: `build` içi tek
+      `stat`ler (önbellek gerekir: galeri bilgi satırı, işler boyutu, klasör seçici kısayolları,
+      SD birleşik çipleri, arşiv başlığı), editör açılışı (sahte saat tuzağı, bilinçli),
+      izolattaki okuma, PDF dosyaları (Faz 54'le çakışmasın diye dokunulmadı).
 
 ### A5 — İş sonucu sayfası her işte (`recordChanges`)
 
@@ -89,10 +91,10 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
 
 ### A7 — Eksik özellikler (kod + test bulutta; his cihazda)
 
-- [ ] **A7.1 Çift bölme (dual pane):** tablette/yatayda iki klasör yan yana, sürükle-bırak
+- [x] **A7.1 Çift bölme (dual pane):** (Faz 41 madde 1, `dual_pane_screen.dart`) tablette/yatayda iki klasör yan yana, sürükle-bırak
       taşı/kopyala, etkin bölme vurgusu. Bugün ≥ 840 dp'de yalnız sol kısayol paneli var
       (`browser_screen.dart` `_sidePane`).
-- [ ] **A7.2 SD karta SAF ile yazma:** yol üzerinden yazılamayan kartta ağaç izni akışı
+- [x] **A7.2 SD karta SAF ile yazma:** (Faz 41 madde 1, `saf_write.dart`; (b)/(c) eşikleri ayrıca bakılmadı) yol üzerinden yazılamayan kartta ağaç izni akışı
       (`ACTION_OPEN_DOCUMENT_TREE`, kalıcı izin), `FileOps`'ta SAF yazma yolu; SD birleşik
       depolamanın `sd_readonly` uyarısı buna bağlanır. Aynı turda SD birleşik **(b)**
       "ana bellek %X'i aşınca" eşiği ve **(c)** serbest klasör seçimi (bugün yalnız

@@ -141,7 +141,7 @@ class _PropertiesDialogState extends State<_PropertiesDialog> {
       if (depth > 24) return;
       List<FileSystemEntity> children;
       try {
-        children = dir.listSync(followLinks: false);
+        children = await dir.list(followLinks: false).toList();
       } catch (_) {
         return;
       }

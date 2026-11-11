@@ -214,7 +214,8 @@ class _ScanResultScreenState extends State<ScanResultScreen>
   Future<void> _measureVisible() async {
     if (_measuring || _pages.isEmpty) return;
     final path = _pages[_index.clamp(0, _pages.length - 1)].display;
-    if (_quality.containsKey(path) || !File(path).existsSync()) return;
+    if (_quality.containsKey(path) || !await File(path).exists()) return;
+    if (!mounted || _measuring) return;
     _measuring = true;
     try {
       final report = await ScanQualityCheck.measure(path);

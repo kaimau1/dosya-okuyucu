@@ -313,7 +313,7 @@ Future<void> _run(
             (!sizeIsGoal && result.afterBytes >= result.beforeBytes)) {
           try {
             final useless = File(result.outputPath);
-            if (useless.existsSync()) useless.deleteSync();
+            if (await useless.exists()) await useless.delete();
           } catch (_) {
             // Bilinçli: işe yaramayan çıktının temizliği; kalırsa kullanıcı onu "Üretilenler"de görür, özgün dosyaya dokunulmaz.
           }

@@ -610,3 +610,8 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Bug kökü (G2.3):** `SettingsBackup.secretPrefixes` `gemini_key`/`ai_api_key` önekleri asıl kayıtları (`gemini_api_key*`) kapsamıyordu → AI anahtarı ayar yedeğine giriyordu. Önek + G2 sırları eklendi; bağlantı JSON'undaki `password` dışa/içe aktarımda sökülür.
 - **Karar:** `LogScrub.scrub` ortak (DiagReport.scrub delege); `CrashLog.record` diske yazmadan önce uygular. **Tuzak:** testte sahte Google anahtarı parçalardan kurulmalı (`'AI' 'za${'x' * 35}'`; `+` ile birleştirme lint'e takılır), yoksa denetim kural 9 depoyu kırmızı yapar.
 
+
+## 2026-11-11 — A4.4 senkron G/Ç azaltma (87 → 50) + cırcır
+- **Karar:** `test/sync_io_ratchet_test.dart` lib/screens + lib/widgets'taki `*Sync(` çağrılarını sayar, tavan 50 (yalnız iner). Kitaplık boyut/eksik bilgisi `_statBooks` ile arka planda (kitaplık değişince tazelenir); "eksikleri temizle" artık bu önbelleğe bakar.
+- **Tuzak (yine §F):** asenkron `exists()/stat()` widget testinin sahte saatinde tamamlanmaz → testin doğrudan koşturduğu açılış yolları SENKRON bırakıldı, gerekçe yorumuyla: `HomeScreen._openStartFolder` (fm_start_folder_test), `ImportantScreen._load` (a11y testi). Dönüştürmeden önce `grep -rlw <Ekran> test` ile bak; testi `runAsync` döngüsüyle bekleyenler (job_report_test `settle`) güvenli.
+- `if (!dir.existsSync()) await dir.create(recursive: true)` → yalnız `await dir.create(recursive: true)` (var olan klasöre dokunmaz).

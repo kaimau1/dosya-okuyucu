@@ -342,7 +342,8 @@ extension _DriveScreenActionsPart on _DriveScreenState {
               parentId: _current.$1);
           // Drive sürümü taban olur; telefondaki kopya yeni adla yüklendi.
           try {
-            Directory(DriveCache.dirFor(file, root)).deleteSync(recursive: true);
+            await Directory(DriveCache.dirFor(file, root))
+                .delete(recursive: true);
           } catch (_) {
             // Bilinçli: silinemeyen eski kopya sonraki budamada gider.
           }
@@ -350,7 +351,8 @@ extension _DriveScreenActionsPart on _DriveScreenState {
           return null;
         case DriveConflictChoice.useDrive:
           try {
-            Directory(DriveCache.dirFor(file, root)).deleteSync(recursive: true);
+            await Directory(DriveCache.dirFor(file, root))
+                .delete(recursive: true);
           } catch (_) {
             // Bilinçli: silinemeyen eski kopya sonraki budamada gider.
           }
