@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
-import '../../services/fm/folder_lock.dart';
+import '../../services/fm/pin_backoff.dart';
 import '../../services/fm/secure_vault.dart';
 
 /// PIN sorar ve doğruysa true döner.
@@ -84,6 +84,7 @@ class _PinDialogState extends State<_PinDialog> {
   final _first = TextEditingController();
   final _second = TextEditingController();
   String? _error;
+  bool _busy = false;
 
   @override
   void dispose() {
@@ -116,11 +117,34 @@ class _PinDialogState extends State<_PinDialog> {
       if (mounted) Navigator.pop(context, pin);
       return;
     }
-    if (FolderLock.verify(pin, appState.fmLockPinHash)) {
-      Navigator.pop(context, widget.returnPin ? pin : true);
-    } else {
-      setState(() => _error = context.t('pin.wrong'));
+    // G3.2 kalıcı bekleme + G3.3 PBKDF2 özeti (doğrulama ~1 sn sürebilir).
+    if (_busy) return;
+    final strings = AppStrings.of(context);
+    final backoff = await PinBackoff.instance();
+    final wait = backoff.remaining();
+    if (wait > Duration.zero) {
+      if (mounted) setState(() => _error = pinWaitText(strings, wait));
+      return;
     }
+    setState(() => _busy = true);
+    final ok = await appState.verifyLockPin(pin);
+    if (ok) {
+      await backoff.recordSuccess();
+    } else {
+      await backoff.recordFailure();
+    }
+    if (!mounted) return;
+    if (ok) {
+      Navigator.pop(context, widget.returnPin ? pin : true);
+      return;
+    }
+    final after = backoff.remaining();
+    setState(() {
+      _busy = false;
+      _error = after > Duration.zero
+          ? pinWaitText(strings, after)
+          : strings.t('pin.wrong');
+    });
   }
 
   @override

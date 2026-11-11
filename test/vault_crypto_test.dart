@@ -14,6 +14,8 @@ void main() {
 
   setUp(() {
     tmp = Directory.systemTemp.createTempSync('vault_test');
+    // G3.1: üretim 600 bin tur; testte küçük (saf Dart yolu yavaş).
+    SecureVault.targetIterations = 1000;
   });
 
   tearDown(() {

@@ -1012,6 +1012,11 @@ const Map<String, (String, String, String)> _t6 = {
     'أعد كتابة الرمز نفسه في خانة «الرمز (تكرار)» بالأسفل.',
   ),
   'pin.wrong': ('PIN yanlış.', 'Wrong PIN.', 'الرمز غير صحيح.'),
+  'pin.wait': (
+    'Çok fazla yanlış deneme — {t} bekleyin',
+    'Too many wrong attempts — wait {t}',
+    'محاولات خاطئة كثيرة — انتظر {t}',
+  ),
   'pin.not_encrypted': (
     'Bu kilit dosyaları ŞİFRELEMEZ: yalnız bu uygulamadaki listelerden gizler. '
         'Telefon bilgisayara takılırsa ya da başka bir dosya yöneticisi '

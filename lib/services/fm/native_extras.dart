@@ -180,6 +180,35 @@ abstract final class NativeExtras {
   static Future<Uint8List?> unwrapKey(Uint8List wrapped) =>
       _call<Uint8List>('unwrapKey', wrapped);
 
+  /// PBKDF2-HMAC-SHA256, 32 bayt (G3.1; Android 8+, arka izlekte). Kanal ya
+  /// da algoritma yoksa null → çağıran saf Dart'a düşer (`PinKdf`).
+  static Future<Uint8List?> pbkdf2(String pin, Uint8List salt, int iterations) =>
+      _call<Uint8List>(
+          'pbkdf2', {'pin': pin, 'salt': salt, 'iter': iterations});
+
+  /// G3.4: kasa ana anahtarını **kimlik doğrulama zorunlu** Keystore
+  /// anahtarıyla sarar/açar — parmak izi penceresi `CryptoObject` ile açılır,
+  /// doğrulama olmadan anahtar hiç kullanılamaz (yalnız arayüz kapısı değil).
+  /// Sonuç: `{'status': 'ok', 'data': bayt}` · `cancel` · `invalidated`
+  /// (yeni parmak izi eklendi → anahtar geçersiz) · `error`; kanal yoksa null.
+  static Future<Map<Object?, Object?>?> bioCrypt({
+    required bool encrypt,
+    required Uint8List data,
+    required String title,
+    String subtitle = '',
+    required String cancel,
+  }) =>
+      _call<Map<Object?, Object?>>('bioCrypt', {
+        'encrypt': encrypt,
+        'data': data,
+        'title': title,
+        'subtitle': subtitle,
+        'cancel': cancel,
+      });
+
+  /// Kasanın biyometrik Keystore anahtarını siler (parmak izi kapatılınca).
+  static Future<void> bioDeleteKey() => _call<bool>('bioDeleteKey');
+
   // ── 5. pencere parlaklığı + "Farklı kullan" (Faz 18) ─────────────────
 
   /// Pencere parlaklığı 0..1; -1 = sistemin ayarına dön. Sistem ayarı

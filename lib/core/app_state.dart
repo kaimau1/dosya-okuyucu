@@ -636,13 +636,26 @@ class AppState extends ChangeNotifier {
   /// klasörler de listeden düşer — PIN'siz kilit kullanıcıyı kendi dosyasından
   /// kalıcı olarak edemez).
   Future<void> setFmLockPin(String pin) async {
-    _fmLockPinHash = pin.trim().isEmpty ? '' : FolderLock.hashPin(pin);
+    _fmLockPinHash =
+        pin.trim().isEmpty ? '' : await FolderLock.hashPinSecure(pin);
     if (_fmLockPinHash.isEmpty) {
       _lockedFolders = [];
       await _prefs.setStringList(_kLockedFolders, _lockedFolders);
     }
     await _prefs.setString(_kLockPin, _fmLockPinHash);
     notifyListeners();
+  }
+
+  /// PIN'i doğrular (G3.3): eski/az turlu özet doğru PIN'le yeni biçime
+  /// çevrilir. Yanlış deneme beklemesi çağıranda (`PinBackoff`).
+  Future<bool> verifyLockPin(String pin) async {
+    final stored = _fmLockPinHash;
+    if (!await FolderLock.verifyAsync(pin, stored)) return false;
+    if (FolderLock.needsUpgrade(stored)) {
+      _fmLockPinHash = await FolderLock.hashPinSecure(pin);
+      await _prefs.setString(_kLockPin, _fmLockPinHash);
+    }
+    return true;
   }
 
   Future<void> toggleLockedFolder(String path) async {

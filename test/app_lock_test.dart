@@ -1,6 +1,7 @@
 import 'package:dosya_okuyucu/core/app_state.dart';
 import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/services/fm/folder_lock.dart';
+import 'package:dosya_okuyucu/services/fm/pin_backoff.dart';
 import 'package:dosya_okuyucu/widgets/app_lock_gate.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -12,6 +13,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// KENDİSİ korumasızdı — telefonu eline alan biri bütün dosyaları
 /// görebiliyordu.
 void main() {
+  // G3: PBKDF2 turu testte küçük (yerinde koşar, sahte saatte tamamlanır);
+  // bekleme saati elle ilerletilir.
+  var now = DateTime(2026, 11, 11, 12);
+  setUp(() {
+    FolderLock.targetIterations = 1000;
+    now = DateTime(2026, 11, 11, 12);
+    PinBackoff.debugClock = () => now;
+  });
+  tearDown(() => PinBackoff.debugClock = null);
+
   /// `AppState.init()` GERÇEK asenkron iş yapıyor (depolama birimlerini
   /// tarıyor); `testWidgets`in sahte saat zonunda hiç tamamlanmaz ve test
   /// sonsuza kadar asılı kalır — bu deponun bilinen tuzağı
@@ -88,8 +99,12 @@ void main() {
     final field = tester.widget<TextField>(find.byType(TextField));
     expect(field.enabled, isFalse);
 
+    // G3.2: bekleme KALICI — 30 sn (eskiden 5 sn, bellekte).
+    expect(find.textContaining('30 saniye bekleyin'), findsOneWidget);
+
     // Bekleme dolunca yeniden denenebiliyor.
-    await tester.pump(const Duration(seconds: 6));
+    now = now.add(const Duration(seconds: 31));
+    await tester.pump(const Duration(seconds: 31));
     await tester.enterText(find.byType(TextField), '1234');
     await tester.tap(find.text('Tamam'));
     await tester.pumpAndSettle();

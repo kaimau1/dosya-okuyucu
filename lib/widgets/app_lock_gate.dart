@@ -7,7 +7,7 @@ import '../core/app_icons.dart';
 import '../core/secure_screen.dart';
 import '../core/app_state.dart';
 import '../core/l10n/app_strings.dart';
-import '../services/fm/folder_lock.dart';
+import '../services/fm/pin_backoff.dart';
 
 /// **Uygulama kilidi perdesi** — açılışta PIN sorar.
 ///
@@ -44,16 +44,28 @@ class _AppLockGateState extends State<AppLockGate> {
   final _controller = TextEditingController();
   String? _error;
 
-  /// Arka arkaya yanlış deneme sayısı ve bekleme sayacı.
+  /// Bekleme sayacı (saniye; ekranda geri sayım).
   ///
   /// **Niye gerekli:** dört haneli bir PIN'in 10 000 olasılığı var ve
-  /// yazılımsal bir denemenin bedeli sıfır. Beşinci yanlıştan sonra artan
-  /// bir bekleme koymak, kaba kuvvet denemesini pratik olmaktan çıkarıyor;
-  /// PIN'ini yanlış giren gerçek kullanıcıyı ise (ilk dört deneme serbest)
-  /// hiç etkilemiyor.
-  int _wrongTries = 0;
+  /// yazılımsal bir denemenin bedeli sıfır. G3.2 (2026-11-11): sayaç artık
+  /// KALICI ve kasa/klasör kilidiyle ortak ([PinBackoff]: 5 yanlıştan sonra
+  /// 30 sn, sonra iki katı, en çok 1 sa) — eskiden bellekteydi, uygulamayı
+  /// yeniden açmak sıfırlıyordu.
   int _waitSeconds = 0;
   Timer? _waitTimer;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_resumeWait());
+  }
+
+  /// Açılışta önceki oturumdan kalan bekleme varsa geri sayımı sürdür.
+  Future<void> _resumeWait() async {
+    final backoff = await PinBackoff.instance();
+    if (mounted) _startWait(backoff.remaining());
+  }
 
   @override
   void dispose() {
@@ -62,23 +74,41 @@ class _AppLockGateState extends State<AppLockGate> {
     super.dispose();
   }
 
-  void _submit(AppState appState) {
-    if (_waitSeconds > 0) return;
-    if (FolderLock.verify(_controller.text, appState.fmLockPinHash)) {
-      setState(() => _unlocked = true);
+  Future<void> _submit(AppState appState) async {
+    if (_waitSeconds > 0 || _busy) return;
+    final backoff = await PinBackoff.instance();
+    final wait = backoff.remaining();
+    if (wait > Duration.zero) {
+      if (mounted) _startWait(wait);
       return;
     }
-    _wrongTries++;
+    setState(() => _busy = true);
+    final ok = await appState.verifyLockPin(_controller.text);
+    if (ok) {
+      await backoff.recordSuccess();
+    } else {
+      await backoff.recordFailure();
+    }
+    if (!mounted) return;
+    if (ok) {
+      setState(() {
+        _busy = false;
+        _unlocked = true;
+      });
+      return;
+    }
     setState(() {
+      _busy = false;
       _error = AppStrings.of(context).t('lock.app_wrong');
       _controller.clear();
     });
-    if (_wrongTries >= 5) _startWait();
+    _startWait(backoff.remaining());
   }
 
-  /// Beşinci yanlıştan sonra 5, 10, 20… saniye (60'ta durur).
-  void _startWait() {
-    final seconds = (5 * (1 << (_wrongTries - 5))).clamp(5, 60);
+  /// Kalan bekleme süresince saniye saniye geri sayar.
+  void _startWait(Duration wait) {
+    if (wait <= Duration.zero) return;
+    final seconds = wait.inSeconds + (wait.inMilliseconds % 1000 > 0 ? 1 : 0);
     setState(() => _waitSeconds = seconds);
     _waitTimer?.cancel();
     _waitTimer = Timer.periodic(const Duration(seconds: 1), (timer) {

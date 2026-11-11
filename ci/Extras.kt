@@ -24,6 +24,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.StatFs
 import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
 import android.text.format.Formatter
 import android.view.View
@@ -43,6 +44,8 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import javax.crypto.SecretKeyFactory
+import javax.crypto.spec.PBEKeySpec
 
 /**
  * **Yerel ekler** (2026-10-18 turu) — `lib/services/fm/native_extras.dart`in
@@ -195,6 +198,7 @@ object Extras {
     private const val NOTIFY_CLEAN = 0x5E10
     private const val NOTIFY_BILL_BASE = 0x5E20
     private const val KEY_ALIAS = "dosya_vault_key"
+    private const val BIO_ALIAS = "dosya_vault_bio_v2"
     const val DAY_MS = 24L * 60 * 60 * 1000
 
     /** Temizlik bildirimi için doluluk eşiği (%) ve bilinen gereksiz boyut eşiği. */
@@ -458,6 +462,117 @@ object Extras {
         cipher.init(Cipher.DECRYPT_MODE, vaultKey(), GCMParameterSpec(128, blob, 0, 12))
         cipher.doFinal(blob, 12, blob.size - 12)
     }.getOrNull()
+
+    // ── 3b. G3 (2026-11-11): PIN türetme + kimlik doğrulama zorunlu kasa anahtarı ──
+
+    /** PBKDF2-HMAC-SHA256 (32 bayt) arka izlekte; Android 8 altı/hata → null. */
+    fun pbkdf2(pin: String, salt: ByteArray, iter: Int, done: (ByteArray?) -> Unit) {
+        val main = Handler(Looper.getMainLooper())
+        Thread {
+            val out = runCatching {
+                val spec = PBEKeySpec(pin.toCharArray(), salt, iter, 256)
+                try {
+                    SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+                        .generateSecret(spec).encoded
+                } finally {
+                    spec.clearPassword()
+                }
+            }.getOrNull()
+            main.post { done(out) }
+        }.start()
+    }
+
+    /**
+     * Kasa ana anahtarını sarar/açar; anahtar `setUserAuthenticationRequired`
+     * ile üretilir ve her kullanımda BiometricPrompt `CryptoObject` ister —
+     * eski [wrap] (Gemini/uzak parolalar da kullanır, DEĞİŞMEDİ) yalnız
+     * arayüz kapısıydı. Yeni parmak izi eklenince anahtar geçersizleşir.
+     */
+    fun bioCrypt(
+        activity: Activity, encrypt: Boolean, data: ByteArray,
+        title: String, subtitle: String, cancel: String,
+        done: (Map<String, Any?>) -> Unit
+    ) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
+            done(mapOf("status" to "error"))
+            return
+        }
+        val cipher = try {
+            Cipher.getInstance("AES/GCM/NoPadding").apply {
+                if (encrypt) {
+                    init(Cipher.ENCRYPT_MODE, bioKey(create = true))
+                } else {
+                    if (data.size < 13) throw IllegalArgumentException("kısa")
+                    val key = bioKey(create = false) ?: throw KeyPermanentlyInvalidatedException()
+                    init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, data, 0, 12))
+                }
+            }
+        } catch (e: KeyPermanentlyInvalidatedException) {
+            bioDeleteKey()
+            done(mapOf("status" to "invalidated"))
+            return
+        } catch (e: Exception) {
+            done(mapOf("status" to "error"))
+            return
+        }
+        val executor = activity.mainExecutor
+        var answered = false
+        fun answer(map: Map<String, Any?>) {
+            if (!answered) { answered = true; done(map) }
+        }
+        val builder = android.hardware.biometrics.BiometricPrompt.Builder(activity)
+            .setTitle(title)
+            .setNegativeButton(cancel, executor) { _, _ -> answer(mapOf("status" to "cancel")) }
+        if (subtitle.isNotEmpty()) builder.setSubtitle(subtitle)
+        builder.build().authenticate(
+            android.hardware.biometrics.BiometricPrompt.CryptoObject(cipher),
+            CancellationSignal(), executor,
+            object : android.hardware.biometrics.BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(
+                    result: android.hardware.biometrics.BiometricPrompt.AuthenticationResult?
+                ) {
+                    val c = result?.cryptoObject?.cipher
+                    val out = runCatching {
+                        if (c == null) null
+                        else if (encrypt) c.iv + c.doFinal(data)
+                        else c.doFinal(data, 12, data.size - 12)
+                    }.getOrNull()
+                    answer(
+                        if (out == null) mapOf("status" to "error")
+                        else mapOf("status" to "ok", "data" to out)
+                    )
+                }
+
+                override fun onAuthenticationError(code: Int, msg: CharSequence?) {
+                    answer(mapOf("status" to "cancel"))
+                }
+            }
+        )
+    }
+
+    private fun bioKey(create: Boolean): SecretKey? {
+        val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        (ks.getKey(BIO_ALIAS, null) as? SecretKey)?.let { return it }
+        if (!create) return null
+        val spec = KeyGenParameterSpec.Builder(
+            BIO_ALIAS, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+        )
+            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+            .setKeySize(256)
+            .setUserAuthenticationRequired(true)
+            .setInvalidatedByBiometricEnrollment(true)
+            .build()
+        val gen = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
+        gen.init(spec)
+        return gen.generateKey()
+    }
+
+    fun bioDeleteKey() {
+        runCatching {
+            KeyStore.getInstance("AndroidKeyStore").apply { load(null) }.deleteEntry(BIO_ALIAS)
+        }
+    }
 
     // ── 4. konum adı ───────────────────────────────────────────────────────
 
