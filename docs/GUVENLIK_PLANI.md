@@ -91,7 +91,7 @@ Kapsam dışı (bilinçli): root'lu/ele geçmiş cihaz, fiziksel adli inceleme, 
 
 Amaç: açıkların geri gelmesini CI yakalasın.
 
-- [ ] **G0.1 `tool/guvenlik_denetimi.sh`** yaz (bash, `set -euo pipefail`, Flutter gerektirmez). Her kural
+- [x] **G0.1 `tool/guvenlik_denetimi.sh`** yaz (bash, `set -euo pipefail`, Flutter gerektirmez). Her kural
       ihlalde `::error::` basıp `exit 1`. Kurallar (her biri ayrı işlev, başına açıklama):
   1. `lib/` içinde `badCertificateCallback`/`onBadCertificate` → yasak.
   2. `lib/` içinde `Random()` (güvenli olmayan) yalnız izin listesindeki dosyalarda; liste betiğin başında
@@ -106,11 +106,11 @@ Amaç: açıkların geri gelmesini CI yakalasın.
   8. `lib/` içinde `JavaScriptMode.unrestricted` kullanan dosyalar izin listesinde.
   9. Depoda `*.jks`, `*.keystore`, `google-services.json`, `AIza[0-9A-Za-z_-]{35}` deseni yok.
   - Henüz kapanmamış kurallar `BEKLEYEN="3 4 6"` gibi bir değişkenle **uyarı** kipinde başlar; ilgili faz bitince listeden çıkarılır.
-- [ ] **G0.2 CI'ya bağla:** `build-apk.yml` `verify` 0. parçasına (analyze'ın yanına) adım: `bash tool/guvenlik_denetimi.sh`.
+- [x] **G0.2 CI'ya bağla:** `build-apk.yml` `verify` 0. parçasına (analyze'ın yanına) adım: `bash tool/guvenlik_denetimi.sh`.
       `changes` süzgecine `tool/guvenlik_denetimi.sh` ve `ci/AndroidManifest.xml` ekli mi bak.
-- [ ] **G0.3 `docs/guvenlik/ENVANTER.md`:** üç tablo — (a) dışa açık bileşenler + koruması, (b) açılan ağ
+- [x] **G0.3 `docs/guvenlik/ENVANTER.md`:** üç tablo — (a) dışa açık bileşenler + koruması, (b) açılan ağ
       portları + kimlik doğrulaması, (c) diske yazılan sırlar + nerede/nasıl. Bu belgenin §2'sinden başla, kodu okuyarak tamamla.
-- [ ] **G0.4 `SECURITY.md`** (kök): açık bildirme adresi (kullanıcıdan iste — 👤), desteklenen sürüm = son sürüm, 90 gün açıklama süresi.
+- [x] **G0.4 `SECURITY.md`** (kök): açık bildirme adresi (kullanıcıdan iste — 👤), desteklenen sürüm = son sürüm, 90 gün açıklama süresi.
 
 Bitti: betik CI'da koşuyor, bekleyen kurallar listeli, envanter dolu.
 

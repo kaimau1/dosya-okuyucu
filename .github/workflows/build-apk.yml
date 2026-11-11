@@ -185,6 +185,13 @@ jobs:
         if: env.MOD != 'atla' && matrix.shard == 0
         run: python3 tool/bagimlilik_denetimi.py
 
+      # Güvenlik fazı G0: kapatılmış açıkların geri gelmesini ve onaysız yeni
+      # saldırı yüzeyini (sunucu, dışa açık bileşen, WebView JS) yakalar.
+      # Flutter gerekmez; bekleyen kurallar uyarı kipinde (tool/guvenlik_denetimi.sh).
+      - name: Güvenlik denetimi
+        if: env.MOD != 'atla' && matrix.shard == 0
+        run: bash tool/guvenlik_denetimi.sh
+
       - name: Flutter kurulumu (önbellekli)
         if: env.MOD != 'atla'
         uses: subosito/flutter-action@v2
