@@ -58,6 +58,12 @@ abstract final class NativeExtras {
   /// Uygulama bir widget/bildirim bağlantısıyla AÇILDIYSA o bağlantı (bir kez).
   static Future<String?> takeLaunchLink() => _call<String>('takeLink');
 
+  /// `FLAG_SECURE` aç/kapat (G1.4) — ekran görüntüsü ve son uygulamalar önizlemesi.
+  /// Sayaç `SecureScreenGate`te (lib/core/secure_screen.dart); doğrudan çağırma.
+  static Future<void> setSecure(bool secure) async {
+    await _call<bool>('setSecure', secure);
+  }
+
   // ── 1. günlük iş ───────────────────────────────────────────────────────
 
   static const kWeeklyCleanup = 'weekly_cleanup';

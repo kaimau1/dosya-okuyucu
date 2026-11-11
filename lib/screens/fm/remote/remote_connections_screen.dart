@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../../core/secure_screen.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/app_icons.dart';
@@ -92,7 +93,7 @@ class _RemoteConnectionsScreenState extends State<RemoteConnectionsScreen> {
     final controller = TextEditingController();
     return showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => SecureScreen(child: AlertDialog(
         title: Text(ctx.t('nas.password_prompt', {'name': name})),
         content: TextField(
           controller: controller,
@@ -109,7 +110,7 @@ class _RemoteConnectionsScreenState extends State<RemoteConnectionsScreen> {
               onPressed: () => Navigator.pop(ctx, controller.text),
               child: Text(ctx.t('common.ok'))),
         ],
-      ),
+      )),
     );
   }
 

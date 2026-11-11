@@ -11,7 +11,7 @@ Kullanım:
   python3 ci/play_variant.py apply  [manifest]   # varsayılan android/app/src/main/AndroidManifest.xml
   python3 ci/play_variant.py verify <birleşmiş manifest(ler)>
 Çıkarılacak izinler: DOSYA_PLAY_REMOVE (virgüllü kısa adlar), varsayılan
-QUERY_ALL_PACKAGES. Hangileri çıkacağı kullanıcı kararı (KALANLAR B5.3).
+DEFAULT_REMOVE (QUERY_ALL_PACKAGES + READ_MEDIA_*). Hangileri çıkacağı kullanıcı kararı (KALANLAR B5.3).
 """
 import os
 import pathlib
@@ -20,10 +20,16 @@ import sys
 
 DEFAULT_MANIFEST = 'android/app/src/main/AndroidManifest.xml'
 MARK = '<!-- play_variant -->'
+# G1.5 (B18): varsayılan = iş akışındaki (build-apk.yml) liste. REQUEST_INSTALL_PACKAGES ve
+# PACKAGE_USAGE_STATS BİLEREK yok: çıkarılırsa APK kurma / "son açılma" özellikleri Play
+# derlemesinde ayrıca gizlenmeli (dart-define bayrağı henüz yok) -> KALANLAR "G1 artığı".
+# ACCESS_FINE_LOCATION zaten maxSdkVersion=32, NEARBY_WIFI_DEVICES neverForLocation (manifest).
+DEFAULT_REMOVE = ('QUERY_ALL_PACKAGES,READ_MEDIA_IMAGES,READ_MEDIA_VIDEO,'
+                  'READ_MEDIA_AUDIO,READ_MEDIA_VISUAL_USER_SELECTED')
 
 
 def removals():
-    raw = os.environ.get('DOSYA_PLAY_REMOVE', 'QUERY_ALL_PACKAGES')
+    raw = os.environ.get('DOSYA_PLAY_REMOVE', DEFAULT_REMOVE)
     names = [n.strip() for n in raw.split(',') if n.strip()]
     for n in names:
         if not re.fullmatch(r'[A-Z_]+', n):

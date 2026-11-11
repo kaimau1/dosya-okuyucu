@@ -118,23 +118,34 @@ Bitti: betik CI'da koşuyor, bekleyen kurallar listeli, envanter dolu.
 
 ## Faz G1 — Android platform sertleştirme
 
-- [ ] **G1.1 Yedeklemeyi kapat (B3).** `ci/AndroidManifest.xml` `<application>`'a `android:allowBackup="false"`
+- [x] **G1.1 Yedeklemeyi kapat (B3).** `ci/AndroidManifest.xml` `<application>`'a `android:allowBackup="false"`
       ve `android:dataExtractionRules="@xml/data_extraction_rules"` ekle. `ci/res/xml/data_extraction_rules.xml` oluştur:
       `<data-extraction-rules><cloud-backup><exclude domain="root"/><exclude domain="sharedpref"/><exclude domain="database"/><exclude domain="file"/></cloud-backup><device-transfer>` (aynı dışlamalar) `</device-transfer></data-extraction-rules>`.
       `ci/prepare_android.sh` `res/xml` kopyalıyor mu doğrula (diğer xml'lerin nasıl taşındığına bak, aynısını yap).
       **Bedel:** telefon değiştirirken ayarlar taşınmaz → uygulamanın kendi "Ayar yedeği" zaten var; sürüm notuna yaz.
-- [ ] **G1.2 Dışa açık `MainActivity` girdilerini doğrula (B4).**
+- [x] **G1.2 Dışa açık `MainActivity` girdilerini doğrula (B4).**
   - `ci/MainActivity.kt`: `EXTRA_LINK` ve `EXTRA_SHORTCUT_PATH` okunan her yeri bul. Bu ekler yalnız **bizim** widget/bildirim/kısayolumuzdan gelmeli.
     Çözüm: bu Intent'leri üreten her yerde (`Extras.kt`, widget'lar, kısayol) ek olarak `EXTRA_SIG = HMAC-SHA256(süreçte bir kez üretilip `filesDir/link_key` içine yazılan 32 rastgele bayt, link metni)` koy; `MainActivity` imza tutmuyorsa eki **yok say**.
   - Dart: `lib/screens/app_links.dart` `openAppLink` — kabul edilen bağlantı biçimlerini **beyaz liste** yap (bilinen ekran adları + var olan dosya yolu). Yol: `p.normalize` sonrası uygulamanın özel dizinini (`/data/`), kasa dizinini gösteriyorsa reddet.
   - Test: `test/app_links_guvenlik_test.dart` — `../`, `/data/data/...`, kasa yolu, bilinmeyen şema → açılmaz.
   - Kotlin testi: `tool/kotlin_tests` altına imza doğrulama birimi.
-- [ ] **G1.3 Intent süzgeçlerini daralt (B15).** Manifest ~270–325: `http/https host="*"` süzgeci hangi özellik için (indirme yöneticisi?) — HAFIZA'da `grep -n 'host="\*"\|indirme yöneticisi' HAFIZA.md docs/hafiza/*.md`. Gerekçe yoksa kaldır; varsa yalnız MIME/uzantılı biçimi bırak. `file://` şeması: Android 7+ başka uygulamalar `file://` gönderemez; kaldırılabilir mi doğrula (eski dosya yöneticileri hâlâ gönderiyor olabilir → kalacaksa Dart tarafında yol G1.2 denetiminden geçsin).
-- [ ] **G1.4 `FLAG_SECURE` (B10).** `ci/Extras.kt`'ye yöntem kanalı `setSecure(bool)` (`window.setFlags/clearFlags(WindowManager.LayoutParams.FLAG_SECURE)`). Dart: `lib/core/secure_screen.dart` — `SecureScreen` widget'ı (`initState` → true, `dispose` → false, sayaçlı: iç içe ekranlarda erken kapanmasın). Sar: `vault_screen.dart`, PIN giriş pencereleri, uygulama kilidi ekranı, AI anahtar girişi, uzak bağlantı parola formu. Kasadan açılan görüntüleyici de (kasa bayrağı ile).
-- [ ] **G1.5 İzin diyeti (B18).** `ci/play_variant.py` varsayılan çıkarma listesine ekle: `REQUEST_INSTALL_PACKAGES`, `PACKAGE_USAGE_STATS`, `QUERY_ALL_PACKAGES`, `READ_MEDIA_*`, `ACCESS_FINE_LOCATION` (Nearby için API 33+ `NEARBY_WIFI_DEVICES` + `neverForLocation` yeter mi **ÖNCE DOĞRULA**; konuma `android:maxSdkVersion="32"` koy). Çıkarılan iznin özelliği Play derlemesinde gizlenmeli (`dart-define` bayrağı var mı bak). GitHub derlemesi değişmez.
-- [ ] **G1.6 `requestLegacyExternalStorage`:** targetSdk 36'da etkisiz; kaldır (minSdk 24–28 cihazda `WRITE_EXTERNAL_STORAGE` yolu bozulmuyor mu **ÖNCE DOĞRULA**; Android 10 tek sürüm bu bayrağa muhtaç → o zaman bırak ve gerekçeyi yoruma yaz).
-- [ ] **G1.7 Bekleyen Intent'ler:** `ci/*.kt` içinde her `PendingIntent.get*` → `FLAG_IMMUTABLE` var mı (`grep -n PendingIntent ci/*.kt`); değiştirilebilir olan varsa gerekçesiz ise düzelt, `setPackage` ekle.
-- [ ] **G1.8 Yayın alıcıları:** Kotlin'de `registerReceiver(` çağrıları API 33+ `RECEIVER_NOT_EXPORTED` ile mi (`grep -n registerReceiver ci/*.kt`).
+- [x] **G1.3 Intent süzgeçlerini daralt (B15).** Manifest ~270–325: `http/https host="*"` süzgeci hangi özellik için (indirme yöneticisi?) — HAFIZA'da `grep -n 'host="\*"\|indirme yöneticisi' HAFIZA.md docs/hafiza/*.md`. Gerekçe yoksa kaldır; varsa yalnız MIME/uzantılı biçimi bırak. `file://` şeması: Android 7+ başka uygulamalar `file://` gönderemez; kaldırılabilir mi doğrula (eski dosya yöneticileri hâlâ gönderiyor olabilir → kalacaksa Dart tarafında yol G1.2 denetiminden geçsin).
+      **Sonuç (doğrulandı, kod DEĞİŞMEDİ):** `host="*"` süzgeci "İndirme bağlantısına dokununca seçenek olarak çık" özelliği
+      (kullanıcı isteği 2026-07-29, manifest yorumu) ve zaten yalnız indirilebilir uzantı `pathPattern`'leriyle sınırlı; ikinci
+      süzgeç yalnız apk/zip/octet-stream MIME'li. Gerekçeli → kalır. `file://` süzgeçleri: Android 7+ hedefli gönderen uygulamalar
+      `file://` yollayamaz ama eski dosya yöneticileri yollayabilir (dış açık kullanım) → kaldırmak davranış kırar, kalır;
+      uygulama içi bağlantı/kısayol yolları G1.2 beyaz listesinden geçiyor. **G1 artığı:** dışarıdan gelen VIEW `file://`
+      yolunun özel dizin denetimi (KALANLAR).
+
+- [x] **G1.4 `FLAG_SECURE` (B10).** `ci/Extras.kt`'ye yöntem kanalı `setSecure(bool)` (`window.setFlags/clearFlags(WindowManager.LayoutParams.FLAG_SECURE)`). Dart: `lib/core/secure_screen.dart` — `SecureScreen` widget'ı (`initState` → true, `dispose` → false, sayaçlı: iç içe ekranlarda erken kapanmasın). Sar: `vault_screen.dart`, PIN giriş pencereleri, uygulama kilidi ekranı, AI anahtar girişi, uzak bağlantı parola formu. Kasadan açılan görüntüleyici de (kasa bayrağı ile).
+- [x] **G1.5 İzin diyeti (B18).** `ci/play_variant.py` varsayılan çıkarma listesine ekle: `REQUEST_INSTALL_PACKAGES`, `PACKAGE_USAGE_STATS`, `QUERY_ALL_PACKAGES`, `READ_MEDIA_*`, `ACCESS_FINE_LOCATION` (Nearby için API 33+ `NEARBY_WIFI_DEVICES` + `neverForLocation` yeter mi **ÖNCE DOĞRULA**; konuma `android:maxSdkVersion="32"` koy). Çıkarılan iznin özelliği Play derlemesinde gizlenmeli (`dart-define` bayrağı var mı bak). GitHub derlemesi değişmez.
+      **Sonuç:** `ACCESS_FINE_LOCATION` zaten `maxSdkVersion=32`, `NEARBY_WIFI_DEVICES` zaten `neverForLocation`; iş akışı Play listesi zaten `QUERY_ALL_PACKAGES`+`READ_MEDIA_*` çıkarıyor, `play_variant.py` varsayılanı ona hizalandı. `REQUEST_INSTALL_PACKAGES` / `PACKAGE_USAGE_STATS` çıkarılmadı: APK kurma / "son açılma" özelliklerinin Play derlemesinde gizlenmesi (dart-define) gerekir → KALANLAR "G1 artığı" (B5.3 kararıyla birlikte).
+- [x] **G1.6 `requestLegacyExternalStorage`:** targetSdk 36'da etkisiz; kaldır (minSdk 24–28 cihazda `WRITE_EXTERNAL_STORAGE` yolu bozulmuyor mu **ÖNCE DOĞRULA**; Android 10 tek sürüm bu bayrağa muhtaç → o zaman bırak ve gerekçeyi yoruma yaz).
+      **Sonuç:** kaldırılmadı: Android 10 (API 29) cihazda ortak depolama bu bayrağa bağlı (HAFIZA Faz 2/D9); manifest yorumuna gerekçe yazıldı.
+- [x] **G1.7 Bekleyen Intent'ler:** `ci/*.kt` içinde her `PendingIntent.get*` → `FLAG_IMMUTABLE` var mı (`grep -n PendingIntent ci/*.kt`); değiştirilebilir olan varsa gerekçesiz ise düzelt, `setPackage` ekle.
+      **Sonuç:** tüm `PendingIntent`ler `FLAG_IMMUTABLE`; yalnız `ApkKurulum.kt` (PackageInstaller) ve `UsbMass.kt` (UsbManager) `FLAG_MUTABLE` — sistem yanıt ekini doldurduğu için ŞART, ikisi de açık `setPackage(paketimiz)` kullanıyor. Değişiklik yok.
+- [x] **G1.8 Yayın alıcıları:** Kotlin'de `registerReceiver(` çağrıları API 33+ `RECEIVER_NOT_EXPORTED` ile mi (`grep -n registerReceiver ci/*.kt`).
+      **Sonuç:** `ApkKurulum`/`UsbMass` alıcıları `RECEIVER_NOT_EXPORTED`; `MainActivity` USB/medya sistem yayınları `RECEIVER_EXPORTED` (bilinçli, yorumda gerekçe: bazı ROM'larda NOT_EXPORTED sistem yayınını ulaştırmıyor); `NearbyBgService` Bluetooth durumu (sistem yayını, kişisel derleme) ve `SdUnion` batarya (alıcısız anlık okuma) bayraksız — sistem yayını, dışarıdan tetiklenemez. Değişiklik yok.
 
 Bitti: `guvenlik_denetimi.sh` kural 4 "bekleyen"den çıktı; CIHAZ_TESTI'ye: widget dokunuşu, kısayol, "Birlikte aç", kasa ekran görüntüsü engeli.
 

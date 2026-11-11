@@ -127,12 +127,15 @@
          kalmıyor. Cihazda doğrulama: docs/CIHAZ_TESTI.md (Faz 11a). -->
     <application
         android:label="Dosyalarım"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:localeConfig="@xml/locales_config"
         android:enableOnBackInvokedCallback="true"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:requestLegacyExternalStorage="true">
+        android:requestLegacyExternalStorage="true"> <!-- G1.6 (doğrulandı, BIRAKILDI): targetSdk 36'da etkisiz ama minSdk 24 + Android 10 (API 29, bu bayrağa muhtaç tek sürüm) cihazda ortak depolama yazması buna bağlı; kaldırmak o cihazları bozar (HAFIZA Faz 2/D9). -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
