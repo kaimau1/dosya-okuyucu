@@ -1,3 +1,4 @@
+import 'dart:convert' as convert;
 import 'dart:io';
 
 import 'package:dosya_okuyucu/services/fm/remote/http_share_server.dart';
@@ -101,6 +102,6 @@ void main() {
   });
 }
 
-int utf8Length(String s) => const Utf8Codec().encode(s).length;
+int utf8Length(String s) => convert.utf8.encode(s).length;
 
-String base64Encode(String s) => const Base64Codec().encode(const Utf8Codec().encode(s));
+String base64Encode(String s) => convert.base64.encode(convert.utf8.encode(s));

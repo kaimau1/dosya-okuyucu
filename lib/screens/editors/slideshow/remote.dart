@@ -74,8 +74,13 @@ extension _SlideshowRemote on _SlideshowScreenState {
     // bit) sabit zamanlı karşılaştırılır. Kumanda yalnız ileri/geri ve sıra
     // numarası verir (not metni gönderilmez).
     if (!await LanGuard.admit(req)) return;
-    final seg = req.uri.pathSegments;
     final res = req.response;
+    if (!mounted) {
+      res.statusCode = HttpStatus.gone;
+      await res.close();
+      return;
+    }
+    final seg = req.uri.pathSegments;
     if (seg.isEmpty || !LanGuard.safeEquals(seg.first, token)) {
       res.statusCode = HttpStatus.notFound;
       await res.close();
