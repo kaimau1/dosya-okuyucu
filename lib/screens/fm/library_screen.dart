@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -63,6 +64,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
   final _query = TextEditingController();
   bool _searching = false;
 
+  /// Kitapların boyutu ve diskte olmayanlar — çizimde senkron `stat` yerine
+  /// arka planda toplanır (A4.4); kitaplık değişince tazelenir.
+  Map<String, int> _sizes = const {};
+  Set<String> _gone = const {};
+  int _statGen = 0;
+
   @override
   void initState() {
     super.initState();
@@ -83,10 +90,35 @@ class _LibraryScreenState extends State<LibraryScreen> {
       ReadingPositions.ensureLoaded(),
     ]);
     if (mounted) setState(() => _loading = false);
+    unawaited(_statBooks());
   }
 
   void _refresh() {
     if (mounted) setState(() {});
+    unawaited(_statBooks());
+  }
+
+  Future<void> _statBooks() async {
+    final gen = ++_statGen;
+    final sizes = <String, int>{};
+    final gone = <String>{};
+    for (final path in LibraryStore.paths.toList()) {
+      try {
+        final st = await File(path).stat();
+        if (st.type == FileSystemEntityType.notFound) {
+          gone.add(path);
+        } else {
+          sizes[path] = st.size;
+        }
+      } catch (_) {
+        gone.add(path); // erişilemeyen kitap "eksik" sayılır
+      }
+    }
+    if (!mounted || gen != _statGen) return;
+    setState(() {
+      _sizes = sizes;
+      _gone = gone;
+    });
   }
 
   List<String> get _books {
@@ -150,7 +182,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Future<void> _open(String path) async {
-    if (!File(path).existsSync()) {
+    final there = await File(path).exists();
+    if (!mounted) return;
+    if (!there) {
       showSnack(context, context.t('lib.missing'));
       return;
     }
@@ -198,7 +232,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
         await Navigator.of(context).push(browserRoute(BrowserScreen(
             path: p.dirname(path), focusPath: path)));
       case 'share':
-        if (!File(path).existsSync()) {
+        final there = await File(path).exists();
+        if (!mounted) return;
+        if (!there) {
           showSnack(context, context.t('lib.missing'));
           return;
         }
@@ -401,7 +437,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   /// Kitaplıktaki ama diskte artık olmayan kitaplar.
   List<String> _missing() => [
         for (final path in LibraryStore.paths)
-          if (!File(path).existsSync()) path,
+          if (_gone.contains(path)) path,
       ];
 
   /// **Telefondaki kitapları bul** (2026-11-04): panonun son taramasındaki
@@ -476,10 +512,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Widget _listTile(String path) {
     final theme = Theme.of(context);
     final progress = ReadingPositions.progressOf(path);
-    final file = File(path);
-    final exists = file.existsSync();
+    final bytes = _sizes[path];
     final ext = p.extension(path).replaceFirst('.', '').toUpperCase();
-    final size = exists ? FsPaths.humanSize(file.lengthSync()) : '';
+    final size = bytes != null ? FsPaths.humanSize(bytes) : '';
     return InkWell(
       onTap: () => _open(path),
       onLongPress: () => _bookMenu(path),
@@ -720,8 +755,10 @@ class _BookCoverState extends State<_BookCover> {
 
   Future<void> _load() async {
     final path = widget.path;
-    _exists = File(path).existsSync();
-    if (!_exists) return;
+    final exists = await File(path).exists();
+    if (!mounted || path != widget.path) return;
+    if (exists != _exists) setState(() => _exists = exists);
+    if (!exists) return;
     final cover = await LibraryStore.coverOf(path);
     if (mounted && path == widget.path) setState(() => _cover = cover);
   }

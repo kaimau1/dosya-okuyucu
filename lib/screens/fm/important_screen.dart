@@ -92,6 +92,8 @@ class _ImportantScreenState extends State<ImportantScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
+    // Senkron bilinçli (A4.4 istisnası): tek `stat`; asenkron sürüm widget
+    // testinin sahte saatinde bitmiyor, ekran "yükleniyor"da kalırdı (a11y testi).
     final exists = Directory(_root).existsSync();
     if (!exists) {
       if (!mounted) return;
@@ -138,9 +140,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
     );
     if (name == null) return;
     try {
-      if (!Directory(_root).existsSync()) {
-        await Directory(_root).create(recursive: true);
-      }
+      await Directory(_root).create(recursive: true); // varsa dokunmaz
       final path = await FileOps.createFolder(_root, name);
       await _load();
       if (!mounted) return;
@@ -159,10 +159,8 @@ class _ImportantScreenState extends State<ImportantScreen> {
     final sources = appState.clipboard;
     if (sources.isEmpty) return;
     final cut = appState.clipboardCut;
-    if (!Directory(_root).existsSync()) {
-      await Directory(_root).create(recursive: true);
-      if (!mounted) return;
-    }
+    await Directory(_root).create(recursive: true); // varsa dokunmaz
+    if (!mounted) return;
     final result = await showFmProgress<FmOpResult>(
       context,
       title: cut ? context.t('fm.moving') : context.t('fm.copying'),

@@ -481,9 +481,9 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
       final path = picked?.files.single.path;
       if (path == null) return;
       final entries = await PlaylistM3u.read(path);
-      final existing = [
+      final existing = <String>[
         for (final entry in entries)
-          if (File(entry.path).existsSync()) entry.path,
+          if (await File(entry.path).exists()) entry.path,
       ];
       if (existing.isEmpty) {
         showSnackOn(messenger, strings.t('mp.playlist_empty'));

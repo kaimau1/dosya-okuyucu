@@ -190,7 +190,7 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
     if (s.create) {
       try {
         final dir = Directory(s.path);
-        if (!dir.existsSync()) await dir.create(recursive: true);
+        await dir.create(recursive: true); // varsa dokunmaz
       } catch (e) {
         if (!mounted) return;
         showSnack(context,

@@ -307,8 +307,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     await deleteEntries(context, [for (final v in victims) _entryFor(v)]);
     if (!mounted) return;
     // Başarıyı dosyanın yokluğundan ölç (kısmi başarısızlıkta kalanlar kalır).
-    final gone = {for (final v in victims) if (!File(v).existsSync()) v};
-    if (gone.isEmpty) return;
+    final gone = <String>{
+      for (final v in victims)
+        if (!await File(v).exists()) v
+    };
+    if (gone.isEmpty || !mounted) return;
     final current = _current;
     setState(() {
       _paths.removeWhere(gone.contains);

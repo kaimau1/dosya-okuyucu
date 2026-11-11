@@ -100,7 +100,8 @@ Future<bool> _openTarget(BuildContext context, FmJobTarget target) async {
       return true;
     case FmJobTargetKind.folder:
       final path = target.paths.isEmpty ? null : target.paths.first;
-      if (path == null || !Directory(path).existsSync()) return false;
+      if (path == null || !await Directory(path).exists()) return false;
+      if (!context.mounted) return false;
       await Navigator.of(context).push(
         browserRoute(BrowserScreen(path: path)),
       );
@@ -133,7 +134,8 @@ Future<bool> _openOutputs(BuildContext context, FmJob job) async {
   if (outputs.isEmpty) return false;
   if (outputs.length == 1) return _openFiles(context, outputs);
   final dir = p.dirname(outputs.first);
-  if (!Directory(dir).existsSync()) return false;
+  if (!await Directory(dir).exists()) return false;
+  if (!context.mounted) return false;
   await Navigator.of(context).push(
     browserRoute(BrowserScreen(path: dir)),
   );
@@ -144,14 +146,16 @@ Future<bool> _openFiles(BuildContext context, List<String> paths) async {
   if (paths.isEmpty) return false;
   // Diskte olmayan dosyayı açmaya çalışmak yerine klasörüne düşülür: iş
   // bittikten sonra kullanıcı dosyayı taşımış ya da silmiş olabilir.
-  if (!File(paths.first).existsSync()) {
+  if (!await File(paths.first).exists()) {
     final dir = p.dirname(paths.first);
-    if (!Directory(dir).existsSync()) return false;
+    if (!await Directory(dir).exists()) return false;
+    if (!context.mounted) return false;
     await Navigator.of(context).push(
       browserRoute(BrowserScreen(path: dir)),
     );
     return true;
   }
+  if (!context.mounted) return false;
   await EntryOpener.open(context, paths.first, siblings: paths);
   return true;
 }

@@ -347,7 +347,7 @@ Future<bool> fileIntoSuggestedFolder(
   final str = AppStrings.of(context);
   try {
     final dir = Directory(dest);
-    if (!dir.existsSync()) await dir.create(recursive: true);
+    await dir.create(recursive: true); // varsa dokunmaz
     final result = await FileOps.moveAll([entry.path], dest);
     if (!context.mounted) return result.succeeded > 0;
     _snack(

@@ -96,7 +96,7 @@ extension _DashboardScreenScanPart on _DashboardScreenState {
   /// tutmuyor, bu birkaç klasör ayrıca ölçülür.
   Future<void> _loadFolderSizes() async {
     final download = p.join(FmEnv.primaryRoot, 'Download');
-    if (!Directory(download).existsSync()) return;
+    if (!await Directory(download).exists()) return;
     final size = await FsScan.folderSize(download);
     if (!mounted) return;
     _partSetState(() => _folderSizes[download] = size);

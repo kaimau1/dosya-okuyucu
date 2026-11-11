@@ -82,7 +82,7 @@ class SettingsBackupTile extends StatelessWidget {
       // ilk baktığı yer ve uygulamanın kendi dizini gibi silinince kaybolan
       // bir yer değil.
       final downloads = p.join(FmEnv.primaryRoot, 'Download');
-      final dir = Directory(downloads).existsSync()
+      final dir = await Directory(downloads).exists()
           ? downloads
           : FmEnv.primaryRoot;
       final target =

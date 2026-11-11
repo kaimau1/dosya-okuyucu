@@ -231,7 +231,7 @@ class _JobReportScreenState extends State<JobReportScreen> {
       for (final c in list) {
         final before = c.before;
         if (c.kind != 'move' || before == null) continue;
-        if (!File(c.path).existsSync()) continue;
+        if (!await File(c.path).exists()) continue;
         (byDir[p.dirname(before)] ??= []).add(c);
       }
       var n = 0;
@@ -244,7 +244,7 @@ class _JobReportScreenState extends State<JobReportScreen> {
         }
         // Geri dönen (artık hedefte olmayan) dosyalar kayıttan düşer.
         for (final c in e.value) {
-          if (!File(c.path).existsSync()) {
+          if (!await File(c.path).exists()) {
             _job.changes.remove(c);
             _entries.remove(c.path);
           }
@@ -305,10 +305,11 @@ class _JobReportScreenState extends State<JobReportScreen> {
   }
 
   Future<void> _moveGroup(List<JobChange> list) async {
-    final paths = {
+    final paths = <String>{
       for (final c in list)
-        if (!c.rejected && File(c.path).existsSync()) c.path
+        if (!c.rejected && await File(c.path).exists()) c.path
     }.toList();
+    if (!mounted) return;
     if (paths.isEmpty) {
       showSnack(context, context.t('jr.nothing_to_move'));
       return;
@@ -334,8 +335,10 @@ class _JobReportScreenState extends State<JobReportScreen> {
     });
   }
 
-  void _open(JobChange c, List<JobChange> group) {
-    if (!File(c.path).existsSync()) {
+  Future<void> _open(JobChange c, List<JobChange> group) async {
+    final there = await File(c.path).exists();
+    if (!mounted) return;
+    if (!there) {
       showSnack(context, context.t('jr.missing'));
       return;
     }

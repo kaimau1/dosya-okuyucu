@@ -122,11 +122,14 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     if (!isSafeLinkPath(path)) return; // G1.2: özel dizin / kasa / `..` açılmaz
-    if (Directory(path).existsSync()) {
+    final isDir = await Directory(path).exists();
+    final isFile = !isDir && await File(path).exists();
+    if (!mounted) return;
+    if (isDir) {
       await Navigator.of(context).push(browserRoute(
         BrowserScreen(path: path),
       ));
-    } else if (File(path).existsSync()) {
+    } else if (isFile) {
       await EntryOpener.open(context, path);
     } else {
       showSnack(context, context.t('ea.shortcut_missing'));
@@ -142,6 +145,8 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_startFolderOpened || !mounted) return;
     _startFolderOpened = true;
     final path = context.read<AppState>().fmStartFolder;
+    // Senkron bilinçli (A4.4 istisnası): tek `stat`; asenkron sürüm widget
+    // testinin sahte saatinde tamamlanmıyor (HAFIZA §F, fm_start_folder_test).
     if (path.isEmpty || !Directory(path).existsSync()) return;
     await Navigator.of(context).push(browserRoute(
       BrowserScreen(path: path),
@@ -198,7 +203,8 @@ class _HomeScreenState extends State<HomeScreen> {
     // göre değişiyor. Karar tek ölçüte bağlı: içerik http(s) adresi mi ve
     // diskte böyle bir dosya YOK mu? Öyleyse indirilecek bir bağlantıdır.
     final url = extractUrl(path);
-    if (url != null && !File(path).existsSync()) {
+    if (url != null && !await File(path).exists()) {
+      if (!mounted) return;
       await Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => DownloadManagerScreen(initialUrl: url),
       ));
@@ -209,11 +215,11 @@ class _HomeScreenState extends State<HomeScreen> {
     // otomatik gelsin, paylaşılacak şey gönderilecek dosyaya eklensin"*).
     // "Birlikte aç" (VIEW) aşağıda okuyucuda açılmaya devam eder.
     if (await AppStorageService.takeSendRequest()) {
-      if (!mounted) return;
-      final paths = [
+      final paths = <String>[
         for (final f in files)
-          if (f.path.isNotEmpty && File(f.path).existsSync()) f.path,
+          if (f.path.isNotEmpty && await File(f.path).exists()) f.path,
       ];
+      if (!mounted) return;
       // Dosya yoksa paylaşılan düz yazıdır (eklenti metni `path`e koyar).
       final text = paths.isEmpty && first.type == SharedMediaType.text
           ? path

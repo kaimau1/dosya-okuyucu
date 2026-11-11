@@ -77,7 +77,7 @@ class _ImportantGalleryScreenState extends State<ImportantGalleryScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     final root = _root;
-    final files = Directory(root).existsSync()
+    final files = await Directory(root).exists()
         ? await FsScan.collect([root])
         : const <FsEntry>[];
     if (!mounted) return;
