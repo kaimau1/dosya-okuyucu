@@ -370,6 +370,7 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
         // Bilinçli: eski paylaşım kopyasının temizliği; silinemezse bir sonraki dışa aktarmada yeniden denenir.
       }
     }
+    if (!mounted) return;
     try {
       final path = await showFmProgress<String>(
         context,
