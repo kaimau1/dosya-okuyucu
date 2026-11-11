@@ -35,6 +35,13 @@ abstract final class SettingsBackup {
     'ai_api_key',
     'ai_api_keys',
     'gemini_key',
+    // G2.3 (2026-11-11): asıl Gemini anahtar kayıtları `gemini_api_key`,
+    // `gemini_api_keys`, `gemini_api_keys_sealed` — eski önekler bunları
+    // KAPSAMIYORDU (anahtar yedeğe giriyordu).
+    'gemini_api_key',
+    'fm_remote_secrets',
+    'ftpd_password',
+    'vault_bio_key',
     'fm_lock_pin',
     'app_lock_pin',
     'account_',
@@ -44,6 +51,26 @@ abstract final class SettingsBackup {
   static bool isSecret(String key) =>
       secretPrefixes.any((prefix) => key.startsWith(prefix));
 
+  /// Kayıtlı uzak bağlantı listesinden (`fm_remote_connections`) parola
+  /// alanını söker (G2.3). Keystore'suz cihazda parola JSON'da düz durabilir;
+  /// eski sürümün yedeği de taşıyabilir — ikisi de yedeğe/geri yüklemeye
+  /// girmez. Öteki anahtarlar aynen döner.
+  static Object? stripRemotePasswords(String key, Object? value) {
+    if (key != 'fm_remote_connections' || value is! List) return value;
+    return [
+      for (final item in value)
+        () {
+          try {
+            final map = jsonDecode('$item');
+            if (map is Map && map.containsKey('password')) {
+              return jsonEncode(Map.of(map)..remove('password'));
+            }
+          } catch (_) {}
+          return '$item';
+        }(),
+    ];
+  }
+
   /// Tercihleri JSON metnine çevirir.
   static String export(SharedPreferences prefs, {String? appVersion}) {
     final values = <String, Object?>{};
@@ -52,7 +79,7 @@ abstract final class SettingsBackup {
       final value = prefs.get(key);
       // `List<String>` JSON'da doğal olarak dizi; ötekiler zaten ilkel.
       if (value == null) continue;
-      values[key] = value;
+      values[key] = stripRemotePasswords(key, value);
     }
     return const JsonEncoder.withIndent('  ').convert({
       'format': formatVersion,
@@ -96,7 +123,7 @@ abstract final class SettingsBackup {
     for (final entry in values.entries) {
       final key = '${entry.key}';
       if (isSecret(key)) continue;
-      final value = entry.value;
+      final value = stripRemotePasswords(key, entry.value);
       if (value is bool) {
         await prefs.setBool(key, value);
       } else if (value is int) {
