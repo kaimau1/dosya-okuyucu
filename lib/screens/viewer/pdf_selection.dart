@@ -32,10 +32,12 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
     // kopyayı açar — düzenlenen sayfada ([PdfEditorScreen.lastPage]).
     if (!p.equals(saved, widget.doc.path)) {
       final file = File(saved);
-      if (file.existsSync() && _pdfCount > 0) {
+      if (_pdfCount > 0 && await file.exists()) {
+        final size = await file.length();
         ReadingPositions.record(saved, PdfEditorScreen.lastPage, _pdfCount,
-            size: file.lengthSync());
+            size: size);
       }
+      if (!mounted) return;
       Navigator.of(context).pop();
       await openSavedPdf(saved);
       return;

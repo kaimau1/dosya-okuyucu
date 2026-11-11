@@ -280,10 +280,12 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
   Future<void> _proLeaveToCopy(
       PdfProEditController pro, String copy, String message) async {
     final file = File(copy);
-    if (file.existsSync() && _pdfCount > 0) {
+    if (_pdfCount > 0 && await file.exists()) {
+      final size = await file.length();
       ReadingPositions.record(copy, _livePdfPage() ?? _pdfPage, _pdfCount,
-          size: file.lengthSync());
+          size: size);
     }
+    if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     final reverted = await pro.revert();
