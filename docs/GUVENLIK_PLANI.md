@@ -108,7 +108,7 @@ Amaç: açıkların geri gelmesini CI yakalasın.
   - Henüz kapanmamış kurallar `BEKLEYEN="3 4 6"` gibi bir değişkenle **uyarı** kipinde başlar; ilgili faz bitince listeden çıkarılır.
 - [x] **G0.2 CI'ya bağla:** `build-apk.yml` `verify` 0. parçasına (analyze'ın yanına) adım: `bash tool/guvenlik_denetimi.sh`.
       `changes` süzgecine `tool/guvenlik_denetimi.sh` ve `ci/AndroidManifest.xml` ekli mi bak.
-- [ ] **G0.3 `docs/guvenlik/ENVANTER.md`:** üç tablo — (a) dışa açık bileşenler + koruması, (b) açılan ağ
+- [x] **G0.3 `docs/guvenlik/ENVANTER.md`:** üç tablo — (a) dışa açık bileşenler + koruması, (b) açılan ağ
       portları + kimlik doğrulaması, (c) diske yazılan sırlar + nerede/nasıl. Bu belgenin §2'sinden başla, kodu okuyarak tamamla.
 - [ ] **G0.4 `SECURITY.md`** (kök): açık bildirme adresi (kullanıcıdan iste — 👤), desteklenen sürüm = son sürüm, 90 gün açıklama süresi.
 
