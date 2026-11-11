@@ -842,3 +842,11 @@ Külliyat belgeleri: `test/fixtures/pdf_corpus/rl_paragraflar.pdf`, `wd_mektup_l
 
 **Koşu kaydı**
 - 2026-11-08 · MatePad DBY-W09 (yatay, `.r8test` profil APK, adb + uiautomator): 1 ✅ (tutamaçla uzatılan seçim çubuğun üstünde; tam metin + "528 karakter · 66 sözcük") · 2 ✅ (Düzenle → paragraf doğrudan düzenlemede, imleç seçimin başında) · 3 ✅ (görüntü küçülmüyor; klavye açılınca satır örtülmeyen şeritte) · 4 ✅ (kopya doğrudan açıldı, Son açılanlar'ın başında; "AÇ" dokunuşu zaman aşımına denk geldi → widget testiyle doğrulandı) · 5 ✅ (OCR kutusu yok, ipucu + OCR ile düzenle). Turda bulunan 4 sorun aynı dalda düzeltildi (klavye sonrası kaydırma, Düzenle meşgul yarışı + kutu/metin eşleşmesi, seçim çubuğu örtüsü ölçümü).
+
+## Faz G1 — Android platform sertleştirme (2026-11-11, dal `faz-G1`)
+1. **Widget dokunuşu:** ana ekran widget'larındaki Tara / Ara / Temizle düğmeleri ve "son dosyalar" satırı doğru ekranı/dosyayı açıyor (bağlantılar artık imzalı).
+2. **Başlatıcı kısayolları:** uygulama simgesine uzun bas → Ara / Tara / İndirilenler / Son açılanlar çalışıyor.
+3. **Sabitlenmiş dosya kısayolu:** (a) güncellemeden ÖNCE sabitlenmiş bir dosya kısayolu hâlâ açıyor; (b) yeni sabitlenen de açıyor.
+4. **"Birlikte aç" / Paylaş:** başka uygulamadan PDF/resim "Dosyalarım ile aç" çalışıyor; tarayıcıda dosya bağlantısına dokununca seçenekte çıkıyor.
+5. **Ekran görüntüsü engeli:** Kasa, PIN/parola pencereleri, uygulama kilidi, AI anahtarı alanı, uzak bağlantı ekranı açıkken ekran görüntüsü alınamıyor ("güvenlik nedeniyle alınamıyor"), son uygulamalar önizlemesi boş; ana gezginde alınabiliyor. Kasadan açılan dosya görüntüleyicide de engelli; kasa kapanınca bayrak kalkıyor.
+6. **Yedek:** `adb shell bmgr`/ayarlardan yedek alıp geri yüklemede uygulama verisi gelmiyor (ayarlar için uygulamanın kendi "Ayar yedeği" kullanılır).
