@@ -239,9 +239,13 @@ bloklanmadı; Faz 54+ bu maketlerle sürer.
        **2,7 KB**: `PdfIncrementalTrim` PDFium ekindeki özgünle anlamca aynı nesneleri atar, sıkıştırmasız
        akışları Flate'ler (şifreli belgede kırpma yok — PDFium şifreleme sözlüğünü yeniliyor). RTL blok
        açık ret (PK7; RTL Faz 55/57).
-1. [ ] `PdfEditSession`: görüntüleyicinin belgesine bağlı oturum; sayfa bazlı kirli izleme; komut
+1. [x] `PdfEditSession`: görüntüleyicinin belgesine bağlı oturum; sayfa bazlı kirli izleme; komut
        yığını (her komut: uygula/geri al — sayfa içerik akışı + kaynak sözlüğü anlık görüntüsü, tüm
        belge kopyası YOK); sınırsız geri al/yinele, adım adları ("Paragraf düzenlendi: 'Ancak…'").
+       **Sonuç:** `lib/services/pdf/pro/pdf_edit_session.dart`. Anlık görüntü = sayfanın geçici PDFium
+       belgesine kopyası (`FPDF_ImportPagesByIndex`); geri al kopyayı aynı sıraya ekleyip eski sayfayı
+       siler (piksel piksel aynı — test). Geri konan sayfa yeni nesne olduğundan böyle bir oturumda
+       kayıt canlı belgeden değil, özgünün üstünde komutlar yeniden oynatılarak üretilir (madde 3).
 2. [ ] **Tek yüzey:** görüntüleyicide "Düzenle" → düzenleme kipi (aynı ekran, aynı yakınlaştırma);
        çıkışta kaydedilmemiş değişiklik sorusu. `PdfEditorScreen` ve çalışma kopyası emekli
        (işlevleri taşındıkça; sonunda dosya silinir, testler taşınır).
