@@ -15,7 +15,7 @@ abstract final class LogScrub {
     (
       RegExp(r'(authorization|x-goog-api-key|proxy-authorization)\s*[:=]\s*[^\n]+',
           caseSensitive: false),
-      (m) => '${m.group(1)}: <gizli>'
+      (Match m) => '${m.group(1)}: <gizli>'
     ),
     // URL'deki kimlik: şema://kullanıcı:parola@ → şema://<kimlik>@
     (RegExp(r'://[^/\s:@]+:[^/\s@]+@'), (_) => '://<kimlik>@'),
@@ -24,7 +24,7 @@ abstract final class LogScrub {
       RegExp(
           r'\b(key|api_key|apikey|token|access_token|refresh_token|kod|password|pass|sig)=[^&\s#"' "'" r']+',
           caseSensitive: false),
-      (m) => '${m.group(1)}=<gizli>'
+      (Match m) => '${m.group(1)}=<gizli>'
     ),
     // ── kişisel veri (KVKK, 2026-10 tanı raporu kuralları) ──
     // Tırnak içindeki yol (FileSystemException biçimi; boşluklu adlar dahil).
