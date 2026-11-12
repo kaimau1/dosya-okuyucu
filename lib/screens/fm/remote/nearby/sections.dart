@@ -419,7 +419,9 @@ extension _NearbySections on _NearbyScreenState {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(Radii.control),
                   onTap: () {
-                    Clipboard.setData(ClipboardData(text: url!));
+                    // G2.6: adres erişim belirteci taşır — hassas işaretli
+                    // kopya, 60 sn sonra pano temizlenir.
+                    unawaited(SensitiveClipboard.copy(url!));
                     showSnack(context, context.t('near.copied'));
                   },
                   child: Padding(
