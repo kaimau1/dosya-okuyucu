@@ -280,6 +280,7 @@ String errorTextFor(BuildContext context, Object error) {
     RemoteError.notFound => 'nas.error_not_found',
     RemoteError.denied => 'nas.error_denied',
     RemoteError.unsupported => 'nas.error_unsupported',
+    RemoteError.hostKey => 'nas.error_hostkey',
     RemoteError.unknown => 'nas.error_unknown',
   });
 }

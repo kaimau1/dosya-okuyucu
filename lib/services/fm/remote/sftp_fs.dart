@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dartssh2/dartssh2.dart';
 
 import 'remote_fs.dart';
+import 'sftp_host_keys.dart';
 
 /// SSH üzerinden SFTP (`dartssh2`, saf Dart).
 ///
@@ -40,11 +41,16 @@ class SftpFs extends RemoteFs {
         username: connection.user.isEmpty ? 'root' : connection.user,
         onPasswordRequest: () => connection.password,
         algorithms: _algorithms,
+        // G8.1: sunucu anahtarı ilk kullanımda onaylanır, değişirse reddedilir.
+        onVerifyHostKey: SftpHostKeys.verifier(connection.host, connection.port),
       );
       _client = client;
       _sftp = await client.sftp();
     } catch (e) {
       await close();
+      if (e is SSHHostkeyError) {
+        throw RemoteException(RemoteError.hostKey, detail: '$e');
+      }
       throw RemoteFs.mapError(e);
     }
   }

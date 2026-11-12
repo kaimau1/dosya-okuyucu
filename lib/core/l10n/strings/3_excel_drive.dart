@@ -54,6 +54,30 @@ const Map<String, (String, String, String)> _t3 = {
     'The server does not support this protocol version. Try SFTP or FTP.',
     'لا يدعم الخادم إصدار البروتوكول هذا. جرّب SFTP أو FTP.',
   ),
+  'nas.error_hostkey': (
+    'Sunucunun kimliği onaylanmadı ya da değişmiş. Bağlantı kesildi.',
+    'The server identity was not confirmed or has changed. Disconnected.',
+    'لم يتم تأكيد هوية الخادم أو أنها تغيرت. تم قطع الاتصال.',
+  ),
+  'nas.hostkey_new_title': ('Yeni sunucu', 'New server', 'خادم جديد'),
+  'nas.hostkey_new_body': (
+    '{host}:{port} sunucusuna ilk kez bağlanıyorsunuz.\n\n{type}\n{fp}\n\n'
+        'Parmak izi NAS\'ınızın gösterdiğiyle aynıysa güvenin.',
+    'You are connecting to {host}:{port} for the first time.\n\n{type}\n{fp}\n\n'
+        'Trust it if the fingerprint matches the one your NAS shows.',
+    'أنت تتصل بـ {host}:{port} لأول مرة.\n\n{type}\n{fp}\n\n'
+        'ثق به إذا كانت البصمة مطابقة لما يعرضه جهازك.',
+  ),
+  'nas.hostkey_changed_title': ('Sunucu kimliği DEĞİŞTİ', 'Server identity CHANGED', 'تغيّرت هوية الخادم'),
+  'nas.hostkey_changed_body': (
+    '{host}:{port} sunucusunun anahtarı değişti. Biri araya girmiş olabilir.\n\n'
+        'Eski: {old}\nYeni: {fp}\n\nSunucuyu siz yeniden kurmadıysanız BAĞLANMAYIN.',
+    'The key of {host}:{port} has changed. Someone may be intercepting.\n\n'
+        'Old: {old}\nNew: {fp}\n\nDo NOT connect unless you reinstalled the server.',
+    'تغيّر مفتاح {host}:{port}. قد يكون هناك من يعترض الاتصال.\n\n'
+        'القديم: {old}\nالجديد: {fp}\n\nلا تتصل ما لم تكن أعدت تثبيت الخادم.',
+  ),
+  'nas.hostkey_trust': ('Güven', 'Trust', 'ثقة'),
   'nas.error_unknown': ('Bağlantı hatası.', 'Connection error.', 'خطأ في الاتصال.'),
   'nas.smb_warning': (
     'SMB, Samba/Windows paylaşımlarıyla (SMB2) sınandı ve çalışıyor. Yalnız '

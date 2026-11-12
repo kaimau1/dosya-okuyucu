@@ -34,6 +34,7 @@ import 'screens/fm/pick_file_screen.dart';
 import 'core/app_haptics.dart';
 import 'screens/home_screen.dart';
 import 'screens/onboarding/onboarding_screen.dart';
+import 'services/fm/remote/sftp_host_keys.dart';
 import 'services/app_update.dart';
 import 'services/fm/ai_auto.dart';
 import 'services/fm/fm_colors_store.dart';
@@ -235,6 +236,8 @@ Future<void> _main() async {
   StartupQueue.instance.start(delay: DeviceProfile.budget.startupDelay);
   // Yeni dosyaların otomatik AI analizi (2026-11-06; ayar kapalıysa iş yok).
   AiPool.consent = () => AiSendConsent.ask(appState);
+  // G8.1: SFTP sunucu anahtarı ilk bağlantıda/değişince sorulur.
+  SftpHostKeys.prompt = _confirmHostKey;
   StartupQueue.instance.add(
     'ai-auto',
     () async => AiAutoAnalyze.install(
@@ -271,6 +274,27 @@ void _offerUpdate(AppUpdateInfo info) {
       label: str.t('upd.install_now'),
       onPressed: () => unawaited(AppUpdate.install(info)),
     ),
+  );
+}
+
+/// G8.1: yeni ya da DEĞİŞMİŞ SFTP sunucu anahtarı. Ekran yoksa güvenilmez.
+Future<bool> _confirmHostKey(HostKeyPrompt k) async {
+  final context = navigatorKey.currentContext;
+  if (context == null || !context.mounted) return false;
+  final str = AppStrings.of(context);
+  final args = {
+    'host': k.host,
+    'port': '${k.port}',
+    'type': k.type,
+    'fp': k.fingerprint,
+    'old': k.previous ?? '',
+  };
+  return showAppConfirm(
+    context,
+    title: str.t(k.changed ? 'nas.hostkey_changed_title' : 'nas.hostkey_new_title'),
+    message: str.t(k.changed ? 'nas.hostkey_changed_body' : 'nas.hostkey_new_body', args),
+    confirmLabel: str.t('nas.hostkey_trust'),
+    destructive: k.changed,
   );
 }
 

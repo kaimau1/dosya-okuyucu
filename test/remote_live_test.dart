@@ -10,6 +10,7 @@ import 'package:dosya_okuyucu/services/fm/remote/sftp_fs.dart';
 import 'package:dosya_okuyucu/services/fm/remote/smb_fs.dart';
 import 'package:dosya_okuyucu/services/fm/remote/webdav_fs.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'support/temp_dir.dart';
 
 /// **Gerçek sunuculara karşı** uzak dosya sistemi testleri.
@@ -42,6 +43,8 @@ import 'support/temp_dir.dart';
 ///
 /// Koşmak için: `flutter test test/remote_live_test.dart`
 void main() {
+  // G8.1: SFTP anahtar kaydı (sftp_known_hosts) prefs'te.
+  setUp(() => SharedPreferences.setMockInitialValues({}));
   group('SFTP (gerçek sunucu)', () {
     const connection = RemoteConnection(
       id: 'live-sftp',

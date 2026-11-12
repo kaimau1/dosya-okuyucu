@@ -40,6 +40,9 @@ enum RemoteError {
   /// Protokol/paket sınırı (ör. desteklenmeyen SMB sürümü).
   unsupported,
 
+  /// SFTP sunucu anahtarı onaylanmadı ya da değişti (G8.1).
+  hostKey,
+
   unknown,
 }
 
