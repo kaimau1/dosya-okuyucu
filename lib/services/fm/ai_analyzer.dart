@@ -636,7 +636,9 @@ abstract final class AiAnalyzer {
         if (idx == null) continue;
         out[idx] = item.cast<String, Object?>();
       }
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: bozuk JSON → boş eşlem; dosyalar "çözümlenemedi" sayılır ve yeniden denenir.
+    }
     return out;
   }
 

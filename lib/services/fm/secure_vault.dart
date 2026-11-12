@@ -421,7 +421,9 @@ class SecureVault extends ChangeNotifier {
             await _verify(f.src, p.join(dir, '${it.id}.dvk'), master);
             already = true;
             break;
-          } catch (_) {}
+          } catch (_) {
+            // Bilinçli: içerik eşleşmedi (ya da kayıt bozuk) → aynı dosya değil, şifrelemeye devam.
+          }
         }
         if (!already) {
           await Isolate.run(() => VaultCrypto.encryptFile(f.src, dst, master));

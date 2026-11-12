@@ -48,7 +48,9 @@ abstract final class SecureScreenGate {
       } else {
         await NativeExtras.setSecure(secure);
       }
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kanal hatası NativeExtras içinde yutulur; burası yalnız test kancasının hatası.
+    }
   }
 }
 

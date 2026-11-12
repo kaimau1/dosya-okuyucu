@@ -105,7 +105,9 @@ abstract final class AiAsk {
         }
         return AiAnswer(text: text, sources: sources);
       }
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: şema dışı/bozuk JSON → aşağıda ham metin gösterilir.
+    }
     // Şema dışı yanıt: ham metni göstermek boş ekran göstermekten iyi.
     return AiAnswer(text: raw.trim());
   }

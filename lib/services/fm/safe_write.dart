@@ -132,7 +132,9 @@ abstract final class SafeWrite {
           await _deleteQuietly(e);
         }
       }
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: artık temizliği en iyi çaba — klasör okunamıyorsa asıl yazma zaten hata verir.
+    }
   }
 
   static Future<void> _deleteQuietly(File f) async {

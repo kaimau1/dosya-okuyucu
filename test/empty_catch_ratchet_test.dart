@@ -12,7 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 /// Yorumlu gövde (`catch (_) { // Bilinçli: … }`) sayılmaz. Tavan yalnız
 /// AŞAĞI iner: yenisini ekleme; bir tanesini sınıflandırdıysan tavanı düşür.
-const _ceiling = 12;
+const _ceiling = 0;
 
 final _emptyCatch =
     RegExp(r'catch\s*\(\s*\w+\s*(,\s*\w+\s*)?\)\s*\{\s*\}');

@@ -597,7 +597,9 @@ int _appendSync(_ForgetArgs args) {
           for (final child in root.listSync(recursive: true, followLinks: false)) {
             add(child);
           }
-        } catch (_) {}
+        } catch (_) {
+          // Bilinçli: alt ağaç okunamadı (izin/yarış) → yalnız kökün kendisi dizinlenir.
+        }
       }
     }
   } finally {

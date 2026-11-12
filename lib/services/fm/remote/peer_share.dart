@@ -772,7 +772,9 @@ abstract final class PeerSender {
             final broadcast = PeerShare.broadcastFor(address.address);
             if (broadcast != null) targets.add(broadcast);
           }
-        } catch (_) {}
+        } catch (_) {
+          // Bilinçli: arayüz listesi alınamadı → yalnız genel yayın adresine sorulur.
+        }
         for (final target in targets) {
           try {
             sock.send(payload, InternetAddress(target), PeerShare.discoveryPort);
@@ -1050,7 +1052,9 @@ abstract final class PeerSender {
         return _Outcome.network;
       } on HttpException {
         return _Outcome.network;
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: bozuk yanıt → kaldığı yer bilinmiyor, baştan gönderilir (have = 0).
+      }
       if (have > item.size) have = 0;
       onBytes(have);
       final request = await client.postUrl(
@@ -1136,7 +1140,9 @@ abstract final class PeerSender {
             item['t'] = base64Encode(bytes);
             thumbs++;
           }
-        } catch (_) {}
+        } catch (_) {
+          // Bilinçli: küçük resim süs — üretilemezse öğe resimsiz listelenir.
+        }
       }
       out.add(item);
     }

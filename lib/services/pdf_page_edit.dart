@@ -154,7 +154,9 @@ abstract final class PdfPageEdit {
           ..sort((a, b) => b.length.compareTo(a.length));
         return (size: null, font: byLength.first);
       }
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: font tahmini en iyi çaba — ayrıştırılamazsa varsayılan font kullanılır.
+    }
     return (size: null, font: '');
   }
 

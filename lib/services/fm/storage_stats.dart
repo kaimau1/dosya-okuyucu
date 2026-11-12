@@ -473,7 +473,9 @@ abstract final class StorageStats {
         if (idx > 0) return ext.path.substring(0, idx);
         return ext.path;
       }
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kanal yok/izin yok → sıradaki yedek yola düşülür.
+    }
     try {
       return (await getApplicationDocumentsDirectory()).path;
     } catch (_) {

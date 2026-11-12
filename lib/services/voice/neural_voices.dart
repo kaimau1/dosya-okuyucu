@@ -331,7 +331,7 @@ class VoiceServer {
   /// ve hatalar `Ses` JavaScript kanalıyla Dart'a gider.
   static const engineHtml = r'''<!doctype html>
 <html><head><meta charset="utf-8"><title>ses</title></head><body><script>
-const post = (m) => { try { Ses.postMessage(JSON.stringify(m)); } catch (e) {} };
+const post = (m) => { try { Ses.postMessage(JSON.stringify(m)); } catch (e) { /* köprü yoksa sessiz */ } };
 const workers = {};
 function wav(f32, rate) {
   // 48 kHz -> 24 kHz (iki örnek ortalaması; konuşma için yeterli), 16 bit.
