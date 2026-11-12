@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 # Henüz kapanmamış kurallar (uyarı kipi). İlgili faz bitince numarayı buradan ÇIKAR:
 #   3 -> G2.4 (Gemini anahtarı URL'den çıkınca)   (kural 4 G1 ile kapandı, 2026-11-11)
 #   6 -> G9.1 (Actions SHA'ya sabitlenince)
-BEKLEYEN="6"
+BEKLEYEN=""
 
 # ── İzin listeleri (yeni giriş = bilinçli güvenlik kararı; gerekçe şart) ──────────
 # Kural 2: güvenli olmayan Random() kullanabilen dosyalar (sır/kod ÜRETMEZ).

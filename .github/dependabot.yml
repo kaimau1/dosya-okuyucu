@@ -1,0 +1,24 @@
+# G9.4 (2026-11-12): bağımlılık güvenlik güncellemeleri.
+# pub: haftalık, yalnız küçük/yama sürüm (büyük sürüm elle — Faz 45/47
+# override'ları ve sabitler var, bkz. pubspec.yaml yorumları); en çok 3 PR.
+# github-actions: aylık; SHA sabitlerini (G9.1) Dependabot günceller.
+version: 2
+updates:
+  - package-ecosystem: pub
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+      # Bilinçli sabit: 2.5.4'te süreç geneli kayıt silinmesi (HAFIZA Faz 45/47).
+      - dependency-name: shared_preferences_android
+      # Yamalı yerel kopyalar (third_party/, dependency_overrides).
+      - dependency-name: pdfrx
+      - dependency-name: pdfrx_engine
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
