@@ -57,8 +57,10 @@ on:
         type: string
         default: 'QUERY_ALL_PACKAGES,READ_MEDIA_IMAGES,READ_MEDIA_VIDEO,READ_MEDIA_AUDIO,READ_MEDIA_VISUAL_USER_SELECTED'
 
+# G9.2 (2026-11-12): en az yetki — üst düzey yalnız okuma; yazma yetkisi
+# yalnız sürüm yayımlayan `release` işinde.
 permissions:
-  contents: write
+  contents: read
 
 # Art arda iki push → ilki iptal (C2). Etiketler ref'e göre ayrı gruptadır,
 # yani bir sürüm etiketi main'deki derlemeyi iptal etmez.
@@ -165,6 +167,11 @@ jobs:
     needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Test seçimi (tool/ci_test_secimi.sh) PR başının check-run'larına bakar.
+    permissions:
+      contents: read
+      checks: read
+      pull-requests: read
     strategy:
       fail-fast: false
       matrix:
@@ -424,6 +431,13 @@ jobs:
             printf '%s' "$KS_B64" | tr -d '\r\n \t' | base64 -d > release.jks
             echo "İmza anahtarı repo secret'ından yüklendi (kalıcı)."
           else
+            # G9.3 (2026-11-12): yayımlanan derleme (main / v* etiketi) geçici
+            # anahtarla İMZALANMAZ — kullanıcıdaki uygulama güncellenemez olurdu.
+            # 'DosyaOkuyucuGecici' parolası yalnız bu geçici anahtar içindir.
+            if [ "$GITHUB_REF" = "refs/heads/main" ] || [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+              echo "::error::ANDROID_KEYSTORE_B64 secret'ı yok — main/etiket derlemesi kalıcı anahtar ister (SIGNING.md)."
+              exit 1
+            fi
             keytool -genkeypair -v -keystore release.jks -storetype PKCS12 \
               -keyalg RSA -keysize 2048 -validity 10000 -alias dosyaokuyucu \
               -storepass "$KS_PASS" -keypass "$KS_PASS" \
@@ -653,6 +667,9 @@ jobs:
       github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Sürüm oluşturma/düzenleme/silme + etiket taşıma.
+    permissions:
+      contents: write
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
