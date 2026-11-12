@@ -62,8 +62,8 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
       (`root_rebuild_test` yöntemiyle yeniden çizim sayısı testi).
 - [x] **A4.3 Boş `catch`** (2026-11-11: 191 → 12; 2026-11-12: 12 → 0). Hepsi gerekçeli
       `// Bilinçli: …` yorumu aldı; bekçi `test/empty_catch_ratchet_test.dart` tavan **0**.
-- [~] **A4.4 Ekran/widget kodunda senkron G/Ç** (2026-11-11: 87 → 44; 2026-11-12: → 30; bekçi
-      `test/sync_io_ratchet_test.dart` tavan 30, yalnız iner). Kalan 30: `build` içi tek
+- [~] **A4.4 Ekran/widget kodunda senkron G/Ç** (2026-11-11: 87 → 44; 2026-11-12: → 30 → 26; bekçi
+      `test/sync_io_ratchet_test.dart` tavan 26, yalnız iner). Kalan 26: `build` içi tek
       `stat`ler (önbellek gerekir: galeri bilgi satırı, işler boyutu, klasör seçici kısayolları,
       SD birleşik çipleri, arşiv başlığı), editör açılışı (sahte saat tuzağı, bilinçli),
       izolattaki okuma, PDF dosyaları (Faz 54'le çakışmasın diye dokunulmadı).

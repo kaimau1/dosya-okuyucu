@@ -168,9 +168,11 @@ abstract final class QrReceiveFlow {
             label: paths.length == 1
                 ? strings.t('common.open')
                 : strings.t('qrr.open_folder'),
-            onPressed: () {
+            onPressed: () async {
+              final single =
+                  paths.length == 1 && await File(paths.first).exists();
               if (!context.mounted) return;
-              if (paths.length == 1 && File(paths.first).existsSync()) {
+              if (single) {
                 EntryOpener.open(context, paths.first);
               } else {
                 Navigator.of(context).push(browserRoute(BrowserScreen(

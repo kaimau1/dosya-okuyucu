@@ -26,7 +26,7 @@ extension _SlideshowMedia on _SlideshowScreenState {
     final ext = ref.part.split('.').last;
     final file = File('${Directory.systemTemp.path}/ss_media_'
         '${ref.part.hashCode.toUnsigned(32)}_${deck.length}.$ext');
-    if (!file.existsSync()) {
+    if (!await file.exists()) {
       final bytes = await PptxPro.query(deck, _mediaBytes(ref.part));
       if (bytes == null || !mounted) return;
       await file.writeAsBytes(bytes, flush: true);

@@ -301,13 +301,12 @@ class _PdfEditorScreenState extends State<PdfEditorScreen>
     _pendingFocus.dispose();
     _fieldFocus.dispose();
     // Kaydedilmemiş çalışma kopyasını bırakma: geçici klasör silinir.
+    // A4.4: dispose beklemez — silme arka planda; hata yutulur.
     final dir = _workDir;
-    if (dir != null && dir.existsSync()) {
-      try {
-        dir.deleteSync(recursive: true);
-      } catch (_) {
-        // Silinemezse sistem geçici klasörü zaten temizler.
-      }
+    if (dir != null) {
+      unawaited(dir.delete(recursive: true).then<void>((_) {}, onError: (_) {
+        // Silinemezse (ya da zaten yoksa) sistem geçici klasörü temizler.
+      }));
     }
     super.dispose();
   }
