@@ -451,6 +451,7 @@ const Map<String, (String, String, String)> _t5 = {
         'مهم جدًا: أعِد النص المحرَّر فقط. لا تُضِف شروحًا أو جملة تمهيدية أو '
         'عبارات مثل «إليك النص» أو علامات كتل الشيفرة.',
   ),
+  'pa.job_title': ('AI ile düzenlendi', 'Edited with AI', 'تم التعديل بالذكاء'),
   'pa.save_note': (
     'Yeni PDF düz metinden üretilir: özgün belgenin sayfa düzeni '
         '(sütun, tablo, logo, imza) KORUNMAZ.',

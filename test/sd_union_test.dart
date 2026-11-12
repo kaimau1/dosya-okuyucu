@@ -234,4 +234,39 @@ void main() {
       expect(find.text('SD kart takılı değil'), findsOneWidget);
     });
   });
+
+  group('iş sonucu (A5)', () {
+    test('lastTransfers yanıtı JobChange listesine çevrilir', () {
+      final run = DateTime(2026, 11, 12, 10).millisecondsSinceEpoch;
+      final list = SdUnion.transferChangesOf({
+        'run': run,
+        'items': [
+          {'s': '/storage/emulated/0/DCIM/a.jpg', 'd': '/storage/1A2B/DCIM/a.jpg', 'm': true},
+          {'s': '/storage/emulated/0/Music/b.mp3', 'd': '/storage/1A2B/Music/b.mp3', 'm': false},
+          {'s': 3, 'd': null},
+        ],
+      });
+      expect(list, hasLength(2));
+      expect(list[0].kind, 'move');
+      expect(list[0].path, '/storage/1A2B/DCIM/a.jpg');
+      expect(list[0].before, '/storage/emulated/0/DCIM/a.jpg');
+      expect(list[0].value, 'DCIM');
+      expect(list[1].kind, 'copy');
+    });
+
+    test('başlatmadan eski çalışma bağlanmaz', () {
+      final run = DateTime(2026, 11, 12, 10).millisecondsSinceEpoch;
+      final map = {
+        'run': run,
+        'items': [
+          {'s': '/a', 'd': '/b/a', 'm': true},
+        ],
+      };
+      expect(SdUnion.transferChangesOf(map, after: DateTime(2026, 11, 12, 11)),
+          isEmpty);
+      expect(SdUnion.transferChangesOf(map, after: DateTime(2026, 11, 12, 9)),
+          hasLength(1));
+      expect(SdUnion.transferChangesOf(null), isEmpty);
+    });
+  });
 }

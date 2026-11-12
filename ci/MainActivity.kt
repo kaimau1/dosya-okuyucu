@@ -787,6 +787,7 @@ class MainActivity : FlutterActivity() {
                             result.success(true)
                         }
                         "status" -> result.success(SdUnion.status(ctx))
+                        "lastTransfers" -> result.success(SdUnion.lastTransfers(ctx))
                         else -> result.notImplemented()
                     }
                 } catch (e: Exception) {
@@ -905,6 +906,21 @@ class MainActivity : FlutterActivity() {
         NearbyBle(this).also {
             nearbyBle = it
             it.attach(MethodChannel(flutterEngine.dartExecutor.binaryMessenger, NearbyBle.CHANNEL))
+        }
+        // Play İçi Değerlendirme/Güncelleme (A6.6): sınıf YALNIZ Play AAB'sinde
+        // var (ci/play_core.sh); GitHub APK'sında bulunmaz, kanal kurulmaz.
+        try {
+            Class.forName("com.dosyaokuyucu.dosya_okuyucu.PlayCore")
+                .getMethod(
+                    "attach",
+                    android.app.Activity::class.java,
+                    io.flutter.plugin.common.BinaryMessenger::class.java
+                )
+                .invoke(null, this, flutterEngine.dartExecutor.binaryMessenger)
+        } catch (e: ClassNotFoundException) {
+            // GitHub APK'sı: Play kütüphaneleri yok (beklenen).
+        } catch (e: Exception) {
+            android.util.Log.w("PlayCore", "bağlanamadı", e)
         }
         channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
         channel!!

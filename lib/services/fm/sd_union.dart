@@ -12,6 +12,7 @@ import '../../core/l10n/app_strings.dart';
 import 'chat_media_guard.dart';
 import 'fm_env.dart';
 import 'fs_scan.dart' show FsPaths;
+import 'job_queue.dart' show JobChange;
 import 'tracked_task.dart';
 import 'storage_stats.dart';
 
@@ -361,7 +362,50 @@ abstract final class SdUnion {
       } else {
         await task.complete(detail: detail, notify: !nativeNotified);
       }
+      // İş sonucu sayfası (KALANLAR A5): yerel iş dosya listesini ayrıca
+      // saklar; yalnız BU başlatmadan sonraki çalışmanınkiler bağlanır.
+      final changes = await lastTransfers(after: startedAt);
+      if (changes.isNotEmpty) task.recordChanges(changes);
     });
+  }
+
+  /// Son çalışmanın dosya dosya kaydı ([after]'dan eskiyse boş).
+  static Future<List<JobChange>> lastTransfers({DateTime? after}) async {
+    if (!Platform.isAndroid) return const [];
+    try {
+      final map =
+          await _channel.invokeMethod<Map<Object?, Object?>>('lastTransfers');
+      return transferChangesOf(map, after: after);
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Yerel `lastTransfers` yanıtını [JobChange] listesine çevirir: taşınan
+  /// `move`, kopyalanan `copy`; değer hedef klasörün adı, `before` kaynak
+  /// yol (taşımada "Geri al" dosyayı ana belleğe döndürür).
+  @visibleForTesting
+  static List<JobChange> transferChangesOf(Map<Object?, Object?>? map,
+      {DateTime? after}) {
+    if (map == null) return const [];
+    final run = map['run'];
+    if (after != null &&
+        (run is! int ||
+            DateTime.fromMillisecondsSinceEpoch(run).isBefore(after))) {
+      return const [];
+    }
+    final items = map['items'];
+    if (items is! List) return const [];
+    return [
+      for (final raw in items)
+        if (raw is Map && raw['s'] is String && raw['d'] is String)
+          JobChange(
+            path: raw['d'] as String,
+            kind: raw['m'] == true ? 'move' : 'copy',
+            value: p.basename(p.dirname(raw['d'] as String)),
+            before: raw['s'] as String,
+          ),
+    ];
   }
 
   static Future<void> stop() async {

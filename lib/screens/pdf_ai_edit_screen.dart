@@ -10,6 +10,8 @@ import '../widgets/pdf_save_dialog.dart';
 import '../core/safe_insets.dart';
 import '../core/user_error.dart';
 import '../widgets/ai_key_gate.dart';
+import '../services/fm/job_queue.dart' show JobChange;
+import '../services/fm/tracked_task.dart';
 
 /// **PDF'i AI'a düzenletme.**
 ///
@@ -138,6 +140,8 @@ class _PdfAiEditScreenState extends State<PdfAiEditScreen> {
         note: note,
       );
       if (outcome == null || !mounted) return;
+      await recordAiEditJob(widget.fileName, outcome);
+      if (!mounted) return;
       Navigator.of(context).pop(outcome.overwritten);
     } catch (e) {
       if (!mounted) return;
@@ -248,4 +252,23 @@ class _PdfAiEditScreenState extends State<PdfAiEditScreen> {
             ),
     );
   }
+}
+
+/// İş sonucu sayfası (KALANLAR A5): AI düzenlemenin yazdığı dosya İşlemler
+/// geçmişine düşer. Kopya `create` (aç / taşı / çöpe at), üzerine yazılan
+/// özgün `edit` (yalnız listelenir — özgünü çöpe atma önerilmez).
+Future<void> recordAiEditJob(String fileName, PdfSaveOutcome outcome) async {
+  final task = TrackedTask(
+    title: AppStrings.current.t('pa.job_title'),
+    name: fileName,
+    threshold: Duration.zero,
+  );
+  task.recordChanges([
+    JobChange(
+      path: outcome.path,
+      kind: outcome.overwritten ? 'edit' : 'create',
+      value: '',
+    ),
+  ]);
+  await task.complete(quiet: true);
 }

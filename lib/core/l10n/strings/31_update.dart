@@ -29,6 +29,8 @@ const Map<String, (String, String, String)> _t31 = {
   'upd.download_failed': ('İndirme başarısız.', 'Download failed.', 'فشل التنزيل.'),
   'upd.ready': ('Yeni sürüm v{v} hazır.', 'New version v{v} is ready.', 'الإصدار الجديد v{v} جاهز.'),
   'upd.whats_new': ('v{v} — Yenilikler', 'v{v} — What\'s new', 'v{v} — الجديد'),
+  'upd.play_ready': ('Güncelleme indirildi.', 'Update downloaded.', 'تم تنزيل التحديث.'),
+  'upd.restart': ('Yeniden başlat', 'Restart', 'إعادة التشغيل'),
   'upd.install_now': ('Şimdi güncelle', 'Update now', 'حدّث الآن'),
   'upd.unsupported': (
     'Bu derlemede otomatik güncelleme yok.',

@@ -38,6 +38,7 @@ import 'screens/onboarding/onboarding_screen.dart';
 import 'services/fm/remote/sftp_host_keys.dart';
 import 'services/fm/remote/smb_legacy.dart';
 import 'services/app_update.dart';
+import 'services/play_store.dart';
 import 'services/fm/ai_auto.dart';
 import 'services/fm/fm_colors_store.dart';
 import 'services/fm/native_extras.dart';
@@ -258,6 +259,9 @@ Future<void> _main() async {
         onWhatsNew: _showWhatsNew,
         onSecurityRequired: _warnSecurityUpdate),
   );
+  // Play derlemesi (A6.6): Play'in kendi uygulama içi güncellemesi.
+  StartupQueue.instance.add('play-update', PlayStore.runOnStartup);
+  PlayStore.downloaded.addListener(_offerPlayRestart);
   runApp(
     AppProviders(
       appState: appState,
@@ -277,6 +281,23 @@ void _offerUpdate(AppUpdateInfo info) {
     action: SnackBarAction(
       label: str.t('upd.install_now'),
       onPressed: () => unawaited(AppUpdate.install(info)),
+    ),
+  );
+}
+
+/// Play esnek güncellemesi indi (A6.6): yeniden başlatıp kurmayı öner.
+void _offerPlayRestart() {
+  if (!PlayStore.downloaded.value) return;
+  final context = navigatorKey.currentContext;
+  if (context == null || !context.mounted) return;
+  final str = AppStrings.of(context);
+  showSnack(
+    context,
+    str.t('upd.play_ready'),
+    duration: const Duration(seconds: 15),
+    action: SnackBarAction(
+      label: str.t('upd.restart'),
+      onPressed: () => unawaited(PlayStore.completeUpdate()),
     ),
   );
 }

@@ -55,6 +55,7 @@ object SdUnion {
     private const val KEY_CONFIG = "config"
     private const val KEY_STATUS = "status"
     private const val KEY_PENDING_TMP = "pending_tmp"
+    private const val KEY_TRANSFERS = "last_transfers"
     private const val CHANNEL_ID = "sd_union"
     private const val NOTIFY_ID = 0x5D03
 
@@ -166,6 +167,35 @@ object SdUnion {
 
     internal fun writeStatus(ctx: Context, status: JSONObject) {
         prefs(ctx).edit().putString(KEY_STATUS, status.toString()).apply()
+    }
+
+    /** Son çalışmanın taşıdığı/kopyaladığı dosyalar (Dart iş sonucu sayfası). */
+    internal fun writeTransfers(
+        ctx: Context, started: Long, list: List<Triple<String, String, Boolean>>
+    ) {
+        val arr = org.json.JSONArray()
+        for ((s, d, m) in list) {
+            arr.put(org.json.JSONArray().put(s).put(d).put(m))
+        }
+        val json = JSONObject().put("run", started).put("items", arr)
+        prefs(ctx).edit().putString(KEY_TRANSFERS, json.toString()).apply()
+    }
+
+    /** `{run: ms, items: [{s, d, m}]}`; yoksa boş. */
+    fun lastTransfers(ctx: Context): Map<String, Any?> {
+        val raw = prefs(ctx).getString(KEY_TRANSFERS, null) ?: return emptyMap()
+        return try {
+            val json = JSONObject(raw)
+            val arr = json.optJSONArray("items") ?: org.json.JSONArray()
+            val items = ArrayList<Map<String, Any?>>(arr.length())
+            for (i in 0 until arr.length()) {
+                val row = arr.getJSONArray(i)
+                items.add(mapOf("s" to row.getString(0), "d" to row.getString(1), "m" to row.getBoolean(2)))
+            }
+            mapOf("run" to json.optLong("run", 0L), "items" to items)
+        } catch (e: Exception) {
+            emptyMap()
+        }
     }
 
     internal fun readStatus(ctx: Context): JSONObject {
@@ -412,6 +442,16 @@ class SdUnionResult {
     /** null = tamam; aksi hâlde `sd_missing` · `sd_readonly` · `sd_full` · `stopped`. */
     var error: String? = null
     val scanned = ArrayList<String>()
+    /** İş sonucu sayfası (KALANLAR A5): kaynak → hedef; en çok [MAX_TRANSFERS]. */
+    val transfers = ArrayList<Triple<String, String, Boolean>>()
+
+    fun record(source: String, dest: String, moved: Boolean) {
+        if (transfers.size < MAX_TRANSFERS) transfers.add(Triple(source, dest, moved))
+    }
+
+    companion object {
+        const val MAX_TRANSFERS = 5000
+    }
 }
 
 /**
@@ -498,6 +538,7 @@ class SdUnionEngine(
                     result.moved++
                     result.bytes += dest.length()
                     result.scanned.add(source.path)
+                    result.record(source.path, dest.path, true)
                 } else {
                     result.skipped++
                 }
@@ -559,6 +600,7 @@ class SdUnionEngine(
             result.scanned.add(source.path)
         }
         result.scanned.add(dest.path)
+        result.record(source.path, dest.path, cfg.move && !source.exists())
         result.moved++
         result.bytes += need
         if (result.moved % 25 == 0) onProgress(result)
@@ -614,6 +656,7 @@ class SdUnionJob : JobService() {
                 val result = engine.run()
                 SdUnion.mediaScan(ctx, result.scanned.toList())
                 save(result, true)
+                SdUnion.writeTransfers(ctx, started, result.transfers)
                 SdUnion.notifyDone(ctx, cfg, result.moved, result.bytes)
             } catch (e: Exception) {
                 // Motor hatası işi düşürmesin; durum bir sonraki koşuda yazılır.

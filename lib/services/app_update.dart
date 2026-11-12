@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/app_version.dart';
 import '../core/edition.dart';
 import 'fm/native_extras.dart';
+import 'play_store.dart';
 import 'offline_mode.dart';
 
 /// GitHub'daki en son sürüm (yalnız bizim APK'mız).
@@ -269,6 +270,7 @@ abstract final class AppUpdate {
       !kIsWeb &&
       Platform.isAndroid &&
       appVersionPatch > 0 &&
+      !PlayStore.build &&
       Edition.current.has(Feature.selfUpdate);
 
   /// En son sürümü sorar; bu kurulumdan yeni değilse null.

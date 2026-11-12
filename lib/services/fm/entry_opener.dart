@@ -29,6 +29,7 @@ import 'archive_ops.dart';
 import 'native_extras.dart';
 import 'fs_events.dart';
 import 'open_history.dart';
+import '../play_store.dart';
 import '../../core/snack.dart';
 import '../../core/user_error.dart';
 
@@ -139,6 +140,8 @@ abstract final class EntryOpener {
   static void _remember(String path) {
     if (PrivateZone.isPrivatePath(path)) return;
     unawaited(OpenHistory.record(path));
+    // Play derlemesinde değerlendirme isteği sayacı (A6.6; başka yerde boş).
+    unawaited(PlayStore.noteFileOpened());
   }
 
   static Future<void> open(
