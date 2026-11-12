@@ -634,6 +634,7 @@ abstract final class NtfsImage {
     attr[8] = 1; // yerleşik değil
     d.setUint16(32, 64, Endian.little); // çalıştırma listesi ofseti
     d.setUint64(48, size, Endian.little); // gerçek boyut
+    d.setUint64(56, size, Endian.little); // başlatılmış boyut
     attr.setRange(64, 64 + runBytes.length, runBytes);
     return attr;
   }

@@ -31,6 +31,12 @@ abstract class BlockDevice {
   Future<void> writeBlocks(int lba, Uint8List data) =>
       throw const BlockDeviceException('Bu aygıt salt okunur');
 
+  /// Aygıtın yazma önbelleğini diske döktürür (destekleyen aygıtlarda).
+  ///
+  /// Bir yazma İŞLEMİNİN sonunda çağrılır: kullanıcı "bitti"yi görüp diski
+  /// çektiğinde son dizin/FAT yazmaları aygıtın belleğinde kalmasın.
+  Future<void> flush() async {}
+
   /// Aygıtı kapatır (kaynakları bırakır).
   Future<void> close() async {}
 }
@@ -131,6 +137,9 @@ class PartitionBlockDevice extends BlockDevice {
   }
 
   @override
+  Future<void> flush() => parent.flush();
+
+  @override
   Future<void> close() => parent.close();
 }
 
@@ -189,6 +198,9 @@ class CachedBlockDevice extends BlockDevice {
     }
     await inner.writeBlocks(lba, data);
   }
+
+  @override
+  Future<void> flush() => inner.flush();
 
   @override
   Future<void> close() => inner.close();

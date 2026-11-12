@@ -260,7 +260,36 @@ class UsbMass(private val context: Context) {
         return false
     }
 
+    /** Son yazmadan beri aygıtın önbelleği boşaltılmadı mı? */
+    private var unsynced = false
+
+    /**
+     * `SYNCHRONIZE CACHE(10)` — aygıtın yazma önbelleğini diske döker.
+     *
+     * Disk kutuları (HDD/SSD) yazılanı önce kendi belleğinde tutar; "bitti"
+     * dedikten hemen sonra çekilen diskte son FAT/dizin yazmaları kaybolur.
+     * Desteklemeyen bellekler komutu reddeder — sorun değil, onlarda önbellek
+     * de yoktur.
+     */
+    @Synchronized
+    fun flush(): Boolean {
+        if (!isOpen || !unsynced) return true
+        val cdb = ByteArray(10)
+        cdb[0] = 0x35
+        val status = transfer(cdb, ByteArray(0), 0, dataIn = false)
+        if (status == STATUS_FAILED) requestSense()
+        if (status == STATUS_PHASE || status == STATUS_TRANSPORT) resetRecovery()
+        unsynced = false
+        return status == STATUS_OK
+    }
+
+    @Synchronized
     fun close() {
+        try {
+            if (unsynced) flush()
+        } catch (e: Exception) {
+            // kapatırken hata: kaynak zaten gidiyor
+        }
         try {
             val itf = usbInterface
             val conn = connection
@@ -276,22 +305,53 @@ class UsbMass(private val context: Context) {
         blockSize = 0
         blockCount = 0
         writeProtected = false
+        unsynced = false
     }
 
-    /** `READ(10)` — [lba] sektöründen [count] sektör. */
-    fun read(lba: Long, count: Int): ByteArray? {
-        if (!isOpen || blockSize == 0) return null
-        val length = count * blockSize
+    /**
+     * Okuma/yazma komut bloğu. 2 TiB'ı aşan adreslerde 16 baytlık komut
+     * kullanılır: 10 baytlık komutun adres alanı 32 bittir ve büyük diskte
+     * adres SARAR — okuma yanlış yerden gelir, yazma diskin başını ezer.
+     */
+    private fun rwCdb(op10: Int, op16: Int, lba: Long, count: Int): ByteArray {
+        if (lba + count > 0xFFFFFFFFL) {
+            val cdb = ByteArray(16)
+            cdb[0] = op16.toByte()
+            for (i in 0..7) {
+                cdb[2 + i] = ((lba shr (8 * (7 - i))) and 0xFF).toByte()
+            }
+            cdb[10] = ((count shr 24) and 0xFF).toByte()
+            cdb[11] = ((count shr 16) and 0xFF).toByte()
+            cdb[12] = ((count shr 8) and 0xFF).toByte()
+            cdb[13] = (count and 0xFF).toByte()
+            return cdb
+        }
         val cdb = ByteArray(10)
-        cdb[0] = 0x28
+        cdb[0] = op10.toByte()
         cdb[2] = ((lba shr 24) and 0xFF).toByte()
         cdb[3] = ((lba shr 16) and 0xFF).toByte()
         cdb[4] = ((lba shr 8) and 0xFF).toByte()
         cdb[5] = (lba and 0xFF).toByte()
         cdb[7] = ((count shr 8) and 0xFF).toByte()
         cdb[8] = (count and 0xFF).toByte()
+        return cdb
+    }
+
+    /** `READ(10)` — [lba] sektöründen [count] sektör. */
+    @Synchronized
+    fun read(lba: Long, count: Int): ByteArray? {
+        if (!isOpen || blockSize == 0) return null
+        if (lba < 0 || count <= 0 || count > 0xFFFF || lba + count > blockCount) return null
+        val length = count * blockSize
+        val cdb = rwCdb(0x28, 0x88, lba, count)
         val out = ByteArray(length)
         var status = transfer(cdb, out, length, dataIn = true)
+        if (status == STATUS_PHASE || status == STATUS_TRANSPORT) {
+            // Aygıtla sıra bozuldu: sıfırlamadan sonraki HER komut da bozuk
+            // gelirdi ve bellek "bozuk" görünürdü.
+            resetRecovery()
+            status = transfer(cdb, out, length, dataIn = true)
+        }
         if (status == STATUS_FAILED) {
             // Bir kez daha: "Unit Attention" ilk komutta sık görülür.
             requestSense()
@@ -308,6 +368,7 @@ class UsbMass(private val context: Context) {
      * sistemi mantığı Dart tarafında ve sentetik imajlarla test edilmiş
      * durumda; burası yalnız "şu sektörlere şu baytları koy" köprüsü.
      */
+    @Synchronized
     fun write(lba: Long, data: ByteArray): Boolean {
         if (!isOpen || blockSize == 0) return false
         if (writeProtected) {
@@ -316,15 +377,15 @@ class UsbMass(private val context: Context) {
         }
         if (data.isEmpty() || data.size % blockSize != 0) return false
         val count = data.size / blockSize
-        val cdb = ByteArray(10)
-        cdb[0] = 0x2A // WRITE(10)
-        cdb[2] = ((lba shr 24) and 0xFF).toByte()
-        cdb[3] = ((lba shr 16) and 0xFF).toByte()
-        cdb[4] = ((lba shr 8) and 0xFF).toByte()
-        cdb[5] = (lba and 0xFF).toByte()
-        cdb[7] = ((count shr 8) and 0xFF).toByte()
-        cdb[8] = (count and 0xFF).toByte()
+        // Birimin dışına yazma isteği hiçbir koşulda aygıta gitmez.
+        if (lba < 0 || count > 0xFFFF || lba + count > blockCount) return false
+        val cdb = rwCdb(0x2A, 0x8A, lba, count)
+        unsynced = true
         var status = transfer(cdb, data, data.size, dataIn = false)
+        if (status == STATUS_PHASE || status == STATUS_TRANSPORT) {
+            resetRecovery()
+            status = transfer(cdb, data, data.size, dataIn = false)
+        }
         if (status == STATUS_FAILED) {
             val sense = requestSense()
             if (sense != null) {
@@ -418,7 +479,13 @@ class UsbMass(private val context: Context) {
      * değil" deyip vazgeçerdi. Dönen duyu (sense) verisi de günlüğe yazılıyor.
      */
     private fun waitUnitReady(): Boolean {
-        for (attempt in 0 until 12) {
+        // Dönen diskler (USB kutulu HDD) hazır olmak için 5–15 sn ister;
+        // "hazırlanıyor" (asc 0x04) görülürse süre uzatılır ve bir kez
+        // START STOP UNIT (başlat) gönderilir.
+        var limit = 12
+        var spunUp = false
+        var attempt = -1
+        while (++attempt < limit) {
             val status = transfer(ByteArray(6), ByteArray(0), 0, dataIn = false)
             if (status == STATUS_OK) {
                 log("hazır (deneme ${attempt + 1})")
@@ -444,6 +511,20 @@ class UsbMass(private val context: Context) {
                     return false
                 }
                 if (key == 0) return true
+                if (key == 2 && asc == 0x04) {
+                    limit = 45
+                    if (!spunUp) {
+                        spunUp = true
+                        log("birim hazırlanıyor → başlat komutu")
+                        val start = ByteArray(6)
+                        start[0] = 0x1B
+                        start[4] = 1
+                        if (transfer(start, ByteArray(0), 0, dataIn = false) == STATUS_FAILED) {
+                            requestSense()
+                        }
+                    }
+                    Thread.sleep(300)
+                }
             }
             Thread.sleep(200)
         }

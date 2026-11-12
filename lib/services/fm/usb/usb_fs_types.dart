@@ -105,3 +105,30 @@ class UsbFsException implements Exception {
   @override
   String toString() => 'UsbFsException: $message';
 }
+
+/// FAT/exFAT'a yazılacak adların ortak denetimi.
+///
+/// Windows'un kabul etmediği bir ad diske yazılırsa dosya orada ne açılır ne
+/// silinir; 255'i aşan ad ise girdideki uzunluk baytını taşırıp komşu
+/// girdileri bozar. Yazmadan ÖNCE reddetmek tek güvenli yol.
+abstract final class UsbNames {
+  static const _forbidden = r'\/:*?"<>|';
+
+  static void validate(String name) {
+    if (name.isEmpty || name == '.' || name == '..') {
+      throw const UsbFsException('Geçersiz ad');
+    }
+    if (name.length > 255) {
+      throw const UsbFsException('Ad çok uzun (en çok 255 karakter)');
+    }
+    if (name.endsWith('.') || name.endsWith(' ')) {
+      throw const UsbFsException('Ad nokta ya da boşlukla bitemez');
+    }
+    for (final unit in name.codeUnits) {
+      if (unit < 0x20 || _forbidden.codeUnits.contains(unit)) {
+        throw const UsbFsException(
+            r'Adda şu karakterler olamaz: \ / : * ? " < > |');
+      }
+    }
+  }
+}

@@ -162,17 +162,27 @@ class FatFileSystem extends UsbFileSystem {
         value = cluster.isEven ? (raw & 0x0FFF) : (raw >> 4);
         if (value >= 0x0FF8) return null;
         if (value < 2) return null;
-        return value;
+        return _inRange(value);
       case FatKind.fat16:
         value = ByteData.sublistView(data).getUint16(inSector, Endian.little);
         if (value >= 0xFFF8 || value < 2) return null;
-        return value;
+        return _inRange(value);
       case FatKind.fat32:
         value = ByteData.sublistView(data).getUint32(inSector, Endian.little) &
             0x0FFFFFFF;
         if (value >= 0x0FFFFFF8 || value < 2) return null;
-        return value;
+        return _inRange(value);
     }
+  }
+
+  /// Bozuk bir FAT girdisi birimin DIŞINDAKİ bir kümeyi gösterebilir. Onu
+  /// izlemek okumada başka verinin dosyaya karışması, silmede ise FAT'ın
+  /// ötesine (ikinci FAT, kök dizin, dosya verisi) sıfır yazmak demektir.
+  int _inRange(int cluster) {
+    if (cluster > clusterCount + 1) {
+      throw const UsbFsException('Bozuk FAT zinciri (küme birimin dışında)');
+    }
+    return cluster;
   }
 
   /// Bir zincirin kümeleri. Bozuk (kendini yiyen) zincire karşı korumalı:
@@ -301,6 +311,9 @@ class FatFileSystem extends UsbFileSystem {
 
   /// FAT girdisini **bütün kopyalara** yazar.
   Future<void> _setFatEntry(int cluster, int value) async {
+    if (cluster < 2 || cluster > clusterCount + 1) {
+      throw const UsbFsException('FAT yazması birimin dışında');
+    }
     final int offset;
     switch (kind) {
       case FatKind.fat12:
@@ -500,10 +513,23 @@ class FatFileSystem extends UsbFileSystem {
   ) async {
     _requireWritable();
     final dirCluster = dirId as int;
+    UsbNames.validate(name);
+    // Boy alanı 32 bit: 4 GB'ı aşan dosya "başarıyla" kopyalanıp boyu
+    // sarılmış (bozuk) kalırdı.
+    if (totalLength > 0xFFFFFFFF) {
+      throw const UsbFsException(
+          'Dosya 4 GB\'tan büyük — FAT buna izin vermez (exFAT gerekir)');
+    }
     // Aynı adlı dosya varsa önce SİLİNİR: FAT'ta iki aynı adlı girdi
     // tanımsız bir durumdur ve Windows onu "bozuk" sayar.
     final existing = (await listDir(dirId))
-        .where((e) => e.name.toLowerCase() == name.toLowerCase());
+        .where((e) => e.name.toLowerCase() == name.toLowerCase())
+        .toList();
+    // Aynı adlı bir KLASÖR dosyayla ezilmez: girdisi silinir, içindeki her
+    // şey sahipsiz kalırdı.
+    if (existing.any((e) => e.isDir)) {
+      throw const UsbFsException('Aynı adlı bir klasör var');
+    }
     for (final e in existing) {
       await deleteEntry(dirId, e);
     }
@@ -576,6 +602,11 @@ class FatFileSystem extends UsbFileSystem {
 
   Future<UsbEntry> _createDirectory(Object dirId, String name) async {
     _requireWritable();
+    UsbNames.validate(name);
+    if ((await listDir(dirId))
+        .any((e) => e.name.toLowerCase() == name.toLowerCase())) {
+      throw const UsbFsException('Bu adda bir öğe zaten var');
+    }
     final chain = await _allocate(1);
     final cluster = chain.first;
     // Yeni klasörün ilk iki girdisi `.` ve `..` OLMAK ZORUNDA; olmazsa
@@ -628,15 +659,25 @@ class FatFileSystem extends UsbFileSystem {
     _requireWritable();
     // Veri yerinde kalıyor: yalnız girdi siliniyor ve yeni adla yeniden
     // yazılıyor. Kopyalamak büyük dosyada dakikalar sürerdi.
+    UsbNames.validate(newName);
+    if (newName.toLowerCase() != entry.name.toLowerCase() &&
+        (await listDir(dirId))
+            .any((e) => e.name.toLowerCase() == newName.toLowerCase())) {
+      throw const UsbFsException('Bu adda bir öğe zaten var');
+    }
     final raw = await _readDirectoryBytes(dirId as int);
     final slots = _slotsOf(raw, entry.name);
     if (slots.isEmpty) throw const UsbFsException('Girdi bulunamadı');
     for (final slot in slots) {
       raw[slot * 32] = 0xE5;
     }
-    await _writeDirectoryBytes(dirId, raw);
+    // **Tek yazma:** silme diske ayrı yazılmaz; yeni girdi aynı tampona
+    // konur. Ekleme başarısız olursa (kök dolu) eski girdi diskte durur.
     await _addDirectoryEntry(dirId, newName,
-        isDir: entry.isDir, cluster: entry.id as int, size: entry.sizeBytes);
+        isDir: entry.isDir,
+        cluster: entry.id as int,
+        size: entry.sizeBytes,
+        preloaded: raw);
   }
 
   // ── Kirli bayrak + onarım (K8 sağlamlaştırma, 2026-10-22) ─────────────
@@ -711,12 +752,10 @@ class FatFileSystem extends UsbFileSystem {
     while (pending.isNotEmpty) {
       final dir = pending.removeLast();
       if (!visited.add(dir)) continue;
-      final List<UsbEntry> entries;
-      try {
-        entries = await listDir(dir);
-      } catch (_) {
-        continue;
-      }
+      // **Okuma hatası onarımı DURDURUR.** Eskiden okunamayan klasör
+      // atlanıyordu: altındaki bütün kümeler "erişilemez" sayılıp FAT'ta
+      // boşaltılıyor, yani anlık bir USB hatası canlı dosyaları siliyordu.
+      final entries = await listDir(dir);
       for (final e in entries) {
         final c = e.id as int;
         if (c < 2) continue;
@@ -800,6 +839,13 @@ class FatFileSystem extends UsbFileSystem {
         lfn[seq] = chars;
         continue;
       }
+      if (attr & 0x08 != 0) {
+        // Birim etiketi dosya DEĞİL: "BACKUP" etiketli bellekte "Backup"
+        // klasörünü silmek etiketi siler, klasörün kümesini boşaltırdı.
+        pending.clear();
+        lfn.clear();
+        continue;
+      }
       final long = _joinLfn(lfn);
       final short = _shortName(raw, off);
       final entryName = long.isNotEmpty ? long : short;
@@ -850,8 +896,9 @@ class FatFileSystem extends UsbFileSystem {
     required bool isDir,
     required int cluster,
     required int size,
+    Uint8List? preloaded,
   }) async {
-    final raw = await _readDirectoryBytes(dirId as int);
+    final raw = preloaded ?? await _readDirectoryBytes(dirId as int);
     final shortName = _uniqueShortName(raw, name);
     final lfnEntries = _lfnEntriesFor(name, shortName);
     final needed = lfnEntries.length + 1;
@@ -863,7 +910,7 @@ class FatFileSystem extends UsbFileSystem {
         throw const UsbFsException('Kök dizin dolu (FAT16)');
       }
       // Dizini bir küme uzat.
-      final chain = await clusterChain(dirId);
+      final chain = await clusterChain(dirId as int);
       final extra = await _allocate(1);
       await _setFatEntry(chain.last, extra.first);
       await _writeCluster(extra.first, Uint8List(clusterSize));
@@ -915,7 +962,7 @@ class FatFileSystem extends UsbFileSystem {
     final rawExt = (dot > 0 ? name.substring(dot + 1) : '')
         .toUpperCase()
         .replaceAll(RegExp(r'[^A-Z0-9_\-]'), '_');
-    for (var n = 1; n < 1000; n++) {
+    for (var n = 1; n < 1000000; n++) {
       final suffix = '~$n';
       final baseLength = 8 - suffix.length;
       final base = rawBase.length > baseLength

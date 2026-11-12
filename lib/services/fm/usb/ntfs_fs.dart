@@ -220,16 +220,20 @@ class NtfsFileSystem extends UsbFileSystem {
       if (attr.runs.isEmpty) continue;
       final blockSize = _indexBlockSize(attrs);
       final total = attr.runs.fold<int>(0, (n, r) => n + r.clusters);
-      final blocksPerCluster = clusterSize;
-      for (var vcn = 0;
-          vcn * blocksPerCluster < total * clusterSize;
-          vcn += (blockSize + clusterSize - 1) ~/ clusterSize) {
-        final lcn = _lcnOf(vcn, attr.runs);
+      // Bayt konumuyla gezilir: küme, dizin bloğundan BÜYÜKSE (8–64 KB
+      // kümeli büyük diskler) bir kümede birden çok blok durur; küme küme
+      // gezmek yalnız ilkini okur ve klasörün çoğu görünmezdi.
+      final totalBytes = total * clusterSize;
+      if (blockSize <= 0) continue;
+      for (var off = 0; off + blockSize <= totalBytes; off += blockSize) {
+        final lcn = _lcnOf(off ~/ clusterSize, attr.runs);
         if (lcn == null) continue;
         final sectors = (blockSize + bytesPerSector - 1) ~/ bytesPerSector;
         final Uint8List raw;
         try {
-          raw = await device.readBlocks(lcn * sectorsPerCluster, sectors);
+          raw = await device.readBlocks(
+              lcn * sectorsPerCluster + (off % clusterSize) ~/ bytesPerSector,
+              sectors);
         } catch (_) {
           continue;
         }
@@ -283,14 +287,36 @@ class NtfsFileSystem extends UsbFileSystem {
     final record = await _readRecord(number);
     // Adsız $DATA asıl içeriktir; adlı olanlar "alternatif akış"tır
     // (Windows'un iz bilgileri) ve kullanıcının dosyası DEĞİLDİR.
-    final data = parseAttributes(record)
-        .where((a) => a.type == 0x80 && a.name.isEmpty)
-        .toList();
-    if (data.isEmpty) return;
+    final attrs = parseAttributes(record);
+    final data =
+        attrs.where((a) => a.type == 0x80 && a.name.isEmpty).toList();
+    // $ATTRIBUTE_LIST: özniteliklerin bir kısmı BAŞKA kayıtlarda. Onları
+    // izlemiyoruz; içerik bu kayıtta değilse boş dosya vermek yerine söyle.
+    final spread = attrs.any((a) => a.type == 0x20);
+    if (data.isEmpty) {
+      if (spread && entry.sizeBytes > 0) {
+        throw const UsbFsException(
+            'Çok parçalı NTFS dosyası okunamıyor (destek yok)');
+      }
+      return;
+    }
     final attr = data.first;
     if (attr.compressed) {
       throw const UsbFsException(
           'Sıkıştırılmış NTFS dosyası okunamıyor (destek yok)');
+    }
+    if (attr.encrypted) {
+      throw const UsbFsException(
+          'Şifreli (EFS) NTFS dosyası okunamıyor — anahtar Windows\'ta');
+    }
+    // Windows'un "kompakt" (WOF) ve yinelenen veri ayıklanmış dosyaları:
+    // adsız akış boş/seyrek, asıl veri başka yerde — sıfır dolu dosya
+    // vermek yerine söyle.
+    if (attrs.any((a) => a.type == 0xC0) &&
+        attr.runs.isNotEmpty &&
+        attr.runs.every((r) => r.sparse)) {
+      throw const UsbFsException(
+          'Windows\'un sıkıştırdığı dosya okunamıyor (destek yok)');
     }
     final resident = attr.resident;
     if (resident != null) {
@@ -298,6 +324,10 @@ class NtfsFileSystem extends UsbFileSystem {
       return;
     }
     var remaining = attr.realSize > 0 ? attr.realSize : entry.sizeBytes;
+    // "Başlatılmış boy"un ötesi diskte yer ayrılmış ama YAZILMAMIŞ alandır;
+    // orada başka dosyaların eski verisi durur — sıfır okunmalı.
+    final valid = attr.initializedSize < 0 ? remaining : attr.initializedSize;
+    var position = 0;
     for (final run in attr.runs) {
       if (remaining <= 0) break;
       if (run.sparse) {
@@ -309,6 +339,7 @@ class NtfsFileSystem extends UsbFileSystem {
           yield Uint8List(take);
           hole -= chunk;
           remaining -= take;
+          position += take;
         }
         continue;
       }
@@ -320,15 +351,25 @@ class NtfsFileSystem extends UsbFileSystem {
         final data = await device.readBlocks(
             (run.lcn + cluster) * sectorsPerCluster,
             batch * sectorsPerCluster);
-        if (data.length >= remaining) {
-          yield Uint8List.sublistView(data, 0, remaining);
-          remaining = 0;
-        } else {
-          yield data;
-          remaining -= data.length;
+        final take = data.length >= remaining ? remaining : data.length;
+        var piece = Uint8List.sublistView(data, 0, take);
+        if (position + take > valid) {
+          piece = Uint8List.fromList(piece);
+          final from = valid > position ? valid - position : 0;
+          piece.fillRange(from, take, 0);
         }
+        yield piece;
+        remaining -= take;
+        position += take;
         cluster += batch;
       }
+    }
+    // Çalıştırma listesi dosyanın boyundan KISA: kalan parça başka kayıtta
+    // ($ATTRIBUTE_LIST) ya da kayıt bozuk. Sessizce kısa dosya vermek
+    // "kopyalandı" görünen bozuk dosya demektir.
+    if (remaining > 0) {
+      throw const UsbFsException(
+          'NTFS dosyası eksik okunuyor (çok parçalı dosya — destek yok)');
     }
   }
 
@@ -351,7 +392,9 @@ class NtfsFileSystem extends UsbFileSystem {
     }
     final out = Uint8List.fromList(record);
     for (var i = 1; i < usaCount; i++) {
-      final sectorEnd = i * bytesPerSector - 2;
+      // Dizi HER ZAMAN 512 baytlık adımlarladır — sektörü 4096 olan (4Kn)
+      // disklerde de. Sektör boyuyla adımlamak o disklerde her kaydı bozar.
+      final sectorEnd = i * 512 - 2;
       if (sectorEnd + 1 >= out.length) break;
       out[sectorEnd] = record[usaOffset + i * 2];
       out[sectorEnd + 1] = record[usaOffset + i * 2 + 1];
@@ -396,6 +439,7 @@ class NtfsFileSystem extends UsbFileSystem {
               : Uint8List(0),
           realSize: contentLength,
           compressed: flags & 0x0001 != 0,
+          encrypted: flags & 0x4000 != 0,
         ));
       } else {
         final runOffset = d.getUint16(offset + 32, Endian.little);
@@ -407,6 +451,10 @@ class NtfsFileSystem extends UsbFileSystem {
               limit: offset + length),
           realSize: realSize,
           compressed: flags & 0x0001 != 0,
+          encrypted: flags & 0x4000 != 0,
+          initializedSize: offset + 64 <= record.length
+              ? d.getUint64(offset + 56, Endian.little)
+              : -1,
         ));
       }
       offset += length;
@@ -518,6 +566,12 @@ class NtfsAttribute {
   final int realSize;
   final bool compressed;
 
+  /// EFS ile şifreli mi (anahtar Windows kullanıcı hesabında).
+  final bool encrypted;
+
+  /// Gerçekten yazılmış bayt sayısı; bilinmiyorsa -1.
+  final int initializedSize;
+
   const NtfsAttribute({
     required this.type,
     this.name = '',
@@ -525,6 +579,8 @@ class NtfsAttribute {
     this.runs = const [],
     this.realSize = 0,
     this.compressed = false,
+    this.encrypted = false,
+    this.initializedSize = -1,
   });
 }
 

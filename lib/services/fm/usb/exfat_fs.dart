@@ -106,6 +106,11 @@ class ExfatFileSystem extends UsbFileSystem {
       final needed = length <= 0
           ? 1
           : ((length + clusterSize - 1) ~/ clusterSize);
+      // Bozuk bir girdi "1 TB bitişik" diyebilir: birimin dışına taşan
+      // küme listesi üretip oraya yazmak/okumak yerine dur.
+      if (loc.firstCluster + needed - 2 > clusterCount) {
+        throw const UsbFsException('Bozuk girdi: kümeler birimin dışında');
+      }
       return [for (var i = 0; i < needed; i++) loc.firstCluster + i];
     }
     final out = <int>[];
@@ -423,8 +428,16 @@ class ExfatFileSystem extends UsbFileSystem {
     _requireWritable();
     await _ensureMeta();
     final dir = dirId as ExfatLocation;
-    for (final e in (await listDir(dir))
-        .where((e) => e.name.toLowerCase() == name.toLowerCase())) {
+    UsbNames.validate(name);
+    final clash = (await listDir(dir))
+        .where((e) => e.name.toLowerCase() == name.toLowerCase())
+        .toList();
+    // Aynı adlı bir KLASÖR dosyayla ezilmez: girdisi silinir, içindeki her
+    // şey sahipsiz kalırdı.
+    if (clash.any((e) => e.isDir)) {
+      throw const UsbFsException('Aynı adlı bir klasör var');
+    }
+    for (final e in clash) {
       await deleteEntry(dir, e);
     }
 
@@ -484,6 +497,11 @@ class ExfatFileSystem extends UsbFileSystem {
   Future<UsbEntry> createDirectory(Object dirId, String name) async {
     _requireWritable();
     await _ensureMeta();
+    UsbNames.validate(name);
+    if ((await listDir(dirId))
+        .any((e) => e.name.toLowerCase() == name.toLowerCase())) {
+      throw const UsbFsException('Bu adda bir öğe zaten var');
+    }
     final chain = await _allocateClusters(1);
     // exFAT'ta klasörlerde `.` ve `..` girdileri YOKTUR (FAT'tan farkı):
     // yeni klasör tamamen sıfırlanır, ilk bayt 0x00 = "dizin sonu".
@@ -514,7 +532,9 @@ class ExfatFileSystem extends UsbFileSystem {
     final loc = entry.id as ExfatLocation;
     if (loc.firstCluster >= 2) {
       await _freeClusters(await clustersOf(loc,
-          byteLength: entry.isDir ? clusterSize : entry.sizeBytes));
+          byteLength: entry.isDir
+              ? (loc.sizeBytes > 0 ? loc.sizeBytes : clusterSize)
+              : entry.sizeBytes));
     }
   }
 
@@ -524,19 +544,43 @@ class ExfatFileSystem extends UsbFileSystem {
     _requireWritable();
     await _ensureMeta();
     final dir = dirId as ExfatLocation;
+    UsbNames.validate(newName);
+    if (newName.toLowerCase() != entry.name.toLowerCase() &&
+        (await listDir(dir))
+            .any((e) => e.name.toLowerCase() == newName.toLowerCase())) {
+      throw const UsbFsException('Bu adda bir öğe zaten var');
+    }
     final raw = Uint8List.fromList(await _readDirectory(dir));
     final slots = slotsOf(raw, entry.name);
     if (slots.isEmpty) throw const UsbFsException('Girdi bulunamadı');
+    final loc = entry.id as ExfatLocation;
+    // **Tek yazma:** eski yuvalar boşaltılır ve yeni küme AYNI tampona
+    // konur. Eskiden önce silme diske yazılıyor, ekleme başarısız olursa
+    // (klasör dolu) dosya girdisiz kalıyordu.
+    //
+    // **Bitişiklik bayrağı KORUNUR:** Windows'un ve kameraların yazdığı
+    // dosyaların çoğu bitişiktir ve FAT'ta zinciri YOKTUR; bayrak düşerse
+    // okuyucular FAT'ı izler ve dosya ilk kümede biter.
+    final entries = buildEntrySet(
+      newName,
+      isDir: entry.isDir,
+      firstCluster: loc.firstCluster,
+      size: entry.isDir
+          ? (loc.sizeBytes > 0 ? loc.sizeBytes : clusterSize)
+          : entry.sizeBytes,
+      nameHash: nameHashOf(newName),
+      timestamp: DateTime.now(),
+      noFatChain: loc.noFatChain,
+    );
     for (final slot in slots) {
       raw[slot * 32] &= 0x7F;
     }
+    final start = _findFreeSlots(raw, entries.length ~/ 32);
+    if (start < 0) {
+      throw const UsbFsException('Klasör dolu: ad değiştirilemedi');
+    }
+    raw.setRange(start * 32, start * 32 + entries.length, entries);
     await _writeDirectoryBytes(dir, raw);
-    final loc = entry.id as ExfatLocation;
-    // Veri yerinde kalıyor; yalnız girdi kümesi yeniden yazılıyor.
-    await _addEntrySet(dir, newName,
-        isDir: entry.isDir,
-        firstCluster: loc.firstCluster,
-        size: entry.isDir ? clusterSize : entry.sizeBytes);
   }
 
   /// Bir girdiye ait 32 baytlık yuvalar (0x85 + 0xC0 + 0xC1'ler).
@@ -606,6 +650,13 @@ class ExfatFileSystem extends UsbFileSystem {
         throw const UsbFsException(
             'Bu klasör dolu ve büyütülemiyor (bitişik yerleşim)');
       }
+      // Alt klasörün boyu EBEVEYNİNDEKİ girdide yazar ve o girdi burada
+      // elimizde yok: büyütsek yeni küme hiçbir okuyucuya görünmez, eklenen
+      // dosya "kaybolur". Yalnız kök (boyu zincirden okunur) büyütülür.
+      if (dir.firstCluster != rootCluster) {
+        throw const UsbFsException(
+            'Bu klasör dolu — dosyayı başka bir klasöre koyun');
+      }
       final chain = await clustersOf(dir,
           byteLength: dir.sizeBytes > 0 ? dir.sizeBytes : raw.length);
       final extra = await _allocateClusters(1);
@@ -646,6 +697,7 @@ class ExfatFileSystem extends UsbFileSystem {
     required int size,
     required int nameHash,
     required DateTime timestamp,
+    bool noFatChain = false,
   }) {
     final chars = name.codeUnits;
     final nameEntries = (chars.length + 14) ~/ 15;
@@ -670,7 +722,7 @@ class ExfatFileSystem extends UsbFileSystem {
     out[32] = 0xC0;
     // Bit 0: yer ayrıldı. `NoFatChain` (bit 1) KULLANILMIYOR — zincir FAT'a
     // yazıldığı için bitişiklik iddiasında bulunmuyoruz.
-    out[33] = 0x01;
+    out[33] = noFatChain ? 0x03 : 0x01;
     out[35] = chars.length;
     d
       ..setUint16(36, nameHash, Endian.little)

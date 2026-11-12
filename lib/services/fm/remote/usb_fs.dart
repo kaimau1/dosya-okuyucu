@@ -375,6 +375,7 @@ class UsbFs extends RemoteFs {
       final length = await local.length();
       await fs.writeFileStream(
           await _dirHandle(remoteDir), target, local.openRead(), length);
+      await device.flush();
     } catch (e) {
       throw _wrap(e);
     }
@@ -382,6 +383,23 @@ class UsbFs extends RemoteFs {
 
   @override
   Future<void> delete(RemoteEntry entry) async {
+    await _delete(entry, 0);
+  }
+
+  /// **Klasör İÇİNDEKİLERLE birlikte silinir** (önce çocuklar).
+  ///
+  /// FAT/exFAT'ta klasör girdisini silmek içindekileri boşaltmaz: dosyaların
+  /// kümeleri sonsuza dek "dolu" kalır, bellek hiçbir şey yokken dolar.
+  Future<void> _delete(RemoteEntry entry, int depth) async {
+    if (entry.isDir) {
+      if (depth > 64) {
+        throw const RemoteException(RemoteError.unknown,
+            detail: 'Klasör ağacı çok derin (bozuk olabilir).');
+      }
+      for (final child in await list(entry.path)) {
+        await _delete(child, depth + 1);
+      }
+    }
     try {
       final parent = await _dirHandle(_parentOf(entry.path));
       await fs.deleteEntry(
@@ -393,6 +411,7 @@ class UsbFs extends RemoteFs {
             sizeBytes: entry.sizeBytes,
           ));
       _handles.remove(entry.path);
+      if (depth == 0) await device.flush();
     } catch (e) {
       throw _wrap(e);
     }
@@ -406,6 +425,7 @@ class UsbFs extends RemoteFs {
       final name = path.substring(cut + 1);
       final created = await fs.createDirectory(parent, name);
       _handles[path] = created.id;
+      await device.flush();
     } catch (e) {
       throw _wrap(e);
     }
@@ -426,6 +446,7 @@ class UsbFs extends RemoteFs {
         newName,
       );
       _handles.remove(entry.path);
+      await device.flush();
     } catch (e) {
       throw _wrap(e);
     }

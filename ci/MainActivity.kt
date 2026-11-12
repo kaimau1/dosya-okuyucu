@@ -1084,10 +1084,31 @@ class MainActivity : FlutterActivity() {
                         }
                     }
 
+                    "usbmsFlush" -> {
+                        val mass = usbMass
+                        if (mass == null || !mass.isOpen) {
+                            result.success(false)
+                        } else {
+                            Thread {
+                                val ok = try { mass.flush() } catch (e: Exception) { false }
+                                Handler(Looper.getMainLooper()).post { result.success(ok) }
+                            }.start()
+                        }
+                    }
+
                     "usbmsClose" -> {
-                        usbMass?.close()
+                        // Kapatma süren aktarımı BEKLER (aynı kilit) ve
+                        // önbelleği döker: ana izlekte yapılırsa arayüz donar.
+                        val mass = usbMass
                         usbMass = null
-                        result.success(true)
+                        if (mass == null) {
+                            result.success(true)
+                        } else {
+                            Thread {
+                                try { mass.close() } catch (e: Exception) { }
+                                Handler(Looper.getMainLooper()).post { result.success(true) }
+                            }.start()
+                        }
                     }
 
                     // ── SAF (Storage Access Framework) ──────────────────
@@ -2082,12 +2103,16 @@ class MainActivity : FlutterActivity() {
         }
         return try {
             val parentDoc = docUriOf(Uri.parse(parent))
-            // Aynı adlı belge varsa ÜSTÜNE yazmıyoruz: SAF yeni bir
-            // "ad (1)" üretir ve kullanıcı iki kopya görür. Önce siliyoruz —
-            // kopyalama akışının çakışma sorusu Dart tarafında zaten soruldu.
+            // Aynı adlı belge varsa SAF yeni bir "ad (1)" üretir ve kullanıcı
+            // iki kopya görür. Eskisi yine de ÖNCE silinmez: kopya yarıda
+            // kalırsa (kart çekildi, yer bitti) elde hiçbir şey kalmazdı.
+            // Yeni içerik geçici adla yazılır, bitince eskisi silinip ad verilir.
+            var old: String? = null
             for (child in safList(parent)) {
                 if (child["name"] == name) {
-                    safDelete(child["uri"] as? String)
+                    // Aynı adlı KLASÖR dosyayla ezilmez (içindekiler giderdi).
+                    if (child["isDir"] == true) return null
+                    old = child["uri"] as? String
                     break
                 }
             }
@@ -2095,12 +2120,33 @@ class MainActivity : FlutterActivity() {
                 contentResolver,
                 parentDoc,
                 if (mime.isNullOrEmpty()) "application/octet-stream" else mime,
-                name
+                if (old != null) "$name.yaziliyor" else name
             ) ?: return null
-            contentResolver.openOutputStream(doc)?.use { output ->
-                java.io.File(src).inputStream().use { input ->
-                    input.copyTo(output, 64 * 1024)
+            // Akış açılamadıysa ya da yazma yarıda kesildiyse "başarılı"
+            // DÖNME: taşıma akışı kaynağı silerdi.
+            val output = contentResolver.openOutputStream(doc)
+            if (output == null) {
+                safDelete(doc.toString())
+                return null
+            }
+            try {
+                output.use { o ->
+                    java.io.File(src).inputStream().use { input ->
+                        input.copyTo(o, 64 * 1024)
+                    }
                 }
+            } catch (e: Exception) {
+                safDelete(doc.toString())
+                return null
+            }
+            if (old != null) {
+                safDelete(old)
+                val renamed = try {
+                    DocumentsContract.renameDocument(contentResolver, doc, name)
+                } catch (e: Exception) {
+                    null
+                }
+                return (renamed ?: doc).toString()
             }
             doc.toString()
         } catch (e: Exception) {

@@ -189,6 +189,15 @@ class UsbBlockDevice extends BlockDevice {
   }
 
   @override
+  Future<void> flush() async {
+    try {
+      await _channel.invokeMethod<bool>('usbmsFlush');
+    } catch (_) {
+      // Bilinçli: önbellek dökme en iyi çaba; yazmanın sonucu değişmez.
+    }
+  }
+
+  @override
   Future<void> close() async {
     try {
       await _channel.invokeMethod<bool>('usbmsClose');
