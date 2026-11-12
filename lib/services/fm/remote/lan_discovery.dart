@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:multicast_dns/multicast_dns.dart';
 
 import '../../../models/remote_connection.dart';
+import '../../offline_mode.dart';
 
 /// Yerel ağda bulunan bir sunucu adayı.
 class LanHost {
@@ -92,6 +93,7 @@ class LanDiscovery {
       {Duration timeout = const Duration(milliseconds: 400)}) async {
     Socket? socket;
     try {
+      NetGuard.allow('lan_probe', host: host);
       socket = await Socket.connect(host, port, timeout: timeout);
       return true;
     } catch (_) {

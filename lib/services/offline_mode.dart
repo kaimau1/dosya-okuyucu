@@ -24,11 +24,18 @@ class OfflineMode {
   /// Yerel ağ adresi mi? (Çevrimdışı kipte de izinli.)
   static bool isLocalHost(String host) {
     final h = host.toLowerCase();
-    if (h == 'localhost' || h.endsWith('.local') || h.endsWith('.lan')) {
+    if (h == 'localhost' ||
+        h.endsWith('.local') ||
+        h.endsWith('.lan') ||
+        h.endsWith('.home') ||
+        h.endsWith('.home.arpa') ||
+        h.endsWith('.internal')) {
       return true;
     }
     final ip = InternetAddress.tryParse(h.replaceAll(RegExp(r'^\[|\]$'), ''));
-    if (ip == null) return false;
+    // G10.4: noktasız ad (NAS'ın NetBIOS/mDNS adı: `diskstation`) yerel ağdır;
+    // internetteki bir sunucuya noktasız adla ulaşılmaz.
+    if (ip == null) return h.isNotEmpty && !h.contains('.') && !h.contains(':');
     if (ip.isLoopback || ip.isLinkLocal) return true;
     final b = ip.rawAddress;
     if (ip.type == InternetAddressType.IPv4) {
@@ -42,6 +49,27 @@ class OfflineMode {
   /// İnternete çıkılacaksa ve kip açıksa [OfflineException] atar.
   static void check(Uri url) {
     if (enabled && !isLocalHost(url.host)) throw const OfflineException();
+  }
+}
+
+/// **Tek ağ kapısı** (GUVENLIK_PLANI G10.4, 2026-11-12).
+///
+/// `package:http` istekleri [OfflineAwareClient]'tan zaten geçer. O yolun
+/// DIŞINDAN ağ açan her yer — `dart:io` `HttpClient`/`Socket`, SFTP/FTP/SMB/
+/// WebDAV bağlantısı, ML Kit model indirme, Drive girişi — işe başlamadan
+/// `NetGuard.allow(amaç, host: …)` çağırır. Kip açıkken internete gidecekse
+/// [OfflineException] atar; [host] yerel ağdaysa serbest bırakır.
+/// Bekçi testi (`test/net_guard_test.dart`) bu çağrısı olmayan yeni ağ
+/// açma yerini kırmızı yakar.
+abstract final class NetGuard {
+  /// Son engellenen amaç (test ve tanılama için; kişisel veri içermez).
+  static String? lastBlocked;
+
+  static void allow(String purpose, {String? host}) {
+    if (!OfflineMode.enabled) return;
+    if (host != null && OfflineMode.isLocalHost(host)) return;
+    lastBlocked = purpose;
+    throw const OfflineException();
   }
 }
 

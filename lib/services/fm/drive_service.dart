@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 
 import '../../models/drive_file.dart';
+import '../offline_mode.dart';
 import 'mime_types.dart';
 
 /// Google Drive erişimi — **düz REST** (Drive v3).
@@ -89,6 +90,12 @@ class DriveService {
   /// [DriveSignIn] olarak dönüyor; ekran her nedene ayrı, EYLEM İÇEREN bir
   /// metin gösteriyor.
   Future<DriveSignIn> signIn() async {
+    // G10.4: giriş (Google hesabı, yerel eklenti) http istemcisinden geçmez.
+    try {
+      NetGuard.allow('drive_signin');
+    } on OfflineException catch (e) {
+      return DriveSignIn(DriveSignInError.network, detail: e.message);
+    }
     final override = authHeadersOverride;
     if (override != null) {
       return (await override()) != null

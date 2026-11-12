@@ -291,6 +291,7 @@ String errorTextFor(BuildContext context, Object error) {
     RemoteError.denied => 'nas.error_denied',
     RemoteError.unsupported => 'nas.error_unsupported',
     RemoteError.hostKey => 'nas.error_hostkey',
+    RemoteError.offline => 'offline.blocked',
     RemoteError.unknown => 'nas.error_unknown',
   });
 }

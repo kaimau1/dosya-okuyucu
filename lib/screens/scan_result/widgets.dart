@@ -101,11 +101,10 @@ class _Thumb extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(5),
-              child: Image.file(
-                File(path),
+              child: Image(
+                image: FmFileImage(path, cacheWidth: (54 * dpr).round()),
                 key: ValueKey(path),
                 fit: BoxFit.cover,
-                cacheWidth: (54 * dpr).round(),
                 gaplessPlayback: true,
                 errorBuilder: (_, _, _) =>
                     ColoredBox(color: scheme.surfaceContainerHigh),
@@ -358,13 +357,13 @@ class _GridPageTile extends StatelessWidget {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(7),
-                  child: Image.file(
-                    File(path),
+                  child: Image(
+                    // Kademeli kova: hücre genişliği × dpr, 64'e yuvarlanır.
+                    image: FmFileImage(path,
+                        cacheWidth: (((box.maxWidth * dpr) / 64).ceil() * 64)
+                            .clamp(64, 1024)),
                     key: ValueKey(path),
                     fit: BoxFit.cover,
-                    // Kademeli kova: hücre genişliği × dpr, 64'e yuvarlanır.
-                    cacheWidth: (((box.maxWidth * dpr) / 64).ceil() * 64)
-                        .clamp(64, 1024),
                     gaplessPlayback: true,
                     errorBuilder: (_, _, _) =>
                         ColoredBox(color: scheme.surfaceContainerHigh),

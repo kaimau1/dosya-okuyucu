@@ -12,3 +12,6 @@ tags:
   # ayrı adım; seçili test adımında perf dosyaları çıkarılır).
   perf:
     description: Kıyas testleri (test/perf/) — DUZENLEME_PLANI §7; eşikler debug/JIT için gevşek.
+  # G7.9: bulanık testler (test/fuzz/) — CI ayrı adım, yalnız tam takımda.
+  fuzz:
+    description: Ayrıştırıcı bulanık testleri (GUVENLIK_PLANI G7.9); her push'ta koşmaz.

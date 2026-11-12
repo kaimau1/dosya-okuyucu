@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:smb_connect/smb_connect.dart';
 
 import 'remote_fs.dart';
+import '../../offline_mode.dart';
 
 /// SMB / CIFS (Windows paylaşımı, NAS "ağ sürücüsü") — `smb_connect`.
 ///
@@ -56,6 +57,7 @@ class SmbFs extends RemoteFs {
 
   @override
   Future<void> connect() async {
+    NetGuard.allow('smb', host: connection.host);
     try {
       _smb = await SmbConnect.connectAuth(
         host: connection.host,

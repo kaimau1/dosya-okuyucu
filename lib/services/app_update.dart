@@ -324,6 +324,7 @@ abstract final class AppUpdate {
     // G9.6: yalnız kendi deponun sürüm dosyası; yönlendirmeler elle,
     // her adımda https + GitHub dosya sunucusu.
     if (!trustedAssetUrl(info.url)) return null;
+    NetGuard.allow('update_download');
     final part = File('${file.path}.part');
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 15);
     progress.value = 0;

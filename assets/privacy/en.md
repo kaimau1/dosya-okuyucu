@@ -23,7 +23,9 @@ Kept in the app's private folder and never sent anywhere:
 - AI long-term memory notes (if you saved any)
 - **Crash reports** — see below
 
-Uninstalling the app deletes all of it.
+Uninstalling the app deletes all of it. To delete without uninstalling:
+**Settings → Privacy → Delete my data** (history, AI records, search indexes,
+error logs; your files are not touched). App data is not included in Android backups.
 
 ## 2. Data that leaves the device — only on actions you start
 

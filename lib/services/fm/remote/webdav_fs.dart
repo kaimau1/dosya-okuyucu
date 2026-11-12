@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:webdav_client/webdav_client.dart' as webdav;
 
 import 'remote_fs.dart';
+import '../../offline_mode.dart';
 
 /// WebDAV (`webdav_client`) — Nextcloud/ownCloud/Synology WebDAV, `dio` üstünde.
 class WebDavFs extends RemoteFs {
@@ -30,6 +31,7 @@ class WebDavFs extends RemoteFs {
 
   @override
   Future<void> connect() async {
+    NetGuard.allow('webdav', host: connection.host);
     try {
       final client = webdav.newClient(
         baseUrl(connection.host, connection.port),

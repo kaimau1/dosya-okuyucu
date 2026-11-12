@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import '../../../models/remote_connection.dart';
+import '../../offline_mode.dart';
 
 /// Uzak sunucudaki bir dosya/klasör.
 class RemoteEntry {
@@ -42,6 +43,9 @@ enum RemoteError {
 
   /// SFTP sunucu anahtarı onaylanmadı ya da değişti (G8.1).
   hostKey,
+
+  /// Çevrimdışı kip açık ve sunucu yerel ağda değil (G10.4).
+  offline,
 
   unknown,
 }
@@ -206,6 +210,9 @@ abstract class RemoteFs {
   /// Yaygın soket/protokol hatalarını kullanıcıya anlatılabilir nedene çevirir.
   static RemoteException mapError(Object error) {
     if (error is RemoteException) return error;
+    if (error is OfflineException) {
+      return const RemoteException(RemoteError.offline);
+    }
     final text = error.toString().toLowerCase();
     if (error is SocketException ||
         text.contains('connection refused') ||

@@ -1052,6 +1052,16 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// G10.5 "Verilerimi sil": son belgeler listesi + AI hafıza notları.
+  Future<void> clearRecentsAndMemory() async {
+    _recents = [];
+    _memory = [];
+    await _persistRecents();
+    await _prefs.setStringList(_kMemory, _memory);
+    recentsState.changed();
+    notifyListeners();
+  }
+
   Future<void> removeMemory(int index) async {
     if (index < 0 || index >= _memory.length) return;
     _memory.removeAt(index);

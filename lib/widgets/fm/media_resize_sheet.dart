@@ -1,4 +1,4 @@
-import 'dart:io' show File, Platform;
+import 'dart:io' show Platform;
 
 import 'dart:ui' show ImageFilter;
 
@@ -14,6 +14,7 @@ import '../../models/media_resize.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/job_queue.dart' show humanDuration;
 import '../../services/fm/resize_memory.dart';
+import 'fm_file_image.dart';
 
 /// Boyut düşürme ayarları sayfası.
 ///
@@ -1008,10 +1009,10 @@ class _ResizeSheetState extends State<_ResizeSheet> {
         ? Alignment(o.anchor.fraction(horizontal: true) * 2 - 1,
             o.anchor.fraction(horizontal: false) * 2 - 1)
         : Alignment.center;
-    final image = Image.file(File(src.path!),
+    final image = Image(
+        image: FmFileImage(src.path!, cacheWidth: 360),
         fit: boxFit,
         alignment: alignment,
-        cacheWidth: 360,
         gaplessPlayback: true,
         errorBuilder: (_, _, _) => const SizedBox.shrink());
     final background = fit != ResizeFit.pad
@@ -1022,8 +1023,9 @@ class _ResizeSheetState extends State<_ResizeSheet> {
             PadColor.transparent => ColoredBox(color: scheme.surfaceContainerHighest),
             PadColor.blur => ImageFiltered(
                 imageFilter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                child: Image.file(File(src.path!),
-                    fit: BoxFit.cover, cacheWidth: 120,
+                child: Image(
+                    image: FmFileImage(src.path!, cacheWidth: 120),
+                    fit: BoxFit.cover,
                     errorBuilder: (_, _, _) => const SizedBox.shrink()),
               ),
           };

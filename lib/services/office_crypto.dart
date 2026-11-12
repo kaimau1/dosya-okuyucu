@@ -68,6 +68,12 @@ abstract final class OfficeCrypto {
     final keyBits = int.parse(attr('encryptedKey', 'keyBits'));
     final spin = int.parse(attr('encryptedKey', 'spinCount'));
     final pwSalt = base64.decode(attr('encryptedKey', 'saltValue'));
+    // G7.9: MS-OFFCRYPTO spinCount ≤ 10.000.000; anahtar 128/192/256 bit.
+    // Denetimsiz değer kötü niyetli dosyada saatlerce süren (iptal edilemez)
+    // döngü ya da geçersiz anahtar boyu demekti.
+    if (spin < 1 || spin > 10000000 || !const {128, 192, 256}.contains(keyBits)) {
+      throw const OfficeCryptoException('corrupt');
+    }
     if (attr('encryptedKey', 'hashAlgorithm') != 'SHA512' ||
         attr('keyData', 'cipherAlgorithm') != 'AES') {
       throw const OfficeCryptoException('unsupported');

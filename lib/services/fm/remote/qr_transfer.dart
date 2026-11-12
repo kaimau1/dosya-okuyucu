@@ -10,6 +10,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../archive_ops.dart';
 import '../file_ops.dart';
+import '../../offline_mode.dart';
 import 'lan_guard.dart';
 import 'transfer_keeper.dart';
 import 'zip_stream.dart';
@@ -545,6 +546,7 @@ abstract final class QrReceiver {
   /// Gönderenin sunduğu dosyaların listesi — indirmeden ÖNCE alıcıya
   /// "şunlar gelecek, alınsın mı?" diye sorabilmek için.
   static Future<List<QrItem>> list(Uri base) async {
+    NetGuard.allow('qr', host: base.host);
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
     try {
       final listReq = await client.getUrl(base.resolve('list'));
@@ -568,6 +570,7 @@ abstract final class QrReceiver {
 
   /// [index]. öğenin küçük resmi (yoksa null).
   static Future<Uint8List?> thumb(Uri base, int index) async {
+    NetGuard.allow('qr', host: base.host);
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 5);
     try {
       final res = await (await client.getUrl(base.resolve('th/$index'))).close();
@@ -607,6 +610,7 @@ abstract final class QrReceiver {
     Duration retryEvery = const Duration(seconds: 2),
   }) async {
     final items = listed ?? await list(base);
+    NetGuard.allow('qr', host: base.host);
     final client = HttpClient()
       ..connectionTimeout = const Duration(seconds: 8)
       ..idleTimeout = const Duration(seconds: 15);

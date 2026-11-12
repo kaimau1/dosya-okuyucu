@@ -148,10 +148,10 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(3),
-                    child: Image.file(
-                      File(_pages[i].display),
+                    child: Image(
+                      image: FmFileImage(_pages[i].display,
+                          cacheWidth: cacheWidth),
                       key: ValueKey(_pages[i].display),
-                      cacheWidth: cacheWidth,
                       gaplessPlayback: true,
                       errorBuilder: (_, _, _) => SizedBox(
                         width: 220,

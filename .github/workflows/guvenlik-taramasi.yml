@@ -1,0 +1,120 @@
+# Haftalık güvenlik taraması (GUVENLIK_PLANI G9.4 + G9.10, 2026-11-12).
+#  1) osv-scanner: pubspec.lock bilinen açıklara karşı; bulgu → tek açık Issue
+#     ("Güvenlik taraması: bağımlılık açığı") güncellenir. Otomatik yükseltme YOK
+#     (Dependabot küçük sürümleri ayrıca açar; büyükler faz dalında, ölçümle).
+#  2) MobSF statik tarama: son `nightly` APK'sı; yalnız RAPOR (artifact). Kırmızıya
+#     bağlanmaz (çok yanlış alarm) — yüksek bulgular elle GUVENLIK_PLANI G12 listesine.
+name: Güvenlik taraması
+
+on:
+  schedule:
+    - cron: '17 5 * * 1'   # pazartesi 05:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  osv:
+    name: Bağımlılık açıkları (osv-scanner)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: osv-scanner kur
+        run: |
+          go install github.com/google/osv-scanner/v2/cmd/osv-scanner@v2.0.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: pubspec.lock tara
+        id: tara
+        run: |
+          set +e
+          osv-scanner scan source --lockfile pubspec.lock --format markdown > osv.md 2> osv.err
+          rc=$?
+          set -e
+          cat osv.err | tail -5
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          { echo "## osv-scanner (çıkış $rc)"; cat osv.md; } >> "$GITHUB_STEP_SUMMARY"
+          # 0 = temiz, 1 = açık bulundu, diğerleri = araç hatası (kırmızı).
+          if [ "$rc" -gt 1 ]; then echo "::error::osv-scanner hata verdi ($rc)"; exit 1; fi
+      - name: Bulgu → Issue
+        if: steps.tara.outputs.rc == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITLE="Güvenlik taraması: bağımlılık açığı"
+          {
+            echo "Haftalık osv-scanner \`pubspec.lock\` taramasında bilinen açık bulundu."
+            echo "Koşu: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+            head -c 60000 osv.md
+            echo
+            echo "Yol: GUVENLIK_PLANI G9.4 — yama sürümü varsa Dependabot PR'ı, yoksa faz dalında yükselt."
+          } > body.md
+          NUM=$(gh issue list --state open --search "in:title \"$TITLE\"" --json number --jq '.[0].number // empty')
+          if [ -n "$NUM" ]; then
+            gh issue comment "$NUM" --body-file body.md
+          else
+            gh issue create --title "$TITLE" --body-file body.md
+          fi
+
+  mobsf:
+    name: MobSF statik tarama (rapor)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - name: Son nightly APK'yı indir
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download nightly -R "$GITHUB_REPOSITORY" -p dosya-okuyucu.apk
+      - name: MobSF ile tara
+        run: |
+          set -e
+          KEY=$(openssl rand -hex 24)
+          docker run -d --name mobsf -p 8000:8000 -e MOBSF_API_KEY="$KEY" \
+            opensecurity/mobile-security-framework-mobsf:latest
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:8000/ > /dev/null 2>&1 && break
+            sleep 5
+          done
+          UP=$(curl -fsS -F "file=@dosya-okuyucu.apk" -H "Authorization: $KEY" \
+            http://127.0.0.1:8000/api/v1/upload)
+          HASH=$(python3 -c "import json,sys;print(json.loads(sys.argv[1])['hash'])" "$UP")
+          curl -fsS -X POST --max-time 1800 -H "Authorization: $KEY" \
+            --data "hash=$HASH" http://127.0.0.1:8000/api/v1/scan > /dev/null
+          curl -fsS -X POST -H "Authorization: $KEY" --data "hash=$HASH" \
+            http://127.0.0.1:8000/api/v1/report_json > mobsf.json
+          curl -fsS -X POST -H "Authorization: $KEY" --data "hash=$HASH" \
+            http://127.0.0.1:8000/api/v1/download_pdf -o mobsf.pdf || true
+          curl -fsS -X POST -H "Authorization: $KEY" --data "hash=$HASH" \
+            http://127.0.0.1:8000/api/v1/scorecard > scorecard.json || true
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          try:
+              s = json.load(open('scorecard.json'))
+          except Exception:
+              s = {}
+          print('## MobSF özeti')
+          print(f"- güvenlik puanı: {s.get('security_score', '?')}")
+          for k in ('high', 'warning'):
+              items = s.get(k) or []
+              print(f'- {k}: {len(items)}')
+              for it in items[:15]:
+                  print(f"  - {it.get('title', it)}")
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: mobsf-rapor
+          path: |
+            mobsf.json
+            mobsf.pdf
+            scorecard.json
+          if-no-files-found: ignore
+          retention-days: 30

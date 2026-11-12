@@ -527,6 +527,12 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
               subtitleKey: 'pii.setting_sub',
               builder: _piiMaskTile,
             ),
+            SettingRow(
+              id: 'privacy_wipe',
+              titleKey: 'wipe.title',
+              subtitleKey: 'wipe.sub',
+              builder: _privacyWipeTile,
+            ),
           ]),
           SettingsSection('fmset.sec_permissions', [
             SettingRow(
@@ -825,6 +831,7 @@ Widget _offlineTile(BuildContext _) => const OfflineModeTile();
 Widget _safFoldersTile(BuildContext _) => const SafFoldersTile();
 Widget _aiSendAskTile(BuildContext _) => const AiSendAskTile();
 Widget _piiMaskTile(BuildContext _) => const PiiMaskTile();
+Widget _privacyWipeTile(BuildContext _) => const PrivacyWipeTile();
 Widget _usageAccessTile(BuildContext _) => const UsageAccessTile();
 Widget _useTrashTile(BuildContext _) => const UseTrashTile();
 Widget _confirmDeleteTile(BuildContext _) => const ConfirmDeleteTile();

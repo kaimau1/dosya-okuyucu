@@ -1,6 +1,8 @@
 import 'package:google_mlkit_translation/google_mlkit_translation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'offline_mode.dart';
+
 /// Cihaz-içi çeviri (Google ML Kit). Dil modeli bir kez indirilir (dil başına
 /// ~30 MB), sonrası tamamen çevrimdışı çalışır — Gemini'den farklı olarak API
 /// anahtarı ve internet gerekmez.
@@ -40,8 +42,11 @@ class TranslateService {
   /// varsayılanı `true` — yorum "Wi-Fi şartı yok" derken ML Kit mobil veride
   /// indirmeyi Wi-Fi gelene dek BEKLETİYORDU ve ilerleme penceresi hiç
   /// kapanmıyordu.
-  static Future<void> downloadModel(TranslateLanguage lang) =>
-      _models.downloadModel(lang.bcpCode, isWifiRequired: false);
+  static Future<void> downloadModel(TranslateLanguage lang) async {
+    // G10.4: ML Kit modeli Google sunucusundan iner (yerel kod, http dışı).
+    NetGuard.allow('translate_model');
+    await _models.downloadModel(lang.bcpCode, isWifiRequired: false);
+  }
 
   /// İndirilmiş dil modellerini siler; silinen sayıyı döner. İngilizce
   /// atlanır: ML Kit'te çevirinin ara dili, silinmesi bir sonraki çeviride

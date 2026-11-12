@@ -9,6 +9,7 @@ import '../../../core/app_icons.dart';
 import '../../../core/l10n/app_strings.dart';
 import '../../../core/snack.dart';
 import '../../../core/theme.dart';
+import '../../../core/webview_guard.dart';
 import '../../../widgets/app_dialog.dart';
 import '../../../widgets/doc_find_bar.dart';
 import '../../../services/docx/docx_document.dart';
@@ -133,7 +134,12 @@ Future<(String, String)?> showWordLinkSheet(BuildContext context,
                   label: Text(ctx.t('word.link_open')),
                   onPressed: () async {
                     final u = Uri.tryParse(urlCtl.text.trim());
-                    if (u == null || !u.hasScheme) {
+                    // G7.4: yalnız http/https/mailto — belgedeki `file:`,
+                    // `content:`, `intent:`, `javascript:` bağlantısı açılmaz.
+                    if (u == null ||
+                        !u.hasScheme ||
+                        !WebViewGuard.externalSchemes
+                            .contains(u.scheme.toLowerCase())) {
                       showSnack(ctx, ctx.t('word.link_bad'));
                       return;
                     }

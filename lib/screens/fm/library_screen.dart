@@ -22,6 +22,7 @@ import 'pick_file_screen.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/fm/fm_file_image.dart';
 import 'browser_screen.dart';
 import 'dashboard_screen.dart';
 import 'entry_actions.dart';
@@ -769,7 +770,8 @@ class _BookCoverState extends State<_BookCover> {
     final ext = p.extension(widget.path).replaceFirst('.', '').toUpperCase();
     final hue = _hueFor(widget.path);
     final Widget face = cover != null
-        ? Image.file(File(cover),
+        ? Image(
+            image: FmFileImage(cover),
             fit: BoxFit.cover,
             gaplessPlayback: true,
             errorBuilder: (_, _, _) => _drawnCover(hue, ext))

@@ -299,9 +299,9 @@ class _SelectedTile extends StatelessWidget {
                   child: ColoredBox(
                     color: scheme.surfaceContainerHighest,
                     child: isImage
-                        ? Image.file(File(path),
+                        ? Image(
+                            image: FmFileImage(path, cacheWidth: 160),
                             fit: BoxFit.cover,
-                            cacheWidth: 160,
                             errorBuilder: (_, _, _) =>
                                 Center(child: Icon(glyph, color: color)))
                         : Center(child: Icon(glyph, color: color, size: 30)),

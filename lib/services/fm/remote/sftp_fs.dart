@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dartssh2/dartssh2.dart';
 
 import 'remote_fs.dart';
+import '../../offline_mode.dart';
 import 'sftp_host_keys.dart';
 
 /// SSH üzerinden SFTP (`dartssh2`, saf Dart).
@@ -30,6 +31,7 @@ class SftpFs extends RemoteFs {
 
   @override
   Future<void> connect() async {
+    NetGuard.allow('sftp', host: connection.host);
     try {
       final socket = await SSHSocket.connect(
         connection.host,

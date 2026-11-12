@@ -24,7 +24,9 @@ Aşağıdakiler uygulamanın özel klasöründe tutulur, cihazdan çıkmaz:
 - AI kalıcı hafıza notları (siz kaydettiyseniz)
 - **Hata (çökme) kayıtları** — aşağıda ayrı başlık
 
-Uygulamayı kaldırdığınızda bunların hepsi silinir.
+Uygulamayı kaldırdığınızda bunların hepsi silinir. Kaldırmadan silmek için:
+**Ayarlar → Gizlilik → Verilerimi sil** (geçmiş, yapay zekâ kayıtları, arama dizinleri,
+hata kayıtları; dosyalarınıza dokunulmaz). Uygulama verisi Android yedeğine alınmaz.
 
 ## 2. Cihazdan çıkan veriler — yalnız sizin başlattığınız işlemlerde
 

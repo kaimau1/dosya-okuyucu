@@ -11,6 +11,7 @@ import 'package:path/path.dart' as p;
 import '../archive_ops.dart';
 import '../file_ops.dart';
 import '../fs_events.dart';
+import '../../offline_mode.dart';
 import 'lan_guard.dart';
 import 'transfer_keeper.dart';
 import 'zip_stream.dart';
@@ -715,6 +716,7 @@ abstract final class PeerSender {
   /// Alıcı eski sürümse (uç yok) ya da ulaşılamazsa false.
   static Future<bool> sendText(Peer peer, String text,
       {required String senderName, String pairingCode = ''}) async {
+    NetGuard.allow('peer', host: peer.host);
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
     try {
       final req = await client.postUrl(peer.base.replace(
@@ -808,6 +810,7 @@ abstract final class PeerSender {
   /// Elle yazılan bir adresteki cihazı doğrular (yayın engelliyse tek yol).
   static Future<Peer?> probe(String host,
       {int port = PeerShare.transferPort}) async {
+    NetGuard.allow('peer', host: host);
     final client = HttpClient()
       ..connectionTimeout = const Duration(seconds: 3);
     try {
@@ -920,6 +923,7 @@ abstract final class PeerSender {
     final fileCount = plan.fold<int>(0, (a, s) => a + s.files);
     var doneBytes = 0;
 
+    NetGuard.allow('peer', host: peer.host);
     final client = HttpClient()
       ..connectionTimeout = const Duration(seconds: 8)
       ..idleTimeout = const Duration(seconds: 20);

@@ -70,4 +70,16 @@ const Map<String, (String, String, String)> _t29 = {
   'pii.setting_sub': ('Yapay zekâya gönderilen metinde TC kimlik, IBAN, kart, telefon ve e-posta [TC], [IBAN]… olarak gider.', 'ID numbers, IBANs, cards, phone numbers and emails are sent to AI as [TC], [IBAN]….', 'تُرسل أرقام الهوية وIBAN والبطاقات والهواتف والبريد إلى الذكاء الاصطناعي بصيغة [TC] و[IBAN]….'),
   'nas.ftp_plain_warning': ('Düz FTP şifresizdir: parola ve dosyalar ağda açık gider. Sunucu destekliyorsa FTPES ya da SFTP seç.', 'Plain FTP is unencrypted: your password and files travel in the clear. Pick FTPES or SFTP if the server supports it.', 'FTP العادي غير مشفّر: تنتقل كلمة المرور والملفات بلا حماية. اختر FTPES أو SFTP إن كان الخادم يدعمهما.'),
   'nas.webdav_http_warning': ('http:// şifresizdir: parola ağda açık gider. Yalnız ev ağında kullan, internette https:// seç.', 'http:// is unencrypted: your password travels in the clear. Use it only on your home network; pick https:// on the internet.', 'http:// غير مشفّر: تنتقل كلمة المرور بلا حماية. استخدمه في شبكة المنزل فقط واختر https:// على الإنترنت.'),
+  // G10.5 Verilerimi sil (2026-11-12)
+  'wipe.title': ('Verilerimi sil', 'Delete my data', 'احذف بياناتي'),
+  'wipe.sub': ('Geçmiş, yapay zekâ kayıtları, arama dizinleri ve hata kayıtları. Dosyalarına dokunulmaz.', 'History, AI records, search indexes and error logs. Your files are not touched.', 'السجل وبيانات الذكاء الاصطناعي وفهارس البحث وسجلات الأخطاء. لا تُمس ملفاتك.'),
+  'wipe.note': ('Seçtiklerin silinir. Dosyalar, kayıtlı bağlantılar, API anahtarları, kasa ve ayarlar KALIR.', 'What you pick is deleted. Files, saved connections, API keys, the vault and settings STAY.', 'يُحذف ما تختاره. تبقى الملفات والاتصالات المحفوظة ومفاتيح API والخزنة والإعدادات.'),
+  'wipe.history': ('Geçmiş: son açılanlar, aramalar, işlem ve aktarım geçmişi', 'History: recent files, searches, operation and transfer history', 'السجل: الملفات الأخيرة وعمليات البحث وسجل العمليات والنقل'),
+  'wipe.ai': ('Yapay zekâ: özetler, etiket analizi, hafıza notları', 'AI: summaries, tag analysis, memory notes', 'الذكاء الاصطناعي: الملخصات وتحليل الوسوم وملاحظات الذاكرة'),
+  'wipe.indexes': ('Arama dizinleri (ad ve içerik; yeniden kurulur)', 'Search indexes (name and content; rebuilt later)', 'فهارس البحث (الاسم والمحتوى؛ يُعاد بناؤها)'),
+  'wipe.logs': ('Hata kayıtları', 'Error logs', 'سجلات الأخطاء'),
+  'wipe.go': ('Sil', 'Delete', 'حذف'),
+  'wipe.confirm': ('Seçilen kayıtlar kalıcı olarak silinecek. Geri alınamaz.', 'The selected records will be deleted permanently. This cannot be undone.', 'ستُحذف السجلات المحددة نهائيًا. لا يمكن التراجع.'),
+  'wipe.done': ('Veriler silindi.', 'Data deleted.', 'حُذفت البيانات.'),
+  'wipe.partial': ('Silindi; {n} kayıt silinemedi.', 'Deleted; {n} records could not be removed.', 'حُذفت؛ تعذّر حذف {n} من السجلات.'),
 };

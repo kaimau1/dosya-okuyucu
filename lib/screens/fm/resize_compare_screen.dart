@@ -582,7 +582,9 @@ class _VideoSideBySide extends StatelessWidget {
                         future: ThumbnailCache.forVideo(path, size: 480),
                         builder: (_, snap) => snap.data == null
                             ? const SizedBox.shrink()
-                            : Image.file(File(snap.data!), fit: BoxFit.cover),
+                            : Image(
+                                image: FmFileImage(snap.data!),
+                                fit: BoxFit.cover),
                       ),
                     Center(
                       child: Icon(

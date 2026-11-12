@@ -42,6 +42,7 @@ import 'scan_edit_screen.dart';
 import '../core/user_error.dart';
 import '../core/app_colors.dart';
 import '../widgets/app_dialog.dart';
+import '../widgets/fm/fm_file_image.dart';
 import 'fm/pick_file_screen.dart';
 
 part 'scan_result/actions.dart';

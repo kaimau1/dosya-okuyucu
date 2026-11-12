@@ -4,6 +4,7 @@ import 'package:ftpconnect/ftpconnect.dart';
 
 import '../../../models/remote_connection.dart';
 import 'remote_fs.dart';
+import '../../offline_mode.dart';
 
 /// FTP / FTPS (örtük) / FTPES (açık TLS) — `ftpconnect`, saf Dart.
 ///
@@ -39,6 +40,7 @@ class FtpFs extends RemoteFs {
 
   @override
   Future<void> connect() async {
+    NetGuard.allow('ftp', host: connection.host);
     final ftp = FTPConnect(
       connection.host,
       port: connection.port,

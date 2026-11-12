@@ -910,3 +910,15 @@ Belgeler: `rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `rl_cok_sayfa.pdf`, `rl_si
 6. **Hassas pano:** FTP sunucusu ekranında parolaya dokun → Android 13+ pano önizlemesinde metin `•••`; 1 dk sonra uygulamada yapıştır → boş (bu arada başka şey kopyalandıysa o kalır).
 7. **SFTP anahtarı:** NAS'a ilk SFTP bağlantısında "Yeni sunucu" penceresi parmak iziyle (NAS'ın `ssh-keygen -lf` çıktısıyla aynı); "Güven" → bağlanıyor, ikinci bağlantıda sorulmuyor. NAS'ta anahtarı yeniden üret → kırmızı "Sunucu kimliği DEĞİŞTİ"; Vazgeç → bağlantı kurulmuyor.
 8. **Güncelleme:** nightly'den otomatik güncelleme indirip kuruyor (SHA-256 eşleşiyor). (Bozuk özet senaryosu birim testte.)
+
+## Güvenlik — genel elle tur (G12.5) + G7.4 / G10.4 / G10.5 (2026-11-12, main)
+1. **Dış niyet:** `adb shell am start -n com.dosyaokuyucu.dosya_okuyucu/.MainActivity --es dosya_link "file:///data/data/com.dosyaokuyucu.dosya_okuyucu/shared_prefs/x.xml"` (ve `../` içeren yol) → hiçbir şey açılmaz, uygulama çökmez. (Paket adı derlemeye göre — `adb shell pm list packages | grep dosya`.)
+2. **Yedek:** `adb backup -f yedek.ab com.dosyaokuyucu.dosya_okuyucu` → arşiv boş (allowBackup=false); Ayarlar › Google yedeği uygulamayı listelemiyor.
+3. **Kasa ekranı:** kasa açıkken ekran görüntüsü → "uygulama izin vermiyor"; son uygulamalar önizlemesi boş.
+4. **PIN denemesi:** kasada 5 yanlış PIN → bekleme süresi başlıyor, süre dolmadan doğru PIN de reddediliyor.
+5. **Paylaşım:** "Bilgisayara aktar" açıkken aynı ağdaki ikinci cihazdan parolasız `http://<ip>:8080/` → 401; doğru kodla giriş çalışıyor.
+6. **Mobil veri:** Wi-Fi kapalı, sunucu açık → başka ağdan port taraması kapalı görüyor.
+7. **Kötü niyetli belgeler:** dış görsel (`http://…`) ve `javascript:` bağlantısı içeren .docx açılıyor, ağ isteği yok (logcat'te `Refused to load`), bağlantıya dokununca yalnız http/https sorulup açılıyor. `../` girdili zip hedef dışına yazmıyor.
+8. **G7.4 Word bağlantısı (düzenleyici):** Word düzenleyicide bir bağlantı ekle, adresi `file:///sdcard/x` ya da `intent://…` yap → "Aç" → "geçersiz bağlantı"; `https://…` açılıyor.
+9. **G10.4 Çevrimdışı kip:** Ayarlar › Gizlilik › Çevrimdışı kip AÇ → (a) Çeviri: indirilmemiş dil seç → "Çevrimdışı kip açık" mesajı, model inmiyor; (b) Drive › Giriş → "geçici hata" + çevrimdışı açıklaması; (c) internet adresli bir SFTP/FTP/WebDAV bağlantısı → "Çevrimdışı kip açık"; (d) NAS (`192.168.x.x` ya da `diskstation` gibi noktasız ad) çalışıyor; (e) Yakındakiler/QR aktarım çalışıyor. Kipi kapat → hepsi eskisi gibi.
+10. **G10.5 Verilerimi sil:** Ayarlar › Gizlilik › Verilerimi sil → dört kutu işaretli; yalnız "Geçmiş" bırak → Sil → onay → Son açılanlar, arama geçmişi, kayıtlı aramalar boş; AI özetleri ve arama dizini duruyor. Sonra hepsini seç → AI özetleri gitti, arama dizini yeniden kuruluyor; dosyalar, kayıtlı bağlantılar, Gemini anahtarı, kasa YERİNDE.

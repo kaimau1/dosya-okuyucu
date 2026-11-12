@@ -34,6 +34,7 @@ import '../../../services/fm/remote/trusted_peers.dart';
 import '../../../services/fm/remote/transfer_thumbs.dart';
 import '../../../widgets/app_dialog.dart';
 import '../../../widgets/fm/fm_entry_icon.dart';
+import '../../../widgets/fm/fm_file_image.dart';
 import '../../../widgets/fm/transfer_offer_sheet.dart';
 import '../../../widgets/qr_code.dart';
 import '../../../widgets/section_header.dart';

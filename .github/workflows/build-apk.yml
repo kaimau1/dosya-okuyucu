@@ -199,6 +199,11 @@ jobs:
         if: env.MOD != 'atla' && matrix.shard == 0
         run: bash tool/guvenlik_denetimi.sh
 
+      # G9.9: gömülü üçüncü taraf JS / yamalı paket kopyaları sessizce değişmesin.
+      - name: Gömülü üçüncü taraf özetleri
+        if: env.MOD != 'atla' && matrix.shard == 0
+        run: python3 tool/gomulu_ozet_denetimi.py
+
       - name: Flutter kurulumu (önbellekli)
         if: env.MOD != 'atla'
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
@@ -255,6 +260,8 @@ jobs:
           # Perf etiketli dosyalar ayrı kapıda koşar (aşağıda) — burada çift
           # koşmasın (--exclude-tags yalnız perf dosyası kalınca "No tests ran" = 79).
           mapfile -t files < <(for f in "${files[@]}"; do grep -qE "@Tags\(\[.perf.\]\)" "$f" || echo "$f"; done)
+          # Bulanık testler (G7.9) ayrı adımda, yalnız tam takımda / kendileri değişince.
+          mapfile -t files < <(for f in "${files[@]}"; do grep -qE "@Tags\(\[.fuzz.\]\)" "$f" || echo "$f"; done)
           # PDF Pro tezgâhı kendi adımında (qpdf + mutool ile) koşar.
           mapfile -t files < <(for f in "${files[@]}"; do [ "$f" = test/pdf_pro/bench_test.dart ] || echo "$f"; done)
           if [ ${#files[@]} -eq 0 ]; then echo "Bu parçada yalnız perf testleri vardı."; exit 0; fi
@@ -277,6 +284,20 @@ jobs:
             echo "## Perf ölçümleri (CI, debug JIT — cihaz değil)"
             echo '```'; grep -oE 'PERF [a-z0-9_]+=[^ ]+( [a-z0-9_]+=[^ ]+)*' perf.log | sort -u; echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # BULANIK TEST (G7.9): `fuzz` etiketli ayrıştırıcı testleri 1. parçada;
+      # tam takımda ([tam], v*, elle) ya da test/fuzz/ seçime girdiyse.
+      - name: Bulanık test (--tags fuzz)
+        if: env.MOD != 'atla' && matrix.shard == 1
+        env:
+          LISTE: ${{ needs.changes.outputs.test_liste }}
+        run: |
+          if [ "$MOD" != tam ] && ! printf '%s\n' "$LISTE" | grep -q '^test/fuzz/'; then
+            echo "Bulanık test atlandı (tam takım değil, test/fuzz/ seçimde yok)."; exit 0
+          fi
+          set -o pipefail
+          flutter test --tags fuzz test/fuzz/ 2>&1 | tee fuzz.log
+          { echo "## Bulanık test"; echo '```'; grep -oE 'FUZZ .*' fuzz.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
       # PDF PRO TEZGÂHI (Faz 51, PK8): külliyatta düzenleme motoru ölçülür;
       # taban (test/pdf_pro/baseline.json) altına düşmek kırmızı. Bağımsız
@@ -620,6 +641,16 @@ jobs:
             echo "- taban farkı: %$GROW (taban $BASE B, sınır %2)"
             echo "- libapp.so (karartılmış): $LIBAPP MB"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # G9.8: debuggable yok, allowBackup=false, şifresiz trafik yok, izinler
+      # ci/izin_tabani.txt ile birebir, imza parmak izi (repo değişkeni varsa).
+      - name: Güvenlik doğrulaması (G9.8)
+        env:
+          SIGN_CERT_SHA256: ${{ vars.SIGN_CERT_SHA256 }}
+        run: |
+          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          BT=$(ls -d "$SDK"/build-tools/* | sort -V | tail -1)
+          python3 tool/apk_dogrula.py dist/dosya-okuyucu.apk "$BT"
 
       - name: Artifact — APK (64-bit)
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

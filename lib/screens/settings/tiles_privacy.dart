@@ -6,9 +6,12 @@ import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/pii.dart';
+import '../../core/snack.dart';
 import '../../services/fm/app_storage_service.dart';
 import '../../services/fm/installed_apps_service.dart';
 import '../../services/fm/storage_permission.dart';
+import '../../services/privacy_wipe.dart';
+import '../../widgets/app_dialog.dart';
 import '../../widgets/ai_send_consent.dart';
 import '../../widgets/fm/pin_dialog.dart';
 import 'settings_widgets.dart';
@@ -281,5 +284,87 @@ class _UsageAccessTileState extends State<UsageAccessTile> {
                 },
                 child: Text(context.t('fmset.grant')),
               ),
+      );
+}
+
+/// **Verilerimi sil** (G10.5): uygulamanın dosyalar hakkında tuttuğu kayıtlar
+/// (geçmiş, AI, arama dizinleri, hata kayıtları) tek yerden silinir.
+/// Dosyalara, kayıtlı bağlantılara, anahtarlara ve kasaya dokunulmaz.
+class PrivacyWipeTile extends StatelessWidget {
+  const PrivacyWipeTile({super.key});
+
+  static const _labels = {
+    WipeCategory.history: 'wipe.history',
+    WipeCategory.ai: 'wipe.ai',
+    WipeCategory.indexes: 'wipe.indexes',
+    WipeCategory.logs: 'wipe.logs',
+  };
+
+  Future<void> _run(BuildContext context) async {
+    final str = AppStrings.of(context);
+    final app = context.read<AppState>();
+    final sel = {...WipeCategory.values};
+    final picked = await showAppSheet<Set<WipeCategory>>(
+      context,
+      title: str.t('wipe.title'),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setState) => Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(ctx.t('wipe.note')),
+              ),
+              for (final c in WipeCategory.values)
+                CheckboxListTile(
+                  key: ValueKey('wipe-${c.name}'),
+                  value: sel.contains(c),
+                  title: Text(ctx.t(_labels[c]!)),
+                  onChanged: (v) => setState(() {
+                    if (v == true) {
+                      sel.add(c);
+                    } else {
+                      sel.remove(c);
+                    }
+                  }),
+                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+                child: FilledButton(
+                  key: const ValueKey('wipe-go'),
+                  onPressed: sel.isEmpty
+                      ? null
+                      : () => Navigator.pop(ctx, {...sel}),
+                  child: Text(ctx.t('wipe.go')),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (picked == null || picked.isEmpty || !context.mounted) return;
+    final ok = await showAppConfirm(context,
+        title: str.t('wipe.title'),
+        message: str.t('wipe.confirm'),
+        confirmLabel: str.t('wipe.go'),
+        destructive: true);
+    if (!ok || !context.mounted) return;
+    final failed =
+        await PrivacyWipe.run(picked, clearAppLists: app.clearRecentsAndMemory);
+    if (!context.mounted) return;
+    showSnack(context,
+        failed == 0 ? str.t('wipe.done') : str.t('wipe.partial', {'n': failed}));
+  }
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+        key: const ValueKey('privacy-wipe'),
+        leading: const Icon(AppIcons.deleteSweep),
+        title: Text(context.t('wipe.title')),
+        subtitle: Text(context.t('wipe.sub')),
+        onTap: () => _run(context),
       );
 }
