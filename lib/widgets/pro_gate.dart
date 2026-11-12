@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/app_icons.dart';
@@ -39,6 +40,35 @@ abstract final class ProGate {
   static VoidCallback wrap(BuildContext context, Feature f, VoidCallback run,
           {Edition edition = Edition.current}) =>
       () => guard(context, f, run, edition: edition);
+}
+
+/// Ana ekrandaki "Pro'da neler var?" kartı (§3 madde 2): yalnız Lite'ta,
+/// kapatılınca 30 gün görünmez.
+abstract final class ProPromo {
+  static const _key = 'pro_card_hidden_until';
+  static const hideFor = Duration(days: 30);
+
+  static Future<bool> shouldShow(
+      {Edition edition = Edition.current, DateTime? now}) async {
+    if (edition != Edition.lite) return false;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final until = prefs.getInt(_key) ?? 0;
+      return (now ?? DateTime.now()).millisecondsSinceEpoch >= until;
+    } catch (_) {
+      return false; // Bilinçli: tercih okunamazsa kart gösterilmez.
+    }
+  }
+
+  static Future<void> hide({DateTime? now}) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(
+          _key, (now ?? DateTime.now()).add(hideFor).millisecondsSinceEpoch);
+    } catch (_) {
+      return; // Bilinçli: yazılamazsa kart yalnız bu oturumda kapanır.
+    }
+  }
 }
 
 /// Kilitli giriş noktasının köşesindeki küçük "PRO" etiketi.

@@ -23,6 +23,12 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
     final stat = _index.stat(category);
     return FmTileData(
       id: category.name,
+      // S2: kategori gezgini Pro'da (görsel/video/ses = medya, belge = gezgin).
+      feature: switch (category) {
+        FmCategory.image || FmCategory.video || FmCategory.audio =>
+          Feature.media,
+        _ => Feature.fileManager,
+      },
       icon: FmColors.iconFor(category),
       color: FmColors.forCategory(category),
       art: switch (category) {
@@ -46,6 +52,7 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
     final count = apk.count + arc.count;
     return FmTileData(
       id: 'apk',
+      feature: Feature.fileManager,
       icon: AppIcons.installMobile,
       color: AppHues.teal,
       label: context.t('fm.apk_archives'),
@@ -73,6 +80,7 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
     final count = img.count + vid.count;
     return FmTileData(
       id: 'media',
+      feature: Feature.media,
       icon: AppIcons.mediaAll,
       color: AppHues.purple,
       label: context.t('fm.media_all'),

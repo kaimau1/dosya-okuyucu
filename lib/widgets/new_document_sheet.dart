@@ -5,6 +5,8 @@ import '../models/document.dart';
 import '../services/blank_docs.dart';
 import '../services/docx/pro/docx_templates.dart';
 import '../core/app_icons.dart';
+import '../core/edition.dart';
+import 'pro_gate.dart';
 import '../core/l10n/app_language.dart';
 import 'app_dialog.dart';
 import '../services/fm/entry_opener.dart';
@@ -21,6 +23,9 @@ import '../core/user_error.dart';
 /// onu kaldırmayı istemedi. Akış buraya taşındı ve panonun araç satırından
 /// çağrılıyor.
 Future<void> showNewDocumentSheet(BuildContext context) {
+  if (!Edition.current.has(Feature.officeEdit)) {
+    return showProSheet(context, Feature.officeEdit); // S2: Lite
+  }
   return showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,

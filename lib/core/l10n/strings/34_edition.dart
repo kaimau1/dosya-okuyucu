@@ -30,6 +30,7 @@ const Map<String, (String, String, String)> _t34 = {
     'One-time payment — no ads, no subscription',
     'دفعة واحدة — بلا إعلانات ولا اشتراك',
   ),
+  'pro.card_title': ("Pro'da neler var?", "What's in Pro?", 'ما الجديد في الإصدار الاحترافي؟'),
   'pro.price': ('Fiyat: {p}', 'Price: {p}', 'السعر: {p}'),
   'pro.store': ("Play'de gör", 'View on Play', 'عرض في Play'),
   'pro.later': ('Şimdi değil', 'Not now', 'ليس الآن'),

@@ -4,6 +4,7 @@ import 'package:dosya_okuyucu/widgets/fm/fm_category_tile.dart';
 import 'package:dosya_okuyucu/widgets/pro_gate.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Sürüm kapısı (SÜRÜM PLANI S1–S3).
 void main() {
@@ -125,6 +126,25 @@ void main() {
           onTap: tap,
           feature: Feature.vault);
       expect(gated.withTap(tap).feature, Feature.vault);
+    });
+  });
+
+  group('ProPromo', () {
+    test('yalnız Lite; kapatılınca 30 gün görünmez', () async {
+      SharedPreferences.setMockInitialValues({});
+      final t0 = DateTime(2026, 11, 12);
+      expect(await ProPromo.shouldShow(edition: Edition.pro, now: t0), isFalse);
+      expect(await ProPromo.shouldShow(edition: Edition.kisisel, now: t0), isFalse);
+      expect(await ProPromo.shouldShow(edition: Edition.lite, now: t0), isTrue);
+      await ProPromo.hide(now: t0);
+      expect(
+          await ProPromo.shouldShow(
+              edition: Edition.lite, now: t0.add(const Duration(days: 29))),
+          isFalse);
+      expect(
+          await ProPromo.shouldShow(
+              edition: Edition.lite, now: t0.add(const Duration(days: 30))),
+          isTrue);
     });
   });
 }

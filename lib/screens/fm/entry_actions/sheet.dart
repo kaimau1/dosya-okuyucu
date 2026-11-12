@@ -39,6 +39,27 @@ enum _EntryAction {
   alias,
 }
 
+/// İşlemin bağlı olduğu sürüm özelliği; null = her sürümde (aç, paylaş …).
+Feature? _featureOf(_EntryAction a) => switch (a) {
+      _EntryAction.open ||
+      _EntryAction.openWith ||
+      _EntryAction.share ||
+      _EntryAction.properties ||
+      _EntryAction.library =>
+        null,
+      _EntryAction.driveUpload => Feature.googleDrive,
+      _EntryAction.aiSummary ||
+      _EntryAction.imageInsight ||
+      _EntryAction.aiTag ||
+      _EntryAction.aiAlias =>
+        Feature.ai,
+      _EntryAction.resize || _EntryAction.rotate => Feature.media,
+      _EntryAction.audiobook => Feature.audiobook,
+      _EntryAction.quickShare => Feature.transfer,
+      _EntryAction.hide => Feature.vault,
+      _ => Feature.fileManager,
+    };
+
 /// Uzun basınca (ya da ⋮ ile) açılan işlem sayfası. Dosya sistemi değiştiyse
 /// `true` döner (çağıran listeyi yeniler).
 ///
@@ -183,7 +204,7 @@ Future<bool> showEntryActions(
               if (!entry.isDir)
                 _act(ctx, AppIcons.openWith, ctx.t('fm.open_with_other'),
                     _EntryAction.openWith),
-              if (!entry.isDir)
+              if (!entry.isDir && ProGate.visible(Feature.googleDrive))
                 _act(ctx, AppIcons.upload,
                     ctx.t('drive.upload_action'), _EntryAction.driveUpload),
               if (allowReveal)
@@ -291,6 +312,12 @@ Future<bool> showEntryActions(
   );
 
   if (action == null || !context.mounted) return false;
+  // Sürüm kapısı (S2): Lite'ta Pro işlemi levhayı açar, iş yapılmaz.
+  final feature = _featureOf(action);
+  if (feature != null && !Edition.current.has(feature)) {
+    if (feature.isPro) await showProSheet(context, feature);
+    return false;
+  }
   switch (action) {
     case _EntryAction.open:
       if (entry.isDir) {

@@ -20,6 +20,7 @@ import '../../screens/fm/trash_screen.dart';
 import '../../screens/fm/vault_screen.dart';
 import '../../services/fm/fm_env.dart';
 import '../../core/edition.dart';
+import '../pro_gate.dart';
 import '../app_dialog.dart';
 import '../new_document_sheet.dart';
 import '../scan_flow.dart';
@@ -381,33 +382,43 @@ abstract final class DockExtras {
   static void _push(BuildContext context, Widget screen) =>
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
 
+  /// Sürüm kapısı (S2): Lite'ta Pro düğmesi levhayı açar.
+  static void Function(BuildContext) _g(
+          Feature f, void Function(BuildContext) run) =>
+      (c) => ProGate.guard(c, f, () => run(c));
+
   static DockExtraSpec? spec(BuildContext context, String id) => switch (id) {
         'free_space' => DockExtraSpec(
             AppIcons.cleanEmpty,
             context.t('dock.free_space'),
             AppHues.cyan,
-            (c) => OperationsScreen.open(c, tab: OpsTab.cleanup)),
+            _g(Feature.cleanup,
+                (c) => OperationsScreen.open(c, tab: OpsTab.cleanup))),
         'jobs' => DockExtraSpec(AppIcons.playlistAddCheckCircle,
-            context.t('dock.jobs'), AppHues.green, OperationsScreen.open),
+            context.t('dock.jobs'), AppHues.green,
+            _g(Feature.fileManager, OperationsScreen.open)),
         'vault' => DockExtraSpec(AppIcons.vault, context.t('dock.vault'),
-            AppHues.slate, (c) => _push(c, const VaultScreen())),
+            AppHues.slate,
+            _g(Feature.vault, (c) => _push(c, const VaultScreen()))),
         'library' => DockExtraSpec(AppIcons.autoStories,
             context.t('dock.library'), AppHues.plum,
             (c) => _push(c, const LibraryScreen())),
         'history' => DockExtraSpec(AppIcons.history,
             context.t('dock.history'), AppHues.indigo, HistoryScreen.open),
         'downloads' => DockExtraSpec(
-            AppIcons.download, context.t('dock.downloads'), AppHues.blue, (c) {
+            AppIcons.download, context.t('dock.downloads'), AppHues.blue,
+            _g(Feature.fileManager, (c) {
             final path =
                 downloadsPathIn(FmEnv.primaryRoot) ?? FmEnv.primaryRoot;
             Navigator.of(c).push(browserRoute(BrowserScreen(path: path)));
-          }),
+          })),
         'apps' when Edition.current.has(Feature.installedApps) => DockExtraSpec(AppIcons.android, context.t('dock.apps'),
             AppHues.green, (c) => _push(c, const InstalledAppsScreen())),
         'ai' => DockExtraSpec(AppIcons.ai, context.t('dock.ai'),
-            AppHues.violet, (c) => _push(c, const AiHubScreen())),
+            AppHues.violet,
+            _g(Feature.ai, (c) => _push(c, const AiHubScreen()))),
         'new_doc' => DockExtraSpec(AppIcons.noteAdd, context.t('dock.new_doc'),
-            AppHues.blue, showNewDocumentSheet),
+            AppHues.blue, _g(Feature.officeEdit, showNewDocumentSheet)),
         _ => null,
       };
 }

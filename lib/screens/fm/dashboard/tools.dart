@@ -6,6 +6,21 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
   /// eşik basamağını taşır: kapatılan uyarı durum kötüleşince yeniden gelir.
   List<InboxEvent> _inboxEvents(List<StorageVolume> volumes) {
     final out = <InboxEvent>[];
+    if (_proCard) {
+      out.add(InboxEvent(
+        id: 'pro_card',
+        icon: AppIcons.pro,
+        title: context.t('pro.card_title'),
+        subtitle: context.t('pro.row_sub'),
+        actionLabel: context.t('pro.later'),
+        dismissible: false,
+        onTap: () => showProSheet(context),
+        onAction: () {
+          unawaited(ProPromo.hide());
+          _partSetState(() => _proCard = false);
+        },
+      ));
+    }
     final ftp = FtpService.instance;
     if (ftp.running) {
       out.add(InboxEvent(

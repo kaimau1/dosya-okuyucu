@@ -270,6 +270,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
       // birincisi. Boyut ölçülmüşse alt satırda yazar.
       FmTileData(
         id: 'downloads',
+        feature: Feature.fileManager,
         icon: AppIcons.download,
         color: AppHues.blue,
         art: FmTileArt.downloads,
@@ -288,6 +289,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
       // Kullanıcının kendi seçtiği dosyalar — en sık dönülecek ikinci yer.
       FmTileData(
         id: 'important',
+        feature: Feature.fileManager,
         icon: AppIcons.star,
         color: AppHues.amber,
         label: ImportantScreen.folderName,
@@ -304,6 +306,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
       ),
       FmTileData(
         id: 'important_gallery',
+        feature: Feature.extras,
         icon: AppIcons.importantGallery,
         color: AppHues.honey,
         label: context.t('ig.title'),
@@ -348,6 +351,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
       // düştü" fikrini glifle anlatıyor.
       FmTileData(
         id: 'new',
+        feature: Feature.fileManager,
         icon: AppIcons.moveToInbox,
         color: AppHues.tangerine,
         label: context.t('fm.new_files'),
@@ -376,6 +380,8 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
       // arasında kayboluyordu; buluttaki dosyaların tek kapısı büyük kart
       // olmayı hak ediyor. Ağ depolama (NAS) araçlarda kalıyor — o, kuran
       // birinin bildiği bir yer; Drive ise herkesin aradığı.
+      // Tam kapsam Drive yalnız Kişisel (SÜRÜM PLANI §1.3, CASA denetimi).
+      if (ProGate.visible(Feature.googleDrive))
       FmTileData(
         id: 'drive',
         icon: AppIcons.cloud,
