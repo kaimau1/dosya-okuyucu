@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -155,6 +156,8 @@ class DocxViewState extends State<DocxView> {
   @override
   void initState() {
     super.initState();
+    DocxNight.enabled.addListener(_onNight);
+    DocxNight.load();
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(AppColors.docCanvas) // Fluent kanvas
@@ -510,7 +513,14 @@ class DocxViewState extends State<DocxView> {
     super.didChangeDependencies();
     _insets = ReadingChrome.insetsOf(context);
     _sendInsets();
-    _canvas = DocxCanvas.of(context);
+    _canvas = DocxCanvas.of(context).withNight(DocxNight.enabled.value);
+    _sendCanvas();
+  }
+
+  /// Gece kipi (A9.2) açılıp kapandı.
+  void _onNight() {
+    if (!mounted) return;
+    _canvas = _canvas.withNight(DocxNight.enabled.value);
     _sendCanvas();
   }
 
@@ -606,6 +616,7 @@ class DocxViewState extends State<DocxView> {
 
   @override
   void dispose() {
+    DocxNight.enabled.removeListener(_onNight);
     _badge.dispose();
     super.dispose();
   }
@@ -650,7 +661,15 @@ class DocxCanvas {
   final Color? page;
   final Color? frame;
 
-  const DocxCanvas({required this.background, this.page, this.frame});
+  /// Sayfa gece kipi (A9.2): sayfa ters renk, görseller özgün renginde.
+  final bool night;
+
+  const DocxCanvas(
+      {required this.background, this.page, this.frame, this.night = false});
+
+  DocxCanvas withNight(bool on) => on == night
+      ? this
+      : DocxCanvas(background: background, page: page, frame: frame, night: on);
 
   static const fallback = DocxCanvas(background: AppColors.docCanvas);
   static const paperPage = AppColors.paperPage;
@@ -681,7 +700,9 @@ class DocxCanvas {
   /// renk geçer, JS'e kullanıcı metni girmez.
   String get js {
     String arg(Color? c) => c == null ? 'null' : "'${hex(c)}'";
-    return 'setCanvas(${arg(background)}, ${arg(page)}, ${arg(frame)})';
+    // setCanvas gece kipini her çağrıda sıfırlar; açıksa ardından yeniden kurulur.
+    final base = 'setCanvas(${arg(background)}, ${arg(page)}, ${arg(frame)})';
+    return night ? '$base; setNight(true)' : base;
   }
 
   @override
@@ -689,9 +710,41 @@ class DocxCanvas {
       other is DocxCanvas &&
       other.background == background &&
       other.page == page &&
-      other.frame == frame;
+      other.frame == frame &&
+      other.night == night;
 
   @override
-  int get hashCode => Object.hash(background, page, frame);
+  int get hashCode => Object.hash(background, page, frame, night);
+}
+
+/// Word sayfa **gece kipi** (KALANLAR A9.2): koyu temada kanvas koyu ama
+/// sayfa beyazdı. Açılınca sayfa CSS `filter: invert` ile terslenir (PDF gece
+/// kipi gibi); görseller ikinci kez terslenip özgün rengine döner. Tercih
+/// kalıcı ve tüm Word pencerelerinde ortak.
+abstract final class DocxNight {
+  static final ValueNotifier<bool> enabled = ValueNotifier(false);
+  static const _key = 'docx_night';
+  static bool _loaded = false;
+
+  static Future<void> load() async {
+    if (_loaded) return;
+    _loaded = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      enabled.value = prefs.getBool(_key) ?? false;
+    } catch (_) {
+      // Bilinçli: tercih okunamadı — gündüz görünümü kalır.
+    }
+  }
+
+  static Future<void> set(bool on) async {
+    enabled.value = on;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_key, on);
+    } catch (_) {
+      // Bilinçli: tercih yazılamadı — bu oturumda yine geçerli.
+    }
+  }
 }
 

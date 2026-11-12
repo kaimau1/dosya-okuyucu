@@ -58,6 +58,9 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
               case 'export':
                 if (editor != null) await _shareExport();
                 break;
+              case 'night':
+                unawaited(DocxNight.set(!DocxNight.enabled.value));
+                break;
               case 'page':
                 if (_dirty) await _save();
                 // Yedek editördeki değişiklikler görünüme taşınsın.
@@ -84,6 +87,11 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                     value: 'page', child: Text(context.t('word.page_view')))
                 : PopupMenuItem(
                     value: 'plain', child: Text(context.t('word.text_editor'))),
+            if (!_plainMode)
+              CheckedPopupMenuItem(
+                  value: 'night',
+                  checked: DocxNight.enabled.value,
+                  child: Text(context.t('vw.night_on'))),
             PopupMenuItem(
                 value: 'export', child: Text(context.t('ux.share_export'))),
           ],

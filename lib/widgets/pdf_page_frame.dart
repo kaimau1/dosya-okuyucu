@@ -10,8 +10,9 @@ import '../core/theme.dart' show AppSkinData;
 /// sayfasıyla aynı ince çerçeve (`#D2C8B4`) çizilir. Öteki temalarda pdfrx'in
 /// varsayılan gölgesi.
 ///
-/// Sınır: sayfanın İÇİ pdfium'un beyaz çizimi (pdfrx 1.3.5 görüntüleyicisi
-/// zemin rengini dışarı açmıyor) — `#FBF8F1` kâğıt zemini yalnız Word'de.
+/// Sayfanın İÇİ (A9.2, 2026-11-12): pdfium beyaz çiziyor; çizimin üstüne
+/// `#FBF8F1` ÇARPMA (multiply) kipinde boyanır → beyaz kâğıt rengine döner,
+/// siyah yazı ve görseller (beyaz alanları dışında) değişmez.
 class PdfPageFrame {
   const PdfPageFrame._(this.enabled);
 
@@ -38,6 +39,7 @@ class PdfPageFrame {
   /// (kalınlık 0 = yakınlığa bakmadan 1 cihaz pikseli).
   void paint(Canvas canvas, Rect pageRect, PdfPage page) {
     if (!enabled) return;
+    canvas.drawRect(pageRect, paperTint);
     canvas.drawRect(
       pageRect,
       Paint()
@@ -46,4 +48,9 @@ class PdfPageFrame {
         ..color = AppColors.paperFrame,
     );
   }
+
+  /// Kâğıt zemini boyası (çarpma kipi: beyaz → `#FBF8F1`, siyah aynı).
+  static final Paint paperTint = Paint()
+    ..color = AppColors.paperPage
+    ..blendMode = BlendMode.multiply;
 }

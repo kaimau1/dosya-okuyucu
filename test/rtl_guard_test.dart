@@ -37,6 +37,7 @@ const _contentFiles = [
   // koordinatında — sayfa dil değişince aynalanmaz.
   'lib/widgets/pdf_object_layer.dart',
   'lib/widgets/pdf_select_layer.dart',
+  'lib/widgets/pdf_select_layer_chrome.dart',
   'lib/widgets/signature_pad.dart',
 ];
 

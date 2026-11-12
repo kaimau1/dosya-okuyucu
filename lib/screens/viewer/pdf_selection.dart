@@ -356,6 +356,34 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
     );
   }
 
+  /// **Sesli not** (KALANLAR A10, yalnız kişisel derleme): dikte hemen
+  /// başlar; not dosya adı, sayfa, alıntı (PDF'te seçili metin) ve dosyayı
+  /// yeniden açan bağlantıyla Notlar'a gider.
+  Future<void> _voiceNote(LoadedDoc doc) async {
+    final str = AppStrings.of(context);
+    final lang = switch (str.language) {
+      AppLanguage.en => 'en-US',
+      AppLanguage.ar => 'ar',
+      _ => 'tr-TR',
+    };
+    try {
+      final spoken =
+          await Dictation.listen(lang: lang, prompt: str.t('vn.prompt'));
+      if (spoken == null || !mounted) return;
+      final isPdf = doc.kind == DocKind.pdf;
+      await VoiceNote.send(VoiceNote.compose(
+        spoken: spoken,
+        path: doc.path,
+        page: isPdf ? _pdfPage : null,
+        quote: isPdf ? _pdfSelection : null,
+      ));
+    } on DictationUnavailable {
+      if (mounted) showSnack(context, str.t('wp.dictate_unavailable'));
+    } catch (e) {
+      if (mounted) showSnack(context, userErrorText(e));
+    }
+  }
+
   /// Sesli okumayı başlatır/duraklatır. Metin belgenin kendi metnidir; taranmış
   /// PDF'te önce "Metni tanı (OCR)" gerekir (metin katmanı yoksa okunacak şey
   /// yok — kullanıcıya söylenir).

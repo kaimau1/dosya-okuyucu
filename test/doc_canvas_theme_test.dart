@@ -75,4 +75,18 @@ void main() {
     final html = File('assets/word/viewer.html').readAsStringSync();
     expect(html, contains('window.setCanvas = function (bg, page, frame)'));
   });
+
+  test('gece kipi (A9.2): js setNight ekler, setCanvas sıfırlar', () {
+    const day = DocxCanvas(background: Color(0xFF101010));
+    final night = day.withNight(true);
+    expect(day.js, isNot(contains('setNight')));
+    expect(night.js, endsWith('; setNight(true)'));
+    expect(night, isNot(day));
+    expect(night.withNight(false), day);
+    final html = File('assets/word/viewer.html').readAsStringSync();
+    expect(html, contains('window.setNight = function (on)'));
+    expect(html, contains('window.setNight(false);'));
+    // PDF kâğıt zemini: çarpma kipi (beyaz → kâğıt, siyah aynı).
+    expect(PdfPageFrame.paperTint.blendMode, BlendMode.multiply);
+  });
 }

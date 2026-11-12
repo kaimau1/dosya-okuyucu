@@ -17,128 +17,30 @@
 
 | Faz | Ortam | Bölümler | Tahmini |
 |---|---|---|---|
-| **A** | ☁️ bulut | A1 hijyen · A3 bağımlılık tazeleme · A4 kod sağlığı · A5 iş sonucu sayfası · A6 Play/gizlilik metinleri + Pro iskeleti · A7 eksik özellikler · A8 ölçüm altyapısı · A9 isteğe bağlı | 5–7 oturum |
+| **A** | ☁️ bulut | kod işleri bitti (2026-11-12); kalan A1.2 dal temizliği + A9.1 levha birliği — kullanıcı onayıyla | — |
 | **B** | 📱💻👤 | B1 yerel küçük işler · B2 cihaz turu · B3 cihaza bağlı takip · B4 Office uyumluluk · B5 hesap/karar · B6 sürüm adayı | 1–2 cihaz oturumu + hesap işleri |
 
 ---
 
 ## Faz A — Bulutta yapılabilenler ☁️
 
-**Ortak "bitti":** `flutter analyze` 0 · `flutter test` yeşil (Flutter **3.44.6**) ·
-cihazla doğrulanacak yeni şey `docs/CIHAZ_TESTI.md`'de · HAFIZA'ya tarihli kayıt ·
-bu dosyadan madde silindi · main'e birleşti, CI yeşil. `ci/*.kt` değiştiyse
-`tool/check_kotlin.sh`. **`dart format` KOŞTURMA** (HAFIZA tuzakları).
+**Ortak "bitti":** `flutter analyze` 0 · `flutter test` yeşil · cihazla doğrulanacak yeni
+şey `docs/CIHAZ_TESTI.md`'de · HAFIZA'ya tarihli kayıt · bu dosyadan madde silindi ·
+main'e birleşti, CI yeşil. **`dart format` KOŞTURMA** (HAFIZA tuzakları).
 
-**Sıra:** A1 → A3 → A4 → A5 → A6 → A7 → A8 → (A9 isteğe bağlı). A3 tek başına bir
-oturum (riskli); A4, A5+A6, A7, A8 ayrı ayrı. (A2 ve A1.3, A3.5, A4.5, A6.1–A6.4, A7.3,
-A7.6, A7.7 2026-11-02'de bitti — HAFIZA.)
+**2026-11-12: Faz A'nın kod işleri bitti** (A3, A4.1b, A4.2–A4.4, A5, A6.5–A6.6, A7, A8.1,
+A9.2, A10 bizim taraf — HAFIZA "Faz A kapanışı"). Kalan iki madde YALNIZ kullanıcı onayı/izniyle
+yürüyebiliyor:
 
-### A1 — Depo ve belge hijyeni (kısa, ilk iş)
-
-- [ ] **A1.2 Uzak dalları temizle (kullanıcı izniyle).** **2026-11-12 yeniden sayım (tam geçmişle):** 114 dal; 94'ü main'e TAM girmiş (91'i 24 saatten eski — silinmeye hazır, otomatik silme izinle engellendi), 19'unda main'de olmayan 1–12 commit (faz-54, faz-G0/G1/G2, dependabot ×3, eski `claude/*` ×7 …) — tek tek bakılmalı. Eski not: main dışında 64 uzak dal var:
-      16'sı main'e tam girmiş; 46'sının main'le ortak atası yok (main'in geçmişi bir ara
-      yeniden yazılmış — içerikleri main'de); `ccr-4fb1643b-cvg3t7` #52 ile squash girmiş;
-      `ccr-0ba9d97d-1mtuwm` 2026-11-01'de birleştirildi.
-      CLAUDE.md kuralı "iş main'e girince uzak dal silinir"; Faz 0'da silme izinle
-      engellenmişti. Önce yeniden say (`git for-each-ref refs/remotes/origin` +
-      `git rev-list --count origin/main..<dal>` + `git merge-base`), o an süren oturum
-      dalları HARİÇ sil. **Bitti:** `git ls-remote --heads origin` yalnız `main` +
+- [ ] **A1.2 Uzak dalları temizle (👤 izin).** 114 dal; 94'ü main'e tam girmiş, 19'unda main'de
+      olmayan 1–12 commit (faz-54, faz-G0/G1/G2, dependabot ×3, eski `claude/*` ×7 …). Bulut
+      oturumunun git vekili oturum dalı dışındaki dalları silmeye 403 veriyor → GitHub arayüzünden
+      ya da yerel `git push --delete`. **Bitti:** `git ls-remote --heads origin` yalnız `main` +
       süren oturum dalları.
-
-### A3 — Bağımlılık tazeleme (Flutter 3.29 dönemi sabitleri) — tek başına bir oturum
-
-CI 2026-10-21'den beri Flutter 3.44.6, ama pubspec'te "3.29.3 / Dart 3.7 uyumlu son
-sürüm" diye sabitlenmiş paketler ve onlara karşı yazılmış geçici çözümler duruyor.
-Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu bütçesi
-(CI) geçmeli; cihazda bakılacaklar `CIHAZ_TESTI.md`'ye.
-
-### A4 — Kod sağlığı (Faz 3/5/12'nin kalıntıları)
-
-- [ ] **A4.1b (isteğe bağlı) 1000+ satırlı widget/denetleyiciler:** `pdf_editor/layer.dart` 1156,
-      `widgets/fm/media_resize_sheet.dart` 1150, `widgets/pdf_select_layer.dart` 1062, `docx_edit_controller.dart`
-      1045, `docx_editor_view.dart` 1030, `editors/spreadsheet/entry.dart` 1003. (Ekranlar 2026-11-02'de < 800.)
-- [x] **A4.2 `AppState` (989 satır):** Faz 3'te ayrılmayan Browse / Clipboard / Remotes /
-      AI bildiricileri ayrı `ChangeNotifier`'lara; yalnız ilgili ekran izlesin
-      (`root_rebuild_test` yöntemiyle yeniden çizim sayısı testi).
-      **2026-11-12:** Pano (`ClipboardState`), uzak bağlantılar (`RemotesState`), AI hafızası
-      (`AiMemoryState`) ayrıldı (`core/state/focused_states.dart`; testi `root_rebuild_test`).
-      Aynı gün: göz atma tercihleri (`BrowseState`) ve AI ayarları (`AiState`) da ayrıldı;
-      okuyan ekranlar `context.watchBrowse()` / `watchAi()` (select kullananlar `dependOn…`).
-- [x] **A4.3 Boş `catch`** (2026-11-11: 191 → 12; 2026-11-12: 12 → 0). Hepsi gerekçeli
-      `// Bilinçli: …` yorumu aldı; bekçi `test/empty_catch_ratchet_test.dart` tavan **0**.
-- [~] **A4.4 Ekran/widget kodunda senkron G/Ç** (2026-11-11: 87 → 44; 2026-11-12: → 30 → 26; bekçi
-      `test/sync_io_ratchet_test.dart` tavan 26, yalnız iner). Kalan 26: `build` içi tek
-      `stat`ler (önbellek gerekir: galeri bilgi satırı, işler boyutu, klasör seçici kısayolları,
-      SD birleşik çipleri, arşiv başlığı), editör açılışı (sahte saat tuzağı, bilinçli),
-      izolattaki okuma, PDF dosyaları (Faz 54'le çakışmasın diye dokunulmadı).
-
-### A5 — İş sonucu sayfası her işte (`recordChanges`)
-
-- [ ] Bugün **AI etiketleme**, **taşı/kopyala**, **toplu yeniden adlandır** (Adları geri al)
-      ve **çöpe taşı** (Geri yükle) dosya dosya değişiklik yazıyor (`TrackedTask.recordChanges`,
-      `jobChangesOf`, `renamedChange`; 2026-11-02).
-      Bağlanacak: görsel/video boyutlandırma
-      ve küçültme (çıktı + "özgünü çöpe at"), kalıcı sil, arşive ekle / çıkar,
-      AI ile kategorilere ayır uygulaması, AI düzenleme, SD birleşik "Şimdi taşı", sohbet
-      temizliği. **2026-11-11:** kalıcı sil (`delete`, `FmOpResult.deleted`) ve `showFmProgress<String>`
-      ile ÜRETİLEN her şey (arşive ekle, arşivden çıkar, APK dışa aktar, indirme … → `create`,
-      `createdChangeOf`; sayfada "Çöp kutusuna at" → `trash` olur, "Geri yükle" çalışır) bağlandı.
-      **2026-11-12:** akıllı temizlik (kuyruk işi → `JobHandle.addChanges`, çöpe atılanlar `trash`)
-      bağlandı. Zaten bağlıymış: AI kategorilere ayır (= `showAiTagFlow`, etiket kaydı), sohbet
-      temizliği (`ChatJunkBucketScreen` → `deleteEntries` → `showFmProgress<FmOpResult>`).
-      Bilinçli kalan: boyutlandırma/küçültme kartı karşılaştırma sayfasını açar (özgün ↔ yeni + sil/tut —
-      rapor sayfasından zengin). Kalan: SD "Şimdi taşı" (yerel WorkManager işi yol listesi
-      döndürmüyor → Kotlin), "AI düzenleme" (kodda karşılığı bulunamadı — ne kastedildiği belirsiz). **Bitti:** her işin kartından `JobReportScreen` açılıyor; geri
-      alınabilenlerde "Geri al" çalışıyor; her iş için test.
-
-### A6 — Play, gizlilik ve mağaza metinleri + Pro iskeleti
-
-- [x] **A6.5 Pro / Billing iskeleti** — DÜŞTÜ (SÜRÜM PLANI 2026-11-10: Pro ayrı ücretli uygulama,
-      Billing kodu yok). Yerine sürüm kapısı S1–S3 (2026-11-12, `core/edition.dart`, `widgets/pro_gate.dart`).
-- [ ] **A6.6 Play İçi Değerlendirme + Uygulama İçi Güncelleme** (N5): yalnız Play
-      derlemesinde (bayrak); Kotlin + `check_kotlin.sh`.
-
-### A7 — Eksik özellikler (kod + test bulutta; his cihazda)
-
-- [x] **A7.1 Çift bölme (dual pane):** (Faz 41 madde 1, `dual_pane_screen.dart`) tablette/yatayda iki klasör yan yana, sürükle-bırak
-      taşı/kopyala, etkin bölme vurgusu. Bugün ≥ 840 dp'de yalnız sol kısayol paneli var
-      (`browser_screen.dart` `_sidePane`).
-- [x] **A7.2 SD karta SAF ile yazma:** (Faz 41 madde 1, `saf_write.dart`; (b)/(c) eşikleri ayrıca bakılmadı) yol üzerinden yazılamayan kartta ağaç izni akışı
-      (`ACTION_OPEN_DOCUMENT_TREE`, kalıcı izin), `FileOps`'ta SAF yazma yolu; SD birleşik
-      depolamanın `sd_readonly` uyarısı buna bağlanır. Aynı turda SD birleşik **(b)**
-      "ana bellek %X'i aşınca" eşiği ve **(c)** serbest klasör seçimi (bugün yalnız
-      Android'in standart ortak klasörleri).
-- [x] **A7.4 Görüntüye çevirerek PDF sıkıştırma (agresif kip):** (Faz 39 madde 7, 2026-11-05) eski engel "cihazda JPEG
-      kodlayıcı yok" kalktı (Faz 14b: Android `Bitmap.compress`, `image` paketi). Ayrı ve
-      açıkça uyaran seçenek (metin katmanı kaybolur; isteğe bağlı OCR katmanı), DPI/kalite
-      seçimi; `pdf_tools.dart:304` yorumu güncellenir.
-- [x] **A7.5 Excel koşullu biçim yazma:** renk ölçeği / veri çubuğu / simge kümesi bugün (Faz 36 madde 2, 2026-11-05)
-      yalnız okunup çiziliyor; "Koşullu biçimlendirme" levhasına eklenir (`<cfRule>` +
-      `<colorScale>/<dataBar>/<iconSet>`), LibreOffice ile gidiş-dönüş testi.
-
-### A8 — Ölçüm altyapısı (bulut kısmı; koşusu B2'de)
-
-- [x] **A8.1 `integration_test` senaryoları** (Faz 42 / 6, 2026-11-06: `integration_test/perf_senaryolari_test.dart` + `tool/perf_senaryo.sh`; koşu B2) (FAZ_PLANI Faz 4 P13 — hiç yazılmadı):
-      soğuk açılış, 5.000 öğeli klasörde kaydırma + sürükleyerek seçim, 2.000 fotoğraflı
-      galeri, 100 sayfalık PDF, 10 bin satırlık Excel, Word 1000 paragraf yazma;
-      `traceAction` özeti → `docs/perf/`. Veri `tool/make_test_tree.py`. Koşu:
-      `flutter drive --profile` (B2).
-- [~] **A8.2 Açılışın ilk 0,5 sn'si:** (2026-11-12: büyük AI indeksi ayrı izolatta, kanca `ACILIS ai-index`; pano `initState`'teki geri kalanlar SharedPreferences/meta okuması — ucuz; doğrulama B2.) ilk kare raster 218–309 ms (Impeller ve Skia), pano
-      build 45–49 ms. Pano ilk kurulumunda `StartupQueue`'ya ertelenebilecek işleri kodda
-      bul ve ertele (her biri ölçüm kancasıyla); doğrulama B2 (`_logSlowStartupFrames`).
-
-### A9 — İsteğe bağlı (görsel fark riski)
-
-- [ ] **A9.1 Levha/pencere birliği:** ~55 `showModalBottomSheet` ve ~58 `showDialog`
-      çağrısı (2026-11-01 sayımı, ortak bileşenlerin kendi içi dahil) →
-      `showAppSheet` / `showAppActionSheet` / `showAppConfirm` / `showAppPrompt`. Her levha
-      için önce/sonra PNG (`tool/design_shots_*`), kullanıcı onayıyla parti parti; son
-      bakış B2.
-
-- [ ] **A9.2 Belge gece kipi ve PDF kâğıt zemini** (A7.6/A7.7 kalanı, 2026-11-02): koyu temada
-      Word kanvası artık koyu ama sayfa beyaz; isteğe bağlı "gece kipi" (PDF'teki gibi ters
-      renk, `viewer.html` CSS `filter`). PDF'te kâğıt temasında yalnız çerçeve var — sayfanın
-      içi pdfium beyazı (pdfrx 2.12'de `render(backgroundColor:)` var — Faz 48 sonrası yapılabilir).
+- [ ] **A9.1 Levha/pencere birliği (👤 parti parti onay, görsel fark riski):** 51
+      `showModalBottomSheet` + 54 `showDialog` (2026-11-12 sayımı) → `showAppSheet` /
+      `showAppConfirm` / `showAppPrompt`. Her parti için önce/sonra PNG (`tool/design_shots_*`),
+      kullanıcı onayı; son bakış B2.
 
 ---
 
@@ -220,6 +122,8 @@ Plan: `docs/GUVENLIK_PLANI.md` (G0–G12; sıra ve açılış istemi orada). Pla
 
 ### B2 — Cihaz turu 📱 (FAZ_PLANI 12b + DUZENLEME 33 cihaz kısmı + Faz 4 ölçümleri)
 
+- [ ] **A8.2 doğrulaması:** soğuk açılışta `ACILIS ai-index` izolatta, ilk kare raster
+      < 218 ms hedefi (`_logSlowStartupFrames`); pano `initState` artığı ucuz mu.
 - [ ] **`docs/CIHAZ_TESTI.md`'yi baştan sona geç** (2026-11-01 ilk tur tek telefonla, ADB:
       §1'de CPU/RAM/açılış dolu; açılış duman testi, QR gönderim, odak, parola, FTP, seçici kipi geçti. Elle/donanımla
       yapılacak bölümler duruyor). En az iki telefon (biri düşük
@@ -279,6 +183,10 @@ Plan: `docs/GUVENLIK_PLANI.md` (G0–G12; sıra ve açılış istemi orada). Pla
 
 ### B5 — Hesap ve kararlar 👤 (Faz 11b)
 
+- [ ] **OpenSubtitles:** depoya `OPENSUBTITLES_API_KEY` secret'ı (yoksa altyazıda "İnternette ara" gizli; A11'den).
+- [ ] **Sesli not Notlar tarafı (A10, Notlar deposu):** Dosya Okuyucu notu ACTION_SEND ile konu
+      "Dosyalar" olarak gönderiyor; Notlar'da bu konuyu "Dosyalar" klasörüne koyan alıcı ve
+      istenirse doğrudan köprü (`kopru.xml` knownCerts'e Dosya Okuyucu release sertifikası).
 - [ ] **B5.1 Play Console:** geliştirici hesabı; `v*` etiketinin AAB'si iç test kanalına —
       inceleme uyarısız yayımlanıyor mu. Formlar: veri güvenliği (A6.2 metni), izin
       beyanları + videolar (A6.1 senaryoları), içerik derecelendirme, hedef kitle, ön plan
@@ -315,21 +223,6 @@ Plan: `docs/GUVENLIK_PLANI.md` (G0–G12; sıra ve açılış istemi orada). Pla
       B2'de açık kırmızı 0, B5 tamam.
 
 ---
-
-### A11 — Dosya seçici: süzgeç + sade ana sayfa
-
-(2026-11-03'te yapıldı — HAFIZA; telefonda bakış CIHAZ_TESTI §16.)
-
-- [ ] OpenSubtitles: depoya `OPENSUBTITLES_API_KEY` secret'ı eklenecek (👤; yoksa "İnternette ara" gizli).
-
-### A10 — Kişisel sürümde sesli not (Asistan yerine; Harita KALANLAR "Asistan'sız ses planı" Faz D)
-
-- [ ] **Görüntüleyicide 🎤 not düğmesi, yalnız kişisel sürüm (`DOSYA_KISISEL=1`).** Basınca dikte hemen başlar
-      (Harita/Kanallarım `Dictation` kuralları: ~3,5 sn sessizlik ya da "tamam" bitirir, "iptal" vazgeçer), not Notlar'ın
-      "Dosyalar" klasörüne gider: dosya adı, sayfa no, görünen pasajdan alıntı, dosyayı yeniden açan `file:` bağlantısı.
-      Kotlin köprü `ci/kisisel/`'de (prepare_android.sh 3b kopyalar), Dart düğmesi method channel ile, `RECORD_AUDIO`
-      yalnız kişisel manifestte. **Bitti ölçütü:** CI genel APK'da mikrofon izni ve köprü olmadığını denetler;
-      Notlar `kopru.xml` knownCerts'e Dosya Okuyucu release sertifikası eklendi; telefonda not "Dosyalar"a düşüyor.
 
 ## Bilinçli kapsam dışı / paket sınırı (yapılmayacak — kayıt için)
 

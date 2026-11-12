@@ -1473,6 +1473,23 @@
         '; border-radius: 4px; box-shadow: none !important; }';
     }
     st.textContent = css;
+    window.setNight(false);
+  };
+
+  // Gece kipi (KALANLAR A9.2): sayfa terslenir, görseller özgün renginde
+  // kalsın diye ikinci kez terslenir. setCanvas her çağrıda sıfırlar.
+  window.setNight = function (on) {
+    var st = document.getElementById('nightStyle');
+    if (!st) {
+      st = document.createElement('style');
+      st.id = 'nightStyle';
+      document.head.appendChild(st);
+    }
+    st.textContent = on
+      ? '.docx-wrapper > section.docx { filter: invert(1) hue-rotate(180deg); }' +
+        ' .docx-wrapper > section.docx img, .docx-wrapper > section.docx svg image,' +
+        ' .docx-wrapper > section.docx canvas { filter: invert(1) hue-rotate(180deg); }'
+      : '';
   };
 
   window.setDocDir = function (rtl) {

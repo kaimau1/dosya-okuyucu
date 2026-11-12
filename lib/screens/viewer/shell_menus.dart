@@ -192,6 +192,9 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                   _showStats),
           ]),
         DocMoreGroup(context.t('dm.convert'), [
+          if (VoiceNote.enabled)
+            DocMoreItem(AppIcons.micNone, context.t('vn.title'),
+                () => unawaited(_voiceNote(doc))),
           if (_ttsTotal == 0)
             DocMoreItem(AppIcons.voice, context.t('vw.speak'),
                 _toggleSpeech),

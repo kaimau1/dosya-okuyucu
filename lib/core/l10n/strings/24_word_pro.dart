@@ -91,6 +91,8 @@ const Map<String, (String, String, String)> _t24 = {
 
   // Madde 6
   'wp.dictate': ('Sesle yaz', 'Dictate', 'إملاء صوتي'),
+  'vn.title': ('Sesli not', 'Voice note', 'ملاحظة صوتية'),
+  'vn.prompt': ('Konuşun — not Notlar\'a gidecek', 'Speak — the note goes to Notes', 'تحدث — ستُرسل الملاحظة إلى الملاحظات'),
   'wp.dictate_prompt': ('Konuşun — imleç yerine yazılacak', 'Speak — text goes at the cursor', 'تحدث — يُكتب النص عند المؤشر'),
   'wp.dictate_unavailable': ('Cihazda konuşma tanıma yok (Google uygulaması gerekli)', 'No speech recognizer on this device', 'لا يوجد تعرف على الكلام في هذا الجهاز'),
   'wp.ai_inline': ('AI ile yaz', 'Write with AI', 'الكتابة بالذكاء الاصطناعي'),

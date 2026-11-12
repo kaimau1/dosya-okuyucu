@@ -53,6 +53,7 @@ import 'fm/pick_file_screen.dart';
 part 'pdf_editor/actions.dart';
 part 'pdf_editor/views.dart';
 part 'pdf_editor/layer.dart';
+part 'pdf_editor/layer_objects.dart';
 
 /// **Tek PDF düzenleme ekranı** — metin, görsel, filigran ve sayfa işlerinin
 /// hepsi burada (2026-07-27 kullanıcı isteği: *"tüm bu işler tek bir pdf

@@ -350,7 +350,10 @@
   "durations": 2
  },
  "lib/widgets/fm/fm_entry_icon.dart": {
-  "hex_colors": 20,
+  "hex_colors": 19
+ },
+ "lib/widgets/fm/fm_entry_thumbs.dart": {
+  "hex_colors": 1,
   "font_size": 1
  },
  "lib/widgets/fm/fm_fast_scroller.dart": {
@@ -409,8 +412,10 @@
   "dialogs": 1
  },
  "lib/widgets/pdf_select_layer.dart": {
-  "hex_colors": 1,
   "durations": 5
+ },
+ "lib/widgets/pdf_select_layer_chrome.dart": {
+  "hex_colors": 1
  },
  "lib/widgets/quick_sheets.dart": {
   "sheets": 1

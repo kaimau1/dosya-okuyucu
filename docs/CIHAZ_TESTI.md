@@ -941,3 +941,11 @@ Belgeler: `rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `rl_cok_sayfa.pdf`, `rl_si
 3. SMB: Windows/Samba (SMB2+) eskisi gibi bağlanır. Yalnız SMB1 açık eski bir NAS'ta "Eski SMB1 protokolü" uyarısı; "Yine de bağlan" → bağlanır ve bir daha sormaz.
 4. Yakındakiler → tarayıcı adresine dokun (kopyala) → 60 sn sonra pano boş.
 
+
+## Faz A kapanışı — A5 / A6.6 / A9.2 / A10 (2026-11-12, main)
+1. SD birleşik → "Şimdi taşı": iş bitince İşlemler'de kart; dokun → taşınan dosyalar listesi (klasöre göre); "Geri al" dosyaları ana belleğe döndürür. Kopyala kipinde liste "kopyalandı".
+2. PDF → Düzenle → AI ile düzenle → Kaydet (kopya): İşlemler'de "AI ile düzenlendi" kaydı; içinden dosya açılır / taşınır. Üzerine yazmada kayıt yalnız listeler.
+3. Word sayfa görünümü → ⋮ → "Gece modu": sayfa koyu, yazı açık, görseller ÖZGÜN renginde; uygulamayı kapatıp açınca tercih kalır; tema değişince bozulmaz.
+4. Kil (kâğıt) teması, açık mod: PDF sayfasının içi krem (`#FBF8F1`), yazı siyah; gece/sepya açılınca eskisi gibi.
+5. Kişisel derleme (`[kisisel]`): görüntüleyici → Daha fazla → "Sesli not" → konuş → paylaşım sayfasında Notlar → not "Dosyalar" konusuyla, dosya adı + sayfa + (PDF'te seçili metin) + `file://` bağlantısıyla düşer. Genel APK'da satır YOK.
+6. Play AAB (elle `aab` + `play` girdisiyle, iç test kanalı): Play'den kurulu sürümde 15 dosya açıp 5 gün sonra değerlendirme penceresi (Play kotası izin verirse); yeni sürüm yüklenince açılışta esnek güncelleme, inince "Güncelleme indirildi · Yeniden başlat". Play derlemesinde GitHub güncelleme satırı/şeridi YOK.

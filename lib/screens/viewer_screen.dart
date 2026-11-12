@@ -69,6 +69,8 @@ import '../services/pdf_notes.dart';
 import '../services/pdf_reload.dart';
 import '../services/pdf_tools.dart';
 import '../services/tts_service.dart';
+import '../services/dictation.dart';
+import '../services/voice_note.dart';
 import '../widgets/office_ribbon.dart' show OfficeIcons;
 import '../widgets/download_action.dart';
 import '../widgets/tracked_busy.dart';
@@ -105,6 +107,7 @@ import 'pdf_tools_screen.dart';
 import '../core/snack.dart';
 import '../core/safe_insets.dart';
 import '../core/user_error.dart';
+import '../core/l10n/app_language.dart';
 
 import '../core/app_haptics.dart';
 import 'audiobook/audiobook_screen.dart';

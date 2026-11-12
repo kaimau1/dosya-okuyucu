@@ -60,6 +60,7 @@ import 'package:printing/printing.dart' show Printing;
 import 'package:shared_preferences/shared_preferences.dart';
 
 part 'word_mobile/word_pro.dart';
+part 'word_mobile/word_pro_sheets.dart';
 
 /// **Word Mobil görünüm editörü** (Faz 22, K18 = b-ii).
 ///
