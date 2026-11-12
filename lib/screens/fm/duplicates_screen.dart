@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../widgets/fm/fm_entry_tiles.dart';
 import 'package:path/path.dart' as p;
-import 'package:provider/provider.dart';
 
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
-import '../../core/app_state.dart';
 import '../../core/state/focused_states.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';

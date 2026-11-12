@@ -32,6 +32,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
+import '../../core/state/focused_states.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
 import '../../core/theme.dart';
