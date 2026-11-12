@@ -7,6 +7,8 @@ import '../../core/theme.dart';
 import '../motion.dart';
 import '../../core/device_profile.dart';
 import '../../core/app_colors.dart';
+import '../../core/edition.dart';
+import '../pro_gate.dart';
 import 'fm_tile_art.dart';
 
 export 'fm_tile_art.dart' show FmTileArt;
@@ -37,6 +39,10 @@ class FmTileData {
   /// bkz. [FmSquircleIcon]. Yoksa [icon] glifi çizilir.
   final FmTileArt? art;
 
+  /// Sürüm kapısı (S2): verilirse ve bu sürümde yoksa kutu "PRO" rozetli
+  /// çizilir, dokunma Pro levhasını açar (bkz. [ProGate]).
+  final Feature? feature;
+
   const FmTileData({
     required this.icon,
     required this.color,
@@ -46,7 +52,16 @@ class FmTileData {
     this.id = '',
     this.pulse = false,
     this.art,
+    this.feature,
   });
+
+  /// Kapıdan geçmiş dokunma: sürümde yoksa Pro levhası.
+  VoidCallback gatedTap(BuildContext context) =>
+      feature == null ? onTap : ProGate.wrap(context, feature!, onTap);
+
+  /// Kilitliyse simgeyi rozetler.
+  Widget badged(Widget icon) =>
+      feature == null ? icon : ProBadged(feature: feature!, child: icon);
 
   /// Yalnız dokunmayı saran kopya (pano, sayacı artırmak için kullanır).
   FmTileData withTap(VoidCallback onTap) => FmTileData(
@@ -58,6 +73,7 @@ class FmTileData {
         id: id,
         pulse: pulse,
         art: art,
+        feature: feature,
       );
 }
 
@@ -299,14 +315,15 @@ class FmCategoryTile extends StatelessWidget {
     // Basınca hafifçe çöker (iOS dokunsal hissi — bkz. widgets/motion.dart).
     return PressScale(
       child: InkWell(
-        onTap: data.onTap,
+        onTap: data.gatedTap(context),
         borderRadius: BorderRadius.circular(Radii.card),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: Gap.sm, horizontal: 2),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              data.pulse ? _PulsingIcon(key: pulseKey, child: icon) : icon,
+              data.badged(
+                  data.pulse ? _PulsingIcon(key: pulseKey, child: icon) : icon),
               const SizedBox(height: Gap.xs),
               // Yazı bir kademe küçük ve ince (2026-11-04: "ekran nefes
               // alsın").
@@ -436,7 +453,7 @@ class FmToolGrid extends StatelessWidget {
                 dark ? Color.lerp(tool.color, AppColors.mixLight, 0.3)! : tool.color;
             return PressScale(
               child: InkWell(
-                onTap: tool.onTap,
+                onTap: tool.gatedTap(context),
                 borderRadius: BorderRadius.circular(Radii.control),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -450,11 +467,11 @@ class FmToolGrid extends StatelessWidget {
                       // 26 → 34 (kullanıcı 2026-08-17); içerik kutularının
                       // 46'sından bir kademe küçük kalıyor, ağırlık hiyerarşisi
                       // korunuyor.
-                      FmTintedIcon(
+                      tool.badged(FmTintedIcon(
                         icon: tool.icon,
                         color: tint,
                         size: 34 * context.fmIconScale,
-                      ),
+                      )),
                       const SizedBox(height: Gap.xs),
                       // `Flexible`: hesaplanan yükseklik yine de yetmezse metin
                       // taşmak yerine kırpılır — ızgara hiçbir ölçekte kırmızı

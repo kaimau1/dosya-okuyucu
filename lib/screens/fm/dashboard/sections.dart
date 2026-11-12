@@ -393,7 +393,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
       // aynısı); ölçüm "Kullanım erişimi" iznine bağlı olduğu için izin yokken
       // sayı UYDURULMAZ, alt satır boş bırakılır.
       // Okuyucu derlemesinde QUERY_ALL_PACKAGES yok → liste eksik olur, kutu gizli.
-      if (!StoragePermission.readerBuild)
+      if (Edition.current.has(Feature.installedApps))
       FmTileData(
         id: 'apps',
         icon: AppIcons.android,

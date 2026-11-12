@@ -8,8 +8,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/app_version.dart';
+import '../core/edition.dart';
 import 'fm/native_extras.dart';
-import 'fm/storage_permission.dart';
 import 'offline_mode.dart';
 
 /// GitHub'daki en son sürüm (yalnız bizim APK'mız).
@@ -269,7 +269,7 @@ abstract final class AppUpdate {
       !kIsWeb &&
       Platform.isAndroid &&
       appVersionPatch > 0 &&
-      !StoragePermission.readerBuild;
+      Edition.current.has(Feature.selfUpdate);
 
   /// En son sürümü sorar; bu kurulumdan yeni değilse null.
   static Future<AppUpdateInfo?> check() async {
