@@ -257,6 +257,19 @@ class VoiceServer {
     if (c != null && !c.isCompleted) c.completeError(error);
   }
 
+  /// Bir ses çıktısının en büyük boyu (24 kHz 16 bit mono ≈ 46 dk).
+  static const maxOutputBytes = 64 * 1024 * 1024;
+
+  /// Host başlığı yalnız `127.0.0.1:<port>` / `localhost:<port>`.
+  static bool hostAllowed(String? host, int port) =>
+      host == '127.0.0.1:$port' || host == 'localhost:$port';
+
+  /// POST'ta Origin yoksa (Dart istemcisi) ya da motor sayfasının kökeniyse.
+  static bool originAllowed(String? origin, int port) =>
+      origin == null ||
+      origin == 'http://127.0.0.1:$port' ||
+      origin == 'http://localhost:$port';
+
   static const _types = {
     '.html': 'text/html; charset=utf-8',
     '.js': 'text/javascript; charset=utf-8',
@@ -273,11 +286,36 @@ class VoiceServer {
       ..set('Cross-Origin-Resource-Policy', 'same-origin')
       ..set('Cache-Control', 'no-store');
     try {
+      // G6.5 (2026-11-12): DNS yeniden bağlama (rebinding) — tarayıcıdaki bir
+      // site `evil.com`u 127.0.0.1'e çözdürüp buraya istek atabilir; Host
+      // başlığı yine `evil.com` olur → 403. Sonuç POST'u da yalnız motor
+      // sayfasının kökeninden (Origin yoksa ya da aynıysa).
+      if (!hostAllowed(req.headers.value(HttpHeaders.hostHeader), port) ||
+          (req.method == 'POST' &&
+              !originAllowed(req.headers.value('origin'), port))) {
+        res.statusCode = 403;
+        await res.close();
+        return;
+      }
       final path = Uri.decodeComponent(req.uri.path);
       if (req.method == 'POST' && path.startsWith('/out/')) {
         final job = path.substring(5);
-        final bytes = await req.fold<BytesBuilder>(
-            BytesBuilder(copy: false), (b, d) => b..add(d));
+        // Yalnız beklenen iş için gövde okunur; tavan 64 MB (≈ 20 dk ses).
+        if (!_outputs.containsKey(job) ||
+            req.contentLength > maxOutputBytes) {
+          res.statusCode = req.contentLength > maxOutputBytes ? 413 : 404;
+          await res.close();
+          return;
+        }
+        final bytes = BytesBuilder(copy: false);
+        await for (final d in req) {
+          bytes.add(d);
+          if (bytes.length > maxOutputBytes) {
+            res.statusCode = 413;
+            await res.close();
+            return;
+          }
+        }
         _outputs.remove(job)?.complete(bytes.toBytes());
         res.statusCode = 204;
         await res.close();

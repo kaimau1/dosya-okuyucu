@@ -46,6 +46,41 @@ void main() {
     c.close();
   });
 
+  test('G6.5: yabancı Host / Origin reddedilir, beklenmeyen iş 404', () async {
+    final server = await VoiceServer.start(root.path);
+    addTearDown(server.close);
+    final port = server.port;
+    expect(VoiceServer.hostAllowed('127.0.0.1:$port', port), isTrue);
+    expect(VoiceServer.hostAllowed('localhost:$port', port), isTrue);
+    expect(VoiceServer.hostAllowed('evil.com:$port', port), isFalse);
+    expect(VoiceServer.hostAllowed(null, port), isFalse);
+    expect(VoiceServer.originAllowed(null, port), isTrue);
+    expect(VoiceServer.originAllowed('http://127.0.0.1:$port', port), isTrue);
+    expect(VoiceServer.originAllowed('http://evil.com', port), isFalse);
+
+    final c = HttpClient();
+    addTearDown(() => c.close(force: true));
+    final rebind = await c.getUrl(Uri.parse('${server.origin}/engine.html'));
+    rebind.headers.set(HttpHeaders.hostHeader, 'evil.com:$port');
+    final r1 = await rebind.close();
+    expect(r1.statusCode, 403);
+    await r1.drain<void>();
+
+    server.expect('j2').ignore();
+    final foreign = await c.postUrl(Uri.parse('${server.origin}/out/j2'));
+    foreign.headers.set('origin', 'http://evil.com');
+    foreign.add([1]);
+    final r2 = await foreign.close();
+    expect(r2.statusCode, 403);
+    await r2.drain<void>();
+
+    final unknown = await c.postUrl(Uri.parse('${server.origin}/out/yok'));
+    unknown.add([1]);
+    final r3 = await unknown.close();
+    expect(r3.statusCode, 404);
+    await r3.drain<void>();
+  });
+
   test('kurulum: eksik dosyalar iner, EMA çalışanı yerel ORT\'ye çevrilir',
       () async {
     final client = MockClient.streaming((req, _) async {
