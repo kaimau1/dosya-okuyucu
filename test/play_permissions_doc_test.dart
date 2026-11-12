@@ -14,10 +14,13 @@ import 'package:flutter_test/flutter_test.dart';
 String _short(String name) => name.substring(name.lastIndexOf('.') + 1);
 
 final _usesPermission =
-    RegExp(r'<uses-permission(?:-sdk-23)?\s+[^>]*android:name="([^"]+)"');
+    RegExp(r'<uses-permission(?:-sdk-23)?\s+[^>]*android:name="([^"]+)"[^>]*>');
 
+/// `tools:node="remove"` ile birleştirmeden ÇIKARILAN izin APK'da yoktur,
+/// beyan gerekmez (G9.8: READ_PHONE_STATE, 2026-11-12).
 Set<String> _permissionsIn(String manifest) => {
-      for (final m in _usesPermission.allMatches(manifest)) _short(m.group(1)!)
+      for (final m in _usesPermission.allMatches(manifest))
+        if (!m.group(0)!.contains('tools:node="remove"')) _short(m.group(1)!)
     };
 
 /// Eklentilerin (`.dart_tool/package_config.json`) Android manifestlerinden
@@ -67,7 +70,9 @@ void main() {
     expect(
         _permissionsIn('<uses-permission android:name="android.permission.X"/>'
             '<uses-permission\n  android:name="com.a.permission.Y_Z"\n'
-            '  android:maxSdkVersion="32"/>'),
+            '  android:maxSdkVersion="32"/>'
+            '<uses-permission android:name="android.permission.R"\n'
+            '  tools:node="remove"/>'),
         {'X', 'Y_Z'});
   });
 }
