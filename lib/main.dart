@@ -17,6 +17,7 @@ import 'core/device_profile.dart';
 import 'core/startup_queue.dart';
 import 'widgets/permission_gate.dart';
 import 'core/state/appearance_state.dart';
+import 'core/state/focused_states.dart';
 import 'core/app_version.dart';
 import 'widgets/app_dialog.dart';
 import 'core/display_mode.dart';
@@ -499,6 +500,12 @@ class AppProviders extends StatelessWidget {
               value: appState.appearance),
           ChangeNotifierProvider<RecentsState>.value(
               value: appState.recentsState),
+          ChangeNotifierProvider<ClipboardState>.value(
+              value: appState.clipboardState),
+          ChangeNotifierProvider<RemotesState>.value(
+              value: appState.remotesState),
+          ChangeNotifierProvider<AiMemoryState>.value(
+              value: appState.memoryState),
         ],
         child: child,
       );

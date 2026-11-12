@@ -309,7 +309,10 @@ class _ImportantScreenState extends State<ImportantScreen> {
       ),
       floatingActionButton: !_exists
           ? null
-          : (appState.hasClipboard
+          // Pano ayrı bildirici (A4.2).
+          : ListenableBuilder(
+              listenable: appState.clipboardState,
+              builder: (context, _) => appState.hasClipboard
               ? FloatingActionButton.extended(
                   onPressed: _paste,
                   icon: const Icon(AppIcons.paste),

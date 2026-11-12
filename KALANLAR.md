@@ -57,9 +57,13 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
 - [ ] **A4.1b (isteğe bağlı) 1000+ satırlı widget/denetleyiciler:** `pdf_editor/layer.dart` 1156,
       `widgets/fm/media_resize_sheet.dart` 1150, `widgets/pdf_select_layer.dart` 1062, `docx_edit_controller.dart`
       1045, `docx_editor_view.dart` 1030, `editors/spreadsheet/entry.dart` 1003. (Ekranlar 2026-11-02'de < 800.)
-- [ ] **A4.2 `AppState` (989 satır):** Faz 3'te ayrılmayan Browse / Clipboard / Remotes /
+- [~] **A4.2 `AppState` (989 satır):** Faz 3'te ayrılmayan Browse / Clipboard / Remotes /
       AI bildiricileri ayrı `ChangeNotifier`'lara; yalnız ilgili ekran izlesin
       (`root_rebuild_test` yöntemiyle yeniden çizim sayısı testi).
+      **2026-11-12:** Pano (`ClipboardState`), uzak bağlantılar (`RemotesState`), AI hafızası
+      (`AiMemoryState`) ayrıldı (`core/state/focused_states.dart`; testi `root_rebuild_test`).
+      Kalan: Browse tercihleri (düzen/sıralama/gizli/yer imleri) ve AI anahtar/model/kapsam —
+      60+ yer `watch<AppState>` ile okuyor; her izleyici tek tek taşınmalı.
 - [x] **A4.3 Boş `catch`** (2026-11-11: 191 → 12; 2026-11-12: 12 → 0). Hepsi gerekçeli
       `// Bilinçli: …` yorumu aldı; bekçi `test/empty_catch_ratchet_test.dart` tavan **0**.
 - [~] **A4.4 Ekran/widget kodunda senkron G/Ç** (2026-11-11: 87 → 44; 2026-11-12: → 30 → 26; bekçi

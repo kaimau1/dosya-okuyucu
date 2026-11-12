@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
+import '../../core/state/focused_states.dart';
 import '../../core/motion.dart';
 import '../../core/theme.dart';
 import '../../models/fm_layout.dart';
@@ -343,30 +344,35 @@ class _BrowserScreenState extends State<BrowserScreen> {
             ),
         ],
       ),
-      floatingActionButton: _selecting ? null : _fab(appState),
+      // Pano ayrı bildirici (A4.2): kopyala/kes yalnız düğmeyi yeniden kurar,
+      // listeyi değil.
+      floatingActionButton: _selecting
+          ? null
+          : ListenableBuilder(
+              listenable: appState.clipboardState,
+              builder: (context, _) => _fab(appState.clipboardState)),
     );
   }
 
   /// Bağlamsal "+" (Faz 6 / U7): panoda öğe varsa düğme **"Yapıştır (3)"**
   /// olur (yanında küçük "vazgeç"); yoksa oluşturma levhasını açar.
-  Widget _fab(AppState appState) {
-    if (appState.hasClipboard) {
+  Widget _fab(ClipboardState clip) {
+    if (clip.hasItems) {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           FloatingActionButton.small(
             heroTag: 'fm.paste_cancel',
             tooltip: context.t('common.cancel'),
-            onPressed: appState.clearClipboard,
+            onPressed: clip.clear,
             child: const Icon(AppIcons.close),
           ),
           const SizedBox(width: Gap.sm),
           FloatingActionButton.extended(
             heroTag: 'fm.paste',
             onPressed: _paste,
-            icon: Icon(appState.clipboardCut ? AppIcons.cut : AppIcons.paste),
-            label: Text(context.t(
-                'create.paste_n', {'n': appState.clipboard.length})),
+            icon: Icon(clip.cut ? AppIcons.cut : AppIcons.paste),
+            label: Text(context.t('create.paste_n', {'n': clip.length})),
           ),
         ],
       );

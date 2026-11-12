@@ -241,6 +241,13 @@ class MemoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
+    // Not ekleme/silme `AiMemoryState` ile bildirilir (A4.2).
+    return ListenableBuilder(
+        listenable: appState.memoryState,
+        builder: (context, _) => _list(context, appState));
+  }
+
+  Widget _list(BuildContext context, AppState appState) {
     if (appState.memory.isEmpty) {
       return Padding(
         padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.sm),

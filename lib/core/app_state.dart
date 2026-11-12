@@ -9,6 +9,7 @@ import 'l10n/app_language.dart';
 import 'device_profile.dart';
 import 'skin.dart';
 import 'state/appearance_state.dart';
+import 'state/focused_states.dart';
 import 'theme.dart';
 import '../models/fm_layout.dart';
 import '../models/fs_entry.dart';
@@ -116,6 +117,15 @@ class AppState extends ChangeNotifier {
   /// Son belgeler listesinin bildiricisi: `addRecent`/`removeRecent` YALNIZ
   /// bunu uyandırır, `AppState` dinleyicilerini değil (bkz. [RecentsState]).
   final RecentsState recentsState = RecentsState();
+
+  /// Dosya panosu: kopyala/kes YALNIZ bunu uyandırır (A4.2).
+  final ClipboardState clipboardState = ClipboardState();
+
+  /// Uzak bağlantı listesi bildiricisi (A4.2).
+  final RemotesState remotesState = RemotesState();
+
+  /// AI hafıza notları bildiricisi (A4.2).
+  final AiMemoryState memoryState = AiMemoryState();
 
   void _syncAppearance() => appearance.apply(
         themeMode: _themeMode,
@@ -432,8 +442,6 @@ class AppState extends ChangeNotifier {
   FmSort _fmSort = FmSort.name;
   bool _fmSortDesc = false;
   bool _fmShowHidden = false;
-  List<String> _clipboard = [];
-  bool _clipboardCut = false;
   bool _fmThumbnails = true;
   bool _resumePosition = true;
   bool _autoSave = true;
@@ -614,9 +622,9 @@ class AppState extends ChangeNotifier {
 
   /// Kopyala/kes panosu — bilinçli olarak KALICI DEĞİL: uygulama yeniden
   /// açıldığında artık var olmayabilecek yolları yapıştırmayı önler.
-  List<String> get clipboard => List.unmodifiable(_clipboard);
-  bool get clipboardCut => _clipboardCut;
-  bool get hasClipboard => _clipboard.isNotEmpty;
+  List<String> get clipboard => clipboardState.paths;
+  bool get clipboardCut => clipboardState.cut;
+  bool get hasClipboard => clipboardState.hasItems;
 
   bool isBookmarked(String path) => _bookmarks.contains(path);
 
@@ -742,18 +750,11 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setClipboard(List<String> paths, {required bool cut}) {
-    _clipboard = List.of(paths);
-    _clipboardCut = cut;
-    notifyListeners();
-  }
+  /// Panoyu doldurur; yalnız [clipboardState] bildirir (A4.2).
+  void setClipboard(List<String> paths, {required bool cut}) =>
+      clipboardState.set(paths, cut: cut);
 
-  void clearClipboard() {
-    if (_clipboard.isEmpty) return;
-    _clipboard = [];
-    _clipboardCut = false;
-    notifyListeners();
-  }
+  void clearClipboard() => clipboardState.clear();
 
   /// Anahtarları yazar: Keystore varsa SARILI (düz kopyalar silinir), yoksa
   /// eski düz yol. (Bilinçli ödün: sarılı anahtar eski bir sürüme geri
@@ -1011,13 +1012,13 @@ class AppState extends ChangeNotifier {
       _remotes[index] = connection;
     }
     await _persistRemotes();
-    notifyListeners();
+    remotesState.changed();
   }
 
   Future<void> removeRemote(String id) async {
     _remotes.removeWhere((r) => r.id == id);
     await _persistRemotes();
-    notifyListeners();
+    remotesState.changed();
   }
 
   Future<void> setLanguage(AppLanguage language) async {
@@ -1049,7 +1050,7 @@ class AppState extends ChangeNotifier {
     _memory.insert(0, trimmed);
     if (_memory.length > 200) _memory = _memory.sublist(0, 200);
     await _prefs.setStringList(_kMemory, _memory);
-    notifyListeners();
+    memoryState.changed();
   }
 
   /// G10.5 "Verilerimi sil": son belgeler listesi + AI hafıza notları.
@@ -1059,14 +1060,14 @@ class AppState extends ChangeNotifier {
     await _persistRecents();
     await _prefs.setStringList(_kMemory, _memory);
     recentsState.changed();
-    notifyListeners();
+    memoryState.changed();
   }
 
   Future<void> removeMemory(int index) async {
     if (index < 0 || index >= _memory.length) return;
     _memory.removeAt(index);
     await _prefs.setStringList(_kMemory, _memory);
-    notifyListeners();
+    memoryState.changed();
   }
 
   ThemeMode _themeModeFromString(String? value) {

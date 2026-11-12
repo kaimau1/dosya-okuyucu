@@ -128,6 +128,13 @@ class _RemoteConnectionsScreenState extends State<RemoteConnectionsScreen> {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
+    // Liste değişimi `RemotesState` ile bildirilir (A4.2).
+    return ListenableBuilder(
+        listenable: state.remotesState,
+        builder: (context, _) => _body(context, state));
+  }
+
+  Widget _body(BuildContext context, AppState state) {
     final remotes = state.remotes;
     return Scaffold(
       appBar: AppBar(

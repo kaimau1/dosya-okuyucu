@@ -120,7 +120,7 @@ extension _NearbySections on _NearbyScreenState {
               ),
             ),
             if (_clipSuggestion != null ||
-                context.watch<AppState>().hasClipboard) ...[
+                _appClip.hasItems) ...[
               const SizedBox(height: Gap.xs),
               Wrap(
                 spacing: Gap.xs,
@@ -141,12 +141,12 @@ extension _NearbySections on _NearbyScreenState {
                       ),
                       onPressed: _useClipboardText,
                     ),
-                  if (context.watch<AppState>().hasClipboard)
+                  if (_appClip.hasItems)
                     ActionChip(
                       key: const ValueKey('near-clip-files'),
                       avatar: const Icon(AppIcons.copy, size: AppIcons.small),
                       label: Text(context.t('near.clip_files',
-                          {'n': context.watch<AppState>().clipboard.length})),
+                          {'n': _appClip.length})),
                       onPressed: _addAppClipboard,
                     ),
                 ],

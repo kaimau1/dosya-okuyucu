@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:dosya_okuyucu/core/app_state.dart';
 import 'package:dosya_okuyucu/core/skin.dart';
 import 'package:dosya_okuyucu/core/state/appearance_state.dart';
+import 'package:dosya_okuyucu/core/state/focused_states.dart';
+import 'package:dosya_okuyucu/models/remote_connection.dart';
 import 'package:dosya_okuyucu/main.dart' show AppProviders;
 import 'package:dosya_okuyucu/models/recent_file.dart';
 import 'package:flutter/material.dart';
@@ -85,6 +87,69 @@ void main() {
     expect(recents, 1);
     expect(app, 0);
     expect(appState.recents.first.path, '/x/b.txt');
+  });
+
+  test('A4.2: pano / uzak bağlantı / AI hafızası AppState i uyandırmaz',
+      () async {
+    var app = 0, clip = 0, remotes = 0, memory = 0;
+    appState.addListener(() => app++);
+    appState.clipboardState.addListener(() => clip++);
+    appState.remotesState.addListener(() => remotes++);
+    appState.memoryState.addListener(() => memory++);
+
+    appState.setClipboard(['/x/a.pdf', '/x/b.pdf'], cut: true);
+    expect(clip, 1);
+    expect(appState.hasClipboard, isTrue);
+    expect(appState.clipboardCut, isTrue);
+    expect(appState.clipboard, ['/x/a.pdf', '/x/b.pdf']);
+    appState.clearClipboard();
+    appState.clearClipboard(); // boşken bildirmez
+    expect(clip, 2);
+    expect(appState.hasClipboard, isFalse);
+
+    await appState.saveRemote(const RemoteConnection(
+        id: 'r1',
+        name: 'NAS',
+        protocol: RemoteProtocol.sftp,
+        host: 'nas',
+        port: 22));
+    expect(remotes, 1);
+    expect(appState.remotes.single.id, 'r1');
+    await appState.removeRemote('r1');
+    expect(remotes, 2);
+    expect(appState.remotes, isEmpty);
+
+    await appState.addMemory('not');
+    await appState.removeMemory(0);
+    expect(memory, 2);
+    expect(appState.memory, isEmpty);
+
+    expect(app, 0);
+  });
+
+  testWidgets('A4.2: kopyalamak gezgin gövdesini değil yalnız düğmeyi kurar',
+      (tester) async {
+    var body = 0, fab = 0;
+    await tester.pumpWidget(AppProviders(
+      appState: appState,
+      child: Builder(builder: (context) {
+        final s = context.watch<AppState>();
+        body++;
+        return ListenableBuilder(
+            listenable: s.clipboardState,
+            builder: (context, _) {
+              fab++;
+              return const SizedBox();
+            });
+      }),
+    ));
+    final b0 = body, f0 = fab;
+    appState.setClipboard(['/x/a.pdf'], cut: false);
+    await tester.pump();
+    expect(body, b0);
+    expect(fab, f0 + 1);
+    expect(tester.element(find.byType(SizedBox)).read<ClipboardState>().length,
+        1);
   });
 
   test('kök kaynakta AppState izlenmiyor', () {

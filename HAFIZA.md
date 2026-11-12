@@ -726,3 +726,8 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Karar (G1 artığı):** dışarıdan gelen yol `isAcceptableIncomingPath`: `isSafeLinkPath` ya da önbelleğin DOĞRUDAN çocuğu (eklenti kopyası). Hem "Birlikte aç" hem "Paylaş = gönder" akışında; reddedilen sessizce yok sayılır.
 - **G8.6:** indirme kuyruğu yalnız ana makineli http(s); Android `HttpURLConnection` şema değiştiren yönlendirmeyi zaten izlemez.
 
+
+## 2026-11-12 — A4.2: AppState'ten pano / uzak bağlantı / AI hafızası ayrıldı
+- **Karar:** `ClipboardState` veriyi kendisi tutar (kalıcı değil); `RemotesState` ve `AiMemoryState` yalnız sinyal (veri + kayıt `AppState`te, `RecentsState` gibi). `AppState` API'si (`clipboard`, `setClipboard`, `remotes`, `memory` …) aynen duruyor; bu işlemler artık `AppState` dinleyicilerini UYANDIRMAZ.
+- **Karar:** tüketiciler yeni sağlayıcıya değil `appState.clipboardState` vb. üzerine `ListenableBuilder` / `addListener` ile bağlanır — 25+ test yalnız `ChangeNotifierProvider<AppState>` kuruyor, `Consumer<ClipboardState>` hepsini `ProviderNotFoundException` ile düşürürdü. (`AppProviders` yine de üçünü de sağlar.)
+- **Tuzak:** pano/uzak/hafıza gösteren YENİ bir yer `watch<AppState>` ile yetinirse bayat kalır — ilgili bildiriciyi dinlemeli.

@@ -12,6 +12,7 @@ import '../../../core/app_colors.dart';
 import '../../../core/app_haptics.dart';
 import '../../../core/app_icons.dart';
 import '../../../core/app_state.dart';
+import '../../../core/state/focused_states.dart';
 import '../../../core/l10n/app_strings.dart';
 import '../../../core/motion.dart';
 import '../../../core/safe_insets.dart';
@@ -282,9 +283,17 @@ class _NearbyScreenState extends State<NearbyScreen> {
   bool _historyIncoming = true;
   bool _historyAll = false;
 
+  /// Uygulama içi dosya panosu (A4.2: `AppState` değil, kendi bildiricisi).
+  late final ClipboardState _appClip;
+
+  void _onAppClip() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void initState() {
     super.initState();
+    _appClip = context.read<AppState>().clipboardState..addListener(_onAppClip);
     unawaited(TransferHistory.instance.ensureLoaded());
     unawaited(TrustedPeers.instance.ensureLoaded());
     if (widget.services) unawaited(_boot());
@@ -296,6 +305,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
 
   @override
   void dispose() {
+    _appClip.removeListener(_onAppClip);
     _life?.dispose();
     _textCtrl.dispose();
     _scanTimer?.cancel();
