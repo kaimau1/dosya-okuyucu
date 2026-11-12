@@ -16,12 +16,12 @@ import '../core/motion.dart';
 import '../core/theme.dart';
 import '../core/app_colors.dart';
 
-part 'pdf_select_layer_chrome.dart';
-
 // Seçim geometrisi 2026-08-05'te servise taşındı (OCR araması da kullanıyor);
 // eski adresten içe aktaran dosyalar/testler kırılmasın diye yeniden sunulur.
 export '../services/pdf/selection_rects.dart'
     show selectionPdfRects, mergeSameLineRects;
+
+part 'pdf_select_layer_chrome.dart';
 
 /// PDF sayfası üzerinde **kendi metin seçim katmanımız** — hedef davranış
 /// Chrome'un PDF görüntüleyicisi: yazılmış ya da TARANMIŞ fark etmeden,
