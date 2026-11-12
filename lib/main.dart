@@ -36,6 +36,7 @@ import 'core/app_haptics.dart';
 import 'screens/home_screen.dart';
 import 'screens/onboarding/onboarding_screen.dart';
 import 'services/fm/remote/sftp_host_keys.dart';
+import 'services/fm/remote/smb_legacy.dart';
 import 'services/app_update.dart';
 import 'services/fm/ai_auto.dart';
 import 'services/fm/fm_colors_store.dart';
@@ -239,6 +240,8 @@ Future<void> _main() async {
   AiPool.consent = () => AiSendConsent.ask(appState);
   // G8.1: SFTP sunucu anahtarı ilk bağlantıda/değişince sorulur.
   SftpHostKeys.prompt = _confirmHostKey;
+  // G8.4: SMB1 (eski protokol) yalnız açık onayla.
+  SmbLegacy.prompt = _confirmSmb1;
   StartupQueue.instance.add(
     'ai-auto',
     () async => AiAutoAnalyze.install(
@@ -296,6 +299,19 @@ Future<bool> _confirmHostKey(HostKeyPrompt k) async {
     message: str.t(k.changed ? 'nas.hostkey_changed_body' : 'nas.hostkey_new_body', args),
     confirmLabel: str.t('nas.hostkey_trust'),
     destructive: k.changed,
+  );
+}
+
+Future<bool> _confirmSmb1(String host) async {
+  final context = navigatorKey.currentContext;
+  if (context == null || !context.mounted) return false;
+  final str = AppStrings.of(context);
+  return showAppConfirm(
+    context,
+    title: str.t('nas.smb1_title'),
+    message: str.t('nas.smb1_body', {'host': host}),
+    confirmLabel: str.t('nas.smb1_allow'),
+    destructive: true,
   );
 }
 

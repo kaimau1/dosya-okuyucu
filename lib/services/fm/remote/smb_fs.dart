@@ -1,8 +1,19 @@
 import 'dart:io';
 
 import 'package:smb_connect/smb_connect.dart';
+// G8.4: en düşük SMB sürümünü seçmek için paketin yapılandırması gerekiyor;
+// 0.0.9 bunları dışa aktarmıyor (paket güncellenince yeniden bak).
+// ignore: implementation_imports
+import 'package:smb_connect/src/connect/impl/base_configuration.dart';
+// ignore: implementation_imports
+import 'package:smb_connect/src/dialect_version.dart';
+// ignore: implementation_imports
+import 'package:smb_connect/src/smb/authentication_type.dart';
+// ignore: implementation_imports
+import 'package:smb_connect/src/smb/ntlm_password_authenticator.dart';
 
 import 'remote_fs.dart';
+import 'smb_legacy.dart';
 import '../../offline_mode.dart';
 
 /// SMB / CIFS (Windows paylaşımı, NAS "ağ sürücüsü") — `smb_connect`.
@@ -59,21 +70,48 @@ class SmbFs extends RemoteFs {
   Future<void> connect() async {
     NetGuard.allow('smb', host: connection.host);
     try {
-      _smb = await SmbConnect.connectAuth(
-        host: connection.host,
-        username: connection.user,
-        password: connection.password,
-        // Boş etki alanı bazı sunucularda reddediliyor; Windows'un
-        // varsayılanı WORKGROUP.
-        domain: connection.domain.trim().isEmpty
-            ? 'WORKGROUP'
-            : connection.domain.trim(),
-      );
+      final domain = connection.domain.trim().isEmpty
+          // Boş etki alanı bazı sunucularda reddediliyor; Windows'un
+          // varsayılanı WORKGROUP.
+          ? 'WORKGROUP'
+          : connection.domain.trim();
+      try {
+        _smb = await _open(domain, smb1: false);
+      } catch (e) {
+        // G8.4: SMB1 yalnız açık onayla (bkz. SmbLegacy).
+        if (!SmbLegacy.isSmb1Only(e)) rethrow;
+        if (!await SmbLegacy.confirm(connection.host)) {
+          throw const RemoteException(RemoteError.unsupported,
+              detail: 'smb1 declined');
+        }
+        _smb = await _open(domain, smb1: true);
+      }
     } catch (e) {
       _smb = null;
       throw RemoteFs.mapError(e);
     }
   }
+
+  /// SMB2+ (varsayılan) ya da onaylı SMB1 ile bağlanır. Paketin
+  /// `connectAuth`ı en düşük sürümü SMB1 bırakıyor — pazarlık düşürülebilir.
+  Future<SmbConnect> _open(String domain, {required bool smb1}) =>
+      SmbConnect.connect(
+        BaseConfiguration(
+          credentials: NtlmPasswordAuthenticator(
+            type: AuthenticationType.USER,
+            domain: domain,
+            username: connection.user,
+            password: connection.password,
+          ),
+          username: connection.user,
+          password: connection.password,
+          domain: domain,
+          bufferCacheSize: 0x1FFF,
+          minimumVersion: smb1 ? DialectVersion.SMB1 : DialectVersion.SMB202,
+          maximumVersion: DialectVersion.SMB210,
+        ),
+        connection.host,
+      );
 
   @override
   Future<void> close() async {

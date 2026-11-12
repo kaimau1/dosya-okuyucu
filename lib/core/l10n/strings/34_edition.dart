@@ -58,4 +58,12 @@ const Map<String, (String, String, String)> _t34 = {
   'pro.f.backgroundServices': ('Arka plan hizmetleri', 'Background services', 'خدمات الخلفية'),
   'pro.f.voiceAssistant': ('Sesli not ve asistan', 'Voice notes and assistant', 'الملاحظات الصوتية والمساعد'),
   'pro.f.labs': ('Deneysel özellikler', 'Experimental features', 'ميزات تجريبية'),
+  // G8.4 — SMB1 onayı.
+  'nas.smb1_title': ('Eski SMB1 protokolü', 'Legacy SMB1 protocol', 'بروتوكول SMB1 القديم'),
+  'nas.smb1_body': (
+    '{host} yalnız SMB1 konuşuyor. SMB1 eski ve güvensizdir: parola ve dosyalar ağda daha kolay ele geçirilebilir. Yalnız güvendiğiniz ev ağında izin verin.',
+    '{host} only speaks SMB1. SMB1 is outdated and insecure: passwords and files are easier to intercept. Allow it only on a home network you trust.',
+    'يدعم {host} بروتوكول SMB1 فقط. هذا البروتوكول قديم وغير آمن: يسهل اعتراض كلمات المرور والملفات. اسمح به فقط على شبكة منزلية موثوقة.',
+  ),
+  'nas.smb1_allow': ('Yine de bağlan', 'Connect anyway', 'الاتصال على أي حال'),
 };
