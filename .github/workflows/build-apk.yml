@@ -219,7 +219,7 @@ jobs:
       # (2026-11-08). Bkz. tool/pdfium_onyukle.sh.
       - name: PDFium önbelleği
         if: env.MOD != 'atla'
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .dart_tool/hooks_runner/shared/pdfium_dart/build/chromium_*
           key: pdfium-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
@@ -384,7 +384,7 @@ jobs:
         run: bash ci/prepare_android.sh
 
       - name: PDFium önbelleği (Android)
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .dart_tool/hooks_runner/shared/pdfium_dart/build/chromium_*
           key: pdfium-android-${{ hashFiles('pubspec.lock') }}-${{ env.FULL_BUILD }}
