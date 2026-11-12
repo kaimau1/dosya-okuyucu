@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'package:flutter/widgets.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import '../../core/webview_guard.dart';
+
 import 'neural_voices.dart';
 
 /// **Yapay sinir ağı sesi motoru** — görünmez bir WebView'da ONNX Runtime Web.
@@ -80,8 +82,14 @@ class NeuralVoiceEngine {
     final controller = WebViewController();
     final engine = NeuralVoiceEngine._(server, controller);
     await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
-    await controller.addJavaScriptChannel('Ses',
-        onMessageReceived: (m) => engine._onMessage(m.message));
+    // G6.2/G6.3: yalnız yerel ses sunucusu; dosya/içerik erişimi kapalı.
+    await WebViewGuard.harden(controller);
+    await controller.setNavigationDelegate(NavigationDelegate(
+        onNavigationRequest:
+            WebViewGuard.navigationLock('${server.origin}/')));
+    await controller.addJavaScriptChannel('Ses', onMessageReceived: (m) {
+      if (WebViewGuard.acceptMessage(m.message)) engine._onMessage(m.message);
+    });
     await controller.loadRequest(Uri.parse('${server.origin}/engine.html'));
     return engine;
   }

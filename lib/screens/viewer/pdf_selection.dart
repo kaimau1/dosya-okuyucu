@@ -281,6 +281,12 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
     }
     final url = link.url;
     if (url == null) return;
+    // G7.6: PDF'teki bağlantı yalnız http/https/mailto (file:, intent:,
+    // javascript:, content: hiç açılmaz).
+    if (!const {'http', 'https', 'mailto'}.contains(url.scheme.toLowerCase())) {
+      _snack(linkFailed);
+      return;
+    }
     final go = await showAppConfirm(
         context,
         title: context.t('vw.link_title'),

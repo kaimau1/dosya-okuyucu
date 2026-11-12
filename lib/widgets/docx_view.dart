@@ -5,9 +5,12 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'office_shell.dart' show ReadingChrome, ZoomBadge, ZoomBadgeController;
 import '../core/app_colors.dart';
+import '../core/webview_guard.dart';
+import 'app_dialog.dart';
 import '../core/app_icons.dart';
 import '../core/skin.dart';
 import '../core/theme.dart' show AppSkinData;
@@ -158,7 +161,7 @@ class DocxViewState extends State<DocxView> {
       ..enableZoom(false)
       ..addJavaScriptChannel('Sayfa', onMessageReceived: _onSayfa)
       ..addJavaScriptChannel('Durum', onMessageReceived: (m) {
-        if (!mounted) return;
+        if (!mounted || !WebViewGuard.acceptMessage(m.message)) return;
         final err = m.message.startsWith('hata') ? m.message : null;
         setState(() {
           _loading = false;
@@ -172,6 +175,10 @@ class DocxViewState extends State<DocxView> {
       })
       ..addJavaScriptChannel('Kalem', onMessageReceived: _onKalem)
       ..setNavigationDelegate(NavigationDelegate(
+        // G6.2: yalnız kendi kabuğu; belgedeki bağlantı sorulup dışarıda açılır.
+        onNavigationRequest: WebViewGuard.navigationLock(
+            '/assets/word/viewer.html',
+            onExternal: _openExternal),
         onPageFinished: (_) => _render(),
         // (aşağıda `_lockWebViewTextSize` ile sistem yazı boyutu etkisizleşir)
         onWebResourceError: (e) {
@@ -187,6 +194,24 @@ class DocxViewState extends State<DocxView> {
     _lockWebViewTextSize();
   }
 
+  /// Belgedeki dış bağlantı (G6.2): tam adres gösterilir, onaylanırsa
+  /// tarayıcıda/e-posta uygulamasında açılır.
+  Future<void> _openExternal(Uri link) async {
+    if (!mounted) return;
+    final go = await showAppConfirm(
+      context,
+      title: context.t('vw.link_title'),
+      message: context.t('vw.link_body', {'url': '$link'}),
+      confirmLabel: context.t('common.open'),
+    );
+    if (!go) return;
+    try {
+      await launchUrl(link, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      // Bilinçli: açacak uygulama yoksa sessiz — belge görünümü sürer.
+    }
+  }
+
   /// **Belge her telefonda aynı boyutta** (kullanıcı isteği 2026-08-07).
   ///
   /// Android WebView'ın kendi metin yakınlaştırması cihazın "Yazı tipi boyutu"
@@ -199,10 +224,12 @@ class DocxViewState extends State<DocxView> {
     if (platform is AndroidWebViewController) {
       platform.setTextZoom(100);
     }
+    // G6.3: dosya/içerik erişimi, konum, karışık içerik kapalı.
+    WebViewGuard.harden(_controller);
   }
 
   void _onKalem(JavaScriptMessage m) {
-    if (!mounted) return;
+    if (!mounted || !WebViewGuard.acceptMessage(m.message)) return;
     final dynamic data;
     try {
       data = jsonDecode(m.message);
@@ -271,7 +298,7 @@ class DocxViewState extends State<DocxView> {
 
   /// Sayfa sayacı ve yakınlaştırma oranı kanalı.
   void _onSayfa(JavaScriptMessage m) {
-    if (!mounted) return;
+    if (!mounted || !WebViewGuard.acceptMessage(m.message)) return;
     final dynamic data;
     try {
       data = jsonDecode(m.message);
@@ -346,7 +373,7 @@ class DocxViewState extends State<DocxView> {
   /// Seçili paragraf(lar)ın yazı tipini değiştirir. Tek tırnak kaçırılır:
   /// font adları ("Book Antiqua" gibi) boşluk içerebilir, tırnak da içerebilir.
   void setFontFamily(String name) => _controller
-      .runJavaScript("setFontFamily('${name.replaceAll("'", r"\'")}')");
+      .runJavaScript("setFontFamily('${_js(name)}')");
 
   /// Seçili paragraf(lar)ın puntosunu değiştirir.
   void setFontSize(double pt) =>

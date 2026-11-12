@@ -12,6 +12,11 @@
      pinch aşağıdaki JS ile yakalanıp CSS `zoom`a çevriliyor, tarayıcı metni
      yeni ölçekte YENİDEN diziyor → her ölçekte keskin. (Aynı ilke PDF
      tarafında da uygulanmıştı: yeniden-yerleşim > dönüşüm.) -->
+<!-- G6.1 (2026-11-12): ağ YOK — belgedeki dış görsel/betik/çerçeve yüklenmez.
+     Görseller docx-preview'da data: (useBase64URL), yazı tipleri ../fonts
+     (file:///android_asset). jszip yalnız dizgi geri çağrısında Function
+     kullanır (kullanılmıyor) → 'unsafe-eval' gerekmez. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file: 'unsafe-inline'; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data: blob:; font-src 'self' file: data: blob:; media-src data: blob:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 <style>
   /* SADAKAT: Word belgeleri çoğunlukla Microsoft'un tescilli fontlarını
