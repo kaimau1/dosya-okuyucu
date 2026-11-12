@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:ftpconnect/ftpconnect.dart';
 
 import '../../../models/remote_connection.dart';
+import 'ftps_trust.dart';
 import 'remote_fs.dart';
 import '../../offline_mode.dart';
 
@@ -41,6 +42,24 @@ class FtpFs extends RemoteFs {
   @override
   Future<void> connect() async {
     NetGuard.allow('ftp', host: connection.host);
+    // G8.2: kendinden imzalı FTPS sertifikası sessizce kabul edilmez.
+    FtpTlsTrust.onBadCertificate = FtpsTrust.check;
+    await FtpsTrust.preload();
+    FtpsTrust.takePending(connection.host, connection.port); // eski kalıntı
+    try {
+      await _connectOnce();
+    } catch (e) {
+      final pending =
+          FtpsTrust.takePending(connection.host, connection.port);
+      if (pending == null) rethrow;
+      if (!await FtpsTrust.confirm(connection.host, connection.port, pending)) {
+        throw const RemoteException(RemoteError.hostKey);
+      }
+      await _connectOnce();
+    }
+  }
+
+  Future<void> _connectOnce() async {
     final ftp = FTPConnect(
       connection.host,
       port: connection.port,
@@ -61,6 +80,8 @@ class FtpFs extends RemoteFs {
       _ftp = ftp;
     } catch (e) {
       _ftp = null;
+      // Sertifika reddiyse çağıran onay sorar; özgün hatayı koru.
+      if (FtpsTrust.hasPending(connection.host, connection.port)) rethrow;
       throw RemoteFs.mapError(e);
     }
   }

@@ -421,10 +421,9 @@ packages:
   ftpconnect:
     dependency: "direct main"
     description:
-      name: ftpconnect
-      sha256: a1e7d2e9cd2cbbfefdae0f9db3f1f8caa142b787c49db1fce02479e461897e87
-      url: "https://pub.dev"
-    source: hosted
+      path: "third_party/ftpconnect"
+      relative: true
+    source: path
     version: "3.0.0"
   fuchsia_remote_debug_protocol:
     dependency: transitive

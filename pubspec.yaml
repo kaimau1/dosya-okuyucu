@@ -341,6 +341,10 @@ dependency_overrides:
   # belge işi — düzenleme köprüsü). Gerekçe third_party/pdfrx_engine/YAMA.md.
   pdfrx_engine:
     path: third_party/pdfrx_engine
+  # Güvenlik G8.2: ftpconnect 3.0.0 + TLS sertifika kancası (her sertifikayı
+  # sessizce kabul ediyordu). Gerekçe third_party/ftpconnect/YAMA.md.
+  ftpconnect:
+    path: third_party/ftpconnect
   # Faz 45: webdav_client 1.2.2 (son sürüm) xml ^6'ya kilitli; yalnız
   # findAllElements(namespace:'*') + .text kullanıyor, 7'de ikisi de duruyor
   # (test/…webdav…). Paket xml 7'yi açınca bu satır silinir.
