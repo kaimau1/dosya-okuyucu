@@ -138,4 +138,41 @@ void main() {
     expect(await syncVaultPin('0000', '9999'), isFalse);
     expect(await vault.unlockWithPin('1357'), isTrue);
   });
+
+  test('G2.7: kilitte ana anahtar bellekte sıfırlanır', () async {
+    final key = vault.debugMasterRef!;
+    expect(key.any((b) => b != 0), isTrue);
+    await vault.lock();
+    expect(key.every((b) => b == 0), isTrue);
+    expect(vault.debugMasterRef, isNull);
+  });
+
+  test('G2.7: ekleme sürerken kilitlenirse asıllar kalır, dizin bozulmaz',
+      () async {
+    final keep = write('Belgeler/eski.txt', 'eski-icerik');
+    await vault.add([keep.path]);
+    expect(vault.items, hasLength(1));
+
+    final a = write('Belgeler/a.txt', 'aaaa');
+    final b = write('Belgeler/b.txt', 'bbbb');
+    Future<void>? locking;
+    final r = await vault.add([a.path, b.path], onProgress: (pr) {
+      if (pr.total > pr.done && locking == null) locking = vault.lock();
+    });
+    await locking;
+    expect(r.cancelled, isTrue);
+    expect(r.succeeded, 0);
+    expect(a.existsSync(), isTrue, reason: 'kayıt yazılamadı → aslı silinmez');
+    expect(b.existsSync(), isTrue);
+
+    expect(await vault.unlockWithPin('2468'), isTrue);
+    expect(vault.items.map((i) => i.name), ['eski.txt'],
+        reason: 'kilitli kasada boş liste dizinin üzerine yazılmadı');
+    final dvk = Directory(vault.dir)
+        .listSync()
+        .where((e) => e.path.endsWith('.dvk') && !e.path.endsWith('index.dvk'));
+    expect(dvk, hasLength(1), reason: 'yarım şifreli kopya silindi');
+    expect(File(await vault.restore(vault.items.single)).readAsStringSync(),
+        'eski-icerik');
+  });
 }

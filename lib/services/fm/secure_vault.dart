@@ -103,6 +103,21 @@ class SecureVault extends ChangeNotifier {
   Uint8List? _master;
   List<VaultItem> _items = const [];
 
+  /// Her açılış/kilitte artar: süren bir iş await'ten dönünce kasanın
+  /// arada kilitlenip kilitlenmediğini buradan anlar (G2.7).
+  int _epoch = 0;
+
+  /// İş başına anahtar KOPYASI (G2.7, 2026-11-12). [lock] asıl diziyi
+  /// sıfırladığı için süren işler kendi kopyalarıyla biter ve `finally`de
+  /// [_wipe] ile kopyayı sıfırlar — aynı diziyi tutsalardı arka planda
+  /// otomatik kilit süren şifrelemeyi sıfır anahtarla bozardı (veri kaybı).
+  Uint8List? _key() {
+    final m = _master;
+    return m == null ? null : Uint8List.fromList(m);
+  }
+
+  static void _wipe(Uint8List? k) => k?.fillRange(0, k.length, 0);
+
   bool get unlocked => _master != null;
   List<VaultItem> get items => List.unmodifiable(_items);
 
@@ -122,6 +137,7 @@ class SecureVault extends ChangeNotifier {
     final master = VaultCrypto.randomBytes(32);
     await _writeMeta(pin, master);
     _master = master;
+    _epoch++;
     _items = const [];
     await _saveIndex();
     notifyListeners();
@@ -177,7 +193,10 @@ class SecureVault extends ChangeNotifier {
   }
 
   Future<void> _open(Uint8List master) async {
+    final old = _master;
+    if (old != null && !identical(old, master)) _wipe(old);
     _master = master;
+    _epoch++;
     await _loadIndex();
     notifyListeners();
   }
@@ -210,14 +229,19 @@ class SecureVault extends ChangeNotifier {
   /// anahtar kimlik doğrulama zorunlu Keystore anahtarıyla sarılıp saklanır.
   Future<bool> enableBiometric(
       {required String title, String subtitle = '', required String cancel}) async {
-    final master = _master;
+    final master = _key();
     if (master == null) return false;
-    final res = await NativeExtras.bioCrypt(
-        encrypt: true,
-        data: master,
-        title: title,
-        subtitle: subtitle,
-        cancel: cancel);
+    final Map<Object?, Object?>? res;
+    try {
+      res = await NativeExtras.bioCrypt(
+          encrypt: true,
+          data: master,
+          title: title,
+          subtitle: subtitle,
+          cancel: cancel);
+    } finally {
+      _wipe(master);
+    }
     final data = res?['data'];
     if (res?['status'] != 'ok' || data is! Uint8List) return false;
     final prefs = await SharedPreferences.getInstance();
@@ -266,15 +290,21 @@ class SecureVault extends ChangeNotifier {
 
   /// PIN'i değiştirir (kilit açıkken).
   Future<bool> changePin(String newPin) async {
-    final master = _master;
+    final master = _key();
     if (master == null) return false;
-    await _writeMeta(newPin, master);
+    try {
+      await _writeMeta(newPin, master);
+    } finally {
+      _wipe(master);
+    }
     return true;
   }
 
   /// Kilitler: anahtar bellekten, açılmış düz kopyalar önbellekten silinir.
   Future<void> lock() async {
+    _wipe(_master);
     _master = null;
+    _epoch++;
     _items = const [];
     notifyListeners();
     await clearTemp();
@@ -295,13 +325,17 @@ class SecureVault extends ChangeNotifier {
   }
 
   Future<void> _loadIndex() async {
-    final master = _master;
-    if (master == null) return;
+    final epoch = _epoch;
+    if (_master == null) return;
     if (!_index.existsSync()) {
       _items = const [];
       return;
     }
-    final plain = VaultCrypto.open(master, await _index.readAsBytes());
+    final bytes = await _index.readAsBytes();
+    final master = _master;
+    // Okurken kilitlendiyse dizin yüklenmez (kilitli kasada liste boş kalır).
+    if (master == null || epoch != _epoch) return;
+    final plain = VaultCrypto.open(master, bytes);
     if (plain == null) throw const VaultCorrupt();
     final list = jsonDecode(utf8.decode(plain));
     _items = [
@@ -314,10 +348,11 @@ class SecureVault extends ChangeNotifier {
   Future<void> _saveIndex() async {
     final master = _master;
     if (master == null) return;
+    // Mühür eşzamanlı: anahtar await'ten ÖNCE kullanılır, kopya gerekmez.
     final plain = utf8.encode(jsonEncode([for (final i in _items) i.toJson()]));
+    final sealed = VaultCrypto.seal(master, Uint8List.fromList(plain));
     final tmp = File('${_index.path}.tmp');
-    await tmp.writeAsBytes(VaultCrypto.seal(master, Uint8List.fromList(plain)),
-        flush: true);
+    await tmp.writeAsBytes(sealed, flush: true);
     await tmp.rename(_index.path);
   }
 
@@ -388,14 +423,31 @@ class SecureVault extends ChangeNotifier {
     void Function(FmProgress)? onProgress,
     bool Function()? isCancelled,
   }) async {
-    final master = _master;
+    final master = _key();
     if (master == null) return const FmOpResult(errors: ['locked']);
+    try {
+      return await _addFilesWith(master, files,
+          onProgress: onProgress, isCancelled: isCancelled);
+    } finally {
+      _wipe(master);
+    }
+  }
+
+  Future<FmOpResult> _addFilesWith(
+    Uint8List master,
+    List<({String src, String name, String dir})> files, {
+    void Function(FmProgress)? onProgress,
+    bool Function()? isCancelled,
+  }) async {
+    final epoch = _epoch;
     var ok = 0;
     final errors = <String>[];
     final transfers = <FmTransfer>[];
     var cancelled = false;
     for (var i = 0; i < files.length; i++) {
-      if (isCancelled?.call() ?? false) {
+      // Arada kilitlendiyse (arka planda otomatik kilit) dur: dizin artık
+      // boş tutuluyor, yazılırsa öteki kayıtlar silinirdi.
+      if ((isCancelled?.call() ?? false) || epoch != _epoch) {
         cancelled = true;
         break;
       }
@@ -428,6 +480,11 @@ class SecureVault extends ChangeNotifier {
         if (!already) {
           await Isolate.run(() => VaultCrypto.encryptFile(f.src, dst, master));
           await _verify(f.src, dst, master);
+          if (epoch != _epoch) {
+            // Şifreleme sürerken kilitlendi: kayıt dizine yazılamaz → aslı
+            // KALIR, şifreli kopya silinir (catch).
+            throw StateError('locked');
+          }
           _items = [
             VaultItem(
               id: id,
@@ -533,23 +590,46 @@ class SecureVault extends ChangeNotifier {
 
   /// Görüntülemek için geçici düz kopya (kilitlenince silinir).
   Future<String> openTemp(VaultItem item) async {
-    final master = _master;
+    final master = _key();
     if (master == null) throw StateError('locked');
-    final tmp = await _tempDir();
-    await tmp.create(recursive: true);
-    final out = p.join(tmp.path, item.name);
-    if (!File(out).existsSync()) {
-      final src = p.join(dir, '${item.id}.dvk');
-      await Isolate.run(() => VaultCrypto.decryptFile(src, out, master));
+    final epoch = _epoch;
+    try {
+      final tmp = await _tempDir();
+      await tmp.create(recursive: true);
+      final out = p.join(tmp.path, item.name);
+      if (!File(out).existsSync()) {
+        final src = p.join(dir, '${item.id}.dvk');
+        await Isolate.run(() => VaultCrypto.decryptFile(src, out, master));
+      }
+      if (epoch != _epoch) {
+        // Çözerken kilitlendi: lock()'un temizliğinden sonra yazılmış düz
+        // kopya önbellekte kalmasın.
+        try {
+          await File(out).delete();
+        } catch (_) {
+          // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+        }
+        throw StateError('locked');
+      }
+      return out;
+    } finally {
+      _wipe(master);
     }
-    return out;
   }
 
   /// Kasadan çıkarır: düz dosya ilk klasörüne (yoksa İndirilenler'e) yazılır,
   /// şifreli kopya silinir. Yazılan yolu döner.
   Future<String> restore(VaultItem item) async {
-    final master = _master;
+    final master = _key();
     if (master == null) throw StateError('locked');
+    try {
+      return await _restoreWith(item, master);
+    } finally {
+      _wipe(master);
+    }
+  }
+
+  Future<String> _restoreWith(VaultItem item, Uint8List master) async {
     // Özgün klasör yoksa yeniden kurulur (klasörüyle gizlenen dosyalar
     // ağacına dönsün); kurulamıyorsa (SD kart çıkarılmış) İndirilenler'e.
     var targetDir = item.originalDir;
@@ -582,9 +662,15 @@ class SecureVault extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Asıl anahtar dizisi (G2.7 testi: kilitte sıfırlandığını görmek için).
+  @visibleForTesting
+  Uint8List? get debugMasterRef => _master;
+
   @visibleForTesting
   void debugReset() {
+    _wipe(_master);
     _master = null;
+    _epoch++;
     _items = const [];
   }
 }

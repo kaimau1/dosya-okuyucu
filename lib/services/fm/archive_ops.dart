@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:math';
 import 'dart:typed_data';
 
 // Sıkıştırma (.zip üretimi) ve koni'nin kapsamadığı tek-dosya biçimleri
@@ -10,6 +11,7 @@ import 'package:koni_archive/io.dart' as koni;
 import 'package:path/path.dart' as p;
 
 import 'file_ops.dart';
+import 'remote/disk_guard.dart';
 import 'fs_events.dart';
 import 'fs_scan.dart';
 import 'job_queue.dart' show JobCancelled;
@@ -83,6 +85,10 @@ enum ArchiveFailure {
   /// Bozuk arşiv / CRC uyuşmazlığı.
   corrupt,
 
+  /// Açılınca sınırı aşıyor (G7.1 arşiv bombası: toplam boyut, giriş
+  /// sayısı ya da şüpheli sıkıştırma oranı). Yarım çıktı silinir.
+  tooLarge,
+
   /// Diğer (G/Ç hatası vb.).
   other,
 }
@@ -103,6 +109,9 @@ class ArchiveError implements Exception {
           'Bu arşiv cihazda açılamıyor: $message',
         ArchiveFailure.corrupt =>
           'Arşiv bozuk görünüyor (sağlama tutmadı): $message',
+        ArchiveFailure.tooLarge =>
+          'Arşiv açılınca çok yer kaplıyor ya da bozuk (sıkıştırma bombası '
+              'olabilir), çıkarılmadı: $message',
         ArchiveFailure.other => 'Arşiv açılamadı: $message',
       };
 }
@@ -179,14 +188,25 @@ abstract final class ArchiveOps {
   /// [isCancelled] verilirse çıkarma **durdurulabilir** (2026-11-02): büyük
   /// solid RAR'da dakikalar sürebiliyordu ve "Durdur" yoktu. İzolat
   /// öldürülür, yarım hedef klasör silinir, [JobCancelled] atılır.
+  ///
+  /// G7.1: toplam açılmış boyut [maxBytes] (varsayılan min(boş − 500 MB,
+  /// 20 GB)) ve giriş sayısı [maxEntries] (200 bin) ile sınırlı — testler
+  /// küçültür. Aşılırsa yarım klasör silinir, [ArchiveFailure.tooLarge].
+  /// İç içe arşiv otomatik açılmaz.
   static Future<String> extract(
     String archivePath, {
     String? destDir,
     String? password,
     void Function(FmProgress)? onProgress,
     bool Function()? isCancelled,
+    int? maxBytes,
+    int? maxEntries,
   }) async {
     final parent = destDir ?? p.dirname(archivePath);
+    final limits = [
+      maxBytes ?? await _byteBudget(parent),
+      maxEntries ?? maxExtractEntries,
+    ];
     final target = FileOps.uniquePath(p.join(parent, _archiveBaseName(archivePath)));
 
     if (_legacyExts.contains(_ext(archivePath))) {
@@ -205,22 +225,51 @@ abstract final class ArchiveOps {
     });
     try {
       if (isCancelled == null) {
-        await _runExtract(archivePath, target, password, port.sendPort);
+        await _runExtract(archivePath, target, password, port.sendPort, limits);
       } else {
         final finished = await _runExtractKillable(
-            archivePath, target, password, port.sendPort, isCancelled);
+            archivePath, target, password, port.sendPort, isCancelled, limits);
         if (!finished) {
           await _deletePartial(target);
           FsEvents.changed();
           throw const JobCancelled();
         }
       }
+    } on ArchiveError catch (e) {
+      // Bomba sınırında yarım çıktı diski doldurmuş olabilir → silinir.
+      if (e.failure == ArchiveFailure.tooLarge) {
+        await _deletePartial(target);
+        FsEvents.changed();
+      }
+      rethrow;
     } finally {
       await sub.cancel();
       port.close();
     }
     FsEvents.changed();
     return target;
+  }
+
+  /// G7.1: çıkarmada en çok giriş sayısı.
+  static const maxExtractEntries = 200000;
+
+  /// G7.1: toplam açılmış boyutun üst sınırı (boş alan ölçülemezse bu).
+  static const maxExtractBytes = 20 * 1024 * 1024 * 1024;
+
+  /// Çıkarma sonrası bölümde kalacak boş alan.
+  static const _reserveBytes = 500 * 1024 * 1024;
+
+  /// Toplam açılmış boyut bütçesi: min(boş alan − 500 MB, 20 GB). Boş alan
+  /// okunamazsa yalnız 20 GB tavanı (DiskGuard'daki gibi engellemez).
+  static Future<int> _byteBudget(String dir) async {
+    int? free;
+    try {
+      free = await DiskGuard.freeBytesOf(dir);
+    } catch (_) {
+      // Bilinçli: ölçülemeyen boş alan engel sayılmaz; 20 GB tavanı kalır.
+    }
+    if (free == null) return maxExtractBytes;
+    return max(0, min(free - _reserveBytes, maxExtractBytes));
   }
 
   /// Durdurulan çıkarmanın yarım klasörü. [extract] onu `uniquePath` ile
@@ -242,8 +291,9 @@ abstract final class ArchiveOps {
     String? password,
   }) async {
     await Directory(destDir).create(recursive: true);
-    return _unwrap(await Isolate.run(() => _guard(
-        () => _extractOneSync(archivePath, entryPath, destDir, password)))) as String;
+    final maxBytes = await _byteBudget(destDir);
+    return _unwrap(await Isolate.run(() => _guard(() => _extractOneSync(
+        archivePath, entryPath, destDir, password, maxBytes)))) as String;
   }
 
   // ── sıkıştırma (.zip) ─────────────────────────────────────────────────────
@@ -446,9 +496,10 @@ Future<void> _runExtract(
   String target,
   String? password,
   SendPort progress,
+  List<int> limits,
 ) async =>
-    _unwrap(await Isolate.run(
-        () => _guard(() => _extractSync(archivePath, target, password, progress))));
+    _unwrap(await Isolate.run(() => _guard(
+        () => _extractSync(archivePath, target, password, progress, limits))));
 
 /// [_runExtract]'ın durdurulabilir eşi: `Isolate.run` öldürülemediği için
 /// izolat elle kurulur ([_extractEntry], yalnız gönderilebilir argümanlar —
@@ -460,6 +511,7 @@ Future<bool> _runExtractKillable(
   String? password,
   SendPort progress,
   bool Function() isCancelled,
+  List<int> limits,
 ) async {
   final reply = ReceivePort();
   final done = Completer<List<Object?>?>();
@@ -482,7 +534,7 @@ Future<bool> _runExtractKillable(
     if (isCancelled()) return false;
     isolate = await Isolate.spawn(
       _extractEntry,
-      <Object?>[archivePath, target, password, progress, reply.sendPort],
+      <Object?>[archivePath, target, password, progress, reply.sendPort, limits],
       onExit: reply.sendPort,
     );
     poll = Timer.periodic(const Duration(milliseconds: 150), (_) {
@@ -511,7 +563,7 @@ Future<void> _extractEntry(List<Object?> args) async {
   final reply = args[4]! as SendPort;
   final result = await _guard(() => _extractSync(
       args[0]! as String, args[1]! as String, args[2] as String?,
-      args[3]! as SendPort));
+      args[3]! as SendPort, args[5]! as List<int>));
   Isolate.exit(reply, result);
 }
 
@@ -775,10 +827,26 @@ Future<String> _extractSync(
   String target,
   String? password,
   SendPort? progress,
+  List<int> limits,
 ) async {
+  final maxBytes = limits[0];
+  final maxEntries = limits[1];
   final volumes = <koni.FileByteSource>[];
   final archive = await _open(archivePath, password, volumes);
   try {
+    // G7.1: hiçbir şey yazmadan önce başlıktaki sayı/boyutla erken ret.
+    // Başlık yalan söyleyebilir — asıl sınır aşağıda yazılan bayt sayımı.
+    if (archive.entries.length > maxEntries) {
+      throw ArchiveError(ArchiveFailure.tooLarge,
+          '${archive.entries.length} öğe (sınır $maxEntries)');
+    }
+    final declared = archive.entries.fold<int>(
+        0, (sum, e) => sum + max(0, e.uncompressedSize));
+    if (declared > maxBytes) {
+      throw ArchiveError(ArchiveFailure.tooLarge,
+          '${_mb(declared)} açılmış boyut (sınır ${_mb(maxBytes)})');
+    }
+    var written = 0;
     // Klasör girdilerini önce oluştur (boş klasörler de korunsun).
     for (final entry in archive.entries) {
       if (entry.type != koni.ArchiveEntryType.directory) continue;
@@ -814,8 +882,12 @@ Future<String> _extractSync(
       // isolate'i düşürüyordu (CI #94: RemoteError). Elle tüketimde hata tek
       // yerden gelir ve aşağıdaki catch onu tiplenmiş hataya çevirir.
       final sink = out.openWrite();
+      var entryBytes = 0;
       try {
         await for (final chunk in archive.openRead(entry)) {
+          entryBytes += chunk.length;
+          written += chunk.length;
+          _checkBomb(written, maxBytes, entryBytes, entry.compressedSize);
           sink.add(chunk);
         }
         await sink.flush();
@@ -848,6 +920,7 @@ Future<String> _extractOneSync(
   String entryPath,
   String destDir,
   String? password,
+  int maxBytes,
 ) async {
   final volumes = <koni.FileByteSource>[];
   final archive = await _open(archivePath, password, volumes);
@@ -866,13 +939,25 @@ Future<String> _extractOneSync(
     final out = File(FileOps.uniquePath(
         p.join(destDir, p.basename(entry.path))));
     final sink = out.openWrite();
+    var written = 0;
     try {
-      await for (final chunk in archive.openRead(entry)) {
-        sink.add(chunk);
+      try {
+        await for (final chunk in archive.openRead(entry)) {
+          written += chunk.length;
+          _checkBomb(written, maxBytes, written, entry.compressedSize);
+          sink.add(chunk);
+        }
+        await sink.flush();
+      } finally {
+        await sink.close();
       }
-      await sink.flush();
-    } finally {
-      await sink.close();
+    } on ArchiveError {
+      try {
+        await out.delete();
+      } catch (_) {
+        // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+      }
+      rethrow;
     }
     return out.path;
   } catch (e) {
@@ -884,6 +969,31 @@ Future<String> _extractOneSync(
     }
   }
 }
+
+/// G7.1: tek girişte sıkıştırma oranı bu kadar katı aşarsa (ve giriş
+/// [bombRatioFloor]'dan büyükse) arşiv bomba sayılır.
+const bombRatio = 1000;
+
+/// Oran denetiminin başladığı en küçük açılmış giriş boyutu (1 GB): küçük
+/// ama iyi sıkışan meşru dosyalar (boş disk görüntüsü, tekrarlı günlük)
+/// yanlışlıkla reddedilmesin.
+const bombRatioFloor = 1024 * 1024 * 1024;
+
+void _checkBomb(int written, int maxBytes, int entryBytes, int? compressed) {
+  if (written > maxBytes) {
+    throw ArchiveError(ArchiveFailure.tooLarge,
+        '${_mb(written)}+ yazıldı (sınır ${_mb(maxBytes)})');
+  }
+  if (compressed != null &&
+      compressed > 0 &&
+      entryBytes > bombRatioFloor &&
+      entryBytes > compressed * bombRatio) {
+    throw ArchiveError(ArchiveFailure.tooLarge,
+        'sıkıştırma oranı ${entryBytes ~/ compressed}× (sınır $bombRatio×)');
+  }
+}
+
+String _mb(int bytes) => '${(bytes / (1024 * 1024)).toStringAsFixed(0)} MB';
 
 /// [target] altında güvenli birleştirme; dışarı taşan yol için null.
 String? _safeJoin(String target, String entryPath) =>
