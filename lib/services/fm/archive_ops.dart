@@ -210,8 +210,20 @@ abstract final class ArchiveOps {
     final target = FileOps.uniquePath(p.join(parent, _archiveBaseName(archivePath)));
 
     if (_legacyExts.contains(_ext(archivePath))) {
+      // G7.1 artığı (2026-11-12): eskiden ana izolatta SINIRSIZ açılıyordu
+      // (hem bomba hem donma) ve tar olmayan tek dosyalık .bz2/.xz hiç
+      // açılmıyordu ("Is not a tar archive"). Artık izolatta, aynı bayt
+      // bütçesiyle; aşımda yarım klasör silinir.
       await Directory(target).create(recursive: true);
-      await legacy.extractFileToDisk(archivePath, target);
+      final isXz = _ext(archivePath) == 'xz';
+      try {
+        _unwrap(await Isolate.run(() => _guard(
+            () => _extractLegacySync(archivePath, target, limits[0], isXz))));
+      } on ArchiveError {
+        await _deletePartial(target);
+        FsEvents.changed();
+        rethrow;
+      }
       FsEvents.changed();
       return target;
     }
@@ -968,6 +980,63 @@ Future<String> _extractOneSync(
       await v.close();
     }
   }
+}
+
+/// G7.1 artığı: `.bz2` / `.xz` — içi tar ise tar olarak, değilse tek dosya
+/// olarak [target]'a açılır; toplam yazılan bayt [maxBytes] ile sınırlı
+/// (`archive` paketinin `maxSize` / `maxOutputSize` sınırları — aşımda
+/// `ArchiveLimitException`, yazmadan önce değil yazarken denetlenir).
+Future<String> _extractLegacySync(
+    String archivePath, String target, int maxBytes, bool isXz) async {
+  legacy.InputStream lazyOf(legacy.InputStream input) => isXz
+      ? legacy.XZDecoder().decodeLazy(input)
+      : legacy.BZip2Decoder().decodeLazy(input);
+  var isTar = false;
+  final probe = legacy.InputFileStream(archivePath);
+  try {
+    final head = lazyOf(probe).peekBytes(512).toUint8List();
+    isTar = head.length == 512 &&
+        head.any((b) => b != 0) &&
+        legacy.tarHeaderChecksumMatches(head);
+  } catch (_) {
+    // Bilinçli: bozuk başlık → tek dosya yolu dener, asıl hata orada tiplenir.
+  } finally {
+    await probe.close();
+  }
+  try {
+    if (isTar) {
+      await legacy.extractFileToDisk(archivePath, target,
+          maxSize: maxBytes, throwOnError: true);
+    } else {
+      var name = p.basenameWithoutExtension(archivePath);
+      if (name.isEmpty) name = 'icerik';
+      final outPath = _safeJoin(target, name) ?? p.join(target, 'icerik');
+      final input = legacy.InputFileStream(archivePath);
+      final output = legacy.OutputFileStream(outPath);
+      try {
+        if (isXz) {
+          legacy.XZDecoder().decodeStream(input, output,
+              throwOnError: true, maxOutputSize: maxBytes);
+        } else {
+          legacy.BZip2Decoder().decodeStream(input, output,
+              throwOnError: true, maxOutputSize: maxBytes);
+        }
+      } finally {
+        await input.close();
+        await output.close();
+      }
+    }
+  } on legacy.ArchiveLimitException catch (e) {
+    throw ArchiveError(ArchiveFailure.tooLarge,
+        '${e.message} (sınır ${_mb(maxBytes)})');
+  } on ArchiveError {
+    rethrow;
+  } on FormatException catch (e) {
+    throw ArchiveError(ArchiveFailure.corrupt, e.message);
+  } on ArgumentError catch (e) {
+    throw ArchiveError(ArchiveFailure.corrupt, '${e.message}');
+  }
+  return target;
 }
 
 /// G7.1: tek girişte sıkıştırma oranı bu kadar katı aşarsa (ve giriş

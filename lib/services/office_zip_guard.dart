@@ -8,8 +8,11 @@ import 'package:archive/archive.dart';
 /// açılmadan başlıktaki sayı/boyutlarla reddedilir:
 /// giriş ≤ [maxEntries], tek giriş ≤ [maxEntryBytes], toplam ≤ [maxTotalBytes].
 ///
-/// Sınır: başlık yalan söyleyebilir (açılmış boyutu küçük yazılmış giriş) —
-/// bu denetim yalnız olağan bombaları keser; tam koruma akışlı açma ister.
+/// Yalan başlık (açılmış boyutu küçük yazılmış giriş): `archive` 4.6 bir
+/// girişi açarken çıktıyı başlıktaki `uncompressedSize` ile sınırlar
+/// (`maxOutputSize`) — aşımda `ArchiveLimitException` (FormatException).
+/// Böylece buradaki başlık denetimi gerçek bellek sınırı da olur
+/// (test: `office_zip_guard_test` "yalan başlık"; G7.3 artığı, 2026-11-12).
 abstract final class OfficeZipGuard {
   static const maxEntries = 10000;
   static const maxEntryBytes = 200 * 1024 * 1024;

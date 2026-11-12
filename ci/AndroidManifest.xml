@@ -117,6 +117,13 @@
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions"/>
 
+    <!-- G9.8 (2026-11-12): READ_PHONE_STATE bir eklentiden birleşiyordu
+         (uses-sdk bildirmeyen eski kütüphane — birleştirici örtük ekler).
+         Uygulama telefon durumunu hiç okumaz; Play'de "neden gerekli" sorusu
+         doğurmasın diye birleştirmeden çıkarılır. -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE"
+        tools:node="remove"/>
+
     <!-- **Tahminli geri AÇIK** (Faz 11a, 2026-10-22). 2026-09-26'da
          targetSdk 36 geçişinde geçici olarak kapatılmıştı (`false`). Dart
          tarafında `WillPopScope` kalmadı — bütün geri davranışı `PopScope`

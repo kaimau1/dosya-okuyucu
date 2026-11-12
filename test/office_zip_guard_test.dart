@@ -76,4 +76,28 @@ void main() {
     }
     expect(sw.elapsed, lessThan(const Duration(seconds: 5)));
   });
+  test('yalan başlık: açılmış boyutu küçük yazılmış giriş başlıktaki boyutu aşamaz', () {
+    // 4 MB sıfır → merkezi dizinde açılmış boyut 1000 diye yazılır.
+    final a = Archive()
+      ..addFile(ArchiveFile.bytes('word/document.xml', Uint8List(4 * 1024 * 1024)));
+    final bytes = Uint8List.fromList(ZipEncoder().encode(a));
+    final view = ByteData.sublistView(bytes);
+    var patched = 0;
+    for (var i = 0; i + 30 < bytes.length; i++) {
+      final sig = view.getUint32(i, Endian.little);
+      if (sig == 0x04034b50) {
+        view.setUint32(i + 22, 1000, Endian.little); // yerel başlık
+        patched++;
+      } else if (sig == 0x02014b50) {
+        view.setUint32(i + 24, 1000, Endian.little); // merkezi dizin
+        patched++;
+      }
+    }
+    expect(patched, greaterThanOrEqualTo(2), reason: 'test girdisi anlamlı');
+    // Başlık sınırları geçer (1000 bayt) …
+    final archive = OfficeZipGuard.decode(bytes);
+    // … ama `archive` paketi açmayı başlıktaki boyutla keser (4.6: maxOutputSize
+    // = uncompressedSize) → 4 MB belleğe hiç açılmaz, hata FormatException.
+    expect(() => archive.files.first.content, throwsA(isA<FormatException>()));
+  });
 }

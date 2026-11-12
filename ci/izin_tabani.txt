@@ -24,7 +24,6 @@ android.permission.PACKAGE_USAGE_STATS
 android.permission.POST_NOTIFICATIONS
 android.permission.QUERY_ALL_PACKAGES  # eklenti (installed_apps); Play AAB'de çıkarılır
 android.permission.READ_EXTERNAL_STORAGE
-android.permission.READ_PHONE_STATE  # eklenti birleştiriyor — kaynağı incelenmedi (KALANLAR G9.8 artığı)
 android.permission.RECEIVE_BOOT_COMPLETED
 android.permission.RECORD_AUDIO
 android.permission.REQUEST_DELETE_PACKAGES  # eklenti (uygulama kaldırma)
