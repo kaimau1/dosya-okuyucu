@@ -105,12 +105,13 @@ class HttpShareServer {
     if (_server != null) return;
     final server = await HttpServer.bind(InternetAddress.anyIPv4, port);
     _server = server;
+    LanGuard.harden(server);
     // `listen` bilinçli olarak beklenmiyor: sunucu arka planda yaşıyor.
     server.listen(
       (request) {
         // İstemci bağlantıyı sıfırlarsa yakalanmamış hata kalmasın.
         request.response.done.ignore();
-        unawaited(_handle(request));
+        unawaited(_gate.run(request, () => _handle(request)));
       },
       onError: (_) {},
       cancelOnError: false,
@@ -131,6 +132,9 @@ class HttpShareServer {
 
   /// G4.3: adres başına 10 hatalı parola → 60 sn 429.
   final _throttle = AuthThrottle();
+
+  /// G4.5: eşzamanlı istek sınırı.
+  final _gate = RequestGate();
 
   Future<void> _handle(HttpRequest request) async {
     final response = request.response;

@@ -56,6 +56,21 @@ abstract final class LanGuard {
     return false;
   }
 
+  /// G4.5: aynı anda en çok bu kadar istek / FTP oturumu (fazlası 503 / 421).
+  /// Tarayıcı bir sunucuya ≤ 6 bağlantı açar; 16 birkaç istemciye yeter.
+  static const maxConcurrent = 16;
+
+  /// G4.5: boşta bekleyen kalıcı bağlantı bu sürede kapanır (Dart varsayılanı
+  /// 120 sn). Süren aktarımı etkilemez — yalnız istekler ARASI boşluğu sayar.
+  static const idleTimeout = Duration(seconds: 60);
+
+  /// Sunucuya ortak ayarlar: boşta zaman aşımı, `Server:` başlığı yok
+  /// (sürüm bilgisi sızdırmasın).
+  static void harden(HttpServer server) {
+    server.idleTimeout = idleTimeout;
+    server.serverHeader = null;
+  }
+
   /// Sabit zamanlı metin karşılaştırma (uzunluk farkı da sızdırmaz: kısa
   /// olan döngü boyunca tamamlanır).
   static bool safeEquals(String a, String b) {
@@ -100,6 +115,40 @@ abstract final class LanGuard {
     if (origin == null) return true;
     final o = Uri.tryParse(origin);
     return o != null && o.host == host;
+  }
+}
+
+/// **Eşzamanlı istek sınırı** (G4.5): [limit] istek sürerken gelen yenisi
+/// 503 ile hemen kapatılır — tek bir istemcinin yüzlerce bağlantıyla
+/// telefonun belleğini/dosya tanıtıcılarını tüketmesini önler.
+class RequestGate {
+  RequestGate({this.limit = LanGuard.maxConcurrent});
+
+  final int limit;
+  int _active = 0;
+
+  /// Şu an süren istek sayısı.
+  int get active => _active;
+
+  /// [body]yi sınır içindeyse koşturur; doluysa 503 yazar.
+  Future<void> run(HttpRequest request, Future<void> Function() body) async {
+    if (_active >= limit) {
+      final res = request.response;
+      try {
+        res.statusCode = HttpStatus.serviceUnavailable;
+        res.headers.set(HttpHeaders.retryAfterHeader, '2');
+        await res.close();
+      } catch (_) {
+        // Bilinçli: kapatma — istemci zaten gitmiş olabilir.
+      }
+      return;
+    }
+    _active++;
+    try {
+      await body();
+    } finally {
+      _active--;
+    }
   }
 }
 

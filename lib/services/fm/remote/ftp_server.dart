@@ -159,6 +159,15 @@ class FtpServer {
           socket.destroy();
           return;
         }
+        // G4.5: eşzamanlı oturum sınırı.
+        if (_clients.length >= LanGuard.maxConcurrent) {
+          socket.add(utf8.encode('421 Too many connections\r\n'));
+          unawaited(socket
+              .flush()
+              .then((_) {}, onError: (Object _) {})
+              .whenComplete(socket.destroy));
+          return;
+        }
         final session = _FtpSession(this, socket);
         _clients.add(session);
         onClients?.call(_clients.length);

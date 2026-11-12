@@ -152,10 +152,11 @@ class QrShareServer implements KeepableServer {
       server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
     }
     _server = server;
+    LanGuard.harden(server);
     server.listen((r) {
       // İstemci bağlantıyı sıfırlarsa yakalanmamış hata kalmasın.
       r.response.done.ignore();
-      unawaited(_handle(r));
+      unawaited(_gate.run(r, () => _handle(r)));
     }, onError: (_) {});
     final life = ttl;
     if (life != null) {
@@ -176,6 +177,9 @@ class QrShareServer implements KeepableServer {
   /// `http://<ip>:<port>/q/<jeton>/`
   Uri urlFor(String host) => Uri(
       scheme: 'http', host: host, port: port, path: '/q/$token/');
+
+  /// G4.5: eşzamanlı istek sınırı.
+  final _gate = RequestGate();
 
   Future<void> _handle(HttpRequest req) async {
     final res = req.response;
