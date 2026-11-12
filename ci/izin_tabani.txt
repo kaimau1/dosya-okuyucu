@@ -1,6 +1,7 @@
 # APK İZİN TABANI (GUVENLIK_PLANI G9.8). Denetim: tool/apk_dogrula.py
 # Yeni izin = bilinçli karar: satırı gerekçeyle ekle. Eklentilerin birleştirdikleri de buradadır.
-# kip: uyari
+# Kaynak: CI koşu 735 (2026-11-12) arm64 APK'sı. Play AAB'de bir kısmı ci/play_variant.py ile düşer.
+# kip: kati
 android.permission.ACCESS_COARSE_LOCATION
 android.permission.ACCESS_FINE_LOCATION
 android.permission.ACCESS_NETWORK_STATE
@@ -21,11 +22,18 @@ android.permission.MANAGE_EXTERNAL_STORAGE
 android.permission.NEARBY_WIFI_DEVICES
 android.permission.PACKAGE_USAGE_STATS
 android.permission.POST_NOTIFICATIONS
+android.permission.QUERY_ALL_PACKAGES  # eklenti (installed_apps); Play AAB'de çıkarılır
 android.permission.READ_EXTERNAL_STORAGE
+android.permission.READ_PHONE_STATE  # eklenti birleştiriyor — kaynağı incelenmedi (KALANLAR G9.8 artığı)
 android.permission.RECEIVE_BOOT_COMPLETED
 android.permission.RECORD_AUDIO
+android.permission.REQUEST_DELETE_PACKAGES  # eklenti (uygulama kaldırma)
 android.permission.REQUEST_INSTALL_PACKAGES
 android.permission.SYSTEM_ALERT_WINDOW
+android.permission.USE_BIOMETRIC  # local_auth (kasa parmak izi)
+android.permission.USE_FINGERPRINT  # local_auth (eski API)
+android.permission.VIBRATE  # eklenti (bildirim/titreşim)
 android.permission.WAKE_LOCK
 android.permission.WRITE_EXTERNAL_STORAGE
 com.android.launcher.permission.INSTALL_SHORTCUT
+com.dosyaokuyucu.dosya_okuyucu.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION  # AndroidX otomatik (imza düzeyi)
