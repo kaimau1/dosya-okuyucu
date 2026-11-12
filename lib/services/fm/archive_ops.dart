@@ -886,8 +886,23 @@ Future<String> _extractOneSync(
 }
 
 /// [target] altında güvenli birleştirme; dışarı taşan yol için null.
-String? _safeJoin(String target, String entryPath) {
+String? _safeJoin(String target, String entryPath) =>
+    safeArchiveJoin(target, entryPath);
+
+/// Arşiv girdisinin hedef klasördeki yolu; dışına düşüyorsa `null` (zip-slip).
+///
+/// G7.2 (2026-11-12): `..`/mutlak yol (`/etc/x`) kök dışı → `null`; NUL
+/// içeren, 4096 karakteri aşan ya da hedefin KENDİSİNE çözülen (`.`, `a/..`)
+/// girdi de `null` — sonuncusu dosyaysa klasörün üzerine yazmaya çalışırdı.
+String? safeArchiveJoin(String target, String entryPath) {
+  if (entryPath.isEmpty ||
+      entryPath.contains('\u0000') ||
+      entryPath.length > 4096) {
+    return null;
+  }
   final joined = p.normalize(p.join(target, entryPath));
-  if (!FsPaths.isInside(target, joined)) return null;
+  if (!FsPaths.isInside(target, joined) || p.equals(target, joined)) {
+    return null;
+  }
   return joined;
 }
