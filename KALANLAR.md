@@ -60,14 +60,10 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
 - [ ] **A4.2 `AppState` (989 satır):** Faz 3'te ayrılmayan Browse / Clipboard / Remotes /
       AI bildiricileri ayrı `ChangeNotifier`'lara; yalnız ilgili ekran izlesin
       (`root_rebuild_test` yöntemiyle yeniden çizim sayısı testi).
-- [~] **A4.3 Boş `catch`** (2026-11-11: 191 → 12; bekçi `test/empty_catch_ratchet_test.dart`
-      tavan 12, yalnız iner). 179'u gerekçeli `// Bilinçli: …` yorumu aldı (temizlik, kapatma,
-      kalıcı kayıt, bozuk veri, yerel karşılık yok …). Kalan 12 düşünülerek bakılmalı (CrashLog mu
-      `UserError` mı): `secure_vault` 424, `safe_write` 135, `storage_stats` 476, `ai_ask` 108,
-      `ai_analyzer` 639, `peer_share` 775/1053/1139, `pdf_page_edit` 157, `secure_screen` 51 …
-      (`grep -rn "catch (_) {}" lib`).
-- [~] **A4.4 Ekran/widget kodunda senkron G/Ç** (2026-11-11: 87 → 44; bekçi
-      `test/sync_io_ratchet_test.dart` tavan 44, yalnız iner). Kalan 44: `build` içi tek
+- [x] **A4.3 Boş `catch`** (2026-11-11: 191 → 12; 2026-11-12: 12 → 0). Hepsi gerekçeli
+      `// Bilinçli: …` yorumu aldı; bekçi `test/empty_catch_ratchet_test.dart` tavan **0**.
+- [~] **A4.4 Ekran/widget kodunda senkron G/Ç** (2026-11-11: 87 → 44; 2026-11-12: → 30; bekçi
+      `test/sync_io_ratchet_test.dart` tavan 30, yalnız iner). Kalan 30: `build` içi tek
       `stat`ler (önbellek gerekir: galeri bilgi satırı, işler boyutu, klasör seçici kısayolları,
       SD birleşik çipleri, arşiv başlığı), editör açılışı (sahte saat tuzağı, bilinçli),
       izolattaki okuma, PDF dosyaları (Faz 54'le çakışmasın diye dokunulmadı).
@@ -83,8 +79,12 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
       temizliği. **2026-11-11:** kalıcı sil (`delete`, `FmOpResult.deleted`) ve `showFmProgress<String>`
       ile ÜRETİLEN her şey (arşive ekle, arşivden çıkar, APK dışa aktar, indirme … → `create`,
       `createdChangeOf`; sayfada "Çöp kutusuna at" → `trash` olur, "Geri yükle" çalışır) bağlandı.
-      Kalan: boyutlandırma/küçültme (karşılaştırma sayfası var), AI kategorilere ayır, AI düzenleme,
-      SD "Şimdi taşı" (yerel iş yol listesi döndürmüyor), sohbet temizliği. **Bitti:** her işin kartından `JobReportScreen` açılıyor; geri
+      **2026-11-12:** akıllı temizlik (kuyruk işi → `JobHandle.addChanges`, çöpe atılanlar `trash`)
+      bağlandı. Zaten bağlıymış: AI kategorilere ayır (= `showAiTagFlow`, etiket kaydı), sohbet
+      temizliği (`ChatJunkBucketScreen` → `deleteEntries` → `showFmProgress<FmOpResult>`).
+      Bilinçli kalan: boyutlandırma/küçültme kartı karşılaştırma sayfasını açar (özgün ↔ yeni + sil/tut —
+      rapor sayfasından zengin). Kalan: SD "Şimdi taşı" (yerel WorkManager işi yol listesi
+      döndürmüyor → Kotlin), "AI düzenleme" (kodda karşılığı bulunamadı — ne kastedildiği belirsiz). **Bitti:** her işin kartından `JobReportScreen` açılıyor; geri
       alınabilenlerde "Geri al" çalışıyor; her iş için test.
 
 ### A6 — Play, gizlilik ve mağaza metinleri + Pro iskeleti
