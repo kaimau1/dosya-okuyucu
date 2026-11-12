@@ -35,7 +35,7 @@ A7.6, A7.7 2026-11-02'de bitti — HAFIZA.)
 
 ### A1 — Depo ve belge hijyeni (kısa, ilk iş)
 
-- [ ] **A1.2 Uzak dalları temizle (kullanıcı izniyle).** main dışında 64 uzak dal var:
+- [ ] **A1.2 Uzak dalları temizle (kullanıcı izniyle).** **2026-11-12 yeniden sayım (tam geçmişle):** 114 dal; 94'ü main'e TAM girmiş (91'i 24 saatten eski — silinmeye hazır, otomatik silme izinle engellendi), 19'unda main'de olmayan 1–12 commit (faz-54, faz-G0/G1/G2, dependabot ×3, eski `claude/*` ×7 …) — tek tek bakılmalı. Eski not: main dışında 64 uzak dal var:
       16'sı main'e tam girmiş; 46'sının main'le ortak atası yok (main'in geçmişi bir ara
       yeniden yazılmış — içerikleri main'de); `ccr-4fb1643b-cvg3t7` #52 ile squash girmiş;
       `ccr-0ba9d97d-1mtuwm` 2026-11-01'de birleştirildi.
@@ -93,10 +93,8 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
 
 ### A6 — Play, gizlilik ve mağaza metinleri + Pro iskeleti
 
-- [ ] **A6.5 Pro / Billing iskeleti** (Faz 11a'da "kapalı bayrakla yazılabilir" denmişti,
-      yazılmadı): tek kapı `ProGate` + Play Billing (tek seferlik Pro, K6) — ürün kimliği
-      yokken bayrak kapalı, GitHub derlemesinde her şey açık; satın alma geri yükleme
-      akışı. Pro'ya girecek özellikler 👤 B5'te; iskelet + test burada.
+- [x] **A6.5 Pro / Billing iskeleti** — DÜŞTÜ (SÜRÜM PLANI 2026-11-10: Pro ayrı ücretli uygulama,
+      Billing kodu yok). Yerine sürüm kapısı S1–S3 (2026-11-12, `core/edition.dart`, `widgets/pro_gate.dart`).
 - [ ] **A6.6 Play İçi Değerlendirme + Uygulama İçi Güncelleme** (N5): yalnız Play
       derlemesinde (bayrak); Kotlin + `check_kotlin.sh`.
 
@@ -125,7 +123,7 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
       galeri, 100 sayfalık PDF, 10 bin satırlık Excel, Word 1000 paragraf yazma;
       `traceAction` özeti → `docs/perf/`. Veri `tool/make_test_tree.py`. Koşu:
       `flutter drive --profile` (B2).
-- [ ] **A8.2 Açılışın ilk 0,5 sn'si:** ilk kare raster 218–309 ms (Impeller ve Skia), pano
+- [~] **A8.2 Açılışın ilk 0,5 sn'si:** (2026-11-12: büyük AI indeksi ayrı izolatta, kanca `ACILIS ai-index`; pano `initState`'teki geri kalanlar SharedPreferences/meta okuması — ucuz; doğrulama B2.) ilk kare raster 218–309 ms (Impeller ve Skia), pano
       build 45–49 ms. Pano ilk kurulumunda `StartupQueue`'ya ertelenebilecek işleri kodda
       bul ve ertele (her biri ölçüm kancasıyla); doğrulama B2 (`_logSlowStartupFrames`).
 
@@ -188,7 +186,7 @@ Sıra 51 → 68 (atlama yok). Bildirilen 6 sorun (PS1–PS6) Faz 51'de ara, 54/5
 
 Plan: `docs/SURUM_PLANI.md`. A6.5 (Billing iskeleti) ve B5.2 bu kararla **düştü** (Pro ayrı ücretli uygulama).
 
-- [ ] S1 sürüm kapısı · S2 arayüz kapıları · S3 Pro levhası · S4 manifest varyantları · S5 paket kimlikleri · S6 CI · S7 Lite→Pro geçiş · S8 mağaza · S9 Kişisel
+- [x] S1 sürüm kapısı (2026-11-12) · [~] S2 arayüz kapıları (pano araçları) · [~] S3 Pro levhası + ayar satırı · S4 manifest varyantları · S5 paket kimlikleri · S6 CI · S7 Lite→Pro geçiş · S8 mağaza · S9 Kişisel
 - [ ] 👤 fiyat, uygulama adları, taramanın yeri, "Tüm dosyalar" reddinde yol (§5)
 
 ---

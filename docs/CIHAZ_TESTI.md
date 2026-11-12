@@ -928,3 +928,9 @@ Belgeler: `rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `rl_cok_sayfa.pdf`, `rl_si
 2. Tailscale adresine (`100.x`) http WebDAV → bağlanır.
 3. Başka uygulamadan (Dosyalar, Gmail eki) "Birlikte aç" ve "Paylaş → Dosya Okuyucu" eskisi gibi çalışıyor (önbellek kopyası kabul).
 4. İndirme yöneticisine `file:///…` ya da `content://…` yapıştır → kuyruğa girer ama "başlatılamadı"; normal https indirme çalışır.
+
+## Sürümler S1–S3 + A8.2 (2026-11-12, main)
+1. Nightly (Kişisel): pano araçlarında PRO rozeti YOK; Kasa, Yeni belge, Sesli kitaplar doğrudan açılır; Ayarlarda "Pro sürüm" satırı yok.
+2. Okuyucu derlemesi (`build-okuyucu.yml`, Lite): Kasa/Yeni belge/Sesli kitaplar kutusunda "PRO" rozeti; dokununca levha (3 madde, fiyat satırı yok, "Play'de gör" Play'i ya da tarayıcıyı açar, "Şimdi değil" kapatır). Ayarlar → Hakkında üstünde "Pro sürüm" satırı aynı levhayı açar. Yüklü uygulamalar kutusu ve kendi kendini güncelleme yok.
+3. Çok dosyası AI ile analiz edilmiş telefonda soğuk açılış: `adb logcat -s flutter | grep ACILIS` → `ai-index … izolat`; ilk karelerde (`KARE`) önceki tura göre takılma yok.
+
