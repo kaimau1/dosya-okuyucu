@@ -893,3 +893,10 @@ Belgeler: `rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `rl_cok_sayfa.pdf`, `rl_si
 4. **Mobil veri:** Wi-Fi kapalı, mobil veri açık, sunucu açık → dışarıdan (başka bir ağdan) port ERİŞİLEMİYOR. Telefon erişim noktası açıkken bağlanan bilgisayardan erişiliyor.
 5. **Eşler arası:** iki telefon + Windows "Dosya Aktar" ile kodlu/kodsuz gönder-al; yanlış kod 5 kez → doğru kod da 1 dk reddediliyor.
 6. **QR aktarım + slayt kumandası:** QR'dan indirme sayfası açılıyor (küçük resimler, "Tümünü indir"); slayt kumandası ileri/geri çalışıyor.
+
+## Güvenlik G4.5 / G6.5 / G7.x (2026-11-12, main)
+1. **CSV formül koruması:** Excel'de `=1+1` yazan METİN hücresi ve `-1.500,00` biçimli sayı olan sayfayı CSV dışa aktar → pencerede "Formül koruması" açık; dosyayı Excel/LibreOffice'te aç: metin `'=1+1` olarak görünür, sayı sayı kalır. Anahtarı kapatıp tekrar dene → seçim hatırlanıyor.
+2. **Uzantı aldatması:** İndirilenler'e `rapor.pdf.apk` adlı dosya koy (yeniden adlandır) → listede `.apk` kırmızı/kalın, uzun adda da son uzantı görünür; ızgarada da kırmızı. TalkBack "Dikkat: gerçek tür .apk" diyor.
+3. **Boş disk:** telefon belleği ~250 MB boşken bilgisayardan tarayıcıyla 100 MB'lık dosya yükle → "507 Telefonda yeterli boş alan yok"; FTP'de yükleme 452 ile reddediliyor. Bol yer varken yükleme eskisi gibi.
+4. **Doğal ses (sesli okuma):** EMA ve Antalia sesleriyle bir sayfa sesli okunuyor (yerel sunucu Host/Origin denetiminden sonra da ses geliyor).
+5. **Arşiv:** olağan zip/rar/7z çıkarma eskisi gibi; içinde `../` girdisi olan test zip'i hedef dışına yazmıyor.
