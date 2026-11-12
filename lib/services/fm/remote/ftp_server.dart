@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import '../../../models/fs_entry.dart';
 import '../fs_scan.dart';
 import '../storage_stats.dart';
+import 'disk_guard.dart';
 import 'ftp_tree.dart';
 import 'lan_guard.dart';
 import 'share_scope.dart';
@@ -914,6 +915,11 @@ class _FtpSession {
         return;
       }
       mode = FileMode.writeOnlyAppend;
+    }
+    // G4.5: telefonda en az 200 MB boş kalmalı (boyut FTP'de önceden bilinmez).
+    if (!await DiskGuard.hasRoom(p.dirname(real))) {
+      _send('452 Telefonda yeterli boş alan yok');
+      return;
     }
     _send('150 Dosya alınıyor');
     final data = await _acceptData();

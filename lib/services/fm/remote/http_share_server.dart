@@ -9,6 +9,7 @@ import '../../../models/fs_entry.dart';
 import '../file_ops.dart';
 import '../fs_scan.dart';
 import '../mime_types.dart';
+import 'disk_guard.dart';
 import 'ftp_server.dart';
 import 'ftp_tree.dart';
 import 'lan_guard.dart';
@@ -228,6 +229,14 @@ class HttpShareServer {
         boundary == null) {
       response.statusCode = HttpStatus.forbidden;
       response.write('403');
+      await response.close();
+      return;
+    }
+    // G4.5: telefonda yükleme sonrası en az 200 MB boş kalmalı.
+    if (!await DiskGuard.hasRoom(dir, incoming: request.contentLength)) {
+      response.persistentConnection = false;
+      response.statusCode = 507; // Insufficient Storage
+      response.write('507 - Telefonda yeterli boş alan yok');
       await response.close();
       return;
     }
