@@ -741,3 +741,10 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Karar (S2/S3):** `FmTileData.feature` verilirse kutu `gatedTap` (Lite'ta levha) + `badged` (PRO rozeti). A6.5 Billing iskeleti düştü (ayrı ücretli uygulama). Fiyat `DOSYA_PRO_FIYAT`, boşsa satır gizli.
 - **Tuzak (A8.2):** `Isolate.run` kapanışı statik alıcı (`AiIndex.path`) kullanırsa yeni izolatta `FmEnv` boş → yanlış yol; yerel dizeyi yakala. 256 KB altı indeks yerinde çözülür (testler fake-async'te izolat beklemesin).
 
+## 2026-11-12 — S2/S3 devamı + güvenlik artıkları (G4.8, G6.6, G8.2, G8.4, G8.6, G2.6, G1a)
+- **Karar (S2):** kapı giriş noktasında: `FmTileData.feature`, dock `_g(...)`, işlem levhası `_featureOf(action)`; `ScanFlow.run`/`PdfToolsScreen.open`/`showNewDocumentSheet` kendi başında. Office düzenleyiciler aynı zamanda görüntüleyici → Lite için salt-okunur kip GEREKİR (yapılmadı; kapatırsan Lite Word/Excel okuyamaz).
+- **Karar (S3):** "Pro'da neler var?" kartı `SmartInbox` olayı (`pro_card`, kapatılamaz-ama "Şimdi değil" eylemi) — gizleme `ProPromo` 30 gün, SharedPreferences.
+- **Bug kökü (G8.4):** `smb_connect.connectAuth` en düşük sürümü SMB1 bırakıyor → `SmbConnect.connect(BaseConfiguration(minimumVersion: SMB202))`; paket `src/` içe aktarımı `// ignore: implementation_imports` ile (0.0.9 dışa aktarmıyor).
+- **Bug kökü (G8.2):** `ftpconnect` 3.0.0 üç yerde `onBadCertificate: (_) => true`. Yama `third_party/ftpconnect` (`FtpTlsTrust` kancası). **Tuzak:** TLS kararı SENKRON → bilinmeyen sertifika reddedilir + bekleyene yazılır, çağıran sorar ve YENİDEN bağlanır. pubspec.lock'ta path girdisi elle yazıldı (`--enforce-lockfile`).
+- **Tuzak (izin):** bulut oturumunun git vekili oturum dalı dışındaki uzak dalları silmeye 403 veriyor (A1.2) — dal temizliği kullanıcı tarafında (GitHub arayüzü ya da yerel `git push --delete`).
+

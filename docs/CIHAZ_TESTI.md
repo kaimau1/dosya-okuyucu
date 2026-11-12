@@ -933,4 +933,11 @@ Belgeler: `rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `rl_cok_sayfa.pdf`, `rl_si
 1. Nightly (Kişisel): pano araçlarında PRO rozeti YOK; Kasa, Yeni belge, Sesli kitaplar doğrudan açılır; Ayarlarda "Pro sürüm" satırı yok.
 2. Okuyucu derlemesi (`build-okuyucu.yml`, Lite): Kasa/Yeni belge/Sesli kitaplar kutusunda "PRO" rozeti; dokununca levha (3 madde, fiyat satırı yok, "Play'de gör" Play'i ya da tarayıcıyı açar, "Şimdi değil" kapatır). Ayarlar → Hakkında üstünde "Pro sürüm" satırı aynı levhayı açar. Yüklü uygulamalar kutusu ve kendi kendini güncelleme yok.
 3. Çok dosyası AI ile analiz edilmiş telefonda soğuk açılış: `adb logcat -s flutter | grep ACILIS` → `ai-index … izolat`; ilk karelerde (`KARE`) önceki tura göre takılma yok.
+4. Lite: ana ekranda "Pro'da neler var?" kartı; "Şimdi değil" → kart kalkar, uygulama yeniden açılınca da yok. Fotoğraflar/İndirilenler kutusu, dock'taki Kasa/AI, dosyaya uzun basıp Taşı/Sil → Pro levhası. Tarama ve PDF araçları → levha.
+
+## Güvenlik G4.8 / G8.2 / G8.4 / G8.6 / G2.6 (2026-11-12, main)
+1. Bilgisayarla paylaşımı (FTP + tarayıcı) aç, hiçbir şey bağlamadan 30 dk bekle → paylaşım kapanır, bildirim kalkar. Tarayıcıdan arada bir sayfa yenilenirse kapanmaz.
+2. Kendinden imzalı sertifikalı FTPS sunucusu (ör. vsftpd/FileZilla Server): ilk bağlantıda parmak izi penceresi; "Güven" → bağlanır; ikinci bağlantı sormaz; sunucu sertifikası yenilenince kırmızı "değişti" penceresi.
+3. SMB: Windows/Samba (SMB2+) eskisi gibi bağlanır. Yalnız SMB1 açık eski bir NAS'ta "Eski SMB1 protokolü" uyarısı; "Yine de bağlan" → bağlanır ve bir daha sormaz.
+4. Yakındakiler → tarayıcı adresine dokun (kopyala) → 60 sn sonra pano boş.
 

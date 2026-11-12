@@ -108,13 +108,13 @@ Kurallar: `CLAUDE.md` §4 (doğrulama = CI). Faz dalı `faz-S1`… + PR. Her mad
       Eski bayraklar buna bağlanır: `StoragePermission.readerBuild` → `Edition.current == lite`;
       `DOSYA_KISISEL == '1'` → `kisisel`. Eski `--dart-define`'lar bir süre birlikte kabul edilir (CI kırılmasın).
       Test: `test/edition_test.dart` — her sürüm için tablo; "Lite ⊂ Pro ⊂ Kişisel" (alt küme) kuralı.
-- [~] **S2 — Arayüz kapıları.** (2026-11-12: `lib/widgets/pro_gate.dart` — `ProGate.guard/visible/locked`, `ProBadged`; `FmTileData.feature` ile pano araçları (yeni belge, sesli kitap, kasa) bağlı. Kalan giriş noktaları: kategori kutuları, `tools_screen`, görüntüleyici menüleri, `entry_actions`, `pdf_tools`.) Giriş noktaları: `lib/screens/fm/dashboard/{sections,tools,tiles}.dart` (kutular),
+- [~] **S2 — Arayüz kapıları.** (2026-11-12: `lib/widgets/pro_gate.dart` — `ProGate.guard/visible/locked`, `ProBadged`; `FmTileData.feature` ile pano araçları + kategori kutuları + Tüm araçlar; dock düğmeleri; dosya işlem levhası (`_featureOf`); `ScanFlow.run`, `PdfToolsScreen.open`, `showNewDocumentSheet` kendi içinde; Drive yalnız Kişisel. **Kalan:** Office düzenleyiciler (Word/Excel/slayt) aynı zamanda görüntüleyici — Lite'ta salt-okunur kip gerekir (`EntryOpener.screenFor`); görüntüleyici menülerindeki tek tek PDF/AI eylemleri.) Giriş noktaları: `lib/screens/fm/dashboard/{sections,tools,tiles}.dart` (kutular),
       `tools_screen.dart`, görüntüleyici menüleri (`lib/screens/viewer/**`), `entry_actions/**`, `pdf_tools/**`, ayar katalogu
       (`settings_catalog.dart`). Yardımcı: `ProGate.guard(context, Feature f, VoidCallback run)` — sürümde varsa çalıştırır,
       Lite'ta §3 levhasını açar, Play dışı özellik Lite/Pro'da **hiç çizilmez**. Arama: `grep -rn "Navigator.*push" lib/screens | wc -l`
       çok; ekran ekran değil **giriş noktası** kapat (kutu, menü satırı, düğme).
       Test: Lite'ta pano widget testi — Pro kutuları rozetli, Kişisel kutuları yok.
-- [~] **S3 — Pro levhası + kart + ayar satırı** (2026-11-12: levha `showProSheet` + Lite'ta Ayarlar → Hakkında üstünde "Pro sürüm" satırı; fiyat `--dart-define=DOSYA_PRO_FIYAT`. Kalan: ana ekran "Pro'da neler var?" kartı, 30 gün gizleme.) (§3). Metinler `lib/core/l10n/strings/` üç dilde. `SecureScreen` gerekmez.
+- [x] **S3 — Pro levhası + kart + ayar satırı** (2026-11-12: levha `showProSheet`; Lite'ta Ayarlar → "Pro sürüm"; ana ekran bildirim alanında "Pro'da neler var?" (`ProPromo`, "Şimdi değil" → 30 gün); fiyat `--dart-define=DOSYA_PRO_FIYAT`.) (§3). Metinler `lib/core/l10n/strings/` üç dilde. `SecureScreen` gerekmez.
 - [ ] **S4 — Manifest varyantları.** `ci/play_variant.py`'ye sürüm kipi: `DOSYA_SURUM=lite` → bugünkü `OKUYUCU_REMOVE` listesi;
       `pro` → çıkar: `REQUEST_INSTALL_PACKAGES`, `QUERY_ALL_PACKAGES`, `PACKAGE_USAGE_STATS`, `RECEIVE_BOOT_COMPLETED`,
       `ACCESS_FINE_LOCATION`/`COARSE` (Nearby konumsuz çalışıyor mu **ÖNCE DOĞRULA**), `http/https host="*"` Intent süzgeçleri,
