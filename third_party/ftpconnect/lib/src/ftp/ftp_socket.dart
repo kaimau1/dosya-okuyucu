@@ -15,7 +15,7 @@ typedef FtpBadCertificateHandler = bool Function(
     X509Certificate certificate, String host, int port);
 
 abstract final class FtpTlsTrust {
-  static FtpBadCertificateHandler? onBadCertificate;
+  static FtpBadCertificateHandler? verifyCertificate;
 }
 // ── YAMA sonu ───────────────────────────────────────────────────────────────
 
@@ -37,7 +37,7 @@ class FTPSocket {
   List<int>? _sessionCert;
 
   bool _badCert(X509Certificate certificate) {
-    final handler = FtpTlsTrust.onBadCertificate;
+    final handler = FtpTlsTrust.verifyCertificate;
     final ok = handler == null ? true : handler(certificate, host, port);
     if (ok) _sessionCert = certificate.der;
     return ok;

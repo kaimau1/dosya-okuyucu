@@ -1,7 +1,7 @@
 # ftpconnect 3.0.0 yaması (Güvenlik G8.2, 2026-11-12)
 
 **Tek değişiklik** — `lib/src/ftp/ftp_socket.dart` (+ `lib/ftpconnect.dart` dışa aktarımı):
-üç `onBadCertificate: (certificate) => true` satırı `FtpTlsTrust.onBadCertificate`
+üç `onBadCertificate: (certificate) => true` satırı `FtpTlsTrust.verifyCertificate`
 kancasına bağlandı (denetim bağlantısı, FTPES yükseltmesi, veri kanalı). Kanca null ise
 davranış yukarı akışla aynı (her sertifika kabul). Veri kanalı, denetim bağlantısında kabul
 edilen sertifikanın aynısını sunarsa yeniden sorulmaz.

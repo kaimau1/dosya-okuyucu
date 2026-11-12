@@ -43,7 +43,7 @@ class FtpFs extends RemoteFs {
   Future<void> connect() async {
     NetGuard.allow('ftp', host: connection.host);
     // G8.2: kendinden imzalı FTPS sertifikası sessizce kabul edilmez.
-    FtpTlsTrust.onBadCertificate = FtpsTrust.check;
+    FtpTlsTrust.verifyCertificate = FtpsTrust.check;
     await FtpsTrust.preload();
     FtpsTrust.takePending(connection.host, connection.port); // eski kalıntı
     try {

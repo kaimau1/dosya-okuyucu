@@ -50,7 +50,7 @@ abstract final class FtpsTrust {
     }
   }
 
-  /// `FtpTlsTrust.onBadCertificate` — senkron karar.
+  /// `FtpTlsTrust.verifyCertificate` — senkron karar.
   static bool check(X509Certificate certificate, String host, int port) =>
       checkDer(certificate.der, host, port);
 
