@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_icons.dart';
 import '../../core/busy_dialog.dart';
+import '../../core/private_zone.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
@@ -117,8 +118,8 @@ abstract final class EntryOpener {
     if (previousPath != null && previousPath != path) {
       await appState.removeRecent(previousPath);
     }
-    unawaited(OpenHistory.record(path));
-    await appState.addRecent(RecentFile(
+    _remember(path);
+    if (!PrivateZone.isPrivatePath(path)) await appState.addRecent(RecentFile(
       path: path,
       name: p.basename(path),
       sizeBytes: file.lengthSync(),
@@ -131,6 +132,12 @@ abstract final class EntryOpener {
   ///
   /// [startInk]: PDF açılır açılmaz kalem ekranı gelsin (Chrome'un PDF
   /// görüntüleyicisindeki kalem düğmesi → `ANNOTATE`; bkz. `PdfInkScreen`).
+  /// Açılış geçmişi — kasanın düz kopyası hariç (G2.8).
+  static void _remember(String path) {
+    if (PrivateZone.isPrivatePath(path)) return;
+    unawaited(OpenHistory.record(path));
+  }
+
   static Future<void> open(
     BuildContext context,
     String path, {
@@ -157,7 +164,7 @@ abstract final class EntryOpener {
     }
 
     if (route == OpenRoute.archive) {
-      unawaited(OpenHistory.record(path));
+      _remember(path);
       await Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => ArchiveScreen(path: path),
       ));
@@ -177,21 +184,21 @@ abstract final class EntryOpener {
     }
 
     if (route == OpenRoute.player) {
-      unawaited(OpenHistory.record(path));
+      _remember(path);
       await Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => MediaPlayerScreen(path: path, playlist: group),
       ));
       return;
     }
     if (route == OpenRoute.audio) {
-      unawaited(OpenHistory.record(path));
+      _remember(path);
       await Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => AudioPlayerScreen(path: path, playlist: group),
       ));
       return;
     }
     if (route == OpenRoute.gallery && group.length > 1) {
-      unawaited(OpenHistory.record(path));
+      _remember(path);
       // Saydam, solarak gelen rota: fotoğraf ızgaradaki hücresinden büyüyerek
       // açılır (Hero) ve aşağı kaydırınca hücresine dönerek kapanır
       // (2026-09-26 galeri turu, bkz. `imageGalleryRoute`).
@@ -219,13 +226,15 @@ abstract final class EntryOpener {
     busy.close();
     if (!context.mounted) return;
 
-    unawaited(OpenHistory.record(path));
-    await appState.addRecent(RecentFile(
-      path: path,
-      name: doc.name,
-      sizeBytes: _fileService.sizeOf(path),
-      openedAtMs: DateTime.now().millisecondsSinceEpoch,
-    ));
+    _remember(path);
+    if (!PrivateZone.isPrivatePath(path)) {
+      await appState.addRecent(RecentFile(
+        path: path,
+        name: doc.name,
+        sizeBytes: _fileService.sizeOf(path),
+        openedAtMs: DateTime.now().millisecondsSinceEpoch,
+      ));
+    }
     if (!context.mounted) return;
     await navigator.push(MaterialPageRoute(
         builder: (_) => screenFor(doc, startInk: startInk)));
@@ -312,7 +321,7 @@ abstract final class EntryOpener {
       await openExternally(context, path);
       return;
     }
-    if (result == 'done') unawaited(OpenHistory.record(path));
+    if (result == 'done') _remember(path);
     final text = switch (result) {
       'done' => str.t('apk.installed'),
       'aborted' => str.t('apk.install_aborted'),
@@ -330,7 +339,7 @@ abstract final class EntryOpener {
     try {
       final result = await NativeExtras.openExternal(path);
       if (result == 'done') {
-        unawaited(OpenHistory.record(path));
+        _remember(path);
         return;
       }
       if (!context.mounted) return;

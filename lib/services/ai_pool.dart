@@ -37,6 +37,7 @@ import 'dart:typed_data';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/private_zone.dart';
 import '../core/l10n/app_strings.dart';
 import 'gemini_service.dart';
 import 'offline_mode.dart';
@@ -359,6 +360,11 @@ abstract final class AiPool {
     // Çevrimdışı kip: anahtar/onay sormadan, kalıcı hata (-1).
     if (OfflineMode.enabled) {
       throw GeminiException(const OfflineException().message, statusCode: -1);
+    }
+    // G10.3: kasadan açılan dosya ekrandayken hiçbir şey buluta gitmez.
+    if (PrivateZone.active) {
+      throw GeminiException(AppStrings.current.t('aisend.private'),
+          statusCode: -2);
     }
     await ensureLoaded();
     final creds = credentials.normalized;

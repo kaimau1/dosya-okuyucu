@@ -206,6 +206,9 @@ class AiScope {
   /// silinmiş dosyanın AI özetinde dirilmesi hata olurdu.
   static const _hardBlocked = {
     '.dosya-okuyucu-cop',
+    // G10.3: kasa (şifreli kopyalar) ve düz açma önbelleği.
+    '.dosyaokuyucukasa',
+    'vault_open',
     '.thumbnails',
     '.trashed',
     'lost+found',

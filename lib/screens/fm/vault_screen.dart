@@ -1,3 +1,4 @@
+import '../../core/private_zone.dart';
 import '../../core/secure_screen.dart';
 import 'dart:async';
 
@@ -297,7 +298,8 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
   Future<void> _open(VaultItem item) async {
     try {
       final path = await SecureVault.instance.openTemp(item);
-      if (mounted) await EntryOpener.open(context, path);
+      // G10.3: görüntüleyici açıkken AI kapalı.
+      if (mounted) await PrivateZone.run(() => EntryOpener.open(context, path));
     } catch (e) {
       if (mounted) showSnack(context, context.t('vault.open_failed', {'error': userErrorText(e)}));
     }

@@ -36,6 +36,7 @@ const Map<String, (String, String, String)> _t29 = {
   ),
   'aisend.remember': ('Bir daha sorma', 'Don’t ask again', 'لا تسأل مجددًا'),
   'aisend.send': ('Gönder', 'Send', 'إرسال'),
+  'aisend.private': ('Kasadaki dosyalar yapay zekâya gönderilmez.', 'Files in the vault are never sent to AI.', 'لا تُرسل ملفات الخزنة إلى الذكاء الاصطناعي أبدًا.'),
   'aisend.cancelled': ('Yapay zekâya gönderilmedi.', 'Not sent to AI.', 'لم يُرسل إلى الذكاء الاصطناعي.'),
   'fm.add_folder': ('Klasör ekle', 'Add folder', 'إضافة مجلد'),
   'fm.open_one': ('Şimdilik tek dosya aç', 'Just open a file', 'افتح ملفًا واحدًا الآن'),
