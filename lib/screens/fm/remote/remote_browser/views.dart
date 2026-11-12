@@ -134,9 +134,10 @@ extension _RemoteBrowserScreenViewsPart on _RemoteBrowserScreenState {
           final plain = p.join(dir, entry.name);
           await _fs.downloadResumable(
               entry,
-              File('$plain.part').existsSync()
+              await File('$plain.part').exists()
                   ? plain
-                  : _RemoteBrowserScreenState._uniquePath(dir, entry.name));
+                  : await _RemoteBrowserScreenState._uniquePath(
+                      dir, entry.name));
           done++;
         } catch (e) {
           failed ??= entry.name;

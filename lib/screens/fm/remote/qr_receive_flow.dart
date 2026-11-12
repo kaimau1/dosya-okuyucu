@@ -153,7 +153,7 @@ abstract final class QrReceiveFlow {
               incoming: true,
               path: path,
               name: p.basename(path),
-              size: _sizeOf(path),
+              size: await _sizeOf(path),
               peer: from,
               at: DateTime.now(),
             ),
@@ -189,9 +189,9 @@ abstract final class QrReceiveFlow {
     }
   }
 
-  static int _sizeOf(String path) {
+  static Future<int> _sizeOf(String path) async {
     try {
-      return File(path).lengthSync();
+      return await File(path).length();
     } catch (_) {
       return 0;
     }

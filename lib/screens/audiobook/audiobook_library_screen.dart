@@ -25,6 +25,9 @@ class AudiobookLibraryScreen extends StatefulWidget {
 class _AudiobookLibraryScreenState extends State<AudiobookLibraryScreen> {
   List<(Directory, List<File>)>? _books;
 
+  /// Kitap klasörü → toplam bayt (arka planda okunur; `build` diske dokunmaz).
+  Map<String, int> _sizes = const {};
+
   @override
   void initState() {
     super.initState();
@@ -33,7 +36,21 @@ class _AudiobookLibraryScreenState extends State<AudiobookLibraryScreen> {
 
   Future<void> _load() async {
     final books = await AudiobookMaker.library();
-    if (mounted) setState(() => _books = books);
+    if (!mounted) return;
+    setState(() => _books = books);
+    final sizes = <String, int>{};
+    for (final (dir, files) in books) {
+      var total = 0;
+      for (final f in files) {
+        try {
+          total += await f.length();
+        } catch (_) {
+          // Bilinçli: silinmiş/okunamayan parça toplama katılmaz.
+        }
+      }
+      sizes[dir.path] = total;
+    }
+    if (mounted) setState(() => _sizes = sizes);
   }
 
   void _play(List<File> files, [int start = 0]) {
@@ -85,8 +102,9 @@ class _AudiobookLibraryScreenState extends State<AudiobookLibraryScreen> {
                           title: Text(p.basename(dir.path)),
                           subtitle: Text(context.t('ab.book_sub', {
                             'n': files.length,
-                            'size': FsPaths.humanSize(files.fold<int>(
-                                0, (a, f) => a + f.lengthSync())),
+                            'size': _sizes[dir.path] == null
+                                ? '…'
+                                : FsPaths.humanSize(_sizes[dir.path]!),
                           })),
                           trailing: IconButton(
                             tooltip: context.t('ab.play_all'),

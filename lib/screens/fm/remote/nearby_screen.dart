@@ -440,16 +440,16 @@ class _NearbyScreenState extends State<NearbyScreen> {
         if (mounted && _incoming.remove(name) != null) setState(() {});
       },
       onReceived: (path, from) {
-        unawaited(TransferHistory.instance.add([
-          TransferRecord(
-            incoming: true,
-            path: path,
-            name: p.basename(path),
-            size: _sizeOf(path),
-            peer: from,
-            at: DateTime.now(),
-          ),
-        ]));
+        unawaited(_sizeOf(path).then((size) => TransferHistory.instance.add([
+              TransferRecord(
+                incoming: true,
+                path: path,
+                name: p.basename(path),
+                size: size,
+                peer: from,
+                at: DateTime.now(),
+              ),
+            ])));
         // Kullanıcı ekrana bakmıyor olabilir: sistem bildirimi.
         unawaited(NotificationHub.instance.show(
           _receiveNotificationId,
@@ -804,6 +804,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
     final overall = out.totalBytes > 0
         ? (out.sentBytes * 100 ~/ out.totalBytes).clamp(0, 100).toInt()
         : (allOk ? 100 : 0);
+    final sizes = {for (final path in payload) path: await _sizeOf(path)};
     await TransferHistory.instance.add([
       for (final path in payload)
         () {
@@ -817,7 +818,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
             incoming: false,
             path: path,
             name: p.basename(path),
-            size: _sizeOf(path),
+            size: sizes[path] ?? 0,
             peer: peer.name,
             at: DateTime.now(),
             ok: allOk || pct >= 100,
@@ -879,10 +880,10 @@ class _NearbyScreenState extends State<NearbyScreen> {
     if (widget.services) await _startReceiving();
   }
 
-  static int _sizeOf(String path) {
+  static Future<int> _sizeOf(String path) async {
     try {
-      final type = FileSystemEntity.typeSync(path);
-      if (type == FileSystemEntityType.file) return File(path).lengthSync();
+      final type = await FileSystemEntity.type(path);
+      if (type == FileSystemEntityType.file) return await File(path).length();
     } catch (_) {
       // Boyut yalnız bilgi: okunamazsa 0 yazılır, aktarım etkilenmez.
     }

@@ -13,7 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// Bilinçli kalanlar (kodda gerekçeli yorumla): `build` içinde tek `stat`,
 /// arka plan izolatında okuma (`compute`), widget testinin sahte saatinde
 /// asenkron G/Ç'nin tamamlanmadığı açılış yolları (HAFIZA §F).
-const _ceiling = 44;
+const _ceiling = 30;
 
 final _syncIo = RegExp(r'\b(existsSync|statSync|listSync|readAsBytesSync|'
     r'readAsStringSync|writeAsBytesSync|writeAsStringSync|lengthSync|'

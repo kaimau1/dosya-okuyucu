@@ -176,7 +176,10 @@ extension _NearbyLinks on _NearbyScreenState {
       showSnackOn(messenger, strings.t('near.no_network'));
       return;
     }
-    final total = _selection.fold<int>(0, (a, s) => a + _NearbyScreenState._sizeOf(s));
+    var total = 0;
+    for (final s in [..._selection]) {
+      total += await _NearbyScreenState._sizeOf(s);
+    }
     showSnackOn(messenger, strings.t('near.inviting', {'name': near.name}));
     final ok = await BleNearby.invite(
       near.ble!.address,

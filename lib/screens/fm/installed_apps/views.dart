@@ -462,11 +462,34 @@ class _ApkExportSheetState extends State<_ApkExportSheet> {
   bool _all = true;
   late String _dir = widget.defaultDir;
 
-  int _sizeOf(Iterable<String> paths) {
+  /// Boyutlar arka planda bir kez okunur (`build` içinde disk beklenmez):
+  /// [_allBytes] tüm parçalar, [_baseBytes] yalnız ana APK.
+  int? _allBytes;
+  int? _baseBytes;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadSizes());
+  }
+
+  Future<void> _loadSizes() async {
+    final base = await _sizeOf([widget.source.sourcePath]);
+    final all = widget.source.isSplit
+        ? await _sizeOf(widget.source.allPaths)
+        : base;
+    if (!mounted) return;
+    setState(() {
+      _baseBytes = base;
+      _allBytes = all;
+    });
+  }
+
+  static Future<int> _sizeOf(Iterable<String> paths) async {
     var total = 0;
     for (final path in paths) {
       try {
-        total += File(path).lengthSync();
+        total += await File(path).length();
       } catch (_) {
         // Okunamayan parça boyuta katılmaz; çıkarma sırasında hata zaten söylenir.
       }
@@ -486,7 +509,7 @@ class _ApkExportSheetState extends State<_ApkExportSheet> {
       builder: (_) => FolderPickerScreen(
         sources: const [],
         actionLabel: context.t('apk.save_here'),
-        startPath: Directory(_dir).existsSync() ? _dir : FmEnv.primaryRoot,
+        startPath: await Directory(_dir).exists() ? _dir : FmEnv.primaryRoot,
       ),
     ));
     if (dest != null && mounted) setState(() => _dir = dest);
@@ -502,9 +525,7 @@ class _ApkExportSheetState extends State<_ApkExportSheet> {
     final theme = Theme.of(context);
     final src = widget.source;
     final parts = src.splitPaths.length + 1;
-    final size = _all && src.isSplit
-        ? _sizeOf(src.allPaths)
-        : _sizeOf([src.sourcePath]);
+    final size = _all && src.isSplit ? _allBytes : _baseBytes;
     final root = FmEnv.primaryRoot;
     final shownDir = _dir.startsWith(root)
         ? _dir.substring(root.length).replaceFirst(RegExp(r'^/'), '')
@@ -519,7 +540,9 @@ class _ApkExportSheetState extends State<_ApkExportSheet> {
             Text(context.t('apk.sheet_title'), style: theme.textTheme.titleLarge),
             const SizedBox(height: Gap.xs),
             Text(
-              '${_fileName()} · ${FsPaths.humanSize(size)}',
+              size == null
+                  ? _fileName()
+                  : '${_fileName()} · ${FsPaths.humanSize(size)}',
               style: theme.textTheme.bodyMedium,
             ),
             if (src.isSplit) ...[

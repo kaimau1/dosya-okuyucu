@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -483,7 +484,7 @@ class _JobCard extends StatelessWidget {
                 FsEntry.categoryForExtension(_extension(path)))),
             title: Text(p.basename(path),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
-            subtitle: MonoText(_sizeAndFolder(path)),
+            subtitle: _OutputSubtitle(path),
             // Dosya listede DURUYOR ama diskte olmayabilir (kullanıcı silmiş,
             // taşımış olabilir) — `EntryOpener` bu durumu kendisi bildiriyor.
             onTap: () => EntryOpener.open(context, path, siblings: outputs),
@@ -507,20 +508,6 @@ class _JobCard extends StatelessWidget {
     final dot = name.lastIndexOf('.');
     return dot <= 0 ? '' : name.substring(dot + 1);
   }
-
-  /// "12,4 MB · Camera" — boyut diskten okunur (çıktı gerçekten orada mı?).
-  String _sizeAndFolder(String path) {
-    final folder = p.basename(p.dirname(path));
-    try {
-      final file = File(path);
-      if (!file.existsSync()) {
-        return AppStrings.current.t('jb.file_missing', {'folder': folder});
-      }
-      return '${FsPaths.humanSize(file.lengthSync())} · $folder';
-    } catch (_) {
-      return folder;
-    }
-  }
 }
 
 /// İşlemler ekranını açar (alt şerit ve pano kutusu bunu çağırır).
@@ -529,3 +516,42 @@ class _JobCard extends StatelessWidget {
 /// bu liste.
 Future<void> openJobsScreen(BuildContext context) =>
     OperationsScreen.open(context);
+
+/// "12,4 MB · Camera" — boyut diskten ARKA PLANDA okunur (çıktı gerçekten
+/// orada mı?); okunana dek yalnız klasör adı görünür.
+class _OutputSubtitle extends StatefulWidget {
+  const _OutputSubtitle(this.path);
+
+  final String path;
+
+  @override
+  State<_OutputSubtitle> createState() => _OutputSubtitleState();
+}
+
+class _OutputSubtitleState extends State<_OutputSubtitle> {
+  String? _text;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  Future<void> _load() async {
+    final folder = p.basename(p.dirname(widget.path));
+    String text;
+    try {
+      final file = File(widget.path);
+      text = await file.exists()
+          ? '${FsPaths.humanSize(await file.length())} · $folder'
+          : AppStrings.current.t('jb.file_missing', {'folder': folder});
+    } catch (_) {
+      text = folder;
+    }
+    if (mounted) setState(() => _text = text);
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      MonoText(_text ?? p.basename(p.dirname(widget.path)));
+}

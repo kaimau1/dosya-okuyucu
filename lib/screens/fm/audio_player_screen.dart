@@ -519,7 +519,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
               title: Text(p.basenameWithoutExtension(path),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
               trailing: Text(
-                FsPaths.humanSize(_sizeOf(path)),
+                _sizeOf(path) == null ? '' : FsPaths.humanSize(_sizeOf(path)!),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               onTap: () => _skipTo(i),
@@ -528,11 +528,20 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
         ),
       );
 
-  int _sizeOf(String path) {
-    try {
-      return File(path).lengthSync();
-    } catch (_) {
-      return 0;
+  /// Liste satırlarının boyutu: ilk istekte arka planda okunur, sonra
+  /// önbellekten gelir (`build` içinde disk beklenmez).
+  final Map<String, int> _sizes = {};
+  final Set<String> _sizing = {};
+
+  int? _sizeOf(String path) {
+    final known = _sizes[path];
+    if (known != null) return known;
+    if (_sizing.add(path)) {
+      unawaited(File(path).length().catchError((Object _) => 0).then((n) {
+        if (!mounted) return;
+        setState(() => _sizes[path] = n);
+      }));
     }
+    return null;
   }
 }

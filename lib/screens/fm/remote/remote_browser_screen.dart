@@ -215,14 +215,14 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
   }
 
   /// Aynı adlı dosyanın ÜSTÜNE YAZMAZ: `ad (2).jpg` üretir.
-  static String _uniquePath(String dir, String name) {
+  static Future<String> _uniquePath(String dir, String name) async {
     var candidate = p.join(dir, name);
-    if (!File(candidate).existsSync()) return candidate;
+    if (!await File(candidate).exists()) return candidate;
     final base = p.basenameWithoutExtension(name);
     final ext = p.extension(name);
     for (var i = 2; i < 1000; i++) {
       candidate = p.join(dir, '$base ($i)$ext');
-      if (!File(candidate).existsSync()) return candidate;
+      if (!await File(candidate).exists()) return candidate;
     }
     return candidate;
   }
