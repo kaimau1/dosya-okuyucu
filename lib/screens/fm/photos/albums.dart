@@ -49,7 +49,12 @@ extension _PhotosScreenAlbumsPart on _PhotosScreenState {
         _onThisDay = false;
       });
 
+  /// Klasör = albüm, dosya sayısına göre azalan. Liste değişmedikçe yeniden
+  /// gruplanmaz: öne çıkanlar şeridi bunu HER çizimde soruyor.
   List<_Album> _albums() {
+    _syncAlbumCache();
+    final cached = _albumsCache;
+    if (cached != null) return cached;
     final byDir = <String, List<FsEntry>>{};
     for (final e in _files) {
       (byDir[p.dirname(e.path)] ??= []).add(e);
@@ -62,13 +67,32 @@ extension _PhotosScreenAlbumsPart on _PhotosScreenState {
           list.length,
         ),
     ]..sort((a, b) => b.count.compareTo(a.count));
+    _albumsCache = out;
     return out;
+  }
+
+  /// "Bu gün geçmişte": bugünün ay/gününe denk gelen eski dosyalar.
+  List<FsEntry> _memories() {
+    _syncAlbumCache();
+    final cached = _memoriesCache;
+    if (cached != null) return cached;
+    final now = DateTime.now();
+    final out = [for (final e in _files) if (_isOnThisDay(e, now)) e];
+    _memoriesCache = out;
+    return out;
+  }
+
+  void _syncAlbumCache() {
+    final key = Object.hash(identityHashCode(_files), _files.length);
+    if (_albumsKey == key) return;
+    _albumsKey = key;
+    _albumsCache = null;
+    _memoriesCache = null;
   }
 
   Future<void> _showAlbums() async {
     final albums = _albums();
-    final now = DateTime.now();
-    final memories = [for (final e in _files) if (_isOnThisDay(e, now)) e];
+    final memories = _memories();
     await showAppSheet<void>(
       context,
       title: context.t('ph.albums'),
@@ -96,10 +120,7 @@ extension _PhotosScreenAlbumsPart on _PhotosScreenState {
                     trailing: const Icon(AppIcons.chevron),
                     onTap: () {
                       Navigator.of(ctx).pop();
-                      _partSetState(() {
-                        _album = null;
-                        _onThisDay = true;
-                      });
+                      _enterScope(onThisDay: true);
                     },
                   ),
                 ),
@@ -126,10 +147,7 @@ extension _PhotosScreenAlbumsPart on _PhotosScreenState {
                         borderRadius: BorderRadius.circular(Radii.card),
                         onTap: () {
                           Navigator.of(ctx).pop();
-                          _partSetState(() {
-                            _onThisDay = false;
-                            _album = a.dir;
-                          });
+                          _enterScope(album: a.dir);
                         },
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,

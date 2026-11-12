@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
@@ -51,6 +52,7 @@ part 'photos/toolbar.dart';
 part 'photos/grid.dart';
 part 'photos/widgets.dart';
 part 'photos/albums.dart';
+part 'photos/highlights.dart';
 
 /// **Fotoğraflar** — Google Fotoğraflar tarzı zaman ekseni.
 ///
@@ -162,7 +164,16 @@ class _PhotosScreenState extends State<PhotosScreen>
   static const _headerExtent = 52.0;
 
   /// Hücreler arası boşluk (kenar boşluğu yok: ızgara ekranı doldurur).
-  static const _spacing = 2.0;
+  /// 2026-11-12: 2 → 3 dp ve hücre köşeleri [_tileRadius] kadar yuvarlak
+  /// (Samsung Galeri dili) — fotoğraflar birbirine yapışık bir duvar değil,
+  /// ayrı ayrı okunan kareler.
+  static const _spacing = 3.0;
+  static const _tileRadius = 6.0;
+
+  /// Önceden kurulan alan (dp): görünenin altındaki/üstündeki ~1 ekranlık
+  /// satırlar da kurulur → küçük resimleri parmak oraya varmadan hazır olur.
+  /// Hızlı savurmada yükleme zaten ertelenir (bkz. `_PhotoThumbState._load`).
+  static const _cacheExtent = 900.0;
 
   static const _toolbarHeight = 64.0;
 
@@ -209,6 +220,9 @@ class _PhotosScreenState extends State<PhotosScreen>
   Map<String, int>? _extCache;
   Map<ChatMediaKind, int>? _chatKindCache;
   int? _countsKey;
+  List<_Album>? _albumsCache;
+  List<FsEntry>? _memoriesCache;
+  int? _albumsKey;
 
   /// Süzgeç yüzünden gizlenen kopya sayısı (ekranda yazılır).
   int _hiddenDuplicates = 0;
@@ -218,6 +232,13 @@ class _PhotosScreenState extends State<PhotosScreen>
   double _cell = 0;
   double _appBarExtent = 0;
   double _topPadding = 0;
+
+  /// Öne çıkanlar şeridinin boyu (yoksa 0) — bkz. photos/highlights.dart.
+  double _leadExtent = 0;
+
+  /// Izgaranın ilk satırının kaydırma eksenindeki yeri: üst çubuk + şerit.
+  /// Satırların ekrandaki yerini hesaplayan her şey bunu kullanır.
+  double get _gridTop => _appBarExtent + _leadExtent;
 
   // ── İki parmakla yakınlaştırma ────────────────────────────────────────────
   final Map<int, Offset> _touches = {};
@@ -310,6 +331,7 @@ class _PhotosScreenState extends State<PhotosScreen>
     // SliverAppBar'ın kaydırma eksenindeki boyu (maxExtent) — satırların
     // ekrandaki yerini hesaplayan her şey bunu kullanır.
     _appBarExtent = padding.top + _toolbarHeight + kFmFilterBarHeight;
+    _leadExtent = _highlightsExtent;
     final scheme = Theme.of(context).colorScheme;
 
     return PopScope(
@@ -355,6 +377,8 @@ class _PhotosScreenState extends State<PhotosScreen>
                         _selectRange(visible, a, b, sel),
                     child: CustomScrollView(
                       controller: _scroll,
+                      scrollCacheExtent:
+                          const ScrollCacheExtent.pixels(_cacheExtent),
                       // Pinch sürerken ızgara kaymasın: iki parmağın hareketi
                       // aynı zamanda bir kaydırma sayılırdı.
                       physics: _pinchBase != null
@@ -362,6 +386,8 @@ class _PhotosScreenState extends State<PhotosScreen>
                           : null,
                       slivers: [
                         _appBar(appState, group, visible, selectedEntries),
+                        if (_leadExtent > 0)
+                          SliverToBoxAdapter(child: _highlightsStrip()),
                         if (visible.isEmpty)
                           SliverFillRemaining(
                             hasScrollBody: false,

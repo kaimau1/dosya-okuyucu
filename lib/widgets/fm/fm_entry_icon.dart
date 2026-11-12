@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../../services/fm/fm_colors_store.dart';
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/motion.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -420,21 +421,31 @@ class FmEntryIcon extends StatelessWidget {
 /// parçaya değil. Kendi başına genişleyen bir yer tutucu, `ListTile`ın
 /// `leading` yuvası gibi yüksekliği SINIRSIZ bir yerde çizim hatası verirdi.
 ///
-/// Geçiş animasyonu bilinçli olarak YOK: her hücreye bir `AnimatedSwitcher`
-/// koymak binlerce fotoğraflık ızgarada tam da düzeltmeye çalıştığımız
-/// maliyeti geri getirirdi.
+/// **Yumuşak geçiş** (2026-11-12 galeri turu, kullanıcı: *"akıcı, göze hitap
+/// eden"*): kare ilk kez çözüldüğünde soluk zeminin üstünde kısa bir
+/// belirmeyle gelir (Google Foto/Samsung Galeri'deki his). Maliyeti düşük
+/// tutan iki kural: önbellekten EŞZAMANLI gelen kare (geri kaydırma) hiç
+/// sarılmaz, ve `AnimatedOpacity` tam opakken katman açmaz — yalnız
+/// belirme süresince (~120 ms) çalışır. Cihazda "animasyonları kaldır"
+/// açıksa süre 0'dır ([Motion.of]).
 ImageFrameBuilder _placeholder(double size) => (
       BuildContext context,
       Widget child,
       int? frame,
       bool wasSynchronouslyLoaded,
     ) {
-      if (wasSynchronouslyLoaded || frame != null) return child;
+      if (wasSynchronouslyLoaded) return child;
       return SizedBox(
         width: size,
         height: size,
         child: ColoredBox(
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          child: AnimatedOpacity(
+            opacity: frame == null ? 0 : 1,
+            duration: Motion.of(context, Motion.short),
+            curve: Curves.easeOut,
+            child: child,
+          ),
         ),
       );
     };
@@ -781,6 +792,10 @@ class _PhotoThumb extends StatefulWidget {
 
 class _PhotoThumbState extends State<_PhotoThumb> {
   String? _thumb;
+
+  /// Başka ölçüde hazır duran küçük resim (bkz.
+  /// [ThumbnailCache.anyKnownImage]): keskini gelene kadar gösterilir.
+  String? _preview;
   bool _failed = false;
   int _width = 0;
 
@@ -809,7 +824,11 @@ class _PhotoThumbState extends State<_PhotoThumb> {
     _failed = false;
     // Diskte olduğu biliniyorsa EŞZAMANLI: geri kaydırınca boş kare yok.
     _thumb = ThumbnailCache.knownImage(_path, widget.entry.modifiedMs, _width);
-    if (_thumb == null) _load();
+    if (_thumb == null) {
+      _preview =
+          ThumbnailCache.anyKnownImage(_path, widget.entry.modifiedMs);
+      _load();
+    }
   }
 
   Future<void> _load() async {
@@ -837,7 +856,8 @@ class _PhotoThumbState extends State<_PhotoThumb> {
   @override
   Widget build(BuildContext context) {
     if (_failed) return widget.fallback;
-    final thumb = _thumb;
+    final exact = _thumb;
+    final thumb = exact ?? _preview;
     if (thumb == null) {
       return SizedBox(
         width: widget.size,
@@ -851,7 +871,7 @@ class _PhotoThumbState extends State<_PhotoThumb> {
     // yatay fotoğrafta yükseklik hücrenin altına düşüp `cover` ile yeniden
     // büyütülüyordu (bulanıklığın ikinci kaynağı, 2026-11-04).
     final provider = FmFileImage(thumb);
-    fmRememberThumb(_path, provider);
+    if (exact != null) fmRememberThumb(_path, provider);
     return ClipRRect(
       borderRadius: BorderRadius.circular(widget.radius),
       child: Image(
@@ -859,7 +879,9 @@ class _PhotoThumbState extends State<_PhotoThumb> {
         width: widget.size,
         height: widget.size,
         fit: BoxFit.cover,
-        filterQuality: FilterQuality.low,
+        // Orta: küçültürken kenarlar tırtıklanmaz (küçük resim ≤ 768 px,
+        // maliyeti ihmal edilir).
+        filterQuality: FilterQuality.medium,
         gaplessPlayback: true,
         frameBuilder: _placeholder(widget.size),
         errorBuilder: (_, _, _) => widget.fallback,

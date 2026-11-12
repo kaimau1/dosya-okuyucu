@@ -263,6 +263,53 @@ void main() {
     expect(find.textContaining('Dosya bulunamadı'), findsOneWidget);
   });
 
+  /// 2026-11-12 galeri turu: zaman ekseninin üstünde kapak resimli
+  /// "öne çıkanlar" kartları (albümler). Kart yalnız kapsamı daraltır;
+  /// kapsam açıkken şerit çizilmez, kapatınca geri gelir.
+  testWidgets('öne çıkanlar şeridi: albüm kartı galeriyi o klasöre daraltır',
+      (tester) async {
+    final day = DateTime(2026, 3, 4, 10);
+    FsEntry at(String dir, int i) => FsEntry(
+          path: '/depo/$dir/f$i.jpg',
+          name: 'f$i.jpg',
+          isDir: false,
+          sizeBytes: 100 + i,
+          modifiedMs: day.subtract(Duration(minutes: i)).millisecondsSinceEpoch,
+        );
+    await tester.pumpWidget(harness([
+      for (var i = 0; i < 9; i++) at('Kamera', i),
+      for (var i = 9; i < 14; i++) at('Tatil', i),
+    ]));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('ph-highlights')), findsOneWidget);
+    expect(find.text('Kamera'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('ph-hl-1')));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('ph-highlights')), findsNothing);
+    expect(find.text('5 / 14 dosya'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('ph-scope-clear')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('ph-highlights')), findsOneWidget);
+    expect(find.textContaining('14 dosya'), findsOneWidget);
+  });
+
+  /// Tek klasörlük ya da küçük galeride şerit YOK: kartlar fotoğraflardan
+  /// çok yer tutardı ve ızgara süzgeç şeridinin hemen altında başlamazdı.
+  testWidgets('tek albümlü galeride öne çıkanlar şeridi çizilmez',
+      (tester) async {
+    final day = DateTime(2026, 3, 4, 10);
+    await tester.pumpWidget(harness([
+      for (var i = 0; i < 20; i++)
+        photo('p$i.jpg', day.subtract(Duration(minutes: i))),
+    ]));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('ph-highlights')), findsNothing);
+  });
+
   testWidgets('boş listede bilgilendirme gösterilir', (tester) async {
     await tester.pumpWidget(harness(const []));
     await tester.pump();

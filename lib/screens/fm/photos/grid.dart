@@ -131,7 +131,7 @@ extension _PhotosScreenGridPart on _PhotosScreenState {
       scale: _zoomScale,
       focal: () => _zoomFocal,
       viewportTop: () =>
-          _appBarExtent +
+          _gridTop +
           plan.rowOffset[i] -
           (_scroll.hasClients ? _scroll.offset : 0),
       child: child,
@@ -145,6 +145,7 @@ extension _PhotosScreenGridPart on _PhotosScreenState {
       child: _PhotoTile(
         entry: e,
         size: cell,
+        radius: _PhotosScreenState._tileRadius,
         selected: _selected.contains(e.path),
         selecting: _selecting,
         // Yalnız GÖRSELLER galeride büyüyerek açılır (videonun oynatıcısı
@@ -175,7 +176,7 @@ extension _PhotosScreenGridPart on _PhotosScreenState {
     final sections = _lastSections;
     if (plan == null || plan.rowCount == 0 || sections.isEmpty) return null;
     final visible = _visibleCache ?? const <FsEntry>[];
-    final listY = offset + _topPadding + 12 - _appBarExtent;
+    final listY = offset + _topPadding + 12 - _gridTop;
     final row = plan.rowAt(math.max(0, listY));
     final segs = plan.rowSegments[row];
     final FsEntry e;
@@ -210,7 +211,7 @@ extension _PhotosScreenGridPart on _PhotosScreenState {
       final year = DateTime.fromMillisecondsSinceEpoch(files.first.modifiedMs).year;
       if (year == lastYear) continue;
       lastYear = year;
-      ticks.add(FmScrollTick(_appBarExtent + plan.sectionOffset(s), '$year'));
+      ticks.add(FmScrollTick(_gridTop + plan.sectionOffset(s), '$year'));
     }
     _ticksCache = ticks;
     _ticksPlan = plan;
@@ -284,7 +285,7 @@ extension _PhotosScreenGridPart on _PhotosScreenState {
     int? anchor;
     var within = 0.0;
     if (oldPlan != null && _scroll.hasClients && oldPlan.rowCount > 0) {
-      final listY = _scroll.offset + focal.dy - _appBarExtent;
+      final listY = _scroll.offset + focal.dy - _gridTop;
       if (listY >= 0) {
         anchor = oldPlan.indexAt(listY, focal.dx, _gridWidth);
         final top = anchor == null ? null : oldPlan.offsetOfIndex(anchor);
@@ -306,12 +307,12 @@ extension _PhotosScreenGridPart on _PhotosScreenState {
         final pos = _scroll.position;
         final maxExtent = math.max(
             0.0,
-            _appBarExtent +
+            _gridTop +
                 newPlan.extent +
                 _PhotosScreenState._bottomSpacer +
                 MediaQuery.paddingOf(context).bottom -
                 pos.viewportDimension);
-        final target = (_appBarExtent +
+        final target = (_gridTop +
                 rowTop +
                 within * newPlan.rowExtent -
                 focal.dy)

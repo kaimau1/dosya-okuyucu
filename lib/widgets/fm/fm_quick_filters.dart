@@ -13,7 +13,8 @@ import '../../services/fm/fm_env.dart';
 import '../../services/fm/open_history.dart';
 import '../../services/fm/storage_stats.dart';
 import '../app_dialog.dart';
-import 'fm_type_chips.dart' show FmChoiceTile, FmSheetFooter;
+import 'fm_type_chips.dart'
+    show FmChoiceTile, FmSheetFooter, FmSheetSectionTitle;
 
 /// Süzgeç satırının **tek ve sabit** yüksekliği (dp).
 ///
@@ -121,6 +122,10 @@ class _ChipBody extends StatelessWidget {
   final String label;
   final int? count;
   final Color fg;
+
+  /// Baştaki simgenin rengi (verilmezse [fg]): şeritte simge vurgu renginde,
+  /// yazı mürekkep renginde durur — göz önce simgeyi, sonra adı okur.
+  final Color? iconColor;
   final bool bold;
   final bool dropdown;
 
@@ -129,6 +134,7 @@ class _ChipBody extends StatelessWidget {
     required this.label,
     required this.count,
     required this.fg,
+    this.iconColor,
     this.bold = false,
     this.dropdown = false,
   });
@@ -149,7 +155,7 @@ class _ChipBody extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 16, color: fg),
+            Icon(icon, size: 17, color: iconColor ?? fg),
             const SizedBox(width: 6),
           ],
           Text.rich(
@@ -172,7 +178,8 @@ class _ChipBody extends StatelessWidget {
           ),
           if (dropdown) ...[
             const SizedBox(width: 2),
-            Icon(AppIcons.dropDown, size: 20, color: fg),
+            Icon(AppIcons.dropDown,
+                size: 20, color: fg.withValues(alpha: bold ? 1 : 0.6)),
           ],
         ],
       ),
@@ -231,25 +238,31 @@ class FmPill extends StatelessWidget {
       label: label,
       count: (count ?? 0) > 0 && (!fill || highlighted) ? count : null,
       fg: fg,
+      iconColor: disabled ? fg : pal.accent,
       bold: highlighted,
       dropdown: dropdown,
     );
     final radius = BorderRadius.circular(skin.metrics.radiusControl);
     if (fill) {
-      // Şerit TEK kâğıt kart; bölme kendi kenarını çizmez. Etkin bölme
-      // kartın içinde vurgu kuyusuyla dolar (2026-11-06 yeniden tasarım).
-      // Dokunma alanı şeridin tamamı (48 dp) — erişilebilirlik.
+      // 2026-11-12 yeniden tasarım (kullanıcı: *"filtre alanlarını baştan
+      // tasarla — modern, kullanışlı"*): tek kart + tüy çizgi yerine her
+      // bölme KENDİ kapsülü. Boşta kart renginde ince kenarlı; etkin olan
+      // vurgu kuyusuyla dolar ve kenarı vurgu rengine döner — hangi
+      // süzgecin açık olduğu şeride bakınca anlaşılır.
+      // `Ink`: dokunma dalgası kapsülün ÜSTÜNDE görünür (opak bir Container
+      // dalgayı örterdi). Dokunma alanı şeridin tamamı (48 dp).
       return SizedBox(
         height: kFmFilterBarHeight,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-          child: AnimatedContainer(
-            duration: Motion.of(context, Motion.short),
-            curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          child: Ink(
             decoration: BoxDecoration(
-              color: highlighted ? pal.accentWell : Colors.transparent,
-              borderRadius: BorderRadius.circular(
-                  (skin.metrics.radiusControl - 4).clamp(4, 40).toDouble()),
+              color: highlighted ? pal.accentWell : pal.card,
+              borderRadius: radius,
+              border: Border.all(
+                color: highlighted ? pal.accent : pal.rule,
+                width: highlighted ? 1.4 : 1,
+              ),
             ),
             child: Center(child: FittedBox(fit: BoxFit.scaleDown, child: body)),
           ),
@@ -296,47 +309,20 @@ class FmFilterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (children.isEmpty) return const SizedBox.shrink();
-    final skin = AppSkinData.of(context);
-    final pal = skin.palette;
-    final radius = BorderRadius.circular(skin.metrics.radiusControl);
-    // 2026-11-06 yeniden tasarım (kullanıcı ekran görüntüsü: üç ayrı gri hap
-    // masanın üstünde "soluk" duruyordu): üç bölmeli TEK kâğıt kart — zemin
-    // (masa) üstünde kart renginde, ince kenarlı, bölmeler arası tüy çizgi.
-    // Etkin bölme vurgu kuyusuyla dolar ([FmPill]).
+    // 2026-11-12 yeniden tasarım: bölmeler ayrı kapsül ([FmPill] çizer),
+    // aralarında 6 dp nefes. Kaydırma yok, genişlik eşit paylaşılır.
     return _FilterBarScope(
       child: SizedBox(
         height: kFmFilterBarHeight,
         child: Padding(
           // Kenar payı ızgaranın/listenin metin hizasıyla aynı (12 dp).
           padding: const EdgeInsetsDirectional.symmetric(horizontal: 12),
-          child: Stack(
+          child: Row(
             children: [
-              // Kart arka planda, 2 dp içeride çizilir; bölmeler şeridin tam
-              // yüksekliğini (48 dp dokunma alanı) korur — kırpılmaz.
-              Positioned.fill(
-                top: 2,
-                bottom: 2,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: pal.card,
-                    borderRadius: radius,
-                    border: Border.all(color: pal.rule),
-                  ),
-                ),
-              ),
-              Row(
-                children: [
-                  for (var i = 0; i < children.length; i++) ...[
-                    if (i > 0)
-                      SizedBox(
-                        height: 22,
-                        child: VerticalDivider(
-                            width: 1, thickness: 1, color: pal.rule),
-                      ),
-                    Expanded(child: children[i]),
-                  ],
-                ],
-              ),
+              for (var i = 0; i < children.length; i++) ...[
+                if (i > 0) const SizedBox(width: 6),
+                Expanded(child: children[i]),
+              ],
             ],
           ),
         ),
@@ -523,13 +509,7 @@ Future<void> showFmSourceSheet(
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Padding(
-                padding: const EdgeInsetsDirectional.only(
-                    start: Gap.sm, top: Gap.sm, bottom: Gap.sm),
-                child: Text(title,
-                    style: Theme.of(ctx).textTheme.labelLarge?.copyWith(
-                        color: scheme.onSurfaceVariant)),
-              ),
+              FmSheetSectionTitle(title),
               LayoutBuilder(builder: (ctx, box) {
                 final cols = box.maxWidth < 300 ? 2 : 3;
                 final w = (box.maxWidth - Gap.sm * (cols - 1)) / cols;

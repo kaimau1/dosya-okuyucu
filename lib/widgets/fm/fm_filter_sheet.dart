@@ -7,6 +7,7 @@ import '../../models/chat_media.dart';
 import '../../models/fm_filter.dart';
 import '../../models/fs_entry.dart';
 import '../../models/media_bucket.dart';
+import 'fm_type_chips.dart' show FmSheetSectionTitle;
 
 /// Süzgeç sayfasının sonucu: süzgeç + sıralama birlikte döner.
 class FmFilterResult {
@@ -168,7 +169,8 @@ class _FilterSheetState extends State<_FilterSheet> {
                 children: [
                   Expanded(
                     child: Text(context.t('flt.title'),
-                        style: theme.textTheme.titleMedium),
+                        style: theme.textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w700)),
                   ),
                   TextButton(
                     onPressed: () => setState(() => _filter = FmFilter.none
@@ -239,7 +241,6 @@ class _FilterSheetState extends State<_FilterSheet> {
                         ),
                     ],
                   ),
-                  const SizedBox(height: Gap.md),
                   _label(context.t('flt.size')),
                   Wrap(
                     spacing: Gap.sm,
@@ -255,7 +256,6 @@ class _FilterSheetState extends State<_FilterSheet> {
                     ],
                   ),
                   if (widget.buckets.length > 1) ...[
-                    const SizedBox(height: Gap.md),
                     _label(context.t('flt.source')),
                     Wrap(
                       spacing: Gap.sm,
@@ -286,7 +286,6 @@ class _FilterSheetState extends State<_FilterSheet> {
                   // gösterilir: kamera fotoğraflarında "Sesli not" çipi
                   // anlamsız gürültü olurdu.
                   if (_showChatSection) ...[
-                    const SizedBox(height: Gap.md),
                     _label(context.t('flt.chat_kind')),
                     Wrap(
                       spacing: Gap.sm,
@@ -310,7 +309,6 @@ class _FilterSheetState extends State<_FilterSheet> {
                           ),
                       ],
                     ),
-                    const SizedBox(height: Gap.md),
                     _label(context.t('flt.direction')),
                     Wrap(
                       spacing: Gap.sm,
@@ -333,7 +331,6 @@ class _FilterSheetState extends State<_FilterSheet> {
                   ],
                   // ── Etiketler (kişi/grup) ──────────────────────────────
                   if (widget.tags.isNotEmpty) ...[
-                    const SizedBox(height: Gap.md),
                     _label(context.t('flt.tag')),
                     Wrap(
                       spacing: Gap.sm,
@@ -356,7 +353,6 @@ class _FilterSheetState extends State<_FilterSheet> {
                     ),
                   ],
                   if (widget.extensions.isNotEmpty) ...[
-                    const SizedBox(height: Gap.md),
                     _label(context.t('flt.file_type')),
                     Wrap(
                       spacing: Gap.sm,
@@ -394,16 +390,21 @@ class _FilterSheetState extends State<_FilterSheet> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(50)),
                       onPressed: () => Navigator.pop(context),
                       child: Text(context.t('common.cancel')),
                     ),
                   ),
                   const SizedBox(width: Gap.sm),
                   Expanded(
-                    child: FilledButton(
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(50)),
                       onPressed: () => Navigator.pop(
                           context, FmFilterResult(_filter, _sort, _desc)),
-                      child: Text(context.t('common.apply')),
+                      icon: const Icon(AppIcons.check, size: 20),
+                      label: Text(context.t('common.apply')),
                     ),
                   ),
                 ],
@@ -453,14 +454,7 @@ class _FilterSheetState extends State<_FilterSheet> {
     return list;
   }
 
-  Widget _label(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: Gap.sm),
-        child: Text(text,
-            style: Theme.of(context)
-                .textTheme
-                .labelLarge
-                ?.copyWith(fontWeight: FontWeight.w700)),
-      );
+  Widget _label(String text) => FmSheetSectionTitle(text);
 }
 
 /// Süzgeç düğmesi: etkin ölçüt sayısını rozetle gösterir — kullanıcı listenin

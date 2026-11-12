@@ -7,7 +7,7 @@ import '../../models/fm_filter.dart';
 import '../../models/fs_entry.dart';
 import '../app_dialog.dart';
 import 'fm_quick_filters.dart';
-import 'fm_type_chips.dart' show FmChoiceTile;
+import 'fm_type_chips.dart' show FmChoiceTile, FmSheetSectionTitle;
 
 /// Süzgeç şeridinin üçüncü kartı **"Analiz ve diğer"**in levhası
 /// (kullanıcı 2026-10-28: *"tüm filtre türleri tek kart sistemi altında;
@@ -102,13 +102,7 @@ Future<void> showFmMoreSheet(BuildContext context,
               children: [
                 for (final s in list)
                   if (s.tiles.isNotEmpty) ...[
-                    Padding(
-                      padding: const EdgeInsetsDirectional.only(
-                          start: Gap.sm, top: Gap.sm, bottom: Gap.sm),
-                      child: Text(s.title,
-                          style: Theme.of(ctx).textTheme.labelLarge?.copyWith(
-                              color: scheme.onSurfaceVariant)),
-                    ),
+                    FmSheetSectionTitle(s.title),
                     LayoutBuilder(builder: (ctx, box) {
                       final cols = box.maxWidth < 300 ? 2 : 3;
                       final w = (box.maxWidth - Gap.sm * (cols - 1)) / cols;
@@ -140,10 +134,13 @@ Future<void> showFmMoreSheet(BuildContext context,
                     }),
                   ],
                 const SizedBox(height: Gap.md),
-                FilledButton(
+                FilledButton.icon(
                   key: const ValueKey('more-done'),
+                  style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50)),
                   onPressed: () => Navigator.of(ctx).pop(),
-                  child: Text(ctx.t('common.ok')),
+                  icon: const Icon(AppIcons.check, size: 20),
+                  label: Text(ctx.t('common.ok')),
                 ),
               ],
             ),

@@ -107,6 +107,16 @@ abstract final class ThumbnailCache {
   static String? knownImage(String path, int modifiedMs, int size) =>
       _knownImages['$path|$modifiedMs|$size'];
 
+  /// Ölçüden bağımsız: [path] için bu oturumda üretilmiş SON küçük resim.
+  static final Map<String, String> _anyImages = {};
+
+  /// **Aşamalı önizleme** (2026-11-12 galeri turu): istenen ölçü henüz
+  /// üretilmediyse başka bir ölçüde hazır duran küçük resim. Yakınlaştırma
+  /// basamağı değişince (3 → 2 sütun) hücreler boş zemine dönmez; eldeki
+  /// küçük kare gösterilir, keskini gelince yerine geçer.
+  static String? anyKnownImage(String path, int modifiedMs) =>
+      _anyImages['$path|$modifiedMs'];
+
   /// Fotoğrafın küçük resmi (yoksa üretir). null → üretilemedi (API < 29,
   /// bozuk dosya, kanal yok): çağıran özgün dosyayı gösterir.
   static Future<String?> forImage(
@@ -126,8 +136,12 @@ abstract final class ThumbnailCache {
         .then((dest) {
       if (dest != null) {
         // ponytail: sınırsız büyümesin diye kaba budama; LRU gerekirse eklenir.
-        if (_knownImages.length > imageCacheLimit) _knownImages.clear();
+        if (_knownImages.length > imageCacheLimit) {
+          _knownImages.clear();
+          _anyImages.clear();
+        }
         _knownImages[key] = dest;
+        _anyImages['$path|$modifiedMs'] = dest;
       }
       return dest;
     });
@@ -238,6 +252,7 @@ abstract final class ThumbnailCache {
     _imageDir = cacheDir;
     _imagePruned = cacheDir != null;
     _knownImages.clear();
+    _anyImages.clear();
   }
 
   /// Test kancası: üretimi yapan çağrı (eklenti yerine).

@@ -107,6 +107,11 @@ void main() {
     expect(ThumbnailCache.knownImage(src, 7, 384), dest);
     // Dosya değişince (yeni zaman) eski küçük resim kullanılmaz.
     expect(ThumbnailCache.knownImage(src, 8, 384), isNull);
+    // Aşamalı önizleme (2026-11-12): başka ÖLÇÜ istenince eldeki küçük
+    // resim bulunur; dosya değişmişse (başka zaman damgası) bulunmaz.
+    expect(ThumbnailCache.knownImage(src, 7, 512), isNull);
+    expect(ThumbnailCache.anyKnownImage(src, 7), dest);
+    expect(ThumbnailCache.anyKnownImage(src, 8), isNull);
     expect(started, ['a.jpg']);
   });
 }

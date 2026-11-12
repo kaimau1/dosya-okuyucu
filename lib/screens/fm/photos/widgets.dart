@@ -148,6 +148,7 @@ class _PackedLabel extends StatelessWidget {
 class _PhotoTile extends StatelessWidget {
   final FsEntry entry;
   final double size;
+  final double radius;
   final bool selected;
   final bool selecting;
   final String? heroTag;
@@ -156,6 +157,7 @@ class _PhotoTile extends StatelessWidget {
   const _PhotoTile({
     required this.entry,
     required this.size,
+    required this.radius,
     required this.selected,
     required this.selecting,
     required this.onTap,
@@ -165,7 +167,7 @@ class _PhotoTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    Widget thumb = FmEntryIcon(entry: entry, size: size, radius: 0);
+    Widget thumb = FmEntryIcon(entry: entry, size: size, radius: radius);
     final tag = heroTag;
     if (tag != null) thumb = Hero(tag: tag, child: thumb);
     return GestureDetector(
@@ -181,7 +183,9 @@ class _PhotoTile extends StatelessWidget {
               duration: Motion.of(context, Motion.short),
               curve: Curves.easeOutCubic,
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(selected ? 14 : 0),
+                // Seçili değilken köşeyi önizlemenin kendisi yuvarlar
+                // ([FmEntryIcon.radius]); ikinci bir kırpma katmanı açılmaz.
+                borderRadius: BorderRadius.circular(selected ? 14 : radius),
                 clipBehavior: selected ? Clip.antiAlias : Clip.none,
                 child: thumb,
               ),

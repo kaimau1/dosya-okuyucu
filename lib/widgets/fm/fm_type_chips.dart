@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
@@ -344,10 +345,52 @@ Future<void> showFmTypeSheet(
   );
 }
 
+/// Süzgeç levhalarının ortak **bölüm başlığı** (2026-11-12 yeniden tasarım):
+/// vurgu renginde kısa bir çubuk + kalın başlık. Tür, kaynak ve "Analiz ve
+/// diğer" levhaları aynı başlığı kullanır — bölümler bir bakışta ayrılır.
+class FmSheetSectionTitle extends StatelessWidget {
+  final String title;
+  const FmSheetSectionTitle(this.title, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = AppSkinData.of(context).palette;
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(
+          start: Gap.xs, top: Gap.md, bottom: Gap.sm),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 16,
+            decoration: BoxDecoration(
+              color: pal.accent,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: Gap.sm),
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700, color: pal.ink),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Süzgeç levhalarının ortak alt satırı (Faz 42 süzgeç cilası, 2026-11-06):
 /// solda **Temizle** (yalnız bir şey seçiliyken etkin — levhayı kapatmadan
 /// her şeyi bırakır), sağda "N dosyayı göster". Sonuç 0 ise birincil düğme
 /// bunu açıkça söyler; kullanıcı boş listeye düşmeden önce görür.
+///
+/// 2026-11-12: birincil düğme 50 dp ve onay simgeli — levhanın "bitir"
+/// eylemi başparmağın altında, büyük ve tek.
 class FmSheetFooter extends StatelessWidget {
   final int shown;
   final VoidCallback? onClear;
@@ -368,6 +411,7 @@ class FmSheetFooter extends StatelessWidget {
       children: [
         TextButton.icon(
           key: const ValueKey('filter-clear'),
+          style: TextButton.styleFrom(minimumSize: const Size(0, 50)),
           onPressed: onClear,
           icon: const Icon(AppIcons.clearAll, size: 20),
           label: Text(context.t('flt.clear')),
@@ -376,13 +420,27 @@ class FmSheetFooter extends StatelessWidget {
         Expanded(
           child: FilledButton(
             key: doneKey,
+            style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(50)),
             onPressed: onDone,
-            child: Text(
-              shown == 0
-                  ? context.t('flt.none_left')
-                  : context.t('typ.show_n', {'n': shown}),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (shown > 0) ...[
+                  const Icon(AppIcons.check, size: 20),
+                  const SizedBox(width: Gap.sm),
+                ],
+                Flexible(
+                  child: Text(
+                    shown == 0
+                        ? context.t('flt.none_left')
+                        : context.t('typ.show_n', {'n': shown}),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -392,6 +450,11 @@ class FmSheetFooter extends StatelessWidget {
 }
 
 /// Levhalardaki kart kutusu (tür, kaynak, zaman, boyut için ortak).
+///
+/// 2026-11-12 yeniden tasarım: simge yuvarlak soluk daire yerine **yumuşak
+/// köşeli kare**; kutu seçilince simge karesi türün rengiyle DOLAR (beyaz
+/// glif) — seçili olan yalnız kenardan değil simgeden de okunur. Sayı kendi
+/// küçük kapsülünde: ad ile karışmaz, sıfırsa soluk kalır.
 class FmChoiceTile extends StatelessWidget {
   final double width;
   final IconData icon;
@@ -416,6 +479,9 @@ class FmChoiceTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final skin = AppSkinData.of(context);
+    final pal = skin.palette;
+    final short = Motion.of(context, Motion.short);
     // Sıfır sonuçlu kutu SOLUK (dokunulabilir kalır ama "boş" olduğu bir
     // bakışta görünür) — `Opacity` değil renk: kare başına katman yok.
     final empty = count == 0 && !selected;
@@ -423,55 +489,58 @@ class FmChoiceTile extends StatelessWidget {
     final labelColor = selected
         ? scheme.onPrimaryContainer
         : (empty ? scheme.onSurfaceVariant : scheme.onSurface);
+    final radius = BorderRadius.circular(
+        (skin.metrics.radiusCard + 4).clamp(12, 24).toDouble());
     return SizedBox(
       width: width,
       child: Semantics(
         button: true,
         selected: selected,
         child: AnimatedContainer(
-          duration: Motion.of(context, Motion.short),
+          duration: short,
           curve: Motion.standard,
           decoration: BoxDecoration(
-            // 2026-11-06: masa ve kâğıt — kutu kart renginde, ince kenarlı;
-            // seçili kutu vurgu kuyusu + vurgu kenarı.
-            color: selected
-                ? scheme.primaryContainer
-                : AppSkinData.of(context).palette.card,
-            borderRadius: BorderRadius.circular(16),
+            color: selected ? scheme.primaryContainer : pal.card,
+            borderRadius: radius,
             border: Border.all(
-              color: selected
-                  ? scheme.primary
-                  : AppSkinData.of(context).palette.rule,
-              width: selected ? 1.5 : 1,
+              color: selected ? scheme.primary : pal.rule,
+              width: selected ? 1.6 : 1,
             ),
           ),
           child: Material(
             type: MaterialType.transparency,
             child: InkWell(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: radius,
               onTap: onTap,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
-                    Gap.sm, Gap.md, Gap.sm, Gap.sm),
+                    Gap.sm, Gap.md, Gap.sm, Gap.sm + 2),
                 // KÖK NEDEN (2026-11-06, tasarım görüntüsü): Stack çocuğu
                 // başa yaslıyordu — kısa adlı kutularda simge solda, uzun
                 // adlılarda ortada duruyordu. Kutunun içi hep ortalı.
                 child: Stack(
+                  clipBehavior: Clip.none,
                   alignment: AlignmentDirectional.topCenter,
                   children: [
                     Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Container(
-                          width: 40,
-                          height: 40,
+                        AnimatedContainer(
+                          duration: short,
+                          curve: Motion.standard,
+                          width: 44,
+                          height: 44,
                           decoration: BoxDecoration(
-                            color: tint.withValues(alpha: empty ? 0.08 : 0.14),
-                            shape: BoxShape.circle,
+                            color: selected
+                                ? tint
+                                : tint.withValues(alpha: empty ? 0.08 : 0.14),
+                            borderRadius: BorderRadius.circular(14),
                           ),
-                          child: Icon(icon, color: tint, size: 22),
+                          child: Icon(icon,
+                              color: selected ? AppColors.onBrand : tint,
+                              size: 23),
                         ),
-                        const SizedBox(height: Gap.xs),
+                        const SizedBox(height: Gap.sm),
                         Text(
                           label,
                           maxLines: 1,
@@ -483,24 +552,41 @@ class FmChoiceTile extends StatelessWidget {
                             color: labelColor,
                           ),
                         ),
-                        if (count >= 0)
-                          Text(
-                            '$count',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                              fontFeatures: const [
-                                FontFeature.tabularFigures()
-                              ],
+                        if (count >= 0) ...[
+                          const SizedBox(height: 3),
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? scheme.primary.withValues(alpha: 0.14)
+                                  : pal.well,
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 1),
+                              child: Text(
+                                '$count',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: selected
+                                      ? scheme.onPrimaryContainer
+                                      : scheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w600,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures()
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
+                        ],
                       ],
                     ),
                     if (selected)
                       PositionedDirectional(
-                        top: 0,
-                        end: 0,
+                        top: -4,
+                        end: -2,
                         child: Icon(AppIcons.checkCircle,
-                            size: 18, color: scheme.primary),
+                            size: 20, color: scheme.primary),
                       ),
                   ],
                 ),
