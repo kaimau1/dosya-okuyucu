@@ -138,6 +138,19 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
         return ScanPage(source: source, display: display, filter: page.filter);
       });
 
+  /// Filtreyi TEK dokunuşla kaldırır (2026-11-12, kullanıcı: *"uygulanan
+  /// filtreyi kaldırmak zor, aynı menüye girmek gerekiyor ve kaldır seçeneği
+  /// yok"*). Sayfa göstergesindeki ✕ ve levhadaki düğme buraya gelir; geri
+  /// al düğmesi filtreyi geri getirir.
+  Future<void> _clearFilter() async {
+    if (_busy || _pages.isEmpty) return;
+    if (_pages[_index].filter == ScanFilter.original) return;
+    await _runOnPage(
+        context.t('ss.working_filter'),
+        (page) => _ScanResultScreenState._withFilter(
+            page.source, ScanFilter.original));
+  }
+
   Future<void> _filter() async {
     if (_busy || _pages.isEmpty) return;
     final page = _pages[_index];

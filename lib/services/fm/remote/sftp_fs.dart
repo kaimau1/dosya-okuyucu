@@ -112,8 +112,15 @@ class SftpFs extends RemoteFs {
       await target.parent.create(recursive: true);
       final sink = target.openWrite();
       try {
+        var unflushed = 0;
         await for (final chunk in remote.read()) {
           sink.add(chunk);
+          // Geri basınç: yazılmamış baytlar bellekte birikmesin.
+          unflushed += chunk.length;
+          if (unflushed >= 4 << 20) {
+            await sink.flush();
+            unflushed = 0;
+          }
         }
       } finally {
         await sink.close();
@@ -136,8 +143,15 @@ class SftpFs extends RemoteFs {
       final sink = part.openWrite(
           mode: offset > 0 ? FileMode.append : FileMode.write);
       try {
+        var unflushed = 0;
         await for (final chunk in remote.read(offset: offset)) {
           sink.add(chunk);
+          // Geri basınç: yazılmamış baytlar bellekte birikmesin.
+          unflushed += chunk.length;
+          if (unflushed >= 4 << 20) {
+            await sink.flush();
+            unflushed = 0;
+          }
         }
       } finally {
         await sink.close();

@@ -85,21 +85,15 @@ class ScanPreviewRequest {
 /// öbür yanı gölgede kalıyor; kontrastı topluca artırmak (klasik "kontrast"
 /// düğmesi) gölgeli yanı büsbütün karartıyor.
 ///
-/// ## Boru hattı
-/// 1. **Aydınlatma düzeltme (bölme).** Sayfanın "zemini" büyük yarıçaplı bir
-///    bulanıklaştırmayla kestirilir ve her piksel kendi yerel zeminine bölünür.
-///    Gölge, vinyet ve eşitsiz lamba ışığı böyle kalkıyor — tek bir eşik ya da
-///    tek bir kontrast eğrisiyle **mümkün değil**, çünkü sorun geneli değil
-///    yereli ilgilendiriyor.
-/// 2. **Yüzdelikli kontrast gerdirme.** Siyah/beyaz uçlar %2–%98 yüzdeliklere
-///    oturtulur; tek bir toz zerresi ya da parlama ölçeği bozmasın diye uçlar
-///    değil yüzdelikler kullanılıyor.
-/// 3. **Keskinleştirme maskesi.** Bulanık kopya çıkarılıp fark geri eklenir —
-///    harf kenarları toparlanır. Ölçü ölçülü (0,8): fazlası gürültüyü ve JPEG
-///    bozulmalarını da keskinleştirip "kirli" bir sayfa üretiyor.
-/// 4. (Yalnız [ScanFilter.blackWhite]) **Uyarlamalı eşikleme**: her piksel
-///    kendi komşuluğunun ortalamasıyla kıyaslanır. Tek genel eşik, gölgeli
-///    köşeyi komple siyah yapıyordu.
+/// ## Boru hattı (2026-11-12 yeniden yazım)
+/// 1. **Kâğıt zemini** kanal başına: küçük hücrelerin %85'lik dilimi +
+///    morfolojik kapama (mürekkep zemine karışmaz) → her piksel kendi
+///    zeminine bölünür. Gölge, vinyet, lamba sarısı kalkar.
+/// 2. **Resim bölgeleri** ([pictureMask]) düzeltmenin dışında tutulur.
+/// 3. **Bulanıklığa göre netleştirme** ([sharpenText], `adaptive`).
+/// 4. **Ton eğrisi**: kâğıt tam beyaza, mürekkep koyuya; beyaz noktası derin
+///    gölgede aşağı çekilir (büyümüş gürültü benek bırakmasın).
+/// 5. (Yalnız [ScanFilter.blackWhite]) **Uyarlamalı eşikleme**.
 ///
 /// Saf `image` paketi (platform kodu yok) → izolatta koşar, birim testlenir.
 abstract final class ScanEnhance {
@@ -155,80 +149,177 @@ abstract final class ScanEnhance {
     final w = source.width;
     final h = source.height;
     if (w < 8 || h < 8) return source;
-    final radius =
-        math.max(4, (math.min(w, h) * backgroundRadiusRatio).round());
+    final n = w * h;
 
     final rgb = source.getBytes(order: img.ChannelOrder.rgb);
-    final gray = Uint8List(w * h);
-    for (var i = 0, j = 0; i < gray.length; i++, j += 3) {
-      gray[i] = (rgb[j] * 0.299 + rgb[j + 1] * 0.587 + rgb[j + 2] * 0.114)
-          .round()
-          .clamp(0, 255);
+    final gray = Uint8List(n);
+    final hists = [Int32List(256), Int32List(256), Int32List(256)];
+    for (var i = 0, j = 0; i < n; i++, j += 3) {
+      final r = rgb[j], g = rgb[j + 1], b = rgb[j + 2];
+      hists[0][r]++;
+      hists[1][g]++;
+      hists[2][b]++;
+      gray[i] = (r * 0.299 + g * 0.587 + b * 0.114).round().clamp(0, 255);
+    }
+    final paperLevel = DocEdges.quantile(gray, 0.9);
+    // Sayfanın en açık onda biri bile koyuysa ortada kâğıt yok (koyu bir
+    // fotoğraf, gece çekimi): hiçbir yerine dokunulmaz.
+    if (paperLevel < 110) {
+      return filter == ScanFilter.auto ||
+              filter == ScanFilter.vivid ||
+              filter == ScanFilter.shadowless
+          ? source
+          : _grayToImage(gray, w, h);
+    }
+    final paper = [for (final hist in hists) _histQuantile(hist, n, 0.9)];
+
+    // 1) KÂĞIT ZEMİNİ, kanal başına (2026-11-12 yeniden yazım). Eski yol
+    // zemini büyük yarıçaplı ORTALAMAYLA kestiriyordu: ortalamaya mürekkep de
+    // girdiği için yoğun yazının çevresi kararıyor, sert gölge kenarında hale
+    // kalıyordu. Şimdi küçük hücrelerin %85'lik dilimi (mürekkep dışarıda)
+    // alınıp morfolojik KAPAMA ile yazı boşlukları doldurulur → zemin yalnız
+    // kâğıdın (gölgesiyle birlikte) parlaklığıdır.
+    final bg = _PaperBackground.estimate(rgb, 3, w, h);
+
+    // Kâğıt rengi belirgin renkliyse (pembe form, sarı dosya kâğıdı) renk
+    // sapması SİLİNMEZ: yalnız parlaklık düzeltilir. Sıradan sarımsı lamba
+    // ışığında kanal başına bölme kâğıdı beyaza çeker.
+    final hiPaper = paper.reduce(math.max);
+    final loPaper = math.max(1, paper.reduce(math.min));
+    final perChannel =
+        filter == ScanFilter.shadowless || hiPaper / loPaper <= neutralPaperCast;
+
+    final flat = Uint8List(n * 3);
+    final flatL = Uint8List(n);
+    final fl = Uint8List(n);
+    final bgL = Uint8List(n);
+    final sampler = _GridSampler(bg, w, h);
+    final px = [0, 0, 0];
+    for (var y = 0; y < h; y++) {
+      sampler.row(y);
+      for (var x = 0; x < w; x++) {
+        final i = y * w + x, j = i * 3;
+        sampler.at(x, px);
+        final lum = (px[0] * 299 + px[1] * 587 + px[2] * 114) ~/ 1000;
+        bgL[i] = lum;
+        final fg = gray[i] * 255 ~/ lum;
+        flatL[i] = fg > 255 ? 255 : fg;
+        var sum = 0;
+        for (var c = 0; c < 3; c++) {
+          var v = rgb[j + c] * 255 ~/ (perChannel ? px[c] : lum);
+          if (v > 255) v = 255;
+          flat[j + c] = v;
+          sum += v * (c == 0 ? 299 : (c == 1 ? 587 : 114));
+        }
+        fl[i] = sum ~/ 1000;
+      }
     }
 
-    // 0: RESİM BÖLGELERİ (2026-10-18). Kullanıcı: *"belge tarandıktan ve
-    // onaylandıktan sonra arka planda yapılan iyileştirmeler resmin
-    // patlamasına ve bozulmasına sebep oluyor"*. Kök neden: aşağıdaki
-    // aydınlatma düzeltmesi her pikseli KENDİ çevresinin ortalamasına bölüyor.
-    // Kâğıtta bu gölgeyi siler; bir FOTOĞRAFIN içinde ise "çevrenin
-    // ortalaması" fotoğrafın kendisidir → fotoğraf beyaza yakın düz bir lekeye
-    // döner, renkli modda da oran ×4'e çıkıp kanallar 255'e dayanıyordu
-    // (renkler patlıyordu). Artık resim bölgeleri bulunup düzeltmenin DIŞINDA
-    // tutuluyor: fotoğraf olduğu gibi kalır, yalnız kâğıt+yazı netleşir.
-    final picture = pictureMask(gray, w, h, rgb: rgb);
+    // 2) RESİM BÖLGELERİ düzeltmenin dışında tutulur (2026-10-18).
+    final picture = _pictureMaskFrom(
+        DocEdges.boxBlur(flatL, w, h, 1), w, h, bg, paper, paperLevel);
 
-    // 1-3: gri kanal üstünde tüm düzeltmeler.
-    var corrected = flattenIllumination(gray, w, h, radius);
-    corrected = stretchContrast(corrected);
-    corrected = sharpenText(corrected, w, h);
+    // 3) Bulanıklığa göre ayarlanan yazı netleştirme (parlaklık üstünde).
+    final sharp = sharpenText(fl, w, h, adaptive: true);
 
-    if (filter == ScanFilter.blackWhite) {
-      final bw = adaptiveThreshold(corrected, w, h,
+    // 4) Ton eğrisi: kâğıt tam beyaza, mürekkep koyuya. Beyaz noktası derin
+    // gölgede (büyük kazanç = büyümüş gürültü) biraz aşağı çekilir — yoksa
+    // gölgenin olduğu yer benekli gri kalıyordu.
+    final hist = Int32List(256);
+    var counted = 0;
+    for (var i = 0; i < n; i++) {
+      if (picture[i] < 128) {
+        hist[fl[i]]++;
+        counted++;
+      }
+    }
+    final bp =
+        counted == 0 ? 12 : _histQuantile(hist, counted, 0.01).clamp(12, 110).toInt();
+    final wp0 = filter == ScanFilter.shadowless ? 0.80 : 0.90;
+    final wpLut = Int32List(256);
+    for (var v = 0; v < 256; v++) {
+      final gain = 255 / math.max(1, v);
+      final t = ((gain - 1.3) / 1.7).clamp(0.0, 1.0);
+      wpLut[v] = ((wp0 - 0.14 * t) * 255).round();
+    }
+    final curve = Uint8List(256);
+    for (var v = 0; v < 256; v++) {
+      curve[v] = (255 * math.pow(v / 255, toneGamma)).round().clamp(0, 255);
+    }
+
+    if (filter == ScanFilter.gray || filter == ScanFilter.blackWhite) {
+      final toned = Uint8List(n);
+      for (var i = 0; i < n; i++) {
+        final wp = wpLut[bgL[i]];
+        final t = (sharp[i] - bp) * 255 ~/ (wp - bp);
+        toned[i] = curve[t < 0 ? 0 : (t > 255 ? 255 : t)];
+      }
+      if (filter == ScanFilter.gray) {
+        return _grayToImage(blend(toned, gray, picture), w, h);
+      }
+      final bw = adaptiveThreshold(toned, w, h,
           radius: math.max(6, (math.min(w, h) * 0.02).round()), bias: 10);
       // Resim bölgesi eşiklenmez, GRİ kalır (masaüstü tarayıcıların "karma"
       // modu): eşiklenmiş fotoğraf siyah-beyaz karıncalanmaya dönüyordu.
       return _grayToImage(blend(bw, gray, picture), w, h);
     }
-    final kept = blend(corrected, gray, picture);
-    if (filter == ScanFilter.gray) return _grayToImage(kept, w, h);
 
-    // Renkli mod: düzeltme **parlaklık** üzerinden uygulanıp renge geri
-    // taşınır. Üç kanalı ayrı ayrı düzeltmek renkleri kaydırıyordu (mavi
-    // kalemle atılan imza morarıyordu).
-    final out = Uint8List(rgb.length);
-    for (var i = 0, j = 0; i < gray.length; i++, j += 3) {
-      final before = gray[i];
-      final after = kept[i];
-      // Kaynak zaten siyahsa oran patlamasın diye +1'li bölme.
-      final ratio = (after + 1) / (before + 1);
-      // Parlaklık TAM düzeltilir, rengin parlaklıktan sapması ise en çok
-      // [maxChromaGain] kat büyür. Eskiden üç kanal düpedüz oranla
-      // çarpılıyordu: gölgedeki renkli bir alanda oran ×3-4'e çıkınca
-      // kanallar 255'e dayanıp renk "patlıyordu". Koyulaşan (oran < 1)
-      // mürekkepte sonuç eskisiyle birebir aynı (k = oran).
-      var k = ratio < maxChromaGain ? ratio : maxChromaGain;
-      if (filter == ScanFilter.vivid) k *= vividGain;
-      // Gölge-sil: düzeltilmiş zemin neredeyse beyazsa (kâğıt) renk sapması
-      // da silinir → saf beyaz; mürekkep/çizim (koyu) olduğu gibi kalır.
-      final paper =
-          filter == ScanFilter.shadowless && after >= paperWhite && picture[i] == 0;
-      for (var c = 0; c < 3; c++) {
-        final v = paper ? 255 : (after + (rgb[j + c] - before) * k).round();
-        out[j + c] = v < 0 ? 0 : (v > 255 ? 255 : v);
+    final out = Uint8List(n * 3);
+    final vivid = filter == ScanFilter.vivid;
+    for (var i = 0, j = 0; i < n; i++, j += 3) {
+      final m = picture[i];
+      if (m == 255) {
+        out[j] = rgb[j];
+        out[j + 1] = rgb[j + 1];
+        out[j + 2] = rgb[j + 2];
+        continue;
       }
+      final d = sharp[i] - fl[i];
+      final span = wpLut[bgL[i]] - bp;
+      var r = (flat[j] + d - bp) * 255 ~/ span;
+      var g = (flat[j + 1] + d - bp) * 255 ~/ span;
+      var b = (flat[j + 2] + d - bp) * 255 ~/ span;
+      r = curve[r < 0 ? 0 : (r > 255 ? 255 : r)];
+      g = curve[g < 0 ? 0 : (g > 255 ? 255 : g)];
+      b = curve[b < 0 ? 0 : (b > 255 ? 255 : b)];
+      if (vivid) {
+        final l = (r * 299 + g * 587 + b * 114) ~/ 1000;
+        r = (l + (r - l) * vividGain).round();
+        g = (l + (g - l) * vividGain).round();
+        b = (l + (b - l) * vividGain).round();
+      }
+      if (m != 0) {
+        r = (r * (255 - m) + rgb[j] * m) ~/ 255;
+        g = (g * (255 - m) + rgb[j + 1] * m) ~/ 255;
+        b = (b * (255 - m) + rgb[j + 2] * m) ~/ 255;
+      }
+      out[j] = r < 0 ? 0 : (r > 255 ? 255 : r);
+      out[j + 1] = g < 0 ? 0 : (g > 255 ? 255 : g);
+      out[j + 2] = b < 0 ? 0 : (b > 255 ? 255 : b);
     }
     return img.Image.fromBytes(
         width: w, height: h, bytes: out.buffer, numChannels: 3);
   }
 
-  /// Renkli modda rengin (parlaklıktan sapmanın) en çok kaç kat büyüyebileceği.
-  static const maxChromaGain = 1.6;
+  /// Kâğıdın en parlak/en sönük kanalı oranı bunun altındaysa kâğıt "beyaz"
+  /// sayılır ve renk sapması (lamba sarısı) silinir.
+  static const neutralPaperCast = 1.45;
+
+  /// Ton eğrisinin üssü: > 1 → ara tonlar (soluk/bulanık mürekkep) koyulaşır.
+  static const toneGamma = 1.15;
 
   /// Renkli-canlı filtrede renk sapmasının ek çarpanı (doygunluk artışı).
   static const vividGain = 1.45;
 
-  /// Gölge-sil filtresinde bu parlaklığın üstü "kâğıt" sayılıp beyaza çekilir.
-  static const paperWhite = 214;
+  static int _histQuantile(Int32List hist, int count, double q) {
+    final target = (count * q).ceil();
+    var seen = 0;
+    for (var v = 0; v < 256; v++) {
+      seen += hist[v];
+      if (seen >= target) return v;
+    }
+    return 255;
+  }
 
   /// [enhanced] ile [original] arasında [mask]'e göre karışım: maske 0 →
   /// düzeltilmiş, 255 → özgün.
@@ -251,95 +342,111 @@ abstract final class ScanEnhance {
   /// Sayfadaki **resim bölgelerinin** maskesi (piksel başına 0 = kâğıt/yazı,
   /// 255 = resim; arada yumuşak geçiş).
   ///
-  /// Sayfa küçük bloklara bölünür. Yazılı kâğıdın bir bloğu İKİ TEPELİDİR:
-  /// piksellerin çoğu bloğun kendi kâğıt tonuna yakındır (gölgede de olsa),
-  /// kalanı belirgin koyu mürekkeptir; arada ara ton azdır. Fotoğraf bloğu
-  /// ise ara tonlarla doludur. Ayrıca kâğıttan belirgin koyu ve RENKLİ düz
-  /// bir alan (gökyüzü, renkli kutu) ve çok koyu düz alan (koyu fotoğraf
-  /// zemini) da resim sayılır — bunlar düz olduğu için ara ton ölçüsü
-  /// yakalamaz ama bölmeyle beyaza döner.
+  /// **2026-11-12 yeniden yazım** (kullanıcı: *"tarama aşırı kötüleştiriyor"*
+  /// — yazının üstünde gri bulanık kutular, gölgenin yerinde benekli leke).
+  /// Kök neden: eski ölçü HAM görüntüde "ara ton oranı"na bakıyordu; bulanık
+  /// el yazısının kenarları ve gölge geçişi ara tonla doludur → yazı bloğu
+  /// "fotoğraf" sanılıp düzeltmenin dışında (karanlık ve bulanık) kalıyordu.
+  /// Şimdi ölçü ZEMİNE BÖLÜNMÜŞ görüntüde yapılır: gölgedeki kâğıt da
+  /// beyazdır, yazı bloğunun çoğu kâğıttır. Bir blok ancak şu durumlarda
+  /// resimdir:
+  ///  * kâğıdı az (< %35) VE ara tonu çok (> %40) — dokulu fotoğraf;
+  ///  * zemininin rengi sayfanın kâğıt renginden belirgin sapıyor (gökyüzü,
+  ///    renkli kutu) — gölge renk ORANINI bozmaz, renkli alan bozar;
+  ///  * çok koyu ve yazısız düz alan (koyu fotoğraf zemini).
   ///
-  /// Sonra temizlik: tek başına kalan blok (yazı kümesi gürültüsü) atılır;
-  /// derli toplu bir resim bölgesi dış dikdörtgenine tamamlanır (fotoğraflar
-  /// dikdörtgendir; içindeki düz gök/duvar parçası da korunur) ve bir blok
-  /// genişletilir. **Yanılgı yönü bilinçli:** emin olunamayan alan resim
-  /// sayılır — düzeltilmeyen bir köşe gölgesi, beyaza dönmüş bir fotoğraftan
-  /// çok daha az kötüdür.
+  /// Sonra temizlik: tek başına kalan blok atılır; derli toplu bölge dış
+  /// dikdörtgenine tamamlanır ve bir blok genişletilir.
   static Uint8List pictureMask(Uint8List gray, int w, int h, {Uint8List? rgb}) {
+    if (w < 16 || h < 16) return Uint8List(w * h);
+    final paperLevel = DocEdges.quantile(gray, 0.9);
+    if (paperLevel < 110) {
+      return Uint8List(w * h)..fillRange(0, w * h, 255);
+    }
+    final _PaperBackground bg;
+    final List<int> paper;
+    if (rgb == null) {
+      bg = _PaperBackground.estimate(gray, 1, w, h);
+      paper = [paperLevel, paperLevel, paperLevel];
+    } else {
+      bg = _PaperBackground.estimate(rgb, 3, w, h);
+      final hists = [Int32List(256), Int32List(256), Int32List(256)];
+      for (var j = 0; j < rgb.length; j += 3) {
+        hists[0][rgb[j]]++;
+        hists[1][rgb[j + 1]]++;
+        hists[2][rgb[j + 2]]++;
+      }
+      paper = [for (final hist in hists) _histQuantile(hist, w * h, 0.9)];
+    }
+    final flatL = Uint8List(w * h);
+    final sampler = _GridSampler(bg, w, h);
+    final px = [0, 0, 0];
+    for (var y = 0; y < h; y++) {
+      sampler.row(y);
+      for (var x = 0; x < w; x++) {
+        sampler.at(x, px);
+        final lum = (px[0] * 299 + px[1] * 587 + px[2] * 114) ~/ 1000;
+        final v = gray[y * w + x] * 255 ~/ lum;
+        flatL[y * w + x] = v > 255 ? 255 : v;
+      }
+    }
+    return _pictureMaskFrom(
+        DocEdges.boxBlur(flatL, w, h, 1), w, h, bg, paper, paperLevel);
+  }
+
+  /// [flat]: zemine bölünmüş (ve gürültüsü hafifçe yumuşatılmış) parlaklık.
+  static Uint8List _pictureMaskFrom(Uint8List flat, int w, int h,
+      _PaperBackground bg, List<int> paper, int paperLevel) {
     final mask = Uint8List(w * h);
     if (w < 16 || h < 16) return mask;
     final block = math.max(6, (math.min(w, h) / 48).round());
     final gw = (w + block - 1) ~/ block;
     final gh = (h + block - 1) ~/ block;
-    final paperLevel = DocEdges.quantile(gray, 0.9);
-    // Sayfanın en açık onda biri bile koyuysa ortada kâğıt yok (koyu bir
-    // fotoğraf, gece çekimi): bütün sayfa resimdir, hiçbir yerine dokunulmaz.
-    if (paperLevel < 110) {
-      mask.fillRange(0, mask.length, 255);
-      return mask;
-    }
-
     final grid = Uint8List(gw * gh);
-    final hist = Int32List(256);
     // Büyük blokta her piksele bakmak gereksiz: ikişer atlanır.
     final step = block >= 12 ? 2 : 1;
+    var any = false;
     for (var by = 0; by < gh; by++) {
       for (var bx = 0; bx < gw; bx++) {
-        hist.fillRange(0, 256, 0);
         final x0 = bx * block, y0 = by * block;
         final x1 = math.min(w, x0 + block), y1 = math.min(h, y0 + block);
-        var n = 0;
-        var chroma = 0;
+        var count = 0, paperLike = 0, ink = 0;
         for (var y = y0; y < y1; y += step) {
           final row = y * w;
           for (var x = x0; x < x1; x += step) {
-            final i = row + x;
-            hist[gray[i]]++;
-            n++;
-            if (rgb != null) {
-              final j = i * 3;
-              final r = rgb[j], g = rgb[j + 1], b = rgb[j + 2];
-              final hi = r > g ? (r > b ? r : b) : (g > b ? g : b);
-              final lo = r < g ? (r < b ? r : b) : (g < b ? g : b);
-              chroma += hi - lo;
+            final v = flat[row + x];
+            count++;
+            if (v >= 204) {
+              paperLike++;
+            } else if (v < 140) {
+              ink++;
             }
           }
         }
-        if (n == 0) continue;
-        // Bloğun kendi kâğıt tonu: %85'lik dilim.
-        var seen = 0, local = 255;
-        final target = (n * 0.85).ceil();
-        for (var v = 0; v < 256; v++) {
-          seen += hist[v];
-          if (seen >= target) {
-            local = v;
-            break;
-          }
+        if (count == 0) continue;
+        final mid = (count - paperLike - ink) / count;
+        // Bloğun ortasındaki zemin (kanal başına).
+        final cx = math.min(bg.gw - 1, ((x0 + x1) ~/ 2) ~/ bg.cell);
+        final cy = math.min(bg.gh - 1, ((y0 + y1) ~/ 2) ~/ bg.cell);
+        final at = cy * bg.gw + cx;
+        var hi = 0.0, lo = double.infinity, lum = 0;
+        for (var c = 0; c < 3; c++) {
+          final v = bg.grids[c][at];
+          final ratio = v / math.max(1, paper[c]);
+          if (ratio > hi) hi = ratio;
+          if (ratio < lo) lo = ratio;
+          lum += v * (c == 0 ? 299 : (c == 1 ? 587 : 114));
         }
-        final tolerance = math.max(10, (local * 0.1).round());
-        final inkBelow = (local * 0.55).round();
-        var nearPaper = 0, ink = 0;
-        for (var v = 0; v < 256; v++) {
-          final c = hist[v];
-          if (c == 0) continue;
-          if ((v - local).abs() <= tolerance) {
-            nearPaper += c;
-          } else if (v < inkBelow) {
-            ink += c;
-          }
-        }
-        final mid = (n - nearPaper - ink) / n;
-        final meanChroma = rgb == null ? 0 : chroma / n;
-        final darkColored = meanChroma > 38 && local < paperLevel * 0.85;
-        // Çok koyu VE yazısız düz alan (koyu fotoğraf zemini): bölme onu
-        // beyaza çevirirdi. Yazılı bir blok ne kadar gölgede olursa olsun
-        // mürekkep taşır — derin gölgedeki satırlar düzeltilmeye devam eder.
-        final veryDark = local < paperLevel * 0.30 && ink < n * 0.05;
-        if (mid > 0.33 || darkColored || veryDark) {
+        lum ~/= 1000;
+        final colored = hi / math.max(0.001, lo) > 1.6;
+        final veryDark = lum < paperLevel * 0.25 && ink < count * 0.05;
+        if ((mid > 0.40 && paperLike < count * 0.35) || colored || veryDark) {
           grid[by * gw + bx] = 1;
+          any = true;
         }
       }
     }
+    if (!any) return mask;
 
     _cleanPictureGrid(grid, gw, gh);
 
@@ -574,11 +681,40 @@ abstract final class ScanEnhance {
   ///  3. **Hale sınırı**: sonuç 3×3 komşuluğun en küçük/en büyük değerinden
   ///     en çok [haloMargin] taşabilir → harf çevresinde beyaz/siyah çember
   ///     oluşmaz, güçlü miktar güvenle kullanılır.
-  static Uint8List sharpenText(Uint8List gray, int w, int h) {
+  static Uint8List sharpenText(Uint8List gray, int w, int h,
+      {bool adaptive = false}) {
     final b1 = DocEdges.boxBlur(gray, w, h, 1);
     final b2 = DocEdges.boxBlur(gray, w, h, 2);
-    final lo = _minMax3(gray, w, h, min: true);
-    final hi = _minMax3(gray, w, h, min: false);
+    // Bulanıklık ölçüsü (0 = net, 1 = bulanık). 2026-11-12, kullanıcı:
+    // *"bulanıklık giderme yok"*. Net bir kenarda ince fark (yarıçap 1) orta
+    // farkın (yarıçap 2) ~%75'idir; kenar birkaç piksele yayıldıkça oran
+    // düşer. Bulanık sayfada üçüncü, KABA ölçek (yarıçap 4) devreye girer ve
+    // hale sınırı 5×5 komşuluğa genişler — yoksa sınır, yayılmış kenarın
+    // dikleşmesine izin vermiyordu.
+    var blurry = 0.0;
+    if (adaptive) {
+      var s1 = 0, s2 = 0, edges = 0;
+      for (var i = 0; i < gray.length; i++) {
+        final d2 = (gray[i] - b2[i]).abs();
+        if (d2 > 12) {
+          s1 += (gray[i] - b1[i]).abs();
+          s2 += d2;
+          edges++;
+        }
+      }
+      if (edges > 50 && s2 > 0) {
+        blurry = ((0.72 - s1 / s2) / 0.25).clamp(0.0, 1.0);
+      }
+    }
+    final b4 = blurry > 0 ? DocEdges.boxBlur(gray, w, h, 4) : null;
+    var lo = _minMax3(gray, w, h, min: true);
+    var hi = _minMax3(gray, w, h, min: false);
+    if (blurry >= 0.5) {
+      lo = _minMax3(lo, w, h, min: true);
+      hi = _minMax3(hi, w, h, min: false);
+    }
+    final margin = haloMargin + (14 * blurry).round();
+    final coarse = coarseAmount * blurry;
     final out = Uint8List(gray.length);
     for (var i = 0; i < gray.length; i++) {
       final g = gray[i];
@@ -586,8 +722,13 @@ abstract final class ScanEnhance {
       var d2 = g - b2[i];
       if (d1.abs() < fineNoise) d1 = 0;
       if (d2.abs() < mediumNoise) d2 = 0;
-      var v = (g + fineAmount * d1 + mediumAmount * d2).round();
-      final floor = lo[i] - haloMargin, ceil = hi[i] + haloMargin;
+      var sum = g + fineAmount * d1 + mediumAmount * d2;
+      if (b4 != null) {
+        final d4 = g - b4[i];
+        if (d4.abs() >= coarseNoise) sum += coarse * d4;
+      }
+      var v = sum.round();
+      final floor = lo[i] - margin, ceil = hi[i] + margin;
       if (v < floor) v = floor;
       if (v > ceil) v = ceil;
       out[i] = v < 0 ? 0 : (v > 255 ? 255 : v);
@@ -597,8 +738,10 @@ abstract final class ScanEnhance {
 
   static const fineAmount = 0.9;
   static const mediumAmount = 0.7;
+  static const coarseAmount = 0.9;
   static const fineNoise = 3;
   static const mediumNoise = 4;
+  static const coarseNoise = 6;
   static const haloMargin = 10;
 
   /// 3×3 komşuluk en küçüğü/en büyüğü (ayrılabilir: önce satır, sonra sütun).
@@ -661,5 +804,149 @@ abstract final class ScanEnhance {
     final name = '${ScanPageOps.shortBase(sourcePath)}'
         '_${filter.name}_$stamp.jpg';
     return p.join(dir.path, name);
+  }
+}
+
+/// Kâğıt zemini kestirimi: küçük hücre ızgarası, kanal başına.
+class _PaperBackground {
+  final int cell, gw, gh;
+
+  /// Üç kanal (gri girdide üçü de aynı liste).
+  final List<Uint8List> grids;
+
+  const _PaperBackground(this.cell, this.gw, this.gh, this.grids);
+
+  /// [src] [stride] kanallı (1 = gri, 3 = RGB) görüntü.
+  static _PaperBackground estimate(Uint8List src, int stride, int w, int h) {
+    final shortEdge = math.min(w, h);
+    final cell = math.max(2, (shortEdge / 200).round());
+    // Kapama yarıçapı ≈ kısa kenarın %4'ü: harf ve satırdan büyük (mürekkep
+    // zemine sızmaz), gölgeden küçük.
+    final radius = math.max(2, (shortEdge * 0.04 / cell).round());
+    final gw = (w + cell - 1) ~/ cell;
+    final gh = (h + cell - 1) ~/ cell;
+    final grids = <Uint8List>[];
+    for (var c = 0; c < stride; c++) {
+      var grid = _cellQuantile(src, stride, c, w, h, cell, gw, gh);
+      grid = _morph(grid, gw, gh, radius, max: true);
+      grid = _morph(grid, gw, gh, radius, max: false);
+      grid = DocEdges.boxBlur(grid, gw, gh, 1);
+      for (var i = 0; i < grid.length; i++) {
+        // Zemin gerçekten siyahsa bölme patlamasın.
+        if (grid[i] < 24) grid[i] = 24;
+      }
+      grids.add(grid);
+    }
+    while (grids.length < 3) {
+      grids.add(grids.first);
+    }
+    return _PaperBackground(cell, gw, gh, grids);
+  }
+
+  /// Hücre başına %85'lik dilim: hücrenin kâğıt tonu (mürekkep dışarıda,
+  /// tek bir parlama pikseli de sonucu belirlemez).
+  static Uint8List _cellQuantile(Uint8List src, int stride, int offset, int w,
+      int h, int cell, int gw, int gh) {
+    final out = Uint8List(gw * gh);
+    final hist = Int32List(256);
+    for (var by = 0; by < gh; by++) {
+      final y0 = by * cell, y1 = math.min(h, y0 + cell);
+      for (var bx = 0; bx < gw; bx++) {
+        final x0 = bx * cell, x1 = math.min(w, x0 + cell);
+        hist.fillRange(0, 256, 0);
+        var count = 0;
+        for (var y = y0; y < y1; y++) {
+          var i = (y * w + x0) * stride + offset;
+          for (var x = x0; x < x1; x++, i += stride) {
+            hist[src[i]]++;
+            count++;
+          }
+        }
+        final target = (count * 0.85).ceil();
+        var seen = 0, value = 255;
+        for (var v = 0; v < 256; v++) {
+          seen += hist[v];
+          if (seen >= target) {
+            value = v;
+            break;
+          }
+        }
+        out[by * gw + bx] = value;
+      }
+    }
+    return out;
+  }
+
+  /// Ayrılabilir en büyük/en küçük süzgeci (kenar dışı yok sayılır).
+  static Uint8List _morph(Uint8List g, int gw, int gh, int r,
+      {required bool max}) {
+    final tmp = Uint8List(g.length);
+    for (var y = 0; y < gh; y++) {
+      final row = y * gw;
+      for (var x = 0; x < gw; x++) {
+        final a = x - r < 0 ? 0 : x - r;
+        final b = x + r >= gw ? gw - 1 : x + r;
+        var v = g[row + a];
+        for (var k = a + 1; k <= b; k++) {
+          final o = g[row + k];
+          if (max ? o > v : o < v) v = o;
+        }
+        tmp[row + x] = v;
+      }
+    }
+    final out = Uint8List(g.length);
+    for (var x = 0; x < gw; x++) {
+      for (var y = 0; y < gh; y++) {
+        final a = y - r < 0 ? 0 : y - r;
+        final b = y + r >= gh ? gh - 1 : y + r;
+        var v = tmp[a * gw + x];
+        for (var k = a + 1; k <= b; k++) {
+          final o = tmp[k * gw + x];
+          if (max ? o > v : o < v) v = o;
+        }
+        out[y * gw + x] = v;
+      }
+    }
+    return out;
+  }
+}
+
+/// Zemin ızgarasını piksele çift doğrusal büyütür (satır satır).
+class _GridSampler {
+  final _PaperBackground bg;
+  final Int32List _x0, _x1, _fx;
+  int _r0 = 0, _r1 = 0, _fy = 0;
+
+  _GridSampler(this.bg, int w, int h)
+      : _x0 = Int32List(w),
+        _x1 = Int32List(w),
+        _fx = Int32List(w) {
+    for (var x = 0; x < w; x++) {
+      final gx = (x + 0.5) / bg.cell - 0.5;
+      final ix = gx.floor();
+      _x0[x] = ix.clamp(0, bg.gw - 1);
+      _x1[x] = (ix + 1).clamp(0, bg.gw - 1);
+      _fx[x] = ((gx - ix) * 256).round();
+    }
+  }
+
+  void row(int y) {
+    final gy = (y + 0.5) / bg.cell - 0.5;
+    final iy = gy.floor();
+    _r0 = iy.clamp(0, bg.gh - 1) * bg.gw;
+    _r1 = (iy + 1).clamp(0, bg.gh - 1) * bg.gw;
+    _fy = ((gy - iy) * 256).round();
+  }
+
+  /// [x] sütunundaki üç kanalın zeminini [out]'a yazar (en az 24).
+  void at(int x, List<int> out) {
+    final x0 = _x0[x], x1 = _x1[x], fx = _fx[x];
+    for (var c = 0; c < 3; c++) {
+      final g = bg.grids[c];
+      final top = g[_r0 + x0] * (256 - fx) + g[_r0 + x1] * fx;
+      final bottom = g[_r1 + x0] * (256 - fx) + g[_r1 + x1] * fx;
+      final v = (top * (256 - _fy) + bottom * _fy) >> 16;
+      out[c] = v < 24 ? 24 : v;
+    }
   }
 }

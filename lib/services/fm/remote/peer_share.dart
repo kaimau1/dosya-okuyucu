@@ -432,6 +432,13 @@ class PeerReceiver implements KeepableServer {
     // `done`'u hata ile biter; dinleyen yoksa "[async] SocketException:
     // Connection reset by peer" hata kaydına düşer (2026-11-09 kullanıcı kaydı).
     request.response.done.ignore();
+    // Kimlik yoklaması (`/kim`) aktarım DEĞİLDİR: çevredeki her cihazın
+    // yoklaması sayaçları oynatıp ön plan servisini açıp kapatıyor, ekrandan
+    // çıkınca da sunucuyu "meşgul" gösterip 60 sn açık tutuyordu.
+    if (request.method == 'GET' && request.uri.path == '/kim') {
+      await _handle(request);
+      return;
+    }
     activeTransfers++;
     lastActivity = DateTime.now();
     onActivity?.call(this);
@@ -571,11 +578,15 @@ class PeerReceiver implements KeepableServer {
             mode: offset == 0 ? FileMode.writeOnly : FileMode.append);
         var received = offset;
         try {
-          await for (final chunk in request) {
-            sink.add(chunk);
+          // `addStream` GERİ BASINÇ uygular (2026-11-12): eski `await for` +
+          // `sink.add` diske yazılmayı beklemeden ağdan okuyordu; hızlı
+          // gönderende (bilgisayar, kablolu ağ) yazılamayan baytlar bellekte
+          // birikip büyük dosyada süreci öldürebiliyordu.
+          await sink.addStream(request.map((chunk) {
             received += chunk.length;
             onProgress?.call(safeName, received, total);
-          }
+            return chunk;
+          }));
           await sink.flush();
         } finally {
           await sink.close();
@@ -623,11 +634,11 @@ class PeerReceiver implements KeepableServer {
     final sink = file.openWrite();
     var received = 0;
     try {
-      await for (final chunk in request) {
-        sink.add(chunk);
+      await sink.addStream(request.map((chunk) {
         received += chunk.length;
         onProgress?.call(safeName, received, total);
-      }
+        return chunk;
+      }));
       await sink.flush();
     } finally {
       await sink.close();
@@ -1092,6 +1103,11 @@ abstract final class PeerSender {
           return _Outcome.cancelled;
         }
         request.add(chunk);
+        // Geri basınç (2026-11-12): `add` beklemeden biriktirir — dosya
+        // ağdan hızlı okununca tamamı belleğe doluyor, ilerleme de "okunan"ı
+        // gösterip anında %100 oluyordu. `flush` bayt sokete yazılana dek
+        // bekler → bellek sabit, yüzde gerçek.
+        await request.flush();
         n += chunk.length;
         onBytes(n);
       }

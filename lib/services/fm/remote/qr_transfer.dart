@@ -645,6 +645,7 @@ abstract final class QrReceiver {
             final sink = part.openWrite(
                 mode: resumed ? FileMode.append : FileMode.writeOnly);
             var received = resumed ? have : 0;
+            var unflushed = 0;
             try {
               await for (final chunk in res) {
                 if (isCancelled?.call() ?? false) {
@@ -657,6 +658,13 @@ abstract final class QrReceiver {
                 }
                 sink.add(chunk);
                 received += chunk.length;
+                // Geri basınç: disk ağdan yavaşsa yazılmamış baytlar bellekte
+                // birikmesin (büyük dosyada süreç ölüyordu) — 4 MB'ta bir boşalt.
+                unflushed += chunk.length;
+                if (unflushed >= 4 << 20) {
+                  await sink.flush();
+                  unflushed = 0;
+                }
                 onProgress?.call(name, received, total);
               }
               await sink.flush();

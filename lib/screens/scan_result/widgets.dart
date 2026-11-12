@@ -209,9 +209,23 @@ class _FilterSheetState extends State<_FilterSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(context.t('ss.filter_title'),
-                style: theme.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w600)),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(context.t('ss.filter_title'),
+                      style: theme.textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                ),
+                if (widget.current != ScanFilter.original)
+                  TextButton.icon(
+                    key: const ValueKey('scan-filter-sheet-clear'),
+                    onPressed: () => Navigator.pop(context,
+                        _FilterChoice(ScanFilter.original, all: _all)),
+                    icon: const Icon(AppIcons.close, size: 18),
+                    label: Text(context.t('ss.filter_clear')),
+                  ),
+              ],
+            ),
             const SizedBox(height: Gap.xs),
             Text(context.t('ss.filter_note'),
                 style: theme.textTheme.bodySmall

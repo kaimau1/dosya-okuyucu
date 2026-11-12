@@ -672,6 +672,7 @@ const Map<String, (String, String, String)> _t6 = {
     'اختر من المعرض واضبط القصّ بنفسك',
   ),
   'ss.filter_title': ('Sayfanın görünümü', 'Page look', 'مظهر الصفحة'),
+  'ss.filter_clear': ('Filtreyi kaldır', 'Remove filter', 'إزالة الفلتر'),
   'ss.filter_note': (
     'Özgün: tarayıcıdan geldiği gibi. Netleştirme gölgeyi alır ve yazıyı '
         'belirginleştirir; fotoğraflara dokunmaz.',

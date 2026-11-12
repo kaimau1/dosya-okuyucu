@@ -168,6 +168,10 @@ void main() {
     expect(peer, isNotNull);
     expect(peer!.name, 'Alıcı');
     expect(peer.port, receiver.port);
+    // Kimlik yoklaması aktarım sayılmaz (ön plan servisini oynatmasın,
+    // ekrandan çıkınca sunucuyu "meşgul" göstermesin).
+    expect(receiver.lastActivity, isNull);
+    expect(receiver.activeTransfers, 0);
   });
 
   test('sunucu YOKSA elle adres sessizce null döner', () async {

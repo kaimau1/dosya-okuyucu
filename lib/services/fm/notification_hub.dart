@@ -170,6 +170,10 @@ class NotificationHub {
   /// Servisi fiilen BAŞLATAN sahip (bildirimi servise bağlı olan).
   String? _serviceOwner;
 
+  /// Yerel servisin son başlatılma anı (testte eklenti yok → `null`).
+  DateTime? _nativeStart;
+  static const _minServiceLife = Duration(seconds: 3);
+
   /// Ön plan servisi ayakta mı (durum göstergeleri ve testler için).
   bool get serviceRunning => _serviceOwner != null;
 
@@ -190,6 +194,7 @@ class NotificationHub {
   void debugReset() {
     _owners.clear();
     _serviceOwner = null;
+    _nativeStart = null;
     _ready = false;
     _tried = false;
     _pendingPayload = null;
@@ -214,6 +219,7 @@ class NotificationHub {
       // bildirime düşülür, iş yine sürer, yalnız dondurulma koruması olmaz.
       _serviceOwner = owner;
       try {
+        if (_android != null) _nativeStart = DateTime.now();
         await _android?.startForegroundService(
           id: notice.id,
           title: notice.title,
@@ -257,6 +263,19 @@ class NotificationHub {
     }
     _serviceOwner = null;
     if (_ready) {
+      // **Başlat → hemen durdur ÇÖKERTİR** (2026-11-12, Windows "Dosya Aktar"
+      // → telefon: kabulden sonra uygulama kapanıyordu). `/sor` biter (servis
+      // durur), ms sonra `/durum` gelir (başlar) ve biter (durur): servis
+      // `startForeground` çağıramadan durdurulunca Android süreci öldürür
+      // ("did not then call Service.startForeground()"), Dart yakalayamaz.
+      // Durdurma, başlatmadan en az [_minServiceLife] sonra yapılır; o arada
+      // yeniden istenirse hiç durdurulmaz.
+      final started = _nativeStart;
+      if (started != null) {
+        final wait = _minServiceLife - DateTime.now().difference(started);
+        if (wait > Duration.zero) await Future<void>.delayed(wait);
+        if (_serviceOwner != null) return;
+      }
       try {
         await _android?.stopForegroundService();
       } catch (_) {
@@ -265,8 +284,8 @@ class NotificationHub {
     }
     // Servis durdurulunca bildirimi Android kaldırır; kalıntı ihtimaline karşı
     // (bazı cihazlarda ongoing bildirim asılı kalıyor) açıkça da silinir.
-    await cancel(notice.id);
-    if (_owners.isEmpty) return;
+    if (!_owners.containsKey(owner)) await cancel(notice.id);
+    if (_owners.isEmpty || _serviceOwner != null) return;
     // Kalan sahip varsa servis ONUN bildirimiyle yeniden başlatılır.
     final next = _owners.entries.first;
     await acquireService(next.key, next.value);

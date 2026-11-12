@@ -143,6 +143,41 @@ void main() {
     expect((p.r - p.b).abs(), lessThan(60));
   });
 
+  // Kullanıcı 2026-11-12: *"tarama aşırı kötüleştiriyor"* — defter sayfasında
+  // yazının üstünde gri bulanık kutular, gölgenin yerinde benekli leke.
+  // Kök neden: bulanık/soluk yazının ara tonları eski maskede "fotoğraf"
+  // sayılıyor, o bloklar düzeltilmeden (karanlık, bulanık) kalıyordu.
+  test('gölgedeki bulanık, sık yazı resim SAYILMAZ; kâğıt beyazlar', () {
+    const w = 480, h = 480;
+    const profile = [0.85, 0.7, 0.6, 0.6, 0.7, 0.85];
+    final image = img.Image(width: w, height: h, numChannels: 3);
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        // Sol yan derin gölgede (×0,4), 200–280 arası yumuşak geçiş.
+        final t = ((x - 200) / 80).clamp(0.0, 1.0);
+        var v = 230.0 * (0.4 + 0.6 * t);
+        if (y % 10 < 6 && (x ~/ 7) % 10 != 9 && x > 10 && x < w - 10) {
+          v *= profile[y % 10];
+        }
+        image.setPixelRgb(x, y, v.round(), v.round(), (v * 0.96).round());
+      }
+    }
+    final rgb = image.getBytes(order: img.ChannelOrder.rgb);
+    final mask = ScanEnhance.pictureMask(_gray(image), w, h, rgb: rgb);
+    expect(mask.every((v) => v == 0), isTrue,
+        reason: 'yazı bloğu fotoğraf sanılmamalı');
+
+    final out = ScanEnhance.applyToImage(image, ScanFilter.auto);
+    // Gölgedeki satır arası (y=108) ve satır ortası (y=103).
+    final paper = out.getPixel(100, 108).r;
+    final ink = out.getPixel(100, 103).r;
+    expect(paper, greaterThan(235), reason: 'gölgedeki kâğıt beyazlamalı');
+    expect(paper - ink, greaterThan(120),
+        reason: 'gölgedeki yazı zeminden belirgin ayrılmalı (özgün: 37)');
+    // Aydınlık yanla gölgeli yan aynı görünür.
+    expect((out.getPixel(400, 108).r - paper).abs(), lessThan(12));
+  });
+
   test('yazısız yalnız fotoğraf sayfası düzleştirilmez', () {
     final image = img.Image(width: 400, height: 520, numChannels: 3);
     final random = math.Random(3);

@@ -174,29 +174,62 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
           left: 0,
           right: 0,
           bottom: Gap.xs,
-          child: IgnorePointer(
-            child: Center(
-              child: DecoratedBox(
-                decoration: ShapeDecoration(
-                  color: scheme.inverseSurface.withValues(alpha: 0.82),
-                  shape: const StadiumBorder(),
-                ),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  child: Text(
-                    _pages.isEmpty
-                        ? ''
-                        : '${_index + 1} / ${_pages.length}'
-                            '${_pages[_index].filter == ScanFilter.original ? '' : ' · ${context.t(_pages[_index].filter.labelKey)}'}',
-                    style: context.type.small.copyWith(
-                      color: scheme.onInverseSurface,
-                      fontWeight: FontWeight.w600,
+          child: Center(
+            child: Builder(builder: (context) {
+              final filtered = _pages.isNotEmpty &&
+                  _pages[_index].filter != ScanFilter.original;
+              final label = Padding(
+                padding: EdgeInsetsDirectional.fromSTEB(
+                    12, 4, filtered ? 6 : 12, 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        _pages.isEmpty
+                            ? ''
+                            : '${_index + 1} / ${_pages.length}'
+                                '${filtered ? ' · ${context.t(_pages[_index].filter.labelKey)}' : ''}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.type.small.copyWith(
+                          color: scheme.onInverseSurface,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
-                  ),
+                    if (filtered) ...[
+                      const SizedBox(width: 6),
+                      Icon(AppIcons.close,
+                          size: 16, color: scheme.onInverseSurface),
+                    ],
+                  ],
                 ),
-              ),
-            ),
+              );
+              // Filtre yokken gösterge dokunuşu yutmaz (altındaki sayfa
+              // kaydırılabilsin); filtre varken ✕ ile tek dokunuşta kalkar.
+              return IgnorePointer(
+                ignoring: !filtered,
+                child: Material(
+                color: scheme.inverseSurface.withValues(alpha: 0.82),
+                shape: const StadiumBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: filtered
+                    ? Tooltip(
+                        message: context.t('ss.filter_clear'),
+                        child: InkWell(
+                          key: const ValueKey('scan-filter-clear'),
+                          onTap: _busy ? null : _clearFilter,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(minHeight: 36),
+                            child: Center(widthFactor: 1, child: label),
+                          ),
+                        ),
+                      )
+                    : label,
+                ),
+              );
+            }),
           ),
         ),
         if (_qualityHint != null)
