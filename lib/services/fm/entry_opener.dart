@@ -238,9 +238,17 @@ abstract final class EntryOpener {
       ));
     }
     if (!context.mounted) return;
+    // G7.4 (2026-11-12): makrolu Office biçimi — kullanıcıya makronun
+    // çalıştırılmadığı söylenir (uygulamada VBA yorumlayıcısı yok).
+    if (isMacroFormat(path)) _snack(context, context.t('open.macro_info'));
     await navigator.push(MaterialPageRoute(
         builder: (_) => screenFor(doc, startInk: startInk)));
   }
+
+  /// Makro taşıyabilen Office uzantıları (G7.4).
+  static bool isMacroFormat(String path) => const {
+        '.docm', '.dotm', '.xlsm', '.xltm', '.xlsb', '.pptm', '.potm', '.ppsm',
+      }.contains(p.extension(path).toLowerCase());
 
   /// Yüklenmiş belgeye uygun ekran. (Salt-okunur içerik OOXML editörlerine
   /// gitmez — bkz. HAFIZA 2026-07-21 legacy notu.)

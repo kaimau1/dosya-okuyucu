@@ -82,4 +82,5 @@ const Map<String, (String, String, String)> _t29 = {
   'wipe.confirm': ('Seçilen kayıtlar kalıcı olarak silinecek. Geri alınamaz.', 'The selected records will be deleted permanently. This cannot be undone.', 'ستُحذف السجلات المحددة نهائيًا. لا يمكن التراجع.'),
   'wipe.done': ('Veriler silindi.', 'Data deleted.', 'حُذفت البيانات.'),
   'wipe.partial': ('Silindi; {n} kayıt silinemedi.', 'Deleted; {n} records could not be removed.', 'حُذفت؛ تعذّر حذف {n} من السجلات.'),
+  'open.macro_info': ('Bu dosyada makro olabilir — makrolar hiçbir zaman çalıştırılmaz.', 'This file may contain macros — macros are never run.', 'قد يحتوي هذا الملف على وحدات ماكرو — لا تُشغَّل وحدات الماكرو أبدًا.'),
 };
