@@ -670,3 +670,8 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Karar (G9.6):** özet önce Release gövdesindeki `<!-- sha256:AD=… -->` (CI `release`), yoksa GitHub asset `digest`; ikisi de yoksa (eski sürüm) yalnız ana makine denetimi. Yönlendirmeler elle (≤ 5, yalnız https github.com / objects|release-assets.githubusercontent.com).
 - **Karar (G12.4):** `ci/min_guvenli_surum.txt` → gövdede `<!-- min-guvenli: X -->` → `app_update_min_safe` prefs → her açılışta kapatılabilir pencere (indirme beklerken de).
 - **Karar (G9.1):** Action SHA'ları `git ls-remote` ile alındı (gradle/actions v4 açıklamalı etiket → `^{}` commit'i). Dependabot `github-actions` aylık günceller; `shared_preferences_android`, `pdfrx*` yok sayılır.
+
+## 2026-11-12 — G2.7 kasa anahtarı sıfırlama + G7.1 arşiv bombası
+- **Karar (G2.7):** `SecureVault.lock()` `_master`ı `fillRange` ile sıfırlar. Anahtarı await boyunca tutan her iş (`_addFiles`, `openTemp`, `restore`, `changePin`, `enableBiometric`) `_key()` KOPYASI alır, `finally`de `_wipe`. `_epoch` her açılış/kilitte artar.
+- **Bug kökü (G2.7 sırasında bulundu):** ekleme sürerken kilitlenince `_items` boşalıyor, `_saveIndex` sessizce dönüyor, sonra ASIL DOSYA siliniyordu → şifreli kopya dizinde yok = veri kaybı. Artık şifreleme sonrası `_epoch` değiştiyse kopya silinir, aslı kalır, iş `cancelled`.
+- **Karar (G7.1):** sınırlar izolata argümanla gider (statikler izolat başına — ana izolatta değiştirmek işe yaramaz). Bütçe min(boş − 500 MB, 20 GB), giriş ≤ 200 bin; oran > 1000× yalnız > 1 GB girişte. `tooLarge`da yarım klasör silinir.
