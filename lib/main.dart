@@ -247,7 +247,9 @@ Future<void> _main() async {
   StartupQueue.instance.add(
     'app-update',
     () => AppUpdate.runOnStartup(
-        onReady: _offerUpdate, onWhatsNew: _showWhatsNew),
+        onReady: _offerUpdate,
+        onWhatsNew: _showWhatsNew,
+        onSecurityRequired: _warnSecurityUpdate),
   );
   runApp(
     AppProviders(
@@ -270,6 +272,24 @@ void _offerUpdate(AppUpdateInfo info) {
       onPressed: () => unawaited(AppUpdate.install(info)),
     ),
   );
+}
+
+/// G12.4: kurulu sürüm "en düşük güvenli" sürümün altında — her açılışta
+/// kapatılabilir pencere; "Şimdi güncelle" indirip kurar.
+void _warnSecurityUpdate(String minVersion) {
+  final context = navigatorKey.currentContext;
+  if (context == null || !context.mounted) return;
+  final str = AppStrings.of(context);
+  unawaited(showAppConfirm(
+    context,
+    title: str.t('upd.security_title'),
+    message: str.t('upd.security_body', {'v': minVersion}),
+    confirmLabel: str.t('upd.install_now'),
+  ).then((ok) {
+    if (!ok) return;
+    final info = AppUpdate.available.value ?? AppUpdate.ready.value;
+    if (info != null) unawaited(AppUpdate.downloadAndInstall(info));
+  }));
 }
 
 /// Güncellemeden sonraki ilk açılış: bu sürümde ne değişti (2026-11-10).

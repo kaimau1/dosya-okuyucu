@@ -728,6 +728,17 @@ jobs:
             fi
             echo
             echo "Kurulumda “bilinmeyen kaynak”a izin vermeniz gerekebilir."
+            echo
+            # G9.6 (2026-11-12): uygulama içi güncelleme indirdiği APK'nın
+            # SHA-256'sını bu satırlarla karşılaştırır; uymazsa siler, kurmaz.
+            for f in dist/*.apk; do
+              echo "<!-- sha256:$(basename "$f")=$(sha256sum "$f" | cut -d' ' -f1) -->"
+            done
+            # G12.4: bu sürümden eski kurulumlara "güvenlik güncellemesi gerekli".
+            MIN_GUVENLI=$(grep -vE '^\s*(#|$)' ci/min_guvenli_surum.txt 2>/dev/null | head -1 | tr -d '[:space:]' || true)
+            if [ -n "$MIN_GUVENLI" ]; then
+              echo "<!-- min-guvenli: ${MIN_GUVENLI} -->"
+            fi
           } > RELEASE_NOTES.md
           cat RELEASE_NOTES.md
 

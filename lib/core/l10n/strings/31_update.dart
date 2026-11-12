@@ -40,4 +40,10 @@ const Map<String, (String, String, String)> _t31 = {
     'Allow "Install unknown apps", then try again.',
     'اسمح بـ"تثبيت التطبيقات غير المعروفة" ثم أعد المحاولة.',
   ),
+  'upd.security_title': ('Güvenlik güncellemesi gerekli', 'Security update required', 'تحديث أمني مطلوب'),
+  'upd.security_body': (
+    'Bu sürümde bir güvenlik açığı düzeltildi. Lütfen en az v{v} sürümüne güncelleyin.',
+    'A security issue was fixed. Please update to at least v{v}.',
+    'تم إصلاح مشكلة أمنية. يرجى التحديث إلى الإصدار v{v} على الأقل.',
+  ),
 };

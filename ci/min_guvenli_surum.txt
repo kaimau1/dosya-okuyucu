@@ -1,0 +1,4 @@
+# G12.4 — en düşük güvenli sürüm (ANA.ARA.YAMA). Yayındaki bir sürümde güvenlik
+# açığı düzeltilince buraya düzeltmeyi içeren sürümü yaz (ör. 1.2.40): bundan
+# eski kurulumlar her açılışta "Güvenlik güncellemesi gerekli" penceresi görür.
+# Boş = zorunlu güncelleme yok. Ayrıntı: docs/guvenlik/OLAY.md (c).

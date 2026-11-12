@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -19,11 +20,21 @@ class AppUpdateInfo {
 
   /// Son kullanıcı sürüm notu (sürüm gövdesindeki `<!-- notlar -->` kısmı).
   final String notes;
+
+  /// Beklenen SHA-256 (küçük harf onaltılık; G9.6). Boşsa sürüm özet
+  /// taşımıyor (eski sürüm) — indirme yine yapılır, ana makine denetimi kalır.
+  final String sha256;
+
+  /// Kurulu sürüm, sürüm gövdesindeki `<!-- min-guvenli: X -->` altında mı
+  /// (G12.4): "Güvenlik güncellemesi gerekli".
+  final bool securityRequired;
   const AppUpdateInfo(
       {required this.version,
       required this.url,
       required this.size,
-      this.notes = ''});
+      this.notes = '',
+      this.sha256 = '',
+      this.securityRequired = false});
 }
 
 /// **GitHub'dan otomatik güncelleme** (2026-11-09 kullanıcı isteği: *"Gitten
@@ -51,6 +62,7 @@ abstract final class AppUpdate {
   static const _prefNotesVersion = 'app_update_notes_v';
   static const _prefNotes = 'app_update_notes';
   static const _prefNotesSeen = 'app_update_notes_seen';
+  static const _prefMinSafe = 'app_update_min_safe';
   /// Ana sayfa uyarısı için algılama aralığı (2026-11-10, kullanıcı: *"yeni
   /// güncelleme gelince ana sayfada otomatik algılasın"*). Açılışta ve
   /// uygulama öne gelince en çok bu sıklıkta sorulur (GitHub kotası 60/saat).
@@ -146,10 +158,76 @@ abstract final class AppUpdate {
     return false;
   }
 
+  /// Sürüm gövdesindeki `<!-- sha256:AD=ONALTILIK -->` satırları (G9.6,
+  /// build-apk.yml `release`) → ad → özet.
+  @visibleForTesting
+  static Map<String, String> extractDigests(Object? body) {
+    if (body is! String) return const {};
+    return {
+      for (final m in RegExp(r'<!--\s*sha256:([^=\s]+)=([0-9a-fA-F]{64})\s*-->')
+          .allMatches(body))
+        m.group(1)!: m.group(2)!.toLowerCase(),
+    };
+  }
+
+  /// `<!-- min-guvenli: 1.2.N -->` (G12.4); yoksa null.
+  @visibleForTesting
+  static String? extractMinSafe(Object? body) {
+    if (body is! String) return null;
+    return RegExp(r'<!--\s*min-guvenli:\s*(v?\d+\.\d+\.\d+)\s*-->')
+        .firstMatch(body)
+        ?.group(1);
+  }
+
+  /// [local] kurulumu, gövdedeki en düşük güvenli sürümün altında mı?
+  @visibleForTesting
+  static bool securityRequiredFor(Object? body, String local) {
+    final min = extractMinSafe(body);
+    return min != null && isNewer(min, local);
+  }
+
+  /// Asset'in özeti: önce gövde satırı, yoksa GitHub'ın `digest` alanı
+  /// (`sha256:…`).
+  static String _digestOf(Map a, Map<String, String> fromBody) {
+    final name = '${a['name'] ?? ''}';
+    final b = fromBody[name];
+    if (b != null) return b;
+    final d = a['digest'];
+    if (d is String && d.startsWith('sha256:')) {
+      final hex = d.substring(7).toLowerCase();
+      if (RegExp(r'^[0-9a-f]{64}$').hasMatch(hex)) return hex;
+    }
+    return '';
+  }
+
+  /// İndirmenin (ve yönlendirmelerinin) gidebileceği ana makineler (G9.6).
+  static const _trustedHosts = {
+    'github.com',
+    'objects.githubusercontent.com',
+    'release-assets.githubusercontent.com',
+  };
+
+  /// Güncelleme adresi yalnız `https://github.com/kaimau1/dosya-okuyucu/…`.
+  @visibleForTesting
+  static bool trustedAssetUrl(String url) {
+    final u = Uri.tryParse(url);
+    return u != null &&
+        u.scheme == 'https' &&
+        u.host == 'github.com' &&
+        u.path.startsWith('/$repo/releases/download/');
+  }
+
+  /// Yönlendirme hedefi güvenilir mi (https + GitHub'ın dosya sunucuları).
+  @visibleForTesting
+  static bool trustedRedirect(Uri u) =>
+      u.scheme == 'https' && _trustedHosts.contains(u.host);
+
   /// Sürüm JSON'undan bizim APK'yı seçer (`dosya-okuyucu-v1.2.3.apk`).
   @visibleForTesting
   static AppUpdateInfo? pickAsset(Object? release) {
     if (release is! Map || release['assets'] is! List) return null;
+    final digests = extractDigests(release['body']);
+    final secReq = securityRequiredFor(release['body'], appVersionName);
     final re = RegExp(r'^dosya-okuyucu-v(\d+\.\d+\.\d+)\.apk$');
     AppUpdateInfo? best;
     for (final a in release['assets'] as List) {
@@ -161,7 +239,9 @@ abstract final class AppUpdate {
           version: m.group(1)!,
           url: url,
           size: (a['size'] as num?)?.toInt() ?? 0,
-          notes: AppUpdate.extractNotes(release['body']));
+          notes: AppUpdate.extractNotes(release['body']),
+          sha256: _digestOf(a, digests),
+          securityRequired: secReq);
       if (best == null || isNewer(info.version, best.version)) best = info;
     }
     if (best != null) return best;
@@ -178,7 +258,9 @@ abstract final class AppUpdate {
           version: title.group(1)!,
           url: url,
           size: (a['size'] as num?)?.toInt() ?? 0,
-          notes: AppUpdate.extractNotes(release['body']));
+          notes: AppUpdate.extractNotes(release['body']),
+          sha256: _digestOf(a, digests),
+          securityRequired: secReq);
     }
     return null;
   }
@@ -204,10 +286,19 @@ abstract final class AppUpdate {
       final res = await req.close().timeout(const Duration(seconds: 20));
       final body = await res.transform(utf8.decoder).join();
       if (res.statusCode != HttpStatus.ok) return null;
-      final info = pickAsset(jsonDecode(body));
+      final release = jsonDecode(body);
+      final info = pickAsset(release);
       if (info == null || !isNewer(info.version, appVersionName)) return null;
+      final prefs = await SharedPreferences.getInstance();
+      // G12.4: en düşük güvenli sürüm kalıcı — her açılışta uyarı (indirme
+      // beklerken de).
+      final min = extractMinSafe(release is Map ? release['body'] : null);
+      if (min != null) {
+        await prefs.setString(_prefMinSafe, min);
+      } else {
+        await prefs.remove(_prefMinSafe);
+      }
       if (info.notes.isNotEmpty) {
-        final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_prefNotesVersion, info.version);
         await prefs.setString(_prefNotes, info.notes);
       }
@@ -226,16 +317,32 @@ abstract final class AppUpdate {
   /// APK'yı indirir (varsa ve boyu tutuyorsa yeniden indirmez).
   static Future<File?> download(AppUpdateInfo info) async {
     final file = await _fileFor(info);
-    if (await file.exists() && info.size > 0 && await file.length() == info.size) {
+    if (await file.exists() && info.size > 0 && await file.length() == info.size &&
+        (info.sha256.isEmpty || await verifyDigest(file, info.sha256))) {
       return file;
     }
+    // G9.6: yalnız kendi deponun sürüm dosyası; yönlendirmeler elle,
+    // her adımda https + GitHub dosya sunucusu.
+    if (!trustedAssetUrl(info.url)) return null;
     final part = File('${file.path}.part');
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 15);
     progress.value = 0;
     try {
-      final req = await client.getUrl(Uri.parse(info.url));
-      req.headers.set(HttpHeaders.userAgentHeader, 'dosya-okuyucu-guncelleme');
-      final res = await req.close();
+      var uri = Uri.parse(info.url);
+      HttpClientResponse res;
+      var hops = 0;
+      while (true) {
+        final req = await client.getUrl(uri);
+        req.followRedirects = false;
+        req.headers.set(HttpHeaders.userAgentHeader, 'dosya-okuyucu-guncelleme');
+        res = await req.close();
+        if (!res.isRedirect) break;
+        final loc = res.headers.value(HttpHeaders.locationHeader);
+        await res.drain<void>().catchError((_) {});
+        if (loc == null || ++hops > 5) return null;
+        uri = uri.resolve(loc);
+        if (!trustedRedirect(uri)) return null;
+      }
       if (res.statusCode != HttpStatus.ok) return null;
       final total = info.size > 0 ? info.size : res.contentLength;
       final sink = part.openWrite();
@@ -254,6 +361,11 @@ abstract final class AppUpdate {
         await part.delete().catchError((_) => part);
         return null;
       }
+      // G9.6: özet sürüm gövdesindekiyle aynı değilse SİL, kurma.
+      if (info.sha256.isNotEmpty && !await verifyDigest(part, info.sha256)) {
+        await part.delete().catchError((_) => part);
+        return null;
+      }
       if (await file.exists()) await file.delete();
       return await part.rename(file.path);
     } catch (_) {
@@ -262,6 +374,13 @@ abstract final class AppUpdate {
       progress.value = null;
       client.close(force: true);
     }
+  }
+
+  /// [file]'ın SHA-256'sı [expected] (onaltılık) mı?
+  @visibleForTesting
+  static Future<bool> verifyDigest(File file, String expected) async {
+    final d = await crypto.sha256.bind(file.openRead()).first;
+    return d.toString() == expected.toLowerCase();
   }
 
   /// İndirilmiş APK'yı kurar. Sonuç: `done` · `aborted` · `need_permission`
@@ -330,6 +449,24 @@ abstract final class AppUpdate {
     }
   }
 
+  /// G12.4: son denetimde kaydedilen en düşük güvenli sürümün altındaysak
+  /// her açılışta (kapatılabilir) uyarı.
+  static Future<void> _warnIfInsecure(void Function(String)? cb) async {
+    if (cb == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final min = prefs.getString(_prefMinSafe);
+      if (min == null) return;
+      if (isNewer(min, appVersionName)) {
+        cb(min);
+      } else {
+        await prefs.remove(_prefMinSafe);
+      }
+    } catch (_) {
+      // Bilinçli: kayıt okunamazsa uyarı bir sonraki denetime kalır.
+    }
+  }
+
   /// Açılış işi: bekleyen indirme varsa "indirildi" diye duyurur; yoksa
   /// (denetim açıksa) GitHub'a sorar ve yeni sürümü ana sayfada gösterir.
   ///
@@ -341,10 +478,12 @@ abstract final class AppUpdate {
   /// üzerinde göster" izni gerekir — yoksa bildirim düşer).
   static Future<void> runOnStartup(
       {void Function(AppUpdateInfo info)? onReady,
-      void Function(String notes)? onWhatsNew}) async {
+      void Function(String notes)? onWhatsNew,
+      void Function(String minVersion)? onSecurityRequired}) async {
     if (!supported) return;
     final news = await takeWhatsNew();
     if (news != null) onWhatsNew?.call(news);
+    await _warnIfInsecure(onSecurityRequired);
     if (OfflineMode.enabled) return;
     final pending = await _pending();
     if (pending != null) {
