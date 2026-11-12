@@ -226,7 +226,12 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     showSnack(
       context,
       context.t('ss.page_deleted'),
-      action: SnackBarAction(label: context.t('common.undo'), onPressed: _undo),
+      action: SnackBarAction(
+        label: context.t('common.undo'),
+        onPressed: () {
+          if (mounted) _undo();
+        },
+      ),
     );
   }
 
@@ -437,7 +442,9 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
         context.t('sx.saved', {'name': p.basename(out)}),
         action: SnackBarAction(
           label: context.t('common.open'),
-          onPressed: () => EntryOpener.open(context, out),
+          onPressed: () {
+            if (mounted) EntryOpener.open(context, out);
+          },
         ),
       );
     } catch (e) {
@@ -481,7 +488,9 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
         context.t('sa.expense_done'),
         action: SnackBarAction(
           label: context.t('common.open'),
-          onPressed: () => EntryOpener.open(context, path),
+          onPressed: () {
+            if (mounted) EntryOpener.open(context, path);
+          },
         ),
       );
     } catch (e) {
@@ -604,6 +613,10 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
   Future<void> _share() async {
     await _flush();
     if (!mounted) return;
+    if (_dirty || _saveState == _SaveState.failed) {
+      _snack(context.t('ss.save_failed'));
+      return;
+    }
     await SharePlus.instance.share(ShareParams(files: [XFile(_pdfPath)], text: p.basename(_pdfPath)));
   }
 
@@ -629,6 +642,12 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     await _flush();
     busy.close();
     if (!mounted) return;
+    // Son yazım başarısızsa (disk dolu, izin gitti) "kaydedildi" DEME:
+    // ekran açık kalır, başlıktaki "kaydedilemedi" şeridi yeniden denetir.
+    if (_dirty || _saveState == _SaveState.failed) {
+      _snack(context.t('ss.save_failed'));
+      return;
+    }
     final path = _pdfPath;
     final messenger = ScaffoldMessenger.maybeOf(context);
     final strings = AppStrings.of(context);

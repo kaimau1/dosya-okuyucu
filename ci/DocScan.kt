@@ -103,10 +103,11 @@ class DocScan(private val activity: Activity) : MethodChannel.MethodCallHandler 
                 val jpgs = ArrayList<String>()
                 res.pages?.forEachIndexed { i, page ->
                     val out = File(dir, "p${stamp}_$i.jpg")
+                    // Akış açılamadıysa yol EKLENMEZ: olmayan dosya hayalet sayfa olurdu.
                     activity.contentResolver.openInputStream(page.imageUri)?.use { ins ->
                         FileOutputStream(out).use { ins.copyTo(it) }
+                        jpgs.add(out.absolutePath)
                     }
-                    jpgs.add(out.absolutePath)
                 }
                 var pdf: String? = null
                 res.pdf?.uri?.let { uri ->

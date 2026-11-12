@@ -7,7 +7,9 @@ import 'package:path/path.dart' as p;
 import '../../../models/remote_connection.dart';
 import '../usb/block_device.dart';
 import '../usb/exfat_fs.dart';
+import '../usb/ext_fs.dart';
 import '../usb/fat_fs.dart';
+import '../usb/fs_sniffer.dart';
 import '../usb/ntfs_fs.dart';
 import '../usb/partition_table.dart';
 import '../usb/usb_block_device.dart';
@@ -38,6 +40,9 @@ class UsbFs extends RemoteFs {
   /// Birimin adı ("TYPEC 64" ya da "USB bellek").
   final String label;
 
+  /// Tanınan biçimin adı ("exFAT", "NTFS", "ext4" …); bilinmiyorsa boş.
+  final String format;
+
   /// Yol → dosya sistemi tutamağı (kök dahil).
   final Map<String, Object> _handles = {};
 
@@ -45,6 +50,7 @@ class UsbFs extends RemoteFs {
     required this.fs,
     required this.device,
     required this.label,
+    this.format = '',
     RemoteConnection? connection,
   }) : super(connection ?? connectionFor(label)) {
     _handles['/'] = fs.rootId;
@@ -87,6 +93,9 @@ class UsbFs extends RemoteFs {
       steps.add('bölüm sayısı: ${parts.length}');
       final volumes = <UsbVolumeInfo>[];
       UsbFs? chosen;
+      // Tanınan ama okunamayan biçimler (Mac diski, şifreli disk…): hata
+      // cümlesi "tanınmadı" değil, biçimin ADI olsun.
+      final foreign = <String>{};
       for (var i = 0; i < parts.length; i++) {
         final part = parts[i];
         final view = PartitionBlockDevice(
@@ -99,7 +108,14 @@ class UsbFs extends RemoteFs {
         final probe = await _probe(view);
         steps.add('bölüm @${part.firstLba}: ${probe.$2}');
         final fs = probe.$1;
-        if (fs == null) continue;
+        if (fs == null) {
+          final known = await FsSniffer.identify(view);
+          if (known != null) {
+            foreign.add(known);
+            steps.add('bölüm @${part.firstLba}: $known (desteklenmiyor)');
+          }
+          continue;
+        }
         final name = fs.label.trim().isEmpty
             ? (part.name.trim().isEmpty ? 'USB' : part.name.trim())
             : fs.label.trim();
@@ -120,7 +136,7 @@ class UsbFs extends RemoteFs {
           } catch (e) {
             steps.add('onarım yapılamadı: $e');
           }
-          chosen = UsbFs(fs: fs, device: device, label: name);
+          chosen = UsbFs(fs: fs, device: device, label: name, format: probe.$2);
         }
       }
       if (chosen != null) {
@@ -129,7 +145,11 @@ class UsbFs extends RemoteFs {
       await device.close();
       return UsbOpenOutcome(
         error: volumes.isEmpty
-            ? 'Biçim tanınmadı (FAT16/FAT32/exFAT/NTFS destekleniyor)'
+            ? (foreign.isEmpty
+                ? 'Biçim tanınmadı (FAT12/16/32, exFAT, NTFS, ext2/3/4 '
+                    'destekleniyor)'
+                : 'Bu bellek ${foreign.join(' / ')} biçiminde — bu biçim '
+                    'okunamıyor (FAT, exFAT, NTFS, ext2/3/4 destekleniyor)')
             : 'İstenen bölüm açılamadı',
         steps: steps,
         volumes: volumes,
@@ -153,6 +173,12 @@ class UsbFs extends RemoteFs {
       return (fs, 'NTFS');
     } catch (_) {
       // NTFS değil
+    }
+    try {
+      final fs = await ExtFileSystem.open(device);
+      return (fs, 'ext2/3/4');
+    } catch (_) {
+      // ext değil
     }
     try {
       final fs = await FatFileSystem.open(device);

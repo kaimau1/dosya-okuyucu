@@ -111,7 +111,14 @@ class DocumentScanner {
     final out = <List<OcrLine>>[];
     for (var i = 0; i < imagePaths.length; i++) {
       onProgress?.call(i, imagePaths.length);
-      out.add(await OcrService.recognizeImageLines(imagePaths[i]));
+      // Metin tanıma EN İYİ ÇABA: model henüz inmediyse (ilk kurulum,
+      // çevrimdışı) ya da tek sayfa okunamadıysa tarama KAYBOLMASIN —
+      // sayfa metinsiz kaydedilir, stüdyodaki "Metni tanı" sonra dener.
+      try {
+        out.add(await OcrService.recognizeImageLines(imagePaths[i]));
+      } catch (_) {
+        out.add(const []);
+      }
     }
     onProgress?.call(imagePaths.length, imagePaths.length);
     return out;

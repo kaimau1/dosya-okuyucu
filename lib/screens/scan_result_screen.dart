@@ -158,7 +158,16 @@ class _ScanResultScreenState extends State<ScanResultScreen>
   final List<List<ScanPage>> _history = [];
   static const _historyLimit = 20;
 
-  final _pager = PageController();
+  var _pager = PageController();
+
+  /// Sayfa görünümü ızgaradan/Metin sekmesinden geri gelirken denetleyici
+  /// SEÇİLİ sayfadan başlamalı: yoksa ekranda 1. sayfa durur, sayaç ve
+  /// araçlar ise seçili sayfayı gösterir — kırp/sil yanlış sayfaya gider.
+  void _resetPager() {
+    if (_pager.hasClients) return;
+    _pager.dispose();
+    _pager = PageController(initialPage: _index);
+  }
   int _index = 0;
   int _tab = 0;
 
@@ -318,7 +327,10 @@ class _ScanResultScreenState extends State<ScanResultScreen>
               IconButton(
                 tooltip: context.t(_grid ? 'sg.single' : 'sg.grid'),
                 icon: Icon(_grid ? AppIcons.layoutDetail : AppIcons.layoutGrid),
-                onPressed: () => setState(() => _grid = !_grid),
+                onPressed: () => setState(() {
+                  _grid = !_grid;
+                  if (!_grid) _resetPager();
+                }),
               ),
             if (_history.isNotEmpty)
               IconButton(
@@ -402,7 +414,10 @@ class _ScanResultScreenState extends State<ScanResultScreen>
                       ),
                     ],
                     selected: {_tab},
-                    onSelectionChanged: (v) => setState(() => _tab = v.first),
+                    onSelectionChanged: (v) => setState(() {
+                      _tab = v.first;
+                      if (_tab == 0 && !_grid) _resetPager();
+                    }),
                   ),
                 ),
               ),

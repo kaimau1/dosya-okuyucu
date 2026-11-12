@@ -887,11 +887,12 @@ const Map<String, (String, String, String)> _t3 = {
   'usb.open_raw': ('Belleği doğrudan aç', 'Open the drive directly', 'افتح المحرك مباشرة'),
   'usb.open_raw_hint': (
     'Android bağlamasa da uygulama belleği kendi sürer. FAT16/FAT32 ve exFAT '
-    'belleklerde okuma da yazma da açık; NTFS salt okunur.',
+    'belleklerde okuma da yazma da açık; NTFS ve ext2/3/4 salt okunur.',
     'The app drives the device itself even if Android did not mount it. '
-    'FAT16/FAT32 and exFAT can be read and written; NTFS is read-only.',
+    'FAT16/FAT32 and exFAT can be read and written; NTFS and ext2/3/4 are '
+    'read-only.',
     'يشغّل التطبيق الجهاز بنفسه حتى لو لم يوصّله أندرويد. القراءة والكتابة '
-    'متاحتان على FAT16/FAT32 و exFAT؛ أما NTFS فللقراءة فقط.',
+    'متاحتان على FAT16/FAT32 و exFAT؛ أما NTFS و ext2/3/4 فللقراءة فقط.',
   ),
   'fmset.folder_sizes': (
     'Listede klasör boyutu',
@@ -1019,6 +1020,11 @@ const Map<String, (String, String, String)> _t3 = {
     'Bulk-Only.',
     'يعلن هذا المحرك عن نقل قديم (CBI).',
   ),
+  'usb.format_read_only': (
+    '{fmt} biçimi salt okunur açılır — dosyaları telefona kopyalayabilirsiniz.',
+    '{fmt} is opened read-only — you can copy files to the phone.',
+    'يُفتح تنسيق {fmt} للقراءة فقط — يمكنك نسخ الملفات إلى الهاتف.',
+  ),
   'usb.write_protected': (
     'Bellek yazma korumalı (donanım anahtarı) — yalnız okunabilir.',
     'The drive is write-protected in hardware — read-only.',
@@ -1031,9 +1037,9 @@ const Map<String, (String, String, String)> _t3 = {
   ),
   'usb.open_raw_failed': (
     'Bellek doğrudan açılamadı: izin verilmedi ya da biçimi tanınmadı '
-    '(FAT16/FAT32/exFAT/NTFS destekleniyor).',
+    '(FAT, exFAT, NTFS, ext2/3/4 destekleniyor).',
     'Could not open the drive directly: permission denied or unknown format '
-    '(FAT16/FAT32/exFAT/NTFS are supported).',
+    '(FAT, exFAT, NTFS and ext2/3/4 are supported).',
     'تعذّر فتح المحرك مباشرة: رُفض الإذن أو تنسيق غير معروف.',
   ),
   'usb.diag_copied': ('Rapor panoya kopyalandı', 'Report copied', 'تم نسخ التقرير'),

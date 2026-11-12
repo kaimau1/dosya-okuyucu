@@ -26,7 +26,11 @@ class Partition {
   /// Üstünde dosya sistemi ARANMAYA değer mi? (Genişletilmiş bölüm kabı ve
   /// boş girdiler elenir.)
   bool get isUsable =>
-      blockCount > 0 && mbrType != 0x05 && mbrType != 0x0F && mbrType != 0xEE;
+      blockCount > 0 && !isExtendedContainer && mbrType != 0xEE;
+
+  /// Genişletilmiş bölüm kabı (içinde mantıksal sürücü zinciri var).
+  bool get isExtendedContainer =>
+      mbrType == 0x05 || mbrType == 0x0F || mbrType == 0x85;
 }
 
 /// **Bölüm tablosu çözümleyicisi** — saf, testli.
@@ -60,6 +64,17 @@ abstract final class PartitionTable {
       }
     }
     final usable = [for (final p in mbr) if (p.isUsable) p];
+    // Genişletilmiş bölümün İÇİNDEKİ mantıksal sürücüler (eski Windows
+    // kurulumlu harici disklerde D:, E: böyle durur). Kap atlanıyordu ve
+    // içindekiler hiç görünmüyordu.
+    for (final p in mbr) {
+      if (!p.isExtendedContainer) continue;
+      try {
+        usable.addAll(await _readLogical(device, p.firstLba));
+      } catch (_) {
+        // Zincir okunamadı — birincil bölümlerle devam.
+      }
+    }
     if (usable.isNotEmpty) return usable;
     // Ne tablo ne imza: yine de deneyelim — bozuk imzalı ama okunabilir
     // bellekler var ve "hiç bölüm yok" demek kullanıcıya hiçbir şey vermez.
@@ -83,6 +98,51 @@ abstract final class PartitionTable {
     final bytesPerSector = sector[11] | (sector[12] << 8);
     const sane = {512, 1024, 2048, 4096};
     return (jump == 0xEB || jump == 0xE9) && sane.contains(bytesPerSector);
+  }
+
+  /// Genişletilmiş bölümün mantıksal sürücü zinciri (EBR).
+  ///
+  /// Her EBR'da iki girdi anlamlıdır: ilki mantıksal sürücü (o EBR'a göre),
+  /// ikincisi sıradaki EBR (kabın BAŞINA göre). Döngüye karşı 64 halka sınırı.
+  static Future<List<Partition>> _readLogical(
+      BlockDevice device, int extendedStart) async {
+    final out = <Partition>[];
+    final seen = <int>{};
+    var ebrLba = extendedStart;
+    for (var i = 0; i < 64; i++) {
+      if (ebrLba <= 0 || ebrLba >= device.blockCount || !seen.add(ebrLba)) {
+        break;
+      }
+      final sector = await device.readBlocks(ebrLba, 1);
+      if (sector.length < 512 || sector[510] != 0x55 || sector[511] != 0xAA) {
+        break;
+      }
+      final logical = _mbrSlot(sector, 0);
+      if (logical != null && logical.isUsable) {
+        out.add(Partition(
+          firstLba: ebrLba + logical.firstLba,
+          blockCount: logical.blockCount,
+          mbrType: logical.mbrType,
+        ));
+      }
+      final next = _mbrSlot(sector, 1);
+      if (next == null || !next.isExtendedContainer) break;
+      ebrLba = extendedStart + next.firstLba;
+    }
+    return out;
+  }
+
+  static Partition? _mbrSlot(Uint8List sector, int index) {
+    final data = ByteData.sublistView(sector);
+    final off = 446 + index * 16;
+    final type = sector[off + 4];
+    final count = data.getUint32(off + 12, Endian.little);
+    if (type == 0 || count == 0) return null;
+    return Partition(
+      firstLba: data.getUint32(off + 8, Endian.little),
+      blockCount: count,
+      mbrType: type,
+    );
   }
 
   /// Klasik MBR'ın dört girdisi (446. bayttan itibaren) — saf.

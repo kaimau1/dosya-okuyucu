@@ -382,6 +382,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
                 _partSetState(() {
                   _index = i;
                   _grid = false;
+                  _resetPager();
                 });
               },
               onMove: (from) {

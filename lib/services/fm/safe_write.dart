@@ -43,8 +43,11 @@ abstract final class SafeWrite {
     final temp = File(_tempFor(target));
     try {
       await temp.writeAsBytes(bytes, flush: true);
-    } catch (_) {
+    } catch (e) {
       await _deleteQuietly(temp);
+      // Disk doluysa doğrudan yazmak da başarısız olur — üstelik önce eldeki
+      // SAĞLAM dosyayı sıfırlar. Eskisi kalsın, hata yukarı çıksın.
+      if (e is FileSystemException && e.osError?.errorCode == 28) rethrow;
       // Klasöre yeni dosya açılamıyor: tek yol doğrudan yazmak.
       await File(target).writeAsBytes(bytes, flush: true);
       return;

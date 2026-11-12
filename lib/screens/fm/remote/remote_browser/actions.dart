@@ -73,8 +73,13 @@ extension _RemoteBrowserScreenActionsPart on _RemoteBrowserScreenState {
   /// bellekte sebep artık başlıkta.
   String get _readOnlyNote {
     final fs = _fs;
-    if (fs is! UsbFs || !fs.hardwareWriteProtected) return '';
-    return context.t('usb.write_protected');
+    if (fs is! UsbFs) return '';
+    if (fs.hardwareWriteProtected) return context.t('usb.write_protected');
+    // Biçim gereği salt okunur (NTFS, ext): düğmeler sönük, sebebi yazsın.
+    if (!fs.canWrite && fs.format.isNotEmpty) {
+      return context.t('usb.format_read_only', {'fmt': fs.format});
+    }
+    return '';
   }
 
   bool get _atRoot => _path == widget.connection.rootPath || _path == '/';

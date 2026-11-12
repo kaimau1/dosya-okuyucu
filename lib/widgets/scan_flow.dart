@@ -42,7 +42,20 @@ import '../core/app_colors.dart';
 class ScanFlow {
   /// Taramayı çalıştırır. Üretilen PDF'in yolunu döndürür (iptal edilirse null).
   /// [open] true ise sonunda tarama stüdyosu açılır.
+  static bool _running = false;
+
+  /// Çift dokunuş iki tarayıcı açmasın ("Tarama zaten açık" hatası).
   static Future<String?> run(BuildContext context, {bool open = true}) async {
+    if (_running) return null;
+    _running = true;
+    try {
+      return await _run(context, open: open);
+    } finally {
+      _running = false;
+    }
+  }
+
+  static Future<String?> _run(BuildContext context, {bool open = true}) async {
     if (!await showTipsIfNeeded(context) || !context.mounted) return null;
     List<String>? scanned;
     try {
