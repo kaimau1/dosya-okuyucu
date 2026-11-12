@@ -3,7 +3,7 @@
 /// İki bilinen hile: (1) `rapor.pdf.apk` — listede ad sığmayınca sonu kesilir
 /// ya da kullanıcı yalnız ilk uzantıyı görür; (2) Unicode yön denetimi
 /// karakterleri (U+202E SAĞDAN SOLA GEÇERSİZ KIL vb.) — `faturagpj.apk`
-/// adındaki `‮` ekranda `faturakpa.jpg` gibi görünür. Burada yön karakterleri
+/// adındaki `\u202E` ekranda `faturakpa.jpg` gibi görünür. Burada yön karakterleri
 /// görünür bir işarete çevrilir ve tehlikeli son uzantı ayrıca bildirilir;
 /// dosya ADI değişmez (yalnız gösterim).
 class NameSpoof {
@@ -12,7 +12,7 @@ class NameSpoof {
   /// Görünmez yön denetimi karakterleri: LRE/RLE/PDF/LRO/RLO (202A–202E),
   /// LRI/RLI/FSI/PDI (2066–2069), LRM/RLM (200E/200F), ALM (061C).
   static final _bidiControls =
-      RegExp('[‪-‮⁦-⁩‎‏؜]');
+      RegExp('[\u202A-\u202E\u2066-\u2069\u200E\u200F\u061C]');
 
   /// Yön karakterinin yerine konan görünür işaret.
   static const marker = '⸮'; // ⸮ (ters soru işareti)

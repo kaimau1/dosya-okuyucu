@@ -21,18 +21,18 @@ void main() {
     });
 
     test('yön denetimi karakteri görünür işarete çevrilir', () {
-      const rlo = 'fatura‮gpj.apk';
+      const rlo = 'fatura\u202Egpj.apk';
       expect(NameSpoof.hasBidiControls(rlo), isTrue);
       expect(NameSpoof.visible(rlo), 'fatura${NameSpoof.marker}gpj.apk');
-      expect(NameSpoof.visible(rlo), isNot(contains('‮')));
+      expect(NameSpoof.visible(rlo), isNot(contains('\u202E')));
       expect(NameSpoof.deceptiveExtension(rlo), 'apk');
-      for (final c in ['‪', '‫', '‬', '‭', '⁦',
-          '⁧', '⁨', '⁩', '‎', '‏']) {
+      for (final c in ['\u202A', '\u202B', '\u202C', '\u202D', '\u2066',
+          '\u2067', '\u2068', '\u2069', '\u200E', '\u200F']) {
         expect(NameSpoof.visible('a${c}b'), 'a${NameSpoof.marker}b');
       }
       // Yön karakteri var ama uzantı masum → yalnız görünür işaret.
-      expect(NameSpoof.deceptiveExtension('a‮b.pdf'), isNull);
-      expect(NameSpoof.isSuspicious('a‮b.pdf'), isTrue);
+      expect(NameSpoof.deceptiveExtension('a\u202Eb.pdf'), isNull);
+      expect(NameSpoof.isSuspicious('a\u202Eb.pdf'), isTrue);
     });
 
     test('olağan ada dokunulmaz', () {
@@ -66,8 +66,8 @@ void main() {
     });
 
     testWidgets('RLO karakteri ekrana çıkmaz', (t) async {
-      await pump(t, 'fatura‮gpj.apk');
-      expect(find.textContaining('‮'), findsNothing);
+      await pump(t, 'fatura\u202Egpj.apk');
+      expect(find.textContaining('\u202E'), findsNothing);
       expect(find.text('.apk'), findsOneWidget);
     });
   });
