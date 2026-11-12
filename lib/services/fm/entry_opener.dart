@@ -119,12 +119,14 @@ abstract final class EntryOpener {
       await appState.removeRecent(previousPath);
     }
     _remember(path);
-    if (!PrivateZone.isPrivatePath(path)) await appState.addRecent(RecentFile(
-      path: path,
-      name: p.basename(path),
-      sizeBytes: file.lengthSync(),
-      openedAtMs: DateTime.now().millisecondsSinceEpoch,
-    ));
+    if (!PrivateZone.isPrivatePath(path)) {
+      await appState.addRecent(RecentFile(
+        path: path,
+        name: p.basename(path),
+        sizeBytes: file.lengthSync(),
+        openedAtMs: DateTime.now().millisecondsSinceEpoch,
+      ));
+    }
   }
 
   /// [path]'i açar. [siblings] verilirse (aynı klasördeki dosyalar) görseller
