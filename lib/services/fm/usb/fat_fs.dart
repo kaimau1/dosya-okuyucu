@@ -310,8 +310,16 @@ class FatFileSystem extends UsbFileSystem {
   bool get writable => device.writable;
 
   /// FAT girdisini **bütün kopyalara** yazar.
-  Future<void> _setFatEntry(int cluster, int value) async {
-    if (cluster < 2 || cluster > clusterCount + 1) {
+  ///
+  /// [reserved]: FAT[1] durum girdisi (temiz/kirli bayrağı, bkz. [_setClean]).
+  /// Veri kümeleri 2'den başlar; 0 ve 1 ayrılmıştır ve zincir yazımı onlara
+  /// ASLA dokunmamalı — sınır denetimi bu yüzden yalnız bayrak yazımında
+  /// 1'e izin verir (denetim ilk eklendiğinde bayrağı da reddediyor, her
+  /// yazma "birimin dışında" hatasıyla düşüyordu).
+  Future<void> _setFatEntry(int cluster, int value,
+      {bool reserved = false}) async {
+    final lowest = reserved ? 1 : 2;
+    if (cluster < lowest || cluster > clusterCount + 1) {
       throw const UsbFsException('FAT yazması birimin dışında');
     }
     final int offset;
@@ -709,7 +717,7 @@ class FatFileSystem extends UsbFileSystem {
     if (bit == null || !writable) return;
     final raw = await nextRawEntry(1);
     final next = clean ? raw | bit : raw & ~bit;
-    if (next != raw) await _setFatEntry(1, next);
+    if (next != raw) await _setFatEntry(1, next, reserved: true);
   }
 
   /// İç içe çağrılabilen yazma işlemi: ilk girişte kirli, son çıkışta
