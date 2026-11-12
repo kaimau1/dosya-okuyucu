@@ -56,6 +56,10 @@ abstract final class PeerShare {
   /// Aktarımın HTTP portu (alıcı burada dinler).
   static const transferPort = 8770;
 
+  /// Ön soru (`/sor`) gövdesinin tavanı (G4.5): gönderen en çok 12 küçük
+  /// resim (her biri < 64 KB, base64 ≈ 87 KB) + 200 satır yollar ≈ 1,1 MB.
+  static const maxOfferBytes = 2 * 1024 * 1024;
+
   /// Yayın paketinin başlığı — ağdaki başka bir uygulamanın datagramını
   /// yanlışlıkla cevaplamayalım.
   static const _magic = 'DOSYA-OKUYUCU-1';
@@ -289,8 +293,9 @@ class PeerReceiver implements KeepableServer {
       server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
     }
     _http = server;
+    LanGuard.harden(server);
     server.listen(
-      (request) => unawaited(_tracked(request)),
+      (request) => unawaited(_gate.run(request, () => _tracked(request))),
       onError: (_) {},
       cancelOnError: false,
     );
@@ -418,6 +423,9 @@ class PeerReceiver implements KeepableServer {
     await response.close();
   }
 
+  /// G4.5: eşzamanlı istek sınırı.
+  final _gate = RequestGate();
+
   Future<void> _tracked(HttpRequest request) async {
     // Gönderen (ör. Windows "Dosya Aktar") bağlantıyı sıfırlarsa yanıtın
     // `done`'u hata ile biter; dinleyen yoksa "[async] SocketException:
@@ -459,8 +467,8 @@ class PeerReceiver implements KeepableServer {
           final bytes = BytesBuilder(copy: false);
           await for (final chunk in request) {
             bytes.add(chunk);
-            // Önizleme gövdesi küçük olmalı; şişkin gövde kesilir.
-            if (bytes.length > 4 * 1024 * 1024) break;
+            // Önizleme gövdesi küçük olmalı; şişkin gövde kesilir (G4.5).
+            if (bytes.length > PeerShare.maxOfferBytes) break;
           }
           if (bytes.isNotEmpty) {
             final data = jsonDecode(utf8.decode(bytes.takeBytes()));

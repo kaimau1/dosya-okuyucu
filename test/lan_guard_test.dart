@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert' as convert;
 import 'dart:io';
 
@@ -78,6 +79,47 @@ void main() {
     t.fail('3.3.3.3');
     t.success('3.3.3.3');
     expect(t.fail('3.3.3.3'), isFalse, reason: 'başarı sayacı sıfırlar');
+  });
+
+  test('RequestGate sınır doluyken 503 döndürür, boşalınca kabul eder (G4.5)',
+      () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    LanGuard.harden(server);
+    expect(server.idleTimeout, LanGuard.idleTimeout);
+    final gate = RequestGate(limit: 1);
+    final hold = Completer<void>();
+    var first = true;
+    server.listen((req) {
+      final slow = first;
+      first = false;
+      unawaited(gate.run(req, () async {
+        if (slow) await hold.future;
+        req.response.write('ok');
+        await req.response.close();
+      }));
+    });
+    final client = HttpClient();
+    final url = Uri.parse('http://127.0.0.1:${server.port}/');
+    try {
+      final pending = client.getUrl(url).then((r) => r.close());
+      // İlk istek kapıya girsin.
+      while (gate.active == 0) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+      final busy = await (await client.getUrl(url)).close();
+      expect(busy.statusCode, HttpStatus.serviceUnavailable);
+      await busy.drain<void>();
+      hold.complete();
+      final ok = await pending;
+      expect(ok.statusCode, HttpStatus.ok);
+      await ok.drain<void>();
+      final again = await (await client.getUrl(url)).close();
+      expect(again.statusCode, HttpStatus.ok);
+      await again.drain<void>();
+    } finally {
+      client.close(force: true);
+      await server.close(force: true);
+    }
   });
 
   group('yükleme dosya adı (G4.5)', () {
