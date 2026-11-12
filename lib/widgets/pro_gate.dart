@@ -57,12 +57,12 @@ class ProBadge extends StatelessWidget {
       ),
       child: Text(
         'PRO',
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          letterSpacing: .5,
-          color: scheme.onTertiaryContainer,
-        ),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              letterSpacing: .5,
+              height: 1.1,
+              color: scheme.onTertiaryContainer,
+            ),
       ),
     );
   }
