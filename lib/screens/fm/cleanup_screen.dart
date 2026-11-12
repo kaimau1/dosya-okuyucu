@@ -15,6 +15,7 @@ import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/job_queue.dart';
 import '../../services/fm/native_extras.dart';
+import '../../services/fm/tracked_task.dart' show jobChangesOf;
 import '../../widgets/fm/fm_entry_icon.dart';
 import 'trash_screen.dart';
 import '../../core/safe_insets.dart';
@@ -262,7 +263,11 @@ class _CleanupScreenState extends State<CleanupScreen> {
               for (final f in suggestion.files)
                 if (!ImportantFiles.isImportant(f.path)) f.path,
             ];
-            if (paths.isNotEmpty) await FmEnv.trash.moveToTrash(paths);
+            if (paths.isNotEmpty) {
+              // A5: çöpe atılanlar iş kaydına — kartından "Geri yükle".
+              final result = await FmEnv.trash.moveToTrash(paths);
+              handle.addChanges(jobChangesOf(result));
+            }
           }
           done++;
           handle.report(done: done);

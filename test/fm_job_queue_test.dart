@@ -63,6 +63,28 @@ void main() {
     });
   });
 
+  /// A5 (2026-11-12): kuyruktaki iş de (akıllı temizlik) dosya dosya
+  /// değişiklik yazar → kartından "ne yapıldı" sayfası açılır.
+  test('kuyruktaki iş addChanges ile değişiklik kaydeder', () async {
+    JobQueue.instance.clearFinished();
+    final queue = JobQueue.instance;
+    queue.enqueue(
+        id: 'temizlik-a5',
+        title: 'temizlik',
+        run: (h) async {
+          h.addChanges([
+            JobChange(
+                path: '/cop/a.jpg', kind: 'trash', value: '', before: '/a.jpg'),
+          ]);
+        });
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+    final job = queue.find('temizlik-a5');
+    expect(job?.status, JobStatus.done);
+    expect(job?.changes.single.kind, 'trash');
+    expect(job?.changes.single.before, '/a.jpg');
+  });
+
+
   /// Asıl düzeltme: liste diske yazılıyor ve geri yükleniyor.
   group('kalıcılık', () {
     test('iş kaydedilip aynen geri okunur', () {

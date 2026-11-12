@@ -677,6 +677,17 @@ class JobHandle {
     _queue._tick(_job);
   }
 
+  /// Dosya dosya yapılanları kaydeder (bkz. [JobChange], [TrackedJob.addChanges]):
+  /// kuyruktaki işin kartı da ayrıntı sayfasını ("ne yapıldı") açsın.
+  void addChanges(Iterable<JobChange> list) {
+    for (final c in list) {
+      if (_job.changes.length >= FmJob.maxChanges) break;
+      _job.changes.add(c);
+    }
+    _queue._persist();
+    _queue._tick(_job);
+  }
+
   /// Şimdiye kadar kaydedilen çıktılar (özet satırını yazan iş gövdesi okur).
   List<String> get outputs => List.unmodifiable(_job.outputs);
 
