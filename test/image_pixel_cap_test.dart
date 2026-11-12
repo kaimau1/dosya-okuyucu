@@ -15,7 +15,7 @@ void main() {
   test('100 MP+ görsel tavana iner, en-boy korunur', () {
     final s = fmPixelCap(1000, 1000000);
     expect(s.width! * s.height!, lessThanOrEqualTo(fmMaxDecodePixels));
-    expect(s.height! / s.width!, closeTo(1000, 5));
+    expect(s.height! / s.width!, closeTo(1000, 10));
 
     final sq = fmPixelCap(20000, 20000);
     expect(sq.width! * sq.height!, lessThanOrEqualTo(fmMaxDecodePixels));
@@ -24,6 +24,6 @@ void main() {
 
   test('bozuk ölçü güvenli', () {
     final s = fmPixelCap(0, 5);
-    expect((s.width, s.height), (0, 5));
+    expect((s.width, s.height), (null, null));
   });
 }

@@ -112,8 +112,10 @@ const fmMaxDecodePixels = 24 * 1000 * 1000;
 /// [width]×[height] tavanı aşarsa iki kenar aynı oranla küçültülür (saf, testli).
 ui.TargetImageSize fmPixelCap(int width, int height,
     {int maxPixels = fmMaxDecodePixels}) {
+  // TargetImageSize 0/eksi ölçüyü assert ile reddeder → kaynağın ölçüsü.
+  if (width <= 0 || height <= 0) return const ui.TargetImageSize();
   final pixels = width * height;
-  if (width <= 0 || height <= 0 || pixels <= maxPixels) {
+  if (pixels <= maxPixels) {
     return ui.TargetImageSize(width: width, height: height);
   }
   final k = math.sqrt(maxPixels / pixels);
