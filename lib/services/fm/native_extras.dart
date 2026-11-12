@@ -64,6 +64,11 @@ abstract final class NativeExtras {
     await _call<bool>('setSecure', secure);
   }
 
+  /// Hassas metni panoya kopyalar (G2.6): Android 13+ önizlemede gizli.
+  /// Kanal yoksa false (çağıran düz kopyalar).
+  static Future<bool> copySensitive(String text) async =>
+      await _call<bool>('copySensitive', text) ?? false;
+
   // ── 1. günlük iş ───────────────────────────────────────────────────────
 
   static const kWeeklyCleanup = 'weekly_cleanup';

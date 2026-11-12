@@ -391,6 +391,21 @@ class MainActivity : FlutterActivity() {
                     }
                     result.success(true)
                 }
+                // G2.6: parola/anahtar panoya "hassas" işaretle kopyalanır —
+                // Android 13+ pano önizlemesinde metin gösterilmez.
+                "copySensitive" -> {
+                    val text = call.arguments as? String ?: ""
+                    val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE)
+                        as android.content.ClipboardManager
+                    val clip = android.content.ClipData.newPlainText("", text)
+                    clip.description.extras = android.os.PersistableBundle().apply {
+                        // ClipDescription.EXTRA_IS_SENSITIVE (API 33); eski
+                        // sürümlerde zararsız.
+                        putBoolean("android.content.extra.IS_SENSITIVE", true)
+                    }
+                    cm.setPrimaryClip(clip)
+                    result.success(true)
+                }
                 "takeLink" -> {
                     result.success(pendingLink)
                     pendingLink = null

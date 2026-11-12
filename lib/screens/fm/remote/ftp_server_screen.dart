@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/sensitive_clipboard.dart';
 import '../../../core/app_icons.dart';
 import '../../../core/app_state.dart';
 import '../../../core/l10n/app_strings.dart';
@@ -79,9 +80,13 @@ class _FtpServerScreenState extends State<FtpServerScreen> {
     }
   }
 
-  Future<void> _copy(String text) async {
+  Future<void> _copy(String text, {bool sensitive = false}) async {
     final copied = context.t('ftpd.copied');
-    await Clipboard.setData(ClipboardData(text: text));
+    if (sensitive) {
+      await SensitiveClipboard.copy(text);
+    } else {
+      await Clipboard.setData(ClipboardData(text: text));
+    }
     if (!mounted) return;
     showSnack(context, copied);
   }
@@ -343,7 +348,8 @@ class _FtpServerScreenState extends State<FtpServerScreen> {
         const SizedBox(height: Gap.md),
         _field(context, context.t('nas.user'), _service.username, accent),
         const SizedBox(height: Gap.sm),
-        _field(context, context.t('nas.password'), _service.password, accent),
+        _field(context, context.t('nas.password'), _service.password, accent,
+            sensitive: true),
         if (_service.clients > 0) ...[
           const SizedBox(height: Gap.sm),
           Text(
@@ -416,12 +422,13 @@ class _FtpServerScreenState extends State<FtpServerScreen> {
   }
 
   Widget _field(
-      BuildContext context, String label, String value, Color accent) {
+      BuildContext context, String label, String value, Color accent,
+      {bool sensitive = false}) {
     return Column(
       children: [
         Text(label, style: Theme.of(context).textTheme.bodySmall),
         InkWell(
-          onTap: value.isEmpty ? null : () => _copy(value),
+          onTap: value.isEmpty ? null : () => _copy(value, sensitive: sensitive),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 2),
             child: SelectableText(
