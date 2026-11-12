@@ -14,6 +14,7 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
+import '../../office_zip_guard.dart';
 
 const kW = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const kR =
@@ -147,7 +148,7 @@ class DocxPackage {
   DocxPackage._(this._archive);
 
   static DocxPackage open(List<int> bytes) =>
-      DocxPackage._(ZipDecoder().decodeBytes(bytes));
+      DocxPackage._(OfficeZipGuard.decode(bytes));
 
   bool has(String name) =>
       _xml.containsKey(name) ||

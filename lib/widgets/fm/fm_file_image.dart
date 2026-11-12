@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -61,19 +62,28 @@ class FmFileImage extends ImageProvider<FmFileImage> {
   Future<ui.Codec> _load(FmFileImage key, ImageDecoderCallback decode) async {
     final buffer = await ui.ImmutableBuffer.fromFilePath(key.path);
     final target = key.cacheWidth;
-    if (target == null) return decode(buffer);
     return decode(
       buffer,
       // En-boy oranı korunur: yalnız genişlik verilir, yükseklik ondan türer.
       // Kaynak zaten daha darsa BÜYÜTÜLMEZ — bulanık bir küçük resim
       // üretmenin anlamı yok, üstelik bellekte de daha çok yer tutardı.
+      // G7.7: her durumda piksel tavanı ([fmPixelCap]) — yalnız genişlik
+      // sınırı 1000×1.000.000'luk bir "bomba" görselde işe yaramaz.
       getTargetSize: (int width, int height) {
-        if (key.cover) return fmCoverTargetSize(width, height, target);
-        if (width <= target) return ui.TargetImageSize(width: width, height: height);
-        return ui.TargetImageSize(
-          width: target,
-          height: (height * target / width).round().clamp(1, height),
-        );
+        final ui.TargetImageSize size;
+        if (target == null) {
+          size = ui.TargetImageSize(width: width, height: height);
+        } else if (key.cover) {
+          size = fmCoverTargetSize(width, height, target);
+        } else if (width <= target) {
+          size = ui.TargetImageSize(width: width, height: height);
+        } else {
+          size = ui.TargetImageSize(
+            width: target,
+            height: (height * target / width).round().clamp(1, height),
+          );
+        }
+        return fmPixelCap(size.width ?? width, size.height ?? height);
       },
     );
   }
@@ -92,6 +102,27 @@ class FmFileImage extends ImageProvider<FmFileImage> {
   @override
   String toString() =>
       'FmFileImage("$path", cacheWidth: $cacheWidth${cover ? ', cover' : ''})';
+}
+
+/// G7.7 (2026-11-12): çözülen bitmap'in en çok piksel sayısı. 24 MP ≈ 96 MB;
+/// 3072×2304 (görüntüleyici tavanı, 7 MP) ve 1080×20000'lik uzun ekran
+/// görüntüsü sığar, 100 MP+ bellek bombası en-boy korunarak küçülür.
+const fmMaxDecodePixels = 24 * 1000 * 1000;
+
+/// [width]×[height] tavanı aşarsa iki kenar aynı oranla küçültülür (saf, testli).
+ui.TargetImageSize fmPixelCap(int width, int height,
+    {int maxPixels = fmMaxDecodePixels}) {
+  // TargetImageSize 0/eksi ölçüyü assert ile reddeder → kaynağın ölçüsü.
+  if (width <= 0 || height <= 0) return const ui.TargetImageSize();
+  final pixels = width * height;
+  if (pixels <= maxPixels) {
+    return ui.TargetImageSize(width: width, height: height);
+  }
+  final k = math.sqrt(maxPixels / pixels);
+  return ui.TargetImageSize(
+    width: (width * k).floor().clamp(1, width),
+    height: (height * k).floor().clamp(1, height),
+  );
 }
 
 /// `cover` çözme ölçüsü (saf, testli): kısa kenar [target]'a iner, en-boy

@@ -204,7 +204,7 @@ Plan: `docs/GUVENLIK_PLANI.md` (G0–G12; sıra ve açılış istemi orada). Pla
 - [ ] G2 artığı: Keystore sarılı sırlar (Gemini, uzak/FTP parola) eski bir sürüme geri dönülürse okunamaz — kullanıcı yeniden girer (bilinçli ödün, sürüm notunda); OpenSubtitles anahtarı APK ikilisinde (dart-define) — Pro'da vekil sunucu düşünülür
 - [ ] G3 artığı 📱: `docs/CIHAZ_TESTI.md` "Faz G3" (yerel PBKDF2 süresi, parmak izi CryptoObject, yeni parmak izi ekleyince geçersizleşme, eski kayıt göçü). Android 7'de (yerel PBKDF2 yok) saf Dart 600 bin tur ≈ 10 sn+ — ölçülmedi; uzun sürerse Android 7 için tur düşürme kararı 👤
 - [ ] G4 artığı: G4.2 (parola zaten varsayılan rastgele 6 hane + yeni deneme sınırı; 8+ karışık karakter ve parolasız kipte süre sınırı yapılmadı), G4.4 kod yenileme + 6 hane (Windows exe ve eski sürüm uyumu gerekiyor; şimdilik Random.secure + adres başına 5 deneme/60 sn), G4.5 başlık ≤ 16 KB ve boş disk 507 (eşzamanlı ≤ 16 + boşta 60 sn 2026-11-12'de yapıldı), G4.8 30 dk boşta kapanma doğrulaması; 📱 `CIHAZ_TESTI.md` "Faz G4"
-- [ ] Kalan: G7.1 artığı (`.bz2/.xz` sınırsız; oran aşımında kullanıcıya sorma yok — ret), G7.3 Office sınırları, G7.4, G7.7–G7.9 · G8.2–G8.6 · G9.5 👤, G9.7 👤, G9.8–G9.10 · G10.2 maske, G10.4, G10.5 · G12.5, G12.6 👤 (G5, G11 isteğe bağlı)
+- [ ] Kalan: G7.1 artığı (`.bz2/.xz` sınırsız; oran aşımında kullanıcıya sorma yok — ret), G7.3 artığı (yazıcı/yama yolları, yalan başlık), G7.4, G7.7 artığı (öteki `Image.file` ekranları), G7.8, G7.9 · G8.2–G8.6 · G9.5 👤, G9.7 👤, G9.8–G9.10 · G10.2 maske, G10.4, G10.5 · G12.5, G12.6 👤 (G5, G11 isteğe bağlı)
 
 ---
 

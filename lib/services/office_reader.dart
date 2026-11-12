@@ -3,13 +3,14 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
+import 'office_zip_guard.dart';
 
 /// Office Open XML (docx/pptx) dosyalarından düz metin çıkarır.
 /// xlsx için `excel` paketi kullanılır (bkz. file_service).
 class OfficeReader {
   /// .docx -> paragraf metni
   static String extractDocxText(Uint8List bytes) {
-    final archive = ZipDecoder().decodeBytes(bytes);
+    final archive = OfficeZipGuard.decode(bytes);
     final doc = _fileByName(archive, 'word/document.xml');
     if (doc == null) return '';
     final xml = XmlDocument.parse(utf8.decode(doc, allowMalformed: true));
@@ -24,7 +25,7 @@ class OfficeReader {
 
   /// .pptx -> her slaytın metni (slayt başlıklarıyla)
   static String extractPptxText(Uint8List bytes) {
-    final archive = ZipDecoder().decodeBytes(bytes);
+    final archive = OfficeZipGuard.decode(bytes);
     final slideFiles = archive.files
         .where((f) =>
             f.name.startsWith('ppt/slides/slide') && f.name.endsWith('.xml'))

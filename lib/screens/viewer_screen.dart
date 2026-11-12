@@ -30,6 +30,7 @@ import '../core/pretty_format.dart';
 import '../core/text_replace.dart';
 import '../core/doc_fonts.dart';
 import '../core/image_budget.dart';
+import '../widgets/fm/fm_file_image.dart';
 import '../core/edit/editor_shortcuts.dart';
 import '../core/edit/edit_session.dart';
 import '../core/edit/code_editing.dart';
