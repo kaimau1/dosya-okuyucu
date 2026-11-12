@@ -900,3 +900,13 @@ Belgeler: `rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `rl_cok_sayfa.pdf`, `rl_si
 3. **Boş disk:** telefon belleği ~250 MB boşken bilgisayardan tarayıcıyla 100 MB'lık dosya yükle → "507 Telefonda yeterli boş alan yok"; FTP'de yükleme 452 ile reddediliyor. Bol yer varken yükleme eskisi gibi.
 4. **Doğal ses (sesli okuma):** EMA ve Antalia sesleriyle bir sayfa sesli okunuyor (yerel sunucu Host/Origin denetiminden sonra da ses geliyor).
 5. **Arşiv:** olağan zip/rar/7z çıkarma eskisi gibi; içinde `../` girdisi olan test zip'i hedef dışına yazmıyor.
+
+## Güvenlik G2.6 / G6 / G8.1 / G9.6 / G10.3 / G12.4 (2026-11-12, main)
+1. **Word görüntüleyici (CSP + dosya erişimi kapalı):** yazı tipleri (Calibri/Times görünümü), görseller, tablolar, düzenleme kipi ESKİSİ GİBİ. Bozulursa ilk şüpheli `assets/word/viewer.html` CSP satırı (ör. `blob:`/`file:` eksik) — logcat'te `Refused to load`.
+2. **Word bağlantısı:** köprü içeren .docx'te bağlantıya dokun → görüntüleyici yerinde kalır, "Bağlantıyı aç" penceresi tam adresi gösterir; "Aç" → tarayıcı.
+3. **PDF bağlantısı:** http bağlantısı soruluyor ve açılıyor; `file:`/`intent:` bağlantılı PDF'te "açılamadı".
+4. **Doğal ses:** gezinti kilidi + dosya erişimi kapalıyken EMA/Antalia sesleri yine okuyor.
+5. **Kasa:** kasadan bir PDF aç → kapat → ana sayfa "Son açılanlar"da ve simgeye uzun basınca kısayollarda YOK. Kasa PDF'i açıkken AI özet → "Kasadaki dosyalar yapay zekâya gönderilmez".
+6. **Hassas pano:** FTP sunucusu ekranında parolaya dokun → Android 13+ pano önizlemesinde metin `•••`; 1 dk sonra uygulamada yapıştır → boş (bu arada başka şey kopyalandıysa o kalır).
+7. **SFTP anahtarı:** NAS'a ilk SFTP bağlantısında "Yeni sunucu" penceresi parmak iziyle (NAS'ın `ssh-keygen -lf` çıktısıyla aynı); "Güven" → bağlanıyor, ikinci bağlantıda sorulmuyor. NAS'ta anahtarı yeniden üret → kırmızı "Sunucu kimliği DEĞİŞTİ"; Vazgeç → bağlantı kurulmuyor.
+8. **Güncelleme:** nightly'den otomatik güncelleme indirip kuruyor (SHA-256 eşleşiyor). (Bozuk özet senaryosu birim testte.)
