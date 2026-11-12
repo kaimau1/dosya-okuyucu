@@ -187,22 +187,33 @@ void main() {
 
   testWidgets('A4.2: watchBrowse dilim değişiminde yeniden kurar, AI de değil',
       (tester) async {
-    var builds = 0;
+    // Uygulamadaki gibi iki dilimin de dinleyicisi var (dinleyen yoksa
+    // `AppState` geri düşüşle bildirir — ayrı testte).
+    var builds = 0, aiBuilds = 0;
     await tester.pumpWidget(AppProviders(
       appState: appState,
-      child: Builder(builder: (context) {
-        context.watchBrowse();
-        builds++;
-        return const SizedBox();
-      }),
+      child: Column(children: [
+        Builder(builder: (context) {
+          context.watchBrowse();
+          builds++;
+          return const SizedBox();
+        }),
+        Builder(builder: (context) {
+          context.watchAi();
+          aiBuilds++;
+          return const SizedBox();
+        }),
+      ]),
     ));
-    final b0 = builds;
+    final b0 = builds, a0 = aiBuilds;
     await tester.runAsync(() => appState.setFmShowHidden(true));
     await tester.pump();
     expect(builds, b0 + 1);
+    expect(aiBuilds, a0);
     await tester.runAsync(() => appState.setAiSendConsent(true));
     await tester.pump();
     expect(builds, b0 + 1);
+    expect(aiBuilds, a0 + 1);
   });
 
   test('kök kaynakta AppState izlenmiyor', () {
