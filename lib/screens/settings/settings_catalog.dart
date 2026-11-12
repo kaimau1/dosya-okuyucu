@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
+import '../../core/state/focused_states.dart';
 import '../../core/l10n/app_language.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/settings_search.dart';
@@ -258,7 +259,7 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
         titleKey: 'set.cat_browsing',
         subtitleKey: 'set.cat_browsing_sub',
         summary: (context) {
-          final s = context.watch<AppState>();
+          final s = context.watchBrowse();
           return '${context.t(s.fmLayout.labelKey)} · '
               '${context.t(s.fmSort.labelKey)}';
         },
@@ -386,7 +387,7 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
         titleKey: 'set.cat_ai',
         subtitleKey: 'set.cat_ai_sub',
         summary: (context) {
-          final s = context.watch<AppState>();
+          final s = context.watchAi();
           if (!s.hasApiKey) return context.t('set.ai_no_key');
           return '${s.model} · ${context.t('set.ai_key_count', {
                 'n': s.apiKeys.length
@@ -470,7 +471,7 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
         titleKey: 'set.cat_privacy',
         subtitleKey: 'set.cat_privacy_sub',
         summary: (context) {
-          final s = context.watch<AppState>();
+          final s = context.watchBrowse();
           return s.fmHasLockPin
               ? context.t('fmset.pin_sub_locked', {'n': s.fmLockedFolders.length})
               : context.t('fmset.pin_sub_unset');
@@ -579,7 +580,7 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
         titleKey: 'set.cat_storage',
         subtitleKey: 'set.cat_storage_sub',
         summary: (context) {
-          final s = context.watch<AppState>();
+          final s = context.watchBrowse();
           final trash = context.t(
               s.fmUseTrash ? 'fmset.use_trash' : 'set.trash_off');
           final refresh = !s.highRefreshRate

@@ -10,6 +10,7 @@ import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
 import '../../core/app_state.dart';
+import '../../core/state/focused_states.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/file_service.dart';
@@ -268,6 +269,7 @@ class FmEntryIcon extends StatelessWidget {
   Widget _content(BuildContext context) {
     final category = entry.category;
     // Kullanıcı ayarlardan küçük resimleri kapatabilir (yavaş cihaz).
+    context.dependOnBrowse();
     final thumbsOn =
         thumbnails && (context.select<AppState, bool>((s) => s.fmThumbnails));
 

@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
+import '../../core/state/focused_states.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
@@ -348,7 +349,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
                   // Etiket ayarı okur: çöp kutusu kapalıyken "çöpe taşı" demek
                   // kullanıcıya geri alabileceğini söylemek olurdu.
                   label: Text('${deleteActionText(
-                    useTrash: context.watch<AppState>().fmUseTrash,
+                    useTrash: context.watchBrowse().fmUseTrash,
                     what: context.t('sim.n_files', {'n': _selected.length}),
                     strings: AppStrings.of(context),
                   )} (${FsPaths.humanSize(_selectedBytes)})'),

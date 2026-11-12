@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../core/app_icons.dart';
 import '../core/app_state.dart';
+import '../core/state/focused_states.dart';
 
 import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
@@ -374,6 +375,7 @@ class _Suggestions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    context.dependOnAi();
     final (hasKey, lock, autoSave) = context.select<AppState, (bool, bool, bool)>(
         (s) => (s.hasApiKey, s.appLock, s.autoSave));
     final ids = suggestedSettingIds(

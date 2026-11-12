@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
+import '../../core/state/focused_states.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/file_ops.dart';
@@ -204,7 +205,7 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+    final appState = context.watchBrowse();
     final shortcuts = _shortcuts(appState);
     final canPickHere = _allowed(_path);
 

@@ -40,6 +40,7 @@ import '../core/edit/editor_chrome.dart';
 import '../core/edit/markdown_edit.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/app_state.dart';
+import '../core/state/focused_states.dart';
 import '../core/copy_text.dart';
 import '../core/text_search.dart';
 import '../core/theme.dart';
@@ -761,7 +762,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   @override
   Widget build(BuildContext context) {
     final doc = widget.doc;
-    final hasApiKey = context.watch<AppState>().hasApiKey;
+    final hasApiKey = context.watchAi().hasApiKey;
     // Bekleyen PDF düzenlemesi varken geri tuşu doğrudan çıkmaz: önce
     // "kaydetmek ister misiniz?" sorulur (2026-07-26 kullanıcı isteği).
     final textUnsaved = _dirty && doc.kind == DocKind.text;

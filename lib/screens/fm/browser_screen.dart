@@ -233,7 +233,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+    final appState = context.watchBrowse();
     final sorted = _sorted(appState);
     final entries = _visible(sorted);
     final wide = MediaQuery.sizeOf(context).width >= 840;

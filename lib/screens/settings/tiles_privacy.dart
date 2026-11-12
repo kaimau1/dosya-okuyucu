@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
+import '../../core/state/focused_states.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/pii.dart';
 import '../../core/snack.dart';
@@ -22,7 +23,7 @@ class PinTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+    final appState = context.watchBrowse();
     return Column(
       children: [
         SettingTile(
@@ -92,7 +93,7 @@ class LockedFoldersTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+    final appState = context.watchBrowse();
     if (appState.fmLockedFolders.isEmpty) return const SizedBox.shrink();
     return Column(
       children: [
@@ -142,6 +143,7 @@ class AiSendAskTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    context.dependOnAi();
     final ask = !context.select<AppState, bool>((s) => s.aiSendConsent);
     return SwitchListTile(
       secondary: const Icon(AppIcons.ai),

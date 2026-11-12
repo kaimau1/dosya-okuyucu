@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../core/app_icons.dart';
 import '../core/app_state.dart';
+import '../core/state/focused_states.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/markdown.dart';
 import '../core/motion.dart';
@@ -239,7 +240,7 @@ class _ChatScreenState extends State<ChatScreen> {
             child: Row(
               children: [
                 _badge(context, AppIcons.smartToy,
-                    context.watch<AppState>().model),
+                    context.watchAi().model),
                 if (_ctxName != null) ...[
                   const SizedBox(width: Gap.sm),
                   Flexible(

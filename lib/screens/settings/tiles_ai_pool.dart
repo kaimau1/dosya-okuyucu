@@ -18,6 +18,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
+import '../../core/state/focused_states.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../services/ai_pool.dart';
@@ -72,7 +73,7 @@ class _AiBackupKeysTileState extends State<AiBackupKeysTile> {
       SecureScreen(child: _secureBody(context));
 
   Widget _secureBody(BuildContext context) {
-    final state = context.watch<AppState>();
+    final state = context.watchAi();
     final canAdd = _controllers.length + 1 < AiCredentials.maxKeys;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -185,7 +186,7 @@ class _AiModelChainTileState extends State<AiModelChainTile> {
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
+    final state = context.watchAi();
     final chain = state.aiModels;
     final available = _available ?? _fallback;
     final addable = [
@@ -308,7 +309,7 @@ class _AiPoolStatusTileState extends State<AiPoolStatusTile> {
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
+    final state = context.watchAi();
     final slots = state.aiCredentials.slotCount;
     final cooling = AiPool.coolingCount;
     return SettingTile(

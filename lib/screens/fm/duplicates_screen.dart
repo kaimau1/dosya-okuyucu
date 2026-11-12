@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
+import '../../core/state/focused_states.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/duplicate_finder.dart';
@@ -294,7 +295,7 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
                   onPressed: _deleteSelected,
                   icon: const Icon(AppIcons.delete),
                   label: Text('${deleteActionText(
-                    useTrash: context.watch<AppState>().fmUseTrash,
+                    useTrash: context.watchBrowse().fmUseTrash,
                     what: context.t('dup.n_copies', {'n': selectedFiles.length}),
                     strings: AppStrings.of(context),
                   )} (${FsPaths.humanSize(_selectedBytes)})'),

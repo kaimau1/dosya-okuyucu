@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
+import '../../core/state/focused_states.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fm_type.dart';
@@ -380,7 +381,7 @@ class _TrashScreenState extends State<TrashScreen> {
   /// girmeden göremiyordu; kapalıysa ayara kısayol verilir.
   Widget _summaryBand(int total, int shownCount) {
     final scheme = Theme.of(context).colorScheme;
-    final days = context.watch<AppState>().fmTrashAutoDays;
+    final days = context.watchBrowse().fmTrashAutoDays;
     return Container(
       width: double.infinity,
       color: scheme.surfaceContainerHigh,

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
+import '../../core/state/focused_states.dart';
 import '../../core/l10n/app_strings.dart';
 import '../app_dialog.dart';
 
@@ -23,7 +24,7 @@ class _FavoritesOrder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
+    final state = context.watchBrowse();
     final list = state.bookmarks;
     return ConstrainedBox(
       constraints: BoxConstraints(

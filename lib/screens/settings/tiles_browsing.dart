@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
+import '../../core/state/focused_states.dart';
 import '../../services/fm/folder_size_cache.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../models/fm_layout.dart';
@@ -19,7 +20,7 @@ class ListLayoutTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+    final appState = context.watchBrowse();
     return SettingTile(
       icon: AppIcons.layoutList,
       title: context.t('fmset.list_layout'),
@@ -40,7 +41,7 @@ class PhotoGridTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+    final appState = context.watchBrowse();
     return SettingTile(
       icon: AppIcons.layoutGrid,
       title: context.t('fmset.photo_grid'),
@@ -67,7 +68,7 @@ class PhotoGroupTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+    final appState = context.watchBrowse();
     return SettingChoice<PhotoGroup>(
       icon: AppIcons.calendarMonth,
       title: context.t('fmset.group_photos'),
@@ -88,7 +89,7 @@ class DefaultSortTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+    final appState = context.watchBrowse();
     return SettingTile(
       icon: AppIcons.sort,
       title: context.t('fmset.default_sort'),
@@ -121,7 +122,7 @@ class ShowHiddenTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+    final appState = context.watchBrowse();
     return SettingSwitch(
       icon: AppIcons.hidden,
       title: context.t('fmset.show_hidden'),
@@ -138,7 +139,7 @@ class ThumbnailsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+    final appState = context.watchBrowse();
     return SettingSwitch(
       icon: AppIcons.image,
       title: context.t('fmset.thumbnails'),
@@ -159,7 +160,7 @@ class FolderSizesTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+    final appState = context.watchBrowse();
     return SettingSwitch(
       icon: AppIcons.emptyFolder,
       title: context.t('fmset.folder_sizes'),
@@ -179,7 +180,7 @@ class ResumePositionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+    final appState = context.watchBrowse();
     return SettingSwitch(
       icon: AppIcons.playCircleOutline,
       title: context.t('fmset.resume'),
@@ -197,7 +198,7 @@ class AutoSaveTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+    final appState = context.watchBrowse();
     return SettingSwitch(
       icon: AppIcons.save,
       title: context.t('edit.autosave'),
@@ -214,7 +215,7 @@ class WordSpellcheckTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+    final appState = context.watchBrowse();
     return SettingSwitch(
       icon: AppIcons.spellcheck,
       title: context.t('word.spellcheck'),
@@ -248,7 +249,7 @@ class MediaOpenWithTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+    final appState = context.watchBrowse();
     return SettingTile(
       icon: AppIcons.playCircleOutline,
       title: context.t('fmset.media_open_with'),

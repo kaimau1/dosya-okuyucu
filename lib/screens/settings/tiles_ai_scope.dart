@@ -17,6 +17,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
+import '../../core/state/focused_states.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -32,7 +33,7 @@ class AiExcludedFoldersTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
+    final state = context.watchAi();
     final excluded = state.aiScope.excludedFolders;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,7 +122,7 @@ class AiScopeTypesTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
+    final state = context.watchAi();
     final selected = state.aiScope.categories;
     return Padding(
       padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.md),
@@ -188,7 +189,7 @@ class AiAutoNewTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scope = context.watch<AppState>().aiScope;
+    final scope = context.watchAi().aiScope;
     return SettingSwitch(
       key: const ValueKey('ai-auto-new'),
       icon: AppIcons.autoAwesomeMotion,
@@ -213,7 +214,7 @@ class AiPrivacyTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
+    final state = context.watchAi();
     final scope = state.aiScope;
     return Column(
       children: [
@@ -271,7 +272,7 @@ class AiBudgetTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
+    final state = context.watchAi();
     final scope = state.aiScope;
     return Column(
       children: [

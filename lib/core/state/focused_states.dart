@@ -1,4 +1,7 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:provider/provider.dart';
+
+import '../app_state.dart';
 
 /// Dosya panosu (Kopyala / Kes → Yapıştır) — A4.2.
 ///
@@ -40,4 +43,42 @@ class RemotesState extends ChangeNotifier {
 /// yalnız hafıza listesini gösteren ayar bölümünü uyandırır.
 class AiMemoryState extends ChangeNotifier {
   void changed() => notifyListeners();
+}
+
+/// Göz atma tercihleri (düzen, sıralama, gizli dosyalar, küçük resim,
+/// klasör boyutu, çöp, yer imleri, son hedefler, kilitli klasörler) — A4.2.
+/// Değerler `AppState`te; değişim YALNIZ bunu uyandırır.
+///
+/// Kimse dinlemiyorsa (`watched` false — ör. dilimleri sağlamayan test
+/// ağacı) `AppState` yine bildirir; okuyan yer [AppSliceWatch.watchBrowse]
+/// kullanmalı.
+class BrowseState extends ChangeNotifier {
+  void changed() => notifyListeners();
+  bool get watched => hasListeners;
+}
+
+/// AI ayarları (anahtarlar, modeller, kapsam, gönderim onayı) — A4.2.
+/// Kurallar [BrowseState] ile aynı.
+class AiState extends ChangeNotifier {
+  void changed() => notifyListeners();
+  bool get watched => hasListeners;
+}
+
+/// Dilim izleme kısayolları: ilgili dilimi (varsa) VE `AppState`i izler,
+/// `AppState`i döndürür. Dilim sağlanmamışsa (eski test ağacı) yalnız
+/// `AppState` izlenir — o durumda `AppState` dilim değişiminde de bildirir.
+extension AppSliceWatch on BuildContext {
+  AppState watchBrowse() {
+    watch<BrowseState?>();
+    return watch<AppState>();
+  }
+
+  AppState watchAi() {
+    watch<AiState?>();
+    return watch<AppState>();
+  }
+
+  /// `select` kullanan yerler için: yalnız dilime bağımlılık ekler.
+  void dependOnBrowse() => watch<BrowseState?>();
+  void dependOnAi() => watch<AiState?>();
 }

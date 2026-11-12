@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
+import '../../core/state/focused_states.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/safe_insets.dart';
 import '../../core/snack.dart';
@@ -71,7 +72,7 @@ class _BillsScreenState extends State<BillsScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final hasKey = context.watch<AppState>().hasApiKey;
+    final hasKey = context.watchAi().hasApiKey;
     return ListenableBuilder(
       listenable: Listenable.merge([Bills.instance, AiIndex.revision]),
       builder: (context, _) {

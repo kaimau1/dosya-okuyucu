@@ -506,6 +506,9 @@ class AppProviders extends StatelessWidget {
               value: appState.remotesState),
           ChangeNotifierProvider<AiMemoryState>.value(
               value: appState.memoryState),
+          ChangeNotifierProvider<BrowseState>.value(
+              value: appState.browseState),
+          ChangeNotifierProvider<AiState>.value(value: appState.aiState),
         ],
         child: child,
       );

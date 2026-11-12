@@ -95,7 +95,7 @@ class _AnalysisTab extends StatelessWidget {
   }
 
   Widget _body(BuildContext context, AiProgress progress) {
-    final state = context.watch<AppState>();
+    final state = context.watchAi();
     final faint = Paper.faint(context);
     return ListView(
       padding: withNavInset(context, const EdgeInsets.all(Gap.md)),

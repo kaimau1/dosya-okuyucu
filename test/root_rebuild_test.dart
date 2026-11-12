@@ -152,6 +152,59 @@ void main() {
         1);
   });
 
+  test('A4.2: göz atma / AI tercihi dinlenen dilimi uyandırır, AppState i değil',
+      () async {
+    var app = 0, browse = 0, ai = 0;
+    appState.addListener(() => app++);
+    appState.browseState.addListener(() => browse++);
+    appState.aiState.addListener(() => ai++);
+
+    await appState.setFmShowHidden(true);
+    await appState.setFmSort(appState.fmSort, descending: true);
+    await appState.toggleBookmark('/x');
+    expect(browse, 3);
+    expect(appState.fmShowHidden, isTrue);
+    expect(appState.isBookmarked('/x'), isTrue);
+
+    await appState.setAiSendConsent(true);
+    await appState.setAiModels(['m1']);
+    expect(ai, 2);
+
+    await appState.toggleLockedFolder('/kilit'); // ikisi de
+    expect(browse, 4);
+    expect(ai, 3);
+    expect(app, 0);
+  });
+
+  test('A4.2: dilimi dinleyen yoksa AppState yine bildirir (eski ağaç)',
+      () async {
+    var app = 0;
+    appState.addListener(() => app++);
+    await appState.setFmShowHidden(true);
+    await appState.setAiSendConsent(true);
+    expect(app, 2);
+  });
+
+  testWidgets('A4.2: watchBrowse dilim değişiminde yeniden kurar, AI de değil',
+      (tester) async {
+    var builds = 0;
+    await tester.pumpWidget(AppProviders(
+      appState: appState,
+      child: Builder(builder: (context) {
+        context.watchBrowse();
+        builds++;
+        return const SizedBox();
+      }),
+    ));
+    final b0 = builds;
+    await tester.runAsync(() => appState.setFmShowHidden(true));
+    await tester.pump();
+    expect(builds, b0 + 1);
+    await tester.runAsync(() => appState.setAiSendConsent(true));
+    await tester.pump();
+    expect(builds, b0 + 1);
+  });
+
   test('kök kaynakta AppState izlenmiyor', () {
     final src = File('lib/main.dart').readAsStringSync();
     final start = src.indexOf('class _DosyaOkuyucuAppState');

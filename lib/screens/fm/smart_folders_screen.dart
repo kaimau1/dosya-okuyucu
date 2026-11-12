@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
+import '../../core/state/focused_states.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/safe_insets.dart';
 import '../../core/theme.dart';
@@ -46,7 +47,7 @@ class _SmartFoldersScreenState extends State<SmartFoldersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final scope = context.watch<AppState>().aiScopeRules;
+    final scope = context.watchAi().aiScopeRules;
     return Scaffold(
       appBar: AppBar(title: Text(context.t('smart.title'))),
       floatingActionButton: FloatingActionButton.extended(
@@ -231,7 +232,7 @@ class _SmartFolderScreenState extends State<SmartFolderScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final scope = context.watch<AppState>().aiScopeRules;
+    final scope = context.watchAi().aiScopeRules;
     return ListenableBuilder(
       listenable: Listenable.merge([SmartFolders.instance, AiIndex.revision]),
       builder: (context, _) {

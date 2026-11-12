@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
+import '../../core/state/focused_states.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../services/gemini_service.dart';
@@ -113,7 +114,7 @@ class _AiAccessTileState extends State<AiAccessTile> {
       SecureScreen(child: _secureBody(context));
 
   Widget _secureBody(BuildContext context) {
-    final appState = context.watch<AppState>();
+    final appState = context.watchAi();
     final modelsError =
         _noModels ? context.t('settings.model_none') : _modelsError;
     final models = _fetchedModels ?? _fallbackModels;

@@ -127,6 +127,25 @@ class AppState extends ChangeNotifier {
   /// AI hafıza notları bildiricisi (A4.2).
   final AiMemoryState memoryState = AiMemoryState();
 
+  /// Göz atma tercihleri bildiricisi (A4.2).
+  final BrowseState browseState = BrowseState();
+
+  /// AI ayarları bildiricisi (A4.2).
+  final AiState aiState = AiState();
+
+  /// Göz atma tercihi değişti: dilim bildirir; dilimi dinleyen yoksa
+  /// (dilim sağlanmamış ağaç) `AppState` dinleyicileri de.
+  void _notifyBrowse() {
+    browseState.changed();
+    if (!browseState.watched) notifyListeners();
+  }
+
+  /// AI ayarı değişti — kurallar [_notifyBrowse] ile aynı.
+  void _notifyAi() {
+    aiState.changed();
+    if (!aiState.watched) notifyListeners();
+  }
+
   void _syncAppearance() => appearance.apply(
         themeMode: _themeMode,
         skin: _appSkin,
@@ -267,7 +286,7 @@ class AppState extends ChangeNotifier {
     _apiKeys = clean;
     _apiKey = clean.isEmpty ? '' : clean.first;
     await _storeApiKeys(clean);
-    notifyListeners();
+    _notifyAi();
   }
 
   /// Model sırasını yazar. En az bir model kalır — hiç model yoksa AI'nın
@@ -278,7 +297,7 @@ class AppState extends ChangeNotifier {
     _model = _models.first;
     await _prefs.setStringList(_kModels, _models);
     await _prefs.setString(_kModel, _model);
-    notifyListeners();
+    _notifyAi();
   }
   ThemeMode get themeMode => _themeMode;
 
@@ -362,7 +381,7 @@ class AppState extends ChangeNotifier {
   Future<void> setAiSendConsent(bool value) async {
     _aiSendOk = value;
     await _prefs.setBool(_kAiSendOk, value);
-    notifyListeners();
+    _notifyAi();
   }
 
   /// **Son cihazlar** — yayın bulamadığında elle adres yazmayı bir dokunuşa
@@ -579,7 +598,7 @@ class AppState extends ChangeNotifier {
   Future<void> setFmFolderSizes(bool value) async {
     _fmFolderSizes = value;
     await _prefs.setBool(_kFmFolderSizes, value);
-    notifyListeners();
+    _notifyBrowse();
   }
 
   /// Oynatıcı kipleri: ekran değil SERVİS çağırıyor (kip orada değişiyor),
@@ -599,25 +618,25 @@ class AppState extends ChangeNotifier {
   Future<void> setFmThumbnails(bool value) async {
     _fmThumbnails = value;
     await _prefs.setBool(_kFmThumbs, value);
-    notifyListeners();
+    _notifyBrowse();
   }
 
   Future<void> setFmUseTrash(bool value) async {
     _fmUseTrash = value;
     await _prefs.setBool(_kFmUseTrash, value);
-    notifyListeners();
+    _notifyBrowse();
   }
 
   Future<void> setFmConfirmDelete(bool value) async {
     _fmConfirmDelete = value;
     await _prefs.setBool(_kFmConfirmDelete, value);
-    notifyListeners();
+    _notifyBrowse();
   }
 
   Future<void> setFmTrashAutoDays(int days) async {
     _fmTrashAutoDays = days;
     await _prefs.setInt(_kFmTrashAutoDays, days);
-    notifyListeners();
+    _notifyBrowse();
   }
 
   /// Kopyala/kes panosu — bilinçli olarak KALICI DEĞİL: uygulama yeniden
@@ -637,7 +656,7 @@ class AppState extends ChangeNotifier {
       _recentDests = _recentDests.sublist(0, 8);
     }
     await _prefs.setStringList(_kRecentDests, _recentDests);
-    notifyListeners();
+    _notifyBrowse();
   }
 
   /// PIN'i kurar/değiştirir; boş verilirse kilit tamamen kalkar (kilitli
@@ -669,7 +688,8 @@ class AppState extends ChangeNotifier {
   Future<void> toggleLockedFolder(String path) async {
     if (!_lockedFolders.remove(path)) _lockedFolders.add(path);
     await _prefs.setStringList(_kLockedFolders, _lockedFolders);
-    notifyListeners();
+    _notifyBrowse();
+    _notifyAi(); // kapsam kuralları kilitli klasörleri içerir
   }
 
   bool isFolderLocked(String path) =>
@@ -682,31 +702,31 @@ class AppState extends ChangeNotifier {
     final item = _bookmarks.removeAt(from);
     _bookmarks.insert(to.clamp(0, _bookmarks.length), item);
     await _prefs.setStringList(_kBookmarks, _bookmarks);
-    notifyListeners();
+    _notifyBrowse();
   }
 
   Future<void> toggleBookmark(String path) async {
     if (!_bookmarks.remove(path)) _bookmarks.insert(0, path);
     await _prefs.setStringList(_kBookmarks, _bookmarks);
-    notifyListeners();
+    _notifyBrowse();
   }
 
   Future<void> setFmLayout(FmLayout value) async {
     _fmLayout = value;
     await _prefs.setString(_kFmLayout, value.name);
-    notifyListeners();
+    _notifyBrowse();
   }
 
   Future<void> setFmPhotoLayout(FmLayout value) async {
     _fmPhotoLayout = value;
     await _prefs.setString(_kFmPhotoLayout, value.name);
-    notifyListeners();
+    _notifyBrowse();
   }
 
   Future<void> setFmPhotoGroup(PhotoGroup value) async {
     _fmPhotoGroup = value;
     await _prefs.setString(_kFmPhotoGroup, value.name);
-    notifyListeners();
+    _notifyBrowse();
   }
 
   /// Galerinin sütun sayısı ve zaman ölçeği BİRLİKTE (iki parmakla
@@ -721,7 +741,7 @@ class AppState extends ChangeNotifier {
     if (layout == _fmPhotoLayout && group == _fmPhotoGroup) return;
     _fmPhotoLayout = layout;
     _fmPhotoGroup = group;
-    notifyListeners();
+    _notifyBrowse();
     try {
       await _prefs.setString(_kFmPhotoLayout, layout.name);
       await _prefs.setString(_kFmPhotoGroup, group.name);
@@ -733,7 +753,7 @@ class AppState extends ChangeNotifier {
   Future<void> setFmMediaOpenWith(MediaOpenWith value) async {
     _fmMediaOpenWith = value;
     await _prefs.setString(_kFmMediaOpenWith, value.name);
-    notifyListeners();
+    _notifyBrowse();
   }
 
   Future<void> setFmSort(FmSort sort, {bool? descending}) async {
@@ -741,13 +761,13 @@ class AppState extends ChangeNotifier {
     if (descending != null) _fmSortDesc = descending;
     await _prefs.setString(_kFmSort, sort.name);
     await _prefs.setBool(_kFmSortDesc, _fmSortDesc);
-    notifyListeners();
+    _notifyBrowse();
   }
 
   Future<void> setFmShowHidden(bool value) async {
     _fmShowHidden = value;
     await _prefs.setBool(_kFmHidden, value);
-    notifyListeners();
+    _notifyBrowse();
   }
 
   /// Panoyu doldurur; yalnız [clipboardState] bildirir (A4.2).
@@ -947,7 +967,7 @@ class AppState extends ChangeNotifier {
   Future<void> setAiScope(AiScopeSettings value) async {
     _aiScope = value;
     await _prefs.setString(_kAiScope, jsonEncode(value.toJson()));
-    notifyListeners();
+    _notifyAi();
   }
 
   /// Birincil anahtarı yazar (havuzun 1. sırası).

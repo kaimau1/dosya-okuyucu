@@ -465,7 +465,7 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
         context: context,
         showDragHandle: true,
         builder: (ctx) {
-          final state = ctx.watch<AppState>();
+          final state = ctx.watchBrowse();
           final theme = Theme.of(ctx);
           final label = theme.textTheme.labelLarge
               ?.copyWith(color: theme.colorScheme.onSurfaceVariant);

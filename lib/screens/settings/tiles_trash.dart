@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
+import '../../core/state/focused_states.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
@@ -18,7 +19,7 @@ class UseTrashTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+    final appState = context.watchBrowse();
     return SettingSwitch(
       icon: AppIcons.delete,
       title: context.t('fmset.use_trash'),
@@ -35,7 +36,7 @@ class ConfirmDeleteTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+    final appState = context.watchBrowse();
     return SettingSwitch(
       icon: AppIcons.help,
       title: context.t('fmset.confirm_delete'),
@@ -51,7 +52,7 @@ class TrashAutoTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+    final appState = context.watchBrowse();
     final off = appState.fmTrashAutoDays == 0;
     return SettingTile(
       icon: AppIcons.autoDelete,

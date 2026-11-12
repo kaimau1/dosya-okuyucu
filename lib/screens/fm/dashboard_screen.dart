@@ -12,6 +12,7 @@ import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
+import '../../core/state/focused_states.dart';
 import '../../core/device_profile.dart';
 import '../../core/startup_queue.dart';
 import '../../core/theme.dart';
@@ -387,7 +388,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
+    final appState = context.watchBrowse();
     final volumes = FmEnv.volumes;
     final scheme = Theme.of(context).colorScheme;
 
