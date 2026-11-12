@@ -360,12 +360,13 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
               child: Center(
                 child: RotatedBox(
                   quarterTurns: _imgQuarterTurns,
-                  child: Image.file(
-                    File(doc.path),
+                  child: Image(
                     // Bellek/pil: tam çözünürlük yerine ekranın gerektirdiği
                     // kadar piksel (bkz. core/image_budget.dart). 12 MP'lik
                     // bir fotoğraf tam açıldığında 48 MB bitmap ediyordu.
-                    cacheWidth: _imgDecodeWidth,
+                    // G7.7: FmFileImage ayrıca piksel tavanı uygular (uzun/dar
+                    // 100 MP+ görsel yalnız genişlikle sınırlanamıyordu).
+                    image: FmFileImage(doc.path, cacheWidth: _imgDecodeWidth),
                     gaplessPlayback: true,
                     errorBuilder: (_, _, _) => Text(
                       context.t('vw.image_failed'),

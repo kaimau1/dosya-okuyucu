@@ -16,6 +16,7 @@ import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
 
 import 'xlsx_editor.dart';
+import 'office_zip_guard.dart';
 
 abstract final class OfficeHtml {
   /// Excel'de sayfa başına en çok satır/sütun (dev tabloda HTML şişmesin).
@@ -79,7 +80,7 @@ abstract final class OfficeHtml {
   // ── Word ─────────────────────────────────────────────────────────────────
 
   static String docx(Uint8List bytes, {String title = ''}) {
-    final archive = ZipDecoder().decodeBytes(bytes);
+    final archive = OfficeZipGuard.decode(bytes);
     final doc = _xml(archive, 'word/document.xml');
     if (doc == null) throw const FormatException('word/document.xml yok');
     final body = doc.rootElement.descendants
@@ -218,7 +219,7 @@ abstract final class OfficeHtml {
   // ── Sunum ────────────────────────────────────────────────────────────────
 
   static String pptx(Uint8List bytes, {String title = ''}) {
-    final archive = ZipDecoder().decodeBytes(bytes);
+    final archive = OfficeZipGuard.decode(bytes);
     final slides = [
       for (final f in archive.files)
         if (RegExp(r'^ppt/slides/slide(\d+)\.xml$').hasMatch(f.name)) f.name,

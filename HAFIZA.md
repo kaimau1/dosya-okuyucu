@@ -675,3 +675,7 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Karar (G2.7):** `SecureVault.lock()` `_master`ı `fillRange` ile sıfırlar. Anahtarı await boyunca tutan her iş (`_addFiles`, `openTemp`, `restore`, `changePin`, `enableBiometric`) `_key()` KOPYASI alır, `finally`de `_wipe`. `_epoch` her açılış/kilitte artar.
 - **Bug kökü (G2.7 sırasında bulundu):** ekleme sürerken kilitlenince `_items` boşalıyor, `_saveIndex` sessizce dönüyor, sonra ASIL DOSYA siliniyordu → şifreli kopya dizinde yok = veri kaybı. Artık şifreleme sonrası `_epoch` değiştiyse kopya silinir, aslı kalır, iş `cancelled`.
 - **Karar (G7.1):** sınırlar izolata argümanla gider (statikler izolat başına — ana izolatta değiştirmek işe yaramaz). Bütçe min(boş − 500 MB, 20 GB), giriş ≤ 200 bin; oran > 1000× yalnız > 1 GB girişte. `tooLarge`da yarım klasör silinir.
+
+## 2026-11-12 — G7.3 Office zip sınırı + G7.7 görsel piksel tavanı
+- **Karar (G7.3):** `OfficeZipGuard.decode` (≤ 10 bin giriş, tek ≤ 200 MB, toplam ≤ 1 GB, başlıktaki `size` ile). Hata `OfficeTooLarge extends FormatException` → okuyucuların bozuk dosya yolu değişmeden işler. `file_service._sniffZipKind` ve yazıcılar/yamalar BİLEREK sarılmadı (yalnız ad okur / zaten açılmış belge).
+- **Karar (G7.7):** `FmFileImage` `getTargetSize` her durumda `fmPixelCap` (24 MP); `cacheWidth` null olsa da. Görüntüleyici `Image.file` → `Image(image: FmFileImage(...))`. **Tuzak:** yalnız `cacheWidth` en-boy oranı uç görselde (1000×1e6) korumaz.

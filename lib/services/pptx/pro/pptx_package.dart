@@ -6,6 +6,7 @@ import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
 
 import '../../zip_carry.dart';
+import '../../office_zip_guard.dart';
 
 /// **Faz 38 — slayt pro işlemlerinin paket katmanı.** `PptxEditor` metin ve
 /// şekil düzeyinde çalışır; ana slayt, tema, grafik parçası, medya, bölüm gibi
@@ -33,7 +34,7 @@ class PptxPackage {
   PptxPackage._(this._archive);
 
   static PptxPackage open(Uint8List bytes) =>
-      PptxPackage._(ZipDecoder().decodeBytes(bytes));
+      PptxPackage._(OfficeZipGuard.decode(bytes));
 
   // ── Parça erişimi ─────────────────────────────────────────────────────────
 

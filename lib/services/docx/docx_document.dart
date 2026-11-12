@@ -28,6 +28,7 @@ import '../../core/edit/save_coordinator.dart';
 import '../../core/symbol_fonts.dart';
 import 'docx_styles.dart';
 import '../zip_carry.dart';
+import '../office_zip_guard.dart';
 
 part 'docx_insert.dart';
 part 'docx_table.dart';
@@ -421,7 +422,7 @@ class DocxDocument {
   XmlDocument? Function(String name)? _partReader;
 
   static DocxDocument parse(Uint8List bytes) {
-    final archive = ZipDecoder().decodeBytes(bytes);
+    final archive = OfficeZipGuard.decode(bytes);
     XmlDocument? part(String name) {
       for (final f in archive.files) {
         if (f.name == name) {
@@ -1574,7 +1575,7 @@ const Map<String, DocxListPattern> kDocxListPatterns = {
 /// `word/document.xml`'in ilk [limit] dolu paragrafının düz metni — tam
 /// model kurulmadan (düzenli ifadeyle, izolatta). Editör açılırken önizleme.
 List<String> docxPreviewParagraphs(Uint8List bytes, {int limit = 50}) {
-  final file = ZipDecoder().decodeBytes(bytes).findFile('word/document.xml');
+  final file = OfficeZipGuard.decode(bytes).findFile('word/document.xml');
   if (file == null) return const [];
   final xml = utf8.decode(file.content as List<int>, allowMalformed: true);
   final out = <String>[];

@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:xml/xml.dart';
 
 import '../core/excel_format.dart';
+import 'office_zip_guard.dart';
 
 /// .xlsx dosyasının **görünüm** tarafını ham OOXML'den okur.
 ///
@@ -33,7 +33,7 @@ class XlsxReader {
   static bool forceDom = false;
 
   static XlsxWorkbook read(Uint8List bytes) {
-    final archive = ZipDecoder().decodeBytes(bytes);
+    final archive = OfficeZipGuard.decode(bytes);
     final files = <String, List<int>>{};
     for (final f in archive.files) {
       if (f.isFile) files[f.name] = f.content as List<int>;
