@@ -922,3 +922,9 @@ Belgeler: `rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `rl_cok_sayfa.pdf`, `rl_si
 8. **G7.4 Word bağlantısı (düzenleyici):** Word düzenleyicide bir bağlantı ekle, adresi `file:///sdcard/x` ya da `intent://…` yap → "Aç" → "geçersiz bağlantı"; `https://…` açılıyor.
 9. **G10.4 Çevrimdışı kip:** Ayarlar › Gizlilik › Çevrimdışı kip AÇ → (a) Çeviri: indirilmemiş dil seç → "Çevrimdışı kip açık" mesajı, model inmiyor; (b) Drive › Giriş → "geçici hata" + çevrimdışı açıklaması; (c) internet adresli bir SFTP/FTP/WebDAV bağlantısı → "Çevrimdışı kip açık"; (d) NAS (`192.168.x.x` ya da `diskstation` gibi noktasız ad) çalışıyor; (e) Yakındakiler/QR aktarım çalışıyor. Kipi kapat → hepsi eskisi gibi.
 10. **G10.5 Verilerimi sil:** Ayarlar › Gizlilik › Verilerimi sil → dört kutu işaretli; yalnız "Geçmiş" bırak → Sil → onay → Son açılanlar, arama geçmişi, kayıtlı aramalar boş; AI özetleri ve arama dizini duruyor. Sonra hepsini seç → AI özetleri gitti, arama dizini yeniden kuruluyor; dosyalar, kayıtlı bağlantılar, Gemini anahtarı, kasa YERİNDE.
+
+## Güvenlik G8.3 / G8.6 / G1 dış yol (2026-11-12, main)
+1. NAS'a `http://192.168.x.x` WebDAV + parola → bağlanır; internetteki bir sunucuya `http://` + parola → "Güvensiz bağlantı engellendi".
+2. Tailscale adresine (`100.x`) http WebDAV → bağlanır.
+3. Başka uygulamadan (Dosyalar, Gmail eki) "Birlikte aç" ve "Paylaş → Dosya Okuyucu" eskisi gibi çalışıyor (önbellek kopyası kabul).
+4. İndirme yöneticisine `file:///…` ya da `content://…` yapıştır → kuyruğa girer ama "başlatılamadı"; normal https indirme çalışır.

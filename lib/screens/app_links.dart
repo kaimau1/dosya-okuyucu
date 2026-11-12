@@ -49,6 +49,21 @@ bool isSafeLinkPath(String path) {
   return true;
 }
 
+/// **Dışarıdan gelen "Birlikte aç" / paylaş yolu (G1 artığı, 2026-11-12).**
+/// Başka uygulama `file:///data/user/0/<biz>/…` göndererek özel dosyamızı
+/// açtırabilir ya da (Paylaş = gönder akışında) yakın cihaza yollatabilirdi.
+/// Kabul: [isSafeLinkPath] ya da paylaşım eklentisinin `content://`
+/// kopyaları — yalnız önbellek klasörünün DOĞRUDAN çocuğu (eklenti oraya
+/// kopyalar; alt klasörlerdeki geçici/çözülmüş dosyalarımız hariç).
+bool isAcceptableIncomingPath(String path, {required String cacheDir}) {
+  if (isSafeLinkPath(path)) return true;
+  if (cacheDir.isEmpty || path.contains('\u0000') || !p.isAbsolute(path)) {
+    return false;
+  }
+  if (p.split(path).contains('..')) return false;
+  return p.equals(p.dirname(p.normalize(path)), p.normalize(cacheDir));
+}
+
 /// `openAppLink` kabul listesi: bilinen `app:` adları, `davet:`/`davetsor:` ve güvenli `file:`.
 bool isAllowedAppLink(String link) {
   if (link.startsWith('file:')) return isSafeLinkPath(link.substring(5));

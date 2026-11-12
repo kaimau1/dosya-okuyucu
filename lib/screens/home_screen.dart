@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 
@@ -210,6 +211,15 @@ class _HomeScreenState extends State<HomeScreen> {
       ));
       return;
     }
+    // G1 artığı: özel dizinimizi gösteren yol (dışarıdan `file://`) ne
+    // açılır ne gönderilir; eklentinin önbellek kopyaları izinli.
+    var cacheDir = '';
+    try {
+      cacheDir = (await getTemporaryDirectory()).path;
+    } catch (_) {
+      // Bilinçli: önbellek yolu alınamazsa yalnız ortak depolama kabul edilir.
+    }
+    bool accepted(String x) => isAcceptableIncomingPath(x, cacheDir: cacheDir);
     // **Paylaş → Dosya Okuyucu = gönder** (kullanıcı isteği 2026-11-03:
     // *"paylaşım seçeneklerinde dosya okuyucu seçildiğinde aktarım ekranı
     // otomatik gelsin, paylaşılacak şey gönderilecek dosyaya eklensin"*).
@@ -217,7 +227,10 @@ class _HomeScreenState extends State<HomeScreen> {
     if (await AppStorageService.takeSendRequest()) {
       final paths = <String>[
         for (final f in files)
-          if (f.path.isNotEmpty && await File(f.path).exists()) f.path,
+          if (f.path.isNotEmpty &&
+              accepted(f.path) &&
+              await File(f.path).exists())
+            f.path,
       ];
       if (!mounted) return;
       // Dosya yoksa paylaşılan düz yazıdır (eklenti metni `path`e koyar).
@@ -240,6 +253,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // "Kalemle düzenle" (Chrome'un PDF kalem düğmesi) ile gelindiyse belge
     // doğrudan kalem ekranında açılır — bkz. `PdfInkScreen`.
     final edit = await AppStorageService.takeEditRequest();
+    if (!accepted(path)) return;
     final kept = await IncomingFiles.keepIfFromBrowser(path);
     if (!mounted) return;
     if (kept != null && !kept.alreadyThere) {

@@ -225,4 +225,13 @@ void main() {
       expect(parseGithubRelease('[]'), isNull);
     });
   });
+
+  test('G8.6: yalnız ana makineli http(s) kuyruğa girer', () {
+    expect(isDownloadableUrl('https://ornek.com/a.pdf'), isTrue);
+    expect(isDownloadableUrl(' HTTP://ornek.com/a '), isTrue);
+    for (final u in ['file:///data/data/x/db', 'content://a/b', 'javascript:alert(1)',
+        'ftp://ornek.com/a', 'https:///yol', 'merhaba', '']) {
+      expect(isDownloadableUrl(u), isFalse, reason: u);
+    }
+  });
 }

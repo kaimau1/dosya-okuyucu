@@ -43,4 +43,24 @@ void main() {
       expect(isAllowedAppLink('file:../x'), isFalse);
     });
   });
+
+  group('isAcceptableIncomingPath (G1 artığı)', () {
+    const cache = '/data/user/0/com.dosyaokuyucu.dosya_okuyucu/cache';
+    test('ortak depolama ve eklentinin önbellek kopyası kabul', () {
+      expect(isAcceptableIncomingPath('/storage/emulated/0/Download/a.pdf', cacheDir: cache), isTrue);
+      expect(isAcceptableIncomingPath('$cache/rapor.pdf', cacheDir: cache), isTrue);
+    });
+    test('özel dizinin geri kalanı, alt klasör ve .. reddedilir', () {
+      for (final x in [
+        '/data/user/0/com.dosyaokuyucu.dosya_okuyucu/shared_prefs/FlutterSharedPreferences.xml',
+        '/data/user/0/com.dosyaokuyucu.dosya_okuyucu/app_flutter/kasa/a.enc',
+        '$cache/kasa_gecici/cozulmus.pdf',
+        '$cache/../shared_prefs/x.xml',
+        'rapor.pdf',
+      ]) {
+        expect(isAcceptableIncomingPath(x, cacheDir: cache), isFalse, reason: x);
+      }
+      expect(isAcceptableIncomingPath('$cache/a.pdf', cacheDir: ''), isFalse);
+    });
+  });
 }

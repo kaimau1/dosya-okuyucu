@@ -47,6 +47,10 @@ enum RemoteError {
   /// Çevrimdışı kip açık ve sunucu yerel ağda değil (G10.4).
   offline,
 
+  /// Güvensiz bağlantı engellendi (G8.3): internetteki sunucuya `http://`
+  /// üzerinden parola, başka ana makineye ya da `http`'ye yönlendirme.
+  insecure,
+
   unknown,
 }
 

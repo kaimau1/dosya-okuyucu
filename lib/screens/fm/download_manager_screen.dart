@@ -453,7 +453,7 @@ Future<GithubRelease?> _fetchRelease(BuildContext context, String apiUrl) async 
         'accept': 'application/vnd.github+json',
         'user-agent': 'DosyaOkuyucu/1.0',
       },
-    );
+    ).timeout(const Duration(seconds: 20)); // G8.6: asılı kalmasın
     busy.close();
     if (response.statusCode >= 400) return null;
     return parseGithubRelease(response.body);

@@ -410,6 +410,31 @@ if wasm.exists():
 else:
     print(f'zaten yok: {wasm}')
 PY
+# G1 artığı (2026-11-12): receive_sharing_intent 1.9.0 paylaşılan content://
+# belgesini `File(context.cacheDir, _display_name)` adına kopyalıyor; ad
+# GÖNDEREN uygulamanın elinde → `../shared_prefs/x.xml` ile özel dizinimize
+# yazdırılabilir ("Dirty Stream"). Ad yalnız son parçaya indirilir.
+python3 - <<'PY'
+import json, pathlib, urllib.parse
+cfg = json.loads(pathlib.Path('.dart_tool/package_config.json').read_text())
+roots = [p['rootUri'] for p in cfg['packages'] if p['name'] == 'receive_sharing_intent']
+if not roots:
+    raise SystemExit('receive_sharing_intent bulunamadı (yama)')
+root = pathlib.Path(urllib.parse.urlparse(roots[0]).path)
+kt = next(root.rglob('FileDirectory.kt'))
+t = kt.read_text()
+bad = 'targetFile = File(context.cacheDir, fileName)'
+good = ('targetFile = File(context.cacheDir, File(fileName ?: "").name'
+        '.takeUnless { it.isEmpty() || it == "." || it == ".." }'
+        ' ?: "shared_${Date().time}")')
+if good in t:
+    print('zaten yamalı:', kt)
+elif bad in t:
+    kt.write_text(t.replace(bad, good))
+    print('yamalandı (ad temizliği):', kt)
+else:
+    raise SystemExit(f'{kt}: kopya satırı değişmiş — yamayı gözden geçir')
+PY
 dart run flutter_launcher_icons
 rm -rf .backup
 

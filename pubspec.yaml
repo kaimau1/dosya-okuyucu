@@ -205,6 +205,9 @@ dependencies:
   ftpconnect: ^3.0.0
   # WebDAV (Nextcloud/ownCloud/Synology) — BSD 3-Clause, `dio` üstünde.
   webdav_client: ^1.2.2
+  # webdav_client'ın kendi taşıdığı dio (zaten geçişli, APK +0): yönlendirme
+  # bekçisi (G8.3) dio `Interceptor`'ı olduğu için doğrudan bağımlılık.
+  dio: ^5.11.1
   # Yerel ağ keşfi (mDNS/Bonjour) — Flutter ekibi, BSD. Tek başına yetmiyor
   # (duyuru yapmayan sunucuyu bulamaz), alt ağ port taramasıyla BİRLİKTE
   # kullanılıyor; bkz. services/fm/remote/lan_discovery.dart.

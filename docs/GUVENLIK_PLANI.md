@@ -135,7 +135,7 @@ Bitti: betik CI'da koşuyor, bekleyen kurallar listeli, envanter dolu.
       süzgeç yalnız apk/zip/octet-stream MIME'li. Gerekçeli → kalır. `file://` süzgeçleri: Android 7+ hedefli gönderen uygulamalar
       `file://` yollayamaz ama eski dosya yöneticileri yollayabilir (dış açık kullanım) → kaldırmak davranış kırar, kalır;
       uygulama içi bağlantı/kısayol yolları G1.2 beyaz listesinden geçiyor. **G1 artığı:** dışarıdan gelen VIEW `file://`
-      yolunun özel dizin denetimi (KALANLAR).
+      yolunun özel dizin denetimi — 2026-11-12 yapıldı (`isAcceptableIncomingPath`; + `receive_sharing_intent` önbellek kopyası ad temizliği yaması `ci/prepare_android.sh`).
 
 - [x] **G1.4 `FLAG_SECURE` (B10).** `ci/Extras.kt`'ye yöntem kanalı `setSecure(bool)` (`window.setFlags/clearFlags(WindowManager.LayoutParams.FLAG_SECURE)`). Dart: `lib/core/secure_screen.dart` — `SecureScreen` widget'ı (`initState` → true, `dispose` → false, sayaçlı: iç içe ekranlarda erken kapanmasın). Sar: `vault_screen.dart`, PIN giriş pencereleri, uygulama kilidi ekranı, AI anahtar girişi, uzak bağlantı parola formu. Kasadan açılan görüntüleyici de (kasa bayrağı ile).
 - [x] **G1.5 İzin diyeti (B18).** `ci/play_variant.py` varsayılan çıkarma listesine ekle: `REQUEST_INSTALL_PACKAGES`, `PACKAGE_USAGE_STATS`, `QUERY_ALL_PACKAGES`, `READ_MEDIA_*`, `ACCESS_FINE_LOCATION` (Nearby için API 33+ `NEARBY_WIFI_DEVICES` + `neverForLocation` yeter mi **ÖNCE DOĞRULA**; konuma `android:maxSdkVersion="32"` koy). Çıkarılan iznin özelliği Play derlemesinde gizlenmeli (`dart-define` bayrağı var mı bak). GitHub derlemesi değişmez.
@@ -241,10 +241,10 @@ Gerekli mi: **Orta.** Bugün aynı Wi-Fi'da trafiği dinleyen dosyayı görür. 
 
 - [x] **G8.1 SFTP sunucu anahtarı (B16).** (2026-11-12: `SftpHostKeys`, `sftp_known_hosts`.) `dartssh2` `SSHClient(onVerifyHostKey:)` kullanılıyor mu oku. Hedef: ilk bağlantıda parmak izini göster + onayla (TOFU), `RemoteConnection`'a kaydet; sonraki bağlantıda değişmişse **kırmızı uyarı**, varsayılan reddet. Test: geri çağırma birimi.
 - [ ] **G8.2 FTP/FTPS.** (2026-11-12: düz FTP uyarısı formda yapıldı; FTPS sertifika TOFU yapılmadı) Düz FTP seçilince bağlantı formunda "parola şifresiz gider" uyarısı. FTPS'te sertifika doğrulaması açık mı (`ftpconnect` seçenekleri); kendinden imzalı sertifika → parmak izi TOFU (G8.1 kalıbı), sessiz kabul **yok**.
-- [ ] **G8.3 WebDAV.** (2026-11-12: `http://` uyarısı formda yapıldı; özel IP dışı engel + yönlendirmede kimlik düşürme yapılmadı) `http://` adres → uyarı (LAN'da izinli, internette değil: özel IP değilse engelle + "yine de" onayı). Basic kimlik yalnız TLS ya da özel IP'de. Yönlendirme başka ana makineye gidiyorsa kimlik başlığı taşınmaz.
+- [x] **G8.3 WebDAV.** (2026-11-12: `http://` uyarısı formda; 2. tur: `webdav_guard.dart` — internetteki sunucuya http:// + parola → `RemoteError.insecure` (ad çözülür; özel IP/100.64/10/.local izinli, "yine de" onayı BİLEREK yok); köken dışı yönlendirme reddi + art arda ≤ 5 yönlendirme) `http://` adres → uyarı (LAN'da izinli, internette değil: özel IP değilse engelle + "yine de" onayı). Basic kimlik yalnız TLS ya da özel IP'de. Yönlendirme başka ana makineye gidiyorsa kimlik başlığı taşınmaz.
 - [ ] **G8.4 SMB.** `smb_connect` SMB1'e düşüyor mu oku; SMB1 yalnız açık onayla. Misafir oturum uyarısı.
 - [ ] **G8.5 Google Drive.** Belirteç saklama (G2.3), kapsam `drive.file`'a indirilebilir mi (KALANLAR B5.5 — kullanıcı kararı 👤), çıkışta belirteç iptali + yerel önbellek (`drive_offline.dart`) silinir.
-- [ ] **G8.6 İndirme yöneticisi / altyazı / güncelleme.** Tüm `http.get`/`HttpClient`: zaman aşımı var, en fazla 5 yönlendirme, `https` → `http` düşüşü reddedilir, indirilen dosya adı sunucudan geliyorsa G4.5 ad temizliğinden geçer, hedef yol `isInside(indirmeKlasörü)`.
+- [ ] **G8.6 İndirme yöneticisi / altyazı / güncelleme.** (2026-11-12: indirme kuyruğu yalnız ana makineli http(s) — `isDownloadableUrl`; ad zaten `sanitizeName`; yerel indirici şema değiştiren yönlendirmeyi izlemez; GitHub sürüm sorgusuna 20 sn zaman aşımı. Kalan: diğer `http.get` çağrılarının zaman aşımı taraması) Tüm `http.get`/`HttpClient`: zaman aşımı var, en fazla 5 yönlendirme, `https` → `http` düşüşü reddedilir, indirilen dosya adı sunucudan geliyorsa G4.5 ad temizliğinden geçer, hedef yol `isInside(indirmeKlasörü)`.
 
 ---
 

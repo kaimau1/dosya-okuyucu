@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:webdav_client/webdav_client.dart' as webdav;
 
 import 'remote_fs.dart';
+import 'webdav_guard.dart';
 import '../../offline_mode.dart';
 
 /// WebDAV (`webdav_client`) — Nextcloud/ownCloud/Synology WebDAV, `dio` üstünde.
@@ -33,11 +34,18 @@ class WebDavFs extends RemoteFs {
   Future<void> connect() async {
     NetGuard.allow('webdav', host: connection.host);
     try {
+      final url = baseUrl(connection.host, connection.port);
+      // G8.3: internetteki sunucuya http:// ile parola gitmez.
+      await WebDavGuard.checkPlainHttp(url,
+          hasCredentials:
+              connection.user.isNotEmpty || connection.password.isNotEmpty);
       final client = webdav.newClient(
-        baseUrl(connection.host, connection.port),
+        url,
         user: connection.user,
         password: connection.password,
       );
+      // G8.3: kütüphane yönlendirmede kimliği başka ana makineye taşıyordu.
+      client.c.interceptors.add(WebDavGuardInterceptor(Uri.parse(url)));
       client.setConnectTimeout(15000);
       client.setSendTimeout(60000);
       client.setReceiveTimeout(60000);
@@ -47,7 +55,7 @@ class WebDavFs extends RemoteFs {
       _client = client;
     } catch (e) {
       _client = null;
-      throw RemoteFs.mapError(e);
+      throw mapWebDavError(e);
     }
   }
 
@@ -84,7 +92,7 @@ class WebDavFs extends RemoteFs {
       }
       return RemoteFs.sorted(out);
     } catch (e) {
-      throw RemoteFs.mapError(e);
+      throw mapWebDavError(e);
     }
   }
 
@@ -96,7 +104,7 @@ class WebDavFs extends RemoteFs {
       await _need.read2File(entry.path, localPath);
       return target;
     } catch (e) {
-      throw RemoteFs.mapError(e);
+      throw mapWebDavError(e);
     }
   }
 
@@ -108,7 +116,7 @@ class WebDavFs extends RemoteFs {
         RemoteFs.join(remoteDir, name ?? local.uri.pathSegments.last),
       );
     } catch (e) {
-      throw RemoteFs.mapError(e);
+      throw mapWebDavError(e);
     }
   }
 
@@ -122,7 +130,7 @@ class WebDavFs extends RemoteFs {
               ? '${entry.path}/'
               : entry.path);
     } catch (e) {
-      throw RemoteFs.mapError(e);
+      throw mapWebDavError(e);
     }
   }
 
@@ -131,7 +139,7 @@ class WebDavFs extends RemoteFs {
     try {
       await _need.mkdir(path);
     } catch (e) {
-      throw RemoteFs.mapError(e);
+      throw mapWebDavError(e);
     }
   }
 
@@ -144,7 +152,7 @@ class WebDavFs extends RemoteFs {
         false,
       );
     } catch (e) {
-      throw RemoteFs.mapError(e);
+      throw mapWebDavError(e);
     }
   }
 }

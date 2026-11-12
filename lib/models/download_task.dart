@@ -159,6 +159,18 @@ String? extractUrl(String text) {
   return match?.group(0);
 }
 
+/// İndirme kuyruğuna girebilir mi? (G8.6) Yalnız ana makinesi olan
+/// `http`/`https` adresi: `file:`/`content:`/`javascript:` gibi şemalar ve
+/// bozuk adresler kuyruğa hiç girmez. Yönlendirmeyi yerel indirici
+/// (`HttpURLConnection`) izler: şema değiştiren (https → http) yönlendirmeyi
+/// zaten İZLEMEZ.
+bool isDownloadableUrl(String url) {
+  final uri = Uri.tryParse(url.trim());
+  if (uri == null || uri.host.isEmpty) return false;
+  final s = uri.scheme.toLowerCase();
+  return s == 'http' || s == 'https';
+}
+
 /// **Dosya adı çözümleme** — sırayla: `Content-Disposition` → URL yolu →
 /// içerik türünden üretilen yedek ad.
 ///

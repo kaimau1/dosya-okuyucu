@@ -59,6 +59,11 @@ const Map<String, (String, String, String)> _t3 = {
     'The server identity was not confirmed or has changed. Disconnected.',
     'لم يتم تأكيد هوية الخادم أو أنها تغيرت. تم قطع الاتصال.',
   ),
+  'nas.error_insecure': (
+    'Güvensiz bağlantı engellendi: parola internette şifresiz gitmez ve başka sunucuya yönlendirilmez. Adresi https:// ile yaz.',
+    'Insecure connection blocked: your password is never sent unencrypted over the internet or to a redirected server. Use an https:// address.',
+    'تم حظر اتصال غير آمن: لا تُرسل كلمة المرور بلا تشفير عبر الإنترنت ولا إلى خادم مُعاد التوجيه. استخدم عنوان https://.',
+  ),
   'nas.hostkey_new_title': ('Yeni sunucu', 'New server', 'خادم جديد'),
   'nas.hostkey_new_body': (
     '{host}:{port} sunucusuna ilk kez bağlanıyorsunuz.\n\n{type}\n{fp}\n\n'

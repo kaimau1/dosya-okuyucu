@@ -263,6 +263,15 @@ class DownloadService extends ChangeNotifier {
     notifyListeners();
     await _persist();
 
+    // G8.6: http(s) dışı / bozuk adres yerel indiriciye hiç verilmez.
+    if (!isDownloadableUrl(url)) {
+      _update(id, (t) => t.copyWith(
+            state: DownloadState.failed,
+            error: AppStrings.current.t('dsv.start_failed'),
+          ));
+      return task;
+    }
+
     try {
       final native = await _nativeTaskFor(task);
       final ok = await bg.FileDownloader().enqueue(native);
