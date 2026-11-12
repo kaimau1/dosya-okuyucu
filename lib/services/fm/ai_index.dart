@@ -23,8 +23,10 @@ library;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
-import 'package:flutter/foundation.dart' show ValueNotifier, visibleForTesting;
+import 'package:flutter/foundation.dart'
+    show ValueNotifier, debugPrint, visibleForTesting;
 import 'package:path/path.dart' as p;
 
 import '../../core/text_search.dart';
@@ -269,19 +271,24 @@ abstract final class AiIndex {
       return;
     }
     try {
-      for (final line in await file.readAsLines()) {
-        if (line.trim().isEmpty) continue;
-        _lines++;
-        try {
-          final raw = jsonDecode(line);
-          if (raw is! Map<String, Object?>) continue;
-          final record = AiRecord.fromJson(raw);
-          // Son satır kazanır: aynı yol yeniden analiz edildiyse güncel olan
-          // dosyanın sonundadır.
-          if (record != null) _records[record.path] = record;
-        } catch (_) {
-          // Yarıda kesilmiş son satır — atla, gerisi sağlam.
-        }
+      // **A8.2 (2026-11-12):** büyük indeks (20 bin kayıt ≈ birkaç MB) satır
+      // satır `jsonDecode` ile pano açılırken ana iş parçacığında çözülüyordu
+      // — ilk karelerle yarışıyordu. Eşiği aşan dosya ayrı izolatta okunur;
+      // küçük dosya (yeni kurulum, testler) eskisi gibi yerinde.
+      final sw = Stopwatch()..start();
+      final big = await file.length() > _isolateParseBytes;
+      // Kapanış yalnız yerel dizeyi taşımalı: `path` statik alıcısı yeni
+      // izolatta `FmEnv` boş olduğu için yanlış yol verirdi.
+      final filePath = file.path;
+      final (records, lines) = big
+          ? await Isolate.run(() => _parseIndexFile(filePath))
+          : _parseIndexLines(await file.readAsLines());
+      _records.addAll(records);
+      _lines = lines;
+      // Ölçüm kancası (A8.2; doğrulama B2): `adb logcat -s flutter | grep ACILIS`.
+      if (sw.elapsedMilliseconds > 30) {
+        debugPrint('ACILIS ai-index ${sw.elapsedMilliseconds} ms '
+            '($lines satır, ${big ? 'izolat' : 'yerinde'})');
       }
     } catch (_) {
       // Okunamayan indeks boş indekstir; analiz yeniden kurar.
@@ -629,4 +636,32 @@ abstract final class AiIndex {
     _pruning = null;
     _loaded = true;
   }
+}
+
+/// Bu boyuttan büyük indeks ayrı izolatta çözülür (bkz. `AiIndex._load`).
+const _isolateParseBytes = 256 * 1024;
+
+(Map<String, AiRecord>, int) _parseIndexFile(String path) =>
+    _parseIndexLines(File(path).readAsLinesSync());
+
+/// İndeks satırlarını kayıtlara çevirir; ikinci değer boş olmayan satır sayısı.
+(Map<String, AiRecord>, int) _parseIndexLines(List<String> lines) {
+  final records = <String, AiRecord>{};
+  var count = 0;
+  for (final line in lines) {
+    if (line.trim().isEmpty) continue;
+    count++;
+    try {
+      final raw = jsonDecode(line);
+      if (raw is! Map<String, Object?>) continue;
+      final record = AiRecord.fromJson(raw);
+      // Son satır kazanır: aynı yol yeniden analiz edildiyse güncel olan
+      // dosyanın sonundadır.
+      if (record != null) records[record.path] = record;
+    } catch (_) {
+      // Bilinçli: yarıda kesilmiş son satır — atla, gerisi sağlam.
+      continue;
+    }
+  }
+  return (records, count);
 }

@@ -68,11 +68,15 @@ class HttpShareServer {
   /// Yüklenen her dosya yazılınca (pano/gezgin tazelensin, bildirim çıksın).
   final void Function(List<String> paths)? onUploaded;
 
+  /// Her istekte (G4.8 boşta kapanma sayacı).
+  final void Function()? onActivity;
+
   HttpShareServer({
     required this.share,
     this.port = 8080,
     this.uploadDir,
     this.onUploaded,
+    this.onActivity,
   });
 
   /// Yükleme formunun gönderildiği adres (gerçek bir klasör adıyla çakışmaz).
@@ -112,6 +116,7 @@ class HttpShareServer {
       (request) {
         // İstemci bağlantıyı sıfırlarsa yakalanmamış hata kalmasın.
         request.response.done.ignore();
+        onActivity?.call();
         unawaited(_gate.run(request, () => _handle(request)));
       },
       onError: (_) {},

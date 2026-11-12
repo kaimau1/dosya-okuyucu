@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
+import '../../core/edition.dart';
 import '../../core/state/focused_states.dart';
 import '../../core/l10n/app_language.dart';
 import '../../core/l10n/app_strings.dart';
@@ -25,6 +26,7 @@ import '../audiobook/voices_screen.dart';
 import '../audiobook/audiobook_library_screen.dart';
 import 'settings_widgets.dart';
 import '../../widgets/permission_gate.dart';
+import '../../widgets/pro_gate.dart';
 
 /// **Ayarların tek kaynağı.**
 ///
@@ -700,6 +702,15 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
         subtitleKey: 'settings.about_sub',
         summary: (context) => 'v$appVersionName',
         sections: const [
+          // Lite'ta Pro tanıtımı (SÜRÜM PLANI §3 madde 3) — yalnız Lite.
+          if (Edition.current == Edition.lite)
+            SettingsSection('pro.title', [
+              SettingRow(
+                  id: 'pro_version',
+                  titleKey: 'pro.title',
+                  subtitleKey: 'pro.row_sub',
+                  builder: _proTile),
+            ]),
           SettingsSection('settings.about', [
             SettingRow(
                 id: 'about', titleKey: 'settings.about', builder: _aboutTile),
@@ -857,6 +868,12 @@ Widget _formulaEnTile(BuildContext _) => const FormulaEnglishTile();
 Widget _editorPerfTile(BuildContext _) => const EditorPerfTile();
 Widget _labWordTile(BuildContext _) => const LabWordEditorTile();
 Widget _aboutTile(BuildContext _) => const AboutTile();
+Widget _proTile(BuildContext context) => SettingTile(
+      icon: AppIcons.pro,
+      title: context.t('pro.title'),
+      subtitle: context.t('pro.row_sub'),
+      onTap: () => showProSheet(context),
+    );
 Widget _appUpdateTile(BuildContext _) => const AppUpdateTile();
 Widget _ttsVoiceTile(BuildContext _) => const TtsVoiceTile();
 Widget _ttsAiReadTile(BuildContext _) => const TtsAiReadTile();

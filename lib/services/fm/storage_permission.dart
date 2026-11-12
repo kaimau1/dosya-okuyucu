@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../core/edition.dart';
+
 /// Depolama izni yönetimi.
 ///
 /// Android 11+ (API 30) bir dosya yöneticisinin `/storage/emulated/0`'ı
@@ -25,7 +27,8 @@ abstract final class StoragePermission {
   /// **İzinsiz okuyucu derlemesi** (Play aşama 3, `--dart-define=DOSYA_OKUYUCU=true`):
   /// manifestte hassas izin yok (`ci/prepare_android.sh` §11) → izin hiç
   /// istenmez; kullanıcı "Klasör ekle" (SAF) ve "Dosya aç" ile çalışır.
-  static const readerBuild = bool.fromEnvironment('DOSYA_OKUYUCU');
+  /// Sürüm kapısına bağlı (S1): Lite = izinsiz okuyucu.
+  static const readerBuild = Edition.current == Edition.lite;
 
   static Future<bool> hasFullAccess() async {
     if (!Platform.isAndroid) return true;

@@ -87,6 +87,7 @@ abstract final class AppIcons {
   static const IconData lock = Icons.lock_rounded;
   static const IconData unlock = Icons.lock_open_rounded;
   static const IconData vault = Icons.enhanced_encryption_rounded;
+  static const IconData pro = Icons.workspace_premium_rounded;
   static const IconData reveal = Icons.my_location_rounded;
   static const IconData homeShortcut = Icons.add_to_home_screen_rounded;
   static const IconData upload = Icons.cloud_upload_rounded;

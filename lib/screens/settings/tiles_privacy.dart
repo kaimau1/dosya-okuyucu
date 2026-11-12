@@ -10,7 +10,7 @@ import '../../core/pii.dart';
 import '../../core/snack.dart';
 import '../../services/fm/app_storage_service.dart';
 import '../../services/fm/installed_apps_service.dart';
-import '../../services/fm/storage_permission.dart';
+import '../../core/edition.dart';
 import '../../services/privacy_wipe.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/ai_send_consent.dart';
@@ -269,7 +269,7 @@ class _UsageAccessTileState extends State<UsageAccessTile> {
   }
 
   @override
-  Widget build(BuildContext context) => StoragePermission.readerBuild
+  Widget build(BuildContext context) => !Edition.current.has(Feature.installedApps)
       ? const SizedBox.shrink()
       : SettingTile(
         icon: AppIcons.queryStats,

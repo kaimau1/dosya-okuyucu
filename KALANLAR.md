@@ -35,7 +35,7 @@ A7.6, A7.7 2026-11-02'de bitti — HAFIZA.)
 
 ### A1 — Depo ve belge hijyeni (kısa, ilk iş)
 
-- [ ] **A1.2 Uzak dalları temizle (kullanıcı izniyle).** main dışında 64 uzak dal var:
+- [ ] **A1.2 Uzak dalları temizle (kullanıcı izniyle).** **2026-11-12 yeniden sayım (tam geçmişle):** 114 dal; 94'ü main'e TAM girmiş (91'i 24 saatten eski — silinmeye hazır, otomatik silme izinle engellendi), 19'unda main'de olmayan 1–12 commit (faz-54, faz-G0/G1/G2, dependabot ×3, eski `claude/*` ×7 …) — tek tek bakılmalı. Eski not: main dışında 64 uzak dal var:
       16'sı main'e tam girmiş; 46'sının main'le ortak atası yok (main'in geçmişi bir ara
       yeniden yazılmış — içerikleri main'de); `ccr-4fb1643b-cvg3t7` #52 ile squash girmiş;
       `ccr-0ba9d97d-1mtuwm` 2026-11-01'de birleştirildi.
@@ -93,10 +93,8 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
 
 ### A6 — Play, gizlilik ve mağaza metinleri + Pro iskeleti
 
-- [ ] **A6.5 Pro / Billing iskeleti** (Faz 11a'da "kapalı bayrakla yazılabilir" denmişti,
-      yazılmadı): tek kapı `ProGate` + Play Billing (tek seferlik Pro, K6) — ürün kimliği
-      yokken bayrak kapalı, GitHub derlemesinde her şey açık; satın alma geri yükleme
-      akışı. Pro'ya girecek özellikler 👤 B5'te; iskelet + test burada.
+- [x] **A6.5 Pro / Billing iskeleti** — DÜŞTÜ (SÜRÜM PLANI 2026-11-10: Pro ayrı ücretli uygulama,
+      Billing kodu yok). Yerine sürüm kapısı S1–S3 (2026-11-12, `core/edition.dart`, `widgets/pro_gate.dart`).
 - [ ] **A6.6 Play İçi Değerlendirme + Uygulama İçi Güncelleme** (N5): yalnız Play
       derlemesinde (bayrak); Kotlin + `check_kotlin.sh`.
 
@@ -125,7 +123,7 @@ Her yükseltme **ayrı commit**, her birinden sonra analyze + test; APK boyutu b
       galeri, 100 sayfalık PDF, 10 bin satırlık Excel, Word 1000 paragraf yazma;
       `traceAction` özeti → `docs/perf/`. Veri `tool/make_test_tree.py`. Koşu:
       `flutter drive --profile` (B2).
-- [ ] **A8.2 Açılışın ilk 0,5 sn'si:** ilk kare raster 218–309 ms (Impeller ve Skia), pano
+- [~] **A8.2 Açılışın ilk 0,5 sn'si:** (2026-11-12: büyük AI indeksi ayrı izolatta, kanca `ACILIS ai-index`; pano `initState`'teki geri kalanlar SharedPreferences/meta okuması — ucuz; doğrulama B2.) ilk kare raster 218–309 ms (Impeller ve Skia), pano
       build 45–49 ms. Pano ilk kurulumunda `StartupQueue`'ya ertelenebilecek işleri kodda
       bul ve ertele (her biri ölçüm kancasıyla); doğrulama B2 (`_logSlowStartupFrames`).
 
@@ -188,7 +186,7 @@ Sıra 51 → 68 (atlama yok). Bildirilen 6 sorun (PS1–PS6) Faz 51'de ara, 54/5
 
 Plan: `docs/SURUM_PLANI.md`. A6.5 (Billing iskeleti) ve B5.2 bu kararla **düştü** (Pro ayrı ücretli uygulama).
 
-- [ ] S1 sürüm kapısı · S2 arayüz kapıları · S3 Pro levhası · S4 manifest varyantları · S5 paket kimlikleri · S6 CI · S7 Lite→Pro geçiş · S8 mağaza · S9 Kişisel
+- [x] S1 sürüm kapısı (2026-11-12) · [~] S2 arayüz kapıları (pano araçları) · [~] S3 Pro levhası + ayar satırı · S4 manifest varyantları · S5 paket kimlikleri · S6 CI · S7 Lite→Pro geçiş · S8 mağaza · S9 Kişisel
 - [ ] 👤 fiyat, uygulama adları, taramanın yeri, "Tüm dosyalar" reddinde yol (§5)
 
 ---
@@ -199,18 +197,18 @@ Plan: `docs/GUVENLIK_PLANI.md` (G0–G12; sıra ve açılış istemi orada). Pla
 
 - [ ] 👤 G0 artığı: `SECURITY.md` içindeki `GUVENLIK_ADRESI_BELIRLENECEK` yer tutucusuna güvenlik e-posta adresi (G0 kodu bitti)
 - [x] Faz G1 platform (kod bitti, 2026-11-11; cihaz maddeleri `docs/CIHAZ_TESTI.md` "Faz G1")
-- [ ] G1 artığı: (a) `REQUEST_INSTALL_PACKAGES` / `PACKAGE_USAGE_STATS` Play'den çıkarılırken özelliklerin Play derlemesinde gizlenmesi (dart-define bayrağı) + B5.3 kararı; (c) eski (imzasız) sabitlenmiş ana ekran kısayolu uyumu `Extras.pathAccepted` — eski kısayollar kalmayınca imzasız kolu kaldır
+- [ ] G1 artığı: (a) ✔ 2026-11-12 kod tarafı: APK kurma / yüklü uygulamalar / oto güncelleme `Edition`'a bağlı, Play sürümlerinde gizli — kalan: manifestten çıkarma S4 + B5.3 kararı 👤; (c) eski (imzasız) sabitlenmiş ana ekran kısayolu uyumu `Extras.pathAccepted` — eski kısayollar kalmayınca imzasız kolu kaldır
 - [x] Faz G2 sırlar (kod bitti, 2026-11-11; cihaz maddeleri `docs/CIHAZ_TESTI.md` "Faz G2")
 - [x] 2026-11-12 (main): G4.5 boş disk (507/452), G6.5 ses sunucusu Host/Origin, G7.2 arşiv yol testleri, G7.5 CSV formül koruması, G7.10 uzantı aldatması, G9.2 CI en az yetki, G9.3 kalıcı imza zorunlu — cihaz maddeleri `docs/CIHAZ_TESTI.md` "Güvenlik G4.5 / G6.5 / G7.x"
 - [x] 2026-11-12 (main, 2. tur): G2.6 hassas pano, G6.1–G6.4 WebView (CSP, gezinti kilidi, dosya erişimi, kanal sınırı), G7.6 PDF bağlantı şeması, G8.1 SFTP TOFU, G9.1 Action SHA, G9.4 Dependabot, G9.6 güncelleme SHA-256 + ana makine, G10.3 kasa AI'ya kapalı (+ kasa dosyası son açılanlara/kısayola yazılıyordu — düzeltildi), G12.1–G12.4 (`docs/guvenlik/SURUM_KONTROL.md`, `MASVS.md`, `OLAY.md`, `ci/min_guvenli_surum.txt`) — cihaz maddeleri `CIHAZ_TESTI.md` "Güvenlik G2.6 / G6 / G8.1 …"
 - [x] 2026-11-12 (main, 3. tur): G7.9 bulanık test (10 ayrıştırıcı; bulgu: Office şifre çözmede spinCount/anahtar boyu denetimsizdi → sınırlandı), G9.4 osv-scanner + G9.10 MobSF (`guvenlik-taramasi.yml`, haftalık), G9.8 APK doğrulaması (debuggable/yedek/şifresiz trafik/izin tabanı/imza), G9.9 gömülü JS + yamalı paket özetleri, G10.4 tek ağ kapısı `NetGuard` (+ bekçi testi), G10.5 "Verilerimi sil" + politika, G7.4 Word düzenleyici bağlantı şeması, G7.6 kapandı (PDF eki açma yok), G12.5 — cihaz maddeleri `CIHAZ_TESTI.md` "Güvenlik — genel elle tur"
 - [ ] G9.8 artığı: 👤 `SIGN_CERT_SHA256` repo değişkeni (imza parmak izi karşılaştırması). (İzin tabanı 2026-11-12'de dolduruldu, kip katı; `READ_PHONE_STATE` manifestte `tools:node="remove"` ile çıkarıldı.)
-- [ ] Güvenlik artıkları (2026-11-12): G6.6 kötü niyetli DOCX fixture'ı; G7.4 kayıtta makro korunuyor mu (bilgi iletisi 2026-11-12'de eklendi); G9.9 ses motoru dosyalarının özeti (HF `resolve/main` değişken); G2.6 başka parola/kod kopyaları (yakın cihaz kodu) gözden geçirilmedi; "Verilerimi sil"e kayıtlı bağlantılar/anahtarlar seçeneği (bilinçli dışarıda)
+- [ ] Güvenlik artıkları (2026-11-12): ~~G6.6~~ (yapıldı); G7.4 kayıtta makro korunuyor mu (bilgi iletisi 2026-11-12'de eklendi); G9.9 ses motoru dosyalarının özeti (HF `resolve/main` değişken); G2.6 ✔ (Yakındakiler erişim adresi hassas kopya; başka parola kopyası yok); "Verilerimi sil"e kayıtlı bağlantılar/anahtarlar seçeneği (bilinçli dışarıda)
 - [ ] G6.5 artığı: ses sunucusunda rastgele yol öneki (aynı cihazdaki başka uygulamaya karşı) — kurulumda yeniden yazılan çalışan betikleri mutlak yol (`/antalia/vendor/ort/…`) kullanıyor; önek için yeniden yazımın da öneki eklemesi gerekir.
 - [ ] G2 artığı: Keystore sarılı sırlar (Gemini, uzak/FTP parola) eski bir sürüme geri dönülürse okunamaz — kullanıcı yeniden girer (bilinçli ödün, sürüm notunda); OpenSubtitles anahtarı APK ikilisinde (dart-define) — Pro'da vekil sunucu düşünülür
 - [ ] G3 artığı 📱: `docs/CIHAZ_TESTI.md` "Faz G3" (yerel PBKDF2 süresi, parmak izi CryptoObject, yeni parmak izi ekleyince geçersizleşme, eski kayıt göçü). Android 7'de (yerel PBKDF2 yok) saf Dart 600 bin tur ≈ 10 sn+ — ölçülmedi; uzun sürerse Android 7 için tur düşürme kararı 👤
-- [ ] G4 artığı: G4.2 (parola zaten varsayılan rastgele 6 hane + yeni deneme sınırı; 8+ karışık karakter ve parolasız kipte süre sınırı yapılmadı), G4.4 kod yenileme + 6 hane (Windows exe ve eski sürüm uyumu gerekiyor; şimdilik Random.secure + adres başına 5 deneme/60 sn), G4.5 başlık ≤ 16 KB ve boş disk 507 (eşzamanlı ≤ 16 + boşta 60 sn 2026-11-12'de yapıldı), G4.8 30 dk boşta kapanma doğrulaması; 📱 `CIHAZ_TESTI.md` "Faz G4"
-- [ ] Kalan: G7.1 artığı (oran aşımında kullanıcıya sorma yok — ret; `.bz2/.xz` 2026-11-12'de sınırlandı), G7.3 artığı (yazıcı/yama yolları; yalan başlık 2026-11-12'de kapandı — `archive` açmayı başlıktaki boyutla kesiyor), G7.4 artığı (makro), G7.8 · G8.2 artığı (FTPS sertifika TOFU), G8.4, G8.5, G8.6 artığı (uygulama içi diğer `http.get`'lerin zaman aşımı taraması) · G9.5 👤, G9.7 👤 · G10.2 artığı (tek belgelik kapatma) · G12.6 👤 (G5, G11 isteğe bağlı)
+- [ ] G4 artığı: G4.2 (parola zaten varsayılan rastgele 6 hane + yeni deneme sınırı; 8+ karışık karakter ve parolasız kipte süre sınırı yapılmadı), G4.4 kod yenileme + 6 hane (Windows exe ve eski sürüm uyumu gerekiyor; şimdilik Random.secure + adres başına 5 deneme/60 sn), G4.5 başlık ≤ 16 KB (değmez kararı), G4.8 ✔ 2026-11-12; 📱 `CIHAZ_TESTI.md` "Faz G4"
+- [ ] Kalan: G7.1 artığı (oran aşımında kullanıcıya sorma yok — ret; `.bz2/.xz` 2026-11-12'de sınırlandı), G7.3 artığı (yazıcı/yama yolları; yalan başlık 2026-11-12'de kapandı — `archive` açmayı başlıktaki boyutla kesiyor), G7.4 artığı (makro), G7.8 (yalnız Kişisel'de kaldı; imza parmak izi ekranı Kotlin) · G8.2 ✔, G8.4 ✔ (misafir uyarısı yok), G8.5 👤 (B5.5), G8.6 ✔ · G9.5 👤, G9.7 👤 · G10.2 artığı (tek belgelik kapatma) · G12.6 👤 (G5, G11 isteğe bağlı)
 
 ---
 

@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/sensitive_clipboard.dart';
 import '../../../core/app_colors.dart';
 import '../../../core/app_haptics.dart';
 import '../../../core/app_icons.dart';

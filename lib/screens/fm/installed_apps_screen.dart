@@ -15,7 +15,7 @@ import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/app_storage_service.dart';
 import '../../services/fm/installed_apps_service.dart';
-import '../../services/fm/storage_permission.dart';
+import '../../core/edition.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import 'downloads_screen.dart' show downloadsPathIn;
 import 'entry_actions.dart' show shareEntries;
@@ -237,7 +237,7 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen>
   @override
   Widget build(BuildContext context) {
     // Okuyucu derlemesi (izinsiz): başka yoldan (analiz, kategori) gelinirse açıklama.
-    if (StoragePermission.readerBuild) {
+    if (!Edition.current.has(Feature.installedApps)) {
       return Scaffold(
         appBar: AppBar(title: Text(context.t('fm.apps'))),
         body: Center(

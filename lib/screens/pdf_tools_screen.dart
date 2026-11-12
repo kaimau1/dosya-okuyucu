@@ -18,6 +18,8 @@ import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/app_icons.dart';
+import '../core/edition.dart';
+import '../widgets/pro_gate.dart';
 import '../core/busy_dialog.dart';
 import '../core/device_profile.dart';
 import '../core/l10n/app_strings.dart';
@@ -72,6 +74,10 @@ class PdfToolsScreen extends StatefulWidget {
   /// Ekranı açar; [path] yoksa kullanıcıya PDF seçtirir. Dosya kaydedildiyse
   /// `true` döner (çağıran görüntüleyiciyi tazeleyebilir).
   static Future<bool?> open(BuildContext context, {String? path}) async {
+    if (!Edition.current.has(Feature.pdfAdvanced)) {
+      await showProSheet(context, Feature.pdfAdvanced); // S2: Lite
+      return null;
+    }
     var target = path;
     if (target == null) {
       final res = await AppFilePicker.pickFiles(

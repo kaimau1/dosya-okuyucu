@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../core/edition.dart';
 import '../../core/app_icons.dart';
 import '../../core/busy_dialog.dart';
 import '../../core/private_zone.dart';
@@ -157,7 +158,8 @@ abstract final class EntryOpener {
         siblings == null ? <String>[path] : siblingsFor(path, siblings);
 
     if (route == OpenRoute.external) {
-      if (isSplitPackage(path)) {
+      // G1(a): Play sürümlerinde kendi kurucumuz yok (izin manifestten çıkar).
+      if (isSplitPackage(path) && Edition.current.has(Feature.apkInstall)) {
         await installSplitPackage(context, path);
         return;
       }

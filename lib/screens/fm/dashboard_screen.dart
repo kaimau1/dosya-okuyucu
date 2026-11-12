@@ -10,6 +10,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
+import '../../core/edition.dart';
+import '../../widgets/pro_gate.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/state/focused_states.dart';
@@ -182,6 +184,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
   bool _hasAccess = true;
 
+  /// Lite'ta "Pro'da neler var?" kartı (S3; kapatılınca 30 gün yok).
+  bool _proCard = false;
+
   /// Arama kapsülündeki AI anahtarı (anlamla ara) — kalıcı.
   bool _meaning = false;
   static const _meaningKey = 'dash_meaning_search_v1';
@@ -224,6 +229,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     super.initState();
     unawaited(_recallScanDuration());
     unawaited(_loadMeaning());
+    unawaited(ProPromo.shouldShow().then((show) {
+      if (show && mounted) setState(() => _proCard = true);
+    }));
     WidgetsBinding.instance.addObserver(this);
     FsEvents.version.addListener(_onFsChanged);
     // AI kartı analiz sayısını gösteriyor; indeks diskten okunmadan sayı 0

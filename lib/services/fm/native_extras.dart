@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/edition.dart';
 import '../../core/skin.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -250,10 +251,16 @@ abstract final class NativeExtras {
   static Future<bool> openOverlaySettings() async =>
       await _call<bool>('openOverlaySettings') ?? false;
 
+  /// Paket kurar. Play sürümlerinde (G1(a)) `REQUEST_INSTALL_PACKAGES` yok →
+  /// kanal hiç çağrılmaz, `'unsupported'` döner.
   static Future<String?> installPackageFile(String path,
-          {bool selfUpdate = false}) =>
-      _call<String>('installPackageFile',
-          {'path': path, if (selfUpdate) 'self': true});
+      {bool selfUpdate = false}) async {
+    final allowed = Edition.current
+        .has(selfUpdate ? Feature.selfUpdate : Feature.apkInstall);
+    if (!allowed) return 'unsupported';
+    return _call<String>(
+        'installPackageFile', {'path': path, if (selfUpdate) 'self': true});
+  }
 
   /// Sistemin "Farklı kullan" seçicisi (duvar kâğıdı, kişi fotoğrafı…).
   static Future<bool> attachData(String path, String mime, String title) async =>

@@ -6,6 +6,21 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
   /// eşik basamağını taşır: kapatılan uyarı durum kötüleşince yeniden gelir.
   List<InboxEvent> _inboxEvents(List<StorageVolume> volumes) {
     final out = <InboxEvent>[];
+    if (_proCard) {
+      out.add(InboxEvent(
+        id: 'pro_card',
+        icon: AppIcons.pro,
+        title: context.t('pro.card_title'),
+        subtitle: context.t('pro.row_sub'),
+        actionLabel: context.t('pro.later'),
+        dismissible: false,
+        onTap: () => showProSheet(context),
+        onAction: () {
+          unawaited(ProPromo.hide());
+          _partSetState(() => _proCard = false);
+        },
+      ));
+    }
     final ftp = FtpService.instance;
     if (ftp.running) {
       out.add(InboxEvent(
@@ -98,6 +113,7 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
         icon: AppIcons.noteAdd,
         color: OfficeColors.word,
         id: 'new_document',
+        feature: Feature.officeEdit,
         label: context.t('home.new_document_title'),
         subtitle: '',
         onTap: () => showNewDocumentSheet(context),
@@ -108,6 +124,7 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
         icon: AppIcons.audiobook,
         color: AppHues.sea,
         id: 'audiobooks',
+        feature: Feature.audiobook,
         label: context.t('ab.library'),
         subtitle: '',
         onTap: () => _push(const AudiobookLibraryScreen()),
@@ -118,6 +135,7 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
         icon: AppIcons.vault,
         color: AppHues.slate,
         id: 'vault',
+        feature: Feature.vault,
         label: context.t('vault.title'),
         subtitle: '',
         onTap: () => _push(const VaultScreen()),

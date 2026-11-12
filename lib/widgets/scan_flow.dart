@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/app_icons.dart';
+import '../core/edition.dart';
+import 'pro_gate.dart';
 import '../core/busy_dialog.dart';
 import '../core/safe_insets.dart';
 import '../core/l10n/app_strings.dart';
@@ -46,6 +48,10 @@ class ScanFlow {
 
   /// Çift dokunuş iki tarayıcı açmasın ("Tarama zaten açık" hatası).
   static Future<String?> run(BuildContext context, {bool open = true}) async {
+    if (!Edition.current.has(Feature.scan)) {
+      await showProSheet(context, Feature.scan); // S2: Lite
+      return null;
+    }
     if (_running) return null;
     _running = true;
     try {

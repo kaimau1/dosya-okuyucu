@@ -281,6 +281,30 @@ class FtpService extends ChangeNotifier {
   /// [lockedFolders] kilitli klasörlerin yolları: PC'deki kategori kutularına
   /// HİÇ girmezler. Ayarlardan okunduğu için çağıran (ekran) veriyor —
   /// servis katmanı `AppState`e bağlanmasın diye.
+  /// **G4.8 yaşam süresi:** bu kadar süre bağlı istemci ve tarayıcı isteği
+  /// yoksa paylaşım kendini kapatır (telefon ağa açık unutulmasın).
+  static const idleLimit = Duration(minutes: 30);
+  DateTime _lastActivity = DateTime.now();
+  Timer? _idleTimer;
+
+  /// Boşta kapanma kararı (saf — test için).
+  @visibleForTesting
+  static bool shouldAutoStop(
+          {required DateTime now,
+          required DateTime lastActivity,
+          required int clients}) =>
+      clients <= 0 && now.difference(lastActivity) >= idleLimit;
+
+  void _touch() => _lastActivity = DateTime.now();
+
+  void _checkIdle() {
+    if (_server == null) return;
+    if (shouldAutoStop(
+        now: DateTime.now(), lastActivity: _lastActivity, clients: _clients)) {
+      unawaited(stop());
+    }
+  }
+
   Future<void> start({List<String> lockedFolders = const []}) async {
     if (_server != null || _busy) return;
     _busy = true;
@@ -331,6 +355,7 @@ class FtpService extends ChangeNotifier {
         share: server,
         uploadDir: _allowWrite ? uploadDirIn(FmEnv.primaryRoot) : null,
         onUploaded: (_) => FsEvents.changed(),
+        onActivity: _touch,
       );
       try {
         await http.start();
@@ -342,6 +367,10 @@ class FtpService extends ChangeNotifier {
         _webAddresses = const [];
       }
       _clients = 0;
+      _touch();
+      _idleTimer?.cancel();
+      _idleTimer =
+          Timer.periodic(const Duration(minutes: 1), (_) => _checkIdle());
       _busy = false;
       notifyListeners();
       await _postNotification();
@@ -363,6 +392,8 @@ class FtpService extends ChangeNotifier {
     if (server == null || _busy) return;
     _busy = true;
     notifyListeners();
+    _idleTimer?.cancel();
+    _idleTimer = null;
     _server = null;
     final http = _http;
     _http = null;
@@ -377,6 +408,7 @@ class FtpService extends ChangeNotifier {
   }
 
   void _onClients(int count) {
+    _touch();
     if (_clients == count) return;
     _clients = count;
     notifyListeners();

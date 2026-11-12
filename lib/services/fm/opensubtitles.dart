@@ -18,6 +18,9 @@ import 'package:path/path.dart' as p;
 abstract final class OpenSubtitles {
   static const apiKey = String.fromEnvironment('OPENSUBTITLES_API_KEY');
 
+  /// G8.6: ağ çağrısı zaman aşımı.
+  static const _timeout = Duration(seconds: 30);
+
   static bool get available => apiKey.isNotEmpty;
 
   static const _base = 'https://api.opensubtitles.com/api/v1';
@@ -70,7 +73,7 @@ abstract final class OpenSubtitles {
       'moviehash': hash,
       'query': query,
     });
-    final resp = await http.get(uri, headers: _headers);
+    final resp = await http.get(uri, headers: _headers).timeout(_timeout);
     if (resp.statusCode != 200) throw OpenSubtitlesError(_message(resp));
     return parseSearch(resp.body);
   }
@@ -114,11 +117,16 @@ abstract final class OpenSubtitles {
       Uri.parse('$_base/download'),
       headers: _headers,
       body: jsonEncode({'file_id': hit.fileId, 'sub_format': 'srt'}),
-    );
+    ).timeout(_timeout);
     if (resp.statusCode != 200) throw OpenSubtitlesError(_message(resp));
     final link = (jsonDecode(resp.body) as Map)['link'];
     if (link is! String) throw OpenSubtitlesError(resp.body);
-    final file = await http.get(Uri.parse(link));
+    // G8.6: yalnız https bağlantı (http'ye düşüş reddedilir).
+    final linkUri = Uri.tryParse(link);
+    if (linkUri == null || linkUri.scheme != 'https' || linkUri.host.isEmpty) {
+      throw OpenSubtitlesError('insecure link');
+    }
+    final file = await http.get(linkUri).timeout(_timeout);
     if (file.statusCode != 200) throw OpenSubtitlesError('HTTP ${file.statusCode}');
     final base = p.basenameWithoutExtension(videoPath);
     final lang = hit.language.isEmpty ? '' : '.${hit.language}';

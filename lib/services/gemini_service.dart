@@ -64,8 +64,11 @@ class GeminiService {
     }
     return debugClient != null
         ? debugClient!.post(url, headers: headers, body: body)
-        : http.post(url, headers: headers, body: body);
+        : http.post(url, headers: headers, body: body).timeout(_timeout);
   }
+
+  /// G8.6: asılı kalan istek yok (uzun yanıtlar dahil üst sınır).
+  static const _timeout = Duration(seconds: 180);
 
   /// JSON gövdedeki `text` alanlarını [Pii.mask]'ten geçirir.
   @visibleForTesting
@@ -80,7 +83,7 @@ class GeminiService {
   static Future<http.Response> _get(Uri url, {Map<String, String>? headers}) =>
       debugClient != null
           ? debugClient!.get(url, headers: headers)
-          : http.get(url, headers: headers);
+          : http.get(url, headers: headers).timeout(_timeout);
 
   /// G2.4 (B8): anahtar URL sorgusunda (`?key=`) değil başlıkta gider —
   /// URL vekil/sunucu günlüklerine ve hata metinlerine düşer, başlık düşmez.
