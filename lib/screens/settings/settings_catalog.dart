@@ -521,6 +521,12 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
               subtitleKey: 'aisend.setting_sub',
               builder: _aiSendAskTile,
             ),
+            SettingRow(
+              id: 'ai_pii_mask',
+              titleKey: 'pii.setting',
+              subtitleKey: 'pii.setting_sub',
+              builder: _piiMaskTile,
+            ),
           ]),
           SettingsSection('fmset.sec_permissions', [
             SettingRow(
@@ -818,6 +824,7 @@ Widget _overlayAccessTile(BuildContext _) =>
 Widget _offlineTile(BuildContext _) => const OfflineModeTile();
 Widget _safFoldersTile(BuildContext _) => const SafFoldersTile();
 Widget _aiSendAskTile(BuildContext _) => const AiSendAskTile();
+Widget _piiMaskTile(BuildContext _) => const PiiMaskTile();
 Widget _usageAccessTile(BuildContext _) => const UsageAccessTile();
 Widget _useTrashTile(BuildContext _) => const UseTrashTile();
 Widget _confirmDeleteTile(BuildContext _) => const ConfirmDeleteTile();

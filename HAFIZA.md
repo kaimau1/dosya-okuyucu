@@ -679,3 +679,7 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 ## 2026-11-12 — G7.3 Office zip sınırı + G7.7 görsel piksel tavanı
 - **Karar (G7.3):** `OfficeZipGuard.decode` (≤ 10 bin giriş, tek ≤ 200 MB, toplam ≤ 1 GB, başlıktaki `size` ile). Hata `OfficeTooLarge extends FormatException` → okuyucuların bozuk dosya yolu değişmeden işler. `file_service._sniffZipKind` ve yazıcılar/yamalar BİLEREK sarılmadı (yalnız ad okur / zaten açılmış belge).
 - **Karar (G7.7):** `FmFileImage` `getTargetSize` her durumda `fmPixelCap` (24 MP); `cacheWidth` null olsa da. Görüntüleyici `Image.file` → `Image(image: FmFileImage(...))`. **Tuzak:** yalnız `cacheWidth` en-boy oranı uç görselde (1000×1e6) korumaz.
+
+## 2026-11-12 — G10.2 AI kişisel veri maskesi + G8.2/G8.3 şifresiz bağlantı uyarısı
+- **Karar (G10.2):** maske `GeminiService._post`te (her AI isteği oradan geçer), gövde JSON çözülüp yalnız `text` alanları `Pii.mask`; `inlineData` dokunulmaz. Sağlamasız 11/16 hane maskelenmez (ölçüm/sipariş no bozulmasın). `LogScrub` ile BİRLEŞTİRİLMEDİ: o her uzun sayıyı/yolu siler, belge anlamını bozar. Ayar okunamazsa maskele (güvenli taraf).
+- **Tuzak:** TR cep deseni 10 haneli `5…` ile başlayan herhangi sayıyı da `[TEL]` yapar — yanlış alarm şikâyeti gelirse ilk bakılacak yer.

@@ -160,6 +160,11 @@ class _RemoteEditScreenState extends State<RemoteEditScreen> {
             const SizedBox(height: 8),
             _notice(context.t('nas.smb_warning'), scheme),
           ],
+          // G8.2/G8.3 (2026-11-12): şifresiz aktarımda parola ağda düz gider.
+          if (_protocol == RemoteProtocol.ftp) ...[
+            const SizedBox(height: 8),
+            _notice(context.t('nas.ftp_plain_warning'), scheme),
+          ],
           const SizedBox(height: 12),
           TextField(
             controller: _name,
@@ -181,6 +186,11 @@ class _RemoteEditScreenState extends State<RemoteEditScreen> {
             ),
             onChanged: (_) => setState(() {}),
           ),
+          if (_protocol == RemoteProtocol.webdav &&
+              _host.text.trim().toLowerCase().startsWith('http://')) ...[
+            const SizedBox(height: 8),
+            _notice(context.t('nas.webdav_http_warning'), scheme),
+          ],
           const SizedBox(height: 12),
           TextField(
             controller: _port,
