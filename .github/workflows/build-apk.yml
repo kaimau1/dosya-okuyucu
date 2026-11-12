@@ -653,7 +653,7 @@ jobs:
           python3 tool/apk_dogrula.py dist/dosya-okuyucu.apk "$BT"
 
       - name: Artifact — APK (64-bit)
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dosya-okuyucu-apk
           # Sürümlü ad da yüklenir: uygulama içi güncelleme sürümü bu addan
@@ -665,7 +665,7 @@ jobs:
 
       - name: Artifact — APK (32-bit, tam derlemede)
         if: steps.version.outputs.full == 'true'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dosya-okuyucu-apk-32bit
           path: dist/dosya-okuyucu-32bit-armeabi-v7a.apk
@@ -673,14 +673,14 @@ jobs:
 
       - name: Artifact — AAB (tam derlemede)
         if: steps.version.outputs.full == 'true'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dosya-okuyucu-aab
           path: dist-aab/dosya-okuyucu.aab
           retention-days: 14
 
       - name: Artifact — Dart sembolleri (çökme izi çözmek için)
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dart-symbols-${{ steps.version.outputs.name }}
           path: build/symbols*
