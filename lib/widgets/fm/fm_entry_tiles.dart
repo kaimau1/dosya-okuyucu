@@ -4,6 +4,7 @@ import 'package:flutter/semantics.dart';
 import '../../core/app_icons.dart';
 import '../../core/bidi.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/name_spoof.dart';
 import '../../core/theme.dart';
 import '../../models/fm_layout.dart';
 import '../../models/fm_type.dart';
@@ -120,10 +121,9 @@ class FmEntryRow extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
+                          FmEntryName(
                             entry.name,
                             maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.bodyLarge?.copyWith(
                               fontWeight: FontWeight.w500,
                               color: selected ? scheme.primary : null,
@@ -291,11 +291,10 @@ class FmEntryCard extends StatelessWidget {
                           height: _labelHeight,
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 2),
-                            child: Text(
+                            child: FmEntryName(
                               entry.name,
                               maxLines: 2,
                               textAlign: TextAlign.center,
-                              overflow: TextOverflow.ellipsis,
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ),
@@ -332,7 +331,9 @@ String fmEntrySemanticsLabel(
   final alias = AiIndex.aliasOf(entry.path);
   final parts = [
     if (type != FmType.folder && type != FmType.other) context.t(type.labelKey),
-    entry.name,
+    NameSpoof.visible(entry.name),
+    if (NameSpoof.deceptiveExtension(entry.name) case final ext?)
+      context.t('fm.name_spoof_warn', {'ext': ext}),
     if (alias.isNotEmpty) alias,
     if (subtitle != null && subtitle.isNotEmpty) subtitle,
   ];
@@ -348,4 +349,62 @@ Map<CustomSemanticsAction, VoidCallback>? fmSelectAction(
     CustomSemanticsAction(
         label: context.t(selected ? 'a11y.deselect' : 'a11y.select')): onCheck,
   };
+}
+
+/// Dosya adı yazısı — uzantı aldatmasına karşı (G7.10).
+///
+/// Normal adda düz `Text` ile birebir aynıdır. Yön denetimi karakteri görünür
+/// işarete çevrilir; `rapor.pdf.apk` gibi adda gerçek (tehlikeli) uzantı
+/// kalın + hata rengiyle gösterilir; tek satırda ad kısalır, son uzantı her
+/// zaman görünür.
+class FmEntryName extends StatelessWidget {
+  const FmEntryName(this.name,
+      {super.key, this.maxLines = 1, this.style, this.textAlign});
+
+  final String name;
+  final int maxLines;
+  final TextStyle? style;
+  final TextAlign? textAlign;
+
+  @override
+  Widget build(BuildContext context) {
+    final ext = NameSpoof.deceptiveExtension(name);
+    final shown = NameSpoof.visible(name);
+    if (ext == null) {
+      return Text(shown,
+          maxLines: maxLines,
+          overflow: TextOverflow.ellipsis,
+          textAlign: textAlign,
+          style: style);
+    }
+    final cut = shown.toLowerCase().lastIndexOf('.$ext');
+    final head = cut > 0 ? shown.substring(0, cut) : shown;
+    final tail = cut > 0 ? shown.substring(cut) : '';
+    final warn = Theme.of(context).colorScheme.error;
+    final tailStyle = (style ?? const TextStyle())
+        .copyWith(color: warn, fontWeight: FontWeight.w700);
+    if (maxLines == 1) {
+      // Tek satır: ad kısalır (…), gerçek uzantı hep görünür.
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(head,
+                maxLines: 1, overflow: TextOverflow.ellipsis, style: style),
+          ),
+          Text(tail, maxLines: 1, style: tailStyle),
+        ],
+      );
+    }
+    return Text.rich(
+      TextSpan(children: [
+        TextSpan(text: head),
+        TextSpan(text: tail, style: tailStyle),
+      ]),
+      maxLines: maxLines,
+      overflow: TextOverflow.ellipsis,
+      textAlign: textAlign,
+      style: style,
+    );
+  }
 }

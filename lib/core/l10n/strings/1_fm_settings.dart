@@ -417,6 +417,11 @@ const Map<String, (String, String, String)> _t1 = {
   ),
 
   // ── Dosya yöneticisi: pano ────────────────────────────────────────────────
+  'fm.name_spoof_warn': (
+    'Dikkat: gerçek tür .{ext}',
+    'Warning: real type is .{ext}',
+    'تحذير: النوع الحقيقي .{ext}',
+  ),
   'fm.all_files': ('Tüm dosyalar', 'All files', 'كل الملفات'),
   'fm.quick_folders': ('Hızlı klasörler', 'Quick folders', 'مجلدات سريعة'),
   'fm.tools': ('Araçlar', 'Tools', 'الأدوات'),
