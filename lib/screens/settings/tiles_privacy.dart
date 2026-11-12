@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/pii.dart';
 import '../../services/fm/app_storage_service.dart';
 import '../../services/fm/installed_apps_service.dart';
 import '../../services/fm/storage_permission.dart';
@@ -150,6 +151,41 @@ class AiSendAskTile extends StatelessWidget {
       },
     );
   }
+}
+
+/// **Kişisel veri maskesi** (G10.2): AI'ya giden metinde TC/IBAN/kart/
+/// telefon/e-posta yer tutucuyla gider. Varsayılan açık.
+class PiiMaskTile extends StatefulWidget {
+  const PiiMaskTile({super.key});
+
+  @override
+  State<PiiMaskTile> createState() => _PiiMaskTileState();
+}
+
+class _PiiMaskTileState extends State<PiiMaskTile> {
+  bool _on = true;
+
+  @override
+  void initState() {
+    super.initState();
+    PiiMaskSetting.enabled().then((v) {
+      if (mounted) setState(() => _on = v);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => SwitchListTile(
+        key: const ValueKey('pii-mask'),
+        secondary: const Icon(AppIcons.lock),
+        title: Text(context.t('pii.setting')),
+        subtitle: Text(context.t('pii.setting_sub')),
+        isThreeLine: true,
+        value: _on,
+        onChanged: (v) async {
+          setState(() => _on = v);
+          await PiiMaskSetting.set(v);
+        },
+      );
 }
 
 /// **Eklenen klasörler** (SAF ağaç izinleri) — her biri "Geri al" ile

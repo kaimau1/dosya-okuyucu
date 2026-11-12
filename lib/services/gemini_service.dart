@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../core/l10n/app_strings.dart';
+import '../core/pii.dart';
 import 'offline_mode.dart';
 
 class ChatTurn {
@@ -56,10 +57,25 @@ class GeminiService {
   static http.Client? debugClient;
 
   static Future<http.Response> _post(Uri url,
-          {Map<String, String>? headers, Object? body}) =>
-      debugClient != null
-          ? debugClient!.post(url, headers: headers, body: body)
-          : http.post(url, headers: headers, body: body);
+      {Map<String, String>? headers, Object? body}) async {
+    // G10.2: gönderimden hemen önce, TEK yerde — her AI çağrısı buradan geçer.
+    if (body is String && await PiiMaskSetting.enabled()) {
+      body = maskBody(body);
+    }
+    return debugClient != null
+        ? debugClient!.post(url, headers: headers, body: body)
+        : http.post(url, headers: headers, body: body);
+  }
+
+  /// JSON gövdedeki `text` alanlarını [Pii.mask]'ten geçirir.
+  @visibleForTesting
+  static String maskBody(String body) {
+    try {
+      return jsonEncode(maskJsonTexts(jsonDecode(body)));
+    } on FormatException {
+      return Pii.mask(body);
+    }
+  }
 
   static Future<http.Response> _get(Uri url, {Map<String, String>? headers}) =>
       debugClient != null
