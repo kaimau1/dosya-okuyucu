@@ -161,9 +161,17 @@ class CsvCodec {
         c == '@' ||
         c == '\t' ||
         c == '\r' ||
-        ((c == '+' || c == '-') && double.tryParse(v) == null);
+        ((c == '+' || c == '-') && !_plainSignedNumber.hasMatch(v));
     return risky ? "'$v" : v;
   }
+
+  /// `-1.500,00`, `+5 %`, `-₺12` gibi ekranda biçimli işaretli sayılar formül
+  /// değildir — tırnaklanırsa Excel'de sayı olmaktan çıkar. Rakam/ayraç/para
+  /// birimi/boşluk dışında karakter (harf, `|`, `!`, `(`…) varsa riskli sayılır
+  /// (`-2+3+cmd|' /C calc'!A0` gibi DDE denemesi burada yakalanır). Tek başına
+  /// `-` (tablolarda "yok" yer tutucusu) Excel'de formül değildir, korunur.
+  static final _plainSignedNumber =
+      RegExp(r'^[+-]([\s\d.,%₺$€£]*\d[\s\d.,%₺$€£]*)?$');
 
   static String _escape(String value, String delimiter) {
     final needs = value.contains(delimiter) ||

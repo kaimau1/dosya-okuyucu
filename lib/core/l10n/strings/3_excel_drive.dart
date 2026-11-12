@@ -688,6 +688,16 @@ const Map<String, (String, String, String)> _t3 = {
     'Legacy Turkish Excel / Notepad',
     'Excel/المفكرة التركية القديمة',
   ),
+  'excel.csv_formula_guard': (
+    'Formül koruması',
+    'Formula protection',
+    'حماية الصيغ',
+  ),
+  'excel.csv_formula_guard_sub': (
+    '= + - @ ile başlayan metnin başına \' konur; açan programda komut çalışmaz',
+    'Text starting with = + - @ gets a leading \' so it cannot run as a command',
+    'يُضاف \' قبل النص الذي يبدأ بـ = + - @ كي لا يُنفَّذ كأمر',
+  ),
   'excel.csv_failed': (
     'CSV dışa aktarılamadı: {error}',
     'CSV export failed: {error}',

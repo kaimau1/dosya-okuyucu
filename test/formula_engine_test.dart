@@ -439,4 +439,21 @@ void main() {
       expect(names.toSet().length, names.length);
     });
   });
+
+  // G7.5: ağ/komut çalıştırabilecek işlevler motorda YOK → yalnız hata metni;
+  // DDE biçimi (`=cmd|' /C calc'!A0`) de çökmeden hata verir.
+  test('HYPERLINK / WEBSERVICE / DDE ağ ya da komut çalıştırmaz', () {
+    for (final src in [
+      '=WEBSERVICE("http://127.0.0.1/x")',
+      '=FILTERXML(WEBSERVICE("http://x"),"//a")',
+      '=CALL("kernel32","WinExec","JCJ","calc",0)',
+      "=cmd|' /C calc'!A0",
+    ]) {
+      final v = f(src);
+      expect(v, startsWith('#'), reason: src);
+    }
+    // HYPERLINK desteklenirse bile yalnız görünen metni döndürür, adres açmaz.
+    final h = f('=HYPERLINK("http://x","tık")');
+    expect(h == 'tık' || h.startsWith('#'), isTrue, reason: h);
+  });
 }

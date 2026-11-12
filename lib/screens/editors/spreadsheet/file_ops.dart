@@ -1,5 +1,7 @@
 part of '../spreadsheet_editor_screen.dart';
 
+const _csvFormulaGuardKey = 'csv_formula_guard';
+
 extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
   Future<void> _save() async {
     _endEdit();
@@ -137,11 +139,23 @@ extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
     // Hata metni await'ten ÖNCE çevrilir (asenkron boşluktan sonra `context`
     // kullanılamaz).
     final csvFailed = context.t('excel.csv_failed');
+    // G7.5: CSV enjeksiyonu koruması — varsayılan AÇIK, seçim hatırlanır.
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    var guard = prefs.getBool(_csvFormulaGuardKey) ?? true;
     final enc = await showDialog<String>(
       context: context,
       builder: (_) => SimpleDialog(
         title: Text(context.t('excel.csv_encoding')),
         children: [
+          StatefulBuilder(
+            builder: (ctx, setLocal) => SwitchListTile(
+              value: guard,
+              title: Text(context.t('excel.csv_formula_guard')),
+              subtitle: Text(context.t('excel.csv_formula_guard_sub')),
+              onChanged: (v) => setLocal(() => guard = v),
+            ),
+          ),
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, 'utf8'),
             child: ListTile(
@@ -162,6 +176,7 @@ extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
       ),
     );
     if (enc == null) return;
+    unawaited(prefs.setBool(_csvFormulaGuardKey, guard));
     try {
       final engine = _engineFor(sheet);
       final rows = <List<String>>[];
@@ -172,7 +187,8 @@ extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
         }
         rows.add(row);
       }
-      final csv = CsvCodec.encode(rows, delimiter: ';');
+      final csv =
+          CsvCodec.encode(rows, delimiter: ';', sanitizeFormulas: guard);
       final base = widget.name.replaceAll(RegExp(r'\.[^.]*$'), '');
       final f = File('${Directory.systemTemp.path}/$base.csv');
       final bytes = enc == 'cp1254'

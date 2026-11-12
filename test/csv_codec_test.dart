@@ -104,6 +104,28 @@ void main() {
       expect(out, isNot(contains("'-5")));
     });
 
+    test('G7.5: DDE/komut denemesi tırnaklanır, biçimli sayı korunur', () {
+      final out = CsvCodec.encode([
+        [
+          "-2+3+cmd|' /C calc'!A0",
+          '+HYPERLINK("http://x")',
+          '\tgizli',
+          '-1.500,00',
+          '-₺12',
+          '+5 %',
+          '-',
+        ]
+      ], delimiter: ';', sanitizeFormulas: true);
+      final cells = CsvCodec.parse(out, delimiter: ';').single;
+      expect(cells[0], startsWith("'-2+3"));
+      expect(cells[1], startsWith("'+HYPERLINK"));
+      expect(cells[2], startsWith("'\t"));
+      expect(cells[3], '-1.500,00');
+      expect(cells[4], '-₺12');
+      expect(cells[5], '+5 %');
+      expect(cells[6], '-'); // tek başına tire yer tutucudur, formül değil
+    });
+
     test('sanitize kapalıyken formül hücresi değişmez', () {
       final out = CsvCodec.encode([
         ['=1+1']
