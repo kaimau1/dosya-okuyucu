@@ -52,6 +52,7 @@ extension _ViewerCodeToolsPart on _ViewerScreenState {
           icon: AppIcons.redo,
           tooltip: context.t('code.redo'),
           onPressed: undo.canRedo ? _undoCtl.redo : null),
+      ..._clipboardItems(),
     ];
     if (_isMarkdown) {
       items.addAll([
@@ -151,6 +152,60 @@ extension _ViewerCodeToolsPart on _ViewerScreenState {
     return items;
   }
 
+  /// Seçim varken Kopyala / Kes, her zaman Yapıştır ve Tümünü seç
+  /// (2026-11-12 kullanıcı: "seçim yapınca kopyala seçeneği çıkmalı" —
+  /// sistem menüsü metnin üstünü kapatıyordu, çubukta da dursun).
+  List<AccessoryItem> _clipboardItems() {
+    final ctl = _textController;
+    if (ctl == null) return const [];
+    final sel = ctl.selection;
+    final has = sel.isValid && !sel.isCollapsed;
+    String picked() => sel.textInside(ctl.text);
+    return [
+      if (has)
+        AccessoryItem(
+            key: const ValueKey('code-copy'),
+            icon: AppIcons.copy,
+            tooltip: context.t('common.copy'),
+            onPressed: () {
+              unawaited(Clipboard.setData(ClipboardData(text: picked())));
+              showSnack(context, context.t('drive.setup_copied'));
+            }),
+      if (has && widget.doc.isEditableText)
+        AccessoryItem(
+            key: const ValueKey('code-cut'),
+            icon: AppIcons.cut,
+            tooltip: context.t('excel.cut'),
+            onPressed: () {
+              unawaited(Clipboard.setData(ClipboardData(text: picked())));
+              _applyEdit((v) => v.replaced(sel, ''));
+            }),
+      if (widget.doc.isEditableText)
+        AccessoryItem(
+            key: const ValueKey('code-paste'),
+            icon: AppIcons.paste,
+            tooltip: context.t('common.paste'),
+            onPressed: () async {
+              final data = await Clipboard.getData(Clipboard.kTextPlain);
+              final text = data?.text;
+              if (text == null || text.isEmpty || !mounted) return;
+              final s = ctl.selection.isValid
+                  ? ctl.selection
+                  : TextSelection.collapsed(offset: ctl.text.length);
+              _applyEdit((v) => v.replaced(s, text));
+            }),
+      AccessoryItem(
+          key: const ValueKey('code-select-all'),
+          icon: AppIcons.selectAll,
+          tooltip: context.t('pt.select_all'),
+          onPressed: () {
+            ctl.selection =
+                TextSelection(baseOffset: 0, extentOffset: ctl.text.length);
+            _textFocus.requestFocus();
+          }),
+    ];
+  }
+
   /// Klavye üstü çubuk + durum satırı. Yalnız metin düzenlenirken (odak
   /// alanda) görünür.
   Widget _codeAccessoryBar() {
@@ -158,9 +213,13 @@ extension _ViewerCodeToolsPart on _ViewerScreenState {
       mainAxisSize: MainAxisSize.min,
       children: [
         _statusRow(),
-        KeyboardAccessoryBar(
-          items: _codeAccessoryItems(),
-          onHideKeyboard: () => _textFocus.unfocus(),
+        // Seçim değişince Kopyala/Kes görünsün diye denetleyiciyi dinler.
+        ValueListenableBuilder<TextEditingValue>(
+          valueListenable: _textController!,
+          builder: (context, _, _) => KeyboardAccessoryBar(
+            items: _codeAccessoryItems(),
+            onHideKeyboard: () => _textFocus.unfocus(),
+          ),
         ),
       ],
     );

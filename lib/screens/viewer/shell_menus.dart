@@ -85,14 +85,14 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
       // Etiketli eylem çubuğu — artık her belge türünde (2026-07-28 kullanıcı
       // isteği: "alttaki araç çubuğu güzel, diğer word txt gibi şeylerde de
       // olsun"). Ayrıntı: `widgets/doc_action_bar.dart`.
-      bottomBar: _actionBar(doc),
+      bottomBar: _editingText ? null : _actionBar(doc),
       // Dairesel FAB: geniş etiketli (.extended) hâli belgenin sağ alt köşesini
       // kapatıyordu; etiket tooltip'e taşındı.
       // Metin seçiliyken ve yerinde düzenlemede AI düğmesi GİZLİ: seçim/
       // düzenleme çubuğunun sağ ucunun üstüne biniyordu ve "Uygula"ya basan
       // parmak aslında AI sohbetini açıyordu (kullanıcı 2026-09-24:
       // "uygulaya basmak işlevsiz"). Çubukta zaten "AI ile düzelt" var.
-      fab: _pdfBarShown || _pro != null
+      fab: _pdfBarShown || _pro != null || _editingText
           ? null
           : DocAiButton(
               kind: doc.kind,

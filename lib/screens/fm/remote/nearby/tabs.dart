@@ -30,6 +30,9 @@ extension _NearbyTabs on _NearbyScreenState {
         _selectionCard(context),
         const SizedBox(height: Gap.sm),
         _devicesStrip(context),
+        // 2026-11-12 kullanıcı: "alınan şeyler bu ekranda görülmeli" —
+        // gelenler yalnız Geçmiş sekmesindeydi.
+        _recentReceived(context),
       ];
       if (box.maxWidth < _NearbyScreenState._wideFrom) {
         return ListView(
@@ -302,6 +305,50 @@ extension _NearbyTabs on _NearbyScreenState {
   }
 
   /// 3 · Geçmiş + güvenilen cihazlar.
+  /// Hızlı aktar'da son gelen 3 dosya; "Tümü" Geçmiş sekmesini açar.
+  /// Hiç alınan yoksa yer kaplamaz.
+  Widget _recentReceived(BuildContext context) {
+    return ListenableBuilder(
+      key: const ValueKey('near-recent-received'),
+      listenable: TransferHistory.instance,
+      builder: (context, _) {
+        final received = TransferHistory.instance.received;
+        if (received.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SectionHeader(
+              context.t('near.received_tab'),
+              padding: _NearbyScreenState._section,
+              trailing: received.length > 3
+                  ? TextButton(
+                      onPressed: () {
+                        _update(() {
+                          _historyIncoming = true;
+                          _historyAll = true;
+                        });
+                        DefaultTabController.of(context).animateTo(2);
+                      },
+                      child: Text(context
+                          .t('near.show_all', {'n': received.length})),
+                    )
+                  : null,
+            ),
+            Card(
+              margin: EdgeInsets.zero,
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                children: [
+                  for (final r in received.take(3)) _historyRow(context, r),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _historyTab(BuildContext context) {
     return ListView(
       key: const ValueKey('near-history-tab'),

@@ -11,7 +11,14 @@ import 'code_editing.dart' show lineStartOf;
 /// `open+close` ekler ve imleci ortaya koyar.
 TextEditingValue mdWrap(TextEditingValue v, String open, [String? close]) {
   close ??= open;
-  final sel = _sel(v);
+  final raw = _sel(v);
+  // Çok satırlı seçim: Markdown kalın/eğik satır aşmaz → her satır ayrı
+  // sarılır, satır başı öneki (`## `, `- [ ] `) dışarıda kalır (2026-11-12:
+  // `**## başlık … sonucu**` gibi biçim yerine ham işaret kalıyordu).
+  if (raw.start != raw.end && v.text.substring(raw.start, raw.end).contains('\n')) {
+    return _wrapLines(v, raw, open, close);
+  }
+  final sel = _trimSel(v.text, raw);
   final t = v.text;
   final inner = t.substring(sel.start, sel.end);
   // Seçimin hemen çevresi zaten sarılmış mı? (`**kalın**` içinde seçili)
@@ -50,6 +57,64 @@ TextEditingValue mdWrap(TextEditingValue v, String open, [String? close]) {
       selection: TextSelection(
           baseOffset: sel.start + open.length,
           extentOffset: sel.start + open.length + inner.length));
+}
+
+/// Seçimi satır öneki ve kenar boşluklarından arındırır (`**` boşlukla
+/// başlarsa Markdown onu kalın saymaz).
+TextSelection _trimSel(String t, TextSelection s) {
+  if (s.isCollapsed) return s;
+  var a = s.start, b = s.end;
+  final ls = lineStartOf(t, a);
+  if (a == ls) {
+    final m = _linePrefix.firstMatch(t.substring(ls));
+    if (m != null && ls + m.end <= b) a = ls + m.end;
+  }
+  while (a < b && (t[a] == ' ' || t[a] == '\t')) {
+    a++;
+  }
+  while (b > a && (t[b - 1] == ' ' || t[b - 1] == '\t')) {
+    b--;
+  }
+  return a == b ? s : TextSelection(baseOffset: a, extentOffset: b);
+}
+
+TextEditingValue _wrapLines(
+    TextEditingValue v, TextSelection sel, String open, String close) {
+  final t = v.text;
+  final first = lineStartOf(t, sel.start);
+  var lineEnd = t.indexOf('\n', sel.end > sel.start && t[sel.end - 1] == '\n' ? sel.end - 1 : sel.end);
+  if (lineEnd == -1) lineEnd = t.length;
+  final lines = t.substring(first, lineEnd).split('\n');
+  final parts = <(String, String, String)>[]; // önek, gövde, kuyruk boşluğu
+  for (final l in lines) {
+    final m = _linePrefix.firstMatch(l);
+    final pre = m == null ? '' : m.group(0)!;
+    var body = l.substring(pre.length);
+    final lead = body.length - body.trimLeft().length;
+    final pre2 = pre + body.substring(0, lead);
+    body = body.substring(lead);
+    final trimmed = body.trimRight();
+    parts.add((pre2, trimmed, body.substring(trimmed.length)));
+  }
+  bool wrapped(String b) =>
+      b.length >= open.length + close.length &&
+      b.startsWith(open) &&
+      b.endsWith(close);
+  final all = parts.every((x) => x.$2.isEmpty || wrapped(x.$2));
+  final out = [
+    for (final (pre, body, tail) in parts)
+      if (body.isEmpty)
+        '$pre$body$tail'
+      else if (all)
+        '$pre${body.substring(open.length, body.length - close.length)}$tail'
+      else if (wrapped(body))
+        '$pre$body$tail'
+      else
+        '$pre$open$body$close$tail'
+  ].join('\n');
+  return TextEditingValue(
+      text: t.replaceRange(first, lineEnd, out),
+      selection: TextSelection(baseOffset: first, extentOffset: first + out.length));
 }
 
 final _linePrefix = RegExp(r'^(\s*)(#{1,6} |> |- \[[ xX]\] |[-*+] |\d+\. )');

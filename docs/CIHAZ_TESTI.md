@@ -949,3 +949,8 @@ Belgeler: `rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `rl_cok_sayfa.pdf`, `rl_si
 4. Kil (kâğıt) teması, açık mod: PDF sayfasının içi krem (`#FBF8F1`), yazı siyah; gece/sepya açılınca eskisi gibi.
 5. Kişisel derleme (`[kisisel]`): görüntüleyici → Daha fazla → "Sesli not" → konuş → paylaşım sayfasında Notlar → not "Dosyalar" konusuyla, dosya adı + sayfa + (PDF'te seçili metin) + `file://` bağlantısıyla düşer. Genel APK'da satır YOK.
 6. Play AAB (elle `aab` + `play` girdisiyle, iç test kanalı): Play'den kurulu sürümde 15 dosya açıp 5 gün sonra değerlendirme penceresi (Play kotası izin verirse); yeni sürüm yüklenince açılışta esnek güncelleme, inince "Güncelleme indirildi · Yeniden başlat". Play derlemesinde GitHub güncelleme satırı/şeridi YOK.
+
+## Markdown canlı biçim + Aktar son alınanlar (2026-11-12, main)
+1. `.md` aç → Düzenle: `**kalın**` kalın, `## Başlık` büyük, `_eğik_` eğik görünür; işaretler soluk. Satır seç → B: `## ` önekinin SONRASI sarılır; üç satır seç → B: her satır ayrı; tekrar B → kalkar.
+2. Düzenlerken alt çubuk (Düzenle/Kaydet/Çevir…) ve AI düğmesi gizli; klavye kapanınca geri gelir. Metin seçince klavye üstü çubukta Kopyala ve Kes; Yapıştır ve Tümünü seç her zaman.
+3. Bilgisayardan dosya gönder → Aktar → Hızlı aktar'ın altında "Son alınanlar" kartında görünür; dokununca açılır; 4. dosyadan sonra "Tümünü göster" Geçmiş'e götürür.

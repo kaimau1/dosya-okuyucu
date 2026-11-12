@@ -573,7 +573,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
         text: LineEndings.toLf(doc.plainText),
         lang: codeLangFor(p.extension(doc.path)),
         enabled: doc.kind == DocKind.text,
+        markdown: const {'.md', '.markdown'}
+            .contains(p.extension(doc.path).toLowerCase()),
       );
+      // Düzenlerken alt eylem çubuğu ve AI düğmesi gizlenir (klavye üstünde
+      // iki çubuk + çubuğa binen düğme — kullanıcı 2026-11-12 "panel garip").
+      _textFocus.addListener(_onTextFocus);
     }
     if (doc.kind == DocKind.pdf) {
       _prepareSafeOpen();
@@ -746,6 +751,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _imgTx.dispose();
     _findCtl.dispose();
     _replaceCtl.dispose();
+    _textFocus.removeListener(_onTextFocus);
     _textFocus.dispose();
     _pdfSearcher
         ?.dispose(); // PdfViewerController = ValueListenable, dispose'suz
@@ -828,4 +834,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   /// Parça dosyalarındaki uzantılar `setState`i (korumalı) buradan çağırır.
   void _partSetState(VoidCallback fn) => setState(fn);
+
+  /// Metin düzenleniyor mu (odak alanda)? Öyleyse alt çubuk/AI düğmesi gizli.
+  bool get _editingText =>
+      widget.doc.isEditableText && _textFocus.hasFocus;
+
+  void _onTextFocus() {
+    if (mounted) setState(() {});
+  }
 }

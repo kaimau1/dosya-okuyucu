@@ -15,12 +15,20 @@ import '../app_colors.dart';
 import '../motion.dart';
 import 'code_editing.dart';
 import 'code_highlight.dart';
+import 'markdown_style.dart';
 
 class CodeTextController extends TextEditingController {
   CodeLang _lang;
   bool _enabled;
 
-  CodeTextController({super.text, this._lang = CodeLang.plain, this._enabled = true});
+  CodeTextController(
+      {super.text,
+      this._lang = CodeLang.plain,
+      this._enabled = true,
+      this.markdown = false});
+
+  /// Markdown dosyası: işaretler soluk, biçim canlı (`markdown_style.dart`).
+  final bool markdown;
 
   CodeLang get lang => _lang;
   set lang(CodeLang v) {
@@ -131,6 +139,14 @@ class CodeTextController extends TextEditingController {
     final matchPair = _enabled && value.selection.isValid && value.selection.isCollapsed
         ? matchBracket(text, value.selection.baseOffset)
         : null;
+    if (markdown &&
+        _enabled &&
+        !composing &&
+        text.length <= markdownStyleMaxChars) {
+      return TextSpan(
+          style: style,
+          children: markdownSpans(text, style, Theme.of(context).colorScheme));
+    }
     if (composing || (!highlighting && matchPair == null)) {
       return super.buildTextSpan(
           context: context, style: style, withComposing: withComposing);
