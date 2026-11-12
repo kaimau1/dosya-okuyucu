@@ -30,6 +30,10 @@ import 'mime_types.dart';
 /// koşuyor. Play Store hedefi bu yüzden bu kapsamla birlikte yeniden
 /// değerlendirilmeli (bkz. HAFIZA 2026-08-05).
 class DriveService {
+  /// G8.6: Drive API çağrılarının zaman aşımı (yükleme daha uzun).
+  static const _timeout = Duration(seconds: 30);
+  static const _uploadTimeout = Duration(minutes: 15);
+
   /// Kullanıcının Drive'ının TAMAMI. Kısıtlı kapsam — bedeli sınıf
   /// açıklamasında yazılı, kullanıcı kararıyla seçildi.
   static const scope = 'https://www.googleapis.com/auth/drive';
@@ -377,7 +381,7 @@ class DriveService {
         listUri(
             parentId: parentId, query: query, sort: sort, pageToken: token),
         headers: headers,
-      );
+      ).timeout(_timeout);
       _check(res.statusCode, res.body);
       out.addAll(parseList(res.body));
       token = parseNextPageToken(res.body);
@@ -397,7 +401,7 @@ class DriveService {
         'mimeType': DriveFile.folderMime,
         if (parentId != null) 'parents': [parentId],
       }),
-    );
+    ).timeout(_timeout);
     _check(res.statusCode, res.body);
     return DriveFile.fromJson(
         (jsonDecode(res.body) as Map).cast<String, dynamic>());
@@ -466,7 +470,7 @@ class DriveService {
         'parents': [toParentId],
         'name': ?name,
       }),
-    );
+    ).timeout(_timeout);
     _check(res.statusCode, res.body);
     return DriveFile.fromJson(
         (jsonDecode(res.body) as Map).cast<String, dynamic>());
@@ -484,9 +488,9 @@ class DriveService {
       permissionsUri(id),
       headers: {...headers, 'Content-Type': 'application/json; charset=UTF-8'},
       body: jsonEncode({'role': 'reader', 'type': 'anyone'}),
-    );
+    ).timeout(_timeout);
     _check(res.statusCode, res.body);
-    final meta = await http.get(linkUri(id), headers: headers);
+    final meta = await http.get(linkUri(id), headers: headers).timeout(_timeout);
     _check(meta.statusCode, meta.body);
     final link = (jsonDecode(meta.body) as Map)['webViewLink'];
     if (link is! String || link.isEmpty) {
@@ -516,7 +520,7 @@ class DriveService {
     try {
       final req = http.Request('GET', downloadUri(file))
         ..headers.addAll(headers);
-      final res = await client.send(req);
+      final res = await client.send(req).timeout(_timeout);
       if (res.statusCode < 200 || res.statusCode >= 300) {
         _check(res.statusCode, await res.stream.bytesToString());
       }
@@ -532,7 +536,9 @@ class DriveService {
       var stopped = false;
       try {
         var received = 0;
-        await for (final chunk in res.stream) {
+        // G8.6: 2 dk hiç bayt gelmezse indirme kesilir.
+        await for (final chunk
+            in res.stream.timeout(const Duration(minutes: 2))) {
           // İptal **parça sınırında** yoklanır: akışı ortasından kesmek
           // yerine o parçayı yazmayıp çıkıyoruz — yarım yazılmış bir bayt
           // dizisi kalmasın diye. Dosyanın kendisi zaten aşağıda siliniyor.
@@ -581,7 +587,7 @@ class DriveService {
         bytes: await local.readAsBytes(),
         parentId: parentId,
       ),
-    );
+    ).timeout(_uploadTimeout);
     _check(res.statusCode, res.body);
     return DriveFile.fromJson(
         (jsonDecode(res.body) as Map).cast<String, dynamic>());

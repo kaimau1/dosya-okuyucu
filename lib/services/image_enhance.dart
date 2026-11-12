@@ -52,7 +52,10 @@ abstract final class ImageEnhance {
   static Future<void> ensureModel() async {
     final file = File(_modelPath);
     if (file.existsSync()) return;
-    final resp = await http.get(Uri.parse(modelUrl));
+    // G8.6: model indirme asılı kalmasın.
+    final resp = await http
+        .get(Uri.parse(modelUrl))
+        .timeout(const Duration(minutes: 10));
     if (resp.statusCode != 200) {
       throw HttpException('HTTP ${resp.statusCode}');
     }
