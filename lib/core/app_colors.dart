@@ -298,6 +298,10 @@ abstract final class PdfEditTokens {
   static const frameIdleWidth = 1.0;
   static const frameActiveWidth = 2.0;
   static const handle = 8.0;
+
+  /// Taşıma tutamacı: görünen çap ve dokunma alanı.
+  static const grip = 24.0;
+  static const gripHit = 40.0;
   static const handleTablet = 10.0;
   static const caretWidth = 2.0;
   static const minHit = 44.0;

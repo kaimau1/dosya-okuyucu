@@ -207,6 +207,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
   final FocusNode _proFocus = FocusNode(debugLabel: 'pdf-pro-input');
   int _proCaretSeen = -1;
 
+  /// Düzenleme kipinde belge olayları: içeriği değişen sayfanın görüntüsü
+  /// yeniden çizdirilir (pdfrx geometri aynıysa çizmiyor — third_party/pdfrx/YAMA.md).
+  StreamSubscription<PdfDocumentEvent>? _proDocSub;
+
   void _onProChanged() {
     if (!mounted) return;
     setState(() {});
@@ -763,6 +767,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _pro
       ?..removeListener(_onProChanged)
       ..dispose();
+    _proDocSub?.cancel();
     _proInput.dispose();
     _proFocus.dispose();
     _readingBars.dispose();

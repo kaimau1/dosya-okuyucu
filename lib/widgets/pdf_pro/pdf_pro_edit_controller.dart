@@ -326,6 +326,16 @@ class PdfProEditController extends ChangeNotifier {
     _notify();
   }
 
+  /// Tek parmak sürükleme şu an sayfaya çiziyor mu (vurgu, kalem, şekil,
+  /// karartma). Açıkken görüntüleyici tek parmakla kaymaz; iki parmak
+  /// yakınlaştırır.
+  bool get drawing =>
+      _live == null &&
+      _tool == PdfProTool.markup &&
+      _markup != PdfMarkupKind.none &&
+      _markup != PdfMarkupKind.note &&
+      _markup != PdfMarkupKind.eraser;
+
   /// İşaretleme rengi (ARGB) ve çizgi kalınlığı.
   int markupColor = 0xFFFFD54F;
   double markupWidth = 2;

@@ -731,17 +731,20 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
             ];
           }
           return [
+            // Sık kullanılanlar başta: yaz, sil, kopyala, boyut, renk.
             act(AppIcons.edit, t('common.edit'), 'edit',
                 key: const ValueKey('pse-chip-edit')),
+            act(AppIcons.delete, t('common.delete'), 'del',
+                danger: true, key: const ValueKey('pse-chip-delete')),
             act(AppIcons.copy, t('pse.copy'), 'copy'),
             act(AppIcons.copyAll, t('pse.duplicate'), 'dup'),
+            act(AppIcons.textIncrease, t('pse.fmt_larger'), 'bigger'),
+            act(AppIcons.textDecrease, t('pse.fmt_smaller'), 'smaller'),
+            act(AppIcons.formatColorText, t('pse.fmt_color'), 'color'),
             act(AppIcons.formatAlignLeft, t('pse.al_left'), 'left'),
             act(AppIcons.formatAlignCenter, t('pse.al_center'), 'center'),
             act(AppIcons.formatAlignRight, t('pse.al_right'), 'right'),
             act(AppIcons.formatAlignJustify, t('pse.al_justify'), 'justify'),
-            act(AppIcons.textIncrease, t('pse.fmt_larger'), 'bigger'),
-            act(AppIcons.textDecrease, t('pse.fmt_smaller'), 'smaller'),
-            act(AppIcons.formatColorText, t('pse.fmt_color'), 'color'),
             act(AppIcons.formatListBulleted, t('pse.list_bullets'), 'bullets'),
             act(AppIcons.formatListNumbered, t('pse.list_numbers'), 'numbers'),
             act(AppIcons.formatPaint, t('pse.style_copy'), 'stylecopy'),
@@ -750,8 +753,6 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
             if (block.lines.length > 1)
               act(AppIcons.split, t('pse.block_split'), 'split'),
             act(AppIcons.join, t('pse.block_merge'), 'merge'),
-            act(AppIcons.delete, t('common.delete'), 'del',
-                danger: true, key: const ValueKey('pse-chip-delete')),
           ];
         }
         // Metin yok (taranmış sayfa): OCR ve metin kutusu önerilir (§9).

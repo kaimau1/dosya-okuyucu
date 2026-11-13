@@ -4426,6 +4426,18 @@ class _PdfViewerState extends State<PdfViewer>
   @override
   PdfViewerCoordinateConverter get doc2local => this;
 
+  // YAMA (dosya-okuyucu, 2026-11-13): bkz. YAMA.md — içeriği değişen sayfanın
+  // görüntüsü, geometri aynı olsa da yeniden çizilir (eski görüntü yenisi
+  // gelene dek ekranda kalır; beyaz parlama yok).
+  void repaintPageImages(int pageNumber) {
+    _imageCache.cancelPendingPartialRendering(pageNumber);
+    _magnifierImageCache.cancelPendingPartialRendering(pageNumber);
+    _imageCache.makeCacheImageForPageDirty(pageNumber);
+    _magnifierImageCache.makeCacheImageForPageDirty(pageNumber);
+    _textCache?.invalidate(pageNumber);
+    _invalidate();
+  }
+
   void forceRepaintAllPageImages() {
     _imageCache.cancelAllPendingRenderings();
     _magnifierImageCache.cancelAllPendingRenderings();
@@ -5395,6 +5407,9 @@ class PdfViewerController extends ValueListenable<Matrix4> {
 
   /// Force redraw all the page images.
   void forceRepaintAllPageImages() => _state.forceRepaintAllPageImages();
+
+  /// YAMA (dosya-okuyucu): içeriği değişen tek sayfanın görüntüsünü yeniden çizdirir.
+  void repaintPageImages(int pageNumber) => __state?.repaintPageImages(pageNumber);
 
   /// Stop the inertia animation of the interactive viewer.
   ///

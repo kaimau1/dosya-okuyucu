@@ -85,7 +85,10 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         // InteractiveViewer bu bayrağı HER olayda okuduğu için jest
                         // ortasında kapatmak da işler; belge yeniden YÜKLENMEZ
                         // (pdfrx yalnız documentRef değişiminde yükler).
-                        panEnabled: !_pdfSelecting,
+                        // Düzenleme kipinde çizim aracı açıkken de kapalı:
+                        // tek parmak çizer, iki parmak yakınlaştırır.
+                        panEnabled:
+                            !_pdfSelecting && !(_pro?.drawing ?? false),
                         // Kaydırma kilidi (Faz 39): yalnız dikey eksen,
                         // iki parmak yakınlaştırma kapalı.
                         panAxis: _pdfScrollLock

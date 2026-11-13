@@ -99,6 +99,7 @@ void main() {
     addTearDown(input.dispose);
     addTearDown(focus.dispose);
     var committed = 0;
+    var panned = 0;
 
     await tester.pumpWidget(MaterialApp(
       locale: const Locale('tr'),
@@ -114,6 +115,13 @@ void main() {
           listenable: c,
           builder: (context, _) => Stack(
             children: [
+              // Görüntüleyicinin yerine: katmanın ALTINDAKİ kaydırma alıcısı.
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onPanUpdate: (_) => panned++,
+                ),
+              ),
               Positioned(
                 left: 0,
                 top: 0,
@@ -177,6 +185,15 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     expect(c.selectedBlock, bi);
     expect(edits, isEmpty);
+
+    // Kök neden bekçisi (2026-11-13): seçim açıkken de sürükleme alttaki
+    // görüntüleyiciye ulaşır — katman parmağı yutmaz, blok yanlışlıkla taşınmaz.
+    await tester.dragFrom(at, const Offset(0, 80));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(panned, greaterThan(0), reason: 'katman kaydırmayı yuttu');
+    expect(c.session.steps, isEmpty);
+    expect(c.selectedBlock, bi);
+    expect(find.byKey(const ValueKey('pse-grip-move')), findsOneWidget);
 
     // Seçili bloğa yeniden dokun: yazma, imleç dokunulan harfte.
     await tester.tapAt(at);

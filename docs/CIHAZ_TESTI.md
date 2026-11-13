@@ -973,7 +973,7 @@ Her madde: ✔ / ✘ + not. Bütçe sayıları `docs/perf/2026-11-pdfpro-55-65.m
 5. Çift dokun = sözcük seçili; uzun bas + sürükle = seçim. B · I · U · üstü çizili · renk · vurgu · hizalama · punto ±.
 6. **Bitti** / bloğun dışına dokun → tek adım; geri al tek dokunuşta eski hâl; ✕ ve geri tuşu yazmayı bırakır.
 7. Okuma kipinde metin seç → *Düzenle*: aynı aralık seçili açılıyor mu (PS1)?
-8. Seçili bloğu gövdesinden sürükle (taşı), sağ tutamaçtan genişlet; yakınlaştırılmışken de.
+8. Seçili bloğu **üstündeki dört oklu tutamaçtan** sürükle (taşı), sağ tutamaçtan genişlet; yakınlaştırılmışken de. Gövdeden sürüklemek sayfayı kaydırır.
 9. Bağlamsal çubuk: Kopyala, Çoğalt, hizalama, madde/numara, stil kopyala-yapıştır, Böl/Birleştir, Sil.
 10. Metin kutusu: yonga → boşluğa dokun → yaz; çevredeki yazıyla aynı görünüyor mu?
 11. Bul ve değiştir: belge genelinde, "Tümünü değiştir"; geri al adım adım.
@@ -986,4 +986,12 @@ Her madde: ✔ / ✘ + not. Bütçe sayıları `docs/perf/2026-11-pdfpro-55-65.m
 18. AI (⋮): seçili paragraf → Yeniden yaz / Çevir → öneri levhası → Kabul; anahtar yokken / çevrimdışıyken açık ileti.
 19. Düzenleme kipinde 5 dk boşta: pil/ısı, çubuklar kıpırdamıyor.
 20. Kip içinde uygulamayı öldür → yeniden aç: "Kaydedilmemiş düzenlemeleri geri yükle".
+
+## PDF Pro — cihaz bulguları düzeltmesi (2026-11-13, main)
+
+1. Düzenle → Metin: tek parmakla sayfa kayıyor, iki parmakla yakınlaşıyor mu? Blok seçiliyken ve Görsel aracında sayfanın tamamı seçiliyken de.
+2. Paragrafa iki kez dokun, bir harf sil / yaz: **sayfadaki yazı anında değişiyor mu** (yakınlaştırılmışken de)? Geri al / Vazgeç sonrası ekran eski hâle dönüyor mu?
+3. Yazarken sayfayı kaydır (klavye kapanabilir), metne yeniden dokun: klavye geri geliyor, imleç dokunulan yerde mi?
+4. İşaretle → Kalem/Vurgula: tek parmak çiziyor, iki parmak yakınlaştırıyor mu?
+5. Taranmış (metinsiz) PDF'te Düzenle: "taranmış görüntü" ipucu çıkıyor mu?
 

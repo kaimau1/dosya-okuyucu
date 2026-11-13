@@ -10,6 +10,8 @@ import '../../core/motion.dart';
 import '../../services/pdf/pro/pdf_edit_bridge.dart';
 import 'pdf_pro_edit_controller.dart';
 
+part 'pdf_block_layer_painter.dart';
+
 /// [point]'e düşen blok: kutusu ([slop] kadar genişletilmiş) noktayı içeren
 /// bloklardan merkezi en yakın olan; yoksa null. Komşu bloklar çakışırsa
 /// dokunulan noktaya en yakın kutu kazanır (etkileşim sözleşmesi §2).
@@ -72,8 +74,17 @@ class PdfProLayerEvents {
 /// * **Görsel:** görsel/şekil seçimi, taşıma, köşeden ölçekleme.
 /// * **İşaretle:** metin üstü vurgu/alt/üst çizgi, kalem, not, şekil, silgi.
 ///
-/// Katman kaydırmayı/yakınlaştırmayı yutmaz: boşta yalnız dokunma ve uzun
-/// basma dinler. Sayfa koordinatında çizer — dil değişince aynalanmaz.
+/// **Katman kaydırmayı/yakınlaştırmayı YUTMAZ** (kök neden 2026-11-13 —
+/// kullanıcı: *"seçim açıkken çift parmak zoom, kaydırma yapılmıyor"*): pdfrx
+/// sayfa katmanlarını `InteractiveViewer`'ın ÜSTÜNE kardeş olarak dizer; sayfayı
+/// kaplayan bir `GestureDetector` (ve `hitTest`'i null dönen her `CustomPaint`)
+/// parmağı yutar, görüntüleyici hiç görmez. Bu yüzden:
+/// * boya katmanı isabet almaz ([_LayerPainter.hitTest] false);
+/// * dokun / çift dokun / uzun bas pdfrx'in [PdfOverlayInteractionRegion]'ıyla
+///   gelir (jesti görüntüleyici tanır, kaydırma ve yakınlaştırma onda kalır);
+/// * çizim ve seçim uzatma arenaya girmeyen `Listener` ile izlenir;
+/// * parmağı sahiplenen tek şey küçük tutamaçlardır (taşı, genişlet, ölçekle).
+/// Sayfa koordinatında çizer — dil değişince aynalanmaz.
 class PdfProBlockLayer extends StatefulWidget {
   const PdfProBlockLayer({
     super.key,
@@ -158,9 +169,95 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
     }
   }
 
-  double get _px {
-    final z = widget.zoom?.call() ?? 1.0;
-    return z <= 0 ? 1 : 1 / z;
+  /// Katman ekran pikselindedir (pdfrx sayfa dikdörtgenini ekran uzayında
+  /// verir): tutamaç ve çizgi kalınlığı yakınlaştırmadan bağımsız sabittir.
+  double get _px => 1;
+
+  // Çizim (İşaretle) ve seçim uzatma: ham işaretçi izleme.
+  int _drawPointers = 0;
+  int? _drawPointer;
+  bool _extending = false;
+
+  void _drawReset() {
+    _drawPointer = null;
+    if (_markFrom == null && _stroke.isEmpty) return;
+    setState(() {
+      _markFrom = null;
+      _markTo = null;
+      _stroke.clear();
+    });
+  }
+
+  void _drawDown(PointerDownEvent e) {
+    _drawPointers++;
+    // İkinci parmak = yakınlaştırma: başlamış çizgi bırakılır.
+    if (_drawPointers > 1) {
+      _drawReset();
+      return;
+    }
+    _drawPointer = e.pointer;
+    setState(() {
+      _markFrom = e.localPosition;
+      _markTo = e.localPosition;
+      _stroke
+        ..clear()
+        ..add(e.localPosition);
+    });
+  }
+
+  void _drawMove(PointerMoveEvent e) {
+    if (e.pointer != _drawPointer) return;
+    setState(() {
+      _markTo = e.localPosition;
+      if (c.markup == PdfMarkupKind.ink) _stroke.add(e.localPosition);
+    });
+  }
+
+  void _drawUp(PointerEvent e, {bool cancel = false}) {
+    _drawPointers = math.max(0, _drawPointers - 1);
+    if (e.pointer != _drawPointer) return;
+    _drawPointer = null;
+    if (cancel) {
+      _drawReset();
+      return;
+    }
+    _finishMarkup();
+  }
+
+  /// Dokun / çift dokun / uzun bas hedefi. Görüntüleyicinin içindeyken jesti
+  /// pdfrx tanır ve buraya bildirir (parmak görüntüleyicide kalır); tek başına
+  /// (test) sıradan jest algılayıcı.
+  Widget _tapTarget(
+    BuildContext context, {
+    required void Function(Offset local) onTap,
+    required void Function(Offset local) onDoubleTap,
+    required void Function(Offset local) onLongPress,
+  }) {
+    final box = SizedBox.fromSize(size: widget.pageSize);
+    if (PdfOverlayHitTester.of(context) != null) {
+      return PdfOverlayInteractionRegion(
+        onTap: (d) {
+          onTap(d.localPosition);
+          return true;
+        },
+        onDoubleTap: (d) {
+          onDoubleTap(d.localPosition);
+          return true;
+        },
+        onLongPress: (d) {
+          onLongPress(d.localPosition);
+          return true;
+        },
+        child: box,
+      );
+    }
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTapUp: (d) => onTap(d.localPosition),
+      onDoubleTapDown: (d) => onDoubleTap(d.localPosition),
+      onLongPressStart: (d) => onLongPress(d.localPosition),
+      child: box,
+    );
   }
 
   Offset _w(double x, double y) => PdfPoint(x, y)
@@ -402,6 +499,13 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
   }
 
   // ── taşıma / boyutlandırma ─────────────────────────────────────────────
+  /// Nesnenin taşıma tutamacı: üst kenarın ortası; nesne sayfayı kaplıyorsa
+  /// (antetli kâğıt, taranmış sayfa) kenar ekran dışında kalabileceği için
+  /// biraz içeride.
+  Offset _gripAnchor(Rect r) => r.height > widget.pageSize.height * 0.6
+      ? r.topCenter + const Offset(0, PdfEditTokens.gripHit)
+      : r.topCenter;
+
   Future<void> _dropBlock(PdfTextBlock block) async {
     final d = _drag, w = _widthDrag;
     setState(() {
@@ -480,6 +584,13 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
               ? null
               : _r(item.left, item.bottom, item.right, item.top),
           itemScale: _dragging ? _scale : 1,
+          itemGrip: item == null
+              ? null
+              : _gripAnchor(_r(item.left, item.bottom, item.right, item.top)),
+          onAccent: scheme.onPrimary,
+          movable: selected != null &&
+              selected < blocks.length &&
+              blocks[selected].editable,
           annotRect: annot == null
               ? null
               : _r(annot.left, annot.bottom, annot.right, annot.top),
@@ -502,93 +613,115 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
           shape: _shapeMarkup ? c.markup : null,
         );
 
-        Widget layer = CustomPaint(size: widget.pageSize, painter: painter);
+        final children = <Widget>[
+          IgnorePointer(
+              child: CustomPaint(size: widget.pageSize, painter: painter)),
+        ];
 
-        if (live != null) {
-          // Yazma kipi: dokun = imleç, çift dokun = sözcük, uzun bas + sürükle
-          // = seçim; bloğun dışına dokun = uygula.
-          final bounds = _liveBounds(live);
-          layer = GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onTapUp: (d) {
-              if (bounds.contains(d.localPosition)) {
-                _caretTo(d.localPosition);
-              } else {
-                widget.events.onCommit();
-              }
-            },
-            onDoubleTapDown: (d) {
-              if (bounds.contains(d.localPosition)) {
-                _caretTo(d.localPosition, word: true);
-              }
-            },
-            onLongPressStart: (d) {
-              AppHaptics.selection();
-              _caretTo(d.localPosition, word: true);
-            },
-            onLongPressMoveUpdate: (d) =>
-                _caretTo(d.localPosition, extend: true),
-            child: layer,
-          );
-        } else if (tool == PdfProTool.markup &&
-            c.markup != PdfMarkupKind.none &&
-            c.markup != PdfMarkupKind.note &&
-            c.markup != PdfMarkupKind.eraser) {
-          // Çizim/işaretleme: tek parmak sürükleme bu katmanındır.
-          layer = GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onPanStart: (d) => setState(() {
-              _markFrom = d.localPosition;
-              _markTo = d.localPosition;
-              _stroke
-                ..clear()
-                ..add(d.localPosition);
-            }),
-            onPanUpdate: (d) => setState(() {
-              _markTo = d.localPosition;
-              if (c.markup == PdfMarkupKind.ink) _stroke.add(d.localPosition);
-            }),
-            onPanEnd: (_) => _finishMarkup(),
-            onPanCancel: () => setState(() {
-              _markFrom = null;
-              _markTo = null;
-              _stroke.clear();
-            }),
-            child: layer,
-          );
+        if (live == null && c.drawing) {
+          // Çizim/işaretleme: tek parmak çizer (görüntüleyicide tek parmak
+          // kaydırma bu sırada kapalı — `body.dart`), iki parmak yakınlaştırır.
+          children.add(Positioned.fill(
+            child: Listener(
+              behavior: HitTestBehavior.translucent,
+              onPointerDown: _drawDown,
+              onPointerMove: _drawMove,
+              onPointerUp: _drawUp,
+              onPointerCancel: (e) => _drawUp(e, cancel: true),
+            ),
+          ));
         } else {
-          layer = GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onTapUp: (d) => _tap(d.localPosition, blocks, rects, selected),
-            onDoubleTapDown: tool == PdfProTool.text
-                ? (d) {
-                    final hit = hitPdfBlock(rects, d.localPosition, slop: 6 * px);
-                    if (hit == null || c.busy) return;
-                    final b = blocks[hit];
-                    if (!b.editable) {
-                      widget.events.onLocked(pageIndex, b);
-                      return;
-                    }
-                    final pt = _p(d.localPosition);
-                    final w = b.map.wordAt(b.map.offsetAt(pt.x, pt.y));
-                    widget.events.onEdit(pageIndex, b, selection: w);
+          final bounds = live == null ? Rect.zero : _liveBounds(live);
+          children
+            ..add(_tapTarget(
+              context,
+              onTap: (at) {
+                if (c.live != null) {
+                  // Yazarken: dokun = imleç; bloğun dışı (ya da başka sayfa)
+                  // = uygula.
+                  if (live != null && bounds.contains(at)) {
+                    _caretTo(at);
+                  } else {
+                    widget.events.onCommit();
                   }
-                : null,
-            onLongPressStart: tool == PdfProTool.text
-                ? (d) {
-                    final hit = hitPdfBlock(rects, d.localPosition, slop: 6 * px);
-                    if (hit == null) return;
-                    AppHaptics.selection();
-                    c.select(pageIndex, hit);
-                    widget.events.onBlockMenu(pageIndex, blocks[hit]);
+                  return;
+                }
+                _tap(at, blocks, rects, selected);
+              },
+              onDoubleTap: (at) {
+                if (c.live != null) {
+                  if (live != null && bounds.contains(at)) {
+                    _caretTo(at, word: true);
                   }
-                : null,
-            child: layer,
-          );
+                  return;
+                }
+                if (tool != PdfProTool.text) return;
+                final hit = hitPdfBlock(rects, at, slop: 6 * px);
+                if (hit == null || c.busy) return;
+                final b = blocks[hit];
+                if (!b.editable) {
+                  widget.events.onLocked(pageIndex, b);
+                  return;
+                }
+                final pt = _p(at);
+                final w = b.map.wordAt(b.map.offsetAt(pt.x, pt.y));
+                widget.events.onEdit(pageIndex, b, selection: w);
+              },
+              onLongPress: (at) {
+                if (c.live != null) {
+                  // Uzun bas = sözcük; parmak kalkmadan sürükle = seçimi uzat.
+                  if (live == null) return;
+                  AppHaptics.selection();
+                  _caretTo(at, word: true);
+                  _extending = true;
+                  return;
+                }
+                if (tool != PdfProTool.text) return;
+                final hit = hitPdfBlock(rects, at, slop: 6 * px);
+                if (hit == null) return;
+                AppHaptics.selection();
+                c.select(pageIndex, hit);
+                widget.events.onBlockMenu(pageIndex, blocks[hit]);
+              },
+            ))
+            ..add(Positioned.fill(
+              child: Listener(
+                behavior: HitTestBehavior.translucent,
+                onPointerMove: (e) {
+                  if (_extending && _liveHere) {
+                    _caretTo(e.localPosition, extend: true);
+                  }
+                },
+                onPointerUp: (_) => _extending = false,
+                onPointerCancel: (_) => _extending = false,
+              ),
+            ));
         }
 
-        final children = <Widget>[layer];
-        // Seçili blok: gövdeden sürükle = taşı; sağ tutamaç = genişlik.
+        // Tutamaçlar parmağı sahiplenir (yalnız kendi küçük alanlarında):
+        // gövdeye dokunuş/sürükleme görüntüleyicide kalır — seçim açıkken de
+        // sayfa kayar ve yakınlaşır.
+        Widget grip(Offset center, double size,
+                {required GestureDragUpdateCallback onUpdate,
+                required VoidCallback onEnd,
+                required VoidCallback onCancel,
+                Key? key}) =>
+            Positioned(
+              key: key,
+              left: center.dx - size / 2,
+              top: center.dy - size / 2,
+              width: size,
+              height: size,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onPanStart: (_) => setState(() => _dragging = true),
+                onPanUpdate: onUpdate,
+                onPanEnd: (_) => onEnd(),
+                onPanCancel: onCancel,
+              ),
+            );
+        const hs = PdfEditTokens.gripHit;
+        // Seçili blok: üst tutamaç = taşı; sağ tutamaç = genişlik.
         if (live == null &&
             tool == PdfProTool.text &&
             selected != null &&
@@ -597,80 +730,52 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
             !c.busy) {
           final b = blocks[selected];
           final r = rects[selected].inflate(2 * px);
-          final hs = 28 * px;
+          final d = _dragging ? _drag : Offset.zero;
           children
-            ..add(Positioned.fromRect(
-              rect: r.shift(_dragging ? _drag : Offset.zero),
-              child: GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onTapUp: (d) {
-                  final pt = _p(d.localPosition + r.topLeft);
-                  widget.events.onEdit(pageIndex, b,
-                      offset: b.map.offsetAt(pt.x, pt.y));
-                },
-                onPanStart: (_) => setState(() => _dragging = true),
-                onPanUpdate: (d) => setState(() => _drag += d.delta),
-                onPanEnd: (_) => _dropBlock(b),
-                onPanCancel: () => setState(() {
-                  _dragging = false;
-                  _drag = Offset.zero;
-                }),
-              ),
-            ))
-            ..add(Positioned(
-              left: r.right - hs / 2 + (_dragging ? _drag.dx + _widthDrag : 0),
-              top: r.center.dy - hs / 2 + (_dragging ? _drag.dy : 0),
-              width: hs,
-              height: hs,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onPanStart: (_) => setState(() => _dragging = true),
-                onPanUpdate: (d) => setState(() => _widthDrag += d.delta.dx),
-                onPanEnd: (_) => _dropBlock(b),
-                onPanCancel: () => setState(() {
-                  _dragging = false;
-                  _widthDrag = 0;
-                }),
-              ),
-            ));
+            ..add(grip(r.topCenter + d, hs,
+                key: const ValueKey('pse-grip-move'),
+                onUpdate: (e) => setState(() => _drag += e.delta),
+                onEnd: () => _dropBlock(b),
+                onCancel: () => setState(() {
+                      _dragging = false;
+                      _drag = Offset.zero;
+                    })))
+            ..add(grip(
+                r.centerRight + d + Offset(_dragging ? _widthDrag : 0, 0), hs,
+                key: const ValueKey('pse-grip-width'),
+                onUpdate: (e) => setState(() => _widthDrag += e.delta.dx),
+                onEnd: () => _dropBlock(b),
+                onCancel: () => setState(() {
+                      _dragging = false;
+                      _widthDrag = 0;
+                    })));
         }
-        // Seçili nesne: gövdeden taşı; sağ-alt köşeden ölçekle.
+        // Seçili nesne: üst tutamaç = taşı; sağ-alt köşe = ölçekle.
         if (live == null && item != null && !c.busy) {
           final r = _r(item.left, item.bottom, item.right, item.top);
-          final hs = 28 * px;
+          final d = _dragging ? _drag : Offset.zero;
           children
-            ..add(Positioned.fromRect(
-              rect: r.shift(_dragging ? _drag : Offset.zero),
-              child: GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onPanStart: (_) => setState(() => _dragging = true),
-                onPanUpdate: (d) => setState(() => _drag += d.delta),
-                onPanEnd: (_) => _dropItem(item),
-                onPanCancel: () => setState(() {
-                  _dragging = false;
-                  _drag = Offset.zero;
-                }),
-              ),
-            ))
-            ..add(Positioned(
-              left: r.left + r.width * _scale - hs / 2,
-              top: r.top + r.height * _scale - hs / 2,
-              width: hs,
-              height: hs,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onPanStart: (_) => setState(() => _dragging = true),
-                onPanUpdate: (d) => setState(() {
-                  final w = math.max(1.0, r.width);
-                  _scale = ((w * _scale + d.delta.dx) / w).clamp(0.1, 8.0);
-                }),
-                onPanEnd: (_) => _dropItem(item),
-                onPanCancel: () => setState(() {
-                  _dragging = false;
-                  _scale = 1;
-                }),
-              ),
-            ));
+            ..add(grip(_gripAnchor(r) + d, hs,
+                key: const ValueKey('pse-grip-item'),
+                onUpdate: (e) => setState(() => _drag += e.delta),
+                onEnd: () => _dropItem(item),
+                onCancel: () => setState(() {
+                      _dragging = false;
+                      _drag = Offset.zero;
+                    })))
+            ..add(grip(
+                Offset(r.left + r.width * _scale, r.top + r.height * _scale),
+                hs,
+                key: const ValueKey('pse-grip-scale'),
+                onUpdate: (e) => setState(() {
+                      final w = math.max(1.0, r.width);
+                      _scale = ((w * _scale + e.delta.dx) / w).clamp(0.1, 8.0);
+                    }),
+                onEnd: () => _dropItem(item),
+                onCancel: () => setState(() {
+                      _dragging = false;
+                      _scale = 1;
+                    })));
         }
         return SizedBox.fromSize(
           size: widget.pageSize,
@@ -735,210 +840,4 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
         }
     }
   }
-}
-
-class _LayerPainter extends CustomPainter {
-  _LayerPainter({
-    required this.rects,
-    required this.locked,
-    required this.selected,
-    required this.accent,
-    required this.pending,
-    required this.px,
-    required this.drag,
-    required this.widthDrag,
-    required this.itemRect,
-    required this.itemScale,
-    required this.annotRect,
-    required this.live,
-    required this.toWidget,
-    required this.caretOn,
-    required this.stroke,
-    required this.strokeColor,
-    required this.strokeWidth,
-    required this.markFrom,
-    required this.markTo,
-    required this.markRects,
-    required this.shape,
-  }) : super(repaint: caretOn);
-
-  final List<Rect> rects;
-  final List<bool> locked;
-  final int? selected;
-  final Color accent, pending, strokeColor;
-  final double px, widthDrag, itemScale, strokeWidth;
-  final Offset drag;
-  final Rect? itemRect, annotRect;
-  final PdfLiveEdit? live;
-  final Offset Function(double x, double y) toWidget;
-  final ValueNotifier<bool> caretOn;
-  final List<Offset> stroke;
-  final Offset? markFrom, markTo;
-  final List<Rect> markRects;
-  final PdfMarkupKind? shape;
-
-  void _dashed(Canvas canvas, Rect r, Paint paint) {
-    final dash = 5 * px, gap = 3 * px;
-    void line(Offset a, Offset b) {
-      final len = (b - a).distance;
-      if (len <= 0) return;
-      final dir = (b - a) / len;
-      for (var d = 0.0; d < len; d += dash + gap) {
-        canvas.drawLine(a + dir * d, a + dir * math.min(len, d + dash), paint);
-      }
-    }
-
-    line(r.topLeft, r.topRight);
-    line(r.topRight, r.bottomRight);
-    line(r.bottomRight, r.bottomLeft);
-    line(r.bottomLeft, r.topLeft);
-  }
-
-  void _selection(Canvas canvas, Rect r) {
-    canvas.drawRect(
-        r, Paint()..color = accent.withValues(alpha: PdfEditTokens.frameFillAlpha));
-    canvas.drawRect(
-        r,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = PdfEditTokens.frameActiveWidth * px
-          ..color = accent);
-    final handle = Paint()..color = accent;
-    for (final c in [r.topLeft, r.topRight, r.bottomLeft, r.bottomRight]) {
-      canvas.drawCircle(c, PdfEditTokens.handle / 2 * px, handle);
-    }
-  }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final idle = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = PdfEditTokens.frameIdleWidth * px
-      ..color = accent.withValues(alpha: PdfEditTokens.frameIdleAlpha);
-    final lockPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = PdfEditTokens.frameIdleWidth * px
-      ..color = pending;
-    for (var i = 0; i < rects.length; i++) {
-      if (i == selected) continue;
-      final r = rects[i].inflate(2 * px);
-      if (i < locked.length && locked[i]) {
-        _dashed(canvas, r, lockPaint);
-      } else {
-        canvas.drawRect(r, idle);
-      }
-    }
-    final s = selected;
-    if (s != null && s < rects.length) {
-      final base = rects[s].inflate(2 * px).shift(drag);
-      final r = Rect.fromLTRB(
-          base.left, base.top, base.right + widthDrag, base.bottom);
-      _selection(canvas, r);
-      // Genişlik tutamacı (sağ kenarın ortası).
-      canvas.drawRRect(
-          RRect.fromRectAndRadius(
-              Rect.fromCenter(
-                  center: r.centerRight, width: 6 * px, height: 22 * px),
-              Radius.circular(3 * px)),
-          Paint()..color = accent);
-    }
-    final ir = itemRect;
-    if (ir != null) {
-      final r = Rect.fromLTWH(ir.left + drag.dx, ir.top + drag.dy,
-          ir.width * itemScale, ir.height * itemScale);
-      _selection(canvas, r);
-    }
-    final ar = annotRect;
-    if (ar != null) {
-      _dashed(
-          canvas,
-          ar.inflate(3 * px),
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = PdfEditTokens.frameActiveWidth * px
-            ..color = accent);
-    }
-
-    // İşaretleme önizlemesi.
-    if (markRects.isNotEmpty) {
-      final p = Paint()..color = strokeColor.withValues(alpha: 0.35);
-      for (final r in markRects) {
-        canvas.drawRect(r, p);
-      }
-    }
-    if (stroke.length > 1) {
-      final path = Path()..moveTo(stroke.first.dx, stroke.first.dy);
-      for (final o in stroke.skip(1)) {
-        path.lineTo(o.dx, o.dy);
-      }
-      canvas.drawPath(
-          path,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeCap = StrokeCap.round
-            ..strokeJoin = StrokeJoin.round
-            ..strokeWidth = strokeWidth
-            ..color = strokeColor);
-    }
-    final a = markFrom, b = markTo;
-    if (shape != null && a != null && b != null) {
-      final p = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth
-        ..color = strokeColor;
-      switch (shape!) {
-        case PdfMarkupKind.ellipse:
-          canvas.drawOval(Rect.fromPoints(a, b), p);
-        case PdfMarkupKind.line || PdfMarkupKind.arrow:
-          canvas.drawLine(a, b, p);
-        case PdfMarkupKind.redact:
-          canvas.drawRect(Rect.fromPoints(a, b),
-              Paint()..color = strokeColor.withValues(alpha: 0.6));
-        default:
-          canvas.drawRect(Rect.fromPoints(a, b), p);
-      }
-    }
-
-    // Yazma kipi: seçim, bileşim alt çizgisi, imleç.
-    final l = live;
-    if (l == null) return;
-    final map = l.map;
-    final lo = math.min(l.selStart, l.selEnd), hi = math.max(l.selStart, l.selEnd);
-    if (hi > lo) {
-      final p = Paint()
-        ..color = accent.withValues(alpha: PdfEditTokens.textSelectionAlpha);
-      for (final q in map.selection(lo, hi)) {
-        canvas.drawPath(
-            Path()
-              ..addPolygon([
-                toWidget(q[0], q[1]),
-                toWidget(q[2], q[3]),
-                toWidget(q[4], q[5]),
-                toWidget(q[6], q[7]),
-              ], true),
-            p);
-      }
-    }
-    if (l.composeStart >= 0 && l.composeEnd > l.composeStart) {
-      final p = Paint()
-        ..strokeWidth = 1.5 * px
-        ..color = accent;
-      for (final q in map.selection(l.composeStart, l.composeEnd)) {
-        canvas.drawLine(toWidget(q[0], q[1]), toWidget(q[2], q[3]), p);
-      }
-    }
-    if (hi == lo && caretOn.value) {
-      final (x0, y0, x1, y1) = map.caret(lo);
-      canvas.drawLine(
-          toWidget(x0, y0),
-          toWidget(x1, y1),
-          Paint()
-            ..strokeWidth = 2 * px
-            ..strokeCap = StrokeCap.round
-            ..color = l.error == null ? accent : pending);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_LayerPainter old) => true;
 }

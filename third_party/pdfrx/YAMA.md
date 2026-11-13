@@ -1,6 +1,6 @@
 # pdfrx 2.12.0 yaması (Faz 48, 2026-11-08)
 
-**Tek değişiklik** — `lib/src/widgets/pdf_viewer.dart`:
+**1. değişiklik** — `lib/src/widgets/pdf_viewer.dart`:
 
 ```diff
    bool get _shouldBuildTextSemantics =>
@@ -20,3 +20,18 @@ görünümü (`ReaderScreen`) ve sesli okuma (TTS) ile erişilebilir kalır.
 
 **Yükseltmede:** yeni sürümün `_shouldBuildTextSemantics`'ine bak; kapatma parametresi
 geldiyse kopyayı sil, parametreyi `body.dart`/`pdf_editor/views.dart`'ta ver.
+
+## 2. değişiklik (2026-11-13) — `repaintPageImages(pageNumber)`
+
+`PdfViewerController.repaintPageImages` + `_PdfViewerState.repaintPageImages`: sayfanın önbellek
+görüntülerini (önizleme + gerçek boy parça) **geometriye bakmadan** kirli işaretler.
+
+**Neden (kök neden, cihaz bulgusu):** `_onDocumentEvent` → `makeCacheImageForPageDirty(n, page:)`
+sayfanın boyu/dönüşü aynıysa görüntüyü "hâlâ geçerli" sayar (isteğe bağlı ölçüm için konmuş
+kısayol). PDF Pro düzenlemesi sayfanın İÇERİĞİNİ değiştirir, geometrisini değil → `reloadPages`
+olayı geliyor ama görüntü hiç yeniden çizilmiyordu: yazılan/silinen metin ekranda görünmüyordu.
+Uygulama düzenleme kipindeyken belge olayını dinleyip bu yöntemi çağırır
+(`lib/screens/viewer/pdf_pro_edit.dart`).
+
+**Yükseltmede:** yukarı akış içerik değişimini geometriden ayırıyorsa (ya da sayfa başına
+"yeniden çiz" API'si geldiyse) bu yöntem silinir.

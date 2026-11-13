@@ -20,6 +20,11 @@ const Map<String, (String, String, String)> _t33 = {
     'Tap a paragraph to select it; tap again to type right on the page.',
     'اضغط على فقرة لتحديدها، ثم اضغط مرة أخرى للكتابة في مكانها.',
   ),
+  'pse.hint_scanned': (
+    'Bu sayfa taranmış bir görüntü, seçilecek metin yok. Yazı eklemek için “Metin kutusu”na, metni tanıtmak için “Metni tanı (OCR)”a dokunun.',
+    'This page is a scanned image with no selectable text. Tap “Text box” to add text or “Recognize text (OCR)” to detect it.',
+    'هذه الصفحة صورة ممسوحة ضوئيًا ولا تحتوي على نص قابل للتحديد. اضغط «مربع نص» لإضافة نص أو «التعرف على النص (OCR)» لاكتشافه.',
+  ),
   'pse.edit_title': ('Paragrafı düzenle', 'Edit paragraph', 'تحرير الفقرة'),
   'pse.edit_hint': ('Paragraf metni', 'Paragraph text', 'نص الفقرة'),
   'pse.refused_glyph': (

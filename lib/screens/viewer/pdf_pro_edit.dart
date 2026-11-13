@@ -54,14 +54,42 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
     )..addListener(_onProChanged);
     _clearPdfSelection();
     _readingBars.pinned = true;
-    _partSetState(() => _pro = pro);
+    unawaited(_proDocSub?.cancel());
+    _proDocSub = doc.events.listen((event) {
+      if (event is! PdfDocumentPageStatusChangedEvent) return;
+      for (final pageNumber in event.changes.keys) {
+        _pdfController.repaintPageImages(pageNumber);
+      }
+    });
+    _partSetState(() {
+      _pro = pro;
+      _pdfSelecting = false;
+    });
     // Okumada seçilen aralık → düzenlemede AYNI aralık seçili açılır (PS1).
     if (selection != null && page != null && page > 0) {
       unawaited(_proOpenSelection(pro, page - 1, selection));
     } else {
-      _snack(context.t('pse.hint_tap'));
+      unawaited(_proEntryHint(pro));
     }
     return true;
+  }
+
+  /// Kipe girişte ipucu: görünen sayfada metin varsa "dokun, yaz"; yoksa
+  /// (taranmış sayfa) neden seçilemediği ve ne yapılabileceği.
+  Future<void> _proEntryHint(PdfProEditController pro) async {
+    final tap = context.t('pse.hint_tap');
+    final scanned = context.t('pse.hint_scanned');
+    final pageIndex = (_livePdfPage() ?? _pdfPage) - 1;
+    List<PdfTextBlock>? blocks;
+    for (var i = 0; i < 40 && blocks == null; i++) {
+      blocks = pro.blocksOf(pageIndex);
+      if (blocks == null) {
+        await Future<void>.delayed(Motion.short);
+        if (!mounted || _pro != pro) return;
+      }
+    }
+    if (!mounted || _pro != pro) return;
+    _snack(blocks != null && blocks.isEmpty ? scanned : tap);
   }
 
   /// Oturumu kapatır ve okuma kipine döner. Bu oturumda özgünün üstüne
@@ -73,11 +101,17 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
     if (pro == null) return;
     pro.removeListener(_onProChanged);
     _pro = null;
+    _pdfSelecting = false;
     _readingBars.pinned = _findOpen;
     if (mounted) _partSetState(() {});
     final saved = pro.savedOverOriginal;
     await pro.close(keepRecovery: keepRecovery);
     pro.dispose();
+    // Kapanıştaki geri dönüşler de çizildikten sonra dinleme biter.
+    if (_pro == null) {
+      unawaited(_proDocSub?.cancel());
+      _proDocSub = null;
+    }
     if (reload && saved && !keepRecovery && mounted) await _reloadPdf();
   }
 

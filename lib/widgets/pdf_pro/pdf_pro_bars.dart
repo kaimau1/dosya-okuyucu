@@ -401,6 +401,7 @@ class PdfProTextInput extends StatefulWidget {
 
 class _PdfProTextInputState extends State<PdfProTextInput> {
   bool _syncing = false;
+  final GlobalKey<EditableTextState> _editable = GlobalKey();
 
   @override
   void initState() {
@@ -438,11 +439,15 @@ class _PdfProTextInputState extends State<PdfProTextInput> {
     final v = widget.input.value;
     final a = pdfUtf16Index(live.text, live.selStart);
     final b = pdfUtf16Index(live.text, live.selEnd);
-    if (v.text == live.text &&
+    final same = v.text == live.text &&
         v.selection.start == (a < b ? a : b) &&
-        v.selection.end == (a < b ? b : a)) {
-      return;
+        v.selection.end == (a < b ? b : a);
+    // Sayfayı kaydırmak odağı görüntüleyiciye verir (klavye kapanır): metne
+    // yeniden dokunulunca odak ve klavye geri gelir.
+    if (!same || !widget.focusNode.hasFocus) {
+      _editable.currentState?.requestKeyboard();
     }
+    if (same) return;
     _syncing = true;
     widget.input.value = TextEditingValue(
       text: live.text,
@@ -482,13 +487,14 @@ class _PdfProTextInputState extends State<PdfProTextInput> {
                 PdfStyleSpan(a, b, underline: !on((s) => s.underline))),
       },
       child: SizedBox(
+        key: const ValueKey('pse-input'),
         width: 1,
         height: 1,
         child: Opacity(
           opacity: 0,
           child: ExcludeSemantics(
             child: EditableText(
-              key: const ValueKey('pse-input'),
+              key: _editable,
               controller: widget.input,
               focusNode: widget.focusNode,
               autofocus: true,
