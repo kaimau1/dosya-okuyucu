@@ -294,6 +294,7 @@ kayıt/kopya/sürüm geçmişi cihazda doğrulandı.
        PS2'nin benzeri belgede tüm paragraflar doğal blok (OCR'a düşen satır 0).
 **Bitti:** hedefler tezgâhta tutuyor; rapor `2026-11-pdfpro-55-duzen.md`.
 **Durum (2026-11-13):** bitti (☁️). `pdf_text_blocks.dart` — çerçeve tabanlı satır/paragraf, hizalama, liste (metin + vektör madde imi), tablo çizgileri, üst/alt bilgi, döndürülmüş metin, RTL/görünmez kilit, satır kipi, böl/birleştir, seçim → blok. Külliyat: kapsama %100, blok 523 / beklenen 516 (paragraf sayım hatası 84 → 26; kalanı çok sütunlu ve grafik etiketi belirsizlikleri). Dikey (CJK) yazı ayrıca işaretlenmiyor. Rapor `docs/perf/2026-11-pdfpro-55-65.md`.
+**Ek (2026-11-13, dekont bulgusu):** form/tablo düzeninde ("Etiket : değer" satırları) birim SATIR PARÇASIDIR — sekme durağında satır bölünür, tablo satırları paragraf sayılmaz (ayrıntı HAFIZA). PK4 (paragraf birimi) gövde metninde aynen.
 
 ### Faz 56 — Yazı tipi sadakati ☁️ (3 oturum)
 1. [~] **Font çıkarma ve onarma:** `FPDFFont_GetFontData` → TrueType alt kümeye ToUnicode + kodlamadan
@@ -345,6 +346,7 @@ kayıt/kopya/sürüm geçmişi cihazda doğrulandı.
 **Bitti:** cihazda 6 ekran görüntüsündeki akışlar sorunsuz; Türkçe/Arapça giriş, donanım klavyesi,
 iki cihazda bütçe; widget + golden testler.
 **Durum (2026-11-13):** kod bitti, **cihaz kapısı bekliyor** (📱). PK6 kararı: PDFium canlı bölge çizimi + bizim imleç katmanı (gördüğün = sayfanın kendisi). Gizli `EditableText` IME'yi toplar. Blok aşağı uzar (sığmıyor reddi yok); çakışma uyarısı/seçenekleri yok. Karakter biçimi: kalın, italik, altı/üstü çizili, renk, vurgu, punto (blok), hizalama; yazı tipi değiştirme ve satır aralığı/girinti arayüzü yok. Seçim tutamaçları ve büyüteç sistemin değil (dokun / çift dokun / uzun bas + sürükle). Arapça giriş: RTL blok kilitli (PK7). Bütçeler cihazda ölçülmedi.
+**Ek (2026-11-13, dekont bulgusu):** fontta boşluk yoksa sözcük arası glifsiz aralıkla yazılır (1 em boşluk hatası); Kaydet ilk seferde "kopya (özgün korunur) / üstüne yaz" sorar (Faz 54 kayıt akışına ek).
 
 ### Faz 58 — Metin araçları: yeni metin, liste, bul-değiştir, yazım, kopyala-yapıştır ☁️ + 📱 (2 oturum)
 1. [x] **Yeni metin kutusu:** dokun/sürükle-çiz; varsayılan stil çevredeki gövde metninden (font,
