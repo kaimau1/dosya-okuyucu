@@ -99,4 +99,39 @@ void main() {
       expect(tester.getRect(find.byType(ListView)), bodyBefore);
     });
   }
+
+  // Cihaz 2026-11-13: klavye açılınca `padding.bottom` 0'a iniyor; alt çubuk
+  // SafeArea'sı kısalınca içerik payı değişip PDF sayfası zıplıyordu.
+  testWidgets('klavye açılınca alt çubuk payı değişmez', (tester) async {
+    final bars = ReadingBars();
+    addTearDown(bars.dispose);
+    EdgeInsets? insets;
+    Widget app(MediaQueryData mq) => MediaQuery(
+          data: mq,
+          child: MaterialApp(
+            home: OfficeShell(
+              kind: DocKind.pdf,
+              title: 'belge',
+              readingBars: bars,
+              resizeForKeyboard: false,
+              bottomBar: const SizedBox(height: 56, child: Text('alt')),
+              body: Builder(builder: (context) {
+                insets = ReadingChrome.insetsOf(context);
+                return const SizedBox.expand();
+              }),
+            ),
+          ),
+        );
+    const nav = EdgeInsets.only(bottom: 48);
+    await tester.pumpWidget(app(const MediaQueryData(
+        size: Size(400, 800), padding: nav, viewPadding: nav)));
+    await tester.pump();
+    final before = insets!.bottom;
+    await tester.pumpWidget(app(const MediaQueryData(
+        size: Size(400, 800),
+        viewPadding: nav,
+        viewInsets: EdgeInsets.only(bottom: 300))));
+    await tester.pump();
+    expect(insets!.bottom, before);
+  });
 }

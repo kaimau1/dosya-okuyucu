@@ -325,7 +325,12 @@ class _OfficeShellState extends State<OfficeShell>
                 color: scheme.surface,
                 border: Border(top: BorderSide(color: scheme.outlineVariant)),
               ),
-              child: SafeArea(top: false, child: widget.bottomBar!),
+              // Klavye açılınca `padding.bottom` 0'a iner; çubuk kısalınca
+              // gövde payı değişip PDF sayfası ~64 px zıplıyordu (PS4).
+              child: SafeArea(
+                  top: false,
+                  maintainBottomViewPadding: true,
+                  child: widget.bottomBar!),
             ),
           );
     if (widget.readingBars == null) {
