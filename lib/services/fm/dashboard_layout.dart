@@ -49,7 +49,13 @@ class DashboardLayout extends ChangeNotifier {
     'recent',
     'drive',
     'apps',
+    // **Yeni kart** (2026-11-13): kullanıcının kendi kartını açtığı kutu.
+    // Kartların kendisi `card:<id>` kimliğiyle dinamik ([isDynamic]).
+    'new_card',
   ];
+
+  /// Kullanıcı kartları — bilinen listede yok ama kaydı korunur.
+  static bool isDynamic(String id) => id.startsWith('card:');
 
   /// "Yeni kimlik görünür eklenir" kuralının BİLİNÇLİ istisnası (K16 (b)):
   /// mevcut kullanıcının panosu güncellemeyle kendiliğinden değişmesin.
@@ -91,7 +97,7 @@ class DashboardLayout extends ChangeNotifier {
   static List<String> _merge(List<String>? saved, List<String> known) {
     final out = <String>[
       for (final id in saved ?? const <String>[])
-        if (known.contains(id)) id,
+        if (known.contains(id) || isDynamic(id)) id,
     ];
     // Yeni kimlik varsayılan sıradaki KOMŞUSUNUN arkasına girer (sona
     // değil): "Son açılanlar" bellek kartlarının hemen altında doğar ve
@@ -121,7 +127,8 @@ class DashboardLayout extends ChangeNotifier {
       }
       final savedTiles = p.getStringList(_kTiles);
       _tileOrder = _merge(savedTiles, tiles);
-      _hiddenTiles = {...?p.getStringList(_kHiddenTiles)}..retainAll(tiles);
+      _hiddenTiles = {...?p.getStringList(_kHiddenTiles)}
+        ..removeWhere((id) => !tiles.contains(id) && !isDynamic(id));
       for (final id in defaultHiddenTiles) {
         if (savedTiles == null || !savedTiles.contains(id)) {
           _hiddenTiles.add(id);
@@ -190,6 +197,15 @@ class DashboardLayout extends ChangeNotifier {
 
   /// [items]'ı kayıtlı sıraya dizer ve gizlileri çıkarır ([idOf] kimlik).
   List<T> arrangeTiles<T>(List<T> items, String Function(T) idOf) {
+    // Yeni kullanıcı kartı: sıraya bir kez eklenir (düzenle levhası
+    // taşıyabilsin, gizleyebilsin). Kaydı bir sonraki değişiklikte yazılır.
+    for (final t in items) {
+      final id = idOf(t);
+      if (isDynamic(id) && !_tileOrder.contains(id)) {
+        final at = _tileOrder.indexOf('new_card');
+        at < 0 ? _tileOrder.add(id) : _tileOrder.insert(at, id);
+      }
+    }
     final byId = {for (final t in items) idOf(t): t};
     return [
       for (final id in _tileOrder)

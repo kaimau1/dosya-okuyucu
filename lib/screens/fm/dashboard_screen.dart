@@ -67,6 +67,8 @@ import 'drive_screen.dart';
 import '../settings_screen.dart';
 import 'important_gallery_screen.dart';
 import 'important_screen.dart';
+import 'custom_card_screen.dart';
+import '../../services/fm/custom_cards.dart';
 import 'installed_apps_screen.dart';
 import 'new_files_screen.dart';
 import 'swipe_pager.dart';
@@ -249,6 +251,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     // Kullanıcının pano düzeni (sıra + göster/gizle).
     DashboardLayout.instance.addListener(_onLayoutChanged);
     unawaited(DashboardLayout.instance.ensureLoaded());
+    // Kullanıcının kendi kartları (2026-11-13) — ana ekranda göster açıksa.
+    CustomCards.instance.addListener(_onLayoutChanged);
+    unawaited(CustomCards.instance.ensureLoaded());
     unawaited(SmartFolders.instance.ensureLoaded());
     _boot();
     unawaited(_loadAppsSize());
@@ -258,6 +263,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void dispose() {
     DashboardLayout.instance.removeListener(_onLayoutChanged);
+    CustomCards.instance.removeListener(_onLayoutChanged);
     WidgetsBinding.instance.removeObserver(this);
     FsEvents.version.removeListener(_onFsChanged);
     AppStorageService.setUsbAttachedHandler(null);

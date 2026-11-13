@@ -410,6 +410,36 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
             : FsPaths.humanSize(_appsBytes!),
         onTap: () => _push(const InstalledAppsScreen()),
       ),
+      // **Kullanıcının kendi kartları** (2026-11-13): "Ana ekranda göster"
+      // açık kartlar + "Yeni kart" kutusu (Ana ekranı düzenle'den gizlenebilir).
+      for (final c in CustomCards.instance.homeCards)
+        FmTileData(
+          id: c.tileId,
+          icon: cardIconOf(c),
+          color: Color(c.color),
+          label: c.name,
+          subtitle: context.t(c.view == CardView.gallery
+              ? 'card.view_gallery'
+              : 'card.view_folder'),
+          onTap: () async {
+            await openCustomCard(context, c);
+            if (mounted) _partSetState(() {});
+          },
+        ),
+      FmTileData(
+        id: 'new_card',
+        icon: AppIcons.add,
+        color: AppHues.steel,
+        label: context.t('card.new'),
+        subtitle: context.t('card.new_tile_sub'),
+        onTap: () async {
+          final card = await showCustomCardEditor(context,
+              inImportant: false, onHome: true);
+          if (card == null || !mounted) return;
+          await openCustomCard(context, card);
+          if (mounted) _partSetState(() {});
+        },
+      ),
     ];
     return tiles;
   }

@@ -760,7 +760,8 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         final scanned = pro.blocksOf(shown)?.isEmpty ?? false;
         return [
           if (scanned)
-            PdfProChip(AppIcons.ocr, t('pse.ocr_run'), _openPdfTools,
+            PdfProChip(AppIcons.ocr, t('pse.ocr_run'),
+                () => _runOcr(onlyPage: shown + 1),
                 tapKey: const ValueKey('pse-chip-ocr')),
           PdfProChip(AppIcons.textFields, t('pse.textbox_add'),
               () => pro.armTextBox = !pro.armTextBox,

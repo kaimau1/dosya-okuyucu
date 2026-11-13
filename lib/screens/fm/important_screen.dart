@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/ai_index.dart';
+import '../../services/fm/custom_cards.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
@@ -21,6 +23,7 @@ import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import 'browser_screen.dart';
 import 'category_screen.dart';
+import 'custom_card_screen.dart';
 import 'important_gallery_screen.dart';
 import 'photos_screen.dart';
 import 'search_screen.dart';
@@ -77,12 +80,15 @@ class _ImportantScreenState extends State<ImportantScreen> {
   void initState() {
     super.initState();
     FsEvents.version.addListener(_reload);
+    CustomCards.instance.addListener(_reload);
+    CustomCards.instance.ensureLoaded();
     _load();
   }
 
   @override
   void dispose() {
     FsEvents.version.removeListener(_reload);
+    CustomCards.instance.removeListener(_reload);
     super.dispose();
   }
 
@@ -257,6 +263,8 @@ class _ImportantScreenState extends State<ImportantScreen> {
               const SizedBox(height: Gap.sm),
               FmCategoryGrid(tiles: _categoryTiles()),
               const SizedBox(height: Gap.lg),
+              ..._cardsSection(context),
+              const SizedBox(height: Gap.lg),
               ..._gallery(context),
               const SizedBox(height: Gap.lg),
               Row(
@@ -272,12 +280,12 @@ class _ImportantScreenState extends State<ImportantScreen> {
                   ),
                 ],
               ),
-              if (_subFolders.isEmpty)
+              if (_plainSubFolders.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: Gap.sm),
                   child: Text(context.t('important.no_subfolder')),
                 ),
-              for (final f in _subFolders)
+              for (final f in _plainSubFolders)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(AppIcons.folder, color: context.fmFolderColor ?? FmColors.folder),
@@ -324,6 +332,68 @@ class _ImportantScreenState extends State<ImportantScreen> {
                   child: const Icon(AppIcons.newFolder),
                 )),
     );
+  }
+
+  // ── Kartlar (2026-11-13) ───────────────────────────────────────────────
+
+  /// Karta bağlı olmayan alt klasörler (kartlılar "Kartlarım"da görünür).
+  List<FsEntry> get _plainSubFolders => [
+        for (final f in _subFolders)
+          if (CustomCards.instance.byPath(f.path) == null) f,
+      ];
+
+  Future<void> _newCard() async {
+    final card = await showCustomCardEditor(context, inImportant: true);
+    if (card == null || !mounted) return;
+    await _load();
+    if (!mounted) return;
+    await openCustomCard(context, card);
+    await _load();
+  }
+
+  List<Widget> _cardsSection(BuildContext context) {
+    final cards = CustomCards.instance.within(_root);
+    return [
+      Row(
+        children: [
+          Expanded(
+            child: Text(context.t('card.section'),
+                style: Theme.of(context).textTheme.titleMedium),
+          ),
+          TextButton.icon(
+            key: const ValueKey('important-new-card'),
+            onPressed: _newCard,
+            icon: const Icon(AppIcons.add),
+            label: Text(context.t('card.new')),
+          ),
+        ],
+      ),
+      const SizedBox(height: Gap.sm),
+      FmCategoryGrid(tiles: [
+        for (final c in cards)
+          FmTileData(
+            id: c.tileId,
+            icon: cardIconOf(c),
+            color: Color(c.color),
+            label: c.name,
+            subtitle: _countIn(c.path) == 0
+                ? context.t('card.tile_sub_empty')
+                : '${FsPaths.humanSize(_bytesIn(c.path))} (${_countIn(c.path)})',
+            onTap: () async {
+              await openCustomCard(context, c);
+              await _load();
+            },
+          ),
+        FmTileData(
+          id: 'new_card',
+          icon: AppIcons.add,
+          color: AppHues.steel,
+          label: context.t('card.new'),
+          subtitle: context.t('card.new_tile_sub'),
+          onTap: _newCard,
+        ),
+      ]),
+    ];
   }
 
   // ── Kategoriler (alt klasörler) ─────────────────────────────────────────

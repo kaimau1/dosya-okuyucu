@@ -877,3 +877,7 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Tuzak (Windows exe Linux'ta deneme):** `Core.cs` `JavaScriptSerializer` (System.Web) net8'de yok → test için System.Text.Json
   gölgesi; klasör paketi Linux'ta Unpack'te düşüyor (eski davranış, Windows'ta sorun yok — dokunulmadı).
 - **CI kırmızısı (98316b17, benim değil):** `pdf_pro_dekont_test` analyze + 3 test; main'de düzeltilmişti → main üstüne taşındı.
+
+## 2026-11-13 — Kullanıcı kartları + PDF Pro OCR çipi
+- **Bug kökü (OCR'a basınca "bir şey olmuyor"):** PDF Pro düzenleme kipinde taranmış sayfadaki "Metni tanı (OCR)" çipi `_openPdfTools`'a bağlıydı → OCR yerine sayfa araçları ızgarası (Tümünü döndür/Sil/Çıkar) açılıyordu. Artık `_runOcr(onlyPage:)` yalnız o sayfayı tanır, metin levhada.
+- **Karar (kartlar):** `CustomCards` (SharedPreferences `custom_cards_v1`) — ad, simge anahtarı, renk, görünüm (galeri/klasör), tür süzgeci, ana ekranda mı. Kartın içi GERÇEK klasör: Önemli Dosyalar/<ad> (yıldız + silme koruması) ya da `<bellek>/Kartlarım/<ad>`. "Kartı kaldır" klasörü SİLMEZ. Ana ekran kimliği `card:<id>` (`DashboardLayout.isDynamic` kaydı korur) + `new_card` kutusu. Kartlı alt klasör Önemli Dosyalar'ın alt klasör listesinde gösterilmez.

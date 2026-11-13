@@ -3,7 +3,11 @@ part of '../viewer_screen.dart';
 extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
   /// Görselde veya (taranmış) PDF'te cihaz-içi OCR koşturur; sonucu seçilebilir
   /// bir sayfada gösterir ve AI sohbet bağlamına işler.
-  Future<void> _runOcr() async {
+  ///
+  /// [onlyPage] (1'den) verilirse yalnız o sayfa taranır — PDF Pro düzenleme
+  /// kipinde taranmış sayfadaki "Metni tanı (OCR)" çipi (2026-11-13: çip
+  /// yanlışlıkla sayfa araçlarını açıyordu, OCR hiç koşmuyordu).
+  Future<void> _runOcr({int? onlyPage}) async {
     final doc = widget.doc;
     if (doc.kind == DocKind.pdf && _pdfDoc == null) {
       _snack(context.t('vw.pdf_loading'));
@@ -27,16 +31,19 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
         busy.status(str.t('vw.ocr_running'));
         text = await OcrService.recognizeImageFile(doc.path);
       } else if (doc.kind == DocKind.pdf) {
-        text = await OcrService.recognizePdf(
-          _pdfDoc!,
-          onProgress: (done, total) => busy.status(
+        void progress(int done, int total) => busy.status(
             done >= total
                 ? str.t('vw.ocr_finishing')
                 : str.t('vw.ocr_page', {'n': done + 1, 'total': total}),
             done: done,
             total: total,
-          ),
-        );
+          );
+        text = onlyPage == null
+            ? await OcrService.recognizePdf(_pdfDoc!, onProgress: progress)
+            : OcrService.joinPages(
+                await OcrService.recognizePdfPages(_pdfDoc!,
+                    onlyPages: {onlyPage}, onProgress: progress),
+                (n) => '— Sayfa $n —');
       }
     } catch (e) {
       error = userErrorText(e);
