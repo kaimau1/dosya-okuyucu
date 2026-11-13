@@ -860,7 +860,19 @@ Belgeler: `rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `rl_cok_sayfa.pdf`, `rl_si
 12. **Bayrak kapalı:** bayrak kapalıyken Düzenle eski düzenleyici ekranını açıyor (davranış değişmedi).
 
 **Koşu kaydı**
-- (bekliyor)
+- 2026-11-13 · Mi Note 10 Lite (Android 12, MIUI) · nightly 1.2.55 → 1.2.59 + yerel profil `.r8test` · ✔ 9 · ✘ 1 · 👤 2
+  1 ✔ ekran yerinde, tek parmak kaydırma (blok seçiliyken de) — iki parmak 👤 (adb ile pinch yok) ·
+  2 ✔ uygula / geri al / yinele, uzun bas etiketi · 3 👤 adb `input text` Çince yazamıyor (birim testte) ·
+  4 ✔ Kaydedildi (+5,4 KB), sürüm geçmişi 2 kayıt, geri dönüş · 5 ✔ Kaydet / Kaydetme / Vazgeç ·
+  6 ✔ aynı klasöre + Belgeler'e kopya, özgün değişmedi · 7 👤 başka uygulamadan "birlikte aç" ·
+  8 ✔ 35 sn + `am force-stop` → "2 değişiklik" geri yükle, geri al; Sil → bir daha sorulmuyor (`am kill` MIUI'de süreci öldürmüyor) ·
+  9 ✔ yanlış / doğru sahip parolası; kayıt hâlâ şifreli, metin yerinde (37→74 KB, tam yazım) ·
+  10 ✔ İmza → kaydetme sorusu, Vazgeç'te kip sürüyor ·
+  11 ✘ kısmi: boşta 0 kare ✔; oturum belleği +56 / +65 MB (3 paragraf düzenlemesi, 2 koşu) > +40 MB bütçe; gecikme bütçeleri
+  ölçülmedi (uygulamada zaman damgası yok) — `docs/perf/2026-11-pdfpro-54-oturum.md` ·
+  12 ✔ ⋮ → Eski düzenleyici açılıyor (taranmış satır kipi).
+  Bulunan + düzeltilen: Word'ün böldüğü sözcükte sahte boşluk "ya pılan" (90999e27); "Kaydetme" denen/silinen
+  nesneler sonraki kayda yazılıyordu, +3,8 MB (4ecc90f3).
 ## Faz G1 — Android platform sertleştirme (2026-11-11, dal `faz-G1`)
 1. **Widget dokunuşu:** ana ekran widget'larındaki Tara / Ara / Temizle düğmeleri ve "son dosyalar" satırı doğru ekranı/dosyayı açıyor (bağlantılar artık imzalı).
 2. **Başlatıcı kısayolları:** uygulama simgesine uzun bas → Ara / Tara / İndirilenler / Son açılanlar çalışıyor.
@@ -987,6 +999,28 @@ Her madde: ✔ / ✘ + not. Bütçe sayıları `docs/perf/2026-11-pdfpro-55-65.m
 19. Düzenleme kipinde 5 dk boşta: pil/ısı, çubuklar kıpırdamıyor.
 20. Kip içinde uygulamayı öldür → yeniden aç: "Kaydedilmemiş düzenlemeleri geri yükle".
 
+**Koşu kaydı**
+- 2026-11-13 · Mi Note 10 Lite · 1.2.55 → 1.2.59 + yerel profil `.r8test` · ✔ 15 (6'sı düzeltmeyle) · ✘ 0 · 👤 5
+  1 ✔ imleç dokunulan harfte; klavye açılınca sayfa ~64 px zıplıyordu → 56a78ae9, 1.2.59'da sayfa yerinde ·
+  2 ✔ harfler belge yazı tipiyle ≤0,3 sn'de, rozet "belge"; ğüşıöçİ 👤 (adb ASCII dışı yazamıyor) ·
+  3 👤 Gboard önerisi / otomatik düzeltme / sesle yazma · 4 ✔ paragraf aşağı uzuyor (alttakinin üstüne biniyor, Acrobat gibi), imleç klavye üstünde; gecikme hissi 👤 ·
+  5 ✔ çift dokun = sözcük, B / I, punto ± (paragrafa uygulanır); renk/vurgu/hizalama denenmedi ·
+  6 ✔ Bitti / dışarı dokunuş tek adım, geri al tek dokunuş, ✕ eski hâl, geri tuşu: önce klavye sonra uygular ·
+  7 ✔ okuma kipindeki seçim aynen açılıyor ·
+  8 ✔ dört oklu tutamaçla taşı, sağ tutamaçla daralt; daraltınca paragraf satırlara bölünüyordu → afd39705 (1.2.59'da tek blok); yakınlaştırılmışken 👤 ·
+  9 ✔ Sil, Kopyala, Çoğalt (kopya alttakinin üstüne biniyor), Böl, Birleştir, hizalama/madde/stil çubukta ·
+  10 ✔ metin kutusu çevre yazıyla aynı görünüm · 11 ✔ "2 eşleşme değiştirildi", geri al eşleşme eşleşme ·
+  12 ✔ kesik turuncu çerçeve + neden levhası; başlık "Bu belge … korunuyor" diyordu → dc527cf4 ("Neden düzenlenemiyor?") ·
+  13 ✔ seç, taşı, ölçekle, döndür, kırp, değiştir, dışa aktar (Belgeler'e PNG), sil, Görsel ekle ·
+  14 ✔ vurgula, altını çiz, kalem, not, dikdörtgen, ok, Yorumlar paneli; Silgi hiçbir şeyi silmiyordu ve açıklamaların üstüne
+  soluk mavi kutu boyanıyordu (pdfrx açıklamayı bağlantı sayıyor) → 3cc7467b, `.r8test`'te not + kalem siliniyor, kutu yok.
+  Dikdörtgen/ok sayfa içeriği (açıklama değil) → Silgi değil Görsel aracıyla silinir. Kalem gecikmesi 👤 ·
+  15 ✔ kaydedilen dosyalar pypdf/pdftotext ile: metin, açıklamalar (Highlight/Underline/Ink/Text), şifre yerinde; Acrobat/Chrome'da açılış 👤 ·
+  16 ✔ karartılan metin dosyadan çıkarılamıyor; satır üstünden yatay sürükleme çizgi gibi ince kutu verip birkaç harf
+  bırakıyordu → 9197a180 (`.r8test`'te satır tümüyle) · 17 ✔ TC/IBAN/telefon/e-posta bulundu (maskeli liste), "4 öğeyi karart" ·
+  18 👤 AI anahtarı kullanıcıda (telefonda "AI (kapalı)") · 19 ✔ düzenleme kipinde 10 sn boşta 0 kare (gfxinfo, 3 kez); 5 dk pil/ısı 👤 ·
+  20 ✔ (Faz 54 / 8 ile aynı koşu).
+
 ## PDF Pro — cihaz bulguları düzeltmesi (2026-11-13, main)
 
 1. Düzenle → Metin: tek parmakla sayfa kayıyor, iki parmakla yakınlaşıyor mu? Blok seçiliyken ve Görsel aracında sayfanın tamamı seçiliyken de.
@@ -995,3 +1029,8 @@ Her madde: ✔ / ✘ + not. Bütçe sayıları `docs/perf/2026-11-pdfpro-55-65.m
 4. İşaretle → Kalem/Vurgula: tek parmak çiziyor, iki parmak yakınlaştırıyor mu?
 5. Taranmış (metinsiz) PDF'te Düzenle: "taranmış görüntü" ipucu çıkıyor mu?
 
+**Koşu kaydı**
+- 2026-11-13 · Mi Note 10 Lite · 1.2.55 → 1.2.59 · 1 ✔ tek parmak kaydırma (blok seçiliyken de); iki parmak 👤 ·
+  2 ✔ yazı ≤0,3 sn'de değişiyor, geri al / ✕ eski hâl; yakınlaştırılmışken 👤 ·
+  3 ✔ kaydırınca klavye kapanıyor, metne dokununca geri geliyor, imleç dokunulan yerde ·
+  4 ✔ tek parmak vurgu/kalem çiziyor; iki parmak 👤 · 5 ✔ "Bu sayfa taranmış bir görüntü…" ipucu + "Metni tanı (OCR)".

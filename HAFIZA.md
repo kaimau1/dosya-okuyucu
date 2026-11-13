@@ -803,3 +803,13 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Sınır:** antetli kâğıt tek parça görselse Görsel aracı sayfanın tamamını seçer (logo ayrı nesne değil) — hata değil.
 - Bulutta Flutter yok; doğrulama CI. Cihazda bakılacaklar `CIHAZ_TESTI.md` "PDF Pro — cihaz bulguları".
 
+
+## 2026-11-13 — PDF Pro cihaz kapısı (Mi Note 10 Lite, 1.2.55 → 1.2.59)
+- **Bug kökü (sahte boşluk "ya pılan"):** satır metninde nesneler arası boşluk sıkı kutu soluyla ölçülüyordu; Word sözcüğü iki nesneye bölünce glifin sol boşluğu eşiği (0,15 em) aşıyor, düzenlenen paragrafa gerçek boşluk yazılıyordu → kalem başı (köken) esas (90999e27).
+- **Bug kökü (klavyede sayfa zıplaması):** klavye açılınca `padding.bottom` 0 olur; alt çubuğun `SafeArea`'sı kısalır, `ReadingChrome` payı değişir, pdfrx sayfayı yeniden ortalar (~64 px) → `maintainBottomViewPadding: true` (56a78ae9).
+- **Bug kökü (daraltılan paragraf satırlara bölünür):** `_paragraphs.colRight` sayfadaki UZAK geniş paragrafları da sayıyordu → dar, sağı tırtıklı her satır "erken bitti" → yalnız 3 punto içi (afd39705).
+- **Bug kökü (atılan düzenleme dosyada):** PDFium `FPDF_INCREMENTAL` bellekteki her nesneyi yazar; "Kaydetme"/silinen açıklama nesneleri sonraki kayda giriyordu (+3,8 MB, KVKK) → kırpma /Root'tan erişilemeyen yeni nesneleri atar (4ecc90f3).
+- **Bug kökü (Silgi çalışmıyor, açıklamada mavi kutu):** pdfrx_engine `_loadAnnotLinks` adressiz her açıklamayı `PdfLink` yapıyor; bağlantı katmanı (PdfOverlayInteractionRegion, sayfa katmanından SONRA kayıtlı → önce sınanır) dokunuşu yutuyordu → YAMA 2 (3cc7467b). `third_party` değişince özet: Windows'ta autocrlf yüzünden `tool/gomulu_ozet_denetimi.py yaz` YANLIŞ özet verir → git dizinindeki LF bloblardan hesapla.
+- **Tuzak (cihaz sürüşü):** MIUI'de `am kill` süreci öldürmez → `am force-stop`. `uiautomator dump` başlıkta durum metnini verir ("Kaydedilmedi · N değişiklik") — ekran görüntüsünden ucuz. Python heredoc'ta `\b` geri silme karakterine dönüşür (regex bozuldu); `python -` heredoc'suz REPL açar.
+- **Tuzak (yerel `.r8test`):** `DOSYA_R8TEST=1 bash ci/prepare_android.sh` ikinci koşuda "Desugaring yamalanamadı"da durur (§10'a varmaz) → manifest + PickerActivity authority'sini elle `….r8test.documents` yap; yoksa `INSTALL_FAILED_CONFLICTING_PROVIDER`.
+- **Açık:** oturum belleği +56/+65 MB (bütçe 40); aynı dosya ikinci kez açılınca (yığında kirli oturumu varken) pdfrx belgeyi paylaşıyor → kaydedilmemiş düzenlemeler "Düzenleme kipi" (temiz) gibi görünüyor. KALANLAR Faz E.

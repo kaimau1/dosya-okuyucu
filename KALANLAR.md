@@ -75,10 +75,24 @@ Ayrıntı, kök nedenler, mimari kararlar (PK1–PK8) ve bitti ölçütleri: **`
 KVKK), 65 / 1–2 (AI yerinde), 66 / 2–3 (bulanık + uzun oturum) yazıldı ve main'de. Yeni kip
 varsayılan (`pdf_pro_engine`), eski düzenleyici ⋮ menüsünde. **Hiçbiri cihazda denenmedi.**
 
-- [ ] 📱 **Cihaz kapısı (EN ÖNCE):** `docs/CIHAZ_TESTI.md` "PDF Pro Faz 55–65" 1–20 + Faz 54'ün 1–12'si.
-      Özellikle: yazarken klavye/IME (Gboard önerisi, sesle yazma), imlecin klavye üstünde kalması,
-      tuş gecikmesi, blok taşıma hassasiyeti, kalem gecikmesi. §6 bütçeleri perf raporunun "cihaz"
-      sütununa. Kırmızı çıkarsa tercih `pdf_pro_engine=false` ile eski yola dönülür.
+- [x] 📱 **Cihaz kapısı (2026-11-13, Mi Note 10 Lite):** Faz 54 1–12, Faz 55–65 1–20, bulgular 1–5
+      koşuldu (`docs/CIHAZ_TESTI.md` koşu kayıtları); 7 hata düzeltildi (90999e27, 56a78ae9, afd39705,
+      dc527cf4, 4ecc90f3, 3cc7467b, 9197a180). Kalanlar aşağıda.
+- [ ] 👤 **Elle (kullanıcı):** iki parmak yakınlaştırma (düzenleme, seçim, yakınlaştırılmışken taşıma/yazı);
+      Türkçe harf (ğüşıöçİ) ve Çince ret yazımı (adb ASCII dışı yazamıyor); Gboard önerisi/otomatik
+      düzeltme/sesle yazma, tuş ve kalem gecikmesi hissi; başka uygulamadan "birlikte aç" + Kaydet
+      (salt okunur konum); kaydedilen PDF'in Acrobat/Chrome'da görünümü; AI Yeniden yaz/Çevir
+      (anahtar); 5 dk boşta pil/ısı.
+- [ ] **Oturum belleği bütçe dışı:** 3 paragraf düzenlemesi +56 / +65 MB (bütçe +40) — yedek yazı tipi,
+      anlık görüntüler, önbellek payı ayrıştırılmalı.
+- [ ] **§6 gecikme bütçeleri ölçülemedi:** kipe geçiş, dokun→imleç, uygula/geri al p95, 50 sayfa kayıt —
+      uygulamaya `PDFPRO_PERF` zaman damgası logu (profil) eklenip cihazda ölçülmeli.
+- [ ] **Aynı PDF iki kez açık:** kirli düzenleme oturumu yığında dururken aynı dosya yeniden açılınca
+      pdfrx belgeyi paylaşıyor; ikinci görüntüleyici kaydedilmemiş düzenlemeleri temiz "Düzenleme kipi"
+      gibi gösteriyor (oradan Kaydet hepsini yazar). Var olan görüntüleyiciye dönülmeli ya da sorulmalı.
+- [ ] **Küçükler (cihaz):** Çoğalt kopyayı alttaki paragrafın üstüne bindiriyor; büyüyen paragraf
+      alttakinin üstüne biniyor (uyarı yok — Faz 57 artığıyla aynı); dikdörtgen/ok sayfa içeriği olduğu
+      için Silgi silmiyor (Görsel aracıyla siliniyor) — kullanıcıya belirsiz.
 - [ ] **Faz 57 artığı:** taşma/çakışma uyarısı + seçenekler (punto küçült · alttakileri it · genişlet);
       yazı tipi değiştirme + satır aralığı/girinti arayüzü; sistem seçim tutamaçları ve büyüteç;
       RTL (Arapça) yazma — harf birleştirme yazıcıda yok, blok kilitli.

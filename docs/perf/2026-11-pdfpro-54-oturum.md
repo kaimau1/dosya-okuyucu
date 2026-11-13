@@ -7,12 +7,17 @@ Cihaz sayıları `docs/CIHAZ_TESTI.md` "PDF Pro Faz 54" / 11 ile ölçülecek.
 
 | Ölçüm | Bütçe (§6, MatePad / hafif) | CI (debug JIT) | Cihaz |
 |---|---|---|---|
-| Uygula → güncel sayfa | p95 ≤ 250 / 400 ms | p50 14,0 · p95 58,8 ms (n=28) | bekliyor |
-| Geri al → güncel sayfa | p95 ≤ 150 ms | p50 6,8 · p95 10,7 ms (n=28) | bekliyor |
-| Artımlı kayıt, 50 sayfa | ≤ 500 ms | **bekliyor** — tezgâhın 51 sayfalık belgesi (`rl_cok_sayfa` ×17, Syncfusion birleştirme) üzerinde hiçbir düzenleme uygulanamadı (köprü reddetti); kayıt süresi ölçülemedi | bekliyor |
-| Oturum ek belleği | ≤ +40 MB | koşu boyunca RSS tepe +52,4 MB — 8 belge art arda, çizim önbelleği ve Dart yığını dahil; tek oturumun payı ayrıştırılmadı → bütçe için **bekliyor** | bekliyor |
-| Düzenleme kipine geçiş | ≤ 150 / 250 ms | ölçülmedi (görüntüleyici widget tezgâhı yok) | bekliyor |
-| Boşta (düzenleme kipinde) | 0 kare | ölçülmedi | bekliyor |
+| Uygula → güncel sayfa | p95 ≤ 250 / 400 ms | p50 14,0 · p95 58,8 ms (n=28) | ölçülmedi¹ (gözle: harf ≤ 0,3 sn'de sayfada) |
+| Geri al → güncel sayfa | p95 ≤ 150 ms | p50 6,8 · p95 10,7 ms (n=28) | ölçülmedi¹ |
+| Artımlı kayıt, 50 sayfa | ≤ 500 ms | **bekliyor** — tezgâhın 51 sayfalık belgesi (`rl_cok_sayfa` ×17, Syncfusion birleştirme) üzerinde hiçbir düzenleme uygulanamadı (köprü reddetti); kayıt süresi ölçülemedi | ölçülmedi¹ |
+| Oturum ek belleği | ≤ +40 MB | koşu boyunca RSS tepe +52,4 MB — 8 belge art arda, çizim önbelleği ve Dart yığını dahil; tek oturumun payı ayrıştırılmadı → bütçe için **bekliyor** | **+56 / +65 MB** ✘ (3 paragraf düzenlemesi, 2 koşu; kipe girişte +9 / +10 MB)² |
+| Düzenleme kipine geçiş | ≤ 150 / 250 ms | ölçülmedi (görüntüleyici widget tezgâhı yok) | ölçülmedi¹ |
+| Boşta (düzenleme kipinde) | 0 kare | ölçülmedi | **0 kare** ✔ (10 sn × 3, `dumpsys gfxinfo`) |
+
+**Cihaz (2026-11-13, Mi Note 10 Lite, yerel profil `.r8test` derlemesi, pil 36–38 °C, `rl_paragraflar.pdf`):**
+¹ uygulamada düzenleme zaman damgası yok; ekran kaydı/adb ile güvenilir ms çıkmıyor → `PDFPRO_PERF` logu eklenince
+ölçülecek (KALANLAR). ² `dumpsys meminfo` TOTAL PSS, okuma kipi → 3 düzenleme sonrası; ilk koşu atıldı, bir koşu
+kurtarma penceresi yüzünden geçersiz. Yedek yazı tipi + sayfa anlık görüntüleri dahil; bütçe aşımı KALANLAR'da.
 
 **Doğrulanan (test, sayı değil):** geri alınan sayfa özgünle piksel piksel aynı; artımlı kayıtta özgün baytlar
 başta aynen; ikinci kayıt birincinin üstüne ek biriktirmiyor; geri alma içeren oturumun kaydı yeniden
