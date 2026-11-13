@@ -13,6 +13,7 @@ flutter
 flutter_localizations
 crypto
 pointycastle
+cryptography  # Aktar G5 X25519 + yedek AES-GCM (koni_codecs üzerinden zaten ağaçta) · 0 MB
 mime
 barcode
 file_picker

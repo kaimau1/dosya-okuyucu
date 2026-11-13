@@ -63,12 +63,42 @@ namespace DosyaAktar
             }
             catch { }
         }
+
+        /// <summary>
+        /// G5: bu bilgisayarın kalıcı X25519 tohumu — anahtar.bin, Windows DPAPI (CurrentUser) ile sarılı.
+        /// Güvenilen telefonlar "guvenilen" satırında, anahtar parmak izleriyle.
+        /// </summary>
+        public static byte[] KeySeed()
+        {
+            var path = Path.Combine(Dir, "anahtar.bin");
+            try
+            {
+                if (File.Exists(path))
+                {
+                    var seed = System.Security.Cryptography.ProtectedData.Unprotect(File.ReadAllBytes(path), null,
+                        System.Security.Cryptography.DataProtectionScope.CurrentUser);
+                    if (seed.Length == 32) return seed;
+                }
+            }
+            catch { }
+            var fresh = Secure.RandomBytes(32);
+            try
+            {
+                Directory.CreateDirectory(Dir);
+                File.WriteAllBytes(path, System.Security.Cryptography.ProtectedData.Protect(fresh, null,
+                    System.Security.Cryptography.DataProtectionScope.CurrentUser));
+            }
+            catch { }
+            return fresh;
+        }
     }
 
     class MainForm : Form
     {
         readonly Dictionary<string, string> settings = Settings.Load();
         readonly string deviceName, deviceId;
+        readonly byte[] keySeed = Settings.KeySeed();
+        readonly HashSet<string> trusted = new HashSet<string>();
         readonly Receiver receiver;
         readonly Scanner scanner;
         readonly BleLink ble = new BleLink();
@@ -105,9 +135,12 @@ namespace DosyaAktar
             if (!settings.TryGetValue("klasor", out var saveDir) || saveDir.Trim() == "")
                 saveDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "Dosya Okuyucu");
 
+            if (settings.TryGetValue("guvenilen", out var tr))
+                foreach (var f in tr.Split(',')) if (f.Trim() != "") trusted.Add(f.Trim());
             receiver = new Receiver
             {
                 Name = deviceName, Id = deviceId, SaveDir = saveDir,
+                StaticSeed = keySeed,
                 Ask = AskUser,
                 Received = (path, from) => Ui(() =>
                 {
@@ -459,6 +492,10 @@ namespace DosyaAktar
             var sender = new Sender
             {
                 Name = deviceName, Id = deviceId,
+                StaticSeed = keySeed,
+                Security = (enc, code) => Ui(() => status.Text = enc
+                    ? "🔒 Şifreli · telefondaki doğrulama sayısı " + code.Substring(0, 3) + " " + code.Substring(3) + " olmalı"
+                    : "Şifresiz — telefondaki uygulama eski sürüm"),
                 IsCancelled = () => cancel,
                 Status = text => Ui(() => status.Text = text),
                 Waiting = w => Ui(() => { if (w) status.Text = "Bağlantı koptu, yeniden deneniyor…"; }),
@@ -615,7 +652,10 @@ namespace DosyaAktar
         /// <summary>Alıcı iş parçacığından çağrılır; pencere açılana ve cevaplanana kadar bekler.</summary>
         bool AskUser(Offer offer)
         {
+            // G5: güvenilen = anahtar parmak izi (ad değil); yalnız şifreli teklif sorulmadan alınır.
+            lock (trusted) if (offer.Encrypted && trusted.Contains(offer.Fingerprint)) return true;
             var ok = false;
+            var trust = false;
             try
             {
                 Invoke((Action)(() =>
@@ -623,10 +663,23 @@ namespace DosyaAktar
                     if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
                     Activate();
                     SystemSounds.Asterisk.Play();
-                    using (var f = new AskForm(offer, S)) ok = f.ShowDialog(this) == DialogResult.Yes;
+                    using (var f = new AskForm(offer, S))
+                    {
+                        ok = f.ShowDialog(this) == DialogResult.Yes;
+                        trust = f.Trust;
+                    }
                 }));
             }
             catch { return false; } // pencere kapanıyor
+            if (ok && trust && offer.Encrypted)
+            {
+                lock (trusted)
+                {
+                    trusted.Add(offer.Fingerprint);
+                    settings["guvenilen"] = string.Join(",", trusted);
+                }
+                Settings.Save(settings);
+            }
             return ok;
         }
 
@@ -661,6 +714,8 @@ namespace DosyaAktar
     class AskForm : Form
     {
         int left = 85;
+        readonly CheckBox trustBox = new CheckBox();
+        public bool Trust => trustBox.Checked;
 
         public AskForm(Offer o, Func<int, int> S)
         {
@@ -670,11 +725,13 @@ namespace DosyaAktar
             MaximizeBox = MinimizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
             TopMost = true;
-            ClientSize = new Size(S(460), S(340));
+            ClientSize = new Size(S(460), S(400));
 
-            var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(S(12)) };
+            var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, Padding = new Padding(S(12)) };
+            grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             grid.Controls.Add(new Label
             {
@@ -684,16 +741,31 @@ namespace DosyaAktar
                 MaximumSize = new Size(S(430), 0),
                 Margin = new Padding(0, 0, 0, S(8)),
             }, 0, 0);
+            // G5: şifreli mi + iki ekranda aynı olması gereken doğrulama sayısı.
+            grid.Controls.Add(new Label
+            {
+                AutoSize = true,
+                ForeColor = o.Encrypted ? Color.SeaGreen : Color.DarkOrange,
+                Text = o.Encrypted
+                    ? "🔒 Şifreli · doğrulama " + o.VerifyCode.Substring(0, 3) + " " + o.VerifyCode.Substring(3) + " (telefonda aynı sayı görünmeli)"
+                    : "Şifresiz — telefondaki uygulama eski sürüm",
+                MaximumSize = new Size(S(430), 0),
+                Margin = new Padding(0, 0, 0, S(6)),
+            }, 0, 1);
             var list = new ListBox { Dock = DockStyle.Fill, IntegralHeight = false };
             foreach (var it in o.Items)
                 list.Items.Add(it.Name + (it.Files != null ? "   (klasör, " + it.Files + " dosya)" : "") + "   —   " + Proto.Size(it.Size));
-            grid.Controls.Add(list, 0, 1);
+            grid.Controls.Add(list, 0, 2);
+            trustBox.Text = "Bu cihaza güven (anahtarıyla; bir daha sorma)";
+            trustBox.AutoSize = true;
+            trustBox.Visible = o.Encrypted;
+            grid.Controls.Add(trustBox, 0, 3);
             var buttons = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, FlowDirection = FlowDirection.RightToLeft, Margin = new Padding(0, S(8), 0, 0) };
             var yes = new Button { Text = "Kabul et", AutoSize = true, DialogResult = DialogResult.Yes, Padding = new Padding(S(10), S(2), S(10), S(2)) };
             var no = new Button { Text = "Reddet (85)", AutoSize = true, DialogResult = DialogResult.No, Padding = new Padding(S(10), S(2), S(10), S(2)) };
             buttons.Controls.Add(yes);
             buttons.Controls.Add(no);
-            grid.Controls.Add(buttons, 0, 2);
+            grid.Controls.Add(buttons, 0, 4);
             Controls.Add(grid);
             AcceptButton = yes;
             CancelButton = no;

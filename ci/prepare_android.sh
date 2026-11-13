@@ -49,12 +49,13 @@ grep -E "INTERNET|launchMode|action.VIEW|action.SEND|label=" \
 #   DocScan (Belge tarayıcı v2: ML Kit GmsDocumentScanner, Faz 35),
 #   Dikte (sesle yazma: RecognizerIntent, Faz 37),
 #   Ajan (Gemini işlevleri — AppFunctions, bkz. 7b),
-#   DosyaArama (Ajan'ın arama/kapsam kuralı).
+#   DosyaArama (Ajan'ın arama/kapsam kuralı),
+#   Aktar (Yakındakiler şifrelemesi javax.crypto + "Dosya al" kutucuğu).
 say "Kotlin kaynakları"
 DIR=android/app/src/main/kotlin/com/dosyaokuyucu/dosya_okuyucu
 mkdir -p "$DIR"
 for kt in MainActivity DosyaProvider PickerActivity UsbMass MediaSession MediaTranscode DosyaArama \
-          SdUnion Extras QrTransfer NearbyBle Ajan DocScan Dikte Slayt ApkKurulum; do
+          SdUnion Extras QrTransfer NearbyBle Ajan DocScan Dikte Slayt ApkKurulum Aktar; do
   cp "ci/$kt.kt" "$DIR/$kt.kt"
 done
 # `cp -r ci/res/.` mevcut res/ dosyalarını SİLMEZ, yalnız ekler.

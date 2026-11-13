@@ -3,13 +3,21 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Güvenilen gönderen: ad + (biliniyorsa) kurulum kimliği.
+/// Güvenilen gönderen: ad + (biliniyorsa) kurulum kimliği + (şifreli
+/// protokolle tanındıysa) kalıcı anahtarının parmak izi.
 class TrustedPeer {
   final String name;
   final String id;
-  const TrustedPeer(this.name, [this.id = '']);
 
-  Map<String, String> toJson() => {'name': name, 'id': id};
+  /// G5: karşı tarafın kalıcı X25519 açık anahtarının parmak izi. Doluysa
+  /// eşleşme YALNIZ buna bakar (ad/kimlik taklit edilebilir, anahtar edilemez).
+  final String fp;
+  const TrustedPeer(this.name, [this.id = '', this.fp = '']);
+
+  bool get keyed => fp.isNotEmpty;
+
+  Map<String, String> toJson() =>
+      {'name': name, 'id': id, if (fp.isNotEmpty) 'fp': fp};
 }
 
 /// **Güvenilen cihazlar** — teklifi sorulmadan kabul edilir (kullanıcı isteği
@@ -17,11 +25,13 @@ class TrustedPeer {
 /// de"*). Telefon (Wi-Fi `/sor`) ve bilgisayar ("Dosya Aktar" push daveti)
 /// aynı listeye düşer.
 ///
-/// Eşleşme: iki tarafta da kimlik varsa KİMLİK, yoksa ad (bilgisayar
-/// uygulaması `/sor`'da kimlik göndermiyor).
-/// ponytail: ad/kimlik ağda taklit edilebilir — aynı Wi-Fi'deki biri aynı adı
-/// alırsa dosyası sorulmadan GELİR (yalnız kayıt klasörüne yazılır, açılmaz).
-/// Gerekirse çifte özel jeton (`/sor` cevabında verilip saklanan) eklenir.
+/// Eşleşme (2026-11-13, G5):
+/// * **Şifreli teklif** (parmak izi var): yalnız AYNI parmak izli kayıt
+///   güvenilir. Eski (anahtarsız) kayıt eşleşmez → bir kez sorulur, kabulde
+///   kayıt anahtara bağlanır ([bindKey]).
+/// * **Düz teklif** (eski sürüm/eski bilgisayar uygulaması): yalnız anahtarsız
+///   kayıtlar — kimlik varsa KİMLİK, yoksa ad. Anahtarlı bir cihazın adını
+///   taşıyan düz teklif güvenilmez (taklit olabilir).
 class TrustedPeers extends ChangeNotifier {
   TrustedPeers._();
   static final instance = TrustedPeers._();
@@ -39,9 +49,11 @@ class TrustedPeers extends ChangeNotifier {
     try {
       final raw = (await SharedPreferences.getInstance()).getString(_key);
       if (raw == null) return;
+      _items.clear();
       for (final e in jsonDecode(raw) as List) {
         if (e is Map && e['name'] is String) {
-          _items.add(TrustedPeer(e['name'] as String, '${e['id'] ?? ''}'));
+          _items.add(TrustedPeer(
+              e['name'] as String, '${e['id'] ?? ''}', '${e['fp'] ?? ''}'));
         }
       }
       notifyListeners();
@@ -50,15 +62,49 @@ class TrustedPeers extends ChangeNotifier {
     }
   }
 
-  bool isTrusted(String name, [String id = '']) => _items.any((t) =>
-      id.isNotEmpty && t.id.isNotEmpty ? t.id == id : t.name == name);
+  bool isTrusted(String name, [String id = '', String fp = '']) {
+    if (fp.isNotEmpty) return _items.any((t) => t.fp == fp);
+    return _items.any((t) => !t.keyed &&
+        (id.isNotEmpty && t.id.isNotEmpty ? t.id == id : t.name == name));
+  }
 
-  Future<void> add(String name, [String id = '']) async {
+  /// Parmak iziyle kayıt (yoksa null).
+  TrustedPeer? byKey(String fp) {
+    if (fp.isEmpty) return null;
+    for (final t in _items) {
+      if (t.fp == fp) return t;
+    }
+    return null;
+  }
+
+  Future<void> add(String name, [String id = '', String fp = '']) async {
     await ensureLoaded();
-    if (name.trim().isEmpty || isTrusted(name, id)) return;
-    _items.add(TrustedPeer(name, id));
+    if (name.trim().isEmpty || isTrusted(name, id, fp)) return;
+    if (fp.isNotEmpty) {
+      // Aynı cihazın eski (anahtarsız) kaydı anahtarlı kayıtla değişir.
+      _items.removeWhere((t) =>
+          !t.keyed && (id.isNotEmpty && t.id.isNotEmpty ? t.id == id : t.name == name));
+    }
+    _items.add(TrustedPeer(name, id, fp));
     notifyListeners();
     await _save();
+  }
+
+  /// Eski (anahtarsız) güvenilen kayıt şifreli teklifle eşleşti mi? — kimlik
+  /// (yoksa ad) tutuyor ama parmak izi yok. Kullanıcı kabul ederse
+  /// [add] anahtarla yeniler.
+  bool hasLegacy(String name, [String id = '']) => _items.any((t) =>
+      !t.keyed && (id.isNotEmpty && t.id.isNotEmpty ? t.id == id : t.name == name));
+
+  /// Başka bir motorun (ör. "Dosya al" kutucuğu) yazdığını görmek için.
+  Future<void> reload() async {
+    try {
+      await (await SharedPreferences.getInstance()).reload();
+    } catch (_) {
+      // Bilinçli: yeniden okunamazsa bellekteki liste geçerli kalır.
+    }
+    _loading = null;
+    await ensureLoaded();
   }
 
   Future<void> remove(TrustedPeer peer) async {

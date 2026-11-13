@@ -11,6 +11,7 @@ import '../../models/fs_entry.dart';
 import '../../services/fm/fs_scan.dart';
 import '../app_dialog.dart';
 import 'fm_entry_icon.dart';
+import 'secure_badge.dart';
 
 /// Kabul penceresinde gösterilen tek öğe.
 class OfferRow {
@@ -57,6 +58,8 @@ Future<bool> showTransferOffer(
   required int totalBytes,
   required String saveDir,
   ValueNotifier<bool>? trust,
+  bool? encrypted,
+  String verifyCode = '',
 }) async {
   AppHaptics.step();
   final ok = await showAppSheet<bool>(
@@ -68,6 +71,8 @@ Future<bool> showTransferOffer(
       totalBytes: totalBytes,
       saveDir: saveDir,
       trust: trust,
+      encrypted: encrypted,
+      verifyCode: verifyCode,
     ),
   );
   return ok ?? false;
@@ -83,6 +88,10 @@ class _OfferBody extends StatelessWidget {
   /// Verilirse "Bu cihaza güven" kutusu çıkar; seçim buraya yazılır.
   final ValueNotifier<bool>? trust;
 
+  /// G5: aktarım şifreli mi (null = bilinmiyor, rozet yok) + doğrulama sayısı.
+  final bool? encrypted;
+  final String verifyCode;
+
   const _OfferBody({
     required this.from,
     required this.items,
@@ -90,6 +99,8 @@ class _OfferBody extends StatelessWidget {
     required this.totalBytes,
     required this.saveDir,
     this.trust,
+    this.encrypted,
+    this.verifyCode = '',
   });
 
   @override
@@ -131,6 +142,10 @@ class _OfferBody extends StatelessWidget {
                       style: theme.textTheme.bodyMedium
                           ?.copyWith(color: scheme.onSurfaceVariant),
                     ),
+                    if (encrypted != null) ...[
+                      const SizedBox(height: 2),
+                      SecureBadge(encrypted: encrypted!, verifyCode: verifyCode),
+                    ],
                   ],
                 ),
               ),

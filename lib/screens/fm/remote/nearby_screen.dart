@@ -28,6 +28,7 @@ import '../../../services/fm/fs_scan.dart';
 import '../../../services/fm/notification_hub.dart';
 import '../../../services/fm/remote/ble_nearby.dart';
 import '../../../services/fm/remote/ftp_service.dart';
+import '../../../services/fm/remote/peer_crypto.dart';
 import '../../../services/fm/remote/peer_share.dart';
 import '../../../services/fm/remote/qr_transfer.dart';
 import '../../../services/fm/remote/transfer_keeper.dart';
@@ -37,6 +38,7 @@ import '../../../services/fm/remote/transfer_thumbs.dart';
 import '../../../widgets/app_dialog.dart';
 import '../../../widgets/fm/fm_entry_icon.dart';
 import '../../../widgets/fm/fm_file_image.dart';
+import '../../../widgets/fm/secure_badge.dart';
 import '../../../widgets/fm/transfer_offer_sheet.dart';
 import '../../../widgets/qr_code.dart';
 import '../../../widgets/section_header.dart';
@@ -52,6 +54,7 @@ part 'nearby/links.dart';
 part 'nearby/sections.dart';
 part 'nearby/tabs.dart';
 part 'nearby/widgets.dart';
+part 'nearby/extra.dart';
 
 /// Gelen dosya bildiriminin kimliği (uygulamadaki öteki kimliklerden farklı).
 const _receiveNotificationId = 90521;
@@ -79,6 +82,9 @@ class _Outgoing {
   int totalBytes = 0;
   bool waiting = false;
   bool cancelled = false;
+
+  /// G5: şifreli mi + doğrulama sayısı (el sıkışmadan sonra dolar).
+  PeerSecurity? security;
 
   _Outgoing(this.to);
 }
@@ -233,6 +239,9 @@ class _NearbyScreenState extends State<NearbyScreen> {
   }
 
   String _id = '';
+
+  /// Kalıcı anahtar (G5); el sıkışma ve güvenilen cihaz bununla.
+  PeerIdentity? _key;
   String _saveDir = QrReceiveFlow.defaultSaveDir();
   bool _confirmIncoming = true;
 
@@ -350,6 +359,11 @@ class _NearbyScreenState extends State<NearbyScreen> {
       _preApproved = (name: accepted.from, until: DateTime.now().add(const Duration(minutes: 3)));
     }
     _id = await NearbyIdentity.id();
+    try {
+      _key = await PeerIdentity.load();
+    } catch (_) {
+      // Bilinçli: kimlik yüklenemezse eski (düz) protokolle sürülür; rozet "şifresiz" der.
+    }
     if (!mounted) return;
     await _startReceiving();
     _hasWifi = (await _wifiAddress()) != null;
@@ -430,6 +444,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
     final previous = _receiver;
     if (previous != null) await TransferKeeper.instance.handOff(previous);
     final receiver = PeerReceiver(
+      identity: _key,
       onActivity: TransferKeeper.instance.onActivity,
       deviceName: _deviceName,
       deviceId: _id,
@@ -497,11 +512,14 @@ class _NearbyScreenState extends State<NearbyScreen> {
     if (pre != null && pre.name == offer.from && DateTime.now().isBefore(pre.until)) {
       return true;
     }
-    if (TrustedPeers.instance.isTrusted(offer.from, offer.fromId)) return true;
+    final trusted = TrustedPeers.instance;
+    if (trusted.isTrusted(offer.from, offer.fromId, offer.fingerprint)) return true;
     final trust = ValueNotifier(false);
     final ok = await showTransferOffer(
       context,
       trust: trust,
+      encrypted: offer.encrypted,
+      verifyCode: offer.verifyCode,
       from: offer.from,
       count: offer.count,
       totalBytes: offer.totalBytes,
@@ -518,55 +536,19 @@ class _NearbyScreenState extends State<NearbyScreen> {
           ),
       ],
     );
-    if (ok && trust.value) await _trust(offer.from, offer.fromId);
+    // Eski (anahtarsız) güvenilen kayıt şifreli teklifle kabul edildi →
+    // kayıt anahtara bağlanır (G5: güvenilen = anahtar parmak izi).
+    final upgrade = offer.encrypted && trusted.hasLegacy(offer.from, offer.fromId);
+    if (ok && (trust.value || upgrade)) {
+      await _trust(offer.from, offer.fromId, offer.fingerprint);
+    }
     trust.dispose();
     return ok;
   }
 
-  Future<void> _trust(String name, String id) async {
-    await TrustedPeers.instance.add(name, id);
+  Future<void> _trust(String name, String id, [String fp = '']) async {
+    await TrustedPeers.instance.add(name, id, fp);
     if (mounted) showSnack(context, context.t('near.trusted_added', {'name': name}));
-  }
-
-  /// Gelen yazı: diske yazılmaz, kopyalanabilir olarak gösterilir.
-  void _showIncomingText(String text, String from) {
-    if (!mounted) return;
-    AppHaptics.step();
-    unawaited(showAppSheet<void>(
-      context,
-      title: context.t('near.text_from', {'from': from}),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(Gap.md, 0, Gap.md, Gap.md),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ConstrainedBox(
-              constraints: BoxConstraints(
-                  maxHeight: MediaQuery.sizeOf(ctx).height * 0.45),
-              child: SingleChildScrollView(
-                child: SelectableText(
-                  key: const ValueKey('near-text-in'),
-                  text,
-                  style: Theme.of(ctx).textTheme.bodyLarge,
-                ),
-              ),
-            ),
-            const SizedBox(height: Gap.md),
-            FilledButton.icon(
-              key: const ValueKey('near-text-copy'),
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: text));
-                Navigator.pop(ctx);
-                showSnack(context, context.t('near.copied'));
-              },
-              icon: const Icon(AppIcons.copyPlain),
-              label: Text(ctx.t('near.text_copy')),
-            ),
-          ],
-        ),
-      ),
-    ));
   }
 
   /// Bluetooth daveti: önce ne geleceği sorulur, kabul edilirse Wi-Fi'ye
@@ -751,7 +733,8 @@ class _NearbyScreenState extends State<NearbyScreen> {
 
   Future<bool> _sendText(Peer peer) async {
     final strings = AppStrings.of(context);
-    final ok = await PeerSender.sendText(peer, _text!, senderName: _deviceName);
+    final ok = await PeerSender.sendText(peer, _text!,
+        senderName: _deviceName, identity: _key);
     if (!mounted) return ok;
     if (ok) _textCtrl.clear();
     showSnack(context,
@@ -783,6 +766,11 @@ class _NearbyScreenState extends State<NearbyScreen> {
         payload,
         senderName: _deviceName,
         senderId: _id,
+        identity: _key,
+        onSecurity: (sec) {
+          out.security = sec;
+          if (mounted) setState(() {});
+        },
         isCancelled: () => out.cancelled,
         thumbnail: TransferThumbs.of,
         onWaiting: (w) {

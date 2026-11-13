@@ -200,8 +200,10 @@ extension _NearbyTabs on _NearbyScreenState {
                       wifi: n.wifi != null,
                       ble: n.ble != null,
                       busy: _out != null,
-                      trusted: TrustedPeers.instance
-                          .isTrusted(n.name, n.wifi?.id ?? n.ble?.id ?? ''),
+                      trusted: TrustedPeers.instance.isTrusted(
+                          n.name,
+                          n.wifi?.id ?? n.ble?.id ?? '',
+                          n.wifi?.fingerprint ?? ''),
                       onTap: () => _tapPeer(n),
                     );
                   },

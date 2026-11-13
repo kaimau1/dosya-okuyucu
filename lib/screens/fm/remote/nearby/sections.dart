@@ -185,8 +185,10 @@ extension _NearbySections on _NearbyScreenState {
         children: [
           for (final t in items)
             ListTile(
-              leading: Icon(AppIcons.verified, color: Paper.success(context)),
+              leading: Icon(t.keyed ? AppIcons.lock : AppIcons.verified,
+                  color: Paper.success(context)),
               title: Text(t.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+              subtitle: t.keyed ? Text(context.t('g5.trusted_keyed')) : null,
               trailing: IconButton(
                 tooltip: context.t('near.untrust'),
                 icon: const Icon(AppIcons.close),
@@ -240,6 +242,12 @@ extension _NearbySections on _NearbyScreenState {
         child: Text(context.t('common.stop')),
       ),
       rows: [
+        if (out.security case final sec?)
+          Padding(
+            padding: const EdgeInsets.only(bottom: Gap.xs),
+            child: SecureBadge(
+                encrypted: sec.encrypted, verifyCode: sec.verifyCode),
+          ),
         for (final f in out.files.entries)
           _TransferFileRow(
             key: ValueKey('near-out-${f.key}'),

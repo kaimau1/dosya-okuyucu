@@ -31,4 +31,21 @@ void main() {
     await t.remove(t.items.single);
     expect(t.isTrusted('MASAUSTU'), isFalse);
   });
+
+  test('G5: anahtarlı kayıt yalnız aynı parmak iziyle eşleşir', () async {
+    final t = TrustedPeers.instance;
+    await t.add('Telefon', 'id-1');
+    expect(t.isTrusted('Telefon', 'id-1', 'fp-a'), isFalse,
+        reason: 'eski kayıt şifreli teklifte bir kez sorulur');
+    expect(t.hasLegacy('Telefon', 'id-1'), isTrue);
+    await t.add('Telefon', 'id-1', 'fp-a');
+    expect(t.items, hasLength(1), reason: 'eski kayıt anahtarlıyla değişti');
+    expect(t.isTrusted('Başka ad', 'id-9', 'fp-a'), isTrue);
+    expect(t.isTrusted('Telefon', 'id-1', 'fp-b'), isFalse);
+    expect(t.isTrusted('Telefon', 'id-1'), isFalse,
+        reason: 'anahtarlı cihazın adını taşıyan DÜZ teklif güvenilmez');
+    t.debugReset();
+    await t.ensureLoaded();
+    expect(t.byKey('fp-a')?.name, 'Telefon', reason: 'diske yazıldı');
+  });
 }

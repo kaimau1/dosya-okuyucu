@@ -888,6 +888,8 @@ class MainActivity : FlutterActivity() {
         setupShortcutChannel(flutterEngine)
         setupSdUnionChannel(flutterEngine)
         setupExtrasChannel(flutterEngine)
+        // Aktar (G5): kayıt şifrelemesi javax.crypto ile (ci/Aktar.kt).
+        AktarAead.attach(flutterEngine.dartExecutor.binaryMessenger)
         QrTransfer(this).also {
             qrTransfer = it
             MethodChannel(flutterEngine.dartExecutor.binaryMessenger, QrTransfer.CHANNEL)

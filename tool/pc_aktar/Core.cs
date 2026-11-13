@@ -18,6 +18,7 @@ namespace DosyaAktar
     /// lib/services/fm/remote/peer_share.dart. Bir uç değişirse ikisi birlikte değişmeli.
     /// Bulma: UDP 8769'a "DOSYA-OKUYUCU-1" yayını, alıcı JSON kimliğiyle cevap verir.
     /// Aktarım: HTTP 8770 — /kim, /sor (onay), /durum (kaldığı yer), /al (gövde = dosya).
+    /// G5 (2026-11-13): v3 eşle önce /el (X25519), sonra aynı uçlar şifreli kayıtlarla (Secure.cs).
     /// </summary>
     public static class Proto
     {
@@ -135,6 +136,11 @@ namespace DosyaAktar
     {
         public string Name = "?", Host, Id = "";
         public int Port = Proto.TransferPort;
+
+        /// <summary>Protokol sürümü (yayındaki "v"); 3 = şifreli (G5). Fp = duyurulan anahtar parmak izi (ipucu).</summary>
+        public int Version;
+        public string Fp = "";
+        public bool Secure => Version >= 3;
         public DateTime Seen;
         public bool Manual;
 
@@ -159,6 +165,10 @@ namespace DosyaAktar
     {
         public string From;
         public long Count, Total;
+
+        /// <summary>Şifreli oturumda gönderenin anahtar parmak izi ve iki ekranda aynı olması gereken sayı; düzde boş.</summary>
+        public string Fingerprint = "", VerifyCode = "";
+        public bool Encrypted => Fingerprint != "";
         public List<OfferItem> Items = new List<OfferItem>();
     }
 
@@ -170,6 +180,18 @@ namespace DosyaAktar
     public class Receiver
     {
         public string Name, Id;
+
+        /// <summary>Kalıcı X25519 tohumu (G5). Verilirse alıcı v3 duyurur ve /el el sıkışmasını kabul eder.</summary>
+        public byte[] StaticSeed;
+        byte[] staticPub;
+
+        class Session
+        {
+            public Secure.Keys Keys;
+            public DateTime Expires;
+            public readonly HashSet<uint> Streams = new HashSet<uint>();
+        }
+        readonly Dictionary<string, Session> sessions = new Dictionary<string, Session>();
         public volatile string SaveDir;
         public Func<Offer, bool> Ask;                 // engelleyici; null = onaysız
         public Action<string, string> Received;      // yol, gönderen
@@ -213,11 +235,16 @@ namespace DosyaAktar
             try { tcp?.Stop(); } catch { }
         }
 
-        Dictionary<string, object> Identity() => new Dictionary<string, object>
+        Dictionary<string, object> Identity()
         {
-            ["magic"] = Proto.Magic, ["name"] = Name, ["port"] = Port, ["id"] = Id,
-            ["code"] = false, ["v"] = 2,
-        };
+            var d = new Dictionary<string, object>
+            {
+                ["magic"] = Proto.Magic, ["name"] = Name, ["port"] = Port, ["id"] = Id,
+                ["code"] = false, ["v"] = StaticSeed != null ? 3 : 2,
+            };
+            if (StaticSeed != null) d["pk"] = Secure.Fingerprint(staticPub ?? (staticPub = Secure.PublicKey(StaticSeed)));
+            return d;
+        }
 
         void UdpLoop()
         {
@@ -314,7 +341,7 @@ namespace DosyaAktar
         static void Reply(Stream s, int code, string body, bool json = true)
         {
             var data = Encoding.UTF8.GetBytes(body ?? "");
-            var reason = code == 200 ? "OK" : code == 400 ? "Bad Request" : code == 403 ? "Forbidden"
+            var reason = code == 200 ? "OK" : code == 400 ? "Bad Request" : code == 401 ? "Unauthorized" : code == 403 ? "Forbidden"
                 : code == 404 ? "Not Found" : code == 409 ? "Conflict" : "Error";
             var head = Encoding.ASCII.GetBytes("HTTP/1.1 " + code + " " + reason +
                 "\r\nContent-Type: " + (json ? "application/json" : "text/plain") + "; charset=utf-8" +
@@ -325,6 +352,15 @@ namespace DosyaAktar
         }
 
         static void Json(Stream s, object body, int code = 200) => Reply(s, code, Proto.ToJson(body));
+
+        static void ReplyBytes(Stream s, int code, byte[] data)
+        {
+            var head = Encoding.ASCII.GetBytes("HTTP/1.1 " + code + " OK\r\nContent-Type: application/octet-stream" +
+                "\r\nContent-Length: " + data.Length + "\r\nConnection: close\r\n\r\n");
+            s.Write(head, 0, head.Length);
+            s.Write(data, 0, data.Length);
+            s.Flush();
+        }
 
         void Handle(TcpClient c)
         {
@@ -376,9 +412,50 @@ namespace DosyaAktar
                 }
                 path = path.Substring(0, qi);
             }
-            string Q(string k) => q.TryGetValue(k, out var v) ? v : null;
-
             if (method == "GET" && path == "/kim") { Json(output, Identity()); return; }
+            if (method == "POST" && path == "/el") { Handshake(input, output, contentLength); return; }
+
+            // Şifreli istek (G5): sorguda yalnız oturum (o) + akış (k); asıl parametreler başlık kaydında.
+            Session sess = null;
+            Records opener = null, sealer = null;
+            uint stream = 0;
+            if (q.ContainsKey("o"))
+            {
+                lock (gate)
+                {
+                    if (!sessions.TryGetValue(q["o"], out sess) || sess.Expires < DateTime.UtcNow) sess = null;
+                    if (sess != null && (!uint.TryParse(q.TryGetValue("k", out var ks) ? ks : "", out stream) || !sess.Streams.Add(stream))) sess = null;
+                    if (sess != null) sess.Expires = DateTime.UtcNow.AddMinutes(30);
+                }
+                if (sess == null) { Reply(output, 401, "oturum", false); return; }
+                opener = new Records(sess.Keys.Recv, stream, path);
+                sealer = new Records(sess.Keys.Send, stream, path);
+                try
+                {
+                    var hdr = Proto.FromJson(Encoding.UTF8.GetString(opener.OpenNext(input, out _)));
+                    q = (hdr ?? new Dictionary<string, object>()).ToDictionary(kv => kv.Key, kv => kv.Value?.ToString() ?? "");
+                }
+                catch (CryptographicException) { Reply(output, 403, "kod", false); return; }
+            }
+            var fp = sess?.Keys.PeerFingerprint ?? "";
+            string Q(string k) => q.TryGetValue(k, out var v) ? v : null;
+            void Ok(object body)
+            {
+                if (sealer == null) { Json(output, body); return; }
+                var data = Encoding.UTF8.GetBytes(Proto.ToJson(body));
+                ReplyBytes(output, 200, sealer.Seal(data, 0, data.Length, true));
+            }
+            string Body(int max)
+            {
+                if (opener == null) return ReadSmall(input, contentLength, max);
+                var ms = new MemoryStream();
+                while (!opener.Done && ms.Length <= max)
+                {
+                    var c = opener.OpenNext(input, out _);
+                    ms.Write(c, 0, c.Length);
+                }
+                return Encoding.UTF8.GetString(ms.ToArray());
+            }
 
             if (method == "POST" && path == "/sor")
             {
@@ -387,9 +464,13 @@ namespace DosyaAktar
                     From = Q("kim") ?? "?",
                     Count = long.TryParse(Q("adet"), out var n) ? n : 1,
                     Total = long.TryParse(Q("toplam"), out var t) ? t : 0,
+                    Fingerprint = fp,
+                    VerifyCode = sess?.Keys.VerifyCode ?? "",
                 };
                 // Önizleme gövdesi küçük olmalı; şişkin gövde kesilir.
-                var body = ReadSmall(input, contentLength, 4 * 1024 * 1024);
+                string body;
+                try { body = Body(4 * 1024 * 1024); }
+                catch (CryptographicException) { Reply(output, 403, "kod", false); return; }
                 if (Proto.FromJson(body)?.TryGetValue("items", out var raw) == true && raw is object[] items)
                 {
                     foreach (var it in items.Take(200).OfType<Dictionary<string, object>>())
@@ -407,16 +488,17 @@ namespace DosyaAktar
                 if (offer.Items.Count == 0 && !string.IsNullOrEmpty(Q("ad")))
                     offer.Items.Add(new OfferItem { Name = Proto.SafeName(Q("ad")), Size = offer.Total });
                 if (!AskUser(offer)) { Reply(output, 403, "red", false); return; }
-                Json(output, new Dictionary<string, object> { ["ok"] = true, ["izin"] = Grant() });
+                Ok(new Dictionary<string, object> { ["ok"] = true, ["izin"] = Grant() });
                 return;
             }
 
-            if (method == "GET" && path == "/durum")
+            if ((method == "GET" || sess != null) && path == "/durum")
             {
                 var tid = CleanTid(Q("tid"));
                 long have = 0;
-                if (tid != null && File.Exists(PartPath(tid))) have = new FileInfo(PartPath(tid)).Length;
-                Json(output, new Dictionary<string, object> { ["have"] = have });
+                // Yalnız AYNI eşin (şifrelide aynı anahtarın) yarım dosyası sayılır.
+                if (tid != null && File.Exists(PartPath(tid)) && Owner(tid) == fp) have = new FileInfo(PartPath(tid)).Length;
+                Ok(new Dictionary<string, object> { ["have"] = have });
                 return;
             }
 
@@ -428,17 +510,22 @@ namespace DosyaAktar
             var bundle = Q("paket") == "1";
             var tidAl = CleanTid(Q("tid"));
             long.TryParse(Q("ofs"), out var ofs);
-            if (!long.TryParse(Q("boyut"), out var total)) total = contentLength >= 0 ? ofs + contentLength : -1;
+            if (!long.TryParse(Q("boyut"), out var total)) total = contentLength >= 0 && sess == null ? ofs + contentLength : -1;
 
             // İzin anahtarı yoksa (eski sürüm gönderen) dosya başına sorulur — reddedilen gövde okunmaz.
             if (Ask != null && !Granted(Q("izin")))
             {
-                var o = new Offer { From = from, Count = 1, Total = total };
+                var o = new Offer { From = from, Count = 1, Total = total, Fingerprint = fp, VerifyCode = sess?.Keys.VerifyCode ?? "" };
                 o.Items.Add(new OfferItem { Name = safe, Size = total });
                 if (!AskUser(o)) { Reply(output, 403, "red", false); return; }
             }
 
-            if (tidAl == null) { ReceiveLegacy(input, output, safe, from, contentLength, total); return; }
+            if (tidAl == null)
+            {
+                if (sess != null) { Reply(output, 403, "bicim", false); return; }
+                ReceiveLegacy(input, output, safe, from, contentLength, total);
+                return;
+            }
 
             lock (gate)
             {
@@ -451,19 +538,23 @@ namespace DosyaAktar
             try
             {
                 var part = PartPath(tidAl);
-                var have = File.Exists(part) ? new FileInfo(part).Length : 0;
-                if (ofs != have && ofs != 0)
+                var mine = Owner(tidAl) == fp;
+                var have = File.Exists(part) && mine ? new FileInfo(part).Length : 0;
+                if (ofs != 0 && (ofs != have || !mine))
                 {
-                    // Gönderen yanlış yerden başlıyor: doğru yeri söyle, gövdeyi alma.
+                    // Gönderen yanlış yerden başlıyor (ya da yarım dosya başka eşin): doğru yeri söyle, gövdeyi alma.
                     Json(output, new Dictionary<string, object> { ["have"] = have }, 409);
                     return;
                 }
+                if (ofs == 0) SetOwner(tidAl, fp);
                 long got;
                 using (var fs = new FileStream(part, ofs == 0 ? FileMode.Create : FileMode.Append,
                            FileAccess.Write, FileShare.None, 1 << 20))
                 {
                     try { File.SetAttributes(part, FileAttributes.Hidden); } catch { }
-                    got = CopyBody(input, fs, contentLength, ofs, total, safe);
+                    got = opener == null
+                        ? CopyBody(input, fs, contentLength, ofs, total, safe)
+                        : CopySecure(input, fs, opener, ofs, total, safe);
                 }
                 if (total > 0 && got < total)
                 {
@@ -471,9 +562,10 @@ namespace DosyaAktar
                     try { Json(output, new Dictionary<string, object> { ["have"] = got }, 400); } catch { }
                     return;
                 }
+                SetOwner(tidAl, "");
                 var landed = bundle ? Unpack(part) : new List<string> { Finalize(part, safe) };
                 foreach (var p in landed) Received?.Invoke(p, from);
-                Json(output, new Dictionary<string, object>
+                Ok(new Dictionary<string, object>
                 {
                     ["ok"] = true,
                     ["name"] = landed.Count == 0 ? safe : Path.GetFileName(landed[0]),
@@ -483,7 +575,78 @@ namespace DosyaAktar
             {
                 lock (gate) busy.Remove(tidAl);
                 Done?.Invoke(safe);
+                opener?.Dispose();
+                sealer?.Dispose();
             }
+        }
+
+        /// <summary>/el: X25519 el sıkışması. Gövde {e, s}, cevap {e, s, o}.</summary>
+        void Handshake(Stream input, Stream output, long contentLength)
+        {
+            if (StaticSeed == null) { Reply(output, 404, "", false); return; }
+            var d = Proto.FromJson(ReadSmall(input, contentLength, 4096));
+            byte[] e, st;
+            try { e = Convert.FromBase64String(Proto.Str(d, "e") ?? ""); st = Convert.FromBase64String(Proto.Str(d, "s") ?? ""); }
+            catch { Reply(output, 403, "bicim", false); return; }
+            var eph = Secure.RandomBytes(32);
+            Secure.Keys keys;
+            try { keys = Secure.Derive(StaticSeed, eph, st, e, false, ""); }
+            catch (CryptographicException) { Reply(output, 403, "anahtar", false); return; }
+            var sid = Guid.NewGuid().ToString("N");
+            lock (gate)
+            {
+                foreach (var k in sessions.Where(x => x.Value.Expires < DateTime.UtcNow).Select(x => x.Key).ToList()) sessions.Remove(k);
+                if (sessions.Count >= 32) sessions.Remove(sessions.Keys.First());
+                sessions[sid] = new Session { Keys = keys, Expires = DateTime.UtcNow.AddMinutes(30) };
+            }
+            Json(output, new Dictionary<string, object>
+            {
+                ["e"] = Convert.ToBase64String(Secure.PublicKey(eph)),
+                ["s"] = Convert.ToBase64String(staticPub ?? (staticPub = Secure.PublicKey(StaticSeed))),
+                ["o"] = sid,
+            });
+        }
+
+        string OwnerPath(string tid) => PartPath(tid) + ".k";
+
+        /// <summary>Yarım dosyanın sahibi: şifreli alımda gönderenin parmak izi, düzde boş.</summary>
+        string Owner(string tid)
+        {
+            try { return File.Exists(OwnerPath(tid)) ? File.ReadAllText(OwnerPath(tid)).Trim() : ""; }
+            catch { return "?"; }
+        }
+
+        void SetOwner(string tid, string fp)
+        {
+            try
+            {
+                if (fp == "") { if (File.Exists(OwnerPath(tid))) File.Delete(OwnerPath(tid)); }
+                else { File.WriteAllText(OwnerPath(tid), fp); File.SetAttributes(OwnerPath(tid), FileAttributes.Hidden); }
+            }
+            catch { }
+        }
+
+        /// <summary>Şifreli gövde: yalnız etiketi doğrulanmış kayıtlar diske iner. Kayıt ortasında kopma = yarım (sürdürülür).</summary>
+        long CopySecure(Stream src, Stream dst, Records opener, long got, long total, string name)
+        {
+            var tick = Environment.TickCount;
+            while (!opener.Done)
+            {
+                byte[] chunk;
+                try { chunk = opener.OpenNext(src, out _); }
+                catch (CryptographicException e) when (e.Message == "kesik") { break; }
+                catch (IOException) { break; }
+                catch (ObjectDisposedException) { break; }
+                dst.Write(chunk, 0, chunk.Length);
+                got += chunk.Length;
+                if (Environment.TickCount - tick > 250)
+                {
+                    tick = Environment.TickCount;
+                    Progress?.Invoke(name, got, total);
+                }
+            }
+            Progress?.Invoke(name, got, total);
+            return got;
         }
 
         /// <summary>Eski sürüm gönderen (tid yok): doğrudan hedefe yazılır, yarım kalırsa silinir.</summary>
@@ -683,6 +846,8 @@ namespace DosyaAktar
                         Host = ep.Address.ToString(),
                         Port = (int)Proto.Num(d, "port", Proto.TransferPort),
                         Id = id,
+                        Version = (int)Proto.Num(d, "v", 0),
+                        Fp = Proto.Str(d, "pk") ?? "",
                         Seen = DateTime.UtcNow,
                     };
                     lock (peers)
@@ -706,18 +871,122 @@ namespace DosyaAktar
         public int Sent;
         public List<string> Errors = new List<string>();
         public bool Cancelled, Declined, WrongCode;
+
+        /// <summary>G5: aktarım şifreli mi, iki ekranda görünmesi gereken sayı.</summary>
+        public bool Encrypted;
+        public string VerifyCode = "";
     }
 
     /// <summary>Gönderen: önce /sor ile onay, sonra her parça için /durum + /al; koparsa 2 dk kaldığı yerden dener.</summary>
     public class Sender
     {
         public string Name, Id;
+
+        /// <summary>Kalıcı X25519 tohumu (G5): alıcı v3 ise önce /el, sonra her şey şifreli.</summary>
+        public byte[] StaticSeed;
+        public Action<bool, string> Security; // şifreli mi, doğrulama sayısı
+
+        class Link
+        {
+            public string Sid;
+            public Secure.Keys Keys;
+            public uint Stream = (uint)new Random().Next(1 << 30);
+        }
+        Link link;
         public Action<string> Status;
         public Action<string, long, long> Progress; // ad, giden (toplam üzerinden), toplam
         public Action<bool> Waiting;
         public Func<bool> IsCancelled = () => false;
 
-        enum Outcome { Ok, Declined, WrongCode, Network, Cancelled, Fatal }
+        enum Outcome { Ok, Declined, WrongCode, Network, Rekey, Cancelled, Fatal }
+
+        void Handshake(Peer peer)
+        {
+            var eph = Secure.RandomBytes(32);
+            var body = Encoding.UTF8.GetBytes(Proto.ToJson(new Dictionary<string, object>
+            {
+                ["e"] = Convert.ToBase64String(Secure.PublicKey(eph)),
+                ["s"] = Convert.ToBase64String(Secure.PublicKey(StaticSeed)),
+                ["kim"] = Name, ["kimlik"] = Id,
+            }));
+            var r = Req("http://" + peer.Host + ":" + peer.Port + "/el", "POST", 15000);
+            r.ContentType = "application/json";
+            r.ContentLength = body.Length;
+            using (var s = r.GetRequestStream()) s.Write(body, 0, body.Length);
+            if (Call(r, out var reply) != 200) throw new WebException("el");
+            var d = Proto.FromJson(reply);
+            var keys = Secure.Derive(StaticSeed, eph, Convert.FromBase64String(Proto.Str(d, "s") ?? ""),
+                Convert.FromBase64String(Proto.Str(d, "e") ?? ""), true, "");
+            if (link != null && link.Keys.PeerFingerprint != keys.PeerFingerprint) throw new CryptographicException("kimlik");
+            link = new Link { Sid = Proto.Str(d, "o"), Keys = keys };
+        }
+
+        /// <summary>Şifreli istek: başlık kaydı (parametreler) + gövde kayıtları; 200 cevabı mühürlü JSON.</summary>
+        int SecureCall(Peer peer, string path, Dictionary<string, string> q, Stream body, long len, int timeoutMs,
+            Action<long> onBytes, out string reply)
+        {
+            var stream = link.Stream++;
+            var r = Req("http://" + peer.Host + ":" + peer.Port + path + "?o=" + Uri.EscapeDataString(link.Sid) + "&k=" + stream,
+                "POST", timeoutMs);
+            r.AllowWriteStreamBuffering = false;
+            r.SendChunked = false;
+            r.ContentType = "application/octet-stream";
+            using (var sealer = new Records(link.Keys.Send, stream, path))
+            {
+                var headJson = Encoding.UTF8.GetBytes(Proto.ToJson(q.ToDictionary(kv => kv.Key, kv => (object)kv.Value)));
+                var hasBody = body != null && len > 0;
+                var head = sealer.Seal(headJson, 0, headJson.Length, !hasBody);
+                r.ContentLength = head.Length + (hasBody ? Records.SealedLength(len) : 0);
+                using (var rs = r.GetRequestStream())
+                {
+                    rs.Write(head, 0, head.Length);
+                    if (hasBody)
+                    {
+                        var buf = new byte[Secure.ChunkSize];
+                        long sent = 0;
+                        while (sent < len)
+                        {
+                            if (IsCancelled()) { r.Abort(); throw new OperationCanceledException(); }
+                            var want = (int)Math.Min(buf.Length, len - sent);
+                            var got = 0;
+                            while (got < want)
+                            {
+                                var k = body.Read(buf, got, want - got);
+                                if (k <= 0) throw new IOException("dosya küçüldü");
+                                got += k;
+                            }
+                            sent += got;
+                            var rec = sealer.Seal(buf, 0, got, sent >= len);
+                            rs.Write(rec, 0, rec.Length);
+                            onBytes?.Invoke(sent);
+                        }
+                    }
+                }
+            }
+            var code = CallBytes(r, out var raw);
+            if (code == 200)
+            {
+                using (var opener = new Records(link.Keys.Recv, stream, path))
+                using (var ms = new MemoryStream(raw))
+                    reply = Encoding.UTF8.GetString(opener.OpenNext(ms, out _));
+            }
+            else reply = Encoding.UTF8.GetString(raw);
+            return code;
+        }
+
+        static int CallBytes(HttpWebRequest r, out byte[] body)
+        {
+            HttpWebResponse resp;
+            try { resp = (HttpWebResponse)r.GetResponse(); }
+            catch (WebException e) when (e.Response is HttpWebResponse hr) { resp = hr; }
+            using (resp)
+            using (var ms = new MemoryStream())
+            {
+                resp.GetResponseStream().CopyTo(ms);
+                body = ms.ToArray();
+                return (int)resp.StatusCode;
+            }
+        }
 
         class Item
         {
@@ -739,6 +1008,7 @@ namespace DosyaAktar
                 {
                     Name = Proto.Str(d, "name") ?? host, Host = host,
                     Port = (int)Proto.Num(d, "port", port), Id = Proto.Str(d, "id") ?? "",
+                    Version = (int)Proto.Num(d, "v", 0), Fp = Proto.Str(d, "pk") ?? "",
                     Seen = DateTime.UtcNow,
                 };
             }
@@ -764,6 +1034,17 @@ namespace DosyaAktar
                 var totalBytes = plan.Sum(i => i.Size);
                 var fileCount = plan.Sum(i => i.Files);
 
+                // G5: alıcı şifreli protokolü biliyorsa önce el sıkışılır; düz protokole SESSİZCE düşülmez.
+                link = null;
+                if (peer.Secure && StaticSeed != null)
+                {
+                    try { Handshake(peer); }
+                    catch { result.Errors.Add("şifreli bağlantı kurulamadı"); return result; }
+                    result.Encrypted = true;
+                    result.VerifyCode = link.Keys.VerifyCode;
+                }
+                Security?.Invoke(link != null, link?.Keys.VerifyCode ?? "");
+
                 // Ön soru: alıcı "Kabul et" diyene kadar bekler (telefon 90 sn'de vazgeçer).
                 Status?.Invoke(peer.Name + " onayı bekleniyor…");
                 var grant = "";
@@ -776,14 +1057,24 @@ namespace DosyaAktar
                         return m;
                     }).ToList();
                     var body = Encoding.UTF8.GetBytes(Proto.ToJson(new Dictionary<string, object> { ["items"] = items }));
-                    var r = Req(Url(peer, "/sor", new Dictionary<string, string>
+                    var sq = new Dictionary<string, string>
                     {
-                        ["kim"] = Name, ["ad"] = plan[0].Name, ["adet"] = fileCount.ToString(), ["toplam"] = totalBytes.ToString(),
-                    }), "POST", 95000);
-                    r.ContentType = "application/json";
-                    r.ContentLength = body.Length;
-                    using (var s = r.GetRequestStream()) s.Write(body, 0, body.Length);
-                    var code = Call(r, out var reply);
+                        ["kim"] = Name, ["kimlik"] = Id, ["ad"] = plan[0].Name, ["adet"] = fileCount.ToString(), ["toplam"] = totalBytes.ToString(),
+                    };
+                    int code;
+                    string reply;
+                    if (link != null)
+                    {
+                        using (var ms = new MemoryStream(body)) code = SecureCall(peer, "/sor", sq, ms, body.Length, 95000, null, out reply);
+                    }
+                    else
+                    {
+                        var r = Req(Url(peer, "/sor", sq), "POST", 95000);
+                        r.ContentType = "application/json";
+                        r.ContentLength = body.Length;
+                        using (var s = r.GetRequestStream()) s.Write(body, 0, body.Length);
+                        code = Call(r, out reply);
+                    }
                     if (code == 403)
                     {
                         if (reply.Trim() == "red") result.Declined = true; else result.WrongCode = true;
@@ -816,6 +1107,13 @@ namespace DosyaAktar
                         if (outcome == Outcome.Ok || outcome == Outcome.Fatal || outcome == Outcome.Declined ||
                             outcome == Outcome.WrongCode || outcome == Outcome.Cancelled) break;
                         if (DateTime.UtcNow > deadline) break;
+                        if (outcome == Outcome.Rekey)
+                        {
+                            // Alıcı oturumu unuttu: AYNI anahtarla yeniden el sıkış (değiştiyse durur).
+                            try { Handshake(peer); continue; }
+                            catch (CryptographicException) { outcome = Outcome.Fatal; break; }
+                            catch { }
+                        }
                         // Bağlantı koptu: bekle, yeniden dene — baytlar alıcıda duruyor.
                         if (!waiting) { waiting = true; Waiting?.Invoke(true); }
                         Thread.Sleep(2000);
@@ -916,8 +1214,17 @@ namespace DosyaAktar
             {
                 // Kaç bayt zaten orada? Eski alıcı /durum bilmez (404) → baştan.
                 long have = 0;
-                var st = Req(Url(peer, "/durum", new Dictionary<string, string> { ["tid"] = item.Tid }), "GET", 10000);
-                if (Call(st, out var stBody) == 200) have = Proto.Num(Proto.FromJson(stBody), "have", 0);
+                if (link != null)
+                {
+                    var sc = SecureCall(peer, "/durum", new Dictionary<string, string> { ["tid"] = item.Tid }, null, 0, 10000, null, out var sb);
+                    if (sc == 401) return Outcome.Rekey;
+                    if (sc == 200) have = Proto.Num(Proto.FromJson(sb), "have", 0);
+                }
+                else
+                {
+                    var st = Req(Url(peer, "/durum", new Dictionary<string, string> { ["tid"] = item.Tid }), "GET", 10000);
+                    if (Call(st, out var stBody) == 200) have = Proto.Num(Proto.FromJson(stBody), "have", 0);
+                }
                 if (have > item.Size || have < 0) have = 0;
                 onBytes(have);
 
@@ -928,6 +1235,32 @@ namespace DosyaAktar
                 };
                 if (item.Bundle) q["paket"] = "1";
                 if (grant != "") q["izin"] = grant;
+                if (link != null)
+                {
+                    q["kimlik"] = Id;
+                    int sc;
+                    using (var fs = new FileStream(item.Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 1 << 20))
+                    {
+                        fs.Seek(have, SeekOrigin.Begin);
+                        long last = 0;
+                        var tickS = Environment.TickCount;
+                        sc = SecureCall(peer, "/al", q, fs, item.Size - have, 10 * 60 * 1000, n =>
+                        {
+                            last = have + n;
+                            if (Environment.TickCount - tickS > 200) { tickS = Environment.TickCount; onBytes(last); }
+                        }, out var sreply);
+                        onBytes(last);
+                        switch (sc)
+                        {
+                            case 200: return Outcome.Ok;
+                            case 401: return Outcome.Rekey;
+                            case 403: return sreply.Trim() == "red" ? Outcome.Declined : Outcome.WrongCode;
+                            case 400:
+                            case 409: return Outcome.Network;
+                            default: return Outcome.Fatal;
+                        }
+                    }
+                }
                 // Paket alıcıda açılırken cevap gecikebilir: uzun zaman aşımı.
                 var r = Req(Url(peer, "/al", q), "POST", 10 * 60 * 1000);
                 r.ReadWriteTimeout = 60000;
@@ -966,7 +1299,9 @@ namespace DosyaAktar
                 }
             }
             catch (WebException) { return IsCancelled() ? Outcome.Cancelled : Outcome.Network; }
+            catch (OperationCanceledException) { return Outcome.Cancelled; }
             catch (IOException) { return Outcome.Network; }
+            catch (CryptographicException) { return Outcome.Network; }
             catch { return Outcome.Fatal; }
         }
 

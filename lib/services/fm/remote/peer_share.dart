@@ -13,6 +13,7 @@ import '../file_ops.dart';
 import '../fs_events.dart';
 import '../../offline_mode.dart';
 import 'lan_guard.dart';
+import 'peer_crypto.dart';
 import 'transfer_keeper.dart';
 import 'zip_stream.dart';
 
@@ -48,8 +49,10 @@ import 'zip_stream.dart';
 ///   ALINMAZ, yalnız dosya ADI alınır ve o da temizlenir
 ///   ([FileOps.sanitizeName]) — `../../` ile klasör dışına çıkmak imkânsız.
 /// * Aynı adlı dosya EZİLMEZ: `rapor (1).pdf` olur.
-/// * Aktarım yerel ağla sınırlı; şifreleme yok. Ekranda bu yazıyor —
-///   halka açık Wi-Fi'de kullanmamak kullanıcının bilinçli kararı.
+/// * Aktarım yerel ağla sınırlı. **2026-11-13 (G5):** iki uç da yeni sürümse
+///   (yayında `v: 3`) X25519 el sıkışması + AES-256-GCM kayıtlarıyla şifreli
+///   ([peer_crypto.dart]); eski sürüm eşle düz protokol sürer, ekranda
+///   "şifresiz" rozeti çıkar.
 abstract final class PeerShare {
   /// "Kim var?" yayınının gittiği port. Alıcı burayı dinler.
   static const discoveryPort = 8769;
@@ -68,6 +71,10 @@ abstract final class PeerShare {
   /// Yarım kalan (devam ettirilebilir) alımların ön eki — alıcı klasöründe
   /// gizli dosya olarak durur, tamamlanınca gerçek adına taşınır.
   static const partPrefix = '.dosya-aktarim-';
+
+  /// Şifreli protokol sürümü (G5). Yayın cevabında `v` bu ya da üstüyse
+  /// gönderen `/el` ile el sıkışır.
+  static const protocolVersion = 3;
 
   /// Bu kurulumun kimliği ([PeerReceiver.deviceId]). Yakındakiler ekranı
   /// kendi yayınına verdiği cevabı bununla ayıklar; Wi-Fi ve Bluetooth'tan
@@ -118,13 +125,34 @@ class Peer {
   /// Karşı kurulumun kimliği (eski sürümlerde boş).
   final String id;
 
+  /// Protokol sürümü (yayın cevabındaki `v`; bilinmiyorsa 0).
+  final int version;
+
+  /// Duyurulan kalıcı anahtar parmak izi (`pk`; doğrulanmamış ipucu).
+  final String fingerprint;
+
   const Peer({
     required this.name,
     required this.host,
     required this.port,
     this.needsCode = false,
     this.id = '',
+    this.version = 0,
+    this.fingerprint = '',
   });
+
+  /// Şifreli protokolü (G5) biliyor mu?
+  bool get secure => version >= PeerShare.protocolVersion;
+
+  static Peer fromIdentity(Map data, String host, int port) => Peer(
+        name: '${data['name'] ?? host}',
+        host: host,
+        port: (data['port'] as num?)?.toInt() ?? port,
+        needsCode: data['code'] == true,
+        id: '${data['id'] ?? ''}',
+        version: (data['v'] as num?)?.toInt() ?? 0,
+        fingerprint: '${data['pk'] ?? ''}',
+      );
 
   /// Liste tekilleştirme anahtarı: aynı cihaz iki arayüzden (Wi-Fi + hotspot)
   /// cevap verebilir.
@@ -202,7 +230,12 @@ class PeerReceiver implements KeepableServer {
   /// sorulmaz; gösterim kabulün kendisi. `null` = yazı alınmaz (404).
   final void Function(String text, String from)? onText;
 
+  /// Kalıcı kimlik (G5). Verilirse alıcı şifreli protokolü (v3) duyurur ve
+  /// `/el` el sıkışmasını kabul eder; yoksa yalnız eski düz protokol.
+  final PeerIdentity? identity;
+
   PeerReceiver({
+    this.identity,
     required this.deviceName,
     required this.saveDir,
     this.deviceId = '',
@@ -347,8 +380,10 @@ class PeerReceiver implements KeepableServer {
         'id': deviceId,
         // Kod İSTENİYOR mu — kodun kendisi DEĞİL.
         'code': pairingCode.isNotEmpty,
-        // Bu sürüm devam ettirme + paket biliyor.
-        'v': 2,
+        // 2: devam ettirme + paket; 3: şifreli (G5) — `pk` kalıcı anahtarın
+        // parmak izi (yalnız ipucu; asıl doğrulama el sıkışmada).
+        'v': identity == null ? 2 : PeerShare.protocolVersion,
+        if (identity != null) 'pk': identity!.fingerprint,
       };
 
   /// UDP dinleyicisi: "kim var?" yayınına adımızla ve portumuzla cevap verir.
@@ -452,167 +487,114 @@ class PeerReceiver implements KeepableServer {
     }
   }
 
+  /// Şifreli oturumlar (`/el` el sıkışmasıyla açılır), oturum kimliğine göre.
+  final _sessions = <String, _Session>{};
+
+  /// `/el`: X25519 el sıkışması (G5). Gövde `{e, s, kim, kimlik}`, cevap
+  /// `{e, s, o}` — `o` sonraki isteklerin oturum kimliği.
+  Future<void> _handshake(HttpRequest request) async {
+    final response = request.response;
+    final me = identity;
+    if (me == null) {
+      response.statusCode = HttpStatus.notFound;
+      await response.close();
+      return;
+    }
+    final bytes = BytesBuilder(copy: false);
+    await for (final chunk in request) {
+      bytes.add(chunk);
+      if (bytes.length > 4096) return await _deny(response, 'buyuk');
+    }
+    final data = jsonDecode(utf8.decode(bytes.takeBytes()));
+    if (data is! Map) return await _deny(response, 'bicim');
+    final e = base64Decode('${data['e']}');
+    final st = base64Decode('${data['s']}');
+    final eph = await PeerEphemeral.generate();
+    final keys = await PeerHandshake.derive(
+      me: me,
+      ephemeral: eph,
+      theirStatic: st,
+      theirEphemeral: e,
+      initiator: false,
+      code: pairingCode,
+    );
+    final now = DateTime.now();
+    _sessions.removeWhere((_, v) => v.expires.isBefore(now));
+    if (_sessions.length >= 32) {
+      _sessions.remove(_sessions.keys.first);
+    }
+    final sid = PeerShare.newDeviceId() + PeerShare.newDeviceId();
+    _sessions[sid] = _Session(keys, now.add(const Duration(minutes: 30)));
+    await _json(response, {
+      'e': base64Encode(eph.publicKey),
+      's': base64Encode(me.publicKey),
+      'o': sid,
+    });
+  }
+
   Future<void> _handle(HttpRequest request) async {
     final response = request.response;
     // G4.1: yalnız yerel ağdan.
     if (!await LanGuard.admit(request)) return;
     try {
-      final q = request.uri.queryParameters;
+      final path = request.uri.path;
+      final raw = request.uri.queryParameters;
       // Elle IP yazan gönderen için kimlik ucu.
-      if (request.method == 'GET' && request.uri.path == '/kim') {
+      if (request.method == 'GET' && path == '/kim') {
         await _json(response, _identity());
         return;
       }
+      if (request.method == 'POST' && path == '/el') {
+        await _handshake(request);
+        return;
+      }
       final ip = request.connectionInfo?.remoteAddress.address ?? '';
-      // `late`: kod yalnız ucun gerçekten istediği yerde denetlenir (bilinmeyen
-      // yola gelen istek deneme sayılmasın).
-      late final codeOk = _checkCode(ip, q['kod']);
-      // **Ön soru** (onay): ne geleceği — eski sürüm sorgu, yeni sürüm
-      // gövdede liste + küçük önizlemeler gönderir.
-      if (request.method == 'POST' && request.uri.path == '/sor') {
-        if (!codeOk) return await _deny(response, 'kod');
-        final items = <PeerOfferItem>[];
-        try {
-          final bytes = BytesBuilder(copy: false);
-          await for (final chunk in request) {
-            bytes.add(chunk);
-            // Önizleme gövdesi küçük olmalı; şişkin gövde kesilir (G4.5).
-            if (bytes.length > PeerShare.maxOfferBytes) break;
-          }
-          if (bytes.isNotEmpty) {
-            final data = jsonDecode(utf8.decode(bytes.takeBytes()));
-            if (data is Map && data['items'] is List) {
-              for (final raw in (data['items'] as List).take(200)) {
-                final item = PeerOfferItem.fromJson(raw);
-                if (item != null) items.add(item);
-              }
-            }
-          }
-        } catch (_) {
-          // Liste okunamadı: sorgudaki özet yine gösterilir.
-        }
-        final ok = await _ask(PeerOffer(
-          from: q['kim'] ?? '?',
-          fromId: q['kimlik'] ?? '',
-          firstName: FileOps.sanitizeName(q['ad'] ?? ''),
-          count: int.tryParse(q['adet'] ?? '') ?? 1,
-          totalBytes: int.tryParse(q['toplam'] ?? '') ?? 0,
-          items: items,
-        ));
-        if (!ok) return await _deny(response, 'red');
-        await _json(response, {'ok': true, 'izin': _grant()});
-        return;
-      }
-      if (request.method == 'POST' &&
-          request.uri.path == '/yazi' &&
-          onText != null) {
-        if (!codeOk) return await _deny(response, 'kod');
-        final bytes = BytesBuilder(copy: false);
-        await for (final chunk in request) {
-          bytes.add(chunk);
-          if (bytes.length > PeerSender.maxTextBytes) {
-            return await _deny(response, 'buyuk');
-          }
-        }
-        final text = utf8.decode(bytes.takeBytes(), allowMalformed: true);
-        if (text.trim().isEmpty) return await _deny(response, 'bos');
-        onText!(text, q['kim'] ?? '?');
-        await _json(response, {'ok': true});
-        return;
-      }
-      // **Devam sorusu**: bu aktarımdan kaç bayt elimde?
-      if (request.method == 'GET' && request.uri.path == '/durum') {
-        if (!codeOk) return await _deny(response, 'kod');
-        final tid = _cleanTid(q['tid']);
-        var have = 0;
-        if (tid != null) {
-          final part = _partFile(tid);
-          if (await part.exists()) have = await part.length();
-        }
-        await _json(response, {'have': have});
-        return;
-      }
-      if (request.method != 'POST' || request.uri.path != '/al') {
-        response.statusCode = HttpStatus.notFound;
-        await response.close();
-        return;
-      }
-      // **Kod denetimi gövdeyi OKUMADAN**.
-      if (!codeOk) return await _deny(response, 'kod');
-      // **Ad istekten gelir, YOL gelmez.** `sanitizeName` ayırıcıları
-      // temizliyor: `../../etc/passwd` diye bir ad `.._.._etc_passwd` olur.
-      final rawName = q['ad'] ?? 'dosya';
-      final from = q['kim'] ?? '?';
-      final safeName = FileOps.sanitizeName(rawName);
-      final bundle = q['paket'] == '1';
-      final tid = _cleanTid(q['tid']);
-      final offset = int.tryParse(q['ofs'] ?? '') ?? 0;
-      final body = request.contentLength;
-      final total = int.tryParse(q['boyut'] ?? '') ??
-          (body >= 0 ? offset + body : -1);
-      // Onay: izin anahtarı yoksa (ör. eski sürüm gönderen) dosya başına
-      // sorulur — reddedilen gövde OKUNMADAN geri çevrilir.
-      if (onAsk != null && !_granted(q['izin'])) {
-        final ok = await _ask(PeerOffer(
-            from: from, firstName: safeName, count: 1, totalBytes: total));
-        if (!ok) return await _deny(response, 'red');
-      }
-
-      if (tid == null) {
-        await _receiveLegacy(request, safeName, from, total);
-        return;
-      }
-      if (!_busy.add(tid)) {
-        await _json(response, {'have': -1}, status: HttpStatus.conflict);
-        return;
-      }
-      try {
-        final part = _partFile(tid);
-        await part.parent.create(recursive: true);
-        final have = await part.exists() ? await part.length() : 0;
-        if (offset != have && offset != 0) {
-          // Gönderen yanlış yerden başlıyor: doğru yeri söyle, gövdeyi alma.
-          await _json(response, {'have': have}, status: HttpStatus.conflict);
+      final _Ctx ctx;
+      if (raw['o'] != null) {
+        // **Şifreli istek** (G5): sorgu yalnız oturum + akış; asıl
+        // parametreler ilk (başlık) kayıtta, gövde kalan kayıtlarda.
+        final session = _sessions[raw['o']];
+        final stream = int.tryParse(raw['k'] ?? '');
+        if (session == null ||
+            session.expires.isBefore(DateTime.now()) ||
+            stream == null) {
+          response.statusCode = HttpStatus.unauthorized;
+          response.write('oturum');
+          await response.close();
           return;
         }
-        final sink = part.openWrite(
-            mode: offset == 0 ? FileMode.writeOnly : FileMode.append);
-        var received = offset;
+        if (_codeThrottle.blocked(ip)) return await _deny(response, 'kod');
+        if (!session.streams.add(stream)) return await _deny(response, 'akis');
+        session.expires = DateTime.now().add(const Duration(minutes: 30));
+        final reader = RecordReader(request);
+        final opener = ChunkOpener(session.keys.recv, stream, aad: utf8.encode(path));
+        Map<String, String> params;
         try {
-          // `addStream` GERİ BASINÇ uygular (2026-11-12): eski `await for` +
-          // `sink.add` diske yazılmayı beklemeden ağdan okuyordu; hızlı
-          // gönderende (bilgisayar, kablolu ağ) yazılamayan baytlar bellekte
-          // birikip büyük dosyada süreci öldürebiliyordu.
-          await sink.addStream(request.map((chunk) {
-            received += chunk.length;
-            onProgress?.call(safeName, received, total);
-            return chunk;
-          }));
-          await sink.flush();
-        } finally {
-          await sink.close();
+          final head = await opener.next(reader);
+          final decoded = jsonDecode(utf8.decode(head.payload));
+          params = {
+            if (decoded is Map)
+              for (final e in decoded.entries) '${e.key}': '${e.value}',
+          };
+        } on AeadFailure {
+          // Kod uyuşmazsa anahtar tutmaz, ilk kayıt açılmaz → bağlantı kesilir.
+          _codeThrottle.fail(ip);
+          return await _deny(response, 'kod');
         }
-        if (total > 0 && received < total) {
-          // Yarım: dosya KALIR, gönderen sürdürecek.
-          await _json(response, {'have': received},
-              status: HttpStatus.badRequest);
-          return;
-        }
-        final landed = bundle
-            ? await _unpack(part, safeName)
-            : [await _finalize(part, safeName)];
-        FsEvents.changed();
-        for (final path in landed) {
-          onReceived?.call(path, from);
-        }
-        await _json(response, {
-          'ok': true,
-          'name': landed.isEmpty ? safeName : p.basename(landed.first),
-        });
-      } finally {
-        _busy.remove(tid);
-        onDone?.call(safeName);
+        _codeThrottle.success(ip);
+        ctx = _Ctx(
+          response,
+          path,
+          params,
+          opener.done ? const Stream.empty() : opener.rest(reader),
+          -1,
+          session,
+          stream,
+        );
+      } else {
+        ctx = _Ctx(response, path, raw, request, request.contentLength, null, 0);
       }
+      await _route(request.method, ctx, ip);
     } catch (_) {
       try {
         response.statusCode = HttpStatus.internalServerError;
@@ -623,11 +605,217 @@ class PeerReceiver implements KeepableServer {
     }
   }
 
+  Future<void> _route(String method, _Ctx ctx, String ip) async {
+    final q = ctx.q;
+    final path = ctx.path;
+    final secure = ctx.session != null;
+    final response = ctx.response;
+    // `late`: kod yalnız ucun gerçekten istediği yerde denetlenir (bilinmeyen
+    // yola gelen istek deneme sayılmasın). Şifreli istekte kod anahtarın
+    // içinde: başlık açıldıysa kod doğrudur.
+    late final codeOk = secure || _checkCode(ip, q['kod']);
+    // **Ön soru** (onay): ne geleceği — eski sürüm sorgu, yeni sürüm
+    // gövdede liste + küçük önizlemeler gönderir.
+    if (method == 'POST' && path == '/sor') {
+      if (!codeOk) return await _deny(response, 'kod');
+      final items = <PeerOfferItem>[];
+      try {
+        final bytes = BytesBuilder(copy: false);
+        await for (final chunk in ctx.body) {
+          bytes.add(chunk);
+          // Önizleme gövdesi küçük olmalı; şişkin gövde kesilir (G4.5).
+          if (bytes.length > PeerShare.maxOfferBytes) break;
+        }
+        if (bytes.isNotEmpty) {
+          final data = jsonDecode(utf8.decode(bytes.takeBytes()));
+          if (data is Map && data['items'] is List) {
+            for (final raw in (data['items'] as List).take(200)) {
+              final item = PeerOfferItem.fromJson(raw);
+              if (item != null) items.add(item);
+            }
+          }
+        }
+      } on AeadFailure {
+        return await _deny(response, 'kod');
+      } catch (_) {
+        // Liste okunamadı: sorgudaki özet yine gösterilir.
+      }
+      final ok = await _ask(PeerOffer(
+        from: q['kim'] ?? '?',
+        fromId: q['kimlik'] ?? '',
+        firstName: FileOps.sanitizeName(q['ad'] ?? ''),
+        count: int.tryParse(q['adet'] ?? '') ?? 1,
+        totalBytes: int.tryParse(q['toplam'] ?? '') ?? 0,
+        items: items,
+        fingerprint: ctx.session?.keys.peerFingerprint ?? '',
+        verifyCode: ctx.session?.keys.verifyCode ?? '',
+      ));
+      if (!ok) return await _deny(response, 'red');
+      await ctx.json({'ok': true, 'izin': _grant()});
+      return;
+    }
+    if (method == 'POST' && path == '/yazi' && onText != null) {
+      if (!codeOk) return await _deny(response, 'kod');
+      final bytes = BytesBuilder(copy: false);
+      await for (final chunk in ctx.body) {
+        bytes.add(chunk);
+        if (bytes.length > PeerSender.maxTextBytes) {
+          return await _deny(response, 'buyuk');
+        }
+      }
+      final text = utf8.decode(bytes.takeBytes(), allowMalformed: true);
+      if (text.trim().isEmpty) return await _deny(response, 'bos');
+      onText!(text, q['kim'] ?? '?');
+      await ctx.json({'ok': true});
+      return;
+    }
+    // **Devam sorusu**: bu aktarımdan kaç bayt elimde? Yalnız AYNI eşin
+    // (şifrelide aynı anahtar parmak izinin) yarım dosyası sayılır.
+    if ((method == 'GET' || secure) && path == '/durum') {
+      if (!codeOk) return await _deny(response, 'kod');
+      final tid = _cleanTid(q['tid']);
+      var have = 0;
+      if (tid != null) {
+        final part = _partFile(tid);
+        if (await part.exists() && await _owner(tid) == ctx.peerFp) {
+          have = await part.length();
+        }
+      }
+      await ctx.json({'have': have});
+      return;
+    }
+    if (method != 'POST' || path != '/al') {
+      response.statusCode = HttpStatus.notFound;
+      await response.close();
+      return;
+    }
+    // **Kod denetimi gövdeyi OKUMADAN**.
+    if (!codeOk) return await _deny(response, 'kod');
+    // **Ad istekten gelir, YOL gelmez.** `sanitizeName` ayırıcıları
+    // temizliyor: `../../etc/passwd` diye bir ad `.._.._etc_passwd` olur.
+    final rawName = q['ad'] ?? 'dosya';
+    final from = q['kim'] ?? '?';
+    final safeName = FileOps.sanitizeName(rawName);
+    final bundle = q['paket'] == '1';
+    final tid = _cleanTid(q['tid']);
+    final offset = int.tryParse(q['ofs'] ?? '') ?? 0;
+    final body = ctx.contentLength;
+    final total = int.tryParse(q['boyut'] ?? '') ??
+        (body >= 0 ? offset + body : -1);
+    // Onay: izin anahtarı yoksa (ör. eski sürüm gönderen) dosya başına
+    // sorulur — reddedilen gövde OKUNMADAN geri çevrilir.
+    if (onAsk != null && !_granted(q['izin'])) {
+      final ok = await _ask(PeerOffer(
+          from: from,
+          fromId: q['kimlik'] ?? '',
+          firstName: safeName,
+          count: 1,
+          totalBytes: total,
+          fingerprint: ctx.peerFp,
+          verifyCode: ctx.session?.keys.verifyCode ?? ''));
+      if (!ok) return await _deny(response, 'red');
+    }
+
+    if (tid == null) {
+      if (secure) return await _deny(response, 'bicim');
+      await _receiveLegacy(ctx.body, response, safeName, from, total);
+      return;
+    }
+    if (!_busy.add(tid)) {
+      await _json(response, {'have': -1}, status: HttpStatus.conflict);
+      return;
+    }
+    try {
+      final part = _partFile(tid);
+      await part.parent.create(recursive: true);
+      final mine = await _owner(tid) == ctx.peerFp;
+      final have = await part.exists() && mine ? await part.length() : 0;
+      if (offset != 0 && (offset != have || !mine)) {
+        // Gönderen yanlış yerden başlıyor (ya da yarım dosya başka eşin):
+        // doğru yeri söyle, gövdeyi alma.
+        await _json(response, {'have': have}, status: HttpStatus.conflict);
+        return;
+      }
+      if (offset == 0) await _setOwner(tid, ctx.peerFp);
+      final sink = part.openWrite(
+          mode: offset == 0 ? FileMode.writeOnly : FileMode.append);
+      var received = offset;
+      try {
+        // `addStream` GERİ BASINÇ uygular (2026-11-12): eski `await for` +
+        // `sink.add` diske yazılmayı beklemeden ağdan okuyordu; hızlı
+        // gönderende (bilgisayar, kablolu ağ) yazılamayan baytlar bellekte
+        // birikip büyük dosyada süreci öldürebiliyordu. Şifrelide yalnız
+        // etiketi doğrulanmış kayıtlar diske iner (yarım dosya temiz kalır).
+        try {
+          await sink.addStream(ctx.body.map((chunk) {
+            received += chunk.length;
+            onProgress?.call(safeName, received, total);
+            return chunk;
+          }));
+        } on AeadFailure catch (e) {
+          // Bağlantı kayıt ortasında koptu: doğrulanmış kısım kalır, gönderen
+          // sürdürür. Başka her şifre hatası (bozuk/sahte kayıt) iletilir.
+          if (e.reason != 'kesik') rethrow;
+        }
+        await sink.flush();
+      } finally {
+        await sink.close();
+      }
+      if (total > 0 && received < total) {
+        // Yarım: dosya KALIR, gönderen sürdürecek.
+        await _json(response, {'have': received},
+            status: HttpStatus.badRequest);
+        return;
+      }
+      await _setOwner(tid, '');
+      final landed = bundle
+          ? await _unpack(part, safeName)
+          : [await _finalize(part, safeName)];
+      FsEvents.changed();
+      for (final path in landed) {
+        onReceived?.call(path, from);
+      }
+      await ctx.json({
+        'ok': true,
+        'name': landed.isEmpty ? safeName : p.basename(landed.first),
+      });
+    } finally {
+      _busy.remove(tid);
+      onDone?.call(safeName);
+    }
+  }
+
+  File _ownerFile(String tid) => File('${_partFile(tid).path}.k');
+
+  /// Yarım dosyanın sahibi: şifreli alımda gönderenin parmak izi, düzde boş.
+  Future<String> _owner(String tid) async {
+    try {
+      final f = _ownerFile(tid);
+      if (await f.exists()) return (await f.readAsString()).trim();
+    } catch (_) {
+      // Bilinçli: okunamayan sahip kaydı "bilinmeyen" sayılır → yarım dosya baştan alınır.
+      return '?';
+    }
+    return '';
+  }
+
+  Future<void> _setOwner(String tid, String fp) async {
+    final f = _ownerFile(tid);
+    try {
+      if (fp.isEmpty) {
+        if (await f.exists()) await f.delete();
+      } else {
+        await f.writeAsString(fp, flush: true);
+      }
+    } catch (_) {
+      // Bilinçli: sahip kaydı yazılamazsa devam sorusu baştan başlatır — güvenli yön.
+    }
+  }
+
   /// Eski sürüm gönderen (`tid` yok): dosya doğrudan hedefe yazılır, yarım
   /// kalırsa silinir.
-  Future<void> _receiveLegacy(
-      HttpRequest request, String safeName, String from, int total) async {
-    final response = request.response;
+  Future<void> _receiveLegacy(Stream<List<int>> request, HttpResponse response,
+      String safeName, String from, int total) async {
     final target = FileOps.uniquePath(
         p.join(saveDir, safeName.isEmpty ? 'dosya' : safeName));
     final file = File(target);
@@ -697,6 +885,53 @@ class PeerReceiver implements KeepableServer {
   }
 }
 
+/// Alıcıda bir şifreli oturum.
+class _Session {
+  final PeerKeys keys;
+  DateTime expires;
+
+  /// Kullanılmış akış numaraları — aynı nonce ikinci kez kabul edilmez
+  /// (yeniden oynatma).
+  final streams = <int>{};
+
+  _Session(this.keys, this.expires);
+}
+
+/// Bir isteğin taşımadan bağımsız görünümü: düzde sorgu + gövde, şifrelide
+/// açılmış başlık + açılmış kayıtlar.
+class _Ctx {
+  final HttpResponse response;
+  final String path;
+  final Map<String, String> q;
+  final Stream<List<int>> body;
+  final int contentLength;
+  final _Session? session;
+  final int stream;
+
+  _Ctx(this.response, this.path, this.q, this.body, this.contentLength,
+      this.session, this.stream);
+
+  String get peerFp => session?.keys.peerFingerprint ?? '';
+
+  /// Başarılı (200) JSON cevap; şifrelide tek mühürlü kayıt.
+  Future<void> json(Object value) async {
+    final s = session;
+    response.statusCode = HttpStatus.ok;
+    final bytes = utf8.encode(jsonEncode(value));
+    if (s == null) {
+      response.headers.contentType = ContentType.json;
+      response.add(bytes);
+    } else {
+      final rec = await ChunkSealer(s.keys.send, stream, aad: utf8.encode(path))
+          .seal(bytes, last: true);
+      response.headers.contentType = ContentType.binary;
+      response.contentLength = rec.length;
+      response.add(rec);
+    }
+    await response.close();
+  }
+}
+
 /// Gönderilecek tek parça: düz dosya ya da paket (ZIP akışı).
 class _Sendable {
   final String name;
@@ -725,25 +960,26 @@ abstract final class PeerSender {
   static const maxTextBytes = 1024 * 1024;
 
   /// [text]'i [peer]'a gönderir (alıcıda kopyalanabilir olarak görünür).
-  /// Alıcı eski sürümse (uç yok) ya da ulaşılamazsa false.
+  /// Alıcı eski sürümse (uç yok) ya da ulaşılamazsa false. Alıcı şifreli
+  /// protokolü biliyorsa ve [identity] verildiyse yazı şifreli gider.
   static Future<bool> sendText(Peer peer, String text,
-      {required String senderName, String pairingCode = ''}) async {
+      {required String senderName,
+      String pairingCode = '',
+      PeerIdentity? identity}) async {
     NetGuard.allow('peer', host: peer.host);
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
     try {
-      final req = await client.postUrl(peer.base.replace(
-          path: '/yazi',
-          queryParameters: {
-            'kim': senderName,
-            if (pairingCode.isNotEmpty) 'kod': pairingCode,
-          }));
+      final link = _Link(client, peer, code: pairingCode, me: identity);
+      if (peer.secure && identity != null) {
+        await link.handshake(name: senderName, id: '');
+      }
       final body = utf8.encode(text);
-      req.headers.contentType = ContentType.text;
-      req.contentLength = body.length;
-      req.add(body);
-      final res = await req.close().timeout(const Duration(seconds: 15));
-      await res.drain<void>();
-      return res.statusCode == HttpStatus.ok;
+      final r = await link.call('/yazi', {'kim': senderName},
+          body: Stream.value(body),
+          length: body.length,
+          type: ContentType.text,
+          timeout: const Duration(seconds: 15));
+      return r.status == HttpStatus.ok;
     } catch (_) {
       return false;
     } finally {
@@ -776,13 +1012,8 @@ abstract final class PeerSender {
           return;
         }
         if (data['magic'] != PeerShare._magic) return;
-        final peer = Peer(
-          name: '${data['name'] ?? '?'}',
-          host: packet.address.address,
-          port: (data['port'] as num?)?.toInt() ?? PeerShare.transferPort,
-          needsCode: data['code'] == true,
-          id: '${data['id'] ?? ''}',
-        );
+        final peer = Peer.fromIdentity(
+            data, packet.address.address, PeerShare.transferPort);
         if (seen.add(peer.key)) controller.add(peer);
       }, onError: (Object _) {}, cancelOnError: false);
 
@@ -833,13 +1064,7 @@ abstract final class PeerSender {
       final data = jsonDecode(await response.transform(utf8.decoder).join())
           as Map<String, dynamic>;
       if (data['magic'] != PeerShare._magic) return null;
-      return Peer(
-        name: '${data['name'] ?? host}',
-        host: host,
-        port: (data['port'] as num?)?.toInt() ?? port,
-        needsCode: data['code'] == true,
-        id: '${data['id'] ?? ''}',
-      );
+      return Peer.fromIdentity(data, host, port);
     } catch (_) {
       return null;
     } finally {
@@ -911,6 +1136,10 @@ abstract final class PeerSender {
   ///   **kaldığı bayttan** sürdürür; beklerken [onWaiting] `true` alır.
   /// * [thumbnail] verilirse ilk birkaç görsel/videonun küçük önizlemesi
   ///   onay penceresinde görünsün diye `/sor` ile gider.
+  /// * **Şifreleme (G5):** alıcı v3 duyurduysa ve [identity] verildiyse
+  ///   önce `/el` ile el sıkışılır, her şey şifreli gider; [onSecurity]
+  ///   doğrulama sayısını alır. [requireFingerprint] verilirse (otomatik
+  ///   eşitleme) yalnız o anahtarlı alıcıya ve yalnız şifreli gönderilir.
   ///
   /// İlerleme **bayt** üzerinden bildirilir: [onProgress] toplam, [onFile] o
   /// gönderim kalemi (dosya ya da paket) için — başlarken 0, bitince boyunun tamamı.
@@ -920,6 +1149,9 @@ abstract final class PeerSender {
     required String senderName,
     String senderId = '',
     String pairingCode = '',
+    PeerIdentity? identity,
+    String? requireFingerprint,
+    void Function(PeerSecurity security)? onSecurity,
     void Function(String name, int sentBytes, int totalBytes)? onProgress,
     void Function(bool waiting)? onWaiting,
     void Function(String name, int sentBytes, int sizeBytes)? onFile,
@@ -930,6 +1162,9 @@ abstract final class PeerSender {
   }) async {
     var sent = 0;
     final errors = <String>[];
+    if (requireFingerprint != null && (!peer.secure || identity == null)) {
+      return const PeerSendResult(identityMismatch: true);
+    }
     final plan = await _plan(paths);
     final totalBytes = plan.fold<int>(0, (a, s) => a + s.size);
     final fileCount = plan.fold<int>(0, (a, s) => a + s.files);
@@ -939,34 +1174,52 @@ abstract final class PeerSender {
     final client = HttpClient()
       ..connectionTimeout = const Duration(seconds: 8)
       ..idleTimeout = const Duration(seconds: 20);
+    final link = _Link(client, peer, code: pairingCode, me: identity);
+    final senderKey = senderId.isEmpty ? senderName : senderId;
     try {
+      if (peer.secure && identity != null) {
+        try {
+          await link.handshake(name: senderName, id: senderId);
+        } catch (_) {
+          // Şifreli protokolü duyuran alıcıyla düz protokole SESSİZCE
+          // düşülmez (araya giren biri sürüm düşürmesin).
+          return const PeerSendResult(errors: ['handshake']);
+        }
+      }
+      final keys = link.keys;
+      if (requireFingerprint != null &&
+          keys?.peerFingerprint != requireFingerprint) {
+        return const PeerSendResult(identityMismatch: true);
+      }
+      onSecurity?.call(PeerSecurity(
+        encrypted: keys != null,
+        verifyCode: keys?.verifyCode ?? '',
+        fingerprint: keys?.peerFingerprint ?? '',
+      ));
       // **Ön soru**: alıcı onay istiyorsa "Kabul et" diyene kadar bekler.
       // Gövdede ne geleceği (ad, boyut, küçük önizleme) gider.
       var grant = '';
       try {
-        final ask = await client.postUrl(
-            peer.base.replace(path: '/sor', queryParameters: {
+        final body = utf8.encode(jsonEncode(
+            {'items': await _offerItems(paths, thumbnail)}));
+        final res = await link.call('/sor', {
           'kim': senderName,
           if (senderId.isNotEmpty) 'kimlik': senderId,
           'ad': paths.isEmpty ? '' : p.basename(paths.first),
           'adet': '$fileCount',
           'toplam': '$totalBytes',
-          if (pairingCode.isNotEmpty) 'kod': pairingCode,
-        }));
-        final body = utf8.encode(jsonEncode(
-            {'items': await _offerItems(paths, thumbnail)}));
-        ask.headers.contentType = ContentType.json;
-        ask.contentLength = body.length;
-        ask.add(body);
-        final res = await ask.close().timeout(const Duration(seconds: 95));
-        final reply = await res.transform(utf8.decoder).join();
-        if (res.statusCode == HttpStatus.forbidden) {
-          return reply.trim() == 'red'
+        },
+            body: Stream.value(body),
+            length: body.length,
+            type: ContentType.json,
+            timeout: const Duration(seconds: 95));
+        if (res.status == HttpStatus.forbidden) {
+          return res.body.trim() == 'red'
               ? const PeerSendResult(declined: true)
               : const PeerSendResult(wrongCode: true);
         }
-        if (res.statusCode == HttpStatus.ok) {
-          final data = jsonDecode(reply);
+        if (res.status == HttpStatus.ok) {
+          final data = jsonDecode(res.body);
           if (data is Map && data['izin'] is String) {
             grant = data['izin'] as String;
           }
@@ -981,7 +1234,7 @@ abstract final class PeerSender {
         if (isCancelled?.call() ?? false) {
           return PeerSendResult(sent: sent, errors: errors, cancelled: true);
         }
-        final tid = await _tid(senderId.isEmpty ? senderName : senderId, item);
+        final tid = await _tid(senderKey, item);
         final deadline = DateTime.now().add(retryFor);
         var waiting = false;
         var ok = false;
@@ -989,10 +1242,10 @@ abstract final class PeerSender {
         onFile?.call(item.name, 0, item.size);
         while (true) {
           if (isCancelled?.call() ?? false) break;
-          final outcome = await _sendOne(client, peer, item,
+          final outcome = await _sendOne(link, item,
               tid: tid,
               senderName: senderName,
-              pairingCode: pairingCode,
+              senderId: senderId,
               grant: grant,
               isCancelled: isCancelled,
               onBytes: (n) {
@@ -1018,6 +1271,21 @@ abstract final class PeerSender {
             error = '${item.name}: ${outcome.name}';
             break;
           }
+          if (outcome == _Outcome.rekey) {
+            // Alıcı oturumu unuttu (yeniden başladı): yeniden el sıkış —
+            // AYNI kalıcı anahtarla; değiştiyse gönderim durur.
+            final before = link.keys?.peerFingerprint;
+            try {
+              await link.handshake(name: senderName, id: senderId);
+              if (link.keys?.peerFingerprint != before) {
+                return PeerSendResult(
+                    sent: sent, errors: errors, identityMismatch: true);
+              }
+              continue;
+            } catch (_) {
+              // Bilinçli: el sıkışma da olmadı → aşağıda ağ hatası gibi beklenir.
+            }
+          }
           // Bağlantı koptu: bekle, yeniden dene — baytlar alıcıda duruyor.
           if (!waiting) {
             waiting = true;
@@ -1039,16 +1307,20 @@ abstract final class PeerSender {
     } finally {
       client.close(force: true);
     }
-    return PeerSendResult(sent: sent, errors: errors, cancelled: false);
+    return PeerSendResult(
+        sent: sent,
+        errors: errors,
+        cancelled: false,
+        encrypted: link.secure,
+        peerFingerprint: link.keys?.peerFingerprint ?? '');
   }
 
   static Future<_Outcome> _sendOne(
-    HttpClient client,
-    Peer peer,
+    _Link link,
     _Sendable item, {
     required String tid,
     required String senderName,
-    required String pairingCode,
+    required String senderId,
     required String grant,
     required void Function(int bytesOfItem) onBytes,
     bool Function()? isCancelled,
@@ -1057,17 +1329,12 @@ abstract final class PeerSender {
       // Kaç bayt zaten orada? Eski alıcı `/durum` bilmez (404) → baştan.
       var have = 0;
       try {
-        final st = await (await client.getUrl(peer.base.replace(
-                path: '/durum',
-                queryParameters: {
-                  'tid': tid,
-                  if (pairingCode.isNotEmpty) 'kod': pairingCode,
-                })))
-            .close()
-            .timeout(const Duration(seconds: 10));
-        final body = await st.transform(utf8.decoder).join();
-        if (st.statusCode == HttpStatus.ok) {
-          final data = jsonDecode(body);
+        final st = await link.call('/durum', {'tid': tid},
+            method: link.secure ? 'POST' : 'GET',
+            timeout: const Duration(seconds: 10));
+        if (st.status == HttpStatus.unauthorized) return _Outcome.rekey;
+        if (st.status == HttpStatus.ok) {
+          final data = jsonDecode(st.body);
           if (data is Map) have = (data['have'] as num?)?.toInt() ?? 0;
         }
       } on SocketException {
@@ -1076,60 +1343,50 @@ abstract final class PeerSender {
         return _Outcome.network;
       } on HttpException {
         return _Outcome.network;
+      } on AeadFailure {
+        return _Outcome.network;
       } catch (_) {
         // Bilinçli: bozuk yanıt → kaldığı yer bilinmiyor, baştan gönderilir (have = 0).
       }
-      if (have > item.size) have = 0;
+      if (have > item.size || have < 0) have = 0;
       onBytes(have);
-      final request = await client.postUrl(
-          peer.base.replace(path: '/al', queryParameters: {
+      // Akış hâlinde gönderilir: 2 GB'lık bir video belleğe alınmaz.
+      final res = await link.call('/al', {
         'ad': item.name,
         'kim': senderName,
+        if (senderId.isNotEmpty) 'kimlik': senderId,
         'tid': tid,
         'ofs': '$have',
         'boyut': '${item.size}',
         if (item.zip != null) 'paket': '1',
-        if (pairingCode.isNotEmpty) 'kod': pairingCode,
         if (grant.isNotEmpty) 'izin': grant,
-      }));
-      // İptalde `abort()` sonrası ya da alıcı bağlantıyı kesince `done` hata
-      // ile biter; sonuç `close()`tan okunur, ayrıca dinleyen yoksa yakalanmaz.
-      request.done.ignore();
-      request.contentLength = item.size - have;
-      var n = have;
-      // Akış hâlinde gönderilir: 2 GB'lık bir video belleğe alınmaz.
-      await for (final chunk in item.open(have)) {
-        if (isCancelled?.call() ?? false) {
-          request.abort();
-          return _Outcome.cancelled;
-        }
-        request.add(chunk);
-        // Geri basınç (2026-11-12): `add` beklemeden biriktirir — dosya
-        // ağdan hızlı okununca tamamı belleğe doluyor, ilerleme de "okunan"ı
-        // gösterip anında %100 oluyordu. `flush` bayt sokete yazılana dek
-        // bekler → bellek sabit, yüzde gerçek.
-        await request.flush();
-        n += chunk.length;
-        onBytes(n);
-      }
-      final response = await request.close();
-      final reply = await response.transform(utf8.decoder).join();
-      switch (response.statusCode) {
+      },
+          body: item.open(have),
+          length: item.size - have,
+          isCancelled: isCancelled,
+          onBytes: (n) => onBytes(have + n));
+      switch (res.status) {
         case HttpStatus.ok:
           return _Outcome.ok;
+        case HttpStatus.unauthorized:
+          return _Outcome.rekey;
         case HttpStatus.forbidden:
-          return reply.trim() == 'red' ? _Outcome.declined : _Outcome.wrongCode;
+          return res.body.trim() == 'red' ? _Outcome.declined : _Outcome.wrongCode;
         case HttpStatus.conflict:
         case HttpStatus.badRequest:
           return _Outcome.network; // yeniden sor, doğru yerden sürdür
         default:
           return _Outcome.fatal;
       }
+    } on _Cancelled {
+      return _Outcome.cancelled;
     } on SocketException {
       return _Outcome.network;
     } on HttpException {
       return _Outcome.network;
     } on TimeoutException {
+      return _Outcome.network;
+    } on AeadFailure {
       return _Outcome.network;
     } catch (_) {
       return _Outcome.fatal;
@@ -1179,7 +1436,156 @@ abstract final class PeerSender {
   }
 }
 
-enum _Outcome { ok, declined, wrongCode, network, cancelled, fatal }
+enum _Outcome { ok, declined, wrongCode, network, rekey, cancelled, fatal }
+
+class _Cancelled implements Exception {
+  const _Cancelled();
+}
+
+Stream<List<int>> _concat(List<int> head, Stream<List<int>>? rest) async* {
+  yield head;
+  if (rest != null) yield* rest;
+}
+
+/// Gönderenin bir alıcıyla bağı: düz (eski sürüm) ya da şifreli oturum (G5).
+/// Uçlar ve anlamları ikisinde aynı; şifrelide sorgu yalnız `o` (oturum) +
+/// `k` (akış), asıl parametreler başlık kaydında, gövde mühürlü kayıtlarda.
+class _Link {
+  final HttpClient client;
+  final Peer peer;
+  final String code;
+  final PeerIdentity? me;
+  PeerKeys? keys;
+  String? _sid;
+  int _stream = Random.secure().nextInt(1 << 30);
+
+  _Link(this.client, this.peer, {this.code = '', this.me});
+
+  bool get secure => keys != null;
+
+  Future<void> handshake({required String name, required String id}) async {
+    final mine = me!;
+    final eph = await PeerEphemeral.generate();
+    final req = await client.postUrl(peer.base.replace(path: '/el'));
+    req.done.ignore();
+    final body = utf8.encode(jsonEncode({
+      'e': base64Encode(eph.publicKey),
+      's': base64Encode(mine.publicKey),
+      'kim': name,
+      'kimlik': id,
+    }));
+    req.headers.contentType = ContentType.json;
+    req.contentLength = body.length;
+    req.add(body);
+    final res = await req.close().timeout(const Duration(seconds: 15));
+    final text = await res.transform(utf8.decoder).join();
+    if (res.statusCode != HttpStatus.ok) {
+      throw HttpException('el ${res.statusCode}');
+    }
+    final data = jsonDecode(text) as Map;
+    keys = await PeerHandshake.derive(
+      me: mine,
+      ephemeral: eph,
+      theirStatic: base64Decode('${data['s']}'),
+      theirEphemeral: base64Decode('${data['e']}'),
+      initiator: true,
+      code: code,
+    );
+    _sid = '${data['o']}';
+  }
+
+  Future<({int status, String body})> call(
+    String path,
+    Map<String, String> params, {
+    String method = 'POST',
+    Stream<List<int>>? body,
+    int length = 0,
+    ContentType? type,
+    Duration? timeout,
+    bool Function()? isCancelled,
+    void Function(int sent)? onBytes,
+  }) async {
+    final k = keys;
+    final stream = _stream++ & 0xFFFFFFFF;
+    final HttpClientRequest req;
+    if (k == null) {
+      final uri = peer.base.replace(path: path, queryParameters: {
+        ...params,
+        if (code.isNotEmpty) 'kod': code,
+      });
+      req = method == 'GET'
+          ? await client.getUrl(uri)
+          : await client.postUrl(uri);
+    } else {
+      req = await client.postUrl(peer.base
+          .replace(path: path, queryParameters: {'o': _sid!, 'k': '$stream'}));
+    }
+    // İptalde `abort()` sonrası ya da alıcı bağlantıyı kesince `done` hata
+    // ile biter; sonuç `close()`tan okunur.
+    req.done.ignore();
+    var sent = 0;
+    Stream<List<int>> counted(Stream<List<int>> s) => s.map((c) {
+          sent += c.length;
+          onBytes?.call(sent);
+          return c;
+        });
+    Stream<List<int>>? out;
+    var outLength = 0;
+    if (k == null) {
+      if (body != null) {
+        out = counted(body);
+        outLength = length;
+        if (type != null) req.headers.contentType = type;
+      }
+    } else {
+      final sealer = ChunkSealer(k.send, stream, aad: utf8.encode(path));
+      final hasBody = body != null && length > 0;
+      final head =
+          await sealer.seal(utf8.encode(jsonEncode(params)), last: !hasBody);
+      outLength = head.length + (hasBody ? SealedChunks.sealedLength(length) : 0);
+      out = _concat(head, hasBody ? sealer.sealStream(counted(body)) : null);
+      req.headers.contentType = ContentType.binary;
+    }
+    if (out != null) {
+      req.contentLength = outLength;
+      await for (final chunk in out) {
+        if (isCancelled?.call() ?? false) {
+          req.abort();
+          throw const _Cancelled();
+        }
+        req.add(chunk);
+        // Geri basınç (2026-11-12): `flush` bayt sokete yazılana dek bekler
+        // → bellek sabit, yüzde gerçek.
+        await req.flush();
+      }
+    } else if (method != 'GET') {
+      req.contentLength = 0;
+    }
+    final pending = req.close();
+    final res = await (timeout == null ? pending : pending.timeout(timeout));
+    if (k != null && res.statusCode == HttpStatus.ok) {
+      final opener = ChunkOpener(k.recv, stream, aad: utf8.encode(path));
+      final bytes = BytesBuilder(copy: false);
+      await for (final c in opener.openStream(res)) {
+        bytes.add(c);
+      }
+      return (status: HttpStatus.ok, body: utf8.decode(bytes.takeBytes()));
+    }
+    return (
+      status: res.statusCode,
+      body: await res.transform(utf8.decoder).join()
+    );
+  }
+}
+
+/// Gönderimin güvenlik durumu (ekranda rozet + doğrulama sayısı).
+class PeerSecurity {
+  final bool encrypted;
+  final String verifyCode;
+  final String fingerprint;
+  const PeerSecurity(
+      {required this.encrypted, this.verifyCode = '', this.fingerprint = ''});
+}
 
 /// Gönderme sonucu — kaç dosya gitti, hangileri gitmedi.
 class PeerSendResult {
@@ -1193,12 +1599,22 @@ class PeerSendResult {
   /// Alıcı gelen dosyayı kabul etmedi (ya da yanıt vermedi).
   final bool declined;
 
+  /// Beklenen anahtar parmak izi tutmadı ya da alıcı şifresiz (eşitleme).
+  final bool identityMismatch;
+
+  /// Aktarım şifreli gitti mi; gittiyse alıcının parmak izi.
+  final bool encrypted;
+  final String peerFingerprint;
+
   const PeerSendResult({
     this.sent = 0,
     this.errors = const [],
     this.cancelled = false,
     this.wrongCode = false,
     this.declined = false,
+    this.identityMismatch = false,
+    this.encrypted = false,
+    this.peerFingerprint = '',
   });
 
   bool get hasError => errors.isNotEmpty;
@@ -1259,6 +1675,12 @@ class PeerOffer {
   /// Ayrıntılı liste (yeni sürüm gönderen); eski sürümde boş.
   final List<PeerOfferItem> items;
 
+  /// Şifreli oturumda gönderenin kalıcı anahtar parmak izi; düzde boş.
+  final String fingerprint;
+
+  /// Şifreli oturumda iki ekranda aynı görünmesi gereken 6 haneli sayı.
+  final String verifyCode;
+
   const PeerOffer({
     required this.from,
     this.fromId = '',
@@ -1266,5 +1688,10 @@ class PeerOffer {
     required this.count,
     required this.totalBytes,
     this.items = const [],
+    this.fingerprint = '',
+    this.verifyCode = '',
   });
+
+  /// Aktarım şifreli mi (G5)?
+  bool get encrypted => fingerprint.isNotEmpty;
 }
