@@ -76,6 +76,10 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(
                           useAlternativeFitScaleAsMinScale: _pdfColumns == 1,
                           minScale: _pdfColumns == 1 ? 0.1 : 0.05,
+                          // Tablette çok yakın açılıyordu + yakınlık
+                          // hatırlanmıyordu (2026-11-13) → [PdfZoomMemory].
+                          calculateInitialZoom:
+                              _pdfColumns == 1 ? _pdfInitialZoom : null,
                         ),
                         backgroundColor: Theme.of(context)
                             .colorScheme
@@ -131,6 +135,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         calculateCurrentPageNumber: _currentPdfPage,
                         // Kullanıcı kendisi kaydırmaya başladı: "gidilen sayfa"
                         // tercihi artık geçerli değil.
+                        onInteractionEnd: (_) => _recordPdfZoom(),
                         onInteractionStart: (_) {
                           _pdfJumpTarget = null;
                           if (_pdfPinch) _partSetState(() => _pdfPinch = false);

@@ -53,6 +53,7 @@ import '../services/file_service.dart';
 import '../services/fm/entry_opener.dart';
 import '../services/fm/pdf_edit_journal.dart';
 import '../services/fm/pdf_bookmarks.dart';
+import '../services/fm/pdf_zoom_memory.dart';
 import '../services/fm/reading_positions.dart';
 import '../services/fm/safe_write.dart';
 import '../services/ocr_service.dart';
@@ -660,13 +661,15 @@ class _ViewerScreenState extends State<ViewerScreen> {
       if (mounted) setState(() {});
     }));
     // Kayıt zaten bellekteyse sayfa İLK karede verilir.
-    if (ReadingPositions.isLoaded) {
+    if (ReadingPositions.isLoaded && PdfZoomMemory.isLoaded) {
       _applyResumePage();
       return;
     }
     _resumeReady = false;
     try {
-      await ReadingPositions.ensureLoaded();
+      // Yakınlık kaydı da görüntüleyici kurulmadan bilinmeli (açılış ölçeği).
+      await Future.wait(
+          [ReadingPositions.ensureLoaded(), PdfZoomMemory.ensureLoaded()]);
     } finally {
       if (mounted) {
         setState(() {
@@ -675,6 +678,23 @@ class _ViewerScreenState extends State<ViewerScreen> {
         });
       }
     }
+  }
+
+  /// Açılış yakınlığı (yalnız tek sütun): belgenin kayıtlı yakınlığı, yoksa
+  /// tablette sayfanın tamamı, telefonda pdfrx varsayılanı (bkz.
+  /// [PdfZoomMemory]).
+  double? _pdfInitialZoom(PdfDocument document, PdfViewerController controller,
+          double fitZoom, double coverZoom) =>
+      PdfZoomMemory.initialZoom(widget.doc.path,
+          shortestSide: MediaQuery.sizeOf(context).shortestSide,
+          fitZoom: fitZoom);
+
+  /// Kullanıcının yakınlığını belge için saklar (tek sütunda).
+  void _recordPdfZoom() {
+    if (widget.doc.kind != DocKind.pdf || _pdfColumns != 1) return;
+    if (!_pdfController.isReady) return;
+    final z = _pdfController.currentZoom;
+    if (z > 0) unawaited(PdfZoomMemory.record(widget.doc.path, z));
   }
 
   void _applyResumePage() {
@@ -762,6 +782,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     // Bekleyen okuma konumu diske yazılsın: uygulama kapansa da "kaldığın
     // sayfa" çalışsın (kayıt üç saniyelik gecikmeyle yazılıyor).
     unawaited(ReadingPositions.save());
+    _recordPdfZoom();
     _pdfController.removeListener(_onPdfMatrix);
     // Kaydedilmemiş düzenleme varsa çökme kaydı kalır (yeniden açılışta sunulur).
     _pro
