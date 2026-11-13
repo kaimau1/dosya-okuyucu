@@ -27,7 +27,9 @@ def file_digest(p: pathlib.Path) -> str:
 
 def tree_digest(d: pathlib.Path) -> str:
     lines = []
-    for p in sorted(x for x in d.rglob('*') if x.is_file()):
+    # Windows Path sıralaması harf duyarsız → parçalarla (Linux ile aynı) sırala.
+    for p in sorted((x for x in d.rglob('*') if x.is_file()),
+                    key=lambda x: x.relative_to(d).parts):
         rel = p.relative_to(d).as_posix()
         lines.append(f'{rel}  {file_digest(p)}\n')
     return hashlib.sha256(''.join(lines).encode()).hexdigest()
