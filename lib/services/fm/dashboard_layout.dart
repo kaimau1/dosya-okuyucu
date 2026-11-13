@@ -91,7 +91,8 @@ class DashboardLayout extends ChangeNotifier {
       !setEquals(_hiddenSections, defaultHiddenSections) ||
       !setEquals(_hiddenTiles, defaultHiddenTiles) ||
       !listEquals(_sectionOrder, sections) ||
-      !listEquals(_tileOrder, tiles);
+      !listEquals(
+          [for (final id in _tileOrder) if (!isDynamic(id)) id], tiles);
 
   static List<String> _merge(List<String>? saved, List<String> known) {
     final out = <String>[
