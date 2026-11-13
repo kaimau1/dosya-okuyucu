@@ -769,6 +769,7 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
 
 **Koşu kaydı**
 - 2026-11-13 · Mi Note 10 Lite (Xiaomi, MIUI, Android 12, GMS var; nightly 1.2.62 + `.r8test` profil) · 1 ✔ (soğuk açılış 1,4–2,3 sn, çökme yok) · 2 ✔ (pano boşta 0 kare — senaryo) · 3 ✔ kaydırma (senaryo 5.000 öğe); kopyala/taşı/sil 👤 denenmedi · 4 ✔ `SEND` → Aktar ekranı, dosya "Ne gönderilecek"e eklendi; **tasarım** (2026-11-03 kullanıcı isteği), bu telefonda konum/yakın cihaz izni sorulmadı (daha önce verilmiş) · 5 👤 · 6–7 ✔ açılış (pdf, docx, pptx, xlsx, csv `VIEW` ile; `logcat -b crash` boş), düzenle-kaydet 👤 · 8–9 👤 (ML Kit modeli, hesap) · 10 👤 · 11 ✔ `VIEW video/*` → "Video neyle açılsın?" seçim penceresi (tasarım, `EntryOpener`) → "Uygulama içi oynatıcı" oynuyor; MatePad'deki "panoya düşüyor" gözlemi bu pencerenin arkasındaki panoydu — hata DEĞİL · 12 👤 Drive girişi (hesap), SFTP/FTP/Yakındakiler denenmedi · perf: `docs/perf/2026-11-50-sonuc.md` Mi Note sütunu.
+- 2026-11-13 (ek) · Mi Note 10 Lite · nightly 1.2.66 · 3 ✔ Gezgin: çoklu seçim → kopyala (2 öğe), taşı, sil → "çöp kutusuna taşındı" + Geri al ile dosya geri geldi (Geri al yalnız snackbar süresince; geç dokunuş listede başka satıra düşer — kusur değil) · 7 ✔ Word: küçük düzenleme → Kaydet → kapat-aç, değişiklik duruyor; Excel/Slayt 👤 · 10 ✔ 4,9 GB kopyalama sırasında "Kopyalanıyor" bildirimi göründü, bitince kapandı (ilerleme çubuğu değeri okunmadı) · 5 👤 (başka uygulamanın "dosya ekle"si denenmedi) · 6 PDF kaydet-yeniden aç ✔ (dekont kopyası).
 - 2026-11-07 · Faz 43 · MatePad DBY-W09 (GMS'siz): 1–3, 6–7 açılış ✅ · 4 ⚠ Paylaş → Aktar ekranı + konum/yakın cihaz izni · 11 ❌ `VIEW video/*` panoya düşüyor · 8, 9, Drive GMS'li cihazda · kalanlar elle bekliyor → ayrıntı `docs/perf/2026-11-43-taban.md`.
 
 ## Faz 45–47 — Paket yükseltmeleri (2026-11-08)
@@ -834,6 +835,7 @@ Ekran görüntüleri `docs/design/2026-11-galeri/` (örnek ağaç `/sdcard/Ornek
 7. **Okuyucu derlemesi** (Actions › "Okuyucu derlemesi (izinsiz)" artifact'i, `…okuyucu` kimliği, tam uygulamanın yanına kurulur): uygulama bilgisinde hassas izin yok; pano kartında "İzin ver" yok, Klasör ekle + Dosya aç çalışıyor; ilk açılışta tek seçenek.
 
 **Koşu kaydı**
+- 2026-11-13 (ek) · Mi Note 10 Lite · 1.2.66: 2 (Klasör ekle) 👤 — tüm dosyalar izni açık, izin kartı çıkmıyor (izin kapatılıp denenmeli) · 6 (Neler yeni) 👤 — 1.2.64→1.2.66 güncellemesinde levha görülmedi (yalnız 1.1→1.2 sürüm geçişinde çıkıyor olabilir; kaynakta koşul doğrulanmadı).
 - 2026-11-13 · Mi Note 10 Lite: 3 ✔ Ayarlar › Gizlilik ve izinler: "Çevrimdışı kip" + "Yapay zekâya göndermeden önce sor" + İzinler (Tüm dosyalar, Bildirimler, Kamera, Konum… "Geri al" düğmeleriyle) görünür · 4 ✔ kip AÇIKken satır metni "AÇIK — internete hiçbir şey gitmiyor"; Drive "Google ile bağlan" internete çıkmadı AMA genel "Drive şu an yanıt vermiyor" gösterdi → **hata bulundu**, düzeltildi (`DriveSignInError.offline` → `offline.blocked`, commit 3471ee31, bir sonraki nightly'de doğrulanacak); AI/altyazı çevrimdışı denenmedi · kip tekrar KAPATILDI · 1, 2 (Klasör ekle), 5 (AI onayı: anahtar yok), 6 (Neler yeni: güncelleme gerekir), 7 👤 denenmedi.
 
 ## PDF Pro Faz 51 — kanamayı durdurma (2026-11-08, dal `faz-51`)
@@ -1074,7 +1076,7 @@ Belge: banka e-dekontu ya da benzeri rapor PDF'i ("Etiket : değer" satırları,
 6. Kaydedilen kopyayı kapat-aç, Düzenle → Metin: satırlar yine ayrı mı?
 
 **Koşu kaydı**
-- (bekliyor)
+- 2026-11-13 · Mi Note 10 Lite · nightly 1.2.66 · sentetik `dx_dekont.pdf` · 1 ✔ blok çerçeveleri satır satır (etiket ayrı, ": değer" ayrı) · 2 ✔ değere dokununca yalnız o satır seçildi; yazarken normal boşluk, sarma/kayma yok · 3 ✔ Bitti sonrası görüntü yazarkenkiyle aynı (Geri al düğmesi etkin; geri alma ayrıca denenmedi) · 4 ✔ uzun IBAN sağa uzadı, alttaki satıra binmedi · 5 ✔ ilk Kaydet "Nasıl kaydedilsin?" sordu; kopya → özgün dosya değişmedi (md5 aynı), "(kopya)" açıldı, kopyada ikinci Kaydet sormadan kaydetti; "üstüne yaz" seçeneği 👤 denenmedi · 6 ✔ kopya kapat-aç → satırlar yine ayrı.
 
 ## PDF Pro — cihaz bulguları düzeltmesi (2026-11-13, main)
 
