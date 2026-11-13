@@ -105,6 +105,7 @@ class _DriveScreenState extends State<DriveScreen> {
         DriveSignInError.notConfigured => 'drive.error_not_configured',
         DriveSignInError.noPlayServices => 'drive.error_no_play_services',
         DriveSignInError.network => 'drive.error_temporary',
+        DriveSignInError.offline => 'offline.blocked',
         DriveSignInError.cancelled ||
         DriveSignInError.failed =>
           'drive.error_sign_in_failed',

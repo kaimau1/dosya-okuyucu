@@ -98,7 +98,7 @@ class DriveService {
     try {
       NetGuard.allow('drive_signin');
     } on OfflineException catch (e) {
-      return DriveSignIn(DriveSignInError.network, detail: e.message);
+      return DriveSignIn(DriveSignInError.offline, detail: e.message);
     }
     final override = authHeadersOverride;
     if (override != null) {
@@ -721,6 +721,9 @@ enum DriveSignInError {
 
   /// Ağ yok / Google'a ulaşılamadı.
   network,
+
+  /// Çevrimdışı kip açık — internete hiç çıkılmadı (ayrı ileti: `offline.blocked`).
+  offline,
 
   /// Sınıflandıramadığımız hata — ham metni kullanıcıya gösteriyoruz ki
   /// bildirebilsin ("olmadı"dan daha fazlasını söyleyebilsin).

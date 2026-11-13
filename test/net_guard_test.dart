@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:dosya_okuyucu/services/fm/drive_service.dart';
 import 'package:dosya_okuyucu/services/fm/remote/qr_transfer.dart';
 import 'package:dosya_okuyucu/services/fm/remote/remote_fs.dart';
 import 'package:dosya_okuyucu/services/offline_mode.dart';
@@ -11,6 +12,12 @@ void main() {
   tearDown(() {
     OfflineMode.enabled = false;
     NetGuard.lastBlocked = null;
+  });
+
+  test('Drive girişi çevrimdışı kipte ayrı "offline" nedeniyle döner', () async {
+    OfflineMode.enabled = true;
+    final r = await DriveService().signIn();
+    expect(r.error, DriveSignInError.offline);
   });
 
   test('kip kapalıyken her şey serbest', () {
