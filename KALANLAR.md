@@ -32,7 +32,7 @@ main'e birleşti, CI yeşil. **`dart format` KOŞTURMA** (HAFIZA tuzakları).
 A9.2, A10 bizim taraf — HAFIZA "Faz A kapanışı"). Kalan iki madde YALNIZ kullanıcı onayı/izniyle
 yürüyebiliyor:
 
-- [ ] **A1.2 Uzak dalları temizle (👤 izin).** 114 dal; 94'ü main'e tam girmiş, 19'unda main'de
+- [x] **A1.2 Uzak dalları temizle** (2026-11-13: 116 dal silindi, yalnız main + Dependabot). 114 dal; 94'ü main'e tam girmiş, 19'unda main'de
       olmayan 1–12 commit (faz-54, faz-G0/G1/G2, dependabot ×3, eski `claude/*` ×7 …). Bulut
       oturumunun git vekili oturum dalı dışındaki dalları silmeye 403 veriyor → GitHub arayüzünden
       ya da yerel `git push --delete`. **Bitti:** `git ls-remote --heads origin` yalnız `main` +
