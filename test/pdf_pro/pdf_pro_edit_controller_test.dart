@@ -89,6 +89,25 @@ void main() {
     expect(after.any((b) => b.text.startsWith('Rehberi')), isTrue);
   });
 
+  test('aynı belge iki kez açık: belgenin tek düzenleme sahibi olur — ikinci '
+      'görüntüleyici kirli oturumu temiz sanıp yeni oturum açamaz', () async {
+    // KÖK NEDEN (cihaz kapısı 2026-11-13): pdfrx aynı yoldaki belgeyi iki
+    // görüntüleyiciye PAYLAŞTIRIR; ikinci görüntüleyici aynı PdfDocument'ta
+    // yeni (temiz) oturum kuruyordu → kaydedilmemiş düzenlemeler "temiz".
+    final (doc, c) = await open();
+    final list = await blocks(c, 0);
+    await c.replace(0, list.firstWhere((b) => b.text.startsWith('Müze')),
+        'Rehberi Müze Rehberi',
+        label: 'pse.step_paragraph');
+    expect(PdfProEditController.liveFor(doc), same(c));
+    expect(
+        () => PdfProEditController(
+            document: doc, path: path, snapshotEvery: const Duration(hours: 1)),
+        throwsStateError);
+    await c.close(keepRecovery: true);
+    expect(PdfProEditController.liveFor(doc), isNull);
+  });
+
   test('geri al / yinele ve kayıt: günlük silinir, sürüm geçmişe girer',
       () async {
     final (doc, c) = await open();

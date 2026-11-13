@@ -25,6 +25,11 @@ const Map<String, (String, String, String)> _t33 = {
     'This page is a scanned image with no selectable text. Tap “Text box” to add text or “Recognize text (OCR)” to detect it.',
     'هذه الصفحة صورة ممسوحة ضوئيًا ولا تحتوي على نص قابل للتحديد. اضغط «مربع نص» لإضافة نص أو «التعرف على النص (OCR)» لاكتشافه.',
   ),
+  'pse.open_elsewhere': (
+    'Bu PDF başka bir pencerede düzenleniyor — kaydedilmemiş değişiklikler orada.',
+    'This PDF is being edited in another window — unsaved changes are there.',
+    'يجري تحرير ملف PDF هذا في نافذة أخرى — التغييرات غير المحفوظة هناك.',
+  ),
   'pse.edit_title': ('Paragrafı düzenle', 'Edit paragraph', 'تحرير الفقرة'),
   'pse.edit_hint': ('Paragraf metni', 'Paragraph text', 'نص الفقرة'),
   'pse.refused_glyph': (

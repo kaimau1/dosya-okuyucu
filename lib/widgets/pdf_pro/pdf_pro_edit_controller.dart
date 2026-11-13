@@ -282,8 +282,10 @@ class PdfProEditController extends ChangeNotifier {
     required this.path,
     PdfPasswordProvider? password,
     Duration? snapshotEvery,
-  })  : session = PdfEditSession.forDocument(document),
+    this.owner,
+  })  : session = PdfEditSession.forDocument(_unclaimed(document)),
         super() {
+    _owners[document] = this;
     saver = PdfEditSaver(session: session, path: path, password: password);
     session.addListener(_onSession);
     PdfEditRecovery.begin(path);
@@ -294,6 +296,25 @@ class PdfProEditController extends ChangeNotifier {
   final PdfDocument document;
   final String path;
   final PdfEditSession session;
+
+  /// Oturumu açan ekranın yolu (görüntüleyici [liveFor] ile oraya döner).
+  final Object? owner;
+
+  /// KÖK NEDEN (cihaz kapısı 2026-11-13): pdfrx aynı yoldaki belgeyi iki
+  /// görüntüleyiciye PAYLAŞTIRIR; ikinci görüntüleyici aynı [PdfDocument]'ta
+  /// yeni (temiz) oturum kurunca kaydedilmemiş düzenlemeler temiz görünüyordu.
+  /// Belgenin tek düzenleme sahibi olur.
+  static final Map<PdfDocument, PdfProEditController> _owners = {};
+
+  /// [doc]'u şu an düzenleyen (kapanmamış) denetleyici.
+  static PdfProEditController? liveFor(PdfDocument doc) => _owners[doc];
+
+  static PdfDocument _unclaimed(PdfDocument doc) {
+    if (_owners.containsKey(doc)) {
+      throw StateError('Belge başka bir ekranda düzenleniyor.');
+    }
+    return doc;
+  }
   late final PdfEditSaver saver;
 
   Timer? _timer;
@@ -1288,6 +1309,7 @@ class PdfProEditController extends ChangeNotifier {
       }
     }
     _closed = true;
+    if (_owners[document] == this) _owners.remove(document);
     _timer?.cancel();
     session.removeListener(_onSession);
     await session.close();

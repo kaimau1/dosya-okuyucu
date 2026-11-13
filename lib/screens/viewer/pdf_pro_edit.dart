@@ -25,6 +25,7 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
     if (!await _proEnabled()) return false;
     final doc = _pdfDoc;
     if (doc == null || !mounted) return true;
+    if (_proOwnedElsewhere(doc)) return true;
     // Şifreli belge (Faz 54 / 5): izin bayrakları düzenlemeyi yasaklıyorsa
     // sessizce düzenlenmez — açık uyarı + sahip parolası.
     if (!_proOwnerOk &&
@@ -47,10 +48,12 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
     }
     // Sorular sürerken belge yeniden yüklenmiş ya da ekran kapanmış olabilir.
     if (!mounted || _pdfDoc != doc || _pro != null) return true;
+    if (_proOwnedElsewhere(doc)) return true;
     final pro = PdfProEditController(
       document: doc,
       path: widget.doc.path,
       password: () => _pdfPassword,
+      owner: ModalRoute.of(context),
     )..addListener(_onProChanged);
     _clearPdfSelection();
     _readingBars.pinned = true;
@@ -70,6 +73,20 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
       unawaited(_proOpenSelection(pro, page - 1, selection));
     } else {
       unawaited(_proEntryHint(pro));
+    }
+    return true;
+  }
+
+  /// Aynı PDF başka bir görüntüleyicide (yığında altta) düzenleme kipindeyse
+  /// pdfrx belgeyi paylaştırdığı için burada ikinci oturum açılmaz: o
+  /// görüntüleyiciye dönülür (kaydedilmemiş iş orada, adımlarıyla).
+  bool _proOwnedElsewhere(PdfDocument doc) {
+    final other = PdfProEditController.liveFor(doc);
+    if (other == null) return false;
+    _snack(context.t('pse.open_elsewhere'));
+    final route = other.owner;
+    if (route is Route && route.isActive && route != ModalRoute.of(context)) {
+      Navigator.of(context).popUntil((r) => r == route || r.isFirst);
     }
     return true;
   }
