@@ -427,6 +427,7 @@ class _CustomCardScreenState extends State<CustomCardScreen> {
         if (card.acceptsPath(s) || await Directory(s).exists()) s,
     ];
     final skipped = sources.length - ok.length;
+    if (!mounted) return;
     if (ok.isEmpty) {
       _snack(context.t('card.none_fit'));
       return;
