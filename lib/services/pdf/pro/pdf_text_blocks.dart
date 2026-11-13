@@ -865,6 +865,30 @@ List<PdfTextLine> _lines(
       }
     }
   }
+  // Sekme durağı (dekont, 2026-11-13): "Etiket : değer" satırında ":" öteki
+  // satırların ":" sütunuyla aynı x'te başlıyorsa satır orada bölünür — yoksa
+  // yeniden dizim sütunu kaydırır. Kanıt: yakındaki ≥ 2 satır o x'te BAŞLIYOR
+  // ve nesnenin önündeki boşluk sözcük arasından büyük.
+  // ponytail: bütün satırlarda etiket ":"ye bitişikse (kanıt yok) bölünmez.
+  for (var i = 0; i < lines.length; i++) {
+    final l = lines[i];
+    for (var k = 1; k < l.objects.length; k++) {
+      final x = f.of(l.objects[k]).l;
+      if (x - f.of(l.objects[k - 1]).r < l.size * 0.4) continue;
+      final stops = lines
+          .where((o) =>
+              !identical(o, l) &&
+              (o.frameLeft - x).abs() <= 0.75 &&
+              (o.frameBase - l.frameBase).abs() <= l.size * 8 &&
+              (o.size - l.size).abs() <= l.size * 0.12)
+          .length;
+      if (stops < 2) continue;
+      lines
+        ..[i] = PdfTextLine(l.objects.sublist(0, k), angle: angle)
+        ..insert(i + 1, PdfTextLine(l.objects.sublist(k), angle: angle));
+      break; // sağ parça sıradaki turda yeniden bakılır
+    }
+  }
   return lines;
 }
 
@@ -907,6 +931,29 @@ List<PdfTextBlock> _paragraphs(List<PdfTextLine> lines, List<PdfRule> rules,
     return false;
   }
 
+  // Tablo satırı (dekont, 2026-11-13): aynı tabanda
+  // başka satır parçaları ("etiket | : değer").
+  Iterable<PdfTextLine> mates(PdfTextLine l) => lines.where((o) =>
+      !identical(o, l) && (o.frameBase - l.frameBase).abs() < l.size * 0.35);
+  bool tableRows(PdfTextBlock b, PdfTextLine l) {
+    final last = b.lines.last;
+    final ml = mates(l).toList(), mb = mates(last).toList();
+    // 1) Birleşecek alanın İÇİNDE aynı tabanda başka metin: paragrafın
+    //    satırı olamaz ("Etiket : değer" altındaki "Etiket" + yanında değer).
+    final x0 = math.min(b.frameLeft, l.frameLeft);
+    final x1 = math.max(b.frameRight, l.frameRight);
+    if ([...ml, ...mb].any((o) => o.frameLeft < x1 && o.frameRight > x0)) {
+      return true;
+    }
+    // 2) İki satırın da yanında aynı soldan başlayan parça (ızgara) ve satır
+    //    aralığı gövde metnine göre geniş: alt alta hücreler.
+    // ponytail: sık aralıklı (< 1,45 punto) tablolar eskisi gibi
+    // birleşir; gerekirse sütun doluluk ölçüsüyle ayrılır.
+    final tol = math.max(1.0, l.size * 0.25);
+    return last.frameBase - l.frameBase > l.size * 1.45 &&
+        ml.any((x) => mb.any((y) => (x.frameLeft - y.frameLeft).abs() <= tol));
+  }
+
   lines.sort((a, b) {
     final d = b.frameBase.compareTo(a.frameBase);
     return d != 0 ? d : a.frameLeft.compareTo(b.frameLeft);
@@ -917,6 +964,7 @@ List<PdfTextBlock> _paragraphs(List<PdfTextLine> lines, List<PdfRule> rules,
     PdfTextBlock? hit;
     for (final b in open.reversed) {
       if (!bulleted(l) &&
+          !tableRows(b, l) &&
           _continues(b, l, colRight(l)) &&
           !_hRuleBetween(rules, b.lines.last.frameBase, l.frameBase + l.size * 0.7,
               math.max(b.lines.last.frameLeft, l.frameLeft),

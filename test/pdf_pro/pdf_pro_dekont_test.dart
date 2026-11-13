@@ -103,16 +103,17 @@ void main() {
   }
 
   test('blok algılama: etiket / değer hücreleri ve tablo satırları '
-      'birleşmez; sarılmış hücre tek paragraf', () async {
+      'birleşmez; ":" sütunu ayrılır', () async {
     final (doc, _, _) = await open();
     final blocks = await PdfEditBridge.blocks(doc, 0);
     expectRows(blocks);
-    // Kırpma hücresi bilgisiyle: ":" ayrı hücre, değer tek başına.
-    expect(blocks.map((b) => b.text), contains('Örnek Banka A.Ş.'));
-    expect(blocks.map((b) => b.text),
-        contains('TR00 0000 0000 0000 0000 0000 00'));
-    final wrapped = blocks.firstWhere((b) => b.text.contains('Transferi'));
-    expect(wrapped.lines, hasLength(2));
+    // Sekme durağı: ":" sütunu etiketten ayrılır (yazınca sütun kaymasın).
+    final texts = blocks.map((b) => b.text).toList();
+    expect(texts, contains(': Örnek Banka A.Ş.'));
+    expect(texts, contains('Gönderilen IBAN'));
+    expect(texts, contains(': TR00 0000 0000 0000 0000 0000 00'));
+    expect(texts, contains('Müşteri No'));
+    expect(texts, contains(': mobile'));
   });
 
   test('değer satırına yazınca: boşluklar açılmaz, satır sarılmaz, komşu '
@@ -132,8 +133,8 @@ void main() {
 
     final after = await row(doc, _ibanBase);
     expect(sig(after), live, reason: 'Bitti sonrası düzen = canlı düzen');
-    expect(after.map((t) => t.text).join(' '),
-        contains('TR00 0000 0000 0000 0000 0000 00 11'));
+    expect(after.map((t) => t.text.trim()).join(' '),
+        'Gönderilen IBAN : TR00 0000 0000 0000 0000 0000 00 11');
     for (var i = 1; i < after.length; i++) {
       final gap = after[i].left - after[i - 1].right;
       // Etiket → ":" sütun boşluğu hariç sözcük arası ≈ 0,26 em.
@@ -146,8 +147,8 @@ void main() {
     expect(sig(await row(doc, _bankBase)), bankBefore);
   });
 
-  test('kayıt: dosyadaki düzen ekrandakiyle aynı; yeniden açınca (kırpma '
-      'bilgisi yokken de) satırlar birleşmez', () async {
+  test('kayıt: dosyadaki düzen ekrandakiyle aynı; yeniden açınca '
+      'satırlar yine birleşmez', () async {
     final (doc, c, path) = await open();
     final block = (await blocks(c))
         .firstWhere((b) => b.text.contains('Örnek Banka'));
