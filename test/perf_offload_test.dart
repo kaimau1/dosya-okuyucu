@@ -44,6 +44,35 @@ void main() {
       expect(PdfFormFiller.scanForAcroFormSync('${dir.path}/yok.pdf'), isFalse);
     });
 
+    test('büyük dosyada yalnız baş ve son taranır', () {
+      final key = '/AcroForm'.codeUnits;
+      const edge = 100;
+      // Sonda (olağan katalog yeri) ve başta (doğrusallaştırılmış) bulunur.
+      expect(
+          PdfFormFiller.scanForAcroFormSync(
+              write([...filler(1000), ...key, ...filler(20)]).path,
+              blockSize: 32, edgeBytes: edge),
+          isTrue);
+      expect(
+          PdfFormFiller.scanForAcroFormSync(
+              write([...filler(20), ...key, ...filler(1000)]).path,
+              blockSize: 32, edgeBytes: edge),
+          isTrue);
+      // Ortada kalan anahtar bilinçli olarak görülmez (dosyanın tamamı okunmaz).
+      expect(
+          PdfFormFiller.scanForAcroFormSync(
+              write([...filler(500), ...key, ...filler(500)]).path,
+              blockSize: 32, edgeBytes: edge),
+          isFalse);
+      // Uç sınırına tam oturan anahtar (son `edge` baytın başında).
+      expect(
+          PdfFormFiller.scanForAcroFormSync(
+              write([...filler(500), ...key, ...filler(edge - key.length)])
+                  .path,
+              blockSize: 32, edgeBytes: edge),
+          isTrue);
+    });
+
     test('izolatlı looksLikeForm aynı cevabı verir', () async {
       final f = write([...filler(100), ...'/AcroForm'.codeUnits]);
       expect(await PdfFormFiller.looksLikeForm(f.path), isTrue);

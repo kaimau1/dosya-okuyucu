@@ -416,3 +416,52 @@ class LineNumberGutter extends StatelessWidget {
     );
   }
 }
+
+
+/// Yan şeritteki sayfa küçük resmi — **gecikmeli** çizilir (2026-11-14).
+///
+/// pdfrx tek bir arka plan çizim sırası kullanır: belge açılırken görünen
+/// 5–6 küçük resim, ana görünümün ilk sayfalarıyla aynı sıraya giriyor ve
+/// onları geciktiriyordu (kullanıcı videosu: hem şerit hem sayfa boş
+/// bekliyor). Küçük resim ekrana girdikten [Motion.thumbDefer] sonra çizilmeye başlar;
+/// şerit hızlı kaydırılırken geçip giden hücreler hiç çizilmez.
+class _DeferredPdfThumb extends StatefulWidget {
+  final PdfDocument document;
+  final int pageNumber;
+
+  const _DeferredPdfThumb({
+    super.key,
+    required this.document,
+    required this.pageNumber,
+  });
+
+  @override
+  State<_DeferredPdfThumb> createState() => _DeferredPdfThumbState();
+}
+
+class _DeferredPdfThumbState extends State<_DeferredPdfThumb> {
+  Timer? _timer;
+  bool _show = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer(Motion.thumbDefer, () {
+      if (mounted) setState(() => _show = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => _show
+      ? PdfPageView(
+          document: widget.document,
+          pageNumber: widget.pageNumber,
+          maximumDpi: 48)
+      : const SizedBox.expand();
+}

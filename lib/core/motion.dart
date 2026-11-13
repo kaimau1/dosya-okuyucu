@@ -34,6 +34,14 @@ abstract final class Motion {
   /// Okuma kipi: kaydırma bu kadar durunca çekilen çubuklar geri gelir.
   static const readingIdle = Duration(milliseconds: 2200);
 
+  /// Belge açıldıktan sonra **ikincil işlerin** (form taraması gibi) başlama
+  /// gecikmesi: ilk sayfalar önce çizilsin (animasyon değil, zamanlayıcı).
+  static const afterOpen = Duration(milliseconds: 1500);
+
+  /// Ekrana giren ikincil küçük resmin çizime başlama gecikmesi (hızlı
+  /// kaydırmada geçip giden hücre hiç çizilmez; ana içerik sırada önce).
+  static const thumbDefer = Duration(milliseconds: 900);
+
   /// Giren öğe (yavaşlayarak durur).
   static const Curve enter = Curves.easeOutCubic;
 

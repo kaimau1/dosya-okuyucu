@@ -592,8 +592,12 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                               (doc.pages[i].height == 0
                                   ? 1
                                   : doc.pages[i].height),
-                          child: PdfPageView(
-                              document: doc, pageNumber: page, maximumDpi: 48),
+                          // Gecikmeli: küçük resimler ana sayfalarla aynı
+                          // çizim sırasını paylaşır (bkz. [_DeferredPdfThumb]).
+                          child: _DeferredPdfThumb(
+                              key: ValueKey('pdf-thumb-$page'),
+                              document: doc,
+                              pageNumber: page),
                         ),
                       ),
                       const SizedBox(height: 2),

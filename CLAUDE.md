@@ -28,6 +28,7 @@ paylaşım. (Firebase senkronu 2026-09-26'da kaldırıldı — HAFIZA.) Piyasada
 > **PDF Pro fazları (2026-11-08) → `docs/PDF_PRO_PLANI.md`** (Faz 51–68: profesyonel PDF düzenleyici; kök nedenler, PK1–PK8 kararları, bütçeler; 💻📱 fazlarda yerel test serbest).
 > **Sürümler (2026-11-10) → `docs/SURUM_PLANI.md`** (Lite ücretsiz / Pro ücretli ayrı uygulama / Kişisel deneysel; özellik dağılımı + S1–S9; yeni özellik önce Kişisel'e).
 > **Güvenlik fazları (2026-11-10) → `docs/GUVENLIK_PLANI.md`** (Faz G0–G12: tehdit modeli, bulgular B1–B18, madde madde yapılış; `faz-GN` dalı + PR).
+> **Görünüm ve his fazları (2026-11-14) → `docs/FERRARI_PLANI.md`** (Faz H0–H12: PDF açılış/kaydırma hissi, dosya listesi, sadeleştirme, video kesme; ölçüm seti "10 işlem"; `faz-HN` dalı + PR; plan sürerken yeni özellik yok).
 > Bulgu/karar kaynağı (tarihsel): `docs/FAZ_PLANI.md` (Faz 0–19, K1–K17) ve
 > `docs/DUZENLEME_PLANI.md` (Faz 20–33, K18–K25).
 

@@ -619,7 +619,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
       // (sürüm 475, her PDF — 2026-11-03 hata kaydı).
       _ocrSearch = PdfOcrSearch()..addListener(_onPdfSearch);
       _pdfController.addListener(_onPdfMatrix);
-      unawaited(_offerFormFilling());
+      // Gecikmeli: tarama aynı dosyayı okur; ilk sayfalar önce çizilsin
+      // (USB'de okuma yarışı — 2026-11-14). Zamanlayıcı dispose'ta iptal.
+      _formOfferTimer =
+          Timer(Motion.afterOpen, () => unawaited(_offerFormFilling()));
       unawaited(_restoreReadingPage());
     }
     if (doc.kind == DocKind.image) _imgTx.addListener(_onImgTransform);
@@ -735,6 +738,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
     if (widget.doc.kind == DocKind.image) _onImgTransform();
   }
 
+  /// [_offerFormFilling]'in gecikme zamanlayıcısı.
+  Timer? _formOfferTimer;
+
   /// Belge doldurulabilir bir formsa kullanıcıya **söylenir**.
   ///
   /// Menüdeki "Formu doldur" tek başına keşfedilmiyor: kullanıcı bir form
@@ -748,7 +754,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
         ScaffoldMessenger.of(context),
         SnackBar(
           content: Text(context.t('vw.form_detected')),
-          duration: const Duration(seconds: 6),
+          duration: const Duration(seconds: 4),
           action: SnackBarAction(
             label: context.t('vw.fill_form'),
             onPressed: _fillPdfForm,
@@ -783,6 +789,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     // sayfa" çalışsın (kayıt üç saniyelik gecikmeyle yazılıyor).
     unawaited(ReadingPositions.save());
     _recordPdfZoom();
+    _formOfferTimer?.cancel();
     _pdfController.removeListener(_onPdfMatrix);
     // Kaydedilmemiş düzenleme varsa çökme kaydı kalır (yeniden açılışta sunulur).
     _pro
