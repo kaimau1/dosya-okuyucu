@@ -110,7 +110,7 @@ varsayılan (`pdf_pro_engine`), eski düzenleyici ⋮ menüsünde. **Hiçbiri ci
       (yüzen blok çubuğu yerine bağlamsal çubuk kullanıldı — `etkilesim.md` §5 notu).
 - [ ] 👤 **Külliyata eksik üreticiler:** LibreOffice, Google Docs, LaTeX, macOS Quartz (CORPUS.md'de 12 üretici).
 - [ ] **AES-256 (R6) kilit açma** — eski Syncfusion yolu; `PdfEditorScreen` emekliliğiyle kapanır.
-- [ ] `graphify update .` (bu oturumda araç yoktu).
+- [x] `graphify update .` (2026-11-13, yerel: 33 945 düğüm).
 
 ---
 
