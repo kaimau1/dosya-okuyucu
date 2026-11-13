@@ -135,24 +135,29 @@ abstract final class PdfFormFiller {
   static Future<bool> looksLikeForm(String path) =>
       Isolate.run(() => scanForAcroFormSync(path));
 
+  /// Büyük dosyada taranan baş ve son parçanın boyu (her biri).
+  static const kFormScanEdgeBytes = 4 << 20;
+
   /// [looksLikeForm]'un gövdesi (izolatta koşar; test doğrudan çağırır).
-  static bool scanForAcroFormSync(String path, {int blockSize = 1 << 20}) {
-    final needle = '/AcroForm'.codeUnits;
-    final n = needle.length;
+  ///
+  /// **Yalnız baş + son** (2026-11-14, kullanıcı videosu: USB'deki 200–700 MB
+  /// kitaplarda "form yazısı gelene kadar kasıyor"): tarama dosyanın TAMAMINI
+  /// okuyordu — görüntüleyici aynı dosyadan sayfa okumaya çalışırken USB'yi
+  /// meşgul ediyordu. `/AcroForm` belge kataloğundadır; katalog dosyanın
+  /// sonunda (olağan) ya da başında (doğrusallaştırılmış PDF) durur. Dosya
+  /// 2 × [edgeBytes]'tan büyükse yalnız bu iki uç taranır. Bedel: kataloğu
+  /// ortada kalan nadir belgede uyarı çıkmaz ("Formu doldur" menüde durur).
+  static bool scanForAcroFormSync(String path,
+      {int blockSize = 1 << 20, int edgeBytes = kFormScanEdgeBytes}) {
     RandomAccessFile? raf;
     try {
       raf = File(path).openSync();
-      final buf = Uint8List(blockSize + n - 1);
-      var carry = 0; // önceki bloğun sonundan taşınan bayt sayısı
-      while (true) {
-        final read = raf.readIntoSync(buf, carry, carry + blockSize);
-        if (read <= 0) break;
-        final len = carry + read;
-        if (_contains(buf, len, needle)) return true;
-        // Anahtar iki bloğun SINIRINDA bölünmüş olabilir: son n-1 bayt taşınır.
-        carry = len < n - 1 ? len : n - 1;
-        buf.setRange(0, carry, buf, len - carry);
+      final size = raf.lengthSync();
+      if (size <= 2 * edgeBytes) {
+        return _scanRange(raf, 0, size, blockSize);
       }
+      return _scanRange(raf, size - edgeBytes, size, blockSize) ||
+          _scanRange(raf, 0, edgeBytes, blockSize);
     } catch (_) {
       // Okunamayan dosyada sessiz kal: bu yalnız bir öneri.
     } finally {
@@ -161,6 +166,28 @@ abstract final class PdfFormFiller {
       } catch (_) {
         // Bilinçli: kapatma — zaten kapalıysa ya da kapanırken hata verirse yapılacak bir şey yok.
       }
+    }
+    return false;
+  }
+
+  /// [raf]'ın [start, end) aralığında `/AcroForm` var mı (akış hâlinde).
+  static bool _scanRange(RandomAccessFile raf, int start, int end, int blockSize) {
+    final needle = '/AcroForm'.codeUnits;
+    final n = needle.length;
+    final buf = Uint8List(blockSize + n - 1);
+    raf.setPositionSync(start);
+    var left = end - start;
+    var carry = 0; // önceki bloğun sonundan taşınan bayt sayısı
+    while (left > 0) {
+      final want = left < blockSize ? left : blockSize;
+      final read = raf.readIntoSync(buf, carry, carry + want);
+      if (read <= 0) break;
+      left -= read;
+      final len = carry + read;
+      if (_contains(buf, len, needle)) return true;
+      // Anahtar iki bloğun SINIRINDA bölünmüş olabilir: son n-1 bayt taşınır.
+      carry = len < n - 1 ? len : n - 1;
+      buf.setRange(0, carry, buf, len - carry);
     }
     return false;
   }
