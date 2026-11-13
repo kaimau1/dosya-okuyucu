@@ -608,6 +608,98 @@ class DriveService {
         (jsonDecode(res.body) as Map).cast<String, dynamic>());
   }
 
+  /// **Akışlı yükleme** (2026-11-13, "Bağlantıyla gönder"): içerik belleğe
+  /// alınmaz ([upload] tüm dosyayı okuyor). `uploadType=resumable` oturumu
+  /// açılır, gövde [length] baytlık akış olarak tek PUT'ta gider.
+  Future<DriveFile> uploadStream(
+    Stream<List<int>> body,
+    int length, {
+    required String name,
+    Map<String, String> appProperties = const {},
+    String mimeType = 'application/octet-stream',
+  }) async {
+    final headers = await _requireHeaders();
+    final start = await http
+        .post(
+          resumableUri(),
+          headers: {
+            ...headers,
+            'Content-Type': 'application/json; charset=UTF-8',
+            'X-Upload-Content-Type': mimeType,
+            'X-Upload-Content-Length': '$length',
+          },
+          body: jsonEncode({
+            'name': name,
+            'mimeType': mimeType,
+            if (appProperties.isNotEmpty) 'appProperties': appProperties,
+          }),
+        )
+        .timeout(_timeout);
+    _check(start.statusCode, start.body);
+    final location = start.headers['location'];
+    if (location == null || location.isEmpty) {
+      throw const DriveException(DriveError.unknown);
+    }
+    final client = http.Client();
+    try {
+      final req = http.StreamedRequest('PUT', Uri.parse(location))
+        ..contentLength = length
+        ..headers.addAll({...headers, 'Content-Type': mimeType});
+      final sending = client.send(req);
+      await req.sink.addStream(body);
+      await req.sink.close();
+      final res = await sending.timeout(_uploadTimeout);
+      final text = await res.stream.bytesToString();
+      _check(res.statusCode, text);
+      return DriveFile.fromJson(
+          (jsonDecode(text) as Map).cast<String, dynamic>());
+    } finally {
+      client.close();
+    }
+  }
+
+  static Uri resumableUri() => Uri.parse('$_upload/files').replace(
+      queryParameters: {'uploadType': 'resumable', 'fields': _fields2});
+
+  /// "Bağlantıya sahip herkes okuyabilir" izni (bağlantı adresini kendimiz
+  /// kurduğumuz için [shareLink]'in `webViewLink` okumasına gerek yok).
+  Future<void> allowAnyoneRead(String id) async {
+    final headers = await _requireHeaders();
+    final res = await http
+        .post(
+          permissionsUri(id),
+          headers: {...headers, 'Content-Type': 'application/json; charset=UTF-8'},
+          body: jsonEncode({'role': 'reader', 'type': 'anyone'}),
+        )
+        .timeout(_timeout);
+    _check(res.statusCode, res.body);
+  }
+
+  /// Drive'ın web indirme adresi: "bağlantıya sahip herkes" dosyasını OTURUM
+  /// ve API anahtarı olmadan verir (resmî API değil; büyük dosyada virüs
+  /// taraması sayfası `confirm=t` ile atlanır). Gövde HTML çıkabilir — çağıran
+  /// içeriği doğrulamalı.
+  static Uri publicDownloadUri(String id) =>
+      Uri.parse('https://drive.usercontent.google.com/download').replace(
+          queryParameters: {'id': id, 'export': 'download', 'confirm': 't'});
+
+  /// Dosya içeriğini akış olarak açar: [signedIn] ise resmî API (`alt=media`,
+  /// kullanıcının kendi oturumu), değilse [publicDownloadUri].
+  Future<http.StreamedResponse> openMedia(String id,
+      {required bool signedIn, required http.Client client}) async {
+    final c = client;
+    final req = signedIn
+        ? (http.Request('GET', Uri.parse('$_api/files/$id')
+              .replace(queryParameters: {'alt': 'media'}))
+          ..headers.addAll(await _requireHeaders()))
+        : http.Request('GET', publicDownloadUri(id));
+    final res = await c.send(req).timeout(_timeout);
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      _check(res.statusCode, await res.stream.bytesToString());
+    }
+    return res;
+  }
+
   Future<void> delete(String id) async {
     final headers = await _requireHeaders();
     final res = await http.delete(deleteUri(id), headers: headers);

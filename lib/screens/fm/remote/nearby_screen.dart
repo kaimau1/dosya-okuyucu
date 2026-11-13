@@ -46,6 +46,7 @@ import '../browser_screen.dart';
 import '../download_manager_screen.dart';
 import '../folder_picker_screen.dart';
 import 'ftp_server_screen.dart';
+import 'link_share_card.dart';
 import 'qr_receive_flow.dart';
 import 'remote_connections_screen.dart';
 import '../pick_file_screen.dart';

@@ -51,3 +51,4 @@ test/_bundle_*_test.dart
 
 # PDF Pro: kullanıcının kendi belgeleriyle yerel külliyat (KVKK — depoya GİRMEZ, yalnız sayılar raporlanır)
 test/fixtures/pdf_corpus_local/
+__pycache__/

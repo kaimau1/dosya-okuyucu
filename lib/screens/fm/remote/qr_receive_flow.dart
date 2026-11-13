@@ -12,11 +12,13 @@ import '../../../services/fm/file_ops.dart' show FmProgress;
 import '../../../services/fm/fm_env.dart';
 import '../../../services/fm/fs_events.dart';
 import '../../../services/fm/fs_scan.dart';
+import '../../../services/fm/remote/link_share.dart';
 import '../../../services/fm/remote/qr_transfer.dart';
 import '../../../services/fm/remote/transfer_history.dart';
 import '../../../widgets/fm/fm_progress_dialog.dart';
 import '../../../widgets/fm/transfer_offer_sheet.dart';
 import '../browser_screen.dart';
+import 'link_receive_flow.dart';
 
 /// **QR ile al** — tek akış: kodu tara → gelecek dosyaları GÖSTER ve onay
 /// iste → indir (ilerleme penceresiyle) → "N dosya alındı · Aç".
@@ -64,6 +66,12 @@ abstract final class QrReceiveFlow {
     final strings = AppStrings.of(context);
     final messenger = ScaffoldMessenger.of(context);
     final dir = saveDir ?? defaultSaveDir();
+    // "Bağlantıyla gönder" bağlantısı (Drive + anahtar) QR'dan okunduysa.
+    final ticket = LinkTicket.parse(raw);
+    if (ticket != null) {
+      final path = await LinkReceiveFlow.run(context, ticket, saveDir: dir);
+      return path == null ? const [] : [path];
+    }
     final payload = QrPayload.parse(raw);
     if (payload == null) {
       showSnackOn(messenger, strings.t('qrf.scan_unknown'));

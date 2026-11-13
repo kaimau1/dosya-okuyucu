@@ -273,6 +273,9 @@ extension _NearbyTabs on _NearbyScreenState {
       key: const ValueKey('near-other'),
       padding: withNavInset(context, _pad),
       children: [
+        // Bağlantıyla gönder (internet, Drive) — 2026-11-13.
+        LinkShareCard(selection: _selection, saveDir: _saveDir),
+        const SizedBox(height: Gap.md),
         _otherWays(context),
         const SizedBox(height: Gap.md),
         Card(
