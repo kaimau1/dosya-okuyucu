@@ -85,6 +85,11 @@ void main() {
           (v) => pick = v,
           locale: locale);
       expect(find.byKey(const ValueKey('pse-locked-box')), findsOneWidget);
+      if (locale.languageCode == 'tr') {
+        // Cihaz 2026-11-13: başlık belge kilidi diyordu.
+        expect(find.text('Neden düzenlenemiyor?'), findsOneWidget);
+        expect(find.textContaining('Bu belge'), findsNothing);
+      }
       await tester.tap(find.byKey(const ValueKey('pse-locked-line')));
       await tester.pumpAndSettle();
       expect(pick, 'line');

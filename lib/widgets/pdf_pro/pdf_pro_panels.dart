@@ -394,7 +394,8 @@ Future<String?> showPdfLockedBlockSheet(BuildContext context,
         {required PdfBlockLock lock}) =>
     showAppSheet<String>(
       context,
-      title: context.t('pse.locked_title'),
+      // Belge kilidi başlığı ("Bu belge … korunuyor") değil: kilitli olan blok.
+      title: context.t('pse.locked_why'),
       builder: (ctx) => Padding(
         padding:
             const EdgeInsetsDirectional.fromSTEB(Gap.lg, 0, Gap.lg, Gap.lg),
