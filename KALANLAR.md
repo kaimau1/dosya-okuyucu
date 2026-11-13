@@ -86,11 +86,13 @@ varsayılan (`pdf_pro_engine`), eski düzenleyici ⋮ menüsünde. **Hiçbiri ci
       düzeltme/sesle yazma, tuş ve kalem gecikmesi hissi; başka uygulamadan "birlikte aç" + Kaydet
       (salt okunur konum); kaydedilen PDF'in Acrobat/Chrome'da görünümü; AI Yeniden yaz/Çevir
       (anahtar); 5 dk boşta pil/ısı.
-- [ ] 📱 **Oturum belleği bütçe dışı:** 3 paragraf düzenlemesi +56 / +65 MB (bütçe +40). Kod okuması
-      (2026-11-13): asıl aday yerinde yazma sonrası `needsReplay` hep açık → 30 sn'lik geçici kayıt/Kaydet
-      ikinci tam PDFium belgesi açıp yeniden oynatıyor (≈5–6× dosya, yerel yığın geri vermez); ikincisi
-      adım başına sayfa anlık görüntüsünün görsel/font kopyası; yedek font ≤3 MB. Cihazda A/B: geçici
-      kayıt kapalı (`snapshotEvery` uzun) RSS farkı → sonra karar (HAFIZA 2026-11-13).
+- [ ] 📱 **Oturum belleği bütçe dışı:** 3 paragraf düzenlemesi +56 / +65 MB (bütçe +40). Geçici kayıt
+      A/B'de suçsuz çıktı. Test ölçümü (2026-11-13, `pdf_pro_memory_test`): geri al yığını + canlı belgede
+      KALAN düzenleme başına ~10 KB (sayfa kopyası küçük) → suçlu değil. Yük tuş başına geçici iş: her tuşta
+      paragraf iki kez dizilir (geçici sayfa kopyasında prova + canlı), tuş başına ~2–3 MB yerel çöp, ayırıcı
+      işletim sistemine geri vermez (30 tuşta tepe +70–90 MB). Karakter başına anahtar kurma düzeltildi;
+      **cihazda yeniden ölçülecek**. Hâlâ aşıyorsa sıradaki: provayı tuşta atlamak / görüntüleyicinin tuş
+      başı tam sayfa yeniden çizimi (HAFIZA 2026-11-13 "oturum belleği").
       **A/B (2026-11-13, Mi Note 10 Lite, 50 sayfa, TOTAL PSS):** normal 400 / 337 MB · kayıt kapalı 368 / 363 MB →
       fark yok (gürültü); geçici kayıt suçlu DEĞİL. Öneri: kurtarma davranışı DEĞİŞMESİN; bütçe aşımı için sıradaki aday
       adım başına sayfa anlık görüntüsü + yedek font (PSS mutlak; tek-oturum taban farkı hâlâ ölçülmedi).
