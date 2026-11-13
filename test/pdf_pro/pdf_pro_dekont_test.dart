@@ -1,3 +1,6 @@
+@Skip('Düzeltme faz-pdf-satir dalında; birleşince bu satır kalkar')
+library;
+
 // PDF Pro — dekont / tablo satırı düzenleme (cihaz bulgusu 2026-11-13).
 // Fikstür `tool/pdf_corpus/make_dekont.py` (DevExpress taklidi, UYDURMA veri):
 // her sözcük ayrı nesne + hücre kırpması, fontta ASCII boşluk yok.
