@@ -1020,6 +1020,7 @@ Her madde: ✔ / ✘ + not. Bütçe sayıları `docs/perf/2026-11-pdfpro-55-65.m
   bırakıyordu → 9197a180 (`.r8test`'te satır tümüyle) · 17 ✔ TC/IBAN/telefon/e-posta bulundu (maskeli liste), "4 öğeyi karart" ·
   18 👤 AI anahtarı kullanıcıda (telefonda "AI (kapalı)") · 19 ✔ düzenleme kipinde 10 sn boşta 0 kare (gfxinfo, 3 kez); 5 dk pil/ısı 👤 ·
   20 ✔ (Faz 54 / 8 ile aynı koşu).
+  Son doğrulama nightly 1.2.62 (9197a180): Silgi notu siliyor; "Kaydetme" denen görsel sonraki kayda girmiyor (+5,4 KB, JPEG yok).
 
 ## PDF Pro — cihaz bulguları düzeltmesi (2026-11-13, main)
 
