@@ -1030,6 +1030,11 @@ const Map<String, (String, String, String)> _t2 = {
   // ── Klasör seçici ─────────────────────────────────────────────────────────
   'picker.title': ('Hedef klasör', 'Destination folder', 'المجلد الوجهة'),
   'picker.parent': ('Üst klasör', 'Parent folder', 'المجلد الأصل'),
+  'picker.home': ('Ana sayfa', 'Home', 'الرئيسية'),
+  'picker.storage': ('Depolama', 'Storage', 'التخزين'),
+  'picker.places': ('Nereye konsun?', 'Where should it go?', 'أين يوضع؟'),
+  'picker.to_downloads': ('İndirilenler\'e konur', 'Goes to Downloads', 'يوضع في التنزيلات'),
+  'picker.here_folder': ('Bu klasöre', 'Into this folder', 'في هذا المجلد'),
   'picker.summary': ('{n} öğe · {name}', '{n} items · {name}', '{n} عنصر · {name}'),
   'picker.source_itself': ('Kaynağın kendisi', 'The source itself', 'المصدر نفسه'),
   'picker.unreadable': (

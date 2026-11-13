@@ -359,6 +359,7 @@ Future<bool> moveOrCopyEntries(
   final dest = await Navigator.of(context).push<String>(MaterialPageRoute(
     builder: (_) => FolderPickerScreen(
       sources: paths,
+      homeCards: true,
       actionLabel:
           context.t(move ? 'fm.move_here' : 'fm.copy_here'),
     ),
