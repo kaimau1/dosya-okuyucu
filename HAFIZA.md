@@ -889,5 +889,6 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 
 ## 2026-11-14 — PDF açılışı: form taraması + yan şerit (kullanıcı videosu, USB'de 200–700 MB kitaplar)
 - **Bug kökü (şüphe, cihazda ÖLÇÜLMEDİ):** `PdfFormFiller.looksLikeForm` her PDF açılışında dosyanın TAMAMINI okuyordu (izolatta ama aynı USB'den) → görüntüleyicinin sayfa okumasıyla yarış; "form yazısı gelene kadar kasıyor". Artık yalnız baş + son 4 MB (`kFormScanEdgeBytes`; ≤ 8 MB dosya tam taranır), açılıştan 1,5 sn sonra (iptal edilebilir `Timer`, `Future.delayed` DEĞİL — widget testinde bekleyen zamanlayıcı kırmızı yapar). Bedel: kataloğu ortada kalan nadir formda uyarı çıkmaz.
-- **Karar:** ≥ 840 dp yan şerit küçük resimleri `_DeferredPdfThumb` ile 900 ms gecikmeli (pdfrx tek çizim sırası; ana sayfalar önce). Form uyarısı 6 → 4 sn.
+- **Karar:** ≥ 840 dp yan şerit küçük resimleri `_DeferredPdfThumb` ile gecikmeli (pdfrx tek çizim sırası; ana sayfalar önce). Form uyarısı 6 → 4 sn.
+- **Tuzak:** zamanlayıcı süresi de `Duration(milliseconds:)` yazılınca tasarım bekçisine takılır (yeni dosyada tavan 0) → `Motion.afterOpen` (1,5 sn) / `Motion.thumbDefer` (900 ms) tokenları; kullanılmayan isteğe bağlı parametre `analyze` uyarısıdır (CI kırmızı).
 - **Sırada:** his/görünüm işlerinin tamamı `docs/FERRARI_PLANI.md`.

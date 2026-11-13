@@ -621,8 +621,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
       _pdfController.addListener(_onPdfMatrix);
       // Gecikmeli: tarama aynı dosyayı okur; ilk sayfalar önce çizilsin
       // (USB'de okuma yarışı — 2026-11-14). Zamanlayıcı dispose'ta iptal.
-      _formOfferTimer = Timer(const Duration(milliseconds: 1500),
-          () => unawaited(_offerFormFilling()));
+      _formOfferTimer =
+          Timer(Motion.afterOpen, () => unawaited(_offerFormFilling()));
       unawaited(_restoreReadingPage());
     }
     if (doc.kind == DocKind.image) _imgTx.addListener(_onImgTransform);
