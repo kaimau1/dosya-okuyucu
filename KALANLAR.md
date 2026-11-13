@@ -266,6 +266,15 @@ Plan: `docs/GUVENLIK_PLANI.md` (G0–G12; sıra ve açılış istemi orada). Pla
       `Files.ReadWrite` izni) ve/veya Dropbox App Console uygulaması (App key, `files.content.*`).
       Karar + kimlikler gelince Drive'ın çevrimdışı/çakışma altyapısı (`drive_offline.dart`)
       aynen kullanılır. (2026-11-05)
+- [ ] **B5.9 Uygulamasız alıcı — tarayıcıda çöz (Aktar "Bağlantıyla gönder", 2026-11-13, YAPILMADI):**
+      iPhone/PC'de uygulama olmadan bağlantıyı açıp dosyayı tarayıcıda çözmek için
+      (1) **barındırılan statik sayfa** (ör. ayrı public depoda GitHub Pages ya da kendi alan
+      adı) — bağlantı `https://<sayfa>/#id=…&k=…` olur, sayfa Web Crypto ile AES-GCM çözer;
+      (2) **Google Cloud API anahtarı** (Drive API açık, HTTP yönlendiren kısıtlı) — tarayıcı
+      `drive.usercontent.google.com`'dan CORS'suz okuyamaz, `www.googleapis.com/drive/v3/files/<id>?alt=media&key=…`
+      CORS verir. İkisi de hesap/konsol işi + dışa dönük yayın → kullanıcı kararı. Kod tarafı
+      hazır parça: kap biçimi `lib/services/fm/remote/link_share.dart` (DOAKLNK1), başvuru
+      `tool/aktar_sifre_vektor.py`. Karar gelince sayfa + bağlantı biçimi (uygulama iki biçimi de tanır) yazılır.
 - [ ] **B5.6 K1 — Syncfusion Community License** başvurusu yapıldı ve belge saklandı mı
       (teyit).
 - [ ] **B5.7 Açık soru:** kullanıcının "tikli öğesi çok notlar kasıyor" notu (2026-10-29)

@@ -202,10 +202,10 @@ Bitti: `guvenlik_denetimi.sh` kural 7 izin listesi güncel; CIHAZ_TESTI: iki tel
 
 Gerekli mi: **Orta.** Bugün aynı Wi-Fi'da trafiği dinleyen dosyayı görür. Ev ağında risk düşük, ortak ağda gerçek. Bedel: protokol sürümü + Windows exe + eski sürüm uyumu; ~1 faz. G4 bitmeden başlama.
 
-- [ ] Tasarım: her oturumda X25519 geçici anahtar çifti; ortak sır → HKDF-SHA256(`salt = eşleştirme kodu`, `info = "dosya-aktar v2"`) → 2 anahtar (yön başına). Parça biçimi: `nonce(12, sayaç) + AES-256-GCM(1 MB parça) + etiket`. Kod uyuşmazsa ilk parça açılmaz → bağlantı kes. Kodsuz kipte iki ekranda 6 haneli **doğrulama sayısı** (ortak sırrın özeti) gösterilir.
-- [ ] Güvenilen cihaz = karşı tarafın **kalıcı** X25519 açık anahtarının özeti (ad/IP değil).
-- [ ] Eski sürüm eşle düz protokol sürer ama ekranda "şifresiz" rozeti.
-- [ ] Test: bilinen vektör, sıra dışı/yinelenen parça reddi, yanlış kod.
+- [x] (2026-11-13: `peer_crypto.dart` + `peer_share.dart` v3, Windows `Secure.cs`; tuz = kod; kayıt = u32 boy + GCM, nonce = akış‖sayaç, "son" bayrağı şifrenin içinde; el sıkışmada statik anahtarlar da DH'ye girer (dh2, dh3) → parmak izi kanıtlanır. Hız: Android'de Kotlin `javax.crypto`. 📱 iki cihazda doğrulanmadı.) Tasarım: her oturumda X25519 geçici anahtar çifti; ortak sır → HKDF-SHA256(`salt = eşleştirme kodu`, `info = "dosya-aktar v2"`) → 2 anahtar (yön başına). Parça biçimi: `nonce(12, sayaç) + AES-256-GCM(1 MB parça) + etiket`. Kod uyuşmazsa ilk parça açılmaz → bağlantı kes. Kodsuz kipte iki ekranda 6 haneli **doğrulama sayısı** (ortak sırrın özeti) gösterilir.
+- [x] Güvenilen cihaz = karşı tarafın **kalıcı** X25519 açık anahtarının özeti (ad/IP değil). (2026-11-13: `TrustedPeer.fp`; eski kayıt ilk şifreli teklifte bir kez sorulur.)
+- [x] Eski sürüm eşle düz protokol sürer ama ekranda "şifresiz" rozeti. (v3 duyuran eşle düz protokole sessiz düşüş YOK.)
+- [x] Test: bilinen vektör, sıra dışı/yinelenen parça reddi, yanlış kod. (`peer_crypto_test`, `peer_secure_test`; C# aynı vektörler.)
 
 ---
 

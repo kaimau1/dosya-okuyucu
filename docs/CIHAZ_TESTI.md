@@ -1094,3 +1094,30 @@ Belge: banka e-dekontu ya da benzeri rapor PDF'i ("Etiket : değer" satırları,
 - 2026-11-13 · Mi Note 10 Lite · nightly 1.2.64 (main uygulama) · ✔ aynı PDF iki kez: ikinci görüntüleyicide Düzenle → "Bu PDF başka bir pencerede düzenleniyor — kaydedilmemiş değişiklikler orada." ve düzenleyen görüntüleyiciye dönüldü ·
   ✔ Çoğalt: kopya son paragrafın altında, üst üste binme yok · ✔ Silgi: İşaretle ile çizilen dikdörtgen siliniyor ("Geri al: Silindi"; ok denenmedi) ·
   ⚠ Drive çevrimdışı iletisi: nightly 1.2.64'te hâlâ eski ileti ("Drive şu an yanıt vermiyor") — kök neden: 3471ee31 `[apk]` başlıklı olduğu hâlde sonraki Belgeler commit'i (4210f12a) APK üretmedi, nightly d1995342'den kalma; düzeltme yerel profil `.r8test` (HEAD) derlemesinde ✔ ("Çevrimdışı kip açık — internete bağlanılmadı…"). Sonraki `[apk]` commit'iyle nightly'de yeniden doğrulanır · çevrimdışı kip iki uygulamada da kapatıldı.
+
+## Aktar — şifreli aktarım, bağlantıyla gönder, eşitleme, kutucuk (2026-11-13, cihazda doğrulanmadı)
+
+Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar.exe` (1.1).
+
+1. **İki telefon (ikisi yeni):** Aktar → dosya seç → avatara dokun. Gönderende ve alıcının onay penceresinde
+   yeşil "Şifreli · doğrulama 123 456" — iki ekranda **aynı sayı** mı? 1 GB'lık videonun hızı eski sürüme göre
+   belirgin düşük mü (MB/sn not al)? Klasör / çok küçük dosya paketi açılıyor mu?
+2. **Eski sürümle:** bir telefonda eski APK → turuncu "Şifresiz (karşı taraf eski sürüm)" rozeti, aktarım çalışıyor mu?
+3. **Güvenilen cihaz:** "Bu cihaza güven" + kabul → ikinci gönderim sorulmadan geliyor mu? Güvenilenler listesinde kilit simgesi
+   "Anahtarıyla tanınıyor". Eski (güncellemeden önce) güvenilen cihaz ilk şifreli gönderimde bir kez soruluyor mu?
+4. **Kaldığı yerden devam:** büyük dosyada gönderirken alıcı telefonun Wi-Fi'sini 10 sn kapat/aç → "yeniden deneniyor" sonra
+   kaldığı yüzdeden sürüyor mu; 2 dk'yı geçirip yeniden gönderince yine kaldığı yerden mi? Dosya bozulmadan açılıyor mu?
+5. **Telefon ↔ Windows:** iki yönde gönder; PC onay penceresinde "🔒 Şifreli · doğrulama" ve telefonla aynı sayı;
+   "Bu cihaza güven" sonrası sorulmadan alıyor mu? PC'den gönderirken durum satırında doğrulama sayısı.
+6. **Bağlantıyla gönder:** Diğer yollar → "Seçilenleri bağlantıyla gönder" (Drive girişi ister) → QR / Paylaş.
+   Drive'da `dosya-aktar-….dok` adlı anlamsız dosya mı? Başka telefonda (a) Drive'a **bağlı** iken, (b) Drive'a
+   **bağlı değilken** "Bağlantıyı aç"a yapıştır ve QR tara → dosya iniyor, Geçmiş'e düşüyor mu? (b) çalışmazsa
+   "Drive ile bağlan" iletisi çıkıyor mu? "Bağlantıyı iptal et" → alıcıda "iptal edilmiş" mi? Çevrimdışı kipte kart kapalı mı?
+7. **Otomatik eşitleme:** PC (ya da telefon) avatarına uzun bas → aç (varsayılan DCIM/Camera) → bir fotoğraf çek →
+   uygulamayı arka plana al, öne getir (aynı Wi-Fi'de PC exe açık) → fotoğraf PC'ye gidiyor mu? Eski fotoğraflar
+   GİTMİYOR mu? Kapatınca durdu mu? Pil: bir gün açık bırakıp pil kullanımında artış var mı?
+8. **"Dosya al" kutucuğu:** Hızlı Ayarlar'a ekle → dokun → "Dosya alımı açık" bildirimi; uygulama kapalıyken güvenilen
+   cihazdan gönder → dosya Download'a iniyor + "Dosya alındı" bildirimi; güvenilmeyen cihaz → reddedildi bildirimi.
+   Bildirimde "Kapat" ve kutucuğa yeniden dokunma kapatıyor mu? Android 14+'ta kutucuktan servis açılıyor mu
+   (açılmazsa uygulama açılmalı)? Aktar ekranı açılınca kutucuk kapanıyor mu?
+

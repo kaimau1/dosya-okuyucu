@@ -846,3 +846,34 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Bug kökü (USB/büyük PDF önizlemesi geç):** `PdfThumbnail` `openFile`'ı `useProgressiveLoading` KAPALI açıyordu → kapak için HER sayfa `FPDF_LoadPage` ile ölçülüyordu (binlerce sayfada saniyeler, işçiyi de tutuyor). Artık yalnız ilk sayfa; üretim en çok 2, sıra SONDAN, ekrandan çıkan hücrenin işi başlamaz (`wanted`).
 - **Doğrulanmadı (telefonsuz):** cihazda 1 GB PDF fırlatma + USB klasörü kaydırma bakılacak.
 - **Karar (Taşı/Kopyala hedefi, kullanıcı 2026-11-13):** `FolderPickerScreen(homeCards: true)` (yalnız `moveOrCopyEntries`) önce pano gibi kartlar: depolama kartları (dokun → o birimde gez) + İndirilenler / Önemli Dosyalar (kendi klasörü) + Fotoğraflar/Videolar/Belgeler/Ses/APK kartları → **İndirilenler'e** konur (kullanıcı kararı) + hızlı klasör çipleri. Gezinirken geri → kartlar. Ayar ekranlarındaki seçicilerde kapalı.
+
+## 2026-11-13 — Aktar: şifreli aktarım (G5), bağlantıyla gönder, devam, eşitleme, "Dosya al" kutucuğu
+- **Karar (G5 hız):** saf Dart AES-GCM YOK (pointycastle SFTP'yi 14 → 1 MB/sn düşürmüştü). Android'de kayıt (≤1 MiB) başına
+  Kotlin `javax.crypto` "AES/GCM/NoPadding" (Conscrypt/BoringSSL, ARMv8 AES) — kanal `dosya/aead`, `makeBackgroundTaskQueue`
+  (arayüz iş parçacığı tutulmaz). Kanal yoksa (test, eski motor) `cryptography` paketinin DartAesGcm'i (yavaş, doğru).
+  X25519/HKDF saf Dart (`cryptography` 2.9.0 zaten ağaçtaydı → doğrudan bağımlılık, 0 MB). Windows: .NET 4.8'de AesGcm/X25519
+  yok → BigInteger X25519 + Windows AES(ECB) sayaç akışı + 4 bit tablolu GHASH ≈ 86 MB/sn (Linux net8 ölçümü). Telefonda hız ölçülmedi (📱 CIHAZ_TESTI).
+- **Protokol v3:** yayında `v:3` + `pk` (parmak izi, yalnız ipucu). `/el` el sıkışması: dh1=DH(eI,eR), dh2=DH(sI,eR), dh3=DH(eI,sR),
+  HKDF(tuz=kod, info="dosya-aktar v2"‖SHA256(EI‖SI‖ER‖SR)) → yön başına anahtar + 6 haneli sayı. Statik anahtar DH'ye girdiği için
+  parmak izi KANITLANIR (taklitçi anahtarsız el sıkışamaz). Sonraki istekler `?o=<oturum>&k=<akış>`, parametreler başlık kaydında;
+  aynı akış numarası ikinci kez reddedilir. v3 duyuran eşle düz protokole sessiz düşüş YOK. Başvuru: `tool/aktar_sifre_vektor.py`
+  (Python `cryptography`) — Dart testleri ve C# aynı vektörlerle; C# alıcı Python istemcisiyle de uçtan uca denendi.
+- **Güvenilen cihaz = anahtar parmak izi** (`TrustedPeer.fp`). Eski (anahtarsız) kayıt şifreli teklifte bir kez sorulur, kabulde
+  anahtara bağlanır; anahtarlı cihazın adını taşıyan DÜZ teklif güvenilmez. Windows: `ayar.txt` `guvenilen=` + DPAPI'li `anahtar.bin`.
+- **Kaldığı yerden devam:** yarım dosya `.dosya-aktarim-<tid>` + sahip `….k` (gönderenin parmak izi; düzde yok). Başka eşin/düz
+  protokolün yarım dosyası şifreli oturumda SÜRDÜRÜLMEZ. `/durum` `son` = yarım dosyanın son 64 KB SHA-256'sı → gönderen tutmazsa baştan.
+- **Karar (Bağlantıyla gönder — HAFIZA §4 "aktarımda üçüncü taraf yükleme reddedildi" kararının İSTİSNASI, kullanıcı onayı
+  2026-11-13):** uçtan uca şifreli + gönderenin KENDİ Drive'ı. Bağlantı `drive.google.com/file/d/<id>/view#dosya-aktar=<anahtar>`
+  (anahtar URL parçasında, sunucuya gitmez). **İndirme yolu (Drive v3 belgesi doğrulandı):** `files.get?alt=media` OAuth ya da
+  Cloud projesine bağlı API anahtarı ister → anahtar yok (konsol işi). Alıcı Drive'a bağlıysa kendi oturumuyla resmî API, değilse
+  oturumsuz `drive.usercontent.google.com/download?id=…&export=download&confirm=t` (resmî değil; Google değiştirirse HTML gelir →
+  kap imzası `DOAKLNK1` tutmaz → arayüz "Drive ile bağlan"). Yükleme resumable + akışlı (dosya belleğe alınmaz).
+- **Uygulamasız alıcı (tarayıcı) YAPILMADI:** barındırılan sayfa + API anahtarı (CORS) gerekir → KALANLAR B5.9.
+- **Otomatik eşitleme:** kural parmak izi başına, varsayılan kapalı, açıldığı andan sonraki dosyalar; yalnız `requireFingerprint`
+  ile (şifresiz/taklit eşe hiçbir şey gitmez). Arka plan taraması YOK: açılış kuyruğu + öne geliş (5 dk'da bir) + Aktar ekranı.
+- **"Dosya al" kutucuğu:** `AktarAlServisi` ekransız Flutter motorunda `tile_receiver.dart` `aktarKutucukAlici` (vm:entry-point)
+  → aynı `PeerReceiver`. Onay penceresi yok → yalnız şifreli + anahtarı güvenilen. **Tuzak:** iki motor SharedPreferences'ı ayrı
+  bellekte tutar → `TransferHistory.add` önce `prefs.reload()`; `TrustedPeers.reload()`. Aktar ekranı açılınca servis durur (port).
+- **Tuzak (Windows exe Linux'ta deneme):** `Core.cs` `JavaScriptSerializer` (System.Web) net8'de yok → test için System.Text.Json
+  gölgesi; klasör paketi Linux'ta Unpack'te düşüyor (eski davranış, Windows'ta sorun yok — dokunulmadı).
+- **CI kırmızısı (98316b17, benim değil):** `pdf_pro_dekont_test` analyze + 3 test; main'de düzeltilmişti → main üstüne taşındı.
