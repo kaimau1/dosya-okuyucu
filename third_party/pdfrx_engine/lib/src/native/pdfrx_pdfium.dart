@@ -2081,7 +2081,8 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
                 links.add(PdfLink([rect], dest: _pdfDestFromDest(dest, document, arena), annotation: annotation));
               } else {
                 final uri = _processAnnotLink(annot, document, arena);
-                if (uri != null || annotation != null) {
+                // YAMA 2: yalnız adresli/hedefli açıklama bağlantıdır (bkz. YAMA.md).
+                if (uri != null) {
                   links.add(PdfLink([rect], url: uri, annotation: annotation));
                 }
               }

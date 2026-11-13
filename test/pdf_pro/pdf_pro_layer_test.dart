@@ -256,6 +256,33 @@ void main() {
         (t) => text = t!.fullText.replaceAll(RegExp(r'\s+'), ''));
     await until(() => text != null);
     expect(text, contains('Eklendi'));
+
+    // Silgi (cihaz 2026-11-13: açıklamaya dokununca hiçbir şey olmuyordu).
+    var added = false;
+    c
+        .annotate(
+            const PdfAnnotChange.add(0, PdfAnnotType.text,
+                rect: [100, 100, 120, 120], contents: 'not'),
+            label: 'pse.step_markup')
+        .then((_) => added = true);
+    await until(() => added);
+    c.tool = PdfProTool.markup;
+    c.markup = PdfMarkupKind.eraser;
+    await tester.pump();
+    final noteAt = Offset(110, page.height - 110);
+    // İlk dokunuş açıklamaları yükler (önbellek boş), ikincisi siler.
+    await until(() {
+      if (c.annotsOf(0) != null) return true;
+      return false;
+    });
+    final steps = c.session.steps.length;
+    await tester.tapAt(noteAt);
+    await tester.pump(const Duration(milliseconds: 400));
+    await until(() => c.session.steps.length == steps + 1);
+    List<PdfAnnotInfo>? annots;
+    PdfEditBridge.annotations(doc, 0).then((a) => annots = a);
+    await until(() => annots != null);
+    expect(annots, isEmpty, reason: 'silgi açıklamayı silmedi');
     expect(tester.takeException(), isNull);
   });
 }

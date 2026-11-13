@@ -19,3 +19,14 @@ AÇIK belgesinde sayfa nesnelerini değiştiriyor (PK1/PK2). Hazır API'ler yetm
 
 **Ne zaman kalkar:** yukarı akış bekçili bir "işçide belge işi" API'si açınca klasör SİLİNİR
 (usta 4b) ve köprü o API'ye geçer.
+
+## 2. değişiklik (2026-11-13) — açıklamalar bağlantı sayılmaz
+
+`lib/src/native/pdfrx_pdfium.dart` `_loadAnnotLinks`: `if (uri != null || annotation != null)` →
+`if (uri != null)`. Hedefi/adresi olmayan her açıklama (not, vurgu, kalem — başlık/tarih
+taşıdığı için `annotation != null`) `PdfLink` sayılıyordu: görüntüleyici üstüne bağlantı rengi
+(soluk mavi kutu) boyuyor ve bağlantı katmanı **dokunuşu yutuyordu** → PDF Pro'da Silgi ve
+mevcut nota dokunma hiç çalışmıyordu (cihaz 2026-11-13). Uygulama `PdfLink.annotation`'ı
+kullanmıyor.
+
+**Yükseltmede:** yukarı akış açıklama-bağlantı ayrımını parametreyle veriyorsa bu satır geri alınır.
