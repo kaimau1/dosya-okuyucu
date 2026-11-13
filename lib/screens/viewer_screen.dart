@@ -3,6 +3,7 @@ import 'dart:convert' show utf8;
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'
     show
@@ -111,11 +112,17 @@ import '../core/l10n/app_language.dart';
 
 import '../core/app_haptics.dart';
 import 'audiobook/audiobook_screen.dart';
+import 'fm/pick_file_screen.dart';
 import 'fm/remote/peer_share_screen.dart' show showShareChoice;
 import '../core/app_colors.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/app_action_sheet.dart';
+import '../services/pdf/pro/pdf_ai_rewrite.dart';
+import '../services/pdf/pro/pdf_pro_images.dart';
+import '../widgets/ai_key_gate.dart';
 import '../widgets/pdf_pro/pdf_block_layer.dart';
+import '../widgets/pdf_pro/pdf_pro_bars.dart';
+import '../widgets/pdf_pro/pdf_pro_panels.dart';
 import '../widgets/pdf_pro/pdf_pro_edit_controller.dart';
 import '../widgets/pdf_pro/pdf_pro_sheets.dart';
 import '../services/docs_home.dart';
@@ -138,6 +145,7 @@ part 'viewer/widgets.dart';
 part 'viewer/pdf_reading_pro.dart';
 part 'viewer/pdf_reading_aids.dart';
 part 'viewer/pdf_pro_edit.dart';
+part 'viewer/pdf_pro_tools.dart';
 
 /// PDF vurgu renkleri (0xAARRGGBB) — vurgu kipindeki sıra. Pastel tonlar
 /// (2026-09-27): eski doygun pembe (F06292) çarpımsal harmanda bile kelimeyi
@@ -194,8 +202,26 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// Yarıda kalmış oturum bu açılışta bir kez sorulur.
   bool _proRecoveryAsked = false;
 
+  /// Yerinde yazmanın gizli klavye girişi (Faz 57).
+  final TextEditingController _proInput = TextEditingController();
+  final FocusNode _proFocus = FocusNode(debugLabel: 'pdf-pro-input');
+  int _proCaretSeen = -1;
+
   void _onProChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {});
+    // Yazarken imleç klavyenin arkasında kalmasın.
+    final live = _pro?.live;
+    if (live == null) {
+      _proCaretSeen = -1;
+      return;
+    }
+    final mark = live.selEnd * 131 + live.map.length * 7 + live.map.lineCount;
+    if (mark != _proCaretSeen) {
+      _proCaretSeen = mark;
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _proRevealCaret());
+    }
   }
 
   /// Az önce kodla gidilen sayfa ("sayfaya git", arama, içindekiler,
@@ -737,6 +763,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _pro
       ?..removeListener(_onProChanged)
       ..dispose();
+    _proInput.dispose();
+    _proFocus.dispose();
     _readingBars.dispose();
     _disposeReadingAids();
     if (_fullscreen) {

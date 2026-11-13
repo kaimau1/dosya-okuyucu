@@ -60,6 +60,10 @@ bloklar çakışırsa dokunulan noktaya en yakın kutu kazanır.
   Metin: Metin kutusu · Paragraf/Satır · Bul ve değiştir; Görsel: Ekle · Değiştir · Kırp; İşaretle:
   Vurgula · Altını çiz · Not · Çiz; Sayfalar: Döndür · Ekle · Sil · Sırala.
 - **Yüzen eylem çubuğu**: seçili bloğun 8 dp üstünde (sığmazsa altında), koyu zemin; klavye açıkken gizli.
+> **Faz 57 uygulaması (2026-11-13):** yüzen eylem çubuğu yapılmadı — blok eylemleri (Düzenle ·
+> Kopyala · Çoğalt · hizalama · punto · liste · stil · böl/birleştir · Sil) **bağlamsal çubukta**.
+> Sayfa katmanı yakınlaştırmayla ölçeklendiği için sayfa üstündeki çubuk küçülüp büyüyordu.
+> Alt araç çubuğu okuma kipindeki `DocActionBar` ile aynı yükseklikte (gövde payı değişmesin).
 - **Klavye üstü biçim çubuğu** (52 dp): yazı tipi (+ "belge" rozeti) · punto · B · I · U · renk ·
   hizalama · ⋯. Tablette biçim çubuğu yerine sağ özellik paneli (320 dp).
 - Boşta (dokunuş yok) hiçbir çubuk animasyon çizmez — 0 kare.

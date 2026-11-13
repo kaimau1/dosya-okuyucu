@@ -1,4 +1,5 @@
 // PDF Pro tezgâhının iki motoru (Faz 51–52) — test/pdf_pro/bench_test.dart.
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dosya_okuyucu/services/pdf/pdf_page_context.dart';
@@ -59,6 +60,11 @@ class PdfiumEngine extends BenchEngine {
   @override
   String get name => 'pdfium-nesne';
 
+  PdfiumEngine() {
+    // Testte varlık paketi yok: yedek fontlar depodan okunur.
+    PdfFallbackFonts.loader = (asset) => File(asset).readAsBytes();
+  }
+
   @override
   Future<List<BenchBlock>> blocks(Uint8List pdf, int page) async {
     final doc = await PdfDocument.openData(pdf);
@@ -77,11 +83,14 @@ class PdfiumEngine extends BenchEngine {
       Uint8List pdf, int page, int block, String newText) async {
     final doc = await PdfDocument.openData(pdf);
     try {
-      final blocks = await PdfEditBridge.blocks(doc, page);
+      final content = await PdfEditBridge.content(doc, page);
+      final blocks = PdfEditBridge.blocksOf(content);
       final target = blocks[block];
       final before = await PdfEditBridge.markedObjects(doc, page);
+      final PdfTypesetResult done;
       try {
-        await PdfEditBridge.replaceBlock(doc, page, target, newText);
+        done = await PdfEditBridge.replaceBlock(doc, page, target, newText,
+            content: content);
       } on PdfEditBridgeRefused catch (e) {
         throw BenchRefused(e.message, glyph: e.glyph);
       }
@@ -90,9 +99,10 @@ class PdfiumEngine extends BenchEngine {
       final outside = before.where((i) => !mine.contains(i)).length;
       return BenchEditResult(
           await PdfEditBridge.saveIncremental(doc, original: pdf),
-          // Geri okuma doğrulaması eşlenemeyen karakteri reddeder; alt küme
-          // fontta glifin VARLIĞI ayrıca ölçülmüyor (Faz 56) → null.
-          fallbackChars: 0,
+          // Faz 56: yazılabilirlik karakter karakter ölçülür (geri okuma +
+          // genişlik + `.notdef` imzası) → tofu 0; yedeğe düşen harf sayılır.
+          notdefChars: 0,
+          fallbackChars: done.fallbackChars,
           markedLost: (outside - after.length).clamp(0, 1 << 30));
     } finally {
       await doc.dispose();

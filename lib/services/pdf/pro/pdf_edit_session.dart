@@ -65,8 +65,87 @@ abstract class PdfEditOp {
 
   static PdfEditOp? fromJson(Map<String, Object?> j) => switch (j['op']) {
         'replaceBlock' => PdfReplaceBlockOp.fromJson(j),
+        'typeset' => PdfTypesetOp.fromJson(j),
+        'mutate' => PdfMutateOp.fromJson(j),
+        'annot' => PdfAnnotOp.fromJson(j),
+        'rotate' => PdfRotatePageOp.fromJson(j),
         _ => null,
       };
+}
+
+/// Bir bloğu yazar (Faz 57): istek kendi kendine yeter — kaldırılacak
+/// nesneler, eski metin (doğrulama), çerçeve geometrisi, yeni metin ve biçim.
+/// Blok gruplamasına bağlı değildir (satır/paragraf kipi, elle bölme fark
+/// etmez); sayfa değiştiyse eski metin tutmaz ve reddedilir.
+class PdfTypesetOp extends PdfEditOp {
+  final PdfTypesetRequest request;
+  const PdfTypesetOp(this.request);
+
+  @override
+  int get pageIndex => request.pageIndex;
+
+  static PdfTypesetOp? fromJson(Map<String, Object?> j) {
+    final r = j['req'];
+    if (r is! Map) return null;
+    final req = PdfTypesetRequest.fromJson(r.cast<String, Object?>());
+    return req == null ? null : PdfTypesetOp(req);
+  }
+
+  @override
+  Map<String, Object?> toJson() => {'op': 'typeset', 'req': request.toJson()};
+
+  @override
+  Future<void> applyTo(PdfDocument doc) async {
+    final r = await PdfEditBridge.typeset(doc, request);
+    if (!r.ok) {
+      throw PdfEditBridgeRefused(r.error ?? 'Düzenlenemedi.', glyph: r.glyph);
+    }
+  }
+}
+
+/// Nesne düzeyi değişiklik (Faz 59): taşı/ölçekle/döndür, sil, sıra, renk,
+/// şekil ve görsel ekleme.
+class PdfMutateOp extends PdfEditOp {
+  final PdfMutation mutation;
+  const PdfMutateOp(this.mutation);
+
+  @override
+  int get pageIndex => mutation.pageIndex;
+
+  static PdfMutateOp? fromJson(Map<String, Object?> j) {
+    final m = j['m'];
+    if (m is! Map) return null;
+    final mut = PdfMutation.fromJson(m.cast<String, Object?>());
+    return mut == null ? null : PdfMutateOp(mut);
+  }
+
+  @override
+  Map<String, Object?> toJson() => {'op': 'mutate', 'm': mutation.toJson()};
+
+  @override
+  Future<void> applyTo(PdfDocument doc) => PdfEditBridge.mutate(doc, mutation);
+}
+
+/// Açıklama (annotation) değişikliği (Faz 60).
+class PdfAnnotOp extends PdfEditOp {
+  final PdfAnnotChange change;
+  const PdfAnnotOp(this.change);
+
+  @override
+  int get pageIndex => change.pageIndex;
+
+  static PdfAnnotOp? fromJson(Map<String, Object?> j) {
+    final c = j['c'];
+    if (c is! Map) return null;
+    final ch = PdfAnnotChange.fromJson(c.cast<String, Object?>());
+    return ch == null ? null : PdfAnnotOp(ch);
+  }
+
+  @override
+  Map<String, Object?> toJson() => {'op': 'annot', 'c': change.toJson()};
+
+  @override
+  Future<void> applyTo(PdfDocument doc) => PdfEditBridge.annotate(doc, change);
 }
 
 /// Bir bloğun (paragrafın) metnini değiştirir. Blok nesne sıralarıyla bulunur
@@ -137,6 +216,32 @@ class PdfReplaceBlockOp extends PdfEditOp {
   }
 }
 
+/// Sayfayı çeyrek tur döndürür (Faz 63).
+class PdfRotatePageOp extends PdfEditOp {
+  @override
+  final int pageIndex;
+
+  /// Eklenecek çeyrek tur (1 = 90° saat yönünde).
+  final int turns;
+  const PdfRotatePageOp(this.pageIndex, this.turns);
+
+  static PdfRotatePageOp? fromJson(Map<String, Object?> j) {
+    final page = j['page'], t = j['turns'];
+    return page is int && t is int ? PdfRotatePageOp(page, t) : null;
+  }
+
+  @override
+  Map<String, Object?> toJson() =>
+      {'op': 'rotate', 'page': pageIndex, 'turns': turns};
+
+  @override
+  Future<void> applyTo(PdfDocument doc) async {
+    final before = await PdfEditBridge.rotatePage(doc, pageIndex, -1);
+    if (before < 0) throw const PdfEditBridgeRefused('Sayfa döndürülemedi.');
+    await PdfEditBridge.rotatePage(doc, pageIndex, (before + turns) & 3);
+  }
+}
+
 /// Komut yığınındaki bir adım.
 class PdfEditStep {
   final int id;
@@ -190,6 +295,13 @@ class PdfEditSession extends ChangeNotifier {
   /// değil, özgünün üstünde [ops] yeniden oynatılarak üretilir
   /// (bkz. [PdfEditBridge.restorePage]).
   bool get needsReplay => _restored;
+
+  /// Uygulanmış adımlarda karartma var mı? Öyleyse kayıt artımlı olamaz —
+  /// özgün baytlar dosyada kalırdı (bkz. [PdfMutation.redacts]).
+  bool get needsRewrite => _done.any((s) {
+        final op = s.op;
+        return op is PdfMutateOp && op.mutation.redacts;
+      });
 
   /// Kayıt için yeniden oynatılacak işlemler; oynatılamaz adım varsa null.
   List<PdfEditOp>? get ops {
@@ -290,6 +402,66 @@ class PdfEditSession extends ChangeNotifier {
         _notify();
       });
 
+  // ── canlı düzenleme (Faz 57: yerinde yazma) ───────────────────────────
+  int _liveBefore = 0;
+  int? _livePage;
+
+  /// Yerinde yazma sürüyor mu (o sayfa).
+  int? get livePage => _livePage;
+
+  /// Yerinde yazmayı başlatır: sayfanın yedeği alınır; ara yazımlar ([liveApply])
+  /// yığına girmez, bitişte tek adım olur ([commitLive]).
+  Future<void> beginLive(int pageIndex) => _serial(() async {
+        _ensureAlive();
+        if (_livePage != null) throw StateError('Zaten yazılıyor.');
+        final before = await _snapshots.take(pageIndex);
+        if (before == 0) {
+          throw const PdfEditBridgeRefused('Sayfanın yedeği alınamadı.');
+        }
+        _liveBefore = before;
+        _livePage = pageIndex;
+      });
+
+  /// Yazarken ara uygulama (sıraya girer; yığın değişmez).
+  Future<T> liveApply<T>(Future<T> Function() job) => _serial(() async {
+        _ensureAlive();
+        if (_livePage == null) throw StateError('Yazma başlamadı.');
+        return job();
+      });
+
+  /// Yazmayı tek adım olarak bitirir. Ara yazımlar belgede fazladan nesne
+  /// bırakmış olabilir → kayıt özgünün üstünde [op] yeniden oynatılarak
+  /// üretilir ([needsReplay]).
+  Future<void> commitLive(
+          {required String label, String detail = '', PdfEditOp? op}) =>
+      _serial(() async {
+        _ensureAlive();
+        final page = _livePage;
+        if (page == null) return;
+        for (final s in _undone) {
+          await _release(s);
+        }
+        _undone.clear();
+        _done.add(PdfEditStep._(_nextId++, page, label, detail, op, _liveBefore));
+        _liveBefore = 0;
+        _livePage = null;
+        _restored = true;
+        _notify();
+      });
+
+  /// Yazmayı bırakır. [changed] true ise sayfa yedeğe döner.
+  Future<void> cancelLive({required bool changed}) => _serial(() async {
+        final page = _livePage;
+        if (page == null) return;
+        if (changed) {
+          await _snapshots.restore(page, _liveBefore);
+          _restored = true;
+        }
+        await _snapshots.release(_liveBefore);
+        _liveBefore = 0;
+        _livePage = null;
+      });
+
   /// [op]'u bağlı belgeye komut olarak uygular.
   Future<void> apply(PdfEditOp op,
       {required String label, String detail = ''}) {
@@ -383,6 +555,9 @@ class PdfEditSession extends ChangeNotifier {
     if (_disposed) return;
     await _serial(() async {
       _disposed = true;
+      if (_liveBefore != 0) await _snapshots.release(_liveBefore);
+      _liveBefore = 0;
+      _livePage = null;
       for (final s in [..._done, ..._undone]) {
         await _release(s);
       }

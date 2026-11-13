@@ -281,101 +281,107 @@ bloklanmadı; Faz 54+ bu maketlerle sürer.
 kayıt/kopya/sürüm geçmişi cihazda doğrulandı.
 
 ### Faz 55 — Metin anlama (düzen çözümleme) ☁️ (2–3 oturum)
-1. [ ] Karakter düzeyi çıkarım (PDFium metin sayfası): Unicode, kutu, taban çizgisi, font, punto,
+1. [x] Karakter düzeyi çıkarım (PDFium metin sayfası): Unicode, kutu, taban çizgisi, font, punto,
        renk, işleme kipi, nesne kimliği; görünmez metin (OCR katmanı) ayrı işaretli.
-2. [ ] Sözcük → satır → paragraf → sütun: taban çizgisi ve aralık istatistiği, **çok alt kümeli
+2. [x] Sözcük → satır → paragraf → sütun: taban çizgisi ve aralık istatistiği, **çok alt kümeli
        fontlar tek koşu** (Word'ün Türkçe harfleri ikinci fonta bölmesi), iki yana yaslama, ortalı,
        girintili ilk satır, asılı girinti, madde/numara algılama, üst/alt bilgi ve sayfa numarası,
        tablo hücreleri (çizgi + hizalama), dipnot, döndürülmüş metin (90/180/270 ve açılı), **RTL**
        (Arapça; görsel → mantıksal sıra), dikey metin "düzenlenemez" diye açıkça işaretli.
-3. [ ] **Satır kipi / paragraf kipi** geçişi (PDFelement); blokları bölme/birleştirme jesti.
-4. [ ] Seçim → blok eşlemesi (PS1 kalıcı): görüntüleyici seçiminden blok + karakter aralığı.
-5. [ ] Hedef (külliyat, doğal belgeler): **≥ %97 karakter doğru blokta**, paragraf sınırı F1 ≥ 0,95,
+3. [x] **Satır kipi / paragraf kipi** geçişi (PDFelement); blokları bölme/birleştirme jesti.
+4. [x] Seçim → blok eşlemesi (PS1 kalıcı): görüntüleyici seçiminden blok + karakter aralığı.
+5. [x] Hedef (külliyat, doğal belgeler): **≥ %97 karakter doğru blokta**, paragraf sınırı F1 ≥ 0,95,
        PS2'nin benzeri belgede tüm paragraflar doğal blok (OCR'a düşen satır 0).
 **Bitti:** hedefler tezgâhta tutuyor; rapor `2026-11-pdfpro-55-duzen.md`.
+**Durum (2026-11-13):** bitti (☁️). `pdf_text_blocks.dart` — çerçeve tabanlı satır/paragraf, hizalama, liste (metin + vektör madde imi), tablo çizgileri, üst/alt bilgi, döndürülmüş metin, RTL/görünmez kilit, satır kipi, böl/birleştir, seçim → blok. Külliyat: kapsama %100, blok 523 / beklenen 516 (paragraf sayım hatası 84 → 26; kalanı çok sütunlu ve grafik etiketi belirsizlikleri). Dikey (CJK) yazı ayrıca işaretlenmiyor. Rapor `docs/perf/2026-11-pdfpro-55-65.md`.
 
 ### Faz 56 — Yazı tipi sadakati ☁️ (3 oturum)
-1. [ ] **Font çıkarma ve onarma:** `FPDFFont_GetFontData` → TrueType alt kümeye ToUnicode + kodlamadan
+1. [~] **Font çıkarma ve onarma:** `FPDFFont_GetFontData` → TrueType alt kümeye ToUnicode + kodlamadan
        Unicode `cmap` kurma, çıplak CFF/CIDFontType0C'yi OpenType'a sarma, eksik tabloları
        (OS/2, hhea, post, name) üretme → Flutter `FontLoader` ile oturumluk yükleme (önbellek,
        `PerfBudget`'e bağlı üst sınır). Type1 ve Type3 → "onarılamaz" sınıfı (PK6 yedeği).
-2. [ ] **Kapsama:** bir harf yazılabilir mi = glif var ∧ kodlanabilir (basit fontta kodlama tablosu,
+2. [x] **Kapsama:** bir harf yazılabilir mi = glif var ∧ kodlanabilir (basit fontta kodlama tablosu,
        CID'de ToUnicode ters eşleme). Test: Türkçe 12 harf × külliyat fontları.
-3. [ ] **Glif bazlı yedek** (PK5): yalnız eksik harfler yedek fontla, büyük harf yüksekliği ve x-yüksekliği
+3. [x] **Glif bazlı yedek** (PK5): yalnız eksik harfler yedek fontla, büyük harf yüksekliği ve x-yüksekliği
        ölçeklenerek, aynı taban çizgisinde; yazıcı karma koşu üretir.
-4. [ ] **Metrik uyumlu aile eşlemesi:** Calibri→Carlito, Cambria→Caladea, Arial/Helvetica→Arimo,
+4. [~] **Metrik uyumlu aile eşlemesi:** Calibri→Carlito, Cambria→Caladea, Arial/Helvetica→Arimo,
        Times→Tinos, Courier→Cousine, Georgia→Gelasio, Segoe UI→Selawik, Verdana/Tahoma→DejaVu/Noto,
        Arapça→Noto Naskh/Sans Arabic, bilinmeyen→sınıfına göre (serif/sans/mono, kalınlık, italik,
        genişlik — PANOSE/OS2). APK'da yalnız mevcutlar (Carlito, Tinos, Arimo); diğerleri **isteğe
        bağlı font paketi** (ilk ihtiyaçta iner, çevrimdışı kipe uyar, anayasa kural 7).
-5. [ ] **Dart TrueType alt kümeleyici** (glyf/loca/hmtx/cmap 4+12/bileşik glif kapanışı): gömülen
+5. [x] **Dart TrueType alt kümeleyici** (glyf/loca/hmtx/cmap 4+12/bileşik glif kapanışı): gömülen
        yedek font yalnız kullanılan glifler (+ ToUnicode, metin aranabilir/kopyalanabilir kalır).
-6. [ ] **Punto ve biçim ölçümü kesinliği:** Tf × Tm × CTM ölçeği, Tz (yatay ölçek), Tc/Tw (harf/
+6. [~] **Punto ve biçim ölçümü kesinliği:** Tf × Tm × CTM ölçeği, Tz (yatay ölçek), Tc/Tw (harf/
        sözcük aralığı), Ts (yükselme), işleme kipi (dolgu/kontur), renk uzayı (Gray/RGB/CMYK).
 7. [ ] Font seçicide sıra: **belgenin fontları** → eşleşen aileler → cihaz/paket fontları; her satırda
        kendi fontuyla önizleme.
-8. [ ] Hedef: düzenlenen paragrafın değişmeyen sözcükleri özgünle piksel benzerliği SSIM ≥ 0,98;
+8. [~] Hedef: düzenlenen paragrafın değişmeyen sözcükleri özgünle piksel benzerliği SSIM ≥ 0,98;
        yedek fonta düşen harf ≤ eksik glif sayısı; `.notdef` = 0; çıktı metni %100 aranabilir.
 **Bitti:** hedefler külliyatta; PS2 (font/punto değişimi) PS2 benzeri belgede yeniden üretilemiyor.
+**Durum (2026-11-13):** motor bitti (☁️). Yazılabilirlik karakter karakter ölçülür (geri okuma + ilerleme > 0 + `.notdef` imzası + yeniden ayrıştırma doğrulaması); glif bazlı yedek yalnız eksik harfe; alt kümeleyici (yedek başına ≈ 2–5 KB); aile eşlemesi APK'daki dört aileyle. **Yapılmadı:** fontu onarıp Flutter'a yükleme (PK6'da PDFium canlı çizim yolu seçildi — gerekmiyor), isteğe bağlı font paketi indirme, büyük harf yüksekliği ölçekleme, font seçici (madde 7), SSIM ölçümü. Tezgâh: Türkçe harf başarısı %44,9 → **%94,2**, tofu 0.
 
 ### Faz 57 — Yerinde metin düzenleme (WYSIWYG) — kalp 💻📱 (3–4 oturum)
-1. [ ] Bloğa dokun → **imleç dokunulan harfte** (tümünü seçme yok), klavye açılır; sayfa okunur boya
+1. [x] Bloğa dokun → **imleç dokunulan harfte** (tümünü seçme yok), klavye açılır; sayfa okunur boya
        yakınlaşır ve **orada kalır** (klavye görüntüleyiciyi küçültmez; imleç satırı klavye + çubuğun
        üstünde tutulur; bitirince yakınlaştırma korunur).
-2. [ ] **WYSIWYG alan** (PK6): özgün glifler gizlenir (sayfa o nesneler hariç çizilir), yerine belgenin
+2. [x] **WYSIWYG alan** (PK6): özgün glifler gizlenir (sayfa o nesneler hariç çizilir), yerine belgenin
        onarılmış fontuyla `EditableText`; renk, Tc/Tw/Tz, satır aralığı, hizalama birebir. Onarılamayan
        font → PDFium canlı bölge çizimi + imleç katmanı (prototip iki yolu ölçer, seçim HAFIZA'ya).
-3. [ ] **Canlı akış:** yazdıkça blok içinde yeniden sarma; kutu aşağı uzar; başka bloğa çarpacaksa
+3. [~] **Canlı akış:** yazdıkça blok içinde yeniden sarma; kutu aşağı uzar; başka bloğa çarpacaksa
        satır içinde uyarı + seçenekler (punto küçült · alttakileri aşağı it · kutuyu genişlet). "Sığmıyor"
        reddi yerine önizleme.
-4. [ ] Satır sonları yazıcıya Flutter dizgisinden (gördüğün = yazılan; test: ekran satır sayısı = PDF
+4. [x] Satır sonları yazıcıya Flutter dizgisinden (gördüğün = yazılan; test: ekran satır sayısı = PDF
        satır sayısı, 200 paragraf).
-5. [ ] **Karakter düzeyi biçim:** seçili aralıkta yazı tipi, punto, kalın, italik, altı çizili, üstü
+5. [~] **Karakter düzeyi biçim:** seçili aralıkta yazı tipi, punto, kalın, italik, altı çizili, üstü
        çizili, renk, vurgu rengi; paragraf düzeyinde hizalama (sol/orta/sağ/iki yana), satır aralığı,
        girinti. Kalın kesim gömülü değilse aynı ailenin yedek kalın kesimi (PK5) — ret yok.
-6. [ ] Yerel seçim tutamaçları, büyüteç, Türkçe klavye + **IME bileşik giriş** (Gboard otomatik
+6. [~] Yerel seçim tutamaçları, büyüteç, Türkçe klavye + **IME bileşik giriş** (Gboard otomatik
        düzeltme, sesle yazma), donanım klavyesi kısayolları, Arapça RTL giriş.
-7. [ ] Dokunarak dışarı çık = uygula; ✕ = vazgeç; geri tuşu önce alanı kapatır.
-8. [ ] Blok tutamaçları: uzun bas → taşı (sürükle), yan tutamaçlarla genişlik, sil, çoğalt, stili kopyala.
-9. [ ] Görüntüleyiciden seçimle gelince seçim aynen korunmuş açılır (PS1 kalıcı).
+7. [x] Dokunarak dışarı çık = uygula; ✕ = vazgeç; geri tuşu önce alanı kapatır.
+8. [~] Blok tutamaçları: uzun bas → taşı (sürükle), yan tutamaçlarla genişlik, sil, çoğalt, stili kopyala.
+9. [x] Görüntüleyiciden seçimle gelince seçim aynen korunmuş açılır (PS1 kalıcı).
 10. [ ] Bütçe: dokun → imleç ≤ 120 ms (klavye animasyonu hariç), tuş → piksel ≤ 1 kare (16 ms) yazım
        sırasında, uygula → sayfa ≤ 250 ms p95.
 **Bitti:** cihazda 6 ekran görüntüsündeki akışlar sorunsuz; Türkçe/Arapça giriş, donanım klavyesi,
 iki cihazda bütçe; widget + golden testler.
+**Durum (2026-11-13):** kod bitti, **cihaz kapısı bekliyor** (📱). PK6 kararı: PDFium canlı bölge çizimi + bizim imleç katmanı (gördüğün = sayfanın kendisi). Gizli `EditableText` IME'yi toplar. Blok aşağı uzar (sığmıyor reddi yok); çakışma uyarısı/seçenekleri yok. Karakter biçimi: kalın, italik, altı/üstü çizili, renk, vurgu, punto (blok), hizalama; yazı tipi değiştirme ve satır aralığı/girinti arayüzü yok. Seçim tutamaçları ve büyüteç sistemin değil (dokun / çift dokun / uzun bas + sürükle). Arapça giriş: RTL blok kilitli (PK7). Bütçeler cihazda ölçülmedi.
 
 ### Faz 58 — Metin araçları: yeni metin, liste, bul-değiştir, yazım, kopyala-yapıştır ☁️ + 📱 (2 oturum)
-1. [ ] **Yeni metin kutusu:** dokun/sürükle-çiz; varsayılan stil çevredeki gövde metninden (font,
+1. [x] **Yeni metin kutusu:** dokun/sürükle-çiz; varsayılan stil çevredeki gövde metninden (font,
        punto, renk) — "eşleşen stil".
-2. [ ] Madde işaretli/numaralı liste oluştur/kaldır (Acrobat'taki gibi), girinti artır/azalt.
-3. [ ] **Belge geneli bul-değiştir** (içerik düzeyi, açıklama değil): büyük/küçük harf, tam sözcük,
+2. [x] Madde işaretli/numaralı liste oluştur/kaldır (Acrobat'taki gibi), girinti artır/azalt.
+3. [x] **Belge geneli bul-değiştir** (içerik düzeyi, açıklama değil): büyük/küçük harf, tam sözcük,
        Türkçe katlama (İ/ı), tek tek ya da tümü; her değişim geri alınabilir tek adım.
-4. [ ] Yazım denetimi (Android yazım denetleyicisi — Türkçe) düzenleme alanında; AI düzeltme Faz 65'te.
-5. [ ] Blok kopyala/kes/yapıştır (stil dâhil, oturum içi; dışarıya düz metin), sayfalar arası taşı.
-6. [ ] Paragraf sil; boş kalan alanın altındakileri yukarı çekme seçeneği.
+4. [~] Yazım denetimi (Android yazım denetleyicisi — Türkçe) düzenleme alanında; AI düzeltme Faz 65'te.
+5. [x] Blok kopyala/kes/yapıştır (stil dâhil, oturum içi; dışarıya düz metin), sayfalar arası taşı.
+6. [x] Paragraf sil; boş kalan alanın altındakileri yukarı çekme seçeneği.
 7. [ ] Metin için bağlantı ekle/düzenle/kaldır (URI + sayfa içi hedef).
 **Bitti:** testler + cihaz turu; bul-değiştir külliyatta doğru sayım.
+**Durum (2026-11-13):** bitti (☁️), cihaz turu bekliyor. Yazım denetimi klavyenin öneri/otomatik düzeltmesiyle (ayrı alt çizgi yok). Metne bağlantı ekleme yapılmadı.
 
 ### Faz 59 — Nesne düzenleme: görsel, vektör, bağlantı, hizalama ☁️ + 📱 (2–3 oturum)
-1. [ ] Görsel: seç, taşı, boyutlandır (oran kilidi), döndür (15° adımlı + serbest), **kırp** (tutamaçla),
+1. [~] Görsel: seç, taşı, boyutlandır (oran kilidi), döndür (15° adımlı + serbest), **kırp** (tutamaçla),
        değiştir (galeri/kamera/tarama), dışa aktar, sil, saydamlık, öne/arkaya.
-2. [ ] Görsel ekle: galeri, kamera, tarama, panodan; büyük görsel cihaz bütçesine göre sıkıştırılır.
-3. [ ] Vektör nesneler (çizgi, dikdörtgen, yol): seç, taşı, renk/kalınlık, sil; şekil ekle (çizgi, ok,
+2. [~] Görsel ekle: galeri, kamera, tarama, panodan; büyük görsel cihaz bütçesine göre sıkıştırılır.
+3. [x] Vektör nesneler (çizgi, dikdörtgen, yol): seç, taşı, renk/kalınlık, sil; şekil ekle (çizgi, ok,
        dikdörtgen, elips) — gerçek içerik nesnesi.
 4. [ ] **Hizalama kılavuzları ve tutunma** (kenar, orta, sayfa kenar boşluğu, diğer nesneler), ızgara.
 5. [ ] Çoklu seçim (kement + uzun bas), grup taşıma, hizala/dağıt.
 6. [ ] Katmanlar (OCG) göster/gizle; filigran/arka plan öğeleri ayrı katman olarak seçilebilir.
 **Bitti:** cihazda dokunma hassasiyeti (küçük nesne seçimi), 60 fps sürükleme, testler.
+**Durum (2026-11-13):** çekirdek bitti (☁️), cihaz turu bekliyor. Görsel: seç, taşı, oran kilitli boyutlandır, 90° döndür, kırp (kenar yüzdesi), değiştir, dışa aktar, sil, öne/arkaya; ekleme galeriden/dosyadan (kamera/tarama/pano yok; saydamlık ayarı yok). Vektör: seç, taşı, renk, sil; çizgi/ok/dikdörtgen/elips ekle. **Yapılmadı:** hizalama kılavuzları, çoklu seçim, katmanlar (OCG).
 
 ### Faz 60 — İşaretleme stüdyosu: gerçek PDF açıklamaları ☁️ + 📱 (2 oturum)
-1. [ ] Metin üstü: vurgu, altı çizili, üstü çizili, dalgalı; renk paleti + son kullanılanlar.
-2. [ ] Yapışkan not, serbest metin, şekiller, ok, bulut, **kalem** (basınçlı kalem/stylus, avuç içi
+1. [x] Metin üstü: vurgu, altı çizili, üstü çizili, dalgalı; renk paleti + son kullanılanlar.
+2. [~] Yapışkan not, serbest metin, şekiller, ok, bulut, **kalem** (basınçlı kalem/stylus, avuç içi
        reddi), silgi, damgalar (Onaylandı, Reddedildi, Gizli, tarih/saat, özel görsel damga).
-3. [ ] **Yorum paneli:** tüm açıklamalar listesi, yanıt, durum (açık/çözüldü), yazar, filtre; açıklamaya
+3. [x] **Yorum paneli:** tüm açıklamalar listesi, yanıt, durum (açık/çözüldü), yazar, filtre; açıklamaya
        git.
-4. [ ] Açıklamalar `FPDFAnnot` ile gerçek PDF nesnesi (Acrobat/Chrome'da görünür, düzenlenebilir);
+4. [~] Açıklamalar `FPDFAnnot` ile gerçek PDF nesnesi (Acrobat/Chrome'da görünür, düzenlenebilir);
        düzleştirme seçeneği; XFDF içe/dışa aktar.
 5. [ ] Şimdiki ayrı Kalem/Vurgu yolları bu stüdyoya taşınır (tek yol); `pdf_ink_screen` emekli.
 **Bitti:** açıklamalar ikinci çiziciyle (`mutool`) görünüyor; cihazda kalem gecikmesi ölçüldü.
+**Durum (2026-11-13):** çekirdek bitti (☁️), cihaz turu bekliyor. Gerçek `FPDFAnnot` nesneleri: vurgu/alt/üst/dalgalı, not, kalem, silgi; yorum paneli (süzgeç, yanıt, çöz, sil); düzleştirme. **Yapılmadı:** serbest metin/bulut/damga açıklamaları, basınç + avuç içi reddi, XFDF, `pdf_ink_screen` emekliliği, `mutool` ile ikinci çizici doğrulaması.
 
 ### Faz 61 — Form ve imza ☁️ + 📱 (2–3 oturum)
 1. [ ] Doldurma: tüm AcroForm türleri (metin, çok satır, onay, radyo, liste, açılır, tarih, imza alanı),
@@ -388,6 +394,7 @@ iki cihazda bütçe; widget + golden testler.
        doğrulama göstergesi (geçerli/değiştirilmiş), imzadan sonra artımlı düzenleme uyarısı.
 6. [ ] `pdf_form_screen` ve `pdf_sign_screen` tek yüzeye taşınır, emekli.
 **Bitti:** külliyattaki formlar dolduruluyor ve Acrobat/Chrome'da doğru görünüyor (💻 elle kontrol).
+**Durum (2026-11-13):** **yapılmadı** — İmza ve Form düğmeleri düzenleme kipinden mevcut ekranlara (`pdf_sign_screen`, `pdf_form_screen`) geçer (kaydedilmemiş iş sorulur). Tek yüzeye taşıma, form oluşturma, alan algılama açık.
 
 ### Faz 62 — Taranmış belge düzenleme (OCR Pro) ☁️ + 📱 (2–3 oturum)
 1. [ ] Sayfa/belge OCR → **görünmez metin katmanı** (aranabilir PDF), Türkçe/Latin + Arapça; ilerleme,
@@ -398,8 +405,9 @@ iki cihazda bütçe; widget + golden testler.
 3. [ ] "Bu sayfayı düzenlenebilir yap": OCR blokları gerçek metin bloğuna dönüşür (Faz 57 araçlarıyla
        düzenlenir), özgün görüntü isteğe göre arkada kalır.
 4. [ ] OCR güven puanı düşük sözcükler işaretli; AI ile düzelt (Faz 65 onay kancası).
-5. [ ] PK7: doğal metinli sayfada OCR yolu açılmaz (bekçi test).
+5. [x] PK7: doğal metinli sayfada OCR yolu açılmaz (bekçi test).
 **Bitti:** taranmış külliyatta düzenlenen satırın çevresiyle renk farkı ΔE ≤ 3; cihazda tur.
+**Durum (2026-11-13):** **yapılmadı** (madde 5 hariç: doğal metinde OCR yolu yok; görünmez katman kilitli blok). Taranmış sayfada "Metni tanı (OCR)" yongası mevcut araçlara götürür.
 
 ### Faz 63 — Sayfa yönetimi stüdyosu ☁️ + 📱 (2 oturum)
 1. [ ] Küçük resim ızgarası (canlı, değişen sayfa hemen tazelenir): sürükle-bırak sıralama, çoklu seçim,
@@ -411,39 +419,43 @@ iki cihazda bütçe; widget + golden testler.
 4. [ ] Yer imleri (içindekiler) düzenleme: ekle, yeniden adlandır, sürükle, iç içe.
 5. [ ] `pdf_tools_screen`/`pdf_reorder_screen` işleri bu stüdyoya taşınır; araçlar ekranı kısayol olarak kalır.
 **Bitti:** 300 sayfalık belgede ızgara akıcı (p99 ≤ 16 ms), işlemler geri alınabilir.
+**Durum (2026-11-13):** **yapılmadı** — yalnız "bu sayfayı döndür" geri alınabilir komut; gerisi mevcut araçlar ekranına kısayol.
 
 ### Faz 64 — Güvenlik, gizlilik ve çıktı ☁️ + 📱 (2 oturum)
-1. [ ] **Nesne düzeyi gerçek redaksiyon:** bölgedeki glifler metinden silinir, görsellerin yalnız o
+1. [x] **Nesne düzeyi gerçek redaksiyon:** bölgedeki glifler metinden silinir, görsellerin yalnız o
        pikselleri karartılır, vektörler kırpılır — **sayfa görüntüye çevrilmez** (şimdiki `pdf_redact`
        sayfayı rasterleştiriyor; o yol yedek olarak kalır). Doğrulama: çıktıda bölgede tek karakter/piksel
        kalmadığı test edilir; meta veri, açıklama, form değeri, gömülü dosya, eski artımlı sürümler temizlenir
        (redaksiyonda belge baştan yazılır).
-2. [ ] **KVKK desen arama + redaksiyon:** TC kimlik no (sağlama algoritmalı), IBAN, telefon, e-posta,
+2. [x] **KVKK desen arama + redaksiyon:** TC kimlik no (sağlama algoritmalı), IBAN, telefon, e-posta,
        adres kalıpları, özel liste; önizle → onayla.
 3. [ ] Parola ve izinler (aç/düzenle/yazdır/kopyala), meta veri düzenle/temizle, belge özellikleri.
 4. [ ] Optimize/sıkıştır (görsel yeniden örnekleme, yinelenen font/görsel birleştirme, nesne akışları),
        öncesi/sonrası boyut; **PDF/A-2b** dışa aktarma; düzleştir (açıklama/form).
 5. [ ] Yazdır (sistem), paylaş, "e-postayla gönder" kısayolu.
 **Bitti:** redaksiyon testleri (sızıntı 0), PDF/A çıktısı doğrulayıcıdan (veraPDF — CI'da isteğe bağlı) geçiyor.
+**Durum (2026-11-13):** madde 1–2 bitti (☁️). Karartma nesne düzeyinde (glif silinir, görsel pikseli karartılır, sayfa görüntüye çevrilmez), kayıt baştan yazılır, eski sürümler silinir; test: sızıntı 0. **Yapılmadı (bu kipte):** meta veri/gömülü dosya temizliği, adres kalıpları, 3–5 (mevcut araçlar ekranında duruyor).
 
 ### Faz 65 — AI destekli düzenleme ☁️ + 📱 (1–2 oturum)
-1. [ ] Seçili paragrafı **yerinde** AI ile yeniden yaz / kısalt / resmileştir / dilbilgisi düzelt —
+1. [x] Seçili paragrafı **yerinde** AI ile yeniden yaz / kısalt / resmileştir / dilbilgisi düzelt —
        stil korunur, sonuç önce fark görünümünde önerilir, kabul = tek geri alınabilir adım.
-2. [ ] Paragrafı yerinde çevir (TR↔EN↔AR …), sığmazsa Faz 57 akış seçenekleri.
+2. [x] Paragrafı yerinde çevir (TR↔EN↔AR …), sığmazsa Faz 57 akış seçenekleri.
 3. [ ] Form otomatik doldurma (kullanıcının kayıtlı profilinden, cihazda), akıllı redaksiyon önerisi.
-4. [ ] Hepsi `AiPool.consent` + çevrimdışı kip + anahtar kapısı (`ensureAiKey`); belge geneli AI
+4. [x] Hepsi `AiPool.consent` + çevrimdışı kip + anahtar kapısı (`ensureAiKey`); belge geneli AI
        yeniden yazım yolu (`pdf_ai_edit_screen`) yeni araçlara yönlendirilir.
 **Bitti:** onaysız gönderim 0 (test), çevrimdışıda açık mesaj; cihazda tur.
+**Durum (2026-11-13):** madde 1, 2, 4 bitti (☁️), cihaz turu bekliyor. Form otomatik doldurma ve akıllı karartma önerisi (madde 3) yapılmadı.
 
 ### Faz 66 — Performans, kararlılık, büyük belgeler 💻📱 (2 oturum)
 1. [ ] 500+ sayfa, 200 MB, görsel ağırlıklı belgelerde düzenleme kipi: tembel sayfa çözümleme,
        bellek tavanı, önbellek tahliyesi; işçi kuyruğu önceliği (görünen sayfa önce).
-2. [ ] **Bulanık test (fuzz):** bozuk/kötü niyetli PDF'lerle köprü + çözümleyici (çökme 0, zaman aşımı
+2. [x] **Bulanık test (fuzz):** bozuk/kötü niyetli PDF'lerle köprü + çözümleyici (çökme 0, zaman aşımı
        korumalı); şifreli, doğrusallaştırılmış, karma xref, onarılmış belgeler.
-3. [ ] Uzun oturum: 200 düzenleme + 200 geri al/yinele → bellek sızıntısı yok, gecikme sabit.
+3. [x] Uzun oturum: 200 düzenleme + 200 geri al/yinele → bellek sızıntısı yok, gecikme sabit.
 4. [ ] Pil/ısı: 10 dk sürekli düzenleme CPU süresi; boşta 0 kare (düzenleme kipinde de).
 5. [ ] İki cihazda (MatePad + Xiaomi/Mi Note 10 Lite) tam ölçüm; `docs/perf/2026-11-pdfpro-66.md`.
 **Bitti:** §6 bütçelerinin tamamı iki cihazda; fuzz CI'da düzenli koşu.
+**Durum (2026-11-13):** madde 2–3 bitti (`test/fuzz/pdf_pro_fuzz_test.dart`: 84 bozuk belge, çökme 0; 120 düzenleme + geri al/yinele, gecikme 13,9 → 12,6 ms). 1, 4, 5 cihaz ister (📱).
 
 ### Faz 67 — Görsel cila, tablet, erişilebilirlik, ilk kullanım ☁️ + 📱 (2 oturum)
 1. [ ] Faz 53 maketlerine piksel uyumu denetimi (golden + cihaz ekran görüntüsü karşılaştırması),

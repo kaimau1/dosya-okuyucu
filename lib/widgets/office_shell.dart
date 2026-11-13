@@ -193,6 +193,10 @@ class OfficeShell extends StatefulWidget {
   final PreferredSizeWidget? tabBar;
   final Widget body;
   final Widget? bottomBar;
+
+  /// Klavye açılınca gövde küçülsün mü (PDF düzenleme kipinde false:
+  /// görüntüleyicinin boyu değişirse sayfa yeniden sığdırılır — PS4).
+  final bool resizeForKeyboard;
   final Widget? fab;
 
   /// Başlığın altındaki bilgi satırına tür adından sonra eklenen kısa bilgi
@@ -216,6 +220,7 @@ class OfficeShell extends StatefulWidget {
     this.actions = const [],
     this.tabBar,
     this.bottomBar,
+    this.resizeForKeyboard = true,
     this.fab,
     this.subtitle,
     this.readingBars,
@@ -373,6 +378,7 @@ class _OfficeShellState extends State<OfficeShell>
     final surface = scheme.surface;
     return Scaffold(
       backgroundColor: OfficeColors.canvas(context),
+      resizeToAvoidBottomInset: widget.resizeForKeyboard,
       body: ReadingChrome(
         top: chromeTop,
         bottom: bottomH,

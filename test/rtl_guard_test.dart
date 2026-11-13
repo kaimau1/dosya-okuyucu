@@ -38,6 +38,9 @@ const _contentFiles = [
   'lib/widgets/pdf_object_layer.dart',
   'lib/widgets/pdf_select_layer.dart',
   'lib/widgets/pdf_select_layer_chrome.dart',
+  // PDF Pro (Faz 57–60): düzenleme kipinin sayfa katmanı — tutamaçlar sayfa
+  // koordinatında (sayfa dil değişince aynalanmaz).
+  'lib/widgets/pdf_pro/pdf_block_layer.dart',
   'lib/widgets/signature_pad.dart',
 ];
 

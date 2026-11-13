@@ -12,12 +12,15 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
   Future<bool> _proEnabled() async {
     if (const bool.fromEnvironment('PDF_PRO_ENGINE')) return true;
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('pdf_pro_engine') ?? false;
+    // Faz 57'den beri varsayılan AÇIK (PK1 koşulları + külliyat hedefleri
+    // tuttu). Kapatmak için tercih false yapılır; eski düzenleyici ayrıca
+    // ⋮ → "Eski düzenleyici" ile her zaman açılabilir.
+    return prefs.getBool('pdf_pro_engine') ?? true;
   }
 
   /// Düzenleme kipine girer. false = bayrak kapalı (çağıran eski yola gider);
   /// true = bu yol üstlendi (kipe girildi ya da kullanıcı vazgeçti).
-  Future<bool> _enterProEdit() async {
+  Future<bool> _enterProEdit({int? page, PdfEditSelection? selection}) async {
     if (_pro != null) return true;
     if (!await _proEnabled()) return false;
     final doc = _pdfDoc;
@@ -52,7 +55,12 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
     _clearPdfSelection();
     _readingBars.pinned = true;
     _partSetState(() => _pro = pro);
-    _snack(context.t('pse.hint_tap'));
+    // Okumada seçilen aralık → düzenlemede AYNI aralık seçili açılır (PS1).
+    if (selection != null && page != null && page > 0) {
+      unawaited(_proOpenSelection(pro, page - 1, selection));
+    } else {
+      _snack(context.t('pse.hint_tap'));
+    }
     return true;
   }
 
@@ -79,6 +87,20 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
     final pro = _pro;
     if (pro == null) return true;
     if (pro.busy) return false;
+    // Geri tuşu sırası (etkileşim §8): önce yazma, sonra seçim, sonra kip.
+    if (pro.live != null) {
+      await _proDone();
+      return false;
+    }
+    if (pro.selectedBlock != null ||
+        pro.selectedItem != null ||
+        pro.selectedAnnot != null ||
+        pro.markup != PdfMarkupKind.none) {
+      pro
+        ..markup = pro.markup
+        ..clearSelection();
+      return false;
+    }
     if (pro.session.dirty) {
       final choice = await showUnsavedChanges(context);
       if (!mounted || _pro != pro) return false;
@@ -171,6 +193,30 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
         ], title: context.t('pse.save_as')),
         AppActionGroup(actions: [
           AppAction(
+              value: 'find',
+              icon: AppIcons.findReplace,
+              label: context.t('pse.find_title')),
+          AppAction(
+              value: 'comments',
+              icon: AppIcons.comment,
+              label: context.t('pse.comments')),
+          AppAction(
+              value: 'ai',
+              icon: AppIcons.ai,
+              label: context.t('pse.tool_ai')),
+          AppAction(
+              value: 'legacy',
+              icon: AppIcons.editNote,
+              label: context.t('pse.tool_legacy'),
+              hint: context.t('pse.tool_legacy_hint')),
+          AppAction(
+              value: 'tools',
+              icon: AppIcons.construction,
+              label: context.t('pse.tool_all'),
+              hint: context.t('pse.tool_all_hint')),
+        ]),
+        AppActionGroup(actions: [
+          AppAction(
               value: 'versions',
               icon: AppIcons.history,
               label: context.t('pse.versions')),
@@ -187,6 +233,16 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
         await _proSaveAs(documents: false);
       case 'docs':
         await _proSaveAs(documents: true);
+      case 'find':
+        await _proFindReplace();
+      case 'comments':
+        await _proComments();
+      case 'ai':
+        await _proAi();
+      case 'legacy':
+        await _openPdfEditor(legacy: true);
+      case 'tools':
+        await _openPdfTools();
       case 'versions':
         await _proVersions();
       case 'finish':
@@ -194,24 +250,43 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
     }
   }
 
-  /// Blok katmanından: paragrafın metni levhada düzenlenir, komut olarak
-  /// uygulanır. Ret (PK7) belgeye dokunmaz ve nedeni söylenir.
-  Future<void> _proEditBlock(int pageIndex, PdfTextBlock block) async {
-    final pro = _pro;
-    if (pro == null || pro.busy) return;
-    final refusedGlyph = context.t('pse.refused_glyph');
-    final refused = context.t('pse.refused');
-    final text = await showPdfBlockEditSheet(context, initial: block.text);
-    if (text == null || !mounted || _pro != pro) return;
-    try {
-      await pro.replace(pageIndex, block, text, label: 'pse.step_paragraph');
-      // AI / çeviri / sesli okuma için çıkarılmış metin artık bayat.
-      _pdfText = '';
-    } on PdfEditBridgeRefused catch (e) {
-      _snack(e.glyph ? refusedGlyph : refused);
-    } catch (_) {
-      _snack(refused);
+  /// Görüntüleyici seçimini bloğa eşler ve o aralık seçili olarak yazmayı
+  /// açar. Eşleşme yoksa seçimle en çok örtüşen blok seçilir.
+  Future<void> _proOpenSelection(
+      PdfProEditController pro, int pageIndex, PdfEditSelection sel) async {
+    List<PdfTextBlock>? blocks;
+    for (var i = 0; i < 100 && blocks == null; i++) {
+      blocks = pro.blocksOf(pageIndex);
+      if (blocks == null) {
+        await Future<void>.delayed(Motion.short);
+        if (!mounted || _pro != pro) return;
+      }
     }
+    if (blocks == null || blocks.isEmpty) return;
+    final hit = bestOverlap(sel.rects, [
+      for (final b in blocks) PdfRect(b.left, b.top, b.right, b.bottom),
+    ]);
+    if (hit == null) return;
+    final block = blocks[hit];
+    pro.select(pageIndex, hit);
+    if (!block.editable) {
+      await _proLocked(pageIndex, block);
+      return;
+    }
+    // Seçilen metin blokta geçiyorsa o aralık; yoksa imleç seçimin başında.
+    final text = block.map.text;
+    String norm(String v) => v.replaceAll(RegExp(r'\s+'), ' ').trim();
+    final needle = norm(sel.text);
+    final at = needle.isEmpty ? -1 : text.indexOf(needle);
+    (int, int)? range;
+    int? offset;
+    if (at >= 0) {
+      range = (pdfRuneIndex(text, at), pdfRuneIndex(text, at + needle.length));
+    } else if (sel.rects.isNotEmpty) {
+      final r = sel.rects.first;
+      offset = block.map.offsetAt(r.left, (r.top + r.bottom) / 2);
+    }
+    await _proBegin(pageIndex, block, offset: offset, selection: range);
   }
 
   Future<void> _proUndo() async {

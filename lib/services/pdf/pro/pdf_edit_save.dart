@@ -95,6 +95,21 @@ class PdfEditSaver {
     if (live == null) throw StateError('Oturum bir belgeye bağlı değil.');
     final base = await baseBytes();
     final ops = session.needsReplay ? session.ops : null;
+    // Karartma (Faz 64): belge BAŞTAN yazılır — artımlı kayıtta özgün baytlar
+    // (karartılan metin dahil) dosyanın başında aynen kalırdı.
+    if (session.needsRewrite) {
+      if (ops == null) return live.encodePdf();
+      final fresh =
+          await PdfDocument.openData(base, passwordProvider: password);
+      try {
+        for (final op in ops) {
+          await op.applyTo(fresh);
+        }
+        return await fresh.encodePdf();
+      } finally {
+        await fresh.dispose();
+      }
+    }
     if (ops == null) return _trimmed(base, await _raw(live));
     final fresh = await PdfDocument.openData(base, passwordProvider: password);
     try {
@@ -122,7 +137,12 @@ class PdfEditSaver {
     final baseSize = await File(_basePath ?? path).length();
     try {
       await _ensureBase();
-      await PdfVersionHistory.push(path);
+      if (session.needsRewrite) {
+        // Karartılmamış eski sürümler uygulama içinde de saklanmaz.
+        await PdfVersionHistory.clear(path);
+      } else {
+        await PdfVersionHistory.push(path);
+      }
       await _overwrite(bytes);
     } on FileSystemException {
       final target = await _documentsTarget();

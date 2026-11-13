@@ -68,19 +68,49 @@ kapısı (> %10 ya da p99 > 24 ms → birleşmez). Sıra 43 → 50. A3.4b bu faz
 
 ## Faz E — PDF Pro: profesyonel PDF düzenleyici (2026-11-08, kullanıcı isteği) ☁️💻📱
 Ayrıntı, kök nedenler, mimari kararlar (PK1–PK8) ve bitti ölçütleri: **`docs/PDF_PRO_PLANI.md`**
-(Faz 51–68: külliyat + ölçüm + kanama durdurma · PDFium düzenleme köprüsü + karar kapısı · tasarım
-dili (👤 onay) · oturum çekirdeği + tek yüzey + kaydetme · metin anlama · yazı tipi sadakati ·
-WYSIWYG yerinde düzenleme · metin araçları · nesneler · işaretleme · form/imza · OCR Pro · sayfa
-stüdyosu · güvenlik/çıktı · AI · performans · görsel cila · sürüm adayı + rakip turu).
-Sıra 51 → 68 (atlama yok). Bildirilen 6 sorun (PS1–PS6) Faz 51'de ara, 54/57'de kalıcı çözülür.
-- [x] **Faz 54** — bitti (2026-11-11, dal `faz-54`): `PdfEditSession`, tek yüzey (bayrak `pdf_pro_engine`), artımlı kayıt + sürüm geçmişi, çökme kurtarma, şifreli belge, CI ölçümü (`docs/perf/2026-11-pdfpro-54-oturum.md`).
-- [ ] 📱 **Faz 54 cihaz kapısı:** `docs/CIHAZ_TESTI.md` "PDF Pro Faz 54" 1–12 (tek yüzeyde yakınlaştırma/kaydırma, kayıt/kopya/sürüm geçmişi, çökme kurtarma, şifreli belge) + §6 bütçe sayıları perf raporunun "Cihaz" sütununa. Bitti: koşu kaydı dolu, bütçe aşımı yok.
-- [ ] **Faz 54 ölçüm açıkları:** 50 sayfalık belgede artımlı kayıt süresi ölçülemedi (tezgâhın birleştirilmiş 51 sayfalık belgesinde köprü her düzenlemeyi reddetti — nedeni incelenmedi); tek oturumun ek belleği ayrıştırılmadı. Külliyata tek üreticiden 50 sayfalık belge + `session_bench_test` güncellemesi. Bitti: perf raporunda iki satır sayıyla dolu.
-- [ ] **`PdfEditorScreen` emekliliği (Faz 54 / 2 kalanı):** bayrak kapalıyken hâlâ tek düzenleme yolu. Görsel/filigran/form/OCR işlevleri Faz 57–62'de düzenleme kipine taşındıkça ve `pdf_pro_engine` varsayılan olunca `lib/screens/pdf_editor*` + çalışma kopyası + eski `PdfEditJournal` silinir, testleri taşınır.
-- [ ] **Faz 55** — sıradaki: metin anlama (düzen çözümleme).
-- [ ] 👤 **Faz 53 maket onayı — itiraz varsa düzelt:** https://claude.ai/artifact/PNjvf5wSp5ae2rY56RpNQW (7 kare; kaynak `docs/design/pdf_pro/maket/`, sözleşme `docs/design/pdf_pro/etkilesim.md`). Kullanıcı ekran başında değildi, kapı bloklanmadı; sonraki UX fazları bu maketlerle sürüyor. Yorum/itiraz gelirse maket + belirtim + `PdfEditTokens` düzeltilir.
-- [ ] 👤 **Külliyata eksik üreticiler** (Faz 51'de bu makinede yoktu): LibreOffice "PDF olarak dışa aktar", Google Docs "İndir → PDF", LaTeX (pdfTeX/XeTeX), macOS Quartz (Önizleme/Sayfalar). Uydurma metinle (kişisel veri yok) birer–ikişer PDF üretip `test/fixtures/pdf_corpus/` + `corpus.json`'a eklenir (≤ 300 KB, Yazar alanı boş). Bitti: CORPUS.md'de üretici sayısı 12.
-- [ ] **AES-256 (R6) sahip parolalı belgede kilit açma sayfasız çıktı veriyor** (`wd_sifreli.pdf`, Faz 51 tezgâhı: Syncfusion `removePassword` sonrası "Sayfa bulunamadı"). Faz 52: PDFium yolu R6'yı kendisi açıyor (pdfium-nesne `pageErrors` 0) → PK1 varsayılan olunca bu madde kendiliğinden kapanır; Syncfusion `removePassword` yolu Faz 54'te emekliye ayrılırken silinir.
+(her fazın altında 2026-11-13 **Durum** satırı). Ölçüm: `docs/perf/2026-11-pdfpro-55-65.md`.
+
+**2026-11-13 durumu:** Faz 55 (düzen), 56 (yazı tipi sadakati — motor), 57 (yerinde yazma — kod),
+58 (metin araçları), 59 (nesne — çekirdek), 60 (işaretleme — çekirdek), 64 / 1–2 (gerçek karartma +
+KVKK), 65 / 1–2 (AI yerinde), 66 / 2–3 (bulanık + uzun oturum) yazıldı ve main'de. Yeni kip
+varsayılan (`pdf_pro_engine`), eski düzenleyici ⋮ menüsünde. **Hiçbiri cihazda denenmedi.**
+
+- [ ] 📱 **Cihaz kapısı (EN ÖNCE):** `docs/CIHAZ_TESTI.md` "PDF Pro Faz 55–65" 1–20 + Faz 54'ün 1–12'si.
+      Özellikle: yazarken klavye/IME (Gboard önerisi, sesle yazma), imlecin klavye üstünde kalması,
+      tuş gecikmesi, blok taşıma hassasiyeti, kalem gecikmesi. §6 bütçeleri perf raporunun "cihaz"
+      sütununa. Kırmızı çıkarsa tercih `pdf_pro_engine=false` ile eski yola dönülür.
+- [ ] **Faz 57 artığı:** taşma/çakışma uyarısı + seçenekler (punto küçült · alttakileri it · genişlet);
+      yazı tipi değiştirme + satır aralığı/girinti arayüzü; sistem seçim tutamaçları ve büyüteç;
+      RTL (Arapça) yazma — harf birleştirme yazıcıda yok, blok kilitli.
+- [ ] **Faz 56 artığı:** font seçici (belge fontları → eşleşen aile → paket), isteğe bağlı font paketi
+      (Caladea, Cousine, Gelasio, Noto Naskh…), büyük harf yüksekliği ölçekleme, SSIM ölçümü.
+- [ ] **Başarı %94 → %98:** Type3 (matplotlib) aralık sabitleme; tezgâhın `/Rotate` ve açılı metin
+      ölçümü (düzenleme doğru, tezgâh satır sırasını bulamıyor).
+- [ ] **Faz 58 / 7:** metne bağlantı ekle/düzenle/kaldır.
+- [ ] **Faz 59 artığı:** hizalama kılavuzları + tutunma, çoklu seçim/grup, katmanlar (OCG), kamera/
+      tarama/panodan görsel, saydamlık.
+- [ ] **Faz 60 artığı:** serbest metin/bulut/damga, basınçlı kalem + avuç içi reddi, XFDF,
+      `pdf_ink_screen` emekliliği, `mutool` ile ikinci çizici doğrulaması.
+- [ ] **Faz 61 (yapılmadı):** form + imza tek yüzeye; form oluşturma; düz PDF'te alan algılama.
+- [ ] **Faz 62 (yapılmadı):** OCR Pro — görünmez katman, arka plan renkli satır düzenleme,
+      "sayfayı düzenlenebilir yap".
+- [ ] **Faz 63 (yapılmadı):** sayfa stüdyosu (küçük resim ızgarası, geri alınabilir sayfa komutları,
+      kırpma, üst/alt bilgi, yer imleri). Şimdilik yalnız "sayfayı döndür" geri alınabilir.
+- [ ] **Faz 64 / 3–5 + artık:** parola/izin, meta veri, optimize, PDF/A, yazdır bu kipte yok (araçlar
+      ekranında); karartmada meta veri/gömülü dosya temizliği ve adres kalıpları; görsel pikseli
+      karartma yolunun testi.
+- [ ] **Faz 65 / 3:** form otomatik doldurma, akıllı karartma önerisi.
+- [ ] 💻📱 **Faz 66 / 1, 4, 5 · Faz 67 · Faz 68:** büyük belge/pil ölçümü, görsel cila + tablet +
+      erişilebilirlik + ilk kullanım, rakip turu ve sürüm adayı.
+- [ ] **`PdfEditorScreen` emekliliği:** filigran ve taranmış satır düzeltme yeni kipe taşınınca
+      `lib/screens/pdf_editor*` + çalışma kopyası + eski `PdfEditJournal` silinir.
+- [ ] **Faz 54 ölçüm açıkları:** 50 sayfalık belgede artımlı kayıt süresi, tek oturumun ek belleği
+      (`session_bench_test` güncellemesi — yeni yazıcıyla yeniden denenmedi).
+- [ ] 👤 **Faz 53 maket onayı — itiraz varsa düzelt:** https://claude.ai/artifact/PNjvf5wSp5ae2rY56RpNQW
+      (yüzen blok çubuğu yerine bağlamsal çubuk kullanıldı — `etkilesim.md` §5 notu).
+- [ ] 👤 **Külliyata eksik üreticiler:** LibreOffice, Google Docs, LaTeX, macOS Quartz (CORPUS.md'de 12 üretici).
+- [ ] **AES-256 (R6) kilit açma** — eski Syncfusion yolu; `PdfEditorScreen` emekliliğiyle kapanır.
+- [ ] `graphify update .` (bu oturumda araç yoktu).
 
 ---
 

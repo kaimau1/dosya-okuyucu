@@ -72,6 +72,18 @@ abstract final class PdfVersionHistory {
     }
   }
 
+  /// [path]'in bütün saklanan sürümlerini siler (karartma kaydı: eski,
+  /// karartılmamış hâl geri getirilememeli).
+  static Future<void> clear(String path) async {
+    if (!_usable) return;
+    try {
+      final dir = _dirFor(path);
+      if (await dir.exists()) await dir.delete(recursive: true);
+    } catch (_) {
+      // Bilinçli: silinemeyen geçmiş 14 günde kendiliğinden budanır.
+    }
+  }
+
   /// [path]'in saklanan sürümleri, en yeni üstte. Süresi dolanlar silinir.
   static Future<List<PdfVersion>> list(String path, {DateTime? now}) async {
     if (!_usable) return const [];

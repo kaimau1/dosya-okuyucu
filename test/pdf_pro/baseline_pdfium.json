@@ -1,14 +1,14 @@
 {
- "_not": "Faz 54 tabanı (PDFium nesne motoru + aralık sabitleme + kayıt kırpması). Bilerek iyileşince güncelle; kötüleşme CI kırmızı. growthP50Max = PK1 koşulu 2 (≤ 4 KB).",
+ "_not": "Faz 56–57 tabanı (yazıcı + glif bazlı yedek + düzen çözümleme). Bilerek iyileşince güncelle; kötüleşme CI kırmızı. growthP50Max = PK1 koşulu 2 (≤ 4 KB).",
  "pageErrors": 0,
  "coveragePct": 100.0,
  "same": {
-  "successPct": 81.4,
+  "successPct": 94.0,
   "pixelDirty": 0,
   "growthP50Max": 4096
  },
  "turkish": {
-  "successPct": 44.9,
+  "successPct": 94.0,
   "pixelDirty": 0,
   "growthP50Max": 4096
  }

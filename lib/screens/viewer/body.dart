@@ -242,7 +242,8 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                               page: page,
                               pageSize: pageRect.size,
                               controller: _pro!,
-                              onEdit: _proEditBlock,
+                              events: _proEvents,
+                              zoom: () => _pdfController.currentZoom,
                             )
                           else
                           PdfSelectLayer(

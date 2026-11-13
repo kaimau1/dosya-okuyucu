@@ -74,18 +74,27 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
       ],
       // Konuşma çubuğu belgenin ALTINA eklenmez, üstünde yüzer: eklenince
       // gövdenin boyu değişir, PDF sayfa başına atlardı.
-      body: _ttsTotal == 0
+      body: _ttsTotal == 0 && _pro == null
           ? _buildBody(doc)
           : Stack(
               children: [
                 Positioned.fill(child: _buildBody(doc)),
-                ReadingFloat(gap: 0, child: _speechBar()),
+                if (_ttsTotal != 0) ReadingFloat(gap: 0, child: _speechBar()),
+                // Düzenleme kipi: bağlamsal çubuk / biçim çubuğu gövdenin
+                // üstünde yüzer (gövde boyu değişmez — PS4).
+                if (_pro != null) ..._proOverlays(_pro!),
               ],
             ),
+      // Düzenleme kipinde klavye görüntüleyiciyi küçültmez (PS4).
+      resizeForKeyboard: _pro == null,
       // Etiketli eylem çubuğu — artık her belge türünde (2026-07-28 kullanıcı
       // isteği: "alttaki araç çubuğu güzel, diğer word txt gibi şeylerde de
       // olsun"). Ayrıntı: `widgets/doc_action_bar.dart`.
-      bottomBar: _editingText ? null : _actionBar(doc),
+      bottomBar: _editingText
+          ? null
+          : _pro != null
+              ? _proToolBar(_pro!)
+              : _actionBar(doc),
       // Dairesel FAB: geniş etiketli (.extended) hâli belgenin sağ alt köşesini
       // kapatıyordu; etiket tooltip'e taşındı.
       // Metin seçiliyken ve yerinde düzenlemede AI düğmesi GİZLİ: seçim/

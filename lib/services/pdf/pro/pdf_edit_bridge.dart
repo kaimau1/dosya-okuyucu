@@ -15,18 +15,32 @@
 /// eski nesneler yerine konur ve [PdfEditBridgeRefused] fırlatılır.
 library;
 
+import 'dart:convert';
 import 'dart:ffi';
+import 'dart:io';
+import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
+import 'package:image/image.dart' as img;
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:pdfium_dart/pdfium_dart.dart' as pdfium_bindings;
 import 'package:pdfrx/pdfrx.dart';
 
+import 'pdf_fallback_fonts.dart';
 import 'pdf_incremental_trim.dart';
+import 'pdf_object_types.dart';
 import 'pdf_text_blocks.dart';
+import 'pdf_typeset_types.dart';
 
+export 'pdf_fallback_fonts.dart' show PdfFallbackFonts, PdfTypesetFonts;
+export 'pdf_object_types.dart';
 export 'pdf_text_blocks.dart';
+export 'pdf_typeset_types.dart';
+
+part 'pdf_mutate.dart';
+part 'pdf_typeset.dart';
 
 class PdfEditBridgeRefused implements Exception {
   final String message;
@@ -45,12 +59,26 @@ final _rtl = RegExp(r'[֐-ࣿיִ-﷿ﹰ-﻿]');
 abstract final class PdfEditBridge {
   /// Sayfanın metin nesneleri (sıra, metin, kutu, font, punto, matris).
   static Future<List<PdfTextObjectInfo>> textObjects(
-          PdfDocument doc, int pageIndex) =>
+          PdfDocument doc, int pageIndex) async =>
+      (await content(doc, pageIndex)).texts;
+
+  /// Sayfanın bütün içerik nesneleri: metinler + yol/görsel/form kutuları.
+  static Future<PdfPageContent> content(PdfDocument doc, int pageIndex) =>
       doc.computeOnIdleDocument(_readObjects, pageIndex);
 
   /// Blokları (paragrafları) kurar — [textObjects] + [groupTextBlocks].
-  static Future<List<PdfTextBlock>> blocks(PdfDocument doc, int pageIndex) async =>
-      groupTextBlocks(await textObjects(doc, pageIndex));
+  static Future<List<PdfTextBlock>> blocks(PdfDocument doc, int pageIndex,
+          {PdfBlockMode mode = PdfBlockMode.paragraph}) async =>
+      blocksOf(await content(doc, pageIndex), mode: mode);
+
+  /// [content]'ten bloklar (çizgiler ve sayfa boyu dahil).
+  static List<PdfTextBlock> blocksOf(PdfPageContent content,
+          {PdfBlockMode mode = PdfBlockMode.paragraph}) =>
+      groupTextBlocks(content.texts,
+          mode: mode,
+          pageHeight: content.height,
+          rules: content.rules,
+          bullets: content.bullets);
 
   /// Karakter → nesne sırası (`FPDFText_GetTextObject`); karakter sırası
   /// pdfrx'in `loadText().fullText` sırasıyla aynıdır. Nesnesi olmayan
@@ -58,44 +86,133 @@ abstract final class PdfEditBridge {
   static Future<List<int>> charObjects(PdfDocument doc, int pageIndex) =>
       doc.computeOnIdleDocument(_charObjects, pageIndex);
 
-  /// [block]'un metnini [newText] ile değiştirir: eski nesneler kalkar, aynı
-  /// font, punto, renk ve matrisle satır satır yeni nesneler yazılır (sola
-  /// yaslı sarma, özgün satır aralığı). Satır sayısı artarsa reddeder.
-  /// Başarılıysa sayfanın görüntü önbelleği düşürülür (yalnız o sayfa).
-  static Future<void> replaceBlock(
+  /// [block]'un metnini [newText] ile değiştirir (blok biçimini, hizalamasını
+  /// ve değişmeyen karakterlerin biçimini koruyarak — bkz. [typeset]).
+  /// Satır sayısı artarsa blok aşağı uzar. Reddedilirse
+  /// [PdfEditBridgeRefused]; belge değişmez.
+  static Future<PdfTypesetResult> replaceBlock(
     PdfDocument doc,
     int pageIndex,
     PdfTextBlock block,
-    String newText,
-  ) async {
-    // Sağdan sola yazı (Arapça/İbranice): köprü soldan sağa, harf
-    // birleştirmesiz yazar → görünüşte bozuk ama geri okumada "doğru" çıkan
-    // metin. Sessiz bozulma yerine açık ret (PK7); RTL Faz 55 + 57'de.
-    if (_rtl.hasMatch(block.text) || _rtl.hasMatch(newText)) {
-      throw const PdfEditBridgeRefused(
-          'Sağdan sola yazılan metin henüz düzenlenemiyor.');
+    String newText, {
+    PdfPageContent? content,
+    PdfTypesetFonts? fonts,
+  }) async {
+    final req = PdfBlockRequest.of(pageIndex, block,
+        text: newText.replaceAll(RegExp(r'\s+'), ' ').trim(), content: content);
+    final r = await typeset(doc, req, fonts: fonts);
+    if (!r.ok) throw PdfEditBridgeRefused(r.error ?? 'Düzenlenemedi.', glyph: r.glyph);
+    return r;
+  }
+
+  /// Bir bloğu yazar ([PdfTypesetRequest]). Eksik glif için yedek font
+  /// gerekirse [PdfFallbackFonts]'tan yalnız o harfler alt kümelenip gömülür
+  /// (PK5); [fonts] verilirse art arda çağrılarda (yazarken) yeniden kullanılır.
+  /// Başarılıysa yalnız o sayfanın görüntü önbelleği düşer (PK2).
+  static Future<PdfTypesetResult> typeset(
+    PdfDocument doc,
+    PdfTypesetRequest req, {
+    PdfTypesetFonts? fonts,
+  }) async {
+    final f = fonts ?? PdfTypesetFonts();
+    var r = await doc.computeOnIdleDocument(_typesetEntry, f.apply(req));
+    for (var round = 0; r.error == null && r.need.isNotEmpty && round < 3; round++) {
+      if (!await f.provide(r.family, r.need)) {
+        return const PdfTypesetResult(
+            error: 'Yazdığınız karakterlerden biri kullanılabilir yazı '
+                'tiplerinde yok.',
+            glyph: true);
+      }
+      r = await doc.computeOnIdleDocument(_typesetEntry, f.apply(req));
     }
-    final lines = block.lines;
-    final baselines = [for (final l in lines) l.baseline];
-    final leading = lines.length > 1
-        ? (baselines.first - baselines.last) / (lines.length - 1)
-        : lines.first.size * 1.2;
-    final msg = _ReplaceMsg(
-      pageIndex: pageIndex,
-      objectIndexes: block.objectIndexes,
-      text: newText.replaceAll(RegExp(r'\s+'), ' ').trim(),
-      firstX: lines.first.objects.first.matrix[4],
-      bodyX: lines.length > 1
-          ? lines.skip(1).map((l) => l.objects.first.matrix[4]).reduce(math.min)
-          : lines.first.objects.first.matrix[4],
-      width: block.right - block.left,
-      firstBaseline: baselines.first,
-      leading: leading,
-      maxLines: lines.length,
-    );
-    final err = await doc.computeOnIdleDocument(_replace, msg);
-    if (err != null) throw PdfEditBridgeRefused(err.$1, glyph: err.$2);
-    await doc.reloadPages(pageNumbersToReload: [pageIndex + 1]);
+    if (r.error == null && r.need.isNotEmpty) {
+      return const PdfTypesetResult(
+          error: 'Yedek yazı tipi yüklenemedi.', glyph: true);
+    }
+    if (r.ok && !req.dryRun) {
+      await doc.reloadPages(pageNumbersToReload: [req.pageIndex + 1]);
+    }
+    return r;
+  }
+
+  /// Nesne düzeyi değişiklik (Faz 59): taşı/ölçekle, sil, sıra, renk, şekil ve
+  /// görsel ekleme. Reddedilirse [PdfEditBridgeRefused]; belge değişmez.
+  static Future<void> mutate(PdfDocument doc, PdfMutation m) async {
+    final err = await doc.computeOnIdleDocument(_mutate, await _withPixels(m));
+    if (err != null) throw PdfEditBridgeRefused(err);
+    await doc.reloadPages(pageNumbersToReload: [m.pageIndex + 1]);
+  }
+
+  /// Görsel ekleme işlemlerine piksel verisini yükler: JPEG olduğu gibi
+  /// gömülür, öbür biçimler (saydamlık dahil) BGRA'ya çözülür.
+  static Future<PdfMutation> _withPixels(PdfMutation m) async {
+    if (!m.actions.any((a) => a.kind == 'image' && a.jpeg == null && a.bgra == null)) {
+      return m;
+    }
+    final out = <PdfMutAction>[];
+    for (final a in m.actions) {
+      if (a.kind != 'image' || a.jpeg != null || a.bgra != null) {
+        out.add(a);
+        continue;
+      }
+      final Uint8List bytes;
+      try {
+        bytes = await File(a.file).readAsBytes();
+      } on FileSystemException {
+        throw const PdfEditBridgeRefused('Görsel dosyası okunamadı.');
+      }
+      if (bytes.length > 3 && bytes[0] == 0xFF && bytes[1] == 0xD8) {
+        out.add(a.withPixels(jpeg: bytes));
+        continue;
+      }
+      final decoded = await Isolate.run(() {
+        final im = img.decodeImage(bytes);
+        if (im == null) return null;
+        final rgba = im.convert(numChannels: 4);
+        return (
+          rgba.width,
+          rgba.height,
+          rgba.getBytes(order: img.ChannelOrder.bgra)
+        );
+      });
+      if (decoded == null) {
+        throw const PdfEditBridgeRefused('Görsel çözülemedi.');
+      }
+      out.add(a.withPixels(
+          bgra: decoded.$3, width: decoded.$1, height: decoded.$2));
+    }
+    return PdfMutation(m.pageIndex, out);
+  }
+
+  /// Bir görsel nesnesinin pikselleri (BGRA) — kırpma/dışa aktarma.
+  static Future<PdfImagePixels?> imagePixels(
+          PdfDocument doc, int pageIndex, int objectIndex) =>
+      doc.computeOnIdleDocument(_imagePixels, (pageIndex, objectIndex));
+
+  /// Sayfanın açıklamaları (yorumlar, vurgular, çizimler — bağlantı ve form
+  /// alanları hariç).
+  static Future<List<PdfAnnotInfo>> annotations(
+          PdfDocument doc, int pageIndex) =>
+      doc.computeOnIdleDocument(_annotations, pageIndex);
+
+  /// Açıklama ekler/siler/günceller (gerçek PDF nesnesi — başka okuyucularda
+  /// da görünür ve düzenlenir).
+  static Future<void> annotate(PdfDocument doc, PdfAnnotChange change) async {
+    final err = await doc.computeOnIdleDocument(_annotate, change);
+    if (err != null) throw PdfEditBridgeRefused(err);
+    await doc.reloadPages(pageNumbersToReload: [change.pageIndex + 1]);
+  }
+
+  /// Sayfayı döndürür ([quarterTurns] 0–3; negatif = yalnız oku); önceki
+  /// dönüşü verir (-1 = olmadı).
+  static Future<int> rotatePage(
+      PdfDocument doc, int pageIndex, int quarterTurns) async {
+    final before =
+        await doc.computeOnIdleDocument(_rotatePage, (pageIndex, quarterTurns));
+    if (before >= 0 && quarterTurns >= 0) {
+      await doc.reloadPages(pageNumbersToReload: [pageIndex + 1]);
+    }
+    return before;
   }
 
   /// İşaretli içerik (BDC/MCID — etiketli PDF yapısı) taşıyan nesnelerin
@@ -178,43 +295,42 @@ bool _snapRelease(pdfium_bindings.PDFium p, int docAddr, int snapshot) {
   return true;
 }
 
-class _ReplaceMsg {
-  final int pageIndex;
-  final List<int> objectIndexes;
-  final String text;
-  final double firstX, bodyX, width, firstBaseline, leading;
-  final int maxLines;
-  const _ReplaceMsg({
-    required this.pageIndex,
-    required this.objectIndexes,
-    required this.text,
-    required this.firstX,
-    required this.bodyX,
-    required this.width,
-    required this.firstBaseline,
-    required this.leading,
-    required this.maxLines,
-  });
-}
-
 // ── İşçi izolatında koşan işlevler (gönderilebilir: üst düzey) ────────────
 
-List<PdfTextObjectInfo> _readObjects(
+PdfPageContent _readObjects(
     pdfium_bindings.PDFium p, int docAddr, int pageIndex) {
   final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(docAddr);
   final page = p.FPDF_LoadPage(doc, pageIndex);
-  if (page == nullptr) return const [];
+  if (page == nullptr) return const PdfPageContent([], [], 0, 0);
   final tp = p.FPDFText_LoadPage(page);
   try {
     return using((arena) {
+      // Karakterler nesnesine göre (yazım sırası = metin sayfası sırası).
+      final chars = <int, List<PdfObjChar>>{};
+      if (tp != nullptr) {
+        final ox = arena<Double>(), oy = arena<Double>();
+        final count = p.FPDFText_CountChars(tp);
+        for (var c = 0; c < count; c++) {
+          final obj = p.FPDFText_GetTextObject(tp, c);
+          if (obj == nullptr) continue;
+          p.FPDFText_GetCharOrigin(tp, c, ox, oy);
+          (chars[obj.address] ??= []).add(
+              PdfObjChar(p.FPDFText_GetUnicode(tp, c), ox.value, oy.value, c));
+        }
+      }
       final out = <PdfTextObjectInfo>[];
+      final items = <PdfPageItem>[];
       final n = p.FPDFPage_CountObjects(page);
       for (var i = 0; i < n; i++) {
         final obj = p.FPDFPage_GetObject(page, i);
-        if (p.FPDFPageObj_GetType(obj) != _fpdfPageObjText) continue;
-        out.add(_info(p, arena, obj, tp, i));
+        if (p.FPDFPageObj_GetType(obj) != _fpdfPageObjText) {
+          items.add(_item(p, arena, obj, i));
+          continue;
+        }
+        out.add(_info(p, arena, obj, tp, i, chars[obj.address] ?? const []));
       }
-      return out;
+      return PdfPageContent(
+          out, items, p.FPDF_GetPageWidthF(page), p.FPDF_GetPageHeightF(page));
     });
   } finally {
     if (tp != nullptr) p.FPDFText_ClosePage(tp);
@@ -222,9 +338,101 @@ List<PdfTextObjectInfo> _readObjects(
   }
 }
 
+int _argb(int r, int g, int b, int a) =>
+    (a & 0xFF) << 24 | (r & 0xFF) << 16 | (g & 0xFF) << 8 | (b & 0xFF);
+
+PdfPageItem _item(pdfium_bindings.PDFium p, Arena arena,
+    pdfium_bindings.FPDF_PAGEOBJECT obj, int index) {
+  final l = arena<Float>(), b = arena<Float>(), r = arena<Float>(),
+      t = arena<Float>();
+  p.FPDFPageObj_GetBounds(obj, l, b, r, t);
+  final m = arena<pdfium_bindings.FS_MATRIX>();
+  p.FPDFPageObj_GetMatrix(obj, m);
+  final type = p.FPDFPageObj_GetType(obj);
+  var stroke = false, filled = false, straight = false;
+  var fill = 0, strokeColor = 0, segments = 0, pw = 0, ph = 0;
+  var strokeWidth = 0.0;
+  if (type == 2) {
+    final mode = arena<Int>(), st = arena<Int>();
+    if (p.FPDFPath_GetDrawMode(obj, mode, st) != 0) {
+      stroke = st.value != 0;
+      filled = mode.value != 0;
+    }
+    final cr = arena<UnsignedInt>(), cg = arena<UnsignedInt>(),
+        cb = arena<UnsignedInt>(), ca = arena<UnsignedInt>();
+    if (p.FPDFPageObj_GetFillColor(obj, cr, cg, cb, ca) != 0) {
+      fill = _argb(cr.value, cg.value, cb.value, ca.value);
+    }
+    if (p.FPDFPageObj_GetStrokeColor(obj, cr, cg, cb, ca) != 0) {
+      strokeColor = _argb(cr.value, cg.value, cb.value, ca.value);
+    }
+    final w = arena<Float>();
+    if (p.FPDFPageObj_GetStrokeWidth(obj, w) != 0) strokeWidth = w.value;
+    segments = p.FPDFPath_CountSegments(obj);
+    straight = segments > 0 && segments <= 8;
+    for (var i = 0; straight && i < segments; i++) {
+      // 2 = FPDF_SEGMENT_BEZIERTO
+      if (p.FPDFPathSegment_GetType(p.FPDFPath_GetPathSegment(obj, i)) == 2) {
+        straight = false;
+      }
+    }
+  } else if (type == 3) {
+    final w = arena<UnsignedInt>(), h = arena<UnsignedInt>();
+    if (p.FPDFImageObj_GetImagePixelSize(obj, w, h) != 0) {
+      pw = w.value;
+      ph = h.value;
+    }
+  }
+  var mark = '';
+  if (type == 2 && p.FPDFPageObj_CountMarks(obj) > 0) {
+    final len = arena<UnsignedLong>();
+    final buf = arena<Uint16>(32);
+    if (p.FPDFPageObjMark_GetName(
+                p.FPDFPageObj_GetMark(obj, 0), buf.cast(), 64, len) !=
+            0 &&
+        len.value >= 2) {
+      mark = String.fromCharCodes(buf.asTypedList(len.value ~/ 2 - 1));
+    }
+  }
+  return PdfPageItem(
+    index: index,
+    type: type,
+    mark: mark,
+    left: l.value,
+    bottom: b.value,
+    right: r.value,
+    top: t.value,
+    matrix: [m.ref.a, m.ref.b, m.ref.c, m.ref.d, m.ref.e, m.ref.f],
+    stroke: stroke,
+    filled: filled,
+    straight: straight,
+    fill: fill,
+    strokeColor: strokeColor,
+    segments: segments,
+    strokeWidth: strokeWidth,
+    pixelWidth: pw,
+    pixelHeight: ph,
+  );
+}
+
+String _fontName(pdfium_bindings.PDFium p, Arena arena,
+    pdfium_bindings.FPDF_FONT font) {
+  if (font == nullptr) return '';
+  final len = p.FPDFFont_GetBaseFontName(font, nullptr, 0);
+  if (len <= 1) return '';
+  final buf = arena<Char>(len);
+  p.FPDFFont_GetBaseFontName(font, buf, len);
+  // Bozuk belgede ad geçersiz UTF-8 olabilir (bulanık test bulgusu): çökme
+  // yerine yer tutucu karakterle çözülür.
+  final bytes = buf.cast<Uint8>().asTypedList(len);
+  final end = bytes.indexOf(0);
+  return utf8.decode(end < 0 ? bytes : bytes.sublist(0, end),
+      allowMalformed: true);
+}
+
 PdfTextObjectInfo _info(pdfium_bindings.PDFium p, Arena arena,
     pdfium_bindings.FPDF_PAGEOBJECT obj, pdfium_bindings.FPDF_TEXTPAGE tp,
-    int index) {
+    int index, List<PdfObjChar> chars) {
   final l = arena<Float>(), b = arena<Float>(), r = arena<Float>(),
       t = arena<Float>();
   p.FPDFPageObj_GetBounds(obj, l, b, r, t);
@@ -241,16 +449,13 @@ PdfTextObjectInfo _info(pdfium_bindings.PDFium p, Arena arena,
       text = String.fromCharCodes(buf.asTypedList(len ~/ 2 - 1));
     }
   }
-  var fontName = '';
   final font = p.FPDFTextObj_GetFont(obj);
-  if (font != nullptr) {
-    final len = p.FPDFFont_GetBaseFontName(font, nullptr, 0);
-    if (len > 1) {
-      final buf = arena<Char>(len);
-      p.FPDFFont_GetBaseFontName(font, buf, len);
-      fontName = buf.cast<Utf8>().toDartString();
-    }
-  }
+  final fontName = _fontName(p, arena, font);
+  final quad = arena<pdfium_bindings.FS_QUADPOINTSF>();
+  final hasQuad = p.FPDFPageObj_GetRotatedBounds(obj, quad) != 0;
+  final cr = arena<UnsignedInt>(), cg = arena<UnsignedInt>(),
+      cb = arena<UnsignedInt>(), ca = arena<UnsignedInt>();
+  final hasFill = p.FPDFPageObj_GetFillColor(obj, cr, cg, cb, ca) != 0;
   return PdfTextObjectInfo(
     index: index,
     text: text,
@@ -262,6 +467,19 @@ PdfTextObjectInfo _info(pdfium_bindings.PDFium p, Arena arena,
     fontName: fontName,
     matrix: [m.ref.a, m.ref.b, m.ref.c, m.ref.d, m.ref.e, m.ref.f],
     renderMode: p.FPDFTextObj_GetTextRenderMode(obj).value,
+    fill: hasFill
+        ? _argb(cr.value, cg.value, cb.value, ca.value)
+        : 0xFF000000,
+    fontFlags: font == nullptr ? 0 : p.FPDFFont_GetFlags(font),
+    weight: font == nullptr ? 400 : p.FPDFFont_GetWeight(font),
+    embedded: font != nullptr && p.FPDFFont_GetIsEmbedded(font) == 1,
+    quad: hasQuad
+        ? [
+            quad.ref.x1, quad.ref.y1, quad.ref.x2, quad.ref.y2, //
+            quad.ref.x3, quad.ref.y3, quad.ref.x4, quad.ref.y4,
+          ]
+        : null,
+    chars: chars,
   );
 }
 
@@ -300,231 +518,6 @@ List<int> _charObjects(pdfium_bindings.PDFium p, int docAddr, int pageIndex) {
   } finally {
     if (tp != nullptr) p.FPDFText_ClosePage(tp);
     p.FPDF_ClosePage(page);
-  }
-}
-
-/// null = başarılı; değilse (neden, glif mi).
-///
-/// Önce **prova** (Faz 54 / 0): sayfa geçici bir belgeye kopyalanır, düzenleme
-/// orada yapılır, akış üretilip yeniden ayrıştırılır ve dokunulmamış
-/// satırlarda kayma varsa sabitleme planı çıkarılır. Prova geçmezse canlı
-/// belgeye HİÇ dokunulmaz (PDFium'da üretilmiş akışı geri almanın yolu yok —
-/// geri alma ancak böyle kusursuz). Geçerse canlıda aynı düzenleme + plan,
-/// tek `GenerateContent`.
-(String, bool)? _replace(
-    pdfium_bindings.PDFium p, int docAddr, _ReplaceMsg m) {
-  final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(docAddr);
-  final temp = p.FPDF_CreateNewDocument();
-  if (temp == nullptr) return ('Düzenleme için bellek ayrılamadı.', false);
-  final Map<int, (double, double)?> plan;
-  try {
-    final r = using((arena) {
-      final idx = arena<Int>()..value = m.pageIndex;
-      if (p.FPDF_ImportPagesByIndex(temp, doc, idx, 1, 0) == 0) {
-        return (('Sayfa kopyalanamadı.', false), null);
-      }
-      return _attempt(p, temp, 0, m, null);
-    });
-    if (r.$1 != null) return r.$1;
-    plan = r.$2!;
-  } finally {
-    p.FPDF_CloseDocument(temp);
-  }
-  return _attempt(p, doc, m.pageIndex, m, plan).$1;
-}
-
-/// [plan] null = prova (akışı üretir, sabitleme planını döndürür); değilse
-/// canlı uygulama.
-((String, bool)?, Map<int, (double, double)?>?) _attempt(
-    pdfium_bindings.PDFium p,
-    pdfium_bindings.FPDF_DOCUMENT doc,
-    int pageIndex,
-    _ReplaceMsg m,
-    Map<int, (double, double)?>? plan) {
-  final page = p.FPDF_LoadPage(doc, pageIndex);
-  if (page == nullptr) return (('Sayfa açılamadı.', false), null);
-  try {
-    return using((arena) {
-      final objs = [
-        for (final i in m.objectIndexes) p.FPDFPage_GetObject(page, i)
-      ];
-      if (objs.isEmpty || objs.any((o) => o == nullptr)) {
-        return (('Blok bulunamadı (sayfa değişmiş olabilir).', false), null);
-      }
-      final tpl = objs.first;
-      final font = p.FPDFTextObj_GetFont(tpl);
-      if (font == nullptr) {
-        return (('Bloğun yazı tipi okunamadı.', false), null);
-      }
-      final sizeP = arena<Float>();
-      p.FPDFTextObj_GetFontSize(tpl, sizeP);
-      final size = sizeP.value;
-      final mat = arena<pdfium_bindings.FS_MATRIX>();
-      p.FPDFPageObj_GetMatrix(tpl, mat);
-      final (a, b, c, d) = (mat.ref.a, mat.ref.b, mat.ref.c, mat.ref.d);
-      final rr = arena<UnsignedInt>(), gg = arena<UnsignedInt>(),
-          bb = arena<UnsignedInt>(), aa = arena<UnsignedInt>();
-      final hasFill = p.FPDFPageObj_GetFillColor(tpl, rr, gg, bb, aa) != 0;
-      final mode = p.FPDFTextObj_GetTextRenderMode(tpl);
-
-      pdfium_bindings.FPDF_PAGEOBJECT make(String s, double x, double y) {
-        final o = p.FPDFPageObj_CreateTextObj(doc, font, size);
-        final w = s.toNativeUtf16(allocator: arena);
-        p.FPDFText_SetText(o, w.cast());
-        final mm = arena<pdfium_bindings.FS_MATRIX>();
-        mm.ref
-          ..a = a
-          ..b = b
-          ..c = c
-          ..d = d
-          ..e = x
-          ..f = y;
-        p.FPDFPageObj_SetMatrix(o, mm);
-        if (hasFill) {
-          p.FPDFPageObj_SetFillColor(o, rr.value, gg.value, bb.value, aa.value);
-        }
-        p.FPDFTextObj_SetTextRenderMode(o, mode);
-        return o;
-      }
-
-      final l = arena<Float>(), bt = arena<Float>(), r = arena<Float>(),
-          t = arena<Float>();
-      double measure(String s) {
-        if (s.isEmpty) return 0;
-        final o = make(s, 0, 0);
-        p.FPDFPageObj_GetBounds(o, l, bt, r, t);
-        final w = r.value - l.value;
-        p.FPDFPageObj_Destroy(o);
-        return w;
-      }
-
-      // Sarma: sözcük sözcük, ölçüm PDFium'un kendi glif kutularıyla.
-      final words = m.text.split(' ');
-      final lines = <String>[];
-      var cur = '';
-      // Tek satırlık blok (başlık, hücre dışı satır) kendi genişliğine değil
-      // sayfanın simetrik metin alanına kadar uzayabilir.
-      final width = m.maxLines == 1
-          ? math.max(m.width, p.FPDF_GetPageWidthF(page) - 2 * m.firstX)
-          : m.width;
-      final limit = width + size * 0.5; // kutu glif kenarından ölçüldü
-      for (final w in words) {
-        final cand = cur.isEmpty ? w : '$cur $w';
-        if (cur.isNotEmpty && measure(cand) > limit) {
-          lines.add(cur);
-          cur = w;
-        } else {
-          cur = cand;
-        }
-      }
-      if (cur.isNotEmpty) lines.add(cur);
-      if (lines.length > m.maxLines) {
-        return (
-          (
-            'Metin bloğa sığmıyor: ${lines.length - m.maxLines} satır fazla.',
-            false
-          ),
-          null
-        );
-      }
-
-      // Eski nesneleri sayfadan al (yok etme — doğrulama tutmazsa geri konur).
-      final order = [...m.objectIndexes]..sort();
-      for (final i in order.reversed) {
-        p.FPDFPage_RemoveObject(page, p.FPDFPage_GetObject(page, i));
-      }
-      final created = <pdfium_bindings.FPDF_PAGEOBJECT>[];
-      for (var i = 0; i < lines.length; i++) {
-        final o = make(lines[i], i == 0 ? m.firstX : m.bodyX,
-            m.firstBaseline - i * m.leading);
-        p.FPDFPage_InsertObject(page, o);
-        created.add(o);
-      }
-      // Doğrulama (akış üretilmeden, bellekteki nesnelerden): PDFium yeni
-      // nesnelerden aynı metni geri okuyor mu?
-      final skip = {for (final o in created) o.address};
-      void rollback() {
-        for (final o in created) {
-          p.FPDFPage_RemoveObject(page, o);
-          p.FPDFPageObj_Destroy(o);
-        }
-        for (var k = 0; k < order.length; k++) {
-          p.FPDFPage_InsertObjectAtIndex(
-              page, objs[m.objectIndexes.indexOf(order[k])], order[k]);
-        }
-      }
-
-      if (!_readsBack(p, page, created, m.text)) {
-        rollback();
-        return (
-          ('Yazdığınız karakterlerden biri belgenin yazı tipinde yok.', true),
-          null
-        );
-      }
-      if (plan == null) {
-        // Prova: üret, yeniden ayrıştır, kaymaları sabitlenebilir mi dene.
-        p.FPDFPage_GenerateContent(page);
-        final targets = _driftTargets(p, doc, pageIndex, page, arena, skip);
-        for (final o in objs) {
-          p.FPDFPageObj_Destroy(o);
-        }
-        if (!_pins(p, doc, page, arena, skip, targets, apply: false)) {
-          return (
-            (
-              'Bu düzenleme yakındaki satırların yerini kaydırırdı; '
-                  'sayfa olduğu gibi bırakıldı.',
-              false
-            ),
-            null
-          );
-        }
-        return (null, targets);
-      }
-      if (!_pins(p, doc, page, arena, skip, plan, apply: true)) {
-        rollback(); // prova geçti, canlı tutmadı: hiçbir şey yazılmadan dön
-        return (('Sayfa provadakinden farklı; düzenleme yapılmadı.', false), null);
-      }
-      p.FPDFPage_GenerateContent(page);
-      for (final o in objs) {
-        p.FPDFPageObj_Destroy(o);
-      }
-      return (null, null);
-    });
-  } finally {
-    p.FPDF_ClosePage(page);
-  }
-}
-
-bool _readsBack(pdfium_bindings.PDFium p, pdfium_bindings.FPDF_PAGE page,
-    List<pdfium_bindings.FPDF_PAGEOBJECT> created, String text) {
-  final tp = p.FPDFText_LoadPage(page);
-  if (tp == nullptr) return false;
-  try {
-    final mine = {for (final o in created) o.address};
-    final b = StringBuffer();
-    final n = p.FPDFText_CountChars(tp);
-    var inMine = false;
-    for (var i = 0; i < n; i++) {
-      final obj = p.FPDFText_GetTextObject(tp, i);
-      if (mine.contains(obj.address)) {
-        inMine = true;
-        b.writeCharCode(p.FPDFText_GetUnicode(tp, i));
-      } else if (obj == nullptr && inMine) {
-        // PDFium'un geometriden ÜRETTİĞİ boşluk/satır sonu: nesnesi yok.
-        b.writeCharCode(p.FPDFText_GetUnicode(tp, i));
-      } else {
-        inMine = false;
-      }
-    }
-    // Boşluklar da ŞART: fontta boşluk glifi yoksa (ör. Dart `pdf` paketi
-    // alt kümeleri) sözcükler bitişik çıkar — sessizce "başarılı" denmez.
-    String norm(String s) => s
-        .replaceAll(RegExp(r'[\u0000-\u0008\u000e-\u001f￾]'), '')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-    return norm(b.toString()) == norm(text);
-  } finally {
-    p.FPDFText_ClosePage(tp);
   }
 }
 

@@ -960,3 +960,30 @@ Belgeler: `rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `rl_cok_sayfa.pdf`, `rl_si
 2. Rıza hiç verilmemişken (uygulama verisi temiz) Ayarlar › AI › "Yeni dosyaları otomatik analiz et" aç, yeni dosya indir, uygulamayı öne getir → otomatik tur BAŞLAMAZ, pencere de AÇILMAZ. Bir kez elle AI kullanıp "Gönder" deyince sonraki öne gelişte otomatik tur çalışır.
 3. Bilgisayarla paylaşım (rastgele parola açık) → parola 8 karakter, küçük harf + rakam (ör. `k7m2qx9a`); FTP istemcisi ve tarayıcı bu parolayla girer.
 4. Kişisel derleme: `.apks` dosyasına dokun → "Bu paket kurulsun mu?" penceresi: ad, paket adı, sürüm, (yüklüyse) yüklü sürüm, imza SHA-256; aynı imzalı güncellemede "İmza yüklü uygulamayla aynı". Bu uygulamanın adıyla başka anahtarla imzalı bir `.apks` → kırmızı "Sahte olabilir — kurma" ve kırmızı Kur düğmesi. Vazgeç → hiçbir şey kurulmaz.
+
+## PDF Pro Faz 55–65 — yerinde yazma, araçlar, karartma (2026-11-13, main)
+
+Yeni kip varsayılan: PDF aç → **Düzenle**. Sorun çıkarsa ⋮ → *Eski düzenleyici*.
+Her madde: ✔ / ✘ + not. Bütçe sayıları `docs/perf/2026-11-pdfpro-55-65.md` "cihaz" bölümüne.
+
+1. Word'den çıkmış Türkçe bir PDF: paragrafa dokun (seçilir), yeniden dokun → **imleç dokunduğun harfte**, klavye açılır, sayfa küçülmez/zıplamaz (PS4).
+2. Yaz: harfler sayfada belgenin kendi yazı tipiyle belirir; ğ ü ş ı ö ç İ yazınca yazı tipi/punto değişmez (PS2). Rozet "belge" ↔ "yedek".
+3. Gboard önerisine dokun, otomatik düzeltme, sesle yazma: metin doğru yazılıyor mu, bileşim alt çizgisi görünüyor mu?
+4. Uzun yaz: paragraf aşağı uzuyor, imleç klavyenin + çubuğun üstünde kalıyor mu? Tuş → ekranda gecikme hissi?
+5. Çift dokun = sözcük seçili; uzun bas + sürükle = seçim. B · I · U · üstü çizili · renk · vurgu · hizalama · punto ±.
+6. **Bitti** / bloğun dışına dokun → tek adım; geri al tek dokunuşta eski hâl; ✕ ve geri tuşu yazmayı bırakır.
+7. Okuma kipinde metin seç → *Düzenle*: aynı aralık seçili açılıyor mu (PS1)?
+8. Seçili bloğu gövdesinden sürükle (taşı), sağ tutamaçtan genişlet; yakınlaştırılmışken de.
+9. Bağlamsal çubuk: Kopyala, Çoğalt, hizalama, madde/numara, stil kopyala-yapıştır, Böl/Birleştir, Sil.
+10. Metin kutusu: yonga → boşluğa dokun → yaz; çevredeki yazıyla aynı görünüyor mu?
+11. Bul ve değiştir: belge genelinde, "Tümünü değiştir"; geri al adım adım.
+12. Arapça paragraf: kesik turuncu çerçeve + neden levhası (kilitli).
+13. Görsel aracı: görsel seç, taşı, köşeden büyüt, döndür, kırp, değiştir, dışa aktar, sil; Görsel ekle.
+14. İşaretle: vurgula / altını çiz (metnin üstünden sürükle), kalem (gecikme?), not, dikdörtgen/ok, silgi; Yorumlar paneli.
+15. Kaydet → başka bir okuyucuda (Chrome, Acrobat) aç: metin, açıklamalar ve yazı tipi doğru mu?
+16. **Karart**: bir satırın üstünden sürükle → kaydet → başka okuyucuda o metin seçilemiyor/aranamıyor.
+17. Kişisel verileri bul: TC no / IBAN / telefon / e-posta içeren belgede öneri listesi, seçip karart.
+18. AI (⋮): seçili paragraf → Yeniden yaz / Çevir → öneri levhası → Kabul; anahtar yokken / çevrimdışıyken açık ileti.
+19. Düzenleme kipinde 5 dk boşta: pil/ısı, çubuklar kıpırdamıyor.
+20. Kip içinde uygulamayı öldür → yeniden aç: "Kaydedilmemiş düzenlemeleri geri yükle".
+

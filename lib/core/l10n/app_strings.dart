@@ -37,6 +37,7 @@ part 'strings/31_update.dart';
 part 'strings/32_gallery.dart';
 part 'strings/33_pdf_session.dart';
 part 'strings/34_edition.dart';
+part 'strings/35_pdf_tools.dart';
 
 /// Uygulama metinleri — Türkçe / İngilizce / Arapça.
 ///
@@ -173,4 +174,5 @@ const Map<String, (String, String, String)> _table = {
   ..._t32,
   ..._t33,
   ..._t34,
+  ..._t35,
 };

@@ -1,6 +1,10 @@
 part of '../viewer_screen.dart';
 
 extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
+  /// Seçim varsa seçimin sayfası (düzenleme kipine aktarılır).
+  int? selPageOrNull(PdfEditSelection? s) =>
+      s == null || _pdfSelPage <= 0 ? null : _pdfSelPage;
+
   /// Kalem ekranı; özgün dosyanın üzerine yazıldıysa görüntüleyici tazelenir.
   Future<void> _openInk() async {
     if (!await _confirmLeavePending() || !mounted) return;
@@ -13,14 +17,22 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
   }
 
   /// Tek PDF düzenleme ekranı: metin (paragraf), görsel, filigran ve sayfa.
-  Future<void> _openPdfEditor({int? page, PdfEditSelection? selection}) async {
+  Future<void> _openPdfEditor(
+      {int? page, PdfEditSelection? selection, bool legacy = false}) async {
     // Editör ÖZGÜN dosyanın kopyası üzerinde çalışır; bekleyen düzenlemeler
     // önce kaydedilmezse sessizce kaybolurdu.
-    if (_pro != null) return; // zaten düzenleme kipinde
+    if (_pro != null && !legacy) return; // zaten düzenleme kipinde
     if (!await _confirmLeavePending() || !mounted) return;
     // PDF Pro (Faz 54, bayrak `pdf_pro_engine`): düzenleme bu ekranın kipi —
     // ayrı ekran ve çalışma kopyası yok (PK3). Bayrak kapalıysa eski ekran.
-    if (await _enterProEdit() || !mounted) return;
+    if (!legacy &&
+        (await _enterProEdit(
+                page: page ?? selPageOrNull(selection),
+                selection: selection) ||
+            !mounted)) {
+      return;
+    }
+    if (!mounted) return;
     final saved = await PdfEditorScreen.open(
       context,
       path: widget.doc.path,
