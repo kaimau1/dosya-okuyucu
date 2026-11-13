@@ -321,7 +321,7 @@ class _CardEditorState extends State<_CardEditor> {
                     radius: 16,
                     backgroundColor: c,
                     child: c.toARGB32() == _color
-                        ? const Icon(AppIcons.check,
+                        ? Icon(AppIcons.check,
                             size: 18, color: scheme.onPrimary)
                         : null,
                   ),
