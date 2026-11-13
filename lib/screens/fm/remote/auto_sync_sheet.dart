@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
@@ -31,10 +30,8 @@ class _AutoSyncBody extends StatelessWidget {
   final String fp, name, id;
   const _AutoSyncBody({required this.fp, required this.name, required this.id});
 
-  static String defaultCamera() {
-    final cam = p.join(FmEnv.primaryRoot, 'DCIM', 'Camera');
-    return Directory(cam).existsSync() ? cam : p.join(FmEnv.primaryRoot, 'DCIM');
-  }
+  /// Varsayılan klasör: Kamera (yoksa tur onu sessizce atlar).
+  static String defaultCamera() => p.join(FmEnv.primaryRoot, 'DCIM', 'Camera');
 
   Future<void> _addFolder(BuildContext context, SyncRule? r) async {
     final dest = await Navigator.of(context).push<String>(MaterialPageRoute(

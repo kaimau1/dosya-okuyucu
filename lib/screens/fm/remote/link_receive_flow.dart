@@ -14,6 +14,7 @@ import '../../../services/fm/remote/link_share.dart';
 import '../../../services/fm/remote/peer_crypto.dart';
 import '../../../services/fm/remote/transfer_history.dart';
 import '../../../services/offline_mode.dart';
+import '../../../widgets/app_dialog.dart';
 import '../../../widgets/fm/fm_progress_dialog.dart';
 
 /// "Bağlantıyla gönder"in alıcı yüzü: yapıştırılan / QR'dan okunan bağlantı
@@ -37,7 +38,11 @@ abstract final class LinkReceiveFlow {
   /// Panodaki/yazılan metinden bağlantıyı sorar ve alır.
   static Future<String?> ask(BuildContext context, {required String saveDir}) async {
     final s = AppStrings.of(context);
-    final text = await showAppPromptForLink(context, s);
+    final text = await showAppPrompt(context,
+        title: s.t('link.open'),
+        label: s.t('link.open_hint'),
+        confirmLabel: s.t('link.open_go'),
+        multiline: true);
     if (text == null || !context.mounted) return null;
     final ticket = LinkTicket.parse(text);
     if (ticket == null) {
@@ -45,33 +50,6 @@ abstract final class LinkReceiveFlow {
       return null;
     }
     return run(context, ticket, saveDir: saveDir);
-  }
-
-  static Future<String?> showAppPromptForLink(BuildContext context, AppStrings s) async {
-    final ctrl = TextEditingController();
-    final r = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(s.t('link.open')),
-        content: TextField(
-          key: const ValueKey('link-paste'),
-          controller: ctrl,
-          autofocus: true,
-          minLines: 1,
-          maxLines: 4,
-          decoration: InputDecoration(hintText: s.t('link.open_hint')),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: Text(s.t('common.cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, ctrl.text),
-              child: Text(s.t('link.open_go'))),
-        ],
-      ),
-    );
-    ctrl.dispose();
-    return r;
   }
 
   static Future<String?> run(BuildContext context, LinkTicket ticket,

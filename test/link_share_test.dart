@@ -91,7 +91,7 @@ void main() {
         return http.Response('{}', 200);
       }
       if (req.method == 'GET' && u.host == 'drive.usercontent.google.com') {
-        if (publicHtml) return http.Response('<html>giriş</html>', 200);
+        if (publicHtml) return http.Response('<html>giris</html>', 200);
         final b = store[u.queryParameters['id']];
         return b == null ? http.Response('', 404) : http.Response.bytes(b, 200);
       }
