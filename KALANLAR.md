@@ -83,16 +83,19 @@ varsayılan (`pdf_pro_engine`), eski düzenleyici ⋮ menüsünde. **Hiçbiri ci
       düzeltme/sesle yazma, tuş ve kalem gecikmesi hissi; başka uygulamadan "birlikte aç" + Kaydet
       (salt okunur konum); kaydedilen PDF'in Acrobat/Chrome'da görünümü; AI Yeniden yaz/Çevir
       (anahtar); 5 dk boşta pil/ısı.
-- [ ] **Oturum belleği bütçe dışı:** 3 paragraf düzenlemesi +56 / +65 MB (bütçe +40) — yedek yazı tipi,
-      anlık görüntüler, önbellek payı ayrıştırılmalı.
-- [ ] **§6 gecikme bütçeleri ölçülemedi:** kipe geçiş, dokun→imleç, uygula/geri al p95, 50 sayfa kayıt —
-      uygulamaya `PDFPRO_PERF` zaman damgası logu (profil) eklenip cihazda ölçülmeli.
-- [ ] **Aynı PDF iki kez açık:** kirli düzenleme oturumu yığında dururken aynı dosya yeniden açılınca
-      pdfrx belgeyi paylaşıyor; ikinci görüntüleyici kaydedilmemiş düzenlemeleri temiz "Düzenleme kipi"
-      gibi gösteriyor (oradan Kaydet hepsini yazar). Var olan görüntüleyiciye dönülmeli ya da sorulmalı.
-- [ ] **Küçükler (cihaz):** Çoğalt kopyayı alttaki paragrafın üstüne bindiriyor; büyüyen paragraf
-      alttakinin üstüne biniyor (uyarı yok — Faz 57 artığıyla aynı); dikdörtgen/ok sayfa içeriği olduğu
-      için Silgi silmiyor (Görsel aracıyla siliniyor) — kullanıcıya belirsiz.
+- [ ] 📱 **Oturum belleği bütçe dışı:** 3 paragraf düzenlemesi +56 / +65 MB (bütçe +40). Kod okuması
+      (2026-11-13): asıl aday yerinde yazma sonrası `needsReplay` hep açık → 30 sn'lik geçici kayıt/Kaydet
+      ikinci tam PDFium belgesi açıp yeniden oynatıyor (≈5–6× dosya, yerel yığın geri vermez); ikincisi
+      adım başına sayfa anlık görüntüsünün görsel/font kopyası; yedek font ≤3 MB. Cihazda A/B: geçici
+      kayıt kapalı (`snapshotEvery` uzun) RSS farkı → sonra karar (HAFIZA 2026-11-13).
+- [ ] 📱 **§6 gecikme bütçeleri:** `PDFPRO_PERF` logu eklendi (638e5f75 — kipe_gecis, uygula, geri_al,
+      yinele, kaydet, tus; biçim `docs/perf/2026-11-pdfpro-55-65.md`). Kalan: `.r8test` profil APK'sıyla
+      cihazda topla, p50/p95'i tabloya yaz (dokun→imleç ayrı ölçülmüyor).
+- [x] **Aynı PDF iki kez açık** (dc5b57d3): belgenin tek düzenleme sahibi; ikinci görüntüleyicide Düzenle
+      → düzenleyen görüntüleyiciye dönülür + ileti. 📱 cihazda bir kez dene.
+- [x] **Küçükler** (d1995342): Çoğalt kopyayı alttaki ilk boşluğa koyuyor; Silgi işaretleme şekillerini
+      (yeni çizilen dikdörtgen/ok/elips/çizgi) siliyor. Kalan: büyüyen paragraf alttakinin üstüne biniyor
+      (Faz 57 artığı); bu düzeltmeden önce çizilmiş şekiller yine Görsel aracıyla. 📱 cihazda bir kez dene.
 - [ ] **Faz 57 artığı:** taşma/çakışma uyarısı + seçenekler (punto küçült · alttakileri it · genişlet);
       yazı tipi değiştirme + satır aralığı/girinti arayüzü; sistem seçim tutamaçları ve büyüteç;
       RTL (Arapça) yazma — harf birleştirme yazıcıda yok, blok kilitli.
