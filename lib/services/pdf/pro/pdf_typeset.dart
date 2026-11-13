@@ -50,6 +50,19 @@ void _probe(
       if (!cache.containsKey(c)) c
   ];
   if (todo.isEmpty) return;
+  // Boşluk ölçümü için çapa: bu fontla yazılabildiği bilinen bir harf.
+  var anchor = -1;
+  if (todo.any(_isWs)) {
+    final solid = [for (final c in todo) if (!_isWs(c)) c];
+    // ponytail: çapa adayları sabit; hiçbiri yoksa boşluk glifsiz aralık olur.
+    _probe(p, doc, page, arena, font, cache,
+        [...solid, 0x61, 0x6E, 0x30, 0x41]);
+    anchor = cache.entries
+        .firstWhere((e) => e.value > 0 && !_isWs(e.key),
+            orElse: () => const MapEntry(-1, 0.0))
+        .key;
+    todo.removeWhere((c) => !_isWs(c));
+  }
   // `.notdef` imzası: olmayan bir karakterin glif yolu ve genişliği.
   final w = arena<Float>();
   var notdefSegs = -1;
@@ -67,18 +80,14 @@ void _probe(
     final objs = <int, int>{}; // adres → kod
     final made = <pdfium_bindings.FPDF_PAGEOBJECT>[];
     for (var i = 0; i < part.length; i++) {
-      if (_isWs(part[i])) {
-        // Boşluk tek başına metin sayfasında görünmez: genişliği fonttan,
-        // glifi boş olmalı (dolu ise `.notdef` kutusudur).
-        var adv = -1.0;
-        if (p.FPDFFont_GetGlyphWidth(font, part[i], size, w) != 0 &&
-            w.value > 0) {
-          final gp = p.FPDFFont_GetGlyphPath(font, part[i], size);
-          if (gp == nullptr || p.FPDFGlyphPath_CountGlyphSegments(gp) <= 0) {
-            adv = w.value / size;
-          }
-        }
-        cache[part[i]] = adv;
+      // Boşluk tek başına metin sayfasında görünmez: bilinen bir harfin
+      // arasında yazılır ("a a"), ilerleme iki harfin köken farkından.
+      // KÖK NEDEN (dekont, 2026-11-13): `FPDFFont_GetGlyphWidth` eşlenemeyen
+      // karakterde CID 0'ın genişliğini (DW = 1 em) döndürür; DevExpress alt
+      // kümesinde U+0020 yoktur → sözcük araları 1 em açılıyordu.
+      final ws = _isWs(part[i]);
+      if (ws && anchor < 0) {
+        cache[part[i]] = -1;
         continue;
       }
       final o = p.FPDFPageObj_CreateTextObj(doc, font, size);
@@ -86,7 +95,8 @@ void _probe(
         cache[part[i]] = -1;
         continue;
       }
-      final s = String.fromCharCodes([part[i], part[i]]);
+      final s = String.fromCharCodes(
+          ws ? [anchor, part[i], anchor] : [part[i], part[i]]);
       p.FPDFText_SetText(o, s.toNativeUtf16(allocator: arena).cast());
       // Sayfanın dışında, birbirine değmeyen bir ızgarada.
       mm.ref
@@ -117,11 +127,25 @@ void _probe(
       final code = e.value;
       final g = got[e.key];
       var adv = -1.0;
+      if (_isWs(code)) {
+        // Ortadaki karakter boşluk olarak geri okunmalı (eşlenemeyen kod
+        // boşluk diye okunmaz → glifsiz aralık yoluna düşer).
+        if (g != null &&
+            g.length == 3 &&
+            g[0].$1 == anchor &&
+            _isWs(g[1].$1) &&
+            g[2].$1 == anchor) {
+          adv = (g[2].$2 - g[0].$2) / size - cache[anchor]!;
+          if (adv <= 1e-6) adv = -1;
+        }
+        cache[code] = adv;
+        continue;
+      }
       if (g != null && g.length == 2 && g[0].$1 == code && g[1].$1 == code) {
         adv = (g[1].$2 - g[0].$2) / size;
         if (adv <= 1e-6) adv = -1;
       }
-      if (adv > 0 && !_isWs(code)) {
+      if (adv > 0) {
         final gp = p.FPDFFont_GetGlyphPath(font, code, size);
         if (gp != nullptr) {
           final segs = p.FPDFGlyphPath_CountGlyphSegments(gp);

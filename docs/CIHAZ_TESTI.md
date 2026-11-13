@@ -1063,6 +1063,19 @@ Her madde: ✔ / ✘ + not. Bütçe sayıları `docs/perf/2026-11-pdfpro-55-65.m
   20 ✔ (Faz 54 / 8 ile aynı koşu).
   Son doğrulama nightly 1.2.62 (9197a180): Silgi notu siliyor; "Kaydetme" denen görsel sonraki kayda girmiyor (+5,4 KB, JPEG yok).
 
+## PDF Pro — dekont/tablo satır düzenleme (2026-11-13, main)
+
+Belge: banka e-dekontu ya da benzeri rapor PDF'i ("Etiket : değer" satırları, kutular içinde).
+1. Düzenle → Metin: blok çerçeveleri satır satır mı (etiket ayrı, ": değer" ayrı; alt alta satırlar tek kutuda DEĞİL)?
+2. Bir değere (ör. banka adı) dokun, bir sözcük yaz / sil: sözcük araları açılmıyor, satır aşağı sarılmıyor, öteki satırlar ve ":" sütunu yerinde mi?
+3. **Bitti**: görüntü yazarkenkiyle aynı mı? Geri al eski hâle döndürüyor mu?
+4. IBAN gibi uzun değerin sonuna yaz: satır sağa uzuyor, alttaki etiketin üstüne binmiyor mu?
+5. **Kaydet**: "Nasıl kaydedilsin?" soruyor mu; "Kopya olarak kaydet" → özgün dosya değişmedi, kopya açıldı mı? Kopyada yeniden Kaydet sormadan kaydediyor mu? "Özgün dosyanın üstüne yaz" seçilince aynı dosyada ikinci Kaydet sormuyor mu?
+6. Kaydedilen kopyayı kapat-aç, Düzenle → Metin: satırlar yine ayrı mı?
+
+**Koşu kaydı**
+- (bekliyor)
+
 ## PDF Pro — cihaz bulguları düzeltmesi (2026-11-13, main)
 
 1. Düzenle → Metin: tek parmakla sayfa kayıyor, iki parmakla yakınlaşıyor mu? Blok seçiliyken ve Görsel aracında sayfanın tamamı seçiliyken de.

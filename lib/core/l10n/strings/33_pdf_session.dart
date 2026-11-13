@@ -47,6 +47,13 @@ const Map<String, (String, String, String)> _t33 = {
     "Couldn't undo; the document is unchanged.",
     'تعذّر التراجع؛ المستند كما هو.',
   ),
+  'pse.save_how': ('Nasıl kaydedilsin?', 'How should it be saved?', 'كيف تريد الحفظ؟'),
+  'pse.save_keep_original': (
+    'Kopya olarak kaydet (özgün dosya korunur)',
+    'Save as a copy (keeps the original)',
+    'حفظ كنسخة (يبقى الأصل كما هو)',
+  ),
+  'pse.save_overwrite': ('Özgün dosyanın üstüne yaz', 'Overwrite the original', 'الكتابة فوق الملف الأصلي'),
   'pse.save_as': ('Farklı kaydet', 'Save as', 'حفظ باسم'),
   'pse.save_as_same': ('Aynı klasöre kopya', 'Copy in the same folder', 'نسخة في المجلد نفسه'),
   'pse.save_as_docs': ("Belgeler'e kopya", 'Copy in Documents', 'نسخة في المستندات'),

@@ -78,6 +78,9 @@ varsayılan (`pdf_pro_engine`), eski düzenleyici ⋮ menüsünde. **Hiçbiri ci
 - [x] 📱 **Cihaz kapısı (2026-11-13, Mi Note 10 Lite):** Faz 54 1–12, Faz 55–65 1–20, bulgular 1–5
       koşuldu (`docs/CIHAZ_TESTI.md` koşu kayıtları); 7 hata düzeltildi (90999e27, 56a78ae9, afd39705,
       dc527cf4, 4ecc90f3, 3cc7467b, 9197a180). Kalanlar aşağıda.
+- [x] 💻 **Dekont / tablo satırı düzenleme (2026-11-13, kullanıcı bulgusu):** 1 em boşluk, satır birleşmesi,
+      Kaydet'te kopya/üstüne yaz sorusu — kök nedenler HAFIZA; 📱 doğrulama `docs/CIHAZ_TESTI.md`
+      "PDF Pro — dekont/tablo satır düzenleme" (bekliyor).
 - [ ] 👤 **Elle (kullanıcı):** iki parmak yakınlaştırma (düzenleme, seçim, yakınlaştırılmışken taşıma/yazı);
       Türkçe harf (ğüşıöçİ) ve Çince ret yazımı (adb ASCII dışı yazamıyor); Gboard önerisi/otomatik
       düzeltme/sesle yazma, tuş ve kalem gecikmesi hissi; başka uygulamadan "birlikte aç" + Kaydet
