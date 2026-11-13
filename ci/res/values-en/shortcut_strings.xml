@@ -4,4 +4,5 @@
     <string name="sc_scan">Scan document</string>
     <string name="sc_downloads">Downloads</string>
     <string name="sc_recent">Recently opened</string>
+    <string name="aktar_tile_label">Receive files</string>
 </resources>

@@ -27,6 +27,7 @@ EXPORTED_IZIN="
 .StorageWidget|AppWidget alıcısı (APPWIDGET_UPDATE sistemden gelir)
 .RecentWidget|AppWidget alıcısı (APPWIDGET_UPDATE sistemden gelir)
 .AjanServisi|AppFunctionService; BIND_APP_FUNCTION_SERVICE izniyle korunur
+.AktarKutucuk|Hızlı Ayarlar kutucuğu; yalnız sistem bağlanır (BIND_QUICK_SETTINGS_TILE)
 "
 # Kural 7: ağ soketi/sunucu açabilen dosyalar: dosya|gerekçe
 BIND_IZIN="

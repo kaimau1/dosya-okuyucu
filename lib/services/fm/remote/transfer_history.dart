@@ -119,9 +119,23 @@ class TransferHistory extends ChangeNotifier {
     }
   }
 
+  /// Diskten yeniden okur: "Dosya al" kutucuğu ayrı bir motorda kayıt
+  /// yazar (2026-11-13); iki taraf birbirinin satırını ezmesin.
+  Future<void> reload() async {
+    try {
+      await (await SharedPreferences.getInstance()).reload();
+    } catch (_) {
+      // Bilinçli: yeniden okunamazsa bellekteki liste geçerli kalır.
+      return;
+    }
+    _loading = _load();
+    await _loading;
+  }
+
   Future<void> add(List<TransferRecord> records) async {
     if (records.isEmpty) return;
     await ensureLoaded();
+    await reload();
     _items.insertAll(0, records);
     if (_items.length > limit) _items.removeRange(limit, _items.length);
     notifyListeners();

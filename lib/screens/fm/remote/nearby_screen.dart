@@ -32,6 +32,7 @@ import '../../../services/fm/remote/ftp_service.dart';
 import '../../../services/fm/remote/peer_crypto.dart';
 import '../../../services/fm/remote/peer_share.dart';
 import '../../../services/fm/remote/qr_transfer.dart';
+import '../../../services/fm/remote/tile_receiver.dart';
 import '../../../services/fm/remote/transfer_keeper.dart';
 import '../../../services/fm/remote/transfer_history.dart';
 import '../../../services/fm/remote/trusted_peers.dart';
@@ -368,6 +369,10 @@ class _NearbyScreenState extends State<NearbyScreen> {
     } catch (_) {
       // Bilinçli: kimlik yüklenemezse eski (düz) protokolle sürülür; rozet "şifresiz" der.
     }
+    if (!mounted) return;
+    // "Dosya al" kutucuğu açıksa durur: alıcı artık bu ekranın (onaylı).
+    await TileReceiver.handOver(AppStrings.of(context));
+    unawaited(TransferHistory.instance.reload());
     if (!mounted) return;
     await _startReceiving();
     _hasWifi = (await _wifiAddress()) != null;

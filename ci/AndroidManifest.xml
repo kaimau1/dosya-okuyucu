@@ -585,6 +585,33 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- ── "DOSYA AL" KUTUCUĞU (2026-11-13, ci/Aktar.kt) ────────────────
+             Hızlı Ayarlar kutucuğu alıcı servisini açar/kapatır. Kutucuğa
+             yalnız sistem bağlanabilir (BIND_QUICK_SETTINGS_TILE). Servis
+             ekransız Flutter motorunda Aktar alıcısını koşturur; yalnız
+             anahtarıyla güvenilen cihazdan şifreli dosya alır, 30 dk boşta
+             kapanır. dataSync türü (izin zaten var). stopWithTask="false":
+             uygulama görev listesinden atılsa da kutucuk açık kalır (kendi
+             motoru var). -->
+        <service
+            android:name=".AktarAlServisi"
+            android:foregroundServiceType="dataSync"
+            android:exported="false"
+            android:stopWithTask="false" />
+        <service
+            android:name=".AktarKutucuk"
+            android:exported="true"
+            android:icon="@android:drawable/stat_sys_download"
+            android:label="@string/aktar_tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
+
         <!-- Gemini işlevleri (Ajan.kt; sınıfı KSP üretir, Android 16+):
              son açılanlar / dosya ara / dosya ya da ekran aç. -->
         <service

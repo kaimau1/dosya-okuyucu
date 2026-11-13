@@ -41,6 +41,21 @@ const Map<String, (String, String, String)> _t36 = {
     'تعمل المزامنة عند فتح التطبيق أو عودته للواجهة وأثناء فتح شاشة النقل؛ لا يوجد مسح في الخلفية (البطارية).',
   ),
   'sync.done': ('{n} yeni dosya {name} cihazına eşitlendi', '{n} new files synced to {name}', 'تمت مزامنة {n} ملفات جديدة مع {name}'),
+  'tile.channel': ('Dosya alımı', 'Receiving files', 'استلام الملفات'),
+  'tile.title': ('Dosya alımı açık', 'Receiving is on', 'الاستلام مفعّل'),
+  'tile.body': (
+    'Güvenilen cihazlar şifreli dosya gönderebilir · 30 dk boşta kapanır',
+    'Trusted devices can send encrypted files · turns off after 30 min idle',
+    'يمكن للأجهزة الموثوقة إرسال ملفات مشفّرة · يتوقف بعد 30 دقيقة خمول',
+  ),
+  'tile.stop': ('Kapat', 'Turn off', 'إيقاف'),
+  'tile.got': ('Dosya alındı', 'File received', 'تم استلام ملف'),
+  'tile.refused': (
+    'Güvenilmeyen cihazın isteği reddedildi',
+    'Request from an untrusted device was refused',
+    'رُفض طلب من جهاز غير موثوق',
+  ),
+  'tile.open': ('Almak için Aktar\'ı aç', 'Open Transfer to receive', 'افتح النقل للاستلام'),
   'link.title': ('Bağlantıyla gönder (internet)', 'Send as a link (internet)', 'إرسال كرابط (إنترنت)'),
   'link.sub': (
     'Aynı Wi-Fi gerekmez: dosya telefonda şifrelenip kendi Google Drive\'ına yüklenir; bağlantıyı alan Dosya Okuyucu\'da açar',
