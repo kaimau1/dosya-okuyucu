@@ -751,7 +751,8 @@ class PdfProEditController extends ChangeNotifier {
               ..glyphError = r.glyph;
           }
         } catch (e) {
-          live.error = '$e';
+          // Arayüz hatanın metnini göstermez (yalnız "yazılamadı" durumunu).
+          live.error = e.runtimeType.toString();
         }
         _notify();
       } while (_livePending && !_closed && identical(_live, live));

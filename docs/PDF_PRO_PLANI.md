@@ -455,7 +455,7 @@ iki cihazda bütçe; widget + golden testler.
 4. [ ] Pil/ısı: 10 dk sürekli düzenleme CPU süresi; boşta 0 kare (düzenleme kipinde de).
 5. [ ] İki cihazda (MatePad + Xiaomi/Mi Note 10 Lite) tam ölçüm; `docs/perf/2026-11-pdfpro-66.md`.
 **Bitti:** §6 bütçelerinin tamamı iki cihazda; fuzz CI'da düzenli koşu.
-**Durum (2026-11-13):** madde 2–3 bitti (`test/fuzz/pdf_pro_fuzz_test.dart`: 84 bozuk belge, çökme 0; 120 düzenleme + geri al/yinele, gecikme 13,9 → 12,6 ms). 1, 4, 5 cihaz ister (📱).
+**Durum (2026-11-13):** madde 2–3 bitti (`test/pdf_pro/pdf_pro_robust_test.dart`: 84 bozuk belge, çökme 0; 120 düzenleme + geri al/yinele, gecikme 13,9 → 12,6 ms). 1, 4, 5 cihaz ister (📱).
 
 ### Faz 67 — Görsel cila, tablet, erişilebilirlik, ilk kullanım ☁️ + 📱 (2 oturum)
 1. [ ] Faz 53 maketlerine piksel uyumu denetimi (golden + cihaz ekran görüntüsü karşılaştırması),

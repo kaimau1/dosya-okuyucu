@@ -1,8 +1,7 @@
 // PDF Pro Faz 66 / 2–3: bozuk belgelerle köprü + çözümleyici (çökme 0) ve
-// uzun oturum (çok düzenleme + geri al/yinele: gecikme sabit). Tam takımda
-// ve test/fuzz/ değişince koşar. Gerçek PDFium (CI: PDFIUM_PATH).
-@Tags(['fuzz'])
-library;
+// uzun oturum (çok düzenleme + geri al/yinele: gecikme sabit). Gerçek PDFium
+// (CI: PDFIUM_PATH — bu yüzden `fuzz` etiketli adımda değil, PDF Pro
+// testleriyle birlikte koşar).
 
 import 'dart:io';
 import 'dart:math';
