@@ -189,10 +189,25 @@ extension _NearbySections on _NearbyScreenState {
                   color: Paper.success(context)),
               title: Text(t.name, maxLines: 1, overflow: TextOverflow.ellipsis),
               subtitle: t.keyed ? Text(context.t('g5.trusted_keyed')) : null,
-              trailing: IconButton(
-                tooltip: context.t('near.untrust'),
-                icon: const Icon(AppIcons.close),
-                onPressed: () => unawaited(TrustedPeers.instance.remove(t)),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (t.keyed)
+                    IconButton(
+                      tooltip: context.t('sync.menu'),
+                      icon: Icon(AppIcons.sync,
+                          color: AutoSync.instance.rule(t.fp)?.on ?? false
+                              ? Paper.success(context)
+                              : null),
+                      onPressed: () => unawaited(showAutoSyncSheet(context,
+                          fp: t.fp, name: t.name, id: t.id)),
+                    ),
+                  IconButton(
+                    tooltip: context.t('near.untrust'),
+                    icon: const Icon(AppIcons.close),
+                    onPressed: () => unawaited(TrustedPeers.instance.remove(t)),
+                  ),
+                ],
               ),
             ),
         ],

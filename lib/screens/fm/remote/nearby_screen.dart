@@ -26,6 +26,7 @@ import '../../../services/fm/entry_opener.dart';
 import '../../../services/fm/fm_env.dart';
 import '../../../services/fm/fs_scan.dart';
 import '../../../services/fm/notification_hub.dart';
+import '../../../services/fm/remote/auto_sync.dart';
 import '../../../services/fm/remote/ble_nearby.dart';
 import '../../../services/fm/remote/ftp_service.dart';
 import '../../../services/fm/remote/peer_crypto.dart';
@@ -45,6 +46,7 @@ import '../../../widgets/section_header.dart';
 import '../browser_screen.dart';
 import '../download_manager_screen.dart';
 import '../folder_picker_screen.dart';
+import 'auto_sync_sheet.dart';
 import 'ftp_server_screen.dart';
 import 'link_share_card.dart';
 import 'qr_receive_flow.dart';
@@ -307,6 +309,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
     _appClip = context.read<AppState>().clipboardState..addListener(_onAppClip);
     unawaited(TransferHistory.instance.ensureLoaded());
     unawaited(TrustedPeers.instance.ensureLoaded());
+    unawaited(AutoSync.instance.ensureLoaded());
     if (widget.services) unawaited(_boot());
     if (widget.services) {
       unawaited(_probeClipboard());
@@ -397,6 +400,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
       if (!mounted) return;
       // Kendi cevabımız (aynı telefonun alıcısı) listeye girmez.
       if (peer.id.isNotEmpty && peer.id == _id) return;
+      _maybeSync(peer);
       setState(() {
         final key = peer.id.isNotEmpty ? peer.id : peer.key;
         final n = _near.putIfAbsent(key, () => _Near(key, peer.name));

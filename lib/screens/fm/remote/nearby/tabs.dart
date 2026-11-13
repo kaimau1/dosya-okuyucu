@@ -205,6 +205,10 @@ extension _NearbyTabs on _NearbyScreenState {
                           n.wifi?.id ?? n.ble?.id ?? '',
                           n.wifi?.fingerprint ?? ''),
                       onTap: () => _tapPeer(n),
+                      onLongPress: n.wifi?.secure ?? false
+                          ? () => unawaited(showAutoSyncSheet(context,
+                              fp: n.wifi!.fingerprint, name: n.name, id: n.wifi!.id))
+                          : null,
                     );
                   },
                 ),

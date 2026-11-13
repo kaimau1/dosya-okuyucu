@@ -24,6 +24,23 @@ const Map<String, (String, String, String)> _t36 = {
     'sending again resumes where it stopped',
     'عند الإرسال مجددًا يُستأنف من حيث توقف',
   ),
+  'sync.title': ('{name} ile otomatik eşitle', 'Auto-sync with {name}', 'مزامنة تلقائية مع {name}'),
+  'sync.menu': ('Otomatik eşitleme', 'Auto-sync', 'مزامنة تلقائية'),
+  'sync.explain': (
+    'Açınca seçtiğin klasörlere bundan SONRA gelen dosyalar, bu cihazla aynı Wi-Fi\'de karşılaşınca kendiliğinden gider — yalnız şifreli ve yalnız bu cihazın anahtarına.',
+    'When on, files added to the chosen folders from NOW on are sent automatically when this device is on the same Wi-Fi — encrypted, and only to this device\'s key.',
+    'عند التفعيل تُرسل الملفات المضافة إلى المجلدات المختارة من الآن تلقائيًا عند وجود هذا الجهاز على نفس Wi-Fi — مشفّرة وفقط لمفتاح هذا الجهاز.',
+  ),
+  'sync.on': ('Otomatik eşitleme açık', 'Auto-sync on', 'المزامنة التلقائية مفعّلة'),
+  'sync.add': ('Klasör ekle', 'Add folder', 'إضافة مجلد'),
+  'sync.pick': ('Bu klasörü eşitle', 'Sync this folder', 'مزامنة هذا المجلد'),
+  'sync.remove': ('Klasörü çıkar', 'Remove folder', 'إزالة المجلد'),
+  'sync.when': (
+    'Eşitleme uygulama açılınca ya da öne gelince ve Aktar ekranı açıkken olur; arka planda tarama yapılmaz (pil).',
+    'Syncing runs when the app opens or comes to the front, and while Transfer is open; there is no background scanning (battery).',
+    'تعمل المزامنة عند فتح التطبيق أو عودته للواجهة وأثناء فتح شاشة النقل؛ لا يوجد مسح في الخلفية (البطارية).',
+  ),
+  'sync.done': ('{n} yeni dosya {name} cihazına eşitlendi', '{n} new files synced to {name}', 'تمت مزامنة {n} ملفات جديدة مع {name}'),
   'link.title': ('Bağlantıyla gönder (internet)', 'Send as a link (internet)', 'إرسال كرابط (إنترنت)'),
   'link.sub': (
     'Aynı Wi-Fi gerekmez: dosya telefonda şifrelenip kendi Google Drive\'ına yüklenir; bağlantıyı alan Dosya Okuyucu\'da açar',

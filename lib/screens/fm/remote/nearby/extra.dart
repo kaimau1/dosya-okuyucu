@@ -45,4 +45,19 @@ extension _NearbyExtra on _NearbyScreenState {
     ));
   }
 
+
+  /// Otomatik eşitleme (2026-11-13): kuralı açık, şifreli bir eş görününce
+  /// yeni dosyaları gönderir ([AutoSync]; tek seferde bir tur).
+  void _maybeSync(Peer peer) {
+    final me = _key;
+    if (me == null || !peer.secure || _out != null) return;
+    if (!(AutoSync.instance.rule(peer.fingerprint)?.on ?? false)) return;
+    unawaited(AutoSync.instance
+        .runFor(peer, me: me, name: _deviceName, id: _id)
+        .then((n) {
+      if (n > 0 && mounted) {
+        showSnack(context, context.t('sync.done', {'n': n, 'name': peer.name}));
+      }
+    }));
+  }
 }

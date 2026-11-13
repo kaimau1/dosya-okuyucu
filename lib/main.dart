@@ -72,6 +72,7 @@ import 'services/ai_pool.dart';
 import 'services/offline_mode.dart';
 import 'widgets/ai_send_consent.dart';
 import 'services/diag_report.dart';
+import 'services/fm/remote/auto_sync.dart';
 import 'services/voice/neural_engine.dart';
 
 /// Tüm uygulama [OfflineAwareClient] bölgesinde: çevrimdışı kipin tek
@@ -199,7 +200,12 @@ Future<void> _main() async {
     WidgetsBinding.instance.addPostFrameCallback((_) => _openLink(link));
   }));
   // Uygulama arka plana geçince widget'ın "son dosyalar"ı tazelenir.
-  AppLifecycleListener(onPause: () => unawaited(NativeExtras.updateWidgets()));
+  // Öne gelişte: otomatik klasör eşitleme kuralı varsa güvenilen eşi arar
+  // (AutoSync; kural yoksa ağa çıkmaz, 5 dk'da en çok bir tur).
+  AppLifecycleListener(
+    onPause: () => unawaited(NativeExtras.updateWidgets()),
+    onResume: () => unawaited(AutoSync.instance.sweep()),
+  );
   JobQueue.instance.reporter = jobNotifications;
   // Dosya taşınınca/adı değişince YOL ANAHTARLI yan kayıtlar da taşınmalı:
   // etiketler ve açılma geçmişi dosyayı yolundan tanıyor. Bu kanca bağlı
@@ -262,6 +268,7 @@ Future<void> _main() async {
   );
   // Play derlemesi (A6.6): Play'in kendi uygulama içi güncellemesi.
   StartupQueue.instance.add('play-update', PlayStore.runOnStartup);
+  StartupQueue.instance.add('aktar-esitle', AutoSync.instance.sweep);
   PlayStore.downloaded.addListener(_offerPlayRestart);
   runApp(
     AppProviders(

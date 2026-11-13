@@ -102,6 +102,9 @@ class _PeerAvatar extends StatelessWidget {
   /// Güvenilen cihaz: adın yanında rozet (teklifi sorulmadan alınır).
   final bool trusted;
 
+  /// Uzun basış (şifreli eş): otomatik eşitleme ayarı.
+  final VoidCallback? onLongPress;
+
   const _PeerAvatar({
     required this.name,
     required this.wifi,
@@ -109,6 +112,7 @@ class _PeerAvatar extends StatelessWidget {
     required this.onTap,
     this.busy = false,
     this.trusted = false,
+    this.onLongPress,
   });
 
   static const _hues = [
@@ -128,6 +132,7 @@ class _PeerAvatar extends StatelessWidget {
         opacity: busy ? 0.45 : 1,
         child: InkWell(
         onTap: onTap,
+        onLongPress: onLongPress,
         borderRadius: BorderRadius.circular(Radii.card),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: Gap.xs),

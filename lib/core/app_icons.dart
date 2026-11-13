@@ -26,6 +26,7 @@ abstract final class AppIcons {
   static const IconData more = Icons.more_vert_rounded;
   static const IconData moreHoriz = Icons.more_horiz_rounded;
   static const IconData close = Icons.close_rounded;
+  static const IconData sync = Icons.sync_rounded;
   static const IconData back = Icons.arrow_back_rounded;
   static const IconData chevron = Icons.chevron_right_rounded;
   static const IconData add = Icons.add_rounded;
