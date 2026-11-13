@@ -49,13 +49,12 @@ class DashboardLayout extends ChangeNotifier {
     'recent',
     'drive',
     'apps',
-    // **Yeni kart** (2026-11-13): kullanıcının kendi kartını açtığı kutu.
-    // Kartların kendisi `card:<id>` kimliğiyle dinamik ([isDynamic]).
-    'new_card',
   ];
 
-  /// Kullanıcı kartları — bilinen listede yok ama kaydı korunur.
-  static bool isDynamic(String id) => id.startsWith('card:');
+  /// Kullanıcı kartları (`card:<id>`) ve **Yeni kart** kutusu (2026-11-13) —
+  /// sabit listede yok; ilk görülüşte sıranın SONUNA eklenir, kaydı korunur.
+  static bool isDynamic(String id) =>
+      id == 'new_card' || id.startsWith('card:');
 
   /// "Yeni kimlik görünür eklenir" kuralının BİLİNÇLİ istisnası (K16 (b)):
   /// mevcut kullanıcının panosu güncellemeyle kendiliğinden değişmesin.
@@ -202,7 +201,7 @@ class DashboardLayout extends ChangeNotifier {
     for (final t in items) {
       final id = idOf(t);
       if (isDynamic(id) && !_tileOrder.contains(id)) {
-        final at = _tileOrder.indexOf('new_card');
+        final at = id == 'new_card' ? -1 : _tileOrder.indexOf('new_card');
         at < 0 ? _tileOrder.add(id) : _tileOrder.insert(at, id);
       }
     }
