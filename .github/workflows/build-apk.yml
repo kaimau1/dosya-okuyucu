@@ -382,7 +382,13 @@ jobs:
           # Ad `changes` işinde hesaplandı (tool/surum_hesapla.sh); derleme no = koşu no.
           NAME="${{ needs.changes.outputs.surum }}"
           PATCH=${{ github.run_number }}
-          sed -i -E "s/^const appVersionPatch = [0-9]+;/const appVersionPatch = ${NAME##*.};/" "$F"
+          # ANA/ARA da addan yazılır: başlıktaki [minor] ARA'yı yalnız adda
+          # artırır, dosyada elle yazılan eski ARA kalırsa uygulama kendini
+          # eski sürüm sanar ve aynı güncellemeyi sonsuz önerir (1.3.3 hatası).
+          IFS=. read -r V_MAJOR V_MINOR V_PATCH <<<"$NAME"
+          sed -i -E "s/^const appVersionMajor = [0-9]+;/const appVersionMajor = $V_MAJOR;/" "$F"
+          sed -i -E "s/^const appVersionMinor = [0-9]+;/const appVersionMinor = $V_MINOR;/" "$F"
+          sed -i -E "s/^const appVersionPatch = [0-9]+;/const appVersionPatch = $V_PATCH;/" "$F"
           sed -i -E "s/^const appBuildNumber = [0-9]+;/const appBuildNumber = $PATCH;/" "$F"
           sed -i -E "s/^version: [0-9]+\.[0-9]+\.[0-9]+\+[0-9]+/version: $NAME+$PATCH/" pubspec.yaml
           # Etiket ya da elle AAB isteği → tam derleme (arm + arm64 + AAB).
