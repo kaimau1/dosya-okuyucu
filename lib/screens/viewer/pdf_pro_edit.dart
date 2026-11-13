@@ -4,6 +4,11 @@ part of '../viewer_screen.dart';
 /// olmadı.
 enum _ProSaved { overwritten, copied, failed }
 
+/// Kaydet'in sormadan üstüne yazabileceği dosyalar: kullanıcının "üstüne yaz"
+/// dediği özgünler ve bizim kaydettiğimiz kopyalar.
+// ponytail: yalnız bu uygulama koşusu için; kalıcı tercih istenirse ayara taşınır.
+final _proOverwriteOk = <String>{};
+
 /// **PDF Pro düzenleme kipi** (Faz 54, PK2 + PK3): düzenleme görüntüleyicinin
 /// bir kipidir — ekran, belge, yakınlaştırma ve kaydırma değişmez; çalışma
 /// kopyası yoktur. Gizli bayrak `pdf_pro_engine` açıkken "Düzenle" buraya
@@ -356,13 +361,38 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
     _pdfText = '';
   }
 
-  /// Kaydet: özgüne artımlı yaz; yazılamıyorsa kopya Belgeler'e düşer ve
-  /// görüntüleyici kopyaya geçer.
+  /// Kaydet: dosyada ilk kez soruluyor — kopya (varsayılan; özgün korunur) ya
+  /// da özgünün üstüne (artımlı). Üstüne yazılamıyorsa kopya Belgeler'e düşer
+  /// ve görüntüleyici kopyaya geçer.
   Future<_ProSaved> _proSave() async {
     final pro = _pro;
     if (pro == null || pro.busy) return _ProSaved.failed;
     final saved = context.t('pse.saved');
     final failed = context.t('pse.save_failed');
+    if (!_proOverwriteOk.contains(widget.doc.path)) {
+      final pick = await showAppActionSheet<String>(
+        context,
+        title: context.t('pse.save_how'),
+        groups: [
+          AppActionGroup(actions: [
+            AppAction(
+                value: 'copy',
+                icon: AppIcons.copy,
+                label: context.t('pse.save_keep_original')),
+            AppAction(
+                value: 'over',
+                icon: AppIcons.edit,
+                label: context.t('pse.save_overwrite')),
+          ]),
+        ],
+      );
+      if (pick == null || !mounted || _pro != pro) return _ProSaved.failed;
+      if (pick == 'copy') {
+        await _proSaveAs(documents: false);
+        return _ProSaved.copied;
+      }
+      _proOverwriteOk.add(widget.doc.path);
+    }
     try {
       final r = await pro.save();
       if (r.overwritten) {
@@ -423,6 +453,7 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
     }
     if (navigator.mounted) navigator.pop();
     showSnackOn(messenger, message);
+    _proOverwriteOk.add(copy);
     await openSavedPdf(copy);
   }
 
