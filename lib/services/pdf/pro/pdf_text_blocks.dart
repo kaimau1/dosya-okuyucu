@@ -878,11 +878,14 @@ double _firstWordWidth(PdfTextLine l) {
 
 List<PdfTextBlock> _paragraphs(List<PdfTextLine> lines, List<PdfRule> rules,
     List<(double, double)> bullets) {
-  // Sütunun sağ kenarı: aynı soldan başlayan satırların en sağı.
+  // Sütunun sağ kenarı: aynı soldan başlayan YAKIN satırların en sağı.
+  // Uzaktaki geniş paragraflar sayılmaz: daraltılmış/taşınmış dar paragraf
+  // (cihaz 2026-11-13) her satırda "erken bitti" sayılıp satırlara bölünüyordu.
   double colRight(PdfTextLine l) {
     var r = l.frameRight;
     for (final o in lines) {
-      if ((o.frameLeft - l.frameLeft).abs() < l.size * 4 &&
+      if ((o.frameBase - l.frameBase).abs() < l.size * 3 &&
+          (o.frameLeft - l.frameLeft).abs() < l.size * 4 &&
           (o.size - l.size).abs() < l.size * 0.12) {
         r = math.max(r, o.frameRight);
       }

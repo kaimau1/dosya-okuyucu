@@ -27,6 +27,33 @@ void main() {
     expect(all, contains('arasında yapılan'));
   });
 
+  test('taşınıp daraltılan paragraf tek blok kalır (satırlara bölünmez)',
+      () async {
+    // Cihaz 2026-11-13: dar, sağı tırtıklı paragraf sayfadaki geniş
+    // paragraflarla aynı soldan başlayınca her satırı ayrı blok oluyordu.
+    final doc = await _open('wd_mektup_logo.pdf');
+    addTearDown(doc.dispose);
+    Future<PdfTextBlock> target() async => PdfEditBridge.blocksOf(
+            await PdfEditBridge.content(doc, 0))
+        .firstWhere((b) => b.text.startsWith('Ağaçların'));
+    var b = await target();
+    await PdfEditBridge.replaceBlock(
+        doc, 0, b, b.text.replaceFirst('ücretsiz', 'aaücretsiz'));
+    b = await target();
+    var c = await PdfEditBridge.content(doc, 0);
+    expect((await PdfEditBridge.typeset(
+            doc, PdfBlockRequest.of(0, b, dy: -230, content: c)))
+        .ok, isTrue);
+    b = await target();
+    c = await PdfEditBridge.content(doc, 0);
+    expect((await PdfEditBridge.typeset(doc,
+            PdfBlockRequest.of(0, b, width: b.frameWidth * 0.55, content: c)))
+        .ok, isTrue);
+    b = await target();
+    expect(b.lines.length, greaterThan(4));
+    expect(b.text, contains('daha az bellek kullanıyor'));
+  });
+
   test('blok değişir, pdfium geri okur, artımlı kayıt özgün baytları korur',
       () async {
     final bytes = File('test/fixtures/pdf_corpus/rl_paragraflar.pdf')
