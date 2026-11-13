@@ -170,6 +170,23 @@ Plan: `docs/GUVENLIK_PLANI.md` (G0–G12; sıra ve açılış istemi orada). Pla
 
 ---
 
+## Faz H — Görünüm ve his: "Ferrari planı" (2026-11-14, kullanıcı isteği) ☁️💻📱👤
+Ayrıntı, kurallar, madde madde yapılış ve açılış istemi: `docs/FERRARI_PLANI.md`. Bitti ölçütü: §2'deki 10 işlemde
+Samsung Dosyalarım ile yan yana videoda geride görünmemek (H12 kapısı). Plan sürerken yeni özellik açılmaz.
+- [ ] H0 Ölçüm tabanı ve rakip videosu 📱💻
+- [ ] H1 PDF açılış hissi ☁️ (H1.4 📱) — ön iş yapıldı: form taraması baş+son, yan şerit gecikmesi (PR #90)
+- [ ] H2 PDF kaydırma akıcılığı 📱💻
+- [ ] H3 PDF okuma konforu ☁️📱
+- [ ] H4 Dosya listesi: Samsung düzeyi ☁️
+- [ ] H5 Ana ekran sadeleştirme ☁️👤
+- [ ] H6 Hareket ve dokunuş ☁️
+- [ ] H7 Sadeleştirme: bildirim, menü, ipucu ☁️👤
+- [ ] H8 Video kırpma / kesme ☁️📱
+- [ ] H9 Tablet ☁️📱
+- [ ] H10 Boş, yükleniyor, hata durumları ☁️
+- [ ] H11 Görüntüleyici kabuğu tutarlılığı ☁️
+- [ ] H12 Son kapı 📱👤
+
 ## Faz B — Diğerleri 📱💻👤
 
 ### B1 — Yerel Windows oturumu küçük işleri 💻
