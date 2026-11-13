@@ -88,7 +88,10 @@ varsayılan (`pdf_pro_engine`), eski düzenleyici ⋮ menüsünde. **Hiçbiri ci
       ikinci tam PDFium belgesi açıp yeniden oynatıyor (≈5–6× dosya, yerel yığın geri vermez); ikincisi
       adım başına sayfa anlık görüntüsünün görsel/font kopyası; yedek font ≤3 MB. Cihazda A/B: geçici
       kayıt kapalı (`snapshotEvery` uzun) RSS farkı → sonra karar (HAFIZA 2026-11-13).
-- [ ] 📱 **§6 gecikme bütçeleri:** `PDFPRO_PERF` logu eklendi (638e5f75 — kipe_gecis, uygula, geri_al,
+      **A/B (2026-11-13, Mi Note 10 Lite, 50 sayfa, TOTAL PSS):** normal 400 / 337 MB · kayıt kapalı 368 / 363 MB →
+      fark yok (gürültü); geçici kayıt suçlu DEĞİL. Öneri: kurtarma davranışı DEĞİŞMESİN; bütçe aşımı için sıradaki aday
+      adım başına sayfa anlık görüntüsü + yedek font (PSS mutlak; tek-oturum taban farkı hâlâ ölçülmedi).
+- [x] 📱 **§6 gecikme bütçeleri (2026-11-13 cihazda ölçüldü, hepsi bütçe içinde — `docs/perf/2026-11-pdfpro-54-oturum.md`):** `PDFPRO_PERF` logu eklendi (638e5f75 — kipe_gecis, uygula, geri_al,
       yinele, kaydet, tus; biçim `docs/perf/2026-11-pdfpro-55-65.md`). Kalan: `.r8test` profil APK'sıyla
       cihazda topla, p50/p95'i tabloya yaz (dokun→imleç ayrı ölçülmüyor).
 - [x] **Aynı PDF iki kez açık** (dc5b57d3): belgenin tek düzenleme sahibi; ikinci görüntüleyicide Düzenle
