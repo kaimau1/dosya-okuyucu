@@ -885,6 +885,9 @@ Belgeler: `rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `rl_cok_sayfa.pdf`, `rl_si
 5. **Ekran görüntüsü engeli:** Kasa, PIN/parola pencereleri, uygulama kilidi, AI anahtarı alanı, uzak bağlantı ekranı açıkken ekran görüntüsü alınamıyor ("güvenlik nedeniyle alınamıyor"), son uygulamalar önizlemesi boş; ana gezginde alınabiliyor. Kasadan açılan dosya görüntüleyicide de engelli; kasa kapanınca bayrak kalkıyor.
 6. **Yedek:** `adb shell bmgr`/ayarlardan yedek alıp geri yüklemede uygulama verisi gelmiyor (ayarlar için uygulamanın kendi "Ayar yedeği" kullanılır).
 
+**Koşu kaydı**
+- 2026-11-13 · Mi Note 10 Lite (Android 12, MIUI) · nightly 1.2.64 (adb) · ✔ 2 kısayol bağlantıları (`dosya_link=app:search`/`app:downloads` doğru ekranı açıyor) · ✔ 5 ekran görüntüsü engeli: `screencap` AI anahtarı penceresi, PIN belirleme penceresi ve Kasa kurulumunda 0 bayt (ana ekranda 330 KB), ekrandan çıkınca bayrak kalkıyor · ✔ 6 `allowBackup` yok (`dumpsys package` bayraklarında ALLOW_BACKUP yok, manifest `allowBackup=0`) · 👤 1 widget dokunuşu, 3 sabitlenmiş kısayol (güncelleme öncesi), 4 başka uygulamadan 'birlikte aç' (ikinci uygulama/elle), Kasa'dan açılan görüntüleyici (PIN seçimi), son uygulamalar önizlemesi (öznel).
+
 ## Faz G2 — Sırlar: diskte, ağda, logda (2026-11-11, dal `faz-G2`)
 1. **Uzak bağlantı göçü:** güncellemeden ÖNCE parolası kayıtlı bir SMB/FTP/SFTP/WebDAV bağlantısı güncellemeden sonra parola sormadan bağlanıyor; uygulamayı kapatıp açınca da.
 2. **Yeni bağlantı:** parola kaydedilerek eklenen bağlantı yeniden açılışta bağlanıyor; "Parolayı kaydet" kapalıysa her bağlanışta soruyor. Bağlantılar ekranında "korumasız saklanıyor" uyarısı ÇIKMIYOR (çıkıyorsa Keystore sorunu — not et).
@@ -893,6 +896,8 @@ Belgeler: `rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `rl_cok_sayfa.pdf`, `rl_si
 5. **Ayar yedeği:** dışa aktarılan JSON'da AI anahtarı ve parola yok; geri yüklemede kayıtlı bağlantılar (parolasız) geliyor.
 6. **Hata kaydı:** Ayarlar › Hakkında › hata kaydında dosya yolu/anahtar görünmüyor, `package:` satırları okunuyor.
 
+**Koşu kaydı**
+- 2026-11-13 · Mi Note 10 Lite (Android 12, MIUI) · nightly 1.2.64 · ✔ 6 Hata kayıtları ekranı: dosya yolu/anahtar yok; ancak yayın derlemesinde yığın `#00 abs … virt …` (gizlenmiş) biçiminde, `package:` satırı yok — sembolle çözülür (not, hata değil) · logcat'te anahtar/parola/Bearer deseni 0 · 👤 1–5 (kayıtlı uzak bağlantı, FTP elle parola, AI anahtarı, ayar yedeği: hesap/anahtar gerekir).
 
 ## Faz G3 — Kasa, PIN, uygulama kilidi (2026-11-11, dal `ccr-092fb36d-pwtgo8`)
 1. **Eski kasa göçü:** güncellemeden ÖNCE kurulu kasa güncellemeden sonra AYNI PIN'le açılıyor; ilk açılış bir kez biraz uzun sürebilir (yeniden sarma), ikincisi ≤ ~1 sn. 10 sn+ sürüyorsa yerel PBKDF2 düşmüyor — not et (Android sürümü).
@@ -902,6 +907,9 @@ Belgeler: `rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `rl_cok_sayfa.pdf`, `rl_si
 5. **Uygulama/klasör kilidi göçü:** eski PIN güncellemeden sonra uygulama kilidini ve kilitli klasörü açıyor; PIN değiştirme (eski PIN sorulur) çalışıyor.
 6. **Otomatik kilit:** kasa açıkken "Arka planda kilitlenme"yi "30 sn sonra" yap → ana ekrana çık, 10 sn içinde dön → açık; 40 sn sonra dön → kilitli. "Hemen"de her arka plana geçişte kilitli.
 
+**Koşu kaydı**
+- 2026-11-13 · Mi Note 10 Lite (Android 12, MIUI) · 👤 hepsi (PIN seçimi, parmak izi, 5 yanlış PIN, otomatik kilit — kullanıcı).
+
 ## Faz G4 — Yerel sunucular (2026-11-11, dal `ccr-092fb36d-pwtgo8`)
 1. **Ağdan erişim (HTTP):** Wi-Fi'daki bilgisayardan tarayıcıyla klasör listesi açılıyor, PDF/fotoğraf/video tarayıcıda açılıyor; SVG dosyası indiriliyor (açılmıyor). Bilgisayardan dosya yükleme çalışıyor.
 2. **Yanlış parola:** tarayıcıda 10 kez yanlış parola → "429"; 1 dk sonra doğru parolayla giriliyor.
@@ -910,12 +918,18 @@ Belgeler: `rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `rl_cok_sayfa.pdf`, `rl_si
 5. **Eşler arası:** iki telefon + Windows "Dosya Aktar" ile kodlu/kodsuz gönder-al; yanlış kod 5 kez → doğru kod da 1 dk reddediliyor.
 6. **QR aktarım + slayt kumandası:** QR'dan indirme sayfası açılıyor (küçük resimler, "Tümünü indir"); slayt kumandası ileri/geri çalışıyor.
 
+**Koşu kaydı**
+- 2026-11-13 · Mi Note 10 Lite (Android 12, MIUI) · ✔ 1 `Aktar › Bilgisayarla` HTTP: parolasız 401, doğru parolayla 200; PDF `inline` + `nosniff`, SVG `attachment`; yazma kapalıyken `/__yukle` dosyayı yazmadı · ✔ 2 11. yanlış parolada 429, 429 doğru parolaya da sürüyor · ✔ 3 FTP (curl): liste + indirme (226), 10 yanlış parola sonrası bağlantı reddi (421) · ✔ parola 8 karakter küçük harf+rakam · not: sahte `Host: evil.com` + doğru parola 200 (parola şart, yalnız not) · 👤 4 mobil veri/erişim noktası, 5 iki telefon, 6 QR + slayt kumandası, FTP istemcisi (Gezgin/FileZilla), yükleme açıkken.
+
 ## Güvenlik G4.5 / G6.5 / G7.x (2026-11-12, main)
 1. **CSV formül koruması:** Excel'de `=1+1` yazan METİN hücresi ve `-1.500,00` biçimli sayı olan sayfayı CSV dışa aktar → pencerede "Formül koruması" açık; dosyayı Excel/LibreOffice'te aç: metin `'=1+1` olarak görünür, sayı sayı kalır. Anahtarı kapatıp tekrar dene → seçim hatırlanıyor.
 2. **Uzantı aldatması:** İndirilenler'e `rapor.pdf.apk` adlı dosya koy (yeniden adlandır) → listede `.apk` kırmızı/kalın, uzun adda da son uzantı görünür; ızgarada da kırmızı. TalkBack "Dikkat: gerçek tür .apk" diyor.
 3. **Boş disk:** telefon belleği ~250 MB boşken bilgisayardan tarayıcıyla 100 MB'lık dosya yükle → "507 Telefonda yeterli boş alan yok"; FTP'de yükleme 452 ile reddediliyor. Bol yer varken yükleme eskisi gibi.
 4. **Doğal ses (sesli okuma):** EMA ve Antalia sesleriyle bir sayfa sesli okunuyor (yerel sunucu Host/Origin denetiminden sonra da ses geliyor).
 5. **Arşiv:** olağan zip/rar/7z çıkarma eskisi gibi; içinde `../` girdisi olan test zip'i hedef dışına yazmıyor.
+
+**Koşu kaydı**
+- 2026-11-13 · Mi Note 10 Lite (Android 12, MIUI) · ✔ 2 `rapor.pdf.apk`: erişilebilirlik metni 'Dikkat: gerçek tür .apk' (kırmızı biçim görseli 👤) · ✔ 5 `../` girdili zip: liste yalnız taban adı gösteriyor, `/sdcard` altında `evil_pwn*` oluşmadı · 👤 1 CSV (Excel/LibreOffice), 3 boş disk, 4 doğal ses.
 
 ## Güvenlik G2.6 / G6 / G8.1 / G9.6 / G10.3 / G12.4 (2026-11-12, main)
 1. **Word görüntüleyici (CSP + dosya erişimi kapalı):** yazı tipleri (Calibri/Times görünümü), görseller, tablolar, düzenleme kipi ESKİSİ GİBİ. Bozulursa ilk şüpheli `assets/word/viewer.html` CSP satırı (ör. `blob:`/`file:` eksik) — logcat'te `Refused to load`.
@@ -926,6 +940,9 @@ Belgeler: `rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `rl_cok_sayfa.pdf`, `rl_si
 6. **Hassas pano:** FTP sunucusu ekranında parolaya dokun → Android 13+ pano önizlemesinde metin `•••`; 1 dk sonra uygulamada yapıştır → boş (bu arada başka şey kopyalandıysa o kalır).
 7. **SFTP anahtarı:** NAS'a ilk SFTP bağlantısında "Yeni sunucu" penceresi parmak iziyle (NAS'ın `ssh-keygen -lf` çıktısıyla aynı); "Güven" → bağlanıyor, ikinci bağlantıda sorulmuyor. NAS'ta anahtarı yeniden üret → kırmızı "Sunucu kimliği DEĞİŞTİ"; Vazgeç → bağlantı kurulmuyor.
 8. **Güncelleme:** nightly'den otomatik güncelleme indirip kuruyor (SHA-256 eşleşiyor). (Bozuk özet senaryosu birim testte.)
+
+**Koşu kaydı**
+- 2026-11-13 · Mi Note 10 Lite (Android 12, MIUI) · 👤 hepsi (Word CSP görseli, bağlantı levhaları, kasa/AI, pano önizlemesi, SFTP NAS, otomatik güncelleme).
 
 ## Güvenlik — genel elle tur (G12.5) + G7.4 / G10.4 / G10.5 (2026-11-12, main)
 1. **Dış niyet:** `adb shell am start -n com.dosyaokuyucu.dosya_okuyucu/.MainActivity --es dosya_link "file:///data/data/com.dosyaokuyucu.dosya_okuyucu/shared_prefs/x.xml"` (ve `../` içeren yol) → hiçbir şey açılmaz, uygulama çökmez. (Paket adı derlemeye göre — `adb shell pm list packages | grep dosya`.)
@@ -939,11 +956,17 @@ Belgeler: `rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `rl_cok_sayfa.pdf`, `rl_si
 9. **G10.4 Çevrimdışı kip:** Ayarlar › Gizlilik › Çevrimdışı kip AÇ → (a) Çeviri: indirilmemiş dil seç → "Çevrimdışı kip açık" mesajı, model inmiyor; (b) Drive › Giriş → "geçici hata" + çevrimdışı açıklaması; (c) internet adresli bir SFTP/FTP/WebDAV bağlantısı → "Çevrimdışı kip açık"; (d) NAS (`192.168.x.x` ya da `diskstation` gibi noktasız ad) çalışıyor; (e) Yakındakiler/QR aktarım çalışıyor. Kipi kapat → hepsi eskisi gibi.
 10. **G10.5 Verilerimi sil:** Ayarlar › Gizlilik › Verilerimi sil → dört kutu işaretli; yalnız "Geçmiş" bırak → Sil → onay → Son açılanlar, arama geçmişi, kayıtlı aramalar boş; AI özetleri ve arama dizini duruyor. Sonra hepsini seç → AI özetleri gitti, arama dizini yeniden kuruluyor; dosyalar, kayıtlı bağlantılar, Gemini anahtarı, kasa YERİNDE.
 
+**Koşu kaydı**
+- 2026-11-13 · Mi Note 10 Lite (Android 12, MIUI) · ✔ 1 dış niyet: `dosya_link=file:///data/data/<paket>/shared_prefs/x.xml`, `../` içeren yol, `/data/user/0/…`, `content://evil/x`, `intent://…` → ana ekran, çökme yok (logcat FATAL 0; dosyalar zaten yok — var olan özel dosya `run-as` olmadan denenemedi) · ✔ 2 yedek: ALLOW_BACKUP yok · ✔ 3 kasa kurulum ekranında `screencap` 0 bayt · ✔ 5 parolasız 401 · 👤 4 kasa PIN, 6 mobil veri, 7 kötü niyetli .docx, 8 Word bağlantısı, 9 çevrimdışı kip (a,c,d,e), 10 Verilerimi sil (kullanıcı verisini siler).
+
 ## Güvenlik G8.3 / G8.6 / G1 dış yol (2026-11-12, main)
 1. NAS'a `http://192.168.x.x` WebDAV + parola → bağlanır; internetteki bir sunucuya `http://` + parola → "Güvensiz bağlantı engellendi".
 2. Tailscale adresine (`100.x`) http WebDAV → bağlanır.
 3. Başka uygulamadan (Dosyalar, Gmail eki) "Birlikte aç" ve "Paylaş → Dosya Okuyucu" eskisi gibi çalışıyor (önbellek kopyası kabul).
 4. İndirme yöneticisine `file:///…` ya da `content://…` yapıştır → kuyruğa girer ama "başlatılamadı"; normal https indirme çalışır.
+
+**Koşu kaydı**
+- 2026-11-13 · Mi Note 10 Lite (Android 12, MIUI) · 👤 hepsi (NAS WebDAV, Tailscale, 'birlikte aç', indirme yöneticisi).
 
 ## Sürümler S1–S3 + A8.2 (2026-11-12, main)
 1. Nightly (Kişisel): pano araçlarında PRO rozeti YOK; Kasa, Yeni belge, Sesli kitaplar doğrudan açılır; Ayarlarda "Pro sürüm" satırı yok.
@@ -951,12 +974,17 @@ Belgeler: `rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `rl_cok_sayfa.pdf`, `rl_si
 3. Çok dosyası AI ile analiz edilmiş telefonda soğuk açılış: `adb logcat -s flutter | grep ACILIS` → `ai-index … izolat`; ilk karelerde (`KARE`) önceki tura göre takılma yok.
 4. Lite: ana ekranda "Pro'da neler var?" kartı; "Şimdi değil" → kart kalkar, uygulama yeniden açılınca da yok. Fotoğraflar/İndirilenler kutusu, dock'taki Kasa/AI, dosyaya uzun basıp Taşı/Sil → Pro levhası. Tarama ve PDF araçları → levha.
 
+**Koşu kaydı**
+- 2026-11-13 · Mi Note 10 Lite (Android 12, MIUI) · ✔ S1 Kişisel nightly: pano araçlarında PRO rozeti yok (Şifreli kasa, Yeni belge, Sesli kitaplarım), Ayarlarda 'Pro sürüm' satırı yok · 👤 S2/S4 (Lite derlemesi `build-okuyucu.yml`), S3 (yayın derlemesinde `debugPrint` yok; `ACILIS` logu profil derlemesi + çok AI dosyalı telefon ister).
+
 ## Güvenlik G4.8 / G8.2 / G8.4 / G8.6 / G2.6 (2026-11-12, main)
 1. Bilgisayarla paylaşımı (FTP + tarayıcı) aç, hiçbir şey bağlamadan 30 dk bekle → paylaşım kapanır, bildirim kalkar. Tarayıcıdan arada bir sayfa yenilenirse kapanmaz.
 2. Kendinden imzalı sertifikalı FTPS sunucusu (ör. vsftpd/FileZilla Server): ilk bağlantıda parmak izi penceresi; "Güven" → bağlanır; ikinci bağlantı sormaz; sunucu sertifikası yenilenince kırmızı "değişti" penceresi.
 3. SMB: Windows/Samba (SMB2+) eskisi gibi bağlanır. Yalnız SMB1 açık eski bir NAS'ta "Eski SMB1 protokolü" uyarısı; "Yine de bağlan" → bağlanır ve bir daha sormaz.
 4. Yakındakiler → tarayıcı adresine dokun (kopyala) → 60 sn sonra pano boş.
 
+**Koşu kaydı**
+- 2026-11-13 · Mi Note 10 Lite (Android 12, MIUI) · ⏳ 1 (30 dk boşta kapanma) aşağıda · 👤 2 FTPS sertifika, 3 SMB1 NAS, 4 Yakındakiler pano (ikinci cihaz).
 
 ## Faz A kapanışı — A5 / A6.6 / A9.2 / A10 (2026-11-12, main)
 1. SD birleşik → "Şimdi taşı": iş bitince İşlemler'de kart; dokun → taşınan dosyalar listesi (klasöre göre); "Geri al" dosyaları ana belleğe döndürür. Kopyala kipinde liste "kopyalandı".
@@ -966,16 +994,25 @@ Belgeler: `rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `rl_cok_sayfa.pdf`, `rl_si
 5. Kişisel derleme (`[kisisel]`): görüntüleyici → Daha fazla → "Sesli not" → konuş → paylaşım sayfasında Notlar → not "Dosyalar" konusuyla, dosya adı + sayfa + (PDF'te seçili metin) + `file://` bağlantısıyla düşer. Genel APK'da satır YOK.
 6. Play AAB (elle `aab` + `play` girdisiyle, iç test kanalı): Play'den kurulu sürümde 15 dosya açıp 5 gün sonra değerlendirme penceresi (Play kotası izin verirse); yeni sürüm yüklenince açılışta esnek güncelleme, inince "Güncelleme indirildi · Yeniden başlat". Play derlemesinde GitHub güncelleme satırı/şeridi YOK.
 
+**Koşu kaydı**
+- 2026-11-13 · Mi Note 10 Lite (Android 12, MIUI) · ✔ 3 Word gece modu (`stiller_basliklar.docx`): sayfa siyah, yazı açık, görsel özgün kırmızı; uygulama kapanıp açılınca tercih kalıyor (piksel örneği); tekrar kapatınca beyaz · ✔ 4 Kil teması açık modda PDF sayfa zemini #FBF8F1 (piksel 251,248,241) · 👤 1 SD birleşik (SD kart yok), 2 AI ile düzenle (anahtar), 5 sesli not (kişisel derleme/not uygulaması), 6 Play AAB.
+
 ## Markdown canlı biçim + Aktar son alınanlar (2026-11-12, main)
 1. `.md` aç → Düzenle: `**kalın**` kalın, `## Başlık` büyük, `_eğik_` eğik görünür; işaretler soluk. Satır seç → B: `## ` önekinin SONRASI sarılır; üç satır seç → B: her satır ayrı; tekrar B → kalkar.
 2. Düzenlerken alt çubuk (Düzenle/Kaydet/Çevir…) ve AI düğmesi gizli; klavye kapanınca geri gelir. Metin seçince klavye üstü çubukta Kopyala ve Kes; Yapıştır ve Tümünü seç her zaman.
 3. Bilgisayardan dosya gönder → Aktar → Hızlı aktar'ın altında "Son alınanlar" kartında görünür; dokununca açılır; 4. dosyadan sonra "Tümünü göster" Geçmiş'e götürür.
+
+**Koşu kaydı**
+- 2026-11-13 · Mi Note 10 Lite (Android 12, MIUI) · 👤 hepsi (düzenleyicide biçim görseli, klavye üstü çubuk, ikinci cihazdan gönderim).
 
 ## Güvenlik — 4. tur: G10.1 / G4.2 / G4.4 / G7.8 (2026-11-13, main)
 1. Ayarlar › Gizlilik › "Yapay zekâya göndermeden önce sor" açık; bir dosyada AI özet iste → pencerede "Ücretsiz anahtarda Google bu veriyi… eğitmek için kullanabilir" cümlesi var. Vazgeç → "Yapay zekâya gönderilmedi".
 2. Rıza hiç verilmemişken (uygulama verisi temiz) Ayarlar › AI › "Yeni dosyaları otomatik analiz et" aç, yeni dosya indir, uygulamayı öne getir → otomatik tur BAŞLAMAZ, pencere de AÇILMAZ. Bir kez elle AI kullanıp "Gönder" deyince sonraki öne gelişte otomatik tur çalışır.
 3. Bilgisayarla paylaşım (rastgele parola açık) → parola 8 karakter, küçük harf + rakam (ör. `k7m2qx9a`); FTP istemcisi ve tarayıcı bu parolayla girer.
 4. Kişisel derleme: `.apks` dosyasına dokun → "Bu paket kurulsun mu?" penceresi: ad, paket adı, sürüm, (yüklüyse) yüklü sürüm, imza SHA-256; aynı imzalı güncellemede "İmza yüklü uygulamayla aynı". Bu uygulamanın adıyla başka anahtarla imzalı bir `.apks` → kırmızı "Sahte olabilir — kurma" ve kırmızı Kur düğmesi. Vazgeç → hiçbir şey kurulmaz.
+
+**Koşu kaydı**
+- 2026-11-13 · Mi Note 10 Lite (Android 12, MIUI) · 👤 1–2 (AI anahtarı/rıza), 4 (`.apks` + ikinci imza); ✔ 3 rastgele paylaşım parolası 8 karakter küçük harf+rakam (G4 koşusunda görüldü).
 
 ## PDF Pro Faz 55–65 — yerinde yazma, araçlar, karartma (2026-11-13, main)
 
@@ -1039,3 +1076,6 @@ Her madde: ✔ / ✘ + not. Bütçe sayıları `docs/perf/2026-11-pdfpro-55-65.m
   2 ✔ yazı ≤0,3 sn'de değişiyor, geri al / ✕ eski hâl; yakınlaştırılmışken 👤 ·
   3 ✔ kaydırınca klavye kapanıyor, metne dokununca geri geliyor, imleç dokunulan yerde ·
   4 ✔ tek parmak vurgu/kalem çiziyor; iki parmak 👤 · 5 ✔ "Bu sayfa taranmış bir görüntü…" ipucu + "Metni tanı (OCR)".
+- 2026-11-13 · Mi Note 10 Lite · nightly 1.2.64 (main uygulama) · ✔ aynı PDF iki kez: ikinci görüntüleyicide Düzenle → "Bu PDF başka bir pencerede düzenleniyor — kaydedilmemiş değişiklikler orada." ve düzenleyen görüntüleyiciye dönüldü ·
+  ✔ Çoğalt: kopya son paragrafın altında, üst üste binme yok · ✔ Silgi: İşaretle ile çizilen dikdörtgen siliniyor ("Geri al: Silindi"; ok denenmedi) ·
+  ⚠ Drive çevrimdışı iletisi: nightly 1.2.64'te hâlâ eski ileti ("Drive şu an yanıt vermiyor") — kök neden: 3471ee31 `[apk]` başlıklı olduğu hâlde sonraki Belgeler commit'i (4210f12a) APK üretmedi, nightly d1995342'den kalma; düzeltme yerel profil `.r8test` (HEAD) derlemesinde ✔ ("Çevrimdışı kip açık — internete bağlanılmadı…"). Sonraki `[apk]` commit'iyle nightly'de yeniden doğrulanır · çevrimdışı kip iki uygulamada da kapatıldı.
