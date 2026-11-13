@@ -56,8 +56,8 @@ Ayrıntı ve kapılar: **`docs/YUKSELTME_PLANI.md`** (Faz 43–50: ölçüm taba
 saf Dart zinciri (xml 7/pdf/syncfusion 35) · Android eklentileri · google_sign_in 7/ML Kit 1.0/SSH ·
 **pdfrx 2.12 (önce kök neden ölçümü)** · temizlik · sürüm adayı). Yerel Windows + USB telefon; cihaz
 kapısı (> %10 ya da p99 > 24 ms → birleşmez). Sıra 43 → 50. A3.4b bu fazlara taşındı.
-- [ ] Faz 43 artığı 📱 (taban MatePad’da alındı → `docs/perf/2026-11-43-taban.md`): Xiaomi 13T + Mi Note 10 Lite tabanı (P1–P12), P6 (erişilebilirlik açık), P4/P5 ekran kaydı + yakınlaştırma, P12 video; duman turunun elle maddeleri.
-- [ ] İncele 📱: `VIEW video/*` (file://) oynatıcı yerine panoyu açıyor; Paylaş (`SEND`) Aktar ekranına gidip konum + yakın cihaz izni istiyor (MatePad, Faz 43).
+- [ ] Faz 43 artığı 📱 — **Mi Note 10 Lite tabanı alındı (2026-11-13, `docs/perf/2026-11-50-sonuc.md`)**; kalan: Xiaomi 13T, P6 (👤 erişilebilirlik hizmetini kullanıcı açsın), P12 ilk kare, duman turunun elle maddeleri (taban MatePad’da alındı → `docs/perf/2026-11-43-taban.md`): Xiaomi 13T + Mi Note 10 Lite tabanı (P1–P12), P6 (erişilebilirlik açık), P4/P5 ekran kaydı + yakınlaştırma, P12 video; duman turunun elle maddeleri.
+- [x] İncele 📱 (2026-11-13, Mi Note 10 Lite): `VIEW video/*` hata DEĞİL — "Video neyle açılsın?" penceresi çıkıyor (seçince oynatıcı oynuyor; MatePad'de arkadaki pano görülmüş). `SEND` → Aktar = tasarım (2026-11-03). Kod değişmedi.
 - [ ] **Faz 43–50 bitti** (son tablo `docs/perf/2026-11-50-sonuc.md`). Kalan 👤: `v1.2.N` etiketi (kullanıcı atar — kalıcı sürüm arm + arm64 + AAB).
 - [ ] Faz 50 artığı 📱: ikinci cihaz (Xiaomi/Mi Note 10 Lite) tam §2; xlsx 100 bin için daha uzun kaydırma senaryosu (şimdiki 3–34 kare, p99 ≈ en kötü kare); `CIHAZ_TESTI.md` "Faz 49" elle maddeleri (çevrimdışı kip, AI onayı, Klasör ekle, Neler yeni).
 - [ ] UDF (UYAP) okuyucu — Play yorum çalışmasında aday (P2, orta-büyük); biçim araştırılmadı.

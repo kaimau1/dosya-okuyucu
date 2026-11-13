@@ -768,6 +768,7 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
 12. Drive giriş (**GMS'li cihazda**), SFTP/FTP bağlan + listele, Yakındakiler keşfi.
 
 **Koşu kaydı**
+- 2026-11-13 · Mi Note 10 Lite (Xiaomi, MIUI, Android 12, GMS var; nightly 1.2.62 + `.r8test` profil) · 1 ✔ (soğuk açılış 1,4–2,3 sn, çökme yok) · 2 ✔ (pano boşta 0 kare — senaryo) · 3 ✔ kaydırma (senaryo 5.000 öğe); kopyala/taşı/sil 👤 denenmedi · 4 ✔ `SEND` → Aktar ekranı, dosya "Ne gönderilecek"e eklendi; **tasarım** (2026-11-03 kullanıcı isteği), bu telefonda konum/yakın cihaz izni sorulmadı (daha önce verilmiş) · 5 👤 · 6–7 ✔ açılış (pdf, docx, pptx, xlsx, csv `VIEW` ile; `logcat -b crash` boş), düzenle-kaydet 👤 · 8–9 👤 (ML Kit modeli, hesap) · 10 👤 · 11 ✔ `VIEW video/*` → "Video neyle açılsın?" seçim penceresi (tasarım, `EntryOpener`) → "Uygulama içi oynatıcı" oynuyor; MatePad'deki "panoya düşüyor" gözlemi bu pencerenin arkasındaki panoydu — hata DEĞİL · 12 👤 Drive girişi (hesap), SFTP/FTP/Yakındakiler denenmedi · perf: `docs/perf/2026-11-50-sonuc.md` Mi Note sütunu.
 - 2026-11-07 · Faz 43 · MatePad DBY-W09 (GMS'siz): 1–3, 6–7 açılış ✅ · 4 ⚠ Paylaş → Aktar ekranı + konum/yakın cihaz izni · 11 ❌ `VIEW video/*` panoya düşüyor · 8, 9, Drive GMS'li cihazda · kalanlar elle bekliyor → ayrıntı `docs/perf/2026-11-43-taban.md`.
 
 ## Faz 45–47 — Paket yükseltmeleri (2026-11-08)
@@ -785,6 +786,7 @@ Otomatik kısım (ölçüm + duman) `docs/perf/2026-11-45.md`'de. Elle bakılaca
 8. Uygulamalar ekranı (installed_apps 2.2.1, `detectPlatformType:false`): liste açılış süresi.
 
 **Koşu kaydı**
+- 2026-11-13 · Mi Note 10 Lite: 1 ✔ video (seçim penceresi → uygulama içi; ayrıca mkv/webp/rar `VIEW` çökmesiz; "Başka uygulama" yolu 👤) · 2, 3 (çoklu seçim, paylaş), 4, 5 👤 denenmedi (SEND ✔ yalnız Aktar'a düşüyor) · 6, 7 👤 (hesap/NAS) · 8 👤.
 - 2026-11-08 · Faz 45–47 · MatePad DBY-W09 (GMS'siz): ölçüm kapısı ✅ (`docs/perf/2026-11-45.md`), senaryolar 3/3 çökmesiz, SFTP/FTP yerel sunucuyla ✅ · 1–5, 7–8 elle bekliyor · 6 GMS'li cihazda.
 
 ## Faz 48 — pdfrx 2.12 + okuma yardımcıları (2026-11-08)
@@ -798,6 +800,7 @@ Otomatik kısım (A/B ölçüm) `docs/perf/2026-11-48-pdfrx.md`'de. Elle bakıla
 7. **Aa → Otomatik kaydırma:** Yavaş/Orta/Hızlı; parmak ekrandayken duruyor, kalkınca sürüyor; belgenin sonunda kendiliğinden kapanıyor.
 
 **Koşu kaydı**
+- 2026-11-13 · Mi Note 10 Lite: 1 👤 ("40 Hadis" dosyası yok; yapay 100 s. PDF açılış 1,8 sn, PSS 348 MB) · 2 👤 **P6 ölçülmedi** (erişilebilirlik hizmeti açmak sistem ayarı → kullanıcı açmalı) · 3–7 👤.
 - 2026-11-08 · Faz 48 · MatePad DBY-W09 (GMS'siz): ölçüm kapısı ✅ (`docs/perf/2026-11-48-pdfrx.md`), çökme 0 · 5–7 adb ile ✅ (`KEEP_SCREEN_ON`, ses tuşu 98→100→99, kaydırma 1→3. sayfa) · 1–4 elle bekliyor · 2 GMS'li/Xiaomi cihazda.
 
 ## Office geliştirme (2026-11-08, PR #67)
@@ -831,6 +834,7 @@ Ekran görüntüleri `docs/design/2026-11-galeri/` (örnek ağaç `/sdcard/Ornek
 7. **Okuyucu derlemesi** (Actions › "Okuyucu derlemesi (izinsiz)" artifact'i, `…okuyucu` kimliği, tam uygulamanın yanına kurulur): uygulama bilgisinde hassas izin yok; pano kartında "İzin ver" yok, Klasör ekle + Dosya aç çalışıyor; ilk açılışta tek seçenek.
 
 **Koşu kaydı**
+- 2026-11-13 · Mi Note 10 Lite: 3 ✔ Ayarlar › Gizlilik ve izinler: "Çevrimdışı kip" + "Yapay zekâya göndermeden önce sor" + İzinler (Tüm dosyalar, Bildirimler, Kamera, Konum… "Geri al" düğmeleriyle) görünür · 4 ✔ kip AÇIKken satır metni "AÇIK — internete hiçbir şey gitmiyor"; Drive "Google ile bağlan" internete çıkmadı AMA genel "Drive şu an yanıt vermiyor" gösterdi → **hata bulundu**, düzeltildi (`DriveSignInError.offline` → `offline.blocked`, commit 4210f12a, bir sonraki nightly'de doğrulanacak); AI/altyazı çevrimdışı denenmedi · kip tekrar KAPATILDI · 1, 2 (Klasör ekle), 5 (AI onayı: anahtar yok), 6 (Neler yeni: güncelleme gerekir), 7 👤 denenmedi.
 
 ## PDF Pro Faz 51 — kanamayı durdurma (2026-11-08, dal `faz-51`)
 Külliyat belgeleri: `test/fixtures/pdf_corpus/rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `ch_cok_sayfa.pdf` → `/sdcard/Download/PdfPro/`.
