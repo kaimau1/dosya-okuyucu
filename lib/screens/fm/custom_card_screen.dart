@@ -139,9 +139,9 @@ Future<CustomCard?> showCustomCardEditor(
         p.basename(card.path) == FileOps.sanitizeName(card.name)) {
       final target = p.join(p.dirname(card.path),
           FileOps.sanitizeName(result.name));
-      if (Directory(card.path).existsSync() &&
-          !Directory(target).existsSync() &&
-          !File(target).existsSync()) {
+      if (await Directory(card.path).exists() &&
+          !await Directory(target).exists() &&
+          !await File(target).exists()) {
         path = await FileOps.rename(card.path, result.name);
         FsEvents.changed();
       }
@@ -403,7 +403,7 @@ class _CustomCardScreenState extends State<CustomCardScreen> {
     setState(() => _loading = true);
     var all = const <FsEntry>[];
     var top = const <FsEntry>[];
-    if (Directory(card.path).existsSync()) {
+    if (await Directory(card.path).exists()) {
       all = await FsScan.collect([card.path]);
       top = FsScan.sort(await FsScan.list(card.path), FmSort.name);
     }
@@ -422,9 +422,9 @@ class _CustomCardScreenState extends State<CustomCardScreen> {
   Future<void> _copyIn(List<String> sources, {bool cut = false}) async {
     final card = _card;
     if (card == null || sources.isEmpty) return;
-    final ok = [
+    final ok = <String>[
       for (final s in sources)
-        if (Directory(s).existsSync() || card.acceptsPath(s)) s,
+        if (card.acceptsPath(s) || await Directory(s).exists()) s,
     ];
     final skipped = sources.length - ok.length;
     if (ok.isEmpty) {
