@@ -195,6 +195,22 @@ void main() {
         src.readAsBytesSync());
   });
 
+  test('aynı eşin ama BOZUK yarım dosyası: uç özeti tutmaz → baştan gönderilir',
+      () async {
+    final r = await start();
+    final src = source('bozuk.bin', 150000);
+    final tid = tidOf('alice-id', src);
+    final bad = src.readAsBytesSync().sublist(0, 90000)..[89000] ^= 0xFF;
+    File(p.join(inbox.path, '${PeerShare.partPrefix}$tid')).writeAsBytesSync(bad);
+    File(p.join(inbox.path, '${PeerShare.partPrefix}$tid.k'))
+        .writeAsStringSync(alice.fingerprint);
+    final res = await PeerSender.send(peerOf(r), [src.path],
+        senderName: 'Alice', senderId: 'alice-id', identity: alice);
+    expect(res.sent, 1);
+    expect(File(p.join(inbox.path, 'bozuk.bin')).readAsBytesSync(),
+        src.readAsBytesSync());
+  });
+
   test('alıcı v3 duyurur, parmak izini yayar; kimliksiz alıcı v2 kalır', () async {
     final r = await start();
     final probed = await PeerSender.probe('127.0.0.1', port: r.port);

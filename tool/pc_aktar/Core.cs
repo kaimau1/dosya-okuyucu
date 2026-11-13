@@ -123,6 +123,20 @@ namespace DosyaAktar
                 return string.Concat(md5.ComputeHash(Encoding.UTF8.GetBytes(s)).Select(x => x.ToString("x2")));
         }
 
+        /// <summary>Dosyanın ilk [length] baytının son 64 KB'sinin SHA-256'sı (telefondaki PeerShare.tailDigest).</summary>
+        public static string TailDigest(string path, long length)
+        {
+            var from = Math.Max(0, length - 64 * 1024);
+            var buf = new byte[length - from];
+            using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            {
+                fs.Seek(from, SeekOrigin.Begin);
+                var got = 0;
+                while (got < buf.Length) { var n = fs.Read(buf, got, buf.Length - got); if (n <= 0) break; got += n; }
+            }
+            using (var sha = SHA256.Create()) return string.Concat(sha.ComputeHash(buf).Select(x => x.ToString("x2")));
+        }
+
         public static string Size(long bytes)
         {
             if (bytes < 1024) return bytes + " B";
@@ -498,7 +512,10 @@ namespace DosyaAktar
                 long have = 0;
                 // Yalnız AYNI eşin (şifrelide aynı anahtarın) yarım dosyası sayılır.
                 if (tid != null && File.Exists(PartPath(tid)) && Owner(tid) == fp) have = new FileInfo(PartPath(tid)).Length;
-                Ok(new Dictionary<string, object> { ["have"] = have });
+                var reply = new Dictionary<string, object> { ["have"] = have };
+                // Bütünlük: yarım dosyanın son 64 KB özeti; gönderen tutmazsa baştan gönderir.
+                if (have > 0) reply["son"] = Proto.TailDigest(PartPath(tid), have);
+                Ok(reply);
                 return;
             }
 
@@ -1218,12 +1235,24 @@ namespace DosyaAktar
                 {
                     var sc = SecureCall(peer, "/durum", new Dictionary<string, string> { ["tid"] = item.Tid }, null, 0, 10000, null, out var sb);
                     if (sc == 401) return Outcome.Rekey;
-                    if (sc == 200) have = Proto.Num(Proto.FromJson(sb), "have", 0);
+                    if (sc == 200)
+                    {
+                        var dd = Proto.FromJson(sb);
+                        have = Proto.Num(dd, "have", 0);
+                        var son = Proto.Str(dd, "son");
+                        if (have > 0 && have <= item.Size && son != null && Proto.TailDigest(item.Path, have) != son) have = 0;
+                    }
                 }
                 else
                 {
                     var st = Req(Url(peer, "/durum", new Dictionary<string, string> { ["tid"] = item.Tid }), "GET", 10000);
-                    if (Call(st, out var stBody) == 200) have = Proto.Num(Proto.FromJson(stBody), "have", 0);
+                    if (Call(st, out var stBody) == 200)
+                    {
+                        var dd = Proto.FromJson(stBody);
+                        have = Proto.Num(dd, "have", 0);
+                        var son = Proto.Str(dd, "son");
+                        if (have > 0 && have <= item.Size && son != null && Proto.TailDigest(item.Path, have) != son) have = 0;
+                    }
                 }
                 if (have > item.Size || have < 0) have = 0;
                 onBytes(have);

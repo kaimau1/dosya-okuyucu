@@ -838,7 +838,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
           result.declined
               ? strings.t('peer.declined_by_peer')
               : result.hasError
-                  ? strings.t('peer.send_failed', {'error': result.errors.first})
+                  ? '${strings.t('peer.send_failed', {'error': result.errors.first})} · ${strings.t('g5.resume_hint')}'
                   : result.cancelled
                       ? strings.t('peer.send_stopped', {'n': result.sent})
                       : strings.t('peer.sent', {'n': result.sent, 'name': peer.name}),

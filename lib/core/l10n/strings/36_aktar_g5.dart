@@ -19,6 +19,11 @@ const Map<String, (String, String, String)> _t36 = {
     'Known by its key · encrypted',
     'معروف بمفتاحه · مشفّر',
   ),
+  'g5.resume_hint': (
+    'yeniden gönderince kaldığı yerden sürer',
+    'sending again resumes where it stopped',
+    'عند الإرسال مجددًا يُستأنف من حيث توقف',
+  ),
   'link.title': ('Bağlantıyla gönder (internet)', 'Send as a link (internet)', 'إرسال كرابط (إنترنت)'),
   'link.sub': (
     'Aynı Wi-Fi gerekmez: dosya telefonda şifrelenip kendi Google Drive\'ına yüklenir; bağlantıyı alan Dosya Okuyucu\'da açar',

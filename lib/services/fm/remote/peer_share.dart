@@ -5,7 +5,7 @@ import 'dart:math';
 
 import 'dart:typed_data';
 
-import 'package:crypto/crypto.dart' show md5;
+import 'package:crypto/crypto.dart' show md5, sha256;
 import 'package:path/path.dart' as p;
 
 import '../archive_ops.dart';
@@ -71,6 +71,25 @@ abstract final class PeerShare {
   /// Yarım kalan (devam ettirilebilir) alımların ön eki — alıcı klasöründe
   /// gizli dosya olarak durur, tamamlanınca gerçek adına taşınır.
   static const partPrefix = '.dosya-aktarim-';
+
+  /// Devam denetiminde özetlenen uç (yarım dosyanın son baytları).
+  static const tailBytes = 64 * 1024;
+
+  /// [length] baytlık içeriğin son [tailBytes] baytının SHA-256'sı (onaltılık).
+  /// [open] `(başlangıç)` → o konumdan akış.
+  static Future<String> tailDigest(
+      Stream<List<int>> Function(int start) open, int length) async {
+    final from = length > tailBytes ? length - tailBytes : 0;
+    var left = length - from;
+    final out = BytesBuilder(copy: false);
+    await for (final c in open(from)) {
+      if (left <= 0) break;
+      final take = c.length < left ? c.length : left;
+      out.add(take == c.length ? c : c.sublist(0, take));
+      left -= take;
+    }
+    return sha256.convert(out.takeBytes()).toString();
+  }
 
   /// Şifreli protokol sürümü (G5). Yayın cevabında `v` bu ya da üstüyse
   /// gönderen `/el` ile el sıkışır.
@@ -675,13 +694,17 @@ class PeerReceiver implements KeepableServer {
       if (!codeOk) return await _deny(response, 'kod');
       final tid = _cleanTid(q['tid']);
       var have = 0;
+      String? tail;
       if (tid != null) {
         final part = _partFile(tid);
         if (await part.exists() && await _owner(tid) == ctx.peerFp) {
           have = await part.length();
+          // Bütünlük (2026-11-13): yarım dosyanın son 64 KB'sinin özeti —
+          // gönderen kendi dosyasıyla karşılaştırır, tutmazsa baştan gönderir.
+          if (have > 0) tail = await PeerShare.tailDigest(part.openRead, have);
         }
       }
-      await ctx.json({'have': have});
+      await ctx.json({'have': have, 'son': ?tail});
       return;
     }
     if (method != 'POST' || path != '/al') {
@@ -1335,7 +1358,15 @@ abstract final class PeerSender {
         if (st.status == HttpStatus.unauthorized) return _Outcome.rekey;
         if (st.status == HttpStatus.ok) {
           final data = jsonDecode(st.body);
-          if (data is Map) have = (data['have'] as num?)?.toInt() ?? 0;
+          if (data is Map) {
+            have = (data['have'] as num?)?.toInt() ?? 0;
+            // Alıcının yarım dosyası bizimkiyle aynı mı? (eski alıcı `son` vermez)
+            final tail = data['son'];
+            if (have > 0 && have <= item.size && tail is String &&
+                await PeerShare.tailDigest(item.open, have) != tail) {
+              have = 0;
+            }
+          }
         }
       } on SocketException {
         return _Outcome.network;
