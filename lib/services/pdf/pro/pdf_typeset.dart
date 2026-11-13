@@ -22,8 +22,13 @@ const _markUnderline = 'DOul', _markStrike = 'DOst', _markHighlight = 'DOhl';
 /// İşçi izolatında yaşar; anahtar belgeye + fonta özgüdür.
 final Map<String, Map<int, double>> _advCache = {};
 
+/// Yalnız test: işçi izolatında kurulan ölçüm anahtarı sayısı (tuş başına çöp).
+@visibleForTesting
+int debugFontKeyBuilds = 0;
+
 String _fontKey(pdfium_bindings.PDFium p, Arena arena, int docKey,
     pdfium_bindings.FPDF_FONT font) {
+  debugFontKeyBuilds++;
   final len = arena<Size>();
   p.FPDFFont_GetFontData(font, nullptr, 0, len);
   return '$docKey|${_fontName(p, arena, font)}|${len.value}|'
@@ -484,7 +489,11 @@ Map<int, Set<int>> _freshMismatch(
         return fbFonts[key] = f;
       }
 
-      Map<int, double> cacheOf(pdfium_bindings.FPDF_FONT f, {int? fbKey}) {
+      // KÖK NEDEN (bellek, 2026-11-13): anahtar her KARAKTERDE yeniden
+      // kuruluyordu (dize + yedek fontun tüm baytlarının özeti) → tuş başına
+      // ~2 MB çöp. Çağrı içinde font başına bir kez.
+      final cacheMemo = <(int, int?), Map<int, double>>{};
+      Map<int, double> cacheFor(pdfium_bindings.FPDF_FONT f, {int? fbKey}) {
         if (_advCache.length > 600) _advCache.clear();
         final key = fbKey == null
             ? _fontKey(p, arena, docKey, f)
@@ -492,6 +501,8 @@ Map<int, Set<int>> _freshMismatch(
                 '${_bytesHash(m.fallback[fbKey]!)}';
         return _advCache[key] ??= {};
       }
+      Map<int, double> cacheOf(pdfium_bindings.FPDF_FONT f, {int? fbKey}) =>
+          cacheMemo[(f.address, fbKey)] ??= cacheFor(f, fbKey: fbKey);
 
       // ── her karaktere font seç ─────────────────────────────────────────
       final need = <int, Set<int>>{};
