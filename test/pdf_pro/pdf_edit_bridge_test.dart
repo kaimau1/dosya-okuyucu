@@ -21,6 +21,10 @@ void main() {
     expect(blocks.length, greaterThanOrEqualTo(4));
     expect(blocks.map((b) => b.text).join(' '),
         contains('T.C. ÖRNEK KURUM MÜDÜRLÜĞÜ'));
+    // Word "ya|pılan"ı iki nesneye bölüyor; araya sahte boşluk girmemeli
+    // (cihazda düzenleme sonrası "ya pılan" yazılıyordu).
+    final all = blocks.map((b) => b.text).join(' ');
+    expect(all, contains('arasında yapılan'));
   });
 
   test('blok değişir, pdfium geri okur, artımlı kayıt özgün baytları korur',

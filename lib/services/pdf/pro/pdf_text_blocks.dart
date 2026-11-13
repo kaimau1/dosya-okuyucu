@@ -403,7 +403,12 @@ class _LineText {
     for (final o in line.objects) {
       final fo = f.of(o);
       if (prev != null) {
-        final gap = fo.l - prev.r;
+        // Sıkı kutu solu, glifin sol boşluğu kadar sağda: Word'ün böldüğü
+        // "ya|pılan" sözcüğü sahte boşluk alıyordu — kalem başı (köken) esas.
+        final l = o.chars.isEmpty
+            ? fo.l
+            : math.min(fo.l, f.x(o.chars.first.x, o.chars.first.y));
+        final gap = l - prev.r;
         if (gap > line.size * 0.15 &&
             codes.isNotEmpty &&
             codes.last != 0x20 &&
