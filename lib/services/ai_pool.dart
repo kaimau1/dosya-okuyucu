@@ -353,6 +353,10 @@ abstract final class AiPool {
   /// işlevden geçtiği için tek yer yeter.
   static Future<bool> Function()? consent;
 
+  /// G10.1: rıza ŞU AN var mı (pencere açmadan). Sessiz otomatik AI turu
+  /// buna bakar — rıza yoksa başlamaz. `main` kurar; testlerde null = var.
+  static bool Function()? consentGranted;
+
   static Future<T> run<T>(
     AiCredentials credentials,
     Future<T> Function(GeminiService gemini) action,

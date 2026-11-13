@@ -239,6 +239,7 @@ Future<void> _main() async {
   StartupQueue.instance.start(delay: DeviceProfile.budget.startupDelay);
   // Yeni dosyaların otomatik AI analizi (2026-11-06; ayar kapalıysa iş yok).
   AiPool.consent = () => AiSendConsent.ask(appState);
+  AiPool.consentGranted = () => AiSendConsent.granted(appState);
   // G8.1: SFTP sunucu anahtarı ilk bağlantıda/değişince sorulur.
   SftpHostKeys.prompt = _confirmHostKey;
   // G8.4: SMB1 (eski protokol) yalnız açık onayla.

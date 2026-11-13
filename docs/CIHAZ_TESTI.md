@@ -954,3 +954,9 @@ Belgeler: `rl_paragraflar.pdf`, `wd_mektup_logo.pdf`, `rl_cok_sayfa.pdf`, `rl_si
 1. `.md` aç → Düzenle: `**kalın**` kalın, `## Başlık` büyük, `_eğik_` eğik görünür; işaretler soluk. Satır seç → B: `## ` önekinin SONRASI sarılır; üç satır seç → B: her satır ayrı; tekrar B → kalkar.
 2. Düzenlerken alt çubuk (Düzenle/Kaydet/Çevir…) ve AI düğmesi gizli; klavye kapanınca geri gelir. Metin seçince klavye üstü çubukta Kopyala ve Kes; Yapıştır ve Tümünü seç her zaman.
 3. Bilgisayardan dosya gönder → Aktar → Hızlı aktar'ın altında "Son alınanlar" kartında görünür; dokununca açılır; 4. dosyadan sonra "Tümünü göster" Geçmiş'e götürür.
+
+## Güvenlik — 4. tur: G10.1 / G4.2 / G4.4 / G7.8 (2026-11-13, main)
+1. Ayarlar › Gizlilik › "Yapay zekâya göndermeden önce sor" açık; bir dosyada AI özet iste → pencerede "Ücretsiz anahtarda Google bu veriyi… eğitmek için kullanabilir" cümlesi var. Vazgeç → "Yapay zekâya gönderilmedi".
+2. Rıza hiç verilmemişken (uygulama verisi temiz) Ayarlar › AI › "Yeni dosyaları otomatik analiz et" aç, yeni dosya indir, uygulamayı öne getir → otomatik tur BAŞLAMAZ, pencere de AÇILMAZ. Bir kez elle AI kullanıp "Gönder" deyince sonraki öne gelişte otomatik tur çalışır.
+3. Bilgisayarla paylaşım (rastgele parola açık) → parola 8 karakter, küçük harf + rakam (ör. `k7m2qx9a`); FTP istemcisi ve tarayıcı bu parolayla girer.
+4. Kişisel derleme: `.apks` dosyasına dokun → "Bu paket kurulsun mu?" penceresi: ad, paket adı, sürüm, (yüklüyse) yüklü sürüm, imza SHA-256; aynı imzalı güncellemede "İmza yüklü uygulamayla aynı". Bu uygulamanın adıyla başka anahtarla imzalı bir `.apks` → kırmızı "Sahte olabilir — kurma" ve kırmızı Kur düğmesi. Vazgeç → hiçbir şey kurulmaz.

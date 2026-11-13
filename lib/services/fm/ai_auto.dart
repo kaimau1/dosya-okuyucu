@@ -62,7 +62,10 @@ class AiAutoAnalyze with WidgetsBindingObserver {
     required bool analyzerBusy,
     required DateTime now,
     DateTime? lastTry,
+    bool consented = true,
   }) {
+    // G10.1: rıza yokken sessiz otomatik tur HİÇ başlamaz (pencere de açmaz).
+    if (!consented) return false;
     if (!settings.autoNewFiles || analyzerBusy) return false;
     if (lastTry != null && now.difference(lastTry) < minGap) return false;
     return true;
@@ -77,6 +80,7 @@ class AiAutoAnalyze with WidgetsBindingObserver {
       analyzerBusy: AiAnalyzer.isRunning,
       now: now,
       lastTry: _lastTry,
+      consented: AiPool.consentGranted?.call() ?? true,
     )) {
       return;
     }

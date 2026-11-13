@@ -296,10 +296,10 @@ void main() {
       expect(File(p.join(inbox.path, 'k.txt')).existsSync(), isFalse);
     });
 
-    test('kod dört haneli üretilir', () {
+    test('kod altı haneli üretilir (G4.4)', () {
       for (var i = 0; i < 50; i++) {
         final code = PeerReceiver.newCode();
-        expect(code, matches(RegExp(r'^\d{4}$')));
+        expect(code, matches(RegExp(r'^[1-9]\d{5}$')));
       }
     });
   });

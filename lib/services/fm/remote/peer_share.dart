@@ -257,15 +257,16 @@ class PeerReceiver implements KeepableServer {
     return until != null && until.isAfter(DateTime.now());
   }
 
-  /// Rastgele dört haneli kod. G4.4 (2026-11-11): `Random.secure` — kod
-  /// ağdaki bir saldırganın tahmin etmemesi gereken tek engel; düz `Random`un
-  /// tohumu tahmin edilebilir. Dört hane eski sürümler ve Windows "Dosya
-  /// Aktar" ile uyum için kaldı; tahmin denemesi [_codeThrottle] ile sınırlı.
+  /// Rastgele ALTI haneli kod. G4.4: `Random.secure` — kod ağdaki bir
+  /// saldırganın tahmin etmemesi gereken tek engel; düz `Random`un tohumu
+  /// tahmin edilebilir. 2026-11-13: 4 → 6 hane. Uyum sorunu yok: arayüz
+  /// alıcıyı kodsuz (onay penceresi) kipte kurar, kod yalnız API'de; Windows
+  /// "Dosya Aktar" kod göndermiyor (kod isteyen alıcıyı "desteklenmiyor" der).
   static String newCode() =>
-      (1000 + Random.secure().nextInt(9000)).toString();
+      (100000 + Random.secure().nextInt(900000)).toString();
 
-  /// G4.4: adres başına 5 yanlış kod → 60 sn red (10 bin olasılık / 5 deneme
-  /// dakikada ≈ 33 saat).
+  /// G4.4: adres başına 5 yanlış kod → 60 sn red (900 bin olasılık / 5 deneme
+  /// dakikada ≈ 2 ay).
   final _codeThrottle = AuthThrottle(limit: 5);
 
   HttpServer? _http;

@@ -771,3 +771,10 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Karar:** `CodeTextController(markdown: true)` → `markdown_style.dart` boyar (dosya düz Markdown kalır): işaretler soluk, kalın/eğik/üstü çizili/kod/bağlantı/başlık canlı; 200 bin karakter üstü ve IME birleştirme sırasında boyama yok. `mdWrap`: satır öneki + boşluk dışarıda, çok satırda her satır ayrı, ikinci basış kaldırır.
 - **Karar (panel):** metin odaktayken alt eylem çubuğu ve AI düğmesi gizli (`_editingText`; düğme klavye üstü çubuğun ucuna biniyordu). Klavye üstü çubukta Kopyala/Kes (seçim varken), Yapıştır, Tümünü seç — çubuk denetleyiciyi dinler.
 - **Karar (Aktar):** Hızlı aktar sekmesinin altında "Son alınanlar" (son 3, `TransferHistory`); 3'ten fazlaysa "Tümünü göster" Geçmiş sekmesine geçer. Hiç alınan yoksa yer kaplamaz.
+
+## 2026-11-13 — Faz F 4. tur: G10.1 rıza, G4.2 parola, G4.4 kod, G7.8 paket bilgisi, G11 denetim
+- **Karar (G10.1):** ayrı `ai_consent_v1` açılmadı — 2026-11-08'den beri olan `AiSendConsent` (oturum + "bir daha sorma" = `AppState.aiSendConsent`) rızanın kendisi; metne eğitim uyarısı eklendi. Sessiz otomatik tur rızayı SORMAZ, `AiPool.consentGranted` false ise hiç başlamaz (pencere ortada açılmasın).
+- **Karar (G4.2):** parola 8 karakter `abcdefghjkmnpqrstuvwxyz23456789` (en az bir harf + bir rakam); FTP ve HTTP paylaşım aynı parola. Parolasız kip yok, QR'da parola yok → belirteç yolu gereksiz.
+- **Bulgu (G4.4):** `PeerReceiver.pairingCode` arayüzde HİÇ verilmiyor (alıcı kodsuz + onay penceresi) → 4→6 hane uyumsuzluk doğurmaz; Windows exe kod göndermiyor.
+- **Karar (G7.8):** inceleme yalnız parçalı paketlerde (`.apks/.xapk/.apkm`); tek `.apk` sistem yükleyicisine gider. Ana APK önbelleğe çıkarılıp `getPackageArchiveInfo(GET_SIGNING_CERTIFICATES)` (API < 28: GET_SIGNATURES); bilgi okunamazsa yine sorulur (bilgisiz). Uyarı önceliği: kötü ZIP adı > kendi adımızla yabancı imza (karşılaştırılamadıysa da uyar) > farklı imza > imza yok.
+- **Tuzak (G7.8):** `ApkKurulum.inspect` Kotlin'i yalnız CI verify'daki Kotlin denetimiyle doğrulanır; cihazda `CIHAZ_TESTI.md` "Güvenlik — 4. tur" 4. madde.

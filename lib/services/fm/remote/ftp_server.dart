@@ -123,10 +123,19 @@ class FtpServer {
   /// **Rastgele parola.** "Ağdan erişim" ekranının varsayılanı: kullanıcı
   /// hiçbir şey yazmadan başlatabilsin, ama paylaşım da parolasız kalmasın
   /// (aynı Wi-Fi'daki herkes telefonun tüm dosyalarını görebilirdi).
-  /// Altı hane yeter: parola tek oturum yaşıyor ve ağ yerel.
+  /// G4.2 (2026-11-13): 8 karakter, harf + rakam karışık (karışan `0/o/1/l/i`
+  /// yok, küçük harf — TV/PC klavyesinde kolay yazılsın): 31⁸ ≈ 2^39.
+  /// Altı haneli eski parola (10⁶) aynı ağdan deneme sınırına rağmen dardı.
+  static const passwordAlphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
+
   static String randomPassword([Random? random]) {
     final r = random ?? Random.secure();
-    return List.generate(6, (_) => r.nextInt(10)).join();
+    while (true) {
+      final p = List.generate(
+          8, (_) => passwordAlphabet[r.nextInt(passwordAlphabet.length)]).join();
+      // Karışık olsun: en az bir harf ve bir rakam.
+      if (p.contains(RegExp(r'[a-z]')) && p.contains(RegExp(r'\d'))) return p;
+    }
   }
 
   /// Sunucunun gerçekten bağlandığı port (0 verilmişse işletim sistemi seçer).

@@ -251,6 +251,15 @@ abstract final class NativeExtras {
   static Future<bool> openOverlaySettings() async =>
       await _call<bool>('openOverlaySettings') ?? false;
 
+  /// G7.8: parçalı paketi kurmadan önce inceler (paket adı, sürüm, imza
+  /// SHA-256, yüklü sürümle aynı imza mı). Kanal yoksa / izin yoksa null.
+  static Future<PackageCheck?> inspectPackageFile(String path) async {
+    if (!Edition.current.has(Feature.apkInstall)) return null;
+    final raw = await _call<Map<Object?, Object?>>(
+        'inspectPackageFile', {'path': path});
+    return raw == null ? null : PackageCheck.fromMap(raw);
+  }
+
   /// Paket kurar. Play sürümlerinde (G1(a)) `REQUEST_INSTALL_PACKAGES` yok →
   /// kanal hiç çağrılmaz, `'unsupported'` döner.
   static Future<String?> installPackageFile(String path,
@@ -311,4 +320,63 @@ abstract final class NativeExtras {
   /// Koordinatın semt/şehir adı ("Çankaya, Ankara"); bulunamazsa null.
   static Future<String?> placeName(double lat, double lon) => _call<String>(
       'geocode', {'lat': lat, 'lon': lon, 'lang': AppStrings.current.language.code});
+}
+
+/// G7.8: kurulum öncesi paket bilgisi (`ApkKurulum.inspect`). Saf değer —
+/// uyarı kararı ([warning]) birim testli.
+class PackageCheck {
+  final String? label;
+  final String package;
+  final String version;
+  final String? installedVersion;
+  final List<String> sha256;
+
+  /// Yüklü sürüm varsa imzası aynı mı; yüklü değilse null.
+  final bool? sameSigner;
+
+  /// Paket bu uygulamanın kendisi mi.
+  final bool self;
+
+  /// ZIP'te mutlak / `..` içeren girdi adı var mı.
+  final bool unsafe;
+  final String? error;
+
+  const PackageCheck({
+    this.label,
+    this.package = '',
+    this.version = '',
+    this.installedVersion,
+    this.sha256 = const [],
+    this.sameSigner,
+    this.self = false,
+    this.unsafe = false,
+    this.error,
+  });
+
+  factory PackageCheck.fromMap(Map<Object?, Object?> m) => PackageCheck(
+        label: m['label'] as String?,
+        package: (m['package'] as String?) ?? '',
+        version: (m['version'] as String?) ?? '',
+        installedVersion: m['installedVersion'] as String?,
+        sha256: [
+          for (final v in (m['sha256'] as List<Object?>?) ?? const [])
+            if (v is String) v
+        ],
+        sameSigner: m['sameSigner'] as bool?,
+        self: m['self'] == true,
+        unsafe: m['unsafe'] == true,
+        error: m['error'] as String?,
+      );
+
+  /// Kırmızı uyarı gerekiyor mu, hangisi: `self_foreign` (bu uygulamanın adıyla
+  /// yabancı imza — en tehlikelisi), `foreign` (yüklü uygulamadan farklı imza —
+  /// sistem zaten reddeder ama kullanıcı bilsin), `unsafe` (bozuk/kötü ZIP
+  /// girdi adı), `unsigned` (imza okunamadı). Sorun yoksa null.
+  String? get warning {
+    if (unsafe) return 'unsafe';
+    if (self && sameSigner != true) return 'self_foreign';
+    if (sameSigner == false) return 'foreign';
+    if (error == null && sha256.isEmpty) return 'unsigned';
+    return null;
+  }
 }

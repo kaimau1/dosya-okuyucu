@@ -9,13 +9,16 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageInfo
 import android.content.pm.PackageInstaller
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import java.io.File
+import java.security.MessageDigest
 import java.util.zip.ZipFile
 
 /**
@@ -55,6 +58,117 @@ object ApkKurulum {
     fun abiOf(entryName: String): String? {
         val base = entryName.substringAfterLast('/').removeSuffix(".apk")
         return abiNames[base.substringAfterLast('.')]
+    }
+
+    /** G7.8: oturuma yazılan toplam boyut üst sınırı (4 GB). */
+    const val MAX_TOTAL = 4L shl 30
+
+    /** G7.8: ZIP girdi adı güvenli mi (mutlak yol / `..` / ters bölü yok). */
+    fun safeName(name: String): Boolean =
+        !name.startsWith("/") && !name.contains('\\') &&
+            name.split('/').none { it == ".." }
+
+    /** Ana APK girdisi: `base.apk`, yoksa `split_` ile başlamayan ilk parça. */
+    fun baseEntry(picked: List<String>): String? =
+        picked.firstOrNull { it.substringAfterLast('/') == "base.apk" }
+            ?: picked.firstOrNull { !it.substringAfterLast('/').startsWith("split_") }
+            ?: picked.firstOrNull()
+
+    private fun sha256(bytes: ByteArray): String =
+        MessageDigest.getInstance("SHA-256").digest(bytes)
+            .joinToString(":") { "%02X".format(it) }
+
+    @Suppress("DEPRECATION")
+    private fun signerDigests(info: PackageInfo?): List<String> {
+        if (info == null) return emptyList()
+        if (Build.VERSION.SDK_INT >= 28) {
+            val si = info.signingInfo
+            if (si != null) {
+                val sigs = if (si.hasMultipleSigners()) si.apkContentsSigners
+                else si.signingCertificateHistory
+                if (sigs != null && sigs.isNotEmpty()) {
+                    // Geçmişte en SON (güncel) imza belirleyici.
+                    return if (si.hasMultipleSigners()) sigs.map { sha256(it.toByteArray()) }
+                    else listOf(sha256(sigs.last().toByteArray()))
+                }
+            }
+        }
+        return info.signatures?.map { sha256(it.toByteArray()) } ?: emptyList()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun flags(): Int =
+        if (Build.VERSION.SDK_INT >= 28) PackageManager.GET_SIGNING_CERTIFICATES
+        else PackageManager.GET_SIGNATURES
+
+    /**
+     * **G7.8 kurulum öncesi bilgi**: paket adı, sürüm, imza SHA-256 parmak izi,
+     * yüklü sürümle aynı imza mı, bu uygulamanın kendisi mi. Ana APK önbelleğe
+     * geçici çıkarılıp `getPackageArchiveInfo` ile okunur, sonra silinir.
+     * Hata/okunamazsa `error` alanı dolu döner (Dart yine sorar, bilgisiz).
+     */
+    fun inspect(ctx: Context, path: String, done: (Map<String, Any?>) -> Unit) {
+        Thread {
+            val out = HashMap<String, Any?>()
+            var tmp: File? = null
+            try {
+                val file = File(path)
+                ZipFile(file).use { zip ->
+                    val names = zip.entries().toList().map { it.name }
+                    val picked = pickEntries(names, Build.SUPPORTED_ABIS.toList())
+                    out["parts"] = picked.size
+                    out["unsafe"] = names.any { !safeName(it) }
+                    val base = baseEntry(picked) ?: throw IllegalStateException("no_apk")
+                    val t = File.createTempFile("inspect", ".apk", ctx.cacheDir)
+                    tmp = t
+                    zip.getInputStream(zip.getEntry(base)).use { input ->
+                        t.outputStream().use { input.copyTo(it, 1 shl 16) }
+                    }
+                }
+                val pm = ctx.packageManager
+                val t = tmp!!
+                @Suppress("DEPRECATION")
+                val info = pm.getPackageArchiveInfo(t.path, flags())
+                    ?: throw IllegalStateException("parse")
+                info.applicationInfo?.let {
+                    it.sourceDir = t.path
+                    it.publicSourceDir = t.path
+                    out["label"] = try {
+                        it.loadLabel(pm).toString()
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+                val pkg = info.packageName
+                out["package"] = pkg
+                out["version"] = info.versionName ?: ""
+                out["versionCode"] = if (Build.VERSION.SDK_INT >= 28) info.longVersionCode
+                else @Suppress("DEPRECATION") info.versionCode.toLong()
+                val signers = signerDigests(info)
+                out["sha256"] = signers
+                out["self"] = pkg == ctx.packageName
+                val installed = try {
+                    @Suppress("DEPRECATION")
+                    pm.getPackageInfo(pkg, flags())
+                } catch (_: PackageManager.NameNotFoundException) {
+                    null
+                }
+                if (installed != null) {
+                    out["installedVersion"] = installed.versionName ?: ""
+                    val have = signerDigests(installed)
+                    out["sameSigner"] = signers.isNotEmpty() && have.isNotEmpty() &&
+                        signers.toSet() == have.toSet()
+                }
+            } catch (e: Exception) {
+                out["error"] = e.message ?: e.javaClass.simpleName
+            } finally {
+                try {
+                    tmp?.delete()
+                } catch (_: Exception) {
+                }
+            }
+            main.post { done(out) }
+        }.start()
     }
 
     /** Kurulacak ZIP girdileri (mimari süzgeci uygulanmış). */
@@ -133,6 +247,14 @@ object ApkKurulum {
                             return@Thread
                         }
                         main.post { done("no_apk") }; return@Thread
+                    }
+                    // G7.8: yol ayırıcılı/mutlak girdi adı ve aşırı boyut reddi.
+                    if (picked.any { !safeName(it) }) {
+                        main.post { done("error:unsafe_entry") }; return@Thread
+                    }
+                    val total = picked.sumOf { zip.getEntry(it).size.coerceAtLeast(0L) }
+                    if (total > MAX_TOTAL) {
+                        main.post { done("error:too_big") }; return@Thread
                     }
                     val id = installer.createSession(params)
                     val s = installer.openSession(id)

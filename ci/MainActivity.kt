@@ -532,6 +532,10 @@ class MainActivity : FlutterActivity() {
                         result.success(false)
                     }
                 }
+                // G7.8: kurmadan önce paket adı / sürüm / imza parmak izi.
+                "inspectPackageFile" -> ApkKurulum.inspect(
+                    applicationContext, call.argument<String>("path") ?: ""
+                ) { result.success(it) }
                 "installPackageFile" -> ApkKurulum.install(
                     this@MainActivity, call.argument<String>("path") ?: "",
                     call.argument<Boolean>("self") ?: false

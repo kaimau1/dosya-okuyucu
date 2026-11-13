@@ -32,6 +32,7 @@ import 'open_history.dart';
 import '../play_store.dart';
 import '../../core/snack.dart';
 import '../../core/user_error.dart';
+import '../../widgets/app_dialog.dart';
 
 /// Bir dosyanın hangi ekranda açılacağı. Saf karar fonksiyonu
 /// ([EntryOpener.routeFor]) olduğu için birim testiyle sabitlenir.
@@ -327,6 +328,11 @@ abstract final class EntryOpener {
   static Future<void> installSplitPackage(
       BuildContext context, String path) async {
     final str = AppStrings.of(context);
+    // G7.8: kurmadan önce ne kurulduğunu göster (imza parmak izi dahil).
+    final check = await NativeExtras.inspectPackageFile(path);
+    if (!context.mounted) return;
+    if (check != null && !await _confirmPackage(context, check)) return;
+    if (!context.mounted) return;
     final toast = showSnack(context, str.t('apk.installing'));
     final result = await NativeExtras.installPackageFile(path);
     toast.close();
@@ -347,6 +353,37 @@ abstract final class EntryOpener {
           {'error': result.replaceFirst('error:', '')}),
     };
     _snack(context, text);
+  }
+
+  /// G7.8 kurulum öncesi bilgi penceresi; uyarı varsa kırmızı (yıkıcı) onay.
+  static Future<bool> _confirmPackage(
+      BuildContext context, PackageCheck c) async {
+    final str = AppStrings.of(context);
+    final warning = c.warning;
+    final lines = <String>[
+      if (c.error != null && c.package.isEmpty)
+        str.t('apk.check_unreadable')
+      else ...[
+        str.t('apk.check_app', {
+          'name': c.label ?? c.package,
+          'pkg': c.package,
+        }),
+        str.t('apk.check_version', {'v': c.version}),
+        if (c.installedVersion != null)
+          str.t('apk.check_installed', {'v': c.installedVersion!}),
+        if (c.sha256.isNotEmpty)
+          str.t('apk.check_sha', {'fp': c.sha256.join('\n')}),
+        if (c.sameSigner == true) str.t('apk.check_same'),
+      ],
+      if (warning != null) str.t('apk.warn_$warning'),
+    ];
+    return showAppConfirm(
+      context,
+      title: str.t('apk.check_title'),
+      message: lines.join('\n\n'),
+      confirmLabel: str.t('apk.check_install'),
+      destructive: warning != null,
+    );
   }
 
   /// Sistemin varsayılan uygulamasına devreder (video, ses, apk, bilinmeyen).

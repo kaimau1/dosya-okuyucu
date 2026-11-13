@@ -16,6 +16,9 @@ abstract final class AiSendConsent {
   /// Ayarda "göndermeden önce sor" yeniden açılınca oturum onayı da düşer.
   static void forget() => _session = false;
 
+  /// G10.1: pencere açmadan rıza var mı (oturum ya da kalıcı).
+  static bool granted(AppState state) => state.aiSendConsent || _session;
+
   static Future<bool> ask(AppState state) {
     if (state.aiSendConsent || _session) return Future.value(true);
     // Aynı anda gelen istekler tek pencereyi bekler.

@@ -601,6 +601,43 @@ const Map<String, (String, String, String)> _t2 = {
   ),
   'apk.install_no_apk': ('Paketin içinde APK yok', 'No APK inside the package',
       'لا يوجد APK داخل الحزمة'),
+  // G7.8 (2026-11-13): kurulum öncesi paket bilgisi.
+  'apk.check_title': ('Bu paket kurulsun mu?', 'Install this package?', 'تثبيت هذه الحزمة؟'),
+  'apk.check_app': ('Uygulama: {name}\n{pkg}', 'App: {name}\n{pkg}', 'التطبيق: {name}\n{pkg}'),
+  'apk.check_version': ('Sürüm: {v}', 'Version: {v}', 'الإصدار: {v}'),
+  'apk.check_installed': ('Yüklü sürüm: {v}', 'Installed version: {v}', 'الإصدار المثبت: {v}'),
+  'apk.check_sha': ('İmza (SHA-256):\n{fp}', 'Signature (SHA-256):\n{fp}', 'التوقيع (SHA-256):\n{fp}'),
+  'apk.check_same': (
+    'İmza yüklü uygulamayla aynı.',
+    'The signature matches the installed app.',
+    'التوقيع مطابق للتطبيق المثبت.',
+  ),
+  'apk.check_unreadable': (
+    'Paket bilgisi okunamadı. Yalnız güvendiğin kaynaktan gelen paketleri kur.',
+    'Couldn’t read the package details. Only install packages from sources you trust.',
+    'تعذّرت قراءة معلومات الحزمة. ثبّت الحزم من مصادر تثق بها فقط.',
+  ),
+  'apk.check_install': ('Kur', 'Install', 'تثبيت'),
+  'apk.warn_self_foreign': (
+    '⚠ Bu paket bu uygulamanın adını taşıyor ama imzası FARKLI. Sahte olabilir — kurma.',
+    '⚠ This package uses this app’s name but its signature is DIFFERENT. It may be fake — don’t install it.',
+    '⚠ تحمل هذه الحزمة اسم هذا التطبيق لكن توقيعها مختلف. قد تكون مزيفة — لا تثبّتها.',
+  ),
+  'apk.warn_foreign': (
+    '⚠ İmza yüklü uygulamadan FARKLI. Başka biri yeniden paketlemiş olabilir; sistem güncellemeyi büyük olasılıkla reddeder.',
+    '⚠ The signature is DIFFERENT from the installed app. Someone may have repackaged it; the system will most likely refuse the update.',
+    '⚠ التوقيع مختلف عن التطبيق المثبت. ربما أعاد أحدهم تحزيمه؛ والأرجح أن يرفض النظام التحديث.',
+  ),
+  'apk.warn_unsafe': (
+    '⚠ Paketin içinde geçersiz dosya adları var. Bozuk ya da kötü niyetli olabilir.',
+    '⚠ The package contains invalid file names. It may be damaged or malicious.',
+    '⚠ تحتوي الحزمة على أسماء ملفات غير صالحة. قد تكون تالفة أو خبيثة.',
+  ),
+  'apk.warn_unsigned': (
+    '⚠ İmza okunamadı. Yalnız güvendiğin kaynaktan geliyorsa kur.',
+    '⚠ The signature couldn’t be read. Install only if it comes from a source you trust.',
+    '⚠ تعذّرت قراءة التوقيع. ثبّتها فقط إن كانت من مصدر تثق به.',
+  ),
   'apk.install_failed': ('Kurulamadı: {error}', 'Install failed: {error}',
       'فشل التثبيت: {error}'),
   'apps.app_info': ('Uygulama bilgisi (sistem ayarı)', 'App info (system settings)', 'معلومات التطبيق (إعدادات النظام)'),

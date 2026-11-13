@@ -610,9 +610,13 @@ void main() {
       expect(FtpServer.isHidden('nomedia'), isFalse);
     });
 
-    test('rastgele parola altı HANE', () {
-      for (var i = 0; i < 20; i++) {
-        expect(FtpServer.randomPassword(), matches(RegExp(r'^\d{6}$')));
+    test('rastgele parola 8 karakter, harf + rakam karışık (G4.2)', () {
+      for (var i = 0; i < 50; i++) {
+        final p = FtpServer.randomPassword();
+        expect(p, matches(RegExp(r'^[a-z2-9]{8}$')));
+        expect(p, matches(RegExp(r'[a-z]')));
+        expect(p, matches(RegExp(r'\d')));
+        expect(p, isNot(matches(RegExp(r'[01ilo]'))));
       }
     });
   });

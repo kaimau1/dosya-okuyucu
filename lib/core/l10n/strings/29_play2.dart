@@ -30,9 +30,9 @@ const Map<String, (String, String, String)> _t29 = {
   ),
   'aisend.title': ('Dosya Google’a gönderilsin mi?', 'Send the file to Google?', 'إرسال الملف إلى Google؟'),
   'aisend.body': (
-    'Bu iş için dosyanın metni (görselse görüntüsü) Google Gemini’ye gönderilir ve senin API anahtarınla işlenir. Başka hiçbir şey telefondan çıkmaz. Bu oturumda bir daha sorulmaz.',
-    'For this, the file’s text (or image) is sent to Google Gemini and processed with your API key. Nothing else leaves the phone. You won’t be asked again this session.',
-    'لهذه المهمة يُرسل نص الملف (أو صورته) إلى Google Gemini ويُعالج بمفتاحك. لا يغادر الهاتف أي شيء آخر. لن يُطرح السؤال مجددًا في هذه الجلسة.',
+    'Bu iş için dosyanın metni (görselse görüntüsü) Google Gemini’ye gönderilir ve senin API anahtarınla işlenir. Ücretsiz anahtarda Google bu veriyi modellerini eğitmek için kullanabilir. Başka hiçbir şey telefondan çıkmaz. Bu oturumda bir daha sorulmaz.',
+    'For this, the file’s text (or image) is sent to Google Gemini and processed with your API key. With a free key, Google may use this data to train its models. Nothing else leaves the phone. You won’t be asked again this session.',
+    'لهذه المهمة يُرسل نص الملف (أو صورته) إلى Google Gemini ويُعالج بمفتاحك. مع المفتاح المجاني قد تستخدم Google هذه البيانات لتدريب نماذجها. لا يغادر الهاتف أي شيء آخر. لن يُطرح السؤال مجددًا في هذه الجلسة.',
   ),
   'aisend.remember': ('Bir daha sorma', 'Don’t ask again', 'لا تسأل مجددًا'),
   'aisend.send': ('Gönder', 'Send', 'إرسال'),

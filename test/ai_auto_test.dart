@@ -43,5 +43,10 @@ void main() {
             now: now,
             lastTry: now.subtract(AiAutoAnalyze.minGap)),
         isTrue);
+    // G10.1: rıza yoksa sessiz otomatik tur başlamaz.
+    expect(
+        AiAutoAnalyze.shouldTry(
+            settings: on, analyzerBusy: false, now: now, consented: false),
+        isFalse);
   });
 }
