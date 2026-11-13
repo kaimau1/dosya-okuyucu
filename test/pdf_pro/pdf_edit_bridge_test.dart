@@ -156,6 +156,34 @@ void main() {
         contains(_squash(edited)));
   });
 
+  test('artımlı kayıt: silinen/atılan nesneler eke yazılmaz', () async {
+    // Cihaz 2026-11-13: "Kaydetme" denen görseller sonraki kayıtta +3,8 MB
+    // olarak dosyaya giriyordu (PDFium belleğindeki her nesneyi yazar).
+    final bytes = File('test/fixtures/pdf_corpus/rl_paragraflar.pdf')
+        .readAsBytesSync();
+    final doc = await PdfDocument.openData(bytes);
+    addTearDown(doc.dispose);
+    await PdfEditBridge.annotate(
+        doc,
+        const PdfAnnotChange.add(0, PdfAnnotType.square,
+            rect: [100, 100, 200, 160], color: 0xFFD32F2F, width: 2));
+    final sq = (await PdfEditBridge.annotations(doc, 0))
+        .firstWhere((a) => a.subtype == PdfAnnotType.square);
+    await PdfEditBridge.annotate(doc, PdfAnnotChange.remove(0, sq.index));
+    await PdfEditBridge.annotate(
+        doc,
+        const PdfAnnotChange.add(0, PdfAnnotType.text,
+            rect: [300, 300, 320, 320], contents: 'not'));
+    final out = await PdfEditBridge.saveIncremental(doc, original: bytes);
+    expect(out.sublist(0, bytes.length), bytes);
+    final tail = String.fromCharCodes(out.sublist(bytes.length));
+    expect(tail, isNot(contains('/Square')));
+    final re = await PdfDocument.openData(out);
+    addTearDown(re.dispose);
+    expect((await PdfEditBridge.annotations(re, 0)).map((a) => a.subtype),
+        [PdfAnnotType.text]);
+  });
+
   test('sağdan sola blok açıkça reddedilir (bozuk yazım yok)', () async {
     final doc = await _open('wd_arapca.pdf');
     addTearDown(doc.dispose);

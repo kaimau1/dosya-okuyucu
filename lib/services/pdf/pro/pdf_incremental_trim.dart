@@ -61,10 +61,47 @@ abstract final class PdfIncrementalTrim {
         body: _body(tail, o),
       ));
     }
+    // Erişilemeyen yeni nesneler atılır: geri alınan / "Kaydetme" denen
+    // düzenlemelerin nesneleri PDFium belleğinde kalıp eke yazılıyordu
+    // (cihaz 2026-11-13: atılmış görseller +3,8 MB ve dosyada okunabilir).
+    final live = _reachable(base, tail);
+    if (live != null) {
+      final before = kept.length;
+      kept.removeWhere((k) => !live.contains(k.number));
+      dropped += before - kept.length;
+    }
     if (dropped == 0 && !_anyUncompressed(tail)) {
       return null; // kırpacak bir şey yok — PDFium'un kaydı aynen
     }
     return Uint8List.fromList(base.appendRawObjects(kept));
+  }
+
+  static final _ref = RegExp(r'(\d+)\s+(\d+)\s+R');
+
+  /// /Root ve /Info'dan (ekin trailer'ı, yoksa özgününki) başvurularla
+  /// erişilen nesne numaraları; kök bulunamazsa null (kırpma yapılmaz).
+  static Set<int>? _reachable(PdfFile base, PdfFile tail) {
+    final roots = <int>[];
+    for (final t in [tail.trailerText, base.trailerText]) {
+      for (final key in const ['Root', 'Info']) {
+        final m = RegExp('/$key' r'\s+(\d+)\s+\d+\s+R').firstMatch(t);
+        if (m != null) roots.add(int.parse(m.group(1)!));
+      }
+      if (roots.isNotEmpty) break;
+    }
+    if (roots.isEmpty) return null;
+    final seen = <int>{};
+    final todo = [...roots];
+    while (todo.isNotEmpty) {
+      final n = todo.removeLast();
+      if (!seen.add(n)) continue;
+      final o = tail.objects[n] ?? base.objects[n];
+      if (o == null) continue;
+      for (final m in _ref.allMatches(o.dict)) {
+        todo.add(int.parse(m.group(1)!));
+      }
+    }
+    return seen;
   }
 
   static bool _anyUncompressed(PdfFile f) => f.objects.values.any((o) =>
