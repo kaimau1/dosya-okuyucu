@@ -16,6 +16,7 @@ import 'package:flutter/foundation.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 import 'pdf_edit_bridge.dart';
+import 'pdf_pro_perf.dart';
 
 /// Sayfa anlık görüntüsü arka ucu. Gerçeği PDFium'da ([PdfiumPageSnapshots]),
 /// testte sahtesi.
@@ -383,12 +384,14 @@ class PdfEditSession extends ChangeNotifier {
   }) =>
       _serial(() async {
         _ensureAlive();
+        final sw = PdfProPerf.start();
         final before = await _snapshots.take(pageIndex);
         if (before == 0) {
           throw const PdfEditBridgeRefused('Sayfanın yedeği alınamadı.');
         }
         try {
           await apply();
+          PdfProPerf.end('uygula', sw);
         } catch (_) {
           await _snapshots.release(before);
           rethrow;
@@ -480,6 +483,7 @@ class PdfEditSession extends ChangeNotifier {
   Future<bool> undo() => _serial(() async {
         _ensureAlive();
         if (_done.isEmpty) return false;
+        final sw = PdfProPerf.start();
         final step = _done.last;
         if (step._after == 0) {
           step._after = await _snapshots.take(step.pageIndex);
@@ -491,6 +495,7 @@ class PdfEditSession extends ChangeNotifier {
         _restored = true;
         _done.removeLast();
         _undone.add(step);
+        PdfProPerf.end('geri_al', sw);
         _notify();
         return true;
       });
@@ -498,6 +503,7 @@ class PdfEditSession extends ChangeNotifier {
   Future<bool> redo() => _serial(() async {
         _ensureAlive();
         if (_undone.isEmpty) return false;
+        final sw = PdfProPerf.start();
         final step = _undone.last;
         if (!await _snapshots.restore(step.pageIndex, step._after)) {
           return false;
@@ -505,6 +511,7 @@ class PdfEditSession extends ChangeNotifier {
         _restored = true;
         _undone.removeLast();
         _done.add(step);
+        PdfProPerf.end('yinele', sw);
         _notify();
         return true;
       });

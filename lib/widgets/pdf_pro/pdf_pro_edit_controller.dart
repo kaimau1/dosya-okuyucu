@@ -6,6 +6,7 @@ import 'package:pdfrx/pdfrx.dart';
 
 import '../../services/pdf/pro/pdf_edit_bridge.dart';
 import '../../services/pdf/pro/pdf_edit_recovery.dart';
+import '../../services/pdf/pro/pdf_pro_perf.dart';
 import '../../services/pdf/pro/pdf_edit_save.dart';
 import '../../services/pdf/pro/pdf_edit_session.dart';
 import '../../services/pdf/pro/pdf_sensitive.dart';
@@ -318,6 +319,9 @@ class PdfProEditController extends ChangeNotifier {
   late final PdfEditSaver saver;
 
   Timer? _timer;
+
+  /// Kipe geçiş ölçümü: kuruluştan ilk sayfanın blokları okunana dek.
+  Stopwatch? _enterSw = PdfProPerf.start();
   final Map<int, PdfPageContent> _content = {};
   final Map<int, List<PdfTextBlock>> _blocks = {};
   final Map<int, List<PdfAnnotInfo>> _annots = {};
@@ -420,6 +424,8 @@ class PdfProEditController extends ChangeNotifier {
         if (_closed) return;
         _content[pageIndex] = c;
         _blocks[pageIndex] = PdfEditBridge.blocksOf(c, mode: _mode);
+        PdfProPerf.end('kipe_gecis', _enterSw);
+        _enterSw = null;
       } catch (_) {
         if (_closed) return;
         // Okunamayan sayfa "blok yok" sayılır; önbellek boş listeyle dolar
@@ -771,9 +777,11 @@ class PdfProEditController extends ChangeNotifier {
         // Yeni kutuda yazılacak bir şey yokken belgeye dokunulmaz.
         if (first && live.block == null && live.text.isEmpty) continue;
         final req = live.liveRequest();
+        final sw = PdfProPerf.start();
         try {
           final r = await session.liveApply(
               () => PdfEditBridge.typeset(document, req, fonts: live.fonts));
+          PdfProPerf.end('tus', sw);
           if (r.ok) {
             live._took(r, first: first);
           } else {
@@ -1222,7 +1230,9 @@ class PdfProEditController extends ChangeNotifier {
       });
 
   Future<PdfEditSaveResult> save() => _guard(() async {
+        final sw = PdfProPerf.start();
         final r = await saver.save();
+        PdfProPerf.end('kaydet', sw);
         if (r.overwritten) {
           _savedOver = true;
           await PdfEditRecovery.clear(path);
