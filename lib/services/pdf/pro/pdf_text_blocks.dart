@@ -867,8 +867,8 @@ List<PdfTextLine> _lines(
   }
   // Sekme durağı (dekont, 2026-11-13): "Etiket : değer" satırında ":" öteki
   // satırların ":" sütunuyla aynı x'te başlıyorsa satır orada bölünür — yoksa
-  // yeniden dizim sütunu kaydırır. Kanıt: yakındaki ≥ 2 satır o x'te BAŞLIYOR
-  // ve nesnenin önündeki boşluk sözcük arasından büyük.
+  // yeniden dizim sütunu kaydırır. Kanıt: yakındaki ≥ 2 satır parçası o x'te
+  // BAŞLIYOR (solunda etiketiyle) ve nesnenin önündeki boşluk sözcük arasından büyük.
   // ponytail: bütün satırlarda etiket ":"ye bitişikse (kanıt yok) bölünmez.
   for (var i = 0; i < lines.length; i++) {
     final l = lines[i];
@@ -880,7 +880,14 @@ List<PdfTextLine> _lines(
               !identical(o, l) &&
               (o.frameLeft - x).abs() <= 0.75 &&
               (o.frameBase - l.frameBase).abs() <= l.size * 8 &&
-              (o.size - l.size).abs() <= l.size * 0.12)
+              (o.size - l.size).abs() <= l.size * 0.12 &&
+              // Kanıt satırı da bir tablo satırının SAĞ parçası olmalı
+              // (solunda etiket var): liste maddesinin asılı devam satırları
+              // madde imini metinden ayırmasın (wd_madde, wd_numarali).
+              lines.any((m) =>
+                  !identical(m, o) &&
+                  (m.frameBase - o.frameBase).abs() < o.size * 0.35 &&
+                  m.frameRight <= o.frameLeft))
           .length;
       if (stops < 2) continue;
       lines

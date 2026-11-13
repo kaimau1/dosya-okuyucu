@@ -1,11 +1,7 @@
-@Skip('Düzeltme faz-pdf-satir dalında; birleşince bu satır kalkar')
-library;
-
 // PDF Pro — dekont / tablo satırı düzenleme (cihaz bulgusu 2026-11-13).
 // Fikstür `tool/pdf_corpus/make_dekont.py` (DevExpress taklidi, UYDURMA veri):
 // her sözcük ayrı nesne + hücre kırpması, fontta ASCII boşluk yok.
 // Gerçek PDFium (CI: PDFIUM_PATH).
-import 'dart:async';
 import 'dart:io';
 
 import 'package:dosya_okuyucu/services/pdf/pro/pdf_edit_bridge.dart';
