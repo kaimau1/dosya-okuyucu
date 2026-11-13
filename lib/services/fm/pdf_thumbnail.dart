@@ -40,6 +40,9 @@ abstract final class PdfThumbnail {
 
   /// Yalnız test: durumu sıfırlar.
   static void debugReset() {
+    _running = 0;
+    _pending.clear();
+    _wanted.clear();
     _inFlight.clear();
     _failed.clear();
     _dir = null;
@@ -47,14 +50,59 @@ abstract final class PdfThumbnail {
 
   /// [path] PDF'inin kapak küçük resmini döndürür (yoksa üretir).
   /// Üretilemezse null — çağıran simgeyi gösterir.
-  static Future<String?> forPdf(String path, {int size = 256}) {
+  static Future<String?> forPdf(String path,
+      {int size = 256, bool Function()? wanted}) {
     if (_failed.contains(path)) return Future.value(null);
+    (_wanted[path] ??= []).add(wanted ?? _always);
     final existing = _inFlight[path];
     if (existing != null) return existing;
     final future = _generate(path, size);
     _inFlight[path] = future;
-    future.whenComplete(() => _inFlight.remove(path));
+    future.whenComplete(() {
+      _inFlight.remove(path);
+      _wanted.remove(path);
+    });
     return future;
+  }
+
+  // ── Sıra (2026-11-13, kullanıcı: "USB içindekilerde önizlemeler geç
+  // yükleniyor") ─────────────────────────────────────────────────────────
+  // PDFium tek işçi izolatında koşar: klasör açılınca HER hücre aynı anda
+  // belge açıyordu, işler geliş sırasıyla (FIFO) işleniyordu ve ekrandan
+  // çıkmış hücrelerin işi de sürüyordu → parmağın durduğu yerdeki önizleme
+  // en son geliyordu. Artık en çok 2 üretim, sıradakiler SONDAN alınır,
+  // ekrandan çıkmış hücrenin işi hiç başlamaz (video küçük resmiyle aynı).
+  static const _maxParallel = 2;
+  static int _running = 0;
+  static final List<(String, Completer<bool>)> _pending = [];
+  static final Map<String, List<bool Function()>> _wanted = {};
+
+  static bool _always() => true;
+
+  static bool _isWanted(String path) =>
+      (_wanted[path] ?? const []).any((check) => check());
+
+  static Future<bool> _acquire(String path) {
+    if (_running < _maxParallel) {
+      _running++;
+      return Future.value(true);
+    }
+    final ticket = Completer<bool>();
+    _pending.add((path, ticket));
+    return ticket.future;
+  }
+
+  static void _release() {
+    while (_pending.isNotEmpty) {
+      final (path, ticket) = _pending.removeLast();
+      if (!_isWanted(path)) {
+        ticket.complete(false);
+        continue;
+      }
+      ticket.complete(true);
+      return;
+    }
+    _running--;
   }
 
   static Future<Directory> _cacheDir() async {
@@ -73,18 +121,30 @@ abstract final class PdfThumbnail {
 
   static Future<String?> _generate(String path, int size) async {
     PdfDocument? doc;
+    String dest;
     try {
       final stat = File(path).statSync();
       final dir = await _cacheDir();
-      final dest = p.join(
+      dest = p.join(
         dir.path,
         ThumbnailCache.cacheName(path, stat.modified.millisecondsSinceEpoch,
                 size)
             .replaceAll('.jpg', '.png'),
       );
       if (File(dest).existsSync()) return dest;
-
-      doc = await PdfDocument.openFile(path);
+    } catch (_) {
+      _markFailed(path);
+      return null;
+    }
+    if (!await _acquire(path)) return null; // hücre gitti — vazgeçildi
+    try {
+      // **Yalnız ilk sayfa ölçülür** (2026-11-13): `useProgressiveLoading`
+      // kapalıyken PDFium açılışta HER sayfayı `FPDF_LoadPage` ile ölçüyordu
+      // — 1 GB'lık, binlerce sayfalık bir PDF'te (USB'de daha da yavaş)
+      // kapak saniyelerce gelmiyor, tek işçiyi tuttuğu için öteki
+      // önizlemeler ve açık görüntüleyici de bekliyordu. Kapak için ilk
+      // sayfa yeter.
+      doc = await PdfDocument.openFile(path, useProgressiveLoading: true);
       if (doc.pages.isEmpty) {
         _markFailed(path);
         return null;
@@ -125,6 +185,7 @@ abstract final class PdfThumbnail {
       return null;
     } finally {
       await doc?.dispose();
+      _release();
     }
   }
 

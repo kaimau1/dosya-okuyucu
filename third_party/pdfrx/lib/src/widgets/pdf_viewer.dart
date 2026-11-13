@@ -624,14 +624,24 @@ class _PdfViewerState extends State<PdfViewer>
     // _initialPageNumber is only known once the first layout has run, hence it is read here and not earlier.
     final initialPageNumber = _clampInitialPageNumber(document, _initialPageNumber ?? widget.initialPageNumber);
     await document.loadPagesProgressively(
-      onPageLoadProgress: (loadedPageCount, totalPageCount, document) {
-        if (isActive()) {
+      onPageLoadProgress: (loadedPageCount, totalPageCount, document) async {
+        if (!isActive()) return false;
+        if (kDebugMode) {
           debugPrint(
             'PdfViewer: Loaded $loadedPageCount of $totalPageCount pages in ${stopwatch.elapsedMilliseconds} ms',
           );
-          return true;
         }
-        return false;
+        // pdfrx-yama (dosya-okuyucu, 2026-11-13): yield the single PDFium
+        // worker to the visible pages while the user drags/flings. Measuring
+        // thousands of pages of a huge PDF meanwhile queued the renders of the
+        // pages coming into view (blank/blurry pages during scrolling) and
+        // shifted the layout under the finger.
+        // Capped so a stuck interaction flag can never stall measurement.
+        final paused = Stopwatch()..start();
+        while (isActive() && _isUserScrolling && paused.elapsed < const Duration(seconds: 4)) {
+          await Future<void>.delayed(const Duration(milliseconds: 120));
+        }
+        return isActive();
       },
       data: _document,
       startPageNumber: initialPageNumber,
@@ -1067,15 +1077,22 @@ class _PdfViewerState extends State<PdfViewer>
       // within this frame: deferring it to a microtask paints one frame of the old matrix over the new layout, and the
       // displayed page visibly jumps and snaps back.
       _txController.runWithDeferredNotifications(() {
-        _sizeDelegate?.onLayoutUpdate(
-          oldState: oldSnapshot,
-          newState: newSnapshot,
-          currentZoom: _currentZoom,
-          oldVisibleRect: oldVisibleRect,
-          anchorPageNumber: currentPageNumber,
-          isLayoutChanged: true,
-          isViewSizeChanged: false,
-        );
+        // pdfrx-yama (dosya-okuyucu): this re-anchor must not kill a running
+        // fling; see [_goTo] and [iv.InteractiveViewerState.shiftPanInertia].
+        _reanchoringLayout++;
+        try {
+          _sizeDelegate?.onLayoutUpdate(
+            oldState: oldSnapshot,
+            newState: newSnapshot,
+            currentZoom: _currentZoom,
+            oldVisibleRect: oldVisibleRect,
+            anchorPageNumber: currentPageNumber,
+            isLayoutChanged: true,
+            isViewSizeChanged: false,
+          );
+        } finally {
+          _reanchoringLayout--;
+        }
       });
     } else if (isLayoutChanged || isViewSizeChanged) {
       Future.microtask(() {
@@ -1108,6 +1125,16 @@ class _PdfViewerState extends State<PdfViewer>
 
   /// Get the state of the internal [iv.InteractiveViewer].
   iv.InteractiveViewerState? get _interactiveViewerState => _interactiveViewerKey.currentState;
+
+  /// The user is dragging, or a fling/zoom animation is running.
+  bool get _isUserScrolling =>
+      _isInteractionGoingOn ||
+      _animController.isAnimating ||
+      _interactiveViewerState?.hasActiveAnimations == true;
+
+  /// >0 while the viewer re-anchors itself after page sizes changed under it
+  /// (progressive measurement); see [_goTo].
+  int _reanchoringLayout = 0;
 
   /// Stop any active animations
   void _stopInteractiveViewerAnimation() {
@@ -2776,6 +2803,28 @@ class _PdfViewerState extends State<PdfViewer>
 
     try {
       if (destination == null) return; // do nothing
+      // pdfrx-yama (dosya-okuyucu, 2026-11-13): an instant re-anchor caused by
+      // progressive page measurement keeps the user's fling going -- the fling
+      // is shifted by the same amount as the view instead of being stopped.
+      // Before this, flinging through a large document stopped dead every time
+      // a batch of page sizes arrived (every ~250 ms while pages were measured).
+      if (_reanchoringLayout > 0 && duration == Duration.zero && !_animController.isAnimating) {
+        final destinationInSafeRange = _makeMatrixInSafeRange(destination, forceClamp: true, anchor: anchor);
+        final current = _txController.value;
+        final ivState = _interactiveViewerState;
+        if (ivState != null &&
+            ivState.hasActiveAnimations &&
+            (destinationInSafeRange.getMaxScaleOnAxis() - current.getMaxScaleOnAxis()).abs() < 1e-6) {
+          final delta = Offset(
+            destinationInSafeRange.storage[12] - current.storage[12],
+            destinationInSafeRange.storage[13] - current.storage[13],
+          );
+          if (ivState.shiftPanInertia(delta)) {
+            _txController.setValueWithoutNormalization(destinationInSafeRange);
+            return;
+          }
+        }
+      }
       _stopInteractiveViewerAnimation();
       _animationResettingGuard++;
       _animController.reset();

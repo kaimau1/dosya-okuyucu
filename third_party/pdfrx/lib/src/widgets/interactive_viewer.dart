@@ -590,6 +590,10 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
   final GlobalKey _childKey = GlobalKey();
   final GlobalKey _parentKey = GlobalKey();
   Animation<Offset>? _animation;
+
+  /// Endpoints of the running pan-inertia tween (see [shiftPanInertia]).
+  Offset? _inertiaBegin;
+  Offset? _inertiaEnd;
   Animation<double>? _scaleAnimation;
   late Offset _scaleAnimationFocalPoint;
   late AnimationController _controller;
@@ -1144,9 +1148,11 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
             details.velocity.pixelsPerSecond.distance,
             widget.interactionEndFrictionCoefficient,
           );
+          _inertiaBegin = translation;
+          _inertiaEnd = Offset(frictionSimulationX.finalX, frictionSimulationY.finalX);
           _animation = Tween<Offset>(
-            begin: translation,
-            end: Offset(frictionSimulationX.finalX, frictionSimulationY.finalX),
+            begin: _inertiaBegin,
+            end: _inertiaEnd,
           ).animate(CurvedAnimation(parent: _controller, curve: Curves.decelerate));
           _controller.duration = Duration(milliseconds: (tFinal * 1000).round());
           _animation!.addListener(_handleInertiaAnimation);
@@ -1566,6 +1572,38 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
       // pan can be considerable.
       stopAllAnimations();
     }
+  }
+
+  /// Moves a running pan fling by [delta] (matrix translation, view pixels)
+  /// instead of stopping it. Returns false when there is no such fling (the
+  /// caller then stops animations as before).
+  ///
+  /// pdfrx-yama (dosya-okuyucu, 2026-11-13): sayfalar aşamalı ölçülürken düzen
+  /// değişince görüntüleyici konumu yeniden demirliyor (`goToPosition`) ve
+  /// bu, süren fırlatmayı `stopAllAnimations` ile kesiyordu — parmak
+  /// bırakılınca sayfa "bir anda duruyordu". Tween'in iki ucu aynı miktar
+  /// kaydırılır; eğri ve süre aynen sürer.
+  bool shiftPanInertia(Offset delta) {
+    final begin = _inertiaBegin;
+    final end = _inertiaEnd;
+    if (!_controller.isAnimating ||
+        widget.scrollPhysics != null ||
+        _animation == null ||
+        begin == null ||
+        end == null ||
+        _scaleController.isAnimating ||
+        _snapController.isAnimating) {
+      return false;
+    }
+    _animation!.removeListener(_handleInertiaAnimation);
+    _inertiaBegin = begin + delta;
+    _inertiaEnd = end + delta;
+    _animation = Tween<Offset>(
+      begin: _inertiaBegin,
+      end: _inertiaEnd,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.decelerate));
+    _animation!.addListener(_handleInertiaAnimation);
+    return true;
   }
 
   /// Check if any animations are currently active

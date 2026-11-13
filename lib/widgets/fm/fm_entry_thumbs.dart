@@ -185,7 +185,7 @@ class _PdfThumbState extends State<_PdfThumb> {
     final loader = widget.loader;
     final result = loader != null
         ? await loader(path, size)
-        : await PdfThumbnail.forPdf(path, size: size);
+        : await PdfThumbnail.forPdf(path, size: size, wanted: () => mounted);
     if (!mounted || path != widget.path) return;
     setState(() => _thumb = result);
   }

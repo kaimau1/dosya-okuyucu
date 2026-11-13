@@ -35,3 +35,18 @@ Uygulama düzenleme kipindeyken belge olayını dinleyip bu yöntemi çağırır
 
 **Yükseltmede:** yukarı akış içerik değişimini geometriden ayırıyorsa (ya da sayfa başına
 "yeniden çiz" API'si geldiyse) bu yöntem silinir.
+
+## 3. değişiklik (2026-11-13) — fırlatma aşamalı ölçümde kesilmesin
+
+`interactive_viewer.dart`: `InteractiveViewerState.shiftPanInertia(delta)` — süren kaydırma
+ataletinin tween uçlarını kaydırır (eğri/süre aynı). `pdf_viewer.dart`: düzen "sayfa boyları
+değişti" dalında yeniden demirleme sırasında (`_reanchoringLayout`) `_goTo` süresiz çağrıda
+animasyonu DURDURMAZ, ataleti aynı miktar kaydırır. Ayrıca `loadPagesProgressively` geri
+çağırması kullanıcı sürükler/fırlatırken (`_isUserScrolling`, en çok 4 sn) bekler.
+
+**Kök neden (kullanıcı: "1 GB resimli PDF akmıyor, parmağı bırakınca bir anda duruyor"):**
+aşamalı ölçüm ~250 ms'de bir sayfa boylarını yayımlıyor → düzen değişiyor → `Legacy`
+boy temsilcisi `goToPosition` → `_goTo` → `_stopInteractiveViewerAnimation()` → fırlatma kesiliyor.
+Ölçüm aynı tek PDFium işçisini tuttuğu için kaydırırken gelen sayfaların çizimi de sırada bekliyordu.
+
+**Yükseltmede:** yukarı akış yeniden demirlemede ataleti koruyorsa iki ek de silinir.
