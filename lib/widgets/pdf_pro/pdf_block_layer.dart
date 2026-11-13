@@ -839,6 +839,17 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
             c.selectAnnot(pageIndex, a);
             widget.events.onAnnotTap(pageIndex, a);
           }
+        } else if (c.markup == PdfMarkupKind.eraser) {
+          // Dikdörtgen/ok sayfa içeriği (açıklama değil) — Silgi onu da siler
+          // (cihaz 2026-11-13: yalnız Görsel aracıyla siliniyordu).
+          final p = _p(local);
+          final s = c.shapeAt(pageIndex, p.x, p.y, slop: 6 / _unit * _px);
+          if (s == null) return c.clearSelection();
+          AppHaptics.selection();
+          c
+              .mutate(pageIndex, [PdfMutAction.delete([s.index])],
+                  label: 'pse.step_delete')
+              .catchError(widget.events.onRefused);
         } else {
           c.clearSelection();
         }

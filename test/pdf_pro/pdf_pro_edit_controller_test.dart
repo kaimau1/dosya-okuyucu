@@ -197,4 +197,47 @@ void main() {
     expect(c.session.dirty, isFalse);
     expect(await text(doc), t0);
   });
+
+  test('Çoğalt: kopya alttaki paragrafın üstüne binmez', () async {
+    final (_, c) = await open();
+    final list = await blocks(c, 0);
+    final src = list.firstWhere((b) => b.text.startsWith('Müze'));
+    final below = list.where((b) =>
+        b.top < src.bottom &&
+        b.top > src.bottom - 3 * (src.top - src.bottom + src.leading));
+    expect(below, isNotEmpty, reason: 'sınama için altta paragraf gerekli');
+    await c.duplicateBlock(0, src, label: 'pse.step_duplicate');
+    final after = await blocks(c, 0);
+    final copies = after.where((b) => b.text == src.text).toList();
+    expect(copies, hasLength(2));
+    final copy = copies.firstWhere((b) => b.top < src.bottom);
+    for (final b in after) {
+      if (b.text == src.text) continue;
+      final xs = (b.right < copy.left || b.left > copy.right);
+      final ys = (b.top < copy.bottom || b.bottom > copy.top);
+      expect(xs || ys, isTrue, reason: 'kopya "${b.text}" ile çakışıyor');
+    }
+  });
+
+  test('Silgi: işaretleme şekli (dikdörtgen/ok) bulunur ve silinir; sayfanın '
+      'kendi çizimi bulunmaz', () async {
+    final (_, c) = await open();
+    await blocks(c, 0);
+    expect(c.shapeAt(0, 60, 60), isNull);
+    await c.mutate(0, [
+      const PdfMutAction.shape(PdfShapeKind.rect, 40, 40, 120, 90,
+          stroke: 0xFFFF0000, strokeWidth: 2),
+      const PdfMutAction.shape(PdfShapeKind.arrow, 200, 40, 300, 90,
+          stroke: 0xFF0000FF, strokeWidth: 2),
+    ], label: 'pse.step_shape');
+    await blocks(c, 0);
+    for (final (x, y) in [(41.0, 60.0), (250.0, 65.0)]) {
+      final s = c.shapeAt(0, x, y);
+      expect(s, isNotNull);
+      await c.mutate(0, [PdfMutAction.delete([s!.index])],
+          label: 'pse.step_delete');
+      await blocks(c, 0);
+    }
+    expect(c.contentOf(0)!.items.where((i) => i.mark == pdfShapeMark), isEmpty);
+  });
 }

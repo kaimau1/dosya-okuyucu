@@ -984,13 +984,16 @@ class PdfProEditController extends ChangeNotifier {
         _invalidate(pageIndex);
       });
 
-  /// Bloğu hemen altına çoğaltır.
+  /// Bloğu altındaki ilk boşluğa çoğaltır (cihaz 2026-11-13: hemen altına
+  /// koyunca alttaki paragrafın üstüne biniyordu). Sayfada yer yoksa hemen
+  /// altına (eski davranış — kopya görünür kalsın).
   Future<void> duplicateBlock(int pageIndex, PdfTextBlock block,
       {required String label}) async {
     await copyBlock(pageIndex, block);
-    final height = block.top - block.bottom + block.leading;
     final c = clip!;
     await _guard(() async {
+      final height =
+          duplicateDrop(block, await _blocksNow(pageIndex));
       final content = await _contentNow(pageIndex);
       final base = PdfBlockRequest.of(pageIndex, block, content: content);
       final req = PdfTypesetRequest(
@@ -1012,6 +1015,31 @@ class PdfProEditController extends ChangeNotifier {
           label: label, detail: _excerpt(c.text));
       _invalidate(pageIndex);
     });
+  }
+
+  /// [block]'un kopyası kaç birim aşağı inmeli ki [blocks]'tan hiçbirine
+  /// binmesin: hemen altından başlar, çakışan bloğun altına atlar.
+  @visibleForTesting
+  static double duplicateDrop(PdfTextBlock block, List<PdfTextBlock> blocks) {
+    final h = block.top - block.bottom;
+    final first = block.top - block.bottom + block.leading;
+    var top = block.top - first;
+    for (var moved = true, i = 0;
+        moved && top - h >= 0 && i <= blocks.length;
+        i++) {
+      moved = false;
+      for (final b in blocks) {
+        if (identical(b, block) ||
+            math.min(b.right, block.right) <= math.max(b.left, block.left)) {
+          continue;
+        }
+        if (b.bottom < top + 0.5 && b.top > top - h - 0.5) {
+          top = b.bottom - block.leading;
+          moved = true;
+        }
+      }
+    }
+    return top - h >= 0 ? block.top - top : first;
   }
 
   /// Bloğu madde işaretli / numaralı listeye çevirir ya da listeden çıkarır
@@ -1123,6 +1151,22 @@ class PdfProEditController extends ChangeNotifier {
       });
 
   // ── nesneler (Faz 59) ────────────────────────────────────────────────────
+  /// [x], [y] noktasındaki (PDF birimi, [slop] payla) işaretleme şekli —
+  /// Silgi için; sayfanın kendi çizimleri sayılmaz.
+  PdfPageItem? shapeAt(int pageIndex, double x, double y, {double slop = 4}) {
+    for (final it in (contentOf(pageIndex)?.items ?? const <PdfPageItem>[])
+        .reversed) {
+      if (it.mark == pdfShapeMark &&
+          x >= it.left - slop &&
+          x <= it.right + slop &&
+          y >= it.bottom - slop &&
+          y <= it.top + slop) {
+        return it;
+      }
+    }
+    return null;
+  }
+
   Future<void> mutate(int pageIndex, List<PdfMutAction> actions,
           {required String label, String detail = ''}) =>
       _guard(() async {

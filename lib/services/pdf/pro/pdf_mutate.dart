@@ -110,6 +110,9 @@ String? _mutate(pdfium_bindings.PDFium p, int docAddr, PdfMutation m) {
             p.FPDFPageObj_SetStrokeWidth(o, a.strokeWidth <= 0 ? 1 : a.strokeWidth);
             p.FPDFPath_SetDrawMode(
                 o, a.fill != 0 ? 1 : 0, a.stroke != 0 ? 1 : 0);
+            // Silgi bizim şeklimizi tanısın (sayfanın kendi çizimine dokunmaz).
+            p.FPDFPageObj_AddMark(
+                o, pdfShapeMark.toNativeUtf8(allocator: arena).cast());
             p.FPDFPage_InsertObject(page, o);
             created.add(o);
           case 'image':
@@ -307,6 +310,10 @@ PdfImagePixels? _bitmapPixels(
 // bölgenin pikselleri siyaha boyanır; döndürülmüş görsel bütünüyle kalkar.
 
 const _markRedact = 'DOrd';
+
+/// İşaretleme aracının çizdiği şekil (dikdörtgen, elips, çizgi, ok) — Silgi
+/// yalnız bunları siler. `DO` önekli DEĞİL: Görsel aracı da seçebilsin.
+const pdfShapeMark = 'PPsh';
 
 /// null = başarılı. [created] ve [removed] çağıranın listelerine eklenir.
 String? _redact(
