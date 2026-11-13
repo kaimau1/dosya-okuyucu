@@ -427,8 +427,20 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
       }
       if (kind == PdfMarkupKind.redact && (to - from).distance > 6 * _px) {
         final a = _p(from), z = _p(to);
+        // Satırın üstünden yatay sürükleme ince bir kutu verir (cihaz
+        // 2026-11-13: yalnız birkaç harf silindi, kutu çizgi gibi) → metin
+        // seçimi gibi satır dörtgenleri karartılır.
+        final quads =
+            (a.y - z.y).abs() < 6 ? _quadsBetween(from, to) : const <List<double>>[];
+        List<double> box(List<double> q) {
+          final xs = [q[0], q[2], q[4], q[6]], ys = [q[1], q[3], q[5], q[7]];
+          return [xs.reduce(math.min), ys.reduce(math.min),
+              xs.reduce(math.max), ys.reduce(math.max)];
+        }
         await c.mutate(pageIndex, [
-          PdfMutAction.redact([a.x, a.y, z.x, z.y]),
+          PdfMutAction.redact(quads.isEmpty
+              ? [a.x, a.y, z.x, z.y]
+              : [for (final q in quads) ...box(q)]),
         ], label: 'pse.step_redact');
         return;
       }
