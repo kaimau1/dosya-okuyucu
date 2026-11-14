@@ -891,9 +891,19 @@ class XlsxReader {
         q++;
       }
       if (q >= end) return null;
-      final close = s.indexOf(String.fromCharCode(s.codeUnitAt(q)), q + 1);
+      final close = s.indexOf(s.codeUnitAt(q) == 34 ? '"' : "'", q + 1);
       if (close < 0 || close >= end) return null;
-      if (s.substring(k, eq).trim() == name) {
+      // Ad yerinde karşılaştırılır (P12): hücre başına 3 çağrıda her
+      // özniteliğe substring + trim + fromCharCode ayırmak AOT kıyasında
+      // 200 bin hücrede ~105 → ~60 ms.
+      var a = k, b = eq;
+      while (a < b && s.codeUnitAt(a) <= 32) {
+        a++;
+      }
+      while (b > a && s.codeUnitAt(b - 1) <= 32) {
+        b--;
+      }
+      if (b - a == name.length && s.startsWith(name, a)) {
         return _unescape(s.substring(q + 1, close));
       }
       k = close + 1;
