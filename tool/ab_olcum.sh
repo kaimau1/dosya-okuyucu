@@ -69,6 +69,10 @@ derle() {  # derle <etiket> <sha>
       grep -q r8test android/app/build.gradle.kts \
         || { echo "::error::$W/android .r8test değil — elle sil, yeniden koş"; exit 1; }
     else
+      # Eski ref'te Windows yol düzeltmesi yok (2026-11-14): /C:/… pub yolu → C:\…
+      grep -q url2pathname ci/prepare_android.sh || sed -i \
+        -e 's|^root = pathlib.Path(urllib.parse.urlparse(roots\[0\]).path)$|root = pathlib.Path(urllib.request.url2pathname(urllib.parse.urlparse(roots[0]).path))|' \
+        -e 's|^import json, pathlib, urllib.parse$|import json, pathlib, urllib.parse, urllib.request|' ci/prepare_android.sh
       DOSYA_R8TEST=1 bash ci/prepare_android.sh > "$OUT/hazirla_$1.log" 2>&1 \
         || { echo "::error::$1 iskelet kurulamadı — $OUT/hazirla_$1.log"
              tail -n 5 "$OUT/hazirla_$1.log"; rm -rf android; exit 1; }
