@@ -136,11 +136,15 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         // atlıyordu, HAFIZA 2026-10-23 (14)).
                         layoutPages: (pages, params) => _insetPdfLayout(
                           _pdfColumns == 1
-                              // Kenar boşluğu kırpma (H3.4) yalnız tek sütunda.
-                              ? (_pdfCrop == null
-                                  ? _plainPdfLayout(pages, params)
-                                  : PdfMarginCropper.layout(
-                                      pages, params.margin, _pdfCrop!))
+                              // Kenar boşluğu kırpma (H3.4) yalnız tek sütunda;
+                              // sayfa sayfa kipinde (H3.5) sayfalar aralıklı.
+                              ? _pagedPdfLayout(
+                                  _pdfCrop == null
+                                      ? _plainPdfLayout(pages, params)
+                                      : PdfMarginCropper.layout(
+                                          pages, params.margin, _pdfCrop!),
+                                  context,
+                                  params.margin)
                               : _pdfColumns == kPdfBookLayout
                                   ? _layoutPdfBook(pages, params)
                                   : _layoutPdfColumns(pages, params),
@@ -617,6 +621,34 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
       y += page.height + params.margin;
     }
     return PdfPageLayout(pageLayouts: rects, documentSize: Size(width, y));
+  }
+
+  /// **Sayfa sayfa kipi (H3.5):** sayfalar arası boşluk, sığdırılmış sayfanın
+  /// altında/üstünde komşu sayfa görünmeyecek kadar açılır (P28: cihazda
+  /// alttan sonraki sayfa görünüyordu). Yatay düzen ve genişlik değişmez.
+  PdfPageLayout _pagedPdfLayout(
+      PdfPageLayout base, BuildContext context, double margin) {
+    if (!_pdfPaged || base.pageLayouts.length < 2) return base;
+    final size = MediaQuery.sizeOf(context);
+    var viewW = size.width;
+    if (_pdfDoc != null && _pdfSidePanel && viewW >= 840) {
+      viewW -= _kSidePanelWidth + 1;
+    }
+    final extra = (PdfPagedTurn.gap(
+                [for (final r in base.pageLayouts) r.size],
+                Size(viewW, size.height),
+                pad: Gap.sm) -
+            margin)
+        .ceilToDouble();
+    if (extra <= 0) return base;
+    final rects = base.pageLayouts;
+    return PdfPageLayout(
+      pageLayouts: [
+        for (var i = 0; i < rects.length; i++) rects[i].translate(0, extra * i)
+      ],
+      documentSize: Size(base.documentSize.width,
+          base.documentSize.height + extra * (rects.length - 1)),
+    );
   }
 
   /// Belgenin başına ve sonuna okuma kipi çubuklarının boyu kadar pay.
