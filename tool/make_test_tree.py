@@ -7,6 +7,8 @@
   belge_100.pdf   100 sayfalık metinli PDF (açılış süresi)
   tablo_10k.csv   10.000 satırlık tablo (Excel ekranı CSV'yi de açar)
   tablo_100k.xlsx 100.000 satırlık xlsx (integration_test, Faz 42 / 6)
+  word_300.docx   ~300 sayfa docx (Faz 37 perf + B3.3d kapanış/menü)
+  slayt_300.pptx  300 slayt (Faz 38 perf; test/fixtures/office/sunum.pptx çoğaltılır)
   --buyuk ile ek olarak (Faz 42 / 2, büyük dosya tavanı):
   buyuk_100mb.xlsx ~100 MB xlsx (akış önizlemesi, bellek tavanı)
   buyuk_100mb.pdf  ~100 MB PDF (görüntüleyici akışla; araçlar bütçe uyarısı)
@@ -106,6 +108,68 @@ def xlsx(path, rows=None, target_bytes=None):
             s.write(b'</sheetData></worksheet>')
 
 
+_W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+
+
+def docx(path, paras=3000):
+    """~300 sayfalık düz docx (Faz 37 perf, B3.3d): her 10 paragrafta bir Başlık 1."""
+    rnd = random.Random(7)
+    words = 'belge ölçüm sayfa düzen paragraf satır yazı çizim kaydırma açılış'.split()
+    body = []
+    for i in range(paras):
+        if i % 10 == 0:
+            body.append(f'<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Bölüm {i // 10 + 1}</w:t></w:r></w:p>')
+        text = ' '.join(rnd.choice(words) for _ in range(45))
+        body.append(f'<w:p><w:r><w:t>{text}</w:t></w:r></w:p>')
+    with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as z:
+        z.writestr('[Content_Types].xml',
+                   '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+                   '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+                   '<Default Extension="xml" ContentType="application/xml"/>'
+                   '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>')
+        z.writestr('_rels/.rels',
+                   '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                   '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>')
+        z.writestr('word/document.xml',
+                   f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="{_W}"><w:body>'
+                   + ''.join(body) + '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/></w:sectPr></w:body></w:document>')
+
+
+_SLIDE_CT = 'application/vnd.openxmlformats-officedocument.presentationml.slide+xml'
+
+
+def pptx(path, slides=300):
+    """Depodaki 2 slaytlık `sunum.pptx` örneğinin slaytları çoğaltılarak (Faz 38 perf)."""
+    src = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'test', 'fixtures', 'office', 'sunum.pptx')
+    with zipfile.ZipFile(src) as s:
+        parts = {n: s.read(n) for n in s.namelist()}
+    tpl = [(parts[f'ppt/slides/slide{k}.xml'], parts[f'ppt/slides/_rels/slide{k}.xml.rels']) for k in (1, 2)]
+    ids, rels, cts = [], [], []
+    with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as z:
+        for n, b in parts.items():
+            if not n.startswith('ppt/slides/') and n not in (
+                    'ppt/presentation.xml', 'ppt/_rels/presentation.xml.rels', '[Content_Types].xml'):
+                z.writestr(n, b)
+        for i in range(1, slides + 1):
+            xml, rel = tpl[i % 2]
+            z.writestr(f'ppt/slides/slide{i}.xml', xml)
+            z.writestr(f'ppt/slides/_rels/slide{i}.xml.rels', rel)
+            ids.append(f'<p:sldId id="{255 + i}" r:id="rId{100 + i}"/>')
+            rels.append(f'<Relationship Id="rId{100 + i}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide{i}.xml"/>')
+            cts.append(f'<Override PartName="/ppt/slides/slide{i}.xml" ContentType="{_SLIDE_CT}"/>')
+        pres = parts['ppt/presentation.xml'].decode()
+        a, b = pres.index('<p:sldIdLst>') + len('<p:sldIdLst>'), pres.index('</p:sldIdLst>')
+        z.writestr('ppt/presentation.xml', pres[:a] + ''.join(ids) + pres[b:])
+        prel = parts['ppt/_rels/presentation.xml.rels'].decode()
+        for k in (1, 2):  # özgün slayt ilişkileri çıkar, master/tema kalır
+            prel = prel.replace(f'<Relationship Id="rId{k + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide{k}.xml"/>', '')
+        z.writestr('ppt/_rels/presentation.xml.rels', prel.replace('</Relationships>', ''.join(rels) + '</Relationships>'))
+        ct = parts['[Content_Types].xml'].decode()
+        for k in (1, 2):
+            ct = ct.replace(f'<Override PartName="/ppt/slides/slide{k}.xml" ContentType="{_SLIDE_CT}"/>', '')
+        z.writestr('[Content_Types].xml', ct.replace('</Types>', ''.join(cts) + '</Types>'))
+
+
 def big_pdf(path, target_bytes):
     """Sıkıştırılmamış rastgele gri görselli sayfalarla ~[target_bytes] PDF."""
     rnd = random.Random(7)
@@ -162,6 +226,8 @@ def main():
         for i in range(10000):
             f.write(f'{i},satir {i},{i * 3.5:.2f},2026-{1 + i % 12:02d}-{1 + i % 28:02d}\n')
     xlsx(os.path.join(root, 'tablo_100k.xlsx'), rows=100000)
+    docx(os.path.join(root, 'word_300.docx'))
+    pptx(os.path.join(root, 'slayt_300.pptx'))
     if '--buyuk' in sys.argv:
         xlsx(os.path.join(root, 'buyuk_100mb.xlsx'), target_bytes=100 << 20)
         big_pdf(os.path.join(root, 'buyuk_100mb.pdf'), 100 << 20)
