@@ -1071,6 +1071,8 @@ const Map<String, (String, String, String)> _t7 = {
     'Bar is full (max {max}) — remove one to add another',
     'الشريط ممتلئ (الحد {max}) — أزل واحداً لإضافة آخر',
   ),
+  'nav.expand': ('Gezinme sütununu genişlet', 'Expand navigation', 'توسيع شريط التنقل'),
+  'nav.collapse': ('Gezinme sütununu daralt', 'Collapse navigation', 'طي شريط التنقل'),
   'nav.add': ('Çubuğa ekle', 'Add to bar', 'أضف إلى الشريط'),
   'nav.remove': ('Çubuktan çıkar', 'Remove from bar', 'أزل من الشريط'),
   'nav.reset': ('Varsayılana dön', 'Reset to default', 'استعادة الافتراضي'),
