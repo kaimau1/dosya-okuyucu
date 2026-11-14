@@ -980,3 +980,9 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Tuzak:** `ab_olcum.sh` veriyi yalnız işaret dosyası yoksa iter — yeni veri ekleyen, işaret dosyasını da en yeniye çekmeli (şimdi `slayt_300.pptx`).
 - **Tuzak (senaryo):** Word okuma kipi kaydırınca üst çubuğu gizler → ⋮ menü ölçümü kaydırmadan ÖNCE; menü açılmadıysa `pop` Word ekranını kapatır (PopupMenuItem varlığı denetlenir).
 - **B3.2:** Mobil editör onayı kullanıcı bakışı → KONTROL_LISTEM 30; eski WebView düzenleme yolu onaysız silinmez.
+## 2026-11-14 — Ferrari H9 tablet (oto P10, dal faz-oto-P10-tablet)
+- **Karar:** tablet ölçütü `isTabletWide` (`lib/core/tablet.dart`: genişlik ≥ 840 VE kısa kenar ≥ 600) — telefon yatayda false; H9 geniş ekran dalları (gezinme sütunu, sürükle-bırak) telefonda kurulmaz.
+- **Bug kökü (H9.2):** geniş ↔ dar düzende liste anahtarsız yer değiştirince kaydırma sıfırlanıyordu → GlobalKey (gezgin liste sütunu, `HomeScreen` sekme yığını, çift bölme bölmeleri).
+- **Yapı (H9.1):** `HomeNavColumn` sekme kimlikleri `NavTabs` ile aynı; sütundan açılan (çubukta olmayan) sekme yığının sonuna eklenir, kurulmuşsa dar düzende de durur.
+- **Yapı (H9.3):** kalem ekranı `_stylus` kipi: kalem görülünce parmak çizmez (tek parmak kaydırır), kalem basılıyken (`_penDown`) parmak/avuç izlenmez. Eski kök: avuç = ikinci parmak → darbe iptal.
+- **Karar (H9.5, sabah bakılacak):** çift bölmede bırakma = kopya (taşıma değil). Başka uygulamaya bırakma yok — eklenti gerekir.

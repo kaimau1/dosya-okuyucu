@@ -1225,3 +1225,11 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] G1 kısayol: ESKİ sürümde sabitlenmiş ana ekran dosya kısayolu (imzasız) bu sürümde de açılıyor mu (Android 8+: sistemin kayıtlı kısayol listesinden kabul). Yeni sabitlenen kısayol da açılmalı.
 - [ ] G7.3: büyük bir .xlsx / .docx / .pptx düzenleyip kaydet — kaydetme eskisi gibi çalışıyor mu.
 - [ ] G7.4: .xlsm ya da .docm aç → ileti "makrolar çalıştırılmaz; kaydedince dosyada kalır"; düzenleyip kaydet → bilgisayarda Excel/Word'de makro duruyor mu.
+
+## Ferrari H9 — Tablet (2026-11-14, dal faz-oto-P10-tablet) — tablet gerekir
+- [ ] Yatay tablet (≥ 840 dp): ana ekranda solda gezinme sütunu; Son açılanlar / bir kategori → sağda açılıyor, sütun yerinde. Sütun simgesi → daralıyor (yalnız simgeler, basılı tutunca ad); depolama → gezgin.
+- [ ] Döndür (yatay ↔ dikey): sütun gidip geliyor, açık sayfa ve kaydırma yeri korunuyor; gezgin ve çift bölmede liste başa atlamıyor.
+- [ ] Telefon (dikey + yatay): ana ekran ESKİSİ gibi — sütun yok.
+- [ ] Kalem ekranı (PDF › Kalemle düzenle) kalemle: kalem çiziyor; çizerken avuç ekrana değince çizgi bozulmuyor; parmakla tek dokunuş kaydırıyor/sayfa çeviriyor, çizmiyor. Kalemsiz telefonda parmak çizmeye devam ediyor.
+- [ ] Büyük metin dosyası (çok MB'lık .txt/.log) tablette ortalı, okunur genişlikte.
+- [ ] Çift bölme (tablet): dosyayı basılı tutup seç → sağda tutamaç; tutamacı öbür bölmeye sürükle → öbür bölme çerçevelenir, bırakınca kopyalanır (kaynak yerinde).

@@ -44,6 +44,12 @@ Ayrıntılı teknik liste: `docs/CIHAZ_TESTI.md` (koşu kayıtları orada).
     Faz 40 düzeni). Plan "en çok 3 + ⋮" diyor. Öneri: Kaydet'i yalnız değişiklik varken göster. Doğruysa:
     "editör önerisi tamam" de. Yanlışsa: "editör kalsın" de (şu an böyle).
 
+## Ferrari H9 — tablet (2026-11-14, dal faz-oto-P10-tablet)
+32. **Tablet turu** — tablet yok, yalnız widget testleriyle doğrulandı. Ne: `docs/CIHAZ_TESTI.md` "Ferrari H9"
+    maddeleri. Nasıl: tableti bağla, "tablet bağlı" de (ya da kendin bak). Doğruysa: "H9 tamam". Yanlışsa: hangi madde.
+33. **Çift bölmede sürükle-bırak = kopya** (sabah bakılacak) — bırakınca dosya KOPYALANIYOR (en güvenli);
+    taşımak için "Taşı" düğmesi. Doğruysa: bir şey deme. Yanlışsa: "sürükle taşısın" de.
+
 ## Telefon ayarı isteyenler
 13. **Erişilebilirlik ölçümü (P6)** — Ayarlar → Erişilebilirlik → TalkBack (ya da herhangi bir hizmet) AÇ,
     sonra bana "açtım" de; ölçümü ben alırım, bitince kapatırsın.
