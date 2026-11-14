@@ -33,7 +33,7 @@ void main() {
       if (allowed.contains(name)) continue;
       final src = f.readAsStringSync();
       for (final m in call.allMatches(src)) {
-        final rest = src.substring(m.end());
+        final rest = src.substring(m.end);
         final b = rest.indexOf('builder:');
         final head = rest.substring(0, b < 0 ? rest.length.clamp(0, 400) : b);
         for (final k in banned) {
