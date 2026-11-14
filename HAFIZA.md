@@ -1010,3 +1010,7 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Video düzenle canlı kare:** oynatıcı `seekTo` kesin arama → parmağın gerisinde. Sürüklerken yerelden önceden çıkarılmış 60 kare (320 px, `<şerit>/tarama/kare_<i>.jpg`, zaman = dilim ortası) üst katmanda; parmak kalkınca (`onDragEnd`) katman kalkar. `frames` yerel tavanı 24 → 60.
 - **Oynatıcı ⋮:** küçük açılır menü kaldırıldı; doğrudan `showEntryActions` levhası, oynatıcıya özgü işlemler `extras` ("Oynatıcı" bölümü, en üstte).
 - **Albüm şeridi gizle:** `AppState.fmPhotoHighlights` (`fm_photo_highlights`), Analiz ve diğer → Görünüm.
+
+## 2026-11-14 — P08 PDF Pro oturum belleği (needsReplay)
+- **Bug kökü:** `PdfEditSession.commitLive` koşulsuz `_restored = true` → yerinde yazma sonrası `needsReplay` hep açık → `PdfEditSaver.encode` her 30 sn geçici kayıtta ve Kaydet'te açılış baytlarından ikinci tam PDFium belgesi açıp komutları yeniden oynatıyordu. commitLive sayfayı anlık görüntüden geri KOYMAZ (sayfa nesnesi aynı; yer imleri bozulmaz) → bayrak gereksizdi. Gizlenen özgünleri bitiş yazımı kaldırır, ara yazımların erişilemez artıklarını (tuş başı yüklenen yedek font vb.) kırpma atar. `_restored` yalnız gerçekten sayfa geri konan yerlerde: undo/redo/cancelLive(changed).
+- **Doğrulanmadı:** bellek etkisi cihazda A/B (önceki A/B "geçici kayıt kapalı" fark göstermemişti → tek başına bütçeyi kurtarmayabilir; sıradaki aday tuş başı prova).
