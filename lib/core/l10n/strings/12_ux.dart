@@ -123,9 +123,7 @@ const Map<String, (String, String, String)> _t12 = {
   'rs.video_file_size_note': ('Videoda hedef boyut bit hızına çevrilir; düşük hedefte çözünürlük de iner. Gerçek boyut iş bitince bildirilir.', 'For videos the target size becomes a bitrate; low targets also lower the resolution. The real size is reported when done.', 'في الفيديو يتحول الحجم المستهدف إلى معدل بت؛ والأهداف المنخفضة تخفض الدقة أيضاً. يُبلَّغ الحجم الفعلي عند الانتهاء.'),
   'rs.save_preset': ('Ayarı kaydet', 'Save setting', 'حفظ الإعداد'),
   'rs.preset_name': ('Ön ayar adı', 'Preset name', 'اسم الإعداد'),
-  'rs.preset_saved': ('"{name}" kaydedildi', '"{name}" saved', 'تم حفظ "{name}"'),
   'rs.preset_delete': ('"{name}" silinsin mi?', 'Delete "{name}"?', 'حذف "{name}"؟'),
-  'rs.preset_deleted': ('"{name}" silindi', '"{name}" deleted', 'تم حذف "{name}"'),
   'rs.preset_hint': ('Kaydettiğin ayarı silmek için basılı tut.', 'Press and hold a saved setting to delete it.', 'اضغط مطولاً على إعداد محفوظ لحذفه.'),
   'rs.preview': ('Önizleme', 'Preview', 'معاينة'),
   // ── Görsel düzenleyici — Boyut sekmesi, oranlar (Faz 14b) ─────────────────

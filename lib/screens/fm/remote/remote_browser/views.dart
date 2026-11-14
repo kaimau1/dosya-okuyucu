@@ -16,7 +16,7 @@ extension _RemoteBrowserScreenViewsPart on _RemoteBrowserScreenState {
     }
     if (!mounted) return;
     popOwnPage(context);
-    showSnackOn(messenger, done, duration: kSnackAction);
+    showSnackOn(messenger, done);
   }
 
   void _onMenu(String value) {

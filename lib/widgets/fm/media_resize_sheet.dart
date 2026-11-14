@@ -8,7 +8,6 @@ import '../../core/app_colors.dart';
 import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
 import '../app_dialog.dart';
-import '../../core/snack.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/media_resize.dart';
@@ -539,8 +538,8 @@ class _ResizeSheetState extends State<_ResizeSheet> {
     if (name == null || !mounted) return;
     final list = await ResizeMemory.addPreset(name, _options);
     if (!mounted) return;
+    // H7.1: kaydedilen ön ayar hemen yanındaki çip olarak görünür — ayrı bildirim yok.
     setState(() => _userPresets = list);
-    showSnack(context, context.t('rs.preset_saved', {'name': name}));
   }
 
   Future<void> _deletePreset(ResizePreset preset) async {
@@ -553,7 +552,6 @@ class _ResizeSheetState extends State<_ResizeSheet> {
     final list = await ResizeMemory.removePreset(preset.name);
     if (!mounted) return;
     setState(() => _userPresets = list);
-    showSnack(context, context.t('rs.preset_deleted', {'name': preset.name}));
   }
 
   /// Kullanıcı ön ayarı bu seçime uyuyor mu? Fotoğrafa video kademesi

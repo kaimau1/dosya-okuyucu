@@ -269,8 +269,19 @@ Koşullu öğeler olay yokken çizilmez. Yeni varsayılanla ilk ekran: **arama �
 **Önce bak:** `lib/core/snack.dart`, `lib/widgets/menu_kit.dart`, `doc_more_sheet.dart`, `lib/screens/viewer/shell_menus.dart`,
 `lib/widgets/fm/fm_more_sheet.dart`, `legacy_banner.dart`, `crash_notice.dart`.
 
-- [ ] H7.1 **Bildirim envanteri:** `grep -rn "showSnackBar\|Toasts\.\|showSnackBarReplacing" lib` → tablo (ne zaman, kaç sn, gerekli mi). Kural §1.7: bilgi 3–4 sn,
+- [x] H7.1 **Bildirim envanteri:** `grep -rn "showSnackBar\|Toasts\.\|showSnackBarReplacing" lib` → tablo (ne zaman, kaç sn, gerekli mi). Kural §1.7: bilgi 3–4 sn,
       başarı bildirimi yalnız sonuç görünmüyorsa, aynı anda tek bildirim. Gereksizleri kaldır.
+      *(2026-11-14, oto P05) Envanter (144 dosya, ~620 çağrı; `showSnack`/`showSnackOn`/`showSnackBarReplacing` + ekran içi `_snack` yardımcıları):*
+
+      | Tür | Sayı | Süre | Karar |
+      |---|---|---|---|
+      | Tek kaynak `lib/core/snack.dart` | — | bilgi 3 sn (`kSnackInfo`), düğmeli 6 sn (`kSnackAction`) | **aynı anda tek bildirim zaten var** (yeni eskisinin yerine geçer, kuyruk yok); kalıcı iş kartı ayrı yuvada |
+      | Hata / olmadı | ~150 | 3 sn (+ "Kopyala") | kalır — sonuç başka yerde görünmüyor |
+      | Düğmeli (Geri al, Aç, Karşılaştır…) | 32 | 6 sn | kalır |
+      | Açık süre verilen | 19 | 6–15 sn | düğmeliler ve uzun gerekçe metinleri (PDF ret, Drive giriş hatası 8 sn) kalır; **düğmesiz bilgi 6 sn → 3 sn:** USB çıkarıldı, arka planda alma açık/kapalı, davet gönderildi |
+      | Başarı, sonuç ekranda görünüyor | 2 | — | **kaldırıldı:** boyutlandırma ön ayarı kaydedildi/silindi (çip hemen yanında belirir/kaybolur) |
+      | Öğretici başarı ("Kaydedildi. Kalıcı yer için…", PDF düzenle "dokun, yaz", biçim boyacısı) | 6 | 3 sn | H7.3: bir kez |
+      | Pano "kopyalandı" | ~12 | 3 sn | kalır — Android 13+ sistem de gösterir ama MIUI'de göstermeyebilir; SDK denetimi yerel kanal ister (**sabah bakılacak**, `KONTROL_LISTEM.md`) |
 - [ ] H7.2 **Menü envanteri:** her ⋮ menüsü ve alt levha için madde sayısı. > 6 ise: sık kullanılan 5 + "Diğer". Sıra: kullanım sıklığı (👤 kullanıcıya liste gösterilip onay alınır).
 - [ ] H7.3 **İpuçları bir kez:** her ipucu/keşif balonu tek sefer gösterilir (`SharedPreferences` bayrağı), ayarlarda "İpuçlarını sıfırla".
 - [ ] H7.4 **Onay pencereleri:** geri alınabilen işlemde onay sorma, "Geri al" bildirimi ver (çöp kutusuna taşıma vb.). Geri alınamayanlarda onay kalır.
