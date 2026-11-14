@@ -75,6 +75,7 @@ import '../services/dictation.dart';
 import '../services/voice_note.dart';
 import '../widgets/office_ribbon.dart' show OfficeIcons;
 import '../widgets/download_action.dart';
+import '../widgets/pdf_open_bridge.dart';
 import '../widgets/tracked_busy.dart';
 import 'pdf_ink_screen.dart';
 import '../widgets/ai_slides_flow.dart';
@@ -741,6 +742,21 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// [_offerFormFilling]'in gecikme zamanlayıcısı.
   Timer? _formOfferTimer;
 
+  /// Belge yüklendi ve ilk sayfaya çizim payı geçti → açılış köprüsü
+  /// ([PdfOpenBridge]) solar (Ferrari H1.1).
+  bool _pdfOpened = false;
+  Timer? _pdfBridgeTimer;
+
+  /// Köprüyü kaldırır; pdfrx sayfayı `onViewerReady`den SONRA çiziyor, o
+  /// arada kâğıt beyaz kalmasın diye kısa pay ([Motion.medium]).
+  void _markPdfOpened() {
+    if (_pdfOpened) return;
+    _pdfBridgeTimer?.cancel();
+    _pdfBridgeTimer = Timer(Motion.medium, () {
+      if (mounted) _partSetState(() => _pdfOpened = true);
+    });
+  }
+
   /// Belge doldurulabilir bir formsa kullanıcıya **söylenir**.
   ///
   /// Menüdeki "Formu doldur" tek başına keşfedilmiyor: kullanıcı bir form
@@ -790,6 +806,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     unawaited(ReadingPositions.save());
     _recordPdfZoom();
     _formOfferTimer?.cancel();
+    _pdfBridgeTimer?.cancel();
     _pdfController.removeListener(_onPdfMatrix);
     // Kaydedilmemiş düzenleme varsa çökme kaydı kalır (yeniden açılışta sunulur).
     _pro

@@ -10,9 +10,14 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
           return const Center(child: CircularProgressIndicator());
         }
         // Kaldığın yer henüz okunmadı (soğuk açılış, milisaniyeler).
+        // Düz zemin yerine nötr kâğıt (Ferrari H1.1) — kapak, sayfa belli
+        // olunca alttaki köprüde gelir.
         if (!_resumeReady) {
-          return ColoredBox(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest);
+          return PdfOpenBridge(
+              path: doc.path,
+              visible: true,
+              useCover: false,
+              topInset: ReadingChrome.insetsOf(context).top);
         }
         // Ctrl/Cmd+C: seçili metni panoya kopyalar (masaüstü alışkanlığı —
         // Chrome'un PDF görüntüleyicisiyle aynı). Focus çevresi klavye
@@ -186,6 +191,12 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         // pdfium'un ham yığın izli mavi ekranı yerine anlaşılır
                         // kart (2026-09-27: 0 bayt kalan PDF bulgusu).
                         errorBannerBuilder: _pdfErrorBanner,
+                        // Açılamayan belgede köprü hata yüzünü örtmesin.
+                        onDocumentLoadFinished: (_, ok) {
+                          if (!ok && mounted && !_pdfOpened) {
+                            _partSetState(() => _pdfOpened = true);
+                          }
+                        },
                         // Köprüler: iç hedef → o sayfaya git, dış adres → onay + tarayıcı.
                         linkHandlerParams: PdfLinkHandlerParams(
                           onLinkTap: _onPdfLink,
@@ -220,6 +231,8 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                           // şerit ilk kareyle birlikte kayboluyordu.
                           WidgetsBinding.instance
                               .addPostFrameCallback((_) => _showResumeNotice());
+                          // Açılış köprüsü: ilk sayfaya çizim payı, sonra solar.
+                          _markPdfOpened();
                           unawaited(_proCheckRecovery());
                           if (widget.startInk && !_inkStarted) {
                             _inkStarted = true;
@@ -315,6 +328,19 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                       ),
                     ),
                   )),
+                ),
+                // Açılış köprüsü (Ferrari H1.1): belge gelene kadar kapak /
+                // kâğıt; görüntüleyicinin ÜSTÜNDE, boyunu değiştirmez.
+                Positioned.fill(
+                  child: _nightFilter(
+                    child: PdfOpenBridge(
+                      key: const ValueKey('pdf-bridge'),
+                      path: doc.path,
+                      visible: !_pdfOpened,
+                      useCover: _pdfPage <= 1,
+                      topInset: chrome.top,
+                    ),
+                  ),
                 ),
                 // Seçim çubuğu açıkken rozet gizli: çubuğun altından yarım
                 // görünüyordu ("1 / 1 · sayfaya git" kartın altına sıkışmıştı).
