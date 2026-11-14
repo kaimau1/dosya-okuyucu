@@ -269,9 +269,9 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
                     const Divider(height: 1),
                     Expanded(
                       child: _visibleGroups.isEmpty
-                          ? Center(
-                              child: Text(
-                                  context.t('dup.no_match', {'query': _query})))
+                          ? FmEmptyState(
+                              icon: AppIcons.searchOff,
+                              title: context.t('dup.no_match', {'query': _query}))
                           : ListView.builder(
                               padding: withNavInset(
                                   context, const EdgeInsets.only(bottom: 96)),

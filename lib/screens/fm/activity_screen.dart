@@ -93,13 +93,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
       body: _loading
           ? const FmListSkeleton()
           : _records.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(Gap.lg),
-                    child: Text(context.t('act.empty'),
-                        textAlign: TextAlign.center),
-                  ),
-                )
+              ? FmEmptyState(
+                  icon: AppIcons.history, title: context.t('act.empty'))
               : RefreshIndicator(
                   onRefresh: _load,
                   child: ListView(

@@ -20,6 +20,7 @@ import '../../widgets/fm/fm_entry_icon.dart';
 import 'trash_screen.dart';
 import '../../core/safe_insets.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/motion.dart' show FmEmptyState;
 import '../../widgets/embedded_toolbar.dart';
 
 /// **Yer açma asistanı** — "3 GB yer aç" isteğinin karşılığı.
@@ -318,15 +319,9 @@ class _CleanupScreenState extends State<CleanupScreen> {
               ),
             )
           : _suggestions.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(Gap.lg),
-                    child: Text(
-                      context.t('clean.nothing_body'),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                )
+              ? FmEmptyState(
+                  icon: AppIcons.cleanEmpty,
+                  title: context.t('clean.nothing_body'))
               : ListView(
                   padding: withNavInset(context, const EdgeInsets.fromLTRB(
                       Gap.md, Gap.md, Gap.md, 120)),

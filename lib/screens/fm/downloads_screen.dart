@@ -287,8 +287,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
         _loading
           ? const FmListSkeleton()
           : _files.isEmpty
-              ? Center(
-                  child: Text(context.t('downloads.empty')))
+              ? FmEmptyState(
+                  icon: AppIcons.download, title: context.t('downloads.empty'))
               : Column(
                   children: [
                     _summary(total, ancient),
