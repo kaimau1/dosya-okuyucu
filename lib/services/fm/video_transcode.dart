@@ -436,7 +436,7 @@ abstract final class VideoTranscoder {
         'dir': dir,
         'count': count,
         'width': width,
-        if (indices != null) 'indices': indices,
+        'indices': ?indices,
       });
       return list ?? const [];
     } catch (_) {

@@ -71,7 +71,7 @@ class _HelpScreenState extends State<HelpScreen> {
       ),
     ));
     return Scaffold(
-      appBar: AppBar(title: Text(context.t('help.title'))),
+      appBar: AppBar(title: Text(context.t('help.ftitle'))),
       body: Column(
         children: [
           Padding(

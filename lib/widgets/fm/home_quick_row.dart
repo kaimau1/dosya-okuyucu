@@ -385,8 +385,8 @@ abstract final class DockExtras {
             final oldLeft = v1(_leftKeyV1);
             final oldRight = v1(_rightKeyV1, fallback: 'ai');
             left = savedLeft ??
-                _clean(['drive', if (oldLeft != null) oldLeft]);
-            right = savedRight ?? _clean([if (oldRight != null) oldRight]);
+                _clean(['drive', ?oldLeft]);
+            right = savedRight ?? _clean([?oldRight]);
           }
           value.value =
               (left, [for (final e in right) if (!left.contains(e)) e]);

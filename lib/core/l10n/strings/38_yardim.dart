@@ -4,7 +4,7 @@ part of '../app_strings.dart';
 /// isteği ve aynı turdaki kullanıcı istekleri.
 const Map<String, (String, String, String)> _t38 = {
   'fm.search_help': ('Ara ve Yardım', 'Search & Help', 'البحث والمساعدة'),
-  'help.title': ('Yardım', 'Help', 'المساعدة'),
+  'help.ftitle': ('Özellikler ve yardım', 'Features & help', 'الميزات والمساعدة'),
   'help.hint': (
     'Bir özellik ara: kes, şifre, birleştir…',
     'Search a feature: trim, password, merge…',

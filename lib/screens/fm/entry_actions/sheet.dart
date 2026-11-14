@@ -482,7 +482,9 @@ Future<bool> showEntryActions(
 
     case _EntryAction.trimAudio:
       // Oynatıcıdan açıldıysa kesme ekranının önizlemesiyle üst üste çalmasın.
-      unawaited(AudioPlayback.instance.pause());
+      if (AudioPlayback.instance.playing) {
+        unawaited(AudioPlayback.instance.toggle());
+      }
       await AudioTrimScreen.open(context, entry.path);
       return false;
 
