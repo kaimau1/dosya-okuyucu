@@ -1139,6 +1139,8 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
    kapanıyor, tercih uygulama kapanınca da kalıyor mu? Aç/kapa sonrası aynı sayfada mı kalıyor? Açıkken kaydırınca
    şerit güncel sayfayı izliyor mu (güncel küçük resim görünür alanda kalıyor mu)?
 
+- 2026-11-14 · Mi Note 10 Lite · nightly (dosya-okuyucu.apk, uygulama sürümü 1.3.15; P09 turu) · H1: 1 ve 3 denenmedi (kapağı olan büyük PDF / tablet yok); 2 (form notu) denenmedi (form PDF'i yok). Açılış tek kare gri ekran olmadan 51 KB PDF açıldı (ölçüm değil).
+
 ## Ferrari H3 — PDF okuma konforu (2026-11-14, main)
 1. **Çift dokunma:** genişliğe sığmış PDF'te bir yere çift dokun → oraya yumuşakça yakınlaşıyor mu (nokta parmağın altında)?
    Yeniden çift dokun → genişliğe sığıyor, okunan satır yerinde mi? Uzun basış hâlâ kelime seçiyor mu (çift dokunuş artık SEÇMEZ)?
@@ -1159,6 +1161,8 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
    Tam ekran açıkken seçenek pasif mi? Görüntüleyiciden çıkınca durum çubuğu geri mi?
 7. **Sayfa rozeti:** kaydırınca "N / toplam" beliriyor, durunca ~1,5 sn sonra soluyor mu? Açılışta bir an görünüyor mu?
 
+- 2026-11-14 · Mi Note 10 Lite · nightly (dosya-okuyucu.apk, uygulama sürümü 1.3.15; P09 turu) · H3: 1 ✔ çift dokun yakınlaştırdı, ikinci çift dokunuş genişliğe sığdırdı (yumuşaklık göz kararı, ölçülmedi) · 2,3,4 denenmedi (akıllı yakınlık / görsel kipi / kırpma — kırpma anahtarı Aa'da var, test edilmedi) · 5 ◐ "Sayfa sayfa çevir" açıkken kenara dokunmak ve sola kaydırmak sonraki sayfaya geçti, çubuklar kenar dokunuşunda gelmedi; ama sayfa ekrana tam oturmadı (alttan sonraki sayfa görünüyor) ✘ · 6 ✘ Aa sayfasında "Okurken durum çubuğunu da gizle" seçeneği YOK (yalnız "Tam ekran"); nightly'de bu özellik görünmüyor · 7 ◐ rozet "N / 50" kaydırınca çıkıyor ama sağ altta yapay zekâ düğmesinin altında kalıp "3 / 50"nin bir kısmı örtülüyor ✘ (ayrıca sağ üstte hızlı kaydırma tutamacı "1" gösteriyor).
+
 ## Ferrari H8 — Videoyu kes (2026-11-14, main)
 1. Video uzun bas → "Videoyu kes"; oynatıcıda ⋮ → "Videoyu kes" (oynatıcı duraklıyor mu?).
 2. Kare şeridi doluyor mu (10 kare)? İki tutamaç sürüklenince önizleme o kareye gidiyor, her saniyede hafif titreşim var mı?
@@ -1168,6 +1172,8 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
    süre (hızlı kesimde birkaç saniye; uzun sürüyorsa yeniden kodluyor demektir — not al), başlangıç kaç kare kayıyor?
 5. "Sesi kaldır" açık → çıktı sessiz mi? Yalnız ses kaldırıp aralığa dokunmadan Kaydet çalışıyor mu?
 6. MKV/WebM kaynak: kesiliyor mu, yoksa anlaşılır hata mı?
+
+- 2026-11-14 · Mi Note 10 Lite · nightly (dosya-okuyucu.apk, uygulama sürümü 1.3.15; P09 turu) · H8: menü adı artık "Videoyu düzenle" ("Videoyu kes" yok; Daha fazla levhasında Bu dosya altında) · 1,3 ✔ düzenleme açıldı; Kaydet → `c_kesit.mp4` özgünün yanında (2,4 MB özgün duruyor, çıktı 0,8 MB) · 2 ◐ kare şeridi doldu, tutamaç sürüklendi; titreşim/oynatma denenmedi · 4 ◐ dikey video: çıktı 2340x1080 + rotation −90 → dikey kalıyor ✔ (4K/30 dk+ denenmedi) · 5,6 denenmedi.
 
 ## Video düzenle — ara kesim + ses bölgeleri (2026-11-14)
 - [ ] Video uzun bas → "Videoyu düzenle": altta dört araç (Bölüm sil · Sesi kapat · Ses ekle · Ses açık/yok) görünüyor, dar telefonda yazılar sığıyor mu?
@@ -1212,10 +1218,14 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Dosya listesinde (liste ve ızgara) fotoğrafa dokun: küçük resimden büyüyerek açılıyor; kapatınca (geri / aşağı çek) satırına küçülüyor. "Animasyonları kaldır" açıkken düz açılıyor.
 - [ ] **Öngörülü geri (Android 14+):** bir klasöre/ekrana girip kenardan yavaşça geri çek → sayfa parmakla kayıp küçülüyor, alttaki sayfa görünüyor; parmağı geri götürüp bırakınca sayfa yerine dönüyor; sonuna kadar çekince kapanıyor. Ana ekranda geri hareketi uygulamadan çıkışı (sistem önizlemesi) gösteriyor. Kaydedilmemiş düzenleme olan ekranda (onay soran) önizleme yok, onay penceresi çıkıyor.
 
+- 2026-11-14 · Mi Note 10 Lite · nightly (dosya-okuyucu.apk, uygulama sürümü 1.3.15; P09 turu) · Video düzenle: ✔ altta beş araç (Bölüm sil · Sesi kapat · Ses ekle · Ses açık · Döndür), etiketler dar ekranda sığıyor · ✔ Bölüm sil → tutamaç + "Bölümü sil"; sonra şeritte koyu bölge + makas, listede "Silindi 00:00–00:02", sağ üstte "Sonuç 00:05" (çıktı 5,06 sn) · ✔ Kaydet çalıştı, hata yok · 3 ayrı bölüm, oynatma atlaması, Sesi kapat, Ses ekle (Drive/dosya seçici), Geri al/✕ denenmedi. Not: önizleme karesi 00:02'de farklı sahne gösterdi (kaynak video çok sahneli, hata değil).
+
 ## Ferrari H5 — Ana ekran (2026-11-14)
 - [ ] Yeni kurulum / hiç düzenlenmemiş pano: üstte arama, sonra son dosyalar şeridi, kategoriler, bellek kartı; araçlar/favoriler aşağıda.
 - [ ] Düzenini daha önce değiştirmiş kullanıcı: sıra ve gizlenenler aynen kalmış mı?
 - [ ] Güncelleme varsa şerit tek satır ("Yeni sürüm var · v…" + Güncelle); indirirken "İndiriliyor · %…" tek satırda.
+
+- 2026-11-14 · Mi Note 10 Lite · nightly (dosya-okuyucu.apk, uygulama sürümü 1.3.15; P09 turu) · H5: ✔ sıra: arama, son açılanlar şeridi, kategoriler, bellek kartı (Göz at/Analiz/Yer aç), araçlar, hızlı klasörler · düzenlenmiş pano ve güncelleme şeridi denenmedi (yeni sürüm yoktu) · ayrıca ana ekranda "Uygulama beklenmedik şekilde hata verdi (1 kayıt)" kırmızı şeridi görünüyor (kök neden bakılmadı; eski sürümden kalan kayıt olabilir) ◐.
 
 ## Ferrari H4 — Dosya listesi (2026-11-14, main)
 - [ ] Belgeler kategorisi: satır simgesi ~52 dp, ad iri, alt satırda kaynak · tarih solda, boyut SAĞA hizalı; satır sıkışık değil (Samsung ile yan yana görüntü).
@@ -1224,6 +1234,8 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Tarihe göre sıralı: "Bugün · Bu hafta …" başlığı kaydırırken üstte yapışık; grup bitince bir sonraki iter. Izgarada da aynı. Hızlı kaydırıcı ve basılı tutup sürükleyerek seçim hâlâ doğru satırı seçiyor.
 - [ ] Uzun basış: satır hafifçe içe çöker + titreşim; ⋮ soluk ama dokununca açılıyor.
 - [ ] Arapça (RTL): boyut solda hizalı, başlıklar sağdan.
+
+- 2026-11-14 · Mi Note 10 Lite · nightly (dosya-okuyucu.apk, uygulama sürümü 1.3.15; P09 turu) · H4: ✔ Belgeler satırı: simge büyük, ad iri, kaynak·tarih solda boyut sağa hizalı · ✔ "Bu hafta · 5022" başlığı kaydırırken üstte yapışık · ✔ Belgeler/5041 öğe·18 MB başlığı var ama ✘ kaydırınca katlanıp küçülmedi (başlık hep aynı boyda; liste uzun ve başlık zaten kompakt — bak) · klasör satırı, ızgara, uzun basış çöküşü, hızlı kaydırıcı, RTL denenmedi. Drive/hesap maddeleri denenmedi.
 
 ## Güvenlik P15 — kod artıkları (2026-11-14, dal `faz-oto-P15-guvenlik`; yazıldı, cihazda doğrulanmadı)
 - [ ] G6.5 yapay zekâ sesi: Antalia ve EMA ile birer paragraf okut — ses geliyor mu (sunucu artık rastgele önek altında; EMA çalışanına önek sunarken ekleniyor). Önceden kurulu ses de çalışmalı (yeniden indirme yok).
