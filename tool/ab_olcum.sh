@@ -38,6 +38,11 @@ A_SHA=$(git rev-parse "${1:-$(git log --grep='\[apk\]' -1 --format=%H main)}")
 B_SHA=$(git rev-parse "${2:-HEAD}")
 A7=${A_SHA:0:7}; B7=${B_SHA:0:7}
 OUT="$KOK/build/ab/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$OUT/apk" "$OUT/kosu"
+# ci/prepare_android.sh `python3` çağırır; Windows'ta o çoğu zaman mağaza kısayolu.
+if [ "$PY" = python ]; then
+  mkdir -p "$OUT/bin"; printf '#!/bin/sh\nexec python "$@"\n' > "$OUT/bin/python3"
+  chmod +x "$OUT/bin/python3"; export PATH="$OUT/bin:$PATH"
+fi
 echo "A=$A7 B=$B7 cihaz=$SERI tur=$TUR → $OUT"
 
 sicaklik() { adb shell dumpsys battery | grep -m1 temperature | tr -dc '0-9'; }
@@ -63,7 +68,9 @@ derle() {  # derle <etiket> <sha>
       grep -q r8test android/app/build.gradle.kts \
         || { echo "::error::$W/android .r8test değil — elle sil, yeniden koş"; exit 1; }
     else
-      DOSYA_R8TEST=1 bash ci/prepare_android.sh > "$OUT/hazirla_$1.log" 2>&1
+      DOSYA_R8TEST=1 bash ci/prepare_android.sh > "$OUT/hazirla_$1.log" 2>&1 \
+        || { echo "::error::$1 iskelet kurulamadı — $OUT/hazirla_$1.log"
+             tail -n 5 "$OUT/hazirla_$1.log"; rm -rf android; exit 1; }
     fi
     local EK=(--dart-define=OLCUM_VERISI="$OLCUM")
     [ -n "${BUYUK_PDF:-}" ] && EK+=(--dart-define=BUYUK_PDF="$BUYUK_PDF")
