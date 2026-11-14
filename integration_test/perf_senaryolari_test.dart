@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dosya_okuyucu/widgets/whats_new.dart';
@@ -7,6 +8,7 @@ import 'package:dosya_okuyucu/screens/editors/word_mobile_editor_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/browser_screen.dart';
 import 'package:dosya_okuyucu/services/file_service.dart';
 import 'package:dosya_okuyucu/services/fm/entry_opener.dart';
+import 'package:dosya_okuyucu/widgets/sheet_cell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -107,6 +109,33 @@ void main() {
     await binding.traceAction(() => kaydir(tester, n: 20),
         reportKey: 'xlsx_100k_kaydirma');
     await kapat(tester);
+
+    // P12 (KALANLAR B3.3a / K23): 10 bin × 20 — kullanıcının yolu
+    // (`EntryOpener.open`: yükleme + ekran), dokunuştan ilk hücre karesine
+    // kadar. Süre logcat'e `OFIS_PERF faz=acilis_…` (ab_karar.py okur).
+    const x20 = '$_veri/tablo_10k_x20.xlsx';
+    if (File(x20).existsSync()) {
+      final sw = Stopwatch();
+      await binding.traceAction(() async {
+        sw.start();
+        // Rota kapanınca biter; beklenmez.
+        unawaited(EntryOpener.open(navigatorKey.currentContext!, x20));
+        while (find.byType(SheetCell).evaluate().isEmpty &&
+            sw.elapsed < const Duration(seconds: 40)) {
+          await bekle(tester, 16);
+        }
+        sw.stop();
+        await bekle(tester, 500);
+      }, reportKey: 'xlsx_10k_x20_acilis');
+      // ignore: avoid_print
+      print('OFIS_PERF faz=acilis_xlsx_10k_x20 ms=${sw.elapsedMilliseconds}');
+      await binding.traceAction(() => kaydir(tester, n: 20),
+          reportKey: 'xlsx_10k_x20_kaydirma');
+      await kapat(tester);
+    } else {
+      // ignore: avoid_print
+      print('PERF xlsx_10k_x20: dosya yok, atlandı');
+    }
 
     // H0.2: büyük PDF aç + 50 sayfa hızlı kaydır. Sayfa sayısı
     // denetleyiciden; fırlatma sayısı tavanlı (bitmezse kaç sayfa gidildi

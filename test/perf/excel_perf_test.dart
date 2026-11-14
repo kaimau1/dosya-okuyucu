@@ -2,8 +2,10 @@
 library;
 
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:dosya_okuyucu/screens/editors/spreadsheet_editor_screen.dart';
+import 'package:dosya_okuyucu/services/file_service.dart';
 import 'package:dosya_okuyucu/services/formula_engine.dart';
 import 'package:dosya_okuyucu/services/xlsx/pivot.dart';
 import 'package:dosya_okuyucu/services/xlsx_editor.dart';
@@ -40,6 +42,39 @@ void main() {
     expect(editor.sheets.first.layout.maxRow, 9999);
     expect(sw.elapsedMilliseconds, lessThan(4500));
   });
+
+  // P12 (B3.3a): dosya yöneticisinden açılış = FileService.load + ekranın
+  // izolatta ayrıştırması. Eskiden ilk adım kitabı (metin + tablo) bir kez
+  // daha ayrıştırıyordu; aynı koşuda eski / yeni yol yan yana yazılır.
+  test('10 bin × 20: açılış yolu kitabı bir kez ayrıştırır', () async {
+    final dir = await Directory.systemTemp.createTemp('excel_open');
+    addTearDown(() => dir.delete(recursive: true));
+    final path = '${dir.path}/10k_x20.xlsx';
+    final bytes = XlsxWriter.build([sheetOf(10000, 20)]);
+    await File(path).writeAsBytes(bytes);
+
+    var sw = Stopwatch()..start();
+    XlsxReader.read(bytes);
+    final reader = sw.elapsedMilliseconds;
+    sw = Stopwatch()..start();
+    await Isolate.run(() => XlsxEditor.parse(File(path).readAsBytesSync()));
+    final screen = sw.elapsedMilliseconds;
+    sw = Stopwatch()..start();
+    final old = await FileService().load(path);
+    final oldMs = sw.elapsedMilliseconds;
+    sw = Stopwatch()..start();
+    final doc = await FileService().load(path, spreadsheetText: false);
+    final newMs = sw.elapsedMilliseconds;
+    // ignore: avoid_print
+    print('PERF excel_reader_10k_x20_ms=$reader '
+        'screen_isolate_parse_ms=$screen '
+        'preload_old_ms=$oldMs preload_new_ms=$newMs '
+        'open_old_ms=${oldMs + screen} open_new_ms=${newMs + screen}');
+    expect(old.table, isNotNull); // AI / arama yolu metni hâlâ alır
+    expect(doc.table, isNull);
+    expect(doc.plainText, isEmpty);
+    expect(doc.kind, old.kind);
+  }, timeout: const Timeout(Duration(minutes: 2)));
 
   test('100 bin hücre: kaydetme UI izleğinde değil (saveAsync izolatta)', () async {
     final bytes = XlsxWriter.build([sheetOf(5000, 20)]);

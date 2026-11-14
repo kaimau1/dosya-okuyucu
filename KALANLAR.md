@@ -214,7 +214,8 @@ Samsung Dosyalarım ile yan yana videoda geride görünmemek (H12 kapısı). Pla
 ### B3 — Cihaz sonucuna bağlı takip işleri (B2 içinde ya da hemen sonra; kod bulutta da yazılabilir)
 
 - [ ] **B3.1 K23:** Excel 10 bin satırda profil `FrameTiming` %99 > 16 ms ise (b) tek
-      boyacı ızgara (debug prototipi ~4× hızlı; HAFIZA).
+      boyacı ızgara (debug prototipi ~4× hızlı; HAFIZA). Ölçüm senaryosu hazır (P12):
+      `xlsx_10k_x20_kaydirma` (`tool/ab_olcum.sh`) — cihaz sayısı bekliyor.
 - [ ] **B3.2 Word Mobil görünüm editörü telefonda onaylanınca** (K18 kontrol noktası,
       CIHAZ_TESTI §Word): eski WebView `contenteditable` düzenleme yolu (`labWordEditor`
       bayrağı, `screens/editors/word/shell.dart`, `viewer.html` düzenleme köprüsü) ve
@@ -222,7 +223,9 @@ Samsung Dosyalarım ile yan yana videoda geride görünmemek (H12 kapısı). Pla
       demişti. Onaylanmazsa kök neden yazılır, editör düzeltilir.
       (P14 2026-11-14: kullanıcı bakışı → KONTROL_LISTEM 30; onaysız silme yok.)
 - [ ] **B3.3a Excel açılışı:** 10 bin × 20 Mi Note 10 Lite'ta 7,7–8,9 sn (DOM'suz okuyucudan önce ~20 sn), hedef ≤ 1,5 sn.
-      Sırada: `XlsxReader.read` sonrası nerede vakit gidiyor ölç (`_rowsFrom`, ilk çizim); gerekirse hücreleri tembel kur.
+      P12 (2026-11-14): kitap iki kez ayrıştırılıyordu → bir kez (CI açılış yolu 1008 → 498 ms) + `_attr` ayırmasız.
+      Kalan süre ~tamamen `XlsxReader.read` (CI 485/498 ms; `_rowsFrom` + ilk kare küçük). Cihaz sayısı
+      `acilis_xlsx_10k_x20` A/B'den; hâlâ > 1,5 sn ise sıradaki: okuyucuda hücre başına `XlsxCell` + `Map` girişi.
 - [ ] **B3.3b Mi Note 10 Lite sınırdakiler (2026-11-02, profil APK):** 5.000 öğe kaydırma
       %99 19–27 ms (hedef 24; yavaş karelerde raster baskın, Impeller GLES — Skia daha kötü);
       galeri 2.000 küçük PNG sonrası RSS 355 MB (hedef 350). Kök neden için DevTools zaman
@@ -243,8 +246,8 @@ Samsung Dosyalarım ile yan yana videoda geride görünmemek (H12 kapısı). Pla
 - [ ] **B3.3 Faz 4 bütçe aşımları** (soğuk açılış ≤ 1,2 sn, 5.000 öğe kaydırma %99 ≤ 24 ms,
       galeri 2.000 fotoğraf RSS ≤ 350 MB / hafif ≤ 250 MB, boşta 0 kare) ve DUZENLEME §7
       bütçeleri → aynı oturumda düzelt.
-- [ ] **B3.4 Duruma bağlı düzeltmeler:** Excel'de kaydırma sürerken başlayan pinch
-      tutmuyorsa (ilk parmak sahipliği); büyük PDF düzenlemede bellek (belge + 48 MB
+- [ ] **B3.4 Duruma bağlı düzeltmeler:** (Excel'de kaydırma sürerken pinch: P12'de
+      `test/pinch_zoom_area_test.dart` ile doğrulandı — ham Listener, cihaz CIHAZ_TESTI §Excel "Seçim"); büyük PDF düzenlemede bellek (belge + 48 MB
       önbellek) düşük cihazda sorunluysa bütçe profile bağlanır; CropBox'lı PDF'te vurgu
       yerinde değilse; yapay ses motoru (WebView) uygulama alttayken kısılıyorsa sesli
       kitap ön plan servisine; Yakındakiler hotspot + tarayıcı yolunda alıcı mobil veriye

@@ -653,7 +653,7 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
   void _translate() {
     final sheet = _sheet;
     if (sheet == null || !_hasRange) {
-      TranslateFlow.run(context, widget.plainText, title: widget.name);
+      TranslateFlow.run(context, _docText, title: widget.name);
       return;
     }
     _endEdit();

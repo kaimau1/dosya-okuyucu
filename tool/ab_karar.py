@@ -9,7 +9,7 @@
   python tool/ab_karar.py --deneme      → kendi denetimi (assert).
 
 Koşu klasörü: <kosu>/<sıra>_<A|B>/ altında sürücünün `*.timeline_summary.json`
-dosyaları, `acilis.txt` (logcat `PDFPRO_PERF faz=acilis_*` satırları) ve koşu
+dosyaları, `acilis.txt` (logcat `PDFPRO_PERF` / `OFIS_PERF faz=acilis_*`) ve koşu
 geçersizse (ısı) `gecersiz` dosyası.
 
 Kural (ab-olcum "Karar eşikleri"): bir ölçüde B ortancası A'nın EN KÖTÜ
@@ -31,7 +31,7 @@ OLCULER = [  # (etiket, timeline_summary anahtarı)
     ('raster p90', '90th_percentile_frame_rasterizer_time_millis'),
     ('raster p99', '99th_percentile_frame_rasterizer_time_millis'),
 ]
-ACILIS = re.compile(r'PDFPRO_PERF faz=(acilis_\w+) ms=(\d+)')
+ACILIS = re.compile(r'(?:PDFPRO|OFIS)_PERF faz=(acilis_\w+) ms=(\d+)')
 
 
 def kosu_oku(kosu):
@@ -162,7 +162,8 @@ def deneme():
         s['99th_percentile_frame_build_time_millis'] = p99
         json.dump(s, open(os.path.join(d, 'pdf_100_kaydirma.timeline_summary.json'), 'w'))
         open(os.path.join(d, 'acilis.txt'), 'w').write(
-            f'I/flutter: PDFPRO_PERF faz=acilis_ilk_sayfa ms={ms}\n')
+            f'I/flutter: PDFPRO_PERF faz=acilis_ilk_sayfa ms={ms}\n'
+            f'I/flutter: OFIS_PERF faz=acilis_xlsx_10k_x20 ms={ms}\n')
         if gecersiz:
             open(os.path.join(d, 'gecersiz'), 'w').close()
     kos('1_A', 10, 400); kos('2_B', 10.5, 410); kos('3_A', 11, 420); kos('4_B', 10.8, 405)
@@ -175,6 +176,7 @@ def deneme():
     kos('6_B', 30, 900); kos('7_B', 30, 900)  # B ortancası 30 > A en kötü 11, > 24
     _, (kod, satir) = degerlendir(*kosu_oku(k))
     assert kod == 1 and 'build p99' in satir and 'acilis_ilk_sayfa#1' in satir, satir
+    assert 'acilis_xlsx_10k_x20#1' in satir, satir
     k2 = tempfile.mkdtemp()
     os.makedirs(os.path.join(k2, '1_A'))
     _, (kod, _) = degerlendir(*kosu_oku(k2))

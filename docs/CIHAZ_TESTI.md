@@ -1225,3 +1225,7 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] G1 kısayol: ESKİ sürümde sabitlenmiş ana ekran dosya kısayolu (imzasız) bu sürümde de açılıyor mu (Android 8+: sistemin kayıtlı kısayol listesinden kabul). Yeni sabitlenen kısayol da açılmalı.
 - [ ] G7.3: büyük bir .xlsx / .docx / .pptx düzenleyip kaydet — kaydetme eskisi gibi çalışıyor mu.
 - [ ] G7.4: .xlsm ya da .docm aç → ileti "makrolar çalıştırılmaz; kaydedince dosyada kalır"; düzenleyip kaydet → bilgisayarda Excel/Word'de makro duruyor mu.
+
+## Excel açılış P12 (2026-11-14, dal `faz-oto-P12-excel`; yazıldı, cihazda doğrulanmadı)
+- [ ] 10 bin × 20 xlsx'i dosya yöneticisinden aç: dokunuştan ilk hücreye süre (A/B `acilis_xlsx_10k_x20`; önce 7,7–8,9 sn, hedef ≤ 1,5 sn) ve `xlsx_10k_x20_kaydirma` %99 (K23 ≤ 16 ms; tutmazsa KALANLAR B3.1).
+- [ ] Excel'de AI düğmesi ve "Çevir" (seçimsiz) belgenin metnini hâlâ alıyor mu (metin artık açılışta değil, dokununca kuruluyor); düzenleme sonrası yeni değer de giriyor.
