@@ -1247,3 +1247,10 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Kalem ekranı (PDF › Kalemle düzenle) kalemle: kalem çiziyor; çizerken avuç ekrana değince çizgi bozulmuyor; parmakla tek dokunuş kaydırıyor/sayfa çeviriyor, çizmiyor. Kalemsiz telefonda parmak çizmeye devam ediyor.
 - [ ] Büyük metin dosyası (çok MB'lık .txt/.log) tablette ortalı, okunur genişlikte.
 - [ ] Çift bölme (tablet): dosyayı basılı tutup seç → sağda tutamaç; tutamacı öbür bölmeye sürükle → öbür bölme çerçevelenir, bırakınca kopyalanır (kaynak yerinde).
+
+## 2026-11-14 — kullanıcı 13 madde turu (yazıldı, cihazda doğrulanmadı)
+- Videolar ızgarası: hızlı kaydırmada yükleniyor dönenceleri kasma yapıyor mu (A/B `galeri_2000_kaydirma`)? Sütun sayısı değişince "MP4" görünmemeli.
+- Video düzenle: ilk sürüklemede (açılıştan ~1 sn sonra) kare görünmeli; dönence kareler gelince kaybolmalı.
+- Ses → ⋮ → Sesi kes: .opus ve .mp3 ile kes, çıktı `_kesit.m4a` çalmalı; sürüklerken kısa parça çalmalı.
+- Aktar → Dosya ekle → Fotoğraflar: ekran görüntüsü aldıktan hemen sonra en üstte görünmeli.
+- PDF: alt çubukta AI; sağ altta sayfa rozeti başka şeyle çakışmamalı; Yazdır "Daha fazla"da.

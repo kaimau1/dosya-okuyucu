@@ -290,6 +290,9 @@ object MediaTranscodeBridge {
         val endMs = (a["endMs"] as? Number)?.toLong() ?: return false
         if (startMs < 0 || endMs <= startMs) return false
         val removeAudio = a["removeAudio"] == true
+        // Ses dosyası kesimi (2026-11-14): video yok → hızlı (yeniden
+        // kodlamasız) kesim yolu kapalı; ses AAC/M4A'ya kodlanır.
+        val audioOnly = a["audioOnly"] == true
         transformer?.cancel()
         val clip = MediaItem.ClippingConfiguration.Builder()
             .setStartPositionMs(startMs)
@@ -303,7 +306,7 @@ object MediaTranscodeBridge {
             .setRemoveAudio(removeAudio)
             .build()
         val t = Transformer.Builder(context)
-            .experimentalSetTrimOptimizationEnabled(!removeAudio)
+            .experimentalSetTrimOptimizationEnabled(!removeAudio && !audioOnly)
             .addListener(exportListener(target))
             .build()
         transformer = t
@@ -434,7 +437,13 @@ object MediaTranscodeBridge {
             val ms = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
             if (ms <= 0L) return out
             File(dir).mkdirs()
-            for (i in 0 until count) {
+            // `indices` (2026-11-14): yalnız bu dilimler — Dart tarama
+            // karelerini parça parça, kabadan inceye ister (ilk sürüklemede
+            // de kare olsun).
+            val only = (a["indices"] as? List<*>)
+                ?.mapNotNull { (it as? Number)?.toInt() }
+                ?.filter { it in 0 until count }
+            for (i in (only ?: (0 until count).toList())) {
                 // Her dilimin ortası (ilk kare çoğu videoda siyah).
                 val us = (ms * 1000L * (2 * i + 1)) / (2L * count)
                 val bmp = try {

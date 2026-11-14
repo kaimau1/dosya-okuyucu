@@ -3,6 +3,7 @@ part of '../entry_actions.dart';
 /// Girdi (dosya/klasör) üzerinde yapılabilecek işlemler. Gözatıcı, kategori
 /// ekranları ve arama sonuçları AYNI davranışı paylaşsın diye tek dosyada.
 enum _EntryAction {
+  trimAudio,
   open,
   openWith,
   share,
@@ -238,6 +239,11 @@ Future<bool> showEntryActions(
                   _act(ctx, AppIcons.cut, ctx.t('vtr.title'),
                       _EntryAction.trimVideo,
                       hint: ctx.t('vtr.hint')),
+                // Sesi kes (2026-11-14): video kesmenin ses karşılığı.
+                if (!entry.isDir && entry.category == FmCategory.audio)
+                  _act(ctx, AppIcons.cut, ctx.t('atr.title'),
+                      _EntryAction.trimAudio,
+                      hint: ctx.t('atr.action_hint')),
                 if (canRotate)
                   _act(ctx, AppIcons.rotate,
                       ctx.t('ea.rotate'), _EntryAction.rotate,
@@ -472,6 +478,12 @@ Future<bool> showEntryActions(
       // Oynatıcıdan açıldıysa önizlemeyle aynı anda çalmasın.
       unawaited(VideoPlayback.instance.controller?.pause());
       await VideoTrimScreen.open(context, entry.path);
+      return false;
+
+    case _EntryAction.trimAudio:
+      // Oynatıcıdan açıldıysa kesme ekranının önizlemesiyle üst üste çalmasın.
+      unawaited(AudioPlayback.instance.pause());
+      await AudioTrimScreen.open(context, entry.path);
       return false;
 
     case _EntryAction.tag:

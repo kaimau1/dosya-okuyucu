@@ -559,7 +559,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   child: AnimatedSwitcher(
                     duration: Motion.short,
                     child: Text(
-                      context.t(_meaning ? 'srch.hint_ai' : 'fm.search_all'),
+                      context.t(_meaning ? 'srch.hint_ai' : 'fm.search_help'),
                       key: ValueKey(_meaning),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

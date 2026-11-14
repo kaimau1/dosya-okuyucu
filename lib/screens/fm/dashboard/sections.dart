@@ -411,7 +411,8 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
         onTap: () => _push(const InstalledAppsScreen()),
       ),
       // **Kullanıcının kendi kartları** (2026-11-13): "Ana ekranda göster"
-      // açık kartlar + "Yeni kart" kutusu (Ana ekranı düzenle'den gizlenebilir).
+      // açık kartlar. "Yeni kart" kutusu 2026-11-14'te kaldırıldı (kullanıcı
+      // isteği) → Ana ekranı düzenle sayfasında düğme (`_newCard`).
       for (final c in CustomCards.instance.homeCards)
         FmTileData(
           id: c.tileId,
@@ -426,22 +427,16 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
             if (mounted) _partSetState(() {});
           },
         ),
-      FmTileData(
-        id: 'new_card',
-        icon: AppIcons.add,
-        color: AppHues.steel,
-        label: context.t('card.new'),
-        subtitle: context.t('card.new_tile_sub'),
-        onTap: () async {
-          final card = await showCustomCardEditor(context,
-              inImportant: false, onHome: true);
-          if (card == null || !mounted) return;
-          await openCustomCard(context, card);
-          if (mounted) _partSetState(() {});
-        },
-      ),
     ];
     return tiles;
+  }
+
+  Future<void> _newCard() async {
+    final card =
+        await showCustomCardEditor(context, inImportant: false, onHome: true);
+    if (card == null || !mounted) return;
+    await openCustomCard(context, card);
+    if (mounted) _partSetState(() {});
   }
 
   /// "Ana ekranı düzenle" sayfası.
@@ -449,6 +444,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
     final tiles = _categoryTilesRaw();
     await showDashboardLayoutSheet(
       context,
+      onNewCard: _newCard,
       tiles: {
         for (final t in tiles)
           t.id: (label: t.label, icon: t.icon, color: t.color),

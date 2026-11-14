@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' show min;
 
 import 'package:file_picker/file_picker.dart' show FileType;
 import 'package:flutter/material.dart';
@@ -146,33 +147,83 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     }
   }
 
-  /// Tarama kareleri: şeritten sık (60) ve büyük (320 px). Şeritten SONRA
-  /// çıkarılır — şerit önce görünsün. Dosya adındaki sıra no'su (`kare_<i>`)
-  /// zamanı verir: okunamayan kare atlanırsa liste kısalır, sıra kaymaz.
+  /// Tarama kareleri: şeritten sık (60) ve büyük (320 px).
+  ///
+  /// **Kabadan inceye** (2026-11-14, kullanıcı: *"en başta çektiğimde
+  /// göremiyorum, birkaç sn sonra canlı görme geliyor"*). Kök: 60 kare tek
+  /// yerel çağrıda çıkarılıyordu (kare başı ~50–150 ms → 3–9 sn hiç kare
+  /// yok). Şimdi (1) şeridin 12 küçük karesi hemen tarama karesi olur,
+  /// (2) 60'lık ızgara 6'şar dilimlik parçalarla, ekrana yayılan sırayla
+  /// (bit ters çevirme) istenir; her parça gelince liste incelir.
+  /// Dosya adındaki sıra no'su (`kare_<i>`) zamanı verir.
   static const _scrubCount = 60;
+  static const _scrubBatch = 6;
+  bool _scrubLoading = false;
 
-  Future<void> _loadScrubFrames(Directory stripDir) async {
-    final paths = await VideoTranscoder.frames(widget.path,
-        dir: p.join(stripDir.path, 'tarama'), count: _scrubCount, width: 320);
-    if (!mounted || paths.isEmpty || _durationMs <= 0) return;
-    final re = RegExp(r'kare_(\d+)\.jpg$');
-    final list = <({int ms, String path})>[];
-    for (final f in paths) {
-      final m = re.firstMatch(f);
-      if (m == null) continue;
-      final i = int.parse(m.group(1)!);
-      // Yerel taraf her dilimin ORTASINI alır: (2i+1)/(2n).
-      list.add((
-        ms: (_durationMs * (2 * i + 1)) ~/ (2 * _scrubCount),
-        path: f,
-      ));
+  static final _kareRe = RegExp(r'kare_(\d+)\.jpg$');
+
+  /// [paths] (her biri `kare_<i>`, ızgara [count]) → (ms, yol).
+  List<({int ms, String path})> _timed(List<String> paths, int count) => [
+        for (final f in paths)
+          if (_kareRe.firstMatch(f) case final m?)
+            (
+              // Yerel taraf her dilimin ORTASINI alır: (2i+1)/(2n).
+              ms: (_durationMs * (2 * int.parse(m.group(1)!) + 1)) ~/
+                  (2 * count),
+              path: f,
+            ),
+      ];
+
+  void _mergeScrub(List<({int ms, String path})> add) {
+    if (add.isEmpty) return;
+    final byMs = {for (final f in _scrubFrames) f.ms: f};
+    for (final f in add) {
+      byMs[f.ms] = f;
     }
+    final list = byMs.values.toList()..sort((a, b) => a.ms.compareTo(b.ms));
     setState(() => _scrubFrames = list);
-    // Görüntüleri önceden çöz: ilk taramada boş kare yanıp sönmesin.
-    for (final f in list) {
+    // Görüntüleri önceden çöz: taramada boş kare yanıp sönmesin.
+    for (final f in add) {
       if (!mounted) return;
       unawaited(precacheImage(FmFileImage(f.path), context)
           .catchError((Object _) {}));
+    }
+  }
+
+  /// 0..n-1'i ekrana yayılan sırayla verir (6 bitlik ters çevirme).
+  static List<int> _spreadOrder(int n) {
+    var bits = 1;
+    while ((1 << bits) < n) {
+      bits++;
+    }
+    final out = <int>[];
+    for (var i = 0; i < (1 << bits); i++) {
+      var r = 0;
+      for (var b = 0; b < bits; b++) {
+        if (i & (1 << b) != 0) r |= 1 << (bits - 1 - b);
+      }
+      if (r < n) out.add(r);
+    }
+    return out;
+  }
+
+  Future<void> _loadScrubFrames(Directory stripDir) async {
+    if (_durationMs <= 0) return;
+    _mergeScrub(_timed(_frames, 12));
+    setState(() => _scrubLoading = true);
+    final order = _spreadOrder(_scrubCount);
+    final dir = p.join(stripDir.path, 'tarama');
+    try {
+      for (var i = 0; i < order.length; i += _scrubBatch) {
+        if (!mounted) return;
+        final batch = order.sublist(i, min(i + _scrubBatch, order.length));
+        final paths = await VideoTranscoder.frames(widget.path,
+            dir: dir, count: _scrubCount, width: 320, indices: batch);
+        if (!mounted) return;
+        _mergeScrub(_timed(paths, _scrubCount));
+      }
+    } finally {
+      if (mounted) setState(() => _scrubLoading = false);
     }
   }
 
@@ -789,6 +840,26 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
                         fit: BoxFit.contain,
                         gaplessPlayback: true,
                         errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                      ),
+                    // Kareler hâlâ geliyor: sürüklerken küçük dönence
+                    // (karesiz bölgede ortada, varken köşede).
+                    if (_scrubbing && (_scrubLoading || _scrubShown == null))
+                      Align(
+                        alignment: _scrubShown == null
+                            ? Alignment.center
+                            : AlignmentDirectional.topEnd,
+                        child: const Padding(
+                          padding: EdgeInsets.all(10),
+                          child: SizedBox(
+                            key: ValueKey('ved-scrub-loading'),
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.4,
+                              color: AppColors.onMedia,
+                            ),
+                          ),
+                        ),
                       ),
                   ],
                 ),

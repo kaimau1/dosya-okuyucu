@@ -299,13 +299,15 @@ abstract final class VideoTranscoder {
     TrimRange range, {
     bool removeAudio = false,
     JobHandle? handle,
+    // Ses dosyası kesimi (2026-11-14): çıktı `.m4a` (AAC).
+    bool audioOnly = false,
   }) async {
     if (range.lengthMs <= 0) {
       throw VideoTranscodeException(AppStrings.current.t('vt.unsupported'));
     }
     final base = p.basenameWithoutExtension(path);
     final target = FileOps.uniquePath(p.join(p.dirname(path),
-        '${base}_${AppStrings.current.t('vtr.suffix')}.mp4'));
+        '${base}_${AppStrings.current.t('vtr.suffix')}${audioOnly ? '.m4a' : '.mp4'}'));
     _wire();
     final done = _running = Completer<void>();
     final cancelWatch = Timer.periodic(_cancelPoll, (_) {
@@ -323,6 +325,7 @@ abstract final class VideoTranscoder {
         'startMs': range.startMs,
         'endMs': range.endMs,
         'removeAudio': removeAudio,
+        if (audioOnly) 'audioOnly': true,
       });
       if (started != true) {
         throw VideoTranscodeException(AppStrings.current.t('vt.unsupported'));
@@ -423,13 +426,17 @@ abstract final class VideoTranscoder {
   /// Kes ekranının kare şeridi: eşit aralıklı [count] kare, [dir] altına
   /// JPEG. Yerel taraf yoksa ya da okuyamazsa boş liste (şerit düz kalır).
   static Future<List<String>> frames(String path,
-      {required String dir, int count = 10, int width = 160}) async {
+      {required String dir,
+      int count = 10,
+      int width = 160,
+      List<int>? indices}) async {
     try {
       final list = await _channel.invokeListMethod<String>('frames', {
         'path': path,
         'dir': dir,
         'count': count,
         'width': width,
+        if (indices != null) 'indices': indices,
       });
       return list ?? const [];
     } catch (_) {

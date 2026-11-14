@@ -37,41 +37,52 @@ class PdfPageChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // **Kâğıt rozeti** (2026-11-14, kullanıcı: *"sayfa sayısını yazan şey
+    // siyah değil sayfa ile uyumlu olsun, görsel birlik; tasarımını baştan
+    // yaz"*). Siyah hap yerine sayfanın kendisi gibi: kâğıt zemini, ince
+    // kenarlık, yumuşak gölge; sayı mürekkep renginde, ilerleme halkası
+    // temanın vurgusunda. Koyu temada kâğıt koyu yüzeye döner.
     final scheme = Theme.of(context).colorScheme;
-    final fg = scheme.onInverseSurface;
+    final paper = scheme.surfaceContainerLowest;
+    final ink = scheme.onSurface;
     final progress = count <= 1 ? 1.0 : (page - 1) / (count - 1);
     return Semantics(
       button: true,
       label: context.t('pn.chip_label', {'n': page, 'total': count}),
       child: DecoratedBox(
-        decoration: const BoxDecoration(
-          borderRadius: BorderRadius.all(Radius.circular(40)),
+        decoration: BoxDecoration(
+          borderRadius: const BorderRadius.all(Radius.circular(12)),
           boxShadow: [
             BoxShadow(
-                color: AppColors.shadow, blurRadius: 12, offset: Offset(0, 3)),
+                color: AppColors.shadow.withValues(alpha: 0.18),
+                blurRadius: 8,
+                offset: const Offset(0, 2)),
           ],
         ),
         child: Material(
-          color: scheme.inverseSurface.withValues(alpha: 0.92),
-          shape: const StadiumBorder(),
+          color: paper.withValues(alpha: 0.96),
+          shape: RoundedRectangleBorder(
+            borderRadius: const BorderRadius.all(Radius.circular(12)),
+            side: BorderSide(color: scheme.outlineVariant),
+          ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             key: const ValueKey('pdf-page-chip'),
             onTap: onTap,
             onLongPress: onLongPress,
             child: Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(8, 6, 14, 6),
+              padding: const EdgeInsetsDirectional.fromSTEB(8, 5, 12, 5),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   SizedBox(
-                    width: 18,
-                    height: 18,
+                    width: 16,
+                    height: 16,
                     child: CircularProgressIndicator(
                       value: progress.clamp(0.0, 1.0),
-                      strokeWidth: 2.4,
-                      color: scheme.inversePrimary,
-                      backgroundColor: fg.withValues(alpha: 0.18),
+                      strokeWidth: 2.2,
+                      color: scheme.primary,
+                      backgroundColor: scheme.primary.withValues(alpha: 0.15),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -79,22 +90,21 @@ class PdfPageChip extends StatelessWidget {
                     TextSpan(children: [
                       TextSpan(
                         text: '$page',
-                        style: const TextStyle(fontWeight: FontWeight.w700),
+                        style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                       TextSpan(
                         text: ' / $count',
-                        style: TextStyle(color: fg.withValues(alpha: 0.7)),
+                        style: TextStyle(color: scheme.onSurfaceVariant),
                       ),
                     ]),
                     style: context.type.compact.copyWith(
-                      color: fg,
+                      color: ink,
                       fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
                   if (bookmarked) ...[
                     const SizedBox(width: 6),
-                    Icon(AppIcons.bookmark,
-                        size: 15, color: scheme.inversePrimary),
+                    Icon(AppIcons.bookmark, size: 15, color: scheme.primary),
                   ],
                 ],
               ),

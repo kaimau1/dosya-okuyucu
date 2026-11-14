@@ -52,23 +52,28 @@ class HomeQuickRow extends StatelessWidget {
     }
   }
 
-  /// Ek düğme; seçilmemişse (ya da tanınmıyorsa) hiç yer kaplamaz.
-  List<Widget> _extra(BuildContext context, String? id, String side) {
-    final spec = id == null ? null : DockExtras.spec(context, id);
-    if (spec == null) return const [];
-    return [
-      Expanded(
+  /// Ek düğmeler; seçilmemiş (ya da tanınmayan) yer kaplamaz.
+  List<Widget> _extras(BuildContext context, List<String> ids, String side) {
+    final out = <Widget>[];
+    for (var i = 0; i < ids.length; i++) {
+      final id = ids[i];
+      final spec = DockExtras.spec(context, id);
+      if (spec == null) continue;
+      out.add(Expanded(
           child: _DockItem(
-      key: ValueKey('dock-extra-$side'),
-      icon: spec.icon,
-      label: spec.label,
-      color: spec.color,
-      // AI Merkezi üst çubuktan buraya taşındı (2026-11-05): durum simgesi
-      // (analiz halkası, öneri noktası) onunla geldi.
-      iconWidget: id == 'ai' ? const AiStatusIcon(dot: true) : null,
-      onTap: () => spec.open(context),
-    )),
-    ];
+        // Drive'ın eski anahtarı korunur (testler, erişilebilirlik).
+        key: ValueKey(id == 'drive' ? 'dock-drive' : 'dock-extra-$side-$i'),
+        icon: spec.icon,
+        label: spec.label,
+        color: id == 'drive' ? null : spec.color,
+        semantics: id == 'drive' ? context.t('drive.title') : null,
+        // AI Merkezi üst çubuktan buraya taşındı (2026-11-05): durum simgesi
+        // (analiz halkası, öneri noktası) onunla geldi.
+        iconWidget: id == 'ai' ? const AiStatusIcon(dot: true) : null,
+        onTap: () => spec.open(context),
+      )));
+    }
+    return out;
   }
 
   @override
@@ -82,14 +87,15 @@ class HomeQuickRow extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(Gap.sm, Gap.xs + 2, Gap.sm, Gap.xs),
           child: SizedBox(
             height: 52,
-            child: ValueListenableBuilder<(String?, String?)>(
+            child: ValueListenableBuilder<(List<String>, List<String>)>(
               valueListenable: DockExtras.value,
               builder: (context, extras, _) {
+                // **Düzen (2026-11-14, kullanıcı: *"her iki tarafta 3'er
+                // düğme bulunabilmeli, Drive ek düğme olsun, her yana 2 ek"*):**
+                // `Çöp [sol ekler]  ( Aktar )  Tara [sağ ekler]`.
                 // **Simetri:** Aktar tam ortada; iki yanda eşit sayıda,
-                // eşit genişlikte yuva. Bir yan eksikse boş yuva konur —
-                // yoksa Aktar kayıyor, öğeler düzensiz aralanıyordu.
+                // eşit genişlikte yuva. Bir yan eksikse boş yuva konur.
                 final left = <Widget>[
-                  ..._extra(context, extras.$1, 'left'),
                   Expanded(
                       child: ValueListenableBuilder<int>(
                     valueListenable: DashboardScreen.trashCount,
@@ -106,15 +112,7 @@ class HomeQuickRow extends StatelessWidget {
                       onTap: () => _openTrash(context),
                     ),
                   )),
-                  Expanded(
-                      child: _DockItem(
-                    key: const ValueKey('dock-drive'),
-                    icon: AppIcons.cloud,
-                    label: context.t('dock.drive'),
-                    semantics: context.t('drive.title'),
-                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => const DriveScreen())),
-                  )),
+                  ..._extras(context, extras.$1, 'left'),
                 ];
                 final right = <Widget>[
                   Expanded(
@@ -125,7 +123,7 @@ class HomeQuickRow extends StatelessWidget {
                     semantics: context.t('fm.scan_document'),
                     onTap: () => ScanFlow.run(context),
                   )),
-                  ..._extra(context, extras.$2, 'right'),
+                  ..._extras(context, extras.$2, 'right'),
                 ];
                 while (right.length < left.length) {
                   right.add(const Spacer());
@@ -321,20 +319,25 @@ class DockExtraSpec {
   const DockExtraSpec(this.icon, this.label, this.color, this.open);
 }
 
-/// Alt panelin **isteğe bağlı iki ek düğmesi** (sol + sağ), kalıcı.
+/// Alt panelin **ek düğmeleri** (her yana en çok [maxPerSide]), kalıcı.
 abstract final class DockExtras {
-  static const _leftKey = 'dock_extra_left_v1';
-  static const _rightKey = 'dock_extra_right_v1';
+  static const _leftKeyV1 = 'dock_extra_left_v1';
+  static const _rightKeyV1 = 'dock_extra_right_v1';
+  static const _leftKey = 'dock_extras_left_v2';
+  static const _rightKey = 'dock_extras_right_v2';
 
-  /// (sol, sağ) — null = yok. Sağ varsayılan **AI** (2026-11-05, kullanıcı:
-  /// AI düğmesi üst panelden alta, "Yer aç"ın yerine). "Yer aç" seçilebilir
-  /// kalır (uzun bas → alt paneli düzenle).
-  static final value =
-      ValueNotifier<(String?, String?)>((null, 'ai'));
+  /// Her yana en çok bu kadar ek düğme (+1 sabit: solda Çöp, sağda Tara).
+  static const maxPerSide = 2;
+
+  /// (sol, sağ). Varsayılan: solda **Drive** (2026-11-14: sabit düğmeden ek
+  /// düğmeye), sağda **AI** (2026-11-05).
+  static final value = ValueNotifier<(List<String>, List<String>)>(
+      (const ['drive'], const ['ai']));
   static Future<void>? _loading;
 
   /// Seçilebilen düğmeler (sıra = düzenleme sayfasındaki sıra).
   static const ids = [
+    'drive',
     'free_space',
     'jobs',
     'vault',
@@ -346,37 +349,73 @@ abstract final class DockExtras {
     'new_doc',
   ];
 
+  static List<String> _clean(Iterable<String> raw) {
+    final out = <String>[];
+    for (final id in raw) {
+      if (ids.contains(id) && !out.contains(id)) out.add(id);
+      if (out.length == maxPerSide) break;
+    }
+    return out;
+  }
+
   static Future<void> ensureLoaded() => _loading ??= () async {
         try {
           final prefs = await SharedPreferences.getInstance();
-          String? read(String key, {String? fallback}) {
-            // Hiç seçilmemişse varsayılan; "yok" seçimi '' diye saklanır.
-            if (!prefs.containsKey(key)) return fallback;
-            final v = prefs.getString(key);
-            return ids.contains(v) ? v : null;
+          List<String>? readV2(String key) {
+            if (!prefs.containsKey(key)) return null;
+            final v = prefs.getString(key) ?? '';
+            return _clean(v.split(',').where((e) => e.isNotEmpty));
           }
 
+          final savedLeft = readV2(_leftKey);
+          final savedRight = readV2(_rightKey);
+          final List<String> left;
+          final List<String> right;
+          if (savedLeft != null && savedRight != null) {
+            left = savedLeft;
+            right = savedRight;
+          } else {
+            // v1 göçü: tek ek düğme + sabit Drive → Drive sol ek olur.
+            String? v1(String key, {String? fallback}) {
+              if (!prefs.containsKey(key)) return fallback;
+              final v = prefs.getString(key);
+              return ids.contains(v) ? v : null;
+            }
+
+            final oldLeft = v1(_leftKeyV1);
+            final oldRight = v1(_rightKeyV1, fallback: 'ai');
+            left = savedLeft ??
+                _clean(['drive', if (oldLeft != null) oldLeft]);
+            right = savedRight ?? _clean([if (oldRight != null) oldRight]);
+          }
           value.value =
-              (read(_leftKey), read(_rightKey, fallback: 'ai'));
+              (left, [for (final e in right) if (!left.contains(e)) e]);
         } catch (_) {
-          // Bilinçli: okunamazsa ek düğme yok.
+          // Bilinçli: okunamazsa varsayılan.
         }
       }();
 
-  static Future<void> set({required bool left, String? id}) async {
+  /// [id]'yi o yana ekler/çıkarır. Yan doluysa ekleme yapılmaz (false).
+  static Future<bool> toggle({required bool left, required String id}) async {
     final cur = value.value;
-    value.value = left ? (id, cur.$2) : (cur.$1, id);
+    final side = [...(left ? cur.$1 : cur.$2)];
+    final other = [...(left ? cur.$2 : cur.$1)];
+    if (side.contains(id)) {
+      side.remove(id);
+    } else {
+      if (side.length >= maxPerSide) return false;
+      other.remove(id);
+      side.add(id);
+    }
+    value.value = left ? (side, other) : (other, side);
     try {
       final prefs = await SharedPreferences.getInstance();
-      final key = left ? _leftKey : _rightKey;
-      if (id == null) {
-        await prefs.setString(key, '');
-      } else {
-        await prefs.setString(key, id);
-      }
+      await prefs.setString(_leftKey, value.value.$1.join(','));
+      await prefs.setString(_rightKey, value.value.$2.join(','));
     } catch (_) {
       // Bilinçli: yazılamazsa seçim yalnız bu oturumda geçerli.
     }
+    return true;
   }
 
   static void _push(BuildContext context, Widget screen) =>
@@ -388,6 +427,8 @@ abstract final class DockExtras {
       (c) => ProGate.guard(c, f, () => run(c));
 
   static DockExtraSpec? spec(BuildContext context, String id) => switch (id) {
+        'drive' => DockExtraSpec(AppIcons.cloud, context.t('dock.drive'),
+            AppHues.blue, (c) => _push(c, const DriveScreen())),
         'free_space' => DockExtraSpec(
             AppIcons.cleanEmpty,
             context.t('dock.free_space'),
@@ -423,40 +464,39 @@ abstract final class DockExtras {
       };
 }
 
-/// "Alt paneli düzenle" sayfası: sol ve sağ ek düğme seçimi.
+/// "Alt paneli düzenle" sayfası: sol ve sağ ek düğmeler (her yana en çok 2).
 Future<void> showDockEditor(BuildContext context) async {
   await DockExtras.ensureLoaded();
   if (!context.mounted) return;
   await showAppSheet<void>(
     context,
     title: context.t('dock.edit_title'),
-    builder: (context) => ValueListenableBuilder<(String?, String?)>(
+    builder: (context) =>
+        ValueListenableBuilder<(List<String>, List<String>)>(
       valueListenable: DockExtras.value,
       builder: (context, extras, _) {
         final theme = Theme.of(context);
         Widget side(bool left) {
           final current = left ? extras.$1 : extras.$2;
           final other = left ? extras.$2 : extras.$1;
+          final full = current.length >= DockExtras.maxPerSide;
           return Wrap(
             spacing: Gap.sm,
             runSpacing: Gap.xs,
             children: [
-              ChoiceChip(
-                label: Text(context.t('dock.none')),
-                selected: current == null,
-                onSelected: (_) => DockExtras.set(left: left),
-              ),
               for (final id in DockExtras.ids)
-                if (id != other)
-                  () {
-                    final spec = DockExtras.spec(context, id)!;
-                    return ChoiceChip(
+                if (!other.contains(id))
+                  if (DockExtras.spec(context, id) case final spec?)
+                    FilterChip(
+                      key: ValueKey('dock-chip-${left ? 'l' : 'r'}-$id'),
                       avatar: Icon(spec.icon, size: 18, color: spec.color),
                       label: Text(spec.label),
-                      selected: current == id,
-                      onSelected: (_) => DockExtras.set(left: left, id: id),
-                    );
-                  }(),
+                      selected: current.contains(id),
+                      showCheckmark: false,
+                      onSelected: full && !current.contains(id)
+                          ? null
+                          : (_) => DockExtras.toggle(left: left, id: id),
+                    ),
             ],
           );
         }
@@ -469,12 +509,16 @@ Future<void> showDockEditor(BuildContext context) async {
                 Text(context.t('dock.edit_body'),
                     style: theme.textTheme.bodySmall),
                 const SizedBox(height: Gap.md),
-                Text(context.t('dock.extra_left'),
+                Text(
+                    '${context.t('dock.extra_left')} · '
+                    '${extras.$1.length}/${DockExtras.maxPerSide}',
                     style: theme.textTheme.labelLarge),
                 const SizedBox(height: Gap.sm),
                 side(true),
                 const SizedBox(height: Gap.md),
-                Text(context.t('dock.extra_right'),
+                Text(
+                    '${context.t('dock.extra_right')} · '
+                    '${extras.$2.length}/${DockExtras.maxPerSide}',
                     style: theme.textTheme.labelLarge),
                 const SizedBox(height: Gap.sm),
                 side(false),

@@ -76,7 +76,10 @@ abstract final class MediaDuration {
     if (modifiedMs == null) return null;
     final key = keyFor(path, modifiedMs);
     final cached = _cache[key];
-    if (cached != null) return Duration(seconds: cached);
+    if (cached != null) {
+      _byPath[path] = cached;
+      return Duration(seconds: cached);
+    }
     return _inFlight[key] ??= _measure(path, key)
       ..whenComplete(() => _inFlight.remove(key));
   }
@@ -120,7 +123,22 @@ abstract final class MediaDuration {
     _running--;
   }
 
+  /// Bu oturumda bilinen son süre (yol başına, `stat` yok): ızgara hücresi
+  /// yeniden kurulunca (sütun sayısı değişti) rozet eşzamanlı çizilsin
+  /// (2026-11-14). Dosya değiştiyse [forVideo] doğrusunu getirir.
+  static final Map<String, int> _byPath = {};
+
+  static Duration? peek(String path) {
+    final s = _byPath[path];
+    return s == null ? null : Duration(seconds: s);
+  }
+
   static void _remember(String key, int seconds) {
+    final bar = key.lastIndexOf('|');
+    if (bar > 0) {
+      if (_byPath.length >= maxEntries) _byPath.clear();
+      _byPath[key.substring(0, bar)] = seconds;
+    }
     if (_cache.length >= maxEntries) {
       for (final old in _cache.keys.take(maxEntries ~/ 2).toList()) {
         _cache.remove(old);
