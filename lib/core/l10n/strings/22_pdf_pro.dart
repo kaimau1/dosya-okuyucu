@@ -308,5 +308,7 @@ const Map<String, (String, String, String)> _t22 = {
   'pp.crop_one_column': ('Yalnız tek sütun görünümünde', 'Only in single-column view', 'في عرض العمود الواحد فقط'),
   'pp.paged': ('Sayfa sayfa çevir', 'Page by page', 'صفحة بصفحة'),
   'pp.paged_hint': ('Sayfa ekrana sığar; kenara dokun ya da kaydır', 'Page fits the screen; tap the edge or swipe', 'تملأ الصفحة الشاشة؛ المس الحافة أو اسحب'),
+  'pp.hide_status': ('Okurken durum çubuğunu da gizle', 'Also hide the status bar while reading', 'إخفاء شريط الحالة أيضًا أثناء القراءة'),
+  'pp.hide_status_hint': ('Kaydırınca saat ve pil de çekilir; tek dokunuş geri getirir', 'Clock and battery slide away as you scroll; one tap brings them back', 'تختفي الساعة والبطارية عند التمرير؛ لمسة واحدة تعيدها'),
   'pp.crop_none': ('Kırpılacak boşluk bulunamadı', 'No margins to crop', 'لا توجد هوامش لقصّها'),
 };

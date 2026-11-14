@@ -486,6 +486,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// Sayfa sayfa geçiş kipi (H3.5; tercih `pdf_paged`). Sayfa ekrana sığar,
   /// kenara dokunuş / kaydırma sayfa çevirir; yakınlaşınca serbest gezinme.
   bool _pdfPaged = false;
+
+  /// Okurken durum çubuğu da gizlensin (H3.6; tercih `pdf_hide_status`).
+  bool _hideStatusBar = false;
   bool _pagedZoomed = false;
   int _pagedPointers = 0;
   bool _pagedMulti = false;
