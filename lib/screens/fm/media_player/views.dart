@@ -207,7 +207,6 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
             ),
             _moreMenu(),
           ],
-          ],
         ),
       ),
     );
