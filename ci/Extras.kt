@@ -178,11 +178,21 @@ object Extras {
      * Kısayol yolunu süz. İmzalı → kabul. İmzasız (bu sürümden önce sabitlenmiş
      * ana ekran kısayolları imzasızdır; kırılmasın) → yalnız özel uygulama
      * dizinleri dışındaki mutlak yol. Asıl beyaz liste Dart'ta (`isSafeLinkPath`).
-     * G1 artığı: eski kısayollar kalmayınca imzasız kolu kaldır.
+     * G1 artığı (2026-11-14): [ownShortcuts] verilirse (API 26+, sistemin bildiği
+     * kendi sabitli/dinamik kısayollarımızın yolları) imzasız yol YALNIZ bu
+     * kümedeyse geçer — başka uygulama rastgele yol gönderemez, eski sabitli
+     * kısayol çalışmaya devam eder. null = sayılamıyor (Android 7, eski başlatıcı
+     * yayını) → eski kol.
      */
-    fun pathAccepted(path: String?, sig: String?, key: ByteArray): Boolean {
+    fun pathAccepted(
+        path: String?,
+        sig: String?,
+        key: ByteArray,
+        ownShortcuts: Set<String>? = null,
+    ): Boolean {
         if (path.isNullOrEmpty()) return false
         if (sigOk(key, path, sig)) return true
+        if (ownShortcuts != null && path !in ownShortcuts) return false
         if (!path.startsWith("/") || path.split('/').contains("..")) return false
         val c = try { File(path).canonicalPath } catch (_: Exception) { return false }
         return !c.startsWith("/data/") && !c.contains("/Android/data/") &&
