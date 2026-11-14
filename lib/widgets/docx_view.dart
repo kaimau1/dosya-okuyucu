@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'office_shell.dart' show ReadingChrome, ZoomBadge, ZoomBadgeController;
 import '../core/app_colors.dart';
+import '../core/user_error.dart';
 import '../core/webview_guard.dart';
 import 'app_dialog.dart';
 import '../core/app_icons.dart';
@@ -168,7 +169,8 @@ class DocxViewState extends State<DocxView> {
         final err = m.message.startsWith('hata') ? m.message : null;
         setState(() {
           _loading = false;
-          _error = err;
+          // H10.3: ham betik hatası ekrana yazılmaz (kayda gider).
+          _error = err == null ? null : userErrorText(err);
         });
         widget.onStatus?.call(err == null);
         if (err == null) {
@@ -188,7 +190,7 @@ class DocxViewState extends State<DocxView> {
           if (!mounted) return;
           setState(() {
             _loading = false;
-            _error = e.description;
+            _error = userErrorText(e.description);
           });
           widget.onStatus?.call(false);
         },
