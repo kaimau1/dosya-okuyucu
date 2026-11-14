@@ -142,7 +142,9 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
       try {
         await dir.create(recursive: true);
         await File(p.join(dir.path, '.son')).writeAsString('1');
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: işaret yalnız budama sırası içindir; yazılamazsa önemsiz.
+      }
       // Şerit kareleri ayrı çıkarılmıyor: tarama ızgarasının (60) alt
       // kümesi (bkz. [_stripIndex]) — aynı kareyi iki kez çözmek yok.
       if (mounted) await _loadScrubFrames(dir);
@@ -229,17 +231,23 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     final dir = p.join(stripDir.path, 'tarama');
     final got = <int, String>{};
     try {
-      final videoAt = File(widget.path).statSync().modified;
+      final videoAt = (await File(widget.path).stat()).modified;
+      final stats = await Future.wait([
+        for (var i = 0; i < _scrubCount; i++)
+          File(p.join(dir, 'kare_$i.jpg')).stat(),
+      ]);
       for (var i = 0; i < _scrubCount; i++) {
-        final f = File(p.join(dir, 'kare_$i.jpg'));
-        final st = f.statSync();
+        final st = stats[i];
         if (st.type == FileSystemEntityType.file &&
             st.size > 0 &&
             !st.modified.isBefore(videoAt)) {
-          got[i] = f.path;
+          got[i] = p.join(dir, 'kare_$i.jpg');
         }
       }
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: önbellek okunamazsa kareler baştan çıkarılır.
+    }
+    if (!mounted) return;
     if (got.isNotEmpty) {
       _mergeScrub(_timed(got.values.toList(), _scrubCount));
       _syncStrip(got);
@@ -279,7 +287,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
           if (_frames.length < _stripCount) {
             _frames = [
               for (var j = 0; j < _stripCount; j++)
-                if (got[_stripIndex(j)] case final f?) f,
+                ?got[_stripIndex(j)],
             ];
           }
         });
@@ -289,15 +297,19 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
 
   static Future<void> _pruneFrameDirs(Directory root) async {
     try {
-      final dirs = [
-        for (final e in root.listSync())
-          if (e is Directory)
-            (e, File(p.join(e.path, '.son')).statSync().modified),
-      ]..sort((a, b) => b.$2.compareTo(a.$2));
+      final dirs = <(Directory, DateTime)>[];
+      await for (final e in root.list()) {
+        if (e is Directory) {
+          dirs.add((e, (await File(p.join(e.path, '.son')).stat()).modified));
+        }
+      }
+      dirs.sort((a, b) => b.$2.compareTo(a.$2));
       for (final (d, _) in dirs.skip(5)) {
         await d.delete(recursive: true);
       }
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: budama süs; geçici klasörü sistem de temizler.
+    }
   }
 
   /// Şeridin 12 karesi tamamsa şeridi kurar (bir kez).

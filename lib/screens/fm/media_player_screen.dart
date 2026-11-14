@@ -456,7 +456,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     return _aspect;
   }
 
-  /// Başlık altı tarih — dosya başına bir kez `stat` (yol değişince yenilenir).
+  /// Başlık altı tarih — dosya başına bir kez (eşzamansız) `stat`.
   String? _momentPath;
   String? _moment;
 
@@ -464,12 +464,12 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     if (path.isEmpty) return null;
     if (_momentPath != path) {
       _momentPath = path;
-      try {
-        final ms = File(path).lastModifiedSync().millisecondsSinceEpoch;
-        _moment = ms > 0 ? photoMomentTitle(ms) : null;
-      } catch (_) {
-        _moment = null;
-      }
+      _moment = null;
+      File(path).lastModified().then((d) {
+        final ms = d.millisecondsSinceEpoch;
+        if (!mounted || _momentPath != path || ms <= 0) return;
+        setState(() => _moment = photoMomentTitle(ms));
+      }, onError: (Object _) {});
     }
     return _moment;
   }

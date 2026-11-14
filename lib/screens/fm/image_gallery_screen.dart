@@ -18,7 +18,6 @@ import '../../core/theme.dart';
 import '../../models/document.dart';
 import '../../models/fs_entry.dart';
 import '../../models/photo_group.dart';
-import '../../services/fm/fs_scan.dart';
 import '../../services/fm/image_rotate.dart';
 import '../../services/fm/important_files.dart';
 import '../../widgets/motion.dart' show PressScale;
