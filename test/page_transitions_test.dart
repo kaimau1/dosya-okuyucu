@@ -107,7 +107,8 @@ void main() {
     final scaled = tester
         .widgetList<Transform>(find.ancestor(
             of: find.text('ikinci'), matching: find.byType(Transform)))
-        .where((t) => t.transform.getMaxScaleOnAxis() < 0.999);
+        // x ölçeği (getMaxScaleOnAxis z'yi de sayar; Transform.scale z'yi 1 bırakır).
+        .where((t) => t.transform.storage[0] < 0.999);
     expect(scaled, isNotEmpty);
     // Opaklık yok (geçiş performansı kararı).
     expect(find.byType(FadeTransition), findsNothing);
