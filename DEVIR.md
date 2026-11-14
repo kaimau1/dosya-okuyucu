@@ -3,5 +3,5 @@
 - H7.3 bir kez ipuçları: `lib/core/once_hints.dart`, 4 kayıt yeri + PDF düzenle + biçim boyacısı; Ayarlar › Hakkında `hints_reset`.
 - H7.4 `fm_confirm_delete` varsayılan false (app_state.dart), test fm_delete_guard_test.
 - H7.5 doğrulandı (değişiklik yok); H7.2 envanter + öneri KONTROL_LISTEM 20; plan, KALANLAR, HAFIZA, CIHAZ_TESTI güncel.
-- Sıradaki: CI yeşil → OTOMASYON P05 satırı bitti.
+- CI 43588435506 yeşil (b4e37d29). OTOMASYON P05 bitti. Birleştirme yürütücüde (DEVIR.md silinecek).
 - Doğrulama: CI (`gh run list -b faz-oto-P05-sade -L 1`). Yerel test yok.
