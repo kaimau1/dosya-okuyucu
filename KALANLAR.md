@@ -173,14 +173,14 @@ Plan: `docs/GUVENLIK_PLANI.md` (G0–G12; sıra ve açılış istemi orada). Pla
 Ayrıntı, kurallar, madde madde yapılış ve açılış istemi: `docs/FERRARI_PLANI.md`. Bitti ölçütü: §2'deki 10 işlemde
 Samsung Dosyalarım ile yan yana videoda geride görünmemek (H12 kapısı). Plan sürerken yeni özellik açılmaz.
 - [ ] H0 Ölçüm tabanı ve rakip videosu 📱💻 — H0.2/H0.3 + gözetimsiz A/B betiği `tool/ab_olcum.sh` bitti (2026-11-14, P01); kalan H0.1/H0.4 (P02)
-- [ ] H1 PDF açılış hissi — H1.1–H1.3 bitti (2026-11-14); kalan **H1.4 📱 cihaz bekliyor** (son sayfa görüntüsü + ölçüm), H1.5 → H6.3; cihaz turu `CIHAZ_TESTI.md` "Ferrari H1"
+- [ ] H1 PDF açılış hissi — H1.1–H1.4 kodu bitti (2026-11-14; H1.4 oto P07); kalan **H1.4 📱 A/B + §2 işlem 5 ölçümü**, H1.5 → H6.3; cihaz turu `CIHAZ_TESTI.md` "Ferrari H1"
 - [ ] H2 PDF kaydırma akıcılığı 📱💻
 - [ ] H3 PDF okuma konforu — kod bitti (2026-11-14, H3.1–H3.7: çift dokunma + akıllı yakınlık, görsel kipi, kenar kırpma, sayfa sayfa, durum çubuğu, solan rozet); kalan **📱 cihaz turu** `CIHAZ_TESTI.md` "Ferrari H3"
 - [x] H4 Dosya listesi: Samsung düzeyi ☁️ — bitti (2026-11-14); H4.3/H4.4 kullanıcı kararıyla uygulanmaz; cihazda bakış `CIHAZ_TESTI.md` "Ferrari H4"
 - [x] H5 Ana ekran sadeleştirme ☁️ — bitti (2026-11-14): yeni varsayılan sıra son dosyalar · kategoriler · bellek; güncelleme şeridi tek satır; H5.3/H5.4 zaten vardı; cihazda bakış `CIHAZ_TESTI.md` "Ferrari H5"
 - [x] H6 Hareket ve dokunuş ☁️ — bitti (2026-11-14): titreşim kapsamı, basma hâli, görsel → galeri büyüme geçişi, levha bekçisi, Android 14+ öngörülü geri önizlemesi; **H6.4 liste satırı kapanış animasyonu ölçüm turuna** (H2/H12, 2.000+ öğe cihazda); PDF/Office kapsayıcı geçişi H11.3 ile; cihazda bakış `CIHAZ_TESTI.md` "Ferrari H6"
 - [ ] H7 Sadeleştirme: bildirim, menü, ipucu ☁️👤 — kod bitti (2026-11-14, dal `faz-oto-P05-sade`: H7.1 bildirim envanteri, H7.3 ipuçları bir kez + sıfırla, H7.4 çöpe atmada onay yok, H7.5 doğrulandı); kalan **H7.2 menü kısaltma 👤** (`KONTROL_LISTEM.md` 20) + 📱 `CIHAZ_TESTI.md` "Ferrari H7"
-- [ ] H8 Video kırpma / kesme — kod bitti (2026-11-14, H8.1–H8.4, H8.6); kalan H8.5 döndür + kareyi kaydet, **📱 cihaz turu** `CIHAZ_TESTI.md` "Ferrari H8" + "Video düzenle" (2026-11-14: ara kesimler, bölge sesi kapat/ekle)
+- [ ] H8 Video kırpma / kesme — kod bitti (2026-11-14, H8.1–H8.4, H8.6); H8.5 döndür + kareyi kaydet kodu bitti (oto P07); kalan **📱 cihaz turu** (`CIHAZ_TESTI.md` "Ferrari H1.4 + H8.5") `CIHAZ_TESTI.md` "Ferrari H8" + "Video düzenle" (2026-11-14: ara kesimler, bölge sesi kapat/ekle)
 - [ ] H9 Tablet ☁️📱
 - [x] H10 Boş, yükleniyor, hata durumları ☁️ — yapıldı (2026-11-14, dal faz-oto-P04-kabuk, A/B bekliyor): 8 boş liste çizimli, açılış penceresi 300 ms ertelendi, 3 ekranda ham hata kalktı. Kalan: H10.2 busy_dialog → iş sistemi (envanter planda), H10.3 kalan `{'error':}` ham metinleri (planda).
 - [x] H11 Görüntüleyici kabuğu tutarlılığı ☁️ — yapıldı (2026-11-14, dal faz-oto-P04-kabuk, A/B bekliyor): PDF üst çubuğu ≤ 3 + ⋮, alt çubuk ≤ 5, video denetimleri solar. 👤 galeri alt çubuğu 8→5 ve editör üst çubuğu → `KONTROL_LISTEM.md` 24–25.

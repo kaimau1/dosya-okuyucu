@@ -122,7 +122,7 @@ H1, H4, H6, H7, H10 buluttan başlanabilir; H0, H2, H12 cihazsız bitmez.
       Kabul: açılışta en çok bir geçici öğe; alt kenarı kapatan şerit yok.
 - [x] H1.3 **Yan şerit tercihi:** ≥ 840 dp'de küçük resim şeridi aç/kapa düğmesi (üst çubuk), tercih `SharedPreferences`'ta kalıcı;
       varsayılan **kapalı** (içerik önce). Açıkken güncel sayfa şeritte görünür kalır (kaydırınca şerit de izler).
-- [ ] H1.4 📱 **Son sayfa görüntüsü:** kapanırken görünen sayfanın düşük çözünürlüklü görüntüsü (≤ 200 KB JPEG, yol SHA-1'i adıyla,
+- [x] H1.4 📱 (2026-11-14 kod, oto P07; 📱 ölçüm bekliyor — `CIHAZ_TESTI.md` "Ferrari H1.4 + H8.5") **Son sayfa görüntüsü:** kapanırken görünen sayfanın düşük çözünürlüklü görüntüsü (≤ 200 KB JPEG, yol SHA-1'i adıyla,
       en çok 50 belge, uygulama önbellek dizini) saklanır; yeniden açılışta H1.1 köprüsü kapak yerine bunu kullanır.
       Kasa/özel dosyada **saklanmaz** (`PrivateZone.isPrivatePath`). Kabul: §2 işlem 5'te içerik < 0,3 sn'de görünür.
 - [ ] H1.5 (H6.3 ile birlikte yapılacak — 2026-11-14) Açılış geçişi: dosya satırından görüntüleyiciye `Motion.medium` ile büyüyen geçiş (bkz. H6.3; burada yalnız PDF).
@@ -130,7 +130,7 @@ H1, H4, H6, H7, H10 buluttan başlanabilir; H0, H2, H12 cihazsız bitmez.
 **Durum (2026-11-14):** H1.1–H1.3 yapıldı (dal `ccr-1904fd13-pttu60` → main). Kapak yalnız listede ÜRETİLMİŞSE gelir
 (`PdfThumbnail.cachedCover` üretmez); köprü `onViewerReady` + `Motion.medium` sonra solar (gerçek "ilk bitmap" olayı pdfrx'te
 yok — 📱 cihazda beyaz kare görülürse süre ayarlanır). Form düğmesi İçindekiler'in yerine geçer (üst çubukta en çok 3 eylem).
-H1.4 📱 bekliyor (KALANLAR), H1.5 → H6.3.
+H1.4 kodu 2026-11-14 (oto P07): `lib/services/pdf/pdf_last_view.dart`, kapanışta (PopScope) pdfium'da çizilir; köprü `page:` ile önce onu arar. 📱 ölçüm bekliyor. H1.5 → H6.3.
 
 **Tuzaklar:** pdfrx boy değişince sayfa başına atlar (HAFIZA 2026-10-23) → köprü `Stack` katmanı olsun, görünüm boyunu değiştirme.
 `_pdfSearcher` yalnız `onViewerReady`'de kurulur. Zamanlayıcılar iptal edilebilir olmalı (§0.6).
@@ -323,7 +323,7 @@ iş sistemi (`lib/screens/fm/jobs_screen.dart`). Örnek arayüz: kullanıcının
       ("00:12 – 01:05 · 53 sn"). Tutamaç sürüklenirken önizleme o kareye gider; `AppHaptics.step`.
 - [x] H8.3 **Kaydet:** varsayılan **kopya** (`ad_kesit.mp4`, özgün korunur); iş sistemi üzerinden (ilerleme şeridi + bildirim), bitince "Aç / Paylaş".
 - [x] H8.4 **Giriş noktaları:** video oynatıcı üst çubuğu "Kes" + dosya uzun basış menüsü "Videoyu kes". Lite/Pro yerleşimi `docs/SURUM_PLANI.md`'ye göre (👤).
-- [ ] H8.5 (sesi kapat ✔ 2026-11-14; döndür + kareyi kaydet kaldı) Aynı ekranda sonra: döndür (90°), sesi kapat, kareyi fotoğraf olarak kaydet — ayrı commit'ler, her biri küçük.
+- [x] H8.5 (sesi kapat ✔; döndür + kareyi kaydet ✔ 2026-11-14 oto P07, cihazda doğrulanmadı) Aynı ekranda sonra: döndür (90°), sesi kapat, kareyi fotoğraf olarak kaydet — ayrı commit'ler, her biri küçük.
 - [x] H8.6 Test: süre/aralık doğrulama birim testi; yerel kanal sahte (mock) ile iş akışı testi. Cihaz: 3 farklı video (dikey, 4K, uzun) → `CIHAZ_TESTI.md`.
 
 **Durum (2026-11-14):** H8.1–H8.4, H8.6 yapıldı. Giriş noktası tek: dosya işlemleri levhası ("Bu dosya" bölümü) —
