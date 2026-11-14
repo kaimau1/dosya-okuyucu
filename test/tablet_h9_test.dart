@@ -179,8 +179,7 @@ void main() {
     testWidgets('dev metin tablette ortalanır, telefonda dolgu aynı',
         (tester) async {
       final path = '${dir.path}/dev.txt';
-      File(path).writeAsStringSync('satır
-' * 50);
+      File(path).writeAsStringSync(List.filled(50, 'satır').join('\n'));
       final file = LargeTextFile.openSync(path);
       final state = await appState(tester);
       addTearDown(tester.view.reset);

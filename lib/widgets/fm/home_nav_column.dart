@@ -123,7 +123,7 @@ class HomeNavColumn extends StatelessWidget {
                 }(),
               header(context.t('fm.categories')),
               for (final c in categories)
-                tile(FmEntryIcon.iconFor(c.cat), context.t(c.cat.labelKey),
+                tile(FmColors.iconFor(c.cat), context.t(c.cat.labelKey),
                     active: selected == c.id, onTap: () => onSelect(c.id)),
               header(context.t('pane.places')),
               for (final v in FmEnv.volumes)
