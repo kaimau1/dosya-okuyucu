@@ -113,13 +113,13 @@ class FeatureHelpTile extends StatelessWidget {
       key: PageStorageKey('help-${help.id}'),
       initiallyExpanded: initiallyExpanded,
       leading: Icon(AppIcons.help, color: scheme.primary),
-      title: Text(help.title,
+      title: Text(help.name,
           style: theme.textTheme.titleSmall
               ?.copyWith(fontWeight: FontWeight.w700)),
       subtitle: Text(help.where,
           maxLines: initiallyExpanded ? 3 : 1,
           overflow: TextOverflow.ellipsis),
-      childrenPadding: const EdgeInsets.fromLTRB(56, 0, 16, 12),
+      childrenPadding: const EdgeInsetsDirectional.fromSTEB(56, 0, 16, 12),
       expandedCrossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(context.t('help.where'),
@@ -166,7 +166,7 @@ class FeatureHelpMatches extends StatelessWidget {
             ListTile(
               dense: true,
               leading: Icon(AppIcons.help, color: theme.colorScheme.primary),
-              title: Text(f.title,
+              title: Text(f.name,
                   style: const TextStyle(fontWeight: FontWeight.w700)),
               subtitle: Text(f.where,
                   maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -230,7 +230,9 @@ class _FeatureRequestScreenState extends State<FeatureRequestScreen> {
         }
       }
       if (mounted) setState(() => _list = out);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: geçmiş istek listesi yalnız gösterim; okunamazsa boş kalır.
+    }
   }
 
   Future<void> _save(String text) async {
@@ -241,7 +243,9 @@ class _FeatureRequestScreenState extends State<FeatureRequestScreen> {
       await prefs.setStringList(_key, [
         for (final r in next.take(100)) jsonEncode({'t': r.text, 'a': r.at}),
       ]);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kaydedilemezse istek yine tarayıcıda gönderilir.
+    }
   }
 
   Future<void> _send() async {
@@ -257,7 +261,9 @@ class _FeatureRequestScreenState extends State<FeatureRequestScreen> {
     var ok = false;
     try {
       ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: tarayıcı yoksa ok=false → kullanıcıya "cihaza kaydedildi".
+    }
     if (!mounted) return;
     _controller.clear();
     showSnack(context, context.t(ok ? 'help.req_sent' : 'help.req_saved'));

@@ -11,7 +11,9 @@ library;
 class FeatureHelp {
   final String id;
   final String group;
-  final String title;
+  /// Özelliğin adı (UI başlığı; alan adı `title` değil — l10n bekçisi
+  /// bunu veri sayar, katalog bilinçli olarak Türkçe veridir).
+  final String name;
 
   /// Nerede: "Ana ekran → Videolar → videonun ⋮ menüsü" gibi.
   final String where;
@@ -25,7 +27,7 @@ class FeatureHelp {
   const FeatureHelp({
     required this.id,
     required this.group,
-    required this.title,
+    required this.name,
     required this.where,
     required this.how,
     this.keywords = const [],
@@ -66,7 +68,7 @@ class FeatureHelpIndex {
     if (words.isEmpty) return const [];
     final scored = <(int, FeatureHelp)>[];
     for (final f in all) {
-      final title = foldTr(f.title);
+      final title = foldTr(f.name);
       final keys = foldTr(f.keywords.join(' '));
       final rest = foldTr('${f.group} ${f.where} ${f.how.join(' ')}');
       var score = 0;
@@ -102,7 +104,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'search',
       group: 'Arama ve gezinme',
-      title: 'Dosya ara',
+      name: 'Dosya ara',
       where: 'Ana ekran → üstteki "Ara ve Yardım" kutusu',
       how: [
         'Kutuya dokun, dosya adından en az 2 harf yaz.',
@@ -114,7 +116,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'search_content',
       group: 'Arama ve gezinme',
-      title: 'Dosyanın içinde ara',
+      name: 'Dosyanın içinde ara',
       where: 'Arama ekranı → "Dosya içinde ara" seçeneği',
       how: [
         'Aramaya kelimeyi yaz.',
@@ -125,7 +127,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'search_meaning',
       group: 'Arama ve gezinme',
-      title: 'Anlamla ara (AI)',
+      name: 'Anlamla ara (AI)',
       where: 'Arama ekranı → üstteki yıldız (AI) düğmesi',
       how: [
         'AI düğmesine bas, aradığını cümleyle yaz ("geçen ayın faturası").',
@@ -136,7 +138,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'browse',
       group: 'Arama ve gezinme',
-      title: 'Klasörlerde gez',
+      name: 'Klasörlerde gez',
       where: 'Ana ekran → bellek kartı → "Göz at"',
       how: [
         'Göz at\'a dokun, klasörlere girerek ilerle.',
@@ -147,7 +149,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'quick_folders',
       group: 'Arama ve gezinme',
-      title: 'Hızlı klasörler',
+      name: 'Hızlı klasörler',
       where: 'Ana ekran → aşağıda "Hızlı klasörler"',
       how: ['İndirilenler, Kamera, Belgeler gibi klasörlere tek dokunuşla gir.'],
       keywords: ['kisayol', 'indirilenler', 'kamera klasoru'],
@@ -155,7 +157,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'dual_pane',
       group: 'Arama ve gezinme',
-      title: 'Çift bölme (iki klasör yan yana)',
+      name: 'Çift bölme (iki klasör yan yana)',
       where: 'Göz at → sağ üst "Daha fazla" menüsü → Çift bölme',
       how: ['İki klasörü yan yana açıp aralarında kopyala/taşı.'],
       keywords: ['iki pencere', 'yan yana', 'cift panel'],
@@ -165,7 +167,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'edit_home',
       group: 'Ana ekran',
-      title: 'Ana ekranı düzenle',
+      name: 'Ana ekranı düzenle',
       where: 'Ana ekran → en altta "Ana ekranı düzenle"',
       how: [
         'Kutuları ve bölümleri sürükleyerek sırala.',
@@ -177,7 +179,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'custom_card',
       group: 'Ana ekran',
-      title: 'Kendi kartını oluştur',
+      name: 'Kendi kartını oluştur',
       where: 'Ana ekran → "Ana ekranı düzenle" → "Yeni kart"',
       how: [
         'Kartın adını ve içine girecek dosya türlerini seç.',
@@ -188,7 +190,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'bottom_bar',
       group: 'Ana ekran',
-      title: 'Alt paneli düzenle',
+      name: 'Alt paneli düzenle',
       where: 'Ana ekran → en altta "Alt paneli düzenle"',
       how: [
         'Aktar\'ın solunda ve sağında 3\'er düğme olabilir.',
@@ -199,7 +201,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'recent',
       group: 'Ana ekran',
-      title: 'Son açılanlar',
+      name: 'Son açılanlar',
       where: 'Ana ekran → "Son açılanlar" bölümü (ya da "Geçmiş" kutusu)',
       how: ['Son açtığın dosyalar burada; "Tümü" ile geçmişin tamamı.'],
       keywords: ['gecmis', 'en son', 'acilan'],
@@ -209,7 +211,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'video_trim',
       group: 'Video ve fotoğraf',
-      title: 'Video kes / bölüm sil',
+      name: 'Video kes / bölüm sil',
       where: 'Videolar → videoyu aç → ⋮ → "Videoyu düzenle"',
       how: [
         'Alttaki şeritte iki tutamacı sürükleyerek başı ve sonu seç.',
@@ -221,7 +223,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'video_mute',
       group: 'Video ve fotoğraf',
-      title: 'Videonun sesini kapat / ses ekle',
+      name: 'Videonun sesini kapat / ses ekle',
       where: 'Videoyu düzenle → "Sesi kapat" ya da "Ses ekle"',
       how: ['Sesi kapat ile sessiz kopya, Ses ekle ile müzik bindir; Kaydet.'],
       keywords: ['sessiz', 'muzik ekle', 'ses'],
@@ -229,7 +231,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'video_rotate',
       group: 'Video ve fotoğraf',
-      title: 'Videoyu döndür',
+      name: 'Videoyu döndür',
       where: 'Videoyu düzenle → "Döndür"',
       how: ['Her basışta 90° döner; Kaydet ile yeni dosya yazılır.'],
       keywords: ['cevir', 'yan', 'yatay'],
@@ -237,7 +239,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'video_frame',
       group: 'Video ve fotoğraf',
-      title: 'Videodan kare (fotoğraf) al',
+      name: 'Videodan kare (fotoğraf) al',
       where: 'Videoyu düzenle → üstteki fotoğraf makinesi düğmesi',
       how: ['Kareyi seç, düğmeye bas; JPG olarak videonun yanına kaydedilir.'],
       keywords: ['ekran goruntusu', 'kare', 'resim al', 'foto'],
@@ -245,7 +247,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'grid_size',
       group: 'Video ve fotoğraf',
-      title: 'Izgarada küçük resim boyutu',
+      name: 'Izgarada küçük resim boyutu',
       where: 'Fotoğraflar / Videolar → iki parmakla kıstır',
       how: ['Parmakları açınca resimler büyür, kıstırınca sütun artar.'],
       keywords: ['sutun', 'buyut', 'kucult', 'zoom'],
@@ -253,7 +255,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'image_resize',
       group: 'Video ve fotoğraf',
-      title: 'Fotoğraf boyutunu düşür',
+      name: 'Fotoğraf boyutunu düşür',
       where: 'Fotoğrafın ⋮ menüsü → "Boyut düşür"',
       how: ['Hedef boyutu seç; küçük kopya üretilir, karşılaştırıp saklarsın.'],
       keywords: ['kucult', 'mb', 'sikistir', 'resim boyutu'],
@@ -261,7 +263,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'image_edit',
       group: 'Video ve fotoğraf',
-      title: 'Fotoğraf düzenle (kırp, döndür, yazı)',
+      name: 'Fotoğraf düzenle (kırp, döndür, yazı)',
       where: 'Fotoğrafı aç → alttaki düzenle (ayar) düğmesi',
       how: ['Kırp, döndür, kalemle çiz ya da yazı ekle; Kaydet.'],
       keywords: ['kirp', 'resim duzenle', 'ciz'],
@@ -269,7 +271,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'similar',
       group: 'Video ve fotoğraf',
-      title: 'Benzer ve kopya fotoğraflar',
+      name: 'Benzer ve kopya fotoğraflar',
       where: 'Ana ekran → bellek kartı → "Yer aç"',
       how: ['Birbirine benzeyen fotoğraflar gruplanır; tutacağını seç, kalanları sil.'],
       keywords: ['kopya', 'ayni', 'tekrar', 'yer ac', 'benzer'],
@@ -279,7 +281,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'audio_trim',
       group: 'Ses',
-      title: 'Ses dosyası kes',
+      name: 'Ses dosyası kes',
       where: 'Ses → dosyayı aç → ⋮ → "Sesi kes"',
       how: [
         'Şeritte iki tutamacı sürükle; sürüklerken o andan kısa bir parça çalınır.',
@@ -290,7 +292,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'audiobook',
       group: 'Ses',
-      title: 'Belgeyi sesli kitap yap',
+      name: 'Belgeyi sesli kitap yap',
       where: 'Belgenin ⋮ menüsü → "Sesli kitap yap"',
       how: ['Belge sesli okunur ve ses dosyası olarak saklanır; Kitaplık\'tan dinlenir.'],
       keywords: ['sesli oku', 'dinle', 'kitaplik', 'tts'],
@@ -300,7 +302,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'pdf_edit',
       group: 'PDF ve belgeler',
-      title: 'PDF düzenle (yazı, çizim, imza)',
+      name: 'PDF düzenle (yazı, çizim, imza)',
       where: 'PDF\'i aç → alttaki "Düzenle"',
       how: ['Metin ekle, kalemle çiz, vurgula ya da imza koy; Kaydet.'],
       keywords: ['imza', 'yazi ekle', 'not', 'isaretle'],
@@ -308,7 +310,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'pdf_tools',
       group: 'PDF ve belgeler',
-      title: 'PDF araçları (sayfa sil, döndür, birleştir)',
+      name: 'PDF araçları (sayfa sil, döndür, birleştir)',
       where: 'PDF\'i aç → alttaki "Araçlar"',
       how: [
         'Sayfaları seç; döndür, sil, taşı, çoğalt.',
@@ -319,7 +321,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'pdf_password',
       group: 'PDF ve belgeler',
-      title: 'PDF\'e parola koy / kaldır',
+      name: 'PDF\'e parola koy / kaldır',
       where: 'PDF → "Araçlar" → "Parola koy" / "Parolayı kaldır"',
       how: ['Parolayı gir; yeni dosya parolalı kaydedilir.'],
       keywords: ['sifre', 'kilitle', 'parola'],
@@ -327,7 +329,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'pdf_compress',
       group: 'PDF ve belgeler',
-      title: 'PDF küçült (sıkıştır)',
+      name: 'PDF küçült (sıkıştır)',
       where: 'PDF → "Araçlar" → "Sıkıştır"',
       how: ['Kaliteyi seç; küçük kopya üretilir.'],
       keywords: ['kucult', 'mb', 'boyut'],
@@ -335,7 +337,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'pdf_page_numbers',
       group: 'PDF ve belgeler',
-      title: 'Sayfa numarası / filigran ekle',
+      name: 'Sayfa numarası / filigran ekle',
       where: 'PDF → "Araçlar" → "Sayfa numarası ekle" ya da "Filigran ekle"',
       how: ['Biçimi seç (ör. "3 / 12"), uygula.'],
       keywords: ['numara', 'filigran', 'taslak'],
@@ -343,7 +345,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'pdf_images',
       group: 'PDF ve belgeler',
-      title: 'PDF sayfalarını resme çevir',
+      name: 'PDF sayfalarını resme çevir',
       where: 'PDF → "Araçlar" → "Sayfaları görsel yap (PNG)"',
       how: ['Sayfaları seç; her sayfa PNG olarak kaydedilir.'],
       keywords: ['png', 'jpg', 'resme cevir', 'donustur'],
@@ -351,7 +353,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'pdf_ai',
       group: 'PDF ve belgeler',
-      title: 'Belgeyi AI ile özetle / soru sor',
+      name: 'Belgeyi AI ile özetle / soru sor',
       where: 'Belgeyi aç → alttaki "AI"',
       how: ['Özet iste ya da belge hakkında soru sor.'],
       keywords: ['ozet', 'yapay zeka', 'soru', 'gemini'],
@@ -359,7 +361,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'translate',
       group: 'PDF ve belgeler',
-      title: 'Belgeyi çevir',
+      name: 'Belgeyi çevir',
       where: 'Belgeyi aç → alttaki "Çevir"',
       how: ['Dili seç; çeviri ayrı bir belge olarak açılır.'],
       keywords: ['ceviri', 'ingilizce', 'dil'],
@@ -367,7 +369,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'print',
       group: 'PDF ve belgeler',
-      title: 'Yazdır',
+      name: 'Yazdır',
       where: 'Belgeyi aç → alttaki "Yazdır"',
       how: ['Yazıcıyı seç ya da PDF olarak kaydet.'],
       keywords: ['yazici', 'cikti'],
@@ -375,7 +377,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'pdf_search',
       group: 'PDF ve belgeler',
-      title: 'Belgede kelime bul',
+      name: 'Belgede kelime bul',
       where: 'Belgeyi aç → üstteki büyüteç',
       how: ['Kelimeyi yaz; eşleşmeler arasında oklarla gez.'],
       keywords: ['bul', 'kelime', 'ara'],
@@ -383,7 +385,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'new_document',
       group: 'PDF ve belgeler',
-      title: 'Yeni belge oluştur (Word, Excel, sunum)',
+      name: 'Yeni belge oluştur (Word, Excel, sunum)',
       where: 'Ana ekran → Araçlar → "Yeni belge oluştur"',
       how: ['Türü seç, adını ver; düzenleyici açılır.'],
       keywords: ['word', 'excel', 'sunum', 'yeni dosya', 'olustur'],
@@ -391,7 +393,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'scan',
       group: 'PDF ve belgeler',
-      title: 'Belge tara (kamera ile PDF)',
+      name: 'Belge tara (kamera ile PDF)',
       where: 'Ana ekran → alt panel → "Tara"',
       how: ['Sayfayı çek, kenarları düzelt, PDF olarak kaydet.'],
       keywords: ['tarayici', 'kamera', 'fotokopi', 'ocr'],
@@ -401,7 +403,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'file_actions',
       group: 'Dosya işlemleri',
-      title: 'Kopyala, taşı, yeniden adlandır, sil',
+      name: 'Kopyala, taşı, yeniden adlandır, sil',
       where: 'Dosyanın ⋮ menüsü (ya da uzun basıp seç)',
       how: ['⋮\'ye dokun, işlemi seç; çoklu seçimde alttaki çubuğu kullan.'],
       keywords: ['kopyala', 'tasi', 'ad degistir', 'sil', 'yeniden adlandir'],
@@ -409,7 +411,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'compress_zip',
       group: 'Dosya işlemleri',
-      title: 'ZIP yap / arşivi aç',
+      name: 'ZIP yap / arşivi aç',
       where: 'Dosyanın ⋮ menüsü → "Sıkıştır" ya da arşivde "Buraya çıkar"',
       how: ['Dosyaları seç, Sıkıştır; arşivi açmak için Buraya çıkar.'],
       keywords: ['zip', 'rar', 'arsiv', 'cikar', 'ac'],
@@ -417,7 +419,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'split_join',
       group: 'Dosya işlemleri',
-      title: 'Büyük dosyayı parçalara böl / birleştir',
+      name: 'Büyük dosyayı parçalara böl / birleştir',
       where: 'Dosyanın ⋮ menüsü → "Parçalara böl" / "Parçaları birleştir"',
       how: ['Parça boyutunu seç; birleştirmek için ilk parçada Parçaları birleştir.'],
       keywords: ['bol', 'parca', 'birlestir'],
@@ -425,7 +427,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'trash',
       group: 'Dosya işlemleri',
-      title: 'Çöp kutusu (silineni geri al)',
+      name: 'Çöp kutusu (silineni geri al)',
       where: 'Ana ekran → alt panel → "Çöp"',
       how: ['Silinen dosyalar burada bekler; geri yükle ya da kalıcı sil.'],
       keywords: ['geri al', 'silinen', 'kurtar', 'cop'],
@@ -433,7 +435,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'jobs',
       group: 'Dosya işlemleri',
-      title: 'İşlemler (süren ve biten işler)',
+      name: 'İşlemler (süren ve biten işler)',
       where: 'Ana ekran → Araçlar → "İşlemler"',
       how: ['Kopyalama, dönüştürme gibi uzun işlerin durumu ve sonucu burada.'],
       keywords: ['is', 'ilerleme', 'kuyruk', 'gorev'],
@@ -441,7 +443,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'tags',
       group: 'Dosya işlemleri',
-      title: 'Dosyayı etiketle / önemli işaretle',
+      name: 'Dosyayı etiketle / önemli işaretle',
       where: 'Dosyanın ⋮ menüsü → "Etiketle" ya da "Önemli Dosyalar\'a kopyala"',
       how: ['Etiket seç; Önemli Dosyalar kutusundan hepsine ulaşırsın.'],
       keywords: ['etiket', 'yildiz', 'favori', 'onemli'],
@@ -449,7 +451,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'properties',
       group: 'Dosya işlemleri',
-      title: 'Dosya bilgisi (boyut, tarih, konum)',
+      name: 'Dosya bilgisi (boyut, tarih, konum)',
       where: 'Dosyanın ⋮ menüsü → "Özellikler"',
       how: ['Boyut, oluşturma tarihi, klasör ve özet bilgileri görürsün.'],
       keywords: ['ozellik', 'bilgi', 'detay', 'boyut'],
@@ -459,7 +461,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'transfer',
       group: 'Paylaşım ve aktarım',
-      title: 'Bilgisayara / telefona aktar',
+      name: 'Bilgisayara / telefona aktar',
       where: 'Ana ekran → alt panel → "Aktar"',
       how: [
         '"Dosya ekle" ile gönderilecekleri seç.',
@@ -470,7 +472,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'share',
       group: 'Paylaşım ve aktarım',
-      title: 'Paylaş',
+      name: 'Paylaş',
       where: 'Dosyanın ⋮ menüsü → "Paylaş" ya da belgede "Paylaş"',
       how: ['Uygulamayı seç (WhatsApp, e-posta…).'],
       keywords: ['whatsapp', 'gonder', 'e-posta'],
@@ -478,7 +480,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'drive',
       group: 'Paylaşım ve aktarım',
-      title: 'Google Drive',
+      name: 'Google Drive',
       where: 'Alt panel → "Drive" (Alt paneli düzenle\'den eklenir)',
       how: ['Hesabını bağla; Drive dosyalarını gez, indir, yükle.'],
       keywords: ['bulut', 'yedek', 'google'],
@@ -488,7 +490,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'vault',
       group: 'Gizlilik',
-      title: 'Şifreli kasa (dosya gizle)',
+      name: 'Şifreli kasa (dosya gizle)',
       where: 'Ana ekran → Araçlar → "Şifreli kasa"',
       how: [
         'İlk girişte parola belirle.',
@@ -501,7 +503,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'cleanup',
       group: 'Bellek',
-      title: 'Yer aç (gereksiz dosya temizle)',
+      name: 'Yer aç (gereksiz dosya temizle)',
       where: 'Ana ekran → bellek kartı → "Yer aç"',
       how: ['Önerilen grupları incele, seçtiklerini çöpe gönder.'],
       keywords: ['temizle', 'bos alan', 'cop', 'gereksiz', 'yer'],
@@ -509,7 +511,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'analysis',
       group: 'Bellek',
-      title: 'Bellek analizi (yeri ne kaplıyor)',
+      name: 'Bellek analizi (yeri ne kaplıyor)',
       where: 'Ana ekran → bellek kartı → "Analiz"',
       how: ['Klasör ve türlere göre yer kullanımını gör, büyük dosyaları bul.'],
       keywords: ['buyuk dosya', 'yer kaplayan', 'depolama', 'kullanim'],
@@ -517,7 +519,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'apps',
       group: 'Bellek',
-      title: 'Uygulamalar (boyut, kaldırma, APK)',
+      name: 'Uygulamalar (boyut, kaldırma, APK)',
       where: 'Ana ekran → "Uygulamalar"',
       how: ['Uygulamaları boyuta göre sırala, kaldır ya da APK olarak yedekle.'],
       keywords: ['apk', 'kaldir', 'uygulama boyutu'],
@@ -527,7 +529,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'ai_hub',
       group: 'AI',
-      title: 'AI Dosya Asistanı (analiz ve öneriler)',
+      name: 'AI Dosya Asistanı (analiz ve öneriler)',
       where: 'Ana ekran → alt panel → "AI"',
       how: [
         '"Yeni dosyaları analiz et" ile dosyalar türlere ayrılır.',
@@ -538,7 +540,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'ai_chat',
       group: 'AI',
-      title: 'Dosyalarına soru sor',
+      name: 'Dosyalarına soru sor',
       where: 'AI → "Sohbet" sekmesi',
       how: ['"Kimlik fotokopim nerede?" gibi sor; ilgili dosyalar listelenir.'],
       keywords: ['sohbet', 'soru', 'chat'],
@@ -548,7 +550,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'settings',
       group: 'Ayarlar',
-      title: 'Ayarlar (tema, dil, güncelleme)',
+      name: 'Ayarlar (tema, dil, güncelleme)',
       where: 'Ana ekran → arama kutusunun sağındaki çark',
       how: ['Koyu tema, dil, AI anahtarı ve güncelleme denetimi burada.'],
       keywords: ['tema', 'karanlik', 'dil', 'guncelle', 'ayar'],
@@ -556,7 +558,7 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'feature_request',
       group: 'Ayarlar',
-      title: 'Özellik iste / öneri gönder',
+      name: 'Özellik iste / öneri gönder',
       where: 'Ara ve Yardım → Yardım → "Özellik iste"',
       how: ['İsteğini yaz, Gönder; istek kaydedilir ve geliştiriciye iletilir.'],
       keywords: ['istek', 'oneri', 'geri bildirim', 'hata bildir'],

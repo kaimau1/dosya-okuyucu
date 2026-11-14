@@ -221,6 +221,9 @@ class _AudioTrimScreenState extends State<AudioTrimScreen> {
                                 valueListenable: c,
                                 builder: (context, v, _) => IconButton.filled(
                                   key: const ValueKey('atr-play'),
+                                  tooltip: v.isPlaying
+                                      ? context.t('common.pause')
+                                      : context.t('mp.play'),
                                   iconSize: 40,
                                   onPressed: _togglePlay,
                                   icon: Icon(v.isPlaying
