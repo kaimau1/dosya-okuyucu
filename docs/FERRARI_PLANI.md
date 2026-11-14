@@ -195,17 +195,17 @@ PDF'te çift dokunma **yok gibi — doğrula**), `lib/widgets/pdf_page_navigator
 `lib/screens/fm/category_screen.dart`, `lib/widgets/section_header.dart`. Karşılaştırma görüntüleri: kullanıcının 2026-11-14 fotoğrafları
 (Samsung: büyük başlık "Belgeler / 8,90 GB", altında `Tümü · PDF · DOC` çipleri, "Dosya görünümü ▾", sağda "↓≡ Tarih | ↓", ferah satırlar).
 
-- [ ] H4.1 **Satır ölçüsü:** küçük resim 48–56 dp, ad `titleMedium` tek/iki satır, altında ikincil satır (tarih solda, boyut sağda hizalı),
+- [x] H4.1 (2026-11-14: 52 dp, `titleMedium`, bilgi solda/boyut sağda, ≥ 64/72 dp; bölücü eklenmedi — satırlarda yoktu) **Satır ölçüsü:** küçük resim 48–56 dp, ad `titleMedium` tek/iki satır, altında ikincil satır (tarih solda, boyut sağda hizalı),
       satır yüksekliği ≥ 64 dp (≥ 840 dp'de 72). İnce bölücü yalnız metin hizasından başlar. Tek kaynak: `fm_entry_tiles.dart`.
-- [ ] H4.2 **Büyük başlık:** kategori/klasör ekranında büyük başlık + toplam boyut; kaydırınca üst çubuğa küçülür (`SliverAppBar` büyük başlık düzeni).
-- [ ] H4.3 **Tür çipleri:** kategori ekranında `Tümü` + o kategoride gerçekten bulunan türler (PDF, DOC, XLS, PPT …), tek satır, yatay kaydırılır,
+- [x] H4.2 (2026-11-14: `FmLargeTitle` + `FmTitleCollapse`; eşikle katlanır — sürekli değil, liste dışında olduğu için; kategori + klasör) **Büyük başlık:** kategori/klasör ekranında büyük başlık + toplam boyut; kaydırınca üst çubuğa küçülür (`SliverAppBar` büyük başlık düzeni).
+- [—] H4.3 (2026-11-14 kullanıcı: *"filtreler mantık olarak bizimki kalsın"* → uygulanmaz) **Tür çipleri:** kategori ekranında `Tümü` + o kategoride gerçekten bulunan türler (PDF, DOC, XLS, PPT …), tek satır, yatay kaydırılır,
       seçili çip dolu vurgu. Mevcut `fm_type_chips.dart`/`fm_quick_filters.dart` **sadeleştirilir** (yenisi yazılmaz). Kullanıcı: "filtrelerini daha çok beğendim".
-- [ ] H4.4 **Sıralama satırı:** çiplerin altında solda görünüm seçici ("Liste / Izgara / Ayrıntı"), sağda "Sırala: Tarih ▾" + yön oku. Tek dokunuşla yön değişir (§2 işlem 8).
-- [ ] H4.5 **Tarih grupları:** tarihe göre sıralıyken "Bugün · Bu hafta · Bu ay · Daha eski" bölüm başlıkları (yapışkan).
-- [ ] H4.6 **Yol çubuğu:** `USB depolama alanı 1 › Kitaplar` biçimi; son parça vurgulu; her parça dokunulur; taşarsa baştan kısalır.
-- [ ] H4.7 **Küçük resimler:** kaydırma hızlıyken üretim bekler, durunca üretilir (mevcut davranışı doğrula); yer tutucu tür simgesi anında.
-- [ ] H4.8 **Seçim kipi:** uzun basışta satır hafif içe basılır + `AppHaptics.selection`; üstte "N seçildi", altta en çok 5 eylem + "Diğer".
-- [ ] H4.9 Satır sonu ⋮ düğmesi kaldırılır ya da soluklaşır (uzun basış + seçim çubuğu yeter) — 👤 karar; varsayılan: soluk.
+- [—] H4.4 (aynı kullanıcı kararı: sıralama/süzgeç "Analiz ve diğer" hapında kalır) **Sıralama satırı:** çiplerin altında solda görünüm seçici ("Liste / Izgara / Ayrıntı"), sağda "Sırala: Tarih ▾" + yön oku. Tek dokunuşla yön değişir (§2 işlem 8).
+- [x] H4.5 (2026-11-14: `SliverMainAxisGroup` + sabitlenmiş başlık; liste ve ızgara) **Tarih grupları:** tarihe göre sıralıyken "Bugün · Bu hafta · Bu ay · Daha eski" bölüm başlıkları (yapışkan).
+- [x] H4.6 (zaten vardı: haplar, son parça vurgulu, ters kaydırma — `fm_path_bar.dart`) **Yol çubuğu:** `USB depolama alanı 1 › Kitaplar` biçimi; son parça vurgulu; her parça dokunulur; taşarsa baştan kısalır.
+- [x] H4.7 (doğrulandı: `recommendDeferredLoadingForContext`, `fm_entry_thumbs.dart`) **Küçük resimler:** kaydırma hızlıyken üretim bekler, durunca üretilir (mevcut davranışı doğrula); yer tutucu tür simgesi anında.
+- [x] H4.8 (2026-11-14: `PressScale` 0,98; titreşim, "N / toplam seçildi", 5 eylem + Diğer zaten vardı) **Seçim kipi:** uzun basışta satır hafif içe basılır + `AppHaptics.selection`; üstte "N seçildi", altta en çok 5 eylem + "Diğer".
+- [x] H4.9 (soluk, %60) Satır sonu ⋮ düğmesi kaldırılır ya da soluklaşır (uzun basış + seçim çubuğu yeter) — 👤 karar; varsayılan: soluk.
 
 **Kabul:** aynı klasörün bizde ve Samsung'da ekran görüntüsü yan yana konduğunda bizimki daha sıkışık/kalabalık görünmüyor; §2 işlem 8 dokunuş sayısı ≤ Samsung.
 

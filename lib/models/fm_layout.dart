@@ -92,7 +92,10 @@ extension FmLayoutInfo on FmLayout {
     // uygulama simgesi) neyin ne olduğunu ADI OKUNMADAN anlatıyor. Satır
     // `ListTile`ın 56 dp asgarisini aşıyor artık: liste uzuyor, bu bilinçli
     // bir takas — kullanıcı açıkça "olabildiğince büyük" dedi.
-    if (!isGrid) return this == FmLayout.detail ? 84 : 68;
+    // 2026-11-14 Ferrari H4.1 — kullanıcı: *"satır simgeleri 48–56 dp
+    // olabilir"* → 52 (Samsung düzeyi ferah satır); büyük önizleme isteyen
+    // "Büyük liste"yi (84) seçer.
+    if (!isGrid) return this == FmLayout.detail ? 84 : 52;
     // Hücre kenarındaki iç boşluk (2×4) düşülür; kalanın tamamı ikondur.
     final usable = cellWidth - 8;
     return usable.clamp(48.0, 160.0);

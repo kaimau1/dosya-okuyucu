@@ -61,4 +61,19 @@ abstract final class FmLocation {
       if (date.isNotEmpty) date,
     ].join(' · ');
   }
+
+  /// [subtitle]'ın boyutsuz hali — "WhatsApp · dün"; boyut satırda sağa
+  /// ayrı hizalanır (Ferrari H4.1).
+  static String meta(
+    String path,
+    int modifiedMs,
+    String Function(String) t, {
+    List<StorageVolume> volumes = const [],
+  }) {
+    final date = shortDate(modifiedMs);
+    return [
+      label(path, t, volumes: volumes),
+      if (date.isNotEmpty) date,
+    ].join(' · ');
+  }
 }

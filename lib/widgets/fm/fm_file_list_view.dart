@@ -44,6 +44,9 @@ class FmFileListView extends StatelessWidget {
   final void Function(FsEntry)? onMore;
   final String Function(FsEntry) subtitle;
 
+  /// Alt satırın sağına hizalanan bilgi (bkz. [FmEntryRow.subtitleEnd]).
+  final String? Function(FsEntry)? subtitleEnd;
+
   /// Satır sonu rozeti (bkz. [FmEntryRow.badge]); yalnız liste düzeninde.
   final Widget? Function(FsEntry)? badge;
 
@@ -74,6 +77,7 @@ class FmFileListView extends StatelessWidget {
     required this.onOpen,
     required this.onToggle,
     required this.subtitle,
+    this.subtitleEnd,
     this.controller,
     this.onSelectRange,
     this.onMore,
@@ -187,18 +191,73 @@ class FmFileListView extends StatelessWidget {
     // eski yol.) Prototip GERÇEK satır: yazı ölçeği/tema ne olursa olsun
     // yükseklik birebir aynı, tahmin yok.
     final uniform = items.isNotEmpty && items.every((it) => it is FmEntryItem);
-    return ListView.builder(
+    if (uniform) {
+      return ListView.builder(
+        controller: controller,
+        padding: _pad(context, Gap.xs),
+        itemCount: items.length,
+        prototypeItem: _row(items.first as FmEntryItem),
+        itemBuilder: (context, i) =>
+            _focus(context, (items[i] as FmEntryItem).entry,
+                _row(items[i] as FmEntryItem)),
+      );
+    }
+    // **Yapışkan grup başlıkları** (Ferrari H4.5, 2026-11-14): "Bugün ·
+    // Bu hafta · Daha eski" başlığı grubunun satırları kaydıkça üstte
+    // durur, grup bitince bir sonrakine yer verir (`SliverMainAxisGroup` +
+    // sabitlenmiş başlık). Grup İÇİNDE satırlar yine eş boylu → her grup
+    // prototip satırla konumlanır (eski karışık `ListView`'dan da hızlı).
+    final inset = _pad(context, Gap.xs);
+    final headerExtent = FmGroupHeader.extentOf(context);
+    final background = Theme.of(context).scaffoldBackgroundColor;
+    return CustomScrollView(
       controller: controller,
-      padding: _pad(context, Gap.xs),
-      itemCount: items.length,
-      prototypeItem: uniform ? _row(items.first as FmEntryItem) : null,
-      itemBuilder: (context, i) => switch (items[i]) {
-        FmHeaderItem(:final labelKey, :final count) =>
-          FmGroupHeader(label: context.t(labelKey), count: count),
-        FmEntryItem(:final entry) =>
-          _focus(context, entry, _row(items[i] as FmEntryItem)),
-      },
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        SliverPadding(padding: EdgeInsets.only(top: inset.top)),
+        for (final (header, cells) in _groups(items))
+          SliverMainAxisGroup(slivers: [
+            if (header != null)
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _PinnedGroupHeader(
+                  label: context.t(header.labelKey),
+                  count: header.count,
+                  extent: headerExtent,
+                  background: background,
+                  padding: inset.copyWith(top: 0, bottom: 0),
+                ),
+              ),
+            if (cells.isNotEmpty)
+              SliverPadding(
+                padding: inset.copyWith(top: 0, bottom: 0),
+                sliver: SliverPrototypeExtentList.builder(
+                  prototypeItem: _row(cells.first),
+                  itemCount: cells.length,
+                  itemBuilder: (context, i) =>
+                      _focus(context, cells[i].entry, _row(cells[i])),
+                ),
+              ),
+          ]),
+        SliverPadding(padding: EdgeInsets.only(bottom: inset.bottom)),
+      ],
     );
+  }
+
+  /// Başlık + altındaki satırlar (ilk başlıktan önceki satırlar başlıksız).
+  static List<(FmHeaderItem?, List<FmEntryItem>)> _groups(
+      List<FmListItem> items) {
+    final groups = <(FmHeaderItem?, List<FmEntryItem>)>[];
+    for (final it in items) {
+      switch (it) {
+        case FmHeaderItem():
+          groups.add((it, []));
+        case FmEntryItem():
+          if (groups.isEmpty) groups.add((null, []));
+          groups.last.$2.add(it);
+      }
+    }
+    return groups;
   }
 
   Widget _row(FmEntryItem item) {
@@ -211,6 +270,7 @@ class FmFileListView extends StatelessWidget {
         selected: selected.contains(entry.path),
         selecting: _selecting,
         subtitle: subtitle(entry),
+        subtitleEnd: subtitleEnd?.call(entry),
         showChevron: showChevron,
         badge: badge?.call(entry),
         onTap: () => _tap(entry),
@@ -228,17 +288,11 @@ class FmFileListView extends StatelessWidget {
       ];
 
   Widget _grid(BuildContext context, List<FmListItem> items) {
-    // Izgarada başlıklar için gruplar ayrı `SliverGrid`lere bölünür.
-    final groups = <(FmHeaderItem?, List<FmEntryItem>)>[];
-    for (final it in items) {
-      switch (it) {
-        case FmHeaderItem():
-          groups.add((it, []));
-        case FmEntryItem():
-          if (groups.isEmpty) groups.add((null, []));
-          groups.last.$2.add(it);
-      }
-    }
+    // Izgarada başlıklar için gruplar ayrı `SliverGrid`lere bölünür;
+    // başlık listede olduğu gibi yapışkan (H4.5).
+    final groups = _groups(items);
+    final headerExtent = FmGroupHeader.extentOf(context);
+    final background = Theme.of(context).scaffoldBackgroundColor;
     return LayoutBuilder(builder: (context, constraints) {
       const pad = Gap.sm;
       final delegate = fmGridDelegate(layout, constraints.maxWidth - pad * 2);
@@ -248,11 +302,17 @@ class FmFileListView extends StatelessWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverPadding(padding: EdgeInsets.only(top: inset.top)),
-          for (final (header, cells) in groups) ...[
+          for (final (header, cells) in groups) SliverMainAxisGroup(slivers: [
             if (header != null)
-              SliverToBoxAdapter(
-                child: FmGroupHeader(
-                    label: context.t(header.labelKey), count: header.count),
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _PinnedGroupHeader(
+                  label: context.t(header.labelKey),
+                  count: header.count,
+                  extent: headerExtent,
+                  background: background,
+                  padding: EdgeInsets.zero,
+                ),
               ),
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: pad),
@@ -277,7 +337,7 @@ class FmFileListView extends StatelessWidget {
                 },
               ),
             ),
-          ],
+          ]),
           SliverPadding(padding: EdgeInsets.only(bottom: inset.bottom)),
         ],
       );
@@ -291,6 +351,25 @@ class FmGroupHeader extends StatelessWidget {
   final int count;
   const FmGroupHeader({super.key, required this.label, required this.count});
 
+  static TextStyle? _style(ThemeData theme) =>
+      theme.textTheme.labelLarge?.copyWith(
+        color: theme.colorScheme.primary,
+        fontWeight: FontWeight.w700,
+      );
+
+  /// Başlığın tam boyu (yazı ölçeğiyle) — yapışkan başlık sabit boy ister.
+  static double extentOf(BuildContext context) {
+    final painter = TextPainter(
+      text: TextSpan(text: 'Ag', style: _style(Theme.of(context))),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    )..layout();
+    final h = painter.height;
+    painter.dispose();
+    return h + Gap.md + Gap.xs;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -303,14 +382,56 @@ class FmGroupHeader extends StatelessWidget {
             Gap.md, Gap.md, Gap.md, Gap.xs),
         child: Text(
           '$label · $count',
-          style: theme.textTheme.labelLarge?.copyWith(
-            color: theme.colorScheme.primary,
-            fontWeight: FontWeight.w700,
-          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: _style(theme),
         ),
       ),
     );
   }
+}
+
+/// Yapışkan grup başlığı (H4.5): satırların üstünde dururken altı görünmesin
+/// diye zemin rengiyle örtülür.
+class _PinnedGroupHeader extends SliverPersistentHeaderDelegate {
+  final String label;
+  final int count;
+  final double extent;
+  final Color background;
+  final EdgeInsets padding;
+
+  const _PinnedGroupHeader({
+    required this.label,
+    required this.count,
+    required this.extent,
+    required this.background,
+    required this.padding,
+  });
+
+  @override
+  double get minExtent => extent;
+
+  @override
+  double get maxExtent => extent;
+
+  @override
+  Widget build(
+          BuildContext context, double shrinkOffset, bool overlapsContent) =>
+      ColoredBox(
+        color: background,
+        child: Padding(
+          padding: padding,
+          child: FmGroupHeader(label: label, count: count),
+        ),
+      );
+
+  @override
+  bool shouldRebuild(_PinnedGroupHeader old) =>
+      old.label != label ||
+      old.count != count ||
+      old.extent != extent ||
+      old.background != background ||
+      old.padding != padding;
 }
 
 /// Liste üstündeki **araç şeridi** (Faz 6 / U2): solda "142 öğe · 3,2 GB",
