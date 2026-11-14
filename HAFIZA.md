@@ -942,4 +942,7 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Karar:** kademeli `Slider` için `AppHaptics.slider(value, onChanged)` — `Slider` aynı kademeyi sürükleme boyunca tekrar bildirir; yalnız değer değişince titreşir.
 - **Yapı:** `fmMediaHeroTag` artık `lib/widgets/fm/fm_entry_icon.dart`'ta (galeri ekranı yeniden dışa aktarır); `FmFileListView` görsel satır/hücrelerine Hero verir (`fmHero`, `Motion.reduced` → `HeroMode` kapalı). Aynı rotada aynı yol iki kez Hero'lu görünmemeli (tek liste/rota varsayımı; çift bölme `FmFileListView` kullanmıyor).
 - **Denetim (H6.5):** 55 ham `showModalBottomSheet`in hiçbiri köşe/tutamaç/eğri ezmiyor — tema tek kaynak; bekçi `test/sheet_consistency_guard_test.dart`.
+- **Karar (kullanıcı, aynı gün):** H4.2 büyük katlanan başlık KALDIRILDI ("gereksiz") — başlık + "N öğe · boyut" yalnız üst çubukta. Samsung'daki iri başlık düzeni bu uygulamada istenmiyor; yeniden önerme.
+- **Kullanıcı isteği (aynı gün):** video düzenle şeridinde tutamaçtan uzak (> 32 dp) sürükleme = TARAMA (önizleme kare kare, `_seekTo` son konumu birleştirir); tutamaç yakınında başlayan = kırpma. Video oynatıcı üst çubuğu: altyazı · hız · ⋮ (A-B, yüzen pencere, doldur, birlikte aç, dosya işlemleri ⋮'da).
+- **Tuzak (test):** `Matrix4.getMaxScaleOnAxis` z eksenini de sayar; `Transform.scale` z'yi 1 bırakır → küçülme testi `storage[0]` ile okunmalı.
 
