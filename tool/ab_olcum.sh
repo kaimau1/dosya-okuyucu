@@ -53,6 +53,9 @@ bitis() {
   [ -n "${BEKCI:-}" ] && kill "$BEKCI" 2>/dev/null || true
 }
 trap bitis EXIT
+# Gradle build/ çok uzun yol → git worktree remove "Filename too long"; msys rm siler.
+agac_sil() { local W="$UST/okuyucu_ab_$1"; [ -d "$W" ] || return 0
+  git worktree remove --force "$W" 2>/dev/null || { rm -r "$W" 2>/dev/null; git worktree prune; } || true; }
 
 # ── Derleme: ref → $OUT/apk/<A|B>.apk ────────────────────────────────────────
 derle() {  # derle <etiket> <sha>
@@ -168,7 +171,9 @@ kos() {  # kos <sıra> <A|B>
 n=0
 if [ "${AB_KURU:-0}" = 1 ]; then
   kos 1 A
-  ls "$OUT/kosu/1_A"; echo "kuru deneme bitti (karar yok)"; exit 0
+  ls "$OUT/kosu/1_A"
+  [ "${AB_TUT:-0}" = 1 ] || agac_sil "$A7"
+  echo "kuru deneme bitti (karar yok)"; exit 0
 fi
 for _ in $(seq "$TUR"); do
   n=$((n + 1)); kos "$n" A
@@ -180,7 +185,7 @@ MD="docs/perf/$(date +%F)-ab-$A7-$B7.md"
 [ -f "$MD" ] || printf '# A/B ölçümü — %s (Mi Note 10 Lite, `tool/ab_olcum.sh`)\n' "$(date +%F)" > "$MD"
 set +e; "$PY" tool/ab_karar.py "$OUT/kosu" "$MD" "$A7" "$B7"; KOD=$?; set -e
 if [ "${AB_TUT:-0}" != 1 ]; then
-  for s in "$A7" "$B7"; do git worktree remove --force "$UST/okuyucu_ab_$s" 2>/dev/null || true; done
+  for s in "$A7" "$B7"; do agac_sil "$s"; done
 fi
 echo "tablo: $MD · ham: $OUT"
 exit $KOD
