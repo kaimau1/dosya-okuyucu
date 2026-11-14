@@ -248,7 +248,10 @@ Koşullu öğeler olay yokken çizilmez. Yeni varsayılanla ilk ekran: **arama �
       Geri dönüşte aynı satıra küçülür. `Motion.reduced` açıkken düz geçiş.
       *(2026-11-14: GÖRSEL için yapıldı — `FmFileListView` satır/ızgara → galeri Hero (`fmMediaHeroTag`). PDF/Office görüntüleyicisine kapsayıcı
       geçişi YAPILMADI: açılış hissi H1.4 cihaz ölçümüne bağlı (ağır ilk kare + büyüme animasyonu takılma riski); H11.3 ile birlikte ele alınacak.)*
-- [ ] H6.4 **Liste değişimleri:** silme/taşıma sonrası satır `Motion.short` ile kapanır; yeni gelen satır belirir (2.000+ öğede kapalı — ölç).
+- [x] H6.4 **Liste değişimleri:** silme/taşıma sonrası satır `Motion.short` ile kapanır; yeni gelen satır belirir (2.000+ öğede kapalı — ölç).
+      *(2026-11-14, oto P13: YENİ satır sönen ön plan rengiyle belirir (`FmFileListView` `_FreshTint`, katmansız, `Motion.pulse`);
+      fark yalnız öğe sayısı artınca, ≤ 2.000 öğede ve ≤ 20 yeni öğede — her `setState` O(1), 5.000'lik klasörde hiç çalışmaz.
+      Satır KAPANMASI yapılmadı: sabit satır boyu (G14) + kasma kuralı 6 — sabah bakılacak. Cihaz: `CIHAZ_TESTI.md` "P13".)*
       *Yapılmadı (2026-11-14):* liste H4'te `SliverMainAxisGroup` + `SliverPrototypeExtentList` gruplarına bölündü; satır kapanışı için
       `SliverAnimatedList`e geçmek sabit satır boyu (hızlı kaydırıcı, sürükle-seç dizin hesabı) varsayımını bozar ve "2.000+ öğede ölç" şartı
       cihaz ister (§0.4) → H2/H12 ölçüm turuna bırakıldı (`KALANLAR.md`).
@@ -260,7 +263,7 @@ Koşullu öğeler olay yokken çizilmez. Yeni varsayılanla ilk ekran: **arama �
       *(2026-11-14: manifest zaten açıktı ama önizleme YOKTU — kök neden HAFIZA. `FastPageTransitionsBuilder` içine `_PredictiveBackPreview`.
       `PopScope(canPop: false)` olan 3 rota hareketi üstlenmez (onay penceresi çalışır). 3 widget testi.)*
 
-**Durum (2026-11-14):** H6.1–H6.3, H6.5, H6.6 yapıldı; H6.4 gerekçeyle ölçüm turuna bırakıldı. 📱 cihaz bakışı `CIHAZ_TESTI.md` "Ferrari H6".
+**Durum (2026-11-14):** H6.1–H6.6 yapıldı (H6.4 oto P13'te, kapanma hariç). 📱 cihaz bakışı `CIHAZ_TESTI.md` "Ferrari H6".
 
 ---
 

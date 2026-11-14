@@ -178,7 +178,7 @@ Samsung Dosyalarım ile yan yana videoda geride görünmemek (H12 kapısı). Pla
 - [ ] H3 PDF okuma konforu — kod bitti (2026-11-14, H3.1–H3.7: çift dokunma + akıllı yakınlık, görsel kipi, kenar kırpma, sayfa sayfa, durum çubuğu, solan rozet); kalan **📱 cihaz turu** `CIHAZ_TESTI.md` "Ferrari H3"
 - [x] H4 Dosya listesi: Samsung düzeyi ☁️ — bitti (2026-11-14); H4.3/H4.4 kullanıcı kararıyla uygulanmaz; cihazda bakış `CIHAZ_TESTI.md` "Ferrari H4"
 - [x] H5 Ana ekran sadeleştirme ☁️ — bitti (2026-11-14): yeni varsayılan sıra son dosyalar · kategoriler · bellek; güncelleme şeridi tek satır; H5.3/H5.4 zaten vardı; cihazda bakış `CIHAZ_TESTI.md` "Ferrari H5"
-- [x] H6 Hareket ve dokunuş ☁️ — bitti (2026-11-14): titreşim kapsamı, basma hâli, görsel → galeri büyüme geçişi, levha bekçisi, Android 14+ öngörülü geri önizlemesi; **H6.4 liste satırı kapanış animasyonu ölçüm turuna** (H2/H12, 2.000+ öğe cihazda); PDF/Office kapsayıcı geçişi H11.3 ile; cihazda bakış `CIHAZ_TESTI.md` "Ferrari H6"
+- [x] H6 Hareket ve dokunuş ☁️ — bitti (2026-11-14): titreşim kapsamı, basma hâli, görsel → galeri büyüme geçişi, levha bekçisi, Android 14+ öngörülü geri önizlemesi; H6.4 yeni satır vurgusu oto P13'te (satır kapanışı yapılmadı — sabit satır boyu); PDF/Office kapsayıcı geçişi H11.3 ile; cihazda bakış `CIHAZ_TESTI.md` "Ferrari H6"
 - [ ] H7 Sadeleştirme: bildirim, menü, ipucu ☁️👤 — kod bitti (2026-11-14, dal `faz-oto-P05-sade`: H7.1 bildirim envanteri, H7.3 ipuçları bir kez + sıfırla, H7.4 çöpe atmada onay yok, H7.5 doğrulandı); kalan **H7.2 menü kısaltma 👤** (`KONTROL_LISTEM.md` 20) + 📱 `CIHAZ_TESTI.md` "Ferrari H7"
 - [ ] H8 Video kırpma / kesme — kod bitti (2026-11-14, H8.1–H8.4, H8.6); kalan H8.5 döndür + kareyi kaydet, **📱 cihaz turu** `CIHAZ_TESTI.md` "Ferrari H8" + "Video düzenle" (2026-11-14: ara kesimler, bölge sesi kapat/ekle)
 - [ ] H9 Tablet ☁️📱
@@ -226,9 +226,14 @@ Samsung Dosyalarım ile yan yana videoda geride görünmemek (H12 kapısı). Pla
       %99 19–27 ms (hedef 24; yavaş karelerde raster baskın, Impeller GLES — Skia daha kötü);
       galeri 2.000 küçük PNG sonrası RSS 355 MB (hedef 350). Kök neden için DevTools zaman
       çizelgesi (profil APK, `flutter attach`) gerekir; tahminle yama yok.
+      *2026-11-14 (oto P13):* zaman çizelgesi alındı — UI izleğinin %56'sı SEMANTICS (senaryo `testWidgets`
+      varsayılanıyla TalkBack-açık ölçüyordu; Flutter'ın satır başına düğüm maliyeti). Senaryoya anlam ağacı
+      kapalı `klasor_5000_kaydirma_sk` / `galeri_2000_kaydirma_sk` eklendi → **sıradaki A/B'de `_sk` ≤ 24 ms mi bak**;
+      tutmuyorsa kalan pay LAYOUT/BUILD (yeni satır başına metin dizimi). Kök neden ayrıntısı HAFIZA 2026-11-14 P13.
 - [ ] **B3.3c Fotoğraflar ızgarası kalan donma (2026-11-03):** küçük resim düzeltmesinden sonra ekran kaydında
       4.–5. savurmada 13–17 karelik donma kaldı, Flutter karesi temiz. Önce SurfaceFlinger `--latency` (uygulama
       katmanı) ile gerçek mi kaydedici artığı mı ayır; gerçekse GPU/doku tarafı (Impeller GLES). Yöntem HAFIZA.
+      *2026-11-14 (oto P13): üretilemedi — telefon başka A/B ölçümündeydi; `CIHAZ_TESTI.md` "P13".*
 - [ ] **B3.3d Word kapanış/menü takılması (2026-11-03):** açılış işi izolata alındı; kalan şüpheli
       `DocxView`'ın **hybrid composition** WebView'ı (`displayWithHybridComposition: true`, netlik için
       2026-08-06 seçildi): HC'de Flutter karesi platform izleğinde çizilir, WebView'ın üstüne açılan her
@@ -239,6 +244,7 @@ Samsung Dosyalarım ile yan yana videoda geride görünmemek (H12 kapısı). Pla
 - [ ] **B3.3 Faz 4 bütçe aşımları** (soğuk açılış ≤ 1,2 sn, 5.000 öğe kaydırma %99 ≤ 24 ms,
       galeri 2.000 fotoğraf RSS ≤ 350 MB / hafif ≤ 250 MB, boşta 0 kare) ve DUZENLEME §7
       bütçeleri → aynı oturumda düzelt.
+      *2026-11-14 (oto P13):* soğuk açılış (`am start -W`) ve RSS cihaz ister — yapılmadı; kaydırma için B3.3b `_sk`.
 - [ ] **B3.4 Duruma bağlı düzeltmeler:** Excel'de kaydırma sürerken başlayan pinch
       tutmuyorsa (ilk parmak sahipliği); büyük PDF düzenlemede bellek (belge + 48 MB
       önbellek) düşük cihazda sorunluysa bütçe profile bağlanır; CropBox'lı PDF'te vurgu

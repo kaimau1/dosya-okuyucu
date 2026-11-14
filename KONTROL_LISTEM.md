@@ -65,6 +65,11 @@ Ayrıntılı teknik liste: `docs/CIHAZ_TESTI.md` (koşu kayıtları orada).
     beklemeyi kabul mü? (sabah bakılacak)
 29. **AI'da tek belgelik maske kapatma (G10.2)** — kişisel veri maskesi şu an yalnız genel ayarla (Ayarlar › Ağ) kapanıyor;
     belge başına kapatma korumayı gevşettiği için YAPILMADI (en güvenli seçenek). İstersen "tek belgelik kapatma ekle" de. (sabah bakılacak)
+30. **Liste kaydırma bütçesi hangi ölçüme bağlı (P13)** — ölçüm senaryosu TalkBack (erişilebilirlik) AÇIKmış gibi ölçüyordu;
+    kaydırma süresinin yarısı bu yüzden. Artık iki ölçüm var: açık (eski) ve kapalı (`_sk`, çoğu kullanıcı). Nasıl: sıradaki A/B
+    tablosunda iki satıra bak. Doğruysa: "24 ms sınırı `_sk`ye, açık olan yalnız kötüleşmeye bakılsın" de. Yanlışsa (ikisi de
+    24'ü tutmalı): erişilebilirlik açıkken liste hızı ayrı iş olur. Ayrıca H6.4: silinen satırın kapanma animasyonu yapılmadı
+    (satırlar sabit boylu, liste kasardı) — yeni satır yalnız bir an vurgulanıyor; yeterli mi? (sabah bakılacak)
 
 ## Telefonda temizlik
 - `/sdcard/Download/PdfPro/` içindeki test kopyaları (sahte kişisel verili `kisisel_ornek.pdf`, `kisi2.pdf`

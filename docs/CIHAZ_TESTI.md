@@ -1211,3 +1211,9 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] G1 kısayol: ESKİ sürümde sabitlenmiş ana ekran dosya kısayolu (imzasız) bu sürümde de açılıyor mu (Android 8+: sistemin kayıtlı kısayol listesinden kabul). Yeni sabitlenen kısayol da açılmalı.
 - [ ] G7.3: büyük bir .xlsx / .docx / .pptx düzenleyip kaydet — kaydetme eskisi gibi çalışıyor mu.
 - [ ] G7.4: .xlsm ya da .docm aç → ileti "makrolar çalıştırılmaz; kaydedince dosyada kalır"; düzenleyip kaydet → bilgisayarda Excel/Word'de makro duruyor mu.
+
+## P13 — liste/ızgara hızı + H6.4 (2026-11-14, dal `faz-oto-P13-liste`; yazıldı, cihazda doğrulanmadı)
+- [ ] A/B (`tool/ab_olcum.sh`): `klasor_5000_kaydirma` / `galeri_2000_kaydirma` (anlam ağacı açık, eski koşul) ve YENİ `klasor_5000_kaydirma_sk` / `galeri_2000_kaydirma_sk` (kapalı; ısınmış ikinci ziyaret). Bütçe (%99 ≤ 24 ms) `_sk`de tutuyor mu.
+- [ ] B3.3c Fotoğraflar ızgarası 4.–5. savurma donması: `dumpsys SurfaceFlinger --latency <katman>` ile gerçek mi kaydedici artığı mı (telefon bu turda başka ölçümdeydi — yapılmadı).
+- [ ] Soğuk açılış ≤ 1,2 sn: `am start -W` TotalTime ×5 (Mi Note 10 Lite).
+- [ ] H6.4: klasöre dosya yapıştır / yeni klasör oluştur → yeni satır bir an vurgulanıp sönüyor mu; "animasyonları kaldır" açıkken vurgu yok; 2.000+ öğeli klasörde vurgu yok.
