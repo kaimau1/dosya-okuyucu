@@ -161,6 +161,41 @@ void main() {
       expect(r.startMs, 0);
     });
 
+    // Kullanıcı isteği 2026-11-14: şeritte kaydırınca kare kare görmek.
+    testWidgets('tutamaçtan uzakta sürükleme TARAR: aralık değişmez, önizleme izler',
+        (tester) async {
+      var range = const TrimRange(0, 30000);
+      final seeks = <int>[];
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 328,
+              child: StatefulBuilder(
+                builder: (context, setState) => VideoTrimTimeline(
+                  durationMs: 30000,
+                  range: range,
+                  onChanged: (r) => setState(() => range = r),
+                  onSeek: seeks.add,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ));
+      final box = tester.getRect(find.byType(VideoTrimTimeline));
+      await tester.dragFrom(box.center, const Offset(80, 0));
+      await tester.pump();
+      expect(range, const TrimRange(0, 30000));
+      expect(seeks.length, greaterThan(1));
+      expect(seeks.last, greaterThan(seeks.first));
+      // Tutamaçtan başlayan sürükleme yine aralığı değiştirir.
+      await tester.drag(find.byKey(const ValueKey('trim-start')),
+          const Offset(100, 0));
+      await tester.pump();
+      expect(range.startMs, greaterThan(0));
+    });
+
     testWidgets('tutamaçlar birbirini geçemez (en az 1 sn)', (tester) async {
       final r = await drag(tester, const TrimRange(10000, 12000),
           const ValueKey('trim-start'), 300);
