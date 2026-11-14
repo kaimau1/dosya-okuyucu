@@ -391,6 +391,9 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                   ReadingFloat(
                     start: null,
                     end: 44,
+                    // Yapay zekâ düğmesi (sağdan 16 + 56 dp) görünürken onun
+                    // soluna (P28: rozet düğmenin altında kalıyordu).
+                    endShown: _pro == null && !_editingText ? 80 : null,
                     child: Align(
                       alignment: AlignmentDirectional.centerEnd,
                       child: ExcludeSemantics(
