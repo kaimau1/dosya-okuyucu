@@ -27,6 +27,15 @@ Ayrıntılı teknik liste: `docs/CIHAZ_TESTI.md` (koşu kayıtları orada).
 11. **OCR ve çeviri modeli** — Belge tara → metni tanı; Çevir. Doğruysa: model iner, metin çıkar.
 12. **SFTP / FTP / NAS** — kendi sunucuna bağlan, dosya aktar. Doğruysa: liste gelir, aktarım biter.
 
+## Ferrari H7 — kararın gereken (2026-11-14)
+20. **Menü kısaltma (H7.2)** — belge ⋮ "Daha fazla" PDF'te 13–15 madde. Öneri: ilk 5 = Sayfaya git · Sesli oku · Metni tanı (OCR) ·
+    Okuma ayarları · Dosya işlemleri; gerisi "Diğer" altında. Dosya satırı ⋮ (2 sütun, 4 bölüm — senin 2026-08-29 tasarımın) DEĞİŞMEZ.
+    Doğruysa: "menü önerisi tamam" de (ya da kendi 5'ini yaz), uygularım. Yanlışsa: "menüler kalsın" de, H7.2 kapanır.
+21. **Çöpe atmada onay (H7.4)** — artık sorulmuyor, "Geri al" kartı çıkıyor (kalıcı silme hep sorar). İstersen Ayarlar › Depolama ›
+    "Silmeden önce sor"u aç. Yanlışsa: "onay geri gelsin" de, varsayılanı geri açarım.
+22. **Tarama rehberi** — ilk 3 taramada çıkmaya devam ediyor (senin 2026-10-18 şikâyetinden); "bir kez" olsun mu? (sabah bakılacak)
+23. **"Kopyalandı" bildirimi** — Android 13+ telefon kendi de "kopyalandı" gösteriyor; bizimki çift mi görünüyor? Çiftse söyle, 13+'da kaldırırım.
+
 ## Telefon ayarı isteyenler
 13. **Erişilebilirlik ölçümü (P6)** — Ayarlar → Erişilebilirlik → TalkBack (ya da herhangi bir hizmet) AÇ,
     sonra bana "açtım" de; ölçümü ben alırım, bitince kapatırsın.

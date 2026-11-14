@@ -283,6 +283,12 @@ Koşullu öğeler olay yokken çizilmez. Yeni varsayılanla ilk ekran: **arama �
       | Öğretici başarı ("Kaydedildi. Kalıcı yer için…", PDF düzenle "dokun, yaz", biçim boyacısı) | 6 | 3 sn | H7.3: bir kez |
       | Pano "kopyalandı" | ~12 | 3 sn | kalır — Android 13+ sistem de gösterir ama MIUI'de göstermeyebilir; SDK denetimi yerel kanal ister (**sabah bakılacak**, `KONTROL_LISTEM.md`) |
 - [ ] H7.2 **Menü envanteri:** her ⋮ menüsü ve alt levha için madde sayısı. > 6 ise: sık kullanılan 5 + "Diğer". Sıra: kullanım sıklığı (👤 kullanıcıya liste gösterilip onay alınır).
+      *(2026-11-14, oto P05 — yalnız envanter + öneri, 👤 onay `KONTROL_LISTEM.md` "Menü kısaltma"; kod değişmedi.)* Envanter:
+      belge ⋮ "Daha fazla" (`shell_menus.dart` `_showMore`, gruplu levha) PDF ≈ 13–15 madde (Görünüm 2–3 · Sayfa 2 · Dönüştür 4–6 · Dosya 2–3),
+      metin/Word/slayt ≈ 11–13, görsel ≈ 8; dosya satırı ⋮ (`entry_actions/sheet.dart`) ≈ 20 madde, 4 bölüm × 2 sütun + ayrı Sil —
+      **2026-08-29 kullanıcı tasarımı** (tek sütun 20 satır şikâyetinden); gezgin ⋮ (`fm_more_sheet.dart`) kullanıcı düzenler + sırala/süz;
+      video oynatıcı ⋮ 5 (H6, kullanıcı kararı). Öneri: belge ⋮'da ilk 5 = Sayfaya git · Sesli oku · Metni tanı (OCR) · Okuma ayarları ·
+      Dosya işlemleri, gerisi "Diğer"; dosya satırı levhası kullanıcı tasarımı olduğundan değişmez.
 - [x] H7.3 **İpuçları bir kez:** her ipucu/keşif balonu tek sefer gösterilir (`SharedPreferences` bayrağı), ayarlarda "İpuçlarını sıfırla".
       *(2026-11-14, oto P05: `lib/core/once_hints.dart` (`hint_once.<id>` bayrağı) — düzenleyicilerde "Kaydedildi. Kalıcı yer için ⋮ >
       Paylaş/Dışa aktar." ilk kayıtta bir kez, sonra yalnız "Kaydedildi"; PDF düzenle "dokun, yaz" ve Excel biçim boyacısı ipucu bir kez
@@ -295,7 +301,13 @@ Koşullu öğeler olay yokken çizilmez. Yeni varsayılanla ilk ekran: **arama �
       hiçbir koşulda atlanmaz (`needsDeleteConfirm`, bekçi test). Bilinçli kalanlar: toplu/algoritmanın seçtiği çöpe atmalar (benzer fotoğraf
       "fazlaları sil", boyutlandırma "eskilerin hepsini çöpe at") — kullanıcı tek tek seçmediği için; slayt/sayfa/etiket/kategori silme ve
       geri alınamayan işler (kalıcı silme, kasa, çöpü boşalt, karartma, sıkıştırma) onaylı.)*
-- [ ] H7.5 **Ayarlar:** en çok kullanılan 6 ayar üstte; gerisi başlıklı gruplarda; arama var (`settings_search.dart`).
+- [x] H7.5 **Ayarlar:** en çok kullanılan 6 ayar üstte; gerisi başlıklı gruplarda; arama var (`settings_search.dart`).
+      *(2026-11-14, oto P05 — doğrulandı, değişiklik yok: 2026-11-07 kullanıcı yeniden yazımı zaten bu düzende — üstte her zaman açık arama
+      (satır düzeyinde, eşanlamlı), görünüm kartı (açık/koyu/otomatik + tema şeridi = 2 ayar), "Önerilenler" çipleri (≤ 3, duruma göre: API
+      anahtarı, otomatik kayıt, uygulama kilidi, yazı boyutu, dil), sonra 7 başlıklı kategori. Kullanım sıklığı ölçülmediğinden (analitik yok)
+      "en çok kullanılan" sabit öneri listesiyle karşılanıyor; sayaç eklemek yeni özellik → yapılmadı.)*
+
+**Durum (2026-11-14):** H7.1, H7.3, H7.4, H7.5 yapıldı; H7.2 👤 envanter + öneri kullanıcı onayında. 📱 bakış `CIHAZ_TESTI.md` "Ferrari H7".
 
 ---
 
