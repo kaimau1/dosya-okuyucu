@@ -935,3 +935,11 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Karar (H5.2):** varsayılan bölüm sırası son dosyalar · kategoriler · bellek · …; "Son açılanlar" yeni kurulumda görünür. Kaydı olanın sırası korunur; eski kayıtta hiç geçmeyen `recent` yine gizli (`_legacyHiddenSections`).
 - **Karar (H5.5):** güncelleme şeridi tek satır ama kapatılamaz (2026-11-10 kullanıcı kararı plandaki "kapatılabilir"in önünde).
 
+## 2026-11-14 — Ferrari H6 (hareket ve dokunuş)
+- **Kök neden (öngörülü geri yoktu):** manifestte `enableOnBackInvokedCallback` açıktı ama Flutter'da geri hareketini rotaya bağlayan `WidgetsBindingObserver` YALNIZ `PredictiveBackPageTransitionsBuilder` içinde. 2026-09-06'da `FastPageTransitionsBuilder`'a geçince dinleyen kalmadı; `WidgetsBinding._handleCommitBackGesture` gözlemci yoksa düz `handlePopRoute` yapar → önizleme yok, yalnız bırakınca geri. Çözüm `lib/core/page_transitions.dart` `_PredictiveBackPreview` (3.47.9 `_PredictiveBackGestureDetector` sözleşmesi: `route.handleStart/Update/Commit/CancelBackGesture`, ilerleme `1 - event.progress`). Özel geçiş yazan her yerde bu dinleyici gerekir.
+- **Tuzak:** `LongPressDraggable.hapticFeedbackOnStart` varsayılan **true** ve ham `HapticFeedback` — Ayarlar'daki titreşim anahtarını dinlemez. Hep `false` + `onDragStarted: AppHaptics.selection` (bekçi `app_haptics_test`).
+- **Karar:** yıkıcı onay titreşimi `showAppConfirm(destructive: true)` içinde tek kapı (çağıranda ayrıca `AppHaptics.destructive` YAZMA — çift titrer). İş bitti titreşimi servis katmanında değil `JobNotifications.onFinished`'ta (saf Dart testlerinde bağlayıcı yok → `HapticFeedback` patlar).
+- **Karar:** kademeli `Slider` için `AppHaptics.slider(value, onChanged)` — `Slider` aynı kademeyi sürükleme boyunca tekrar bildirir; yalnız değer değişince titreşir.
+- **Yapı:** `fmMediaHeroTag` artık `lib/widgets/fm/fm_entry_icon.dart`'ta (galeri ekranı yeniden dışa aktarır); `FmFileListView` görsel satır/hücrelerine Hero verir (`fmHero`, `Motion.reduced` → `HeroMode` kapalı). Aynı rotada aynı yol iki kez Hero'lu görünmemeli (tek liste/rota varsayımı; çift bölme `FmFileListView` kullanmıyor).
+- **Denetim (H6.5):** 55 ham `showModalBottomSheet`in hiçbiri köşe/tutamaç/eğri ezmiyor — tema tek kaynak; bekçi `test/sheet_consistency_guard_test.dart`.
+
