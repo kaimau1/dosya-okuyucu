@@ -60,6 +60,11 @@ Art arda push → önceki koşu iptal.
   BİRLEŞTİRİLİR** (CI yeşilken; faz ancak birleşmeyle biter). Birleşince sıradaki faz görevi
   `fire_trigger` ile tetiklenir (bkz. `docs/ZAMANLANMIS_GOREV_ISTEMI.md`). Bu istisna yalnız
   faz işleri içindir; öteki işler yine doğrudan main'e.
+- **İSTİSNA — Gözetimsiz zincir (2026-11-14, kullanıcı isteği; faz istisnasıyla aynı mantık):**
+  `OTOMASYON.md` Kuyruk paketleri **`faz-oto-<no>-<kısa-ad>`** dalında yapılır (CI yalnız
+  `main`/`claude/**`/`ccr-*`/`faz-*` dallarında koşar); CI yeşilse yürütücü yerelde
+  `git merge --no-ff` ile main'e birleştirir (başlık `Birleştir: …`, APK noktasında ` [apk]`),
+  birleşince dal silinir. `gh pr merge` kullanılmaz (faz PR başlığı her seferinde APK derletir).
 - **Doğrulama = CI (2026-11-04, kullanıcı kararı — token tasarrufu):** yerelde/bulutta
   `flutter test`/`analyze` KOŞTURMA, Flutter İNDİRME. Push et → CI `verify` işi test eder;
   Actions sonucuna koşu bitince bir kez bak (sık yoklama yapma), kırmızıysa logdan
@@ -82,6 +87,32 @@ Art arda push → önceki koşu iptal.
 - **Commit mesajı sonu:** `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
   ve `Claude-Session:` satırı.
 - Bilinen derleme tuzakları (CardThemeData, platform klasörleri, keystore) → **HAFIZA.md**
+- `dart format lib` / toplu biçimlendirme ÇALIŞTIRMA (yalnız kendi eklediğin dosya); uzun komut
+  çıktısını kes (`| tail -n 40`); imza anahtarı/keystore/`key.properties` içeriğini yazdırma,
+  commit'leme, hafızaya yazma.
+
+## 4b) Gece / zamanlanmış görev kuralı (2026-11-14, "not" projesinden aynen)
+- Gözetimsiz zincir: yürütücü **`oto-tur` skill'ini**, alt ajan **`isci` skill'ini** uygular;
+  Kuyruk ve SIRA `OTOMASYON.md`'de; zamanlanmış görev `okuyucu-devam` (istem `OTOMASYON_BASLAT.md`).
+- Plan KARAR maddeleri verilmiştir: SORMADAN uygula; yeni karar → en güvenli seçenek + "sabah
+  bakılacak". 👤 madde yapılmaz → `KONTROL_LISTEM.md`.
+- Dalda çalış (yukarıdaki zincir istisnası) → CI yeşilse main'e birleştir; **CI kırmızıyken
+  main'e ASLA birleştirme**; main kırmızıysa düzelt ya da `git revert -m 1`.
+- Telefon gerektiren ölçüm/doğrulama yapılamazsa "yazıldı, cihazda doğrulanmadı" +
+  `docs/CIHAZ_TESTI.md`. Kullanıcı verisini silen/taşıyan göç: önce yedek, geri alınabilir göç.
+- Limit freni (5 saatlik): ≥ %80 yeni paket yok, ≥ %90 dur; Fable yalnız %55 altında ve yalnız
+  karar/plan evresinde. Kullanıcıya giden her metin Türkçe.
+
+## 4c) Kasma ve hız kapıları (bağlayıcı)
+- **Kasma kontrol listesi:** liste/ızgaraya, görüntüleyici kabuğuna ya da ana ekrana GÖRÜNÜR yeni
+  alan, kip ya da sarmalayıcı eklerken push'tan önce **`kasma-kontrol` skill'ini** uygula (8 madde).
+- **ÖLÇÜM KAPISI:** PDF görüntüleyici, dosya listesi, ana ekran, üst/alt çubuk, klavye ya da
+  geçişe dokunan iş `[apk]`'dan önce cihazda A/B ölçülür (taban = önceki `[apk]` profil
+  derlemesi, ölçüm kimliği `.r8test`). Ayrıntı ve telefon kuralları: **`ab-olcum` skill'i**.
+- **HIZ SÖZLEŞMESİ** (PERFORMANS KORUMA ANAYASASI, `docs/GELISTIRME_PLANI.md`): gerileme > %10 ya
+  da kare p99 > 24 ms = birleştirme yok; hız işlerinde kötüleşme SIFIR; mandallar
+  (`design_tokens_baseline.json`, `PerfBudget`, APK bütçesi) yalnız düşer. **Ölçmeden
+  "akıcı/hızlı" denmez.**
 
 ## 5) Bağlantılar
 - Son release: https://github.com/kaimau1/dosya-okuyucu/releases
