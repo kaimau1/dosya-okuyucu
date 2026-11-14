@@ -196,8 +196,18 @@ abstract final class EntryOpener {
 
     if (route == OpenRoute.player) {
       _remember(path);
-      await Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => MediaPlayerScreen(path: path, playlist: group),
+      // Solarak gelen rota: video kapağı hücresinden büyüyerek açılır, geri
+      // dönüşte hücresine küçülür (Hero; kullanıcı 2026-11-15). Opak rota —
+      // geçiş bitince alttaki ızgara çizilmez (oynatma sırasında yük yok).
+      await Navigator.of(context).push(PageRouteBuilder<void>(
+        transitionDuration: Motion.long,
+        reverseTransitionDuration: Motion.medium,
+        pageBuilder: (_, _, _) =>
+            MediaPlayerScreen(path: path, playlist: group),
+        transitionsBuilder: (_, animation, _, child) => FadeTransition(
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          child: child,
+        ),
       ));
       return;
     }

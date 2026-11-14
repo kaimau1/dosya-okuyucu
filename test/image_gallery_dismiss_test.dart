@@ -41,7 +41,7 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpAndSettle();
     expect(find.byType(ImageGalleryScreen), findsOneWidget);
-    expect(find.text('2/3 · 0 B · b.jpg'), findsOneWidget);
+    expect(find.text('b.jpg'), findsOneWidget);
 
     // Kısa sürükleme kapatmaz: yerine yaylanır.
     await tester.drag(find.byType(PageView), const Offset(0, 50));
@@ -65,7 +65,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.drag(find.byType(PageView), const Offset(-500, 0));
     await tester.pumpAndSettle();
-    expect(find.text('3/3 · 0 B · c.jpg'), findsOneWidget);
+    expect(find.text('c.jpg'), findsOneWidget);
     expect(find.byType(ImageGalleryScreen), findsOneWidget);
   });
 
@@ -82,10 +82,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
-    expect(find.text('3/3 · 0 B · c.jpg'), findsOneWidget);
+    expect(find.text('c.jpg'), findsOneWidget);
     // Son fotoğrafta gösteri kendiliğinden durur (zamanlayıcı kalmaz).
     await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
-    expect(find.text('3/3 · 0 B · c.jpg'), findsOneWidget);
+    expect(find.text('c.jpg'), findsOneWidget);
   });
 }

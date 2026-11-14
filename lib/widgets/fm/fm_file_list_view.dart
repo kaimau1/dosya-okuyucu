@@ -305,7 +305,9 @@ class FmFileListView extends StatelessWidget {
   /// bir kez geçer → etiket rotada tektir. Galeri `EntryOpener` →
   /// `imageGalleryRoute` ile açılır; hedef sayfa aynı etiketi taşır.
   String? _heroTag(FsEntry e) =>
-      e.category == FmCategory.image ? fmMediaHeroTag(e.path) : null;
+      e.category == FmCategory.image || e.category == FmCategory.video
+          ? fmMediaHeroTag(e.path)
+          : null;
 
   /// Satır içi oynatmanın listesi: bu görünümdeki sesler, sırasıyla.
   List<String> _audioQueue() => [

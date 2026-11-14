@@ -117,17 +117,17 @@ void main() {
     // önbellekli → dosya silinse bile ekran çizilmeye devam eder.
     await tester.pumpWidget(_wrap(ImageGalleryScreen(paths: [imagePath])));
     await tester.pump();
-    expect(find.textContaining('1/1'), findsOneWidget);
+    expect(find.text('foto.png'), findsOneWidget);
 
     // `deleteSync`: `testWidgets` gövdesinde GERÇEK asenkron dosya işlemi
     // sahte saat zonunda hiç tamamlanmaz ve test sonsuza dek asılır
     // (HAFIZA 2026-07-25 §F'deki tuzağın aynısı).
     File(imagePath).deleteSync();
     // Çubuğu gizle/göster → yeniden çizim. Ölçüm önbellekten geldiği için
-    // boyut satırı kaybolmamalı ve hata atılmamalı.
+    // başlık (ad + tarih) kaybolmamalı ve hata atılmamalı.
     await tester.tap(find.byType(PageView));
     await tester.pump(const Duration(milliseconds: 200));
     expect(tester.takeException(), isNull);
-    expect(find.textContaining('1/1'), findsOneWidget);
+    expect(find.text('foto.png'), findsOneWidget);
   });
 }

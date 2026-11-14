@@ -21,7 +21,11 @@ class _Highlight {
   final int count;
   final FsEntry cover;
   final VoidCallback onTap;
-  const _Highlight(this.title, this.count, this.cover, this.onTap);
+
+  /// Uzun basışta albüm menüsü (anı kartında yok).
+  final _Album? album;
+  const _Highlight(this.title, this.count, this.cover, this.onTap,
+      {this.album});
 }
 
 extension _PhotosScreenHighlightsPart on _PhotosScreenState {
@@ -60,22 +64,22 @@ extension _PhotosScreenHighlightsPart on _PhotosScreenState {
       if (memories.isNotEmpty)
         _Highlight(context.t('ph.on_this_day'), memories.length,
             memories.first, () => _enterScope(onThisDay: true)),
-      for (final a in albums.take(_maxAlbums))
-        _Highlight(p.basename(a.dir), a.count, a.cover,
-            () => _enterScope(album: a.dir)),
+      for (final a in albums.where((a) => a.cover != null).take(_maxAlbums))
+        _Highlight(a.title, a.count, a.cover!,
+            () => _enterScope(album: a.key), album: a),
     ];
   }
 
   Widget _highlightsStrip() {
     final items = _highlights();
-    final more = _albums().length > _maxAlbums;
+    // "Albümler" kartı HER ZAMAN sonda: yeni albüm, gizliler, gizleme oradan.
     return SizedBox(
       height: _extent,
       child: ListView.builder(
         key: const ValueKey('ph-highlights'),
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsetsDirectional.fromSTEB(12, 8, 4, 8),
-        itemCount: items.length + (more ? 1 : 0),
+        itemCount: items.length + 1,
         itemBuilder: (context, i) {
           if (i >= items.length) {
             return _MoreAlbumsCard(
@@ -94,6 +98,9 @@ extension _PhotosScreenHighlightsPart on _PhotosScreenState {
             // Seçim sürerken kart kapsam değiştirmesin: seçili dosyalar
             // gözün önünden kaybolurdu.
             onTap: _selecting ? null : h.onTap,
+            onLongPress: _selecting || h.album == null
+                ? null
+                : () => _albumMenu(h.album!),
           );
         },
       ),
@@ -107,6 +114,7 @@ class _HighlightCard extends StatelessWidget {
   final double height;
   final _Highlight item;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
 
   const _HighlightCard({
     super.key,
@@ -114,6 +122,7 @@ class _HighlightCard extends StatelessWidget {
     required this.height,
     required this.item,
     required this.onTap,
+    this.onLongPress,
   });
 
   @override
@@ -174,7 +183,7 @@ class _HighlightCard extends StatelessWidget {
                 ),
                 Material(
                   type: MaterialType.transparency,
-                  child: InkWell(onTap: onTap),
+                  child: InkWell(onTap: onTap, onLongPress: onLongPress),
                 ),
               ],
             ),

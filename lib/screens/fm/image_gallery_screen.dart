@@ -18,7 +18,6 @@ import '../../core/theme.dart';
 import '../../models/document.dart';
 import '../../models/fs_entry.dart';
 import '../../models/photo_group.dart';
-import '../../services/fm/fs_scan.dart';
 import '../../services/fm/image_rotate.dart';
 import '../../services/fm/important_files.dart';
 import '../../widgets/motion.dart' show PressScale;
@@ -661,11 +660,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           ),
         );
 
-    // Başlık ZAMAN (Google Foto): "Bugün · 18:44". "e8e4fcfccc…jpg" gibi
-    // karma dosya adları bir şey anlatmıyordu; ad alt satırda duruyor.
-    final title = entry.modifiedMs > 0
-        ? photoMomentTitle(entry.modifiedMs)
-        : entry.name;
+    // Başlık dosya ADI, altında yalnız TARİH (kullanıcı 2026-11-15: *"tarihi
+    // varsa adının altına yazsın, diğer detay bilgiler gereksiz"*). Sıra/boyut
+    // alt satırdan kalktı; boyut Bilgi'de duruyor.
+    final title = entry.name;
+    final moment =
+        entry.modifiedMs > 0 ? photoMomentTitle(entry.modifiedMs) : null;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
@@ -774,14 +774,13 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: OverlayBar.title(context)),
-                              Text(
-                                '${_index + 1}/${_paths.length} · '
-                                '${FsPaths.humanSize(entry.sizeBytes)} · '
-                                '${entry.name}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: OverlayBar.subtitle(context),
-                              ),
+                              if (moment != null)
+                                Text(
+                                  moment,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: OverlayBar.subtitle(context),
+                                ),
                             ],
                           ),
                         ),

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
@@ -29,6 +30,7 @@ import '../../services/fm/fs_events.dart';
 import '../../services/fm/home_shortcuts.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/open_history.dart';
+import '../../services/fm/photo_albums.dart';
 import '../../widgets/motion.dart' show PressScale;
 import '../../widgets/fm/drag_select.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
@@ -153,7 +155,8 @@ class _PhotosScreenState extends State<PhotosScreen>
   bool _loadingAll = false;
   String _query = '';
 
-  /// Seçili albüm (klasör yolu) ya da "Bu gün geçmişte" (bkz. albums.dart).
+  /// Seçili albüm anahtarı (`dir:<klasör>` / `user:<id>`) ya da "Bu gün
+  /// geçmişte" (bkz. albums.dart).
   String? _album;
   bool _onThisDay = false;
 
@@ -276,6 +279,8 @@ class _PhotosScreenState extends State<PhotosScreen>
         _zoomScale.value = lerpDouble(_zoomFrom, 1, t)!;
       });
     FsEvents.version.addListener(_dropMissing);
+    PhotoAlbums.revision.addListener(_onAlbums);
+    unawaited(PhotoAlbums.ensureLoaded());
     // Etiketler (kişi/grup süzgeci) diskten okunur; hazır olunca çipler
     // görünsün diye yeniden çizilir.
     FileTags.ensureLoaded().then((_) {
@@ -291,6 +296,7 @@ class _PhotosScreenState extends State<PhotosScreen>
   @override
   void dispose() {
     FsEvents.version.removeListener(_dropMissing);
+    PhotoAlbums.revision.removeListener(_onAlbums);
     _searchController.dispose();
     _scroll.dispose();
     _zoomAnim.dispose();
@@ -485,6 +491,10 @@ class _PhotosScreenState extends State<PhotosScreen>
 
   // ── İki parmakla yakınlaştırma ────────────────────────────────────────────
 
+
+  void _onAlbums() {
+    if (mounted) setState(() {});
+  }
 
   /// Parça dosyalarındaki uzantılar `setState`i (korumalı) buradan çağırır.
   void _partSetState(VoidCallback fn) => setState(fn);

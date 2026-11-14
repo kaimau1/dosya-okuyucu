@@ -13,6 +13,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
+import '../../models/photo_group.dart';
 import '../../core/user_error.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fm_env.dart';
@@ -21,9 +22,12 @@ import '../../services/fm/native_extras.dart';
 import '../../services/fm/pip.dart';
 import '../../services/fm/playback_positions.dart';
 import '../../services/fm/subtitles.dart';
+import '../../services/fm/thumbnail_cache.dart';
 import '../../services/fm/subtitle_delays.dart';
 import '../../services/fm/video_playback.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/fm/fm_entry_icon.dart' show fmMediaHeroTag;
+import '../../widgets/fm/fm_file_image.dart';
 import '../../widgets/mini_player_bar.dart';
 import 'entry_actions.dart';
 import '../../core/snack.dart';
@@ -421,6 +425,54 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
           child: child,
         ),
       );
+
+  /// Izgaranın çözdüğü küçük resim (önbellekte ise) — açılış kapağı.
+  /// Yalnız [_current] için; yol değişince yeniden bakılır.
+  String? _posterPath;
+  FmFileImage? _poster;
+  double? _aspect;
+
+  void _syncPoster() {
+    final path = _current;
+    if (_posterPath == path) return;
+    _posterPath = path;
+    _poster = null;
+    _aspect = null;
+    final thumb = path.isEmpty ? null : ThumbnailCache.anyKnownVideo(path);
+    if (thumb == null) return;
+    final cached = fmCachedThumb(thumb);
+    if (cached == null) return;
+    _poster = cached;
+    _aspect = fmCachedAspect(cached);
+  }
+
+  FmFileImage? get _posterImage {
+    _syncPoster();
+    return _poster;
+  }
+
+  double? get _posterAspect {
+    _syncPoster();
+    return _aspect;
+  }
+
+  /// Başlık altı tarih — dosya başına bir kez (eşzamansız) `stat`.
+  String? _momentPath;
+  String? _moment;
+
+  String? _momentOf(String path) {
+    if (path.isEmpty) return null;
+    if (_momentPath != path) {
+      _momentPath = path;
+      _moment = null;
+      File(path).lastModified().then((d) {
+        final ms = d.millisecondsSinceEpoch;
+        if (!mounted || _momentPath != path || ms <= 0) return;
+        setState(() => _moment = photoMomentTitle(ms));
+      }, onError: (Object _) {});
+    }
+    return _moment;
+  }
 
   /// Parça dosyalarındaki uzantılar `setState`i (korumalı) buradan çağırır.
   void _partSetState(VoidCallback fn) => setState(fn);
