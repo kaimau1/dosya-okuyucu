@@ -35,6 +35,7 @@ import '../motion.dart';
 /// Ferrari H4.1 (2026-11-14, kullanıcı: *"satır simgeleri 48–56 dp
 /// olabilir"*): önizleme 52 dp, ad `titleMedium`, alt satırda bilgi solda,
 /// [subtitleEnd] (boyut) SAĞA hizalı; satır ≥ 64 dp (≥ 840 dp'de 72).
+/// ⋮ soluk (H4.9 — uzun basış + seçim çubuğu asıl yol).
 /// * seçimde önizleme durur, üstüne onay rozeti biner ([FmSelectableIcon]).
 class FmEntryRow extends StatelessWidget {
   final FsEntry entry;
@@ -214,7 +215,9 @@ class FmEntryRow extends StatelessWidget {
     final more = onMore == null
         ? null
         : IconButton(
-            icon: const Icon(AppIcons.more),
+            // Soluk (H4.9): asıl yol uzun basış + seçim çubuğu; ⋮ yalnız kısayol.
+            icon: Icon(AppIcons.more,
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.6)),
             tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
             // 48 dp dokunma alanı (erişilebilirlik, Faz 6 / 7. madde).
             constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
