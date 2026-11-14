@@ -60,9 +60,19 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                   // dokunmaz, seçim/arama koordinatlarını da etkilemez (yalnız boya).
                   child: Listener(
                     // Otomatik kaydırma parmak ekrandayken bekler (Faz 48).
-                    onPointerDown: (_) => _holdAutoScroll(true),
-                    onPointerUp: (_) => _holdAutoScroll(false),
-                    onPointerCancel: (_) => _holdAutoScroll(false),
+                    // Sayfa sayfa kipinde kaydırma = sayfa çevir (H3.5).
+                    onPointerDown: (e) {
+                      _holdAutoScroll(true);
+                      _pagedPointerDown(e);
+                    },
+                    onPointerUp: (e) {
+                      _holdAutoScroll(false);
+                      _pagedPointerUp(e);
+                    },
+                    onPointerCancel: (_) {
+                      _holdAutoScroll(false);
+                      _pagedPointerCancel();
+                    },
                     child: _nightFilter(
                     child: PdfViewer.file(
                       doc.path,
@@ -99,8 +109,11 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         // (pdfrx yalnız documentRef değişiminde yükler).
                         // Düzenleme kipinde çizim aracı açıkken de kapalı:
                         // tek parmak çizer, iki parmak yakınlaştırır.
-                        panEnabled:
-                            !_pdfSelecting && !(_pro?.drawing ?? false),
+                        // Sayfa sayfa kipinde (yakın değilken) kaydırma yok:
+                        // parmak sayfa çevirir (H3.5).
+                        panEnabled: !_pdfSelecting &&
+                            !(_pro?.drawing ?? false) &&
+                            !_pagedLocked,
                         // Kaydırma kilidi (Faz 39): yalnız dikey eksen,
                         // iki parmak yakınlaştırma kapalı.
                         panAxis: _pdfScrollLock
@@ -242,6 +255,8 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                               .addPostFrameCallback((_) => _showResumeNotice());
                           // Açılış köprüsü: ilk sayfaya çizim payı, sonra solar.
                           _markPdfOpened();
+                          // Sayfa sayfa kipi: açılışta sayfa ekrana sığar.
+                          if (_pdfPaged) _fitPagedSoon();
                           unawaited(_proCheckRecovery());
                           if (widget.startInk && !_inkStarted) {
                             _inkStarted = true;

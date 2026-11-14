@@ -46,6 +46,10 @@ abstract final class Motion {
   /// kaydırmada geçip giden hücre hiç çizilmez; ana içerik sırada önce).
   static const thumbDefer = Duration(milliseconds: 900);
 
+  /// Bundan kısa süren parmak yolu "hızlı kaydırma" sayılır (sayfa sayfa
+  /// PDF'te sayfa çevirir — Ferrari H3.5; jest eşiği, animasyon değil).
+  static const quickSwipe = Duration(milliseconds: 600);
+
   /// Giren öğe (yavaşlayarak durur).
   static const Curve enter = Curves.easeOutCubic;
 

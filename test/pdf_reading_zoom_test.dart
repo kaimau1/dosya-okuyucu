@@ -1,3 +1,5 @@
+import 'dart:ui' show Offset;
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:dosya_okuyucu/services/pdf/pdf_reading_zoom.dart';
@@ -101,6 +103,29 @@ void main() {
           PdfReadingZoom.fitBoxZoom(
               viewWidth: 400, boxWidth: 10, current: 0.66, maxZoom: 8),
           8);
+    });
+  });
+
+  group('sayfa sayfa geçiş (H3.5)', () {
+    test('kenar dokunuşu: sağ sonraki, sol önceki, orta yok', () {
+      expect(PdfPagedTurn.edgeSide(390, 400), 1);
+      expect(PdfPagedTurn.edgeSide(10, 400), -1);
+      expect(PdfPagedTurn.edgeSide(200, 400), 0);
+      expect(PdfPagedTurn.edgeSide(10, 0), 0);
+    });
+
+    test('kaydırma yönü ve eşikler', () {
+      const fast = Duration(milliseconds: 200);
+      const slow = Duration(seconds: 2);
+      expect(PdfPagedTurn.swipe(const Offset(-80, 10), fast), 1);
+      expect(PdfPagedTurn.swipe(const Offset(80, 10), fast), -1);
+      expect(PdfPagedTurn.swipe(const Offset(5, -90), fast), 1);
+      expect(PdfPagedTurn.swipe(const Offset(5, 90), fast), -1);
+      expect(PdfPagedTurn.swipe(const Offset(-20, 0), fast), 0,
+          reason: 'kısa yol dokunuştur');
+      expect(PdfPagedTurn.swipe(const Offset(-80, 0), slow), 0,
+          reason: 'yavaş kısa yol sayfa çevirmez');
+      expect(PdfPagedTurn.swipe(const Offset(-200, 0), slow), 1);
     });
   });
 }

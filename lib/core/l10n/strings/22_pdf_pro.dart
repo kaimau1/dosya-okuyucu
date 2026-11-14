@@ -306,5 +306,7 @@ const Map<String, (String, String, String)> _t22 = {
   'pp.crop_margins': ('Kenar boşluklarını kırp', 'Crop margins', 'قص الهوامش'),
   'pp.crop_margins_hint': ('Yazı ekranı doldurur; bu belge için hatırlanır', 'Text fills the screen; remembered for this document', 'يملأ النص الشاشة؛ يُحفظ لهذا المستند'),
   'pp.crop_one_column': ('Yalnız tek sütun görünümünde', 'Only in single-column view', 'في عرض العمود الواحد فقط'),
+  'pp.paged': ('Sayfa sayfa çevir', 'Page by page', 'صفحة بصفحة'),
+  'pp.paged_hint': ('Sayfa ekrana sığar; kenara dokun ya da kaydır', 'Page fits the screen; tap the edge or swipe', 'تملأ الصفحة الشاشة؛ المس الحافة أو اسحب'),
   'pp.crop_none': ('Kırpılacak boşluk bulunamadı', 'No margins to crop', 'لا توجد هوامش لقصّها'),
 };

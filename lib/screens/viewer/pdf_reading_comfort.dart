@@ -1,7 +1,7 @@
 part of '../viewer_screen.dart';
 
 /// **PDF okuma konforu** (Ferrari H3, 2026-11-14): çift dokunma, akıllı
-/// yakınlaştırma, görsel kipi, kenar boşluğu kırpma. Hesap saf serviste ([PdfReadingZoom]); sayfa nesneleri
+/// yakınlaştırma, görsel kipi, kenar boşluğu kırpma, sayfa sayfa geçiş. Hesap saf serviste ([PdfReadingZoom]); sayfa nesneleri
 /// PDF Pro'nun okumasından ([PdfEditBridge.content]) — yeniden yazılmadı.
 /// Burada yalnız görüntüleyiciye bağlantı.
 extension _ViewerScreenPdfComfortPart on _ViewerScreenState {
@@ -13,6 +13,12 @@ extension _ViewerScreenPdfComfortPart on _ViewerScreenState {
     // sürüklenirken yakınlık değişmesin.
     if (_pro != null || _pdfSelecting) return false;
     switch (d.type) {
+      case PdfViewerGeneralTapType.tap:
+        // Sayfa sayfa kipi: kenara dokunuş sayfa çevirir (H3.5).
+        final dir = _pagedEdgeDirection(d.localPosition.dx);
+        if (dir == 0) return false;
+        _turnPdfPage(dir);
+        return true;
       case PdfViewerGeneralTapType.doubleTap:
         unawaited(_pdfDoubleTapZoom(d.localPosition, d.documentPosition));
         return true;
@@ -50,7 +56,12 @@ extension _ViewerScreenPdfComfortPart on _ViewerScreenState {
     final current = c.currentZoom;
     AppHaptics.selection();
     try {
-      if (PdfReadingZoom.isZoomedIn(current, fit)) {
+      // Sayfa sayfa kipinde "geri sığdır" = sayfanın tamamı (H3.5).
+      if (_pagedActive && _pagedZoomed) {
+        await _showPagedPage(_livePdfPage() ?? _pdfPage);
+        return;
+      }
+      if (!_pagedActive && PdfReadingZoom.isZoomedIn(current, fit)) {
         await _zoomKeepingRow(fit, docPos, local,
             centerX: c.documentSize.width / 2);
         return;
@@ -221,5 +232,134 @@ extension _ViewerScreenPdfComfortPart on _ViewerScreenState {
         if (mounted) _recordPdfZoom();
       }));
     });
+  }
+
+  // ── Sayfa sayfa geçiş (H3.5) ───────────────────────────────────────────
+
+  /// Kip etkin mi (yalnız tek sütun, düzenleme kipi dışında)?
+  bool get _pagedActive => _pdfPaged && _pdfColumns == 1 && _pro == null;
+
+  /// Parmak sayfayı kaydırmaz, çevirir (sayfa sığmış, yakın değil).
+  bool get _pagedLocked => _pagedActive && !_pagedZoomed;
+
+  /// Sayfa sayfa kipini aç/kapa. Açınca okunan sayfa ekrana sığar, çubuklar
+  /// çekilir; kapatınca belge genişliğe sığar.
+  void _setPdfPaged(bool on) {
+    final page = _livePdfPage() ?? _pdfPage;
+    _partSetState(() {
+      _pdfPaged = on;
+      _pagedZoomed = false;
+    });
+    _saveAid(_ViewerScreenPdfReadingAidsPart._kPaged, on);
+    if (on) {
+      _readingBars.hide();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_showPagedPage(page, animate: false));
+      });
+    } else {
+      _refitAfterLayout();
+    }
+  }
+
+  /// Görüntüleyici hazır olunca (ilk kare sonrası) okunan sayfayı sığdır.
+  void _fitPagedSoon() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _pagedActive && _pdfController.isReady) {
+        unawaited(_showPagedPage(_livePdfPage() ?? _pdfPage, animate: false));
+      }
+    });
+  }
+
+  /// [page]'in tamamını ekrana sığdıran yakınlık (yoksa null).
+  Rect? _pagedRect(int page) {
+    final c = _pdfController;
+    if (!c.isReady) return null;
+    final layouts = c.layout.pageLayouts;
+    if (page < 1 || page > layouts.length) return null;
+    return layouts[page - 1];
+  }
+
+  double? _pagedFitZoom(int page) {
+    final r = _pagedRect(page);
+    if (r == null || r.width <= 0 || r.height <= 0) return null;
+    final view = _pdfController.viewSize;
+    return math.min((view.width - 2 * Gap.sm) / r.width,
+        (view.height - 2 * Gap.sm) / r.height);
+  }
+
+  /// [page] sayfaya, sayfanın tamamı ekrana sığarak geç.
+  Future<void> _showPagedPage(int page, {bool animate = true}) async {
+    final r = _pagedRect(page);
+    if (r == null) return;
+    _pdfJumpTarget = page;
+    final c = _pdfController;
+    try {
+      await c.goTo(c.calcMatrixForRect(r, margin: Gap.sm),
+          duration: animate ? Motion.of(context, Motion.medium) : Duration.zero);
+    } catch (_) {
+      // Bilinçli: belge o an yeniden yükleniyor — sonraki dokunuş yine dener.
+    }
+    if (mounted && _pagedZoomed) _partSetState(() => _pagedZoomed = false);
+  }
+
+  /// Matris her değiştiğinde: sayfa sığdırmanın belirgin üstüne çıkıldı mı?
+  /// (Yakınken parmak sayfayı gezdirir, çevirmez.)
+  void _trackPagedZoom(double zoom) {
+    if (!_pagedActive) return;
+    final fit = _pagedFitZoom(_livePdfPage() ?? _pdfPage);
+    if (fit == null) return;
+    final zoomed = PdfReadingZoom.isZoomedIn(zoom, fit);
+    if (zoomed != _pagedZoomed) _partSetState(() => _pagedZoomed = zoomed);
+  }
+
+  /// Kenar dokunuşunun yönü: sağ kenar sonraki (+1), sol önceki (-1), orta 0.
+  /// Sağdan sola dilde tersi (kitap sağdan açılır).
+  int _pagedEdgeDirection(double localX) {
+    if (!_pagedLocked) return 0;
+    final w = _pdfController.isReady
+        ? _pdfController.viewSize.width
+        : MediaQuery.sizeOf(context).width;
+    final side = PdfPagedTurn.edgeSide(localX, w);
+    if (side == 0) return 0;
+    return Directionality.of(context) == TextDirection.rtl ? -side : side;
+  }
+
+  /// Kabuktan: bu tek dokunuş çekik çubukları getirsin mi? Sayfa sayfa
+  /// kipinde kenar dokunuşu sayfa çevirir, çubuk getirmez.
+  bool _tapShowsBars(Offset global) {
+    if (!_pagedLocked) return true;
+    final box = context.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return true;
+    final local = box.globalToLocal(global);
+    return PdfPagedTurn.edgeSide(local.dx, box.size.width) == 0;
+  }
+
+  void _pagedPointerDown(PointerDownEvent e) {
+    _pagedPointers++;
+    if (_pagedPointers == 1) {
+      _pagedMulti = false;
+      _pagedDownAt = e.position;
+      _pagedDownTime = DateTime.now();
+    } else {
+      _pagedMulti = true;
+    }
+  }
+
+  void _pagedPointerUp(PointerUpEvent e) {
+    _pagedPointers = math.max(0, _pagedPointers - 1);
+    final at = _pagedDownAt, time = _pagedDownTime;
+    if (_pagedPointers > 0) return;
+    _pagedDownAt = null;
+    if (!_pagedLocked || _pagedMulti || at == null || time == null) return;
+    if (_pdfSelecting || _pdfSelection.trim().isNotEmpty) return;
+    var dir = PdfPagedTurn.swipe(e.position - at, DateTime.now().difference(time));
+    if (dir == 0) return;
+    if (Directionality.of(context) == TextDirection.rtl) dir = -dir;
+    _turnPdfPage(dir);
+  }
+
+  void _pagedPointerCancel() {
+    _pagedPointers = 0;
+    _pagedDownAt = null;
   }
 }

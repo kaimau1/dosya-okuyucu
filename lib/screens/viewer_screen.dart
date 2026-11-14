@@ -483,6 +483,15 @@ class _ViewerScreenState extends State<ViewerScreen> {
   PdfMarginCrop? _pdfCrop;
   bool _pdfCropBusy = false;
 
+  /// Sayfa sayfa geçiş kipi (H3.5; tercih `pdf_paged`). Sayfa ekrana sığar,
+  /// kenara dokunuş / kaydırma sayfa çevirir; yakınlaşınca serbest gezinme.
+  bool _pdfPaged = false;
+  bool _pagedZoomed = false;
+  int _pagedPointers = 0;
+  bool _pagedMulti = false;
+  Offset? _pagedDownAt;
+  DateTime? _pagedDownTime;
+
   /// Önceki matris (PDF kaydırma yönünü çıkarmak için).
   double? _pdfLastTy;
   double? _pdfLastZoom;
@@ -495,6 +504,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final m = _pdfController.value;
     final ty = m.getTranslation().y;
     final zoom = m.getMaxScaleOnAxis();
+    _trackPagedZoom(zoom);
     final pTy = _pdfLastTy, pZoom = _pdfLastZoom;
     _pdfLastTy = ty;
     _pdfLastZoom = zoom;
@@ -717,6 +727,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// Kullanıcının yakınlığını belge için saklar (tek sütunda).
   void _recordPdfZoom() {
     if (widget.doc.kind != DocKind.pdf || _pdfColumns != 1) return;
+    // Sayfa sayfa kipinde yakınlık sayfaya göre kurulur; saklanmaz.
+    if (_pdfPaged) return;
     if (!_pdfController.isReady) return;
     final z = _pdfController.currentZoom;
     if (z > 0) unawaited(PdfZoomMemory.record(widget.doc.path, z));

@@ -207,6 +207,11 @@ class OfficeShell extends StatefulWidget {
   /// ekranlarında null — yazarken çubuk kaybolmamalı.
   final ReadingBars? readingBars;
 
+  /// Okuma kipinde tek dokunuş çekik çubukları geri getirir; bu verilirse
+  /// ve false dönerse (ör. sayfa sayfa kipinde kenara dokunuş = sayfa
+  /// çevir — Ferrari H3.5) çubuklar gelmez. Konum ekran (global) koordinatı.
+  final bool Function(Offset globalPosition)? tapShowsBars;
+
   /// Düzenleme oturumu (Faz 20): verilirse başlığın durum satırı ondan gelir
   /// ("Kaydediliyor… / Kaydedildi 14:32 / Kaydedilmedi") ve [dirty] yok sayılır.
   final EditSession? session;
@@ -224,6 +229,7 @@ class OfficeShell extends StatefulWidget {
     this.fab,
     this.subtitle,
     this.readingBars,
+    this.tapShowsBars,
     this.session,
   });
 
@@ -371,7 +377,8 @@ class _OfficeShellState extends State<OfficeShell>
         if (at == null || time == null) return;
         if ((e.position - at).distance < 12 &&
             DateTime.now().difference(time) < kLongPressTimeout &&
-            !widget.readingBars!.value) {
+            !widget.readingBars!.value &&
+            (widget.tapShowsBars?.call(e.position) ?? true)) {
           widget.readingBars!.show();
         }
       },

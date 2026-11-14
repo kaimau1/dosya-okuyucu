@@ -13,6 +13,7 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
       // Artık çubuklar gövdenin ÜSTÜNDE kayan katman — gövde boyu sabit
       // (bkz. `OfficeShell`). Arama açıkken çubuklar sabit durur.
       readingBars: _readingBars,
+      tapShowsBars: _tapShowsBars,
       subtitle: _pro != null
           ? _proStatus(_pro!)
           : _isPdf && _pageCount > 0
@@ -638,6 +639,23 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                           subtitle: Text(context.t('pp.scroll_lock_hint')),
                           value: _pdfScrollLock,
                           onChanged: (v) => apply(() => _pdfScrollLock = v),
+                        ),
+                        // Sayfa sayfa çevirme (Ferrari H3.5): tek sütunda.
+                        if (_isPdf)
+                        SwitchListTile(
+                          key: const ValueKey('pdf-paged'),
+                          secondary: const Icon(AppIcons.pdfFitPage),
+                          title: Text(context.t('pp.paged')),
+                          subtitle: Text(context.t(_pdfColumns == 1
+                              ? 'pp.paged_hint'
+                              : 'pp.crop_one_column')),
+                          value: _pdfPaged,
+                          onChanged: _pdfColumns != 1
+                              ? null
+                              : (v) {
+                                  _setPdfPaged(v);
+                                  setSheet(() {});
+                                },
                         ),
                         // Kenar boşluğu kırpma (Ferrari H3.4): tek sütunda;
                         // tercih belge başına.

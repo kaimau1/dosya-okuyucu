@@ -8,8 +8,11 @@
 library;
 
 import 'dart:math' as math;
+import 'dart:ui' show Offset;
 
 import 'package:pdfrx/pdfrx.dart' show PdfRect;
+
+import '../../core/motion.dart';
 
 import 'pro/pdf_text_blocks.dart' show PdfPageContent, PdfPageItem;
 
@@ -144,5 +147,35 @@ abstract final class PdfReadingZoom {
     final img = imageAt(content, x, y);
     if (img != null) return PdfRect(img.left, img.top, img.right, img.bottom);
     return columnAt(content, x, y);
+  }
+}
+
+/// **Sayfa sayfa geçiş** (Ferrari H3.5): kenar dokunuşu ve kaydırma kararı
+/// (saf; yön soldan sağa dilde, sağdan sola dilde çağıran çevirir).
+abstract final class PdfPagedTurn {
+  /// Ekranın sol / sağ bu kadarlık şeridi "kenar" (dokununca sayfa çevirir).
+  static const edge = 0.25;
+
+  /// Kaydırma sayılması için en kısa yol (dp) ve hızlı kaydırma süresi.
+  static const minSwipe = 48.0;
+  static const longSwipe = 120.0;
+  static const quickSwipe = Motion.quickSwipe;
+
+  /// [x] konumu [width] genişlikte: sağ kenar +1, sol kenar -1, orta 0.
+  static int edgeSide(double x, double width) {
+    if (width <= 0) return 0;
+    if (x >= width * (1 - edge)) return 1;
+    if (x <= width * edge) return -1;
+    return 0;
+  }
+
+  /// Parmak yolu [delta], süre [elapsed]: sola / yukarı kaydırma sonraki
+  /// sayfa (+1), sağa / aşağı önceki (-1); kısa ya da yavaş yol 0.
+  static int swipe(Offset delta, Duration elapsed) {
+    final d = delta.distance;
+    if (d < minSwipe) return 0;
+    if (elapsed > quickSwipe && d < longSwipe) return 0;
+    if (delta.dx.abs() > delta.dy.abs()) return delta.dx < 0 ? 1 : -1;
+    return delta.dy < 0 ? 1 : -1;
   }
 }
