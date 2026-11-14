@@ -41,7 +41,7 @@ extension _PhotosScreenDataPart on _PhotosScreenState {
   List<FsEntry> get _visible {
     final key = '${identityHashCode(_files)}|${_files.length}|$_query|'
         '${_filter.signature}|${_sort.name}|$_desc|${OpenHistory.revision}|'
-        '$_album|$_onThisDay';
+        '$_album|$_onThisDay|${PhotoAlbums.revision.value}';
     final cached = _visibleCache;
     if (cached != null && _visibleKey == key) return cached;
     // Yinelenen ayıklaması SIRALAMADAN SONRA anlamlı olsun diye önce sıralanır:

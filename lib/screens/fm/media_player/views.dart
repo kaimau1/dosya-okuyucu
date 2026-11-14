@@ -145,10 +145,12 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
   /// - Ad artık iki satıra kadar sarabiliyor ve altında süre/sıra bilgisi var;
   ///   "AHBS_Egitim_Videosu_1080.mp4" tek satıra sığmıyordu, üstelik dört
   ///   eylem simgesi başlığa kalan yeri iyice daraltıyordu.
+  ///
+  /// 2026-11-15 (kullanıcı: *"tarihi varsa adının altına yazsın, diğer detay
+  /// bilgiler gereksiz"*): alt satır yalnız TARİH ("4 Ekim 2025 · 15:34");
+  /// sıra ("105/291") ve uzantı ("MP4") kalktı.
   Widget _topBar() {
-    final position = _playlist.length > 1
-        ? '${_index + 1}/${_playlist.length} · ${p.extension(_current).replaceFirst('.', '').toUpperCase()}'
-        : p.extension(_current).replaceFirst('.', '').toUpperCase();
+    final position = _momentOf(_current) ?? '';
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -274,7 +276,15 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
       );
 
   Widget _surface(VideoPlayerController? c, VideoPlayerValue? value) {
-    if (_loading) {
+    if (_loading ||
+        (_error == null && !_isAudio &&
+            (c == null || value == null || !value.isInitialized))) {
+      // Galeriden açılışta küçük resim hücreden büyüyerek gelir (Hero) ve
+      // video hazırlanırken ekranda o durur — açılıştaki kısa bekleme
+      // animasyonun içinde kalır (kullanıcı 2026-11-15).
+      final poster = _posterView();
+      if (poster != null) return poster;
+      if (!_loading) return const SizedBox.shrink();
       return const Center(child: CircularProgressIndicator());
     }
     if (_error != null) {
@@ -339,7 +349,7 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
     // yayıyor (kenarlardan kırparak). Seçim kullanıcıda: iki kip arasında
     // üst çubuktaki düğme geçiş yaptırıyor.
     if (_zoomFill) {
-      return SizedBox.expand(
+      return _heroWrap(SizedBox.expand(
         child: FittedBox(
           fit: BoxFit.cover,
           clipBehavior: Clip.hardEdge,
@@ -352,16 +362,47 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
             ),
           ),
         ),
-      );
+      ));
     }
+    final poster = _posterImage;
     return Center(
-      child: RotatedBox(
+      child: _heroWrap(RotatedBox(
         quarterTurns: _quarterTurns,
         child: AspectRatio(
           aspectRatio: value.aspectRatio,
-          child: VideoPlayer(c),
+          // Kapak, oynatma ilerleyene (ilk kare gelene) dek üstte: doku
+          // ilk karesini çizene kadar siyah yanıp sönmesin.
+          child: poster == null
+              ? VideoPlayer(c)
+              : Stack(fit: StackFit.expand, children: [
+                  VideoPlayer(c),
+                  _PosterVeil(controller: c, image: poster),
+                ]),
         ),
-      ),
+      )),
+    );
+  }
+
+  /// Galerideki hücreyle eşleşen kahraman (açılış/kapanış geçişi).
+  Widget _heroWrap(Widget child) => _isAudio || _current.isEmpty
+      ? child
+      : Hero(tag: fmMediaHeroTag(_current), child: child);
+
+  /// Video hazırlanırken: kapak resmi, en-boy oranında ortalı.
+  Widget? _posterView() {
+    final poster = _posterImage;
+    final aspect = _posterAspect;
+    if (poster == null || aspect == null || _isAudio) return null;
+    return Center(
+      child: _heroWrap(AspectRatio(
+        aspectRatio: aspect,
+        child: Image(
+          image: poster,
+          fit: BoxFit.cover,
+          gaplessPlayback: true,
+          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+        ),
+      )),
     );
   }
 
@@ -503,4 +544,63 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
       ),
     );
   }
+}
+
+/// Videonun ilk karesi gelene dek üstte duran kapak. Konum bir kez
+/// ilerleyince (ya da oynatma hiç başlamadan 2 sn geçince) kalkar ve
+/// dinlemeyi bırakır — kalan oynatma boyunca katman yok.
+class _PosterVeil extends StatefulWidget {
+  final VideoPlayerController controller;
+  final ImageProvider<Object> image;
+  const _PosterVeil({required this.controller, required this.image});
+
+  @override
+  State<_PosterVeil> createState() => _PosterVeilState();
+}
+
+class _PosterVeilState extends State<_PosterVeil> {
+  bool _gone = false;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.controller.value.position > Duration.zero) {
+      _gone = true;
+      return;
+    }
+    widget.controller.addListener(_check);
+    // Zaman aşımı (animasyon süresi değil): oynatma hiç başlamazsa da kalkar.
+    _timer = Timer(const Duration(seconds: 2), _drop);
+  }
+
+  void _check() {
+    if (widget.controller.value.position > Duration.zero) _drop();
+  }
+
+  void _drop() {
+    if (_gone) return;
+    widget.controller.removeListener(_check);
+    _timer?.cancel();
+    if (mounted) setState(() => _gone = true);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_check);
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => _gone
+      ? const SizedBox.shrink()
+      : IgnorePointer(
+          child: Image(
+            image: widget.image,
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+          ),
+        );
 }

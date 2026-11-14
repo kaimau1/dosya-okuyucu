@@ -138,9 +138,13 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
       final dir = Directory(p.join(tmp.path, 'video_trim_frames',
           '${widget.path.hashCode.toUnsigned(32)}'));
       _frameDir = dir;
-      final frames =
-          await VideoTranscoder.frames(widget.path, dir: dir.path, count: 12);
-      if (mounted) setState(() => _frames = frames);
+      // Son kullanım işareti (budama buna göre sıralar).
+      try {
+        await dir.create(recursive: true);
+        await File(p.join(dir.path, '.son')).writeAsString('1');
+      } catch (_) {}
+      // Şerit kareleri ayrı çıkarılmıyor: tarama ızgarasının (60) alt
+      // kümesi (bkz. [_stripIndex]) — aynı kareyi iki kez çözmek yok.
       if (mounted) await _loadScrubFrames(dir);
     } catch (_) {
       // Bilinçli: kare şeridi süs; yoksa düz şerit, tutamaçlar yine çalışır.
@@ -207,24 +211,105 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     return out;
   }
 
+  /// Şeridin [j]. karesi = tarama ızgarasının hangi dilimi? Dilim ortaları
+  /// çakışır: 12'lik ızgarada (2j+1)/24 = 60'lıkta (10j+5)/120 → i = 5j+2.
+  static int _stripIndex(int j) =>
+      j * (_scrubCount ~/ _stripCount) + (_scrubCount ~/ _stripCount) ~/ 2;
+  static const _stripCount = 12;
+
+  /// **İlk kare gecikmesi** (kullanıcı 2026-11-15: *"ilk önizleme karesi
+  /// uzun süre kalıyor, kaydırınca uzun süre girmiyor"*). Kök: önce 12'lik
+  /// şerit TEK yerel çağrıda (hepsi bitene dek hiç kare yok, 1–3 sn), sonra
+  /// 60'lık tarama baştan çıkarılıyordu; her açılışta yeniden. Şimdi:
+  /// (1) önceki açılıştan kalan kareler (video değişmemişse) anında,
+  /// (2) eksikler 2 → 4 → 6'lık parçalarla, önce şeridin kareleri,
+  /// (3) şerit, kareleri tamamlanınca tarama karelerinden kurulur.
   Future<void> _loadScrubFrames(Directory stripDir) async {
     if (_durationMs <= 0) return;
-    _mergeScrub(_timed(_frames, 12));
-    setState(() => _scrubLoading = true);
-    final order = _spreadOrder(_scrubCount);
     final dir = p.join(stripDir.path, 'tarama');
+    final got = <int, String>{};
     try {
-      for (var i = 0; i < order.length; i += _scrubBatch) {
+      final videoAt = File(widget.path).statSync().modified;
+      for (var i = 0; i < _scrubCount; i++) {
+        final f = File(p.join(dir, 'kare_$i.jpg'));
+        final st = f.statSync();
+        if (st.type == FileSystemEntityType.file &&
+            st.size > 0 &&
+            !st.modified.isBefore(videoAt)) {
+          got[i] = f.path;
+        }
+      }
+    } catch (_) {}
+    if (got.isNotEmpty) {
+      _mergeScrub(_timed(got.values.toList(), _scrubCount));
+      _syncStrip(got);
+    }
+    final strip = [for (final j in _spreadOrder(_stripCount)) _stripIndex(j)];
+    final stripSet = strip.toSet();
+    final order = [
+      ...strip,
+      for (final i in _spreadOrder(_scrubCount))
+        if (!stripSet.contains(i)) i,
+    ].where((i) => !got.containsKey(i)).toList();
+    if (order.isEmpty) return;
+    setState(() => _scrubLoading = true);
+    try {
+      var i = 0;
+      var size = 2;
+      while (i < order.length) {
         if (!mounted) return;
-        final batch = order.sublist(i, min(i + _scrubBatch, order.length));
+        final batch = order.sublist(i, min(i + size, order.length));
+        i += batch.length;
+        size = min(size + 2, _scrubBatch);
         final paths = await VideoTranscoder.frames(widget.path,
             dir: dir, count: _scrubCount, width: 320, indices: batch);
         if (!mounted) return;
+        for (final path in paths) {
+          final m = _kareRe.firstMatch(path);
+          if (m != null) got[int.parse(m.group(1)!)] = path;
+        }
         _mergeScrub(_timed(paths, _scrubCount));
+        _syncStrip(got);
       }
     } finally {
-      if (mounted) setState(() => _scrubLoading = false);
+      if (mounted) {
+        setState(() {
+          _scrubLoading = false;
+          // Bazı kareler çıkarılamadıysa şerit eldekilerle kurulur.
+          if (_frames.length < _stripCount) {
+            _frames = [
+              for (var j = 0; j < _stripCount; j++)
+                if (got[_stripIndex(j)] case final f?) f,
+            ];
+          }
+        });
+      }
     }
+  }
+
+  static Future<void> _pruneFrameDirs(Directory root) async {
+    try {
+      final dirs = [
+        for (final e in root.listSync())
+          if (e is Directory)
+            (e, File(p.join(e.path, '.son')).statSync().modified),
+      ]..sort((a, b) => b.$2.compareTo(a.$2));
+      for (final (d, _) in dirs.skip(5)) {
+        await d.delete(recursive: true);
+      }
+    } catch (_) {}
+  }
+
+  /// Şeridin 12 karesi tamamsa şeridi kurar (bir kez).
+  void _syncStrip(Map<int, String> got) {
+    if (_frames.length == _stripCount) return;
+    final strip = <String>[];
+    for (var j = 0; j < _stripCount; j++) {
+      final f = got[_stripIndex(j)];
+      if (f == null) return;
+      strip.add(f);
+    }
+    setState(() => _frames = strip);
   }
 
   String? _nearestScrubFrame(int ms) {
@@ -496,10 +581,10 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     for (final c in _audio.values) {
       unawaited(c.dispose());
     }
+    // Kareler SİLİNMEZ (2026-11-15): aynı video yeniden açılınca anında
+    // gelsin. Yalnız son 5 videonunki tutulur (~1 MB/video, geçici klasör).
     final dir = _frameDir;
-    if (dir != null) {
-      dir.delete(recursive: true).catchError((Object _) => dir);
-    }
+    if (dir != null) unawaited(_pruneFrameDirs(dir.parent));
     super.dispose();
   }
 
