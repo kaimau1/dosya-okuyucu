@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'disk_housekeeping.dart';
 import 'thumbnail_cache.dart';
+import '../office_zip_guard.dart';
 
 /// **Slayt / Excel / Word dosyalarının liste önizlemesi** (2026-11-04).
 ///
@@ -63,6 +64,8 @@ abstract final class OfficeThumbnail {
     try {
       input = InputFileStream(path);
       final archive = ZipDecoder().decodeStream(input);
+      // G7.3 artığı: dev açılan küçük resim girdisi belleği tüketmesin.
+      OfficeZipGuard.check(archive);
       for (final wanted in _entries) {
         for (final entry in archive.files) {
           if (!entry.isFile || entry.name.toLowerCase() != wanted) continue;

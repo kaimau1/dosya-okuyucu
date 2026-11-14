@@ -360,9 +360,26 @@ class MainActivity : FlutterActivity() {
         val path = intent.getStringExtra(EXTRA_SHORTCUT_PATH)
         // G1.2 (B4): imza yok/yanlış ve yol özel dizindeyse yok say.
         if (path == null || !Extras.pathAccepted(path, intent.getStringExtra(Extras.EXTRA_SIG),
-                Extras.linkKey(applicationContext))) return null
+                Extras.linkKey(applicationContext), ownShortcutPaths())) return null
         pendingShortcutPath = path
         return path
+    }
+
+    /**
+     * G1 artığı: sistemin kayıtlı tuttuğu kendi kısayollarımızın yolları (API 26+:
+     * sabitli kısayollar yalnız `requestPinShortcut` ile — kayıt sistemde). Android 7
+     * eski başlatıcı yayınını sayamaz → null (eski imzasız kol).
+     */
+    private fun ownShortcutPaths(): Set<String>? {
+        if (Build.VERSION.SDK_INT < 26) return null
+        return try {
+            val m = getSystemService(ShortcutManager::class.java) ?: return null
+            (m.pinnedShortcuts + m.dynamicShortcuts)
+                .mapNotNull { it.intent?.getStringExtra(EXTRA_SHORTCUT_PATH) }
+                .toSet()
+        } catch (e: Exception) {
+            null
+        }
     }
 
     /**

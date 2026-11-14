@@ -1204,3 +1204,10 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Tarihe göre sıralı: "Bugün · Bu hafta …" başlığı kaydırırken üstte yapışık; grup bitince bir sonraki iter. Izgarada da aynı. Hızlı kaydırıcı ve basılı tutup sürükleyerek seçim hâlâ doğru satırı seçiyor.
 - [ ] Uzun basış: satır hafifçe içe çöker + titreşim; ⋮ soluk ama dokununca açılıyor.
 - [ ] Arapça (RTL): boyut solda hizalı, başlıklar sağdan.
+
+## Güvenlik P15 — kod artıkları (2026-11-14, dal `faz-oto-P15-guvenlik`; yazıldı, cihazda doğrulanmadı)
+- [ ] G6.5 yapay zekâ sesi: Antalia ve EMA ile birer paragraf okut — ses geliyor mu (sunucu artık rastgele önek altında; EMA çalışanına önek sunarken ekleniyor). Önceden kurulu ses de çalışmalı (yeniden indirme yok).
+- [ ] G9.9 ses indirme: kurulu olmayan bir sesi indir → kurulum bitiyor mu (sabit commit + SHA-256 doğrulaması; tutmazsa "doğrulanamadı" hatası).
+- [ ] G1 kısayol: ESKİ sürümde sabitlenmiş ana ekran dosya kısayolu (imzasız) bu sürümde de açılıyor mu (Android 8+: sistemin kayıtlı kısayol listesinden kabul). Yeni sabitlenen kısayol da açılmalı.
+- [ ] G7.3: büyük bir .xlsx / .docx / .pptx düzenleyip kaydet — kaydetme eskisi gibi çalışıyor mu.
+- [ ] G7.4: .xlsm ya da .docm aç → ileti "makrolar çalıştırılmaz; kaydedince dosyada kalır"; düzenleyip kaydet → bilgisayarda Excel/Word'de makro duruyor mu.

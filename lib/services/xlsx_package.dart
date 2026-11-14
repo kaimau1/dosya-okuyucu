@@ -7,6 +7,7 @@ import 'package:xml/xml.dart';
 import 'formula_engine.dart';
 import 'sheet_structure.dart';
 import 'xlsx_reader.dart';
+import 'office_zip_guard.dart';
 
 /// Bir sayfanın kaydedilecek içeriği — [XlsxPackageWriter]'ın girdisi.
 ///
@@ -83,7 +84,7 @@ class XlsxPackageWriter {
     final files = <String, List<int>>{};
     final order = <String>[];
     if (source.isNotEmpty) {
-      for (final f in ZipDecoder().decodeBytes(source).files) {
+      for (final f in OfficeZipGuard.decode(source).files) {
         if (!f.isFile) continue;
         files[f.name] = f.content as List<int>;
         order.add(f.name);

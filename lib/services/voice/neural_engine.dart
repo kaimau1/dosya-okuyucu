@@ -86,11 +86,11 @@ class NeuralVoiceEngine {
     await WebViewGuard.harden(controller);
     await controller.setNavigationDelegate(NavigationDelegate(
         onNavigationRequest:
-            WebViewGuard.navigationLock('${server.origin}/')));
+            WebViewGuard.navigationLock(server.base)));
     await controller.addJavaScriptChannel('Ses', onMessageReceived: (m) {
       if (WebViewGuard.acceptMessage(m.message)) engine._onMessage(m.message);
     });
-    await controller.loadRequest(Uri.parse('${server.origin}/engine.html'));
+    await controller.loadRequest(Uri.parse('${server.base}engine.html'));
     return engine;
   }
 

@@ -48,5 +48,9 @@ fun main() {
     check("imzasız ../ red", !Extras.pathAccepted("/storage/emulated/0/../../data/a", null, key))
     check("imzasız Android/data red", !Extras.pathAccepted("/storage/emulated/0/Android/data/x/a", null, key))
     check("imzasız eski kısayol (ortak depolama) kabul", Extras.pathAccepted("/storage/emulated/0/Download/a.pdf", null, key))
+    val own = setOf("/storage/emulated/0/Download/a.pdf")
+    check("imzasız kayıtlı kısayol kabul", Extras.pathAccepted("/storage/emulated/0/Download/a.pdf", null, key, own))
+    check("imzasız kayıtsız yol red (API 26+)", !Extras.pathAccepted("/storage/emulated/0/Download/b.pdf", null, key, own))
+    check("imzalı kayıtsız yol kabul", Extras.pathAccepted("/storage/emulated/0/Download/b.pdf", Extras.hmacHex(key, "/storage/emulated/0/Download/b.pdf"), key, own))
     println("Extras denemesi temiz.")
 }

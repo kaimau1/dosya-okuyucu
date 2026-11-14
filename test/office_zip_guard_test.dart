@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -99,5 +100,22 @@ void main() {
     // … ama `archive` paketi açmayı başlıktaki boyutla keser (4.6: maxOutputSize
     // = uncompressedSize) → 4 MB belleğe hiç açılmaz, hata FormatException.
     expect(() => archive.files.first.content, throwsA(isA<FormatException>()));
+  });
+
+  test('G7.3 artığı: Office yazıcı/yama yolları da sınırdan geçer (bekçi)', () {
+    // Ham `ZipDecoder().decodeBytes` yalnız sınırın kendisinde ve yalnız ad
+    // okuyan tür koklamasında kalır; yeni yol `OfficeZipGuard.decode` kullanmalı.
+    const allowed = {
+      'lib/services/office_zip_guard.dart',
+      'lib/services/file_service.dart',
+    };
+    final bad = <String>[];
+    for (final e in Directory('lib').listSync(recursive: true)) {
+      if (e is! File || !e.path.endsWith('.dart')) continue;
+      final path = e.path.replaceAll(r'\', '/');
+      if (allowed.contains(path)) continue;
+      if (e.readAsStringSync().contains('ZipDecoder().decodeBytes(')) bad.add(path);
+    }
+    expect(bad, isEmpty);
   });
 }
