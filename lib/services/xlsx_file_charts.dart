@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:xml/xml.dart';
 
 import 'pptx_render.dart';
+import 'office_zip_guard.dart';
 
 /// Dosyada ZATEN bulunan bir grafik (Faz 27 kalanı: "dosyadaki grafiklerin
 /// ızgarada çizimi"). Konum hücre cinsinden (0 tabanlı, `to` dahil değil
@@ -36,7 +37,7 @@ abstract final class XlsxFileCharts {
   static List<XlsxFileChart> read(Uint8List bytes) {
     if (bytes.isEmpty) return const [];
     try {
-      return _read(ZipDecoder().decodeBytes(bytes));
+      return _read(OfficeZipGuard.decode(bytes));
     } catch (_) {
       // Bilinçli: grafik okunamazsa ızgara grafiksiz açılır.
       return const [];

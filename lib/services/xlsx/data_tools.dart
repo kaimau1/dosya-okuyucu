@@ -7,11 +7,11 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
 
 import '../csv_codec.dart';
 import '../text_decode.dart';
+import '../office_zip_guard.dart';
 
 /// Sütunun önizlemedeki türü.
 enum ColumnType { text, number, date, empty }
@@ -81,7 +81,7 @@ abstract final class SheetImport {
   /// satır/hücre (`number-*-repeated`) açılır; sondaki boşluk yinelemeleri
   /// (dosya sonuna dek uzanan biçim satırları) kırpılır.
   static Map<String, List<List<String>>> parseOds(Uint8List bytes) {
-    final zip = ZipDecoder().decodeBytes(bytes);
+    final zip = OfficeZipGuard.decode(bytes);
     final content = zip.files.where((f) => f.name == 'content.xml').firstOrNull;
     if (content == null) throw const FormatException('content.xml yok');
     final doc = XmlDocument.parse(

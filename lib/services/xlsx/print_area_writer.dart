@@ -8,6 +8,7 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
+import '../office_zip_guard.dart';
 
 /// Sayfa sırası [index] (localSheetId), adı ve aralığı (`A1:D20`; null = sil).
 class XlsxPrintAreaSpec {
@@ -32,7 +33,7 @@ abstract final class XlsxPrintAreaWriter {
 
   static Uint8List apply(Uint8List xlsx, List<XlsxPrintAreaSpec> specs) {
     if (specs.isEmpty) return xlsx;
-    final archive = ZipDecoder().decodeBytes(xlsx);
+    final archive = OfficeZipGuard.decode(xlsx);
     final wbFile =
         archive.files.where((f) => f.name == 'xl/workbook.xml').firstOrNull;
     if (wbFile == null) return xlsx;

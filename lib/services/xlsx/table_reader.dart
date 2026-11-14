@@ -10,6 +10,7 @@ import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
 
 import '../xlsx_reader.dart' show XlsxRange;
+import '../office_zip_guard.dart';
 
 class XlsxFileTable {
   final String name;
@@ -39,7 +40,7 @@ abstract final class XlsxTableReader {
 
   static List<XlsxFileTable> _read(Uint8List xlsx) {
     final files = <String, ArchiveFile>{
-      for (final f in ZipDecoder().decodeBytes(xlsx).files)
+      for (final f in OfficeZipGuard.decode(xlsx).files)
         if (f.isFile) f.name: f,
     };
     if (!files.keys.any((n) => n.startsWith('xl/tables/'))) return const [];

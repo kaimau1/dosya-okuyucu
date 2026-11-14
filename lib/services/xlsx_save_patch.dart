@@ -6,6 +6,7 @@ import 'package:xml/xml.dart';
 
 import '../core/excel_format.dart' show builtinNumberFormats;
 import 'xlsx_reader.dart' show XlsxDataValidation, XlsxRange;
+import 'office_zip_guard.dart';
 
 /// Bir sayfa için kaydetme sonrası düzeltilecek nitelikler.
 ///
@@ -412,7 +413,7 @@ class XlsxSavePatch {
     final todo = patches.where((p) => !p.isEmpty).toList();
     if (todo.isEmpty) return bytes;
     try {
-      final archive = ZipDecoder().decodeBytes(bytes);
+      final archive = OfficeZipGuard.decode(bytes);
       final targets = _sheetTargets(archive);
       if (targets.isEmpty) return bytes;
 

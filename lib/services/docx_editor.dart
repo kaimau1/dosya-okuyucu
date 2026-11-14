@@ -7,6 +7,7 @@ import 'package:xml/xml.dart';
 
 import '../core/edit/save_coordinator.dart';
 import 'zip_carry.dart';
+import 'office_zip_guard.dart';
 
 part 'docx/live_edit.dart';
 
@@ -234,7 +235,7 @@ class DocxEditor {
   static bool debugOpenedInIsolate = false;
 
   static DocxEditor parse(Uint8List bytes) {
-    final archive = ZipDecoder().decodeBytes(bytes);
+    final archive = OfficeZipGuard.decode(bytes);
     final docFile = archive.files.firstWhere(
       (f) => f.name == 'word/document.xml',
       orElse: () => throw const FormatException('document.xml bulunamadı'),

@@ -12,6 +12,7 @@ import 'pptx/pro/pptx_deck_ops.dart';
 import 'pptx_render.dart';
 import 'pptx_rich_text.dart';
 import 'zip_carry.dart';
+import 'office_zip_guard.dart';
 
 part 'pptx_objects.dart';
 
@@ -113,7 +114,7 @@ class PptxEditor {
       _firstOrNull(_presentation?.findAllElements('p:sldIdLst') ?? const []);
 
   static PptxEditor parse(Uint8List bytes) {
-    final archive = ZipDecoder().decodeBytes(bytes);
+    final archive = OfficeZipGuard.decode(bytes);
     final render = PptxRender(archive);
     final contentTypes = _tryParse(archive, '[Content_Types].xml');
     final presentation = _tryParse(archive, 'ppt/presentation.xml');

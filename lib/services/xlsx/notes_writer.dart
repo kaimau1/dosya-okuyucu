@@ -16,6 +16,7 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
+import '../office_zip_guard.dart';
 
 /// Bir sayfanın not düzenlemeleri: (satır, sütun) → metin (null = sil).
 class XlsxNoteEdits {
@@ -40,7 +41,7 @@ class XlsxNotesWriter {
     try {
       final files = <String, List<int>>{};
       final order = <String>[];
-      for (final f in ZipDecoder().decodeBytes(bytes).files) {
+      for (final f in OfficeZipGuard.decode(bytes).files) {
         if (!f.isFile) continue;
         files[f.name] = f.content as List<int>;
         order.add(f.name);

@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:xml/xml.dart';
 
 import 'xlsx_reader.dart' show XlsxRange;
+import 'office_zip_guard.dart';
 
 /// Eklenebilen grafik türleri (PPTX çizicisinin desteklediklerinin aynısı —
 /// önizleme `ChartPainter` ile çizilir).
@@ -219,7 +220,7 @@ abstract final class XlsxChartWriter {
     if (charts.isEmpty) return xlsx;
     final files = <String, List<int>>{};
     final order = <String>[];
-    for (final f in ZipDecoder().decodeBytes(xlsx).files) {
+    for (final f in OfficeZipGuard.decode(xlsx).files) {
       if (!f.isFile) continue;
       files[f.name] = f.content as List<int>;
       order.add(f.name);
@@ -710,7 +711,7 @@ abstract final class XlsxTableWriter {
     if (valid.isEmpty) return xlsx;
     final files = <String, List<int>>{};
     final order = <String>[];
-    for (final f in ZipDecoder().decodeBytes(xlsx).files) {
+    for (final f in OfficeZipGuard.decode(xlsx).files) {
       if (!f.isFile) continue;
       files[f.name] = f.content as List<int>;
       order.add(f.name);
@@ -879,7 +880,7 @@ abstract final class XlsxLinkWriter {
     if (links.isEmpty) return xlsx;
     final files = <String, List<int>>{};
     final order = <String>[];
-    for (final f in ZipDecoder().decodeBytes(xlsx).files) {
+    for (final f in OfficeZipGuard.decode(xlsx).files) {
       if (!f.isFile) continue;
       files[f.name] = f.content as List<int>;
       order.add(f.name);
