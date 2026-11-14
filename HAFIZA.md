@@ -998,3 +998,9 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Karar:** görüntü yalnız AYNI sayfa açılırken kullanılır (ad sayfayı taşır; kısa belgede konum kaydedilmez → 1. sayfa açılır, yanlış sayfa gösterilmez). Belge mtime > görüntü mtime → bayat. Kasa/özel yol (`PrivateZone`) ve parola girilmiş belgede saklanmaz (şifresiz önbelleğe içerik düşmesin).
 - **Yapı (H8.5):** `VideoEdit.quarterTurns` (saat yönü); döndürme varsa hızlı `trim` değil `edit` yolu (yeniden kodlar). Media3 `ScaleAndRotateTransformation.setRotationDegrees` saat YÖNÜ TERSİ varsayıldı → `360 - derece` (javadoc hatırlanan; jar'da yalnız imza doğrulandı — cihazda yön bakılacak). Kareyi kaydet: yerel `frame` (`getFrameAtTime(OPTION_CLOSEST)` kendi döndürme verisini uygular + Matrix ile düzenleme dönüşü), `<ad>_kare_<dk-sn>.jpg`.
 - **Tuzak (test):** köprü testinde `setSurfaceSize(400×800)` yoksa 800×600 yüzeyde kâğıt boyu kısıtlanır (oran testi kırmızı).
+## 2026-11-14 — Ferrari H9 tablet (oto P10, dal faz-oto-P10-tablet)
+- **Karar:** tablet ölçütü `isTabletWide` (`lib/core/tablet.dart`: genişlik ≥ 840 VE kısa kenar ≥ 600) — telefon yatayda false; H9 geniş ekran dalları (gezinme sütunu, sürükle-bırak) telefonda kurulmaz.
+- **Bug kökü (H9.2):** geniş ↔ dar düzende liste anahtarsız yer değiştirince kaydırma sıfırlanıyordu → GlobalKey (gezgin liste sütunu, `HomeScreen` sekme yığını, çift bölme bölmeleri).
+- **Yapı (H9.1):** `HomeNavColumn` sekme kimlikleri `NavTabs` ile aynı; sütundan açılan (çubukta olmayan) sekme yığının sonuna eklenir, kurulmuşsa dar düzende de durur.
+- **Yapı (H9.3):** kalem ekranı `_stylus` kipi: kalem görülünce parmak çizmez (tek parmak kaydırır), kalem basılıyken (`_penDown`) parmak/avuç izlenmez. Eski kök: avuç = ikinci parmak → darbe iptal.
+- **Karar (H9.5, sabah bakılacak):** çift bölmede bırakma = kopya (taşıma değil). Başka uygulamaya bırakma yok — eklenti gerekir.

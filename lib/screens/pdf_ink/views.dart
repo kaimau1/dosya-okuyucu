@@ -116,8 +116,8 @@ extension _PdfInkScreenViewsPart on _PdfInkScreenState {
                       behavior: HitTestBehavior.opaque,
                       onPointerDown: (e) => _onDown(e, fitted),
                       onPointerMove: (e) => _onMove(e, fitted),
-                      onPointerUp: (_) => _onUp(fitted),
-                      onPointerCancel: (_) => _onUp(fitted),
+                      onPointerUp: (e) => _onUp(e, fitted),
+                      onPointerCancel: (e) => _onUp(e, fitted),
                     ),
                   ),
                 if (_tool == InkTool.text)

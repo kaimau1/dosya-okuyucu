@@ -158,6 +158,11 @@ class _BrowserScreenState extends State<BrowserScreen> {
   /// sürükleyerek seçimde kenara gelince otomatik kaydırma bunu kullanır.
   final ScrollController _scroll = ScrollController();
 
+  /// Liste sütunu geniş (yan bölmeli) ↔ dar düzen arasında AĞAÇTA YER
+  /// DEĞİŞTİRİR; anahtarsız taşınınca kaydırma konumu ve liste durumu
+  /// sıfırlanıyordu (tablet döndürünce başa atlama — Ferrari H9.2).
+  final GlobalKey _listColumnKey = GlobalKey();
+
   bool get _selecting => _selected.isNotEmpty;
 
   /// Vurgulanan dosya ([BrowserScreen.focusPath]); süre dolunca null.
@@ -240,6 +245,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     final wide = MediaQuery.sizeOf(context).width >= 840;
 
     final listColumn = Column(
+      key: _listColumnKey,
       children: [
         FmPathBar(
           path: widget.path,

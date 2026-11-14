@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:path/path.dart' as p;
@@ -138,6 +139,13 @@ class _PdfInkScreenState extends State<PdfInkScreen> {
   /// Ekrandaki parmak sayısı: ikinci parmak gelirse çizim iptal
   /// (yakınlaştırma hareketi).
   int _pointers = 0;
+
+  /// **Kalem kipi** (Ferrari H9.3): bir kez kalem (stylus) dokunduysa çizim
+  /// araçlarında YALNIZ kalem çizer, parmak tek dokunuşla kaydırır / sayfa
+  /// çevirir. Kalem ekrandayken ([_penDown] > 0) parmak/avuç hiç sayılmaz
+  /// (avuç içi reddi). Kalemsiz cihazda (telefon) hiç açılmaz: davranış aynı.
+  bool _stylus = false;
+  int _penDown = 0;
 
   /// Silgi sürüklemesi başlamadan önceki durum — tek geri al adımı olsun.
   List<PdfMark>? _eraseStart;

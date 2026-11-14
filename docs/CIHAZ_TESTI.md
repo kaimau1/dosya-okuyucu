@@ -1240,3 +1240,10 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] B3.3c Fotoğraflar ızgarası 4.–5. savurma donması: `dumpsys SurfaceFlinger --latency <katman>` ile gerçek mi kaydedici artığı mı (telefon bu turda başka ölçümdeydi — yapılmadı).
 - [ ] Soğuk açılış ≤ 1,2 sn: `am start -W` TotalTime ×5 (Mi Note 10 Lite).
 - [ ] H6.4: klasöre dosya yapıştır / yeni klasör oluştur → yeni satır bir an vurgulanıp sönüyor mu; "animasyonları kaldır" açıkken vurgu yok; 2.000+ öğeli klasörde vurgu yok.
+## Ferrari H9 — Tablet (2026-11-14, dal faz-oto-P10-tablet) — tablet gerekir
+- [ ] Yatay tablet (≥ 840 dp): ana ekranda solda gezinme sütunu; Son açılanlar / bir kategori → sağda açılıyor, sütun yerinde. Sütun simgesi → daralıyor (yalnız simgeler, basılı tutunca ad); depolama → gezgin.
+- [ ] Döndür (yatay ↔ dikey): sütun gidip geliyor, açık sayfa ve kaydırma yeri korunuyor; gezgin ve çift bölmede liste başa atlamıyor.
+- [ ] Telefon (dikey + yatay): ana ekran ESKİSİ gibi — sütun yok.
+- [ ] Kalem ekranı (PDF › Kalemle düzenle) kalemle: kalem çiziyor; çizerken avuç ekrana değince çizgi bozulmuyor; parmakla tek dokunuş kaydırıyor/sayfa çeviriyor, çizmiyor. Kalemsiz telefonda parmak çizmeye devam ediyor.
+- [ ] Büyük metin dosyası (çok MB'lık .txt/.log) tablette ortalı, okunur genişlikte.
+- [ ] Çift bölme (tablet): dosyayı basılı tutup seç → sağda tutamaç; tutamacı öbür bölmeye sürükle → öbür bölme çerçevelenir, bırakınca kopyalanır (kaynak yerinde).

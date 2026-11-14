@@ -347,11 +347,16 @@ ses sırası). Cihaz turu `CIHAZ_TESTI.md` "Video düzenle".
 
 **Önce bak:** `lib/screens/fm/dual_pane_screen.dart`, `browser_screen.dart`, `lib/core/display_mode.dart`, body.dart `_withPdfSidePanel`, HAFIZA "tablet".
 
-- [ ] H9.1 ≥ 840 dp: solda kalıcı gezinme sütunu (Son dosyalar, kategoriler, depolamalar — Samsung görüntüsündeki gibi), sağda içerik. Sütun daraltılabilir.
-- [ ] H9.2 Yatay/dikey dönüşte konum ve seçim korunur; düzen atlamaz.
-- [ ] H9.3 Kalem: kalem dokunuşu çizer/seçer, parmak kaydırır (PDF işaretleme açıkken). Avuç içi reddi (doğrulanmadı: mevcut davranış).
-- [ ] H9.4 Belge görüntüleyicide içerik genişliği sınırı: metin belgelerinde satır ≤ ~80 karakter, ortalanmış.
-- [ ] H9.5 Sürükle-bırak: bölmeler arası dosya taşıma; başka uygulamaya bırakma (var mı doğrula).
+- [x] H9.1 ≥ 840 dp: solda kalıcı gezinme sütunu (Son dosyalar, kategoriler, depolamalar — Samsung görüntüsündeki gibi), sağda içerik. Sütun daraltılabilir.
+      **2026-11-14 (P10):** ölçüt `lib/core/tablet.dart` `isTabletWide` (genişlik ≥ 840 VE kısa kenar ≥ 600 — telefon yatayda false). `HomeNavColumn` (280 / daraltınca 72 dp simge): pano · son açılanlar · yeni · indirilenler · 6 kategori · depolamalar; seçilen sayfa `HomeScreen` sekme yığınında sağda açılır, depolama gezgini iter. Daraltma oturumluk (kaydedilmez).
+- [x] H9.2 Yatay/dikey dönüşte konum ve seçim korunur; düzen atlamaz.
+      **2026-11-14 (P10):** kök neden: geniş ↔ dar düzende liste ağaçta anahtarsız yer değiştiriyor → kaydırma sıfır. GlobalKey: gezgin liste sütunu, ana kabuk sekme yığını, çift bölme bölmeleri. Test `tablet_h9_test`.
+- [x] H9.3 Kalem: kalem dokunuşu çizer/seçer, parmak kaydırır (PDF işaretleme açıkken). Avuç içi reddi (doğrulanmadı: mevcut davranış).
+      **2026-11-14 (P10):** önceki davranış: ikinci dokunuş (avuç) darbeyi iptal ediyordu (`pdf_ink/input.dart` `_pointers > 1`). Şimdi kalem bir kez görülünce çizim araçlarında yalnız kalem çizer, parmak tek dokunuşla kaydırır/sayfa çevirir, kalem ekrandayken parmak sayılmaz. Kapsam: kalem ekranı (`PdfInkScreen`); PDF Pro düzenleyici dokunulmadı. Cihazda doğrulanmadı (tablet yok).
+- [x] H9.4 Belge görüntüleyicide içerik genişliği sınırı: metin belgelerinde satır ≤ ~80 karakter, ortalanmış.
+      **2026-11-14 (P10):** metin/kod/Word sayfası zaten 820 dp; eksik olan dev metin (`LargeTextView`) → 820 dp ortalı (kaydırma çubuğu kenarda, telefonda dolgu aynı).
+- [x] H9.5 Sürükle-bırak: bölmeler arası dosya taşıma; başka uygulamaya bırakma (var mı doğrula).
+      **2026-11-14 (P10):** çift bölmede (yalnız tablet) seçili satırın tutamacı karşı bölmeye bırakılınca **kopyalar** (en güvenli; taşıma düğmeyle — **sabah bakılacak** `KONTROL_LISTEM.md` 33). Başka uygulamaya bırakma YOK (doğrulandı: sistem sürükle-bırak kodu yok; eklenti gerekir → `KALANLAR`).
 
 ---
 

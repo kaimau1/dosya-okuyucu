@@ -9,6 +9,7 @@ import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 
 import '../core/app_state.dart';
 import '../core/l10n/app_strings.dart';
+import '../core/tablet.dart';
 import 'app_links.dart';
 import '../core/snack.dart';
 import '../models/download_task.dart';
@@ -18,6 +19,7 @@ import '../services/fm/entry_opener.dart';
 import '../services/fm/incoming_files.dart';
 import '../services/fm/media_library.dart';
 import '../services/fm/nav_tabs.dart';
+import '../widgets/fm/home_nav_column.dart';
 import '../widgets/fm/home_quick_row.dart';
 import '../widgets/fm/job_progress_bar.dart';
 import '../services/fm/fm_env.dart';
@@ -86,6 +88,14 @@ class _HomeScreenState extends State<HomeScreen> {
   /// İndirilenler klasörünün tamamını taramasın, galeri yüklenmesin).
   final Set<String> _built = {NavTabs.home};
   StreamSubscription<List<SharedMediaFile>>? _intentSub;
+
+  /// Tablet gezinme sütunu daraltıldı mı (H9.1; oturumluk, kaydedilmez).
+  bool _navCollapsed = false;
+
+  /// Sekme yığını tablette sütunlu ↔ sütunsuz düzen arasında ağaçta yer
+  /// değiştirir (döndürünce); anahtarsız taşınınca her sekmenin kaydırma /
+  /// seçim durumu sıfırlanırdı (Ferrari H9.2). Telefonda yer hiç değişmez.
+  final GlobalKey _stackKey = GlobalKey();
 
   /// Açılışta "başlangıç klasörü" YALNIZ BİR KEZ açılır.
   ///
@@ -160,8 +170,12 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     final tabs = NavTabs.instance.tabs;
     setState(() {
-      if (!tabs.contains(_tab)) _tab = NavTabs.home;
-      _built.retainAll(tabs);
+      // Tablet sütununun sekmeleri çubukta olmasa da açık kalabilir (H9.1).
+      if (!tabs.contains(_tab) && !HomeNavColumn.ids.contains(_tab)) {
+        _tab = NavTabs.home;
+      }
+      _built.retainWhere(
+          (id) => tabs.contains(id) || HomeNavColumn.ids.contains(id));
       _built.add(NavTabs.home);
     });
   }
@@ -286,13 +300,24 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _scaffold(BuildContext context) {
-    final tabs = NavTabs.instance.tabs;
+    // **Tablet** (Ferrari H9.1, ≥ 840 dp): solda kalıcı gezinme sütunu.
+    // Telefonda (yatay dahil) `wide` hep false → sütun KURULMAZ, yığın
+    // telefondakiyle aynı (HIZ SÖZLEŞMESİ).
+    final wide = isTabletWide(MediaQuery.sizeOf(context));
+    final userTabs = NavTabs.instance.tabs;
+    // Sütundan açılan (çubukta olmayan) sekmeler yığının sonuna eklenir;
+    // kurulmuşlar dar düzende de durur (döndürünce durum kaybolmasın).
+    final tabs = [
+      ...userTabs,
+      for (final id in HomeNavColumn.ids)
+        if (!userTabs.contains(id) && (wide || _built.contains(id))) id,
+    ];
     final index = tabs.indexOf(_tab);
     final onHome =
         (tabs.isEmpty ? NavTabs.home : tabs[index < 0 ? 0 : index]) ==
             NavTabs.home;
-    return Scaffold(
-      body: IndexedStack(
+    final stack = IndexedStack(
+        key: _stackKey,
         index: index < 0 ? 0 : index,
         children: [
           // Anahtar = sekme kimliği: çubuk yeniden dizilince her ekran kendi
@@ -309,7 +334,25 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
         ],
-      ),
+      );
+    return Scaffold(
+      body: wide
+          ? Row(children: [
+              HomeNavColumn(
+                selected: _tab,
+                collapsed: _navCollapsed,
+                onToggle: () => setState(() => _navCollapsed = !_navCollapsed),
+                onSelect: (id) => setState(() {
+                  _tab = id;
+                  _built.add(id);
+                }),
+                onVolume: (path) => Navigator.of(context)
+                    .push(browserRoute(BrowserScreen(path: path))),
+              ),
+              const VerticalDivider(width: 1),
+              Expanded(child: stack),
+            ])
+          : stack,
       // Süren işlerin şeridi gezinme çubuğunun **üstünde**: kullanıcı hangi
       // sekmede olursa olsun "yer aç / boyut düşür / benzer ara" işinin nerede
       // olduğunu görür ve iptal edebilir (istek 2026-07-29: işlemler arka
