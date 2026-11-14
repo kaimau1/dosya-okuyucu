@@ -5,6 +5,7 @@ import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart' show SchedulerBinding, SchedulerPhase;
 import 'package:flutter/services.dart'
     show
         Clipboard,
@@ -489,6 +490,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   /// Okurken durum çubuğu da gizlensin (H3.6; tercih `pdf_hide_status`).
   bool _hideStatusBar = false;
+
+  /// Sayfa rozeti (N / toplam) görünür mü (H3.7): yalnız kaydırırken ve
+  /// durduktan sonra [Motion.badgeLinger] kadar; sonra solar.
+  bool _pageBadgeOn = true;
+  Timer? _pageBadgeTimer;
   bool _pagedZoomed = false;
   int _pagedPointers = 0;
   bool _pagedMulti = false;
@@ -508,6 +514,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final ty = m.getTranslation().y;
     final zoom = m.getMaxScaleOnAxis();
     _trackPagedZoom(zoom);
+    _pokePageBadge();
     final pTy = _pdfLastTy, pZoom = _pdfLastZoom;
     _pdfLastTy = ty;
     _pdfLastZoom = zoom;
@@ -844,6 +851,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     unawaited(ReadingPositions.save());
     _recordPdfZoom();
     _formOfferTimer?.cancel();
+    _pageBadgeTimer?.cancel();
     _pdfBridgeTimer?.cancel();
     _pdfController.removeListener(_onPdfMatrix);
     // Kaydedilmemiş düzenleme varsa çökme kaydı kalır (yeniden açılışta sunulur).

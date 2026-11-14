@@ -1,7 +1,8 @@
 part of '../viewer_screen.dart';
 
 /// **PDF okuma konforu** (Ferrari H3, 2026-11-14): çift dokunma, akıllı
-/// yakınlaştırma, görsel kipi, kenar boşluğu kırpma, sayfa sayfa geçiş. Hesap saf serviste ([PdfReadingZoom]); sayfa nesneleri
+/// yakınlaştırma, görsel kipi, kenar boşluğu kırpma, sayfa sayfa geçiş,
+/// kaydırırken beliren sayfa rozeti. Hesap saf serviste ([PdfReadingZoom]); sayfa nesneleri
 /// PDF Pro'nun okumasından ([PdfEditBridge.content]) — yeniden yazılmadı.
 /// Burada yalnız görüntüleyiciye bağlantı.
 extension _ViewerScreenPdfComfortPart on _ViewerScreenState {
@@ -309,7 +310,7 @@ extension _ViewerScreenPdfComfortPart on _ViewerScreenState {
     final fit = _pagedFitZoom(_livePdfPage() ?? _pdfPage);
     if (fit == null) return;
     final zoomed = PdfReadingZoom.isZoomedIn(zoom, fit);
-    if (zoomed != _pagedZoomed) _partSetState(() => _pagedZoomed = zoomed);
+    if (zoomed != _pagedZoomed) _matrixSetState(() => _pagedZoomed = zoomed);
   }
 
   /// Kenar dokunuşunun yönü: sağ kenar sonraki (+1), sol önceki (-1), orta 0.
@@ -361,5 +362,32 @@ extension _ViewerScreenPdfComfortPart on _ViewerScreenState {
   void _pagedPointerCancel() {
     _pagedPointers = 0;
     _pagedDownAt = null;
+  }
+
+  // ── Sayfa rozeti (H3.7) ─────────────────────────────────────────────────
+
+  /// Görünüm kıpırdadı (kaydırma, yakınlık, sayfa geçişi): rozet görünür,
+  /// hareket durduktan [Motion.badgeLinger] sonra solar. Zamanlayıcı her
+  /// harekette baştan kurulur; durum yalnız değişince yenilenir.
+  void _pokePageBadge() {
+    _pageBadgeTimer?.cancel();
+    _pageBadgeTimer = Timer(Motion.badgeLinger, () {
+      if (mounted && _pageBadgeOn) _partSetState(() => _pageBadgeOn = false);
+    });
+    if (!_pageBadgeOn && mounted) _matrixSetState(() => _pageBadgeOn = true);
+  }
+
+  /// Matris dinleyicisinden durum yenileme: pdfrx matrisi yerleşim sırasında
+  /// da değiştirebiliyor (düzen değişince yeniden konumlama) — o an
+  /// `setState` hata verir, kare sonuna ertelenir.
+  void _matrixSetState(VoidCallback fn) {
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _partSetState(fn);
+      });
+    } else {
+      _partSetState(fn);
+    }
   }
 }

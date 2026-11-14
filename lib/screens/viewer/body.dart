@@ -257,6 +257,8 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                           _markPdfOpened();
                           // Sayfa sayfa kipi: açılışta sayfa ekrana sığar.
                           if (_pdfPaged) _fitPagedSoon();
+                          // Açılışta sayfa sayısı bir an görünsün (H3.7).
+                          _pokePageBadge();
                           unawaited(_proCheckRecovery());
                           if (widget.startInk && !_inkStarted) {
                             _inkStarted = true;
@@ -371,12 +373,28 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                 ),
                 // Seçim çubuğu açıkken rozet gizli: çubuğun altından yarım
                 // görünüyordu ("1 / 1 · sayfaya git" kartın altına sıkışmıştı).
+                // Ferrari H3.7: rozet yalnız kaydırırken görünür, durunca
+                // [Motion.badgeLinger] sonra solar (sayfaya git ⋮ menüsünde
+                // ve kaydırma tutamacında da var).
                 if (_pageCount > 0 && !_pdfBarShown)
                   ReadingFloat(
                     child: Center(
-                      // Rozet İngilizce/Arapça arayüzde de çevrilmeli — eskiden
-                      // "— sayfaya git" kısmı koda gömülü Türkçeydi.
-                      child: _pageBadge(),
+                      child: ExcludeSemantics(
+                        excluding: !_pageBadgeOn,
+                        child: IgnorePointer(
+                          ignoring: !_pageBadgeOn,
+                          child: AnimatedOpacity(
+                            key: const ValueKey('pdf-page-badge-fade'),
+                            opacity: _pageBadgeOn ? 1 : 0,
+                            duration: Motion.of(context, Motion.medium),
+                            curve: Motion.standard,
+                            // Rozet İngilizce/Arapça arayüzde de çevrilmeli —
+                            // eskiden "— sayfaya git" kısmı koda gömülü
+                            // Türkçeydi.
+                            child: _pageBadge(),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 if (_resumeNotePage case final page?)

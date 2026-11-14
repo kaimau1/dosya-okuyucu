@@ -50,6 +50,10 @@ abstract final class Motion {
   /// PDF'te sayfa çevirir — Ferrari H3.5; jest eşiği, animasyon değil).
   static const quickSwipe = Duration(milliseconds: 600);
 
+  /// Sayfa rozetinin kaydırma durduktan sonra ekranda kalma süresi
+  /// (Ferrari H3.7; sonra solar — zamanlayıcı, animasyon değil).
+  static const badgeLinger = Duration(milliseconds: 1500);
+
   /// Giren öğe (yavaşlayarak durur).
   static const Curve enter = Curves.easeOutCubic;
 
