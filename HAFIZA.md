@@ -892,3 +892,23 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Karar:** ≥ 840 dp yan şerit küçük resimleri `_DeferredPdfThumb` ile gecikmeli (pdfrx tek çizim sırası; ana sayfalar önce). Form uyarısı 6 → 4 sn.
 - **Tuzak:** zamanlayıcı süresi de `Duration(milliseconds:)` yazılınca tasarım bekçisine takılır (yeni dosyada tavan 0) → `Motion.afterOpen` (1,5 sn) / `Motion.thumbDefer` (900 ms) tokenları; kullanılmayan isteğe bağlı parametre `analyze` uyarısıdır (CI kırmızı).
 - **Sırada:** his/görünüm işlerinin tamamı `docs/FERRARI_PLANI.md`.
+
+## 2026-11-14 — Ferrari H1 (PDF açılış) + H8 (videoyu kes)
+- **Karar (H1.1 köprü):** `PdfOpenBridge` görüntüleyicinin ÜSTÜNDE `Stack` katmanı (boy değişmez → pdfrx sayfa başına atlamaz).
+  Kapak yalnız diskte HAZIRSA (`PdfThumbnail.cachedCover`, ÜRETMEZ — pdfium tek işçi, görüntüleyiciyle yarışmasın); boy adayları
+  oturumda istenen boylar + sık boylar; oran PNG IHDR'den. pdfrx'te "ilk sayfa bitmap'i hazır" olayı yok → `onViewerReady` +
+  `Motion.medium` sonra solar; yükleme hatasında `onDocumentLoadFinished(ok=false)` hemen kaldırır (hata yüzünü örtmesin).
+- **Karar (H1.2):** form uyarısı SnackBar değil, üst çubukta İçindekiler'in YERİNE "Formu doldur" (üst çubuk ≤ 3 eylem);
+  İçindekiler o zaman ⋮ Görünüm'de. Devam notu `Motion.noteStay` (3 sn).
+- **Karar (H1.3):** yan şerit varsayılan KAPALI (`pdf_side_panel`), ≥ 840 dp'de üst çubukta düğme; şerit güncel sayfayı
+  ortalar (öğe boyu sayfa oranından hesaplanır — `ListView.builder` kurulmamış öğenin konumunu bilmez).
+- **Tuzak (CI):** `boxShadow: [if (x != null) x]` → `use_null_aware_elements` bilgisi → analyze kırmızı; `[?x]` yaz.
+- **Karar (H8):** kesme Media3 `ClippingConfiguration` + `experimentalSetTrimOptimizationEnabled` (ses kaldırılırken kapalı),
+  efekt YOK → döndürme bilgisi korunur. Çıktı `<ad>_kesit.mp4` (çeviri anahtarı `vtr.suffix`), süre < istenenin %80'i → yarım sayılır.
+  Giriş: dosya işlemleri levhası (oynatıcının ⋮'ı da onu açar; açık oynatıcı duraklatılır). Kare şeridi yerelde
+  `MediaMetadataRetriever` (API ≥ 27 `getScaledFrameAtTime`), geçici klasör ekran kapanınca silinir. Cihazda DENENMEDİ.
+- **Tuzak (zaman çizelgesi):** tutamaç seçimi `onHorizontalDragDown` konumuyla (sürükleme eşiği sonrası konum kısa aralıkta
+  öbür tutamaca yakın düşer). `DragStartBehavior` için ayrı `gestures.dart` içe aktarımı gerekmesin diye kullanılmadı.
+- **Plan düzeltmesi (H4, okunmadan yazılmıştı):** satır simgesi 68 dp kullanıcı kararıydı (2026-08-17 "olabildiğince büyüt") —
+  H4.1'deki 48–56 dp UYGULANMAZ; tarih grupları (H4.5) zaten var (`groupEntries`), yalnız yapışkan değil; tür çipleri
+  2026-10-28'de kullanıcı isteğiyle TEK HAPA toplanmıştı — H4.3 öncesi kullanıcıya sorulmalı (👤).

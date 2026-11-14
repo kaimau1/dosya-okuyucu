@@ -114,18 +114,23 @@ H1, H4, H6, H7, H10 buluttan başlanabilir; H0, H2, H12 cihazsız bitmez.
 `lib/screens/viewer/body.dart` (`PdfViewer.file` ~59, `_withPdfSidePanel` ~556), `lib/widgets/pdf_resume_note.dart`,
 `lib/services/fm/pdf_thumbnail.dart`, `lib/services/fm/entry_opener.dart`, `lib/widgets/pdf_page_frame.dart`.
 
-- [ ] H1.1 **Kapak köprüsü:** belge yüklenene kadar boş zemin yerine dosya listesindeki kapak küçük resmi (varsa `PdfThumbnail`
+- [x] H1.1 **Kapak köprüsü:** belge yüklenene kadar boş zemin yerine dosya listesindeki kapak küçük resmi (varsa `PdfThumbnail`
       önbelleğinden) sayfa çerçevesi içinde, ortalanmış ve yumuşak gösterilir; ilk gerçek sayfa gelince `Motion.short` ile solar.
       Küçük resim yoksa sayfa oranında nötr kâğıt iskeleti. Kabul: açılışta hiçbir karede düz boş ekran yok.
-- [ ] H1.2 **Açılış notlarını tekleştir:** "N. sayfadan devam" hapı + "doldurulabilir form" SnackBar'ı aynı anda çıkmasın.
+- [x] H1.2 **Açılış notlarını tekleştir:** "N. sayfadan devam" hapı + "doldurulabilir form" SnackBar'ı aynı anda çıkmasın.
       Form bilgisi SnackBar olmaktan çıkar → üst çubukta küçük "Form" rozeti/düğmesi (dokununca `_fillPdfForm`). Devam hapı 3 sn.
       Kabul: açılışta en çok bir geçici öğe; alt kenarı kapatan şerit yok.
-- [ ] H1.3 **Yan şerit tercihi:** ≥ 840 dp'de küçük resim şeridi aç/kapa düğmesi (üst çubuk), tercih `SharedPreferences`'ta kalıcı;
+- [x] H1.3 **Yan şerit tercihi:** ≥ 840 dp'de küçük resim şeridi aç/kapa düğmesi (üst çubuk), tercih `SharedPreferences`'ta kalıcı;
       varsayılan **kapalı** (içerik önce). Açıkken güncel sayfa şeritte görünür kalır (kaydırınca şerit de izler).
 - [ ] H1.4 📱 **Son sayfa görüntüsü:** kapanırken görünen sayfanın düşük çözünürlüklü görüntüsü (≤ 200 KB JPEG, yol SHA-1'i adıyla,
       en çok 50 belge, uygulama önbellek dizini) saklanır; yeniden açılışta H1.1 köprüsü kapak yerine bunu kullanır.
       Kasa/özel dosyada **saklanmaz** (`PrivateZone.isPrivatePath`). Kabul: §2 işlem 5'te içerik < 0,3 sn'de görünür.
-- [ ] H1.5 Açılış geçişi: dosya satırından görüntüleyiciye `Motion.medium` ile büyüyen geçiş (bkz. H6.3; burada yalnız PDF).
+- [ ] H1.5 (H6.3 ile birlikte yapılacak — 2026-11-14) Açılış geçişi: dosya satırından görüntüleyiciye `Motion.medium` ile büyüyen geçiş (bkz. H6.3; burada yalnız PDF).
+
+**Durum (2026-11-14):** H1.1–H1.3 yapıldı (dal `ccr-1904fd13-pttu60` → main). Kapak yalnız listede ÜRETİLMİŞSE gelir
+(`PdfThumbnail.cachedCover` üretmez); köprü `onViewerReady` + `Motion.medium` sonra solar (gerçek "ilk bitmap" olayı pdfrx'te
+yok — 📱 cihazda beyaz kare görülürse süre ayarlanır). Form düğmesi İçindekiler'in yerine geçer (üst çubukta en çok 3 eylem).
+H1.4 📱 bekliyor (KALANLAR), H1.5 → H6.3.
 
 **Tuzaklar:** pdfrx boy değişince sayfa başına atlar (HAFIZA 2026-10-23) → köprü `Stack` katmanı olsun, görünüm boyunu değiştirme.
 `_pdfSearcher` yalnız `onViewerReady`'de kurulur. Zamanlayıcılar iptal edilebilir olmalı (§0.6).
@@ -241,14 +246,19 @@ PDF'te çift dokunma **yok gibi — doğrula**), `lib/widgets/pdf_page_navigator
 `lib/models/media_resize.dart`, `lib/widgets/fm/media_resize_sheet.dart`, `lib/screens/fm/media_player_screen.dart`,
 iş sistemi (`lib/screens/fm/jobs_screen.dart`). Örnek arayüz: kullanıcının Google Fotoğraflar ekran görüntüsü (alt şeritte kare önizlemeli zaman çizelgesi, iki tutamaç, "Kaydet").
 
-- [ ] H8.1 **Yerel taraf:** `start` çağrısına `startMs`/`endMs` → `MediaItem.ClippingConfiguration`. Yeniden kodlamasız hızlı kesim için Media3 kırpma iyileştirmesi
+- [x] H8.1 **Yerel taraf:** `start` çağrısına `startMs`/`endMs` → `MediaItem.ClippingConfiguration`. Yeniden kodlamasız hızlı kesim için Media3 kırpma iyileştirmesi
       (`experimentalSetTrimOptimizationEnabled` — sürümde var mı doğrula; yoksa yeniden kodla). Kotlin değişikliği → CI Kotlin denetimi.
-- [ ] H8.2 **Kes ekranı:** üstte video önizleme (oynat/duraklat), altta kare şeridi (10–12 küçük kare, arka planda üretilir), iki tutamaç + süre etiketi
+- [x] H8.2 **Kes ekranı:** üstte video önizleme (oynat/duraklat), altta kare şeridi (10–12 küçük kare, arka planda üretilir), iki tutamaç + süre etiketi
       ("00:12 – 01:05 · 53 sn"). Tutamaç sürüklenirken önizleme o kareye gider; `AppHaptics.step`.
-- [ ] H8.3 **Kaydet:** varsayılan **kopya** (`ad_kesit.mp4`, özgün korunur); iş sistemi üzerinden (ilerleme şeridi + bildirim), bitince "Aç / Paylaş".
-- [ ] H8.4 **Giriş noktaları:** video oynatıcı üst çubuğu "Kes" + dosya uzun basış menüsü "Videoyu kes". Lite/Pro yerleşimi `docs/SURUM_PLANI.md`'ye göre (👤).
-- [ ] H8.5 Aynı ekranda sonra: döndür (90°), sesi kapat, kareyi fotoğraf olarak kaydet — ayrı commit'ler, her biri küçük.
-- [ ] H8.6 Test: süre/aralık doğrulama birim testi; yerel kanal sahte (mock) ile iş akışı testi. Cihaz: 3 farklı video (dikey, 4K, uzun) → `CIHAZ_TESTI.md`.
+- [x] H8.3 **Kaydet:** varsayılan **kopya** (`ad_kesit.mp4`, özgün korunur); iş sistemi üzerinden (ilerleme şeridi + bildirim), bitince "Aç / Paylaş".
+- [x] H8.4 **Giriş noktaları:** video oynatıcı üst çubuğu "Kes" + dosya uzun basış menüsü "Videoyu kes". Lite/Pro yerleşimi `docs/SURUM_PLANI.md`'ye göre (👤).
+- [ ] H8.5 (sesi kapat ✔ 2026-11-14; döndür + kareyi kaydet kaldı) Aynı ekranda sonra: döndür (90°), sesi kapat, kareyi fotoğraf olarak kaydet — ayrı commit'ler, her biri küçük.
+- [x] H8.6 Test: süre/aralık doğrulama birim testi; yerel kanal sahte (mock) ile iş akışı testi. Cihaz: 3 farklı video (dikey, 4K, uzun) → `CIHAZ_TESTI.md`.
+
+**Durum (2026-11-14):** H8.1–H8.4, H8.6 yapıldı. Giriş noktası tek: dosya işlemleri levhası ("Bu dosya" bölümü) —
+oynatıcının ⋮'ı aynı levhayı açtığı için üst çubuğa ayrıca düğme konmadı (oynatıcıda zaten 7 simge var). Kotlin
+`experimentalSetTrimOptimizationEnabled` (Media3 1.5.1) — ses kaldırılırken kapalı. Lite/Pro: `Feature.media` (boyut düşürmeyle aynı, Pro).
+📱 cihaz turu `CIHAZ_TESTI.md` "Ferrari H8".
 
 **Tuzaklar:** HAFIZA "Video küçültmede dikey→yatay bozulması" (döndürme meta verisi); kesimde aynı tuzak. Anahtar kare sınırı: hızlı kesimde başlangıç birkaç kare kayabilir — arayüzde yazma, yalnız kabul et.
 
