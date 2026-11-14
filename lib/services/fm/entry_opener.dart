@@ -224,7 +224,9 @@ abstract final class EntryOpener {
     final busy = _showBusy(context);
     LoadedDoc doc;
     try {
-      doc = await _fileService.load(path);
+      // Excel düzenleyicisi kitabı kendisi ayrıştırır (P12): burada ikinci
+      // bir ayrıştırma açılışı ikiye katlıyordu.
+      doc = await _fileService.load(path, spreadsheetText: false);
     } catch (e) {
       busy.close(); // yükleniyor penceresini kapat
       if (context.mounted) {

@@ -435,6 +435,31 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
   bool _streamPreviewOpen = false;
   int _streamPreviewMb = 0;
 
+  /// AI / çeviri bağlamı. Açılış artık metni hazırlamıyor (P12: ikinci
+  /// ayrıştırma açılışı ikiye katlıyordu) → istenince modelden kurulur;
+  /// biçim `FileService._decodeSpreadsheet` ile aynı (sayfa başlığı + sekmeli
+  /// satırlar, formülde dosyanın sonucu). Kaydedilmemiş düzenlemeler de girer.
+  // ponytail: dokunuşta ana izlekte tam tarama (200 bin hücre ~yüz ms); büyük
+  // kitapta kasarsa sınır ya da izolat.
+  String get _docText {
+    if (widget.plainText.isNotEmpty) return widget.plainText;
+    final e = _editor;
+    if (e == null) return '';
+    final b = StringBuffer();
+    for (final s in e.sheets) {
+      b.writeln('# Sayfa: ${s.name}');
+      for (var r = 0; r < s.rows.length; r++) {
+        final row = s.rows[r];
+        b.writeln([
+          for (var c = 0; c < row.length; c++)
+            row[c].startsWith('=') ? (s.cachedResultAt(r, c) ?? row[c]) : row[c],
+        ].join('\t'));
+      }
+      b.writeln();
+    }
+    return b.toString().trimRight();
+  }
+
   /// Excel sayfa adı kuralı: en çok 31 karakter, `[]:*?/\` yok.
   static String _csvSheetName(String base) {
     final clean = base.replaceAll(RegExp(r'[\[\]:*?/\\]'), '_').trim();
@@ -636,7 +661,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
         kind: DocKind.spreadsheet,
         onPressed: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => ChatScreen(
-            fileContext: widget.plainText,
+            fileContext: _docText,
             fileName: widget.name,
           ),
         )),

@@ -85,7 +85,12 @@ class FileService {
   }
 
   /// Verilen yolu yükleyip [LoadedDoc] üretir.
-  Future<LoadedDoc> load(String path) async {
+  ///
+  /// [spreadsheetText] false: xlsx burada AYRIŞTIRILMAZ (düz metin/tablo boş).
+  /// Excel düzenleyicisi kitabı zaten kendisi ayrıştırıyor; açılışta iki kez
+  /// ayrıştırmak 10 bin × 20 dosyanın açılışını ikiye katlıyordu (P12, HAFIZA
+  /// 2026-11-14). Metni isteyen yollar (AI, arama) varsayılanla çağırır.
+  Future<LoadedDoc> load(String path, {bool spreadsheetText = true}) async {
     final file = File(path);
     final name = p.basename(path);
     final ext = p.extension(path).replaceFirst('.', '').toLowerCase();
@@ -167,6 +172,9 @@ class FileService {
         return LoadedDoc(path: path, name: name, kind: kind, plainText: text);
 
       case DocKind.spreadsheet:
+        if (!spreadsheetText) {
+          return LoadedDoc(path: path, name: name, kind: kind);
+        }
         return _loadSpreadsheet(file, path, name, kind);
 
       case DocKind.pdf:
