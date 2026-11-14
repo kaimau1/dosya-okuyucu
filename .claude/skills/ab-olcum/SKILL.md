@@ -22,6 +22,12 @@ kontrol et" — kök neden testleri yeşil geçen küçük bir arayüz değişik
 > damgaları logcat'te `PDFPRO_PERF faz=acilis_{ekran,belge,ilk_sayfa,kucuk_resim}` (H0.3).
 > Aşağıdaki elle yöntem betik çalışmazsa yedektir.
 
+## Araç farkı (P01b, 2026-11-14)
+
+Isı yanlılığı: eski A,B,A,B sırası B'yi hep 2–3 °C sıcak başlattı (gürültüyle KALDI). Şimdi sıra
+ABBA ABBA…, her koşudan önce pil ilk koşu + 1,5 °C'ye (≤ 33 °C) inene dek beklenir (en çok 20 dk),
+tabloda koşu başı °C sütunu ve taraf ortalaması var; ortalamalar > 1 °C ayrışırsa sonucu şüpheli say.
+
 ## Ne zaman (bağlayıcı)
 
 - **ÖLÇÜM KAPISI:** PDF görüntüleyici (açılış, kaydırma, yakınlaştırma), dosya listesi/ızgara,

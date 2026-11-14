@@ -973,3 +973,4 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Karar (H11.1/H11.2):** PDF üst çubuğu telefonda ≤ 3 + ⋮ (kaydedilmemişken ilk yuva Kaydet, İçindekiler ⋮'ya); belge alt çubuğu ≤ 5 (İndir varken Yazdır ⋮ › Dosya). "Çevir" alt çubukta kalır (2026-07-31 kullanıcı isteği).
 - **Yapı (H11.5):** video denetimleri solar: `_controlsFading` + `_fade()` (IgnorePointer + AnimatedOpacity, opaklık 1'de katman yok); solarken dokunuş = geri getir. Testte `pump(3 sn)` solma başlar, ağaçtan çıkış `Motion.long` sonra.
 - **👤 sabah bakılacak:** galeri alt çubuğu 8 eylem (öneri 5) ve editör üst çubuğu 4 + ⋮ → `KONTROL_LISTEM.md` 24–25; dokunulmadı (geçmiş kullanıcı eklemeleri olabilir).
+- 2026-11-14 **Araç (P01b):** A/B ısı yanlılığı — sıra ABBA ABBA, koşu öncesi pil ilk+1,5 °C (≤33)'e dek bekle (20 dk üst sınır), tabloda koşu başı °C. Kök: A,B,A,B'de B hep 2–3 °C sıcak başlıyordu.
