@@ -42,8 +42,7 @@ extension _NearbyLinks on _NearbyScreenState {
     final ok = await _enableBg();
     if (!mounted) return;
     _update(() => _bgOn = ok);
-    showSnackOn(messenger, strings.t(ok ? 'near.bg_on' : 'near.bg_failed'),
-        duration: const Duration(seconds: 6));
+    showSnackOn(messenger, strings.t(ok ? 'near.bg_on' : 'near.bg_failed'));
   }
 
   // ── QR / web sunucusu ──────────────────────────────────────────────────
@@ -197,7 +196,6 @@ extension _NearbyLinks on _NearbyScreenState {
       ok
           ? strings.t('near.invited', {'name': near.name})
           : strings.t('near.invite_failed', {'name': near.name}),
-      duration: const Duration(seconds: 6),
     );
   }
 }

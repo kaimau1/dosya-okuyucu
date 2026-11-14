@@ -15,6 +15,7 @@ import '../../core/edit/editor_chrome.dart';
 import '../../core/edit/editor_shortcuts.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/snack.dart';
+import '../../core/once_hints.dart';
 import '../../core/theme.dart';
 import '../../core/user_error.dart';
 import '../../models/document.dart';
@@ -254,7 +255,10 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     final ok = await _session.saveNow();
     if (!mounted) return;
     if (ok) {
-      showSnack(context, context.t('common.saved_hint'));
+      // H7.3: "kalıcı yer için…" ipucu bir kez; sonra yalnız "Kaydedildi".
+      final where = await OnceHints.take('save_where');
+      if (!mounted) return;
+      showSnack(context, context.t(where ? 'common.saved_hint' : 'common.saved'));
     } else {
       showSnack(
           context,

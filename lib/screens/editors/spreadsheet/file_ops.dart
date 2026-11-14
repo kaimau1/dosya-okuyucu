@@ -14,8 +14,12 @@ extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
     final ok = await _session.saveNow();
     if (!mounted) return;
     if (ok) {
+      // H7.3: "kalıcı yer için…" ipucu bir kez; sonra yalnız "Kaydedildi".
+      final where =
+          widget.savePath == null && await OnceHints.take('save_where');
+      if (!mounted) return;
       showSnack(context, widget.savePath == null
-            ? context.t('common.saved_hint')
+            ? context.t(where ? 'common.saved_hint' : 'common.saved')
             : context.t('excel.saved_as_xlsx',
                 {'name': p.basename(target)}));
       _partSetState(() {});

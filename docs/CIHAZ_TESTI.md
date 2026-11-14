@@ -1173,6 +1173,13 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Geri al ve listedeki ✕ çalışıyor mu? Kaydet → `<ad>_kesit.mp4`: silinen bölümler yok, sessiz bölge sessiz, eklenen ses doğru saniyede başlıyor mu (dikey video dikey kalıyor mu)?
 - [ ] Hata olursa (özellikle ses eklemede) bildirimdeki hata kodunu not al — Media3 Composition ilk kez cihazda.
 
+## Ferrari H7 — Sadeleştirme (2026-11-14, dal faz-oto-P05-sade)
+- [ ] Dosya sil (çöp kutusu açık): onay penceresi YOK, "N öğe çöp kutusuna taşındı · Geri al" kartı 6 sn; Geri al dosyayı yerine koyuyor. Çöp kutusu kapalıyken (kalıcı silme) onay penceresi HÂLÂ çıkıyor.
+- [ ] Daha önce "Silmeden önce sor"u AÇIK kaydetmiş kurulum: onay yine soruluyor.
+- [ ] Word/Excel/Slayt'ta Kaydet: ilk sefer "Kaydedildi. Kalıcı yer için ⋮ > Paylaş/Dışa aktar.", sonrakiler yalnız "Kaydedildi". PDF Düzenle → Metin: "dokun, yaz" ipucu yalnız ilk girişte; taranmış sayfada açıklama her seferinde. Excel biçim boyacısı ipucu bir kez.
+- [ ] Ayarlar › Hakkında › "İpuçlarını yeniden göster" → yukarıdaki ipuçları ve tarama rehberi yeniden çıkıyor.
+- [ ] USB çıkar, Yakındakiler arka planda alma aç/kapa, davet gönder bildirimleri ~3 sn'de kapanıyor; boyutlandırma ön ayarı kaydet/sil bildirimsiz (çip beliriyor/kayboluyor).
+
 ## Ferrari H6 — Hareket ve dokunuş (2026-11-14, main)
 - [ ] Videoyu düzenle: şeridin ortasından (tutamaçlardan uzak) parmağı kaydır → video kare kare izliyor, beyaz çizgi parmakta, saat soldaki etikette; bırakınca o karede duruyor. Tutamacın üstünden başlayınca yine kırpıyor.
 - [ ] Video oynatıcı üst çubuğu: dosya adı okunur; yalnız altyazı · hız · ⋮; ⋮ içinde A-B tekrar, yüzen pencere, doldur/sığdır, birlikte aç, dosya işlemleri.

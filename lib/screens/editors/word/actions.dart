@@ -61,7 +61,10 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
     // Canlı görünüm DOM'da zaten güncel — yeniden çizim yok, imleç kaybolmaz.
     if (!mounted) return;
     if (ok) {
-      showSnack(context, context.t('common.saved_hint'));
+      // H7.3: "kalıcı yer için…" ipucu bir kez; sonra yalnız "Kaydedildi".
+      final where = await OnceHints.take('save_where');
+      if (!mounted) return;
+      showSnack(context, context.t(where ? 'common.saved_hint' : 'common.saved'));
       _partSetState(() {});
     } else {
       _snack(saveFailed.replaceAll(

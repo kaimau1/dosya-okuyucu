@@ -946,3 +946,9 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Kullanıcı isteği (aynı gün):** video düzenle şeridinde tutamaçtan uzak (> 32 dp) sürükleme = TARAMA (önizleme kare kare, `_seekTo` son konumu birleştirir); tutamaç yakınında başlayan = kırpma. Video oynatıcı üst çubuğu: altyazı · hız · ⋮ (A-B, yüzen pencere, doldur, birlikte aç, dosya işlemleri ⋮'da).
 - **Tuzak (test):** `Matrix4.getMaxScaleOnAxis` z eksenini de sayar; `Transform.scale` z'yi 1 bırakır → küçülme testi `storage[0]` ile okunmalı.
 
+
+## 2026-11-14 — Ferrari H7 (sadeleştirme, oto P05)
+- **Durum:** bildirim tek kaynak (`lib/core/snack.dart`) zaten "aynı anda tek, bilgi 3 sn / düğmeli 6 sn" — H7.1 yalnız istisnaları temizledi (düğmesiz 6 sn bilgi → 3 sn; sonucu görünen ön ayar kaydet/sil bildirimi kaldırıldı). Envanter tablosu `docs/FERRARI_PLANI.md` H7.1.
+- **Yapı (H7.3):** bir kez ipucu = `OnceHints.take(id)` (`hint_once.<id>` bayrağı; okunamazsa gösterir). Ayarlar › Hakkında `hints_reset` hepsini + `scan_tips_shown` sayacını siler. Yeni öğretici bildirim yazarken bunu kullan; durum açıklaması (ör. taranmış sayfa) ipucu DEĞİL, her seferinde.
+- **Karar (H7.4):** `fm_confirm_delete` varsayılanı **false** — çöpe atmada onay yok, "Geri al" kartı var; kayıtlı `true` korunur. Kalıcı silme onayı `needsDeleteConfirm`'de kilitli (değişmedi). Algoritmanın seçtiği toplu çöpe atma (benzer foto, boyutlandırma eskileri) onaylı kaldı.
+- **Kullanıcı kararını koru:** dosya satırı ⋮ levhası (2 sütun, 4 bölüm, 2026-08-29), AI sekme açıklama satırı (2026-11-07), ayarlar ana ekranı (2026-11-07) — H7.2/H7.5 bunları değiştirmez. H7.2 menü kısaltma 👤 onayda (`KONTROL_LISTEM.md` 20).

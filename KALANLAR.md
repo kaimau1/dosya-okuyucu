@@ -180,7 +180,7 @@ Samsung Dosyalarım ile yan yana videoda geride görünmemek (H12 kapısı). Pla
 - [x] H4 Dosya listesi: Samsung düzeyi ☁️ — bitti (2026-11-14); H4.3/H4.4 kullanıcı kararıyla uygulanmaz; cihazda bakış `CIHAZ_TESTI.md` "Ferrari H4"
 - [x] H5 Ana ekran sadeleştirme ☁️ — bitti (2026-11-14): yeni varsayılan sıra son dosyalar · kategoriler · bellek; güncelleme şeridi tek satır; H5.3/H5.4 zaten vardı; cihazda bakış `CIHAZ_TESTI.md` "Ferrari H5"
 - [x] H6 Hareket ve dokunuş ☁️ — bitti (2026-11-14): titreşim kapsamı, basma hâli, görsel → galeri büyüme geçişi, levha bekçisi, Android 14+ öngörülü geri önizlemesi; **H6.4 liste satırı kapanış animasyonu ölçüm turuna** (H2/H12, 2.000+ öğe cihazda); PDF/Office kapsayıcı geçişi H11.3 ile; cihazda bakış `CIHAZ_TESTI.md` "Ferrari H6"
-- [ ] H7 Sadeleştirme: bildirim, menü, ipucu ☁️👤
+- [ ] H7 Sadeleştirme: bildirim, menü, ipucu ☁️👤 — kod bitti (2026-11-14, dal `faz-oto-P05-sade`: H7.1 bildirim envanteri, H7.3 ipuçları bir kez + sıfırla, H7.4 çöpe atmada onay yok, H7.5 doğrulandı); kalan **H7.2 menü kısaltma 👤** (`KONTROL_LISTEM.md` 20) + 📱 `CIHAZ_TESTI.md` "Ferrari H7"
 - [ ] H8 Video kırpma / kesme — kod bitti (2026-11-14, H8.1–H8.4, H8.6); kalan H8.5 döndür + kareyi kaydet, **📱 cihaz turu** `CIHAZ_TESTI.md` "Ferrari H8" + "Video düzenle" (2026-11-14: ara kesimler, bölge sesi kapat/ekle)
 - [ ] H9 Tablet ☁️📱
 - [ ] H10 Boş, yükleniyor, hata durumları ☁️

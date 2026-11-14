@@ -726,6 +726,11 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                 subtitleKey: 'help.tile_sub',
                 builder: _helpTile),
             SettingRow(
+                id: 'hints_reset',
+                titleKey: 'set.hints_reset',
+                subtitleKey: 'set.hints_reset_sub',
+                builder: _hintsResetTile),
+            SettingRow(
               id: 'crash_log',
               titleKey: 'settings.crash_log',
               subtitleKey: 'settings.crash_log_sub',
@@ -879,4 +884,5 @@ Widget _ttsVoiceTile(BuildContext _) => const TtsVoiceTile();
 Widget _ttsAiReadTile(BuildContext _) => const TtsAiReadTile();
 Widget _crashLogTile(BuildContext _) => const CrashLogTile();
 Widget _helpTile(BuildContext _) => const HelpTile();
+Widget _hintsResetTile(BuildContext _) => const HintsResetTile();
 Widget _privacyPolicyTile(BuildContext _) => const PrivacyPolicyTile();

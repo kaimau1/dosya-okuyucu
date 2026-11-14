@@ -471,7 +471,7 @@ class AppState extends ChangeNotifier {
   bool _mediaShuffle = false;
   int _mediaRepeat = 0;
   bool _fmUseTrash = true;
-  bool _fmConfirmDelete = true;
+  bool _fmConfirmDelete = false;
   int _fmTrashAutoDays = 0;
   List<RemoteConnection> _remotes = [];
   TtsPrefs _ttsPrefs = TtsPrefs.defaults;
@@ -524,7 +524,10 @@ class AppState extends ChangeNotifier {
   /// Silme çöp kutusuna mı gitsin (kapalıysa doğrudan kalıcı silme)?
   bool get fmUseTrash => _fmUseTrash;
 
-  /// Silmeden önce onay sorulsun mu?
+  /// Çöpe atmadan önce onay sorulsun mu? (Kalıcı silme HER ZAMAN sorar —
+  /// `needsDeleteConfirm`.) Varsayılan KAPALI (Ferrari H7.4, 2026-11-14):
+  /// çöpe atma "Geri al" kartıyla geri alınır; açıkça açan kullanıcının
+  /// kaydı (`true`) korunur.
   bool get fmConfirmDelete => _fmConfirmDelete;
 
   /// Çöp kutusu kaç günde bir kendini temizlesin (0 = kapalı).
@@ -889,7 +892,7 @@ class AppState extends ChangeNotifier {
     AudioPlayback.persistModes = (shuffle, repeat) =>
         unawaited(setMediaModes(shuffle: shuffle, repeat: repeat));
     _fmUseTrash = _prefs.getBool(_kFmUseTrash) ?? true;
-    _fmConfirmDelete = _prefs.getBool(_kFmConfirmDelete) ?? true;
+    _fmConfirmDelete = _prefs.getBool(_kFmConfirmDelete) ?? false;
     _fmTrashAutoDays = _prefs.getInt(_kFmTrashAutoDays) ?? 0;
     _fmStartFolder = _prefs.getString(_kFmStartFolder) ?? '';
     _peerName = _prefs.getString(_kPeerName) ?? '';
