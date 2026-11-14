@@ -77,6 +77,7 @@ import '../services/voice_note.dart';
 import '../widgets/office_ribbon.dart' show OfficeIcons;
 import '../widgets/download_action.dart';
 import '../widgets/pdf_open_bridge.dart';
+import '../widgets/pdf_image_zoom.dart';
 import '../widgets/tracked_busy.dart';
 import 'pdf_ink_screen.dart';
 import '../widgets/ai_slides_flow.dart';

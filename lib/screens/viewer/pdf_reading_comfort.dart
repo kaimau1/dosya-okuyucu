@@ -1,7 +1,7 @@
 part of '../viewer_screen.dart';
 
-/// **PDF okuma konforu** (Ferrari H3, 2026-11-14): çift dokunma ve akıllı
-/// yakınlaştırma. Hesap saf serviste ([PdfReadingZoom]); sayfa nesneleri
+/// **PDF okuma konforu** (Ferrari H3, 2026-11-14): çift dokunma, akıllı
+/// yakınlaştırma, görsel kipi. Hesap saf serviste ([PdfReadingZoom]); sayfa nesneleri
 /// PDF Pro'nun okumasından ([PdfEditBridge.content]) — yeniden yazılmadı.
 /// Burada yalnız görüntüleyiciye bağlantı.
 extension _ViewerScreenPdfComfortPart on _ViewerScreenState {
@@ -16,6 +16,11 @@ extension _ViewerScreenPdfComfortPart on _ViewerScreenState {
       case PdfViewerGeneralTapType.doubleTap:
         unawaited(_pdfDoubleTapZoom(d.localPosition, d.documentPosition));
         return true;
+      case PdfViewerGeneralTapType.longPress:
+        // Seçim katmanı uzun basışı kendisi ölçer (metin seçimi); burada
+        // yalnız görsel aranır — pdfrx'in varsayılanı değişmesin (false).
+        unawaited(_offerImageZoom(d.documentPosition));
+        return false;
       default:
         return false;
     }
@@ -130,5 +135,46 @@ extension _ViewerScreenPdfComfortPart on _ViewerScreenState {
       // Bilinçli: nesneler okunamadı (bozuk sayfa, belge kapandı) — düz yakınlık.
       return null;
     }
+  }
+
+  /// **Görsel kipi** (H3.3): uzun basılan yerde (sayfayı kaplamayan) bir
+  /// görsel varsa "Görseli büyüt" önerilir; seçilirse görsel siyah zeminde
+  /// tam ekran açılır ([PdfImageZoomScreen]). Görsel bulma PDF Pro'nun nesne
+  /// okumasıyla ([_pdfPageContent]); uzun basış metin seçtiyse öneri yok.
+  Future<void> _offerImageZoom(Offset docPos) async {
+    final doc = _pdfDoc;
+    final c = _pdfController;
+    if (doc == null || !c.isReady || _pro != null) return;
+    final hit =
+        c.getPdfPageHitTestResult(docPos, useDocumentLayoutCoordinates: true);
+    if (hit == null) return;
+    final page = hit.page;
+    final content = await _pdfPageContent(doc, page.pageNumber - 1);
+    if (!mounted) return;
+    if (content == null) return;
+    final item = PdfReadingZoom.imageAt(content, hit.offset.x, hit.offset.y);
+    if (item == null || _pdfSelection.trim().isNotEmpty) return;
+    AppHaptics.step();
+    final go = await showAppActionSheet<bool>(
+      context,
+      groups: [
+        AppActionGroup(actions: [
+          AppAction(
+              value: true,
+              icon: AppIcons.zoomIn,
+              label: context.t('pp.image_zoom'),
+              hint: context.t('pp.image_zoom_hint')),
+        ]),
+      ],
+    );
+    if (!mounted) return;
+    if (go != true) return;
+    final media = MediaQuery.of(context);
+    final screenLong = media.size.longestSide * media.devicePixelRatio;
+    final region = PdfRect(item.left, item.top, item.right, item.bottom);
+    await Navigator.of(context).push(pdfImageZoomRoute(() => renderPdfRegion(
+        page, region,
+        screenLongPx: screenLong,
+        nativePx: math.max(item.pixelWidth, item.pixelHeight))));
   }
 }

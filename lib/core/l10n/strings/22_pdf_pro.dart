@@ -299,4 +299,8 @@ const Map<String, (String, String, String)> _t22 = {
   'pp.date_stamp': ('Tarih damgası', 'Date stamp', 'ختم التاريخ'),
   'pp.sign_here': ('İmzayı sayfaya yerleştir', 'Place signature on a page', 'ضع التوقيع على صفحة'),
   'pp.save_first': ('Önce değişiklikleri kaydet', 'Save your changes first', 'احفظ التغييرات أولًا'),
+  // Ferrari H3 — PDF okuma konforu (2026-11-14).
+  'pp.image_zoom': ('Görseli büyüt', 'Enlarge image', 'تكبير الصورة'),
+  'pp.image_zoom_hint': ('Siyah zeminde tam ekran; aşağı çekince kapanır', 'Full screen on black; pull down to close', 'ملء الشاشة على خلفية سوداء؛ اسحب للأسفل للإغلاق'),
+  'pp.image_zoom_failed': ('Görsel açılamadı', 'Could not open the image', 'تعذّر فتح الصورة'),
 };
