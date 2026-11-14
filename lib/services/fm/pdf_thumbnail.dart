@@ -45,7 +45,71 @@ abstract final class PdfThumbnail {
     _wanted.clear();
     _inFlight.clear();
     _failed.clear();
+    _sizesSeen.clear();
     _dir = null;
+  }
+
+  /// Yalnız test: önbellek klasörünü verir (path_provider testte yok).
+  static void debugUseDir(Directory dir) => _dir = dir;
+
+  /// Bu oturumda istenen kapak boyları (açılış köprüsü bunları arar).
+  static final Set<int> _sizesSeen = <int>{};
+
+  /// Liste/kitaplık ekranlarının sık kullandığı boylar (oturumda henüz
+  /// liste açılmadıysa da önceki oturumun kapağı bulunsun).
+  static const _commonSizes = [512, 420, 256, 160, 128, 112, 96];
+
+  /// **Açılış köprüsü için hazır kapak** (Ferrari H1.1, 2026-11-14).
+  ///
+  /// Görüntüleyici belgeyi yüklerken ekran boş kalmasın diye listede zaten
+  /// üretilmiş kapak gösterilir. **Üretmez:** açılışta pdfium'u
+  /// görüntüleyiciyle yarıştırmak tam da kaçınılan şey. Büyük boydan küçüğe
+  /// aranır; dönen `aspect` = genişlik / yükseklik (PNG başlığından).
+  /// Kapak yoksa ya da okunamazsa null — çağıran nötr kâğıt çizer.
+  static Future<({String path, double aspect})?> cachedCover(
+      String path) async {
+    try {
+      final stat = await File(path).stat();
+      if (stat.type == FileSystemEntityType.notFound) return null;
+      final dir = await _cacheDir();
+      final ms = stat.modified.millisecondsSinceEpoch;
+      final sizes = {..._sizesSeen, ..._commonSizes}.toList()
+        ..sort((a, b) => b.compareTo(a));
+      for (final size in sizes) {
+        final file = File(p.join(
+            dir.path,
+            ThumbnailCache.cacheName(path, ms, size)
+                .replaceAll('.jpg', '.png')));
+        if (!await file.exists()) continue;
+        final aspect = await pngAspect(file);
+        if (aspect != null) return (path: file.path, aspect: aspect);
+      }
+    } catch (_) {
+      // Bilinçli: köprü yalnız görsel yardım; kapak bulunamazsa nötr kâğıt.
+    }
+    return null;
+  }
+
+  /// PNG başlığından (IHDR) genişlik / yükseklik; PNG değilse null.
+  static Future<double?> pngAspect(File file) async {
+    final raf = await file.open();
+    try {
+      final head = await raf.read(24);
+      if (head.length < 24 ||
+          head[0] != 0x89 ||
+          head[1] != 0x50 ||
+          head[2] != 0x4E ||
+          head[3] != 0x47) {
+        return null;
+      }
+      int be(int o) =>
+          (head[o] << 24) | (head[o + 1] << 16) | (head[o + 2] << 8) | head[o + 3];
+      final w = be(16), h = be(20);
+      if (w <= 0 || h <= 0) return null;
+      return w / h;
+    } finally {
+      await raf.close();
+    }
   }
 
   /// [path] PDF'inin kapak küçük resmini döndürür (yoksa üretir).
@@ -53,6 +117,7 @@ abstract final class PdfThumbnail {
   static Future<String?> forPdf(String path,
       {int size = 256, bool Function()? wanted}) {
     if (_failed.contains(path)) return Future.value(null);
+    if (_sizesSeen.length < 16) _sizesSeen.add(size);
     (_wanted[path] ??= []).add(wanted ?? _always);
     final existing = _inFlight[path];
     if (existing != null) return existing;

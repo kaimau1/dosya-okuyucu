@@ -37,6 +37,9 @@ import java.io.File
  * - `probe(path)` → gösterim ölçüsü (döndürme uygulanmış), süre, kare hızı.
  * - `start(path, target, width, height, fps?, bitrate, removeAudio, layout?)` →
  *   bitince `done` / `failed` olayı; arada `progress` (0..100).
+ * - `trim(path, target, startMs, endMs, removeAudio)` → aralığı kesip yazar
+ *   (aynı `done` / `failed` / `progress` olayları).
+ * - `frames(path, count, width, dir)` → kes ekranının kare şeridi.
  * - `cancel()`.
  * Aynı anda tek iş (iş kuyruğu zaten sırayla veriyor).
  */
@@ -63,6 +66,17 @@ object MediaTranscodeBridge {
                     }
                 }
                 "start" -> result.success(start(app, call.arguments as Map<*, *>))
+                // Video kesme (Ferrari H8, 2026-11-14): aralık dışı atılır,
+                // özgün korunur; mümkünse yeniden kodlamasız (trim optimizasyonu).
+                "trim" -> result.success(trim(app, call.arguments as Map<*, *>))
+                // Kes ekranının kare şeridi: eşit aralıklı N kare → JPEG yolları.
+                "frames" -> {
+                    val a = call.arguments as Map<*, *>
+                    Thread {
+                        val out = frames(a)
+                        main.post { result.success(out) }
+                    }.start()
+                }
                 // Sesli kitap (2026-10-22): üretilen WAV → AAC/M4A (~10 kat küçük).
                 "startAudio" -> result.success(startAudio(app, call.arguments as Map<*, *>))
                 "cancel" -> {
@@ -224,6 +238,116 @@ object MediaTranscodeBridge {
             transformer = null
             false
         }
+    }
+
+    /** İşin bitiş/hata olayları (yarım çıktı silinir). */
+    private fun exportListener(target: String) = object : Transformer.Listener {
+        override fun onCompleted(composition: Composition, exportResult: ExportResult) {
+            transformer = null
+            send("done", mapOf("target" to target))
+        }
+
+        override fun onError(
+            composition: Composition,
+            exportResult: ExportResult,
+            exportException: ExportException
+        ) {
+            transformer = null
+            File(target).delete()
+            send("failed", mapOf(
+                "code" to exportException.errorCodeName,
+                "message" to (exportException.message ?: "")
+            ))
+        }
+    }
+
+    /**
+     * `trim(path, target, startMs, endMs, removeAudio)` — yalnız aralık kalır.
+     * Efekt yok: döndürme bilgisi kaynaktaki gibi taşınır (küçültmedeki
+     * dikey→yatay tuzağı burada yok). Trim optimizasyonu baştaki yarım GOP'u
+     * kodlar, gerisini olduğu gibi kopyalar; uygun değilse Transformer
+     * kendiliğinden tam kodlamaya döner.
+     */
+    private fun trim(context: Context, a: Map<*, *>): Boolean {
+        val path = a["path"] as? String ?: return false
+        val target = a["target"] as? String ?: return false
+        val startMs = (a["startMs"] as? Number)?.toLong() ?: return false
+        val endMs = (a["endMs"] as? Number)?.toLong() ?: return false
+        if (startMs < 0 || endMs <= startMs) return false
+        val removeAudio = a["removeAudio"] == true
+        transformer?.cancel()
+        val clip = MediaItem.ClippingConfiguration.Builder()
+            .setStartPositionMs(startMs)
+            .setEndPositionMs(endMs)
+            .build()
+        val media = MediaItem.Builder()
+            .setUri(Uri.fromFile(File(path)))
+            .setClippingConfiguration(clip)
+            .build()
+        val item = EditedMediaItem.Builder(media)
+            .setRemoveAudio(removeAudio)
+            .build()
+        val t = Transformer.Builder(context)
+            .experimentalSetTrimOptimizationEnabled(!removeAudio)
+            .addListener(exportListener(target))
+            .build()
+        transformer = t
+        return try {
+            t.start(item, target)
+            pollProgress(t)
+            true
+        } catch (e: Exception) {
+            transformer = null
+            false
+        }
+    }
+
+    /**
+     * `frames(path, count, width, dir)` → eşit aralıklı [count] kare (JPEG,
+     * [width] piksel genişlik) [dir] altına; yollar sırayla. Okunamayan kare
+     * atlanır (liste kısa dönebilir). İzlekte koşar.
+     */
+    private fun frames(a: Map<*, *>): List<String> {
+        val path = a["path"] as? String ?: return emptyList()
+        val dir = a["dir"] as? String ?: return emptyList()
+        val count = ((a["count"] as? Number)?.toInt() ?: 10).coerceIn(1, 24)
+        val width = ((a["width"] as? Number)?.toInt() ?: 160).coerceIn(32, 480)
+        val out = mutableListOf<String>()
+        val r = MediaMetadataRetriever()
+        try {
+            r.setDataSource(path)
+            val ms = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+            if (ms <= 0L) return out
+            File(dir).mkdirs()
+            for (i in 0 until count) {
+                // Her dilimin ortası (ilk kare çoğu videoda siyah).
+                val us = (ms * 1000L * (2 * i + 1)) / (2L * count)
+                val bmp = try {
+                    if (android.os.Build.VERSION.SDK_INT >= 27) {
+                        r.getScaledFrameAtTime(us, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, width, width * 2)
+                    } else {
+                        r.getFrameAtTime(us, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                    }
+                } catch (e: Exception) { null } ?: continue
+                try {
+                    val scaled = if (bmp.width > width) {
+                        android.graphics.Bitmap.createScaledBitmap(
+                            bmp, width, (bmp.height.toLong() * width / bmp.width).toInt().coerceAtLeast(1), true)
+                    } else bmp
+                    val f = File(dir, "kare_$i.jpg")
+                    f.outputStream().use { scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, it) }
+                    if (scaled !== bmp) scaled.recycle()
+                    out.add(f.path)
+                } finally {
+                    bmp.recycle()
+                }
+            }
+        } catch (e: Exception) {
+            // Okunamayan video: eldeki kareler döner (boş olabilir).
+        } finally {
+            try { r.release() } catch (e: Exception) {}
+        }
+        return out
     }
 
     private fun pollProgress(t: Transformer) {

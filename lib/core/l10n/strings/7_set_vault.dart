@@ -194,6 +194,26 @@ const Map<String, (String, String, String)> _t7 = {
   // ── Video dönüştürme ──────────────────────────────────────────────────────
   'vt.hw_encoder': ('donanım kodlayıcı', 'hardware encoder', 'مرمّز عتادي'),
   'vt.engine_preparing': ('{engine} hazırlanıyor…', 'preparing the {engine}…', 'جارٍ تحضير {engine}…'),
+  // ── video kesme (Ferrari H8, 2026-11-14) ─────────────────────────────────
+  'vtr.suffix': ('kesit', 'clip', 'مقطع'),
+  'vtr.title': ('Videoyu kes', 'Trim video', 'قص الفيديو'),
+  'vtr.hint': ('başı / sonu kırp', 'cut start / end', 'قص البداية / النهاية'),
+  'vtr.range': ('{start} – {end} · {n} sn', '{start} – {end} · {n} s', '{start} – {end} · {n} ث'),
+  'vtr.mute': ('Sesi kaldır', 'Remove sound', 'إزالة الصوت'),
+  'vtr.start': ('Başlangıç', 'Start', 'البداية'),
+  'vtr.end': ('Bitiş', 'End', 'النهاية'),
+  'vtr.whole': (
+    'Kesmek için alttaki tutamaçları sürükle',
+    'Drag the handles below to trim',
+    'اسحب المقابض بالأسفل للقص',
+  ),
+  'vtr.job': ('Video kesiliyor: {name}', 'Trimming video: {name}', 'جارٍ قص الفيديو: {name}'),
+  'vtr.job_name': ('{name} kesiti', '{name} clip', 'مقطع {name}'),
+  'vtr.no_preview': (
+    'Önizleme açılamadı; video yine de kesilebilir.',
+    'Preview unavailable; the video can still be trimmed.',
+    'تعذّرت المعاينة؛ لا يزال بالإمكان قص الفيديو.',
+  ),
   'vt.failed': (
     'Video dönüştürülemedi: {error}',
     'Could not convert the video: {error}',

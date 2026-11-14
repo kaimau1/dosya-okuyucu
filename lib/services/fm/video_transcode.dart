@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 import '../../core/l10n/app_strings.dart';
 import '../../models/media_resize.dart';
+import '../../models/video_trim.dart';
 import 'file_ops.dart';
 import 'image_resize.dart' show ResizeResult;
 import 'job_queue.dart';
@@ -59,6 +60,9 @@ abstract final class VideoTranscoder {
   static Completer<void>? _running;
   static void Function(int percent)? _onProgress;
   static bool _wired = false;
+
+  /// İş kuyruğundaki iptal düğmesinin yoklanma aralığı.
+  static const _cancelPoll = Duration(milliseconds: 400);
 
   static void _wire() {
     if (_wired) return;
@@ -179,7 +183,7 @@ abstract final class VideoTranscoder {
     final done = _running = Completer<void>();
     // İptal: iş kuyruğundaki düğme `handle.cancelled`ı açar; yerel işi
     // durdurup yarım dosyayı siliyoruz.
-    final cancelWatch = Timer.periodic(const Duration(milliseconds: 400), (_) {
+    final cancelWatch = Timer.periodic(_cancelPoll, (_) {
       if ((handle?.cancelled ?? false) && !done.isCompleted) {
         unawaited(cancel());
         done.completeError(const JobCancelled());
@@ -282,6 +286,87 @@ abstract final class VideoTranscoder {
       return false;
     } finally {
       _running = null;
+    }
+  }
+
+  /// **Videoyu kes** (Ferrari H8, 2026-11-14): [range] dışı atılır, çıktı
+  /// özgünün yanına `<ad>_kesit.mp4` (özgün KORUNUR). Yerelde mümkünse
+  /// yeniden kodlamasız (trim optimizasyonu) — anahtar kare sınırında
+  /// başlangıç birkaç kare kayabilir. Dönen değer üretilen dosyanın yolu.
+  static Future<String> trim(
+    String path,
+    TrimRange range, {
+    bool removeAudio = false,
+    JobHandle? handle,
+  }) async {
+    if (range.lengthMs <= 0) {
+      throw VideoTranscodeException(AppStrings.current.t('vt.unsupported'));
+    }
+    final base = p.basenameWithoutExtension(path);
+    final target = FileOps.uniquePath(p.join(p.dirname(path),
+        '${base}_${AppStrings.current.t('vtr.suffix')}.mp4'));
+    _wire();
+    final done = _running = Completer<void>();
+    final cancelWatch = Timer.periodic(_cancelPoll, (_) {
+      if ((handle?.cancelled ?? false) && !done.isCompleted) {
+        unawaited(cancel());
+        done.completeError(const JobCancelled());
+      }
+    });
+    _onProgress = (percent) =>
+        handle?.report(unit: percent / 100, detail: '%$percent');
+    try {
+      final started = await _channel.invokeMethod<bool>('trim', {
+        'path': path,
+        'target': target,
+        'startMs': range.startMs,
+        'endMs': range.endMs,
+        'removeAudio': removeAudio,
+      });
+      if (started != true) {
+        throw VideoTranscodeException(AppStrings.current.t('vt.unsupported'));
+      }
+      await done.future;
+    } catch (_) {
+      _cleanup(target);
+      rethrow;
+    } finally {
+      cancelWatch.cancel();
+      _onProgress = null;
+      _running = null;
+    }
+    // Eksiksiz mi? Anahtar kare payı geniş tutulur (%80): hızlı kesimde
+    // başlangıç geriye kayabilir, kısalmaz; çok kısaysa yarım kalmıştır.
+    final out = await probe(target);
+    if (out == null) {
+      _cleanup(target);
+      throw VideoTranscodeException(
+          AppStrings.current.t('vt.unreadable_output'));
+    }
+    if (out.durationMs > 0 && out.durationMs < (range.lengthMs * 0.8).round()) {
+      _cleanup(target);
+      throw VideoTranscodeException(AppStrings.current.t('vt.truncated', {
+        'out': (out.durationMs / 1000).round(),
+        'src': (range.lengthMs / 1000).round(),
+      }));
+    }
+    return target;
+  }
+
+  /// Kes ekranının kare şeridi: eşit aralıklı [count] kare, [dir] altına
+  /// JPEG. Yerel taraf yoksa ya da okuyamazsa boş liste (şerit düz kalır).
+  static Future<List<String>> frames(String path,
+      {required String dir, int count = 10, int width = 160}) async {
+    try {
+      final list = await _channel.invokeListMethod<String>('frames', {
+        'path': path,
+        'dir': dir,
+        'count': count,
+        'width': width,
+      });
+      return list ?? const [];
+    } catch (_) {
+      return const [];
     }
   }
 

@@ -1121,3 +1121,25 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
    Bildirimde "Kapat" ve kutucuğa yeniden dokunma kapatıyor mu? Android 14+'ta kutucuktan servis açılıyor mu
    (açılmazsa uygulama açılmalı)? Aktar ekranı açılınca kutucuk kapanıyor mu?
 
+
+## Ferrari H1 — PDF açılış hissi (2026-11-14, main)
+1. **Kapak köprüsü:** listede kapağı görünen büyük PDF'e (USB'deki 200–700 MB kitap) dokun → belge yüklenene kadar
+   düz gri ekran yerine kâğıt + kapak görünüyor mu? Belge gelince kapak yumuşakça solup gerçek sayfaya geçiyor mu
+   (zıplama/ikinci beyaz kare yok)? Ortadan devam eden belgede kapak DEĞİL düz kâğıt mı? Gece kipinde kâğıt da koyu mu?
+   Bozuk/parolalı PDF'te köprü hata/parola penceresini örtmüyor mu?
+2. **Tek not:** form PDF'i aç → alt kenarda "doldurulabilir form" bildirimi ÇIKMIYOR, üst çubukta İçindekiler yerine
+   "Formu doldur" düğmesi var mı (1,5 sn sonra belirir)? İçindekiler ⋮ Daha fazla → Görünüm'de mi? Ders kitabında
+   (yanlış alarm) düğme çıkıyorsa not al. "N. sayfadan devam" notu ~3 sn'de çekiliyor mu?
+3. **Tablet yan şeridi:** ≥ 840 dp tablette ilk açılışta küçük resim şeridi KAPALI mı? Üst çubuktaki düğmeyle açılıp
+   kapanıyor, tercih uygulama kapanınca da kalıyor mu? Aç/kapa sonrası aynı sayfada mı kalıyor? Açıkken kaydırınca
+   şerit güncel sayfayı izliyor mu (güncel küçük resim görünür alanda kalıyor mu)?
+
+## Ferrari H8 — Videoyu kes (2026-11-14, main)
+1. Video uzun bas → "Videoyu kes"; oynatıcıda ⋮ → "Videoyu kes" (oynatıcı duraklıyor mu?).
+2. Kare şeridi doluyor mu (10 kare)? İki tutamaç sürüklenince önizleme o kareye gidiyor, her saniyede hafif titreşim var mı?
+   Etiket "00:12 – 01:05 · 53 sn" doğru mu? Tutamaçlar 1 sn'den fazla yaklaşmıyor mu? Oynat → yalnız seçili aralık mı dönüyor?
+3. Kaydet → ilerleme şeridi + bildirim; çıktı `<ad>_kesit.mp4` özgünün yanında, özgün duruyor mu? İşlemler ekranından açılıyor mu?
+4. Üç video: **dikey** telefon videosu (çıktı dikey kalıyor mu — küçültmedeki yan yatma tuzağı?), **4K**, **uzun** (30 dk+):
+   süre (hızlı kesimde birkaç saniye; uzun sürüyorsa yeniden kodluyor demektir — not al), başlangıç kaç kare kayıyor?
+5. "Sesi kaldır" açık → çıktı sessiz mi? Yalnız ses kaldırıp aralığa dokunmadan Kaydet çalışıyor mu?
+6. MKV/WebM kaynak: kesiliyor mu, yoksa anlaşılır hata mı?

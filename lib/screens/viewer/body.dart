@@ -1,5 +1,8 @@
 part of '../viewer_screen.dart';
 
+/// Geniş ekrandaki sayfa küçük resimleri şeridinin genişliği (dp).
+const double _kSidePanelWidth = 148;
+
 extension _ViewerScreenBodyPart on _ViewerScreenState {
   Widget _buildBody(LoadedDoc doc) {
     switch (doc.kind) {
@@ -10,9 +13,14 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
           return const Center(child: CircularProgressIndicator());
         }
         // Kaldığın yer henüz okunmadı (soğuk açılış, milisaniyeler).
+        // Düz zemin yerine nötr kâğıt (Ferrari H1.1) — kapak, sayfa belli
+        // olunca alttaki köprüde gelir.
         if (!_resumeReady) {
-          return ColoredBox(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest);
+          return PdfOpenBridge(
+              path: doc.path,
+              visible: true,
+              useCover: false,
+              topInset: ReadingChrome.insetsOf(context).top);
         }
         // Ctrl/Cmd+C: seçili metni panoya kopyalar (masaüstü alışkanlığı —
         // Chrome'un PDF görüntüleyicisiyle aynı). Focus çevresi klavye
@@ -186,6 +194,12 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         // pdfium'un ham yığın izli mavi ekranı yerine anlaşılır
                         // kart (2026-09-27: 0 bayt kalan PDF bulgusu).
                         errorBannerBuilder: _pdfErrorBanner,
+                        // Açılamayan belgede köprü hata yüzünü örtmesin.
+                        onDocumentLoadFinished: (_, ok) {
+                          if (!ok && mounted && !_pdfOpened) {
+                            _partSetState(() => _pdfOpened = true);
+                          }
+                        },
                         // Köprüler: iç hedef → o sayfaya git, dış adres → onay + tarayıcı.
                         linkHandlerParams: PdfLinkHandlerParams(
                           onLinkTap: _onPdfLink,
@@ -220,6 +234,8 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                           // şerit ilk kareyle birlikte kayboluyordu.
                           WidgetsBinding.instance
                               .addPostFrameCallback((_) => _showResumeNotice());
+                          // Açılış köprüsü: ilk sayfaya çizim payı, sonra solar.
+                          _markPdfOpened();
                           unawaited(_proCheckRecovery());
                           if (widget.startInk && !_inkStarted) {
                             _inkStarted = true;
@@ -239,6 +255,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                                   widget.doc.path, page, _pageCount,
                                   size: _docSize);
                             }
+                            if (_pdfSidePanel) _followSidePanel(page);
                           }
                         },
                         pageOverlaysBuilder: (context, pageRect, page) => [
@@ -315,6 +332,19 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                       ),
                     ),
                   )),
+                ),
+                // Açılış köprüsü (Ferrari H1.1): belge gelene kadar kapak /
+                // kâğıt; görüntüleyicinin ÜSTÜNDE, boyunu değiştirmez.
+                Positioned.fill(
+                  child: _nightFilter(
+                    child: PdfOpenBridge(
+                      key: const ValueKey('pdf-bridge'),
+                      path: doc.path,
+                      visible: !_pdfOpened,
+                      useCover: _pdfPage <= 1,
+                      topInset: chrome.top,
+                    ),
+                  ),
                 ),
                 // Seçim çubuğu açıkken rozet gizli: çubuğun altından yarım
                 // görünüyordu ("1 / 1 · sayfaya git" kartın altına sıkışmıştı).
@@ -541,7 +571,9 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
       PdfPageLayout base, BuildContext context, EdgeInsets chrome) {
     if (chrome.top == 0 && chrome.bottom == 0) return base;
     var viewW = MediaQuery.sizeOf(context).width;
-    if (_pdfDoc != null && viewW >= 840) viewW -= 149; // yan küçük resimler
+    if (_pdfDoc != null && _pdfSidePanel && viewW >= 840) {
+      viewW -= _kSidePanelWidth + 1; // yan küçük resimler + ayraç
+    }
     if (viewW <= 0) return base;
     final k = base.documentSize.width / viewW;
     final top = (chrome.top * k).roundToDouble();
@@ -555,18 +587,23 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
 
   /// **Geniş ekranda sayfa küçük resimleri** (Faz 18 / G17): ≥ 840 dp'de
   /// solda dikey şerit; dokunuş o sayfaya gider, güncel sayfa vurgulu.
-  /// Telefonda belge tam genişlik (değişmedi).
+  /// Telefonda belge tam genişlik (değişmedi). Ferrari H1.3 (2026-11-14):
+  /// varsayılan KAPALI, üst çubuktaki düğmeyle açılır ([_pdfSidePanel]).
+  /// Ekran yan şeride yetecek kadar geniş mi (≥ 840 dp)?
+  bool get _wideForSidePanel => MediaQuery.sizeOf(context).width >= 840;
+
   Widget _withPdfSidePanel(Widget viewer) {
     final doc = _pdfDoc;
-    if (doc == null || MediaQuery.sizeOf(context).width < 840) return viewer;
+    if (doc == null || !_pdfSidePanel || !_wideForSidePanel) return viewer;
     final scheme = Theme.of(context).colorScheme;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SizedBox(
           key: const ValueKey('pdf-side-panel'),
-          width: 148,
+          width: _kSidePanelWidth,
           child: ListView.builder(
+            controller: _sidePanelScroll,
             padding: const EdgeInsets.all(Gap.sm),
             itemCount: doc.pages.length,
             itemBuilder: (context, i) {

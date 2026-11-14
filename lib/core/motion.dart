@@ -38,6 +38,10 @@ abstract final class Motion {
   /// gecikmesi: ilk sayfalar önce çizilsin (animasyon değil, zamanlayıcı).
   static const afterOpen = Duration(milliseconds: 1500);
 
+  /// Geçici bilgi notunun (ör. "N. sayfadan devam") ekranda kalma süresi
+  /// (Ferrari §1.7: bilgi notu 3–4 sn).
+  static const noteStay = Duration(seconds: 3);
+
   /// Ekrana giren ikincil küçük resmin çizime başlama gecikmesi (hızlı
   /// kaydırmada geçip giden hücre hiç çizilmez; ana içerik sırada önce).
   static const thumbDefer = Duration(milliseconds: 900);

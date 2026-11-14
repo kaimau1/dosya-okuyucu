@@ -75,6 +75,7 @@ import '../services/dictation.dart';
 import '../services/voice_note.dart';
 import '../widgets/office_ribbon.dart' show OfficeIcons;
 import '../widgets/download_action.dart';
+import '../widgets/pdf_open_bridge.dart';
 import '../widgets/tracked_busy.dart';
 import 'pdf_ink_screen.dart';
 import '../widgets/ai_slides_flow.dart';
@@ -577,6 +578,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// kapalı (Faz 39) — okurken sayfa yana kaçmasın.
   bool _pdfScrollLock = false;
 
+  /// Geniş ekranda (≥ 840 dp) sayfa küçük resimleri şeridi açık mı?
+  /// Varsayılan KAPALI — içerik önce (Ferrari H1.3); tercih kalıcı.
+  bool _pdfSidePanel = false;
+
+  /// Yan şeridin kaydırması (güncel sayfayı izler).
+  final ScrollController _sidePanelScroll = ScrollController();
+
   /// Sesli okuma. Yalnız kullanıcı başlatınca kurulur (motor uyandırmayalım).
   TtsService? _tts;
   /// Eski Office dosyası dönüştürülüyor mu (şeritteki düğme kilitlensin).
@@ -741,25 +749,39 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// [_offerFormFilling]'in gecikme zamanlayıcısı.
   Timer? _formOfferTimer;
 
-  /// Belge doldurulabilir bir formsa kullanıcıya **söylenir**.
+  /// Belge yüklendi ve ilk sayfaya çizim payı geçti → açılış köprüsü
+  /// ([PdfOpenBridge]) solar (Ferrari H1.1).
+  bool _pdfOpened = false;
+  Timer? _pdfBridgeTimer;
+
+  /// Köprüyü kaldırır; pdfrx sayfayı `onViewerReady`den SONRA çiziyor, o
+  /// arada kâğıt beyaz kalmasın diye kısa pay ([Motion.medium]).
+  void _markPdfOpened() {
+    if (_pdfOpened) return;
+    _pdfBridgeTimer?.cancel();
+    _pdfBridgeTimer = Timer(Motion.medium, () {
+      if (mounted) _partSetState(() => _pdfOpened = true);
+    });
+  }
+
+  /// Belge doldurulabilir bir form mu ([_offerFormFilling] bulur)?
+  bool _pdfIsForm = false;
+
+  /// Belge doldurulabilir bir formsa üst çubukta **"Formu doldur"** düğmesi
+  /// belirir (İçindekiler'in yerine).
   ///
   /// Menüdeki "Formu doldur" tek başına keşfedilmiyor: kullanıcı bir form
   /// PDF'ini açtığında yapabileceği ilk şey onu doldurmaktır ve bunu ⋮
   /// menüsünde aramaz. Bakış ucuz (dosyada `/AcroForm` anahtarı aranır),
   /// yanlış pozitifte ekran zaten "form alanı yok" diyor.
+  ///
+  /// Eskiden 4 sn'lik SnackBar'dı (Ferrari H1.2, 2026-11-14): "N. sayfadan
+  /// devam" hapıyla aynı anda çıkıp alt kenarı kapatıyordu, ders kitaplarında
+  /// da (yanlış alarm) her açılışta. Düğme kalıcı ve sessiz.
   Future<void> _offerFormFilling() async {
     if (!await PdfFormFiller.looksLikeForm(widget.doc.path)) return;
     if (!mounted) return;
-    showSnackBarReplacing(
-        ScaffoldMessenger.of(context),
-        SnackBar(
-          content: Text(context.t('vw.form_detected')),
-          duration: const Duration(seconds: 4),
-          action: SnackBarAction(
-            label: context.t('vw.fill_form'),
-            onPressed: _fillPdfForm,
-          ),
-        ));
+    _partSetState(() => _pdfIsForm = true);
   }
 
   /// Arayıcılar (pdfrx + OCR) eşleşme bulup ilerledikçe sayaç/konum etiketini
@@ -790,6 +812,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     unawaited(ReadingPositions.save());
     _recordPdfZoom();
     _formOfferTimer?.cancel();
+    _pdfBridgeTimer?.cancel();
     _pdfController.removeListener(_onPdfMatrix);
     // Kaydedilmemiş düzenleme varsa çökme kaydı kalır (yeniden açılışta sunulur).
     _pro
@@ -817,6 +840,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _pdfSearcher
         ?.dispose(); // PdfViewerController = ValueListenable, dispose'suz
     _ocrSearch?.dispose();
+    _sidePanelScroll.dispose();
     _tts?.dispose(); // ekran kapanınca konuşma sürmesin
     // Geri yazma ARTIK BEKLENMEZ ve ana izleği dondurmaz: eskiden burada
     // büyük dosya eşzamanlı kopyalanıyordu (bkz. [SafeWrite]). İş kuyrukta

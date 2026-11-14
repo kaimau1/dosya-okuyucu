@@ -7,6 +7,7 @@ part of '../viewer_screen.dart';
 extension _ViewerScreenPdfReadingAidsPart on _ViewerScreenState {
   static const _kKeepAwake = 'pdf_keep_awake';
   static const _kVolumeKeys = 'pdf_volume_keys';
+  static const _kSidePanel = 'pdf_side_panel';
 
   /// Otomatik kaydırma hızları (mantıksal piksel / saniye): kapalı, yavaş,
   /// orta, hızlı.
@@ -21,8 +22,61 @@ extension _ViewerScreenPdfReadingAidsPart on _ViewerScreenState {
       if (prefs.getBool(_kVolumeKeys) ?? false) {
         _setVolumeKeys(true, save: false);
       }
+      if (prefs.getBool(_kSidePanel) ?? false) {
+        _partSetState(() => _pdfSidePanel = true);
+      }
     } catch (_) {
       // Tercih okunamadı: ikisi de kapalı başlar (zararsız varsayılan).
+    }
+  }
+
+  /// Yan küçük resim şeridini aç/kapa (Ferrari H1.3). Görünüm genişliği
+  /// değişince pdfrx düzeni yeniden kurar; okunan sayfaya geri oturulur.
+  void _toggleSidePanel() {
+    final page = _pdfPage;
+    _partSetState(() => _pdfSidePanel = !_pdfSidePanel);
+    _saveAid(_kSidePanel, _pdfSidePanel);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_pdfController.isReady) return;
+      _pdfJumpTarget = page;
+      unawaited(_pdfController.goToPage(pageNumber: page));
+      if (_pdfSidePanel) _followSidePanel(page, animate: false);
+    });
+  }
+
+  /// Şerit açıkken güncel sayfanın küçük resmi görünür kalsın: ekran dışına
+  /// düştüyse ortaya kaydırılır. Öğe boyu sayfa oranından hesaplanır
+  /// (şerit [ListView.builder] — öğeler kurulmadan konumu bilinmez).
+  void _followSidePanel(int page, {bool animate = true}) {
+    final doc = _pdfDoc;
+    final ctrl = _sidePanelScroll;
+    if (doc == null || !ctrl.hasClients || page < 1) return;
+    final n = doc.pages.length;
+    if (page > n) return;
+    const inner = _kSidePanelWidth - 2 * Gap.sm;
+    final label = (Theme.of(context).textTheme.labelSmall?.fontSize ?? 11) * 1.5;
+    double extent(int i) {
+      final pg = doc.pages[i];
+      final h = pg.width <= 0 ? inner : inner * pg.height / pg.width;
+      return h + 2 + label + Gap.sm;
+    }
+
+    var top = Gap.sm;
+    for (var i = 0; i < page - 1; i++) {
+      top += extent(i);
+    }
+    final h = extent(page - 1);
+    final pos = ctrl.position;
+    if (top >= pos.pixels && top + h <= pos.pixels + pos.viewportDimension) {
+      return;
+    }
+    final target = (top - (pos.viewportDimension - h) / 2)
+        .clamp(pos.minScrollExtent, pos.maxScrollExtent);
+    if (animate) {
+      unawaited(ctrl.animateTo(target,
+          duration: Motion.of(context, Motion.medium), curve: Motion.standard));
+    } else {
+      ctrl.jumpTo(target);
     }
   }
 

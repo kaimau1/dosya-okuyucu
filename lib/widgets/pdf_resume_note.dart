@@ -47,7 +47,7 @@ class _PdfResumeNoteState extends State<PdfResumeNote> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) setState(() => _shown = true);
     });
-    _timer = Timer(widget.stay ?? Motion.readingIdle * 2, _leave);
+    _timer = Timer(widget.stay ?? Motion.noteStay, _leave);
   }
 
   void _leave() {

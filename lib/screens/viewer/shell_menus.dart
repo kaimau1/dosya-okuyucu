@@ -25,11 +25,32 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
       // tek bir "Aa" düğmesinin açtığı okuma ayarları sayfasında.
       actions: _pro != null ? _proActions(_pro!) : [
         if (doc.kind == DocKind.pdf) ...[
-          IconButton(
-            tooltip: context.t('vw.toc'),
-            icon: const Icon(AppIcons.toc),
-            onPressed: _showOutline,
-          ),
+          // Form belgesinde "Formu doldur" İçindekiler'in yerine geçer (Ferrari
+          // H1.2): açılışta alt kenarı kapatan SnackBar yerine kalıcı, sessiz
+          // düğme. İçindekiler o zaman "Daha fazla"da.
+          if (_pdfIsForm)
+            IconButton(
+              key: const ValueKey('pdf-form-action'),
+              tooltip: context.t('vw.fill_form'),
+              icon: const Icon(AppIcons.assignment),
+              onPressed: _fillPdfForm,
+            )
+          else
+            IconButton(
+              tooltip: context.t('vw.toc'),
+              icon: const Icon(AppIcons.toc),
+              onPressed: _showOutline,
+            ),
+          // Tablette sayfa küçük resimleri şeridi (Ferrari H1.3) — varsayılan
+          // kapalı, tercih kalıcı.
+          if (_wideForSidePanel)
+            IconButton(
+              key: const ValueKey('pdf-side-toggle'),
+              tooltip: context.t('vw.side_panel'),
+              isSelected: _pdfSidePanel,
+              icon: const Icon(AppIcons.thumbnails),
+              onPressed: _toggleSidePanel,
+            ),
           if (_hasUnsaved)
             IconButton(
               tooltip: context.t('vw.save_edits'),
@@ -143,6 +164,9 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
             // arama çubuğunda ve alttaki sayfa rozetine dokununca (2026-07-26:
             // "nerede olduğu anlaşılmıyor, kişiler bulamaz").
             DocMoreItem(AppIcons.numbers, context.t('vw.goto_page'), _askGoToPage),
+            if (_pdfIsForm)
+              DocMoreItem(AppIcons.toc, context.t('vw.toc'),
+                  () => unawaited(_showOutline())),
             // Bu sayfayı yıldızla (2026-09-27) — rozete basılı tutmakla aynı.
             DocMoreItem(
               AppIcons.important,
