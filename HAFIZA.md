@@ -912,3 +912,8 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Plan düzeltmesi (H4, okunmadan yazılmıştı):** satır simgesi 68 dp kullanıcı kararıydı (2026-08-17 "olabildiğince büyüt") —
   H4.1'deki 48–56 dp UYGULANMAZ; tarih grupları (H4.5) zaten var (`groupEntries`), yalnız yapışkan değil; tür çipleri
   2026-10-28'de kullanıcı isteğiyle TEK HAPA toplanmıştı — H4.3 öncesi kullanıcıya sorulmalı (👤).
+
+## 2026-11-14 — Ferrari H4.1 + H4.9 (dosya satırı)
+- **Karar (kullanıcı):** satır simgesi 48–56 dp olabilir → liste 68 → **52** (`FmLayout.iconSizeFor`); "Büyük liste" 84 kalır. 2026-08-17 "olabildiğince büyüt" kararının yerine geçer.
+- **Karar (kullanıcı):** *"filtreler mantık olarak bizimki kalsın"* → H4.3 tür çipleri / H4.4 sıralama satırı UYGULANMAZ.
+- **Yapı:** `FmEntryRow.subtitleEnd` (+ `FmFileListView.subtitleEnd`) alt satırın sağına boyut; `FmLocation.meta` = boyutsuz "kaynak · tarih". Arama ekranı tek metinle kaldı. ⋮ `onSurfaceVariant` %60.
