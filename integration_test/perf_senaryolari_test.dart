@@ -69,6 +69,12 @@ void main() {
   testWidgets('P13: açılış, klasör, galeri, PDF, Excel', (tester) async {
     // "Neler yeni" levhası açılış ölçümüne girmesin (taban Faz 43'te yoktu).
     await WhatsNew.markSeen();
+    // Anlamsal ağaç (TalkBack) açık ölçülür — `testWidgets` varsayılanıyla
+    // aynı, eski tablolarla kıyaslanabilir. Sonda kapatılıp kaydırma
+    // yeniden ölçülür (`*_sk`, P13 / B3.3b): 2026-11-13 zaman çizelgesinde
+    // UI izleğinin %56'sı SEMANTICS evresiydi — erişilebilirlik hizmeti
+    // kapalı kullanıcı o payı ödemez.
+    final anlam = tester.ensureSemantics();
     await binding.traceAction(() async {
       await app.main();
       await bekle(tester, 3000);
@@ -132,5 +138,18 @@ void main() {
       // ignore: avoid_print
       print('PERF pdf_buyuk: dosya yok, atlandı');
     }
-  }, timeout: const Timeout(Duration(minutes: 15)));
+
+    // B3.3b: aynı kaydırmalar anlamsal ağaç KAPALI (cihazda erişilebilirlik
+    // hizmeti açıksa motor yine açar — o koşu `_sk`yi açık ölçer).
+    anlam.dispose();
+    await bekle(tester, 500);
+    await ac(tester, const BrowserScreen(path: '$_veri/klasor_5000'));
+    await binding.traceAction(() => kaydir(tester),
+        reportKey: 'klasor_5000_kaydirma_sk');
+    await kapat(tester);
+    await ac(tester, const BrowserScreen(path: '$_veri/galeri_2000'));
+    await binding.traceAction(() => kaydir(tester),
+        reportKey: 'galeri_2000_kaydirma_sk');
+    await kapat(tester);
+  }, semanticsEnabled: false, timeout: const Timeout(Duration(minutes: 15)));
 }
