@@ -260,10 +260,13 @@ extension _RemoteBrowserScreenViewsPart on _RemoteBrowserScreenState {
           ),
         Expanded(
           child: _visible.isEmpty
-              ? Center(
-                  child: Text(_filter.trim().isEmpty
-                      ? context.t('nas.empty_folder')
-                      : context.t('nas.no_match')))
+              ? _filter.trim().isEmpty
+                  ? FmEmptyState(
+                      icon: AppIcons.folder,
+                      title: context.t('nas.empty_folder'))
+                  : FmEmptyState(
+                      icon: AppIcons.searchOff,
+                      title: context.t('nas.no_match'))
               : RefreshIndicator(
                   onRefresh: () => _load(_path),
                   child: ListView.separated(

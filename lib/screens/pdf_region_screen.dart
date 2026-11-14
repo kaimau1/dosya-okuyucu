@@ -7,6 +7,8 @@ import '../core/app_colors.dart';
 import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
+import '../core/user_error.dart';
+import '../widgets/state_views.dart' show AppErrorView;
 
 /// Bölge işaretleme kipi.
 enum PdfRegionMode {
@@ -148,8 +150,15 @@ class _PdfRegionScreenState extends State<PdfRegionScreen> {
         builder: (context) {
           final document = _doc;
           if (_error != null) {
-            return Center(
-                child: Text(context.t('pt.open_failed', {'error': '$_error'})));
+            // H10.3: ham istisna yok; ham metin yalnız "Ayrıntıyı kopyala"da.
+            return AppErrorView(
+              message: userErrorText(_error!),
+              details: '$_error',
+              onRetry: () {
+                setState(() => _error = null);
+                _open();
+              },
+            );
           }
           if (document == null) {
             return const Center(child: CircularProgressIndicator());

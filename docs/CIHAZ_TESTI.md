@@ -1173,6 +1173,15 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Geri al ve listedeki ✕ çalışıyor mu? Kaydet → `<ad>_kesit.mp4`: silinen bölümler yok, sessiz bölge sessiz, eklenen ses doğru saniyede başlıyor mu (dikey video dikey kalıyor mu)?
 - [ ] Hata olursa (özellikle ses eklemede) bildirimdeki hata kodunu not al — Media3 Composition ilk kez cihazda.
 
+## Ferrari H10/H11 — Durumlar ve görüntüleyici kabuğu (2026-11-14, dal faz-oto-P04-kabuk)
+- [ ] Video: oynarken 3 sn dokunma → üst çubuk, alt denetimler, kilit/döndür bir anda değil yumuşakça soluyor; solarken ekrana dokun → geri geliyor (kaybolmuyor). "Animasyonları kaldır" açıkken doğrudan gizleniyor. Solma sırasında video yerinden oynamıyor.
+- [ ] Video jestleri (var olan, doğrula): kenarda çift dokunuş ±10 sn · yatay sürükleme sarma balonu · sağda dikey ses, solda dikey parlaklık · uzun basış 2×.
+- [ ] Küçük PDF/metin/Word aç → "Açılıyor…" penceresi HİÇ yanıp sönmüyor; büyük dosyada (≥ 0,3 sn) pencere çıkıyor. Açılırken hızlı iki kez dokun → belge bir kez açılıyor.
+- [ ] Başka uygulamadan (WhatsApp) açılan PDF/metin: alt çubukta 5 düğme (Yazdır yok, ⋮ › Dosya'da Yazdır var); çubuk yatay kaymıyor.
+- [ ] PDF'te kaydedilmemiş düzenleme varken üst çubuk: Kaydet · Ara · Aa · ⋮ (İçindekiler ⋮ › Görünüm'de).
+- [ ] Boş listeler çizimli: Etkinlik, İşlem geçmişi, İndirilenler, Temizlik (öneri yok), iş raporu, uzak klasör (boş / süzgeç sonucu yok), Kopyalar'da arama sonucu yok.
+- [ ] Benzer görseller taraması başarısızsa (ör. tarama sırasında izin kaldır): teknik yazı yok; "Tarama tamamlanamadı" + açıklama + Yeniden dene.
+
 ## Ferrari H7 — Sadeleştirme (2026-11-14, dal faz-oto-P05-sade)
 - [ ] Dosya sil (çöp kutusu açık): onay penceresi YOK, "N öğe çöp kutusuna taşındı · Geri al" kartı 6 sn; Geri al dosyayı yerine koyuyor. Çöp kutusu kapalıyken (kalıcı silme) onay penceresi HÂLÂ çıkıyor.
 - [ ] Daha önce "Silmeden önce sor"u AÇIK kaydetmiş kurulum: onay yine soruluyor.

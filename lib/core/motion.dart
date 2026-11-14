@@ -54,6 +54,10 @@ abstract final class Motion {
   /// (Ferrari H3.7; sonra solar — zamanlayıcı, animasyon değil).
   static const badgeLinger = Duration(milliseconds: 1500);
 
+  /// "Çalışıyor" penceresi ancak iş bundan uzun sürerse açılır (Ferrari
+  /// H10.2): kısa işte pencere yanıp sönmesin.
+  static const busyDefer = Duration(milliseconds: 300);
+
   /// Giren öğe (yavaşlayarak durur).
   static const Curve enter = Curves.easeOutCubic;
 

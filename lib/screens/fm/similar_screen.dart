@@ -18,7 +18,8 @@ import '../../services/fm/image_resize.dart';
 import '../../services/fm/job_queue.dart';
 import '../../services/fm/similar_finder.dart';
 import '../../services/fm/thumbnail_cache.dart';
-import '../../widgets/motion.dart' show PressScale;
+import '../../widgets/motion.dart' show FmEmptyState, PressScale;
+import '../../widgets/state_views.dart' show AppErrorView;
 import '../../widgets/fm/fm_entry_icon.dart';
 import 'entry_actions.dart';
 import '../../core/snack.dart';
@@ -318,18 +319,18 @@ class _SimilarScreenState extends State<SimilarScreen> {
             child: running
                 ? const SizedBox.shrink()
                 : groups.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(Gap.lg),
-                          child: Text(
-                            job?.status == JobStatus.failed
-                                ? context.t(
-                                    'sim.scan_failed', {'error': job?.error})
-                                : context.t('sim.none'),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      )
+                    // H10.3: ham hata metni yok — kısa açıklama + Yeniden dene;
+                    // ham metin yalnız "Ayrıntıyı kopyala"da.
+                    ? job?.status == JobStatus.failed
+                        ? AppErrorView(
+                            title: context.t('sim.scan_failed'),
+                            message: userErrorText(job?.error ?? ''),
+                            details: job?.error,
+                            onRetry: _start,
+                          )
+                        : FmEmptyState(
+                            icon: AppIcons.verified,
+                            title: context.t('sim.none'))
                     : ListView.builder(
                         padding: withNavInset(
                             context, const EdgeInsets.only(bottom: 96)),

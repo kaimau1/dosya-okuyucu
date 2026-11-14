@@ -576,9 +576,9 @@ const Map<String, (String, String, String)> _t5 = {
   ),
   'sim.select_extras': ('Fazlaları seç', 'Select the extras', 'حدّد الزائدة'),
   'sim.scan_failed': (
-    'Tarama başarısız: {error}',
-    'Scan failed: {error}',
-    'فشل الفحص: {error}',
+    'Tarama tamamlanamadı',
+    'The scan could not finish',
+    'تعذّر إكمال الفحص',
   ),
   'sim.none': (
     'Benzer görüntü bulunamadı 🎉',

@@ -15,6 +15,7 @@ import '../../services/fm/file_tags.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/job_queue.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/motion.dart' show FmEmptyState;
 import '../../widgets/fm/fm_entry_icon.dart';
 import 'folder_picker_screen.dart';
 
@@ -426,12 +427,7 @@ class _JobReportScreenState extends State<JobReportScreen> {
             : null,
       ),
       body: changes.isEmpty
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(Gap.lg),
-                child: Text(context.t('jr.empty'), textAlign: TextAlign.center),
-              ),
-            )
+          ? FmEmptyState(icon: AppIcons.history, title: context.t('jr.empty'))
           : CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(child: _summary(context, groups)),

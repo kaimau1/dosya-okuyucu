@@ -3,7 +3,6 @@ import 'package:path/path.dart' as p;
 
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
-import '../../core/theme.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/op_history.dart';
@@ -102,13 +101,8 @@ class _OpHistoryScreenState extends State<OpHistoryScreen> {
       body: _loading
           ? const FmListSkeleton()
           : _records.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(Gap.lg),
-                    child: Text(context.t('oph.empty'),
-                        textAlign: TextAlign.center),
-                  ),
-                )
+              ? FmEmptyState(
+                  icon: AppIcons.history, title: context.t('oph.empty'))
               : ListView.separated(
                   itemCount: _records.length,
                   separatorBuilder: (_, _) => const Divider(height: 1),
