@@ -912,3 +912,9 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Plan düzeltmesi (H4, okunmadan yazılmıştı):** satır simgesi 68 dp kullanıcı kararıydı (2026-08-17 "olabildiğince büyüt") —
   H4.1'deki 48–56 dp UYGULANMAZ; tarih grupları (H4.5) zaten var (`groupEntries`), yalnız yapışkan değil; tür çipleri
   2026-10-28'de kullanıcı isteğiyle TEK HAPA toplanmıştı — H4.3 öncesi kullanıcıya sorulmalı (👤).
+
+## 2026-11-14 — Ferrari H4.1 + H4.9 (dosya satırı)
+- **Karar (kullanıcı):** satır simgesi 48–56 dp olabilir → liste 68 → **52** (`FmLayout.iconSizeFor`); "Büyük liste" 84 kalır. 2026-08-17 "olabildiğince büyüt" kararının yerine geçer.
+- **Karar (kullanıcı):** *"filtreler mantık olarak bizimki kalsın"* → H4.3 tür çipleri / H4.4 sıralama satırı UYGULANMAZ.
+- **Yapı:** `FmEntryRow.subtitleEnd` (+ `FmFileListView.subtitleEnd`) alt satırın sağına boyut; `FmLocation.meta` = boyutsuz "kaynak · tarih". Arama ekranı tek metinle kaldı. ⋮ `onSurfaceVariant` %60.
+- **H4.2/H4.5/H4.8 (aynı gün):** büyük başlık `lib/widgets/fm/fm_large_title.dart` — liste DIŞINDA olduğundan kaydırma payıyla sürekli küçülmez (görünür alan değişip içerik 2× hızla kayardı); eşik 48 dp'de katlanır, yalnız en üstte (≤ 1) açılır, kaydırma payı < 240 dp ise hiç katlanmaz (titreme). Değer yerleşim sırasında değişirse kare sonuna ertelenir. Yapışkan başlık `SliverMainAxisGroup` + `SliverPersistentHeader(pinned)`; boy `FmGroupHeader.extentOf` (TextPainter, yazı ölçeğiyle). Grup içi `SliverPrototypeExtentList`. RTL bekçisi `EdgeInsets.only(left:` yakalar → `inset.copyWith(top: 0, bottom: 0)`.

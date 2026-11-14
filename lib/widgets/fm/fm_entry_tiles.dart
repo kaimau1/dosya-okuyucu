@@ -31,6 +31,11 @@ import '../motion.dart';
 ///   satır boyu ondan türer — tavan yok;
 /// * ad tek satır, alt satır **orantılı** yazıyla "boyut · tarih";
 /// * sağda 48 dp dokunma alanlı ⋮ (erişilebilirlik);
+///
+/// Ferrari H4.1 (2026-11-14, kullanıcı: *"satır simgeleri 48–56 dp
+/// olabilir"*): önizleme 52 dp, ad `titleMedium`, alt satırda bilgi solda,
+/// [subtitleEnd] (boyut) SAĞA hizalı; satır ≥ 64 dp (≥ 840 dp'de 72).
+/// ⋮ soluk (H4.9 — uzun basış + seçim çubuğu asıl yol).
 /// * seçimde önizleme durur, üstüne onay rozeti biner ([FmSelectableIcon]).
 class FmEntryRow extends StatelessWidget {
   final FsEntry entry;
@@ -38,6 +43,9 @@ class FmEntryRow extends StatelessWidget {
   final bool selecting;
   final FmLayout layout;
   final String subtitle;
+
+  /// Alt satırın SAĞINA hizalanan kısa bilgi (genelde boyut); null = yok.
+  final String? subtitleEnd;
   final VoidCallback onTap;
 
   /// Onay kutusuna dokunma (uzun basış [DragSelectArea]'da yakalanır).
@@ -65,6 +73,7 @@ class FmEntryRow extends StatelessWidget {
     required this.selecting,
     required this.onTap,
     required this.subtitle,
+    this.subtitleEnd,
     this.layout = FmLayout.list,
     this.onCheck,
     this.onMore,
@@ -83,15 +92,23 @@ class FmEntryRow extends StatelessWidget {
     // seçmiş oluyor.
     final iconSize = layout.iconSizeFor(0) * context.fmIconScale;
     final vPad = layout == FmLayout.detail ? Gap.sm : 6.0;
+    // Satır ≥ 64 dp; geniş ekranda (≥ 840 dp) 72 — ferah liste (H4.1).
+    final minRow = MediaQuery.sizeOf(context).width >= 840 ? 72.0 : 64.0;
+    final end = subtitleEnd;
     final more = _trailing(context, scheme);
     return Semantics(
       selected: selected,
       button: true,
       // TalkBack: "PDF, Kira sözleşmesi, 117 KB · dün" (Faz 16 / madde 4).
       // Ad ve alt satır metinleri aşağıda ayrıca okunmasın diye dışlanır.
-      label: fmEntrySemanticsLabel(context, entry, subtitle),
+      label: fmEntrySemanticsLabel(
+          context, entry, end == null ? subtitle : '$subtitle · $end'),
       customSemanticsActions: fmSelectAction(context, selected, onCheck),
-      child: Material(
+      // Basılınca satır hafifçe içe çöker (H4.8) — uzun basışın seçim
+      // başlatacağını parmak altında hissettirir; titreşim [DragSelectArea]'da.
+      child: PressScale(
+        scale: 0.98,
+        child: Material(
         color: selected
             ? scheme.primaryContainer.withValues(alpha: 0.4)
             : Colors.transparent,
@@ -100,7 +117,7 @@ class FmEntryRow extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 56),
+            constraints: BoxConstraints(minHeight: minRow),
             child: Padding(
               padding: EdgeInsetsDirectional.fromSTEB(Gap.md, vPad,
                   more == null && badge == null ? Gap.md : Gap.xs, vPad),
@@ -114,7 +131,7 @@ class FmEntryRow extends StatelessWidget {
                     onCheck: onCheck,
                     thumbnails: thumbnails,
                   ), iconSize),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: Gap.md),
                   Expanded(
                     child: ExcludeSemantics(
                       child: Column(
@@ -124,7 +141,7 @@ class FmEntryRow extends StatelessWidget {
                           FmEntryName(
                             entry.name,
                             maxLines: 1,
-                            style: theme.textTheme.bodyLarge?.copyWith(
+                            style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w500,
                               color: selected ? scheme.primary : null,
                             ),
@@ -136,7 +153,13 @@ class FmEntryRow extends StatelessWidget {
                             valueListenable: AiIndex.revision,
                             builder: (context, _, _) {
                               final alias = AiIndex.aliasOf(entry.path);
-                              return Text.rich(
+                              final meta = theme.textTheme.bodySmall?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures()
+                                ],
+                              );
+                              final start = Text.rich(
                                 TextSpan(children: [
                                   if (alias.isNotEmpty)
                                     TextSpan(
@@ -150,13 +173,15 @@ class FmEntryRow extends StatelessWidget {
                                 ]),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                  fontFeatures: const [
-                                    FontFeature.tabularFigures()
-                                  ],
-                                ),
+                                style: meta,
                               );
+                              if (end == null) return start;
+                              return Row(children: [
+                                Expanded(child: start),
+                                const SizedBox(width: Gap.sm),
+                                Text(bidiParts(context, end),
+                                    maxLines: 1, style: meta),
+                              ]);
                             },
                           ),
                         ],
@@ -173,6 +198,7 @@ class FmEntryRow extends StatelessWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }
@@ -194,7 +220,9 @@ class FmEntryRow extends StatelessWidget {
     final more = onMore == null
         ? null
         : IconButton(
-            icon: const Icon(AppIcons.more),
+            // Soluk (H4.9): asıl yol uzun basış + seçim çubuğu; ⋮ yalnız kısayol.
+            icon: Icon(AppIcons.more,
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.6)),
             tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
             // 48 dp dokunma alanı (erişilebilirlik, Faz 6 / 7. madde).
             constraints: const BoxConstraints(minWidth: 48, minHeight: 48),

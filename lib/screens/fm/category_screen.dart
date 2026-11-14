@@ -27,6 +27,7 @@ import '../../core/app_icons.dart';
 import '../../widgets/fm/fm_file_list_view.dart';
 import '../../widgets/motion.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
+import '../../widgets/fm/fm_large_title.dart';
 import '../../widgets/fm/fm_layout_sheet.dart';
 import '../../widgets/fm/fm_list_controls.dart';
 import '../../widgets/fm/fm_more_sheet.dart';
@@ -123,6 +124,9 @@ class _CategoryScreenState extends State<CategoryScreen> {
   /// Sürükleyerek seçimde kenarda otomatik kaydırma için (liste ve ızgara aynı
   /// anda mount edilmez → tek denetleyici yeter).
   final ScrollController _scroll = ScrollController();
+
+  /// Büyük başlık kaydırınca üst çubuğa küçülür (Ferrari H4.2).
+  late final FmTitleCollapse _titleCollapse = FmTitleCollapse(_scroll);
   late FmLayout _layout = widget.gridDefault ? FmLayout.grid3 : FmLayout.list;
 
   void _setLayout(FmLayout layout) {
@@ -273,6 +277,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
   void dispose() {
     FsEvents.version.removeListener(_dropMissing);
     _searchController.dispose();
+    _titleCollapse.dispose();
     _scroll.dispose();
     super.dispose();
   }
@@ -564,6 +569,13 @@ class _CategoryScreenState extends State<CategoryScreen> {
           Column(
         children: [
           if (widget.header != null) widget.header!,
+          // Büyük başlık + özet (H4.2); seçimde de KALIR (liste zıplamasın).
+          if (!_searching)
+            FmLargeTitle(
+              collapsed: _titleCollapse,
+              title: widget.title,
+              summary: _summary(),
+            ),
           if (_loadingAll) const LinearProgressIndicator(minHeight: 2),
           if (_searching && !_selecting) _modeStrip(),
           // **Hızlı süzgeç çipleri** (2026-08-05 kullanıcı isteği): kaynak
@@ -643,11 +655,14 @@ class _CategoryScreenState extends State<CategoryScreen> {
               onSelectRange: (a, b, sel) => _selectRange(files, a, b, sel),
               // Tam yol yerine kaynak adı ("WhatsApp", "İndirilenler") —
               // bkz. [FmLocation] (2026-09-23 tasarım turu).
+              // Kaynak · tarih solda, boyut sağda (Ferrari H4.1).
               subtitle: (e) =>
                   _modeSubs[e.path] ??
-                  FmLocation.subtitle(
-                      e.path, e.sizeBytes, e.modifiedMs, context.t,
+                  FmLocation.meta(e.path, e.modifiedMs, context.t,
                       volumes: FmEnv.volumes),
+              subtitleEnd: (e) => _modeSubs[e.path] != null || e.isDir
+                  ? null
+                  : FsPaths.humanSize(e.sizeBytes),
               onMore: (e) async {
                 await showEntryActions(context, e,
                     allowReveal: true, onReveal: _reveal);
