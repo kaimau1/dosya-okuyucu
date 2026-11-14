@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart' show FileType;
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -10,20 +11,32 @@ import '../../core/app_colors.dart';
 import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/motion.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
+import '../../models/video_edit.dart';
 import '../../models/video_trim.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/job_queue.dart';
 import '../../services/fm/video_transcode.dart';
 import '../../widgets/fm/video_trim_timeline.dart';
+import 'pick_file_screen.dart';
 
-/// **Videoyu kes** (Ferrari H8, 2026-11-14 — kullanıcı isteği).
+/// Bölge seçiminin hangi işe gideceği.
+enum _Tool { cut, mute, audio }
+
+/// **Videoyu düzenle** (Ferrari H8 kesme ekranı, 2026-11-14'te genişledi —
+/// kullanıcı: *"ara kırpmalar da yapılabilsin istendiği kadar, ses ekleme
+/// çıkarma, ara bölgelerde ses ekleme çıkarma yapılabilsin, arayüz de iyi
+/// olsun"*).
 ///
-/// Örnek: Google Fotoğraflar'ın kesme ekranı. Üstte önizleme (oynat/duraklat,
-/// yalnız seçili aralık döner), altta kare şeridi + iki tutamaç
-/// ([VideoTrimTimeline]), "Sesi kaldır" anahtarı ve Kaydet. Kaydet işi
-/// kuyruğa verir ([startTrimJob]); özgün KORUNUR, çıktı `<ad>_kesit.mp4`.
+/// Üstte önizleme (silinen bölümleri atlar, sessiz bölgede sesi kısar,
+/// eklenen sesi bölgesinde çalar). Altta kare şeridi: dış tutamaçlar baş/son
+/// kırpma; düzenlemeler şeritte işaretli (silinen koyu + makas, sessiz bölge
+/// altta kırmızı, eklenen ses üstte renkli şerit). Araç sırası: **Bölüm sil ·
+/// Sesi kapat · Ses ekle · Tüm ses** — ilk üçü şeritte ayrı renkli bir bölge
+/// seçtirir, "Uygula" ile listeye ekler. Her düzenleme listede tek dokunuşla
+/// kaldırılır; üst çubukta Geri al. Kaydet işi kuyruğa verir; özgün KORUNUR.
 class VideoTrimScreen extends StatefulWidget {
   const VideoTrimScreen({super.key, required this.path, this.durationMs});
 
@@ -32,7 +45,7 @@ class VideoTrimScreen extends StatefulWidget {
   /// Biliniyorsa süre (önizleme açılamasa da tutamaçlar çalışsın).
   final int? durationMs;
 
-  /// Kes ekranını açar; açık oynatıcı varsa çağıran önce duraklatır.
+  /// Düzenleme ekranını açar; açık oynatıcı varsa çağıran önce duraklatır.
   static Future<void> open(BuildContext context, String path) =>
       Navigator.of(context).push(MaterialPageRoute<void>(
         builder: (_) => VideoTrimScreen(path: path),
@@ -46,10 +59,21 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
   VideoPlayerController? _video;
   bool _previewFailed = false;
   int _durationMs = 0;
-  TrimRange _range = const TrimRange(0, 0);
-  bool _mute = false;
+  VideoEdit _edit = VideoEdit.whole(0);
+  final List<VideoEdit> _history = [];
   List<String> _frames = const [];
   Directory? _frameDir;
+  int _positionMs = 0;
+  double _volume = 1;
+
+  /// Bölge seçimi sürerken: hangi araç, hangi aralık, (ses için) hangi dosya.
+  _Tool? _tool;
+  TrimRange _sel = const TrimRange(0, 0);
+  String? _selAudio;
+  int _selAudioMs = 0;
+
+  /// Eklenen seslerin önizleme oynatıcıları (yol → oynatıcı).
+  final Map<String, VideoPlayerController> _audio = {};
 
   @override
   void initState() {
@@ -62,7 +86,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
 
   void _setDuration(int ms) {
     _durationMs = ms;
-    _range = TrimRange(0, ms);
+    _edit = VideoEdit.whole(ms);
   }
 
   Future<void> _openPreview() async {
@@ -100,20 +124,78 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
       final dir = Directory(p.join(tmp.path, 'video_trim_frames',
           '${widget.path.hashCode.toUnsigned(32)}'));
       _frameDir = dir;
-      final frames = await VideoTranscoder.frames(widget.path, dir: dir.path);
+      final frames =
+          await VideoTranscoder.frames(widget.path, dir: dir.path, count: 12);
       if (mounted) setState(() => _frames = frames);
     } catch (_) {
       // Bilinçli: kare şeridi süs; yoksa düz şerit, tutamaçlar yine çalışır.
     }
   }
 
-  /// Önizleme yalnız seçili aralıkta döner: bitişe gelince başa sarar.
+  // ── Önizleme ────────────────────────────────────────────────────────────
+
+  /// Önizleme çıktıyı taklit eder: silinen bölümü atlar, sonda başa sarar,
+  /// sessiz bölgede sesi kısar, eklenen sesi bölgesinde çalar.
   void _onTick() {
     final c = _video;
-    if (c == null || !c.value.isPlaying) return;
-    if (c.value.position.inMilliseconds >= _range.endMs) {
+    if (c == null) return;
+    final pos = c.value.position.inMilliseconds;
+    if (pos != _positionMs && mounted) setState(() => _positionMs = pos);
+    if (!c.value.isPlaying) {
+      _pauseAudio();
+      return;
+    }
+    final next = _edit.nextKeptFrom(pos);
+    if (next == null) {
       unawaited(c.pause());
-      unawaited(c.seekTo(Duration(milliseconds: _range.startMs)));
+      _pauseAudio();
+      unawaited(c.seekTo(Duration(milliseconds: _edit.keep.startMs)));
+      return;
+    }
+    if (next > pos + 150) {
+      unawaited(c.seekTo(Duration(milliseconds: next)));
+      return;
+    }
+    final vol = _edit.originalAudibleAt(pos) ? 1.0 : 0.0;
+    if (vol != _volume) {
+      _volume = vol;
+      unawaited(c.setVolume(vol));
+    }
+    _syncAudio(pos);
+  }
+
+  void _syncAudio(int pos) {
+    for (final a in _edit.inserts) {
+      final ac = _audio[a.path];
+      if (ac == null || !ac.value.isInitialized) continue;
+      final inside = pos >= a.at.startMs && pos < a.at.endMs;
+      if (!inside) {
+        if (ac.value.isPlaying) unawaited(ac.pause());
+        continue;
+      }
+      final want = _edit.toOutput(pos) - _edit.toOutput(a.at.startMs);
+      final have = ac.value.position.inMilliseconds;
+      if ((want - have).abs() > 400) {
+        unawaited(ac.seekTo(Duration(milliseconds: want)));
+      }
+      if (!ac.value.isPlaying) unawaited(ac.play());
+    }
+  }
+
+  void _pauseAudio() {
+    for (final ac in _audio.values) {
+      if (ac.value.isPlaying) unawaited(ac.pause());
+    }
+  }
+
+  Future<void> _ensureAudioPreview(String path) async {
+    if (_audio.containsKey(path)) return;
+    final c = VideoPlayerController.file(File(path));
+    _audio[path] = c;
+    try {
+      await c.initialize();
+    } catch (_) {
+      // Bilinçli: eklenen sesin önizlemesi süs; dışa aktarım yine çalışır.
     }
   }
 
@@ -123,30 +205,116 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     AppHaptics.selection();
     if (c.value.isPlaying) {
       unawaited(c.pause());
+      _pauseAudio();
       return;
     }
+    final range = _tool != null ? _sel : _edit.keep;
     final pos = c.value.position.inMilliseconds;
-    if (pos < _range.startMs || pos >= _range.endMs - 100) {
-      unawaited(c.seekTo(Duration(milliseconds: _range.startMs)));
+    if (pos < range.startMs || pos >= range.endMs - 100) {
+      unawaited(c.seekTo(Duration(milliseconds: range.startMs)));
     }
     unawaited(c.play());
   }
 
   void _seek(int ms) {
     final c = _video;
+    setState(() => _positionMs = ms);
     if (c == null) return;
     if (c.value.isPlaying) unawaited(c.pause());
     unawaited(c.seekTo(Duration(milliseconds: ms)));
   }
 
-  bool get _canSave =>
-      _durationMs > 0 && (!_range.isWhole(_durationMs) || _mute);
+  // ── Düzenleme ───────────────────────────────────────────────────────────
+
+  void _apply(VideoEdit next) {
+    if (identical(next, _edit)) return;
+    setState(() {
+      _history.add(_edit);
+      _edit = next;
+    });
+  }
+
+  void _undo() {
+    if (_history.isEmpty) return;
+    AppHaptics.selection();
+    setState(() => _edit = _history.removeLast());
+  }
+
+  /// Bölge seçimini başlatır: oynatma yerinin çevresinde (videonun ~%15'i,
+  /// en az 1, en çok 10 sn); ses eklerken sesin süresi kadar.
+  Future<void> _startTool(_Tool tool) async {
+    if (_durationMs <= 0) return;
+    String? audio;
+    var audioMs = 0;
+    if (tool == _Tool.audio) {
+      final picked = await AppFilePicker.pickFiles(type: FileType.audio);
+      final files = picked?.files ?? const <PickedFile>[];
+      final path = files.isEmpty ? null : files.first.path;
+      if (path == null || !mounted) return;
+      audio = path;
+      audioMs = (await VideoTranscoder.probe(path))?.durationMs ?? 0;
+      if (!mounted) return;
+      unawaited(_ensureAudioPreview(path));
+    }
+    unawaited(_video?.pause());
+    final keep = _edit.keep;
+    var start = _positionMs.clamp(keep.startMs, keep.endMs);
+    var len = tool == _Tool.audio && audioMs > 0
+        ? audioMs
+        : (_durationMs * 0.15).round().clamp(1000, 10000);
+    if (start + len > keep.endMs) start = keep.endMs - len;
+    if (start < keep.startMs) start = keep.startMs;
+    if (start + len > keep.endMs) len = keep.endMs - start;
+    AppHaptics.selection();
+    setState(() {
+      _tool = tool;
+      _sel = TrimRange(start, start + len);
+      _selAudio = audio;
+      _selAudioMs = audioMs;
+    });
+  }
+
+  void _cancelTool() => setState(() {
+        _tool = null;
+        _selAudio = null;
+      });
+
+  void _commitTool() {
+    final tool = _tool;
+    if (tool == null) return;
+    final VideoEdit next;
+    switch (tool) {
+      case _Tool.cut:
+        next = _edit.addCut(_sel);
+        if (identical(next, _edit)) {
+          showSnack(context, context.t('ved.cut_too_much'));
+          return;
+        }
+      case _Tool.mute:
+        next = _edit.addMute(_sel);
+      case _Tool.audio:
+        final path = _selAudio;
+        if (path == null) return;
+        next = _edit.addInsert(
+            AudioInsert(path: path, at: _sel, audioMs: _selAudioMs));
+        if (identical(next, _edit)) {
+          showSnack(context, context.t('ved.audio_overlap'));
+          return;
+        }
+    }
+    AppHaptics.done();
+    _apply(next);
+    _cancelTool();
+  }
+
+  bool get _canSave => _durationMs > 0 && !_edit.isUnchanged && _tool == null;
 
   void _save() {
     if (!_canSave) return;
     unawaited(_video?.pause());
+    _pauseAudio();
     AppHaptics.done();
-    startTrimJob(context, widget.path, _range, removeAudio: _mute);
+    startEditJob(context, widget.path, _edit);
     unawaited(Navigator.of(context).maybePop());
   }
 
@@ -155,6 +323,9 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     _video
       ?..removeListener(_onTick)
       ..dispose();
+    for (final c in _audio.values) {
+      unawaited(c.dispose());
+    }
     final dir = _frameDir;
     if (dir != null) {
       dir.delete(recursive: true).catchError((Object _) => dir);
@@ -162,16 +333,37 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     super.dispose();
   }
 
+  // ── Arayüz ──────────────────────────────────────────────────────────────
+
+  List<TimelineMark> get _marks => [
+        for (final c in _edit.cuts) TimelineMark(c, TimelineMarkKind.cut),
+        for (final m in _edit.mutes) TimelineMark(m, TimelineMarkKind.mute),
+        for (final a in _edit.inserts)
+          TimelineMark(a.at, TimelineMarkKind.audio),
+        // Bölge seçerken kırpılan baş/son da "silinmiş" görünsün.
+        if (_tool != null && _edit.keep.startMs > 0)
+          TimelineMark(TrimRange(0, _edit.keep.startMs), TimelineMarkKind.cut),
+        if (_tool != null && _edit.keep.endMs < _durationMs)
+          TimelineMark(TrimRange(_edit.keep.endMs, _durationMs),
+              TimelineMarkKind.cut),
+      ];
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       backgroundColor: AppColors.mediaSurface,
       appBar: AppBar(
         backgroundColor: AppColors.mediaSurface,
         foregroundColor: AppColors.onMedia,
-        title: Text(context.t('vtr.title')),
+        title: Text(context.t('ved.title')),
         actions: [
+          IconButton(
+            key: const ValueKey('edit-undo'),
+            tooltip: context.t('ved.undo'),
+            onPressed: _history.isEmpty || _tool != null ? null : _undo,
+            icon: const Icon(AppIcons.undo),
+          ),
           Padding(
             padding: const EdgeInsetsDirectional.only(end: Gap.sm),
             child: FilledButton(
@@ -187,48 +379,236 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
         child: Column(
           children: [
             Expanded(child: _preview(context)),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: Gap.md, vertical: Gap.sm),
-              child: Text(
-                _durationMs <= 0
-                    ? ''
-                    : _range.isWhole(_durationMs)
-                        ? context.t('vtr.whole')
-                        : context.t('vtr.range', {
-                            'start': formatClock(_range.startMs),
-                            'end': formatClock(_range.endMs),
-                            'n': trimSeconds(_range),
-                          }),
-                key: const ValueKey('trim-label'),
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: AppColors.onMediaSoft),
-              ),
-            ),
+            _infoRow(context),
             if (_durationMs > 0)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: Gap.md),
                 child: VideoTrimTimeline(
+                  key: ValueKey(_tool == null ? 'tl-keep' : 'tl-sel'),
                   durationMs: _durationMs,
-                  range: _range,
+                  range: _tool == null ? _edit.keep : _sel,
                   frames: _frames,
-                  onChanged: (r) => setState(() => _range = r),
+                  marks: _marks,
+                  playheadMs: _video == null ? null : _positionMs,
+                  accent: _tool == null ? null : scheme.tertiary,
+                  dimOutside: _tool == null,
+                  onChanged: (r) => _tool == null
+                      ? setState(() => _edit = _edit.copyWith(keep: r))
+                      : setState(() => _sel = r),
                   onSeek: _seek,
                 ),
               ),
-            SwitchListTile(
-              key: const ValueKey('trim-mute'),
-              value: _mute,
-              onChanged: (v) => setState(() => _mute = v),
-              secondary: Icon(_mute ? AppIcons.volumeOff : AppIcons.volumeUp,
-                  color: AppColors.onMediaSoft),
-              title: Text(context.t('vtr.mute'),
-                  style: const TextStyle(color: AppColors.onMedia)),
+            AnimatedSwitcher(
+              duration: Motion.of(context, Motion.medium),
+              switchInCurve: Motion.enter,
+              switchOutCurve: Motion.exit,
+              child: _tool == null ? _toolbar(context) : _selectBar(context),
             ),
+            if (_tool == null && _hasEdits) _editList(context),
             const SizedBox(height: Gap.sm),
           ],
         ),
+      ),
+    );
+  }
+
+  bool get _hasEdits =>
+      _edit.cuts.isNotEmpty ||
+      _edit.mutes.isNotEmpty ||
+      _edit.inserts.isNotEmpty;
+
+  /// Oynatma yeri solda, sonucun süresi sağda.
+  Widget _infoRow(BuildContext context) {
+    final style = Theme.of(context)
+        .textTheme
+        .bodyMedium
+        ?.copyWith(color: AppColors.onMediaSoft);
+    final String right;
+    if (_durationMs <= 0) {
+      right = '';
+    } else if (_tool != null) {
+      right = context.t('vtr.range', {
+        'start': formatClock(_sel.startMs),
+        'end': formatClock(_sel.endMs),
+        'n': trimSeconds(_sel),
+      });
+    } else if (_edit.isUnchanged) {
+      right = context.t('vtr.whole');
+    } else {
+      right = context.t('ved.result', {'t': formatClock(_edit.outputMs)});
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
+      child: Row(
+        children: [
+          Text(formatClock(_positionMs), style: style),
+          const SizedBox(width: Gap.md),
+          Expanded(
+            child: Text(
+              right,
+              key: const ValueKey('trim-label'),
+              textAlign: TextAlign.end,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: style,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Dört araç: simge üstte, ad altta (oynatıcı alt çubuğuyla aynı dil).
+  Widget _toolbar(BuildContext context) {
+    final enabled = _durationMs > 0;
+    Widget tool(Key key, IconData icon, String label, VoidCallback? onTap,
+            {bool on = false}) =>
+        Expanded(
+          child: _ToolButton(
+            key: key,
+            icon: icon,
+            label: label,
+            selected: on,
+            onTap: enabled ? onTap : null,
+          ),
+        );
+    return Padding(
+      key: const ValueKey('ved-tools'),
+      padding: const EdgeInsets.fromLTRB(Gap.sm, Gap.md, Gap.sm, 0),
+      child: Row(
+        children: [
+          tool(const ValueKey('ved-cut'), AppIcons.cut,
+              context.t('ved.tool_cut'), () => _startTool(_Tool.cut)),
+          tool(const ValueKey('ved-mute'), AppIcons.volumeOff,
+              context.t('ved.tool_mute'), () => _startTool(_Tool.mute)),
+          tool(const ValueKey('ved-audio'), AppIcons.libraryMusic,
+              context.t('ved.tool_audio'), () => _startTool(_Tool.audio)),
+          tool(
+            const ValueKey('trim-mute'),
+            _edit.muteAll ? AppIcons.volumeOff : AppIcons.volumeUp,
+            context.t(_edit.muteAll ? 'ved.sound_off' : 'ved.sound_on'),
+            () {
+              AppHaptics.selection();
+              _apply(_edit.copyWith(muteAll: !_edit.muteAll));
+            },
+            on: _edit.muteAll,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Bölge seçilirken: ne yapılacağı + Vazgeç / Uygula.
+  Widget _selectBar(BuildContext context) {
+    final theme = Theme.of(context);
+    final tool = _tool!;
+    final (hint, apply, icon) = switch (tool) {
+      _Tool.cut => ('ved.sel_cut', 'ved.apply_cut', AppIcons.cut),
+      _Tool.mute => ('ved.sel_mute', 'ved.apply_mute', AppIcons.volumeOff),
+      _Tool.audio => ('ved.sel_audio', 'ved.apply_audio', AppIcons.libraryMusic),
+    };
+    final audio = _selAudio;
+    return Padding(
+      key: const ValueKey('ved-select'),
+      padding: const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            audio == null
+                ? context.t(hint)
+                : '${context.t(hint)} · ${p.basename(audio)}',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: AppColors.onMediaSoft),
+          ),
+          const SizedBox(height: Gap.sm),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  key: const ValueKey('ved-cancel'),
+                  style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.onMedia),
+                  onPressed: _cancelTool,
+                  child: Text(context.t('common.cancel')),
+                ),
+              ),
+              const SizedBox(width: Gap.sm),
+              Expanded(
+                child: FilledButton.icon(
+                  key: const ValueKey('ved-apply'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: theme.colorScheme.tertiary,
+                    foregroundColor: theme.colorScheme.onTertiary,
+                  ),
+                  onPressed: _commitTool,
+                  icon: Icon(icon),
+                  label: Text(context.t(apply),
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Yapılan düzenlemeler: her biri tek satır, sağda kaldır.
+  Widget _editList(BuildContext context) {
+    final rows = <Widget>[
+      for (var i = 0; i < _edit.cuts.length; i++)
+        _EditRow(
+          key: ValueKey('ved-row-cut-$i'),
+          icon: AppIcons.cut,
+          text: context.t('ved.row_cut', {
+            'start': formatClock(_edit.cuts[i].startMs),
+            'end': formatClock(_edit.cuts[i].endMs),
+          }),
+          onTap: () => _seek(_edit.cuts[i].startMs),
+          onRemove: () => _apply(_edit.removeCut(i)),
+        ),
+      for (var i = 0; i < _edit.mutes.length; i++)
+        _EditRow(
+          key: ValueKey('ved-row-mute-$i'),
+          icon: AppIcons.volumeOff,
+          text: context.t('ved.row_mute', {
+            'start': formatClock(_edit.mutes[i].startMs),
+            'end': formatClock(_edit.mutes[i].endMs),
+          }),
+          onTap: () => _seek(_edit.mutes[i].startMs),
+          onRemove: () => _apply(_edit.removeMute(i)),
+        ),
+      for (var i = 0; i < _edit.inserts.length; i++)
+        _EditRow(
+          key: ValueKey('ved-row-audio-$i'),
+          icon: AppIcons.libraryMusic,
+          text: '${p.basename(_edit.inserts[i].path)} · '
+              '${formatClock(_edit.inserts[i].at.startMs)}–'
+              '${formatClock(_edit.inserts[i].at.endMs)}',
+          onTap: () => _seek(_edit.inserts[i].at.startMs),
+          onRemove: () => _apply(_edit.removeInsert(i)),
+          trailing: TextButton(
+            style: TextButton.styleFrom(
+                foregroundColor: AppColors.onMediaSoft,
+                visualDensity: VisualDensity.compact),
+            onPressed: () => _apply(_edit.toggleReplace(i)),
+            child: Text(context.t(_edit.inserts[i].replace
+                ? 'ved.replace_on'
+                : 'ved.replace_off')),
+          ),
+        ),
+    ];
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 148),
+      child: ListView(
+        key: const ValueKey('ved-list'),
+        shrinkWrap: true,
+        padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 0),
+        children: rows,
       ),
     );
   }
@@ -274,18 +654,146 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
   }
 }
 
-/// Kesme işini kuyruğa verir: kullanıcı ekranı kapatabilir; ilerleme alt
+/// Araç düğmesi: yuvarlak simge zemini + altta ad; seçiliyken dolu.
+class _ToolButton extends StatelessWidget {
+  const _ToolButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.selected = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final fg = onTap == null
+        ? AppColors.onMediaSoft.withValues(alpha: 0.4)
+        : selected
+            ? scheme.onPrimaryContainer
+            : AppColors.onMedia;
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(Radii.card),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedContainer(
+                duration: Motion.of(context, Motion.short),
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: selected
+                      ? scheme.primaryContainer
+                      : AppColors.onMedia.withValues(alpha: 0.1),
+                ),
+                child: Icon(icon, color: fg),
+              ),
+              const SizedBox(height: Gap.xs),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelMedium
+                    ?.copyWith(color: AppColors.onMediaSoft),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Düzenleme listesinin bir satırı.
+class _EditRow extends StatelessWidget {
+  const _EditRow({
+    super.key,
+    required this.icon,
+    required this.text,
+    required this.onTap,
+    required this.onRemove,
+    this.trailing,
+  });
+
+  final IconData icon;
+  final String text;
+  final VoidCallback onTap;
+  final VoidCallback onRemove;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Gap.xs),
+      child: Material(
+        color: AppColors.onMedia.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(Radii.control),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsetsDirectional.only(start: Gap.sm),
+            child: Row(
+              children: [
+                Icon(icon, size: 18, color: AppColors.onMediaSoft),
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: Text(
+                    text,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: AppColors.onMedia),
+                  ),
+                ),
+                ?trailing,
+                IconButton(
+                  tooltip: context.t('ved.remove'),
+                  visualDensity: VisualDensity.compact,
+                  color: AppColors.onMediaSoft,
+                  onPressed: () {
+                    AppHaptics.selection();
+                    onRemove();
+                  },
+                  icon: const Icon(AppIcons.close, size: 18),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Düzenleme işini kuyruğa verir: kullanıcı ekranı kapatabilir; ilerleme alt
 /// şeritte ve bildirimde, çıktı İşlemler ekranında (Aç / Paylaş).
-void startTrimJob(
-  BuildContext context,
-  String path,
-  TrimRange range, {
-  bool removeAudio = false,
-}) {
+void startEditJob(BuildContext context, String path, VideoEdit edit) {
   final messenger = ScaffoldMessenger.of(context);
   final str = AppStrings.of(context);
   final name = p.basename(path);
-  final id = 'trim_${Object.hash(path, range.startMs, range.endMs, removeAudio)}';
+  final id = 'trim_${Object.hash(
+    path,
+    edit.keep,
+    Object.hashAll(edit.cuts),
+    Object.hashAll(edit.mutes),
+    Object.hashAll([for (final a in edit.inserts) Object.hash(a.path, a.at)]),
+    edit.muteAll,
+  )}';
   final before = JobQueue.instance.find(id);
   final alreadyRunning = before != null && before.status.isActive;
   final job = JobQueue.instance.enqueue(
@@ -297,9 +805,8 @@ void startTrimJob(
       handle.report(
           done: 0,
           total: 1,
-          detail: '${formatClock(range.startMs)} – ${formatClock(range.endMs)}');
-      final out = await VideoTranscoder.trim(path, range,
-          removeAudio: removeAudio, handle: handle);
+          detail: formatClock(edit.outputMs));
+      final out = await VideoTranscoder.edit(path, edit, handle: handle);
       handle.addOutput(out, source: path);
       handle.report(done: 1, total: 1);
       FsEvents.changed([out]);
