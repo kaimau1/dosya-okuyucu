@@ -101,9 +101,10 @@ SURUCU="$UST/okuyucu_ab_$A7"   # flutter drive'ın koştuğu proje (sürücü ay
 
 # ── Ölçüm verisi (bir kez) ───────────────────────────────────────────────────
 veri() {
-  adb shell "ls $OLCUM/belge_100.pdf" >/dev/null 2>&1 && return
+  # En son eklenen veri dosyası (P14) — yoksa üretilip yeniden itilir.
+  adb shell "ls $OLCUM/slayt_300.pptx" >/dev/null 2>&1 && return
   local Y="$KOK/build/ab/olcum_verisi"
-  if [ ! -f "$Y/belge_100.pdf" ]; then
+  if [ ! -f "$Y/slayt_300.pptx" ]; then
     local B=(); [ -z "${BUYUK_PDF:-}" ] && B=(--buyuk)
     "$PY" tool/make_test_tree.py "$Y" "${B[@]}" >/dev/null
   fi

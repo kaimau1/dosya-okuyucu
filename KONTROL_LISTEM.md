@@ -74,6 +74,15 @@ Ayrıntılı teknik liste: `docs/CIHAZ_TESTI.md` (koşu kayıtları orada).
 29. **AI'da tek belgelik maske kapatma (G10.2)** — kişisel veri maskesi şu an yalnız genel ayarla (Ayarlar › Ağ) kapanıyor;
     belge başına kapatma korumayı gevşettiği için YAPILMADI (en güvenli seçenek). İstersen "tek belgelik kapatma ekle" de. (sabah bakılacak)
 
+## Word (P14, 2026-11-14)
+30. **Mobil görünüm editörü onayı (B3.2 / K18)** — bir Word belgesi aç → alttaki **Düzenle** → Gboard'la `ğüşıöçİ` yaz,
+    geri sil, Enter, uzun basıp seç, yanlış kelimenin önerisine dokun (tam liste `docs/CIHAZ_TESTI.md` §Word "Mobil görünüm editörü").
+    Doğruysa: "mobil editör tamam" de → eski sayfa üzerinde düzenleme yolunu (geliştirici bayrağı) ve deneme editörünü silerim.
+    Yanlışsa: hangi adım bozuk, yaz (görüntü at) — önce onu düzeltirim, eski yol o zamana kadar kalır.
+31. **Word kapanış/menü takılması (B3.3d)** — sayfa görünümünde belge açıkken ⋮ menüsünü aç-kapat, sonra geri ile kapat.
+    Doğruysa (takılma yok): "Word kapanışı akıcı" de, madde kapanır. Yanlışsa: "takılıyor" de — ölçüm senaryosu hazır
+    (`word_300_menu`, `word_300_kapanis`), telefon boşken ölçüp kök nedeni ayıracağım; netliği bozan kip değişikliği ölçmeden yapılmaz.
+
 ## Telefonda temizlik
 - `/sdcard/Download/PdfPro/` içindeki test kopyaları (sahte kişisel verili `kisisel_ornek.pdf`, `kisi2.pdf`
   dahil) ölçüm bitince silinecek; `com.dosyaokuyucu.dosya_okuyucu.r8test` ölçüm uygulaması — istersen kaldır.

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dosya_okuyucu/widgets/whats_new.dart';
 import 'package:dosya_okuyucu/core/app_navigator.dart';
 import 'package:dosya_okuyucu/main.dart' as app;
+import 'package:dosya_okuyucu/screens/editors/word_mobile_editor_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/browser_screen.dart';
 import 'package:dosya_okuyucu/services/file_service.dart';
 import 'package:dosya_okuyucu/services/fm/entry_opener.dart';
@@ -10,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:pdfrx/pdfrx.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// **Cihaz perf senaryoları** (Faz 42 / 6 — FAZ_PLANI Faz 4 P13, KALANLAR A8.1).
 ///
@@ -132,5 +134,75 @@ void main() {
       // ignore: avoid_print
       print('PERF pdf_buyuk: dosya yok, atlandı');
     }
-  }, timeout: const Timeout(Duration(minutes: 15)));
+
+    // P14 — Word (Faz 37 + KALANLAR B3.3d) ve Slayt (Faz 38). Veri
+    // `make_test_tree.py` (word_300.docx, slayt_300.pptx); yoksa atlanır.
+    // Pro bayrağı kapalı (`_pro0`) / açık (`_pro1`) = Faz 37/38 öncesi/sonrası
+    // arayüz (anayasa k.9) — aynı derlemede karşılaştırma.
+    final prefs = await SharedPreferences.getInstance();
+    const docx = '$_veri/word_300.docx';
+    if (File(docx).existsSync()) {
+      // Sayfa görünümü (hybrid composition WebView) — B3.3d şüphelisi.
+      await binding.traceAction(() async {
+        await ac(tester, EntryOpener.screenFor(await fs.load(docx)));
+        await bekle(tester, 6000); // docx-preview 300 sayfayı dizer
+      }, reportKey: 'word_300_acilis');
+      // ⋮ menüsü 5 kez aç/kapat: WebView üstüne açılan katman. Kaydırmadan
+      // ÖNCE (okuma kipi kaydırınca üst çubuğu gizler); yalnız menü açıldıysa
+      // pop — yoksa Word ekranı kapanırdı.
+      final more = find.byKey(const ValueKey('editor-more'));
+      final menu = find.byWidgetPredicate((w) => w is PopupMenuItem);
+      await binding.traceAction(() async {
+        for (var i = 0; i < 5 && more.evaluate().isNotEmpty; i++) {
+          await tester.tap(more);
+          await bekle(tester, 600);
+          if (menu.evaluate().isEmpty) break;
+          navigatorKey.currentState!.pop();
+          await bekle(tester, 600);
+        }
+      }, reportKey: 'word_300_menu');
+      await binding.traceAction(() => kaydir(tester),
+          reportKey: 'word_300_kaydirma');
+      await binding.traceAction(() => kapat(tester),
+          reportKey: 'word_300_kapanis');
+
+      // Mobil görünüm editörü (Faz 37 pro araçlarının yüzeyi).
+      for (final pro in [false, true]) {
+        await prefs.setBool('word_pro_v1', pro);
+        final k = pro ? 'pro1' : 'pro0';
+        await binding.traceAction(() async {
+          await ac(tester,
+              const WordMobileEditorScreen(path: docx, name: 'word_300'));
+          await bekle(tester, 3000);
+        }, reportKey: 'word_mobil_acilis_$k');
+        await binding.traceAction(() => kaydir(tester),
+            reportKey: 'word_mobil_kaydirma_$k');
+        await kapat(tester);
+      }
+      await prefs.remove('word_pro_v1');
+    } else {
+      // ignore: avoid_print
+      print('PERF word_300: dosya yok, atlandı');
+    }
+
+    const pptx = '$_veri/slayt_300.pptx';
+    if (File(pptx).existsSync()) {
+      for (final pro in [false, true]) {
+        await prefs.setBool('slides_pro_v1', pro);
+        final k = pro ? 'pro1' : 'pro0';
+        await binding.traceAction(() async {
+          await ac(tester, EntryOpener.screenFor(await fs.load(pptx)));
+          await bekle(tester, 3000);
+        }, reportKey: 'slayt_300_acilis_$k');
+        await binding.traceAction(() => kaydir(tester, n: 20),
+            reportKey: 'slayt_300_kaydirma_$k');
+        await binding.traceAction(() => kapat(tester),
+            reportKey: 'slayt_300_kapanis_$k');
+      }
+      await prefs.remove('slides_pro_v1');
+    } else {
+      // ignore: avoid_print
+      print('PERF slayt_300: dosya yok, atlandı');
+    }
+  }, timeout: const Timeout(Duration(minutes: 25)));
 }

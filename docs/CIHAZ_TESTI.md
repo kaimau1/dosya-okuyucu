@@ -312,6 +312,11 @@ Impeller Vulkan bu telefonda (Adreno 618) **OpenGLES'e düşüyor**. Skia denend
 - [ ] **Kasma turu (2026-11-03):** resimli/uzun .docx aç → "açılıyor" göstergesi donmuyor, sayfa geçişi
       akıcı (ayrıştırma + görünüm kopyası izolatta); düzenle/kaydet/geri al eskisi gibi. Kapanırken ve şerit /
       alt levha açılırken hâlâ takılma varsa → KALANLAR B3.3d (hybrid composition).
+- [ ] **P14 ölçümü (2026-11-14, yazıldı, cihazda koşulmadı — telefon P04 ölçümündeydi):** `bash tool/ab_olcum.sh`
+      artık `word_300.docx` / `slayt_300.pptx` üretip itiyor; senaryolar `word_300_{acilis,menu,kaydirma,kapanis}`
+      (sayfa görünümü, HC WebView — B3.3d), `word_mobil_{acilis,kaydirma}_pro{0,1}` (Faz 37 bayrağı kapalı/açık),
+      `slayt_300_{acilis,kaydirma,kapanis}_pro{0,1}` (Faz 38). `word_300_menu`/`_kapanis` raster p99 > 24 ms ise B3.3d
+      HC adayı güçlenir; Flutter karesi temizse görsel donma için ekran kaydı/SurfaceFlinger (HAFIZA 2026-11-03 tuzağı).
 **Bütün editörlerde ortak (Faz 20 — Word, Excel, Slayt, Metin, PDF, Görsel):**
 - [ ] Klavye açılıp kapanırken klavye üstü çubuk klavyeyle birlikte kayıyor (zıplama yok).
 - [ ] Otomatik kaydetme: düzenle, 3 sn bekle → başlıkta "Kaydedildi"; uygulamayı zorla kapat →

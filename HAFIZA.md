@@ -973,3 +973,10 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Karar (H11.1/H11.2):** PDF üst çubuğu telefonda ≤ 3 + ⋮ (kaydedilmemişken ilk yuva Kaydet, İçindekiler ⋮'ya); belge alt çubuğu ≤ 5 (İndir varken Yazdır ⋮ › Dosya). "Çevir" alt çubukta kalır (2026-07-31 kullanıcı isteği).
 - **Yapı (H11.5):** video denetimleri solar: `_controlsFading` + `_fade()` (IgnorePointer + AnimatedOpacity, opaklık 1'de katman yok); solarken dokunuş = geri getir. Testte `pump(3 sn)` solma başlar, ağaçtan çıkış `Motion.long` sonra.
 - **👤 sabah bakılacak:** galeri alt çubuğu 8 eylem (öneri 5) ve editör üst çubuğu 4 + ⋮ → `KONTROL_LISTEM.md` 24–25; dokunulmadı (geçmiş kullanıcı eklemeleri olabilir).
+
+## 2026-11-14 — P14 Word/Slayt (cihaz yok — telefon P04 A/B ölçümündeydi)
+- **B3.3d üretilemedi:** kod okumasında Word kapanış/⋮ menü yolunda Dart tarafı ağır iş yok (`DocxView.dispose` yalnız dinleyici; `didChangeDependencies` kare başı tetiklenmiyor — `ReadingChrome` yalnız boy/animasyon nesnesi değişince bildirir). Tek aday hâlâ hybrid composition. Tahminle kip değiştirilmedi (netlik kullanıcı isteği).
+- **Ölçüm düzeni:** `make_test_tree.py` → `word_300.docx`, `slayt_300.pptx` (fixture çoğaltma); senaryolar `perf_senaryolari_test.dart` sonunda. Faz 37/38 "önce" = aynı derlemede `word_pro_v1` / `slides_pro_v1` kapalı (Faz 36 tabanı senaryo dosyasını derleyemez).
+- **Tuzak:** `ab_olcum.sh` veriyi yalnız işaret dosyası yoksa iter — yeni veri ekleyen, işaret dosyasını da en yeniye çekmeli (şimdi `slayt_300.pptx`).
+- **Tuzak (senaryo):** Word okuma kipi kaydırınca üst çubuğu gizler → ⋮ menü ölçümü kaydırmadan ÖNCE; menü açılmadıysa `pop` Word ekranını kapatır (PopupMenuItem varlığı denetlenir).
+- **B3.2:** Mobil editör onayı kullanıcı bakışı → KONTROL_LISTEM 30; eski WebView düzenleme yolu onaysız silinmez.
