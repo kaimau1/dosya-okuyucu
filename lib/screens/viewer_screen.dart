@@ -757,25 +757,24 @@ class _ViewerScreenState extends State<ViewerScreen> {
     });
   }
 
-  /// Belge doldurulabilir bir formsa kullanıcıya **söylenir**.
+  /// Belge doldurulabilir bir form mu ([_offerFormFilling] bulur)?
+  bool _pdfIsForm = false;
+
+  /// Belge doldurulabilir bir formsa üst çubukta **"Formu doldur"** düğmesi
+  /// belirir (İçindekiler'in yerine).
   ///
   /// Menüdeki "Formu doldur" tek başına keşfedilmiyor: kullanıcı bir form
   /// PDF'ini açtığında yapabileceği ilk şey onu doldurmaktır ve bunu ⋮
   /// menüsünde aramaz. Bakış ucuz (dosyada `/AcroForm` anahtarı aranır),
   /// yanlış pozitifte ekran zaten "form alanı yok" diyor.
+  ///
+  /// Eskiden 4 sn'lik SnackBar'dı (Ferrari H1.2, 2026-11-14): "N. sayfadan
+  /// devam" hapıyla aynı anda çıkıp alt kenarı kapatıyordu, ders kitaplarında
+  /// da (yanlış alarm) her açılışta. Düğme kalıcı ve sessiz.
   Future<void> _offerFormFilling() async {
     if (!await PdfFormFiller.looksLikeForm(widget.doc.path)) return;
     if (!mounted) return;
-    showSnackBarReplacing(
-        ScaffoldMessenger.of(context),
-        SnackBar(
-          content: Text(context.t('vw.form_detected')),
-          duration: const Duration(seconds: 4),
-          action: SnackBarAction(
-            label: context.t('vw.fill_form'),
-            onPressed: _fillPdfForm,
-          ),
-        ));
+    _partSetState(() => _pdfIsForm = true);
   }
 
   /// Arayıcılar (pdfrx + OCR) eşleşme bulup ilerledikçe sayaç/konum etiketini
