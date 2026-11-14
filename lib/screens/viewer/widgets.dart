@@ -447,7 +447,9 @@ class _DeferredPdfThumbState extends State<_DeferredPdfThumb> {
   void initState() {
     super.initState();
     _timer = Timer(Motion.thumbDefer, () {
-      if (mounted) setState(() => _show = true);
+      if (!mounted) return;
+      PdfProPerf.openMark('kucuk_resim');
+      setState(() => _show = true);
     });
   }
 
