@@ -216,6 +216,8 @@ const Map<String, (String, String, String)> _t7 = {
   'ved.tool_audio': ('Ses ekle', 'Add sound', 'إضافة صوت'),
   'ved.sound_on': ('Ses açık', 'Sound on', 'الصوت مفعّل'),
   'ved.sound_off': ('Ses yok', 'No sound', 'بلا صوت'),
+  // Ferrari H8.5: döndür + kareyi fotoğraf kaydet.
+  'ved.tool_rotate': ('Döndür', 'Rotate', 'تدوير'),
   'ved.sel_cut': (
     'Silinecek bölümü tutamaçlarla seç',
     'Pick the part to cut out with the handles',

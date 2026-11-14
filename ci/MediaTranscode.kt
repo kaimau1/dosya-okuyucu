@@ -13,6 +13,7 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.effect.FrameDropEffect
 import androidx.media3.effect.Presentation
+import androidx.media3.effect.ScaleAndRotateTransformation
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.DefaultEncoderFactory
 import androidx.media3.transformer.EditedMediaItem
@@ -329,6 +330,15 @@ object MediaTranscodeBridge {
         if (pieces.isEmpty()) return false
         val audio = (a["audio"] as? List<*>)?.mapNotNull { it as? Map<*, *> } ?: emptyList()
         val removeAudio = a["removeAudio"] == true
+        // Döndürme (Ferrari H8.5): Dart saat yönünde verir; Media3
+        // `setRotationDegrees` saat YÖNÜNÜN TERSİNE döndürür. Girdinin kendi
+        // döndürme verisi çözücüde uygulanır → dönüş ekranda görünene göre.
+        val rotation = ((a["rotation"] as? Number)?.toInt() ?: 0).mod(360)
+        val videoEffects: List<androidx.media3.common.Effect> = if (rotation == 0) emptyList() else listOf(
+            ScaleAndRotateTransformation.Builder()
+                .setRotationDegrees((360 - rotation).toFloat())
+                .build()
+        )
         transformer?.cancel()
         val source = Uri.fromFile(File(path))
         var anyMute = false
@@ -351,6 +361,7 @@ object MediaTranscodeBridge {
             videoItems.add(
                 EditedMediaItem.Builder(media)
                     .setRemoveAudio(removeAudio || mute)
+                    .setEffects(Effects(listOf(), videoEffects))
                     .build()
             )
         }

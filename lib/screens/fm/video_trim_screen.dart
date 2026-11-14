@@ -480,7 +480,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     );
   }
 
-  /// Dört araç: simge üstte, ad altta (oynatıcı alt çubuğuyla aynı dil).
+  /// Beş araç: simge üstte, ad altta (oynatıcı alt çubuğuyla aynı dil).
   Widget _toolbar(BuildContext context) {
     final enabled = _durationMs > 0;
     Widget tool(Key key, IconData icon, String label, VoidCallback? onTap,
@@ -514,6 +514,17 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
               _apply(_edit.copyWith(muteAll: !_edit.muteAll));
             },
             on: _edit.muteAll,
+          ),
+          // Döndür (Ferrari H8.5): her dokunuş saat yönünde 90°.
+          tool(
+            const ValueKey('ved-rotate'),
+            AppIcons.rotate,
+            context.t('ved.tool_rotate'),
+            () {
+              AppHaptics.selection();
+              _apply(_edit.rotated());
+            },
+            on: _edit.quarterTurns != 0,
           ),
         ],
       ),
@@ -653,23 +664,27 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
       behavior: HitTestBehavior.opaque,
       onTap: _togglePlay,
       child: Center(
-        child: AspectRatio(
-          aspectRatio: c.value.aspectRatio <= 0 ? 16 / 9 : c.value.aspectRatio,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              VideoPlayer(c),
-              ValueListenableBuilder<VideoPlayerValue>(
-                valueListenable: c,
-                builder: (context, v, _) => v.isPlaying
-                    ? const SizedBox.shrink()
-                    : const Center(
-                        child: Icon(AppIcons.playCircle,
-                            size: 64, color: AppColors.onMediaSoft),
-                      ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Döndürme önizlemesi (H8.5): ağaç şekli sabit, 0'da dönüş yok.
+            RotatedBox(
+              key: const ValueKey('ved-preview-rotation'),
+              quarterTurns: _edit.quarterTurns,
+              child: AspectRatio(
+                aspectRatio:
+                    c.value.aspectRatio <= 0 ? 16 / 9 : c.value.aspectRatio,
+                child: VideoPlayer(c),
               ),
-            ],
-          ),
+            ),
+            ValueListenableBuilder<VideoPlayerValue>(
+              valueListenable: c,
+              builder: (context, v, _) => v.isPlaying
+                  ? const SizedBox.shrink()
+                  : const Icon(AppIcons.playCircle,
+                      size: 64, color: AppColors.onMediaSoft),
+            ),
+          ],
         ),
       ),
     );
@@ -815,6 +830,7 @@ void startEditJob(BuildContext context, String path, VideoEdit edit) {
     Object.hashAll(edit.mutes),
     Object.hashAll([for (final a in edit.inserts) Object.hash(a.path, a.at)]),
     edit.muteAll,
+    edit.quarterTurns,
   )}';
   final before = JobQueue.instance.find(id);
   final alreadyRunning = before != null && before.status.isActive;

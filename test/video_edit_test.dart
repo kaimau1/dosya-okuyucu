@@ -100,6 +100,17 @@ void main() {
       expect(t.isUnchanged, isFalse);
       expect(t.isSimpleTrim, isTrue);
     });
+
+    test('döndür (H8.5): saat yönünde çeyrek, dördüncüde başa; hızlı yol kapanır', () {
+      final r = base.rotated();
+      expect(r.rotationDegrees, 90);
+      expect(r.isUnchanged, isFalse);
+      expect(r.isSimpleTrim, isFalse);
+      expect(r.rotated().rotated().rotationDegrees, 270);
+      final full = r.rotated().rotated().rotated();
+      expect(full.rotationDegrees, 0);
+      expect(full.isUnchanged, isTrue);
+    });
   });
 
   group('VideoTranscoder.edit (sahte kanal)', () {
@@ -144,6 +155,16 @@ void main() {
       final audio = call.arguments['audio'] as List;
       expect(audio.single, {'path': '/m/a.mp3', 'gapMs': 20000, 'lengthMs': 10000});
       expect(call.arguments['removeAudio'], isFalse);
+    });
+
+    test('döndürülen video düzenleme yoluna dönüşle gider', () async {
+      final e = VideoEdit.whole(60000).rotated();
+      await VideoTranscoder.edit('/yok/a.mp4', e);
+      final call = calls.firstWhere((c) => c.method == 'edit');
+      expect(call.arguments['rotation'], 90);
+      expect(call.arguments['pieces'],
+          [{'startMs': 0, 'endMs': 60000, 'mute': false}]);
+      expect(calls.any((c) => c.method == 'trim'), isFalse);
     });
 
     test('yalnız baş/son kırpma hızlı kesim yolunu kullanır', () async {

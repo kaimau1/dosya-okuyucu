@@ -390,6 +390,7 @@ abstract final class VideoTranscoder {
         'pieces': [for (final pc in pieces) pc.toMap()],
         'audio': [for (final a in plan.audioTrack) a.toMap()],
         'removeAudio': plan.muteAll,
+        'rotation': plan.rotationDegrees,
       });
       if (started != true) {
         throw VideoTranscodeException(AppStrings.current.t('vt.unsupported'));
