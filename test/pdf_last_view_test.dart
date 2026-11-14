@@ -102,6 +102,8 @@ void main() {
         );
 
     testWidgets('son sayfa görüntüsü kapağın önüne geçer', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(400, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
       var coverAsked = 0;
       int? askedPage;
       await tester.pumpWidget(host(PdfOpenBridge(
@@ -114,7 +116,7 @@ void main() {
         },
         lastViewLoader: (_, page) async {
           askedPage = page;
-          return (path: '/son.jpg', aspect: 0.5);
+          return (path: '/son.jpg', aspect: 1.5);
         },
       )));
       await tester.pump();
@@ -123,11 +125,13 @@ void main() {
       expect(coverAsked, 0);
       final size =
           tester.getSize(find.byKey(const ValueKey('pdf-bridge-paper')));
-      expect(size.height, closeTo(size.width / 0.5, 0.01));
+      expect(size.height, closeTo(size.width / 1.5, 0.01));
     });
 
     testWidgets('ortadan devamda kapak yok ama son sayfa görüntüsü var',
         (tester) async {
+      await tester.binding.setSurfaceSize(const Size(400, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
       var coverAsked = 0;
       await tester.pumpWidget(host(PdfOpenBridge(
         path: '/a.pdf',
@@ -139,14 +143,14 @@ void main() {
           return null;
         },
         lastViewLoader: (_, page) async =>
-            page == 42 ? (path: '/son.jpg', aspect: 0.5) : null,
+            page == 42 ? (path: '/son.jpg', aspect: 1.5) : null,
       )));
       await tester.pump();
       await tester.pump();
       expect(coverAsked, 0);
       final size =
           tester.getSize(find.byKey(const ValueKey('pdf-bridge-paper')));
-      expect(size.height, closeTo(size.width / 0.5, 0.01));
+      expect(size.height, closeTo(size.width / 1.5, 0.01));
     });
 
     testWidgets('görüntü yoksa ilk sayfada kapağa döner', (tester) async {
