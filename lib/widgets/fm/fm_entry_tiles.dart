@@ -104,7 +104,11 @@ class FmEntryRow extends StatelessWidget {
       label: fmEntrySemanticsLabel(
           context, entry, end == null ? subtitle : '$subtitle · $end'),
       customSemanticsActions: fmSelectAction(context, selected, onCheck),
-      child: Material(
+      // Basılınca satır hafifçe içe çöker (H4.8) — uzun basışın seçim
+      // başlatacağını parmak altında hissettirir; titreşim [DragSelectArea]'da.
+      child: PressScale(
+        scale: 0.98,
+        child: Material(
         color: selected
             ? scheme.primaryContainer.withValues(alpha: 0.4)
             : Colors.transparent,
@@ -194,6 +198,7 @@ class FmEntryRow extends StatelessWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }
