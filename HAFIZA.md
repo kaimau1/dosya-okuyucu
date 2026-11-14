@@ -980,3 +980,4 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Tuzak:** `ab_olcum.sh` veriyi yalnız işaret dosyası yoksa iter — yeni veri ekleyen, işaret dosyasını da en yeniye çekmeli (şimdi `slayt_300.pptx`).
 - **Tuzak (senaryo):** Word okuma kipi kaydırınca üst çubuğu gizler → ⋮ menü ölçümü kaydırmadan ÖNCE; menü açılmadıysa `pop` Word ekranını kapatır (PopupMenuItem varlığı denetlenir).
 - **B3.2:** Mobil editör onayı kullanıcı bakışı → KONTROL_LISTEM 30; eski WebView düzenleme yolu onaysız silinmez.
+- 2026-11-14 **Araç (P01b):** A/B ısı yanlılığı — sıra ABBA ABBA, koşu öncesi pil ilk+1,5 °C (≤33)'e dek bekle (20 dk üst sınır), tabloda koşu başı °C. Kök: A,B,A,B'de B hep 2–3 °C sıcak başlıyordu.

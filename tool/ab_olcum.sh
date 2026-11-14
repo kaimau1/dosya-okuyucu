@@ -6,7 +6,9 @@
 #     → docs/perf/<tarih>-ab-<A>-<B>.md (son satır `KARAR: …`); çıkış 0 GEÇTİ,
 #       1 KALDI, 2 YETERSİZ, 3 cihaz bekliyor.
 #
-# Ortam: AB_TUR=2 (A,B çifti sayısı; sıra A,B,A,B…) · BUYUK_PDF=/storage/<usb>/x.pdf
+# Ortam: AB_TUR=2 (A,B çifti sayısı; sıra tur başına dönüşümlü AB/BA → ABBA ABBA…,
+# iki tarafın ortalama ısısı eşit; her koşudan önce pil ilk koşu + 1,5 °C'ye (en çok 33 °C)
+# inene dek ekran kapalı beklenir, üst sınır 20 dk) · BUYUK_PDF=/storage/<usb>/x.pdf
 # (H0.2; yoksa make_test_tree --buyuk çıktısı) · AB_SERI=<seri> · AB_KURU=1 (tek A
 # koşusu, karar yok — kuru deneme) · AB_TUT=1 (taban/aday ağaçları silinmez).
 #
@@ -145,6 +147,15 @@ kos() {  # kos <sıra> <A|B>
     [ $bekle -ge 30 ] && { echo "$1_$2: pil $t (≥37 °C) 30 dk — GEÇERSİZ"; touch "$D/gecersiz"; return; }
     adb shell input keyevent KEYCODE_SLEEP; sleep 60; bekle=$((bekle + 1))
   done
+  # Isı yanlılığı (P01b): ilk koşudan sonra hedef = min(ilk + 1,5 °C, 33 °C); tek timeout.
+  if [ -z "${T0:-}" ]; then T0=$t; HEDEF=$((T0 + 15)); [ $HEDEF -gt 330 ] && HEDEF=330
+  elif [ "$t" -gt "$HEDEF" ]; then
+    adb shell input keyevent KEYCODE_SLEEP
+    export HEDEF
+    timeout 1200 bash -c 'while t=$(adb shell dumpsys battery | grep -m1 temperature | tr -dc 0-9); [ "${t:-999}" -gt "$HEDEF" ]; do sleep 30; done'       || echo "uyarı: $1_$2 pil hedefe ($HEDEF) 20 dk'da inmedi — sürülüyor"
+    t=$(sicaklik)
+  fi
+  echo "$t" > "$D/sicaklik"
   echo "$1_$2 başlıyor (pil $t)"
   veri
   adb shell am force-stop "$PKG" || true
@@ -176,9 +187,10 @@ if [ "${AB_KURU:-0}" = 1 ]; then
   [ "${AB_TUT:-0}" = 1 ] || agac_sil "$A7"
   echo "kuru deneme bitti (karar yok)"; exit 0
 fi
-for _ in $(seq "$TUR"); do
-  n=$((n + 1)); kos "$n" A
-  n=$((n + 1)); kos "$n" B
+for i in $(seq "$TUR"); do  # tur 1 AB, tur 2 BA… → ABBA ABBA
+  if [ $((i % 2)) = 1 ]; then ilk=A; ikinci=B; else ilk=B; ikinci=A; fi
+  n=$((n + 1)); kos "$n" "$ilk"
+  n=$((n + 1)); kos "$n" "$ikinci"
 done
 
 # ── Karar ────────────────────────────────────────────────────────────────────

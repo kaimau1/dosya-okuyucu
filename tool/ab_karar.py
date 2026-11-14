@@ -63,6 +63,17 @@ def kosu_oku(kosu):
     return veri, sayi
 
 
+def isilar(kosu):
+    """[(klasör adı, °C)] koşu başı pil ısıları (`sicaklik` dosyası, onda bir °C)."""
+    r = []
+    for d in sorted(glob.glob(os.path.join(kosu, '*_[AB]'))):
+        try:
+            r.append((os.path.basename(d), int(open(os.path.join(d, 'sicaklik')).read()) / 10))
+        except (OSError, ValueError):
+            pass
+    return r
+
+
 def degerlendir(veri, sayi):
     satirlar, kotu, uyari = [], [], []
     for (sen, ad), v in sorted(veri.items()):
@@ -94,7 +105,7 @@ def degerlendir(veri, sayi):
     return satirlar, karar
 
 
-def yaz(satirlar, karar, sayi, cikti, a_adi, b_adi):
+def yaz(satirlar, karar, sayi, cikti, a_adi, b_adi, isi=()):
     f = lambda x: f'{x:.1f}'
     g = ['', f'## A/B — A `{a_adi}` × {sayi["A"]}, B `{b_adi}` × {sayi["B"]}', '',
          'Kare ölçüleri ms (`flutter drive --profile`); `acilis_*#n` = PDFPRO_PERF açılış '
@@ -107,6 +118,11 @@ def yaz(satirlar, karar, sayi, cikti, a_adi, b_adi):
         bm = f(statistics.median(b)) if b else '-'
         fk = f'{fark:+.0f}' if fark is not None else '-'
         g.append(f'| {sen} | {ad} | {am} | {aw} | {bm} | {fk} | {durum} |')
+    if isi:
+        ort = {t: [c for k, c in isi if k[-1] == t] for t in 'AB'}
+        g += ['', '| koşu | başlangıç °C |', '|---|---|'] + [f'| {k} | {c:.1f} |' for k, c in isi]
+        g += ['', 'Ortalama başlangıç °C: ' + ', '.join(
+            f'{t} {sum(v) / len(v):.1f}' for t, v in ort.items() if v)]
     g += ['', karar[1], '']
     with open(cikti, 'a', encoding='utf-8') as o:
         o.write('\n'.join(g))
@@ -153,6 +169,9 @@ def deneme():
     kos('5_B', 99, 9999, gecersiz=True)
     _, (kod, satir) = degerlendir(*kosu_oku(k))
     assert kod == 0, satir
+    open(os.path.join(k, '1_A', 'sicaklik'), 'w').write('300')
+    open(os.path.join(k, '2_B', 'sicaklik'), 'w').write('310')
+    assert isilar(k) == [('1_A', 30.0), ('2_B', 31.0)]
     kos('6_B', 30, 900); kos('7_B', 30, 900)  # B ortancası 30 > A en kötü 11, > 24
     _, (kod, satir) = degerlendir(*kosu_oku(k))
     assert kod == 1 and 'build p99' in satir and 'acilis_ilk_sayfa#1' in satir, satir
@@ -182,5 +201,5 @@ if __name__ == '__main__':
         kosu, cikti, a_adi, b_adi = sys.argv[1:5]
         veri, sayi = kosu_oku(kosu)
         satirlar, karar = degerlendir(veri, sayi)
-        yaz(satirlar, karar, sayi, cikti, a_adi, b_adi)
+        yaz(satirlar, karar, sayi, cikti, a_adi, b_adi, isilar(kosu))
         sys.exit(karar[0])
