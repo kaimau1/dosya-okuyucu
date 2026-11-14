@@ -107,7 +107,8 @@ void main() {
     });
     final store = NeuralVoiceStore.instance;
     expect(store.isInstalled(NeuralVoice.ema), isFalse);
-    await store.install(NeuralVoice.ema, client: client);
+    // Sahte gövde özetle tutmaz → yalnız bu testte doğrulama kapalı.
+    await store.install(NeuralVoice.ema, client: client, verify: false);
     expect(store.isInstalled(NeuralVoice.ema), isTrue);
     expect(store.isInstalled(NeuralVoice.antalia), isFalse);
     final worker = File('${root.path}/ema/worker.js').readAsStringSync();
@@ -119,5 +120,24 @@ void main() {
     expect(store.isInstalled(NeuralVoice.ema), isFalse);
     expect(File('${root.path}/antalia/vendor/ort/ort.wasm.min.mjs').existsSync(),
         isFalse, reason: 'başka ses yoksa çalışma zamanı da silinir');
+  });
+
+  test('G9.9: sabit commit + özet; tutmayan dosya yazılmaz', () async {
+    for (final f in [
+      ...NeuralVoice.runtime,
+      for (final v in NeuralVoice.values) ...v.files,
+    ]) {
+      expect(f.url, isNot(contains('/resolve/main/')), reason: f.path);
+      expect(f.sha256, matches(RegExp(r'^[0-9a-f]{64}$')), reason: f.path);
+    }
+    final client = MockClient.streaming((req, _) async =>
+        http.StreamedResponse(Stream.value(utf8.encode('sahte')), 200));
+    await expectLater(
+        NeuralVoiceStore.instance.install(NeuralVoice.ema, client: client),
+        throwsA(isA<VoiceHashMismatch>()));
+    expect(NeuralVoiceStore.instance.isInstalled(NeuralVoice.ema), isFalse);
+    final first = NeuralVoice.runtime.first.path;
+    expect(File('${root.path}/$first').existsSync(), isFalse);
+    expect(File('${root.path}/$first.part').existsSync(), isFalse);
   });
 }

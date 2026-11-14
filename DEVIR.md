@@ -4,7 +4,9 @@ Yapılanlar:
 - G6.5 ses sunucusu rastgele yol öneki (`VoiceServer.prefix`, `base`; EMA çalışanı sunarken önek eklenir) — test `test/neural_voices_test.dart`
 - G1(c) imzasız kısayol: API 26+ yalnız sistemde kayıtlı kendi kısayolumuzun yolu (`Extras.pathAccepted(ownShortcuts)`, `MainActivity.ownShortcutPaths`); Android 7 eski kol
 - G7.3 yazıcı/yama yolları `OfficeZipGuard.decode` + bekçi test `office_zip_guard_test`
+- G7.4 makro kayıtta korunuyor (`office_macro_keep_test`) + ileti
+- G9.9 ses dosyaları sabit HF commit + SHA-256 (`VoiceFile.sha256`, `VoiceHashMismatch`)
 
-Şu an: G7.4 makro (kayıtta korunuyor — test)
+Şu an: G10.2 tek belgelik kapatma
 Sıradaki: G7.1/G7.3 artıkları, G7.4 makro, G9.9 ses motoru özetleri, G10.2 tek belgelik kapatma, 👤 → KONTROL_LISTEM
 Doğrulama: CI (`gh run list -b faz-oto-P15-guvenlik -L 1`)
