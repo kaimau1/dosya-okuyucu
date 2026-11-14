@@ -128,7 +128,13 @@ void main() {
     testWidgets('telefonda sütun KURULMAZ', (tester) async {
       final state = await appState(tester);
       addTearDown(tester.view.reset);
-      setSize(tester, const Size(360, 780));
+      // Varsayılan test görünümü (800 × 600 dp — dar sayılır); 360 dp'lik
+      // telefonda pano karoları test yazı tipiyle (Ahem) taşıyor, konu dışı.
+      // Telefon boyları `isTabletWide` birim testinde.
+      expect(
+          isTabletWide(
+              tester.view.physicalSize / tester.view.devicePixelRatio),
+          isFalse);
       await tester.pumpWidget(app(state, const HomeScreen()));
       await tester.pump();
       expect(find.byType(HomeNavColumn), findsNothing);
