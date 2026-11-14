@@ -390,6 +390,7 @@ abstract final class VideoTranscoder {
         'pieces': [for (final pc in pieces) pc.toMap()],
         'audio': [for (final a in plan.audioTrack) a.toMap()],
         'removeAudio': plan.muteAll,
+        'rotation': plan.rotationDegrees,
       });
       if (started != true) {
         throw VideoTranscodeException(AppStrings.current.t('vt.unsupported'));
@@ -433,6 +434,30 @@ abstract final class VideoTranscoder {
       return list ?? const [];
     } catch (_) {
       return const [];
+    }
+  }
+
+  /// **Kareyi fotoğraf olarak kaydet** (Ferrari H8.5): [ms]'deki kare tam
+  /// çözünürlükte JPEG olarak videonun yanına `<ad>_kare_<dk-sn>.jpg`;
+  /// [rotationDegrees] (saat yönü) düzenlemedeki dönüşü uygular. Dönen değer
+  /// yazılan yol; okunamazsa null.
+  static Future<String?> saveFrame(String path, int ms,
+      {int rotationDegrees = 0}) async {
+    final base = p.basenameWithoutExtension(path);
+    final stamp = formatClock(ms).replaceAll(':', '-');
+    final target = FileOps.uniquePath(p.join(p.dirname(path),
+        '${base}_${AppStrings.current.t('ved.frame_suffix')}_$stamp.jpg'));
+    try {
+      final ok = await _channel.invokeMethod<bool>('frame', {
+        'path': path,
+        'target': target,
+        'ms': ms,
+        'rotation': rotationDegrees,
+      });
+      return ok == true ? target : null;
+    } catch (_) {
+      _cleanup(target);
+      return null;
     }
   }
 

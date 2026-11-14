@@ -1178,6 +1178,12 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Geri al ve listedeki ✕ çalışıyor mu? Kaydet → `<ad>_kesit.mp4`: silinen bölümler yok, sessiz bölge sessiz, eklenen ses doğru saniyede başlıyor mu (dikey video dikey kalıyor mu)?
 - [ ] Hata olursa (özellikle ses eklemede) bildirimdeki hata kodunu not al — Media3 Composition ilk kez cihazda.
 
+## Ferrari H1.4 + H8.5 — son sayfa görüntüsü, döndür, kareyi kaydet (2026-11-14, dal faz-oto-P07-artik — yazıldı, cihazda doğrulanmadı)
+- [ ] **H1.4:** büyük PDF'i (USB kitap) ortada bir sayfada geri tuşuyla kapat, yeniden aç → yüklenirken o sayfanın görüntüsü < 0,3 sn'de görünüyor, gerçek sayfa gelince yumuşak geçiş (zıplama yok)? §2 işlem 5 ölçümü (`ab-olcum`; PDF kabuğuna dokunuldu → A/B gerekir).
+- [ ] H1.4: kapatırken takılma/kasma yok mu (çizim pdfium işçisinde, kodlama izolatta)? Gece kipinde görüntü de koyu mu? Kasadan açılan ve parolalı PDF'te görüntü SAKLANMIYOR mu (`<önbellek>/pdf_last_view/` boş kalmalı)? Dosyayı başka uygulamada değiştirince eski görüntü gelmiyor mu?
+- [ ] **H8.5 döndür:** Videoyu düzenle → beşinci araç "Döndür": önizleme saat yönünde 90° dönüyor, dördüncü dokunuşta başa? Kaydet → çıktı önizlemedekiyle AYNI yöne mi dönmüş (Media3 derece yönü koddan doğrulanmadı — ters dönüyorsa `ci/MediaTranscode.kt` `360 - rotation` → `rotation`)? Dikey telefon videosunda da doğru mu? Beş araç dar telefonda sığıyor mu?
+- [ ] **H8.5 kareyi kaydet:** üst çubuk fotoğraf makinesi → `<ad>_kare_<dk-sn>.jpg` videonun yanında, tam çözünürlük, dikey videoda dik; döndürme seçiliyken fotoğraf da dönmüş mü? Bildirim "Fotoğraf kaydedildi: …"; galeride görünüyor mu?
+
 ## Ferrari H10/H11 — Durumlar ve görüntüleyici kabuğu (2026-11-14, dal faz-oto-P04-kabuk)
 - [ ] Video: oynarken 3 sn dokunma → üst çubuk, alt denetimler, kilit/döndür bir anda değil yumuşakça soluyor; solarken ekrana dokun → geri geliyor (kaybolmuyor). "Animasyonları kaldır" açıkken doğrudan gizleniyor. Solma sırasında video yerinden oynamıyor.
 - [ ] Video jestleri (var olan, doğrula): kenarda çift dokunuş ±10 sn · yatay sürükleme sarma balonu · sağda dikey ses, solda dikey parlaklık · uzun basış 2×.

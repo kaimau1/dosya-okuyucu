@@ -369,6 +369,8 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                       path: doc.path,
                       visible: !_pdfOpened,
                       useCover: _pdfPage <= 1,
+                      // Son kapanıştaki sayfa görüntüsü (H1.4) kapağın önünde.
+                      page: _pdfPage,
                       topInset: chrome.top,
                     ),
                   ),

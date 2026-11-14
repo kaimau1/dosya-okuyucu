@@ -100,6 +100,17 @@ void main() {
       expect(t.isUnchanged, isFalse);
       expect(t.isSimpleTrim, isTrue);
     });
+
+    test('döndür (H8.5): saat yönünde çeyrek, dördüncüde başa; hızlı yol kapanır', () {
+      final r = base.rotated();
+      expect(r.rotationDegrees, 90);
+      expect(r.isUnchanged, isFalse);
+      expect(r.isSimpleTrim, isFalse);
+      expect(r.rotated().rotated().rotationDegrees, 270);
+      final full = r.rotated().rotated().rotated();
+      expect(full.rotationDegrees, 0);
+      expect(full.isUnchanged, isTrue);
+    });
   });
 
   group('VideoTranscoder.edit (sahte kanal)', () {
@@ -144,6 +155,37 @@ void main() {
       final audio = call.arguments['audio'] as List;
       expect(audio.single, {'path': '/m/a.mp3', 'gapMs': 20000, 'lengthMs': 10000});
       expect(call.arguments['removeAudio'], isFalse);
+    });
+
+    test('döndürülen video düzenleme yoluna dönüşle gider', () async {
+      final e = VideoEdit.whole(40000) // sahte probe 40 sn döner
+          .rotated();
+      await VideoTranscoder.edit('/yok/a.mp4', e);
+      final call = calls.firstWhere((c) => c.method == 'edit');
+      expect(call.arguments['rotation'], 90);
+      expect(call.arguments['pieces'],
+          [{'startMs': 0, 'endMs': 40000, 'mute': false}]);
+      expect(calls.any((c) => c.method == 'trim'), isFalse);
+    });
+
+    test('kareyi fotoğraf kaydet: yol, an ve dönüş yerel tarafa gider', () async {
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        calls.add(call);
+        return call.method == 'frame';
+      });
+      final out = await VideoTranscoder.saveFrame('/yok/klasor/film.mp4', 83000,
+          rotationDegrees: 180);
+      expect(out, '/yok/klasor/film_kare_01-23.jpg');
+      final call = calls.single;
+      expect(call.method, 'frame');
+      expect(call.arguments['ms'], 83000);
+      expect(call.arguments['rotation'], 180);
+      expect(call.arguments['target'], out);
+    });
+
+    test('kare okunamazsa null', () async {
+      messenger.setMockMethodCallHandler(channel, (_) async => false);
+      expect(await VideoTranscoder.saveFrame('/yok/a.mp4', 0), isNull);
     });
 
     test('yalnız baş/son kırpma hızlı kesim yolunu kullanır', () async {

@@ -80,6 +80,7 @@ import '../services/voice_note.dart';
 import '../widgets/office_ribbon.dart' show OfficeIcons;
 import '../widgets/download_action.dart';
 import '../widgets/pdf_open_bridge.dart';
+import '../services/pdf/pdf_last_view.dart';
 import '../widgets/pdf_image_zoom.dart';
 import '../widgets/tracked_busy.dart';
 import 'pdf_ink_screen.dart';
@@ -847,6 +848,15 @@ class _ViewerScreenState extends State<ViewerScreen> {
     });
   }
 
+  /// Kapanırken görünen sayfanın görüntüsü (Ferrari H1.4): yeniden açılışta
+  /// köprü onu gösterir. Belge ancak çıkış geçişinden sonra kapanır; çizim
+  /// pdfium işçisinde, kodlama izolatta. Parolalı belgede saklanmaz.
+  void _captureLastView() {
+    if (!_isPdf || _pdfPassword != null || !_pdfController.isReady) return;
+    unawaited(PdfLastView.capture(
+        widget.doc.path, _pdfController.document, _pdfPage));
+  }
+
   @override
   void dispose() {
     // Bekleyen okuma konumu diske yazılsın: uygulama kapansa da "kaldığın
@@ -908,7 +918,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
       canPop:
           !_hasUnsaved && !textUnsaved && _pdfWriting == 0 && _pro == null,
       onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
+        if (didPop) {
+          _captureLastView();
+          return;
+        }
         // Düzenleme kipi: geri önce okuma kipine döndürür (etkileşim §8).
         if (_pro != null) {
           await _exitProEdit();

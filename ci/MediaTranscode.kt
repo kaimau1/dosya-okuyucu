@@ -13,6 +13,7 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.effect.FrameDropEffect
 import androidx.media3.effect.Presentation
+import androidx.media3.effect.ScaleAndRotateTransformation
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.DefaultEncoderFactory
 import androidx.media3.transformer.EditedMediaItem
@@ -43,6 +44,7 @@ import java.io.File
  * - `edit(path, target, pieces, audio, removeAudio)` → çok parçalı düzenleme:
  *   aradan silinen bölümler, sessiz bölgeler, bölgeye eklenen ses.
  * - `frames(path, count, width, dir)` → kes ekranının kare şeridi.
+ * - `frame(path, ms, target, rotation)` → o anki kare tam çözünürlükte JPEG.
  * - `cancel()`.
  * Aynı anda tek iş (iş kuyruğu zaten sırayla veriyor).
  */
@@ -80,6 +82,14 @@ object MediaTranscodeBridge {
                     Thread {
                         val out = frames(a)
                         main.post { result.success(out) }
+                    }.start()
+                }
+                // Kareyi fotoğraf kaydet (Ferrari H8.5): tek kare → JPEG.
+                "frame" -> {
+                    val a = call.arguments as Map<*, *>
+                    Thread {
+                        val ok = frame(a)
+                        main.post { result.success(ok) }
                     }.start()
                 }
                 // Sesli kitap (2026-10-22): üretilen WAV → AAC/M4A (~10 kat küçük).
@@ -329,6 +339,15 @@ object MediaTranscodeBridge {
         if (pieces.isEmpty()) return false
         val audio = (a["audio"] as? List<*>)?.mapNotNull { it as? Map<*, *> } ?: emptyList()
         val removeAudio = a["removeAudio"] == true
+        // Döndürme (Ferrari H8.5): Dart saat yönünde verir; Media3
+        // `setRotationDegrees` saat YÖNÜNÜN TERSİNE döndürür. Girdinin kendi
+        // döndürme verisi çözücüde uygulanır → dönüş ekranda görünene göre.
+        val rotation = ((a["rotation"] as? Number)?.toInt() ?: 0).mod(360)
+        val videoEffects: List<androidx.media3.common.Effect> = if (rotation == 0) emptyList() else listOf(
+            ScaleAndRotateTransformation.Builder()
+                .setRotationDegrees((360 - rotation).toFloat())
+                .build()
+        )
         transformer?.cancel()
         val source = Uri.fromFile(File(path))
         var anyMute = false
@@ -351,6 +370,7 @@ object MediaTranscodeBridge {
             videoItems.add(
                 EditedMediaItem.Builder(media)
                     .setRemoveAudio(removeAudio || mute)
+                    .setEffects(Effects(listOf(), videoEffects))
                     .build()
             )
         }
@@ -443,6 +463,42 @@ object MediaTranscodeBridge {
             try { r.release() } catch (e: Exception) {}
         }
         return out
+    }
+
+    /**
+     * `frame(path, ms, target, rotation)` → [ms]'deki en yakın kare (anahtar
+     * kare değil, tam kare) tam çözünürlükte JPEG; `rotation` saat yönünde
+     * derece. `getFrameAtTime` videonun kendi döndürme verisini zaten uygular.
+     * İzlekte koşar; başarısızsa yarım dosya silinir.
+     */
+    private fun frame(a: Map<*, *>): Boolean {
+        val path = a["path"] as? String ?: return false
+        val target = a["target"] as? String ?: return false
+        val ms = (a["ms"] as? Number)?.toLong() ?: return false
+        val rotation = ((a["rotation"] as? Number)?.toInt() ?: 0).mod(360)
+        val r = MediaMetadataRetriever()
+        return try {
+            r.setDataSource(path)
+            val bmp = r.getFrameAtTime(ms * 1000L, MediaMetadataRetriever.OPTION_CLOSEST) ?: return false
+            val out = if (rotation == 0) bmp else {
+                val m = android.graphics.Matrix().apply { postRotate(rotation.toFloat()) }
+                android.graphics.Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, m, true)
+            }
+            try {
+                File(target).outputStream().use {
+                    out.compress(android.graphics.Bitmap.CompressFormat.JPEG, 92, it)
+                }
+            } finally {
+                if (out !== bmp) out.recycle()
+                bmp.recycle()
+            }
+            true
+        } catch (e: Exception) {
+            File(target).delete()
+            false
+        } finally {
+            try { r.release() } catch (e: Exception) {}
+        }
     }
 
     private fun pollProgress(t: Transformer) {

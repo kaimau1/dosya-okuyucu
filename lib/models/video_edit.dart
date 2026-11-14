@@ -13,6 +13,7 @@ import 'video_trim.dart';
 /// - [inserts]: bölgeye eklenen ses (müzik / kayıt); `replace` açıksa o
 ///   bölgede videonun kendi sesi kısılır.
 /// - [muteAll]: videonun kendi sesi tümden kaldırılır.
+/// - [quarterTurns]: saat yönünde 90°'lik dönüş sayısı (0–3, Ferrari H8.5).
 class VideoEdit {
   const VideoEdit({
     required this.durationMs,
@@ -21,6 +22,7 @@ class VideoEdit {
     this.mutes = const [],
     this.inserts = const [],
     this.muteAll = false,
+    this.quarterTurns = 0,
   });
 
   factory VideoEdit.whole(int durationMs) =>
@@ -32,6 +34,13 @@ class VideoEdit {
   final List<TrimRange> mutes;
   final List<AudioInsert> inserts;
   final bool muteAll;
+  final int quarterTurns;
+
+  /// Yerel tarafa giden dönüş: saat yönünde derece (0/90/180/270).
+  int get rotationDegrees => quarterTurns % 4 * 90;
+
+  /// Saat yönünde bir çeyrek daha döndürür (dört dokunuşta başa döner).
+  VideoEdit rotated() => copyWith(quarterTurns: (quarterTurns + 1) % 4);
 
   /// Kesilecek parça çok kısa olmasın (anahtar kare payı; 0,3 sn altı
   /// çıktıda hissedilmez, kodlayıcıyı boşuna böler).
@@ -43,6 +52,7 @@ class VideoEdit {
     List<TrimRange>? mutes,
     List<AudioInsert>? inserts,
     bool? muteAll,
+    int? quarterTurns,
   }) =>
       VideoEdit(
         durationMs: durationMs,
@@ -51,6 +61,7 @@ class VideoEdit {
         mutes: mutes ?? this.mutes,
         inserts: inserts ?? this.inserts,
         muteAll: muteAll ?? this.muteAll,
+        quarterTurns: quarterTurns ?? this.quarterTurns,
       );
 
   /// Hiçbir şey değişmedi mi (Kaydet kapalı kalır)?
@@ -59,12 +70,14 @@ class VideoEdit {
       cuts.isEmpty &&
       mutes.isEmpty &&
       inserts.isEmpty &&
-      !muteAll;
+      !muteAll &&
+      rotationDegrees == 0;
 
   /// Yalnız baş/son kırpma + (isteğe bağlı) tüm sesi kaldırma mı? Öyleyse
-  /// yerelde hızlı, yeniden kodlamasız kesim yolu kullanılır.
+  /// yerelde hızlı, yeniden kodlamasız kesim yolu kullanılır. Döndürme
+  /// kareleri yeniden kodlatır → düzenleme yolu.
   bool get isSimpleTrim =>
-      cuts.isEmpty && mutes.isEmpty && inserts.isEmpty;
+      cuts.isEmpty && mutes.isEmpty && inserts.isEmpty && rotationDegrees == 0;
 
   // ── Düzenleme ───────────────────────────────────────────────────────────
 

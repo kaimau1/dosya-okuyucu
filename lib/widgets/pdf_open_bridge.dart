@@ -6,6 +6,7 @@ import '../core/app_colors.dart';
 import '../core/motion.dart';
 import '../core/theme.dart';
 import '../services/fm/pdf_thumbnail.dart';
+import '../services/pdf/pdf_last_view.dart';
 import 'fm/fm_file_image.dart';
 import 'pdf_page_frame.dart';
 
@@ -30,9 +31,11 @@ class PdfOpenBridge extends StatefulWidget {
     required this.path,
     required this.visible,
     this.useCover = true,
+    this.page,
     this.topInset = 0,
     this.background,
     this.coverLoader,
+    this.lastViewLoader,
   });
 
   /// Açılan PDF'in yolu.
@@ -45,6 +48,10 @@ class PdfOpenBridge extends StatefulWidget {
   /// yanlış sayfa olur → yalnız nötr kâğıt.
   final bool useCover;
 
+  /// Açılacak sayfa (biliniyorsa). Belge bu sayfada kapandıysa o anki
+  /// görüntüsü ([PdfLastView], Ferrari H1.4) kapağın önüne geçer.
+  final int? page;
+
   /// Üst çubuğun kapladığı pay (telefonda kâğıt onun altından başlar).
   final double topInset;
 
@@ -54,6 +61,10 @@ class PdfOpenBridge extends StatefulWidget {
   /// Testte disk yerine sahte kapak.
   final Future<({String path, double aspect})?> Function(String path)?
       coverLoader;
+
+  /// Testte disk yerine sahte son sayfa görüntüsü.
+  final Future<({String path, double aspect})?> Function(String path, int page)?
+      lastViewLoader;
 
   @override
   State<PdfOpenBridge> createState() => _PdfOpenBridgeState();
@@ -66,12 +77,19 @@ class _PdfOpenBridgeState extends State<PdfOpenBridge> {
   @override
   void initState() {
     super.initState();
-    if (widget.useCover && widget.visible) unawaited(_loadCover());
+    if ((widget.useCover || widget.page != null) && widget.visible) {
+      unawaited(_loadCover());
+    }
   }
 
   Future<void> _loadCover() async {
-    final loader = widget.coverLoader ?? PdfThumbnail.cachedCover;
-    final cover = await loader(widget.path);
+    final page = widget.page;
+    var cover = page == null
+        ? null
+        : await (widget.lastViewLoader ?? PdfLastView.find)(widget.path, page);
+    if (cover == null && widget.useCover) {
+      cover = await (widget.coverLoader ?? PdfThumbnail.cachedCover)(widget.path);
+    }
     if (!mounted || cover == null || !widget.visible) return;
     setState(() => _cover = cover);
   }
