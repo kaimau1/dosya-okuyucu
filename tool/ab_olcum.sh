@@ -101,9 +101,9 @@ SURUCU="$UST/okuyucu_ab_$A7"   # flutter drive'ın koştuğu proje (sürücü ay
 
 # ── Ölçüm verisi (bir kez) ───────────────────────────────────────────────────
 veri() {
-  adb shell "ls $OLCUM/belge_100.pdf" >/dev/null 2>&1 && return
+  adb shell "ls $OLCUM/tablo_10k_x20.xlsx" >/dev/null 2>&1 && return  # en yeni veri (P12)
   local Y="$KOK/build/ab/olcum_verisi"
-  if [ ! -f "$Y/belge_100.pdf" ]; then
+  if [ ! -f "$Y/tablo_10k_x20.xlsx" ]; then
     local B=(); [ -z "${BUYUK_PDF:-}" ] && B=(--buyuk)
     "$PY" tool/make_test_tree.py "$Y" "${B[@]}" >/dev/null
   fi
@@ -161,7 +161,7 @@ kos() {  # kos <sıra> <A|B>
   adb shell svc power stayon false; adb shell input keyevent KEYCODE_SLEEP
   mv "$SURUCU"/build/*.timeline_summary.json "$D/" 2>/dev/null || true
   adb logcat -d -s flutter > "$D/logcat.txt" || true   # build/ — git dışı
-  grep -a 'PDFPRO_PERF faz=acilis' "$D/logcat.txt" > "$D/acilis.txt" || true
+  grep -aE '(PDFPRO|OFIS)_PERF faz=acilis' "$D/logcat.txt" > "$D/acilis.txt" || true
   grep -ah 'PERF ' "$D/drive.log" "$D/logcat.txt" | grep -v PDFPRO | tail -n 5 || true
   t=$(sicaklik)
   if [ "${t:-0}" -ge 400 ]; then

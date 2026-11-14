@@ -7,6 +7,7 @@
   belge_100.pdf   100 sayfalık metinli PDF (açılış süresi)
   tablo_10k.csv   10.000 satırlık tablo (Excel ekranı CSV'yi de açar)
   tablo_100k.xlsx 100.000 satırlık xlsx (integration_test, Faz 42 / 6)
+  tablo_10k_x20.xlsx 10 bin × 20 xlsx (K23 / B3.3a açılış hedefi, P12)
   --buyuk ile ek olarak (Faz 42 / 2, büyük dosya tavanı):
   buyuk_100mb.xlsx ~100 MB xlsx (akış önizlemesi, bellek tavanı)
   buyuk_100mb.pdf  ~100 MB PDF (görüntüleyici akışla; araçlar bütçe uyarısı)
@@ -80,11 +81,12 @@ _XLSX_PARTS = {
 }
 
 
-def xlsx(path, rows=None, target_bytes=None):
+def xlsx(path, rows=None, target_bytes=None, cols=7):
     """Satır içi dizeli (sharedStrings yok) tek sayfalık xlsx — akışla yazılır.
 
     [rows] verilirse o kadar satır; [target_bytes] verilirse dosya o boyuta
     ulaşana dek (rastgele sayılar: sıkışmaz, 100 MB gerçekçi kalır).
+    [cols] sütun (≤ 26): sonuncusu metin, öncekiler sayı.
     """
     rnd = random.Random(42)
     with open(path, 'wb') as raw, zipfile.ZipFile(raw, 'w', zipfile.ZIP_DEFLATED) as z:
@@ -100,8 +102,8 @@ def xlsx(path, rows=None, target_bytes=None):
                 if target_bytes is not None and i % 5000 == 0 and raw.tell() >= target_bytes:
                     break
                 r = i + 1
-                cells = ''.join(f'<c r="{c}{r}"><v>{rnd.random() * 1e6:.6f}</v></c>' for c in 'ABCDEF')
-                s.write(f'<row r="{r}">{cells}<c r="G{r}" t="inlineStr"><is><t>satir {r}</t></is></c></row>'.encode())
+                cells = ''.join(f'<c r="{chr(65 + c)}{r}"><v>{rnd.random() * 1e6:.6f}</v></c>' for c in range(cols - 1))
+                s.write(f'<row r="{r}">{cells}<c r="{chr(64 + cols)}{r}" t="inlineStr"><is><t>satir {r}</t></is></c></row>'.encode())
                 i += 1
             s.write(b'</sheetData></worksheet>')
 
@@ -162,6 +164,7 @@ def main():
         for i in range(10000):
             f.write(f'{i},satir {i},{i * 3.5:.2f},2026-{1 + i % 12:02d}-{1 + i % 28:02d}\n')
     xlsx(os.path.join(root, 'tablo_100k.xlsx'), rows=100000)
+    xlsx(os.path.join(root, 'tablo_10k_x20.xlsx'), rows=10000, cols=20)
     if '--buyuk' in sys.argv:
         xlsx(os.path.join(root, 'buyuk_100mb.xlsx'), target_bytes=100 << 20)
         big_pdf(os.path.join(root, 'buyuk_100mb.pdf'), 100 << 20)
