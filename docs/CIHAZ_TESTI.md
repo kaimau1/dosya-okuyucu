@@ -1143,3 +1143,11 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
    süre (hızlı kesimde birkaç saniye; uzun sürüyorsa yeniden kodluyor demektir — not al), başlangıç kaç kare kayıyor?
 5. "Sesi kaldır" açık → çıktı sessiz mi? Yalnız ses kaldırıp aralığa dokunmadan Kaydet çalışıyor mu?
 6. MKV/WebM kaynak: kesiliyor mu, yoksa anlaşılır hata mı?
+
+## Ferrari H4 — Dosya listesi (2026-11-14, main)
+- [ ] Belgeler kategorisi: satır simgesi ~52 dp, ad iri, alt satırda kaynak · tarih solda, boyut SAĞA hizalı; satır sıkışık değil (Samsung ile yan yana görüntü).
+- [ ] Klasör: dosyada tarih solda / boyut sağda; klasörde öğe sayısı solda, sağ boş.
+- [ ] Büyük başlık: en üstte "Belgeler / 161 öğe · 8,9 GB" iri; aşağı kaydırınca katlanıp üst çubuğa küçülür; en üste dönünce açılır. Kısa listede (1–2 ekran) titremeden sabit kalır.
+- [ ] Tarihe göre sıralı: "Bugün · Bu hafta …" başlığı kaydırırken üstte yapışık; grup bitince bir sonraki iter. Izgarada da aynı. Hızlı kaydırıcı ve basılı tutup sürükleyerek seçim hâlâ doğru satırı seçiyor.
+- [ ] Uzun basış: satır hafifçe içe çöker + titreşim; ⋮ soluk ama dokununca açılıyor.
+- [ ] Arapça (RTL): boyut solda hizalı, başlıklar sağdan.
