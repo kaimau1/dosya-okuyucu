@@ -952,3 +952,10 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Yapı (H7.3):** bir kez ipucu = `OnceHints.take(id)` (`hint_once.<id>` bayrağı; okunamazsa gösterir). Ayarlar › Hakkında `hints_reset` hepsini + `scan_tips_shown` sayacını siler. Yeni öğretici bildirim yazarken bunu kullan; durum açıklaması (ör. taranmış sayfa) ipucu DEĞİL, her seferinde.
 - **Karar (H7.4):** `fm_confirm_delete` varsayılanı **false** — çöpe atmada onay yok, "Geri al" kartı var; kayıtlı `true` korunur. Kalıcı silme onayı `needsDeleteConfirm`'de kilitli (değişmedi). Algoritmanın seçtiği toplu çöpe atma (benzer foto, boyutlandırma eskileri) onaylı kaldı.
 - **Kullanıcı kararını koru:** dosya satırı ⋮ levhası (2 sütun, 4 bölüm, 2026-08-29), AI sekme açıklama satırı (2026-11-07), ayarlar ana ekranı (2026-11-07) — H7.2/H7.5 bunları değiştirmez. H7.2 menü kısaltma 👤 onayda (`KONTROL_LISTEM.md` 20).
+
+## 2026-11-14 — Ferrari H10 + H11 (oto P04, dal faz-oto-P04-kabuk)
+- **Kök neden (H10.3):** iş kuyruğu hatası `job.error = '$e'` (job_queue) ham saklanır; Benzer görsel ekranı bunu `sim.scan_failed {error}` ile ekrana yazıyordu → `AppErrorView` (ileti `userErrorText`, ham metin yalnız "Ayrıntıyı kopyala"). İş hatasını ekranda gösteren yeni yer de böyle yapmalı.
+- **Karar (H10.2):** belge açma penceresi `Motion.busyDefer` (300 ms) sonra açılır; pencere engeli gelmeden ikinci dokunuşu `EntryOpener._loadingDoc` yutar (eski modal engel bunu yapıyordu — kaldırırsan çift açılış döner).
+- **Karar (H11.1/H11.2):** PDF üst çubuğu telefonda ≤ 3 + ⋮ (kaydedilmemişken ilk yuva Kaydet, İçindekiler ⋮'ya); belge alt çubuğu ≤ 5 (İndir varken Yazdır ⋮ › Dosya). "Çevir" alt çubukta kalır (2026-07-31 kullanıcı isteği).
+- **Yapı (H11.5):** video denetimleri solar: `_controlsFading` + `_fade()` (IgnorePointer + AnimatedOpacity, opaklık 1'de katman yok); solarken dokunuş = geri getir. Testte `pump(3 sn)` solma başlar, ağaçtan çıkış `Motion.long` sonra.
+- **👤 sabah bakılacak:** galeri alt çubuğu 8 eylem (öneri 5) ve editör üst çubuğu 4 + ⋮ → `KONTROL_LISTEM.md` 24–25; dokunulmadı (geçmiş kullanıcı eklemeleri olabilir).

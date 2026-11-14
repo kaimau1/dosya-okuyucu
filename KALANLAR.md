@@ -183,8 +183,8 @@ Samsung Dosyalarım ile yan yana videoda geride görünmemek (H12 kapısı). Pla
 - [ ] H7 Sadeleştirme: bildirim, menü, ipucu ☁️👤 — kod bitti (2026-11-14, dal `faz-oto-P05-sade`: H7.1 bildirim envanteri, H7.3 ipuçları bir kez + sıfırla, H7.4 çöpe atmada onay yok, H7.5 doğrulandı); kalan **H7.2 menü kısaltma 👤** (`KONTROL_LISTEM.md` 20) + 📱 `CIHAZ_TESTI.md` "Ferrari H7"
 - [ ] H8 Video kırpma / kesme — kod bitti (2026-11-14, H8.1–H8.4, H8.6); kalan H8.5 döndür + kareyi kaydet, **📱 cihaz turu** `CIHAZ_TESTI.md` "Ferrari H8" + "Video düzenle" (2026-11-14: ara kesimler, bölge sesi kapat/ekle)
 - [ ] H9 Tablet ☁️📱
-- [ ] H10 Boş, yükleniyor, hata durumları ☁️
-- [ ] H11 Görüntüleyici kabuğu tutarlılığı ☁️
+- [x] H10 Boş, yükleniyor, hata durumları ☁️ — yapıldı (2026-11-14, dal faz-oto-P04-kabuk, A/B bekliyor): 8 boş liste çizimli, açılış penceresi 300 ms ertelendi, 3 ekranda ham hata kalktı. Kalan: H10.2 busy_dialog → iş sistemi (envanter planda), H10.3 kalan `{'error':}` ham metinleri (planda).
+- [x] H11 Görüntüleyici kabuğu tutarlılığı ☁️ — yapıldı (2026-11-14, dal faz-oto-P04-kabuk, A/B bekliyor): PDF üst çubuğu ≤ 3 + ⋮, alt çubuk ≤ 5, video denetimleri solar. 👤 galeri alt çubuğu 8→5 ve editör üst çubuğu → `KONTROL_LISTEM.md` 24–25.
 - [ ] H12 Son kapı 📱👤
 
 ## Faz B — Diğerleri 📱💻👤

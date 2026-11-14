@@ -356,9 +356,12 @@ ses sırası). Cihaz turu `CIHAZ_TESTI.md` "Video düzenle".
 
 **Önce bak:** `lib/widgets/empty_art.dart`, `app_error_screen.dart`, `live_progress.dart`, `lib/core/busy_dialog.dart`, `user_error.dart`.
 
-- [ ] H10.1 Her liste ekranı için boş durum: çizim + tek cümle + (varsa) tek eylem. Envanter: `grep -rn "isEmpty" lib/screens | …` ile boş listede yalnız metin gösterenleri bul.
-- [ ] H10.2 Yükleniyor: 300 ms'den uzun süren her açılışta iskelet (dönen çember yalnız belirsiz kısa işte). Ekranı kilitleyen `busy_dialog` kullanımını azalt → iş sistemi.
-- [ ] H10.3 Hata: ham istisna metni yok; "ne oldu + ne yapabilirsin" tek cümle + "Yeniden dene". (Ham hata bekçisi zaten var.)
+- [x] H10.1 Her liste ekranı için boş durum: çizim + tek cümle + (varsa) tek eylem. Envanter: `grep -rn "isEmpty" lib/screens | …` ile boş listede yalnız metin gösterenleri bul.
+      **2026-11-14 (P04):** yalnız metin gösteren 8 liste → `FmEmptyState`: Etkinlik, İşlem geçmişi, İndirilenler, Kopyalar (arama sonucu yok), Temizlik, Benzer görseller, iş raporu, uzak klasör (boş / süzgeç). Dokunulmayan (liste ekranı değil, levha içi): PDF karşılaştırma "aynı", slayt Pro sekmeleri, PDF anahat boş.
+- [x] H10.2 Yükleniyor: 300 ms'den uzun süren her açılışta iskelet (dönen çember yalnız belirsiz kısa işte). Ekranı kilitleyen `busy_dialog` kullanımını azalt → iş sistemi.
+      **2026-11-14 (P04, kısmen):** zaten iskeletli: Word/Excel/Slayt (`AppSkeleton`), PDF (`PdfOpenBridge`), dosya listeleri (`FmListSkeleton`). Yapılan: belge açma "Açılıyor…" penceresi yalnız yükleme `Motion.busyDefer` (300 ms) aşarsa (`EntryOpener`, ikinci dokunuş `_loadingDoc` ile yutulur); PDF geri yazma beklemesi çember → nötr kâğıt. **Yapılmadı (gerekçe: akış değişikliği, cihaz doğrulaması ister):** kalan `showBusyDialog` yerleri iş sistemine — çeviri, tarama, slayt dışa aktarma/Pro, `fm_progress_dialog`, tarama sonucu kaydet/çık, görsel AI içgörü, GitHub sürüm sorgusu. Çoğu zaten `TrackedBusy`/ilerlemeli; aday: görsel AI içgörü + GitHub sorgusu (kısa, belirsiz) → `KALANLAR`. Araç ekranlarındaki çember (pdf_form/region/tools/sign, scan_edit…) kısa yerel yükleme; dokunulmadı.
+- [x] H10.3 Hata: ham istisna metni yok; "ne oldu + ne yapabilirsin" tek cümle + "Yeniden dene". (Ham hata bekçisi zaten var.)
+      **2026-11-14 (P04, kısmen):** ekran DOLDURAN ham hatalar → `AppErrorView` (kısa ileti + Yeniden dene + Ayrıntıyı kopyala): Benzer görsel taraması (`job.error` = `'$e'` ekrana yazılıyordu), PDF bölge ekranı; Word sayfa görünümü betik hatası `userErrorText`'ten geçer. pdf_form/pdf_tools/scan_edit zaten `userErrorText`. Kalan `{'error': …}` yerleri (≈ 40; çoğu `result.errors.first` = dosya işlemi özeti, AI akışları) bildirim satırı — ayrı tur (`KALANLAR`).
 
 ---
 
@@ -367,11 +370,16 @@ ses sırası). Cihaz turu `CIHAZ_TESTI.md` "Video düzenle".
 **Önce bak:** `lib/widgets/doc_action_bar.dart`, `editor_top_bar.dart`, `pdf_action_bars.dart`, `office_shell.dart`, `office_ribbon.dart`,
 `lib/screens/fm/media_player_screen.dart`, `image_gallery_screen.dart`.
 
-- [ ] H11.1 PDF / Word / Excel / Slayt / metin / görsel / video görüntüleyicilerinde üst çubuk aynı düzen: geri · ad (tek satır, soluk alt satır) · en çok 3 eylem · ⋮.
-- [ ] H11.2 Alt eylem çubuğu: en çok 5 eylem, aynı simge boyu/etiket stili; okurken gizlenir.
-- [ ] H11.3 Office belgeleri açılışı: H1.1 köprüsünün aynısı (kapak/iskelet), ilk sayfa önce.
-- [ ] H11.4 Görsel görüntüleyici: siyah zemin, çubuklar tek dokunuşla gizlenir, aşağı çekince kapanır, yana kaydırma akıcı (§2 işlem 10).
-- [ ] H11.5 Video oynatıcı: denetimler 3 sn sonra solar; çift dokunma ±10 sn; yatay sürükleme sarma; dikey sürükleme ses/parlaklık (var olanı doğrula, eksikleri ekle).
+- [x] H11.1 PDF / Word / Excel / Slayt / metin / görsel / video görüntüleyicilerinde üst çubuk aynı düzen: geri · ad (tek satır, soluk alt satır) · en çok 3 eylem · ⋮.
+      **2026-11-14 (P04) envanter:** PDF İçindekiler/Form · Ara · Aa · ⋮ (✓; kaydedilmemişken Kaydet 4. oluyordu → ilk yuvayı Kaydet alır, İçindekiler ⋮'ya; tablette + yan şerit = 4, geniş ekranda bilinçli). Metin/Markdown önizleme · Ara · Aa · ⋮ ✓. Görsel (görüntüleyici) döndür · ⋮ ✓. Galeri döndür sol/sağ · ⋮ ✓. Video altyazı · hız · ⋮ ✓ (kullanıcı kararı). Word/Excel/Slayt `EditorTopBar` Kaydet · Geri al · Yinele · Ara/anahat · ⋮ = 4 (Faz 40 düzeni) → **👤 sabah bakılacak** `KONTROL_LISTEM.md` 25. Ad + soluk alt satır `OfficeShell`/`OverlayBar` ortak ✓.
+- [x] H11.2 Alt eylem çubuğu: en çok 5 eylem, aynı simge boyu/etiket stili; okurken gizlenir.
+      **2026-11-14 (P04):** `DocActionBar` tek kaynak, `ReadingBars` ile okurken gizli ✓. Başka uygulamadan gelen dosyada İndir eklenince 6 oluyordu → Yazdır ⋮ › Dosya'ya. Galeri alt çubuğu 8 eylem — kullanıcının geçmiş eklemeleri (Boyut G4i, Seç, İyileştir) olabilir → **👤 sabah bakılacak** `KONTROL_LISTEM.md` 24 (dokunulmadı).
+- [x] H11.3 Office belgeleri açılışı: H1.1 köprüsünün aynısı (kapak/iskelet), ilk sayfa önce.
+      **2026-11-14 (P04) doğrulandı:** Word (sayfa/mobil) `AppSkeleton`, Excel `SkeletonKind.grid`, Slayt `SkeletonKind.slides` zaten var; hata `AppErrorView`. Ek olarak açılış penceresi ertelendi (H10.2). "İlk sayfa önce" (kademeli ayrıştırma) **yapılmadı**: ölçüm ister (§0.4) — 📱 A/B'de §2 işlem 3–4 Office açılış süresi ölçülsün, gerekirse ayrı madde.
+- [x] H11.4 Görsel görüntüleyici: siyah zemin, çubuklar tek dokunuşla gizlenir, aşağı çekince kapanır, yana kaydırma akıcı (§2 işlem 10).
+      **2026-11-14 (P04) doğrulandı, kod değişmedi:** `mediaSurface` siyah zemin, tek dokunuş `_chromeVisible` (saydamlık, gövde boyu sabit), aşağı çekince ölçeklenip kapanır (yakınlaştırılmışken kapalı), komşu görseller `_precacheAround`. Akıcılık 📱 §2 işlem 10 A/B'de.
+- [x] H11.5 Video oynatıcı: denetimler 3 sn sonra solar; çift dokunma ±10 sn; yatay sürükleme sarma; dikey sürükleme ses/parlaklık (var olanı doğrula, eksikleri ekle).
+      **2026-11-14 (P04):** ±10 sn, sarma, ses (sağ)/parlaklık (sol), 3 sn gizlenme vardı; eksik SOLMA eklendi (`_controlsFading`, `Motion.long`, solarken dokunuş geri getirir; animasyonlar kapalıyken doğrudan). Test: `media_player_layout_test` "kontroller 3 sn sonra solar…".
 
 ---
 

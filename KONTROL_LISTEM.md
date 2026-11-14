@@ -36,6 +36,14 @@ Ayrıntılı teknik liste: `docs/CIHAZ_TESTI.md` (koşu kayıtları orada).
 22. **Tarama rehberi** — ilk 3 taramada çıkmaya devam ediyor (senin 2026-10-18 şikâyetinden); "bir kez" olsun mu? (sabah bakılacak)
 23. **"Kopyalandı" bildirimi** — Android 13+ telefon kendi de "kopyalandı" gösteriyor; bizimki çift mi görünüyor? Çiftse söyle, 13+'da kaldırırım.
 
+## Ferrari H10/H11 — kararın gereken (2026-11-14, dal faz-oto-P04-kabuk)
+24. **Galeri alt çubuğu (H11.2/H11.4)** — tek fotoğrafta altta 8 düğme var (Paylaş · Düzenle · İyileştir ·
+    Boyut · Araçlar · Bilgi · Seç · Sil); plan "en çok 5" diyor. Öneri: Paylaş · Düzenle · İyileştir · Bilgi · Sil
+    altta, Boyut · Araçlar · Seç ⋮'ya. Doğruysa: "galeri önerisi tamam" de, uygularım. Yanlışsa: "galeri kalsın" de.
+25. **Editör üst çubuğu (H11.1)** — Word/Excel/Slayt'ta Kaydet · Geri al · Yinele · Ara · ⋮ (4 düğme + ⋮,
+    Faz 40 düzeni). Plan "en çok 3 + ⋮" diyor. Öneri: Kaydet'i yalnız değişiklik varken göster. Doğruysa:
+    "editör önerisi tamam" de. Yanlışsa: "editör kalsın" de (şu an böyle).
+
 ## Telefon ayarı isteyenler
 13. **Erişilebilirlik ölçümü (P6)** — Ayarlar → Erişilebilirlik → TalkBack (ya da herhangi bir hizmet) AÇ,
     sonra bana "açtım" de; ölçümü ben alırım, bitince kapatırsın.
