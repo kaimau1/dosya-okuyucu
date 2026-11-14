@@ -260,6 +260,9 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
         DocMoreGroup(context.t('dm.file'), [
           DocMoreItem(AppIcons.move, context.t('vw.file_ops'),
               _fileActions),
+          // Alt çubukta İndir varken Yazdır buraya iner (H11.2, en çok 5).
+          if (!isImage && showDownloadAction(doc.path))
+            DocMoreItem(AppIcons.print, context.t('vw.print'), _print),
           // Telefonun ana ekranına kısayol (2026-09-27).
           if (Platform.isAndroid)
             DocMoreItem(
@@ -519,7 +522,9 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
       if (showDownloadAction(widget.doc.path))
         DocAction(
             AppIcons.download, context.t('common.download'), _download),
-      if (!isImage)
+      // Ferrari H11.2: çubukta en çok 5 eylem — İndir geldiğinde Yazdır
+      // "Daha fazla › Dosya"ya geçer (çubuk kaydırma istemesin).
+      if (!isImage && !showDownloadAction(widget.doc.path))
         DocAction(AppIcons.print, context.t('vw.print'), _print),
     ]);
   }
