@@ -18,12 +18,15 @@ class DashboardLayout extends ChangeNotifier {
 
   static final instance = DashboardLayout._();
 
+  /// **Varsayılan sıra** (Ferrari H5.2, 2026-11-14): ilk ekranda arama (üst
+  /// çubuk) + son dosyalar + kategoriler + bellek — en çok dört bölüm;
+  /// araçlar, favoriler, hızlı klasörler aşağıda. Eskiden bellek kartı en
+  /// üstteydi ve "Son açılanlar" gizliydi (K16 (b)). Kaydı olan kullanıcının
+  /// sırası ve gizledikleri DEĞİŞMEZ (bkz. [_legacyHiddenSections]).
   static const sections = [
-    'storage',
-    // Faz 17 / K16 (b): panoda "Son açılanlar" şeridi — VARSAYILAN GİZLİ
-    // (aşağıdaki [defaultHiddenSections]); "Ana ekranı düzenle"den açılır.
     'recent',
     'categories',
+    'storage',
     'tools',
     'favorites',
     'quick',
@@ -56,9 +59,15 @@ class DashboardLayout extends ChangeNotifier {
   static bool isDynamic(String id) =>
       id == 'new_card' || id.startsWith('card:');
 
+  /// Yeni kurulumda gizli doğan bölümler (H5.2'den beri yok — "Son
+  /// açılanlar" artık varsayılan görünür).
+  static const defaultHiddenSections = <String>{};
+
   /// "Yeni kimlik görünür eklenir" kuralının BİLİNÇLİ istisnası (K16 (b)):
-  /// mevcut kullanıcının panosu güncellemeyle kendiliğinden değişmesin.
-  static const defaultHiddenSections = {'recent'};
+  /// KAYDI OLAN (düzenini bir kez değiştirmiş) kullanıcının kaydında hiç
+  /// geçmeyen bu bölümler gizli başlar — panosu güncellemeyle kendiliğinden
+  /// değişmesin.
+  static const _legacyHiddenSections = {'recent'};
 
   /// Aynı kural kutular için: güncellemeyle gelen bu kutular gizli doğar.
   ///
@@ -124,6 +133,9 @@ class DashboardLayout extends ChangeNotifier {
       // kullanıcı bir kez açtıysa kayıtta vardır ve dokunulmaz.
       for (final id in defaultHiddenSections) {
         if (saved == null || !saved.contains(id)) _hiddenSections.add(id);
+      }
+      for (final id in _legacyHiddenSections) {
+        if (saved != null && !saved.contains(id)) _hiddenSections.add(id);
       }
       final savedTiles = p.getStringList(_kTiles);
       _tileOrder = _merge(savedTiles, tiles);

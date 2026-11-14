@@ -55,12 +55,34 @@ void main() {
   });
 
   test('aşağı taşıma onReorderItem dizin kuralına uyar', () async {
-    await layout.moveSection(0, 2); // storage → son dizini 2
+    await layout.moveSection(0, 2); // recent → son dizini 2
     expect(layout.sectionOrder,
-        ['recent', 'categories', 'storage', 'tools', 'favorites', 'quick']);
+        ['categories', 'storage', 'recent', 'tools', 'favorites', 'quick']);
   });
 
-  test('K16 (b): "Son açılanlar" şeridi varsayılan GİZLİ, açılınca kalıcı',
+  test('H5.2: yeni kurulumda son dosyalar + kategoriler + bellek en üstte',
+      () async {
+    await layout.ensureLoaded();
+    expect(layout.sectionOrder.take(3), ['recent', 'categories', 'storage']);
+    expect(layout.sectionVisible('recent'), isTrue);
+    expect(layout.isCustomized, isFalse);
+  });
+
+  test('H5.2: kaydı olan kullanıcının sırası korunur', () async {
+    SharedPreferences.setMockInitialValues({
+      'dash_sections': [
+        'storage', 'recent', 'categories', 'tools', 'favorites', 'quick'
+      ],
+      'dash_hidden_sections': <String>['tools'],
+    });
+    layout.debugReset();
+    await layout.ensureLoaded();
+    expect(layout.sectionOrder.first, 'storage');
+    expect(layout.sectionVisible('tools'), isFalse);
+    expect(layout.sectionVisible('recent'), isTrue);
+  });
+
+  test('K16 (b): eski kayıtta olmayan "Son açılanlar" GİZLİ, açılınca kalıcı',
       () async {
     // Eski sürümden gelen kullanıcı: kayıtlı sırada 'recent' yok.
     SharedPreferences.setMockInitialValues({
@@ -70,7 +92,8 @@ void main() {
     layout.debugReset();
     await layout.ensureLoaded();
     expect(layout.sectionVisible('recent'), isFalse);
-    expect(layout.isCustomized, isFalse);
+    expect(layout.sectionOrder.first, 'recent');
+    expect(layout.sectionOrder.skip(1).first, 'storage');
 
     await layout.setSectionVisible('recent', true);
     layout.debugReset();
