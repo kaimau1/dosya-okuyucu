@@ -9,13 +9,18 @@ description: Cihazda A/B hız ölçümü (ÖLÇÜM KAPISI / HIZ SÖZLEŞMESİ) v
 ("not", kullanıcı 2026-11-10): "son güncellemelerden sonra kasma yeniden başladı… zamanında
 kontrol et" — kök neden testleri yeşil geçen küçük bir arayüz değişikliğiydi; kimse ölçmemişti.
 
-> **Araç farkı (dürüst durum):** "not"taki tek komutluk A/B betiği (`ab_hepsi.py --altin`) bu
-> depoda YOK. Var olanlar: `tool/perf_senaryo.sh` (tek derleme, `flutter drive --profile`
-> senaryoları → `docs/perf/<tarih>-senaryo.md` kare p90/p99 tablosu), `tool/pdf_profil.sh` (PDF
-> açılış + sabit kaydırma, KARE/PSS özeti), `tool/r8_ab.sh` (`read` ile kullanıcıyı bekler →
-> **gözetimsiz KULLANILMAZ**), `integration_test/perf_senaryolari_test.dart`. Gözetimsiz A/B
-> karşılaştırma betiği Kuyruk'un ilk işidir (`OTOMASYON.md` P01). O gelene dek aşağıdaki elle
-> yöntem uygulanır.
+> **Tek komut (P01, 2026-11-14):** `timeout 14400 bash tool/ab_olcum.sh [A_ref] [B_ref]` (arka
+> planda; A varsayılan main'deki son `[apk]`, B = HEAD). İki ref'i `../okuyucu_ab_<sha>`
+> worktree'lerinde `.r8test` profil derler (güncel senaryo dosyası ikisine kopyalanır), A,B,A,B
+> (`AB_TUR=2`) `flutter drive --use-application-binary` koşar; pil < 37 °C bekler, ≥ 40 °C koşu
+> geçersiz; MIUI kurulum penceresini arka plan bekçisi onaylar (önce ekran görüntüsü). Tablo
+> `docs/perf/<tarih>-ab-<A>-<B>.md`, son satır `KARAR:`; çıkış 0 GEÇTİ · 1 KALDI · 2 YETERSİZ ·
+> 3 cihaz bekliyor. `BUYUK_PDF=/storage/<usb>/x.pdf` (H0.2 büyük PDF), `AB_KURU=1` (tek A
+> koşusu), `AB_TUT=1` (ağaçlar kalır). Karar kuralı + öz denetim: `python tool/ab_karar.py
+> --deneme`. Ayrıca: `tool/perf_senaryo.sh` (tek derleme), `tool/pdf_profil.sh` (PDF açılış +
+> kaydırma, KARE/PSS), `tool/r8_ab.sh` (`read` bekler → **gözetimsiz KULLANILMAZ**). PDF açılış
+> damgaları logcat'te `PDFPRO_PERF faz=acilis_{ekran,belge,ilk_sayfa,kucuk_resim}` (H0.3).
+> Aşağıdaki elle yöntem betik çalışmazsa yedektir.
 
 ## Ne zaman (bağlayıcı)
 
@@ -54,7 +59,7 @@ kontrol et" — kök neden testleri yeşil geçen küçük bir arayüz değişik
 - Ölçüm bitince taban ağacı silinir: `git worktree remove --force ../okuyucu_ab` (silinemiyorsa
   tutan Gradle/Java sürecini durdur).
 
-## Koşu (elle yöntem — P01 aracı gelene dek)
+## Koşu (elle yöntem — `tool/ab_olcum.sh` çalışmazsa)
 
 1. Ölçüm verisi (bir kez, temiz): `python tool/make_test_tree.py olcum_verisi` →
    `adb push olcum_verisi/. /sdcard/Android/data/com.dosyaokuyucu.dosya_okuyucu.r8test/files/olcum/`.

@@ -215,6 +215,9 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         errorBannerBuilder: _pdfErrorBanner,
                         // Açılamayan belgede köprü hata yüzünü örtmesin.
                         onDocumentLoadFinished: (_, ok) {
+                          // pdfrx bunu ilk sayfanın bitmap'i önbelleğe
+                          // girince çağırır (H0.3).
+                          if (ok) PdfProPerf.openMark('ilk_sayfa');
                           if (!ok && mounted && !_pdfOpened) {
                             _partSetState(() => _pdfOpened = true);
                           }
@@ -234,6 +237,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                             unawaited(_closePro(keepRecovery: true));
                           }
                           _pdfDoc = document;
+                          PdfProPerf.openMark('belge');
                           _pdfPasswordTried = false;
                           // Her (yeniden) yüklemede yeni arayıcı: eskisi önceki
                           // belgenin olaylarına bağlı kalırdı.

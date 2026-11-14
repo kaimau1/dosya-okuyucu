@@ -64,6 +64,7 @@ import '../services/pdf/current_page.dart';
 import '../services/pdf/pdf_fling.dart';
 import '../services/pdf/pdf_selection_target.dart';
 import '../services/pdf/pdf_viewer_defaults.dart';
+import '../services/pdf/pro/pdf_pro_perf.dart';
 import '../services/pdf/page_arrival.dart';
 import '../services/pdf/pdf_form.dart';
 import '../services/pdf/pdf_ocr_search.dart';
@@ -655,6 +656,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       _textFocus.addListener(_onTextFocus);
     }
     if (doc.kind == DocKind.pdf) {
+      PdfProPerf.openScreen(); // H0.3 açılış zaman damgaları
       _prepareSafeOpen();
       // `_pdfSearcher` `onViewerReady`'de kurulur: pdfrx 2.x'in yapıcısı
       // denetleyicinin belgesine hemen abone oluyor ve görüntüleyici
@@ -854,6 +856,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _formOfferTimer?.cancel();
     _pageBadgeTimer?.cancel();
     _pdfBridgeTimer?.cancel();
+    if (widget.doc.kind == DocKind.pdf) PdfProPerf.openDone();
     _pdfController.removeListener(_onPdfMatrix);
     // Kaydedilmemiş düzenleme varsa çökme kaydı kalır (yeniden açılışta sunulur).
     _pro

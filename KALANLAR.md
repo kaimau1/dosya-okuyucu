@@ -173,7 +173,7 @@ Plan: `docs/GUVENLIK_PLANI.md` (G0–G12; sıra ve açılış istemi orada). Pla
 ## Faz H — Görünüm ve his: "Ferrari planı" (2026-11-14, kullanıcı isteği) ☁️💻📱👤
 Ayrıntı, kurallar, madde madde yapılış ve açılış istemi: `docs/FERRARI_PLANI.md`. Bitti ölçütü: §2'deki 10 işlemde
 Samsung Dosyalarım ile yan yana videoda geride görünmemek (H12 kapısı). Plan sürerken yeni özellik açılmaz.
-- [ ] H0 Ölçüm tabanı ve rakip videosu 📱💻
+- [ ] H0 Ölçüm tabanı ve rakip videosu 📱💻 — H0.2/H0.3 + gözetimsiz A/B betiği `tool/ab_olcum.sh` bitti (2026-11-14, P01); kalan H0.1/H0.4 (P02)
 - [ ] H1 PDF açılış hissi — H1.1–H1.3 bitti (2026-11-14); kalan **H1.4 📱 cihaz bekliyor** (son sayfa görüntüsü + ölçüm), H1.5 → H6.3; cihaz turu `CIHAZ_TESTI.md` "Ferrari H1"
 - [ ] H2 PDF kaydırma akıcılığı 📱💻
 - [ ] H3 PDF okuma konforu — kod bitti (2026-11-14, H3.1–H3.7: çift dokunma + akıllı yakınlık, görsel kipi, kenar kırpma, sayfa sayfa, durum çubuğu, solan rozet); kalan **📱 cihaz turu** `CIHAZ_TESTI.md` "Ferrari H3"

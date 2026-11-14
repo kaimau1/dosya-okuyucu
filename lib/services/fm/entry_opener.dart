@@ -25,6 +25,7 @@ import '../../screens/fm/image_gallery_screen.dart';
 import '../../screens/fm/media_player_screen.dart';
 import '../../screens/viewer_screen.dart';
 import '../file_service.dart';
+import '../pdf/pro/pdf_pro_perf.dart';
 import 'archive_ops.dart';
 import 'native_extras.dart';
 import 'fs_events.dart';
@@ -157,6 +158,7 @@ abstract final class EntryOpener {
       FsEvents.reportUnreadable(path);
       return;
     }
+    if (path.toLowerCase().endsWith('.pdf')) PdfProPerf.openTap(); // H0.3
     final route = routeFor(path);
     final group =
         siblings == null ? <String>[path] : siblingsFor(path, siblings);

@@ -395,12 +395,12 @@ say "pub get + pdfium.wasm + ikon"
 # Kilit depodaysa ona uy (2026-11-02); yoksa (eski kopya) serbest çözümle.
 if [ -f pubspec.lock ]; then flutter pub get --enforce-lockfile; else flutter pub get; fi
 python3 - <<'PY'
-import json, pathlib, urllib.parse
+import json, pathlib, urllib.parse, urllib.request
 cfg = json.loads(pathlib.Path('.dart_tool/package_config.json').read_text())
 roots = [p['rootUri'] for p in cfg['packages'] if p['name'] == 'pdfrx']
 if not roots:
     print('::warning::pdfrx paketi bulunamadı, wasm silinmedi'); raise SystemExit(0)
-root = pathlib.Path(urllib.parse.urlparse(roots[0]).path)
+root = pathlib.Path(urllib.request.url2pathname(urllib.parse.urlparse(roots[0]).path))  # Windows: /C:/... yolu
 if not root.is_absolute():  # path bağımlılığı (third_party/, Faz 44): .dart_tool'a göreli
     root = (pathlib.Path('.dart_tool') / root).resolve()
 wasm = root / 'assets' / 'pdfium.wasm'
@@ -416,12 +416,12 @@ PY
 # GÖNDEREN uygulamanın elinde → `../shared_prefs/x.xml` ile özel dizinimize
 # yazdırılabilir ("Dirty Stream"). Ad yalnız son parçaya indirilir.
 python3 - <<'PY'
-import json, pathlib, urllib.parse
+import json, pathlib, urllib.parse, urllib.request
 cfg = json.loads(pathlib.Path('.dart_tool/package_config.json').read_text())
 roots = [p['rootUri'] for p in cfg['packages'] if p['name'] == 'receive_sharing_intent']
 if not roots:
     raise SystemExit('receive_sharing_intent bulunamadı (yama)')
-root = pathlib.Path(urllib.parse.urlparse(roots[0]).path)
+root = pathlib.Path(urllib.request.url2pathname(urllib.parse.urlparse(roots[0]).path))  # Windows: /C:/... yolu
 kt = next(root.rglob('FileDirectory.kt'))
 t = kt.read_text()
 bad = 'targetFile = File(context.cacheDir, fileName)'

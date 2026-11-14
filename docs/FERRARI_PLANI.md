@@ -100,8 +100,8 @@ H1, H4, H6, H7, H10 buluttan başlanabilir; H0, H2, H12 cihazsız bitmez.
 **Amaç:** "geride" sözünü sayıya çevirmek; sonraki fazların kapısı.
 
 - [ ] H0.1 §2'deki 10 işlemi bizde ve Samsung'da kaydet; tablo `docs/perf/2026-11-H0.md` (iki cihaz sütunu).
-- [ ] H0.2 `integration_test/perf_senaryolari_test.dart`'a "büyük PDF aç + 50 sayfa kaydır" senaryosu (yoksa). Dosya `OLCUM_VERISI` altında; USB yolu parametre.
-- [ ] H0.3 PDF açılışında zaman damgaları: dokunuş → `PdfDocument` hazır → ilk sayfa bitmap'i → küçük resim şeridi. Debug/profil logu (`PDFPRO_PERF` biçimi, HAFIZA 2026-11-13).
+- [x] H0.2 `integration_test/perf_senaryolari_test.dart`'a "büyük PDF aç + 50 sayfa kaydır" senaryosu (yoksa). Dosya `OLCUM_VERISI` altında; USB yolu parametre. — 2026-11-14 (P01): `pdf_buyuk_acilis` + `pdf_buyuk_50_sayfa` (denetleyiciden sayfa sayısı, ≤ 60 fırlatma); dosya `--dart-define=BUYUK_PDF` ya da `OLCUM_VERISI/buyuk_100mb.pdf` (`make_test_tree.py --buyuk`), yoksa atlanır. A/B: `tool/ab_olcum.sh`.
+- [x] H0.3 PDF açılışında zaman damgaları: dokunuş → `PdfDocument` hazır → ilk sayfa bitmap'i → küçük resim şeridi. Debug/profil logu (`PDFPRO_PERF` biçimi, HAFIZA 2026-11-13). — 2026-11-14 (P01): `PDFPRO_PERF faz=acilis_{ekran,belge,ilk_sayfa,kucuk_resim} ms=` (dokunuştan; ilk sayfa = pdfrx `onDocumentLoadFinished`, ilk sayfa görüntüsünü bekler — yama yok). Küçük resim = şeridin ilk çizim isteği (şerit kapalıysa yok).
 - [ ] H0.4 2026-11-14 düzeltmesinin (form taraması baş+son, küçük resim gecikmesi — PR #90) etkisi: öncesi/sonrası 1. işlem.
 
 **Bitti:** tablo var; en kötü 3 işlem adlandırılmış; H1/H2 madde sırası buna göre güncellenmiş.
