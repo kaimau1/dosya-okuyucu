@@ -133,7 +133,7 @@ class _PdfOpenBridgeState extends State<PdfOpenBridge> {
           child: DecoratedBox(
             decoration: BoxDecoration(
               color: AppColors.page,
-              boxShadow: [if (shadow != null) shadow],
+              boxShadow: [?shadow],
             ),
             child: cover == null
                 ? null
