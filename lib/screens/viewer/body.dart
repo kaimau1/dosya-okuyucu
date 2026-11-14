@@ -8,14 +8,12 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
     switch (doc.kind) {
       case DocKind.pdf:
         // Önceki oturumun özgün baytları geri yazılıyor: bitmeden belge
-        // açılırsa kaydedilmemiş düzenleme özgün sanılırdı.
-        if (_waitingRestore) {
-          return const Center(child: CircularProgressIndicator());
-        }
+        // açılırsa kaydedilmemiş düzenleme özgün sanılırdı. Bekleyiş de
+        // dönen çember değil aynı nötr kâğıt (Ferrari H10.2).
         // Kaldığın yer henüz okunmadı (soğuk açılış, milisaniyeler).
         // Düz zemin yerine nötr kâğıt (Ferrari H1.1) — kapak, sayfa belli
         // olunca alttaki köprüde gelir.
-        if (!_resumeReady) {
+        if (_waitingRestore || !_resumeReady) {
           return PdfOpenBridge(
               path: doc.path,
               visible: true,

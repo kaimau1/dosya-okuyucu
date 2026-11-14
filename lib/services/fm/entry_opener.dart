@@ -10,6 +10,7 @@ import '../../core/app_icons.dart';
 import '../../core/busy_dialog.dart';
 import '../../core/private_zone.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/motion.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/document.dart';
@@ -219,19 +220,35 @@ abstract final class EntryOpener {
 
     final appState = context.read<AppState>();
     final navigator = Navigator.of(context);
-    final busy = _showBusy(context);
+    // Ferrari H10.2: "Açılıyor…" penceresi yalnız yükleme [Motion.busyDefer]'i
+    // aşarsa gelir — kısa açılışta ekran kararıp aydınlanmaz (yanıp sönme).
+    // Pencerenin engeli gelene kadar ikinci dokunuş [_loadingDoc] ile yutulur
+    // (eskiden engel bunu hemen yapıyordu).
+    if (_loadingDoc) return;
+    _loadingDoc = true;
+    BusyDialog? busy;
+    final busyTimer = Timer(Motion.busyDefer, () {
+      if (context.mounted) busy = _showBusy(context);
+    });
+    void closeBusy() {
+      busyTimer.cancel();
+      busy?.close();
+    }
+
     LoadedDoc doc;
     try {
       doc = await _fileService.load(path);
     } catch (e) {
-      busy.close(); // yükleniyor penceresini kapat
+      closeBusy(); // yükleniyor penceresini kapat
       if (context.mounted) {
         _snack(context,
             AppStrings.current.t('common.open_failed', {'error': userErrorText(e)}));
       }
       return;
+    } finally {
+      _loadingDoc = false;
     }
-    busy.close();
+    closeBusy();
     if (!context.mounted) return;
 
     _remember(path);
@@ -421,6 +438,10 @@ abstract final class EntryOpener {
   /// **dosya listesini** kapatıyordu. İki kez tekrarlayınca `Navigator`
   /// boşalıyor, ekran kararıyor ve uygulamayı öldürmekten başka çare
   /// kalmıyordu (bkz. `core/busy_dialog.dart`).
+  /// Bir belge yükleniyor mu? (Ertelenen pencere gelmeden ikinci açılışı
+  /// yutar.)
+  static bool _loadingDoc = false;
+
   static BusyDialog _showBusy(BuildContext context) {
     return showBusyDialog(
       context,
