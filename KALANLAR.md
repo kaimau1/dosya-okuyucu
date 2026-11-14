@@ -220,6 +220,7 @@ Samsung Dosyalarım ile yan yana videoda geride görünmemek (H12 kapısı). Pla
       bayrağı, `screens/editors/word/shell.dart`, `viewer.html` düzenleme köprüsü) ve
       `lib/labs/word_editor/` prototipi silinir — K19 (b) "Faz 23 sonunda kalkar"
       demişti. Onaylanmazsa kök neden yazılır, editör düzeltilir.
+      (P14 2026-11-14: kullanıcı bakışı → KONTROL_LISTEM 30; onaysız silme yok.)
 - [ ] **B3.3a Excel açılışı:** 10 bin × 20 Mi Note 10 Lite'ta 7,7–8,9 sn (DOM'suz okuyucudan önce ~20 sn), hedef ≤ 1,5 sn.
       Sırada: `XlsxReader.read` sonrası nerede vakit gidiyor ölç (`_rowsFrom`, ilk çizim); gerekirse hücreleri tembel kur.
 - [ ] **B3.3b Mi Note 10 Lite sınırdakiler (2026-11-02, profil APK):** 5.000 öğe kaydırma
@@ -236,6 +237,9 @@ Samsung Dosyalarım ile yan yana videoda geride görünmemek (H12 kapısı). Pla
       Word kapat/şerit aç zaman çizelgesi al; HC suçluysa seçenekler: geçiş/levha süresince WebView'ın
       anlık görüntüsünü göster ya da TLHC + `devicePixelRatio` ölçekli çizim (netliği yeniden ölç). Tahminle
       kip değiştirme — netlik kullanıcının açık isteği.
+      (P14 2026-11-14: kök neden üretilemedi — telefon başka A/B ölçümündeydi. Kodda kapanış/menü
+      yolunda Dart tarafı ağır iş yok; HC tek aday kaldı. Ölçüm senaryoları hazır: `word_300_menu`,
+      `word_300_kapanis` (`tool/ab_olcum.sh`); KONTROL_LISTEM 31.)
 - [ ] **B3.3 Faz 4 bütçe aşımları** (soğuk açılış ≤ 1,2 sn, 5.000 öğe kaydırma %99 ≤ 24 ms,
       galeri 2.000 fotoğraf RSS ≤ 350 MB / hafif ≤ 250 MB, boşta 0 kare) ve DUZENLEME §7
       bütçeleri → aynı oturumda düzelt.

@@ -967,3 +967,10 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Bekçi (G7.3):** `lib/`de ham `ZipDecoder().decodeBytes` yalnız `office_zip_guard.dart` ve ad koklayan `file_service.dart`ta (`office_zip_guard_test`). `xlsx_stream` (akış, diske) bilinçli dışarıda.
 - **Karar:** G7.1 oran aşımında sormadan ret kalır; G10.2 tek belgelik maske kapatma YAPILMADI (gevşetir) — ikisi de sabah bakılacak (`KONTROL_LISTEM.md` 29).
 - **Tuzak (araç):** bu makinede Bash heredoc içindeki ters bölü (`\\`) kancadan bozulabiliyor → betiği dosyaya yaz ya da Edit kullan.
+
+## 2026-11-14 — P14 Word/Slayt (cihaz yok — telefon P04 A/B ölçümündeydi)
+- **B3.3d üretilemedi:** kod okumasında Word kapanış/⋮ menü yolunda Dart tarafı ağır iş yok (`DocxView.dispose` yalnız dinleyici; `didChangeDependencies` kare başı tetiklenmiyor — `ReadingChrome` yalnız boy/animasyon nesnesi değişince bildirir). Tek aday hâlâ hybrid composition. Tahminle kip değiştirilmedi (netlik kullanıcı isteği).
+- **Ölçüm düzeni:** `make_test_tree.py` → `word_300.docx`, `slayt_300.pptx` (fixture çoğaltma); senaryolar `perf_senaryolari_test.dart` sonunda. Faz 37/38 "önce" = aynı derlemede `word_pro_v1` / `slides_pro_v1` kapalı (Faz 36 tabanı senaryo dosyasını derleyemez).
+- **Tuzak:** `ab_olcum.sh` veriyi yalnız işaret dosyası yoksa iter — yeni veri ekleyen, işaret dosyasını da en yeniye çekmeli (şimdi `slayt_300.pptx`).
+- **Tuzak (senaryo):** Word okuma kipi kaydırınca üst çubuğu gizler → ⋮ menü ölçümü kaydırmadan ÖNCE; menü açılmadıysa `pop` Word ekranını kapatır (PopupMenuItem varlığı denetlenir).
+- **B3.2:** Mobil editör onayı kullanıcı bakışı → KONTROL_LISTEM 30; eski WebView düzenleme yolu onaysız silinmez.
