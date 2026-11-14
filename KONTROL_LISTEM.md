@@ -48,6 +48,24 @@ Ayrıntılı teknik liste: `docs/CIHAZ_TESTI.md` (koşu kayıtları orada).
 18. **İmza parmak izi** — GitHub repo değişkeni `SIGN_CERT_SHA256` (APK imza doğrulaması için).
 19. **Sürümler** — fiyat, uygulama adları (Lite/Pro), taramanın hangi sürümde olacağı.
 
+## Güvenlik — senin işin / kararın (P15, 2026-11-14)
+(17 güvenlik e-postası = G0 artığı, 18 `SIGN_CERT_SHA256` = G9.8 artığı yukarıda.)
+24. **Depo ayarları (G9.5)** — GitHub → Settings → Code security: Secret scanning + Push protection AÇ; Branches → `main` koruması
+    (zorla itme yok, silme yok); Actions → "Fork PR'ları onay ister"; hesabında 2 adımlı doğrulama; Settings → Developer settings →
+    eski kişisel erişim belirteçlerini sil. Doğruysa: "G9.5 tamam" de. Yanlışsa (bir ayarı bulamadın): hangisi olduğunu yaz.
+25. **İmza anahtarı yedeği (G9.7)** — anahtarın 2 çevrimdışı yedeği (şifreli USB + parola kâğıtta, ayrı yerde); Play'e çıkarken
+    "Play App Signing" kullan. Doğruysa: "yedek tamam" de, `SIGNING.md`'ye notu ben yazarım (anahtar içeriği değil, yalnız düzen).
+    Yanlışsa: yedek yoksa önce yedek al — anahtar kaybolursa uygulama güncellenemez.
+26. **Google Drive kapsamı (G8.5 / B5.5)** — tam Drive erişimi mi, yalnız uygulamanın açtığı dosyalar (`drive.file`) mı?
+    Dar kapsam Play incelemesini (CASA) kolaylaştırır ama Drive'daki her dosyayı gezme biter. Doğruysa: "dar" ya da "tam" de.
+27. **Dış göz (G12.6, isteğe bağlı)** — Play'e çıkmadan önce MobSF dinamik tarama / drozer ile dışa açık bileşen taraması
+    (ücretsiz; istersen ben kurarım). Doğruysa: "tarama yap" de. Yanlışsa: "gerek yok" de, madde kapanır.
+28. **Android 7 parola süresi (G3)** — Android 7'de kasa parolası saf Dart ile 600 bin turda ≈ 10 sn+ sürebilir (ölçülmedi).
+    Android 7 telefon varsa kasayı aç, süreyi söyle. Uzunsa karar: tur sayısını yalnız Android 7'de düşürmek (daha zayıf) mı,
+    beklemeyi kabul mü? (sabah bakılacak)
+29. **AI'da tek belgelik maske kapatma (G10.2)** — kişisel veri maskesi şu an yalnız genel ayarla (Ayarlar › Ağ) kapanıyor;
+    belge başına kapatma korumayı gevşettiği için YAPILMADI (en güvenli seçenek). İstersen "tek belgelik kapatma ekle" de. (sabah bakılacak)
+
 ## Telefonda temizlik
 - `/sdcard/Download/PdfPro/` içindeki test kopyaları (sahte kişisel verili `kisisel_ornek.pdf`, `kisi2.pdf`
   dahil) ölçüm bitince silinecek; `com.dosyaokuyucu.dosya_okuyucu.r8test` ölçüm uygulaması — istersen kaldır.
