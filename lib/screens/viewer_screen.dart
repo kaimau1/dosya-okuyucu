@@ -471,6 +471,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// göre seçilir (bkz. [kPdfPanFriction]).
   bool _pdfPinch = false;
 
+  /// Okuma konforu (Ferrari H3): çift dokunma / görsel kipinin okuduğu
+  /// sayfa nesneleri (PDF Pro köprüsü) — son birkaç sayfa, belgeye bağlı.
+  final Map<int, PdfPageContent> _comfortContent = {};
+  PdfDocument? _comfortDoc;
+
   /// Önceki matris (PDF kaydırma yönünü çıkarmak için).
   double? _pdfLastTy;
   double? _pdfLastZoom;
