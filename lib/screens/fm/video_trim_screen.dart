@@ -19,6 +19,7 @@ import '../../models/video_trim.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/job_queue.dart';
 import '../../services/fm/video_transcode.dart';
+import '../../widgets/fm/fm_file_image.dart';
 import '../../widgets/fm/video_trim_timeline.dart';
 import 'pick_file_screen.dart';
 
@@ -170,7 +171,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     // Görüntüleri önceden çöz: ilk taramada boş kare yanıp sönmesin.
     for (final f in list) {
       if (!mounted) return;
-      unawaited(precacheImage(FileImage(File(f.path)), context)
+      unawaited(precacheImage(FmFileImage(f.path), context)
           .catchError((Object _) {}));
     }
   }
@@ -783,8 +784,8 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
                   children: [
                     VideoPlayer(c),
                     if (_scrubShown != null)
-                      Image.file(
-                        File(_scrubShown!),
+                      Image(
+                        image: FmFileImage(_scrubShown!),
                         fit: BoxFit.contain,
                         gaplessPlayback: true,
                         errorBuilder: (_, _, _) => const SizedBox.shrink(),

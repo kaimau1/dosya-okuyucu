@@ -197,13 +197,18 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         // güncel sayfa numarası yazar.
                         viewerOverlayBuilder: (context, size, handleLinkTap) =>
                             [
-                          PdfViewerScrollThumb(
+                          // Yol üst/alt çubukların arasında kalır: belgenin
+                          // başında tutamaç üst panelin altına giriyordu
+                          // (kullanıcı 2026-11-14).
+                          PdfInsetScrollThumb(
                             controller: _pdfController,
-                            orientation: ScrollbarOrientation.right,
                             thumbSize: const Size(34, 46),
-                            thumbBuilder:
-                                (ctx, thumbSize, pageNumber, controller) =>
-                                    _scrollThumb(pageNumber),
+                            insets: EdgeInsets.only(
+                              top: chrome.top + 4,
+                              bottom: chrome.bottom + 4,
+                            ),
+                            builder: (ctx, pageNumber) =>
+                                _scrollThumb(pageNumber),
                           ),
                         ],
                         // Çift dokunma yakınlaştırır (Ferrari H3.1).
@@ -380,9 +385,14 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                 // Ferrari H3.7: rozet yalnız kaydırırken görünür, durunca
                 // [Motion.badgeLinger] sonra solar (sayfaya git ⋮ menüsünde
                 // ve kaydırma tutamacında da var).
+                // Sağ altta, kaydırma tutamacının solunda (kullanıcı
+                // 2026-11-14: alt ortada belgenin üstüne biniyordu).
                 if (_pageCount > 0 && !_pdfBarShown)
                   ReadingFloat(
-                    child: Center(
+                    start: null,
+                    end: 44,
+                    child: Align(
+                      alignment: AlignmentDirectional.centerEnd,
                       child: ExcludeSemantics(
                         excluding: !_pageBadgeOn,
                         child: IgnorePointer(

@@ -82,6 +82,7 @@ import '../widgets/download_action.dart';
 import '../widgets/pdf_open_bridge.dart';
 import '../services/pdf/pdf_last_view.dart';
 import '../widgets/pdf_image_zoom.dart';
+import '../widgets/pdf_inset_scroll_thumb.dart';
 import '../widgets/tracked_busy.dart';
 import 'pdf_ink_screen.dart';
 import '../widgets/ai_slides_flow.dart';
