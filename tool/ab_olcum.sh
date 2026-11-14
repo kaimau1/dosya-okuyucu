@@ -56,6 +56,7 @@ trap bitis EXIT
 
 # ── Derleme: ref → $OUT/apk/<A|B>.apk ────────────────────────────────────────
 derle() {  # derle <etiket> <sha>
+  local ET=$1
   local W="$UST/okuyucu_ab_${2:0:7}"
   [ -d "$W" ] || git worktree add --detach "$W" "$2" >/dev/null
   cp integration_test/perf_senaryolari_test.dart "$W/integration_test/"
@@ -81,7 +82,7 @@ derle() {  # derle <etiket> <sha>
     local EK=(--dart-define=OLCUM_VERISI="$OLCUM")
     [ -n "${BUYUK_PDF:-}" ] && EK+=(--dart-define=BUYUK_PDF="$BUYUK_PDF")
     yap() { timeout 3600 flutter build apk --profile --target-platform android-arm64 \
-      --target=integration_test/perf_senaryolari_test.dart "${EK[@]}" > "$OUT/derle_$1.log" 2>&1; }
+      --target=integration_test/perf_senaryolari_test.dart "${EK[@]}" > "$OUT/derle_$ET.log" 2>&1; }
     # Kopyalanan senaryo eski ref'te derlenmezse o ref'in kendi senaryosu
     # (yalnız ortak senaryolar kıyaslanır).
     yap || { echo "uyarı: $1 güncel senaryoyla derlenmedi — kendi senaryosuyla"
