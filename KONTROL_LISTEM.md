@@ -94,6 +94,12 @@ Ayrıntılı teknik liste: `docs/CIHAZ_TESTI.md` (koşu kayıtları orada).
     Doğruysa (takılma yok): "Word kapanışı akıcı" de, madde kapanır. Yanlışsa: "takılıyor" de — ölçüm senaryosu hazır
     (`word_300_menu`, `word_300_kapanis`), telefon boşken ölçüp kök nedeni ayıracağım; netliği bozan kip değişikliği ölçmeden yapılmaz.
 
+## Ferrari ölçüm tabanı (P02, 2026-11-14)
+32. **Samsung sütunu + eksik işlemler** — `docs/perf/2026-11-H0.md` tablosundaki 10 işlemi Samsung'da ekran kaydı + kronometreyle ölç
+    (özellikle 1 USB'deki 231 MB PDF, 3, 4, 5, 8, 9 — bizde bu beşi otomatik ölçemedim). Sayıları yaz ya da kaydı at.
+    Doğruysa: tabloya işlerim, H0 biter, H1/H2 sırası kesinleşir. USB diski telefona takarsan H0.4'ü de (PR #90 öncesi/sonrası) ölçerim:
+    `BUYUK_PDF=/storage/<usb>/x.pdf bash tool/ab_olcum.sh <öncesi> <sonrası>`.
+
 ## Telefonda temizlik
 - `/sdcard/Download/PdfPro/` içindeki test kopyaları (sahte kişisel verili `kisisel_ornek.pdf`, `kisi2.pdf`
   dahil) ölçüm bitince silinecek; `com.dosyaokuyucu.dosya_okuyucu.r8test` ölçüm uygulaması — istersen kaldır.
