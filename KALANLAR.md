@@ -178,10 +178,10 @@ Samsung Dosyalarım ile yan yana videoda geride görünmemek (H12 kapısı). Pla
 - [ ] H2 PDF kaydırma akıcılığı 📱💻
 - [ ] H3 PDF okuma konforu — kod bitti (2026-11-14, H3.1–H3.7: çift dokunma + akıllı yakınlık, görsel kipi, kenar kırpma, sayfa sayfa, durum çubuğu, solan rozet); kalan **📱 cihaz turu** `CIHAZ_TESTI.md` "Ferrari H3"
 - [x] H4 Dosya listesi: Samsung düzeyi ☁️ — bitti (2026-11-14); H4.3/H4.4 kullanıcı kararıyla uygulanmaz; cihazda bakış `CIHAZ_TESTI.md` "Ferrari H4"
-- [ ] H5 Ana ekran sadeleştirme ☁️👤
+- [x] H5 Ana ekran sadeleştirme ☁️ — bitti (2026-11-14): yeni varsayılan sıra son dosyalar · kategoriler · bellek; güncelleme şeridi tek satır; H5.3/H5.4 zaten vardı; cihazda bakış `CIHAZ_TESTI.md` "Ferrari H5"
 - [ ] H6 Hareket ve dokunuş ☁️
 - [ ] H7 Sadeleştirme: bildirim, menü, ipucu ☁️👤
-- [ ] H8 Video kırpma / kesme — kod bitti (2026-11-14, H8.1–H8.4, H8.6); kalan H8.5 döndür + kareyi kaydet, **📱 cihaz turu** `CIHAZ_TESTI.md` "Ferrari H8"
+- [ ] H8 Video kırpma / kesme — kod bitti (2026-11-14, H8.1–H8.4, H8.6); kalan H8.5 döndür + kareyi kaydet, **📱 cihaz turu** `CIHAZ_TESTI.md` "Ferrari H8" + "Video düzenle" (2026-11-14: ara kesimler, bölge sesi kapat/ekle)
 - [ ] H9 Tablet ☁️📱
 - [ ] H10 Boş, yükleniyor, hata durumları ☁️
 - [ ] H11 Görüntüleyici kabuğu tutarlılığı ☁️

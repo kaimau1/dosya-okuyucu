@@ -926,3 +926,12 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Tuzak:** matris dinleyicisinden (`_onPdfMatrix`) `setState` — pdfrx matrisi yerleşim sırasında da değiştirebilir → `_matrixSetState` (persistentCallbacks'ta kare sonuna erteler).
 - **Tuzak (H3.6):** durum çubuğu gizlenince `padding.top` 0'a iner → okuma payı değişir → pdfrx sayfa başına atlar. `OfficeShell` gizlemeden önceki boyu tutar (`_statusHold`, yön değişince bırakır); `immersiveSticky` DEĞİL `manual + bottom` (gezinme çubuğu kalkarsa alt pay da değişirdi).
 - **Not:** jest eşiği süresi de `Duration(milliseconds:)` bekçisine takılır → `Motion.quickSwipe`, `Motion.badgeLinger`.
+
+## 2026-11-14 — Video düzenle (ara kesim + ses bölgeleri) + Ferrari H5
+- **Karar (kullanıcı):** kes ekranı "Videoyu düzenle" — aradan istendiği kadar bölüm silme, bölge sesini kapatma, bölgeye ses ekleme. Plan dondurmasının istisnası (kullanıcı açıkça istedi).
+- **Yapı:** tüm aralıklar KAYNAK zamanında (`VideoEdit`, `lib/models/video_edit.dart`) — silme başka düzenlemenin yerini kaydırmaz; çıktı zamanına `toOutput` çevirir. Yalnız baş/son kırpma → eski hızlı `trim` (trim optimizasyonu); gerisi yerel `edit`.
+- **Yerel (Media3 1.5.1, kaynak jar'dan doğrulandı):** video sırası = kırpılmış parçalar; sessiz parçada `setRemoveAudio(true)` + `Composition.experimentalSetForceAudioTrack(true)` (sesi olmayan öğeden sonra sesli öğe gelirse aksi hâlde `checkState` patlar). Eklenen ses = ikinci sıra, konum `EditedMediaItemSequence.Builder.addGap(us)` — boşluk YALNIZ ses sırasında desteklenir; yalnız boşluktan oluşan sıra eklenmez. Liste kurucusu `EditedMediaItemSequence(List)` 1.5.1'de deprecated → `Builder(list).build()`.
+- **Tuzak:** `MediaTranscode.kt` `tool/check_kotlin.sh` kapsamında DEĞİL — hata ancak APK derlemesinde çıkar. API'yi `dl.google.com/android/maven2/androidx/media3/media3-transformer/1.5.1/…-sources.jar` ile doğrula.
+- **Karar (H5.2):** varsayılan bölüm sırası son dosyalar · kategoriler · bellek · …; "Son açılanlar" yeni kurulumda görünür. Kaydı olanın sırası korunur; eski kayıtta hiç geçmeyen `recent` yine gizli (`_legacyHiddenSections`).
+- **Karar (H5.5):** güncelleme şeridi tek satır ama kapatılamaz (2026-11-10 kullanıcı kararı plandaki "kapatılabilir"in önünde).
+
