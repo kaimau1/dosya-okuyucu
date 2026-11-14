@@ -5,6 +5,7 @@ import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart' show SchedulerBinding, SchedulerPhase;
 import 'package:flutter/services.dart'
     show
         Clipboard,
@@ -66,6 +67,8 @@ import '../services/pdf/pdf_viewer_defaults.dart';
 import '../services/pdf/page_arrival.dart';
 import '../services/pdf/pdf_form.dart';
 import '../services/pdf/pdf_ocr_search.dart';
+import '../services/pdf/pdf_reading_zoom.dart';
+import '../services/pdf/pdf_margin_crop.dart';
 import '../services/pdf_annotator.dart';
 import '../services/pdf_notes.dart';
 import '../services/pdf_reload.dart';
@@ -76,6 +79,7 @@ import '../services/voice_note.dart';
 import '../widgets/office_ribbon.dart' show OfficeIcons;
 import '../widgets/download_action.dart';
 import '../widgets/pdf_open_bridge.dart';
+import '../widgets/pdf_image_zoom.dart';
 import '../widgets/tracked_busy.dart';
 import 'pdf_ink_screen.dart';
 import '../widgets/ai_slides_flow.dart';
@@ -146,6 +150,7 @@ part 'viewer/code_tools.dart';
 part 'viewer/widgets.dart';
 part 'viewer/pdf_reading_pro.dart';
 part 'viewer/pdf_reading_aids.dart';
+part 'viewer/pdf_reading_comfort.dart';
 part 'viewer/pdf_pro_edit.dart';
 part 'viewer/pdf_pro_tools.dart';
 
@@ -469,6 +474,33 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// göre seçilir (bkz. [kPdfPanFriction]).
   bool _pdfPinch = false;
 
+  /// Okuma konforu (Ferrari H3): çift dokunma / görsel kipinin okuduğu
+  /// sayfa nesneleri (PDF Pro köprüsü) — son birkaç sayfa, belgeye bağlı.
+  final Map<int, PdfPageContent> _comfortContent = {};
+  PdfDocument? _comfortDoc;
+
+  /// Kenar boşluğu kırpma payları (H3.4; null = kapalı). Belge başına
+  /// [PdfZoomMemory]'de; açılışta görüntüleyici kurulmadan okunur.
+  PdfMarginCrop? _pdfCrop;
+  bool _pdfCropBusy = false;
+
+  /// Sayfa sayfa geçiş kipi (H3.5; tercih `pdf_paged`). Sayfa ekrana sığar,
+  /// kenara dokunuş / kaydırma sayfa çevirir; yakınlaşınca serbest gezinme.
+  bool _pdfPaged = false;
+
+  /// Okurken durum çubuğu da gizlensin (H3.6; tercih `pdf_hide_status`).
+  bool _hideStatusBar = false;
+
+  /// Sayfa rozeti (N / toplam) görünür mü (H3.7): yalnız kaydırırken ve
+  /// durduktan sonra [Motion.badgeLinger] kadar; sonra solar.
+  bool _pageBadgeOn = true;
+  Timer? _pageBadgeTimer;
+  bool _pagedZoomed = false;
+  int _pagedPointers = 0;
+  bool _pagedMulti = false;
+  Offset? _pagedDownAt;
+  DateTime? _pagedDownTime;
+
   /// Önceki matris (PDF kaydırma yönünü çıkarmak için).
   double? _pdfLastTy;
   double? _pdfLastZoom;
@@ -481,6 +513,8 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final m = _pdfController.value;
     final ty = m.getTranslation().y;
     final zoom = m.getMaxScaleOnAxis();
+    _trackPagedZoom(zoom);
+    _pokePageBadge();
     final pTy = _pdfLastTy, pZoom = _pdfLastZoom;
     _pdfLastTy = ty;
     _pdfLastZoom = zoom;
@@ -703,12 +737,17 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// Kullanıcının yakınlığını belge için saklar (tek sütunda).
   void _recordPdfZoom() {
     if (widget.doc.kind != DocKind.pdf || _pdfColumns != 1) return;
+    // Sayfa sayfa kipinde yakınlık sayfaya göre kurulur; saklanmaz.
+    if (_pdfPaged) return;
     if (!_pdfController.isReady) return;
     final z = _pdfController.currentZoom;
     if (z > 0) unawaited(PdfZoomMemory.record(widget.doc.path, z));
   }
 
   void _applyResumePage() {
+    // Kırpma tercihi de görüntüleyici kurulmadan bilinmeli (düzen ilk karede
+    // kırpılmış kurulsun — sonradan değişirse sayfa yerinden oynardı).
+    _pdfCrop = PdfMarginCrop.fromList(PdfZoomMemory.cropOf(widget.doc.path));
     final page = ReadingPositions.pageOf(widget.doc.path, size: _docSize);
     if (page == null || page <= 1) return;
     _pdfPage = page;
@@ -812,6 +851,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     unawaited(ReadingPositions.save());
     _recordPdfZoom();
     _formOfferTimer?.cancel();
+    _pageBadgeTimer?.cancel();
     _pdfBridgeTimer?.cancel();
     _pdfController.removeListener(_onPdfMatrix);
     // Kaydedilmemiş düzenleme varsa çökme kaydı kalır (yeniden açılışta sunulur).

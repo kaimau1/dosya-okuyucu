@@ -299,4 +299,16 @@ const Map<String, (String, String, String)> _t22 = {
   'pp.date_stamp': ('Tarih damgası', 'Date stamp', 'ختم التاريخ'),
   'pp.sign_here': ('İmzayı sayfaya yerleştir', 'Place signature on a page', 'ضع التوقيع على صفحة'),
   'pp.save_first': ('Önce değişiklikleri kaydet', 'Save your changes first', 'احفظ التغييرات أولًا'),
+  // Ferrari H3 — PDF okuma konforu (2026-11-14).
+  'pp.image_zoom': ('Görseli büyüt', 'Enlarge image', 'تكبير الصورة'),
+  'pp.image_zoom_hint': ('Siyah zeminde tam ekran; aşağı çekince kapanır', 'Full screen on black; pull down to close', 'ملء الشاشة على خلفية سوداء؛ اسحب للأسفل للإغلاق'),
+  'pp.image_zoom_failed': ('Görsel açılamadı', 'Could not open the image', 'تعذّر فتح الصورة'),
+  'pp.crop_margins': ('Kenar boşluklarını kırp', 'Crop margins', 'قص الهوامش'),
+  'pp.crop_margins_hint': ('Yazı ekranı doldurur; bu belge için hatırlanır', 'Text fills the screen; remembered for this document', 'يملأ النص الشاشة؛ يُحفظ لهذا المستند'),
+  'pp.crop_one_column': ('Yalnız tek sütun görünümünde', 'Only in single-column view', 'في عرض العمود الواحد فقط'),
+  'pp.paged': ('Sayfa sayfa çevir', 'Page by page', 'صفحة بصفحة'),
+  'pp.paged_hint': ('Sayfa ekrana sığar; kenara dokun ya da kaydır', 'Page fits the screen; tap the edge or swipe', 'تملأ الصفحة الشاشة؛ المس الحافة أو اسحب'),
+  'pp.hide_status': ('Okurken durum çubuğunu da gizle', 'Also hide the status bar while reading', 'إخفاء شريط الحالة أيضًا أثناء القراءة'),
+  'pp.hide_status_hint': ('Kaydırınca saat ve pil de çekilir; tek dokunuş geri getirir', 'Clock and battery slide away as you scroll; one tap brings them back', 'تختفي الساعة والبطارية عند التمرير؛ لمسة واحدة تعيدها'),
+  'pp.crop_none': ('Kırpılacak boşluk bulunamadı', 'No margins to crop', 'لا توجد هوامش لقصّها'),
 };

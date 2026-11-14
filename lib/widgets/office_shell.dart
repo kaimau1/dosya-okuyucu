@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart' show kLongPressTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderProxyBox;
+import 'package:flutter/services.dart'
+    show SystemChrome, SystemUiMode, SystemUiOverlay;
 
 import '../core/app_icons.dart';
 import '../core/edit/edit_session.dart';
@@ -207,6 +210,18 @@ class OfficeShell extends StatefulWidget {
   /// ekranlarında null — yazarken çubuk kaybolmamalı.
   final ReadingBars? readingBars;
 
+  /// Okuma kipinde tek dokunuş çekik çubukları geri getirir; bu verilirse
+  /// ve false dönerse (ör. sayfa sayfa kipinde kenara dokunuş = sayfa
+  /// çevir — Ferrari H3.5) çubuklar gelmez. Konum ekran (global) koordinatı.
+  final bool Function(Offset globalPosition)? tapShowsBars;
+
+  /// Okuma kipinde çubuklar çekilince sistem **durum çubuğu** da gizlensin
+  /// (Ferrari H3.6, kullanıcı tercihi). Yalnız durum çubuğu: gezinme çubuğu
+  /// yerinde kalır (alt pay değişmesin). Durum çubuğu gizliyken içerik payı
+  /// eski boyda TUTULUR — pay değişseydi PDF düzeni yeniden kurulur, sayfa
+  /// başına atlardı (HAFIZA 2026-10-23).
+  final bool hideStatusBar;
+
   /// Düzenleme oturumu (Faz 20): verilirse başlığın durum satırı ondan gelir
   /// ("Kaydediliyor… / Kaydedildi 14:32 / Kaydedilmedi") ve [dirty] yok sayılır.
   final EditSession? session;
@@ -224,6 +239,8 @@ class OfficeShell extends StatefulWidget {
     this.fab,
     this.subtitle,
     this.readingBars,
+    this.tapShowsBars,
+    this.hideStatusBar = false,
     this.session,
   });
 
@@ -239,6 +256,14 @@ class _OfficeShellState extends State<OfficeShell>
   // ölçeriz: belge kendi dokunuşlarını (köprü, seçim) aynen alır.
   Offset? _downAt;
   DateTime? _downTime;
+
+  /// Durum çubuğunu biz mi gizledik ([OfficeShell.hideStatusBar])?
+  bool _statusHidden = false;
+
+  /// Gizlemeden önceki durum çubuğu boyu: gizliyken (ve geri gelirken)
+  /// içerik payı bununla hesaplanır, boy değişmez.
+  double? _statusHold;
+  Orientation? _statusHoldFor;
 
   @override
   void initState() {
@@ -256,23 +281,44 @@ class _OfficeShellState extends State<OfficeShell>
       old.readingBars?.removeListener(_onBars);
       widget.readingBars?.addListener(_onBars);
     }
+    // Tercih kapandı (ya da tam ekran açıldı — sistem çubuklarını artık o
+    // yönetir): bayrak bırakılır, sistem kipine DOKUNULMAZ (tam ekranın
+    // gizlediği çubukları geri açardı). Tercih levhadan değişir; levha
+    // açıkken çubuklar, dolayısıyla durum çubuğu da görünür.
+    if (!widget.hideStatusBar) _statusHidden = false;
   }
 
   @override
   void dispose() {
+    if (_statusHidden) _showStatusBar();
     widget.readingBars?.removeListener(_onBars);
     _shown.dispose();
     super.dispose();
   }
 
   void _onBars() {
-    final target = widget.readingBars!.value ? 1.0 : 0.0;
+    final shown = widget.readingBars!.value;
+    if (widget.hideStatusBar && !shown && !_statusHidden) {
+      _statusHold = MediaQuery.paddingOf(context).top;
+      _statusHoldFor = MediaQuery.orientationOf(context);
+      _statusHidden = true;
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
+          overlays: const [SystemUiOverlay.bottom]);
+    } else if (shown && _statusHidden) {
+      _showStatusBar();
+    }
+    final target = shown ? 1.0 : 0.0;
     final d = Motion.of(context, Motion.medium);
     if (d == Duration.zero) {
       _shown.value = target;
     } else {
       _shown.animateTo(target, duration: d, curve: Motion.standard);
     }
+  }
+
+  void _showStatusBar() {
+    _statusHidden = false;
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   }
 
   bool _onScroll(ScrollUpdateNotification n) {
@@ -352,7 +398,13 @@ class _OfficeShellState extends State<OfficeShell>
     // yalnız kayar (Transform — yerleşim yok, yalnız boya). İçerik
     // [ReadingChrome.insetsOf] kadar pay bırakıp çubukların altından başlar.
     final media = MediaQuery.of(context);
-    final status = media.padding.top;
+    // Durum çubuğu biz gizlediysek pay eski boyda kalır; geri gelip boyu
+    // yine görününce tutma bırakılır.
+    if ((!_statusHidden && media.padding.top >= (_statusHold ?? 0)) ||
+        media.orientation != _statusHoldFor) {
+      _statusHold = null;
+    }
+    final status = math.max(media.padding.top, _statusHold ?? 0);
     final topH = status + appBar.preferredSize.height;
     // İçeriğe verilen pay arama çubuğunu (tabBar) SAYMAZ: arama açılıp
     // kapanınca pay değişseydi PDF düzeni yeniden kurulur, sayfa başına
@@ -371,7 +423,8 @@ class _OfficeShellState extends State<OfficeShell>
         if (at == null || time == null) return;
         if ((e.position - at).distance < 12 &&
             DateTime.now().difference(time) < kLongPressTimeout &&
-            !widget.readingBars!.value) {
+            !widget.readingBars!.value &&
+            (widget.tapShowsBars?.call(e.position) ?? true)) {
           widget.readingBars!.show();
         }
       },
@@ -418,12 +471,16 @@ class _OfficeShellState extends State<OfficeShell>
             ),
             // Durum çubuğu şeridi: çubuk çekikken saat/pil simgeleri belgenin
             // üstüne yazılmasın.
+            // Durum çubuğu da gizleniyorsa şerit çubuklarla birlikte solar.
             Positioned(
               top: 0,
               left: 0,
               right: 0,
               height: status,
-              child: ColoredBox(color: surface),
+              child: widget.hideStatusBar
+                  ? FadeTransition(
+                      opacity: _shown, child: ColoredBox(color: surface))
+                  : ColoredBox(color: surface),
             ),
             if (bottom != null)
               Positioned(

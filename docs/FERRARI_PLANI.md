@@ -162,15 +162,29 @@ H1.4 📱 bekliyor (KALANLAR), H1.5 → H6.3.
 **Önce bak:** `lib/screens/viewer/pdf_reading_aids.dart`, `pdf_reading_pro.dart`, `pdf_navigation.dart`, `body.dart` (görselde çift dokunma ~363;
 PDF'te çift dokunma **yok gibi — doğrula**), `lib/widgets/pdf_page_navigator.dart`, `lib/widgets/pinch_zoom_area.dart`.
 
-- [ ] H3.1 **Çift dokunma:** PDF'te çift dokununca dokunulan noktaya ~2,5× yakınlaşır; tekrar çift dokununca genişliğe sığar. Animasyon `Motion.medium`.
-- [ ] H3.2 **Akıllı yakınlaştırma:** çift dokunulan yerdeki metin sütunu/görsel kutusu bulunabiliyorsa (pdfrx sayfa metin kutuları / PDF Pro nesne sınırları)
-      o kutu genişliğe oturur. Bulunamazsa H3.1 davranışı.
-- [ ] H3.3 **Görsel kipi:** sayfadaki görsele uzun basış → "Görseli büyüt": siyah zemin, tam ekran, sıkıştır-yakınlaştır, aşağı çekince kapanır.
+- [x] H3.1 **Çift dokunma:** PDF'te çift dokununca dokunulan noktaya ~2,5× yakınlaşır; tekrar çift dokununca genişliğe sığar. Animasyon `Motion.medium`.
+      *(Doğrulandı: PDF'te çift dokunuş yalnız kelime SEÇİYORDU — seçim katmanı. Artık pdfrx `onGeneralTap` (tanıyıcı zaten kurulu);
+      seçim katmanında `doubleTapSelectsWord: false`, kelime uzun basışla.)*
+- [x] H3.2 **Akıllı yakınlaştırma:** çift dokunulan yerdeki metin sütunu/görsel kutusu bulunabiliyorsa (pdfrx sayfa metin kutuları / PDF Pro nesne sınırları)
+      o kutu genişliğe oturur. Bulunamazsa H3.1 davranışı. *(PDF Pro `PdfEditBridge.content`; sütun = çevredeki satır aralıklarının
+      birleşimi, boşluk > %2 genişlik ayrı sütun; saf hesap `services/pdf/pdf_reading_zoom.dart`.)*
+- [x] H3.3 **Görsel kipi:** sayfadaki görsele uzun basış → "Görseli büyüt": siyah zemin, tam ekran, sıkıştır-yakınlaştır, aşağı çekince kapanır.
       (Radyoloji atlası kullanımı.) Görsel bulma: PDF Pro nesne katmanı (`lib/screens/pdf_editor/layer_objects.dart`) — yeniden yazma, onu kullan.
-- [ ] H3.4 **Kenar boşluğu kırpma:** aç/kapa; sayfa içerik sınırı ilk 5 sayfanın düşük çözünürlüklü taramasından (izolatta) kestirilir, tüm belgeye uygulanır. Tercih belge başına hatırlanır (`PdfZoomMemory` yanına).
-- [ ] H3.5 **Sayfa sayfa geçiş kipi:** sürekli kaydırmaya ek; kenara dokun / yana kaydır → sonraki sayfa, sayfa ekrana sığar. Ayar görüntüleme menüsünde.
-- [ ] H3.6 **Sürükleyici okuma:** kaydırırken çubuklar gizlenir (var: `Motion.readingIdle`), tek dokunuş geri getirir; durum çubuğu da gizlensin (tercih).
-- [ ] H3.7 Sayfa rozeti (N / toplam): yalnız kaydırma sırasında görünür, 1,5 sn sonra solar.
+      *(Not: `layer_objects.dart` düzenleyicinin YENİ eklenen nesneleri; sayfanın kendi görselleri PDF Pro'nun nesne okumasında
+      (`PdfEditBridge.content`, blok katmanının `_itemAt`'ı da bunu kullanır) — o kullanıldı. Görsel bölgesi yüksek çözünürlükte
+      çizilir (≤ 3072 px); ekran `widgets/pdf_image_zoom.dart`. Sayfanın %85'ini kaplayan görsel (taranmış sayfa) sayılmaz.)*
+- [x] H3.4 **Kenar boşluğu kırpma:** aç/kapa; sayfa içerik sınırı ilk 5 sayfanın düşük çözünürlüklü taramasından (izolatta) kestirilir, tüm belgeye uygulanır. Tercih belge başına hatırlanır (`PdfZoomMemory` yanına).
+      *(Yalnız YATAY + tek sütun: pdfrx sayfayı kırpmadan çizer, üst/alt için sayfalar üst üste binmeli — sonraki sayfanın
+      kenarı öncekinin metnini örter. Paylar `pdf_crop_v1`, açılışta düzen ilk karede kırpılmış.)*
+- [x] H3.5 **Sayfa sayfa geçiş kipi:** sürekli kaydırmaya ek; kenara dokun / yana kaydır → sonraki sayfa, sayfa ekrana sığar. Ayar görüntüleme menüsünde.
+      *(Okuma ayarları "Sayfa sayfa çevir", tek sütun, `pdf_paged`. Kenar şeridi %25; yukarı/aşağı kaydırma da çevirir; RTL'de ters;
+      yakınken serbest gezinme; ses tuşları da sayfayı sığdırarak çevirir.)*
+- [x] H3.6 **Sürükleyici okuma:** kaydırırken çubuklar gizlenir (var: `Motion.readingIdle`), tek dokunuş geri getirir; durum çubuğu da gizlensin (tercih).
+      *(Çubuk + dokunuş zaten vardı. Eklenen: "Okurken durum çubuğunu da gizle" (`pdf_hide_status`); yalnız durum çubuğu
+      (`SystemUiMode.manual` + alt), gizliyken içerik payı eski boyda tutulur — PDF sayfa başına atlamaz.)*
+- [x] H3.7 Sayfa rozeti (N / toplam): yalnız kaydırma sırasında görünür, 1,5 sn sonra solar. *(`Motion.badgeLinger`; sayfaya git ⋮ menüsünde.)*
+
+**Durum (2026-11-14):** H3.1–H3.7 kodda bitti (dal `faz-H3`, her madde ayrı commit). 📱 cihaz turu `CIHAZ_TESTI.md` "Ferrari H3".
 
 ---
 

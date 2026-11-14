@@ -60,9 +60,19 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                   // dokunmaz, seçim/arama koordinatlarını da etkilemez (yalnız boya).
                   child: Listener(
                     // Otomatik kaydırma parmak ekrandayken bekler (Faz 48).
-                    onPointerDown: (_) => _holdAutoScroll(true),
-                    onPointerUp: (_) => _holdAutoScroll(false),
-                    onPointerCancel: (_) => _holdAutoScroll(false),
+                    // Sayfa sayfa kipinde kaydırma = sayfa çevir (H3.5).
+                    onPointerDown: (e) {
+                      _holdAutoScroll(true);
+                      _pagedPointerDown(e);
+                    },
+                    onPointerUp: (e) {
+                      _holdAutoScroll(false);
+                      _pagedPointerUp(e);
+                    },
+                    onPointerCancel: (_) {
+                      _holdAutoScroll(false);
+                      _pagedPointerCancel();
+                    },
                     child: _nightFilter(
                     child: PdfViewer.file(
                       doc.path,
@@ -99,8 +109,11 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         // (pdfrx yalnız documentRef değişiminde yükler).
                         // Düzenleme kipinde çizim aracı açıkken de kapalı:
                         // tek parmak çizer, iki parmak yakınlaştırır.
-                        panEnabled:
-                            !_pdfSelecting && !(_pro?.drawing ?? false),
+                        // Sayfa sayfa kipinde (yakın değilken) kaydırma yok:
+                        // parmak sayfa çevirir (H3.5).
+                        panEnabled: !_pdfSelecting &&
+                            !(_pro?.drawing ?? false) &&
+                            !_pagedLocked,
                         // Kaydırma kilidi (Faz 39): yalnız dikey eksen,
                         // iki parmak yakınlaştırma kapalı.
                         panAxis: _pdfScrollLock
@@ -125,7 +138,11 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         // atlıyordu, HAFIZA 2026-10-23 (14)).
                         layoutPages: (pages, params) => _insetPdfLayout(
                           _pdfColumns == 1
-                              ? _plainPdfLayout(pages, params)
+                              // Kenar boşluğu kırpma (H3.4) yalnız tek sütunda.
+                              ? (_pdfCrop == null
+                                  ? _plainPdfLayout(pages, params)
+                                  : PdfMarginCropper.layout(
+                                      pages, params.margin, _pdfCrop!))
                               : _pdfColumns == kPdfBookLayout
                                   ? _layoutPdfBook(pages, params)
                                   : _layoutPdfColumns(pages, params),
@@ -191,6 +208,8 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                                     _scrollThumb(pageNumber),
                           ),
                         ],
+                        // Çift dokunma yakınlaştırır (Ferrari H3.1).
+                        onGeneralTap: _onPdfGeneralTap,
                         // pdfium'un ham yığın izli mavi ekranı yerine anlaşılır
                         // kart (2026-09-27: 0 bayt kalan PDF bulgusu).
                         errorBannerBuilder: _pdfErrorBanner,
@@ -236,6 +255,10 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                               .addPostFrameCallback((_) => _showResumeNotice());
                           // Açılış köprüsü: ilk sayfaya çizim payı, sonra solar.
                           _markPdfOpened();
+                          // Sayfa sayfa kipi: açılışta sayfa ekrana sığar.
+                          if (_pdfPaged) _fitPagedSoon();
+                          // Açılışta sayfa sayısı bir an görünsün (H3.7).
+                          _pokePageBadge();
                           unawaited(_proCheckRecovery());
                           if (widget.startInk && !_inkStarted) {
                             _inkStarted = true;
@@ -327,6 +350,8 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                                 }
                               },
                               onDragAt: _onPdfSelDragAt,
+                              // Çift dokunuş burada yakınlaştırır (H3.1).
+                              doubleTapSelectsWord: false,
                             ),
                         ],
                       ),
@@ -348,12 +373,28 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                 ),
                 // Seçim çubuğu açıkken rozet gizli: çubuğun altından yarım
                 // görünüyordu ("1 / 1 · sayfaya git" kartın altına sıkışmıştı).
+                // Ferrari H3.7: rozet yalnız kaydırırken görünür, durunca
+                // [Motion.badgeLinger] sonra solar (sayfaya git ⋮ menüsünde
+                // ve kaydırma tutamacında da var).
                 if (_pageCount > 0 && !_pdfBarShown)
                   ReadingFloat(
                     child: Center(
-                      // Rozet İngilizce/Arapça arayüzde de çevrilmeli — eskiden
-                      // "— sayfaya git" kısmı koda gömülü Türkçeydi.
-                      child: _pageBadge(),
+                      child: ExcludeSemantics(
+                        excluding: !_pageBadgeOn,
+                        child: IgnorePointer(
+                          ignoring: !_pageBadgeOn,
+                          child: AnimatedOpacity(
+                            key: const ValueKey('pdf-page-badge-fade'),
+                            opacity: _pageBadgeOn ? 1 : 0,
+                            duration: Motion.of(context, Motion.medium),
+                            curve: Motion.standard,
+                            // Rozet İngilizce/Arapça arayüzde de çevrilmeli —
+                            // eskiden "— sayfaya git" kısmı koda gömülü
+                            // Türkçeydi.
+                            child: _pageBadge(),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 if (_resumeNotePage case final page?)

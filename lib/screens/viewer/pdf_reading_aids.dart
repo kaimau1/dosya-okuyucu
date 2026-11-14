@@ -8,6 +8,8 @@ extension _ViewerScreenPdfReadingAidsPart on _ViewerScreenState {
   static const _kKeepAwake = 'pdf_keep_awake';
   static const _kVolumeKeys = 'pdf_volume_keys';
   static const _kSidePanel = 'pdf_side_panel';
+  static const _kPaged = 'pdf_paged';
+  static const _kHideStatus = 'pdf_hide_status';
 
   /// Otomatik kaydırma hızları (mantıksal piksel / saniye): kapalı, yavaş,
   /// orta, hızlı.
@@ -24,6 +26,13 @@ extension _ViewerScreenPdfReadingAidsPart on _ViewerScreenState {
       }
       if (prefs.getBool(_kSidePanel) ?? false) {
         _partSetState(() => _pdfSidePanel = true);
+      }
+      if (prefs.getBool(_kHideStatus) ?? false) {
+        _partSetState(() => _hideStatusBar = true);
+      }
+      if (prefs.getBool(_kPaged) ?? false) {
+        _partSetState(() => _pdfPaged = true);
+        if (_pdfController.isReady) _fitPagedSoon();
       }
     } catch (_) {
       // Tercih okunamadı: ikisi de kapalı başlar (zararsız varsayılan).
@@ -80,6 +89,12 @@ extension _ViewerScreenPdfReadingAidsPart on _ViewerScreenState {
     }
   }
 
+  /// Sürükleyici okuma (Ferrari H3.6): çubuklar çekilince durum çubuğu da.
+  void _setHideStatusBar(bool on) {
+    _partSetState(() => _hideStatusBar = on);
+    _saveAid(_kHideStatus, on);
+  }
+
   void _saveAid(String key, bool on) {
     SharedPreferences.getInstance()
         .then((p) => p.setBool(key, on))
@@ -117,6 +132,11 @@ extension _ViewerScreenPdfReadingAidsPart on _ViewerScreenState {
     final target = (from + delta).clamp(1, total);
     if (target == from) return;
     _pdfJumpTarget = target;
+    // Sayfa sayfa kipinde sayfa ekrana sığarak gelir (H3.5).
+    if (_pagedActive) {
+      unawaited(_showPagedPage(target));
+      return;
+    }
     _pdfController
         .goToPage(
             pageNumber: target,
