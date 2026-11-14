@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dosya_okuyucu/widgets/whats_new.dart';
 import 'package:dosya_okuyucu/core/app_navigator.dart';
 import 'package:dosya_okuyucu/main.dart' as app;
@@ -7,6 +9,7 @@ import 'package:dosya_okuyucu/services/fm/entry_opener.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:pdfrx/pdfrx.dart';
 
 /// **Cihaz perf senaryoları** (Faz 42 / 6 — FAZ_PLANI Faz 4 P13, KALANLAR A8.1).
 ///
@@ -23,6 +26,13 @@ import 'package:integration_test/integration_test.dart';
 const _veri = String.fromEnvironment('OLCUM_VERISI',
     defaultValue:
         '/sdcard/Android/data/com.dosyaokuyucu.dosya_okuyucu/files/olcum');
+
+/// Büyük PDF (Ferrari H0.2, §2 işlem 1–2). Varsayılan
+/// `make_test_tree.py --buyuk` çıktısı; USB'deki gerçek dosya için
+/// `--dart-define=BUYUK_PDF=/storage/<usb>/x.pdf` (`tool/ab_olcum.sh` geçirir).
+/// Dosya yoksa senaryo atlanır (öteki senaryolar koşar).
+const _buyukPdf = String.fromEnvironment('BUYUK_PDF',
+    defaultValue: '$_veri/buyuk_100mb.pdf');
 
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -95,5 +105,32 @@ void main() {
     await binding.traceAction(() => kaydir(tester, n: 20),
         reportKey: 'xlsx_100k_kaydirma');
     await kapat(tester);
-  }, timeout: const Timeout(Duration(minutes: 10)));
+
+    // H0.2: büyük PDF aç + 50 sayfa hızlı kaydır. Sayfa sayısı
+    // denetleyiciden; fırlatma sayısı tavanlı (bitmezse kaç sayfa gidildi
+    // logda).
+    if (File(_buyukPdf).existsSync()) {
+      await binding.traceAction(() async {
+        final pdf = await fs.load(_buyukPdf);
+        await ac(tester, EntryOpener.screenFor(pdf));
+        await bekle(tester, 3000); // ilk sayfa bitmap'i (PDFPRO_PERF)
+      }, reportKey: 'pdf_buyuk_acilis');
+      final ctl = tester.widget<PdfViewer>(find.byType(PdfViewer)).controller;
+      final ilk = ctl?.pageNumber ?? 1;
+      var n = 0;
+      await binding.traceAction(() async {
+        while (n < 60 && (ctl?.pageNumber ?? ilk) < ilk + 50) {
+          await kaydir(tester, n: 1);
+          n++;
+        }
+      }, reportKey: 'pdf_buyuk_50_sayfa');
+      // ignore: avoid_print
+      print('PERF pdf_buyuk_50_sayfa: $n fırlatma, sayfa $ilk → '
+          '${ctl?.pageNumber}');
+      await kapat(tester);
+    } else {
+      // ignore: avoid_print
+      print('PERF pdf_buyuk: dosya yok, atlandı');
+    }
+  }, timeout: const Timeout(Duration(minutes: 15)));
 }
