@@ -22,7 +22,7 @@ void main() {
     final server = await VoiceServer.start(root.path);
     addTearDown(server.close);
     final c = HttpClient();
-    final req = await c.getUrl(Uri.parse('${server.origin}/a.mjs'));
+    final req = await c.getUrl(Uri.parse('${server.base}a.mjs'));
     final res = await req.close();
     expect(res.statusCode, 200);
     expect(res.headers.value('cross-origin-embedder-policy'), 'require-corp');
@@ -30,16 +30,30 @@ void main() {
     await res.drain<void>();
 
     final bad = await (await c
-            .getUrl(Uri.parse('${server.origin}/%2e%2e/%2e%2e/etc/passwd')))
+            .getUrl(Uri.parse('${server.base}%2e%2e/%2e%2e/etc/passwd')))
         .close();
     expect(bad.statusCode, anyOf(403, 404));
     await bad.drain<void>();
 
-    final engine = await (await c.getUrl(Uri.parse('${server.origin}/engine.html'))).close();
+    final noPrefix =
+        await (await c.getUrl(Uri.parse('${server.origin}/a.mjs'))).close();
+    expect(noPrefix.statusCode, 404, reason: 'G6.5: öneksiz istek dosya vermez');
+    await noPrefix.drain<void>();
+    expect(server.prefix, matches(RegExp(r'^[0-9a-f]{32}$')));
+
+    Directory('${root.path}/ema').createSync();
+    File('${root.path}/ema/worker.js')
+        .writeAsStringSync('import "/antalia/vendor/ort/ort.wasm.min.mjs";');
+    final w =
+        await (await c.getUrl(Uri.parse('${server.base}ema/worker.js'))).close();
+    expect(await w.transform(utf8.decoder).join(),
+        contains('/${server.prefix}/antalia/vendor/ort/ort.wasm.min.mjs'));
+
+    final engine = await (await c.getUrl(Uri.parse('${server.base}engine.html'))).close();
     expect(await engine.transform(utf8.decoder).join(), contains('window.engine'));
 
     final waiting = server.expect('j1');
-    final post = await c.postUrl(Uri.parse('${server.origin}/out/j1'));
+    final post = await c.postUrl(Uri.parse('${server.base}out/j1'));
     post.add([1, 2, 3]);
     await (await post.close()).drain<void>();
     expect(await waiting, [1, 2, 3]);
@@ -60,21 +74,21 @@ void main() {
 
     final c = HttpClient();
     addTearDown(() => c.close(force: true));
-    final rebind = await c.getUrl(Uri.parse('${server.origin}/engine.html'));
+    final rebind = await c.getUrl(Uri.parse('${server.base}engine.html'));
     rebind.headers.set(HttpHeaders.hostHeader, 'evil.com:$port');
     final r1 = await rebind.close();
     expect(r1.statusCode, 403);
     await r1.drain<void>();
 
     server.expect('j2').ignore();
-    final foreign = await c.postUrl(Uri.parse('${server.origin}/out/j2'));
+    final foreign = await c.postUrl(Uri.parse('${server.base}out/j2'));
     foreign.headers.set('origin', 'http://evil.com');
     foreign.add([1]);
     final r2 = await foreign.close();
     expect(r2.statusCode, 403);
     await r2.drain<void>();
 
-    final unknown = await c.postUrl(Uri.parse('${server.origin}/out/yok'));
+    final unknown = await c.postUrl(Uri.parse('${server.base}out/yok'));
     unknown.add([1]);
     final r3 = await unknown.close();
     expect(r3.statusCode, 404);

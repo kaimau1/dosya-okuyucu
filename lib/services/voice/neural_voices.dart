@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
@@ -232,14 +233,28 @@ class NeuralVoiceStore extends ChangeNotifier {
 /// base64 taşımadan). COOP/COEP başlıkları sayfayı "cross-origin isolated"
 /// yapar → ONNX Runtime çok iş parçacıklı çalışır.
 class VoiceServer {
-  VoiceServer._(this._server, this.root);
+  VoiceServer._(this._server, this.root) : prefix = _randomPrefix();
 
   final HttpServer _server;
   final String root;
   final Map<String, Completer<Uint8List>> _outputs = {};
 
+  /// G6.5 artığı (2026-11-14): her açılışta 128 bit rastgele yol öneki —
+  /// aynı cihazdaki başka uygulama portu tarasa da öneki bilmeden hiçbir
+  /// dosyaya/sonuca ulaşamaz (önekli olmayan her istek 404).
+  final String prefix;
+
   int get port => _server.port;
   String get origin => 'http://127.0.0.1:$port';
+
+  /// Motor sayfasının ve dosyaların kökü (`<origin>/<önek>/`).
+  String get base => '$origin/$prefix/';
+
+  static String _randomPrefix() {
+    final r = Random.secure();
+    return List.generate(
+        16, (_) => r.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
+  }
 
   static Future<VoiceServer> start(String root) async {
     final s = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -297,7 +312,13 @@ class VoiceServer {
         await res.close();
         return;
       }
-      final path = Uri.decodeComponent(req.uri.path);
+      final raw = Uri.decodeComponent(req.uri.path);
+      if (!raw.startsWith('/$prefix/')) {
+        res.statusCode = 404;
+        await res.close();
+        return;
+      }
+      final path = raw.substring(prefix.length + 1);
       if (req.method == 'POST' && path.startsWith('/out/')) {
         final job = path.substring(5);
         // Yalnız beklenen iş için gövde okunur; tavan 64 MB (≈ 20 dk ses).
@@ -342,6 +363,14 @@ class VoiceServer {
       }
       final type = _types[p.extension(rel).toLowerCase()];
       res.headers.set('Content-Type', type ?? 'application/octet-stream');
+      // Kurulumda yamalanan EMA çalışanı ORT'yi mutlak `/antalia/vendor/ort/`
+      // yolundan alıyor (eski kurulumlarda da diskte böyle) → önek burada eklenir.
+      if (rel == p.normalize('ema/worker.js')) {
+        res.write((await file.readAsString())
+            .replaceAll('/antalia/vendor/ort/', '/$prefix/antalia/vendor/ort/'));
+        await res.close();
+        return;
+      }
       res.headers.contentLength = file.lengthSync();
       await res.addStream(file.openRead());
       await res.close();
@@ -390,12 +419,13 @@ function wav(f32, rate) {
 async function deliver(job, parts, rate) {
   const n = parts.reduce((a, b) => a + b.length, 0), all = new Float32Array(n);
   let o = 0; for (const p of parts) { all.set(p, o); o += p.length; }
-  await fetch('/out/' + encodeURIComponent(job), { method: 'POST', body: wav(all, rate) });
+  await fetch('out/' + encodeURIComponent(job), { method: 'POST', body: wav(all, rate) });
   post({ type: 'done', job });
 }
 function worker(voice) {
   if (workers[voice]) return workers[voice];
-  const url = voice === 'antalia' ? '/antalia/js/worker.js' : '/ema/worker.js';
+  // Göreli: sayfa `/<önek>/engine.html` altında (G6.5 artığı).
+  const url = voice === 'antalia' ? 'antalia/js/worker.js' : 'ema/worker.js';
   const w = new Worker(url, { type: 'module' });
   const st = { w, jobs: {} };
   st.ready = new Promise((resolve, reject) => {
