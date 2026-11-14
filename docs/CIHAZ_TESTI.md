@@ -1229,3 +1229,8 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 ## Excel açılış P12 (2026-11-14, dal `faz-oto-P12-excel`; yazıldı, cihazda doğrulanmadı)
 - [ ] 10 bin × 20 xlsx'i dosya yöneticisinden aç: dokunuştan ilk hücreye süre (A/B `acilis_xlsx_10k_x20`; önce 7,7–8,9 sn, hedef ≤ 1,5 sn) ve `xlsx_10k_x20_kaydirma` %99 (K23 ≤ 16 ms; tutmazsa KALANLAR B3.1).
 - [ ] Excel'de AI düğmesi ve "Çevir" (seçimsiz) belgenin metnini hâlâ alıyor mu (metin artık açılışta değil, dokununca kuruluyor); düzenleme sonrası yeni değer de giriyor.
+## P13 — liste/ızgara hızı + H6.4 (2026-11-14, dal `faz-oto-P13-liste`; yazıldı, cihazda doğrulanmadı)
+- [ ] A/B (`tool/ab_olcum.sh`): `klasor_5000_kaydirma` / `galeri_2000_kaydirma` (anlam ağacı açık, eski koşul) ve YENİ `klasor_5000_kaydirma_sk` / `galeri_2000_kaydirma_sk` (kapalı; ısınmış ikinci ziyaret). Bütçe (%99 ≤ 24 ms) `_sk`de tutuyor mu.
+- [ ] B3.3c Fotoğraflar ızgarası 4.–5. savurma donması: `dumpsys SurfaceFlinger --latency <katman>` ile gerçek mi kaydedici artığı mı (telefon bu turda başka ölçümdeydi — yapılmadı).
+- [ ] Soğuk açılış ≤ 1,2 sn: `am start -W` TotalTime ×5 (Mi Note 10 Lite).
+- [ ] H6.4: klasöre dosya yapıştır / yeni klasör oluştur → yeni satır bir an vurgulanıp sönüyor mu; "animasyonları kaldır" açıkken vurgu yok; 2.000+ öğeli klasörde vurgu yok.

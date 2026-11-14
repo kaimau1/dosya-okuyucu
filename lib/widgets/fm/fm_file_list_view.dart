@@ -4,6 +4,7 @@ import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
 import '../../core/bidi.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/motion.dart';
 import '../../core/safe_insets.dart';
 import '../../core/theme.dart';
 import '../../models/fm_layout.dart';
@@ -101,7 +102,11 @@ class FmFileListView extends StatelessWidget {
   final String? focusPath;
   final GlobalKey? focusKey;
 
-  Widget _focus(BuildContext context, FsEntry entry, Widget child) {
+  Widget _focus(
+      BuildContext context, FsEntry entry, Widget child, Set<String> fresh) {
+    if (fresh.contains(entry.path)) {
+      child = _FreshTint(key: ValueKey('fm-fresh:${entry.path}'), child: child);
+    }
     if (focusPath == null || entry.path != focusPath) return child;
     final primary = Theme.of(context).colorScheme.primary;
     return Container(
@@ -147,7 +152,12 @@ class FmFileListView extends StatelessWidget {
         : groupEntries(entries, groupBy!,
             now: DateTime.now(), timeOf: groupTimeOf);
 
-    Widget view = layout.isGrid ? _grid(context, items) : _list(context, items);
+    Widget view = _FreshRows(
+      entries: entries,
+      builder: (fresh) => layout.isGrid
+          ? _grid(context, items, fresh)
+          : _list(context, items, fresh),
+    );
     if (onSelectRange != null) {
       view = DragSelectArea(
         scrollController: controller,
@@ -190,7 +200,8 @@ class FmFileListView extends StatelessWidget {
   EdgeInsets _pad(BuildContext context, double h) =>
       withNavInset(context, EdgeInsets.fromLTRB(h, Gap.xs, h, bottomPadding));
 
-  Widget _list(BuildContext context, List<FmListItem> items) {
+  Widget _list(
+      BuildContext context, List<FmListItem> items, Set<String> fresh) {
     // **Sabit satır yüksekliği** (Faz 17 / G14): 5.000 öğede YUKARI
     // kaydırmada p99 50 ms ölçülmüştü — yukarıdan giren her satır ölçülüyor,
     // kaydırma ofseti tahminle düzeltiliyordu. Başlıksız listede bütün
@@ -207,7 +218,7 @@ class FmFileListView extends StatelessWidget {
         prototypeItem: _row(items.first as FmEntryItem),
         itemBuilder: (context, i) =>
             _focus(context, (items[i] as FmEntryItem).entry,
-                _row(items[i] as FmEntryItem)),
+                _row(items[i] as FmEntryItem), fresh),
       );
     }
     // **Yapışkan grup başlıkları** (Ferrari H4.5, 2026-11-14): "Bugün ·
@@ -243,7 +254,7 @@ class FmFileListView extends StatelessWidget {
                   prototypeItem: _row(cells.first),
                   itemCount: cells.length,
                   itemBuilder: (context, i) =>
-                      _focus(context, cells[i].entry, _row(cells[i])),
+                      _focus(context, cells[i].entry, _row(cells[i]), fresh),
                 ),
               ),
           ]),
@@ -302,7 +313,8 @@ class FmFileListView extends StatelessWidget {
           if (!e.isDir && FmType.of(e) == FmType.audio) e.path,
       ];
 
-  Widget _grid(BuildContext context, List<FmListItem> items) {
+  Widget _grid(
+      BuildContext context, List<FmListItem> items, Set<String> fresh) {
     // Izgarada başlıklar için gruplar ayrı `SliverGrid`lere bölünür;
     // başlık listede olduğu gibi yapışkan (H4.5).
     final groups = _groups(items);
@@ -349,7 +361,8 @@ class FmFileListView extends StatelessWidget {
                           onTap: () => _tap(c.entry),
                           heroTag: _heroTag(c.entry),
                         ),
-                      ));
+                      ),
+                      fresh);
                 },
               ),
             ),
@@ -358,6 +371,89 @@ class FmFileListView extends StatelessWidget {
         ],
       );
     });
+  }
+}
+
+/// **Liste değişimi** (Ferrari H6.4, 2026-11-14): yapıştır/oluştur/taşı
+/// sonrası listeye YENİ giren satır bir an vurgulanıp söner — kullanıcı
+/// eklenenin nereye düştüğünü görür.
+///
+/// Yalnız boyamada (ön plan rengi): hücrede `Opacity`/katman ve boy
+/// animasyonu yok (kasma kontrol 1 ve 6). Silinen satırın "kapanması"
+/// YAPILMADI: satırlar sabit boylu (prototip, Faz 17 / G14) — kapanma boy
+/// animasyonu ister, kaydırma ölçüsünü bozar.
+///
+/// Fark yalnız öğe sayısı ARTINCA ve iki liste de [fmFreshLimit]'i
+/// aşmıyorsa hesaplanır: seçim/klasör boyutu gibi her `setState` O(1) kalır,
+/// 5.000 öğelik klasörde hiç çalışmaz. [_freshMax]'tan çok yeni öğe (klasör
+/// ya da süzgeç değişimi) vurgulanmaz.
+const fmFreshLimit = 2000;
+const _freshMax = 20;
+
+@visibleForTesting
+Set<String> fmFreshPaths(List<FsEntry> before, List<FsEntry> after) {
+  if (before.isEmpty ||
+      after.length <= before.length ||
+      after.length > fmFreshLimit) {
+    return const {};
+  }
+  final old = {for (final e in before) e.path};
+  final fresh = <String>{};
+  for (final e in after) {
+    if (old.contains(e.path)) continue;
+    if (fresh.length == _freshMax) return const {};
+    fresh.add(e.path);
+  }
+  return fresh;
+}
+
+class _FreshRows extends StatefulWidget {
+  final List<FsEntry> entries;
+  final Widget Function(Set<String> fresh) builder;
+  const _FreshRows({required this.entries, required this.builder});
+
+  @override
+  State<_FreshRows> createState() => _FreshRowsState();
+}
+
+class _FreshRowsState extends State<_FreshRows> {
+  Set<String> _fresh = const {};
+
+  @override
+  void didUpdateWidget(_FreshRows old) {
+    super.didUpdateWidget(old);
+    if (!identical(old.entries, widget.entries)) {
+      _fresh = fmFreshPaths(old.entries, widget.entries);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(_fresh);
+}
+
+/// Yeni satırın sönen vurgusu; "animasyonları kaldır"da süre 0 → hiç
+/// görünmez. Bittiğinde saydam kalır (ağaç şekli değişmez).
+class _FreshTint extends StatelessWidget {
+  final Widget child;
+  const _FreshTint({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 1, end: 0),
+      duration: Motion.of(context, Motion.pulse),
+      curve: Motion.exit,
+      child: child,
+      builder: (context, t, child) => DecoratedBox(
+        position: DecorationPosition.foreground,
+        decoration: BoxDecoration(
+          color: primary.withValues(alpha: 0.16 * t),
+          borderRadius: BorderRadius.circular(Radii.card),
+        ),
+        child: child,
+      ),
+    );
   }
 }
 
