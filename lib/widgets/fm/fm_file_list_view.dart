@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
 import '../../core/bidi.dart';
 import '../../core/l10n/app_strings.dart';
@@ -115,7 +116,13 @@ class FmFileListView extends StatelessWidget {
 
   bool get _selecting => selected.isNotEmpty;
 
-  void _tap(FsEntry e) => _selecting ? onToggle(e) : onOpen(e);
+  void _tap(FsEntry e) => _selecting ? _toggle(e) : onOpen(e);
+
+  /// Seçime ekle/çıkar — titreşimle (Ferrari H6.1).
+  void _toggle(FsEntry e) {
+    AppHaptics.selection();
+    onToggle(e);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -274,7 +281,7 @@ class FmFileListView extends StatelessWidget {
         showChevron: showChevron,
         badge: badge?.call(entry),
         onTap: () => _tap(entry),
-        onCheck: () => onToggle(entry),
+        onCheck: () => _toggle(entry),
         onMore: onMore == null || _selecting ? null : () => onMore!(entry),
         audioQueue: _audioQueue,
       ),

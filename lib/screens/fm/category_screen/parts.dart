@@ -178,7 +178,10 @@ extension _CategoryScreenStateParts on _CategoryScreenState {
         leading: IconButton(
           tooltip: context.t('common.clear_selection'),
           icon: const Icon(AppIcons.close),
-          onPressed: () => _update(_selected.clear),
+          onPressed: () {
+            AppHaptics.selection();
+            _update(_selected.clear);
+          },
         ),
         // Sayaç EYLEMLE aynı kümeyi sayar (bkz. [_selectedEntries]).
         title: Text(context.t('ph.selected_of',

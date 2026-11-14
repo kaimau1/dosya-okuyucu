@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 import '../core/app_colors.dart';
+import '../core/app_haptics.dart';
 import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
@@ -79,6 +80,8 @@ class _PdfReorderScreenState extends State<PdfReorderScreen> {
       body: doc == null
           ? const Center(child: CircularProgressIndicator())
           : ReorderableListView.builder(
+            onReorderStart: (_) => AppHaptics.selection(),
+            onReorderEnd: (_) => AppHaptics.step(),
               itemCount: _order.length,
               itemExtent: 112,
               onReorderItem: (from, to) => setState(() {

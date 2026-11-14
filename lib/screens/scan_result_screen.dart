@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart';
 
+import '../core/app_haptics.dart';
 import '../core/app_icons.dart';
 import '../core/busy_dialog.dart';
 import '../core/l10n/app_strings.dart';

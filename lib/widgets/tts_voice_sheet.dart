@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/app_haptics.dart';
 import '../core/app_icons.dart';
 import '../core/app_state.dart';
 import '../core/l10n/app_strings.dart';
@@ -231,7 +232,7 @@ class _TtsVoiceSheetState extends State<TtsVoiceSheet> {
               max: 2.0,
               divisions: 15,
               label: '${value.toStringAsFixed(2)}×',
-              onChanged: onChanged,
+              onChanged: AppHaptics.slider(value.clamp(0.5, 2.0), onChanged),
               // Kaydırma SÜRERKEN kaydetmiyoruz: her karede
               // SharedPreferences yazmak diski gereksiz yorar.
               onChangeEnd: (_) => onDone(),

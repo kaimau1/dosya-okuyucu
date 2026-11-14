@@ -25,6 +25,7 @@ import '../../services/fm/folder_report.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/storage_stats.dart' show StorageKind;
 import '../../services/fm/paste_conflict.dart';
+import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
 import '../../models/fm_filter.dart';
 import '../../widgets/doc_more_sheet.dart';

@@ -372,6 +372,8 @@ class _OutlineEditorState extends State<_OutlineEditor> {
         body: _items.isEmpty
             ? Center(child: Text(context.t('pp.outline_empty')))
             : ReorderableListView.builder(
+              onReorderStart: (_) => AppHaptics.selection(),
+              onReorderEnd: (_) => AppHaptics.step(),
                 itemCount: _items.length,
                 // `onReorderItem`: [to] öğenin varacağı son dizin.
                 onReorderItem: (from, to) => setState(() {

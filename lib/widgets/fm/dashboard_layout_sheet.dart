@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../services/fm/dashboard_layout.dart';
@@ -108,6 +109,8 @@ class _LayoutSheetState extends State<_LayoutSheet> {
             ),
             Expanded(
               child: ReorderableListView.builder(
+                onReorderStart: (_) => AppHaptics.selection(),
+                onReorderEnd: (_) => AppHaptics.step(),
                 scrollController: widget.scroll,
                 buildDefaultDragHandles: false,
                 padding: withNavInset(

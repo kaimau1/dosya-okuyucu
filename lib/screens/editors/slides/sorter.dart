@@ -59,6 +59,8 @@ extension _SlidesEditorScreenSorterPart on _SlidesEditorScreenState {
         width: vertical ? thumbW + 12 : null,
         height: vertical ? null : _stripHeight,
         child: ReorderableListView.builder(
+          onReorderStart: (_) => AppHaptics.selection(),
+          onReorderEnd: (_) => AppHaptics.step(),
           scrollController: _stripCtrl,
           scrollDirection: vertical ? Axis.vertical : Axis.horizontal,
           buildDefaultDragHandles: false,
@@ -338,11 +340,14 @@ class _SlideSorterPageState extends State<_SlideSorterPage> {
               onAcceptWithDetails: (d) {
                 if (d.data >= editor.slides.length) return;
                 if (widget.onMove(editor.slides[d.data], i)) {
+                  AppHaptics.step();
                   setState(() => _current = i + 1);
                 }
               },
               builder: (context, cand, _) => LongPressDraggable<int>(
                 data: i,
+                hapticFeedbackOnStart: false,
+                onDragStarted: AppHaptics.selection,
                 feedback: Material(
                   elevation: 6,
                   borderRadius: BorderRadius.circular(6),

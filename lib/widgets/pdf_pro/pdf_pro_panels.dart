@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
@@ -477,7 +478,7 @@ class _CropBodyState extends State<_CropBody> {
                     divisions: 45,
                     label: '${(_v[i] * 100).round()}%',
                     semanticFormatterCallback: (v) => '${(v * 100).round()}%',
-                    onChanged: (v) => setState(() => _v[i] = v),
+                    onChanged: AppHaptics.slider(_v[i], (v) => setState(() => _v[i] = v)),
                   ),
                 ),
               ],

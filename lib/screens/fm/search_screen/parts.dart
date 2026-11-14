@@ -16,7 +16,10 @@ extension _SearchScreenStateParts on _SearchScreenState {
         leading: IconButton(
           tooltip: context.t('common.clear_selection'),
           icon: const Icon(AppIcons.close),
-          onPressed: () => _update(_selected.clear),
+          onPressed: () {
+            AppHaptics.selection();
+            _update(_selected.clear);
+          },
         ),
         title: Text(context.t('ph.selected_of',
             {'n': selected.length, 'total': results.length})),
