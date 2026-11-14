@@ -64,11 +64,12 @@ derle() {  # derle <etiket> <sha>
     cd "$W"
     flutter pub get >/dev/null
     # İkinci koşuda "Desugaring yamalanamadı" tuzağı (HAFIZA 2026-11-13): iskelet
-    # zaten .r8test ise yeniden kurulmaz; başka kimlikli iskelet varsa dur.
-    if [ -f android/app/build.gradle.kts ]; then
-      grep -q r8test android/app/build.gradle.kts \
-        || { echo "::error::$W/android .r8test değil — elle sil, yeniden koş"; exit 1; }
+    # zaten .r8test ise yeniden kurulmaz; yarım kalmış iskelet (kesilen koşu) bu
+    # betiğin KENDİ ağacında üretilmiş dosyadır → silinip baştan kurulur.
+    if [ -f android/app/build.gradle.kts ] && grep -q r8test android/app/build.gradle.kts; then
+      :
     else
+      rm -rf android
       # Eski ref'te Windows yol düzeltmesi yok (2026-11-14): /C:/… pub yolu → C:\…
       grep -q url2pathname ci/prepare_android.sh || sed -i \
         -e 's|^root = pathlib.Path(urllib.parse.urlparse(roots\[0\]).path)$|root = pathlib.Path(urllib.request.url2pathname(urllib.parse.urlparse(roots[0]).path))|' \
