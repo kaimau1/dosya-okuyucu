@@ -36,6 +36,8 @@ class LargeTextView extends StatefulWidget {
 }
 
 class _LargeTextViewState extends State<LargeTextView> {
+  static const double _maxLine = 820;
+
   static const _block = 200;
   static const _maxBlocks = 40;
 
@@ -136,6 +138,10 @@ class _LargeTextViewState extends State<LargeTextView> {
       fontFeatures: const [FontFeature.tabularFigures()],
     );
     final digits = '${file.lineCount}'.length;
+    // **Satır sınırı** (Ferrari H9.4): geniş ekranda (tablet) metin ~820 dp
+    // sütunda ortalanır — öteki metin görünümleriyle aynı; kaydırma çubuğu
+    // ekran kenarında kalır. Telefonda `side` ≤ 0 → dolgu eskisiyle aynı.
+    final side = (MediaQuery.sizeOf(context).width - _maxLine) / 2;
     return Column(
       children: [
         Container(
@@ -167,7 +173,9 @@ class _LargeTextViewState extends State<LargeTextView> {
               thumbVisibility: true,
               child: ListView.builder(
                 controller: _scroll,
-                padding: const EdgeInsetsDirectional.fromSTEB(12, 8, 16, 24),
+                padding: side > 0
+                    ? EdgeInsetsDirectional.fromSTEB(12 + side, 8, 16 + side, 24)
+                    : const EdgeInsetsDirectional.fromSTEB(12, 8, 16, 24),
                 itemCount: file.lineCount,
                 itemBuilder: (context, i) {
                   final text = _line(i);
