@@ -1004,3 +1004,9 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Yapı (H9.1):** `HomeNavColumn` sekme kimlikleri `NavTabs` ile aynı; sütundan açılan (çubukta olmayan) sekme yığının sonuna eklenir, kurulmuşsa dar düzende de durur.
 - **Yapı (H9.3):** kalem ekranı `_stylus` kipi: kalem görülünce parmak çizmez (tek parmak kaydırır), kalem basılıyken (`_penDown`) parmak/avuç izlenmez. Eski kök: avuç = ikinci parmak → darbe iptal.
 - **Karar (H9.5, sabah bakılacak):** çift bölmede bırakma = kopya (taşıma değil). Başka uygulamaya bırakma yok — eklenti gerekir.
+
+## 2026-11-14 — Kullanıcı 4 madde (video düzenle tarama, oynatıcı ⋮, albüm şeridi, "MP4" küçük resim)
+- **Kök (MP4 uzun kalıyor):** video küçük resim boyu hücreye göre serbestti (`size×2`, 96–512) ve önbellek adı boyu içeriyor → ızgara/şerit/liste/oynatıcı aynı video için ayrı dosya; 600 dosya tavanı ~300 videoda dolup her açılışta budanıyordu. Artık iki kova `videoThumbBucket` (256/512), tavan 2000. Ek: savurma ertelemesinde `scheduleFrame()` (parmakla durdurulan savurmada hücre simgede asılı kalabiliyordu). Cihazda ölçülmedi.
+- **Video düzenle canlı kare:** oynatıcı `seekTo` kesin arama → parmağın gerisinde. Sürüklerken yerelden önceden çıkarılmış 60 kare (320 px, `<şerit>/tarama/kare_<i>.jpg`, zaman = dilim ortası) üst katmanda; parmak kalkınca (`onDragEnd`) katman kalkar. `frames` yerel tavanı 24 → 60.
+- **Oynatıcı ⋮:** küçük açılır menü kaldırıldı; doğrudan `showEntryActions` levhası, oynatıcıya özgü işlemler `extras` ("Oynatıcı" bölümü, en üstte).
+- **Albüm şeridi gizle:** `AppState.fmPhotoHighlights` (`fm_photo_highlights`), Analiz ve diğer → Görünüm.

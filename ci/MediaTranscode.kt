@@ -425,7 +425,7 @@ object MediaTranscodeBridge {
     private fun frames(a: Map<*, *>): List<String> {
         val path = a["path"] as? String ?: return emptyList()
         val dir = a["dir"] as? String ?: return emptyList()
-        val count = ((a["count"] as? Number)?.toInt() ?: 10).coerceIn(1, 24)
+        val count = ((a["count"] as? Number)?.toInt() ?: 10).coerceIn(1, 60)
         val width = ((a["width"] as? Number)?.toInt() ?: 160).coerceIn(32, 480)
         val out = mutableListOf<String>()
         val r = MediaMetadataRetriever()

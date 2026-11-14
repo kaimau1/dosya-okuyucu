@@ -306,9 +306,12 @@ abstract final class ThumbnailCache {
     }
   }
 
-  /// Önbellek sınırı: 600 dosyayı aşınca en eskiler silinir (oturumda bir
-  /// kez, izolatta — bkz. [DiskCache]).
-  static const cacheLimit = 600;
+  /// Önbellek sınırı: aşınca en eskiler silinir (oturumda bir kez, izolatta
+  /// — bkz. [DiskCache]). 600 → 2000 (2026-11-14): 600'de ~300 videolu
+  /// telefonda (video başına birden çok boy) her açılışta budama oluyor,
+  /// eski videoların küçük resmi her ziyarette yeniden üretiliyordu.
+  /// ~20–40 KB/dosya → ~40–80 MB tavan (fotoğrafta 4000).
+  static const cacheLimit = 2000;
 
   static Future<void> _prune(Directory dir) async {
     if (_pruned) return;

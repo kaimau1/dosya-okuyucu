@@ -67,6 +67,7 @@ class AppState extends ChangeNotifier {
   static const _kFmLayout = 'fm_layout';
   static const _kFmPhotoLayout = 'fm_photo_layout';
   static const _kFmPhotoGroup = 'fm_photo_group';
+  static const _kFmPhotoHighlights = 'fm_photo_highlights';
   static const _kFmMediaOpenWith = 'fm_media_open_with';
   static const _kFmSort = 'fm_sort';
   static const _kFmSortDesc = 'fm_sort_desc';
@@ -457,6 +458,7 @@ class AppState extends ChangeNotifier {
   FmLayout _fmLayout = FmLayout.list;
   FmLayout _fmPhotoLayout = FmLayout.grid3;
   PhotoGroup _fmPhotoGroup = PhotoGroup.day;
+  bool _fmPhotoHighlights = true;
   MediaOpenWith _fmMediaOpenWith = MediaOpenWith.ask;
   FmSort _fmSort = FmSort.name;
   bool _fmSortDesc = false;
@@ -510,6 +512,21 @@ class AppState extends ChangeNotifier {
 
   /// Fotoğraflar ekranındaki zaman gruplaması (gün/ay/yıl).
   PhotoGroup get fmPhotoGroup => _fmPhotoGroup;
+
+  /// Fotoğraf/video ızgarasının üstündeki albüm şeridi (Kamera, WhatsApp …)
+  /// görünsün mü (2026-11-14, kullanıcı isteği: gizleme seçeneği).
+  bool get fmPhotoHighlights => _fmPhotoHighlights;
+
+  Future<void> setFmPhotoHighlights(bool value) async {
+    if (value == _fmPhotoHighlights) return;
+    _fmPhotoHighlights = value;
+    _notifyBrowse();
+    try {
+      await _prefs.setBool(_kFmPhotoHighlights, value);
+    } catch (_) {
+      // Bilinçli: kalıcı kayıt yazılamadı — bellekteki durum geçerli kalır.
+    }
+  }
 
   /// Video/ses/görsel neyle açılsın (sor / uygulama içi / başka uygulama).
   MediaOpenWith get fmMediaOpenWith => _fmMediaOpenWith;
@@ -862,6 +879,7 @@ class AppState extends ChangeNotifier {
     _fmPhotoLayout = FmLayoutInfo.byName(_prefs.getString(_kFmPhotoLayout),
         fallback: FmLayout.grid3);
     _fmPhotoGroup = PhotoGroupLabel.byName(_prefs.getString(_kFmPhotoGroup));
+    _fmPhotoHighlights = _prefs.getBool(_kFmPhotoHighlights) ?? true;
     _fmMediaOpenWith =
         MediaOpenWithLabel.byName(_prefs.getString(_kFmMediaOpenWith));
     _fmSort = FmSort.values.firstWhere(

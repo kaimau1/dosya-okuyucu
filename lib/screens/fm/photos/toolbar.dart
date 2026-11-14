@@ -330,6 +330,18 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
           keepOpen: false,
           onTap: _showViewSheet,
         ),
+        // Albüm şeridini gizle/göster (2026-11-14, kullanıcı isteği).
+        FmMoreTile(
+          icon: appState.fmPhotoHighlights
+              ? AppIcons.hiddenOff
+              : AppIcons.thumbnails,
+          label: ctx.t(appState.fmPhotoHighlights
+              ? 'ph.albums_hide'
+              : 'ph.albums_show'),
+          keepOpen: false,
+          onTap: () => appState
+              .setFmPhotoHighlights(!appState.fmPhotoHighlights),
+        ),
       ]),
       if (_hiddenDuplicates > 0)
         FmMoreSection(

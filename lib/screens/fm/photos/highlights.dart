@@ -38,6 +38,7 @@ extension _PhotosScreenHighlightsPart on _PhotosScreenState {
   static const _minFiles = 12;
 
   bool get _showHighlights =>
+      _highlightsOn &&
       !_scopeActive && _files.length >= _minFiles && _albums().length >= 2;
 
   /// Izgaranın üstünde kalan şerit payı (yoksa 0).

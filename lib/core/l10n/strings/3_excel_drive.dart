@@ -979,6 +979,7 @@ const Map<String, (String, String, String)> _t3 = {
   'mp.rotate_left': ('Sola çevir', 'Rotate left', 'تدوير لليسار'),
   'gal.save_rotation': ('Döndürülmüş hâlini kaydet', 'Save rotated copy', 'حفظ نسخة مدوّرة'),
   'mp.unlock': ('Kilidi aç', 'Unlock', 'إلغاء القفل'),
+  'mp.sec_player': ('Oynatıcı', 'Player', 'المشغّل'),
   'mp.float_window': (
     'Küçük pencerede oynat',
     'Play in picture-in-picture',

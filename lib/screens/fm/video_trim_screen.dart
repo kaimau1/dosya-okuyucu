@@ -66,6 +66,18 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
   int _positionMs = 0;
   double _volume = 1;
 
+  /// **Canlı tarama karesi** (2026-11-14, kullanıcı: *"alt panelde
+  /// kaydırınca canlı olarak kare gösterilmeli"*). Kök: oynatıcının
+  /// `seekTo`'su KESİN arama yapar (anahtar kareden hedefe kadar çözer);
+  /// 720p videoda arama başı yüzlerce ms → önizleme parmağın çok gerisinde
+  /// kalıyor, çoğu kare hiç görünmüyordu. Şimdi sürükleme süresince yerelden
+  /// önceden çıkarılmış en yakın kare ([_scrubFrames], anında) önizlemenin
+  /// üstünde gösterilir; parmak kalkınca katman kalkar, oynatıcı kesin
+  /// kareyi gösterir.
+  List<({int ms, String path})> _scrubFrames = const [];
+  String? _scrubShown;
+  bool _scrubbing = false;
+
   /// Bölge seçimi sürerken: hangi araç, hangi aralık, (ses için) hangi dosya.
   _Tool? _tool;
   TrimRange _sel = const TrimRange(0, 0);
@@ -127,9 +139,64 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
       final frames =
           await VideoTranscoder.frames(widget.path, dir: dir.path, count: 12);
       if (mounted) setState(() => _frames = frames);
+      if (mounted) await _loadScrubFrames(dir);
     } catch (_) {
       // Bilinçli: kare şeridi süs; yoksa düz şerit, tutamaçlar yine çalışır.
     }
+  }
+
+  /// Tarama kareleri: şeritten sık (60) ve büyük (320 px). Şeritten SONRA
+  /// çıkarılır — şerit önce görünsün. Dosya adındaki sıra no'su (`kare_<i>`)
+  /// zamanı verir: okunamayan kare atlanırsa liste kısalır, sıra kaymaz.
+  static const _scrubCount = 60;
+
+  Future<void> _loadScrubFrames(Directory stripDir) async {
+    final paths = await VideoTranscoder.frames(widget.path,
+        dir: p.join(stripDir.path, 'tarama'), count: _scrubCount, width: 320);
+    if (!mounted || paths.isEmpty || _durationMs <= 0) return;
+    final re = RegExp(r'kare_(\d+)\.jpg$');
+    final list = <({int ms, String path})>[];
+    for (final f in paths) {
+      final m = re.firstMatch(f);
+      if (m == null) continue;
+      final i = int.parse(m.group(1)!);
+      // Yerel taraf her dilimin ORTASINI alır: (2i+1)/(2n).
+      list.add((
+        ms: (_durationMs * (2 * i + 1)) ~/ (2 * _scrubCount),
+        path: f,
+      ));
+    }
+    setState(() => _scrubFrames = list);
+    // Görüntüleri önceden çöz: ilk taramada boş kare yanıp sönmesin.
+    for (final f in list) {
+      if (!mounted) return;
+      unawaited(precacheImage(FileImage(File(f.path)), context)
+          .catchError((Object _) {}));
+    }
+  }
+
+  String? _nearestScrubFrame(int ms) {
+    final list = _scrubFrames;
+    if (list.isEmpty) return null;
+    var lo = 0, hi = list.length - 1;
+    while (lo < hi) {
+      final mid = (lo + hi) >> 1;
+      if (list[mid].ms < ms) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+    if (lo > 0 && (ms - list[lo - 1].ms) < (list[lo].ms - ms)) lo--;
+    return list[lo].path;
+  }
+
+  void _endScrub() {
+    if (!_scrubbing) return;
+    setState(() {
+      _scrubbing = false;
+      _scrubShown = null;
+    });
   }
 
   // ── Önizleme ────────────────────────────────────────────────────────────
@@ -140,7 +207,11 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     final c = _video;
     if (c == null) return;
     final pos = c.value.position.inMilliseconds;
-    if (pos != _positionMs && mounted) setState(() => _positionMs = pos);
+    // Tarama sürerken oynatıcının (geride kalan) konumu oynatma çizgisini
+    // parmaktan geri çekmesin.
+    if (!_scrubbing && pos != _positionMs && mounted) {
+      setState(() => _positionMs = pos);
+    }
     if (!c.value.isPlaying) {
       _pauseAudio();
       return;
@@ -218,7 +289,11 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
 
   void _seek(int ms) {
     final c = _video;
-    setState(() => _positionMs = ms);
+    setState(() {
+      _positionMs = ms;
+      _scrubbing = true;
+      _scrubShown = _nearestScrubFrame(ms) ?? _scrubShown;
+    });
     if (c == null) return;
     if (c.value.isPlaying) unawaited(c.pause());
     _seekTo(c, ms);
@@ -446,6 +521,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
                       ? setState(() => _edit = _edit.copyWith(keep: r))
                       : setState(() => _sel = r),
                   onSeek: _seek,
+                  onDragEnd: _endScrub,
                 ),
               ),
             AnimatedSwitcher(
@@ -702,12 +778,24 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
               child: AspectRatio(
                 aspectRatio:
                     c.value.aspectRatio <= 0 ? 16 / 9 : c.value.aspectRatio,
-                child: VideoPlayer(c),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    VideoPlayer(c),
+                    if (_scrubShown != null)
+                      Image.file(
+                        File(_scrubShown!),
+                        fit: BoxFit.contain,
+                        gaplessPlayback: true,
+                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                      ),
+                  ],
+                ),
               ),
             ),
             ValueListenableBuilder<VideoPlayerValue>(
               valueListenable: c,
-              builder: (context, v, _) => v.isPlaying
+              builder: (context, v, _) => v.isPlaying || _scrubbing
                   ? const SizedBox.shrink()
                   : const Icon(AppIcons.playCircle,
                       size: 64, color: AppColors.onMediaSoft),

@@ -31,6 +31,7 @@ class VideoTrimTimeline extends StatefulWidget {
     required this.range,
     required this.onChanged,
     this.onSeek,
+    this.onDragEnd,
     this.frames = const [],
     this.height = 56,
     this.marks = const [],
@@ -56,6 +57,10 @@ class VideoTrimTimeline extends StatefulWidget {
   final TrimRange range;
   final ValueChanged<TrimRange> onChanged;
   final ValueChanged<int>? onSeek;
+
+  /// Sürükleme (tarama ya da tutamaç) bitti — önizleme canlı kare
+  /// katmanını kaldırıp gerçek kareye döner.
+  final VoidCallback? onDragEnd;
   final List<String> frames;
   final double height;
 
@@ -130,6 +135,7 @@ class _VideoTrimTimelineState extends State<VideoTrimTimeline> {
   }
 
   void _endDrag() {
+    widget.onDragEnd?.call();
     _grip = null;
     if (_scrubMs != null) setState(() => _scrubMs = null);
   }
@@ -188,7 +194,10 @@ class _VideoTrimTimelineState extends State<VideoTrimTimeline> {
               // Dokunuş = önizlemeyi oraya götür.
               onTapUp: widget.onSeek == null
                   ? null
-                  : (d) => widget.onSeek!(_msAt(d.localPosition.dx, w)),
+                  : (d) {
+                      widget.onSeek!(_msAt(d.localPosition.dx, w));
+                      widget.onDragEnd?.call();
+                    },
               child: Stack(
                 children: [
                   // Kare şeridi (tutamaç payı kadar içeriden).

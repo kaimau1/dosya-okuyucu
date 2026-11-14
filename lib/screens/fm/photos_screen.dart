@@ -237,6 +237,9 @@ class _PhotosScreenState extends State<PhotosScreen>
   /// Öne çıkanlar şeridinin boyu (yoksa 0) — bkz. photos/highlights.dart.
   double _leadExtent = 0;
 
+  /// Albüm şeridi tercihi (build'de [AppState]'ten; gizleme seçeneği).
+  bool _highlightsOn = true;
+
   /// Izgaranın ilk satırının kaydırma eksenindeki yeri: üst çubuk + şerit.
   /// Satırların ekrandaki yerini hesaplayan her şey bunu kullanır.
   double get _gridTop => _appBarExtent + _leadExtent;
@@ -332,6 +335,7 @@ class _PhotosScreenState extends State<PhotosScreen>
     // SliverAppBar'ın kaydırma eksenindeki boyu (maxExtent) — satırların
     // ekrandaki yerini hesaplayan her şey bunu kullanır.
     _appBarExtent = padding.top + _toolbarHeight + kFmFilterBarHeight;
+    _highlightsOn = appState.fmPhotoHighlights;
     _leadExtent = _highlightsExtent;
     final scheme = Theme.of(context).colorScheme;
 
