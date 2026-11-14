@@ -255,10 +255,10 @@ extension _BrowserScreenViewsPart on _BrowserScreenState {
       onMore: (e) async {
         if (await showEntryActions(context, e)) _load();
       },
-      subtitle: (e) => e.isDir
-          ? _folderSubtitle(e)
-          : '${FsPaths.humanSize(e.sizeBytes)} · '
-              '${FsPaths.humanDate(e.modifiedMs)}',
+      // Tarih solda, boyut sağda (Ferrari H4.1).
+      subtitle: (e) =>
+          e.isDir ? _folderSubtitle(e) : FsPaths.humanDate(e.modifiedMs),
+      subtitleEnd: (e) => e.isDir ? null : FsPaths.humanSize(e.sizeBytes),
       empty: _entries.isEmpty
           ? FmEmptyState(
               icon: AppIcons.emptyFolder,

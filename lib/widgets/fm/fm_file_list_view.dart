@@ -44,6 +44,9 @@ class FmFileListView extends StatelessWidget {
   final void Function(FsEntry)? onMore;
   final String Function(FsEntry) subtitle;
 
+  /// Alt satırın sağına hizalanan bilgi (bkz. [FmEntryRow.subtitleEnd]).
+  final String? Function(FsEntry)? subtitleEnd;
+
   /// Satır sonu rozeti (bkz. [FmEntryRow.badge]); yalnız liste düzeninde.
   final Widget? Function(FsEntry)? badge;
 
@@ -74,6 +77,7 @@ class FmFileListView extends StatelessWidget {
     required this.onOpen,
     required this.onToggle,
     required this.subtitle,
+    this.subtitleEnd,
     this.controller,
     this.onSelectRange,
     this.onMore,
@@ -211,6 +215,7 @@ class FmFileListView extends StatelessWidget {
         selected: selected.contains(entry.path),
         selecting: _selecting,
         subtitle: subtitle(entry),
+        subtitleEnd: subtitleEnd?.call(entry),
         showChevron: showChevron,
         badge: badge?.call(entry),
         onTap: () => _tap(entry),
