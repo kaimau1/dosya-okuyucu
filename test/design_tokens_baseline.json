@@ -388,7 +388,7 @@
   "font_size": 3
  },
  "lib/widgets/motion.dart": {
-  "durations": 5
+  "durations": 2
  },
  "lib/widgets/new_document_sheet.dart": {
   "sheets": 1

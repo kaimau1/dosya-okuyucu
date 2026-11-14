@@ -452,14 +452,14 @@ class _GridPageTile extends StatelessWidget {
             color: scheme.surfaceContainerHigh,
           ),
         ),
-        child: GestureDetector(
+        child: PressScale(child: GestureDetector(
           onTap: onOpen,
           child: AnimatedScale(
             duration: Motion.of(context, Motion.short),
             scale: candidates.isNotEmpty ? 0.94 : 1,
             child: card(),
           ),
-        ),
+        )),
       ),
     );
   }

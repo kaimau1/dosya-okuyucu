@@ -180,7 +180,7 @@ class _FilmStripState extends State<_FilmStrip> {
           final active = i == widget.index;
           final sel = widget.selected;
           final picked = sel != null && sel.contains(widget.paths[i]);
-          return GestureDetector(
+          return PressScale(child: GestureDetector(
             onTap: () => widget.onPick(i),
             child: AnimatedContainer(
               duration: Motion.of(context, Motion.short),
@@ -230,7 +230,7 @@ class _FilmStripState extends State<_FilmStrip> {
                 ),
               ),
             ),
-          );
+          ));
         },
       ),
     );

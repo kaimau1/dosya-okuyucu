@@ -34,6 +34,7 @@ import '../services/fm/tracked_task.dart';
 import '../services/scan_kind.dart';
 import '../services/scan_page_ops.dart';
 import '../services/scan_prepare.dart';
+import '../widgets/motion.dart' show PressScale;
 import '../widgets/translate_flow.dart';
 import 'fm/browser_screen.dart' show BrowserScreen, browserRoute;
 import 'fm/folder_picker_screen.dart';

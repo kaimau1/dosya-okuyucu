@@ -17,6 +17,7 @@ import '../../services/fm/home_shortcuts.dart';
 import '../../services/fm/library_store.dart';
 import '../../services/fm/reading_positions.dart';
 import '../../widgets/app_action_sheet.dart';
+import '../../widgets/motion.dart' show PressScale;
 import '../../widgets/section_header.dart';
 import 'pick_file_screen.dart';
 import '../../models/fs_entry.dart';
@@ -655,7 +656,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           cells((path) => GestureDetector(
                 onTap: () => _open(path),
                 onLongPress: () => _bookMenu(path),
-                child: _BookCover(path: path),
+                child: PressScale(child: _BookCover(path: path)),
               )),
           // Raf tahtası: üst yüz açık, ön yüz koyu, altında gölge.
           Container(
@@ -710,7 +711,8 @@ class _BookTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: Center(child: _BookCover(path: path))),
+            Expanded(
+                child: Center(child: PressScale(child: _BookCover(path: path)))),
             const SizedBox(height: Gap.xs),
             _BookCaption(path: path),
           ],

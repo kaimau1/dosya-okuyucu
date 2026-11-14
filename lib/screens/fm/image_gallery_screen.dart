@@ -18,6 +18,7 @@ import '../../models/photo_group.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/image_rotate.dart';
 import '../../services/fm/important_files.dart';
+import '../../widgets/motion.dart' show PressScale;
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../core/user_error.dart';
 import '../../services/image_enhance.dart';

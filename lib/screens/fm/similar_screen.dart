@@ -18,6 +18,7 @@ import '../../services/fm/image_resize.dart';
 import '../../services/fm/job_queue.dart';
 import '../../services/fm/similar_finder.dart';
 import '../../services/fm/thumbnail_cache.dart';
+import '../../widgets/motion.dart' show PressScale;
 import '../../widgets/fm/fm_entry_icon.dart';
 import 'entry_actions.dart';
 import '../../core/snack.dart';
@@ -469,7 +470,8 @@ class _SimilarScreenState extends State<SimilarScreen> {
                   if (!_selected.remove(file.path)) _selected.add(file.path);
                 }),
                 onLongPress: () => EntryOpener.open(context, file.path),
-                child: Stack(
+                child: PressScale(
+                  child: Stack(
                   fit: StackFit.expand,
                   children: [
                     FmEntryIcon(entry: file, size: 96, radius: 8),
@@ -533,6 +535,7 @@ class _SimilarScreenState extends State<SimilarScreen> {
                         ),
                       ),
                   ],
+                ),
                 ),
               ),
             ),

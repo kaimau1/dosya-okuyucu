@@ -29,6 +29,7 @@ import '../../services/fm/fs_events.dart';
 import '../../services/fm/home_shortcuts.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/open_history.dart';
+import '../../widgets/motion.dart' show PressScale;
 import '../../widgets/fm/drag_select.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_fast_scroller.dart';
