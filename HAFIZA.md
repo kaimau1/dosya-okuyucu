@@ -1010,3 +1010,7 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Video düzenle canlı kare:** oynatıcı `seekTo` kesin arama → parmağın gerisinde. Sürüklerken yerelden önceden çıkarılmış 60 kare (320 px, `<şerit>/tarama/kare_<i>.jpg`, zaman = dilim ortası) üst katmanda; parmak kalkınca (`onDragEnd`) katman kalkar. `frames` yerel tavanı 24 → 60.
 - **Oynatıcı ⋮:** küçük açılır menü kaldırıldı; doğrudan `showEntryActions` levhası, oynatıcıya özgü işlemler `extras` ("Oynatıcı" bölümü, en üstte).
 - **Albüm şeridi gizle:** `AppState.fmPhotoHighlights` (`fm_photo_highlights`), Analiz ve diğer → Görünüm.
+## 2026-11-14 — P28 PDF kabuğu (P09 kırmızıları)
+- **Kök (H3.6 görünmüyordu):** "durum çubuğunu da gizle" anahtarı `_showReadingSettings` (metin levhası) içine konmuştu; PDF Aa düğmesi `_showPdfReadingSettings` açar → seçenek hiç görünmedi. Bekçi: `test/pdf_reading_sheet_guard_test.dart`. **Tuzak:** iki ayrı Aa levhası var; PDF ayarı daima PDF levhasına.
+- **Kök (H3.7):** rozet `end: 44` ile AI düğmesinin (sağdan 16 + 56 dp) altında; düğme çubuklarla görünür. `ReadingFloat.endShown` (shown ile 44 → 80); kullanıcının "sağ alt" kararı korundu.
+- **Kök (H3.5):** dikey telefonda A4 genişliğe sığınca üst/alt ~150 dp boş; 8 pt aralıklı komşu sayfalar oradan görünüyordu. Kipteyken aralık `PdfPagedTurn.gap` kadar açılır (`_pagedPdfLayout`, yatay düzen aynı). Cihazda doğrulanmadı.
