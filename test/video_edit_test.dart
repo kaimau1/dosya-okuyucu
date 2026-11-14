@@ -167,6 +167,26 @@ void main() {
       expect(calls.any((c) => c.method == 'trim'), isFalse);
     });
 
+    test('kareyi fotoğraf kaydet: yol, an ve dönüş yerel tarafa gider', () async {
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        calls.add(call);
+        return call.method == 'frame';
+      });
+      final out = await VideoTranscoder.saveFrame('/yok/klasor/film.mp4', 83000,
+          rotationDegrees: 180);
+      expect(out, '/yok/klasor/film_kare_01-23.jpg');
+      final call = calls.single;
+      expect(call.method, 'frame');
+      expect(call.arguments['ms'], 83000);
+      expect(call.arguments['rotation'], 180);
+      expect(call.arguments['target'], out);
+    });
+
+    test('kare okunamazsa null', () async {
+      messenger.setMockMethodCallHandler(channel, (_) async => false);
+      expect(await VideoTranscoder.saveFrame('/yok/a.mp4', 0), isNull);
+    });
+
     test('yalnız baş/son kırpma hızlı kesim yolunu kullanır', () async {
       final e = VideoEdit.whole(60000)
           .copyWith(keep: const TrimRange(5000, 50000), muteAll: true);

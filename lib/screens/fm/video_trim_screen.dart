@@ -329,6 +329,27 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     _cancelTool();
   }
 
+  bool _frameBusy = false;
+
+  Future<void> _saveFrame() async {
+    if (_frameBusy) return;
+    _frameBusy = true;
+    unawaited(_video?.pause());
+    _pauseAudio();
+    AppHaptics.selection();
+    final out = await VideoTranscoder.saveFrame(widget.path, _positionMs,
+        rotationDegrees: _edit.rotationDegrees);
+    _frameBusy = false;
+    if (!mounted) return;
+    if (out == null) {
+      showSnack(context, context.t('ved.frame_failed'));
+      return;
+    }
+    FsEvents.changed([out]);
+    AppHaptics.done();
+    showSnack(context, context.t('ved.frame_saved', {'name': p.basename(out)}));
+  }
+
   bool get _canSave => _durationMs > 0 && !_edit.isUnchanged && _tool == null;
 
   void _save() {
@@ -380,6 +401,13 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
         foregroundColor: AppColors.onMedia,
         title: Text(context.t('ved.title')),
         actions: [
+          // Kareyi fotoğraf kaydet (Ferrari H8.5): önizlemedeki o anki kare.
+          IconButton(
+            key: const ValueKey('ved-frame'),
+            tooltip: context.t('ved.save_frame'),
+            onPressed: _video == null || _tool != null ? null : _saveFrame,
+            icon: const Icon(AppIcons.photoCamera),
+          ),
           IconButton(
             key: const ValueKey('edit-undo'),
             tooltip: context.t('ved.undo'),

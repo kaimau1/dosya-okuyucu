@@ -218,6 +218,10 @@ const Map<String, (String, String, String)> _t7 = {
   'ved.sound_off': ('Ses yok', 'No sound', 'بلا صوت'),
   // Ferrari H8.5: döndür + kareyi fotoğraf kaydet.
   'ved.tool_rotate': ('Döndür', 'Rotate', 'تدوير'),
+  'ved.save_frame': ('Kareyi fotoğraf kaydet', 'Save frame as photo', 'حفظ الإطار كصورة'),
+  'ved.frame_suffix': ('kare', 'frame', 'إطار'),
+  'ved.frame_saved': ('Fotoğraf kaydedildi: {name}', 'Photo saved: {name}', 'تم حفظ الصورة: {name}'),
+  'ved.frame_failed': ('Kare kaydedilemedi', "Couldn't save the frame", 'تعذّر حفظ الإطار'),
   'ved.sel_cut': (
     'Silinecek bölümü tutamaçlarla seç',
     'Pick the part to cut out with the handles',
