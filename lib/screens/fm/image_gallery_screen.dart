@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 
+// Hero etiketi dosya listesiyle ortak (Ferrari H6.3) — tanım simge dosyasında.
+export '../../widgets/fm/fm_entry_icon.dart' show fmMediaHeroTag;
+
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/busy_dialog.dart';
@@ -38,9 +41,6 @@ import 'resize_compare_screen.dart';
 
 part 'image_gallery/widgets.dart';
 
-/// Izgara hücresi ile galeri sayfasının ortak kahraman (Hero) etiketi:
-/// fotoğraf hücreden büyüyerek açılır, kapanınca hücresine döner.
-String fmMediaHeroTag(String path) => 'fm-media:$path';
 
 /// Galerinin rotası (2026-09-26 galeri turu).
 ///

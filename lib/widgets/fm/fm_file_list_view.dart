@@ -13,6 +13,7 @@ import '../../models/fs_entry.dart';
 import '../../services/fm/fs_scan.dart';
 import '../motion.dart';
 import 'drag_select.dart';
+import 'fm_entry_icon.dart' show fmMediaHeroTag;
 import 'fm_entry_tiles.dart';
 import 'fm_fast_scroller.dart';
 import 'fm_layout_sheet.dart';
@@ -284,9 +285,16 @@ class FmFileListView extends StatelessWidget {
         onCheck: () => _toggle(entry),
         onMore: onMore == null || _selecting ? null : () => onMore!(entry),
         audioQueue: _audioQueue,
+        heroTag: _heroTag(entry),
       ),
     );
   }
+
+  /// Görsel satırı galeriye büyüyerek açılır (Ferrari H6.3). Listede her yol
+  /// bir kez geçer → etiket rotada tektir. Galeri `EntryOpener` →
+  /// `imageGalleryRoute` ile açılır; hedef sayfa aynı etiketi taşır.
+  String? _heroTag(FsEntry e) =>
+      e.category == FmCategory.image ? fmMediaHeroTag(e.path) : null;
 
   /// Satır içi oynatmanın listesi: bu görünümdeki sesler, sırasıyla.
   List<String> _audioQueue() => [
@@ -339,6 +347,7 @@ class FmFileListView extends StatelessWidget {
                           selected: selected.contains(c.entry.path),
                           selecting: _selecting,
                           onTap: () => _tap(c.entry),
+                          heroTag: _heroTag(c.entry),
                         ),
                       ));
                 },

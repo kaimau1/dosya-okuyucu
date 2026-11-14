@@ -4,6 +4,7 @@ import 'package:flutter/semantics.dart';
 import '../../core/app_icons.dart';
 import '../../core/bidi.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/motion.dart';
 import '../../core/name_spoof.dart';
 import '../../core/theme.dart';
 import '../../models/fm_layout.dart';
@@ -20,6 +21,18 @@ import '../motion.dart';
 /// *Niye ortak:* aynı tile üç ekranda ayrı ayrı yazılmıştı; ikon boyu ya da
 /// seçim rozeti biri değişince diğerleri geride kalıyordu (2026-07-24
 /// tutarsızlık bulgusunun aynısı). Yerleşim ([FmLayout]) tek yerden okunur.
+
+/// [tag] varsa [child]'ı Hero'ya sarar (Ferrari H6.3). "Animasyonları
+/// kaldır" açıkken uçuş yok — galeri düz açılır.
+Widget fmHero(String? tag, Widget child) {
+  if (tag == null) return child;
+  return Builder(
+    builder: (context) => HeroMode(
+      enabled: !Motion.reduced(context),
+      child: Hero(tag: tag, child: child),
+    ),
+  );
+}
 
 /// Liste satırı — **kendi `Row`umuz** (Faz 6 / U4, 2026-10-21).
 ///
@@ -66,6 +79,11 @@ class FmEntryRow extends StatelessWidget {
   /// dokunulunca bu liste çalınır. Null = satır içi oynatma yok.
   final List<String> Function()? audioQueue;
 
+  /// Görsel satırında küçük resmin Hero etiketi (Ferrari H6.3): galeri
+  /// satırdan büyüyerek açılır, kapanınca satıra küçülür. Seçim kipinde yok
+  /// (simgenin yerinde onay kutusu var).
+  final String? heroTag;
+
   const FmEntryRow({
     super.key,
     required this.entry,
@@ -81,6 +99,7 @@ class FmEntryRow extends StatelessWidget {
     this.badge,
     this.thumbnails = true,
     this.audioQueue,
+    this.heroTag,
   });
 
   @override
@@ -123,14 +142,18 @@ class FmEntryRow extends StatelessWidget {
                   more == null && badge == null ? Gap.md : Gap.xs, vPad),
               child: Row(
                 children: [
-                  _withPlay(FmSelectableIcon(
-                    entry: entry,
-                    size: iconSize,
-                    selecting: selecting,
-                    selected: selected,
-                    onCheck: onCheck,
-                    thumbnails: thumbnails,
-                  ), iconSize),
+                  _withPlay(
+                      fmHero(
+                          selecting ? null : heroTag,
+                          FmSelectableIcon(
+                            entry: entry,
+                            size: iconSize,
+                            selecting: selecting,
+                            selected: selected,
+                            onCheck: onCheck,
+                            thumbnails: thumbnails,
+                          )),
+                      iconSize),
                   const SizedBox(width: Gap.md),
                   Expanded(
                     child: ExcludeSemantics(
@@ -255,6 +278,9 @@ class FmEntryCard extends StatelessWidget {
   final FmLayout layout;
   final VoidCallback onTap;
 
+  /// Bkz. [FmEntryRow.heroTag].
+  final String? heroTag;
+
   /// Ad şeridinin yüksekliği (iki satır `bodySmall`).
   static const _labelHeight = 34.0;
 
@@ -265,6 +291,7 @@ class FmEntryCard extends StatelessWidget {
     required this.selecting,
     required this.onTap,
     this.layout = FmLayout.grid3,
+    this.heroTag,
   });
 
   @override
@@ -308,13 +335,16 @@ class FmEntryCard extends StatelessWidget {
                     Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        FmEntryIcon(
-                          entry: entry,
-                          size: iconSize,
-                          // Hücre büyüdükçe köşe yarıçapı da büyür (küçük kutuda
-                          // 12 dp yuvarlaklık, 140 dp'lik kutuda ezik duruyordu).
-                          radius: (iconSize * 0.12).clamp(6.0, 20.0),
-                        ),
+                        fmHero(
+                            selecting ? null : heroTag,
+                            FmEntryIcon(
+                              entry: entry,
+                              size: iconSize,
+                              // Hücre büyüdükçe köşe yarıçapı da büyür (küçük
+                              // kutuda 12 dp yuvarlaklık, 140 dp'lik kutuda
+                              // ezik duruyordu).
+                              radius: (iconSize * 0.12).clamp(6.0, 20.0),
+                            )),
                         SizedBox(
                           height: _labelHeight,
                           child: Padding(
