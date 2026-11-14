@@ -28,10 +28,19 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
       // tek bir "Aa" düğmesinin açtığı okuma ayarları sayfasında.
       actions: _pro != null ? _proActions(_pro!) : [
         if (doc.kind == DocKind.pdf) ...[
+          // Ferrari H11.1: telefonda en çok 3 eylem + ⋮. Kaydedilmemiş
+          // düzenleme varken ilk yuva Kaydet'in (İçindekiler "Daha fazla"ya,
+          // Form alttaki Düzenle'de de var).
+          if (_hasUnsaved)
+            IconButton(
+              tooltip: context.t('vw.save_edits'),
+              icon: const Icon(AppIcons.save),
+              onPressed: _savePendingPdf,
+            )
           // Form belgesinde "Formu doldur" İçindekiler'in yerine geçer (Ferrari
           // H1.2): açılışta alt kenarı kapatan SnackBar yerine kalıcı, sessiz
           // düğme. İçindekiler o zaman "Daha fazla"da.
-          if (_pdfIsForm)
+          else if (_pdfIsForm)
             IconButton(
               key: const ValueKey('pdf-form-action'),
               tooltip: context.t('vw.fill_form'),
@@ -53,12 +62,6 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
               isSelected: _pdfSidePanel,
               icon: const Icon(AppIcons.thumbnails),
               onPressed: _toggleSidePanel,
-            ),
-          if (_hasUnsaved)
-            IconButton(
-              tooltip: context.t('vw.save_edits'),
-              icon: const Icon(AppIcons.save),
-              onPressed: _savePendingPdf,
             ),
         ],
         if (_isMarkdown)
@@ -167,7 +170,7 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
             // arama çubuğunda ve alttaki sayfa rozetine dokununca (2026-07-26:
             // "nerede olduğu anlaşılmıyor, kişiler bulamaz").
             DocMoreItem(AppIcons.numbers, context.t('vw.goto_page'), _askGoToPage),
-            if (_pdfIsForm)
+            if (_pdfIsForm || _hasUnsaved)
               DocMoreItem(AppIcons.toc, context.t('vw.toc'),
                   () => unawaited(_showOutline())),
             // Bu sayfayı yıldızla (2026-09-27) — rozete basılı tutmakla aynı.
