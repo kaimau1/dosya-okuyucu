@@ -93,8 +93,7 @@ class _UpdateBannerState extends State<UpdateBanner>
     final title = pct != null
         ? str.t('upd.b_downloading', {'p': pct})
         : str.t(downloaded ? 'upd.b_ready_title' : 'upd.b_title');
-    final sub = str.t(
-        downloaded ? 'upd.b_ready_sub' : 'upd.b_sub', {'v': info.version});
+    final line = str.t('upd.b_one', {'t': title, 'v': info.version});
     return Padding(
       padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 0),
       child: Material(
@@ -109,35 +108,26 @@ class _UpdateBannerState extends State<UpdateBanner>
             children: [
               Padding(
                 padding: const EdgeInsetsDirectional.fromSTEB(
-                    Gap.md, Gap.sm, Gap.sm, Gap.sm),
+                    Gap.sm, Gap.xs, Gap.xs, Gap.xs),
                 child: Row(
                   children: [
                     CircleAvatar(
-                      radius: 18,
+                      radius: 14,
                       backgroundColor: scheme.primaryContainer,
                       child: Icon(
                           downloaded ? AppIcons.checkCircle : AppIcons.download,
-                          size: 20,
+                          size: 16,
                           color: scheme.onPrimaryContainer),
                     ),
-                    const SizedBox(width: Gap.md),
+                    const SizedBox(width: Gap.sm),
+                    // **Tek satır** (Ferrari H5.5): başlık + sürüm aynı satırda;
+                    // kapatma düğmesi YOK — 2026-11-10 kullanıcı kararı (kalıcı uyarı).
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.titleSmall),
-                          const SizedBox(height: 2),
-                          Text(sub,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                  color: scheme.onSurfaceVariant)),
-                        ],
-                      ),
+                      child: Text(line,
+                          key: const ValueKey('update-banner-line'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleSmall),
                     ),
                     const SizedBox(width: Gap.sm),
                     if (working)
