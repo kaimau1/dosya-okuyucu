@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_colors.dart';
 import '../../core/app_haptics.dart';
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/video_trim.dart';
@@ -25,7 +27,24 @@ class VideoTrimTimeline extends StatefulWidget {
     this.onSeek,
     this.frames = const [],
     this.height = 56,
+    this.marks = const [],
+    this.playheadMs,
+    this.accent,
+    this.dimOutside = true,
   });
+
+  /// Düzenleme işaretleri (silinen bölüm, sessiz bölge, eklenen ses).
+  final List<TimelineMark> marks;
+
+  /// Önizlemenin şu anki yeri (ince çizgi); null → çizilmez.
+  final int? playheadMs;
+
+  /// Tutamaç + çerçeve rengi (varsayılan `primary`). Bölge seçerken ayrı
+  /// renk, kırpma tutamaçlarıyla karışmasın.
+  final Color? accent;
+
+  /// Aralık dışı karartılsın mı (kırpmada evet, bölge seçerken hayır).
+  final bool dimOutside;
 
   final int durationMs;
   final TrimRange range;
@@ -42,6 +61,15 @@ class VideoTrimTimeline extends StatefulWidget {
 }
 
 enum _Grip { start, end }
+
+/// Zaman çizelgesindeki düzenleme işareti türü.
+enum TimelineMarkKind { cut, mute, audio }
+
+class TimelineMark {
+  const TimelineMark(this.range, this.kind);
+  final TrimRange range;
+  final TimelineMarkKind kind;
+}
 
 class _VideoTrimTimelineState extends State<VideoTrimTimeline> {
   _Grip? _grip;
@@ -90,6 +118,7 @@ class _VideoTrimTimelineState extends State<VideoTrimTimeline> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final accent = widget.accent ?? scheme.primary;
     return Semantics(
       label: '${context.t('vtr.start')} ${formatClock(widget.range.startMs)}, '
           '${context.t('vtr.end')} ${formatClock(widget.range.endMs)}',
@@ -114,6 +143,10 @@ class _VideoTrimTimelineState extends State<VideoTrimTimeline> {
               onHorizontalDragUpdate: (d) => _move(d.localPosition.dx, w),
               onHorizontalDragEnd: (_) => _grip = null,
               onHorizontalDragCancel: () => _grip = null,
+              // Dokunuş = önizlemeyi oraya götür.
+              onTapUp: widget.onSeek == null
+                  ? null
+                  : (d) => widget.onSeek!(_msAt(d.localPosition.dx, w)),
               child: Stack(
                 children: [
                   // Kare şeridi (tutamaç payı kadar içeriden).
@@ -127,15 +160,16 @@ class _VideoTrimTimelineState extends State<VideoTrimTimeline> {
                       child: _strip(context, scheme, w - 2 * hw),
                     ),
                   ),
+                  for (final m in widget.marks) _mark(scheme, m, w),
                   // Aralık dışı karartma.
-                  PositionedDirectional(
+                  if (widget.dimOutside) PositionedDirectional(
                     start: hw,
                     width: (s - hw).clamp(0.0, w),
                     top: Gap.xs,
                     bottom: Gap.xs,
                     child: ColoredBox(color: scheme.scrim.withValues(alpha: 0.6)),
                   ),
-                  PositionedDirectional(
+                  if (widget.dimOutside) PositionedDirectional(
                     start: e,
                     end: hw,
                     top: Gap.xs,
@@ -153,15 +187,26 @@ class _VideoTrimTimelineState extends State<VideoTrimTimeline> {
                         decoration: BoxDecoration(
                           border: Border.symmetric(
                             horizontal:
-                                BorderSide(color: scheme.primary, width: 3),
+                                BorderSide(color: accent, width: 3),
                           ),
                         ),
                       ),
                     ),
                   ),
-                  _handle(scheme, s - hw, const ValueKey('trim-start'),
+                  if (widget.playheadMs != null)
+                    PositionedDirectional(
+                      start: _xOf(widget.playheadMs!, w) - 1,
+                      width: 2,
+                      top: 0,
+                      bottom: 0,
+                      child: const IgnorePointer(
+                        child: ColoredBox(color: AppColors.onMedia),
+                      ),
+                    ),
+                  _handle(accent, scheme, s - hw, const ValueKey('trim-start'),
                       start: true),
-                  _handle(scheme, e, const ValueKey('trim-end'), start: false),
+                  _handle(accent, scheme, e, const ValueKey('trim-end'),
+                      start: false),
                 ],
               ),
             );
@@ -171,7 +216,49 @@ class _VideoTrimTimelineState extends State<VideoTrimTimeline> {
     );
   }
 
-  Widget _handle(ColorScheme scheme, double x, Key key,
+  /// Bir düzenleme işareti: silinen bölüm koyu + makas; sessiz bölge altta,
+  /// eklenen ses üstte renkli şerit.
+  Widget _mark(ColorScheme scheme, TimelineMark m, double w) {
+    final s = _xOf(m.range.startMs, w);
+    final e = _xOf(m.range.endMs, w);
+    final width = (e - s).clamp(0.0, w);
+    const bar = 6.0;
+    switch (m.kind) {
+      case TimelineMarkKind.cut:
+        return PositionedDirectional(
+          start: s,
+          width: width,
+          top: Gap.xs,
+          bottom: Gap.xs,
+          child: IgnorePointer(
+            child: ColoredBox(
+              color: scheme.scrim.withValues(alpha: 0.78),
+              child: width < 18
+                  ? null
+                  : Icon(AppIcons.cut, size: 16, color: scheme.error),
+            ),
+          ),
+        );
+      case TimelineMarkKind.mute:
+        return PositionedDirectional(
+          start: s,
+          width: width,
+          bottom: Gap.xs,
+          height: bar,
+          child: IgnorePointer(child: ColoredBox(color: scheme.error)),
+        );
+      case TimelineMarkKind.audio:
+        return PositionedDirectional(
+          start: s,
+          width: width,
+          top: Gap.xs,
+          height: bar,
+          child: IgnorePointer(child: ColoredBox(color: scheme.tertiary)),
+        );
+    }
+  }
+
+  Widget _handle(Color accent, ColorScheme scheme, double x, Key key,
       {required bool start}) {
     const r = Radius.circular(Radii.control);
     return PositionedDirectional(
@@ -182,7 +269,7 @@ class _VideoTrimTimelineState extends State<VideoTrimTimeline> {
       bottom: 0,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: scheme.primary,
+          color: accent,
           borderRadius: BorderRadiusDirectional.horizontal(
             start: start ? r : Radius.zero,
             end: start ? Radius.zero : r,

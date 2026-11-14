@@ -1164,6 +1164,20 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 5. "Sesi kaldır" açık → çıktı sessiz mi? Yalnız ses kaldırıp aralığa dokunmadan Kaydet çalışıyor mu?
 6. MKV/WebM kaynak: kesiliyor mu, yoksa anlaşılır hata mı?
 
+## Video düzenle — ara kesim + ses bölgeleri (2026-11-14)
+- [ ] Video uzun bas → "Videoyu düzenle": altta dört araç (Bölüm sil · Sesi kapat · Ses ekle · Ses açık/yok) görünüyor, dar telefonda yazılar sığıyor mu?
+- [ ] "Bölüm sil" → şeritte ayrı renkli bölge çıkıyor; tutamaçlarla ayarla → "Bölümü sil": şeritte koyu + makas, listede "Silindi 00:10–00:15". 3 ayrı bölüm sil; sağ üstte "Sonuç 00:…" süresi doğru azalıyor mu?
+- [ ] Oynat: önizleme silinen bölümleri atlıyor mu (atlama ~0,5 sn gecikebilir), sonda başa dönüyor mu?
+- [ ] "Sesi kapat" bölgesi: şeritte altta kırmızı çizgi; önizlemede o bölgede ses kesiliyor mu?
+- [ ] "Ses ekle" → ses dosyası seç → bölge sesin süresi kadar açılıyor; uygula → şeritte üstte renkli çizgi; önizlemede o bölgede müzik çalıyor mu, videonun sesi kısık mı? Listede "Özgün ses kısık" ↔ "İki ses karışık" değişiyor mu?
+- [ ] Geri al ve listedeki ✕ çalışıyor mu? Kaydet → `<ad>_kesit.mp4`: silinen bölümler yok, sessiz bölge sessiz, eklenen ses doğru saniyede başlıyor mu (dikey video dikey kalıyor mu)?
+- [ ] Hata olursa (özellikle ses eklemede) bildirimdeki hata kodunu not al — Media3 Composition ilk kez cihazda.
+
+## Ferrari H5 — Ana ekran (2026-11-14)
+- [ ] Yeni kurulum / hiç düzenlenmemiş pano: üstte arama, sonra son dosyalar şeridi, kategoriler, bellek kartı; araçlar/favoriler aşağıda.
+- [ ] Düzenini daha önce değiştirmiş kullanıcı: sıra ve gizlenenler aynen kalmış mı?
+- [ ] Güncelleme varsa şerit tek satır ("Yeni sürüm var · v…" + Güncelle); indirirken "İndiriliyor · %…" tek satırda.
+
 ## Ferrari H4 — Dosya listesi (2026-11-14, main)
 - [ ] Belgeler kategorisi: satır simgesi ~52 dp, ad iri, alt satırda kaynak · tarih solda, boyut SAĞA hizalı; satır sıkışık değil (Samsung ile yan yana görüntü).
 - [ ] Klasör: dosyada tarih solda / boyut sağda; klasörde öğe sayısı solda, sağ boş.

@@ -17,6 +17,7 @@ const Map<String, (String, String, String)> _t31 = {
   'upd.b_ready_title': ('Güncelleme indirildi', 'Update downloaded', 'تم تنزيل التحديث'),
   'upd.b_ready_sub': ('v{v} · kurulunca uygulama yeniden açılır', 'v{v} · the app reopens after installing', 'v{v} · يُعاد فتح التطبيق بعد التثبيت'),
   'upd.b_downloading': ('İndiriliyor · %{p}', 'Downloading · {p}%', 'جارٍ التنزيل · {p}%'),
+  'upd.b_one': ('{t} · v{v}', '{t} · v{v}', '{t} · v{v}'),
   'upd.b_update': ('Güncelle', 'Update', 'تحديث'),
   'upd.b_install': ('Kur', 'Install', 'تثبيت'),
   'upd.current': ('Kurulu sürüm v{v}', 'Installed version v{v}', 'الإصدار المثبت v{v}'),

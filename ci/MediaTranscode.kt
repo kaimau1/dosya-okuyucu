@@ -16,6 +16,7 @@ import androidx.media3.effect.Presentation
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.DefaultEncoderFactory
 import androidx.media3.transformer.EditedMediaItem
+import androidx.media3.transformer.EditedMediaItemSequence
 import androidx.media3.transformer.Effects
 import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
@@ -39,6 +40,8 @@ import java.io.File
  *   bitince `done` / `failed` olayı; arada `progress` (0..100).
  * - `trim(path, target, startMs, endMs, removeAudio)` → aralığı kesip yazar
  *   (aynı `done` / `failed` / `progress` olayları).
+ * - `edit(path, target, pieces, audio, removeAudio)` → çok parçalı düzenleme:
+ *   aradan silinen bölümler, sessiz bölgeler, bölgeye eklenen ses.
  * - `frames(path, count, width, dir)` → kes ekranının kare şeridi.
  * - `cancel()`.
  * Aynı anda tek iş (iş kuyruğu zaten sırayla veriyor).
@@ -69,6 +72,8 @@ object MediaTranscodeBridge {
                 // Video kesme (Ferrari H8, 2026-11-14): aralık dışı atılır,
                 // özgün korunur; mümkünse yeniden kodlamasız (trim optimizasyonu).
                 "trim" -> result.success(trim(app, call.arguments as Map<*, *>))
+                // Video düzenleme (2026-11-14): çok parçalı kesim + ses bölgeleri.
+                "edit" -> result.success(edit(app, call.arguments as Map<*, *>))
                 // Kes ekranının kare şeridi: eşit aralıklı N kare → JPEG yolları.
                 "frames" -> {
                     val a = call.arguments as Map<*, *>
@@ -294,6 +299,96 @@ object MediaTranscodeBridge {
         transformer = t
         return try {
             t.start(item, target)
+            pollProgress(t)
+            true
+        } catch (e: Exception) {
+            transformer = null
+            false
+        }
+    }
+
+    /**
+     * `edit(path, target, pieces, audio, removeAudio)` — **çok parçalı düzenleme**
+     * (2026-11-14, kullanıcı: ara kesimler + ses ekleme/çıkarma bölgeleri).
+     *
+     * - `pieces`: `[{startMs, endMs, mute}]` kaynak aralıkları, sırayla uç uca
+     *   eklenir (aradan silinenler listede yok). `mute` parçada videonun kendi
+     *   sesi atılır; sessizliği `experimentalSetForceAudioTrack` doldurur
+     *   (sırada sesi olmayan öğeden sonra sesli öğe gelse de çıkış ses izi
+     *   kesintisiz kalır).
+     * - `audio`: `[{path, gapMs, lengthMs}]` ikinci (yalnız ses) sıra: her öğe
+     *   önce `gapMs` boşluk, sonra ses dosyasının baştan `lengthMs`'i. Boşluk
+     *   yalnız ses sırasında desteklenir (Media3 1.5 `addGap`). İki sıra
+     *   karıştırılır (AudioMixer).
+     * Efekt yok: döndürme bilgisi kaynaktaki gibi taşınır.
+     */
+    private fun edit(context: Context, a: Map<*, *>): Boolean {
+        val path = a["path"] as? String ?: return false
+        val target = a["target"] as? String ?: return false
+        val pieces = (a["pieces"] as? List<*>)?.mapNotNull { it as? Map<*, *> } ?: return false
+        if (pieces.isEmpty()) return false
+        val audio = (a["audio"] as? List<*>)?.mapNotNull { it as? Map<*, *> } ?: emptyList()
+        val removeAudio = a["removeAudio"] == true
+        transformer?.cancel()
+        val source = Uri.fromFile(File(path))
+        var anyMute = false
+        val videoItems = mutableListOf<EditedMediaItem>()
+        for (p in pieces) {
+            val s = (p["startMs"] as? Number)?.toLong() ?: return false
+            val e = (p["endMs"] as? Number)?.toLong() ?: return false
+            if (s < 0 || e <= s) return false
+            val mute = p["mute"] == true
+            if (mute) anyMute = true
+            val media = MediaItem.Builder()
+                .setUri(source)
+                .setClippingConfiguration(
+                    MediaItem.ClippingConfiguration.Builder()
+                        .setStartPositionMs(s)
+                        .setEndPositionMs(e)
+                        .build()
+                )
+                .build()
+            videoItems.add(
+                EditedMediaItem.Builder(media)
+                    .setRemoveAudio(removeAudio || mute)
+                    .build()
+            )
+        }
+        val sequences = mutableListOf(EditedMediaItemSequence.Builder(videoItems).build())
+        if (audio.isNotEmpty()) {
+            val seq = EditedMediaItemSequence.Builder()
+            var added = 0
+            for (s in audio) {
+                val apath = s["path"] as? String ?: return false
+                val gapMs = (s["gapMs"] as? Number)?.toLong() ?: 0L
+                val lenMs = (s["lengthMs"] as? Number)?.toLong() ?: return false
+                if (lenMs <= 0) continue
+                if (gapMs > 0) seq.addGap(gapMs * 1000L)
+                val media = MediaItem.Builder()
+                    .setUri(Uri.fromFile(File(apath)))
+                    .setClippingConfiguration(
+                        MediaItem.ClippingConfiguration.Builder()
+                            .setStartPositionMs(0)
+                            .setEndPositionMs(lenMs)
+                            .build()
+                    )
+                    .build()
+                seq.addItem(EditedMediaItem.Builder(media).setRemoveVideo(true).build())
+                added++
+            }
+            // Yalnız boşluktan oluşan sıra Transformer'ı bekletir — ekleme yoksa sıra da yok.
+            if (added > 0) sequences.add(seq.build())
+        }
+        val composition = Composition.Builder(sequences)
+            .experimentalSetForceAudioTrack((anyMute && !removeAudio) || sequences.size > 1)
+            .build()
+        val t = Transformer.Builder(context)
+            .setAudioMimeType(MimeTypes.AUDIO_AAC)
+            .addListener(exportListener(target))
+            .build()
+        transformer = t
+        return try {
+            t.start(composition, target)
             pollProgress(t)
             true
         } catch (e: Exception) {

@@ -216,12 +216,18 @@ PDF'te çift dokunma **yok gibi — doğrula**), `lib/widgets/pdf_page_navigator
 **Önce bak:** `lib/screens/fm/dashboard_screen.dart` + `dashboard/`, `lib/widgets/fm/home_quick_row.dart`, `recent_strip.dart`,
 `smart_inbox.dart`, `fm_category_tile.dart`, `dashboard_layout_sheet.dart`, HAFIZA "Pano", "kartlar".
 
-- [ ] H5.1 Envanter: ana ekranda ilk açılışta görünen her öğeyi listele (kart, sıra, rozet, düğme). Hedef: ilk ekranda ≤ 4 bölüm.
-- [ ] H5.2 Varsayılan düzen: (1) arama, (2) son dosyalar şeridi, (3) kategoriler ızgarası, (4) depolama. Gerisi ("araçlar", AI, öneriler) alta ya da "Diğer"e.
+- [x] H5.1 (2026-11-14, envanter aşağıda) Envanter: ana ekranda ilk açılışta görünen her öğeyi listele (kart, sıra, rozet, düğme). Hedef: ilk ekranda ≤ 4 bölüm.
+- [x] H5.2 (2026-11-14: `DashboardLayout.sections` = son dosyalar · kategoriler · bellek · araçlar · favoriler · hızlı klasörler; "Son açılanlar" yeni kurulumda görünür; kaydı olanın sırası/gizledikleri korunur, eski kayıtta hiç geçmeyen `recent` yine gizli) Varsayılan düzen: (1) arama, (2) son dosyalar şeridi, (3) kategoriler ızgarası, (4) depolama. Gerisi ("araçlar", AI, öneriler) alta ya da "Diğer"e.
       Kullanıcının özelleştirdiği düzen **bozulmaz** (`custom_cards_v1`, pano düzeni kayıtları).
-- [ ] H5.3 Kategori kutuları tek boy, tek simge ailesi, sayı/boyut ikincil satırda. Renk: yalnız simge zemini.
-- [ ] H5.4 Depolama satırı Samsung'daki gibi: "Dahili depolama 65,6 GB / 128 GB" + ince çubuk; USB takılıyken ayrı satır.
-- [ ] H5.5 "Yeni sürüm var" şeridi ve benzeri kalıcı uyarılar tek satır, kapatılabilir.
+- [x] H5.3 (doğrulandı, değişiklik yok: `FmCategoryGrid` sabit sütunlu tek boy, simge ailesi temadan tek, alt satır yalnız bilgi varsa, renk yalnız simgede) Kategori kutuları tek boy, tek simge ailesi, sayı/boyut ikincil satırda. Renk: yalnız simge zemini.
+- [x] H5.4 (zaten var: `_StorageHero` "kullanılan / toplam" + 6 dp kategori çubuğu, 2026-10-18 kullanıcı tasarımı korunur; USB/SAF/ham USB ayrı kart) Depolama satırı Samsung'daki gibi: "Dahili depolama 65,6 GB / 128 GB" + ince çubuk; USB takılıyken ayrı satır.
+- [x] H5.5 (2026-11-14: güncelleme şeridi TEK SATIR — "Yeni sürüm var · v1.2.3" + Güncelle; kapatma düğmesi EKLENMEDİ — 2026-11-10 kullanıcı kararı "kalıcı uyarı"; çökme uyarısı ve akıllı bildirim alanı zaten olay yokken çizilmiyor) "Yeni sürüm var" şeridi ve benzeri kalıcı uyarılar tek satır, kapatılabilir.
+
+**H5.1 envanteri (2026-11-14, telefon, tek sütun):** üst çubuk = arama kapsülü (AI · yenile · ayarlar içinde) ·
+[koşullu] çökme uyarısı · [koşullu] güncelleme şeridi · [koşullu] akıllı bildirim alanı (süren iş / bellek dolu / ağ paylaşımı) ·
+[koşullu] izin kartı · [koşullu] tarama ilerlemesi · **bölümler** (eski varsayılan: bellek panosu → kategoriler 11 kutu → araçlar →
+favoriler → hızlı klasörler; "Son açılanlar" gizli) · "Ana ekranı düzenle" + "Alt paneli düzenle" · son tarama satırı.
+Koşullu öğeler olay yokken çizilmez. Yeni varsayılanla ilk ekran: **arama · son dosyalar · kategoriler · bellek** (4 bölüm).
 
 ---
 
@@ -273,6 +279,11 @@ iş sistemi (`lib/screens/fm/jobs_screen.dart`). Örnek arayüz: kullanıcının
 oynatıcının ⋮'ı aynı levhayı açtığı için üst çubuğa ayrıca düğme konmadı (oynatıcıda zaten 7 simge var). Kotlin
 `experimentalSetTrimOptimizationEnabled` (Media3 1.5.1) — ses kaldırılırken kapalı. Lite/Pro: `Feature.media` (boyut düşürmeyle aynı, Pro).
 📱 cihaz turu `CIHAZ_TESTI.md` "Ferrari H8".
+
+**Ek (2026-11-14, kullanıcı isteği — dondurma istisnası):** kes ekranı **"Videoyu düzenle"** oldu: aradan istendiği kadar
+bölüm silme, bölge sesini kapatma, bölgeye ses ekleme (özgün sesi kıs / karıştır), tüm sesi kaldırma, Geri al. Model
+`lib/models/video_edit.dart` (kaynak zamanı → çıktı zamanı), yerel `edit` (Media3 Composition: kırpılmış parçalar + `addGap`'li
+ses sırası). Cihaz turu `CIHAZ_TESTI.md` "Video düzenle".
 
 **Tuzaklar:** HAFIZA "Video küçültmede dikey→yatay bozulması" (döndürme meta verisi); kesimde aynı tuzak. Anahtar kare sınırı: hızlı kesimde başlangıç birkaç kare kayabilir — arayüzde yazma, yalnız kabul et.
 

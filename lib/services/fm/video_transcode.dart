@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 import '../../core/l10n/app_strings.dart';
 import '../../models/media_resize.dart';
+import '../../models/video_edit.dart';
 import '../../models/video_trim.dart';
 import 'file_ops.dart';
 import 'image_resize.dart' show ResizeResult;
@@ -348,6 +349,71 @@ abstract final class VideoTranscoder {
       throw VideoTranscodeException(AppStrings.current.t('vt.truncated', {
         'out': (out.durationMs / 1000).round(),
         'src': (range.lengthMs / 1000).round(),
+      }));
+    }
+    return target;
+  }
+
+  /// **Videoyu düzenle** (2026-11-14): aradan silinen bölümler, sessiz
+  /// bölgeler, bölgeye eklenen ses. Yalnız baş/son kırpma ise hızlı yol
+  /// ([trim]). Çıktı yine `<ad>_kesit.mp4` (özgün KORUNUR).
+  static Future<String> edit(
+    String path,
+    VideoEdit plan, {
+    JobHandle? handle,
+  }) async {
+    if (plan.isSimpleTrim) {
+      return trim(path, plan.keep, removeAudio: plan.muteAll, handle: handle);
+    }
+    final pieces = plan.pieces;
+    final expected = plan.outputMs;
+    if (pieces.isEmpty || expected <= 0) {
+      throw VideoTranscodeException(AppStrings.current.t('vt.unsupported'));
+    }
+    final base = p.basenameWithoutExtension(path);
+    final target = FileOps.uniquePath(p.join(p.dirname(path),
+        '${base}_${AppStrings.current.t('vtr.suffix')}.mp4'));
+    _wire();
+    final done = _running = Completer<void>();
+    final cancelWatch = Timer.periodic(_cancelPoll, (_) {
+      if ((handle?.cancelled ?? false) && !done.isCompleted) {
+        unawaited(cancel());
+        done.completeError(const JobCancelled());
+      }
+    });
+    _onProgress = (percent) =>
+        handle?.report(unit: percent / 100, detail: '%$percent');
+    try {
+      final started = await _channel.invokeMethod<bool>('edit', {
+        'path': path,
+        'target': target,
+        'pieces': [for (final pc in pieces) pc.toMap()],
+        'audio': [for (final a in plan.audioTrack) a.toMap()],
+        'removeAudio': plan.muteAll,
+      });
+      if (started != true) {
+        throw VideoTranscodeException(AppStrings.current.t('vt.unsupported'));
+      }
+      await done.future;
+    } catch (_) {
+      _cleanup(target);
+      rethrow;
+    } finally {
+      cancelWatch.cancel();
+      _onProgress = null;
+      _running = null;
+    }
+    final out = await probe(target);
+    if (out == null) {
+      _cleanup(target);
+      throw VideoTranscodeException(
+          AppStrings.current.t('vt.unreadable_output'));
+    }
+    if (out.durationMs > 0 && out.durationMs < (expected * 0.8).round()) {
+      _cleanup(target);
+      throw VideoTranscodeException(AppStrings.current.t('vt.truncated', {
+        'out': (out.durationMs / 1000).round(),
+        'src': (expected / 1000).round(),
       }));
     }
     return target;
