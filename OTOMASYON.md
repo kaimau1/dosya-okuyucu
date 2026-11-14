@@ -60,7 +60,7 @@ Satır ≤ ~300 karakter; ayrıntı Kaynak'taki plan bölümünde. 👤 maddeler
 
 | No | İş | Model | Kaynak | Cihaz | APK | Durum |
 |---|---|---|---|---|---|---|
-| P01 | Ölçüm altyapısı: gözetimsiz A/B betiği (iki derleme/etiket, A,B×2+ sıra, ortanca, en kötü A kıyası, `KARAR:` satırı, ısı beklemesi, MIUI kurulum onayı) + H0.2 büyük PDF senaryosu + H0.3 PDF açılış zaman damgaları | opus | `ab-olcum` "Araç farkı"; FERRARI H0.2–H0.3; `tool/perf_senaryo.sh`, `tool/r8_ab.sh` (`read` bekler) | A/B | hayır | bekliyor |
+| P01 | Ölçüm altyapısı: gözetimsiz A/B betiği (iki derleme/etiket, A,B×2+ sıra, ortanca, en kötü A kıyası, `KARAR:` satırı, ısı beklemesi, MIUI kurulum onayı) + H0.2 büyük PDF senaryosu + H0.3 PDF açılış zaman damgaları | opus | `ab-olcum` "Araç farkı"; FERRARI H0.2–H0.3; `tool/perf_senaryo.sh`, `tool/r8_ab.sh` (`read` bekler) | A/B | hayır | bitti — `tool/ab_olcum.sh` (+`ab_karar.py`), H0.2 senaryo, H0.3 `PDFPRO_PERF acilis_*`; cihaz kuru denemesi DEVIR/HAFIZA |
 | P02 | Ferrari H0.1/H0.4 ölçüm tabanı: §2 "10 işlem" bizde (Mi Note 10 Lite), tablo `docs/perf/2026-11-H0.md`; Samsung sütunu 👤 | sonnet | FERRARI H0.1, H0.4, §2 | A/B | hayır | bekliyor — P01'den sonra |
 | P03 | Ferrari H6 hareket ve dokunuş (titreşim kapsamı, basma hâli, açılış geçişi + H1.5, liste değişimi, levha birliği, öngörülü geri) | opus | FERRARI H6.1–H6.6, H1.5 | A/B | evet | bekliyor |
 | P04 | Ferrari H10 + H11: boş/yükleniyor/hata durumları + görüntüleyici kabuğu tutarlılığı (üst/alt çubuk, Office açılışı, görsel, video denetimleri) | opus | FERRARI H10.1–H10.3, H11.1–H11.5 | A/B | evet | bekliyor — P03 ile paralel değil (levha/çubuk dosyaları ortak) |

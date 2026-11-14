@@ -40,8 +40,9 @@ A7=${A_SHA:0:7}; B7=${B_SHA:0:7}
 OUT="$KOK/build/ab/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$OUT/apk" "$OUT/kosu"
 # ci/prepare_android.sh `python3` çağırır; Windows'ta o çoğu zaman mağaza kısayolu.
 if [ "$PY" = python ]; then
-  mkdir -p "$OUT/bin"; printf '#!/bin/sh\nexec python "$@"\n' > "$OUT/bin/python3"
-  chmod +x "$OUT/bin/python3"; export PATH="$OUT/bin:$PATH"
+  BIN="$(cd "$OUT" && pwd)/bin"   # PATH'e /c/… biçimi (C: iki nokta PATH'i böler)
+  mkdir -p "$BIN"; printf '#!/bin/sh\nexec python "$@"\n' > "$BIN/python3"
+  chmod +x "$BIN/python3"; export PATH="$BIN:$PATH"
 fi
 echo "A=$A7 B=$B7 cihaz=$SERI tur=$TUR → $OUT"
 
