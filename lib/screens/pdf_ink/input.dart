@@ -1,7 +1,16 @@
 part of '../pdf_ink_screen.dart';
 
+bool _isPen(PointerEvent e) =>
+    e.kind == PointerDeviceKind.stylus ||
+    e.kind == PointerDeviceKind.invertedStylus;
+
 extension _PdfInkScreenInputPart on _PdfInkScreenState {
+  /// Kalem kipinde parmak çizmez (H9.3) — dış dinleyici onu kaydırmaya alır.
+  bool _ignoreForInk(PointerEvent e) => _stylus && !_isPen(e);
+
   void _onDown(PointerDownEvent e, Size fitted) {
+    if (_isPen(e)) _stylus = true;
+    if (_ignoreForInk(e)) return;
     _pointers++;
     if (_pointers > 1) {
       // İki parmak: yakınlaştırma. Yarım darbe bırakma.
@@ -31,7 +40,7 @@ extension _PdfInkScreenInputPart on _PdfInkScreenState {
   }
 
   void _onMove(PointerMoveEvent e, Size fitted) {
-    if (_pointers != 1) return;
+    if (_pointers != 1 || _ignoreForInk(e)) return;
     final point = _norm(e.localPosition, fitted);
     final live = _live;
     if (live != null) {
@@ -47,7 +56,8 @@ extension _PdfInkScreenInputPart on _PdfInkScreenState {
     }
   }
 
-  void _onUp(Size fitted) {
+  void _onUp(PointerEvent e, Size fitted) {
+    if (_ignoreForInk(e)) return;
     _pointers = math.max(0, _pointers - 1);
     final live = _live;
     if (live != null) {
@@ -254,9 +264,25 @@ extension _PdfInkScreenInputPart on _PdfInkScreenState {
       _tool == InkTool.highlighter ||
       _tool == InkTool.eraser;
 
+  /// Kalem kipinde çizim aracındayken tek parmak "Kaydır" gibi davranır.
+  bool get _fingerPans =>
+      _tool == InkTool.hand || (_stylus && _drawingTool);
+
   void _gDown(PointerDownEvent e, int pageCount) {
+    if (_isPen(e)) {
+      // Kalem geldi: ekrandaki parmak/avuç hareketi iptal, kalem bırakılana
+      // dek yeni parmak sayılmaz (avuç içi reddi, H9.3).
+      _stylus = true;
+      _penDown++;
+      _touches.clear();
+      _handStart = null;
+      _g0Matrix = null;
+      _flipArmed = false;
+      return;
+    }
+    if (_penDown > 0) return;
     _touches[e.pointer] = e.position;
-    if (_touches.length == 1 && _tool == InkTool.hand) {
+    if (_touches.length == 1 && _fingerPans) {
       _handStart = e.position;
     }
     if (_touches.length == 2) {
@@ -272,8 +298,17 @@ extension _PdfInkScreenInputPart on _PdfInkScreenState {
   }
 
   void _gMove(PointerMoveEvent e) {
-    if (!_touches.containsKey(e.pointer)) return;
+    final prev = _touches[e.pointer];
+    if (prev == null) return;
     _touches[e.pointer] = e.position;
+    if (_touches.length == 1 && _stylus && _drawingTool) {
+      // Kalem kipinde tek parmak kaydırır (yakınlaşmışken; değilse bırakınca
+      // sayfa çevirir — `_gUp`).
+      final d = e.position - prev;
+      _tx.value = _clampToViewport(
+          Matrix4.translationValues(d.dx, d.dy, 0)..multiply(_tx.value));
+      return;
+    }
     final start = _g0Matrix;
     // Çizim araçlarında iki parmak hareketini biz işleriz; öteki araçlarda
     // InteractiveViewer'ın kendisi (panEnabled/scaleEnabled açık).
@@ -297,6 +332,10 @@ extension _PdfInkScreenInputPart on _PdfInkScreenState {
   }
 
   void _gUp(PointerEvent e, int pageCount) {
+    if (_isPen(e)) {
+      _penDown = math.max(0, _penDown - 1);
+      return;
+    }
     final pos = _touches.remove(e.pointer);
     if (_g0Matrix != null && _touches.length < 2) {
       if (_flipArmed && _tx.value.getMaxScaleOnAxis() < 1.05) {

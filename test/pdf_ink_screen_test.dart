@@ -1,6 +1,7 @@
 import 'package:dosya_okuyucu/core/app_icons.dart';
 import 'package:dosya_okuyucu/screens/pdf_ink_screen.dart';
 import 'package:dosya_okuyucu/services/pdf/pdf_markup.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -69,6 +70,27 @@ void main() {
     await b.up();
     await tester.pumpAndSettle();
     expect(strokeCount(tester), 0);
+  });
+
+  testWidgets('kalem kipi (H9.3): kalem çizer, parmak çizmez, avuç darbeyi bozmaz',
+      (tester) async {
+    await pump(tester);
+    final c = pageCenter(tester);
+    // Kalem darbesi sürerken avuç (parmak) değer: darbe iptal olmaz.
+    final pen = await tester.startGesture(c, kind: PointerDeviceKind.stylus);
+    await pen.moveBy(const Offset(20, 0));
+    await tester.pump();
+    final palm = await tester.startGesture(c + const Offset(0, 120));
+    await palm.moveBy(const Offset(10, 10));
+    await pen.moveBy(const Offset(30, 10));
+    await tester.pump();
+    await palm.up();
+    await pen.up();
+    await tester.pump();
+    expect(strokeCount(tester), 1);
+    // Kalem görüldükten sonra parmak çizmez (kaydırır).
+    await drawLine(tester, c, c + const Offset(80, 40));
+    expect(strokeCount(tester), 1);
   });
 
   testWidgets('silgi üstünden geçilen darbeyi siler, tek adımda geri gelir',
