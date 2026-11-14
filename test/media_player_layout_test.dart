@@ -90,6 +90,42 @@ void main() {
     await tester.pump();
   });
 
+  /// Ferrari H11.5: denetimler 3 sn sonra bir anda kaybolmaz, SOLAR; solarken
+  /// dokunuş almaz, dokunuş onları geri getirir.
+  testWidgets('kontroller 3 sn sonra solar, solarken dokunuş geri getirir',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(home: MediaPlayerScreen(path: video.path)),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.byType(AppBar), findsOneWidget);
+
+    // 3 sn dolunca solma başlar: çubuk hâlâ ağaçta ama hedef saydamlık 0.
+    await tester.pump(const Duration(seconds: 3));
+    expect(find.byType(AppBar), findsOneWidget, reason: 'bir anda kaybolmamalı');
+    final fading = tester.widget<AnimatedOpacity>(find
+        .ancestor(of: find.byType(AppBar), matching: find.byType(AnimatedOpacity))
+        .first);
+    expect(fading.opacity, 0);
+
+    // Solarken dokunmak: geri gelir (gizlenmez).
+    await tester.tapAt(const Offset(400, 300));
+    await tester.pump();
+    final back = tester.widget<AnimatedOpacity>(find
+        .ancestor(of: find.byType(AppBar), matching: find.byType(AnimatedOpacity))
+        .first);
+    expect(back.opacity, 1);
+
+    // Dokunmadan bırakılırsa solup ağaçtan çıkar.
+    await tester.pump(const Duration(seconds: 4));
+    expect(find.byType(AppBar), findsNothing);
+
+    VideoPlayback.instance.debugReset();
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+  });
+
   testWidgets('uygulama arkaya alınınca video DURUR, dönünce devam eder',
       (tester) async {
     // PİL: `video_player` Android'de arka planda oynatmaya devam eder —

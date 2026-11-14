@@ -10,6 +10,7 @@ import 'package:video_player/video_player.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/motion.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../core/user_error.dart';
@@ -85,6 +86,9 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   VoidCallback? _unhideBar;
 
   bool _controlsVisible = true;
+
+  /// Kendiliğinden gizlenirken solma sürüyor (dokunuş almaz).
+  bool _controlsFading = false;
   bool _landscape = false;
   Timer? _hideTimer;
 
@@ -375,17 +379,18 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                 start: Gap.md,
                 top: 0,
                 bottom: 0,
-                child: Center(child: _lockButton()),
+                child: Center(
+                    child: _locked ? _lockButton() : _fade(_lockButton())),
               ),
             if (!_isAudio && _controlsVisible && !_locked)
               PositionedDirectional(
                 end: Gap.md,
                 top: 0,
                 bottom: 0,
-                child: Center(child: _rotateButtons()),
+                child: Center(child: _fade(_rotateButtons())),
               ),
             if (_controlsVisible && !_locked)
-              Positioned(left: 0, right: 0, top: 0, child: _topBar()),
+              Positioned(left: 0, right: 0, top: 0, child: _fade(_topBar())),
             if (_controlsVisible && !_locked && c != null && value != null)
               Positioned(
                 left: 0,
@@ -393,10 +398,10 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                 bottom: 0,
                 // Konum çubuğu saniyede iki kez değişir; yeniden çizilen
                 // alanı BURAYA hapsediyoruz (bkz. [_onTick]).
-                child: ValueListenableBuilder<VideoPlayerValue>(
+                child: _fade(ValueListenableBuilder<VideoPlayerValue>(
                   valueListenable: c,
                   builder: (_, live, _) => _controls(c, live),
-                ),
+                )),
               ),
           ],
         ),
@@ -404,6 +409,18 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     );
   }
 
+
+  /// Kontrol katmanı: solarken saydamlaşır ve dokunuş almaz. Görünürken
+  /// opaklık 1 → katman açılmaz; yalnız solma süresince (Motion.long).
+  Widget _fade(Widget child) => IgnorePointer(
+        ignoring: _controlsFading,
+        child: AnimatedOpacity(
+          opacity: _controlsFading ? 0 : 1,
+          duration: Motion.of(context, Motion.long),
+          curve: Motion.exit,
+          child: child,
+        ),
+      );
 
   /// Parça dosyalarındaki uzantılar `setState`i (korumalı) buradan çağırır.
   void _partSetState(VoidCallback fn) => setState(fn);

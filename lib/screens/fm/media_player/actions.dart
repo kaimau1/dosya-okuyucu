@@ -210,7 +210,11 @@ extension _MediaPlayerScreenActionsPart on _MediaPlayerScreenState {
 
   /// Ekrana dokunuş: kontrolleri çevirir; kenarda HIZLI ikinci dokunuş sarar.
   void _handleTap(TapUpDetails details) {
-    _partSetState(() => _controlsVisible = !_controlsVisible);
+    // Solarken dokunmak = geri getir (görünür sayılmaz).
+    _partSetState(() {
+      _controlsVisible = !_controlsVisible || _controlsFading;
+      _controlsFading = false;
+    });
     if (_controlsVisible) _scheduleHide();
     if (_isAudio) return;
     final width = MediaQuery.sizeOf(context).width;
@@ -316,6 +320,7 @@ extension _MediaPlayerScreenActionsPart on _MediaPlayerScreenState {
     _partSetState(() {
       _locked = !_locked;
       _controlsVisible = !_locked;
+      _controlsFading = false;
       _lockHintVisible = _locked;
     });
     if (_locked) _showLockHint();
@@ -455,14 +460,28 @@ extension _MediaPlayerScreenActionsPart on _MediaPlayerScreenState {
     _partSetState(() {});
   }
 
-  /// Video oynarken kontroller 3 sn sonra kaybolur (sesde hep açık kalır).
+  /// Video oynarken kontroller 3 sn sonra SOLAR (Ferrari H11.5), sonra
+  /// ağaçtan çıkar; sesde hep açık kalır. Solma yalnız saydamlık (boy/yer
+  /// değişmez); "animasyonları kaldır"da süre 0 → doğrudan gizlenir.
   void _scheduleHide() {
     _hideTimer?.cancel();
+    if (_controlsFading) _partSetState(() => _controlsFading = false);
     if (_isAudio) return;
     _hideTimer = Timer(const Duration(seconds: 3), () {
-      if (mounted && (_controller?.value.isPlaying ?? false)) {
+      if (!mounted || !(_controller?.value.isPlaying ?? false)) return;
+      final fade = Motion.of(context, Motion.long);
+      if (fade == Duration.zero) {
         _partSetState(() => _controlsVisible = false);
+        return;
       }
+      _partSetState(() => _controlsFading = true);
+      _hideTimer = Timer(fade, () {
+        if (!mounted || !_controlsFading) return;
+        _partSetState(() {
+          _controlsVisible = false;
+          _controlsFading = false;
+        });
+      });
     });
   }
 }
