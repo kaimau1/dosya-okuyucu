@@ -171,6 +171,8 @@ const Map<String, (String, String, String)> _t5 = {
   'ph.view': ('Görünüm', 'View', 'العرض'),
   'ph.view_scale': ('Zaman ölçeği', 'Time scale', 'المقياس الزمني'),
   'ph.view_columns': ('Sütun sayısı', 'Columns', 'عدد الأعمدة'),
+  'ph.albums_hide': ('Albüm şeridini gizle', 'Hide album strip', 'إخفاء شريط الألبومات'),
+  'ph.albums_show': ('Albüm şeridini göster', 'Show album strip', 'إظهار شريط الألبومات'),
   'ph.pinch_hint': (
     'İpucu: ızgarada iki parmakla sıkıştırarak uzaklaştır, açarak yakınlaştır.',
     'Tip: pinch the grid with two fingers to zoom out, spread to zoom in.',

@@ -212,70 +212,66 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
     );
   }
 
-  /// Üst çubuğun ⋮ menüsü: A-B tekrar, yüzen pencere, doldur/sığdır
-  /// (video), birlikte aç, dosya işlemleri.
-  Widget _moreMenu() {
-    PopupMenuItem<String> item(String v, IconData icon, String label,
-            {Color? color}) =>
-        PopupMenuItem(
-          value: v,
-          child: Row(children: [
-            Icon(icon, size: AppIcons.small, color: color),
-            const SizedBox(width: Gap.md),
-            Expanded(child: Text(label)),
-          ]),
-        );
-    return PopupMenuButton<String>(
-      tooltip: context.t('mp.file_ops'),
-      icon: const Icon(AppIcons.more),
-      onOpened: _scheduleHide,
-      onSelected: (v) {
-        switch (v) {
-          case 'loop':
-            // **A-B tekrar** — aynı yeri defalarca izlemek (dil, gitar,
-            // spor) elle geri sarmakla yapılıyordu.
-            _p.markLoopPoint();
-            _toast(context.t(switch (_p.loopStage) {
-              1 => 'mp.loop_a_set',
-              2 => 'mp.loop_on',
-              _ => 'mp.loop_cleared',
-            }));
-            _scheduleHide();
-          case 'pip':
-            unawaited(_popOut());
-          case 'zoom':
-            _partSetState(() => _zoomFill = !_zoomFill);
-          case 'open':
-            unawaited(EntryOpener.openExternally(context, _current));
-          case 'ops':
-            // İzlerken "bunu Önemli'ye taşıyayım" demek için oynatıcıyı
-            // kapatıp dosyayı listede aramak gerekmesin (istek 2026-07-29).
-            unawaited(showEntryActions(
-                context, FsEntry.fromEntity(File(_current))));
-        }
-      },
-      itemBuilder: (_) => [
-        if (!_isAudio) ...[
-          item(
-            'loop',
-            _p.loopStage == 0 ? AppIcons.repeat : AppIcons.repeatOn,
-            context.t(switch (_p.loopStage) {
-              0 => 'mp.loop_mark_a',
-              1 => 'mp.loop_mark_b',
-              _ => 'mp.loop_off',
-            }),
-            color: _p.loopStage == 0 ? null : AppHues.amberBright,
-          ),
-          item('pip', AppIcons.pictureInPictureAlt,
-              context.t('mp.float_window')),
-          item('zoom', _zoomFill ? AppIcons.fitScreen : AppIcons.cropFree,
-              context.t(_zoomFill ? 'mp.zoom_fit' : 'mp.zoom_fill')),
-        ],
-        item('open', AppIcons.openWith, context.t('mp.open_with')),
-        item('ops', AppIcons.more, context.t('mp.file_ops')),
-      ],
-    );
-  }
+  /// Üst çubuğun ⋮ düğmesi: doğrudan dosya işlem levhasını açar
+  /// (2026-11-14, kullanıcı: *"3 nokta menüsü olmamış, direkt dosya işlem
+  /// menüsü açılmalı, tüm butonlar orada olmalı"*). Eskiden ⋮ önce küçük bir
+  /// açılır menü, oradan "Dosya işlemleri" → levha: iki dokunuş. Oynatıcıya
+  /// özgü işlemler (A-B tekrar, küçük pencere, doldur/sığdır) levhanın en
+  /// üstünde "Oynatıcı" bölümünde; "Başka uygulamayla aç" levhada zaten var.
+  Widget _moreMenu() => IconButton(
+        tooltip: context.t('mp.file_ops'),
+        icon: const Icon(AppIcons.more),
+        onPressed: () {
+          _scheduleHide();
+          // İzlerken "bunu Önemli'ye taşıyayım" demek için oynatıcıyı
+          // kapatıp dosyayı listede aramak gerekmesin (istek 2026-07-29).
+          unawaited(showEntryActions(
+            context,
+            FsEntry.fromEntity(File(_current)),
+            extrasTitle: context.t('mp.sec_player'),
+            extras: [
+              if (!_isAudio) ...[
+                // **A-B tekrar** — aynı yeri defalarca izlemek (dil, gitar,
+                // spor) elle geri sarmakla yapılıyordu.
+                EntryExtraAction(
+                  icon: _p.loopStage == 0 ? AppIcons.repeat : AppIcons.repeatOn,
+                  label: context.t(switch (_p.loopStage) {
+                    0 => 'mp.loop_mark_a',
+                    1 => 'mp.loop_mark_b',
+                    _ => 'mp.loop_off',
+                  }),
+                  color: _p.loopStage == 0 ? null : AppHues.amberBright,
+                  onTap: () {
+                    if (!mounted) return;
+                    _p.markLoopPoint();
+                    _toast(context.t(switch (_p.loopStage) {
+                      1 => 'mp.loop_a_set',
+                      2 => 'mp.loop_on',
+                      _ => 'mp.loop_cleared',
+                    }));
+                    _scheduleHide();
+                  },
+                ),
+                EntryExtraAction(
+                  icon: AppIcons.pictureInPictureAlt,
+                  label: context.t('mp.float_window'),
+                  onTap: () {
+                    if (mounted) unawaited(_popOut());
+                  },
+                ),
+                EntryExtraAction(
+                  icon: _zoomFill ? AppIcons.fitScreen : AppIcons.cropFree,
+                  label:
+                      context.t(_zoomFill ? 'mp.zoom_fit' : 'mp.zoom_fill'),
+                  onTap: () {
+                    if (mounted) _partSetState(() => _zoomFill = !_zoomFill);
+                  },
+                ),
+              ],
+            ],
+          ));
+        },
+      );
 
   Widget _surface(VideoPlayerController? c, VideoPlayerValue? value) {
     if (_loading) {

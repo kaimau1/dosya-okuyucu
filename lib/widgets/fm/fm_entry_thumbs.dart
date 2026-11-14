@@ -358,6 +358,17 @@ class _PhotoThumbState extends State<_PhotoThumb> {
   }
 }
 
+/// Liste/ızgara video küçük resminin üretim boyu: İKİ kova (256 / 512).
+///
+/// **Kök neden (2026-11-14, kullanıcı: *"uzun süre MP4 yazıları kalıyor"*):**
+/// boy hücreye göre serbestti (`size × 2`, 96–512) ve önbellek adı boyu
+/// içeriyor. Izgara sütun sayısı, albüm şeridi kartı, liste satırı ve
+/// oynatıcı kapağı AYNI video için ayrı dosya üretiyordu; 600 dosyalık disk
+/// tavanı ~300 videoda dolup en eskiler her açılışta budanıyor → eski
+/// aylardaki videolar her ziyarette yeniden çözülüyordu. Kovayla aynı dosya
+/// her yerde paylaşılır (512 = oynatıcı kapağıyla ortak).
+int videoThumbBucket(double cellSize) => cellSize * 2 <= 256 ? 256 : 512;
+
 class _VideoThumb extends StatefulWidget {
   final String path;
   final double size;
@@ -425,11 +436,15 @@ class _VideoThumbState extends State<_VideoThumb> {
           if (mounted && path == widget.path && _thumb == null) _load();
         });
       });
+      // Geri çağrı ancak BİR SONRAKİ karede koşar; savurma tam bu karede
+      // durursa (parmakla durdurma) yeni kare istenmez ve hücre başka bir
+      // şey çizim isteyene dek dosya simgesinde ("MP4") kalırdı (2026-11-14).
+      SchedulerBinding.instance.scheduleFrame();
       return;
     }
     unawaited(_loadDuration(path));
     final result = await ThumbnailCache.forVideo(path,
-        size: (widget.size * 2).round().clamp(96, 512),
+        size: videoThumbBucket(widget.size),
         // Sırası geldiğinde hücre ekrandan çıkmışsa kare hiç çözülmez.
         wanted: () => mounted && path == widget.path);
     if (!mounted || path != widget.path) return;

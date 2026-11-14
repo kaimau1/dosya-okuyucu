@@ -64,6 +64,24 @@ Feature? _featureOf(_EntryAction a) => switch (a) {
       _ => Feature.fileManager,
     };
 
+/// Çağıran ekranın kendi işlemi (ör. oynatıcıda A-B tekrar, yüzen pencere):
+/// işlem levhasının EN ÜSTÜNDE ayrı bölümde durur; dokununca levha kapanır,
+/// sonra [onTap] koşar.
+class EntryExtraAction {
+  final IconData icon;
+  final String label;
+  final String? hint;
+  final Color? color;
+  final VoidCallback onTap;
+  const EntryExtraAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.hint,
+    this.color,
+  });
+}
+
 /// Uzun basınca (ya da ⋮ ile) açılan işlem sayfası. Dosya sistemi değiştiyse
 /// `true` döner (çağıran listeyi yeniler).
 ///
@@ -90,7 +108,13 @@ Future<bool> showEntryActions(
   /// "Konumunu aç" gösterilsin mi? (Kategori/arama ekranlarında anlamlı.)
   bool allowReveal = false,
   void Function(String path)? onReveal,
+  /// Ekrana özgü işlemler ve bölüm başlığı (2026-11-14, kullanıcı: oynatıcı
+  /// ⋮'ı ayrı küçük menü değil, doğrudan bu levha olsun — tüm düğmeler
+  /// tek yerde).
+  List<EntryExtraAction> extras = const [],
+  String? extrasTitle,
 }) async {
+  VoidCallback? chosenExtra;
   final appState = context.read<AppState>();
   final isArchive = ArchiveOps.canExtract(entry.path);
   final canRotate = !entry.isDir && ImageRotate.canRotate(entry.path);
@@ -173,6 +197,20 @@ Future<bool> showEntryActions(
                   _EntryAction.delete,
                   tone: MenuTone.danger),
             ]),
+            if (extras.isNotEmpty)
+              _section(ctx, extrasTitle ?? ctx.t('ea.sec_this'), [
+                for (final x in extras)
+                  MenuRow(
+                    icon: x.icon,
+                    label: x.label,
+                    hint: x.hint,
+                    tone: x.color == null ? MenuTone.neutral : MenuTone.accent,
+                    onTap: () {
+                      chosenExtra = x.onTap;
+                      Navigator.pop(ctx);
+                    },
+                  ),
+              ]),
             // **Türe göre ilk grup** (Faz 17 / G16): arşivde Çıkar, görselde
             // Boyut/Döndür/Tanı, videoda Boyut — dosyanın asıl işi ızgarada
             // aranmasın. Bu eylemler aşağıdaki bölümlerden buraya taşındı.
@@ -320,6 +358,10 @@ Future<bool> showEntryActions(
     ),
   );
 
+  if (chosenExtra != null) {
+    chosenExtra!();
+    return false;
+  }
   if (action == null || !context.mounted) return false;
   // Sürüm kapısı (S2): Lite'ta Pro işlemi levhayı açar, iş yapılmaz.
   final feature = _featureOf(action);
