@@ -21,7 +21,9 @@
 set -euo pipefail
 export MSYS_NO_PATHCONV=1 PYTHONIOENCODING=utf-8
 cd "$(dirname "$0")/.."
-KOK=$(pwd)
+# Windows: C:/… biçimi — MSYS_NO_PATHCONV açıkken git.exe /c/… yolunu C:\c\… sanar.
+KOK=$(pwd -W 2>/dev/null || pwd)
+UST=$(dirname "$KOK")
 [ -d /c/src/flutter-3479/bin ] && export PATH="/c/src/flutter-3479/bin:$PATH"  # 3.47.9 = CI
 PY=python3; $PY -c '' 2>/dev/null || PY=python
 PKG=com.dosyaokuyucu.dosya_okuyucu.r8test
@@ -48,7 +50,7 @@ trap bitis EXIT
 
 # ── Derleme: ref → $OUT/apk/<A|B>.apk ────────────────────────────────────────
 derle() {  # derle <etiket> <sha>
-  local W="$KOK/../okuyucu_ab_${2:0:7}"
+  local W="$UST/okuyucu_ab_${2:0:7}"
   [ -d "$W" ] || git worktree add --detach "$W" "$2" >/dev/null
   cp integration_test/perf_senaryolari_test.dart "$W/integration_test/"
   mkdir -p "$W/test_driver"; cp test_driver/perf_driver.dart "$W/test_driver/"
@@ -78,7 +80,7 @@ derle() {  # derle <etiket> <sha>
 }
 derle A "$A_SHA"
 [ "${AB_KURU:-0}" = 1 ] || derle B "$B_SHA"
-SURUCU="$KOK/../okuyucu_ab_$A7"   # flutter drive'ın koştuğu proje (sürücü aynı dosya)
+SURUCU="$UST/okuyucu_ab_$A7"   # flutter drive'ın koştuğu proje (sürücü aynı dosya)
 
 # ── Ölçüm verisi (bir kez) ───────────────────────────────────────────────────
 veri() {
@@ -164,7 +166,7 @@ MD="docs/perf/$(date +%F)-ab-$A7-$B7.md"
 [ -f "$MD" ] || printf '# A/B ölçümü — %s (Mi Note 10 Lite, `tool/ab_olcum.sh`)\n' "$(date +%F)" > "$MD"
 set +e; "$PY" tool/ab_karar.py "$OUT/kosu" "$MD" "$A7" "$B7"; KOD=$?; set -e
 if [ "${AB_TUT:-0}" != 1 ]; then
-  for s in "$A7" "$B7"; do git worktree remove --force "$KOK/../okuyucu_ab_$s" 2>/dev/null || true; done
+  for s in "$A7" "$B7"; do git worktree remove --force "$UST/okuyucu_ab_$s" 2>/dev/null || true; done
 fi
 echo "tablo: $MD · ham: $OUT"
 exit $KOD
