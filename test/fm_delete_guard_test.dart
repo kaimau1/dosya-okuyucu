@@ -1,5 +1,7 @@
 import 'package:dosya_okuyucu/screens/fm/entry_actions.dart';
+import 'package:dosya_okuyucu/core/app_state.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// **Niye bu test var (2026-07-29 sadakat denetimi, 2. tur — CRITICAL):**
 /// Fotoğraflar ekranındaki "Temizle" kendi penceresinde *"çöp kutusuna
@@ -74,5 +76,19 @@ void main() {
       expect(deleteActionText(useTrash: false, what: '3 kopyayı'),
           isNot(contains('çöp')));
     });
+  });
+
+  /// Ferrari H7.4: geri alınabilen çöpe atmada varsayılan onay YOK ("Geri al"
+  /// kartı var); onayı açıkça açmış kullanıcının kaydı korunur.
+  test('çöpe atma onayı varsayılan kapalı, kayıtlı tercih korunur', () async {
+    SharedPreferences.setMockInitialValues({});
+    final fresh = AppState();
+    await fresh.init();
+    expect(fresh.fmConfirmDelete, isFalse);
+
+    SharedPreferences.setMockInitialValues({'fm_confirm_delete': true});
+    final kept = AppState();
+    await kept.init();
+    expect(kept.fmConfirmDelete, isTrue);
   });
 }

@@ -289,7 +289,12 @@ Koşullu öğeler olay yokken çizilmez. Yeni varsayılanla ilk ekran: **arama �
       (taranmış sayfa açıklaması durum bilgisi olduğundan her seferinde). Ayarlar › Hakkında › "İpuçlarını yeniden göster" hepsini + tarama
       rehberi sayacını sıfırlar. Tarama rehberi 3 kez kuralı (2026-10-18 kullanıcı şikâyetinden) KORUNDU — **sabah bakılacak**. Yapay zekâ
       sekmelerinin tek satır açıklaması (`_TabIntro`, 2026-11-07 kullanıcı isteği) ve boş durum metinleri ipucu sayılmadı. Test `test/once_hints_test.dart`.)*
-- [ ] H7.4 **Onay pencereleri:** geri alınabilen işlemde onay sorma, "Geri al" bildirimi ver (çöp kutusuna taşıma vb.). Geri alınamayanlarda onay kalır.
+- [x] H7.4 **Onay pencereleri:** geri alınabilen işlemde onay sorma, "Geri al" bildirimi ver (çöp kutusuna taşıma vb.). Geri alınamayanlarda onay kalır.
+      *(2026-11-14, oto P05: 55 `showAppConfirm` denetlendi. Ana kapı `deleteEntries` (gezgin, liste, seçim): çöpe atmada onay zaten ayara bağlıydı
+      ("Silmeden önce sor") ve "Geri al" kartı vardı — ayarın varsayılanı **KAPALI** yapıldı; açıkça açanın kaydı korunur. Kalıcı silme onayı
+      hiçbir koşulda atlanmaz (`needsDeleteConfirm`, bekçi test). Bilinçli kalanlar: toplu/algoritmanın seçtiği çöpe atmalar (benzer fotoğraf
+      "fazlaları sil", boyutlandırma "eskilerin hepsini çöpe at") — kullanıcı tek tek seçmediği için; slayt/sayfa/etiket/kategori silme ve
+      geri alınamayan işler (kalıcı silme, kasa, çöpü boşalt, karartma, sıkıştırma) onaylı.)*
 - [ ] H7.5 **Ayarlar:** en çok kullanılan 6 ayar üstte; gerisi başlıklı gruplarda; arama var (`settings_search.dart`).
 
 ---
