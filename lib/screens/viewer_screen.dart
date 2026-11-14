@@ -578,6 +578,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// kapalı (Faz 39) — okurken sayfa yana kaçmasın.
   bool _pdfScrollLock = false;
 
+  /// Geniş ekranda (≥ 840 dp) sayfa küçük resimleri şeridi açık mı?
+  /// Varsayılan KAPALI — içerik önce (Ferrari H1.3); tercih kalıcı.
+  bool _pdfSidePanel = false;
+
+  /// Yan şeridin kaydırması (güncel sayfayı izler).
+  final ScrollController _sidePanelScroll = ScrollController();
+
   /// Sesli okuma. Yalnız kullanıcı başlatınca kurulur (motor uyandırmayalım).
   TtsService? _tts;
   /// Eski Office dosyası dönüştürülüyor mu (şeritteki düğme kilitlensin).
@@ -833,6 +840,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _pdfSearcher
         ?.dispose(); // PdfViewerController = ValueListenable, dispose'suz
     _ocrSearch?.dispose();
+    _sidePanelScroll.dispose();
     _tts?.dispose(); // ekran kapanınca konuşma sürmesin
     // Geri yazma ARTIK BEKLENMEZ ve ana izleği dondurmaz: eskiden burada
     // büyük dosya eşzamanlı kopyalanıyordu (bkz. [SafeWrite]). İş kuyrukta

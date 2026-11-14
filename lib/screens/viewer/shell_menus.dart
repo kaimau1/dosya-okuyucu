@@ -41,6 +41,16 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
               icon: const Icon(AppIcons.toc),
               onPressed: _showOutline,
             ),
+          // Tablette sayfa küçük resimleri şeridi (Ferrari H1.3) — varsayılan
+          // kapalı, tercih kalıcı.
+          if (_wideForSidePanel)
+            IconButton(
+              key: const ValueKey('pdf-side-toggle'),
+              tooltip: context.t('vw.side_panel'),
+              isSelected: _pdfSidePanel,
+              icon: const Icon(AppIcons.thumbnails),
+              onPressed: _toggleSidePanel,
+            ),
           if (_hasUnsaved)
             IconButton(
               tooltip: context.t('vw.save_edits'),

@@ -283,6 +283,7 @@ const Map<String, (String, String, String)> _t2 = {
   'vw.speak': ('Sesli oku', 'Read aloud', 'قراءة صوتية'),
   'vw.speaking': ('Sesli okuma  {n} / {total}', 'Reading aloud  {n} / {total}', 'قراءة صوتية  {n} / {total}'),
   'vw.toc': ('İçindekiler', 'Contents', 'المحتويات'),
+  'vw.side_panel': ('Sayfa küçük resimleri', 'Page thumbnails', 'الصور المصغّرة للصفحات'),
   'vw.no_toc': ('Bu belgede içindekiler yok', 'This document has no contents', 'لا يحتوي هذا المستند على فهرس'),
   'vw.fill_form': ('Formu doldur', 'Fill form', 'تعبئة النموذج'),
   'vw.form_detected': (
