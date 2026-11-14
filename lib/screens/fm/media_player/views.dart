@@ -188,41 +188,10 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
                 Text(position, style: OverlayBar.subtitle(context)),
             ],
           ),
+          // Ferrari H11.1 (kullanıcı 2026-11-14: *"üst alanda çok karışık"*):
+          // 7 simge yan yana adı "VI 3…" diye eziyordu. Görünürde en sık
+          // ikisi (altyazı, hız) + ⋮; seyrek olanlar menüde, metinli.
           actions: [
-            if (!_isAudio) ...[
-              // **A-B tekrar** — aynı yeri defalarca izlemek (dil, gitar,
-              // spor) elle geri sarmakla yapılıyordu.
-              IconButton(
-                tooltip: context.t(switch (_p.loopStage) {
-                  0 => 'mp.loop_mark_a',
-                  1 => 'mp.loop_mark_b',
-                  _ => 'mp.loop_off',
-                }),
-                icon: Icon(
-                  _p.loopStage == 0 ? AppIcons.repeat : AppIcons.repeatOn,
-                  color: _p.loopStage == 0 ? null : AppHues.amberBright,
-                ),
-                onPressed: () {
-                  _p.markLoopPoint();
-                  _toast(context.t(switch (_p.loopStage) {
-                    1 => 'mp.loop_a_set',
-                    2 => 'mp.loop_on',
-                    _ => 'mp.loop_cleared',
-                  }));
-                  _scheduleHide();
-                },
-              ),
-              IconButton(
-                tooltip: context.t('mp.float_window'),
-                icon: const Icon(AppIcons.pictureInPictureAlt),
-                onPressed: _popOut,
-              ),
-              IconButton(
-                tooltip: context.t(_zoomFill ? 'mp.zoom_fit' : 'mp.zoom_fill'),
-                icon: Icon(_zoomFill ? AppIcons.fitScreen : AppIcons.cropFree),
-                onPressed: () => _partSetState(() => _zoomFill = !_zoomFill),
-              ),
-            ],
             if (!_isAudio) _subtitleMenu(),
             PopupMenuButton<double>(
               tooltip: context.t('mp.play_speed'),
@@ -236,25 +205,76 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
                   ),
               ],
             ),
-            IconButton(
-              tooltip: context.t('mp.open_with'),
-              icon: const Icon(AppIcons.openWith),
-              onPressed: () => EntryOpener.openExternally(context, _current),
-            ),
-            // İzlerken "bunu Önemli'ye taşıyayım" demek için oynatıcıyı
-            // kapatıp dosyayı listede aramak gerekmesin (istek 2026-07-29:
-            // "her türlü dosyada bu olmalı").
-            IconButton(
-              tooltip: context.t('mp.file_ops'),
-              icon: const Icon(AppIcons.more),
-              onPressed: () => showEntryActions(
-                context,
-                FsEntry.fromEntity(File(_current)),
-              ),
-            ),
+            _moreMenu(),
+          ],
           ],
         ),
       ),
+    );
+  }
+
+  /// Üst çubuğun ⋮ menüsü: A-B tekrar, yüzen pencere, doldur/sığdır
+  /// (video), birlikte aç, dosya işlemleri.
+  Widget _moreMenu() {
+    PopupMenuItem<String> item(String v, IconData icon, String label,
+            {Color? color}) =>
+        PopupMenuItem(
+          value: v,
+          child: Row(children: [
+            Icon(icon, size: AppIcons.small, color: color),
+            const SizedBox(width: Gap.md),
+            Expanded(child: Text(label)),
+          ]),
+        );
+    return PopupMenuButton<String>(
+      tooltip: context.t('mp.file_ops'),
+      icon: const Icon(AppIcons.more),
+      onOpened: _scheduleHide,
+      onSelected: (v) {
+        switch (v) {
+          case 'loop':
+            // **A-B tekrar** — aynı yeri defalarca izlemek (dil, gitar,
+            // spor) elle geri sarmakla yapılıyordu.
+            _p.markLoopPoint();
+            _toast(context.t(switch (_p.loopStage) {
+              1 => 'mp.loop_a_set',
+              2 => 'mp.loop_on',
+              _ => 'mp.loop_cleared',
+            }));
+            _scheduleHide();
+          case 'pip':
+            unawaited(_popOut());
+          case 'zoom':
+            _partSetState(() => _zoomFill = !_zoomFill);
+          case 'open':
+            unawaited(EntryOpener.openExternally(context, _current));
+          case 'ops':
+            // İzlerken "bunu Önemli'ye taşıyayım" demek için oynatıcıyı
+            // kapatıp dosyayı listede aramak gerekmesin (istek 2026-07-29).
+            unawaited(showEntryActions(
+                context, FsEntry.fromEntity(File(_current))));
+        }
+      },
+      itemBuilder: (_) => [
+        if (!_isAudio) ...[
+          item(
+            'loop',
+            _p.loopStage == 0 ? AppIcons.repeat : AppIcons.repeatOn,
+            context.t(switch (_p.loopStage) {
+              0 => 'mp.loop_mark_a',
+              1 => 'mp.loop_mark_b',
+              _ => 'mp.loop_off',
+            }),
+            color: _p.loopStage == 0 ? null : AppHues.amberBright,
+          ),
+          item('pip', AppIcons.pictureInPictureAlt,
+              context.t('mp.float_window')),
+          item('zoom', _zoomFill ? AppIcons.fitScreen : AppIcons.cropFree,
+              context.t(_zoomFill ? 'mp.zoom_fit' : 'mp.zoom_fill')),
+        ],
+        item('open', AppIcons.openWith, context.t('mp.open_with')),
+        item('ops', AppIcons.more, context.t('mp.file_ops')),
+      ],
     );
   }
 
