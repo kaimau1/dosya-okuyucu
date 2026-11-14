@@ -158,12 +158,13 @@ void main() {
     });
 
     test('döndürülen video düzenleme yoluna dönüşle gider', () async {
-      final e = VideoEdit.whole(60000).rotated();
+      final e = VideoEdit.whole(40000) // sahte probe 40 sn döner
+          .rotated();
       await VideoTranscoder.edit('/yok/a.mp4', e);
       final call = calls.firstWhere((c) => c.method == 'edit');
       expect(call.arguments['rotation'], 90);
       expect(call.arguments['pieces'],
-          [{'startMs': 0, 'endMs': 60000, 'mute': false}]);
+          [{'startMs': 0, 'endMs': 40000, 'mute': false}]);
       expect(calls.any((c) => c.method == 'trim'), isFalse);
     });
 
