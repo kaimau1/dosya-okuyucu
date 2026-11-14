@@ -16,6 +16,7 @@ Future<void> showDashboardLayoutSheet(
   BuildContext context, {
   required Map<String, LayoutRowInfo> tiles,
   required Map<String, LayoutRowInfo> sections,
+  VoidCallback? onNewCard,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -28,7 +29,12 @@ Future<void> showDashboardLayoutSheet(
       minChildSize: 0.4,
       maxChildSize: 0.95,
       builder: (context, scroll) =>
-          _LayoutSheet(tiles: tiles, sections: sections, scroll: scroll),
+          _LayoutSheet(
+        tiles: tiles,
+        sections: sections,
+        scroll: scroll,
+        onNewCard: onNewCard,
+      ),
     ),
   );
 }
@@ -38,10 +44,15 @@ class _LayoutSheet extends StatefulWidget {
   final Map<String, LayoutRowInfo> sections;
   final ScrollController scroll;
 
+  /// "Yeni kart" (2026-11-14 kullanıcı isteği: ana ekranda ayrı kutu değil,
+  /// burada düğme). Sayfa kapanır, düzenleyici açılır.
+  final VoidCallback? onNewCard;
+
   const _LayoutSheet({
     required this.tiles,
     required this.sections,
     required this.scroll,
+    this.onNewCard,
   });
 
   @override
@@ -107,6 +118,21 @@ class _LayoutSheetState extends State<_LayoutSheet> {
                   style:
                       text.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
             ),
+            if (_tilesTab && widget.onNewCard != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      widget.onNewCard!();
+                    },
+                    icon: const Icon(AppIcons.add),
+                    label: Text(context.t('card.new')),
+                  ),
+                ),
+              ),
             Expanded(
               child: ReorderableListView.builder(
                 onReorderStart: (_) => AppHaptics.selection(),

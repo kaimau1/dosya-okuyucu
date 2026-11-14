@@ -36,13 +36,16 @@ class SectionHeader extends StatelessWidget {
         children: [
           Text(
             title.toUpperCase(),
-            style: context.type.caption.copyWith(
-              height: 1.2,
-              letterSpacing: 1.1,
-              // ~.1em
-              fontWeight: FontWeight.w600,
-              color: faint,
-            ),
+            // 2026-11-14 kullanıcı isteği: biraz daha büyük ve kalın
+            // (caption + 2 pt, w800, soluk değil ikincil metin rengi).
+            style: context.type.caption
+                .copyWith(
+                  height: 1.2,
+                  letterSpacing: 1.0,
+                  fontWeight: FontWeight.w800,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                )
+                .apply(fontSizeDelta: 2),
           ),
           const SizedBox(width: Gap.sm),
           Expanded(

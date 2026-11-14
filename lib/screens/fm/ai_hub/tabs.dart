@@ -245,6 +245,7 @@ class _SuggestionsTabState extends State<_SuggestionsTab>
           child: AiFileList(
             records: pending,
             showSuggestion: true,
+            checkboxes: true,
             onApply: (selected) =>
                 confirmApplyAiSuggestions(context, selected),
           ),

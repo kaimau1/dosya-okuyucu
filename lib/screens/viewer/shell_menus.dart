@@ -128,14 +128,9 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
       // düzenleme çubuğunun sağ ucunun üstüne biniyordu ve "Uygula"ya basan
       // parmak aslında AI sohbetini açıyordu (kullanıcı 2026-09-24:
       // "uygulaya basmak işlevsiz"). Çubukta zaten "AI ile düzelt" var.
-      fab: _pdfBarShown || _pro != null || _editingText
-          ? null
-          : DocAiButton(
-              kind: doc.kind,
-              onPressed: _openChat,
-              tooltip:
-                  hasApiKey ? context.t('common.ai') : context.t('aikey.button_off'),
-            ),
+      // AI artık YÜZEN düğme değil, alt çubukta bir eylem (2026-11-14,
+      // kullanıcı: *"AI düğmesi ile sayfa sayısı üst üste biniyor, AI
+      // düğmesini alt panele al"*). Bkz. [_actionBar].
     );
   }
 
@@ -263,9 +258,14 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
         DocMoreGroup(context.t('dm.file'), [
           DocMoreItem(AppIcons.move, context.t('vw.file_ops'),
               _fileActions),
-          // Alt çubukta İndir varken Yazdır buraya iner (H11.2, en çok 5).
-          if (!isImage && showDownloadAction(doc.path))
+          // Yazdır buraya indi (2026-11-14): çubukta AI yer aldı (H11.2,
+          // en çok 5 eylem).
+          if (!isImage)
             DocMoreItem(AppIcons.print, context.t('vw.print'), _print),
+          // Alt çubukta İndir varken Çevir buraya iner (en çok 5).
+          if (showDownloadAction(doc.path))
+            DocMoreItem(AppIcons.translate, context.t('common.translate'),
+                _translateDocument),
           // Telefonun ana ekranına kısayol (2026-09-27).
           if (Platform.isAndroid)
             DocMoreItem(
@@ -517,18 +517,20 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
             _textFocus.requestFocus),
         DocAction(AppIcons.save, context.t('common.save'), _save),
       ],
-      DocAction(
-          AppIcons.translate, context.t('common.translate'), _translateDocument),
+      // AI (2026-11-14): yüzen düğmeden çubuğa — sayfa rozetinin üstüne
+      // binmiyor, her belgede aynı yerde.
+      DocAction(AppIcons.ai, context.t('common.ai'), _openChat),
+      // İndir varken Çevir "Daha fazla › Dosya"ya iner (en çok 5 eylem).
+      if (!showDownloadAction(widget.doc.path))
+        DocAction(AppIcons.translate, context.t('common.translate'),
+            _translateDocument),
       DocAction(AppIcons.share, context.t('common.share'), _share),
       // Başka uygulamadan açılan dosya özel önbellekte duruyor; paylaş
       // dolambacı olmadan İndirilenler'e (bkz. [SaveToDownloads]).
       if (showDownloadAction(widget.doc.path))
         DocAction(
             AppIcons.download, context.t('common.download'), _download),
-      // Ferrari H11.2: çubukta en çok 5 eylem — İndir geldiğinde Yazdır
-      // "Daha fazla › Dosya"ya geçer (çubuk kaydırma istemesin).
-      if (!isImage && !showDownloadAction(widget.doc.path))
-        DocAction(AppIcons.print, context.t('vw.print'), _print),
+      // Yazdır "Daha fazla › Dosya"da (2026-11-14: çubukta AI yer aldı).
     ]);
   }
 

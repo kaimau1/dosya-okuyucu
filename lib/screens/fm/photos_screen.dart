@@ -437,8 +437,11 @@ class _PhotosScreenState extends State<PhotosScreen>
                 controller: _scroll,
                 labelFor: _labelFor,
                 ticks: _timelineMode ? _yearTicks : null,
+                // Üst: yüzen başlığın (araç çubuğu + süzgeç çipleri)
+                // ALTINDAN başlar — tutamaç ⋮ ve çip düğmelerinin üstüne
+                // binmesin (2026-11-14 kullanıcı ekran görüntüsü).
                 padding: EdgeInsets.only(
-                  top: padding.top + 8,
+                  top: _appBarExtent + 8,
                   bottom: (_selecting ? _bottomSpacer : 16) + padding.bottom,
                 ),
               ),

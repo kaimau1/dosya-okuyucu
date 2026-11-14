@@ -204,6 +204,28 @@ abstract final class ThumbnailCache {
     return future;
   }
 
+  /// Diskte olduğu BİLİNEN video küçük resimleri (`yol|boy` → dosya) ve
+  /// boydan bağımsız son üretilen (2026-11-14, kullanıcı: *"sütun sayısı
+  /// değişirken anlık MP4 yazan önizleme görülüyor"*). Hücre yeniden
+  /// kurulunca eşzamanlı alınır; istenen boy yoksa eldeki öteki boy aşamalı
+  /// önizleme olarak gösterilir.
+  static final Map<String, String> _knownVideos = {};
+  static final Map<String, String> _anyVideos = {};
+
+  static String? knownVideo(String path, int size) =>
+      _knownVideos['$path|$size'];
+
+  static String? anyKnownVideo(String path) => _anyVideos[path];
+
+  static void _rememberVideo(String path, int size, String dest) {
+    if (_knownVideos.length >= cacheLimit * 2) {
+      _knownVideos.clear();
+      _anyVideos.clear();
+    }
+    _knownVideos['$path|$size'] = dest;
+    _anyVideos[path] = dest;
+  }
+
   static bool _always() => true;
 
   static bool _isWanted(String path) =>
@@ -253,6 +275,8 @@ abstract final class ThumbnailCache {
     _imagePruned = cacheDir != null;
     _knownImages.clear();
     _anyImages.clear();
+    _knownVideos.clear();
+    _anyVideos.clear();
   }
 
   /// Test kancası: üretimi yapan çağrı (eklenti yerine).
@@ -273,7 +297,10 @@ abstract final class ThumbnailCache {
       final name = cacheName(path, mtime, size);
       dest = p.join(dir.path, image ? 'q2_$name' : name);
       // Diskte varsa sıra beklemeden (üretim yok).
-      if (File(dest).existsSync()) return dest;
+      if (File(dest).existsSync()) {
+        if (!image) _rememberVideo(path, size, dest);
+        return dest;
+      }
     } catch (_) {
       _markFailed(path);
       return null;
@@ -297,6 +324,7 @@ abstract final class ThumbnailCache {
         _markFailed(path);
         return null;
       }
+      if (!image) _rememberVideo(path, size, dest);
       return dest;
     } catch (_) {
       _markFailed(path);

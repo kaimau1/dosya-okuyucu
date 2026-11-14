@@ -159,12 +159,19 @@ class AiFileList extends StatefulWidget {
   /// Dosya sistemi değişince (silme/taşıma) çağrılır — ekran listesini tazeler.
   final VoidCallback? onChanged;
 
+  /// Onay kutuları her zaman görünür + üstte "Tümünü seç" + öneri satırında
+  /// tek dokunuşla "Uygula" (2026-11-14, kullanıcı: *"önerileri tek tek ve
+  /// toplu seçim yapıp uygulama olsun"*). Eskiden seçim yalnız uzun basışla
+  /// açılıyordu, kimse bulamıyordu.
+  final bool checkboxes;
+
   const AiFileList({
     super.key,
     required this.records,
     this.showSuggestion = false,
     this.onApply,
     this.onChanged,
+    this.checkboxes = false,
   });
 
   @override
@@ -227,6 +234,29 @@ class _AiFileListState extends State<AiFileList> {
     }
     return Column(
       children: [
+        if (widget.checkboxes && !_selecting)
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(Gap.sm, 0, Gap.sm, 0),
+            child: Row(
+              children: [
+                TextButton.icon(
+                  key: const ValueKey('aif-select-all'),
+                  onPressed: () => setState(() =>
+                      _selected.addAll(widget.records.map((r) => r.path))),
+                  icon: const Icon(AppIcons.checkCircle),
+                  label: Text(context.t('aih.select_all')),
+                ),
+                const Spacer(),
+                Flexible(
+                  child: Text(context.t('aif.check_hint'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.type.small
+                          .copyWith(color: Paper.faint(context))),
+                ),
+              ],
+            ),
+          ),
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.only(bottom: Gap.xl),
@@ -286,7 +316,7 @@ class _AiFileListState extends State<AiFileList> {
     return ListTile(
       leading: FmSelectableIcon(
         entry: entry,
-        selecting: _selecting,
+        selecting: _selecting || widget.checkboxes,
         selected: picked,
         onCheck: () => _toggle(record),
       ),
@@ -312,13 +342,32 @@ class _AiFileListState extends State<AiFileList> {
       isThreeLine: lines.length > 1,
       trailing: _selecting
           ? null
-          : IconButton(
-              tooltip: context.t('fm.actions'),
-              icon: const Icon(AppIcons.more),
-              onPressed: () => widget.showSuggestion && record.hasSuggestion
-                  ? _suggestionMenu(record)
-                  : _openActions(entry),
-            ),
+          : widget.checkboxes && widget.showSuggestion && record.hasSuggestion
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      key: ValueKey('aif-apply-${record.path}'),
+                      tooltip: context.t('aih.apply_one'),
+                      color: theme.colorScheme.primary,
+                      icon: const Icon(AppIcons.check),
+                      onPressed: () =>
+                          confirmApplyAiSuggestions(context, [record]),
+                    ),
+                    IconButton(
+                      tooltip: context.t('fm.actions'),
+                      icon: const Icon(AppIcons.more),
+                      onPressed: () => _suggestionMenu(record),
+                    ),
+                  ],
+                )
+              : IconButton(
+                  tooltip: context.t('fm.actions'),
+                  icon: const Icon(AppIcons.more),
+                  onPressed: () => widget.showSuggestion && record.hasSuggestion
+                      ? _suggestionMenu(record)
+                      : _openActions(entry),
+                ),
       selected: picked,
       onTap: () => _selecting ? _toggle(record) : _open(record),
       onLongPress: () => _toggle(record),

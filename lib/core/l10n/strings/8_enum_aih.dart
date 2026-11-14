@@ -356,7 +356,8 @@ const Map<String, (String, String, String)> _t8 = {
   ),
 
   // ── AI Merkezi (toplu dosya analizi) ──────────────────────────────────────
-  'aih.title': ('AI Merkezi', 'AI Hub', 'مركز الذكاء الاصطناعي'),
+  // 2026-11-14 kullanıcı: "iyi bir isim ver, adı da ne iş yaptığını söylesin".
+  'aih.title': ('AI Dosya Asistanı', 'AI File Assistant', 'مساعد الملفات الذكي'),
   'aih.tab_analysis': ('Analiz', 'Analysis', 'التحليل'),
   'aih.tab_chat': ('Sohbet', 'Chat', 'محادثة'),
   'aih.analysis_what': (
