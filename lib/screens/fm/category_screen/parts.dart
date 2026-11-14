@@ -2,28 +2,19 @@ part of '../category_screen.dart';
 
 /// [_CategoryScreenState]'in çizim yardımcıları (A4.1 bölmesi, davranış aynı).
 extension _CategoryScreenStateParts on _CategoryScreenState {
-  /// "161 öğe · 220 MB"; süzgeç açıksa "42 / 161 öğe · 33 MB".
-  String _summary() {
+  PreferredSizeWidget _normalBar() {
     final shown = _sorted;
+    final theme = Theme.of(context);
     final bytes = _bytesOf(shown);
     final count = shown.length == _files.length
         ? context.t('lc.count', {'n': shown.length})
         : context.t('lc.count_of', {'n': shown.length, 'total': _files.length});
-    return bytes > 0 ? '$count · ${FsPaths.humanSize(bytes)}' : count;
-  }
-
-  PreferredSizeWidget _normalBar() {
-    final theme = Theme.of(context);
     return AppBar(
       // Başlık + **özet satırı** (2026-10-23 yeniden tasarım): "161 öğe ·
       // 220 MB"; süzgeç açıksa "42 / 161 öğe · 33 MB" — sayı artık listenin
       // üstündeki şeritte soluk bir yazı değil, ekranın kimliğinin parçası.
-      // Ferrari H4.2: liste en üstteyken başlık aşağıda İRİ yazıyla durur
-      // ([FmLargeTitle]); kaydırınca buraya küçülür.
       titleSpacing: 0,
-      title: FmCollapsedTitle(
-        collapsed: _titleCollapse,
-        child: Column(
+      title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -33,7 +24,7 @@ extension _CategoryScreenStateParts on _CategoryScreenState {
               style: theme.textTheme.titleLarge
                   ?.copyWith(fontWeight: FontWeight.w700)),
           Text(
-            _summary(),
+            bytes > 0 ? '$count · ${FsPaths.humanSize(bytes)}' : count,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodySmall?.copyWith(
@@ -42,7 +33,6 @@ extension _CategoryScreenStateParts on _CategoryScreenState {
             ),
           ),
         ],
-      ),
       ),
       actions: [
         IconButton(
