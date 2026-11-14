@@ -25,6 +25,7 @@ import 'help_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'settings_widgets.dart';
 import '../../core/snack.dart';
+import '../../core/once_hints.dart';
 import '../../core/app_version.dart';
 import '../../core/device_profile.dart';
 
@@ -363,6 +364,25 @@ class HelpTile extends StatelessWidget {
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute<void>(builder: (_) => const HelpScreen()),
         ),
+      );
+}
+
+/// "İpuçlarını yeniden göster" (Ferrari H7.3): bir kez gösterilen ipuçları
+/// ([OnceHints]) ve tarama rehberi yeniden çıkar.
+class HintsResetTile extends StatelessWidget {
+  const HintsResetTile({super.key});
+
+  @override
+  Widget build(BuildContext context) => SettingTile(
+        icon: AppIcons.lightbulbOutline,
+        title: context.t('set.hints_reset'),
+        subtitle: context.t('set.hints_reset_sub'),
+        wrapSubtitle: true,
+        onTap: () async {
+          final done = context.t('set.hints_reset_done');
+          await OnceHints.resetAll();
+          if (context.mounted) showSnack(context, done);
+        },
       );
 }
 

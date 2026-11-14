@@ -283,7 +283,12 @@ Koşullu öğeler olay yokken çizilmez. Yeni varsayılanla ilk ekran: **arama �
       | Öğretici başarı ("Kaydedildi. Kalıcı yer için…", PDF düzenle "dokun, yaz", biçim boyacısı) | 6 | 3 sn | H7.3: bir kez |
       | Pano "kopyalandı" | ~12 | 3 sn | kalır — Android 13+ sistem de gösterir ama MIUI'de göstermeyebilir; SDK denetimi yerel kanal ister (**sabah bakılacak**, `KONTROL_LISTEM.md`) |
 - [ ] H7.2 **Menü envanteri:** her ⋮ menüsü ve alt levha için madde sayısı. > 6 ise: sık kullanılan 5 + "Diğer". Sıra: kullanım sıklığı (👤 kullanıcıya liste gösterilip onay alınır).
-- [ ] H7.3 **İpuçları bir kez:** her ipucu/keşif balonu tek sefer gösterilir (`SharedPreferences` bayrağı), ayarlarda "İpuçlarını sıfırla".
+- [x] H7.3 **İpuçları bir kez:** her ipucu/keşif balonu tek sefer gösterilir (`SharedPreferences` bayrağı), ayarlarda "İpuçlarını sıfırla".
+      *(2026-11-14, oto P05: `lib/core/once_hints.dart` (`hint_once.<id>` bayrağı) — düzenleyicilerde "Kaydedildi. Kalıcı yer için ⋮ >
+      Paylaş/Dışa aktar." ilk kayıtta bir kez, sonra yalnız "Kaydedildi"; PDF düzenle "dokun, yaz" ve Excel biçim boyacısı ipucu bir kez
+      (taranmış sayfa açıklaması durum bilgisi olduğundan her seferinde). Ayarlar › Hakkında › "İpuçlarını yeniden göster" hepsini + tarama
+      rehberi sayacını sıfırlar. Tarama rehberi 3 kez kuralı (2026-10-18 kullanıcı şikâyetinden) KORUNDU — **sabah bakılacak**. Yapay zekâ
+      sekmelerinin tek satır açıklaması (`_TabIntro`, 2026-11-07 kullanıcı isteği) ve boş durum metinleri ipucu sayılmadı. Test `test/once_hints_test.dart`.)*
 - [ ] H7.4 **Onay pencereleri:** geri alınabilen işlemde onay sorma, "Geri al" bildirimi ver (çöp kutusuna taşıma vb.). Geri alınamayanlarda onay kalır.
 - [ ] H7.5 **Ayarlar:** en çok kullanılan 6 ayar üstte; gerisi başlıklı gruplarda; arama var (`settings_search.dart`).
 

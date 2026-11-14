@@ -17,7 +17,11 @@ extension _SpreadsheetProFormatPart on _SpreadsheetEditorScreenState {
     final r = _range;
     _partSetState(() => _painter =
         (r.top, r.left, r.bottom - r.top + 1, r.right - r.left + 1));
-    _snack(context.t('xp.painter_hint'));
+    // H7.3: nasıl kullanılacağı ipucu bir kez.
+    final hint = context.t('xp.painter_hint');
+    unawaited(OnceHints.take('format_painter').then((first) {
+      if (first && mounted) _snack(hint);
+    }));
   }
 
   /// Boyacı açıkken hücreye dokunuş: kaynak bloğun biçimi (r,c)'den

@@ -404,6 +404,9 @@ const Map<String, (String, String, String)> _t9 = {
     'Permissions, vault PIN, network sharing, AI key',
     'الأذونات، رمز الخزنة، المشاركة عبر الشبكة، مفتاح الذكاء الاصطناعي',
   ),
+  'set.hints_reset': ('İpuçlarını yeniden göster', 'Show tips again', 'إظهار التلميحات مجددًا'),
+  'set.hints_reset_sub': ('Bir kez gösterilen ipuçları ve rehberler yeniden çıkar', 'Tips and guides shown once will appear again', 'ستظهر التلميحات والأدلة التي عُرضت مرة واحدة من جديد'),
+  'set.hints_reset_done': ('İpuçları yeniden gösterilecek', 'Tips will be shown again', 'ستُعرض التلميحات مجددًا'),
   'help.permissions_q': ('Uygulama hangi izinleri neden istiyor?', 'Which permissions does the app need, and why?', 'ما الأذونات التي يحتاجها التطبيق ولماذا؟'),
   'help.permissions_a': (
     'Her izin tek bir iş için istenir; vermezseniz yalnız o iş kısıtlanır. Durumları aşağıda görüp buradan açabilirsiniz.',

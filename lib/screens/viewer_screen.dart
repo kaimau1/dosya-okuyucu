@@ -112,6 +112,7 @@ import 'pdf_sign_screen.dart';
 import 'pdf_editor_screen.dart';
 import 'pdf_tools_screen.dart';
 import '../core/snack.dart';
+import '../core/once_hints.dart';
 import '../core/safe_insets.dart';
 import '../core/user_error.dart';
 import '../core/l10n/app_language.dart';

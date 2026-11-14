@@ -111,7 +111,15 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
       }
     }
     if (!mounted || _pro != pro) return;
-    _snack(blocks != null && blocks.isEmpty ? scanned : tap);
+    // Taranmış sayfa açıklaması her seferinde (durum bilgisi); "dokun, yaz"
+    // ipucu yalnız ilk kez (H7.3).
+    if (blocks != null && blocks.isEmpty) {
+      _snack(scanned);
+      return;
+    }
+    if (!await OnceHints.take('pdf_edit_tap')) return;
+    if (!mounted || _pro != pro) return;
+    _snack(tap);
   }
 
   /// Oturumu kapatır ve okuma kipine döner. Bu oturumda özgünün üstüne

@@ -71,7 +71,10 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
     final ok = await _session.saveNow();
     if (!mounted) return;
     if (ok) {
-      showSnack(context, context.t('common.saved_hint'));
+      // H7.3: "kalıcı yer için…" ipucu bir kez; sonra yalnız "Kaydedildi".
+      final where = await OnceHints.take('save_where');
+      if (!mounted) return;
+      showSnack(context, context.t(where ? 'common.saved_hint' : 'common.saved'));
       _partSetState(() {});
     } else {
       _snack(AppStrings.current.t('common.save_failed',
