@@ -8,6 +8,7 @@ import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/snack.dart';
+import '../../core/tablet.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
@@ -91,6 +92,7 @@ class _DualPaneScreenState extends State<DualPaneScreen> {
   late final DualPaneModel _m = DualPaneModel(widget.left, widget.right);
   bool _busy = false;
   late final String _floor = FsScanRoots.floorOf(widget.left);
+  final _paneKeys = [GlobalKey(), GlobalKey()];
 
   @override
   void initState() {
@@ -153,6 +155,15 @@ class _DualPaneScreenState extends State<DualPaneScreen> {
     unawaited(_load(pane));
   }
 
+  /// **Sürükle-bırak** (Ferrari H9.5, yalnız tablet): seçili satırın tutamacı
+  /// karşı bölmeye bırakılınca seçim oraya KOPYALANIR (taşıma değil — en
+  /// güvenli; taşımak için "Taşı" düğmesi). Başka uygulamaya bırakma yok
+  /// (sistem sürükle-bırakı için eklenti gerekir).
+  void _drop(int from) {
+    setState(() => _m.active = from);
+    unawaited(_transfer(move: false));
+  }
+
   Future<void> _transfer({required bool move}) async {
     if (!_m.canTransfer() || _busy) return;
     final src = _m.current, dest = _m.other;
@@ -186,8 +197,10 @@ class _DualPaneScreenState extends State<DualPaneScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final wide = MediaQuery.sizeOf(context).width >= 600;
-    final panes = [_pane(0), _pane(1)];
+    final size = MediaQuery.sizeOf(context);
+    final wide = size.width >= 600;
+    final drag = isTabletWide(size);
+    final panes = [_pane(0, drag: drag), _pane(1, drag: drag)];
     return Scaffold(
       appBar: AppBar(
         title: Text(context.t('dp.title')),
@@ -250,10 +263,33 @@ class _DualPaneScreenState extends State<DualPaneScreen> {
     );
   }
 
-  Widget _pane(int index) {
+  Widget _pane(int index, {required bool drag}) {
     final pane = index == 0 ? _m.a : _m.b;
     final active = _m.active == index;
     final scheme = Theme.of(context).colorScheme;
+    // GlobalKey: tablet döndürülünce bırakma hedefi gelip gider; bölme
+    // (kaydırma konumu) yeniden kurulmasın (H9.2).
+    final body = KeyedSubtree(
+      key: _paneKeys[index],
+      child: _paneBody(index, pane, active, scheme, drag: drag),
+    );
+    if (!drag) return body;
+    return DragTarget<int>(
+      onWillAcceptWithDetails: (d) => d.data != index,
+      onAcceptWithDetails: (d) => _drop(d.data),
+      builder: (context, cand, _) => cand.isEmpty
+          ? body
+          : DecoratedBox(
+              position: DecorationPosition.foreground,
+              decoration: BoxDecoration(
+                  border: Border.all(color: scheme.primary, width: 2)),
+              child: body,
+            ),
+    );
+  }
+
+  Widget _paneBody(int index, PaneState pane, bool active, ColorScheme scheme,
+      {required bool drag}) {
     return Material(
       key: ValueKey('dp-pane-$index'),
       color: active ? scheme.surfaceContainerLow : scheme.surface,
@@ -317,7 +353,11 @@ class _DualPaneScreenState extends State<DualPaneScreen> {
                           leading: FmEntryIcon(entry: e, size: 36),
                           title: Text(e.name,
                               maxLines: 1, overflow: TextOverflow.ellipsis),
-                          trailing: sel ? const Icon(AppIcons.check) : null,
+                          trailing: !sel
+                              ? null
+                              : drag
+                                  ? _dragHandle(index, pane, e)
+                                  : const Icon(AppIcons.check),
                           onTap: () => _open(index, e),
                           onLongPress: () => _toggle(index, e),
                         ),
@@ -329,6 +369,22 @@ class _DualPaneScreenState extends State<DualPaneScreen> {
       ),
     );
   }
+
+  Widget _dragHandle(int index, PaneState pane, FsEntry e) => Draggable<int>(
+        key: ValueKey('dp-drag-${e.path}'),
+        data: index,
+        onDragStarted: () => setState(() => _m.active = index),
+        feedback: Material(
+          elevation: 4,
+          shape: const StadiumBorder(),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+                horizontal: Gap.md, vertical: Gap.sm),
+            child: Text(context.t('dp.selected', {'n': pane.selected.length})),
+          ),
+        ),
+        child: const Icon(AppIcons.dragHandle),
+      );
 }
 
 /// Bölmenin çıkabileceği en üst klasör: dosyanın bulunduğu birimin kökü.
