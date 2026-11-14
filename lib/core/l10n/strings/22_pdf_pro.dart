@@ -303,4 +303,8 @@ const Map<String, (String, String, String)> _t22 = {
   'pp.image_zoom': ('Görseli büyüt', 'Enlarge image', 'تكبير الصورة'),
   'pp.image_zoom_hint': ('Siyah zeminde tam ekran; aşağı çekince kapanır', 'Full screen on black; pull down to close', 'ملء الشاشة على خلفية سوداء؛ اسحب للأسفل للإغلاق'),
   'pp.image_zoom_failed': ('Görsel açılamadı', 'Could not open the image', 'تعذّر فتح الصورة'),
+  'pp.crop_margins': ('Kenar boşluklarını kırp', 'Crop margins', 'قص الهوامش'),
+  'pp.crop_margins_hint': ('Yazı ekranı doldurur; bu belge için hatırlanır', 'Text fills the screen; remembered for this document', 'يملأ النص الشاشة؛ يُحفظ لهذا المستند'),
+  'pp.crop_one_column': ('Yalnız tek sütun görünümünde', 'Only in single-column view', 'في عرض العمود الواحد فقط'),
+  'pp.crop_none': ('Kırpılacak boşluk bulunamadı', 'No margins to crop', 'لا توجد هوامش لقصّها'),
 };

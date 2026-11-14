@@ -125,7 +125,11 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         // atlıyordu, HAFIZA 2026-10-23 (14)).
                         layoutPages: (pages, params) => _insetPdfLayout(
                           _pdfColumns == 1
-                              ? _plainPdfLayout(pages, params)
+                              // Kenar boşluğu kırpma (H3.4) yalnız tek sütunda.
+                              ? (_pdfCrop == null
+                                  ? _plainPdfLayout(pages, params)
+                                  : PdfMarginCropper.layout(
+                                      pages, params.margin, _pdfCrop!))
                               : _pdfColumns == kPdfBookLayout
                                   ? _layoutPdfBook(pages, params)
                                   : _layoutPdfColumns(pages, params),

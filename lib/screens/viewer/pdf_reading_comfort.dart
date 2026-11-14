@@ -1,7 +1,7 @@
 part of '../viewer_screen.dart';
 
 /// **PDF okuma konforu** (Ferrari H3, 2026-11-14): çift dokunma, akıllı
-/// yakınlaştırma, görsel kipi. Hesap saf serviste ([PdfReadingZoom]); sayfa nesneleri
+/// yakınlaştırma, görsel kipi, kenar boşluğu kırpma. Hesap saf serviste ([PdfReadingZoom]); sayfa nesneleri
 /// PDF Pro'nun okumasından ([PdfEditBridge.content]) — yeniden yazılmadı.
 /// Burada yalnız görüntüleyiciye bağlantı.
 extension _ViewerScreenPdfComfortPart on _ViewerScreenState {
@@ -176,5 +176,50 @@ extension _ViewerScreenPdfComfortPart on _ViewerScreenState {
         page, region,
         screenLongPx: screenLong,
         nativePx: math.max(item.pixelWidth, item.pixelHeight))));
+  }
+
+  /// **Kenar boşluğu kırpma** (H3.4) aç/kapa. Açarken ilk sayfalar düşük
+  /// çözünürlükte taranır ([PdfMarginCropper.estimate]); paylar belge başına
+  /// saklanır. Düzen değişince belge genişliğe sığdırılır (metin ekranı
+  /// doldursun). Kırpacak boşluk yoksa söylenir, kapalı kalır.
+  Future<void> _setMarginCrop(bool on) async {
+    final path = widget.doc.path;
+    if (!on) {
+      _partSetState(() => _pdfCrop = null);
+      unawaited(PdfZoomMemory.recordCrop(path, null));
+      _refitAfterLayout();
+      return;
+    }
+    final doc = _pdfDoc;
+    if (doc == null || _pdfCropBusy) return;
+    _partSetState(() => _pdfCropBusy = true);
+    PdfMarginCrop? crop;
+    try {
+      crop = await PdfMarginCropper.estimate(doc);
+    } catch (_) {
+      // Bilinçli: tarama çizilemedi (belge kapandı/yeniden yüklendi).
+      crop = null;
+    }
+    if (!mounted) return;
+    _partSetState(() {
+      _pdfCropBusy = false;
+      _pdfCrop = crop;
+    });
+    if (crop == null) {
+      _snack(context.t('pp.crop_none'));
+      return;
+    }
+    unawaited(PdfZoomMemory.recordCrop(path, crop.toList()));
+    _refitAfterLayout();
+  }
+
+  /// Yeni düzen kurulduktan sonra genişliğe sığdır, yakınlığı sakla.
+  void _refitAfterLayout() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_fitPdfWidth().then((_) {
+        if (mounted) _recordPdfZoom();
+      }));
+    });
   }
 }

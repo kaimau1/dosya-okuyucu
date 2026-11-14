@@ -639,6 +639,29 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                           value: _pdfScrollLock,
                           onChanged: (v) => apply(() => _pdfScrollLock = v),
                         ),
+                        // Kenar boşluğu kırpma (Ferrari H3.4): tek sütunda;
+                        // tercih belge başına.
+                        if (_isPdf)
+                        SwitchListTile(
+                          key: const ValueKey('pdf-margin-crop'),
+                          secondary: const Icon(AppIcons.cropFree),
+                          title: Text(context.t('pp.crop_margins')),
+                          subtitle: Text(context.t(_pdfColumns == 1
+                              ? 'pp.crop_margins_hint'
+                              : 'pp.crop_one_column')),
+                          value: _pdfCrop != null,
+                          onChanged: _pdfColumns != 1 ||
+                                  _pdfCropBusy ||
+                                  _pdfDoc == null
+                              ? null
+                              : (v) {
+                                  final sheet = context;
+                                  unawaited(_setMarginCrop(v).then((_) {
+                                    if (sheet.mounted) setSheet(() {});
+                                  }));
+                                  setSheet(() {});
+                                },
+                        ),
                         // Okuma yardımcıları (Faz 48) — pdf_reading_aids.dart.
                         if (_isPdf)
                         SwitchListTile(

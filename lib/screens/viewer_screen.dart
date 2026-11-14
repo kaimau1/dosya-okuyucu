@@ -67,6 +67,7 @@ import '../services/pdf/page_arrival.dart';
 import '../services/pdf/pdf_form.dart';
 import '../services/pdf/pdf_ocr_search.dart';
 import '../services/pdf/pdf_reading_zoom.dart';
+import '../services/pdf/pdf_margin_crop.dart';
 import '../services/pdf_annotator.dart';
 import '../services/pdf_notes.dart';
 import '../services/pdf_reload.dart';
@@ -477,6 +478,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
   final Map<int, PdfPageContent> _comfortContent = {};
   PdfDocument? _comfortDoc;
 
+  /// Kenar boşluğu kırpma payları (H3.4; null = kapalı). Belge başına
+  /// [PdfZoomMemory]'de; açılışta görüntüleyici kurulmadan okunur.
+  PdfMarginCrop? _pdfCrop;
+  bool _pdfCropBusy = false;
+
   /// Önceki matris (PDF kaydırma yönünü çıkarmak için).
   double? _pdfLastTy;
   double? _pdfLastZoom;
@@ -717,6 +723,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
   }
 
   void _applyResumePage() {
+    // Kırpma tercihi de görüntüleyici kurulmadan bilinmeli (düzen ilk karede
+    // kırpılmış kurulsun — sonradan değişirse sayfa yerinden oynardı).
+    _pdfCrop = PdfMarginCrop.fromList(PdfZoomMemory.cropOf(widget.doc.path));
     final page = ReadingPositions.pageOf(widget.doc.path, size: _docSize);
     if (page == null || page <= 1) return;
     _pdfPage = page;
