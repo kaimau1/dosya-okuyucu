@@ -39,4 +39,36 @@ void main() {
     await AppHaptics.load();
     expect(AppHaptics.enabled.value, isFalse);
   });
+
+  // Ferrari H6.1: LongPressDraggable'ın kendi titreşimi ayarı dinlemez.
+  test('bekçi: LongPressDraggable kendi titreşimini kapatır', () {
+    final bad = <String>[];
+    for (final f in Directory('lib').listSync(recursive: true)) {
+      if (f is! File || !f.path.endsWith('.dart')) continue;
+      final src = f.readAsStringSync();
+      final uses = 'LongPressDraggable<'.allMatches(src).length;
+      final off = 'hapticFeedbackOnStart: false'.allMatches(src).length;
+      if (uses > off) bad.add(f.path);
+    }
+    expect(bad, isEmpty);
+  });
+
+  test('kaydırıcı sarmalayıcı yalnız kademe değişince titreşir', () async {
+    SharedPreferences.setMockInitialValues({});
+    final calls = <MethodCall>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (c) async {
+      calls.add(c);
+      return null;
+    });
+    await AppHaptics.setEnabled(true);
+    final got = <double>[];
+    expect(AppHaptics.slider(1, null), isNull);
+    final cb = AppHaptics.slider(1, got.add)!;
+    cb(1);
+    expect(calls, isEmpty);
+    cb(1.5);
+    expect(calls.where((c) => c.method == 'HapticFeedback.vibrate'), hasLength(1));
+    expect(got, [1, 1.5]);
+  });
 }

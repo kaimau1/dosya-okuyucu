@@ -8,13 +8,8 @@ extension _BrowserScreenViewsPart on _BrowserScreenState {
     final appState = context.watch<AppState>();
     final starred = appState.isBookmarked(widget.path);
     return AppBar(
-      // Ferrari H4.2: en üstte başlık listenin üstünde İRİ ([FmLargeTitle]);
-      // kaydırınca buraya küçülür.
-      title: FmCollapsedTitle(
-        collapsed: _titleCollapse,
-        child: Text(widget.title ?? p.basename(widget.path),
-            maxLines: 1, overflow: TextOverflow.ellipsis),
-      ),
+      title: Text(widget.title ?? p.basename(widget.path),
+          maxLines: 1, overflow: TextOverflow.ellipsis),
       actions: [
         IconButton(
           tooltip: context.t('fm.search_here'),
@@ -148,7 +143,10 @@ extension _BrowserScreenViewsPart on _BrowserScreenState {
       leading: IconButton(
         tooltip: context.t('common.clear_selection'),
         icon: const Icon(AppIcons.close),
-        onPressed: () => _partSetState(_selected.clear),
+        onPressed: () {
+          AppHaptics.selection();
+          _partSetState(_selected.clear);
+        },
       ),
       // **Seçimin toplam boyutu** (2026-09-04): "12 dosya seçtim, USB'ye
       // sığar mı?" sorusunun cevabı hiçbir yerde yoktu; kullanıcı dosyaları

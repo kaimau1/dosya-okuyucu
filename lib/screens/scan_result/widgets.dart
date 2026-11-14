@@ -430,9 +430,14 @@ class _GridPageTile extends StatelessWidget {
         );
     return DragTarget<int>(
       onWillAcceptWithDetails: (d) => enabled && d.data != index,
-      onAcceptWithDetails: (d) => onMove(d.data),
+      onAcceptWithDetails: (d) {
+        AppHaptics.step();
+        onMove(d.data);
+      },
       builder: (context, candidates, _) => LongPressDraggable<int>(
         data: index,
+        hapticFeedbackOnStart: false,
+        onDragStarted: AppHaptics.selection,
         maxSimultaneousDrags: enabled ? 1 : 0,
         feedback: Material(
           color: Colors.transparent,
@@ -447,14 +452,14 @@ class _GridPageTile extends StatelessWidget {
             color: scheme.surfaceContainerHigh,
           ),
         ),
-        child: GestureDetector(
+        child: PressScale(child: GestureDetector(
           onTap: onOpen,
           child: AnimatedScale(
             duration: Motion.of(context, Motion.short),
             scale: candidates.isNotEmpty ? 0.94 : 1,
             child: card(),
           ),
-        ),
+        )),
       ),
     );
   }

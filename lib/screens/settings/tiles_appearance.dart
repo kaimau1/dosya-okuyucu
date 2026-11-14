@@ -138,7 +138,7 @@ class UiTextSizeTile extends StatelessWidget {
                   max: 2.0,
                   divisions: 23,
                   label: '%${(appState.uiTextScale * 100).round()}',
-                  onChanged: appState.setUiTextScale,
+                  onChanged: AppHaptics.slider(appState.uiTextScale, appState.setUiTextScale),
                 ),
               ),
               Text('%${(appState.uiTextScale * 100).round()}',

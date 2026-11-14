@@ -63,13 +63,17 @@ extension _SpreadsheetEditorScreenSheetTabsPart on _SpreadsheetEditorScreenState
       onWillAcceptWithDetails: (d) => d.data != sheet,
       onAcceptWithDetails: (d) {
         final to = _editor?.sheets.indexOf(sheet) ?? -1;
-        if (to >= 0) _moveSheet(d.data, to);
+        if (to < 0) return;
+        AppHaptics.step();
+        _moveSheet(d.data, to);
       },
       builder: (context, cand, _) => LongPressDraggable<XlsxSheet>(
         key: ValueKey('sheet-tab-${sheet.name}'),
         data: sheet,
-        hapticFeedbackOnStart: true,
+        // Ayarlardaki titreşim anahtarına uysun diye kendi titreşimimiz.
+        hapticFeedbackOnStart: false,
         onDragStarted: () {
+          AppHaptics.selection();
           start = null;
           moved = 0;
         },

@@ -339,7 +339,7 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                             max: 32,
                             divisions: 22,
                             label: '${_fontSize.round()}',
-                            onChanged: (v) => apply(() => _fontSize = v),
+                            onChanged: AppHaptics.slider(_fontSize, (v) => apply(() => _fontSize = v)),
                           ),
                         ),
                         IconButton(

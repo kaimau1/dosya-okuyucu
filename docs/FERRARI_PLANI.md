@@ -197,7 +197,7 @@ PDF'te çift dokunma **yok gibi — doğrula**), `lib/widgets/pdf_page_navigator
 
 - [x] H4.1 (2026-11-14: 52 dp, `titleMedium`, bilgi solda/boyut sağda, ≥ 64/72 dp; bölücü eklenmedi — satırlarda yoktu) **Satır ölçüsü:** küçük resim 48–56 dp, ad `titleMedium` tek/iki satır, altında ikincil satır (tarih solda, boyut sağda hizalı),
       satır yüksekliği ≥ 64 dp (≥ 840 dp'de 72). İnce bölücü yalnız metin hizasından başlar. Tek kaynak: `fm_entry_tiles.dart`.
-- [x] H4.2 (2026-11-14: `FmLargeTitle` + `FmTitleCollapse`; eşikle katlanır — sürekli değil, liste dışında olduğu için; kategori + klasör) **Büyük başlık:** kategori/klasör ekranında büyük başlık + toplam boyut; kaydırınca üst çubuğa küçülür (`SliverAppBar` büyük başlık düzeni).
+- [x] H4.2 (**KALDIRILDI 2026-11-14, kullanıcı: "önce büyük başlık sonra üste çıkmaz, gereksiz"** — başlık + özet yeniden yalnız üst çubukta; eski not:) (2026-11-14: `FmLargeTitle` + `FmTitleCollapse`; eşikle katlanır — sürekli değil, liste dışında olduğu için; kategori + klasör) **Büyük başlık:** kategori/klasör ekranında büyük başlık + toplam boyut; kaydırınca üst çubuğa küçülür (`SliverAppBar` büyük başlık düzeni).
 - [—] H4.3 (2026-11-14 kullanıcı: *"filtreler mantık olarak bizimki kalsın"* → uygulanmaz) **Tür çipleri:** kategori ekranında `Tümü` + o kategoride gerçekten bulunan türler (PDF, DOC, XLS, PPT …), tek satır, yatay kaydırılır,
       seçili çip dolu vurgu. Mevcut `fm_type_chips.dart`/`fm_quick_filters.dart` **sadeleştirilir** (yenisi yazılmaz). Kullanıcı: "filtrelerini daha çok beğendim".
 - [—] H4.4 (aynı kullanıcı kararı: sıralama/süzgeç "Analiz ve diğer" hapında kalır) **Sıralama satırı:** çiplerin altında solda görünüm seçici ("Liste / Izgara / Ayrıntı"), sağda "Sırala: Tarih ▾" + yön oku. Tek dokunuşla yön değişir (§2 işlem 8).
@@ -235,14 +235,32 @@ Koşullu öğeler olay yokken çizilmez. Yeni varsayılanla ilk ekran: **arama �
 
 **Önce bak:** `lib/core/motion.dart`, `lib/core/page_transitions.dart`, `lib/core/app_haptics.dart` (18 dosyada kullanılıyor), `lib/widgets/motion.dart`.
 
-- [ ] H6.1 **Titreşim kapsamı:** `AppHaptics` çağrılmayan şu yerleri tamamla: seçim başlat/bitir, sürükle-bırak al/bırak, silme onayı (`destructive`),
+- [x] H6.1 **Titreşim kapsamı:** `AppHaptics` çağrılmayan şu yerleri tamamla: seçim başlat/bitir, sürükle-bırak al/bırak, silme onayı (`destructive`),
       iş bitti (`done`), kaydırıcı/tutamaç kademeleri (`step`), sayfa sonu. Liste: `grep -rL "AppHaptics" lib/screens lib/widgets` ile eksikleri çıkar.
-- [ ] H6.2 **Basma hâli:** dokunulabilir her yüzeyde `InkWell`/basma ölçeği (0,98) — basılınca tepki ≤ 100 ms. Çıplak `GestureDetector` satırlarını bul, düzelt.
-- [ ] H6.3 **Açılış geçişi:** dosya satırı → görüntüleyici: küçük resimden büyüyen kapsayıcı geçişi (`Hero` ya da `OpenContainer` benzeri el yapımı; yeni paket ekleme).
+      *(2026-11-14: seçim dokunuşu/kapatma + sürükleyerek seçimde her yeni öğe; 7 yeniden sıralama listesi + 3 `LongPressDraggable` (kendi
+      ayarsız titreşimi kapatıldı, bekçi test); yıkıcı onay `showAppConfirm` tek kapı; iş bitti `JobNotifications.onFinished`; kademeli
+      kaydırıcılar `AppHaptics.slider`. Sayfa sonu: PDF sayfa seçici/gezinme zaten `step` — ayrı "son sayfa" titreşimi eklenmedi.)*
+- [x] H6.2 **Basma hâli:** dokunulabilir her yüzeyde `InkWell`/basma ölçeği (0,98) — basılınca tepki ≤ 100 ms. Çıplak `GestureDetector` satırlarını bul, düzelt.
+      *(2026-11-14: kitaplık kapakları, Fotoğraflar karesi, Benzer görseller, galeri şeridi, tarama sayfa kartı → `PressScale` (70 ms). Kalan
+      çıplak `GestureDetector`ler düzenleyici kanvasları (hücre, slayt nesnesi, PDF katmanı) — basma ölçeği orada yanlış olur, bilinçli dışarıda.
+      `PressScale` süreleri `Motion.of`'a bağlandı.)*
+- [x] H6.3 **Açılış geçişi:** dosya satırı → görüntüleyici: küçük resimden büyüyen kapsayıcı geçişi (`Hero` ya da `OpenContainer` benzeri el yapımı; yeni paket ekleme).
       Geri dönüşte aynı satıra küçülür. `Motion.reduced` açıkken düz geçiş.
+      *(2026-11-14: GÖRSEL için yapıldı — `FmFileListView` satır/ızgara → galeri Hero (`fmMediaHeroTag`). PDF/Office görüntüleyicisine kapsayıcı
+      geçişi YAPILMADI: açılış hissi H1.4 cihaz ölçümüne bağlı (ağır ilk kare + büyüme animasyonu takılma riski); H11.3 ile birlikte ele alınacak.)*
 - [ ] H6.4 **Liste değişimleri:** silme/taşıma sonrası satır `Motion.short` ile kapanır; yeni gelen satır belirir (2.000+ öğede kapalı — ölç).
-- [ ] H6.5 **Levhalar:** tüm alt levhalar aynı köşe, aynı tutamaç, aynı açılış eğrisi (`app_action_sheet.dart` tek kaynak; ham `showModalBottomSheet` tavanını düşür).
-- [ ] H6.6 **Öngörülü geri:** Android 14+ geri hareketi önizlemesi tüm ana rotalarda (manifest `enableOnBackInvokedCallback` + `PopScope` denetimi; `ci/AndroidManifest.xml`).
+      *Yapılmadı (2026-11-14):* liste H4'te `SliverMainAxisGroup` + `SliverPrototypeExtentList` gruplarına bölündü; satır kapanışı için
+      `SliverAnimatedList`e geçmek sabit satır boyu (hızlı kaydırıcı, sürükle-seç dizin hesabı) varsayımını bozar ve "2.000+ öğede ölç" şartı
+      cihaz ister (§0.4) → H2/H12 ölçüm turuna bırakıldı (`KALANLAR.md`).
+- [x] H6.5 **Levhalar:** tüm alt levhalar aynı köşe, aynı tutamaç, aynı açılış eğrisi (`app_action_sheet.dart` tek kaynak; ham `showModalBottomSheet` tavanını düşür).
+      *(2026-11-14: denetim — 55 ham çağrının HİÇBİRİ köşe/tutamaç/eğri vermiyor, hepsi `AppTheme.bottomSheetTheme`'den; tek bilinçli istisna
+      `quick_sheets` yüzen kartı. Bekçi `test/sheet_consistency_guard_test.dart`. Tavanı düşürmek = 55 çağrıyı `showAppSheet`'e taşımak; görünür
+      fark yok, ayrı temizlik işi.)*
+- [x] H6.6 **Öngörülü geri:** Android 14+ geri hareketi önizlemesi tüm ana rotalarda (manifest `enableOnBackInvokedCallback` + `PopScope` denetimi; `ci/AndroidManifest.xml`).
+      *(2026-11-14: manifest zaten açıktı ama önizleme YOKTU — kök neden HAFIZA. `FastPageTransitionsBuilder` içine `_PredictiveBackPreview`.
+      `PopScope(canPop: false)` olan 3 rota hareketi üstlenmez (onay penceresi çalışır). 3 widget testi.)*
+
+**Durum (2026-11-14):** H6.1–H6.3, H6.5, H6.6 yapıldı; H6.4 gerekçeyle ölçüm turuna bırakıldı. 📱 cihaz bakışı `CIHAZ_TESTI.md` "Ferrari H6".
 
 ---
 

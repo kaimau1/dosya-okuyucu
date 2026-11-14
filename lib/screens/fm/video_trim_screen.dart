@@ -221,7 +221,29 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     setState(() => _positionMs = ms);
     if (c == null) return;
     if (c.value.isPlaying) unawaited(c.pause());
-    unawaited(c.seekTo(Duration(milliseconds: ms)));
+    _seekTo(c, ms);
+  }
+
+  /// Şeritte tarama saniyede onlarca konum üretir; her biri için `seekTo`
+  /// sıraya girerse önizleme parmağın çok gerisinde kalır. Bir arama
+  /// sürerken gelenlerden yalnız SONUNCUSU tutulur, arama bitince ona
+  /// gidilir — önizleme kod çözücünün yetiştiği hızda kare kare izler ve
+  /// parmağın bıraktığı karede durur.
+  bool _seekBusy = false;
+  int? _seekPending;
+
+  void _seekTo(VideoPlayerController c, int ms) {
+    if (_seekBusy) {
+      _seekPending = ms;
+      return;
+    }
+    _seekBusy = true;
+    unawaited(c.seekTo(Duration(milliseconds: ms)).whenComplete(() {
+      _seekBusy = false;
+      final next = _seekPending;
+      _seekPending = null;
+      if (next != null && mounted && identical(c, _video)) _seekTo(c, next);
+    }));
   }
 
   // ── Düzenleme ───────────────────────────────────────────────────────────

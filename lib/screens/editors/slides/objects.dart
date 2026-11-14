@@ -410,7 +410,7 @@ extension _SlidesEditorScreenObjectsPart on _SlidesEditorScreenState {
                 min: 0.5,
                 max: 12,
                 divisions: 23,
-                onChanged: color == null ? null : (v) => set(() => width = v),
+                onChanged: AppHaptics.slider(width, color == null ? null : (v) => set(() => width = v)),
               ),
               SwitchListTile(
                 key: const ValueKey('sl-line-dash'),
@@ -469,7 +469,7 @@ extension _SlidesEditorScreenObjectsPart on _SlidesEditorScreenState {
                 key: const ValueKey('sl-transparency'),
                 value: t,
                 divisions: 20,
-                onChanged: (v) => set(() => t = v),
+                onChanged: AppHaptics.slider(t, (v) => set(() => t = v)),
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(ctx, true),

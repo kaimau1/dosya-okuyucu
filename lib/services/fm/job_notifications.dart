@@ -1,5 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import '../../core/app_haptics.dart';
 import '../../core/l10n/app_strings.dart';
 import 'job_queue.dart';
 import 'notification_hub.dart';
@@ -206,6 +207,8 @@ class JobNotifications implements JobReporter {
 
   @override
   Future<void> onFinished(FmJob job) async {
+    // Uzun iş bitti: telefon cepteyken de hissedilsin (Ferrari H6.1).
+    if (job.status == JobStatus.done) AppHaptics.done();
     final id = notificationId(job.id);
     // Kullanıcı sonucu penceresinde gördü (bkz. `FmJob.quietFinish`): bir de
     // sistem bildirimi gürültü olurdu.

@@ -192,7 +192,7 @@ extension _SpreadsheetEditorScreenFindReplacePart on _SpreadsheetEditorScreenSta
                 value: value,
                 max: maxValue,
                 divisions: (maxValue * 4).round(),
-                onChanged: (v) => setLocal(() => value = v),
+                onChanged: AppHaptics.slider(value, (v) => setLocal(() => value = v)),
               ),
               TextButton(
                 onPressed: () => setLocal(() => value = defaultValue),

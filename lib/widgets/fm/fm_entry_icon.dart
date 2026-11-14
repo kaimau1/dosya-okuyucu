@@ -29,6 +29,11 @@ import '../../core/app_colors.dart';
 
 part 'fm_entry_thumbs.dart';
 
+/// Küçük resim ile galeri sayfasının ortak kahraman (Hero) etiketi:
+/// fotoğraf hücreden/satırdan büyüyerek açılır, kapanınca yerine döner
+/// (Fotoğraflar ızgarası 2026-09-26; dosya listeleri Ferrari H6.3).
+String fmMediaHeroTag(String path) => 'fm-media:$path';
+
 /// Dosya yöneticisi ikon paleti. Office dörtlüsü [OfficeColors]'tan gelir
 /// (liste ve şerit aynı tonu kullansın diye — bkz. HAFIZA 2026-07-24 tutarsızlık
 /// bulgusu); yeni kategoriler burada tanımlanır.

@@ -437,6 +437,8 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
       child: SizedBox(
         height: 92,
         child: ReorderableListView.builder(
+          onReorderStart: (_) => AppHaptics.selection(),
+          onReorderEnd: (_) => AppHaptics.step(),
           scrollDirection: Axis.horizontal,
           buildDefaultDragHandles: false,
           padding: const EdgeInsets.symmetric(

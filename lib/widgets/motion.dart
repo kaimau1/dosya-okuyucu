@@ -100,9 +100,8 @@ class _PressScaleState extends State<PressScale> {
         onPointerCancel: (e) => _release(),
         child: AnimatedScale(
           scale: _pressed ? widget.scale : 1,
-          duration: _pressed
-              ? const Duration(milliseconds: 110)
-              : const Duration(milliseconds: 260),
+          // "Animasyonları kaldır" açıkken anında (Ferrari H6.2).
+          duration: Motion.of(context, _pressed ? Motion.short : Motion.medium),
           curve: _pressed ? Curves.easeOut : Curves.easeOutBack,
           child: widget.child,
         ),

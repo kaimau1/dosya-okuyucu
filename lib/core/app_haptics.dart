@@ -42,6 +42,19 @@ abstract final class AppHaptics {
     if (enabled.value) HapticFeedback.selectionClick();
   }
 
+  /// Kademeli kaydırıcı (`Slider(divisions:)`) için `onChanged` sarmalayıcı:
+  /// değer bir kademe değiştiyse [step] titreşimi (Ferrari H6.1).
+  /// `Slider` sürükleme boyunca aynı kademeyi tekrar tekrar bildirir; [current]
+  /// karşılaştırması yalnız kademe geçişinde titreştirir.
+  static ValueChanged<double>? slider(
+      double current, ValueChanged<double>? onChanged) {
+    if (onChanged == null) return null;
+    return (v) {
+      if (v != current) step();
+      onChanged(v);
+    };
+  }
+
   /// Yıkıcı bir işlem onaylandı (kalıcı silme).
   static void destructive() {
     if (enabled.value) HapticFeedback.heavyImpact();

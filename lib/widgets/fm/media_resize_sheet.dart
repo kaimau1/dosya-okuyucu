@@ -5,6 +5,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
 import '../app_dialog.dart';
 import '../../core/snack.dart';
@@ -300,8 +301,10 @@ class _ResizeSheetState extends State<_ResizeSheet> {
                             max: 100,
                             divisions: 12,
                             label: '${_options.imageQuality}',
-                            onChanged: (v) => setState(() => _options =
-                                _options.copyWith(imageQuality: v.round())),
+                            onChanged: AppHaptics.slider(
+                                _options.imageQuality.toDouble(),
+                                (v) => setState(() => _options = _options
+                                    .copyWith(imageQuality: v.round()))),
                           ),
                         ),
                         SizedBox(

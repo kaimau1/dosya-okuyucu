@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show PredictiveBackEvent, SwipeEdge;
 
 import 'motion.dart';
 
@@ -27,8 +28,8 @@ import 'motion.dart';
 /// gözle takip edilebilecek kadar var, beklemeye dönüşmeyecek kadar kısa.
 ///
 /// Yön Android'in alışılmış davranışı: yeni sayfa sağdan gelir, alttaki sayfa
-/// hafifçe sola kayar (paralaks). Kenardan geri hareketi ve tahmini geri
-/// (predictive back) etkilenmez — ikisi de `animation` üzerinden yürüyor.
+/// hafifçe sola kayar (paralaks). Android 14+ öngörülü geri hareketi
+/// [_PredictiveBackPreview] ile aynı `animation`'ı sürer (Ferrari H6.6).
 class FastPageTransitionsBuilder extends PageTransitionsBuilder {
   const FastPageTransitionsBuilder();
 
@@ -51,10 +52,139 @@ class FastPageTransitionsBuilder extends PageTransitionsBuilder {
     // "Animasyonları kaldır" açıkken sayfa yerinde belirir (Faz 15/16):
     // kaydırma yok, ilk karede tam konumda.
     if (Motion.reduced(context)) return child;
-    return _FastPageTransition(
+    final page = _FastPageTransition(
       animation: animation,
       secondaryAnimation: secondaryAnimation,
       child: child,
+    );
+    if (route == null) return page;
+    return _PredictiveBackPreview(
+        route: route, animation: animation, child: page);
+  }
+}
+
+/// **Öngörülü geri önizlemesi** (Android 14+, Ferrari H6.6).
+///
+/// KÖK NEDEN: manifestte `enableOnBackInvokedCallback` açıktı ama hareket
+/// sırasında hiçbir şey kıpırdamıyordu. Flutter'da geri hareketini rotaya
+/// bağlayan dinleyici YALNIZ `PredictiveBackPageTransitionsBuilder`'ın
+/// içinde; biz onu [FastPageTransitionsBuilder] ile değiştirince dinleyen
+/// kalmadı ve çerçeve hareketi ancak parmak kalkınca düz bir "geri" olarak
+/// işledi (bkz. `WidgetsBinding._handleCommitBackGesture`).
+///
+/// Burada aynı dinleyici kuruldu (Flutter 3.47.9 kaynağındaki
+/// `_PredictiveBackGestureDetector` ile aynı sözleşme): hareket rotanın
+/// animasyonunu sürer — sayfa parmakla birlikte kayar ve hafifçe küçülerek
+/// alttaki sayfayı gösterir; vazgeçilirse yerine döner. Yalnız dönüşüm
+/// (kaydırma + ölçek), opaklık yok — geçiş performansı kararıyla aynı.
+///
+/// `popGestureEnabled` false olan rotalarda (ilk sayfa, `PopScope(canPop:
+/// false)`, iç geri işleyen sayfa) dinleyici hareketi ÜSTLENMEZ: çerçeve
+/// eskisi gibi normal geri çağrısı yapar, `PopScope` kararını verir.
+class _PredictiveBackPreview extends StatefulWidget {
+  final PageRoute<dynamic> route;
+  final Animation<double> animation;
+  final Widget child;
+
+  const _PredictiveBackPreview({
+    required this.route,
+    required this.animation,
+    required this.child,
+  });
+
+  @override
+  State<_PredictiveBackPreview> createState() => _PredictiveBackPreviewState();
+}
+
+class _PredictiveBackPreviewState extends State<_PredictiveBackPreview>
+    with WidgetsBindingObserver {
+  /// Önizlemede sayfa en çok bu kadar küçülür (Android yönergesi %90).
+  static const _minScale = 0.92;
+
+  /// Hareket sürüyor ya da onaylanıp sayfa kapanıyor: ölçek uygulanır.
+  /// Onaydan sonra `popGestureInProgress` false olur; bayrak olmasa sayfa
+  /// kapanırken birden tam boya sıçrardı.
+  bool _active = false;
+
+  /// Hareketin başladığı kenar — sayfa o kenarın karşısına doğru küçülür.
+  SwipeEdge _edge = SwipeEdge.left;
+
+  bool get _enabled => widget.route.isCurrent && widget.route.popGestureEnabled;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    widget.animation.removeStatusListener(_onSettled);
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  void _setActive(bool v) {
+    if (_active == v || !mounted) return;
+    setState(() => _active = v);
+  }
+
+  @override
+  bool handleStartBackGesture(PredictiveBackEvent backEvent) {
+    if (backEvent.isButtonEvent || !_enabled) return false;
+    _edge = backEvent.swipeEdge;
+    widget.route.handleStartBackGesture(progress: 1 - backEvent.progress);
+    _setActive(true);
+    return true;
+  }
+
+  @override
+  void handleUpdateBackGestureProgress(PredictiveBackEvent backEvent) {
+    widget.route
+        .handleUpdateBackGestureProgress(progress: 1 - backEvent.progress);
+  }
+
+  @override
+  void handleCancelBackGesture() {
+    widget.route.handleCancelBackGesture();
+    // Sayfa yerine dönerken ölçek de birlikte açılsın; dönüş bitince düz.
+    if (widget.animation.isCompleted) {
+      _setActive(false);
+    } else {
+      widget.animation.addStatusListener(_onSettled);
+    }
+  }
+
+  void _onSettled(AnimationStatus status) {
+    if (!status.isCompleted) return;
+    widget.animation.removeStatusListener(_onSettled);
+    _setActive(false);
+  }
+
+  @override
+  void handleCommitBackGesture() {
+    // `_active` kalır: sayfa küçülmüş hâlinden kapanır.
+    widget.route.handleCommitBackGesture();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_active) return widget.child;
+    // Soldan çekince sayfa ekranın SAĞ kenarına yaslanarak küçülür (ve
+    // tersi). Kenar fizikseldir; yönlü hizada sağ = soldan sağa dilde "end",
+    // sağdan sola dilde "start" — bu yüzden dil yönüyle XOR.
+    final rtl = Directionality.maybeOf(context) == TextDirection.rtl;
+    final alignment = (_edge == SwipeEdge.left) != rtl
+        ? AlignmentDirectional.centerEnd
+        : AlignmentDirectional.centerStart;
+    return AnimatedBuilder(
+      animation: widget.animation,
+      builder: (context, child) => Transform.scale(
+        scale: _minScale + (1 - _minScale) * widget.animation.value,
+        alignment: alignment,
+        child: child,
+      ),
+      child: widget.child,
     );
   }
 }

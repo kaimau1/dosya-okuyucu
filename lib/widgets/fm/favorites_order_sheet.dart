@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
 import '../../core/state/focused_states.dart';
 import '../../core/l10n/app_strings.dart';
@@ -28,6 +29,8 @@ class _FavoritesOrder extends StatelessWidget {
       constraints: BoxConstraints(
           maxHeight: MediaQuery.sizeOf(context).height * 0.6),
       child: ReorderableListView.builder(
+        onReorderStart: (_) => AppHaptics.selection(),
+        onReorderEnd: (_) => AppHaptics.step(),
         shrinkWrap: true,
         buildDefaultDragHandles: false,
         itemCount: list.length,

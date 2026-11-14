@@ -25,12 +25,12 @@ import '../../services/fm/folder_report.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/storage_stats.dart' show StorageKind;
 import '../../services/fm/paste_conflict.dart';
+import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
 import '../../models/fm_filter.dart';
 import '../../widgets/doc_more_sheet.dart';
 import '../../widgets/fm/fm_entry_icon.dart' show FmColors;
 import '../../widgets/fm/fm_file_list_view.dart';
-import '../../widgets/fm/fm_large_title.dart';
 import '../../widgets/fm/fm_path_bar.dart';
 import '../../widgets/scan_flow.dart';
 import '../../widgets/fm/fm_layout_sheet.dart';
@@ -158,9 +158,6 @@ class _BrowserScreenState extends State<BrowserScreen> {
   /// sürükleyerek seçimde kenara gelince otomatik kaydırma bunu kullanır.
   final ScrollController _scroll = ScrollController();
 
-  /// Büyük başlık kaydırınca üst çubuğa küçülür (Ferrari H4.2).
-  late final FmTitleCollapse _titleCollapse = FmTitleCollapse(_scroll);
-
   bool get _selecting => _selected.isNotEmpty;
 
   /// Vurgulanan dosya ([BrowserScreen.focusPath]); süre dolunca null.
@@ -206,7 +203,6 @@ class _BrowserScreenState extends State<BrowserScreen> {
   void dispose() {
     FolderSizeCache.revision.removeListener(_onFolderSize);
     FolderSortMemory.instance.removeListener(_onFolderSort);
-    _titleCollapse.dispose();
     _scroll.dispose();
     super.dispose();
   }
@@ -236,13 +232,6 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
   // ── arayüz ────────────────────────────────────────────────────────────────
 
-  /// "24 öğe · 1,2 GB" — görünen öğeler, dosyaların toplam boyutu.
-  String _summary(List<FsEntry> shown) {
-    final count = context.t('lc.count', {'n': shown.length});
-    final bytes = shown.fold<int>(0, (s, e) => e.isDir ? s : s + e.sizeBytes);
-    return bytes > 0 ? '$count · ${FsPaths.humanSize(bytes)}' : count;
-  }
-
   @override
   Widget build(BuildContext context) {
     final appState = context.watchBrowse();
@@ -252,12 +241,6 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
     final listColumn = Column(
       children: [
-        // Büyük başlık + "24 öğe · 1,2 GB" (H4.2); seçimde de KALIR.
-        FmLargeTitle(
-          collapsed: _titleCollapse,
-          title: widget.title ?? p.basename(widget.path),
-          summary: _locked || _entries.isEmpty ? null : _summary(entries),
-        ),
         FmPathBar(
           path: widget.path,
           onTap: (target) => BrowserScreen.jumpTo(context, target),

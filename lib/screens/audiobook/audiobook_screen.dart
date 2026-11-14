@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
@@ -251,9 +252,9 @@ class _AudiobookScreenState extends State<AudiobookScreen> {
                           max: 1.4,
                           divisions: 7,
                           label: '${_speed.toStringAsFixed(1)}×',
-                          onChanged: _running
+                          onChanged: AppHaptics.slider(_speed, _running
                               ? null
-                              : (v) => setState(() => _speed = v),
+                              : (v) => setState(() => _speed = v)),
                         ),
                       ),
                     ]),

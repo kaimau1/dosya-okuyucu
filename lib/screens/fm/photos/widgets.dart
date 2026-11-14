@@ -170,7 +170,7 @@ class _PhotoTile extends StatelessWidget {
     Widget thumb = FmEntryIcon(entry: entry, size: size, radius: radius);
     final tag = heroTag;
     if (tag != null) thumb = Hero(tag: tag, child: thumb);
-    return GestureDetector(
+    return PressScale(scale: 0.96, child: GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: ColoredBox(
@@ -199,7 +199,7 @@ class _PhotoTile extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 }
 

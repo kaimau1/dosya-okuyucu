@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/app_haptics.dart';
 import '../../../core/app_icons.dart';
 import '../../../core/l10n/app_strings.dart';
 import '../../../core/theme.dart';
@@ -118,6 +119,8 @@ class _SlideArrangePageState extends State<SlideArrangePage> {
         child: rows.isEmpty
             ? Center(child: Text(context.t('sp.no_shapes')))
             : ReorderableListView.builder(
+              onReorderStart: (_) => AppHaptics.selection(),
+              onReorderEnd: (_) => AppHaptics.step(),
                 key: const ValueKey('sp-layers'),
                 itemCount: rows.length,
                 onReorderItem: (from, to) {
@@ -239,6 +242,8 @@ class _SlideArrangePageState extends State<SlideArrangePage> {
       body: _anims.isEmpty
           ? Center(child: Text(context.t('sp.no_anims')))
           : ReorderableListView.builder(
+            onReorderStart: (_) => AppHaptics.selection(),
+            onReorderEnd: (_) => AppHaptics.step(),
               key: const ValueKey('sp-anims'),
               itemCount: _anims.length,
               onReorderItem: (from, to) {

@@ -149,6 +149,7 @@ class _DragSelectAreaState extends State<DragSelectArea> {
     }
     _curStart = newStart;
     _curEnd = newEnd;
+    AppHaptics.step();
   }
 
   /// Parmak kenardaysa listeyi kaydırır ve kayma sonrası parmağın altına gelen

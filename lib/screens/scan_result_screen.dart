@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart';
 
+import '../core/app_haptics.dart';
 import '../core/app_icons.dart';
 import '../core/busy_dialog.dart';
 import '../core/l10n/app_strings.dart';
@@ -33,6 +34,7 @@ import '../services/fm/tracked_task.dart';
 import '../services/scan_kind.dart';
 import '../services/scan_page_ops.dart';
 import '../services/scan_prepare.dart';
+import '../widgets/motion.dart' show PressScale;
 import '../widgets/translate_flow.dart';
 import 'fm/browser_screen.dart' show BrowserScreen, browserRoute;
 import 'fm/folder_picker_screen.dart';

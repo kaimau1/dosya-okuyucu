@@ -1173,6 +1173,18 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Geri al ve listedeki ✕ çalışıyor mu? Kaydet → `<ad>_kesit.mp4`: silinen bölümler yok, sessiz bölge sessiz, eklenen ses doğru saniyede başlıyor mu (dikey video dikey kalıyor mu)?
 - [ ] Hata olursa (özellikle ses eklemede) bildirimdeki hata kodunu not al — Media3 Composition ilk kez cihazda.
 
+## Ferrari H6 — Hareket ve dokunuş (2026-11-14, main)
+- [ ] Videoyu düzenle: şeridin ortasından (tutamaçlardan uzak) parmağı kaydır → video kare kare izliyor, beyaz çizgi parmakta, saat soldaki etikette; bırakınca o karede duruyor. Tutamacın üstünden başlayınca yine kırpıyor.
+- [ ] Video oynatıcı üst çubuğu: dosya adı okunur; yalnız altyazı · hız · ⋮; ⋮ içinde A-B tekrar, yüzen pencere, doldur/sığdır, birlikte aç, dosya işlemleri.
+- [ ] Belgeler/klasör ekranı: iri başlık YOK; başlık + "N öğe · boyut" üst çubukta, liste hemen süzgeç satırının altından başlıyor.
+- [ ] Titreşim: dosya seçerken (dokunuş, onay kutusu, seçimi kapat ×), basılı tutup sürükleyerek seçerken her yeni satırda hafif tık; Ayarlar > Görünüm'de titreşim kapalıyken HİÇ titremiyor.
+- [ ] Sıralama listeleri (PDF sayfa sırası, sık kullanılanlar, pano düzeni, tarama sayfaları, slayt sıralayıcı, Excel sayfa sekmesi): tutunca tık, bırakınca tık — çift titreşim yok.
+- [ ] Kalıcı silme onayında "Sil"e basınca güçlü titreşim (tek sefer); uzun iş (kopyalama, küçültme) bitince kısa titreşim.
+- [ ] Kaydırıcılar (yazı boyutu, ses hızı, kalite): her kademede tık, aynı kademede sürüklerken titreşim yağmuru yok.
+- [ ] Kitaplık kapağı, Fotoğraflar karesi, Benzer görseller, galeri alt şeridi, tarama sayfa kartı basılınca içe çöküyor; kaydırırken çökmüyor.
+- [ ] Dosya listesinde (liste ve ızgara) fotoğrafa dokun: küçük resimden büyüyerek açılıyor; kapatınca (geri / aşağı çek) satırına küçülüyor. "Animasyonları kaldır" açıkken düz açılıyor.
+- [ ] **Öngörülü geri (Android 14+):** bir klasöre/ekrana girip kenardan yavaşça geri çek → sayfa parmakla kayıp küçülüyor, alttaki sayfa görünüyor; parmağı geri götürüp bırakınca sayfa yerine dönüyor; sonuna kadar çekince kapanıyor. Ana ekranda geri hareketi uygulamadan çıkışı (sistem önizlemesi) gösteriyor. Kaydedilmemiş düzenleme olan ekranda (onay soran) önizleme yok, onay penceresi çıkıyor.
+
 ## Ferrari H5 — Ana ekran (2026-11-14)
 - [ ] Yeni kurulum / hiç düzenlenmemiş pano: üstte arama, sonra son dosyalar şeridi, kategoriler, bellek kartı; araçlar/favoriler aşağıda.
 - [ ] Düzenini daha önce değiştirmiş kullanıcı: sıra ve gizlenenler aynen kalmış mı?

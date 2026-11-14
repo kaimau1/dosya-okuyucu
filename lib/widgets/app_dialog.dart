@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/app_haptics.dart';
 import '../core/l10n/app_strings.dart';
 
 /// **Ortak iletişim penceresi ve levha** (Faz 15 / madde 6, 2026-10-22).
@@ -52,6 +53,8 @@ Future<bool> showAppConfirm(
       );
     },
   );
+  // Yıkıcı onay tek kapıdan titreşir (Ferrari H6.1) — 30+ silme akışı.
+  if (destructive && ok == true) AppHaptics.destructive();
   return ok ?? false;
 }
 

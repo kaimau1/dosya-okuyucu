@@ -16,6 +16,12 @@ import 'fm_file_image.dart';
 /// ([AppHaptics.step]). Tutamaç sürüklenirken [onSeek] önizlemeyi o kareye
 /// götürür.
 ///
+/// **Tarama** (kullanıcı isteği 2026-11-14: *"altı kaydırırken kare kare
+/// görmeliyim nerede olduğumu"*): tutamaçtan uzakta başlayan sürükleme
+/// tutamacı DEĞİL oynatma çizgisini taşır — önizleme parmağın altındaki
+/// kareyi gösterir, saat etiketi parmağı izler. Eskiden her sürükleme en
+/// yakın tutamacı çekiyordu; yeri görmek için aralığı bozmak gerekiyordu.
+///
 /// Zaman her dilde soldan sağa akar (oynatıcı çubuğuyla aynı) — şerit bu
 /// yüzden kendi içinde LTR.
 class VideoTrimTimeline extends StatefulWidget {
@@ -75,6 +81,13 @@ class _VideoTrimTimelineState extends State<VideoTrimTimeline> {
   _Grip? _grip;
   int _lastSecond = -1;
 
+  /// Tarama sürüyor (tutamaçtan uzakta başlayan sürükleme); değer = parmağın
+  /// altındaki an.
+  int? _scrubMs;
+
+  /// Bu yarıçap içinde başlayan sürükleme tutamacı tutar (dp).
+  static const _gripReach = 32.0;
+
   /// Parmağın x'i → ms (şerit genişliğinde).
   int _msAt(double x, double width) {
     final usable = width - 2 * VideoTrimTimeline.handleWidth;
@@ -90,11 +103,35 @@ class _VideoTrimTimelineState extends State<VideoTrimTimeline> {
         usable * (ms / widget.durationMs).clamp(0.0, 1.0);
   }
 
-  /// Dokunulan yere en yakın tutamaç.
-  _Grip _grab(double x, double width) {
-    final s = _xOf(widget.range.startMs, width);
-    final e = _xOf(widget.range.endMs, width);
-    return (x - s).abs() <= (x - e).abs() ? _Grip.start : _Grip.end;
+  /// Dokunulan yere en yakın tutamaç; tarama açıkken ([VideoTrimTimeline.onSeek]
+  /// var) yalnız tutamaca [_gripReach] kadar yakınsa — yoksa null (tarama).
+  _Grip? _grab(double x, double width) {
+    const hw = VideoTrimTimeline.handleWidth;
+    // Tutamaç gövdeleri: başlangıç [s-hw, s], bitiş [e, e+hw] → merkezler.
+    final s = _xOf(widget.range.startMs, width) - hw / 2;
+    final e = _xOf(widget.range.endMs, width) + hw / 2;
+    final ds = (x - s).abs();
+    final de = (x - e).abs();
+    final grip = ds <= de ? _Grip.start : _Grip.end;
+    if (widget.onSeek == null) return grip;
+    return (ds < de ? ds : de) <= _gripReach ? grip : null;
+  }
+
+  void _scrub(double x, double width) {
+    final ms = _msAt(x, width);
+    if (ms == _scrubMs) return;
+    final second = ms ~/ 1000;
+    if (second != _lastSecond) {
+      _lastSecond = second;
+      AppHaptics.step();
+    }
+    setState(() => _scrubMs = ms);
+    widget.onSeek?.call(ms);
+  }
+
+  void _endDrag() {
+    _grip = null;
+    if (_scrubMs != null) setState(() => _scrubMs = null);
   }
 
   void _move(double x, double width) {
@@ -139,10 +176,15 @@ class _VideoTrimTimelineState extends State<VideoTrimTimeline> {
                 _grip = _grab(d.localPosition.dx, w);
                 _lastSecond = -1;
               },
-              onHorizontalDragStart: (_) => AppHaptics.selection(),
-              onHorizontalDragUpdate: (d) => _move(d.localPosition.dx, w),
-              onHorizontalDragEnd: (_) => _grip = null,
-              onHorizontalDragCancel: () => _grip = null,
+              onHorizontalDragStart: (d) {
+                AppHaptics.selection();
+                if (_grip == null) _scrub(d.localPosition.dx, w);
+              },
+              onHorizontalDragUpdate: (d) => _grip == null
+                  ? _scrub(d.localPosition.dx, w)
+                  : _move(d.localPosition.dx, w),
+              onHorizontalDragEnd: (_) => _endDrag(),
+              onHorizontalDragCancel: _endDrag,
               // Dokunuş = önizlemeyi oraya götür.
               onTapUp: widget.onSeek == null
                   ? null
@@ -193,10 +235,11 @@ class _VideoTrimTimelineState extends State<VideoTrimTimeline> {
                       ),
                     ),
                   ),
-                  if (widget.playheadMs != null)
+                  if ((_scrubMs ?? widget.playheadMs) != null)
                     PositionedDirectional(
-                      start: _xOf(widget.playheadMs!, w) - 1,
-                      width: 2,
+                      start: _xOf((_scrubMs ?? widget.playheadMs)!, w) -
+                          (_scrubMs == null ? 1 : 1.5),
+                      width: _scrubMs == null ? 2 : 3,
                       top: 0,
                       bottom: 0,
                       child: const IgnorePointer(

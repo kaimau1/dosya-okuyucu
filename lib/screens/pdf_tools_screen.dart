@@ -17,6 +17,7 @@ import 'package:printing/printing.dart' show Printing;
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/app_haptics.dart';
 import '../core/app_icons.dart';
 import '../core/edition.dart';
 import '../widgets/pro_gate.dart';
