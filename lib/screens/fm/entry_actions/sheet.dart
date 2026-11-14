@@ -23,6 +23,7 @@ enum _EntryAction {
   aiSummary,
   imageInsight,
   resize,
+  trimVideo,
   tag,
   reveal,
   properties,
@@ -53,7 +54,10 @@ Feature? _featureOf(_EntryAction a) => switch (a) {
       _EntryAction.aiTag ||
       _EntryAction.aiAlias =>
         Feature.ai,
-      _EntryAction.resize || _EntryAction.rotate => Feature.media,
+      _EntryAction.resize ||
+      _EntryAction.rotate ||
+      _EntryAction.trimVideo =>
+        Feature.media,
       _EntryAction.audiobook => Feature.audiobook,
       _EntryAction.quickShare => Feature.transfer,
       _EntryAction.hide => Feature.vault,
@@ -191,6 +195,11 @@ Future<bool> showEntryActions(
                   _act(ctx, AppIcons.resize, ctx.t('ea.resize'),
                       _EntryAction.resize,
                       hint: ctx.t('ea.resize_hint')),
+                // Videoyu kes (Ferrari H8): oynatıcının ⋮'ı da bu levhayı açar.
+                if (!entry.isDir && entry.category == FmCategory.video)
+                  _act(ctx, AppIcons.cut, ctx.t('vtr.title'),
+                      _EntryAction.trimVideo,
+                      hint: ctx.t('vtr.hint')),
                 if (canRotate)
                   _act(ctx, AppIcons.rotate,
                       ctx.t('ea.rotate'), _EntryAction.rotate,
@@ -415,6 +424,12 @@ Future<bool> showEntryActions(
     case _EntryAction.resize:
       // İş kuyruğa gider; liste tazelemeyi FsEvents üstlenir.
       await startResizeJob(context, [entry]);
+      return false;
+
+    case _EntryAction.trimVideo:
+      // Oynatıcıdan açıldıysa önizlemeyle aynı anda çalmasın.
+      unawaited(VideoPlayback.instance.controller?.pause());
+      await VideoTrimScreen.open(context, entry.path);
       return false;
 
     case _EntryAction.tag:
