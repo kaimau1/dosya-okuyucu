@@ -1134,6 +1134,26 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
    kapanıyor, tercih uygulama kapanınca da kalıyor mu? Aç/kapa sonrası aynı sayfada mı kalıyor? Açıkken kaydırınca
    şerit güncel sayfayı izliyor mu (güncel küçük resim görünür alanda kalıyor mu)?
 
+## Ferrari H3 — PDF okuma konforu (2026-11-14, main)
+1. **Çift dokunma:** genişliğe sığmış PDF'te bir yere çift dokun → oraya yumuşakça yakınlaşıyor mu (nokta parmağın altında)?
+   Yeniden çift dokun → genişliğe sığıyor, okunan satır yerinde mi? Uzun basış hâlâ kelime seçiyor mu (çift dokunuş artık SEÇMEZ)?
+   Bağlantıya tek dokunuş hâlâ açıyor mu?
+2. **Akıllı yakınlık:** iki sütunlu makalede sol/sağ sütuna çift dokun → o sütun ekran genişliğine oturuyor mu? Bir resme çift
+   dokun → resim genişliğe oturuyor mu? Tek sütunlu romanda düz 2,5× mı? Gecikme hissediliyor mu (ilk çift dokunuşta nesne okuması)?
+3. **Görsel kipi:** radyoloji atlası / resimli kitapta resme uzun bas → "Görseli büyüt" çıkıyor mu? Açılınca siyah zemin, net
+   (bulanık değil), iki parmak ve çift dokunuşla yakınlaşıyor mu, aşağı çekince kapanıyor mu? Taranmış sayfada (tüm sayfa resim)
+   ÇIKMAMALI. Metin üstünde uzun basış yine seçim yapıyor, levha çıkmıyor mu? Büyük resimde bellek/kasma?
+4. **Kenar kırpma:** Aa → "Kenar boşluklarını kırp" → yazı ekranı dolduruyor mu, hiçbir sayfada metin kesilmiyor mu (kapaklı
+   kitap, sayfa numarası, kenar notu)? Belgeyi kapatıp aç → kırpma hatırlanıyor, açılışta sayfa ZIPLAMIYOR mu? Kapat → eski görünüm?
+   Boşluğu olmayan PDF'te "Kırpılacak boşluk bulunamadı" mı?
+5. **Sayfa sayfa:** Aa → "Sayfa sayfa çevir" → sayfa ekrana sığıyor mu? Sağ kenara dokun / sola kaydır → sonraki, sol kenar /
+   sağa kaydır → önceki; yukarı/aşağı kaydırma da çeviriyor mu? Kenar dokunuşu çubukları getirmiyor, ortaya dokunuş getiriyor mu?
+   İki parmakla yakınlaşınca sayfa içinde gezilebiliyor, çift dokunuş yeniden sığdırıyor mu? Ses tuşları? Uygulamayı kapatıp aç → kip kalıyor mu?
+6. **Durum çubuğu:** Aa → "Okurken durum çubuğunu da gizle" → kaydırınca saat/pil de çekiliyor, tek dokunuşla geri geliyor mu?
+   Bu sırada sayfa yerinden ZIPLIYOR mu (asıl risk)? Gezinme çubuğu yerinde mi? Çentikli/yuvarlak köşeli ekranda üst kısım?
+   Tam ekran açıkken seçenek pasif mi? Görüntüleyiciden çıkınca durum çubuğu geri mi?
+7. **Sayfa rozeti:** kaydırınca "N / toplam" beliriyor, durunca ~1,5 sn sonra soluyor mu? Açılışta bir an görünüyor mu?
+
 ## Ferrari H8 — Videoyu kes (2026-11-14, main)
 1. Video uzun bas → "Videoyu kes"; oynatıcıda ⋮ → "Videoyu kes" (oynatıcı duraklıyor mu?).
 2. Kare şeridi doluyor mu (10 kare)? İki tutamaç sürüklenince önizleme o kareye gidiyor, her saniyede hafif titreşim var mı?

@@ -912,3 +912,11 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Plan düzeltmesi (H4, okunmadan yazılmıştı):** satır simgesi 68 dp kullanıcı kararıydı (2026-08-17 "olabildiğince büyüt") —
   H4.1'deki 48–56 dp UYGULANMAZ; tarih grupları (H4.5) zaten var (`groupEntries`), yalnız yapışkan değil; tür çipleri
   2026-10-28'de kullanıcı isteğiyle TEK HAPA toplanmıştı — H4.3 öncesi kullanıcıya sorulmalı (👤).
+
+## 2026-11-14 — Ferrari H3 (PDF okuma konforu)
+- **Doğrulama (plan "yok gibi" demişti):** PDF'te çift dokunuş VARDI ama yakınlaştırmıyordu — seçim katmanı (`PdfSelectLayer._onTouchTap`) kelime seçiyordu. Karar: görüntüleyicide çift dokunuş = yakınlık (`doubleTapSelectsWord: false`; varsayılan true, testi aynı), kelime uzun basışla. Kanca pdfrx `onGeneralTap` — pdfrx'in `GestureDetector`'ında çift dokunuş/uzun basış tanıyıcıları ZATEN kurulu, yeni jest arenası yok.
+- **Karar (H3.2/H3.3):** sayfa nesneleri PDF Pro köprüsünden (`PdfEditBridge.content`, işçide, son 6 sayfa önbellek). Plan `layer_objects.dart` diyordu ama o düzenleyicinin YENİ eklenen nesneleri; sayfanın kendi görselleri köprü okumasında (`isImage`, PDF uzayı = `PdfPoint`). Döndürülmüş sayfada akıllı yakınlık yok. Görsel kipi bölgeyi `renderForDisplay` ile çizer (≤ 3072 px), %85+ sayfa kaplayan görsel (tarama) sayılmaz.
+- **Karar (H3.4):** kırpma YALNIZ YATAY + tek sütun: pdfrx sayfayı kırpmaz; düzende sayfa sol/sağ boşluğu belge sınırının dışına taşırılır (sınır dışına kaydırılamaz). Dikey kırpma = sayfaları bindirmek → sonraki sayfanın beyaz kenarı öncekinin metnini örter (reddedildi). Paylar `PdfZoomMemory` yanında (`pdf_crop_v1`), `_applyResumePage`'te görüntüleyiciden ÖNCE okunur.
+- **Tuzak:** matris dinleyicisinden (`_onPdfMatrix`) `setState` — pdfrx matrisi yerleşim sırasında da değiştirebilir → `_matrixSetState` (persistentCallbacks'ta kare sonuna erteler).
+- **Tuzak (H3.6):** durum çubuğu gizlenince `padding.top` 0'a iner → okuma payı değişir → pdfrx sayfa başına atlar. `OfficeShell` gizlemeden önceki boyu tutar (`_statusHold`, yön değişince bırakır); `immersiveSticky` DEĞİL `manual + bottom` (gezinme çubuğu kalkarsa alt pay da değişirdi).
+- **Not:** jest eşiği süresi de `Duration(milliseconds:)` bekçisine takılır → `Motion.quickSwipe`, `Motion.badgeLinger`.
