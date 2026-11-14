@@ -1021,3 +1021,4 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Yapı:** `AudioTrimScreen` (⋮ → Sesi kes): `VideoTranscoder.trim(audioOnly: true)` → `<ad>_kesit.m4a`, yerelde hızlı kesim kapalı. Sürüklerken 600 ms parça çalar. Cihazda doğrulanmadı (opus girişte Media3 AAC'ye kodlar varsayıldı).
 - **Karar:** "AI Merkezi" → "AI Dosya Asistanı"; Öneriler'de onay kutuları hep görünür, satırda ✓ Uygula, üstte Tümünü seç. "Yeni kart" kutusu kalktı → Ana ekranı düzenle'de düğme. Bölüm başlıkları caption+2, w800.
 - **Ölçüm:** ızgara dönencesi + video kesme değişiklikleri cihazda A/B ÖLÇÜLMEDİ (bulut oturumu) → `docs/CIHAZ_TESTI.md`.
+- **APK boyut tabanı (2026-11-14, kullanıcı kararı):** taban 100 MB (104857600). APK 88,28 MB'ta %2 kapısına takılmıştı (11-08 tabanı 86,43 MB). Not: kapı artık ~102 MB'a dek susar; büyümeyi Boyut raporu adımından izle.
