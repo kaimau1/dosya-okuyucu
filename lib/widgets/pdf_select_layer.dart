@@ -108,6 +108,11 @@ class PdfSelectLayer extends StatefulWidget {
   /// bırakır — iki sayfada iki vurgu kalmaz (tek etkin seçim, Chrome gibi).
   final int activeSelectionPage;
 
+  /// Dokunmatikte iki hızlı dokunuş kelime seçsin mi? Görüntüleyici false
+  /// verir: orada çift dokunuş YAKINLAŞTIRIR (Ferrari H3.1; kelime yine uzun
+  /// basışla seçilir). Farede çift tık her zaman kelime seçer.
+  final bool doubleTapSelectsWord;
+
   const PdfSelectLayer({
     super.key,
     required this.page,
@@ -116,6 +121,7 @@ class PdfSelectLayer extends StatefulWidget {
     this.onSelectingChanged,
     this.onDragAt,
     this.activeSelectionPage = 0,
+    this.doubleTapSelectsWord = true,
   });
 
   /// Metin katmanı bu kadar sonra yüklenir (sayfa hâlâ ekrandaysa).
@@ -441,6 +447,10 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   }
 
   void _onTouchTap(Offset at) {
+    if (!widget.doubleTapSelectsWord) {
+      if (_hasSelection) _clear();
+      return;
+    }
     final now = DateTime.now();
     final isDoubleTap = _lastTapAt != null &&
         now.difference(_lastTapAt!) < const Duration(milliseconds: 300) &&

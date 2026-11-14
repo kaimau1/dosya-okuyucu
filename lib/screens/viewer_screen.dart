@@ -66,6 +66,7 @@ import '../services/pdf/pdf_viewer_defaults.dart';
 import '../services/pdf/page_arrival.dart';
 import '../services/pdf/pdf_form.dart';
 import '../services/pdf/pdf_ocr_search.dart';
+import '../services/pdf/pdf_reading_zoom.dart';
 import '../services/pdf_annotator.dart';
 import '../services/pdf_notes.dart';
 import '../services/pdf_reload.dart';
@@ -146,6 +147,7 @@ part 'viewer/code_tools.dart';
 part 'viewer/widgets.dart';
 part 'viewer/pdf_reading_pro.dart';
 part 'viewer/pdf_reading_aids.dart';
+part 'viewer/pdf_reading_comfort.dart';
 part 'viewer/pdf_pro_edit.dart';
 part 'viewer/pdf_pro_tools.dart';
 

@@ -191,6 +191,8 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                                     _scrollThumb(pageNumber),
                           ),
                         ],
+                        // Çift dokunma yakınlaştırır (Ferrari H3.1).
+                        onGeneralTap: _onPdfGeneralTap,
                         // pdfium'un ham yığın izli mavi ekranı yerine anlaşılır
                         // kart (2026-09-27: 0 bayt kalan PDF bulgusu).
                         errorBannerBuilder: _pdfErrorBanner,
@@ -327,6 +329,8 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                                 }
                               },
                               onDragAt: _onPdfSelDragAt,
+                              // Çift dokunuş burada yakınlaştırır (H3.1).
+                              doubleTapSelectsWord: false,
                             ),
                         ],
                       ),
