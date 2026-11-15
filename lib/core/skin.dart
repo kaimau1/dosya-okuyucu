@@ -1107,7 +1107,29 @@ class AppAccent {
     AppAccent('plum', 'acc.plum', Color(0xFF7B2F6B), Color(0xFFF0A8DF)),
     AppAccent('forest', 'acc.forest', Color(0xFF285E2D), Color(0xFF9FD8A4)),
     AppAccent('rust', 'acc.rust', Color(0xFF9A3F1C), Color(0xFFFFB59A)),
+    // Yeni renkler (2026-11-15, kullanıcı: "yeni temalarda yeni renk
+    // seçenekleri").
+    AppAccent('ocean', 'acc.ocean', Color(0xFF0A5C75), Color(0xFF8AD4EC)),
+    AppAccent('berry', 'acc.berry', Color(0xFF9B2550), Color(0xFFFFA9C6)),
+    AppAccent('slate', 'acc.slate', Color(0xFF3E4E62), Color(0xFFB9C7D8)),
+    AppAccent('amber', 'acc.amber', Color(0xFF7A5000), Color(0xFFF2C462)),
   ];
+
+  /// Zemin rengine YAKIŞAN vurgu (2026-11-15, kullanıcı: "renk seçince
+  /// yalnız arka değişiyor, genel değişmeli"). Ana ekran düzenli yeni
+  /// ailelerde zemin seçimi vurguyu da bununla değiştirir.
+  static String pairFor(String backgroundId) => switch (backgroundId) {
+        'paper' => 'plum',
+        'sand' => 'rust',
+        'rose' => 'berry',
+        'mint' => 'forest',
+        'ice' => 'ocean',
+        'lilac' => 'indigo',
+        'grey' => 'slate',
+        'olive' => 'amber',
+        'navy' => 'blue',
+        _ => 'default',
+      };
 
   static AppAccent byId(String? id) {
     for (final a in values) {

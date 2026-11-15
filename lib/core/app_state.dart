@@ -1034,6 +1034,13 @@ class AppState extends ChangeNotifier {
   Future<void> setBackground(String id) async {
     _background = AppBackground.byId(id).id;
     await _prefs.setString(_kBackground, _background);
+    // Ana ekran düzenli yeni ailelerde (Sakin/Bento/Koyu başlık) renk seçimi
+    // temayı BÜTÜN olarak değiştirir: zemine yakışan vurgu da gelir
+    // (2026-11-15, kullanıcı isteği). Vurgu sonra ayrıca değiştirilebilir.
+    if (SkinMetrics.of(_appSkin).homeStyle != HomeStyle.classic) {
+      _accent = AppAccent.pairFor(_background);
+      await _prefs.setString(_kAccent, _accent);
+    }
     _notifyAppearance();
   }
 

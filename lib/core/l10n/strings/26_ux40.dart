@@ -86,6 +86,10 @@ const Map<String, (String, String, String)> _t26 = {
   'acc.plum': ('Erik', 'Plum', 'برقوقي'),
   'acc.forest': ('Orman', 'Forest', 'أخضر غامق'),
   'acc.rust': ('Kiremit', 'Rust', 'قرميدي'),
+  'acc.ocean': ('Okyanus', 'Ocean', 'محيطي'),
+  'acc.berry': ('Böğürtlen', 'Berry', 'توتي'),
+  'acc.slate': ('Arduvaz', 'Slate', 'رمادي أردوازي'),
+  'acc.amber': ('Kehribar', 'Amber', 'كهرماني'),
   // ── Madde 10: durum yüzleri ────────────────────────────────────────────
   'ux.loading': ('Yükleniyor', 'Loading', 'جارٍ التحميل'),
   'ux.error_title': ('Açılamadı', 'Could not open', 'تعذّر الفتح'),

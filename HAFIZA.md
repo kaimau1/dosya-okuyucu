@@ -1076,3 +1076,10 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Yapı:** "Kısayol oluştur" dosyalarda da (`showFolderShortcutSheet(fileCategory:)`): kart `shortcut:true`, yol dosya → `openCustomCard` dosyayı `EntryOpener` ile açar; hızlı erişim öğesi dosyaysa tür simgesi + görüntüleyici. Dosya mı kararı uzantıdan (`shortcutFileCategory`, diske bakmaz).
 - **Kök:** `SideMenu.unregister(_categoryTilesRaw)` hiç eşleşmiyordu (uzantı yöntemi koparması her seferinde yeni kapanış) → kaynak `late final _sideMenuSource` alanında. Menü kaynağı = pano kutuları + takılıysa Harici bellek.
 - PhotosScreen normal çubuğunda da sol üstte ☰. Cihazda ölçülmedi/doğrulanmadı (bulut oturumu; kullanıcı doğrudan APK istedi).
+
+## 2026-11-15 — Düzen yedeği girişi, yeni ailelerde renk = bütün tema, koyu başlık %6 alçak
+- **Kök (CI kırmızı):** `_heightFactor` `HomeTileBoard` içinde static'ti, `HomeBandList` göremedi → üst düzey `_kHomeHeight` / `_kBandHeight`.
+- **Yapı:** "Ana ekranı düzenle" sayfasında "Düzeni kaydet · yeni cihaza aktar" → `SettingsBackupTile.showChooser` (ayar yedeği tüm tercihleri taşır: düzen, kartlar, hızlı klasörler, yan menü, tema).
+- **Karar:** yeni ailelerde (homeStyle ≠ classic) zemin rengi seçimi vurguyu da `AppAccent.pairFor` ile değiştirir; vurgu sonra ayrıca seçilebilir. Yeni vurgular: ocean, berry, slate, amber (WCAG: beyaza ≥7, siyaha ≥11).
+- **Karar:** koyu başlık satırları ek ×0,94; bellek kartı halkası 64→58, aralar 16→12.
+- Cihazda doğrulanmadı.

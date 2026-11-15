@@ -547,7 +547,8 @@ class _StyledHero extends StatelessWidget {
 
     if (style == HomeStyle.band) {
       final content = Padding(
-        padding: const EdgeInsets.only(top: Gap.xs, bottom: Gap.md),
+        // %6 alçak (2026-11-15): halka 64 → 58, aralar 16 → 12.
+        padding: const EdgeInsets.only(top: Gap.xs, bottom: Gap.sm + 4),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -558,7 +559,7 @@ class _StyledHero extends StatelessWidget {
               child: Row(
                 children: [
                   SizedBox.square(
-                    dimension: 64,
+                    dimension: 58,
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
@@ -602,7 +603,7 @@ class _StyledHero extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: Gap.md),
+            const SizedBox(height: Gap.sm + 4),
             actions,
           ],
         ),

@@ -13,6 +13,14 @@ import 'drag_trash_target.dart';
 import 'fm_category_tile.dart';
 import 'reorder_hover_gate.dart';
 
+/// Ana ekran kutularının yükseklik çarpanı (2026-11-15, kullanıcı: "bütün
+/// butonların yüksekliğini %5 azalt, Araçlar ekrana sığsın").
+const _kHomeHeight = 0.95;
+
+/// Koyu başlık (band) satırları ayrıca %6 alçak (2026-11-15, kullanıcı:
+/// "koyu başlık temasında yükseklikleri %6 azalt, Araçlar sığsın").
+const _kBandHeight = 0.94;
+
 /// **Ana ekran kutuları — sürükle-sırala, çöpe at, dört düzen** (2026-11-15).
 ///
 /// Kullanıcı: *"buradaki kartların üzerine basılı tutarak yerini değiştirme,
@@ -183,9 +191,6 @@ class _HomeTileBoardState extends State<HomeTileBoard> {
         },
       );
 
-  /// Ana ekran kutularının yükseklik çarpanı (2026-11-15, kullanıcı: "bütün
-  /// butonların yüksekliğini %5 azalt, Araçlar ekrana sığsın").
-  static const _heightFactor = 0.95;
 
   Widget _grid(double width, double aspect,
       Widget Function({Key? key, required FmTileData data}) tile) {
@@ -193,7 +198,7 @@ class _HomeTileBoardState extends State<HomeTileBoard> {
     final columns = FmCategoryGrid.columnsFor(width);
     const gap = Gap.xs;
     final w = (width - gap * (columns - 1)) / columns;
-    final h = w / aspect * _heightFactor;
+    final h = w / aspect * _kHomeHeight;
     return Wrap(
       spacing: gap,
       runSpacing: gap,
@@ -218,11 +223,11 @@ class _HomeTileBoardState extends State<HomeTileBoard> {
     final scaler = MediaQuery.textScalerOf(context);
     // 2026-11-15 (kullanıcı: büyük kutular "çok büyük alınlı", %20 alçalsın):
     // 140 → 112 dp (yazı ölçeğiyle büyüyen pay korunur).
-    // 2026-11-15 (ikinci tur): tüm kutular %5 daha alçak ([_heightFactor]),
+    // 2026-11-15 (ikinci tur): tüm kutular %5 daha alçak ([_kHomeHeight]),
     // Araçlar bölümü ilk ekrana sığsın.
-    final bigH = (72 + scaler.scale(40)) * _heightFactor;
-    final midH = (52 + scaler.scale(24)) * _heightFactor;
-    final smallH = (70 + scaler.scale(30)) * _heightFactor;
+    final bigH = (72 + scaler.scale(40)) * _kHomeHeight;
+    final midH = (52 + scaler.scale(24)) * _kHomeHeight;
+    final smallH = (70 + scaler.scale(30)) * _kHomeHeight;
     Widget sized(FmTileData t, double w, double h, Widget child) =>
         SizedBox(width: w, height: h, child: _cell(t, w, h, child));
     return Wrap(
@@ -245,7 +250,9 @@ class _HomeTileBoardState extends State<HomeTileBoard> {
     final tiles = _ordered;
     final scheme = Theme.of(context).colorScheme;
     final radius = context.fmCardRadius;
-    final h = (52 + MediaQuery.textScalerOf(context).scale(20)) * _heightFactor;
+    final h = (52 + MediaQuery.textScalerOf(context).scale(20)) *
+        _kHomeHeight *
+        _kBandHeight;
     final w = (width - 2) / 2;
     final rows = <Widget>[];
     for (var i = 0; i < tiles.length; i += 2) {
@@ -529,7 +536,9 @@ class HomeBandList extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final radius = context.fmCardRadius;
-    final h = (52 + MediaQuery.textScalerOf(context).scale(20)) * _heightFactor;
+    final h = (52 + MediaQuery.textScalerOf(context).scale(20)) *
+        _kHomeHeight *
+        _kBandHeight;
     final rows = <Widget>[];
     for (var i = 0; i < tiles.length; i += 2) {
       if (i > 0) {

@@ -18,6 +18,7 @@ Future<void> showDashboardLayoutSheet(
   required Map<String, LayoutRowInfo> tiles,
   required Map<String, LayoutRowInfo> sections,
   VoidCallback? onNewCard,
+  VoidCallback? onBackup,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -35,6 +36,7 @@ Future<void> showDashboardLayoutSheet(
         sections: sections,
         scroll: scroll,
         onNewCard: onNewCard,
+        onBackup: onBackup,
       ),
     ),
   );
@@ -49,11 +51,15 @@ class _LayoutSheet extends StatefulWidget {
   /// burada düğme). Sayfa kapanır, düzenleyici açılır.
   final VoidCallback? onNewCard;
 
+  /// Düzeni (ve tüm ayarları) dosyaya yedekle / yeni cihazda geri yükle.
+  final VoidCallback? onBackup;
+
   const _LayoutSheet({
     required this.tiles,
     required this.sections,
     required this.scroll,
     this.onNewCard,
+    this.onBackup,
   });
 
   @override
@@ -132,6 +138,25 @@ class _LayoutSheetState extends State<_LayoutSheet> {
                     },
                     icon: const Icon(AppIcons.add),
                     label: Text(context.t('card.new')),
+                  ),
+                ),
+              ),
+            // Düzenin kaydı ve yeni cihaza aktarımı (2026-11-15, kullanıcı
+            // isteği): ayar yedeği düzeni, kartları, hızlı klasörleri, yan
+            // menüyü ve temayı da taşır.
+            if (widget.onBackup != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    key: const ValueKey('dash-backup'),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      widget.onBackup!();
+                    },
+                    icon: const Icon(AppIcons.backup),
+                    label: Text(context.t('dash.backup')),
                   ),
                 ),
               ),

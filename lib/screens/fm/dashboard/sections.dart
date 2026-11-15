@@ -471,6 +471,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
     await showDashboardLayoutSheet(
       context,
       onNewCard: _newCard,
+      onBackup: () => unawaited(SettingsBackupTile.showChooser(context)),
       tiles: {
         for (final t in tiles)
           t.id: (label: t.label, icon: t.icon, color: t.color),

@@ -65,6 +65,7 @@ import 'cleanup_screen.dart';
 import 'downloads_screen.dart';
 import 'drive_screen.dart';
 import '../settings_screen.dart';
+import '../settings/tiles_backup.dart' show SettingsBackupTile;
 import 'important_gallery_screen.dart';
 import 'important_screen.dart';
 import 'entry_actions.dart' show shortcutFileCategory;
