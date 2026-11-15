@@ -171,9 +171,11 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
   }
 
   Widget _quickFolders() {
+    final quick = QuickFolders.instance;
     final folders = [
       for (final f in StorageStats.standardFolders(FmEnv.primaryRoot))
-        (label: f.label, path: f.path, volume: ''),
+        if (!quick.isHidden(f.path))
+          (label: f.label, path: f.path, volume: '', standard: true),
       // **Takılabilir birimlerin standart klasörleri de burada** (kullanıcı
       // 2026-09-02: *"SD kartı kullananlar ne yapacak"*). Kamerası SD karta
       // çeken bir telefonda DCIM ana bellekte DEĞİL kartta; hızlı klasörler
@@ -183,46 +185,107 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
       for (final v in FmEnv.volumes)
         if (v.isRemovable)
           for (final f in StorageStats.standardFolders(v.path))
-            (
-              label: f.label,
-              path: f.path,
-              volume: v.displayLabel(context.t),
-            ),
+            if (!quick.isHidden(f.path))
+              (
+                label: f.label,
+                path: f.path,
+                volume: v.displayLabel(context.t),
+                standard: true,
+              ),
+      // **Kullanıcının eklediği klasörler** (2026-11-15): ⋮ → Kısayol
+      // oluştur → Hızlı klasörlere ekle, ya da buradaki "Ekle".
+      for (final path in quick.added)
+        (label: p.basename(path), path: path, volume: '', standard: false),
     ];
-    if (folders.isEmpty) {
-      return Text(context.t('fm.no_standard_folders'));
-    }
     return Wrap(
       spacing: Gap.sm,
       runSpacing: Gap.sm,
       children: [
+        if (folders.isEmpty) Text(context.t('qf.empty')),
         // Boyut yalnız ÖLÇÜLMÜŞ klasörde yazılır (bugün: İndirilenler).
         // Hepsini ölçmek her klasör için ayrı bir ağaç yürüyüşü demek —
         // panonun açılışını saniyelerce geciktirirdi, bilinçli olarak yapılmadı.
         for (final f in folders)
-          ActionChip(
-            // Klasör simgesi temanın klasör rengini taşır (listedeki
-            // klasörlerle aynı — 2026-11-08 tasarım turu; vurgu mavisiydi).
-            avatar: Icon(
-                f.volume.isEmpty ? AppIcons.folder : AppIcons.storage,
-                size: 18,
-                color: f.volume.isEmpty
-                    ? context.fmFolderColor ?? FmColors.folder
-                    : null),
-            label: Text(
-              [
-                f.label,
-                if (f.volume.isNotEmpty) f.volume,
-                if (_folderSizes[f.path] != null)
-                  FsPaths.humanSize(_folderSizes[f.path]!),
-              ].join(' · '),
+          // Basılı tut → aç / hızlı klasörlerden çıkar (2026-11-15).
+          GestureDetector(
+            key: ValueKey('qf:${f.path}'),
+            onLongPress: () => _quickFolderMenu(f.path, f.label, f.standard),
+            child: ActionChip(
+              // Klasör simgesi temanın klasör rengini taşır (listedeki
+              // klasörlerle aynı — 2026-11-08 tasarım turu; vurgu mavisiydi).
+              avatar: Icon(
+                  f.volume.isEmpty ? AppIcons.folder : AppIcons.storage,
+                  size: 18,
+                  color: f.volume.isEmpty
+                      ? context.fmFolderColor ?? FmColors.folder
+                      : null),
+              label: Text(
+                [
+                  f.label,
+                  if (f.volume.isNotEmpty) f.volume,
+                  if (_folderSizes[f.path] != null)
+                    FsPaths.humanSize(_folderSizes[f.path]!),
+                ].join(' · '),
+              ),
+              onPressed: () => _push(BrowserScreen(
+                  path: f.path,
+                  title:
+                      f.volume.isEmpty ? f.label : '${f.label} · ${f.volume}')),
             ),
-            onPressed: () => _push(BrowserScreen(
-                path: f.path,
-                title: f.volume.isEmpty ? f.label : '${f.label} · ${f.volume}')),
           ),
+        ActionChip(
+          avatar: const Icon(AppIcons.add, size: 18),
+          label: Text(context.t('qf.add')),
+          onPressed: _addQuickFolder,
+        ),
       ],
     );
+  }
+
+  Future<void> _quickFolderMenu(
+      String path, String label, bool standard) async {
+    final choice = await showAppActionSheet<String>(
+      context,
+      title: label,
+      groups: [
+        AppActionGroup(actions: [
+          AppAction(
+              value: 'open',
+              icon: AppIcons.folder,
+              label: context.t('common.open')),
+          AppAction(
+              value: 'remove',
+              icon: AppIcons.close,
+              label: context.t('qf.quick_remove'),
+              destructive: true),
+        ]),
+      ],
+    );
+    if (!mounted || choice == null) return;
+    if (choice == 'open') {
+      unawaited(_push(BrowserScreen(path: path, title: label)));
+      return;
+    }
+    await QuickFolders.instance.remove(path, standard: standard);
+    if (mounted) _snack(context.t('qf.quick_removed', {'name': label}));
+  }
+
+  Future<void> _addQuickFolder() async {
+    final target = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => FolderPickerScreen(
+          sources: const [],
+          actionLabel: context.t('qf.add_here'),
+        ),
+      ),
+    );
+    if (target == null || !mounted) return;
+    final roots = [FmEnv.primaryRoot, for (final v in FmEnv.volumes) v.path];
+    await QuickFolders.instance
+        .add(target, standard: QuickFolders.isStandardPath(target, roots));
+    if (mounted) {
+      _snack(context.t('qf.quick_added', {'name': p.basename(target)}));
+    }
   }
 
   /// Önemli Dosyalar kutusunun sayıları — pano indeksinden (ek tarama yok).

@@ -61,6 +61,8 @@ import '../../widgets/app_dialog.dart';
 import '../../widgets/menu_kit.dart';
 import '../../widgets/app_action_sheet.dart';
 import '../../services/fm/library_store.dart';
+import '../../services/fm/custom_cards.dart';
+import '../../services/fm/quick_folders.dart';
 
 part 'entry_actions/sheet.dart';
 part 'entry_actions/file_ops.dart';
