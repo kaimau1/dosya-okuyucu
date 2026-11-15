@@ -35,7 +35,6 @@ import '../../widgets/fm/fm_file_image.dart';
 import '../image_edit_screen.dart';
 import '../viewer_screen.dart';
 import 'entry_actions.dart';
-import 'resize_actions.dart';
 import 'resize_compare_screen.dart';
 
 part 'image_gallery/widgets.dart';
