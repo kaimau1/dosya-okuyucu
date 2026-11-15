@@ -30,6 +30,7 @@ import 'hidden_files_screen.dart';
 import 'important_screen.dart' show ImportantGalleryTile;
 import '../../core/user_error.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/app_action_sheet.dart';
 
 /// **Şifreli kasa** ekranı (bkz. [SecureVault]): kurulum → kilit → içerik.
 ///
@@ -306,34 +307,24 @@ class _VaultScreenState extends State<VaultScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _itemMenu(VaultItem item) async {
-    final action = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(AppIcons.open),
-              title: Text(ctx.t('common.open')),
-              onTap: () => Navigator.pop(ctx, 'open'),
-            ),
-            ListTile(
-              leading: const Icon(AppIcons.unlock),
-              title: Text(ctx.t('vault.restore')),
-              subtitle: Text(ctx.t('vault.restore_sub')),
-              onTap: () => Navigator.pop(ctx, 'restore'),
-            ),
-            ListTile(
-              leading: Icon(AppIcons.deleteForever,
-                  color: Theme.of(ctx).colorScheme.error),
-              title: Text(ctx.t('vault.delete')),
-              onTap: () => Navigator.pop(ctx, 'delete'),
-            ),
-          ],
-        ),
-      ),
-    );
+    final action = await showAppActionSheet<String>(context, groups: [
+      AppActionGroup(actions: [
+        AppAction(
+            value: 'open',
+            icon: AppIcons.open,
+            label: context.t('common.open')),
+        AppAction(
+            value: 'restore',
+            icon: AppIcons.unlock,
+            label: context.t('vault.restore'),
+            hint: context.t('vault.restore_sub')),
+        AppAction(
+            value: 'delete',
+            icon: AppIcons.deleteForever,
+            label: context.t('vault.delete'),
+            destructive: true),
+      ]),
+    ]);
     if (!mounted || action == null) return;
     switch (action) {
       case 'open':

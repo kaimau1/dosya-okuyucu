@@ -41,7 +41,19 @@ class _RecentStripState extends State<RecentStrip> {
   @override
   void initState() {
     super.initState();
+    OpenHistory.changes.addListener(_onHistory);
     _load();
+  }
+
+  /// Bir dosya açılınca (her tür) şerit kendiliğinden tazelenir.
+  void _onHistory() {
+    if (mounted && OpenHistory.revision != _seenRevision) _load();
+  }
+
+  @override
+  void dispose() {
+    OpenHistory.changes.removeListener(_onHistory);
+    super.dispose();
   }
 
   @override
@@ -60,8 +72,10 @@ class _RecentStripState extends State<RecentStrip> {
     _seenRevision = OpenHistory.revision;
     // Fazlasını iste: bazıları silinmiş olabilir.
     final paths = OpenHistory.pathsByRecency().take(widget.limit * 2).toList();
+    final loadedAt = _seenRevision;
     final stats = await FsScan.statPaths(paths);
-    if (!mounted) return;
+    // Yükleme sürerken yeni kayıt geldiyse onun yüklemesi sonucu yazar.
+    if (!mounted || loadedAt != _seenRevision) return;
     setState(() => _items = [
           for (final e in stats)
             if (!e.isDir) e,

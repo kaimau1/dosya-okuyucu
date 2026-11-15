@@ -65,80 +65,56 @@ Future<T?> showAppActionSheet<T>(
     builder: (ctx) {
       final theme = Theme.of(ctx);
       final maxHeight = MediaQuery.sizeOf(ctx).height * 0.75;
-      return ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: maxHeight),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (title != null)
-                Padding(
-                  padding:
-                      const EdgeInsetsDirectional.fromSTEB(24, 0, 24, Gap.xs),
-                  child: Text(title,
+      final header = title == null && subtitle == null
+          ? null
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (title != null)
+                  Text(title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleMedium
                           ?.copyWith(fontWeight: FontWeight.w700)),
-                ),
-              if (subtitle != null)
-                Padding(
-                  padding:
-                      const EdgeInsetsDirectional.fromSTEB(24, 0, 24, Gap.xs),
-                  child: Text(subtitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: Paper.faint(ctx))),
-                ),
-              Flexible(
-                child: ListView(
-                  shrinkWrap: true,
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, Gap.sm),
-                  children: [
-                    // Ortak menü dili (2026-10-29): başlık + kart + simge
-                    // kutusu — dosya içi "Daha fazla" ve uzun basma
-                    // menüsüyle aynı (bkz. `menu_kit.dart`).
-                    for (var g = 0; g < visible.length; g++) ...[
-                      if (visible[g].title != null)
-                        MenuGroupTitle(visible[g].title!)
-                      else
-                        const SizedBox(height: Gap.sm),
-                      MenuGroupCard(
-                        child: Column(
-                          children: [
-                            for (final a in visible[g].actions)
-                              _ActionTile(
-                                action: a,
-                                onTap: () => Navigator.of(ctx).pop(a.value),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+                if (subtitle != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: Gap.xs),
+                    child: Text(subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: Paper.faint(ctx))),
+                  ),
+              ],
+            );
+      return ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.sm),
+          // Ortak menü dili (2026-10-29) + menü görünümü (2026-11-15):
+          // sekmeli/Bento seçimi `MenuSections`ta — dosya levhası ve "Daha
+          // fazla" ile aynı (bkz. `menu_kit.dart`).
+          child: MenuSections(
+            header: header,
+            sections: [
+              for (final g in visible)
+                MenuKitSection(title: g.title, actions: [
+                  for (final a in g.actions)
+                    MenuKitAction(
+                      icon: a.icon,
+                      label: a.label,
+                      hint: a.hint,
+                      tone: a.destructive
+                          ? MenuTone.danger
+                          : (a.accent ? MenuTone.accent : MenuTone.neutral),
+                      onTap: () => Navigator.of(ctx).pop(a.value),
+                    ),
+                ]),
             ],
           ),
+        ),
       );
     },
   );
-}
-
-class _ActionTile<T> extends StatelessWidget {
-  final AppAction<T> action;
-  final VoidCallback onTap;
-  const _ActionTile({required this.action, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) => MenuRow(
-        icon: action.icon,
-        label: action.label,
-        hint: action.hint,
-        onTap: onTap,
-        tone: action.destructive
-            ? MenuTone.danger
-            : (action.accent ? MenuTone.accent : MenuTone.neutral),
-      );
 }

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
@@ -26,8 +27,11 @@ import '../../core/private_zone.dart';
 ///   önbelleğe düşmesin).
 abstract final class PdfLastView {
   static const maxEntries = 50;
-  static const maxBytes = 200 * 1024;
+  static const maxBytes = 450 * 1024;
   static const maxWidthPx = 540;
+
+  /// Ekran genişliğinde saklanırken üst sınır (piksel).
+  static const sharpWidthPx = 1080;
 
   static Directory? _dir;
 
@@ -52,11 +56,16 @@ abstract final class PdfLastView {
 
   /// Açık belgenin [page] sayfasını çizip saklar. Kapanırken çağrılır;
   /// başarısızlık sessiz (köprü kapağa/kâğıda döner).
-  static Future<void> capture(String path, PdfDocument doc, int page) async {
+  ///
+  /// [widthPx]: ekranın fiziksel genişliği verilirse görüntü o genişlikte
+  /// saklanır (en çok [sharpWidthPx]) — köprü onu bulanıklaşmadan gösterir.
+  static Future<void> capture(String path, PdfDocument doc, int page,
+      {int? widthPx}) async {
     if (!allowed(path) || page < 1 || page > doc.pages.length) return;
     try {
       final pg = doc.pages[page - 1];
-      final w = maxWidthPx;
+      final int w =
+          (widthPx ?? maxWidthPx).clamp(maxWidthPx, sharpWidthPx).toInt();
       final h = (w * pg.height / pg.width).round().clamp(16, w * 4);
       final rendered = await pg.render(
         fullWidth: w.toDouble(),
@@ -64,16 +73,18 @@ abstract final class PdfLastView {
         backgroundColor: AppColors.page.toARGB32(),
       );
       if (rendered == null) return;
-      final Uint8List bgra;
+      // Tek kopya: pikseller izolata devredilir (ikinci kopya kapanış
+      // geçişinin karelerine karışıyordu).
+      final TransferableTypedData bgra;
       final int rw, rh;
       try {
-        bgra = Uint8List.fromList(rendered.pixels);
+        bgra = TransferableTypedData.fromList([rendered.pixels]);
         rw = rendered.width;
         rh = rendered.height;
       } finally {
         rendered.dispose();
       }
-      final jpg = await compute(encode, (bgra, rw, rh));
+      final jpg = await compute(_encodeMoved, (bgra, rw, rh));
       if (jpg == null) return;
       await save(path, page, jpg);
     } catch (_) {
@@ -81,6 +92,9 @@ abstract final class PdfLastView {
       // yarıda kalabilir — o zaman köprü kapak/kâğıt gösterir.
     }
   }
+
+  static Uint8List? _encodeMoved((TransferableTypedData, int, int) a) =>
+      encode((a.$1.materialize().asUint8List(), a.$2, a.$3));
 
   /// BGRA → JPEG; [maxBytes]'ı aşarsa kalite düşürülür, yine aşarsa null.
   @visibleForTesting
@@ -128,8 +142,11 @@ abstract final class PdfLastView {
 
   /// [path]'in [page] için saklı görüntüsü; yoksa, belge sonradan
   /// değiştiyse ya da saklanamaz bir yolsa null. `aspect` = en / boy.
-  static Future<({String path, double aspect})?> find(
-      String path, int page) async {
+  ///
+  /// [minWidth]: görüntü bundan darsa (piksel) kullanılmaz — tam ekrana
+  /// gerilince bulanık görünür.
+  static Future<({String path, double aspect})?> find(String path, int page,
+      {int minWidth = 0}) async {
     if (!allowed(path)) return null;
     try {
       final dir = await _cacheDir();
@@ -138,8 +155,9 @@ abstract final class PdfLastView {
       if (snap.type == FileSystemEntityType.notFound) return null;
       final pdf = await File(path).stat();
       if (pdf.modified.isAfter(snap.modified)) return null;
-      final aspect = await jpegAspect(f);
-      return aspect == null ? null : (path: f.path, aspect: aspect);
+      final size = await jpegSize(f);
+      if (size == null || size.$1 < minWidth) return null;
+      return (path: f.path, aspect: size.$1 / size.$2);
     } catch (_) {
       return null;
     }
@@ -147,6 +165,12 @@ abstract final class PdfLastView {
 
   /// JPEG SOF başlığından en / boy (ilk 64 KB'de); bulunamazsa null.
   static Future<double?> jpegAspect(File file) async {
+    final size = await jpegSize(file);
+    return size == null ? null : size.$1 / size.$2;
+  }
+
+  /// JPEG SOF başlığından (en, boy) piksel; bulunamazsa null.
+  static Future<(int, int)?> jpegSize(File file) async {
     final raf = await file.open();
     try {
       final b = await raf.read(64 * 1024);
@@ -158,7 +182,7 @@ abstract final class PdfLastView {
         if (m >= 0xC0 && m <= 0xCF && m != 0xC4 && m != 0xC8 && m != 0xCC) {
           final h = (b[i + 5] << 8) | b[i + 6];
           final w = (b[i + 7] << 8) | b[i + 8];
-          return w > 0 && h > 0 ? w / h : null;
+          return w > 0 && h > 0 ? (w, h) : null;
         }
         i += 2 + len;
       }

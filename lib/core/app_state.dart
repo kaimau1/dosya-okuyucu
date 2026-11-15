@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'l10n/app_language.dart';
 import 'device_profile.dart';
+import 'menu_look.dart';
 import 'skin.dart';
 import 'state/appearance_state.dart';
 import 'state/focused_states.dart';
@@ -56,6 +57,7 @@ class AppState extends ChangeNotifier {
   static const _kAppSkin = 'app_skin';
   static const _kBackground = 'app_background';
   static const _kAccent = 'app_accent';
+  static const _kMenuLook = 'menu_look';
   static const _kLanguage = 'app_language';
   static const _kRecents = 'recent_files';
   static const _kMemory = 'ai_memory';
@@ -156,6 +158,7 @@ class AppState extends ChangeNotifier {
         uiFont: _uiFont,
         uiTextScale: _uiTextScale,
         accent: _accent,
+        menuLook: _menuLook,
       );
 
   /// Görünüm ayarı değişimi: hem görünüm parçası hem (ayar ekranları için)
@@ -186,6 +189,9 @@ class AppState extends ChangeNotifier {
 
   /// Vurgu rengi (`AppAccent.id`, Faz 40 / 8); 'default' = ailenin kendi.
   String _accent = 'default';
+
+  /// Menü görünümü (2026-11-15): varsayılan sekmeli.
+  MenuLook _menuLook = MenuLook.tabbed;
   AppLanguage _language = AppLanguage.system;
 
   /// Arayüz yazı tipi. Varsayılan `AppTheme.uiFontDefault` = tasarımın kendi
@@ -310,6 +316,9 @@ class AppState extends ChangeNotifier {
   /// Etkin arka plan rengi kimliği.
   String get background => _background;
   String get accent => _accent;
+
+  /// Menü görünümü (sekmeli / Bento).
+  MenuLook get menuLook => _menuLook;
 
   /// Arayüz dili. `system` = cihazın dili (desteklenmiyorsa Türkçe).
   AppLanguage get language => _language;
@@ -867,6 +876,7 @@ class AppState extends ChangeNotifier {
         skinName == null ? AppSkin.bento : AppSkin.byName(skinName);
     _background = AppBackground.byId(_prefs.getString(_kBackground)).id;
     _accent = AppAccent.byId(_prefs.getString(_kAccent)).id;
+    _menuLook = MenuLook.byName(_prefs.getString(_kMenuLook));
     _language = AppLanguageInfo.byCode(_prefs.getString(_kLanguage));
     _uiFont = AppTheme.migrateUiFont(_prefs.getString(_kUiFont));
     _uiTextScale = (_prefs.getDouble(_kUiTextScale) ?? 1.0).clamp(0.85, 2.0);
@@ -1041,6 +1051,12 @@ class AppState extends ChangeNotifier {
   Future<void> setAppSkin(AppSkin skin) async {
     _appSkin = skin;
     await _prefs.setString(_kAppSkin, skin.name);
+    _notifyAppearance();
+  }
+
+  Future<void> setMenuLook(MenuLook look) async {
+    _menuLook = look;
+    await _prefs.setString(_kMenuLook, look.name);
     _notifyAppearance();
   }
 

@@ -79,6 +79,13 @@ const Map<String, (String, String, String)> _t26 = {
   'thp.paper': ('Kâğıt', 'Paper', 'ورقي'),
   'thp.size_max': ('2×', '2×', '2×'),
   'acc.title': ('Vurgu rengi', 'Accent color', 'لون التمييز'),
+  // Menü görünümü (2026-11-15): iki görünüm, varsayılan sekmeli.
+  'menu.look_title': ('Menü görünümü', 'Menu style', 'نمط القوائم'),
+  'menu.look_sub': ('Dosya ve belge menülerinin dizilişi', 'How file and document menus are laid out', 'طريقة ترتيب قوائم الملفات والمستندات'),
+  'menu.look_tabbed': ('Sekmeli', 'Tabbed', 'بعلامات تبويب'),
+  'menu.look_bento': ('Bento', 'Bento', 'بينتو'),
+  'menu.tab_common': ('Sık kullanılan', 'Frequent', 'الأكثر استخدامًا'),
+  'menu.tab_more': ('Diğer', 'More', 'المزيد'),
   'acc.default': ('Temanın kendi', 'Theme default', 'افتراضي السمة'),
   'acc.teal': ('Deniz yeşili', 'Teal', 'أزرق مخضر'),
   'acc.blue': ('Mavi', 'Blue', 'أزرق'),
