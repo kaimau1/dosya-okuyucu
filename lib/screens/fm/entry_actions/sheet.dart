@@ -165,7 +165,9 @@ Future<bool> showEntryActions(
   bool showShare = true,
 }) async {
   VoidCallback? chosenExtra;
-  final appState = context.read<AppState>();
+  // Sağlayıcısız ağaçta da (test, bağımsız ekran) levha açılsın: AppState
+  // yalnız klasör yer imi ve pano için gerekli.
+  final appState = context.read<AppState?>();
   final isArchive = ArchiveOps.canExtract(entry.path);
   final canRotate = !entry.isDir && ImageRotate.canRotate(entry.path);
   // Bölmenin anlamlı olduğu alt sınır: 1 MB'ın altındaki bir dosyayı bölmek
@@ -231,10 +233,10 @@ Future<bool> showEntryActions(
               if (entry.isDir)
                 _quick(
                   ctx,
-                  appState.isBookmarked(entry.path)
+                  appState?.isBookmarked(entry.path) ?? false
                       ? AppIcons.star
                       : AppIcons.starEmpty,
-                  appState.isBookmarked(entry.path)
+                  appState?.isBookmarked(entry.path) ?? false
                       ? ctx.t('fm.unfavorite')
                       : ctx.t('fm.favorite'),
                   _EntryAction.bookmark,
@@ -503,13 +505,13 @@ Future<bool> showEntryActions(
       return moveOrCopyEntries(context, [entry.path], move: false);
 
     case _EntryAction.copy:
-      appState.setClipboard([entry.path], cut: false);
+      appState?.setClipboard([entry.path], cut: false);
       _snack(context,
           context.t('fm.entry_clip_copied', {'name': entry.name}));
       return false;
 
     case _EntryAction.cut:
-      appState.setClipboard([entry.path], cut: true);
+      appState?.setClipboard([entry.path], cut: true);
       _snack(context,
           context.t('fm.entry_clip_cut', {'name': entry.name}));
       return false;
@@ -536,7 +538,7 @@ Future<bool> showEntryActions(
       return true;
 
     case _EntryAction.bookmark:
-      await appState.toggleBookmark(entry.path);
+      await appState?.toggleBookmark(entry.path);
       return false;
 
     case _EntryAction.important:
