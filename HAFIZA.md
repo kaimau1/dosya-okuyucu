@@ -1128,3 +1128,8 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Çözüm:** kayıt geçiş bitince (`_afterTransition`); `SmoothOpenRoute` ilk kare bitince `controller.forward(from: 0)` ile geçişi baştan başlatır. **Tuzak:** bu, `didPush`'un döndürdüğü TickerFuture'ı iptal eder (gezgin rotayı erken "boşta" sayar) — şimdilik zararsız; rota gözlemcisine bağlı iş eklenirse hatırla.
 - Kapanış: `PdfLastView.capture` pikselleri izolata `TransferableTypedData` ile tek kopyayla verir. Kapanış takılmasının başka kökü bulunamadı (ölçüm gerek).
 - Cihazda doğrulanmadı/ölçülmedi (bulut; kullanıcı doğrudan APK istedi) → `docs/CIHAZ_TESTI.md`.
+
+## 2026-11-15 — Kök: "Son açılanlar"a bazen hemen düşmüyor
+- **Kök:** `OpenHistory`'nin bildirimi yoktu; `RecentStrip` ve Geçmiş ekranı `revision`'a yalnız başka nedenle yeniden kurulunca bakıyordu. Belge açılışı `recentsState.changed()` ile panoyu kurduruyor (hemen düşer); foto/video/ses kurdurmuyor (yenileyene dek düşmez) → "bazen".
+- **Çözüm:** `OpenHistory.changes` (ValueNotifier, `_saveNow` başında — disk yazımı beklenmez); şerit ve `OpenHistoryScreen` dinler. Geçmiş ekranı dolu listeyi tazelerken dönence göstermez.
+- Dosya seçici (Aktar › Dosya ekle / Paylaş) her açılışta taze okur; ayrı kök bulunmadı — sürerse cihazda adım adım bak.
