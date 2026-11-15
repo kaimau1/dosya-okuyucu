@@ -144,6 +144,8 @@ class _HomeTileBoardState extends State<HomeTileBoard> {
       onAcceptWithDetails: (_) {},
       builder: (context, candidate, _) => LongPressDraggable<String>(
         data: t.id,
+        // Titreşim uygulama ayarından ([AppHaptics], `_start`) — bekçi testi.
+        hapticFeedbackOnStart: false,
         onDragStarted: () => _start(t.id),
         // `onDragEnd` hücre yeniden kurulunca gelmez ("not" F60.S12 kökü);
         // bu ikisi birbirini dışlar ve her bırakmada tam bir kez gelir.
