@@ -92,7 +92,7 @@ abstract final class VideoTranscoder {
     try {
       final v = await _channel
           .invokeMethod<bool>('hdr', {'path': path})
-          .timeout(const Duration(milliseconds: 800));
+          .timeout(const Duration(seconds: 1));
       return v ?? false;
     } catch (_) {
       return false;
