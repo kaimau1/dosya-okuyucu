@@ -8,13 +8,10 @@ part of '../entry_actions.dart';
 /// AlertDialog'du (etiket/değer alt alta, metin düğmeleri). Şimdi işlem
 /// levhasının başlık kartı, bilgi kartı (`MenuGroupCard`) ve Bento karoları.
 Future<void> showProperties(BuildContext context, FsEntry entry) async {
-  await showModalBottomSheet<void>(
-    context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
-    constraints: BoxConstraints(
-      maxHeight: MediaQuery.sizeOf(context).height * 0.88,
-    ),
+  // Ortak levha kabuğu (tasarım tokenı mandalı: ham showModalBottomSheet yok).
+  await showAppSheet<void>(
+    context,
+    scrollable: false,
     builder: (ctx) => _PropertiesDialog(entry: entry),
   );
 }
