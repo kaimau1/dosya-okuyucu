@@ -1058,3 +1058,7 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Karar:** menü ROTA (geri tuşu kapatır, açılan sayfa o ekranın üstüne gelir). Genişlik `min(0,6 × ekran, 360)`. Açma: ana ekran arama kapsülünde ☰ + her ekranda sol kenarda ince tutamaç (dokun/sağa çek; ayardan kapatılır).
 - **Tuzak:** Android hareketle gezintide sol kenardan kaydırma sistem "geri"sidir → kenardan çekme şeridi KONMADI, tutamaca dokunmak esas yol.
 - Cihazda doğrulanmadı (bulut oturumu).
+
+## 2026-11-15 — Kök: "Varsayılana dön" yerleri karıştırıyordu
+- **Kök:** `DashboardLayout.reset()` tema ailesinden bağımsız klasik sırayı koyuyordu (Son açılanlar üstte, bellek kartı kutuların altında, Bento'da büyük kutular İndirilenler/Önemli); `library` varsayılan listede yoktu → kullanıcı kartlarının arkasına düşüyordu.
+- **Karar:** `sectionsFor/tilesFor(HomeStyle)`: tasarım ailelerinde bellek kartı en üstte, Bento'da ilk iki kutu Fotoğraflar/Videolar. Sıfırlamada kullanıcı kartları sona, kendi sıralarıyla. `library` listeye (sona) eklendi.

@@ -6,6 +6,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../services/fm/dashboard_layout.dart';
 import '../../core/safe_insets.dart';
 import '../../core/app_colors.dart';
+import '../../core/skin.dart';
 
 /// Düzen sayfasındaki bir satırın görünümü.
 typedef LayoutRowInfo = ({String label, IconData icon, Color color});
@@ -65,6 +66,7 @@ class _LayoutSheetState extends State<_LayoutSheet> {
   @override
   Widget build(BuildContext context) {
     final layout = DashboardLayout.instance;
+    final homeStyle = AppSkinData.of(context).metrics.homeStyle;
     final text = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
     return AnimatedBuilder(
@@ -84,9 +86,9 @@ class _LayoutSheetState extends State<_LayoutSheet> {
                     child:
                         Text(context.t('dash.title'), style: text.titleLarge),
                   ),
-                  if (layout.isCustomized)
+                  if (layout.isCustomizedFor(homeStyle))
                     TextButton.icon(
-                      onPressed: layout.reset,
+                      onPressed: () => layout.reset(homeStyle),
                       icon: const Icon(AppIcons.reset, size: 18),
                       label: Text(context.t('dash.reset')),
                     ),
