@@ -1083,3 +1083,10 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Karar:** yeni ailelerde (homeStyle ≠ classic) zemin rengi seçimi vurguyu da `AppAccent.pairFor` ile değiştirir; vurgu sonra ayrıca seçilebilir. Yeni vurgular: ocean, berry, slate, amber (WCAG: beyaza ≥7, siyaha ≥11).
 - **Karar:** koyu başlık satırları ek ×0,94; bellek kartı halkası 64→58, aralar 16→12.
 - Cihazda doğrulanmadı.
+
+## 2026-11-15 — Yan menü parmakla (sol yarıdan), Bento %7 daha alçak, koyu modda dolu kart koyu ton
+- **Yapı:** `SideMenuLayer` artık Stateful; kökte `RawGestureDetector` + `_EdgeOpenRecognizer` (yatay sürükleme, `isPointerAllowed`: ekranın sol yarısı, menü hazır/kapalı, tutamaç ayarı açık). `touchSlop: 40` BİLİNÇLİ: iç yatay kaydırıcılar (~18) ve InteractiveViewer pan'ı (~36) yarışı önce kazanır. Sağa ilk harekette `SideMenuView.show(interactive: true)` → rota `didPush`'ta durdurulur, `dragBy`/`endDrag` denetleyiciyi parmakla sürer (eğri yok, `_dragging`). Açıkken tam ekran `GestureDetector` her yerden sola sürüklemeyle kapatır; boşluğa dokunma kapatır.
+- **Tuzak:** tutamaç `ListenableBuilder` içinde menü açılınca sökülüyor → kendi sürükleme tanıyıcısı olursa `onEnd` gelmez, menü yarıda kalır. Sürükleme yalnız dıştaki sabit bölge tanıyıcısında.
+- **Karar:** Bento kutuları ek ×0,93 (`_kBentoHeight`); büyük kutu iç boşluk 12→9, simge 26; bellek kartı düğmeleri 34 dp.
+- **Karar:** koyu modda bellek kartı ve Aktar düğmesi `primary` yüzeye doğru %55–62 koyulaşır, yazı `onSurface`.
+- Cihazda doğrulanmadı (sistem geri hareketiyle çakışma telefonda bakılmalı).

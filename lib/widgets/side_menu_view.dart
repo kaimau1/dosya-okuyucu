@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../core/app_colors.dart';
@@ -31,23 +32,40 @@ abstract final class SideMenuView {
   static double widthFor(double screen) =>
       math.min(screen * maxFraction, 360);
 
+  /// Açık menünün rotası (parmakla sürükleme onu sürer).
+  static _SideMenuRoute? _route;
+
   /// Menüyü kök gezgin üstünde açar (zaten açıksa bir şey yapmaz).
-  static Future<void> show() async {
+  /// [interactive]: parmakla çekerek açılıyor — rota kapalı (0) durur,
+  /// [dragBy] / [endDrag] parmağı izletir (2026-11-15, kullanıcı: "parmağımla
+  /// beraber hareket etmeli").
+  static Future<void> show({bool interactive = false}) async {
     final nav = navigatorKey.currentState;
     final menu = SideMenu.instance;
     if (nav == null || !menu.ready.value || menu.open.value) return;
     unawaited(menu.ensureLoaded());
     menu.open.value = true;
+    final route = _SideMenuRoute(
+      barrierLabel: nav.context.t('common.close'),
+      barrierColor:
+          Theme.of(nav.context).colorScheme.scrim.withValues(alpha: 0.32),
+      interactive: interactive,
+    );
+    _route = route;
     try {
-      await nav.push(_SideMenuRoute(
-        barrierLabel: nav.context.t('common.close'),
-        barrierColor:
-            Theme.of(nav.context).colorScheme.scrim.withValues(alpha: 0.32),
-      ));
+      await nav.push(route);
     } finally {
+      if (identical(_route, route)) _route = null;
       menu.open.value = false;
     }
   }
+
+  /// Sürüklemeyle açılış: menüyü [dx] (mantıksal piksel, açılma yönünde
+  /// artı) kadar ilerletir.
+  static void dragBy(double dx) => _route?.dragBy(dx);
+
+  /// Sürükleme bitti: hıza/konuma göre açık kalır ya da kapanır.
+  static void endDrag(double velocity) => _route?.endDrag(velocity);
 }
 
 class _SideMenuRoute extends PopupRoute<void> {
@@ -56,7 +74,17 @@ class _SideMenuRoute extends PopupRoute<void> {
   @override
   final Color barrierColor;
 
-  _SideMenuRoute({required this.barrierLabel, required this.barrierColor});
+  _SideMenuRoute({
+    required this.barrierLabel,
+    required this.barrierColor,
+    bool interactive = false,
+  }) : _dragging = interactive;
+
+  /// Parmak menüyü sürüyor: geçiş eğrisiz (parmağın altında kalsın).
+  bool _dragging;
+
+  /// Menü genişliği (son çizimden).
+  double _width = 300;
 
   @override
   bool get barrierDismissible => true;
@@ -65,12 +93,62 @@ class _SideMenuRoute extends PopupRoute<void> {
   Duration get transitionDuration => Motion.medium;
 
   @override
+  TickerFuture didPush() {
+    final future = super.didPush();
+    // Sürüklemeyle açılış: kendiliğinden kayma yok, parmak sürer.
+    if (_dragging) controller?.stop();
+    return future;
+  }
+
+  void dragBy(double dx) {
+    final c = controller;
+    if (c == null || !isActive) return;
+    if (!_dragging) setState(() => _dragging = true);
+    c.value = (c.value + dx / _width).clamp(0.0, 1.0);
+  }
+
+  void endDrag(double velocity) {
+    final c = controller;
+    if (c == null || !isActive) return;
+    setState(() => _dragging = false);
+    final open = velocity.abs() > 300 ? velocity > 0 : c.value > 0.5;
+    if (open) {
+      unawaited(c.forward());
+    } else if (isCurrent) {
+      navigator?.pop();
+    } else {
+      navigator?.removeRoute(this);
+    }
+  }
+
+  @override
   Widget buildPage(BuildContext context, Animation<double> animation,
       Animation<double> secondaryAnimation) {
     final width = SideMenuView.widthFor(MediaQuery.sizeOf(context).width);
-    return Align(
-      alignment: AlignmentDirectional.centerStart,
-      child: SizedBox(width: width, child: const _SideMenuPanel()),
+    _width = width;
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    double dir(double dx) => rtl ? -dx : dx;
+    // Açıkken ekranın HERHANGİ bir yerinden geri kaydırmak menüyü parmakla
+    // birlikte kapatır (2026-11-15); boşluğa dokunmak kapatır.
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () {
+        if (isCurrent) navigator?.maybePop();
+      },
+      onHorizontalDragUpdate: (d) => dragBy(dir(d.delta.dx)),
+      onHorizontalDragEnd: (d) => endDrag(dir(d.primaryVelocity ?? 0)),
+      onHorizontalDragCancel: () => endDrag(0),
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: SizedBox(
+          width: width,
+          // Panelin içine dokunmak perdeye gitmesin.
+          child: GestureDetector(
+            onTap: () {},
+            child: const _SideMenuPanel(),
+          ),
+        ),
+      ),
     );
   }
 
@@ -80,10 +158,12 @@ class _SideMenuRoute extends PopupRoute<void> {
     final rtl = Directionality.of(context) == TextDirection.rtl;
     return SlideTransition(
       position: Tween(begin: Offset(rtl ? 1 : -1, 0), end: Offset.zero)
-          .animate(CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-              reverseCurve: Curves.easeInCubic)),
+          .animate(_dragging
+              ? animation
+              : CurvedAnimation(
+                  parent: animation,
+                  curve: Curves.easeOutCubic,
+                  reverseCurve: Curves.easeInCubic)),
       child: child,
     );
   }
@@ -108,14 +188,7 @@ class _SideMenuPanel extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final metrics = AppSkinData.of(context).metrics;
-    final rtl = Directionality.of(context) == TextDirection.rtl;
-    return GestureDetector(
-      // Menüyü geldiği yöne itmek kapatır.
-      onHorizontalDragEnd: (d) {
-        final v = d.primaryVelocity ?? 0;
-        if (rtl ? v > 300 : v < -300) Navigator.of(context).maybePop();
-      },
-      child: Material(
+    return Material(
         color: theme.scaffoldBackgroundColor,
         elevation: 6,
         shape: RoundedRectangleBorder(
@@ -216,8 +289,7 @@ class _SideMenuPanel extends StatelessWidget {
             },
           ),
         ),
-      ),
-    );
+      );
   }
 }
 
@@ -485,16 +557,90 @@ Future<void> showSideMenuEditor(BuildContext context) {
 ///
 /// Not: Android hareketle gezintide sol kenardan kaydırma sistemin "geri"
 /// hareketidir; bu yüzden tutamaca DOKUNMAK her durumda çalışan yoldur.
-class SideMenuLayer extends StatelessWidget {
+class SideMenuLayer extends StatefulWidget {
   final Widget child;
   const SideMenuLayer({super.key, required this.child});
 
   @override
+  State<SideMenuLayer> createState() => _SideMenuLayerState();
+}
+
+/// Ekranın sol yarısından sağa çekince menü PARMAKLA birlikte açılır
+/// (2026-11-15, kullanıcı: "soldan çekmek zor, neredeyse tüm soldan
+/// çekilebilsin, parmağımla beraber hareket etmeli").
+///
+/// Kaydırma eşiği bilinçli olarak büyük ([_slop]): içerideki yatay
+/// kaydırıcılar (şeritler, galeri sayfaları ~18 px) ve yakınlaştırılmış
+/// PDF/görsel kaydırması (~36 px) yarışı ÖNCE kazanır; menü yalnız kimsenin
+/// istemediği yatay sürüklemeyi alır. Sistem "geri" hareketinin kenar şeridi
+/// uygulamaya hiç gelmez, ondan sonrası bizim.
+class _SideMenuLayerState extends State<SideMenuLayer> {
+  static const _slop = 40.0;
+
+  /// Sol bölgenin ekran genişliğine oranı.
+  static const _zone = 0.5;
+
+  bool _opening = false;
+  double _lead = 0;
+  double? _down;
+
+  bool _allowed(Offset position) {
+    final menu = SideMenu.instance;
+    if (!menu.ready.value || menu.open.value || !menu.showHandle) return false;
+    final width = MediaQuery.sizeOf(context).width;
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    final x = rtl ? width - position.dx : position.dx;
+    return x <= width * _zone;
+  }
+
+  void _begin(double lead) {
+    _opening = false;
+    _lead = lead;
+  }
+
+  void _update(double dx, bool rtl) {
+    final d = rtl ? -dx : dx;
+    if (!_opening) {
+      if (d <= 0) return;
+      _opening = true;
+      unawaited(SideMenuView.show(interactive: true));
+      SideMenuView.dragBy(_lead);
+    }
+    SideMenuView.dragBy(d);
+  }
+
+  void _end(double velocity, bool rtl) {
+    if (!_opening) return;
+    _opening = false;
+    SideMenuView.endDrag(rtl ? -velocity : velocity);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final menu = SideMenu.instance;
-    return Stack(
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    return RawGestureDetector(
+      behavior: HitTestBehavior.translucent,
+      gestures: {
+        _EdgeOpenRecognizer:
+            GestureRecognizerFactoryWithHandlers<_EdgeOpenRecognizer>(
+          () => _EdgeOpenRecognizer(allowed: _allowed, debugOwner: this),
+          (r) => r
+            ..gestureSettings = const DeviceGestureSettings(touchSlop: _slop)
+            ..onDown = (d) => _down = d.globalPosition.dx
+            ..onStart = (d) {
+              final from = _down;
+              final lead = from == null ? 0.0 : d.globalPosition.dx - from;
+              _begin(rtl ? -lead : lead);
+            }
+            ..onUpdate = (d) => _update(d.delta.dx, rtl)
+            ..onEnd = (d) => _end(d.primaryVelocity ?? 0, rtl)
+            ..onCancel = () => _end(0, rtl),
+        ),
+      },
+      child: Stack(
       children: [
-        child,
+        widget.child,
         ListenableBuilder(
           listenable: Listenable.merge([menu, menu.ready, menu.open]),
           builder: (context, _) {
@@ -502,13 +648,6 @@ class SideMenuLayer extends StatelessWidget {
               return const SizedBox.shrink();
             }
             final h = MediaQuery.sizeOf(context).height;
-            final rtl = Directionality.of(context) == TextDirection.rtl;
-            void drag(DragUpdateDetails d) {
-              if ((rtl ? -d.delta.dx : d.delta.dx) > 6) {
-                unawaited(SideMenuView.show());
-              }
-            }
-
             if (!menu.showHandle) return const SizedBox.shrink();
             final scheme = Theme.of(context).colorScheme;
             return PositionedDirectional(
@@ -521,7 +660,8 @@ class SideMenuLayer extends StatelessWidget {
                   key: const ValueKey('side-menu-handle'),
                   behavior: HitTestBehavior.opaque,
                   onTap: () => unawaited(SideMenuView.show()),
-                  onHorizontalDragUpdate: drag,
+                  // Sürükleme dıştaki bölge tanıyıcısında (tutamaç sol
+                  // bölgede); burada yalnız dokunma.
                   child: SizedBox(
                     width: 14,
                     height: 64,
@@ -545,8 +685,18 @@ class SideMenuLayer extends StatelessWidget {
           },
         ),
       ],
+    ),
     );
   }
+}
+
+class _EdgeOpenRecognizer extends HorizontalDragGestureRecognizer {
+  final bool Function(Offset position) allowed;
+  _EdgeOpenRecognizer({required this.allowed, super.debugOwner});
+
+  @override
+  bool isPointerAllowed(PointerEvent event) =>
+      allowed(event.position) && super.isPointerAllowed(event);
 }
 
 /// Ana ekran gibi yerlerde menü düğmesi.

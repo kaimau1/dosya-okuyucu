@@ -440,7 +440,16 @@ class _StyledHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
+    var scheme = theme.colorScheme;
+    // Koyu modda dolu kart parlak vurguyla boyanmaz (2026-11-15, kullanıcı:
+    // "koyu modda üstteki yeşil çok parlak"): vurgu yüzeye doğru koyulaşır,
+    // yazı açık kalır (kontrast ~6:1).
+    if (theme.brightness == Brightness.dark) {
+      scheme = scheme.copyWith(
+        primary: Color.lerp(scheme.primary, scheme.surface, 0.62),
+        onPrimary: scheme.onSurface,
+      );
+    }
     final radius = context.fmCardRadius;
     final has = volume.hasStats;
     final capacity = volume.capacityBytes <= 0 ? 1 : volume.capacityBytes;
@@ -513,7 +522,7 @@ class _StyledHero extends StatelessWidget {
                       side: BorderSide(
                           color: scheme.onPrimary.withValues(alpha: 0.7)),
                       shape: const StadiumBorder(),
-                      minimumSize: const Size(0, 36),
+                      minimumSize: const Size(0, 34),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       padding: const EdgeInsets.symmetric(vertical: Gap.xs),
                     ),
@@ -529,7 +538,7 @@ class _StyledHero extends StatelessWidget {
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(
                               AppSkinData.of(context).metrics.radiusControl)),
-                      minimumSize: const Size(0, 36),
+                      minimumSize: const Size(0, 34),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       padding: const EdgeInsets.symmetric(vertical: Gap.xs),
                     ),

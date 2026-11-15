@@ -21,6 +21,10 @@ const _kHomeHeight = 0.95;
 /// "koyu başlık temasında yükseklikleri %6 azalt, Araçlar sığsın").
 const _kBandHeight = 0.94;
 
+/// Bento kutuları ayrıca %7 alçak (2026-11-15 üçüncü tur, kullanıcı:
+/// "Araçlar hâlâ azıcık sığmıyor").
+const _kBentoHeight = 0.93;
+
 /// **Ana ekran kutuları — sürükle-sırala, çöpe at, dört düzen** (2026-11-15).
 ///
 /// Kullanıcı: *"buradaki kartların üzerine basılı tutarak yerini değiştirme,
@@ -227,9 +231,9 @@ class _HomeTileBoardState extends State<HomeTileBoard> {
     // 140 → 112 dp (yazı ölçeğiyle büyüyen pay korunur).
     // 2026-11-15 (ikinci tur): tüm kutular %5 daha alçak ([_kHomeHeight]),
     // Araçlar bölümü ilk ekrana sığsın.
-    final bigH = (72 + scaler.scale(40)) * _kHomeHeight;
-    final midH = (52 + scaler.scale(24)) * _kHomeHeight;
-    final smallH = (70 + scaler.scale(30)) * _kHomeHeight;
+    final bigH = (72 + scaler.scale(40)) * _kHomeHeight * _kBentoHeight;
+    final midH = (52 + scaler.scale(24)) * _kHomeHeight * _kBentoHeight;
+    final smallH = (70 + scaler.scale(30)) * _kHomeHeight * _kBentoHeight;
     Widget sized(FmTileData t, double w, double h, Widget child) =>
         SizedBox(width: w, height: h, child: _cell(t, w, h, child));
     return Wrap(
@@ -414,11 +418,12 @@ class _BentoBig extends StatelessWidget {
         data: data,
         child: Padding(
           padding: const EdgeInsets.symmetric(
-              horizontal: Gap.md, vertical: Gap.sm + 4),
+              // 2026-11-15: kutu alçaldı, içerik sığsın (12 → 9, simge 26).
+              horizontal: Gap.md, vertical: Gap.sm + 1),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              data.badged(Icon(data.icon, size: 28, color: c)),
+              data.badged(Icon(data.icon, size: 26, color: c)),
               const Spacer(),
               Text(data.label,
                   maxLines: 1,

@@ -255,7 +255,15 @@ class _TransferButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    var scheme = Theme.of(context).colorScheme;
+    // Koyu modda parlak vurgu yerine koyulaşmış ton (2026-11-15, bellek
+    // kartıyla aynı kural: "koyu modda yeşil çok parlak").
+    if (Theme.of(context).brightness == Brightness.dark) {
+      scheme = scheme.copyWith(
+        primary: Color.lerp(scheme.primary, scheme.surface, 0.55),
+        onPrimary: scheme.onSurface,
+      );
+    }
     return Semantics(
       button: true,
       label: label,
