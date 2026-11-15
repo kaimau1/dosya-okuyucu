@@ -87,12 +87,16 @@ class _OcrTextOverlayState extends State<OcrTextOverlay> {
       final hl = scheme.primary.withValues(alpha: 0.14);
       final tiny = Theme.of(context).textTheme.bodySmall!
           .apply(fontSizeFactor: 0.001, heightFactor: 0.01);
+      // Kutular resmin fiziksel piksel koordinatında: sağdan sola dilde de
+      // aynalanmamalı → katman hep soldan sağa dizilir.
       return SelectionArea(
-        child: Stack(
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: Stack(
           children: [
             for (final line in widget.lines)
-              Positioned(
-                left: line.box.left * s,
+              PositionedDirectional(
+                start: line.box.left * s,
                 top: line.box.top * s,
                 width: (line.box.width * s).clamp(1.0, double.infinity),
                 height: (line.box.height * s).clamp(1.0, double.infinity),
@@ -103,7 +107,7 @@ class _OcrTextOverlayState extends State<OcrTextOverlay> {
                   ),
                   child: FittedBox(
                     fit: BoxFit.fill,
-                    alignment: Alignment.centerLeft,
+                    alignment: AlignmentDirectional.centerStart,
                     child: Text.rich(
                       TextSpan(children: [
                         TextSpan(text: line.text),
@@ -122,6 +126,7 @@ class _OcrTextOverlayState extends State<OcrTextOverlay> {
                 ),
               ),
           ],
+          ),
         ),
       );
     });
