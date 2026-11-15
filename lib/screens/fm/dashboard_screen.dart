@@ -67,6 +67,7 @@ import 'drive_screen.dart';
 import '../settings_screen.dart';
 import 'important_gallery_screen.dart';
 import 'important_screen.dart';
+import 'entry_actions.dart' show shortcutFileCategory;
 import 'custom_card_screen.dart';
 import '../../services/fm/custom_cards.dart';
 import 'installed_apps_screen.dart';
@@ -137,6 +138,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     with WidgetsBindingObserver {
   static StorageIndex? _cachedIndex;
   static int _cachedAtMs = 0;
+
+  /// Yan menü kaynağı TEK nesne: uzantı yöntemi koparmaları her seferinde yeni
+  /// kapanış üretir, `unregister` eşleşsin diye bir kez tutulur.
+  late final List<FmTileData> Function() _sideMenuSource = _sideMenuTiles;
 
   StorageIndex _index = _cachedIndex ?? StorageIndex.empty;
 
@@ -261,7 +266,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       if (mounted) setState(() {});
     });
     // Yan menü kartları panodan okur (her açılışta taze liste).
-    SideMenu.instance.register(_categoryTilesRaw);
+    SideMenu.instance.register(_sideMenuSource);
     unawaited(SideMenu.instance.ensureLoaded());
     // Kullanıcının pano düzeni (sıra + göster/gizle).
     DashboardLayout.instance.addListener(_onLayoutChanged);
@@ -280,7 +285,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   void dispose() {
-    SideMenu.instance.unregister(_categoryTilesRaw);
+    SideMenu.instance.unregister(_sideMenuSource);
     DashboardLayout.instance.removeListener(_onLayoutChanged);
     CustomCards.instance.removeListener(_onLayoutChanged);
     QuickFolders.instance.removeListener(_onLayoutChanged);

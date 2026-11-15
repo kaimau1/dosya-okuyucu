@@ -203,6 +203,15 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
   ///
   /// Birden çok birim (USB + SD kart aynı anda) desteklenir: alt yazı hepsini
   /// sayar, dokununca listeleyip seçtirir.
+  /// Yan menünün kartları: pano kutuları + takılı harici bellek (2026-11-15,
+  /// kullanıcı: "menüde harici bellek takıldığında görülmeli"). Bellek
+  /// takılı değilken menüde yer kaplamaz.
+  List<FmTileData> _sideMenuTiles() => [
+        ..._categoryTilesRaw(),
+        if (_safRoots.isNotEmpty || FmEnv.volumes.any((v) => v.isRemovable))
+          _externalTile(),
+      ];
+
   FmTileData _externalTile() {
     final externals = [
       for (final v in FmEnv.volumes)

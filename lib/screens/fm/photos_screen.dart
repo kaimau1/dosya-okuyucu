@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/display_mode.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/state/focused_states.dart';
@@ -50,6 +51,7 @@ import '../../core/snack.dart';
 
 import '../../core/app_haptics.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/side_menu_view.dart';
 part 'photos/data.dart';
 part 'photos/toolbar.dart';
 part 'photos/grid.dart';
@@ -268,9 +270,15 @@ class _PhotosScreenState extends State<PhotosScreen>
   /// bir listeyi güne bölmek başlıkları rastgele tekrar ettirirdi.
   bool get _timelineMode => _sort == FmSort.date;
 
+  late final void Function() _refreshHold;
+
   @override
   void initState() {
     super.initState();
+    // Foto/video ızgarası açıkken ekran en yüksek tazeleme hızında kalır
+    // (2026-11-15, kullanıcı: "dinamik yenileme hızı burada max olsun");
+    // dinamik kipte boşta 60'a inmez, ekrandan çıkınca bırakılır.
+    _refreshHold = DynamicRefresh.hold();
     _zoomAnim = AnimationController(
       vsync: this,
       duration: Motion.medium,
@@ -295,6 +303,7 @@ class _PhotosScreenState extends State<PhotosScreen>
 
   @override
   void dispose() {
+    _refreshHold();
     FsEvents.version.removeListener(_dropMissing);
     PhotoAlbums.revision.removeListener(_onAlbums);
     _searchController.dispose();

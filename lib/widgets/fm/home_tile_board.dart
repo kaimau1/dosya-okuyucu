@@ -183,13 +183,17 @@ class _HomeTileBoardState extends State<HomeTileBoard> {
         },
       );
 
+  /// Ana ekran kutularının yükseklik çarpanı (2026-11-15, kullanıcı: "bütün
+  /// butonların yüksekliğini %5 azalt, Araçlar ekrana sığsın").
+  static const _heightFactor = 0.95;
+
   Widget _grid(double width, double aspect,
       Widget Function({Key? key, required FmTileData data}) tile) {
     final tiles = _ordered;
     final columns = FmCategoryGrid.columnsFor(width);
     const gap = Gap.xs;
     final w = (width - gap * (columns - 1)) / columns;
-    final h = w / aspect;
+    final h = w / aspect * _heightFactor;
     return Wrap(
       spacing: gap,
       runSpacing: gap,
@@ -214,9 +218,11 @@ class _HomeTileBoardState extends State<HomeTileBoard> {
     final scaler = MediaQuery.textScalerOf(context);
     // 2026-11-15 (kullanıcı: büyük kutular "çok büyük alınlı", %20 alçalsın):
     // 140 → 112 dp (yazı ölçeğiyle büyüyen pay korunur).
-    final bigH = 72 + scaler.scale(40);
-    final midH = 52 + scaler.scale(24);
-    final smallH = 70 + scaler.scale(30);
+    // 2026-11-15 (ikinci tur): tüm kutular %5 daha alçak ([_heightFactor]),
+    // Araçlar bölümü ilk ekrana sığsın.
+    final bigH = (72 + scaler.scale(40)) * _heightFactor;
+    final midH = (52 + scaler.scale(24)) * _heightFactor;
+    final smallH = (70 + scaler.scale(30)) * _heightFactor;
     Widget sized(FmTileData t, double w, double h, Widget child) =>
         SizedBox(width: w, height: h, child: _cell(t, w, h, child));
     return Wrap(
@@ -239,7 +245,7 @@ class _HomeTileBoardState extends State<HomeTileBoard> {
     final tiles = _ordered;
     final scheme = Theme.of(context).colorScheme;
     final radius = context.fmCardRadius;
-    final h = 52 + MediaQuery.textScalerOf(context).scale(20);
+    final h = (52 + MediaQuery.textScalerOf(context).scale(20)) * _heightFactor;
     final w = (width - 2) / 2;
     final rows = <Widget>[];
     for (var i = 0; i < tiles.length; i += 2) {
@@ -523,7 +529,7 @@ class HomeBandList extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final radius = context.fmCardRadius;
-    final h = 52 + MediaQuery.textScalerOf(context).scale(20);
+    final h = (52 + MediaQuery.textScalerOf(context).scale(20)) * _heightFactor;
     final rows = <Widget>[];
     for (var i = 0; i < tiles.length; i += 2) {
       if (i > 0) {

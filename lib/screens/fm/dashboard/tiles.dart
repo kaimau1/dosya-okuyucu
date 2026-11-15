@@ -232,7 +232,7 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
               // Klasör simgesi temanın klasör rengini taşır (listedeki
               // klasörlerle aynı — 2026-11-08 tasarım turu; vurgu mavisiydi).
               avatar: Icon(
-                  f.volume.isEmpty ? AppIcons.folder : AppIcons.storage,
+                  _quickIcon(f.path, f.volume),
                   size: 18,
                   color: f.volume.isEmpty
                       ? context.fmFolderColor ?? FmColors.folder
@@ -245,10 +245,8 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
                     FsPaths.humanSize(_folderSizes[f.path]!),
                 ].join(' · '),
               ),
-              onPressed: () => _push(BrowserScreen(
-                  path: f.path,
-                  title:
-                      f.volume.isEmpty ? f.label : '${f.label} · ${f.volume}')),
+              onPressed: () => _openQuick(f.path,
+                  f.volume.isEmpty ? f.label : '${f.label} · ${f.volume}'),
             ),
           ),
         ActionChip(
@@ -315,16 +313,16 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
               width: w,
               child: box(
                 key: ValueKey('qf:${f.path}'),
-                icon: f.volume.isEmpty ? AppIcons.folder : AppIcons.storage,
+                icon: _quickIcon(f.path, f.volume),
                 color: f.volume.isEmpty
                     ? context.fmFolderColor ?? FmColors.folder
                     : scheme.onSurfaceVariant,
                 label: f.volume.isEmpty ? f.label : '${f.label} · ${f.volume}',
-                onTap: () => _push(BrowserScreen(
-                    path: f.path,
-                    title: f.volume.isEmpty
+                onTap: () => _openQuick(
+                    f.path,
+                    f.volume.isEmpty
                         ? f.label
-                        : '${f.label} · ${f.volume}')),
+                        : '${f.label} · ${f.volume}'),
                 onLongPress: () =>
                     _quickFolderMenu(f.path, f.label, f.standard),
               ),
@@ -364,12 +362,26 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
     );
     if (!mounted || choice == null) return;
     if (choice == 'open') {
-      unawaited(_push(BrowserScreen(path: path, title: label)));
+      unawaited(_openQuick(path, label));
       return;
     }
     await QuickFolders.instance.remove(path, standard: standard);
     if (mounted) _snack(context.t('qf.quick_removed', {'name': label}));
   }
+
+  /// Hızlı erişim öğesinin simgesi: dosya kısayolu (2026-11-15) türünün
+  /// simgesini taşır.
+  IconData _quickIcon(String path, String volume) {
+    final file = shortcutFileCategory(path);
+    if (file != null) return FmColors.iconFor(file);
+    return volume.isEmpty ? AppIcons.folder : AppIcons.storage;
+  }
+
+  /// Hızlı erişim öğesini açar: klasör → gezgin, dosya → kendi görüntüleyicisi.
+  Future<void> _openQuick(String path, String label) =>
+      shortcutFileCategory(path) != null
+          ? EntryOpener.open(context, path)
+          : _push(BrowserScreen(path: path, title: label));
 
   Future<void> _addQuickFolder() async {
     final target = await Navigator.of(context).push<String>(

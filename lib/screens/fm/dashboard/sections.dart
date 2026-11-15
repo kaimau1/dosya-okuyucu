@@ -443,9 +443,11 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
           icon: cardIconOf(c),
           color: Color(c.color),
           label: c.name,
-          subtitle: context.t(c.view == CardView.gallery
-              ? 'card.view_gallery'
-              : 'card.view_folder'),
+          subtitle: c.shortcut && shortcutFileCategory(c.path) != null
+              ? p.extension(c.path).replaceFirst('.', '').toUpperCase()
+              : context.t(c.view == CardView.gallery
+                  ? 'card.view_gallery'
+                  : 'card.view_folder'),
           onTap: () async {
             await openCustomCard(context, c);
             if (mounted) _partSetState(() {});

@@ -217,6 +217,20 @@ abstract final class ThumbnailCache {
 
   static String? anyKnownVideo(String path) => _anyVideos[path];
 
+  /// [path] için diskte olduğu bilinen TÜM boylardaki küçük resimler (son
+  /// üretilen önde). Oynatıcı kapağı, ızgaranın gerçekten çözdüğü boyu bulsun
+  /// diye (2026-11-15: son üretilen boy ızgaranınkinden farklıysa kapak
+  /// bulunamıyor, video büyüme geçişi olmadan açılıyordu).
+  static List<String> allKnownVideo(String path) {
+    final prefix = '$path|';
+    final last = _anyVideos[path];
+    return [
+      ?last,
+      for (final e in _knownVideos.entries)
+        if (e.key.startsWith(prefix) && e.value != last) e.value,
+    ];
+  }
+
   static void _rememberVideo(String path, int size, String dest) {
     if (_knownVideos.length >= cacheLimit * 2) {
       _knownVideos.clear();

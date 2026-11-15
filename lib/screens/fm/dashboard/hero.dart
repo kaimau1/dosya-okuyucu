@@ -630,8 +630,9 @@ class _StyledHero extends StatelessWidget {
         onTap: onBrowse,
         onLongPress: onLongPress,
         child: Padding(
+          // %5 alçak (2026-11-15): dikey boşluklar 12 → 9, ara 10 → 9.
           padding: const EdgeInsets.fromLTRB(
-              Gap.md + 4, Gap.sm + 4, Gap.md + 4, Gap.sm + 4),
+              Gap.md + 4, Gap.sm + 1, Gap.md + 4, Gap.sm + 1),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -663,9 +664,9 @@ class _StyledHero extends StatelessWidget {
                 ),
                 used,
               ],
-              const SizedBox(height: Gap.sm + 2),
+              const SizedBox(height: Gap.sm + 1),
               bar,
-              const SizedBox(height: Gap.sm + 2),
+              const SizedBox(height: Gap.sm + 1),
               actions,
             ],
           ),

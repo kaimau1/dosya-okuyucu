@@ -1067,3 +1067,12 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Karar (kullanıcı):** panodan açılan kutu (Belgeler, Fotoğraflar, İndirilenler…) artık `SwipePager` içinde DEĞİL, yalnız kendi ekranıyla açılır (`_openSwipe` → `Builder(page.builder)`); yanlışlıkla komşu kategoriye geçiş yok. `SwipePager` yalnız APK/Arşiv sekmelerinde kaldı.
 - **Karar:** Kategori/İndirilenler/Önemli/Yeni dosyalar ekranlarında sol üstte geri oku yerine her zaman `SideMenuButton` (☰). Geri = sistem geri tuşu. Sol kenar tutamacı aynen kalır.
 - Cihazda doğrulanmadı (bulut oturumu; kullanıcı doğrudan APK istedi).
+
+## 2026-11-15 — Ana ekran %5 alçak, video açılış Hero kökü, foto/video max Hz, dosya kısayolu, menüde harici bellek
+- **Karar:** ana ekran kutuları `HomeTileBoard._heightFactor = 0.95` (tüm aileler); bellek kartı dikey boşluk 12→9, ara 10→9. Hedef: Araçlar ilk ekrana sığsın.
+- **Kök (video bazen büyümeden, takılarak açılıyor):** oynatıcı kapağı `ThumbnailCache.anyKnownVideo` = SON üretilen boy; ızgara başka boyu (sütun sayısı) çözmüşse `fmCachedThumb` bulamıyor → hedefte Hero yok → geçişsiz açılış. Çözüm: `allKnownVideo` ile bilinen tüm boylara bakılır, oranı hazır olan alınır.
+- **Karar:** `PhotosScreen` açıkken `DynamicRefresh.hold()` (dinamik kipte boşta 60'a inmez). Kullanıcı yüksek tazelemeyi kapattıysa zorlanmaz.
+- **Kök (albüm alanı gizlenince geri açılamıyor):** üst çubuktaki albüm düğmesi `_highlightsOn`'a bağlıydı. Düğme artık hep var; albüm levhasında "Albüm alanını göster" çipi.
+- **Yapı:** "Kısayol oluştur" dosyalarda da (`showFolderShortcutSheet(fileCategory:)`): kart `shortcut:true`, yol dosya → `openCustomCard` dosyayı `EntryOpener` ile açar; hızlı erişim öğesi dosyaysa tür simgesi + görüntüleyici. Dosya mı kararı uzantıdan (`shortcutFileCategory`, diske bakmaz).
+- **Kök:** `SideMenu.unregister(_categoryTilesRaw)` hiç eşleşmiyordu (uzantı yöntemi koparması her seferinde yeni kapanış) → kaynak `late final _sideMenuSource` alanında. Menü kaynağı = pano kutuları + takılıysa Harici bellek.
+- PhotosScreen normal çubuğunda da sol üstte ☰. Cihazda ölçülmedi/doğrulanmadı (bulut oturumu; kullanıcı doğrudan APK istedi).

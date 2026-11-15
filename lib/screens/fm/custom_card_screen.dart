@@ -722,7 +722,13 @@ class _CustomCardScreenState extends State<CustomCardScreen> {
   }
 }
 
-/// Kartı açar (ekranı iter).
-Future<void> openCustomCard(BuildContext context, CustomCard card) =>
-    Navigator.of(context)
-        .push(browserRoute(CustomCardScreen(cardId: card.id)));
+/// Kartı açar (ekranı iter). Dosya kısayolu kartı (2026-11-15) dosyayı
+/// doğrudan açar.
+Future<void> openCustomCard(BuildContext context, CustomCard card) async {
+  if (card.shortcut && FileSystemEntity.isFileSync(card.path)) {
+    await EntryOpener.open(context, card.path);
+    return;
+  }
+  await Navigator.of(context)
+      .push(browserRoute(CustomCardScreen(cardId: card.id)));
+}

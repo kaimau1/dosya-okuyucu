@@ -273,9 +273,9 @@ Future<bool> showEntryActions(
                         : 'lib.add_one'),
                     _EntryAction.library),
               // Uygulama içi kısayol (2026-11-15): klasör → Kartlarım ya da
-              // Hızlı klasörler.
-              if (entry.isDir)
-                _act(ctx, AppIcons.dashboardCustomize,
+              // Hızlı klasörler. Aynı gün dosyalara da açıldı (fotoğraf,
+              // video, belge — kullanıcı isteği).
+              _act(ctx, AppIcons.dashboardCustomize,
                     ctx.t('qf.make_shortcut'), _EntryAction.folderShortcut,
                     hint: ctx.t('qf.make_shortcut_hint')),
               // Ana ekran kısayolu (kullanıcı isteği 2026-09-27).
@@ -512,7 +512,8 @@ Future<bool> showEntryActions(
       return false;
 
     case _EntryAction.folderShortcut:
-      await showFolderShortcutSheet(context, entry.path);
+      await showFolderShortcutSheet(context, entry.path,
+          fileCategory: entry.isDir ? null : entry.category);
       return false;
 
     case _EntryAction.library:
@@ -830,7 +831,11 @@ Widget _act(
 ///
 /// İki seçenek de AÇ/KAPA: klasör zaten oradaysa seçenek "çıkar" olur.
 /// Diskteki klasöre dokunulmaz — kart da hızlı klasör de yalnız ayar.
-Future<void> showFolderShortcutSheet(BuildContext context, String path) async {
+///
+/// [fileCategory] verilirse yol bir DOSYADIR (2026-11-15): kart ve hızlı
+/// erişim öğesi dosyayı doğrudan açar.
+Future<void> showFolderShortcutSheet(BuildContext context, String path,
+    {FmCategory? fileCategory}) async {
   final cards = CustomCards.instance;
   final quick = QuickFolders.instance;
   await Future.wait([cards.ensureLoaded(), quick.ensureLoaded()]);
@@ -859,7 +864,9 @@ Future<void> showFolderShortcutSheet(BuildContext context, String path) async {
         ),
         AppAction(
           value: 'quick',
-          icon: AppIcons.folder,
+          icon: fileCategory == null
+              ? AppIcons.folder
+              : FmColors.iconFor(fileCategory),
           label: context.t(inQuick ? 'qf.quick_remove' : 'qf.quick_add'),
           hint: context.t('qf.quick_hint'),
           destructive: inQuick,
@@ -885,8 +892,10 @@ Future<void> showFolderShortcutSheet(BuildContext context, String path) async {
               id: CustomCards.newId(),
               name: name,
               path: path,
-              icon: 'folder',
-              color: 0xFFE8A33D,
+              icon: shortcutCardIcon(fileCategory, path),
+              color: fileCategory == null
+                  ? 0xFFE8A33D
+                  : FmColors.forCategory(fileCategory).toARGB32(),
               view: CardView.folder,
               onHome: true,
               shortcut: true,
@@ -902,4 +911,25 @@ Future<void> showFolderShortcutSheet(BuildContext context, String path) async {
       showSnackOn(messenger, strings.t('qf.quick_added', {'name': name}));
     }
   }
+}
+
+/// Kısayol kartının simge anahtarı (`cardIcons`): klasör ya da dosya türü.
+String shortcutCardIcon(FmCategory? fileCategory, String path) =>
+    switch (fileCategory) {
+      null => 'folder',
+      FmCategory.image => 'image',
+      FmCategory.video => 'video',
+      FmCategory.audio => 'music',
+      _ when path.toLowerCase().endsWith('.pdf') => 'pdf',
+      FmCategory.document => 'receipt',
+      _ => 'bookmark',
+    };
+
+/// Kısayol yolu bir DOSYA mı (uzantıdan; diske bakmaz). Klasör adındaki
+/// nokta ("com.whatsapp") tanınan bir uzantı olmadıkça klasör sayılır.
+FmCategory? shortcutFileCategory(String path) {
+  final ext = p.extension(path).replaceFirst('.', '').toLowerCase();
+  if (ext.isEmpty) return null;
+  final category = FsEntry.categoryForExtension(ext);
+  return category == FmCategory.other ? null : category;
 }

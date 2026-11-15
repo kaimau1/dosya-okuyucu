@@ -341,15 +341,28 @@ extension _PhotosScreenAlbumsPart on _PhotosScreenState {
                             selected: showHidden,
                             onSelected: (v) => setSheet(() => showHidden = v),
                           ),
-                        ActionChip(
-                          key: const ValueKey('pa-hide-area'),
-                          avatar: const Icon(AppIcons.hiddenOff, size: 18),
-                          label: Text(ctx.t('ph.albums_hide')),
-                          onPressed: () async {
-                            Navigator.of(ctx).pop();
-                            await _hideAlbumsArea();
-                          },
-                        ),
+                        if (_highlightsOn)
+                          ActionChip(
+                            key: const ValueKey('pa-hide-area'),
+                            avatar: const Icon(AppIcons.hiddenOff, size: 18),
+                            label: Text(ctx.t('ph.albums_hide')),
+                            onPressed: () async {
+                              Navigator.of(ctx).pop();
+                              await _hideAlbumsArea();
+                            },
+                          )
+                        else
+                          ActionChip(
+                            key: const ValueKey('pa-show-area'),
+                            avatar: const Icon(AppIcons.thumbnails, size: 18),
+                            label: Text(ctx.t('ph.albums_show')),
+                            onPressed: () {
+                              Navigator.of(ctx).pop();
+                              unawaited(context
+                                  .read<AppState>()
+                                  .setFmPhotoHighlights(true));
+                            },
+                          ),
                       ],
                     ),
                   ),

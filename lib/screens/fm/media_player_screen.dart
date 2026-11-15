@@ -438,12 +438,21 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     _posterPath = path;
     _poster = null;
     _aspect = null;
-    final thumb = path.isEmpty ? null : ThumbnailCache.anyKnownVideo(path);
-    if (thumb == null) return;
-    final cached = fmCachedThumb(thumb);
-    if (cached == null) return;
-    _poster = cached;
-    _aspect = fmCachedAspect(cached);
+    if (path.isEmpty) return;
+    // Izgaranın çözdüğü boy, son üretilenden farklı olabilir: bilinen bütün
+    // boylara bakılır, en-boy oranı hazır olan ilk kapak alınır (yoksa
+    // büyüme geçişi kurulamıyor, video "donup" geçişsiz açılıyordu).
+    for (final thumb in ThumbnailCache.allKnownVideo(path)) {
+      final cached = fmCachedThumb(thumb);
+      if (cached == null) continue;
+      final aspect = fmCachedAspect(cached);
+      _poster ??= cached;
+      if (aspect != null) {
+        _poster = cached;
+        _aspect = aspect;
+        return;
+      }
+    }
   }
 
   FmFileImage? get _posterImage {
