@@ -1266,3 +1266,13 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - Ses → ⋮ → Sesi kes: .opus ve .mp3 ile kes, çıktı `_kesit.m4a` çalmalı; sürüklerken kısa parça çalmalı.
 - Aktar → Dosya ekle → Fotoğraflar: ekran görüntüsü aldıktan hemen sonra en üstte görünmeli.
 - PDF: alt çubukta AI; sağ altta sayfa rozeti başka şeyle çakışmamalı; Yazdır "Daha fazla"da.
+
+## 2026-11-15 — video açılışı (3. tur) + video düzenle canlı kare (yazıldı, cihazda doğrulanmadı)
+- [ ] Kalabalık klasördeki (Kamera, 1000+ dosya) videoyu ızgaradan aç: kapak hücreden büyüyerek geliyor, donma yok. Aynı videoyu listeden ve Son dosyalardan da dene.
+- [ ] Videoyu düzenle açılışı: sayfa geçişi takılmadan geliyor, önizleme geçişten hemen sonra hazır.
+- [ ] Şeritte yavaş sürükle: parmak durunca ~0,2–0,5 sn içinde TAM o anın karesi geliyor mu (4K / uzun videoda gecikme kaç sn)? Bırakınca eski kareye sıçrama yok.
+- [ ] Adım düğmeleri (±0,1 sn) + "Başlangıç burası / Bitiş burası": kenar oynatma yerine geliyor; Geri al / Yinele kırpmayı da geri alıyor.
+- [ ] Bölüm sil seçerken ▶: yalnız seçili bölge çalıp başa sarıyor.
+- [ ] Değişiklik yapıp geri: "Kaydet · Kaydetme · İptal" soruluyor; bölge seçerken geri yalnız seçimi kapatıyor.
+- [ ] Eklenen sesi listeden kaldır (çalarken): ses hemen susuyor.
+- [ ] Dar telefonda üst çubuk (Geri al · Yinele · Kaydet) ve oynatma satırı taşmıyor.

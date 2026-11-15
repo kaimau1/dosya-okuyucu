@@ -428,7 +428,12 @@ object MediaTranscodeBridge {
     private fun frames(a: Map<*, *>): List<String> {
         val path = a["path"] as? String ?: return emptyList()
         val dir = a["dir"] as? String ?: return emptyList()
-        val count = ((a["count"] as? Number)?.toInt() ?: 10).coerceIn(1, 60)
+        // 3000'e dek: ince ızgara (parmağın altındaki kare) yalnız `indices` ile istenir.
+        val count = ((a["count"] as? Number)?.toInt() ?: 10).coerceIn(1, 3000)
+        // `exact` (2026-11-15): anahtar kare değil TAM o anın karesi (yavaş;
+        // yalnız tek tek istenen ince kareler için).
+        val option = if (a["exact"] == true) MediaMetadataRetriever.OPTION_CLOSEST
+            else MediaMetadataRetriever.OPTION_CLOSEST_SYNC
         val width = ((a["width"] as? Number)?.toInt() ?: 160).coerceIn(32, 480)
         val out = mutableListOf<String>()
         val r = MediaMetadataRetriever()
@@ -448,9 +453,9 @@ object MediaTranscodeBridge {
                 val us = (ms * 1000L * (2 * i + 1)) / (2L * count)
                 val bmp = try {
                     if (android.os.Build.VERSION.SDK_INT >= 27) {
-                        r.getScaledFrameAtTime(us, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, width, width * 2)
+                        r.getScaledFrameAtTime(us, option, width, width * 2)
                     } else {
-                        r.getFrameAtTime(us, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                        r.getFrameAtTime(us, option)
                     }
                 } catch (e: Exception) { null } ?: continue
                 try {

@@ -11,6 +11,8 @@ import 'package:video_player/video_player.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
+import '../../core/edit/edit_session.dart'
+    show UnsavedChoice, showUnsavedChanges;
 import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
 import '../../core/snack.dart';
@@ -63,9 +65,17 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
   int _durationMs = 0;
   VideoEdit _edit = VideoEdit.whole(0);
   final List<VideoEdit> _history = [];
+  final List<VideoEdit> _future = [];
+
+  /// Tutamaç sürüklemesi başlamadan önceki plan (Geri al tek adım saysın).
+  VideoEdit? _dragFrom;
   List<String> _frames = const [];
   Directory? _frameDir;
-  int _positionMs = 0;
+
+  /// Oynatma yeri. Bildirici: her konum değişiminde bütün ekran değil yalnız
+  /// saat + şerit yeniden kurulur (sürüklerken kare düşmesin).
+  final ValueNotifier<int> _pos = ValueNotifier(0);
+  int get _positionMs => _pos.value;
   double _volume = 1;
 
   /// **Canlı tarama karesi** (2026-11-14, kullanıcı: *"alt panelde
@@ -77,8 +87,13 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
   /// üstünde gösterilir; parmak kalkınca katman kalkar, oynatıcı kesin
   /// kareyi gösterir.
   List<({int ms, String path})> _scrubFrames = const [];
-  String? _scrubShown;
-  bool _scrubbing = false;
+  final ValueNotifier<String?> _scrubShown = ValueNotifier(null);
+  final ValueNotifier<bool> _scrubbing = ValueNotifier(false);
+
+  /// Parmak şeritte (tarama/tutamaç). Kalkınca katman, oynatıcı o kareye
+  /// yetişene dek kalır ([_maybeRelease]) — eski kareye sıçrama görünmez.
+  bool _dragging = false;
+  Timer? _releaseTimer;
 
   /// Bölge seçimi sürerken: hangi araç, hangi aralık, (ses için) hangi dosya.
   _Tool? _tool;
@@ -94,8 +109,28 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     super.initState();
     final known = widget.durationMs ?? 0;
     if (known > 0) _setDuration(known);
-    unawaited(_openPreview());
+    // Oynatıcı kurulumu sayfa geçişi BİTİNCE (kurulum platform iş parçacığını
+    // meşgul ediyor; geçişin içinde olunca ekran takılarak açılıyordu).
+    WidgetsBinding.instance.addPostFrameCallback((_) => _previewAfterRoute());
     unawaited(_loadDuration());
+  }
+
+  void _previewAfterRoute() {
+    if (!mounted) return;
+    final animation = ModalRoute.of(context)?.animation;
+    if (animation == null || animation.isCompleted) {
+      unawaited(_openPreview());
+      return;
+    }
+    late final AnimationStatusListener listener;
+    listener = (status) {
+      if (status == AnimationStatus.forward) return;
+      animation.removeStatusListener(listener);
+      if (status == AnimationStatus.completed && mounted) {
+        unawaited(_openPreview());
+      }
+    };
+    animation.addStatusListener(listener);
   }
 
   void _setDuration(int ms) {
@@ -180,19 +215,72 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
             ),
       ];
 
-  void _mergeScrub(List<({int ms, String path})> add) {
+  void _mergeScrub(List<({int ms, String path})> add, {bool precache = true}) {
     if (add.isEmpty) return;
     final byMs = {for (final f in _scrubFrames) f.ms: f};
     for (final f in add) {
       byMs[f.ms] = f;
     }
-    final list = byMs.values.toList()..sort((a, b) => a.ms.compareTo(b.ms));
-    setState(() => _scrubFrames = list);
+    _scrubFrames = byMs.values.toList()..sort((a, b) => a.ms.compareTo(b.ms));
+    // Parmak dururken gelen daha yakın kare hemen gösterilir.
+    if (_scrubbing.value) {
+      final near = _nearestScrubFrame(_positionMs);
+      if (near != null) _scrubShown.value = near;
+    }
+    if (!precache) return;
     // Görüntüleri önceden çöz: taramada boş kare yanıp sönmesin.
     for (final f in add) {
       if (!mounted) return;
       unawaited(precacheImage(FmFileImage(f.path), context)
           .catchError((Object _) {}));
+    }
+  }
+
+  // ── Parmağın altındaki TAM kare (2026-11-15) ───────────────────────────
+  //
+  // 60'lık ızgara uzun videoda kaba kalıyor (10 dk → 10 sn'de bir kare) ve
+  // anahtar karelerden oluşuyor. Sürüklerken parmağın durduğu an için ince
+  // ızgaradan (≈0,2 sn'de bir) TEK kare, tam o andan istenir; bir istek
+  // sürerken gelenlerden yalnız sonuncusu tutulur.
+  static const _fineStepMs = 200;
+  static const _fineMax = 3000;
+  int get _fineCount =>
+      (_durationMs ~/ _fineStepMs).clamp(_scrubCount, _fineMax);
+  final Set<int> _fineGot = {};
+  bool _fineBusy = false;
+  int? _finePending;
+
+  void _wantFine(int ms) {
+    final dir = _frameDir;
+    if (dir == null || _durationMs <= 0) return;
+    final n = _fineCount;
+    final i = (ms * n ~/ _durationMs).clamp(0, n - 1);
+    if (_fineGot.contains(i)) return;
+    if (_fineBusy) {
+      _finePending = ms;
+      return;
+    }
+    _fineBusy = true;
+    unawaited(_fetchFine(dir, i, n));
+  }
+
+  Future<void> _fetchFine(Directory dir, int i, int n) async {
+    try {
+      final paths = await VideoTranscoder.frames(widget.path,
+          dir: p.join(dir.path, 'ince'),
+          count: n,
+          width: 320,
+          indices: [i],
+          exact: true);
+      if (!mounted) return;
+      // Çıkarılamayan kare de işaretlenir: aynı an yeniden istenmez.
+      _fineGot.add(i);
+      _mergeScrub(_timed(paths, n), precache: false);
+    } finally {
+      _fineBusy = false;
+      final next = _finePending;
+      _finePending = null;
+      if (next != null && mounted && _scrubbing.value) _wantFine(next);
     }
   }
 
@@ -340,12 +428,42 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     return list[lo].path;
   }
 
+  /// Şeritteki sürükleme bitti: tutamaç çekildiyse Geri al adımı yazılır,
+  /// canlı kare katmanı oynatıcı yetişince kalkar.
   void _endScrub() {
-    if (!_scrubbing) return;
-    setState(() {
-      _scrubbing = false;
-      _scrubShown = null;
-    });
+    final from = _dragFrom;
+    _dragFrom = null;
+    if (from != null && from.keep != _edit.keep) {
+      setState(() {
+        _history.add(from);
+        _future.clear();
+      });
+    }
+    _dragging = false;
+    _maybeRelease();
+  }
+
+  /// Katmanı kaldırır — ama ancak parmak kalkmış ve oynatıcının araması
+  /// bitmişse, üstüne kısa bir pay ([Motion.busyDefer]: `seekTo` kare
+  /// çizilmeden döner). Kök: katman hemen kalkınca önizleme bir an ESKİ
+  /// kareye sıçrıyordu.
+  void _maybeRelease() {
+    if (!_scrubbing.value || _dragging) return;
+    if (_video == null) {
+      _releaseNow();
+      return;
+    }
+    if (_seekBusy || _seekPending != null) return;
+    _releaseTimer?.cancel();
+    _releaseTimer = Timer(Motion.busyDefer, _releaseNow);
+  }
+
+  void _releaseNow() {
+    _releaseTimer?.cancel();
+    _releaseTimer = null;
+    _dragging = false;
+    _scrubbing.value = false;
+    _scrubShown.value = null;
   }
 
   // ── Önizleme ────────────────────────────────────────────────────────────
@@ -358,11 +476,17 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     final pos = c.value.position.inMilliseconds;
     // Tarama sürerken oynatıcının (geride kalan) konumu oynatma çizgisini
     // parmaktan geri çekmesin.
-    if (!_scrubbing && pos != _positionMs && mounted) {
-      setState(() => _positionMs = pos);
-    }
+    if (!_scrubbing.value && pos != _positionMs && mounted) _pos.value = pos;
     if (!c.value.isPlaying) {
       _pauseAudio();
+      return;
+    }
+    // Bölge seçerken oynatma yalnız seçili bölgeyi gösterir: sonuna gelince
+    // durur, başa sarar (neyin silineceği/susacağı görülsün).
+    if (_tool != null && pos >= _sel.endMs) {
+      unawaited(c.pause());
+      _pauseAudio();
+      unawaited(c.seekTo(Duration(milliseconds: _sel.startMs)));
       return;
     }
     final next = _edit.nextKeptFrom(pos);
@@ -385,20 +509,25 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
   }
 
   void _syncAudio(int pos) {
+    final active = <String>{};
     for (final a in _edit.inserts) {
+      if (pos < a.at.startMs || pos >= a.at.endMs) continue;
       final ac = _audio[a.path];
       if (ac == null || !ac.value.isInitialized) continue;
-      final inside = pos >= a.at.startMs && pos < a.at.endMs;
-      if (!inside) {
-        if (ac.value.isPlaying) unawaited(ac.pause());
-        continue;
-      }
+      active.add(a.path);
       final want = _edit.toOutput(pos) - _edit.toOutput(a.at.startMs);
       final have = ac.value.position.inMilliseconds;
       if ((want - have).abs() > 400) {
         unawaited(ac.seekTo(Duration(milliseconds: want)));
       }
       if (!ac.value.isPlaying) unawaited(ac.play());
+    }
+    // Bölgesi dışındaki — ve düzenlemeden KALDIRILMIŞ — sesler susar
+    // (eskiden kaldırılan ses çalmayı sürdürüyordu).
+    for (final e in _audio.entries) {
+      if (!active.contains(e.key) && e.value.value.isPlaying) {
+        unawaited(e.value.pause());
+      }
     }
   }
 
@@ -428,6 +557,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
       _pauseAudio();
       return;
     }
+    _releaseNow();
     final range = _tool != null ? _sel : _edit.keep;
     final pos = c.value.position.inMilliseconds;
     if (pos < range.startMs || pos >= range.endMs - 100) {
@@ -436,16 +566,60 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     unawaited(c.play());
   }
 
+  /// Şeritte tarama / tutamaç: canlı kare katmanı açılır.
   void _seek(int ms) {
     final c = _video;
-    setState(() {
-      _positionMs = ms;
-      _scrubbing = true;
-      _scrubShown = _nearestScrubFrame(ms) ?? _scrubShown;
-    });
+    _releaseTimer?.cancel();
+    _dragging = true;
+    _pos.value = ms;
+    _scrubbing.value = true;
+    final near = _nearestScrubFrame(ms);
+    if (near != null) _scrubShown.value = near;
+    _wantFine(ms);
     if (c == null) return;
     if (c.value.isPlaying) unawaited(c.pause());
+    _pauseAudio();
     _seekTo(c, ms);
+  }
+
+  /// Düğme / liste satırı: o ana git. Katman AÇILMAZ (yaklaşık kare yerine
+  /// oynatıcının kesin karesi görünsün; eskiden satıra dokununca katman
+  /// takılı kalıyor, oynatma çizgisi donuyordu).
+  void _jump(int ms) {
+    final c = _video;
+    final to = ms.clamp(0, _durationMs);
+    _releaseNow();
+    _pos.value = to;
+    if (c == null) return;
+    if (c.value.isPlaying) unawaited(c.pause());
+    _pauseAudio();
+    _seekTo(c, to);
+  }
+
+  /// İnce ayar adımı (0,1 sn).
+  static const _stepMs = 100;
+
+  void _step(int direction) {
+    AppHaptics.step();
+    _jump(_positionMs + direction * _stepMs);
+  }
+
+  /// Başlangıcı / bitişi oynatma yerine çeker (bölge seçerken bölgenin).
+  void _setEdge({required bool start}) {
+    if (_durationMs <= 0) return;
+    final ms = _positionMs;
+    AppHaptics.selection();
+    if (_tool != null) {
+      setState(() => _sel = start
+          ? _sel.withStart(ms, _durationMs)
+          : _sel.withEnd(ms, _durationMs));
+      return;
+    }
+    final keep = start
+        ? _edit.keep.withStart(ms, _durationMs)
+        : _edit.keep.withEnd(ms, _durationMs);
+    if (keep == _edit.keep) return;
+    _apply(_edit.copyWith(keep: keep));
   }
 
   /// Şeritte tarama saniyede onlarca konum üretir; her biri için `seekTo`
@@ -466,7 +640,11 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
       _seekBusy = false;
       final next = _seekPending;
       _seekPending = null;
-      if (next != null && mounted && identical(c, _video)) _seekTo(c, next);
+      if (next != null && mounted && identical(c, _video)) {
+        _seekTo(c, next);
+      } else if (mounted) {
+        _maybeRelease();
+      }
     }));
   }
 
@@ -476,6 +654,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     if (identical(next, _edit)) return;
     setState(() {
       _history.add(_edit);
+      _future.clear();
       _edit = next;
     });
   }
@@ -483,7 +662,19 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
   void _undo() {
     if (_history.isEmpty) return;
     AppHaptics.selection();
-    setState(() => _edit = _history.removeLast());
+    setState(() {
+      _future.add(_edit);
+      _edit = _history.removeLast();
+    });
+  }
+
+  void _redo() {
+    if (_future.isEmpty) return;
+    AppHaptics.selection();
+    setState(() {
+      _history.add(_edit);
+      _edit = _future.removeLast();
+    });
   }
 
   /// Bölge seçimini başlatır: oynatma yerinin çevresinde (videonun ~%15'i,
@@ -582,11 +773,33 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     _pauseAudio();
     AppHaptics.done();
     startEditJob(context, widget.path, _edit);
-    unawaited(Navigator.of(context).maybePop());
+    // `maybePop` değil: kaydedilmemiş değişiklik sorusu araya girmesin.
+    Navigator.of(context).pop();
+  }
+
+  /// Geri: bölge seçimi açıksa onu kapatır; değişiklik varsa sorar.
+  Future<void> _onBack() async {
+    if (_tool != null) {
+      _cancelTool();
+      return;
+    }
+    unawaited(_video?.pause());
+    _pauseAudio();
+    final choice = await showUnsavedChanges(context);
+    if (!mounted) return;
+    switch (choice) {
+      case UnsavedChoice.save:
+        _save();
+      case UnsavedChoice.discard:
+        Navigator.of(context).pop();
+      case UnsavedChoice.cancel:
+        break;
+    }
   }
 
   @override
   void dispose() {
+    _releaseTimer?.cancel();
     _video
       ?..removeListener(_onTick)
       ..dispose();
@@ -597,6 +810,9 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     // gelsin. Yalnız son 5 videonunki tutulur (~1 MB/video, geçici klasör).
     final dir = _frameDir;
     if (dir != null) unawaited(_pruneFrameDirs(dir.parent));
+    _pos.dispose();
+    _scrubShown.dispose();
+    _scrubbing.dispose();
     super.dispose();
   }
 
@@ -618,71 +834,195 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      backgroundColor: AppColors.mediaSurface,
-      appBar: AppBar(
+    return PopScope(
+      canPop: _tool == null && _edit.isUnchanged,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(_onBack());
+      },
+      child: Scaffold(
         backgroundColor: AppColors.mediaSurface,
-        foregroundColor: AppColors.onMedia,
-        title: Text(context.t('ved.title')),
-        actions: [
-          // Kareyi fotoğraf kaydet (Ferrari H8.5): önizlemedeki o anki kare.
-          IconButton(
-            key: const ValueKey('ved-frame'),
-            tooltip: context.t('ved.save_frame'),
-            onPressed: _video == null || _tool != null ? null : _saveFrame,
-            icon: const Icon(AppIcons.photoCamera),
+        appBar: AppBar(
+          backgroundColor: AppColors.mediaSurface,
+          foregroundColor: AppColors.onMedia,
+          title: Text(context.t('ved.title')),
+          actions: [
+            IconButton(
+              key: const ValueKey('edit-undo'),
+              tooltip: context.t('ved.undo'),
+              onPressed: _history.isEmpty || _tool != null ? null : _undo,
+              icon: const Icon(AppIcons.undo),
+            ),
+            IconButton(
+              key: const ValueKey('edit-redo'),
+              tooltip: context.t('common.redo'),
+              onPressed: _future.isEmpty || _tool != null ? null : _redo,
+              icon: const Icon(AppIcons.redo),
+            ),
+            Padding(
+              padding: const EdgeInsetsDirectional.only(end: Gap.sm),
+              child: FilledButton(
+                key: const ValueKey('trim-save'),
+                onPressed: _canSave ? _save : null,
+                child: Text(context.t('common.save')),
+              ),
+            ),
+          ],
+        ),
+        body: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              Expanded(child: _preview(context)),
+              _transport(context),
+              _infoRow(context),
+              if (_durationMs > 0)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+                  child: ValueListenableBuilder<int>(
+                    valueListenable: _pos,
+                    builder: (context, pos, _) => VideoTrimTimeline(
+                      key: ValueKey(_tool == null ? 'tl-keep' : 'tl-sel'),
+                      durationMs: _durationMs,
+                      range: _tool == null ? _edit.keep : _sel,
+                      frames: _frames,
+                      marks: _marks,
+                      playheadMs: _video == null ? null : pos,
+                      accent: _tool == null ? null : scheme.tertiary,
+                      dimOutside: _tool == null,
+                      onChanged: (r) => setState(() {
+                        if (_tool == null) {
+                          _dragFrom ??= _edit;
+                          _edit = _edit.copyWith(keep: r);
+                        } else {
+                          _sel = r;
+                        }
+                      }),
+                      onSeek: _seek,
+                      onDragEnd: _endScrub,
+                    ),
+                  ),
+                ),
+              if (_durationMs > 0) _edgeRow(context),
+              AnimatedSwitcher(
+                duration: Motion.of(context, Motion.medium),
+                switchInCurve: Motion.enter,
+                switchOutCurve: Motion.exit,
+                child: _tool == null ? _toolbar(context) : _selectBar(context),
+              ),
+              if (_tool == null && _hasEdits) _editList(context),
+              const SizedBox(height: Gap.sm),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Saat (onda bir saniyeyle) · bir adım geri · oynat/duraklat · bir adım
+  /// ileri · kareyi fotoğraf kaydet.
+  Widget _transport(BuildContext context) {
+    final c = _video;
+    final ready = _durationMs > 0;
+    final off = AppColors.onMediaSoft.withValues(alpha: 0.4);
+    final clock = Theme.of(context).textTheme.titleMedium?.copyWith(
+      color: AppColors.onMedia,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+      child: Row(
+        children: [
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsetsDirectional.only(start: Gap.sm),
+              child: ValueListenableBuilder<int>(
+                valueListenable: _pos,
+                builder: (context, ms, _) => Text(
+                  '${formatClock(ms)}.${(ms < 0 ? 0 : ms) % 1000 ~/ 100}',
+                  key: const ValueKey('ved-clock'),
+                  maxLines: 1,
+                  style: clock,
+                ),
+              ),
+            ),
           ),
           IconButton(
-            key: const ValueKey('edit-undo'),
-            tooltip: context.t('ved.undo'),
-            onPressed: _history.isEmpty || _tool != null ? null : _undo,
-            icon: const Icon(AppIcons.undo),
+            key: const ValueKey('ved-step-back'),
+            tooltip: context.t('ved.step_back'),
+            color: AppColors.onMedia,
+            disabledColor: off,
+            onPressed: ready ? () => _step(-1) : null,
+            icon: const Icon(AppIcons.skipPrevious),
           ),
-          Padding(
-            padding: const EdgeInsetsDirectional.only(end: Gap.sm),
-            child: FilledButton(
-              key: const ValueKey('trim-save'),
-              onPressed: _canSave ? _save : null,
-              child: Text(context.t('common.save')),
+          if (c == null)
+            IconButton(
+              tooltip: context.t('mp.play'),
+              disabledColor: off,
+              onPressed: null,
+              icon: const Icon(AppIcons.play),
+            )
+          else
+            ValueListenableBuilder<VideoPlayerValue>(
+              valueListenable: c,
+              builder: (context, v, _) => IconButton.filledTonal(
+                key: const ValueKey('ved-play'),
+                tooltip: context.t(v.isPlaying ? 'mp.pause' : 'mp.play'),
+                onPressed: _togglePlay,
+                icon: Icon(v.isPlaying ? AppIcons.pause : AppIcons.play),
+              ),
+            ),
+          IconButton(
+            key: const ValueKey('ved-step-fwd'),
+            tooltip: context.t('ved.step_fwd'),
+            color: AppColors.onMedia,
+            disabledColor: off,
+            onPressed: ready ? () => _step(1) : null,
+            icon: const Icon(AppIcons.skipNext),
+          ),
+          Expanded(
+            child: Align(
+              alignment: AlignmentDirectional.centerEnd,
+              // Kareyi fotoğraf kaydet (Ferrari H8.5): önizlemedeki o anki kare.
+              child: IconButton(
+                key: const ValueKey('ved-frame'),
+                tooltip: context.t('ved.save_frame'),
+                color: AppColors.onMedia,
+                disabledColor: off,
+                onPressed: c == null || _tool != null ? null : _saveFrame,
+                icon: const Icon(AppIcons.photoCamera),
+              ),
             ),
           ),
         ],
       ),
-      body: SafeArea(
-        top: false,
-        child: Column(
-          children: [
-            Expanded(child: _preview(context)),
-            _infoRow(context),
-            if (_durationMs > 0)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Gap.md),
-                child: VideoTrimTimeline(
-                  key: ValueKey(_tool == null ? 'tl-keep' : 'tl-sel'),
-                  durationMs: _durationMs,
-                  range: _tool == null ? _edit.keep : _sel,
-                  frames: _frames,
-                  marks: _marks,
-                  playheadMs: _video == null ? null : _positionMs,
-                  accent: _tool == null ? null : scheme.tertiary,
-                  dimOutside: _tool == null,
-                  onChanged: (r) => _tool == null
-                      ? setState(() => _edit = _edit.copyWith(keep: r))
-                      : setState(() => _sel = r),
-                  onSeek: _seek,
-                  onDragEnd: _endScrub,
-                ),
-              ),
-            AnimatedSwitcher(
-              duration: Motion.of(context, Motion.medium),
-              switchInCurve: Motion.enter,
-              switchOutCurve: Motion.exit,
-              child: _tool == null ? _toolbar(context) : _selectBar(context),
-            ),
-            if (_tool == null && _hasEdits) _editList(context),
-            const SizedBox(height: Gap.sm),
-          ],
-        ),
+    );
+  }
+
+  /// Başlangıcı / bitişi oynatma yerine çeken iki düğme (ince ayar: önce
+  /// adım düğmeleriyle kareyi bul, sonra dokun).
+  Widget _edgeRow(BuildContext context) {
+    final style = TextButton.styleFrom(
+      foregroundColor: AppColors.onMedia,
+      visualDensity: VisualDensity.compact,
+    );
+    Widget edge(Key key, IconData icon, String label, bool start) => Expanded(
+          child: TextButton.icon(
+            key: key,
+            style: style,
+            onPressed: () => _setEdge(start: start),
+            icon: Icon(icon, size: 18),
+            label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+        );
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+      child: Row(
+        children: [
+          edge(const ValueKey('ved-set-start'), AppIcons.firstPage,
+              context.t('ved.set_start'), true),
+          edge(const ValueKey('ved-set-end'), AppIcons.lastPage,
+              context.t('ved.set_end'), false),
+        ],
       ),
     );
   }
@@ -692,7 +1032,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
       _edit.mutes.isNotEmpty ||
       _edit.inserts.isNotEmpty;
 
-  /// Oynatma yeri solda, sonucun süresi sağda.
+  /// Sonucun süresi (bölge seçerken bölgenin aralığı).
   Widget _infoRow(BuildContext context) {
     final style = Theme.of(context)
         .textTheme
@@ -713,22 +1053,14 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
       right = context.t('ved.result', {'t': formatClock(_edit.outputMs)});
     }
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
-      child: Row(
-        children: [
-          Text(formatClock(_positionMs), style: style),
-          const SizedBox(width: Gap.md),
-          Expanded(
-            child: Text(
-              right,
-              key: const ValueKey('trim-label'),
-              textAlign: TextAlign.end,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: style,
-            ),
-          ),
-        ],
+      padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.sm),
+      child: Text(
+        right,
+        key: const ValueKey('trim-label'),
+        textAlign: TextAlign.center,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: style,
       ),
     );
   }
@@ -854,7 +1186,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
             'start': formatClock(_edit.cuts[i].startMs),
             'end': formatClock(_edit.cuts[i].endMs),
           }),
-          onTap: () => _seek(_edit.cuts[i].startMs),
+          onTap: () => _jump(_edit.cuts[i].startMs),
           onRemove: () => _apply(_edit.removeCut(i)),
         ),
       for (var i = 0; i < _edit.mutes.length; i++)
@@ -865,7 +1197,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
             'start': formatClock(_edit.mutes[i].startMs),
             'end': formatClock(_edit.mutes[i].endMs),
           }),
-          onTap: () => _seek(_edit.mutes[i].startMs),
+          onTap: () => _jump(_edit.mutes[i].startMs),
           onRemove: () => _apply(_edit.removeMute(i)),
         ),
       for (var i = 0; i < _edit.inserts.length; i++)
@@ -875,7 +1207,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
           text: '${p.basename(_edit.inserts[i].path)} · '
               '${formatClock(_edit.inserts[i].at.startMs)}–'
               '${formatClock(_edit.inserts[i].at.endMs)}',
-          onTap: () => _seek(_edit.inserts[i].at.startMs),
+          onTap: () => _jump(_edit.inserts[i].at.startMs),
           onRemove: () => _apply(_edit.removeInsert(i)),
           trailing: TextButton(
             style: TextButton.styleFrom(
@@ -931,40 +1263,18 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
                   fit: StackFit.expand,
                   children: [
                     VideoPlayer(c),
-                    if (_scrubShown != null)
-                      Image(
-                        image: FmFileImage(_scrubShown!),
-                        fit: BoxFit.contain,
-                        gaplessPlayback: true,
-                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                      ),
-                    // Kareler hâlâ geliyor: sürüklerken küçük dönence
-                    // (karesiz bölgede ortada, varken köşede).
-                    if (_scrubbing && (_scrubLoading || _scrubShown == null))
-                      Align(
-                        alignment: _scrubShown == null
-                            ? Alignment.center
-                            : AlignmentDirectional.topEnd,
-                        child: const Padding(
-                          padding: EdgeInsets.all(10),
-                          child: SizedBox(
-                            key: ValueKey('ved-scrub-loading'),
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.4,
-                              color: AppColors.onMedia,
-                            ),
-                          ),
-                        ),
-                      ),
+                    // Canlı kare katmanı: yalnız BU alt ağaç yeniden kurulur.
+                    ListenableBuilder(
+                      listenable: Listenable.merge([_scrubShown, _scrubbing]),
+                      builder: (context, _) => _scrubLayer(),
+                    ),
                   ],
                 ),
               ),
             ),
-            ValueListenableBuilder<VideoPlayerValue>(
-              valueListenable: c,
-              builder: (context, v, _) => v.isPlaying || _scrubbing
+            ListenableBuilder(
+              listenable: Listenable.merge([c, _scrubbing]),
+              builder: (context, _) => c.value.isPlaying || _scrubbing.value
                   ? const SizedBox.shrink()
                   : const Icon(AppIcons.playCircle,
                       size: 64, color: AppColors.onMediaSoft),
@@ -972,6 +1282,41 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _scrubLayer() {
+    final shown = _scrubShown.value;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (shown != null)
+          Image(
+            image: FmFileImage(shown),
+            fit: BoxFit.contain,
+            gaplessPlayback: true,
+            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+          ),
+        // Kareler hâlâ geliyor: sürüklerken küçük dönence (karesiz bölgede
+        // ortada, varken köşede).
+        if (_dragging && _scrubbing.value && (_scrubLoading || shown == null))
+          Align(
+            alignment:
+                shown == null ? Alignment.center : AlignmentDirectional.topEnd,
+            child: const Padding(
+              padding: EdgeInsets.all(10),
+              child: SizedBox(
+                key: ValueKey('ved-scrub-loading'),
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.4,
+                  color: AppColors.onMedia,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

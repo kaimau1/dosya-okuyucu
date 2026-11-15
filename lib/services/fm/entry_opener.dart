@@ -195,11 +195,10 @@ abstract final class EntryOpener {
     }
 
     if (route == OpenRoute.player) {
-      _remember(path);
       // Solarak gelen rota: video kapağı hücresinden büyüyerek açılır, geri
       // dönüşte hücresine küçülür (Hero; kullanıcı 2026-11-15). Opak rota —
       // geçiş bitince alttaki ızgara çizilmez (oynatma sırasında yük yok).
-      await Navigator.of(context).push(PageRouteBuilder<void>(
+      final player = PageRouteBuilder<void>(
         transitionDuration: Motion.long,
         reverseTransitionDuration: Motion.medium,
         pageBuilder: (_, _, _) =>
@@ -208,7 +207,23 @@ abstract final class EntryOpener {
           opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
           child: child,
         ),
-      ));
+      );
+      final closed = Navigator.of(context).push(player);
+      // Geçmiş kaydı + başlatıcı kısayolu (yerel çağrı, platform iş
+      // parçacığında) geçiş BİTİNCE: açılış karelerine karışmasın.
+      final animation = player.animation;
+      if (animation == null || animation.isCompleted) {
+        _remember(path);
+      } else {
+        late final AnimationStatusListener listener;
+        listener = (status) {
+          if (status == AnimationStatus.forward) return;
+          animation.removeStatusListener(listener);
+          _remember(path);
+        };
+        animation.addStatusListener(listener);
+      }
+      await closed;
       return;
     }
     if (route == OpenRoute.audio) {

@@ -234,8 +234,9 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     if (_p.current != widget.path || _p.controller == null) {
       _pending = true;
       WidgetsBinding.instance.addPostFrameCallback((_) => _openAfterTransition());
+    } else {
+      unawaited(_loadSubtitles());
     }
-    unawaited(_loadSubtitles());
   }
 
   void _openAfterTransition() {
@@ -245,6 +246,9 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
       if (!mounted || !_pending) return;
       unawaited(_p.open(widget.path, list: widget.playlist));
       setState(() => _pending = false);
+      // Altyazı araması da geçişten SONRA: klasör taraması açılış karelerine
+      // karışmasın (bkz. [Subtitles.findForAsync]).
+      unawaited(_loadSubtitles());
     }
 
     if (animation == null || animation.isCompleted) {

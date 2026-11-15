@@ -59,29 +59,18 @@ abstract final class Subtitles {
   /// `Film_eng.ass`) dosyalar ve varsa `Subs/` alt klasörünün tamamı.
   static List<SubtitleTrack> findFor(String videoPath) {
     final dir = Directory(p.dirname(videoPath));
-    final base = p.basenameWithoutExtension(videoPath);
-    final found = <String, SubtitleTrack>{};
-
-    void consider(File file, {required bool requirePrefix}) {
-      final ext = p.extension(file.path).replaceFirst('.', '').toLowerCase();
-      if (!extensions.contains(ext)) return;
-      final name = p.basenameWithoutExtension(file.path);
-      if (requirePrefix && !_matchesBase(name, base)) return;
-      found[file.path] ??=
-          SubtitleTrack(path: file.path, label: _labelFor(name, base, ext));
-    }
-
+    final files = <(String, bool)>[];
     try {
       for (final entity in dir.listSync(followLinks: false)) {
         if (entity is File) {
-          consider(entity, requirePrefix: true);
+          files.add((entity.path, true));
         } else if (entity is Directory &&
             _subFolders.contains(p.basename(entity.path).toLowerCase())) {
           try {
             for (final child in entity.listSync(followLinks: false)) {
               // Alt klasördeki her altyazı kabul edilir: "Subs/Turkish.srt"
               // dosya adında filmin adını taşımaz.
-              if (child is File) consider(child, requirePrefix: false);
+              if (child is File) files.add((child.path, false));
             }
           } catch (_) {
             // okunamayan alt klasör: yoksay
@@ -91,10 +80,57 @@ abstract final class Subtitles {
     } catch (_) {
       // klasör okunamıyor (izin/SD kart) → altyazı yok sayılır
     }
+    return _tracks(videoPath, files);
+  }
 
-    final list = found.values.toList()
+  /// [findFor]'un ana iş parçacığını KİLİTLEMEYEN eşi (2026-11-15).
+  ///
+  /// Kök: oynatıcı açılırken klasör eşzamanlı (`listSync`) taranıyordu;
+  /// binlerce dosyalı klasörde (DCIM/Camera) ilk kare yüzlerce ms gecikiyor,
+  /// açılış geçişi o sürede "atlanıyor" → video donup animasyonsuz açılıyordu.
+  static Future<List<SubtitleTrack>> findForAsync(String videoPath) async {
+    final dir = Directory(p.dirname(videoPath));
+    final files = <(String, bool)>[];
+    try {
+      final subs = <Directory>[];
+      await for (final entity in dir.list(followLinks: false)) {
+        if (entity is File) {
+          files.add((entity.path, true));
+        } else if (entity is Directory &&
+            _subFolders.contains(p.basename(entity.path).toLowerCase())) {
+          subs.add(entity);
+        }
+      }
+      for (final sub in subs) {
+        try {
+          await for (final child in sub.list(followLinks: false)) {
+            if (child is File) files.add((child.path, false));
+          }
+        } catch (_) {
+          // okunamayan alt klasör: yoksay
+        }
+      }
+    } catch (_) {
+      // klasör okunamıyor (izin/SD kart) → altyazı yok sayılır
+    }
+    return _tracks(videoPath, files);
+  }
+
+  /// (yol, ad videoyla başlamalı mı) listesinden altyazı parçaları.
+  static List<SubtitleTrack> _tracks(
+      String videoPath, List<(String, bool)> files) {
+    final base = p.basenameWithoutExtension(videoPath);
+    final found = <String, SubtitleTrack>{};
+    for (final (path, requirePrefix) in files) {
+      final ext = p.extension(path).replaceFirst('.', '').toLowerCase();
+      if (!extensions.contains(ext)) continue;
+      final name = p.basenameWithoutExtension(path);
+      if (requirePrefix && !_matchesBase(name, base)) continue;
+      found[path] ??=
+          SubtitleTrack(path: path, label: _labelFor(name, base, ext));
+    }
+    return found.values.toList()
       ..sort((a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()));
-    return list;
   }
 
   /// `Film.tr` adı `Film` videosuna ait mi?

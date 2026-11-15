@@ -429,7 +429,8 @@ abstract final class VideoTranscoder {
       {required String dir,
       int count = 10,
       int width = 160,
-      List<int>? indices}) async {
+      List<int>? indices,
+      bool exact = false}) async {
     try {
       final list = await _channel.invokeListMethod<String>('frames', {
         'path': path,
@@ -437,6 +438,7 @@ abstract final class VideoTranscoder {
         'count': count,
         'width': width,
         'indices': ?indices,
+        if (exact) 'exact': true,
       });
       return list ?? const [];
     } catch (_) {
