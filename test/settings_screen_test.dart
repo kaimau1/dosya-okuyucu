@@ -226,6 +226,9 @@ void main() {
     // sorusunun cevabı (eskiden dil ayrı bir bölümdü).
     expect(find.text('Tema ailesi'), findsOneWidget);
     expect(find.text('Tema'), findsOneWidget);
+    // Gruplu tema şeridi (2026-11-15) satırı ilk ekranın altına itebilir.
+    await tester.scrollUntilVisible(find.text('Yazı tipi'), 200,
+        scrollable: find.byType(Scrollable).first);
     expect(find.text('Yazı tipi'), findsOneWidget);
     // Kategori 2026-08-25'te "Tema ailesi" ve "Arka plan rengi" satırlarıyla
     // uzadı; "Dil" artık ilk ekranın altında kalıyor, kaydırıp bakıyoruz.
@@ -241,6 +244,8 @@ void main() {
     await tester.pumpWidget(_wrap(AppState(),
         SettingsCategoryScreen(category: _category('appearance'))));
     await tester.pump();
+    await tester.scrollUntilVisible(find.text('Çok büyük'), 200,
+        scrollable: find.byType(Scrollable).first);
     expect(find.text('Küçük'), findsOneWidget);
     expect(find.text('Orta'), findsOneWidget);
     expect(find.text('Büyük'), findsOneWidget);
@@ -253,7 +258,8 @@ void main() {
         SettingsCategoryScreen(category: _category('appearance'))));
     await tester.pump();
     // Tema şeridi (2026-11-07) satırı ilk ekranın altına itebilir.
-    await tester.ensureVisible(find.text('Yazı tipi'));
+    await tester.scrollUntilVisible(find.text('Yazı tipi'), 200,
+        scrollable: find.byType(Scrollable).first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Yazı tipi'));
     await tester.pumpAndSettle();

@@ -320,7 +320,9 @@ class _RecentMiniState extends State<_RecentMini> {
             for (final e in stats)
               if (!e.isDir) e,
           ].take(_limit).toList());
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: son açılanlar okunamazsa şerit çizilmez; menü yine açılır.
+    }
   }
 
   @override

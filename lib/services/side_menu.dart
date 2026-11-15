@@ -104,7 +104,9 @@ class SideMenu extends ChangeNotifier {
         'r:${_showRecents ? 1 : 0}',
         't:${_showHandle ? 1 : 0}',
       ]);
-    } catch (_) {}
+    } catch (_) {
+      // Bilinçli: kayıt yazılamazsa bellekteki düzen geçerli kalır.
+    }
   }
 
   /// Düzenleme levhasının son sırası (tüm kimlikler, gizliler dahil).
