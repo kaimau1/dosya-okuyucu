@@ -446,6 +446,25 @@ abstract final class VideoTranscoder {
     }
   }
 
+  /// [ms]'deki TAM kare (anahtar kare değil), [width] px genişlikte JPEG
+  /// olarak [dir]'e (`an_<ms>_<width>.jpg`; varsa yeniden çıkarılmaz).
+  /// Video düzenle ekranında duraklatılmış önizlemenin karesi. Okunamazsa null.
+  static Future<String?> frameAt(String path,
+      {required String dir, required int ms, int width = 960}) async {
+    try {
+      final list = await _channel.invokeListMethod<String>('frames', {
+        'path': path,
+        'dir': dir,
+        'atMs': ms,
+        'width': width,
+        'exact': true,
+      });
+      return (list == null || list.isEmpty) ? null : list.first;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// **Kareyi fotoğraf olarak kaydet** (Ferrari H8.5): [ms]'deki kare tam
   /// çözünürlükte JPEG olarak videonun yanına `<ad>_kare_<dk-sn>.jpg`;
   /// [rotationDegrees] (saat yönü) düzenlemedeki dönüşü uygular. Dönen değer

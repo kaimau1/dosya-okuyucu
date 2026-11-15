@@ -463,6 +463,60 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     _releaseTimer = null;
     _dragging = false;
     _scrubbing.value = false;
+    final c = _video;
+    if (c != null && !c.value.isPlaying) {
+      _hold(_positionMs);
+    } else {
+      _dropHold();
+    }
+  }
+
+  // ── Duraklatılmış önizlemede tutulan kare (2026-11-15, kök 4. tur) ──────
+  //
+  // Kök: duraklatılmış oynatıcıda `seekTo` dokuyu (texture) yenilemiyor ya
+  // da TAM kareyi çok geç çiziyor; katman kalkınca önizleme bir önceki
+  // çizilmiş kareye — hiç oynatılmadıysa videonun İLK karesine — dönüyordu
+  // ("bırakınca baştaki kare çıkıyor"). Artık duraklatılmışken katman
+  // kalkmaz: o anın TAM karesi (960 px, `exact`) istenir ve oynatma
+  // başlayana dek gösterilir. Oynatma başlayınca oynatıcı kendi karesini
+  // çizer, katman kısa bir pay sonra kalkar.
+  int _holdSeq = 0;
+  int? _heldMs;
+  Timer? _holdDropTimer;
+
+  void _hold(int ms) {
+    _holdDropTimer?.cancel();
+    final dir = _frameDir;
+    if (dir == null || _durationMs <= 0) {
+      _scrubShown.value = null;
+      return;
+    }
+    final seq = ++_holdSeq;
+    // Eldeki katman yakın bir anınsa (±0,1 sn adımı) yeni kare gelene dek
+    // kalır; değilse kaba ızgaranın en yakın karesi.
+    final prev = _heldMs;
+    if (_scrubShown.value == null || prev == null || (prev - ms).abs() > 1000) {
+      _scrubShown.value = _nearestScrubFrame(ms) ?? _scrubShown.value;
+    }
+    _heldMs = ms;
+    unawaited(VideoTranscoder.frameAt(widget.path,
+            dir: p.join(dir.path, 'tam'), ms: ms, width: 960)
+        .then((f) async {
+      if (f == null || !mounted || seq != _holdSeq) return;
+      try {
+        await precacheImage(FmFileImage(f), context);
+      } catch (_) {
+        // Bilinçli: çözülemeyen kare — kaba kare kalır.
+        return;
+      }
+      if (mounted && seq == _holdSeq) _scrubShown.value = f;
+    }));
+  }
+
+  void _dropHold() {
+    _holdDropTimer?.cancel();
+    _holdSeq++;
+    _heldMs = null;
     _scrubShown.value = null;
   }
 
@@ -486,6 +540,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     if (_tool != null && pos >= _sel.endMs) {
       unawaited(c.pause());
       _pauseAudio();
+      _hold(_sel.startMs);
       unawaited(c.seekTo(Duration(milliseconds: _sel.startMs)));
       return;
     }
@@ -493,6 +548,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     if (next == null) {
       unawaited(c.pause());
       _pauseAudio();
+      _hold(_edit.keep.startMs);
       unawaited(c.seekTo(Duration(milliseconds: _edit.keep.startMs)));
       return;
     }
@@ -557,19 +613,36 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
       _pauseAudio();
       return;
     }
-    _releaseNow();
+    _releaseTimer?.cancel();
+    _releaseTimer = null;
+    _dragging = false;
+    _scrubbing.value = false;
+    _holdSeq++;
     final range = _tool != null ? _sel : _edit.keep;
     final pos = c.value.position.inMilliseconds;
-    if (pos < range.startMs || pos >= range.endMs - 100) {
+    final seekStart = pos < range.startMs || pos >= range.endMs - 100;
+    if (seekStart) {
+      // Başa sarılıyor: tutulan kare artık yanlış an.
+      _scrubShown.value = _nearestScrubFrame(range.startMs);
       unawaited(c.seekTo(Duration(milliseconds: range.startMs)));
     }
     unawaited(c.play());
+    // Oynatıcı ilk karesini çizene dek tutulan kare kalır (yoksa bir an
+    // eski kare görünür).
+    _holdDropTimer?.cancel();
+    _holdDropTimer = Timer(Duration(milliseconds: seekStart ? 400 : 180),
+        () {
+      if (mounted && !_scrubbing.value) _dropHold();
+    });
   }
 
   /// Şeritte tarama / tutamaç: canlı kare katmanı açılır.
   void _seek(int ms) {
     final c = _video;
     _releaseTimer?.cancel();
+    _holdDropTimer?.cancel();
+    _holdSeq++;
+    _heldMs = null;
     _dragging = true;
     _pos.value = ms;
     _scrubbing.value = true;
@@ -588,11 +661,15 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
   void _jump(int ms) {
     final c = _video;
     final to = ms.clamp(0, _durationMs);
-    _releaseNow();
+    _releaseTimer?.cancel();
+    _releaseTimer = null;
+    _dragging = false;
+    _scrubbing.value = false;
     _pos.value = to;
     if (c == null) return;
     if (c.value.isPlaying) unawaited(c.pause());
     _pauseAudio();
+    _hold(to);
     _seekTo(c, to);
   }
 
@@ -810,6 +887,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
     // gelsin. Yalnız son 5 videonunki tutulur (~1 MB/video, geçici klasör).
     final dir = _frameDir;
     if (dir != null) unawaited(_pruneFrameDirs(dir.parent));
+    _holdDropTimer?.cancel();
     _pos.dispose();
     _scrubShown.dispose();
     _scrubbing.dispose();

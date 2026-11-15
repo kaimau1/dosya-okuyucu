@@ -1103,3 +1103,10 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Yapı (canlı kare):** sürüklerken parmağın durduğu an için ince ızgaradan (≈0,2 sn, en çok 3000 dilim, `<şerit>/ince/`) TEK kare, `exact: true` (yerelde `OPTION_CLOSEST`, anahtar kare değil) istenir; istek sürerken yalnız sonuncusu tutulur (`_wantFine`). 60'lık kaba ızgara (anahtar kare) aynen ilk gösterim. Konum/katman `ValueNotifier` — sürüklerken bütün ekran değil yalnız saat + şerit + katman yeniden kurulur.
 - **Yapı (arayüz):** oynatma satırı (saat 0,1 sn · ±0,1 sn adım · oynat/duraklat · kareyi kaydet), "Başlangıç burası / Bitiş burası" (kenarı oynatma yerine çeker; bölge seçerken bölgenin), Yinele; bölge seçerken oynatma yalnız seçili bölgeyi çalar.
 - Cihazda doğrulanmadı/ölçülmedi (bulut oturumu; kullanıcı doğrudan APK istedi). `OPTION_CLOSEST` 4K videoda kare başı süre bilinmiyor → `docs/CIHAZ_TESTI.md`.
+
+## 2026-11-15 — Kök (4. tur): video düzenle bırakınca ilk kare + varsayılan tema Bento
+- **Kök:** duraklatılmış önizlemede `seekTo` sonrası oynatıcı dokusu (texture) yeni kareyi ya hiç ya çok geç çiziyor; tarama katmanı kalkınca önizleme son çizilmiş kareye — hiç oynatılmadıysa videonun İLK karesine — dönüyordu. Saat doğru, görüntü yanlış.
+- **Çözüm:** duraklatılmışken katman KALKMAZ (`_hold`): kaba kare hemen, sonra o anın tam karesi (`VideoTranscoder.frameAt`, yerelde `frames` + `atMs`, 960 px, `OPTION_CLOSEST`, `tam/an_<ms>_<w>.jpg` önbellek). ±0,1 sn / satır atlaması ve bölge sonunda başa sarma da tutar. Oynat'ta katman 180 ms (başa sarılırsa 400 ms) sonra kalkar.
+- **Tuzak:** duraklatılmış `VideoPlayer`ın gösterdiği kareye güvenme; doğru kare gerekiyorsa kendin çıkar.
+- **Karar:** varsayılan aile Bento (`AppState`, `AppearanceState`); kayıtlı seçimi olan kullanıcı etkilenmez.
+- Cihazda doğrulanmadı.

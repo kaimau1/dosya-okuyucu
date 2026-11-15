@@ -176,7 +176,8 @@ class AppState extends ChangeNotifier {
 
   /// Tema ailesi (kağıt / açık / modern / iş programı / gece). `ThemeMode`
   /// ile diktir: aile kimliği, mod parlaklığı seçer — bkz. [AppSkin].
-  AppSkin _appSkin = AppSkin.sage;
+  // Varsayılan aile Bento (2026-11-15, kullanıcı kararı).
+  AppSkin _appSkin = AppSkin.bento;
 
   /// Seçili hazır arka plan rengi (`AppBackground.id`); 'default' = ailenin
   /// kendi zemini.
@@ -847,7 +848,11 @@ class AppState extends ChangeNotifier {
     _apiKey = _apiKeys.isEmpty ? '' : _apiKeys.first;
     _model = _models.first;
     _themeMode = _themeModeFromString(_prefs.getString(_kThemeMode));
-    _appSkin = AppSkin.byName(_prefs.getString(_kAppSkin));
+    // Seçim hiç yapılmadıysa Bento; tanınmayan / kaldırılmış ad yine
+    // `byName` eşlemesiyle.
+    final skinName = _prefs.getString(_kAppSkin);
+    _appSkin =
+        skinName == null ? AppSkin.bento : AppSkin.byName(skinName);
     _background = AppBackground.byId(_prefs.getString(_kBackground)).id;
     _accent = AppAccent.byId(_prefs.getString(_kAccent)).id;
     _language = AppLanguageInfo.byCode(_prefs.getString(_kLanguage));

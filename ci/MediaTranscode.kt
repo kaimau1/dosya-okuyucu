@@ -434,10 +434,39 @@ object MediaTranscodeBridge {
         // yalnız tek tek istenen ince kareler için).
         val option = if (a["exact"] == true) MediaMetadataRetriever.OPTION_CLOSEST
             else MediaMetadataRetriever.OPTION_CLOSEST_SYNC
-        val width = ((a["width"] as? Number)?.toInt() ?: 160).coerceIn(32, 480)
+        // `atMs` (2026-11-15): tek, tam o anın karesi — duraklatılmış
+        // önizlemede gösterilir; o yüzden 1280'e dek genişlik.
+        val atMs = (a["atMs"] as? Number)?.toLong()
+        val width = ((a["width"] as? Number)?.toInt() ?: 160)
+            .coerceIn(32, if (atMs != null) 1280 else 480)
         val out = mutableListOf<String>()
         val r = MediaMetadataRetriever()
         try {
+            if (atMs != null) {
+                File(dir).mkdirs()
+                val f = File(dir, "an_${atMs}_$width.jpg")
+                if (f.length() > 0L) return listOf(f.path)
+                r.setDataSource(path)
+                val us = atMs.coerceAtLeast(0L) * 1000L
+                val bmp = (if (android.os.Build.VERSION.SDK_INT >= 27) {
+                    r.getScaledFrameAtTime(us, option, width, width * 2)
+                } else {
+                    r.getFrameAtTime(us, option)
+                }) ?: return out
+                try {
+                    val scaled = if (bmp.width > width) {
+                        android.graphics.Bitmap.createScaledBitmap(
+                            bmp, width, (bmp.height.toLong() * width / bmp.width).toInt().coerceAtLeast(1), true)
+                    } else bmp
+                    val tmp = File(dir, f.name + ".tmp")
+                    tmp.outputStream().use { scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, it) }
+                    if (scaled !== bmp) scaled.recycle()
+                    if (tmp.renameTo(f)) out.add(f.path)
+                } finally {
+                    bmp.recycle()
+                }
+                return out
+            }
             r.setDataSource(path)
             val ms = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
             if (ms <= 0L) return out
