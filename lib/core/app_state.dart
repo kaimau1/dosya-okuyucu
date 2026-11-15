@@ -22,6 +22,7 @@ import '../services/fm/audio_playback.dart';
 import '../services/fm/playback_positions.dart';
 import '../services/fm/reading_positions.dart';
 import '../services/ai_pool.dart';
+import '../services/ai_tasks.dart';
 import '../services/gemini_service.dart';
 import '../services/key_vault.dart';
 import '../services/remote_secrets.dart';
@@ -83,6 +84,9 @@ class AppState extends ChangeNotifier {
   static const _kAppLock = 'app_lock_on';
   static const _kOffline = 'offline_mode';
   static const _kAiSendOk = 'ai_send_consent';
+  static const _kAiTerms = 'ai_terms_v1';
+  static const _kAiCatalog = 'ai_catalog';
+  static const _kAiTaskModel = 'ai_task_model_';
   static const _kPeerRecent = 'peer_recent_devices';
   static const _kResumePosition = 'resume_position';
   static const _kAudioBackground = 'audio_background';
@@ -389,6 +393,42 @@ class AppState extends ChangeNotifier {
   }
 
   bool get aiSendConsent => _aiSendOk;
+
+  /// AI kullanım koşulları / sorumluluk reddi kabul edildi mi (bir kez).
+  bool _aiTerms = false;
+  bool get aiTermsAccepted => _aiTerms;
+
+  Future<void> setAiTermsAccepted(bool value) async {
+    _aiTerms = value;
+    await _prefs.setBool(_kAiTerms, value);
+    _notifyAi();
+  }
+
+  /// Anahtarın son çekilen model listesi (görev zincirleri buna göre).
+  List<String> get aiCatalog => AiTaskModels.catalog;
+
+  Future<void> setAiCatalog(List<String> models) async {
+    if (models.isEmpty) return;
+    AiTaskModels.catalog = List.unmodifiable(models);
+    await _prefs.setStringList(_kAiCatalog, models);
+    _notifyAi();
+  }
+
+  /// Görevin elle seçilen modeli; boş = Otomatik.
+  String aiTaskModel(AiTask task) => AiTaskModels.choices[task] ?? '';
+
+  Future<void> setAiTaskModel(AiTask task, String id) async {
+    final next = Map<AiTask, String>.of(AiTaskModels.choices);
+    if (id.isEmpty) {
+      next.remove(task);
+      await _prefs.remove('$_kAiTaskModel${task.name}');
+    } else {
+      next[task] = id;
+      await _prefs.setString('$_kAiTaskModel${task.name}', id);
+    }
+    AiTaskModels.choices = Map.unmodifiable(next);
+    _notifyAi();
+  }
 
   Future<void> setAiSendConsent(bool value) async {
     _aiSendOk = value;
@@ -946,6 +986,14 @@ class AppState extends ChangeNotifier {
     _appLock = _prefs.getBool(_kAppLock) ?? false;
     _offline = OfflineMode.enabled = _prefs.getBool(_kOffline) ?? false;
     _aiSendOk = _prefs.getBool(_kAiSendOk) ?? false;
+    _aiTerms = _prefs.getBool(_kAiTerms) ?? false;
+    AiTaskModels.catalog =
+        List.unmodifiable(_prefs.getStringList(_kAiCatalog) ?? const []);
+    AiTaskModels.choices = Map.unmodifiable({
+      for (final t in AiTask.values)
+        if ((_prefs.getString('$_kAiTaskModel${t.name}') ?? '').isNotEmpty)
+          t: _prefs.getString('$_kAiTaskModel${t.name}')!,
+    });
     _peerRecent = _prefs.getStringList(_kPeerRecent) ?? [];
     _remotes = await RemoteSecrets.load(_prefs);
     _ttsPrefs = TtsPrefs.decode(_prefs.getString(_kTtsPrefs));

@@ -477,7 +477,10 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                       imageOverlay
                           ? Positioned.fill(
                               child: OcrTextOverlay(
-                                  path: doc.path, lines: _ocrImageLines),
+                                path: doc.path,
+                                lines: _ocrImageLines,
+                                onSelection: (t) => _ocrSelection.value = t,
+                              ),
                             )
                           : const SizedBox.shrink(),
                     ],

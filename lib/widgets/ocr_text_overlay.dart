@@ -20,11 +20,16 @@ class OcrTextOverlay extends StatefulWidget {
   /// görünsün diye; seçim yine çalışır).
   final bool showBoxes;
 
+  /// Seçim değiştikçe seçili düz metin (boş = seçim yok). Alt panel bunu
+  /// gösterir ("19 karakter seçildi" + metin + Kopyala).
+  final ValueChanged<String>? onSelection;
+
   const OcrTextOverlay({
     super.key,
     required this.path,
     required this.lines,
     this.showBoxes = true,
+    this.onSelection,
   });
 
   @override
@@ -90,6 +95,8 @@ class _OcrTextOverlayState extends State<OcrTextOverlay> {
       // Kutular resmin fiziksel piksel koordinatında: sağdan sola dilde de
       // aynalanmamalı → katman hep soldan sağa dizilir.
       return SelectionArea(
+        onSelectionChanged: (c) =>
+            widget.onSelection?.call((c?.plainText ?? '').trim()),
         child: Directionality(
           textDirection: TextDirection.ltr,
           child: Stack(

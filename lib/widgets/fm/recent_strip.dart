@@ -92,21 +92,28 @@ class _RecentStripState extends State<RecentStrip> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: SectionHeader(context.t('dash.sec_recent'),
-                  padding: const EdgeInsets.only(top: Gap.lg, bottom: Gap.sm)),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top: Gap.md),
-              child: TextButton(
+        // Başlık satırı sıkı (kullanıcı 2026-11-15: bellek kartı ile Son
+        // açılanlar arasında gereksiz büyük boşluk): "Tümü" düğmesi 48 dp
+        // dokunma payı + üst boşlukla satırı uzatıyordu.
+        Padding(
+          padding: const EdgeInsets.only(top: Gap.sm, bottom: Gap.xs),
+          child: Row(
+            children: [
+              Expanded(
+                child: SectionHeader(context.t('dash.sec_recent'),
+                    padding: EdgeInsets.zero),
+              ),
+              TextButton(
                 key: const ValueKey('recent-strip-all'),
+                style: TextButton.styleFrom(
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
                 onPressed: widget.onAll,
                 child: Text(context.t('dash.recent_all')),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         SizedBox(
           height: thumb + Gap.sm + 20 * scale + Gap.sm,
