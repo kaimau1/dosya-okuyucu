@@ -316,6 +316,15 @@ Future<bool> showEntryActions(
                       hint: ctx.t('ea.image_insight_hint')),
               ]),
               MenuKitSection(title: ctx.t('ea.sec_open'), actions: [
+                // Görüntüleyicide Paylaş üstte yok (alt çubukta duruyor) ama
+                // kullanıcı ⋮'da da arıyor (2026-11-15): "Aç ve paylaş"ın başı.
+                if (inViewer && !showShare) ...[
+                  act(AppIcons.share, ctx.t('common.share'),
+                      _EntryAction.share),
+                  if (!entry.isDir)
+                    act(AppIcons.nearMe, ctx.t('ea.quick_share'),
+                        _EntryAction.quickShare),
+                ],
                 if (!entry.isDir)
                   act(AppIcons.openWith, ctx.t('fm.open_with_other'),
                       _EntryAction.openWith),

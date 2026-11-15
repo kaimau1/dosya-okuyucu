@@ -45,7 +45,7 @@ void main() {
     test('bozuk/yabancı girdi null döner, fırlatmaz', () {
       expect(decodeOcrPageText('çöp'), isNull);
       expect(decodeOcrPageText('{"v":99}'), isNull);
-      expect(decodeOcrPageText('{"v":1,"page":1,"text":"ab","frags":'
+      expect(decodeOcrPageText('{"v":2,"page":1,"text":"ab","frags":'
           '[{"i":0,"t":"ab","r":[1,2,3,4]}]}'), isNull,
           reason: 'kutu sayısı metin uzunluğunu tutmuyor: girdi atılmalı');
     });

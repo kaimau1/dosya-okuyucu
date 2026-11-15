@@ -1291,3 +1291,9 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Seçim çubuğu "Daha fazla", klasör ⋮'ı, Excel "Daha fazla", PDF araç levhaları: aynı görünümü izliyor.
 - [ ] Yazı boyutu "Çok büyük": iki görünümde de taşma/kesik yok; TalkBack sekmeyi "seçili" okuyor, uzun basınca ipucu çıkıyor.
 - [ ] Hız: levha açılışı ve sekme değişimi takılmıyor (ölçülmedi).
+
+## 2026-11-15 — HDR video · ⋮ Paylaş · taranmış tablo seçimi (yazıldı, cihazda doğrulanmadı)
+1. `VID_..._HDR10PLUS.mp4` aç → görüntü akıyor mu, ses senkron mu, uygulama donmuyor mu? Geri/mini çubuk/PiP çalışıyor mu?
+2. Sıradan (HDR olmayan) video eskisi gibi açılıyor mu?
+3. PDF aç → ⋮ → "Aç ve paylaş" başında Paylaş ve Hızlı paylaş var mı, çalışıyor mu?
+4. `Asm Listesi.pdf` → 34. satırdan 35. satıra sürükle → seçim aynı satırlarda kalıyor mu (sayı sütununa atlamıyor)? Kopyala → sekmeli tablo metni.
