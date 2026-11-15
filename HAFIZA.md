@@ -1032,3 +1032,9 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 ## 2026-11-15 — Plan birleştirmesi (kullanıcı: "planlar çok fazla, sadeleşme lazım")
 - **Karar:** açık işin TEK kaynağı `PLAN.md` (§0 hız anayasası · §1 Kuyruk + SIRA · §2 kapsam dışı · §3 kullanıcının işleri K1–K42). KALANLAR, KONTROL_LISTEM ve 8 faz planı + ZAMANLANMIS_GOREV_ISTEMI → `docs/arsiv/planlar/` (yalnız ayrıntı kaynağı, güncellenmez). OTOMASYON.md yalnız yürütme düzeni. Yeni plan dosyası AÇILMAZ; yeni iş = PLAN §1 satırı. Biten Kuyruk satırı silinir; kodu bitip A/B bekleyen §1a'ya. `tool/`, `ci/` yorumlarındaki eski plan adları dokunulmadı (dosya adı aynı, yol arşivde).
 - **UDF biçimi (P23, kullanıcı örneği — depoya konmadı, KVKK):** ZIP → `content.xml` + `documentproperties.xml`; kök `<template format_id="1.8">`, `<content>` CDATA düz metin, `<elements>/<paragraph Alignment FirstLineIndent>/<content startOffset length family size bold italic foreground>`, `<image imageData=base64>`, `<properties><pageFormat …>`, `<styles>`.
+
+## 2026-11-15 — Kısayol oluştur + düzenlenebilir hızlı klasörler
+- **Yapı:** klasör ⋮ → "Kısayol oluştur" (`showFolderShortcutSheet`, `entry_actions/sheet.dart`) iki seçenek: Kartlarım'a ekle (var olan klasöre bağlı `CustomCard`, `shortcut: true`, görünüm Klasör, ana ekranda) / Hızlı klasörlere ekle. İkisi de aç/kapa.
+- **Karar:** kısayol kartı yeniden adlandırılınca gerçek klasör yeniden ADLANDIRILMAZ (eski davranış ad=klasör adıyken klasörü de değiştiriyordu — DCIM gibi klasörde tehlikeli). Kısayol kartı kaldırılınca kaydı silinir; elle kurulmuş kart yalnız ana ekrandan kalkar.
+- **Yapı:** `QuickFolders` (`quick_folders_v1`): liste = standart − gizli + eklenen. Ana ekranda çipe basılı tut → Aç / Çıkar; sonda "Ekle" çipi (klasör seçici). Standart tanıma diske bakmaz (`isStandardPath`: birim kökü altı + dizin adı).
+- Cihazda doğrulanmadı (bulut oturumu).

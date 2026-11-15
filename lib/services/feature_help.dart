@@ -151,8 +151,13 @@ class FeatureHelpIndex {
       group: 'Arama ve gezinme',
       name: 'Hızlı klasörler',
       where: 'Ana ekran → aşağıda "Hızlı klasörler"',
-      how: ['İndirilenler, Kamera, Belgeler gibi klasörlere tek dokunuşla gir.'],
-      keywords: ['kisayol', 'indirilenler', 'kamera klasoru'],
+      how: [
+        'İndirilenler, Kamera, Belgeler gibi klasörlere tek dokunuşla gir.',
+        'Ekle: herhangi bir klasörün ⋮ menüsü → Kısayol oluştur → Hızlı klasörlere ekle (ya da listedeki "Ekle").',
+        'Çıkar: klasöre basılı tut → Hızlı klasörlerden çıkar.',
+        'Kısayol oluştur → Kartlarım\'a ekle: klasör ana ekranda kart olur.',
+      ],
+      keywords: ['kisayol', 'indirilenler', 'kamera klasoru', 'kisayol olustur', 'kart'],
     ),
     FeatureHelp(
       id: 'dual_pane',

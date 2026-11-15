@@ -33,6 +33,11 @@ class CustomCard {
   final Set<FmCategory> kinds;
   final bool onHome;
 
+  /// **Kısayol kartı** (2026-11-15): depodaki VAR OLAN bir klasöre bağlı
+  /// ("Kısayol oluştur → Kartlarım"). Kart yeniden adlandırılınca klasör
+  /// yeniden adlandırılmaz; kart silinince klasör zaten yerinde kalır.
+  final bool shortcut;
+
   const CustomCard({
     required this.id,
     required this.name,
@@ -42,6 +47,7 @@ class CustomCard {
     this.view = CardView.gallery,
     this.kinds = const {},
     this.onHome = false,
+    this.shortcut = false,
   });
 
   String get tileId => '${CustomCards.tilePrefix}$id';
@@ -70,6 +76,7 @@ class CustomCard {
         view: view ?? this.view,
         kinds: kinds ?? this.kinds,
         onHome: onHome ?? this.onHome,
+        shortcut: shortcut,
       );
 
   Map<String, Object?> toJson() => {
@@ -81,6 +88,7 @@ class CustomCard {
         'view': view.name,
         'kinds': [for (final k in kinds) k.name],
         'home': onHome,
+        if (shortcut) 'shortcut': true,
       };
 
   static CustomCard? fromJson(Object? raw) {
@@ -102,6 +110,7 @@ class CustomCard {
           orElse: () => CardView.gallery),
       kinds: kinds,
       onHome: raw['home'] == true,
+      shortcut: raw['shortcut'] == true,
     );
   }
 }

@@ -32,6 +32,7 @@ enum _EntryAction {
   split,
   join,
   shortcut,
+  folderShortcut,
   library,
   hide,
   audiobook,
@@ -271,6 +272,12 @@ Future<bool> showEntryActions(
                         ? 'lib.remove'
                         : 'lib.add_one'),
                     _EntryAction.library),
+              // Uygulama içi kısayol (2026-11-15): klasör → Kartlarım ya da
+              // Hızlı klasörler.
+              if (entry.isDir)
+                _act(ctx, AppIcons.dashboardCustomize,
+                    ctx.t('qf.make_shortcut'), _EntryAction.folderShortcut,
+                    hint: ctx.t('qf.make_shortcut_hint')),
               // Ana ekran kısayolu (kullanıcı isteği 2026-09-27).
               if (Platform.isAndroid)
                 _act(ctx, AppIcons.homeShortcut,
@@ -502,6 +509,10 @@ Future<bool> showEntryActions(
 
     case _EntryAction.shortcut:
       await addHomeShortcut(context, entry);
+      return false;
+
+    case _EntryAction.folderShortcut:
+      await showFolderShortcutSheet(context, entry.path);
       return false;
 
     case _EntryAction.library:
@@ -812,3 +823,83 @@ Widget _act(
       hint: hint,
       onTap: () => Navigator.pop(ctx, action),
     );
+
+/// **Kısayol oluştur** (2026-11-15, kullanıcı: *"depodaki tüm klasörleri
+/// kısayol olarak kendi panomuza ekleme seçeneği olsun; iki seçenekli kart:
+/// biri Kartlarım, diğeri klasör olarak alttaki Hızlı klasörlere"*).
+///
+/// İki seçenek de AÇ/KAPA: klasör zaten oradaysa seçenek "çıkar" olur.
+/// Diskteki klasöre dokunulmaz — kart da hızlı klasör de yalnız ayar.
+Future<void> showFolderShortcutSheet(BuildContext context, String path) async {
+  final cards = CustomCards.instance;
+  final quick = QuickFolders.instance;
+  await Future.wait([cards.ensureLoaded(), quick.ensureLoaded()]);
+  if (!context.mounted) return;
+  final roots = [
+    FmEnv.primaryRoot,
+    for (final v in FmEnv.volumes) v.path,
+  ];
+  final standard = QuickFolders.isStandardPath(path, roots);
+  final card = cards.byPath(path);
+  final inCards = card != null && card.onHome;
+  final inQuick = quick.contains(path, standard: standard);
+  final name = p.basename(path);
+  final choice = await showAppActionSheet<String>(
+    context,
+    title: context.t('qf.make_shortcut'),
+    subtitle: name,
+    groups: [
+      AppActionGroup(actions: [
+        AppAction(
+          value: 'card',
+          icon: AppIcons.dashboardCustomize,
+          label: context.t(inCards ? 'qf.card_remove' : 'qf.card_add'),
+          hint: context.t('qf.card_hint'),
+          destructive: inCards,
+        ),
+        AppAction(
+          value: 'quick',
+          icon: AppIcons.folder,
+          label: context.t(inQuick ? 'qf.quick_remove' : 'qf.quick_add'),
+          hint: context.t('qf.quick_hint'),
+          destructive: inQuick,
+        ),
+      ]),
+    ],
+  );
+  if (choice == null || !context.mounted) return;
+  final messenger = ScaffoldMessenger.of(context);
+  final strings = AppStrings.of(context);
+  if (choice == 'card') {
+    if (inCards) {
+      // Kısayol kartı kaydıyla silinir; elle kurulmuş kart yalnız ana
+      // ekrandan kalkar (Önemli Dosyalar'daki kart yerinde kalsın).
+      card.shortcut
+          ? await cards.remove(card.id)
+          : await cards.upsert(card.copyWith(onHome: false));
+      showSnackOn(messenger, strings.t('qf.card_removed', {'name': name}));
+    } else {
+      await cards.upsert(card != null
+          ? card.copyWith(onHome: true)
+          : CustomCard(
+              id: CustomCards.newId(),
+              name: name,
+              path: path,
+              icon: 'folder',
+              color: 0xFFE8A33D,
+              view: CardView.folder,
+              onHome: true,
+              shortcut: true,
+            ));
+      showSnackOn(messenger, strings.t('qf.card_added', {'name': name}));
+    }
+  } else {
+    if (inQuick) {
+      await quick.remove(path, standard: standard);
+      showSnackOn(messenger, strings.t('qf.quick_removed', {'name': name}));
+    } else {
+      await quick.add(path, standard: standard);
+      showSnackOn(messenger, strings.t('qf.quick_added', {'name': name}));
+    }
+  }
+}

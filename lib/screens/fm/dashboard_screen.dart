@@ -81,6 +81,9 @@ import 'tools_screen.dart';
 import 'trash_screen.dart';
 import 'vault_screen.dart';
 import '../../core/snack.dart';
+import '../../services/fm/quick_folders.dart';
+import '../../widgets/app_action_sheet.dart';
+import 'folder_picker_screen.dart';
 import '../../core/safe_insets.dart';
 import 'library_screen.dart';
 import '../../services/fm/library_store.dart';
@@ -254,6 +257,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     // Kullanıcının kendi kartları (2026-11-13) — ana ekranda göster açıksa.
     CustomCards.instance.addListener(_onLayoutChanged);
     unawaited(CustomCards.instance.ensureLoaded());
+    // Hızlı klasörler (2026-11-15): kullanıcı ekleyip çıkarabilir.
+    QuickFolders.instance.addListener(_onLayoutChanged);
+    unawaited(QuickFolders.instance.ensureLoaded());
     unawaited(SmartFolders.instance.ensureLoaded());
     _boot();
     unawaited(_loadAppsSize());
@@ -264,6 +270,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   void dispose() {
     DashboardLayout.instance.removeListener(_onLayoutChanged);
     CustomCards.instance.removeListener(_onLayoutChanged);
+    QuickFolders.instance.removeListener(_onLayoutChanged);
     WidgetsBinding.instance.removeObserver(this);
     FsEvents.version.removeListener(_onFsChanged);
     AppStorageService.setUsbAttachedHandler(null);
