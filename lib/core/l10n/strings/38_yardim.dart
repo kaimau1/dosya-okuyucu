@@ -25,6 +25,15 @@ const Map<String, (String, String, String)> _t38 = {
   'pa.hide_hidden': ('Gizlileri sakla', 'Conceal hidden', 'إخفاء المخفية'),
   'pa.area_hidden': ('Albüm alanı gizlendi. Geri açmak için: Analiz ve diğer › Görünüm', 'Albums area hidden. To bring it back: Analysis and more › View', 'أُخفيت منطقة الألبومات. لإعادتها: التحليل والمزيد › العرض'),
   'pa.mine': ('Albümüm', 'My album', 'ألبومي'),
+  // Yan menü (kullanıcı 2026-11-15).
+  'side.title': ('Menü', 'Menu', 'القائمة'),
+  'side.open': ('Menüyü aç', 'Open menu', 'فتح القائمة'),
+  'side.home': ('Ana ekran', 'Home', 'الشاشة الرئيسية'),
+  'side.edit': ('Menüyü düzenle', 'Edit menu', 'تعديل القائمة'),
+  'side.show_recents': ('Son açılanları göster', 'Show recent files', 'إظهار الملفات الأخيرة'),
+  'side.show_handle': ('Kenar tutamacı', 'Edge handle', 'مقبض الحافة'),
+  'side.show_handle_sub': ('Her ekranda solda ince çizgi; dokununca menü açılır', 'Thin bar on the left of every screen; tap to open the menu', 'شريط رفيع على يسار كل شاشة؛ انقر لفتح القائمة'),
+  'side.reset': ('Varsayılana dön', 'Reset', 'إعادة التعيين'),
   // Tema galerisi grupları (kullanıcı 2026-11-15).
   'skin.g_layout': ('Yeni · ana ekran düzeniyle', 'New · with home layout', 'جديد · مع تخطيط الشاشة الرئيسية'),
   'skin.g_color': ('Renk temaları', 'Color themes', 'سمات الألوان'),

@@ -62,6 +62,7 @@ import 'services/fm/video_playback.dart';
 import 'widgets/app_error_screen.dart';
 import 'widgets/app_lock_gate.dart';
 import 'widgets/mini_player_bar.dart';
+import 'widgets/side_menu_view.dart';
 import 'screens/fm/media_player_screen.dart';
 import 'services/fm/remote/ftp_service.dart';
 import 'services/fm/remote/transfer_keeper.dart';
@@ -639,7 +640,10 @@ class _DosyaOkuyucuAppState extends State<DosyaOkuyucuApp> {
           child: picker
               ? (child ?? const SizedBox.shrink())
               : NeuralVoiceHostLayer(
-                  child: MiniPlayerBar.wrap(child ?? const SizedBox.shrink())),
+                  // **Yan menü** her ekranda (2026-11-15): sol kenar tutamacı.
+                  child: SideMenuLayer(
+                      child: MiniPlayerBar.wrap(
+                          child ?? const SizedBox.shrink()))),
         ),
       ),
       // Dil: seçim `system` ise `locale` null bırakılır — Flutter cihazın

@@ -1051,3 +1051,10 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Karar:** Bento büyük kutu 140 → 112 dp (`72 + scale(40)`), bellek kartı (`_StyledHero`) ~%20 alçak: headlineSmall, iç boşluk 12/10, düğme 36 dp (shrinkWrap), çubuk 6.
 - **Yapı:** tema galerisi gruplu (`ThemeGallery._groups`): Yeni · ana ekran düzeniyle / Renk temaları / Klasik simgeler / Gece ve sistem. Yeni aile eklenirse listede yoksa "Renk temaları"na düşer.
 - Cihazda ölçülmedi/doğrulanmadı (bulut oturumu; kullanıcı doğrudan APK istedi).
+
+## 2026-11-15 — Yan menü (soldan, her ekranda)
+- **Yapı:** `SideMenu` (`services/side_menu.dart`, `side_menu_v1`: sıra/gizli/son açılanlar/tutamaç) + `widgets/side_menu_view.dart` (`SideMenuView.show`, `_SideMenuRoute` = `PopupRoute`, `SideMenuLayer`, `SideMenuButton`, `showSideMenuEditor`).
+- **Karar:** kartların kaynağı pano: `DashboardScreen` `_categoryTilesRaw`'ı `SideMenu.register` eder, menü her açılışta çağırır (sayı/dokunma tek yerde). Pano yokken (kilit/ilk açılış) `ready=false` → tutamaç yok (kilit atlatılamaz).
+- **Karar:** menü ROTA (geri tuşu kapatır, açılan sayfa o ekranın üstüne gelir). Genişlik `min(0,6 × ekran, 360)`. Açma: ana ekran arama kapsülünde ☰ + her ekranda sol kenarda ince tutamaç (dokun/sağa çek; ayardan kapatılır).
+- **Tuzak:** Android hareketle gezintide sol kenardan kaydırma sistem "geri"sidir → kenardan çekme şeridi KONMADI, tutamaca dokunmak esas yol.
+- Cihazda doğrulanmadı (bulut oturumu).
