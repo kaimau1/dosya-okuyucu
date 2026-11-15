@@ -198,7 +198,9 @@ class _HomeTileBoardState extends State<HomeTileBoard> {
     final columns = FmCategoryGrid.columnsFor(width);
     const gap = Gap.xs;
     final w = (width - gap * (columns - 1)) / columns;
-    final h = w / aspect * _kHomeHeight;
+    // Klasik/Sakin ızgara %5 alçalmaz: içerik sütunu sığmıyor (3 px taşma,
+    // CI 2026-11-15) — çarpan yalnız Bento ve Koyu başlıkta.
+    final h = w / aspect;
     return Wrap(
       spacing: gap,
       runSpacing: gap,
