@@ -8,7 +8,6 @@ import '../core/app_icons.dart';
 import '../core/app_navigator.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/motion.dart';
-import '../core/skin.dart';
 import '../core/theme.dart';
 import '../models/fs_entry.dart';
 import '../screens/settings_screen.dart';
@@ -426,9 +425,8 @@ Future<void> showSideMenuEditor(BuildContext context) {
                 shrinkWrap: true,
                 buildDefaultDragHandles: false,
                 itemCount: tiles.length,
-                onReorder: (from, to) {
+                onReorderItem: (from, to) {
                   final ids = [for (final t in tiles) t.id];
-                  if (to > from) to -= 1;
                   ids.insert(to, ids.removeAt(from));
                   unawaited(menu.setOrder(ids));
                 },

@@ -6,7 +6,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../services/fm/dashboard_layout.dart';
 import '../../core/safe_insets.dart';
 import '../../core/app_colors.dart';
-import '../../core/skin.dart';
+import '../../core/theme.dart';
 
 /// Düzen sayfasındaki bir satırın görünümü.
 typedef LayoutRowInfo = ({String label, IconData icon, Color color});
