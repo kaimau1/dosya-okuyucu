@@ -8,6 +8,7 @@ import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/storage_stats.dart';
 import 'category_screen.dart';
+import '../../widgets/side_menu_view.dart';
 import '../../widgets/motion.dart';
 
 /// **Yeni Dosyalar** — telefona en son düşen dosyalar.
@@ -144,7 +145,9 @@ class _NewFilesScreenState extends State<NewFilesScreen>
     // listeyle açıp doldurmak "hiç dosya yok" yanılgısı veriyordu.
     if (files == null) {
       return Scaffold(
-        appBar: AppBar(title: Text(context.t('fm.new_files'))),
+        appBar: AppBar(
+            leading: const SideMenuButton(),
+            title: Text(context.t('fm.new_files'))),
         body: const FmListSkeleton(),
       );
     }

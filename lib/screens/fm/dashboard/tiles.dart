@@ -177,11 +177,12 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
         for (final e in all)
           if (e.$1 == id && (layout.tileVisible(id) || id == key)) e,
     ];
+    // **Sağa-sola kaydırmalı geçiş kaldırıldı** (2026-11-15, kullanıcı:
+    // "kartlarda sağa sola kaydırıp geçiş kalksın"): kutu yalnız kendi
+    // ekranını açar; başka kategoriye sol üstteki ☰ yan menüden geçilir.
     final index = pages.indexWhere((e) => e.$1 == key);
-    return _push(SwipePager(
-      pages: [for (final e in pages) e.$2],
-      initial: index < 0 ? 0 : index,
-    ));
+    final page = pages[index < 0 ? 0 : index].$2;
+    return _push(Builder(builder: page.builder));
   }
 
   Widget _quickFolders() {

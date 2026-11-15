@@ -1062,3 +1062,8 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 ## 2026-11-15 — Kök: "Varsayılana dön" yerleri karıştırıyordu
 - **Kök:** `DashboardLayout.reset()` tema ailesinden bağımsız klasik sırayı koyuyordu (Son açılanlar üstte, bellek kartı kutuların altında, Bento'da büyük kutular İndirilenler/Önemli); `library` varsayılan listede yoktu → kullanıcı kartlarının arkasına düşüyordu.
 - **Karar:** `sectionsFor/tilesFor(HomeStyle)`: tasarım ailelerinde bellek kartı en üstte, Bento'da ilk iki kutu Fotoğraflar/Videolar. Sıfırlamada kullanıcı kartları sona, kendi sıralarıyla. `library` listeye (sona) eklendi.
+
+## 2026-11-15 — Kategoriler arası kaydırmalı geçiş kaldırıldı + sol üstte ☰
+- **Karar (kullanıcı):** panodan açılan kutu (Belgeler, Fotoğraflar, İndirilenler…) artık `SwipePager` içinde DEĞİL, yalnız kendi ekranıyla açılır (`_openSwipe` → `Builder(page.builder)`); yanlışlıkla komşu kategoriye geçiş yok. `SwipePager` yalnız APK/Arşiv sekmelerinde kaldı.
+- **Karar:** Kategori/İndirilenler/Önemli/Yeni dosyalar ekranlarında sol üstte geri oku yerine her zaman `SideMenuButton` (☰). Geri = sistem geri tuşu. Sol kenar tutamacı aynen kalır.
+- Cihazda doğrulanmadı (bulut oturumu; kullanıcı doğrudan APK istedi).

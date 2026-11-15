@@ -13,6 +13,8 @@ extension _CategoryScreenStateParts on _CategoryScreenState {
       // Başlık + **özet satırı** (2026-10-23 yeniden tasarım): "161 öğe ·
       // 220 MB"; süzgeç açıksa "42 / 161 öğe · 33 MB" — sayı artık listenin
       // üstündeki şeritte soluk bir yazı değil, ekranın kimliğinin parçası.
+      // Sol üstte her zaman ☰ yan menü (2026-11-15, kullanıcı isteği).
+      leading: const SideMenuButton(),
       titleSpacing: 0,
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

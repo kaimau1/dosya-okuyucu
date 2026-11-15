@@ -15,6 +15,7 @@ import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/list_memory.dart';
 import '../../core/app_icons.dart';
+import '../../widgets/side_menu_view.dart';
 import '../../widgets/fm/fm_file_list_view.dart';
 import '../../widgets/fm/fm_more_sheet.dart';
 import '../../widgets/fm/fm_quick_filters.dart';
@@ -233,6 +234,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                   ),
                 )
               : AppBar(
+                  leading: const SideMenuButton(),
                   // Başlıkta ne gösterdiğimiz yazıyor: bu ekran klasörün
                   // KENDİSİ değil, alt klasörler dahil TÜM dosyaların yaş
                   // odaklı listesi. Kullanıcı "ilginç, kullanışsız bir klasör"
