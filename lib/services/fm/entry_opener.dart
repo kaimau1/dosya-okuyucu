@@ -272,13 +272,13 @@ abstract final class EntryOpener {
     // G7.4 (2026-11-12): makrolu Office biçimi — kullanıcıya makronun
     // çalıştırılmadığı söylenir (uygulamada VBA yorumlayıcısı yok).
     if (isMacroFormat(path)) _snack(context, context.t('open.macro_info'));
-    final route = SmoothOpenRoute<void>(
+    final page = SmoothOpenRoute<void>(
         builder: (_) => screenFor(doc, startInk: startInk));
-    final closed = navigator.push(route);
+    final closed = navigator.push(page);
     // Geçmiş + "Son belgeler" kaydı (tercih yazımı, yerel çağrı, ana ekranın
     // yeniden kurulması) geçiş BİTİNCE: eskiden itmeden hemen önce yapılıyor,
     // açılışın ilk karelerine karışıp geçişi takıltıyordu (2026-11-15).
-    _afterTransition(route, () {
+    _afterTransition(page, () {
       _remember(path);
       if (PrivateZone.isPrivatePath(path)) return;
       unawaited(appState.addRecent(RecentFile(
