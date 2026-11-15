@@ -354,6 +354,10 @@ const Map<String, (String, String, String)> _t2 = {
     'لم يُعثر على نص. شغّل «التعرّف على النص (OCR)» أولًا.',
   ),
   'vw.ocr_text': ('Tanınan metin', 'Recognized text', 'النص المتعرَّف عليه'),
+  'vw.ocr_overlay_hint': ('Metni basılı tutup seçin', 'Press and hold to select text', 'اضغط مطولًا لتحديد النص'),
+  'vw.ocr_show_list': ('Metni ayrı göster', 'Show text separately', 'عرض النص منفصلًا'),
+  'vw.ocr_overlay_close': ('Metin katmanını kapat', 'Hide text layer', 'إخفاء طبقة النص'),
+  'vw.ocr_overlay_open': ('Metni görselde seç', 'Select text on image', 'تحديد النص على الصورة'),
   'vw.ocr_in_pdf': (
     'İçindeki yazılar da PDF içinde aranabilir/kopyalanabilir olsun mu? '
         '(Metin tanıma birkaç saniye sürer, görüntüyü değiştirmez.)',

@@ -1120,3 +1120,8 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Tuzak:** `design_tokens_test` yeni `fontSize:` saymaz-geçmez → widget'ta punto için `textTheme.x.apply(fontSizeFactor:)`; sabit punto yalnız `core/theme.dart`'ta.
 - Cihazda doğrulanmadı/ölçülmedi (bulut; kullanıcı doğrudan APK istedi) → PLAN §3 K28.
 
+
+## 2026-11-15 — Görselde OCR metni resmin üstünden seçilir + ses arka planda varsayılan kapalı
+- **Yapı:** görselde "Metni tanı" artık pencere açmaz; `OcrService.recognizeImageLines` satır kutuları `OcrTextOverlay` (`widgets/ocr_text_overlay.dart`) ile resmin ÜSTÜNE görünmez metin olarak dizilir (`SelectionArea`, basılı tut → seç → kopyala, Lens gibi). Alt çubukta Tümünü kopyala · Metni ayrı göster (eski liste penceresi, istenirse) · Kapat; kapalıyken "Metni görselde seç" çipi. Ölçek resmin asıl boyutundan (`ImageDescriptor` başlığı); EXIF dönüklüğünde en-boy oranına uyan yön seçilir.
+- **Karar:** ses (`AudioPlayback`) uygulama arkaya alınınca / ekran kilitlenince DURAKLAR, dönünce sürer; Ayarlar › "Seste arka planda çal" (`audio_background`, varsayılan kapalı). Bildirimden/kilit ekranından elle Çal → o an izin. Video zaten böyleydi.
+- Cihazda doğrulanmadı (bulut; kullanıcı doğrudan APK istedi).

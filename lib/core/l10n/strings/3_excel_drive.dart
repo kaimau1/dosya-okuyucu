@@ -920,6 +920,16 @@ const Map<String, (String, String, String)> _t3 = {
     'Remember playback position and document page.',
     'تذكّر موضع التشغيل وصفحة المستند.',
   ),
+  'fmset.audio_bg': (
+    'Seste arka planda çal',
+    'Keep audio playing in background',
+    'تشغيل الصوت في الخلفية',
+  ),
+  'fmset.audio_bg_sub': (
+    'Kapalıyken uygulamadan çıkınca ya da ekran kilitlenince müzik duraklar.',
+    'When off, music pauses when you leave the app or lock the screen.',
+    'عند الإيقاف، يتوقف الصوت مؤقتًا عند مغادرة التطبيق أو قفل الشاشة.',
+  ),
   'srch.recent': ('Son aramalar', 'Recent searches', 'عمليات البحث الأخيرة'),
   'srch.clear_history': ('Geçmişi temizle', 'Clear history', 'مسح السجل'),
   'vw.resumed_page': (
