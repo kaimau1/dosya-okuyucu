@@ -852,8 +852,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// pdfium işçisinde, kodlama izolatta. Parolalı belgede saklanmaz.
   void _captureLastView() {
     if (!_isPdf || _pdfPassword != null || !_pdfController.isReady) return;
+    // Ekran genişliğinde: yeniden açılışta köprü onu net gösterir.
+    final view = View.of(context);
     unawaited(PdfLastView.capture(
-        widget.doc.path, _pdfController.document, _pdfPage));
+        widget.doc.path, _pdfController.document, _pdfPage,
+        widthPx: view.physicalSize.width.round()));
   }
 
   @override

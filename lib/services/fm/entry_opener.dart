@@ -211,18 +211,7 @@ abstract final class EntryOpener {
       final closed = Navigator.of(context).push(player);
       // Geçmiş kaydı + başlatıcı kısayolu (yerel çağrı, platform iş
       // parçacığında) geçiş BİTİNCE: açılış karelerine karışmasın.
-      final animation = player.animation;
-      if (animation == null || animation.isCompleted) {
-        _remember(path);
-      } else {
-        late final AnimationStatusListener listener;
-        listener = (status) {
-          if (status == AnimationStatus.forward) return;
-          animation.removeStatusListener(listener);
-          _remember(path);
-        };
-        animation.addStatusListener(listener);
-      }
+      _afterTransition(player, () => _remember(path));
       await closed;
       return;
     }
@@ -280,21 +269,43 @@ abstract final class EntryOpener {
     closeBusy();
     if (!context.mounted) return;
 
-    _remember(path);
-    if (!PrivateZone.isPrivatePath(path)) {
-      await appState.addRecent(RecentFile(
+    // G7.4 (2026-11-12): makrolu Office biçimi — kullanıcıya makronun
+    // çalıştırılmadığı söylenir (uygulamada VBA yorumlayıcısı yok).
+    if (isMacroFormat(path)) _snack(context, context.t('open.macro_info'));
+    final route = SmoothOpenRoute<void>(
+        builder: (_) => screenFor(doc, startInk: startInk));
+    final closed = navigator.push(route);
+    // Geçmiş + "Son belgeler" kaydı (tercih yazımı, yerel çağrı, ana ekranın
+    // yeniden kurulması) geçiş BİTİNCE: eskiden itmeden hemen önce yapılıyor,
+    // açılışın ilk karelerine karışıp geçişi takıltıyordu (2026-11-15).
+    _afterTransition(route, () {
+      _remember(path);
+      if (PrivateZone.isPrivatePath(path)) return;
+      unawaited(appState.addRecent(RecentFile(
         path: path,
         name: doc.name,
         sizeBytes: _fileService.sizeOf(path),
         openedAtMs: DateTime.now().millisecondsSinceEpoch,
-      ));
+      )));
+    });
+    await closed;
+  }
+
+  /// [fn]'i [route]'un açılış geçişi bitince (ya da geri dönünce) bir kez
+  /// çağırır; geçiş yoksa hemen.
+  static void _afterTransition(TransitionRoute<void> route, VoidCallback fn) {
+    final animation = route.animation;
+    if (animation == null || animation.isCompleted) {
+      fn();
+      return;
     }
-    if (!context.mounted) return;
-    // G7.4 (2026-11-12): makrolu Office biçimi — kullanıcıya makronun
-    // çalıştırılmadığı söylenir (uygulamada VBA yorumlayıcısı yok).
-    if (isMacroFormat(path)) _snack(context, context.t('open.macro_info'));
-    await navigator.push(MaterialPageRoute(
-        builder: (_) => screenFor(doc, startInk: startInk)));
+    late final AnimationStatusListener listener;
+    listener = (status) {
+      if (status == AnimationStatus.forward) return;
+      animation.removeStatusListener(listener);
+      fn();
+    };
+    animation.addStatusListener(listener);
   }
 
   /// Makro taşıyabilen Office uzantıları (G7.4).
@@ -566,4 +577,26 @@ class _MediaChoiceDialogState extends State<_MediaChoiceDialog> {
           ),
         ],
       );
+}
+
+/// Belge ekranlarının rotası: geçiş, ekranın **ilk karesi çizildikten sonra**
+/// baştan başlar (2026-11-15, kullanıcı: "belge kasarak, donarak açılıyor").
+///
+/// Kök: geçiş saati itme anında işlemeye başlar; görüntüleyici/editör ilk
+/// karede kurulurken (yüz ms'ye varabilir) saat ilerler, ikinci karede geçiş
+/// yarısını atlamış olur — kayma yerine "donup sıçrama" görünür. İlk kare
+/// bitince saat sıfırlanınca geçişin tamamı akıcı oynar.
+class SmoothOpenRoute<T> extends MaterialPageRoute<T> {
+  SmoothOpenRoute({required super.builder, super.settings});
+
+  @override
+  TickerFuture didPush() {
+    final pushed = super.didPush();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final c = controller;
+      if (!isActive || c == null) return;
+      if (c.status == AnimationStatus.forward) c.forward(from: 0);
+    });
+    return pushed;
+  }
 }

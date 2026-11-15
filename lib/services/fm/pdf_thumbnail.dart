@@ -66,8 +66,11 @@ abstract final class PdfThumbnail {
   /// görüntüleyiciyle yarıştırmak tam da kaçınılan şey. Büyük boydan küçüğe
   /// aranır; dönen `aspect` = genişlik / yükseklik (PNG başlığından).
   /// Kapak yoksa ya da okunamazsa null — çağıran nötr kâğıt çizer.
-  static Future<({String path, double aspect})?> cachedCover(
-      String path) async {
+  ///
+  /// [minSize]: bundan küçük kapaklar atlanır — köprü küçük resmi tam ekrana
+  /// gerince belge "bulanık açılıyor" görünüyordu (2026-11-15).
+  static Future<({String path, double aspect})?> cachedCover(String path,
+      {int minSize = 0}) async {
     try {
       final stat = await File(path).stat();
       if (stat.type == FileSystemEntityType.notFound) return null;
@@ -76,6 +79,7 @@ abstract final class PdfThumbnail {
       final sizes = {..._sizesSeen, ..._commonSizes}.toList()
         ..sort((a, b) => b.compareTo(a));
       for (final size in sizes) {
+        if (size < minSize) break;
         final file = File(p.join(
             dir.path,
             ThumbnailCache.cacheName(path, ms, size)

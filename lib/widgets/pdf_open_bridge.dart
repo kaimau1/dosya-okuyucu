@@ -82,13 +82,26 @@ class _PdfOpenBridgeState extends State<PdfOpenBridge> {
     }
   }
 
+  /// Görüntü, kâğıdın fiziksel genişliğinin en az bu oranı kadar olmalı;
+  /// değilse HİÇ gösterilmez (nötr kâğıt → doğrudan net sayfa). Kullanıcı
+  /// 2026-11-15: "belge ilk açılırken anlık düşük çözünürlükle geliyor" —
+  /// liste küçük resmi (96–512 px) tam ekrana geriliyordu.
+  static const _minSharpness = 0.7;
+
   Future<void> _loadCover() async {
     final page = widget.page;
-    var cover = page == null
-        ? null
-        : await (widget.lastViewLoader ?? PdfLastView.find)(widget.path, page);
+    final view = WidgetsBinding.instance.platformDispatcher.implicitView ??
+        WidgetsBinding.instance.platformDispatcher.views.firstOrNull;
+    final need =
+        view == null ? 0 : (view.physicalSize.width * _minSharpness).round();
+    final lastView = widget.lastViewLoader ??
+        (String path, int page) =>
+            PdfLastView.find(path, page, minWidth: need);
+    final coverOf = widget.coverLoader ??
+        (String path) => PdfThumbnail.cachedCover(path, minSize: need);
+    var cover = page == null ? null : await lastView(widget.path, page);
     if (cover == null && widget.useCover) {
-      cover = await (widget.coverLoader ?? PdfThumbnail.cachedCover)(widget.path);
+      cover = await coverOf(widget.path);
     }
     if (!mounted || cover == null || !widget.visible) return;
     setState(() => _cover = cover);
@@ -157,7 +170,7 @@ class _PdfOpenBridgeState extends State<PdfOpenBridge> {
                 ? null
                 : Image(
                     image: FmFileImage(cover.path,
-                        cacheWidth: (w * dpr).round().clamp(64, 1024)),
+                        cacheWidth: (w * dpr).round().clamp(64, 1440)),
                     fit: BoxFit.fill,
                     filterQuality: FilterQuality.medium,
                     gaplessPlayback: true,

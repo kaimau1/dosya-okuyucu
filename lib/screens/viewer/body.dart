@@ -221,7 +221,10 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                           // pdfrx bunu ilk sayfanın bitmap'i önbelleğe
                           // girince çağırır (H0.3).
                           if (ok) PdfProPerf.openMark('ilk_sayfa');
-                          if (!ok && mounted && !_pdfOpened) {
+                          // İlk sayfa net çizildi (ya da belge açılamadı):
+                          // köprü payı beklemeden kalkar.
+                          if (mounted && !_pdfOpened) {
+                            _pdfBridgeTimer?.cancel();
                             _partSetState(() => _pdfOpened = true);
                           }
                         },
