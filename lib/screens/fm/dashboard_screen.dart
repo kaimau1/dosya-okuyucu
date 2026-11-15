@@ -90,6 +90,8 @@ import 'folder_picker_screen.dart';
 import '../../core/safe_insets.dart';
 import 'library_screen.dart';
 import '../../services/fm/library_store.dart';
+import '../../services/side_menu.dart';
+import '../../widgets/side_menu_view.dart';
 
 part 'dashboard/volume_watch.dart';
 part 'dashboard/scan.dart';
@@ -258,6 +260,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     ToolUsage.ensureLoaded().then((_) {
       if (mounted) setState(() {});
     });
+    // Yan menü kartları panodan okur (her açılışta taze liste).
+    SideMenu.instance.register(_categoryTilesRaw);
+    unawaited(SideMenu.instance.ensureLoaded());
     // Kullanıcının pano düzeni (sıra + göster/gizle).
     DashboardLayout.instance.addListener(_onLayoutChanged);
     unawaited(DashboardLayout.instance.ensureLoaded());
@@ -275,6 +280,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   void dispose() {
+    SideMenu.instance.unregister(_categoryTilesRaw);
     DashboardLayout.instance.removeListener(_onLayoutChanged);
     CustomCards.instance.removeListener(_onLayoutChanged);
     QuickFolders.instance.removeListener(_onLayoutChanged);
@@ -621,34 +627,54 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
         ],
       ),
+      // Arama YALNIZ sol bölgeden (büyüteç + ipucu) açılır (2026-11-15,
+      // kullanıcı: sağdaki AI/yenile/ayarlar düğmelerinin çevresine dokununca
+      // da arama açılıyordu). İpucu sola yaslı — AnimatedSwitcher'ın
+      // varsayılan Stack'i metni ortalıyordu.
       child: Material(
         type: MaterialType.transparency,
-        child: InkWell(
-          key: const ValueKey('dash-search'),
-          borderRadius: BorderRadius.circular(26),
-          onTap: openSearch,
-          child: SizedBox(
-            height: 50,
-            child: Row(
-              children: [
-                const SizedBox(width: Gap.md - 2),
-                Icon(AppIcons.search, size: 20, color: scheme.onSurfaceVariant),
-                const SizedBox(width: Gap.sm),
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: Motion.short,
-                    child: Text(
+        child: SizedBox(
+          height: 50,
+          child: Row(
+            children: [
+              // Yan menü düğmesi (2026-11-15) — aramadan ayrı dokunma alanı.
+              const SizedBox(width: Gap.xs),
+              SideMenuButton(color: scheme.onSurfaceVariant),
+              Expanded(
+                child: InkWell(
+                  key: const ValueKey('dash-search'),
+                  borderRadius: BorderRadius.circular(Gap.md),
+                  onTap: openSearch,
+                  child: Row(
+                    children: [
+                      const SizedBox(width: Gap.xs),
+                      Icon(AppIcons.search,
+                          size: 20, color: scheme.onSurfaceVariant),
+                      const SizedBox(width: Gap.sm),
+                      Expanded(
+                        child: AnimatedSwitcher(
+                          duration: Motion.short,
+                          layoutBuilder: (current, previous) => Stack(
+                            alignment: AlignmentDirectional.centerStart,
+                            children: [...previous, ?current],
+                          ),
+                          child: Text(
                       context.t(_meaning ? 'srch.hint_ai' : 'fm.search_help'),
-                      key: ValueKey(_meaning),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                          color: _meaning
-                              ? scheme.primary
-                              : Paper.faint(context)),
-                    ),
+                            key: ValueKey(_meaning),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.start,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                                color: _meaning
+                                    ? scheme.primary
+                                    : Paper.faint(context)),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+              ),
                 // **AI anahtarı** (anlamla ara): açıkken renkli kapsül,
                 // kapalıyken sade çizgi simge. Durum ipucu metninde yazar.
                 Semantics(
@@ -724,7 +750,6 @@ class _DashboardScreenState extends State<DashboardScreen>
               ],
             ),
           ),
-        ),
       ),
     );
   }

@@ -340,6 +340,7 @@ abstract final class AppIcons {
   static const IconData lowPriority = Icons.low_priority_rounded;
   static const IconData manageSearch = Icons.manage_search_rounded;
   static const IconData memory = Icons.memory_rounded;
+  static const IconData menu = Icons.menu_rounded;
   static const IconData menuBook = Icons.menu_book_rounded;
   static const IconData mergeType = Icons.merge_type_rounded;
   static const IconData micNone = Icons.mic_none_rounded;

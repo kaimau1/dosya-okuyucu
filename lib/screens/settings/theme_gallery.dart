@@ -48,16 +48,56 @@ class _ThemeGalleryState extends State<ThemeGallery> {
     super.dispose();
   }
 
+  /// Galeri grupları (2026-11-15, kullanıcı: *"tema ailesini gruplandır,
+  /// eski tip olanlarla yeni olanların farkı anlaşılsın"*). Sıra = ekranda
+  /// görünen sıra; listede olmayan yeni bir aile "Renk temaları"na düşer.
+  static const _groups = <(String, List<AppSkin>)>[
+    ('skin.g_layout', [AppSkin.calm, AppSkin.bento, AppSkin.band]),
+    ('skin.g_color', [
+      AppSkin.sage,
+      AppSkin.porcelain,
+      AppSkin.clay,
+      AppSkin.lavender,
+      AppSkin.olive,
+      AppSkin.white,
+      AppSkin.straw,
+      AppSkin.cream,
+      AppSkin.peach,
+      AppSkin.mint,
+      AppSkin.modern,
+    ]),
+    ('skin.g_classic', [AppSkin.classic, AppSkin.ledger]),
+    ('skin.g_special', [AppSkin.night, AppSkin.system]),
+  ];
+
+  static List<(String, List<AppSkin>)> _grouped(List<AppSkin> skins) {
+    final listed = {for (final g in _groups) ...g.$2};
+    final out = <(String, List<AppSkin>)>[];
+    for (final (key, members) in _groups) {
+      final present = [
+        for (final s in members)
+          if (skins.contains(s)) s,
+        if (key == 'skin.g_color')
+          for (final s in skins)
+            if (!listed.contains(s)) s,
+      ];
+      if (present.isNotEmpty) out.add((key, present));
+    }
+    return out;
+  }
+
   @override
   Widget build(BuildContext context) {
     const cardWidth = ThemeGallery.cardWidth;
     final strip = widget.strip;
     final current = context.select<AppState, AppSkin>((s) => s.appSkin);
     final brightness = Theme.of(context).brightness;
+    final theme = Theme.of(context);
     final skins = [
       for (final s in AppSkin.values)
         if (s.available || s == current) s,
     ];
+    final groups = _grouped(skins);
     void pick(AppSkin s) => context.read<AppState>().setAppSkin(s);
 
     Widget card(AppSkin s) => ThemeSkinCard(
@@ -68,22 +108,74 @@ class _ThemeGalleryState extends State<ThemeGallery> {
           onTap: () => pick(s),
         );
 
+    Widget groupLabel(String key) => Padding(
+          padding: const EdgeInsetsDirectional.only(start: 2),
+          child: Text(
+            context.t(key),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: theme.colorScheme.primary,
+            ),
+          ),
+        );
+    final labelStyle = theme.textTheme.labelMedium;
+    final labelH = MediaQuery.textScalerOf(context)
+            .scale(labelStyle?.fontSize ?? 12) *
+        (labelStyle?.height ?? 1.34);
+
     if (strip) {
-      final index = skins.indexOf(current);
+      // Tek yatay şerit; her grup kendi başlığıyla bir blok, bloklar
+      // arasında ince ayraç. Seçili aile görünür alanda açılsın.
+      const groupGap = Gap.md;
+      var offset = 0.0;
+      var found = false;
+      for (final (_, members) in groups) {
+        final i = members.indexOf(current);
+        if (i >= 0) {
+          offset += i * (cardWidth + Gap.sm);
+          found = true;
+          break;
+        }
+        offset += members.length * (cardWidth + Gap.sm) + groupGap;
+      }
+      if (!found || offset < cardWidth) offset = 0;
       return SizedBox(
-        height: ThemeSkinCard.heightOf(context),
+        height: ThemeSkinCard.heightOf(context) + labelH + Gap.xs,
         child: ListView.separated(
           key: const ValueKey('theme-gallery-strip'),
           scrollDirection: Axis.horizontal,
-          // Seçili aile görünür alanda açılsın.
           controller: _scroll ??= ScrollController(
-            initialScrollOffset:
-                index <= 1 ? 0 : (index - 1) * (cardWidth + Gap.sm),
+            initialScrollOffset: offset <= 0 ? 0 : offset - cardWidth / 2,
           ),
-          itemCount: skins.length,
-          separatorBuilder: (_, _) => const SizedBox(width: Gap.sm),
-          itemBuilder: (_, i) =>
-              SizedBox(width: cardWidth, child: card(skins[i])),
+          itemCount: groups.length,
+          separatorBuilder: (_, _) => Padding(
+            padding: const EdgeInsets.symmetric(horizontal: groupGap / 2 - 1),
+            child: VerticalDivider(
+                width: 1, color: theme.colorScheme.outlineVariant),
+          ),
+          itemBuilder: (_, g) {
+            final (key, members) = groups[g];
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: members.length * (cardWidth + Gap.sm) - Gap.sm,
+                  child: groupLabel(key),
+                ),
+                const SizedBox(height: Gap.xs),
+                Row(
+                  children: [
+                    for (var i = 0; i < members.length; i++) ...[
+                      if (i > 0) const SizedBox(width: Gap.sm),
+                      SizedBox(width: cardWidth, child: card(members[i])),
+                    ],
+                  ],
+                ),
+              ],
+            );
+          },
         ),
       );
     }
@@ -93,11 +185,22 @@ class _ThemeGalleryState extends State<ThemeGallery> {
         final w = c.maxWidth;
         final perRow = w < 380 ? 3 : (w < 560 ? 4 : (w < 820 ? 6 : 8));
         final width = (w - Gap.sm * (perRow - 1)) / perRow;
-        return Wrap(
-          spacing: Gap.sm,
-          runSpacing: Gap.sm,
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (final s in skins) SizedBox(width: width, child: card(s)),
+            for (final (key, members) in groups) ...[
+              if (key != groups.first.$1) const SizedBox(height: Gap.md),
+              groupLabel(key),
+              const SizedBox(height: Gap.xs),
+              Wrap(
+                spacing: Gap.sm,
+                runSpacing: Gap.sm,
+                children: [
+                  for (final s in members)
+                    SizedBox(width: width, child: card(s)),
+                ],
+              ),
+            ],
           ],
         );
       },

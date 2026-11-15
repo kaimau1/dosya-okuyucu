@@ -1,3 +1,4 @@
+import 'package:dosya_okuyucu/core/skin.dart';
 import 'package:dosya_okuyucu/services/fm/dashboard_layout.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -49,7 +50,11 @@ void main() {
     });
     layout.debugReset();
     await layout.ensureLoaded();
-    expect(layout.tileOrder.take(2), ['apps', 'downloads']);
+    // Kayıtlı sıra korunur (yeni 'library' komşusu 'apps'ın ardına girer).
+    expect(
+        layout.tileOrder.where((id) => id == 'apps' || id == 'downloads'),
+        ['apps', 'downloads']);
+    expect(layout.tileOrder.first, 'apps');
     expect(layout.tileOrder, isNot(contains('eski_kutu')));
     expect(layout.tileOrder.toSet(), DashboardLayout.tiles.toSet());
   });
@@ -144,5 +149,14 @@ void main() {
     layout.debugReset();
     await layout.ensureLoaded();
     expect(layout.tileVisible('drive'), isTrue);
+  });
+
+  test('Varsayılana dön tema ailesinin sırasına döner (Bento)', () async {
+    layout.debugReset();
+    await layout.moveSection(0, 2);
+    await layout.reset(HomeStyle.bento);
+    expect(layout.sectionOrder.first, 'storage');
+    expect(layout.tileOrder.take(2), ['image', 'video']);
+    expect(layout.isCustomizedFor(HomeStyle.bento), isFalse);
   });
 }

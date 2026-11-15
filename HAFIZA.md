@@ -1044,3 +1044,21 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Yapı (sürükle):** "not" `drag_trash_target.dart` + `reorder_hover_gate.dart` aynen uyarlandı (`widgets/fm/`). Çöp = ana ekrandan kaldır (kategori `setTileVisible(false)`, kullanıcı kartı `onHome:false`), Geri al çubuğu. Sıra `DashboardLayout.reorderVisible` (gizliler yuvasında kalır). Önizleme sırası yalnız board durumu; çöp hedefi `ValueNotifier` + dar builder.
 - **Tuzak:** yeni dosyalarda `Colors.*`/`Color(0x`/`fontSize:`/`Duration(milliseconds:` YOK — `design_tokens_test` tavanı dosya başına (yeni dosya = 0).
 - **Kalan:** D simge takımı, F metinleri, cihazda ölçüm → PLAN P31 / K19. Cihazda doğrulanmadı.
+
+## 2026-11-15 — Ana ekran ince ayar (arama kapsülü, kart yükseklikleri, tema grupları)
+- **Kök (ipucu ortada):** arama kapsülündeki `AnimatedSwitcher` varsayılan `Stack`'i metni ortalıyordu → `layoutBuilder` `centerStart`.
+- **Karar:** aramayı YALNIZ sol bölge (büyüteç + ipucu) açar; InkWell artık tüm satırı değil `Expanded` sol parçayı sarar (AI/yenile/ayarlar çevresine dokunmak arama açmıyor).
+- **Karar:** Bento büyük kutu 140 → 112 dp (`72 + scale(40)`), bellek kartı (`_StyledHero`) ~%20 alçak: headlineSmall, iç boşluk 12/10, düğme 36 dp (shrinkWrap), çubuk 6.
+- **Yapı:** tema galerisi gruplu (`ThemeGallery._groups`): Yeni · ana ekran düzeniyle / Renk temaları / Klasik simgeler / Gece ve sistem. Yeni aile eklenirse listede yoksa "Renk temaları"na düşer.
+- Cihazda ölçülmedi/doğrulanmadı (bulut oturumu; kullanıcı doğrudan APK istedi).
+
+## 2026-11-15 — Yan menü (soldan, her ekranda)
+- **Yapı:** `SideMenu` (`services/side_menu.dart`, `side_menu_v1`: sıra/gizli/son açılanlar/tutamaç) + `widgets/side_menu_view.dart` (`SideMenuView.show`, `_SideMenuRoute` = `PopupRoute`, `SideMenuLayer`, `SideMenuButton`, `showSideMenuEditor`).
+- **Karar:** kartların kaynağı pano: `DashboardScreen` `_categoryTilesRaw`'ı `SideMenu.register` eder, menü her açılışta çağırır (sayı/dokunma tek yerde). Pano yokken (kilit/ilk açılış) `ready=false` → tutamaç yok (kilit atlatılamaz).
+- **Karar:** menü ROTA (geri tuşu kapatır, açılan sayfa o ekranın üstüne gelir). Genişlik `min(0,6 × ekran, 360)`. Açma: ana ekran arama kapsülünde ☰ + her ekranda sol kenarda ince tutamaç (dokun/sağa çek; ayardan kapatılır).
+- **Tuzak:** Android hareketle gezintide sol kenardan kaydırma sistem "geri"sidir → kenardan çekme şeridi KONMADI, tutamaca dokunmak esas yol.
+- Cihazda doğrulanmadı (bulut oturumu).
+
+## 2026-11-15 — Kök: "Varsayılana dön" yerleri karıştırıyordu
+- **Kök:** `DashboardLayout.reset()` tema ailesinden bağımsız klasik sırayı koyuyordu (Son açılanlar üstte, bellek kartı kutuların altında, Bento'da büyük kutular İndirilenler/Önemli); `library` varsayılan listede yoktu → kullanıcı kartlarının arkasına düşüyordu.
+- **Karar:** `sectionsFor/tilesFor(HomeStyle)`: tasarım ailelerinde bellek kartı en üstte, Bento'da ilk iki kutu Fotoğraflar/Videolar. Sıfırlamada kullanıcı kartları sona, kendi sıralarıyla. `library` listeye (sona) eklendi.

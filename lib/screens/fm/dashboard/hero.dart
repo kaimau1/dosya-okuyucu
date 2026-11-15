@@ -457,7 +457,10 @@ class _StyledHero extends StatelessWidget {
           : volume.displayLabel(context.t),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: theme.textTheme.headlineMedium
+      // 2026-11-15 (kullanıcı: bellek kartı %20 alçalsın, düğmelerle
+      // birlikte): headlineMedium → headlineSmall, iç boşluklar ve düğme
+      // yüksekliği orantılı küçüldü (~175 → ~140 dp).
+      style: theme.textTheme.headlineSmall
           ?.copyWith(fontWeight: FontWeight.w800, color: fg, height: 1.1),
     );
     final usedText = has
@@ -492,7 +495,7 @@ class _StyledHero extends StatelessWidget {
       borderRadius: BorderRadius.circular(4),
       child: LinearProgressIndicator(
         value: ratio,
-        minHeight: 8,
+        minHeight: 6,
         color: filled ? scheme.onPrimary : scheme.primary,
         backgroundColor: filled
             ? scheme.onPrimary.withValues(alpha: 0.28)
@@ -510,7 +513,9 @@ class _StyledHero extends StatelessWidget {
                       side: BorderSide(
                           color: scheme.onPrimary.withValues(alpha: 0.7)),
                       shape: const StadiumBorder(),
-                      padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+                      minimumSize: const Size(0, 36),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.symmetric(vertical: Gap.xs),
                     ),
                     child: Text(context.t(key),
                         maxLines: 1,
@@ -524,7 +529,9 @@ class _StyledHero extends StatelessWidget {
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(
                               AppSkinData.of(context).metrics.radiusControl)),
-                      padding: const EdgeInsets.symmetric(vertical: Gap.sm + 2),
+                      minimumSize: const Size(0, 36),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.symmetric(vertical: Gap.xs),
                     ),
                     child: Text(context.t(key),
                         maxLines: 1,
@@ -623,7 +630,8 @@ class _StyledHero extends StatelessWidget {
         onTap: onBrowse,
         onLongPress: onLongPress,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(Gap.md + 4, Gap.md, Gap.md + 4, Gap.md),
+          padding: const EdgeInsets.fromLTRB(
+              Gap.md + 4, Gap.sm + 4, Gap.md + 4, Gap.sm + 4),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -655,9 +663,9 @@ class _StyledHero extends StatelessWidget {
                 ),
                 used,
               ],
-              const SizedBox(height: Gap.md),
+              const SizedBox(height: Gap.sm + 2),
               bar,
-              const SizedBox(height: Gap.md),
+              const SizedBox(height: Gap.sm + 2),
               actions,
             ],
           ),

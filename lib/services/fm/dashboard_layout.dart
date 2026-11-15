@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/skin.dart';
+
 /// **Ana ekranı kişiselleştirme** (2026-09-27, kullanıcı: *"ana ekrandaki
 /// düzen kişiselleştirilebilir olabilir, sırası ayarlanabilir, bazı şeyler
 /// göster/gizle yapılabilir"*).
@@ -52,7 +54,38 @@ class DashboardLayout extends ChangeNotifier {
     'recent',
     'drive',
     'apps',
+    // **Kitaplık** (2026-11-15): listede yoktu → "Varsayılana dön"de
+    // kullanıcı kartlarının da arkasına düşüyordu.
+    'library',
   ];
+
+  /// **Tasarım ailelerinin varsayılanı** (2026-11-15, kullanıcı: *"varsayılana
+  /// dön denince yerleri karıştı"*): Sakin/Bento/Koyu başlık panoları bellek
+  /// kartı EN ÜSTTE tasarlandı; Bento'da büyük iki kutu Fotoğraflar/Videolar.
+  /// Eskiden sıfırlama her ailede klasik sırayı ([sections]/[tiles])
+  /// koyuyordu: bellek kartı kutuların altına, İndirilenler büyük kutuya.
+  static List<String> sectionsFor(HomeStyle style) => style == HomeStyle.classic
+      ? sections
+      : const ['storage', 'recent', 'categories', 'tools', 'favorites', 'quick'];
+
+  static List<String> tilesFor(HomeStyle style) => style == HomeStyle.bento
+      ? const [
+          'image',
+          'video',
+          'downloads',
+          'important',
+          'important_gallery',
+          'media',
+          'document',
+          'audio',
+          'apk',
+          'new',
+          'recent',
+          'drive',
+          'apps',
+          'library',
+        ]
+      : tiles;
 
   /// Kullanıcı kartları (`card:<id>`) ve **Yeni kart** kutusu (2026-11-13) —
   /// sabit listede yok; ilk görülüşte sıranın SONUNA eklenir, kaydı korunur.
@@ -96,12 +129,14 @@ class DashboardLayout extends ChangeNotifier {
   bool tileVisible(String id) => !_hiddenTiles.contains(id);
 
   /// Varsayılandan farklı mı? ("Varsayılana dön" düğmesi için.)
-  bool get isCustomized =>
+  bool isCustomizedFor(HomeStyle style) =>
       !setEquals(_hiddenSections, defaultHiddenSections) ||
       !setEquals(_hiddenTiles, defaultHiddenTiles) ||
-      !listEquals(_sectionOrder, sections) ||
-      !listEquals(
-          [for (final id in _tileOrder) if (!isDynamic(id)) id], tiles);
+      !listEquals(_sectionOrder, sectionsFor(style)) ||
+      !listEquals([for (final id in _tileOrder) if (!isDynamic(id)) id],
+          tilesFor(style));
+
+  bool get isCustomized => isCustomizedFor(HomeStyle.classic);
 
   static List<String> _merge(List<String>? saved, List<String> known) {
     final out = <String>[
@@ -209,9 +244,12 @@ class DashboardLayout extends ChangeNotifier {
     return _save();
   }
 
-  Future<void> reset() {
-    _sectionOrder = List.of(sections);
-    _tileOrder = List.of(tiles);
+  /// Seçili tema ailesinin varsayılanına döner. Kullanıcı kartlarının
+  /// (`card:…`) kendi aralarındaki sırası korunur, sona dizilir.
+  Future<void> reset([HomeStyle style = HomeStyle.classic]) {
+    final cards = [for (final id in _tileOrder) if (isDynamic(id)) id];
+    _sectionOrder = List.of(sectionsFor(style));
+    _tileOrder = [...tilesFor(style), ...cards];
     _hiddenSections = {...defaultHiddenSections};
     _hiddenTiles = {...defaultHiddenTiles};
     return _save();

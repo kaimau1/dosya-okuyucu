@@ -212,7 +212,9 @@ class _HomeTileBoardState extends State<HomeTileBoard> {
     final columns = FmCategoryGrid.columnsFor(width);
     final small = (width - gap * (columns - 1)) / columns;
     final scaler = MediaQuery.textScalerOf(context);
-    final bigH = 96 + scaler.scale(44);
+    // 2026-11-15 (kullanıcı: büyük kutular "çok büyük alınlı", %20 alçalsın):
+    // 140 → 112 dp (yazı ölçeğiyle büyüyen pay korunur).
+    final bigH = 72 + scaler.scale(40);
     final midH = 52 + scaler.scale(24);
     final smallH = 70 + scaler.scale(30);
     Widget sized(FmTileData t, double w, double h, Widget child) =>
@@ -396,7 +398,8 @@ class _BentoBig extends StatelessWidget {
       child: _Tap(
         data: data,
         child: Padding(
-          padding: const EdgeInsets.all(Gap.md),
+          padding: const EdgeInsets.symmetric(
+              horizontal: Gap.md, vertical: Gap.sm + 4),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
