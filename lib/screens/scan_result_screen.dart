@@ -46,6 +46,7 @@ import '../core/app_colors.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/fm/fm_file_image.dart';
 import 'fm/pick_file_screen.dart';
+import '../widgets/app_action_sheet.dart';
 
 part 'scan_result/actions.dart';
 part 'scan_result/views.dart';

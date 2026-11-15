@@ -15,6 +15,7 @@ import '../core/user_error.dart';
 import '../models/media_resize.dart' show aspectChoices, longEdgeChoices;
 import '../services/image_edit.dart';
 import '../widgets/app_dialog.dart';
+import '../widgets/app_action_sheet.dart';
 
 part 'image_edit_screen/crop.dart';
 part 'image_edit_screen/parts.dart';
@@ -584,32 +585,23 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
     if (src == null || _saving) return;
     final ext = p.extension(widget.path).toLowerCase();
     final sameFormat = editedExtension(widget.path) == ext || ext == '.jpeg';
-    final overwrite = await showModalBottomSheet<bool>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(AppIcons.addPhoto),
-              title: Text(ctx.t('ied.save_copy')),
-              subtitle: Text(sameFormat
-                  ? ctx.t('ied.save_copy_sub')
-                  : ctx.t('ied.as_jpeg')),
-              onTap: () => Navigator.pop(ctx, false),
-            ),
-            if (sameFormat)
-              ListTile(
-                leading: const Icon(AppIcons.save),
-                title: Text(ctx.t('ied.overwrite')),
-                subtitle: Text(ctx.t('ied.overwrite_sub')),
-                onTap: () => Navigator.pop(ctx, true),
-              ),
-          ],
-        ),
-      ),
-    );
+    final overwrite = await showAppActionSheet<bool>(context, groups: [
+      AppActionGroup(actions: [
+        AppAction(
+            value: false,
+            icon: AppIcons.addPhoto,
+            label: context.t('ied.save_copy'),
+            hint: sameFormat
+                ? context.t('ied.save_copy_sub')
+                : context.t('ied.as_jpeg')),
+        if (sameFormat)
+          AppAction(
+              value: true,
+              icon: AppIcons.save,
+              label: context.t('ied.overwrite'),
+              hint: context.t('ied.overwrite_sub')),
+      ]),
+    ]);
     if (overwrite == null || !mounted) return;
     setState(() => _saving = true);
     try {

@@ -310,27 +310,18 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
   Future<void> _exportListing() async {
     final strings = AppStrings.of(context);
     final messenger = ScaffoldMessenger.of(context);
-    final csv = await showModalBottomSheet<bool>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(AppIcons.newText),
-              title: Text(ctx.t('fm.export_text')),
-              onTap: () => Navigator.pop(ctx, false),
-            ),
-            ListTile(
-              leading: const Icon(AppIcons.newSheet),
-              title: Text(ctx.t('fm.export_csv')),
-              onTap: () => Navigator.pop(ctx, true),
-            ),
-          ],
-        ),
-      ),
-    );
+    final csv = await showAppActionSheet<bool>(context, groups: [
+      AppActionGroup(actions: [
+        AppAction(
+            value: false,
+            icon: AppIcons.newText,
+            label: context.t('fm.export_text')),
+        AppAction(
+            value: true,
+            icon: AppIcons.newSheet,
+            label: context.t('fm.export_csv')),
+      ]),
+    ]);
     if (csv == null || !mounted) return;
     try {
       final out = await FolderReport.save(widget.path, _entries, csv: csv);
