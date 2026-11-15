@@ -412,3 +412,293 @@ class _HeroAction extends StatelessWidget {
     );
   }
 }
+
+/// **Tasarım ailelerinin bellek kartı** (2026-11-15, `docs/design/ana_ekran/`).
+///
+/// - A · Sakin: beyaz kart, büyük "198 GB boş", sağ üstte "Ana bellek ›",
+///   tek renk doluluk çubuğu, üç açık tonlu düğme.
+/// - B · Bento: vurgu renginde dolu kart, beyaz yazı, çerçeveli düğmeler.
+/// - C · Koyu başlık: kenardan kenara vurgu alanı (arama çubuğuyla birleşik),
+///   solda yüzde halkası, altında içerik levhasının yuvarlak üst kenarı.
+class _StyledHero extends StatelessWidget {
+  final HomeStyle style;
+  final StorageVolume volume;
+  final VoidCallback onBrowse;
+  final VoidCallback onAnalysis;
+  final VoidCallback onFreeSpace;
+  final VoidCallback? onLongPress;
+
+  const _StyledHero({
+    required this.style,
+    required this.volume,
+    required this.onBrowse,
+    required this.onAnalysis,
+    required this.onFreeSpace,
+    this.onLongPress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final radius = context.fmCardRadius;
+    final has = volume.hasStats;
+    final capacity = volume.capacityBytes <= 0 ? 1 : volume.capacityBytes;
+    final ratio = has ? (volume.usedBytes / capacity).clamp(0.0, 1.0) : 0.0;
+    final filled = style != HomeStyle.calm;
+    final fg = filled ? scheme.onPrimary : scheme.onSurface;
+    final soft = filled
+        ? scheme.onPrimary.withValues(alpha: 0.82)
+        : scheme.onSurfaceVariant;
+    final free = Text(
+      has
+          ? context.t('fm.free_bytes',
+              {'v': FsPaths.humanCapacity(volume.freeBytes)})
+          : volume.displayLabel(context.t),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.headlineMedium
+          ?.copyWith(fontWeight: FontWeight.w800, color: fg, height: 1.1),
+    );
+    final usedText = has
+        ? context.t('home.used_short', {
+            'used': FsPaths.humanCapacity(volume.usedBytes),
+            'total': FsPaths.humanCapacity(volume.capacityBytes),
+          })
+        : '';
+    final used = has
+        ? Text(
+            usedText,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(color: soft),
+          )
+        : const SizedBox.shrink();
+    final volumeLink = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (filled) ...[
+          Icon(volumeIcon(volume), size: 18, color: fg),
+          const SizedBox(width: Gap.xs),
+        ],
+        Text(volume.displayLabel(context.t),
+            style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: filled ? fg : scheme.primary)),
+        if (!filled) Icon(AppIcons.chevron, size: 18, color: scheme.primary),
+      ],
+    );
+    final bar = ClipRRect(
+      borderRadius: BorderRadius.circular(4),
+      child: LinearProgressIndicator(
+        value: ratio,
+        minHeight: 8,
+        color: filled ? scheme.onPrimary : scheme.primary,
+        backgroundColor: filled
+            ? scheme.onPrimary.withValues(alpha: 0.28)
+            : scheme.surfaceContainerHighest,
+      ),
+    );
+    Widget action(String key, VoidCallback onTap) => Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Gap.xs / 2),
+            child: filled
+                ? OutlinedButton(
+                    onPressed: onTap,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: scheme.onPrimary,
+                      side: BorderSide(
+                          color: scheme.onPrimary.withValues(alpha: 0.7)),
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+                    ),
+                    child: Text(context.t(key),
+                        maxLines: 1,
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                  )
+                : FilledButton.tonal(
+                    onPressed: onTap,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: scheme.primaryContainer,
+                      foregroundColor: scheme.primary,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                              AppSkinData.of(context).metrics.radiusControl)),
+                      padding: const EdgeInsets.symmetric(vertical: Gap.sm + 2),
+                    ),
+                    child: Text(context.t(key),
+                        maxLines: 1,
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+          ),
+        );
+    final actions = Row(children: [
+      action('home.browse', onBrowse),
+      action('home.analysis', onAnalysis),
+      action('home.free_space', onFreeSpace),
+    ]);
+
+    if (style == HomeStyle.band) {
+      final content = Padding(
+        padding: const EdgeInsets.only(top: Gap.xs, bottom: Gap.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InkWell(
+              onTap: onBrowse,
+              onLongPress: onLongPress,
+              borderRadius: BorderRadius.circular(radius),
+              child: Row(
+                children: [
+                  SizedBox.square(
+                    dimension: 64,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Positioned.fill(
+                          child: CircularProgressIndicator(
+                            value: ratio,
+                            strokeWidth: 6,
+                            color: scheme.onPrimary,
+                            backgroundColor:
+                                scheme.onPrimary.withValues(alpha: 0.28),
+                          ),
+                        ),
+                        Text(
+                          context.t('fm.hero_percent',
+                              {'n': (ratio * 100).round()}),
+                          style: theme.textTheme.labelLarge?.copyWith(
+                              color: fg, fontWeight: FontWeight.w800),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: Gap.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        free,
+                        if (has)
+                          Text(
+                            '$usedText · '
+                            '${volume.displayLabel(context.t)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(color: soft),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Icon(AppIcons.chevron, color: fg),
+                ],
+              ),
+            ),
+            const SizedBox(height: Gap.md),
+            actions,
+          ],
+        ),
+      );
+      return CustomPaint(
+        painter: _BleedPainter(
+          color: scheme.primary,
+          sheet: theme.scaffoldBackgroundColor,
+          radius: AppSkinData.of(context).metrics.radiusSheet,
+        ),
+        child: content,
+      );
+    }
+
+    return Material(
+      color: filled ? scheme.primary : scheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(radius),
+        side: filled
+            ? BorderSide.none
+            : BorderSide(color: scheme.outlineVariant),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onBrowse,
+        onLongPress: onLongPress,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(Gap.md + 4, Gap.md, Gap.md + 4, Gap.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (filled) ...[
+                Row(children: [
+                  Expanded(child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: volumeLink)),
+                  Icon(AppIcons.chevron, color: fg),
+                ]),
+                const SizedBox(height: Gap.xs),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(child: free),
+                    used,
+                  ],
+                ),
+              ] else ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: free),
+                    Padding(
+                      padding: const EdgeInsets.only(top: Gap.xs),
+                      child: volumeLink,
+                    ),
+                  ],
+                ),
+                used,
+              ],
+              const SizedBox(height: Gap.md),
+              bar,
+              const SizedBox(height: Gap.md),
+              actions,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// C · Koyu başlık: kartın arkasına kenardan kenara vurgu alanı ve altına
+/// içerik levhasının yuvarlak üst kenarını boyar. Liste görünüm alanı yan
+/// boşlukları da kapsadığı için kart sınırı dışına boyamak görünür; yerleşim
+/// değişmez (yalnız boyama).
+class _BleedPainter extends CustomPainter {
+  final Color color;
+  final Color sheet;
+  final double radius;
+  const _BleedPainter(
+      {required this.color, required this.sheet, required this.radius});
+
+  static const _side = Gap.md;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final left = -_side;
+    final right = size.width + _side;
+    canvas.drawRect(
+      Rect.fromLTRB(left, -600, right, size.height + radius),
+      Paint()..color = color,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndCorners(
+        Rect.fromLTRB(left, size.height, right, size.height + radius * 2),
+        topLeft: Radius.circular(radius),
+        topRight: Radius.circular(radius),
+      ),
+      Paint()..color = sheet,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_BleedPainter old) =>
+      old.color != color || old.sheet != sheet || old.radius != radius;
+}

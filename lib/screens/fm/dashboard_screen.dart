@@ -82,6 +82,9 @@ import 'trash_screen.dart';
 import 'vault_screen.dart';
 import '../../core/snack.dart';
 import '../../services/fm/quick_folders.dart';
+import '../../core/skin.dart';
+import '../../widgets/fm/drag_trash_target.dart';
+import '../../widgets/fm/home_tile_board.dart';
 import '../../widgets/app_action_sheet.dart';
 import 'folder_picker_screen.dart';
 import '../../core/safe_insets.dart';
@@ -192,6 +195,10 @@ class _DashboardScreenState extends State<DashboardScreen>
   /// Lite'ta "Pro'da neler var?" kartı (S3; kapatılınca 30 gün yok).
   bool _proCard = false;
 
+  /// Bir ana ekran kutusu sürükleniyor mu? (Çöp hedefi yalnız bunu dinler —
+  /// pano kökü yeniden kurulmaz.)
+  final ValueNotifier<bool> _tileDragging = ValueNotifier(false);
+
   /// Arama kapsülündeki AI anahtarı (anlamla ara) — kalıcı.
   bool _meaning = false;
   static const _meaningKey = 'dash_meaning_search_v1';
@@ -271,6 +278,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     DashboardLayout.instance.removeListener(_onLayoutChanged);
     CustomCards.instance.removeListener(_onLayoutChanged);
     QuickFolders.instance.removeListener(_onLayoutChanged);
+    _tileDragging.dispose();
     WidgetsBinding.instance.removeObserver(this);
     FsEvents.version.removeListener(_onFsChanged);
     AppStorageService.setUsbAttachedHandler(null);
@@ -423,10 +431,75 @@ class _DashboardScreenState extends State<DashboardScreen>
         // ipucu "Anlamla ara…" der ve dokunuş anlamla aramayı açar.
         titleSpacing: Gap.md - 4,
         toolbarHeight: 64,
+        // C · Koyu başlık: arama çubuğu vurgu renginde başlık alanında.
+        backgroundColor: AppSkinData.of(context).metrics.homeStyle ==
+                HomeStyle.band
+            ? scheme.primary
+            : null,
+        surfaceTintColor: AppSkinData.of(context).metrics.homeStyle ==
+                HomeStyle.band
+            ? scheme.primary
+            : null,
         automaticallyImplyLeading: false,
         title: _searchCapsule(scheme),
       ),
-      body: RefreshIndicator(
+      body: Stack(
+        children: [
+          Positioned.fill(child: _dashBody(appState, volumes)),
+          // **Sürüklerken çöp** (2026-11-15, "not" uygulamasıyla aynı):
+          // hedef HEP ağaçta, görünme yalnız boyamada.
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: MediaQuery.paddingOf(context).bottom + Gap.sm,
+            child: ValueListenableBuilder<bool>(
+              valueListenable: _tileDragging,
+              builder: (context, active, _) =>
+                  DragTrashTarget(active: active, onTrash: _trashTile),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Çöpe bırakılan kutu ana ekrandan KALKAR — dosyalar yerinde; Geri al ya
+  /// da "Ana ekranı düzenle" ile döner. Kullanıcı kartı yalnız ana ekrandan
+  /// iner (kart ve klasörü durur).
+  Future<void> _trashTile(String id) async {
+    final layout = DashboardLayout.instance;
+    final cards = CustomCards.instance;
+    final card = id.startsWith(CustomCards.tilePrefix)
+        ? cards.byId(id.substring(CustomCards.tilePrefix.length))
+        : null;
+    final label = card?.name ??
+        [for (final t in _categoryTilesRaw()) if (t.id == id) t.label]
+            .firstOrNull ??
+        id;
+    if (card != null) {
+      await cards.upsert(card.copyWith(onHome: false));
+    } else {
+      await layout.setTileVisible(id, false);
+    }
+    if (!mounted) return;
+    showSnack(
+      context,
+      context.t('home.tile_removed', {'name': label}),
+      action: SnackBarAction(
+        label: context.t('home.undo'),
+        onPressed: () {
+          if (card != null) {
+            unawaited(cards.upsert(card.copyWith(onHome: true)));
+          } else {
+            unawaited(layout.setTileVisible(id, true));
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _dashBody(AppState appState, List<StorageVolume> volumes) {
+    return RefreshIndicator(
         onRefresh: _scan,
         child: ListView(
           // Alt boşluk FAB yığınını (küçük düğme sırası + "Belge Tara") aşar:
@@ -504,8 +577,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             ],
           ],
         ),
-      ),
-    );
+      );
   }
 
   Widget _searchCapsule(ColorScheme scheme) {

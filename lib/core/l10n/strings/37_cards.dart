@@ -70,4 +70,20 @@ const Map<String, (String, String, String)> _t37 = {
   'qf.add': ('Ekle', 'Add', 'إضافة'),
   'qf.add_here': ('Hızlı klasörlere ekle', 'Add to quick folders', 'إضافة إلى المجلدات السريعة'),
   'qf.empty': ('Hızlı klasör yok — "Ekle" ile seç', 'No quick folders — tap "Add"', 'لا توجد مجلدات سريعة — اضغط "إضافة"'),
+  // ── Ana ekran tasarım aileleri + sürükle-sil (2026-11-15) ──
+  'skin.calm': ('Sakin', 'Calm', 'هادئ'),
+  'skin.calm_sub': ('Beyaz kartlar, kiremit vurgu, çerçeveli simgeler', 'White cards, terracotta accent, framed icons', 'بطاقات بيضاء ولون آجري وأيقونات بإطار'),
+  'skin.bento': ('Bento', 'Bento', 'بينتو'),
+  'skin.bento_sub': ('Renkli bellek kartı, büyük ve küçük kutular', 'Colored storage card, large and small tiles', 'بطاقة تخزين ملونة ومربعات كبيرة وصغيرة'),
+  'skin.band': ('Koyu başlık', 'Dark header', 'رأس داكن'),
+  'skin.band_sub': ('Renkli başlık alanı, liste düzeninde kutular', 'Colored header, tiles as a list', 'رأس ملون ومربعات بشكل قائمة'),
+  'home.used_short': ('{used} / {total} dolu', '{used} / {total} used', '{used} / {total} مستخدم'),
+  'home.browse': ('Göz at', 'Browse', 'تصفح'),
+  'home.analysis': ('Analiz', 'Analysis', 'تحليل'),
+  'home.free_space': ('Yer aç', 'Free up', 'إخلاء مساحة'),
+  'home.drag_trash': ('Kaldırmak için buraya bırak', 'Drop here to remove', 'أفلت هنا للإزالة'),
+  'home.drag_trash_ready': ('Bırak: ana ekrandan kalkar', 'Release to remove from home', 'أفلت للإزالة من الشاشة الرئيسية'),
+  'home.tile_removed': ('"{name}" ana ekrandan kaldırıldı', '"{name}" removed from home', 'تمت إزالة "{name}" من الشاشة الرئيسية'),
+  'home.undo': ('Geri al', 'Undo', 'تراجع'),
 };
+

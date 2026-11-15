@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Simge takımı</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Carlito:wght@400;700&amp;display=swap">
+<style>
+body{margin:0}
+svg{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.d{fill:currentColor;fill-opacity:.18}
+.s{fill:currentColor;stroke-width:1}
+</style>
+</helmet>
+<div style="width: 900px; height: 900px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px; padding: 40px; background: #F4F6F5; color: #17201E; font-family: 'Carlito', 'Calibri', 'Lato', system-ui, sans-serif; font-size: 14px; line-height: 20px">
+
+<div>
+<h1 style="margin: 0; font-size: 28px; line-height: 34px; font-weight: 700">Simge takımı</h1>
+<p style="margin: 4px 0 0; color: #52605C">Tek çizim kuralı, altı renk ailesi. Tweaks'ten tek renge çevrilebilir.</p>
+</div>
+
+<div style="display: flex; gap: 24px">
+<div style="width: 300px; box-sizing: border-box; padding: 24px; border-radius: 20px; background: #FFFFFF">
+<h2 style="margin: 0; font-size: 17px; line-height: 22px; font-weight: 700">Çizim kuralı</h2>
+<div style="margin-top: 16px; width: 168px; height: 168px; border: 1px solid #D3DCD8; background-color: #FBFCFA; background-image: linear-gradient(#E4EAE7 1px, transparent 1px), linear-gradient(90deg, #E4EAE7 1px, transparent 1px); background-size: 7px 7px; color: {{c.mavi}}">
+<svg role="img" aria-label="Izgara üzerinde belge simgesi" width="168" height="168" viewBox="0 0 24 24"><path class="d" d="M7 3h7l4 4v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path><path d="M14 3v4h4"></path><path d="M9 13h6M9 17h4"></path></svg>
+</div>
+<ul style="margin: 16px 0 0; padding: 0 0 0 18px">
+<li>24 birimlik ızgara, 2 birim kenar payı</li>
+<li>1,8 birim çizgi; uçlar ve köşeler yuvarlak</li>
+<li>İç dolgu: aynı rengin %18'i</li>
+<li>Arama çubuğu ve alt panelde dolgu yok</li>
+</ul>
+</div>
+
+<div style="flex: 1; min-width: 0; box-sizing: border-box; padding: 24px; border-radius: 20px; background: #FFFFFF">
+<h2 style="margin: 0; font-size: 17px; line-height: 22px; font-weight: 700">Renk aileleri</h2>
+<div style="margin-top: 12px; display: flex; flex-direction: column">
+<div style="height: 30px; display: flex; align-items: center; gap: 12px"><span style="width: 20px; height: 20px; flex-shrink: 0; border-radius: 6px; background: {{c.mavi}}"></span><span style="width: 68px; flex-shrink: 0; font-weight: 700">Mavi</span><span style="color: #52605C">İndirilenler, Belgeler, Geçmiş</span></div>
+<div style="height: 30px; display: flex; align-items: center; gap: 12px"><span style="width: 20px; height: 20px; flex-shrink: 0; border-radius: 6px; background: {{c.amber}}"></span><span style="width: 68px; flex-shrink: 0; font-weight: 700">Amber</span><span style="color: #52605C">Önemli dosyalar, Önemli galeri, klasörler</span></div>
+<div style="height: 30px; display: flex; align-items: center; gap: 12px"><span style="width: 20px; height: 20px; flex-shrink: 0; border-radius: 6px; background: {{c.mor}}"></span><span style="width: 68px; flex-shrink: 0; font-weight: 700">Mor</span><span style="color: #52605C">Fotoğraflar, Kitaplık</span></div>
+<div style="height: 30px; display: flex; align-items: center; gap: 12px"><span style="width: 20px; height: 20px; flex-shrink: 0; border-radius: 6px; background: {{c.kirmizi}}"></span><span style="width: 68px; flex-shrink: 0; font-weight: 700">Kırmızı</span><span style="color: #52605C">Videolar</span></div>
+<div style="height: 30px; display: flex; align-items: center; gap: 12px"><span style="width: 20px; height: 20px; flex-shrink: 0; border-radius: 6px; background: {{c.yesil}}"></span><span style="width: 68px; flex-shrink: 0; font-weight: 700">Yeşil</span><span style="color: #52605C">Ses, Uygulamalar</span></div>
+<div style="height: 30px; display: flex; align-items: center; gap: 12px"><span style="width: 20px; height: 20px; flex-shrink: 0; border-radius: 6px; background: {{c.turuncu}}"></span><span style="width: 68px; flex-shrink: 0; font-weight: 700">Turuncu</span><span style="color: #52605C">Yeni dosyalar, APK ve arşivler</span></div>
+<div style="height: 30px; display: flex; align-items: center; gap: 12px"><span style="width: 20px; height: 20px; flex-shrink: 0; border-radius: 6px; background: #4A5A6A"></span><span style="width: 68px; flex-shrink: 0; font-weight: 700">Gri</span><span style="color: #52605C">Araçlar</span></div>
+</div>
+<h2 style="margin: 20px 0 0; font-size: 17px; line-height: 22px; font-weight: 700">Boyutlar</h2>
+<div style="margin-top: 12px; display: flex; align-items: flex-end; gap: 32px; color: {{c.mor}}">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24"><rect class="d" x="3" y="5" width="18" height="14" rx="2.5"></rect><circle class="s" cx="8.5" cy="10" r="1.2"></circle><path d="m4 16.5 4.5-4 3.5 3 2.5-2 5 4"></path></svg><span style="font-size: 12px; line-height: 16px; color: #52605C">18 · çip</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24"><rect class="d" x="3" y="5" width="18" height="14" rx="2.5"></rect><circle class="s" cx="8.5" cy="10" r="1.2"></circle><path d="m4 16.5 4.5-4 3.5 3 2.5-2 5 4"></path></svg><span style="font-size: 12px; line-height: 16px; color: #52605C">20 · liste</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24"><rect class="d" x="3" y="5" width="18" height="14" rx="2.5"></rect><circle class="s" cx="8.5" cy="10" r="1.2"></circle><path d="m4 16.5 4.5-4 3.5 3 2.5-2 5 4"></path></svg><span style="font-size: 12px; line-height: 16px; color: #52605C">24 · alt panel</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px"><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24"><rect class="d" x="3" y="5" width="18" height="14" rx="2.5"></rect><circle class="s" cx="8.5" cy="10" r="1.2"></circle><path d="m4 16.5 4.5-4 3.5 3 2.5-2 5 4"></path></svg><span style="font-size: 12px; line-height: 16px; color: #52605C">26 · kutu</span></div>
+</div>
+</div>
+</div>
+
+<div style="padding: 24px; border-radius: 20px; background: #FFFFFF">
+<h2 style="margin: 0; font-size: 17px; line-height: 22px; font-weight: 700">Takım</h2>
+<div style="margin-top: 16px; display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 16px 4px">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: {{c.mavi}}"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><circle class="d" cx="12" cy="12" r="9"></circle><path d="M12 7.5v8"></path><path d="m8.5 12.5 3.5 3.5 3.5-3.5"></path></svg><span style="font-size: 12px; line-height: 16px; color: #52605C; white-space: nowrap">İndirilenler</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: {{c.amber}}"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><path class="d" d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1.1 5.9-5.3-2.9-5.3 2.9 1.1-5.9-4.3-4.1 5.9-.8z"></path></svg><span style="font-size: 12px; line-height: 16px; color: #52605C; white-space: nowrap">Önemli dosyalar</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: {{c.amber}}"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h9A1.5 1.5 0 0 1 20 5.5v9a1.5 1.5 0 0 1-1.5 1.5H17"></path><rect class="d" x="4" y="7" width="13" height="13" rx="2"></rect><path class="s" d="m10.5 10.4 1 2 2.2.3-1.6 1.5.4 2.2-2-1-2 1 .4-2.2-1.6-1.5 2.2-.3z"></path></svg><span style="font-size: 12px; line-height: 16px; color: #52605C; white-space: nowrap">Önemli galeri</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: {{c.mor}}"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><rect class="d" x="3" y="5" width="18" height="14" rx="2.5"></rect><circle class="s" cx="8.5" cy="10" r="1.2"></circle><path d="m4 16.5 4.5-4 3.5 3 2.5-2 5 4"></path></svg><span style="font-size: 12px; line-height: 16px; color: #52605C; white-space: nowrap">Fotoğraflar</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: {{c.kirmizi}}"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><rect class="d" x="3" y="5" width="18" height="14" rx="2.5"></rect><path class="s" d="M10.3 9.3v5.4l4.5-2.7z"></path></svg><span style="font-size: 12px; line-height: 16px; color: #52605C; white-space: nowrap">Videolar</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: {{c.mavi}}"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><path class="d" d="M7 3h7l4 4v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path><path d="M14 3v4h4"></path><path d="M9 13h6M9 17h4"></path></svg><span style="font-size: 12px; line-height: 16px; color: #52605C; white-space: nowrap">Belgeler</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: {{c.yesil}}"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><path d="M9 17V6l10-2v11"></path><circle class="d" cx="6.5" cy="17" r="2.5"></circle><circle class="d" cx="16.5" cy="15" r="2.5"></circle></svg><span style="font-size: 12px; line-height: 16px; color: #52605C; white-space: nowrap">Ses</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: {{c.turuncu}}"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><path class="d" d="M5 8h14v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"></path><rect x="3" y="4" width="18" height="4" rx="1"></rect><path d="M10 12h4"></path></svg><span style="font-size: 12px; line-height: 16px; color: #52605C; white-space: nowrap">APK ve arşivler</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: {{c.turuncu}}"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><path class="d" d="M3.5 13.5h4.3l1.4 2.5h5.6l1.4-2.5h4.3V18a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"></path><path d="M12 4v7"></path><path d="m9 8.5 3 3 3-3"></path></svg><span style="font-size: 12px; line-height: 16px; color: #52605C; white-space: nowrap">Yeni dosyalar</span></div>
+
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: {{c.mavi}}"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><path class="d" d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7.5V12l3.5 2"></path></svg><span style="font-size: 12px; line-height: 16px; color: #52605C; white-space: nowrap">Geçmiş</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: {{c.yesil}}"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><rect class="d" x="4" y="4" width="6.5" height="6.5" rx="1.8"></rect><rect class="d" x="4" y="13.5" width="6.5" height="6.5" rx="1.8"></rect><rect class="d" x="13.5" y="13.5" width="6.5" height="6.5" rx="1.8"></rect><circle class="d" cx="16.75" cy="7.25" r="3.25"></circle></svg><span style="font-size: 12px; line-height: 16px; color: #52605C; white-space: nowrap">Uygulamalar</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: {{c.mor}}"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><path class="d" d="M12 6.5C10 5 7.5 4.5 4 4.5v13c3.5 0 6 .5 8 2 2-1.5 4.5-2 8-2v-13c-3.5 0-6 .5-8 2z"></path><path d="M12 6.5v13"></path></svg><span style="font-size: 12px; line-height: 16px; color: #52605C; white-space: nowrap">Kitaplık</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: {{c.amber}}"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><path class="d" d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg><span style="font-size: 12px; line-height: 16px; color: #52605C; white-space: nowrap">Klasör</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: #4A5A6A"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><path class="d" d="M9 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7z"></path><path d="M10.5 6.5v3M13.5 6.5v3M16 6.5v3"></path></svg><span style="font-size: 12px; line-height: 16px; color: #52605C; white-space: nowrap">Harici bellek</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: #4A5A6A"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><path d="M4 6.5h10M4 12h6M4 17.5h5"></path><circle class="d" cx="16.5" cy="15.5" r="4.5"></circle><path d="m14.6 15.6 1.4 1.4 2.5-2.8"></path></svg><span style="font-size: 12px; line-height: 16px; color: #52605C; white-space: nowrap">İşlemler</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: #4A5A6A"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><rect class="d" x="5" y="10" width="14" height="11" rx="2.5"></rect><path d="M8 10V7.5a4 4 0 0 1 8 0V10"></path><path d="M12 14.5v2"></path></svg><span style="font-size: 12px; line-height: 16px; color: #52605C; white-space: nowrap">Şifreli kasa</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: #4A5A6A"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><path class="d" d="M7 3h7l4 4v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path><path d="M14 3v4h4"></path><path d="M12 11.5v5M9.5 14h5"></path></svg><span style="font-size: 12px; line-height: 16px; color: #52605C; white-space: nowrap">Yeni belge</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: #4A5A6A"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><path d="M4 15v-3a8 8 0 0 1 16 0v3"></path><rect class="d" x="3" y="14" width="4.5" height="6" rx="1.5"></rect><rect class="d" x="16.5" y="14" width="4.5" height="6" rx="1.5"></rect></svg><span style="font-size: 12px; line-height: 16px; color: #52605C; white-space: nowrap">Sesli kitaplar</span></div>
+
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: #52605C"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><span style="font-size: 12px; line-height: 16px; white-space: nowrap">Ara</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: #52605C"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><path d="M11 4l1.9 5.1L18 11l-5.1 1.9L11 18l-1.9-5.1L4 11l5.1-1.9z"></path><path d="M19 3v4M17 5h4"></path></svg><span style="font-size: 12px; line-height: 16px; white-space: nowrap">AI</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: #52605C"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path></svg><span style="font-size: 12px; line-height: 16px; white-space: nowrap">Yenile</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: #52605C"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg><span style="font-size: 12px; line-height: 16px; white-space: nowrap">Ayarlar</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: #52605C"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><path d="M4 7h16"></path><path d="M9.5 7V4.5h5V7"></path><path d="m6 7 1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12"></path></svg><span style="font-size: 12px; line-height: 16px; white-space: nowrap">Çöp</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: #52605C"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><path d="M7 18a4.5 4.5 0 0 1-.5-9 6 6 0 0 1 11.5 1.5 3.8 3.8 0 0 1-.5 7.5z"></path></svg><span style="font-size: 12px; line-height: 16px; white-space: nowrap">Drive</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: #52605C"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><path d="M5 8h14"></path><path d="m15.5 4.5 3.5 3.5-3.5 3.5"></path><path d="M19 16H5"></path><path d="M8.5 12.5 5 16l3.5 3.5"></path></svg><span style="font-size: 12px; line-height: 16px; white-space: nowrap">Aktar</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: #52605C"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"></path><path d="M8.5 9h7M7 12h10M8.5 15h7"></path></svg><span style="font-size: 12px; line-height: 16px; white-space: nowrap">Tara</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; color: #52605C"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="2"></rect><path d="M11 18h2"></path></svg><span style="font-size: 12px; line-height: 16px; white-space: nowrap">Ana bellek</span></div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"simgeler":{"editor":"enum","default":"Renkli","options":["Renkli","Tek renk"]},"accent":{"editor":"color","default":"#1E6B63","options":["#1E6B63","#2E5AA8","#6A4C93","#A6501F"]},"$preview":{"width":900,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+var accent = this.props.accent ?? '#1E6B63';
+var mono = (this.props.simgeler ?? 'Renkli') === 'Tek renk';
+var pal = { mavi: '#2F6FD0', amber: '#C27C0E', mor: '#7C54D4', kirmizi: '#D2493F', yesil: '#1F8F6A', turuncu: '#D2691E' };
+var c = {};
+Object.keys(pal).forEach(function (k) { c[k] = mono ? accent : pal[k]; });
+return { accent: accent, c: c };
+}
+}
+</script>
+</body>
+</html>

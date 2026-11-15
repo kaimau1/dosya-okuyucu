@@ -1038,3 +1038,9 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Karar:** kısayol kartı yeniden adlandırılınca gerçek klasör yeniden ADLANDIRILMAZ (eski davranış ad=klasör adıyken klasörü de değiştiriyordu — DCIM gibi klasörde tehlikeli). Kısayol kartı kaldırılınca kaydı silinir; elle kurulmuş kart yalnız ana ekrandan kalkar.
 - **Yapı:** `QuickFolders` (`quick_folders_v1`): liste = standart − gizli + eklenen. Ana ekranda çipe basılı tut → Aç / Çıkar; sonda "Ekle" çipi (klasör seçici). Standart tanıma diske bakmaz (`isStandardPath`: birim kökü altı + dizin adı).
 - Cihazda doğrulanmadı (bulut oturumu).
+
+## 2026-11-15 — Ana ekran tasarım aileleri (Fable A/B/C) + sürükle-sırala/çöp
+- **Yapı:** `AppSkin.calm/bento/band` + `SkinMetrics.homeStyle` (`HomeStyle`). Düzen tema ailesinden gelir (ayrı ayar yok): `HomeTileBoard` (`widgets/fm/home_tile_board.dart`) kutuları stile göre çizer; `_StyledHero` (dashboard/hero.dart) bellek kartı; `SectionHeader` yeni ailelerde cümle düzeni/çizgisiz; hızlı klasörler 3 sütun; C'de AppBar vurgu renginde + `_BleedPainter` kart dışına (liste yan boşluğuna) boyar.
+- **Yapı (sürükle):** "not" `drag_trash_target.dart` + `reorder_hover_gate.dart` aynen uyarlandı (`widgets/fm/`). Çöp = ana ekrandan kaldır (kategori `setTileVisible(false)`, kullanıcı kartı `onHome:false`), Geri al çubuğu. Sıra `DashboardLayout.reorderVisible` (gizliler yuvasında kalır). Önizleme sırası yalnız board durumu; çöp hedefi `ValueNotifier` + dar builder.
+- **Tuzak:** yeni dosyalarda `Colors.*`/`Color(0x`/`fontSize:`/`Duration(milliseconds:` YOK — `design_tokens_test` tavanı dosya başına (yeni dosya = 0).
+- **Kalan:** D simge takımı, F metinleri, cihazda ölçüm → PLAN P31 / K19. Cihazda doğrulanmadı.

@@ -97,7 +97,23 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
           // isteği 2026-08-05: "orası 2 buton olsun"). Takılabilir
           // birimlerde analiz kutusu tekrarlanmaz — tek bir analiz ekranı
           // var, iki kez göstermek yer kaybı olurdu.
-          if (v.isPrimary)
+          if (v.isPrimary && _homeStyle != HomeStyle.classic)
+            // Tasarım aileleri (2026-11-15): A/B/C bellek kartı.
+            _StyledHero(
+              style: _homeStyle,
+              volume: v,
+              onBrowse: () => _push(BrowserScreen(
+                  path: v.path, title: v.displayLabel(context.t))),
+              onAnalysis: () => _push(
+                  AnalysisScreen(index: _index, volumes: FmEnv.volumes)),
+              onFreeSpace: () {
+                unawaited(ToolUsage.record('free_space'));
+                OperationsScreen.open(context,
+                    tab: OpsTab.cleanup, index: _index);
+              },
+              onLongPress: () => unawaited(_volumeMenu(v)),
+            )
+          else if (v.isPrimary)
             // **Bellek panosu** (2026-10-18): ana bellek kartı ile yanındaki
             // "Bellek Analizi" kutusu TEK kartta birleşti — bkz. [_StorageHero].
             _StorageHero(
@@ -206,7 +222,9 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
                     // alt panelin üstünde tek seferde görünsün.
                     padding: const EdgeInsets.only(
                         top: Gap.sm, bottom: Gap.xs)),
-                _toolFrame(FmToolGrid(tools: shown)),
+                _homeStyle == HomeStyle.band
+                    ? HomeBandList(tiles: shown)
+                    : _toolFrame(FmToolGrid(tools: shown)),
               ],
             );
           },
@@ -252,10 +270,17 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
     return const [];
   }
 
-  Widget _categoryGrid() => _arrangedGrid(_categoryTilesRaw());
+  /// Ana ekran kutuları: tema ailesinin düzeninde, basılı tut → sürükle-
+  /// sırala / alttaki çöpe at (2026-11-15, bkz. [HomeTileBoard]).
+  Widget _categoryGrid() => HomeTileBoard(
+        tiles: DashboardLayout.instance
+            .arrangeTiles(_categoryTilesRaw(), (t) => t.id),
+        style: _homeStyle,
+        dragging: _tileDragging,
+        onReorder: (ids) =>
+            unawaited(DashboardLayout.instance.reorderVisible(ids)),
+      );
 
-  Widget _arrangedGrid(List<FmTileData> tiles) => FmCategoryGrid(
-      tiles: DashboardLayout.instance.arrangeTiles(tiles, (t) => t.id));
 
   List<FmTileData> _categoryTilesRaw() {
     final importantPath = ImportantScreen.pathIn(FmEnv.primaryRoot);
@@ -297,8 +322,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
             ? context.t('fm.create')
             : (importantStat.count == 0
                 ? context.t('common.open')
-                : '${FsPaths.humanSize(importantStat.bytes)} '
-                    '(${importantStat.count})'),
+                : _sizeCount(importantStat.bytes, importantStat.count)),
         onTap: () async {
           await _openSwipe('important');
           if (mounted) _partSetState(() {});
