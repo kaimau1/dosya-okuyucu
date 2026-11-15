@@ -285,7 +285,20 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
       final poster = _posterView();
       if (poster != null) return poster;
       if (!_loading) return const SizedBox.shrink();
-      return const Center(child: CircularProgressIndicator());
+      // Kapak bellekte yoksa da büyüme geçişi kurulur: uçan resim ızgara
+      // hücresinin kendisidir (2026-11-15).
+      return Stack(fit: StackFit.expand, children: [
+        if (!_isAudio && _current.isNotEmpty)
+          Hero(
+            tag: fmMediaHeroTag(_current),
+            flightShuttleBuilder: (_, _, direction, from, to) {
+              final grid = direction == HeroFlightDirection.push ? from : to;
+              return (grid.widget as Hero).child;
+            },
+            child: const SizedBox.expand(),
+          ),
+        const Center(child: CircularProgressIndicator()),
+      ]);
     }
     if (_error != null) {
       return Center(

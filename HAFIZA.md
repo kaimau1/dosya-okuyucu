@@ -1090,3 +1090,8 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Karar:** Bento kutuları ek ×0,93 (`_kBentoHeight`); büyük kutu iç boşluk 12→9, simge 26; bellek kartı düğmeleri 34 dp.
 - **Karar:** koyu modda bellek kartı ve Aktar düğmesi `primary` yüzeye doğru %55–62 koyulaşır, yazı `onSurface`.
 - Cihazda doğrulanmadı (sistem geri hareketiyle çakışma telefonda bakılmalı).
+
+## 2026-11-15 — Kök (2. tur): video açılışı donuyor, Hero görünmüyor
+- **Kök:** `MediaPlayerScreen.initState` video motorunu (ExoPlayer, gerekirse mpv geçişi + `AudioPlayback.stop`) geçiş animasyonu SÜRERKEN başlatıyordu; motor kurulumu ana iş parçacığını kilitleyince geçiş kareleri hiç çizilmiyor → "donup animasyonsuz açılma". Kapak önbellekte yoksa hedef Hero da yoktu.
+- **Çözüm:** `_pending`: rota animasyonu `completed` olana dek `open` çağrılmaz; bu sürede `_current = widget.path`, `_loading = true` (kapak/dönence). Kapak yoksa tam ekran yer tutucu Hero + `flightShuttleBuilder` ızgara hücresinin resmini uçurur.
+- Cihazda doğrulanmadı.

@@ -625,17 +625,26 @@ class _SideMenuLayerState extends State<SideMenuLayer> {
         _EdgeOpenRecognizer:
             GestureRecognizerFactoryWithHandlers<_EdgeOpenRecognizer>(
           () => _EdgeOpenRecognizer(allowed: _allowed, debugOwner: this),
-          (r) => r
-            ..gestureSettings = const DeviceGestureSettings(touchSlop: _slop)
-            ..onDown = (d) => _down = d.globalPosition.dx
-            ..onStart = (d) {
+          (r) {
+            r.gestureSettings = const DeviceGestureSettings(touchSlop: _slop);
+            r.onDown = (d) {
+              _down = d.globalPosition.dx;
+            };
+            r.onStart = (d) {
               final from = _down;
               final lead = from == null ? 0.0 : d.globalPosition.dx - from;
               _begin(rtl ? -lead : lead);
-            }
-            ..onUpdate = (d) => _update(d.delta.dx, rtl)
-            ..onEnd = (d) => _end(d.primaryVelocity ?? 0, rtl)
-            ..onCancel = () => _end(0, rtl),
+            };
+            r.onUpdate = (d) {
+              _update(d.delta.dx, rtl);
+            };
+            r.onEnd = (d) {
+              _end(d.primaryVelocity ?? 0, rtl);
+            };
+            r.onCancel = () {
+              _end(0, rtl);
+            };
+          },
         ),
       },
       child: Stack(

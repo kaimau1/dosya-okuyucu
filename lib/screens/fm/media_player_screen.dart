@@ -82,8 +82,15 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   VideoPlayerController? get _controller => _p.controller;
   List<String> get _playlist => _p.playlist;
   int get _index => _p.index;
-  bool get _loading => _p.loading;
-  String? get _error => _p.error;
+  bool get _loading => _pending || _p.loading;
+  String? get _error => _pending ? null : _p.error;
+
+  /// Açılış geçişi bitene dek video motoru BAŞLATILMAZ (2026-11-15, kullanıcı:
+  /// "videolar animasyonsuz, donarak açılıyor"). Motor kurulumu (özellikle
+  /// ExoPlayer → mpv geçişi) ana iş parçacığını kısa süre kilitliyor; geçişin
+  /// içinde olunca Hero büyümesi hiç görünmüyordu. Bu sürede ekran kapak
+  /// resmini gösterir, yükleme geçişten sonra başlar.
+  bool _pending = false;
   double get _speed => _p.speed;
 
   /// Tam oynatıcı açıkken ekran altı mini çubuk gizlenir.
@@ -210,7 +217,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   /// duraklat) artık **serviste**: oynatma ekrandan uzun yaşadığı için
   /// kararları da onun vermesi gerekiyor (bkz. [VideoPlayback]).
 
-  String get _current => _p.current;
+  String get _current => _pending ? widget.path : _p.current;
   bool get _isAudio =>
       FsEntry.categoryForExtension(p.extension(_current).replaceFirst('.', ''))
           == FmCategory.audio;
@@ -225,9 +232,33 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     // Aynı dosya zaten açıksa baştan başlatma: kullanıcı mini çubuktan ya da
     // bildirimden ekrana döndüğünde video sıfırlanmamalı.
     if (_p.current != widget.path || _p.controller == null) {
-      unawaited(_p.open(widget.path, list: widget.playlist));
+      _pending = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _openAfterTransition());
     }
     unawaited(_loadSubtitles());
+  }
+
+  void _openAfterTransition() {
+    if (!mounted) return;
+    final animation = ModalRoute.of(context)?.animation;
+    void start() {
+      if (!mounted || !_pending) return;
+      unawaited(_p.open(widget.path, list: widget.playlist));
+      setState(() => _pending = false);
+    }
+
+    if (animation == null || animation.isCompleted) {
+      start();
+      return;
+    }
+    late final AnimationStatusListener listener;
+    listener = (status) {
+      if (status == AnimationStatus.completed) {
+        animation.removeStatusListener(listener);
+        start();
+      }
+    };
+    animation.addStatusListener(listener);
   }
 
   @override
