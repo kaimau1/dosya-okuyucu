@@ -83,6 +83,7 @@ class AppState extends ChangeNotifier {
   static const _kAiSendOk = 'ai_send_consent';
   static const _kPeerRecent = 'peer_recent_devices';
   static const _kResumePosition = 'resume_position';
+  static const _kAudioBackground = 'audio_background';
   static const _kAutoSave = 'doc_auto_save';
   static const _kWordSpell = 'word_spellcheck';
   static const _kLabWord = 'lab_word_editor';
@@ -466,6 +467,7 @@ class AppState extends ChangeNotifier {
   bool _fmShowHidden = false;
   bool _fmThumbnails = true;
   bool _resumePosition = true;
+  bool _audioBackground = false;
   bool _autoSave = true;
   bool _wordSpell = true;
   bool _labWord = false;
@@ -558,6 +560,7 @@ class AppState extends ChangeNotifier {
   /// "hatırlama" isteyen kullanıcı bunu kapatınca dosyaların baştan
   /// açılacağını bekler.
   bool get resumePosition => _resumePosition;
+  bool get audioBackground => _audioBackground;
 
   /// Dosya listesinde klasörlerin boyutu gösterilsin mi? (Varsayılan KAPALI:
   /// büyük bir klasör ağacını ölçmek diski gezmek demektir; isteyen açar.)
@@ -613,6 +616,15 @@ class AppState extends ChangeNotifier {
     PlaybackPositions.enabled = value;
     ReadingPositions.enabled = value;
     await _prefs.setBool(_kResumePosition, value);
+    notifyListeners();
+  }
+
+  /// Ses arka planda / ekran kilitliyken çalmayı sürdürsün mü (varsayılan
+  /// kapalı — 2026-11-15).
+  Future<void> setAudioBackground(bool value) async {
+    _audioBackground = value;
+    AudioPlayback.backgroundPlay = value;
+    await _prefs.setBool(_kAudioBackground, value);
     notifyListeners();
   }
 
@@ -905,6 +917,8 @@ class AppState extends ChangeNotifier {
     // Servisler `AppState`i tanımıyor; anahtar oraya buradan geçiyor.
     PlaybackPositions.enabled = _resumePosition;
     ReadingPositions.enabled = _resumePosition;
+    _audioBackground = _prefs.getBool(_kAudioBackground) ?? false;
+    AudioPlayback.backgroundPlay = _audioBackground;
     _fmFolderSizes = _prefs.getBool(_kFmFolderSizes) ?? false;
     _mediaShuffle = _prefs.getBool(_kMediaShuffle) ?? false;
     _mediaRepeat = _prefs.getInt(_kMediaRepeat) ?? 0;

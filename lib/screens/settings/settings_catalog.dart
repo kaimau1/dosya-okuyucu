@@ -296,6 +296,11 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                 titleKey: 'fmset.resume',
                 subtitleKey: 'fmset.resume_sub',
                 builder: _resumePositionTile),
+            SettingRow(
+                id: 'audio_background',
+                titleKey: 'fmset.audio_bg',
+                subtitleKey: 'fmset.audio_bg_sub',
+                builder: _audioBackgroundTile),
           ]),
           SettingsSection('set.sec_documents', [
             SettingRow(
@@ -817,6 +822,7 @@ Widget _showHiddenTile(BuildContext _) => const ShowHiddenTile();
 Widget _thumbnailsTile(BuildContext _) => const ThumbnailsTile();
 Widget _folderSizesTile(BuildContext _) => const FolderSizesTile();
 Widget _resumePositionTile(BuildContext _) => const ResumePositionTile();
+Widget _audioBackgroundTile(BuildContext _) => const AudioBackgroundTile();
 Widget _photoGridTile(BuildContext _) => const PhotoGridTile();
 Widget _photoGroupTile(BuildContext _) => const PhotoGroupTile();
 Widget _mediaOpenWithTile(BuildContext _) => const MediaOpenWithTile();

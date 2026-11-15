@@ -25,11 +25,13 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
     );
 
     String text = '';
+    var lines = const <OcrLine>[];
     String? error;
     try {
       if (doc.kind == DocKind.image) {
         busy.status(str.t('vw.ocr_running'));
-        text = await OcrService.recognizeImageFile(doc.path);
+        lines = await OcrService.recognizeImageLines(doc.path);
+        text = lines.map((l) => l.text).join('\n').trim();
       } else if (doc.kind == DocKind.pdf) {
         void progress(int done, int total) => busy.status(
             done >= total
@@ -64,11 +66,68 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
       return;
     }
     _partSetState(() {
-      if (doc.kind == DocKind.image) _ocrImageText = text;
+      if (doc.kind == DocKind.image) {
+        _ocrImageText = text;
+        _ocrImageLines = lines;
+        // Görselde metin doğrudan resmin üstünden seçilir (Lens gibi);
+        // liste penceresi yalnız istenirse açılır.
+        _ocrOverlay = lines.isNotEmpty;
+      }
       // Taranmış PDF'te metin katmanı boştur → OCR sonucu AI bağlamı olur.
       if (doc.kind == DocKind.pdf && _pdfText.isEmpty) _pdfText = text;
     });
+    if (doc.kind == DocKind.image && lines.isNotEmpty) {
+      // Kaydırma/yakınlaştırma seçimi bozmasın diye sığdır.
+      _imgTx.value = Matrix4.identity();
+      return;
+    }
     _showOcrSheet(text);
+  }
+
+  /// Görselin üstündeki OCR katmanı açıkken alttaki küçük çubuk:
+  /// ipucu · Tümünü kopyala · Metni göster (liste) · Kapat.
+  Widget _ocrOverlayBar() {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.surfaceContainerHigh,
+      elevation: 3,
+      borderRadius: BorderRadius.circular(24),
+      child: Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(14, 4, 4, 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                context.t('vw.ocr_overlay_hint'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.type.caption,
+              ),
+            ),
+            IconButton(
+              tooltip: context.t('vw.copy_all'),
+              icon: const Icon(AppIcons.clipCopy),
+              onPressed: () async {
+                final copiedAll = context.t('vw.copied_all');
+                await Clipboard.setData(ClipboardData(text: _ocrImageText));
+                _snack(copiedAll);
+              },
+            ),
+            IconButton(
+              tooltip: context.t('vw.ocr_show_list'),
+              icon: const Icon(AppIcons.subject),
+              onPressed: () => _showOcrSheet(_ocrImageText),
+            ),
+            IconButton(
+              tooltip: context.t('vw.ocr_overlay_close'),
+              icon: const Icon(AppIcons.close),
+              onPressed: () => _partSetState(() => _ocrOverlay = false),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showOcrSheet(String text) {

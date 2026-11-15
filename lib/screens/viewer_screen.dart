@@ -33,6 +33,7 @@ import '../core/text_replace.dart';
 import '../core/doc_fonts.dart';
 import '../core/image_budget.dart';
 import '../widgets/fm/fm_file_image.dart';
+import '../widgets/ocr_text_overlay.dart';
 import '../core/edit/editor_shortcuts.dart';
 import '../core/edit/edit_session.dart';
 import '../core/edit/code_editing.dart';
@@ -379,6 +380,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   /// Görselden OCR ile tanınan metin (AI sohbet bağlamı olarak da kullanılır).
   String _ocrImageText = '';
+
+  /// Görselde tanınan satırlar (kutularıyla) — görselin üstünde seçilebilir
+  /// metin katmanı bunlarla çizilir; [_ocrOverlay] kapalıysa gizlenir.
+  List<OcrLine> _ocrImageLines = const [];
+  bool _ocrOverlay = false;
   int _imgQuarterTurns = 0;
   double _fontSize = 15;
 
