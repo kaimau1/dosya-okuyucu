@@ -36,9 +36,9 @@ entegrasyonu, dönüştürme ve paylaşım özellikleriyle.
 
 ## Yol haritası
 
-Kalan işler (iki faz: bulut / telefon-hesap): [`KALANLAR.md`](KALANLAR.md) · telefonda
+Kalan işler: [`PLAN.md`](PLAN.md) · telefonda
 doğrulanacaklar: [`docs/CIHAZ_TESTI.md`](docs/CIHAZ_TESTI.md) · geçmiş fazlar ve kararlar:
-[`docs/FAZ_PLANI.md`](docs/FAZ_PLANI.md), [`docs/DUZENLEME_PLANI.md`](docs/DUZENLEME_PLANI.md).
+[`docs/arsiv/planlar/`](docs/arsiv/planlar/).
 
 ## Gizlilik
 

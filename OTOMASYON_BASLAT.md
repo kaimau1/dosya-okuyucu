@@ -9,7 +9,8 @@ zinciri sıfırdan çalıştırmak için adım adım rehberdir. Kurallar dosyala
 | Dosya | Ne |
 |---|---|
 | `CLAUDE.md` §4 "İSTİSNA — Gözetimsiz zincir", §4b, §4c | dal istisnası, gece kuralı, kasma/hız kapıları |
-| `OTOMASYON.md` | Kuyruk tablosu, durum sözlüğü, SIRA, FABLE KURALI |
+| `OTOMASYON.md` | yürütme düzeni, FABLE KURALI |
+| `PLAN.md` | Kuyruk tablosu, durum sözlüğü, SIRA, kullanıcının işleri (§3) |
 | `.claude/skills/oto-tur/SKILL.md` | yürütücü turu (kilit, limit freni, birleştirme, temizlik, bitiriş) |
 | `.claude/skills/isci/SKILL.md` | alt ajan kuralları (dal, DEVIR.md, kanıt→düzelt→kanıt, CI) |
 | `.claude/skills/ab-olcum/SKILL.md` | cihaz A/B ölçümü + test telefonu kuralları |
@@ -65,7 +66,7 @@ zinciri sıfırdan çalıştırmak için adım adım rehberdir. Kurallar dosyala
 ```
 Depo: C:\Users\sena\Desktop\dosya okuyucu (Flutter dosya okuyucu, yalnız Android).
 
-1. `.git/oto.lock` dosyasının son değişimi 60 dakikadan yeniyse başka yürütücü çalışıyor demektir: hiçbir şey yapmadan bitir. OTOMASYON.md Kuyruk'ta `bekliyor`/`sürüyor`/`cihaz bekliyor` satır kalmadıysa da hiçbir şey yapmadan bitir.
+1. `.git/oto.lock` dosyasının son değişimi 60 dakikadan yeniyse başka yürütücü çalışıyor demektir: hiçbir şey yapmadan bitir. PLAN.md Kuyruk'ta `bekliyor`/`sürüyor`/`cihaz bekliyor` satır kalmadıysa da hiçbir şey yapmadan bitir.
 2. Değilse: `git checkout main && git pull --ff-only`, sonra `oto-tur` skill'ini uygula (kilit, limit freni, paket seçimi, alt ajanlar, birleştirme, temizlik, bitiriş orada). Alt ajanlara `isci` skill'ini kullanmalarını ve raporu Türkçe yazmalarını söyle; cihaz A/B ölçümü ve cihaz turu `ab-olcum` skill'iyle Sonnet alt ajana. Görünür arayüz değişikliğinde işçi `kasma-kontrol` skill'ini uygular.
 3. Fable kuralı: limit yenilenince ilk Fable başlar ama yalnız önemli karar/plan evresini yapar; uygulama, test, CI ve belge Opus alt ajanlarına. Fable paketi yalnız 5 saatlik limit %55 altındayken başlar; hesapta Fable yoksa Opus. Limit freni: %80 üstü yeni paket yok, %90 üstü dur.
 4. Kullanıcı izni: gözetimsiz çalış, soru sorma; plan KARAR maddelerini sormadan uygula (yeni karar → en güvenli + "sabah bakılacak"); USB'deki test telefonunu `ab-olcum` kurallarıyla kullan (ekran yalnız gerekince, 40 °C üstünde dur, varsayılan kimlikli uygulamaya dokunma). Zincir dalı `faz-oto-<no>-<ad>`; CI yeşilse yerelde `git merge --no-ff` ile main'e birleştir ve push et (APK noktasında başlıkta `[apk]`, gövdede `Yeni:/İyileştirme:/Düzeltme:` satırları). CI kırmızıyken ASLA birleştirme. Birleştirmeden sonra `git grep -nE "^(<<<<<<<|>>>>>>>)"` boş olmalı.
@@ -125,11 +126,11 @@ Telefon bağlı değilse cihaz işleri `cihaz bekliyor` olur, kod işleri sürer
    ikinci paket (SIRA'da P03 ∥ P05) dosyalar çakışmıyorsa başlar → alt ajan her commit'te push
    eder, CI'ı izler → yeşilse yürütücü main'e birleştirir → limit elverdikçe sıradaki.
 3. İzleme:
-   - `OTOMASYON.md` Kuyruk "Durum" sütunu (main'de; her birleştirmede güncellenir).
+   - `PLAN.md` Kuyruk "Durum" sütunu (main'de; her birleştirmede güncellenir).
    - GitHub Actions: https://github.com/kaimau1/dosya-okuyucu/actions (dal `faz-oto-*` koşuları).
    - Yarım iş: dalın `DEVIR.md`'si (`git show origin/<dal>:DEVIR.md`).
    - Sabah bakılacaklar: Kuyruk satırlarında "sabah bakılacak", senin yapacakların
-     `KONTROL_LISTEM.md`, telefonda bakılacaklar `docs/CIHAZ_TESTI.md`.
+     `PLAN.md` §3, telefonda bakılacaklar `docs/CIHAZ_TESTI.md`.
    - Takılırsa: `.git/oto.lock` 60 dk'dan eskiyse sonraki tetik kendiliğinden sürer; kilit
      elle silinebilir. Zinciri durdurmak için görevi duraklat.
 4. APK: `[apk]` başlıklı birleştirmelerden sonra CI "nightly" sürümünü günceller
