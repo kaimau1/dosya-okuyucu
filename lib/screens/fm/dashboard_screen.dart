@@ -621,34 +621,52 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
         ],
       ),
+      // Arama YALNIZ sol bölgeden (büyüteç + ipucu) açılır (2026-11-15,
+      // kullanıcı: sağdaki AI/yenile/ayarlar düğmelerinin çevresine dokununca
+      // da arama açılıyordu). İpucu sola yaslı — AnimatedSwitcher'ın
+      // varsayılan Stack'i metni ortalıyordu.
       child: Material(
         type: MaterialType.transparency,
-        child: InkWell(
-          key: const ValueKey('dash-search'),
-          borderRadius: BorderRadius.circular(26),
-          onTap: openSearch,
-          child: SizedBox(
-            height: 50,
-            child: Row(
-              children: [
-                const SizedBox(width: Gap.md - 2),
-                Icon(AppIcons.search, size: 20, color: scheme.onSurfaceVariant),
-                const SizedBox(width: Gap.sm),
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: Motion.short,
-                    child: Text(
+        child: SizedBox(
+          height: 50,
+          child: Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  key: const ValueKey('dash-search'),
+                  borderRadius: const BorderRadius.horizontal(
+                      left: Radius.circular(26)),
+                  onTap: openSearch,
+                  child: Row(
+                    children: [
+                      const SizedBox(width: Gap.md - 2),
+                      Icon(AppIcons.search,
+                          size: 20, color: scheme.onSurfaceVariant),
+                      const SizedBox(width: Gap.sm),
+                      Expanded(
+                        child: AnimatedSwitcher(
+                          duration: Motion.short,
+                          layoutBuilder: (current, previous) => Stack(
+                            alignment: AlignmentDirectional.centerStart,
+                            children: [...previous, ?current],
+                          ),
+                          child: Text(
                       context.t(_meaning ? 'srch.hint_ai' : 'fm.search_help'),
-                      key: ValueKey(_meaning),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                          color: _meaning
-                              ? scheme.primary
-                              : Paper.faint(context)),
-                    ),
+                            key: ValueKey(_meaning),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.start,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                                color: _meaning
+                                    ? scheme.primary
+                                    : Paper.faint(context)),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+              ),
                 // **AI anahtarı** (anlamla ara): açıkken renkli kapsül,
                 // kapalıyken sade çizgi simge. Durum ipucu metninde yazar.
                 Semantics(
@@ -724,7 +742,6 @@ class _DashboardScreenState extends State<DashboardScreen>
               ],
             ),
           ),
-        ),
       ),
     );
   }

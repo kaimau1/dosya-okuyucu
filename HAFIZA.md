@@ -1044,3 +1044,10 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Yapı (sürükle):** "not" `drag_trash_target.dart` + `reorder_hover_gate.dart` aynen uyarlandı (`widgets/fm/`). Çöp = ana ekrandan kaldır (kategori `setTileVisible(false)`, kullanıcı kartı `onHome:false`), Geri al çubuğu. Sıra `DashboardLayout.reorderVisible` (gizliler yuvasında kalır). Önizleme sırası yalnız board durumu; çöp hedefi `ValueNotifier` + dar builder.
 - **Tuzak:** yeni dosyalarda `Colors.*`/`Color(0x`/`fontSize:`/`Duration(milliseconds:` YOK — `design_tokens_test` tavanı dosya başına (yeni dosya = 0).
 - **Kalan:** D simge takımı, F metinleri, cihazda ölçüm → PLAN P31 / K19. Cihazda doğrulanmadı.
+
+## 2026-11-15 — Ana ekran ince ayar (arama kapsülü, kart yükseklikleri, tema grupları)
+- **Kök (ipucu ortada):** arama kapsülündeki `AnimatedSwitcher` varsayılan `Stack`'i metni ortalıyordu → `layoutBuilder` `centerStart`.
+- **Karar:** aramayı YALNIZ sol bölge (büyüteç + ipucu) açar; InkWell artık tüm satırı değil `Expanded` sol parçayı sarar (AI/yenile/ayarlar çevresine dokunmak arama açmıyor).
+- **Karar:** Bento büyük kutu 140 → 112 dp (`72 + scale(40)`), bellek kartı (`_StyledHero`) ~%20 alçak: headlineSmall, iç boşluk 12/10, düğme 36 dp (shrinkWrap), çubuk 6.
+- **Yapı:** tema galerisi gruplu (`ThemeGallery._groups`): Yeni · ana ekran düzeniyle / Renk temaları / Klasik simgeler / Gece ve sistem. Yeni aile eklenirse listede yoksa "Renk temaları"na düşer.
+- Cihazda ölçülmedi/doğrulanmadı (bulut oturumu; kullanıcı doğrudan APK istedi).

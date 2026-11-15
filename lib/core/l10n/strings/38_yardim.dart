@@ -25,6 +25,11 @@ const Map<String, (String, String, String)> _t38 = {
   'pa.hide_hidden': ('Gizlileri sakla', 'Conceal hidden', 'إخفاء المخفية'),
   'pa.area_hidden': ('Albüm alanı gizlendi. Geri açmak için: Analiz ve diğer › Görünüm', 'Albums area hidden. To bring it back: Analysis and more › View', 'أُخفيت منطقة الألبومات. لإعادتها: التحليل والمزيد › العرض'),
   'pa.mine': ('Albümüm', 'My album', 'ألبومي'),
+  // Tema galerisi grupları (kullanıcı 2026-11-15).
+  'skin.g_layout': ('Yeni · ana ekran düzeniyle', 'New · with home layout', 'جديد · مع تخطيط الشاشة الرئيسية'),
+  'skin.g_color': ('Renk temaları', 'Color themes', 'سمات الألوان'),
+  'skin.g_classic': ('Klasik simgeler', 'Classic icons', 'أيقونات كلاسيكية'),
+  'skin.g_special': ('Gece ve sistem', 'Night & system', 'الليل والنظام'),
   'fm.search_help': ('Ara ve Yardım', 'Search & Help', 'البحث والمساعدة'),
   'help.ftitle': ('Özellikler ve yardım', 'Features & help', 'الميزات والمساعدة'),
   'help.hint': (
