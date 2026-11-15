@@ -1154,3 +1154,9 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Kök (ana ekran boşluğu):** Son açılanlar başlık satırında "Tümü" `TextButton`'ı 48 dp dokunma payı + `Gap.md` üst payla satırı uzatıyordu → `shrinkWrap` + compact, başlık payı sıkı.
 - Menüler dalı (`ccr-cc450a0d-6aja3z`, CI yeşil) bu işle birlikte main'e alındı.
 - Cihazda doğrulanmadı.
+
+## 2026-11-15 — Bento iki sütun + "Aç" esnek + Özellikler alt levha
+- **Karar (kullanıcı):** Bento'da türe özel gruplar da İKİ sütun (eskiden tam genişlik tek sütun); tek kalan son işlem yine tam genişlik.
+- **Kök (Sil tek başına satır):** üst ızgarada geniş "Aç" (2 birim) + 7 kare = 9 birim → Sil 3. satıra düşüyordu. "Aç" artık yalnız fazladan satıra mal olmuyorsa 2 birim (`primarySpan`).
+- **Özellikler:** AlertDialog → alt levha; işlem levhasının başlık kartı (`_sheetHeader`), `MenuGroupTitle` + `MenuGroupCard` bilgi kartı (etiket solda / değer sağda), konum ayrı kart, özet (SHA-256) Bento satır karosu, Adı/Yolu kopyala Bento karoları; "Kapat" düğmesi yok (levha sürükle/geri ile kapanır).
+- Cihazda doğrulanmadı (bulut).

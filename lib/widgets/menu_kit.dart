@@ -510,8 +510,15 @@ class _MenuSectionsState extends State<MenuSections> {
   Widget _bento(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final primary = widget.primary;
+    // "Aç" iki sütun kaplar — ama yalnız bir satır fazlasına mal olmuyorsa
+    // (2026-11-15, kullanıcı: *"Sil ek satır olmuş, Aç'ı küçülterek buna
+    // gerek kalmaz"*). 7 kare + geniş Aç = 9 birim → Sil tek başına 3. satıra
+    // düşüyordu; Aç tek sütun olunca iki dolu satır.
+    final others = widget.mainActions.length + widget.quick.length;
+    final primarySpan =
+        (others + 2 + 3) ~/ 4 > (others + 1 + 3) ~/ 4 ? 1 : 2;
     final top = <(MenuKitAction, int, bool)>[
-      if (primary != null) (primary, 2, true),
+      if (primary != null) (primary, primarySpan, true),
       for (final a in widget.mainActions)
         if (a.tone != MenuTone.danger) (a, 1, false),
       for (final a in widget.quick) (a, 1, false),
@@ -546,9 +553,10 @@ class _MenuSectionsState extends State<MenuSections> {
       children.add(_BentoGrid(items: [
         for (var i = 0; i < s.actions.length; i++)
           (
-            // Türe özel: tam genişlik. Diğerleri iki sütun; tek kalan son
-            // işlem tam genişlik.
-            s.special || (i == s.actions.length - 1 && i.isEven) ? 4 : 2,
+            // Her grup iki sütun — türe özel olanlar da (2026-11-15,
+            // kullanıcı: *"tek sütun olmuş, 2 sütun olsun tüm türlerde"*).
+            // Tek kalan son işlem tam genişlik.
+            i == s.actions.length - 1 && i.isEven ? 4 : 2,
             _BentoRowTile(action: s.actions[i]),
           ),
       ]));
@@ -987,8 +995,7 @@ class _BentoTile extends StatelessWidget {
   }
 }
 
-/// Bento satır karosu: simge başta, etiket + ipucu (iki sütunlu bölümler,
-/// tam genişlik türe özel işler).
+/// Bento satır karosu: simge başta, etiket + ipucu (iki sütunlu bölümler).
 class _BentoRowTile extends StatelessWidget {
   final MenuKitAction action;
   const _BentoRowTile({required this.action});
