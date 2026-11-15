@@ -1276,3 +1276,9 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Değişiklik yapıp geri: "Kaydet · Kaydetme · İptal" soruluyor; bölge seçerken geri yalnız seçimi kapatıyor.
 - [ ] Eklenen sesi listeden kaldır (çalarken): ses hemen susuyor.
 - [ ] Dar telefonda üst çubuk (Geri al · Yinele · Kaydet) ve oynatma satırı taşmıyor.
+
+## 2026-11-15 — belge açılışı: bulanık kare + geçiş (yazıldı, cihazda doğrulanmadı)
+- [ ] Hiç açılmamış bir PDF'i listeden aç: bulanık kapak görünmüyor; kâğıt → doğrudan net sayfa.
+- [ ] Aynı PDF'i ortasında kapatıp yeniden aç: kaldığın sayfa NET görünüyor (bulanık değil), sıçrama yok.
+- [ ] PDF, Word, Excel, slayt, metin: açılış geçişi baştan sona kayarak oynuyor (donup sıçramıyor). Kapanışta takılma kaldı mı — kaldıysa hangi türde?
+- [ ] Açtıktan sonra ana ekrana dön: dosya "Son belgeler"de ve açılma geçmişinde.

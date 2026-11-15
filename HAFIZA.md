@@ -1120,3 +1120,11 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Tuzak:** `design_tokens_test` yeni `fontSize:` saymaz-geçmez → widget'ta punto için `textTheme.x.apply(fontSizeFactor:)`; sabit punto yalnız `core/theme.dart`'ta.
 - Cihazda doğrulanmadı/ölçülmedi (bulut; kullanıcı doğrudan APK istedi) → PLAN §3 K28.
 
+
+## 2026-11-15 — Kök: belge "bulanık açılıyor" + açılış geçişi takılıyor
+- **Kök (bulanık ilk kare):** `PdfOpenBridge` liste küçük resmini (96–512 px) ya da 540 px'lik `PdfLastView`'ı tam ekran genişliğine (~1080 px) geriyordu. pdfrx'in kendi ilk çizimi net (tek geçiş) — bulanıklık yalnız köprüden.
+- **Çözüm:** görüntü ekranın fiziksel genişliğinin %70'inden darsa HİÇ gösterilmez (`cachedCover(minSize:)`, `PdfLastView.find(minWidth:)`) → nötr kâğıt → net sayfa. Son sayfa görüntüsü artık ekran genişliğinde saklanır (≤ 1080 px, ≤ 450 KB). Köprü `onDocumentLoadFinished`'te (ilk sayfa önbellekte) hemen kalkar; 220 ms'lik pay yedek.
+- **Kök (takılarak açılma):** (1) `EntryOpener.open` rota itilmeden HEMEN ÖNCE `_remember` + `await addRecent` (tercih yazımı, yerel çağrı, `recentsState.changed()` → ana ekran yeniden kurulur) yapıyordu. (2) Geçiş saati itme anında başlar; görüntüleyici/editörün ağır ilk karesi kurulurken ilerler → ikinci karede geçiş yarıyı atlamış olur.
+- **Çözüm:** kayıt geçiş bitince (`_afterTransition`); `SmoothOpenRoute` ilk kare bitince `controller.forward(from: 0)` ile geçişi baştan başlatır. **Tuzak:** bu, `didPush`'un döndürdüğü TickerFuture'ı iptal eder (gezgin rotayı erken "boşta" sayar) — şimdilik zararsız; rota gözlemcisine bağlı iş eklenirse hatırla.
+- Kapanış: `PdfLastView.capture` pikselleri izolata `TransferableTypedData` ile tek kopyayla verir. Kapanış takılmasının başka kökü bulunamadı (ölçüm gerek).
+- Cihazda doğrulanmadı/ölçülmedi (bulut; kullanıcı doğrudan APK istedi) → `docs/CIHAZ_TESTI.md`.
