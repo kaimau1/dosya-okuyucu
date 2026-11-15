@@ -142,7 +142,7 @@ void main() {
     await _pump(tester);
     // Varsayılan tema ailesi "Adaçayı" (2026-11-04), mod "Sistem", dil
     // "Sistem" → üçü de kartta yazar (aile 2026-08-25'te eklendi: `AppSkin`).
-    expect(find.text('Adaçayı · Sistem · Sistem'), findsOneWidget);
+    expect(find.text('Bento · Sistem · Sistem'), findsOneWidget);
   });
 
   /// **Kök neden testi:** eski arama BÖLÜM başlığına bakıyordu; "küçük resim"
