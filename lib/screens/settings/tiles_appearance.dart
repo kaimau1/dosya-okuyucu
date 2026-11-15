@@ -6,6 +6,7 @@ import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_language.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/menu_look.dart';
 import '../../core/skin.dart';
 import '../../core/theme.dart';
 import 'settings_widgets.dart';
@@ -29,6 +30,27 @@ class ThemeTile extends StatelessWidget {
       ],
       selected: appState.themeMode,
       onChanged: appState.setThemeMode,
+    );
+  }
+}
+
+/// **Menü görünümü** (2026-11-15): dosya/belge menüleri sekmeli (varsayılan)
+/// ya da Bento. Değişim hemen geçerli — açılan her levha ayarı okur.
+class MenuLookTile extends StatelessWidget {
+  const MenuLookTile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final look = context.select<AppState, MenuLook>((s) => s.menuLook);
+    return SettingChoice<MenuLook>(
+      icon: AppIcons.dashboardCustomize,
+      title: context.t('menu.look_title'),
+      subtitle: context.t('menu.look_sub'),
+      options: [
+        for (final l in MenuLook.values) (l, context.t(l.labelKey)),
+      ],
+      selected: look,
+      onChanged: context.read<AppState>().setMenuLook,
     );
   }
 }

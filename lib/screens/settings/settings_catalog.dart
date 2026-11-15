@@ -250,6 +250,16 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                 altKeys: ['acc.blue', 'acc.teal'],
                 builder: _accentTile),
           ]),
+          // Menü görünümü (2026-11-15) — en sonda: üstteki satırların yerleri
+          // testlerde sabit.
+          SettingsSection('menu.look_title', [
+            SettingRow(
+                id: 'menu_look',
+                titleKey: 'menu.look_title',
+                subtitleKey: 'menu.look_sub',
+                altKeys: ['menu.look_tabbed', 'menu.look_bento'],
+                builder: _menuLookTile),
+          ]),
         ],
       ),
 
@@ -408,6 +418,12 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
               subtitleKey: 'set.api_key_sub',
               altKeys: ['set.kw_gemini'],
               builder: _aiAccessTile,
+            ),
+            SettingRow(
+              id: 'ai_task_models',
+              titleKey: 'aitask.title',
+              subtitleKey: 'aitask.title_sub',
+              builder: _aiTaskModelsTile,
             ),
           ]),
           SettingsSection('set.sec_ai_scope', [
@@ -799,6 +815,7 @@ Widget _themeTile(BuildContext _) => const ThemeTile();
 Widget _skinTile(BuildContext _) => const AppSkinTile();
 Widget _backgroundTile(BuildContext _) => const BackgroundColorTile();
 Widget _accentTile(BuildContext _) => const AccentColorTile();
+Widget _menuLookTile(BuildContext _) => const MenuLookTile();
 Widget _hapticsTile(BuildContext _) => const HapticsTile();
 Widget _neuralVoicesTile(BuildContext context) => SettingTile(
       icon: AppIcons.voice,
@@ -828,6 +845,7 @@ Widget _photoGroupTile(BuildContext _) => const PhotoGroupTile();
 Widget _mediaOpenWithTile(BuildContext _) => const MediaOpenWithTile();
 Widget _startFolderTile(BuildContext _) => const StartFolderTile();
 Widget _aiAccessTile(BuildContext _) => const AiAccessTile();
+Widget _aiTaskModelsTile(BuildContext _) => const AiTaskModelsTile();
 Widget _memoryTile(BuildContext _) => const MemoryTile();
 Widget _aiBackupKeysTile(BuildContext _) => const AiBackupKeysTile();
 Widget _aiModelChainTile(BuildContext _) => const AiModelChainTile();

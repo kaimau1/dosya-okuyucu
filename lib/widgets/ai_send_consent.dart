@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 import '../core/app_navigator.dart';
 import '../core/app_state.dart';
 import '../core/l10n/app_strings.dart';
@@ -17,10 +19,11 @@ abstract final class AiSendConsent {
   static void forget() => _session = false;
 
   /// G10.1: pencere açmadan rıza var mı (oturum ya da kalıcı).
-  static bool granted(AppState state) => state.aiSendConsent || _session;
+  static bool granted(AppState state) =>
+      state.aiTermsAccepted && (state.aiSendConsent || _session);
 
   static Future<bool> ask(AppState state) {
-    if (state.aiSendConsent || _session) return Future.value(true);
+    if (granted(state)) return Future.value(true);
     // Aynı anda gelen istekler tek pencereyi bekler.
     return _pending ??= _show(state).whenComplete(() => _pending = null);
   }
@@ -29,6 +32,12 @@ abstract final class AiSendConsent {
     final context = navigatorKey.currentContext;
     // Ekran yok (arka plan): sorulmadan gönderilmez.
     if (context == null || !context.mounted) return false;
+    // Önce bir kerelik kullanım koşulları / sorumluluk reddi (2026-11-15).
+    if (!state.aiTermsAccepted) {
+      if (!await AiTerms.show(context, state)) return false;
+      if (!context.mounted) return false;
+    }
+    if (state.aiSendConsent || _session) return true;
     final r = await showAppConfirmRemember(
       context,
       title: context.t('aisend.title'),
@@ -39,6 +48,32 @@ abstract final class AiSendConsent {
     if (r == null) return false;
     _session = true;
     if (r.remember) await state.setAiSendConsent(true);
+    return true;
+  }
+}
+
+
+/// **AI kullanım koşulları ve sorumluluk reddi** (kullanıcı kararı
+/// 2026-11-15: "kullanılmadan önce sorumluluk reddi ve gerekli
+/// bilgilendirmeler, izinler onaylatılmalı"). İlk AI kullanımında bir kez;
+/// kutular işaretlenmeden "Kabul et" basılamaz.
+abstract final class AiTerms {
+  static const _boxes = [
+    'aiterms.c_accuracy',
+    'aiterms.c_data',
+    'aiterms.c_key',
+  ];
+
+  static Future<bool> show(BuildContext context, AppState state) async {
+    final ok = await showAppChecklistConfirm(
+      context,
+      title: context.t('aiterms.title'),
+      message: context.t('aiterms.body'),
+      checks: [for (final k in _boxes) context.t(k)],
+      confirmLabel: context.t('aiterms.accept'),
+    );
+    if (!ok) return false;
+    await state.setAiTermsAccepted(true);
     return true;
   }
 }

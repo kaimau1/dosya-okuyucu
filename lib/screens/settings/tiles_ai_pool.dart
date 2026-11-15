@@ -12,6 +12,8 @@
 /// model listesi çekme orada); burası **2. sıradan itibaren** yedekleri ekler.
 library;
 
+import 'dart:async';
+
 import '../../core/secure_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -174,6 +176,7 @@ class _AiModelChainTileState extends State<AiModelChainTile> {
     try {
       final models = await GeminiService.listModels(key);
       if (!mounted) return;
+      unawaited(context.read<AppState>().setAiCatalog(models));
       setState(() {
         _available = models.isEmpty ? null : models;
         _loading = false;

@@ -385,6 +385,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// metin katmanı bunlarla çizilir; [_ocrOverlay] kapalıysa gizlenir.
   List<OcrLine> _ocrImageLines = const [];
   bool _ocrOverlay = false;
+
+  /// Görsel üstü OCR katmanında seçili metin (alt panel dar dinler).
+  final ValueNotifier<String> _ocrSelection = ValueNotifier('');
   int _imgQuarterTurns = 0;
   double _fontSize = 15;
 
@@ -858,8 +861,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// pdfium işçisinde, kodlama izolatta. Parolalı belgede saklanmaz.
   void _captureLastView() {
     if (!_isPdf || _pdfPassword != null || !_pdfController.isReady) return;
+    // Ekran genişliğinde: yeniden açılışta köprü onu net gösterir.
+    final view = View.of(context);
     unawaited(PdfLastView.capture(
-        widget.doc.path, _pdfController.document, _pdfPage));
+        widget.doc.path, _pdfController.document, _pdfPage,
+        widthPx: view.physicalSize.width.round()));
   }
 
   @override
@@ -869,6 +875,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     unawaited(ReadingPositions.save());
     _recordPdfZoom();
     _formOfferTimer?.cancel();
+    _ocrSelection.dispose();
     _pageBadgeTimer?.cancel();
     _pdfBridgeTimer?.cancel();
     if (widget.doc.kind == DocKind.pdf) PdfProPerf.openDone();

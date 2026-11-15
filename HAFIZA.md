@@ -1125,3 +1125,32 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Yapı:** görselde "Metni tanı" artık pencere açmaz; `OcrService.recognizeImageLines` satır kutuları `OcrTextOverlay` (`widgets/ocr_text_overlay.dart`) ile resmin ÜSTÜNE görünmez metin olarak dizilir (`SelectionArea`, basılı tut → seç → kopyala, Lens gibi). Alt çubukta Tümünü kopyala · Metni ayrı göster (eski liste penceresi, istenirse) · Kapat; kapalıyken "Metni görselde seç" çipi. Ölçek resmin asıl boyutundan (`ImageDescriptor` başlığı); EXIF dönüklüğünde en-boy oranına uyan yön seçilir.
 - **Karar:** ses (`AudioPlayback`) uygulama arkaya alınınca / ekran kilitlenince DURAKLAR, dönünce sürer; Ayarlar › "Seste arka planda çal" (`audio_background`, varsayılan kapalı). Bildirimden/kilit ekranından elle Çal → o an izin. Video zaten böyleydi.
 - Cihazda doğrulanmadı (bulut; kullanıcı doğrudan APK istedi).
+
+## 2026-11-15 — Kök: belge "bulanık açılıyor" + açılış geçişi takılıyor
+- **Kök (bulanık ilk kare):** `PdfOpenBridge` liste küçük resmini (96–512 px) ya da 540 px'lik `PdfLastView`'ı tam ekran genişliğine (~1080 px) geriyordu. pdfrx'in kendi ilk çizimi net (tek geçiş) — bulanıklık yalnız köprüden.
+- **Çözüm:** görüntü ekranın fiziksel genişliğinin %70'inden darsa HİÇ gösterilmez (`cachedCover(minSize:)`, `PdfLastView.find(minWidth:)`) → nötr kâğıt → net sayfa. Son sayfa görüntüsü artık ekran genişliğinde saklanır (≤ 1080 px, ≤ 450 KB). Köprü `onDocumentLoadFinished`'te (ilk sayfa önbellekte) hemen kalkar; 220 ms'lik pay yedek.
+- **Kök (takılarak açılma):** (1) `EntryOpener.open` rota itilmeden HEMEN ÖNCE `_remember` + `await addRecent` (tercih yazımı, yerel çağrı, `recentsState.changed()` → ana ekran yeniden kurulur) yapıyordu. (2) Geçiş saati itme anında başlar; görüntüleyici/editörün ağır ilk karesi kurulurken ilerler → ikinci karede geçiş yarıyı atlamış olur.
+- **Çözüm:** kayıt geçiş bitince (`_afterTransition`); `SmoothOpenRoute` ilk kare bitince `controller.forward(from: 0)` ile geçişi baştan başlatır. **Tuzak:** bu, `didPush`'un döndürdüğü TickerFuture'ı iptal eder (gezgin rotayı erken "boşta" sayar) — şimdilik zararsız; rota gözlemcisine bağlı iş eklenirse hatırla.
+- Kapanış: `PdfLastView.capture` pikselleri izolata `TransferableTypedData` ile tek kopyayla verir. Kapanış takılmasının başka kökü bulunamadı (ölçüm gerek).
+- Cihazda doğrulanmadı/ölçülmedi (bulut; kullanıcı doğrudan APK istedi) → `docs/CIHAZ_TESTI.md`.
+
+## 2026-11-15 — Kök: "Son açılanlar"a bazen hemen düşmüyor
+- **Kök:** `OpenHistory`'nin bildirimi yoktu; `RecentStrip` ve Geçmiş ekranı `revision`'a yalnız başka nedenle yeniden kurulunca bakıyordu. Belge açılışı `recentsState.changed()` ile panoyu kurduruyor (hemen düşer); foto/video/ses kurdurmuyor (yenileyene dek düşmez) → "bazen".
+- **Çözüm:** `OpenHistory.changes` (ValueNotifier, `_saveNow` başında — disk yazımı beklenmez); şerit ve `OpenHistoryScreen` dinler. Geçmiş ekranı dolu listeyi tazelerken dönence göstermez.
+- Dosya seçici (Aktar › Dosya ekle / Paylaş) her açılışta taze okur; ayrı kök bulunmadı — sürerse cihazda adım adım bak.
+
+## 2026-11-15 — Menü görünümü: sekmeli (varsayılan) + Bento, tek kit
+- **Karar (kullanıcı):** menüler baştan tasarlandı; iki görünüm, Ayarlar › Görünüm › "Menü görünümü" (en sonda, `menu_look` satırı), varsayılan **sekmeli**. Onaylı taslak: B (sekmeli ızgara) + sakinleştirilmiş C (Bento).
+- **Yapı:** `MenuLook` (`core/menu_look.dart`; ad `MenuStyle` DEĞİL — Flutter'ın `MenuStyle`ıyla çakışır). Kalıcılık `AppState.setMenuLook` → prefs `menu_look`; kopyası `AppearanceState.menuLook`. `MenuKit.lookOf(context)` = `Provider.of<AppearanceState?>` → sağlayıcısız ağaçta (test/bağımsız levha) sekmeli.
+- **Yapı:** tek gövde `MenuSections` (`menu_kit.dart`): model `MenuKitAction` (ikon/etiket/ipucu/ton/checked/onTap) + `MenuKitSection` (başlık, special) + `primary` ("Aç") + `mainActions` (Paylaş, Sil) + `quick`. Dosya levhası, görüntüleyici ⋮'ı (`showViewerMenu`/`EditorTopBar`), `showAppActionSheet` (seçim, klasör, PDF araçları …) ve `DocMoreSheet` bunu besler — çağıranlar dallanmaz. `MenuRow`/`MenuTile` artık kullanılmıyor (yan menü kendi `_MenuRow`unda, kapsam dışı).
+- **Sekmeli kuralları:** sekmeler = "Sık kullanılan" (quick) + bölüm başlıkları; başlıksız ilk grup "Sık kullanılan", sonrakiler tek "Diğer" sekmesi; tek sekmede şerit yok. `primary` yoksa (görüntüleyici) `mainActions` (Sil) ortak sekmenin sonuna iner. Görüntüleyicide (`preferSpecial`) ilk türe özel grup seçili açılır. Gövde boyu = en uzun sekme × hücre boyu (`TextPainter` ile iki satır etiket, yazı ölçeğine göre) → sekme değişince levha zıplamaz; boy animasyonu YOK (kasma-kontrol 6).
+- **Tuzak (test):** sekmelide seçili olmayan sekmenin işleri AĞAÇTA YOK; Sil/Paylaş simge düğmesi (`find.byTooltip`). Testte sekmeye dokun (`MenuSections.tabKey(i)` ya da başlık metni) veya `AppearanceState(menuLook: bento)` sağla.
+- Cihazda doğrulanmadı/ölçülmedi (bulut) → `docs/CIHAZ_TESTI.md`.
+
+## 2026-11-15 — Görev başına AI modeli + AI koşulları onayı + OCR alt paneli + ana ekran boşluğu
+- **Yapı (görev modeli):** `services/ai_tasks.dart` — notlar uygulamasının `oto/model-sirasi` dalındaki görev zincirleri (`model_catalog.dart` `geminiChains`) uyarlandı. `PooledGemini` üç yolu göreve eşler: `chat`→`AiTask.chat` (girdi < 12.000 karakterse Gemma denenebilir), `generateJson`→`structured` (Gemma yok, JSON), `compareImages`→`vision`. Sıra: elle seçim → otomatik zincir (yalnız anahtarın KATALOĞUNDA bulunan kimlikler; uydurma yok) → kullanıcının genel model sırası. Katalog anahtar doğrulanınca `ai_catalog`'a yazılır; seçim `ai_task_model_<görev>` (boş = Otomatik). Ayarlar › AI › "Görev başına model". Kotalar değişince yalnız `aiTaskChains`.
+- **Karar:** AI yalnız Pro/Kişisel — `AiPool.run` sürüm kapısı (`Feature.ai`). İlk AI kullanımında bir kerelik "bilgilendirme ve onay" (`AiTerms`, `ai_terms_v1`): 3 kutu işaretlenmeden Kabul et kapalı; ardından mevcut gönderim onayı. `AiSendConsent.granted` artık koşul onayını da ister (sessiz AI turu onaysız başlamaz).
+- **OCR görsel:** alt panel notlardaki gibi — seçim varsa "N karakter seçildi · İptal" + seçilen metin + Kopyala; yoksa tanınan metin + Tümünü kopyala. Seçim `ValueNotifier` (yalnız panel yeniden kurulur).
+- **Kök (ana ekran boşluğu):** Son açılanlar başlık satırında "Tümü" `TextButton`'ı 48 dp dokunma payı + `Gap.md` üst payla satırı uzatıyordu → `shrinkWrap` + compact, başlık payı sıkı.
+- Menüler dalı (`ccr-cc450a0d-6aja3z`, CI yeşil) bu işle birlikte main'e alındı.
+- Cihazda doğrulanmadı.

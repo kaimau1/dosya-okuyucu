@@ -54,6 +54,7 @@ import 'dual_pane_screen.dart';
 import '../../services/fm/fm_colors_store.dart';
 import '../../widgets/fm/label_color_sheet.dart';
 import '../../widgets/fm/favorites_order_sheet.dart';
+import '../../widgets/app_action_sheet.dart';
 
 part 'browser/actions.dart';
 part 'browser/views.dart';

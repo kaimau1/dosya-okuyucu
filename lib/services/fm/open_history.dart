@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
 import 'fm_env.dart';
@@ -44,6 +45,15 @@ abstract final class OpenHistory {
   /// şey yok" deyip eski sonucu döndürür, "son 6 ayda açılanlar" çipi geçmiş
   /// yüklenmeden hesaplanmış (eksik) sayısında donup kalırdı.
   static int revision = 0;
+
+  /// Kayıt değişince haber verir (değer = [revision]).
+  ///
+  /// Kök (2026-11-15, kullanıcı: *"girip çıkıyorum, son açılanlara bazen
+  /// hemen düşmüyor"*): şerit ve Geçmiş ekranı [revision]'a yalnız BAŞKA bir
+  /// nedenle yeniden kurulduklarında bakıyordu. Belge açılışı "Son belgeler"
+  /// bildirimiyle panoyu zaten yeniden kurduruyor (hemen düşüyor); foto /
+  /// video / ses açılışı kurdurmuyor (yenileyene dek düşmüyor).
+  static final ValueNotifier<int> changes = ValueNotifier<int>(0);
 
   static String get _path => p.join(FmEnv.appSupportDir, _fileName);
 
@@ -99,7 +109,8 @@ abstract final class OpenHistory {
   }
 
   static Future<void> _saveNow() async {
-    revision++;
+    // Bellek güncel: dinleyenler disk yazımını beklemeden tazelenir.
+    changes.value = ++revision;
     if (FmEnv.appSupportDir.isEmpty) return;
     try {
       final tmp = File('$_path.tmp');

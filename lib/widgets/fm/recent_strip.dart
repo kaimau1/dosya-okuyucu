@@ -41,7 +41,19 @@ class _RecentStripState extends State<RecentStrip> {
   @override
   void initState() {
     super.initState();
+    OpenHistory.changes.addListener(_onHistory);
     _load();
+  }
+
+  /// Bir dosya açılınca (her tür) şerit kendiliğinden tazelenir.
+  void _onHistory() {
+    if (mounted && OpenHistory.revision != _seenRevision) _load();
+  }
+
+  @override
+  void dispose() {
+    OpenHistory.changes.removeListener(_onHistory);
+    super.dispose();
   }
 
   @override
@@ -60,8 +72,10 @@ class _RecentStripState extends State<RecentStrip> {
     _seenRevision = OpenHistory.revision;
     // Fazlasını iste: bazıları silinmiş olabilir.
     final paths = OpenHistory.pathsByRecency().take(widget.limit * 2).toList();
+    final loadedAt = _seenRevision;
     final stats = await FsScan.statPaths(paths);
-    if (!mounted) return;
+    // Yükleme sürerken yeni kayıt geldiyse onun yüklemesi sonucu yazar.
+    if (!mounted || loadedAt != _seenRevision) return;
     setState(() => _items = [
           for (final e in stats)
             if (!e.isDir) e,
@@ -78,21 +92,28 @@ class _RecentStripState extends State<RecentStrip> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: SectionHeader(context.t('dash.sec_recent'),
-                  padding: const EdgeInsets.only(top: Gap.lg, bottom: Gap.sm)),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top: Gap.md),
-              child: TextButton(
+        // Başlık satırı sıkı (kullanıcı 2026-11-15: bellek kartı ile Son
+        // açılanlar arasında gereksiz büyük boşluk): "Tümü" düğmesi 48 dp
+        // dokunma payı + üst boşlukla satırı uzatıyordu.
+        Padding(
+          padding: const EdgeInsets.only(top: Gap.sm, bottom: Gap.xs),
+          child: Row(
+            children: [
+              Expanded(
+                child: SectionHeader(context.t('dash.sec_recent'),
+                    padding: EdgeInsets.zero),
+              ),
+              TextButton(
                 key: const ValueKey('recent-strip-all'),
+                style: TextButton.styleFrom(
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
                 onPressed: widget.onAll,
                 child: Text(context.t('dash.recent_all')),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         SizedBox(
           height: thumb + Gap.sm + 20 * scale + Gap.sm,
