@@ -31,71 +31,102 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
               onPressed: editor == null ? null : _toggleFind,
             ),
         ],
-        more: PopupMenuButton<String>(
-          key: EditorTopBar.moreKey,
-          tooltip: context.t('common.more'),
-          onSelected: (v) async {
-            switch (v) {
-              case 'plain':
-                _partSetState(() {
-                  _plainMode = true;
-                  _editing = false;
-                });
-                break;
-              case 'pageedit':
-                _toggleEdit();
-                break;
-              case 'lab':
+        // ⋮ = ortak dosya levhası (2026-11-15): üstte taşı/kopyala/SİL,
+        // altında Word'e özel işler ayrı renkte. Eskiden simgesiz küçük
+        // açılır menüydü; "Mobil" ve seçim işleri alt çubuğu yana
+        // kaydırıyordu (6+ düğme) — buraya indiler.
+        filePath: widget.path,
+        menuTitle: context.t('dm.word'),
+        menu: [
+          if (!_plainMode)
+            EditorMenuItem(
+              id: 'flow',
+              icon: _flow ? AppIcons.newWord : AppIcons.device,
+              label: context.t(_flow ? 'word.page_layout' : 'word.mobile_flow'),
+              onTap: editor == null ? null : _toggleFlow,
+            ),
+          _plainMode
+              ? EditorMenuItem(
+                  id: 'page',
+                  icon: AppIcons.newWord,
+                  label: context.t('word.page_view'),
+                  onTap: () async {
+                    if (_dirty) await _save();
+                    // Yedek editördeki değişiklikler görünüme taşınsın.
+                    _partSetState(() {
+                      _viewBytes = _editor?.viewBytes();
+                      _plainMode = false;
+                    });
+                  },
+                )
+              : EditorMenuItem(
+                  id: 'plain',
+                  icon: AppIcons.textFields,
+                  label: context.t('word.text_editor'),
+                  onTap: () => _partSetState(() {
+                    _plainMode = true;
+                    _editing = false;
+                  }),
+                ),
+          if (!_plainMode)
+            EditorMenuItem(
+              id: 'night',
+              icon: AppIcons.dark,
+              label: context.t('vw.night_on'),
+              checked: DocxNight.enabled.value,
+              onTap: () => unawaited(DocxNight.set(!DocxNight.enabled.value)),
+            ),
+          // Seçili metin işleri: canlı görünümde seçim WebView tarafında
+          // yaşıyor, `sendSelectionText` köprüsüyle alınıyor. Yedek metin
+          // editöründe seçim Flutter'da olduğu için bu yol kapalı.
+          if (!_plainMode)
+            EditorMenuItem(
+              id: 'rewrite',
+              icon: AppIcons.organize,
+              label: context.t('word.rewrite_selection'),
+              onTap: editor == null ? null : _rewriteSelection,
+            ),
+          if (!_plainMode)
+            EditorMenuItem(
+              id: 'translate_sel',
+              icon: AppIcons.gTranslate,
+              label: context.t('word.translate_selection'),
+              onTap: editor == null ? null : _translateSelection,
+            ),
+          EditorMenuItem(
+            id: 'export',
+            icon: AppIcons.share,
+            label: context.t('ux.share_export'),
+            onTap: editor == null ? null : () => unawaited(_shareExport()),
+          ),
+          // K19 (b), Faz 23: sayfa üzerinde (WebView) düzenleme yalnız
+          // geliştirici denemesi bayrağıyla.
+          if (!_plainMode &&
+              !_editing &&
+              context.read<AppState>().labWordEditor)
+            EditorMenuItem(
+              id: 'pageedit',
+              icon: AppIcons.edit,
+              label: context.t('word.edit_page'),
+              onTap: _toggleEdit,
+            ),
+          if (context.read<AppState>().labWordEditor)
+            EditorMenuItem(
+              id: 'lab',
+              icon: AppIcons.developerMode,
+              label: context.t('lab.word_open'),
+              onTap: () {
                 final ed = _editor;
-                if (ed == null) break;
+                if (ed == null) return;
                 Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => LabWordEditorScreen(
                     title: widget.name,
                     paragraphs: [for (final p in ed.paragraphs) p.text],
                   ),
                 ));
-                break;
-              case 'export':
-                if (editor != null) await _shareExport();
-                break;
-              case 'night':
-                unawaited(DocxNight.set(!DocxNight.enabled.value));
-                break;
-              case 'page':
-                if (_dirty) await _save();
-                // Yedek editördeki değişiklikler görünüme taşınsın.
-                _partSetState(() {
-                  _viewBytes = _editor?.viewBytes();
-                  _plainMode = false;
-                });
-                break;
-            }
-          },
-          itemBuilder: (_) => [
-            // K19 (b), Faz 23: sayfa görünümü salt okunur önizleme; Word
-            // biçimleri Mobil görünümde. WebView'da sayfa üzerinde düzenleme
-            // (21a köprüsü) yalnız geliştirici denemesi bayrağıyla yedek.
-            if (!_plainMode &&
-                !_editing &&
-                context.read<AppState>().labWordEditor)
-              PopupMenuItem(
-                  value: 'pageedit', child: Text(context.t('word.edit_page'))),
-            if (context.read<AppState>().labWordEditor)
-              PopupMenuItem(value: 'lab', child: Text(context.t('lab.word_open'))),
-            _plainMode
-                ? PopupMenuItem(
-                    value: 'page', child: Text(context.t('word.page_view')))
-                : PopupMenuItem(
-                    value: 'plain', child: Text(context.t('word.text_editor'))),
-            if (!_plainMode)
-              CheckedPopupMenuItem(
-                  value: 'night',
-                  checked: DocxNight.enabled.value,
-                  child: Text(context.t('vw.night_on'))),
-            PopupMenuItem(
-                value: 'export', child: Text(context.t('ux.share_export'))),
-          ],
-        ),
+              },
+            ),
+        ],
       ),
       // Biçim çubuğu artık ÜSTTE değil (W7): klavye açıkken klavyenin hemen
       // üstünde tek satır hızlı çubuk, kapalıyken tam şerit — EditorChrome.
@@ -105,19 +136,22 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
       bottomBar: _editing
           ? null
           : DocActionBar([
+              // Ortak düzen (2026-11-15): en çok 5 düğme, kaydırma yok —
+              // Düzenle · AI · Çevir · Paylaş (+ İndir). Mobil görünüm ve
+              // seçili metin işleri ⋮'da.
               if (!_plainMode)
-                // Faz 22 (K18 = b-ii): "Düzenle" Mobil görünüm editörünü açar;
-                // sayfa üzerinde (WebView) düzenleme Faz 23'ten beri yalnız
-                // geliştirici bayrağıyla ⋮ menüsünde (K19 b).
+                // Faz 22 (K18 = b-ii): "Düzenle" Mobil görünüm editörünü açar.
                 DocAction(AppIcons.edit, context.t('common.edit'),
                     editor == null ? null : _openMobileEditor),
-              if (!_plainMode)
-                DocAction(
-                  _flow ? AppIcons.newWord : AppIcons.device,
-                  context.t(_flow ? 'word.page_layout' : 'word.mobile_flow'),
-                  editor == null ? null : _toggleFlow,
-                ),
-              // Kaydet artık üst çubukta (Faz 40 / 1 — tek yapı).
+              // AI artık yüzen düğme değil, çubukta (PDF'teki gibi): sayfa
+              // rozetinin ve metnin üstüne binmiyor.
+              DocAction(AppIcons.ai, context.t('common.ai'), _openAi),
+              DocAction(
+                AppIcons.translate,
+                context.t('common.translate'),
+                () => TranslateFlow.run(context, widget.plainText,
+                    title: widget.name),
+              ),
               DocAction(AppIcons.share, context.t('common.share'),
                   editor == null ? null : _export),
               // Başka uygulamadan açıldıysa dosya özel önbellekte: doğrudan
@@ -125,27 +159,6 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
               if (showDownloadAction(widget.path))
                 DocAction(AppIcons.download, context.t('common.download'),
                     editor == null ? null : _download),
-              DocAction(
-                AppIcons.translate,
-                context.t('common.translate'),
-                () => TranslateFlow.run(context, widget.plainText,
-                    title: widget.name),
-              ),
-              // Seçili metin işleri: canlı görünümde seçim WebView tarafında
-              // yaşıyor, `sendSelectionText` köprüsüyle alınıyor. Yedek metin
-              // editöründe seçim Flutter'da olduğu için bu yol kapalı.
-              if (!_plainMode)
-                DocAction(
-                  AppIcons.organize,
-                  context.t('word.rewrite_selection'),
-                  editor == null ? null : _rewriteSelection,
-                ),
-              if (!_plainMode)
-                DocAction(
-                  AppIcons.gTranslate,
-                  context.t('word.translate_selection'),
-                  editor == null ? null : _translateSelection,
-                ),
             ]),
       body: withDraftBanner(restore: _restoreDraft, _wordChrome(_error != null
           ? AppErrorView(
@@ -267,20 +280,17 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                           ),
                       ],
                     ))),
-      // Klavye/biçim çubuğu varken FAB araya girmesin.
-      fab: _editing
-          ? null
-          : DocAiButton(
-              kind: DocKind.word,
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => ChatScreen(
-                  fileContext: widget.plainText,
-                  fileName: widget.name,
-                ),
-              )),
-              tooltip: context.t('common.ai'),
-            ),
     );
+  }
+
+  /// AI sohbeti bu belgeyle (alt çubuktaki AI).
+  void _openAi() {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ChatScreen(
+        fileContext: widget.plainText,
+        fileName: widget.name,
+      ),
+    ));
   }
 
   /// "Sayfa 3 / 12" rozeti — dokununca [_showGoToPage].

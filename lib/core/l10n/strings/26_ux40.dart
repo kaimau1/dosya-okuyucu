@@ -2,7 +2,7 @@ part of '../app_strings.dart';
 
 /// Çeviri tablosunun 26. bölümü (2026-11-05): Faz 40 — ortak görünüm ve deneyim.
 const Map<String, (String, String, String)> _t26 = {
-  'ux.share_export': ('Paylaş / Dışa aktar', 'Share / Export', 'مشاركة / تصدير'),
+  'ux.share_export': ('Farklı biçimde paylaş', 'Share in another format', 'المشاركة بتنسيق آخر'),
   'ux.selection': ('Seçim', 'Selection', 'التحديد'),
   // ── Madde 4: ilk açılış rehberi + örnek belgeler ─────────────────────────
   'onb.reader_title': ('Her dosyayı hızla oku', 'Read any file, fast', 'اقرأ أي ملف بسرعة'),

@@ -244,18 +244,6 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
     ));
   }
 
-  /// Tüm belgeyi cihaz-içi çevirir. Metin katmanı olmayan taranmış PDF'te
-  /// önce OCR gerekir (kullanıcı menüden "Metni tanı" ile çalıştırır).
-  /// Belge açıkken dosya işlemleri (taşı / kopyala / paylaş / yeniden
-  /// adlandır / sil) — dosya yöneticisiyle AYNI sayfa kullanılır, iki yerde
-  /// ayrı menü tutmak tutarsızlığa yol açardı.
-  Future<void> _fileActions() async {
-    await showEntryActions(
-      context,
-      FsEntry.fromEntity(File(widget.doc.path)),
-    );
-  }
-
   /// **Tek düğme çeviri** (istek 2026-07-31): metin nereden gelirse gelsin
   /// kullanıcı ayrıca OCR çalıştırmaz.
   ///

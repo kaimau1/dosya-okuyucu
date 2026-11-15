@@ -540,7 +540,7 @@ const Map<String, (String, String, String)> _t3 = {
 
   // ── Word ──────────────────────────────────────────────────────────────────
   'word.page_view': ('Sayfa görünümü', 'Page view', 'عرض الصفحة'),
-  'word.text_editor': ('Metin düzenleyici', 'Text editor', 'محرر النص'),
+  'word.text_editor': ('Düz metin görünümü', 'Plain text view', 'عرض النص العادي'),
   'word.bullet_list': ('Madde işareti', 'Bulleted list', 'قائمة نقطية'),
   'word.numbered_list': ('Numaralı liste', 'Numbered list', 'قائمة مرقّمة'),
   'word.add_paragraph_below': (
@@ -592,8 +592,8 @@ const Map<String, (String, String, String)> _t3 = {
   'word.font_family': ('Yazı tipi', 'Font', 'نوع الخط'),
   'word.font_size': ('Punto', 'Size', 'حجم الخط'),
   'word.add_paragraph': ('Paragraf ekle', 'Add paragraph', 'إضافة فقرة'),
-  'word.page_layout': ('Sayfa', 'Page', 'صفحة'),
-  'word.mobile_flow': ('Mobil', 'Mobile', 'الجوال'),
+  'word.page_layout': ('Sayfa görünümü', 'Page view', 'عرض الصفحة'),
+  'word.mobile_flow': ('Mobil görünüm', 'Mobile view', 'عرض الجوال'),
   'word.save_failed': (
     'Kaydedilemedi: {error}',
     'Could not save: {error}',
@@ -706,6 +706,7 @@ const Map<String, (String, String, String)> _t3 = {
     'المتوسط: {avg}  ·  العدد: {count}  ·  المجموع: {sum}',
   ),
   'excel.csv_encoding': ('CSV kodlaması', 'CSV encoding', 'ترميز CSV'),
+  'excel.save_csv': ('CSV olarak dışa aktar', 'Export as CSV', 'التصدير بصيغة CSV'),
   'excel.csv_utf8': ('UTF-8 (önerilir)', 'UTF-8 (recommended)', 'UTF-8 (مستحسن)'),
   'excel.csv_utf8_sub': (
     'Modern Excel / Google E-Tablolar',

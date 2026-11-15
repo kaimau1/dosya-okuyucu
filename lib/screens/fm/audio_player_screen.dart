@@ -245,6 +245,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
             onPressed: () => showEntryActions(
               context,
               FsEntry.fromEntity(File(_current)),
+              inViewer: true,
             ),
           ),
         ],
