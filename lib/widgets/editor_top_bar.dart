@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 
 import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
+import '../screens/fm/entry_actions.dart';
 
 /// ⋮ menüsündeki tek satır.
 class EditorMenuItem {
@@ -26,11 +27,15 @@ class EditorMenuItem {
   final String label;
   final VoidCallback? onTap;
 
+  /// Aç/kapa ayarı ise durumu (ör. gece modu); null = düz işlem.
+  final bool? checked;
+
   const EditorMenuItem({
     required this.id,
     required this.icon,
     required this.label,
     this.onTap,
+    this.checked,
   });
 }
 
@@ -55,6 +60,11 @@ abstract final class EditorTopBar {
     List<Widget> extras = const [],
     List<EditorMenuItem> menu = const [],
     Widget? more,
+    /// Verilirse ⋮ küçük açılır menü DEĞİL, bütün türlerde ortak dosya
+    /// levhasını açar (2026-11-15 ortak düzen): üstte taşı/kopyala/yeniden
+    /// adlandır/önemli/SİL, altında [menu] [menuTitle] başlığıyla, ayrı renkte.
+    String? filePath,
+    String? menuTitle,
   }) {
     Widget undoRedo(bool isUndo) {
       Widget button() {
@@ -84,8 +94,37 @@ abstract final class EditorTopBar {
       if (undo != null) undoRedo(true),
       if (redo != null) undoRedo(false),
       ...extras,
-      more ?? moreButton(context, menu),
+      more ??
+          (filePath == null
+              ? moreButton(context, menu)
+              : fileMenuButton(context, filePath,
+                  title: menuTitle ?? context.t('common.more'), menu: menu)),
     ];
+  }
+
+  /// ⋮ → ortak dosya levhası ([showViewerMenu]).
+  static Widget fileMenuButton(
+    BuildContext context,
+    String filePath, {
+    required String title,
+    List<EditorMenuItem> menu = const [],
+  }) {
+    return IconButton(
+      key: moreKey,
+      tooltip: context.t('common.more'),
+      icon: const Icon(AppIcons.more),
+      onPressed: () => showViewerMenu(context, filePath, groups: [
+        EntryExtraGroup(title, [
+          for (final m in menu)
+            EntryExtraAction(
+              icon: m.icon,
+              label: m.label,
+              onTap: m.onTap,
+              checked: m.checked,
+            ),
+        ]),
+      ]),
+    );
   }
 
   /// Standart ⋮ düğmesi; boş menüde devre dışı ama yeri korunur (çubuk

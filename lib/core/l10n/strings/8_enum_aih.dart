@@ -906,7 +906,7 @@ const Map<String, (String, String, String)> _t8 = {
     'لا توجد علامات بعد. أثناء القراءة اضغط مطولًا على شارة الصفحة أو استخدم الزر هنا.',
   ),
   // 2026-11-04: dosya menüsünün ikinci hızlı sırası — doğrudan Yakındakiler.
-  'ea.quick_share': ('Hızlı paylaş', 'Quick share', 'مشاركة سريعة'),
+  'ea.quick_share': ('Yakındakilere gönder', 'Send nearby', 'إرسال إلى القريبين'),
   'ea.shortcut': (
     'Ana ekrana ekle',
     'Add to home screen',

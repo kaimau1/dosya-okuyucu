@@ -331,7 +331,13 @@ class AppTheme {
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
         centerTitle: false,
-        titleTextStyle: text.titleLarge,
+        // Ekran başlıkları büyük ve kalın (2026-11-15, kullanıcı: *"başlıklar
+        // büyüsün baya ve bold olsun"* — Ayarlar başlığı soluk ve küçüktü).
+        titleTextStyle: text.titleLarge?.copyWith(
+          fontSize: 25,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.5,
+        ),
         // Gölge yerine cetvel: kaydırınca başlık alanı çizgiyle ayrılır.
         shape: Border(bottom: BorderSide(color: scheme.outlineVariant)),
       ),

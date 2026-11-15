@@ -230,6 +230,8 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
           unawaited(showEntryActions(
             context,
             FsEntry.fromEntity(File(_current)),
+            // Dosya zaten açık: "Aç" ve pano gizli (2026-11-15 ortak düzen).
+            inViewer: true,
             extrasTitle: context.t('mp.sec_player'),
             extras: [
               if (!_isAudio) ...[

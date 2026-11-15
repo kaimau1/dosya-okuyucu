@@ -3,7 +3,7 @@ part of '../app_strings.dart';
 /// Çeviri tablosunun 2. bölümü (çoğunlukla `vw`, `fm` alanları).
 /// Yinelenen anahtar `_table`ın sabit birleşiminde DERLEME hatası verir.
 const Map<String, (String, String, String)> _t2 = {
-  'ea.sec_move': ('Taşı ve kopyala', 'Move & copy', 'نقل ونسخ'),
+  'ea.sec_move': ('Pano ve diğer konumlar', 'Clipboard & other places', 'الحافظة وأماكن أخرى'),
   'ea.sec_file': ('Dosya işlemleri', 'File actions', 'إجراءات الملف'),
   'vw.fullscreen': ('Tam ekran', 'Full screen', 'ملء الشاشة'),
   'pp.keep_awake': ('Ekran açık kalsın', 'Keep screen on', 'إبقاء الشاشة مضاءة'),
@@ -383,7 +383,7 @@ const Map<String, (String, String, String)> _t2 = {
   ),
   'vw.highlight_hint': ('Vurgula', 'Highlight', 'تمييز'),
   'vw.highlight_failed': ('Vurgulama başarısız: {error}', 'Highlighting failed: {error}', 'فشل التمييز: {error}'),
-  'vw.word_count': ('Sözcük sayısı / bilgi', 'Word count / info', 'عدد الكلمات / معلومات'),
+  'vw.word_count': ('Sözcük sayısı', 'Word count', 'عدد الكلمات'),
   'vw.word': ('Sözcük', 'Words', 'كلمات'),
   'vw.line': ('Satır', 'Lines', 'أسطر'),
   'vw.chars': ('Karakter', 'Characters', 'أحرف'),

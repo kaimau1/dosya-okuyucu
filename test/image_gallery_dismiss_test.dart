@@ -1,6 +1,8 @@
+import 'package:dosya_okuyucu/core/app_state.dart';
 import 'package:dosya_okuyucu/screens/fm/image_gallery_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 
 /// Galeri rotası (2026-09-26): saydam, solarak gelir; fotoğraf ızgaradaki
 /// hücresinden büyüyerek açılır (Hero) ve **aşağı kaydırınca** kapanır.
@@ -10,7 +12,11 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   const paths = ['/yok/a.jpg', '/yok/b.jpg', '/yok/c.jpg'];
 
-  Widget harness() => MaterialApp(
+  // ⋮ artık ortak dosya levhasını açar (2026-11-15); levha uygulamanın
+  // kökündeki AppState'i okur — gerçek uygulamadaki gibi sağlanır.
+  Widget harness() => ChangeNotifierProvider<AppState>.value(
+      value: AppState(),
+      child: MaterialApp(
         home: Builder(
           builder: (context) => Scaffold(
             body: Center(
@@ -30,7 +36,7 @@ void main() {
             ),
           ),
         ),
-      );
+      ));
 
   testWidgets('hücreden büyüyerek açılır, aşağı kaydırınca kapanır',
       (tester) async {

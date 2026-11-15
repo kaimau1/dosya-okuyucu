@@ -35,7 +35,6 @@ import '../../widgets/fm/fm_file_image.dart';
 import '../image_edit_screen.dart';
 import '../viewer_screen.dart';
 import 'entry_actions.dart';
-import 'resize_actions.dart';
 import 'resize_compare_screen.dart';
 
 part 'image_gallery/widgets.dart';
@@ -555,12 +554,65 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         },
       );
 
+  /// **⋮ = ortak dosya levhası** (2026-11-15, kullanıcı: *"hepsi ortak bir
+  /// dile ve düzene kavuşmalı"*). Eskiden ayrı küçük açılır menüydü ve dosya
+  /// işleri "Diğer işlemler"in arkasındaydı (üç kat). Artık üstte taşı /
+  /// kopyala / yeniden adlandır / önemli / sil, altında galeriye özel işler
+  /// ayrı renkte. Paylaş alt çubukta olduğu için levhada yok.
   Future<void> _otherActions() async {
-    await showEntryActions(context, _currentEntry);
+    final path = _current;
+    final changed = await showEntryActions(
+      context,
+      _currentEntry,
+      inViewer: true,
+      showShare: false,
+      groups: [
+        EntryExtraGroup(context.t('dm.image'), [
+          if (_turnsOf(path) != 0 && ImageRotate.canRotate(path))
+            EntryExtraAction(
+              icon: AppIcons.save,
+              label: context.t('gal.save_rotation'),
+              onTap: () => unawaited(_saveRotation()),
+            ),
+          if (_paths.length > 1)
+            EntryExtraAction(
+              icon: AppIcons.slideshow,
+              label: context.t('gal.slideshow'),
+              onTap: () => unawaited(_pickSlideshow()),
+            ),
+          EntryExtraAction(
+            icon: AppIcons.checkCircleOutline,
+            label: context.t('gal.multi_select'),
+            onTap: _startSelect,
+          ),
+          if (Platform.isAndroid)
+            EntryExtraAction(
+              icon: AppIcons.openWith,
+              label: context.t('gal.use_as'),
+              onTap: () => unawaited(_attachAs()),
+            ),
+        ]),
+      ],
+    );
     // Yeniden adlandırma/taşıma dosyayı değiştirmiş olabilir: ölçüm önbelleği
     // bayat kalmasın.
-    _statCache.remove(_current);
-    if (mounted) setState(() {});
+    _statCache.remove(path);
+    if (!mounted) return;
+    // Silindi / taşındı / adı değişti: artık bu yolda yok → şeritten çıkar.
+    if (changed && !await File(path).exists() && mounted) {
+      setState(() {
+        final at = _paths.indexOf(path);
+        if (at >= 0) _paths.removeAt(at);
+        if (_paths.isEmpty) {
+          popOwnPage(context);
+          return;
+        }
+        _index = _index.clamp(0, _paths.length - 1);
+        _pages.jumpToPage(_index);
+      });
+      return;
+    }
+    setState(() {});
   }
 
   Future<void> _pickSlideshow() async {
@@ -798,50 +850,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                               color: AppColors.onMedia),
                           onPressed: () => _rotateBy(1),
                         ),
-                        PopupMenuButton<String>(
+                        IconButton(
+                          key: const ValueKey<String>('gal-more'),
+                          tooltip: context.t('common.more'),
                           icon: const Icon(AppIcons.more, color: AppColors.onMedia),
-                          onSelected: (v) async {
-                            switch (v) {
-                              case 'viewer':
-                                _openInViewer();
-                              case 'actions':
-                                await _otherActions();
-                              case 'slideshow':
-                                await _pickSlideshow();
-                              case 'important':
-                                if (mounted) {
-                                  await copyToImportant(context, [_current]);
-                                }
-                              case 'attach':
-                                await _attachAs();
-                              case 'save_rotation':
-                                await _saveRotation();
-                            }
-                          },
-                          itemBuilder: (_) => [
-                            if (_turnsOf(_current) != 0 &&
-                                ImageRotate.canRotate(_current))
-                              PopupMenuItem(
-                                  value: 'save_rotation',
-                                  child: Text(context.t('gal.save_rotation'))),
-                            PopupMenuItem(
-                                value: 'viewer',
-                                child: Text(context.t('gal.open_in_viewer'))),
-                            if (_paths.length > 1)
-                              PopupMenuItem(
-                                  value: 'slideshow',
-                                  child: Text(context.t('gal.slideshow'))),
-                            PopupMenuItem(
-                                value: 'important',
-                                child: Text(context.t('fm.copy_to_important'))),
-                            if (Platform.isAndroid)
-                              PopupMenuItem(
-                                  value: 'attach',
-                                  child: Text(context.t('gal.use_as'))),
-                            PopupMenuItem(
-                                value: 'actions',
-                                child: Text(context.t('gal.other_actions'))),
-                          ],
+                          onPressed: () => unawaited(_otherActions()),
                         ),
                       ],
                     ),
@@ -901,6 +914,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                             ],
                           )
                         else
+                        // Ortak düzen (2026-11-15): en çok 5 düğme — Paylaş ·
+                        // Düzenle · İyileştir · Metin ve PDF · Sil. Boyut ve
+                        // Bilgi ⋮'da (Boyut düşür, Özellikler), Seç de ⋮'da.
+                        // Sil bilerek altta da var: fotoğraf ayıklamak
+                        // galerinin en sık işi.
                         Row(
                           children: [
                             _GalleryAction(
@@ -918,30 +936,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                               label: context.t('gal.enhance'),
                               onTap: _enhance,
                             ),
-                            // Faz 14 (G4i): boyutlandırma eskiden yalnız ⋮ →
-                            // eylem sayfasındaydı; "fotoğrafı küçült" galerinin
-                            // en sık işlerinden biri.
-                            _GalleryAction(
-                              icon: AppIcons.resize,
-                              label: context.t('gal.resize'),
-                              onTap: () =>
-                                  startResizeJob(context, [_currentEntry]),
-                            ),
+                            // Metni tanı, çevir, PDF'e dönüştür: görüntüleyicide.
                             _GalleryAction(
                               icon: AppIcons.ocr,
                               label: context.t('gal.tools'),
                               onTap: _openInViewer,
-                            ),
-                            _GalleryAction(
-                              icon: AppIcons.info,
-                              label: context.t('gal.info'),
-                              onTap: () =>
-                                  showProperties(context, _currentEntry),
-                            ),
-                            _GalleryAction(
-                              icon: AppIcons.checkCircleOutline,
-                              label: context.t('ied.select'),
-                              onTap: _startSelect,
                             ),
                             _GalleryAction(
                               icon: AppIcons.delete,

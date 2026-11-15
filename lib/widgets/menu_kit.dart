@@ -21,6 +21,37 @@ abstract final class MenuKit {
 
   /// Simge kutusunun köşesi (kutu boyunun ~üçte biri).
   static const double wellRadius = 14;
+
+  /// **Türe özel düğmelerin rengi** (2026-11-15, kullanıcı: *"her türe özel
+  /// butonlar ayrı bir renkte olsun, menü içinde ortak olanlar zaten kendi
+  /// renginde; böylece ayrım kolaylaşır"*).
+  ///
+  /// Ortak dosya işleri (taşı, kopyala, sil …) vurgu renginde; PDF'in sayfa
+  /// işleri, videonun oynatıcı işleri gibi TÜRE ÖZEL olanlar vurgunun renk
+  /// çemberinde 120° ötesinde bir tonda — her temada vurgudan ayrışır. Kırmızı
+  /// bölgeye düşerse kaydırılır: kırmızı yalnız "Sil"in.
+  static double specialHue(ColorScheme scheme) {
+    final base = HSLColor.fromColor(scheme.primary).hue;
+    var hue = (base + 120) % 360;
+    if (hue > 330 || hue < 30) hue = (hue + 60) % 360;
+    return hue;
+  }
+
+  /// Türe özel simge kutusunun zemini.
+  static Color specialWell(ColorScheme scheme) => HSLColor.fromAHSL(
+          1,
+          specialHue(scheme),
+          0.55,
+          scheme.brightness == Brightness.dark ? 0.27 : 0.89)
+      .toColor();
+
+  /// Türe özel simge ve başlık rengi (zemin üstünde WCAG ≥ 4,5).
+  static Color specialInk(ColorScheme scheme) => HSLColor.fromAHSL(
+          1,
+          specialHue(scheme),
+          0.6,
+          scheme.brightness == Brightness.dark ? 0.84 : 0.30)
+      .toColor();
 }
 
 /// Grup başlığı ("Düzenle", "Taşı / kopyala").
@@ -28,23 +59,33 @@ class MenuGroupTitle extends StatelessWidget {
   final String text;
   final EdgeInsetsGeometry padding;
 
+  /// Türe özel grup: başlık [MenuKit.specialInk] renginde.
+  final bool special;
+
   const MenuGroupTitle(
     this.text, {
     super.key,
     this.padding = const EdgeInsetsDirectional.fromSTEB(8, 12, 8, 6),
+    this.special = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    // Büyük ve kalın (2026-11-15, kullanıcı: *"başlıklar büyüsün baya ve
+    // bold olsun"*) — eskiden soluk, küçük etiket yazısıydı.
     return Padding(
       padding: padding,
       child: Text(
         text,
-        style: theme.textTheme.labelLarge?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.2,
+        style: theme.textTheme.titleMedium
+            ?.apply(fontSizeFactor: 1.12)
+            .copyWith(
+          height: 1.2,
+          color: special ? MenuKit.specialInk(scheme) : scheme.onSurface,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.2,
         ),
       ),
     );
@@ -56,18 +97,26 @@ class MenuGroupCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
 
+  /// Türe özel grup: kart [MenuKit.specialWell] tonuna çalar.
+  final bool special;
+
   const MenuGroupCard({
     super.key,
     required this.child,
     this.padding = const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+    this.special = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+        color: special
+            ? Color.lerp(scheme.surfaceContainerHigh,
+                MenuKit.specialWell(scheme), 0.45)
+            : scheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(MenuKit.cardRadius),
       ),
       clipBehavior: Clip.antiAlias,
@@ -77,7 +126,10 @@ class MenuGroupCard extends StatelessWidget {
 }
 
 /// Simge kutusunun tonu.
-enum MenuTone { neutral, accent, danger, disabled, selected }
+///
+/// [special]: türe özel işlem (PDF'in sayfa işi, videonun oynatıcı işi …) —
+/// ortak dosya işlerinden ayrı renkte, bkz. [MenuKit.specialWell].
+enum MenuTone { neutral, accent, danger, disabled, selected, special }
 
 /// Simge kutusu — bütün menülerde aynı şekil.
 class MenuIconWell extends StatelessWidget {
@@ -100,6 +152,11 @@ class MenuIconWell extends StatelessWidget {
       MenuTone.accent => (scheme.primaryContainer, scheme.onPrimaryContainer, false),
       MenuTone.danger => (scheme.errorContainer, scheme.error, false),
       MenuTone.selected => (scheme.primary, scheme.onPrimary, false),
+      MenuTone.special => (
+          MenuKit.specialWell(scheme),
+          MenuKit.specialInk(scheme),
+          false
+        ),
       MenuTone.disabled => (
           scheme.surfaceContainerHighest.withValues(alpha: 0.5),
           scheme.onSurface.withValues(alpha: 0.35),

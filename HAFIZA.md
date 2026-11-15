@@ -1110,3 +1110,13 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Tuzak:** duraklatılmış `VideoPlayer`ın gösterdiği kareye güvenme; doğru kare gerekiyorsa kendin çıkar.
 - **Karar:** varsayılan aile Bento (`AppState`, `AppearanceState`); kayıtlı seçimi olan kullanıcı etkilenmez.
 - Cihazda doğrulanmadı.
+
+## 2026-11-15 — Menü ortak düzeni (P32): her türde aynı ⋮, türe özel ayrı renk
+- **Kök:** her ekran (görüntüleyici, Word, Excel, slayt, galeri, oynatıcı) kendi ⋮'ını ayrı kuruyordu; PDF'te Sil ⋮ → Dosya işlemleri → Sil (3 kat), galeride "Diğer işlemler" arkasında; Word/slayt alt çubuğu 6–10 düğmeyle yana kayıyordu; AI yüzen düğmesi Excel hücresini/slayt şeridini kapatıyordu.
+- **Yapı:** tek kapı `showViewerMenu(context, path, groups:)` (`entry_actions/sheet.dart`) = `showEntryActions(inViewer: true, showShare: false)`; açık dosya silinir/taşınır/adı değişirse ekran kapanır. `EntryExtraGroup` (başlık + işlemler) türe özel gruplar; `EntryExtraAction.checked` aç/kapa. Editörlerde `EditorTopBar.actions(filePath:, menuTitle:)` verilirse ⋮ bu levhayı açar (vermeyen eski açılır menüde kalır — test bunu kullanır). Galeri `showEntryActions`'ı doğrudan çağırır (silinince şeritten çıkarır, sayfayı kapatmaz).
+- **Karar:** türe özel = `MenuTone.special`, renk `MenuKit.specialHue` = vurgu tonu + 120° (kırmızı bölgeye düşerse +60°; kırmızı yalnız Sil'in). Ortak işler eskisi gibi vurgu renginde. Grup başlığı `titleMedium ×1,12 w800`, ekran başlığı `appBarTheme` 25 sp w800.
+- **Karar:** görüntüleyicide levhada "Aç", Paylaş/Yakındakilere ve pano yok (alt çubukta/anlamsız); 5 ortak düğme tek sırada. Alt çubuk sırası: [türe özel] · AI · Çevir · Paylaş (+ İndir). Slaytta Çevir ⋮'da. Galeride Sil altta da kalır (ayıklama en sık iş).
+- **Kaldırılan tekrarlar:** PDF "Araçlar" (= Düzenle › Sayfaları düzenle), PDF'te "PDF'e dönüştür" (yazıdan yeni PDF — taranmışta boş), görüntüleyici ⋮'ında Ana ekrana ekle/sesli kitap çifti, Excel alt çubukta CSV, galeride Boyut/Bilgi/Seç (⋮'da), metin ⋮'ında satır no/kaydır (Aa'da).
+- **Tuzak:** `design_tokens_test` yeni `fontSize:` saymaz-geçmez → widget'ta punto için `textTheme.x.apply(fontSizeFactor:)`; sabit punto yalnız `core/theme.dart`'ta.
+- Cihazda doğrulanmadı/ölçülmedi (bulut; kullanıcı doğrudan APK istedi) → PLAN §3 K28.
+

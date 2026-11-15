@@ -699,6 +699,9 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
                 onPressed: c == null ? null : _pageLayout,
               ),
             ],
+            // ⋮ = ortak dosya levhası (2026-11-15 ortak düzen).
+            filePath: widget.path,
+            menuTitle: context.t('dm.word'),
             menu: [
               EditorMenuItem(
                 id: 'export',

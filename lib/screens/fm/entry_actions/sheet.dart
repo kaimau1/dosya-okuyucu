@@ -74,14 +74,56 @@ class EntryExtraAction {
   final String label;
   final String? hint;
   final Color? color;
-  final VoidCallback onTap;
+
+  /// null = o an kullanılamaz (soluk, dokunulmaz).
+  final VoidCallback? onTap;
+
+  /// Aç/kapa ayarı ise durumu (sağda onay işareti); null = düz işlem.
+  final bool? checked;
   const EntryExtraAction({
     required this.icon,
     required this.label,
     required this.onTap,
     this.hint,
     this.color,
+    this.checked,
   });
+}
+
+/// Ekrana özgü (türe özel) bir işlem grubu: başlık + işlemler. Levhada ortak
+/// dosya işlerinin hemen altında, [MenuTone.special] renginde durur.
+class EntryExtraGroup {
+  final String title;
+  final List<EntryExtraAction> actions;
+  const EntryExtraGroup(this.title, this.actions);
+}
+
+/// **Görüntüleyici / düzenleyici ⋮'ı** (2026-11-15, kullanıcı: *"hepsi ortak
+/// bir dile ve düzene kavuşmalı"*): PDF, metin, Word, Excel, slayt, galeri ve
+/// oynatıcı aynı levhayı açar — üstte ortak dosya işleri (taşı, kopyala,
+/// yeniden adlandır, önemli, SİL), altında türe özel gruplar. Eskiden her
+/// ekranın kendi menüsü vardı; silmek için ⋮ → Dosya işlemleri → Sil, üç kat.
+///
+/// Açık dosya silinir, taşınır ya da adı değişirse ekran kapanır (artık
+/// olmayan bir dosyayı göstermesin). [showShare] false: ekranın alt
+/// çubuğunda Paylaş zaten var, aynı iş iki yerde durmasın.
+Future<void> showViewerMenu(
+  BuildContext context,
+  String path, {
+  List<EntryExtraGroup> groups = const [],
+  bool showShare = false,
+}) async {
+  final changed = await showEntryActions(
+    context,
+    FsEntry.fromEntity(File(path)),
+    groups: groups,
+    inViewer: true,
+    showShare: showShare,
+  );
+  if (!changed || !context.mounted) return;
+  if (!await File(path).exists() && context.mounted) {
+    await Navigator.of(context).maybePop();
+  }
 }
 
 /// Uzun basınca (ya da ⋮ ile) açılan işlem sayfası. Dosya sistemi değiştiyse
@@ -115,9 +157,17 @@ Future<bool> showEntryActions(
   /// tek yerde).
   List<EntryExtraAction> extras = const [],
   String? extrasTitle,
+  /// Türe özel gruplar (bkz. [showViewerMenu]).
+  List<EntryExtraGroup> groups = const [],
+  /// Dosya zaten açık (görüntüleyici/oynatıcı): "Aç" ve pano işleri gizli,
+  /// sesli kitap ekranın kendi grubunda.
+  bool inViewer = false,
+  bool showShare = true,
 }) async {
   VoidCallback? chosenExtra;
-  final appState = context.read<AppState>();
+  // Sağlayıcısız ağaçta da (test, bağımsız ekran) levha açılsın: AppState
+  // yalnız klasör yer imi ve pano için gerekli.
+  final appState = context.read<AppState?>();
   final isArchive = ArchiveOps.canExtract(entry.path);
   final canRotate = !entry.isDir && ImageRotate.canRotate(entry.path);
   // Bölmenin anlamlı olduğu alt sınır: 1 MB'ın altındaki bir dosyayı bölmek
@@ -126,6 +176,14 @@ Future<bool> showEntryActions(
   final isPart = !entry.isDir && FileSplit.baseNameOf(entry.path) != null;
   final isMedia =
       entry.category == FmCategory.image || entry.category == FmCategory.video;
+
+  final allGroups = [
+    if (extras.isNotEmpty)
+      EntryExtraGroup(extrasTitle ?? context.t('ea.sec_this'), extras),
+    ...groups.where((g) => g.actions.isNotEmpty),
+  ];
+  final showAudiobook =
+      !inViewer && !entry.isDir && canMakeAudiobook(entry.path);
 
   // Takılı harici bellekler (USB / SD). Menü kurulmadan ÖNCE okunuyor:
   // `isWritable` diske dokunuyor ve build içinde çağrılmamalı.
@@ -152,22 +210,22 @@ Future<bool> showEntryActions(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _sheetHeader(ctx, entry),
-            // **Hızlı sıra** (2026-10-18, kullanıcı: *"bu tür menüler
-            // toparlanmalı"*): en sık dört işlem başlığın hemen altında büyük
-            // yuvarlak düğmeler — ızgarayı taramadan, tek bakışta. Izgaradan
-            // çıkarıldılar (aynı işlem iki yerde durmasın).
-            _quickRow(ctx, [
-              _quick(ctx, AppIcons.open, ctx.t('common.open'),
-                  _EntryAction.open),
+            // **Hızlı sıra** (2026-10-18; 2026-11-15 ortak düzen): en sık
+            // dosya işleri başlığın hemen altında büyük yuvarlak düğmeler.
+            // Görüntüleyicide "Aç" (dosya zaten açık) ve Paylaş (alt çubukta)
+            // yok; kalan beşi TEK sıraya sığar. Sil hep sıranın EN SONUNDA,
+            // hata renginde (yanlış dokunuşa en uzak köşe).
+            ..._quickRows(ctx, [
+              if (!inViewer)
+                _quick(ctx, AppIcons.open, ctx.t('common.open'),
+                    _EntryAction.open),
               // Klasör de paylaşılır (2026-10-29): yakındakilere klasör
               // olarak gider, başka uygulamaya ZIP olarak.
-              _quick(ctx, AppIcons.share, ctx.t('common.share'),
-                  _EntryAction.share),
+              if (showShare)
+                _quick(ctx, AppIcons.share, ctx.t('common.share'),
+                    _EntryAction.share),
               _quick(ctx, AppIcons.move, ctx.t('fm.move'),
                   _EntryAction.moveTo),
-              // Faz 17 / G16: hızlı sıra beşli — Kopyala da burada
-              // (aşağıdaki "Taşı/kopyala" bölümünden çıktı). Sil bilerek
-              // ayrı, en altta (yanlış dokunuşa uzak — yukarıdaki not).
               _quick(ctx, AppIcons.copy, ctx.t('fm.copy'),
                   _EntryAction.copyTo),
               _quick(ctx, AppIcons.rename, ctx.t('fm.rename'),
@@ -175,53 +233,74 @@ Future<bool> showEntryActions(
               if (entry.isDir)
                 _quick(
                   ctx,
-                  appState.isBookmarked(entry.path)
+                  appState?.isBookmarked(entry.path) ?? false
                       ? AppIcons.star
                       : AppIcons.starEmpty,
-                  appState.isBookmarked(entry.path)
+                  appState?.isBookmarked(entry.path) ?? false
                       ? ctx.t('fm.unfavorite')
                       : ctx.t('fm.favorite'),
                   _EntryAction.bookmark,
                 ),
-            ]),
-            // **İkinci hızlı sıra** (2026-11-04, kullanıcı: *"en çok
-            // kullanılanları en üstteki gibi yan yana buton yapalım — sil,
-            // önemli işaretle, hızlı paylaş"*). Hızlı paylaş seçim sormadan
-            // doğrudan Yakındakiler'i açar. Sil buraya taşındı; hata renginde
-            // ve sıranın EN SONUNDA (yanlış dokunuşa en uzak köşe).
-            const SizedBox(height: Gap.sm),
-            _quickRow(ctx, [
-              _quick(ctx, AppIcons.nearMe, ctx.t('ea.quick_share'),
-                  _EntryAction.quickShare),
+            ], [
+              // Hızlı paylaş seçim sormadan doğrudan Yakındakiler'i açar
+              // (2026-11-04 kullanıcı isteği).
+              if (showShare)
+                _quick(ctx, AppIcons.nearMe, ctx.t('ea.quick_share'),
+                    _EntryAction.quickShare),
               _quick(ctx, AppIcons.important, ctx.t('fm.copy_to_important'),
                   _EntryAction.important),
               _quick(ctx, AppIcons.delete, ctx.t('common.delete'),
                   _EntryAction.delete,
                   tone: MenuTone.danger),
             ]),
-            if (extras.isNotEmpty)
-              _section(ctx, extrasTitle ?? ctx.t('ea.sec_this'), [
-                for (final x in extras)
-                  MenuRow(
-                    icon: x.icon,
-                    label: x.label,
-                    hint: x.hint,
-                    tone: x.color == null ? MenuTone.neutral : MenuTone.accent,
-                    onTap: () {
-                      chosenExtra = x.onTap;
-                      Navigator.pop(ctx);
-                    },
-                  ),
-              ]),
+            // **Türe özel gruplar** ortak işlerin hemen altında, AYRI RENKTE
+            // (2026-11-15): ekranın kendi işleri (PDF sayfası, oynatıcı …).
+            for (final g in allGroups)
+              _section(
+                ctx,
+                g.title,
+                [
+                  for (final x in g.actions)
+                    MenuRow(
+                      icon: x.icon,
+                      label: x.label,
+                      hint: x.hint,
+                      tone: x.onTap == null
+                          ? MenuTone.disabled
+                          : MenuTone.special,
+                      trailing: x.checked == null
+                          ? null
+                          : Icon(
+                              x.checked!
+                                  ? AppIcons.checkCircle
+                                  : AppIcons.checkCircleOutline,
+                              size: 22,
+                              color: x.checked!
+                                  ? MenuKit.specialInk(
+                                      Theme.of(ctx).colorScheme)
+                                  : Theme.of(ctx)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                            ),
+                      onTap: x.onTap == null
+                          ? null
+                          : () {
+                              chosenExtra = x.onTap;
+                              Navigator.pop(ctx);
+                            },
+                    ),
+                ],
+                special: true,
+              ),
             // **Türe göre ilk grup** (Faz 17 / G16): arşivde Çıkar, görselde
             // Boyut/Döndür/Tanı, videoda Boyut — dosyanın asıl işi ızgarada
             // aranmasın. Bu eylemler aşağıdaki bölümlerden buraya taşındı.
             if (isArchive ||
                 canRotate ||
                 (!entry.isDir && isMedia) ||
-                (!entry.isDir && canMakeAudiobook(entry.path)))
-              _section(ctx, ctx.t('ea.sec_this'), [
-                if (!entry.isDir && canMakeAudiobook(entry.path))
+                showAudiobook)
+              _section(ctx, ctx.t('ea.sec_this'), special: true, [
+                if (showAudiobook)
                   _act(ctx, AppIcons.audiobook, ctx.t('ab.make'),
                       _EntryAction.audiobook,
                       hint: ctx.t('ab.make_hint')),
@@ -289,12 +368,16 @@ Future<bool> showEntryActions(
             // Pano (kopyala/kes + git + yapıştır) arkasında, ileri kullanım
             // için — aynı bölümde ama ikinci satırda.
             _section(ctx, ctx.t('ea.sec_move'), [
-              _act(ctx, AppIcons.clipCopy, ctx.t('fm.clip_copy'),
-                  _EntryAction.copy,
-                  hint: ctx.t('ea.clip_hint')),
-              _act(ctx, AppIcons.cut, ctx.t('fm.clip_cut'),
-                  _EntryAction.cut,
-                  hint: ctx.t('ea.clip_hint')),
+              // Pano yalnız dosya listesinde anlamlı: görüntüleyicide
+              // yapıştıracak bir klasör yok.
+              if (!inViewer)
+                _act(ctx, AppIcons.clipCopy, ctx.t('fm.clip_copy'),
+                    _EntryAction.copy,
+                    hint: ctx.t('ea.clip_hint')),
+              if (!inViewer)
+                _act(ctx, AppIcons.cut, ctx.t('fm.clip_cut'),
+                    _EntryAction.cut,
+                    hint: ctx.t('ea.clip_hint')),
               // "Paylaşılan"a kopyala (kullanıcı isteği 2026-08-31): ağ
               // paylaşımının dar kapsamlı kutusu. Taşımak değil KOPYALAMAK —
               // dosya kullanıcının bildiği yerde kalmalı.
@@ -422,13 +505,13 @@ Future<bool> showEntryActions(
       return moveOrCopyEntries(context, [entry.path], move: false);
 
     case _EntryAction.copy:
-      appState.setClipboard([entry.path], cut: false);
+      appState?.setClipboard([entry.path], cut: false);
       _snack(context,
           context.t('fm.entry_clip_copied', {'name': entry.name}));
       return false;
 
     case _EntryAction.cut:
-      appState.setClipboard([entry.path], cut: true);
+      appState?.setClipboard([entry.path], cut: true);
       _snack(context,
           context.t('fm.entry_clip_cut', {'name': entry.name}));
       return false;
@@ -455,7 +538,7 @@ Future<bool> showEntryActions(
       return true;
 
     case _EntryAction.bookmark:
-      await appState.toggleBookmark(entry.path);
+      await appState?.toggleBookmark(entry.path);
       return false;
 
     case _EntryAction.important:
@@ -753,15 +836,18 @@ Widget _sheetHeader(BuildContext ctx, FsEntry entry) => Padding(
 /// Ortak menü dili (2026-10-29, `menu_kit.dart`): dosya içindeki "Daha
 /// fazla" ve seçimdeki eylem levhasıyla aynı başlık, aynı kart, aynı simge
 /// kutusu. Eskiden BÜYÜK HARF başlık + her hücre ayrı çerçeveli kutuydu.
-Widget _section(BuildContext ctx, String title, List<Widget> actions) {
+Widget _section(BuildContext ctx, String title, List<Widget> actions,
+    {bool special = false}) {
   final items = actions;
   if (items.isEmpty) return const SizedBox.shrink();
   return Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       MenuGroupTitle(title,
+          special: special,
           padding: const EdgeInsetsDirectional.fromSTEB(8, Gap.md, 8, 6)),
       MenuGroupCard(
+        special: special,
         child: Column(
           children: [
             // Izgara ELLE satırlanıyor (GridView değil): hücre yüksekliği
@@ -785,6 +871,19 @@ Widget _section(BuildContext ctx, String title, List<Widget> actions) {
 }
 
 /// Hızlı sıra: eşit genişlikte simge kutuları (vurgu tonunda).
+/// İki hızlı sıra; toplam beş ya da daha azsa tek sıraya iner.
+List<Widget> _quickRows(
+    BuildContext ctx, List<Widget> first, List<Widget> second) {
+  if (first.length + second.length <= 5) {
+    return [_quickRow(ctx, [...first, ...second])];
+  }
+  return [
+    _quickRow(ctx, first),
+    const SizedBox(height: Gap.sm),
+    _quickRow(ctx, second),
+  ];
+}
+
 Widget _quickRow(BuildContext ctx, List<Widget> items) => Padding(
       padding: const EdgeInsets.only(top: Gap.xs),
       child: MenuGroupCard(
