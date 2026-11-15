@@ -74,6 +74,22 @@ enum AppSkin {
   /// kahve vurgu — eski arşiv dolabı/defter hissi.
   ledger,
 
+  // 2026-11-15 (kullanıcı: "Fable'a tasarım yaptırdım, tüm detaylarıyla yeni
+  // temalar olarak ekle"): `docs/design/ana_ekran/` A/B/C panoları. Renk
+  // + kendi ANA EKRAN DÜZENİ ([HomeStyle]) birlikte gelir.
+
+  /// **Sakin** (A): yeşil-gri masa, beyaz kart, kiremit vurgu; bellek kartı
+  /// beyaz, kutular çerçeveli simge kutusunda, bölüm başlıkları cümle düzeni.
+  calm,
+
+  /// **Bento** (B): açık gri masa, petrol yeşili dolu bellek kartı;
+  /// Fotoğraflar/Videolar büyük renkli kutu, ötekiler küçük beyaz kartlar.
+  bento,
+
+  /// **Koyu başlık** (C): üstte petrol yeşili başlık alanı (halka + boş
+  /// alan), içerik yuvarlak köşeli levhada, kutular iki sütunlu liste.
+  band,
+
   /// **Gece (OLED):** saf siyah zemin. Koyu temadan farkı, `#000000` pikselin
   /// OLED ekranda kapalı olması — hem pil hem gece okunurluğu.
   night,
@@ -102,6 +118,9 @@ enum AppSkin {
         AppSkin.modern => 'skin.modern',
         AppSkin.classic => 'skin.classic',
         AppSkin.ledger => 'skin.ledger',
+        AppSkin.calm => 'skin.calm',
+        AppSkin.bento => 'skin.bento',
+        AppSkin.band => 'skin.band',
         AppSkin.night => 'skin.night',
         AppSkin.system => 'skin.system',
       };
@@ -120,6 +139,9 @@ enum AppSkin {
         AppSkin.modern => 'skin.modern_sub',
         AppSkin.classic => 'skin.classic_sub',
         AppSkin.ledger => 'skin.ledger_sub',
+        AppSkin.calm => 'skin.calm_sub',
+        AppSkin.bento => 'skin.bento_sub',
+        AppSkin.band => 'skin.band_sub',
         AppSkin.night => 'skin.night_sub',
         AppSkin.system => 'skin.system_sub',
       };
@@ -300,6 +322,9 @@ class SkinPalette {
       AppSkin.modern => dark ? _modernDark : _modernLight,
       AppSkin.classic => dark ? _classicDark : _classicLight,
       AppSkin.ledger => dark ? _ledgerDark : _ledgerLight,
+      AppSkin.calm => dark ? _calmDark : _calmLight,
+      AppSkin.bento => dark ? _sageDark : _bentoLight,
+      AppSkin.band => dark ? _sageDark : _bandLight,
       AppSkin.night => _nightDark,
       AppSkin.system => SystemAccent.apply(
           dark ? _porcelainDark : _porcelainLight, dark: dark),
@@ -345,6 +370,77 @@ class SkinPalette {
     onAccent: Color(0xFF00201E),
     danger: Color(0xFFE58A7C),
     ok: Color(0xFF8FC79E),
+  );
+
+  // ── Ana ekran tasarım aileleri (2026-11-15, `docs/design/ana_ekran/`) ──
+  // Mürekkep basamakları Adaçayı'nınki (kontrast `contrast_test`te kilitli);
+  // değişen masa/kart tonu ve vurgu. Koyu Bento/Koyu başlık = Adaçayı koyu.
+  static const _calmLight = SkinPalette(
+    bg: Color(0xFFE8EEEB),
+    card: Color(0xFFFBFCFB),
+    band: Color(0xFFF5F8F6),
+    well: Color(0xFFEFF3F1),
+    rule: Color(0xFFD3DAD6),
+    edge: Color(0xFFA9B3AE),
+    ink: Color(0xFF1B2420),
+    inkSoft: Color(0xFF535E59),
+    inkFaint: Color(0xFF5C6762),
+    accent: Color(0xFFA2491D),
+    accentWell: Color(0xFFF3E4DA),
+    onAccent: Colors.white,
+    danger: Color(0xFFB0402F),
+    ok: Color(0xFF3B6B47),
+  );
+
+  static const _calmDark = SkinPalette(
+    bg: Color(0xFF131916),
+    card: Color(0xFF1C2420),
+    band: Color(0xFF232C27),
+    well: Color(0xFF29332E),
+    rule: Color(0xFF323D37),
+    edge: Color(0xFF5C6862),
+    ink: Color(0xFFDFE7E2),
+    inkSoft: Color(0xFF9FA7A2),
+    inkFaint: Color(0xFF8E9791),
+    accent: Color(0xFFEDA27A),
+    accentWell: Color(0xFF4A2716),
+    onAccent: Color(0xFF2E1003),
+    danger: Color(0xFFE58A7C),
+    ok: Color(0xFF8FC79E),
+  );
+
+  static const _bentoLight = SkinPalette(
+    bg: Color(0xFFEFF2F1),
+    card: Color(0xFFFFFFFF),
+    band: Color(0xFFF7F9F8),
+    well: Color(0xFFF0F3F2),
+    rule: Color(0xFFD7DDDA),
+    edge: Color(0xFFA9B3AE),
+    ink: Color(0xFF1B2420),
+    inkSoft: Color(0xFF535E59),
+    inkFaint: Color(0xFF5C6762),
+    accent: Color(0xFF1E6A60),
+    accentWell: Color(0xFFCDE7E2),
+    onAccent: Colors.white,
+    danger: Color(0xFFB0402F),
+    ok: Color(0xFF3B6B47),
+  );
+
+  static const _bandLight = SkinPalette(
+    bg: Color(0xFFEDF1EF),
+    card: Color(0xFFFFFFFF),
+    band: Color(0xFFF6F8F7),
+    well: Color(0xFFEFF3F1),
+    rule: Color(0xFFD5DCD8),
+    edge: Color(0xFFA9B3AE),
+    ink: Color(0xFF1B2420),
+    inkSoft: Color(0xFF535E59),
+    inkFaint: Color(0xFF5C6762),
+    accent: Color(0xFF1E6A60),
+    accentWell: Color(0xFFCDE7E2),
+    onAccent: Colors.white,
+    danger: Color(0xFFB0402F),
+    ok: Color(0xFF3B6B47),
   );
 
   static const _porcelainLight = SkinPalette(
@@ -795,6 +891,21 @@ enum SkinIconStyle {
   classic,
 }
 
+/// **Ana ekran düzeni** (2026-11-15, `docs/design/ana_ekran/`).
+enum HomeStyle {
+  /// Bugünkü pano: çerçevesiz büyük simgeler, BÜYÜK HARF bölüm başlıkları.
+  classic,
+
+  /// A · Sakin: beyaz bellek kartı, çerçeveli simge kutuları.
+  calm,
+
+  /// B · Bento: dolu bellek kartı, büyük/orta/küçük kart ızgarası.
+  bento,
+
+  /// C · Koyu başlık: renkli başlık alanı, iki sütunlu liste kutuları.
+  band,
+}
+
 /// Bir ailenin **renk dışı** kimliği: köşe, simge ölçeği, satır sıklığı.
 ///
 /// Kullanıcı "sanki telefonun ana temasını değiştirir gibi" dedi; bunu veren
@@ -821,6 +932,9 @@ class SkinMetrics {
   /// Klasör gövdesinin rengi; null = uygulamanın kehribarı (`FmColors.folder`).
   final Color? folderColor;
 
+  /// Ana ekranın düzeni (bkz. [HomeStyle]).
+  final HomeStyle homeStyle;
+
   const SkinMetrics({
     required this.radiusControl,
     required this.radiusCard,
@@ -830,6 +944,7 @@ class SkinMetrics {
     required this.density,
     required this.iconStyle,
     this.folderColor,
+    this.homeStyle = HomeStyle.classic,
   });
 
   /// Klasör/dosya glifleri klasik düz çizim mi?
@@ -877,6 +992,36 @@ class SkinMetrics {
             density: VisualDensity.compact,
             iconStyle: SkinIconStyle.classic,
             folderColor: Color(0xFFE3B655),
+          ),
+        AppSkin.calm => const SkinMetrics(
+            radiusControl: 14,
+            radiusCard: 20,
+            radiusSheet: 24,
+            iconScale: 1,
+            rowPadding: 4,
+            density: VisualDensity.standard,
+            iconStyle: SkinIconStyle.gradient,
+            homeStyle: HomeStyle.calm,
+          ),
+        AppSkin.bento => const SkinMetrics(
+            radiusControl: 14,
+            radiusCard: 20,
+            radiusSheet: 24,
+            iconScale: 1,
+            rowPadding: 4,
+            density: VisualDensity.standard,
+            iconStyle: SkinIconStyle.gradient,
+            homeStyle: HomeStyle.bento,
+          ),
+        AppSkin.band => const SkinMetrics(
+            radiusControl: 14,
+            radiusCard: 20,
+            radiusSheet: 28,
+            iconScale: 1,
+            rowPadding: 4,
+            density: VisualDensity.standard,
+            iconStyle: SkinIconStyle.gradient,
+            homeStyle: HomeStyle.band,
           ),
         AppSkin.night || AppSkin.system => const SkinMetrics(
             radiusControl: 12,

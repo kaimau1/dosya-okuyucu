@@ -1,6 +1,20 @@
 part of '../dashboard_screen.dart';
 
 extension _DashboardScreenTilesPart on _DashboardScreenState {
+  /// Ana ekran düzeni (tema ailesinden, bkz. [HomeStyle]).
+  HomeStyle get _homeStyle => AppSkinData.of(context).metrics.homeStyle;
+
+  /// Kutu alt yazısı: klasikte "7,0 GB (3093)", yeni düzenlerde tasarımdaki
+  /// tek kalıp "7,0 GB · 3.093" (binliklerde nokta — F-metinler panosu).
+  String _sizeCount(int bytes, int count) {
+    final size = FsPaths.humanSize(bytes);
+    if (_homeStyle == HomeStyle.classic) return '$size ($count)';
+    final digits = '$count';
+    final grouped = digits.replaceAllMapped(
+        RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
+    return '$size · $grouped';
+  }
+
   List<FmTileData> _rankedTools() {
     final tools = _tools();
     final order =
@@ -42,7 +56,7 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
       label: _categoryLabel(category),
       subtitle: stat.count == 0
           ? (_scanning ? context.t('fm.scanning') : context.t('fm.none'))
-          : '${FsPaths.humanSize(stat.bytes)} (${stat.count})',
+          : _sizeCount(stat.bytes, stat.count),
       onTap: () => _openSwipe(category.name),
     );
   }
@@ -58,7 +72,7 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
       label: context.t('fm.apk_archives'),
       subtitle: count == 0
           ? (_scanning ? context.t('fm.scanning') : context.t('fm.none'))
-          : '${FsPaths.humanSize(apk.bytes + arc.bytes)} ($count)',
+          : _sizeCount(apk.bytes + arc.bytes, count),
       // Kendi sekmeli kaydırıcısı var; dış kaydırıcıya girmez (iç içe yatay
       // kaydırma çakışırdı).
       onTap: () => _push(ApkArchiveScreen(
@@ -86,7 +100,7 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
       label: context.t('fm.media_all'),
       subtitle: count == 0
           ? (_scanning ? context.t('fm.scanning') : context.t('fm.none'))
-          : '${FsPaths.humanSize(img.bytes + vid.bytes)} ($count)',
+          : _sizeCount(img.bytes + vid.bytes, count),
       onTap: () => _openSwipe('media'),
     );
   }
@@ -197,6 +211,9 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
       for (final path in quick.added)
         (label: p.basename(path), path: path, volume: '', standard: false),
     ];
+    if (_homeStyle != HomeStyle.classic) {
+      return _quickFolderGrid(folders);
+    }
     return Wrap(
       spacing: Gap.sm,
       runSpacing: Gap.sm,
@@ -240,6 +257,89 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
         ),
       ],
     );
+  }
+
+  /// Tasarım aileleri (2026-11-15): üç sütunlu, eşit genişlikte kapsül
+  /// kutular; adın yanında boyut yazmaz (F-metinler: "İndirilenler").
+  Widget _quickFolderGrid(
+      List<({String label, String path, String volume, bool standard})>
+          folders) {
+    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final radius = AppSkinData.of(context).metrics.radiusControl;
+    Widget box({
+      Key? key,
+      required IconData icon,
+      required Color? color,
+      required String label,
+      required VoidCallback onTap,
+      VoidCallback? onLongPress,
+    }) =>
+        Material(
+          key: key,
+          color: scheme.surfaceContainerLow,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radius + 8),
+            side: BorderSide(color: scheme.outlineVariant),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            onLongPress: onLongPress,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: Gap.sm + 4, vertical: Gap.sm + 4),
+              child: Row(children: [
+                Icon(icon, size: 20, color: color),
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: Text(label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium),
+                ),
+              ]),
+            ),
+          ),
+        );
+    return LayoutBuilder(builder: (context, c) {
+      const gap = Gap.sm;
+      final w = (c.maxWidth - gap * 2) / 3;
+      return Wrap(
+        spacing: gap,
+        runSpacing: gap,
+        children: [
+          for (final f in folders)
+            SizedBox(
+              width: w,
+              child: box(
+                key: ValueKey('qf:${f.path}'),
+                icon: f.volume.isEmpty ? AppIcons.folder : AppIcons.storage,
+                color: f.volume.isEmpty
+                    ? context.fmFolderColor ?? FmColors.folder
+                    : scheme.onSurfaceVariant,
+                label: f.volume.isEmpty ? f.label : '${f.label} · ${f.volume}',
+                onTap: () => _push(BrowserScreen(
+                    path: f.path,
+                    title: f.volume.isEmpty
+                        ? f.label
+                        : '${f.label} · ${f.volume}')),
+                onLongPress: () =>
+                    _quickFolderMenu(f.path, f.label, f.standard),
+              ),
+            ),
+          SizedBox(
+            width: w,
+            child: box(
+              icon: AppIcons.add,
+              color: scheme.primary,
+              label: context.t('qf.add'),
+              onTap: _addQuickFolder,
+            ),
+          ),
+        ],
+      );
+    });
   }
 
   Future<void> _quickFolderMenu(

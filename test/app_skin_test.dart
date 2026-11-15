@@ -129,6 +129,9 @@ void main() {
         AppSkin.modern,
         AppSkin.classic,
         AppSkin.ledger,
+        AppSkin.calm,
+        AppSkin.bento,
+        AppSkin.band,
         AppSkin.night,
         AppSkin.system,
       ]);

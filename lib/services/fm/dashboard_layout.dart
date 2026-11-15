@@ -180,6 +180,25 @@ class DashboardLayout extends ChangeNotifier {
     return _save();
   }
 
+  /// **Sürükle-sırala** (2026-11-15): görünen kutuların yeni sırası. Gizli
+  /// kutular yerinde kalır; görünenler kendi yuvalarına yeni sırayla dizilir.
+  Future<void> reorderVisible(List<String> ids) {
+    final wanted = [
+      for (final id in ids)
+        if (_tileOrder.contains(id)) id,
+    ];
+    final set = wanted.toSet();
+    final slots = [
+      for (var i = 0; i < _tileOrder.length; i++)
+        if (set.contains(_tileOrder[i])) i,
+    ];
+    if (slots.length != wanted.length) return Future.value();
+    for (var k = 0; k < slots.length; k++) {
+      _tileOrder[slots[k]] = wanted[k];
+    }
+    return _save();
+  }
+
   Future<void> setSectionVisible(String id, bool visible) {
     visible ? _hiddenSections.remove(id) : _hiddenSections.add(id);
     return _save();

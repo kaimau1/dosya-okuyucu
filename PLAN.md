@@ -42,7 +42,7 @@ Model: `fable` · `opus` · `sonnet`. Cihaz: `—` · `evet` · `A/B` (ölçüm 
 APK: `evet` (birleştirmede `[apk]`) · `hayır`. Kaynak yolları kısaltıldı: `arsiv/` = `docs/arsiv/planlar/`.
 
 **SIRA (2026-11-15):** kod: P12b → P29 → P06 → P16 → P17 → P18 → P19 → P20 → P21 → P22 → P23 → P24 →
-P25 → P30 → P26 → P27 · telefon (boşaldıkça, tek seferde bir): P08 → P28 → P07 → P13 → P12 → P14 →
+P25 → P30 → P31 (kalanlar) → P26 → P27 · telefon (boşaldıkça, tek seferde bir): P08 → P28 → P07 → P13 → P12 → P14 →
 P04 → P11. Ferrari (P06, P27) bitmeden yeni özellik birleşmez — P16–P23 dalda hazırlanabilir.
 
 ### 1a) Telefon/A-B bekleyen dallar (kod bitti)
@@ -76,6 +76,7 @@ P04 → P11. Ferrari (P06, P27) bitmeden yeni özellik birleşmez — P16–P23 
 | P24 | Bağımlılık bakımı: override'lar (`xml`, `pointycastle`, `dartssh2`) yeni sürüm çıktıysa kaldır; `shared_preferences_android` 2.4.28 sabit kalır; Dependabot PR'ları (#82–84, onay §3 K14) | opus | arsiv/KALANLAR Faz D | — | hayır | bekliyor |
 | P25 | Levha/pencere birliği: ham `showModalBottomSheet`/`showDialog` (51+54) → `showAppSheet`/`showAppConfirm`/`showAppPrompt`, parti parti önce/sonra PNG; birleştirme onaydan sonra (§3 K17) | opus | arsiv/KALANLAR A9.1 | A/B | evet | bekliyor |
 | P30 | Sürümler Lite / Pro / Kişisel: S4 manifest varyantları, S5 paket kimlikleri, S6 CI matrisi, S7 Lite → Pro geçiş, S8 mağaza metinleri, S9 Kişisel varsayılan | opus | arsiv/SURUM_PLANI S4–S9 | — | evet | kullanıcı kararı — önce §3 K15 (fiyat, adlar, tarama hangi sürümde) |
+| P31 | **Ana ekran tasarım aileleri** (Fable, `docs/design/ana_ekran/`): A Sakin · B Bento · C Koyu başlık tema ailesi olarak eklendi (renk + `HomeStyle` düzeni: bellek kartı, kutu ızgarası, bölüm başlığı cümle düzeni, hızlı klasör 3 sütun, C'de iki sütunlu liste + renkli başlık) + kutularda basılı tut → sürükle-sırala / alttaki çöpe at ("not"tan). **Kalan:** D simge takımı (24 ızgara, 1,8 çizgi, %18 iç dolgu — kendi glif çizimi, şimdilik dolu `_rounded` glif renkli kutuda), F metinleri (arama "Dosya ya da özellik ara", son açılanlarda dosya adı yerine "Ekran görüntüsü · Bugün 09:31", "Tümü →" okunu kaldır, "Son tarama bugün 00:29 · 5.691 dosya", kutu adlarında cümle düzeni — K19), alt panelde ortadaki Aktar kapsülü vurgu renginde, cihazda ÖLÇÜM KAPISI (ana ekran) | opus | 2026-11-15 kullanıcı; docs/design/ana_ekran/README.md | A/B | evet | birleşti (ölçülmedi) — kalanlar bekliyor |
 | P26 | Mağaza ekran görüntüleri (son görünüm, TR/EN/AR) → `docs/play/` | sonnet | arsiv/KALANLAR B2 | evet | hayır | bekliyor — en sonda |
 | P27 | Ferrari son kapı: "10 işlem" son ölçüm + Samsung kıyası (> %20 yavaş değil), erişilebilirlik (≥ 48 dp, karşıtlık, büyük yazı), tasarım görüntüleri, özellik dondurma kalkar | sonnet | arsiv/FERRARI_PLANI H12 | A/B | evet | bekliyor — hepsi bitince, kullanıcıyla |
 
@@ -112,6 +113,7 @@ Cevap kısa olabilir: "K6 tamam", "K14 birleştir" gibi. Bitenleri silerim.
 - **K15 Sürümler:** Pro fiyatı, uygulama adları (Lite/Pro), taramanın hangi sürümde olacağı, "Tüm dosyalar" izni reddedilince ne olacağı → P30 açılır.
 - **K16 Play izin varyantı (B5.3):** Play derlemesinden hangi izinler çıksın (QUERY_ALL_PACKAGES, READ_MEDIA_*, APK kurma)?
 - **K17 Levha birliği (P25):** her parti için önce/sonra görüntüye "tamam" demen gerekecek — başlayayım mı?
+- **K19 Ana ekran tasarımı (P31):** Ayarlar › Görünüm'de üç yeni tema var (Sakin, Bento, Koyu başlık). Hangisi varsayılan olsun? Kutu adlarında cümle düzeni ("Önemli dosyalar") tüm ekranlara uygulansın mı? Simgeler renkli mi tek renk mi?
 - **K18 Açık soru:** "tikli öğesi çok notlar kasıyor" (2026-10-29) hâlâ geçerli mi?
 
 ### Telefonda sen bak
