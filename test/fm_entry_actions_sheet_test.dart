@@ -63,17 +63,21 @@ void main() {
       locale: const Locale('tr'),
       supportedLocales: const [Locale('tr'), Locale('en'), Locale('ar')],
       localizationsDelegates: _delegates,
-      home: MediaQuery(
-        data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
-        child: Builder(
-          builder: (context) => Scaffold(
-            body: Center(
-              child: TextButton(
-                onPressed: () => show != null
-                    ? show(context)
-                    : showEntryActions(context, entry, allowReveal: true),
-                child: const Text('ac'),
-              ),
+      // Ölçek uygulamanın TAMAMINA (levha rotası dahil) ve gerçek ekran
+      // boyuyla: boş `MediaQueryData` levhanın boy sınırını 0 yapıyordu.
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context)
+            .copyWith(textScaler: TextScaler.linear(textScale)),
+        child: child!,
+      ),
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: Center(
+            child: TextButton(
+              onPressed: () => show != null
+                  ? show(context)
+                  : showEntryActions(context, entry, allowReveal: true),
+              child: const Text('ac'),
             ),
           ),
         ),
@@ -203,6 +207,7 @@ void main() {
   testWidgets('1.6 yazı ölçeğinde de taşmaz (iki görünüm)', (tester) async {
     await open(tester, textScale: 1.6);
     expect(tester.takeException(), isNull);
+    await tester.ensureVisible(find.text(tr.t('ea.sec_open')));
     await tester.tap(find.text(tr.t('ea.sec_open')));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);

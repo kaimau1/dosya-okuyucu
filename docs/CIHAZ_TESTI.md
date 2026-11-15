@@ -1282,3 +1282,12 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Aynı PDF'i ortasında kapatıp yeniden aç: kaldığın sayfa NET görünüyor (bulanık değil), sıçrama yok.
 - [ ] PDF, Word, Excel, slayt, metin: açılış geçişi baştan sona kayarak oynuyor (donup sıçramıyor). Kapanışta takılma kaldı mı — kaldıysa hangi türde?
 - [ ] Açtıktan sonra ana ekrana dön: dosya "Son belgeler"de ve açılma geçmişinde.
+
+## 2026-11-15 — menü görünümü: sekmeli / Bento (yazıldı, cihazda doğrulanmadı)
+- [ ] Dosyaya uzun bas (⋮): üstte "Aç" büyük düğme, yanında Paylaş ve kırmızı Sil; altta sekme çipleri; "Sık kullanılan" seçili.
+- [ ] Sekmeler arasında geç: levha yukarı-aşağı zıplamıyor; türe özel sekme seçiliyken çip mor/ayrı renkte.
+- [ ] PDF/Word/Excel/slayt/galeri/oynatıcı ⋮: türe özel grup seçili açılıyor; Sil "Sık kullanılan" sekmesinde, kırmızı.
+- [ ] Ayarlar › Görünüm › Menü görünümü → Bento: menü yeniden açılınca karolar; "Aç" iki sütun, Sil kırmızı karo, türe özel işler tam genişlik.
+- [ ] Seçim çubuğu "Daha fazla", klasör ⋮'ı, Excel "Daha fazla", PDF araç levhaları: aynı görünümü izliyor.
+- [ ] Yazı boyutu "Çok büyük": iki görünümde de taşma/kesik yok; TalkBack sekmeyi "seçili" okuyor, uzun basınca ipucu çıkıyor.
+- [ ] Hız: levha açılışı ve sekme değişimi takılmıyor (ölçülmedi).
