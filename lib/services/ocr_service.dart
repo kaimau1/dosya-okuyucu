@@ -236,11 +236,11 @@ class OcrService {
     return sb.toString().trim();
   }
 
-  /// Sayfayı ~1600px genişlikte OCR görüntüsüne çizer (bkz. [renderPageForOcr]).
+  /// Sayfayı ~2048px genişlikte OCR görüntüsüne çizer (bkz. [renderPageForOcr]).
   static Future<String?> _renderPageToPng(PdfPage page, int index) async =>
       (await renderPageForOcr(page, tag: '$index'))?.path;
 
-  /// OCR için sayfa görüntüsü (JPEG, ~1600 px) — `scale` = görüntü pikseli /
+  /// OCR için sayfa görüntüsü (JPEG, ~2048 px) — `scale` = görüntü pikseli /
   /// PDF punto oranı.
   ///
   /// **Niye [renderPageToPng] değil (2026-11-03 kasma turu):** o yol pdfium
@@ -254,7 +254,11 @@ class OcrService {
     PdfPage page, {
     String tag = '',
   }) async {
-    final scale = (1600 / page.width).clamp(1.0, 4.0);
+    // 2048 px (2026-11-15; eskiden 1600): taranmış tablolardaki küçük
+    // yazı (~7 pt) 1600'de ML Kit'in istediği harf boyunun altında kalıyor,
+    // sözcükler bölünüp yanlış okunuyordu. Bedel: sayfa başına ~%60 fazla
+    // piksel (tek sayfa, izolatta kodlanıyor).
+    final scale = (2048 / page.width).clamp(1.0, 4.0);
     final img = await page.render(
       fullWidth: page.width * scale,
       fullHeight: page.height * scale,

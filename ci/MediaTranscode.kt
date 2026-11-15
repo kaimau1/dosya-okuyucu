@@ -70,6 +70,17 @@ object MediaTranscodeBridge {
                         }.start()
                     }
                 }
+                // HDR (HDR10/HDR10+/HLG/Dolby Vision) mi? Oynatıcı bunu doku
+                // yerine yüzey görünümünde açar (dokuda görüntü donuyordu).
+                "hdr" -> {
+                    val path = call.argument<String>("path")
+                    if (path == null) result.success(false) else {
+                        Thread {
+                            val v = isHdr(path)
+                            main.post { result.success(v) }
+                        }.start()
+                    }
+                }
                 "start" -> result.success(start(app, call.arguments as Map<*, *>))
                 // Video kesme (Ferrari H8, 2026-11-14): aralık dışı atılır,
                 // özgün korunur; mümkünse yeniden kodlamasız (trim optimizasyonu).
@@ -120,6 +131,33 @@ object MediaTranscodeBridge {
             null
         } finally {
             try { r.release() } catch (e: Exception) {}
+        }
+    }
+
+    private fun isHdr(path: String): Boolean {
+        val ex = MediaExtractor()
+        return try {
+            ex.setDataSource(path)
+            val f = (0 until ex.trackCount).map { ex.getTrackFormat(it) }
+                .firstOrNull { it.getString(MediaFormat.KEY_MIME)?.startsWith("video/") == true }
+                ?: return false
+            val mime = f.getString(MediaFormat.KEY_MIME) ?: ""
+            if (mime.contains("dolby-vision")) return true
+            if (f.containsKey(MediaFormat.KEY_COLOR_TRANSFER)) {
+                val t = f.getInteger(MediaFormat.KEY_COLOR_TRANSFER)
+                if (t == MediaFormat.COLOR_TRANSFER_ST2084 || t == MediaFormat.COLOR_TRANSFER_HLG) return true
+            }
+            if (f.containsKey(MediaFormat.KEY_PROFILE)) {
+                val pr = f.getInteger(MediaFormat.KEY_PROFILE)
+                // HEVC Main10 HDR10 (0x1000) / HDR10+ (0x2000); VP9 Profile2/3 HDR (0x1000..0x8000).
+                if (mime == MediaFormat.MIMETYPE_VIDEO_HEVC && (pr == 0x1000 || pr == 0x2000)) return true
+                if (mime == MediaFormat.MIMETYPE_VIDEO_VP9 && pr >= 0x1000) return true
+            }
+            false
+        } catch (e: Exception) {
+            false
+        } finally {
+            try { ex.release() } catch (e: Exception) {}
         }
     }
 

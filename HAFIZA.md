@@ -1160,3 +1160,9 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Kök (Sil tek başına satır):** üst ızgarada geniş "Aç" (2 birim) + 7 kare = 9 birim → Sil 3. satıra düşüyordu. "Aç" artık yalnız fazladan satıra mal olmuyorsa 2 birim (`primarySpan`).
 - **Özellikler:** AlertDialog → alt levha; işlem levhasının başlık kartı (`_sheetHeader`), `MenuGroupTitle` + `MenuGroupCard` bilgi kartı (etiket solda / değer sağda), konum ayrı kart, özet (SHA-256) Bento satır karosu, Adı/Yolu kopyala Bento karoları; "Kapat" düğmesi yok (levha sürükle/geri ile kapanır).
 - Cihazda doğrulanmadı (bulut).
+
+## 2026-11-15 — Kök: HDR video donması · ⋮'da Paylaş · taranmış tabloda OCR seçimi
+- **Kök (video):** telefon kamerasının HDR10+ (HEVC 10-bit) videosu ExoPlayer'da Flutter dokusuna (SurfaceTexture) çizilemiyor → ses çalıyor, görüntü kapak karesinde kalıyor, arayüz donuyor. **Çözüm:** `VideoTranscoder.isHdr` (`ci/MediaTranscode.kt` `hdr`: aktarım ST2084/HLG, HEVC Main10 HDR10/HDR10+ profili, Dolby Vision; ad "HDR" içeriyorsa kanal hiç sorulmaz) → yalnız HDR'de `VideoViewType.platformView` (yüzey). Sıradan video dokuda kalır (platform görünümü birleştirme maliyeti). Oynarken ExoPlayer hata verirse (`value.hasError`) aynı yerden mpv'ye geçer.
+- **Karar (kullanıcı):** görüntüleyici ⋮ levhasında Paylaş + Hızlı paylaş "Aç ve paylaş" bölümünün başında (alt çubukta da kalır).
+- **Kök (OCR seçimi):** ML Kit tabloyu sütun sütun okuyor; seçim metin sırasında ilerlediği için satırlar arası sürükleme sayı sütununa atlıyordu. `orderOcrRows`: yan yana satırların ≥%60'ında dar (<%15 genişlik) hücre varsa tablo sayılır → görsel satırlar, hücreler arası `\t`. İki sütunlu düz yazı eskisi gibi. OCR önbelleği v2 (eski girdiler yeniden taranır). OCR görüntüsü 1600 → 2048 px (küçük yazı).
+- Cihazda doğrulanmadı (bulut) → `docs/CIHAZ_TESTI.md`.

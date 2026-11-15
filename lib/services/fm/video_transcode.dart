@@ -86,6 +86,19 @@ abstract final class VideoTranscoder {
     });
   }
 
+  /// Video HDR mi (HDR10/HDR10+/HLG/Dolby Vision)? Okunamazsa false.
+  /// Oynatıcı HDR'yi doku yerine yüzey görünümünde açar ([VideoPlayback]).
+  static Future<bool> isHdr(String path) async {
+    try {
+      final v = await _channel
+          .invokeMethod<bool>('hdr', {'path': path})
+          .timeout(const Duration(milliseconds: 800));
+      return v ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Kaynağın gösterim ölçüsü, süresi, kare hızı. Okunamazsa null.
   static Future<VideoProbe?> probe(String path) async {
     try {

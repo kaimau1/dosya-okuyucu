@@ -127,4 +127,32 @@ void main() {
           reason: 'boşluk kutusu ters dönmemeli');
     });
   });
+  group('orderOcrRows', () {
+    OcrWordBox w(String t, double l, double top, double r) =>
+        OcrWordBox(t, Rect.fromLTRB(l, top, r, top + 10));
+
+    test('tablo: sütun sütun gelen hücreler görsel satırda birleşir', () {
+      // ML Kit sırası: önce ad sütunu (4 satır), sonra sayı sütunu.
+      final lines = [
+        for (var i = 0; i < 4; i++) [w('AD$i', 0, i * 20.0, 300)],
+        for (var i = 0; i < 4; i++) [w('$i', 400, i * 20.0, 410)],
+      ];
+      final t = buildOcrPageText(
+          pageNumber: 1, pageHeight: 200, imageScale: 1, lines: lines)!;
+      expect(t.fullText, 'AD0\t0\nAD1\t1\nAD2\t2\nAD3\t3\n');
+      for (final f in t.fragments) {
+        expect(f.charRects.length, f.text.length);
+      }
+    });
+
+    test('iki sütunlu düz yazı: sıra korunur (sütunlar karışmaz)', () {
+      final lines = [
+        for (var i = 0; i < 4; i++) [w('sol$i', 0, i * 20.0, 180)],
+        for (var i = 0; i < 4; i++) [w('sag$i', 220, i * 20.0, 400)],
+      ];
+      final rows = orderOcrRows(lines);
+      expect(rows.map((r) => r.expand((s) => s).map((x) => x.text).join(' ')),
+          ['sol0', 'sol1', 'sol2', 'sol3', 'sag0', 'sag1', 'sag2', 'sag3']);
+    });
+  });
 }

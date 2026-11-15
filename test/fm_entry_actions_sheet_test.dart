@@ -197,6 +197,12 @@ void main() {
     await tester.tap(find.text(tr.t('menu.tab_common')));
     await tester.pumpAndSettle();
     expect(find.text(tr.t('common.delete')), findsOneWidget);
+    // Paylaş "Aç ve paylaş" bölümünde (alt çubuktan ayrı, ⋮'da da var).
+    await tester.ensureVisible(find.text(tr.t('ea.sec_open')));
+    await tester.tap(find.text(tr.t('ea.sec_open')));
+    await tester.pumpAndSettle();
+    expect(find.text(tr.t('common.share')), findsOneWidget);
+    await tester.ensureVisible(find.text('PDF'));
     await tester.tap(find.text('PDF'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sayfaları düzenle'));
