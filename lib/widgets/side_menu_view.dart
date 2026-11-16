@@ -139,7 +139,9 @@ class _SideMenuRoute extends PopupRoute<void> {
       onHorizontalDragEnd: (d) => endDrag(dir(d.primaryVelocity ?? 0)),
       onHorizontalDragCancel: () => endDrag(0),
       child: Align(
-        alignment: fromRight ? Alignment.centerRight : Alignment.centerLeft,
+        alignment: SideMenu.instance.handleRight
+            ? AlignmentDirectional.centerEnd
+            : AlignmentDirectional.centerStart,
         child: SizedBox(
           width: width,
           // Panelin içine dokunmak perdeye gitmesin.
@@ -694,10 +696,11 @@ class _SideMenuLayerState extends State<SideMenuLayer> {
               return const SizedBox.shrink();
             }
             final scheme = Theme.of(context).colorScheme;
-            final fromRight = sideMenuFromRight(context);
-            return Positioned(
-              left: fromRight ? null : 0,
-              right: fromRight ? 0 : null,
+            // "Tutamaç sağda" = yazı yönünün SONU (sağdan sola dilde sol).
+            final atEnd = menu.handleRight;
+            return PositionedDirectional(
+              start: atEnd ? null : 0,
+              end: atEnd ? 0 : null,
               top: h * 0.42,
               child: Semantics(
                 button: true,
@@ -712,19 +715,20 @@ class _SideMenuLayerState extends State<SideMenuLayer> {
                     width: 14,
                     height: 64,
                     child: Align(
-                      alignment: fromRight
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
+                      alignment: atEnd
+                          ? AlignmentDirectional.centerEnd
+                          : AlignmentDirectional.centerStart,
                       child: Container(
                         width: 5,
                         height: 44,
                         decoration: BoxDecoration(
                           color: scheme.primary.withValues(alpha: 0.45),
-                          borderRadius: fromRight
-                              ? const BorderRadius.horizontal(
-                                  left: Radius.circular(4))
-                              : const BorderRadius.horizontal(
-                                  right: Radius.circular(4)),
+                          borderRadius: (atEnd
+                                  ? const BorderRadiusDirectional.horizontal(
+                                      start: Radius.circular(4))
+                                  : const BorderRadiusDirectional.horizontal(
+                                      end: Radius.circular(4)))
+                              .resolve(Directionality.of(context)),
                         ),
                       ),
                     ),
