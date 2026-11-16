@@ -33,6 +33,12 @@ const Map<String, (String, String, String)> _t38 = {
   'side.show_recents': ('Son açılanları göster', 'Show recent files', 'إظهار الملفات الأخيرة'),
   'side.show_handle': ('Kenar tutamacı', 'Edge handle', 'مقبض الحافة'),
   'side.show_handle_sub': ('Her ekranda solda ince çizgi; dokununca menü açılır', 'Thin bar on the left of every screen; tap to open the menu', 'شريط رفيع على يسار كل شاشة؛ انقر لفتح القائمة'),
+  'side.handle_right': ('Tutamaç sağda', 'Handle on the right', 'المقبض على اليمين'),
+  'side.handle_right_sub': ('Menü sağ kenardan açılır', 'The menu opens from the right edge', 'تُفتح القائمة من الحافة اليمنى'),
+  'side.reorder_hint': ('Sırayı değiştirmek için satıra basılı tutup sürükle', 'Long-press a row and drag to reorder', 'اضغط مطولًا على صف واسحبه لإعادة الترتيب'),
+  'mp.auto_next': ('Otomatik geçiş', 'Auto-play next', 'التشغيل التلقائي للتالي'),
+  'mp.auto_next_on': ('Otomatik geçiş açık', 'Auto-play next on', 'التشغيل التلقائي للتالي مفعّل'),
+  'mp.auto_next_off': ('Otomatik geçiş kapalı', 'Auto-play next off', 'التشغيل التلقائي للتالي متوقف'),
   'side.reset': ('Varsayılana dön', 'Reset', 'إعادة التعيين'),
   // Tema galerisi grupları (kullanıcı 2026-11-15).
   'skin.g_layout': ('Yeni · ana ekran düzeniyle', 'New · with home layout', 'جديد · مع تخطيط الشاشة الرئيسية'),

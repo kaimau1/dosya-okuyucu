@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/text_search.dart';
+import '../../models/fm_filter.dart';
 
 /// AppBar başlığına oturan **yerinde arama** alanı.
 ///
@@ -45,8 +46,11 @@ class FmSearchField extends StatelessWidget {
 
 /// Bellekteki bir listeyi süzmek için ortak eşleşme kuralı: Türkçe-duyarlı,
 /// büyük/küçük harf duyarsız, ad içinde geçme.
-bool fmMatches(String name, String query) {
+bool fmMatches(String name, String query, {String? path}) {
   final q = turkishFold(query.trim());
   if (q.isEmpty) return true;
-  return turkishFold(name).contains(q);
+  if (turkishFold(name).contains(q)) return true;
+  // İkinci ad da bulunur (bkz. [FmFilter.aliasOf]).
+  final alias = path == null ? '' : FmFilter.aliasOf?.call(path) ?? '';
+  return alias.isNotEmpty && turkishFold(alias).contains(q);
 }

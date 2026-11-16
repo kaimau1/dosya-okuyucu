@@ -1,5 +1,7 @@
 import 'package:path/path.dart' as p;
 
+import '../../core/text_search.dart';
+import '../../models/fm_filter.dart';
 import '../../models/fs_entry.dart';
 import 'doc_classifier.dart';
 
@@ -264,8 +266,12 @@ class ImpFilter {
         !sizes.contains(ImpClassify.sizeOf(i.entry.sizeBytes))) {
       return false;
     }
-    final q = query.trim().toLowerCase();
-    if (q.isNotEmpty && !i.entry.name.toLowerCase().contains(q)) return false;
+    final q = turkishFold(query.trim());
+    if (q.isNotEmpty && !turkishFold(i.entry.name).contains(q)) {
+      // İkinci ad da bulunur (bkz. [FmFilter.aliasOf]).
+      final alias = FmFilter.aliasOf?.call(i.entry.path) ?? '';
+      if (alias.isEmpty || !turkishFold(alias).contains(q)) return false;
+    }
     return true;
   }
 

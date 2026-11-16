@@ -130,6 +130,8 @@ extension _DashboardScreenScanPart on _DashboardScreenState {
       title: category.label,
       files: _index.files(category),
       gridDefault: grid,
+      // Görünüm/sıralama uygulama kapanıp açılınca da korunur (2026-11-16).
+      memoryId: 'cat.${category.name}',
       // Belgelerde PDF/Word/Excel/Slayt/Metin süzgeci.
       loadAll: loadAll,
     );

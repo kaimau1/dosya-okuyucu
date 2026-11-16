@@ -213,6 +213,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
     _push(CategoryScreen(
       title: category.label,
       files: files,
+      memoryId: 'imp.${category.name}',
     ));
   }
 

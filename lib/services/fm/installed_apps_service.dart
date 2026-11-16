@@ -1,7 +1,11 @@
+import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:app_usage/app_usage.dart';
 import 'package:installed_apps/installed_apps.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/file_age.dart';
@@ -240,12 +244,14 @@ abstract final class InstalledAppsService {
     final cached = _listCache[includeSystemApps];
     if (useCache && cached != null && cached.isNotEmpty) yield cached;
 
-    // Simgeler AYRI istek: kanalın en pahalı kısmı (bitmap → PNG). Erken
-    // başlatılır, ad/boyut listesi çizilirken arkada sürer.
-    final iconsFuture = _fetch(includeSystemApps, withIcon: true);
+    // **Simge disk önbelleği** (2026-11-16, kullanıcı: "uygulamalar ekranında
+    // simgeler geç geliyor"). KÖK: simgeler yalnız bellekte tutuluyordu; her
+    // uygulama açılışında 200 uygulamanın simgesi kanaldan yeniden kodlanıp
+    // (bitmap → PNG) bekleniyordu. Artık paket+sürüm başına diskte; ad
+    // listesiyle birlikte gelir, kanal yalnız eksik/güncellenen için çağrılır.
     final apps = await _fetch(includeSystemApps, withIcon: false);
     if (apps == null) {
-      final withIcons = await iconsFuture;
+      final withIcons = await _fetch(includeSystemApps, withIcon: true);
       if (withIcons == null) {
         yield const [];
         return;
@@ -256,16 +262,28 @@ abstract final class InstalledAppsService {
       return;
     }
 
+    // Ad listesi + diskteki simgeler paralel; boyut/kullanım birleştirmesi
+    // simge okumasını beklemez.
+    final diskFuture = _IconDisk.read(apps);
     final entries = await _merge(apps, usageWindowDays, withSizes);
+    final disk = await diskFuture;
     // Önbellekte simge varsa koru — ikinci karede simgeler kaybolup geri
     // gelmesin (titreme).
     final oldIcons = {
       for (final a in cached ?? const <InstalledAppEntry>[])
         if (a.icon != null) a.packageName: a.icon,
+      ...disk,
     };
-    yield [for (final e in entries) e.withIcon(oldIcons[e.packageName])];
+    final first = [for (final e in entries) e.withIcon(oldIcons[e.packageName])];
+    final missing = first.any((e) => e.icon == null);
+    if (!missing) {
+      _listCache[includeSystemApps] = first;
+      yield first;
+      return;
+    }
+    yield first;
 
-    final withIcons = await iconsFuture;
+    final withIcons = await _fetch(includeSystemApps, withIcon: true);
     final icons = {
       for (final a in withIcons ?? const <AppInfo>[])
         if (a.icon != null) a.packageName: a.icon,
@@ -275,6 +293,7 @@ abstract final class InstalledAppsService {
         e.withIcon(icons[e.packageName] ?? oldIcons[e.packageName])
     ];
     _listCache[includeSystemApps] = full;
+    unawaited(_IconDisk.write(withIcons ?? const [], skip: disk.keys.toSet()));
     yield full;
   }
 
@@ -454,4 +473,71 @@ class AppStorageSummary {
   });
 
   bool get hasData => totalBytes > 0;
+}
+
+/// Uygulama simgelerinin disk önbelleği: `<önbellek>/app_icons/<paket>@<sürüm>.png`.
+/// Sürüm değişince dosya adı değişir → yeni simge alınır; eskisi silinir.
+abstract final class _IconDisk {
+  static Future<Directory?>? _dir;
+
+  static Future<Directory?> _open() => _dir ??= () async {
+        try {
+          final base = await getApplicationCacheDirectory();
+          final d = Directory(p.join(base.path, 'app_icons'));
+          await d.create(recursive: true);
+          return d;
+        } catch (_) {
+          return null;
+        }
+      }();
+
+  static String _name(String package, String version) =>
+      '$package@${version.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_')}.png';
+
+  static Future<Map<String, Uint8List>> read(List<AppInfo> apps) async {
+    final dir = await _open();
+    if (dir == null) return const {};
+    final out = <String, Uint8List>{};
+    await Future.wait([
+      for (final a in apps)
+        () async {
+          try {
+            final f = File(p.join(dir.path, _name(a.packageName, a.versionName)));
+            final bytes = await f.readAsBytes();
+            if (bytes.isNotEmpty) out[a.packageName] = bytes;
+          } catch (_) {
+            // Yok/okunamadı: kanaldan gelecek.
+          }
+        }(),
+    ]);
+    return out;
+  }
+
+  static Future<void> write(List<AppInfo> apps,
+      {Set<String> skip = const {}}) async {
+    final dir = await _open();
+    if (dir == null) return;
+    try {
+      // Dizin BİR kez listelenir (uygulama başına değil).
+      final existing = <String>[
+        await for (final f in dir.list()) p.basename(f.path),
+      ];
+      for (final a in apps) {
+        final icon = a.icon;
+        if (icon == null || icon.isEmpty || skip.contains(a.packageName)) {
+          continue;
+        }
+        final name = _name(a.packageName, a.versionName);
+        // Aynı paketin eski sürüm simgeleri.
+        for (final old in existing) {
+          if (old.startsWith('${a.packageName}@') && old != name) {
+            File(p.join(dir.path, old)).delete().ignore();
+          }
+        }
+        await File(p.join(dir.path, name)).writeAsBytes(icon);
+      }
+    } catch (_) {
+      // Bilinçli: önbellek yazılamazsa bir sonraki açılışta kanaldan gelir.
+    }
+  }
 }

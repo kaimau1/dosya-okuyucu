@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:path/path.dart' as p;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../core/l10n/app_strings.dart';
@@ -43,6 +44,31 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
   /// Test kancası: bildirim/oturum kurulmasın.
   @visibleForTesting
   static bool notificationsEnabled = true;
+
+  /// Video bitince sıradakine geç (2026-11-16, kullanıcı: oynatıcıda aç/kapa
+  /// düğmesi). Kalıcı: `mp_auto_next`.
+  static bool autoNext = true;
+  static bool _autoNextLoaded = false;
+  static const _autoNextKey = 'mp_auto_next';
+
+  static Future<void> loadAutoNext() async {
+    if (_autoNextLoaded) return;
+    _autoNextLoaded = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      autoNext = prefs.getBool(_autoNextKey) ?? true;
+    } catch (_) {
+      // Bilinçli: okunamazsa varsayılan (açık).
+    }
+  }
+
+  static void setAutoNext(bool v) {
+    autoNext = v;
+    _autoNextLoaded = true;
+    unawaited(SharedPreferences.getInstance()
+        .then((prefs) => prefs.setBool(_autoNextKey, v))
+        .catchError((Object _) => false));
+  }
 
   VideoPlayerController? _controller;
   VideoPlayerController? get controller => _controller;
@@ -345,7 +371,7 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     if (v.position >= v.duration &&
         v.duration > Duration.zero &&
         !v.isPlaying) {
-      if (index < playlist.length - 1) {
+      if (autoNext && index < playlist.length - 1) {
         unawaited(skip(1));
         return;
       }

@@ -1166,3 +1166,11 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Karar (kullanıcı):** görüntüleyici ⋮ levhasında Paylaş + Hızlı paylaş "Aç ve paylaş" bölümünün başında (alt çubukta da kalır).
 - **Kök (OCR seçimi):** ML Kit tabloyu sütun sütun okuyor; seçim metin sırasında ilerlediği için satırlar arası sürükleme sayı sütununa atlıyordu. `orderOcrRows`: yan yana satırların ≥%60'ında dar (<%15 genişlik) hücre varsa tablo sayılır → görsel satırlar, hücreler arası `\t`. İki sütunlu düz yazı eskisi gibi. OCR önbelleği v2 (eski girdiler yeniden taranır). OCR görüntüsü 1600 → 2048 px (küçük yazı).
 - Cihazda doğrulanmadı (bulut) → `docs/CIHAZ_TESTI.md`.
+
+## 2026-11-16 — Yan menü tutamacı, oynatıcı düğmeleri, görünüm kalıcılığı, ikinci ad araması, uygulama simgeleri
+- **Kök (görünüm sıfırlanıyor):** (1) gezgin: iki parmakla seçilen 2/4/5 sütun kaydediliyordu ama `AppState` açılışta `fileListNearest` ile 3 sütuna çeviriyordu → kaldırıldı. (2) Belgeler/Ses/Arşiv/APK `CategoryScreen`'i `memoryId` almıyordu → `cat.<kategori>` / `imp.<kategori>` (ListMemory). İndirilenler'e görünüm düğmesi + kalıcı yerleşim.
+- **Kök (ikinci ad):** ekran içi aramalar (`FmFilter.matches`, `fmMatches`, Önemli Galeri süzgeci) yalnız dosya adına bakıyordu. `FmFilter.aliasOf` (saf model için kanca, `main.dart`'ta `AiIndex.aliasOf`'a bağlı; dizin ilk aramada yüklenir).
+- **Kök (simgeler geç):** uygulama simgeleri yalnız bellekte → her açılışta tüm simgeler kanaldan PNG'ye. Disk önbelleği `cache/app_icons/<paket>@<sürüm>.png`; hepsi diskteyse kanal simge çağrısı hiç yapılmaz.
+- **Yan menü:** tutamaç sağa alınabilir (`s:r`, menü de sağdan açılır); menüde satıra basılı tutup sürükleyerek sıra (`moveVisible`, gizlilerin yeri korunur); video/foto görüntüleyicide çizgi gizli ama kenardan çekme çalışır (`SideMenu.hideHandle()` — bildirim yapı turundaysa kare sonuna ertelenir, MiniPlayerBar tuzağı).
+- **Oynatıcı:** üst çubukta altyazı yerine Paylaş; altyazı menüsü ⋮ levhasında "Altyazı". Otomatik geçiş düğmesi sağ altta (kalıcı `mp_auto_next`).
+- Cihazda doğrulanmadı (bulut).

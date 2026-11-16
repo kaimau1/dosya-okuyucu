@@ -25,6 +25,7 @@ import '../../services/fm/subtitles.dart';
 import '../../services/fm/thumbnail_cache.dart';
 import '../../services/fm/subtitle_delays.dart';
 import '../../services/fm/video_playback.dart';
+import '../../services/side_menu.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/fm/fm_entry_icon.dart' show fmMediaHeroTag;
 import '../../widgets/fm/fm_file_image.dart';
@@ -96,6 +97,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   /// Tam oynatıcı açıkken ekran altı mini çubuk gizlenir.
   VoidCallback? _unhideBar;
 
+  VoidCallback? _unhideMenuHandle;
   bool _controlsVisible = true;
 
   /// Kendiliğinden gizlenirken solma sürüyor (dokunuş almaz).
@@ -226,6 +228,11 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   void initState() {
     super.initState();
     _unhideBar = MiniPlayerBar.hide();
+    // Video/fotoda yan menü tutamacı çizilmez; kenardan çekme sürer.
+    _unhideMenuHandle = SideMenu.instance.hideHandle();
+    unawaited(VideoPlayback.loadAutoNext().then((_) {
+      if (mounted) setState(() {});
+    }));
     _p.addListener(_onService);
     Pip.active.addListener(_onPip);
     _subtitlesFor = widget.path;
@@ -268,6 +275,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   @override
   void dispose() {
     _unhideBar?.call();
+    _unhideMenuHandle?.call();
     _p.removeListener(_onService);
     Pip.active.removeListener(_onPip);
     _p.armAutoPip(false);
@@ -427,6 +435,12 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                 top: 0,
                 bottom: 0,
                 child: Center(child: _fade(_rotateButtons())),
+              ),
+            if (!_isAudio && _controlsVisible && !_locked)
+              PositionedDirectional(
+                end: Gap.md,
+                bottom: MediaQuery.paddingOf(context).bottom + 136,
+                child: _fade(_autoNextButton()),
               ),
             if (_controlsVisible && !_locked)
               Positioned(left: 0, right: 0, top: 0, child: _fade(_topBar())),

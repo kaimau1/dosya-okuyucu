@@ -126,8 +126,8 @@ class _SideMenuRoute extends PopupRoute<void> {
       Animation<double> secondaryAnimation) {
     final width = SideMenuView.widthFor(MediaQuery.sizeOf(context).width);
     _width = width;
-    final rtl = Directionality.of(context) == TextDirection.rtl;
-    double dir(double dx) => rtl ? -dx : dx;
+    final fromRight = sideMenuFromRight(context);
+    double dir(double dx) => fromRight ? -dx : dx;
     // Açıkken ekranın HERHANGİ bir yerinden geri kaydırmak menüyü parmakla
     // birlikte kapatır (2026-11-15); boşluğa dokunmak kapatır.
     return GestureDetector(
@@ -139,7 +139,7 @@ class _SideMenuRoute extends PopupRoute<void> {
       onHorizontalDragEnd: (d) => endDrag(dir(d.primaryVelocity ?? 0)),
       onHorizontalDragCancel: () => endDrag(0),
       child: Align(
-        alignment: AlignmentDirectional.centerStart,
+        alignment: fromRight ? Alignment.centerRight : Alignment.centerLeft,
         child: SizedBox(
           width: width,
           // Panelin içine dokunmak perdeye gitmesin.
@@ -155,9 +155,9 @@ class _SideMenuRoute extends PopupRoute<void> {
   @override
   Widget buildTransitions(BuildContext context, Animation<double> animation,
       Animation<double> secondaryAnimation, Widget child) {
-    final rtl = Directionality.of(context) == TextDirection.rtl;
+    final fromRight = sideMenuFromRight(context);
     return SlideTransition(
-      position: Tween(begin: Offset(rtl ? 1 : -1, 0), end: Offset.zero)
+      position: Tween(begin: Offset(fromRight ? 1 : -1, 0), end: Offset.zero)
           .animate(_dragging
               ? animation
               : CurvedAnimation(
@@ -168,6 +168,12 @@ class _SideMenuRoute extends PopupRoute<void> {
     );
   }
 }
+
+/// Menü (ve tutamaç) fiziksel olarak sağ kenarda mı: sağdan sola dilde
+/// varsayılan sağ; "Tutamaç sağda" ayarı bunu tersine çevirir.
+bool sideMenuFromRight(BuildContext context) =>
+    (Directionality.of(context) == TextDirection.rtl) !=
+    SideMenu.instance.handleRight;
 
 Color _tint(BuildContext context, Color c) =>
     Theme.of(context).brightness == Brightness.dark
@@ -188,17 +194,20 @@ class _SideMenuPanel extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final metrics = AppSkinData.of(context).metrics;
+    final fromRight = sideMenuFromRight(context);
+    final r = Radius.circular(metrics.radiusSheet);
     return Material(
         color: theme.scaffoldBackgroundColor,
         elevation: 6,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadiusDirectional.horizontal(
-                  end: Radius.circular(metrics.radiusSheet))
-              .resolve(Directionality.of(context)),
+          borderRadius: fromRight
+              ? BorderRadius.horizontal(left: r)
+              : BorderRadius.horizontal(right: r),
         ),
         clipBehavior: Clip.antiAlias,
         child: SafeArea(
-          right: false,
+          right: fromRight,
+          left: !fromRight,
           child: ListenableBuilder(
             listenable: SideMenu.instance,
             builder: (context, _) {
@@ -255,24 +264,32 @@ class _SideMenuPanel extends StatelessWidget {
                     child: Divider(
                         height: Gap.md, color: scheme.outlineVariant),
                   ),
+                  // Basılı tutup sürükleyerek sıra (2026-11-16, kullanıcı:
+                  // "menüde basılı tutarak yer düzeni yapılabilsin").
                   Expanded(
-                    child: ListView(
+                    child: ReorderableListView.builder(
                       padding: const EdgeInsets.fromLTRB(
                           Gap.sm, 0, Gap.sm, Gap.md),
-                      children: [
-                        _MenuRow(
-                          key: const ValueKey('side-menu-home'),
-                          icon: AppIcons.home,
-                          color: scheme.primary,
-                          label: context.t('side.home'),
-                          onTap: () => _run(
-                              context,
-                              (root) => Navigator.of(root)
-                                  .popUntil((r) => r.isFirst)),
-                        ),
-                        for (final t in tiles)
-                          _MenuRow(
-                            key: ValueKey('side-menu-${t.id}'),
+                      buildDefaultDragHandles: false,
+                      header: _MenuRow(
+                        key: const ValueKey('side-menu-home'),
+                        icon: AppIcons.home,
+                        color: scheme.primary,
+                        label: context.t('side.home'),
+                        onTap: () => _run(
+                            context,
+                            (root) =>
+                                Navigator.of(root).popUntil((r) => r.isFirst)),
+                      ),
+                      itemCount: tiles.length,
+                      onReorderItem: (from, to) =>
+                          unawaited(menu.moveVisible(from, to)),
+                      itemBuilder: (context, i) {
+                        final t = tiles[i];
+                        return ReorderableDelayedDragStartListener(
+                          key: ValueKey('side-menu-${t.id}'),
+                          index: i,
+                          child: _MenuRow(
                             icon: t.icon,
                             color: t.color,
                             label: t.label,
@@ -281,7 +298,8 @@ class _SideMenuPanel extends StatelessWidget {
                             onTap: () =>
                                 _run(context, (root) => t.gatedTap(root)()),
                           ),
-                      ],
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -493,6 +511,19 @@ Future<void> showSideMenuEditor(BuildContext context) {
               value: menu.showHandle,
               onChanged: menu.setShowHandle,
             ),
+            SwitchListTile(
+              key: const ValueKey('side-edit-handle-right'),
+              title: Text(ctx.t('side.handle_right')),
+              subtitle: Text(ctx.t('side.handle_right_sub')),
+              value: menu.handleRight,
+              onChanged: menu.showHandle ? menu.setHandleRight : null,
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(Gap.md, Gap.xs, Gap.md, Gap.xs),
+              child: Text(ctx.t('side.reorder_hint'),
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            ),
             const Divider(height: 1),
             Flexible(
               child: ReorderableListView.builder(
@@ -588,8 +619,7 @@ class _SideMenuLayerState extends State<SideMenuLayer> {
     final menu = SideMenu.instance;
     if (!menu.ready.value || menu.open.value || !menu.showHandle) return false;
     final width = MediaQuery.sizeOf(context).width;
-    final rtl = Directionality.of(context) == TextDirection.rtl;
-    final x = rtl ? width - position.dx : position.dx;
+    final x = sideMenuFromRight(context) ? width - position.dx : position.dx;
     return x <= width * _zone;
   }
 
@@ -618,7 +648,8 @@ class _SideMenuLayerState extends State<SideMenuLayer> {
   @override
   Widget build(BuildContext context) {
     final menu = SideMenu.instance;
-    final rtl = Directionality.of(context) == TextDirection.rtl;
+    // Tanıyıcı her çizimde yeniden kurulmaz; yön ayarı anında okunsun.
+    bool rtlNow() => sideMenuFromRight(context);
     return RawGestureDetector(
       behavior: HitTestBehavior.translucent,
       gestures: {
@@ -633,16 +664,16 @@ class _SideMenuLayerState extends State<SideMenuLayer> {
             r.onStart = (d) {
               final from = _down;
               final lead = from == null ? 0.0 : d.globalPosition.dx - from;
-              _begin(rtl ? -lead : lead);
+              _begin(rtlNow() ? -lead : lead);
             };
             r.onUpdate = (d) {
-              _update(d.delta.dx, rtl);
+              _update(d.delta.dx, rtlNow());
             };
             r.onEnd = (d) {
-              _end(d.primaryVelocity ?? 0, rtl);
+              _end(d.primaryVelocity ?? 0, rtlNow());
             };
             r.onCancel = () {
-              _end(0, rtl);
+              _end(0, rtlNow());
             };
           },
         ),
@@ -651,16 +682,22 @@ class _SideMenuLayerState extends State<SideMenuLayer> {
       children: [
         widget.child,
         ListenableBuilder(
-          listenable: Listenable.merge([menu, menu.ready, menu.open]),
+          listenable: Listenable.merge(
+              [menu, menu.ready, menu.open, menu.handleHiders]),
           builder: (context, _) {
             if (!menu.ready.value || menu.open.value) {
               return const SizedBox.shrink();
             }
             final h = MediaQuery.sizeOf(context).height;
-            if (!menu.showHandle) return const SizedBox.shrink();
+            // Video/foto görüntüleyicide çizgi gizli; kenardan çekme sürer.
+            if (!menu.showHandle || menu.handleHiders.value > 0) {
+              return const SizedBox.shrink();
+            }
             final scheme = Theme.of(context).colorScheme;
-            return PositionedDirectional(
-              start: 0,
+            final fromRight = sideMenuFromRight(context);
+            return Positioned(
+              left: fromRight ? null : 0,
+              right: fromRight ? 0 : null,
               top: h * 0.42,
               child: Semantics(
                 button: true,
@@ -675,15 +712,19 @@ class _SideMenuLayerState extends State<SideMenuLayer> {
                     width: 14,
                     height: 64,
                     child: Align(
-                      alignment: AlignmentDirectional.centerStart,
+                      alignment: fromRight
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
                       child: Container(
                         width: 5,
                         height: 44,
                         decoration: BoxDecoration(
                           color: scheme.primary.withValues(alpha: 0.45),
-                          borderRadius: const BorderRadiusDirectional.horizontal(
-                                  end: Radius.circular(4))
-                              .resolve(Directionality.of(context)),
+                          borderRadius: fromRight
+                              ? const BorderRadius.horizontal(
+                                  left: Radius.circular(4))
+                              : const BorderRadius.horizontal(
+                                  right: Radius.circular(4)),
                         ),
                       ),
                     ),

@@ -1,4 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widgets/fm/fm_category_tile.dart';
@@ -35,10 +38,45 @@ class SideMenu extends ChangeNotifier {
   Set<String> _hidden = {};
   bool _showRecents = true;
   bool _showHandle = true;
+  bool _handleRight = false;
   bool _loaded = false;
 
   bool get showRecents => _showRecents;
   bool get showHandle => _showHandle;
+
+  /// Tutamaç (ve menünün açıldığı kenar) sağda mı (2026-11-16, kullanıcı:
+  /// "tutamaç sağa alınabilsin, kendi ayar yerinden").
+  bool get handleRight => _handleRight;
+
+  /// Tutamacı gizleyen ekran sayısı (video / foto görüntüleyici; 2026-11-16,
+  /// kullanıcı: "tutamaç gizlensin ama işlevi devam etsin"). Yalnız çizim
+  /// gizlenir; kenardan çekerek açma çalışır.
+  final ValueNotifier<int> handleHiders = ValueNotifier(0);
+
+  /// Tutamacı gizler; dönen işlev geri açar (bir kez çağrılır).
+  ///
+  /// TUZAK (MiniPlayerBar ile aynı): ekranın `initState`/`dispose`'u bir yapı
+  /// turunun ortasında; katman gezginin ATASI olduğundan bildirim kareden
+  /// sonraya bırakılır ("markNeedsBuild called during build").
+  VoidCallback hideHandle() {
+    _bumpHiders(1);
+    var done = false;
+    return () {
+      if (done) return;
+      done = true;
+      _bumpHiders(-1);
+    };
+  }
+
+  void _bumpHiders(int d) {
+    void apply() => handleHiders.value = math.max(0, handleHiders.value + d);
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) => apply());
+    } else {
+      apply();
+    }
+  }
   bool isHidden(String id) => _hidden.contains(id);
 
   void register(List<FmTileData> Function() source) {
@@ -91,6 +129,7 @@ class SideMenu extends ChangeNotifier {
     for (final s in raw) {
       if (s.startsWith('r:')) _showRecents = s == 'r:1';
       if (s.startsWith('t:')) _showHandle = s == 't:1';
+      if (s.startsWith('s:')) _handleRight = s == 's:r';
     }
   }
 
@@ -103,6 +142,7 @@ class SideMenu extends ChangeNotifier {
         for (final id in _hidden) 'h:$id',
         'r:${_showRecents ? 1 : 0}',
         't:${_showHandle ? 1 : 0}',
+        's:${_handleRight ? 'r' : 'l'}',
       ]);
     } catch (_) {
       // Bilinçli: kayıt yazılamazsa bellekteki düzen geçerli kalır.
@@ -130,11 +170,34 @@ class SideMenu extends ChangeNotifier {
     return _save();
   }
 
+  Future<void> setHandleRight(bool v) {
+    _handleRight = v;
+    return _save();
+  }
+
+  /// Menü satırlarında (gizliler hariç) sürükle-bırak: görünen sırayı
+  /// değiştirir, gizlilerin yeri korunur.
+  Future<void> moveVisible(int from, int to) {
+    final all = [for (final t in tiles(includeHidden: true)) t.id];
+    final shown = [
+      for (final id in all)
+        if (!isHidden(id)) id,
+    ];
+    if (from < 0 || from >= shown.length) return Future.value();
+    final moved = shown.removeAt(from);
+    shown.insert(to.clamp(0, shown.length), moved);
+    var k = 0;
+    return setOrder([
+      for (final id in all) isHidden(id) ? id : shown[k++],
+    ]);
+  }
+
   Future<void> reset() {
     _order = [];
     _hidden = {};
     _showRecents = true;
     _showHandle = true;
+    _handleRight = false;
     return _save();
   }
 
@@ -147,6 +210,8 @@ class SideMenu extends ChangeNotifier {
     _hidden = {};
     _showRecents = true;
     _showHandle = true;
+    _handleRight = false;
+    handleHiders.value = 0;
     _loaded = false;
   }
 }

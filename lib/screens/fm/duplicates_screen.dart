@@ -90,7 +90,7 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
   List<DuplicateGroup> get _visibleGroups {
     if (_query.trim().isEmpty) return _groups;
     return _groups
-        .where((g) => g.files.any((f) => fmMatches(f.name, _query)))
+        .where((g) => g.files.any((f) => fmMatches(f.name, _query, path: f.path)))
         .toList();
   }
 

@@ -942,7 +942,10 @@ class AppState extends ChangeNotifier {
         // Eski sürümün iki durumlu tercihi korunur: ızgara açıksa 3 sütun.
         fallback: (_prefs.getBool('fm_grid') ?? false)
             ? FmLayout.grid3
-            : FmLayout.list).fileListNearest;
+            : FmLayout.list);
+    // 2026-11-16 KÖK (kullanıcı: "ana bellekte görünüm her kapat-açta
+    // sıfırlanıyor"): iki parmakla seçilen 2/4/5 sütun kaydediliyor ama
+    // açılışta `fileListNearest` onu 3 sütuna çeviriyordu. Kayıtlı değer aynen.
     _fmPhotoLayout = FmLayoutInfo.byName(_prefs.getString(_kFmPhotoLayout),
         fallback: FmLayout.grid3);
     _fmPhotoGroup = PhotoGroupLabel.byName(_prefs.getString(_kFmPhotoGroup));

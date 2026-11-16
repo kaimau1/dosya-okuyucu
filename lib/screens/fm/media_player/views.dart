@@ -31,40 +31,51 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
   }
 
   /// Altyazı menüsü: kapat · bulunan dosyalar · gecikme · dosyadan seç.
-  Widget _subtitleMenu() => PopupMenuButton<String>(
-        tooltip: context.t('mp.subtitles'),
-        icon: Icon(_subtitlePath == null
-            ? AppIcons.closedCaptionOff
-            : AppIcons.closedCaption),
-        onSelected: (value) async {
-          switch (value) {
-            case '_off':
-              await _selectSubtitle(null);
-            case '_pick':
-              await _pickSubtitle();
-            case '_online':
-              await _searchOnline();
-            case '_mpv':
-              await _p.reopenWithMpv(!_p.usingMpv);
-            case final v when v.startsWith('_audio:'):
-              await _p.selectAudioTrack(v.substring(7));
-            case '_bigger':
-              _partSetState(() => _MediaPlayerScreenState._subtitleScale =
-                  (_MediaPlayerScreenState._subtitleScale + 0.15).clamp(0.6, 2.2));
-            case '_smaller':
-              _partSetState(() => _MediaPlayerScreenState._subtitleScale =
-                  (_MediaPlayerScreenState._subtitleScale - 0.15).clamp(0.6, 2.2));
-            case '_later':
-              _partSetState(() => _subtitleOffsetMs -= 500);
-              SubtitleDelays.set(_current, _subtitleOffsetMs);
-            case '_sooner':
-              _partSetState(() => _subtitleOffsetMs += 500);
-              SubtitleDelays.set(_current, _subtitleOffsetMs);
-            default:
-              await _selectSubtitle(value);
-          }
-        },
-        itemBuilder: (_) => [
+  ///
+  /// 2026-11-16 (kullanıcı: "altyazı tuşunu menüye al, yerine paylaş koy"):
+  /// üst çubukta düğme yok; ⋮ levhasındaki "Altyazı" bu menüyü sağ üstte açar.
+  Future<void> _openSubtitleMenu() async {
+    final size = MediaQuery.sizeOf(context);
+    final top = MediaQuery.paddingOf(context).top + 56;
+    final value = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(size.width - 8, top, 8, 0),
+      items: _subtitleItems(),
+    );
+    if (value == null || !mounted) return;
+    await _onSubtitleChoice(value);
+  }
+
+  Future<void> _onSubtitleChoice(String value) async {
+      switch (value) {
+        case '_off':
+          await _selectSubtitle(null);
+        case '_pick':
+          await _pickSubtitle();
+        case '_online':
+          await _searchOnline();
+        case '_mpv':
+          await _p.reopenWithMpv(!_p.usingMpv);
+        case final v when v.startsWith('_audio:'):
+          await _p.selectAudioTrack(v.substring(7));
+        case '_bigger':
+          _partSetState(() => _MediaPlayerScreenState._subtitleScale =
+              (_MediaPlayerScreenState._subtitleScale + 0.15).clamp(0.6, 2.2));
+        case '_smaller':
+          _partSetState(() => _MediaPlayerScreenState._subtitleScale =
+              (_MediaPlayerScreenState._subtitleScale - 0.15).clamp(0.6, 2.2));
+        case '_later':
+          _partSetState(() => _subtitleOffsetMs -= 500);
+          SubtitleDelays.set(_current, _subtitleOffsetMs);
+        case '_sooner':
+          _partSetState(() => _subtitleOffsetMs += 500);
+          SubtitleDelays.set(_current, _subtitleOffsetMs);
+        default:
+          await _selectSubtitle(value);
+      }
+  }
+
+  List<PopupMenuEntry<String>> _subtitleItems() => [
           PopupMenuItem(
             value: '_off',
             child: Text('${context.t('mp.sub_off')}'
@@ -123,8 +134,7 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
             value: '_pick',
             child: Text(context.t('mp.sub_pick')),
           ),
-        ],
-      );
+        ];
 
   /// "Türkçe · ac3 · 6 kanal" — ExoPlayer'ın verdiği kadarı.
   String _trackLabel(int i, VideoAudioTrack t) => [
@@ -194,7 +204,15 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
           // 7 simge yan yana adı "VI 3…" diye eziyordu. Görünürde en sık
           // ikisi (altyazı, hız) + ⋮; seyrek olanlar menüde, metinli.
           actions: [
-            if (!_isAudio) _subtitleMenu(),
+            IconButton(
+              key: const ValueKey('mp-share'),
+              tooltip: context.t('common.share'),
+              icon: const Icon(AppIcons.share),
+              onPressed: () {
+                _scheduleHide();
+                unawaited(shareEntriesFrom(context, [_current]));
+              },
+            ),
             PopupMenuButton<double>(
               tooltip: context.t('mp.play_speed'),
               icon: const Icon(AppIcons.speed),
@@ -235,6 +253,16 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
             extrasTitle: context.t('mp.sec_player'),
             extras: [
               if (!_isAudio) ...[
+                EntryExtraAction(
+                  icon: _subtitlePath == null
+                      ? AppIcons.closedCaptionOff
+                      : AppIcons.closedCaption,
+                  label: context.t('mp.subtitles'),
+                  color: _subtitlePath == null ? null : AppHues.amberBright,
+                  onTap: () {
+                    if (mounted) unawaited(_openSubtitleMenu());
+                  },
+                ),
                 // **A-B tekrar** — aynı yeri defalarca izlemek (dil, gitar,
                 // spor) elle geri sarmakla yapılıyordu.
                 EntryExtraAction(
@@ -448,6 +476,33 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
           ],
         ],
       );
+
+  /// **Otomatik geçiş** aç/kapa (2026-11-16, kullanıcı: "videolarda oto
+  /// geçişi bir butona bağla, sağ alttaki boşluğa koy, aktif pasif olsun").
+  /// Açıkken video bitince sıradakine geçer; kapalıyken sonda durur. Ayar
+  /// kalıcı ([VideoPlayback.autoNext]).
+  Widget _autoNextButton() {
+    final on = VideoPlayback.autoNext;
+    return Material(
+      color: on
+          ? AppHues.amberBright.withValues(alpha: 0.85)
+          : AppColors.mediaSurface.withValues(alpha: 0.5),
+      shape: const CircleBorder(),
+      child: IconButton(
+        key: const ValueKey('mp-auto-next'),
+        tooltip: context.t('mp.auto_next'),
+        isSelected: on,
+        icon: Icon(AppIcons.playlistPlay,
+            color: on ? AppColors.mediaSurface : AppColors.onMedia),
+        onPressed: () {
+          final v = !VideoPlayback.autoNext;
+          _partSetState(() => VideoPlayback.setAutoNext(v));
+          _toast(context.t(v ? 'mp.auto_next_on' : 'mp.auto_next_off'));
+          _scheduleHide();
+        },
+      ),
+    );
+  }
 
   Widget _controls(VideoPlayerController c, VideoPlayerValue value) {
     return Container(

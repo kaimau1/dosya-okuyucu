@@ -80,6 +80,7 @@ class _ApkArchiveScreenState extends State<ApkArchiveScreen>
           builder: (context) => CategoryScreen(
             title: title,
             files: widget.apkFiles,
+            memoryId: 'cat.apk',
             loadAll: widget.loadApks,
             header: _tabBar(context),
           ),
@@ -91,6 +92,7 @@ class _ApkArchiveScreenState extends State<ApkArchiveScreen>
           builder: (context) => CategoryScreen(
             title: title,
             files: widget.archiveFiles,
+            memoryId: 'cat.archive',
             loadAll: widget.loadArchives,
             header: _tabBar(context),
           ),

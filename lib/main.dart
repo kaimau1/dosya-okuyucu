@@ -40,6 +40,8 @@ import 'services/fm/remote/smb_legacy.dart';
 import 'services/app_update.dart';
 import 'services/play_store.dart';
 import 'services/fm/ai_auto.dart';
+import 'services/fm/ai_index.dart';
+import 'models/fm_filter.dart';
 import 'services/fm/fm_colors_store.dart';
 import 'services/fm/native_extras.dart';
 import 'services/fm/secure_vault.dart';
@@ -121,6 +123,15 @@ Future<void> _main() async {
   // bir kare eski renk görünürdü. Tek kanal çağrısı (milisaniye).
   await NativeExtras.loadSystemAccent();
   await AppHaptics.load();
+  // Ekran içi aramalar ikinci adı da bulsun (bkz. `FmFilter.aliasOf`).
+  // Dizin ilk aramada arka planda yüklenir; açılışı bekletmez.
+  FmFilter.aliasOf = (path) {
+    if (!AiIndex.isLoaded) {
+      unawaited(AiIndex.ensureLoaded());
+      return '';
+    }
+    return AiIndex.aliasOf(path);
+  };
   // **Seçici kipi** (başka bir uygulama bizden dosya istedi — `PickerActivity`).
   // Ayrı ve KISA bir açılış: iş kuyruğu, bildirim köprüsü, yarım kalan işlerin
   // geri yüklenmesi burada çalıştırılmaz. Çağıran uygulama beklerken saniyeler

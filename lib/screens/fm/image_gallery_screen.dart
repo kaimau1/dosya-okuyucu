@@ -28,6 +28,7 @@ import '../../services/fm/enhance_jobs.dart';
 import '../../services/fm/job_queue.dart';
 import '../../services/image_repair.dart';
 import '../../services/fm/native_extras.dart';
+import '../../services/side_menu.dart';
 import '../../core/snack.dart';
 import '../../widgets/app_action_sheet.dart';
 import '../../widgets/app_dialog.dart';
@@ -163,12 +164,16 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       if (mounted) _precacheAround(_index);
     });
     _enhanceSub = EnhanceJobs.results.listen(_onEnhanced);
+    _unhideMenuHandle = SideMenu.instance.hideHandle();
   }
+
+  VoidCallback? _unhideMenuHandle;
 
   StreamSubscription<EnhanceResult>? _enhanceSub;
 
   @override
   void dispose() {
+    _unhideMenuHandle?.call();
     _enhanceSub?.cancel();
     _slideTimer?.cancel();
     _snap.dispose();

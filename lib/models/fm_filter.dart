@@ -432,6 +432,14 @@ class FmFilter {
     return own > fs ? own : fs;
   }
 
+  /// Dosyanın **ikinci adı** (AI başlığı / elle verilen ad; yoksa '').
+  /// Model saf Dart kalsın diye uygulama açılışında bağlanır (`main.dart` →
+  /// `AiIndex.aliasOf`). 2026-11-16 KÖK (kullanıcı: "fotoğrafa ikinci ad
+  /// verdim, Fotoğraflar'ın kendi araması bulmuyor, ana menüdeki ara
+  /// buluyor; Belgeler'de de aynı"): ekran içi aramalar yalnız dosya adına
+  /// bakıyordu; ikinci ad yalnız genel aramadaydı (`SearchIndex.query`).
+  static String Function(String path)? aliasOf;
+
   bool matches(
     FsEntry entry, {
     String query = '',
@@ -440,7 +448,10 @@ class FmFilter {
     int? Function(String path)? openedAtOf,
   }) {
     final q = turkishFold(query.trim());
-    if (q.isNotEmpty && !turkishFold(entry.name).contains(q)) return false;
+    if (q.isNotEmpty && !turkishFold(entry.name).contains(q)) {
+      final alias = aliasOf?.call(entry.path) ?? '';
+      if (alias.isEmpty || !turkishFold(alias).contains(q)) return false;
+    }
     if (!matchesVolume(entry.path)) return false;
     if (types.isNotEmpty && !types.contains(FmType.of(entry))) return false;
     if (buckets.isNotEmpty && !buckets.contains(bucketForPath(entry.path))) {
