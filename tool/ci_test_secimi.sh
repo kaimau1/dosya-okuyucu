@@ -29,6 +29,15 @@ elif [ "${GITHUB_REF_NAME:-}" = main ]; then
     head=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
       --jq '.[0].head.sha // empty' 2>/dev/null || true)
   fi
+  # HIZLI İLERİ (2026-11-17, Actions kotası — depo özel; "not" deposundaki
+  # çözümün aynısı): birleştirme commit'i ve PR yok → main'e gelen commit'in
+  # KENDİSİ dalda (ccr-*/claude/**/faz-*) yeşil koştuysa yeniden test edilmez.
+  # Aşağıdaki ağaç kıyası kendiliğinden tutar; karar commit'in kendi
+  # "Doğrulama" check-run'larından (yalnız main'e doğrudan push'ta hiç yok →
+  # "yok" → tam takım). Ek izin gerekmez (checks: read zaten var).
+  if [ -z "$head" ]; then
+    head="$GITHUB_SHA"
+  fi
   if [ -n "$head" ]; then
     t_main=$(git rev-parse 'HEAD^{tree}')
     t_head=$(gh api "repos/$GITHUB_REPOSITORY/commits/$head" --jq .commit.tree.sha 2>/dev/null || true)
@@ -43,6 +52,7 @@ elif [ "${GITHUB_REF_NAME:-}" = main ]; then
       if [ "$sonuc" = yesil ]; then
         mod=atla
         why="main ağacı = yeşil dal başı $head"
+        if [ "$head" = "$GITHUB_SHA" ]; then why="main: hızlı ileri — aynı commit dalda yeşil"; fi
       else
         why="main: dal başı $head testi '$sonuc'"
       fi

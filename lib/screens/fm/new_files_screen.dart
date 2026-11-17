@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/fm_env.dart';
+import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/storage_stats.dart';
 import 'category_screen.dart';
@@ -55,8 +56,7 @@ class NewFilesScreen extends StatefulWidget {
   State<NewFilesScreen> createState() => _NewFilesScreenState();
 }
 
-class _NewFilesScreenState extends State<NewFilesScreen>
-    with WidgetsBindingObserver {
+class _NewFilesScreenState extends State<NewFilesScreen> {
   List<FsEntry>? _files;
 
   /// Liste **gerçekten değiştiğinde** artan sayaç; `CategoryScreen`in
@@ -73,13 +73,13 @@ class _NewFilesScreenState extends State<NewFilesScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    FsEvents.returned.addListener(_onReturned);
     _load();
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    FsEvents.returned.removeListener(_onReturned);
     super.dispose();
   }
 
@@ -90,24 +90,21 @@ class _NewFilesScreenState extends State<NewFilesScreen>
     if (widget.active && !old.active) _load();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    // WhatsApp'tan belge indirip uygulamaya dönen kullanıcı onu burada
-    // görmeli — "kaçmamalı hiçbir şey".
-    //
-    // **Kısıtlanmış:** `resumed` sanılandan çok daha sık geliyor (izin
-    // penceresi, paylaşım sayfası, ekranın kapanıp açılması). Her birinde
-    // sıcak klasörleri baştan yürümek gereksiz pil ve G/Ç demek. Aşağı
-    // çekerek yenileme bu kısıtlamadan etkilenmez (`CategoryScreen` doğrudan
-    // `_scan`ı çağırır) — o kullanıcının açık isteği.
-    if (state != AppLifecycleState.resumed || !widget.active) return;
-    final now = DateTime.now().millisecondsSinceEpoch;
-    if (now - _lastLoadMs < _reloadEvery.inMilliseconds) return;
-    unawaited(_load());
+  /// Uygulamaya arkadan dönüldü: WhatsApp'tan / Claude'dan / tarayıcıdan
+  /// indirilen dosya burada görünmeli — "kaçmamalı hiçbir şey".
+  ///
+  /// **20 sn kısıtı kalktı (2026-11-17):** eskiden `resumed`ın her türüne
+  /// (izin penceresi, paylaşım sayfası…) karşı 20 sn'de bir tazeleniyordu;
+  /// listeyi açıp 20 sn içinde başka uygulamada dosya indirip dönen kullanıcı
+  /// onu göremiyordu. [FsEvents.returned] yalnız GERÇEK dönüşte artar, kısıt
+  /// gereksiz. Sekme gizliyse tazeleme sekmeye dönüşte yapılır (didUpdateWidget).
+  void _onReturned() {
+    if (widget.active) unawaited(_load());
   }
 
-  static const _reloadEvery = Duration(seconds: 20);
-  int _lastLoadMs = 0;
+  /// Tarama sürerken yeni istek geldi → bitince bir tur daha (yürüyüş
+  /// İndirilenler'i çoktan geçmiş olabilir).
+  bool _again = false;
 
   Future<List<FsEntry>> _scan() async {
     await FmEnv.ensureInit();
@@ -118,23 +115,30 @@ class _NewFilesScreenState extends State<NewFilesScreen>
   }
 
   Future<void> _load() async {
-    if (_scanning) return;
+    if (_scanning) {
+      _again = true;
+      return;
+    }
     _scanning = true;
-    _lastLoadMs = DateTime.now().millisecondsSinceEpoch;
     try {
       final files = await _scan();
       if (!mounted) return;
       final old = _files;
-      // İçerik aynıysa ekranı yeniden kurma (bkz. [_revision]).
-      final same = old != null &&
-          old.length == files.length &&
-          (files.isEmpty || old.first.path == files.first.path);
+      // İçerik aynıysa ekranı yeniden kurma (bkz. [_revision]). Eskiden
+      // yalnız uzunluk + ilk yol karşılaştırılıyordu: liste 300'de doluyken
+      // en yeni OLMAYAN (eski tarihli) bir dosya gelince "aynı" sanılıp
+      // ekrana hiç girmiyordu.
+      final same = old != null && FsScan.sameListing(old, files);
       setState(() {
         _files = files;
         if (!same) _revision++;
       });
     } finally {
       _scanning = false;
+    }
+    if (_again && mounted) {
+      _again = false;
+      unawaited(_load());
     }
   }
 

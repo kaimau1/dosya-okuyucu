@@ -1185,3 +1185,10 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - Cihazda doğrulanmadı (bulut).
 
 
+
+## 2026-11-17 — Kök: başka uygulamanın indirdiği dosya listelerde görünmüyor · CI hızlı ileri
+- **Kök (kullanıcı: "Claude'dan indirdiğim PDF ne İndirilenler'de ne Yeni dosyalar'da"; Notlar "Farklı kaydet" de):** `FsEvents.version` yalnız UYGULAMA İÇİ işlemlerde artıyor. İndirilenler sekmesi (IndexedStack) ve gezgin (yığındaki sayfa) ayakta kaldığı için ilk açılıştaki listeyi gösteriyordu; Yeni dosyalar ve pano yakalaması `resumed`da 20 sn kısıtına takılıyordu; Yeni dosyalar "aynı mı" kıyası yalnız uzunluk + ilk yoldu (300'de doluyken eski tarihli yeni dosya hiç girmiyordu). Uygulamanın kendi "İndir"i `changed()` dediği için yalnız o yol görünüyordu.
+- **Çözüm:** `FsEvents.returned` — main.dart `AppLifecycleListener` `onHide: wentAway` / `onResume: cameBack` (yalnız `hidden`dan dönüş; izin/paylaşım penceresi `inactive` sayılmaz). İndirilenler + Yeni dosyalar + gezgin dinler, iskeletsiz tazeler, `FsScan.sameListing` aynıysa çizmez. Pano `_catchUp(force: _wentBackground)`. İndirilenler tazelemede artık iskelete dönmüyor.
+- **Tuzak:** izin "tüm dosyalar" verilmemişse başka uygulamanın PDF'i dosya sisteminden zaten görünmez (Android 11+ kapsamlı depolama) — bu düzeltme izinli kişisel APK içindir.
+- **CI (Actions kotası, depo özel — "not" deposunun çözümü):** `tool/ci_test_secimi.sh` main'e HIZLI İLERİ gelen commit'in kendi "Doğrulama" check-run'ları dalda yeşilse testler atlanır (eskiden main'e her doğrudan/hızlı ileri push tam takım ≈ 3×10 dk koşuyordu). Ek izin gerekmedi (`checks: read`). Akış: dala push → yeşil → `git push origin HEAD:main` (başlıkta `[apk]`) → main'de yalnız APK + yayın.
+- Cihazda doğrulanmadı (bulut) → `docs/CIHAZ_TESTI.md`.

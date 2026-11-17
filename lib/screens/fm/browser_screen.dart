@@ -22,6 +22,7 @@ import '../../services/fm/fm_env.dart';
 import '../../services/fm/folder_size_cache.dart';
 import '../../services/fm/folder_sort_memory.dart';
 import '../../services/fm/folder_report.dart';
+import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/storage_stats.dart' show StorageKind;
 import '../../services/fm/paste_conflict.dart';
@@ -191,8 +192,12 @@ class _BrowserScreenState extends State<BrowserScreen> {
     FolderSizeCache.revision.addListener(_onFolderSize);
     FolderSortMemory.instance.addListener(_onFolderSort);
     FolderSortMemory.instance.ensureLoaded();
+    // Arkadan dönüş: başka uygulama bu klasöre dosya indirmiş olabilir.
+    FsEvents.returned.addListener(_onReturned);
     _load();
   }
+
+  void _onReturned() => unawaited(_reloadQuiet());
 
   void _onFolderSort() {
     if (mounted) setState(() {});
@@ -209,6 +214,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
   void dispose() {
     FolderSizeCache.revision.removeListener(_onFolderSize);
     FolderSortMemory.instance.removeListener(_onFolderSort);
+    FsEvents.returned.removeListener(_onReturned);
     _scroll.dispose();
     super.dispose();
   }

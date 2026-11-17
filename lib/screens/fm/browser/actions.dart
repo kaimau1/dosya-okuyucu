@@ -91,6 +91,26 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
     });
   }
 
+  /// Klasörü İSKELETSİZ tazeler (uygulamaya arkadan dönüşte — Claude,
+  /// Notlar ya da tarayıcı buraya dosya indirmiş olabilir; kullanıcı
+  /// 2026-11-17). İçerik aynıysa hiçbir şey çizilmez; okunamazsa eski liste
+  /// kalır (hata ekranı yalnız açık [_load]'da gösterilir).
+  Future<void> _reloadQuiet() async {
+    if (!mounted || _loading || _locked || _error != null) return;
+    final showHidden = context.read<AppState>().fmShowHidden;
+    final List<FsEntry> list;
+    try {
+      list = await FsScan.list(widget.path, showHidden: showHidden);
+    } catch (_) {
+      return; // Bilinçli: sessiz tazeleme; eski liste ekranda kalır.
+    }
+    if (!mounted || FsScan.sameListing(_entries, list)) return;
+    _partSetState(() {
+      _entries = list;
+      _selected.removeWhere((s) => !list.any((e) => e.path == s));
+    });
+  }
+
   Future<void> _load() async {
     _partSetState(() {
       _loading = true;

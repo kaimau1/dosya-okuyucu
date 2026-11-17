@@ -41,6 +41,10 @@ Kod değiştikten sonra `graphify update .` (API maliyeti yok).
 Eski sürümler budanır (nightly hariç son 10). Push'ta yalnız arm64; 32-bit + AAB etikette/elle.
 Yalnız `test/**`/`tool/**` değişen push APK derlemez; `**.md`, `docs/**`, `graphify-out/**` hiç koşturmaz.
 Art arda push → önceki koşu iptal.
+**ACTIONS KOTASI (2026-11-17, depo ÖZEL oldu; "not" ile aynı kural):** ücretsiz plan ayda ~2000 dk, 1 Aralık'ta sıfırlanır.
+Ara push yok — iş sonunda TEK push. main'e doğrudan push tam takım koşturur (≈ 3×10 dk); onun yerine dala push →
+CI yeşil → `git push origin HEAD:main` (hızlı ileri, başlıkta `[apk]`): `tool/ci_test_secimi.sh` aynı commit dalda yeşilse
+testleri atlar, main'de yalnız APK + yayın koşar. `[tam]`, elle tetik, okuyucu derlemesi yalnız kullanıcı isteyince.
 
 ## 4) Çalışma Kuralları
 - **Dal:** **TEK DAL — `main`** (faz işleri hariç, aşağıya bak). (2026-07-27: eski 13 `claude/**` dalı silindi; hepsi

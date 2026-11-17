@@ -43,6 +43,7 @@ import 'services/fm/ai_auto.dart';
 import 'services/fm/ai_index.dart';
 import 'models/fm_filter.dart';
 import 'services/fm/fm_colors_store.dart';
+import 'services/fm/fs_events.dart';
 import 'services/fm/native_extras.dart';
 import 'services/fm/secure_vault.dart';
 import 'services/fm/disk_housekeeping.dart';
@@ -214,9 +215,15 @@ Future<void> _main() async {
   // Uygulama arka plana geçince widget'ın "son dosyalar"ı tazelenir.
   // Öne gelişte: otomatik klasör eşitleme kuralı varsa güvenilen eşi arar
   // (AutoSync; kural yoksa ağa çıkmaz, 5 dk'da en çok bir tur).
+  // Arkadan dönüşte ayakta duran listeler (İndirilenler, gezgin, Yeni
+  // dosyalar) başka uygulamanın indirdiği dosyayı görsün (FsEvents.returned).
   AppLifecycleListener(
+    onHide: FsEvents.wentAway,
     onPause: () => unawaited(NativeExtras.updateWidgets()),
-    onResume: () => unawaited(AutoSync.instance.sweep()),
+    onResume: () {
+      FsEvents.cameBack();
+      unawaited(AutoSync.instance.sweep());
+    },
   );
   JobQueue.instance.reporter = jobNotifications;
   // Dosya taşınınca/adı değişince YOL ANAHTARLI yan kayıtlar da taşınmalı:

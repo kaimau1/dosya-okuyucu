@@ -310,7 +310,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      unawaited(_catchUp());
+      unawaited(_catchUp(force: _wentBackground));
       // Uygulama arka plandayken takılan bellek de görülsün; izleme arka
       // planda durduruluyor (boşuna pil harcamasın).
       _volumes.start();

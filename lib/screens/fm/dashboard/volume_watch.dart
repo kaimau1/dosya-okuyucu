@@ -290,10 +290,16 @@ extension _DashboardScreenVolumeWatchPart on _DashboardScreenState {
     await _scan();
   }
 
-  Future<void> _catchUp() async {
+  /// [force]: uygulama gerçekten arkadan döndü — 20 sn kısıtı uygulanmaz
+  /// (kısıt izin/paylaşım penceresi `resumed`ları içindi; başka uygulamada
+  /// dosya indirip 20 sn içinde dönen kullanıcı onu panoda görmüyordu).
+  Future<void> _catchUp({bool force = false}) async {
     if (_catchingUp || _scanning || !mounted) return;
     final now = DateTime.now().millisecondsSinceEpoch;
-    if (now - _lastCatchUpMs < _DashboardScreenState._catchUpEvery.inMilliseconds) return;
+    if (!force &&
+        now - _lastCatchUpMs < _DashboardScreenState._catchUpEvery.inMilliseconds) {
+      return;
+    }
     _lastCatchUpMs = now;
     _catchingUp = true;
     try {

@@ -1297,3 +1297,10 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 2. Sıradan (HDR olmayan) video eskisi gibi açılıyor mu?
 3. PDF aç → ⋮ → "Aç ve paylaş" başında Paylaş ve Hızlı paylaş var mı, çalışıyor mu?
 4. `Asm Listesi.pdf` → 34. satırdan 35. satıra sürükle → seçim aynı satırlarda kalıyor mu (sayı sütununa atlamıyor)? Kopyala → sekmeli tablo metni.
+
+## 2026-11-17 — başka uygulamanın indirdiği dosya (yazıldı, cihazda doğrulanmadı)
+1. Dosya Okuyucu'da İndirilenler sekmesini aç → Claude'a geç, bir eseri PDF indir → geri dön: PDF listede en üstte mi (aşağı çekmeden)?
+2. Aynısını Yeni dosyalar sekmesi açıkken yap (20 sn beklemeden dön) → görünüyor mu?
+3. Gezginde `Download` klasörü açıkken Notlar → ek → "Farklı kaydet" → İndirilenler → dön: dosya klasörde mi?
+4. Ana ekran İndirilenler kutusu sayısı arttı mı?
+5. İzin/paylaşım penceresi açıp kapatınca liste yanıp sönmüyor, kaydırma yeri kayboluyor mu? (kaybolmamalı)

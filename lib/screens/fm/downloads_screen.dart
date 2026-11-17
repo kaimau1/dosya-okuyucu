@@ -113,6 +113,9 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   void initState() {
     super.initState();
     FsEvents.version.addListener(_load);
+    // Başka uygulamanın (Claude, Notlar, tarayıcı…) indirdiği dosya: sekme
+    // ayakta kaldığı için initState bir daha koşmuyor (bkz. FsEvents.returned).
+    FsEvents.returned.addListener(_load);
     ListMemory.load(_memoryId).then((saved) {
       final restored = _fromFmSort(saved.sort, saved.descending);
       if (!mounted) return;
@@ -127,18 +130,27 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   @override
   void dispose() {
     FsEvents.version.removeListener(_load);
+    FsEvents.returned.removeListener(_load);
     _searchController.dispose();
     _scroll.dispose();
     super.dispose();
   }
 
+  /// Üst üste gelen tazelemelerde yalnız EN SON taramanın sonucu yazılır.
+  int _loadSeq = 0;
+
   Future<void> _load() async {
     if (!mounted) return;
-    setState(() => _loading = true);
+    final seq = ++_loadSeq;
+    // İskelet yalnız liste boşken: tazelemede eski liste yerinde kalır
+    // (eskiden her dosya işleminde ekran iskelete dönüp yanıp sönüyordu).
+    if (_files.isEmpty && !_loading) setState(() => _loading = true);
     // `index(perCategory: 5000)` kategori başına kırpıyordu; `collect`
     // eksiksiz döner (aynı 800 sınırı hatasının küçük kardeşi).
     final all = await FsScan.collect([widget.path]);
-    if (!mounted) return;
+    if (!mounted || seq != _loadSeq) return;
+    // Değişiklik yoksa yeniden çizme (arkadan dönüşte çoğu zaman böyle).
+    if (!_loading && FsScan.sameListing(_files, all)) return;
     setState(() {
       _files = all;
       _selected.removeWhere((s) => !all.any((e) => e.path == s));
