@@ -1,4 +1,3 @@
-import 'package:dosya_okuyucu/core/app_icons.dart';
 import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/core/skin.dart';
 import 'package:dosya_okuyucu/core/theme.dart';
@@ -15,7 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 List<FmTileData> _sampleTiles() => [
       FmTileData(
         id: 'videos',
-        icon: AppIcons.video,
+        icon: Icons.video_library,
         color: const Color(0xFF9C27B0),
         label: 'Videolar',
         subtitle: '120 GB · 3.093 dosya',
@@ -23,7 +22,7 @@ List<FmTileData> _sampleTiles() => [
       ),
       FmTileData(
         id: 'downloads',
-        icon: AppIcons.download,
+        icon: Icons.download,
         color: const Color(0xFFFF9800),
         label: 'İndirilenler',
         subtitle: 'Henüz dosya yok',
@@ -31,7 +30,7 @@ List<FmTileData> _sampleTiles() => [
       ),
       FmTileData(
         id: 'important_files',
-        icon: AppIcons.star,
+        icon: Icons.star,
         color: const Color(0xFFE91E63),
         label: 'Önemli Dosyalar',
         subtitle: 'Henüz dosya yok',
@@ -39,7 +38,7 @@ List<FmTileData> _sampleTiles() => [
       ),
       FmTileData(
         id: 'important_gallery',
-        icon: AppIcons.photo,
+        icon: Icons.photo_library,
         color: const Color(0xFF00BCD4),
         label: 'Önemli Galeri',
         subtitle: '10 GB · 12.345',
@@ -47,7 +46,7 @@ List<FmTileData> _sampleTiles() => [
       ),
       FmTileData(
         id: 'images',
-        icon: AppIcons.image,
+        icon: Icons.image,
         color: const Color(0xFF4CAF50),
         label: 'Görüntüler',
         subtitle: '32 GB · 13.450',
@@ -55,7 +54,7 @@ List<FmTileData> _sampleTiles() => [
       ),
       FmTileData(
         id: 'docs',
-        icon: AppIcons.doc,
+        icon: Icons.description,
         color: const Color(0xFF2196F3),
         label: 'Belgeler',
         subtitle: '2,1 GB · 1.240',
@@ -63,7 +62,7 @@ List<FmTileData> _sampleTiles() => [
       ),
       FmTileData(
         id: 'audio',
-        icon: AppIcons.audio,
+        icon: Icons.audiotrack,
         color: const Color(0xFFFF5722),
         label: 'Ses',
         subtitle: '4,8 GB · 11.200',
@@ -71,7 +70,7 @@ List<FmTileData> _sampleTiles() => [
       ),
       FmTileData(
         id: 'archives',
-        icon: AppIcons.archive,
+        icon: Icons.archive,
         color: const Color(0xFF795548),
         label: 'APK ve Arşiv',
         subtitle: '1,4 GB · 85',
@@ -79,7 +78,7 @@ List<FmTileData> _sampleTiles() => [
       ),
       FmTileData(
         id: 'apps',
-        icon: AppIcons.apps,
+        icon: Icons.apps,
         color: const Color(0xFF4CAF50),
         label: 'Uygulamalar',
         subtitle: '',
@@ -87,7 +86,7 @@ List<FmTileData> _sampleTiles() => [
       ),
       FmTileData(
         id: 'library',
-        icon: AppIcons.book,
+        icon: Icons.menu_book,
         color: const Color(0xFF607D8B),
         label: 'Kitaplık',
         subtitle: 'Kitap ekle',
@@ -139,8 +138,9 @@ void main() {
         final dragging = ValueNotifier(false);
         await tester.pumpWidget(MaterialApp(
           locale: const Locale('tr'),
-          supportedLocales: AppStrings.supportedLocales,
+          supportedLocales: const [Locale('tr'), Locale('en'), Locale('ar')],
           localizationsDelegates: const [
+            AppStrings.delegate,
             GlobalMaterialLocalizations.delegate,
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
@@ -197,11 +197,11 @@ void main() {
     ));
     final appsIcon = tester.getTopLeft(find.descendant(
       of: find.byKey(const ValueKey('home-tile-apps')),
-      matching: find.byIcon(AppIcons.apps),
+      matching: find.byIcon(Icons.apps),
     ));
     final libIcon = tester.getTopLeft(find.descendant(
       of: find.byKey(const ValueKey('home-tile-library')),
-      matching: find.byIcon(AppIcons.book),
+      matching: find.byIcon(Icons.menu_book),
     ));
     expect(appsIcon.dy, closeTo(libIcon.dy, 0.5));
   });
