@@ -45,6 +45,7 @@ Art arda push → önceki koşu iptal.
 Ara push yok — iş sonunda TEK push. main'e doğrudan push tam takım koşturur (≈ 3×10 dk); onun yerine dala push →
 CI yeşil → `git push origin HEAD:main` (hızlı ileri, başlıkta `[apk]`): `tool/ci_test_secimi.sh` aynı commit dalda yeşilse
 testleri atlar, main'de yalnız APK + yayın koşar. `[tam]`, elle tetik, okuyucu derlemesi yalnız kullanıcı isteyince.
+Artifact deposu 0,5 GB: APK yayına ÖNBELLEKLE gider (artifact değil); runner 2 çekirdek/7 GB (Gradle `-Xmx4g`) — HAFIZA 2026-11-17.
 
 ## 4) Çalışma Kuralları
 - **Dal:** **TEK DAL — `main`** (faz işleri hariç, aşağıya bak). (2026-07-27: eski 13 `claude/**` dalı silindi; hepsi
