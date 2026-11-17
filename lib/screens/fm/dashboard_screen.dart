@@ -639,8 +639,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       // varsayılan Stack'i metni ortalıyordu.
       child: Material(
         type: MaterialType.transparency,
-        child: SizedBox(
-          height: 50,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 50),
           child: Row(
             children: [
               // Yan menü düğmesi (2026-11-15) — aramadan ayrı dokunma alanı.

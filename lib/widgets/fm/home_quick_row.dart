@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -79,6 +81,10 @@ class HomeQuickRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     DockExtras.ensureLoaded();
+    final scaler = MediaQuery.textScalerOf(context);
+    // 52 dp taban yükseklik; büyük yazı ölçeğinde (1,3×–2×) simge + etiket
+    // taşmasın diye satır yüksekliği esner.
+    final rowH = math.max(52.0, 32.0 + scaler.scale(16));
     return Semantics(
       hint: context.t('dock.long_press'),
       child: GestureDetector(
@@ -86,7 +92,7 @@ class HomeQuickRow extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(Gap.sm, Gap.xs + 2, Gap.sm, Gap.xs),
           child: SizedBox(
-            height: 52,
+            height: rowH,
             child: ValueListenableBuilder<(List<String>, List<String>)>(
               valueListenable: DockExtras.value,
               builder: (context, extras, _) {
@@ -189,8 +195,8 @@ class _DockItem extends StatelessWidget {
         onTap: onTap,
         radius: 30,
         splashFactory: InkSplash.splashFactory,
-        child: SizedBox(
-          height: 52,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -220,6 +226,7 @@ class _DockItem extends StatelessWidget {
                         ),
                         child: Text(
                           count > 99 ? '99+' : '$count',
+                          textScaler: TextScaler.noScaling,
                           style: text?.merge(context.type.micro).copyWith(
                               height: 1.2,
                               color: scheme.surface,
@@ -230,13 +237,17 @@ class _DockItem extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 3),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: text?.copyWith(
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  style: text?.copyWith(
                     color: scheme.onSurface,
-                    fontWeight: FontWeight.w500),
+                    fontWeight: FontWeight.w500,
+                    height: 1.15,
+                  ),
+                ),
               ),
             ],
           ),
@@ -270,7 +281,7 @@ class _TransferButton extends StatelessWidget {
       excludeSemantics: true,
       child: Container(
         height: 44,
-        margin: const EdgeInsets.symmetric(horizontal: Gap.xs),
+        margin: const EdgeInsets.symmetric(horizontal: 4),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(22),
           gradient: LinearGradient(
@@ -296,7 +307,7 @@ class _TransferButton extends StatelessWidget {
             splashFactory: InkSplash.splashFactory,
             onTap: onTap,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: Gap.md + 2),
+              padding: const EdgeInsets.symmetric(horizontal: Gap.md),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -304,6 +315,8 @@ class _TransferButton extends StatelessWidget {
                   const SizedBox(width: 6),
                   Text(
                     label,
+                    textScaler: MediaQuery.textScalerOf(context)
+                        .clamp(maxScaleFactor: 1.25),
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
                         color: scheme.onPrimary, fontWeight: FontWeight.w700),
                   ),

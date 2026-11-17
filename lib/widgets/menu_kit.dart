@@ -659,8 +659,8 @@ class _TabStrip extends StatelessWidget {
                     key: MenuSections.tabKey(i),
                     onTap: () => onSelect(i),
                     customBorder: const StadiumBorder(),
-                    child: SizedBox(
-                      height: 48,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 48),
                       child: Center(
                         child: Container(
                           padding: const EdgeInsets.symmetric(

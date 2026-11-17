@@ -209,15 +209,21 @@ class _StorageHero extends StatelessWidget {
                                 ),
                               ),
                               has
-                                  ? Text(
-                                      context.t('fm.hero_percent',
-                                          {'n': (ratio * 100).round()}),
-                                      style: theme.textTheme.labelMedium
-                                          ?.copyWith(
-                                        fontWeight: FontWeight.w800,
-                                        color: full
-                                            ? scheme.error
-                                            : scheme.onSurface,
+                                  ? Padding(
+                                      padding: const EdgeInsets.all(8),
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          context.t('fm.hero_percent',
+                                              {'n': (ratio * 100).round()}),
+                                          style: theme.textTheme.labelMedium
+                                              ?.copyWith(
+                                            fontWeight: FontWeight.w800,
+                                            color: full
+                                                ? scheme.error
+                                                : scheme.onSurface,
+                                          ),
+                                        ),
                                       ),
                                     )
                                   : Icon(volumeIcon(volume),
@@ -459,18 +465,21 @@ class _StyledHero extends StatelessWidget {
     final soft = filled
         ? scheme.onPrimary.withValues(alpha: 0.82)
         : scheme.onSurfaceVariant;
-    final free = Text(
-      has
-          ? context.t('fm.free_bytes',
-              {'v': FsPaths.humanCapacity(volume.freeBytes)})
-          : volume.displayLabel(context.t),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      // 2026-11-15 (kullanıcı: bellek kartı %20 alçalsın, düğmelerle
-      // birlikte): headlineMedium → headlineSmall, iç boşluklar ve düğme
-      // yüksekliği orantılı küçüldü (~175 → ~140 dp).
-      style: theme.textTheme.headlineSmall
-          ?.copyWith(fontWeight: FontWeight.w800, color: fg, height: 1.1),
+    final free = FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: AlignmentDirectional.centerStart,
+      child: Text(
+        has
+            ? context.t('fm.free_bytes',
+                {'v': FsPaths.humanCapacity(volume.freeBytes)})
+            : volume.displayLabel(context.t),
+        maxLines: 1,
+        // 2026-11-15 (kullanıcı: bellek kartı %20 alçalsın, düğmelerle
+        // birlikte): headlineMedium → headlineSmall, iç boşluklar ve düğme
+        // yüksekliği orantılı küçüldü (~175 → ~140 dp).
+        style: theme.textTheme.headlineSmall
+            ?.copyWith(fontWeight: FontWeight.w800, color: fg, height: 1.1),
+      ),
     );
     final usedText = has
         ? context.t('home.used_short', {
@@ -493,10 +502,16 @@ class _StyledHero extends StatelessWidget {
           Icon(volumeIcon(volume), size: 18, color: fg),
           const SizedBox(width: Gap.xs),
         ],
-        Text(volume.displayLabel(context.t),
+        Flexible(
+          child: Text(
+            volume.displayLabel(context.t),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: theme.textTheme.labelLarge?.copyWith(
                 fontWeight: FontWeight.w700,
-                color: filled ? fg : scheme.primary)),
+                color: filled ? fg : scheme.primary),
+          ),
+        ),
         if (!filled) Icon(AppIcons.chevron, size: 18, color: scheme.primary),
       ],
     );
@@ -511,43 +526,52 @@ class _StyledHero extends StatelessWidget {
             : scheme.surfaceContainerHighest,
       ),
     );
-    Widget action(String key, VoidCallback onTap) => Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Gap.xs / 2),
-            child: filled
-                ? OutlinedButton(
-                    onPressed: onTap,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: scheme.onPrimary,
-                      side: BorderSide(
-                          color: scheme.onPrimary.withValues(alpha: 0.7)),
-                      shape: const StadiumBorder(),
-                      minimumSize: const Size(0, 34),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      padding: const EdgeInsets.symmetric(vertical: Gap.xs),
-                    ),
-                    child: Text(context.t(key),
-                        maxLines: 1,
-                        style: const TextStyle(fontWeight: FontWeight.w700)),
-                  )
-                : FilledButton.tonal(
-                    onPressed: onTap,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: scheme.primaryContainer,
-                      foregroundColor: scheme.primary,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                              AppSkinData.of(context).metrics.radiusControl)),
-                      minimumSize: const Size(0, 34),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      padding: const EdgeInsets.symmetric(vertical: Gap.xs),
-                    ),
-                    child: Text(context.t(key),
-                        maxLines: 1,
-                        style: const TextStyle(fontWeight: FontWeight.w700)),
+    Widget action(String key, VoidCallback onTap) {
+      final label = FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          context.t(key),
+          maxLines: 1,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      );
+      return Expanded(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: Gap.xs / 2),
+          child: filled
+              ? OutlinedButton(
+                  onPressed: onTap,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: scheme.onPrimary,
+                    side: BorderSide(
+                        color: scheme.onPrimary.withValues(alpha: 0.7)),
+                    shape: const StadiumBorder(),
+                    minimumSize: const Size(0, 34),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: Gap.xs, vertical: Gap.xs),
                   ),
-          ),
-        );
+                  child: label,
+                )
+              : FilledButton.tonal(
+                  onPressed: onTap,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: scheme.primaryContainer,
+                    foregroundColor: scheme.primary,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                            AppSkinData.of(context).metrics.radiusControl)),
+                    minimumSize: const Size(0, 34),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: Gap.xs, vertical: Gap.xs),
+                  ),
+                  child: label,
+                ),
+        ),
+      );
+    }
+
     final actions = Row(children: [
       action('home.browse', onBrowse),
       action('home.analysis', onAnalysis),
@@ -581,11 +605,17 @@ class _StyledHero extends StatelessWidget {
                                 scheme.onPrimary.withValues(alpha: 0.28),
                           ),
                         ),
-                        Text(
-                          context.t('fm.hero_percent',
-                              {'n': (ratio * 100).round()}),
-                          style: theme.textTheme.labelLarge?.copyWith(
-                              color: fg, fontWeight: FontWeight.w800),
+                        Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              context.t('fm.hero_percent',
+                                  {'n': (ratio * 100).round()}),
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                  color: fg, fontWeight: FontWeight.w800),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -658,7 +688,8 @@ class _StyledHero extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Expanded(child: free),
-                    used,
+                    const SizedBox(width: Gap.xs),
+                    Flexible(child: used),
                   ],
                 ),
               ] else ...[
@@ -666,9 +697,12 @@ class _StyledHero extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(child: free),
-                    Padding(
-                      padding: const EdgeInsets.only(top: Gap.xs),
-                      child: volumeLink,
+                    const SizedBox(width: Gap.xs),
+                    Flexible(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: Gap.xs),
+                        child: volumeLink,
+                      ),
                     ),
                   ],
                 ),

@@ -303,7 +303,10 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
         );
     return LayoutBuilder(builder: (context, c) {
       const gap = Gap.sm;
-      final w = (c.maxWidth - gap * 2) / 3;
+      final scale = MediaQuery.textScalerOf(context).scale(1);
+      final effective = scale > 1.0 ? c.maxWidth / scale : c.maxWidth;
+      final cols = effective < 190 ? 1 : (effective < 310 ? 2 : 3);
+      final w = (c.maxWidth - gap * (cols - 1)) / cols;
       return Wrap(
         spacing: gap,
         runSpacing: gap,

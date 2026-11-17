@@ -77,8 +77,10 @@ class FmPathBar extends StatelessWidget {
     // ("Ana bellek") — 45 dp'lik bir şerit yalnız tekrar ediyordu.
     if (segments.length < 2) return const SizedBox.shrink();
 
+    final barH =
+        MediaQuery.textScalerOf(context).scale(20).clamp(20.0, 44.0) + 28.0;
     return Container(
-      height: 48,
+      height: barH,
       alignment: AlignmentDirectional.centerStart,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,

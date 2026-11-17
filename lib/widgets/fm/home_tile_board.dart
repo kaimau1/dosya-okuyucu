@@ -189,22 +189,35 @@ class _HomeTileBoardState extends State<HomeTileBoard> {
   Widget build(BuildContext context) => LayoutBuilder(
         builder: (context, c) => switch (widget.style) {
           HomeStyle.classic => _grid(c.maxWidth, 0.94, FmCategoryTile.new),
-          HomeStyle.calm => _grid(c.maxWidth, 0.80, _CalmTile.new),
+          HomeStyle.calm =>
+            _grid(c.maxWidth, 0.80, _CalmTile.new, iconExtent: 52),
           HomeStyle.bento => _bento(c.maxWidth),
           HomeStyle.band => _band(c.maxWidth),
         },
       );
 
-
-  Widget _grid(double width, double aspect,
-      Widget Function({Key? key, required FmTileData data}) tile) {
+  Widget _grid(
+    double width,
+    double aspect,
+    Widget Function({Key? key, required FmTileData data, bool reserveSubtitle})
+        tile, {
+    double? iconExtent,
+  }) {
     final tiles = _ordered;
-    final columns = FmCategoryGrid.columnsFor(width);
+    final scale = MediaQuery.textScalerOf(context).scale(1);
+    final columns = FmCategoryGrid.columnsFor(width, textScale: scale);
     const gap = Gap.xs;
     final w = (width - gap * (columns - 1)) / columns;
-    // Klasik/Sakin ızgara %5 alçalmaz: içerik sütunu sığmıyor (3 px taşma,
-    // CI 2026-11-15) — çarpan yalnız Bento ve Koyu başlıkta.
-    final h = w / aspect;
+    // Klasik/Sakin ızgara yüksekliği metin ölçeğini de hesaba katar (sabit
+    // en-boy oranı dar ekranda veya büyük yazıda `RenderFlex overflowed`
+    // üretiyordu).
+    final h = FmCategoryGrid.cellHeight(
+      context,
+      w,
+      aspect: aspect,
+      iconExtent: iconExtent,
+    );
+    final withSub = tiles.any((t) => t.subtitle.isNotEmpty);
     return Wrap(
       spacing: gap,
       runSpacing: gap,
@@ -213,7 +226,7 @@ class _HomeTileBoardState extends State<HomeTileBoard> {
           SizedBox(
             width: w,
             height: h,
-            child: _cell(t, w, h, tile(data: t)),
+            child: _cell(t, w, h, tile(data: t, reserveSubtitle: withSub)),
           ),
       ],
     );
@@ -222,18 +235,35 @@ class _HomeTileBoardState extends State<HomeTileBoard> {
   /// B · Bento: ilk iki kutu büyük renkli, sonraki iki orta, gerisi küçük.
   Widget _bento(double width) {
     final tiles = _ordered;
+    final scaler = MediaQuery.textScalerOf(context);
+    final scale = scaler.scale(1);
     const gap = Gap.sm;
     final half = (width - gap) / 2;
-    final columns = FmCategoryGrid.columnsFor(width);
+    // Çok büyük yazı ölçeğinde (veya çok dar ekranda) orta yatay kartlar iki
+    // sütuna sıkışınca simge kutusundan sonra metne yer kalmıyor; tek sütuna
+    // açılarak tam genişlik alır.
+    final midW = width / math.max(1.0, scale) < 235 ? width : half;
+    final columns = FmCategoryGrid.columnsFor(width, textScale: scale);
     final small = (width - gap * (columns - 1)) / columns;
-    final scaler = MediaQuery.textScalerOf(context);
     // 2026-11-15 (kullanıcı: büyük kutular "çok büyük alınlı", %20 alçalsın):
     // 140 → 112 dp (yazı ölçeğiyle büyüyen pay korunur).
     // 2026-11-15 (ikinci tur): tüm kutular %5 daha alçak ([_kHomeHeight]),
     // Araçlar bölümü ilk ekrana sığsın.
-    final bigH = (72 + scaler.scale(40)) * _kHomeHeight * _kBentoHeight;
-    final midH = (52 + scaler.scale(24)) * _kHomeHeight * _kBentoHeight;
-    final smallH = (70 + scaler.scale(30)) * _kHomeHeight * _kBentoHeight;
+    // 2026-11-17: büyütülmüş yazı ölçeğinde (1,15×–2×) başlık + büyük rakamın
+    // gerçek satır yüksekliği taban formülü aşabiliyordu; alt sınır eklendi.
+    final bigH = math.max(
+      (72 + scaler.scale(40)) * _kHomeHeight * _kBentoHeight,
+      48 + scaler.scale(52),
+    );
+    final midH = math.max(
+      (52 + scaler.scale(24)) * _kHomeHeight * _kBentoHeight,
+      20 + scaler.scale(34),
+    );
+    final smallH = math.max(
+      (70 + scaler.scale(30)) * _kHomeHeight * _kBentoHeight,
+      44 + scaler.scale(30),
+    );
+    final smallWithSub = tiles.skip(4).any((t) => t.subtitle.isNotEmpty);
     Widget sized(FmTileData t, double w, double h, Widget child) =>
         SizedBox(width: w, height: h, child: _cell(t, w, h, child));
     return Wrap(
@@ -244,9 +274,14 @@ class _HomeTileBoardState extends State<HomeTileBoard> {
           if (i < 2)
             sized(tiles[i], half, bigH, _BentoBig(data: tiles[i]))
           else if (i < 4)
-            sized(tiles[i], half, midH, _BentoMid(data: tiles[i]))
+            sized(tiles[i], midW, midH, _BentoMid(data: tiles[i]))
           else
-            sized(tiles[i], small, smallH, _BentoSmall(data: tiles[i])),
+            sized(
+              tiles[i],
+              small,
+              smallH,
+              _BentoSmall(data: tiles[i], reserveSubtitle: smallWithSub),
+            ),
       ],
     );
   }
@@ -256,18 +291,23 @@ class _HomeTileBoardState extends State<HomeTileBoard> {
     final tiles = _ordered;
     final scheme = Theme.of(context).colorScheme;
     final radius = context.fmCardRadius;
-    final h = (52 + MediaQuery.textScalerOf(context).scale(20)) *
-        _kHomeHeight *
-        _kBandHeight;
-    final w = (width - 2) / 2;
+    final scaler = MediaQuery.textScalerOf(context);
+    final scale = scaler.scale(1);
+    final h = math.max(
+      (52 + scaler.scale(20)) * _kHomeHeight * _kBandHeight,
+      20 + scaler.scale(34),
+    );
+    final cols = width / math.max(1.0, scale) < 235 ? 1 : 2;
+    final innerW = width - 2;
+    final w = innerW / cols;
     final rows = <Widget>[];
-    for (var i = 0; i < tiles.length; i += 2) {
+    for (var i = 0; i < tiles.length; i += cols) {
       if (i > 0) {
         rows.add(Divider(height: 1, thickness: 1, color: scheme.outlineVariant));
       }
       rows.add(Row(
         children: [
-          for (final t in tiles.skip(i).take(2))
+          for (final t in tiles.skip(i).take(cols))
             SizedBox(width: w, height: h, child: _cell(t, w, h, _BandRow(data: t))),
         ],
       ));
@@ -329,33 +369,81 @@ class _Label extends StatelessWidget {
   final FmTileData data;
   final TextAlign align;
   final bool large;
-  const _Label(this.data, {this.align = TextAlign.center, this.large = false});
+  final bool reserveSubtitle;
+  const _Label(
+    this.data, {
+    this.align = TextAlign.center,
+    this.large = false,
+    this.reserveSubtitle = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scaler = MediaQuery.textScalerOf(context);
     final start = align == TextAlign.start;
+    final boxAlign =
+        start ? AlignmentDirectional.centerStart : Alignment.center;
+    // Dört sütunlu küçük kutularda (`large == false`) `labelLarge` (14 sp) +
+    // `bodySmall` (12 sp) ~70 dp hücrede hemen "..." ile kesiliyordu; klasik
+    // ızgaradaki gibi `labelMedium` (12 sp) + `micro` (10 sp) kullanılır ve
+    // hafif taşmalarda `FittedBox` metni kesmeden sığdırır.
+    final titleStyle =
+        (large ? theme.textTheme.labelLarge : theme.textTheme.labelMedium)
+            ?.copyWith(
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0,
+      height: 1.15,
+    );
+    final subStyle = (large
+            ? theme.textTheme.labelSmall
+            : theme.textTheme.labelSmall?.merge(context.type.micro))
+        ?.copyWith(
+      letterSpacing: 0,
+      height: 1.15,
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    final titleH = scaler.scale(large ? 14 : 12) * 1.25;
+    final subH = scaler.scale(large ? 11 : 10) * 1.25;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment:
           start ? CrossAxisAlignment.start : CrossAxisAlignment.center,
       children: [
-        Text(
-          data.label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: align,
-          style: (large ? theme.textTheme.titleSmall : theme.textTheme.labelLarge)
-              ?.copyWith(fontWeight: FontWeight.w700, letterSpacing: 0),
+        SizedBox(
+          height: titleH,
+          child: Align(
+            alignment: boxAlign,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: boxAlign,
+              child: Text(
+                data.label,
+                maxLines: 1,
+                textAlign: align,
+                style: titleStyle,
+              ),
+            ),
+          ),
         ),
-        if (data.subtitle.isNotEmpty)
-          Text(
-            data.subtitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: align,
-            style: theme.textTheme.bodySmall?.copyWith(
-                letterSpacing: 0, color: theme.colorScheme.onSurfaceVariant),
+        if (data.subtitle.isNotEmpty || reserveSubtitle)
+          SizedBox(
+            height: subH,
+            child: data.subtitle.isEmpty
+                ? null
+                : Align(
+                    alignment: boxAlign,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: boxAlign,
+                      child: Text(
+                        data.subtitle,
+                        maxLines: 1,
+                        textAlign: align,
+                        style: subStyle,
+                      ),
+                    ),
+                  ),
           ),
       ],
     );
@@ -381,7 +469,12 @@ class _Tap extends StatelessWidget {
 /// A · Sakin: beyaz çerçeveli simge kutusu, altında ad + bilgi.
 class _CalmTile extends StatelessWidget {
   final FmTileData data;
-  const _CalmTile({super.key, required this.data});
+  final bool reserveSubtitle;
+  const _CalmTile({
+    super.key,
+    required this.data,
+    this.reserveSubtitle = false,
+  });
 
   @override
   Widget build(BuildContext context) => _Tap(
@@ -392,8 +485,8 @@ class _CalmTile extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _IconBox(data: data, size: 52, glyph: 26, framed: true),
-              const SizedBox(height: Gap.xs + 2),
-              _Label(data),
+              const SizedBox(height: Gap.xs),
+              _Label(data, reserveSubtitle: reserveSubtitle),
             ],
           ),
         ),
@@ -405,11 +498,19 @@ class _BentoBig extends StatelessWidget {
   final FmTileData data;
   const _BentoBig({required this.data});
 
+  static final _startsWithDigit = RegExp(r'^\d');
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final c = _tint(context, data.color);
     final parts = data.subtitle.split(' · ');
+    final first = parts.first.trim();
+    // "120 GB · 3.093 dosya" gibi sayısal özetlerde ilk parça büyük rakamdır;
+    // "Henüz dosya yok" gibi düz metinlerde 24 sp manşet puntosu metni devleştirip
+    // "Henüz dosy..." diye kesiyordu.
+    final numericHeadline =
+        parts.length > 1 || _startsWithDigit.hasMatch(first);
     return Material(
       color: c.withValues(alpha: 0.12),
       borderRadius: BorderRadius.circular(context.fmCardRadius),
@@ -425,26 +526,41 @@ class _BentoBig extends StatelessWidget {
             children: [
               data.badged(Icon(data.icon, size: 26, color: c)),
               const Spacer(),
-              Text(data.label,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(
+                  data.label,
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700)),
-              Text.rich(
-                TextSpan(children: [
-                  TextSpan(
-                      text: parts.first,
-                      style: theme.textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w800)),
-                  if (parts.length > 1)
-                    TextSpan(
-                        text: '  ${parts.skip(1).join(' · ')}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant)),
-                ]),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
               ),
+              if (data.subtitle.isNotEmpty)
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Text.rich(
+                    TextSpan(children: [
+                      TextSpan(
+                        text: parts.first,
+                        style: numericHeadline
+                            ? theme.textTheme.headlineSmall
+                                ?.copyWith(fontWeight: FontWeight.w800)
+                            : theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                      ),
+                      if (parts.length > 1)
+                        TextSpan(
+                            text: '  ${parts.skip(1).join(' · ')}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant)),
+                    ]),
+                    maxLines: 1,
+                  ),
+                ),
             ],
           ),
         ),
@@ -466,11 +582,11 @@ class _BentoMid extends StatelessWidget {
         child: _Tap(
           data: data,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+            padding: const EdgeInsets.symmetric(horizontal: Gap.sm + 2),
             child: Row(
               children: [
-                _IconBox(data: data, size: 40, glyph: 22),
-                const SizedBox(width: Gap.sm + 4),
+                _IconBox(data: data, size: 36, glyph: 20),
+                const SizedBox(width: Gap.sm),
                 Expanded(child: _Label(data, align: TextAlign.start, large: true)),
               ],
             ),
@@ -482,7 +598,11 @@ class _BentoMid extends StatelessWidget {
 /// B · Bento küçük kutu: beyaz kart, ortada simge + ad.
 class _BentoSmall extends StatelessWidget {
   final FmTileData data;
-  const _BentoSmall({required this.data});
+  final bool reserveSubtitle;
+  const _BentoSmall({
+    required this.data,
+    this.reserveSubtitle = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -499,8 +619,8 @@ class _BentoSmall extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               data.badged(Icon(data.icon, size: 24, color: c)),
-              const SizedBox(height: Gap.xs + 2),
-              _Label(data),
+              const SizedBox(height: Gap.xs),
+              _Label(data, reserveSubtitle: reserveSubtitle),
             ],
           ),
         ),
@@ -520,11 +640,11 @@ class _BandRow extends StatelessWidget {
         child: _Tap(
           data: data,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+            padding: const EdgeInsets.symmetric(horizontal: Gap.sm + 2),
             child: Row(
               children: [
-                _IconBox(data: data, size: 40, glyph: 22),
-                const SizedBox(width: Gap.sm + 4),
+                _IconBox(data: data, size: 36, glyph: 20),
+                const SizedBox(width: Gap.sm),
                 Expanded(child: _Label(data, align: TextAlign.start, large: true)),
               ],
             ),
@@ -543,33 +663,42 @@ class HomeBandList extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final radius = context.fmCardRadius;
-    final h = (52 + MediaQuery.textScalerOf(context).scale(20)) *
-        _kHomeHeight *
-        _kBandHeight;
-    final rows = <Widget>[];
-    for (var i = 0; i < tiles.length; i += 2) {
-      if (i > 0) {
-        rows.add(Divider(height: 1, thickness: 1, color: scheme.outlineVariant));
-      }
-      final pair = tiles.skip(i).take(2).toList();
-      rows.add(SizedBox(
-        height: h,
-        child: Row(children: [
-          for (final t in pair) Expanded(child: _BandRow(data: t)),
-          if (pair.length == 1) const Spacer(),
-        ]),
-      ));
-    }
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: scheme.outlineVariant),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(radius),
-        child: Column(children: rows),
-      ),
+    final scaler = MediaQuery.textScalerOf(context);
+    final scale = scaler.scale(1);
+    final h = math.max(
+      (52 + scaler.scale(20)) * _kHomeHeight * _kBandHeight,
+      20 + scaler.scale(34),
+    );
+    return LayoutBuilder(
+      builder: (context, c) {
+        final cols = c.maxWidth / math.max(1.0, scale) < 235 ? 1 : 2;
+        final rows = <Widget>[];
+        for (var i = 0; i < tiles.length; i += cols) {
+          if (i > 0) {
+            rows.add(
+                Divider(height: 1, thickness: 1, color: scheme.outlineVariant));
+          }
+          final pair = tiles.skip(i).take(cols).toList();
+          rows.add(SizedBox(
+            height: h,
+            child: Row(children: [
+              for (final t in pair) Expanded(child: _BandRow(data: t)),
+              if (cols == 2 && pair.length == 1) const Spacer(),
+            ]),
+          ));
+        }
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(radius),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(radius),
+            child: Column(children: rows),
+          ),
+        );
+      },
     );
   }
 }

@@ -101,12 +101,17 @@ class FmChip extends StatelessWidget {
             child: InkWell(
               customBorder: shape,
               onTap: onTap,
-              child: _ChipBody(
-                icon: icon,
-                label: label,
-                count: n > 0 ? n : null,
-                fg: fg,
-                bold: selected,
+              child: Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: _ChipBody(
+                    icon: icon,
+                    label: label,
+                    count: n > 0 ? n : null,
+                    fg: fg,
+                    bold: selected,
+                  ),
+                ),
               ),
             ),
           ),
@@ -276,7 +281,7 @@ class FmPill extends StatelessWidget {
         color: highlighted ? pal.accentWell : pal.card,
         border: Border.all(color: highlighted ? pal.accent : pal.rule),
       ),
-      child: body,
+      child: Center(child: FittedBox(fit: BoxFit.scaleDown, child: body)),
     );
     return Padding(
       padding: const EdgeInsetsDirectional.only(end: _kChipGap),
@@ -511,7 +516,10 @@ Future<void> showFmSourceSheet(
             children: [
               FmSheetSectionTitle(title),
               LayoutBuilder(builder: (ctx, box) {
-                final cols = box.maxWidth < 300 ? 2 : 3;
+                final scale = MediaQuery.textScalerOf(ctx).scale(1);
+                final effective =
+                    scale > 1.0 ? box.maxWidth / scale : box.maxWidth;
+                final cols = effective < 310 ? 2 : 3;
                 final w = (box.maxWidth - Gap.sm * (cols - 1)) / cols;
                 return Wrap(
                   spacing: Gap.sm,

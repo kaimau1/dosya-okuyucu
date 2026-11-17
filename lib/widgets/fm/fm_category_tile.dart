@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -274,7 +275,17 @@ class _PulsingIconState extends State<_PulsingIcon>
 /// iki ekranın görünümü kopyalanırsa biri değişince diğeri geride kalırdı.
 class FmCategoryTile extends StatelessWidget {
   final FmTileData data;
-  const FmCategoryTile({super.key, required this.data});
+
+  /// Aynı satırdaki kardeş kutulardan birinde alt yazı varsa, alt yazısı boş
+  /// olan kutuda da bir satırlık yer ayrılır; yoksa "Uygulamalar" simgesi
+  /// yanındaki "Kitaplık (Kitap ekle)" simgesine göre aşağı kayar.
+  final bool reserveSubtitle;
+
+  const FmCategoryTile({
+    super.key,
+    required this.data,
+    this.reserveSubtitle = false,
+  });
 
   /// Nefes alan simgenin kimliği. Material'in kendi içinde de
   /// `ScaleTransition`lar var; test bizimkini tür yerine bununla bulur.
@@ -283,6 +294,7 @@ class FmCategoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scaler = MediaQuery.textScalerOf(context);
     final dark = theme.brightness == Brightness.dark;
     final tint =
         dark ? Color.lerp(data.color, AppColors.mixLight, 0.25)! : data.color;
@@ -312,13 +324,15 @@ class FmCategoryTile extends StatelessWidget {
             art: data.art,
             size: 46 * context.fmIconScale,
           );
+    final labelH = scaler.scale(12) * 1.25;
+    final subH = scaler.scale(10) * 1.25;
     // Basınca hafifçe çöker (iOS dokunsal hissi — bkz. widgets/motion.dart).
     return PressScale(
       child: InkWell(
         onTap: data.gatedTap(context),
         borderRadius: BorderRadius.circular(Radii.card),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: Gap.sm, horizontal: 2),
+          padding: const EdgeInsets.symmetric(vertical: Gap.xs, horizontal: 2),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -326,28 +340,49 @@ class FmCategoryTile extends StatelessWidget {
                   data.pulse ? _PulsingIcon(key: pulseKey, child: icon) : icon),
               const SizedBox(height: Gap.xs),
               // Yazı bir kademe küçük ve ince (2026-11-04: "ekran nefes
-              // alsın").
-              Text(
-                data.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0,
+              // alsın"). Dar ekranda / büyütülmüş yazıda "..." ile kesilmek
+              // yerine hücreye sığacak kadar küçülür.
+              SizedBox(
+                height: labelH,
+                child: Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      data.label,
+                      maxLines: 1,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0,
+                        height: 1.15,
+                      ),
+                    ),
+                  ),
                 ),
               ),
               // Alt satır yalnız BİLGİ taşıyorsa (araç ızgarasındaki kuralla
               // aynı): dört sütunda dolgu metin satırı boşa yer yiyor.
-              if (data.subtitle.isNotEmpty)
-                Text(
-                  data.subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.labelSmall
-                      ?.merge(context.type.micro)
-                      .copyWith(color: theme.colorScheme.onSurfaceVariant),
+              if (data.subtitle.isNotEmpty || reserveSubtitle)
+                SizedBox(
+                  height: subH,
+                  child: data.subtitle.isEmpty
+                      ? null
+                      : Center(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              data.subtitle,
+                              maxLines: 1,
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.labelSmall
+                                  ?.merge(context.type.micro)
+                                  .copyWith(
+                                    height: 1.15,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                            ),
+                          ),
+                        ),
                 ),
             ],
           ),
@@ -363,7 +398,8 @@ class FmCategoryTile extends StatelessWidget {
 /// sütun sayısı, `maxCrossAxisExtent` değil: 150 dp'lik üst sınır dar
 /// telefonda 2, geniş telefonda 3 sütun üretiyordu — kullanıcının gördüğü
 /// düzen cihazına göre değişiyordu. Çok geniş ekranda (tablet) hücre
-/// büyümesin diye sütun sayısı genişlikle artar.
+/// büyümesin diye sütun sayısı genişlikle artar; çok büyük yazı ölçeğinde
+/// (1,3× / 2×) ise metinler kesilmesin diye 3 veya 2 sütuna düşer.
 class FmCategoryGrid extends StatelessWidget {
   final List<FmTileData> tiles;
   const FmCategoryGrid({super.key, required this.tiles});
@@ -373,23 +409,51 @@ class FmCategoryGrid extends StatelessWidget {
   /// Eskiden araç ızgarası `maxCrossAxisExtent: 96` ile ayrı hesaplıyordu:
   /// 480 dp'lik bir ekranda içerik 4, araçlar 5 sütun çiziyor ve pano boyunca
   /// sütunlar birbirini tutmuyordu. Tek kaynak → tek hiza.
-  static int columnsFor(double width) => (width / 110).floor().clamp(4, 8);
+  static int columnsFor(double width, {double textScale = 1.0}) {
+    final effective = width / math.max(1.0, textScale);
+    if (effective < 190) return 2;
+    if ((textScale >= 1.25 && effective < 285) || width < 290) return 3;
+    return (width / 110).floor().clamp(4, 8);
+  }
+
+  /// Hücre yüksekliği: en-boy oranından gelen taban yüksekliği, simge + iki
+  /// satır metnin gerçek yüksekliğinin altına düşemez (`RenderFlex overflowed`
+  /// önlemi).
+  static double cellHeight(
+    BuildContext context,
+    double tileWidth, {
+    double aspect = 0.94,
+    double? iconExtent,
+  }) {
+    final scaler = MediaQuery.textScalerOf(context);
+    final icon = iconExtent ?? (46 * context.fmIconScale);
+    final text = scaler.scale(12) * 1.25 + scaler.scale(10) * 1.25;
+    return math.max(tileWidth / aspect, icon + text + Gap.xs * 3 + 4);
+  }
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
         builder: (context, constraints) {
-          final columns = columnsFor(constraints.maxWidth);
+          final scale = MediaQuery.textScalerOf(context).scale(1);
+          final columns =
+              columnsFor(constraints.maxWidth, textScale: scale);
+          final w =
+              (constraints.maxWidth - Gap.xs * (columns - 1)) / columns;
+          final withSub = tiles.any((t) => t.subtitle.isNotEmpty);
           return GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: columns,
-              childAspectRatio: 0.94,
+              mainAxisExtent: cellHeight(context, w),
               mainAxisSpacing: Gap.xs,
               crossAxisSpacing: Gap.xs,
             ),
             itemCount: tiles.length,
-            itemBuilder: (context, i) => FmCategoryTile(data: tiles[i]),
+            itemBuilder: (context, i) => FmCategoryTile(
+              data: tiles[i],
+              reserveSubtitle: withSub,
+            ),
           );
         },
       );
@@ -436,7 +500,9 @@ class FmToolGrid extends StatelessWidget {
     final withSubtitle = tools.any((t) => t.subtitle.isNotEmpty);
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = FmCategoryGrid.columnsFor(constraints.maxWidth);
+        final scale = MediaQuery.textScalerOf(context).scale(1);
+        final columns =
+            FmCategoryGrid.columnsFor(constraints.maxWidth, textScale: scale);
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
