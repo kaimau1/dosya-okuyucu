@@ -385,7 +385,33 @@ say "gradle.properties"
   echo "systemProp.org.gradle.internal.http.connectionTimeout=120000"
   echo "systemProp.org.gradle.internal.http.socketTimeout=120000"
 } >> android/gradle.properties
-tail -8 android/gradle.properties
+# BELLEK (2026-11-17 kök): depo ÖZEL olunca GitHub runner'ı 4 çekirdek/16 GB'tan
+# 2 çekirdek/7 GB'a indi. `flutter create` iskeleti `-Xmx8G -XX:MaxMetaspaceSize=4G`
+# veriyor; R8 (minifyRelease) Gradle yığınını makinenin üstüne büyütünce runner
+# öldürülüyordu ("The runner has received a shutdown signal", exit 143 — iki koşu
+# üst üste, APK derleme adımının ~13. dakikası). Yığın 7 GB'a göre sınırlandı;
+# Kotlin ayrı daemon yerine Gradle süreci içinde derler (bir JVM eksik).
+sed -i '/^org\.gradle\.jvmargs=/d' android/gradle.properties
+{
+  echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g -XX:ReservedCodeCacheSize=256m -XX:+HeapDumpOnOutOfMemoryError"
+  echo "org.gradle.workers.max=2"
+  echo "kotlin.compiler.execution.strategy=in-process"
+} >> android/gradle.properties
+tail -10 android/gradle.properties
+# Yalnız GitHub Actions'ta: 7 GB'lık runner'a ek takas alanı (Dart AOT + R8
+# tepe noktası için sigorta). Yer yoksa ya da açılamazsa derleme sürer.
+if [ "${GITHUB_ACTIONS:-}" = "true" ] && command -v sudo >/dev/null 2>&1; then
+  bos=$(df -Pk /mnt 2>/dev/null | awk 'NR==2 {print $4}' || true)
+  if [ -n "$bos" ] && [ "$bos" -gt 12000000 ] && [ ! -e /mnt/ek_takas ]; then
+    if sudo fallocate -l 6G /mnt/ek_takas && sudo chmod 600 /mnt/ek_takas \
+       && sudo mkswap /mnt/ek_takas >/dev/null && sudo swapon /mnt/ek_takas; then
+      echo "Ek takas alanı: 6 GB (/mnt/ek_takas)"
+    else
+      echo "::warning::ek takas alanı açılamadı — derleme takassız sürüyor"
+    fi
+  fi
+  free -m || true
+fi
 
 # ── 9) Bağımlılıklar + pdfium.wasm + ikon ─────────────────────────────────
 # pdfrx web için pdfium.wasm'ı varlık olarak bildiriyor ve Flutter onu
