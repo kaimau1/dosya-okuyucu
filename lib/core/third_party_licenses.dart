@@ -30,6 +30,11 @@ Stream<LicenseEntry> _entries() async* {
   yield const LicenseEntryWithLineBreaks(
       ['syncfusion_flutter_pdf', 'syncfusion_flutter_core'], _syncfusion);
   yield const LicenseEntryWithLineBreaks(['Google ML Kit'], _mlkit);
+  yield const LicenseEntryWithLineBreaks(
+      ['media_kit_libs_android_video', 'libmpv', 'FFmpeg'], _mpvFfmpeg);
+  yield const LicenseEntryWithLineBreaks(
+      ['ESRGAN', 'Antalia-2 Mini', 'EMA Lightning', 'ONNX Runtime Web'],
+      _aiModels);
 }
 
 Future<String> _asset(String path) async {
@@ -52,3 +57,17 @@ Syncfusion® ve Essential Studio® Syncfusion, Inc.'in tescilli markalarıdır.'
 const _mlkit = '''Google ML Kit (metin tanıma, belge tarayıcı, cihaz-içi çeviri) — Google APIs Terms of Service ve ML Kit Terms: https://developers.google.com/ml-kit/terms
 
 Flutter eklentileri (google_mlkit_*) MIT lisanslıdır; lisans metinleri paket listesinde ayrıca yer alır.''';
+
+const _mpvFfmpeg = '''libmpv & FFmpeg (media_kit_libs_android_video aracılığıyla) — GNU Lesser General Public License (LGPL) v2.1 veya sonrası.
+
+Android derlemesinde dinamik kütüphane (.so) olarak bağlanır; GPL kodlayıcı içermez.
+- media_kit (MIT): https://github.com/media-kit/media-kit
+- libmpv / FFmpeg Android derleme betikleri ve kaynak kodu: https://github.com/media-kit/libmpv-android-video-build
+- LGPL v2.1 metni: https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html''';
+
+const _aiModels = '''İsteğe bağlı indirilen yapay zekâ ve ses modelleri (APK'ya gömülü değildir):
+- ESRGAN (captain-pool/esrgan-tf2) — Apache License 2.0 (https://tfhub.dev/captain-pool/lite-model/esrgan-tf2/1)
+- Antalia-2 Mini (cloud0day3/antalia-mini) — Apache License 2.0 (https://huggingface.co/cloud0day3/antalia-mini)
+- EMA Lightning (canberk7/ema-lightning) — Apache License 2.0 (https://github.com/canberk7/ema-lightning)
+- ONNX Runtime Web — MIT License (https://github.com/microsoft/onnxruntime)''';
+

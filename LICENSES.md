@@ -4,21 +4,20 @@ Bu dosya, uygulamanın içinde dağıtılan üçüncü taraf bileşenleri ve bun
 lisans yükümlülüklerini listeler. Uygulama içinden de görülebilir:
 **Ayarlar → Açık kaynak bileşenler**.
 
-## Video motoru — Android Media3 (Apache 2.0)
+## Video motorları — Android Media3 (Apache 2.0) ve mpv / FFmpeg (LGPL v2.1+)
 
-Video küçültme ve oynatma Android **Media3** (Transformer + ExoPlayer, Apache
-2.0) ile yapılır; H.264 kodlaması cihazın donanım kodlayıcısında. 2026-10-21'e
-kadar dağıtılan FFmpeg (LGPL v3, `ffmpeg_kit_flutter_new_min`) ve
-`video_compress` kaldırıldı (Faz 10, karar K2) — LGPL yükümlülükleri artık yok.
-Geçmiş doğrulama notları: `docs/hafiza/2026-07.md` (FFmpeg lisans denetimi).
+1. **Android Media3 (Transformer + ExoPlayer, Apache 2.0):** Varsayılan video/ses oynatma ve video küçültme (H.264 donanım kodlayıcısı) Media3 ile yapılır. (Eski `ffmpeg_kit_flutter_new_min` ve `video_compress` 2026-10-21'de kaldırıldı.)
+2. **mpv + FFmpeg (`video_player_media_kit` / `media_kit_libs_android_video`):** ExoPlayer'ın çözemediği kodekler (AC3/DTS ses, AVI/WMV/FLV vb.) için yedek oynatıcı olarak kullanılır (2026-11-02). Paket MIT lisanslıdır; Android derlemesinde dinamik bağlanan (`.so`) `libmpv` ve `FFmpeg` kütüphaneleri **GNU LGPL v2.1+** lisanslıdır (GPL kodlayıcı içermez). Kaynak kodu ve derleme betikleri: https://github.com/media-kit/media-kit ve https://github.com/media-kit/libmpv-android-video-build
+
+## İsteğe bağlı indirilen yapay zekâ ve ses modelleri
+
+APK içine gömülmez; yalnız kullanıcı ilgili özelliği ilk kez kullandığında indirilir:
+- **ESRGAN (`captain-pool/esrgan-tf2`):** Görselde 4× yapay zekâlı büyütme — Apache 2.0 (`tflite_flutter` / LiteRT Apache 2.0).
+- **Antalia-2 Mini (`cloud0day3/antalia-mini`) & EMA Lightning (`canberk7/ema-lightning`):** Cihaz içi Türkçe sesli kitap modelleri — Apache 2.0 (ONNX Runtime Web — MIT).
 
 ## Diğer bileşenler
 
-Uygulamanın kalan bağımlılıkları (Flutter, pdfrx/PDFium, Syncfusion Flutter PDF,
-Google ML Kit, `excel`, `archive`, `koni_archive`, `image`,
-`video_player`, `flutter_local_notifications`
-ve diğerleri) izin verici (BSD/MIT/Apache 2.0) ya da ticari-kullanıma açık
-lisanslarla dağıtılmaktadır; tam liste ve sürümler `pubspec.yaml` dosyasındadır.
+Uygulamanın kalan bağımlılıkları (Flutter, pdfrx/PDFium, Google ML Kit, `archive`, `koni_archive`, `image`, `video_player`, `flutter_local_notifications` ve diğerleri) izin verici (BSD/MIT/Apache 2.0) lisanslarla; **Syncfusion Flutter PDF** (`syncfusion_flutter_pdf`, `syncfusion_flutter_core`) ise **Syncfusion Community License** kapsamında dağıtılmaktadır. Tam liste ve sürümler `pubspec.yaml` dosyasındadır.
 
 Ağ depolama (NAS) bileşenleri ve lisansları:
 

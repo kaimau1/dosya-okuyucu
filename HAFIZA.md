@@ -1174,3 +1174,8 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Yan menü:** tutamaç sağa alınabilir (`s:r`, menü de sağdan açılır); menüde satıra basılı tutup sürükleyerek sıra (`moveVisible`, gizlilerin yeri korunur); video/foto görüntüleyicide çizgi gizli ama kenardan çekme çalışır (`SideMenu.hideHandle()` — bildirim yapı turundaysa kare sonuna ertelenir, MiniPlayerBar tuzağı).
 - **Oynatıcı:** üst çubukta altyazı yerine Paylaş; altyazı menüsü ⋮ levhasında "Altyazı". Otomatik geçiş düğmesi sağ altta (kalıcı `mp_auto_next`).
 - Cihazda doğrulanmadı (bulut).
+
+## 2026-11-17 — Play yayın rehberi + lisans bildirimleri (libmpv/FFmpeg LGPL v2.1+, AI modelleri)
+- **Belge:** `docs/play/yayin_rehberi.md` — lisans/telif denetimi, ücretli satış kuralları ve Google Play A–Z çıkış aşamaları.
+- **Kök (lisans bildirimi):** 2026-11-02'de `video_player_media_kit` / `media_kit_libs_android_video` eklendi ama `LICENSES.md`, `lib/core/third_party_licenses.dart` ve `oss.body` hâlâ "FFmpeg kalktı, LGPL yükümlülüğü yok" diyordu. `libmpv` + `FFmpeg` (LGPL v2.1+, dinamik `.so` bağlantı) ve isteğe bağlı indirilen modeller (`ESRGAN`, `Antalia-2 Mini`, `EMA Lightning`, `ONNX Runtime Web`) uygulama içi lisans kayıtlarına ve `LICENSES.md`'ye eklendi.
+
