@@ -11,11 +11,37 @@
 # Kullanım: bash tool/pdfium_onyukle.sh linux-x64 [android-arm64 android-arm ...]
 # (pub get'ten SONRA; GH_TOKEN ortamda olmalı — CI'da github.token.)
 set -euo pipefail
-hook=$(ls -d "${PUB_CACHE:-$HOME/.pub-cache}"/hosted/pub.dev/pdfium_dart-*/hook/build.dart 2>/dev/null | sort -V | tail -1 || true)
+# KULLANILAN sürümün kancası (.dart_tool/package_config.json). **Önbellekteki
+# en yüksek sürüm DEĞİL** (2026-11-17 kök): APK işinin pub önbelleğinde
+# pdfium_dart 0.4.3 da vardı; `sort -V | tail -1` onu seçiyordu, 0.4.3
+# kancasında etiket düz yazılı değil → grep boş → `pipefail` betiği sessizce
+# düşürüyordu ("PDFium önden indir (Android)" kırmızı, APK hiç derlenmedi).
+hook=""
+if [ -f .dart_tool/package_config.json ]; then
+  hook=$(python3 -c '
+import json, pathlib, urllib.parse, urllib.request
+cfg = json.loads(pathlib.Path(".dart_tool/package_config.json").read_text())
+for p in cfg["packages"]:
+    if p["name"] == "pdfium_dart":
+        root = pathlib.Path(urllib.request.url2pathname(urllib.parse.urlparse(p["rootUri"]).path))
+        if not root.is_absolute():
+            root = (pathlib.Path(".dart_tool") / root).resolve()
+        print(root / "hook" / "build.dart")
+' 2>/dev/null || true)
+fi
+if [ -z "$hook" ] || [ ! -f "$hook" ]; then
+  hook=$(ls -d "${PUB_CACHE:-$HOME/.pub-cache}"/hosted/pub.dev/pdfium_dart-*/hook/build.dart 2>/dev/null | sort -V | tail -1 || true)
+fi
 if [ -z "$hook" ]; then
   echo "pdfium_dart kancası bulunamadı (pub get koşmadı mı?) — atlanıyor."; exit 0
 fi
-tag=$(grep -oE "chromium%2F[0-9]+" "$hook" | head -1)
+# Önden indirme yalnız hızlandırma/504 sigortası: etiket okunamazsa derleme
+# DÜŞMEZ, kanca kendisi indirir.
+tag=$(grep -oE "chromium%2F[0-9]+" "$hook" | head -1 || true)
+if [ -z "$tag" ]; then
+  echo "::warning::PDFium sürüm etiketi $hook içinde bulunamadı — önden indirme atlandı, kanca kendisi indirecek."
+  exit 0
+fi
 tag=${tag/\%2F//}            # chromium/8125
 dir=".dart_tool/hooks_runner/shared/pdfium_dart/build/${tag/\//_}"
 for t in "$@"; do
