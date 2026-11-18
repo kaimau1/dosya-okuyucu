@@ -1349,3 +1349,12 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] WhatsApp videosu ve bir ekran kaydı → "Ekran kaydı" / "İletilen video / mizah" adları; cebinde çekilmiş, kapkaranlık ya da 1–2 saniyelik bir video → Ayıkla'da "Yanlışlıkla" olarak, ilk karesiyle (kırık simge değil) görünüyor mu? Aile videosuna ad yazılmıyor mu?
 - [ ] Kamera kapalıyken DCIM/Camera videoları hiç gönderilmiyor mu? 50 MB üstü video hiç denenmiyor mu?
 - [ ] Dosya menüsü → "AI ile ikinci ad" bir ses ve bir video dosyasında çalışıyor mu?
+
+## 2026-11-18 — Akıllı düzen: kullanıcı kategorileri (bulut, dal faz-oto-B1-duzen2; yazıldı, cihazda doğrulanmadı)
+- [ ] Akıllı düzen → "Kategorilerim" → + → ad "Kira", cümle "Kira sözleşmesi, kira dekontları ve aidat makbuzları" → "Dene": son 20 dosya ilerlemeli deneniyor, eşleşenler üstte ✓ ile listeleniyor mu? Eşleşme yokken ya da "Sonuçlar doğru" işaretlenmeden Kaydet kapalı mı?
+- [ ] Denedikten sonra cümleyi değiştir → "Ad ya da cümle değişti — yeniden dene" çıkıp Kaydet yeniden kapanıyor mu?
+- [ ] Kaydedince "Eski dosyalara uygula" kendiliğinden başlıyor, ilerleme çubuğu + Durdur çalışıyor mu; bitince "N dosyaya bakıldı, M eşleşti" iletisi geliyor mu?
+- [ ] Kategoriye dokununca eşleşen dosyalar açılıyor mu; bir dosya iki kategoriye birden girebiliyor mu? Dosya listesinde AI kategori süzgecinde kendi kategorin görünüyor ve süzüyor mu? Aramada kategori adını yazınca dosyalar çıkıyor mu?
+- [ ] Kullanıcı kategorisi baskın olan dosyada (ör. kedi fotoğrafı + "Kedim") listede ikinci ad kategorinin adı mı?
+- [ ] ⋮ → Düzenle: yalnız simge/renk değişince deneme istemeden kaydediliyor mu; ⋮ → Sil: kategori ve süzgeç çipi kalkıyor, dosyalar yerinde mi? 30 kategoriden sonra "En çok 30 kategori" uyarısı mı?
+- [ ] Yeni gelen dosyalar (otomatik düzenleme) kullanıcı kategorisine de giriyor mu (ek istek olmadan)?

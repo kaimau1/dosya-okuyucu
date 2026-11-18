@@ -497,8 +497,13 @@ List<(String, int)> _smartCounts(List<FsEntry> source, FmFilter f) {
   for (final e in source) {
     if (e.isDir) continue;
     final c = of(e.path);
-    if (c == null || c == 'other') continue;
-    counts[c] = (counts[c] ?? 0) + 1;
+    if (c != null && c != 'other') counts[c] = (counts[c] ?? 0) + 1;
+    // Kullanıcı kategorileri (bir dosya birden çoğunda sayılır).
+    final mine = FmFilter.smartUserCatsOf?.call(e.path);
+    if (mine == null) continue;
+    for (final u in mine) {
+      counts[u] = (counts[u] ?? 0) + 1;
+    }
   }
   for (final c in f.smartCats) {
     counts.putIfAbsent(c, () => 0);

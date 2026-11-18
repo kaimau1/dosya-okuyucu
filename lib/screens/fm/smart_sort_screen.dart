@@ -16,12 +16,14 @@ import '../../services/fm/smart_folder_prefs.dart';
 import '../../services/fm/smart_learn.dart';
 import '../../services/fm/smart_sort.dart';
 import '../../services/fm/smart_sort_taxonomy.dart';
+import '../../services/fm/smart_user_cats.dart';
 import '../../widgets/ai_key_gate.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/fm/smart_cat_style.dart';
 import '../../widgets/section_header.dart';
 import 'category_screen.dart';
 import 'smart_clutter_screen.dart';
+import 'smart_user_cat_screen.dart';
 
 /// **Akıllı düzen** ana ekranı (2026-11-18): aç/kapat ve gizlilik metni,
 /// "Şimdi düzenle", akıllı klasörler (AI kategorileri, dosyalar yerinde),
@@ -310,6 +312,7 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
                 SmartSort.lastUsage,
                 SmartFolderPrefs.revision,
                 SmartLearn.revision,
+                SmartUserCats.revision,
               ]),
               builder: (context, _) => SmartSort.enabled
                   ? Listener(
@@ -509,6 +512,7 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
             ),
           ),
         ],
+        ..._userCats(context),
         SectionHeader(context.t('sm.settings'),
             padding: const EdgeInsets.only(top: Gap.lg, bottom: Gap.sm)),
         _settingsCard(context, learning: true),
@@ -521,6 +525,154 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
         ),
       ],
     );
+  }
+
+  // ── Kullanıcı kategorileri (PLAN §1.1 m.3) ─────────────────────────────
+  /// "Kategorilerim": kullanıcının tarif ettiği kategoriler, sayı, henüz
+  /// sorulmamış dosya sayısı, geriye dönük uygulama ilerlemesi.
+  List<Widget> _userCats(BuildContext context) {
+    final theme = Theme.of(context);
+    final cats = SmartUserCats.all;
+    final counts = SmartSort.userCounts();
+    return [
+      SectionHeader(context.t('suc.section'),
+          trailing: IconButton(
+            key: const ValueKey('ss-uc-add'),
+            tooltip: context.t('suc.add'),
+            icon: const Icon(AppIcons.add),
+            onPressed: () => unawaited(_addUserCat()),
+          ),
+          padding: const EdgeInsets.only(top: Gap.lg, bottom: Gap.xs)),
+      Padding(
+        padding: const EdgeInsets.only(bottom: Gap.sm),
+        child: Text(context.t(cats.isEmpty ? 'suc.empty' : 'suc.sub'),
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+      ),
+      for (final c in cats)
+        Padding(
+          padding: const EdgeInsets.only(bottom: Gap.xs),
+          child: _userCatTile(context, c, counts[c.id] ?? 0),
+        ),
+    ];
+  }
+
+  Widget _userCatTile(BuildContext context, SmartUserCat c, int n) {
+    final color = SmartCatStyle.userColor(c.color);
+    final pending = SmartUserCats.pendingCount(c.id);
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Column(children: [
+        ListTile(
+          key: ValueKey('ss-uc-${c.id}'),
+          leading: Icon(SmartCatStyle.userIcon(c.icon), color: color),
+          title: Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text(
+              pending > 0
+                  ? context.t('suc.pending', {'n': n, 'p': pending})
+                  : context.t('suc.count', {'n': n}),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
+          onTap: () => unawaited(_openCat(c.id)),
+          trailing: PopupMenuButton<String>(
+            key: ValueKey('ss-uc-menu-${c.id}'),
+            tooltip: context.t('suc.menu'),
+            icon: const Icon(AppIcons.more),
+            onSelected: (v) => unawaited(switch (v) {
+              'apply' => _applyUserCat(c.id),
+              'edit' => _editUserCat(c),
+              _ => _deleteUserCat(c),
+            }),
+            itemBuilder: (ctx) => [
+              if (pending > 0)
+                PopupMenuItem(
+                  value: 'apply',
+                  child: Text(ctx.t('suc.apply', {'n': pending})),
+                ),
+              PopupMenuItem(value: 'edit', child: Text(ctx.t('suc.edit'))),
+              PopupMenuItem(
+                  value: 'delete', child: Text(ctx.t('common.delete'))),
+            ],
+          ),
+        ),
+        // Yalnız ilerleme satırı dinler (ekranın tamamı her dosyada çizilmez).
+        ValueListenableBuilder<SmartApplyProgress?>(
+          valueListenable: SmartUserCats.applying,
+          builder: (context, prog, _) => prog == null || prog.id != c.id
+              ? const SizedBox.shrink()
+              : Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(
+                      Gap.md, 0, Gap.xs, Gap.sm),
+                  child: Row(children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          LinearProgressIndicator(
+                              value: prog.total == 0
+                                  ? null
+                                  : prog.done / prog.total),
+                          const SizedBox(height: Gap.xs),
+                          Text(
+                              context.t('suc.applying',
+                                  {'done': prog.done, 'total': prog.total}),
+                              style: Theme.of(context).textTheme.bodySmall),
+                        ],
+                      ),
+                    ),
+                    TextButton(
+                      key: const ValueKey('ss-uc-stop'),
+                      onPressed: SmartUserCats.stopApply,
+                      child: Text(context.t('suc.stop')),
+                    ),
+                  ]),
+                ),
+        ),
+      ]),
+    );
+  }
+
+  Future<void> _addUserCat() async {
+    if (SmartUserCats.isFull) {
+      showSnack(
+          context, context.t('suc.full', {'n': SmartUserCats.maxCats}));
+      return;
+    }
+    final cat = await SmartUserCatScreen.open(context);
+    if (cat == null || !mounted) return;
+    // Kaydedildi: eski dosyalara yalnız bu soru (durdurulabilir).
+    if (SmartUserCats.pendingCount(cat.id) > 0) await _applyUserCat(cat.id);
+  }
+
+  Future<void> _editUserCat(SmartUserCat c) async {
+    final next = await SmartUserCatScreen.open(context, initial: c);
+    if (next == null || !mounted) return;
+    // Soru değiştiyse eski yanıtlar silindi; yeniden uygulanır.
+    if (next.about != c.about || next.name != c.name) {
+      await _applyUserCat(next.id);
+    }
+  }
+
+  Future<void> _deleteUserCat(SmartUserCat c) async {
+    final ok = await showAppConfirm(context,
+        message: context.t('suc.delete_q', {'name': c.name}),
+        destructive: true);
+    if (!ok) return;
+    await SmartUserCats.remove(c.id);
+  }
+
+  Future<void> _applyUserCat(String id) async {
+    if (!await ensureAiKey(context) || !mounted) return;
+    final state = context.read<AppState>();
+    final s = AppStrings.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final r = await SmartUserCats.apply(id,
+        credentials: state.aiCredentials, scope: state.aiScopeRules);
+    showSnackOn(
+        messenger,
+        r.stoppedBy != null
+            ? s.t('suc.stopped', {'reason': r.stoppedBy})
+            : s.t('suc.applied', {'n': r.asked, 'm': r.matched}));
   }
 
   /// Sütun menüsü: 2/3/4 sütun, sırala ve adlandır, varsayılana dön.
