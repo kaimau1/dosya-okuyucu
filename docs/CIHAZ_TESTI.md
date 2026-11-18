@@ -1365,6 +1365,11 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Word (Mobil) editöründe büyük fotoğraflı belge: resimler net mi, boyutlandırma sürüklemesi akıcı mı?
 - [ ] Galeri: bozuk (yarım) bir JPEG kurtarılıp gösteriliyor mu; yakınlaştırınca netleşiyor mu? Yakındaki cihazdan aktarım teklifinde küçük resimler eskisi gibi mi?
 
+## 2026-11-18 — B12 Hız 2.0 m.3: editör yeniden kurulum (bulut, dal faz-oto-B12-hiz2; yazıldı, cihazda doğrulanmadı)
+- [ ] Uzun (yüzlerce sayfa) Word belgesinde (Mobil editör) yaz: harfler gecikmesiz düşüyor mu; imleç, seçim, yazım hatası çizgisi, yorum vurgusu eskisi gibi mi?
+- [ ] Word'de numaralı liste / tablo içinde yaz, paragraf böl/birleştir, geri al → görünüm doğru tazeleniyor mu?
+- [ ] Word (sayfa görünümü) resim ekle ve sil → ekran donmadan yenileniyor mu, düzenleme kaldığı yerden sürüyor mu?
+
 ## 2026-11-18 — B12 Hız 2.0 m.1 + m.5: senkron disk erişimi + başlangıç (bulut, dal faz-oto-B12-hiz2; yazıldı, cihazda doğrulanmadı)
 - [ ] Bir arşivi (zip/rar) aç → başlıkta sıkıştırma oranı (bir an sonra) görünüyor mu?
 - [ ] Taşı/kopyala → klasör seç: favori ve son hedef kısayolları geliyor mu; silinmiş klasörün kısayolu görünmüyor mu?

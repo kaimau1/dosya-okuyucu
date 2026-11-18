@@ -1,6 +1,7 @@
 @Tags(['perf'])
 library;
 
+import 'dart:io';
 import 'dart:ui' show Offset, Rect;
 
 import 'package:dosya_okuyucu/core/device_profile.dart';
@@ -81,6 +82,29 @@ void main() {
     print('PERF pdf_diff_1500_ms=${sw.elapsedMilliseconds}');
     expect(d.where((l) => l.any((p) => p.kind != DiffKind.same)), hasLength(1));
     expect(sw.elapsedMilliseconds, lessThan(3000));
+  });
+
+  // B12 m.3 — sayfa değişimi yeniden kurulum bütçesi (mandal, YALNIZ DÜŞER).
+  // pdfrx görüntüleyicisi testte kurulamaz (pdfium yok) → widget sayımı
+  // yerine kaynak bekçisi: sayfa numarası değişince TÜM görüntüleyici ekranı
+  // setState ile yeniden kurulan yerler. Daraltma (sayfa bildirimcisi + dar
+  // dinleyici) PDF kabuğu = ÖLÇÜM KAPISI → cihazda A/B ile (PLAN C2).
+  test('sayfa değişimi: tüm ekranı kuran setState sayısı ≤ tavan', () {
+    final call = RegExp(r'[sS]etState\(\(\) => _pdfPage =');
+    var n = 0;
+    final files = [
+      File('lib/screens/viewer_screen.dart'),
+      for (final f in Directory('lib/screens/viewer').listSync())
+        if (f is File && f.path.endsWith('.dart')) f,
+    ];
+    for (final f in files) {
+      n += call.allMatches(f.readAsStringSync()).length;
+    }
+    // ignore: avoid_print
+    print('PERF pdf_page_change_full_rebuild_sites=$n');
+    // body.dart onPageChanged + pdf_navigation.dart sayfaya atlama.
+    expect(n, lessThanOrEqualTo(2), reason: 'sayfa değişimi dar dinleyiciyle');
+    expect(n, 2, reason: 'azaldı: tavanı düşür (mandal bayatlamasın)');
   });
 
   test('bellek tavanları: çizim bütçesi ≤ 2480 px, görsel fark ≤ 50 sayfa', () {
