@@ -315,8 +315,12 @@ class _SpreadsheetView extends StatelessWidget {
                   headerCell(_colLabel(c), colW),
               ]),
               Expanded(
+                // Sabit satır (B12 m.6): her hücre `Container(height: cellH)`
+                // — yazı ölçeği ne olursa olsun satır cellH; liste 2.000
+                // satırı ölçmeden konumlar (kaydırma çubuğu sıçramaz).
                 child: ListView.builder(
                   itemCount: rows.length,
+                  itemExtent: cellH,
                   itemBuilder: (_, r) {
                     final row = rows[r];
                     return Row(children: [
