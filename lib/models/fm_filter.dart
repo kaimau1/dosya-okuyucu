@@ -202,6 +202,11 @@ class FmFilter {
   /// Dosyanın AI kategorisi (yoksa null) — model saf kalsın diye kanca.
   static String? Function(String path)? smartCatOf;
 
+  /// Dosyanın eşleştiği KULLANICI kategorileri (`u:` önekli kimlikler; bir
+  /// dosya birden çoğuna girebilir — PLAN §1.1 m.3). Yerleşik kategoriyle
+  /// aynı [smartCats] kümesinde süzülür.
+  static Iterable<String> Function(String path)? smartUserCatsOf;
+
   /// Tek noktadan çoğaltma. `with*` üreteçleri bunu kullanır: her alan
   /// eklendiğinde yedi ayrı üreteci güncellemek (ve birini atlamak) yerine
   /// tek yer değişir.
@@ -476,7 +481,9 @@ class FmFilter {
     if (!matchesVolume(entry.path)) return false;
     if (types.isNotEmpty && !types.contains(FmType.of(entry))) return false;
     if (smartCats.isNotEmpty &&
-        !smartCats.contains(smartCatOf?.call(entry.path))) {
+        !smartCats.contains(smartCatOf?.call(entry.path)) &&
+        !(smartUserCatsOf?.call(entry.path).any(smartCats.contains) ??
+            false)) {
       return false;
     }
     if (buckets.isNotEmpty && !buckets.contains(bucketForPath(entry.path))) {

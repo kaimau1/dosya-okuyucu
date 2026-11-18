@@ -62,7 +62,7 @@ yoluna dokunmaz, dokunulan editörün bütçe testi yeşil, A/B sonra C2'de. C2'
 
 | No | Paket | Model | Kaynak | Cihaz | APK | Durum |
 |---|---|---|---|---|---|---|
-| B1 | **AI Akıllı düzen 2.0 — çekirdek:** ayrıntılı sınıflandırma (§1.1), kullanıcı kategorileri (doğruluk kapısıyla), HER dosya türü (Office/metin/ses/video/arşiv), doğruluk ölçüm tezgâhı, Files API (büyük dosya) | opus (şema evresi fable) | §1.1; HAFIZA 2026-11-18 | A/B | evet | bulutta: sürüyor — dal faz-oto-B1-duzen2: bitti metin türleri (m.2 metin) + ayrıntılı şema (m.1, main 1642dfaf) + ses/video + Files API (m.2, dilim main'e gidiyor), kalan: kullanıcı kategorileri, tezgâh, hız/kota (büyük video kırpma dahil), PowerPoint ilk slayt görüntüsü |
+| B1 | **AI Akıllı düzen 2.0 — çekirdek:** ayrıntılı sınıflandırma (§1.1), kullanıcı kategorileri (doğruluk kapısıyla), HER dosya türü (Office/metin/ses/video/arşiv), doğruluk ölçüm tezgâhı, Files API (büyük dosya) | opus (şema evresi fable) | §1.1; HAFIZA 2026-11-18 | A/B | evet | bulutta: sürüyor — dal faz-oto-B1-duzen2: bitti metin türleri (m.2 metin) + ayrıntılı şema (m.1, main 1642dfaf) + ses/video + Files API (m.2) + kullanıcı kategorileri (m.3, dilim main'e gidiyor), kalan: tezgâh (m.4), hız/kota (m.5, büyük video kırpma dahil), PowerPoint ilk slayt görüntüsü |
 | B2 | **AI Akıllı düzen 2.0 — kullanım:** Ayıkla 2 (en iyi kare, benzer kare grupları), kontrol listeleri, düzeltmeden öğrenme, isteğe bağlı taşıma kuralları, hassas kategori kilidi, Decisions'ın kalan kullanımları (eski P33/P34) | opus | §1.2 | A/B | evet | bekliyor — B1'den sonra |
 | B3 | **Hız (Ferrari) kod + ölçüm:** P12b Excel/liste A/B artıkları, P29 büyük başlık + kalıcı hata şeridi, P06 PDF kaydırma H2.1–H2.6 | opus (P06 plan evresi fable) | §1.3; arsiv/FERRARI_PLANI H2 | A/B | evet | bekliyor |
 | B4 | **PDF Pro tamamlama:** P16 metin, P17 nesne/işaret, P18 form+imza, P19 OCR Pro, P20 sayfa stüdyosu, P21 parola/meta/optimize/PDF-A, P22 kalite %98 | opus (plan evresi fable) | §1.4; arsiv/PDF_PRO_PLANI 54–68 | A/B | evet | bekliyor — 2–3 oturum, tek dal |
@@ -96,7 +96,11 @@ kullanıcı kendi kategorisini ekler ve **eklemeden önce doğru çalıştığı
    14 MB üstü Files API; blok alan adları API'de doğrulanmadı — `docs/CIHAZ_TESTI.md`)_ **Kalan:**
    - PowerPoint/ODP → ilk slayt görüntüsü (yazıya ek).
    - Kapsam (§ Kamera kapalı varsayılanı) aynen; AI kapsamı dışı hiç gönderilmez.
-3. **Kullanıcı kategorileri ("doğru çalışır mı?" tasarımı):**
+3. **Kullanıcı kategorileri ("doğru çalışır mı?" tasarımı):** _(yazıldı — bulut 2026-11-18, dal
+   faz-oto-B1-duzen2: `lib/services/fm/smart_user_cats.dart` + `smart_user_cat_screen.dart`; normal turda
+   soru bütçesi (40) yettiği kadar aynı istekte, sığmayanı "Eski dosyalara uygula" sorar; "Dene" sonuçları
+   kaydedilince yeniden sorulmaz; ad/cümle değişirse eski yanıtlar silinir. Eşik 0,7'nin doğruluğu tezgâhta
+   (m.4); cihazda bakılacaklar `docs/CIHAZ_TESTI.md`)_
    - Ad + "neyi kapsar" tek cümlesi (her dilde) + simge/renk. Model talimatı: "Does this file match the
      user's category: <cümle>?" — **ayrı `noul` sorusu** (yerleşik kategorinin kalibrasyonunu bozmaz;
      bir dosya birden çok kullanıcı kategorisine girebilir), eşik 0,7.
@@ -341,7 +345,9 @@ görünür her değişiklikte `kasma-kontrol`; görünüş değişmeden önce es
   P13 (klasor_5000 p99 23,5→38,9; B3.3c Fotoğraflar donması; soğuk açılış ≤ 1,2 sn), P12 (10k×20
   ≤ 1,5 sn, K23 FrameTiming %99), P14 (`word_300_menu`/`_kapanis`, K21–K22), P04 (2 tur, gürültü şüphesi;
   K6–K7) + **2026-11-18 işleri:** ana ekran "Son açılanlar/Yeni gelenler" sekmesi ve `smart` kutusu, liste
-  satırında akıllı ikinci ad, galeride QR düğmesi (kaydırırken kasma yok mu).
+  satırında akıllı ikinci ad, galeride QR düğmesi (kaydırırken kasma yok mu); Akıllı düzen
+  kullanıcı kategorisi süzgeci (dosya listesi süzgeç sayımına kullanıcı kategorisi eklendi — kategori
+  yoksa tek karşılaştırma; bulut 2026-11-18, dal faz-oto-B1-duzen2, ölçülmedi).
   **B12 hız A/B** (bulut 2026-11-18, dal faz-oto-B12-hiz2; ölçülmedi): eski .xls/.doc açılışı, Word/Excel/Slayt
   taslaktan geri yükleme, sesli kitap hazırlığı (ana izlek kare süresi); Word editöründe resimli belge kaydırma
   + bellek, galeride bozuk/kurtarılan görsel, aktarım teklifi küçük resimleri. **B12 m.1/m.5** (ölçülmedi):
@@ -350,7 +356,8 @@ görünür her değişiklikte `kasma-kontrol`; görünüş değişmeden önce es
   satırı `statSync` + iyileştirme kopyası `existsSync`, PDF kabuğu okuma konumu `lengthSync`.
 - **C3:** P11 genel tur + K20–K28; Arapça OCR, AI hızlı/toplu kontrol, paylaşım kalkanı, Akıllı düzen ve
   Ayıkla maddeleri (CIHAZ_TESTI 2026-11-18); Akıllı düzen Word/Excel/sunum/metin/APK ikinci adları
-  (bulut 2026-11-18, dal faz-oto-B1-duzen2).
+  (bulut 2026-11-18, dal faz-oto-B1-duzen2); Akıllı düzen kullanıcı kategorileri ("Dene", uygula,
+  süzgeç/arama/ikinci ad — CIHAZ_TESTI 2026-11-18).
 
 ---
 
