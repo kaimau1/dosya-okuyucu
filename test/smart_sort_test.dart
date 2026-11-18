@@ -54,7 +54,7 @@ void main() {
         confidence: conf,
       );
 
-  final entry = FsEntry(
+  const entry = FsEntry(
       path: '/s/Download/fatura.pdf',
       name: 'fatura.pdf',
       isDir: false,

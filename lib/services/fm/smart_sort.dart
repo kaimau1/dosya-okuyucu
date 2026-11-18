@@ -414,7 +414,12 @@ abstract final class SmartSort {
       if (r.cat == 'bank') SmartTaxonomy.bankName(r.bank),
       if (r.year > 0) '${r.year}',
     };
-    return turkishFold(parts.where((x) => x.isNotEmpty).join(' '));
+    // İki küçük harf biçimi birden: Türkçe katlama İngilizce "Invoice"ı
+    // "ınvoice" yapar; düz küçültme "invoice" bırakır — ikisi de aransın.
+    final words = parts.where((x) => x.isNotEmpty);
+    return {
+      for (final w in words) ...[turkishFold(w), w.toLowerCase()],
+    }.join(' ');
   }
 
   /// Genel arama: bütün terimler ikinci adda ya da üç dildeki adlarda geçen

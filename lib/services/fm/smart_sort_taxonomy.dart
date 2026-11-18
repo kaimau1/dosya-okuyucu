@@ -197,7 +197,7 @@ abstract final class SmartTaxonomy {
   static List<DecisionQuestion> questions({required bool image, int? nowYear}) {
     final year = nowYear ?? DateTime.now().year;
     return [
-      DecisionQuestion.choice(
+      const DecisionQuestion.choice(
         'cat',
         'cat',
         'What kind of file is this? Judge by its content (whatever its '
