@@ -133,9 +133,7 @@ void main() {
       'lib/screens/editors/word_mobile_editor_screen.dart': 1,
       // _parseDeck: izolat kurulamazsa yedek.
       'lib/screens/editors/slides/pro.dart': 1,
-      // _rerender (resim ekle/sil sonrası yeniden kurulum, açılış değil) —
-      // PLAN §1.12 madde 3 (editör yeniden kurulum bütçeleri) kapsamı.
-      'lib/screens/editors/word/actions.dart': 1,
+      // Word `_rerender` (resim ekle/sil) B12 m.3'te openForView'a geçti → 0.
     };
 
     test('dosya başına tavan aşılmaz; tavan bayatlamaz', () {
