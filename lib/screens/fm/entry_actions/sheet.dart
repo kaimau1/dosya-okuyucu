@@ -41,6 +41,7 @@ enum _EntryAction {
   aiTag,
   aiAlias,
   alias,
+  smartFix,
 }
 
 /// İşlemin bağlı olduğu sürüm özelliği; null = her sürümde (aç, paylaş …).
@@ -56,7 +57,8 @@ Feature? _featureOf(_EntryAction a) => switch (a) {
       _EntryAction.aiCheck ||
       _EntryAction.imageInsight ||
       _EntryAction.aiTag ||
-      _EntryAction.aiAlias =>
+      _EntryAction.aiAlias ||
+      _EntryAction.smartFix =>
         Feature.ai,
       _EntryAction.resize ||
       _EntryAction.rotate ||
@@ -409,6 +411,13 @@ Future<bool> showEntryActions(
                       _EntryAction.alias),
                 if (!entry.isDir)
                   act(AppIcons.ai, ctx.t('alias.action'), _EntryAction.aiAlias),
+                // Akıllı düzen öğrenir (2026-11-18): "bu yanlış → ne olmalıydı?"
+                if (!entry.isDir && SmartSort.of(entry.path) != null)
+                  act(AppIcons.rule, ctx.t('smf.action'), _EntryAction.smartFix,
+                      hint: ctx.t('smf.action_hint', {
+                        'cat': SmartCatStyle.label(
+                            ctx, SmartSort.of(entry.path)!.cat),
+                      })),
                 if (!entry.isDir &&
                     entry.category != FmCategory.image &&
                     entry.category != FmCategory.video &&
@@ -534,6 +543,11 @@ Future<bool> showEntryActions(
 
     case _EntryAction.alias:
       await editAlias(context, entry);
+      return false;
+
+    case _EntryAction.smartFix:
+      // Liste ikinci adı ve akıllı klasörü kendisi dinliyor (revision).
+      await showSmartFix(context, entry.path);
       return false;
 
     case _EntryAction.resize:

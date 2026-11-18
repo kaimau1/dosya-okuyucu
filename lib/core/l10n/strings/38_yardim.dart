@@ -30,7 +30,7 @@ const Map<String, (String, String, String)> _t38 = {
   'side.open': ('Menüyü aç', 'Open menu', 'فتح القائمة'),
   'side.home': ('Ana ekran', 'Home', 'الشاشة الرئيسية'),
   'side.edit': ('Menüyü düzenle', 'Edit menu', 'تعديل القائمة'),
-  'side.show_recents': ('Son açılanları göster', 'Show recent files', 'إظهار الملفات الأخيرة'),
+  'side.show_recents': ('Geçmişi göster', 'Show history', 'إظهار السجل'),
   'side.show_handle': ('Kenar tutamacı', 'Edge handle', 'مقبض الحافة'),
   'side.show_handle_sub': ('Her ekranda solda ince çizgi; dokununca menü açılır', 'Thin bar on the left of every screen; tap to open the menu', 'شريط رفيع على يسار كل شاشة؛ انقر لفتح القائمة'),
   'side.handle_right': ('Tutamaç sağda', 'Handle on the right', 'المقبض على اليمين'),

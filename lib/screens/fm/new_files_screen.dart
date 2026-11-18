@@ -4,15 +4,20 @@ import 'package:flutter/material.dart';
 
 import '../../core/l10n/app_strings.dart';
 import '../../models/fs_entry.dart';
-import '../../services/fm/fm_env.dart';
+import '../../services/fm/fresh_cache.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
-import '../../services/fm/storage_stats.dart';
 import 'category_screen.dart';
 import '../../widgets/side_menu_view.dart';
 import '../../widgets/motion.dart';
 
-/// **Yeni Dosyalar** — telefona en son düşen dosyalar.
+/// **Yeniler** (eski adı "Yeni Dosyalar" / "Yeni gelenler") — telefona en son
+/// düşen dosyalar.
+///
+/// **Hız (2026-11-18):** ekran önce [FreshCache]'teki son sonucu (ya da
+/// diskteki son yolların `stat`ını) ANINDA gösterir; tam tarama bitince gerçek
+/// liste yerine geçer. Tarama ana ekran şeridiyle ORTAK (aynı anda iki yürüyüş
+/// yok).
 ///
 /// Kullanıcı 2026-08-17: *"yeni dosyaların tüm dosyaları taramasına gerek yok,
 /// son 100 dosyayı taraması yeterli; hâlâ çok geç güncelleniyor. Yeni
@@ -50,7 +55,7 @@ class NewFilesScreen extends StatefulWidget {
   /// ekranın sorusu "az önce ne geldi?" olsa da kullanıcının ölçüsü "bugün ne
   /// geldi?". Tarama maliyeti değişmiyor (ağaç yine sonuna kadar geziliyor,
   /// bellekte yalnız en yeni N tutuluyor); artan tek şey listenin uzunluğu.
-  static const int limit = 300;
+  static const int limit = FreshCache.limit;
 
   @override
   State<NewFilesScreen> createState() => _NewFilesScreenState();
@@ -74,7 +79,16 @@ class _NewFilesScreenState extends State<NewFilesScreen> {
   void initState() {
     super.initState();
     FsEvents.returned.addListener(_onReturned);
+    _files = FreshCache.last;
+    if (_files == null) unawaited(_warm());
     _load();
+  }
+
+  /// Önbellekten ilk görüntü: tarama bitmeden boş iskelet beklenmesin.
+  Future<void> _warm() async {
+    final w = await FreshCache.warm();
+    if (!mounted || _files != null || w == null) return;
+    setState(() => _files = w);
   }
 
   @override
@@ -106,13 +120,8 @@ class _NewFilesScreenState extends State<NewFilesScreen> {
   /// İndirilenler'i çoktan geçmiş olabilir).
   bool _again = false;
 
-  Future<List<FsEntry>> _scan() async {
-    await FmEnv.ensureInit();
-    // Bütün birimler (SD kart / USB dahil) — bkz. `hotFoldersForAll`.
-    final roots = StorageStats.hotFoldersForAll(FmEnv.volumeRoots);
-    if (roots.isEmpty) return const [];
-    return FsScan.freshFiles(roots, limit: NewFilesScreen.limit);
-  }
+  // Bütün birimler (SD kart / USB dahil) — bkz. `hotFoldersForAll`.
+  Future<List<FsEntry>> _scan() => FreshCache.scan();
 
   Future<void> _load() async {
     if (_scanning) {

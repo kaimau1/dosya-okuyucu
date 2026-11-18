@@ -49,9 +49,13 @@ abstract final class DashboardTools {
   static List<T> head<T>(List<T> all) =>
       all.length <= visible ? all : all.sublist(0, visible);
 
-  /// Panonun TEK araç satırı (2026-11-04): telefonda dört sütun = dört araç.
+  /// Panonun araç satırı uzunluğu: telefonda dört sütun = dört araç.
   static const rowLength = 4;
 
   static List<T> row<T>(List<T> all) =>
       all.length <= rowLength ? all : all.sublist(0, rowLength);
+
+  /// Panoda İKİ araç satırı (2026-11-18, kullanıcı: "araçlar 2 satır olsun,
+  /// şu an tek satır"): dört sütunda sekiz araç, gerisi "Tümü"nde.
+  static List<T> rows<T>(List<T> all) => head(all);
 }

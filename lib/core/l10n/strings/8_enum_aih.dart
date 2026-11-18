@@ -1022,9 +1022,9 @@ const Map<String, (String, String, String)> _t8 = {
     'بطاقات التخزين',
   ),
   'dash.sec_recent': (
-    'Son açılanlar',
-    'Recently opened',
-    'المفتوحة مؤخرًا',
+    'Geçmiş',
+    'History',
+    'السجل',
   ),
   'dash.recent_all': (
     'Tümü →',

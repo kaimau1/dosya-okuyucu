@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../services/fm/smart_folder_prefs.dart';
 
 /// Akıllı düzen kategorisinin simgesi, rengi ve adı (tek yer).
 abstract final class SmartCatStyle {
@@ -48,6 +49,12 @@ abstract final class SmartCatStyle {
         _ => AppHues.plum,
       };
 
+  /// Görünen ad: kullanıcının akıllı klasöre verdiği ad (2026-11-18), yoksa
+  /// çeviri tablosundaki ad.
   static String label(BuildContext context, String cat) =>
+      SmartFolderPrefs.nameOf(cat) ?? context.t('sm.c_$cat');
+
+  /// Çeviri tablosundaki (değiştirilmemiş) ad.
+  static String defaultLabel(BuildContext context, String cat) =>
       context.t('sm.c_$cat');
 }

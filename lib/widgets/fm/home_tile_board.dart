@@ -232,7 +232,13 @@ class _HomeTileBoardState extends State<HomeTileBoard> {
     );
   }
 
-  /// B · Bento: ilk iki kutu büyük renkli, sonraki iki orta, gerisi küçük.
+  /// B · Bento: ilk iki kutu büyük renkli, sonraki [_bentoMid] orta (uzun),
+  /// gerisi küçük.
+  ///
+  /// 2026-11-18 (kullanıcı: "İndirilenler ve Belgeler de foto video gibi 2
+  /// uzun kart olsun"): orta kart sayısı 2 → 4.
+  static const _bentoMid = 4;
+
   Widget _bento(double width) {
     final tiles = _ordered;
     final scaler = MediaQuery.textScalerOf(context);
@@ -263,7 +269,8 @@ class _HomeTileBoardState extends State<HomeTileBoard> {
       (70 + scaler.scale(30)) * _kHomeHeight * _kBentoHeight,
       44 + scaler.scale(30),
     );
-    final smallWithSub = tiles.skip(4).any((t) => t.subtitle.isNotEmpty);
+    final smallWithSub =
+        tiles.skip(2 + _bentoMid).any((t) => t.subtitle.isNotEmpty);
     Widget sized(FmTileData t, double w, double h, Widget child) =>
         SizedBox(width: w, height: h, child: _cell(t, w, h, child));
     return Wrap(
@@ -273,7 +280,7 @@ class _HomeTileBoardState extends State<HomeTileBoard> {
         for (var i = 0; i < tiles.length; i++)
           if (i < 2)
             sized(tiles[i], half, bigH, _BentoBig(data: tiles[i]))
-          else if (i < 4)
+          else if (i < 2 + _bentoMid)
             sized(tiles[i], midW, midH, _BentoMid(data: tiles[i]))
           else
             sized(

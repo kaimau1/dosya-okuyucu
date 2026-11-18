@@ -156,7 +156,8 @@ void main() {
     await layout.moveSection(0, 2);
     await layout.reset(HomeStyle.bento);
     expect(layout.sectionOrder.first, 'storage');
-    expect(layout.tileOrder.take(2), ['image', 'video']);
+    expect(layout.tileOrder.take(6),
+        ['smart', 'important', 'image', 'video', 'downloads', 'document']);
     expect(layout.isCustomizedFor(HomeStyle.bento), isFalse);
   });
 }

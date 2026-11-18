@@ -140,7 +140,7 @@ void main() {
     await tester.pumpWidget(const MaterialApp(
         home: HistoryScreen(initial: HistorySection.jobs)));
     await tester.pump();
-    for (final label in ['Açılanlar', 'Üretilenler', 'İşlemler', 'Yeni gelenler']) {
+    for (final label in ['Geçmiş', 'Üretilenler', 'İşlemler', 'Yeniler']) {
       expect(find.text(label), findsWidgets, reason: label);
     }
     // İşlemler bölümü açık: kendi başlığı ve eski "Son işlemler" kapısı.

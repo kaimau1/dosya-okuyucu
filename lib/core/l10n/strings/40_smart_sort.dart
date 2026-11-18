@@ -118,7 +118,7 @@ const Map<String, (String, String, String)> _t40 = {
     'While off, none of your personal photos are sent',
     'عند الإيقاف لا تُرسل أي صورة شخصية',
   ),
-  'sm.auto': ('Yeni gelenleri kendiliğinden düzenle', 'Organize new files automatically', 'نظّم الملفات الجديدة تلقائيًا'),
+  'sm.auto': ('Yenileri kendiliğinden düzenle', 'Organize new files automatically', 'نظّم الملفات الجديدة تلقائيًا'),
   'sm.auto_sub': (
     'Uygulamaya her dönüşte yeni dosyalar sessizce düzenlenir',
     'New files are organized quietly whenever you return to the app',

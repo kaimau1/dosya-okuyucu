@@ -74,7 +74,7 @@ const Map<String, (String, String, String)> _t39 = {
   'qc.t_screenshot': ('Ekran görüntüsü', 'Screenshot', 'لقطة شاشة'),
   'qc.t_photo': ('Fotoğraf', 'Photo', 'صورة'),
   'qc.t_other': ('Diğer', 'Other', 'أخرى'),
-  'fresh.new': ('Yeni gelenler', 'Just added', 'المضافة حديثًا'),
+  'fresh.new': ('Yeniler', 'New', 'الجديدة'),
   'near.share_apps': ('Uygulamalarla paylaş', 'Share with apps', 'مشاركة مع التطبيقات'),
   'near.share_no_folder': (
     'Klasörler uygulamalarla paylaşılamaz; içindeki dosyaları seç.',

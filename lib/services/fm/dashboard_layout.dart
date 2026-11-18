@@ -53,7 +53,8 @@ class DashboardLayout extends ChangeNotifier {
     'new',
     // **Akıllı Düzen** (2026-11-18): yeni kutu, görünür doğar.
     'smart',
-    'recent',
+    // 'recent' (Geçmiş kutusu) 2026-11-18'de kalktı: Geçmiş = üstteki şerit,
+    // Üretilenler araçlarda. Kayıtlı sıradaki 'recent' [_merge]'de düşer.
     'drive',
     'apps',
     // **Kitaplık** (2026-11-15): listede yoktu → "Varsayılana dön"de
@@ -70,23 +71,27 @@ class DashboardLayout extends ChangeNotifier {
       ? sections
       : const ['storage', 'recent', 'categories', 'tools', 'favorites', 'quick'];
 
+  ///
+  /// **Bento (2026-11-18, kullanıcı ekran görüntüsüyle: "ana ekran düzeni SS'teki
+  /// gibi olacak ama İndirilenler ve Belgeler de foto video gibi 2 uzun kart
+  /// olsun"):** iki büyük (Akıllı Düzen · Önemli Dosyalar), dört uzun
+  /// (Fotoğraflar · Videolar · İndirilenler · Belgeler), gerisi küçük.
   static List<String> tilesFor(HomeStyle style) => style == HomeStyle.bento
       ? const [
+          'smart',
+          'important',
           'image',
           'video',
           'downloads',
-          'important',
-          'important_gallery',
-          'media',
           'document',
           'audio',
           'apk',
-          'new',
-          'smart',
-          'recent',
-          'drive',
           'apps',
           'library',
+          'important_gallery',
+          'media',
+          'new',
+          'drive',
         ]
       : tiles;
 

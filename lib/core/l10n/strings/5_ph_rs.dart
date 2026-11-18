@@ -687,8 +687,8 @@ const Map<String, (String, String, String)> _t5 = {
   ),
 
   // ── Açılma geçmişi ────────────────────────────────────────────────────────
-  'oh.title': ('Son açılanlar', 'Recently opened', 'المفتوحة مؤخرًا'),
-  'oh.search': ('Son açılanlarda ara…', 'Search recently opened…', 'ابحث في المفتوحة مؤخرًا…'),
+  'oh.title': ('Geçmiş', 'History', 'السجل'),
+  'oh.search': ('Geçmişte ara…', 'Search history…', 'ابحث في السجل…'),
   'oh.clear': ('Geçmişi temizle', 'Clear the history', 'مسح السجل'),
   'oh.clear_title': ('Geçmiş temizlensin mi?', 'Clear the history?', 'هل تريد مسح السجل؟'),
   'oh.clear_body': (

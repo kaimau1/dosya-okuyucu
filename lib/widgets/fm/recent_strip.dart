@@ -6,22 +6,21 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
-import '../../services/fm/fm_env.dart';
+import '../../services/fm/fresh_cache.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/open_history.dart';
-import '../../services/fm/storage_stats.dart';
 import '../section_header.dart';
 import 'fm_entry_icon.dart';
 
-/// **Panoda "Son açılanlar" şeridi** (Faz 17 / G15, K16 (b) — 2026-10-22).
+/// **Panoda "Geçmiş" şeridi** (eski adı "Son açılanlar") (Faz 17 / G15, K16 (b) — 2026-10-22).
 ///
 /// "Az önce açtığım dosya" eskiden iki dokunuştu (Geçmiş kutusu →
 /// Açılanlar). Yatay, küçük resimli en çok [limit] öğe + "Tümü →".
 /// Varlık denetimi `FsScan.statPaths` ile arka planda (ana izlekte
 /// `existsSync` yok); hiç kayıt yoksa şerit hiç çizilmez.
 ///
-/// **"Yeni gelenler" sekmesi** (2026-11-18, kullanıcı: *"aynı son açılan /
+/// **"Yeniler" sekmesi** (eski adı "Yeni gelenler"; 2026-11-18, kullanıcı: *"aynı son açılan /
 /// yeni gelen sekme işini ana ekranda da yapalım, aktar ekranındaki güzel
 /// olmuş"*): [onAllNew] verilince başlık iki sekmeli olur. Yeni gelenler =
 /// sıcak klasörlerdeki en yeni dosyalar ([FsScan.freshFiles], izolatta).
@@ -29,6 +28,11 @@ import 'fm_entry_icon.dart';
 /// SONRA yapılır (Son açılanlar sekmesinde hiç disk yürüyüşü yok); dönüşte
 /// ([FsEvents.returned]) ve uygulama içi dosya işleminde tazelenir, liste
 /// aynıysa çizilmez. Seçilen sekme hatırlanır. Şeridin boyu iki sekmede aynı.
+///
+/// **Hız (2026-11-18, kullanıcı: "yeni gelenler çok geç yükleniyor"):** tarama
+/// [FreshCache] üzerinden — sekme açılınca önce son taramanın sonucu ya da
+/// diskteki son yolların `stat`ı ANINDA görünür, tam tarama bitince gerçek
+/// liste yerine geçer (doğruluk tam taramada).
 class RecentStrip extends StatefulWidget {
   final void Function(FsEntry entry) onOpen;
   final VoidCallback onAll;
@@ -83,14 +87,25 @@ class _RecentStripState extends State<RecentStrip> {
       final v = (await SharedPreferences.getInstance()).getBool(_tabKey);
       if (v == true && mounted) _selectNew(true, remember: false);
     } catch (_) {
-      // Bilinçli: hatırlanamazsa Son açılanlar sekmesi açılır.
+      // Bilinçli: hatırlanamazsa Geçmiş sekmesi açılır.
     }
   }
 
+  List<FsEntry> _pick(List<FsEntry> all) => [
+        for (final e in all)
+          if (!e.isDir && !e.path.contains('/.')) e
+      ].take(widget.limit).toList();
+
   void _selectNew(bool on, {bool remember = true}) {
-    setState(() => _showNew = on);
-    if (on && _fresh == null) {
-      // İlk kareden sonra: açılışın çizimine yük bindirmesin.
+    final needScan = on && _fresh == null;
+    final mem = needScan ? FreshCache.last : null;
+    setState(() {
+      _showNew = on;
+      if (mem != null) _fresh = _pick(mem);
+    });
+    if (needScan && mem == null) unawaited(_warm());
+    if (needScan) {
+      // Tam tarama ilk kareden sonra: açılışın çizimine yük bindirmesin.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) unawaited(_loadFresh());
       });
@@ -100,6 +115,13 @@ class _RecentStripState extends State<RecentStrip> {
           .then((p) => p.setBool(_tabKey, on))
           .catchError((Object _) => false));
     }
+  }
+
+  /// Önbellekten ilk görüntü (yalnız `stat`, ağaç gezilmez).
+  Future<void> _warm() async {
+    final w = await FreshCache.warm();
+    if (!mounted || _fresh != null || w == null) return;
+    setState(() => _fresh = _pick(w));
   }
 
   /// Dosya sistemi değişti / uygulamaya dönüldü: yalnız sekme açıksa tara,
@@ -120,16 +142,8 @@ class _RecentStripState extends State<RecentStrip> {
     }
     _scanning = true;
     try {
-      await FmEnv.ensureInit();
-      final roots = StorageStats.hotFoldersForAll(FmEnv.volumeRoots);
-      final all = roots.isEmpty
-          ? const <FsEntry>[]
-          : await FsScan.freshFiles(roots, limit: widget.limit * 2);
+      final next = _pick(await FreshCache.scan());
       if (!mounted) return;
-      final next = [
-        for (final e in all)
-          if (!e.isDir && !e.path.contains('/.')) e
-      ].take(widget.limit).toList();
       final old = _fresh;
       if (old == null || !FsScan.sameListing(old, next)) {
         setState(() => _fresh = next);
@@ -186,7 +200,7 @@ class _RecentStripState extends State<RecentStrip> {
 
   @override
   Widget build(BuildContext context) {
-    // Sekmeli şerit: dosya hiç açılmamış olsa da Yeni gelenler için durur.
+    // Sekmeli şerit: dosya hiç açılmamış olsa da Yeniler için durur.
     if (_items.isEmpty && !_tabs) return const SizedBox.shrink();
     final items = _showNew ? (_fresh ?? const <FsEntry>[]) : _items;
     final theme = Theme.of(context);

@@ -206,10 +206,10 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'recent',
       group: 'Ana ekran',
-      name: 'Son açılanlar',
-      where: 'Ana ekran → "Son açılanlar" bölümü (ya da "Geçmiş" kutusu)',
+      name: 'Geçmiş',
+      where: 'Ana ekran → "Geçmiş" şeridi → Tümü',
       how: ['Son açtığın dosyalar burada; "Tümü" ile geçmişin tamamı.'],
-      keywords: ['gecmis', 'en son', 'acilan'],
+      keywords: ['gecmis', 'en son', 'acilan', 'son acilanlar'],
     ),
 
     // ── Video ve fotoğraf ─────────────────────────────────────────────
@@ -299,7 +299,10 @@ class FeatureHelpIndex {
       group: 'Ses',
       name: 'Belgeyi sesli kitap yap',
       where: 'Belgenin ⋮ menüsü → "Sesli kitap yap"',
-      how: ['Belge sesli okunur ve ses dosyası olarak saklanır; Kitaplık\'tan dinlenir.'],
+      how: [
+        'Belge sesli okunur ve ses dosyası olarak saklanır.',
+        'Dinlemek için: Ana ekran → Kitaplık → üstteki "Sesli kitaplarım".',
+      ],
       keywords: ['sesli oku', 'dinle', 'kitaplik', 'tts'],
     ),
 

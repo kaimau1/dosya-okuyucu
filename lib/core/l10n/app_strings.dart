@@ -43,6 +43,7 @@ part 'strings/37_cards.dart';
 part 'strings/38_yardim.dart';
 part 'strings/39_decisions.dart';
 part 'strings/40_smart_sort.dart';
+part 'strings/41_home_learn.dart';
 
 /// Uygulama metinleri — Türkçe / İngilizce / Arapça.
 ///
@@ -185,4 +186,5 @@ const Map<String, (String, String, String)> _table = {
   ..._t38,
   ..._t39,
   ..._t40,
+  ..._t41,
 };

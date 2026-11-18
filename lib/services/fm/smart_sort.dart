@@ -20,6 +20,8 @@ import 'ai_scope.dart';
 import 'fm_env.dart';
 import 'fs_events.dart';
 import 'fs_scan.dart';
+import 'smart_folder_prefs.dart';
+import 'smart_learn.dart';
 import 'smart_sort_taxonomy.dart';
 
 /// Tek dosyanın akıllı düzen sonucu. Metin DEĞİL kimlik tutar (dil değişince
@@ -254,6 +256,9 @@ abstract final class SmartSort {
   static Future<void> _load() async {
     await FmEnv.ensureInit();
     await readSettings();
+    // Öğrenme + klasör düzeni (2026-11-18) depoyla birlikte hazır olsun.
+    await SmartLearn.ensureLoaded();
+    await SmartFolderPrefs.ensureLoaded();
     _records.clear();
     final dir = FmEnv.appSupportDir;
     if (dir.isNotEmpty) {
@@ -411,6 +416,8 @@ abstract final class SmartSort {
           AppStrings(lang).t('sm.s_${r.sub}'),
       ],
       ...?SmartTaxonomy.synonyms[r.cat],
+      // Kullanıcının akıllı klasöre verdiği ad da aransın.
+      ?SmartFolderPrefs.nameOf(r.cat),
       if (r.cat == 'bank') SmartTaxonomy.bankName(r.bank),
       if (r.year > 0) '${r.year}',
     };
@@ -466,6 +473,28 @@ abstract final class SmartSort {
             user: true,
           );
     _changed();
+  }
+
+  /// Benzer dosyalar topluca düzeltildi ([SmartLearn.similar]); öğrenmeye
+  /// ayrıca yazılmaz (yalnız kullanıcının kendi seçtiği dosya yazılır).
+  static Future<void> correctAll(Iterable<String> paths, String cat) async {
+    await ensureLoaded();
+    for (final path in paths) {
+      final r = _records[path];
+      if (r != null) _records[path] = r.copyWith(cat: cat, user: true);
+    }
+    _changed();
+  }
+
+  /// Klasör adı değişti: ikinci ad / arama önbellekleri tazelensin.
+  static void invalidateLabels() => _changed(save: false);
+
+  /// Öğrenilen düzeltmeler bu yeni sonucu çeviriyor mu? (elle düzeltilmiş
+  /// kayda dokunulmaz.)
+  static SmartRecord _learned(SmartRecord rec, {required bool image}) {
+    if (rec.user) return rec;
+    final to = SmartLearn.adjust(rec.path, rec.cat, image: image);
+    return to == null ? rec : rec.copyWith(cat: to);
   }
 
   /// "Gereksiz değil": kutlama/mem ise kişisel fotoğrafa çevrilir, bulanık /
@@ -550,14 +579,16 @@ abstract final class SmartSort {
     required List<Map<String, Object?>> input,
   }) async {
     await ensureLoaded();
+    final image = GeminiDecisions.mediaFor(entry.path)?.type == 'image';
     final result = await GeminiDecisions.ask(
       keys: credentials.normalized.keys,
       input: input,
       questions: SmartTaxonomy.questions(
-          image: GeminiDecisions.mediaFor(entry.path)?.type == 'image'),
+          image: image, learned: SmartLearn.hint(image: image)),
     );
-    final rec = fromAnswers(entry, result);
-    if (rec == null) return null;
+    final raw = fromAnswers(entry, result);
+    if (raw == null) return null;
+    final rec = _learned(raw, image: image);
     final old = _records[entry.path];
     _records[entry.path] =
         (old?.hidden ?? false) ? rec.copyWith(hidden: true) : rec;
@@ -645,20 +676,26 @@ abstract final class SmartSort {
       ].take(limit).toList();
       progress.value = SmartProgress(0, todo.length);
       final year = DateTime.now().year;
+      // Kullanıcının düzeltmelerinden geri bildirim (tur başına bir kez).
+      final imageHint = SmartLearn.hint(image: true);
+      final docHint = SmartLearn.hint(image: false);
       final queue = [...todo];
       Future<void> worker() async {
         while (queue.isNotEmpty && stoppedBy == null) {
           final e = queue.removeAt(0);
           try {
+            final image = GeminiDecisions.mediaFor(e.path)?.type == 'image';
             final questions = SmartTaxonomy.questions(
-                image: GeminiDecisions.mediaFor(e.path)?.type == 'image',
-                nowYear: year);
+                image: image,
+                nowYear: year,
+                learned: image ? imageHint : docHint);
             final result = await GeminiDecisions.ask(
               keys: keys,
               input: [await GeminiDecisions.fileBlock(e.path)],
               questions: questions,
             );
-            final rec = fromAnswers(e, result);
+            final raw = fromAnswers(e, result);
+            final rec = raw == null ? null : _learned(raw, image: image);
             if (rec != null) {
               final old = _records[e.path];
               _records[e.path] =

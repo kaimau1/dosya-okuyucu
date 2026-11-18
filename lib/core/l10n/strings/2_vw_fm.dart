@@ -39,7 +39,7 @@ const Map<String, (String, String, String)> _t2 = {
     'What is in this image?',
     'ما الموجود في الصورة؟',
   ),
-  'ea.image_insight_hint': ('metin tanı', 'recognize text', 'تعرّف على النص'),
+  'ea.image_insight_hint': ('AI özeti · yazı', 'AI summary · text', 'ملخص · نص'),
   'ea.clip_hint': ('yapıştırmak için', 'to paste later', 'للصق لاحقًا'),
   'ea.shared_hint': (
     'ağdan paylaşılır',
@@ -230,7 +230,7 @@ const Map<String, (String, String, String)> _t2 = {
   'vw.highlight': ('Vurgula', 'Highlight', 'تمييز'),
   'fm.drive_subtitle': ('Buluttaki dosyalar', 'Files in the cloud', 'الملفات في السحابة'),
   'fm.memory_analysis': ('Bellek Analizi', 'Storage analysis', 'تحليل التخزين'),
-  'fm.new_files': ('Yeni Dosyalar', 'New files', 'ملفات جديدة'),
+  'fm.new_files': ('Yeniler', 'New', 'الجديدة'),
   'fm.new_files_note': (
     'Son gelenler',
     'Latest arrivals',

@@ -1318,3 +1318,12 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Ana ekran → "Akıllı Düzen" → Aç ve düzenle: faturalar/dekontlar "Elektrik faturası · Ekim 2026" gibi ikinci ad alıyor mu? Belgeler listesinde "AI kategori" hapı ile süz; aramada "invoice" ve "fatura" ikisi de buluyor mu?
 - [ ] Ayıkla: günaydın/bayram görselleri ve bulanık kareler listede mi? Hepsini gizle → galeriden kalkıyor mu, Gizlenenler'den geri geliyor mu? Seçerek sil → çöp kutusuna gidiyor mu?
 - [ ] Kamera kapalıyken kamera fotoğrafı hiç gönderilmiyor mu (Akıllı düzende sayılmıyor)? Ana ekran ve listelerde kaydırma kasması var mı?
+
+## 2026-11-18 — Geçmiş/Yeniler · araçlar 2 satır · Bento · Görselde ne var · akıllı klasör (yazıldı, cihazda doğrulanmadı)
+- [ ] Ana ekran: Geçmiş kutusu yok; şerit başlığı "Geçmiş | Yeniler"; Araçlar iki satır (Üretilenler araçlarda); kaydırmada takılma yok.
+- [ ] Bento: Fotoğraflar · Videolar · İndirilenler · Belgeler dört uzun kart; büyük yazıda taşma yok.
+- [ ] Yeniler: uygulamayı kapatıp aç → sekme ANINDA dolu görünür; az önce alınan SS birkaç saniyede listeye girer.
+- [ ] Kitaplık → üstte "Sesli kitaplarım" (simge + kart) açılıyor.
+- [ ] Ekran görüntüsü → ⋮ → Görselde ne var: AI kısa özeti + tür çipi; yazı katlanır bölümde; anahtarsız cihazda "AI ile özetle" düğmesi.
+- [ ] Akıllı düzen: menüden 2/3/4 sütun; iki parmakla sıkıştır/aç sütun değiştirir, tek parmak kaydırma bozulmaz; basılı tut → yeniden adlandır / en başa al; "Sırala ve adlandır" sürükle.
+- [ ] Dosya ⋮ → Kategori yanlış mı? → doğrusunu seç → benzerler soruluyor; aynı uygulamanın yeni SS'i bir sonraki düzenlemede doğru kategoriye düşüyor.

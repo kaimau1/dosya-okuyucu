@@ -192,7 +192,8 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
             // olduğu için kullanıcının açtığı araç kendiliğinden öne gelir.
             // 2026-11-04 (kullanıcı): araçlar TEK satır — Aktar alt panelde,
             // Yer aç / Sohbet medyası / Düzenle İşlemler'in sekmelerinde.
-            final shown = DashboardTools.row(tools);
+            // 2026-11-18 (kullanıcı: "araçlar 2 satır olsun"): iki satır.
+            final shown = DashboardTools.rows(tools);
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -400,22 +401,10 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
           if (mounted) _partSetState(() {});
         },
       ),
-      // **Son açılanlar — büyük kutu.** Araçlar satırındaki 12 küçük simgenin
-      // arasındaydı ve kaydırmadan görünmüyordu; oysa "dün baktığım dosya"
-      // insanların panoya dönme sebeplerinden biri (istek 2026-08-09:
-      // *"... kolay erişilebilir olmalı"*). Çöp kutusu ve Drive ile aynı
-      // terfi hikâyesi.
-      // 2026-10-21: kutu artık **Geçmiş**in kapısı (Açılanlar · Üretilenler
-      // · İşlemler · Yeni gelenler). Kimlik 'recent' KALDI — kullanıcının
-      // kaydettiği pano sırası bu kimlikle duruyor.
-      FmTileData(
-        id: 'recent',
-        icon: AppIcons.history,
-        color: AppHues.indigo,
-        label: context.t('hist.title'),
-        subtitle: context.t('hist.tile_sub'),
-        onTap: () => HistoryScreen.open(context),
-      ),
+      // (Geçmiş kutusu 2026-11-18'de KALKTI — kullanıcı: "Geçmiş kartını
+      // kaldıralım, üretilenleri aşağıdaki araçlara koyalım". Açılan dosyalar
+      // üstteki Geçmiş şeridinde [Tümü → OpenHistoryScreen], Üretilenler ve
+      // İşlemler Araçlar'da, Yeniler şeridin ikinci sekmesinde.)
       // **Google Drive — büyük kutulardan biri** (kullanıcı isteği 2026-08-05:
       // *"Drive daha kolay erişilebilmeli, şu an zor bulunuyor"*). Çöp
       // kutusuyla aynı terfi hikâyesi: araçlar ızgarasındaki 12 küçük simge

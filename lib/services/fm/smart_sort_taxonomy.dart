@@ -201,18 +201,25 @@ abstract final class SmartTaxonomy {
   /// görsel kategorileri yalnız görselde — PDF/belgeye "ekran görüntüsü"
   /// seçeneği sunulmaz; kök 2026-11-18: Gmail'den yazdırılan e-posta PDF'i
   /// "Ekran görüntüsü" çıkıyordu), [nowYear] yıl seçenekleri için.
-  static List<DecisionQuestion> questions({required bool image, int? nowYear}) {
+  ///
+  /// [learned] (2026-11-18): kullanıcının düzeltmelerinden geri bildirim
+  /// (`SmartLearn.hint` — yalnız kategori kimlikleri ve sayılar) kategori
+  /// sorusunun talimatına eklenir.
+  static List<DecisionQuestion> questions(
+      {required bool image, int? nowYear, String learned = ''}) {
     final year = nowYear ?? DateTime.now().year;
+    final tail = learned.isEmpty ? '' : ' $learned';
     return [
       DecisionQuestion.choice(
         'cat',
         'cat',
-        image
-            ? 'What kind of file is this? Judge by its content (whatever its '
-                'language), not by the file name.'
-            : 'This is a document file (PDF or text). What kind of document '
-                'is it? Judge by its content (whatever its language), not by '
-                'the file name or how the pages look.',
+        (image
+                ? 'What kind of file is this? Judge by its content (whatever '
+                    'its language), not by the file name.'
+                : 'This is a document file (PDF or text). What kind of '
+                    'document is it? Judge by its content (whatever its '
+                    'language), not by the file name or how the pages look.') +
+            tail,
         {
           ...docCategories,
           if (image) ...imageCategories,

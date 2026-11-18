@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/app_icons.dart';
-import '../../core/busy_dialog.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
@@ -30,6 +29,7 @@ import '../../services/ocr_service.dart';
 import '../../widgets/markdown_text.dart';
 import '../../widgets/tracked_busy.dart';
 import 'ai_quick_check.dart';
+import 'image_insight.dart';
 import 'important_screen.dart';
 import '../../core/snack.dart';
 import '../../core/user_error.dart';
@@ -334,41 +334,10 @@ Future<void> _showSummarySheet(
   }
 }
 
-/// Görselden metni tanır (OCR), türünü tahmin eder ve klasörleme önerir.
-Future<void> showImageInsight(BuildContext context, FsEntry entry) async {
-  // Metinler await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
-  final str = AppStrings.of(context);
-  final busy = showBusyDialog(context,
-      builder: (_) => _Busy(str.t('aia.reading_image')));
-
-  String text;
-  try {
-    text = await OcrService.recognizeImageFile(entry.path, allowCloud: true);
-  } catch (e) {
-    busy.close();
-    if (context.mounted) _snack(context, str.t('aia.ocr_failed', {'error': userErrorText(e)}));
-    return;
-  }
-  busy.close();
-  if (!context.mounted) return;
-
-  final guess = classifyDocumentText(text, fileName: entry.name);
-  await showModalBottomSheet<void>(
-    context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
-    builder: (ctx) => _ResultSheet(
-      entry: entry,
-      name: entry.name,
-      title: guess.isConfident
-          ? str.t('aia.looks_like',
-              {'type': str.t(guess.type.labelKey).toLowerCase()})
-          : str.t('aia.image_text'),
-      body: text.trim().isEmpty ? str.t('aia.image_no_text') : text.trim(),
-      guess: guess.isConfident ? guess : null,
-    ),
-  );
-}
+/// "Görselde ne var?" — AI kısa özeti + tür + katlanır metin (2026-11-18,
+/// bkz. [showImageInsightSheet]). Eskiden ham OCR satırlarını döküyordu.
+Future<void> showImageInsight(BuildContext context, FsEntry entry) =>
+    showImageInsightSheet(context, entry);
 
 /// Tahmine göre `Önemli Dosyalar/<klasör>` altına taşır.
 Future<bool> fileIntoSuggestedFolder(
@@ -401,24 +370,6 @@ Future<bool> fileIntoSuggestedFolder(
 
 void _snack(BuildContext context, String message) {
   showSnack(context, message);
-}
-
-class _Busy extends StatelessWidget {
-  final String message;
-  const _Busy(this.message);
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-        content: Row(
-          children: [
-            const SizedBox(
-                width: 20, height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2)),
-            const SizedBox(width: Gap.md),
-            Expanded(child: Text(message)),
-          ],
-        ),
-      );
 }
 
 /// Sonuç sayfası: metin + (varsa) sınıflandırma önerisi ve "klasöre taşı".

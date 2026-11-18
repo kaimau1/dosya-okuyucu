@@ -6,11 +6,10 @@ import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
-import '../../services/fm/fm_env.dart';
+import '../../services/fm/fresh_cache.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/open_history.dart';
-import '../../services/fm/storage_stats.dart';
 import 'fm_entry_icon.dart';
 
 /// **Yeni dosyalar / son açılanlar şeridi** (2026-11-18, kullanıcı: *"aktar
@@ -63,6 +62,9 @@ class _FreshFilesStripState extends State<FreshFilesStrip> {
     super.initState();
     FsEvents.returned.addListener(_reload);
     FsEvents.version.addListener(_reload);
+    // Ortak önbellek (2026-11-18): son tarama varsa şerit anında dolu açılır.
+    final mem = FreshCache.last;
+    if (mem != null) _fresh = mem.where(_ok).take(widget.limit).toList();
     unawaited(_load());
   }
 
@@ -85,11 +87,7 @@ class _FreshFilesStripState extends State<FreshFilesStrip> {
     }
     _loading = true;
     try {
-      await FmEnv.ensureInit();
-      final roots = StorageStats.hotFoldersForAll(FmEnv.volumeRoots);
-      final fresh = roots.isEmpty
-          ? const <FsEntry>[]
-          : await FsScan.freshFiles(roots, limit: widget.limit * 2);
+      final fresh = await FreshCache.scan();
       List<FsEntry> recent = const [];
       try {
         await OpenHistory.ensureLoaded();
