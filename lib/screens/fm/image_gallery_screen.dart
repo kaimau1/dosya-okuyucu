@@ -49,7 +49,7 @@ part 'image_gallery/widgets.dart';
 /// incelir ve altta ızgara görünür — Google Foto'daki his. Eskiden standart
 /// sayfa geçişiyle sağdan kayıyordu: fotoğraf ile açılan sayfa arasında
 /// görsel bir bağ yoktu.
-Route<void> imageGalleryRoute({
+PageRouteBuilder<void> imageGalleryRoute({
   required List<String> paths,
   required int initialIndex,
 }) =>
@@ -161,8 +161,25 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         final t = Curves.easeOutCubic.transform(_snap.value);
         setState(() => _dragDy = _snapFrom * (1 - t));
       });
+    // Komşuların çözümü açılış geçişi BİTİNCE (2026-11-18): iki tam boy
+    // çözüm büyüme animasyonuyla aynı çekirdekleri paylaşıp kare
+    // kaçırtıyordu.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _precacheAround(_index);
+      if (!mounted) return;
+      final animation = ModalRoute.of(context)?.animation;
+      if (animation == null || animation.isCompleted) {
+        _precacheAround(_index);
+        return;
+      }
+      late final AnimationStatusListener listener;
+      listener = (status) {
+        if (status == AnimationStatus.forward) return;
+        animation.removeStatusListener(listener);
+        if (mounted && status == AnimationStatus.completed) {
+          _precacheAround(_index);
+        }
+      };
+      animation.addStatusListener(listener);
     });
     _enhanceSub = EnhanceJobs.results.listen(_onEnhanced);
     _unhideMenuHandle = SideMenu.instance.hideHandle();

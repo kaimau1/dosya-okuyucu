@@ -1332,3 +1332,5 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] İndirilenler'e bir Word, bir Excel/CSV, bir sunum, bir .txt ve bir APK koy → Akıllı düzen → "Şimdi düzenle": hepsi ikinci ad + kategori alıyor mu (ör. Word kira sözleşmesi → "Sözleşme"); APK/arşivde içerik gönderilmeden yalnız adla bir kategori (çoğu "Diğer") çıkıyor mu?
 - [ ] Büyük (20–40 MB) Word/Excel düzenlenirken ana ekran ve listede kasma yok mu; okunamayan dosya "N dosya yapılamadı: yazısı okunamadı" iletisinde mi?
 - [ ] AI kapsamı dışındaki klasördeki Word/Excel hiç sayılmıyor mu?
+
+- [ ] (2026-11-18) Galeri: eski bir fotoğrafa dokun → hücreden büyüme takılmadan akıyor mu; açıldıktan hemen sonra netleşiyor mu; sağa/sola geçiş hâlâ anında mı. Video: dokununca kapaktan büyüme akıcı mı.

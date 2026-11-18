@@ -223,14 +223,19 @@ abstract final class EntryOpener {
       return;
     }
     if (route == OpenRoute.gallery && group.length > 1) {
-      _remember(path);
       // Saydam, solarak gelen rota: fotoğraf ızgaradaki hücresinden büyüyerek
       // açılır (Hero) ve aşağı kaydırınca hücresine dönerek kapanır
       // (2026-09-26 galeri turu, bkz. `imageGalleryRoute`).
-      await Navigator.of(context).push(imageGalleryRoute(
+      final gallery = imageGalleryRoute(
         paths: group,
         initialIndex: group.indexOf(path),
-      ));
+      );
+      final closed = Navigator.of(context).push(gallery);
+      // Geçmiş kaydı (bütün geçmişin JSON'u + başlatıcı kısayolu) geçiş
+      // BİTİNCE — oynatıcıdaki gibi (2026-11-18, kullanıcı: "fotoğraf takıla
+      // takıla açılıyor"): büyüme karelerinin arasına girmesin.
+      _afterTransition(gallery, () => _remember(path));
+      await closed;
       return;
     }
 
