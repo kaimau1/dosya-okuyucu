@@ -52,5 +52,5 @@ Hesapta Fable yoksa Opus. Limit freni: ≥ %80 yeni paket yok, ≥ %90 dur (`oto
 
 ## Kuyruk → `PLAN.md` §1
 
-Kuyruk tablosu ve SIRA 2026-11-15'te `PLAN.md` §1'e taşındı (biten satırlar silindi). 👤 maddeler
+Kuyruk tablosu ve SIRA 2026-11-15'te `PLAN.md` §1'e taşındı (biten satırlar silindi). **2026-11-18:** §1 artık BÜYÜK PAKETLER (B = kod, C = cihaz); bir tur = bir paket (gerekirse aynı dalda birkaç tur), biten madde paketten silinir. 👤 maddeler
 yapılmaz → `PLAN.md` §3 (ne · nasıl · doğruysa · yanlışsa).

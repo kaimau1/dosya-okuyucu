@@ -1,4 +1,4 @@
-# PLAN — tek kalan-iş listesi (2026-11-15 birleştirmesi)
+# PLAN — tek kalan-iş listesi (2026-11-15 birleştirmesi · 2026-11-18 büyük paketler)
 
 **Açık işin TEK kaynağı burası.** 2026-11-15'te KALANLAR, KONTROL_LISTEM, OTOMASYON Kuyruğu ve
 8 faz planı (FAZ, DUZENLEME, GELISTIRME, YUKSELTME, PDF_PRO, GUVENLIK, FERRARI, SURUM) buraya
@@ -7,7 +7,7 @@ Telefonda adım adım bakılacaklar: `docs/CIHAZ_TESTI.md`. Yürütme düzeni (z
 
 **Kurallar:** biten satır **SİLİNİR** (tik bırakılmaz) · karar / kök neden / tuzak → HAFIZA ·
 cihazda bakılacak yeni şey → `docs/CIHAZ_TESTI.md` · kullanıcının yapacağı → §3 (ne · nasıl ·
-doğruysa · yanlışsa) · yeni iş → §1 tablosuna yeni `P` satırı (≤ ~300 karakter).
+doğruysa · yanlışsa) · yeni iş → **ilgili B/C paketine madde** (yeni paket yalnız hiçbirine uymuyorsa).
 
 ---
 
@@ -35,53 +35,154 @@ Ayrıntılı bekçiler ve "10 işlem" ölçüm seti: `docs/arsiv/planlar/FERRARI
 
 ---
 
-## 1) Kuyruk — yapılacak işler
+## 1) Kuyruk — BÜYÜK PAKETLER (2026-11-18 birleştirmesi)
+
+**Neden büyük paket (kullanıcı 2026-11-18):** küçük satırlar her oturumda bağlamı baştan kurdurup
+belirteç harcatıyordu. Artık **bir oturum = bir paket** (gerekirse 2–3 oturum, aynı dalda sürer).
+Eski `P` numaraları paketlerin İÇİNDE durur (§3 kararları ve HAFIZA onlara atıf yapar); biten
+madde paketten silinir, paket boşalınca satır silinir. **Kod paketleri (B)** bulutta ya da yerelde;
+**cihaz paketleri (C)** telefon bağlıyken yerelde (`ab-olcum` skill'i, ÖLÇÜM KAPISI).
 
 Durum: `bekliyor` · `sürüyor` · `cihaz bekliyor` · `kullanıcı kararı` · `takıldı: <neden>`.
-Model: `fable` · `opus` · `sonnet`. Cihaz: `—` · `evet` · `A/B` (ölçüm kapısı) · `tablet`.
-APK: `evet` (birleştirmede `[apk]`) · `hayır`. Kaynak yolları kısaltıldı: `arsiv/` = `docs/arsiv/planlar/`.
+Model: `fable` · `opus` · `sonnet`. Cihaz: `—` · `evet` · `A/B` · `tablet`. APK: `evet` · `hayır`.
+Kaynak kısaltması: `arsiv/` = `docs/arsiv/planlar/`.
 
-**SIRA (2026-11-15):** kod: P12b → P29 → P06 → P16 → P17 → P18 → P19 → P20 → P21 → P22 → P23 → P24 →
-P25 → P30 → P31 (kalanlar) → P26 → P27 · telefon (boşaldıkça, tek seferde bir): P08 → P28 → P07 → P13 → P12 → P14 →
-P04 → P11. Ferrari (P06, P27) bitmeden yeni özellik birleşmez — P16–P23 dalda hazırlanabilir.
+**SIRA:** B1 → (telefon boşaldıkça C1, C2) → B2 → B3 → B4 → B5 → B6 → B7 → C3 → B8.
+Ferrari kuralı (§0): B3'teki hız işleri (P06, P12b, P29) bitmeden büyük yeni özellik **varsayılan
+açık** birleşmez — B1/B2 bayrakla (Akıllı düzen kullanıcı açınca çalışır) birleşebilir.
 
-### 1a) Telefon/A-B bekleyen dallar (kod bitti)
-
-| No | İş | Model | Kaynak | Cihaz | APK | Durum |
+| No | Paket | Model | Kaynak | Cihaz | APK | Durum |
 |---|---|---|---|---|---|---|
-| P08 | PDF Pro oturum belleği bütçe dışı (+56/+65 MB, bütçe +40) — `commitLive` gereksiz `needsReplay` kaldırıldı | opus | HAFIZA 2026-11-13; arsiv/PDF_PRO_PLANI 54 | A/B | evet | cihaz bekliyor — dal `faz-oto-P08-bellek` (CI yeşil), senaryo DEVIR.md |
-| P28 | PDF kabuğu kırmızıları: H3.7 rozet ↔ AI düğmesi çakışması, H3.6 durum çubuğu seçeneği, H3.5 sayfa sayfa tam kaplama | opus | CIHAZ_TESTI 2026-11-14 P09 | A/B | evet | cihaz bekliyor — dal `faz-oto-P28-pdf-kabuk` (CI yeşil), A/B yarım (1+1), gözle bakılmadı |
-| P07 | H1.4 son sayfa görüntüsü + H8.5 döndür / kareyi fotoğraf kaydet | opus | arsiv/FERRARI_PLANI H1.4, H8.5 | A/B | evet | cihaz bekliyor — dal `faz-oto-P07-artik`; CIHAZ_TESTI "Ferrari H1.4 + H8.5" |
-| P13 | Liste/ızgara: 5.000 öğe kaydırma, Fotoğraflar ızgarası donması (B3.3c), soğuk açılış ≤ 1,2 sn | opus | arsiv/KALANLAR B3.3 | A/B | evet | birleşti (kullanıcı kararı) ama A/B KALDI: klasor_5000 p99 23,5→38,9; B3.3c + soğuk açılış cihazda yapılmadı → P12b |
-| P12 | Excel: 10 bin × 20 açılış ≤ 1,5 sn (CI 1008 → 498 ms), K23 FrameTiming %99 | opus | arsiv/KALANLAR B3.1, B3.3a | A/B | evet | A/B KALDI (`xlsx_100k_acilis` p99 sıçraması) → P12b |
-| P14 | Word kapanış/menü takılması (B3.3d) kök neden + Faz 37/38 Word/Slayt perf A/B | opus | arsiv/KALANLAR B3.3d | A/B | evet | cihaz bekliyor — senaryolar `word_300_menu`/`_kapanis` hazır; onay §3 K21–K22 |
-| P04 | H10/H11 boş/hata durumları + görüntüleyici kabuğu | opus | arsiv/FERRARI_PLANI H10–H11 | A/B | evet | `[apk]`'sız birleşti; A/B 2 tur KALDI (gürültü şüphesi) → yeniden ölç; galeri/editör çubuğu kararı §3 K6–K7 |
-| P11 | Genel cihaz turu: `CIHAZ_TESTI.md` baştan sona (Faz 34–42, Güvenlik G2.6/G3/G4/G6/G8.1, A8.2 soğuk açılış, galeri/tema elle kalanlar, 360×800 + 2× yazıda araç satırı); kırmızılar → yeni P satırı | sonnet | CIHAZ_TESTI | evet | hayır | bekliyor — telefon boşken |
+| B1 | **AI Akıllı düzen 2.0 — çekirdek:** ayrıntılı sınıflandırma (§1.1), kullanıcı kategorileri (doğruluk kapısıyla), HER dosya türü (Office/metin/ses/video/arşiv), doğruluk ölçüm tezgâhı, Files API (büyük dosya) | opus (şema evresi fable) | §1.1; HAFIZA 2026-11-18 | A/B | evet | bekliyor — 1. sürüm main'de |
+| B2 | **AI Akıllı düzen 2.0 — kullanım:** Ayıkla 2 (en iyi kare, benzer kare grupları), kontrol listeleri, düzeltmeden öğrenme, isteğe bağlı taşıma kuralları, hassas kategori kilidi, Decisions'ın kalan kullanımları (eski P33/P34) | opus | §1.2 | A/B | evet | bekliyor — B1'den sonra |
+| B3 | **Hız (Ferrari) kod + ölçüm:** P12b Excel/liste A/B artıkları, P29 büyük başlık + kalıcı hata şeridi, P06 PDF kaydırma H2.1–H2.6 | opus (P06 plan evresi fable) | §1.3; arsiv/FERRARI_PLANI H2 | A/B | evet | bekliyor |
+| B4 | **PDF Pro tamamlama:** P16 metin, P17 nesne/işaret, P18 form+imza, P19 OCR Pro, P20 sayfa stüdyosu, P21 parola/meta/optimize/PDF-A, P22 kalite %98 | opus (plan evresi fable) | §1.4; arsiv/PDF_PRO_PLANI 54–68 | A/B | evet | bekliyor — 2–3 oturum, tek dal |
+| B5 | **Biçim + bakım + levha birliği:** P23 UDF (UYAP) okuyucu, P24 bağımlılık bakımı, P25 levha/pencere birliği (onay §3 K17) | opus | §1.5 | A/B | evet | bekliyor |
+| B6 | **Tasarım tamamlama:** P31 ana ekran aileleri kalanları (D simge takımı, F metinleri, K19), P32 menü ortak düzeni kalanları | opus | §1.6; docs/design/ana_ekran/ | A/B | evet | bekliyor — K19 kararıyla |
+| B7 | **Sürümler + yayın:** P30 Lite/Pro/Kişisel (S4–S9, K15/K16), P26 mağaza ekran görüntüleri | opus / sonnet | §1.7; arsiv/SURUM_PLANI | — | evet | kullanıcı kararı — K15 |
+| B8 | **Son kapı:** P27 "10 işlem" son ölçüm + Samsung kıyası, erişilebilirlik, özellik dondurma kalkar | sonnet | arsiv/FERRARI_PLANI H12 | A/B | evet | bekliyor — en sonda, kullanıcıyla |
+| C1 | **Cihaz: hazır dalların ölçümü:** P08 PDF Pro bellek (`faz-oto-P08-bellek`), P28 PDF kabuğu (`faz-oto-P28-pdf-kabuk`), P07 son sayfa + döndür (`faz-oto-P07-artik`) → A/B → yeşilse birleştir | opus | §1.8; DEVIR.md | A/B | evet | cihaz bekliyor |
+| C2 | **Cihaz: perf A/B artıkları:** P13 liste/ızgara (klasor_5000 p99 23,5→38,9, B3.3c, soğuk açılış), P12 Excel 10k×20, P14 Word kapanış/menü (K21–K22), P04 boş/hata durumları (K6–K7) + 2026-11-18 AI/ana ekran işlerinin ölçümü | opus | §1.8; docs/perf/ | A/B | evet | cihaz bekliyor |
+| C3 | **Cihaz: genel tur:** P11 `CIHAZ_TESTI.md` baştan sona (Faz 34–42, Güvenlik, 360×800 + 2× yazı, 2026-11-18 AI maddeleri) + §3 "Telefonda sen bak" (K20–K28); kırmızı → ilgili pakete madde | sonnet | CIHAZ_TESTI | evet | hayır | bekliyor — telefon boşken |
 
-### 1b) Kod işleri
+### 1.1) B1 ayrıntısı — Akıllı düzen 2.0 çekirdek
 
-| No | İş | Model | Kaynak | Cihaz | APK | Durum |
-|---|---|---|---|---|---|---|
-| P12b | P12/P13 A/B artıkları: `xlsx_100k_acilis` p99 128 ms (gerçekse kök neden), `xlsx_10k_x20_*` ve `*_sk` neden tabloda yok, düzelt + 3 tur ölç; soğuk açılış A tabanı | opus | docs/perf/2026-11-14-ab-1684533-*.md | A/B | evet | bekliyor |
-| P29 | H4 dosya listesi büyük başlığı kaydırınca katlanmıyor; ana ekranda kalıcı "beklenmedik hata (1 kayıt)" şeridi — kök neden | opus | CIHAZ_TESTI 2026-11-14 P09 | A/B | evet | bekliyor |
-| P06 | Ferrari H2 PDF kaydırma: önbellek tavanı ölç, bulanık yer tutucu, komşu sayfa ön çizimi, hızlı tutamaç önizlemesi, yakınlaştırma netleşmesi, USB okuma hızı — ölç→değiştir→ölç | opus (plan evresi fable) | arsiv/FERRARI_PLANI H2.1–H2.6 | A/B | evet | bekliyor |
-| P16 | PDF Pro metin: taşma/çakışma uyarısı (punto küçült · it · genişlet), font seçici (belge → aile → paket), metne bağlantı | opus (plan evresi fable) | arsiv/PDF_PRO_PLANI 56–58 | A/B | evet | bekliyor |
-| P17 | PDF Pro nesne/işaret: hizalama kılavuzu + tutunma, çoklu seçim/grup, katmanlar (OCG), kamera; serbest metin/bulut/damga, basınçlı kalem + avuç reddi, XFDF | opus | arsiv/PDF_PRO_PLANI 59–60 | A/B | evet | bekliyor |
-| P18 | PDF Pro form + imza tek yüzey, form oluşturma, düz PDF'te alan algılama; form otomatik doldurma + akıllı karartma önerisi | opus (plan evresi fable) | arsiv/PDF_PRO_PLANI 61, 65/3 | evet | evet | bekliyor |
-| P19 | PDF Pro OCR Pro: görünmez katman, renkli arka planda satır düzenleme | opus (plan evresi fable) | arsiv/PDF_PRO_PLANI 62 | evet | evet | bekliyor |
-| P20 | PDF Pro sayfa stüdyosu (küçük resim ızgarası, geri alınabilir sayfa komutları) | opus | arsiv/PDF_PRO_PLANI 63 | A/B | evet | bekliyor |
-| P21 | PDF Pro parola/izin, meta veri, optimize, PDF/A, bu kipte yazdır; AES-256 (R6) kilit açma; `PdfEditorScreen` emekliliği (filigran + taranmış satır düzeltme yeni kipe) | opus | arsiv/PDF_PRO_PLANI 64 | evet | evet | bekliyor |
-| P22 | PDF Pro kalite: başarı %94 → %98 (Type3 aralık, `/Rotate`, açılı metin), 50 sayfa artımlı kayıt süresi, büyük belge/pil, görsel cila + tablet | opus | arsiv/PDF_PRO_PLANI 54, 66–68 | A/B | evet | bekliyor — P08 sonrası |
-| P23 | UDF (UYAP) okuyucu — salt okuma görüntüleyici + `.udf` dosya ilişkilendirme + testler. **Biçim çözüldü (2026-11-15, kullanıcı örneği):** ZIP → `content.xml` + `documentproperties.xml`. Kök `<template format_id="1.8">`: `<content>` CDATA = tüm düz metin; `<properties><pageFormat>` (kenar boşlukları, kâğıt, yön); `<elements>` → `<paragraph Alignment FirstLineIndent>` → `<content startOffset length family size bold italic foreground>` (metni dilimler) + `<image imageData=base64>`; `<styles><style>`. Örnek KVKK gereği depoya GİRMEZ → test için sentetik `.udf` üret | opus | bu satır; HAFIZA 2026-11-15 | evet | evet | bekliyor |
-| P24 | Bağımlılık bakımı: override'lar (`xml`, `pointycastle`, `dartssh2`) yeni sürüm çıktıysa kaldır; `shared_preferences_android` 2.4.28 sabit kalır; Dependabot PR'ları (#82–84, onay §3 K14) | opus | arsiv/KALANLAR Faz D | — | hayır | bekliyor |
-| P25 | Levha/pencere birliği: ham `showModalBottomSheet`/`showDialog` (51+54) → `showAppSheet`/`showAppConfirm`/`showAppPrompt`, parti parti önce/sonra PNG; birleştirme onaydan sonra (§3 K17) | opus | arsiv/KALANLAR A9.1 | A/B | evet | bekliyor |
-| P30 | Sürümler Lite / Pro / Kişisel: S4 manifest varyantları, S5 paket kimlikleri, S6 CI matrisi, S7 Lite → Pro geçiş, S8 mağaza metinleri, S9 Kişisel varsayılan | opus | arsiv/SURUM_PLANI S4–S9 | — | evet | kullanıcı kararı — önce §3 K15 (fiyat, adlar, tarama hangi sürümde) |
-| P31 | **Ana ekran tasarım aileleri** (Fable, `docs/design/ana_ekran/`): A Sakin · B Bento · C Koyu başlık tema ailesi olarak eklendi (renk + `HomeStyle` düzeni: bellek kartı, kutu ızgarası, bölüm başlığı cümle düzeni, hızlı klasör 3 sütun, C'de iki sütunlu liste + renkli başlık) + kutularda basılı tut → sürükle-sırala / alttaki çöpe at ("not"tan). **Kalan:** D simge takımı (24 ızgara, 1,8 çizgi, %18 iç dolgu — kendi glif çizimi, şimdilik dolu `_rounded` glif renkli kutuda), F metinleri (arama "Dosya ya da özellik ara", son açılanlarda dosya adı yerine "Ekran görüntüsü · Bugün 09:31", "Tümü →" okunu kaldır, "Son tarama bugün 00:29 · 5.691 dosya", kutu adlarında cümle düzeni — K19), alt panelde ortadaki Aktar kapsülü vurgu renginde, cihazda ÖLÇÜM KAPISI (ana ekran) | opus | 2026-11-15 kullanıcı; docs/design/ana_ekran/README.md | A/B | evet | birleşti (ölçülmedi) — kalanlar bekliyor |
-| P32 | **Menü ortak düzeni** (2026-11-15 kullanıcı: "çok iç içe menü, Sil'i bulamadım; her tür ortak dile kavuşsun"): ⋮ her türde (PDF, metin, Word, Excel, slayt, galeri, video, ses) AYNI dosya levhası — üstte taşı/kopyala/yeniden adlandır/önemli/SİL, altında türe özel gruplar AYRI RENKTE (`MenuTone.special`, vurgudan 120° öte); alt çubuk en çok 5, kaydırma yok; yüzen AI düğmesi alt çubuğa; Araçlar (=Düzenle›Sayfalar) ve PDF'te "PDF'e dönüştür" kalktı; grup ve ekran başlıkları büyük/kalın; net adlar. **Kalan:** üst çubukta Kaydet/↶/↷ yalnız gerektiğinde, Word'e "Aa", Kitaplık ⋮'ında "Sırala" başlığı | opus | bu satır; HAFIZA 2026-11-15 | A/B | evet | birleşti (ölçülmedi) — kalanlar bekliyor |
-| P34 | **Akıllı düzen 2. aşama:** kontrol listeleri (vize dosyası, sözleşme, reçete — klasörde eksik evrak), en iyi kare (benzer kare grupları), düzeltmeden öğrenme (aynı kaynaktan gelen dosyaya kullanıcının düzelttiği kategori), isteğe bağlı taşıma kuralları (geri alınabilir, ilk seferde onay), Word/metin belgeleri (şimdilik görsel + PDF), hassas kategorilerin kilitle gizlenmesi | opus | HAFIZA 2026-11-18 Akıllı düzen | evet | evet | bekliyor |
-| P33 | **Decisions API (`gemini-decision-1`) kalan kullanımları** (2026-11-18 kullanıcı: "her türlü kullanalım"; yapılanlar: tek dosya + toplu hızlı kontrol, paylaşım kalkanı, Arapça OCR kararı — HAFIZA 2026-11-18). Kalan: (a) tarayıcı sonrası sayfa kalitesi (bulanık/kesik/parlama → "yeniden çek"); (b) Akıllı temizlik: yerel bulanık/karanlık/selamlaşma sezgisini AI ile doğrula (yanlış silme önerisi azalır); (c) "Yeni dosyalar"a düşen belgeye tür + önem puanı → "Önemli'ye ekle?" önerisi (AI kapsamı + ayar); (d) AI sohbet yönlendirici: soru belge gerektiriyor mu / basit mi → ucuz modele; (e) PDF/form: "imza alanı boş mu, form doldurulmuş mu" toplu denetim; (f) ses kaydı: konuşma dili + toplantı/not ayrımı; (g) galeri akıllı süzgeç (belge fotoğrafı / ekran görüntüsü / kişisel) dizinde önbellekli | opus | bu satır | evet | evet | bekliyor |
-| P26 | Mağaza ekran görüntüleri (son görünüm, TR/EN/AR) → `docs/play/` | sonnet | arsiv/KALANLAR B2 | evet | hayır | bekliyor — en sonda |
-| P27 | Ferrari son kapı: "10 işlem" son ölçüm + Samsung kıyası (> %20 yavaş değil), erişilebilirlik (≥ 48 dp, karşıtlık, büyük yazı), tasarım görüntüleri, özellik dondurma kalkar | sonnet | arsiv/FERRARI_PLANI H12 | A/B | evet | bekliyor — hepsi bitince, kullanıcıyla |
+**Hedef:** telefondaki HER dosya (kapsam klasörlerinde) anlamlı bir ikinci ad + AI kategorisi alır;
+kullanıcı kendi kategorisini ekler ve **eklemeden önce doğru çalıştığını görür**; doğruluk ölçülür.
+
+1. **Ayrıntılı şema (fable ile tasarla, opus uygula)** — `smart_sort_taxonomy.dart`:
+   - Her belge kategorisine alt tür: fiş (market · restoran · akaryakıt · e-ticaret · eczane),
+     vergi/SGK (bordro · vergi levhası · hizmet dökümü · emeklilik), sözleşme (kira · iş · satış ·
+     abonelik · vekâlet), resmî (e-Devlet · mahkeme/icra · noter · tapu · nüfus/ikamet · askerlik),
+     sigorta/araç (trafik · kasko · sağlık sigortası · ruhsat · muayene · ceza), iş (CV · rapor ·
+     sunum · tablo · teklif/sipariş · toplantı), kılavuz (kullanım · garanti · kurulum), ekran
+     görüntüsü (harita · alışveriş · sosyal medya · ayarlar · oyun · bilet/QR), fotoğraf (yemek ·
+     manzara · ürün · evcil hayvan · araç).
+   - Kurum listeleri: GSM (Turkcell · Vodafone · Türk Telekom), elektrik/doğalgaz/su dağıtım şirketleri
+     (en yaygın ~15), banka listesi genişler; hepsinde `other` kaçışı. Kurum yalnız ilgili kategoride.
+   - **Tarih bilgisi + bugün:** "son ödeme / geçerlilik tarihi bugünden (istekte verilen tarih) önce mi?"
+     → "Ödemesi geçmiş fatura", "Süresi dolmuş belge" rozetleri. Tutar aralığı (choice: <100 · 100–500 ·
+     500–2000 · >2000 · yok) süzgeci.
+   - Tek istek kuralı korunur; soru sayısı ölçülür (girdi belirteci raporu `usage`'tan).
+2. **Her dosya türü:**
+   - Word/ODT/RTF/TXT/MD/HTML/EPUB → metin özütü **izolatta** (ilk ~20 bin karakter) → `text` bloğu.
+   - Excel/CSV/ODS → ilk sayfanın ilk ~200 satırı CSV; PowerPoint/ODP → slayt metinleri (+ ilk slayt görüntüsü).
+   - Ses (mp3/m4a/ogg/wav) → `audio` bloğu: tür (sesli not · toplantı · ders · telefon kaydı · müzik ·
+     WhatsApp sesli mesajı), konuşma dili, gürültü/kalite; 14 MB üstü **Files API** (`uri`).
+   - Video → `video` bloğu, düşük çözünürlük, ilk 60 sn (`start_offset/end_offset`): aile/kişisel ·
+     ekran kaydı · ders · ileti/mem · belge/tahta; yanlışlıkla/çok kısa/karanlık → Ayıkla.
+   - APK/arşiv → yalnız meta (ad, boyut, kaynak klasör) yazı olarak → kurulum dosyası / yedek / indirme.
+   - Kapsam (§ Kamera kapalı varsayılanı) aynen; AI kapsamı dışı hiç gönderilmez.
+3. **Kullanıcı kategorileri ("doğru çalışır mı?" tasarımı):**
+   - Ad + "neyi kapsar" tek cümlesi (her dilde) + simge/renk. Model talimatı: "Does this file match the
+     user's category: <cümle>?" — **ayrı `noul` sorusu** (yerleşik kategorinin kalibrasyonunu bozmaz;
+     bir dosya birden çok kullanıcı kategorisine girebilir), eşik 0,7.
+   - **Kaydetmeden önce "Dene"**: son 20 dosyada tek soru → eşleşenler önizlenir, kullanıcı cümleyi
+     düzeltir; ≥ 1 eşleşme ve kullanıcı "doğru" demeden kaydedilmez.
+   - Geriye dönük uygula: düzenlenmiş dosyalara YALNIZ o soru (ucuz), ilerlemeli; en çok 30 kategori.
+   - Süzgeç, akıllı klasör, arama ve ikinci ad (kullanıcı kategorisi baskınsa) yerleşiklerle aynı yoldan.
+4. **Doğruluk ölçüm tezgâhı (ÖLÇÜM):** ayarlarda gizli "Doğruluk ölçümü" — kullanıcı kendi 100
+   dosyasını etiketler (yerelde kalır, depoya GİRMEZ — KVKK), model sonuçlarıyla karşılaştırılır:
+   kategori/alt tür/tarih doğruluğu, güven eşiği önerisi. **Kapı: kategori ≥ %90, alt tür ≥ %80**;
+   altındaysa şema/talimat düzeltilir. Sonuç `docs/perf/` benzeri `docs/ai/` raporu (dosya adı yok).
+5. **Hız/kota:** tur izolatta hazırlık, ana iş parçacığında yalnız sonuç; ücretsiz kota (429) ölçülür,
+   günlük üst sınır + "Wi-Fi'de" seçeneği; liste satırında ikinci ad maliyeti A/B (ÖLÇÜM KAPISI).
+
+**Bitti:** dört tür ailesi (görsel/PDF, Office/metin, ses, video) düzenleniyor · kullanıcı kategorisi
+"Dene"li · tezgâh raporu kapıyı geçti · CI + A/B yeşil.
+
+### 1.2) B2 ayrıntısı — Akıllı düzen 2.0 kullanım
+
+- **Ayıkla 2:** benzer kare grupları (yerel algısal özet + AI `score` net/gözler açık/kadraj) → en iyi ⭐,
+  kalanlar tek dokunuşla gizle/sil; WhatsApp "iletildi" görsellerinin kopyaları; ekran görüntüsü yaşı.
+- **Kontrol listeleri:** kaydedilebilir listeler (vize dosyası, kira sözleşmesi, reçete, epikriz, iş
+  başvurusu); belge ya da klasörde çalışır → ✓/✗ + güven, eksik evrak; PDF rapor olarak paylaş.
+- **Düzeltmeden öğrenme:** kullanıcının "Düzelt"i aynı kaynaktan (klasör/gönderen adı deseni) gelen
+  sonraki dosyada öncelik; hatalı kategoriler tezgâha örnek olur.
+- **Taşıma kuralları (isteğe bağlı):** "Fatura → Faturalar/2026", "Kimlik → Kasa" — ilk seferde onay,
+  her taşıma geri alınabilir, varsayılan KAPALI (karar 1: dosyalar yerinde).
+- **Hassas kategoriler** (kimlik, sağlık, banka, vergi) uygulama kilidi açıkken görünür.
+- **Decisions'ın kalan kullanımları** (eski P33): tarayıcı sonrası sayfa kalitesi (yeniden çek), akıllı
+  temizliğin yerel bulanık/selamlaşma sezgisini doğrulama, sohbet yönlendirici (basit soru → ucuz
+  model), PDF form "imza alanı boş mu / doldurulmuş mu" toplu denetim, galeri akıllı süzgeci (yalnız
+  kategori — içerik araması YOK, KVKK).
+
+### 1.3) B3 ayrıntısı — Hız (Ferrari)
+
+- **P12b:** `xlsx_100k_acilis` p99 128 ms (gerçekse kök neden), `xlsx_10k_x20_*` ve `*_sk` neden
+  tabloda yok, düzelt + 3 tur ölç; soğuk açılış A tabanı (docs/perf/2026-11-14-ab-1684533-*.md).
+- **P29:** H4 dosya listesi büyük başlığı kaydırınca katlanmıyor; ana ekranda kalıcı "beklenmedik hata
+  (1 kayıt)" şeridi — kök neden (CIHAZ_TESTI 2026-11-14 P09).
+- **P06:** PDF kaydırma H2.1–H2.6: önbellek tavanı ölç, bulanık yer tutucu, komşu sayfa ön çizimi, hızlı
+  tutamaç önizlemesi, yakınlaştırma netleşmesi, USB okuma hızı — ölç → değiştir → ölç.
+
+### 1.4) B4 ayrıntısı — PDF Pro (arsiv/PDF_PRO_PLANI)
+
+- **P16** metin: taşma/çakışma uyarısı (punto küçült · it · genişlet), font seçici (belge → aile → paket), metne bağlantı (56–58).
+- **P17** nesne/işaret: hizalama kılavuzu + tutunma, çoklu seçim/grup, katmanlar (OCG), kamera; serbest metin/bulut/damga, basınçlı kalem + avuç reddi, XFDF (59–60).
+- **P18** form + imza tek yüzey, form oluşturma, düz PDF'te alan algılama; form otomatik doldurma + akıllı karartma önerisi (61, 65/3).
+- **P19** OCR Pro: görünmez katman, renkli arka planda satır düzenleme (62) — Arapça için `CloudOcr` yolu hazır.
+- **P20** sayfa stüdyosu (küçük resim ızgarası, geri alınabilir sayfa komutları) (63).
+- **P21** parola/izin, meta veri, optimize, PDF/A, bu kipte yazdır; AES-256 (R6) kilit açma; `PdfEditorScreen` emekliliği (64).
+- **P22** kalite: başarı %94 → %98 (Type3 aralık, `/Rotate`, açılı metin), 50 sayfa artımlı kayıt, büyük belge/pil, görsel cila + tablet (54, 66–68) — C1'deki P08 birleşince.
+
+### 1.5) B5 ayrıntısı — Biçim + bakım + levha birliği
+
+- **P23 UDF (UYAP) okuyucu:** salt okuma + `.udf` ilişkilendirme + testler. Biçim çözüldü (2026-11-15):
+  ZIP → `content.xml` + `documentproperties.xml`; kök `<template format_id="1.8">`; `<content>` CDATA = düz
+  metin; `<properties><pageFormat>`; `<elements>` → `<paragraph Alignment FirstLineIndent>` → `<content
+  startOffset length family size bold italic foreground>` + `<image imageData=base64>`; `<styles>`.
+  Örnek KVKK gereği depoya GİRMEZ → sentetik `.udf` üret. Akıllı düzene "resmî/mahkeme" olarak bağlanır.
+- **P24 bağımlılık bakımı:** override'lar (`xml`, `pointycastle`, `dartssh2`) yeni sürüm çıktıysa kaldır;
+  `shared_preferences_android` 2.4.28 sabit; Dependabot PR'ları #82–84 (onay §3 K14).
+- **P25 levha/pencere birliği:** ham `showModalBottomSheet`/`showDialog` → `showAppSheet`/`showAppConfirm`/
+  `showAppPrompt`, parti parti önce/sonra PNG; birleştirme onaydan sonra (§3 K17).
+
+### 1.6) B6 ayrıntısı — Tasarım tamamlama
+
+- **P31 kalanları:** D simge takımı (24 ızgara, 1,8 çizgi, %18 iç dolgu — kendi glif çizimi), F metinleri
+  (arama "Dosya ya da özellik ara", son açılanlarda "Ekran görüntüsü · Bugün 09:31", "Tümü →" okunu kaldır,
+  "Son tarama bugün 00:29 · 5.691 dosya", kutu adlarında cümle düzeni — K19), alt paneldeki Aktar kapsülü
+  vurgu renginde, ÖLÇÜM KAPISI (ana ekran).
+- **P32 kalanları:** üst çubukta Kaydet/↶/↷ yalnız gerektiğinde, Word'e "Aa", Kitaplık ⋮'ında "Sırala" (K28 bakışı).
+
+### 1.7) B7 ayrıntısı — Sürümler + yayın
+
+- **P30:** S4 manifest varyantları, S5 paket kimlikleri, S6 CI matrisi, S7 Lite → Pro geçiş, S8 mağaza
+  metinleri, S9 Kişisel varsayılan — önce §3 K15/K16. AI özellikleri (Akıllı düzen, Decisions) hangi sürümde?
+- **P26:** mağaza ekran görüntüleri (son görünüm, TR/EN/AR) → `docs/play/`; `docs/play/yayin_rehberi.md`'ye uy.
+
+### 1.8) Cihaz paketleri (C1–C3) — telefon bağlıyken yerelde
+
+- Taban = önceki `[apk]` profil derlemesi, ölçüm kimliği `.r8test`; eşikler §0/8 (gerileme > %10 ya da
+  p99 > 24 ms → birleşmez). Senaryolar: `tool/perf_senaryo.sh`, `tool/pdf_profil.sh`; ayrıntı `ab-olcum`.
+- **C1:** P08 (DEVIR.md senaryosu), P28 (A/B yarım: 1+1 tur kaldı, gözle bakılmadı), P07 (CIHAZ_TESTI "Ferrari H1.4 + H8.5").
+- **C2:** P13 (klasor_5000 p99 23,5→38,9; B3.3c Fotoğraflar donması; soğuk açılış ≤ 1,2 sn), P12 (10k×20
+  ≤ 1,5 sn, K23 FrameTiming %99), P14 (`word_300_menu`/`_kapanis`, K21–K22), P04 (2 tur, gürültü şüphesi;
+  K6–K7) + **2026-11-18 işleri:** ana ekran "Son açılanlar/Yeni gelenler" sekmesi ve `smart` kutusu, liste
+  satırında akıllı ikinci ad, galeride QR düğmesi (kaydırırken kasma yok mu).
+- **C3:** P11 genel tur + K20–K28; Arapça OCR, AI hızlı/toplu kontrol, paylaşım kalkanı, Akıllı düzen ve
+  Ayıkla maddeleri (CIHAZ_TESTI 2026-11-18).
 
 ---
 

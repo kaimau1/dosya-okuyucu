@@ -81,7 +81,7 @@ adım · kök neden/kanıt (dosya:satır) · işe yaramayanlar · sıradaki adı
 
 ## Bitiş (dalda, birleştirmeden önce hazır olmalı)
 
-- Kuyruk satırı (`PLAN.md` §1): kod bitti + A/B/cihaz bekliyorsa §1a'ya taşı ve durumu yaz; tamamen bittiyse SİL (yalnız KENDİ satırın; SIRA satırına
+- Kuyruk satırı (`PLAN.md` §1): kod bitti + A/B/cihaz bekliyorsa maddeyi ilgili **C paketine** (§1, 2026-11-18 büyük paketler) taşı ve durumu yaz; tamamen bittiyse SİL (yalnız KENDİ satırın; SIRA satırına
   dokunma); arşivdeki plan dosyaları GÜNCELLENMEZ; HAFIZA.md'ye tarihli kayıt (kalıcı karar / bug kök nedeni /
   yanlış çıkan yol — sır ve kişisel veri yok); cihazda bakılacaklar `docs/CIHAZ_TESTI.md`.
 - Uygulamayı değiştiren commit'lerin GÖVDESİNDE kullanıcı diliyle `Yeni: …` / `İyileştirme: …`
