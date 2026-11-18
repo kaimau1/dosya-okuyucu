@@ -315,9 +315,14 @@ abstract final class AiIndex {
   /// Elle verilen ad ([AiRecord.alias]) AI başlığının önüne geçer.
   static String aliasOf(String filePath) {
     final r = _records[filePath];
-    if (r == null) return '';
-    return r.alias.isNotEmpty ? r.alias : r.title;
+    final own = r == null ? '' : (r.alias.isNotEmpty ? r.alias : r.title);
+    if (own.isNotEmpty) return own;
+    return fallbackAlias?.call(filePath) ?? '';
   }
+
+  /// Kendi adı yoksa gösterilecek ikinci ad (Akıllı düzen, 2026-11-18 —
+  /// `main.dart` bağlar; döngüsel içe aktarma olmasın diye kanca).
+  static String Function(String path)? fallbackAlias;
 
   /// İkinci adı ELLE koyar (boş = elle adı siler, AI başlığı varsa o görünür).
   /// Kayıt yoksa yalnız adı taşıyan yerel bir kayıt açılır.

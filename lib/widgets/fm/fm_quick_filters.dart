@@ -11,8 +11,10 @@ import '../../models/media_bucket.dart';
 import '../../services/fm/file_tags.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/open_history.dart';
+import '../../services/fm/smart_sort.dart';
 import '../../services/fm/storage_stats.dart';
 import '../app_dialog.dart';
+import 'smart_cat_style.dart';
 import 'fm_type_chips.dart'
     show FmChoiceTile, FmSheetFooter, FmSheetSectionTitle;
 
@@ -412,8 +414,11 @@ class _Counts {
   /// gezmemek için sayımla birlikte önbellekte).
   final bool anyTagged;
 
+  /// AI kategorileri (Akıllı düzen): (kimlik, listede kaç dosya), çoktan aza.
+  final List<(String, int)> smart;
+
   const _Counts(this.buckets, this.untouched, this.openedWithin, this.large,
-      this.volumes, this.anyTagged);
+      this.volumes, this.anyTagged, this.smart);
 }
 
 /// [probe] ölçütü eklenmiş süzgeçten kaç dosya geçer?
@@ -480,6 +485,73 @@ _Counts _computeCounts(
             : f.withSizeRange(FmSizeRange.large)),
     volumes,
     source.any((e) => !e.isDir && FileTags.forPath(e.path).isNotEmpty),
+    _smartCounts(source, f),
+  );
+}
+
+/// Listedeki AI kategorileri ve sayıları (seçili olan 0 olsa da kalır).
+List<(String, int)> _smartCounts(List<FsEntry> source, FmFilter f) {
+  final of = FmFilter.smartCatOf;
+  if (of == null) return const [];
+  final counts = <String, int>{};
+  for (final e in source) {
+    if (e.isDir) continue;
+    final c = of(e.path);
+    if (c == null || c == 'other') continue;
+    counts[c] = (counts[c] ?? 0) + 1;
+  }
+  for (final c in f.smartCats) {
+    counts.putIfAbsent(c, () => 0);
+  }
+  return counts.entries.map((e) => (e.key, e.value)).toList()
+    ..sort((a, b) => b.$2.compareTo(a.$2));
+}
+
+/// **AI kategori levhası** (Akıllı düzen, 2026-11-18): listedeki dosyaların
+/// AI kategorileri, çoklu seçim; liste arkada hemen süzülür.
+Future<void> showSmartCatSheet(
+  BuildContext context, {
+  required List<(String, int)> cats,
+  required FmFilter filter,
+  required ValueChanged<FmFilter> onChanged,
+}) {
+  var f = filter;
+  return showAppSheet<void>(
+    context,
+    title: context.t('sm.filter_title'),
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setSheet) => Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(Gap.md, 0, Gap.md, Gap.md),
+        child: Wrap(
+          spacing: Gap.xs,
+          runSpacing: Gap.xs,
+          children: [
+            for (final (cat, n) in cats)
+              FilterChip(
+                key: ValueKey('smartcat-$cat'),
+                avatar: Icon(SmartCatStyle.icon(cat),
+                    size: AppIcons.small, color: SmartCatStyle.color(cat)),
+                label: Text('${SmartCatStyle.label(ctx, cat)} ($n)'),
+                selected: f.smartCats.contains(cat),
+                onSelected: (_) {
+                  f = f.toggleSmartCat(cat);
+                  setSheet(() {});
+                  onChanged(f);
+                },
+              ),
+            if (f.smartCats.isNotEmpty)
+              ActionChip(
+                label: Text(ctx.t('common.clear')),
+                onPressed: () {
+                  f = f.withSmartCats(const {});
+                  setSheet(() {});
+                  onChanged(f);
+                },
+              ),
+          ],
+        ),
+      ),
+    ),
   );
 }
 
@@ -718,7 +790,7 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
       '${widget.untouchedDays}|${widget.showBuckets}|'
       // Birim listesi takma/çıkarmayla değişir; çipler o an tazelenmeli.
       '${FmEnv.volumes.map((v) => v.path).join(',')}|'
-      '${OpenHistory.revision}|${FileTags.revision}';
+      '${OpenHistory.revision}|${FileTags.revision}|${SmartSort.revision.value}';
 
   _Counts get _counts {
     final key = _key;
@@ -740,6 +812,7 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
     // Etiketli dosya varsa levha (ve içindeki Etiketler bölümü) hep açılabilir.
     final tagged = f.tags.isNotEmpty || counts.anyTagged;
     if (!tagged &&
+        counts.smart.isEmpty &&
         counts.buckets.isEmpty &&
         counts.volumes.isEmpty &&
         counts.untouched == 0 &&
@@ -780,6 +853,27 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
               count: active > 0 ? active : null,
               dropdown: true,
               highlighted: active > 0,
+            ),
+          ),
+        // AI kategorisi (Akıllı düzen): yalnız listede kategorili dosya varsa.
+        if (counts.smart.isNotEmpty)
+          InkWell(
+            key: const ValueKey('smartcat-pill'),
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => showSmartCatSheet(
+              context,
+              cats: counts.smart,
+              filter: widget.filter,
+              onChanged: widget.onChanged,
+            ),
+            child: FmPill(
+              icon: AppIcons.ai,
+              label: f.smartCats.length == 1
+                  ? SmartCatStyle.label(context, f.smartCats.first)
+                  : context.t('sm.filter_pill'),
+              count: f.smartCats.length > 1 ? f.smartCats.length : null,
+              dropdown: true,
+              highlighted: f.smartCats.isNotEmpty,
             ),
           ),
         ...widget.trailing,

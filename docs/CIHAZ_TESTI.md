@@ -1315,3 +1315,6 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] İçinde QR olan bir görseli galeride aç → ~1 sn sonra sağ üstte alan adı düğmesi; dokununca tarayıcıda açılıyor mu? Galeride hızlı kaydırırken kasma var mı?
 - [ ] Birkaç PDF/fotoğraf seç → ⋮ → "AI ile toplu kontrol" → "İmzalı mı?" → "Evet olanlar" süzgeci → Taşı ile klasöre al.
 - [ ] Ayarlar → AI → "Paylaşmadan önce kişisel veri denetimi" aç → kimlik kartı fotoğrafını paylaş: uyarı çıkıyor mu? Sıradan bir fotoğrafta uyarısız mı geçiyor?
+- [ ] Ana ekran → "Akıllı Düzen" → Aç ve düzenle: faturalar/dekontlar "Elektrik faturası · Ekim 2026" gibi ikinci ad alıyor mu? Belgeler listesinde "AI kategori" hapı ile süz; aramada "invoice" ve "fatura" ikisi de buluyor mu?
+- [ ] Ayıkla: günaydın/bayram görselleri ve bulanık kareler listede mi? Hepsini gizle → galeriden kalkıyor mu, Gizlenenler'den geri geliyor mu? Seçerek sil → çöp kutusuna gidiyor mu?
+- [ ] Kamera kapalıyken kamera fotoğrafı hiç gönderilmiyor mu (Akıllı düzende sayılmıyor)? Ana ekran ve listelerde kaydırma kasması var mı?

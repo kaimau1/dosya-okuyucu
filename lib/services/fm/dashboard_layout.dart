@@ -51,6 +51,8 @@ class DashboardLayout extends ChangeNotifier {
     // 'archive' 2026-11-10'da 'apk' kutusuna katıldı (APK ve Arşivler).
     'apk',
     'new',
+    // **Akıllı Düzen** (2026-11-18): yeni kutu, görünür doğar.
+    'smart',
     'recent',
     'drive',
     'apps',
@@ -80,6 +82,7 @@ class DashboardLayout extends ChangeNotifier {
           'audio',
           'apk',
           'new',
+          'smart',
           'recent',
           'drive',
           'apps',

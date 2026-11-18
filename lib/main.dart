@@ -39,6 +39,7 @@ import 'services/fm/remote/sftp_host_keys.dart';
 import 'services/fm/remote/smb_legacy.dart';
 import 'services/app_update.dart';
 import 'services/cloud_ocr.dart';
+import 'services/fm/smart_sort.dart';
 import 'services/play_store.dart';
 import 'services/fm/ai_auto.dart';
 import 'services/fm/ai_index.dart';
@@ -128,12 +129,20 @@ Future<void> _main() async {
   // Ekran içi aramalar ikinci adı da bulsun (bkz. `FmFilter.aliasOf`).
   // Dizin ilk aramada arka planda yüklenir; açılışı bekletmez.
   FmFilter.aliasOf = (path) {
+    if (!SmartSort.isLoaded) unawaited(SmartSort.ensureLoaded());
     if (!AiIndex.isLoaded) {
       unawaited(AiIndex.ensureLoaded());
       return '';
     }
-    return AiIndex.aliasOf(path);
+    // Aramada akıllı düzenin üç dildeki adları da bulunur ("invoice",
+    // "fatura", "فاتورة" aynı dosyayı bulur).
+    final smart = SmartSort.keywordsOf(path);
+    final alias = AiIndex.aliasOf(path);
+    return smart.isEmpty ? alias : '$alias $smart';
   };
+  // Akıllı düzen (2026-11-18): ikinci ad yedeği + AI kategori süzgeci.
+  AiIndex.fallbackAlias = SmartSort.aliasOf;
+  FmFilter.smartCatOf = SmartSort.categoryOf;
   // **Seçici kipi** (başka bir uygulama bizden dosya istedi — `PickerActivity`).
   // Ayrı ve KISA bir açılış: iş kuyruğu, bildirim köprüsü, yarım kalan işlerin
   // geri yüklenmesi burada çalıştırılmaz. Çağıran uygulama beklerken saniyeler
@@ -291,6 +300,13 @@ Future<void> _main() async {
   // Play derlemesi (A6.6): Play'in kendi uygulama içi güncellemesi.
   StartupQueue.instance.add('play-update', PlayStore.runOnStartup);
   StartupQueue.instance.add('aktar-esitle', AutoSync.instance.sweep);
+  // Akıllı düzen: açıksa yeni dosyalar dönüşte sessizce düzenlenir.
+  StartupQueue.instance.add(
+      'akilli-duzen',
+      () => SmartSort.startAuto(
+            credentials: () => appState.aiCredentials,
+            scope: () => appState.aiScopeRules,
+          ));
   PlayStore.downloaded.addListener(_offerPlayRestart);
   runApp(
     AppProviders(

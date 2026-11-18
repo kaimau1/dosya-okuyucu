@@ -255,6 +255,8 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
         ];
       case 'recent':
         return [
+          // "3 yeni dosya düzenlendi" (Akıllı düzen); yokken yer kaplamaz.
+          const SmartBatchStrip(),
           RecentStrip(
             onOpen: (e) => EntryOpener.open(context, e.path),
             onAll: () => _push(const OpenHistoryScreen()),
@@ -382,6 +384,21 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
         label: context.t('fm.new_files'),
         subtitle: context.t('fm.new_files_note'),
         onTap: () => _openSwipe('new'),
+      ),
+      // **Akıllı Düzen** (2026-11-18): AI ikinci ad + kategori + Ayıkla.
+      FmTileData(
+        id: 'smart',
+        feature: Feature.ai,
+        icon: AppIcons.ai,
+        color: AppHues.violet,
+        label: context.t('sm.tile'),
+        subtitle: SmartSort.enabled
+            ? context.t('sm.tile_on', {'n': SmartSort.records.length})
+            : context.t('sm.tile_off'),
+        onTap: () async {
+          await SmartSortScreen.open(context);
+          if (mounted) _partSetState(() {});
+        },
       ),
       // **Son açılanlar — büyük kutu.** Araçlar satırındaki 12 küçük simgenin
       // arasındaydı ve kaydırmadan görünmüyordu; oysa "dün baktığım dosya"
