@@ -164,7 +164,7 @@ Bu bir zamanlanmış BULUT çalıştırmasıdır: telefon, adb ve Flutter yok; d
 
 İZİNLERİM: Gözetimsiz çalış, bana soru sorma. Alt ajan aç (Agent, isolation: worktree; fork değil). Şu dallara push izni veriyorum: main, faz-oto-*, oto-kilit. Oturumun sana verdiği claude/* ya da ccr-* dalını kullanma, ona push etme. PR açma. Plan KARAR maddelerini sormadan uygula; yeni karar → en güvenli seçenek + "sabah bakılacak"; 👤 madde → PLAN.md §3.
 
-AYARLAR: ÖLÇÜMSÜZ APK = evet · GÜNLÜK DİLİM = 6
+AYARLAR: ÖLÇÜMSÜZ APK = evet
 
 1. `bash .claude/skills/oto-bulut/kilit.sh al` çalıştır. MEŞGUL derse hiçbir şey yapmadan bitir; HATA derse tek satır yaz, bitir.
 2. `oto-bulut` skill'ini baştan sona uygula (.claude/skills/oto-bulut/SKILL.md — paket seçimi, işçiler, CI bekleme, birleştirme, [apk], yarım iş devri, bitiriş orada). İşçilere: "`isci` skill'ini Bulut kipi bölümüyle uygula, raporu Türkçe yaz".
@@ -179,8 +179,9 @@ AYARLAR: ÖLÇÜMSÜZ APK = evet · GÜNLÜK DİLİM = 6
   (günde en çok 1). Ölçülmeyen yüzeyler `PLAN.md` C2'ye "ölçülmedi"; telefonla ölçülünce gerileme
   çıkarsa o değişiklik geri alınır ya da önce düzeltilir. `hayır` → ölçüm kapısı yüzeyine dokunan iş
   telefonda ölçülene dek `[apk]`'sız.
-- `GÜNLÜK DİLİM = 6`: günde en çok 6 birleştirme (her biri ≈ 30 dk CI). Actions kotası ayda
-  ~2000 dk (1'inde sıfırlanır); kota azaldıysa düşür.
+- Günlük dilim sınırı YOK (kullanıcı 2026-11-18: "iş bitene kadar devam"): zincir uygun B paketi
+  kaldıkça sürer. Actions kotası ayda ~2000 dk (1'inde sıfırlanır); kota dolarsa CI başlamaz ve
+  zincir kendiliğinden durur (§3'e madde).
 
 **Yerel zincirle birlikte:** ikisi aynı anda çalışabilir — bulut B paketini `bulutta:` önekiyle
 sahiplenir, yerel `oto-tur` onu atlar ve C (telefon) paketlerini yapar. İstemezsen yerel

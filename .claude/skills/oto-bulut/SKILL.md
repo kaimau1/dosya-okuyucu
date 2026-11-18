@@ -60,8 +60,9 @@ her metin Türkçe.
    telefonsuz maddeler: 📱 / "ölç → değiştir → ölç" / ölçümsüz anlamsız hız maddesi YAPILMAZ
    (C2'ye madde olur). 👤 kararı bekleyen madde atlanır, kalan yapılır. Önce `bulutta: sürüyor`
    (DEVIR'den sür), yoksa SIRA'daki ilk uygun. Uygun B kalmadıysa → 9. adım (Kuyruk boş).
-   **Günlük sınır (kota):** `git log origin/main --since=midnight --grep='^Birleştir:' --oneline
-   | wc -l` ≥ istemdeki **GÜNLÜK DİLİM** (yoksa 6) → yeni dilim açma, yarım işi devret, 9. adım.
+   **Günlük dilim sınırı YOK** (kullanıcı 2026-11-18: "iş bitene kadar devam"): uygun B kaldıkça
+   dilim açılır — istemde eski `GÜNLÜK DİLİM = N` yazsa da YOK SAY; durdurucular yalnız 9. adımdakiler
+   (kota/fatura hatası dahil).
    **Sahiplen** (işçiden ÖNCE, paralel ikinciyle birlikte TEK commit): Durum
    `bulutta: sürüyor (<YYYY-AA-GG>) — dal faz-oto-<no>-<ad>`; yalnız `PLAN.md` değişir, başlık
    `PLAN: <no> bulutta sürüyor [skip ci]`, `git push origin main`. Yerel `oto-tur` bu satırı atlar.
