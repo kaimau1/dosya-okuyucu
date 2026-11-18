@@ -118,22 +118,98 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
     showSnackOn(messenger, msg);
   }
 
-  Future<void> _openCat(String cat) async {
+  Future<void> _openCat(String cat) => _openList(
+      SmartCatStyle.label(context, cat), 'smart.$cat',
+      () => SmartSort.pathsOf(cat));
+
+  /// Akıllı düzen listesi (kategori, rozet ya da tutar süzgeci): yollar her
+  /// açılışta kayıttan yeniden alınır.
+  Future<void> _openList(
+      String title, String memoryId, List<String> Function() paths) async {
     final nav = Navigator.of(context);
-    final title = SmartCatStyle.label(context, cat);
-    final files = await FsScan.statPaths(SmartSort.pathsOf(cat));
+    final files = await FsScan.statPaths(paths());
     if (!mounted) return;
     await nav.push(MaterialPageRoute(
       builder: (_) => CategoryScreen(
         title: title,
         files: files,
-        loadAll: () => FsScan.statPaths(SmartSort.pathsOf(cat)),
+        loadAll: () => FsScan.statPaths(paths()),
         replaceOnLoad: true,
-        memoryId: 'smart.$cat',
+        memoryId: memoryId,
         // Öğrenme kapısı: yanlış düzenlenen dosya nasıl düzeltilir.
         header: const _FixHint(),
       ),
     ));
+  }
+
+  static List<String> _paths(List<SmartRecord> list) =>
+      [for (final r in list) r.path];
+
+  /// Şema 2.0 rozetleri ("Ödemesi geçmiş fatura", "Süresi dolmuş belge") ve
+  /// tutar süzgeci — yalnız bu ekranda (dosya listesi sıcak yoluna dokunmaz).
+  /// Boşsa hiç çizilmez.
+  List<Widget> _attention(BuildContext context) {
+    final overdue = SmartSort.overdue().length;
+    final expired = SmartSort.expired().length;
+    final amounts = SmartSort.amountCounts();
+    final theme = Theme.of(context);
+    return [
+      if (overdue > 0 || expired > 0) ...[
+        SectionHeader(context.t('sm.attention'),
+            padding: const EdgeInsets.only(top: Gap.lg, bottom: Gap.xs)),
+        Card(
+          margin: EdgeInsets.zero,
+          child: Column(children: [
+            if (overdue > 0)
+              ListTile(
+                key: const ValueKey('ss-overdue'),
+                leading: Icon(AppIcons.topicInvoice,
+                    color: theme.colorScheme.error),
+                title: Text(context.t('sm.overdue')),
+                subtitle: Text(context.t('sm.overdue_sub')),
+                trailing: Text('$overdue', style: theme.textTheme.titleMedium),
+                onTap: () => unawaited(_openList(context.t('sm.overdue'),
+                    'smart.overdue', () => _paths(SmartSort.overdue()))),
+              ),
+            if (expired > 0)
+              ListTile(
+                key: const ValueKey('ss-expired'),
+                leading: Icon(AppIcons.badge, color: theme.colorScheme.error),
+                title: Text(context.t('sm.expired')),
+                subtitle: Text(context.t('sm.expired_sub')),
+                trailing: Text('$expired', style: theme.textTheme.titleMedium),
+                onTap: () => unawaited(_openList(context.t('sm.expired'),
+                    'smart.expired', () => _paths(SmartSort.expired()))),
+              ),
+          ]),
+        ),
+      ],
+      if (amounts.isNotEmpty) ...[
+        SectionHeader(context.t('sm.amount'),
+            padding: const EdgeInsets.only(top: Gap.lg, bottom: Gap.xs)),
+        Text(context.t('sm.amount_sub'),
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        const SizedBox(height: Gap.xs),
+        Wrap(
+          spacing: Gap.sm,
+          runSpacing: Gap.xs,
+          children: [
+            for (final b in SmartTaxonomy.amountOrder)
+              if ((amounts[b] ?? 0) > 0)
+                ActionChip(
+                  key: ValueKey('ss-amount-$b'),
+                  label: Text('${context.t('sm.a_$b')} · ${amounts[b]}'),
+                  onPressed: () => unawaited(_openList(
+                      context.t('sm.amount_title',
+                          {'range': context.t('sm.a_$b')}),
+                      'smart.amount.$b',
+                      () => _paths(SmartSort.withAmount(b)))),
+                ),
+          ],
+        ),
+      ],
+    ];
   }
 
   Future<void> _rename(String cat) async {
@@ -231,6 +307,7 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
               listenable: Listenable.merge([
                 SmartSort.revision,
                 SmartSort.progress,
+                SmartSort.lastUsage,
                 SmartFolderPrefs.revision,
                 SmartLearn.revision,
               ]),
@@ -334,6 +411,7 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
     final clutter = SmartSort.clutter().length;
     final hidden = SmartSort.hiddenRecords().length;
     final prog = SmartSort.progress.value;
+    final usage = SmartSort.lastUsage.value;
     return ListView(
       padding: withNavInset(context, const EdgeInsets.all(Gap.md)),
       children: [
@@ -352,6 +430,19 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
                 const SizedBox(height: Gap.xs),
                 Text(context.t('sm.status_sub'),
                     style: theme.textTheme.bodySmall),
+                if (usage != null) ...[
+                  const SizedBox(height: Gap.xs),
+                  Text(
+                    context.t('sm.usage', {
+                      'n': usage.requests,
+                      't': usage.tokensPerFile,
+                      'q': usage.questionsPerFile,
+                    }),
+                    key: const ValueKey('ss-usage'),
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                ],
                 const SizedBox(height: Gap.sm),
                 if (prog != null) ...[
                   LinearProgressIndicator(
@@ -386,6 +477,7 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
             ),
           ),
         ],
+        ..._attention(context),
         SectionHeader(context.t('sm.folders'),
             trailing: cats.isEmpty ? null : _layoutMenu(context, cats),
             padding: const EdgeInsets.only(top: Gap.lg, bottom: Gap.xs)),

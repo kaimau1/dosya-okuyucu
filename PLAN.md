@@ -62,7 +62,7 @@ yoluna dokunmaz, dokunulan editörün bütçe testi yeşil, A/B sonra C2'de. C2'
 
 | No | Paket | Model | Kaynak | Cihaz | APK | Durum |
 |---|---|---|---|---|---|---|
-| B1 | **AI Akıllı düzen 2.0 — çekirdek:** ayrıntılı sınıflandırma (§1.1), kullanıcı kategorileri (doğruluk kapısıyla), HER dosya türü (Office/metin/ses/video/arşiv), doğruluk ölçüm tezgâhı, Files API (büyük dosya) | opus (şema evresi fable) | §1.1; HAFIZA 2026-11-18 | A/B | evet | bulutta: sürüyor — dal faz-oto-B1-duzen2 (main 4ce9447e): bitti metin türleri (§1.1 m.2 metin), kalan: şema (m.1), ses/video + Files API, kullanıcı kategorileri, tezgâh, hız/kota |
+| B1 | **AI Akıllı düzen 2.0 — çekirdek:** ayrıntılı sınıflandırma (§1.1), kullanıcı kategorileri (doğruluk kapısıyla), HER dosya türü (Office/metin/ses/video/arşiv), doğruluk ölçüm tezgâhı, Files API (büyük dosya) | opus (şema evresi fable) | §1.1; HAFIZA 2026-11-18 | A/B | evet | bulutta: sürüyor — dal faz-oto-B1-duzen2: bitti metin türleri (m.2 metin, main 4ce9447e) + ayrıntılı şema (m.1, dilim main'e gidiyor), kalan: ses/video + Files API, kullanıcı kategorileri, tezgâh, hız/kota, PowerPoint ilk slayt görüntüsü |
 | B2 | **AI Akıllı düzen 2.0 — kullanım:** Ayıkla 2 (en iyi kare, benzer kare grupları), kontrol listeleri, düzeltmeden öğrenme, isteğe bağlı taşıma kuralları, hassas kategori kilidi, Decisions'ın kalan kullanımları (eski P33/P34) | opus | §1.2 | A/B | evet | bekliyor — B1'den sonra |
 | B3 | **Hız (Ferrari) kod + ölçüm:** P12b Excel/liste A/B artıkları, P29 büyük başlık + kalıcı hata şeridi, P06 PDF kaydırma H2.1–H2.6 | opus (P06 plan evresi fable) | §1.3; arsiv/FERRARI_PLANI H2 | A/B | evet | bekliyor |
 | B4 | **PDF Pro tamamlama:** P16 metin, P17 nesne/işaret, P18 form+imza, P19 OCR Pro, P20 sayfa stüdyosu, P21 parola/meta/optimize/PDF-A, P22 kalite %98 | opus (plan evresi fable) | §1.4; arsiv/PDF_PRO_PLANI 54–68 | A/B | evet | bekliyor — 2–3 oturum, tek dal |
@@ -84,31 +84,19 @@ yoluna dokunmaz, dokunulan editörün bütçe testi yeşil, A/B sonra C2'de. C2'
 **Hedef:** telefondaki HER dosya (kapsam klasörlerinde) anlamlı bir ikinci ad + AI kategorisi alır;
 kullanıcı kendi kategorisini ekler ve **eklemeden önce doğru çalıştığını görür**; doğruluk ölçülür.
 
-1. **Ayrıntılı şema (fable ile tasarla, opus uygula)** — `smart_sort_taxonomy.dart`:
-   - Her belge kategorisine alt tür: fiş (market · restoran · akaryakıt · e-ticaret · eczane),
-     vergi/SGK (bordro · vergi levhası · hizmet dökümü · emeklilik), sözleşme (kira · iş · satış ·
-     abonelik · vekâlet), resmî (e-Devlet · mahkeme/icra · noter · tapu · nüfus/ikamet · askerlik),
-     sigorta/araç (trafik · kasko · sağlık sigortası · ruhsat · muayene · ceza), iş (CV · rapor ·
-     sunum · tablo · teklif/sipariş · toplantı), kılavuz (kullanım · garanti · kurulum), ekran
-     görüntüsü (harita · alışveriş · sosyal medya · ayarlar · oyun · bilet/QR), fotoğraf (yemek ·
-     manzara · ürün · evcil hayvan · araç).
-   - Kurum listeleri: GSM (Turkcell · Vodafone · Türk Telekom), elektrik/doğalgaz/su dağıtım şirketleri
-     (en yaygın ~15), banka listesi genişler; hepsinde `other` kaçışı. Kurum yalnız ilgili kategoride.
-   - **Tarih bilgisi + bugün:** "son ödeme / geçerlilik tarihi bugünden (istekte verilen tarih) önce mi?"
-     → "Ödemesi geçmiş fatura", "Süresi dolmuş belge" rozetleri. Tutar aralığı (choice: <100 · 100–500 ·
-     500–2000 · >2000 · yok) süzgeci.
-   - Tek istek kuralı korunur; soru sayısı ölçülür (girdi belirteci raporu `usage`'tan).
+1. **Ayrıntılı şema** — _(yazıldı — bulut 2026-11-18, dal faz-oto-B1-duzen2: alt türler, banka + fatura kurumu
+   (`providerFits`), son ödeme/geçerlilik aralığı bugüne göre + `SmartDates` rozetleri, tutar süzgeci, APK/arşiv
+   `package` tek soru, `usage` belirteç raporu; rozet/süzgeç yalnız Akıllı düzen ekranında. Doğruluğu tezgâhta
+   (m.4) ölçülecek; cihazda bakılacaklar `docs/CIHAZ_TESTI.md`)_
 2. **Her dosya türü:** _(metin kısmı yazıldı — bulut 2026-11-18, dal faz-oto-B1-duzen2,
    `lib/services/fm/smart_sort_input.dart`: Word/ODT/RTF/TXT/MD/HTML/EPUB yazısı ≤ 20 bin karakter,
    Excel/CSV/ODS ilk sayfa ≤ 200 satır CSV, PowerPoint/ODP slayt yazıları, APK/arşiv yalnız ad·boyut·klasör;
    izolatta, mevcut tura girer)_ **Kalan:**
    - PowerPoint/ODP → ilk slayt görüntüsü (yazıya ek).
-   - APK/arşiv için şema seçenekleri (kurulum dosyası · yedek · indirme) — madde 1 şemasıyla.
    - Ses (mp3/m4a/ogg/wav) → `audio` bloğu: tür (sesli not · toplantı · ders · telefon kaydı · müzik ·
      WhatsApp sesli mesajı), konuşma dili, gürültü/kalite; 14 MB üstü **Files API** (`uri`).
    - Video → `video` bloğu, düşük çözünürlük, ilk 60 sn (`start_offset/end_offset`): aile/kişisel ·
      ekran kaydı · ders · ileti/mem · belge/tahta; yanlışlıkla/çok kısa/karanlık → Ayıkla.
-   - APK/arşiv → yalnız meta (ad, boyut, kaynak klasör) yazı olarak → kurulum dosyası / yedek / indirme.
    - Kapsam (§ Kamera kapalı varsayılanı) aynen; AI kapsamı dışı hiç gönderilmez.
 3. **Kullanıcı kategorileri ("doğru çalışır mı?" tasarımı):**
    - Ad + "neyi kapsar" tek cümlesi (her dilde) + simge/renk. Model talimatı: "Does this file match the

@@ -57,6 +57,23 @@ class SmartRecord {
   /// Ayıkla'da gizlendi.
   final bool hidden;
 
+  /// Fatura kesen kurum ([SmartTaxonomy.providers]; yalnız faturada, alt
+  /// türle uyumluysa — yoksa boş). Şema 2.0 (2026-11-18); eski kayıtta boş.
+  final String provider;
+
+  /// Son ödeme aralığı ([SmartTaxonomy.dueBuckets]; yoksa boş).
+  final String due;
+
+  /// Geçerlilik aralığı ([SmartTaxonomy.validBuckets]; yoksa boş).
+  final String valid;
+
+  /// Tutar aralığı ([SmartTaxonomy.amountBuckets]; yoksa boş).
+  final String amount;
+
+  /// Sorunun sorulduğu gün ([SmartDates.dayOf]; 0 = bilinmiyor). Aralıklar
+  /// bu güne göredir.
+  final int asked;
+
   const SmartRecord({
     required this.path,
     required this.size,
@@ -71,7 +88,26 @@ class SmartRecord {
     this.accidental = false,
     this.user = false,
     this.hidden = false,
+    this.provider = '',
+    this.due = '',
+    this.valid = '',
+    this.amount = '',
+    this.asked = 0,
   });
+
+  /// Ödemesi geçmiş fatura mı ([today] = [SmartDates.dayOf])?
+  bool overdueAt(int today) =>
+      SmartTaxonomy.dueCategories.contains(cat) &&
+      SmartDates.overdue(due, asked, today);
+
+  /// Süresi dolmuş belge mi?
+  bool expiredAt(int today) =>
+      SmartTaxonomy.expiringCategories.contains(cat) &&
+      SmartDates.expired(valid, asked, today);
+
+  /// Tutar süzgecine girer mi (yalnız tutarlı kategorilerde)?
+  String get amountBucket =>
+      SmartTaxonomy.amountCategories.contains(cat) ? amount : '';
 
   /// Gereksiz mi (Ayıkla)? Yalnız görsellerde anlamlı.
   bool get clutter =>
@@ -82,22 +118,29 @@ class SmartRecord {
       ? cat
       : (accidental ? 'accidental' : (blurry ? 'blurry' : null));
 
-  SmartRecord copyWith({String? cat, bool? user, bool? hidden, String? sub}) =>
-      SmartRecord(
-        path: path,
-        size: size,
-        modifiedMs: modifiedMs,
-        cat: cat ?? this.cat,
-        conf: cat != null ? 1 : conf,
-        sub: sub ?? (cat != null && cat != this.cat ? '' : this.sub),
-        bank: cat != null && cat != this.cat ? '' : bank,
-        month: month,
-        year: year,
-        blurry: blurry,
-        accidental: accidental,
-        user: user ?? this.user,
-        hidden: hidden ?? this.hidden,
-      );
+  SmartRecord copyWith({String? cat, bool? user, bool? hidden, String? sub}) {
+    final moved = cat != null && cat != this.cat;
+    return SmartRecord(
+      path: path,
+      size: size,
+      modifiedMs: modifiedMs,
+      cat: cat ?? this.cat,
+      conf: cat != null ? 1 : conf,
+      sub: sub ?? (moved ? '' : this.sub),
+      bank: moved ? '' : bank,
+      month: month,
+      year: year,
+      blurry: blurry,
+      accidental: accidental,
+      user: user ?? this.user,
+      hidden: hidden ?? this.hidden,
+      provider: moved ? '' : provider,
+      due: due,
+      valid: valid,
+      amount: amount,
+      asked: asked,
+    );
+  }
 
   Map<String, Object?> toJson() => {
         'p': path,
@@ -113,6 +156,11 @@ class SmartRecord {
         if (accidental) 'ac': 1,
         if (user) 'u': 1,
         if (hidden) 'h': 1,
+        if (provider.isNotEmpty) 'pv': provider,
+        if (due.isNotEmpty) 'du': due,
+        if (valid.isNotEmpty) 'va': valid,
+        if (amount.isNotEmpty) 'am': amount,
+        if (asked > 0) 'ad': asked,
       };
 
   static SmartRecord? fromJson(Object? j) {
@@ -120,21 +168,36 @@ class SmartRecord {
     final path = j['p'];
     final cat = j['c'];
     if (path is! String || cat is! String) return null;
-    int i(String k) => (j[k] as num?)?.toInt() ?? 0;
+    // Alanı olmayan (eski şema) ya da türü bozuk alan boş/0 sayılır.
+    int i(String k) {
+      final v = j[k];
+      return v is num ? v.toInt() : 0;
+    }
+
+    String t(String k) {
+      final v = j[k];
+      return v is String ? v : '';
+    }
+
     return SmartRecord(
       path: path,
       size: i('s'),
       modifiedMs: i('m'),
       cat: cat,
       conf: i('f') / 100,
-      sub: (j['st'] as String?) ?? '',
-      bank: (j['b'] as String?) ?? '',
+      sub: t('st'),
+      bank: t('b'),
       month: i('mo'),
       year: i('y'),
       blurry: i('bl') == 1,
       accidental: i('ac') == 1,
       user: i('u') == 1,
       hidden: i('h') == 1,
+      provider: t('pv'),
+      due: t('du'),
+      valid: t('va'),
+      amount: t('am'),
+      asked: i('ad'),
     );
   }
 }
@@ -164,8 +227,25 @@ class SmartRunResult {
 
   /// Son başarısızlığın nedeni (kullanıcıya gösterilir; kota dışı hatalar).
   final String? lastError;
+
+  /// Belirteç raporu (yanıtın `usage` alanından; null = rapor gelmedi).
+  final SmartUsage? usage;
   const SmartRunResult(this.processed, this.failed,
-      {this.stoppedBy, this.lastError});
+      {this.stoppedBy, this.lastError, this.usage});
+}
+
+/// Tur belirteç raporu (PLAN §1.1 m.1 "soru sayısı ölçülür"): `usage`
+/// alanı dönen istek sayısı, toplam girdi belirteci ve sorulan soru sayısı.
+/// Çıktı belirteci Decisions'ta sıfır.
+class SmartUsage {
+  final int requests;
+  final int inputTokens;
+  final int questions;
+  const SmartUsage(this.requests, this.inputTokens, this.questions);
+
+  int get tokensPerFile => requests == 0 ? 0 : (inputTokens / requests).round();
+  int get questionsPerFile =>
+      requests == 0 ? 0 : (questions / requests).round();
 }
 
 /// **Akıllı düzen** (2026-11-18, kullanıcı: *"kendi kendini düzenleyen
@@ -398,12 +478,23 @@ abstract final class SmartSort {
     final head = r.sub.isNotEmpty && r.sub != 'other'
         ? s.t('sm.s_${r.sub}')
         : s.t('sm.c_${r.cat}');
-    final bank = r.cat == 'bank' ? SmartTaxonomy.bankName(r.bank) : '';
     final date = !SmartTaxonomy.isDoc(r.cat) || r.year == 0
         ? ''
         : (r.month > 0 ? '${s.t('sm.m${r.month}')} ${r.year}' : '${r.year}');
-    return [head, bank, date].where((x) => x.isNotEmpty).join(' · ');
+    return [head, institutionOf(r), date]
+        .where((x) => x.isNotEmpty)
+        .join(' · ');
   }
+
+  /// Kurumun görünen adı: banka belgesinde banka, faturada fatura kesen
+  /// şirket (kurum yalnız ilgili kategoride); yoksa ''.
+  static String institutionOf(SmartRecord r) => switch (r.cat) {
+        'bank' => SmartTaxonomy.bankName(r.bank),
+        'invoice' => SmartTaxonomy.providerFits(r.provider, r.cat, r.sub)
+            ? SmartTaxonomy.providerName(r.provider)
+            : '',
+        _ => '',
+      };
 
   /// Arama için bütün dillerdeki adlar + eşanlamlar (katlanmış). Arayüz
   /// Türkçe olsa da "invoice" ya da "فاتورة" yazan bulur.
@@ -423,7 +514,7 @@ abstract final class SmartSort {
       ...?SmartTaxonomy.synonyms[r.cat],
       // Kullanıcının akıllı klasöre verdiği ad da aransın.
       ?SmartFolderPrefs.nameOf(r.cat),
-      if (r.cat == 'bank') SmartTaxonomy.bankName(r.bank),
+      institutionOf(r),
       if (r.year > 0) '${r.year}',
     };
     // İki küçük harf biçimi birden: Türkçe katlama İngilizce "Invoice"ı
@@ -497,7 +588,9 @@ abstract final class SmartSort {
   /// Öğrenilen düzeltmeler bu yeni sonucu çeviriyor mu? (elle düzeltilmiş
   /// kayda dokunulmaz.)
   static SmartRecord _learned(SmartRecord rec, {required bool image}) {
-    if (rec.user) return rec;
+    // Kurulum/arşiv kategorisi uzantıdan kesin; öğrenme çevirmez (çevirse
+    // `needs` her turda yeniden sorardı).
+    if (rec.user || rec.cat == SmartTaxonomy.package) return rec;
     final to = SmartLearn.adjust(rec.path, rec.cat, image: image);
     return to == null ? rec : rec.copyWith(cat: to);
   }
@@ -519,8 +612,46 @@ abstract final class SmartSort {
       month: r.month,
       year: r.year,
       user: true,
+      provider: r.provider,
+      due: r.due,
+      valid: r.valid,
+      amount: r.amount,
+      asked: r.asked,
     );
     _changed();
+  }
+
+  // ── Rozet ve süzgeç (şema 2.0, Akıllı düzen ekranı) ─────────────────────
+  static List<SmartRecord> _where(bool Function(SmartRecord r) test) => [
+        for (final r in _records.values)
+          if (!r.hidden && test(r)) r
+      ]..sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
+
+  /// Ödemesi geçmiş faturalar ([today] verilmezse bugün).
+  static List<SmartRecord> overdue([DateTime? today]) {
+    final d = SmartDates.dayOf(today ?? DateTime.now());
+    return _where((r) => r.overdueAt(d));
+  }
+
+  /// Süresi dolmuş belgeler.
+  static List<SmartRecord> expired([DateTime? today]) {
+    final d = SmartDates.dayOf(today ?? DateTime.now());
+    return _where((r) => r.expiredAt(d));
+  }
+
+  /// Tutar aralığındaki fatura/fiş/banka belgeleri.
+  static List<SmartRecord> withAmount(String bucket) =>
+      _where((r) => r.amountBucket == bucket);
+
+  /// Tutar aralığı → sayı (yalnız dolu aralıklar).
+  static Map<String, int> amountCounts() {
+    final out = <String, int>{};
+    for (final r in _records.values) {
+      final b = r.amountBucket;
+      if (r.hidden || b.isEmpty) continue;
+      out[b] = (out[b] ?? 0) + 1;
+    }
+    return out;
   }
 
   /// Silinen dosyaların kaydı düşer.
@@ -534,8 +665,28 @@ abstract final class SmartSort {
 
   // ── Yanıt → kayıt ──────────────────────────────────────────────────────
   /// Saf: Decisions yanıtı → kayıt. Birim testli.
-  static SmartRecord? fromAnswers(FsEntry e, DecisionResult r) {
+  ///
+  /// [today]: isteğin sorulduğu gün (tarih aralıkları buna göre; verilmezse
+  /// şimdi). APK/arşivde ([SmartInputKind.meta]) kategori sabit
+  /// [SmartTaxonomy.package], yalnız alt tür yanıtı okunur.
+  static SmartRecord? fromAnswers(FsEntry e, DecisionResult r,
+      {DateTime? today}) {
     final by = {for (final a in r.answers) a.question.id: a};
+    if (SmartSortInput.kindOf(e.path) == SmartInputKind.meta) {
+      final a = by['sub_${SmartTaxonomy.package}'];
+      final choice = a?.choice;
+      if (a == null || choice == null) return null;
+      return SmartRecord(
+        path: e.path,
+        size: e.sizeBytes,
+        modifiedMs: e.modifiedMs,
+        cat: SmartTaxonomy.package,
+        // Kategori uzantıdan kesin; güven yalnız alt türü süzer.
+        conf: 1,
+        sub: choice == SmartTaxonomy.other || a.confidence < 0.4 ? '' : choice,
+        asked: SmartDates.dayOf(today ?? DateTime.now()),
+      );
+    }
     final catAns = by['cat'];
     final cat = catAns?.choice;
     if (cat == null) return null;
@@ -560,18 +711,40 @@ abstract final class SmartSort {
     }
 
     bool yes(String id) => (by[id]?.yes ?? 0) >= 0.65;
+
+    // Aralık yanıtı: yalnız `cats` kategorisinde, güven ≥ 0,5, "none" boş.
+    String bucket(String id, Set<String> cats) {
+      final a = by[id];
+      final v = a?.choice;
+      if (!cats.contains(cat) || a == null || v == null) return '';
+      if (a.confidence < 0.5 || v == 'none') return '';
+      return v;
+    }
+
+    final cleanSub = sub == 'other' ? '' : sub;
+    final provAns = by['provider'];
+    final prov = provAns?.choice ?? '';
     return SmartRecord(
       path: e.path,
       size: e.sizeBytes,
       modifiedMs: e.modifiedMs,
       cat: cat,
       conf: catAns?.confidence ?? 0,
-      sub: sub == 'other' ? '' : sub,
+      sub: cleanSub,
       bank: bank == 'other' ? '' : bank,
       month: pick('month'),
       year: pick('year'),
       blurry: yes('blurry'),
       accidental: yes('accidental'),
+      provider: provAns != null &&
+              provAns.confidence >= 0.5 &&
+              SmartTaxonomy.providerFits(prov, cat, cleanSub)
+          ? prov
+          : '',
+      due: bucket('due', SmartTaxonomy.dueCategories),
+      valid: bucket('valid', SmartTaxonomy.expiringCategories),
+      amount: bucket('amount', SmartTaxonomy.amountCategories),
+      asked: SmartDates.dayOf(today ?? DateTime.now()),
     );
   }
 
@@ -585,13 +758,17 @@ abstract final class SmartSort {
   }) async {
     await ensureLoaded();
     final image = GeminiDecisions.mediaFor(entry.path)?.type == 'image';
+    final now = DateTime.now();
     final result = await GeminiDecisions.ask(
       keys: credentials.normalized.keys,
       input: input,
       questions: SmartTaxonomy.questions(
-          image: image, learned: SmartLearn.hint(image: image)),
+          image: image,
+          meta: SmartSortInput.kindOf(entry.path) == SmartInputKind.meta,
+          today: now,
+          learned: SmartLearn.hint(image: image)),
     );
-    final raw = fromAnswers(entry, result);
+    final raw = fromAnswers(entry, result, today: now);
     if (raw == null) return null;
     final rec = _learned(raw, image: image);
     final old = _records[entry.path];
@@ -655,6 +832,12 @@ abstract final class SmartSort {
         GeminiDecisions.mediaFor(e.path)?.type != 'image') {
       return true;
     }
+    // Şema 2.0 öncesi APK/arşive belge kategorisi verilmiş olabilir; tek
+    // soruluk (yalnız ad · boyut · klasör) ucuz istekle yeniden sorulur.
+    if (r.cat != SmartTaxonomy.package &&
+        SmartSortInput.kindOf(e.path) == SmartInputKind.meta) {
+      return true;
+    }
     return r.size != e.sizeBytes || r.modifiedMs != e.modifiedMs;
   }
 
@@ -688,6 +871,9 @@ abstract final class SmartSort {
     var failed = 0;
     String? stoppedBy;
     String? lastError;
+    var usedRequests = 0;
+    var usedTokens = 0;
+    var usedQuestions = 0;
     final done = <String>[];
     try {
       final fresh = await FsScan.freshFiles(roots, limit: scan);
@@ -696,7 +882,8 @@ abstract final class SmartSort {
           if (supports(e) && needs(e) && scope.allowsFile(e)) e
       ].take(limit).toList();
       progress.value = SmartProgress(0, todo.length);
-      final year = DateTime.now().year;
+      // İstekteki "bugün" tur boyunca sabit (tarih aralıkları buna göre).
+      final today = DateTime.now();
       // Kullanıcının düzeltmelerinden geri bildirim (tur başına bir kez).
       final imageHint = SmartLearn.hint(image: true);
       final docHint = SmartLearn.hint(image: false);
@@ -708,7 +895,8 @@ abstract final class SmartSort {
             final image = GeminiDecisions.mediaFor(e.path)?.type == 'image';
             final questions = SmartTaxonomy.questions(
                 image: image,
-                nowYear: year,
+                meta: SmartSortInput.kindOf(e.path) == SmartInputKind.meta,
+                today: today,
                 learned: image ? imageHint : docHint);
             final input = [await SmartSortInput.blockFor(e)];
             DecisionResult result;
@@ -724,7 +912,13 @@ abstract final class SmartSort {
               result = await GeminiDecisions.ask(
                   keys: keys, input: input, questions: questions);
             }
-            final raw = fromAnswers(e, result);
+            final tokens = result.inputTokens;
+            if (tokens != null) {
+              usedRequests++;
+              usedTokens += tokens;
+              usedQuestions += questions.length;
+            }
+            final raw = fromAnswers(e, result, today: today);
             final rec = raw == null ? null : _learned(raw, image: image);
             if (rec != null) {
               final old = _records[e.path];
@@ -772,9 +966,17 @@ abstract final class SmartSort {
       }
       if (by.isNotEmpty) lastBatch.value = SmartBatch(done, by, DateTime.now());
     }
+    final usage = usedRequests == 0
+        ? null
+        : SmartUsage(usedRequests, usedTokens, usedQuestions);
+    if (usage != null) lastUsage.value = usage;
     return SmartRunResult(processed, failed,
-        stoppedBy: stoppedBy, lastError: lastError);
+        stoppedBy: stoppedBy, lastError: lastError, usage: usage);
   }
+
+  /// Son turun belirteç raporu (Akıllı düzen ekranında; oturum içi).
+  static final ValueNotifier<SmartUsage?> lastUsage =
+      ValueNotifier<SmartUsage?>(null);
 
   // ── Otomatik ───────────────────────────────────────────────────────────
   static AiCredentials Function()? _creds;
