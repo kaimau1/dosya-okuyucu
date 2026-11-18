@@ -1327,3 +1327,5 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Ekran görüntüsü → ⋮ → Görselde ne var: AI kısa özeti + tür çipi; yazı katlanır bölümde; anahtarsız cihazda "AI ile özetle" düğmesi.
 - [ ] Akıllı düzen: menüden 2/3/4 sütun; iki parmakla sıkıştır/aç sütun değiştirir, tek parmak kaydırma bozulmaz; basılı tut → yeniden adlandır / en başa al; "Sırala ve adlandır" sürükle.
 - [ ] Dosya ⋮ → Kategori yanlış mı? → doğrusunu seç → benzerler soruluyor; aynı uygulamanın yeni SS'i bir sonraki düzenlemede doğru kategoriye düşüyor.
+
+- [ ] (2026-11-18) Galeri: eski bir fotoğrafa dokun → hücreden büyüme takılmadan akıyor mu; açıldıktan hemen sonra netleşiyor mu; sağa/sola geçiş hâlâ anında mı. Video: dokununca kapaktan büyüme akıcı mı.

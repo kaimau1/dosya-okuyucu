@@ -285,6 +285,36 @@ class _ZoomableImageState extends State<_ZoomableImage> {
   ImageStream? _aspectStream;
   ImageStreamListener? _aspectListener;
 
+  /// Açılış geçişi sürerken (küçük resim varsa) yalnız küçük resim çizilir;
+  /// tam boy çözüm geçiş bitince başlar (2026-11-18, kullanıcı: "fotoğraf
+  /// takıla takıla açılıyor"). Büyük JPEG'in çözümü ve doku yüklemesi büyüme
+  /// animasyonunun ortasına düşüp kare kaçırtıyordu.
+  bool _full = true;
+  Animation<double>? _routeAnim;
+  AnimationStatusListener? _routeListener;
+
+  void _watchRoute() {
+    if (_routeAnim != null || _thumb == null || _aspect == null) return;
+    final animation = ModalRoute.of(context)?.animation;
+    if (animation == null || animation.isCompleted) return;
+    _full = false;
+    _routeAnim = animation;
+    late final AnimationStatusListener listener;
+    listener = (status) {
+      if (status == AnimationStatus.forward) return;
+      _stopRoute();
+      if (mounted && !_full) setState(() => _full = true);
+    };
+    _routeListener = listener;
+    animation.addStatusListener(listener);
+  }
+
+  void _stopRoute() {
+    final listener = _routeListener;
+    if (listener != null) _routeAnim?.removeStatusListener(listener);
+    _routeListener = null;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -293,6 +323,7 @@ class _ZoomableImageState extends State<_ZoomableImage> {
 
   @override
   void dispose() {
+    _stopRoute();
     _stopAspect();
     _tx.removeListener(_onTransform);
     _tx.dispose();
@@ -326,6 +357,7 @@ class _ZoomableImageState extends State<_ZoomableImage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _syncDecodeWidth(_tx.value.getMaxScaleOnAxis());
+    _watchRoute();
     _watchAspect();
   }
 
@@ -376,7 +408,9 @@ class _ZoomableImageState extends State<_ZoomableImage> {
     // kesintisiz açılır. Bilinmiyorsa kutu ekranı kaplar, görsel sığdırılır.
     final fit = aspect == null ? BoxFit.contain : BoxFit.cover;
     final thumb = _thumb;
-    Widget image = Image(
+    Widget image = !_full && thumb != null
+        ? Image(image: thumb, fit: fit, gaplessPlayback: true)
+        : Image(
       // `Image.file` DEĞİL: dosyayı Dart yığınına kopyalıyordu (bkz.
       // `FmFileImage`, 2026-08-17 donma kök nedeni).
       image: FmFileImage(widget.path, cacheWidth: _decodeWidth),
