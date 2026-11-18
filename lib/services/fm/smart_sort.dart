@@ -22,6 +22,7 @@ import 'fs_events.dart';
 import 'fs_scan.dart';
 import 'smart_folder_prefs.dart';
 import 'smart_learn.dart';
+import 'smart_sort_input.dart';
 import 'smart_sort_taxonomy.dart';
 
 /// Tek dosyanın akıllı düzen sonucu. Metin DEĞİL kimlik tutar (dil değişince
@@ -628,12 +629,13 @@ abstract final class SmartSort {
     ];
   }
 
-  /// Desteklenen dosya mı (görsel ya da PDF, sınır içinde, gizli klasörde değil)?
+  /// Desteklenen dosya mı (gizli klasörde değil, sınır içinde)? Görsel/PDF
+  /// olduğu gibi; Word/metin/tablo/sunum okunan yazıyla; APK/arşiv yalnız
+  /// meta yazısıyla ([SmartSortInput], 2026-11-18). Ses/video henüz yok.
   static bool supports(FsEntry e) {
     if (e.isDir || e.path.contains('/.')) return false;
-    final type = GeminiDecisions.mediaFor(e.path)?.type;
-    if (type != 'image' && type != 'document') return false;
-    return e.sizeBytes > 0 && e.sizeBytes <= GeminiDecisions.maxInlineBytes;
+    final kind = SmartSortInput.kindOf(e.path);
+    return kind != null && SmartSortInput.sizeOk(kind, e.sizeBytes);
   }
 
   /// Sorulması gereken mi (kayıt yok ya da dosya değişmiş; elle düzeltilmiş
@@ -708,7 +710,7 @@ abstract final class SmartSort {
                 image: image,
                 nowYear: year,
                 learned: image ? imageHint : docHint);
-            final input = [await GeminiDecisions.fileBlock(e.path)];
+            final input = [await SmartSortInput.blockFor(e)];
             DecisionResult result;
             try {
               result = await GeminiDecisions.ask(

@@ -1327,3 +1327,8 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Ekran görüntüsü → ⋮ → Görselde ne var: AI kısa özeti + tür çipi; yazı katlanır bölümde; anahtarsız cihazda "AI ile özetle" düğmesi.
 - [ ] Akıllı düzen: menüden 2/3/4 sütun; iki parmakla sıkıştır/aç sütun değiştirir, tek parmak kaydırma bozulmaz; basılı tut → yeniden adlandır / en başa al; "Sırala ve adlandır" sürükle.
 - [ ] Dosya ⋮ → Kategori yanlış mı? → doğrusunu seç → benzerler soruluyor; aynı uygulamanın yeni SS'i bir sonraki düzenlemede doğru kategoriye düşüyor.
+
+## 2026-11-18 — Akıllı düzen: Word/Excel/sunum/metin/APK (bulut, dal faz-oto-B1-duzen2; yazıldı, cihazda doğrulanmadı)
+- [ ] İndirilenler'e bir Word, bir Excel/CSV, bir sunum, bir .txt ve bir APK koy → Akıllı düzen → "Şimdi düzenle": hepsi ikinci ad + kategori alıyor mu (ör. Word kira sözleşmesi → "Sözleşme"); APK/arşivde içerik gönderilmeden yalnız adla bir kategori (çoğu "Diğer") çıkıyor mu?
+- [ ] Büyük (20–40 MB) Word/Excel düzenlenirken ana ekran ve listede kasma yok mu; okunamayan dosya "N dosya yapılamadı: yazısı okunamadı" iletisinde mi?
+- [ ] AI kapsamı dışındaki klasördeki Word/Excel hiç sayılmıyor mu?
