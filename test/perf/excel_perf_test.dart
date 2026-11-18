@@ -245,15 +245,20 @@ void main() {
       final field = find.descendant(of: editor, matching: find.byType(TextField));
       await t.enterText(field, 'K'); // ısınma
       await t.pump();
-      final cells = t.widgetList(find.byType(SheetCell)).length;
+      // Ağaçtaki TÜM hücreler (önbellek bölgesindeki ekran dışı satırlar
+      // dahil): sayaç da tüm öğeleri sayar; `find` varsayılanı ekran dışını
+      // atlar. Tavan = hücre başına en çok bir kurulum, yeni hücre doğmaz.
+      final cells =
+          t.widgetList(find.byType(SheetCell, skipOffstage: false)).length;
+      final onscreen = t.widgetList(find.byType(SheetCell)).length;
       final r = await countRebuilds(t, () async {
         await t.enterText(field, 'Ki');
         await t.pump();
       });
       // ignore: avoid_print
       print('PERF excel_key_rebuilds=${r.total} sheet_cells=${r.of(SheetCell)} '
-          'visible_cells=$cells top=${r.top()}');
-      expect(cells, greaterThan(10), reason: 'ızgara görünmeli');
+          'tree_cells=$cells visible_cells=$onscreen top=${r.top()}');
+      expect(onscreen, greaterThan(10), reason: 'ızgara görünmeli');
       expect(r.of(SheetCell), lessThanOrEqualTo(cells));
       expect(r.total, lessThan(12000));
       await t.pumpWidget(const SizedBox());

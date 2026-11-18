@@ -123,9 +123,9 @@ void main() {
     expect(c.paras[3].text, contains('ab'));
     expect(texts, greaterThan(3), reason: 'senaryo birden çok paragraf görmeli');
     expect(r.of(RichText), lessThanOrEqualTo(1));
-    // Toplam tavan (liste sarmalayıcıları + kabuk): ilk CI ölçümüyle
-    // sıkılaştırılacak (PLAN §1.12 m.3); yalnız düşer.
-    expect(r.total, lessThan(400));
+    // Toplam tavan (liste sarmalayıcıları + kabuk): ilk CI ölçümü 106
+    // (2026-11-18) + ~%30 pay; yalnız düşer.
+    expect(r.total, lessThanOrEqualTo(140));
     c.dispose();
   });
 

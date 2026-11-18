@@ -84,6 +84,10 @@ void main() {
             height: 220,
             child: SlideCanvas(
               slide: view,
+              // Düzenleyicideki gibi: çerçeve editörü yalnız dokunulabilir
+              // (düzenle/seç verilmiş) seçili şekle kurulur.
+              onEditShape: (_) {},
+              onSelectShape: (_) {},
               selectedShape: shape,
               onFrameChanged: (_, _, _) {},
             ),
