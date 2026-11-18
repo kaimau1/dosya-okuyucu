@@ -92,11 +92,27 @@ abstract final class SmartTaxonomy {
   /// kategoriye girer; alt türü ad · boyut · klasörden seçilir).
   static const package = 'package';
 
+  /// Ses kaydı / video (2026-11-18, PLAN §1.1 m.2): kategori uzantıdan
+  /// kesin; alt türü (sesli not, toplantı… / aile videosu, ekran kaydı…)
+  /// dosyanın kendisinden tek istekte sorulur.
+  static const audio = 'audio';
+  static const video = 'video';
+
   static const other = 'other';
 
-  /// Bütün kategori kimlikleri (sıralı: belge → görsel → kurulum → diğer).
-  static List<String> get categoryIds =>
-      [...docCategories.keys, ...imageCategories.keys, package, other];
+  /// Uzantıdan kesin kategoriler (kategori sorulmaz; öğrenme çevirmez).
+  static const fixedCategories = {package, audio, video};
+
+  /// Bütün kategori kimlikleri (sıralı: belge → görsel → ses/video →
+  /// kurulum → diğer).
+  static List<String> get categoryIds => [
+        ...docCategories.keys,
+        ...imageCategories.keys,
+        audio,
+        video,
+        package,
+        other,
+      ];
 
   static bool isDoc(String cat) => docCategories.containsKey(cat);
 
@@ -252,6 +268,35 @@ abstract final class SmartTaxonomy {
           'someone (documents, photos, project files).',
       'other': 'None of these.',
     },
+    audio: _audioSubs,
+    video: _videoSubs,
+  };
+
+  /// Konuşma dili (ses). Kimlik ISO 639-1; `none` = konuşma yok (müzik,
+  /// sessizlik). Görünen ad `sm.l_<kimlik>`.
+  static const speechLanguages = <String, String>{
+    'tr': 'Turkish',
+    'en': 'English',
+    'ar': 'Arabic',
+    'ku': 'Kurdish',
+    'de': 'German',
+    'fr': 'French',
+    'ru': 'Russian',
+    'fa': 'Persian',
+    'es': 'Spanish',
+    'az': 'Azerbaijani',
+    'other': 'Another language.',
+    'none': 'There is no speech (music only, silence or noise).',
+  };
+
+  /// Ses kalitesi / gürültü.
+  static const audioQualities = <String, String>{
+    'clear': 'Clear: speech or music is easy to hear, little background '
+        'noise.',
+    'noisy': 'Noisy: strong background noise (street, wind, crowd, music) '
+        'but still understandable.',
+    'poor': 'Poor: very hard to understand, distorted, cut off, mostly '
+        'silence or recorded by accident (for example in a pocket).',
   };
 
   /// Alt tür sorusu yalnız görselde sorulan kategoriler.
@@ -475,10 +520,14 @@ abstract final class SmartTaxonomy {
   static List<DecisionQuestion> questions({
     required bool image,
     bool meta = false,
+    bool audio = false,
+    bool video = false,
     int? nowYear,
     DateTime? today,
     String learned = '',
   }) {
+    if (audio) return audioQuestions;
+    if (video) return videoQuestions;
     if (meta) {
       return [
         DecisionQuestion.choice(
@@ -512,7 +561,7 @@ abstract final class SmartTaxonomy {
         },
       ),
       for (final e in subtypes.entries)
-        if (e.key != package && (image || !_imageOnlySubs.contains(e.key)))
+        if (!fixedCategories.contains(e.key) && (image || !_imageOnlySubs.contains(e.key)))
           DecisionQuestion.choice(
             'sub_${e.key}',
             'sub_${e.key}',
@@ -590,6 +639,74 @@ abstract final class SmartTaxonomy {
     ];
   }
 
+  /// Ses kaydı soruları (tek istek, 3 soru): tür, konuşma dili, kalite.
+  static const audioQuestions = [
+    DecisionQuestion.choice(
+      'sub_$audio',
+      'sub_$audio',
+      'This is an audio recording. Listen to it: what kind of recording is '
+          'it? Judge by the sound, not by the file name.',
+      _audioSubs,
+    ),
+    DecisionQuestion.choice(
+      'speech_lang',
+      'speech_lang',
+      'Which language is mainly spoken in this recording?',
+      speechLanguages,
+    ),
+    DecisionQuestion.choice(
+      'quality',
+      'quality',
+      'How is the sound quality of this recording?',
+      audioQualities,
+    ),
+  ];
+
+  /// Video soruları (yalnız ilk 60 sn, düşük çözünürlük): tür + yanlışlıkla.
+  static const videoQuestions = [
+    DecisionQuestion.choice(
+      'sub_$video',
+      'sub_$video',
+      'This is the beginning of a video. What kind of video is it? Judge by '
+          'what is seen and heard, not by the file name.',
+      _videoSubs,
+    ),
+    DecisionQuestion.yesNo(
+      'accidental',
+      'accidental',
+      'Does this look like an accidental or useless recording: filmed in a '
+          'pocket, almost completely dark or black, pointing at the floor or '
+          'ceiling, only a second or two long, or nothing recognisable?',
+    ),
+  ];
+
+  // `subtypes[audio]!` sabit ifade değil; soru listeleri const kalsın diye.
+  static const _audioSubs = {
+    'voice_note': 'A personal voice note or voice memo: one person '
+        'speaking to themselves (reminder, idea, list).',
+    'whatsapp_voice': 'A voice message sent in a messaging app (WhatsApp, '
+        'Telegram…): short, informal, spoken to another person.',
+    'meeting_recording': 'A recording of a meeting, interview or group discussion '
+        'with several speakers.',
+    'lecture': 'A recording of a lesson, lecture, seminar, sermon, talk or '
+        'podcast.',
+    'call_recording': 'A recording of a phone call: two sides, narrow '
+        'telephone sound.',
+    'music': 'Music or a song (with or without singing), or a ringtone.',
+    'other': 'None of these.',
+  };
+  static const _videoSubs = {
+    'family_video': 'A personal or family video: people, children, a '
+        'celebration, a trip, pets or daily life.',
+    'screen_recording': 'A screen recording of a phone or computer screen.',
+    'lecture_video': 'A lesson, lecture, tutorial, course or talk.',
+    'clip_meme': 'A forwarded clip, meme, funny or viral video, greeting '
+        'video or social media video.',
+    'document_video': 'A video of a document, whiteboard, blackboard, '
+        'slides or a paper being shown.',
+    'other': 'None of these.',
+  };
+
   /// Ekranda gösterilen her kategori için arama eşanlamları (dilden bağımsız,
   /// küçük harf). Çeviri tablosundaki üç dildeki adlara EK olarak aranır.
   static const synonyms = <String, List<String>>{
@@ -615,6 +732,8 @@ abstract final class SmartTaxonomy {
     'meme': ['caps', 'mizah', 'meme', 'komik', 'ميم'],
     'photo_people': ['fotoğraf', 'photo', 'insan', 'people', 'selfie'],
     'photo_other': ['fotoğraf', 'photo', 'manzara', 'yemek'],
+    'audio': ['ses', 'kayıt', 'sesli not', 'ses kaydı', 'audio', 'recording', 'voice', 'تسجيل'],
+    'video': ['video', 'klip', 'ekran kaydı', 'clip', 'فيديو'],
     'package': ['apk', 'kurulum', 'arşiv', 'zip', 'rar', 'yedek', 'installer', 'archive', 'backup', 'أرشيف'],
   };
 }

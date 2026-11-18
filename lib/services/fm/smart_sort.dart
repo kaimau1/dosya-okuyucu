@@ -74,6 +74,12 @@ class SmartRecord {
   /// bu güne göredir.
   final int asked;
 
+  /// Ses kaydında konuşma dili ([SmartTaxonomy.speechLanguages]; yoksa boş).
+  final String lang;
+
+  /// Ses kalitesi ([SmartTaxonomy.audioQualities]; yoksa boş).
+  final String quality;
+
   const SmartRecord({
     required this.path,
     required this.size,
@@ -93,6 +99,8 @@ class SmartRecord {
     this.valid = '',
     this.amount = '',
     this.asked = 0,
+    this.lang = '',
+    this.quality = '',
   });
 
   /// Ödemesi geçmiş fatura mı ([today] = [SmartDates.dayOf])?
@@ -109,7 +117,8 @@ class SmartRecord {
   String get amountBucket =>
       SmartTaxonomy.amountCategories.contains(cat) ? amount : '';
 
-  /// Gereksiz mi (Ayıkla)? Yalnız görsellerde anlamlı.
+  /// Gereksiz mi (Ayıkla)? Görsellerde ve videoda (yanlışlıkla çekilmiş,
+  /// çok kısa, karanlık) anlamlı.
   bool get clutter =>
       SmartTaxonomy.clutterCategories.contains(cat) || blurry || accidental;
 
@@ -139,6 +148,8 @@ class SmartRecord {
       valid: valid,
       amount: amount,
       asked: asked,
+      lang: lang,
+      quality: quality,
     );
   }
 
@@ -161,6 +172,8 @@ class SmartRecord {
         if (valid.isNotEmpty) 'va': valid,
         if (amount.isNotEmpty) 'am': amount,
         if (asked > 0) 'ad': asked,
+        if (lang.isNotEmpty) 'lg': lang,
+        if (quality.isNotEmpty) 'ql': quality,
       };
 
   static SmartRecord? fromJson(Object? j) {
@@ -198,6 +211,8 @@ class SmartRecord {
       valid: t('va'),
       amount: t('am'),
       asked: i('ad'),
+      lang: t('lg'),
+      quality: t('ql'),
     );
   }
 }
@@ -471,6 +486,8 @@ abstract final class SmartSort {
   /// Saf: kayıt → ikinci ad. Birim testli.
   static String render(SmartRecord r, AppStrings s) {
     if (SmartTaxonomy.isPersonalPhoto(r.cat) ||
+        // Aile videosu da kişisel fotoğraf gibi: her kareye ad gürültü.
+        (r.cat == SmartTaxonomy.video && r.sub == 'family_video') ||
         r.cat == SmartTaxonomy.other ||
         (!r.user && r.conf < 0.45)) {
       return '';
@@ -516,6 +533,10 @@ abstract final class SmartSort {
       ?SmartFolderPrefs.nameOf(r.cat),
       institutionOf(r),
       if (r.year > 0) '${r.year}',
+      // Ses kaydında konuşma dili: "ingilizce ders" aransın.
+      if (r.lang.isNotEmpty && r.lang != 'other' && r.lang != 'none')
+        for (final lang in const [AppLanguage.tr, AppLanguage.en, AppLanguage.ar])
+          AppStrings(lang).t('sm.l_${r.lang}'),
     };
     // İki küçük harf biçimi birden: Türkçe katlama İngilizce "Invoice"ı
     // "ınvoice" yapar; düz küçültme "invoice" bırakır — ikisi de aransın.
@@ -590,7 +611,9 @@ abstract final class SmartSort {
   static SmartRecord _learned(SmartRecord rec, {required bool image}) {
     // Kurulum/arşiv kategorisi uzantıdan kesin; öğrenme çevirmez (çevirse
     // `needs` her turda yeniden sorardı).
-    if (rec.user || rec.cat == SmartTaxonomy.package) return rec;
+    if (rec.user || SmartTaxonomy.fixedCategories.contains(rec.cat)) {
+      return rec;
+    }
     final to = SmartLearn.adjust(rec.path, rec.cat, image: image);
     return to == null ? rec : rec.copyWith(cat: to);
   }
@@ -617,6 +640,8 @@ abstract final class SmartSort {
       valid: r.valid,
       amount: r.amount,
       asked: r.asked,
+      lang: r.lang,
+      quality: r.quality,
     );
     _changed();
   }
@@ -672,7 +697,11 @@ abstract final class SmartSort {
   static SmartRecord? fromAnswers(FsEntry e, DecisionResult r,
       {DateTime? today}) {
     final by = {for (final a in r.answers) a.question.id: a};
-    if (SmartSortInput.kindOf(e.path) == SmartInputKind.meta) {
+    final kind = SmartSortInput.kindOf(e.path);
+    if (kind == SmartInputKind.audio || kind == SmartInputKind.video) {
+      return _avFromAnswers(e, by, kind == SmartInputKind.video, today);
+    }
+    if (kind == SmartInputKind.meta) {
       final a = by['sub_${SmartTaxonomy.package}'];
       final choice = a?.choice;
       if (a == null || choice == null) return null;
@@ -748,8 +777,53 @@ abstract final class SmartSort {
     );
   }
 
+  /// Ses/video yanıtı → kayıt: kategori uzantıdan sabit, alt tür (güven
+  /// ≥ 0,4), seste dil + kalite (≥ 0,5), videoda "yanlışlıkla" (≥ 0,65 →
+  /// Ayıkla). Alt tür yanıtı yoksa kayıt yok.
+  static SmartRecord? _avFromAnswers(FsEntry e, Map<String, DecisionAnswer> by,
+      bool video, DateTime? today) {
+    final cat = video ? SmartTaxonomy.video : SmartTaxonomy.audio;
+    final a = by['sub_$cat'];
+    final choice = a?.choice;
+    if (a == null || choice == null) return null;
+    String pick(String id) {
+      final x = by[id];
+      final v = x?.choice;
+      if (video || x == null || v == null || x.confidence < 0.5) return '';
+      return v;
+    }
+
+    final lang = pick('speech_lang');
+    return SmartRecord(
+      path: e.path,
+      size: e.sizeBytes,
+      modifiedMs: e.modifiedMs,
+      cat: cat,
+      conf: 1,
+      sub: choice == SmartTaxonomy.other || a.confidence < 0.4 ? '' : choice,
+      accidental: video && (by['accidental']?.yes ?? 0) >= 0.65,
+      asked: SmartDates.dayOf(today ?? DateTime.now()),
+      lang: lang == 'other' ? '' : lang,
+      quality: pick('quality'),
+    );
+  }
+
+  /// Dosya türüne göre tek istekteki sorular.
+  static List<DecisionQuestion> questionsFor(String path,
+      {required DateTime today, required String learned}) {
+    final kind = SmartSortInput.kindOf(path);
+    return SmartTaxonomy.questions(
+        image: GeminiDecisions.mediaFor(path)?.type == 'image',
+        meta: kind == SmartInputKind.meta,
+        audio: kind == SmartInputKind.audio,
+        video: kind == SmartInputKind.video,
+        today: today,
+        learned: learned);
+  }
+
   /// **Tek dosya** (dosya menüsü → "AI ile ikinci ad", 2026-11-18): verilen
-  /// girdiyle (görsel/PDF bloğu ya da Word/metin yazısı) tek Decisions isteği;
+  /// girdiyle (görsel/PDF bloğu ya da Word/metin yazısı; ses/videoda [input]
+  /// yok sayılır, blok burada kurulur) tek Decisions isteği;
   /// sonuç kaydedilir (gizli işareti korunur). Yanıt yoksa null.
   static Future<SmartRecord?> classifyOne({
     required FsEntry entry,
@@ -759,15 +833,24 @@ abstract final class SmartSort {
     await ensureLoaded();
     final image = GeminiDecisions.mediaFor(entry.path)?.type == 'image';
     final now = DateTime.now();
-    final result = await GeminiDecisions.ask(
-      keys: credentials.normalized.keys,
-      input: input,
-      questions: SmartTaxonomy.questions(
-          image: image,
-          meta: SmartSortInput.kindOf(entry.path) == SmartInputKind.meta,
-          today: now,
-          learned: SmartLearn.hint(image: image)),
-    );
+    final kind = SmartSortInput.kindOf(entry.path);
+    final keys = credentials.normalized.keys;
+    // Ses/video kendi bloğuyla ([input] yok sayılır): video ilk 60 sn,
+    // 14 MB üstü Files API.
+    final prep = kind == SmartInputKind.audio || kind == SmartInputKind.video
+        ? await SmartSortInput.prepare(entry, keys)
+        : null;
+    final DecisionResult result;
+    try {
+      result = await GeminiDecisions.ask(
+        keys: prep?.keys ?? keys,
+        input: prep == null ? input : [prep.block],
+        questions: questionsFor(entry.path,
+            today: now, learned: SmartLearn.hint(image: image)),
+      );
+    } finally {
+      prep?.release();
+    }
     final raw = fromAnswers(entry, result, today: now);
     if (raw == null) return null;
     final rec = _learned(raw, image: image);
@@ -791,8 +874,16 @@ abstract final class SmartSort {
       'Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Images',
       'Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Documents',
       'Android/media/com.whatsapp.w4b/WhatsApp Business/Media',
+      // Ses/video (2026-11-18, PLAN §1.1 m.2): sesli mesaj, ses, video
+      // klasörleri; kamera videoları yine yalnız Kamera açıkken.
+      'Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Voice Notes',
+      'Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Audio',
+      'Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Video',
       'WhatsApp/Media/WhatsApp Images',
       'WhatsApp/Media/WhatsApp Documents',
+      'WhatsApp/Media/WhatsApp Voice Notes',
+      'WhatsApp/Media/WhatsApp Video',
+      'Recordings',
       'Android/media/org.telegram.messenger/Telegram',
       'Telegram',
     ];
@@ -808,7 +899,8 @@ abstract final class SmartSort {
 
   /// Desteklenen dosya mı (gizli klasörde değil, sınır içinde)? Görsel/PDF
   /// olduğu gibi; Word/metin/tablo/sunum okunan yazıyla; APK/arşiv yalnız
-  /// meta yazısıyla ([SmartSortInput], 2026-11-18). Ses/video henüz yok.
+  /// meta yazısıyla; ses/video kendi bloğuyla (büyükse Files API)
+  /// ([SmartSortInput], 2026-11-18).
   static bool supports(FsEntry e) {
     if (e.isDir || e.path.contains('/.')) return false;
     final kind = SmartSortInput.kindOf(e.path);
@@ -893,24 +985,28 @@ abstract final class SmartSort {
           final e = queue.removeAt(0);
           try {
             final image = GeminiDecisions.mediaFor(e.path)?.type == 'image';
-            final questions = SmartTaxonomy.questions(
-                image: image,
-                meta: SmartSortInput.kindOf(e.path) == SmartInputKind.meta,
-                today: today,
-                learned: image ? imageHint : docHint);
-            final input = [await SmartSortInput.blockFor(e)];
+            final questions = questionsFor(e.path,
+                today: today, learned: image ? imageHint : docHint);
+            // Büyük ses/video Files API ile yüklenir (yalnız yükleyen anahtar).
+            final prep = await SmartSortInput.prepare(e, keys);
+            final input = [prep.block];
             DecisionResult result;
             try {
-              result = await GeminiDecisions.ask(
-                  keys: keys, input: input, questions: questions);
-            } on GeminiException catch (err) {
-              // Dakikalık sınır (429) çoğu zaman geçicidir: bir kez bekleyip
-              // yeniden dene, yine olursa dur (kalanlar sonraki turda).
-              if (err.statusCode != 429) rethrow;
-              await Future<void>.delayed(const Duration(seconds: 30));
-              if (stoppedBy != null) rethrow;
-              result = await GeminiDecisions.ask(
-                  keys: keys, input: input, questions: questions);
+              try {
+                result = await GeminiDecisions.ask(
+                    keys: prep.keys, input: input, questions: questions);
+              } on GeminiException catch (err) {
+                // Dakikalık sınır (429) çoğu zaman geçicidir: bir kez
+                // bekleyip yeniden dene, yine olursa dur (kalanlar sonraki
+                // turda).
+                if (err.statusCode != 429) rethrow;
+                await Future<void>.delayed(const Duration(seconds: 30));
+                if (stoppedBy != null) rethrow;
+                result = await GeminiDecisions.ask(
+                    keys: prep.keys, input: input, questions: questions);
+              }
+            } finally {
+              prep.release();
             }
             final tokens = result.inputTokens;
             if (tokens != null) {

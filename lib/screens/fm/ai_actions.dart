@@ -18,6 +18,7 @@ import '../../services/fm/ai_analyzer.dart';
 import '../../services/fm/ai_index.dart';
 import '../../services/fm/file_tags.dart';
 import '../../services/fm/smart_sort.dart';
+import '../../services/fm/smart_sort_input.dart';
 import '../../widgets/app_dialog.dart';
 import '../../services/fm/doc_classifier.dart';
 import '../../services/fm/file_ops.dart';
@@ -89,7 +90,8 @@ Future<void> showAiSummary(BuildContext context, FsEntry entry,
 /// olduğu gibi, Word/metin okunan yazıyla tek istekte sorulur → "Elektrik
 /// faturası · Ekim 2026" gibi ikinci ad + AI kategorisi; kategori aynı anda
 /// dosyanın **etiketi** olur ([FileTags], Etiketler süzgecinde görünür).
-/// Yeni model ad çıkaramazsa (kişisel fotoğraf, ses/video, düşük güven) eski
+/// Ses/video da yeni modelle (2026-11-18). Yeni model ad çıkaramazsa
+/// (kişisel fotoğraf, aile videosu, düşük güven) eski
 /// yol: üretken AI analizi yalnız bu dosya için ([AiAnalyzer]).
 ///
 /// AI'dan istendiği için önceki ELLE ad bırakılır (yeni ad görünsün); iş
@@ -127,7 +129,11 @@ Future<void> giveAiAlias(BuildContext context, FsEntry entry) async {
     final rec = await SmartSort.classifyOne(
       entry: entry,
       credentials: state.aiCredentials,
-      input: await quickCheckInput(entry.path, str),
+      // Ses/video bloğunu (ilk 60 sn, büyükse Files API) SmartSort kurar.
+      input: switch (SmartSortInput.kindOf(entry.path)) {
+        SmartInputKind.audio || SmartInputKind.video => const [],
+        _ => await quickCheckInput(entry.path, str),
+      },
     );
     if (rec != null) {
       alias = SmartSort.render(rec, str);

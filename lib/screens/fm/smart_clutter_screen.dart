@@ -11,7 +11,9 @@ import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/smart_sort.dart';
+import '../../services/fm/smart_sort_taxonomy.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_file_image.dart';
 import 'entry_actions.dart';
 
@@ -344,13 +346,29 @@ class _Cell extends StatelessWidget {
           borderRadius: BorderRadius.circular(Radii.control),
           child: ColoredBox(
             color: scheme.surfaceContainerHighest,
-            child: Image(
-              image: FmFileImage(record.path, cacheWidth: px, cover: true),
-              fit: BoxFit.cover,
-              gaplessPlayback: true,
-              errorBuilder: (_, _, _) =>
-                  Center(child: Icon(AppIcons.brokenImage, color: scheme.outline)),
-            ),
+            // Video (yanlışlıkla çekilmiş, 2026-11-18): ilk kare küçük resmi
+            // listelerle aynı yoldan (önbellekli); görsel doğrudan çözülür.
+            child: record.cat == SmartTaxonomy.video
+                ? LayoutBuilder(
+                    builder: (_, box) => FmEntryIcon(
+                      entry: FsEntry(
+                        path: record.path,
+                        name: record.path.split('/').last,
+                        isDir: false,
+                        sizeBytes: record.size,
+                        modifiedMs: record.modifiedMs,
+                      ),
+                      size: box.biggest.shortestSide,
+                      radius: 0,
+                    ),
+                  )
+                : Image(
+                    image: FmFileImage(record.path, cacheWidth: px, cover: true),
+                    fit: BoxFit.cover,
+                    gaplessPlayback: true,
+                    errorBuilder: (_, _, _) => Center(
+                        child: Icon(AppIcons.brokenImage, color: scheme.outline)),
+                  ),
           ),
         ),
         if (selected)

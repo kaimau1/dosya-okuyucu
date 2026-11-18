@@ -30,6 +30,8 @@ abstract final class SmartCatStyle {
         'photo_people' => AppIcons.groups,
         'photo_other' => AppIcons.image,
         'package' => AppIcons.archiveView,
+        'audio' => AppIcons.audio,
+        'video' => AppIcons.video,
         _ => AppIcons.typeAll,
       };
 
@@ -48,6 +50,8 @@ abstract final class SmartCatStyle {
         'greeting' || 'meme' => AppHues.honey,
         'photo_people' || 'photo_other' => AppHues.leaf,
         'package' => AppHues.olive,
+        'audio' => AppHues.purple,
+        'video' => AppHues.red,
         _ => AppHues.plum,
       };
 
