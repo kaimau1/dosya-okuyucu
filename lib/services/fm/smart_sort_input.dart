@@ -162,11 +162,11 @@ abstract final class SmartSortInput {
           throw GeminiException('büyük ses/video yüklenmeli', statusCode: -1);
         }
         final media = GeminiDecisions.mediaFor(e.path)!;
-        final path = e.path;
+        final src = e.path;
         // base64 (≤ 14 MB → ~19 MB yazı) izolatta; ana iş parçacığı yalnız
         // sonucu alır.
         final data = await Isolate.run(
-            () => base64Encode(File(path).readAsBytesSync()));
+            () => base64Encode(File(src).readAsBytesSync()));
         return avBlock(media.mime,
             video: kind == SmartInputKind.video, data: data);
       case SmartInputKind.meta:

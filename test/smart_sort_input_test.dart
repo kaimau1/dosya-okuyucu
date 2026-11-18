@@ -27,7 +27,7 @@ void main() {
       sizeBytes: size, modifiedMs: 1);
 
   group('tür ve kapsam', () {
-    test('kindOf: görsel/PDF medya, Office yazı, APK/arşiv meta, ses yok', () {
+    test('kindOf: görsel/PDF medya, Office yazı, APK/arşiv meta, ses/video', () {
       expect(SmartSortInput.kindOf('/a/f.jpg'), SmartInputKind.media);
       expect(SmartSortInput.kindOf('/a/f.PDF'), SmartInputKind.media);
       for (final x in ['docx', 'doc', 'odt', 'rtf', 'txt', 'md', 'html', 'epub']) {
@@ -42,7 +42,13 @@ void main() {
       for (final x in ['apk', 'zip', 'rar', '7z']) {
         expect(SmartSortInput.kindOf('/a/f.$x'), SmartInputKind.meta, reason: x);
       }
-      for (final x in ['mp3', 'mp4', 'dart', 'exe', '']) {
+      for (final x in ['mp3', 'm4a', 'ogg', 'opus', 'wav', 'aac']) {
+        expect(SmartSortInput.kindOf('/a/f.$x'), SmartInputKind.audio, reason: x);
+      }
+      for (final x in ['mp4', '3gp', 'webm', 'mov']) {
+        expect(SmartSortInput.kindOf('/a/f.$x'), SmartInputKind.video, reason: x);
+      }
+      for (final x in ['dart', 'exe', '']) {
         expect(SmartSortInput.kindOf('/a/f.$x'), isNull, reason: x);
       }
     });
@@ -55,7 +61,9 @@ void main() {
               entry('/s/Download/r.docx', SmartSortInput.maxExtractBytes + 1)),
           isFalse);
       expect(SmartSort.supports(entry('/s/Download/a.apk', 900 << 20)), isTrue);
-      expect(SmartSort.supports(entry('/s/Download/s.mp3', 1000)), isFalse);
+      expect(SmartSort.supports(entry('/s/Download/s.mp3', 1000)), isTrue);
+      expect(SmartSort.supports(entry('/s/Download/v.mp4', 60 << 20)), isFalse,
+          reason: 'video yükleme sınırı');
       expect(SmartSort.supports(entry('/s/.gizli/r.docx', 1000)), isFalse);
       expect(SmartSort.supports(entry('/s/Download/bos.txt', 0)), isFalse);
     });

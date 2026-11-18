@@ -37,6 +37,21 @@ class GeminiException implements Exception {
   String toString() => message;
 }
 
+/// Dosyayı gövde olarak **akışla** gönderen istek (Files API yüklemesi):
+/// baytlar istemci okudukça diskten gelir, belleğe alınmaz; okuma hatası
+/// `send` üzerinden çağırana döner.
+class _FileUpload extends http.BaseRequest {
+  final File file;
+
+  _FileUpload(Uri url, this.file) : super('POST', url);
+
+  @override
+  http.ByteStream finalize() {
+    super.finalize();
+    return http.ByteStream(file.openRead());
+  }
+}
+
 /// Gemini REST API istemcisi (google_generative_ai paketine bağımlı değil).
 class GeminiService {
   final String apiKey;
@@ -155,7 +170,7 @@ class GeminiService {
       throw GeminiException('Yükleme adresi gelmedi.', statusCode: -1);
     }
     // 2) Baytlar akışla, tek parça + bitir.
-    final req = http.StreamedRequest('POST', Uri.parse(url))
+    final req = _FileUpload(Uri.parse(url), file)
       ..headers.addAll({
         'x-goog-api-key': key.trim(),
         'X-Goog-Upload-Offset': '0',
@@ -165,11 +180,8 @@ class GeminiService {
     final client = debugClient ?? http.Client();
     final http.Response up;
     try {
-      final sending = client.send(req);
-      await req.sink.addStream(file.openRead());
-      await req.sink.close();
       up = await http.Response.fromStream(
-          await sending.timeout(const Duration(minutes: 10)));
+          await client.send(req).timeout(const Duration(minutes: 10)));
     } finally {
       if (debugClient == null) client.close();
     }

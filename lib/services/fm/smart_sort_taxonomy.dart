@@ -680,7 +680,7 @@ abstract final class SmartTaxonomy {
     ),
   ];
 
-  // `subtypes[audio]!` sabit ifade değil; soru listeleri const kalsın diye.
+  // [subtypes] ve soru listeleri aynı sabit haritaları paylaşır.
   static const _audioSubs = {
     'voice_note': 'A personal voice note or voice memo: one person '
         'speaking to themselves (reminder, idea, list).',
