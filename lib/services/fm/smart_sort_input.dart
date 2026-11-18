@@ -226,7 +226,7 @@ abstract final class SmartSortInput {
     return {
       'type': video ? 'video' : 'audio',
       'mime_type': mime,
-      if (data != null) 'data': data,
+      'data': ?data,
       if (fileUri != null) 'file_data': {'file_uri': fileUri, 'mime_type': mime},
       if (video) ...{
         'media_resolution': 'low',
