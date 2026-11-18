@@ -61,6 +61,10 @@ Hesapta Fable yoksa Opus. Limit freni: ≥ %80 yeni paket yok, ≥ %90 dur (`oto
   bulutun sahiplendiği satırın Durum'u **`bulutta: sürüyor …`** (yerel `oto-tur` atlar). CI izleme
   GitHub MCP; ara push'lar `[skip ci]` (Actions kotası); limit freni yok (kilit bayatlayınca
   sonraki çalıştırma sürer).
+- **İki yönlü devir:** her zincir sahiplendiği satırı main'e yazar (`bulutta: sürüyor …` /
+  `sürüyor (yerel, …)`, yalnız `.md` push'u, CI açmaz). Öteki zincirin yarım işi, dalı ≥ 3 saat
+  sessizse (ve bulutunkiyse kilit de bayatsa) devralınır: satır yeniden yazılır, dalın
+  `DEVIR.md`'sinden sürülür.
 
 ## Kuyruk → `PLAN.md` §1
 

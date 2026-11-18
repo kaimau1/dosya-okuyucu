@@ -51,8 +51,12 @@ her metin Türkçe.
    içeren main push'u bekler (yalnız `.md`/`docs/`/`.claude/` push'u CI açmaz, serbest).
 3. **Paketi seç** (`PLAN.md` §1 SIRA + tablo; BİR kez oku). Alınır: **B satırı**, Durum `bekliyor`
    ya da `bulutta: sürüyor`. Alınmaz: C satırları, `kullanıcı kararı`, `cihaz bekliyor`,
-   `takıldı`, başında `bulutta:` olmayan `sürüyor` (yerel zincirin), uzakta BİRLEŞMEMİŞ, son
-   commit'i < 3 saat olup DEVIR'inde "bulut" geçmeyen `faz-oto-<no>-*` dalı (yerelde sürüyor). Paketin içinden yalnız
+   `takıldı`, yerel zincirin CANLI işi (başında `bulutta:` olmayan `sürüyor`, ya da DEVIR'inde
+   "bulut" geçmeyen birleşmemiş `faz-oto-<no>-*` dalı — son commit'i < 3 saat).
+   **Devralma (yerelin yarım işi):** B satırı önek olmadan `sürüyor` ve dalının son commit'i
+   ≥ 3 saat (yerel işçi her commit'te push eder; 3 saat sessizlik = bilgisayar uyudu ya da tur
+   bitti) → bulut devralır: Durum `bulutta: sürüyor (<tarih>) — dal <ad> (yerelden devralındı)`,
+   işçiye "dalın DEVIR.md'sinden sür" (telefon gerektiren kalan → C2). Paketin içinden yalnız
    telefonsuz maddeler: 📱 / "ölç → değiştir → ölç" / ölçümsüz anlamsız hız maddesi YAPILMAZ
    (C2'ye madde olur). 👤 kararı bekleyen madde atlanır, kalan yapılır. Önce `bulutta: sürüyor`
    (DEVIR'den sür), yoksa SIRA'daki ilk uygun. Uygun B kalmadıysa → 9. adım (Kuyruk boş).
@@ -61,6 +65,8 @@ her metin Türkçe.
    **Sahiplen** (işçiden ÖNCE, paralel ikinciyle birlikte TEK commit): Durum
    `bulutta: sürüyor (<YYYY-AA-GG>) — dal faz-oto-<no>-<ad>`; yalnız `PLAN.md` değişir, başlık
    `PLAN: <no> bulutta sürüyor [skip ci]`, `git push origin main`. Yerel `oto-tur` bu satırı atlar.
+   Push reddedilirse `git pull --rebase origin main`; satır bu arada başkasınca alındıysa bırak,
+   sıradakine geç.
 4. **Yaptır.** `Agent`, `isolation: "worktree"`, model satırdan (yoksa `opus`); fork tipi AÇMA.
    İstem = "`isci` skill'ini **Bulut kipi** bölümüyle uygula; raporu Türkçe yaz" + satırın tamamı
    + Kaynak bölümünün yeri (`grep -n` satır no) + dal adı + **dilim** + (dal varsa) "dalın

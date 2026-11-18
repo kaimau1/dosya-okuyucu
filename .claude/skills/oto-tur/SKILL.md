@@ -55,12 +55,19 @@ gerisi `grep`. Graphify'ı açma. Alt ajan beklerken yoklama yok, bildirimi bekl
    `gh run view <id> --log-failed | tail -n 60`). `[apk]` koşusu SÜRÜYORSA bitene dek main'e push
    YOK (art arda push önceki koşuyu iptal eder) — bu sırada dalda çalışılır. main iki kez üst üste
    kırmızı → dur.
-3. **Paketi seç** (Kuyruk + SIRA satırı `PLAN.md` §1'de). `bulutta:` ile başlayan satır başka
-   oturumundur (bulut zinciri, `oto-bulut` skill'i): ATLA, dalına dokunma. Bulut yürütücüsü
-   çalışıyor mu: `bash .claude/skills/oto-bulut/kilit.sh durum` (taze kilit = evet → C paketleri
-   ve `bulutta:` olmayan satırlar; main'e birleştirmeden hemen önce yeniden `git pull`). İlk `sürüyor` (yarım: uzakta `faz-oto-<no>-*` varsa oradan,
+3. **Paketi seç** (Kuyruk + SIRA satırı `PLAN.md` §1'de). `bulutta:` ile başlayan satır bulut
+   zincirinindir (`oto-bulut` skill'i): bulut yürütücüsü çalışıyorsa (`bash
+   .claude/skills/oto-bulut/kilit.sh durum` → taze kilit) ATLA, dalına dokunma — C paketlerini ve
+   öneksiz satırları al; main'e birleştirmeden hemen önce yeniden `git pull`.
+   **Devralma (bulutun yarım işi):** kilit YOK/bayat VE dalın son commit'i ≥ 3 saat → yerel
+   devralır: Durum `sürüyor (yerel, <tarih>) — dal <ad> (buluttan devralındı)`, dalın DEVIR.md'sinden
+   sür. DEVIR yoksa dal CI'a gönderilmiştir → dal ucunun CI sonucuna bak (yeşil → birleştir,
+   kırmızı → düzelt). Uzaktaki dal main'e birleşmişse (`git merge-base --is-ancestor`) yok say. İlk `sürüyor` (yarım: uzakta `faz-oto-<no>-*` varsa oradan,
    DEVIR.md'den) yoksa SIRA'daki ilk `bekliyor`. `cihaz bekliyor` satırını yalnız telefon bağlıysa
-   al (`adb devices`). Satırı `sürüyor` yap (yalnız yerelde; ayrıca push yok).
+   al (`adb devices`). Satırı `sürüyor (yerel, <tarih>) — dal <ad>` yap
+   ve gönder: yalnız `PLAN.md` değişen commit, başlık `PLAN: <no> yerelde sürüyor [skip ci]`, main'e
+   push (yalnız `.md` push'u CI açmaz, süren APK'yı iptal etmez; bulut zinciri görüp atlar). Push
+   reddedilirse `git pull --rebase`; satır bu arada alındıysa bırak, sıradakine geç.
 4. **Yaptır.** `Agent`, `isolation: "worktree"`, `model` Kuyruk satırından (`fable|opus|sonnet`),
    **fork tipi AÇMA**. İstem = "`isci` skill'ini uygula; raporu Türkçe yaz" + paketin Kuyruk satırı
    + Kaynak plan bölümünün yeri (+ dal yarımsa "dalın DEVIR.md'sinden sür"). `Agent` reddedilirse
