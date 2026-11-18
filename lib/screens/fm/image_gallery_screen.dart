@@ -797,9 +797,9 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
             ),
             // ── Görseldeki QR (2026-11-18): durunca tanınır, dokununca bağlantı.
             // Ağaç şekli sabit (kasma-kontrol 3): Positioned hep var.
-            Positioned(
+            PositionedDirectional(
               top: padding.top + 64,
-              right: 12,
+              end: 12,
               child: chrome(
                   child: _selecting
                       ? const SizedBox.shrink()

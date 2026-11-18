@@ -15,6 +15,7 @@ import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/crash_log.dart';
 import '../../services/cloud_ocr.dart';
+import '../../widgets/app_dialog.dart';
 import '../../services/app_update.dart';
 import '../../services/fm/content_indexer.dart';
 import '../../services/fm/search_index.dart';
@@ -805,23 +806,21 @@ class _OcrScriptTileState extends State<OcrScriptTile> {
       };
 
   Future<void> _pick() async {
-    final picked = await showModalBottomSheet<OcrScript>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final v in OcrScript.values)
-              ListTile(
-                key: ValueKey('ocr-script-${v.name}'),
-                leading: Icon(v == _value ? AppIcons.check : null),
-                title: Text(ctx.t(_key(v))),
-                subtitle: Text(ctx.t('${_key(v)}_sub')),
-                onTap: () => Navigator.pop(ctx, v),
-              ),
-          ],
-        ),
+    final picked = await showAppSheet<OcrScript>(
+      context,
+      title: context.t('ocr.script'),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final v in OcrScript.values)
+            ListTile(
+              key: ValueKey('ocr-script-${v.name}'),
+              leading: Icon(v == _value ? AppIcons.check : null),
+              title: Text(ctx.t(_key(v))),
+              subtitle: Text(ctx.t('${_key(v)}_sub')),
+              onTap: () => Navigator.pop(ctx, v),
+            ),
+        ],
       ),
     );
     if (picked == null || !mounted) return;

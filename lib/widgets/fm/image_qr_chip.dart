@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/motion.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
 import '../../services/fm/remote/qr_transfer.dart';
@@ -46,7 +47,8 @@ class ImageQrChip extends StatefulWidget {
 }
 
 class _ImageQrChipState extends State<ImageQrChip> {
-  static const _settle = Duration(milliseconds: 600);
+  /// Kaydırma durunca ağır işe başlama gecikmesi (küçük resimlerle aynı).
+  static const _settle = Motion.thumbDefer;
   Timer? _timer;
   List<String> _codes = const [];
 
