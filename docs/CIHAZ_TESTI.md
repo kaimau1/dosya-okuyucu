@@ -1342,3 +1342,10 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] APK ve zip: "Kurulum / arşiv" klasörüne, "Kurulum dosyası" / "Yedek" / "İndirilen arşiv" ikinci adıyla giriyor mu?
 - [ ] Durum kartında "Son tur: … dosya başına ~N birim · M soru" satırı görünüyor mu (görünmüyorsa API `usage` alanı farklı adla geliyor — sabah bakılacak)?
 - [ ] Önceki sürümde düzenlenmiş dosyaların ikinci adları güncellemeden sonra yerinde mi (eski kayıt bozulmadı mı)?
+
+## 2026-11-18 — Akıllı düzen: ses ve video (bulut, dal faz-oto-B1-duzen2; yazıldı, cihazda doğrulanmadı)
+- [ ] WhatsApp sesli mesajı, bir sesli not / ses kaydı (Kayıtlar klasörü) ve İndirilenler'de bir mp3 → Akıllı düzen → "Şimdi düzenle": "Sesli mesaj" / "Sesli not" / "Toplantı kaydı" / "Müzik" gibi ikinci ad ve "Ses kaydı" kategorisi geliyor mu? Aramada "ingilizce" yazınca İngilizce konuşulan kayıt çıkıyor mu?
+- [ ] 14 MB'tan büyük bir ses (uzun toplantı kaydı) → yükleniyor ve ad alıyor mu (ilk sınama: API'nin Files API bloğunu kabul ettiği burada görülür; "yapılamadı" çıkarsa iletideki nedeni not et).
+- [ ] WhatsApp videosu ve bir ekran kaydı → "Ekran kaydı" / "İletilen video / mizah" adları; cebinde çekilmiş, kapkaranlık ya da 1–2 saniyelik bir video → Ayıkla'da "Yanlışlıkla" olarak, ilk karesiyle (kırık simge değil) görünüyor mu? Aile videosuna ad yazılmıyor mu?
+- [ ] Kamera kapalıyken DCIM/Camera videoları hiç gönderilmiyor mu? 50 MB üstü video hiç denenmiyor mu?
+- [ ] Dosya menüsü → "AI ile ikinci ad" bir ses ve bir video dosyasında çalışıyor mu?

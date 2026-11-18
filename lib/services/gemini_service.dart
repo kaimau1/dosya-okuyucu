@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -33,6 +35,21 @@ class GeminiException implements Exception {
 
   @override
   String toString() => message;
+}
+
+/// Dosyayı gövde olarak **akışla** gönderen istek (Files API yüklemesi):
+/// baytlar istemci okudukça diskten gelir, belleğe alınmaz; okuma hatası
+/// `send` üzerinden çağırana döner.
+class _FileUpload extends http.BaseRequest {
+  final File file;
+
+  _FileUpload(Uri url, this.file) : super('POST', url);
+
+  @override
+  http.ByteStream finalize() {
+    super.finalize();
+    return http.ByteStream(file.openRead());
+  }
 }
 
 /// Gemini REST API istemcisi (google_generative_ai paketine bağımlı değil).
@@ -106,6 +123,125 @@ class GeminiService {
 
   /// Hata gövdesini okunur metne çevirir (Decisions istemcisi için).
   static String readError(http.Response resp) => _readErrorStatic(resp);
+
+  // ── Files API (Akıllı düzen ses/video, 2026-11-18) ─────────────────────
+  /// Satır içi sınırı aşan ses/video bu yoldan gider: dosya **akışla**
+  /// yüklenir (belleğe alınmaz), modele yalnız `file_uri` gider. Yüklenen
+  /// dosyanın görünen adı sabit ([uploadDisplayName]) — kişisel dosya adı
+  /// sunucuya yazılmaz. İşi biten dosya [deleteFile] ile hemen silinir
+  /// (sunucu zaten 48 saatte siler).
+  static const uploadDisplayName = 'dosya-okuyucu-smart-sort';
+
+  /// Yükleme sonrası işlenme (PROCESSING → ACTIVE) bekleme aralığı ve üst
+  /// sınırı. Testler sıfırlar.
+  @visibleForTesting
+  static Duration filePollInterval = const Duration(seconds: 2);
+  static const _filePollMax = 45;
+
+  static const _uploadBase =
+      'https://generativelanguage.googleapis.com/upload/v1beta/files';
+
+  /// [path] dosyasını yükler, işlenip kullanılabilir olunca `(name, uri)`
+  /// döner. Hata: [GeminiException] (durum kodu sunucununki; 401/403/429'da
+  /// çağıran sıradaki anahtarı dener).
+  static Future<({String name, String uri})> uploadFile(
+      String key, String path, String mime) async {
+    _offlineGuard();
+    final file = File(path);
+    final size = await file.length();
+    // 1) Sürdürülebilir yükleme oturumu.
+    final start = await _post(Uri.parse(_uploadBase),
+        headers: {
+          ..._headers(key),
+          'X-Goog-Upload-Protocol': 'resumable',
+          'X-Goog-Upload-Command': 'start',
+          'X-Goog-Upload-Header-Content-Length': '$size',
+          'X-Goog-Upload-Header-Content-Type': mime,
+        },
+        body: jsonEncode({
+          'file': {'display_name': uploadDisplayName},
+        }));
+    if (start.statusCode != 200) {
+      throw GeminiException(_readErrorStatic(start),
+          statusCode: start.statusCode);
+    }
+    final url = start.headers['x-goog-upload-url'];
+    if (url == null || url.isEmpty) {
+      throw GeminiException('Yükleme adresi gelmedi.', statusCode: -1);
+    }
+    // 2) Baytlar akışla, tek parça + bitir.
+    final req = _FileUpload(Uri.parse(url), file)
+      ..headers.addAll({
+        'x-goog-api-key': key.trim(),
+        'X-Goog-Upload-Offset': '0',
+        'X-Goog-Upload-Command': 'upload, finalize',
+      })
+      ..contentLength = size;
+    final client = debugClient ?? http.Client();
+    final http.Response up;
+    try {
+      up = await http.Response.fromStream(
+          await client.send(req).timeout(const Duration(minutes: 10)));
+    } finally {
+      if (debugClient == null) client.close();
+    }
+    if (up.statusCode != 200) {
+      throw GeminiException(_readErrorStatic(up), statusCode: up.statusCode);
+    }
+    var info = _fileInfo(up.body);
+    // 3) Video (ve bazen ses) önce işlenir; ACTIVE olmadan kullanılamaz.
+    for (var i = 0; info.state == 'PROCESSING' && i < _filePollMax; i++) {
+      await Future<void>.delayed(filePollInterval);
+      final r = await _get(Uri.parse('$_base/${info.name}'),
+          headers: _headers(key, json: false));
+      if (r.statusCode != 200) {
+        throw GeminiException(_readErrorStatic(r), statusCode: r.statusCode);
+      }
+      info = _fileInfo(r.body);
+    }
+    if (info.state == 'PROCESSING' || info.state == 'FAILED') {
+      unawaited(deleteFile(key, info.name));
+      throw GeminiException('Dosya işlenemedi (${info.state}).',
+          statusCode: -1);
+    }
+    return (name: info.name, uri: info.uri);
+  }
+
+  /// Yükleme/durum yanıtından ad, adres, durum (`{file: {...}}` ya da düz).
+  @visibleForTesting
+  static ({String name, String uri, String state}) fileInfoOf(String body) =>
+      _fileInfo(body);
+
+  static ({String name, String uri, String state}) _fileInfo(String body) {
+    Object? j;
+    try {
+      j = jsonDecode(body);
+    } on FormatException {
+      j = null;
+    }
+    final f = j is Map ? (j['file'] is Map ? j['file'] as Map : j) : null;
+    final name = f?['name'];
+    final uri = f?['uri'];
+    if (name is! String || uri is! String || name.isEmpty || uri.isEmpty) {
+      throw GeminiException('Yükleme yanıtı okunamadı.', statusCode: -1);
+    }
+    final state = f?['state'];
+    return (name: name, uri: uri, state: state is String ? state : 'ACTIVE');
+  }
+
+  /// Yüklenen dosyayı siler; hata yutulur (sunucu 48 saatte siler).
+  static Future<void> deleteFile(String key, String name) async {
+    if (OfflineMode.enabled || name.isEmpty) return;
+    try {
+      final url = Uri.parse('$_base/$name');
+      final headers = _headers(key, json: false);
+      await (debugClient != null
+          ? debugClient!.delete(url, headers: headers)
+          : http.delete(url, headers: headers).timeout(_timeout));
+    } catch (_) {
+      // Bilinçli: silme en iyi çaba; kalan dosya sunucuda kendiliğinden düşer.
+    }
+  }
 
   /// Sohbet geçmişi + opsiyonel dosya bağlamı + kalıcı hafıza ile yanıt üretir.
   Future<String> chat({

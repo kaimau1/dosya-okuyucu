@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
@@ -35,6 +36,34 @@ enum SmartInputKind {
 
   /// APK/arşiv: içerik OKUNMAZ, yalnız ad · boyut · klasör.
   meta,
+
+  /// Ses kaydı: `audio` bloğu (≤ 14 MB satır içi, üstü Files API).
+  audio,
+
+  /// Video: `video` bloğu, düşük çözünürlük, yalnız ilk 60 sn.
+  video,
+}
+
+/// Modele gidecek hazır girdi: blok + bu blokla kullanılabilecek anahtarlar.
+/// Files API ile yüklenen dosya yalnız yükleyen anahtarın projesinde
+/// görünür → [keys] o tek anahtardır; iş bitince [release] sunucudaki
+/// kopyayı siler.
+class SmartPrepared {
+  final Map<String, Object?> block;
+  final List<String> keys;
+
+  /// Files API dosya adı (`files/…`); satır içiyse null.
+  final String? remote;
+
+  const SmartPrepared(this.block, this.keys, {this.remote});
+
+  /// Yüklenen dosyayı sunucudan siler (en iyi çaba, beklenmez).
+  void release() {
+    final name = remote;
+    if (name != null && keys.isNotEmpty) {
+      unawaited(GeminiService.deleteFile(keys.first, name));
+    }
+  }
 }
 
 /// **Akıllı düzen 2.0 — her dosya türü, metin kısmı** (PLAN §1.1 madde 2,
@@ -78,10 +107,13 @@ abstract final class SmartSortInput {
   static String _ext(String path) =>
       p.extension(path).toLowerCase().replaceFirst('.', '');
 
-  /// Uzantıya göre tür; akıllı düzenin bakmadığı tür (ses, video, kod…) null.
+  /// Uzantıya göre tür; akıllı düzenin bakmadığı tür (kod, yürütülebilir…)
+  /// null.
   static SmartInputKind? kindOf(String path) {
     final type = GeminiDecisions.mediaFor(path)?.type;
     if (type == 'image' || type == 'document') return SmartInputKind.media;
+    if (type == 'audio') return SmartInputKind.audio;
+    if (type == 'video') return SmartInputKind.video;
     final ext = _ext(path);
     if (_textExts.contains(ext)) return SmartInputKind.text;
     if (_sheetExts.contains(ext)) return SmartInputKind.sheet;
@@ -92,12 +124,24 @@ abstract final class SmartSortInput {
     return null;
   }
 
+  /// Files API ile yüklenecek en büyük ses (~100 dakikalık mp3).
+  static const maxAudioUploadBytes = 100 * 1024 * 1024;
+
+  /// Files API ile yüklenecek en büyük video. Model yalnız ilk 60 sn'ye
+  /// bakar ama dosya bütün yüklenir (veri/kota); kırpma PLAN §1.1 m.5.
+  static const maxVideoUploadBytes = 50 * 1024 * 1024;
+
+  /// Videoda bakılan bölüm (sn).
+  static const videoSeconds = 60;
+
   /// Boyut sınırı içinde mi (meta için sınır yok — içerik okunmaz)?
   static bool sizeOk(SmartInputKind kind, int bytes) {
     if (bytes <= 0) return false;
     return switch (kind) {
       SmartInputKind.media => bytes <= GeminiDecisions.maxInlineBytes,
       SmartInputKind.meta => true,
+      SmartInputKind.audio => bytes <= maxAudioUploadBytes,
+      SmartInputKind.video => bytes <= maxVideoUploadBytes,
       _ => bytes <= maxExtractBytes,
     };
   }
@@ -112,6 +156,19 @@ abstract final class SmartSortInput {
         throw GeminiException('desteklenmeyen tür', statusCode: -1);
       case SmartInputKind.media:
         return GeminiDecisions.fileBlock(e.path);
+      case SmartInputKind.audio:
+      case SmartInputKind.video:
+        if (e.sizeBytes > GeminiDecisions.maxInlineBytes) {
+          throw GeminiException('büyük ses/video yüklenmeli', statusCode: -1);
+        }
+        final media = GeminiDecisions.mediaFor(e.path)!;
+        final src = e.path;
+        // base64 (≤ 14 MB → ~19 MB yazı) izolatta; ana iş parçacığı yalnız
+        // sonucu alır.
+        final data = await Isolate.run(
+            () => base64Encode(File(src).readAsBytesSync()));
+        return avBlock(media.mime,
+            video: kind == SmartInputKind.video, data: data);
       case SmartInputKind.meta:
         return GeminiDecisions.textBlock(metaText(
           name: p.basename(e.path),
@@ -130,6 +187,55 @@ abstract final class SmartSortInput {
         }
         return GeminiDecisions.textBlock(_header(kind) + body);
     }
+  }
+
+  /// Turda kullanılan giriş: ses/video 14 MB üstüyse **Files API** ile
+  /// yüklenir (anahtarlar sırayla; kota/yetki hatasında sıradaki), blokta
+  /// yalnız `file_uri` gider. Öteki türler [blockFor] ile, anahtarlar aynen.
+  static Future<SmartPrepared> prepare(FsEntry e, List<String> keys) async {
+    final kind = kindOf(e.path);
+    final av = kind == SmartInputKind.audio || kind == SmartInputKind.video;
+    if (!av || e.sizeBytes <= GeminiDecisions.maxInlineBytes) {
+      return SmartPrepared(await blockFor(e), keys);
+    }
+    final mime = GeminiDecisions.mediaFor(e.path)!.mime;
+    GeminiException? last;
+    for (final raw in keys) {
+      final key = raw.trim();
+      if (key.isEmpty) continue;
+      try {
+        final f = await GeminiService.uploadFile(key, e.path, mime);
+        return SmartPrepared(
+            avBlock(mime,
+                video: kind == SmartInputKind.video, fileUri: f.uri),
+            [key],
+            remote: f.name);
+      } on GeminiException catch (err) {
+        last = err;
+        if (!const {401, 403, 429}.contains(err.statusCode)) rethrow;
+      }
+    }
+    throw last ?? GeminiException('API anahtarı yok', statusCode: 401);
+  }
+
+  /// Saf: ses/video bloğu. Satır içi [data] (base64) ya da Files API
+  /// [fileUri]; videoda düşük çözünürlük + yalnız ilk [videoSeconds] sn.
+  static Map<String, Object?> avBlock(String mime,
+      {required bool video, String? data, String? fileUri}) {
+    assert((data == null) != (fileUri == null));
+    return {
+      'type': video ? 'video' : 'audio',
+      'mime_type': mime,
+      'data': ?data,
+      if (fileUri != null) 'file_data': {'file_uri': fileUri, 'mime_type': mime},
+      if (video) ...{
+        'media_resolution': 'low',
+        'video_metadata': {
+          'start_offset': '0s',
+          'end_offset': '${videoSeconds}s',
+        },
+      },
+    };
   }
 
   static String _header(SmartInputKind? kind) => switch (kind) {
