@@ -4,14 +4,18 @@ library;
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:dosya_okuyucu/core/edit/edit_session.dart';
 import 'package:dosya_okuyucu/screens/editors/spreadsheet_editor_screen.dart';
 import 'package:dosya_okuyucu/services/file_service.dart';
 import 'package:dosya_okuyucu/services/formula_engine.dart';
 import 'package:dosya_okuyucu/services/xlsx/pivot.dart';
 import 'package:dosya_okuyucu/services/xlsx_editor.dart';
 import 'package:dosya_okuyucu/services/xlsx_writer.dart';
+import 'package:dosya_okuyucu/widgets/sheet_cell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../support/rebuild_probe.dart';
 
 /// Faz 26b — Excel kıyas testleri (DUZENLEME_PLANI §7, K23 ölçümü).
 ///
@@ -182,6 +186,84 @@ void main() {
     // ignore: avoid_print
     print('PERF k23_proto_widget_avg_ms=${a.toStringAsFixed(2)} '
         'painter_avg_ms=${b.toStringAsFixed(2)}');
+  });
+
+  // B12 m.3 — yeniden kurulum bütçesi (mandal, YALNIZ DÜŞER). KÖK (koddan):
+  // yüzer editörde her harf `onChanged` → ekranın tamamı setState
+  // (spreadsheet/entry.dart) → görünür her SheetCell yeniden kurulur. Metne
+  // bağlı parçalar (formül çubuğu ✓, işlev önerileri, başvuru renkleri,
+  // otomatik tamamlama) ekran durumundan okunduğu için daraltma ölçümsüz
+  // yapılmadı → PLAN §1.12 m.3 kalan. Tavanlar ilk CI ölçümüyle sıkılaşır.
+  group('B12 m.3: hücre girişi yeniden kurulum bütçesi', () {
+    late Directory dir;
+    late String path;
+
+    setUp(() async {
+      SpreadsheetEditorScreen.parseInIsolate = false;
+      EditPrefs.autoSave = false;
+      dir = await Directory.systemTemp.createTemp('excel_rebuild');
+      path = '${dir.path}/giris.xlsx';
+      await File(path).writeAsBytes(XlsxWriter.build([
+        XlsxWriteSheet(name: 'Sayfa1', cells: {
+          for (var r = 0; r < 200; r++)
+            r: {
+              for (var c = 0; c < 8; c++) c: XlsxWriteCell(text: 'h${r}_$c'),
+            },
+        }),
+      ]));
+    });
+
+    tearDown(() {
+      SpreadsheetEditorScreen.parseInIsolate = true;
+      EditPrefs.autoSave = true;
+      try {
+        dir.deleteSync(recursive: true);
+      } catch (_) {}
+    });
+
+    testWidgets('yüzer editörde bir harf: kurulum sayısı tavanı', (t) async {
+      t.view.physicalSize = const Size(1080, 2200);
+      t.view.devicePixelRatio = 2.75;
+      t.view.viewInsets = const FakeViewPadding(bottom: 800);
+      addTearDown(t.view.reset);
+      await t.pumpWidget(MaterialApp(
+        home: SpreadsheetEditorScreen(
+            path: path, name: 'giris.xlsx', plainText: ''),
+      ));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 100));
+      // İlk dokunuş seçer, ikincisi hücrede yüzer editörü açar.
+      for (var i = 0; i < 2; i++) {
+        await t.tap(find
+            .ancestor(of: find.text('h2_1'), matching: find.byType(SheetCell))
+            .first);
+        await t.pump();
+        await t.pump(const Duration(milliseconds: 400));
+      }
+      final editor = find.byKey(const ValueKey('floating-cell-editor'));
+      expect(editor, findsOneWidget);
+      final field = find.descendant(of: editor, matching: find.byType(TextField));
+      await t.enterText(field, 'K'); // ısınma
+      await t.pump();
+      // Ağaçtaki TÜM hücreler (önbellek bölgesindeki ekran dışı satırlar
+      // dahil): sayaç da tüm öğeleri sayar; `find` varsayılanı ekran dışını
+      // atlar. Tavan = hücre başına en çok bir kurulum, yeni hücre doğmaz.
+      final cells =
+          t.widgetList(find.byType(SheetCell, skipOffstage: false)).length;
+      final onscreen = t.widgetList(find.byType(SheetCell)).length;
+      final r = await countRebuilds(t, () async {
+        await t.enterText(field, 'Ki');
+        await t.pump();
+      });
+      // ignore: avoid_print
+      print('PERF excel_key_rebuilds=${r.total} sheet_cells=${r.of(SheetCell)} '
+          'tree_cells=$cells visible_cells=$onscreen top=${r.top()}');
+      expect(onscreen, greaterThan(10), reason: 'ızgara görünmeli');
+      expect(r.of(SheetCell), lessThanOrEqualTo(cells));
+      expect(r.total, lessThan(12000));
+      await t.pumpWidget(const SizedBox());
+      await t.pump(const Duration(seconds: 3));
+    });
   });
 
   group('K23 ızgara ölçümü (a: hücre widget\'ları + sanallaştırma)', () {

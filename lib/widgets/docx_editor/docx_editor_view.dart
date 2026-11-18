@@ -88,6 +88,16 @@ class DocxEditorViewState extends State<DocxEditorView> {
   List<_Block> _blocks = const [];
   int _blocksAt = -1;
 
+  // B12 m.3: paragraf metni (RichText) önbelleği — bir harf yalnız değişen
+  // paragrafın metnini yeniden kurar; eskiden her tuşta görünür paragrafların
+  // hepsinin TextSpan'i baştan kurulup RenderParagraph'ta derin
+  // karşılaştırılıyordu. Paragraflar değişmez nesne (değişen yeni örnek).
+  // Çizici (imleç/seçim) her kurulumda yenilenir — çizim davranışı aynı.
+  // Satır içi öğeli paragraf (resim, bağlantı …) seçime/eylemlere bağlı →
+  // önbelleğe girmez.
+  final _textMemo = <int, (DocxPara, double, TextAlign, TextDirection, Widget)>{};
+  int _textMemoAt = -1;
+
   // Çoklu dokunuş sayacı.
   DateTime _lastTap = DateTime.fromMillisecondsSinceEpoch(0);
   Offset _lastTapAt = Offset.zero;
@@ -121,6 +131,7 @@ class DocxEditorViewState extends State<DocxEditorView> {
     if (!identical(oldWidget.controller, c)) {
       oldWidget.controller.removeListener(_changed);
       c.addListener(_changed);
+      _textMemo.clear();
     }
   }
 
@@ -635,12 +646,7 @@ class DocxEditorViewState extends State<DocxEditorView> {
     Widget body = CustomPaint(
       foregroundPainter: _ParaPainter(c, i, _key(i), _spell[p],
           i == c.extent.para ? _caretOn : null),
-      child: RichText(
-        key: _key(i),
-        text: _span(p, textW, i),
-        textAlign: align,
-        textDirection: dir,
-      ),
+      child: _text(i, p, textW, align, dir),
     );
     if (p.opaque) {
       body = Opacity(opacity: 0.7, child: body);
@@ -678,6 +684,33 @@ class DocxEditorViewState extends State<DocxEditorView> {
       ),
       child: body,
     );
+  }
+
+  Widget _text(int i, DocxPara p, double textW, TextAlign align,
+      TextDirection dir) {
+    if (_textMemoAt != c.structure) {
+      _textMemo.clear();
+      _textMemoAt = c.structure;
+    }
+    final m = _textMemo[i];
+    if (m != null &&
+        identical(m.$1, p) &&
+        m.$2 == widget.scale &&
+        m.$3 == align &&
+        m.$4 == dir) {
+      return m.$5;
+    }
+    final w = RichText(
+      key: _key(i),
+      text: _span(p, textW, i),
+      textAlign: align,
+      textDirection: dir,
+    );
+    if (!p.atoms.any((a) => a != null)) {
+      if (_textMemo.length > 512) _textMemo.clear();
+      _textMemo[i] = (p, widget.scale, align, dir, w);
+    }
+    return w;
   }
 
   Widget _table(_Block b, double maxW) {
