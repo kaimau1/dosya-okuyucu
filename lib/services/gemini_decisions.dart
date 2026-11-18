@@ -234,9 +234,32 @@ class DecisionResult {
   /// İçerik güvenlik nedeniyle engellendiyse dolu.
   final String? blockReason;
 
-  const DecisionResult(this.answers, {this.blockReason});
+  /// Faturalanan girdi belirteci (yanıtın `usage` alanından; gelmediyse
+  /// null). Decisions'ta çıktı belirteci yok.
+  final int? inputTokens;
+
+  const DecisionResult(this.answers, {this.blockReason, this.inputTokens});
 
   static double? _num(Object? v) => v is num ? v.toDouble() : null;
+
+  /// `usage` / `usage_metadata` / `usageMetadata` içinden girdi belirteci
+  /// (alan adları API sürümüne göre değişebilir; bilinmeyen biçim null).
+  static int? usageTokens(Map<Object?, Object?> data) {
+    final u = data['usage'] ?? data['usage_metadata'] ?? data['usageMetadata'];
+    if (u is! Map) return null;
+    for (final k in const [
+      'input_tokens',
+      'inputTokens',
+      'prompt_token_count',
+      'promptTokenCount',
+      'total_tokens',
+      'totalTokenCount',
+    ]) {
+      final v = u[k];
+      if (v is num) return v.toInt();
+    }
+    return null;
+  }
 
   /// Yanıt gövdesini çözer; soruların sırası korunur, yanıtı gelmeyen soru
   /// listeden düşer.
@@ -268,6 +291,8 @@ class DecisionResult {
         ));
       }
     }
-    return DecisionResult(out, blockReason: block is String ? block : null);
+    return DecisionResult(out,
+        blockReason: block is String ? block : null,
+        inputTokens: usageTokens(data));
   }
 }

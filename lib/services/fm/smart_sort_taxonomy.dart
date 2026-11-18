@@ -20,6 +20,18 @@ import '../gemini_decisions.dart';
 ///   seçilen kategorininki kullanılır.
 /// * **Kişisel fotoğrafa ikinci ad verilmez** (her kamera karesine "Kişisel
 ///   fotoğraf" yazmak gürültü); kategori yine süzgeçte durur.
+///
+/// ## Ayrıntılı şema (2.0, 2026-11-18 — PLAN §1.1 m.1)
+/// * Her belge kategorisinde alt tür (fiş, vergi/SGK, sözleşme, resmî,
+///   sigorta/araç, iş, kılavuz; görselde ekran görüntüsü ve fotoğraf).
+/// * Kurum: banka (genişledi) + fatura kesen şirket ([providers]: GSM,
+///   elektrik, doğalgaz, su, internet/TV); kurum yalnız ilgili kategoride.
+/// * Tarih: istekte BUGÜN verilir; son ödeme ([dueBuckets]) ve geçerlilik
+///   ([validBuckets]) bugüne göre aralık olarak sorulur → "Ödemesi geçmiş
+///   fatura" / "Süresi dolmuş belge" ([SmartDates]).
+/// * Tutar aralığı ([amountBuckets]) — Akıllı düzen ekranındaki süzgeç.
+/// * APK/arşiv → yalnız [package] kategorisi ve alt türü (kurulum · yedek ·
+///   indirme); içerik okunmaz, tek soru.
 abstract final class SmartTaxonomy {
   /// Belge kategorileri (ikinci ad alır).
   static const docCategories = <String, String>{
@@ -76,11 +88,15 @@ abstract final class SmartTaxonomy {
         'vehicle or nature, with no document in it.',
   };
 
+  /// Kurulum dosyası / arşiv (APK ve sıkıştırılmış arşivler YALNIZ bu
+  /// kategoriye girer; alt türü ad · boyut · klasörden seçilir).
+  static const package = 'package';
+
   static const other = 'other';
 
-  /// Bütün kategori kimlikleri (sıralı: belge → görsel → diğer).
+  /// Bütün kategori kimlikleri (sıralı: belge → görsel → kurulum → diğer).
   static List<String> get categoryIds =>
-      [...docCategories.keys, ...imageCategories.keys, other];
+      [...docCategories.keys, ...imageCategories.keys, package, other];
 
   static bool isDoc(String cat) => docCategories.containsKey(cat);
 
@@ -95,7 +111,8 @@ abstract final class SmartTaxonomy {
   static const clutterCategories = {'greeting', 'meme'};
 
   /// Alt türler: kategori → (kimlik → İngilizce açıklama). Her listede
-  /// `other` kaçışı var.
+  /// `other` kaçışı var. Alt tür kimlikleri BÜTÜN kategorilerde tekil
+  /// (çeviri anahtarı `sm.s_<kimlik>`; test denetler).
   static const subtypes = <String, Map<String, String>>{
     'invoice': {
       'electricity': 'Electricity bill.',
@@ -106,6 +123,15 @@ abstract final class SmartTaxonomy {
       'rent_dues': 'Rent, building dues or maintenance fee.',
       'other': 'Another kind of invoice or bill.',
     },
+    'receipt': {
+      'grocery': 'A supermarket or grocery store receipt.',
+      'restaurant': 'A restaurant, cafe or food delivery receipt.',
+      'fuel': 'A fuel station receipt.',
+      'online_order': 'An online shopping order, e-commerce invoice or '
+          'delivery confirmation.',
+      'pharmacy': 'A pharmacy receipt.',
+      'other': 'Another kind of receipt.',
+    },
     'bank': {
       'transfer': 'A money transfer / payment receipt (EFT, wire, FAST, '
           'remittance).',
@@ -113,6 +139,35 @@ abstract final class SmartTaxonomy {
       'card_statement': 'A credit card statement.',
       'loan': 'A loan, mortgage or installment document.',
       'other': 'Another banking document.',
+    },
+    'tax_salary': {
+      'payslip': 'A payslip or payroll statement.',
+      'tax_certificate': 'A tax registration certificate, tax return or tax '
+          'assessment.',
+      'service_record': 'A social security service record or contribution '
+          'statement.',
+      'pension': 'A pension or retirement document.',
+      'other': 'Another tax or social security document.',
+    },
+    'contract': {
+      'rental': 'A rental or lease agreement.',
+      'employment': 'An employment contract.',
+      'sales': 'A sales or purchase agreement.',
+      'subscription': 'A subscription or service agreement (phone, internet, '
+          'gym and similar).',
+      'power_of_attorney': 'A power of attorney.',
+      'other': 'Another kind of contract.',
+    },
+    'official': {
+      'e_government': 'An e-Government printout or online official '
+          'certificate.',
+      'court': 'A court, enforcement or bailiff document.',
+      'notary': 'A notary document.',
+      'land_registry': 'A land registry or title deed document.',
+      'civil_registry': 'A civil registry, population or residence '
+          'certificate.',
+      'military': 'A military service document.',
+      'other': 'Another official document.',
     },
     'health': {
       'lab_result': 'A laboratory or blood test result.',
@@ -131,6 +186,15 @@ abstract final class SmartTaxonomy {
       'bank_card': 'A bank, debit or credit card.',
       'other': 'Another identity document.',
     },
+    'insurance_vehicle': {
+      'traffic_insurance': 'A compulsory motor (traffic) insurance policy.',
+      'casco': 'A comprehensive car insurance (casco) policy.',
+      'health_insurance': 'A health or life insurance policy.',
+      'vehicle_registration': 'A vehicle registration certificate.',
+      'vehicle_inspection': 'A vehicle inspection report.',
+      'traffic_fine': 'A traffic fine or penalty notice.',
+      'other': 'Another insurance or vehicle document.',
+    },
     'travel': {
       'flight': 'A flight ticket or boarding pass.',
       'bus': 'A bus or coach ticket.',
@@ -147,16 +211,78 @@ abstract final class SmartTaxonomy {
       'lecture_notes': 'Lecture notes or study notes.',
       'other': 'Other education material.',
     },
+    'work': {
+      'cv': 'A CV or résumé.',
+      'report': 'A business report or analysis.',
+      'presentation': 'A business presentation or slide deck.',
+      'spreadsheet': 'A business spreadsheet, list or table.',
+      'quote_order': 'A price quote, offer, proposal or purchase order.',
+      'meeting': 'Meeting notes, minutes or an agenda.',
+      'other': 'Other work material.',
+    },
+    'manual': {
+      'user_manual': 'A product user manual or user guide.',
+      'warranty': 'A warranty card or warranty certificate.',
+      'installation': 'An installation or assembly guide.',
+      'other': 'Another manual or technical document.',
+    },
+    'screenshot': {
+      'map': 'A screenshot of a map, route or location.',
+      'shopping': 'A screenshot of a shopping app, product page or cart.',
+      'social': 'A screenshot of a social media post or profile (not a '
+          'chat).',
+      'settings': 'A screenshot of phone or app settings.',
+      'game': 'A screenshot of a game.',
+      'ticket_qr': 'A screenshot of a ticket, QR code, pass or booking.',
+      'other': 'Another kind of screenshot.',
+    },
+    'photo_other': {
+      'food': 'A photo of food or drink.',
+      'landscape': 'A photo of a landscape, city or nature.',
+      'product': 'A photo of a product or object.',
+      'pet': 'A photo of a pet or animal.',
+      'vehicle': 'A photo of a car or other vehicle.',
+      'other': 'Another kind of photo.',
+    },
+    package: {
+      'installer': 'An app installer package, downloaded to install an app.',
+      'backup': 'A backup: chat, app or phone backup, or an archive of older '
+          'files kept for safety.',
+      'download': 'An archive downloaded from the web or received from '
+          'someone (documents, photos, project files).',
+      'other': 'None of these.',
+    },
   };
+
+  /// Alt tür sorusu yalnız görselde sorulan kategoriler.
+  static const _imageOnlySubs = {'screenshot', 'photo_other'};
 
   static const _subjects = {
     'invoice': 'an invoice or bill',
+    'receipt': 'a receipt or proof of purchase',
     'bank': 'a banking document',
+    'tax_salary': 'a tax, social security or payroll document',
+    'contract': 'a contract or agreement',
+    'official': 'an official or government document',
     'health': 'a medical document',
     'id': 'an identity document or card',
+    'insurance_vehicle': 'an insurance or vehicle document',
     'travel': 'a travel document',
     'education': 'school or education material',
+    'work': 'work material',
+    'manual': 'a manual, guide or warranty',
+    'screenshot': 'a screenshot (not of a chat)',
+    'photo_other': 'a personal photo without people or documents',
   };
+
+  /// Alt türün kategorisi (yoksa null).
+  static String? categoryOfSub(String sub) {
+    if (sub.isEmpty || sub == other) return null;
+    for (final e in subtypes.entries) {
+      if (e.value.containsKey(sub)) return e.key;
+    }
+    return null;
+  }
 
   /// Kurum soruları (yalnız banka belgesinde kullanılır). Özel adlar
   /// çevrilmez. Türkiye'deki en yaygın bankalar + kaçış.
@@ -174,10 +300,98 @@ abstract final class SmartTaxonomy {
     'teb': 'TEB',
     'ing': 'ING',
     'kuveytturk': 'Kuveyt Türk',
+    'turkiyefinans': 'Türkiye Finans',
+    'albaraka': 'Albaraka Türk',
+    'ziraatkatilim': 'Ziraat Katılım',
+    'vakifkatilim': 'Vakıf Katılım',
+    'emlakkatilim': 'Emlak Katılım',
+    'sekerbank': 'Şekerbank',
+    'odeabank': 'Odeabank',
+    'fibabanka': 'Fibabanka',
+    'hsbc': 'HSBC',
+    'anadolubank': 'Anadolubank',
+    'alternatif': 'Alternatif Bank',
+    'burgan': 'Burgan Bank',
     'other': 'Another bank or not stated.',
   };
 
   static String bankName(String id) => id == 'other' ? '' : (banks[id] ?? '');
+
+  /// Fatura kesen kurumlar: GSM, internet/TV, elektrik, doğalgaz, su —
+  /// Türkiye'de en yaygın olanlar + kaçış. Ayraçtaki açıklama yalnız modele
+  /// gider; görünen ad ayraçtan öncesi ([providerName]).
+  static const providers = <String, String>{
+    'turkcell': 'Turkcell (mobile, Superonline internet)',
+    'vodafone': 'Vodafone',
+    'turktelekom': 'Türk Telekom (mobile, landline, internet)',
+    'turknet': 'TurkNet',
+    'digiturk': 'Digiturk',
+    'dsmart': 'D-Smart',
+    'enerjisa': 'Enerjisa (electricity: Başkent, İstanbul Anadolu Yakası, '
+        'Toroslar)',
+    'ck_enerji': 'CK Enerji (electricity: Boğaziçi, Çamlıbel, Akdeniz, Aras)',
+    'aydem': 'Aydem (electricity: Aydem, Gediz, ADM)',
+    'uludag': 'Uludağ Elektrik (electricity, UEDAŞ)',
+    'sepas': 'Sepaş (electricity, SEDAŞ)',
+    'dicle': 'Dicle Elektrik (electricity, Dicle EDAŞ)',
+    'osmangazi': 'Osmangazi Elektrik (electricity, OEDAŞ)',
+    'igdas': 'İGDAŞ (natural gas, İstanbul)',
+    'baskentgaz': 'Başkentgaz (natural gas, Ankara)',
+    'izmirgaz': 'İzmirgaz (natural gas)',
+    'enerya': 'Enerya (natural gas)',
+    'aksagaz': 'Aksa Doğalgaz (natural gas)',
+    'bursagaz': 'Bursagaz (natural gas)',
+    'iski': 'İSKİ (water, İstanbul)',
+    'aski': 'ASKİ (water, Ankara)',
+    'izsu': 'İZSU (water, İzmir)',
+    'buski': 'BUSKİ (water, Bursa)',
+    'other': 'Another company or not stated.',
+  };
+
+  /// Kurum → uyduğu fatura alt türleri ("kurum yalnız ilgili kategoride").
+  static const _providerSubs = <String, Set<String>>{
+    'turkcell': {'mobile_phone', 'internet_tv'},
+    'vodafone': {'mobile_phone', 'internet_tv'},
+    'turktelekom': {'mobile_phone', 'internet_tv'},
+    'turknet': {'internet_tv'},
+    'digiturk': {'internet_tv'},
+    'dsmart': {'internet_tv'},
+    'enerjisa': {'electricity'},
+    'ck_enerji': {'electricity'},
+    'aydem': {'electricity'},
+    'uludag': {'electricity'},
+    'sepas': {'electricity'},
+    'dicle': {'electricity'},
+    'osmangazi': {'electricity'},
+    'igdas': {'natural_gas'},
+    'baskentgaz': {'natural_gas'},
+    'izmirgaz': {'natural_gas'},
+    'enerya': {'natural_gas'},
+    'aksagaz': {'natural_gas'},
+    'bursagaz': {'natural_gas'},
+    'iski': {'water'},
+    'aski': {'water'},
+    'izsu': {'water'},
+    'buski': {'water'},
+  };
+
+  /// Kurum bu kategoride/alt türde anlamlı mı? Yalnız faturada; alt tür
+  /// biliniyorsa kurumun hizmetiyle uyuşmalı (elektrik faturasına GSM
+  /// şirketi yazılmaz). Alt tür yoksa her bilinen kurum geçer.
+  static bool providerFits(String provider, String cat, String sub) {
+    if (cat != 'invoice') return false;
+    final subs = _providerSubs[provider];
+    if (subs == null) return false;
+    return sub.isEmpty || sub == other || subs.contains(sub);
+  }
+
+  /// Kurumun görünen adı (ayraçtaki model açıklaması atılır).
+  static String providerName(String id) {
+    if (id.isEmpty || id == other) return '';
+    final v = providers[id] ?? '';
+    final cut = v.indexOf(' (');
+    return cut < 0 ? v : v.substring(0, cut);
+  }
 
   /// Belgedeki ay (1–12) + yok.
   static const months = {
@@ -194,20 +408,91 @@ abstract final class SmartTaxonomy {
         'none': 'No clear document year is visible.',
       };
 
+  /// Son ödeme tarihi — istekteki BUGÜNE göre aralık ([SmartDates.overdue]).
+  static const dueBuckets = <String, String>{
+    'past': 'The payment due date is before today.',
+    'week': 'The payment due date is today or within the next 7 days.',
+    'month': 'The payment due date is 8 to 31 days after today.',
+    'later': 'The payment due date is more than 31 days after today.',
+    'none': 'No payment due date is visible.',
+  };
+
+  /// Geçerlilik / bitiş tarihi — istekteki bugüne göre aralık.
+  static const validBuckets = <String, String>{
+    'past': 'It has already expired: its expiry or validity end date is '
+        'before today.',
+    'month': 'It expires today or within the next 31 days.',
+    'year': 'It expires 32 days to one year after today.',
+    'later': 'It expires more than one year after today.',
+    'none': 'No expiry or validity end date is visible.',
+  };
+
+  /// Son ödeme tarihi anlamlı kategoriler.
+  static const dueCategories = {'invoice'};
+
+  /// Geçerlilik tarihi anlamlı (süresi dolabilen) kategoriler.
+  static const expiringCategories = {
+    'id', 'insurance_vehicle', 'contract', 'travel', 'manual', 'official',
+    'health',
+  };
+
+  /// Tutar aralığı (toplam ödenecek / ödenen).
+  static const amountBuckets = <String, String>{
+    'lt100': 'The total amount is less than 100 (in the currency shown).',
+    '100_500': 'The total amount is between 100 and 500.',
+    '500_2000': 'The total amount is between 500 and 2000.',
+    'gt2000': 'The total amount is more than 2000.',
+    'none': 'No total amount is visible.',
+  };
+
+  /// Tutar sorulan kategoriler.
+  static const amountCategories = {'invoice', 'receipt', 'bank'};
+
+  /// Süzgeç sırası ("yok" hariç).
+  static const amountOrder = ['lt100', '100_500', '500_2000', 'gt2000'];
+
   /// Görsel kategorisi mi (ekran görüntüsü, fotoğraf, kutlama, caps)?
   static bool isImageCat(String cat) => imageCategories.containsKey(cat);
+
+  /// İstekteki "bugün" (YYYY-AA-GG).
+  static String isoDay(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
 
   /// Tek istekte sorulan sorular. [image] görsel mi (bulanıklık soruları ve
   /// görsel kategorileri yalnız görselde — PDF/belgeye "ekran görüntüsü"
   /// seçeneği sunulmaz; kök 2026-11-18: Gmail'den yazdırılan e-posta PDF'i
-  /// "Ekran görüntüsü" çıkıyordu), [nowYear] yıl seçenekleri için.
+  /// "Ekran görüntüsü" çıkıyordu), [nowYear] yıl seçenekleri için, [today]
+  /// son ödeme / geçerlilik aralıkları için (verilmezse şimdi).
+  ///
+  /// [meta] (APK/arşiv, içerik okunmaz): kategori sabit [package], yalnız
+  /// alt türü sorulur (tek soru).
   ///
   /// [learned] (2026-11-18): kullanıcının düzeltmelerinden geri bildirim
   /// (`SmartLearn.hint` — yalnız kategori kimlikleri ve sayılar) kategori
   /// sorusunun talimatına eklenir.
-  static List<DecisionQuestion> questions(
-      {required bool image, int? nowYear, String learned = ''}) {
-    final year = nowYear ?? DateTime.now().year;
+  static List<DecisionQuestion> questions({
+    required bool image,
+    bool meta = false,
+    int? nowYear,
+    DateTime? today,
+    String learned = '',
+  }) {
+    if (meta) {
+      return [
+        DecisionQuestion.choice(
+          'sub_$package',
+          'sub_$package',
+          'Only the name, type, size and folder of this app package or '
+              'archive are known. What is it most likely?',
+          subtypes[package]!,
+        ),
+      ];
+    }
+    final now = today ?? DateTime.now();
+    final year = nowYear ?? now.year;
+    final day = isoDay(now);
     final tail = learned.isEmpty ? '' : ' $learned';
     return [
       DecisionQuestion.choice(
@@ -227,18 +512,27 @@ abstract final class SmartTaxonomy {
         },
       ),
       for (final e in subtypes.entries)
-        DecisionQuestion.choice(
-          'sub_${e.key}',
-          'sub_${e.key}',
-          'If this is ${_subjects[e.key]}, which kind is it? If it is not, '
-              'choose "other".',
-          e.value,
-        ),
+        if (e.key != package && (image || !_imageOnlySubs.contains(e.key)))
+          DecisionQuestion.choice(
+            'sub_${e.key}',
+            'sub_${e.key}',
+            'If this is ${_subjects[e.key]}, which kind is it? If it is not, '
+                'choose "other".',
+            e.value,
+          ),
       const DecisionQuestion.choice(
         'bank_name',
         'bank_name',
         'If this is a banking document, which bank issued it?',
         banks,
+      ),
+      const DecisionQuestion.choice(
+        'provider',
+        'provider',
+        'If this is an invoice or bill (phone, internet/TV, electricity, '
+            'natural gas or water), which company issued it? If it is not a '
+            'bill, choose "other".',
+        providers,
       ),
       const DecisionQuestion.choice(
         'month',
@@ -253,6 +547,30 @@ abstract final class SmartTaxonomy {
         'In which year is the document dated? Use the date printed in the '
             'content, not the file date.',
         years(year),
+      ),
+      DecisionQuestion.choice(
+        'due',
+        'due',
+        'Today is $day. If this is a bill or invoice with a payment due date '
+            '(last payment date) printed on it, when is that date compared '
+            'with today? Otherwise choose "none".',
+        dueBuckets,
+      ),
+      DecisionQuestion.choice(
+        'valid',
+        'valid',
+        'Today is $day. If this document has an expiry or validity end date '
+            '(ID card, passport, licence, insurance policy, contract end, '
+            'warranty, visa, permit, report validity), when is that date '
+            'compared with today? Otherwise choose "none".',
+        validBuckets,
+      ),
+      const DecisionQuestion.choice(
+        'amount',
+        'amount',
+        'If this is a bill, receipt or banking document, what is the total '
+            'amount to pay or paid (the grand total, not a single line)?',
+        amountBuckets,
       ),
       if (image) ...const [
         DecisionQuestion.yesNo(
@@ -297,5 +615,34 @@ abstract final class SmartTaxonomy {
     'meme': ['caps', 'mizah', 'meme', 'komik', 'ميم'],
     'photo_people': ['fotoğraf', 'photo', 'insan', 'people', 'selfie'],
     'photo_other': ['fotoğraf', 'photo', 'manzara', 'yemek'],
+    'package': ['apk', 'kurulum', 'arşiv', 'zip', 'rar', 'yedek', 'installer', 'archive', 'backup', 'أرشيف'],
   };
+}
+
+/// **Tarih rozetleri** (2026-11-18, PLAN §1.1 m.1): model son ödeme /
+/// geçerlilik tarihini istekteki BUGÜNE göre aralık olarak verir; kayıtta
+/// aralık + sorulduğu gün durur. Zaman geçtikçe "bir hafta içinde" olan
+/// fatura kendiliğinden "ödemesi geçmiş" olur — yeniden sormadan. Saf,
+/// birim testli. Gün = UTC gün numarası (1970'ten beri).
+abstract final class SmartDates {
+  static int dayOf(DateTime d) =>
+      DateTime.utc(d.year, d.month, d.day).millisecondsSinceEpoch ~/
+      Duration.millisecondsPerDay;
+
+  /// Son ödeme tarihi [today] itibarıyla kesin geçmiş mi? [asked] sorunun
+  /// sorulduğu gün; 0 = bilinmiyor (yalnız "geçmiş" yanıtı sayılır).
+  static bool overdue(String bucket, int asked, int today) => switch (bucket) {
+        'past' => true,
+        'week' => asked > 0 && today - asked > 7,
+        'month' => asked > 0 && today - asked > 31,
+        _ => false,
+      };
+
+  /// Geçerlilik tarihi [today] itibarıyla kesin dolmuş mu?
+  static bool expired(String bucket, int asked, int today) => switch (bucket) {
+        'past' => true,
+        'month' => asked > 0 && today - asked > 31,
+        'year' => asked > 0 && today - asked > 366,
+        _ => false,
+      };
 }

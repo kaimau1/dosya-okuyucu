@@ -29,6 +29,7 @@ abstract final class SmartCatStyle {
         'meme' => AppIcons.emojiEmotions,
         'photo_people' => AppIcons.groups,
         'photo_other' => AppIcons.image,
+        'package' => AppIcons.archiveView,
         _ => AppIcons.typeAll,
       };
 
@@ -46,6 +47,7 @@ abstract final class SmartCatStyle {
         'screenshot_chat' || 'screenshot' => AppHues.royal,
         'greeting' || 'meme' => AppHues.honey,
         'photo_people' || 'photo_other' => AppHues.leaf,
+        'package' => AppHues.olive,
         _ => AppHues.plum,
       };
 
