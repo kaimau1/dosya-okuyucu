@@ -53,7 +53,11 @@ class _GalleryAction extends StatelessWidget {
 class _RepairedImage extends StatefulWidget {
   final String path;
   final BoxFit fit;
-  const _RepairedImage(this.path, {required this.fit});
+
+  /// Çözme genişliği (piksel) — asıl görselinkiyle aynı bütçe (B12 m.4):
+  /// kurtarılan bayt tam çözünürlükte açılırsa 12 MP ≈ 48 MB bitmap.
+  final int? cacheWidth;
+  const _RepairedImage(this.path, {required this.fit, this.cacheWidth});
 
   @override
   State<_RepairedImage> createState() => _RepairedImageState();
@@ -82,7 +86,9 @@ class _RepairedImageState extends State<_RepairedImage> {
           fit: StackFit.expand,
           children: [
             Image.memory(data,
-                fit: widget.fit, errorBuilder: (_, _, _) => failed()),
+                fit: widget.fit,
+                cacheWidth: widget.cacheWidth,
+                errorBuilder: (_, _, _) => failed()),
             Positioned(
               left: Gap.md,
               right: Gap.md,
@@ -424,7 +430,8 @@ class _ZoomableImageState extends State<_ZoomableImage> {
               ? Image(image: thumb, fit: fit, gaplessPlayback: true)
               : child,
       // Çözücü reddetti → kurtarmayı dene (başında çöp, yarım JPEG …).
-      errorBuilder: (_, _, _) => _RepairedImage(widget.path, fit: fit),
+      errorBuilder: (_, _, _) =>
+          _RepairedImage(widget.path, fit: fit, cacheWidth: _decodeWidth),
     );
     final tag = widget.heroTag;
     if (tag != null) image = Hero(tag: tag, child: image);

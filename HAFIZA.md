@@ -260,3 +260,9 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Doğrulanmadı (tahmin):** Decisions bloğunda `file_data: {file_uri, mime_type}`, `media_resolution`, `video_metadata` alan adları API'de denenmedi (generateContent'teki adlar) → cihazda "yapılamadı" çıkarsa önce bunlara bak.
 - **Kapsam:** WhatsApp Voice Notes/Audio/Video + `Recordings` köklere eklendi; Kamera kapalı varsayılanı aynen (DCIM/Camera videoları gitmez). Sabah bakılacak: Müzik klasörü bilinçli dışarıda (kota).
 - 2026-11-18 · Bulut zinciri: günlük dilim sınırı (`GÜNLÜK DİLİM = 6`) KALDIRILDI — kullanıcı: "iş bitene kadar devam". Skill + OTOMASYON_BASLAT + zamanlanmış görev istemi güncellendi; durdurucu yalnız 9. adım (kota/fatura hatası dahil).
+
+## 2026-11-18 — B12 Hız 2.0 m.2 + m.4 (bulut, dal faz-oto-B12-hiz2)
+- **Kök (m.2, koddan):** ilk açılışlar zaten izolattaydı; ana izlekte kalanlar `FileService._loadLegacy` (XlsLegacy.tryParse + toXlsxBytes, LegacyText), dört editörün `_restoreDraft`i ve `DocChapters.load` (docx/pptx). Hepsi `compute`/`openForView`/`_parseDeck` ile izolata; Slayt `_load` da tek kapı `_parseDeck`.
+- **Bekçi:** `test/open_parse_isolate_test.dart` — sentetik büyük docx/xlsx/pptx ana izlekte > 16 ms (Stopwatch, kanıt) + ekranlarda çıplak `X.parse(` dosya başına tavan (koparma `compute(X.parse, b)` eşleşmez). Word `_rerender` tavanda (m.3).
+- **m.4:** `test/image_cache_guard_test.dart` — `Image.memory`/`MemoryImage` çözme boysuz olamaz. Tuzak: `cover` kutuda yalnız `cacheWidth` yatay görseli bulanıklaştırır → ham küçük resimde `ResizeImage(policy: fit)` iki kenar tavanı (büyütmez). Word editöründe `cacheWidth` sürüklenen genişlikten değil `maxW`den (kademeli; her karede yeniden çözme olmasın).
+- ODF/EPUB uygulamada açılmıyor (ODT/ODS/ODP harici aç) → m.2 kapsamı dışı. Cihaz A/B → C2.
