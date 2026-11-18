@@ -177,4 +177,6 @@ const Map<String, (String, String, String)> _t40 = {
     'سيخرج هذا الملف من قائمة التنقية ولن يُقترح مرة أخرى.',
   ),
   'sm.keep': ('Gereksiz değil', 'Keep it', 'احتفظ به'),
+  'sm.select_one': ('Seç', 'Select', 'تحديد'),
+  'sm.deselect_one': ('Seçimi kaldır', 'Deselect', 'إلغاء التحديد'),
 };

@@ -380,6 +380,7 @@ class _Cell extends StatelessWidget {
           top: 2,
           end: 2,
           child: IconButton(
+            tooltip: context.t(selected ? 'sm.deselect_one' : 'sm.select_one'),
             visualDensity: VisualDensity.compact,
             onPressed: onCheck,
             icon: Icon(
