@@ -143,6 +143,7 @@ Future<void> _main() async {
   // Akıllı düzen (2026-11-18): ikinci ad yedeği + AI kategori süzgeci.
   AiIndex.fallbackAlias = SmartSort.aliasOf;
   FmFilter.smartCatOf = SmartSort.categoryOf;
+  FmFilter.smartUserCatsOf = SmartSort.userCatsOf;
   // **Seçici kipi** (başka bir uygulama bizden dosya istedi — `PickerActivity`).
   // Ayrı ve KISA bir açılış: iş kuyruğu, bildirim köprüsü, yarım kalan işlerin
   // geri yüklenmesi burada çalıştırılmaz. Çağıran uygulama beklerken saniyeler

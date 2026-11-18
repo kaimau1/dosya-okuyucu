@@ -24,6 +24,7 @@ import 'smart_folder_prefs.dart';
 import 'smart_learn.dart';
 import 'smart_sort_input.dart';
 import 'smart_sort_taxonomy.dart';
+import 'smart_user_cats.dart';
 
 /// Tek dosyanın akıllı düzen sonucu. Metin DEĞİL kimlik tutar (dil değişince
 /// ikinci ad o dilde yeniden kurulur).
@@ -80,6 +81,14 @@ class SmartRecord {
   /// Ses kalitesi ([SmartTaxonomy.audioQualities]; yoksa boş).
   final String quality;
 
+  /// Eşleşen kullanıcı kategorileri ([SmartUserCats]): kimlik → P(evet)
+  /// yüzdesi (yalnız eşik üstü). PLAN §1.1 m.3, 2026-11-18.
+  final Map<String, int> uc;
+
+  /// Bu dosyaya sorulmuş kullanıcı kategorileri (eşleşmeyenler dahil;
+  /// geriye dönük uygulama yalnız sorulmamışlara gider).
+  final List<String> uq;
+
   const SmartRecord({
     required this.path,
     required this.size,
@@ -101,6 +110,8 @@ class SmartRecord {
     this.asked = 0,
     this.lang = '',
     this.quality = '',
+    this.uc = const {},
+    this.uq = const [],
   });
 
   /// Ödemesi geçmiş fatura mı ([today] = [SmartDates.dayOf])?
@@ -127,6 +138,75 @@ class SmartRecord {
       ? cat
       : (accidental ? 'accidental' : (blurry ? 'blurry' : null));
 
+  /// Baskın kullanıcı kategorisi: en yüksek eşleşme, yerleşik kategorinin
+  /// güveninden yüksekse ya da yerleşik ikinci ad boş kalacaksa ([builtinEmpty]).
+  /// Yoksa null. Silinmiş kategori sayılmaz.
+  String? dominantUserCat({required bool builtinEmpty}) {
+    String? best;
+    var top = -1;
+    for (final e in uc.entries) {
+      if (SmartUserCats.byId(e.key) == null) continue;
+      if (e.value > top ||
+          (e.value == top && best != null && e.key.compareTo(best) < 0)) {
+        best = e.key;
+        top = e.value;
+      }
+    }
+    if (best == null) return null;
+    if (builtinEmpty) return best;
+    return !user && top > (conf * 100).round() ? best : null;
+  }
+
+  /// Kullanıcı kategorisi yanıtları eklenmiş kopya ([yes]: kimlik → P(evet)).
+  SmartRecord withUserAnswers(Map<String, double> yes) {
+    if (yes.isEmpty) return this;
+    final seen = {...uq, ...yes.keys}.toList()..sort();
+    final matched = {...uc};
+    yes.forEach((id, p) {
+      if (p >= SmartUserCats.threshold) {
+        matched[id] = (p * 100).round();
+      } else {
+        matched.remove(id);
+      }
+    });
+    return _with(uc: matched, uq: seen);
+  }
+
+  /// Kullanıcı kategorisi silindi/sorusu değişti: izi düşer.
+  SmartRecord withoutUserCat(String id) {
+    if (!uq.contains(id) && !uc.containsKey(id)) return this;
+    return _with(
+      uc: {...uc}..remove(id),
+      uq: [for (final x in uq) if (x != id) x],
+    );
+  }
+
+  SmartRecord _with({required Map<String, int> uc, required List<String> uq}) =>
+      SmartRecord(
+        path: path,
+        size: size,
+        modifiedMs: modifiedMs,
+        cat: cat,
+        conf: conf,
+        sub: sub,
+        bank: bank,
+        month: month,
+        year: year,
+        blurry: blurry,
+        accidental: accidental,
+        user: user,
+        hidden: hidden,
+        provider: provider,
+        due: due,
+        valid: valid,
+        amount: amount,
+        asked: asked,
+        lang: lang,
+        quality: quality,
+        uc: uc,
+        uq: uq,
+      );
+
   SmartRecord copyWith({String? cat, bool? user, bool? hidden, String? sub}) {
     final moved = cat != null && cat != this.cat;
     return SmartRecord(
@@ -150,6 +230,8 @@ class SmartRecord {
       asked: asked,
       lang: lang,
       quality: quality,
+      uc: uc,
+      uq: uq,
     );
   }
 
@@ -174,6 +256,8 @@ class SmartRecord {
         if (asked > 0) 'ad': asked,
         if (lang.isNotEmpty) 'lg': lang,
         if (quality.isNotEmpty) 'ql': quality,
+        if (uc.isNotEmpty) 'uc': uc,
+        if (uq.isNotEmpty) 'uq': uq,
       };
 
   static SmartRecord? fromJson(Object? j) {
@@ -191,6 +275,9 @@ class SmartRecord {
       final v = j[k];
       return v is String ? v : '';
     }
+
+    final rawUc = j['uc'];
+    final rawUq = j['uq'];
 
     return SmartRecord(
       path: path,
@@ -213,6 +300,14 @@ class SmartRecord {
       asked: i('ad'),
       lang: t('lg'),
       quality: t('ql'),
+      uc: rawUc is Map
+          ? {
+              for (final e in rawUc.entries)
+                if (e.key is String && e.value is num)
+                  e.key as String: (e.value as num).toInt(),
+            }
+          : const {},
+      uq: rawUq is List ? [for (final x in rawUq) if (x is String) x] : const [],
     );
   }
 }
@@ -359,6 +454,7 @@ abstract final class SmartSort {
     // Öğrenme + klasör düzeni (2026-11-18) depoyla birlikte hazır olsun.
     await SmartLearn.ensureLoaded();
     await SmartFolderPrefs.ensureLoaded();
+    await SmartUserCats.ensureLoaded();
     _records.clear();
     final dir = FmEnv.appSupportDir;
     if (dir.isNotEmpty) {
@@ -465,10 +561,77 @@ abstract final class SmartSort {
           if (r.hidden) r
       ]..sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
 
-  static List<String> pathsOf(String cat) => [
+  /// Kategorideki dosyalar; [cat] kullanıcı kategorisiyse ([SmartUserCats])
+  /// o soruya "evet" denenler (bir dosya birden çok kategoride olabilir).
+  static List<String> pathsOf(String cat) => SmartUserCats.isUserId(cat)
+      ? [
+          for (final r in _records.values)
+            if (!r.hidden && r.uc.containsKey(cat)) r.path
+        ]
+      : [
+          for (final r in _records.values)
+            if (!r.hidden && r.cat == cat) r.path
+        ];
+
+  /// Kullanıcı kategorisi → dosya sayısı (gizliler hariç; silinmiş kategori
+  /// yok).
+  static Map<String, int> userCounts() {
+    final out = <String, int>{};
+    if (SmartUserCats.isEmpty) return out;
+    for (final r in _records.values) {
+      if (r.hidden || r.uc.isEmpty) continue;
+      for (final id in r.uc.keys) {
+        if (SmartUserCats.byId(id) == null) continue;
+        out[id] = (out[id] ?? 0) + 1;
+      }
+    }
+    return out;
+  }
+
+  /// Süzgeç kancası (`FmFilter.smartUserCatsOf`): dosyanın eşleştiği
+  /// kullanıcı kategorileri. Kategori yoksa tek karşılaştırmayla boş döner.
+  static Iterable<String> userCatsOf(String path) {
+    if (SmartUserCats.isEmpty) return const [];
+    final uc = _records[path]?.uc;
+    if (uc == null || uc.isEmpty) return const [];
+    return uc.keys;
+  }
+
+  /// Kullanıcı kategorisi yanıtlarını kayda yazar (kayıt yoksa yazılmaz).
+  static void setUserAnswers(String path, Map<String, double> yes,
+      {bool notify = true}) {
+    final r = _records[path];
+    if (r == null) return;
+    _records[path] = r.withUserAnswers(yes);
+    if (notify) _changed();
+  }
+
+  /// Kullanıcı kategorisi silindi ya da sorusu değişti: bütün kayıtlardan
+  /// izi düşer (yeniden sorulabilir).
+  static Future<void> dropUserCat(String id) async {
+    await ensureLoaded();
+    for (final e in _records.entries.toList()) {
+      final next = e.value.withoutUserCat(id);
+      if (!identical(next, e.value)) _records[e.key] = next;
+    }
+    _changed();
+  }
+
+  /// [pendingFor]'un sayısı (sıralamasız, ekran her çizimde sorar).
+  static int pendingCountFor(String id) {
+    var n = 0;
+    for (final r in _records.values) {
+      if (!r.hidden && !r.uq.contains(id)) n++;
+    }
+    return n;
+  }
+
+  /// Bu kullanıcı kategorisinin henüz sorulmadığı kayıtlar (gizliler hariç),
+  /// en yeni önce.
+  static List<SmartRecord> pendingFor(String id) => [
         for (final r in _records.values)
-          if (!r.hidden && r.cat == cat) r.path
-      ];
+          if (!r.hidden && !r.uq.contains(id)) r
+      ]..sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
 
   // ── İkinci ad ──────────────────────────────────────────────────────────
   static final Map<String, String> _aliasCache = {};
@@ -485,16 +648,23 @@ abstract final class SmartSort {
 
   /// Saf: kayıt → ikinci ad. Birim testli.
   static String render(SmartRecord r, AppStrings s) {
-    if (SmartTaxonomy.isPersonalPhoto(r.cat) ||
+    final empty = SmartTaxonomy.isPersonalPhoto(r.cat) ||
         // Aile videosu da kişisel fotoğraf gibi: her kareye ad gürültü.
         (r.cat == SmartTaxonomy.video && r.sub == 'family_video') ||
         r.cat == SmartTaxonomy.other ||
-        (!r.user && r.conf < 0.45)) {
-      return '';
-    }
-    final head = r.sub.isNotEmpty && r.sub != 'other'
-        ? s.t('sm.s_${r.sub}')
-        : s.t('sm.c_${r.cat}');
+        (!r.user && r.conf < 0.45);
+    // Kullanıcı kategorisi baskınsa ad onun (PLAN §1.1 m.3): kullanıcı
+    // bunu açıkça istedi, kişisel fotoğrafta da yazılır.
+    final mine = r.uc.isEmpty
+        ? null
+        : SmartUserCats.byId(r.dominantUserCat(builtinEmpty: empty) ?? '');
+    if (mine != null && empty) return mine.name;
+    if (empty) return '';
+    final head = mine != null
+        ? mine.name
+        : (r.sub.isNotEmpty && r.sub != 'other'
+            ? s.t('sm.s_${r.sub}')
+            : s.t('sm.c_${r.cat}'));
     final date = !SmartTaxonomy.isDoc(r.cat) || r.year == 0
         ? ''
         : (r.month > 0 ? '${s.t('sm.m${r.month}')} ${r.year}' : '${r.year}');
@@ -521,22 +691,30 @@ abstract final class SmartSort {
 
   static String _keywords(String path) {
     final r = _records[path];
-    if (r == null || r.cat == SmartTaxonomy.other) return '';
+    if (r == null) return '';
+    // Eşleşen kullanıcı kategorilerinin adları da aransın.
+    final mine = [
+      for (final id in r.uc.keys) ?SmartUserCats.byId(id)?.name,
+    ];
+    if (r.cat == SmartTaxonomy.other && mine.isEmpty) return '';
     final parts = <String>{
-      for (final lang in const [AppLanguage.tr, AppLanguage.en, AppLanguage.ar]) ...[
-        AppStrings(lang).t('sm.c_${r.cat}'),
-        if (r.sub.isNotEmpty && r.sub != 'other')
-          AppStrings(lang).t('sm.s_${r.sub}'),
+      ...mine,
+      if (r.cat != SmartTaxonomy.other) ...[
+        for (final lang in const [AppLanguage.tr, AppLanguage.en, AppLanguage.ar]) ...[
+          AppStrings(lang).t('sm.c_${r.cat}'),
+          if (r.sub.isNotEmpty && r.sub != 'other')
+            AppStrings(lang).t('sm.s_${r.sub}'),
+        ],
+        ...?SmartTaxonomy.synonyms[r.cat],
+        // Kullanıcının akıllı klasöre verdiği ad da aransın.
+        ?SmartFolderPrefs.nameOf(r.cat),
+        institutionOf(r),
+        if (r.year > 0) '${r.year}',
+        // Ses kaydında konuşma dili: "ingilizce ders" aransın.
+        if (r.lang.isNotEmpty && r.lang != 'other' && r.lang != 'none')
+          for (final lang in const [AppLanguage.tr, AppLanguage.en, AppLanguage.ar])
+            AppStrings(lang).t('sm.l_${r.lang}'),
       ],
-      ...?SmartTaxonomy.synonyms[r.cat],
-      // Kullanıcının akıllı klasöre verdiği ad da aransın.
-      ?SmartFolderPrefs.nameOf(r.cat),
-      institutionOf(r),
-      if (r.year > 0) '${r.year}',
-      // Ses kaydında konuşma dili: "ingilizce ders" aransın.
-      if (r.lang.isNotEmpty && r.lang != 'other' && r.lang != 'none')
-        for (final lang in const [AppLanguage.tr, AppLanguage.en, AppLanguage.ar])
-          AppStrings(lang).t('sm.l_${r.lang}'),
     };
     // İki küçük harf biçimi birden: Türkçe katlama İngilizce "Invoice"ı
     // "ınvoice" yapar; düz küçültme "invoice" bırakır — ikisi de aransın.
@@ -603,8 +781,9 @@ abstract final class SmartSort {
     _changed();
   }
 
-  /// Klasör adı değişti: ikinci ad / arama önbellekleri tazelensin.
-  static void invalidateLabels() => _changed(save: false);
+  /// Klasör ya da kullanıcı kategorisi adı değişti: ikinci ad / arama
+  /// önbellekleri tazelensin ([save]: kayıtlar da diske yazılsın).
+  static void invalidateLabels({bool save = false}) => _changed(save: save);
 
   /// Öğrenilen düzeltmeler bu yeni sonucu çeviriyor mu? (elle düzeltilmiş
   /// kayda dokunulmaz.)
@@ -642,6 +821,8 @@ abstract final class SmartSort {
       asked: r.asked,
       lang: r.lang,
       quality: r.quality,
+      uc: r.uc,
+      uq: r.uq,
     );
     _changed();
   }
@@ -808,18 +989,28 @@ abstract final class SmartSort {
     );
   }
 
-  /// Dosya türüne göre tek istekteki sorular.
+  /// Dosya türüne göre tek istekteki sorular + yer kalan kadar kullanıcı
+  /// kategorisi sorusu ([SmartUserCats]; ayrı `noul`, sığmayanı geriye dönük
+  /// uygulama sorar).
   static List<DecisionQuestion> questionsFor(String path,
       {required DateTime today, required String learned}) {
     final kind = SmartSortInput.kindOf(path);
-    return SmartTaxonomy.questions(
+    final base = SmartTaxonomy.questions(
         image: GeminiDecisions.mediaFor(path)?.type == 'image',
         meta: kind == SmartInputKind.meta,
         audio: kind == SmartInputKind.audio,
         video: kind == SmartInputKind.video,
         today: today,
         learned: learned);
+    final mine =
+        SmartUserCats.fitting(GeminiDecisions.maxQuestions - base.length);
+    if (mine.isEmpty) return base;
+    return [...base, for (final c in mine) c.question];
   }
+
+  /// Yanıttaki kullanıcı kategorisi sorularını kayda işler.
+  static SmartRecord _withUser(SmartRecord rec, DecisionResult result) =>
+      rec.withUserAnswers(SmartUserCats.answersIn(result));
 
   /// **Tek dosya** (dosya menüsü → "AI ile ikinci ad", 2026-11-18): verilen
   /// girdiyle (görsel/PDF bloğu ya da Word/metin yazısı; ses/videoda [input]
@@ -853,7 +1044,7 @@ abstract final class SmartSort {
     }
     final raw = fromAnswers(entry, result, today: now);
     if (raw == null) return null;
-    final rec = _learned(raw, image: image);
+    final rec = _withUser(_learned(raw, image: image), result);
     final old = _records[entry.path];
     _records[entry.path] =
         (old?.hidden ?? false) ? rec.copyWith(hidden: true) : rec;
@@ -1015,7 +1206,9 @@ abstract final class SmartSort {
               usedQuestions += questions.length;
             }
             final raw = fromAnswers(e, result, today: today);
-            final rec = raw == null ? null : _learned(raw, image: image);
+            final rec = raw == null
+                ? null
+                : _withUser(_learned(raw, image: image), result);
             if (rec != null) {
               final old = _records[e.path];
               _records[e.path] =
