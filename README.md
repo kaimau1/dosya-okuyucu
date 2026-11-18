@@ -1,5 +1,10 @@
 # Dosya Okuyucu
 
+> **© 2025–2026 kaimau1 — Tüm hakları saklıdır. Açık kaynak DEĞİLDİR.**
+> Bu kod yalnız görüntülenebilir; izinsiz kopyalama, çatallama (fork), değiştirme,
+> dağıtma, mağazada yayımlama ve yapay zekâ eğitiminde kullanma YASAKTIR — bkz. [LICENSE](LICENSE).
+> *All rights reserved. Not open source. No license is granted — see [LICENSE](LICENSE).*
+
 Sade, hızlı ve efektif **çok formatlı dosya okuyucu/düzenleyici + dosya yöneticisi** —
 **yalnız Android** (Flutter; masaüstü/iOS hedefi yok, karar K10). Gemini yapay zeka
 entegrasyonu, dönüştürme ve paylaşım özellikleriyle.
