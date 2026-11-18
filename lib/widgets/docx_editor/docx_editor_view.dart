@@ -21,6 +21,7 @@ import 'package:flutter/services.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_haptics.dart';
+import '../../core/image_budget.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
 import '../../core/theme.dart' show Radii;

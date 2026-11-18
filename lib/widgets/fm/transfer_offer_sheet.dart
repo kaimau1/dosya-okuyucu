@@ -246,7 +246,13 @@ class _Tile extends StatelessWidget {
       return Icon(glyph, size: 36, color: color);
     }
 
-    Widget image(Uint8List bytes) => Image.memory(bytes,
+    // Küçük resim KARŞI CİHAZDAN gelir (gönderen 64 KB'ın altında tutar ama
+    // alan doğrulamaz): küçük baytlı dev boyutlu görsel tam çözülmesin
+    // (B12 m.4). İki kenar da 768 px tavanlı, oran korunur, büyütme yok —
+    // olağan küçük resimde görünüm aynı.
+    Widget image(Uint8List bytes) => Image(
+        image: ResizeImage(MemoryImage(bytes),
+            width: 768, height: 768, policy: ResizeImagePolicy.fit),
         fit: BoxFit.cover,
         gaplessPlayback: true,
         errorBuilder: (_, _, _) => Center(child: icon()));

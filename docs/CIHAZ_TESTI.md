@@ -1358,3 +1358,9 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Kullanıcı kategorisi baskın olan dosyada (ör. kedi fotoğrafı + "Kedim") listede ikinci ad kategorinin adı mı?
 - [ ] ⋮ → Düzenle: yalnız simge/renk değişince deneme istemeden kaydediliyor mu; ⋮ → Sil: kategori ve süzgeç çipi kalkıyor, dosyalar yerinde mi? 30 kategoriden sonra "En çok 30 kategori" uyarısı mı?
 - [ ] Yeni gelen dosyalar (otomatik düzenleme) kullanıcı kategorisine de giriyor mu (ek istek olmadan)?
+## 2026-11-18 — B12 Hız 2.0: açılış/taslak izolatta + görsel çözme (bulut, dal faz-oto-B12-hiz2; yazıldı, cihazda doğrulanmadı)
+- [ ] Büyük bir eski .xls ve .doc aç → "açılıyor" göstergesi dönmeye devam ediyor mu, içerik eskisi gibi mi?
+- [ ] Word / Excel / Slayt'ta düzenle, uygulamayı kapat, yeniden aç → "Geri yükle": taslak geliyor, ekran donmuyor, "Kaydedilmedi" görünüyor mu?
+- [ ] Sesli kitap: büyük Word ve sunumdan bölümler eskisi gibi çıkıyor mu?
+- [ ] Word (Mobil) editöründe büyük fotoğraflı belge: resimler net mi, boyutlandırma sürüklemesi akıcı mı?
+- [ ] Galeri: bozuk (yarım) bir JPEG kurtarılıp gösteriliyor mu; yakınlaştırınca netleşiyor mu? Yakındaki cihazdan aktarım teklifinde küçük resimler eskisi gibi mi?
