@@ -56,7 +56,9 @@ gerisi `grep`. Graphify'ı açma. Alt ajan beklerken yoklama yok, bildirimi bekl
    YOK (art arda push önceki koşuyu iptal eder) — bu sırada dalda çalışılır. main iki kez üst üste
    kırmızı → dur.
 3. **Paketi seç** (Kuyruk + SIRA satırı `PLAN.md` §1'de). `bulutta:` ile başlayan satır başka
-   oturumundur: ATLA, dalına dokunma. İlk `sürüyor` (yarım: uzakta `faz-oto-<no>-*` varsa oradan,
+   oturumundur (bulut zinciri, `oto-bulut` skill'i): ATLA, dalına dokunma. Bulut yürütücüsü
+   çalışıyor mu: `bash .claude/skills/oto-bulut/kilit.sh durum` (taze kilit = evet → C paketleri
+   ve `bulutta:` olmayan satırlar; main'e birleştirmeden hemen önce yeniden `git pull`). İlk `sürüyor` (yarım: uzakta `faz-oto-<no>-*` varsa oradan,
    DEVIR.md'den) yoksa SIRA'daki ilk `bekliyor`. `cihaz bekliyor` satırını yalnız telefon bağlıysa
    al (`adb devices`). Satırı `sürüyor` yap (yalnız yerelde; ayrıca push yok).
 4. **Yaptır.** `Agent`, `isolation: "worktree"`, `model` Kuyruk satırından (`fable|opus|sonnet`),
@@ -100,7 +102,8 @@ gerisi `grep`. Graphify'ı açma. Alt ajan beklerken yoklama yok, bildirimi bekl
    **APK izlenmez:** dal CI'ı yeşilse birleştir, push, sıradakine geç; yalnız sonraki main
    push'undan ÖNCE `gh run list -b main -L 1` — APK işi sürüyorsa push'u bekletip dalda çalış.
 9. **Temizlik:** birleştirince `git worktree remove --force <ağaç>`, `git push origin --delete
-   <dal>`, yerel dal silinir; A/B taban ağacı (`../okuyucu_ab`) ölçüm bitince silinir. Silinemeyen
+   <dal>`, yerel dal silinir; bulut zincirinin bıraktığı, main'e birleşmiş `faz-oto-*` dallarını da
+   sil (bulut vekili dal silemez); A/B taban ağacı (`../okuyucu_ab`) ölçüm bitince silinir. Silinemeyen
    klasörü tutan Gradle/Java sürecini durdur (`./gradlew --stop` ya da süreç). "Filename too
    long" → PowerShell `Remove-Item -LiteralPath '\\?\C:\...\<ağaç>' -Recurse -Force` +
    `git worktree prune`.

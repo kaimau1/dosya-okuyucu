@@ -160,7 +160,11 @@ class SmartRunResult {
 
   /// Kota (429) ya da yetki hatasıyla erken bitti.
   final String? stoppedBy;
-  const SmartRunResult(this.processed, this.failed, {this.stoppedBy});
+
+  /// Son başarısızlığın nedeni (kullanıcıya gösterilir; kota dışı hatalar).
+  final String? lastError;
+  const SmartRunResult(this.processed, this.failed,
+      {this.stoppedBy, this.lastError});
 }
 
 /// **Akıllı düzen** (2026-11-18, kullanıcı: *"kendi kendini düzenleyen
@@ -636,7 +640,12 @@ abstract final class SmartSort {
   /// kayıt korunur)?
   static bool needs(FsEntry e) {
     final r = _records[e.path];
-    if (r == null) return true;
+    if (r == null) {
+      // Bu oturumda iki kez yanıt alınamayan dosya tekrar tekrar sorulmaz
+      // (her tur aynı 300 başarısız dosyaya takılıyordu — 2026-11-18).
+      final f = _failures[e.path];
+      return f == null || f.$1 != e.sizeBytes || f.$2 != e.modifiedMs || f.$3 < 2;
+    }
     if (r.user) return false;
     // Eski şemada belgeye görsel kategorisi verilmiş olabilir (PDF →
     // "Ekran görüntüsü"); yeniden sorulur.
@@ -645,6 +654,15 @@ abstract final class SmartSort {
       return true;
     }
     return r.size != e.sizeBytes || r.modifiedMs != e.modifiedMs;
+  }
+
+  /// Oturum içi başarısızlık sayacı: yol → (boyut, değişme, deneme).
+  static final Map<String, (int, int, int)> _failures = {};
+
+  static void _markFailed(FsEntry e) {
+    final f = _failures[e.path];
+    final same = f != null && f.$1 == e.sizeBytes && f.$2 == e.modifiedMs;
+    _failures[e.path] = (e.sizeBytes, e.modifiedMs, same ? f.$3 + 1 : 1);
   }
 
   // ── Çalıştırma ─────────────────────────────────────────────────────────
@@ -667,6 +685,7 @@ abstract final class SmartSort {
     var processed = 0;
     var failed = 0;
     String? stoppedBy;
+    String? lastError;
     final done = <String>[];
     try {
       final fresh = await FsScan.freshFiles(roots, limit: scan);
@@ -689,11 +708,20 @@ abstract final class SmartSort {
                 image: image,
                 nowYear: year,
                 learned: image ? imageHint : docHint);
-            final result = await GeminiDecisions.ask(
-              keys: keys,
-              input: [await GeminiDecisions.fileBlock(e.path)],
-              questions: questions,
-            );
+            final input = [await GeminiDecisions.fileBlock(e.path)];
+            DecisionResult result;
+            try {
+              result = await GeminiDecisions.ask(
+                  keys: keys, input: input, questions: questions);
+            } on GeminiException catch (err) {
+              // Dakikalık sınır (429) çoğu zaman geçicidir: bir kez bekleyip
+              // yeniden dene, yine olursa dur (kalanlar sonraki turda).
+              if (err.statusCode != 429) rethrow;
+              await Future<void>.delayed(const Duration(seconds: 30));
+              if (stoppedBy != null) rethrow;
+              result = await GeminiDecisions.ask(
+                  keys: keys, input: input, questions: questions);
+            }
             final raw = fromAnswers(e, result);
             final rec = raw == null ? null : _learned(raw, image: image);
             if (rec != null) {
@@ -704,15 +732,24 @@ abstract final class SmartSort {
               done.add(e.path);
             } else {
               failed++;
+              _markFailed(e);
+              lastError = result.blockReason != null
+                  ? 'engellendi (${result.blockReason})'
+                  : 'yanıt boş';
             }
           } on GeminiException catch (err) {
             failed++;
             if (const {401, 403, 429}.contains(err.statusCode) ||
                 OfflineMode.enabled) {
               stoppedBy = err.message;
+            } else {
+              _markFailed(e);
+              lastError = err.message;
             }
-          } catch (_) {
+          } catch (err) {
             failed++;
+            _markFailed(e);
+            lastError = '$err';
           }
           progress.value = SmartProgress(processed + failed, todo.length);
           if ((processed + failed) % 10 == 0) _changed();
@@ -733,7 +770,8 @@ abstract final class SmartSort {
       }
       if (by.isNotEmpty) lastBatch.value = SmartBatch(done, by, DateTime.now());
     }
-    return SmartRunResult(processed, failed, stoppedBy: stoppedBy);
+    return SmartRunResult(processed, failed,
+        stoppedBy: stoppedBy, lastError: lastError);
   }
 
   // ── Otomatik ───────────────────────────────────────────────────────────

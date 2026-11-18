@@ -105,11 +105,16 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final r = await SmartSort.run(
         credentials: state.aiCredentials, scope: state.aiScopeRules);
-    final msg = r.stoppedBy != null
+    var msg = r.stoppedBy != null
         ? s.t('sm.stopped', {'n': r.processed})
-        : (r.processed == 0
+        : (r.processed == 0 && r.failed == 0
             ? s.t('sm.nothing_new')
             : s.t('sm.done', {'n': r.processed}));
+    // Yapılamayanlar da söylenir (eskiden sessizdi: "300'den 27 çıktı").
+    if (r.failed > 0 && r.stoppedBy == null) {
+      msg += ' · ${s.t('sm.failed', {'n': r.failed})}'
+          '${r.lastError != null ? ': ${r.lastError}' : ''}';
+    }
     showSnackOn(messenger, msg);
   }
 

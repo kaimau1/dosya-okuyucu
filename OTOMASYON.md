@@ -50,6 +50,18 @@ Opus alt ajanlarına. Fable paketi yalnız 5 saatlik limit **%55 altındayken** 
 sıradaki Opus/Sonnet paketi alınır, Fable `bekliyor` kalır ve limit yenilenince EN BAŞTA alınır.
 Hesapta Fable yoksa Opus. Limit freni: ≥ %80 yeni paket yok, ≥ %90 dur (`oto-tur` 11. adım).
 
+## Bulut zinciri (2026-11-18) → `oto-bulut` skill'i
+
+- claude.ai zamanlanmış görev **`okuyucu-bulut`** (saatlik :37, her çalıştırma YENİ bulut oturumu;
+  bilgisayar kapalıyken de sürer). Kurulum + istemin tam metni: `OTOMASYON_BASLAT.md` (g).
+- Telefonsuz: yalnız **B (kod) paketleri**, dilim dilim (dilim = tek CI koşusu, yeşilse main'e);
+  C paketleri ve A/B ölçümü yerel zincirde. Yürütücü `.claude/skills/oto-bulut/SKILL.md`, işçi
+  `isci` "Bulut kipi".
+- Kilit uzak dal **`oto-kilit`** (`.claude/skills/oto-bulut/kilit.sh al|tazele|birak|durum`; 60 dk);
+  bulutun sahiplendiği satırın Durum'u **`bulutta: sürüyor …`** (yerel `oto-tur` atlar). CI izleme
+  GitHub MCP; ara push'lar `[skip ci]` (Actions kotası); limit freni yok (kilit bayatlayınca
+  sonraki çalıştırma sürer).
+
 ## Kuyruk → `PLAN.md` §1
 
 Kuyruk tablosu ve SIRA 2026-11-15'te `PLAN.md` §1'e taşındı (biten satırlar silindi). **2026-11-18:** §1 artık BÜYÜK PAKETLER (B = kod, C = cihaz); bir tur = bir paket (gerekirse aynı dalda birkaç tur), biten madde paketten silinir. 👤 maddeler
