@@ -1356,3 +1356,9 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Sesli kitap: büyük Word ve sunumdan bölümler eskisi gibi çıkıyor mu?
 - [ ] Word (Mobil) editöründe büyük fotoğraflı belge: resimler net mi, boyutlandırma sürüklemesi akıcı mı?
 - [ ] Galeri: bozuk (yarım) bir JPEG kurtarılıp gösteriliyor mu; yakınlaştırınca netleşiyor mu? Yakındaki cihazdan aktarım teklifinde küçük resimler eskisi gibi mi?
+
+## 2026-11-18 — B12 Hız 2.0 m.1 + m.5: senkron disk erişimi + başlangıç (bulut, dal faz-oto-B12-hiz2; yazıldı, cihazda doğrulanmadı)
+- [ ] Bir arşivi (zip/rar) aç → başlıkta sıkıştırma oranı (bir an sonra) görünüyor mu?
+- [ ] Taşı/kopyala → klasör seç: favori ve son hedef kısayolları geliyor mu; silinmiş klasörün kısayolu görünmüyor mu?
+- [ ] SD kart birleştirme ayarı: klasör çiplerinde telefonda olan klasörler (Podcasts vb.) görünüyor mu?
+- [ ] Ayarlardan titreşimi kapat, uygulamayı kapatıp aç → ilk dokunuşta titreşim yok mu?

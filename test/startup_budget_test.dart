@@ -14,7 +14,6 @@ void main() {
   const allowed = <String>{
     'SystemChrome.setEnabledSystemUIMode', // kenardan kenara: ilk kare zıplamasın
     'NativeExtras.loadSystemAccent', // tema rengi ilk karede doğru
-    'AppHaptics.load',
     'pickerState.init', // yalnız dosya seçici girişi
     'DeviceProfile.load', // PerfBudget ilk kareden önce
     'appState.init',
@@ -44,6 +43,28 @@ void main() {
             'StartupQueue kullan ya da gerekçeyle listeye ekle (Faz 42 / 1).');
     // Aynı iş iki kez beklenmesin diye toplam sayı da tavanlı.
     expect(awaited.length, lessThanOrEqualTo(allowed.length + 1));
+  });
+
+  // B12 m.5 (2026-11-18): `runApp` öncesi beklenen iş sayısı (taşıma geri
+  // çağrısındakiler hariç; seçici ve ana yol birlikte) — MANDAL, yalnız
+  // düşer. 7 → 6 (AppHaptics.load beklenmiyor). Kalanlar her yolda 4:
+  // kenardan kenara, sistem rengi, durum init, cihaz profili.
+  const preRunAppCeiling = 6;
+  const inCallback = {
+    'FileTags.movePath',
+    'OpenHistory.movePath',
+    'FmColorsStore.moveFolder',
+  };
+
+  test('runApp öncesi await sayısı tavanı (mandal)', () {
+    final n = RegExp(r'await\s+([\w.]+)\(')
+        .allMatches(mainBody())
+        .where((m) => !inCallback.contains(m.group(1)))
+        .length;
+    expect(n, lessThanOrEqualTo(preRunAppCeiling),
+        reason: 'İlk kareden önce yeni bekleyen iş ($n > $preRunAppCeiling).');
+    expect(n, preRunAppCeiling,
+        reason: 'Tavan düştü ($n): preRunAppCeiling\'ı da düşür.');
   });
 
   test('StartupQueue ilk kareden sonra başlar', () {
