@@ -164,7 +164,7 @@ Bu bir zamanlanmış BULUT çalıştırmasıdır: telefon, adb ve Flutter yok; d
 
 İZİNLERİM: Gözetimsiz çalış, bana soru sorma. Alt ajan aç (Agent, isolation: worktree; fork değil). Şu dallara push izni veriyorum: main, faz-oto-*, oto-kilit. Oturumun sana verdiği claude/* ya da ccr-* dalını kullanma, ona push etme. PR açma. Plan KARAR maddelerini sormadan uygula; yeni karar → en güvenli seçenek + "sabah bakılacak"; 👤 madde → PLAN.md §3.
 
-AYARLAR: ÖLÇÜMSÜZ APK = hayır · GÜNLÜK DİLİM = 6
+AYARLAR: ÖLÇÜMSÜZ APK = evet · GÜNLÜK DİLİM = 6
 
 1. `bash .claude/skills/oto-bulut/kilit.sh al` çalıştır. MEŞGUL derse hiçbir şey yapmadan bitir; HATA derse tek satır yaz, bitir.
 2. `oto-bulut` skill'ini baştan sona uygula (.claude/skills/oto-bulut/SKILL.md — paket seçimi, işçiler, CI bekleme, birleştirme, [apk], yarım iş devri, bitiriş orada). İşçilere: "`isci` skill'ini Bulut kipi bölümüyle uygula, raporu Türkçe yaz".
@@ -173,10 +173,12 @@ AYARLAR: ÖLÇÜMSÜZ APK = hayır · GÜNLÜK DİLİM = 6
 ```
 
 **Ayarlar (istemde değiştirilir):**
-- `ÖLÇÜMSÜZ APK = hayır` (varsayılan, CLAUDE.md §4c ÖLÇÜM KAPISI): ölçüm kapısı yüzeyine (PDF
-  görüntüleyici, dosya listesi, ana ekran, çubuklar, klavye, geçiş) varsayılan açık dokunan iş
-  main'e girer ama `[apk]`'sız; ölçüm `PLAN.md` C2'ye, telefonla yerel zincir ölçüp APK yapar.
-  `evet` → kullanıcıya görünen iş bitince ölçümsüz `[apk]` (sabah yeni APK), ölçüm sonra.
+- `ÖLÇÜMSÜZ APK = evet` (kullanıcı kararı 2026-11-18: "her sabah APK istiyorum"): uygulamayı
+  değiştiren birleştirme `[apk]` taşır (en çok 4 saatte bir — kota); Türkiye saatiyle 04:00–09:00 arası
+  ilk birleştirme her zaman `[apk]`; 06:30'da hâlâ yeni APK yoksa main'de bir kez elle derleme
+  (günde en çok 1). Ölçülmeyen yüzeyler `PLAN.md` C2'ye "ölçülmedi"; telefonla ölçülünce gerileme
+  çıkarsa o değişiklik geri alınır ya da önce düzeltilir. `hayır` → ölçüm kapısı yüzeyine dokunan iş
+  telefonda ölçülene dek `[apk]`'sız.
 - `GÜNLÜK DİLİM = 6`: günde en çok 6 birleştirme (her biri ≈ 30 dk CI). Actions kotası ayda
   ~2000 dk (1'inde sıfırlanır); kota azaldıysa düşür.
 

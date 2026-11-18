@@ -111,6 +111,8 @@ Artifact deposu 0,5 GB: APK yayına ÖNBELLEKLE gider (artifact değil); runner 
 - **ÖLÇÜM KAPISI:** PDF görüntüleyici, dosya listesi, ana ekran, üst/alt çubuk, klavye ya da
   geçişe dokunan iş `[apk]`'dan önce cihazda A/B ölçülür (taban = önceki `[apk]` profil
   derlemesi, ölçüm kimliği `.r8test`). Ayrıntı ve telefon kuralları: **`ab-olcum` skill'i**.
+  **Bulut istisnası (kullanıcı 2026-11-18, "her sabah APK"):** bulut zinciri ölçümsüz `[apk]` yapar;
+  ölçüm sonra `PLAN.md` C2'de, gerileme çıkarsa revert/düzeltme SIRA'nın önüne.
 - **HIZ SÖZLEŞMESİ** (hız anayasası, `PLAN.md` §0): gerileme > %10 ya
   da kare p99 > 24 ms = birleştirme yok; hız işlerinde kötüleşme SIFIR; mandallar
   (`design_tokens_baseline.json`, `PerfBudget`, APK bütçesi) yalnız düşer. **Ölçmeden

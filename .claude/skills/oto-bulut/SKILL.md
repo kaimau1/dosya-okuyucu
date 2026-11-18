@@ -99,16 +99,28 @@ her metin Türkçe.
    `Yeni:/İyileştirme:/Düzeltme:` satırları + `Co-Authored-By` (ortamın verdiği).
    `git grep -nE "^(<<<<<<<|>>>>>>>)"` BOŞ olmalı → `git push origin main`. Durum için ayrı
    commit/push YOK. Paket TAMAMEN bittiyse satır işçinin dalında zaten silinmiştir.
-7. **APK noktası.** Uygulamayı değiştiren, kullanıcıya görünür iş birleşince `[apk]`; istemdeki
-   **ÖLÇÜMSÜZ APK** değerine göre:
-   - `hayır` (varsayılan, CLAUDE.md §4c ÖLÇÜM KAPISI): değişiklik ölçüm kapısı yüzeyine (PDF
-     görüntüleyici, dosya listesi, ana ekran, üst/alt çubuk, klavye, geçiş) varsayılan AÇIK
-     dokunuyorsa `[apk]` YOK — C2'ye "A/B bekliyor: <ne> (main <kısa sha>)"; yerel zincir telefonla
-     ölçüp `[apk]` yapar. Yalnız varsayılan KAPALI bayrak arkasında ya da kapı dışındaysa `[apk]`.
-     main'de A/B bekleyen iş varken hiçbir `[apk]` atılmaz (onu da taşırdı).
-   - `evet`: kullanıcıya görünür iş bitince `[apk]`; ölçülmeyen her yüzey C2'ye "ölçülmedi".
-   Oturum başına en çok 1 `[apk]` (kota). APK koşusu İZLENMEZ; yalnız sonraki kod içeren main
-   push'undan önce tek `actions_list` (main, `perPage: 1`) — sürüyorsa bekle.
+7. **APK noktası** — istemdeki **ÖLÇÜMSÜZ APK**:
+   - `evet` (kullanıcı 2026-11-18: "her sabah APK istiyorum"; CLAUDE.md §4c bulut istisnası):
+     uygulamayı değiştiren birleştirme `[apk]` taşır — yalnız son 4 saatte main'de `[apk]` yoksa
+     (`git log origin/main --since='4 hours ago' -E --grep='\[apk\]' --oneline` boş); varsa
+     `[apk]`'sız, sonraki taşır (kota). Ölçülmeyen her kapı yüzeyi C2'ye "ölçülmedi (<tarih>,
+     <kısa sha>)". Sabah APK'sı → aşağıdaki **Sabah denetimi**.
+   - `hayır` (CLAUDE.md §4c ÖLÇÜM KAPISI): kapı yüzeyine (PDF görüntüleyici, dosya listesi, ana
+     ekran, üst/alt çubuk, klavye, geçiş) varsayılan AÇIK dokunan iş `[apk]`'sız — C2'ye "A/B
+     bekliyor: <ne> (main <kısa sha>)", yerel zincir telefonla ölçüp `[apk]` yapar; main'de A/B
+     bekleyen iş varken hiçbir `[apk]` atılmaz.
+   APK koşusu İZLENMEZ; yalnız sonraki KOD içeren main push'undan önce tek `actions_list` (main,
+   `perPage: 1`) — sürüyorsa bekle (kod push'u süren APK'yı iptal eder).
+   **Sabah denetimi** (`evet` iken; her 3. adımdan önce ve 9. adımda, tek `date` + `git log`):
+   son APK'nın commit'i `S=$(git log origin/main -E --grep='\[apk\]' -1 --format=%H)`; ondan beri
+   uygulama değişikliği var mı: `git log $S..origin/main --oneline -- lib ci android assets
+   pubspec.yaml`. Türkiye saati (UTC+3) 04:00–09:00 arasındaysa ve değişiklik varsa: bu penceredeki
+   ilk uygulama değiştiren birleştirme 4 saat kuralına bakmadan `[apk]` taşır. TR 06:30'u geçtiyse,
+   değişiklik hâlâ APK'sızsa ve 30 dk içinde birleştirme beklenmiyorsa: main'de BİR KEZ elle tetik —
+   GitHub MCP `actions_run_trigger` (`run_workflow`, `build-apk.yml`, ref `main`; tam takım + APK
+   ≈ 50 dk). Önce `actions_list` (`branch: main`, `event: workflow_dispatch`, `perPage: 1`): bugün
+   tetik varsa YAPMA (günde en çok 1). Araç yoksa özete "sabah APK'sı çıkmadı: <neden>". Bu koşu
+   bitmeden kod içeren main push'u YOK.
 8. **Temizlik + sıradaki.** Birleşince işçinin çalışma kopyası `git worktree remove --force <yol>`;
    uzak dal SİLİNMEZ (vekil reddeder; birleşmiş dal 1. adımda yok sayılır, aynı adlı sonraki dilim
    `origin/main`'den yeniden başlar — ileri sarma olduğu için düz push yeter). Yarım kalan iş (limit/durdurma/KAYIP) → satır HEMEN

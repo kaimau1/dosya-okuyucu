@@ -48,9 +48,17 @@ Durum: `bekliyor` · `sürüyor` · `cihaz bekliyor` · `kullanıcı kararı` ·
 Model: `fable` · `opus` · `sonnet`. Cihaz: `—` · `evet` · `A/B` · `tablet`. APK: `evet` · `hayır`.
 Kaynak kısaltması: `arsiv/` = `docs/arsiv/planlar/`.
 
-**SIRA:** B1 → (telefon boşaldıkça C1, C2) → B2 → B3 → B4 → B5 → B6 → B7 → C3 → B8.
+**SIRA (2026-11-18, kullanıcı: "özellikleri geliştirmeye devam — Word, PDF, Excel, slayt; performans,
+hızlandırma, akıcılık, kullanıcı deneyimi hissi"):**
+- **Kod (bulut ya da yerel):** B1 → B12 → B9 → B13 → B10 → B4 → B11 → B2 → B5 → B6 → B7.
+- **Telefonla (yerel, paralel; boşaldıkça):** C1 → C2 → B3 → C3. **En son:** B8.
+
 Ferrari kuralı (§0): B3'teki hız işleri (P06, P12b, P29) bitmeden büyük yeni özellik **varsayılan
 açık** birleşmez — B1/B2 bayrakla (Akıllı düzen kullanıcı açınca çalışır) birleşebilir.
+**Gevşetme (kullanıcı 2026-11-18, "özellikleri geliştirmeye devam"):** B9–B11 editör özellikleri ve
+B4 PDF Pro varsayılan açık birleşebilir — koşul: dosya listesi / ana ekran / PDF kabuğunun sıcak
+yoluna dokunmaz, dokunulan editörün bütçe testi yeşil, A/B sonra C2'de. C2'de gerileme çıkarsa
+(§0 eşikleri) o commit `git revert` ya da düzeltme SIRA'nın EN ÖNÜNE.
 
 | No | Paket | Model | Kaynak | Cihaz | APK | Durum |
 |---|---|---|---|---|---|---|
@@ -61,6 +69,11 @@ açık** birleşmez — B1/B2 bayrakla (Akıllı düzen kullanıcı açınca ça
 | B5 | **Biçim + bakım + levha birliği:** P23 UDF (UYAP) okuyucu, P24 bağımlılık bakımı, P25 levha/pencere birliği (onay §3 K17) | opus | §1.5 | A/B | evet | bekliyor |
 | B6 | **Tasarım tamamlama:** P31 ana ekran aileleri kalanları (D simge takımı, F metinleri, K19), P32 menü ortak düzeni kalanları | opus | §1.6; docs/design/ana_ekran/ | A/B | evet | bekliyor — K19 kararıyla |
 | B7 | **Sürümler + yayın:** P30 Lite/Pro/Kişisel (S4–S9, K15/K16), P26 mağaza ekran görüntüleri | opus / sonnet | §1.7; arsiv/SURUM_PLANI | — | evet | kullanıcı kararı — K15 |
+| B9 | **Word 2.0:** içerik denetimleri (`w:sdt` bugün tek düz paragrafa iniyor), İçindekiler, değişiklikleri izle, yorum, dipnot, sadakat bekçisi, yazma hissi, büyük belge açılışı | opus | §1.9 | A/B | evet | bekliyor |
+| B10 | **Excel 2.0:** grafik türleri (bugün 4), formül kapsamı (189 işlev → dizi/metin işlevleri), veri doğrulama, otomatik/hızlı doldurma, süzgeç 2, sadakat bekçisi, hücre düzenleme hissi, açılış | opus | §1.10 | A/B | evet | bekliyor |
+| B11 | **Slayt 2.0:** görsel sadakat (altın görüntü testleri), grafik türleri, geçiş + animasyon + Biçim değiştir, yerinde metin düzenleme, AI tasarımcı, notlar + prova, sadakat bekçisi, sürükleme bütçesi | opus (animasyon planı fable) | §1.11 | A/B | evet | bekliyor |
+| B12 | **Hız 2.0 (cihazsız kanıtlı):** ana iş parçacığında eşzamanlı dosya G/Ç (14 dosya), açılış çözümlemesi izolatta, editör yeniden kurulum bütçeleri, görsel çözme, başlangıç, liste satır yüksekliği, APK | opus | §1.12; §0 | A/B (sonra C2) | evet | bekliyor |
+| B13 | **Deneyim hissi:** açılış geçişi, öngörülü geri, dokunuş haritası, aşamalı açılış, her yerde geri al, otomatik kayıt + kurtarma, hareket eşitliği, klavye, erişilebilirlik | opus | §1.13; arsiv/FERRARI §1 | A/B | evet | bekliyor |
 | B8 | **Son kapı:** P27 "10 işlem" son ölçüm + Samsung kıyası, erişilebilirlik, özellik dondurma kalkar | sonnet | arsiv/FERRARI_PLANI H12 | A/B | evet | bekliyor — en sonda, kullanıcıyla |
 | C1 | **Cihaz: hazır dalların ölçümü:** P08 PDF Pro bellek (`faz-oto-P08-bellek`), P28 PDF kabuğu (`faz-oto-P28-pdf-kabuk`), P07 son sayfa + döndür (`faz-oto-P07-artik`) → A/B → yeşilse birleştir | opus | §1.8; DEVIR.md | A/B | evet | cihaz bekliyor |
 | C2 | **Cihaz: perf A/B artıkları:** P13 liste/ızgara (klasor_5000 p99 23,5→38,9, B3.3c, soğuk açılış), P12 Excel 10k×20, P14 Word kapanış/menü (K21–K22), P04 boş/hata durumları (K6–K7) + 2026-11-18 AI/ana ekran işlerinin ölçümü | opus | §1.8; docs/perf/ | A/B | evet | cihaz bekliyor |
@@ -145,6 +158,10 @@ kullanıcı kendi kategorisini ekler ve **eklemeden önce doğru çalıştığı
 - **P19** OCR Pro: görünmez katman, renkli arka planda satır düzenleme (62) — Arapça için `CloudOcr` yolu hazır.
 - **P20** sayfa stüdyosu (küçük resim ızgarası, geri alınabilir sayfa komutları) (63).
 - **P21** parola/izin, meta veri, optimize, PDF/A, bu kipte yazdır; AES-256 (R6) kilit açma; `PdfEditorScreen` emekliliği (64).
+- **P22b okuma deneyimi (kullanıcı 2026-11-18):** hızlı kaydırma tutamacında sayfa no + küçük önizleme
+  balonu (FERRARI H2.4; `PdfViewerScrollThumb`, `viewer/body.dart`), bağlantı/içindekilerden atlayınca
+  "← geri dön" hapı (sayfa geçmişi), belge başına yakınlaştırma/görünüm kipini hatırla, çift dokunuşla metin
+  sütununa sığdır, seçim tutamaçlarında büyüteç. Önce bak: hangisi zaten var (grep); olanı geliştir.
 - **P22** kalite: başarı %94 → %98 (Type3 aralık, `/Rotate`, açılı metin), 50 sayfa artımlı kayıt, büyük belge/pil, görsel cila + tablet (54, 66–68) — C1'deki P08 birleşince.
 
 ### 1.5) B5 ayrıntısı — Biçim + bakım + levha birliği
@@ -173,12 +190,162 @@ kullanıcı kendi kategorisini ekler ve **eklemeden önce doğru çalıştığı
   metinleri, S9 Kişisel varsayılan — önce §3 K15/K16. AI özellikleri (Akıllı düzen, Decisions) hangi sürümde?
 - **P26:** mağaza ekran görüntüleri (son görünüm, TR/EN/AR) → `docs/play/`; `docs/play/yayin_rehberi.md`'ye uy.
 
+### 1.9) B9 ayrıntısı — Word 2.0 (sadakat + yazma hissi)
+
+Çekirdek: `lib/services/docx/docx_document.dart` (okuma/yazma), `services/docx/pro/*`; ekran
+`screens/editors/word_mobile_editor_screen.dart` + `word_mobile/`. Örnek belge KVKK gereği depoya
+GİRMEZ → testte sentetik docx üret. Her madde ayrı commit.
+
+1. **İçerik denetimleri (`w:sdt`) — KANIT VAR:** `docx_document.dart` `_readBody` (~476) `default:`
+   dalı blok düzeyindeki `w:sdt`'yi (Word'ün İçindekiler'i, kapak sayfası, form alanları) TEK opak
+   paragrafa düzleştiriyor: paragraflar birleşir, biçim gider, düzenlenemez (`grep sdt lib` = 0).
+   Önce test: 3 paragraflı sdt'li sentetik docx → 3 paragraf beklenir (kırmızı). Çözüm: `sdtContent`
+   içindeki `p`/`tbl` aynı yoldan okunur (kap korunur, kayıtta yerinde yazılır); satır içi `w:sdt`
+   için `_readPara`'ya bak. Form denetimleri: düz metin, onay kutusu (`w14:checkbox`), açılır liste
+   (`w:dropDownList`/`w:comboBox`), tarih (`w:date`) → dokununca doldurma levhası.
+   Kabul: aç → kaydet → aç kayıpsız; XML farkı yalnız değişen değer.
+2. **İçindekiler oluştur/güncelle:** Başlık 1–3'ten `TOC \o "1-3" \h` alanı + sayfa numaraları
+   (`DocxPaginator`); "Güncelle" düğmesi. Önce bak: `docx_insert_pro.dart` alan kodlarında TOC var mı.
+3. **Değişiklikleri izle (yazarken):** açıkken yazılan/silinen metin `w:ins`/`w:del` (yazar = Ayarlar'daki
+   ad, tarih); `settings.xml` `w:trackRevisions` bayrağına uyulur. Bugün yalnız karşılaştırma üretiyor
+   (`docx_compare.dart`; `grep trackRevisions` = 0); kabul/ret `DocxReview`'da var. Test: izle açık →
+   yaz/sil → kaydet → XML'de ins/del.
+4. **Yorumlar:** seçime yorum ekle, yanıtla, çözüldü (`comments.xml` + `commentsExtended.xml` `w15:done`),
+   kenar balonu. Önce bak: okuma 3 dosyada var; yazma?
+5. **Dipnot/sonnot:** ekle/düzenle/sil, numara otomatik, PDF dışa aktarımda sayfa altında. Önce bak:
+   `docx_insert.dart`, `word_format_ui.dart` (footnote geçiyor).
+6. **Sadakat bekçisi:** sentetik korpus (SmartArt, grafik, VML şekil, alan kodu, gömülü nesne,
+   `mc:AlternateContent`) → dokunmadan kaydet = parçalar birebir; tek paragraf düzenle = yalnız o
+   paragraf değişir. Test `word_roundtrip_test`.
+7. **Yazma hissi:** klavye üstü bağlamsal biçim çubuğu (seçim varken B/I/U/renk, yokken liste/hizalama),
+   otomatik düzeltme (cümle başı büyük harf, "--" → "—", çift boşluk; Ayarlar'dan kapanır), "- " / "1. "
+   ile başlayınca otomatik liste, imleç büyüteci + seçim tutamakları sistemle aynı (önce bak).
+8. **Büyük belge açılışı:** çözümleme izolatta, ilk sayfa önce (artımlı `DocxPaginator` var). Cihazsız
+   kanıt: 5000 paragraflık sentetik belgede ilk kare için çözümlenen paragraf sayısı bütçesi
+   (`word_perf_test` genişler). Cihaz A/B → C2.
+
+**Bitti:** 1–8 testli, `word_roundtrip_test` yeşil, `kasma-kontrol`, C2'ye "Word yazma/açılış A/B".
+
+### 1.10) B10 ayrıntısı — Excel 2.0
+
+Çekirdek: `lib/services/xlsx_*.dart`, `services/xlsx/`, `services/formula/`; ekran
+`screens/editors/spreadsheet/`. Her madde ayrı commit.
+
+1. **Grafik türleri — KANIT VAR:** yalnız 4 tür (`xlsx_chart.dart:14` `XlsxChartKind {column, bar, line,
+   pie}`; slaytta aynı: `pptx_chart_ops.dart:9`, `pptx_render.dart:251`). Ekle: alan, dağılım (XY), halka,
+   radar, yığılmış / %100 yığılmış sütun-çubuk; sonra şelale, histogram, kutu (`cx:` chartex — önce
+   okuma). Dosyadaki bilinmeyen tür bugün nasıl çiziliyor (önce bak) → en yakın tür + "yaklaşık" rozeti.
+   Excel + Slayt ORTAK çizici (B11.2 aynı kodu kullanır). Test: tür başına yaz → oku → çiz.
+2. **Formül kapsamı:** bugün 189 işlev (`formula/functions.dart` vb.). Eksikler: TEXTSPLIT,
+   TEXTBEFORE/TEXTAFTER, VSTACK/HSTACK, TAKE/DROP, CHOOSECOLS/CHOOSEROWS, LAMBDA/MAP/REDUCE/BYROW/BYCOL,
+   NETWORKDAYS.INTL/WORKDAY.INTL; önce bak: XMATCH, IFS, SWITCH, MAXIFS/MINIFS, TEXTJOIN, CONCAT.
+   Her işlev: Microsoft belgesindeki örneklerle birim testi + Türkçe ad (`formula/locale.dart`) + yardım
+   balonu (`formula_help.dart`). Kapsam listesi `docs/` altında değil, test dosyasında (bekçi).
+3. **Veri doğrulama:** liste (açılır), sayı/tarih aralığı, özel formül; hücrede açılır ok + seçim
+   levhası; geçersiz girişte uyarı. Önce bak: `dataValidation` 4 dosyada — okuma/yazma ne kadar.
+4. **Otomatik + hızlı doldurma:** tutamaçla seri (1,2,3 · Pzt,Sal · Ocak · tarih +1 · formülde göreli
+   kayma); "Hızlı doldurma" (örnekten desen: ad soyad ayır/birleştir). Önce bak: `autoFill` 4 dosyada.
+5. **Süzgeç/sıralama 2:** çok düzeyli sıralama, renge göre süzgeç, ilk 10, "içerir"; durum dosyaya
+   yazılır (`autoFilter` + `sortState`).
+6. **Sadakat bekçisi:** pivotTable/pivotCache, dilimleyici (`x14` slicer), koşullu biçim `x14`
+   uzantıları, tanımlı adlar, `.xlsm` `vbaProject.bin` (`grep vbaProject` = 0 → korunuyor mu?), dış
+   bağlantılar → dokunmadan kaydet = parçalar birebir (`xlsx_save_patch.dart` yolu). Test
+   `excel_roundtrip_test`.
+7. **Hücre düzenleme hissi:** Enter aşağı / Tab sağa / satır sonunda Enter, Tab'la başlanan sütuna döner;
+   sayı hücresinde sayısal klavye; tek dokunuş seç, çift dokunuş düzenle; yapıştırmada seçenek
+   (yalnız değer / biçim / formül); `spreadsheet_editor_screen.dart:418` ana iş parçacığında
+   `readAsBytesSync` (→ B12.1).
+8. **Açılış hızı:** büyük xlsx'te görünür pencere önce (`xlsx/xlsx_stream.dart` var); paylaşılan dizgeler
+   ve stiller izolatta; cihazsız kanıt `excel_perf_test` (100 bin satır) ilk pencere bütçesi; A/B → C2.
+
+**Bitti:** 1–8 testli, `excel_roundtrip_test` yeşil, C2'ye "Excel A/B".
+
+### 1.11) B11 ayrıntısı — Slayt 2.0
+
+Çekirdek: `lib/services/pptx_render.dart`, `services/pptx/`; ekran `screens/editors/slides*`,
+`slideshow*`. Her madde ayrı commit.
+
+1. **Görsel sadakat:** sentetik pptx korpusu (gradyan dolgu, gölge, yansıma, döndürülmüş metin kutusu,
+   `normAutofit` fontScale, çok düzeyli madde, tema yazı tipleri, tablo stilleri) → `pptx_render` altın
+   görüntüleri + fark eşiği. Önce bak: `test/` altında slayt altın testi var mı.
+2. **Grafik türleri:** B10.1'in ortak çizicisi (slayttaki 4 tür aynı genişler).
+3. **Geçiş + animasyon (plan evresi fable):** dosyadaki `p:transition` türleri sunumda oynasın (hangileri
+   oynuyor önce bak), giriş/çıkış/vurgu animasyonu temel seti (`p:timing`: görün, kay, yaklaş, sil, dön),
+   önizleme düğmesi; "Biçim değiştir" (Morph) temel: aynı adlı şekiller arasında konum/boyut/renk ara
+   geçişi. 60 fps hedefi `RepaintBoundary` + önceden rasterize (var).
+4. **Yerinde metin düzenleme:** şekle çift dokun → imleç doğrudan metinde; klavye açılınca slayt kayar
+   (yazılan satır görünür); `normAutofit` canlı (yazdıkça punto küçülür).
+5. **Tasarımcı (AI, isteğe bağlı):** seçili slayt için 3 düzen önerisi (`PptxTemplates.suggest` + Gemini),
+   önizlemeyle uygula; AI kapalıyken yerel kurallar (başlık + maddeler → iki sütun vb.).
+6. **Notlar + prova:** konuşmacı notu yazma, prova kipi (slayt başı süre → `advTm`), sunumda büyük not.
+7. **Sadakat bekçisi:** dokunmadan kaydet = parçalar birebir (SmartArt veri parçaları, gömülü yazı
+   tipleri, medya, özel XML) — `slides_roundtrip_test`.
+8. **Sürükleme bütçesi:** şekil sürüklerken yalnız seçili şekil yeniden çizilsin — kurulum/çizim sayısı
+   (`slides_perf_test` genişler); sunumda geçiş karesi bütçesi.
+
+**Bitti:** 1–8 testli, altın + roundtrip yeşil, C2'ye "Slayt düzenleme/sunum A/B".
+
+### 1.12) B12 ayrıntısı — Hız 2.0 (cihazsız kanıtlı, bulutta yapılabilir)
+
+§0 geçerli: tahminle değişiklik YOK. Kanıt cihazsız ölçülebilen: bekçi testi (statik tarama, tavanı
+yalnız düşer), kurulum/çizim sayısı (`PerfBudget`), test içinde `Stopwatch`'lı çözümleme süresi, bellek
+tavanı. Cihaz A/B sonra C2'de. Her madde ayrı commit (tek başına geri alınır).
+
+1. **Ana iş parçacığında eşzamanlı dosya G/Ç:** `lib/screens` + `lib/widgets` 14 dosyada
+   `existsSync/statSync/listSync/readAs*Sync` (ör. `spreadsheet_editor_screen.dart:418`, `home_screen.dart`,
+   `fm/photos/data.dart`, `fm/dashboard/tiles.dart`, `fm/image_gallery_screen.dart`). Bekçi
+   `test/sync_io_guard_test.dart`: dosya başına sayı tavanı (mandal) → sıcak yoldakiler (build, kaydırma,
+   açılış) async'e ya da izolata; kalanlar gerekçeyle tavanda.
+2. **Açılış çözümlemesi izolatta:** docx/xlsx/pptx/ODF/EPUB için "ana iş parçacığında çözümleme süresi"
+   testi (sentetik büyük dosya); 16 ms'yi aşan döngüler `Isolate.run`'a. Önce bak: `compute(`/
+   `Isolate.run` 71 dosyada — hangi biçim dışarıda kalmış.
+3. **Editör yeniden kurulum bütçeleri:** Word'de bir harf, Excel'de bir hücre girişi, Slayt'ta şekil
+   sürükleme, PDF'te sayfa değişimi → kaç widget yeniden kuruluyor (`PerfBudget` senaryosu yoksa ekle)
+   → daralt (seçici dinleyici, `const`, `RepaintBoundary`), mandal düşer.
+4. **Görsel çözme:** `cacheWidth/cacheHeight`'sız `Image.file/memory/FileImage` bekçisi (liste, ızgara,
+   küçük resim); eksiklere ekle.
+5. **Başlangıç:** `main.dart`'ta `runApp` öncesi beklenen (`await`) işler — ilk kare için gerekmeyen
+   ilk kareden sonraya; bekçi: `runApp` öncesi `await` sayısı tavanı.
+6. **Liste satır yüksekliği:** sabit yükseklikli listelerde `itemExtent`/`prototypeItem` (6 dosyada var)
+   — ayarlar, geçmiş, arama sonuçları vb.; dosya listesi (ÖLÇÜM KAPISI) yalnız C2 ölçümüyle.
+7. **APK/bağımlılık:** kullanılmayan paket/varlık taraması (APK bütçesi yalnız düşer).
+
+**Bitti:** bekçiler yeşil, tavanlar düştü, C2'ye "B12 hız A/B: <yüzeyler>".
+
+### 1.13) B13 ayrıntısı — Deneyim hissi (akıcılık · dokunuş · geri bildirim)
+
+İlkeler `docs/arsiv/planlar/FERRARI_PLANI.md` §1; tokenlar `Motion.of`, `AppHaptics`, `Gap/Radii/AppType`;
+görünür her değişiklikte `kasma-kontrol`; görünüş değişmeden önce eski kullanıcı kararları `grep`.
+
+1. **Açılış geçişi (FERRARI H1.5/H6.3):** dosya satırından görüntüleyiciye `Motion.medium` büyüyen geçiş
+   (paket eklemeden kap dönüşümü) — PDF, Word, Excel, Slayt, görsel; azaltılmış harekette düz solma.
+2. **Öngörülü geri:** manifest `enableOnBackInvokedCallback="true"` var; temada öngörülü geri sayfa
+   geçişi (Flutter 3.47'de hazır kurucu var mı önce bak) + levhalar geri hareketiyle kapanır.
+3. **Dokunuş haritası:** aynı eylem = aynı titreşim (seçim değişimi hafif tık, uzun bas orta, silme/hata
+   uyarı, sürükle-bırak oturma hafif); bekçi: ham `HapticFeedback.` yalnız `AppHaptics` içinde.
+4. **Aşamalı açılış:** Office belgesinde boş ekran/çark yerine iskelet → ilk sayfa → tam (B12.2 ile);
+   ilerleme yazısı yalnız > 1 sn.
+5. **Her yerde geri al:** silme, taşıma, yeniden adlandırma, toplu işlem, editörde büyük değişiklik →
+   5 sn "Geri al" şeridi; eksik yerlerin envanteri + bekçi (silme yolları).
+6. **Otomatik kayıt + kurtarma:** Word/Excel/Slayt/PDF düzenlemede boşta taslak (`viewer/pending_save.dart`
+   var — kapsamı bak), çökme sonrası "Kaydedilmemiş değişiklikler kurtarıldı"; üst çubukta sessiz
+   "Kaydedildi ✓".
+7. **Hareket eşitliği:** Word/Excel/Slayt'ta iki parmakla yakınlaştır + çift dokunuşla sığdır/geri, PDF
+   ile aynı his (sınırda yaylanma, ivmeli kaydırma).
+8. **Klavye:** editörlerde klavye açılırken içerik zıplamaz (imleç satırı görünür), araç çubuğu klavyenin
+   üstüne yapışır, kapanınca konum korunur — widget testi (`viewInsets` değişimi) + kurulum bütçesi.
+9. **Erişilebilirlik (H12.3'ün cihazsız kısmı):** `androidTapTargetGuideline` (≥ 48 dp) ve
+   `textContrastGuideline` widget testleri ana ekranlarda; çok büyük yazıda taşma testleri.
+
+**Bitti:** testli, `kasma-kontrol`, C3'e "his turu: geçiş, geri, titreşim, klavye" maddeleri.
+
 ### 1.8) Cihaz paketleri (C1–C3) — telefon bağlıyken yerelde
 
 - Taban = önceki `[apk]` profil derlemesi, ölçüm kimliği `.r8test`; eşikler §0/8 (gerileme > %10 ya da
   p99 > 24 ms → birleşmez). Senaryolar: `tool/perf_senaryo.sh`, `tool/pdf_profil.sh`; ayrıntı `ab-olcum`.
 - **C1:** P08 (DEVIR.md senaryosu), P28 (A/B yarım: 1+1 tur kaldı, gözle bakılmadı), P07 (CIHAZ_TESTI "Ferrari H1.4 + H8.5").
-- **C2:** P13 (klasor_5000 p99 23,5→38,9; B3.3c Fotoğraflar donması; soğuk açılış ≤ 1,2 sn), P12 (10k×20
+- **C2** (bulutun ölçümsüz `[apk]`'ları dahil: her B9–B13 birleşmesi buraya "ölçülmedi" satırı yazar):
+  P13 (klasor_5000 p99 23,5→38,9; B3.3c Fotoğraflar donması; soğuk açılış ≤ 1,2 sn), P12 (10k×20
   ≤ 1,5 sn, K23 FrameTiming %99), P14 (`word_300_menu`/`_kapanis`, K21–K22), P04 (2 tur, gürültü şüphesi;
   K6–K7) + **2026-11-18 işleri:** ana ekran "Son açılanlar/Yeni gelenler" sekmesi ve `smart` kutusu, liste
   satırında akıllı ikinci ad, galeride QR düğmesi (kaydırırken kasma yok mu).
