@@ -1334,3 +1334,11 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] AI kapsamı dışındaki klasördeki Word/Excel hiç sayılmıyor mu?
 
 - [ ] (2026-11-18) Galeri: eski bir fotoğrafa dokun → hücreden büyüme takılmadan akıyor mu; açıldıktan hemen sonra netleşiyor mu; sağa/sola geçiş hâlâ anında mı. Video: dokununca kapaktan büyüme akıcı mı.
+
+## 2026-11-18 — Akıllı düzen şema 2.0 (bulut, dal faz-oto-B1-duzen2; yazıldı, cihazda doğrulanmadı)
+- [ ] "Şimdi düzenle" sonrası fatura ikinci adı "Elektrik faturası · Enerjisa · Ekim 2026" gibi kurumla mı geliyor; elektrik faturasına GSM şirketi yazılmıyor mu?
+- [ ] Son ödeme tarihi geçmiş bir fatura / süresi dolmuş bir kimlik ya da poliçe → Akıllı düzen ekranında "Dikkat" bölümünde "Ödemesi geçmiş fatura" / "Süresi dolmuş belge" çıkıyor, dokununca liste açılıyor mu?
+- [ ] "Tutara göre" çipleri (100 altı · 100–500 · 500–2000 · 2000 üstü) doğru fiş/faturaları listeliyor mu?
+- [ ] APK ve zip: "Kurulum / arşiv" klasörüne, "Kurulum dosyası" / "Yedek" / "İndirilen arşiv" ikinci adıyla giriyor mu?
+- [ ] Durum kartında "Son tur: … dosya başına ~N birim · M soru" satırı görünüyor mu (görünmüyorsa API `usage` alanı farklı adla geliyor — sabah bakılacak)?
+- [ ] Önceki sürümde düzenlenmiş dosyaların ikinci adları güncellemeden sonra yerinde mi (eski kayıt bozulmadı mı)?
