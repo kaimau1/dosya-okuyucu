@@ -339,7 +339,11 @@ class _PhotoThumbState extends State<_PhotoThumb> {
     // yatay fotoğrafta yükseklik hücrenin altına düşüp `cover` ile yeniden
     // büyütülüyordu (bulanıklığın ikinci kaynağı, 2026-11-04).
     final provider = FmFileImage(thumb);
-    if (exact != null) fmRememberThumb(_path, provider);
+    // Önizleme (başka boydaki eski küçük resim) de bildirilir: eski
+    // fotoğraflarda tam boy küçük resim çoğu kez henüz yok, galeri ilk kareyi
+    // ve en-boy oranını bulamayınca büyüme geçişi kutusu ortasında
+    // değişiyordu (2026-11-18, "eski fotoğraflar takılarak açılıyor").
+    fmRememberThumb(_path, provider);
     return ClipRRect(
       borderRadius: BorderRadius.circular(widget.radius),
       child: Image(
