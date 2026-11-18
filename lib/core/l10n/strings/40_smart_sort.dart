@@ -86,9 +86,9 @@ const Map<String, (String, String, String)> _t40 = {
   'sm.tile_off': ('AI düzenlesin', 'Let AI organize', 'دع الذكاء الاصطناعي ينظم'),
   'sm.intro_title': ('Telefonun kendi kendini düzenlesin', 'Let your phone organize itself', 'دع هاتفك ينظم نفسه'),
   'sm.intro_body': (
-    'Yeni gelen belgelere ve görsellere AI bakar; her birine anlaşılır bir ikinci ad ve kategori verir.',
-    'AI looks at new documents and images and gives each a clear second name and category.',
-    'ينظر الذكاء الاصطناعي إلى المستندات والصور الجديدة ويمنح كلًا منها اسمًا ثانيًا وفئة واضحين.',
+    'Yeni gelen belgelere (PDF, Word, Excel, sunum, metin) ve görsellere AI bakar; her birine anlaşılır bir ikinci ad ve kategori verir.',
+    'AI looks at new documents (PDF, Word, Excel, slides, text) and images and gives each a clear second name and category.',
+    'ينظر الذكاء الاصطناعي إلى المستندات الجديدة (PDF وWord وExcel والعروض والنصوص) والصور ويمنح كلًا منها اسمًا ثانيًا وفئة واضحين.',
   ),
   'sm.point_place': (
     'Dosyaların yeri ve adı değişmez — hiçbir şey taşınmaz.',
@@ -106,9 +106,9 @@ const Map<String, (String, String, String)> _t40 = {
     'تُخفى بطاقات التهنئة والميمات والصور الضبابية والعرضية أو تُحذف بلمسة.',
   ),
   'sm.privacy': (
-    'Kapsam: İndirilenler, Belgeler, ekran görüntüleri, WhatsApp ve Telegram. Kamera ancak sen açarsan. Dosya incelenmek üzere Google Gemini\'ye gönderilir; sonuç yalnız telefonunda saklanır. Ücretsiz Gemini anahtarında Google gönderilen veriyi ürünlerini geliştirmek için kullanabilir. AI kapsamı dışındaki klasörler hiç gönderilmez.',
-    'Scope: Downloads, Documents, screenshots, WhatsApp and Telegram. Camera only if you turn it on. Files are sent to Google Gemini for review; results stay only on your phone. With a free Gemini key Google may use the data to improve its products. Folders outside the AI scope are never sent.',
-    'النطاق: التنزيلات والمستندات ولقطات الشاشة وواتساب وتيليجرام. الكاميرا فقط إذا فعّلتها. تُرسل الملفات إلى Google Gemini للمراجعة؛ وتبقى النتائج على هاتفك فقط. مع مفتاح Gemini المجاني قد تستخدم Google البيانات لتحسين منتجاتها. لا تُرسل المجلدات خارج نطاق الذكاء الاصطناعي أبدًا.',
+    'Kapsam: İndirilenler, Belgeler, ekran görüntüleri, WhatsApp ve Telegram. Kamera ancak sen açarsan. Dosya (Word, Excel ve sunumlarda yalnız yazısı; APK ve arşivlerde yalnız adı, boyutu ve klasörü) incelenmek üzere Google Gemini\'ye gönderilir; sonuç yalnız telefonunda saklanır. Ücretsiz Gemini anahtarında Google gönderilen veriyi ürünlerini geliştirmek için kullanabilir. AI kapsamı dışındaki klasörler hiç gönderilmez.',
+    'Scope: Downloads, Documents, screenshots, WhatsApp and Telegram. Camera only if you turn it on. Files (for Word, Excel and slides only their text; for APKs and archives only name, size and folder) are sent to Google Gemini for review; results stay only on your phone. With a free Gemini key Google may use the data to improve its products. Folders outside the AI scope are never sent.',
+    'النطاق: التنزيلات والمستندات ولقطات الشاشة وواتساب وتيليجرام. الكاميرا فقط إذا فعّلتها. تُرسل الملفات (لملفات Word وExcel والعروض نصها فقط؛ ولملفات APK والأرشيف اسمها وحجمها ومجلدها فقط) إلى Google Gemini للمراجعة؛ وتبقى النتائج على هاتفك فقط. مع مفتاح Gemini المجاني قد تستخدم Google البيانات لتحسين منتجاتها. لا تُرسل المجلدات خارج نطاق الذكاء الاصطناعي أبدًا.',
   ),
   'sm.enable': ('Aç ve düzenle', 'Turn on and organize', 'فعّل ونظّم'),
   'sm.disable': ('Akıllı düzeni kapat', 'Turn off smart organize', 'أوقف التنظيم الذكي'),

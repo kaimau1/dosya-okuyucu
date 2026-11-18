@@ -62,7 +62,7 @@ yoluna dokunmaz, dokunulan editörün bütçe testi yeşil, A/B sonra C2'de. C2'
 
 | No | Paket | Model | Kaynak | Cihaz | APK | Durum |
 |---|---|---|---|---|---|---|
-| B1 | **AI Akıllı düzen 2.0 — çekirdek:** ayrıntılı sınıflandırma (§1.1), kullanıcı kategorileri (doğruluk kapısıyla), HER dosya türü (Office/metin/ses/video/arşiv), doğruluk ölçüm tezgâhı, Files API (büyük dosya) | opus (şema evresi fable) | §1.1; HAFIZA 2026-11-18 | A/B | evet | bulutta: sürüyor (2026-11-18) — dal faz-oto-B1-duzen2 |
+| B1 | **AI Akıllı düzen 2.0 — çekirdek:** ayrıntılı sınıflandırma (§1.1), kullanıcı kategorileri (doğruluk kapısıyla), HER dosya türü (Office/metin/ses/video/arşiv), doğruluk ölçüm tezgâhı, Files API (büyük dosya) | opus (şema evresi fable) | §1.1; HAFIZA 2026-11-18 | A/B | evet | bulutta: sürüyor (2026-11-18) — dal faz-oto-B1-duzen2; dilim "metin türleri" (§1.1 m.2 metin) main'e gidiyor, kalan: şema (m.1), ses/video + Files API, kullanıcı kategorileri, tezgâh, hız/kota |
 | B2 | **AI Akıllı düzen 2.0 — kullanım:** Ayıkla 2 (en iyi kare, benzer kare grupları), kontrol listeleri, düzeltmeden öğrenme, isteğe bağlı taşıma kuralları, hassas kategori kilidi, Decisions'ın kalan kullanımları (eski P33/P34) | opus | §1.2 | A/B | evet | bekliyor — B1'den sonra |
 | B3 | **Hız (Ferrari) kod + ölçüm:** P12b Excel/liste A/B artıkları, P29 büyük başlık + kalıcı hata şeridi, P06 PDF kaydırma H2.1–H2.6 | opus (P06 plan evresi fable) | §1.3; arsiv/FERRARI_PLANI H2 | A/B | evet | bekliyor |
 | B4 | **PDF Pro tamamlama:** P16 metin, P17 nesne/işaret, P18 form+imza, P19 OCR Pro, P20 sayfa stüdyosu, P21 parola/meta/optimize/PDF-A, P22 kalite %98 | opus (plan evresi fable) | §1.4; arsiv/PDF_PRO_PLANI 54–68 | A/B | evet | bekliyor — 2–3 oturum, tek dal |
@@ -98,9 +98,12 @@ kullanıcı kendi kategorisini ekler ve **eklemeden önce doğru çalıştığı
      → "Ödemesi geçmiş fatura", "Süresi dolmuş belge" rozetleri. Tutar aralığı (choice: <100 · 100–500 ·
      500–2000 · >2000 · yok) süzgeci.
    - Tek istek kuralı korunur; soru sayısı ölçülür (girdi belirteci raporu `usage`'tan).
-2. **Her dosya türü:**
-   - Word/ODT/RTF/TXT/MD/HTML/EPUB → metin özütü **izolatta** (ilk ~20 bin karakter) → `text` bloğu.
-   - Excel/CSV/ODS → ilk sayfanın ilk ~200 satırı CSV; PowerPoint/ODP → slayt metinleri (+ ilk slayt görüntüsü).
+2. **Her dosya türü:** _(metin kısmı yazıldı — bulut 2026-11-18, dal faz-oto-B1-duzen2,
+   `lib/services/fm/smart_sort_input.dart`: Word/ODT/RTF/TXT/MD/HTML/EPUB yazısı ≤ 20 bin karakter,
+   Excel/CSV/ODS ilk sayfa ≤ 200 satır CSV, PowerPoint/ODP slayt yazıları, APK/arşiv yalnız ad·boyut·klasör;
+   izolatta, mevcut tura girer)_ **Kalan:**
+   - PowerPoint/ODP → ilk slayt görüntüsü (yazıya ek).
+   - APK/arşiv için şema seçenekleri (kurulum dosyası · yedek · indirme) — madde 1 şemasıyla.
    - Ses (mp3/m4a/ogg/wav) → `audio` bloğu: tür (sesli not · toplantı · ders · telefon kaydı · müzik ·
      WhatsApp sesli mesajı), konuşma dili, gürültü/kalite; 14 MB üstü **Files API** (`uri`).
    - Video → `video` bloğu, düşük çözünürlük, ilk 60 sn (`start_offset/end_offset`): aile/kişisel ·
@@ -350,7 +353,8 @@ görünür her değişiklikte `kasma-kontrol`; görünüş değişmeden önce es
   K6–K7) + **2026-11-18 işleri:** ana ekran "Son açılanlar/Yeni gelenler" sekmesi ve `smart` kutusu, liste
   satırında akıllı ikinci ad, galeride QR düğmesi (kaydırırken kasma yok mu).
 - **C3:** P11 genel tur + K20–K28; Arapça OCR, AI hızlı/toplu kontrol, paylaşım kalkanı, Akıllı düzen ve
-  Ayıkla maddeleri (CIHAZ_TESTI 2026-11-18).
+  Ayıkla maddeleri (CIHAZ_TESTI 2026-11-18); Akıllı düzen Word/Excel/sunum/metin/APK ikinci adları
+  (bulut 2026-11-18, dal faz-oto-B1-duzen2).
 
 ---
 
