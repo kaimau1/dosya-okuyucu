@@ -125,7 +125,10 @@ Future<void> _main() async {
   // Sistem rengi (Material You) ilk temadan ÖNCE: sonradan gelseydi açılışta
   // bir kare eski renk görünürdü. Tek kanal çağrısı (milisaniye).
   await NativeExtras.loadSystemAccent();
-  await AppHaptics.load();
+  // B12 m.5: titreşim tercihi ilk kare için gerekmez → beklenmez. Aynı
+  // `SharedPreferences.getInstance` geleceğini `appState.init` de bekliyor;
+  // bu dinleyici önce kayıtlı olduğundan değer yine `runApp`ten önce yerinde.
+  unawaited(AppHaptics.load());
   // Ekran içi aramalar ikinci adı da bulsun (bkz. `FmFilter.aliasOf`).
   // Dizin ilk aramada arka planda yüklenir; açılışı bekletmez.
   FmFilter.aliasOf = (path) {

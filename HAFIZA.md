@@ -270,3 +270,8 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Bekçi:** `test/open_parse_isolate_test.dart` — sentetik büyük docx/xlsx/pptx ana izlekte > 16 ms (Stopwatch, kanıt) + ekranlarda çıplak `X.parse(` dosya başına tavan (koparma `compute(X.parse, b)` eşleşmez). Word `_rerender` tavanda (m.3).
 - **m.4:** `test/image_cache_guard_test.dart` — `Image.memory`/`MemoryImage` çözme boysuz olamaz. Tuzak: `cover` kutuda yalnız `cacheWidth` yatay görseli bulanıklaştırır → ham küçük resimde `ResizeImage(policy: fit)` iki kenar tavanı (büyütmez). Word editöründe `cacheWidth` sürüklenen genişlikten değil `maxW`den (kademeli; her karede yeniden çözme olmasın).
 - ODF/EPUB uygulamada açılmıyor (ODT/ODS/ODP harici aç) → m.2 kapsamı dışı. Cihaz A/B → C2.
+
+## 2026-11-18 — B12 Hız 2.0 m.1 + m.5 (bulut, dal faz-oto-B12-hiz2)
+- **Bekçi (m.1):** `test/sync_io_guard_test.dart` — `lib/screens`+`lib/widgets` senkron G/Ç (`sync_io_ratchet_test` ile aynı aile) DOSYA BAŞINA tavan, düşünce tablo da düşmeli (slack denetimi). Toplam cırcır 26 → 22.
+- **Karar:** `build` içindeki stat'ler eşzamansız + önbellek: arşiv oranı (`_measureArchive`), SD birleştirme aday klasörleri (`_scanFolders`, `_load` setState'inden SONRA beklenmeden — sd_union_test sahte saatte ek tur istemesin), klasör seçici kısayolları (`_liveDir`: yol başına bir kez, sonuç gelene dek gizli). Ana ekran/pano/dosya seçici/galeri/PDF kabuğundakiler ÖLÇÜM KAPISI → tavanda, C2.
+- **m.5:** `AppHaptics.load` beklenmiyor; aynı `SharedPreferences.getInstance` geleceğinin ilk dinleyicisi olduğundan değer `appState.init`ten önce yerinde. Kenardan kenara `await` bilinçli (ilk kare zıplamasın). `startup_budget_test` runApp öncesi tavan 6 (mandal).

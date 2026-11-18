@@ -41,6 +41,11 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
   Timer? _poll;
   List<StorageVolume> _cards = const [];
 
+  /// Ana bellekte VAR olan aday klasörler (B12 m.1): `build` içinde her
+  /// karede (iş sürerken 1,5 sn'de bir) eşzamanlı `existsSync` yerine açılışta
+  /// bir kez eşzamansız taranır; gelene dek yalnız seçili klasörler görünür.
+  Set<String> _presentFolders = const {};
+
   @override
   void initState() {
     super.initState();
@@ -70,8 +75,24 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
       _settings = settings;
       _cards = cards;
     });
+    _scanFolders();
     await _refreshStatus();
     _refreshPreview();
+  }
+
+  Future<void> _scanFolders() async {
+    final primary = FmEnv.primaryRoot;
+    final present = <String>{};
+    for (final folder in SdUnionSettings.candidateFolders) {
+      try {
+        if (await Directory(p.join(primary, folder)).exists()) {
+          present.add(folder);
+        }
+      } catch (_) {
+        // Bilinçli: okunamayan klasör aday olarak sunulmaz.
+      }
+    }
+    if (mounted) setState(() => _presentFolders = present);
   }
 
   Future<void> _refreshStatus() async {
@@ -501,13 +522,12 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
       );
 
   Widget _foldersTile(SdUnionSettings settings) {
-    final primary = FmEnv.primaryRoot;
     // Yalnız ana bellekte VAR olan klasörler (ve daha önce seçilmiş olanlar)
     // sunulur — "Podcasts" klasörü olmayan telefonda boş çip kafa karıştırır.
     final shown = [
       for (final folder in SdUnionSettings.candidateFolders)
         if (settings.folders.contains(folder) ||
-            Directory(p.join(primary, folder)).existsSync())
+            _presentFolders.contains(folder))
           folder,
     ];
     return Padding(
