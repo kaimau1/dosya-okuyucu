@@ -15,6 +15,7 @@ zinciri sıfırdan çalıştırmak için adım adım rehberdir. Kurallar dosyala
 | `.claude/skills/isci/SKILL.md` | alt ajan kuralları (dal, DEVIR.md, kanıt→düzelt→kanıt, CI) |
 | `.claude/skills/ab-olcum/SKILL.md` | cihaz A/B ölçümü + test telefonu kuralları |
 | `.claude/skills/kasma-kontrol/SKILL.md` | görünür arayüz değişikliğinde 8 maddelik kasma listesi |
+| `.claude/skills/oto-bulut/SKILL.md` + `kilit.sh` | BULUT yürütücü turu (telefonsuz, uzak kilit `oto-kilit`) — kurulum (g) |
 | `.claude/settings.json` | oturum başında `git pull --rebase --autostash` kancası (zaten vardı) |
 
 ---
@@ -136,3 +137,54 @@ Telefon bağlı değilse cihaz işleri `cihaz bekliyor` olur, kod işleri sürer
 4. APK: `[apk]` başlıklı birleştirmelerden sonra CI "nightly" sürümünü günceller
    (`releases/latest/download/dosya-okuyucu.apk`); sürüm notu commit gövdelerindeki
    `Yeni:/İyileştirme:/Düzeltme:` satırlarından otomatik.
+
+## (g) Bulut zinciri — claude.ai zamanlanmış görev `okuyucu-bulut` (telefonsuz, 2026-11-18)
+
+Bilgisayar kapalıyken de sürer; yalnız kod (B) paketlerini dilim dilim yapar. Telefon işleri
+(C paketleri, A/B ölçümü) yerel zincirde kalır. Parçalar: `.claude/skills/oto-bulut/SKILL.md`
+(yürütücü), `.claude/skills/oto-bulut/kilit.sh` (uzak kilit = `oto-kilit` dalı), `isci` skill'i
+"Bulut kipi", `PLAN.md` §1 (`bulutta:` öneki), `OTOMASYON.md` "Bulut zinciri".
+
+**Kurulum (bir kez, claude.ai/code → zamanlanmış görevler):**
+1. Yeni görev — **Ad** `okuyucu-bulut` · **Depo** `kaimau1/dosya-okuyucu` (dal `main`) ·
+   **Ortam** Default yeterli (GitHub + paket kayıtları; ek host, anahtar, kurulum betiği GEREKMEZ —
+   Flutter kurulmaz, doğrulama CI) · **Model** Opus · **Sıklık** saatlik, dakika :37
+   (`37 * * * *`) · her çalıştırma yeni oturum.
+2. İzin kipi sorulursa onay istemeyen kip (gece bir onay penceresi bütün turu kilitler).
+3. Bildirim: kapalı önerilir (kilit meşgulken de her saat gelir).
+4. İstem: aşağıdaki kutu, OLDUĞU GİBİ.
+5. İlk çalıştırmayı "Şimdi çalıştır" ile tetikle, ilk 15 dakikaya bak: GitHub'da `oto-kilit` dalı
+   göründü mü, `PLAN.md`'de satır `bulutta: sürüyor` oldu mu, `faz-oto-B…` dalı açıldı mı.
+
+**İstemin tam metni:**
+
+```
+BULUT ZİNCİRİ — dosya okuyucu (kaimau1/dosya-okuyucu · Flutter · yalnız Android).
+Bu bir zamanlanmış BULUT çalıştırmasıdır: telefon, adb ve Flutter yok; doğrulama = GitHub Actions CI.
+
+İZİNLERİM: Gözetimsiz çalış, bana soru sorma. Alt ajan aç (Agent, isolation: worktree; fork değil). Şu dallara push izni veriyorum: main, faz-oto-*, oto-kilit. Oturumun sana verdiği claude/* ya da ccr-* dalını kullanma, ona push etme. PR açma. Plan KARAR maddelerini sormadan uygula; yeni karar → en güvenli seçenek + "sabah bakılacak"; 👤 madde → PLAN.md §3.
+
+AYARLAR: ÖLÇÜMSÜZ APK = hayır · GÜNLÜK DİLİM = 6
+
+1. `bash .claude/skills/oto-bulut/kilit.sh al` çalıştır. MEŞGUL derse hiçbir şey yapmadan bitir; HATA derse tek satır yaz, bitir.
+2. `oto-bulut` skill'ini baştan sona uygula (.claude/skills/oto-bulut/SKILL.md — paket seçimi, işçiler, CI bekleme, birleştirme, [apk], yarım iş devri, bitiriş orada). İşçilere: "`isci` skill'ini Bulut kipi bölümüyle uygula, raporu Türkçe yaz".
+3. Kesin kurallar: CI kırmızıyken main'e ASLA birleştirme; testi atlama/kapatma yok; ara push'lar [skip ci] (dilim başına tek CI koşusu); imza anahtarı, sır ve kişisel veri hiçbir dosyaya girmez.
+4. Bitirirken: arka plan işlerini durdur, `git log origin/main..main` boş olsun, `kilit.sh birak`, 5 satırlık Türkçe özet (ne birleşti, ne takıldı, kalan, cihazda bakılacaklar, sabah bakılacaklar).
+```
+
+**Ayarlar (istemde değiştirilir):**
+- `ÖLÇÜMSÜZ APK = hayır` (varsayılan, CLAUDE.md §4c ÖLÇÜM KAPISI): ölçüm kapısı yüzeyine (PDF
+  görüntüleyici, dosya listesi, ana ekran, çubuklar, klavye, geçiş) varsayılan açık dokunan iş
+  main'e girer ama `[apk]`'sız; ölçüm `PLAN.md` C2'ye, telefonla yerel zincir ölçüp APK yapar.
+  `evet` → kullanıcıya görünen iş bitince ölçümsüz `[apk]` (sabah yeni APK), ölçüm sonra.
+- `GÜNLÜK DİLİM = 6`: günde en çok 6 birleştirme (her biri ≈ 30 dk CI). Actions kotası ayda
+  ~2000 dk (1'inde sıfırlanır); kota azaldıysa düşür.
+
+**Yerel zincirle birlikte:** ikisi aynı anda çalışabilir — bulut B paketini `bulutta:` önekiyle
+sahiplenir, yerel `oto-tur` onu atlar ve C (telefon) paketlerini yapar. İstemezsen yerel
+`okuyucu-devam`'ı duraklat.
+
+**İzleme / durdurma:** GitHub'daki `oto-kilit` dalı = bulut yürütücüsü çalışıyor (commit zamanı =
+son tazeleme; 60 dk'dan eskiyse bayat, sonraki çalıştırma devralır). Durum `PLAN.md` §1, yarım
+iş dalın `DEVIR.md`'si, CI Actions'ta `faz-oto-*` koşuları. Durdurmak: görevi duraklat. Takılırsa
+`oto-kilit` dalını sil.

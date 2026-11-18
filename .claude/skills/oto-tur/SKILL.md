@@ -56,7 +56,9 @@ gerisi `grep`. Graphify'ı açma. Alt ajan beklerken yoklama yok, bildirimi bekl
    YOK (art arda push önceki koşuyu iptal eder) — bu sırada dalda çalışılır. main iki kez üst üste
    kırmızı → dur.
 3. **Paketi seç** (Kuyruk + SIRA satırı `PLAN.md` §1'de). `bulutta:` ile başlayan satır başka
-   oturumundur: ATLA, dalına dokunma. İlk `sürüyor` (yarım: uzakta `faz-oto-<no>-*` varsa oradan,
+   oturumundur (bulut zinciri, `oto-bulut` skill'i): ATLA, dalına dokunma. Bulut yürütücüsü
+   çalışıyor mu: `bash .claude/skills/oto-bulut/kilit.sh durum` (taze kilit = evet → C paketleri
+   ve `bulutta:` olmayan satırlar; main'e birleştirmeden hemen önce yeniden `git pull`). İlk `sürüyor` (yarım: uzakta `faz-oto-<no>-*` varsa oradan,
    DEVIR.md'den) yoksa SIRA'daki ilk `bekliyor`. `cihaz bekliyor` satırını yalnız telefon bağlıysa
    al (`adb devices`). Satırı `sürüyor` yap (yalnız yerelde; ayrıca push yok).
 4. **Yaptır.** `Agent`, `isolation: "worktree"`, `model` Kuyruk satırından (`fable|opus|sonnet`),

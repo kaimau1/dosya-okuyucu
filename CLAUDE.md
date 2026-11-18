@@ -93,6 +93,9 @@ Artifact deposu 0,5 GB: APK yayına ÖNBELLEKLE gider (artifact değil); runner 
 ## 4b) Gece / zamanlanmış görev kuralı (2026-11-14, "not" projesinden aynen)
 - Gözetimsiz zincir: yürütücü **`oto-tur` skill'ini**, alt ajan **`isci` skill'ini** uygular;
   Kuyruk ve SIRA `PLAN.md` §1'de (yürütme düzeni `OTOMASYON.md`); zamanlanmış görev `okuyucu-devam` (istem `OTOMASYON_BASLAT.md`).
+- **Bulut zinciri (2026-11-18):** claude.ai zamanlanmış görev `okuyucu-bulut` → **`oto-bulut` skill'i**
+  (telefonsuz, yalnız B paketleri; uzak kilit `oto-kilit` dalı; satır öneki `bulutta:`; ara push `[skip ci]`);
+  işçi `isci` "Bulut kipi". Kurulum + istem `OTOMASYON_BASLAT.md` (g).
 - Plan KARAR maddeleri verilmiştir: SORMADAN uygula; yeni karar → en güvenli seçenek + "sabah
   bakılacak". 👤 madde yapılmaz → `PLAN.md` §3.
 - Dalda çalış (yukarıdaki zincir istisnası) → CI yeşilse main'e birleştir; **CI kırmızıyken

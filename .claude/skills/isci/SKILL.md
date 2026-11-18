@@ -79,6 +79,31 @@ adım · kök neden/kanıt (dosya:satır) · işe yaramayanlar · sıradaki adı
 - `ci/*.kt` değişikliğini CI Kotlin denetimi yakalar; `ci/MediaTranscode.kt` gibi denetim
   dışındaki Kotlin hatası ancak APK derlemesinde çıkar (HAFIZA) — API'yi kaynak jar'dan doğrula.
 
+## Bulut kipi (yürütücü `oto-bulut` ise — yukarıdakileri şu farklarla uygula; 2026-11-18)
+
+- Kap geçici; telefon/adb, Flutter ve `gh` YOK. Windows yolları ve `flutter.bat` geçersiz,
+  Flutter İNDİRİLMEZ; yerel test/analiz yok, CI doğrular. Dart'ı dikkatle yaz: `flutter analyze`
+  info düzeyinde de sıfır ister (kullanılmayan import, `const`, `await` sonrası `mounted`).
+- Dal: yürütücünün verdiği `faz-oto-<no>-<ad>` — uzakta varsa `git checkout -B <dal> origin/<dal>`,
+  yoksa `git checkout -B <dal> origin/main`. Oturumun `claude/*`/`ccr-*` dalına push YOK.
+- **Push düzeni (Actions kotası):** her commit'ten sonra push (kap her an gidebilir) ama ara
+  commit başlığının sonunda `[skip ci]`. Her push'tan önce `bash .claude/skills/oto-bulut/kilit.sh
+  tazele` — çıkış 3 (KAYIP) → DEVIR.md + `[skip ci]` push, DUR, rapora yaz.
+- **CI'a gönderiş (dilim bitince, bir kez):** `git merge origin/main` (çakışmayı çöz) → PLAN
+  satırı/maddeleri + HAFIZA + `docs/CIHAZ_TESTI.md` güncel → **DEVIR.md'yi SİL** (devir bilgisi bu
+  commit'in gövdesine) → KOD içeren ve başlığında `[skip ci]` OLMAYAN son commit → push. Bu uç,
+  CI'ın koştuğu ve main'e AYNEN gireceği uçtur: sonrasına commit ekleme (yalnız `.md` push'u CI
+  açmaz ama ucu değiştirir, main'de tam takım koşturur).
+- CI'ı BEKLEME/izleme — yürütücü bekler. Kırmızıysa yürütücü seni kayıt kuyruğuyla yeniden
+  çağırır: düzelt, aynı gönderiş kuralıyla push (testi atlama/kapatma YASAK).
+- Cihaz: Cihaz = A/B/evet maddesinin KODU yazılır, ölçüm/tur yapılmaz → `PLAN.md` §1.8 C2 (ölçüm)
+  ya da C3 (tur) maddesi "(bulut <tarih>, <kısa sha>)" + `docs/CIHAZ_TESTI.md`. Ölçmeden
+  yapılamayan hız maddesi (📱, "ölç → değiştir → ölç") YAZILMAZ, C2'ye taşınır. Görünür
+  değişiklikte `kasma-kontrol` yine uygulanır (cihazsız maddeleri) + dokunulan yüzeyin bütçe testi.
+- PLAN satırı: Durum `bulutta: sürüyor — …` kalır; dilim bittiyse "dilim <x> main'e gidiyor,
+  kalan <y>"; paket tamamen bittiyse satır silinir.
+- Rapora ekle: "CI ucu: <sha>" ya da "yarım: <sha>, DEVIR.md'de".
+
 ## Bitiş (dalda, birleştirmeden önce hazır olmalı)
 
 - Kuyruk satırı (`PLAN.md` §1): kod bitti + A/B/cihaz bekliyorsa maddeyi ilgili **C paketine** (§1, 2026-11-18 büyük paketler) taşı ve durumu yaz; tamamen bittiyse SİL (yalnız KENDİ satırın; SIRA satırına
