@@ -258,6 +258,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
           RecentStrip(
             onOpen: (e) => EntryOpener.open(context, e.path),
             onAll: () => _push(const OpenHistoryScreen()),
+            onAllNew: () => _push(const NewFilesScreen()),
           ),
         ];
       case 'quick':
