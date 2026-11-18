@@ -26,7 +26,7 @@ void main() {
       paths.add(f.path);
     }
     paths.add(p.join(dir.path, 'yok.jpg'));
-    final picked = ShareShield.candidates(paths);
+    final picked = await ShareShield.candidates(paths);
     expect(picked, hasLength(5));
     expect(picked.any((x) => x.endsWith('.txt') || x.endsWith('.mp3')), isFalse);
     expect(picked.any((x) => x.endsWith('yok.jpg')), isFalse);

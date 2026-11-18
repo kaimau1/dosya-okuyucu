@@ -68,14 +68,21 @@ abstract final class ShareShield {
   ];
 
   /// Kalkana uğrayacak dosyalar (görsel ve PDF, var olan, sınır içinde).
-  static List<String> candidates(List<String> paths) => [
-        for (final path in paths)
-          if (const {'image', 'document'}
-                  .contains(GeminiDecisions.mediaFor(path)?.type) &&
-              File(path).existsSync() &&
-              File(path).lengthSync() <= GeminiDecisions.maxInlineBytes)
-            path
-      ].take(_maxFiles).toList();
+  static Future<List<String>> candidates(List<String> paths) async {
+    final out = <String>[];
+    for (final path in paths) {
+      if (out.length >= _maxFiles) break;
+      if (!const {'image', 'document'}
+          .contains(GeminiDecisions.mediaFor(path)?.type)) {
+        continue;
+      }
+      final file = File(path);
+      if (!await file.exists()) continue;
+      if (await file.length() > GeminiDecisions.maxInlineBytes) continue;
+      out.add(path);
+    }
+    return out;
+  }
 }
 
 /// `true` = paylaşıma devam. Bkz. [ShareShield].
@@ -85,12 +92,12 @@ Future<bool> shareShieldAllows(BuildContext context, List<String> paths) async {
   final keys = state.aiCredentials.normalized.keys;
   if (keys.isEmpty || OfflineMode.enabled) return true;
   final scope = state.aiScopeRules;
+  final s = AppStrings.of(context);
   final files = [
-    for (final path in ShareShield.candidates(paths))
+    for (final path in await ShareShield.candidates(paths))
       if (scope.allowsFile(FsEntry.fromEntity(File(path)))) path
   ];
-  if (files.isEmpty) return true;
-  final s = AppStrings.of(context);
+  if (files.isEmpty || !context.mounted) return true;
   final toast = showStickyToast(
     context,
     Row(children: [
