@@ -1052,6 +1052,41 @@ abstract final class SmartSort {
     return _records[entry.path];
   }
 
+  /// **Ölçüm sorusu** (doğruluk tezgâhı, PLAN §1.1 m.4): normal turdaki
+  /// girdi + yerleşik sorular (kullanıcı kategorisi sorulmaz), öğrenme
+  /// uygulanır; sonuç KAYDEDİLMEZ (elle düzeltilmiş kayıt bozulmasın).
+  /// Yanıt yoksa null; kota/yetki hatası [GeminiException] olarak çıkar.
+  static Future<SmartRecord?> probe({
+    required FsEntry entry,
+    required AiCredentials credentials,
+  }) async {
+    await ensureLoaded();
+    final keys = credentials.normalized.keys;
+    if (keys.isEmpty || OfflineMode.enabled) return null;
+    final image = GeminiDecisions.mediaFor(entry.path)?.type == 'image';
+    final kind = SmartSortInput.kindOf(entry.path);
+    final now = DateTime.now();
+    final prep = await SmartSortInput.prepare(entry, keys);
+    final DecisionResult result;
+    try {
+      result = await GeminiDecisions.ask(
+        keys: prep.keys,
+        input: [prep.block],
+        questions: SmartTaxonomy.questions(
+            image: image,
+            meta: kind == SmartInputKind.meta,
+            audio: kind == SmartInputKind.audio,
+            video: kind == SmartInputKind.video,
+            today: now,
+            learned: SmartLearn.hint(image: image)),
+      );
+    } finally {
+      prep.release();
+    }
+    final raw = fromAnswers(entry, result, today: now);
+    return raw == null ? null : _learned(raw, image: image);
+  }
+
   // ── Kapsam ─────────────────────────────────────────────────────────────
   /// Taranan klasörler (var olanlar). Kamera yalnız [camera] ise.
   static List<String> scopeRoots({bool? camera}) {
