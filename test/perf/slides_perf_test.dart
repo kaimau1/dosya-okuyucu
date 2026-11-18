@@ -7,7 +7,12 @@ import 'package:dosya_okuyucu/services/pptx/pro/pptx_templates.dart';
 import 'package:dosya_okuyucu/services/pptx_editor.dart';
 import 'package:dosya_okuyucu/services/pptx_rich_text.dart';
 import 'package:dosya_okuyucu/services/pptx_writer.dart';
+import 'package:dosya_okuyucu/widgets/slide_canvas.dart';
+import 'package:dosya_okuyucu/widgets/slide_frame_editor.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../support/rebuild_probe.dart';
 
 /// Faz 28 — 50 slaytlık deste: açılış (ayrıştırma + çizim modeli; ekranda
 /// izolatta), metin onayı ve geri al anlık görüntüsünün maliyeti. Eşikler
@@ -56,6 +61,58 @@ void main() {
     e.restore(after);
     expect(e.slides[24].paragraphs.map((p) => p.text),
         contains(startsWith('Madde bir')));
+  });
+
+  // B12 m.3 — yeniden kurulum bütçesi (mandal, YALNIZ DÜŞER): seçili şekli
+  // sürüklemenin bir adımı yalnız çerçeve katmanını (tutamaklar) yeniden
+  // kurar; slayttaki şekil gövdeleri — sürüklenenin içeriği dahil — aynı
+  // örnekle atlanır (SlideFrameEditor içeriği `child` olarak taşır).
+  testWidgets('B12 m.3: şekil sürüklemede şekil gövdeleri yeniden kurulmaz',
+      (t) async {
+    t.view.physicalSize = const Size(1080, 2340);
+    t.view.devicePixelRatio = 2.75;
+    addTearDown(t.view.reset);
+    final view = PptxEditor.parse(deck).slides.first.view!;
+    final shape = view.shapes.firstWhere((s) =>
+        s.element != null &&
+        s.paragraphs.any((p) => p.plainText.startsWith('Slayt 1')));
+    await t.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: SizedBox(
+            width: 390,
+            height: 220,
+            child: SlideCanvas(
+              slide: view,
+              selectedShape: shape,
+              onFrameChanged: (_, _, _) {},
+            ),
+          ),
+        ),
+      ),
+    ));
+    expect(find.byType(SlideFrameEditor), findsOneWidget);
+    final start = t.getCenter(find.byType(SlideFrameEditor));
+    final g = await t.startGesture(start);
+    // Dokunma eşiğini geç: sürükleme başlasın.
+    await g.moveBy(const Offset(0, 12));
+    await t.pump();
+    await g.moveBy(const Offset(0, 12));
+    await t.pump();
+    final r = await countRebuilds(t, () async {
+      await g.moveBy(const Offset(0, 9));
+      await t.pump();
+    });
+    await g.up();
+    await t.pump();
+    // ignore: avoid_print
+    print('PERF slides_drag_rebuilds=${r.total} '
+        'shape_bodies=${r.byType['_ShapeBody'] ?? 0} top=${r.top()}');
+    expect(r.total, greaterThan(0), reason: 'sürükleme çerçeveyi kurmalı');
+    expect(r.byType['_ShapeBody'] ?? 0, 0);
+    expect(r.of(SlideCanvas), 0);
+    // Toplam tavan (tutamaklar + kılavuz): ilk CI ölçümüyle sıkılaştırılacak.
+    expect(r.total, lessThan(250));
   });
 
   // Faz 38 perf kapısı: 300 slaytlık deste — açılış, sunum bilgisi (izolatta
