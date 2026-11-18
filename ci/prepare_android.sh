@@ -185,6 +185,9 @@ for name in ('android/app/build.gradle.kts', 'android/app/build.gradle'):
                 # QR ile paylaş: Google kod tarayıcısı (kamera izni yok,
                 # model Play Hizmetleri'nden — APK'ya ~0 MB).
                 'com.google.android.gms:play-services-code-scanner:16.1.0',
+                # Görseldeki QR'ı tanıma (2026-11-18, ci/QrTransfer.kt
+                # `decodeImage`): model Play Hizmetleri'nden, APK'ya ~0 MB.
+                'com.google.android.gms:play-services-mlkit-barcode-scanning:18.3.1',
                 # Belge tarayıcı v2 (Faz 35): GmsDocumentScanner — arayüz ve
                 # model Play Hizmetleri'nde, APK'ya ~0 MB.
                 'com.google.android.gms:play-services-mlkit-document-scanner:16.0.0',

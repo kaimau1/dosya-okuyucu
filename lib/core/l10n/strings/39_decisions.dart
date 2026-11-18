@@ -81,4 +81,32 @@ const Map<String, (String, String, String)> _t39 = {
     'Folders cannot be shared with apps; pick the files inside.',
     'لا يمكن مشاركة المجلدات مع التطبيقات؛ اختر الملفات داخلها.',
   ),
+  'ocr.script': ('Metin tanıma dili', 'Text recognition script', 'لغة التعرّف على النص'),
+  'ocr.script_auto': ('Otomatik', 'Automatic', 'تلقائي'),
+  'ocr.script_auto_sub': (
+    'Cihazda tanır; Arapça vb. yazı görürse AI ile yeniden okur',
+    'Recognises on the device; re-reads with AI when it sees Arabic etc.',
+    'يتعرّف على الجهاز؛ ويعيد القراءة بالذكاء الاصطناعي عند رؤية العربية وغيرها',
+  ),
+  'ocr.script_latin': ('Yalnız Latin (cihazda)', 'Latin only (on device)', 'اللاتينية فقط (على الجهاز)'),
+  'ocr.script_latin_sub': (
+    'İnternetsiz, hiçbir şey gönderilmez',
+    'Offline, nothing is sent',
+    'دون إنترنت، لا يُرسل شيء',
+  ),
+  'ocr.script_arabic': ('Arapça ve diğer alfabeler (AI ile)', 'Arabic and other scripts (with AI)', 'العربية والأبجديات الأخرى (بالذكاء الاصطناعي)'),
+  'ocr.script_arabic_sub': (
+    'Görsel Gemini ile okunur; internet ve API anahtarı gerekir',
+    'The image is read by Gemini; needs internet and an API key',
+    'تُقرأ الصورة بواسطة Gemini؛ يتطلب إنترنت ومفتاح API',
+  ),
+  'ocr.cloud_need_key': (
+    'Arapça metin tanıma AI ile yapılır: Ayarlar → AI bölümünden Gemini API anahtarı ekle.',
+    'Arabic text recognition uses AI: add a Gemini API key in Settings → AI.',
+    'التعرّف على النص العربي يتم بالذكاء الاصطناعي: أضف مفتاح Gemini API من الإعدادات ← الذكاء الاصطناعي.',
+  ),
+  'qrimg.title': ('Görseldeki QR', 'QR in the image', 'رمز QR في الصورة'),
+  'qrimg.chip': ('QR ({n})', 'QR ({n})', 'QR ({n})'),
+  'qrimg.open': ('Bağlantıyı aç', 'Open link', 'افتح الرابط'),
+  'qrimg.open_failed': ('Bağlantı açılamadı', 'Could not open the link', 'تعذّر فتح الرابط'),
 };

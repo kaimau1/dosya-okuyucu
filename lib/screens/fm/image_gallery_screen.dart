@@ -33,6 +33,7 @@ import '../../core/snack.dart';
 import '../../widgets/app_action_sheet.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/fm/fm_file_image.dart';
+import '../../widgets/fm/image_qr_chip.dart';
 import '../image_edit_screen.dart';
 import '../viewer_screen.dart';
 import 'entry_actions.dart';
@@ -793,6 +794,16 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
               left: 0,
               right: 0,
               child: chrome(child: Center(child: _enhanceChip())),
+            ),
+            // ── Görseldeki QR (2026-11-18): durunca tanınır, dokununca bağlantı.
+            // Ağaç şekli sabit (kasma-kontrol 3): Positioned hep var.
+            Positioned(
+              top: padding.top + 64,
+              right: 12,
+              child: chrome(
+                  child: _selecting
+                      ? const SizedBox.shrink()
+                      : ImageQrChip(path: _current)),
             ),
             // ── Üst perde: geri, zaman, sıra/boyut/ad, daha fazla ──────────
             Positioned(

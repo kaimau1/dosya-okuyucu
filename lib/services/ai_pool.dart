@@ -605,4 +605,17 @@ class PooledGemini extends GeminiService {
         _forTask(AiTask.vision, shortInput: false),
         (gemini) => gemini.compareImages(previews, question: question),
       );
+
+  @override
+  Future<String> generateJsonFromImage({
+    required String prompt,
+    required Map<String, Object?> schema,
+    required Uint8List image,
+    required String mimeType,
+  }) =>
+      AiPool.run(
+        _forTask(AiTask.vision, shortInput: false),
+        (gemini) => gemini.generateJsonFromImage(
+            prompt: prompt, schema: schema, image: image, mimeType: mimeType),
+      );
 }

@@ -228,7 +228,7 @@ Future<AiSummaryRecord> _summarizeFile(
     final doc = await FileService().load(entry.path);
     text = doc.plainText;
     if (text.trim().isEmpty && doc.kind == DocKind.image) {
-      text = await OcrService.recognizeImageFile(entry.path);
+      text = await OcrService.recognizeImageFile(entry.path, allowCloud: true);
     }
   } catch (e) {
     final msg = str.t('aia.read_failed', {'error': userErrorText(e)});
@@ -308,7 +308,7 @@ Future<void> showImageInsight(BuildContext context, FsEntry entry) async {
 
   String text;
   try {
-    text = await OcrService.recognizeImageFile(entry.path);
+    text = await OcrService.recognizeImageFile(entry.path, allowCloud: true);
   } catch (e) {
     busy.close();
     if (context.mounted) _snack(context, str.t('aia.ocr_failed', {'error': userErrorText(e)}));

@@ -9,10 +9,13 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 import 'package:pdfrx/pdfrx.dart';
 
 import '../core/l10n/app_strings.dart';
+import 'cloud_ocr.dart';
 import 'pdf/ocr_page_text.dart' show OcrWordBox;
 import '../core/app_colors.dart';
 
 /// Cihaz-içi OCR (Google ML Kit, Latin alfabesi — Türkçe karakterler dahil).
+/// Arapça vb. Latin dışı alfabeler ML Kit'te yok → kullanıcının başlattığı
+/// tanımada AI ile ([CloudOcr], `allowCloud`).
 ///
 /// Tanıma cihazda, internetsiz yapılır. **Model APK'da DEĞİL** (2026-09-26):
 /// CI, eklentinin gömülü `com.google.mlkit:text-recognition` bağımlılığını
@@ -93,6 +96,42 @@ class OcrService {
     }
   }
 
+  /// Ayar "Arapça (AI ile)" ve tanımayı kullanıcı başlattıysa: cihaz modeli
+  /// hiç koşmaz, doğrudan AI ([CloudOcr]). Hata (anahtar yok vb.) çağırana
+  /// gider — kullanıcı neden tanınmadığını görmeli.
+  static Future<List<OcrLine>?> _forcedCloud(String path, bool allowCloud) async {
+    if (!allowCloud || await CloudOcr.script() != OcrScript.arabic) return null;
+    return CloudOcr.lines(path);
+  }
+
+  /// "Otomatik": cihazdaki sonuç zayıfsa ve Decisions API görselde Latin
+  /// dışı yazı görürse AI ile yeniden tanır. Her hata sessiz: cihazdaki
+  /// sonuç kalır (null).
+  static Future<List<OcrLine>?> _autoCloud(
+      String path, String latinText, bool allowCloud) async {
+    if (!allowCloud ||
+        await CloudOcr.script() != OcrScript.auto ||
+        !CloudOcr.available ||
+        !CloudOcr.looksWeak(latinText)) {
+      return null;
+    }
+    if (!await CloudOcr.hasNonLatinScript(path)) return null;
+    try {
+      final lines = await CloudOcr.lines(path);
+      return lines.isEmpty ? null : lines;
+    } catch (_) {
+      return null; // Bilinçli: bulut düşerse cihazdaki sonuç gösterilir.
+    }
+  }
+
+  static String _joinLines(List<OcrLine> lines) =>
+      lines.map((l) => l.text).join('\n').trim();
+
+  static List<List<OcrWordBox>> _wordLines(List<OcrLine> lines) => [
+        for (final line in lines)
+          [for (final w in CloudOcr.words(line)) OcrWordBox(w.text, w.box)],
+      ];
+
   /// Tek OCR turunda işlenecek en fazla PDF sayfası (süre/pil koruması).
   ///
   /// "Metni tanı" sayfasının varsayılanı budur. Belge ÇEVİRİSİ bu sınırı
@@ -103,15 +142,24 @@ class OcrService {
   static const maxPdfPages = 25;
 
   /// Bir görsel dosyadan metin tanır. Metin yoksa boş dize döner.
-  static Future<String> recognizeImageFile(String path) async {
+  ///
+  /// [allowCloud]: kullanıcının başlattığı tanıma — Arapça vb. için AI'ya
+  /// gidilebilir ([CloudOcr]). Arka plan işleri (içerik dizini) false bırakır.
+  static Future<String> recognizeImageFile(String path,
+      {bool allowCloud = false}) async {
+    final forced = await _forcedCloud(path, allowCloud);
+    if (forced != null) return _joinLines(forced);
     final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
+    final String text;
     try {
       final result =
           await _process(recognizer, path);
-      return result.text.trim();
+      text = result.text.trim();
     } finally {
       await recognizer.close();
     }
+    final cloud = await _autoCloud(path, text, allowCloud);
+    return cloud != null ? _joinLines(cloud) : text;
   }
 
   /// Bir görselden metni SATIR SATIR, resim piksel koordinatındaki kutusuyla
@@ -121,12 +169,16 @@ class OcrService {
   /// ponytail: kutular ML Kit'in EXIF döndürmesi uygulanmış hâline göredir;
   /// EXIF ile döndürülmüş fotoğraflarda katman kayabilir — şikayet gelirse
   /// resmi önce normalize edip (döndürmeyi baytlara işleyip) OCR'la.
-  static Future<List<OcrLine>> recognizeImageLines(String path) async {
+  static Future<List<OcrLine>> recognizeImageLines(String path,
+      {bool allowCloud = false}) async {
+    final forced = await _forcedCloud(path, allowCloud);
+    if (forced != null) return forced;
     final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
+    final List<OcrLine> lines;
     try {
       final result =
           await _process(recognizer, path);
-      return [
+      lines = [
         for (final block in result.blocks)
           for (final line in block.lines)
             if (line.text.trim().isNotEmpty)
@@ -135,6 +187,7 @@ class OcrService {
     } finally {
       await recognizer.close();
     }
+    return await _autoCloud(path, _joinLines(lines), allowCloud) ?? lines;
   }
 
   /// Bir görselden metni SÖZCÜK SÖZCÜK, satır yapısı korunarak tanır
@@ -143,13 +196,16 @@ class OcrService {
   /// Taranmış PDF sayfasında Chrome benzeri metin seçimi bunun üstüne kurulur:
   /// sözcük kutuları `buildOcrPageText` ile sahte bir `PdfPageText`e çevrilir
   /// ve seçim katmanı yazılmış sayfayla aynı yoldan çalışır.
-  static Future<List<List<OcrWordBox>>> recognizeImageWordLines(
-      String path) async {
+  static Future<List<List<OcrWordBox>>> recognizeImageWordLines(String path,
+      {bool allowCloud = false}) async {
+    final forced = await _forcedCloud(path, allowCloud);
+    if (forced != null) return _wordLines(forced);
     final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
+    final List<List<OcrWordBox>> words;
     try {
       final result =
           await _process(recognizer, path);
-      return [
+      words = [
         for (final block in result.blocks)
           for (final line in block.lines)
             [
@@ -161,6 +217,9 @@ class OcrService {
     } finally {
       await recognizer.close();
     }
+    final latin = words.map((l) => l.map((w) => w.text).join(' ')).join('\n');
+    final cloud = await _autoCloud(path, latin, allowCloud);
+    return cloud != null ? _wordLines(cloud) : words;
   }
 
   /// Açık bir PDF belgesinin sayfalarını (en çok [maxPdfPages]) OCR'lar.
@@ -168,9 +227,10 @@ class OcrService {
   static Future<String> recognizePdf(
     PdfDocument document, {
     void Function(int done, int total)? onProgress,
+    bool allowCloud = false,
   }) async {
-    final pages =
-        await recognizePdfPages(document, onProgress: onProgress);
+    final pages = await recognizePdfPages(document,
+        onProgress: onProgress, allowCloud: allowCloud);
     return joinPages(pages, (n) => '— Sayfa $n —');
   }
 
@@ -188,6 +248,7 @@ class OcrService {
     void Function(int done, int total)? onProgress,
     bool Function()? cancelled,
     Set<int>? onlyPages,
+    bool allowCloud = false,
   }) async {
     final pages = [
       for (final page in document.pages)
@@ -204,9 +265,14 @@ class OcrService {
         final path = await _renderPageToPng(page, i);
         if (path == null) continue;
         try {
-          final result =
-              await _process(recognizer, path);
-          final text = result.text.trim();
+          final forced = await _forcedCloud(path, allowCloud);
+          var text = forced != null
+              ? _joinLines(forced)
+              : (await _process(recognizer, path)).text.trim();
+          if (forced == null) {
+            final cloud = await _autoCloud(path, text, allowCloud);
+            if (cloud != null) text = _joinLines(cloud);
+          }
           if (text.isNotEmpty) out.add(OcrPage(page.pageNumber, text));
         } finally {
           try {

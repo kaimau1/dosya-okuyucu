@@ -30,7 +30,8 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
     try {
       if (doc.kind == DocKind.image) {
         busy.status(str.t('vw.ocr_running'));
-        lines = await OcrService.recognizeImageLines(doc.path);
+        lines = await OcrService.recognizeImageLines(doc.path,
+            allowCloud: true);
         text = lines.map((l) => l.text).join('\n').trim();
       } else if (doc.kind == DocKind.pdf) {
         void progress(int done, int total) => busy.status(
@@ -41,10 +42,11 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
             total: total,
           );
         text = onlyPage == null
-            ? await OcrService.recognizePdf(_pdfDoc!, onProgress: progress)
+            ? await OcrService.recognizePdf(_pdfDoc!,
+                onProgress: progress, allowCloud: true)
             : OcrService.joinPages(
                 await OcrService.recognizePdfPages(_pdfDoc!,
-                    onlyPages: {onlyPage}, onProgress: progress),
+                    onlyPages: {onlyPage}, onProgress: progress, allowCloud: true),
                 (n) => '— Sayfa $n —');
       }
     } catch (e) {

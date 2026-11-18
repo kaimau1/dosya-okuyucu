@@ -97,7 +97,8 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
     String? error;
     try {
       final lines = withOcr
-          ? await OcrService.recognizeImageLines(widget.doc.path)
+          ? await OcrService.recognizeImageLines(widget.doc.path,
+              allowCloud: true)
           : const <OcrLine>[];
       busy.status(pdfPreparing);
       final bytes =
@@ -307,7 +308,8 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
             return [OcrPage(1, _ocrImageText.trim())];
           }
           progress.status(context.t('vw.ocr_running'));
-          final text = await OcrService.recognizeImageFile(doc.path);
+          final text =
+              await OcrService.recognizeImageFile(doc.path, allowCloud: true);
           if (text.trim().isEmpty) return const <OcrPage>[];
           // Tanınan metin ekranda da kalsın: AI sohbeti ve "Metni tanı"
           // sayfası aynı sonucu yeniden taramasın.

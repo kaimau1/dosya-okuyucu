@@ -157,7 +157,8 @@ class _FreshFilesStripState extends State<FreshFilesStrip> {
             scrollDirection: Axis.horizontal,
             itemCount: items.length,
             separatorBuilder: (_, _) => const SizedBox(width: Gap.sm),
-            itemBuilder: (context, i) => _tile(context, items[i]),
+            itemBuilder: (context, i) =>
+                RepaintBoundary(child: _tile(context, items[i])),
           ),
         ),
       ],

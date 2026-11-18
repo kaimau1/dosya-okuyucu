@@ -1311,3 +1311,5 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Ekran görüntüsü al → uygulamaya dön → Aktar: üst şeritte "Yeni gelenler"de hemen görünüyor mu? Dokununca seçime ekleniyor mu?
 - [ ] Aktar → Dosya ekle: seçicinin tepesinde aynı şerit.
 - [ ] Aktar sağ üst Paylaş simgesi → sistem paylaş levhası (WhatsApp vb.) açılıyor mu?
+- [ ] Arapça bir sayfanın fotoğrafı → Metni tanı: Otomatik ayarda Arapça metin geliyor mu? Ayarlar → Belgeler → "Metin tanıma dili" → Arapça (AI ile) ile de dene.
+- [ ] İçinde QR olan bir görseli galeride aç → ~1 sn sonra sağ üstte alan adı düğmesi; dokununca tarayıcıda açılıyor mu? Galeride hızlı kaydırırken kasma var mı?

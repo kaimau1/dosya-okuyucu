@@ -275,6 +275,64 @@ class GeminiService {
     return text;
   }
 
+  /// Görsel + istem → şemalı JSON (bulut OCR, 2026-11-18: ML Kit'te Arapça
+  /// yok). [image] satır içi gider (çağıran boyutu sınırlar).
+  Future<String> generateJsonFromImage({
+    required String prompt,
+    required Map<String, Object?> schema,
+    required Uint8List image,
+    required String mimeType,
+  }) async {
+    if (apiKey.trim().isEmpty) {
+      throw GeminiException('Önce Ayarlar > API anahtarı bölümünden '
+          'Gemini API anahtarınızı girin.');
+    }
+    _offlineGuard();
+    late http.Response resp;
+    try {
+      resp = await _post(
+        _endpoint(),
+        headers: _headers(apiKey),
+        body: jsonEncode({
+          'contents': [
+            {
+              'role': 'user',
+              'parts': [
+                {'text': prompt},
+                {
+                  'inlineData': {
+                    'mimeType': mimeType,
+                    'data': base64Encode(image),
+                  },
+                },
+              ],
+            }
+          ],
+          'generationConfig': {
+            'temperature': 0,
+            'responseMimeType': 'application/json',
+            'responseSchema': schema,
+          },
+        }),
+      );
+    } catch (e) {
+      throw GeminiException('Ağ hatası: $e');
+    }
+    if (resp.statusCode != 200) {
+      throw GeminiException(_readError(resp), statusCode: resp.statusCode);
+    }
+    final map = jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
+    final candidates = map['candidates'] as List?;
+    if (candidates == null || candidates.isEmpty) {
+      throw GeminiException('Model boş yanıt döndürdü.');
+    }
+    final text = ((candidates.first['content']?['parts'] as List?) ?? const [])
+        .map((p) => p is Map && p['text'] != null ? p['text'] as String : '')
+        .join();
+    if (text.trim().isEmpty) throw GeminiException('Model boş yanıt döndürdü.');
+    return text;
+  }
+
   String _readError(http.Response resp) => _readErrorStatic(resp);
 
   String _truncate(String s, int max) =>

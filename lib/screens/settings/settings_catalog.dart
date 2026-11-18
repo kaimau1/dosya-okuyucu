@@ -328,6 +328,11 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                 titleKey: 'excel.formula_english',
                 subtitleKey: 'excel.formula_english_sub',
                 builder: _formulaEnTile),
+            SettingRow(
+                id: 'ocr_script',
+                titleKey: 'ocr.script',
+                altKeys: ['ocr.script_arabic'],
+                builder: _ocrScriptTile),
           ]),
           SettingsSection('set.sec_photos', [
             SettingRow(
@@ -884,6 +889,7 @@ Widget _dynamicRefreshTile(BuildContext _) => const DynamicRefreshTile();
 Widget _autoRescanTile(BuildContext _) => const AutoRescanTile();
 Widget _searchIndexTile(BuildContext _) => const SearchIndexTile();
 Widget _contentIndexTile(BuildContext _) => const ContentIndexTile();
+Widget _ocrScriptTile(BuildContext _) => const OcrScriptTile();
 Widget _appFootprintTile(BuildContext _) => const AppFootprintTile();
 Widget _sdUnionTile(BuildContext _) => const SdUnionTile();
 Widget _weeklyCleanupTile(BuildContext _) => const WeeklyCleanupTile();

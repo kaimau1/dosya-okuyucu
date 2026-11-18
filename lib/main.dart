@@ -38,6 +38,7 @@ import 'screens/onboarding/onboarding_screen.dart';
 import 'services/fm/remote/sftp_host_keys.dart';
 import 'services/fm/remote/smb_legacy.dart';
 import 'services/app_update.dart';
+import 'services/cloud_ocr.dart';
 import 'services/play_store.dart';
 import 'services/fm/ai_auto.dart';
 import 'services/fm/ai_index.dart';
@@ -251,6 +252,8 @@ Future<void> _main() async {
   unawaited(_restoreJobs());
   final appState = AppState();
   await appState.init();
+  // Arapça vb. metin tanıma AI ile (bkz. `CloudOcr`): anahtar havuzu buradan.
+  CloudOcr.credentials = () => appState.aiCredentials;
   // Cihaz sınıfı (Faz 4, P1): yerel kanaldan tek kısa çağrı; tazeleme hızı
   // varsayılanı buna bağlı olduğu için ondan ÖNCE okunur.
   await DeviceProfile.load(appState.perfMode);

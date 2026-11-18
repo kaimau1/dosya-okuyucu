@@ -115,7 +115,8 @@ class DocumentScanner {
       // çevrimdışı) ya da tek sayfa okunamadıysa tarama KAYBOLMASIN —
       // sayfa metinsiz kaydedilir, stüdyodaki "Metni tanı" sonra dener.
       try {
-        out.add(await OcrService.recognizeImageLines(imagePaths[i]));
+        out.add(await OcrService.recognizeImageLines(imagePaths[i],
+            allowCloud: true));
       } catch (_) {
         out.add(const []);
       }
