@@ -23,6 +23,7 @@ import 'tiles_system.dart';
 import 'tiles_trash.dart';
 import '../../core/app_version.dart';
 import '../audiobook/voices_screen.dart';
+import '../fm/smart_bench_screen.dart';
 import '../audiobook/audiobook_library_screen.dart';
 import 'settings_widgets.dart';
 import '../../widgets/permission_gate.dart';
@@ -794,6 +795,12 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                   id: 'ai_pool_status',
                   titleKey: 'aipool.status',
                   builder: _aiPoolStatusTile),
+              // Akıllı düzen doğruluk tezgâhı (PLAN §1.1 m.4).
+              SettingRow(
+                  id: 'smart_bench',
+                  titleKey: 'sb.title',
+                  subtitleKey: 'sb.sub',
+                  builder: _smartBenchTile),
               SettingRow(
                   id: 'lab_word_editor',
                   titleKey: 'lab.word_flag',
@@ -904,6 +911,12 @@ Widget _volumesTile(BuildContext _) => const VolumesTile();
 Widget _settingsBackupTile(BuildContext _) => const SettingsBackupTile();
 Widget _usbDiagnosticsTile(BuildContext _) => const UsbDiagnosticsTile();
 Widget _developerOffTile(BuildContext _) => const DeveloperOffTile();
+Widget _smartBenchTile(BuildContext context) => SettingTile(
+      icon: AppIcons.insights,
+      title: context.t('sb.title'),
+      subtitle: context.t('sb.sub'),
+      onTap: () => SmartBenchScreen.open(context),
+    );
 Widget _autoSaveTile(BuildContext _) => const AutoSaveTile();
 Widget _wordSpellTile(BuildContext _) => const WordSpellcheckTile();
 Widget _formulaEnTile(BuildContext _) => const FormulaEnglishTile();
