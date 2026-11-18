@@ -1382,3 +1382,7 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Taşı/kopyala → klasör seç: favori ve son hedef kısayolları geliyor mu; silinmiş klasörün kısayolu görünmüyor mu?
 - [ ] SD kart birleştirme ayarı: klasör çiplerinde telefonda olan klasörler (Podcasts vb.) görünüyor mu?
 - [ ] Ayarlardan titreşimi kapat, uygulamayı kapatıp aç → ilk dokunuşta titreşim yok mu?
+
+## 2026-11-18 — B12 Hız 2.0 m.6: sabit satır yüksekliği (bulut, dal faz-oto-B12-hiz2; yazıldı, cihazda doğrulanmadı)
+- [ ] Büyük bir CSV aç (tablo görünümü) → hızlıca aşağı/yukarı kaydır: satırlar kaymadan, boşluksuz mu? Hücre metinleri eskisi gibi mi?
+- [ ] Ayarlardan yazı boyutunu en büyüğe al → müzik çalarda çalma listesi (birden çok şarkı): satırlar kesilmeden, üst üste binmeden görünüyor mu?

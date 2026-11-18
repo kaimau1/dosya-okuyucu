@@ -50,7 +50,7 @@ Kaynak kısaltması: `arsiv/` = `docs/arsiv/planlar/`.
 
 **SIRA (2026-11-18, kullanıcı: "özellikleri geliştirmeye devam — Word, PDF, Excel, slayt; performans,
 hızlandırma, akıcılık, kullanıcı deneyimi hissi"):**
-- **Kod (bulut ya da yerel):** B1 → B12 → B9 → B13 → B10 → B4 → B11 → B2 → B5 → B6 → B7.
+- **Kod (bulut ya da yerel):** B1 → B9 → B13 → B10 → B4 → B11 → B2 → B5 → B6 → B7.
 - **Telefonla (yerel, paralel; boşaldıkça):** C1 → C2 → B3 → C3. **En son:** B8.
 
 Ferrari kuralı (§0): B3'teki hız işleri (P06, P12b, P29) bitmeden büyük yeni özellik **varsayılan
@@ -72,7 +72,6 @@ yoluna dokunmaz, dokunulan editörün bütçe testi yeşil, A/B sonra C2'de. C2'
 | B9 | **Word 2.0:** içerik denetimleri (`w:sdt` bugün tek düz paragrafa iniyor), İçindekiler, değişiklikleri izle, yorum, dipnot, sadakat bekçisi, yazma hissi, büyük belge açılışı | opus | §1.9 | A/B | evet | bekliyor |
 | B10 | **Excel 2.0:** grafik türleri (bugün 4), formül kapsamı (189 işlev → dizi/metin işlevleri), veri doğrulama, otomatik/hızlı doldurma, süzgeç 2, sadakat bekçisi, hücre düzenleme hissi, açılış | opus | §1.10 | A/B | evet | bekliyor |
 | B11 | **Slayt 2.0:** görsel sadakat (altın görüntü testleri), grafik türleri, geçiş + animasyon + Biçim değiştir, yerinde metin düzenleme, AI tasarımcı, notlar + prova, sadakat bekçisi, sürükleme bütçesi | opus (animasyon planı fable) | §1.11 | A/B | evet | bekliyor |
-| B12 | **Hız 2.0 (cihazsız kanıtlı):** ana iş parçacığında eşzamanlı dosya G/Ç (14 dosya), açılış çözümlemesi izolatta, editör yeniden kurulum bütçeleri, görsel çözme, başlangıç, liste satır yüksekliği, APK | opus | §1.12; §0 | A/B (sonra C2) | evet | bulutta: sürüyor — dal faz-oto-B12-hiz2: bitti m.1, m.2, m.4, m.5 (main'de); m.3 (editör yeniden kurulum bütçeleri) dilimi main'e gidiyor, kalan m.6, m.7 |
 | B13 | **Deneyim hissi:** açılış geçişi, öngörülü geri, dokunuş haritası, aşamalı açılış, her yerde geri al, otomatik kayıt + kurtarma, hareket eşitliği, klavye, erişilebilirlik | opus | §1.13; arsiv/FERRARI §1 | A/B | evet | bekliyor |
 | B8 | **Son kapı:** P27 "10 işlem" son ölçüm + Samsung kıyası, erişilebilirlik, özellik dondurma kalkar | sonnet | arsiv/FERRARI_PLANI H12 | A/B | evet | bekliyor — en sonda, kullanıcıyla |
 | C1 | **Cihaz: hazır dalların ölçümü:** P08 PDF Pro bellek (`faz-oto-P08-bellek`), P28 PDF kabuğu (`faz-oto-P28-pdf-kabuk`), P07 son sayfa + döndür (`faz-oto-P07-artik`) → A/B → yeşilse birleştir | opus | §1.8; DEVIR.md | A/B | evet | cihaz bekliyor |
@@ -283,41 +282,15 @@ GİRMEZ → testte sentetik docx üret. Her madde ayrı commit.
 
 **Bitti:** 1–8 testli, altın + roundtrip yeşil, C2'ye "Slayt düzenleme/sunum A/B".
 
-### 1.12) B12 ayrıntısı — Hız 2.0 (cihazsız kanıtlı, bulutta yapılabilir)
+### 1.12) B12 ayrıntısı — Hız 2.0 (cihazsız kanıtlı) — **BİTTİ (bulut 2026-11-18, dal faz-oto-B12-hiz2)**
 
-§0 geçerli: tahminle değişiklik YOK. Kanıt cihazsız ölçülebilen: bekçi testi (statik tarama, tavanı
-yalnız düşer), kurulum/çizim sayısı (`PerfBudget`), test içinde `Stopwatch`'lı çözümleme süresi, bellek
-tavanı. Cihaz A/B sonra C2'de. Her madde ayrı commit (tek başına geri alınır).
-
-1. ~~Eşzamanlı dosya G/Ç~~ **yazıldı (bulut 2026-11-18):** bekçi `test/sync_io_guard_test.dart` (ekran/
-   bileşende senkron G/Ç dosya başına tavan, gerekçeli; `sync_io_ratchet_test` toplamı 26 → 22). `build`
-   içinden eşzamansıza: arşiv oranı, SD birleştirme klasör çipleri, klasör seçici kısayolları. Tavanda (C2,
-   ÖLÇÜM KAPISI): ana ekran başlangıç klasörü, pano/dosya seçici Önemli kutusu + `downloadsPathIn`, galeri
-   bilgi satırı; diğerleri açılışta tek stat (sahte saat gerekçesi kodda) ya da izolat.
-2. ~~Açılış çözümlemesi izolatta~~ **yazıldı (bulut 2026-11-18, dal faz-oto-B12-hiz2):** kanıt+bekçi
-   `test/open_parse_isolate_test.dart` (sentetik büyük docx/xlsx/pptx > 16 ms; ekranlarda çıplak çözümleme
-   dosya başına tavanlı). İzolata giden: eski .xls/.doc/.ppt açılışı, 4 editörün taslak geri yüklemesi, sesli
-   kitap bölümleri. ODF/EPUB uygulamada açılmıyor (harici). Kalan: Word `_rerender` (resim sonrası) → m.3.
-3. ~~Editör yeniden kurulum bütçeleri~~ **yazıldı (bulut 2026-11-18, dal faz-oto-B12-hiz2):** sayaç
-   `test/support/rebuild_probe.dart` (eylemde widget örneği değişen/doğan öğe). Word: bir harf eskiden tüm
-   görünür paragrafların metnini kuruyordu → paragraf RichText önbelleği, `word_perf_test` RichText ≤ 1.
-   Slayt: sürükleme zaten yalnız çerçeve katmanı (`_ShapeBody` 0). Excel: her harf tüm ekran setState
-   (`entry.dart` onChanged) — metne bağlı parçalar çok, daraltma ölçümle (kalan, B10'la). PDF: pdfrx testte
-   kurulamaz → kaynak bekçisi (sayfa değişiminde tüm ekranı kuran setState tavanı 2; daraltma C2). Toplam
-   tavanlar (Word < 400, Slayt < 250, Excel < 12000) gevşek: CI `PERF *_rebuilds` satırıyla sıkılaştır.
-   Word `_rerender` (resim ekle/sil) `saveAsync` + `openForView` ile arka izlekte.
-4. ~~Görsel çözme~~ **yazıldı (bulut 2026-11-18):** bekçi `test/image_cache_guard_test.dart`
-   (`Image.memory`/`MemoryImage` çözme boysuz olamaz; tavan: tarama önizlemesi 1, PDF nesne katmanı 1 → C2).
-   Eklendi: Word editörü gömülü resim, galeri kurtarılan görsel, aktarım teklifi küçük resmi.
-5. ~~Başlangıç~~ **yazıldı (bulut 2026-11-18):** `startup_budget_test` `runApp` öncesi `await` tavanı 7 → 6
-   (mandal; `AppHaptics.load` beklenmiyor). Kalan 4/yol gerekçeli: kenardan kenara (ilk kare zıplamasın),
-   sistem rengi, durum init, cihaz profili. Süre kazancı ölçülmedi (tercih deposu `appState.init`te zaten
-   bekleniyor) → C2 soğuk açılış.
-6. **Liste satır yüksekliği:** sabit yükseklikli listelerde `itemExtent`/`prototypeItem` (6 dosyada var)
-   — ayarlar, geçmiş, arama sonuçları vb.; dosya listesi (ÖLÇÜM KAPISI) yalnız C2 ölçümüyle.
-7. **APK/bağımlılık:** kullanılmayan paket/varlık taraması (APK bütçesi yalnız düşer).
-
-**Bitti:** bekçiler yeşil, tavanlar düştü, C2'ye "B12 hız A/B: <yüzeyler>".
+Kalan yalnız cihaz A/B → §1.8 C2 "B12 hız A/B". Ayrıntı HAFIZA 2026-11-18 "B12". Bekçiler: m.1
+`sync_io_guard_test` (senkron G/Ç dosya başına tavan), m.2 `open_parse_isolate_test` (açılış/taslak
+izolatta), m.3 `rebuild_probe` + editör `*_perf_test` (yeniden kurulum), m.4 `image_cache_guard_test`
+(boysuz çözme yok), m.5 `startup_budget_test` (`runApp` öncesi await 6), m.6 `list_extent_ratchet_test`
+(sabit satırlı liste ≥ 11: tablo görünümü `itemExtent`, çalma listesi `prototypeItem`), m.7
+`unused_dependency_guard_test` (her pubspec paketi `lib/`de içe aktarılır; 3 gerekçeli istisna —
+taramada kaldırılacak paket/varlık çıkmadı).
 
 ### 1.13) B13 ayrıntısı — Deneyim hissi (akıcılık · dokunuş · geri bildirim)
 
@@ -371,6 +344,9 @@ görünür her değişiklikte `kasma-kontrol`; görünüş değişmeden önce es
   (bulut 2026-11-18, ölçülmedi): uzun Word belgesinde yazma kare süresi (paragraf metni önbelleği), Word
   resim ekle/sil donması; **PDF sayfa değişimi** tüm görüntüleyiciyi yeniden kuruyor (`body.dart`
   onPageChanged setState) → sayfa bildirimcisi + dar dinleyici adayı, önce kaydırma kare A/B.
+  **B12 m.6** (bulut 2026-11-18, ölçülmedi): CSV/tablo görünümünde 2.000 satır yukarı kaydırma kare p99;
+  dosya listesi dışı ölçüm kapılı adaylar: **dosya seçici** ve **çöp kutusu** (`FmEntryRow` + başlık/ayraç
+  karışık), klasör seçici (izinsiz satırda alt yazı) — sabit boy ancak ölçümle.
 - **C3:** P11 genel tur + K20–K28; Arapça OCR, AI hızlı/toplu kontrol, paylaşım kalkanı, Akıllı düzen ve
   Ayıkla maddeleri (CIHAZ_TESTI 2026-11-18); Akıllı düzen Word/Excel/sunum/metin/APK ikinci adları
   (bulut 2026-11-18, dal faz-oto-B1-duzen2); Akıllı düzen kullanıcı kategorileri ("Dene", uygula,
