@@ -313,11 +313,14 @@ abstract final class AiIndex {
   /// ([AiRecord.title]) dosyanın takma adıdır — orijinal ad DEĞİŞMEZ. Satırda
   /// ikincil metin olarak görünür; boşsa (yerel kayıt / analiz yok) ''.
   /// Elle verilen ad ([AiRecord.alias]) AI başlığının önüne geçer.
+  /// Öncelik (2026-11-18): **elle verilen ad** > Akıllı düzen adı (yeni
+  /// model, dile göre kurulur) > eski AI analizinin başlığı.
   static String aliasOf(String filePath) {
     final r = _records[filePath];
-    final own = r == null ? '' : (r.alias.isNotEmpty ? r.alias : r.title);
-    if (own.isNotEmpty) return own;
-    return fallbackAlias?.call(filePath) ?? '';
+    if (r != null && r.alias.isNotEmpty) return r.alias;
+    final smart = fallbackAlias?.call(filePath) ?? '';
+    if (smart.isNotEmpty) return smart;
+    return r?.title ?? '';
   }
 
   /// Kendi adı yoksa gösterilecek ikinci ad (Akıllı düzen, 2026-11-18 —

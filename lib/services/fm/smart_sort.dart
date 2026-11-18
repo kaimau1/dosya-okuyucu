@@ -536,6 +536,30 @@ abstract final class SmartSort {
     );
   }
 
+  /// **Tek dosya** (dosya menüsü → "AI ile ikinci ad", 2026-11-18): verilen
+  /// girdiyle (görsel/PDF bloğu ya da Word/metin yazısı) tek Decisions isteği;
+  /// sonuç kaydedilir (gizli işareti korunur). Yanıt yoksa null.
+  static Future<SmartRecord?> classifyOne({
+    required FsEntry entry,
+    required AiCredentials credentials,
+    required List<Map<String, Object?>> input,
+  }) async {
+    await ensureLoaded();
+    final result = await GeminiDecisions.ask(
+      keys: credentials.normalized.keys,
+      input: input,
+      questions: SmartTaxonomy.questions(
+          image: GeminiDecisions.mediaFor(entry.path)?.type == 'image'),
+    );
+    final rec = fromAnswers(entry, result);
+    if (rec == null) return null;
+    final old = _records[entry.path];
+    _records[entry.path] =
+        (old?.hidden ?? false) ? rec.copyWith(hidden: true) : rec;
+    _changed();
+    return _records[entry.path];
+  }
+
   // ── Kapsam ─────────────────────────────────────────────────────────────
   /// Taranan klasörler (var olanlar). Kamera yalnız [camera] ise.
   static List<String> scopeRoots({bool? camera}) {

@@ -179,4 +179,9 @@ const Map<String, (String, String, String)> _t40 = {
   'sm.keep': ('Gereksiz değil', 'Keep it', 'احتفظ به'),
   'sm.select_one': ('Seç', 'Select', 'تحديد'),
   'sm.deselect_one': ('Seçimi kaldır', 'Deselect', 'إلغاء التحديد'),
+  'alias.done_tag': (
+    'Şu adı koydum: {name} · Etiket: {tag}',
+    'I named it: {name} · Tag: {tag}',
+    'سمّيته: {name} · الوسم: {tag}',
+  ),
 };

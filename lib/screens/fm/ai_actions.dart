@@ -17,6 +17,8 @@ import '../../services/ai_summary_store.dart';
 import '../../services/file_service.dart';
 import '../../services/fm/ai_analyzer.dart';
 import '../../services/fm/ai_index.dart';
+import '../../services/fm/file_tags.dart';
+import '../../services/fm/smart_sort.dart';
 import '../../widgets/app_dialog.dart';
 import '../../services/fm/doc_classifier.dart';
 import '../../services/fm/file_ops.dart';
@@ -27,6 +29,7 @@ import '../../services/gemini_service.dart';
 import '../../services/ocr_service.dart';
 import '../../widgets/markdown_text.dart';
 import '../../widgets/tracked_busy.dart';
+import 'ai_quick_check.dart';
 import 'important_screen.dart';
 import '../../core/snack.dart';
 import '../../core/user_error.dart';
@@ -79,21 +82,25 @@ Future<void> showAiSummary(BuildContext context, FsEntry entry,
   await _watchSummary(context, entry, run);
 }
 
-/// **AI ile ikinci ad** (2026-11-08): AI analizini YALNIZ bu dosya için
-/// koşar; AI'nın okunur başlığı ([AiRecord.title]) dosyanın ikinci adı olur
-/// (satırda ikincil metin, aramada bulunur). Orijinal ad DEĞİŞMEZ; ad önerisi
-/// yine AI Merkezi'nin onaylı akışında kalır. Ağ isteği yalnız bu eylemle.
+/// **AI ile ikinci ad + etiket** (2026-11-18, kullanıcı: *"AI ile 2. ad ver
+/// bu olsun artık; yeni model hem ad versin hem etiketini"*).
 ///
-/// 2026-11-10 (kullanıcı: *"ne yaptı hemen görülmeli"*): iş sürerken altta
-/// kalıcı kart, bitince "Şu adı koydum: …" kartı + **Değiştir** (elle yaz).
-/// AI'dan istendiği için önceki elle ad bırakılır, AI başlığı görünür.
+/// Önce **yeni model** (Gemini Decisions, [SmartSort.classifyOne]): görsel/PDF
+/// olduğu gibi, Word/metin okunan yazıyla tek istekte sorulur → "Elektrik
+/// faturası · Ekim 2026" gibi ikinci ad + AI kategorisi; kategori aynı anda
+/// dosyanın **etiketi** olur ([FileTags], Etiketler süzgecinde görünür).
+/// Yeni model ad çıkaramazsa (kişisel fotoğraf, ses/video, düşük güven) eski
+/// yol: üretken AI analizi yalnız bu dosya için ([AiAnalyzer]).
+///
+/// AI'dan istendiği için önceki ELLE ad bırakılır (yeni ad görünsün); iş
+/// sürerken kalıcı kart, bitince "Şu adı koydum: … · Etiket: …" + Değiştir.
 Future<void> giveAiAlias(BuildContext context, FsEntry entry) async {
   if (!await ensureAiKey(context) || !context.mounted) return;
-  if (AiAnalyzer.isRunning) {
-    showSnack(context, context.t('alias.busy'));
+  final state = context.read<AppState>();
+  if (!state.aiScopeRules.allowsFile(entry)) {
+    showSnack(context, context.t('qc.scope_off'));
     return;
   }
-  final state = context.read<AppState>();
   final nav = Navigator.of(context, rootNavigator: true);
   final str = AppStrings.of(context);
   final live = showStickyToast(
@@ -108,20 +115,46 @@ Future<void> giveAiAlias(BuildContext context, FsEntry entry) async {
       Expanded(child: Text(str.t('alias.started'))),
     ]),
   );
-  await AiAnalyzer.start(
-    scope: state.aiScopeRules,
-    credentials: state.aiCredentials,
-    reanalyze: true,
-    candidates: [entry],
-  );
-  await AiAnalyzer.whenIdle
-      .timeout(const Duration(minutes: 5), onTimeout: () {});
-  live.close();
-  final rec = AiIndex.of(entry.path);
-  if (rec != null && rec.alias.isNotEmpty && rec.title.isNotEmpty) {
-    await AiIndex.put(rec.copyWith(alias: ''));
+  await AiIndex.ensureLoaded();
+  // Elle ad bırakılır: AI'dan yeni ad istendi.
+  final before = AiIndex.of(entry.path);
+  if (before != null && before.alias.isNotEmpty) {
+    await AiIndex.put(before.copyWith(alias: ''));
   }
-  final alias = AiIndex.aliasOf(entry.path);
+  var tag = '';
+  var alias = '';
+  try {
+    final rec = await SmartSort.classifyOne(
+      entry: entry,
+      credentials: state.aiCredentials,
+      input: await quickCheckInput(entry.path, str),
+    );
+    if (rec != null) {
+      alias = SmartSort.render(rec, str);
+      if (alias.isNotEmpty && rec.cat != 'other') {
+        tag = str.t('sm.c_${rec.cat}');
+        await FileTags.add([entry.path], tag);
+      }
+    }
+  } catch (_) {
+    // Bilinçli: yeni model düşerse aşağıdaki eski yol dener.
+  }
+  if (alias.isEmpty && !AiAnalyzer.isRunning) {
+    await AiAnalyzer.start(
+      scope: state.aiScopeRules,
+      credentials: state.aiCredentials,
+      reanalyze: true,
+      candidates: [entry],
+    );
+    await AiAnalyzer.whenIdle
+        .timeout(const Duration(minutes: 5), onTimeout: () {});
+    final rec = AiIndex.of(entry.path);
+    if (rec != null && rec.alias.isNotEmpty && rec.title.isNotEmpty) {
+      await AiIndex.put(rec.copyWith(alias: ''));
+    }
+    alias = AiIndex.aliasOf(entry.path);
+  }
+  live.close();
   if (!nav.mounted) return;
   if (alias.isEmpty) {
     showSnack(nav.context, str.t('alias.failed'));
@@ -129,7 +162,9 @@ Future<void> giveAiAlias(BuildContext context, FsEntry entry) async {
   }
   showSnack(
     nav.context,
-    str.t('alias.done', {'name': alias}),
+    tag.isEmpty
+        ? str.t('alias.done', {'name': alias})
+        : str.t('alias.done_tag', {'name': alias, 'tag': tag}),
     duration: const Duration(seconds: 8),
     action: SnackBarAction(
       label: str.t('alias.change'),
