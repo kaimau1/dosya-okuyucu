@@ -70,8 +70,8 @@ void main() {
 
   test('geri bildirim yalnız kimlik ve sayı taşır (dosya adı gitmez)', () {
     SmartLearn.debugReset([
-      SmartCorrection('screenshot', 'email', const ['w:gizli_ad'], 1),
-      SmartCorrection('screenshot', 'email', const ['w:gizli_ad'], 2),
+      const SmartCorrection('screenshot', 'email', ['w:gizli_ad'], 1),
+      const SmartCorrection('screenshot', 'email', ['w:gizli_ad'], 2),
     ]);
     final h = SmartLearn.hint(image: true);
     expect(h, contains('"screenshot" was wrong and should have been "email" (2x)'));
