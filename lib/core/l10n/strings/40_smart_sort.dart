@@ -134,6 +134,7 @@ const Map<String, (String, String, String)> _t40 = {
   'sm.progress': ('Düzenleniyor {done}/{total}', 'Organizing {done}/{total}', 'جارٍ التنظيم {done}/{total}'),
   'sm.done': ('{n} dosya düzenlendi', '{n} files organized', 'تم تنظيم {n} ملفات'),
   'sm.nothing_new': ('Düzenlenecek yeni dosya yok', 'No new files to organize', 'لا ملفات جديدة للتنظيم'),
+  'sm.failed': ('{n} dosya yapılamadı', '{n} files failed', 'تعذّر {n} ملفات'),
   'sm.stopped': (
     '{n} dosya düzenlendi; AI kotası doldu, kalanlar sonra düzenlenecek',
     '{n} files organized; AI quota reached, the rest will follow later',
