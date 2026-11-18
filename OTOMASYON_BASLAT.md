@@ -187,4 +187,5 @@ sahiplenir, yerel `oto-tur` onu atlar ve C (telefon) paketlerini yapar. İstemez
 **İzleme / durdurma:** GitHub'daki `oto-kilit` dalı = bulut yürütücüsü çalışıyor (commit zamanı =
 son tazeleme; 60 dk'dan eskiyse bayat, sonraki çalıştırma devralır). Durum `PLAN.md` §1, yarım
 iş dalın `DEVIR.md`'si, CI Actions'ta `faz-oto-*` koşuları. Durdurmak: görevi duraklat. Takılırsa
-`oto-kilit` dalını sil.
+`oto-kilit` dalını GitHub'dan sil (bulut kendisi dal silemez). Birleşmiş `faz-oto-*` dallarını yerel
+zincir ya da sen silersin.

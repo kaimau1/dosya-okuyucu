@@ -84,8 +84,10 @@ adım · kök neden/kanıt (dosya:satır) · işe yaramayanlar · sıradaki adı
 - Kap geçici; telefon/adb, Flutter ve `gh` YOK. Windows yolları ve `flutter.bat` geçersiz,
   Flutter İNDİRİLMEZ; yerel test/analiz yok, CI doğrular. Dart'ı dikkatle yaz: `flutter analyze`
   info düzeyinde de sıfır ister (kullanılmayan import, `const`, `await` sonrası `mounted`).
-- Dal: yürütücünün verdiği `faz-oto-<no>-<ad>` — uzakta varsa `git checkout -B <dal> origin/<dal>`,
-  yoksa `git checkout -B <dal> origin/main`. Oturumun `claude/*`/`ccr-*` dalına push YOK.
+- Dal: yürütücünün verdiği `faz-oto-<no>-<ad>` — uzakta varsa VE main'e birleşmemişse
+  (`git merge-base --is-ancestor origin/<dal> origin/main` yanlış) `git checkout -B <dal>
+  origin/<dal>`; yoksa ya da birleşmişse `git checkout -B <dal> origin/main`. Oturumun
+  `claude/*`/`ccr-*` dalına push YOK. Zorla push ve dal silme YOK (bulut vekili silmeyi reddeder).
 - **Push düzeni (Actions kotası):** her commit'ten sonra push (kap her an gidebilir) ama ara
   commit başlığının sonunda `[skip ci]`. Her push'tan önce `bash .claude/skills/oto-bulut/kilit.sh
   tazele` — çıkış 3 (KAYIP) → DEVIR.md + `[skip ci]` push, DUR, rapora yaz.

@@ -102,7 +102,8 @@ gerisi `grep`. Graphify'ı açma. Alt ajan beklerken yoklama yok, bildirimi bekl
    **APK izlenmez:** dal CI'ı yeşilse birleştir, push, sıradakine geç; yalnız sonraki main
    push'undan ÖNCE `gh run list -b main -L 1` — APK işi sürüyorsa push'u bekletip dalda çalış.
 9. **Temizlik:** birleştirince `git worktree remove --force <ağaç>`, `git push origin --delete
-   <dal>`, yerel dal silinir; A/B taban ağacı (`../okuyucu_ab`) ölçüm bitince silinir. Silinemeyen
+   <dal>`, yerel dal silinir; bulut zincirinin bıraktığı, main'e birleşmiş `faz-oto-*` dallarını da
+   sil (bulut vekili dal silemez); A/B taban ağacı (`../okuyucu_ab`) ölçüm bitince silinir. Silinemeyen
    klasörü tutan Gradle/Java sürecini durdur (`./gradlew --stop` ya da süreç). "Filename too
    long" → PowerShell `Remove-Item -LiteralPath '\\?\C:\...\<ağaç>' -Recurse -Force` +
    `git worktree prune`.

@@ -25,7 +25,8 @@ her metin Türkçe.
 | Flutter | YOK ve İNDİRİLMEZ (CLAUDE.md §4) → doğrulama = CI |
 | `gh` | YOK → CI: GitHub MCP `actions_list` / `actions_get` / `get_job_logs` (owner `kaimau1`, repo `dosya-okuyucu`) |
 | Bekleme | ön planda `sleep` engelli → `Bash` `run_in_background: true` ile `sleep 900`; bitince bildirim gelir. Yoklama döngüsü YOK |
-| Kilit | `.git/oto.lock` kaplar arası görünmez → uzak dal `oto-kilit`: `bash .claude/skills/oto-bulut/kilit.sh al\|tazele\|birak\|durum` |
+| Kilit | `.git/oto.lock` kaplar arası görünmez → uzak dal `oto-kilit`: `bash .claude/skills/oto-bulut/kilit.sh al\|tazele\|birak\|durum` (bırakmak = "SERBEST" commit'i) |
+| Dal silme / zorla push | bulut git vekili dal SİLMEYİ reddeder (403, 2026-11-18); zorla push'a güvenme → hiç kullanma. Birleşmiş `faz-oto-*` dalları uzakta kalır, yok sayılır (yerel zincir siler) |
 | Limit freni | `get_usage` YOK → fren yok. Limit dolunca oturum kesilir; kimse tazelemediği için kilit 60 dk'da bayatlar, sonraki saatlik çalıştırma kaldığı yerden sürer. Bu yüzden: her adım push'lu, satır `bulutta: sürüyor` main'de, DEVIR.md güncel |
 | Actions kotası | ayda ~2000 dk (CLAUDE.md §3) → dilim başına TEK dal CI koşusu: ara push'lar başlıkta `[skip ci]`; main'de test koşmasın diye birleştirme ağacı = yeşil dal ucu ağacı |
 
@@ -38,8 +39,10 @@ her metin Türkçe.
    Arka plan döngüsüyle tazeleme YASAK. İşçi uzun sürerken bekçi: arka planda `sleep 2400`, her
    uyanışta tazele + yeniden kur (işçi bildirimi gelince bekçiyi `TaskStop`).
 1. **Depo.** `git fetch origin main && git checkout -B main origin/main` (oturum dalında kalma).
-   `git ls-remote origin 'refs/heads/faz-oto-*'` → uzaktaki zincir dalları; satırı olmayan dalın
-   `git show origin/<dal>:DEVIR.md`'sine bak, satıra bağla. Klon sığsa ve birleştirme tabanı
+   `git fetch origin '+refs/heads/faz-oto-*:refs/remotes/origin/faz-oto-*'` → uzaktaki zincir
+   dalları; `git merge-base --is-ancestor origin/<dal> origin/main` doğruysa dal BİRLEŞMİŞTİR,
+   yok say. Birleşmemiş ve satırı olmayan dalın `git show origin/<dal>:DEVIR.md`'sine bak, satıra
+   bağla. Klon sığsa ve birleştirme tabanı
    bulunamazsa `git fetch --deepen=300 origin main <dal>`.
 2. **main sağlığı.** `actions_list` `method: list_workflow_runs`, `resource_id: build-apk.yml`,
    `workflow_runs_filter: {branch: main}`, `perPage: 3`. Son BİTEN koşu kırmızıysa turun işi onu
@@ -48,8 +51,8 @@ her metin Türkçe.
    içeren main push'u bekler (yalnız `.md`/`docs/`/`.claude/` push'u CI açmaz, serbest).
 3. **Paketi seç** (`PLAN.md` §1 SIRA + tablo; BİR kez oku). Alınır: **B satırı**, Durum `bekliyor`
    ya da `bulutta: sürüyor`. Alınmaz: C satırları, `kullanıcı kararı`, `cihaz bekliyor`,
-   `takıldı`, başında `bulutta:` olmayan `sürüyor` (yerel zincirin), uzakta son commit'i < 3 saat
-   olup DEVIR'inde "bulut" geçmeyen `faz-oto-<no>-*` dalı (yerelde sürüyor). Paketin içinden yalnız
+   `takıldı`, başında `bulutta:` olmayan `sürüyor` (yerel zincirin), uzakta BİRLEŞMEMİŞ, son
+   commit'i < 3 saat olup DEVIR'inde "bulut" geçmeyen `faz-oto-<no>-*` dalı (yerelde sürüyor). Paketin içinden yalnız
    telefonsuz maddeler: 📱 / "ölç → değiştir → ölç" / ölçümsüz anlamsız hız maddesi YAPILMAZ
    (C2'ye madde olur). 👤 kararı bekleyen madde atlanır, kalan yapılır. Önce `bulutta: sürüyor`
    (DEVIR'den sür), yoksa SIRA'daki ilk uygun. Uygun B kalmadıysa → 9. adım (Kuyruk boş).
@@ -100,8 +103,9 @@ her metin Türkçe.
    - `evet`: kullanıcıya görünür iş bitince `[apk]`; ölçülmeyen her yüzey C2'ye "ölçülmedi".
    Oturum başına en çok 1 `[apk]` (kota). APK koşusu İZLENMEZ; yalnız sonraki kod içeren main
    push'undan önce tek `actions_list` (main, `perPage: 1`) — sürüyorsa bekle.
-8. **Temizlik + sıradaki.** Birleşince `git push origin --delete <dal>`, işçinin çalışma kopyası
-   `git worktree remove --force <yol>`. Yarım kalan iş (limit/durdurma/KAYIP) → satır HEMEN
+8. **Temizlik + sıradaki.** Birleşince işçinin çalışma kopyası `git worktree remove --force <yol>`;
+   uzak dal SİLİNMEZ (vekil reddeder; birleşmiş dal 1. adımda yok sayılır, aynı adlı sonraki dilim
+   `origin/main`'den yeniden başlar — ileri sarma olduğu için düz push yeter). Yarım kalan iş (limit/durdurma/KAYIP) → satır HEMEN
    `bulutta: sürüyor — dal <ad> (<kısa sha>): bitti <x>, kalan <y>; DEVIR.md'den sür` +
    `[skip ci]` commit + main push; önce `git log origin/<dal>..<dal>` boş olmalı.
    **Uzun alt ajanı DİRİLTME:** uzun aradan sonra eski ajana `SendMessage` atma (bütün geçmişini

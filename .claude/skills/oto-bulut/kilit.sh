@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # Bulut zincirinin UZAK kilidi (2026-11-18). Bulutta her çalıştırma yeni kap + taze klon olduğundan
 # `.git/oto.lock` kaplar arası görünmez; kilit origin'deki `oto-kilit` dalıdır: tek commit, içinde
-# KILIT = "<ISO zaman> <kimlik>". build-apk.yml dal süzgecinde yok → CI tetiklemez.
+# KILIT = "<ISO zaman> <kimlik|SERBEST>". build-apk.yml dal süzgecinde yok → CI tetiklemez.
 # Yaş = kilit commit'inin zamanı. Eşik 60 dk (OTO_KILIT_ESIK_DK). Arka plan döngüsüyle TAZELEME YOK:
 # yürütücü uyanışlarında ve işçi her push'ta `tazele` der; model durursa kilit kendiliğinden bayatlar.
+# Bulut git vekili dal SİLMEYİ reddeder (403, 2026-11-18) ve zorla push'a güvenilmez → her yazım
+# öncekinin ÇOCUĞU olan yeni commit, düz (ileri sarma) push: aynı anda yazan ikincinin push'u
+# reddedilir (doğal karşılaştır-değiştir). Bırakmak = "SERBEST" yazan commit.
 # Kullanım: kilit.sh al | tazele | birak | durum
 #   çıkış 0 = tamam · 3 = kilit başkasında (MEŞGUL / KAYIP) · 1 = git/ağ/izin hatası
 set -u
@@ -26,13 +29,13 @@ oku() {  # uzak kilit → SHA, ICERIK, SAHIP, YAS_DK (dal yoksa SHA boş)
   fi
 }
 
-yaz() {  # $1 = kimlik; lease ile yaz (SHA boşsa dal yok olmalı)
+yaz() {  # $1 = kimlik ya da SERBEST; okunan SHA'nın çocuğu olarak ileri sarma push'u
   local satir blob tree c
   satir="$(date -u +%FT%TZ) $1"
   blob=$(printf '%s\n' "$satir" | git hash-object -w --stdin)
   tree=$(printf '100644 blob %s\tKILIT\n' "$blob" | git mktree)
-  c=$(git commit-tree "$tree" -m "oto-kilit: $satir") || return 1
-  git push -q --force-with-lease="refs/heads/$DAL:$SHA" origin "$c:refs/heads/$DAL" 2>/dev/null
+  c=$(git commit-tree "$tree" ${SHA:+-p "$SHA"} -m "oto-kilit: $satir") || return 1
+  git push -q origin "$c:refs/heads/$DAL" 2>/dev/null
 }
 
 kimlik() { cat "$KIMLIK_DOSYA" 2>/dev/null; }
@@ -40,14 +43,14 @@ kimlik() { cat "$KIMLIK_DOSYA" 2>/dev/null; }
 case "${1:-durum}" in
   al)
     oku
-    if [ -n "$SHA" ] && [ "$YAS_DK" -lt "$ESIK_DK" ] && [ "$SAHIP" != "$(kimlik)" ]; then
+    if [ -n "$SHA" ] && [ "$SAHIP" != SERBEST ] && [ "$YAS_DK" -lt "$ESIK_DK" ] && [ "$SAHIP" != "$(kimlik)" ]; then
       echo "MEŞGUL: kilit $YAS_DK dk önce tazelendi ($ICERIK)"; exit 3
     fi
     eski_sha=$SHA; eski_yas=$YAS_DK
     yeni="$(date -u +%Y%m%d%H%M%S)-$$-$RANDOM"
     if yaz "$yeni"; then
       echo "$yeni" > "$KIMLIK_DOSYA"
-      echo "ALINDI: $yeni${eski_sha:+ (bayat kilit devralındı: $eski_yas dk)}"; exit 0
+      echo "ALINDI: $yeni${eski_sha:+ (önceki: $eski_yas dk önce)}"; exit 0
     fi
     oku
     if [ "$SHA" != "$eski_sha" ]; then echo "MEŞGUL: kilidi aynı anda başkası aldı ($ICERIK)"; exit 3; fi
@@ -56,7 +59,7 @@ case "${1:-durum}" in
     k=$(kimlik)
     for _ in 1 2 3; do
       oku
-      if [ -z "$k" ] || [ -z "$SHA" ] || [ "$SAHIP" != "$k" ]; then
+      if [ -z "$k" ] || [ -z "$SHA" ] || [ "$SAHIP" != "$k" ]; then  # SERBEST de kayıp sayılır
         echo "KAYIP: kilit bizde değil (${ICERIK:-kilit yok})"; exit 3
       fi
       yaz "$k" && { echo "TAZELENDİ"; exit 0; }
@@ -66,15 +69,15 @@ case "${1:-durum}" in
   birak)
     oku; k=$(kimlik)
     if [ -n "$SHA" ] && [ -n "$k" ] && [ "$SAHIP" = "$k" ]; then
-      git push -q --force-with-lease="refs/heads/$DAL:$SHA" origin ":refs/heads/$DAL" 2>/dev/null \
-        && echo "BIRAKILDI" || echo "HATA: kilit silinemedi (60 dk sonra kendiliğinden bayatlar)"
+      yaz SERBEST && echo "BIRAKILDI" || echo "HATA: kilit bırakılamadı (60 dk sonra kendiliğinden bayatlar)"
     else
       echo "BIRAKILMADI: kilit bizde değil (${ICERIK:-kilit yok})"
     fi
     rm -f "$KIMLIK_DOSYA"; exit 0 ;;
   durum)
     oku
-    if [ -n "$SHA" ]; then echo "KİLİT: $ICERIK ($YAS_DK dk önce; eşik $ESIK_DK dk; bizim: $([ "$SAHIP" = "$(kimlik)" ] && echo evet || echo hayır))"
-    else echo "KİLİT YOK"; fi ;;
+    if [ -z "$SHA" ] || [ "$SAHIP" = SERBEST ]; then echo "KİLİT YOK${SHA:+ (son: $ICERIK)}"
+    else echo "KİLİT: $ICERIK ($YAS_DK dk önce; eşik $ESIK_DK dk; bizim: $([ "$SAHIP" = "$(kimlik)" ] && echo evet || echo hayır))"
+    fi ;;
   *) echo "kullanım: $0 al|tazele|birak|durum"; exit 1 ;;
 esac
