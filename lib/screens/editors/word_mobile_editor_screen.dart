@@ -245,7 +245,12 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
   }
 
   Future<void> _restoreDraft(Uint8List bytes) async {
-    setState(() => _attach(DocxDocument.parse(bytes)));
+    // Açılıştaki gibi arka izlekte (B12 m.2): büyük taslakta ana izlek donmasın.
+    final doc = WordMobileEditorScreen.parseInIsolate
+        ? await compute(_parse, bytes)
+        : _parse(bytes);
+    if (!mounted) return;
+    setState(() => _attach(doc));
     _session.changed();
   }
 

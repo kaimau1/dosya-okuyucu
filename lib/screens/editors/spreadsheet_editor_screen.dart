@@ -427,6 +427,15 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
     return XlsxEditor.parse(bytes);
   }
 
+  /// Taslak baytlarından model (B12 m.2) — `compute` ile arka izlekte koşsun
+  /// diye statik. [csvSheet] null değilse CSV/TSV taslağıdır.
+  static XlsxEditor _parseDraft(
+      ({Uint8List bytes, String? csvSheet, bool tsv}) job) {
+    final sheet = job.csvSheet;
+    if (sheet == null) return XlsxEditor.parse(job.bytes);
+    return XlsxEditor.fromCsv(job.bytes, sheetName: sheet, tsv: job.tsv);
+  }
+
   /// Büyük xlsx akış önizlemesi (Faz 42 / 2): okuma + kitap kurma izolatta.
   static Future<XlsxEditor> _streamPreview(XlsxStreamRequest r) async =>
       XlsxEditor.fromStream(await XlsxStream.readInBackground(r));

@@ -32,10 +32,13 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
   /// Taslaktan geri yükleme: belge taslağın baytlarıyla yeniden kurulur ve
   /// kirli sayılır (kaydedilene kadar dosya değişmez).
   Future<void> _restoreDraft(Uint8List bytes) async {
+    // Ayrıştırma + görünüm kopyası açılıştaki gibi arka izlekte (B12 m.2).
+    final opened = await DocxEditor.openForView(bytes);
+    if (!mounted) return;
     _undo.clear();
     _partSetState(() {
-      _editor = DocxEditor.parse(bytes);
-      _viewBytes = _editor!.viewBytes();
+      _editor = opened.editor;
+      _viewBytes = opened.view;
       _editing = false;
     });
     _session.changed();
