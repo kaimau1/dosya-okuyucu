@@ -15,6 +15,7 @@ import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/crash_log.dart';
 import '../../services/cloud_ocr.dart';
+import '../fm/share_shield.dart';
 import '../../widgets/app_dialog.dart';
 import '../../services/app_update.dart';
 import '../../services/fm/content_indexer.dart';
@@ -838,4 +839,38 @@ class _OcrScriptTileState extends State<OcrScriptTile> {
       onTap: v == null ? null : _pick,
     );
   }
+}
+
+/// **Paylaşmadan önce kişisel veri denetimi** (2026-11-18, [ShareShield]).
+class ShareShieldTile extends StatefulWidget {
+  const ShareShieldTile({super.key});
+
+  @override
+  State<ShareShieldTile> createState() => _ShareShieldTileState();
+}
+
+class _ShareShieldTileState extends State<ShareShieldTile> {
+  bool? _on;
+
+  @override
+  void initState() {
+    super.initState();
+    ShareShield.enabled().then((v) {
+      if (mounted) setState(() => _on = v);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => SettingSwitch(
+        icon: AppIcons.shield,
+        title: context.t('shield.setting'),
+        subtitle: context.t('shield.setting_sub'),
+        value: _on ?? false,
+        onChanged: _on == null
+            ? null
+            : (v) {
+                setState(() => _on = v);
+                unawaited(ShareShield.setEnabled(v));
+              },
+      );
 }

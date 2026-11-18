@@ -55,6 +55,7 @@ import 'link_share_card.dart';
 import 'qr_receive_flow.dart';
 import 'remote_connections_screen.dart';
 import '../pick_file_screen.dart';
+import '../share_shield.dart';
 
 part 'nearby/links.dart';
 part 'nearby/sections.dart';

@@ -44,6 +44,7 @@ import '../../widgets/fm/fm_progress_dialog.dart';
 import '../../widgets/fm/tag_picker_sheet.dart';
 import 'ai_actions.dart';
 import 'ai_quick_check.dart';
+import 'share_shield.dart';
 import 'archive_screen.dart';
 import 'drive_screen.dart';
 import 'folder_picker_screen.dart';

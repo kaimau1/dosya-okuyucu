@@ -1313,3 +1313,5 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Aktar sağ üst Paylaş simgesi → sistem paylaş levhası (WhatsApp vb.) açılıyor mu?
 - [ ] Arapça bir sayfanın fotoğrafı → Metni tanı: Otomatik ayarda Arapça metin geliyor mu? Ayarlar → Belgeler → "Metin tanıma dili" → Arapça (AI ile) ile de dene.
 - [ ] İçinde QR olan bir görseli galeride aç → ~1 sn sonra sağ üstte alan adı düğmesi; dokununca tarayıcıda açılıyor mu? Galeride hızlı kaydırırken kasma var mı?
+- [ ] Birkaç PDF/fotoğraf seç → ⋮ → "AI ile toplu kontrol" → "İmzalı mı?" → "Evet olanlar" süzgeci → Taşı ile klasöre al.
+- [ ] Ayarlar → AI → "Paylaşmadan önce kişisel veri denetimi" aç → kimlik kartı fotoğrafını paylaş: uyarı çıkıyor mu? Sıradan bir fotoğrafta uyarısız mı geçiyor?

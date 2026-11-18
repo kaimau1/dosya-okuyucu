@@ -433,6 +433,12 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
           ]),
           SettingsSection('set.sec_ai_scope', [
             SettingRow(
+              id: 'share_shield',
+              titleKey: 'shield.setting',
+              subtitleKey: 'shield.setting_sub',
+              builder: _shareShieldTile,
+            ),
+            SettingRow(
               id: 'ai_auto_new',
               titleKey: 'aiset.auto_new',
               subtitleKey: 'aiset.auto_new_sub',
@@ -890,6 +896,7 @@ Widget _autoRescanTile(BuildContext _) => const AutoRescanTile();
 Widget _searchIndexTile(BuildContext _) => const SearchIndexTile();
 Widget _contentIndexTile(BuildContext _) => const ContentIndexTile();
 Widget _ocrScriptTile(BuildContext _) => const OcrScriptTile();
+Widget _shareShieldTile(BuildContext _) => const ShareShieldTile();
 Widget _appFootprintTile(BuildContext _) => const AppFootprintTile();
 Widget _sdUnionTile(BuildContext _) => const SdUnionTile();
 Widget _weeklyCleanupTile(BuildContext _) => const WeeklyCleanupTile();

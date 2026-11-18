@@ -121,6 +121,44 @@ List<DecisionQuestion> quickCheckPresets(FmCategory category, AppStrings s) {
   };
 }
 
+/// Dosya → Decisions girdi bloğu: PDF/görsel/ses/video olduğu gibi; ötekiler
+/// (Word, metin, tablo…) okunan düz yazıyla (en çok 60 000 karakter).
+Future<List<Map<String, Object?>>> quickCheckInput(
+    String path, AppStrings s) async {
+  if (GeminiDecisions.mediaFor(path) != null) {
+    return [
+      await GeminiDecisions.fileBlock(path,
+          tooLarge: s.t('qc.too_large'), unsupported: s.t('qc.unsupported'))
+    ];
+  }
+  final text = (await FileService().load(path)).plainText.trim();
+  if (text.isEmpty) {
+    throw GeminiException(s.t('qc.unsupported'), statusCode: -1);
+  }
+  return [
+    GeminiDecisions.textBlock(
+        text.length > 60000 ? text.substring(0, 60000) : text)
+  ];
+}
+
+/// Yanıtın kullanıcıya görünen değeri (Evet/Hayır, tür adı, düzey).
+String quickCheckValue(AppStrings s, DecisionAnswer a) => switch (a.question.kind) {
+      DecisionKind.noul => s.t(a.isYes ? 'qc.yes' : 'qc.no'),
+      DecisionKind.choice => _typeIds.contains(a.choice)
+          ? s.t('qc.t_${a.choice}')
+          : (a.choiceText ?? a.choice ?? ''),
+      DecisionKind.score => s.t(switch ((a.score ?? 0).round()) {
+          <= 0 => 'qc.l_low',
+          1 => 'qc.l_mid',
+          _ => 'qc.l_high',
+        }),
+    };
+
+/// Gösterilen yanıtın olasılığı: evet/hayır için seçilen tarafınki.
+double quickCheckP(DecisionAnswer a) => a.question.kind == DecisionKind.noul
+    ? (a.isYes ? a.yes! : 1 - (a.yes ?? 0))
+    : a.confidence;
+
 /// Çevirisi olan belge türü seçenekleri (`qc.t_<kimlik>`).
 const _typeIds = {
   'invoice', 'contract', 'id', 'bank', 'health', 'official', 'cv', 'study',
@@ -166,26 +204,6 @@ class _QuickCheckSheetState extends State<_QuickCheckSheet> {
     ];
   }
 
-  /// Dosya → girdi bloğu: PDF/görsel/ses/video olduğu gibi; ötekiler (Word,
-  /// metin, tablo…) okunan düz yazıyla.
-  Future<List<Map<String, Object?>>> _input(AppStrings s) async {
-    final path = widget.entry.path;
-    if (GeminiDecisions.mediaFor(path) != null) {
-      return [
-        await GeminiDecisions.fileBlock(path,
-            tooLarge: s.t('qc.too_large'), unsupported: s.t('qc.unsupported'))
-      ];
-    }
-    final text = (await FileService().load(path)).plainText.trim();
-    if (text.isEmpty) {
-      throw GeminiException(s.t('qc.unsupported'), statusCode: -1);
-    }
-    return [
-      GeminiDecisions.textBlock(
-          text.length > 60000 ? text.substring(0, 60000) : text)
-    ];
-  }
-
   Future<void> _run() async {
     final s = AppStrings.of(context);
     final questions = _questions();
@@ -200,7 +218,7 @@ class _QuickCheckSheetState extends State<_QuickCheckSheet> {
       _result = null;
     });
     try {
-      final input = await _input(s);
+      final input = await quickCheckInput(widget.entry.path, s);
       final result = await GeminiDecisions.ask(
           keys: keys, input: input, questions: questions);
       if (!mounted) return;
@@ -213,28 +231,11 @@ class _QuickCheckSheetState extends State<_QuickCheckSheet> {
     }
   }
 
-  String _valueText(AppStrings s, DecisionAnswer a) => switch (a.question.kind) {
-        DecisionKind.noul => s.t(a.isYes ? 'qc.yes' : 'qc.no'),
-        DecisionKind.choice => _typeIds.contains(a.choice)
-            ? s.t('qc.t_${a.choice}')
-            : (a.choiceText ?? a.choice ?? ''),
-        DecisionKind.score => s.t(switch ((a.score ?? 0).round()) {
-            <= 0 => 'qc.l_low',
-            1 => 'qc.l_mid',
-            _ => 'qc.l_high',
-          }),
-      };
-
-  /// Gösterilen yanıtın olasılığı: evet/hayır için seçilen tarafınki.
-  double _shownP(DecisionAnswer a) => a.question.kind == DecisionKind.noul
-      ? (a.isYes ? a.yes! : 1 - (a.yes ?? 0))
-      : a.confidence;
-
   String _asText(AppStrings s, DecisionResult r) => [
         widget.entry.name,
         for (final a in r.answers)
-          '${a.question.label}: ${_valueText(s, a)} '
-              '(%${(_shownP(a) * 100).round()})',
+          '${a.question.label}: ${quickCheckValue(s, a)} '
+              '(%${(quickCheckP(a) * 100).round()})',
       ].join('\n');
 
   @override
@@ -329,7 +330,7 @@ class _QuickCheckSheetState extends State<_QuickCheckSheet> {
 
   Widget _row(BuildContext context, AppStrings s, DecisionAnswer a) {
     final scheme = Theme.of(context).colorScheme;
-    final p = _shownP(a).clamp(0.0, 1.0);
+    final p = quickCheckP(a).clamp(0.0, 1.0);
     final yesNo = a.question.kind == DecisionKind.noul;
     final color = !yesNo
         ? scheme.primary
@@ -347,7 +348,7 @@ class _QuickCheckSheetState extends State<_QuickCheckSheet> {
             const SizedBox(width: Gap.sm),
             Flexible(
               child: Text(
-                '${_valueText(s, a)} · %${(p * 100).round()}',
+                '${quickCheckValue(s, a)} · %${(p * 100).round()}',
                 textAlign: TextAlign.end,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,

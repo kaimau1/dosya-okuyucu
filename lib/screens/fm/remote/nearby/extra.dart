@@ -85,6 +85,8 @@ extension _NearbyExtra on _NearbyScreenState {
       if (_selection.isNotEmpty) showSnack(context, context.t('near.share_no_folder'));
       return;
     }
+    if (files.isNotEmpty && !await shareShieldAllows(context, files)) return;
+    if (!mounted) return;
     try {
       await SharePlus.instance.share(ShareParams(
         files: files.isEmpty ? null : [for (final f in files) XFile(f)],
