@@ -54,6 +54,8 @@ abstract final class SmartTaxonomy {
         'guide or technical datasheet.',
     'reading': 'A book, e-book, magazine, article or other long reading '
         'material.',
+    'email': 'A printed or saved e-mail message or newsletter (for example a '
+        'mail printed to PDF from Gmail or Outlook), or a saved web page.',
     'note': 'A handwritten note, whiteboard, sticky note or a photo of a '
         'paper that fits none of the other document categories.',
   };
@@ -192,19 +194,28 @@ abstract final class SmartTaxonomy {
         'none': 'No clear document year is visible.',
       };
 
-  /// Tek istekte sorulan sorular. [image] görsel mi (bulanıklık soruları
-  /// yalnız görselde), [nowYear] yıl seçenekleri için.
+  /// Görsel kategorisi mi (ekran görüntüsü, fotoğraf, kutlama, caps)?
+  static bool isImageCat(String cat) => imageCategories.containsKey(cat);
+
+  /// Tek istekte sorulan sorular. [image] görsel mi (bulanıklık soruları ve
+  /// görsel kategorileri yalnız görselde — PDF/belgeye "ekran görüntüsü"
+  /// seçeneği sunulmaz; kök 2026-11-18: Gmail'den yazdırılan e-posta PDF'i
+  /// "Ekran görüntüsü" çıkıyordu), [nowYear] yıl seçenekleri için.
   static List<DecisionQuestion> questions({required bool image, int? nowYear}) {
     final year = nowYear ?? DateTime.now().year;
     return [
-      const DecisionQuestion.choice(
+      DecisionQuestion.choice(
         'cat',
         'cat',
-        'What kind of file is this? Judge by its content (whatever its '
-            'language), not by the file name.',
+        image
+            ? 'What kind of file is this? Judge by its content (whatever its '
+                'language), not by the file name.'
+            : 'This is a document file (PDF or text). What kind of document '
+                'is it? Judge by its content (whatever its language), not by '
+                'the file name or how the pages look.',
         {
           ...docCategories,
-          ...imageCategories,
+          if (image) ...imageCategories,
           other: 'None of the above.',
         },
       ),
@@ -271,6 +282,7 @@ abstract final class SmartTaxonomy {
     'work': ['iş', 'cv', 'özgeçmiş', 'rapor', 'sunum', 'work', 'resume'],
     'manual': ['kılavuz', 'garanti', 'manual', 'warranty', 'دليل'],
     'reading': ['kitap', 'makale', 'book', 'article', 'كتاب'],
+    'email': ['e-posta', 'eposta', 'mail', 'gmail', 'email', 'bülten', 'newsletter', 'بريد'],
     'note': ['not', 'tahta', 'whiteboard', 'note', 'ملاحظة'],
     'screenshot_chat': ['ekran görüntüsü', 'sohbet', 'screenshot', 'chat', 'whatsapp'],
     'screenshot': ['ekran görüntüsü', 'screenshot', 'لقطة شاشة'],

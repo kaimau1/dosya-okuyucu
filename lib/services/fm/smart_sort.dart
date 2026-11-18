@@ -505,6 +505,11 @@ abstract final class SmartSort {
     final catAns = by['cat'];
     final cat = catAns?.choice;
     if (cat == null) return null;
+    // Belgeye görsel kategorisi gelirse (seçenekte yok; güvenlik) kayıt yok.
+    if (SmartTaxonomy.isImageCat(cat) &&
+        GeminiDecisions.mediaFor(e.path)?.type != 'image') {
+      return null;
+    }
     final subAns = by['sub_$cat'];
     final sub = subAns != null && subAns.confidence >= 0.4
         ? (subAns.choice ?? '')
@@ -602,6 +607,12 @@ abstract final class SmartSort {
     final r = _records[e.path];
     if (r == null) return true;
     if (r.user) return false;
+    // Eski şemada belgeye görsel kategorisi verilmiş olabilir (PDF →
+    // "Ekran görüntüsü"); yeniden sorulur.
+    if (SmartTaxonomy.isImageCat(r.cat) &&
+        GeminiDecisions.mediaFor(e.path)?.type != 'image') {
+      return true;
+    }
     return r.size != e.sizeBytes || r.modifiedMs != e.modifiedMs;
   }
 

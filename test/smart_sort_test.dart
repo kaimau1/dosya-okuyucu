@@ -33,6 +33,10 @@ void main() {
     // Belgede bulanıklık sorulmaz.
     final doc = SmartTaxonomy.questions(image: false, nowYear: 2026);
     expect(doc.map((q) => q.id), isNot(contains('blurry')));
+    // Belgeye (PDF) ekran görüntüsü / fotoğraf seçeneği sunulmaz.
+    final docCat = doc.firstWhere((q) => q.id == 'cat');
+    expect(docCat.options.keys, isNot(contains('screenshot')));
+    expect(docCat.options.keys, contains('email'));
   });
 
   test('her kategori ve alt türün üç dilde adı var', () {

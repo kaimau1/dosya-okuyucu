@@ -20,6 +20,7 @@ const Map<String, (String, String, String)> _t40 = {
   'sm.c_work': ('İş', 'Work', 'عمل'),
   'sm.c_manual': ('Kılavuz / garanti', 'Manual / warranty', 'دليل / ضمان'),
   'sm.c_reading': ('Kitap / makale', 'Book / article', 'كتاب / مقال'),
+  'sm.c_email': ('E-posta', 'E-mail', 'بريد إلكتروني'),
   'sm.c_note': ('Not / tahta', 'Note / whiteboard', 'ملاحظة / سبورة'),
   'sm.c_screenshot_chat': ('Sohbet ekran görüntüsü', 'Chat screenshot', 'لقطة محادثة'),
   'sm.c_screenshot': ('Ekran görüntüsü', 'Screenshot', 'لقطة شاشة'),
