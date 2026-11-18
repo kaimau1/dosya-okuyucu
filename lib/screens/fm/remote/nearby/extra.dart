@@ -60,4 +60,38 @@ extension _NearbyExtra on _NearbyScreenState {
       }
     }));
   }
+
+  /// Şeritteki dosyaya dokunuş: seçime ekler ya da çıkarır.
+  void _toggleFresh(FsEntry entry) {
+    AppHaptics.selection();
+    _update(() {
+      if (!_selection.remove(entry.path)) _selection.add(entry.path);
+    });
+    _scheduleWeb();
+  }
+
+  /// **Diğer uygulamalarla paylaş** (2026-11-18): sistemin paylaş levhası
+  /// (WhatsApp, Gmail, Bluetooth…). Hiçbir şey seçilmemişse önce dosya seçilir.
+  /// Klasör sistem levhasıyla paylaşılamaz → yalnız dosyalar gider.
+  Future<void> _shareToApps() async {
+    if (_selection.isEmpty && _text == null) await _addFiles();
+    if (!mounted) return;
+    final files = [
+      for (final path in _selection)
+        if (FileSystemEntity.isFileSync(path)) path
+    ];
+    final text = _text;
+    if (files.isEmpty && text == null) {
+      if (_selection.isNotEmpty) showSnack(context, context.t('near.share_no_folder'));
+      return;
+    }
+    try {
+      await SharePlus.instance.share(ShareParams(
+        files: files.isEmpty ? null : [for (final f in files) XFile(f)],
+        text: text,
+      ));
+    } catch (e) {
+      if (mounted) showSnack(context, userErrorText(e));
+    }
+  }
 }

@@ -69,6 +69,7 @@ import '../../services/fm/storage_stats.dart';
 import '../../widgets/fm/fm_category_tile.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_entry_tiles.dart';
+import '../../widgets/fm/fresh_files_strip.dart';
 import '../../widgets/fm/fm_more_sheet.dart';
 import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_type_chips.dart';

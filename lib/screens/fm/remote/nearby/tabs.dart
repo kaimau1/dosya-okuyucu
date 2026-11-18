@@ -25,6 +25,17 @@ extension _NearbyTabs on _NearbyScreenState {
     return LayoutBuilder(builder: (context, box) {
       final send = <Widget>[
         _statusStrip(context),
+        // 2026-11-18 kullanıcı: "SS aldı, hemen aktar ekranında üstte kayan
+        // panelde gözüksün" — yeni gelenler + son açılanlar, tek dokunuşla seç.
+        // (Testte `services: false` → disk taranmaz, şerit yok.)
+        if (widget.services) ...[
+          const SizedBox(height: Gap.sm),
+          FreshFilesStrip(
+            key: const ValueKey('near-fresh'),
+            selected: _selection.toSet(),
+            onTap: _toggleFresh,
+          ),
+        ],
         ..._transfers(context).expand((w) => [const SizedBox(height: Gap.sm), w]),
         const SizedBox(height: Gap.sm),
         _selectionCard(context),

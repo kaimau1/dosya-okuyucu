@@ -94,6 +94,19 @@ class GeminiService {
 
   Uri _endpoint() => Uri.parse('$_base/models/$model:generateContent');
 
+  /// **Decisions API** (`POST /v1beta/decisions`, 2026-11-18): kapalı uçlu
+  /// soruları (evet/hayır, seçim, ölçek) dosyanın kendisi üzerinde tek
+  /// geçişte puanlar. Gövdeyi [GeminiDecisions] kurar; burada yalnız ortak
+  /// kapılar (çevrimdışı, kişisel veri maskesi, zaman aşımı, başlıkta anahtar).
+  static Future<http.Response> postDecision(String key, String body) {
+    _offlineGuard();
+    return _post(Uri.parse('$_base/decisions'),
+        headers: _headers(key), body: body);
+  }
+
+  /// Hata gövdesini okunur metne çevirir (Decisions istemcisi için).
+  static String readError(http.Response resp) => _readErrorStatic(resp);
+
   /// Sohbet geçmişi + opsiyonel dosya bağlamı + kalıcı hafıza ile yanıt üretir.
   Future<String> chat({
     required List<ChatTurn> history,

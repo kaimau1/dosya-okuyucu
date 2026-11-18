@@ -22,6 +22,7 @@ enum _EntryAction {
   sharedFolder,
   externalDrive,
   aiSummary,
+  aiCheck,
   imageInsight,
   resize,
   trimVideo,
@@ -52,6 +53,7 @@ Feature? _featureOf(_EntryAction a) => switch (a) {
         null,
       _EntryAction.driveUpload => Feature.googleDrive,
       _EntryAction.aiSummary ||
+      _EntryAction.aiCheck ||
       _EntryAction.imageInsight ||
       _EntryAction.aiTag ||
       _EntryAction.aiAlias =>
@@ -413,6 +415,10 @@ Future<bool> showEntryActions(
                     entry.category != FmCategory.audio)
                   act(AppIcons.ai, ctx.t('fm.ai_summary'),
                       _EntryAction.aiSummary),
+                // Decisions API (2026-11-18): dosyanın kendisine evet/hayır.
+                if (!entry.isDir)
+                  act(AppIcons.ai, ctx.t('qc.action'), _EntryAction.aiCheck,
+                      hint: ctx.t('qc.action_hint')),
               ]),
             ],
           ),
@@ -516,6 +522,10 @@ Future<bool> showEntryActions(
 
     case _EntryAction.aiSummary:
       await showAiSummary(context, entry);
+      return false;
+
+    case _EntryAction.aiCheck:
+      await showAiQuickCheck(context, entry);
       return false;
 
     case _EntryAction.aiAlias:

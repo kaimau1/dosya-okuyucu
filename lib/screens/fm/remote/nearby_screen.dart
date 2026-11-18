@@ -7,6 +7,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../core/sensitive_clipboard.dart';
 import '../../../core/app_colors.dart';
@@ -40,6 +41,7 @@ import '../../../services/fm/remote/transfer_thumbs.dart';
 import '../../../widgets/app_dialog.dart';
 import '../../../widgets/fm/fm_entry_icon.dart';
 import '../../../widgets/fm/fm_file_image.dart';
+import '../../../widgets/fm/fresh_files_strip.dart';
 import '../../../widgets/fm/secure_badge.dart';
 import '../../../widgets/fm/transfer_offer_sheet.dart';
 import '../../../widgets/qr_code.dart';
@@ -922,6 +924,13 @@ class _NearbyScreenState extends State<NearbyScreen> {
               tooltip: context.t('qrf.scan'),
               icon: const Icon(AppIcons.qrScan),
               onPressed: _scanQr,
+            ),
+            // 2026-11-18 kullanıcı: "normal paylaş seçeneklerine de ulaşılabilmeli".
+            IconButton(
+              key: const ValueKey('near-share-apps'),
+              tooltip: context.t('near.share_apps'),
+              icon: const Icon(AppIcons.share),
+              onPressed: _shareToApps,
             ),
             _menu(context),
           ],

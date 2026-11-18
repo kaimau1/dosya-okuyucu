@@ -1304,3 +1304,10 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 3. Gezginde `Download` klasörü açıkken Notlar → ek → "Farklı kaydet" → İndirilenler → dön: dosya klasörde mi?
 4. Ana ekran İndirilenler kutusu sayısı arttı mı?
 5. İzin/paylaşım penceresi açıp kapatınca liste yanıp sönmüyor, kaydırma yeri kayboluyor mu? (kaybolmamalı)
+
+## 2026-11-18 — AI hızlı kontrol · Aktar şeridi · uygulamalarla paylaş (yazıldı, cihazda doğrulanmadı)
+- [ ] Bir PDF'e uzun bas → AI → "AI ile hızlı kontrol" → Kontrol et: yanıtlar % ile geliyor mu (Decisions API anahtarla çalışıyor mu)?
+- [ ] Bir fotoğraf ve bir ses kaydında aynı akış; kendi sorunu yaz ("Bu bir fatura mı?").
+- [ ] Ekran görüntüsü al → uygulamaya dön → Aktar: üst şeritte "Yeni gelenler"de hemen görünüyor mu? Dokununca seçime ekleniyor mu?
+- [ ] Aktar → Dosya ekle: seçicinin tepesinde aynı şerit.
+- [ ] Aktar sağ üst Paylaş simgesi → sistem paylaş levhası (WhatsApp vb.) açılıyor mu?
