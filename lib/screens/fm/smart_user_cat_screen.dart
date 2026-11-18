@@ -86,7 +86,7 @@ class _SmartUserCatScreenState extends State<SmartUserCatScreen> {
       _trial = null;
       _confirmed = false;
     });
-    SmartTrial? t;
+    final SmartTrial t;
     try {
       t = await SmartUserCats.trial(
         name: _name.text,
@@ -100,7 +100,7 @@ class _SmartUserCatScreenState extends State<SmartUserCatScreen> {
     } finally {
       if (mounted) _trying.value = null;
     }
-    if (!mounted || t == null) return;
+    if (!mounted) return;
     setState(() => _trial = t);
     if (t.stoppedBy != null) {
       showSnackOn(messenger, s.t('suc.stopped', {'reason': t.stoppedBy}));
