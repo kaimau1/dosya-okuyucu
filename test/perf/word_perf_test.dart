@@ -14,6 +14,8 @@ import 'package:dosya_okuyucu/widgets/docx_editor/docx_editor_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/rebuild_probe.dart';
+
 /// Faz 22 — Word Mobil görünüm: §7 bütçeleri (debug/JIT, ×3 gevşek).
 /// * 1000 paragrafta bir tuşun model + yeniden çizim maliyeti;
 /// * ~300 sayfalık (3000 paragraf) belgede ayrıştırma + ilk ekran;
@@ -92,6 +94,38 @@ void main() {
     expect(c.paras[3].text, contains('merhabadünya'));
     // §7: tuş ≤ 1 kare (cihaz). Debug gerileme bekçisi: ≤ 100 ms.
     expect(perKey, lessThan(100));
+    c.dispose();
+  });
+
+  // B12 m.3 — yeniden kurulum bütçesi (mandal, YALNIZ DÜŞER): bir harf
+  // yalnız yazılan paragrafın metnini (RichText) yeniden kurar; eskiden
+  // görünür paragrafların hepsi (≈ ekrandaki paragraf sayısı) kuruluyordu.
+  testWidgets('B12 m.3: bir harf yalnız o paragrafın metnini yeniden kurar',
+      (t) async {
+    t.view.physicalSize = const Size(1080, 2340);
+    t.view.devicePixelRatio = 2.75;
+    addTearDown(t.view.reset);
+    final c = DocxEditController(DocxDocument.parse(_docx(1000)));
+    await t.pumpWidget(MaterialApp(
+        home: Scaffold(body: DocxEditorView(controller: c, spellcheck: false))));
+    c.select(const DocPos(3, 10), const DocPos(3, 10));
+    await t.pump();
+    c.insertText('a'); // ısınma
+    await t.pump();
+    final texts = t.widgetList(find.byType(RichText)).length;
+    final r = await countRebuilds(t, () async {
+      c.insertText('b');
+      await t.pump();
+    });
+    // ignore: avoid_print
+    print('PERF word_key_rebuilds=${r.total} rich_text=${r.of(RichText)} '
+        'visible_texts=$texts top=${r.top()}');
+    expect(c.paras[3].text, contains('ab'));
+    expect(texts, greaterThan(3), reason: 'senaryo birden çok paragraf görmeli');
+    expect(r.of(RichText), lessThanOrEqualTo(1));
+    // Toplam tavan (liste sarmalayıcıları + kabuk): ilk CI ölçümüyle
+    // sıkılaştırılacak (PLAN §1.12 m.3); yalnız düşer.
+    expect(r.total, lessThan(400));
     c.dispose();
   });
 
