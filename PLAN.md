@@ -62,7 +62,7 @@ yoluna dokunmaz, dokunulan editörün bütçe testi yeşil, A/B sonra C2'de. C2'
 
 | No | Paket | Model | Kaynak | Cihaz | APK | Durum |
 |---|---|---|---|---|---|---|
-| B1 | **AI Akıllı düzen 2.0 — çekirdek:** ayrıntılı sınıflandırma (§1.1), kullanıcı kategorileri (doğruluk kapısıyla), HER dosya türü (Office/metin/ses/video/arşiv), doğruluk ölçüm tezgâhı, Files API (büyük dosya) | opus (şema evresi fable) | §1.1; HAFIZA 2026-11-18 | A/B | evet | bulutta: sürüyor — dal faz-oto-B1-duzen2: bitti metin türleri (m.2 metin) + ayrıntılı şema (m.1, main 1642dfaf) + ses/video + Files API (m.2) + kullanıcı kategorileri (m.3, dilim main'e gidiyor), kalan: tezgâh (m.4), hız/kota (m.5, büyük video kırpma dahil), PowerPoint ilk slayt görüntüsü |
+| B1 | **AI Akıllı düzen 2.0 — çekirdek:** ayrıntılı sınıflandırma (§1.1), kullanıcı kategorileri (doğruluk kapısıyla), HER dosya türü (Office/metin/ses/video/arşiv), doğruluk ölçüm tezgâhı, Files API (büyük dosya) | opus (şema evresi fable) | §1.1; HAFIZA 2026-11-18 | A/B | evet | bulutta: sürüyor — dal faz-oto-B1-duzen2: bitti metin türleri + ayrıntılı şema (m.1) + ses/video + Files API (m.2) + kullanıcı kategorileri (m.3) main'de; doğruluk tezgâhı (m.4, yazıldı — ölçüm C2) dilimi main'e gidiyor, kalan: hız/kota (m.5, büyük video kırpma dahil), PowerPoint ilk slayt görüntüsü |
 | B2 | **AI Akıllı düzen 2.0 — kullanım:** Ayıkla 2 (en iyi kare, benzer kare grupları), kontrol listeleri, düzeltmeden öğrenme, isteğe bağlı taşıma kuralları, hassas kategori kilidi, Decisions'ın kalan kullanımları (eski P33/P34) | opus | §1.2 | A/B | evet | bekliyor — B1'den sonra |
 | B3 | **Hız (Ferrari) kod + ölçüm:** P12b Excel/liste A/B artıkları, P29 büyük başlık + kalıcı hata şeridi, P06 PDF kaydırma H2.1–H2.6 | opus (P06 plan evresi fable) | §1.3; arsiv/FERRARI_PLANI H2 | A/B | evet | bekliyor |
 | B4 | **PDF Pro tamamlama:** P16 metin, P17 nesne/işaret, P18 form+imza, P19 OCR Pro, P20 sayfa stüdyosu, P21 parola/meta/optimize/PDF-A, P22 kalite %98 | opus (plan evresi fable) | §1.4; arsiv/PDF_PRO_PLANI 54–68 | A/B | evet | bekliyor — 2–3 oturum, tek dal |
@@ -112,6 +112,11 @@ kullanıcı kendi kategorisini ekler ve **eklemeden önce doğru çalıştığı
    dosyasını etiketler (yerelde kalır, depoya GİRMEZ — KVKK), model sonuçlarıyla karşılaştırılır:
    kategori/alt tür/tarih doğruluğu, güven eşiği önerisi. **Kapı: kategori ≥ %90, alt tür ≥ %80**;
    altındaysa şema/talimat düzeltilir. Sonuç `docs/perf/` benzeri `docs/ai/` raporu (dosya adı yok).
+   _(yazıldı — bulut 2026-11-18, dal faz-oto-B1-duzen2: `lib/services/fm/smart_bench.dart` (saf metrik +
+   birim test) + `smart_bench_screen.dart`, Ayarlar → Geliştirici → "Doğruluk ölçümü". Model yanıtı: ölçüm
+   sorusu (`SmartSort.probe`, düzen kaydına yazmaz) ya da elle düzeltilmemiş güncel kayıt; uzantıdan kesin
+   kategoriler kategori oranına girmez; eşik önerisi = kapıyı geçen en düşük eşik (≥ 5 dosya). Gerçek
+   ölçüm cihazda → C2; rapor "Raporu kopyala" → `docs/ai/`)_
 5. **Hız/kota:** tur izolatta hazırlık, ana iş parçacığında yalnız sonuç; ücretsiz kota (429) ölçülür,
    günlük üst sınır + "Wi-Fi'de" seçeneği; büyük videoda yalnız ilk dakikanın yüklenmesi (şimdi bütün dosya, ≤ 50 MB); liste satırında ikinci ad maliyeti A/B (ÖLÇÜM KAPISI).
 
@@ -348,6 +353,10 @@ görünür her değişiklikte `kasma-kontrol`; görünüş değişmeden önce es
   satırında akıllı ikinci ad, galeride QR düğmesi (kaydırırken kasma yok mu); Akıllı düzen
   kullanıcı kategorisi süzgeci (dosya listesi süzgeç sayımına kullanıcı kategorisi eklendi — kategori
   yoksa tek karşılaştırma; bulut 2026-11-18, dal faz-oto-B1-duzen2, ölçülmedi).
+  **Akıllı düzen doğruluk tezgâhı** (bulut 2026-11-18, dal faz-oto-B1-duzen2; ölçülmedi): Geliştirici →
+  "Doğruluk ölçümü"nde ~100 kendi dosyanı etiketle → "Eksiklere sor" → kapı kategori ≥ %90, alt tür ≥ %80;
+  "Raporu kopyala" çıktısı (dosya adsız) `docs/ai/<tarih>-dogruluk.md`; kapı geçmezse şema/talimat düzeltmesi
+  B1'e satır.
   **B12 hız A/B** (bulut 2026-11-18, dal faz-oto-B12-hiz2; ölçülmedi): eski .xls/.doc açılışı, Word/Excel/Slayt
   taslaktan geri yükleme, sesli kitap hazırlığı (ana izlek kare süresi); Word editöründe resimli belge kaydırma
   + bellek, galeride bozuk/kurtarılan görsel, aktarım teklifi küçük resimleri. **B12 m.1/m.5** (ölçülmedi):
