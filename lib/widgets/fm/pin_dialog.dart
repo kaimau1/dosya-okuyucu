@@ -24,6 +24,21 @@ Future<bool> askPin(BuildContext context, {String? title}) async {
   return ok ?? false;
 }
 
+/// Hassas kategori kilidi (B2) oturum boyu bir kez açılır; Akıllı düzen
+/// listeleri ve galerideki AI kategori süzgeci paylaşır.
+bool _sensitiveOpen = false;
+
+/// Kimlik/sağlık/banka/vergi (`SmartTaxonomy.sensitive`) gösterilmeden önce
+/// PIN. PIN yoksa ya da uygulama kilidi açıksa (girişte zaten soruldu)
+/// sorulmaz.
+Future<bool> unlockSensitiveCats(BuildContext context) async {
+  final state = context.read<AppState>();
+  if (_sensitiveOpen || !state.fmHasLockPin || state.appLock) return true;
+  final ok = await askPin(context, title: context.t('sm.sensitive_pin'));
+  if (ok) _sensitiveOpen = true;
+  return ok;
+}
+
 /// PIN kurar/değiştirir (iki kez sorar). Başarılıysa true.
 ///
 /// 2026-10-21 (tek Kasa): PIN kuruluysa önce **mevcut PIN** sorulur —

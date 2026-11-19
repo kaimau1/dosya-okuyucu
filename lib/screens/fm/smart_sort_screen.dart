@@ -220,7 +220,7 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
       String title, String memoryId, List<String> Function() paths) async {
     final nav = Navigator.of(context);
     final list = paths();
-    if (list.any(_isSensitive) && !await _unlockSensitive()) return;
+    if (list.any(_isSensitive) && !await unlockSensitiveCats(context)) return;
     final files = await FsScan.statPaths(list);
     if (!mounted) return;
     await nav.push(MaterialPageRoute(
@@ -236,22 +236,8 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
     ));
   }
 
-  /// Hassas kategori kilidi oturum boyu bir kez açılır.
-  static bool _sensitiveOpen = false;
-
   static bool _isSensitive(String path) =>
       SmartTaxonomy.sensitive.contains(SmartSort.of(path)?.cat);
-
-  /// Kimlik/sağlık/banka/vergi içeren listeye girişte PIN (bkz.
-  /// [SmartTaxonomy.sensitive]). PIN yoksa ya da uygulama kilidi açıksa
-  /// (girişte zaten soruldu) sorulmaz.
-  Future<bool> _unlockSensitive() async {
-    final state = context.read<AppState>();
-    if (_sensitiveOpen || !state.fmHasLockPin || state.appLock) return true;
-    final ok = await askPin(context, title: context.t('sm.sensitive_pin'));
-    if (ok) _sensitiveOpen = true;
-    return ok;
-  }
 
   static List<String> _paths(List<SmartRecord> list) =>
       [for (final r in list) r.path];
