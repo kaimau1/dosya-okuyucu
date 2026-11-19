@@ -838,7 +838,8 @@ const Map<String, (String, String, String)> _t2 = {
     'Trash, duplicates, old downloads and large files',
     'المهملات والنسخ المكررة والتنزيلات القديمة والملفات الكبيرة',
   ),
-  'ana.find_dupes': ('Yinelenen dosyaları bul', 'Find duplicate files', 'البحث عن الملفات المكررة'),
+  // U4: ana ekrandaki araçla aynı ad ("Kopyalar" ana ekrandan Analiz'e taşınıyor).
+  'ana.find_dupes': ('Kopyalar', 'Duplicates', 'المكررات'),
   'ana.find_dupes_note': (
     'Birebir aynı dosyaları bulur, bir kopyayı bırakıp kalanları çöpe taşır',
     'Finds byte-identical files, keeps one copy and moves the rest to the trash',
