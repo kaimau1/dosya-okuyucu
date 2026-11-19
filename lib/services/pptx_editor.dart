@@ -73,6 +73,10 @@ class PptxSlide {
 /// .pptx dosyasını metin bazında düzenler ve slayt ekle/sil/taşı yapar; orijinal
 /// tasarımı (arka plan, düzen, biçim) tamamen korur — yalnızca `<a:t>` metin
 /// düğümleri ve slayt yapısı (sunum ilişkileri) güncellenir.
+/// [PptxEditor.headViews] varsayılanı: telefonda ilk ekranı (bir-iki slayt
+/// kartı) doldurur.
+const kPptxHeadSlides = 3;
+
 class PptxEditor {
   static const _slideContentType =
       'application/vnd.openxmlformats-officedocument.presentationml.slide+xml';
@@ -138,6 +142,29 @@ class PptxEditor {
     }
     return PptxEditor._(
         archive, render, slides, contentTypes, presentation, presRels);
+  }
+
+  /// **B13 m.4 — aşamalı açılış, "ilk slaytlar önce"** (Word B9 m.8 yolu):
+  /// tam ayrıştırma (bütün slaytların XML'i + çizim modeli) sürerken yalnız
+  /// sunum sırasındaki ilk [max] slaytın çizim modeli kurulur; ekran bunları
+  /// salt okunur gösterir. Deste zaten kısaysa (≤ [max]) `null` — tam
+  /// ayrıştırma da o kadar sürer, önizleme yalnız yanıp sönerdi.
+  static List<SlideVM>? headViews(Uint8List bytes, [int max = kPptxHeadSlides]) {
+    final archive = OfficeZipGuard.decode(bytes);
+    final ordered = _orderedSlideFiles(archive,
+        _tryParse(archive, 'ppt/presentation.xml'),
+        _tryParse(archive, 'ppt/_rels/presentation.xml.rels'));
+    if (ordered.length <= max) return null;
+    final render = PptxRender(archive);
+    final out = <SlideVM>[];
+    for (final name in ordered.take(max)) {
+      final content = _fileByName(archive, name);
+      if (content == null) continue;
+      final view = _tryRender(render, name,
+          XmlDocument.parse(utf8.decode(content, allowMalformed: true)));
+      if (view != null) out.add(view);
+    }
+    return out;
   }
 
   static List<PptxParagraph> _paragraphsOf(XmlDocument doc) {

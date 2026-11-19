@@ -184,6 +184,46 @@ class _AppSkeletonState extends State<AppSkeleton>
       );
 }
 
+/// **Office aşamalı açılış** (B9 m.8 Word, B13 m.4 Excel/Slayt): tam model
+/// hazırlanırken belgenin başı salt okunur [child]'da gösterilir. Üstte ince
+/// ilerleme çizgisi hemen; açıklama yazısı ([label]) yalnız bekleme
+/// [Motion.progressLabelDelay]'i aşarsa belirir (saydamlık RENGE işlenir,
+/// katman açılmaz; yeri baştan ayrılı — belirince içerik kaymaz).
+class OfficeLoadingPreview extends StatelessWidget {
+  final String label;
+  final Widget child;
+  const OfficeLoadingPreview(
+      {super.key, required this.label, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onSurfaceVariant;
+    final style = context.type.small;
+    // "Animasyonları kaldır"da solma yok ama bekleme yine 1 sn.
+    final total =
+        Motion.progressLabelDelay + Motion.of(context, Motion.medium);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const LinearProgressIndicator(minHeight: 2),
+        TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: 1),
+          duration: total,
+          curve: Interval(
+              Motion.progressLabelDelay.inMilliseconds / total.inMilliseconds,
+              1),
+          builder: (context, v, _) => Padding(
+            padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xs),
+            child: Text(label,
+                style: style.copyWith(color: color.withValues(alpha: v))),
+          ),
+        ),
+        Expanded(child: child),
+      ],
+    );
+  }
+}
+
 /// Ekran içi tek tip hata yüzü.
 class AppErrorView extends StatelessWidget {
   /// Başlık; null ise "Açılamadı".

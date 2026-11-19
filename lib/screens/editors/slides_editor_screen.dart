@@ -141,6 +141,10 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
         SingleTickerProviderStateMixin<SlidesEditorScreen> {
   PptxEditor? _editor;
   String? _error;
+
+  /// B13 m.4 — tam deste hazırlanırken ilk slaytların çizim modeli (salt
+  /// okunur önizleme); tam model gelince düşer.
+  List<SlideVM>? _head;
   /// Faz 20: kirli durum, kaydetme durumu, taslak ve otomatik kaydetme.
   late final EditSession _session = EditSession(
     sourcePath: widget.path,
@@ -410,7 +414,9 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
                     message: context.t('ux.error_body'),
                     details: context.t('sl.open_failed', {'error': _error}))
                 : editor == null
-                    ? const AppSkeleton(kind: SkeletonKind.slides)
+                    ? (_head != null
+                        ? SlidesLoadingPreview(slides: _head!)
+                        : const AppSkeleton(kind: SkeletonKind.slides))
                     : _outline && !editing
                         ? _outlineView(editor)
                         // Düzenlerken slayt listesi AĞAÇTA kalır (yalnız

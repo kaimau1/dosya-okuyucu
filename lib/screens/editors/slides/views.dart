@@ -624,3 +624,38 @@ String selectedEditText(List<TextEditingController?> ctrls) {
       if (c != null) c.text,
   ].join('\n');
 }
+
+/// B13 m.4 — aşamalı açılış: tam deste hazırlanırken ilk slaytlar
+/// ([PptxEditor.headViews]) gerçek çizimleriyle, salt okunur.
+class SlidesLoadingPreview extends StatelessWidget {
+  final List<SlideVM> slides;
+  const SlidesLoadingPreview({super.key, required this.slides});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return OfficeLoadingPreview(
+      key: const ValueKey('slides-loading-preview'),
+      label: context.t('sl.opening_preview'),
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.md),
+        itemCount: slides.length,
+        itemBuilder: (context, i) => Padding(
+          padding: const EdgeInsets.only(bottom: Gap.md),
+          child: AspectRatio(
+            aspectRatio: slides[i].widthPt / slides[i].heightPt,
+            child: DecoratedBox(
+              position: DecorationPosition.foreground,
+              decoration: BoxDecoration(
+                  border: Border.all(color: scheme.outlineVariant)),
+              child: ColoredBox(
+                color: scheme.surface,
+                child: ClipRect(child: SlideCanvas(slide: slides[i])),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

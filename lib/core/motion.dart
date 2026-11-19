@@ -58,6 +58,10 @@ abstract final class Motion {
   /// H10.2): kısa işte pencere yanıp sönmesin.
   static const busyDefer = Duration(milliseconds: 300);
 
+  /// Açılış ilerleme YAZISI ancak bekleme bundan uzun sürerse belirir
+  /// (B13 m.4): kısa açılışta yazı yanıp sönmesin; ince çizgi hemen görünür.
+  static const progressLabelDelay = Duration(seconds: 1);
+
   /// Giren öğe (yavaşlayarak durur).
   static const Curve enter = Curves.easeOutCubic;
 

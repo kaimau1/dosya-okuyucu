@@ -94,6 +94,7 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
       } else if (await _openLargeStream()) {
         // Faz 42 / 2: bütçe üstü xlsx → akış önizlemesi (salt okunur).
       } else if (SpreadsheetEditorScreen.parseInIsolate) {
+        unawaited(_loadHead());
         try {
           _editor = await compute(_SpreadsheetEditorScreenState._readAndParse, widget.path);
         } catch (_) {
@@ -111,6 +112,7 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     } catch (e) {
       _error = userErrorText(e);
     }
+    _head = null;
     if (mounted) _partSetState(() {});
     // Ekran açılmayı BEKLEMEZ: kaynak damgası + taslak araması arkada.
     // Okuma sınırında kesilmiş kitap kaydedilemez (Faz 26b): otomatik
@@ -128,6 +130,36 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
       if (mounted && z != 1) _zoomCtl.setZoom(z.clamp(0.3, 3).toDouble());
       _updateColWindow();
     });
+  }
+
+  /// **B13 m.4 — aşamalı açılış** (Word B9 m.8 yolu): tam ayrıştırmayla AYNI
+  /// ANDA akış okuyucusu (Faz 42 / 2) ayrı izolatta yalnız ilk
+  /// [kXlsxHeadCells] hücreyi okur; tam model gelmeden biterse ilk sayfanın
+  /// başı salt okunur gösterilir (biçim/formül yok — ham değerler).
+  Future<void> _loadHead() async {
+    final ext = p.extension(widget.path).toLowerCase();
+    if (ext != '.xlsx' && ext != '.xlsm') return;
+    try {
+      if (await File(widget.path).length() <
+          _SpreadsheetEditorScreenState._headMinBytes) {
+        return;
+      }
+      final tmp = (await getTemporaryDirectory()).path;
+      if (!mounted || _editor != null) return;
+      final r = await compute(
+          XlsxStream.readInBackground,
+          XlsxStreamRequest(widget.path,
+              tempDir: tmp,
+              maxCells: kXlsxHeadCells,
+              maxSharedChars: kXlsxHeadSharedChars));
+      if (!mounted || _editor != null || _error != null) return;
+      final first = r.sheets.where((s) => s.cells.isNotEmpty).firstOrNull;
+      if (first == null) return;
+      _partSetState(() => _head = first);
+    } catch (_) {
+      // Bilinçli: önizleme yalnız süs — okunamazsa iskelet kalır, tam
+      // ayrıştırma kendi hatasını gösterir.
+    }
   }
 
   /// Dosyayı Excel'in bıraktığı yerde açar (uyumluluk): `activeTab`

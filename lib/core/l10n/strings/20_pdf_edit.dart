@@ -68,6 +68,8 @@ const Map<String, (String, String, String)> _t20 = {
   'code.line_spacing': ('Satır aralığı', 'Line spacing', 'تباعد الأسطر'),
   'word.list_gallery': ('Liste kalıbı', 'List style', 'نمط القائمة'),
   'word.opening_preview': ('Belge açılıyor — düzenleme birazdan hazır, ilk paragraflar gösteriliyor', 'Opening — editing will be ready shortly; showing the first paragraphs', 'جارٍ الفتح — تظهر الفقرات الأولى'),
+  'sl.opening_preview': ('Sunum açılıyor — düzenleme birazdan hazır, ilk slaytlar gösteriliyor', 'Opening — editing will be ready shortly; showing the first slides', 'جارٍ الفتح — تظهر الشرائح الأولى'),
+  'excel.opening_preview': ('Tablo açılıyor — düzenleme birazdan hazır, ilk satırlar gösteriliyor', 'Opening — editing will be ready shortly; showing the first rows', 'جارٍ الفتح — تظهر الصفوف الأولى'),
   'ks.title': ('Klavye kısayolları', 'Keyboard shortcuts', 'اختصارات لوحة المفاتيح'),
   'ks.undo': ('Geri al', 'Undo', 'تراجع'),
   'ks.redo': ('Yinele', 'Redo', 'إعادة'),

@@ -346,3 +346,9 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **m.5 kök (bug):** Önemli ekranında kategori silme çöp ayarından bağımsız `FileOps.deleteAll` ile KALICI siliyordu. Artık çöp açıksa `trashWithUndo` (deleteEntries ile ortak uç). Bekçi `undo_paths_guard_test`: ham silme/çöpe atma tavanı + `FileOps.rename` eden ekran `showUndoToast` içerir.
 - **m.8 kök (bug):** özel Word editörü (`DocxEditorView`) imleci yalnız denetleyici değişince görünür kılıyordu; klavye açılınca görünüm daralıp kaydırma aynı kaldığından alttaki imleç klavye altında kalıyordu. `didChangeMetrics` → kare başına bir kez animasyonsuz `_revealCaret`.
 - **Kalan:** m.1 Office/PDF açılış geçişi (cihaz ölçümüne bağlı), m.4 Excel/Slayt aşamalı açılış, m.7 hareket eşitliği.
+
+## 2026-11-19 — B13 Deneyim hissi dilim 2 (yerel, dal faz-oto-B13-his; yazıldı, cihazda doğrulanmadı)
+- **m.4 aşamalı açılış (Excel/Slayt, Word B9 m.8 yolu):** tam ayrıştırma ile AYNI ANDA ayrı izolatta baş okunur; tam model önce biterse baş atılır (`_editor != null` bekçisi). Slayt `PptxEditor.headViews` (ilk 3 slayt çizimi; deste ≤ 3 → null). Excel yalnız ≥ 1 MB xlsx/xlsm: Faz 42 akış okuyucusu `maxCells: 800` → `SheetHeadPreview` (ham değer, ilk dolu sayfa — tam model `activeTab`'da açılabilir). Ortak `OfficeLoadingPreview` (state_views): yazı yalnız `Motion.progressLabelDelay` (1 sn) sonra, saydamlık RENKTE.
+- **m.7 kök:** Excel/Slayt `PinchZoomArea` paylaşıyordu, Word'ün özel editöründe çimdik HİÇ yoktu (yalnız şerit düğmesi). Word aynı bileşene alındı; kurucu aynı widget örneğini döner (çimdik karelerinde belge yeniden kurulmaz).
+- **KARAR (sabah bakılacak):** çift dokunuşla sığdır eklenmedi — üç editörde çift dokunuş zaten iş görüyor (Word sözcük seçimi, Excel doldurma tutamağı, Slayt şekil düzenleme). Kaydırma fiziği (yaylanma) ölçümsüz değiştirilmedi.
+- **Kalan:** m.1 Office/PDF açılış geçişi (H1.4 cihaz ölçümü).

@@ -68,6 +68,9 @@ class DocxEditorView extends StatefulWidget {
   /// imleç ya da seçim kurmaz, klavye açılmaz.
   final bool readOnly;
 
+  /// Kaydırma fiziği (B13 m.7): çimdik sürerken `PinchZoomArea` kilitler.
+  final ScrollPhysics? physics;
+
   const DocxEditorView({
     super.key,
     required this.controller,
@@ -75,6 +78,7 @@ class DocxEditorView extends StatefulWidget {
     this.actions = const DocxEditorActions(),
     this.spellcheck = true,
     this.readOnly = false,
+    this.physics,
   });
 
   @override
@@ -901,6 +905,17 @@ class DocxEditorViewState extends State<DocxEditorView>
     );
   }
 
+  /// Çimdik işlendi (B13 m.7): ölçek [f] kat değişti, [focal] (görünüm
+  /// yerel) altındaki içerik yaklaşık yerinde kalsın.
+  // ponytail: doğrusal ofset oranı; yazı yeniden dizildiği için satır
+  // kayabilir — odak paragrafa demirleme gerekirse revealParagraph yolu.
+  void zoomCommitted(double f, Offset focal) {
+    if (!_scroll.hasClients) return;
+    final pos = _scroll.position;
+    _scroll.jumpTo(((pos.pixels + focal.dy) * f - focal.dy)
+        .clamp(0.0, pos.maxScrollExtent));
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, box) {
@@ -908,6 +923,7 @@ class DocxEditorViewState extends State<DocxEditorView>
       final bl = _blockList;
       final list = ListView.builder(
         controller: _scroll,
+        physics: widget.physics,
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
         itemCount: bl.length,
         itemBuilder: (context, k) {
