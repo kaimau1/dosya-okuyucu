@@ -16,6 +16,9 @@
 
 - Ayıkla ekran görüntüsü yaşı: `SmartRecord.oldScreenshot` (>30 gün), neden `old_shot` (Ayıkla çipi).
 
+## CI KIRMIZI (koşu 44491542810, 153a1545) — düzeltilmedi (yürütücü: limit)
+- Doğrulama (2/3): `test/startup_budget_test.dart` 41 ("Actual: [SmartSort.movePath]" — main açılış bütçesi yeni çağrıyı tanımıyor) ve 64 (≤ 6 beklenirken 7). Kök: `lib/main.dart` PathSideIndex kancasına eklenen `await SmartSort.movePath`. Düzeltme yolu: test bütçesini ARTIRMA; çağrıyı açılış listesinin dışına al (ör. kancayı `smart_sort.dart` içinde ilk `ensureLoaded`da kaydet ya da kanca gövdesini ayrı işleve taşı) — önce testin neyi saydığını oku.
+
 ## Kalan (dilim 2+)
 - Ayıkla 2: AI `score` (net/gözler açık/kadraj), WhatsApp iletilen kopyalar.
 - Kontrol listeleri (kaydedilebilir; ✓/✗ + güven; PDF rapor).
