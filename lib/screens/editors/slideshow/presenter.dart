@@ -48,6 +48,17 @@ extension _SlideshowPresenter on _SlideshowScreenState {
                 '${_index + 1} / ${widget.slides.length}',
                 style: context.type.small.copyWith(color: AppColors.onMediaSoft),
               ),
+              if (widget.rehearse)
+                ValueListenableBuilder<int>(
+                  valueListenable: _seconds,
+                  builder: (_, _, _) => Text(
+                    context.t('ss.slide_time', {
+                      't': _SlideshowScreenState.clock(_slideClock.elapsed.inSeconds)
+                    }),
+                    key: const ValueKey('ss-rehearse-slide'),
+                    style: context.type.small.copyWith(color: AppColors.onMediaSoft),
+                  ),
+                ),
               const SizedBox(height: 8),
               Text(context.t('ss.next_slide'),
                   style: context.type.caption.copyWith(color: AppColors.onMediaFaint)),

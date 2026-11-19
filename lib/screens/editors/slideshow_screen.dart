@@ -57,7 +57,12 @@ class SlideshowScreen extends StatefulWidget {
     this.deckIndex = const [],
     this.presenter = false,
     this.record = false,
+    this.rehearse = false,
   });
+
+  /// Prova (B11 m.6): otomatik ilerleme kapalı, slayt başı süre ölçülür;
+  /// çıkışta `Map<int, int>` (destedeki sıra → ms) döner.
+  final bool rehearse;
 
   /// Anlatım kaydı (madde 9): her slayt ayrı kaydedilir; çıkışta
   /// `List<NarrationClip>` döner.
@@ -65,6 +70,9 @@ class SlideshowScreen extends StatefulWidget {
 
   /// Sunucu görünümünde başla (madde 5).
   final bool presenter;
+
+  /// Süre metni (mm:ss ya da s:mm:ss) — prova özeti için.
+  static String clockText(int seconds) => _SlideshowScreenState.clock(seconds);
 
   @override
   State<SlideshowScreen> createState() => _SlideshowScreenState();
@@ -135,6 +143,10 @@ class _SlideshowScreenState extends State<SlideshowScreen>
   final Stopwatch _recClock = Stopwatch();
   final List<NarrationClip> _clips = [];
 
+  /// Prova: geçerli slaytta geçen süre + slayt başı toplam (destedeki sıra → ms).
+  final Stopwatch _slideClock = Stopwatch();
+  final Map<int, int> _rehearsal = {};
+
   /// Otomatik ilerleme (`advTm`, ör. kayıtlı anlatım) — tek seferlik zamanlayıcı.
   Timer? _auto;
 
@@ -174,6 +186,7 @@ class _SlideshowScreenState extends State<SlideshowScreen>
     _enter = AnimationController(
         vsync: this, duration: Motion.long, value: 1);
     _clock.start();
+    _slideClock.start();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeLeft,
@@ -240,6 +253,7 @@ class _SlideshowScreenState extends State<SlideshowScreen>
   }
 
   void _onPage(int i) {
+    _lapSlide();
     _resetZoom();
     _stopMedia();
     _laser.value = null;
@@ -257,6 +271,8 @@ class _SlideshowScreenState extends State<SlideshowScreen>
   void _scheduleAdvance() {
     _auto?.cancel();
     _auto = null;
+    // Provada süre ölçülür; kayıtlı zamanlama ilerletmez.
+    if (widget.rehearse) return;
     final ms = _curInfo?.advanceMs;
     if (ms == null || ms <= 0) return;
     _auto = Timer(Duration(milliseconds: ms), () {
@@ -414,7 +430,7 @@ class _SlideshowScreenState extends State<SlideshowScreen>
       return _stage();
     });
     return PopScope(
-      canPop: !widget.record,
+      canPop: !widget.record && !widget.rehearse,
       onPopInvokedWithResult: (did, _) {
         if (!did) unawaited(_exit());
       },

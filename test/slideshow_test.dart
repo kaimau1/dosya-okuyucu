@@ -116,6 +116,36 @@ void main() {
     await t.pump();
     expect(find.byKey(const ValueKey('ss-presenter-panel')), findsNothing);
   });
+  testWidgets('B11 m.6: prova — slayt süresi görünür, çıkışta slayt başı süreler döner',
+      (t) async {
+    Map<int, int>? got;
+    await t.pumpWidget(MaterialApp(
+      home: Builder(
+        builder: (ctx) => TextButton(
+          onPressed: () async {
+            got = await Navigator.of(ctx).push<Map<int, int>>(MaterialPageRoute(
+                builder: (_) => const SlideshowScreen(
+                    slides: [_slide, _slide],
+                    deckIndex: [0, 2],
+                    rehearse: true,
+                    presenter: true)));
+          },
+          child: const Text('aç'),
+        ),
+      ),
+    ));
+    await t.tap(find.text('aç'));
+    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('ss-rehearse-slide')), findsOneWidget);
+    await t.tap(find.byKey(const ValueKey('ss-presenter-next')));
+    await t.pumpAndSettle();
+    // Geri tuşu provayı bitirir (PopScope → süreler).
+    await t.binding.handlePopRoute();
+    await t.pumpAndSettle();
+    expect(got, isNotNull);
+    expect(got!.keys.toSet(), {0, 2});
+  });
+
   testWidgets('siyah ekran (B) + tüm slaytlar ızgarasından atlama', (t) async {
     await t.pumpWidget(const MaterialApp(
       home: SlideshowScreen(slides: [_slide, _slide, _slide]),
