@@ -689,7 +689,7 @@ const Map<String, (String, String, String)> _t7 = {
     'رمز للمجلدات الحساسة',
   ),
   'set.smart_pin_none': (
-    'Kimlik, sağlık, banka ve vergi klasörleri şu an PIN'siz açılır — dokun, PIN kur',
+    'Kimlik, sağlık, banka ve vergi klasörleri şu an PIN sormadan açılır — dokun, PIN kur',
     'ID, health, bank and tax folders open without a PIN now — tap to set a PIN',
     'تُفتح مجلدات الهوية والصحة والبنك والضرائب الآن دون رمز — اضغط لتعيين رمز',
   ),
