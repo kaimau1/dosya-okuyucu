@@ -250,6 +250,7 @@ Future<void> _main() async {
     await FileTags.movePath(from, to);
     await OpenHistory.movePath(from, to);
     await FmColorsStore.moveFolder(from, to); // Faz 41 / 6
+    await SmartSort.movePath(from, to); // B2 dilim 2: kategori taşınır
   });
   // İş listesi artık diske yazılıyor (kullanıcı hatası 2026-07-31: "uygulamayı
   // alta alıp geri aldığımda diğer tüm işlemler kayboluyor"). Kanca hemen

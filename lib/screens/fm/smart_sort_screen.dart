@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
 import '../../core/app_haptics.dart';
@@ -11,6 +13,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/safe_insets.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
+import '../../services/fm/file_ops.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/smart_folder_prefs.dart';
 import '../../services/fm/smart_learn.dart';
@@ -20,10 +23,13 @@ import '../../services/fm/smart_sort_taxonomy.dart';
 import '../../services/fm/smart_user_cats.dart';
 import '../../widgets/ai_key_gate.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/fm/fm_progress_dialog.dart';
 import '../../widgets/fm/pin_dialog.dart';
 import '../../widgets/fm/smart_cat_style.dart';
 import '../../widgets/section_header.dart';
 import 'category_screen.dart';
+import 'entry_actions.dart' show showUndoToast;
+import 'folder_picker_screen.dart';
 import 'smart_clutter_screen.dart';
 import 'smart_user_cat_screen.dart';
 
@@ -126,6 +132,82 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
           '${r.lastError != null ? ': ${r.lastError}' : ''}';
     }
     showSnackOn(messenger, msg);
+    // Taşıma kuralı varsa (varsayılan yok) yeni düzenlenenler de taşınır.
+    if (mounted && SmartFolderPrefs.rules.isNotEmpty) await _applyRules();
+  }
+
+  /// **Taşıma kuralı** (B2 dilim 2): açıksa kapatır; kapalıysa klasör seçtirir,
+  /// kaç dosyanın taşınacağını söyleyip ONAY ister, sonra uygular.
+  Future<void> _rule(String cat) async {
+    if (SmartFolderPrefs.ruleOf(cat) != null) {
+      await SmartFolderPrefs.setRule(cat, null);
+      return;
+    }
+    final dest = await Navigator.of(context).push<String>(MaterialPageRoute(
+      builder: (_) => FolderPickerScreen(
+        sources: const [],
+        homeCards: true,
+        actionLabel: context.t('smo.rule_pick'),
+      ),
+    ));
+    if (dest == null || !mounted) return;
+    final n = SmartSort.pendingRuleMoves({cat: dest})
+        .values
+        .fold<int>(0, (a, l) => a + l.length);
+    final ok = await showAppConfirm(
+      context,
+      title: context.t('smo.rule_title'),
+      message: context.t('smo.rule_body', {
+        'cat': SmartCatStyle.label(context, cat),
+        'folder': p.basename(dest),
+        'n': n,
+      }),
+      confirmLabel: context.t('smo.rule_ok'),
+    );
+    if (!ok || !mounted) return;
+    await SmartFolderPrefs.setRule(cat, dest);
+    if (mounted) await _applyRules({cat: dest});
+  }
+
+  /// Kuralların bekleyen taşımalarını yapar; hepsi tek "Geri al"la döner.
+  Future<void> _applyRules([Map<String, String>? rules]) async {
+    final plan = SmartSort.pendingRuleMoves(rules);
+    if (plan.isEmpty) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final strings = AppStrings.of(context);
+    final results = await showFmProgress<List<FmOpResult>>(
+      context,
+      title: strings.t('fm.moving'),
+      name: strings.t('fm.moving_name'),
+      task: (report, isCancelled) async {
+        final out = <FmOpResult>[];
+        for (final e in plan.entries) {
+          try {
+            await Directory(e.key).create(recursive: true);
+          } catch (_) {
+            // Bilinçli: oluşturulamazsa taşıma hatası satır satır söyler.
+          }
+          out.add(await FileOps.moveAll(e.value, e.key,
+              onProgress: report, isCancelled: isCancelled));
+        }
+        return out;
+      },
+    );
+    final transfers = [for (final r in results) ...r.transfers];
+    final errors = [for (final r in results) ...r.errors];
+    final n = results.fold<int>(0, (a, r) => a + r.succeeded);
+    if (n == 0 && errors.isEmpty) return;
+    showUndoToast(
+        messenger,
+        strings,
+        errors.isEmpty
+            ? strings.t('smo.rule_moved', {'n': n})
+            : strings.t('smo.rule_failed',
+                {'n': n, 'fail': errors.length, 'error': errors.first}),
+        () async {
+      final back = await FileOps.undoMove(transfers);
+      if (back.hasError) throw FileSystemException(back.errors.first);
+    });
   }
 
   Future<void> _openCat(String cat) => _openList(
@@ -281,6 +363,18 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
               onTap: () => Navigator.pop(ctx, 'first'),
             ),
           ListTile(
+            key: const ValueKey('smo-rule'),
+            leading: const Icon(AppIcons.move),
+            title: Text(SmartFolderPrefs.ruleOf(cat) == null
+                ? ctx.t('smo.rule')
+                : ctx.t('smo.rule_off')),
+            subtitle: SmartFolderPrefs.ruleOf(cat) == null
+                ? null
+                : Text(ctx.t('smo.rule_on',
+                    {'folder': p.basename(SmartFolderPrefs.ruleOf(cat)!)})),
+            onTap: () => Navigator.pop(ctx, 'rule'),
+          ),
+          ListTile(
             leading: const Icon(AppIcons.dragIndicator),
             title: Text(ctx.t('smo.arrange')),
             onTap: () => Navigator.pop(ctx, 'arrange'),
@@ -303,6 +397,8 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
         await SmartFolderPrefs.setOrder([cat, ...cats.where((c) => c != cat)]);
       case 'arrange':
         await _arrange(cats);
+      case 'rule':
+        await _rule(cat);
       case 'default':
         await SmartFolderPrefs.setName(cat, null);
         SmartSort.invalidateLabels();

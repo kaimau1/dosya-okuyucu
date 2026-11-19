@@ -16,11 +16,13 @@ abstract final class SmartFolderPrefs {
   static const _kNames = 'sm_folder_names';
   static const _kOrder = 'sm_folder_order';
   static const _kCols = 'sm_folder_cols';
+  static const _kRules = 'sm_move_rules';
 
   static const minColumns = 2;
   static const maxColumns = 4;
 
   static final Map<String, String> _names = {};
+  static final Map<String, String> _rules = {};
   static List<String> _order = const [];
   static int _cols = minColumns;
   static bool _loaded = false;
@@ -36,6 +38,22 @@ abstract final class SmartFolderPrefs {
   /// Kullanıcının verdiği ad (yoksa null).
   static String? nameOf(String cat) => _names[cat];
 
+  /// **Taşıma kuralı** (B2 dilim 2, PLAN §1.2): kategori → hedef klasör.
+  /// Varsayılan YOK (karar 1: dosyalar yerinde); kullanıcı klasör menüsünden
+  /// açar, ilk uygulamada onay, her taşıma "Geri al"lı.
+  static String? ruleOf(String cat) => _rules[cat];
+  static Map<String, String> get rules => Map.unmodifiable(_rules);
+
+  static Future<void> setRule(String cat, String? dir) async {
+    if (dir == null || dir.isEmpty) {
+      _rules.remove(cat);
+    } else {
+      _rules[cat] = dir;
+    }
+    revision.value++;
+    await _write((p) => p.setString(_kRules, jsonEncode(_rules)));
+  }
+
   static Future<void> ensureLoaded() {
     if (_loaded) return Future.value();
     return _loading ??= _load().whenComplete(() => _loading = null);
@@ -44,17 +62,8 @@ abstract final class SmartFolderPrefs {
   static Future<void> _load() async {
     try {
       final p = await SharedPreferences.getInstance();
-      final raw = p.getString(_kNames);
-      if (raw != null) {
-        final m = jsonDecode(raw);
-        if (m is Map) {
-          for (final e in m.entries) {
-            if (e.key is String && e.value is String) {
-              _names[e.key as String] = e.value as String;
-            }
-          }
-        }
-      }
+      _readMap(p.getString(_kNames), _names);
+      _readMap(p.getString(_kRules), _rules);
       _order = p.getStringList(_kOrder) ?? const [];
       _cols = (p.getInt(_kCols) ?? minColumns).clamp(minColumns, maxColumns);
     } catch (_) {
@@ -62,6 +71,17 @@ abstract final class SmartFolderPrefs {
     }
     _loaded = true;
     revision.value++;
+  }
+
+  static void _readMap(String? raw, Map<String, String> into) {
+    if (raw == null) return;
+    final m = jsonDecode(raw);
+    if (m is! Map) return;
+    for (final e in m.entries) {
+      if (e.key is String && e.value is String) {
+        into[e.key as String] = e.value as String;
+      }
+    }
   }
 
   /// [cats]'ı kullanıcının sırasına dizer; sırada olmayanlar (yeni çıkan
@@ -131,6 +151,7 @@ abstract final class SmartFolderPrefs {
   @visibleForTesting
   static void debugReset() {
     _names.clear();
+    _rules.clear();
     _order = const [];
     _cols = minColumns;
     _loaded = false;

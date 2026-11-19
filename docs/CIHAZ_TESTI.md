@@ -1438,3 +1438,9 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Akıllı düzen > Ayıkla > sağ üst "Benzer kareler": benzer gruplar çıkıyor; ⭐ "En iyi" gruptaki EN NET kare mi (bulanık büyük kopya değil)? Tarama süresi eski "Benzer görüntüler"e göre belirgin uzamadı mı?
 - [ ] PIN kurulu + uygulama kilidi kapalı: Kimlik/Sağlık/Banka/Vergi klasörüne (ya da bunları içeren süresi dolmuş/tutar listesine) girişte PIN soruluyor, aynı oturumda ikinci kez sorulmuyor. Uygulama kilidi açıkken ya da PIN yokken sorulmuyor.
 - [ ] Dosya ⋮ > Kategori yanlış mı? > başka kategori → Doğruluk tezgâhında o dosya doğru kategoriyle görünüyor.
+
+## B2 Akıllı düzen kullanım dilim 2 (2026-11-19, dal faz-oto-B2-duzen-kullanim) — yazıldı, cihazda doğrulanmadı
+- [ ] Akıllı düzende kategorisi olan bir dosyayı uygulama içinden başka klasöre taşı → Akıllı düzen klasöründe hâlâ görünüyor, "Şimdi düzenle" onu yeniden AI'ya göndermiyor (sayaç artmıyor). Çöpe atınca klasörden çıkıyor, geri yükleyince dönüyor.
+- [ ] Akıllı klasöre basılı tut → "Taşıma kuralı…" → klasör seç → onay penceresi doğru dosya sayısını söylüyor → "Kuralı aç" → dosyalar taşındı, "Geri al" hepsini eski yerine döndürüyor. Menüde artık "Taşıma kuralını kapat (→ klasör)" yazıyor; kapatınca bir şey taşınmıyor. Kural yokken hiçbir dosya yer değiştirmiyor.
+- [ ] Kural açıkken "Şimdi düzenle" → yeni düzenlenen o kategorideki dosyalar da taşınıp "Geri al" çıkıyor. SD kart ↔ dahili arasında ilerleme penceresi görünüyor.
+- [ ] Ayıkla: "Eski ekran görüntüsü" çipi 30 günden eski ekran görüntülerini listeliyor, yenileri listelemiyor.

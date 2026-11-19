@@ -20,12 +20,14 @@ import 'ai_scope.dart';
 import 'fm_env.dart';
 import 'fs_events.dart';
 import 'fs_scan.dart';
+import 'path_side_index.dart';
 import 'smart_folder_prefs.dart';
 import 'smart_learn.dart';
 import 'smart_quota.dart';
 import 'smart_sort_input.dart';
 import 'smart_sort_taxonomy.dart';
 import 'smart_user_cats.dart';
+import 'trash_service.dart';
 
 /// Tek dosyanın akıllı düzen sonucu. Metin DEĞİL kimlik tutar (dil değişince
 /// ikinci ad o dilde yeniden kurulur).
@@ -132,12 +134,28 @@ class SmartRecord {
   /// Gereksiz mi (Ayıkla)? Görsellerde ve videoda (yanlışlıkla çekilmiş,
   /// çok kısa, karanlık) anlamlı.
   bool get clutter =>
-      SmartTaxonomy.clutterCategories.contains(cat) || blurry || accidental;
+      SmartTaxonomy.clutterCategories.contains(cat) ||
+      blurry ||
+      accidental ||
+      oldScreenshot;
 
-  /// Ayıkla'daki neden kimliği (öncelik: kutlama → mem → yanlışlıkla → bulanık).
+  /// Ekran görüntüsü yaşı (B2 dilim 2, PLAN §1.2 Ayıkla 2): bu kadar günden
+  /// eski ekran görüntüsü Ayıkla'ya önerilir (silinmez, kullanıcı seçer).
+  static const oldScreenshotDays = 30;
+
+  bool get oldScreenshot =>
+      cat == 'screenshot' &&
+      modifiedMs > 0 &&
+      DateTime.now().millisecondsSinceEpoch - modifiedMs >
+          oldScreenshotDays * Duration.millisecondsPerDay;
+
+  /// Ayıkla'daki neden kimliği (öncelik: kutlama → mem → yanlışlıkla →
+  /// bulanık → eski ekran görüntüsü).
   String? get clutterReason => SmartTaxonomy.clutterCategories.contains(cat)
       ? cat
-      : (accidental ? 'accidental' : (blurry ? 'blurry' : null));
+      : (accidental
+          ? 'accidental'
+          : (blurry ? 'blurry' : (oldScreenshot ? 'old_shot' : null)));
 
   /// Baskın kullanıcı kategorisi: en yüksek eşleşme, yerleşik kategorinin
   /// güveninden yüksekse ya da yerleşik ikinci ad boş kalacaksa ([builtinEmpty]).
@@ -577,6 +595,22 @@ abstract final class SmartSort {
             if (!r.hidden && r.cat == cat) r.path
         ];
 
+  /// Taşıma kurallarının ([SmartFolderPrefs.ruleOf]) bekleyen işi: hedef
+  /// klasör → oraya gidecek yollar. Zaten hedefte duran ve ikinci kurala
+  /// takılan dosya atlanır. Kural yoksa boş (varsayılan KAPALI).
+  static Map<String, List<String>> pendingRuleMoves(
+      [Map<String, String>? rules]) {
+    final out = <String, List<String>>{};
+    final seen = <String>{};
+    for (final e in (rules ?? SmartFolderPrefs.rules).entries) {
+      for (final path in pathsOf(e.key)) {
+        if (p.equals(p.dirname(path), e.value) || !seen.add(path)) continue;
+        (out[e.value] ??= []).add(path);
+      }
+    }
+    return out;
+  }
+
   /// Kullanıcı kategorisi → dosya sayısı (gizliler hariç; silinmiş kategori
   /// yok).
   static Map<String, int> userCounts() {
@@ -862,6 +896,30 @@ abstract final class SmartSort {
       out[b] = (out[b] ?? 0) + 1;
     }
     return out;
+  }
+
+  /// Uygulama içinden taşınan dosya/klasörün kaydı yeni yola geçer
+  /// ([PathSideIndex] kancası, `main`). Kök (B2 dilim 2): kanca yoktu —
+  /// taşınan dosya kategorisini kaybedip AI'ya yeniden gidiyordu (kota).
+  /// Çöpe giden kayıt eski yolda kalır: çöp klasörü kategoride görünmesin,
+  /// geri yüklenince kaydı yerinde bulsun.
+  static Future<void> movePath(String from, String to) async {
+    if (to.contains(TrashService.dirName)) return;
+    await ensureLoaded();
+    final moved = <SmartRecord>[];
+    _records.removeWhere((path, r) {
+      final np = movedPathFor(path: path, from: from, to: to);
+      if (np == null) return false;
+      final j = r.toJson()..['p'] = np;
+      final nr = SmartRecord.fromJson(j);
+      if (nr != null) moved.add(nr);
+      return true;
+    });
+    if (moved.isEmpty) return;
+    for (final r in moved) {
+      _records[r.path] = r;
+    }
+    _changed();
   }
 
   /// Silinen dosyaların kaydı düşer.
