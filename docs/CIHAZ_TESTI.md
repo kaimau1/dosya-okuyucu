@@ -1445,6 +1445,15 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Kural açıkken "Şimdi düzenle" → yeni düzenlenen o kategorideki dosyalar da taşınıp "Geri al" çıkıyor. SD kart ↔ dahili arasında ilerleme penceresi görünüyor.
 - [ ] Ayıkla: "Eski ekran görüntüsü" çipi 30 günden eski ekran görüntülerini listeliyor, yenileri listelemiyor.
 
+## B2 Akıllı düzen kullanım dilim 3 (2026-11-19, dal faz-oto-B2-duzen-kullanim) — yazıldı, cihazda doğrulanmadı
+- [ ] Klasöre basılı tut > "Kontrol listesi" → "İş başvurusu" → Kontrol et: ilerleme sayacı akıyor; maddelerde ✓/✗ + yüzde, ✓ olanın altında bulunan dosyanın adı; "Eksik evrak (n)" doğru.
+- [ ] "Yeni liste" → ad + her satıra bir evrak → çip olarak görünüyor, levha kapanıp açılınca duruyor, çipteki ✕ siliyor (hazır listelerde ✕ yok).
+- [ ] "PDF rapor paylaş" → paylaşım menüsü açılıyor; PDF'te Türkçe harfler (ğ ş ı İ) düzgün, dosya yolu yok (yalnız ad).
+- [ ] Birkaç dosya seç > ⋮ > "Kontrol listesi" aynı levhayı seçilenlerle açıyor.
+- [ ] Ayıkla > "WhatsApp kopyası" çipi: aynı fotoğrafın iletilen kopyaları listede, en eskisi listede DEĞİL; WhatsApp dışı fotoğraflar yok.
+- [ ] Benzer kareler > grubun ⭐ düğmesi → kartlarda "AI %…" çıkıyor, en yüksek puanlı kare başa geçip "En iyi" etiketi alıyor; "Fazlalıkları seç" artık ona göre seçiyor.
+- [ ] Birkaç PDF form seç > AI ile toplu kontrol > "Boş imza alanı var mı?" → Yalnız Evet süzgeci imzalanmamışları gösteriyor.
+
 ## U2 Ana ekran tek akıllı şerit (2026-11-19, dal faz-oto-U2-tek-serit) — yazıldı, cihazda doğrulanmadı
 - [ ] Ana ekranda üstte TEK şerit "Son dosyalar", sekme yok; ekran görüntüsü al, uygulamaya dön → SS şeridin başında küçük "Yeni" etiketiyle görünüyor.
 - [ ] SS'i aç, geri dön → aynı dosya bir kez görünüyor, "Yeni" etiketi yerine köşede ince saat işareti var.

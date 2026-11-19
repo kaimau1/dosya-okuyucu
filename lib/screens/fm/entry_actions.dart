@@ -43,6 +43,7 @@ import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import '../../widgets/fm/tag_picker_sheet.dart';
 import 'ai_actions.dart';
+import 'ai_checklist.dart';
 import 'ai_quick_check.dart';
 import 'share_shield.dart';
 import 'archive_screen.dart';

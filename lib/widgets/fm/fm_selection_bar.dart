@@ -7,6 +7,7 @@ import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../screens/fm/ai_batch_check.dart';
+import '../../screens/fm/ai_checklist.dart';
 import '../../screens/fm/entry_actions.dart';
 import '../../screens/fm/resize_actions.dart';
 import '../../screens/fm/swipe_pager.dart';
@@ -219,6 +220,11 @@ class FmSelectionBar extends StatelessWidget {
                     accent: true,
                     label: context.t('qcb.action'),
                     hint: context.t('qcb.action_hint')),
+                AppAction(
+                    value: 'ai_checklist',
+                    icon: AppIcons.listAlt,
+                    label: context.t('ckl.action'),
+                    hint: context.t('ckl.action_hint')),
                 if (_anyMedia)
                   AppAction(
                       value: 'resize',
@@ -325,6 +331,8 @@ class FmSelectionBar extends StatelessWidget {
         if (await showAiTagFlow(context, selected)) await onChanged();
       case 'ai_check':
         if (await showAiBatchCheck(context, selected)) await onChanged();
+      case 'ai_checklist':
+        await showAiChecklist(context, selected);
       case 'hide':
         if (await hideEntries(context, _paths)) await onChanged();
       case 'properties':

@@ -111,6 +111,11 @@ List<DecisionQuestion> quickCheckPresets(FmCategory category, AppStrings s) {
         type,
         DecisionQuestion.yesNo('signed', s.t('qc.q_signed'),
             'Does this document carry a handwritten or digital signature?'),
+        // B2 dilim 3 (eski P33): form/sözleşmede boş kalmış imza alanı —
+        // toplu kontrolde "hangileri imzalanmamış?" süzgeci.
+        DecisionQuestion.yesNo('sign_empty', s.t('qc.q_sign_empty'),
+            'Does this document have a signature field, line or box that is '
+                'still empty (not signed)?'),
         pii,
         DecisionQuestion.yesNo('money', s.t('qc.q_money'),
             'Does this document state an amount of money, price or payment?'),

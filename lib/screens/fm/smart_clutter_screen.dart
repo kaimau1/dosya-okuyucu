@@ -47,6 +47,7 @@ class _SmartClutterScreenState extends State<SmartClutterScreen> {
     'accidental',
     'blurry',
     'old_shot',
+    'wa_copy',
   ];
 
   late bool _hiddenTab = widget.startHidden;
@@ -91,7 +92,7 @@ class _SmartClutterScreenState extends State<SmartClutterScreen> {
     return [
       for (final r in list)
         if ((alive == null || alive.contains(r.path)) &&
-            (_hiddenTab || _reason == null || r.clutterReason == _reason))
+            (_hiddenTab || _reason == null || SmartSort.reasonOf(r) == _reason))
           r
     ];
   }
@@ -362,7 +363,7 @@ class _Cell extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final px = (128 * MediaQuery.devicePixelRatioOf(context)).round();
-    final reason = record.clutterReason;
+    final reason = SmartSort.reasonOf(record);
     return GestureDetector(
       onTap: onTap,
       onLongPress: onLongPress,

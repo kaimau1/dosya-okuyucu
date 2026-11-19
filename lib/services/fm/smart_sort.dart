@@ -573,10 +573,61 @@ abstract final class SmartSort {
     return out;
   }
 
-  static List<SmartRecord> clutter() => [
-        for (final r in _records.values)
-          if (!r.hidden && r.clutter) r
-      ]..sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
+  static List<SmartRecord> clutter() {
+    final copies = waCopies();
+    return [
+      for (final r in _records.values)
+        if (!r.hidden && (r.clutter || copies.contains(r.path))) r
+    ]..sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
+  }
+
+  /// Ayıkla nedeni: kaydın kendi nedeni, yoksa WhatsApp iletilen kopyası.
+  static String? reasonOf(SmartRecord r) =>
+      r.clutterReason ?? (waCopies().contains(r.path) ? 'wa_copy' : null);
+
+  static Set<String> _waCopies = const {};
+  static int _waRev = -1;
+
+  /// **WhatsApp iletilen kopyalar** (B2 dilim 3, PLAN §1.2 Ayıkla 2): aynı
+  /// görsel her iletilişte WhatsApp klasörüne yeni adla (`IMG-…-WA0012`)
+  /// yeniden iner. WhatsApp klasöründe bayt boyutu aynı görseller tek grup;
+  /// en eskisi kalır, ötekiler Ayıkla'ya önerilir (silinmez, kullanıcı seçer).
+  // ponytail: boyut eşitliği = kopya sezgisi (WhatsApp aynı dosyayı aynı
+  // baytla indirir); yanlış eşleşme görülürse grupta içerik özeti karşılaştır.
+  // Önbellek [revision]'a bağlı: revizyonsuz kayıt eklemesi bir tur gecikir.
+  static Set<String> waCopies() {
+    if (_waRev != revision.value) {
+      _waCopies = waCopiesOf(_records.values);
+      _waRev = revision.value;
+    }
+    return _waCopies;
+  }
+
+  static final _waDir = RegExp(r'[\\/](whatsapp|com\.whatsapp)[\\/]',
+      caseSensitive: false);
+  static const _waImageExt = {'.jpg', '.jpeg', '.png', '.webp'};
+
+  @visibleForTesting
+  static Set<String> waCopiesOf(Iterable<SmartRecord> records) {
+    final groups = <int, List<SmartRecord>>{};
+    for (final r in records) {
+      if (r.size <= 0 ||
+          !_waDir.hasMatch(r.path) ||
+          !_waImageExt.contains(p.extension(r.path).toLowerCase())) {
+        continue;
+      }
+      (groups[r.size] ??= []).add(r);
+    }
+    final out = <String>{};
+    for (final g in groups.values) {
+      if (g.length < 2) continue;
+      g.sort((a, b) => a.modifiedMs.compareTo(b.modifiedMs));
+      for (final r in g.skip(1)) {
+        out.add(r.path);
+      }
+    }
+    return out;
+  }
 
   static List<SmartRecord> hiddenRecords() => [
         for (final r in _records.values)

@@ -60,4 +60,13 @@ void main() {
     final out = SimilarFinder.orderBest([a, b, c], const {});
     expect([for (final e in out) e.path], ['/a/c.mp4', '/a/b.jpg', '/a/a.jpg']);
   });
+
+  test('AI puanı: puanlananlar yüksekten başta, puansızlar eski sırayla sonda', () {
+    final a = f('/a/a.jpg', 1, 1), b = f('/a/b.jpg', 1, 1);
+    final c = f('/a/c.jpg', 1, 1), d = f('/a/d.jpg', 1, 1);
+    final out = SimilarFinder.orderByAi(
+        [a, b, c, d], const {'/a/c.jpg': 1.8, '/a/b.jpg': 0.4, '/a/d.jpg': 1.8});
+    expect([for (final e in out) e.path],
+        ['/a/c.jpg', '/a/d.jpg', '/a/b.jpg', '/a/a.jpg']);
+  });
 }
