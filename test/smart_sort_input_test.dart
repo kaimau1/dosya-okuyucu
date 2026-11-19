@@ -63,8 +63,12 @@ void main() {
           isFalse);
       expect(SmartSort.supports(entry('/s/Download/a.apk', 900 << 20)), isTrue);
       expect(SmartSort.supports(entry('/s/Download/s.mp3', 1000)), isTrue);
-      expect(SmartSort.supports(entry('/s/Download/v.mp4', 60 << 20)), isFalse,
-          reason: 'video yükleme sınırı');
+      // m.5c: büyük videonun yalnız ilk dakikası gider; kaynak sınırı 1 GB.
+      expect(SmartSort.supports(entry('/s/Download/v.mp4', 60 << 20)), isTrue,
+          reason: 'büyük video kesitle sorulur');
+      expect(SmartSort.supports(entry('/s/Download/v.mp4', 1025 << 20)),
+          isFalse,
+          reason: 'video kaynak sınırı 1 GB');
       expect(SmartSort.supports(entry('/s/.gizli/r.docx', 1000)), isFalse);
       expect(SmartSort.supports(entry('/s/Download/bos.txt', 0)), isFalse);
     });
