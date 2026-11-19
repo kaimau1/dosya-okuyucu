@@ -9,5 +9,6 @@
 - m.8 (commit sonrası): slide_canvas.dart _canvas — seçili çerçevenin altı/üstü iki
   RepaintBoundary katmanı. Kanıt: slides_perf_test debugOnProfilePaint ile sürüklemede boyanan
   'Madde' metni = 0; tavan 250→130 (CI 107); slideshow_test geçiş karesi SlideCanvas 0.
-- Sıradaki: CI sonucu; sığarsa m.5 AI tasarımcı.
+- PLAN satırı, C2, HAFIZA, CIHAZ_TESTI güncel. m.5 AI tasarımcı yapılmadı (dilim 3).
+- Sıradaki: CI e0ffa244 sonucu (kırmızıysa log-failed kuyruğu, en çok 2 tur).
 - Dokunulmayan: m.2 (B10 m.1 bekliyor), m.3 (fable planı).

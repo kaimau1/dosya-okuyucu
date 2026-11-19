@@ -1470,3 +1470,8 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - Bir metin kutusuna dokun (seç), sonra metnin ortasına tekrar dokun: imleç dokunduğun yerde mi (sonda değil)?
 - Uzun kutuda alt satırlara yazarken klavye açıkken yazılan satır görünür kalıyor mu (slayt kayıyor mu)?
 - Slayt düzenleme/sunum A/B (C2): kutu açma ve yazma hissi önceki [apk] ile aynı mı.
+
+## B11 Slayt 2.0 dilim 2 (2026-11-19, dal faz-oto-B11-slayt2)
+- Slayt düzenleyici → Pro menü → "Prova (süreleri kaydet)": sunucu panelinde "Bu slayt: mm:ss" sayıyor mu? Birkaç slayt geçip geri tuşuyla çık → "Zamanlamalar kaydedilsin mi?" → kaydet → normal sunumda slaytlar o sürelerle kendi ilerliyor mu? PowerPoint'te açınca zamanlamalar görünüyor mu?
+- Çok şekilli/görselli slaytta bir şekli seç ve sürükle: diğer şekiller titremeden/yanıp sönmeden yerinde kalıyor mu? Seçince ya da seçimi bırakınca görseller bir an kayboluyor mu (olmamalı)?
+- Sürükleme ve geçişli slayt A/B (C2): şekil sürüklemede kare p99 önceki [apk] ile kıyas.
