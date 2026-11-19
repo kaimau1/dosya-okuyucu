@@ -102,6 +102,8 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
     unawaited(Future.wait([SmartSort.ensureLoaded(), SmartQuota.read()])
         .then((_) {
       if (mounted) setState(() => _ready = true);
+      // Silinmiş dosyaların kaydı düşsün: klasör sayıları gerçek olsun (U4).
+      return SmartSort.pruneMissing();
     }));
   }
 

@@ -1102,6 +1102,47 @@ abstract final class SmartSort {
     _changed();
   }
 
+  /// **Hayalet kayıtlar** (U4 kökü, 2026-11-20): dosya başka uygulamada
+  /// silinince ya da çöp boşaltılınca kaydı kalıyordu → akıllı klasör
+  /// sayıları ve "n dosya düzenli" şişik, açılan listede daha az dosya.
+  /// Diskte olmayan kayıt düşer; ŞU İKİSİ KALIR: çöpteki dosyanın kaydı
+  /// (asıl yolunda — geri yüklenince yerinde, B2 dilim 2 kararı) ve takılı
+  /// olmayan birimdeki (SD kart çıkarılmış) kayıt. Çöp okunamazsa hiçbir şey
+  /// silinmez. Tur sürerken dokunulmaz. Düşen kayıt sayısını döner.
+  static Future<int> pruneMissing(
+      {Future<Set<String>> Function()? trashed}) async {
+    await ensureLoaded();
+    if (isRunning || _records.isEmpty) return 0;
+    final paths = _records.keys.toList();
+    final alive = {for (final e in await FsScan.statPaths(paths)) e.path};
+    final roots = [
+      for (final r in FmEnv.volumeRoots)
+        if (r.isNotEmpty && await Directory(r).exists()) r
+    ];
+    final gone = [
+      for (final x in paths)
+        if (!alive.contains(x) && roots.any((r) => p.isWithin(r, x))) x
+    ];
+    if (gone.isEmpty) return 0;
+    Set<String> inTrash;
+    try {
+      inTrash = await (trashed ?? _trashedOriginals)();
+    } catch (_) {
+      return 0; // Bilinçli: çöp okunamazsa en güvenlisi silmemek.
+    }
+    if (isRunning) return 0;
+    var n = 0;
+    for (final x in gone) {
+      if (inTrash.contains(x)) continue;
+      if (_records.remove(x) != null) n++;
+    }
+    if (n > 0) _changed();
+    return n;
+  }
+
+  static Future<Set<String>> _trashedOriginals() async =>
+      {for (final i in await FmEnv.trash.list()) i.originalPath};
+
   // ── Yanıt → kayıt ──────────────────────────────────────────────────────
   /// Saf: Decisions yanıtı → kayıt. Birim testli.
   ///
