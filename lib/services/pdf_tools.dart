@@ -711,6 +711,62 @@ class PdfTools {
   static Future<List<int>> mergeInBackground(List<List<int>> sources) =>
       _bg(() => merge(sources));
 
+  /// **Sayfa stüdyosu planını uygular** (B4/P20). [pages] çıktı sırasıdır;
+  /// her öğe (özgün 0-tabanlı indeks, eklenecek çeyrek tur, 1 = 90° saat
+  /// yönü). Sıra korunuyorsa (yalnız sil/döndür — [studioKeepsAnnotations])
+  /// belge YERİNDE değişir, vurgular kalır; sıralama/çoğaltma [selectPages]
+  /// ile kopyalar (oradaki KAYIP UYARISI geçerli).
+  static Future<List<int>> applyPageStudio(
+    List<int> bytes,
+    List<(int, int)> pages, {
+    String? password,
+  }) async {
+    if (pages.isEmpty) throw ArgumentError('En az bir sayfa kalmalı');
+    final order = [for (final (i, _) in pages) i];
+    final inPlace = studioKeepsAnnotations(order);
+    final base = inPlace ? bytes : await selectPages(bytes, order, password: password);
+    final doc = PdfDocument(
+        inputBytes: base, password: inPlace ? password : null);
+    try {
+      if (inPlace) {
+        final keep = order.toSet();
+        for (var i = doc.pages.count - 1; i >= 0; i--) {
+          if (!keep.contains(i)) doc.pages.removeAt(i);
+        }
+        if (doc.pages.count != pages.length) {
+          throw RangeError('Sayfa yok (belge ${doc.pages.count} sayfa)');
+        }
+      }
+      for (var k = 0; k < pages.length; k++) {
+        final turns = pages[k].$2 % 4;
+        if (turns == 0) continue;
+        final page = doc.pages[k];
+        page.rotation =
+            PdfPageRotateAngle.values[(page.rotation.index + turns) % 4];
+      }
+      return await doc.save();
+    } finally {
+      doc.dispose();
+    }
+  }
+
+  /// [order] kesin artan mı (tekrar/yer değiştirme yok) — öyleyse
+  /// [applyPageStudio] yerinde çalışır ve açıklamalar korunur.
+  static bool studioKeepsAnnotations(List<int> order) {
+    for (var i = 1; i < order.length; i++) {
+      if (order[i] <= order[i - 1]) return false;
+    }
+    return true;
+  }
+
+  /// [applyPageStudio] — arka plan isolate'inde.
+  static Future<List<int>> applyPageStudioInBackground(
+    List<int> bytes,
+    List<(int, int)> pages, {
+    String? password,
+  }) =>
+      _bg(() => applyPageStudio(bytes, pages, password: password));
+
   /// [selectPages] — arka plan isolate'inde.
   static Future<List<int>> selectPagesInBackground(
     List<int> bytes,
