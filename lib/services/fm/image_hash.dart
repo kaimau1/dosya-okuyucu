@@ -16,6 +16,8 @@
 /// Ortalamaya dayanan aHash tek renkli görsellerde çöker, dHash çökmez.
 library;
 
+import 'dart:math' as math;
+
 /// Izgara genişliği: 8 fark üretmek için 9 sütun gerekir.
 const int hashGridWidth = 9;
 const int hashGridHeight = 8;
@@ -194,4 +196,40 @@ List<List<int>> groupSimilar(
   final groups = byRoot.values.where((g) => g.length > 1).toList()
     ..sort((a, b) => b.length.compareTo(a.length));
   return groups;
+}
+
+/// **Netlik ölçüsü** (Ayıkla 2, 2026-11-19): gri ızgarada Laplace süzgecinin
+/// varyansı. Bulanık karede komşu pikseller birbirine yakın → yanıt düşük;
+/// net karede kenarlar keskin → yüksek. Yalnız AYNI sahnenin karelerini
+/// sıralamak için anlamlı (benzer kare grubu), mutlak eşik değildir.
+/// [gray] satır satır [width]x[height].
+double laplacianVariance(List<int> gray, int width, int height) {
+  if (width < 3 || height < 3 || gray.length < width * height) return 0;
+  var sum = 0.0;
+  var sumSq = 0.0;
+  var n = 0;
+  for (var y = 1; y < height - 1; y++) {
+    for (var x = 1; x < width - 1; x++) {
+      final i = y * width + x;
+      final v = gray[i - width] +
+          gray[i + width] +
+          gray[i - 1] +
+          gray[i + 1] -
+          4 * gray[i];
+      sum += v;
+      sumSq += v * v;
+      n++;
+    }
+  }
+  final mean = sum / n;
+  return sumSq / n - mean * mean;
+}
+
+/// Netliği kaba kademeye çevirir (her kademe ≈ %15): sıralamada küçük ölçüm
+/// gürültüsü boyut/tarih eşitlik kuralını ezmesin, karşılaştırma geçişli
+/// kalsın. Ölçülemeyen (null/≤ 0) en alt kademe.
+int sharpnessTier(double? sharpness) {
+  if (sharpness == null || sharpness <= 1) return 0;
+  // ponytail: log tabanı 1.15 — gruplar küçük, kademe kaba; gerekirse AI puanı (Decisions score) eklenir.
+  return 1 + (math.log(sharpness) / math.log(1.15)).floor();
 }

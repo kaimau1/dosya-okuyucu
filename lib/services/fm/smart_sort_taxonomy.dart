@@ -120,7 +120,9 @@ abstract final class SmartTaxonomy {
   static bool isPersonalPhoto(String cat) =>
       cat == 'photo_people' || cat == 'photo_other';
 
-  /// Hassas kategoriler (kilit açıkken görünür).
+  /// Hassas kategoriler (B2, 2026-11-19): PIN kuruluysa ve uygulama kilidi
+  /// kapalıysa Akıllı düzen listeleri oturumda bir kez PIN ister (uygulama
+  /// kilidi açıkken girişte zaten sorulmuştur).
   static const sensitive = {'id', 'health', 'bank', 'tax_salary'};
 
   /// Gereksiz sayılan kategoriler (Ayıkla).

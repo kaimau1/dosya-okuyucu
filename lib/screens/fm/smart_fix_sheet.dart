@@ -5,6 +5,8 @@ import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
+import '../../services/fm/fs_scan.dart';
+import '../../services/fm/smart_bench.dart';
 import '../../services/fm/smart_learn.dart';
 import '../../services/fm/smart_sort.dart';
 import '../../services/fm/smart_sort_taxonomy.dart';
@@ -44,6 +46,9 @@ Future<bool> showSmartFix(BuildContext context, String path) async {
     showSnackOn(messenger, s.t('smf.kept'));
     return false;
   }
+  // B2: model yanlışı doğruluk tezgâhına örnek olur (yalnız kategori puanlanır;
+  // elle etiketlenmiş tezgâh öğesi ezilmez, dolu tezgâha eklenmez).
+  if (from != null) await _benchSample(path, chosen);
   var also = 0;
   if (from != null && context.mounted) {
     final candidates = {
@@ -74,6 +79,19 @@ Future<bool> showSmartFix(BuildContext context, String path) async {
           ? s.t('smf.learned_n', {'cat': label, 'n': also})
           : s.t('smf.learned', {'cat': label}));
   return true;
+}
+
+Future<void> _benchSample(String path, String cat) async {
+  await SmartBench.ensureLoaded();
+  if (SmartBench.of(path) != null) return;
+  final stat = await FsScan.statPaths([path]);
+  if (stat.isEmpty) return;
+  await SmartBench.put(SmartBenchItem(
+    path: path,
+    size: stat.first.sizeBytes,
+    modifiedMs: stat.first.modifiedMs,
+    cat: cat,
+  ));
 }
 
 class SmartFixSheet extends StatelessWidget {

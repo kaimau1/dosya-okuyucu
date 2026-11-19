@@ -16,6 +16,7 @@ import '../../widgets/app_dialog.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_file_image.dart';
 import 'entry_actions.dart';
+import 'similar_screen.dart';
 
 /// **Ayıkla** (Akıllı düzen, 2026-11-18, kullanıcı: *"bulanıkları, WhatsApp'taki
 /// gereksiz kutlama mesajlarını ayıklamak, bir butonla gizlemek … sil
@@ -163,6 +164,24 @@ class _SmartClutterScreenState extends State<SmartClutterScreen> {
             ? context.t('sm.selected', {'n': _selected.length})
             : context.t('sm.clutter')),
         actions: [
+          // Ayıkla 2: düzenlenmiş kişisel fotoğraflarda benzer kare grupları,
+          // en net kare ⭐ (bkz. SimilarFinder.orderBest).
+          if (!selecting)
+            IconButton(
+              key: const ValueKey('sm-similar'),
+              tooltip: context.t('sm.similar'),
+              icon: const Icon(AppIcons.burstMode),
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => SimilarScreen(
+                  scopeId: 'smart_photos',
+                  title: context.t('sm.similar'),
+                  loadAll: () => FsScan.statPaths([
+                    ...SmartSort.pathsOf('photo_people'),
+                    ...SmartSort.pathsOf('photo_other'),
+                  ]),
+                ),
+              )),
+            ),
           if (items.isNotEmpty)
             IconButton(
               tooltip: context.t('sm.select_all'),

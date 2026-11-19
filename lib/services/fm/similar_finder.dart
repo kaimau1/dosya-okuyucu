@@ -8,8 +8,9 @@ import 'media_fingerprint.dart';
 
 /// Birbirine **benzeyen** (birebir aynı olmayan) görüntü/video kümesi.
 class SimilarGroup {
-  /// En iyi kopya **başta**: en büyük dosya (en az sıkıştırılmış), eşitlikte
-  /// en yenisi. Arayüz varsayılan olarak bunu korur.
+  /// En iyi kopya **başta**: en net kare, eşitlikte en büyük dosya (en az
+  /// sıkıştırılmış), o da eşitse en yenisi ([SimilarFinder.orderBest]).
+  /// Arayüz varsayılan olarak bunu korur.
   final List<FsEntry> files;
 
   const SimilarGroup(this.files);
@@ -40,6 +41,19 @@ abstract final class SimilarFinder {
   /// göstermesiydi — kullanıcı Videolar'da fotoğraf grupları görüp onları
   /// silebilirdi (2026-07-29 sadakat denetimi).
   static String jobIdFor(String scope) => 'similar_media:$scope';
+
+  /// SAF: grubu "en iyi kare başta" sıralar — önce netlik kademesi
+  /// ([sharpnessTier]; bulanık kopya büyük olsa da geride kalır), eşitse en
+  /// büyük dosya (en az sıkıştırılmış), o da eşitse en yenisi.
+  static List<FsEntry> orderBest(
+          List<FsEntry> files, Map<String, double?> sharpness) =>
+      [...files]..sort((a, b) {
+          final byTier = sharpnessTier(sharpness[b.path])
+              .compareTo(sharpnessTier(sharpness[a.path]));
+          if (byTier != 0) return byTier;
+          final bySize = b.sizeBytes.compareTo(a.sizeBytes);
+          return bySize != 0 ? bySize : b.modifiedMs.compareTo(a.modifiedMs);
+        });
 
   /// [entries] içindeki benzer kümeleri döndürür.
   ///
@@ -84,12 +98,14 @@ abstract final class SimilarFinder {
         groupSimilar(hashes, maxDistance: level.maxDistance);
     final groups = <SimilarGroup>[];
     for (final indexes in indexGroups) {
-      final group = [for (final i in indexes) hashed[i]]
-        ..sort((a, b) {
-          final bySize = b.sizeBytes.compareTo(a.sizeBytes);
-          return bySize != 0 ? bySize : b.modifiedMs.compareTo(a.modifiedMs);
-        });
-      groups.add(SimilarGroup(group));
+      handle?.throwIfCancelled();
+      final group = [for (final i in indexes) hashed[i]];
+      // Ayıkla 2: yalnız gruptaki görüntülerin netliği ölçülür (galerinin
+      // tamamı değil) → en net kare başa.
+      final sharp = <String, double?>{
+        for (final f in group) f.path: await MediaFingerprint.sharpness(f),
+      };
+      groups.add(SimilarGroup(orderBest(group, sharp)));
     }
     groups.sort((a, b) => b.wastedBytes.compareTo(a.wastedBytes));
     handle?.report(

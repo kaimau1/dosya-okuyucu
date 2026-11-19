@@ -1433,3 +1433,8 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] (dilim 2) 50+ slaytlık sunum aç: tam düzenleyiciden önce ilk slaytlar gerçek çizimle görünür, sonra düzenleyici aynı yerde açılır (zıplama yok); 3 slaytlık sunumda önizleme yanıp sönmez.
 - [ ] (dilim 2) 1 MB'tan büyük xlsx aç: önce ilk satırlar düz ızgarada (sütun harfi + satır no), sonra tam tablo. "açılıyor" yazısı yalnız 1 sn'den uzun beklemede çıkar.
 - [ ] (dilim 2) Word: iki parmakla yakınlaştır/uzaklaştır — parmak inikken görüntü büyür, kalkınca yazı net yeniden dizilir; Görünüm > Yakınlaştır düğmeleri sonraki kademeye geçer; çimdik sırasında kaydırma kaymaz.
+
+## B2 Akıllı düzen kullanım dilim 1 (2026-11-19, dal faz-oto-B2-duzen-kullanim) — yazıldı, cihazda doğrulanmadı
+- [ ] Akıllı düzen > Ayıkla > sağ üst "Benzer kareler": benzer gruplar çıkıyor; ⭐ "En iyi" gruptaki EN NET kare mi (bulanık büyük kopya değil)? Tarama süresi eski "Benzer görüntüler"e göre belirgin uzamadı mı?
+- [ ] PIN kurulu + uygulama kilidi kapalı: Kimlik/Sağlık/Banka/Vergi klasörüne (ya da bunları içeren süresi dolmuş/tutar listesine) girişte PIN soruluyor, aynı oturumda ikinci kez sorulmuyor. Uygulama kilidi açıkken ya da PIN yokken sorulmuyor.
+- [ ] Dosya ⋮ > Kategori yanlış mı? > başka kategori → Doğruluk tezgâhında o dosya doğru kategoriyle görünüyor.

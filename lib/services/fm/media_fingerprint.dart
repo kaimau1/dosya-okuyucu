@@ -112,6 +112,32 @@ abstract final class MediaFingerprint {
   /// Tek bir görüntü dosyasının dHash'i. Çözülemezse null (bozuk dosya,
   /// desteklenmeyen biçim, izin hatası).
   static Future<int?> hashImageFile(String path) async {
+    // En/boy oranı bilinçli olarak KORUNMUYOR: dHash ızgarası sabit olmalı,
+    // yoksa aynı görüntünün kırpılmış hâli farklı ızgaraya düşer.
+    final gray = await _grayOf(path, hashGridWidth, hashGridHeight);
+    return gray == null ? null : dHashFromGray(gray);
+  }
+
+  static const _sharpSide = 128;
+  static final Map<String, double> _sharpCache = {};
+
+  /// Görüntünün netliği ([laplacianVariance], 128x128 gri). Yalnız benzer kare
+  /// grubundaki dosyalar için çağrılır (tüm galeri için değil); oturum içi
+  /// önbellekli. Video/çözülemeyen → null.
+  static Future<double?> sharpness(FsEntry entry) async {
+    if (entry.category != FmCategory.image) return null;
+    final key = _key(entry);
+    final cached = _sharpCache[key];
+    if (cached != null) return cached;
+    final gray = await _grayOf(entry.path, _sharpSide, _sharpSide);
+    if (gray == null) return null;
+    final v = laplacianVariance(gray, _sharpSide, _sharpSide);
+    _sharpCache[key] = v;
+    return v;
+  }
+
+  /// Hedef boyutta çözülmüş gri ızgara; çözülemezse null.
+  static Future<List<int>?> _grayOf(String path, int width, int height) async {
     ui.ImmutableBuffer? buffer;
     ui.ImageDescriptor? descriptor;
     ui.Codec? codec;
@@ -119,21 +145,15 @@ abstract final class MediaFingerprint {
     try {
       buffer = await ui.ImmutableBuffer.fromFilePath(path);
       descriptor = await ui.ImageDescriptor.encoded(buffer);
-      // En/boy oranı bilinçli olarak KORUNMUYOR: dHash ızgarası sabit olmalı,
-      // yoksa aynı görüntünün kırpılmış hâli farklı ızgaraya düşer.
       codec = await descriptor.instantiateCodec(
-        targetWidth: hashGridWidth,
-        targetHeight: hashGridHeight,
+        targetWidth: width,
+        targetHeight: height,
       );
       final frame = await codec.getNextFrame();
       image = frame.image;
       final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
       if (data == null) return null;
-      final gray = grayFromRgba(
-        data.buffer.asUint8List(),
-        hashGridWidth * hashGridHeight,
-      );
-      return dHashFromGray(gray);
+      return grayFromRgba(data.buffer.asUint8List(), width * height);
     } catch (_) {
       return null;
     } finally {
