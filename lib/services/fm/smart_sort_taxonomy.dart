@@ -33,11 +33,6 @@ import '../gemini_decisions.dart';
 /// * APK/arşiv → yalnız [package] kategorisi ve alt türü (kurulum · yedek ·
 ///   indirme); içerik okunmaz, tek soru.
 abstract final class SmartTaxonomy {
-  /// **Hassas kategoriler** (B2, 2026-11-19): kimlik, sağlık, banka, vergi.
-  /// PIN kuruluysa ve uygulama kilidi kapalıysa listeleri oturumda bir kez
-  /// PIN ister (uygulama kilidi açıkken zaten girişte sorulmuştur).
-  static const sensitive = {'id', 'health', 'bank', 'tax_salary'};
-
   /// Belge kategorileri (ikinci ad alır).
   static const docCategories = <String, String>{
     'invoice': 'An invoice or utility bill: electricity, water, natural gas, '
@@ -125,7 +120,9 @@ abstract final class SmartTaxonomy {
   static bool isPersonalPhoto(String cat) =>
       cat == 'photo_people' || cat == 'photo_other';
 
-  /// Hassas kategoriler (kilit açıkken görünür).
+  /// Hassas kategoriler (B2, 2026-11-19): PIN kuruluysa ve uygulama kilidi
+  /// kapalıysa Akıllı düzen listeleri oturumda bir kez PIN ister (uygulama
+  /// kilidi açıkken girişte zaten sorulmuştur).
   static const sensitive = {'id', 'health', 'bank', 'tax_salary'};
 
   /// Gereksiz sayılan kategoriler (Ayıkla).
