@@ -223,6 +223,10 @@ extension DocxEditInsert on DocxEditController {
 
   /// Notu (dipnot/sonnot) siler: başvurusu metinden kalkar; tek geri al adımı.
   void deleteNote(String key) {
+    // Başvurusu olmayan anahtar boş geri al adımı bırakmasın.
+    final has = paras.any((p) => p.atoms.any((a) =>
+        a != null && a.kind == DocxAtomKind.note && doc.noteKey(a) == key));
+    if (!has) return;
     _record(typing: false);
     final changed = doc.deleteNote(key);
     if (changed.isEmpty) return;
