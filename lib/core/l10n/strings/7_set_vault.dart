@@ -662,9 +662,46 @@ const Map<String, (String, String, String)> _t7 = {
   ),
   'set.cat_ai': ('Yapay zekâ', 'Artificial intelligence', 'الذكاء الاصطناعي'),
   'set.cat_ai_sub': (
-    'Gemini anahtarı ve model',
-    'Gemini key and model',
-    'مفتاح Gemini والنموذج',
+    'Akıllı klasörler, anahtar ve gizlilik',
+    'Smart folders, key and privacy',
+    'المجلدات الذكية والمفتاح والخصوصية',
+  ),
+  // U4 (2026-11-20): Yapay zekâ sayfasının başı — Akıllı klasörler.
+  'set.sec_smart': ('Akıllı klasörler', 'Smart folders', 'المجلدات الذكية'),
+  'set.smart_sort_sub': (
+    'Aç/kapat, kamera, arka planda düzen, yalnız Wi-Fi, günlük sınır, öğrenilenler',
+    'On/off, camera, background organizing, Wi-Fi only, daily limit, learned fixes',
+    'تشغيل/إيقاف، الكاميرا، التنظيم في الخلفية، Wi-Fi فقط، الحد اليومي، التصحيحات المتعلَّمة',
+  ),
+  'set.smart_on': (
+    'Açık · {n} dosya düzenli — akıllı klasörleri aç',
+    'On · {n} files organized — open smart folders',
+    'مفعّل · {n} ملفات منظمة — افتح المجلدات الذكية',
+  ),
+  'set.smart_off': (
+    'Kapalı — aç, dosyalarına ikinci ad ve kategori versin',
+    'Off — turn it on to give your files second names and categories',
+    'متوقف — فعّله ليمنح ملفاتك أسماء ثانية وفئات',
+  ),
+  'set.smart_pin': (
+    'Hassas klasörlerde PIN',
+    'PIN for sensitive folders',
+    'رمز للمجلدات الحساسة',
+  ),
+  'set.smart_pin_none': (
+    'Kimlik, sağlık, banka ve vergi klasörleri şu an PIN'siz açılır — dokun, PIN kur',
+    'ID, health, bank and tax folders open without a PIN now — tap to set a PIN',
+    'تُفتح مجلدات الهوية والصحة والبنك والضرائب الآن دون رمز — اضغط لتعيين رمز',
+  ),
+  'set.smart_pin_on': (
+    'Kimlik, sağlık, banka ve vergi klasörleri oturumda bir kez PIN ister',
+    'ID, health, bank and tax folders ask for the PIN once per session',
+    'تطلب مجلدات الهوية والصحة والبنك والضرائب الرمز مرة واحدة في كل جلسة',
+  ),
+  'set.smart_pin_app': (
+    'Uygulama kilidi açık: PIN girişte soruluyor, klasörler ayrıca sormaz',
+    'App lock is on: the PIN is asked at launch, folders do not ask again',
+    'قفل التطبيق مفعّل: يُطلب الرمز عند الفتح، ولا تطلبه المجلدات مجددًا',
   ),
   'set.cat_privacy': ('Gizlilik ve izinler', 'Privacy & permissions', 'الخصوصية والأذونات'),
   'set.cat_privacy_sub': (
