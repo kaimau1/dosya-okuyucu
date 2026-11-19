@@ -1494,3 +1494,9 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 ## B4 PDF Pro dilim 2 (2026-11-19, dal faz-oto-B4-pdfpro) — yazıldı, cihazda doğrulanmadı
 - [ ] Word'den "parolayla şifrele" ile kaydedilmiş PDF → PDF araçları → Kilidi aç: sayfalar duruyor mu, açılan kopya parolasız açılıyor mu.
 - [ ] Parola koy → başka bir okuyucuda (ör. Chrome/Drive) parolayla açılıyor mu (yeni koruma AES-256 R6).
+
+## B4 PDF Pro dilim 3 (2026-11-19, dal faz-oto-B4-pdfpro) — yazıldı, cihazda doğrulanmadı
+- [ ] PDF araçları → Pro araçlar → "Sayfa stüdyosu": ızgara açılıyor mu; dokun = seç (çerçeve + tik), birkaç sayfa seç → sola/sağa döndür, çoğalt, sil; Geri al her adımı geri alıyor mu; Tamam → önizleme doğru mu.
+- [ ] Basılı tut + sürükle → başka sayfanın üstüne bırak: sayfa oraya taşınıyor mu (uzun belgede kenarda kendiliğinden kaydırma YOK — sorun mu?).
+- [ ] Vurgulu belgede yalnız sil/döndür → vurgular kalıyor, uyarı çıkmıyor; sıralama/çoğaltma → "açıklamalar gider" uyarısı çıkıyor.
+- [ ] 300 sayfalık belgede ızgara kaydırma akıcı mı (C2 ölçümü, p99 ≤ 16 ms hedefi).
