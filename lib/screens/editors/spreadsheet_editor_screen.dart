@@ -63,6 +63,7 @@ import '../../core/device_profile.dart';
 import '../../services/xlsx_editor.dart';
 import '../../services/xlsx/xlsx_stream.dart';
 import '../../services/xlsx/validation_check.dart';
+import '../../services/xlsx/flash_fill.dart';
 import '../../services/xlsx_file_charts.dart';
 import '../fm/pick_file_screen.dart' show AppFilePicker;
 import '../../widgets/doc_action_bar.dart';
