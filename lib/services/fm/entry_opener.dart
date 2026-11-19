@@ -231,10 +231,15 @@ abstract final class EntryOpener {
         initialIndex: group.indexOf(path),
       );
       final closed = Navigator.of(context).push(gallery);
-      // Geçmiş kaydı (bütün geçmişin JSON'u + başlatıcı kısayolu) geçiş
-      // BİTİNCE — oynatıcıdaki gibi (2026-11-18, kullanıcı: "fotoğraf takıla
-      // takıla açılıyor"): büyüme karelerinin arasına girmesin.
-      _afterTransition(gallery, () => _remember(path));
+      // Geçmiş kaydı galeri KAPANIP geri dönüş geçişi bitince (U1,
+      // 2026-11-19, kullanıcı: "Geçmiş'te görsele dokununca donarak kasıyor,
+      // geç açılıyor"). Kök: galeri SAYDAM rota (`opaque: false`) — altındaki
+      // ekran sahnede kalır. Kayıt açılış geçişi biter bitmez yapılınca
+      // `OpenHistory.changes` Geçmiş listesini (ve ana ekran şeridini) galeri
+      // altında yeniden yükletip baştan sıralatıyordu; bu, tam boy çözümün
+      // başladığı karelere denk geliyordu. Opak oynatıcı/belge rotalarında alt
+      // ekran çizilmediği için onlar `_afterTransition`'da kalır.
+      unawaited(gallery.completed.then((_) => _remember(path)));
       await closed;
       return;
     }
