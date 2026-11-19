@@ -18,8 +18,9 @@ extension _SpreadsheetFinishPart on _SpreadsheetEditorScreenState {
     if (_csvWarned) return true;
     _csvWarned = true;
     showSnackBarReplacing(ScaffoldMessenger.of(context), SnackBar(
-      key: const ValueKey('xl-csv-warning'),
-      content: Text(context.t('excel.csv_format_lost')),
+      // Anahtar içerikte: ortak kart SnackBar'ın kendisini değil içeriğini çizer.
+      content: Text(context.t('excel.csv_format_lost'),
+          key: const ValueKey('xl-csv-warning')),
       action: SnackBarAction(
           label: context.t('excel.csv_save_xlsx'), onPressed: _saveCsvAsXlsx),
     ));
