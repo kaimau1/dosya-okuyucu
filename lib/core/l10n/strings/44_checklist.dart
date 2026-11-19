@@ -41,6 +41,8 @@ const Map<String, (String, String, String)> _t44 = {
   'sm.r_wa_copy': ('WhatsApp kopyası', 'WhatsApp copy', 'نسخة واتساب'),
   // Ayıkla 2: benzer karelerde AI "en iyi kare" puanı.
   'sim.ai_score': ('AI ile en iyi kareyi seç', 'Pick the best shot with AI', 'اختر أفضل لقطة بالذكاء الاصطناعي'),
+  // Decisions (eski P33): boş imza alanı denetimi.
+  'qc.q_sign_empty': ('Boş imza alanı var mı?', 'Unsigned signature field?', 'هل يوجد حقل توقيع فارغ؟'),
   'ckl.p_visa': ('Vize dosyası', 'Visa application', 'ملف التأشيرة'),
   'ckl.p_visa_items': (
     'Pasaport|Biyometrik fotoğraf|Banka hesap dökümü|Seyahat sağlık sigortası|Otel ya da konaklama rezervasyonu|Uçak bileti rezervasyonu|İşveren ya da okul yazısı',
