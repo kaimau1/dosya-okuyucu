@@ -132,16 +132,8 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
         subtitle: '',
         onTap: () => _push(const ActivityScreen()),
       ),
-      // İkinci araç satırı (2026-11-18, "araçlar 2 satır olsun"): telefonun
-      // başka yerlerinde iki-üç dokunuş derindeki sık işler.
-      FmTileData(
-        icon: AppIcons.filterNone,
-        color: AppHues.teal,
-        id: 'duplicates',
-        label: context.t('tools.dupes'),
-        subtitle: '',
-        onTap: () => _push(DuplicatesScreen(roots: FmEnv.volumeRoots)),
-      ),
+      // (Kopyalar 2026-11-20'de araçlardan çıktı — U3, kullanıcı: "ana
+      // ekranda gereksiz"; Bellek Analizi'nde duruyor.)
       FmTileData(
         icon: FtpService.instance.running ? AppIcons.hotspot : AppIcons.computer,
         color: AppHues.blue,
@@ -152,14 +144,8 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
             FtpService.instance.running ? context.t('ftpd.running') : '',
         onTap: () => _push(const FtpServerScreen()),
       ),
-      FmTileData(
-        icon: AppIcons.downloadForOffline,
-        color: AppHues.tangerine,
-        id: 'link_download',
-        label: context.t('dl.from_link'),
-        subtitle: '',
-        onTap: () => _push(const DownloadManagerScreen()),
-      ),
+      // (Bağlantıdan indir 2026-11-20'de araçlardan kalktı — U3 kullanıcı
+      // isteği; paylaşılan bağlantı ve Yakındaki cihazlar yine açar.)
       // Şifreli kasa (2026-10-18): PIN/parmak iziyle açılan, içeriği
       // şifreli klasör — kimlik, tapu, sözleşme taramaları için.
       FmTileData(
@@ -203,9 +189,7 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
       'produced',
       'vault',
       'new_document',
-      'duplicates',
       'ftp',
-      'link_download',
     ];
     int rank(FmTileData t) {
       final i = order.indexOf(t.id);

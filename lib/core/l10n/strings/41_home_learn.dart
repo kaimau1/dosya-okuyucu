@@ -4,8 +4,6 @@ part of '../app_strings.dart';
 /// sesli kitaplar, "Görselde ne var?" (AI kısa özeti), akıllı klasör düzeni
 /// (ad · sıra · sütun) ve Akıllı düzenin öğrenmesi ("Ne olmalıydı?").
 const Map<String, (String, String, String)> _t41 = {
-  // Ana ekran araçları.
-  'tools.dupes': ('Kopyalar', 'Duplicates', 'المكررات'),
 
   // Kitaplık.
   'lib.audiobooks_sub': (

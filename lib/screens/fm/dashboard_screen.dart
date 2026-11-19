@@ -56,8 +56,6 @@ import '../../widgets/fm/recent_strip.dart';
 import 'open_history_screen.dart';
 import 'analysis_screen.dart';
 import 'activity_screen.dart';
-import 'download_manager_screen.dart';
-import 'duplicates_screen.dart';
 import 'remote/ftp_server_screen.dart';
 import 'browser_screen.dart';
 import 'apk_archive_screen.dart';
