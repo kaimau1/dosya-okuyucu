@@ -370,8 +370,8 @@ extension _ParserArraysPart on _Parser {
 
   Object _reduceFn(List<Object> args, {required bool scan}) {
     if (args.length < 3) return _value;
-    var acc = _given(args, 0) ? args[0] : 0.0;
-    if (acc is _RangeValue) acc = _single(acc);
+    // Atlanan başlangıç boş değerdir: toplamda 0, birleştirmede "" gibi.
+    var acc = _single(args[0]);
     final m = _matArg(args, 1);
     if (m.isEmpty) return _value;
     final fn = args[2];

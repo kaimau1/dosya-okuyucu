@@ -60,6 +60,10 @@ const _sig = <FormulaSignature>[
   FormulaSignature('UNIQUE', FormulaCategory.lookup, ['dizi', '[sütuna_göre]', '[yalnızca_bir_kez]'], ['array', '[by_col]', '[exactly_once]']),
   FormulaSignature('SEQUENCE', FormulaCategory.math, ['satırlar', '[sütunlar]', '[başlangıç]', '[adım]'], ['rows', '[columns]', '[start]', '[step]']),
   // B10 m.2 (2026-11-19) — dizi / metin / LAMBDA işlevleri.
+  FormulaSignature('SWITCH', FormulaCategory.logical, ['ifade', 'değer1', 'sonuç1', '…', '[varsayılan]'], ['expression', 'value1', 'result1', '…', '[default]']),
+  FormulaSignature('MAXIFS', FormulaCategory.statistical, ['en_büyük_aralığı', 'ölçüt_aralığı1', 'ölçüt1', '…'], ['max_range', 'criteria_range1', 'criteria1', '…']),
+  FormulaSignature('MINIFS', FormulaCategory.statistical, ['en_küçük_aralığı', 'ölçüt_aralığı1', 'ölçüt1', '…'], ['min_range', 'criteria_range1', 'criteria1', '…']),
+  FormulaSignature('CONCAT', FormulaCategory.text, ['metin1', '[metin2]', '…'], ['text1', '[text2]', '…']),
   FormulaSignature('VSTACK', FormulaCategory.lookup, ['dizi1', '[dizi2]', '…'], ['array1', '[array2]', '…']),
   FormulaSignature('HSTACK', FormulaCategory.lookup, ['dizi1', '[dizi2]', '…'], ['array1', '[array2]', '…']),
   FormulaSignature('TAKE', FormulaCategory.lookup, ['dizi', 'satırlar', '[sütunlar]'], ['array', 'rows', '[columns]']),
