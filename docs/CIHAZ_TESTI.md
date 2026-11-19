@@ -1486,3 +1486,7 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - Çoklu seçim → Daha fazla: en üstte "AI ile ikinci ad ver" + "Kategori ekle"; "AI ile etiketle" yok. Toplu ad: bildirimde ilerleme, Durdur çalışıyor mu, adlar listede görünüyor mu.
 - ⋮: en üst bölüm "İkinci ad ve kategori". Kategori ekle → Yeni kategori (yalnız ad) → Akıllı düzen › Kategorilerim'de ve süzgeçte görünüyor mu.
 - Akıllı düzen ayarı "Yalnız şarjda ve Wi-Fi'de": şarjsız/mobil veride uygulama içi otomatik tur koşmamalı; şarj + Wi-Fi'de uygulama kapalıyken (birkaç saat) yeni dosyalar düzenlenmiş mi (MIUI pil kısıtı: uygulamaya "kısıtlama yok" gerekebilir).
+
+## B4 PDF Pro dilim 1 (2026-11-19, dal faz-oto-B4-pdfpro) — yazıldı, cihazda doğrulanmadı
+- [ ] PDF araçları → Pro araçlar → "Belge bilgileri": mevcut başlık/yazar dolu geliyor mu; değiştir → kaydet → yeniden açınca yeni değerler; parolalı belgede parola duruyor mu (Türkçe harfler bozulmadan).
+- [ ] "Açıklamaları dışa aktar (XFDF)": vurgulu PDF'te yanına `-aciklamalar.xfdf` çıkıyor mu; vurgusuz belgede "vurgu ya da not yok" uyarısı. "İçe aktar": aynı dosyayı vurgusuz kopyaya al → vurgular doğru sayfada mı.
