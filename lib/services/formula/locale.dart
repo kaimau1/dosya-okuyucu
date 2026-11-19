@@ -19,6 +19,7 @@ extension _FormulaLocalePart on _Parser {
   static String toFile(String formula, {bool turkish = false}) {
     final s = formula;
     final tr = turkish || _hasTopSemicolon(s);
+    final params = _lambdaParams(s, tr ? ';' : ',');
     final out = StringBuffer();
     var i = 0;
     var inArray = false;
@@ -75,7 +76,17 @@ extension _FormulaLocalePart on _Parser {
         }
         final word = s.substring(i, j);
         final next = j < s.length ? s[j] : '';
-        if (next == '(') {
+        final bare = _stripPrefix(word);
+        if (params.isNotEmpty &&
+            next != '!' &&
+            next != ':' &&
+            (i == 0 || (s[i - 1] != ':' && s[i - 1] != '!')) &&
+            params.contains(_Parser._trUpper(bare)) &&
+            (next != '(' || !_isFunctionName(bare))) {
+          // LAMBDA/LET parametresi: dosyada `_xlpm.` önekli (Excel öneksizi
+          // tanımsız ad sayar, `#AD?`). Bildirimde ve kullanımda aynı.
+          out.write('_xlpm.$bare');
+        } else if (next == '(') {
           out.write(_fileName(word));
         } else if (next != '!' && !word.contains(r'$')) {
           final up = _Parser._trUpper(word);
@@ -124,6 +135,100 @@ extension _FormulaLocalePart on _Parser {
     // FILTER/SORT Excel'de `_xlfn._xlws.` önekiyle saklanır.
     if (name == 'FILTER' || name == 'SORT') return '_xlfn._xlws.$name';
     return _xlfn.contains(name) ? '_xlfn.$name' : name;
+  }
+
+  /// Formüldeki LET/LAMBDA parametre adları (büyük harf): LET'te son
+  /// bağımsız değişken dışındaki çift sıralılar (0, 2, 4…), LAMBDA'da sonuncu
+  /// dışındakiler. İç içe çağrılar da taranır. Kapsam yaklaşık: ad formülün
+  /// her yerinde parametre sayılır (Excel parametreyle aynı adlı tanımlı adı
+  /// formül içinde zaten gölgeler).
+  static Set<String> _lambdaParams(String s, String sep) {
+    final up = s.toUpperCase();
+    if (!up.contains('LAMBDA') && !up.contains('LET')) return const {};
+    final out = <String>{};
+    var i = 0;
+    while (i < s.length) {
+      final ch = s[i];
+      if (ch == '"' || ch == "'") {
+        i = _quotedEnd(s, i, ch);
+        continue;
+      }
+      if (_Parser._isAlpha(ch) || ch == '_') {
+        var j = i;
+        while (j < s.length &&
+            (_Parser._isAlpha(s[j]) ||
+                _Parser._isDigit(s[j]) ||
+                s[j] == '_' ||
+                s[j] == '.' ||
+                s[j] == r'$')) {
+          j++;
+        }
+        if (j < s.length && s[j] == '(') {
+          final name = _Parser._canonical(s.substring(i, j));
+          if (name == 'LET' || name == 'LAMBDA') {
+            final args = _topArgs(s, j, sep);
+            final last = args.length - 1;
+            for (var k = 0; k < last; k++) {
+              if (name == 'LET' && k.isOdd) continue;
+              final a = _stripPrefix(args[k].trim());
+              if (_paramName.hasMatch(a) && !_cellLike.hasMatch(a)) {
+                out.add(_Parser._trUpper(a));
+              }
+            }
+          }
+        }
+        i = j;
+        continue;
+      }
+      i++;
+    }
+    return out;
+  }
+
+  static final _paramName =
+      RegExp(r'^[A-Za-z_\u00C0-\uFFFF][A-Za-z0-9_.\u00C0-\uFFFF]*$');
+
+  static final _cellLike = RegExp(r'^\$?[A-Za-z]{1,3}\$?\d+$');
+
+  /// Motorun bildiği işlev adı mı (parametreyle aynı adlı işlev çağrısı
+  /// önek almaz).
+  static bool _isFunctionName(String bare) {
+    final up = bare.toUpperCase();
+    return _englishNames.contains(up) ||
+        _Parser._aliases.containsKey(_Parser._trUpper(bare)) ||
+        _Parser._aliases.containsKey(up) ||
+        _Parser._englishValues.contains(up);
+  }
+
+  /// `(` [open] konumundaki çağrının üst düzey bağımsız değişkenleri
+  /// (ayırıcı [sep]; tırnak, `{…}` ve iç parantez atlanır).
+  static List<String> _topArgs(String s, int open, String sep) {
+    final args = <String>[];
+    var depth = 0;
+    var start = open + 1;
+    var i = open;
+    while (i < s.length) {
+      final ch = s[i];
+      if (ch == '"' || ch == "'") {
+        i = _quotedEnd(s, i, ch);
+        continue;
+      }
+      if (ch == '(' || ch == '{') {
+        depth++;
+      } else if (ch == ')' || ch == '}') {
+        depth--;
+        if (depth == 0) {
+          args.add(s.substring(start, i));
+          return args;
+        }
+      } else if (depth == 1 && ch == sep) {
+        args.add(s.substring(start, i));
+        start = i + 1;
+      }
+      i++;
+    }
+    args.add(s.substring(start));
+    return args;
   }
 
   static String _stripPrefix(String word) {
@@ -256,7 +361,10 @@ extension _FormulaDisplayPart on _Parser {
         }
         final word = s.substring(i, j);
         final next = j < s.length ? s[j] : '';
-        if (next == '(') {
+        if (word.toUpperCase().startsWith('_XLPM.')) {
+          // LAMBDA/LET parametresi: ekranda öneksiz (kayıtta geri eklenir).
+          out.write(word.substring(6));
+        } else if (next == '(') {
           out.write(_trName(word));
         } else if (next != '!' && !word.contains(r'$')) {
           final up = word.toUpperCase();
