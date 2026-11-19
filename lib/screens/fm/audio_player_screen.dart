@@ -536,9 +536,6 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
       onTap: () => _skipTo(i),
     );
   }
-          },
-        ),
-      );
 
   /// Liste satırlarının boyutu: ilk istekte arka planda okunur, sonra
   /// önbellekten gelir (`build` içinde disk beklenmez).
