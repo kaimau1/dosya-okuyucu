@@ -225,9 +225,30 @@ const Map<String, (String, String, String)> _t40 = {
   'sm.nothing_new': ('Düzenlenecek yeni dosya yok', 'No new files to organize', 'لا ملفات جديدة للتنظيم'),
   'sm.failed': ('{n} dosya yapılamadı', '{n} files failed', 'تعذّر {n} ملفات'),
   'sm.stopped': (
-    '{n} dosya düzenlendi; günlük kota doldu, kalanlar sonra düzenlenecek',
-    '{n} files organized; daily quota reached, the rest will follow later',
-    'نُظّم {n} ملف؛ بلغت الحصة اليومية حدّها، وسيُنظّم الباقي لاحقًا',
+    '{n} dosya düzenlendi, tur durdu. {reason}',
+    '{n} files organized, the run stopped. {reason}',
+    'نُظّم {n} ملف وتوقفت الجولة. {reason}',
+  ),
+  // U4 (2026-11-20): turun neden başlamadığı / dosyanın neden yapılamadığı.
+  'sm.hold_offline': (
+    'Çevrimdışı kip açık — Ayarlar > Gizlilik\'ten kapatınca düzenlenir',
+    'Offline mode is on — turn it off in Settings > Privacy to organize',
+    'وضع عدم الاتصال مفعّل — أوقفه من الإعدادات > الخصوصية للتنظيم',
+  ),
+  'sm.hold_scope': (
+    'Düzenlenecek klasör bulunamadı — dosya erişimi iznini ve Ayarlar > Yapay zekâ > kapsamı denetle',
+    'No folders to organize — check file access and Settings > Artificial intelligence > scope',
+    'لا مجلدات للتنظيم — تحقق من إذن الوصول إلى الملفات ومن الإعدادات > الذكاء الاصطناعي > النطاق',
+  ),
+  'sm.fail_blocked': (
+    'içerik güvenlik nedeniyle yanıtlanmadı',
+    'the content was not answered for safety reasons',
+    'لم يُجب عن المحتوى لأسباب تتعلق بالسلامة',
+  ),
+  'sm.fail_empty': (
+    'yanıt boş geldi, sonra yeniden denenecek',
+    'the answer was empty, it will be retried later',
+    'جاءت الإجابة فارغة، وستُعاد المحاولة لاحقًا',
   ),
   // Hız/kota (B1 m.5).
   'sm.hold_wifi': (

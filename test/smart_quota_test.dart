@@ -135,6 +135,23 @@ void main() {
       tmp.deleteSync(recursive: true);
     });
 
+    test('anahtar yoksa neden söylenir (U4: eskiden "yeni dosya yok")',
+        () async {
+      SmartQuota.metered = () async => false;
+      final r = await SmartSort.run(
+          credentials: const AiCredentials(), scope: scope);
+      expect(r.hold, SmartHold.noKey);
+      expect(posts, 0);
+    });
+
+    test('kota durması kullanıcı dilinde (ham API iletisi değil)', () async {
+      SmartQuota.metered = () async => false;
+      status = 403;
+      final r = await SmartSort.run(credentials: creds, scope: scope);
+      expect(r.stoppedBy, isNot(contains('quota')));
+      expect(r.stoppedBy, SmartSort.stopText(GeminiException('x', statusCode: 403)));
+    });
+
     test('mobil veride (yalnız Wi-Fi) istek yok', () async {
       SmartQuota.metered = () async => true;
       final r = await SmartSort.run(credentials: creds, scope: scope);

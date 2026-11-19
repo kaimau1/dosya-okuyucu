@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show ValueNotifier, visibleForTesting;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/l10n/app_strings.dart';
 import '../../models/fs_entry.dart';
 import '../ai_pool.dart';
 import '../gemini_decisions.dart';
@@ -443,9 +444,10 @@ abstract final class SmartUserCats {
   }) async {
     final n = name.trim(), a = about.trim();
     final keys = credentials.normalized.keys;
-    if (keys.isEmpty || OfflineMode.enabled || n.isEmpty || a.isEmpty) {
-      return SmartTrial(n, a, const []);
-    }
+    if (n.isEmpty || a.isEmpty) return SmartTrial(n, a, const []);
+    // U4: anahtarsız/çevrimdışı deneme sessizce "dosya yok" demesin.
+    final hold = _holdText(keys);
+    if (hold != null) return SmartTrial(n, a, const [], stoppedBy: hold);
     await SmartSort.ensureLoaded();
     final files = (await candidates(scope)).take(trialFiles).toList();
     final q = questionFor('uc_try', n, a);
@@ -468,7 +470,7 @@ abstract final class SmartUserCats {
         } on GeminiException catch (err) {
           failed++;
           if (const {401, 403, 429}.contains(err.statusCode)) {
-            stoppedBy = err.message;
+            stoppedBy = SmartSort.stopText(err);
           }
         } catch (_) {
           // Bilinçli: okunamayan dosya denemeden düşer, sayılır.
@@ -489,6 +491,11 @@ abstract final class SmartUserCats {
     return SmartTrial(n, a, hits, failed: failed, stoppedBy: stoppedBy);
   }
 
+  /// Başlamama nedeni (anahtar yok / çevrimdışı kip), kullanıcı dilinde.
+  static String? _holdText(List<String> keys) => keys.isEmpty
+      ? AppStrings.current.t('uerr.ai_key')
+      : (OfflineMode.enabled ? AppStrings.current.t('sm.hold_offline') : null);
+
   // ── Geriye dönük uygula ────────────────────────────────────────────────
   /// Bu kategorinin hiç sorulmadığı (düzenlenmiş) dosya sayısı.
   static int pendingCount(String id) => SmartSort.pendingCountFor(id);
@@ -505,12 +512,11 @@ abstract final class SmartUserCats {
   }) async {
     final cat = byId(id);
     final keys = credentials.normalized.keys;
-    if (cat == null ||
-        applying.value != null ||
-        keys.isEmpty ||
-        OfflineMode.enabled) {
+    if (cat == null || applying.value != null) {
       return const SmartApplyResult(0, 0);
     }
+    final hold = _holdText(keys);
+    if (hold != null) return SmartApplyResult(0, 0, stoppedBy: hold);
     await SmartSort.ensureLoaded();
     _stop = false;
     applying.value = SmartApplyProgress(id, 0, 0, 0);
@@ -548,7 +554,7 @@ abstract final class SmartUserCats {
           } on GeminiException catch (err) {
             failed++;
             if (const {401, 403, 429}.contains(err.statusCode)) {
-              stoppedBy = err.message;
+              stoppedBy = SmartSort.stopText(err);
             }
           } catch (_) {
             // Bilinçli: okunamayan dosya atlanır, sayılır.

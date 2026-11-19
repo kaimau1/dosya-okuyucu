@@ -112,6 +112,8 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
   }
 
   Future<void> _run() async {
+    // Anahtar yoksa önce anahtar kapısı (girişi olan yere götürür).
+    if (!await ensureAiKey(context) || !mounted) return;
     final state = context.read<AppState>();
     final s = AppStrings.of(context);
     final messenger = ScaffoldMessenger.of(context);
@@ -121,8 +123,13 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
       SmartHold.wifi => s.t('sm.hold_wifi'),
       SmartHold.cap =>
         s.t('sm.hold_cap', {'n': r.processed, 'cap': SmartQuota.dailyCap}),
+      SmartHold.offline => s.t('sm.hold_offline'),
+      SmartHold.noKey => s.t('uerr.ai_key'),
+      SmartHold.noScope => s.t('sm.hold_scope'),
+      // Durma nedeni kullanıcı dilinde (anahtar / kota / bağlantı) — eskiden
+      // her durmada "günlük kota doldu" yazıyordu.
       null => r.stoppedBy != null
-          ? s.t('sm.stopped', {'n': r.processed})
+          ? s.t('sm.stopped', {'n': r.processed, 'reason': r.stoppedBy})
           : (r.processed == 0 && r.failed == 0
               ? s.t('sm.nothing_new')
               : s.t('sm.done', {'n': r.processed})),
