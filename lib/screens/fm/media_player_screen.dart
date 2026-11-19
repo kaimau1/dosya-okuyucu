@@ -29,6 +29,7 @@ import '../../services/side_menu.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/fm/fm_entry_icon.dart' show fmMediaHeroTag;
 import '../../widgets/fm/fm_file_image.dart';
+import '../../widgets/fm/speed_sheet.dart';
 import '../../widgets/mini_player_bar.dart';
 import 'entry_actions.dart';
 import '../../core/snack.dart';

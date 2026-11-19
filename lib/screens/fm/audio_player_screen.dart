@@ -17,6 +17,7 @@ import '../../services/fm/audio_tags.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/playback_positions.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../widgets/fm/speed_sheet.dart';
 import '../../widgets/mini_player_bar.dart';
 import 'entry_actions.dart';
 import '../../core/snack.dart';
@@ -174,15 +175,12 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                 ),
               ),
         actions: [
-          PopupMenuButton<double>(
+          // Hız: tutamaçlı çubuk, 0,05 adım (U3 m.2) — ortak levha.
+          IconButton(
             tooltip: context.t('mp.speed'),
             icon: const Icon(AppIcons.speed),
-            onSelected: _setSpeed,
-            itemBuilder: (_) => [
-              for (final s in const [0.5, 0.75, 1.0, 1.25, 1.5, 2.0])
-                PopupMenuItem(
-                    value: s, child: Text('${s}x${s == _speed ? '  ✓' : ''}')),
-            ],
+            onPressed: () => showSpeedSheet(context,
+                current: _speed, onChanged: (v) => unawaited(_setSpeed(v))),
           ),
           // **Uyku zamanlayıcısı** (kullanıcı isteği 2026-09-03, premium):
           // gece dinlerken uyuyan telefon sabaha kadar çalmasın. Kurulu
