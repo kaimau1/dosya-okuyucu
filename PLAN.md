@@ -69,7 +69,7 @@ yoluna dokunmaz, dokunulan editörün bütçe testi yeşil, A/B sonra C2'de. C2'
 | B6 | **Tasarım tamamlama:** P31 ana ekran aileleri kalanları (D simge takımı, F metinleri, K19), P32 menü ortak düzeni kalanları | opus | §1.6; docs/design/ana_ekran/ | A/B | evet | bekliyor — K19 kararıyla |
 | B7 | **Sürümler + yayın:** P30 Lite/Pro/Kişisel (S4–S9, K15/K16), P26 mağaza ekran görüntüleri | opus / sonnet | §1.7; arsiv/SURUM_PLANI | — | evet | kullanıcı kararı — K15 |
 | B9 | **Word 2.0:** içerik denetimleri (`w:sdt` bugün tek düz paragrafa iniyor), İçindekiler, değişiklikleri izle, yorum, dipnot, sadakat bekçisi, yazma hissi, büyük belge açılışı | opus | §1.9 | A/B | evet | bulutta: sürüyor (2026-11-19) — dal faz-oto-B9-word2: bitti m.1 (içerik denetimleri + form doldurma) ve m.6 (sadakat bekçisi `word_roundtrip_test`), dilim main'e gidiyor; kalan m.2 İçindekiler, m.3 değişiklikleri izle, m.4 yorum, m.5 dipnot, m.7 yazma hissi, m.8 büyük belge açılışı (+ satır/hücre düzeyi `w:sdt`) |
-| B10 | **Excel 2.0:** grafik türleri (bugün 4), formül kapsamı (189 işlev → dizi/metin işlevleri), veri doğrulama, otomatik/hızlı doldurma, süzgeç 2, sadakat bekçisi, hücre düzenleme hissi, açılış | opus | §1.10 | A/B | evet | bulutta: sürüyor (2026-11-19) — dal faz-oto-B10-excel2 |
+| B10 | **Excel 2.0:** grafik türleri (bugün 4), formül kapsamı (189 işlev → dizi/metin işlevleri), veri doğrulama, otomatik/hızlı doldurma, süzgeç 2, sadakat bekçisi, hücre düzenleme hissi, açılış | opus | §1.10 | A/B | evet | bulutta: sürüyor (2026-11-19) — dal faz-oto-B10-excel2: bitti m.2 formül kapsamı (çekirdek) + m.6 sadakat bekçisi, kalan m.1, m.2 kalanı, m.3–5, m.7–8 |
 | B11 | **Slayt 2.0:** görsel sadakat (altın görüntü testleri), grafik türleri, geçiş + animasyon + Biçim değiştir, yerinde metin düzenleme, AI tasarımcı, notlar + prova, sadakat bekçisi, sürükleme bütçesi | opus (animasyon planı fable) | §1.11 | A/B | evet | bekliyor |
 | B13 | **Deneyim hissi:** açılış geçişi, öngörülü geri, dokunuş haritası, aşamalı açılış, her yerde geri al, otomatik kayıt + kurtarma, hareket eşitliği, klavye, erişilebilirlik | opus | §1.13; arsiv/FERRARI §1 | A/B | evet | bekliyor |
 | B8 | **Son kapı:** P27 "10 işlem" son ölçüm + Samsung kıyası, erişilebilirlik, özellik dondurma kalkar | sonnet | arsiv/FERRARI_PLANI H12 | A/B | evet | bekliyor — en sonda, kullanıcıyla |
@@ -236,21 +236,15 @@ GİRMEZ → testte sentetik docx üret. Her madde ayrı commit.
    radar, yığılmış / %100 yığılmış sütun-çubuk; sonra şelale, histogram, kutu (`cx:` chartex — önce
    okuma). Dosyadaki bilinmeyen tür bugün nasıl çiziliyor (önce bak) → en yakın tür + "yaklaşık" rozeti.
    Excel + Slayt ORTAK çizici (B11.2 aynı kodu kullanır). Test: tür başına yaz → oku → çiz.
-2. **Formül kapsamı:** bugün 189 işlev (`formula/functions.dart` vb.). Eksikler: TEXTSPLIT,
-   TEXTBEFORE/TEXTAFTER, VSTACK/HSTACK, TAKE/DROP, CHOOSECOLS/CHOOSEROWS, LAMBDA/MAP/REDUCE/BYROW/BYCOL,
-   NETWORKDAYS.INTL/WORKDAY.INTL; önce bak: XMATCH, IFS, SWITCH, MAXIFS/MINIFS, TEXTJOIN, CONCAT.
-   Her işlev: Microsoft belgesindeki örneklerle birim testi + Türkçe ad (`formula/locale.dart`) + yardım
-   balonu (`formula_help.dart`). Kapsam listesi `docs/` altında değil, test dosyasında (bekçi).
+2. **Formül kapsamı — kalan (m.2 bulutta yapıldı 2026-11-19):** dosyaya yazarken LAMBDA/LET parametresine
+   `_xlpm.` öneki (okuma var, yazma yok — Excel öneksizi `#AD?` sayabilir); LAMBDA ailesinin Türkçe adları
+   (MAP/REDUCE/SCAN/BYROW/BYCOL/MAKEARRAY bugün İngilizce — sabah bakılacak); TOCOL/TOROW/WRAPROWS.
 3. **Veri doğrulama:** liste (açılır), sayı/tarih aralığı, özel formül; hücrede açılır ok + seçim
    levhası; geçersiz girişte uyarı. Önce bak: `dataValidation` 4 dosyada — okuma/yazma ne kadar.
 4. **Otomatik + hızlı doldurma:** tutamaçla seri (1,2,3 · Pzt,Sal · Ocak · tarih +1 · formülde göreli
    kayma); "Hızlı doldurma" (örnekten desen: ad soyad ayır/birleştir). Önce bak: `autoFill` 4 dosyada.
 5. **Süzgeç/sıralama 2:** çok düzeyli sıralama, renge göre süzgeç, ilk 10, "içerir"; durum dosyaya
    yazılır (`autoFilter` + `sortState`).
-6. **Sadakat bekçisi:** pivotTable/pivotCache, dilimleyici (`x14` slicer), koşullu biçim `x14`
-   uzantıları, tanımlı adlar, `.xlsm` `vbaProject.bin` (`grep vbaProject` = 0 → korunuyor mu?), dış
-   bağlantılar → dokunmadan kaydet = parçalar birebir (`xlsx_save_patch.dart` yolu). Test
-   `excel_roundtrip_test`.
 7. **Hücre düzenleme hissi:** Enter aşağı / Tab sağa / satır sonunda Enter, Tab'la başlanan sütuna döner;
    sayı hücresinde sayısal klavye; tek dokunuş seç, çift dokunuş düzenle; yapıştırmada seçenek
    (yalnız değer / biçim / formül); `spreadsheet_editor_screen.dart:418` ana iş parçacığında

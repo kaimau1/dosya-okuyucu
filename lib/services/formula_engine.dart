@@ -940,6 +940,7 @@ class _Parser {
     'ARALIKBİRLEŞTİR': 'CONCAT',
     'TAMİŞGÜNÜ.ULUSL': 'NETWORKDAYS.INTL',
     'İŞGÜNÜ.ULUSL': 'WORKDAY.INTL',
+    'LET': 'LET',
     'LAMBDA': 'LAMBDA',
     'MAP': 'MAP',
     'REDUCE': 'REDUCE',
