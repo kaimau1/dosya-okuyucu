@@ -12,8 +12,10 @@ import '../../services/fm/file_tags.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/open_history.dart';
 import '../../services/fm/smart_sort.dart';
+import '../../services/fm/smart_sort_taxonomy.dart';
 import '../../services/fm/storage_stats.dart';
 import '../app_dialog.dart';
+import 'pin_dialog.dart';
 import 'smart_cat_style.dart';
 import 'fm_type_chips.dart'
     show FmChoiceTile, FmSheetFooter, FmSheetSectionTitle;
@@ -538,7 +540,14 @@ Future<void> showSmartCatSheet(
                     size: AppIcons.small, color: SmartCatStyle.color(cat)),
                 label: Text('${SmartCatStyle.label(ctx, cat)} ($n)'),
                 selected: f.smartCats.contains(cat),
-                onSelected: (_) {
+                onSelected: (on) async {
+                  // B2: hassas kategori seçilince oturumda bir kez PIN.
+                  if (on &&
+                      SmartTaxonomy.sensitive.contains(cat) &&
+                      !await unlockSensitiveCats(ctx)) {
+                    return;
+                  }
+                  if (!ctx.mounted) return;
                   f = f.toggleSmartCat(cat);
                   setSheet(() {});
                   onChanged(f);

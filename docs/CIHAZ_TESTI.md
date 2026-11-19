@@ -1478,3 +1478,6 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - Slayt düzenleyici → Pro menü → "Prova (süreleri kaydet)": sunucu panelinde "Bu slayt: mm:ss" sayıyor mu? Birkaç slayt geçip geri tuşuyla çık → "Zamanlamalar kaydedilsin mi?" → kaydet → normal sunumda slaytlar o sürelerle kendi ilerliyor mu? PowerPoint'te açınca zamanlamalar görünüyor mu?
 - Çok şekilli/görselli slaytta bir şekli seç ve sürükle: diğer şekiller titremeden/yanıp sönmeden yerinde kalıyor mu? Seçince ya da seçimi bırakınca görseller bir an kayboluyor mu (olmamalı)?
 - Sürükleme ve geçişli slayt A/B (C2): şekil sürüklemede kare p99 önceki [apk] ile kıyas.
+
+## B2 dilim 5 — galeride hassas kategori PIN'i (2026-11-19, yazıldı, cihazda doğrulanmadı)
+- [ ] PIN kurulu, uygulama kilidi kapalı: Fotoğraflar → AI kategori hapı → Kimlik/Sağlık/Banka/Vergi seçince PIN sorulur; yanlış/iptal → seçilmez; doğru → süzülür, oturumda bir daha sorulmaz (Akıllı düzen listelerinde de sorulmaz). Seçimi kaldırmak PIN istemez. PIN yoksa hiç sorulmaz.
