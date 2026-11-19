@@ -14,8 +14,10 @@
 - Kök: SmartSort PathSideIndex kancasına bağlı değildi → taşınan dosya kategorisini kaybedip AI'ya yeniden gidiyordu. `SmartSort.movePath` + main kancası (703b8d28); çöpe giden eski yolda kalır.
 - Taşıma kuralları (430add9c): `SmartFolderPrefs.ruleOf/setRule` (`sm_move_rules`), `SmartSort.pendingRuleMoves`, klasör menüsü "Taşıma kuralı…" → klasör seç → onay (n dosya) → taşı + tek "Geri al"; `_run` sonrası kural varsa uygulanır. Varsayılan YOK.
 
+- Ayıkla ekran görüntüsü yaşı: `SmartRecord.oldScreenshot` (>30 gün), neden `old_shot` (Ayıkla çipi).
+
 ## Kalan (dilim 2+)
-- Ayıkla 2: AI `score` (net/gözler açık/kadraj), WhatsApp iletilen kopyalar, ekran görüntüsü yaşı.
+- Ayıkla 2: AI `score` (net/gözler açık/kadraj), WhatsApp iletilen kopyalar.
 - Kontrol listeleri (kaydedilebilir; ✓/✗ + güven; PDF rapor).
 - Decisions kalanları: tarayıcı sayfa kalitesi, akıllı temizlik doğrulama, sohbet yönlendirici,
   PDF imza alanı toplu denetim, galeri kategori süzgeci.

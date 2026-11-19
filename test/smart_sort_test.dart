@@ -414,4 +414,20 @@ void main() {
     });
     SmartSort.debugReset();
   });
+
+  test('Ayıkla: 30 günden eski ekran görüntüsü önerilir, yenisi önerilmez', () {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    const day = Duration.millisecondsPerDay;
+    final old = SmartRecord(
+        path: '/s1.png', size: 1, modifiedMs: now - 40 * day, cat: 'screenshot');
+    final fresh = SmartRecord(
+        path: '/s2.png', size: 1, modifiedMs: now - 2 * day, cat: 'screenshot');
+    final photo = SmartRecord(
+        path: '/p.jpg', size: 1, modifiedMs: now - 400 * day, cat: 'photo_people');
+    expect(old.clutter, isTrue);
+    expect(old.clutterReason, 'old_shot');
+    expect(fresh.clutter, isFalse);
+    expect(photo.clutter, isFalse);
+    expect(tr.t('sm.r_old_shot'), isNot('sm.r_old_shot'));
+  });
 }

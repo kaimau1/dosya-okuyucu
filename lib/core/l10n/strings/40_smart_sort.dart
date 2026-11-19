@@ -155,6 +155,7 @@ const Map<String, (String, String, String)> _t40 = {
   'sm.r_meme': ('Caps', 'Meme', 'ميم'),
   'sm.r_accidental': ('Yanlışlıkla', 'Accidental', 'عرضية'),
   'sm.r_blurry': ('Bulanık', 'Blurry', 'ضبابية'),
+  'sm.r_old_shot': ('Eski ekran görüntüsü', 'Old screenshot', 'لقطة شاشة قديمة'),
   // Ekran.
   'sm.title': ('Akıllı düzen', 'Smart organize', 'التنظيم الذكي'),
   'sm.tile': ('Akıllı Düzen', 'Smart Organize', 'التنظيم الذكي'),

@@ -41,7 +41,13 @@ class SmartClutterScreen extends StatefulWidget {
 }
 
 class _SmartClutterScreenState extends State<SmartClutterScreen> {
-  static const _reasons = ['greeting', 'meme', 'accidental', 'blurry'];
+  static const _reasons = [
+    'greeting',
+    'meme',
+    'accidental',
+    'blurry',
+    'old_shot',
+  ];
 
   late bool _hiddenTab = widget.startHidden;
   String? _reason;

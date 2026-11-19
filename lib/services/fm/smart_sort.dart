@@ -134,12 +134,28 @@ class SmartRecord {
   /// Gereksiz mi (Ayıkla)? Görsellerde ve videoda (yanlışlıkla çekilmiş,
   /// çok kısa, karanlık) anlamlı.
   bool get clutter =>
-      SmartTaxonomy.clutterCategories.contains(cat) || blurry || accidental;
+      SmartTaxonomy.clutterCategories.contains(cat) ||
+      blurry ||
+      accidental ||
+      oldScreenshot;
 
-  /// Ayıkla'daki neden kimliği (öncelik: kutlama → mem → yanlışlıkla → bulanık).
+  /// Ekran görüntüsü yaşı (B2 dilim 2, PLAN §1.2 Ayıkla 2): bu kadar günden
+  /// eski ekran görüntüsü Ayıkla'ya önerilir (silinmez, kullanıcı seçer).
+  static const oldScreenshotDays = 30;
+
+  bool get oldScreenshot =>
+      cat == 'screenshot' &&
+      modifiedMs > 0 &&
+      DateTime.now().millisecondsSinceEpoch - modifiedMs >
+          oldScreenshotDays * Duration.millisecondsPerDay;
+
+  /// Ayıkla'daki neden kimliği (öncelik: kutlama → mem → yanlışlıkla →
+  /// bulanık → eski ekran görüntüsü).
   String? get clutterReason => SmartTaxonomy.clutterCategories.contains(cat)
       ? cat
-      : (accidental ? 'accidental' : (blurry ? 'blurry' : null));
+      : (accidental
+          ? 'accidental'
+          : (blurry ? 'blurry' : (oldScreenshot ? 'old_shot' : null)));
 
   /// Baskın kullanıcı kategorisi: en yüksek eşleşme, yerleşik kategorinin
   /// güveninden yüksekse ya da yerleşik ikinci ad boş kalacaksa ([builtinEmpty]).
