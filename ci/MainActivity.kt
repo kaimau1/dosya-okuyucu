@@ -439,6 +439,12 @@ class MainActivity : FlutterActivity() {
                     (ctx.getSystemService(android.content.Context.POWER_SERVICE)
                         as android.os.PowerManager).isPowerSaveMode
                 )
+                // B1 m.5 (2026-11-19): Akıllı düzen "yalnız Wi-Fi'de" —
+                // etkin ağ ölçülü mü (mobil veri, ölçülü işaretli Wi-Fi)?
+                "isMetered" -> result.success(
+                    (ctx.getSystemService(android.content.Context.CONNECTIVITY_SERVICE)
+                        as android.net.ConnectivityManager).isActiveNetworkMetered
+                )
                 "exitReasons" -> result.success(
                     Extras.exitReasons(ctx, (call.arguments as? Number)?.toLong() ?: 0L)
                 )

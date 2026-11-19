@@ -59,6 +59,10 @@ abstract final class NativeExtras {
   /// Uygulama bir widget/bildirim bağlantısıyla AÇILDIYSA o bağlantı (bir kez).
   static Future<String?> takeLaunchLink() => _call<String>('takeLink');
 
+  /// Etkin ağ ölçülü mü (mobil veri ya da ölçülü Wi-Fi)? Kanal yoksa ya
+  /// da okunamazsa null (Akıllı düzen "yalnız Wi-Fi'de" bunu ölçülü sayar).
+  static Future<bool?> isMetered() => _call<bool>('isMetered');
+
   /// `FLAG_SECURE` aç/kapat (G1.4) — ekran görüntüsü ve son uygulamalar önizlemesi.
   /// Sayaç `SecureScreenGate`te (lib/core/secure_screen.dart); doğrudan çağırma.
   static Future<void> setSecure(bool secure) async {

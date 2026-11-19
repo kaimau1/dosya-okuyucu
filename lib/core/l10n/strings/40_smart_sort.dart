@@ -216,6 +216,36 @@ const Map<String, (String, String, String)> _t40 = {
     '{n} files organized; AI quota reached, the rest will follow later',
     'تم تنظيم {n} ملفات؛ نفدت حصة الذكاء الاصطناعي وسيُنظم الباقي لاحقًا',
   ),
+  // Hız/kota (B1 m.5).
+  'sm.hold_wifi': (
+    'Yalnız Wi-Fi\'de düzenleniyor; Wi-Fi\'ye bağlanınca sürer',
+    'Organizing only on Wi-Fi; it continues once you are on Wi-Fi',
+    'يتم التنظيم عبر Wi-Fi فقط؛ سيستمر عند الاتصال بشبكة Wi-Fi',
+  ),
+  'sm.hold_cap': (
+    '{n} dosya düzenlendi; bugünkü sınır ({cap}) doldu, kalanlar yarın',
+    '{n} files organized; today\'s limit ({cap}) is reached, the rest tomorrow',
+    'تم تنظيم {n} ملفات؛ بلغ حد اليوم ({cap})، والباقي غدًا',
+  ),
+  'sm.wifi': ('Yalnız Wi-Fi\'de', 'Only on Wi-Fi', 'عبر Wi-Fi فقط'),
+  'sm.wifi_sub': (
+    'Mobil veride dosya gönderilmez',
+    'No files are sent over mobile data',
+    'لا تُرسل الملفات عبر بيانات الجوال',
+  ),
+  'sm.cap': ('Günde en çok {cap} dosya', 'At most {cap} files a day', '{cap} ملفًا يوميًا كحد أقصى'),
+  'sm.cap_sub': (
+    'Bugün {n}/{cap} · ücretsiz kota uyarısı {l}',
+    'Today {n}/{cap} · free quota warnings {l}',
+    'اليوم {n}/{cap} · تنبيهات الحصة المجانية {l}',
+  ),
+  'sm.cap_title': ('Günlük sınır', 'Daily limit', 'الحد اليومي'),
+  'sm.cap_n': ('{n} dosya', '{n} files', '{n} ملفات'),
+  'sm.cap_day': (
+    '{d}: {n} dosya · {l} kota uyarısı',
+    '{d}: {n} files · {l} quota warnings',
+    '{d}: {n} ملفات · {l} تنبيهات حصة',
+  ),
   'sm.batch': ('{n} yeni dosya düzenlendi: {parts}', '{n} new files organized: {parts}', 'تم تنظيم {n} ملفات جديدة: {parts}'),
   // Rozet ve tutar süzgeci (şema 2.0).
   'sm.attention': ('Dikkat', 'Needs attention', 'يحتاج إلى انتباه'),

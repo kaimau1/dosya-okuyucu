@@ -22,6 +22,7 @@ import 'fs_events.dart';
 import 'fs_scan.dart';
 import 'smart_folder_prefs.dart';
 import 'smart_learn.dart';
+import 'smart_quota.dart';
 import 'smart_sort_input.dart';
 import 'smart_sort_taxonomy.dart';
 import 'smart_user_cats.dart';
@@ -340,8 +341,11 @@ class SmartRunResult {
 
   /// Belirteç raporu (yanıtın `usage` alanından; null = rapor gelmedi).
   final SmartUsage? usage;
+
+  /// Hata değil, ayar: yalnız Wi-Fi'de ya da günlük sınır ([SmartQuota]).
+  final SmartHold? hold;
   const SmartRunResult(this.processed, this.failed,
-      {this.stoppedBy, this.lastError, this.usage});
+      {this.stoppedBy, this.lastError, this.usage, this.hold});
 }
 
 /// Tur belirteç raporu (PLAN §1.1 m.1 "soru sayısı ölçülür"): `usage`
@@ -1184,11 +1188,16 @@ abstract final class SmartSort {
     if (keys.isEmpty || OfflineMode.enabled) return const SmartRunResult(0, 0);
     final roots = scopeRoots();
     if (roots.isEmpty) return const SmartRunResult(0, 0);
+    // Hız/kota (m.5): yalnız Wi-Fi'de + günlük üst sınır.
+    final held = await SmartQuota.check();
+    if (held != null) return SmartRunResult(0, 0, hold: held);
+    if (isRunning) return const SmartRunResult(0, 0);
     progress.value = const SmartProgress(0, 0);
     var processed = 0;
     var failed = 0;
     String? stoppedBy;
     String? lastError;
+    SmartHold? hold;
     var usedRequests = 0;
     var usedTokens = 0;
     var usedQuestions = 0;
@@ -1207,7 +1216,12 @@ abstract final class SmartSort {
       final docHint = SmartLearn.hint(image: false);
       final queue = [...todo];
       Future<void> worker() async {
-        while (queue.isNotEmpty && stoppedBy == null) {
+        while (queue.isNotEmpty && stoppedBy == null && hold == null) {
+          // Günlük sınır: hak yoksa dosya sorulmaz (sonraki gün sırada).
+          if (SmartQuota.remaining <= 0) {
+            hold = SmartHold.cap;
+            break;
+          }
           final e = queue.removeAt(0);
           try {
             final image = GeminiDecisions.mediaFor(e.path)?.type == 'image';
@@ -1216,6 +1230,12 @@ abstract final class SmartSort {
             // Büyük ses/video Files API ile yüklenir (yalnız yükleyen anahtar).
             final prep = await SmartSortInput.prepare(e, keys);
             final input = [prep.block];
+            // Hak istekten hemen önce alınır (paralel işçi sınırı aşmasın).
+            if (!SmartQuota.take()) {
+              prep.release();
+              hold = SmartHold.cap;
+              break;
+            }
             DecisionResult result;
             try {
               try {
@@ -1226,8 +1246,11 @@ abstract final class SmartSort {
                 // bekleyip yeniden dene, yine olursa dur (kalanlar sonraki
                 // turda).
                 if (err.statusCode != 429) rethrow;
-                await Future<void>.delayed(const Duration(seconds: 30));
-                if (stoppedBy != null) rethrow;
+                await Future<void>.delayed(retryDelay);
+                // Yeniden deneme de bir istek: hakkı yoksa dur. Her 429
+                // tek yerde sayılır (bu ilk 429 burada, sonraki dışarıda).
+                if (stoppedBy != null || !SmartQuota.take()) rethrow;
+                SmartQuota.noteLimited();
                 result = await GeminiDecisions.ask(
                     keys: prep.keys, input: input, questions: questions);
               }
@@ -1259,6 +1282,7 @@ abstract final class SmartSort {
             }
           } on GeminiException catch (err) {
             failed++;
+            if (err.statusCode == 429) SmartQuota.noteLimited();
             if (const {401, 403, 429}.contains(err.statusCode) ||
                 OfflineMode.enabled) {
               stoppedBy = err.message;
@@ -1295,8 +1319,12 @@ abstract final class SmartSort {
         : SmartUsage(usedRequests, usedTokens, usedQuestions);
     if (usage != null) lastUsage.value = usage;
     return SmartRunResult(processed, failed,
-        stoppedBy: stoppedBy, lastError: lastError, usage: usage);
+        stoppedBy: stoppedBy, lastError: lastError, usage: usage, hold: hold);
   }
+
+  /// Dakikalık sınırda (429) yeniden denemeden önceki bekleme (testte 0).
+  @visibleForTesting
+  static Duration retryDelay = const Duration(seconds: 30);
 
   /// Son turun belirteç raporu (Akıllı düzen ekranında; oturum içi).
   static final ValueNotifier<SmartUsage?> lastUsage =
