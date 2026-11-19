@@ -64,12 +64,17 @@ class DocxEditorView extends StatefulWidget {
   /// Yazım denetimi (Android yazım servisi; ayardan kapatılabilir).
   final bool spellcheck;
 
+  /// Salt okunur (B9 m.8 açılış önizlemesi): kaydırılır, dokunuş/uzun basış
+  /// imleç ya da seçim kurmaz, klavye açılmaz.
+  final bool readOnly;
+
   const DocxEditorView({
     super.key,
     required this.controller,
     this.scale = 1.35,
     this.actions = const DocxEditorActions(),
     this.spellcheck = true,
+    this.readOnly = false,
   });
 
   @override
@@ -496,6 +501,7 @@ class DocxEditorViewState extends State<DocxEditorView> {
             maxW: maxW,
             selected: selected,
             onTap: () {
+              if (widget.readOnly) return;
               _focus.requestFocus();
               c.detach();
               c.selectAtom(i, k);
@@ -904,10 +910,11 @@ class DocxEditorViewState extends State<DocxEditorView> {
               Positioned.fill(
                 child: GestureDetector(
                   behavior: HitTestBehavior.translucent,
-                  onTapUp: _onTapUp,
-                  onLongPressStart: _onLongPressStart,
-                  onLongPressMoveUpdate: _onLongPressMove,
-                  onLongPressEnd: _onLongPressEnd,
+                  onTapUp: widget.readOnly ? null : _onTapUp,
+                  onLongPressStart: widget.readOnly ? null : _onLongPressStart,
+                  onLongPressMoveUpdate:
+                      widget.readOnly ? null : _onLongPressMove,
+                  onLongPressEnd: widget.readOnly ? null : _onLongPressEnd,
                   child: NotificationListener<ScrollNotification>(
                     onNotification: (_) {
                       WidgetsBinding.instance

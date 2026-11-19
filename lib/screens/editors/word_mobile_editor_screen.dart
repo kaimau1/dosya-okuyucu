@@ -151,6 +151,7 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
   void dispose() {
     _ctrl?.removeListener(_onEdit);
     _ctrl?.dispose();
+    _head?.dispose();
     _panel.dispose();
     _session.dispose();
     super.dispose();
@@ -165,6 +166,15 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
 
   static List<String> _previewParas(Uint8List bytes) =>
       docxPreviewParagraphs(bytes, limit: 50);
+
+  /// B9 m.8 — "ilk sayfa önce": belgenin yalnız başı (≈ ilk 60 blok) gerçek
+  /// biçimiyle (başlık, kalın, hiza, tablo, resim) salt okunur gösterilir;
+  /// tam model gelince yerini editör alır. Baş çözümlenemezse düz metin
+  /// önizlemesine ([_preview]) düşülür.
+  DocxEditController? _head;
+
+  static DocxDocument _parseHead(Uint8List bytes) =>
+      DocxDocument.parseHead(bytes);
 
   Future<void> _load() async {
     try {
@@ -181,11 +191,18 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
       final isolate = WordMobileEditorScreen.parseInIsolate;
       // Önizleme ve tam ayrıştırma AYNI ANDA başlar; önizleme önce biter.
       if (isolate) {
-        unawaited(compute(_previewParas, bytes).then((list) {
-          if (mounted && _doc == null && list.isNotEmpty) {
-            setState(() => _preview = list);
-          }
-        }, onError: (_) {}));
+        void plain() {
+          unawaited(compute(_previewParas, bytes).then((list) {
+            if (mounted && _doc == null && list.isNotEmpty) {
+              setState(() => _preview = list);
+            }
+          }, onError: (_) {}));
+        }
+
+        unawaited(compute(_parseHead, bytes).then((head) {
+          if (!mounted || _doc != null) return;
+          setState(() => _head = DocxEditController(head));
+        }, onError: (_) => plain()));
       }
       final doc = isolate ? await compute(_parse, bytes) : _parse(bytes);
       _attach(doc);
@@ -215,6 +232,8 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
   void _attach(DocxDocument doc) {
     _ctrl?.removeListener(_onEdit);
     _ctrl?.dispose();
+    _head?.dispose();
+    _head = null;
     _doc = doc;
     _ctrl = DocxEditController(doc)..addListener(_onEdit);
     _seenRevision = 0;
@@ -791,9 +810,11 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
                         message: context.t('ux.error_body'),
                         details: context.t('common.open_failed', {'error': _error}))
                 : c == null
-                    ? (_preview == null
-                        ? const AppSkeleton()
-                        : DocxLoadingPreview(paragraphs: _preview!))
+                    ? (_head != null
+                        ? DocxLoadingPreview(head: _head)
+                        : _preview == null
+                            ? const AppSkeleton()
+                            : DocxLoadingPreview(paragraphs: _preview!))
                     : _chrome(c),
           ),
         ),
@@ -806,7 +827,11 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
 /// ince ilerleme çubuğu ve "açılıyor" notu.
 class DocxLoadingPreview extends StatelessWidget {
   final List<String> paragraphs;
-  const DocxLoadingPreview({super.key, required this.paragraphs});
+
+  /// Doluysa belgenin başı gerçek biçimiyle (salt okunur editör görünümü);
+  /// [paragraphs] düz metin yedeğidir.
+  final DocxEditController? head;
+  const DocxLoadingPreview({super.key, this.paragraphs = const [], this.head});
 
   @override
   Widget build(BuildContext context) {
@@ -822,18 +847,21 @@ class DocxLoadingPreview extends StatelessWidget {
               style: context.type.small.copyWith(color: scheme.onSurfaceVariant)),
         ),
         Expanded(
-          child: ColoredBox(
-            color: Paper.docSurface(context),
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-              itemCount: paragraphs.length,
-              itemBuilder: (_, i) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Text(paragraphs[i],
-                    style: context.type.large.copyWith(height: 1.4)),
-              ),
-            ),
-          ),
+          child: head != null
+              ? DocxEditorView(
+                  controller: head!, spellcheck: false, readOnly: true)
+              : ColoredBox(
+                  color: Paper.docSurface(context),
+                  child: ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+                    itemCount: paragraphs.length,
+                    itemBuilder: (_, i) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Text(paragraphs[i],
+                          style: context.type.large.copyWith(height: 1.4)),
+                    ),
+                  ),
+                ),
         ),
       ],
     );
