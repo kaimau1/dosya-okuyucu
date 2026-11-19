@@ -936,6 +936,15 @@ const Map<String, (String, String, String)> _t8 = {
     'Recent files',
     'الملفات الأخيرة',
   ),
+  'dash.strip_all': ('Tümünü göster', 'Show all', 'عرض الكل'),
+  'dash.strip_default': (
+    'Son dosyalar ilk açılışta',
+    'Recent files opens on',
+    'الملفات الأخيرة تفتح على',
+  ),
+  'dash.strip_auto': ('Otomatik', 'Auto', 'تلقائي'),
+  'dash.strip_opened': ('Geçmiş', 'History', 'السجل'),
+  'dash.strip_fresh': ('Yeni', 'New', 'جديد'),
   'dash.strip_new': (
     'Yeni',
     'New',

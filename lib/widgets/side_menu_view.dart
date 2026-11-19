@@ -10,15 +10,14 @@ import '../core/app_navigator.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/motion.dart';
 import '../core/theme.dart';
-import '../models/fs_entry.dart';
+import '../screens/fm/new_files_screen.dart';
+import '../screens/fm/open_history_screen.dart';
 import '../screens/settings_screen.dart';
 import '../services/fm/entry_opener.dart';
-import '../services/fm/fs_scan.dart';
-import '../services/fm/open_history.dart';
 import '../services/side_menu.dart';
 import 'app_dialog.dart';
 import 'fm/fm_category_tile.dart';
-import 'fm/fm_entry_icon.dart';
+import 'fm/recent_strip.dart';
 
 /// **Yan menü** görünümü — bkz. [SideMenu].
 ///
@@ -257,9 +256,23 @@ class _SideMenuPanel extends StatelessWidget {
                     ),
                   ),
                   if (menu.showRecents)
-                    _RecentMini(
+                    // Ana ekranla AYNI şerit (U3 m.3, kullanıcı: "sol menüde
+                    // de aynı yapı"): karışık + sekmeler + "Yeni" etiketi;
+                    // tam tarama yok, yeniler önbellekten.
+                    RecentStrip(
+                      dense: true,
+                      scan: false,
+                      limit: 12,
                       onOpen: (e) => _run(
                           context, (root) => EntryOpener.open(root, e.path)),
+                      onAll: () => _run(
+                          context,
+                          (root) => Navigator.of(root).push(MaterialPageRoute(
+                              builder: (_) => const OpenHistoryScreen()))),
+                      onAllNew: () => _run(
+                          context,
+                          (root) => Navigator.of(root).push(MaterialPageRoute(
+                              builder: (_) => const NewFilesScreen()))),
                     ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: Gap.md),
@@ -379,106 +392,6 @@ class _MenuRow extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-/// Üstte küçük, yana kaydırılan "Son açılanlar" kartları.
-class _RecentMini extends StatefulWidget {
-  final void Function(FsEntry e) onOpen;
-  const _RecentMini({required this.onOpen});
-
-  @override
-  State<_RecentMini> createState() => _RecentMiniState();
-}
-
-class _RecentMiniState extends State<_RecentMini> {
-  static const _limit = 12;
-  List<FsEntry> _items = const [];
-
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_load());
-  }
-
-  Future<void> _load() async {
-    try {
-      await OpenHistory.ensureLoaded();
-      final paths = OpenHistory.pathsByRecency().take(_limit * 2).toList();
-      final stats = await FsScan.statPaths(paths);
-      if (!mounted) return;
-      setState(() => _items = [
-            for (final e in stats)
-              if (!e.isDir) e,
-          ].take(_limit).toList());
-    } catch (_) {
-      // Bilinçli: son açılanlar okunamazsa şerit çizilmez; menü yine açılır.
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_items.isEmpty) return const SizedBox.shrink();
-    final theme = Theme.of(context);
-    final metrics = AppSkinData.of(context).metrics;
-    final scale = MediaQuery.textScalerOf(context).scale(1);
-    const thumb = 52.0;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(
-              Gap.md, Gap.sm, Gap.md, Gap.xs),
-          child: Text(
-            context.t('dash.sec_recent'),
-            style: theme.textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: theme.colorScheme.primary),
-          ),
-        ),
-        SizedBox(
-          height: thumb + Gap.xs + 18 * scale,
-          child: ListView.separated(
-            key: const ValueKey('side-menu-recents'),
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: Gap.md),
-            itemCount: _items.length,
-            separatorBuilder: (_, _) => const SizedBox(width: Gap.sm),
-            itemBuilder: (context, i) {
-              final e = _items[i];
-              return Semantics(
-                button: true,
-                label: e.name,
-                excludeSemantics: true,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(metrics.radiusControl),
-                  onTap: () => widget.onOpen(e),
-                  child: SizedBox(
-                    width: thumb + Gap.xs,
-                    child: Column(
-                      children: [
-                        FmEntryIcon(
-                            entry: e,
-                            size: thumb,
-                            radius: metrics.radiusControl),
-                        const SizedBox(height: Gap.xs / 2),
-                        Text(
-                          e.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.labelSmall,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
     );
   }
 }
