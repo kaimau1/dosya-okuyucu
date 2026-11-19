@@ -62,6 +62,24 @@ object ApkKurulum {
 
     /** G7.8: oturuma yazılan toplam boyut üst sınırı (4 GB). */
     const val MAX_TOTAL = 4L shl 30
+    private const val MAX_INSPECT = 512L shl 20
+
+    private fun copyBounded(
+        input: java.io.InputStream,
+        output: java.io.OutputStream,
+        maxBytes: Long,
+    ): Long {
+        val buf = ByteArray(1 shl 16)
+        var total = 0L
+        while (true) {
+            val n = input.read(buf)
+            if (n < 0) break
+            total += n
+            if (total > maxBytes) throw IllegalStateException("too_big")
+            output.write(buf, 0, n)
+        }
+        return total
+    }
 
     /** G7.8: ZIP girdi adı güvenli mi (mutlak yol / `..` / ters bölü yok). */
     fun safeName(name: String): Boolean =
@@ -122,7 +140,7 @@ object ApkKurulum {
                     val t = File.createTempFile("inspect", ".apk", ctx.cacheDir)
                     tmp = t
                     zip.getInputStream(zip.getEntry(base)).use { input ->
-                        t.outputStream().use { input.copyTo(it, 1 shl 16) }
+                        t.outputStream().use { copyBounded(input, it, MAX_INSPECT) }
                     }
                 }
                 val pm = ctx.packageManager
@@ -213,6 +231,10 @@ object ApkKurulum {
             done("need_permission"); return
         }
         val ctx = activity.applicationContext
+        val report: (String) -> Unit = { res ->
+            if (selfUpdate && res != "done") GuncellemeSonrasi.clear(ctx)
+            done(res)
+        }
         // Kurulum süreci kapatır; MY_PACKAGE_REPLACED gelince yeniden açmak
         // için işaret (bkz. [GuncellemeSonrasi]).
         if (selfUpdate) GuncellemeSonrasi.mark(ctx)
@@ -235,46 +257,52 @@ object ApkKurulum {
                         if (file.name.lowercase().endsWith(".apk") &&
                             names.contains("AndroidManifest.xml")
                         ) {
+                            if (file.length() > MAX_TOTAL) {
+                                main.post { report("error:too_big") }; return@Thread
+                            }
                             // Tek APK: dosyanın kendisi oturuma yazılır.
                             val id = installer.createSession(params)
                             val s = installer.openSession(id)
                             session = s
                             s.openWrite("base.apk", 0, file.length()).use { out ->
-                                file.inputStream().use { it.copyTo(out, 1 shl 16) }
+                                file.inputStream().use { copyBounded(it, out, MAX_TOTAL) }
                                 s.fsync(out)
                             }
-                            main.post { commit(activity, s, id, done) }
+                            main.post { commit(activity, s, id, report) }
                             return@Thread
                         }
-                        main.post { done("no_apk") }; return@Thread
+                        main.post { report("no_apk") }; return@Thread
                     }
                     // G7.8: yol ayırıcılı/mutlak girdi adı ve aşırı boyut reddi.
                     if (picked.any { !safeName(it) }) {
-                        main.post { done("error:unsafe_entry") }; return@Thread
+                        main.post { report("error:unsafe_entry") }; return@Thread
                     }
                     val total = picked.sumOf { zip.getEntry(it).size.coerceAtLeast(0L) }
                     if (total > MAX_TOTAL) {
-                        main.post { done("error:too_big") }; return@Thread
+                        main.post { report("error:too_big") }; return@Thread
                     }
                     val id = installer.createSession(params)
                     val s = installer.openSession(id)
                     session = s
+                    var writtenTotal = 0L
                     picked.forEachIndexed { i, name ->
                         val entry = zip.getEntry(name)
-                        val size = if (entry.size >= 0) entry.size else -1L
+                        val size = if (entry.size in 0..MAX_TOTAL) entry.size else -1L
                         s.openWrite("p$i.apk", 0, size).use { out ->
-                            zip.getInputStream(entry).use { it.copyTo(out, 1 shl 16) }
+                            zip.getInputStream(entry).use {
+                                writtenTotal += copyBounded(it, out, MAX_TOTAL - writtenTotal)
+                            }
                             s.fsync(out)
                         }
                     }
-                    main.post { commit(activity, s, id, done) }
+                    main.post { commit(activity, s, id, report) }
                 }
             } catch (e: Exception) {
                 try {
                     session?.abandon()
                 } catch (_: Exception) {
                 }
-                main.post { done("error:" + (e.message ?: e.javaClass.simpleName)) }
+                main.post { report("error:" + (e.message ?: e.javaClass.simpleName)) }
             }
         }.start()
     }
@@ -307,6 +335,8 @@ object ApkKurulum {
                         } catch (e: Exception) {
                             finish(c, this, done, "error:" + (e.message ?: "confirm"))
                         }
+                    } else {
+                        finish(c, this, done, "error:no_confirm")
                     }
                     return
                 }
@@ -336,6 +366,8 @@ object ApkKurulum {
             session.commit(pi.intentSender)
             session.close()
         } catch (e: Exception) {
+            try { session.abandon() } catch (_: Exception) {}
+            try { session.close() } catch (_: Exception) {}
             finish(ctx, receiver, done, "error:" + (e.message ?: e.javaClass.simpleName))
         }
     }
@@ -367,6 +399,11 @@ class GuncellemeSonrasi : BroadcastReceiver() {
         fun mark(c: Context) {
             c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
                 .putLong(KEY, System.currentTimeMillis()).apply()
+        }
+
+        fun clear(c: Context) {
+            c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                .remove(KEY).apply()
         }
     }
 

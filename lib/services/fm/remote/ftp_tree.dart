@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import '../../../core/private_zone.dart';
 import '../../../models/fs_entry.dart';
 import '../folder_lock.dart';
 import '../media_library.dart';
@@ -40,7 +41,12 @@ class FtpNode {
   /// [FtpNodeKind.category] / [FtpNodeKind.categoryFile] için kutu adı.
   final String? category;
 
-  const FtpNode(this.kind, {this.relative, this.realPath, this.category});
+  /// [FtpNodeKind.real] için bu kutunun kendi gerçek kök dizini (sembolik
+  /// bağla kutu dışına kaçışı engellemek için).
+  final String? boxRoot;
+
+  const FtpNode(this.kind,
+      {this.relative, this.realPath, this.category, this.boxRoot});
 
   /// Yol yok. ([FtpNodeKind.real] + yolsuz = "çözülemedi".)
   static const notFound = FtpNode(FtpNodeKind.real);
@@ -307,7 +313,7 @@ class FtpTree {
       if (baseRelative.isNotEmpty) ...baseRelative.split('/'),
       ...rest,
     ].join('/');
-    return FtpNode(FtpNodeKind.real, relative: relative);
+    return FtpNode(FtpNodeKind.real, relative: relative, boxRoot: base);
   }
 
   // ── kategori içerikleri ───────────────────────────────────────────────────
@@ -353,6 +359,7 @@ class FtpTree {
         MediaLibrary.categoryFiles(category, lockedFolders: lockedFolders));
     final map = <String, FsEntry>{};
     for (final entry in files) {
+      if (PrivateZone.isPrivatePath(entry.path)) continue;
       if (!showHidden && p.basename(entry.path).startsWith('.')) continue;
       map[uniqueName(map.containsKey, entry.name)] = entry;
     }
@@ -435,6 +442,7 @@ class FtpTree {
           if (!e.isDir &&
               e.category == category &&
               !known.contains(e.path) &&
+              !PrivateZone.isPrivatePath(e.path) &&
               (showHidden || !p.basename(e.path).startsWith('.')))
             e,
       ],

@@ -89,29 +89,33 @@ class _RemoteConnectionsScreenState extends State<RemoteConnectionsScreen> {
     ));
   }
 
-  Future<String?> _askPassword(String name) {
+  Future<String?> _askPassword(String name) async {
     final controller = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      builder: (ctx) => SecureScreen(child: AlertDialog(
-        title: Text(ctx.t('nas.password_prompt', {'name': name})),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          obscureText: true,
-          decoration: InputDecoration(labelText: ctx.t('nas.password')),
-          onSubmitted: (v) => Navigator.pop(ctx, v),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(ctx.t('common.cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, controller.text),
-              child: Text(ctx.t('common.ok'))),
-        ],
-      )),
-    );
+    try {
+      return await showDialog<String>(
+        context: context,
+        builder: (ctx) => SecureScreen(child: AlertDialog(
+          title: Text(ctx.t('nas.password_prompt', {'name': name})),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            obscureText: true,
+            decoration: InputDecoration(labelText: ctx.t('nas.password')),
+            onSubmitted: (v) => Navigator.pop(ctx, v),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(ctx.t('common.cancel'))),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, controller.text),
+                child: Text(ctx.t('common.ok'))),
+          ],
+        )),
+      );
+    } finally {
+      controller.dispose();
+    }
   }
 
   Future<void> _delete(RemoteConnection connection) async {
@@ -127,7 +131,7 @@ class _RemoteConnectionsScreenState extends State<RemoteConnectionsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
+    final state = context.read<AppState>();
     // Liste değişimi `RemotesState` ile bildirilir (A4.2).
     return ListenableBuilder(
         listenable: state.remotesState,

@@ -819,11 +819,11 @@ class XlsxReader {
             col = parsed.$2;
           }
         }
-        if (col >= maxColumns) {
+        if (col >= maxColumns || rr >= maxRows) {
           layout.truncated = true;
           continue;
         }
-        if (col < 0) continue;
+        if (col < 0 || rr < 0) continue;
         final cell = _readCell(c, rr, col, shared, sharedFormulas);
         if (cell == null) continue;
         layout.cells[cellKey(rr, col)] = cell;
@@ -1098,11 +1098,11 @@ class XlsxReader {
           col = parsed.$2;
         }
       }
-      if (col >= maxColumns) {
+      if (col >= maxColumns || rr >= maxRows) {
         layout.truncated = true;
         continue;
       }
-      if (col < 0) continue;
+      if (col < 0 || rr < 0) continue;
       final cell = _cellFrom(rr, col, styleAttr, typeAttr, formula, si, vText,
           inlineText, shared, sharedFormulas);
       if (cell == null) continue;

@@ -34,7 +34,7 @@ extension _SlideshowRemote on _SlideshowScreenState {
     _wireNative();
     final on = !_volumeKeys;
     await SlidesNative.volumeKeys(on);
-    _partSetState(() => _volumeKeys = on);
+    if (mounted) _partSetState(() => _volumeKeys = on);
   }
 
   // ── Yerel ağ ──────────────────────────────────────────────────────────────
@@ -42,14 +42,20 @@ extension _SlideshowRemote on _SlideshowScreenState {
   Future<void> _toggleWebRemote() async {
     if (_server != null) {
       await _server!.close(force: true);
-      _partSetState(() {
-        _server = null;
-        _remoteUrl = null;
-      });
+      if (mounted) {
+        _partSetState(() {
+          _server = null;
+          _remoteUrl = null;
+        });
+      }
       return;
     }
     try {
       final server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
+      if (!mounted) {
+        await server.close(force: true);
+        return;
+      }
       final token = List.generate(
           8, (_) => 'abcdefghjkmnpqrstuvwxyz23456789'[Random.secure().nextInt(31)]).join();
       server.listen((req) => _serve(req, token), onError: (_) {});
@@ -60,12 +66,16 @@ extension _SlideshowRemote on _SlideshowScreenState {
           if (!a.isLoopback && ni.name.startsWith('wlan')) ip = a.address;
         }
       }
+      if (!mounted) {
+        await server.close(force: true);
+        return;
+      }
       _partSetState(() {
         _server = server;
         _remoteUrl = 'http://${ip ?? '127.0.0.1'}:${server.port}/$token';
       });
     } catch (_) {
-      _partSetState(() => _remoteUrl = null);
+      if (mounted) _partSetState(() => _remoteUrl = null);
     }
   }
 

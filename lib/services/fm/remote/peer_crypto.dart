@@ -167,6 +167,9 @@ abstract final class SealedChunks {
       max(0, length) + recordsFor(length, chunk) * overhead;
 
   static Uint8List nonce(int stream, int counter) {
+    if (stream < 0 || stream > 0xFFFFFFFF || counter < 0) {
+      throw const AeadFailure('akis');
+    }
     final b = ByteData(12)
       ..setUint32(0, stream)
       ..setUint64(4, counter);

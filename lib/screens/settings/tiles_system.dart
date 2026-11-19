@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/display_mode.dart';
+import '../../core/edition.dart';
 import '../../core/edit/editor_perf.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
@@ -18,6 +19,7 @@ import '../../services/cloud_ocr.dart';
 import '../fm/share_shield.dart';
 import '../../widgets/app_dialog.dart';
 import '../../services/app_update.dart';
+import '../../services/play_store.dart';
 import '../../services/fm/content_indexer.dart';
 import '../../services/fm/search_index.dart';
 import '../fm/sd_union_screen.dart';
@@ -544,11 +546,15 @@ class _AppUpdateTileState extends State<AppUpdateTile>
   }
 
   @override
-  Widget build(BuildContext context) => ValueListenableBuilder<AppUpdateInfo?>(
-        valueListenable: AppUpdate.available,
-        builder: (context, info, _) => ValueListenableBuilder<int?>(
-          valueListenable: AppUpdate.progress,
-          builder: (context, pct, _) {
+  Widget build(BuildContext context) {
+    if (PlayStore.build || !Edition.current.has(Feature.selfUpdate)) {
+      return const SizedBox.shrink();
+    }
+    return ValueListenableBuilder<AppUpdateInfo?>(
+      valueListenable: AppUpdate.available,
+      builder: (context, info, _) => ValueListenableBuilder<int?>(
+        valueListenable: AppUpdate.progress,
+        builder: (context, pct, _) {
             final str = AppStrings.of(context);
             final newer = info != null &&
                 AppUpdate.isNewer(info.version, appVersionName);
@@ -609,6 +615,7 @@ class _AppUpdateTileState extends State<AppUpdateTile>
           },
         ),
       );
+  }
 }
 
 /// Uygulama hakkında + açık kaynak lisanslar.

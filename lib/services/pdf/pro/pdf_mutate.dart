@@ -87,6 +87,7 @@ String? _mutate(pdfium_bindings.PDFium p, int docAddr, PdfMutation m) {
             }
           case 'order':
             final o = handles[a.objects.first]!;
+            if (removed.any((x) => x.address == o.address)) continue;
             p.FPDFPage_RemoveObject(page, o);
             if (a.to < 0) {
               p.FPDFPage_InsertObject(page, o);
@@ -145,6 +146,7 @@ String? _mutate(pdfium_bindings.PDFium p, int docAddr, PdfMutation m) {
         for (final o in removed) {
           p.FPDFPageObj_Destroy(o);
         }
+        removed.clear();
         if (!_pins(p, doc, page, arena, skip, targets, apply: false)) {
           return (
             'Bu düzenleme yakındaki satırların yerini kaydırırdı; '
@@ -161,6 +163,7 @@ String? _mutate(pdfium_bindings.PDFium p, int docAddr, PdfMutation m) {
       for (final o in removed) {
         p.FPDFPageObj_Destroy(o);
       }
+      removed.clear();
       // 0 = FLAT_NORMALDISPLAY; 0 = FLATTEN_FAIL.
       if (flatten && p.FPDFPage_Flatten(page, 0) == 0) {
         return ('Açıklamalar içeriğe gömülemedi.', null);
@@ -168,6 +171,9 @@ String? _mutate(pdfium_bindings.PDFium p, int docAddr, PdfMutation m) {
       return (null, null);
     });
   } finally {
+    for (final o in removed) {
+      p.FPDFPageObj_Destroy(o);
+    }
     p.FPDF_ClosePage(page);
   }
 }

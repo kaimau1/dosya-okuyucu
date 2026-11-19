@@ -238,7 +238,7 @@ extension _SlidesProPart on _SlidesEditorScreenState {
             builder: (_) => SlidesMasterPage(bytes: bytes, apply: _proApply)));
       case 'templates':
         final id = await showTemplateGallery(context);
-        if (id != null) {
+        if (id != null && mounted) {
           await _proApply(PptxTemplates.apply(id), doneKey: 'sp.applied');
         }
     }

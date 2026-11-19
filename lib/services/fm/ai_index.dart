@@ -26,7 +26,7 @@ import 'dart:io';
 import 'dart:isolate';
 
 import 'package:flutter/foundation.dart'
-    show ValueNotifier, debugPrint, visibleForTesting;
+    show ValueNotifier, debugPrint, kReleaseMode, visibleForTesting;
 import 'package:path/path.dart' as p;
 
 import '../../core/text_search.dart';
@@ -286,7 +286,7 @@ abstract final class AiIndex {
       _records.addAll(records);
       _lines = lines;
       // Ölçüm kancası (A8.2; doğrulama B2): `adb logcat -s flutter | grep ACILIS`.
-      if (sw.elapsedMilliseconds > 30) {
+      if (!kReleaseMode && sw.elapsedMilliseconds > 30) {
         debugPrint('ACILIS ai-index ${sw.elapsedMilliseconds} ms '
             '($lines satır, ${big ? 'izolat' : 'yerinde'})');
       }

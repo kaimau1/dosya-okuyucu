@@ -233,9 +233,9 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
   /// sayfa ancak o isterse gönderilir (kota + gizlilik).
   Future<void> _aiQualityCheck() async {
     if (_busy || _pages.isEmpty) return;
-    final keys = context.read<AppState>().aiCredentials.normalized.keys;
     final str = AppStrings.of(context);
     if (!await ensureAiKey(context) || !mounted) return;
+    final keys = context.read<AppState>().aiCredentials.normalized.keys;
     final path = _pages[_index].display;
     _snack(str.t('sq.ai_sending'));
     try {

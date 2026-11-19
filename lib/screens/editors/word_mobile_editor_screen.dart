@@ -206,11 +206,13 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
         }, onError: (_) => plain()));
       }
       final doc = isolate ? await compute(_parse, bytes) : _parse(bytes);
+      if (!mounted) return;
       _attach(doc);
     } catch (e) {
       _error = userErrorText(e);
     }
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {});
     if (_doc != null) {
       _openAtStart();
       unawaited(_session.captureSource());

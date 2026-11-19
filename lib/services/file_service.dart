@@ -503,7 +503,7 @@ class FileService {
   }
 
   Future<void> saveText(String path, String content) async {
-    await File(path).writeAsString(content);
+    await SafeWrite.bytes(path, utf8.encode(content));
   }
 
   Future<Uint8List> readBytes(String path) => File(path).readAsBytes();

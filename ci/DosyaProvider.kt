@@ -115,14 +115,61 @@ class DosyaProvider : DocumentsProvider() {
         0L
     }
 
+    /**
+     * Güvenli yol çözümleyici: `..` ve sembolik bağlantıları [File.canonicalFile]
+     * ile çözer; yalnızca izinli depolama köklerinin ([roots]) içindeki ve özel
+     * uygulama/kasa/sistem dizinleri dışındaki yollara izin verir.
+     */
+    private fun isBlockedPath(canonical: String): Boolean {
+        if (canonical.startsWith("/data/") ||
+            canonical.startsWith("/data_mirror/") ||
+            canonical.startsWith("/proc/") ||
+            canonical.startsWith("/sys/")
+        ) return true
+        val parts = canonical.split('/')
+        if (parts.any {
+                it.equals(".DosyaOkuyucuKasa", ignoreCase = true) ||
+                    it.equals(".DosyaOkuyucuGizli", ignoreCase = true) ||
+                    it == "vault_open"
+            }) return true
+        if (canonical.contains("/Android/data/") || canonical.endsWith("/Android/data") ||
+            canonical.contains("/Android/obb/") || canonical.endsWith("/Android/obb")
+        ) return true
+        return false
+    }
+
+    private fun resolveSafe(documentId: String): File {
+        if (documentId.isEmpty() || documentId.indexOf('\u0000') >= 0) {
+            throw FileNotFoundException(documentId)
+        }
+        val file = try {
+            File(documentId).canonicalFile
+        } catch (e: Exception) {
+            throw FileNotFoundException(documentId)
+        }
+        val c = file.path
+        if (isBlockedPath(c)) throw FileNotFoundException(documentId)
+        val allowedRoots = roots().mapNotNull {
+            try {
+                it.canonicalPath.trimEnd('/')
+            } catch (_: Exception) {
+                null
+            }
+        }
+        val inRoot = allowedRoots.any { r -> c == r || c.startsWith("$r/") }
+        if (!inRoot) throw FileNotFoundException(documentId)
+        return file
+    }
+
     // ── belgeler ────────────────────────────────────────────────────────────
 
     override fun queryDocument(
         documentId: String,
         projection: Array<out String>?
     ): Cursor {
+        val file = resolveSafe(documentId)
         val cursor = MatrixCursor(projection ?: DEFAULT_DOCUMENT_PROJECTION)
-        addFileRow(cursor, File(documentId))
+        addFileRow(cursor, file)
         return cursor
     }
 
@@ -132,7 +179,11 @@ class DosyaProvider : DocumentsProvider() {
         sortOrder: String?
     ): Cursor {
         val cursor = MatrixCursor(projection ?: DEFAULT_DOCUMENT_PROJECTION)
-        val parent = File(parentDocumentId)
+        val parent = try {
+            resolveSafe(parentDocumentId)
+        } catch (e: Exception) {
+            return cursor
+        }
         // Okunamayan klasör (izin verilmemiş, çıkarılmış SD kart) boş görünür;
         // istisna fırlatmak seçicide "bir sorun oluştu" penceresi açardı.
         val children = try {
@@ -141,7 +192,12 @@ class DosyaProvider : DocumentsProvider() {
             null
         } ?: return cursor
         for (child in children) {
-            addFileRow(cursor, child)
+            val safeChild = try {
+                resolveSafe(child.path)
+            } catch (_: Exception) {
+                continue
+            }
+            addFileRow(cursor, safeChild)
         }
         return cursor
     }
@@ -159,9 +215,16 @@ class DosyaProvider : DocumentsProvider() {
         projection: Array<out String>?
     ): Cursor {
         val cursor = MatrixCursor(projection ?: DEFAULT_DOCUMENT_PROJECTION)
+        val root = try {
+            resolveSafe(rootId)
+        } catch (e: Exception) {
+            return cursor
+        }
         val needle = query.lowercase()
         val queue = LinkedList<File>()
-        queue.add(File(rootId))
+        val visited = HashSet<String>()
+        queue.add(root)
+        visited.add(root.path)
         var found = 0
         while (queue.isNotEmpty() && found < SEARCH_LIMIT) {
             val dir = queue.removeFirst()
@@ -171,12 +234,19 @@ class DosyaProvider : DocumentsProvider() {
                 null
             } ?: continue
             for (child in children) {
-                if (child.isDirectory) {
-                    if (child.name.startsWith(".")) continue
-                    queue.add(child)
+                if (child.name.startsWith(".")) continue
+                val safeChild = try {
+                    resolveSafe(child.path)
+                } catch (_: Exception) {
+                    continue
                 }
-                if (child.name.lowercase().contains(needle)) {
-                    addFileRow(cursor, child)
+                if (safeChild.isDirectory) {
+                    if (visited.add(safeChild.path)) {
+                        queue.add(safeChild)
+                    }
+                }
+                if (safeChild.name.lowercase().contains(needle)) {
+                    addFileRow(cursor, safeChild)
                     if (++found >= SEARCH_LIMIT) break
                 }
             }
@@ -189,7 +259,7 @@ class DosyaProvider : DocumentsProvider() {
         mode: String,
         signal: CancellationSignal?
     ): ParcelFileDescriptor {
-        val file = File(documentId)
+        val file = resolveSafe(documentId)
         if (!file.exists()) throw FileNotFoundException(documentId)
         return ParcelFileDescriptor.open(file, ParcelFileDescriptor.parseMode(mode))
     }
@@ -205,7 +275,7 @@ class DosyaProvider : DocumentsProvider() {
         sizeHint: Point?,
         signal: CancellationSignal?
     ): AssetFileDescriptor {
-        val file = File(documentId)
+        val file = resolveSafe(documentId)
         if (!file.exists()) throw FileNotFoundException(documentId)
         val descriptor =
             ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
@@ -213,11 +283,15 @@ class DosyaProvider : DocumentsProvider() {
     }
 
     override fun isChildDocument(parentDocumentId: String, documentId: String): Boolean {
-        // Yol karşılaştırması ayıraçla yapılır: "/a/bc" yolu "/a/b" klasörünün
-        // altında DEĞİLDİR — düz `startsWith` bunu yanlış bilirdi.
-        val parent = File(parentDocumentId).absolutePath.trimEnd('/')
-        val child = File(documentId).absolutePath
-        return child.startsWith("$parent/")
+        // Yol karşılaştırması kanonik yol ve ayıraçla yapılır: "../" ya da
+        // sembolik bağlantıyla ağaç dışına çıkılamaz.
+        return try {
+            val parent = resolveSafe(parentDocumentId).path.trimEnd('/')
+            val child = resolveSafe(documentId).path
+            child == parent || child.startsWith("$parent/")
+        } catch (_: Exception) {
+            false
+        }
     }
 
     // ── yazma ───────────────────────────────────────────────────────────────
@@ -227,7 +301,7 @@ class DosyaProvider : DocumentsProvider() {
         mimeType: String,
         displayName: String
     ): String {
-        val parent = File(parentDocumentId)
+        val parent = resolveSafe(parentDocumentId)
         val target = uniqueFile(parent, displayName)
         try {
             val created = if (Document.MIME_TYPE_DIR == mimeType) {
@@ -243,7 +317,11 @@ class DosyaProvider : DocumentsProvider() {
     }
 
     override fun deleteDocument(documentId: String) {
-        val file = File(documentId)
+        val file = resolveSafe(documentId)
+        val allowedRoots = roots().mapNotNull { runCatching { it.canonicalPath.trimEnd('/') }.getOrNull() }
+        if (file.path.trimEnd('/') in allowedRoots) {
+            throw FileNotFoundException("kök silinemez: $documentId")
+        }
         val deleted = try {
             if (file.isDirectory) file.deleteRecursively() else file.delete()
         } catch (e: Exception) {
@@ -253,8 +331,9 @@ class DosyaProvider : DocumentsProvider() {
     }
 
     override fun renameDocument(documentId: String, displayName: String): String {
-        val file = File(documentId)
-        val target = uniqueFile(file.parentFile ?: return documentId, displayName)
+        val file = resolveSafe(documentId)
+        val parent = file.parentFile ?: throw FileNotFoundException("adlandırılamadı: $documentId")
+        val target = uniqueFile(parent, displayName)
         val renamed = try {
             file.renameTo(target)
         } catch (e: Exception) {
@@ -266,14 +345,24 @@ class DosyaProvider : DocumentsProvider() {
 
     /** Aynı adlı dosya varsa "ad (2).uzantı" üretir — üstüne yazmak veri kaybıdır. */
     private fun uniqueFile(parent: File, displayName: String): File {
-        var candidate = File(parent, displayName)
+        val clean = displayName.trim()
+        if (clean.isEmpty() || clean == "." || clean == ".." ||
+            clean.contains('/') || clean.contains('\\') || clean.indexOf('\u0000') >= 0
+        ) {
+            throw FileNotFoundException("geçersiz ad: $displayName")
+        }
+        val parentCanonical = parent.canonicalFile
+        var candidate = File(parentCanonical, clean)
+        if (candidate.canonicalFile.parentFile != parentCanonical) {
+            throw FileNotFoundException("geçersiz ad: $displayName")
+        }
         if (!candidate.exists()) return candidate
-        val dot = displayName.lastIndexOf('.')
-        val base = if (dot > 0) displayName.substring(0, dot) else displayName
-        val ext = if (dot > 0) displayName.substring(dot) else ""
+        val dot = clean.lastIndexOf('.')
+        val base = if (dot > 0) clean.substring(0, dot) else clean
+        val ext = if (dot > 0) clean.substring(dot) else ""
         var index = 2
         while (candidate.exists() && index < 1000) {
-            candidate = File(parent, "$base ($index)$ext")
+            candidate = File(parentCanonical, "$base ($index)$ext")
             index++
         }
         return candidate

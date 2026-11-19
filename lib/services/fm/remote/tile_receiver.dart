@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' show DartPluginRegistrant;
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -112,5 +113,11 @@ abstract final class TileReceiver {
 @pragma('vm:entry-point')
 Future<void> aktarKutucukAlici() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await TileReceiver.run();
+  DartPluginRegistrant.ensureInitialized();
+  try {
+    await TileReceiver.run();
+  } catch (_) {
+    // Başlatılamadıysa ön plan servisi asılı kalmasın.
+    await TileReceiver._call('stop');
+  }
 }

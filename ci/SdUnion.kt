@@ -390,22 +390,40 @@ object SdUnionRules {
     }
 
     /**
-     * İki dosya aynı mı? Boy + baştan ve sondan 64 KB. Tam özet (SHA) her
-     * çalışmada binlerce fotoğrafı baştan okutur; aynı boyda ve aynı uçlarda
-     * farklı fotoğraf pratikte yok (JPEG'in başında EXIF zamanı, sonunda
-     * sıkıştırılmış veri durur).
+     * İki dosya aynı mı? Önce boy + baştan ve sondan 64 KB hızlı eleme;
+     * uçlar eşleşirse ve dosya > 128 KB ise ortadaki baytlar da akışla
+     * karşılaştırılır (taşımada aynı sanılan dosyanın kaynağı silindiği için
+     * yalnız uçlara bakmak ortası değişmiş dosyada veri kaybı yaratırdı).
      */
     fun sameContent(a: File, b: File): Boolean {
         val len = a.length()
         if (len != b.length()) return false
+        if (len == 0L) return true
         val chunk = 64 * 1024
         return try {
             FileInputStream(a).use { ia ->
                 FileInputStream(b).use { ib ->
-                    if (!sameRange(ia, ib, 0L, minOf(chunk.toLong(), len))) return false
-                    val tail = maxOf(0L, len - chunk)
-                    if (tail <= 0L) return true
-                    sameRange(ia, ib, tail, len - tail)
+                    val headLen = minOf(chunk.toLong(), len)
+                    if (!sameRange(ia, ib, 0L, headLen)) return false
+                    if (len <= headLen) return true
+                    val tailOffset = maxOf(headLen, len - chunk)
+                    if (!sameRange(ia, ib, tailOffset, len - tailOffset)) return false
+                    var pos = headLen
+                    val bufA = ByteArray(chunk)
+                    val bufB = ByteArray(chunk)
+                    ia.channel.position(pos)
+                    ib.channel.position(pos)
+                    while (pos < tailOffset) {
+                        val toRead = minOf(chunk.toLong(), tailOffset - pos).toInt()
+                        if (readFully(ia, bufA, toRead) != toRead ||
+                            readFully(ib, bufB, toRead) != toRead
+                        ) return false
+                        for (i in 0 until toRead) {
+                            if (bufA[i] != bufB[i]) return false
+                        }
+                        pos += toRead
+                    }
+                    true
                 }
             }
         } catch (e: Exception) {
@@ -422,10 +440,10 @@ object SdUnionRules {
         return bufA.contentEquals(bufB)
     }
 
-    private fun readFully(input: FileInputStream, buf: ByteArray): Int {
+    private fun readFully(input: FileInputStream, buf: ByteArray, limit: Int = buf.size): Int {
         var read = 0
-        while (read < buf.size) {
-            val n = input.read(buf, read, buf.size - read)
+        while (read < limit) {
+            val n = input.read(buf, read, limit - read)
             if (n < 0) break
             read += n
         }
@@ -498,13 +516,23 @@ class SdUnionEngine(
 
     private fun walk(dir: File, rel: String, sd: File, result: SdUnionResult) {
         val stack = ArrayDeque<Pair<File, String>>()
+        val visited = HashSet<String>()
         stack.addLast(dir to rel)
         while (stack.isNotEmpty()) {
             if (cancelled.get() || result.error != null) return
             val (current, currentRel) = stack.removeLast()
+            val currentCanon = try { current.canonicalFile } catch (_: Exception) { continue }
+            if (!visited.add(currentCanon.path)) continue
             val children = current.listFiles() ?: continue
             for (child in children) {
                 if (cancelled.get() || result.error != null) return
+                // Sembolik bağları atla (döngü ve kapsam dışına kaçış önlemi).
+                val isSymlink = try {
+                    child.canonicalFile.parentFile != currentCanon
+                } catch (_: Exception) {
+                    true
+                }
+                if (isSymlink) continue
                 val childRel = "$currentRel/${child.name}"
                 if (child.isDirectory) {
                     if (SdUnionRules.isEligibleDir(child.name, childRel)) {
@@ -580,8 +608,19 @@ class SdUnionEngine(
                 }
             }
             if (tmp.length() != need) throw IllegalStateException("boy tutmadı")
-            if (dest.exists() && !cfg.move) dest.delete() // yedeğin eski hâli
-            if (!tmp.renameTo(dest)) throw IllegalStateException("rename")
+            if (dest.exists() && !cfg.move) {
+                val bak = File(parent, "." + dest.name + SdUnionRules.TMP_SUFFIX + ".bak")
+                bak.delete()
+                val backedUp = dest.renameTo(bak)
+                if (!backedUp) dest.delete()
+                if (!tmp.renameTo(dest)) {
+                    if (backedUp) bak.renameTo(dest)
+                    throw IllegalStateException("rename")
+                }
+                if (backedUp) bak.delete()
+            } else {
+                if (!tmp.renameTo(dest)) throw IllegalStateException("rename")
+            }
         } catch (e: InterruptedException) {
             tmp.delete()
             onTmp(null)

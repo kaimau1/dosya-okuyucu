@@ -451,6 +451,8 @@ roots = [p['rootUri'] for p in cfg['packages'] if p['name'] == 'receive_sharing_
 if not roots:
     raise SystemExit('receive_sharing_intent bulunamadı (yama)')
 root = pathlib.Path(urllib.request.url2pathname(urllib.parse.urlparse(roots[0]).path))  # Windows: /C:/... yolu
+if not root.is_absolute():
+    root = (pathlib.Path('.dart_tool') / root).resolve()
 kt = next(root.rglob('FileDirectory.kt'))
 t = kt.read_text()
 bad = 'targetFile = File(context.cacheDir, fileName)'
@@ -477,7 +479,7 @@ rm -rf .backup
 # Ayrı kimlik (`.okuyucu`, ayrı Play kaydı) + manifestte HASSAS izin yok
 # (ci/play_variant.py ile çıkarılır, derleme sonrası `verify`). Dart tarafı
 # `--dart-define=DOSYA_OKUYUCU=true` (StoragePermission.readerBuild).
-OKUYUCU_REMOVE='MANAGE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE,REQUEST_INSTALL_PACKAGES,QUERY_ALL_PACKAGES,REQUEST_DELETE_PACKAGES,ACCESS_FINE_LOCATION,ACCESS_COARSE_LOCATION,NEARBY_WIFI_DEVICES,BLUETOOTH,BLUETOOTH_ADMIN,BLUETOOTH_SCAN,BLUETOOTH_ADVERTISE,BLUETOOTH_CONNECT,PACKAGE_USAGE_STATS,SYSTEM_ALERT_WINDOW,RECORD_AUDIO,READ_MEDIA_IMAGES,READ_MEDIA_VIDEO,READ_MEDIA_AUDIO,READ_MEDIA_VISUAL_USER_SELECTED'
+OKUYUCU_REMOVE='MANAGE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE,REQUEST_INSTALL_PACKAGES,QUERY_ALL_PACKAGES,REQUEST_DELETE_PACKAGES,ACCESS_FINE_LOCATION,ACCESS_COARSE_LOCATION,NEARBY_WIFI_DEVICES,BLUETOOTH,BLUETOOTH_ADMIN,BLUETOOTH_SCAN,BLUETOOTH_ADVERTISE,BLUETOOTH_CONNECT,PACKAGE_USAGE_STATS,SYSTEM_ALERT_WINDOW,RECORD_AUDIO,CAMERA,READ_MEDIA_IMAGES,READ_MEDIA_VIDEO,READ_MEDIA_AUDIO,READ_MEDIA_VISUAL_USER_SELECTED'
 SUFFIX=''
 [ "${DOSYA_R8TEST:-0}" = "1" ] && SUFFIX=r8test
 [ "${DOSYA_OKUYUCU:-0}" = "1" ] && SUFFIX=okuyucu
@@ -485,6 +487,8 @@ if [ -n "$SUFFIX" ]; then
   say ".$SUFFIX yan yana kimlik"
   sed -i "s/com\.dosyaokuyucu\.dosya_okuyucu\.documents/com.dosyaokuyucu.dosya_okuyucu.$SUFFIX.documents/" \
     android/app/src/main/AndroidManifest.xml "$DIR/PickerActivity.kt"
+  sed -i "s/android:targetPackage=\"com\.dosyaokuyucu\.dosya_okuyucu\"/android:targetPackage=\"com.dosyaokuyucu.dosya_okuyucu.$SUFFIX\"/" \
+    android/app/src/main/res/xml/shortcuts.xml
   SUFFIX="$SUFFIX" python3 - <<'PY'
 import os, pathlib, re
 suffix = os.environ['SUFFIX']
@@ -496,7 +500,7 @@ if 'applicationIdSuffix' not in t:
         raise SystemExit(f'defaultConfig bulunamadı (.{suffix})')
     a.write_text(t)
 PY
-  grep -c "$SUFFIX" android/app/build.gradle.kts android/app/src/main/AndroidManifest.xml "$DIR/PickerActivity.kt"
+  grep -c "$SUFFIX" android/app/build.gradle.kts android/app/src/main/AndroidManifest.xml "$DIR/PickerActivity.kt" android/app/src/main/res/xml/shortcuts.xml
 fi
 if [ "${DOSYA_OKUYUCU:-0}" = "1" ]; then
   DOSYA_PLAY_REMOVE="$OKUYUCU_REMOVE" python3 ci/play_variant.py apply

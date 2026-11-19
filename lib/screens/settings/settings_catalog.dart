@@ -747,12 +747,13 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
           SettingsSection('settings.about', [
             SettingRow(
                 id: 'about', titleKey: 'settings.about', builder: _aboutTile),
-            SettingRow(
-                id: 'app_update',
-                titleKey: 'upd.title',
-                subtitleKey: 'upd.auto_sub',
-                altKeys: ['upd.check', 'upd.auto'],
-                builder: _appUpdateTile),
+            if (Edition.current == Edition.kisisel)
+              SettingRow(
+                  id: 'app_update',
+                  titleKey: 'upd.title',
+                  subtitleKey: 'upd.auto_sub',
+                  altKeys: ['upd.check', 'upd.auto'],
+                  builder: _appUpdateTile),
             SettingRow(
                 id: 'help',
                 titleKey: 'help.title',

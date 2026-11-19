@@ -206,8 +206,9 @@ class AiScope {
   /// silinmiş dosyanın AI özetinde dirilmesi hata olurdu.
   static const _hardBlocked = {
     '.dosya-okuyucu-cop',
-    // G10.3: kasa (şifreli kopyalar) ve düz açma önbelleği.
+    // G10.3: kasa (şifreli kopyalar), eski gizli klasör ve düz açma önbelleği.
     '.dosyaokuyucukasa',
+    '.dosyaokuyucugizli',
     'vault_open',
     '.thumbnails',
     '.trashed',
@@ -229,10 +230,15 @@ class AiScope {
   /// Klasör bazında karar vermek kritik: dışlanan bir klasörün altındaki 20
   /// bin dosyayı tek tek eleyip atmak yerine, o dala hiç girilmez.
   bool allowsDir(String dirPath) {
-    final name = p.basename(dirPath);
-    if (_hardBlocked.contains(name.toLowerCase())) return false;
-    if (!settings.includeHidden && name.startsWith('.') && name != '.') {
-      return false;
+    for (final seg in p.split(dirPath)) {
+      if (seg.isEmpty || seg == '/' || seg == r'\') continue;
+      if (_hardBlocked.contains(seg.toLowerCase())) return false;
+      if (!settings.includeHidden &&
+          seg.startsWith('.') &&
+          seg != '.' &&
+          seg != '..') {
+        return false;
+      }
     }
     if (_isInsideAndroidData(dirPath)) return false;
     if (FolderLock.isLocked(dirPath, lockedFolders)) return false;

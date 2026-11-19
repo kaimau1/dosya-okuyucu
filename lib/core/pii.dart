@@ -105,13 +105,20 @@ abstract final class PiiMaskSetting {
   }
 }
 
-/// İstek gövdesindeki (Gemini JSON) her `text` alanını maskeler; görsel
+const _maskableKeys = {
+  'text',
+  'instructions',
+  'true_description',
+  'false_description',
+};
+
+/// İstek gövdesindeki (Gemini JSON) her metin/talimat alanını maskeler; görsel
 /// verisi (`inlineData`) dokunulmaz. JSON değilse metin olduğu gibi döner.
 Object? maskJsonTexts(Object? node) {
   if (node is Map) {
     return {
       for (final e in node.entries)
-        e.key: e.key == 'text' && e.value is String
+        e.key: _maskableKeys.contains(e.key) && e.value is String
             ? Pii.mask(e.value as String)
             : maskJsonTexts(e.value),
     };

@@ -538,14 +538,23 @@ class FatFileSystem extends UsbFileSystem {
     if (existing.any((e) => e.isDir)) {
       throw const UsbFsException('Aynı adlı bir klasör var');
     }
-    for (final e in existing) {
-      await deleteEntry(dirId, e);
-    }
 
     final needed = (totalLength + clusterSize - 1) ~/ clusterSize;
-    final chain = await _allocate(needed);
+    List<int> chain;
+    var deletedBeforeWrite = false;
+    try {
+      chain = await _allocate(needed);
+    } on UsbFsException {
+      if (existing.isEmpty) rethrow;
+      for (final e in existing) {
+        await deleteEntry(dirId, e);
+      }
+      deletedBeforeWrite = true;
+      chain = await _allocate(needed);
+    }
     // **Önce veri.** Girdi en son yazılıyor: yarıda kesilen işlem, var
-    // görünen ama boş bir dosya bırakmasın.
+    // görünen ama boş bir dosya bırakmasın; mevcut dosya da yeni veri
+    // eksiksiz yazılana dek silinmez.
     //
     // Akış küme küme tüketiliyor; parçalar küme sınırıyla hizalı gelmez
     // (ağdan/diskten okuma 64 KB'lık öbekler verir), o yüzden tampon
@@ -554,6 +563,7 @@ class FatFileSystem extends UsbFileSystem {
     var filled = 0;
     var written = 0;
     var buffer = Uint8List(clusterSize);
+    final int first;
     try {
       await for (final chunk in data) {
         var offset = 0;
@@ -580,9 +590,17 @@ class FatFileSystem extends UsbFileSystem {
         if (index >= chain.length) {
           throw const UsbFsException('Akış bildirilenden uzun');
         }
-        await _writeCluster(chain[index], Uint8List.sublistView(buffer, 0,
-            filled));
+        await _writeCluster(
+            chain[index], Uint8List.sublistView(buffer, 0, filled));
       }
+      if (!deletedBeforeWrite) {
+        for (final e in existing) {
+          await deleteEntry(dirId, e);
+        }
+      }
+      first = chain.isEmpty ? 0 : chain.first;
+      await _addDirectoryEntry(dirCluster, name,
+          isDir: false, cluster: first, size: written);
     } catch (e) {
       // **Yarım kalan dosya BIRAKILMAZ:** ayrılan kümeler geri veriliyor,
       // dizin girdisi hiç yazılmıyor. Aksi hâlde bellekte adı olmayan ama
@@ -592,9 +610,6 @@ class FatFileSystem extends UsbFileSystem {
       }
       rethrow;
     }
-    final first = chain.isEmpty ? 0 : chain.first;
-    await _addDirectoryEntry(dirCluster, name,
-        isDir: false, cluster: first, size: written);
     return UsbEntry(
       name: name,
       isDir: false,

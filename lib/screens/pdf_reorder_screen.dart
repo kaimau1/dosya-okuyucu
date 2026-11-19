@@ -43,19 +43,23 @@ class _PdfReorderScreenState extends State<PdfReorderScreen> {
   }
 
   Future<void> _open() async {
-    final password = widget.password;
-    final doc = await PdfDocument.openData(
-      widget.bytes,
-      passwordProvider: password == null ? null : () async => password,
-    );
-    if (!mounted) {
-      await doc.dispose();
-      return;
+    try {
+      final password = widget.password;
+      final doc = await PdfDocument.openData(
+        widget.bytes,
+        passwordProvider: password == null ? null : () async => password,
+      );
+      if (!mounted) {
+        await doc.dispose();
+        return;
+      }
+      setState(() {
+        _doc = doc;
+        _order = List<int>.generate(doc.pages.length, (i) => i);
+      });
+    } catch (_) {
+      if (mounted) Navigator.of(context).maybePop();
     }
-    setState(() {
-      _doc = doc;
-      _order = List<int>.generate(doc.pages.length, (i) => i);
-    });
   }
 
   @override

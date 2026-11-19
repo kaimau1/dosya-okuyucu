@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import '../../core/private_zone.dart';
 import 'fm_env.dart';
 
 /// Yıldızlanmış bir sayfa.
@@ -97,6 +98,7 @@ abstract final class PdfBookmarks {
 
   /// Sayfayı yıldızlar ya da yıldızını kaldırır; yeni durumu döndürür.
   static Future<bool> toggle(String path, int page, {int size = 0}) async {
+    if (PrivateZone.active || PrivateZone.isPrivatePath(path)) return false;
     await ensureLoaded();
     final doc = _find(path, size) ?? (_byPath[path] = _Doc([], size));
     final had = doc.marks.any((m) => m.page == page);

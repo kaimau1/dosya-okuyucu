@@ -1,6 +1,6 @@
 # Privacy Policy — Dosya Okuyucu
 
-**Last updated:** 2 November 2026 · **Version:** 0.2.0
+**Last updated:** 19 November 2026 · **Version:** 0.3.0
 
 ## Summary
 
@@ -32,6 +32,7 @@ error logs; your files are not touched). App data is not included in Android bac
 | Action | Goes to | What is sent |
 |---|---|---|
 | **Gemini AI** (chat, summary, analysis) | Google — `generativelanguage.googleapis.com` | Your question and the text of the file you opened for the AI. Sent with **your own API key**, which you enter, is stored on the device and never passes through a server of ours. |
+| **Cloud OCR & image AI** (optional) | Google — `generativelanguage.googleapis.com` | Only if you turn on **Cloud OCR (Gemini)** in Settings or start **"What's in this image?" / AI quality & burst scoring**: a downscaled preview of the selected page/image is sent with **your own API key**. Default OCR runs on the device. |
 | **Google Drive** | Google | Only if you connect it: the files you upload/download and the file listing |
 | **Network storage** (FTP/SFTP/SMB/WebDAV) | **Your own** server | Connection details and the files you transfer. These connections do not pass through us. |
 | **Download manager** | The address you enter | The download request |
@@ -40,10 +41,12 @@ error logs; your files are not touched). App data is not included in Android bac
 | **AI meaning search** | Google — `generativelanguage.googleapis.com` | **Only the search query you type** (with your own key). File names and contents are not sent; matching happens on the device. |
 | **AI tagging / sorting into categories** | Google — `generativelanguage.googleapis.com` | For the files you select: **name, extension, the NAME of the folder they are in** (not the full path), size and month (for a category analysis also a count/size summary). File contents are not sent; the camera folder and locked folders are never sent. Suggestions are not written until you approve them. |
 | **AI voices** (Antalia-2 Mini, EMA Lightning) | Hugging Face — `huggingface.co` | Only while **you download** a voice: the request for the model files. Your text is never sent — speech is generated on the device, offline. |
+| **Subtitle search** (OpenSubtitles) | OpenSubtitles — `api.opensubtitles.com` | Only when you tap **Search subtitles** in the video player: your search query (movie/video title) and the download request for the subtitle you pick. |
 
-**Text recognition (OCR), smart cleanup analysis, audiobook creation,
+**Default text recognition (OCR), smart cleanup analysis, audiobook creation,
 document scanning and translation run on the
-device** — your document contents are not uploaded for these features.
+device** — your document and image contents are not uploaded unless you opt into
+Cloud OCR or start an AI image insight action.
 
 **Showing text as a QR code** uses no network: the text is inside the QR
 code that the other person's camera reads and is not uploaded anywhere.
@@ -101,6 +104,7 @@ The summary is shown on screen first and leaves the device only if you press
 | All files access (`MANAGE_EXTERNAL_STORAGE`) | So a file manager can browse the folders on your phone. If you decline, the app still works; only media folders are visible. |
 | Media (images/video/audio) | Gallery, players and thumbnails |
 | Camera | Document scanner only. The app works fully on devices without a camera. |
+| Microphone (`RECORD_AUDIO`) | Only when you record slide narration or use voice typing (dictation). Audio is never sent to our servers. |
 | Notifications | Progress of long jobs (copy, compress, download) |
 | Usage access (`PACKAGE_USAGE_STATS`) | The **last-opened date** on the "Apps" screen. If you decline, the list still works. |
 | Install unknown apps | To open the system installer when you tap an `.apk` file |

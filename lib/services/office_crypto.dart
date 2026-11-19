@@ -47,7 +47,7 @@ abstract final class OfficeCrypto {
     final ole = OleFile.tryParse(bytes);
     final info = ole?.stream('EncryptionInfo');
     final package = ole?.stream('EncryptedPackage');
-    if (info == null || package == null) {
+    if (info == null || package == null || package.length < 8) {
       throw const OfficeCryptoException('corrupt');
     }
     final hdr = ByteData.sublistView(info);
@@ -56,53 +56,103 @@ abstract final class OfficeCrypto {
       // Standart (RC4/eski AES) şifreleme desteklenmiyor.
       throw const OfficeCryptoException('unsupported');
     }
-    final xml = utf8.decode(info.sublist(8), allowMalformed: true);
-    String attr(String tag, String name) {
-      final el = RegExp('<(?:\\w+:)?$tag\\b[^>]*>').firstMatch(xml)?.group(0);
-      final m = el == null ? null : RegExp('\\b$name="([^"]*)"').firstMatch(el);
-      if (m == null) throw const OfficeCryptoException('corrupt');
-      return m.group(1)!;
-    }
+    try {
+      final xml = utf8.decode(info.sublist(8), allowMalformed: true);
+      String? optAttr(String tag, String name) {
+        final el =
+            RegExp('<(?:\\w+:)?$tag\\b[^>]*>').firstMatch(xml)?.group(0);
+        return el == null
+            ? null
+            : RegExp('\\b$name="([^"]*)"').firstMatch(el)?.group(1);
+      }
 
-    final keySalt = base64.decode(attr('keyData', 'saltValue'));
-    final keyBits = int.parse(attr('encryptedKey', 'keyBits'));
-    final spin = int.parse(attr('encryptedKey', 'spinCount'));
-    final pwSalt = base64.decode(attr('encryptedKey', 'saltValue'));
-    // G7.9: MS-OFFCRYPTO spinCount ≤ 10.000.000; anahtar 128/192/256 bit.
-    // Denetimsiz değer kötü niyetli dosyada saatlerce süren (iptal edilemez)
-    // döngü ya da geçersiz anahtar boyu demekti.
-    if (spin < 1 || spin > 10000000 || !const {128, 192, 256}.contains(keyBits)) {
-      throw const OfficeCryptoException('corrupt');
-    }
-    if (attr('encryptedKey', 'hashAlgorithm') != 'SHA512' ||
-        attr('keyData', 'cipherAlgorithm') != 'AES') {
-      throw const OfficeCryptoException('unsupported');
-    }
-    final h = _passwordHash(password, pwSalt, spin);
-    final keyLen = keyBits ~/ 8;
-    final vInput = _aes(false, _derive(h, _bkVerifierInput, keyLen), pwSalt,
-        base64.decode(attr('encryptedKey', 'encryptedVerifierHashInput')));
-    final vValue = _aes(false, _derive(h, _bkVerifierValue, keyLen), pwSalt,
-        base64.decode(attr('encryptedKey', 'encryptedVerifierHashValue')));
-    final expect = _sha512(vInput.sublist(0, 16));
-    for (var i = 0; i < 64; i++) {
-      if (expect[i] != vValue[i]) {
+      String attr(String tag, String name) {
+        final v = optAttr(tag, name);
+        if (v == null) throw const OfficeCryptoException('corrupt');
+        return v;
+      }
+
+      final keySalt = base64.decode(attr('keyData', 'saltValue'));
+      final keyBits = int.parse(attr('encryptedKey', 'keyBits'));
+      final spin = int.parse(attr('encryptedKey', 'spinCount'));
+      final pwSalt = base64.decode(attr('encryptedKey', 'saltValue'));
+      // G7.9: MS-OFFCRYPTO spinCount ≤ 10.000.000; anahtar 128/192/256 bit.
+      // Denetimsiz değer kötü niyetli dosyada saatlerce süren (iptal edilemez)
+      // döngü ya da geçersiz anahtar boyu demekti.
+      if (spin < 1 ||
+          spin > 10000000 ||
+          !const {128, 192, 256}.contains(keyBits) ||
+          keySalt.isEmpty ||
+          pwSalt.isEmpty) {
+        throw const OfficeCryptoException('corrupt');
+      }
+      if (attr('encryptedKey', 'hashAlgorithm') != 'SHA512' ||
+          attr('keyData', 'cipherAlgorithm') != 'AES') {
+        throw const OfficeCryptoException('unsupported');
+      }
+      final h = _passwordHash(password, pwSalt, spin);
+      final keyLen = keyBits ~/ 8;
+      final vInput = _aes(false, _derive(h, _bkVerifierInput, keyLen), pwSalt,
+          base64.decode(attr('encryptedKey', 'encryptedVerifierHashInput')));
+      final vValue = _aes(false, _derive(h, _bkVerifierValue, keyLen), pwSalt,
+          base64.decode(attr('encryptedKey', 'encryptedVerifierHashValue')));
+      if (vInput.length < 16 || vValue.length < 64) {
+        throw const OfficeCryptoException('corrupt');
+      }
+      final expect = _sha512(vInput.sublist(0, 16));
+      var pwDiff = 0;
+      for (var i = 0; i < 64; i++) {
+        pwDiff |= expect[i] ^ vValue[i];
+      }
+      if (pwDiff != 0) {
         throw const OfficeCryptoException('wrong_password');
       }
+      final rawSecret = _aes(false, _derive(h, _bkKey, keyLen), pwSalt,
+          base64.decode(attr('encryptedKey', 'encryptedKeyValue')));
+      if (rawSecret.length < keyLen) {
+        throw const OfficeCryptoException('corrupt');
+      }
+      final secret = rawSecret.sublist(0, keyLen);
+
+      final encHmacKeyB64 = optAttr('dataIntegrity', 'encryptedHmacKey');
+      final encHmacValB64 = optAttr('dataIntegrity', 'encryptedHmacValue');
+      if (encHmacKeyB64 != null && encHmacValB64 != null) {
+        final hmacKeyFull = _aes(false, secret, _ivFor(keySalt, _bkHmacKey),
+            base64.decode(encHmacKeyB64));
+        final hmacValFull = _aes(false, secret, _ivFor(keySalt, _bkHmacValue),
+            base64.decode(encHmacValB64));
+        if (hmacKeyFull.length < 64 || hmacValFull.length < 64) {
+          throw const OfficeCryptoException('corrupt');
+        }
+        final hmacKey = hmacKeyFull.sublist(0, 64);
+        final hmac = HMac(SHA512Digest(), 128)..init(KeyParameter(hmacKey));
+        final actualHmac = hmac.process(package);
+        var macDiff = 0;
+        for (var i = 0; i < 64; i++) {
+          macDiff |= actualHmac[i] ^ hmacValFull[i];
+        }
+        if (macDiff != 0) {
+          throw const OfficeCryptoException('corrupt');
+        }
+      }
+
+      final size = ByteData.sublistView(package).getUint64(0, Endian.little);
+      final out = BytesBuilder(copy: false);
+      var i = 0;
+      for (var off = 8; off < package.length; off += _segment, i++) {
+        final end = math.min(off + _segment, package.length);
+        out.add(_aes(false, secret, _iv(keySalt, i), package.sublist(off, end)));
+      }
+      final plain = out.toBytes();
+      if (size < 0 || size > plain.length) {
+        throw const OfficeCryptoException('corrupt');
+      }
+      return Uint8List.sublistView(plain, 0, size);
+    } on OfficeCryptoException {
+      rethrow;
+    } catch (_) {
+      throw const OfficeCryptoException('corrupt');
     }
-    final secret = _aes(false, _derive(h, _bkKey, keyLen), pwSalt,
-            base64.decode(attr('encryptedKey', 'encryptedKeyValue')))
-        .sublist(0, keyLen);
-    final size = ByteData.sublistView(package).getUint64(0, Endian.little);
-    final out = BytesBuilder(copy: false);
-    var i = 0;
-    for (var off = 8; off < package.length; off += _segment, i++) {
-      final end = math.min(off + _segment, package.length);
-      out.add(_aes(false, secret, _iv(keySalt, i), package.sublist(off, end)));
-    }
-    final plain = out.toBytes();
-    if (size > plain.length) throw const OfficeCryptoException('corrupt');
-    return Uint8List.sublistView(plain, 0, size);
   }
 
   static Future<Uint8List> decryptInBackground(Uint8List bytes, String password) =>

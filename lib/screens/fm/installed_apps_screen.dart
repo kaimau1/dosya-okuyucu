@@ -143,6 +143,7 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen>
     await _loadSub?.cancel();
     // Kesilen yüklemeyi bekleyen (aşağı çek → yenile) takılı kalmasın.
     if (_loadDone?.isCompleted == false) _loadDone!.complete();
+    if (!mounted) return;
     if (!quiet && _apps.isEmpty) setState(() => _loading = true);
     final done = _loadDone = Completer<void>();
     var first = true;

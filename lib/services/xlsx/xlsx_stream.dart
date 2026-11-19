@@ -6,6 +6,8 @@ import 'package:path/path.dart' as p;
 import 'package:xml/xml.dart';
 import 'package:xml/xml_events.dart';
 
+import '../office_zip_guard.dart';
+
 /// **Büyük xlsx akış okuyucusu** (Faz 42 / 2 — performans anayasası k.10).
 ///
 /// Tam ayrıştırma (`XlsxReader.read`) dosyanın tamamını belleğe alır, sonra
@@ -75,6 +77,7 @@ abstract final class XlsxStream {
       ..createSync(recursive: true);
     try {
       final archive = ZipDecoder().decodeStream(input);
+      OfficeZipGuard.check(archive);
       ArchiveFile? entry(String name) {
         final want = name.toLowerCase();
         for (final f in archive.files) {

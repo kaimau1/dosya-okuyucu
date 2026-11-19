@@ -264,6 +264,7 @@ class FormulaEngine {
 
   Object _eval(String src, Set<String> visiting,
       {int selfR = 0, int selfC = 0, String? sheet}) {
+    if (visiting.length > 256) throw const _CycleError();
     final p = _Parser(src, this, visiting,
         selfR: selfR, selfC: selfC, sheet: sheet ?? sheetName);
     final v = p.parseExpr();

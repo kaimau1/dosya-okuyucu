@@ -584,6 +584,7 @@ class _EditPainter extends CustomPainter {
       canvas.drawRRect(RRect.fromRectAndRadius(pill, const Radius.circular(12)),
           Paint()..color = AppColors.mediaChrome);
       tp.paint(canvas, pill.center - Offset(tp.width / 2, tp.height / 2));
+      tp.dispose();
     }
   }
 

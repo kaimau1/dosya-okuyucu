@@ -503,6 +503,7 @@ jobs:
         env:
           KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'DosyaOkuyucuGecici' }}
           DOSYA_PLAY: ${{ inputs.play && '1' || '0' }}
+          DOSYA_SURUM: ${{ inputs.play && 'pro' || 'kisisel' }}
           DOSYA_PLAY_REMOVE: ${{ inputs.play_remove || 'QUERY_ALL_PACKAGES,READ_MEDIA_IMAGES,READ_MEDIA_VIDEO,READ_MEDIA_AUDIO,READ_MEDIA_VISUAL_USER_SELECTED' }}
         run: |
           set -e
@@ -516,6 +517,7 @@ jobs:
           flutter build appbundle --release \
             --obfuscate --split-debug-info=build/symbols-aab \
             --dart-define=DOSYA_PLAY="$DOSYA_PLAY" \
+            --dart-define=DOSYA_SURUM="$DOSYA_SURUM" \
             --build-name="$BUILD_NAME" --build-number="$BUILD_NUMBER" \
             --target-platform android-arm,android-arm64,android-x64
           AAB=build/app/outputs/bundle/release/app-release.aab

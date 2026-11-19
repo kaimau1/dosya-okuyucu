@@ -132,9 +132,10 @@ class FmEntryRow extends StatelessWidget {
             ? scheme.primaryContainer.withValues(alpha: 0.4)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(Radii.card),
-        clipBehavior: Clip.antiAlias,
+        clipBehavior: Clip.none,
         child: InkWell(
           onTap: onTap,
+          borderRadius: BorderRadius.circular(Radii.card),
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: minRow),
             child: Padding(

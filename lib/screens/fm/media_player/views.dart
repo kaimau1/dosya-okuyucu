@@ -644,6 +644,21 @@ class _PosterVeilState extends State<_PosterVeil> {
     _timer = Timer(const Duration(seconds: 2), _drop);
   }
 
+  @override
+  void didUpdateWidget(covariant _PosterVeil oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_check);
+      if (!_gone) {
+        if (widget.controller.value.position > Duration.zero) {
+          _drop();
+        } else {
+          widget.controller.addListener(_check);
+        }
+      }
+    }
+  }
+
   void _check() {
     if (widget.controller.value.position > Duration.zero) _drop();
   }

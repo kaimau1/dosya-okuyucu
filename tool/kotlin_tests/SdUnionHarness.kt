@@ -97,12 +97,15 @@ fun main() {
         base.deleteRecursively()
     }
     run {
-        // Büyük dosya + baş/son karşılaştırma
+        // Büyük dosya + baş/orta/son karşılaştırma
         val base = Files.createTempDirectory("sdu").toFile()
         val a = File(base, "a.bin"); val b = File(base, "b.bin")
         val data = ByteArray(300_000) { (it % 251).toByte() }
         a.writeBytes(data); b.writeBytes(data)
         check(SdUnionRules.sameContent(a, b), "aynı büyük dosya aynı")
+        val midDiff = data.copyOf().also { it[150_000] = 9 }
+        b.writeBytes(midDiff)
+        check(!SdUnionRules.sameContent(a, b), "ortası farklı büyük dosya farklı")
         data[299_999] = 7; b.writeBytes(data)
         check(!SdUnionRules.sameContent(a, b), "sonu farklı dosya farklı")
         base.deleteRecursively()

@@ -59,6 +59,7 @@ class Slayt(private val activity: Activity) : MethodChannel.MethodCallHandler {
     private var channel: MethodChannel? = null
     private val main = Handler(Looper.getMainLooper())
     private var transformer: Transformer? = null
+    private var videoResult: MethodChannel.Result? = null
     private var recorder: MediaRecorder? = null
     private var recPath: String? = null
     private var presentation: DisplayPresentation? = null
@@ -86,13 +87,22 @@ class Slayt(private val activity: Activity) : MethodChannel.MethodCallHandler {
 
     fun dispose() {
         displays.unregisterDisplayListener(displayListener)
-        transformer?.cancel()
-        transformer = null
+        cancelActiveVideo()
         stopRecorder()
         dismissScreen()
         captureVolume = false
         channel?.setMethodCallHandler(null)
         channel = null
+    }
+
+    private fun cancelActiveVideo() {
+        transformer?.cancel()
+        transformer = null
+        val pending = videoResult
+        videoResult = null
+        if (pending != null) {
+            try { pending.error("cancelled", "cancelled", null) } catch (_: Exception) {}
+        }
     }
 
     private fun send(method: String, args: Any?) {
@@ -114,8 +124,7 @@ class Slayt(private val activity: Activity) : MethodChannel.MethodCallHandler {
         when (call.method) {
             "video" -> video(call, result)
             "cancelVideo" -> {
-                transformer?.cancel()
-                transformer = null
+                cancelActiveVideo()
                 result.success(true)
             }
             "removeBg" -> removeBg(call, result)
@@ -141,11 +150,11 @@ class Slayt(private val activity: Activity) : MethodChannel.MethodCallHandler {
         val paths = call.argument<List<String>>("paths") ?: return result.error("args", "paths", null)
         val durations = call.argument<List<Number>>("durations") ?: emptyList()
         val out = call.argument<String>("out") ?: return result.error("args", "out", null)
-        // H.264 kodlayıcıları çift ölçü ister.
-        val width = ((call.argument<Number>("width")?.toInt() ?: 1920) / 2) * 2
-        val height = ((call.argument<Number>("height")?.toInt() ?: 1080) / 2) * 2
+        // H.264 kodlayıcıları çift ölçü ister ve 0 kabul etmez.
+        val width = (((call.argument<Number>("width")?.toInt() ?: 1920) / 2) * 2).coerceAtLeast(2)
+        val height = (((call.argument<Number>("height")?.toInt() ?: 1080) / 2) * 2).coerceAtLeast(2)
         if (paths.isEmpty()) return result.error("args", "empty", null)
-        transformer?.cancel()
+        cancelActiveVideo()
         val effects = Effects(
             listOf(),
             listOf(Presentation.createForWidthAndHeight(width, height, Presentation.LAYOUT_SCALE_TO_FIT))
@@ -161,11 +170,13 @@ class Slayt(private val activity: Activity) : MethodChannel.MethodCallHandler {
         }
         val composition = Composition.Builder(EditedMediaItemSequence(items)).build()
         var answered = false
+        videoResult = result
         val t = Transformer.Builder(activity)
             .setVideoMimeType(MimeTypes.VIDEO_H264)
             .addListener(object : Transformer.Listener {
                 override fun onCompleted(composition: Composition, exportResult: ExportResult) {
                     transformer = null
+                    if (videoResult === result) videoResult = null
                     if (!answered) { answered = true; result.success(out) }
                 }
 
@@ -175,6 +186,7 @@ class Slayt(private val activity: Activity) : MethodChannel.MethodCallHandler {
                     exportException: ExportException
                 ) {
                     transformer = null
+                    if (videoResult === result) videoResult = null
                     File(out).delete()
                     if (!answered) {
                         answered = true
@@ -188,6 +200,7 @@ class Slayt(private val activity: Activity) : MethodChannel.MethodCallHandler {
             t.start(composition, out)
         } catch (e: Exception) {
             transformer = null
+            if (videoResult === result) videoResult = null
             if (!answered) { answered = true; result.error("start", e.message, null) }
         }
     }
@@ -197,38 +210,57 @@ class Slayt(private val activity: Activity) : MethodChannel.MethodCallHandler {
     private fun removeBg(call: MethodCall, result: MethodChannel.Result) {
         val path = call.argument<String>("path") ?: return result.error("args", "path", null)
         val out = call.argument<String>("out") ?: return result.error("args", "out", null)
-        val opts = BitmapFactory.Options().apply { inSampleSize = 1 }
-        // Bellek tavanı: uzun kenar ≤ 2048 (anayasa k.4).
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(path, bounds)
-        var side = maxOf(bounds.outWidth, bounds.outHeight)
-        while (side > 2048) { opts.inSampleSize *= 2; side /= 2 }
-        val bmp = BitmapFactory.decodeFile(path, opts) ?: return result.error("decode", path, null)
-        val client = SubjectSegmentation.getClient(
-            SubjectSegmenterOptions.Builder().enableForegroundBitmap().build()
-        )
-        client.process(InputImage.fromBitmap(bmp, 0))
-            .addOnSuccessListener { r ->
-                val fg = r.foregroundBitmap
-                if (fg == null) {
-                    result.error("empty", "no subject", null)
-                } else {
-                    Thread {
-                        try {
-                            FileOutputStream(out).use { fg.compress(Bitmap.CompressFormat.PNG, 100, it) }
-                            main.post { result.success(out) }
-                        } catch (e: Exception) {
-                            main.post { result.error("write", e.message, null) }
+        Thread {
+            val opts = BitmapFactory.Options().apply { inSampleSize = 1 }
+            // Bellek tavanı: uzun kenar ≤ 2048 (anayasa k.4).
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(path, bounds)
+            var side = maxOf(bounds.outWidth, bounds.outHeight)
+            while (side > 2048) { opts.inSampleSize *= 2; side /= 2 }
+            val bmp = try { BitmapFactory.decodeFile(path, opts) } catch (_: Throwable) { null }
+            if (bmp == null) {
+                main.post { result.error("decode", path, null) }
+                return@Thread
+            }
+            try {
+                val client = SubjectSegmentation.getClient(
+                    SubjectSegmenterOptions.Builder().enableForegroundBitmap().build()
+                )
+                client.process(InputImage.fromBitmap(bmp, 0))
+                    .addOnSuccessListener { r ->
+                        val fg = r.foregroundBitmap
+                        client.close()
+                        bmp.recycle()
+                        if (fg == null) {
+                            result.error("empty", "no subject", null)
+                        } else {
+                            Thread {
+                                try {
+                                    FileOutputStream(out).use { fg.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                                    main.post { result.success(out) }
+                                } catch (e: Exception) {
+                                    main.post { result.error("write", e.message, null) }
+                                } finally {
+                                    fg.recycle()
+                                }
+                            }.start()
                         }
-                    }.start()
-                }
-                client.close()
+                    }
+                    .addOnFailureListener { e ->
+                        client.close()
+                        bmp.recycle()
+                        val msg = e.message ?: ""
+                        result.error(
+                            if (msg.contains("download", true) || msg.contains("module", true)) "downloading" else "failed",
+                            msg,
+                            null
+                        )
+                    }
+            } catch (e: Throwable) {
+                bmp.recycle()
+                main.post { result.error("failed", e.message, null) }
             }
-            .addOnFailureListener { e ->
-                client.close()
-                val msg = e.message ?: ""
-                result.error(if (msg.contains("download", true) || msg.contains("module", true)) "downloading" else "failed", msg, null)
-            }
+        }.start()
     }
 
     // ── Anlatım kaydı ─────────────────────────────────────────────────────
@@ -236,21 +268,25 @@ class Slayt(private val activity: Activity) : MethodChannel.MethodCallHandler {
     private fun recStart(call: MethodCall, result: MethodChannel.Result) {
         val out = call.argument<String>("out") ?: return result.error("args", "out", null)
         stopRecorder()
+        var r: MediaRecorder? = null
         try {
             @Suppress("DEPRECATION")
-            val r = if (Build.VERSION.SDK_INT >= 31) MediaRecorder(activity) else MediaRecorder()
-            r.setAudioSource(MediaRecorder.AudioSource.MIC)
-            r.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-            r.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-            r.setAudioEncodingBitRate(96000)
-            r.setAudioSamplingRate(44100)
-            r.setOutputFile(out)
-            r.prepare()
-            r.start()
-            recorder = r
+            val rec = if (Build.VERSION.SDK_INT >= 31) MediaRecorder(activity) else MediaRecorder()
+            r = rec
+            rec.setAudioSource(MediaRecorder.AudioSource.MIC)
+            rec.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+            rec.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+            rec.setAudioEncodingBitRate(96000)
+            rec.setAudioSamplingRate(44100)
+            rec.setOutputFile(out)
+            rec.prepare()
+            rec.start()
+            recorder = rec
             recPath = out
             result.success(true)
         } catch (e: Exception) {
+            try { r?.release() } catch (_: Exception) {}
+            try { File(out).delete() } catch (_: Exception) {}
             recorder = null
             recPath = null
             result.error("rec", e.message, null)

@@ -224,10 +224,16 @@ class _BrowserScreenState extends State<BrowserScreen> {
     if (mounted) setState(() {});
   }
 
+  List<FsEntry>? _visibleCache;
+  (List<FsEntry>, FmFilter)? _visibleKey;
+
   /// Süzgeçten geçen girdiler (sıralı).
   List<FsEntry> _visible(List<FsEntry> sorted) {
     if (!_filter.isActive) return sorted;
-    return [
+    final key = (sorted, _filter);
+    if (_visibleKey == key && _visibleCache != null) return _visibleCache!;
+    _visibleKey = key;
+    return _visibleCache = [
       for (final e in sorted)
         if (_passesFilter(e)) e,
     ];
@@ -318,7 +324,9 @@ class _BrowserScreenState extends State<BrowserScreen> {
     );
 
     return Scaffold(
-      appBar: _selecting ? _selectionBar(context, entries) : _normalBar(context),
+      appBar: _selecting
+          ? _selectionBar(context, entries)
+          : _normalBar(context, appState),
       // Stack: alt eylem çubuğu gövdenin yüksekliğini DEĞİŞTİRMESİN (aksi
       // hâlde liste zıplıyor — 2026-07-29 hatası).
       body: Stack(

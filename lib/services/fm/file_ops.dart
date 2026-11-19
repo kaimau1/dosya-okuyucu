@@ -323,8 +323,15 @@ abstract final class FileOps {
     required void Function() onSkip,
     bool Function()? isCancelled,
   }) async {
+    final entityType = FileSystemEntity.typeSync(src, followLinks: false);
+    if (entityType == FileSystemEntityType.link) {
+      // Sembolik bağlara özyinelemeli klasör gibi girilmez (kök dışına / özel
+      // dizine işaret eden bağ veriyi sızdırmasın ya da silmesin).
+      onSkip();
+      return null;
+    }
     final srcDir = Directory(src);
-    final isDir = srcDir.existsSync();
+    final isDir = entityType == FileSystemEntityType.directory;
 
     if (isDir) {
       // Hızlı yol: aynı bölümde, hedef boşken klasörün tamamı tek `rename` ile
@@ -543,10 +550,34 @@ abstract final class FileOps {
       final isDirectory = Directory(path).existsSync();
       if (isDirectory) {
         await Directory(path).rename(via);
-        await Directory(via).rename(target);
+        try {
+          if (_exists(target)) {
+            throw const FileSystemException('bu adda bir öğe zaten var');
+          }
+          await Directory(via).rename(target);
+        } catch (_) {
+          try {
+            await Directory(via).rename(path);
+          } catch (_) {
+            // Bilinçli: geri alma denemesi başarısız olursa asıl hata yukarı çıkar.
+          }
+          rethrow;
+        }
       } else {
         await File(path).rename(via);
-        await File(via).rename(target);
+        try {
+          if (_exists(target)) {
+            throw const FileSystemException('bu adda bir öğe zaten var');
+          }
+          await File(via).rename(target);
+        } catch (_) {
+          try {
+            await File(via).rename(path);
+          } catch (_) {
+            // Bilinçli: geri alma denemesi başarısız olursa asıl hata yukarı çıkar.
+          }
+          rethrow;
+        }
       }
       await PathSideIndex.moved(path, target);
       FsEvents.changed([path, target]);

@@ -13,7 +13,8 @@ abstract final class PlayStore {
   static const _define = String.fromEnvironment('DOSYA_PLAY');
 
   /// Play derlemesi mi? (Testte [debugBuild] ile değişir.)
-  static bool get build => debugBuild ?? _define == '1';
+  static bool get build =>
+      debugBuild ?? (_define == '1' || _define == 'true');
 
   @visibleForTesting
   static bool? debugBuild;

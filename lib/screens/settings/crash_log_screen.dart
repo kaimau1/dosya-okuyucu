@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
@@ -37,6 +39,9 @@ class _CrashLogScreenState extends State<CrashLogScreen> {
 
   Future<void> _reload() async {
     final records = await CrashLog.load();
+    if (records.isNotEmpty) {
+      unawaited(CrashLog.markSeen());
+    }
     if (mounted) setState(() => _records = records);
   }
 

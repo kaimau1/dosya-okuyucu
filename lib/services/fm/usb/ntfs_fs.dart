@@ -81,6 +81,9 @@ class NtfsFileSystem extends UsbFileSystem {
     final mftCluster = d.getUint64(48, Endian.little);
     // Kayıt boyu: pozitifse küme sayısı, negatifse 2^(-değer) bayt.
     final rawRecord = d.getInt8(64);
+    if (rawRecord == 0 || rawRecord < -20) {
+      throw const UsbFsException('NTFS kayıt boyu akla yatkın değil');
+    }
     final recordSize = rawRecord > 0
         ? rawRecord * bytesPerSector * sectorsPerCluster
         : 1 << (-rawRecord);
@@ -130,7 +133,9 @@ class NtfsFileSystem extends UsbFileSystem {
   static int _shiftOrCount(int raw) {
     if (raw == 0) return 0;
     if (raw <= 0x80) return raw;
-    return 1 << (256 - raw);
+    final shift = 256 - raw;
+    if (shift < 0 || shift > 24) return 0;
+    return 1 << shift;
   }
 
   /// Birim etiketi ($Volume kaydındaki 0x60 özniteliği). Okunamazsa boş —

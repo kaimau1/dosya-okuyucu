@@ -5,7 +5,9 @@ import 'dart:isolate';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 
+import '../core/private_zone.dart';
 import 'gemini_service.dart';
+import 'offline_mode.dart';
 
 /// **Gemini Decisions API** istemcisi (2026-11-18, kullanıcı: *"Gemini yeni
 /// bir model çıkarmış, AI özelliklerimizde en iyi şekilde değerlendirelim"*).
@@ -63,6 +65,10 @@ abstract final class GeminiDecisions {
   static Future<Map<String, Object?>> fileBlock(String path,
       {String tooLarge = 'Dosya çok büyük.',
       String unsupported = 'Bu dosya türü desteklenmiyor.'}) async {
+    if (PrivateZone.active || PrivateZone.isPrivatePath(path)) {
+      throw GeminiException('Gizli kasa dosyaları yapay zekâya gönderilemez.',
+          statusCode: -1);
+    }
     final media = mediaFor(path);
     if (media == null) throw GeminiException(unsupported, statusCode: -1);
     final file = File(path);
@@ -128,6 +134,13 @@ abstract final class GeminiDecisions {
     required List<Map<String, Object?>> input,
     required List<DecisionQuestion> questions,
   }) async {
+    if (OfflineMode.enabled) {
+      throw GeminiException(const OfflineException().message, statusCode: -1);
+    }
+    if (PrivateZone.active) {
+      throw GeminiException('Gizli kasa açıkken yapay zekâ kullanılamaz.',
+          statusCode: -1);
+    }
     final clean = [
       for (final k in keys)
         if (k.trim().isNotEmpty) k.trim()
@@ -149,7 +162,8 @@ abstract final class GeminiDecisions {
         throw GeminiException('Ağ hatası: $e');
       }
       if (resp.statusCode == 200) {
-        return DecisionResult.parse(utf8.decode(resp.bodyBytes), questions);
+        return DecisionResult.parse(
+            utf8.decode(resp.bodyBytes, allowMalformed: true), questions);
       }
       last = GeminiException(GeminiService.readError(resp),
           statusCode: resp.statusCode);

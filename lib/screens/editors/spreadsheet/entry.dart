@@ -447,6 +447,7 @@ extension _SpreadsheetEditorScreenEntryPart on _SpreadsheetEditorScreenState {
         )..layout();
         final maxW = math.max(rect.width, area.maxWidth - rect.left - 8);
         final w = (measure.width + 16).clamp(rect.width, maxW).toDouble();
+        measure.dispose();
         final multi = _cellField.text.contains('\n') || (style?.wrap ?? false);
         final h = math.max(rect.height, size * 1.35 + 10);
         final scheme = Theme.of(context).colorScheme;

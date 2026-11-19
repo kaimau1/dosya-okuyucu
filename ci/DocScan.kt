@@ -73,6 +73,7 @@ class DocScan(private val activity: Activity) : MethodChannel.MethodCallHandler 
                     fail("unavailable", e.message)
                 }
             }
+            .addOnCanceledListener { fail("canceled", null) }
             .addOnFailureListener { e -> fail("unavailable", e.message) }
     }
 
@@ -114,8 +115,8 @@ class DocScan(private val activity: Activity) : MethodChannel.MethodCallHandler 
                     val out = File(dir, "p$stamp.pdf")
                     activity.contentResolver.openInputStream(uri)?.use { ins ->
                         FileOutputStream(out).use { ins.copyTo(it) }
+                        pdf = out.absolutePath
                     }
-                    pdf = out.absolutePath
                 }
                 activity.runOnUiThread {
                     p.success(mapOf("pages" to jpgs, "pdf" to pdf))

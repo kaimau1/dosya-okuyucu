@@ -114,7 +114,10 @@ abstract final class LanGuard {
     final origin = request.headers.value('origin');
     if (origin == null) return true;
     final o = Uri.tryParse(origin);
-    return o != null && o.host == host;
+    if (o == null || o.host != host) return false;
+    final reqPort = request.headers.port;
+    if (reqPort != null && o.hasPort && o.port != reqPort) return false;
+    return true;
   }
 }
 

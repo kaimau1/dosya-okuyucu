@@ -17,7 +17,7 @@ extension _SlideshowMedia on _SlideshowScreenState {
     final cur = _media;
     if (cur != null && cur.ref.part == ref.part && cur.ref.shapeId == ref.shapeId) {
       cur.ctrl.value.isPlaying ? await cur.ctrl.pause() : await cur.ctrl.play();
-      _partSetState(() {});
+      if (mounted) _partSetState(() {});
       return;
     }
     _stopMedia();

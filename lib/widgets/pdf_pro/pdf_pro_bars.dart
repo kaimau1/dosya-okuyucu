@@ -412,6 +412,20 @@ class _PdfProTextInputState extends State<PdfProTextInput> {
   }
 
   @override
+  void didUpdateWidget(covariant PdfProTextInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.input != widget.input) {
+      oldWidget.input.removeListener(_onInput);
+      widget.input.addListener(_onInput);
+    }
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_onController);
+      widget.controller.addListener(_onController);
+      _onController();
+    }
+  }
+
+  @override
   void dispose() {
     widget.input.removeListener(_onInput);
     widget.controller.removeListener(_onController);

@@ -204,6 +204,21 @@ abstract final class SmartQuota {
     return null;
   }
 
+  /// Kota geçmişini sıfırlar (PrivacyWipe).
+  static Future<void> clearLog() async {
+    _day = '';
+    _requests = 0;
+    _limited = 0;
+    _history.clear();
+    revision.value++;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(prefLog);
+    } catch (_) {
+      // Bilinçli: temizlik — tercih silinemezse bellekteki sayaç yine sıfırlanır.
+    }
+  }
+
   @visibleForTesting
   static void debugReset() {
     _cap = defaultCap;

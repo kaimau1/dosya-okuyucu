@@ -9,10 +9,17 @@ import 'fm/content_indexer.dart';
 import 'fm/fresh_cache.dart';
 import 'fm/op_history.dart';
 import 'fm/open_history.dart';
+import 'fm/playback_positions.dart';
+import 'fm/reading_positions.dart';
 import 'fm/remote/transfer_history.dart';
 import 'fm/saved_searches.dart';
 import 'fm/search_history.dart';
 import 'fm/search_index.dart';
+import 'fm/smart_folder_prefs.dart';
+import 'fm/smart_learn.dart';
+import 'fm/smart_quota.dart';
+import 'fm/smart_sort.dart';
+import 'fm/smart_user_cats.dart';
 
 /// "Verilerimi sil" kategorileri (GUVENLIK_PLANI G10.5, 2026-11-12).
 ///
@@ -57,6 +64,8 @@ abstract final class PrivacyWipe {
     if ((history || ai) && clearAppLists != null) await step(clearAppLists);
     if (history) {
       await step(OpenHistory.clearAll);
+      await step(ReadingPositions.clearAll);
+      await step(PlaybackPositions.clearAll);
       await step(FreshCache.clear);
       await step(SearchHistory.clear);
       await step(SearchHistory.clearOpened);
@@ -73,6 +82,11 @@ abstract final class PrivacyWipe {
       });
       await step(AiIndex.clear);
       await step(AiApplyLog.clear);
+      await step(SmartSort.clear);
+      await step(SmartLearn.forgetAll);
+      await step(SmartUserCats.clear);
+      await step(SmartFolderPrefs.reset);
+      await step(SmartQuota.clearLog);
     }
     if (categories.contains(WipeCategory.indexes)) {
       await step(SearchIndex.clear);

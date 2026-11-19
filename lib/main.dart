@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show kProfileMode;
+import 'package:flutter/foundation.dart' show kProfileMode, kReleaseMode;
 import 'package:flutter/scheduler.dart' show SchedulerBinding, TimingsCallback;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -430,6 +430,7 @@ void _showWhatsNew(String notes) {
 /// 300 karede bir dağılım yazar: `KARE_OZET n= p50= p90= p99= max=` (ms) —
 /// kaydırma senaryolarının %99 karesi buradan okunur.
 void _logSlowStartupFrames() {
+  if (kReleaseMode) return;
   final until = DateTime.now().add(const Duration(seconds: 6));
   final spans = <int>[];
   late final TimingsCallback cb;

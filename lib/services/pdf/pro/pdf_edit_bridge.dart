@@ -323,6 +323,7 @@ PdfPageContent _readObjects(
       final n = p.FPDFPage_CountObjects(page);
       for (var i = 0; i < n; i++) {
         final obj = p.FPDFPage_GetObject(page, i);
+        if (obj == nullptr) continue;
         if (p.FPDFPageObj_GetType(obj) != _fpdfPageObjText) {
           items.add(_item(p, arena, obj, i));
           continue;
@@ -391,7 +392,8 @@ PdfPageItem _item(pdfium_bindings.PDFium p, Arena arena,
                 p.FPDFPageObj_GetMark(obj, 0), buf.cast(), 64, len) !=
             0 &&
         len.value >= 2) {
-      mark = String.fromCharCodes(buf.asTypedList(len.value ~/ 2 - 1));
+      final bytes = len.value > 64 ? 64 : len.value;
+      mark = String.fromCharCodes(buf.asTypedList(bytes ~/ 2 - 1));
     }
   }
   return PdfPageItem(
@@ -784,7 +786,8 @@ void _copyMarks(pdfium_bindings.PDFium p, pdfium_bindings.FPDF_DOCUMENT doc,
   final buf = arena<Uint16>(256);
   String read(int Function(Pointer<Uint16>, int, Pointer<UnsignedLong>) f) {
     if (f(buf, 512, len) == 0 || len.value < 2) return '';
-    return String.fromCharCodes(buf.asTypedList(len.value ~/ 2 - 1));
+    final bytes = len.value > 512 ? 512 : len.value;
+    return String.fromCharCodes(buf.asTypedList(bytes ~/ 2 - 1));
   }
 
   for (var i = 0; i < p.FPDFPageObj_CountMarks(from); i++) {

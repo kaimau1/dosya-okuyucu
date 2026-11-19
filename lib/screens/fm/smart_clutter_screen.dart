@@ -76,10 +76,11 @@ class _SmartClutterScreenState extends State<SmartClutterScreen> {
 
   Future<void> _checkAlive() async {
     await SmartSort.ensureLoaded();
-    final paths = [
+    final paths = {
       for (final r in SmartSort.records)
-        if (r.hidden || r.clutter) r.path
-    ];
+        if (r.hidden || r.clutter) r.path,
+      for (final r in SmartSort.waCopies()) r.path,
+    }.toList();
     final alive = {for (final e in await FsScan.statPaths(paths)) e.path};
     final gone = paths.where((x) => !alive.contains(x)).toList();
     if (gone.isNotEmpty) await SmartSort.forget(gone);

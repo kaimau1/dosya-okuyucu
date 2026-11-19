@@ -540,7 +540,15 @@ class PeerReceiver implements KeepableServer {
     final now = DateTime.now();
     _sessions.removeWhere((_, v) => v.expires.isBefore(now));
     if (_sessions.length >= 32) {
-      _sessions.remove(_sessions.keys.first);
+      final idleKey = _sessions.entries
+          .where((e) => e.value.streams.isEmpty)
+          .map((e) => e.key)
+          .firstOrNull;
+      if (idleKey != null) {
+        _sessions.remove(idleKey);
+      } else {
+        return await _deny(response, 'dolu');
+      }
     }
     final sid = PeerShare.newDeviceId() + PeerShare.newDeviceId();
     _sessions[sid] = _Session(keys, now.add(const Duration(minutes: 30)));
@@ -576,7 +584,10 @@ class PeerReceiver implements KeepableServer {
         final stream = int.tryParse(raw['k'] ?? '');
         if (session == null ||
             session.expires.isBefore(DateTime.now()) ||
-            stream == null) {
+            stream == null ||
+            stream < 0 ||
+            stream > 0xFFFFFFFF ||
+            session.streams.length >= 8192) {
           response.statusCode = HttpStatus.unauthorized;
           response.write('oturum');
           await response.close();
@@ -725,6 +736,9 @@ class PeerReceiver implements KeepableServer {
     final body = ctx.contentLength;
     final total = int.tryParse(q['boyut'] ?? '') ??
         (body >= 0 ? offset + body : -1);
+    if (offset < 0 || (total >= 0 && offset > total)) {
+      return await _deny(response, 'bicim');
+    }
     // Onay: izin anahtarı yoksa (ör. eski sürüm gönderen) dosya başına
     // sorulur — reddedilen gövde OKUNMADAN geri çevrilir.
     if (onAsk != null && !_granted(q['izin'])) {
@@ -737,6 +751,12 @@ class PeerReceiver implements KeepableServer {
           fingerprint: ctx.peerFp,
           verifyCode: ctx.session?.keys.verifyCode ?? ''));
       if (!ok) return await _deny(response, 'red');
+    }
+    final needBytes = total > offset ? total - offset : 0;
+    if (!await DiskGuard.hasRoom(saveDir, needBytes)) {
+      response.statusCode = HttpStatus.insufficientStorage;
+      await response.close();
+      return;
     }
 
     if (tid == null) {
@@ -763,6 +783,7 @@ class PeerReceiver implements KeepableServer {
       final sink = part.openWrite(
           mode: offset == 0 ? FileMode.writeOnly : FileMode.append);
       var received = offset;
+      var overflow = false;
       try {
         // `addStream` GERİ BASINÇ uygular (2026-11-12): eski `await for` +
         // `sink.add` diske yazılmayı beklemeden ağdan okuyordu; hızlı
@@ -772,6 +793,10 @@ class PeerReceiver implements KeepableServer {
         try {
           await sink.addStream(ctx.body.map((chunk) {
             received += chunk.length;
+            if (total >= 0 && received > total) {
+              overflow = true;
+              throw const HttpException('overflow');
+            }
             onProgress?.call(safeName, received, total);
             return chunk;
           }));
@@ -783,6 +808,15 @@ class PeerReceiver implements KeepableServer {
         await sink.flush();
       } finally {
         await sink.close();
+      }
+      if (overflow) {
+        try {
+          await part.delete();
+        } catch (_) {
+          // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+        }
+        await _setOwner(tid, '');
+        return await _deny(response, 'buyuk');
       }
       if (total > 0 && received < total) {
         // Yarım: dosya KALIR, gönderen sürdürecek.
@@ -845,15 +879,30 @@ class PeerReceiver implements KeepableServer {
     await file.parent.create(recursive: true);
     final sink = file.openWrite();
     var received = 0;
+    var failed = false;
     try {
       await sink.addStream(request.map((chunk) {
         received += chunk.length;
+        if (total >= 0 && received > total) {
+          failed = true;
+          throw const HttpException('overflow');
+        }
         onProgress?.call(safeName, received, total);
         return chunk;
       }));
       await sink.flush();
+    } catch (_) {
+      failed = true;
+      rethrow;
     } finally {
       await sink.close();
+      if (failed) {
+        try {
+          await file.delete();
+        } catch (_) {
+          // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+        }
+      }
       onDone?.call(safeName);
     }
     if (total > 0 && received < total) {
@@ -1020,12 +1069,13 @@ abstract final class PeerSender {
     final seen = <String>{};
     RawDatagramSocket? socket;
     Timer? repeat;
+    Timer? closeTimer;
     try {
       socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
       socket.broadcastEnabled = true;
       final sock = socket;
       sock.listen((event) {
-        if (event != RawSocketEvent.read) return;
+        if (event != RawSocketEvent.read || controller.isClosed) return;
         final packet = sock.receive();
         if (packet == null) return;
         Map<String, dynamic> data;
@@ -1037,7 +1087,7 @@ abstract final class PeerSender {
         if (data['magic'] != PeerShare._magic) return;
         final peer = Peer.fromIdentity(
             data, packet.address.address, PeerShare.transferPort);
-        if (seen.add(peer.key)) controller.add(peer);
+        if (seen.add(peer.key) && !controller.isClosed) controller.add(peer);
       }, onError: (Object _) {}, cancelOnError: false);
 
       Future<void> ask() async {
@@ -1064,12 +1114,15 @@ abstract final class PeerSender {
       unawaited(ask());
       repeat = Timer.periodic(
           const Duration(milliseconds: 900), (_) => unawaited(ask()));
-      Timer(timeout, () => unawaited(controller.close()));
+      closeTimer = Timer(timeout, () {
+        if (!controller.isClosed) unawaited(controller.close());
+      });
       yield* controller.stream;
     } finally {
       repeat?.cancel();
+      closeTimer?.cancel();
       socket?.close();
-      unawaited(controller.close());
+      if (!controller.isClosed) unawaited(controller.close());
     }
   }
 

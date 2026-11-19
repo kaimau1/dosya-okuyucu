@@ -658,10 +658,10 @@ Future<String> _zipSync(
     var done = 0;
     for (final path in paths) {
       progress?.send([done, paths.length, p.basename(path)]);
-      final dir = Directory(path);
-      if (dir.existsSync()) {
-        await encoder.addDirectory(dir);
-      } else {
+      final type = FileSystemEntity.typeSync(path, followLinks: false);
+      if (type == FileSystemEntityType.directory) {
+        await encoder.addDirectory(Directory(path), followLinks: false);
+      } else if (type == FileSystemEntityType.file) {
         await encoder.addFile(File(path));
       }
       done++;
@@ -686,15 +686,18 @@ Future<String> _compressSync(
   // (göreli yol, gerçek yol, klasör mü) üçlüleri
   final entries = <(String, String, bool)>[];
   for (final path in paths) {
+    final type = FileSystemEntity.typeSync(path, followLinks: false);
+    if (type == FileSystemEntityType.link) continue;
     final dir = Directory(path);
-    if (dir.existsSync()) {
+    if (type == FileSystemEntityType.directory) {
       final base = p.basename(path);
       entries.add((base, path, true));
       for (final child in dir.listSync(recursive: true, followLinks: false)) {
+        if (child is Link) continue;
         final rel = p.join(base, p.relative(child.path, from: path));
         entries.add((rel, child.path, child is Directory));
       }
-    } else {
+    } else if (type == FileSystemEntityType.file) {
       entries.add((p.basename(path), path, false));
     }
   }
@@ -948,8 +951,11 @@ Future<String> _extractOneSync(
       throw const ArchiveError(
           ArchiveFailure.passwordRequired, 'şifreli girdi, parola verilmedi');
     }
-    final out = File(FileOps.uniquePath(
-        p.join(destDir, p.basename(entry.path))));
+    final cleanBase = FileOps.sanitizeName(
+        entry.path.split(RegExp(r'[/\\]')).where((s) => s.isNotEmpty).lastOrNull ??
+            '');
+    final safeName = cleanBase.isEmpty ? 'icerik' : cleanBase;
+    final out = File(FileOps.uniquePath(p.join(destDir, safeName)));
     final sink = out.openWrite();
     var written = 0;
     try {
@@ -1056,7 +1062,7 @@ void _checkBomb(int written, int maxBytes, int entryBytes, int? compressed) {
   if (compressed != null &&
       compressed > 0 &&
       entryBytes > bombRatioFloor &&
-      entryBytes > compressed * bombRatio) {
+      entryBytes ~/ bombRatio > compressed) {
     throw ArchiveError(ArchiveFailure.tooLarge,
         'sıkıştırma oranı ${entryBytes ~/ compressed}× (sınır $bombRatio×)');
   }

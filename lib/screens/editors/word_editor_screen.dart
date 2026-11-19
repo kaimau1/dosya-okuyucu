@@ -226,6 +226,8 @@ class _WordEditorScreenState extends State<WordEditorScreen>
   @override
   void dispose() {
     unawaited(ReadingPositions.save());
+    _findCtrl.dispose();
+    _replaceCtrl.dispose();
     _session.dispose();
     _panel.dispose();
     _readingBars.dispose();

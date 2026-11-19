@@ -111,6 +111,9 @@ class MainActivity : FlutterActivity() {
     /** Açık ham USB belleği (varsa) — bkz. `UsbMass`. */
     private var usbMass: UsbMass? = null
 
+    /** Küçük resim / görsel dönüştürme için sınırlı havuz (sınırsız Thread OOM önlemi). */
+    private val imagePool = java.util.concurrent.Executors.newFixedThreadPool(4)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // Ana ekran kısayolundan açıldıysa yol saklanır (Dart `take` ile alır).
         rememberShortcut(intent)
@@ -119,7 +122,9 @@ class MainActivity : FlutterActivity() {
         super.onCreate(savedInstanceState)
         launchAction = intent?.action
         launchReferrer = callerPackage()
-        MediaBridge.rememberPayload(intent?.getStringExtra(MediaBridge.EXTRA_PAYLOAD))
+        if (MediaBridge.verifyToken(intent?.getStringExtra(MediaBridge.EXTRA_TOKEN))) {
+            MediaBridge.rememberPayload(intent?.getStringExtra(MediaBridge.EXTRA_PAYLOAD))
+        }
         pendingLink = verifiedLink(intent)
     }
 
@@ -141,7 +146,9 @@ class MainActivity : FlutterActivity() {
         // Medya bildirimine dokunuldu: çalan parçaya git (uygulama zaten
         // açıksa `onCreate` çalışmaz, yük buradan gelir).
         val mediaPayload = intent.getStringExtra(MediaBridge.EXTRA_PAYLOAD)
-        if (!mediaPayload.isNullOrEmpty()) {
+        if (!mediaPayload.isNullOrEmpty() &&
+            MediaBridge.verifyToken(intent.getStringExtra(MediaBridge.EXTRA_TOKEN))
+        ) {
             MediaBridge.rememberPayload(mediaPayload)
             mediaChannel?.invokeMethod("open", mediaPayload)
         }
@@ -179,6 +186,31 @@ class MainActivity : FlutterActivity() {
         editRequest = edit
         sendRequest = action == Intent.ACTION_SEND || action == Intent.ACTION_SEND_MULTIPLE
         if (edit) intent?.action = Intent.ACTION_VIEW
+        // Dışarıdan gelen file:// URI'lerinin özel uygulama dizinlerine
+        // (/data/data/..., kasa vb.) işaret etmesini engelle.
+        val data = intent?.data
+        if (data != null && data.scheme.equals("file", ignoreCase = true)) {
+            if (!Extras.isSafeExternalPath(data.path)) {
+                intent.data = null
+            }
+        }
+        @Suppress("DEPRECATION")
+        val stream = intent?.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+        if (stream != null && stream.scheme.equals("file", ignoreCase = true)) {
+            if (!Extras.isSafeExternalPath(stream.path)) {
+                intent.removeExtra(Intent.EXTRA_STREAM)
+            }
+        }
+        @Suppress("DEPRECATION")
+        val streams = intent?.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
+        if (streams != null) {
+            val filtered = ArrayList(streams.filter {
+                !it.scheme.equals("file", ignoreCase = true) || Extras.isSafeExternalPath(it.path)
+            })
+            if (filtered.size != streams.size) {
+                intent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, filtered)
+            }
+        }
     }
 
     /** `android-app://com.android.chrome` → `com.android.chrome`. */
@@ -212,10 +244,13 @@ class MainActivity : FlutterActivity() {
 
     override fun onStart() {
         super.onStart()
+        Extras.activityVisible = true
+        Extras.stopSmartJobIfRunning()
         registerVolumeWatch()
     }
 
     override fun onStop() {
+        Extras.activityVisible = false
         super.onStop()
         unregisterVolumeWatch()
     }
@@ -270,6 +305,7 @@ class MainActivity : FlutterActivity() {
             }
             usbReceiver = rec
         } catch (e: Exception) {
+            try { unregisterReceiver(rec) } catch (_: Exception) {}
             // Kaydedilemedi: eski yoklama yolu (Dart tarafı) yine çalışıyor.
             usbReceiver = null
         }
@@ -342,8 +378,20 @@ class MainActivity : FlutterActivity() {
         nearbyBle?.dispose()
         nearbyBle = null
         docScan = null
+        dikte = null
         slayt?.dispose()
         slayt = null
+        MediaBridge.onAction = null
+        val mass = usbMass
+        usbMass = null
+        if (mass != null) {
+            Thread { try { mass.close() } catch (_: Exception) {} }.start()
+        }
+        try {
+            Class.forName("com.dosyaokuyucu.dosya_okuyucu.PlayCore")
+                .getMethod("detach")
+                .invoke(null)
+        } catch (_: Exception) {}
         super.cleanUpFlutterEngine(flutterEngine)
     }
     private var pendingShortcutPath: String? = null
@@ -630,7 +678,7 @@ class MainActivity : FlutterActivity() {
                     val path = call.argument<String>("path") ?: ""
                     val target = call.argument<String>("target") ?: ""
                     val maxEdge = call.argument<Int>("maxEdge") ?: 4096
-                    Thread {
+                    imagePool.execute {
                         val ok = try {
                             val bounds = android.graphics.BitmapFactory.Options()
                             bounds.inJustDecodeBounds = true
@@ -643,34 +691,40 @@ class MainActivity : FlutterActivity() {
                             if (bmp == null) {
                                 false
                             } else {
-                                val orient = try {
-                                    android.media.ExifInterface(path).getAttributeInt(
-                                        android.media.ExifInterface.TAG_ORIENTATION,
-                                        android.media.ExifInterface.ORIENTATION_NORMAL)
-                                } catch (e: Exception) {
-                                    android.media.ExifInterface.ORIENTATION_NORMAL
-                                }
-                                val deg = when (orient) {
-                                    android.media.ExifInterface.ORIENTATION_ROTATE_90 -> 90f
-                                    android.media.ExifInterface.ORIENTATION_ROTATE_180 -> 180f
-                                    android.media.ExifInterface.ORIENTATION_ROTATE_270 -> 270f
-                                    else -> 0f
-                                }
-                                if (deg != 0f) {
-                                    val m = android.graphics.Matrix()
-                                    m.postRotate(deg)
-                                    bmp = android.graphics.Bitmap.createBitmap(
-                                        bmp, 0, 0, bmp.width, bmp.height, m, true)
-                                }
-                                java.io.FileOutputStream(target).use {
-                                    bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 95, it)
+                                try {
+                                    val orient = try {
+                                        android.media.ExifInterface(path).getAttributeInt(
+                                            android.media.ExifInterface.TAG_ORIENTATION,
+                                            android.media.ExifInterface.ORIENTATION_NORMAL)
+                                    } catch (e: Exception) {
+                                        android.media.ExifInterface.ORIENTATION_NORMAL
+                                    }
+                                    val deg = when (orient) {
+                                        android.media.ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                                        android.media.ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                                        android.media.ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                                        else -> 0f
+                                    }
+                                    if (deg != 0f) {
+                                        val m = android.graphics.Matrix()
+                                        m.postRotate(deg)
+                                        val turned = android.graphics.Bitmap.createBitmap(
+                                            bmp, 0, 0, bmp.width, bmp.height, m, true)
+                                        if (turned !== bmp) bmp.recycle()
+                                        bmp = turned
+                                    }
+                                    java.io.FileOutputStream(target).use {
+                                        bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 95, it)
+                                    }
+                                } finally {
+                                    bmp.recycle()
                                 }
                             }
                         } catch (e: Exception) {
                             false
                         }
                         runOnUiThread { result.success(ok) }
-                    }.start()
+                    }
                 }
                 // Izgara küçük resmi (2026-11-03, "Google Foto'da kasmıyor"): Android'in
                 // kendi üreticisi (EXIF küçük resmi / örneklemeli çözme + yön) küçük
@@ -680,36 +734,40 @@ class MainActivity : FlutterActivity() {
                     val path = call.argument<String>("path") ?: ""
                     val target = call.argument<String>("target") ?: ""
                     val size = call.argument<Int>("size") ?: 384
-                    Thread {
+                    imagePool.execute {
                         val ok = try {
                             writeImageThumb(path, target, size)
                         } catch (e: Throwable) {
                             false
                         }
                         runOnUiThread { result.success(ok) }
-                    }.start()
+                    }
                 }
                 "encodeWebp" -> {
                     val source = call.argument<String>("source") ?: ""
                     val target = call.argument<String>("target") ?: ""
                     val quality = call.argument<Int>("quality") ?: 85
-                    Thread {
+                    imagePool.execute {
                         val ok = try {
                             val bmp = android.graphics.BitmapFactory.decodeFile(source)
                             if (bmp == null) {
                                 false
                             } else {
-                                @Suppress("DEPRECATION")
-                                val fmt = if (Build.VERSION.SDK_INT >= 30)
-                                    android.graphics.Bitmap.CompressFormat.WEBP_LOSSY
-                                else android.graphics.Bitmap.CompressFormat.WEBP
-                                java.io.FileOutputStream(target).use { bmp.compress(fmt, quality, it) }
+                                try {
+                                    @Suppress("DEPRECATION")
+                                    val fmt = if (Build.VERSION.SDK_INT >= 30)
+                                        android.graphics.Bitmap.CompressFormat.WEBP_LOSSY
+                                    else android.graphics.Bitmap.CompressFormat.WEBP
+                                    java.io.FileOutputStream(target).use { bmp.compress(fmt, quality, it) }
+                                } finally {
+                                    bmp.recycle()
+                                }
                             }
                         } catch (e: Exception) {
                             false
                         }
                         runOnUiThread { result.success(ok) }
-                    }.start()
+                    }
                 }
                 "geocode" -> Extras.geocode(
                     ctx,
@@ -753,55 +811,60 @@ class MainActivity : FlutterActivity() {
                         java.io.File(path), android.util.Size(size, size), null)
                 else null)
             ?: return false
-        val decodedShort = minOf(bmp.width, bmp.height)
-        if (decodedShort > size) {
-            val scale = size.toFloat() / decodedShort.toFloat()
-            val sw = maxOf(1, Math.round(bmp.width * scale))
-            val sh = maxOf(1, Math.round(bmp.height * scale))
-            val scaled = android.graphics.Bitmap.createScaledBitmap(bmp, sw, sh, true)
-            if (scaled !== bmp) bmp.recycle()
-            bmp = scaled
-        }
-        val orientation = try {
-            android.media.ExifInterface(path).getAttributeInt(
-                android.media.ExifInterface.TAG_ORIENTATION,
-                android.media.ExifInterface.ORIENTATION_NORMAL)
-        } catch (e: Throwable) {
-            android.media.ExifInterface.ORIENTATION_NORMAL
-        }
-        val m = android.graphics.Matrix()
-        when (orientation) {
-            android.media.ExifInterface.ORIENTATION_ROTATE_90 -> m.postRotate(90f)
-            android.media.ExifInterface.ORIENTATION_ROTATE_180 -> m.postRotate(180f)
-            android.media.ExifInterface.ORIENTATION_ROTATE_270 -> m.postRotate(270f)
-            android.media.ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> m.postScale(-1f, 1f)
-            android.media.ExifInterface.ORIENTATION_FLIP_VERTICAL -> m.postScale(1f, -1f)
-            android.media.ExifInterface.ORIENTATION_TRANSPOSE -> {
-                m.postRotate(90f)
-                m.postScale(-1f, 1f)
-            }
-            android.media.ExifInterface.ORIENTATION_TRANSVERSE -> {
-                m.postRotate(270f)
-                m.postScale(-1f, 1f)
-            }
-            else -> {}
-        }
-        if (!m.isIdentity) {
-            val turned = android.graphics.Bitmap.createBitmap(
-                bmp, 0, 0, bmp.width, bmp.height, m, true)
-            if (turned !== bmp) bmp.recycle()
-            bmp = turned
-        }
         val part = java.io.File("$target.part")
-        val format = if (bmp.hasAlpha()) android.graphics.Bitmap.CompressFormat.PNG
-            else android.graphics.Bitmap.CompressFormat.JPEG
-        val written = java.io.FileOutputStream(part).use { bmp.compress(format, 90, it) }
-        bmp.recycle()
+        val written = try {
+            val decodedShort = minOf(bmp.width, bmp.height)
+            if (decodedShort > size) {
+                val scale = size.toFloat() / decodedShort.toFloat()
+                val sw = maxOf(1, Math.round(bmp.width * scale))
+                val sh = maxOf(1, Math.round(bmp.height * scale))
+                val scaled = android.graphics.Bitmap.createScaledBitmap(bmp, sw, sh, true)
+                if (scaled !== bmp) bmp.recycle()
+                bmp = scaled
+            }
+            val orientation = try {
+                android.media.ExifInterface(path).getAttributeInt(
+                    android.media.ExifInterface.TAG_ORIENTATION,
+                    android.media.ExifInterface.ORIENTATION_NORMAL)
+            } catch (e: Throwable) {
+                android.media.ExifInterface.ORIENTATION_NORMAL
+            }
+            val m = android.graphics.Matrix()
+            when (orientation) {
+                android.media.ExifInterface.ORIENTATION_ROTATE_90 -> m.postRotate(90f)
+                android.media.ExifInterface.ORIENTATION_ROTATE_180 -> m.postRotate(180f)
+                android.media.ExifInterface.ORIENTATION_ROTATE_270 -> m.postRotate(270f)
+                android.media.ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> m.postScale(-1f, 1f)
+                android.media.ExifInterface.ORIENTATION_FLIP_VERTICAL -> m.postScale(1f, -1f)
+                android.media.ExifInterface.ORIENTATION_TRANSPOSE -> {
+                    m.postRotate(90f)
+                    m.postScale(-1f, 1f)
+                }
+                android.media.ExifInterface.ORIENTATION_TRANSVERSE -> {
+                    m.postRotate(270f)
+                    m.postScale(-1f, 1f)
+                }
+                else -> {}
+            }
+            if (!m.isIdentity) {
+                val turned = android.graphics.Bitmap.createBitmap(
+                    bmp, 0, 0, bmp.width, bmp.height, m, true)
+                if (turned !== bmp) bmp.recycle()
+                bmp = turned
+            }
+            val format = if (bmp.hasAlpha()) android.graphics.Bitmap.CompressFormat.PNG
+                else android.graphics.Bitmap.CompressFormat.JPEG
+            java.io.FileOutputStream(part).use { bmp.compress(format, 90, it) }
+        } finally {
+            bmp.recycle()
+        }
         if (!written) {
             part.delete()
             return false
         }
-        return part.renameTo(java.io.File(target))
+        if (part.renameTo(java.io.File(target))) return true
+        part.delete()
+        return false
     }
 
     private fun setupSdUnionChannel(flutterEngine: FlutterEngine) {
@@ -1800,7 +1863,7 @@ class MainActivity : FlutterActivity() {
         if (device == null) {
             result.success(null); return
         }
-        val mass = UsbMass(this)
+        val mass = UsbMass(applicationContext)
         mass.requestPermission(device) { granted ->
             if (!granted) {
                 result.success(

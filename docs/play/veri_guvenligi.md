@@ -18,5 +18,8 @@ Kaynak: `assets/privacy/tr.md` (uygulama içi politika — tek kaynak).
 | Yakındakiler | Üçüncü taraf sunucu yok. BLE yalnız bulma/davet (görünen ad + kuruluma özgü rastgele kimlik yayınlanır); dosya iki cihaz arasında yerel Wi-Fi'den ya da gönderenin internetsiz geçici ağından gider; tarayıcı yolu yerel ağda 8080'de 6 harflik kodla korunan sayfa. Formda "toplanmaz / paylaşılmaz" (veri geliştiriciye ulaşmıyor). |
 | AI anlamla arama | Yalnız sorgu metni, kullanıcının kendi anahtarıyla Gemini'ye; dosya adı/içerik gitmez. |
 | AI etiketleme / kategori analizi | Seçilen dosyaların adı, uzantısı, klasör ADI (tam yol değil), boyut, ay (+ kategori analizinde sayı/boyut özeti); içerik gitmez, kamera ve kilitli klasörler dışlanır. "Kullanıcı tarafından başlatılan, isteğe bağlı". |
-| Yüklü uygulamalar (`QUERY_ALL_PACKAGES`) | Liste yalnız cihazda gösterilir; toplanmaz. Formda "Uygulama etkinliği → Yüklü uygulamalar: toplanmaz". |
+| Bulut OCR ve görsel AI (isteğe bağlı) | Varsayılan OCR cihazdadır. Kullanıcı Ayarlar'dan "Bulut OCR (Gemini)" açarsa veya bir görselde "Görselde ne var?" / AI kalite-kare puanlama başlatırsa küçültülmüş görsel kullanıcının kendi Gemini anahtarıyla HTTPS üzerinden Google'a gider. |
+| Altyazı arama (OpenSubtitles) | Kullanıcı video oynatıcıda "Altyazı ara" derse arama sorgusu ve seçilen altyazı indirme isteği `api.opensubtitles.com` adresine HTTPS ile gider. |
+| Ses kaydı (`RECORD_AUDIO`) | Slayt sunumunda anlatım kaydı ve sesle yazma (dikte) yalnız kullanıcı başlattığında cihazda işlenir; sunucumuza gönderilmez. |
+| Yüklü uygulamalar (`QUERY_ALL_PACKAGES`) | Liste yalnız cihazda gösterilir; toplanmaz. Play (`EDITION=play`) derlemesinde bu izin manifestten çıkarılır (`tools:node="remove"`). |
 | Asistan köprüsü | Yalnız kişisel derlemede (Play AAB'de YOK); imza izinli, veri cihazdan çıkmaz. Formu etkilemez. |

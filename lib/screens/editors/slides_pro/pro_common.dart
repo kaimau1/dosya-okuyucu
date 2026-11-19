@@ -182,6 +182,7 @@ class _SchematicPainter extends CustomPainter {
         ellipsis: '…',
       )..layout(maxWidth: (rr.width - 4).clamp(0, double.infinity));
       tp.paint(canvas, rr.topLeft + const Offset(2, 2));
+      tp.dispose();
     }
   }
 

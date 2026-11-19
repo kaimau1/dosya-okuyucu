@@ -272,7 +272,11 @@ class HttpShareServer {
     if (saved.isNotEmpty) onUploaded?.call(saved);
     // Yalnız YOL alınır: `Referer` başka bir site ya da `javascript:` olabilir.
     final ref = Uri.tryParse(request.headers.value('referer') ?? '');
-    final back = ref != null && ref.path.startsWith('/') ? ref.path : '/';
+    final back = ref != null &&
+            ref.path.startsWith('/') &&
+            !ref.path.startsWith('//')
+        ? ref.path
+        : '/';
     await _sendHtml(
       response,
       '<!doctype html><html lang="tr"><head><meta charset="utf-8">'
@@ -369,6 +373,7 @@ class HttpShareServer {
     for (final entry in Directory(real).listSync(followLinks: false)) {
       final name = p.basename(entry.path);
       if (!share.showHidden && FtpServer.isHidden(name)) continue;
+      if (share.isBlockedSharePath(entry.path)) continue;
       FileStat stat;
       try {
         stat = entry.statSync();

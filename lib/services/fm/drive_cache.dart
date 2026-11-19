@@ -20,9 +20,16 @@ abstract final class DriveCache {
   /// Önbellek kökü (uygulamanın kendi destek klasörü altında).
   static String rootOf(String appSupportDir) => p.join(appSupportDir, 'drive');
 
+  static String _safeId(String id) {
+    final clean = id.replaceAll(RegExp(r'[/\\\x00]'), '_').trim();
+    if (clean.isEmpty || clean == '.' || clean == '..') return '_';
+    return clean;
+  }
+
   /// [file] için indirileceği klasör — dosya bunun içine `localName()` adıyla
   /// yazılır (`DriveService.download` zaten böyle yazıyor).
-  static String dirFor(DriveFile file, String root) => p.join(root, file.id);
+  static String dirFor(DriveFile file, String root) =>
+      p.join(root, _safeId(file.id));
 
   static String pathFor(DriveFile file, String root) =>
       p.join(dirFor(file, root), file.localName());

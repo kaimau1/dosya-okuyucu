@@ -129,7 +129,8 @@ abstract final class OpenSubtitles {
     final file = await http.get(linkUri).timeout(_timeout);
     if (file.statusCode != 200) throw OpenSubtitlesError('HTTP ${file.statusCode}');
     final base = p.basenameWithoutExtension(videoPath);
-    final lang = hit.language.isEmpty ? '' : '.${hit.language}';
+    final safeLang = hit.language.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '');
+    final lang = safeLang.isEmpty ? '' : '.$safeLang';
     final name = '$base$lang.srt';
     for (final dir in [p.dirname(videoPath), fallbackDir]) {
       try {

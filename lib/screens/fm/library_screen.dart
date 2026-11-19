@@ -813,7 +813,7 @@ class _BookCoverState extends State<_BookCover> {
     final hue = _hueFor(widget.path);
     final Widget face = cover != null
         ? Image(
-            image: FmFileImage(cover),
+            image: FmFileImage(cover, cacheWidth: 360),
             fit: BoxFit.cover,
             gaplessPlayback: true,
             errorBuilder: (_, _, _) => _drawnCover(hue, ext))

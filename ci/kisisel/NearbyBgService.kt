@@ -120,12 +120,10 @@ class NearbyBgService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_REJECT) {
-            notifications().cancel(ASK_ID)
+            try {
+                notifications().cancel(ASK_ID)
+            } catch (_: Exception) {}
             return START_STICKY
-        }
-        if (!prefs(this).getBoolean(KEY_ON, false)) {
-            stopSelf()
-            return START_NOT_STICKY
         }
         try {
             ensureChannels()
@@ -138,6 +136,10 @@ class NearbyBgService : Service() {
         } catch (_: Exception) {
             // Bluetooth izni yok ya da sistem arka plandan başlatmayı reddetti: sessizce kapan,
             // Yakındakiler'de anahtar yeniden açılınca tekrar denenir.
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        if (!prefs(this).getBoolean(KEY_ON, false)) {
             stopSelf()
             return START_NOT_STICKY
         }
@@ -212,7 +214,11 @@ class NearbyBgService : Service() {
             @Suppress("DEPRECATION")
             builder.setPriority(Notification.PRIORITY_HIGH).setDefaults(Notification.DEFAULT_ALL)
         }
-        notifications().notify(ASK_ID, builder.build())
+        try {
+            notifications().notify(ASK_ID, builder.build())
+        } catch (_: Exception) {
+            // Bildirim izni yoksa (Android 13+) çökmesin.
+        }
     }
 
     private fun quietNotification(): Notification {

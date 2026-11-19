@@ -54,7 +54,9 @@
         android:usesPermissionFlags="neverForLocation"/>
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE"/>
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false"/>
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false"/>
+    <uses-feature android:name="android.hardware.wifi" android:required="false"/>
 
 
     <!-- ── Dosya yöneticisi izinleri ───────────────────────────────────────
@@ -104,6 +106,7 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <!-- Faz 38: slayt anlatımı kaydı (ci/Slayt.kt recStart; izin ilk kayıtta istenir). -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-feature android:name="android.hardware.microphone" android:required="false"/>
     <uses-feature android:name="android.hardware.camera"
         android:required="false"
         tools:replace="android:required"/>
