@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -18,6 +19,7 @@ import '../../services/fm/image_resize.dart';
 import '../../services/fm/job_queue.dart';
 import '../../services/fm/similar_finder.dart';
 import '../../services/fm/thumbnail_cache.dart';
+import '../../services/gemini_decisions.dart';
 import '../../widgets/motion.dart' show FmEmptyState, PressScale;
 import '../../widgets/state_views.dart' show AppErrorView;
 import '../../widgets/fm/fm_entry_icon.dart';
@@ -221,6 +223,67 @@ class _SimilarScreenState extends State<SimilarScreen> {
     final frame = await ThumbnailCache.forVideo(file.path, size: 512);
     if (frame == null) return null;
     return ImageResizer.previewJpeg(frame);
+  }
+
+  /// Yol → AI "saklanmaya değer" puanı (0–2; Decisions `score`).
+  final Map<String, double> _aiScores = {};
+
+  /// **AI ile en iyi kare** (B2 dilim 3, PLAN §1.2 Ayıkla 2): gruptaki her
+  /// karenin küçük önizlemesine netlik / gözler açık / kadraj puanı sorulur;
+  /// grup puana göre yeniden sıralanır (en iyi ⭐ başta). Hiçbir şey silinmez.
+  Future<void> _aiScore(SimilarGroup group) async {
+    final appState = context.read<AppState>();
+    final messenger = ScaffoldMessenger.of(context);
+    final str = AppStrings.of(context);
+    if (!await ensureAiKey(context) || !mounted) return;
+    final keys = appState.aiCredentials.normalized.keys;
+    final scope = appState.aiScopeRules;
+    final q = DecisionQuestion.score(
+      'keeper',
+      str.t('sim.ai_score'),
+      'Rate this photo as the one to keep from a burst of similar shots: '
+          'sharp focus, eyes open (if people are visible), good framing and '
+          'exposure.',
+      const ['poor', 'acceptable', 'excellent'],
+    );
+    showSnackOn(messenger, str.t('sim.sending'));
+    final scores = <String, double>{};
+    Object? lastError;
+    for (final f in group.files.take(6)) {
+      if (!scope.allowsFile(f)) continue;
+      final bytes = await _previewFor(f);
+      if (bytes == null) continue;
+      try {
+        final r = await GeminiDecisions.ask(keys: keys, input: [
+          {'type': 'image', 'mime_type': 'image/jpeg', 'data': base64Encode(bytes)}
+        ], questions: [
+          q
+        ]);
+        final sc = r.answers.isEmpty ? null : r.answers.first.score;
+        if (sc != null) scores[f.path] = sc;
+      } catch (e) {
+        lastError = e;
+      }
+    }
+    if (!mounted) return;
+    if (scores.isEmpty) {
+      showSnackOn(
+          messenger,
+          lastError == null
+              ? str.t('sim.too_few_previews')
+              : 'Gemini: ${userErrorText(lastError)}');
+      return;
+    }
+    final job = _job;
+    if (job != null) {
+      job.result = [
+        for (final g in _groups)
+          identical(g, group)
+              ? SimilarGroup(SimilarFinder.orderByAi(g.files, scores))
+              : g,
+      ];
+    }
+    setState(() => _aiScores.addAll(scores));
   }
 
   /// Grubu Gemini'ye sorar (kullanıcı isteği: cihaz-içi + AI birlikte seçenek).
@@ -428,6 +491,12 @@ class _SimilarScreenState extends State<SimilarScreen> {
                       style: theme.textTheme.labelLarge,
                     ),
                   ),
+                  IconButton(
+                    key: ValueKey('sim-ai-score-${group.files.first.path}'),
+                    tooltip: context.t('sim.ai_score'),
+                    onPressed: () => _aiScore(group),
+                    icon: const Icon(AppIcons.star, size: 18),
+                  ),
                   TextButton.icon(
                     onPressed: () => _askGemini(group),
                     icon: const Icon(AppIcons.smartToy, size: 18),
@@ -542,7 +611,10 @@ class _SimilarScreenState extends State<SimilarScreen> {
             ),
             const SizedBox(height: 2),
             Text(
-              FsPaths.humanSize(file.sizeBytes),
+              _aiScores[file.path] == null
+                  ? FsPaths.humanSize(file.sizeBytes)
+                  : '${FsPaths.humanSize(file.sizeBytes)} · AI '
+                      '%${(_aiScores[file.path]! * 50).round()}',
               style: Theme.of(context).textTheme.labelSmall,
             ),
             Text(
