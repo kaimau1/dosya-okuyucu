@@ -440,3 +440,16 @@ Cevap kısa olabilir: "K6 tamam", "K14 birleştir" gibi. Bitenleri silerim.
 - **K40 Sesli not → Notlar uygulaması** tarafı (ayrı depo).
 - **K41 PDF maket onayı (Faz 53):** https://claude.ai/artifact/PNjvf5wSp5ae2rY56RpNQW — itiraz varsa söyle.
 - **K42 PDF külliyatına eksik üreticiler:** LibreOffice, Google Docs, LaTeX, macOS Quartz örnek PDF'leri.
+
+### 1.14) Kullanıcı istekleri 2026-11-19 akşam (limit yenilenince ayrıştırılıp paketlenecek; ekran görüntüleri sohbette)
+1. **ÖNCE:** Fotoğraflarda eski görsellere hızlı inip açınca kasma/donma — cihazda ölç, kök nedeni bul (bulutta çözülemedi).
+2. Oynatma hızı: ses + video hepsinde tutamaçlı çubuk, 0,05 adım (bugün 6 sabit seçenek).
+3. Ana ekran "Son dosyalar": yeni + geçmiş akıllı biçimde TEK karışık liste (bugün önce yeniler sonra geçmiş); "Yeni" etiketi kalsın; sol menüde de aynı; sekmeler kalsın, "Ana ekranı düzenle"den varsayılan kip: Otomatik / Geçmiş / Yeni. Yeniler ve Geçmiş geç yükleniyor → hız.
+4. Bildirim bütünlüğü: üstteki iş bildirimi ile altındaki Akıllı düzen şeridi görsel olarak farklı; tüm bildirim/şerit/tost tek görsel dil.
+5. Ana ekran altındaki "Ana ekranı düzenle" + "Alt paneli düzenle" → tek düğme (düzenle simgesi), görsel bütünlük.
+6. Araçlar: "Bağlantıdan indir" kaldır; "Kopyalar" Analiz'e taşı (ana ekranda gereksiz).
+7. Akıllı klasörler: Opus (extra high) beyin fırtınası ajanı — nokta atışı geliştirme, yeni/düzenlenmiş kategoriler, hatalar + düzeltmeler.
+8. Ayarlar > Başarım (Otomatik/Hafif/Tam): seçili olan görünmüyor — seçimi göster, anlaşılır yap.
+9. Yapay zekâ ayar sayfası yeni duruma göre baştan yazılsın (ana özellik Akıllı klasörler/kategori).
+10. Analiz (Bellek Analizi): beyin fırtınası + nokta atışı öneriler, hata düzeltme, geliştirme.
+11. Her hata/sonuç/bildirimde son kullanıcıya kısa ve doğru bilgi: ne oldu, ne yapmalı (ör. silince sessizce bir şey olmasın); hepsi tek görsel dil.
