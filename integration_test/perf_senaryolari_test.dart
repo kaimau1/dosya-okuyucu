@@ -8,6 +8,8 @@ import 'package:dosya_okuyucu/screens/editors/word_mobile_editor_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/browser_screen.dart';
 import 'package:dosya_okuyucu/services/file_service.dart';
 import 'package:dosya_okuyucu/services/fm/entry_opener.dart';
+import 'package:dosya_okuyucu/services/pdf/pro/pdf_edit_bridge.dart';
+import 'package:dosya_okuyucu/widgets/pdf_pro/pdf_pro_edit_controller.dart';
 import 'package:dosya_okuyucu/widgets/sheet_cell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -252,5 +254,58 @@ void main() {
     await binding.traceAction(() => kaydir(tester),
         reportKey: 'galeri_2000_kaydirma_sk');
     await kapat(tester);
+
+    // P08 (C1): PDF Pro yerinde yazma ×3 + Kaydet (ekransız, denetleyiciyle).
+    // Kayıt süresi + kayıt sırasında tepe RSS logcat'e (`PDFPRO_PERF faz=p08`).
+    // replay=true → kayıt açılış baytlarından ikinci tam belge açıp yeniden oynatır.
+    final tmp = await Directory.systemTemp.createTemp('p08');
+    final path = '${tmp.path}/p08.pdf';
+    await File('$_veri/belge_100.pdf').copy(path);
+    final doc = await PdfDocument.openFile(path);
+    final c = PdfProEditController(
+        document: doc, path: path, snapshotEvery: const Duration(hours: 1));
+    final rss0 = ProcessInfo.currentRss;
+    var yazilan = 0;
+    for (var k = 0; k < 3; k++) {
+      final page = k * 10;
+      List<PdfTextBlock>? bl;
+      for (var i = 0; i < 500 && (bl = c.blocksOf(page)) == null; i++) {
+        await bekle(tester, 20);
+      }
+      final b = bl?.where((b) => b.editable).firstOrNull;
+      if (b == null || !await c.beginEdit(page, b, offset: 0)) continue;
+      var t = c.live!.text;
+      for (final ch in 'olcum '.split('')) {
+        t = ch + t;
+        c.liveInput(t, 1, 1);
+        await bekle(tester, 30);
+      }
+      for (var i = 0; i < 200; i++) {
+        final l = c.live;
+        if (l == null || l.applied || l.error != null) break;
+        await bekle(tester, 20);
+      }
+      if (await c.commitEdit(label: 'pse.step_paragraph')) yazilan++;
+    }
+    final rssYaz = ProcessInfo.currentRss;
+    final replay = c.session.needsReplay;
+    var tepe = rssYaz;
+    final izle = Timer.periodic(const Duration(milliseconds: 10), (_) {
+      final r = ProcessInfo.currentRss;
+      if (r > tepe) tepe = r;
+    });
+    final sw = Stopwatch()..start();
+    await c.save();
+    sw.stop();
+    izle.cancel();
+    final rssSon = ProcessInfo.currentRss;
+    await c.close();
+    await doc.dispose();
+    await tmp.delete(recursive: true);
+    const mb = 1 << 20;
+    // ignore: avoid_print
+    print('PDFPRO_PERF faz=p08 yazma=$yazilan replay=$replay '
+        'kayit_ms=${sw.elapsedMilliseconds} rss0=${rss0 ~/ mb} '
+        'rss_yazma=${rssYaz ~/ mb} rss_tepe=${tepe ~/ mb} rss_son=${rssSon ~/ mb}');
   }, semanticsEnabled: false, timeout: const Timeout(Duration(minutes: 25)));
 }
