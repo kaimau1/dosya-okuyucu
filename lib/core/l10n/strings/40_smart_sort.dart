@@ -296,6 +296,8 @@ const Map<String, (String, String, String)> _t40 = {
   'sm.clutter_hidden': ('{n} dosya gizli — geri getirebilirsin', '{n} files hidden — you can bring them back', '{n} ملفات مخفية — يمكنك استعادتها'),
   'sm.tab_clutter': ('Gereksizler ({n})', 'Unneeded ({n})', 'غير ضروري ({n})'),
   'sm.tab_hidden': ('Gizlenenler ({n})', 'Hidden ({n})', 'المخفية ({n})'),
+  'sm.similar': ('Benzer kareler', 'Similar shots', 'لقطات متشابهة'),
+  'sm.sensitive_pin': ('Hassas belgeler — PIN', 'Sensitive documents — PIN', 'مستندات حساسة — الرمز'),
   'sm.clutter_empty': ('Gereksiz bir şey bulunmadı 🎉', 'Nothing unneeded found 🎉', 'لم يُعثر على شيء غير ضروري 🎉'),
   'sm.hidden_empty': ('Gizlenmiş dosya yok', 'No hidden files', 'لا ملفات مخفية'),
   'sm.hide_all': ('Hepsini gizle ({n})', 'Hide all ({n})', 'إخفاء الكل ({n})'),
