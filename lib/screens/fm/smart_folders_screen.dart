@@ -67,7 +67,7 @@ class _SmartFoldersScreenState extends State<SmartFoldersScreen> {
       appBar: AppBar(title: Text(context.t('smart.title'))),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _create,
-        icon: const Icon(AppIcons.newFolder),
+        icon: const Icon(AppIcons.add),
         label: Text(context.t('smart.create')),
       ),
       body: ListenableBuilder(
@@ -82,7 +82,7 @@ class _SmartFoldersScreenState extends State<SmartFoldersScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(AppIcons.folderSpecial,
+                    Icon(AppIcons.savedSearch,
                         size: 56, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(height: Gap.md),
                     Text(context.t('smart.empty'),
@@ -146,7 +146,7 @@ class _FolderRow extends StatelessWidget {
                   color: scheme.primaryContainer,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(AppIcons.folderSpecial,
+                child: Icon(AppIcons.savedSearch,
                     color: scheme.onPrimaryContainer),
               ),
               const SizedBox(width: Gap.md),
