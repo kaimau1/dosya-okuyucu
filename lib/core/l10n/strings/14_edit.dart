@@ -240,6 +240,9 @@ const Map<String, (String, String, String)> _t14 = {
       'يحتوي الرأس/التذييل على صور أو مسافات جدولة ولا يمكن تحريره هنا.'),
   'word.hf_saved': ('Üst/alt bilgi güncellendi', 'Header/footer updated', 'تم تحديث الرأس/التذييل'),
   'word.track_accept': ('Tüm değişiklikleri kabul et', 'Accept all changes', 'قبول كل التغييرات'),
+  'word.track_changes': ('Değişiklikleri izle', 'Track changes', 'تعقب التغييرات'),
+  'word.track_on': ('Değişiklikleri izle açık: yazdıklarınız ve sildikleriniz işaretlenecek', 'Track changes on: your insertions and deletions will be marked', 'تعقب التغييرات مُفعّل: سيتم تمييز ما تكتبه وتحذفه'),
+  'word.track_off': ('Değişiklikleri izle kapalı', 'Track changes off', 'تعقب التغييرات متوقف'),
   'word.track_reject': ('Tüm değişiklikleri reddet', 'Reject all changes', 'رفض كل التغييرات'),
   'word.track_count': ('{n} izlenen değişiklik', '{n} tracked changes', '{n} تغييرات متتبعة'),
   'word.track_confirm_accept': (

@@ -218,6 +218,33 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     _doc = doc;
     _ctrl = DocxEditController(doc)..addListener(_onEdit);
     _seenRevision = 0;
+    if (doc.trackChanges) unawaited(_loadRevAuthor(doc));
+  }
+
+  /// İzle açık açılan belgede yazar adı (sormadan; yoksa "Yazar").
+  Future<void> _loadRevAuthor(DocxDocument doc) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final name = prefs.getString(kWordAuthorPref);
+      if (name != null && name.trim().isNotEmpty) doc.revAuthor = name.trim();
+    } catch (_) {
+      // Tercih deposu yoksa varsayılan yazar adı kalır.
+    }
+  }
+
+  /// B9 m.3: Değişiklikleri izle aç/kapa. Açarken yazar adı bir kez sorulur.
+  Future<void> _toggleTrack() async {
+    final c = _ctrl;
+    if (c == null) return;
+    if (c.trackChanges) {
+      c.setTrackChanges(false);
+      showSnack(context, context.t('word.track_off'));
+      return;
+    }
+    final author = await wordCommentAuthor(context);
+    if (author == null || !mounted) return;
+    c.setTrackChanges(true, author: author);
+    showSnack(context, context.t('word.track_on'));
   }
 
   /// İçerik değiştiyse oturuma bildir (taslak + otomatik kaydetme).
@@ -321,6 +348,7 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
         onFind: () => setState(() => _findOpen = !_findOpen),
         onHeaderFooter: _headerFooter,
         onResolveTracked: _resolveTracked,
+        onTrackChanges: _toggleTrack,
         onInsertImage: () => _pickImage(replace: false),
         onReplaceImage: () => _pickImage(replace: true),
         onImageAlt: _imageAlt,
