@@ -5,7 +5,9 @@ Dilim 1–3 main'de (main bu dala birleştirildi, 2026-11-19). Dilim 4 = Decisio
   `ai_glare/ai_cut/ai_illegible`), ⋮ "AI ile kalite kontrolü" (`scan_result/actions.dart`
   `_aiQualityCheck`), şerit `_qualityHint` AI önerisini önce gösterir. Test `scan_ai_quality_test`.
   Metinler `strings/45_decision_uses.dart` (`_t45`).
-- [ ] m.4b akıllı temizlik: greeting/blurry kovası "AI ile doğrula" (yanlış eşleşmeyi listeden çıkar)
+- [x] m.4b akıllı temizlik: greeting/blurry kovası satırında AI düğmesi (`smart_cleanup_screen`
+  `_aiVerify`, en çok 20 görsel, 512 px önizleme, kapsam kuralı); `SmartAnalysis.verifyQuestion/
+  dropRejected` (P<0.3 düşer). Test `smart_analysis_ai_verify_test`.
 - [ ] m.4c sohbet yönlendirici: basit soru (Decisions noul) → Gemma (kısa iş zinciri) önce
 - [ ] m.4d galeri kategori süzgeci: Fotoğraflar'da `FmQuickFilters` AI kategori hapı ZATEN VAR
   (fm_quick_filters.dart smartcat-pill); eksik = hassas kategori (kimlik/sağlık/banka/vergi) PIN kilidi.

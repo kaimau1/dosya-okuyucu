@@ -1,19 +1,27 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
+import 'package:provider/provider.dart';
 
 import '../../core/app_icons.dart';
+import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/snack.dart';
 import '../../core/theme.dart';
+import '../../core/user_error.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/image_resize.dart';
 import '../../services/fm/job_queue.dart';
 import '../../services/fm/media_library.dart';
 import '../../services/fm/open_history.dart';
 import '../../services/fm/smart_analysis.dart';
+import '../../services/gemini_decisions.dart';
 import '../../services/ocr_service.dart';
+import '../../widgets/ai_key_gate.dart';
 import '../../widgets/motion.dart';
 import 'chat_junk_bucket_screen.dart';
 import 'trash_screen.dart';
@@ -125,6 +133,77 @@ class _SmartCleanupScreenState extends State<SmartCleanupScreen> {
     setState(() {});
   }
 
+  /// Doğrulama sürüyor olan kova (aynı anda tek).
+  SmartKind? _verifying;
+
+  /// **AI ile doğrula** (B2 dilim 4): selamlaşma/bulanık kovasındaki
+  /// görsellerin küçük önizlemesi Decisions'a sorulur; AI'ın "hayır" dediği
+  /// yanlış eşleşmeler kovadan çıkar (silme yok). Kullanıcı başlatır.
+  Future<void> _aiVerify(SmartBucket bucket) async {
+    final q = SmartAnalysis.verifyQuestion(bucket.kind);
+    if (q == null || _verifying != null) return;
+    final appState = context.read<AppState>();
+    final messenger = ScaffoldMessenger.of(context);
+    final str = AppStrings.of(context);
+    if (!await ensureAiKey(context) || !mounted) return;
+    final keys = appState.aiCredentials.normalized.keys;
+    final scope = appState.aiScopeRules;
+    setState(() => _verifying = bucket.kind);
+    final yes = <String, double>{};
+    Object? lastError;
+    try {
+      for (final f in bucket.files.take(SmartAnalysis.aiVerifyLimit)) {
+        if (!scope.allowsFile(f)) continue;
+        final bytes = await ImageResizer.previewJpeg(f.path, maxEdge: 512);
+        if (bytes == null) continue;
+        try {
+          final r = await GeminiDecisions.ask(keys: keys, input: [
+            {'type': 'image', 'mime_type': 'image/jpeg', 'data': base64Encode(bytes)}
+          ], questions: [
+            q
+          ]);
+          final y = r.answers.isEmpty ? null : r.answers.first.yes;
+          if (y != null) yes[f.path] = y;
+        } catch (e) {
+          lastError = e;
+        }
+      }
+    } finally {
+      if (mounted) setState(() => _verifying = null);
+    }
+    if (!mounted) return;
+    if (yes.isEmpty) {
+      showSnackOn(
+          messenger,
+          lastError == null
+              ? str.t('sa.ai_none')
+              : 'Gemini: ${userErrorText(lastError)}');
+      return;
+    }
+    final kept = SmartAnalysis.dropRejected(bucket.files, yes);
+    final job = _job;
+    final report = _report;
+    if (job != null && report != null) {
+      job.result = SmartReport(
+        [
+          for (final b in report.buckets)
+            if (!identical(b, bucket))
+              b
+            else if (kept.isNotEmpty)
+              SmartBucket(b.kind, kept),
+        ],
+        report.scanned,
+        report.trashCount,
+        report.trashBytes,
+      );
+    }
+    setState(() {});
+    showSnackOn(
+        messenger,
+        str.t('sa.ai_verified',
+            {'n': yes.length, 'm': bucket.files.length - kept.length}));
+  }
+
   @override
   Widget build(BuildContext context) {
     final report = _report;
@@ -167,7 +246,20 @@ class _SmartCleanupScreenState extends State<SmartCleanupScreen> {
                       '${FsPaths.humanSize(b.bytes)}\n'
                       '${context.t(b.kind.reasonKey)}'),
                   isThreeLine: true,
-                  trailing: const Icon(AppIcons.chevron),
+                  trailing: SmartAnalysis.verifyQuestion(b.kind) == null
+                      ? const Icon(AppIcons.chevron)
+                      : _verifying == b.kind
+                          ? const SizedBox.square(
+                              dimension: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2))
+                          : IconButton(
+                              key: ValueKey('sa-verify-${b.kind.name}'),
+                              tooltip: context.t('sa.ai_verify'),
+                              icon: const Icon(AppIcons.ai),
+                              onPressed: _verifying == null
+                                  ? () => _aiVerify(b)
+                                  : null,
+                            ),
                   onTap: () => Navigator.of(context).push(MaterialPageRoute(
                     builder: (_) => ChatJunkBucketScreen.custom(
                       files: b.files,
