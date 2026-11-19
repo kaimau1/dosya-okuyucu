@@ -281,6 +281,15 @@ void main() {
       ]);
       expect(_one('={1,2;3}'), '#DEĞER!');
     });
+    test('Türkçe yazım: sütun \\, satır ; — dosyada , ve ;', () {
+      expect(_one('=TOPLA({1\\2;3\\4})'), '10');
+      expect(_one('=SUM({1,5\\2;3\\4})'), '10.5');
+      expect(FormulaEngine.toFileFormula('TOPLA({1\\2;3\\4};1)'),
+          'SUM({1,2;3,4},1)');
+      expect(FormulaEngine.toFileFormula('SUM({1,2;3,4})'), 'SUM({1,2;3,4})');
+      expect(FormulaEngine.toTurkishFormula('SUM({1.5,2;3,4},1)'),
+          'TOPLA({1,5\\2;3\\4};1)');
+    });
   });
 
   group('Türkçe adlar, dosya biçimi, yardım', () {

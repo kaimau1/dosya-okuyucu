@@ -21,6 +21,7 @@ extension _FormulaLocalePart on _Parser {
     final tr = turkish || _hasTopSemicolon(s);
     final out = StringBuffer();
     var i = 0;
+    var inArray = false;
     while (i < s.length) {
       final ch = s[i];
       if (ch == '"' || ch == "'") {
@@ -34,6 +35,15 @@ extension _FormulaLocalePart on _Parser {
         final stop = end < 0 ? s.length : end + 1;
         out.write(s.substring(i, stop));
         i = stop;
+        continue;
+      }
+      // Dizi sabitinde `;` satır ayırıcıdır, dosyada da `;` kalır; Türkçe
+      // sütun ayırıcı `\` dosyada `,` olur (`{1\2;3\4}` → `{1,2;3,4}`).
+      if (ch == '{') inArray = true;
+      if (ch == '}') inArray = false;
+      if (inArray && (ch == ';' || ch == r'\')) {
+        out.write(ch == ';' ? ';' : ',');
+        i++;
         continue;
       }
       if (ch == ';') {
@@ -125,16 +135,24 @@ extension _FormulaLocalePart on _Parser {
     return word;
   }
 
-  /// Formülde tırnak dışında `;` var mı (Türkçe yazım işareti).
+  /// Formül Türkçe yazımla mı: tırnak ve `{…}` dizi sabiti dışında `;` ya
+  /// da dizi sabitinde `\` var mı. Dizi sabitindeki `;` dosya biçiminde de
+  /// satır ayırıcıdır (`{1,2;3,4}`) — sayılsaydı `1,2` ondalık okunurdu
+  /// (B10 m.2).
   static bool _hasTopSemicolon(String s) {
     var i = 0;
+    var inArray = false;
     while (i < s.length) {
       final ch = s[i];
       if (ch == '"' || ch == "'") {
         i = _quotedEnd(s, i, ch);
         continue;
       }
-      if (ch == ';') return true;
+      if (ch == '{') inArray = true;
+      if (ch == '}') inArray = false;
+      if (ch == ';' && !inArray) return true;
+      // Türkçe dizi sabitinde sütun ayırıcı `\` (`{1\2;3\4}`).
+      if (ch == r'\' && inArray) return true;
       i++;
     }
     return false;
@@ -183,7 +201,8 @@ extension _FormulaLocalePart on _Parser {
 }
 
 /// Dosya biçimindeki formülü **Türkçe gösterime** çevirir (Faz 25 / K22):
-/// İngilizce ad → Türkçe Excel adı, `,` → `;`, `.` ondalık → `,`,
+/// İngilizce ad → Türkçe Excel adı, `,` → `;` (dizi sabitinde `\`),
+/// `.` ondalık → `,`,
 /// `TRUE/FALSE` → `DOĞRU/YANLIŞ`, `_xlfn.` öneki kalkar. Tırnak içi metne,
 /// sayfa adına ve tablo başvurusuna dokunulmaz.
 extension _FormulaDisplayPart on _Parser {
@@ -191,6 +210,7 @@ extension _FormulaDisplayPart on _Parser {
     final s = formula;
     final out = StringBuffer();
     var i = 0;
+    var inArray = false;
     while (i < s.length) {
       final ch = s[i];
       if (ch == '"' || ch == "'") {
@@ -206,8 +226,11 @@ extension _FormulaDisplayPart on _Parser {
         i = stop;
         continue;
       }
+      // Dizi sabiti: sütun `,` → `\`, satır `;` kalır (toFile'ın tersi).
+      if (ch == '{') inArray = true;
+      if (ch == '}') inArray = false;
       if (ch == ',') {
-        out.write(';');
+        out.write(inArray ? r'\' : ';');
         i++;
         continue;
       }

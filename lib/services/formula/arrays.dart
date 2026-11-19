@@ -440,8 +440,10 @@ extension _ParserArraysPart on _Parser {
   Object _weekendOf(List<Object> args, int i) {
     if (!_given(args, i)) return const {6, 7};
     final v = _arg(args, i);
-    if (v is String && _Parser._asNumber(v) == null) {
-      if (!RegExp(r'^[01]{7}$').hasMatch(v) || v == '1111111') return _value;
+    // "0010001" sayıya da çevrilir (10001) — dize kalıbı önce bakılır.
+    final mask = v is String && RegExp(r'^[01]{7}$').hasMatch(v);
+    if (v is String && (mask || _Parser._asNumber(v) == null)) {
+      if (!mask || v == '1111111') return _value;
       return {
         for (var d = 0; d < 7; d++)
           if (v[d] == '1') d + 1,
