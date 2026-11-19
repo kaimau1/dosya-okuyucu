@@ -599,9 +599,12 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
   Widget _main(BuildContext context) {
     final theme = Theme.of(context);
     final counts = SmartSort.counts();
+    // "Diğer" de klasör (U4, B15 m.4): Akıllı düzenin yerleştiremediği
+    // dosyalar eskiden hiçbir yerde görünmüyordu — kullanıcı onları bulup
+    // "Kategori yanlış mı?" ile öğretebilsin. Varsayılan sırada en sonda.
     final cats = SmartFolderPrefs.arrange([
       for (final c in SmartTaxonomy.categoryIds)
-        if ((counts[c] ?? 0) > 0 && c != SmartTaxonomy.other) c
+        if ((counts[c] ?? 0) > 0) c
     ]);
     final cols = SmartFolderPrefs.columns;
     final clutter = SmartSort.clutter().length;
