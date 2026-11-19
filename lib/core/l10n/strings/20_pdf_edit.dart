@@ -125,9 +125,9 @@ const Map<String, (String, String, String)> _t20 = {
   'jr.undo_rename': ('Adları geri al', 'Undo rename', 'التراجع عن إعادة التسمية'),
   'jr.renamed_back': ('{n} dosya eski adına döndü', '{n} files got their old names back', 'استعاد {n} ملف اسمه القديم'),
   'jr.headline_tags': (
-    '{files} dosyaya bakıldı, {groups} etiket önerildi ({n} öneri)',
-    '{files} files reviewed, {groups} tags suggested ({n} suggestions)',
-    'رُوجع {files} ملفًا واقتُرح {groups} وسمًا ({n} اقتراحًا)',
+    'Akıllı etiketleme {files} dosyaya baktı ve {groups} etiket önerdi ({n} öneri)',
+    'Smart tagging looked at {files} files and suggested {groups} tags ({n} suggestions)',
+    'فحص الوسم الذكي {files} ملفًا واقترح {groups} وسمًا ({n} اقتراحًا)',
   ),
   'jr.headline': ('{files} dosyada {n} değişiklik', '{n} changes on {files} files', '{n} تغيير على {files} ملف'),
   'jr.status_none': ('Henüz hiçbiri uygulanmadı — dosyalarda etiket yok. Yanlış önerilere dokunup çıkar (✕), sonra "Tümünü uygula".', 'Nothing applied yet — files have no tags. Tap wrong suggestions to drop them (✕), then "Apply all".', 'لم يُطبَّق شيء بعد. اضغط على الاقتراحات الخاطئة لاستبعادها (✕) ثم "تطبيق الكل".'),
