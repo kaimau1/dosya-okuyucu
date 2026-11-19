@@ -25,6 +25,7 @@ import '../../widgets/fm/fm_progress_dialog.dart';
 import 'browser_screen.dart';
 import 'category_screen.dart';
 import 'custom_card_screen.dart';
+import 'entry_actions.dart';
 import 'important_gallery_screen.dart';
 import 'photos_screen.dart';
 import 'search_screen.dart';
@@ -411,9 +412,20 @@ class _ImportantScreenState extends State<ImportantScreen> {
       confirmLabel: context.t('common.ok'),
     );
     if (name == null || name.trim().isEmpty || name == f.name) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final strings = AppStrings.of(context);
     try {
-      await FileOps.rename(f.path, name.trim());
+      final target = await FileOps.rename(f.path, name.trim());
       FsEvents.changed();
+      // B13 m.5: yeniden adlandırmanın "Geri al"ı (dosya listesiyle aynı kart).
+      if (target != f.path) {
+        showUndoToast(messenger, strings,
+            strings.t('fm.renamed', {'name': p.basename(target)}), () async {
+          await FileOps.rename(target, f.name);
+          FsEvents.changed();
+          if (mounted) await _load();
+        });
+      }
     } catch (e) {
       _snack(failed.replaceAll('{error}', userErrorText(e)));
     }
@@ -421,20 +433,32 @@ class _ImportantScreenState extends State<ImportantScreen> {
   }
 
   /// Önemli klasör: onay HİÇBİR ayarla atlanmaz (bkz. [ImportantFiles]).
+  ///
+  /// B13 m.5: çöp kutusu açıksa kategori de ÇÖPE gider ve "Geri al" kartı
+  /// çıkar (eskiden ayardan bağımsız kalıcı siliniyordu); kapalıysa kalıcı.
   Future<void> _deleteCategory(FsEntry f) async {
+    final useTrash = context.read<AppState>().fmUseTrash;
     final ok = await showAppConfirm(
       context,
       title: context.t('important.delete_category'),
-      message: context.t('important.delete_category_msg',
+      message: context.t(
+          useTrash
+              ? 'important.delete_category_msg_trash'
+              : 'important.delete_category_msg',
           {'name': f.name, 'n': _countIn(f.path)}),
-      confirmLabel: context.t('common.delete'),
+      confirmLabel: context.t(useTrash ? 'fm.move' : 'common.delete'),
       destructive: true,
     );
-    if (!ok) return;
-    final result = await FileOps.deleteAll([f.path]);
-    FsEvents.changed();
-    if (result.hasError) _snack(result.errors.first);
-    await _load();
+    if (!ok || !mounted) return;
+    if (useTrash) {
+      await trashWithUndo(context, [f.path]);
+      FsEvents.changed();
+    } else {
+      final result = await FileOps.deleteAll([f.path]);
+      FsEvents.changed();
+      if (result.hasError) _snack(result.errors.first);
+    }
+    if (mounted) await _load();
   }
 
   // ── Galeri: tüm önemli dosyalar önizlemeli ızgarada ────────────────────
