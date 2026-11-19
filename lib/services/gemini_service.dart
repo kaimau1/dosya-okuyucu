@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -76,8 +77,12 @@ class GeminiService {
   static Future<http.Response> _post(Uri url,
       {Map<String, String>? headers, Object? body}) async {
     // G10.2: gönderimden hemen önce, TEK yerde — her AI çağrısı buradan geçer.
+    // B1 m.5: görselli gövde (base64, ~19 MB'a dek) çözüp yeniden kodlamak
+    // ana izlekte onlarca ms — büyük gövde izolatta, küçüğü yerinde.
     if (body is String && await PiiMaskSetting.enabled()) {
-      body = maskBody(body);
+      body = body.length > isolateMaskChars
+          ? await _maskOffMain(body)
+          : maskBody(body);
     }
     return debugClient != null
         ? debugClient!.post(url, headers: headers, body: body)
@@ -86,6 +91,12 @@ class GeminiService {
 
   /// G8.6: asılı kalan istek yok (uzun yanıtlar dahil üst sınır).
   static const _timeout = Duration(seconds: 180);
+
+  /// Bu uzunluğun üstündeki gövde maskesi izolatta yapılır.
+  static const isolateMaskChars = 256 * 1024;
+
+  static Future<String> _maskOffMain(String raw) =>
+      Isolate.run(() => maskBody(raw));
 
   /// JSON gövdedeki `text` alanlarını [Pii.mask]'ten geçirir.
   @visibleForTesting

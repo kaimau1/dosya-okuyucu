@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
@@ -71,9 +72,37 @@ abstract final class GeminiDecisions {
     return {
       'type': media.type,
       'mime_type': media.mime,
-      'data': base64Encode(await file.readAsBytes()),
+      // B1 m.5: okuma + base64 (≤ 14 MB → ~19 MB yazı) izolatta; ana
+      // izlek yalnız sonucu alır.
+      'data': await _base64Of(path),
     };
   }
+
+  static Future<String> _base64Of(String path) =>
+      Isolate.run(() => base64Encode(File(path).readAsBytesSync()));
+
+  /// Satır içi verisi bu kadar karakteri aşan gövde izolatta kodlanır.
+  static const isolateEncodeChars = 256 * 1024;
+
+  /// İstek gövdesinin JSON yazısı. Satır içi (base64) verisi büyükse
+  /// [jsonEncode] izolatta (her karakter kaçış için taranır — 19 MB'ta
+  /// ana izlekte onlarca ms); sonuç kopyasız döner.
+  static Future<String> encodeBody(
+    List<Map<String, Object?>> input,
+    List<DecisionQuestion> questions,
+  ) {
+    final b = body(input, questions);
+    var inline = 0;
+    for (final block in input) {
+      final d = block['data'];
+      if (d is String) inline += d.length;
+    }
+    if (inline <= isolateEncodeChars) return Future.value(jsonEncode(b));
+    return _encodeOffMain(b);
+  }
+
+  static Future<String> _encodeOffMain(Map<String, Object?> b) =>
+      Isolate.run(() => jsonEncode(b));
 
   /// Yazı bloğu (`text` alanı kişisel veri maskesinden geçer).
   static Map<String, Object?> textBlock(String text) =>
@@ -108,7 +137,7 @@ abstract final class GeminiDecisions {
           'Gemini API anahtarınızı girin.');
     }
     if (questions.isEmpty) throw GeminiException('Soru yok.', statusCode: -1);
-    final payload = jsonEncode(body(input, questions));
+    final payload = await encodeBody(input, questions);
     GeminiException? last;
     for (final key in clean) {
       final http.Response resp;
