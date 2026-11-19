@@ -1508,3 +1508,11 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Benzer görseller: grup başlığında yıldız/"Gemini'ye sor" yok; boyut yazısı düz.
 - [ ] PDF Düzenle levhasında "Akıllı düzenle" AI simgesiyle; Word seçim menüsü "Seçimi akıllı düzelt"; arama "Akıllı arama"; Akıllı düzen kartı/başlığı tek yazım.
 - [ ] Ölçüm (C2): PDF görüntüleyici alt çubuk + ana ekran sekme geçişi, `.r8test` taban önceki [apk].
+
+## U4 Akıllı klasörler + Analiz + Yapay zekâ ayarları (2026-11-20, dal faz-oto-U4-akilli-klasor) — yazıldı, cihazda doğrulanmadı
+- [ ] Anahtarı geçici bozuk yap → Akıllı düzen "Şimdi düzenle": ileti "anahtar geçersiz … Ayarlar > Yapay zekâ" diyor mu (eskiden "kota doldu"). Çevrimdışı kip açıkken: "Çevrimdışı kip açık …".
+- [ ] Başka bir uygulamayla düzenlenmiş bir dosyayı sil → Akıllı düzen ekranını aç: klasör sayısı bir düşüyor mu; çöpe atıp geri yüklenen dosya kategorisinde mi.
+- [ ] Akıllı düzen ekranı: ızgaranın sonunda "Diğer" klasörü (varsa); altında "Akıllı aramalar" kartı → "fatura" araması kaydet → faturalar listeleniyor mu; "kimlik" araması PIN istiyor mu (PIN kuruluysa).
+- [ ] Ayarlar > Yapay zekâ: en üstte "Akıllı klasörler" (Akıllı düzen durumu, kamera/arka plan/Wi-Fi/günlük sınır, hassas klasör PIN'i, Kategorilerim); "AI Kalıcı Hafıza" yok; onay ve kişisel veri gizleme burada, Gizlilik'te yok.
+- [ ] Bellek Analizi: araçlarda "Kopyalar" (ana ekrandakiyle aynı simge) ve Akıllı düzen açıksa "Ayıkla · n"; aramada 200'den çok sonuç → "Tümünü seç" en çok 200 seçiyor.
+- [ ] Ölçüm (C2): Akıllı düzen ekranı açılışı (budama izolatta) — kasma yok mu.
