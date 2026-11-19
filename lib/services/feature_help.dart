@@ -173,7 +173,7 @@ class FeatureHelpIndex {
       id: 'edit_home',
       group: 'Ana ekran',
       name: 'Ana ekranı düzenle',
-      where: 'Ana ekran → en altta "Ana ekranı düzenle"',
+      where: 'Ana ekran → en altta "Düzenle" → "Ana ekranı düzenle"',
       how: [
         'Kutuları ve bölümleri sürükleyerek sırala.',
         'Anahtarla gizle ya da göster.',
@@ -185,7 +185,7 @@ class FeatureHelpIndex {
       id: 'custom_card',
       group: 'Ana ekran',
       name: 'Kendi kartını oluştur',
-      where: 'Ana ekran → "Ana ekranı düzenle" → "Yeni kart"',
+      where: 'Ana ekran → "Düzenle" → "Ana ekranı düzenle" → "Yeni kart"',
       how: [
         'Kartın adını ve içine girecek dosya türlerini seç.',
         'Galeri ya da klasör görünümünü seç, kaydet.',
@@ -196,7 +196,7 @@ class FeatureHelpIndex {
       id: 'bottom_bar',
       group: 'Ana ekran',
       name: 'Alt paneli düzenle',
-      where: 'Ana ekran → en altta "Alt paneli düzenle"',
+      where: 'Ana ekran → en altta "Düzenle" → "Alt paneli düzenle"',
       how: [
         'Aktar\'ın solunda ve sağında 3\'er düğme olabilir.',
         'Ek düğmeleri (İşlemler, Drive…) sola ya da sağa ekle; her yana en çok 2 ek.',

@@ -555,22 +555,47 @@ class _DashboardScreenState extends State<DashboardScreen>
             // hızlı klasörler — her biri gizlenebilir.
             ..._sectionsLaidOut(volumes, appState),
             const SizedBox(height: Gap.lg),
-            Wrap(
-              alignment: WrapAlignment.center,
-              children: [
-                TextButton.icon(
-                  onPressed: _editLayout,
-                  icon: const Icon(AppIcons.dashboardCustomize, size: 18),
-                  label: Text(context.t('dash.title')),
+            // **Tek "Düzenle" düğmesi** (U3 m.5, 2026-11-20, kullanıcı: "iki
+            // düğme → tek düğme, görsel bütünlük"): ana ekran ve alt panel
+            // düzenleyicileri aynı menüde. Alt panele basılı tutmak da açar.
+            Center(
+              child: PopupMenuButton<bool>(
+                key: const ValueKey('dash-edit'),
+                tooltip: context.t('common.edit'),
+                onSelected: (dock) =>
+                    dock ? showDockEditor(context) : _editLayout(),
+                itemBuilder: (ctx) => [
+                  PopupMenuItem(
+                    value: false,
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(AppIcons.dashboardCustomize),
+                      title: Text(ctx.t('dash.title')),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    key: const ValueKey('dash-edit-dock'),
+                    value: true,
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(AppIcons.tune),
+                      title: Text(ctx.t('dock.edit_title')),
+                    ),
+                  ),
+                ],
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: Gap.md, vertical: Gap.sm),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(AppIcons.edit,
+                        size: 18, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: Gap.sm),
+                    Text(context.t('common.edit'),
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            color: Theme.of(context).colorScheme.primary)),
+                  ]),
                 ),
-                // Alt panelin iki ek düğmesi (panele basılı tutmak da açar).
-                TextButton.icon(
-                  key: const ValueKey('dash-edit-dock'),
-                  onPressed: () => showDockEditor(context),
-                  icon: const Icon(AppIcons.tune, size: 18),
-                  label: Text(context.t('dock.edit_title')),
-                ),
-              ],
+              ),
             ),
             if (_cachedAtMs > 0) ...[
               const SizedBox(height: Gap.lg),
