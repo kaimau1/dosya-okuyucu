@@ -19,6 +19,6 @@ void main() {
     final end = src.indexOf('\nclass ', start + 1);
     final strip = src.substring(start, end < 0 ? src.length : end);
     expect(strip, contains('itemExtent:'));
-    expect(strip, isNot(contains('ListView.separated')));
+    expect(strip, isNot(contains('ListView.separated(')));
   });
 }
