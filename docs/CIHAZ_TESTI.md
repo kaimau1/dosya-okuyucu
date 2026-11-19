@@ -1430,3 +1430,8 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Önemli > kategori uzun bas > Sil: onay "çöp kutusuna taşınsın mı" der, sonra "Geri al" kartı; Geri al kategoriyi geri getirir. Kategori yeniden adlandır → Geri al.
 - [ ] Word düzenleyici: ekranın altındaki bir satıra dokun → klavye açılınca satır klavyenin üstünde kalır; klavye kapanınca belge geri zıplamaz.
 - [ ] Android 14+: alt levha açıkken geri hareketi levhayı kapatır.
+
+## B2 Akıllı düzen kullanım dilim 1 (2026-11-19, dal faz-oto-B2-duzen-kullanim) — yazıldı, cihazda doğrulanmadı
+- [ ] Akıllı düzen > Ayıkla > sağ üst "Benzer kareler": benzer gruplar çıkıyor; ⭐ "En iyi" gruptaki EN NET kare mi (bulanık büyük kopya değil)? Tarama süresi eski "Benzer görüntüler"e göre belirgin uzamadı mı?
+- [ ] PIN kurulu + uygulama kilidi kapalı: Kimlik/Sağlık/Banka/Vergi klasörüne (ya da bunları içeren süresi dolmuş/tutar listesine) girişte PIN soruluyor, aynı oturumda ikinci kez sorulmuyor. Uygulama kilidi açıkken ya da PIN yokken sorulmuyor.
+- [ ] Dosya ⋮ > Kategori yanlış mı? > başka kategori → Doğruluk tezgâhında o dosya doğru kategoriyle görünüyor.
