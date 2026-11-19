@@ -35,6 +35,7 @@ part 'docx_table.dart';
 part 'docx_review.dart';
 part 'docx_media.dart';
 part 'docx_controls.dart';
+part 'docx_track.dart';
 
 /// Atom karakteri (Flutter `WidgetSpan` yer tutucusuyla aynı).
 const String kDocxAtom = '￼';
@@ -164,6 +165,21 @@ class DocxRunPatch {
       highlight, sizePt, font, vertAlign);
 }
 
+/// İzlenen ekleme (`w:ins`) işareti (B9 m.3): aynı nesneyi taşıyan ardışık
+/// harfler kayıtta tek `w:ins` içine yazılır.
+class DocxRev {
+  final String author;
+
+  /// ISO 8601 (`2026-11-19T10:00:00Z`); boş = tarihsiz.
+  final String date;
+
+  /// Dosyadan okunan özgün `w:ins` (öznitelikleri yeniden yazılır); bu
+  /// oturumda yazılanlarda null.
+  final XmlElement? source;
+
+  const DocxRev(this.author, this.date, {this.source});
+}
+
 /// Bir harfin biçimi: özgün run (+ özgün metni) ve kullanıcı örtmeleri.
 class DocxCharStyle {
   /// Özgün `w:r` (yeni yazıda ve paragraf işaretinde null).
@@ -179,8 +195,11 @@ class DocxCharStyle {
   final DocxRunLook look;
   final DocxRunPatch patch;
 
+  /// İzlenen ekleme işareti (yoksa null).
+  final DocxRev? rev;
+
   const DocxCharStyle(this.run, this.runText, this.rPr, this.look,
-      {this.patch = DocxRunPatch.none});
+      {this.patch = DocxRunPatch.none, this.rev});
 
   bool? get bold => patch.bold;
   bool? get italic => patch.italic;
@@ -203,19 +222,34 @@ class DocxCharStyle {
           bool? underline,
           DocxRunPatch patch = DocxRunPatch.none}) =>
       DocxCharStyle(run, runText, rPr, look,
+          rev: rev,
           patch: this.patch.merge(patch).merge(
               DocxRunPatch(bold: bold, italic: italic, underline: underline)));
 
   /// Aynı run, başka görünüş (paragraf stili değişti).
   DocxCharStyle withLook(DocxRunLook l) =>
-      DocxCharStyle(run, runText, rPr, l, patch: patch);
+      DocxCharStyle(run, runText, rPr, l, patch: patch, rev: rev);
+
+  /// Aynı biçim, başka izleme işareti. Aynı (biçim, işaret) için son nesne
+  /// saklanır: art arda yazılan harfler aynı nesneyi paylaşsın (tek run/span).
+  DocxCharStyle withRev(DocxRev? r) {
+    if (identical(r, rev)) return this;
+    final memo = _withRev[this];
+    if (memo != null && identical(memo.$1, r)) return memo.$2;
+    final out =
+        DocxCharStyle(run, runText, rPr, look, patch: patch, rev: r);
+    _withRev[this] = (r, out);
+    return out;
+  }
+
+  static final _withRev = Expando<(DocxRev?, DocxCharStyle)>('docxWithRev');
 
   /// Run'dan kopmuş hâli (yazılan yeni metin özgün run'ı "aynen" sayılmasın).
   /// Aynı biçim için hep AYNI nesne: ardışık yazılan harfler tek run olur.
   DocxCharStyle detached() => run == null
       ? this
       : (_detached[this] ??=
-          DocxCharStyle(null, null, rPr, look, patch: patch));
+          DocxCharStyle(null, null, rPr, look, patch: patch, rev: rev));
 
   static final _detached = Expando<DocxCharStyle>('docxDetached');
 }
@@ -425,6 +459,19 @@ class DocxDocument {
 
   /// Geri alınabilir özellik düğümleri (`tblPr`, `tcPr`): anlık görüntüye girer.
   final List<XmlElement> _tracked = [];
+
+  // ── değişiklikleri izle (B9 m.3; docx_track.dart) ──
+  bool? _trackOn;
+
+  /// İzlenen değişikliklerin yazarı (Ayarlar'daki ad; boşsa "Yazar").
+  String revAuthor = '';
+  int _revId = -1;
+  DocxRev? _sessionRev;
+  bool _liveTracked = false;
+
+  /// Özgün kimliğiyle bir kez yazılmış (dosyadan okunan) eklemeler — ikinci
+  /// yazımda (bölünme, yeniden kurma) yeni kimlik: kimlikler tekil kalır.
+  final Set<DocxRev> _revEmitted = {};
 
   DocxDocument._(this._archive, this.doc, this.body, this.styles,
       this.numbering, this._rels, this.paras);
@@ -718,6 +765,14 @@ class DocxDocument {
           atom(DocxAtom(DocxAtomKind.field, [e], t), mark);
         case 'sdt' when !_hasVisual(e) && _controlOf(e) != null:
           atom(DocxAtom(DocxAtomKind.control, [e], t), mark);
+        case 'ins' when _plainIns(e):
+          // Düz metinli izlenen ekleme düzenlenebilir metin olur (B9 m.3).
+          final rev = DocxRev(_attr(e, 'author') ?? '', _attr(e, 'date') ?? '',
+              source: e);
+          for (final r in e.childElements) {
+            _readRun(r, pPr, (s, st) => text(s, st.withRev(rev)), atom,
+                (x) => an.add((sb.length, x)));
+          }
         default:
           if (t.isEmpty && !_hasVisual(e)) {
             an.add((sb.length, e));
@@ -1094,7 +1149,7 @@ class DocxDocument {
   /// karakter stili kalkar, paragraf stilinin biçimi kalır.
   DocxPara clearFormatting(DocxPara p, int from, int to) {
     final plain = DocxCharStyle(null, null, null, styles.runLook(p.pPr, null));
-    return p.mapStyles(from, to, (_) => plain);
+    return p.mapStyles(from, to, (s) => plain.withRev(s.rev));
   }
 
   /// Biçim boyacısı: [src]'nin harf biçimi (rPr şablonu + örtmeler) hedef
@@ -1102,7 +1157,7 @@ class DocxDocument {
   DocxPara paintFormat(DocxPara p, int from, int to, DocxCharStyle src) {
     final st = DocxCharStyle(null, null, src.rPr, styles.runLook(p.pPr, src.rPr),
         patch: src.patch);
-    return p.mapStyles(from, to, (_) => st);
+    return p.mapStyles(from, to, (s) => st.withRev(s.rev));
   }
 
   // ── listeler ─────────────────────────────────────────────────────────────
@@ -1424,9 +1479,29 @@ class DocxDocument {
       pPr = pPr.copy();
     }
     el.children.clear();
+    // Açık `w:ins` kabı (aynı işaretli ardışık run'lar içine girer).
+    XmlElement? insBox;
+    DocxRev? insRev;
     void add(XmlElement n) {
+      insBox = null;
       n.parent?.children.remove(n);
       el.children.add(n);
+    }
+
+    void addRun(XmlElement r, DocxRev? rev) {
+      if (rev == null) {
+        add(r);
+        return;
+      }
+      var box = insBox;
+      if (box == null || !identical(insRev, rev)) {
+        box = _insElement(rev);
+        el.children.add(box);
+        insBox = box;
+        insRev = rev;
+      }
+      r.parent?.children.remove(r);
+      box.children.add(r);
     }
 
     if (pPr != null) add(pPr);
@@ -1469,17 +1544,46 @@ class DocxDocument {
           style.runText == text &&
           !usedRuns.contains(run)) {
         usedRuns.add(run);
-        add(run);
+        addRun(run, style.rev);
       } else {
-        add(_newRun(style, text));
+        addRun(_newRun(style, text), style.rev);
       }
       k = j;
     }
   }
 
+  /// [rev] için `w:ins` kabı. Dosyadan okunan ekleme ilk kez özgün
+  /// öznitelikleriyle (kimliği dahil), bölünmüşse sonrakiler yeni kimlikle.
+  XmlElement _insElement(DocxRev rev) {
+    final src = rev.source;
+    if (src != null && _revEmitted.add(rev)) {
+      return XmlElement(const XmlName.qualified('w:ins'),
+          src.attributes.map((a) => a.copy()));
+    }
+    return XmlElement(const XmlName.qualified('w:ins'), [
+      XmlAttribute(const XmlName.qualified('w:id'), '${_nextRevId()}'),
+      XmlAttribute(const XmlName.qualified('w:author'), rev.author),
+      if (rev.date.isNotEmpty)
+        XmlAttribute(const XmlName.qualified('w:date'), rev.date),
+    ]);
+  }
+
+  /// Belgede kullanılmamış izleme kimliği (artarak).
+  int _nextRevId() {
+    if (_revId < 0) {
+      var m = 0;
+      for (final e in doc.rootElement.descendantElements) {
+        if (!_trackedNames.contains(e.name.local)) continue;
+        m = math.max(m, int.tryParse(_attr(e, 'id') ?? '') ?? 0);
+      }
+      _revId = m;
+    }
+    return ++_revId;
+  }
+
   static bool _sameWrite(DocxCharStyle a, DocxCharStyle b) =>
       identical(a, b) ||
-      (identical(a.rPr, b.rPr) && a.patch == b.patch);
+      (identical(a.rPr, b.rPr) && a.patch == b.patch && identical(a.rev, b.rev));
 
   static XmlElement _newRun(DocxCharStyle style, String text) {
     final rPr = style.rPr?.copy() ?? XmlElement(const XmlName.qualified('w:rPr'));

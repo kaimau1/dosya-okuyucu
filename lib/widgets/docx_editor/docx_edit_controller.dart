@@ -303,7 +303,7 @@ class DocxEditController extends ChangeNotifier
     final a = from.clamp(0, p.length), b = to.clamp(a, p.length);
     _record(typing: true, inserted: text);
     final style = _typingStyle(i, a);
-    doc.paras[i] = p.replace(a, b, text, style);
+    doc.paras[i] = doc.editText(p, a, b, text, style);
     base = extent = DocPos(i, a + text.length);
     if (_pending != null) _pendingAt = extent;
   }
@@ -372,10 +372,12 @@ class DocxEditController extends ChangeNotifier
     final s = start, e = end;
     if (s.para == e.para) {
       final p = paras[s.para];
-      doc.paras[s.para] = p.replace(s.offset, e.offset, '', p.mark);
+      doc.paras[s.para] = doc.editText(p, s.offset, e.offset, '', p.mark);
     } else {
       final a = paras[s.para], b = paras[e.para];
-      var sameBox = !a.opaque && !b.opaque;
+      // İzle açıkken paragraflar birleştirilmez: aradaki metin silinmiş
+      // olarak kalsın (paragraf işareti silmesi izlenmiyor).
+      var sameBox = !a.opaque && !b.opaque && !doc.trackChanges;
       for (var k = s.para; k <= e.para && sameBox; k++) {
         sameBox = identical(paras[k].container, a.container) && !paras[k].opaque;
       }
@@ -391,7 +393,7 @@ class DocxEditController extends ChangeNotifier
           if (p.opaque) continue;
           final from = k == s.para ? s.offset : 0;
           final to = k == e.para ? e.offset : p.length;
-          doc.paras[k] = p.replace(from, to, '', p.mark);
+          doc.paras[k] = doc.editText(p, from, to, '', p.mark);
         }
       }
     }
@@ -873,11 +875,11 @@ class DocxEditController extends ChangeNotifier
       final i = extent.para, at = extent.offset;
       final line = clip.lines[n].replaceAll('\n', kDocxLineBreak);
       final p = paras[i];
-      var next = p.replace(at, at, line, _typingStyle(i, at));
+      var next = doc.editText(p, at, at, line, _typingStyle(i, at));
       final st = [...next.styles];
       final src = clip.styles[n];
       for (var k = 0; k < line.length && k < src.length; k++) {
-        st[at + k] = src[k];
+        st[at + k] = src[k].withRev(st[at + k].rev);
       }
       next = next.copyWith(styles: st);
       // Ara paragraf (bütünüyle kopyalandı): paragraf biçimi de gelir.

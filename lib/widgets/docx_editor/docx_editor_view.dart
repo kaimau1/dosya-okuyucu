@@ -646,6 +646,14 @@ class DocxEditorViewState extends State<DocxEditorView> {
         j++;
       }
       var style = _style(st.effective);
+      if (st.rev != null) {
+        // İzlenen ekleme (Word gibi renkli alt çizgi).
+        style = style.copyWith(
+            decoration: TextDecoration.combine(
+                [style.decoration ?? TextDecoration.none, TextDecoration.underline]),
+            decorationColor: AppHues.red,
+            color: AppHues.red);
+      }
       if (mark && style.backgroundColor == null) {
         style = style.copyWith(
             backgroundColor: AppHues.amber.withValues(alpha: 0.18));

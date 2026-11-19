@@ -1405,3 +1405,10 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Yeni başlık ekle → İçindekiler'i yeniden çalıştır: yerinde güncelleniyor mu (ikinci İçindekiler oluşmuyor)? Kaydet → Word'de aç: girdiye tıklayınca başlığa gidiyor mu, Word "Alanı güncelleştir" doğru sayfaları veriyor mu?
 - [ ] Ekle → Dipnot ve Ekle → Sonnot: araya eklenen not ötekileri yeniden numaralıyor mu (dipnot 1, 2, 3 · sonnot i, ii)? Nota dokun → düzenle / Sil; silip geri al not metnini geri getiriyor mu?
 - [ ] Notlu belgeyi kaydet → Word'de aç: dipnotlar sayfa altında, sonnotlar sonda, silinen not yok mu? PDF'e aktar: notlar belge sonunda numaralı liste (sayfa altı değil — bilinen eksik).
+
+## 2026-11-19 — Word 2.0 m.3 Değişiklikleri izle (bulut, dal faz-oto-B9-word2; yazıldı, cihazda doğrulanmadı)
+- [ ] Gözden Geçir → "Değişiklikleri izle": ilk açışta ad soruluyor mu (yorum adıyla aynı), düğme açık görünüyor mu? Yazılan metin kırmızı altı çizili mi?
+- [ ] İzle açıkken kelime sil / geri sil (Gboard otomatik düzeltme dahil): silinen metin ekrandan kalkıyor, klavye imleci kaymıyor mu? Kendi yazdığını silince iz kalmıyor mu?
+- [ ] Kaydet → Word'de aç: eklemeler ve silmeler senin adınla, tarihle görünüyor mu; Word'de "Değişiklikleri İzle" açık mı? Kabul et / Reddet doğru sonucu veriyor mu?
+- [ ] Uygulamada "Tüm değişiklikleri kabul et / reddet" kaydetmeden önce yapılan izlenen yazmalarda da çalışıyor mu? Word'de izle açık kaydedilmiş belge uygulamada açılınca izle düğmesi açık mı?
+- [ ] Bilinen sınır: izle açıkken Enter / paragraf başında geri silme ve biçim değişikliği izlenmez; birden çok paragraf seçip silince paragraflar birleşmez (boş kalır).
