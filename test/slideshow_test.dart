@@ -66,8 +66,9 @@ void main() {
     await t.pumpWidget(const MaterialApp(
       home: SlideshowScreen(slides: [_slide, pushed]),
     ));
-    final w = t.view.physicalSize.width / t.view.devicePixelRatio;
-    await t.tapAt(Offset(w * 0.9, 200));
+    await t.pump();
+    // Tuş anında ilerler (dokunuş çift dokunuş süresini bekler).
+    await t.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     await t.pump();
     await t.pump(const Duration(milliseconds: 16));
     expect(find.byKey(const ValueKey('ss-transition')), findsOneWidget);
