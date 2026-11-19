@@ -62,12 +62,17 @@ class TrashAutoTile extends StatelessWidget {
           ? context.t('fmset.off')
           : context.t('fmset.days', {'n': appState.fmTrashAutoDays}),
       trailing: PopupMenuButton<int>(
+        initialValue: appState.fmTrashAutoDays,
         icon: const Icon(AppIcons.dropDown),
         onSelected: appState.setFmTrashAutoDays,
         itemBuilder: (ctx) => [
-          PopupMenuItem(value: 0, child: Text(ctx.t('fmset.off'))),
+          CheckedPopupMenuItem(
+              value: 0, checked: off, child: Text(ctx.t('fmset.off'))),
           for (final d in const [7, 30, 90])
-            PopupMenuItem(value: d, child: Text(ctx.t('fmset.days', {'n': d}))),
+            CheckedPopupMenuItem(
+                value: d,
+                checked: appState.fmTrashAutoDays == d,
+                child: Text(ctx.t('fmset.days', {'n': d}))),
         ],
       ),
     );

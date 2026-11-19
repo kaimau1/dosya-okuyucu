@@ -110,6 +110,7 @@ class PerfModeTile extends StatelessWidget {
           ? context.t('perf.auto_is', {'tier': detected})
           : _label(context, mode),
       trailing: PopupMenuButton<PerfMode>(
+        initialValue: mode,
         icon: const Icon(AppIcons.dropDown),
         tooltip: context.t('perf.mode'),
         onSelected: (m) async {
@@ -119,7 +120,8 @@ class PerfModeTile extends StatelessWidget {
         },
         itemBuilder: (ctx) => [
           for (final m in PerfMode.values)
-            PopupMenuItem(value: m, child: Text(_label(ctx, m))),
+            CheckedPopupMenuItem(
+                value: m, checked: m == mode, child: Text(_label(ctx, m))),
         ],
       ),
     );

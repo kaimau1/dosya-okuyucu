@@ -67,7 +67,27 @@ class SettingTile extends StatelessWidget {
               // (Ayarlar > Yazı boyutu) burada da geçerli olmalı.
               style: theme.textTheme.bodySmall?.copyWith(color: faint),
             ),
-      trailing: trailing ??
+      // U3 m.8 (2026-11-20, kullanıcı: "seçili olan görünmüyor"): açılır
+      // menülü satırda `trailing` verilince değer HİÇ çizilmiyordu — değer
+      // artık menü düğmesinin solunda da görünür.
+      trailing: trailing != null && value != null
+          ? Row(mainAxisSize: MainAxisSize.min, children: [
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 110),
+                child: Text(
+                  value!,
+                  textAlign: TextAlign.end,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              trailing!,
+            ])
+          : trailing ??
           (value == null
               ? (onTap == null ? null : const Icon(AppIcons.chevron))
               : Row(
