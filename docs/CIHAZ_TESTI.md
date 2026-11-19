@@ -1516,3 +1516,13 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Ayarlar > Yapay zekâ: en üstte "Akıllı klasörler" (Akıllı düzen durumu, kamera/arka plan/Wi-Fi/günlük sınır, hassas klasör PIN'i, Kategorilerim); "AI Kalıcı Hafıza" yok; onay ve kişisel veri gizleme burada, Gizlilik'te yok.
 - [ ] Bellek Analizi: araçlarda "Kopyalar" (ana ekrandakiyle aynı simge) ve Akıllı düzen açıksa "Ayıkla · n"; aramada 200'den çok sonuç → "Tümünü seç" en çok 200 seçiyor.
 - [ ] Ölçüm (C2): Akıllı düzen ekranı açılışı (budama izolatta) — kasma yok mu.
+
+## U3 Ana ekran + bildirim bütünlüğü (2026-11-20, dal faz-oto-U3-ana-ekran) — yazıldı, cihazda doğrulanmadı
+- [ ] Ayarlar > Depolama ve başarım > Başarım: satırda güncel değer ("Otomatik (orta)" gibi) görünüyor; menüde seçili onay işaretli. Çöp otomatik temizle, varsayılan sıralama, medya açılışında da aynı.
+- [ ] Ana ekran Araçlar: "Kopyalar" ve "Bağlantıdan indir" yok; paylaşılan bir bağlantı yine indirme ekranını açıyor.
+- [ ] Ana ekran en altta tek "Düzenle" → iki seçenek; ikisi de doğru sayfayı açıyor.
+- [ ] Ses ve video oynatıcıda hız simgesi → çubuk (0,5–2,0, 0,05 adım) + hızlı düğmeler; ses perdesi/takılma yok; 1,05× gibi ara hızlar çalışıyor.
+- [ ] Akıllı düzen turu sonrası "N yeni dosya düzenlendi" iş bildirimleriyle aynı kartta (Göster · ✕); ✕ sonrası geri gelmiyor.
+- [ ] Çöp kutusu kapalıyken bir dosyayı sil → "1 öğe kalıcı olarak silindi" kartı. Excel CSV biçim uyarısı, taşıma "Geri al" sonucu, taramada "kaydedildi" ortak alt kartta.
+- [ ] Son dosyalar: yeniler ve açılanlar zamana göre karışık, "Yeni" etiketi duruyor; sekmeler Son dosyalar · Geçmiş · Yeniler; › doğru listeye gidiyor. Ana ekranı düzenle › Bölümler'de varsayılan Geçmiş seç → uygulamayı kapat-aç → şerit Geçmiş'te açılıyor. Yan menüde aynı şerit.
+- [ ] Ölçüm (C2): ana ekran soğuk açılış + şerit sekme geçişi + yan menü açılışı; `.r8test` taban önceki [apk].

@@ -142,6 +142,11 @@ class _DashboardScreenState extends State<DashboardScreen>
   static StorageIndex? _cachedIndex;
   static int _cachedAtMs = 0;
 
+  /// Bildirim kartının kaynakları — her build'de yeni birleşik dinleyici
+  /// kurulmasın (kasma-kontrol m.2).
+  static final Listenable _inboxSources =
+      Listenable.merge([FtpService.instance, SmartSort.lastBatch]);
+
   /// Yan menü kaynağı TEK nesne: uzantı yöntemi koparmaları her seferinde yeni
   /// kapanış üretir, `unregister` eşleşsin diye bir kez tutulur.
   late final List<FmTileData> Function() _sideMenuSource = _sideMenuTiles;
@@ -540,8 +545,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             // sonuçlar TEK kartta, en üstte. Boşken hiç çizilmez. Eski ağ
             // paylaşımı şeridi de buraya katıldı (tek tip).
             AnimatedBuilder(
-              animation: Listenable.merge(
-                  [FtpService.instance, SmartSort.lastBatch]),
+              animation: _inboxSources,
               builder: (context, _) =>
                   SmartInbox(events: _inboxEvents(volumes)),
             ),
