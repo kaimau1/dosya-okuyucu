@@ -181,6 +181,93 @@ Future<void> giveAiAlias(BuildContext context, FsEntry entry) async {
   );
 }
 
+/// **Toplu AI ile ikinci ad** (2026-11-19, kullanıcı: *"belgeleri, fotoları
+/// seçip toplu biçimde yeni AI modeli ile ikinci ad verme olmalı; burada
+/// eski etiket mantığı kalmış"*). Tek dosyadaki [giveAiAlias] ile aynı yeni
+/// model ([SmartSort.classifyOne]) her dosyaya; kategori etiket de olur.
+/// İş iş kuyruğunda (bildirim + şerit, "Durdur"), ekrandan çıkılsa da sürer.
+/// Klasörler ve AI kapsamı dışındakiler atlanır; en çok [maxAliasBatch].
+const maxAliasBatch = 300;
+
+Future<void> giveAiAliasBatch(BuildContext context, List<FsEntry> entries) async {
+  if (!await ensureAiKey(context) || !context.mounted) return;
+  final state = context.read<AppState>();
+  final str = AppStrings.of(context);
+  final messenger = ScaffoldMessenger.of(context);
+  final scope = state.aiScopeRules;
+  final todo = [
+    for (final e in entries)
+      if (!e.isDir && scope.allowsFile(e)) e
+  ].take(maxAliasBatch).toList();
+  if (todo.isEmpty) {
+    showSnackOn(messenger, str.t('qc.scope_off'));
+    return;
+  }
+  final credentials = state.aiCredentials;
+  final task = TrackedTask(
+    title: str.t('alias.batch_title'),
+    name: str.t('alias.batch_name', {'n': todo.length}),
+    threshold: Duration.zero,
+  );
+  task.report(done: 0, total: todo.length);
+  showSnackOn(messenger, str.t('alias.batch_started', {'n': todo.length}));
+  await AiIndex.ensureLoaded();
+  var named = 0, failed = 0, done = 0;
+  String? stoppedBy;
+  final queue = [...todo];
+  Future<void> worker() async {
+    while (queue.isNotEmpty && stoppedBy == null && !task.cancelRequested) {
+      final e = queue.removeAt(0);
+      try {
+        final rec = await SmartSort.classifyOne(
+          entry: e,
+          credentials: credentials,
+          input: switch (SmartSortInput.kindOf(e.path)) {
+            SmartInputKind.audio || SmartInputKind.video => const [],
+            _ => await quickCheckInput(e.path, str),
+          },
+        );
+        final alias = rec == null ? '' : SmartSort.render(rec, str);
+        if (rec != null && alias.isNotEmpty) {
+          // AI'dan istendi: elle verilmiş eski ad yenisini gölgelemesin.
+          final before = AiIndex.of(e.path);
+          if (before != null && before.alias.isNotEmpty) {
+            await AiIndex.put(before.copyWith(alias: ''));
+          }
+          if (rec.cat != 'other') {
+            await FileTags.add([e.path], str.t('sm.c_${rec.cat}'));
+          }
+          named++;
+        } else {
+          failed++;
+        }
+      } on GeminiException catch (err) {
+        failed++;
+        if (const {401, 403, 429}.contains(err.statusCode)) {
+          stoppedBy = err.message;
+        }
+      } catch (_) {
+        failed++;
+      }
+      done++;
+      task.report(done: done, detail: e.name);
+    }
+  }
+
+  await Future.wait([worker(), worker()]);
+  final detail = [
+    str.t('alias.batch_done', {'n': named}),
+    if (failed > 0) str.t('alias.batch_failed', {'n': failed}),
+    ?stoppedBy,
+  ].join(' · ');
+  if (task.cancelRequested || stoppedBy != null) {
+    await task.stopped(detail: detail);
+  } else {
+    await task.complete(detail: detail);
+  }
+  if (TrackedTask.userWatching) showSnackOn(messenger, detail);
+}
+
 /// İkinci adı **elle** yazdırır (2026-11-10). Orijinal dosya adı değişmez;
 /// ad satırda ve aramada görünür, AI yeniden analizi bunu ezmez.
 Future<void> editAlias(BuildContext context, FsEntry entry) async {

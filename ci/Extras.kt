@@ -244,6 +244,34 @@ object Extras {
         return schedule(ctx)
     }
 
+    // ── Akıllı düzen arka plan işi (2026-11-19) ────────────────────────────
+    const val SMART_JOB_ID = 0x5E02
+
+    /** Şarjda + ölçülü olmayan ağda ~3 saatte bir [SmartBgJob]; [on] false iptal. */
+    fun scheduleSmartBg(ctx: Context, on: Boolean): Boolean {
+        val scheduler = ctx.getSystemService(Context.JOB_SCHEDULER_SERVICE) as? JobScheduler
+            ?: return false
+        if (!on) {
+            scheduler.cancel(SMART_JOB_ID)
+            return true
+        }
+        if (scheduler.getPendingJob(SMART_JOB_ID) != null) return true
+        val info = JobInfo.Builder(SMART_JOB_ID, ComponentName(ctx, SmartBgJob::class.java))
+            .setPeriodic(TimeUnit.HOURS.toMillis(3))
+            .setRequiresCharging(true)
+            .setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED)
+            .setPersisted(true)
+            .build()
+        return runCatching { scheduler.schedule(info) == JobScheduler.RESULT_SUCCESS }
+            .getOrDefault(false)
+    }
+
+    fun isCharging(ctx: Context): Boolean {
+        val bm = ctx.getSystemService(Context.BATTERY_SERVICE) as? android.os.BatteryManager
+            ?: return false
+        return bm.isCharging
+    }
+
     fun schedule(ctx: Context): Boolean {
         val scheduler = ctx.getSystemService(Context.JOB_SCHEDULER_SERVICE) as? JobScheduler
             ?: return false
@@ -619,6 +647,91 @@ class DailyJob : JobService() {
     }
 
     override fun onStopJob(params: JobParameters?): Boolean = true
+}
+
+/**
+ * **Akıllı düzen arka plan turu** (2026-11-19, kullanıcı: *"oto AI düzeni
+ * Wi-Fi'ye ve şarja bağlıyken yapılsın, arka planda da çalışabilsin"*).
+ * Sistem şarj + ölçülü olmayan ağ koşulunda başlatır; ayrı bir Flutter
+ * motorunda `smart_sort_bg.dart` › `akilliDuzenArkaPlan` koşar, bitince
+ * `smartBgDone` der. Uygulama ekrandaysa koşmaz (uygulama kendi turunu yapar,
+ * iki izolat aynı depoyu yazmasın).
+ */
+class SmartBgJob : JobService() {
+    private var engine: io.flutter.embedding.engine.FlutterEngine? = null
+    private var params: JobParameters? = null
+    private val main = Handler(Looper.getMainLooper())
+
+    override fun onStartJob(p: JobParameters?): Boolean {
+        if (appVisible()) return false
+        params = p
+        return runCatching {
+            startEngine()
+            // Güvenlik: Dart hiç "bitti" demezse sistem sınırından önce kapat.
+            main.postDelayed({ finish() }, TimeUnit.MINUTES.toMillis(9))
+            true
+        }.getOrElse {
+            params = null
+            false
+        }
+    }
+
+    private fun appVisible(): Boolean {
+        val info = ActivityManager.RunningAppProcessInfo()
+        ActivityManager.getMyMemoryState(info)
+        return info.importance <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE
+    }
+
+    private fun startEngine() {
+        val loader = io.flutter.FlutterInjector.instance().flutterLoader()
+        loader.startInitialization(applicationContext)
+        loader.ensureInitializationComplete(applicationContext, null)
+        val e = io.flutter.embedding.engine.FlutterEngine(applicationContext)
+        io.flutter.plugin.common.MethodChannel(e.dartExecutor.binaryMessenger, Extras.CHANNEL)
+            .setMethodCallHandler { call, result ->
+                val ctx = applicationContext
+                when (call.method) {
+                    "isMetered" -> result.success(
+                        (ctx.getSystemService(Context.CONNECTIVITY_SERVICE)
+                            as android.net.ConnectivityManager).isActiveNetworkMetered
+                    )
+                    "isCharging" -> result.success(Extras.isCharging(ctx))
+                    "unwrapKey" -> result.success(
+                        (call.arguments as? ByteArray)?.let { Extras.unwrap(it) }
+                    )
+                    "smartBgDone" -> {
+                        result.success(true)
+                        main.post { finish() }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+        e.dartExecutor.executeDartEntrypoint(
+            io.flutter.embedding.engine.dart.DartExecutor.DartEntrypoint(
+                loader.findAppBundlePath(),
+                "package:dosya_okuyucu/services/fm/smart_sort_bg.dart",
+                "akilliDuzenArkaPlan"
+            )
+        )
+        engine = e
+    }
+
+    private fun finish() {
+        val p = params ?: return
+        params = null
+        main.removeCallbacksAndMessages(null)
+        engine?.destroy()
+        engine = null
+        jobFinished(p, false)
+    }
+
+    override fun onStopJob(p: JobParameters?): Boolean {
+        params = null
+        main.removeCallbacksAndMessages(null)
+        engine?.destroy()
+        engine = null
+        return true
+    }
 }
 
 /** **Depolama + hızlı eylemler** widget'ı: boş yer, doluluk çubuğu, Tara/Ara/Yer aç. */

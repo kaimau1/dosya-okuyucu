@@ -19,6 +19,7 @@ import '../../services/fm/smart_folder_prefs.dart';
 import '../../services/fm/smart_learn.dart';
 import '../../services/fm/smart_quota.dart';
 import '../../services/fm/smart_sort.dart';
+import '../../services/fm/smart_sort_bg.dart';
 import '../../services/fm/smart_sort_taxonomy.dart';
 import '../../services/fm/smart_user_cats.dart';
 import '../../widgets/ai_key_gate.dart';
@@ -510,6 +511,16 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
             value: SmartSort.autoNew,
             onChanged: (v) => unawaited(SmartSort.setSettings(auto: v)),
           ),
+          // 2026-11-19: yalnız şarjda + Wi-Fi'de, uygulama kapalıyken de.
+          if (SmartSort.autoNew)
+            SwitchListTile(
+              key: const ValueKey('ss-bg'),
+              secondary: const Icon(AppIcons.batteryChargingFull),
+              title: Text(context.t('sm.bg')),
+              subtitle: Text(context.t('sm.bg_sub', {'n': SmartSortBg.limit})),
+              value: SmartSort.chargeWifiOnly,
+              onChanged: (v) => unawaited(SmartSort.setSettings(bg: v)),
+            ),
           SwitchListTile(
             key: const ValueKey('ss-wifi'),
             secondary: const Icon(AppIcons.wifi),

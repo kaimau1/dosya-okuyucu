@@ -63,6 +63,21 @@ abstract final class NativeExtras {
   /// da okunamazsa null (Akıllı düzen "yalnız Wi-Fi'de" bunu ölçülü sayar).
   static Future<bool?> isMetered() => _call<bool>('isMetered');
 
+  /// Telefon şarjda mı? Kanal yoksa null.
+  static Future<bool?> isCharging() => _call<bool>('isCharging');
+
+  /// Akıllı düzenin arka plan işini (şarjda + Wi-Fi'de, `SmartBgJob`)
+  /// kurar ya da iptal eder.
+  static Future<void> scheduleSmartBg(bool on) async {
+    await _call<bool>('smartBg', on);
+  }
+
+  /// Arka plan motoru işin bittiğini söyler (yalnız `SmartBgJob` motorunda
+  /// dinlenir; uygulamada karşılığı yok).
+  static Future<void> smartBgDone() async {
+    await _call<bool>('smartBgDone');
+  }
+
   /// `FLAG_SECURE` aç/kapat (G1.4) — ekran görüntüsü ve son uygulamalar önizlemesi.
   /// Sayaç `SecureScreenGate`te (lib/core/secure_screen.dart); doğrudan çağırma.
   static Future<void> setSecure(bool secure) async {

@@ -20,6 +20,7 @@ import 'ai_scope.dart';
 import 'fm_env.dart';
 import 'fs_events.dart';
 import 'fs_scan.dart';
+import 'native_extras.dart';
 import 'path_side_index.dart';
 import 'smart_folder_prefs.dart';
 import 'smart_learn.dart';
@@ -182,6 +183,8 @@ class SmartRecord {
     final seen = {...uq, ...yes.keys}.toList()..sort();
     final matched = {...uc};
     yes.forEach((id, p) {
+      // Elle eklenen kategori ([SmartSort.manualMark]) AI yanıtıyla düşmez.
+      if (matched[id] == SmartSort.manualMark) return;
       if (p >= SmartUserCats.threshold) {
         matched[id] = (p * 100).round();
       } else {
@@ -404,6 +407,16 @@ abstract final class SmartSort {
   static const prefCamera = 'smart_sort_camera';
   static const prefAuto = 'smart_sort_auto';
 
+  /// Otomatik düzen yalnız **şarjda + Wi-Fi'de** ve **arka planda da**
+  /// (2026-11-19, kullanıcı isteği). Açıkken uygulama içi otomatik tur da
+  /// aynı koşulu bekler; yerel JobScheduler işi (`SmartBgJob`) uygulama
+  /// kapalıyken koşturur. Varsayılan KAPALI.
+  static const prefBg = 'smart_sort_bg';
+
+  /// Kullanıcı kategorisine ELLE eklenmiş dosyanın `uc` değeri (P(evet)
+  /// yüzdesi 0–100 aralığının dışında: AI yanıtı bunu ezmez/düşürmez).
+  static const manualMark = 101;
+
   static final Map<String, SmartRecord> _records = {};
   static bool _loaded = false;
   static Future<void>? _loading;
@@ -429,11 +442,13 @@ abstract final class SmartSort {
   static bool _enabled = false;
   static bool _camera = false;
   static bool _auto = true;
+  static bool _bg = false;
   static bool _prefsRead = false;
 
   static bool get enabled => _enabled;
   static bool get includeCamera => _camera;
   static bool get autoNew => _auto;
+  static bool get chargeWifiOnly => _bg;
 
   static Future<void> readSettings() async {
     if (_prefsRead) return;
@@ -442,25 +457,42 @@ abstract final class SmartSort {
       _enabled = prefs.getBool(prefEnabled) ?? false;
       _camera = prefs.getBool(prefCamera) ?? false;
       _auto = prefs.getBool(prefAuto) ?? true;
+      _bg = prefs.getBool(prefBg) ?? false;
     } catch (_) {
       // Bilinçli: okunamazsa varsayılanlar (kapalı, kamera kapalı).
     }
     _prefsRead = true;
   }
 
-  static Future<void> setSettings({bool? enabled, bool? camera, bool? auto}) async {
+  static Future<void> setSettings(
+      {bool? enabled, bool? camera, bool? auto, bool? bg}) async {
     await readSettings();
     if (enabled != null) _enabled = enabled;
     if (camera != null) _camera = camera;
     if (auto != null) _auto = auto;
+    if (bg != null) _bg = bg;
     revision.value++;
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(prefEnabled, _enabled);
       await prefs.setBool(prefCamera, _camera);
       await prefs.setBool(prefAuto, _auto);
+      await prefs.setBool(prefBg, _bg);
     } catch (_) {
       // Bilinçli: yazılamazsa seçim yalnız bu oturumda geçerli.
+    }
+    await syncBackgroundJob();
+  }
+
+  /// Arka plan işi yalnız düzen + otomatik + şarj/Wi-Fi seçeneği açıkken
+  /// kurulu (kapalıysa iptal edilir).
+  static bool get wantsBackgroundJob => _enabled && _auto && _bg;
+
+  static Future<void> syncBackgroundJob() async {
+    try {
+      await NativeExtras.scheduleSmartBg(wantsBackgroundJob);
+    } catch (_) {
+      // Bilinçli: kanal yoksa (test) iş kurulmaz; uygulama içi tur sürer.
     }
   }
 
@@ -490,6 +522,7 @@ abstract final class SmartSort {
           for (final r in list) {
             _records[r.path] = r;
           }
+          _diskMs = (await file.lastModified()).millisecondsSinceEpoch;
         }
       } catch (_) {
         // Bilinçli: bozuk depo boş depodur; düzenleme yeniden kurar.
@@ -533,8 +566,45 @@ abstract final class SmartSort {
       final tmp = File('$_path.tmp');
       await tmp.writeAsString(body, flush: true);
       await tmp.rename(_path);
+      _diskMs = (await File(_path).lastModified()).millisecondsSinceEpoch;
     } catch (_) {
       // Bilinçli: yazılamazsa sonuçlar bu oturumda bellekte kalır.
+    }
+  }
+
+  /// Deponun bu izolatın son okuduğu/yazdığı andaki değişme zamanı. Arka
+  /// plan işi (ayrı izolat) depoyu yazınca uygulama dönüşte yeniden okur
+  /// ([reloadIfChanged]) — yoksa eski bellek kopyası onu ezerdi.
+  static int _diskMs = 0;
+
+  /// Bekleyen yazımı hemen yapar (arka plan işi bitmeden çağırır).
+  static Future<void> flush() async {
+    _saveTimer?.cancel();
+    _saveTimer = null;
+    await _save();
+  }
+
+  /// Depo başka izolatta (arka plan işi) yazıldıysa yeniden okunur. Tur
+  /// sürerken ya da yazılmamış değişiklik varken dokunulmaz.
+  static Future<void> reloadIfChanged() async {
+    if (!_loaded || isRunning || (_saveTimer?.isActive ?? false)) return;
+    if (FmEnv.appSupportDir.isEmpty) return;
+    try {
+      final file = File(_path);
+      if (!await file.exists()) return;
+      final ms = (await file.lastModified()).millisecondsSinceEpoch;
+      if (ms == _diskMs) return;
+      final filePath = file.path;
+      final list = await Isolate.run(
+          () => _parse(File(filePath).readAsStringSync()));
+      if (isRunning || (_saveTimer?.isActive ?? false)) return;
+      _records
+        ..clear()
+        ..addEntries(list.map((r) => MapEntry(r.path, r)));
+      _diskMs = ms;
+      _changed(save: false);
+    } catch (_) {
+      // Bilinçli: okunamazsa bellekteki kopya geçerli kalır.
     }
   }
 
@@ -693,6 +763,54 @@ abstract final class SmartSort {
     if (r == null) return;
     _records[path] = r.withUserAnswers(yes);
     if (notify) _changed();
+  }
+
+  /// Dosyaları kullanıcı kategorisine **elle** ekler (2026-11-19, "Kategori
+  /// ekle"). Kaydı olmayan dosyaya "diğer" kaydı açılır ama değişme zamanı
+  /// −1 yazılır: sonraki AI turu yine sorar (elle eklenen korunur).
+  static Future<void> addToUserCat(Iterable<String> paths, String id) async {
+    await ensureLoaded();
+    for (final path in paths) {
+      final r = _records[path] ??
+          SmartRecord(
+            path: path,
+            size: FsEntry.ofPath(path)?.sizeBytes ?? 0,
+            modifiedMs: -1,
+            cat: SmartTaxonomy.other,
+          );
+      _records[path] = r._with(
+        uc: {...r.uc, id: manualMark},
+        uq: {...r.uq, id}.toList()..sort(),
+      );
+    }
+    _changed();
+  }
+
+  /// Elle eklenen (ya da AI'ın koyduğu) kullanıcı kategorisinden çıkarır;
+  /// soru "soruldu" sayılır (AI yeniden koymaz).
+  static Future<void> removeFromUserCat(
+      Iterable<String> paths, String id) async {
+    await ensureLoaded();
+    for (final path in paths) {
+      final r = _records[path];
+      if (r == null || !r.uc.containsKey(id)) continue;
+      _records[path] = r._with(uc: {...r.uc}..remove(id), uq: r.uq);
+    }
+    _changed();
+  }
+
+  /// AI turu kaydı yenilerken elle eklenen kullanıcı kategorileri korunur.
+  static SmartRecord _keepManual(SmartRecord? old, SmartRecord rec) {
+    if (old == null || old.uc.isEmpty) return rec;
+    final manual = {
+      for (final e in old.uc.entries)
+        if (e.value == manualMark) e.key: e.value,
+    };
+    if (manual.isEmpty) return rec;
+    return rec._with(
+      uc: {...rec.uc, ...manual},
+      uq: {...rec.uq, ...manual.keys}.toList()..sort(),
+    );
   }
 
   /// Kullanıcı kategorisi silindi ya da sorusu değişti: bütün kayıtlardan
@@ -1159,8 +1277,9 @@ abstract final class SmartSort {
     if (raw == null) return null;
     final rec = _withUser(_learned(raw, image: image), result);
     final old = _records[entry.path];
+    final kept = _keepManual(old, rec);
     _records[entry.path] =
-        (old?.hidden ?? false) ? rec.copyWith(hidden: true) : rec;
+        (old?.hidden ?? false) ? kept.copyWith(hidden: true) : kept;
     _changed();
     return _records[entry.path];
   }
@@ -1378,8 +1497,9 @@ abstract final class SmartSort {
                 : _withUser(_learned(raw, image: image), result);
             if (rec != null) {
               final old = _records[e.path];
+              final kept = _keepManual(old, rec);
               _records[e.path] =
-                  (old?.hidden ?? false) ? rec.copyWith(hidden: true) : rec;
+                  (old?.hidden ?? false) ? kept.copyWith(hidden: true) : kept;
               processed++;
               done.add(e.path);
             } else {
@@ -1455,19 +1575,35 @@ abstract final class SmartSort {
     // İkinci adlar listelerde görünsün diye depo açılış kuyruğunda yüklenir.
     await ensureLoaded();
     FsEvents.returned.addListener(_scheduleAuto);
+    // Güncellemeden sonra da arka plan işi kurulu kalsın.
+    unawaited(syncBackgroundJob());
     _scheduleAuto();
   }
 
   static void _scheduleAuto() {
+    // Arka plan işi depoyu yazmış olabilir: önce onu oku.
+    unawaited(reloadIfChanged());
     if (!_enabled || !_auto) return;
     _autoTimer?.cancel();
     // Dönüşün hemen ardından değil: ekranlar kendini tazelerken yarışmasın.
-    _autoTimer = Timer(const Duration(seconds: 6), () {
+    _autoTimer = Timer(const Duration(seconds: 6), () async {
       final c = _creds;
       final s = _scope;
       if (c == null || s == null || isRunning) return;
+      if (_bg && !await chargingOnWifi()) return;
       unawaited(run(
           credentials: c(), scope: s(), scan: 200, limit: 40, reportBatch: true));
     });
+  }
+
+  /// Şarjda ve ölçülü olmayan ağda (Wi-Fi) mı? Okunamazsa hayır.
+  static Future<bool> chargingOnWifi() async {
+    try {
+      final charging = await NativeExtras.isCharging();
+      if (charging != true) return false;
+      return await NativeExtras.isMetered() == false;
+    } catch (_) {
+      return false;
+    }
   }
 }
