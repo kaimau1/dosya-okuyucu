@@ -153,6 +153,26 @@ void main() {
     expect(inc, lessThan(60));
   });
 
+  // B9 m.8 — büyük belge açılışı, "ilk sayfa önce" (mandal, YALNIZ DÜŞER):
+  // ilk kare için çözümlenen paragraf sayısı belgenin boyundan bağımsız.
+  test('B9 m.8: 5000 paragrafta ilk kare ≤ 60 paragraf çözümler, ≤ 400 ms',
+      () {
+    final bytes = _docx(5000);
+    final sw = Stopwatch()..start();
+    final head = DocxDocument.parseHead(bytes);
+    sw.stop();
+    // ignore: avoid_print
+    print('PERF word_head_5000_ms=${sw.elapsedMilliseconds} '
+        'paras=${head.paras.length}');
+    expect(head.headOnly, isTrue);
+    expect(head.paras.length, lessThanOrEqualTo(60));
+    expect(head.paras.length, greaterThanOrEqualTo(30),
+        reason: 'ilk ekran dolmalı');
+    expect(head.paras.first.text, startsWith('Paragraf 1:'));
+    expect(sw.elapsedMilliseconds, lessThan(400));
+    expect(head.save, throwsStateError, reason: 'baş modeli kaydedilmez');
+  });
+
   test('Faz 37: 5000 paragraf Markdown + ODT dışa aktarım ≤ 3 sn', () {
     final d = DocxDocument.parse(_docx(5000));
     final sw = Stopwatch()..start();

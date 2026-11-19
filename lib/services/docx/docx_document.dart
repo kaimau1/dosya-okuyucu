@@ -481,14 +481,38 @@ class DocxDocument {
 
   XmlDocument? Function(String name)? _partReader;
 
-  static DocxDocument parse(Uint8List bytes) {
+  static DocxDocument parse(Uint8List bytes) => _parseWith(bytes, null);
+
+  /// B9 m.8 — büyük belge açılışı, "ilk sayfa önce": yalnız gövdenin ilk
+  /// [maxBlocks] üst düzey bloğu (paragraf / tablo / içerik denetimi; toplam
+  /// [maxParas] paragrafa ulaşınca erken durur) çözümlenir; son `w:sectPr`
+  /// korunur. Tam ayrıştırma sürerken salt okunur önizleme içindir — bu
+  /// model KAYDEDİLMEZ ([headOnly]). Belge zaten kısaysa tam model döner
+  /// ([headOnly] yanlış).
+  static DocxDocument parseHead(Uint8List bytes,
+          {int maxBlocks = kDocxHeadBlocks, int maxParas = kDocxHeadParas}) =>
+      _parseWith(bytes, (xml) => docxHeadXml(xml, maxBlocks, maxParas));
+
+  /// [parseHead] ile kesilmiş (yalnız baş) model mi.
+  bool headOnly = false;
+
+  static DocxDocument _parseWith(
+      Uint8List bytes, String? Function(String xml)? head) {
     final archive = OfficeZipGuard.decode(bytes);
+    var cut = false;
     XmlDocument? part(String name) {
       for (final f in archive.files) {
         if (f.name == name) {
           try {
-            return XmlDocument.parse(
-                utf8.decode(f.content as List<int>, allowMalformed: true));
+            var xml = utf8.decode(f.content as List<int>, allowMalformed: true);
+            if (head != null && name == 'word/document.xml') {
+              final h = head(xml);
+              if (h != null) {
+                xml = h;
+                cut = true;
+              }
+            }
+            return XmlDocument.parse(xml);
           } catch (_) {
             return null;
           }
@@ -525,6 +549,7 @@ class DocxDocument {
       if (x != null) d._parts[name] = x;
     }
     d._partReader = part;
+    d.headOnly = cut;
     d.paras = d._readBody();
     return d;
   }
@@ -1706,6 +1731,9 @@ class DocxDocument {
 
   /// Paket: `document.xml` yalnız değiştiyse yeniden yazılır.
   Archive buildArchive() {
+    // Yalnız baş çözümlenmiş önizleme modeli kaydedilirse belgenin geri
+    // kalanı silinirdi.
+    if (headOnly) throw StateError('docx: önizleme modeli kaydedilemez');
     commit();
     _pruneNotes();
     final notes = _prunedFootnotes();
@@ -1794,6 +1822,69 @@ const Map<String, DocxListPattern> kDocxListPatterns = {
   'num-roman': DocxListPattern('number', 'upperRoman', '%1.', 'I.'),
   'num-roman-lower': DocxListPattern('number', 'lowerRoman', '%1.', 'i.'),
 };
+
+/// [DocxDocument.parseHead] varsayılanları: ilk ekranı (bir-iki telefon
+/// sayfası) rahat doldurur; 5000 paragraflık belgede çözümlenen pay ≈ %1.
+const kDocxHeadBlocks = 60;
+const kDocxHeadParas = 120;
+
+final _headTag = RegExp(r'<(/?)w:(p|tbl|sdt)[\s/>]');
+
+/// `document.xml` metnini ilk [maxBlocks] üst düzey gövde bloğundan sonra
+/// keser (toplam [maxParas] paragrafa ulaşınca da durur; blok ortasında
+/// asla); gövdenin son `w:sectPr`'si ve kapanışlar eklenir. Kesmeye gerek
+/// yoksa (kısa belge) ya da yapı tanınmazsa `null` — çağıran tam metni
+/// kullanır. Yalnız dizge taraması: XML ağacı kurulmaz.
+String? docxHeadXml(String xml, int maxBlocks, int maxParas) {
+  final open = RegExp(r'<w:body[\s>]').firstMatch(xml);
+  final bodyEnd = xml.lastIndexOf('</w:body>');
+  if (open == null || bodyEnd < 0) return null;
+  var depth = 0, blocks = 0, paras = 0;
+  var cut = -1;
+  for (final m in _headTag.allMatches(xml, open.end)) {
+    if (m.start >= bodyEnd) break;
+    final gt = xml.indexOf('>', m.start);
+    if (gt < 0 || gt > bodyEnd) return null;
+    final closing = m[1] == '/';
+    final isPara = m[2] == 'p';
+    if (closing) {
+      depth--;
+      if (isPara) paras++;
+    } else if (xml.codeUnitAt(gt - 1) == 0x2F) {
+      // Kendinden kapanan `<w:p/>`.
+      if (isPara) paras++;
+    } else {
+      depth++;
+      continue;
+    }
+    if (depth < 0) return null;
+    if (depth == 0) {
+      blocks++;
+      if (blocks >= maxBlocks || paras >= maxParas) {
+        cut = gt + 1;
+        break;
+      }
+    }
+  }
+  if (cut < 0) return null;
+  // Gövde düzeyi `w:sectPr` (sayfa boyu/kenarları) gövdenin son öğesidir;
+  // paragrafın `w:pPr` içindeki bölüm sonu değil.
+  var sect = xml.lastIndexOf('<w:sectPr', bodyEnd);
+  if (sect >= 0) {
+    final sEnd = xml.indexOf('</w:sectPr>', sect);
+    if (sect < cut ||
+        sEnd < 0 ||
+        sEnd > bodyEnd ||
+        xml.substring(sEnd + 11, bodyEnd).trim().isNotEmpty) {
+      sect = -1;
+    }
+  }
+  final limit = sect >= 0 ? sect : bodyEnd;
+  // Kesimden sonra gövdede başka blok yoksa kesmeye gerek yok.
+  final rest = _headTag.allMatches(xml, cut).iterator;
+  if (!rest.moveNext() || rest.current.start >= limit) return null;
+  return xml.substring(0, cut) + xml.substring(limit);
+}
 
 /// `word/document.xml`'in ilk [limit] dolu paragrafının düz metni — tam
 /// model kurulmadan (düzenli ifadeyle, izolatta). Editör açılırken önizleme.

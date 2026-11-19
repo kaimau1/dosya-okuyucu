@@ -1425,3 +1425,8 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Kaydet → Word'de aç: eklemeler ve silmeler senin adınla, tarihle görünüyor mu; Word'de "Değişiklikleri İzle" açık mı? Kabul et / Reddet doğru sonucu veriyor mu?
 - [ ] Uygulamada "Tüm değişiklikleri kabul et / reddet" kaydetmeden önce yapılan izlenen yazmalarda da çalışıyor mu? Word'de izle açık kaydedilmiş belge uygulamada açılınca izle düğmesi açık mı?
 - [ ] Bilinen sınır: izle açıkken Enter / paragraf başında geri silme ve biçim değişikliği izlenmez; birden çok paragraf seçip silince paragraflar birleşmez (boş kalır).
+
+## 2026-11-19 — Word 2.0 m.8 Büyük belge açılışı, ilk sayfa önce (bulut, dal faz-oto-B9-word2; yazıldı, cihazda doğrulanmadı)
+- [ ] 300+ sayfalık Word belgesini düzenleyicide aç: tam belge hazırlanırken belgenin başı başlık/kalın/hiza/tablo/resimle (düz metin değil) görünüyor mu, üstte ince ilerleme çubuğu var mı? Kaydırılabiliyor, dokununca klavye AÇILMIYOR mu?
+- [ ] Tam belge gelince düzenleyiciye geçişte zıplama/boş kare var mı? Kısa belgede önizleme hiç fark edilmeden mi geçiyor?
+- [ ] A/B (C2): büyük belgede "dokunuştan ilk okunur kareye" süresi önceki sürüme göre (ölçülmedi).
