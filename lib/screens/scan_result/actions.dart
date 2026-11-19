@@ -540,34 +540,20 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
 
   Future<void> _addPages() async {
     if (_busy) return;
-    final source = await showModalBottomSheet<String>(
-      context: context,
-      useSafeArea: true,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: Gap.sm),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const _SheetIcon(AppIcons.ocr),
-                title: Text(ctx.t('ss.add_camera')),
-                subtitle: Text(ctx.t('ss.add_camera_sub')),
-                onTap: () => Navigator.pop(ctx, 'camera'),
-              ),
-              ListTile(
-                leading: const _SheetIcon(AppIcons.layoutGallery),
-                title: Text(ctx.t('ss.add_gallery')),
-                subtitle: Text(ctx.t('ss.add_gallery_sub')),
-                onTap: () => Navigator.pop(ctx, 'gallery'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    final source = await showAppActionSheet<String>(context, groups: [
+      AppActionGroup(actions: [
+        AppAction(
+            value: 'camera',
+            icon: AppIcons.ocr,
+            label: context.t('ss.add_camera'),
+            hint: context.t('ss.add_camera_sub')),
+        AppAction(
+            value: 'gallery',
+            icon: AppIcons.layoutGallery,
+            label: context.t('ss.add_gallery'),
+            hint: context.t('ss.add_gallery_sub')),
+      ]),
+    ]);
     if (source == null || !mounted) return;
     if (source == 'camera') {
       List<String>? more;

@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show compute;
 import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 
@@ -42,27 +44,51 @@ abstract final class DocChapters {
     switch (ext) {
       case '.pdf':
         return _pdf(path, name);
+      // Ayrıştırma arka izlekte (B12 m.2): büyük belgede ana izlek donmasın.
+      // İzolat kurulamazsa ana izlekte — sonuç aynı.
       case '.docx':
-        final ed = DocxEditor.parse(await File(path).readAsBytes());
-        return fromHeadings([
-          for (final para in ed.paragraphs)
-            (text: para.text, heading: para.heading, level: para.level),
-        ], fallbackTitle: name);
+        final job = (bytes: await File(path).readAsBytes(), name: name);
+        try {
+          return await compute(docxChapters, job);
+        } catch (_) {
+          return docxChapters(job);
+        }
       case '.pptx':
-        final ed = PptxEditor.parse(await File(path).readAsBytes());
-        return fromSlides([
-          for (final s in ed.slides)
-            (
-              index: s.index,
-              lines: [for (final para in s.paragraphs) para.text],
-              notes: slideNotes ? ed.notesOf(s) : '',
-            ),
-        ]);
+        final job = (bytes: await File(path).readAsBytes(), notes: slideNotes);
+        try {
+          return await compute(pptxChapters, job);
+        } catch (_) {
+          return pptxChapters(job);
+        }
       default:
         final text = await File(path).readAsString();
         return fromPlain(text,
             fallbackTitle: name, markdown: ext == '.md' || ext == '.markdown');
     }
+  }
+
+  /// Word baytlarından bölümler (izolatta koşabilen durumsuz yardımcı).
+  static List<AudioChapter> docxChapters(
+      ({Uint8List bytes, String name}) job) {
+    final ed = DocxEditor.parse(job.bytes);
+    return fromHeadings([
+      for (final para in ed.paragraphs)
+        (text: para.text, heading: para.heading, level: para.level),
+    ], fallbackTitle: job.name);
+  }
+
+  /// Slayt baytlarından bölümler (izolatta koşabilen durumsuz yardımcı).
+  static List<AudioChapter> pptxChapters(
+      ({Uint8List bytes, bool notes}) job) {
+    final ed = PptxEditor.parse(job.bytes);
+    return fromSlides([
+      for (final s in ed.slides)
+        (
+          index: s.index,
+          lines: [for (final para in s.paragraphs) para.text],
+          notes: job.notes ? ed.notesOf(s) : '',
+        ),
+    ]);
   }
 
   static Future<List<AudioChapter>> _pdf(String path, String name) async {

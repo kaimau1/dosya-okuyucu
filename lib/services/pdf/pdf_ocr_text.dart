@@ -197,7 +197,8 @@ class PdfOcrText {
         if (rendered != null) {
           try {
             final lines =
-                await OcrService.recognizeImageWordLines(rendered.path);
+                await OcrService.recognizeImageWordLines(rendered.path,
+                    allowCloud: true);
             result = buildOcrPageText(
               pageNumber: page.pageNumber,
               pageHeight: page.height,

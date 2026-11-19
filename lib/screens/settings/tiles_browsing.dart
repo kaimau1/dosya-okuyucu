@@ -191,6 +191,24 @@ class ResumePositionTile extends StatelessWidget {
   }
 }
 
+/// **Arka planda çal** — ses, uygulama arkadayken / ekran kilitliyken de
+/// çalsın (varsayılan kapalı).
+class AudioBackgroundTile extends StatelessWidget {
+  const AudioBackgroundTile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.watchBrowse();
+    return SettingSwitch(
+      icon: AppIcons.playCircleOutline,
+      title: context.t('fmset.audio_bg'),
+      subtitle: context.t('fmset.audio_bg_sub'),
+      value: appState.audioBackground,
+      onChanged: appState.setAudioBackground,
+    );
+  }
+}
+
 /// **Otomatik kaydet** (Faz 20 / K21): belgeler birkaç saniye içinde dosyaya
 /// yazılır; taslak günlüğü bundan bağımsız her zaman çalışır.
 class AutoSaveTile extends StatelessWidget {

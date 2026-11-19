@@ -33,6 +33,7 @@ import '../core/text_replace.dart';
 import '../core/doc_fonts.dart';
 import '../core/image_budget.dart';
 import '../widgets/fm/fm_file_image.dart';
+import '../widgets/ocr_text_overlay.dart';
 import '../core/edit/editor_shortcuts.dart';
 import '../core/edit/edit_session.dart';
 import '../core/edit/code_editing.dart';
@@ -47,7 +48,6 @@ import '../core/copy_text.dart';
 import '../core/text_search.dart';
 import '../core/theme.dart';
 import '../models/document.dart';
-import '../models/fs_entry.dart';
 import '../services/conversion_service.dart';
 import '../services/doc_translate.dart';
 import '../services/file_service.dart';
@@ -90,7 +90,6 @@ import '../widgets/doc_action_bar.dart';
 import '../widgets/code_gutter.dart';
 import '../widgets/doc_find_bar.dart';
 import '../widgets/markdown_text.dart';
-import '../widgets/doc_more_sheet.dart';
 import '../widgets/office_shell.dart';
 import 'fm/entry_actions.dart';
 import '../widgets/fm/archive_password_dialog.dart';
@@ -381,6 +380,14 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   /// Görselden OCR ile tanınan metin (AI sohbet bağlamı olarak da kullanılır).
   String _ocrImageText = '';
+
+  /// Görselde tanınan satırlar (kutularıyla) — görselin üstünde seçilebilir
+  /// metin katmanı bunlarla çizilir; [_ocrOverlay] kapalıysa gizlenir.
+  List<OcrLine> _ocrImageLines = const [];
+  bool _ocrOverlay = false;
+
+  /// Görsel üstü OCR katmanında seçili metin (alt panel dar dinler).
+  final ValueNotifier<String> _ocrSelection = ValueNotifier('');
   int _imgQuarterTurns = 0;
   double _fontSize = 15;
 
@@ -854,8 +861,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// pdfium işçisinde, kodlama izolatta. Parolalı belgede saklanmaz.
   void _captureLastView() {
     if (!_isPdf || _pdfPassword != null || !_pdfController.isReady) return;
+    // Ekran genişliğinde: yeniden açılışta köprü onu net gösterir.
+    final view = View.of(context);
     unawaited(PdfLastView.capture(
-        widget.doc.path, _pdfController.document, _pdfPage));
+        widget.doc.path, _pdfController.document, _pdfPage,
+        widthPx: view.physicalSize.width.round()));
   }
 
   @override
@@ -865,6 +875,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     unawaited(ReadingPositions.save());
     _recordPdfZoom();
     _formOfferTimer?.cancel();
+    _ocrSelection.dispose();
     _pageBadgeTimer?.cancel();
     _pdfBridgeTimer?.cancel();
     if (widget.doc.kind == DocKind.pdf) PdfProPerf.openDone();

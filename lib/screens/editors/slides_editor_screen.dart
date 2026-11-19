@@ -252,6 +252,16 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
 
   // ── Konum, "slayta git" ve arama ──────────────────────────────────────────
 
+  /// AI sohbeti bu sunumla (alt çubuktaki AI).
+  void _openAi() {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ChatScreen(
+        fileContext: widget.plainText,
+        fileName: widget.name,
+      ),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final editor = _editor;
@@ -321,12 +331,44 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
                 onPressed: editor == null ? null : _toggleFind,
               ),
           ],
+          // ⋮ = ortak dosya levhası (2026-11-15): üstte taşı/kopyala/SİL,
+          // altında sunuma özel işler ayrı renkte. Alt çubuk eskiden 10+
+          // düğmeyle yana kayıyordu; az kullanılanlar buraya indi.
+          filePath: widget.path,
+          menuTitle: context.t('dm.slides'),
           menu: [
             EditorMenuItem(
-              id: 'export',
-              icon: AppIcons.share,
-              label: context.t('ux.share_export'),
-              onTap: editor == null ? null : _shareExport,
+              id: 'thumbs',
+              icon: AppIcons.thumbnails,
+              label: context.t('sl.thumbnails'),
+              checked: _strip,
+              onTap: editor == null ? null : () => setState(() => _strip = !_strip),
+            ),
+            EditorMenuItem(
+              id: 'sorter',
+              icon: AppIcons.sorter,
+              label: context.t('sl.sorter'),
+              onTap: editor == null ? null : _openSorter,
+            ),
+            if (_proOn)
+              EditorMenuItem(
+                id: 'tools',
+                icon: AppIcons.handyman,
+                label: context.t('sp.tools'),
+                onTap: editor == null || _proBusy ? null : _openProTools,
+              ),
+            EditorMenuItem(
+              id: 'summary',
+              icon: AppIcons.summarize,
+              label: context.t('ai.summarize'),
+              onTap: editor == null ? null : _summarize,
+            ),
+            EditorMenuItem(
+              id: 'translate',
+              icon: AppIcons.translate,
+              label: context.t('common.translate'),
+              onTap: () => TranslateFlow.run(context, widget.plainText,
+                  title: widget.name),
             ),
             EditorMenuItem(
               id: 'pdf',
@@ -334,6 +376,21 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
               label: context.t('sl.to_pdf'),
               onTap: editor == null ? null : _exportPdf,
             ),
+            EditorMenuItem(
+              id: 'export',
+              icon: AppIcons.share,
+              label: context.t('ux.share_export'),
+              onTap: editor == null ? null : _shareExport,
+            ),
+            // Başka uygulamadan açıldıysa dosya özel önbellekte: doğrudan
+            // İndirilenler'e (bkz. [SaveToDownloads]).
+            if (showDownloadAction(widget.path))
+              EditorMenuItem(
+                id: 'download',
+                icon: AppIcons.download,
+                label: context.t('common.download'),
+                onTap: editor == null ? null : _download,
+              ),
           ],
         ),
         body: withDraftBanner(
@@ -405,52 +462,21 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
             : selected
                 ? _shapeBar()
                 : DocActionBar([
+                    // Ortak düzen (2026-11-15): en çok 5 düğme, kaydırma yok —
+                    // Ekle · Tasarım · Oynat · AI · Paylaş. Küçük resimler,
+                    // slayt sırası, araçlar, özet, çeviri, PDF ⋮'da.
                     DocAction(AppIcons.add, context.t('sl.insert'),
                         editor == null ? null : _openInsert),
                     DocAction(AppIcons.palette, context.t('sl.design'),
                         editor == null ? null : _openDesign),
-                    if (_proOn)
-                      DocAction(AppIcons.handyman, context.t('sp.tools'),
-                          editor == null || _proBusy ? null : _openProTools),
                     DocAction(AppIcons.play, context.t('sl.play'),
                         editor == null ? null : () => _play(0)),
-                    DocAction(AppIcons.thumbnails, context.t('sl.thumbnails'),
-                        editor == null
-                            ? null
-                            : () => setState(() => _strip = !_strip)),
-                    DocAction(AppIcons.sorter, context.t('sl.sorter'),
-                        editor == null ? null : _openSorter),
-                    DocAction(AppIcons.summarize, context.t('ai.summarize'),
-                        editor == null ? null : _summarize),
-                    // Kaydet üst çubukta (Faz 40 / 1).
-                    DocAction(AppIcons.pdf, context.t('sl.to_pdf'),
-                        editor == null ? null : _exportPdf),
+                    // AI yüzen düğme değil: küçük resim şeridinin üstüne
+                    // biniyordu.
+                    DocAction(AppIcons.ai, context.t('common.ai'), _openAi),
                     DocAction(AppIcons.share, context.t('common.share'),
                         editor == null ? null : _export),
-                    // Başka uygulamadan açıldıysa dosya özel önbellekte:
-                    // doğrudan İndirilenler'e (bkz. [SaveToDownloads]).
-                    if (showDownloadAction(widget.path))
-                      DocAction(AppIcons.download, context.t('common.download'),
-                          editor == null ? null : _download),
-                    DocAction(
-                      AppIcons.translate,
-                      context.t('common.translate'),
-                      () => TranslateFlow.run(context, widget.plainText,
-                          title: widget.name),
-                    ),
                   ]),
-        fab: editing || selected
-            ? null
-            : DocAiButton(
-                kind: DocKind.slides,
-                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => ChatScreen(
-                    fileContext: widget.plainText,
-                    fileName: widget.name,
-                  ),
-                )),
-                tooltip: context.t('common.ai'),
-              ),
       ),
     ));
   }

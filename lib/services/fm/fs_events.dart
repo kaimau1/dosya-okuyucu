@@ -31,6 +31,36 @@ abstract final class FsEvents {
     MediaScan.request(paths);
   }
 
+  /// Uygulama GERÇEKTEN arkaya gidip (başka uygulama, ana ekran, ekran
+  /// kapandı) öne döndüğünde artar.
+  ///
+  /// **KÖK NEDEN (kullanıcı 2026-11-17):** *"Claude'dan PDF indirdim,
+  /// İndirilenler'e kaydedildi dedi ama ne İndirilenler'de ne Yeni
+  /// dosyalar'da görünüyordu"* — Notlar'ın "Farklı kaydet"iyle inen PDF de
+  /// öyle. [version] yalnız UYGULAMA İÇİNDEKİ işlemlerde artıyor; başka
+  /// uygulamanın yazdığı dosyayı kimse haber vermiyordu. İndirilenler sekmesi
+  /// ve gezgin ayakta kaldıkları için (IndexedStack / yığındaki sayfa) ilk
+  /// açılıştaki listeyi gösteriyordu; Yeni dosyalar 20 sn kısıtına takılıyordu.
+  /// Uygulamanın kendi "İndir"i [changed] dediği için yalnız o yol
+  /// görünüyordu. Artık ayakta duran listeler bunu dinleyip sessizce tazelenir.
+  ///
+  /// *Niye `resumed` değil:* izin penceresi, paylaşım sayfası, bildirim perdesi
+  /// de `resumed` üretir; onlar dosya eklemez. Yalnız `hidden`dan dönüş sayılır.
+  static final ValueNotifier<int> returned = ValueNotifier<int>(0);
+
+  static bool _away = false;
+
+  /// Uygulama görünmez oldu (`hidden`) — main.dart'taki yaşam döngüsü kancası.
+  static void wentAway() => _away = true;
+
+  /// Uygulama öne geldi (`resumed`); arada gerçekten arkadaysa [returned]
+  /// artar, yoksa (yalnız `inactive` olduysa) hiçbir şey olmaz.
+  static void cameBack() {
+    if (!_away) return;
+    _away = false;
+    returned.value = returned.value + 1;
+  }
+
   /// Küçük resmi/önizlemesi açılamayan bir dosyayı bildirir.
   ///
   /// **Niye gerekli (2026-07-27 kullanıcı ekran görüntüsü):** listeler yalnız

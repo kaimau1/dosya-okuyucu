@@ -339,7 +339,11 @@ class _PhotoThumbState extends State<_PhotoThumb> {
     // yatay fotoğrafta yükseklik hücrenin altına düşüp `cover` ile yeniden
     // büyütülüyordu (bulanıklığın ikinci kaynağı, 2026-11-04).
     final provider = FmFileImage(thumb);
-    if (exact != null) fmRememberThumb(_path, provider);
+    // Önizleme (başka boydaki eski küçük resim) de bildirilir: eski
+    // fotoğraflarda tam boy küçük resim çoğu kez henüz yok, galeri ilk kareyi
+    // ve en-boy oranını bulamayınca büyüme geçişi kutusu ortasında
+    // değişiyordu (2026-11-18, "eski fotoğraflar takılarak açılıyor").
+    fmRememberThumb(_path, provider);
     return ClipRRect(
       borderRadius: BorderRadius.circular(widget.radius),
       child: Image(
@@ -402,11 +406,32 @@ class _VideoThumbState extends State<_VideoThumb> {
   /// ayıklama derlemesinde kırmızı ekran, yayında sessizce eskiyen değer.
   /// (2026-10-18 görsel denetimde dosya işlem menüsünün başlığındaki video
   /// simgesiyle yakalandı.)
+  /// Küçük resim kesin olarak üretilemedi → dosya simgesi ([widget.fallback]).
+  /// Üretim sürerken simge DEĞİL yükleniyor zemini çizilir (2026-11-14,
+  /// kullanıcı: *"MP4 yazan kart yerine yüklenme dönencesi ya da düşük
+  /// çözünürlüklü önizleme"*).
+  bool _failed = false;
+
+  /// Eldeki küçük resim istenen boyda mı (değilse aşamalı önizleme).
+  bool _exact = false;
+
+  /// Bellekte bilinen küçük resim ve süreyi EŞZAMANLI al: sütun sayısı
+  /// değişip hücre yeniden kurulunca bir kare bile "MP4" görünmesin.
+  void _peek() {
+    final bucket = videoThumbBucket(widget.size);
+    final exact = ThumbnailCache.knownVideo(widget.path, bucket);
+    _exact = exact != null;
+    _thumb = exact ?? ThumbnailCache.anyKnownVideo(widget.path);
+    final d = MediaDuration.peek(widget.path);
+    _duration = d == null ? null : MediaDuration.format(d);
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_started) return;
     _started = true;
+    _peek();
     _load();
   }
 
@@ -415,14 +440,22 @@ class _VideoThumbState extends State<_VideoThumb> {
     super.didUpdateWidget(old);
     // Liste öğesi geri dönüştürülüp başka videoya bağlanabilir.
     if (old.path != widget.path) {
-      _thumb = null;
-      _duration = null;
+      _failed = false;
+      _peek();
+      _load();
+    } else if (videoThumbBucket(old.size) != videoThumbBucket(widget.size)) {
+      // Aynı hücre büyüdü/küçüldü: eldeki resim kalır, yeni boy gelince değişir.
+      _exact = false;
       _load();
     }
   }
 
   Future<void> _load() async {
     final path = widget.path;
+    if (_exact && _thumb != null) {
+      if (_duration == null) unawaited(_loadDuration(path));
+      return;
+    }
     // **Hızlı savurmada bekle** (2026-09-26): 748 videoluk ızgarada parmakla
     // savurunca saniyede onlarca hücre bir anlığına kuruluyor ve her biri
     // yerel küçük resim + süre çağrısı başlatıyordu; kuyruk dolunca durduğun
@@ -433,7 +466,7 @@ class _VideoThumbState extends State<_VideoThumb> {
     if (Scrollable.recommendDeferredLoadingForContext(context)) {
       SchedulerBinding.instance.scheduleFrameCallback((_) {
         scheduleMicrotask(() {
-          if (mounted && path == widget.path && _thumb == null) _load();
+          if (mounted && path == widget.path && !_exact) _load();
         });
       });
       // Geri çağrı ancak BİR SONRAKİ karede koşar; savurma tam bu karede
@@ -448,9 +481,18 @@ class _VideoThumbState extends State<_VideoThumb> {
         // Sırası geldiğinde hücre ekrandan çıkmışsa kare hiç çözülmez.
         wanted: () => mounted && path == widget.path);
     if (!mounted || path != widget.path) return;
-    // Küçük resim üretilemedi: dosya silinmiş olabilir (bkz. FsEvents).
-    if (result == null) FsEvents.reportUnreadable(path);
-    setState(() => _thumb = result);
+    if (result == null) {
+      // Hücre gitti (vazgeçildi) ya da üretilemedi; eldeki resim kalır.
+      if (_thumb != null) return;
+      // Küçük resim üretilemedi: dosya silinmiş olabilir (bkz. FsEvents).
+      FsEvents.reportUnreadable(path);
+      setState(() => _failed = true);
+      return;
+    }
+    setState(() {
+      _thumb = result;
+      _exact = true;
+    });
   }
 
   Future<void> _loadDuration(String path) async {
@@ -462,7 +504,11 @@ class _VideoThumbState extends State<_VideoThumb> {
   @override
   Widget build(BuildContext context) {
     final thumb = _thumb;
-    if (thumb == null) return widget.fallback;
+    if (thumb == null) {
+      // Liste satırı (küçük) ya da üretilemeyen: dosya simgesi.
+      if (_failed || widget.size < 56) return widget.fallback;
+      return _VideoLoading(size: widget.size, radius: widget.radius);
+    }
     return ClipRRect(
       borderRadius: BorderRadius.circular(widget.radius),
       child: Stack(
@@ -502,6 +548,43 @@ class _VideoThumbState extends State<_VideoThumb> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Küçük resim gelene dek ızgara hücresi: sakin zemin + küçük dönence.
+/// `RepaintBoundary`: dönencenin her karesi yalnız kendini boyar.
+class _VideoLoading extends StatelessWidget {
+  final double size;
+  final double radius;
+
+  const _VideoLoading({required this.size, required this.radius});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final spin = (size * 0.18).clamp(14.0, 22.0);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: ColoredBox(
+        color: scheme.surfaceContainerHighest,
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Center(
+            child: RepaintBoundary(
+              child: SizedBox(
+                width: spin,
+                height: spin,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: scheme.onSurfaceVariant.withValues(alpha: .6),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

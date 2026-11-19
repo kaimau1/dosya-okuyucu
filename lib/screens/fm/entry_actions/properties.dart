@@ -1,10 +1,17 @@
 part of '../entry_actions.dart';
 
-/// Özellikler penceresi. Klasörlerde boyut istek üzerine hesaplanır (büyük
-/// ağaçta saniyeler sürebilir — pencere açılışını bekletmeyiz).
+/// Özellikler levhası. Klasörlerde boyut istek üzerine hesaplanır (büyük
+/// ağaçta saniyeler sürebilir — levha açılışını bekletmeyiz).
+///
+/// **Alt levha, menüyle aynı dil** (2026-11-15, kullanıcı: *"Özellikler
+/// sayfasını da yeniden tasarla, görsel birliğe uysun"*): eskiden düz bir
+/// AlertDialog'du (etiket/değer alt alta, metin düğmeleri). Şimdi işlem
+/// levhasının başlık kartı, bilgi kartı (`MenuGroupCard`) ve Bento karoları.
 Future<void> showProperties(BuildContext context, FsEntry entry) async {
-  await showDialog<void>(
-    context: context,
+  // Ortak levha kabuğu (tasarım tokenı mandalı: ham showModalBottomSheet yok).
+  await showAppSheet<void>(
+    context,
+    scrollable: false,
     builder: (ctx) => _PropertiesDialog(entry: entry),
   );
 }
@@ -163,123 +170,212 @@ class _PropertiesDialogState extends State<_PropertiesDialog> {
   @override
   Widget build(BuildContext context) {
     final e = widget.entry;
-    return AlertDialog(
-      title: Text(context.t('fm.properties')),
-      content: SingleChildScrollView(
+    final scheme = Theme.of(context).colorScheme;
+    final info = <Widget>[
+      _row(context.t('fm.type'),
+          e.isDir ? context.t('fm.folder') : e.category.label),
+      if (!e.isDir) _row(context.t('prop.size'), FsPaths.humanSize(e.sizeBytes)),
+      if (e.isDir)
+        _row(
+          context.t('prop.size'),
+          _folderSize != null
+              ? FsPaths.humanSize(_folderSize!)
+              : (_calculating
+                  ? context.t('fm.computing')
+                  : context.t('fm.not_computed')),
+        ),
+      if (_counts != null)
+        _row(
+          context.t('prop.contents'),
+          context.t('prop.contents_value',
+              {'files': _counts!.files, 'dirs': _counts!.dirs}),
+        ),
+      _row(context.t('fm.modified'), FsPaths.humanDate(e.modifiedMs)),
+      // Yalnız gerçekten bir kaydımız varsa yazılır: "—" göstermek
+      // "hiç açılmadı" ile "bilmiyorum"u karıştırırdı.
+      if (_openedAtMs != null)
+        _row(context.t('fm.last_opened'), FsPaths.humanDate(_openedAtMs!)),
+      if (_encoding != null) _row(context.t('prop.encoding'), _encoding!),
+    ];
+    final exif = _exif == null ? const <Widget>[] : _exifRows(context, _exif!);
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _row(context.t('prop.name'), e.name),
-            _row(context.t('fm.type'), e.isDir ? context.t('fm.folder') : e.category.label),
-            if (!e.isDir) _row(context.t('prop.size'), FsPaths.humanSize(e.sizeBytes)),
-            if (e.isDir)
-              _row(
-                context.t('prop.size'),
-                _folderSize != null
-                    ? FsPaths.humanSize(_folderSize!)
-                    : (_calculating ? context.t('fm.computing') : context.t('fm.not_computed')),
+            // Başlık kartı — işlem levhasınınkiyle aynı (simge, ad, boyut · tarih).
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(MenuKit.cardRadius),
               ),
-            _row(context.t('fm.modified'), FsPaths.humanDate(e.modifiedMs)),
-            // Yalnız gerçekten bir kaydımız varsa yazılır: "—" göstermek
-            // "hiç açılmadı" ile "bilmiyorum"u karıştırırdı.
-            if (_openedAtMs != null)
-              _row(context.t('fm.last_opened'), FsPaths.humanDate(_openedAtMs!)),
-            _row(context.t('prop.location'), e.path),
-            if (_counts != null)
-              _row(
-                context.t('prop.contents'),
-                context.t('prop.contents_value',
-                    {'files': _counts!.files, 'dirs': _counts!.dirs}),
+              child: _sheetHeader(context, e),
+            ),
+            MenuGroupTitle(context.t('fm.properties'),
+                padding: const EdgeInsetsDirectional.fromSTEB(4, Gap.md, 4, 6)),
+            MenuGroupCard(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Column(children: _divided(info)),
+            ),
+            const SizedBox(height: 8),
+            // Konum ayrı kart: uzun yol tam genişlikte sarsın, yanında
+            // kopyalama düğmesi dursun.
+            MenuGroupCard(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: _row(context.t('prop.location'), e.path, stacked: true),
+            ),
+            if (!e.isDir) ...[
+              const SizedBox(height: 8),
+              _digestTile(context),
+            ],
+            if (exif.isNotEmpty) ...[
+              MenuGroupTitle(context.t('prop.photo_info'),
+                  padding:
+                      const EdgeInsetsDirectional.fromSTEB(4, Gap.md, 4, 6)),
+              MenuGroupCard(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Column(children: _divided(exif)),
               ),
-            if (_encoding != null) _row(context.t('prop.encoding'), _encoding!),
-            if (!e.isDir) ..._digestSection(context),
-            if (_exif != null) ..._exifSection(context, _exif!),
+            ],
+            const SizedBox(height: Gap.md),
+            // Eylemler Bento karoları: iki sütun, simge üstte.
+            Row(
+              children: [
+                if (e.isDir && _folderSize == null) ...[
+                  Expanded(
+                    child: _PropTile(
+                      icon: AppIcons.storage,
+                      label: context.t('fm.calc_size'),
+                      onTap: _calculating ? null : _calculate,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
+                  child: _PropTile(
+                    icon: AppIcons.textFields,
+                    label: context.t('prop.copy_name'),
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: e.name));
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _PropTile(
+                    icon: AppIcons.link,
+                    label: context.t('fm.copy_path'),
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: e.path));
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
-      actions: [
-        if (e.isDir && _folderSize == null)
-          TextButton(
-            onPressed: _calculating ? null : _calculate,
-            child: Text(context.t('fm.calc_size')),
-          ),
-        TextButton(
-          onPressed: () {
-            Clipboard.setData(ClipboardData(text: e.name));
-            Navigator.pop(context);
-          },
-          child: Text(context.t('prop.copy_name')),
-        ),
-        TextButton(
-          onPressed: () {
-            Clipboard.setData(ClipboardData(text: e.path));
-            Navigator.pop(context);
-          },
-          child: Text(context.t('fm.copy_path')),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(context.t('common.close')),
-        ),
-      ],
     );
   }
 
-  /// **Özet satırı** — "indirdiğim dosya bozuk mu?" sorusunun cevabı.
-  ///
-  /// Hesaplanmadan önce bir düğme, hesaplanırken ilerleme, sonra dokununca
-  /// panoya kopyalanan bir değer. Değer `SelectableText`: kullanıcı yayıncının
-  /// sitesindeki özetle GÖZLE de karşılaştırabilmeli.
-  List<Widget> _digestSection(BuildContext context) {
-    if (_digest != null) {
-      return [
-        InkWell(
-          onTap: () {
-            Clipboard.setData(ClipboardData(text: _digest!));
-            _snack(context, context.t('prop.digest_copied'));
-          },
-          child: _row(context.t('prop.digest'), _digest!),
-        ),
+  /// Bilgi kartındaki satırların arasına ince ayraç.
+  List<Widget> _divided(List<Widget> rows) => [
+        for (var i = 0; i < rows.length; i++) ...[
+          if (i > 0)
+            Divider(
+              height: 1,
+              indent: 14,
+              endIndent: 14,
+              color: Theme.of(context).colorScheme.outlineVariant
+                  .withValues(alpha: 0.5),
+            ),
+          rows[i],
+        ],
       ];
+
+  /// **Özet karosu** — "indirdiğim dosya bozuk mu?" sorusunun cevabı.
+  ///
+  /// Hesaplanmadan önce dokunulacak bir karo, hesaplanırken ilerleme, sonra
+  /// dokununca panoya kopyalanan değer. Değer `SelectableText`: kullanıcı
+  /// yayıncının sitesindeki özetle GÖZLE de karşılaştırabilmeli.
+  Widget _digestTile(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final Widget body;
+    if (_digest != null) {
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(context.t('prop.digest'),
+              style: theme.textTheme.labelMedium
+                  ?.copyWith(color: scheme.onSurfaceVariant)),
+          const SizedBox(height: 2),
+          SelectableText(_digest!,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(fontFamily: 'monospace', color: scheme.onSurface)),
+        ],
+      );
+    } else if (_hashing) {
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(context.t('prop.computing_digest'),
+              style: theme.textTheme.labelLarge
+                  ?.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          LinearProgressIndicator(
+              value: _hashProgress > 0 ? _hashProgress : null,
+              borderRadius: BorderRadius.circular(4)),
+        ],
+      );
+    } else {
+      body = Text(context.t('prop.compute_digest'),
+          style: theme.textTheme.labelLarge
+              ?.copyWith(fontWeight: FontWeight.w700, color: scheme.onSurface));
     }
-    if (_hashing) {
-      return [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(context.t('prop.digest'),
-                  style: Theme.of(context).textTheme.labelMedium),
-              const SizedBox(height: 4),
-              LinearProgressIndicator(
-                  value: _hashProgress > 0 ? _hashProgress : null),
-            ],
+    return Material(
+      color: scheme.surfaceContainerHigh,
+      borderRadius: BorderRadius.circular(18),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: _hashing
+            ? null
+            : _digest != null
+                ? () {
+                    Clipboard.setData(ClipboardData(text: _digest!));
+                    _snack(context, context.t('prop.digest_copied'));
+                  }
+                : _computeDigest,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 52),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                Icon(AppIcons.fingerprint, size: 22, color: scheme.primary),
+                const SizedBox(width: 12),
+                Expanded(child: body),
+                if (_digest != null) ...[
+                  const SizedBox(width: 8),
+                  Icon(AppIcons.copy, size: 20, color: scheme.onSurfaceVariant),
+                ],
+              ],
+            ),
           ),
         ),
-      ];
-    }
-    return [
-      Align(
-        alignment: AlignmentDirectional.centerStart,
-        child: TextButton.icon(
-          onPressed: _computeDigest,
-          icon: const Icon(AppIcons.hashtag, size: 18),
-          label: Text(context.t('prop.compute_digest')),
-        ),
       ),
-    ];
+    );
   }
 
   /// Fotoğrafın künyesi. **Konum (GPS) BİLİNÇLİ OLARAK YOK** — bkz.
   /// `services/fm/exif_reader.dart`.
-  List<Widget> _exifSection(BuildContext context, ExifData exif) {
-    final rows = <Widget>[
-      const SizedBox(height: 8),
-      Text(context.t('prop.photo_info'),
-          style: Theme.of(context).textTheme.titleSmall),
-    ];
+  List<Widget> _exifRows(BuildContext context, ExifData exif) {
+    final rows = <Widget>[];
     void add(String label, String? value) {
       if (value == null || value.isEmpty) return;
       rows.add(_row(label, value));
@@ -310,17 +406,80 @@ class _PropertiesDialogState extends State<_PropertiesDialog> {
     return rows;
   }
 
-  Widget _row(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: Theme.of(context).textTheme.labelMedium),
-            SelectableText(value,
-                style: Theme.of(context).textTheme.bodyMedium),
-          ],
+  /// Bilgi satırı: etiket solda soluk, değer sağda (uzun değer — konum —
+  /// [stacked] ile alt satırda tam genişlik).
+  Widget _row(String label, String value, {bool stacked = false}) {
+    final theme = Theme.of(context);
+    final labelText = Text(label,
+        style: theme.textTheme.bodyMedium
+            ?.copyWith(color: theme.colorScheme.onSurfaceVariant));
+    final valueText = SelectableText(value,
+        textAlign: stacked ? TextAlign.start : TextAlign.end,
+        style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface));
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: stacked
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [labelText, const SizedBox(height: 2), valueText],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                labelText,
+                const SizedBox(width: 16),
+                Expanded(child: valueText),
+              ],
+            ),
+    );
+  }
+}
+
+/// Özellikler levhasının eylem karosu — Bento kare karosunun dili
+/// (simge üstte, kalın etiket altta).
+class _PropTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+  const _PropTile({required this.icon, required this.label, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Material(
+      color: scheme.surfaceContainerHigh,
+      borderRadius: BorderRadius.circular(18),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 66),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 11, 12, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Icon(icon, size: 22, color: scheme.primary),
+                const SizedBox(height: 8),
+                Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                      height: 1.2,
+                      fontWeight: FontWeight.w700,
+                      color: scheme.onSurface),
+                ),
+              ],
+            ),
+          ),
         ),
-      );
+      ),
+    );
+  }
 }
 
 String _parentOf(String path) {

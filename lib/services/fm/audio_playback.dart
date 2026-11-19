@@ -4,6 +4,8 @@ import 'dart:math';
 
 import 'package:video_player/video_player.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart'
+    show AppLifecycleState, WidgetsBinding, WidgetsBindingObserver;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:path/path.dart' as p;
 
@@ -34,10 +36,44 @@ enum AudioRepeatMode { off, one, all }
 /// Böylece **yeni bağımlılık gerekmedi** ve kalıcı bildirim de o servisin
 /// bildirimi oluyor: kullanıcı ne çaldığını görüyor, duraklatıp
 /// geçebiliyor.
-class AudioPlayback extends ChangeNotifier {
+class AudioPlayback extends ChangeNotifier with WidgetsBindingObserver {
   AudioPlayback._();
 
   static final AudioPlayback instance = AudioPlayback._();
+
+  /// **Arka planda çalsın mı?** Varsayılan KAPALI (kullanıcı 2026-11-15:
+  /// "sesler arka planda oynamaya devam ediyor, varsayılan kapat").
+  /// Kapalıyken uygulama arkaya alınınca / ekran kilitlenince ses duraklar,
+  /// dönünce kaldığı yerden sürer. Ayar `AppState`ten buraya yazılır.
+  /// Bildirimden / kilit ekranından "Çal"a basmak o an için izin sayılır.
+  static bool backgroundPlay = false;
+
+  bool _observing = false;
+  bool _pausedByLifecycle = false;
+
+  void _observe() {
+    if (_observing) return;
+    _observing = true;
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.detached:
+        if (backgroundPlay || !playing || _engine == null) return;
+        _pausedByLifecycle = true;
+        unawaited(_guard(() => _player.pause()));
+      case AppLifecycleState.resumed:
+        if (!_pausedByLifecycle) return;
+        _pausedByLifecycle = false;
+        if (!playing && hasTrack) unawaited(_guard(() => _player.resume()));
+      case AppLifecycleState.inactive:
+        break;
+    }
+  }
 
   /// Test kancası: bildirim/ön plan servisi kurulmasın.
   @visibleForTesting
@@ -186,6 +222,8 @@ class AudioPlayback extends ChangeNotifier {
     // Etiket okuma çalmayı BEKLETMEZ (yavaş kartta hissedilir): ses hemen
     // başlar, kapak ve sanatçı sonradan yerine oturur.
     if (!engineEnabled) return;
+    _pausedByLifecycle = false;
+    _observe();
     unawaited(_loadTags(path));
     try {
       final resume = PlaybackPositions.positionOf(path);
@@ -290,6 +328,9 @@ class AudioPlayback extends ChangeNotifier {
   }
 
   Future<void> toggle() async {
+    // Kullanıcı kendisi bastı (ekrandan ya da bildirimden): dönüşte
+    // kendiliğinden başlatma / durdurma kararı artık onun.
+    _pausedByLifecycle = false;
     if (!engineEnabled) {
       playing = !playing;
       notifyListeners();

@@ -16,7 +16,10 @@ import android.net.wifi.WifiNetworkSpecifier
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import com.google.mlkit.vision.barcode.BarcodeScannerOptions
+import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import io.flutter.plugin.common.MethodCall
@@ -53,6 +56,7 @@ class QrTransfer(private val activity: Activity) : MethodChannel.MethodCallHandl
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "scan" -> scan(result)
+            "decodeImage" -> decodeImage(call.argument<String>("path") ?: "", result)
             "startHotspot" -> startHotspot(result)
             "stopHotspot" -> {
                 stopHotspot()
@@ -116,6 +120,53 @@ class QrTransfer(private val activity: Activity) : MethodChannel.MethodCallHandl
         } catch (e: Exception) {
             result.error("unavailable", e.message, null)
         }
+    }
+
+    /**
+     * **Görseldeki QR kodlarını okur** (2026-11-18, kullanıcı: *"QR'lı görseli
+     * otomatik tanıma ve QR butonu ile linke gitme"*). Kamera yok; dosya arka planda
+     * küçültülmüş bitmap → ML Kit barkod tarayıcısı (yalnız QR). Dönen: okunan ham
+     * değerler (boş liste = QR yok). Model henüz inmediyse hata değil boş
+     * liste — görüntüleyici sessizce düğmesiz kalır.
+     */
+    private val qrExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
+
+    private fun decodeImage(path: String, result: MethodChannel.Result) {
+        val main = Handler(Looper.getMainLooper())
+        // Bitmap çözme ANA İŞ PARÇACIĞINDA DEĞİL: `InputImage.fromFilePath`
+        // 12 MP fotoğrafı tam boy ana iş parçacığında çözer (~100+ ms kare
+        // kaybı, galeride kaydırırken kasma). Burada arka planda, uzun kenarı
+        // 1600–3200 px'e küçültülerek çözülür.
+        qrExecutor.execute {
+            val bmp = try { loadScaled(path, 1600) } catch (e: Throwable) { null }
+            if (bmp == null) {
+                main.post { result.success(emptyList<String>()) }
+                return@execute
+            }
+            val options = BarcodeScannerOptions.Builder()
+                .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                .build()
+            val scanner = BarcodeScanning.getClient(options)
+            scanner.process(InputImage.fromBitmap(bmp, 0))
+                .addOnSuccessListener { codes ->
+                    result.success(codes.mapNotNull { it.rawValue }.distinct())
+                }
+                .addOnFailureListener { result.success(emptyList<String>()) }
+                .addOnCompleteListener {
+                    scanner.close()
+                    bmp.recycle()
+                }
+        }
+    }
+
+    private fun loadScaled(path: String, maxSide: Int): android.graphics.Bitmap? {
+        val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        android.graphics.BitmapFactory.decodeFile(path, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        var sample = 1
+        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= maxSide) sample *= 2
+        val opts = android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }
+        return android.graphics.BitmapFactory.decodeFile(path, opts)
     }
 
     private fun startHotspot(result: MethodChannel.Result) {

@@ -324,8 +324,13 @@ class FmEntryCard extends StatelessWidget {
               builder: (context, constraints) {
                 // Hücrenin boyu ikon + ad şeridi kadar; tema ölçeği ikonu
                 // BÜYÜTÜRSE üst sınır yine hücrenin kendisi olmalı, yoksa
-                // "Modern" ailesinde ızgara satırı taşardı.
-                final room = constraints.maxHeight - _labelHeight;
+                // "Modern" ailesinde ızgara satırı taşardı. Büyük yazı
+                // ölçeğinde iki satırlık dosya adı 34 dp'ye sığmadığından
+                // etiket kuşağı hücrenin %46'sına kadar esner.
+                final labelH = MediaQuery.textScalerOf(context)
+                    .scale(_labelHeight)
+                    .clamp(_labelHeight, constraints.maxHeight * 0.46);
+                final room = constraints.maxHeight - labelH;
                 final iconSize = (room * context.fmIconScale).clamp(
                   16.0,
                   constraints.maxWidth < room ? constraints.maxWidth : room,
@@ -346,7 +351,7 @@ class FmEntryCard extends StatelessWidget {
                               radius: (iconSize * 0.12).clamp(6.0, 20.0),
                             )),
                         SizedBox(
-                          height: _labelHeight,
+                          height: labelH,
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 2),
                             child: FmEntryName(

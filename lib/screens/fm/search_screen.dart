@@ -39,6 +39,7 @@ import '../../widgets/fm/fm_selection_bar.dart';
 import 'browser_screen.dart';
 import 'entry_actions.dart';
 import '../../core/snack.dart';
+import '../help_screen.dart';
 import '../../core/safe_insets.dart';
 import '../../core/user_error.dart';
 import '../../widgets/ai_key_gate.dart';
@@ -442,6 +443,12 @@ class _SearchScreenState extends State<SearchScreen> {
                   }
                 case 'ai':
                   await _askAi();
+                case 'help':
+                  // **Ara ve Yardım** (2026-11-14): tüm özellikler. Çubukta
+                  // ayrı düğme değil — başlıktaki arama kutusu daralırdı.
+                  await Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) =>
+                          HelpScreen(initialQuery: _controller.text.trim())));
               }
             },
             itemBuilder: (_) => [
@@ -453,6 +460,11 @@ class _SearchScreenState extends State<SearchScreen> {
               PopupMenuItem(
                 value: 'ai',
                 child: Text(context.t('srch.ai_interpret')),
+              ),
+              PopupMenuItem(
+                key: const ValueKey('srch-help'),
+                value: 'help',
+                child: Text(context.t('help.open')),
               ),
               PopupMenuItem(
                 value: 'rebuild',
@@ -470,6 +482,7 @@ class _SearchScreenState extends State<SearchScreen> {
           if (_searching || _aiBusy || SearchIndex.isBuilding)
             const LinearProgressIndicator(minHeight: 2),
           _indexBanner(),
+          if (!_meaning) FeatureHelpMatches(query: _controller.text),
           if (_searched && _results.isNotEmpty) _resultSummary(results.length),
           Expanded(child: _body(results)),
         ],

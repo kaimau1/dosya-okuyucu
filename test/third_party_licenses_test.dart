@@ -26,11 +26,17 @@ void main() {
       'PDFium',
       'syncfusion_flutter_pdf',
       'Google ML Kit',
+      'libmpv',
+      'FFmpeg',
+      'ESRGAN',
+      'Antalia-2 Mini',
+      'EMA Lightning',
     ]) {
       expect(packages, contains(want));
     }
     final all = texts.toString();
     expect(all, contains('SIL OPEN FONT LICENSE'));
     expect(all, contains('Community License'));
+    expect(all, contains('LGPL'));
   });
 }

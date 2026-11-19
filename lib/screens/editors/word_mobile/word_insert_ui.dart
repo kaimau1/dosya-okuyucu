@@ -92,6 +92,63 @@ Future<(int, int)?> showWordTableSheet(BuildContext context) =>
 /// [url] verilirse var olan bağlantı düzenlenir (Faz 22 kalanı): başlık
 /// "Bağlantıyı düzenle", altta **Aç** ve **Kaldır** — kaldır `(metin, '')`
 /// döner (metin düz yazı olarak kalır).
+/// Form denetimi (içerik denetimi) doldurma levhası: düz metin denetiminde
+/// yazı alanı, açılır listede öğeler, birleşik kutuda ikisi. Seçilen /
+/// yazılan değer döner; vazgeçilirse null. (Onay kutusu ve tarih levhasız:
+/// dokunuş = işaretle / takvim.)
+Future<String?> showWordControlSheet(BuildContext context, DocxControl c) {
+  final list = c.type == DocxControlType.dropdown ||
+      c.type == DocxControlType.combo;
+  final free = c.type != DocxControlType.dropdown;
+  final ctl = TextEditingController(text: c.value);
+  return showAppSheet<String>(
+    context,
+    title: c.title.isNotEmpty ? c.title : context.t('word.control_fill'),
+    builder: (ctx) => Padding(
+      padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (list)
+            for (final (shown, _) in c.items)
+              ListTile(
+                key: ValueKey('word-control-item-$shown'),
+                title: Text(shown),
+                trailing: shown == c.value ? const Icon(AppIcons.check) : null,
+                onTap: () => Navigator.pop(ctx, shown),
+              ),
+          if (list && c.items.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(Gap.md),
+              child: Text(ctx.t('word.control_no_items')),
+            ),
+          if (free) ...[
+            TextField(
+              key: const ValueKey('word-control-text'),
+              controller: ctl,
+              autofocus: !list,
+              minLines: 1,
+              maxLines: c.multiLine ? 6 : 1,
+              decoration: InputDecoration(
+                labelText: ctx.t('word.control_value'),
+                hintText: c.placeholder.isEmpty ? null : c.placeholder,
+              ),
+              onSubmitted: c.multiLine ? null : (v) => Navigator.pop(ctx, v),
+            ),
+            const SizedBox(height: Gap.md),
+            FilledButton(
+              key: const ValueKey('word-control-ok'),
+              onPressed: () => Navigator.pop(ctx, ctl.text),
+              child: Text(ctx.t('common.save')),
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
+}
+
 Future<(String, String)?> showWordLinkSheet(BuildContext context,
     {String text = '', String? url}) {
   final editing = url != null;
@@ -539,29 +596,40 @@ Future<String?> showWordDateSheet(BuildContext context) {
   );
 }
 
-/// Kısa metin levhası (dipnot / yorum / alternatif metin): vazgeçilirse null.
+/// [showWordTextSheet] "Sil" düğmesine basılınca dönen değer.
+const kWordSheetDelete = '\u0000sil';
+
+/// Kısa metin levhası (dipnot / yorum / alternatif metin): vazgeçilirse null;
+/// [deleteLabel] verilirse ikinci düğme [kWordSheetDelete] döndürür.
 Future<String?> showWordTextSheet(BuildContext context,
         {required String title,
         required String label,
         required String action,
         String initial = '',
+        String? deleteLabel,
         Key? fieldKey}) =>
     showAppSheet<String>(
       context,
       title: title,
       builder: (ctx) => _WordTextSheet(
-          label: label, action: action, initial: initial, fieldKey: fieldKey),
+          label: label,
+          action: action,
+          initial: initial,
+          deleteLabel: deleteLabel,
+          fieldKey: fieldKey),
     );
 
 /// Denetleyicisi levhanın ömrüne bağlı (kapanış animasyonu sürerken
 /// atılmasın).
 class _WordTextSheet extends StatefulWidget {
   final String label, action, initial;
+  final String? deleteLabel;
   final Key? fieldKey;
   const _WordTextSheet(
       {required this.label,
       required this.action,
       required this.initial,
+      this.deleteLabel,
       this.fieldKey});
 
   @override
@@ -599,6 +667,12 @@ class _WordTextSheetState extends State<_WordTextSheet> {
               onPressed: () => Navigator.pop(context, _ctl.text),
               child: Text(widget.action),
             ),
+            if (widget.deleteLabel case final del?)
+              TextButton(
+                key: const ValueKey('word-text-delete'),
+                onPressed: () => Navigator.pop(context, kWordSheetDelete),
+                child: Text(del),
+              ),
           ],
         ),
       );

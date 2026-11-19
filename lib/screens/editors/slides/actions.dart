@@ -18,18 +18,8 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
       final bytes = await File(widget.path).readAsBytes();
       // Faz 28 / SL7: ayrıştırma + bütün slaytların çizim modeli ayrı
       // izolatta (50 slaytlık destede UI izleği donmasın). İzolat
-      // kurulamazsa ana izlekte.
-      if (SlidesEditorScreen.parseInIsolate) {
-        try {
-          // `compute` + statik işlev: kapanış ekranın durumunu yakalayıp
-          // izolata taşımaya çalışmasın.
-          _editor = await compute(PptxEditor.parse, bytes);
-        } catch (_) {
-          _editor = PptxEditor.parse(bytes);
-        }
-      } else {
-        _editor = PptxEditor.parse(bytes);
-      }
+      // kurulamazsa ana izlekte — tek kapı [_SlidesProPart._parseDeck].
+      _editor = await _SlidesProPart._parseDeck(bytes);
     } catch (e) {
       _error = userErrorText(e);
     }
@@ -54,11 +44,14 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
 
   /// Taslaktan geri yükleme (Faz 20).
   Future<void> _restoreDraft(Uint8List bytes) async {
+    // Açılıştaki gibi arka izlekte (B12 m.2): büyük destede ana izlek donmasın.
+    final next = await _SlidesProPart._parseDeck(bytes);
+    if (!mounted) return;
     _history.clear();
     _partSetState(() {
       _commitEdit();
       _selShape = null;
-      _editor = PptxEditor.parse(bytes);
+      _editor = next;
     });
     _session.changed();
   }

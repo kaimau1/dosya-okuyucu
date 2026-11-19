@@ -171,8 +171,8 @@ const Map<String, (String, String, String)> _t5 = {
   'ph.view': ('Görünüm', 'View', 'العرض'),
   'ph.view_scale': ('Zaman ölçeği', 'Time scale', 'المقياس الزمني'),
   'ph.view_columns': ('Sütun sayısı', 'Columns', 'عدد الأعمدة'),
-  'ph.albums_hide': ('Albüm şeridini gizle', 'Hide album strip', 'إخفاء شريط الألبومات'),
-  'ph.albums_show': ('Albüm şeridini göster', 'Show album strip', 'إظهار شريط الألبومات'),
+  'ph.albums_hide': ('Albüm alanını gizle', 'Hide albums area', 'إخفاء منطقة الألبومات'),
+  'ph.albums_show': ('Albüm alanını göster', 'Show albums area', 'إظهار منطقة الألبومات'),
   'ph.pinch_hint': (
     'İpucu: ızgarada iki parmakla sıkıştırarak uzaklaştır, açarak yakınlaştır.',
     'Tip: pinch the grid with two fingers to zoom out, spread to zoom in.',
@@ -687,8 +687,8 @@ const Map<String, (String, String, String)> _t5 = {
   ),
 
   // ── Açılma geçmişi ────────────────────────────────────────────────────────
-  'oh.title': ('Son açılanlar', 'Recently opened', 'المفتوحة مؤخرًا'),
-  'oh.search': ('Son açılanlarda ara…', 'Search recently opened…', 'ابحث في المفتوحة مؤخرًا…'),
+  'oh.title': ('Geçmiş', 'History', 'السجل'),
+  'oh.search': ('Geçmişte ara…', 'Search history…', 'ابحث في السجل…'),
   'oh.clear': ('Geçmişi temizle', 'Clear the history', 'مسح السجل'),
   'oh.clear_title': ('Geçmiş temizlensin mi?', 'Clear the history?', 'هل تريد مسح السجل؟'),
   'oh.clear_body': (

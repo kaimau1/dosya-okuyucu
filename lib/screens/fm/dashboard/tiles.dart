@@ -1,6 +1,20 @@
 part of '../dashboard_screen.dart';
 
 extension _DashboardScreenTilesPart on _DashboardScreenState {
+  /// Ana ekran düzeni (tema ailesinden, bkz. [HomeStyle]).
+  HomeStyle get _homeStyle => AppSkinData.of(context).metrics.homeStyle;
+
+  /// Kutu alt yazısı: klasikte "7,0 GB (3093)", yeni düzenlerde tasarımdaki
+  /// tek kalıp "7,0 GB · 3.093" (binliklerde nokta — F-metinler panosu).
+  String _sizeCount(int bytes, int count) {
+    final size = FsPaths.humanSize(bytes);
+    if (_homeStyle == HomeStyle.classic) return '$size ($count)';
+    final digits = '$count';
+    final grouped = digits.replaceAllMapped(
+        RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
+    return '$size · $grouped';
+  }
+
   List<FmTileData> _rankedTools() {
     final tools = _tools();
     final order =
@@ -42,7 +56,7 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
       label: _categoryLabel(category),
       subtitle: stat.count == 0
           ? (_scanning ? context.t('fm.scanning') : context.t('fm.none'))
-          : '${FsPaths.humanSize(stat.bytes)} (${stat.count})',
+          : _sizeCount(stat.bytes, stat.count),
       onTap: () => _openSwipe(category.name),
     );
   }
@@ -58,7 +72,7 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
       label: context.t('fm.apk_archives'),
       subtitle: count == 0
           ? (_scanning ? context.t('fm.scanning') : context.t('fm.none'))
-          : '${FsPaths.humanSize(apk.bytes + arc.bytes)} ($count)',
+          : _sizeCount(apk.bytes + arc.bytes, count),
       // Kendi sekmeli kaydırıcısı var; dış kaydırıcıya girmez (iç içe yatay
       // kaydırma çakışırdı).
       onTap: () => _push(ApkArchiveScreen(
@@ -86,7 +100,7 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
       label: context.t('fm.media_all'),
       subtitle: count == 0
           ? (_scanning ? context.t('fm.scanning') : context.t('fm.none'))
-          : '${FsPaths.humanSize(img.bytes + vid.bytes)} ($count)',
+          : _sizeCount(img.bytes + vid.bytes, count),
       onTap: () => _openSwipe('media'),
     );
   }
@@ -163,17 +177,20 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
         for (final e in all)
           if (e.$1 == id && (layout.tileVisible(id) || id == key)) e,
     ];
+    // **Sağa-sola kaydırmalı geçiş kaldırıldı** (2026-11-15, kullanıcı:
+    // "kartlarda sağa sola kaydırıp geçiş kalksın"): kutu yalnız kendi
+    // ekranını açar; başka kategoriye sol üstteki ☰ yan menüden geçilir.
     final index = pages.indexWhere((e) => e.$1 == key);
-    return _push(SwipePager(
-      pages: [for (final e in pages) e.$2],
-      initial: index < 0 ? 0 : index,
-    ));
+    final page = pages[index < 0 ? 0 : index].$2;
+    return _push(Builder(builder: page.builder));
   }
 
   Widget _quickFolders() {
+    final quick = QuickFolders.instance;
     final folders = [
       for (final f in StorageStats.standardFolders(FmEnv.primaryRoot))
-        (label: f.label, path: f.path, volume: ''),
+        if (!quick.isHidden(f.path))
+          (label: f.label, path: f.path, volume: '', standard: true),
       // **Takılabilir birimlerin standart klasörleri de burada** (kullanıcı
       // 2026-09-02: *"SD kartı kullananlar ne yapacak"*). Kamerası SD karta
       // çeken bir telefonda DCIM ana bellekte DEĞİL kartta; hızlı klasörler
@@ -183,46 +200,208 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
       for (final v in FmEnv.volumes)
         if (v.isRemovable)
           for (final f in StorageStats.standardFolders(v.path))
-            (
-              label: f.label,
-              path: f.path,
-              volume: v.displayLabel(context.t),
-            ),
+            if (!quick.isHidden(f.path))
+              (
+                label: f.label,
+                path: f.path,
+                volume: v.displayLabel(context.t),
+                standard: true,
+              ),
+      // **Kullanıcının eklediği klasörler** (2026-11-15): ⋮ → Kısayol
+      // oluştur → Hızlı klasörlere ekle, ya da buradaki "Ekle".
+      for (final path in quick.added)
+        (label: p.basename(path), path: path, volume: '', standard: false),
     ];
-    if (folders.isEmpty) {
-      return Text(context.t('fm.no_standard_folders'));
+    if (_homeStyle != HomeStyle.classic) {
+      return _quickFolderGrid(folders);
     }
     return Wrap(
       spacing: Gap.sm,
       runSpacing: Gap.sm,
       children: [
+        if (folders.isEmpty) Text(context.t('qf.empty')),
         // Boyut yalnız ÖLÇÜLMÜŞ klasörde yazılır (bugün: İndirilenler).
         // Hepsini ölçmek her klasör için ayrı bir ağaç yürüyüşü demek —
         // panonun açılışını saniyelerce geciktirirdi, bilinçli olarak yapılmadı.
         for (final f in folders)
-          ActionChip(
-            // Klasör simgesi temanın klasör rengini taşır (listedeki
-            // klasörlerle aynı — 2026-11-08 tasarım turu; vurgu mavisiydi).
-            avatar: Icon(
-                f.volume.isEmpty ? AppIcons.folder : AppIcons.storage,
-                size: 18,
-                color: f.volume.isEmpty
-                    ? context.fmFolderColor ?? FmColors.folder
-                    : null),
-            label: Text(
-              [
-                f.label,
-                if (f.volume.isNotEmpty) f.volume,
-                if (_folderSizes[f.path] != null)
-                  FsPaths.humanSize(_folderSizes[f.path]!),
-              ].join(' · '),
+          // Basılı tut → aç / hızlı klasörlerden çıkar (2026-11-15).
+          GestureDetector(
+            key: ValueKey('qf:${f.path}'),
+            onLongPress: () => _quickFolderMenu(f.path, f.label, f.standard),
+            child: ActionChip(
+              // Klasör simgesi temanın klasör rengini taşır (listedeki
+              // klasörlerle aynı — 2026-11-08 tasarım turu; vurgu mavisiydi).
+              avatar: Icon(
+                  _quickIcon(f.path, f.volume),
+                  size: 18,
+                  color: f.volume.isEmpty
+                      ? context.fmFolderColor ?? FmColors.folder
+                      : null),
+              label: Text(
+                [
+                  f.label,
+                  if (f.volume.isNotEmpty) f.volume,
+                  if (_folderSizes[f.path] != null)
+                    FsPaths.humanSize(_folderSizes[f.path]!),
+                ].join(' · '),
+              ),
+              onPressed: () => _openQuick(f.path,
+                  f.volume.isEmpty ? f.label : '${f.label} · ${f.volume}'),
             ),
-            onPressed: () => _push(BrowserScreen(
-                path: f.path,
-                title: f.volume.isEmpty ? f.label : '${f.label} · ${f.volume}')),
           ),
+        ActionChip(
+          avatar: const Icon(AppIcons.add, size: 18),
+          label: Text(context.t('qf.add')),
+          onPressed: _addQuickFolder,
+        ),
       ],
     );
+  }
+
+  /// Tasarım aileleri (2026-11-15): üç sütunlu, eşit genişlikte kapsül
+  /// kutular; adın yanında boyut yazmaz (F-metinler: "İndirilenler").
+  Widget _quickFolderGrid(
+      List<({String label, String path, String volume, bool standard})>
+          folders) {
+    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final radius = AppSkinData.of(context).metrics.radiusControl;
+    Widget box({
+      Key? key,
+      required IconData icon,
+      required Color? color,
+      required String label,
+      required VoidCallback onTap,
+      VoidCallback? onLongPress,
+    }) =>
+        Material(
+          key: key,
+          color: scheme.surfaceContainerLow,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radius + 8),
+            side: BorderSide(color: scheme.outlineVariant),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            onLongPress: onLongPress,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: Gap.sm + 4, vertical: Gap.sm + 4),
+              child: Row(children: [
+                Icon(icon, size: 20, color: color),
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: Text(label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium),
+                ),
+              ]),
+            ),
+          ),
+        );
+    return LayoutBuilder(builder: (context, c) {
+      const gap = Gap.sm;
+      final scale = MediaQuery.textScalerOf(context).scale(1);
+      final effective = scale > 1.0 ? c.maxWidth / scale : c.maxWidth;
+      final cols = effective < 190 ? 1 : (effective < 310 ? 2 : 3);
+      final w = (c.maxWidth - gap * (cols - 1)) / cols;
+      return Wrap(
+        spacing: gap,
+        runSpacing: gap,
+        children: [
+          for (final f in folders)
+            SizedBox(
+              width: w,
+              child: box(
+                key: ValueKey('qf:${f.path}'),
+                icon: _quickIcon(f.path, f.volume),
+                color: f.volume.isEmpty
+                    ? context.fmFolderColor ?? FmColors.folder
+                    : scheme.onSurfaceVariant,
+                label: f.volume.isEmpty ? f.label : '${f.label} · ${f.volume}',
+                onTap: () => _openQuick(
+                    f.path,
+                    f.volume.isEmpty
+                        ? f.label
+                        : '${f.label} · ${f.volume}'),
+                onLongPress: () =>
+                    _quickFolderMenu(f.path, f.label, f.standard),
+              ),
+            ),
+          SizedBox(
+            width: w,
+            child: box(
+              icon: AppIcons.add,
+              color: scheme.primary,
+              label: context.t('qf.add'),
+              onTap: _addQuickFolder,
+            ),
+          ),
+        ],
+      );
+    });
+  }
+
+  Future<void> _quickFolderMenu(
+      String path, String label, bool standard) async {
+    final choice = await showAppActionSheet<String>(
+      context,
+      title: label,
+      groups: [
+        AppActionGroup(actions: [
+          AppAction(
+              value: 'open',
+              icon: AppIcons.folder,
+              label: context.t('common.open')),
+          AppAction(
+              value: 'remove',
+              icon: AppIcons.close,
+              label: context.t('qf.quick_remove'),
+              destructive: true),
+        ]),
+      ],
+    );
+    if (!mounted || choice == null) return;
+    if (choice == 'open') {
+      unawaited(_openQuick(path, label));
+      return;
+    }
+    await QuickFolders.instance.remove(path, standard: standard);
+    if (mounted) _snack(context.t('qf.quick_removed', {'name': label}));
+  }
+
+  /// Hızlı erişim öğesinin simgesi: dosya kısayolu (2026-11-15) türünün
+  /// simgesini taşır.
+  IconData _quickIcon(String path, String volume) {
+    final file = shortcutFileCategory(path);
+    if (file != null) return FmColors.iconFor(file);
+    return volume.isEmpty ? AppIcons.folder : AppIcons.storage;
+  }
+
+  /// Hızlı erişim öğesini açar: klasör → gezgin, dosya → kendi görüntüleyicisi.
+  Future<void> _openQuick(String path, String label) =>
+      shortcutFileCategory(path) != null
+          ? EntryOpener.open(context, path)
+          : _push(BrowserScreen(path: path, title: label));
+
+  Future<void> _addQuickFolder() async {
+    final target = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => FolderPickerScreen(
+          sources: const [],
+          actionLabel: context.t('qf.add_here'),
+        ),
+      ),
+    );
+    if (target == null || !mounted) return;
+    final roots = [FmEnv.primaryRoot, for (final v in FmEnv.volumes) v.path];
+    await QuickFolders.instance
+        .add(target, standard: QuickFolders.isStandardPath(target, roots));
+    if (mounted) {
+      _snack(context.t('qf.quick_added', {'name': p.basename(target)}));
+    }
   }
 
   /// Önemli Dosyalar kutusunun sayıları — pano indeksinden (ek tarama yok).

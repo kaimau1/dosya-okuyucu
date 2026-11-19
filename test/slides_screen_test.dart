@@ -205,9 +205,15 @@ void main() {
     expect(find.byType(SlidesEditorScreen), findsOneWidget);
   });
 
-  testWidgets('AI özet düğmesi alt çubukta', (tester) async {
+  // Ortak düzen (2026-11-15): alt çubuk en çok 5 düğme — AI sohbeti
+  // çubukta, "AI özet" ⋮ levhasının Sunum grubunda.
+  testWidgets('AI alt çubukta; alt çubuk yana kaymaz', (tester) async {
     await pump(tester);
-    expect(find.text('AI özet'), findsOneWidget);
+    expect(find.text('AI ile çalış'), findsWidgets);
+    expect(find.text('AI özet'), findsNothing);
+    for (final label in ['Ekle', 'Tasarım', 'Oynat', 'Paylaş']) {
+      expect(find.text(label), findsWidgets, reason: label);
+    }
   });
 
   testWidgets('konuşmacı notu şeride dokununca TAMAMI okunur levhada açılır',

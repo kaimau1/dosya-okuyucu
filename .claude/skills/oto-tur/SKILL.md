@@ -7,15 +7,15 @@ description: Gözetimsiz zincirin yürütücü turu — kilit, main sağlığı,
 
 "not" projesindeki `oto-tur` skill'inin dosya okuyucuya uyarlanmış hâli (2026-11-14). Yöntem aynı;
 yol, komut, dal ve ölçüm kuralları bu projenin gerçeğine göre. **Kuyruk VERİSİ ve SIRA
-`OTOMASYON.md`'de** (paket ayrıntısı Kuyruk satırının "Kaynak" sütunundaki plan maddesinde:
-`docs/FERRARI_PLANI.md`, `KALANLAR.md`, `docs/CIHAZ_TESTI.md`…); bu skill yalnız yöntemdir.
+`PLAN.md` §1'de** (paket ayrıntısı Kuyruk satırının "Kaynak" sütunundaki plan maddesinde:
+`docs/arsiv/planlar/…`, `docs/CIHAZ_TESTI.md`…); bu skill yalnız yöntemdir.
 
 **Kullanıcı izni (2026-11-14, "not"taki 2026-11-09 izninin aynısı):** işleri otomasyonla başlat,
 istediğin modelde alt ajan aç, limite göre çalış; test telefonu USB'de (ekranı yalnız gerekince
 aç); işi bitir, main'e gönder; token israf etme ama bitmiş iş ver. Gözetimsiz çalış, soru sorma.
 Plan dosyalarındaki KARAR maddeleri verilmiştir: SORMADAN uygula; yeni karar → en güvenli seçenek
 + "sabah bakılacak". 👤 işaretli (kullanıcı kararı/hesabı gereken) madde yapılmaz:
-`KONTROL_LISTEM.md`'ye madde yazılır, paket kalanla sürer.
+`PLAN.md` §3'e madde yazılır, paket kalanla sürer.
 
 **Yürütücü ince kalır:** kod, CI izleme, kırmızı CI düzeltme, DEVIR, plan `[x]`, Kuyruk satırı,
 sürüm notu satırları ALT AJANIN işidir; yürütücü raporu, `git log`/diff özetini ve `gh run`
@@ -33,7 +33,7 @@ Proje TEK DAL `main`; zincir paketleri istisnadır: dal **`faz-oto-<no>-<kısa-a
 
 ## Token tasarrufu
 
-Her araç çağrısı bütün bağlamı yeniden gönderir — az ve toplu çağrı. `OTOMASYON.md`'yi BİR kez
+Her araç çağrısı bütün bağlamı yeniden gönderir — az ve toplu çağrı. `OTOMASYON.md` ve `PLAN.md` §1'i BİR kez
 oku (tek parça); aynı dosyayı ikinci kez dökme. Paket ayrıntısı için plan dosyasının yalnız ilgili
 bölümü (`grep -n` ile yerini bul, `sed -n` ile oku). Büyük çıktıyı `| tail -n 40` / `cut -c1-300`
 ile kes. `HAFIZA.md` (170 KB+) ve plan dosyalarını baştan okuma: HAFIZA'nın son ~30 satırı,
@@ -55,10 +55,19 @@ gerisi `grep`. Graphify'ı açma. Alt ajan beklerken yoklama yok, bildirimi bekl
    `gh run view <id> --log-failed | tail -n 60`). `[apk]` koşusu SÜRÜYORSA bitene dek main'e push
    YOK (art arda push önceki koşuyu iptal eder) — bu sırada dalda çalışılır. main iki kez üst üste
    kırmızı → dur.
-3. **Paketi seç** (Kuyruk + SIRA satırı `OTOMASYON.md`'de). `bulutta:` ile başlayan satır başka
-   oturumundur: ATLA, dalına dokunma. İlk `sürüyor` (yarım: uzakta `faz-oto-<no>-*` varsa oradan,
+3. **Paketi seç** (Kuyruk + SIRA satırı `PLAN.md` §1'de). `bulutta:` ile başlayan satır bulut
+   zincirinindir (`oto-bulut` skill'i): bulut yürütücüsü çalışıyorsa (`bash
+   .claude/skills/oto-bulut/kilit.sh durum` → taze kilit) ATLA, dalına dokunma — C paketlerini ve
+   öneksiz satırları al; main'e birleştirmeden hemen önce yeniden `git pull`.
+   **Devralma (bulutun yarım işi):** kilit YOK/bayat VE dalın son commit'i ≥ 3 saat → yerel
+   devralır: Durum `sürüyor (yerel, <tarih>) — dal <ad> (buluttan devralındı)`, dalın DEVIR.md'sinden
+   sür. DEVIR yoksa dal CI'a gönderilmiştir → dal ucunun CI sonucuna bak (yeşil → birleştir,
+   kırmızı → düzelt). Uzaktaki dal main'e birleşmişse (`git merge-base --is-ancestor`) yok say. İlk `sürüyor` (yarım: uzakta `faz-oto-<no>-*` varsa oradan,
    DEVIR.md'den) yoksa SIRA'daki ilk `bekliyor`. `cihaz bekliyor` satırını yalnız telefon bağlıysa
-   al (`adb devices`). Satırı `sürüyor` yap (yalnız yerelde; ayrıca push yok).
+   al (`adb devices`). Satırı `sürüyor (yerel, <tarih>) — dal <ad>` yap
+   ve gönder: yalnız `PLAN.md` değişen commit, başlık `PLAN: <no> yerelde sürüyor [skip ci]`, main'e
+   push (yalnız `.md` push'u CI açmaz, süren APK'yı iptal etmez; bulut zinciri görüp atlar). Push
+   reddedilirse `git pull --rebase`; satır bu arada alındıysa bırak, sıradakine geç.
 4. **Yaptır.** `Agent`, `isolation: "worktree"`, `model` Kuyruk satırından (`fable|opus|sonnet`),
    **fork tipi AÇMA**. İstem = "`isci` skill'ini uygula; raporu Türkçe yaz" + paketin Kuyruk satırı
    + Kaynak plan bölümünün yeri (+ dal yarımsa "dalın DEVIR.md'sinden sür"). `Agent` reddedilirse
@@ -83,8 +92,7 @@ gerisi `grep`. Graphify'ı açma. Alt ajan beklerken yoklama yok, bildirimi bekl
    yok, satır `takıldı: ölçüm` + sayılar. En çok 2 tur → `kullanıcı kararı`, birleştir
    (`[apk]`'sız), sıradakine geç. Telefon yok/ısınmış → `cihaz bekliyor`, `[apk]`'sız.
    Cihaz = `evet` (cihaz turu) → aynı alt ajan düzeni, `docs/CIHAZ_TESTI.md` kayıt satırı.
-7. **Birleştir.** Dalda hazır olmalı: Kuyruk satırı `bitti` + sonuç, plan `[x]`, `KALANLAR.md`
-   satırı (biten madde SİLİNİR — KALANLAR kuralı), HAFIZA kaydı, cihaz maddeleri
+7. **Birleştir.** Dalda hazır olmalı: Kuyruk satırı güncel (biten satır SİLİNİR, A/B bekleyen §1a'da), HAFIZA kaydı, cihaz maddeleri
    `docs/CIHAZ_TESTI.md`'de. CI yeşil değilse ASLA birleştirme. `DEVIR.md`'yi daldan sil,
    `git checkout main && git merge --no-ff <dal>` (başlık `Birleştir: <paket adı>`; APK noktasıysa
    başlık sonuna ` [apk]`; gövdede paketin `Yeni:/İyileştirme:/Düzeltme:` satırları +
@@ -101,7 +109,8 @@ gerisi `grep`. Graphify'ı açma. Alt ajan beklerken yoklama yok, bildirimi bekl
    **APK izlenmez:** dal CI'ı yeşilse birleştir, push, sıradakine geç; yalnız sonraki main
    push'undan ÖNCE `gh run list -b main -L 1` — APK işi sürüyorsa push'u bekletip dalda çalış.
 9. **Temizlik:** birleştirince `git worktree remove --force <ağaç>`, `git push origin --delete
-   <dal>`, yerel dal silinir; A/B taban ağacı (`../okuyucu_ab`) ölçüm bitince silinir. Silinemeyen
+   <dal>`, yerel dal silinir; bulut zincirinin bıraktığı, main'e birleşmiş `faz-oto-*` dallarını da
+   sil (bulut vekili dal silemez); A/B taban ağacı (`../okuyucu_ab`) ölçüm bitince silinir. Silinemeyen
    klasörü tutan Gradle/Java sürecini durdur (`./gradlew --stop` ya da süreç). "Filename too
    long" → PowerShell `Remove-Item -LiteralPath '\\?\C:\...\<ağaç>' -Recurse -Force` +
    `git worktree prune`.

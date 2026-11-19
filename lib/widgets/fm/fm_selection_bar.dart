@@ -6,6 +6,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
+import '../../screens/fm/ai_batch_check.dart';
 import '../../screens/fm/entry_actions.dart';
 import '../../screens/fm/resize_actions.dart';
 import '../../screens/fm/swipe_pager.dart';
@@ -211,6 +212,13 @@ class FmSelectionBar extends StatelessWidget {
                     accent: true,
                     label: context.t('tagai.action'),
                     hint: context.t('tagai.action_hint')),
+                // Decisions API (2026-11-18): hepsine aynı soru, süz, işle.
+                AppAction(
+                    value: 'ai_check',
+                    icon: AppIcons.ai,
+                    accent: true,
+                    label: context.t('qcb.action'),
+                    hint: context.t('qcb.action_hint')),
                 if (_anyMedia)
                   AppAction(
                       value: 'resize',
@@ -315,6 +323,8 @@ class FmSelectionBar extends StatelessWidget {
         if (await showTagPicker(context, _paths)) await onChanged();
       case 'ai_tag':
         if (await showAiTagFlow(context, selected)) await onChanged();
+      case 'ai_check':
+        if (await showAiBatchCheck(context, selected)) await onChanged();
       case 'hide':
         if (await hideEntries(context, _paths)) await onChanged();
       case 'properties':

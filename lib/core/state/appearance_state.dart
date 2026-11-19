@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/app_language.dart';
+import '../menu_look.dart';
 import '../skin.dart';
 import '../theme.dart';
 
@@ -14,12 +15,13 @@ import '../theme.dart';
 /// görünüme dair kopyasını taşır ve **yalnız gerçekten değişince** bildirir.
 class AppearanceState extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
-  AppSkin _skin = AppSkin.sage;
+  AppSkin _skin = AppSkin.bento;
   String _background = 'default';
   AppLanguage _language = AppLanguage.system;
   String _uiFont = AppTheme.uiFontDefault;
   double _uiTextScale = 1.0;
   String _accent = 'default';
+  MenuLook _menuLook = MenuLook.tabbed;
 
   ThemeMode get themeMode => _themeMode;
   AppSkin get skin => _skin;
@@ -28,6 +30,9 @@ class AppearanceState extends ChangeNotifier {
   String get uiFont => _uiFont;
   double get uiTextScale => _uiTextScale;
   String get accent => _accent;
+
+  /// Menü görünümü (sekmeli / Bento) — bkz. `MenuKit.lookOf`.
+  MenuLook get menuLook => _menuLook;
 
   /// `AppState` her görünüm ayarı değişiminde çağırır. Hiçbir değer
   /// değişmediyse dinleyiciler uyandırılmaz.
@@ -39,6 +44,7 @@ class AppearanceState extends ChangeNotifier {
     required String uiFont,
     required double uiTextScale,
     String accent = 'default',
+    MenuLook menuLook = MenuLook.tabbed,
   }) {
     if (themeMode == _themeMode &&
         skin == _skin &&
@@ -46,7 +52,8 @@ class AppearanceState extends ChangeNotifier {
         language == _language &&
         uiFont == _uiFont &&
         uiTextScale == _uiTextScale &&
-        accent == _accent) {
+        accent == _accent &&
+        menuLook == _menuLook) {
       return;
     }
     _themeMode = themeMode;
@@ -56,6 +63,7 @@ class AppearanceState extends ChangeNotifier {
     _uiFont = uiFont;
     _uiTextScale = uiTextScale;
     _accent = accent;
+    _menuLook = menuLook;
     notifyListeners();
   }
 }

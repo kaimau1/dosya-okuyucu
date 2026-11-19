@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:path/path.dart' as p;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../core/l10n/app_strings.dart';
@@ -14,6 +15,7 @@ import 'pip.dart';
 import 'media_session.dart';
 import 'playback_positions.dart';
 import 'thumbnail_cache.dart';
+import 'video_transcode.dart';
 import '../../core/user_error.dart';
 
 /// **Video oynatma servisi** — oynatıcı artık ekranın değil, uygulamanın.
@@ -42,6 +44,31 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
   /// Test kancası: bildirim/oturum kurulmasın.
   @visibleForTesting
   static bool notificationsEnabled = true;
+
+  /// Video bitince sıradakine geç (2026-11-16, kullanıcı: oynatıcıda aç/kapa
+  /// düğmesi). Kalıcı: `mp_auto_next`.
+  static bool autoNext = true;
+  static bool _autoNextLoaded = false;
+  static const _autoNextKey = 'mp_auto_next';
+
+  static Future<void> loadAutoNext() async {
+    if (_autoNextLoaded) return;
+    _autoNextLoaded = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      autoNext = prefs.getBool(_autoNextKey) ?? true;
+    } catch (_) {
+      // Bilinçli: okunamazsa varsayılan (açık).
+    }
+  }
+
+  static void setAutoNext(bool v) {
+    autoNext = v;
+    _autoNextLoaded = true;
+    unawaited(SharedPreferences.getInstance()
+        .then((prefs) => prefs.setBool(_autoNextKey, v))
+        .catchError((Object _) => false));
+  }
 
   VideoPlayerController? _controller;
   VideoPlayerController? get controller => _controller;
@@ -191,7 +218,22 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
       await AudioPlayback.instance.stop();
       PlayerEngine.switchTo(mpv: mpv);
     }
-    final controller = VideoPlayerController.file(File(path));
+    // **HDR video** (HDR10/HDR10+/HLG/Dolby Vision — telefon kameraları
+    // böyle çekiyor). Kök (2026-11-15): ExoPlayer HDR'yi Flutter dokusuna
+    // (SurfaceTexture) çizemiyor — ses çalıyor, görüntü ilk karede kalıyor,
+    // arayüz donuyordu. Yüzey görünümü (platform view) HDR'yi cihazın kendi
+    // yolundan gösterir. Yalnız HDR'de: platform görünümü sıradan videoda
+    // gereksiz bir birleştirme maliyeti.
+    final hdr = !mpv &&
+        Platform.isAndroid &&
+        (p.basename(path).toUpperCase().contains('HDR') ||
+            await VideoTranscoder.isHdr(path));
+    // Bu arada başka dosyaya geçildi: o yükleme kendi işini görüyor.
+    if (path != current) return;
+    final controller = VideoPlayerController.file(
+      File(path),
+      viewType: hdr ? VideoViewType.platformView : VideoViewType.textureView,
+    );
     try {
       await controller.initialize();
       if (!mpv) {
@@ -315,6 +357,11 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     }
     // A-B tekrar: B'ye gelince A'ya dön. Konum dinleyicisi saniyede birkaç
     // kez geldiği için sıçrama gözle "kesintisiz" görünüyor.
+    // Oynarken kod çözücü çöktü (ExoPlayer hatası) → aynı yerden mpv.
+    if (v.hasError && !PlayerEngine.isMpv && !_mpvPaths.contains(current)) {
+      unawaited(reopenWithMpv(true));
+      return;
+    }
     final end = loopEnd;
     final start = loopStart;
     if (end != null && start != null && v.position >= end) {
@@ -324,7 +371,7 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     if (v.position >= v.duration &&
         v.duration > Duration.zero &&
         !v.isPlaying) {
-      if (index < playlist.length - 1) {
+      if (autoNext && index < playlist.length - 1) {
         unawaited(skip(1));
         return;
       }

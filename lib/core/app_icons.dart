@@ -340,6 +340,7 @@ abstract final class AppIcons {
   static const IconData lowPriority = Icons.low_priority_rounded;
   static const IconData manageSearch = Icons.manage_search_rounded;
   static const IconData memory = Icons.memory_rounded;
+  static const IconData menu = Icons.menu_rounded;
   static const IconData menuBook = Icons.menu_book_rounded;
   static const IconData mergeType = Icons.merge_type_rounded;
   static const IconData micNone = Icons.mic_none_rounded;
@@ -466,6 +467,13 @@ abstract final class AppIcons {
   static const IconData topicContract = Icons.handshake_rounded;
   static const IconData topicEducation = Icons.school_rounded;
   static const IconData topicTicket = Icons.confirmation_number_rounded;
+  // Akıllı düzen kategorileri (2026-11-18).
+  static const IconData topicWork = Icons.work_rounded;
+  static const IconData topicTax = Icons.calculate_rounded;
+  static const IconData topicOfficial = Icons.gavel_rounded;
+  static const IconData topicVehicle = Icons.directions_car_rounded;
+  static const IconData celebration = Icons.celebration_rounded;
+  static const IconData groups = Icons.groups_rounded;
   static const IconData dateRange = Icons.date_range_rounded;
   /// QR ile al (tarayıcı).
   static const IconData qrScan = Icons.qr_code_scanner_rounded;

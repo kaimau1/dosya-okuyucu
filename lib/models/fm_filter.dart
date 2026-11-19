@@ -175,6 +175,10 @@ class FmFilter {
   /// kalır. Bkz. [FmType] (tek tür modeli).
   final Set<FmType> types;
 
+  /// **AI kategorisi** (Akıllı düzen, 2026-11-18): kimlikler (`invoice`,
+  /// `bank`…). Boş = tümü. Çözücü [smartCatOf] (main.dart bağlar).
+  final Set<String> smartCats;
+
   const FmFilter({
     this.buckets = const {},
     this.extensions = const {},
@@ -190,9 +194,18 @@ class FmFilter {
     this.openedWithinDays,
     this.volumeRoots = const {},
     this.types = const {},
+    this.smartCats = const {},
   });
 
   static const none = FmFilter();
+
+  /// Dosyanın AI kategorisi (yoksa null) — model saf kalsın diye kanca.
+  static String? Function(String path)? smartCatOf;
+
+  /// Dosyanın eşleştiği KULLANICI kategorileri (`u:` önekli kimlikler; bir
+  /// dosya birden çoğuna girebilir — PLAN §1.1 m.3). Yerleşik kategoriyle
+  /// aynı [smartCats] kümesinde süzülür.
+  static Iterable<String> Function(String path)? smartUserCatsOf;
 
   /// Tek noktadan çoğaltma. `with*` üreteçleri bunu kullanır: her alan
   /// eklendiğinde yedi ayrı üreteci güncellemek (ve birini atlamak) yerine
@@ -215,6 +228,7 @@ class FmFilter {
     bool clearOpenedWithin = false,
     Set<String>? volumeRoots,
     Set<FmType>? types,
+    Set<String>? smartCats,
   }) =>
       FmFilter(
         buckets: buckets ?? this.buckets,
@@ -236,6 +250,7 @@ class FmFilter {
             : (openedWithinDays ?? this.openedWithinDays),
         volumeRoots: volumeRoots ?? this.volumeRoots,
         types: types ?? this.types,
+        smartCats: smartCats ?? this.smartCats,
       );
 
   FmFilter withTypes(Set<FmType> value) => _copy(types: value);
@@ -328,6 +343,15 @@ class FmFilter {
 
   FmFilter withTags(Set<String> value) => _copy(tags: value);
 
+  FmFilter withSmartCats(Set<String> value) => _copy(smartCats: value);
+
+  /// AI kategorisini ekler/çıkarır (çoklu seçim → "Fatura VEYA Dekont").
+  FmFilter toggleSmartCat(String cat) {
+    final next = {...smartCats};
+    if (!next.remove(cat)) next.add(cat);
+    return withSmartCats(next);
+  }
+
   /// Etiketi ekler/çıkarır (çoklu seçim → "Ayşe VEYA İş grubu").
   FmFilter toggleTag(String tag) {
     final next = {...tags};
@@ -347,7 +371,8 @@ class FmFilter {
       (untouchedDays == null ? 0 : 1) +
       (openedWithinDays == null ? 0 : 1) +
       (volumeRoots.isEmpty ? 0 : 1) +
-      (types.isEmpty ? 0 : 1);
+      (types.isEmpty ? 0 : 1) +
+      (smartCats.isEmpty ? 0 : 1);
 
   bool get isActive => activeCount > 0;
 
@@ -371,6 +396,7 @@ class FmFilter {
         openedWithinDays,
         volumeRoots.toList()..sort(),
         types.map((t) => t.name).toList()..sort(),
+        smartCats.toList()..sort(),
       ].join('|');
 
   /// Tarih ölçütünün gerçek zaman penceresi.
@@ -432,6 +458,14 @@ class FmFilter {
     return own > fs ? own : fs;
   }
 
+  /// Dosyanın **ikinci adı** (AI başlığı / elle verilen ad; yoksa '').
+  /// Model saf Dart kalsın diye uygulama açılışında bağlanır (`main.dart` →
+  /// `AiIndex.aliasOf`). 2026-11-16 KÖK (kullanıcı: "fotoğrafa ikinci ad
+  /// verdim, Fotoğraflar'ın kendi araması bulmuyor, ana menüdeki ara
+  /// buluyor; Belgeler'de de aynı"): ekran içi aramalar yalnız dosya adına
+  /// bakıyordu; ikinci ad yalnız genel aramadaydı (`SearchIndex.query`).
+  static String Function(String path)? aliasOf;
+
   bool matches(
     FsEntry entry, {
     String query = '',
@@ -440,9 +474,18 @@ class FmFilter {
     int? Function(String path)? openedAtOf,
   }) {
     final q = turkishFold(query.trim());
-    if (q.isNotEmpty && !turkishFold(entry.name).contains(q)) return false;
+    if (q.isNotEmpty && !turkishFold(entry.name).contains(q)) {
+      final alias = aliasOf?.call(entry.path) ?? '';
+      if (alias.isEmpty || !turkishFold(alias).contains(q)) return false;
+    }
     if (!matchesVolume(entry.path)) return false;
     if (types.isNotEmpty && !types.contains(FmType.of(entry))) return false;
+    if (smartCats.isNotEmpty &&
+        !smartCats.contains(smartCatOf?.call(entry.path)) &&
+        !(smartUserCatsOf?.call(entry.path).any(smartCats.contains) ??
+            false)) {
+      return false;
+    }
     if (buckets.isNotEmpty && !buckets.contains(bucketForPath(entry.path))) {
       return false;
     }

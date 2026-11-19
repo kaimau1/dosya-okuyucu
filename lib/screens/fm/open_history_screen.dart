@@ -81,6 +81,8 @@ class _OpenHistoryScreenState extends State<OpenHistoryScreen> {
     super.initState();
     // Başka ekranda silinen bir dosya burada "hayalet" satır olarak kalmasın.
     FsEvents.version.addListener(_load);
+    // Yeni açılan dosya (ekran açıkken, ör. buradan açıp dönünce) hemen düşsün.
+    if (widget.entriesForTest == null) OpenHistory.changes.addListener(_load);
     ListMemory.load(OpenHistoryScreen.memoryId).then((saved) {
       if (!mounted) return;
       setState(() {
@@ -102,6 +104,7 @@ class _OpenHistoryScreenState extends State<OpenHistoryScreen> {
   @override
   void dispose() {
     FsEvents.version.removeListener(_load);
+    OpenHistory.changes.removeListener(_load);
     _searchController.dispose();
     _scroll.dispose();
     super.dispose();
@@ -126,7 +129,7 @@ class _OpenHistoryScreenState extends State<OpenHistoryScreen> {
       return;
     }
     final token = ++_loadToken;
-    if (mounted) setState(() => _loading = true);
+    if (mounted && _entries.isEmpty) setState(() => _loading = true);
     await OpenHistory.ensureLoaded();
     final paths = OpenHistory.pathsByRecency();
     final alive = await FsScan.statPaths(paths);

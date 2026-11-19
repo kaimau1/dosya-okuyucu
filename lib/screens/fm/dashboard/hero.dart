@@ -209,15 +209,21 @@ class _StorageHero extends StatelessWidget {
                                 ),
                               ),
                               has
-                                  ? Text(
-                                      context.t('fm.hero_percent',
-                                          {'n': (ratio * 100).round()}),
-                                      style: theme.textTheme.labelMedium
-                                          ?.copyWith(
-                                        fontWeight: FontWeight.w800,
-                                        color: full
-                                            ? scheme.error
-                                            : scheme.onSurface,
+                                  ? Padding(
+                                      padding: const EdgeInsets.all(8),
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          context.t('fm.hero_percent',
+                                              {'n': (ratio * 100).round()}),
+                                          style: theme.textTheme.labelMedium
+                                              ?.copyWith(
+                                            fontWeight: FontWeight.w800,
+                                            color: full
+                                                ? scheme.error
+                                                : scheme.onSurface,
+                                          ),
+                                        ),
                                       ),
                                     )
                                   : Icon(volumeIcon(volume),
@@ -411,4 +417,341 @@ class _HeroAction extends StatelessWidget {
       ),
     );
   }
+}
+
+/// **Tasarım ailelerinin bellek kartı** (2026-11-15, `docs/design/ana_ekran/`).
+///
+/// - A · Sakin: beyaz kart, büyük "198 GB boş", sağ üstte "Ana bellek ›",
+///   tek renk doluluk çubuğu, üç açık tonlu düğme.
+/// - B · Bento: vurgu renginde dolu kart, beyaz yazı, çerçeveli düğmeler.
+/// - C · Koyu başlık: kenardan kenara vurgu alanı (arama çubuğuyla birleşik),
+///   solda yüzde halkası, altında içerik levhasının yuvarlak üst kenarı.
+class _StyledHero extends StatelessWidget {
+  final HomeStyle style;
+  final StorageVolume volume;
+  final VoidCallback onBrowse;
+  final VoidCallback onAnalysis;
+  final VoidCallback onFreeSpace;
+  final VoidCallback? onLongPress;
+
+  const _StyledHero({
+    required this.style,
+    required this.volume,
+    required this.onBrowse,
+    required this.onAnalysis,
+    required this.onFreeSpace,
+    this.onLongPress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    var scheme = theme.colorScheme;
+    // Koyu modda dolu kart parlak vurguyla boyanmaz (2026-11-15, kullanıcı:
+    // "koyu modda üstteki yeşil çok parlak"): vurgu yüzeye doğru koyulaşır,
+    // yazı açık kalır (kontrast ~6:1).
+    if (theme.brightness == Brightness.dark) {
+      scheme = scheme.copyWith(
+        primary: Color.lerp(scheme.primary, scheme.surface, 0.62),
+        onPrimary: scheme.onSurface,
+      );
+    }
+    final radius = context.fmCardRadius;
+    final has = volume.hasStats;
+    final capacity = volume.capacityBytes <= 0 ? 1 : volume.capacityBytes;
+    final ratio = has ? (volume.usedBytes / capacity).clamp(0.0, 1.0) : 0.0;
+    final filled = style != HomeStyle.calm;
+    final fg = filled ? scheme.onPrimary : scheme.onSurface;
+    final soft = filled
+        ? scheme.onPrimary.withValues(alpha: 0.82)
+        : scheme.onSurfaceVariant;
+    final free = FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: AlignmentDirectional.centerStart,
+      child: Text(
+        has
+            ? context.t('fm.free_bytes',
+                {'v': FsPaths.humanCapacity(volume.freeBytes)})
+            : volume.displayLabel(context.t),
+        maxLines: 1,
+        // 2026-11-15 (kullanıcı: bellek kartı %20 alçalsın, düğmelerle
+        // birlikte): headlineMedium → headlineSmall, iç boşluklar ve düğme
+        // yüksekliği orantılı küçüldü (~175 → ~140 dp).
+        style: theme.textTheme.headlineSmall
+            ?.copyWith(fontWeight: FontWeight.w800, color: fg, height: 1.1),
+      ),
+    );
+    final usedText = has
+        ? context.t('home.used_short', {
+            'used': FsPaths.humanCapacity(volume.usedBytes),
+            'total': FsPaths.humanCapacity(volume.capacityBytes),
+          })
+        : '';
+    final used = has
+        ? Text(
+            usedText,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(color: soft),
+          )
+        : const SizedBox.shrink();
+    final volumeLink = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (filled) ...[
+          Icon(volumeIcon(volume), size: 18, color: fg),
+          const SizedBox(width: Gap.xs),
+        ],
+        Flexible(
+          child: Text(
+            volume.displayLabel(context.t),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: filled ? fg : scheme.primary),
+          ),
+        ),
+        if (!filled) Icon(AppIcons.chevron, size: 18, color: scheme.primary),
+      ],
+    );
+    final bar = ClipRRect(
+      borderRadius: BorderRadius.circular(4),
+      child: LinearProgressIndicator(
+        value: ratio,
+        minHeight: 6,
+        color: filled ? scheme.onPrimary : scheme.primary,
+        backgroundColor: filled
+            ? scheme.onPrimary.withValues(alpha: 0.28)
+            : scheme.surfaceContainerHighest,
+      ),
+    );
+    Widget action(String key, VoidCallback onTap) {
+      final label = FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          context.t(key),
+          maxLines: 1,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      );
+      return Expanded(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: Gap.xs / 2),
+          child: filled
+              ? OutlinedButton(
+                  onPressed: onTap,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: scheme.onPrimary,
+                    side: BorderSide(
+                        color: scheme.onPrimary.withValues(alpha: 0.7)),
+                    shape: const StadiumBorder(),
+                    minimumSize: const Size(0, 34),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: Gap.xs, vertical: Gap.xs),
+                  ),
+                  child: label,
+                )
+              : FilledButton.tonal(
+                  onPressed: onTap,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: scheme.primaryContainer,
+                    foregroundColor: scheme.primary,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                            AppSkinData.of(context).metrics.radiusControl)),
+                    minimumSize: const Size(0, 34),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: Gap.xs, vertical: Gap.xs),
+                  ),
+                  child: label,
+                ),
+        ),
+      );
+    }
+
+    final actions = Row(children: [
+      action('home.browse', onBrowse),
+      action('home.analysis', onAnalysis),
+      action('home.free_space', onFreeSpace),
+    ]);
+
+    if (style == HomeStyle.band) {
+      final content = Padding(
+        // %6 alçak (2026-11-15): halka 64 → 58, aralar 16 → 12.
+        padding: const EdgeInsets.only(top: Gap.xs, bottom: Gap.sm + 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InkWell(
+              onTap: onBrowse,
+              onLongPress: onLongPress,
+              borderRadius: BorderRadius.circular(radius),
+              child: Row(
+                children: [
+                  SizedBox.square(
+                    dimension: 58,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Positioned.fill(
+                          child: CircularProgressIndicator(
+                            value: ratio,
+                            strokeWidth: 6,
+                            color: scheme.onPrimary,
+                            backgroundColor:
+                                scheme.onPrimary.withValues(alpha: 0.28),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              context.t('fm.hero_percent',
+                                  {'n': (ratio * 100).round()}),
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                  color: fg, fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: Gap.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        free,
+                        if (has)
+                          Text(
+                            '$usedText · '
+                            '${volume.displayLabel(context.t)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(color: soft),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Icon(AppIcons.chevron, color: fg),
+                ],
+              ),
+            ),
+            const SizedBox(height: Gap.sm + 4),
+            actions,
+          ],
+        ),
+      );
+      return CustomPaint(
+        painter: _BleedPainter(
+          color: scheme.primary,
+          sheet: theme.scaffoldBackgroundColor,
+          radius: AppSkinData.of(context).metrics.radiusSheet,
+        ),
+        child: content,
+      );
+    }
+
+    return Material(
+      color: filled ? scheme.primary : scheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(radius),
+        side: filled
+            ? BorderSide.none
+            : BorderSide(color: scheme.outlineVariant),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onBrowse,
+        onLongPress: onLongPress,
+        child: Padding(
+          // %5 alçak (2026-11-15): dikey boşluklar 12 → 9, ara 10 → 9.
+          padding: const EdgeInsets.fromLTRB(
+              Gap.md + 4, Gap.sm + 1, Gap.md + 4, Gap.sm + 1),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (filled) ...[
+                Row(children: [
+                  Expanded(child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: volumeLink)),
+                  Icon(AppIcons.chevron, color: fg),
+                ]),
+                const SizedBox(height: Gap.xs),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(child: free),
+                    const SizedBox(width: Gap.xs),
+                    Flexible(child: used),
+                  ],
+                ),
+              ] else ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: free),
+                    const SizedBox(width: Gap.xs),
+                    Flexible(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: Gap.xs),
+                        child: volumeLink,
+                      ),
+                    ),
+                  ],
+                ),
+                used,
+              ],
+              const SizedBox(height: Gap.sm + 1),
+              bar,
+              const SizedBox(height: Gap.sm + 1),
+              actions,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// C · Koyu başlık: kartın arkasına kenardan kenara vurgu alanı ve altına
+/// içerik levhasının yuvarlak üst kenarını boyar. Liste görünüm alanı yan
+/// boşlukları da kapsadığı için kart sınırı dışına boyamak görünür; yerleşim
+/// değişmez (yalnız boyama).
+class _BleedPainter extends CustomPainter {
+  final Color color;
+  final Color sheet;
+  final double radius;
+  const _BleedPainter(
+      {required this.color, required this.sheet, required this.radius});
+
+  static const _side = Gap.md;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final left = -_side;
+    final right = size.width + _side;
+    canvas.drawRect(
+      Rect.fromLTRB(left, -600, right, size.height + radius),
+      Paint()..color = color,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndCorners(
+        Rect.fromLTRB(left, size.height, right, size.height + radius * 2),
+        topLeft: Radius.circular(radius),
+        topRight: Radius.circular(radius),
+      ),
+      Paint()..color = sheet,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_BleedPainter old) =>
+      old.color != color || old.sheet != sheet || old.radius != radius;
 }

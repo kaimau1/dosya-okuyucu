@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../core/app_icons.dart';
 import 'menu_kit.dart';
 
 /// Belge araç çubuklarının **"Daha fazla"** sayfası: etiketli, gruplu eylemler.
@@ -44,106 +43,39 @@ class DocMoreSheet {
         top: false,
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (header != null)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                  child: header,
-                ),
-              for (final group in groups)
-                if (group.items.isNotEmpty)
-                  _GroupCard(
-                    group: group,
-                    onPick: (item) {
-                      Navigator.of(sheetContext).pop();
-                      item.onTap!();
-                    },
+          // Menü görünümü (2026-11-15): sekmeli/Bento `MenuSections`ta —
+          // dosya levhasıyla aynı aile.
+          child: MenuSections(
+            header: header == null
+                ? null
+                : Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: header,
                   ),
+            sections: [
+              for (final group in groups)
+                MenuKitSection(title: group.title, actions: [
+                  for (final item in group.items)
+                    MenuKitAction(
+                      icon: item.icon,
+                      label: item.label,
+                      checked: item.selected,
+                      tone: item.danger
+                          ? MenuTone.danger
+                          : (item.selected == true
+                              ? MenuTone.selected
+                              : MenuTone.neutral),
+                      onTap: item.onTap == null
+                          ? null
+                          : () {
+                              Navigator.of(sheetContext).pop();
+                              item.onTap!();
+                            },
+                    ),
+                ]),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _GroupCard extends StatelessWidget {
-  final DocMoreGroup group;
-  final void Function(DocMoreItem) onPick;
-
-  const _GroupCard({required this.group, required this.onPick});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (group.title.isNotEmpty) MenuGroupTitle(group.title),
-          MenuGroupCard(
-            child: LayoutBuilder(builder: (context, box) {
-              // Telefon: 4 sütun; geniş ekran/tablet: 5-6.
-              final cols = (box.maxWidth / 88).floor().clamp(3, 6);
-              final w = box.maxWidth / cols;
-              return Wrap(
-                children: [
-                  for (final item in group.items)
-                    SizedBox(
-                      width: w,
-                      child: _Tile(
-                        item: item,
-                        onTap: item.onTap == null ? null : () => onPick(item),
-                      ),
-                    ),
-                ],
-              );
-            }),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Izgara hücresi — ortak [MenuTile] (bkz. `menu_kit.dart`).
-class _Tile extends StatelessWidget {
-  final DocMoreItem item;
-  final VoidCallback? onTap;
-
-  const _Tile({required this.item, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final selected = item.selected == true;
-    return Semantics(
-      button: true,
-      enabled: onTap != null,
-      toggled: item.selected,
-      label: item.label,
-      excludeSemantics: true,
-      child: MenuTile(
-        icon: item.icon,
-        label: item.label,
-        onTap: onTap,
-        tone: item.danger
-            ? MenuTone.danger
-            : (selected ? MenuTone.selected : MenuTone.neutral),
-        badge: selected
-            ? Container(
-                width: 18,
-                height: 18,
-                decoration: BoxDecoration(
-                  color: scheme.surface,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(AppIcons.checkCircle, size: 18, color: scheme.primary),
-              )
-            : null,
       ),
     );
   }

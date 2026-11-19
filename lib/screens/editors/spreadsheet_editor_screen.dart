@@ -62,6 +62,7 @@ import '../../services/xlsx/sheet_pdf.dart';
 import '../../core/device_profile.dart';
 import '../../services/xlsx_editor.dart';
 import '../../services/xlsx/xlsx_stream.dart';
+import '../../services/xlsx/validation_check.dart';
 import '../../services/xlsx_file_charts.dart';
 import '../fm/pick_file_screen.dart' show AppFilePicker;
 import '../../widgets/doc_action_bar.dart';
@@ -427,6 +428,15 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
     return XlsxEditor.parse(bytes);
   }
 
+  /// Taslak baytlarından model (B12 m.2) — `compute` ile arka izlekte koşsun
+  /// diye statik. [csvSheet] null değilse CSV/TSV taslağıdır.
+  static XlsxEditor _parseDraft(
+      ({Uint8List bytes, String? csvSheet, bool tsv}) job) {
+    final sheet = job.csvSheet;
+    if (sheet == null) return XlsxEditor.parse(job.bytes);
+    return XlsxEditor.fromCsv(job.bytes, sheetName: sheet, tsv: job.tsv);
+  }
+
   /// Büyük xlsx akış önizlemesi (Faz 42 / 2): okuma + kitap kurma izolatta.
   static Future<XlsxEditor> _streamPreview(XlsxStreamRequest r) async =>
       XlsxEditor.fromStream(await XlsxStream.readInBackground(r));
@@ -511,6 +521,13 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
 
   // ── arayüz ────────────────────────────────────────────────────────────────
 
+  /// AI sohbeti bu tabloyla (alt çubuktaki AI).
+  void _openAi() {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ChatScreen(fileContext: _docText, fileName: widget.name),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final editor = _editor;
@@ -559,18 +576,23 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
             onPressed: editor == null ? null : _toggleFind,
           ),
         ],
+        // ⋮ = ortak dosya levhası (2026-11-15): üstte taşı/kopyala/SİL,
+        // altında tabloya özel işler ayrı renkte. CSV eskiden hem burada hem
+        // alt çubuktaydı — artık yalnız burada.
+        filePath: widget.savePath ?? widget.path,
+        menuTitle: context.t('dm.sheet'),
         menu: [
+          EditorMenuItem(
+            id: 'csv',
+            icon: AppIcons.tableView,
+            label: context.t('excel.save_csv'),
+            onTap: editor == null ? null : _exportCsv,
+          ),
           EditorMenuItem(
             id: 'export',
             icon: AppIcons.share,
             label: context.t('ux.share_export'),
             onTap: editor == null ? null : _shareExport,
-          ),
-          EditorMenuItem(
-            id: 'csv',
-            icon: AppIcons.tableView,
-            label: 'CSV',
-            onTap: editor == null ? null : _exportCsv,
           ),
         ],
       ),
@@ -637,15 +659,9 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
             contextLabel: context.t('ux.selection'),
             [
             // Kaydet üst çubukta (Faz 40 / 1).
-            DocAction(AppIcons.share, context.t('common.share'),
-                editor == null ? null : _export),
-            // Başka uygulamadan açıldıysa dosya özel önbellekte: doğrudan
-            // İndirilenler'e (bkz. [SaveToDownloads]).
-            if (showDownloadAction(widget.savePath ?? widget.path))
-              DocAction(AppIcons.download, context.t('common.download'),
-                  editor == null ? null : _download),
-            DocAction(AppIcons.tableView, 'CSV',
-                editor == null ? null : _exportCsv),
+            // Ortak düzen (2026-11-15): AI · Çevir · Paylaş (+ İndir); AI
+            // yüzen düğme değil — hücrelerin üstüne biniyordu.
+            DocAction(AppIcons.ai, context.t('common.ai'), _openAi),
             DocAction(
               AppIcons.translate,
               context.t('common.translate'),
@@ -653,19 +669,15 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
               // belgenin tamamı.
               _translate,
             ),
+            DocAction(AppIcons.share, context.t('common.share'),
+                editor == null ? null : _export),
+            // Başka uygulamadan açıldıysa dosya özel önbellekte: doğrudan
+            // İndirilenler'e (bkz. [SaveToDownloads]).
+            if (showDownloadAction(widget.savePath ?? widget.path))
+              DocAction(AppIcons.download, context.t('common.download'),
+                  editor == null ? null : _download),
           ]),
         ],
-      ),
-      // Yazarken AI düğmesi gizli: klavye üstü çubuğun üstüne biniyordu.
-      fab: _editing ? null : DocAiButton(
-        kind: DocKind.spreadsheet,
-        onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => ChatScreen(
-            fileContext: _docText,
-            fileName: widget.name,
-          ),
-        )),
-        tooltip: context.t('common.ai'),
       ),
     )));
   }

@@ -103,6 +103,12 @@ class _ImageAtomState extends State<_ImageAtom> {
         : Image.memory(a.image!,
             width: w,
             height: h,
+            // B12 m.4: belgeye gömülü fotoğraf tam çözünürlükte açılmasın.
+            // Genişlik sayfa genişliğinden (sürüklemede sabit; kademeli —
+            // her boyutlandırma karesinde yeniden çözme olmasın).
+            cacheWidth: ImageBudget.decodeWidth(
+                logicalWidth: widget.maxW,
+                devicePixelRatio: MediaQuery.devicePixelRatioOf(context)),
             fit: BoxFit.contain,
             gaplessPlayback: true,
             errorBuilder: (_, _, _) => SizedBox(width: w, height: h ?? 40));

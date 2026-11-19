@@ -2,7 +2,7 @@ part of '../app_strings.dart';
 
 /// Çeviri tablosunun 26. bölümü (2026-11-05): Faz 40 — ortak görünüm ve deneyim.
 const Map<String, (String, String, String)> _t26 = {
-  'ux.share_export': ('Paylaş / Dışa aktar', 'Share / Export', 'مشاركة / تصدير'),
+  'ux.share_export': ('Farklı biçimde paylaş', 'Share in another format', 'المشاركة بتنسيق آخر'),
   'ux.selection': ('Seçim', 'Selection', 'التحديد'),
   // ── Madde 4: ilk açılış rehberi + örnek belgeler ─────────────────────────
   'onb.reader_title': ('Her dosyayı hızla oku', 'Read any file, fast', 'اقرأ أي ملف بسرعة'),
@@ -79,6 +79,13 @@ const Map<String, (String, String, String)> _t26 = {
   'thp.paper': ('Kâğıt', 'Paper', 'ورقي'),
   'thp.size_max': ('2×', '2×', '2×'),
   'acc.title': ('Vurgu rengi', 'Accent color', 'لون التمييز'),
+  // Menü görünümü (2026-11-15): iki görünüm, varsayılan sekmeli.
+  'menu.look_title': ('Menü görünümü', 'Menu style', 'نمط القوائم'),
+  'menu.look_sub': ('Dosya ve belge menülerinin dizilişi', 'How file and document menus are laid out', 'طريقة ترتيب قوائم الملفات والمستندات'),
+  'menu.look_tabbed': ('Sekmeli', 'Tabbed', 'بعلامات تبويب'),
+  'menu.look_bento': ('Bento', 'Bento', 'بينتو'),
+  'menu.tab_common': ('Sık kullanılan', 'Frequent', 'الأكثر استخدامًا'),
+  'menu.tab_more': ('Diğer', 'More', 'المزيد'),
   'acc.default': ('Temanın kendi', 'Theme default', 'افتراضي السمة'),
   'acc.teal': ('Deniz yeşili', 'Teal', 'أزرق مخضر'),
   'acc.blue': ('Mavi', 'Blue', 'أزرق'),
@@ -86,6 +93,10 @@ const Map<String, (String, String, String)> _t26 = {
   'acc.plum': ('Erik', 'Plum', 'برقوقي'),
   'acc.forest': ('Orman', 'Forest', 'أخضر غامق'),
   'acc.rust': ('Kiremit', 'Rust', 'قرميدي'),
+  'acc.ocean': ('Okyanus', 'Ocean', 'محيطي'),
+  'acc.berry': ('Böğürtlen', 'Berry', 'توتي'),
+  'acc.slate': ('Arduvaz', 'Slate', 'رمادي أردوازي'),
+  'acc.amber': ('Kehribar', 'Amber', 'كهرماني'),
   // ── Madde 10: durum yüzleri ────────────────────────────────────────────
   'ux.loading': ('Yükleniyor', 'Loading', 'جارٍ التحميل'),
   'ux.error_title': ('Açılamadı', 'Could not open', 'تعذّر الفتح'),

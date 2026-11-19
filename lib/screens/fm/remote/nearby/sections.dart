@@ -168,6 +168,16 @@ extension _NearbySections on _NearbyScreenState {
                 ),
               ),
             ],
+            if (count > 0)
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: TextButton.icon(
+                  key: const ValueKey('near-share-apps-inline'),
+                  onPressed: _shareToApps,
+                  icon: const Icon(AppIcons.share, size: AppIcons.small),
+                  label: Text(context.t('near.share_apps')),
+                ),
+              ),
           ],
         ),
       ),

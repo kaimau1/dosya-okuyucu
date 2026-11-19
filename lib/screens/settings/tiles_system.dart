@@ -14,6 +14,9 @@ import '../../services/fm/native_extras.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/crash_log.dart';
+import '../../services/cloud_ocr.dart';
+import '../fm/share_shield.dart';
+import '../../widgets/app_dialog.dart';
 import '../../services/app_update.dart';
 import '../../services/fm/content_indexer.dart';
 import '../../services/fm/search_index.dart';
@@ -774,4 +777,100 @@ class _ContentIndexTileState extends State<ContentIndexTile> {
       ],
     );
   }
+}
+
+/// **Metin tanıma dili** (2026-11-18, kullanıcı: *"metin tanımada arapça
+/// desteği yok"*): cihaz içi model yalnız Latin; Arapça vb. AI ile
+/// ([CloudOcr]).
+class OcrScriptTile extends StatefulWidget {
+  const OcrScriptTile({super.key});
+
+  @override
+  State<OcrScriptTile> createState() => _OcrScriptTileState();
+}
+
+class _OcrScriptTileState extends State<OcrScriptTile> {
+  OcrScript? _value;
+
+  @override
+  void initState() {
+    super.initState();
+    CloudOcr.script().then((v) {
+      if (mounted) setState(() => _value = v);
+    });
+  }
+
+  static String _key(OcrScript v) => switch (v) {
+        OcrScript.auto => 'ocr.script_auto',
+        OcrScript.latin => 'ocr.script_latin',
+        OcrScript.arabic => 'ocr.script_arabic',
+      };
+
+  Future<void> _pick() async {
+    final picked = await showAppSheet<OcrScript>(
+      context,
+      title: context.t('ocr.script'),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final v in OcrScript.values)
+            ListTile(
+              key: ValueKey('ocr-script-${v.name}'),
+              leading: Icon(v == _value ? AppIcons.check : null),
+              title: Text(ctx.t(_key(v))),
+              subtitle: Text(ctx.t('${_key(v)}_sub')),
+              onTap: () => Navigator.pop(ctx, v),
+            ),
+        ],
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _value = picked);
+    await CloudOcr.setScript(picked);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final v = _value;
+    return SettingTile(
+      icon: AppIcons.ocr,
+      title: context.t('ocr.script'),
+      subtitle: v == null ? null : context.t(_key(v)),
+      onTap: v == null ? null : _pick,
+    );
+  }
+}
+
+/// **Paylaşmadan önce kişisel veri denetimi** (2026-11-18, [ShareShield]).
+class ShareShieldTile extends StatefulWidget {
+  const ShareShieldTile({super.key});
+
+  @override
+  State<ShareShieldTile> createState() => _ShareShieldTileState();
+}
+
+class _ShareShieldTileState extends State<ShareShieldTile> {
+  bool? _on;
+
+  @override
+  void initState() {
+    super.initState();
+    ShareShield.enabled().then((v) {
+      if (mounted) setState(() => _on = v);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => SettingSwitch(
+        icon: AppIcons.shield,
+        title: context.t('shield.setting'),
+        subtitle: context.t('shield.setting_sub'),
+        value: _on ?? false,
+        onChanged: _on == null
+            ? null
+            : (v) {
+                setState(() => _on = v);
+                unawaited(ShareShield.setEnabled(v));
+              },
+      );
 }

@@ -38,9 +38,14 @@ import 'screens/onboarding/onboarding_screen.dart';
 import 'services/fm/remote/sftp_host_keys.dart';
 import 'services/fm/remote/smb_legacy.dart';
 import 'services/app_update.dart';
+import 'services/cloud_ocr.dart';
+import 'services/fm/smart_sort.dart';
 import 'services/play_store.dart';
 import 'services/fm/ai_auto.dart';
+import 'services/fm/ai_index.dart';
+import 'models/fm_filter.dart';
 import 'services/fm/fm_colors_store.dart';
+import 'services/fm/fs_events.dart';
 import 'services/fm/native_extras.dart';
 import 'services/fm/secure_vault.dart';
 import 'services/fm/disk_housekeeping.dart';
@@ -62,6 +67,7 @@ import 'services/fm/video_playback.dart';
 import 'widgets/app_error_screen.dart';
 import 'widgets/app_lock_gate.dart';
 import 'widgets/mini_player_bar.dart';
+import 'widgets/side_menu_view.dart';
 import 'screens/fm/media_player_screen.dart';
 import 'services/fm/remote/ftp_service.dart';
 import 'services/fm/remote/transfer_keeper.dart';
@@ -119,7 +125,28 @@ Future<void> _main() async {
   // Sistem rengi (Material You) ilk temadan ÖNCE: sonradan gelseydi açılışta
   // bir kare eski renk görünürdü. Tek kanal çağrısı (milisaniye).
   await NativeExtras.loadSystemAccent();
-  await AppHaptics.load();
+  // B12 m.5: titreşim tercihi ilk kare için gerekmez → beklenmez. Aynı
+  // `SharedPreferences.getInstance` geleceğini `appState.init` de bekliyor;
+  // bu dinleyici önce kayıtlı olduğundan değer yine `runApp`ten önce yerinde.
+  unawaited(AppHaptics.load());
+  // Ekran içi aramalar ikinci adı da bulsun (bkz. `FmFilter.aliasOf`).
+  // Dizin ilk aramada arka planda yüklenir; açılışı bekletmez.
+  FmFilter.aliasOf = (path) {
+    if (!SmartSort.isLoaded) unawaited(SmartSort.ensureLoaded());
+    if (!AiIndex.isLoaded) {
+      unawaited(AiIndex.ensureLoaded());
+      return '';
+    }
+    // Aramada akıllı düzenin üç dildeki adları da bulunur ("invoice",
+    // "fatura", "فاتورة" aynı dosyayı bulur).
+    final smart = SmartSort.keywordsOf(path);
+    final alias = AiIndex.aliasOf(path);
+    return smart.isEmpty ? alias : '$alias $smart';
+  };
+  // Akıllı düzen (2026-11-18): ikinci ad yedeği + AI kategori süzgeci.
+  AiIndex.fallbackAlias = SmartSort.aliasOf;
+  FmFilter.smartCatOf = SmartSort.categoryOf;
+  FmFilter.smartUserCatsOf = SmartSort.userCatsOf;
   // **Seçici kipi** (başka bir uygulama bizden dosya istedi — `PickerActivity`).
   // Ayrı ve KISA bir açılış: iş kuyruğu, bildirim köprüsü, yarım kalan işlerin
   // geri yüklenmesi burada çalıştırılmaz. Çağıran uygulama beklerken saniyeler
@@ -202,9 +229,15 @@ Future<void> _main() async {
   // Uygulama arka plana geçince widget'ın "son dosyalar"ı tazelenir.
   // Öne gelişte: otomatik klasör eşitleme kuralı varsa güvenilen eşi arar
   // (AutoSync; kural yoksa ağa çıkmaz, 5 dk'da en çok bir tur).
+  // Arkadan dönüşte ayakta duran listeler (İndirilenler, gezgin, Yeni
+  // dosyalar) başka uygulamanın indirdiği dosyayı görsün (FsEvents.returned).
   AppLifecycleListener(
+    onHide: FsEvents.wentAway,
     onPause: () => unawaited(NativeExtras.updateWidgets()),
-    onResume: () => unawaited(AutoSync.instance.sweep()),
+    onResume: () {
+      FsEvents.cameBack();
+      unawaited(AutoSync.instance.sweep());
+    },
   );
   JobQueue.instance.reporter = jobNotifications;
   // Dosya taşınınca/adı değişince YOL ANAHTARLI yan kayıtlar da taşınmalı:
@@ -232,6 +265,8 @@ Future<void> _main() async {
   unawaited(_restoreJobs());
   final appState = AppState();
   await appState.init();
+  // Arapça vb. metin tanıma AI ile (bkz. `CloudOcr`): anahtar havuzu buradan.
+  CloudOcr.credentials = () => appState.aiCredentials;
   // Cihaz sınıfı (Faz 4, P1): yerel kanaldan tek kısa çağrı; tazeleme hızı
   // varsayılanı buna bağlı olduğu için ondan ÖNCE okunur.
   await DeviceProfile.load(appState.perfMode);
@@ -269,6 +304,13 @@ Future<void> _main() async {
   // Play derlemesi (A6.6): Play'in kendi uygulama içi güncellemesi.
   StartupQueue.instance.add('play-update', PlayStore.runOnStartup);
   StartupQueue.instance.add('aktar-esitle', AutoSync.instance.sweep);
+  // Akıllı düzen: açıksa yeni dosyalar dönüşte sessizce düzenlenir.
+  StartupQueue.instance.add(
+      'akilli-duzen',
+      () => SmartSort.startAuto(
+            credentials: () => appState.aiCredentials,
+            scope: () => appState.aiScopeRules,
+          ));
   PlayStore.downloaded.addListener(_offerPlayRestart);
   runApp(
     AppProviders(
@@ -639,7 +681,10 @@ class _DosyaOkuyucuAppState extends State<DosyaOkuyucuApp> {
           child: picker
               ? (child ?? const SizedBox.shrink())
               : NeuralVoiceHostLayer(
-                  child: MiniPlayerBar.wrap(child ?? const SizedBox.shrink())),
+                  // **Yan menü** her ekranda (2026-11-15): sol kenar tutamacı.
+                  child: SideMenuLayer(
+                      child: MiniPlayerBar.wrap(
+                          child ?? const SizedBox.shrink()))),
         ),
       ),
       // Dil: seçim `system` ise `locale` null bırakılır — Flutter cihazın

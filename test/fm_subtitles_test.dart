@@ -172,6 +172,26 @@ Dialogue: 0,0:00:05.00,0:00:06.00,Default,,0,0,0,,Virgül, içeren metin
           {'Turkish.srt', 'English.vtt'});
     });
 
+    // 2026-11-15: oynatıcı açılışı klasörü EŞZAMANSIZ tarar (kalabalık
+    // klasörde açılış geçişi donmasın) — sonuç eşzamanlı olanla aynı olmalı.
+    test('eşzamansız arama eşzamanlıyla aynı sonucu verir', () async {
+      touch('Film.mkv');
+      touch('Film.srt');
+      touch('Film.tr.srt');
+      touch('Film2.srt');
+      touch('Subs/Turkish.srt');
+      final video = p.join(dir.path, 'Film.mkv');
+      final sync = Subtitles.findFor(video);
+      final async = await Subtitles.findForAsync(video);
+      expect(async.map((t) => t.path).toList(),
+          sync.map((t) => t.path).toList());
+      expect(async.map((t) => t.label).toList(),
+          sync.map((t) => t.label).toList());
+      expect(async.length, 3);
+      expect(await Subtitles.findForAsync(p.join(dir.path, 'yok', 'a.mkv')),
+          isEmpty);
+    });
+
     test('etiket dosya adının videodan artan kısmıdır', () {
       touch('Film.mkv');
       touch('Film.tr.srt');

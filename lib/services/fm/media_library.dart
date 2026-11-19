@@ -2,6 +2,7 @@ import '../../models/fs_entry.dart';
 import 'fm_env.dart';
 import 'folder_lock.dart';
 import 'fs_scan.dart';
+import 'smart_sort.dart';
 import 'search_index.dart';
 import 'storage_stats.dart';
 
@@ -40,6 +41,8 @@ abstract final class MediaLibrary {
     Iterable<String> lockedFolders = const [],
   }) async {
     await SearchIndex.ensureLoaded();
+    // Akıllı düzende gizlenenler (Ayıkla) listelerde ve galeride görünmez.
+    await SmartSort.ensureLoaded();
     if (SearchIndex.isReady) {
       final rows = await FsScan.collectFromIndex(
         SearchIndex.indexPath,
@@ -49,8 +52,8 @@ abstract final class MediaLibrary {
       );
       if (rows.isNotEmpty) {
         final fresh = await freshTail(category, root: root);
-        return FolderLock.filterOut(
-            _merge(rows, fresh), lockedFolders, (e) => e.path);
+        return _visible(FolderLock.filterOut(
+            _merge(rows, fresh), lockedFolders, (e) => e.path));
       }
       // Boş sonuç "dizin bozuk" da olabilir "gerçekten yok" da; diske düşmek
       // ikinci durumda yalnız bir tarama maliyeti, birincisinde doğru cevap.
@@ -60,8 +63,18 @@ abstract final class MediaLibrary {
       category: category,
       limit: limit,
     );
-    return FolderLock.filterOut(scanned, lockedFolders, (e) => e.path);
+    return _visible(
+        FolderLock.filterOut(scanned, lockedFolders, (e) => e.path));
   }
+
+  /// Ayıkla'da gizlenenleri çıkarır (gizli yoksa listeye dokunmaz).
+  static List<FsEntry> _visible(List<FsEntry> list) =>
+      !SmartSort.hasHidden
+          ? list
+          : [
+              for (final e in list)
+                if (!SmartSort.isHidden(e.path)) e
+            ];
 
   /// **Dizin kurulduktan SONRA eklenen dosyalar.**
   ///

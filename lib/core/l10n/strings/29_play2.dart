@@ -74,7 +74,7 @@ const Map<String, (String, String, String)> _t29 = {
   'wipe.title': ('Verilerimi sil', 'Delete my data', 'احذف بياناتي'),
   'wipe.sub': ('Geçmiş, yapay zekâ kayıtları, arama dizinleri ve hata kayıtları. Dosyalarına dokunulmaz.', 'History, AI records, search indexes and error logs. Your files are not touched.', 'السجل وبيانات الذكاء الاصطناعي وفهارس البحث وسجلات الأخطاء. لا تُمس ملفاتك.'),
   'wipe.note': ('Seçtiklerin silinir. Dosyalar, kayıtlı bağlantılar, API anahtarları, kasa ve ayarlar KALIR.', 'What you pick is deleted. Files, saved connections, API keys, the vault and settings STAY.', 'يُحذف ما تختاره. تبقى الملفات والاتصالات المحفوظة ومفاتيح API والخزنة والإعدادات.'),
-  'wipe.history': ('Geçmiş: son açılanlar, aramalar, işlem ve aktarım geçmişi', 'History: recent files, searches, operation and transfer history', 'السجل: الملفات الأخيرة وعمليات البحث وسجل العمليات والنقل'),
+  'wipe.history': ('Geçmiş: açılan dosyalar, aramalar, işlem ve aktarım geçmişi', 'History: recent files, searches, operation and transfer history', 'السجل: الملفات الأخيرة وعمليات البحث وسجل العمليات والنقل'),
   'wipe.ai': ('Yapay zekâ: özetler, etiket analizi, hafıza notları', 'AI: summaries, tag analysis, memory notes', 'الذكاء الاصطناعي: الملخصات وتحليل الوسوم وملاحظات الذاكرة'),
   'wipe.indexes': ('Arama dizinleri (ad ve içerik; yeniden kurulur)', 'Search indexes (name and content; rebuilt later)', 'فهارس البحث (الاسم والمحتوى؛ يُعاد بناؤها)'),
   'wipe.logs': ('Hata kayıtları', 'Error logs', 'سجلات الأخطاء'),

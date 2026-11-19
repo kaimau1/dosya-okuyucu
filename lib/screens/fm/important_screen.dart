@@ -18,6 +18,7 @@ import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/important_files.dart';
+import '../../widgets/side_menu_view.dart';
 import '../../widgets/fm/fm_category_tile.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
@@ -212,6 +213,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
     _push(CategoryScreen(
       title: category.label,
       files: files,
+      memoryId: 'imp.${category.name}',
     ));
   }
 
@@ -220,6 +222,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
     final appState = context.watch<AppState>();
     return Scaffold(
       appBar: AppBar(
+        leading: const SideMenuButton(),
         title: const Text(ImportantScreen.folderName),
         actions: [
           if (_exists)

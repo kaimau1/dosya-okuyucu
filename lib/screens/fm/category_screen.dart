@@ -25,6 +25,7 @@ import '../../services/fm/list_memory.dart';
 import '../../services/fm/open_history.dart';
 import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
+import '../../widgets/side_menu_view.dart';
 import '../../widgets/fm/fm_file_list_view.dart';
 import '../../widgets/motion.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';

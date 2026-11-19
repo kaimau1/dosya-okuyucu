@@ -6,6 +6,7 @@ import 'fm/activity_log.dart';
 import 'fm/ai_apply_log.dart';
 import 'fm/ai_index.dart';
 import 'fm/content_indexer.dart';
+import 'fm/fresh_cache.dart';
 import 'fm/op_history.dart';
 import 'fm/open_history.dart';
 import 'fm/remote/transfer_history.dart';
@@ -56,6 +57,7 @@ abstract final class PrivacyWipe {
     if ((history || ai) && clearAppLists != null) await step(clearAppLists);
     if (history) {
       await step(OpenHistory.clearAll);
+      await step(FreshCache.clear);
       await step(SearchHistory.clear);
       await step(SearchHistory.clearOpened);
       await step(() => SavedSearches.store(const []));

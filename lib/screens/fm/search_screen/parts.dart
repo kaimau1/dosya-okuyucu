@@ -331,6 +331,16 @@ extension _SearchScreenStateParts on _SearchScreenState {
         padding: withNavInset(context, const EdgeInsets.all(Gap.lg)),
         children: [
           Text(message, textAlign: TextAlign.center),
+          if (_controller.text.trim().isEmpty)
+            Center(
+              child: TextButton.icon(
+                key: const ValueKey('srch-help-link'),
+                onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const HelpScreen())),
+                icon: const Icon(AppIcons.help),
+                label: Text(context.t('help.open')),
+              ),
+            ),
           // **Kayıtlı aramalar** (Faz 41 / 3) — son aramaların üstünde.
           if (_saved.isNotEmpty && _controller.text.trim().isEmpty) ...[
             const SizedBox(height: Gap.lg),

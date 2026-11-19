@@ -3,6 +3,7 @@ part of '../entry_actions.dart';
 /// Girdi (dosya/klasör) üzerinde yapılabilecek işlemler. Gözatıcı, kategori
 /// ekranları ve arama sonuçları AYNI davranışı paylaşsın diye tek dosyada.
 enum _EntryAction {
+  trimAudio,
   open,
   openWith,
   share,
@@ -21,6 +22,7 @@ enum _EntryAction {
   sharedFolder,
   externalDrive,
   aiSummary,
+  aiCheck,
   imageInsight,
   resize,
   trimVideo,
@@ -31,6 +33,7 @@ enum _EntryAction {
   split,
   join,
   shortcut,
+  folderShortcut,
   library,
   hide,
   audiobook,
@@ -38,6 +41,7 @@ enum _EntryAction {
   aiTag,
   aiAlias,
   alias,
+  smartFix,
 }
 
 /// İşlemin bağlı olduğu sürüm özelliği; null = her sürümde (aç, paylaş …).
@@ -50,9 +54,11 @@ Feature? _featureOf(_EntryAction a) => switch (a) {
         null,
       _EntryAction.driveUpload => Feature.googleDrive,
       _EntryAction.aiSummary ||
+      _EntryAction.aiCheck ||
       _EntryAction.imageInsight ||
       _EntryAction.aiTag ||
-      _EntryAction.aiAlias =>
+      _EntryAction.aiAlias ||
+      _EntryAction.smartFix =>
         Feature.ai,
       _EntryAction.resize ||
       _EntryAction.rotate ||
@@ -72,14 +78,56 @@ class EntryExtraAction {
   final String label;
   final String? hint;
   final Color? color;
-  final VoidCallback onTap;
+
+  /// null = o an kullanılamaz (soluk, dokunulmaz).
+  final VoidCallback? onTap;
+
+  /// Aç/kapa ayarı ise durumu (sağda onay işareti); null = düz işlem.
+  final bool? checked;
   const EntryExtraAction({
     required this.icon,
     required this.label,
     required this.onTap,
     this.hint,
     this.color,
+    this.checked,
   });
+}
+
+/// Ekrana özgü (türe özel) bir işlem grubu: başlık + işlemler. Levhada ortak
+/// dosya işlerinin hemen altında, [MenuTone.special] renginde durur.
+class EntryExtraGroup {
+  final String title;
+  final List<EntryExtraAction> actions;
+  const EntryExtraGroup(this.title, this.actions);
+}
+
+/// **Görüntüleyici / düzenleyici ⋮'ı** (2026-11-15, kullanıcı: *"hepsi ortak
+/// bir dile ve düzene kavuşmalı"*): PDF, metin, Word, Excel, slayt, galeri ve
+/// oynatıcı aynı levhayı açar — üstte ortak dosya işleri (taşı, kopyala,
+/// yeniden adlandır, önemli, SİL), altında türe özel gruplar. Eskiden her
+/// ekranın kendi menüsü vardı; silmek için ⋮ → Dosya işlemleri → Sil, üç kat.
+///
+/// Açık dosya silinir, taşınır ya da adı değişirse ekran kapanır (artık
+/// olmayan bir dosyayı göstermesin). [showShare] false: ekranın alt
+/// çubuğunda Paylaş zaten var, aynı iş iki yerde durmasın.
+Future<void> showViewerMenu(
+  BuildContext context,
+  String path, {
+  List<EntryExtraGroup> groups = const [],
+  bool showShare = false,
+}) async {
+  final changed = await showEntryActions(
+    context,
+    FsEntry.fromEntity(File(path)),
+    groups: groups,
+    inViewer: true,
+    showShare: showShare,
+  );
+  if (!changed || !context.mounted) return;
+  if (!await File(path).exists() && context.mounted) {
+    await Navigator.of(context).maybePop();
+  }
 }
 
 /// Uzun basınca (ya da ⋮ ile) açılan işlem sayfası. Dosya sistemi değiştiyse
@@ -100,8 +148,9 @@ class EntryExtraAction {
 /// etiketin ALTINDA soluk bir ipucu satırı oldu. Aynı yükseklikte iki kat çok
 /// işlem görünüyor, kaydırma çoğu dosyada hiç gerekmiyor.
 ///
-/// **Sil ayrı ve en altta**, tam genişlikte ve hata renginde: ızgaranın içinde
-/// olsaydı "Kopyala"nın yanında, yanlış dokunuşa bir parmak mesafede dururdu.
+/// **2026-11-15 yeniden tasarım:** iki görünüm (sekmeli varsayılan / Bento,
+/// Ayarlar › Görünüm › Menü görünümü) — çizimi `MenuSections` yapar. Sil hata
+/// renginde: sekmelide "Aç"ın yanında ayrı simge düğmesi, Bento'da son karo.
 Future<bool> showEntryActions(
   BuildContext context,
   FsEntry entry, {
@@ -113,9 +162,17 @@ Future<bool> showEntryActions(
   /// tek yerde).
   List<EntryExtraAction> extras = const [],
   String? extrasTitle,
+  /// Türe özel gruplar (bkz. [showViewerMenu]).
+  List<EntryExtraGroup> groups = const [],
+  /// Dosya zaten açık (görüntüleyici/oynatıcı): "Aç" ve pano işleri gizli,
+  /// sesli kitap ekranın kendi grubunda.
+  bool inViewer = false,
+  bool showShare = true,
 }) async {
   VoidCallback? chosenExtra;
-  final appState = context.read<AppState>();
+  // Sağlayıcısız ağaçta da (test, bağımsız ekran) levha açılsın: AppState
+  // yalnız klasör yer imi ve pano için gerekli.
+  final appState = context.read<AppState?>();
   final isArchive = ArchiveOps.canExtract(entry.path);
   final canRotate = !entry.isDir && ImageRotate.canRotate(entry.path);
   // Bölmenin anlamlı olduğu alt sınır: 1 MB'ın altındaki bir dosyayı bölmek
@@ -124,6 +181,14 @@ Future<bool> showEntryActions(
   final isPart = !entry.isDir && FileSplit.baseNameOf(entry.path) != null;
   final isMedia =
       entry.category == FmCategory.image || entry.category == FmCategory.video;
+
+  final allGroups = [
+    if (extras.isNotEmpty)
+      EntryExtraGroup(extrasTitle ?? context.t('ea.sec_this'), extras),
+    ...groups.where((g) => g.actions.isNotEmpty),
+  ];
+  final showAudiobook =
+      !inViewer && !entry.isDir && canMakeAudiobook(entry.path);
 
   // Takılı harici bellekler (USB / SD). Menü kurulmadan ÖNCE okunuyor:
   // `isWritable` diske dokunuyor ve build içinde çağrılmamalı.
@@ -142,220 +207,233 @@ Future<bool> showEntryActions(
     constraints: BoxConstraints(
       maxHeight: MediaQuery.sizeOf(context).height * 0.88,
     ),
-    builder: (ctx) => SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _sheetHeader(ctx, entry),
-            // **Hızlı sıra** (2026-10-18, kullanıcı: *"bu tür menüler
-            // toparlanmalı"*): en sık dört işlem başlığın hemen altında büyük
-            // yuvarlak düğmeler — ızgarayı taramadan, tek bakışta. Izgaradan
-            // çıkarıldılar (aynı işlem iki yerde durmasın).
-            _quickRow(ctx, [
-              _quick(ctx, AppIcons.open, ctx.t('common.open'),
-                  _EntryAction.open),
-              // Klasör de paylaşılır (2026-10-29): yakındakilere klasör
-              // olarak gider, başka uygulamaya ZIP olarak.
-              _quick(ctx, AppIcons.share, ctx.t('common.share'),
-                  _EntryAction.share),
-              _quick(ctx, AppIcons.move, ctx.t('fm.move'),
-                  _EntryAction.moveTo),
-              // Faz 17 / G16: hızlı sıra beşli — Kopyala da burada
-              // (aşağıdaki "Taşı/kopyala" bölümünden çıktı). Sil bilerek
-              // ayrı, en altta (yanlış dokunuşa uzak — yukarıdaki not).
-              _quick(ctx, AppIcons.copy, ctx.t('fm.copy'),
-                  _EntryAction.copyTo),
-              _quick(ctx, AppIcons.rename, ctx.t('fm.rename'),
-                  _EntryAction.rename),
+    builder: (ctx) {
+      // Levhanın işlemi: dokununca levha işlem adıyla kapanır, iş aşağıda.
+      MenuKitAction act(IconData icon, String label, _EntryAction which,
+              {String? hint, MenuTone tone = MenuTone.accent}) =>
+          MenuKitAction(
+            icon: icon,
+            label: label,
+            hint: hint,
+            tone: tone,
+            onTap: () => Navigator.pop(ctx, which),
+          );
+      // Türe göre işler (Faz 17 / G16): arşivde Çıkar, görselde
+      // Boyut/Döndür/Tanı, videoda Boyut/Kes — dosyanın asıl işi aranmasın.
+      MenuKitAction own(IconData icon, String label, _EntryAction which,
+              {String? hint}) =>
+          act(icon, label, which, hint: hint, tone: MenuTone.special);
+      return SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+          // **Menü görünümü** (2026-11-15): sekmeli (varsayılan) ya da Bento
+          // — `MenuSections` ayardan seçer; bu levha yalnız modeli verir.
+          child: MenuSections(
+            header: _sheetHeader(ctx, entry),
+            // Görüntüleyicide "Aç" yok (dosya zaten açık) → Sil ortak
+            // sekmenin sonuna iner. Klasör de paylaşılır (2026-10-29).
+            primary: inViewer
+                ? null
+                : act(AppIcons.open, ctx.t('common.open'), _EntryAction.open),
+            mainActions: [
+              if (showShare)
+                act(AppIcons.share, ctx.t('common.share'), _EntryAction.share),
+              act(AppIcons.delete, ctx.t('common.delete'), _EntryAction.delete,
+                  tone: MenuTone.danger),
+            ],
+            quick: [
+              act(AppIcons.move, ctx.t('fm.move'), _EntryAction.moveTo),
+              act(AppIcons.copy, ctx.t('fm.copy'), _EntryAction.copyTo),
+              act(AppIcons.rename, ctx.t('fm.rename'), _EntryAction.rename),
               if (entry.isDir)
-                _quick(
-                  ctx,
-                  appState.isBookmarked(entry.path)
+                act(
+                  appState?.isBookmarked(entry.path) ?? false
                       ? AppIcons.star
                       : AppIcons.starEmpty,
-                  appState.isBookmarked(entry.path)
+                  appState?.isBookmarked(entry.path) ?? false
                       ? ctx.t('fm.unfavorite')
                       : ctx.t('fm.favorite'),
                   _EntryAction.bookmark,
                 ),
-            ]),
-            // **İkinci hızlı sıra** (2026-11-04, kullanıcı: *"en çok
-            // kullanılanları en üstteki gibi yan yana buton yapalım — sil,
-            // önemli işaretle, hızlı paylaş"*). Hızlı paylaş seçim sormadan
-            // doğrudan Yakındakiler'i açar. Sil buraya taşındı; hata renginde
-            // ve sıranın EN SONUNDA (yanlış dokunuşa en uzak köşe).
-            const SizedBox(height: Gap.sm),
-            _quickRow(ctx, [
-              _quick(ctx, AppIcons.nearMe, ctx.t('ea.quick_share'),
-                  _EntryAction.quickShare),
-              _quick(ctx, AppIcons.important, ctx.t('fm.copy_to_important'),
+              // Hızlı paylaş seçim sormadan doğrudan Yakındakiler'i açar
+              // (2026-11-04 kullanıcı isteği).
+              if (showShare)
+                act(AppIcons.nearMe, ctx.t('ea.quick_share'),
+                    _EntryAction.quickShare),
+              act(AppIcons.important, ctx.t('fm.copy_to_important'),
                   _EntryAction.important),
-              _quick(ctx, AppIcons.delete, ctx.t('common.delete'),
-                  _EntryAction.delete,
-                  tone: MenuTone.danger),
-            ]),
-            if (extras.isNotEmpty)
-              _section(ctx, extrasTitle ?? ctx.t('ea.sec_this'), [
-                for (final x in extras)
-                  MenuRow(
-                    icon: x.icon,
-                    label: x.label,
-                    hint: x.hint,
-                    tone: x.color == null ? MenuTone.neutral : MenuTone.accent,
-                    onTap: () {
-                      chosenExtra = x.onTap;
-                      Navigator.pop(ctx);
-                    },
-                  ),
-              ]),
-            // **Türe göre ilk grup** (Faz 17 / G16): arşivde Çıkar, görselde
-            // Boyut/Döndür/Tanı, videoda Boyut — dosyanın asıl işi ızgarada
-            // aranmasın. Bu eylemler aşağıdaki bölümlerden buraya taşındı.
-            if (isArchive ||
-                canRotate ||
-                (!entry.isDir && isMedia) ||
-                (!entry.isDir && canMakeAudiobook(entry.path)))
-              _section(ctx, ctx.t('ea.sec_this'), [
-                if (!entry.isDir && canMakeAudiobook(entry.path))
-                  _act(ctx, AppIcons.audiobook, ctx.t('ab.make'),
+            ],
+            // Görüntüleyicide ekranın kendi işleri seçili açılır.
+            preferSpecial: inViewer,
+            sections: [
+              // **Türe özel gruplar** ortak işlerin hemen ardından, AYRI
+              // RENKTE (2026-11-15): ekranın kendi işleri (PDF, oynatıcı …).
+              for (final g in allGroups)
+                MenuKitSection(
+                  title: g.title,
+                  special: true,
+                  actions: [
+                    for (final x in g.actions)
+                      MenuKitAction(
+                        icon: x.icon,
+                        label: x.label,
+                        hint: x.hint,
+                        tone: MenuTone.special,
+                        checked: x.checked,
+                        onTap: x.onTap == null
+                            ? null
+                            : () {
+                                chosenExtra = x.onTap;
+                                Navigator.pop(ctx);
+                              },
+                      ),
+                  ],
+                ),
+              MenuKitSection(title: ctx.t('ea.sec_this'), special: true, actions: [
+                if (showAudiobook)
+                  own(AppIcons.audiobook, ctx.t('ab.make'),
                       _EntryAction.audiobook,
                       hint: ctx.t('ab.make_hint')),
                 if (isArchive)
-                  _act(ctx, AppIcons.archiveView, ctx.t('fm.show_archive'),
+                  own(AppIcons.archiveView, ctx.t('fm.show_archive'),
                       _EntryAction.openArchive),
                 if (isArchive)
-                  _act(ctx, AppIcons.extract, ctx.t('fm.extract_here'),
+                  own(AppIcons.extract, ctx.t('fm.extract_here'),
                       _EntryAction.extract),
                 if (!entry.isDir && isMedia)
-                  _act(ctx, AppIcons.resize, ctx.t('ea.resize'),
-                      _EntryAction.resize,
+                  own(AppIcons.resize, ctx.t('ea.resize'), _EntryAction.resize,
                       hint: ctx.t('ea.resize_hint')),
                 // Videoyu kes (Ferrari H8): oynatıcının ⋮'ı da bu levhayı açar.
                 if (!entry.isDir && entry.category == FmCategory.video)
-                  _act(ctx, AppIcons.cut, ctx.t('vtr.title'),
-                      _EntryAction.trimVideo,
+                  own(AppIcons.cut, ctx.t('vtr.title'), _EntryAction.trimVideo,
                       hint: ctx.t('vtr.hint')),
+                // Sesi kes (2026-11-14): video kesmenin ses karşılığı.
+                if (!entry.isDir && entry.category == FmCategory.audio)
+                  own(AppIcons.cut, ctx.t('atr.title'), _EntryAction.trimAudio,
+                      hint: ctx.t('atr.action_hint')),
                 if (canRotate)
-                  _act(ctx, AppIcons.rotate,
-                      ctx.t('ea.rotate'), _EntryAction.rotate,
+                  own(AppIcons.rotate, ctx.t('ea.rotate'), _EntryAction.rotate,
                       hint: ctx.t('ea.rotate_hint')),
                 if (entry.category == FmCategory.image)
-                  _act(ctx, AppIcons.ocr,
-                      ctx.t('ea.image_insight'), _EntryAction.imageInsight,
+                  own(AppIcons.ocr, ctx.t('ea.image_insight'),
+                      _EntryAction.imageInsight,
                       hint: ctx.t('ea.image_insight_hint')),
               ]),
-            _section(ctx, ctx.t('ea.sec_open'), [
-              if (!entry.isDir)
-                _act(ctx, AppIcons.openWith, ctx.t('fm.open_with_other'),
-                    _EntryAction.openWith),
-              if (!entry.isDir && ProGate.visible(Feature.googleDrive))
-                _act(ctx, AppIcons.upload,
-                    ctx.t('drive.upload_action'), _EntryAction.driveUpload),
-              if (allowReveal)
-                _act(ctx, AppIcons.reveal, ctx.t('fm.reveal'),
-                    _EntryAction.reveal),
-              if (!entry.isDir && LibraryStore.isBook(entry.path))
-                _act(
-                    ctx,
-                    AppIcons.autoStories,
-                    ctx.t(LibraryStore.contains(entry.path)
-                        ? 'lib.remove'
-                        : 'lib.add_one'),
-                    _EntryAction.library),
-              // Ana ekran kısayolu (kullanıcı isteği 2026-09-27).
-              if (Platform.isAndroid)
-                _act(ctx, AppIcons.homeShortcut,
-                    ctx.t('ea.shortcut'), _EntryAction.shortcut,
-                    hint: ctx.t('ea.shortcut_hint')),
-            ]),
-            // Tek adımlı akış ÖNCE (kullanıcı isteği 2026-07-29:
-            // "taşıma/kopyalama şu an çok zor"): hedefi burada seç, iş bitsin.
-            // Pano (kopyala/kes + git + yapıştır) arkasında, ileri kullanım
-            // için — aynı bölümde ama ikinci satırda.
-            _section(ctx, ctx.t('ea.sec_move'), [
-              _act(ctx, AppIcons.clipCopy, ctx.t('fm.clip_copy'),
-                  _EntryAction.copy,
-                  hint: ctx.t('ea.clip_hint')),
-              _act(ctx, AppIcons.cut, ctx.t('fm.clip_cut'),
-                  _EntryAction.cut,
-                  hint: ctx.t('ea.clip_hint')),
-              // "Paylaşılan"a kopyala (kullanıcı isteği 2026-08-31): ağ
-              // paylaşımının dar kapsamlı kutusu. Taşımak değil KOPYALAMAK —
-              // dosya kullanıcının bildiği yerde kalmalı.
-              _act(ctx, AppIcons.shareFolder,
-                  ctx.t('fm.copy_to_shared'), _EntryAction.sharedFolder,
-                  hint: ctx.t('ea.shared_hint')),
-              // **Harici belleğe kopyala** (kullanıcı isteği 2026-09-01:
-              // *"bir harici bellek takıldığında telefondaki bir belgeye
-              // tıklayıp 3 nokta ayarlarında harici belleğe kopyala şeklinde
-              // basit bir kısayol da olmalı"*). Yalnız takılı ve YAZILABİLİR
-              // bir birim varken görünür: yokken çıkması, dokunup "hedef yok"
-              // yemek demekti.
-              if (hasExternal)
-                _act(ctx, AppIcons.external, ctx.t('fm.copy_to_external'),
-                    _EntryAction.externalDrive,
-                    hint: externalHint),
-            ]),
-            _section(ctx, ctx.t('ea.sec_file'), [
-              _act(ctx, AppIcons.compress, ctx.t('ea.compress'),
-                  _EntryAction.zip,
-                  hint: ctx.t('ea.compress_hint')),
-              if (!entry.isDir)
-                _act(ctx, AppIcons.tag, ctx.t('ea.tag'),
-                    _EntryAction.tag,
-                    hint: ctx.t('ea.tag_hint')),
-              // 2026-11-04 (kullanıcı: *"3 nokta ve basılı tutunca gelen daha
-              // fazla menüsü aynı ve eksiksiz olmalı"*): seçimdeki "AI ile
-              // etiketle" burada da var — iki menü tek kaynaktan.
-              if (!entry.isDir)
-                _act(ctx, AppIcons.ai, ctx.t('tagai.action'),
-                    _EntryAction.aiTag,
-                    hint: ctx.t('tagai.action_hint')),
-              // **Döndür** (2026-09-06 denetim turu): yan çekilmiş bir
-              // fotoğrafı düzeltmenin uygulama içinde hiçbir yolu yoktu.
-              // **Böl / birleştir**: FAT32 biçimli USB bellek ve SD kartlar
-              // 4 GB'tan büyük tek dosya kabul etmiyor; kullanıcının
-              // yapabileceği hiçbir şey yoktu.
-              if (canSplit)
-                _act(ctx, AppIcons.split, ctx.t('ea.split'),
-                    _EntryAction.split, hint: ctx.t('ea.split_hint')),
-              if (isPart)
-                _act(ctx, AppIcons.join, ctx.t('ea.join'), _EntryAction.join,
-                    hint: ctx.t('ea.join_hint')),
-              // Gizle = şifreli kasaya taşı (2026-10-21, tek Kasa): iki ayrı
-              // satır ("Gizle" ve "Şifreli kasaya taşı") birleşti.
-              _act(ctx, AppIcons.vault, ctx.t('ea.hide'),
-                  _EntryAction.hide,
-                  hint: ctx.t('vault.move_hint')),
-              _act(ctx, AppIcons.info, ctx.t('fm.properties'),
-                  _EntryAction.properties),
-            ]),
-            // AI/tanıma ve dönüştürme: belgede özet, görselde metin tanıma,
-            // medyada boyut düşürme. Boyut düşürme ve etiketleme eskiden
-            // YALNIZ çoklu seçim çubuğundaydı: kullanıcı tek bir fotoğrafa
-            // uzun basınca bulamıyordu (2026-07-29 sadakat denetimi).
-            _section(ctx, ctx.t('ea.sec_ai'), [
-              if (!entry.isDir)
-                _act(ctx, AppIcons.rename, ctx.t('alias.manual'),
-                    _EntryAction.alias),
-              if (!entry.isDir)
-                _act(ctx, AppIcons.ai, ctx.t('alias.action'),
-                    _EntryAction.aiAlias),
-              if (!entry.isDir &&
-                  entry.category != FmCategory.image &&
-                  entry.category != FmCategory.video &&
-                  entry.category != FmCategory.audio)
-                _act(ctx, AppIcons.ai, ctx.t('fm.ai_summary'),
-                    _EntryAction.aiSummary),
-            ]),
-            const SizedBox(height: Gap.sm),
-          ],
+              MenuKitSection(title: ctx.t('ea.sec_open'), actions: [
+                // Görüntüleyicide Paylaş üstte yok (alt çubukta duruyor) ama
+                // kullanıcı ⋮'da da arıyor (2026-11-15): "Aç ve paylaş"ın başı.
+                if (inViewer && !showShare) ...[
+                  act(AppIcons.share, ctx.t('common.share'),
+                      _EntryAction.share),
+                  if (!entry.isDir)
+                    act(AppIcons.nearMe, ctx.t('ea.quick_share'),
+                        _EntryAction.quickShare),
+                ],
+                if (!entry.isDir)
+                  act(AppIcons.openWith, ctx.t('fm.open_with_other'),
+                      _EntryAction.openWith),
+                if (!entry.isDir && ProGate.visible(Feature.googleDrive))
+                  act(AppIcons.upload, ctx.t('drive.upload_action'),
+                      _EntryAction.driveUpload),
+                if (allowReveal)
+                  act(AppIcons.reveal, ctx.t('fm.reveal'), _EntryAction.reveal),
+                if (!entry.isDir && LibraryStore.isBook(entry.path))
+                  act(
+                      AppIcons.autoStories,
+                      ctx.t(LibraryStore.contains(entry.path)
+                          ? 'lib.remove'
+                          : 'lib.add_one'),
+                      _EntryAction.library),
+                // Uygulama içi kısayol (2026-11-15): klasör → Kartlarım ya da
+                // Hızlı klasörler; dosyalara da açık.
+                act(AppIcons.dashboardCustomize, ctx.t('qf.make_shortcut'),
+                    _EntryAction.folderShortcut,
+                    hint: ctx.t('qf.make_shortcut_hint')),
+                // Ana ekran kısayolu (kullanıcı isteği 2026-09-27).
+                if (Platform.isAndroid)
+                  act(AppIcons.homeShortcut, ctx.t('ea.shortcut'),
+                      _EntryAction.shortcut,
+                      hint: ctx.t('ea.shortcut_hint')),
+              ]),
+              // Tek adımlı taşı/kopyala hızlı sırada; pano (kopyala/kes + git +
+              // yapıştır) burada, ileri kullanım için (2026-07-29).
+              MenuKitSection(title: ctx.t('ea.sec_move'), actions: [
+                // Pano yalnız dosya listesinde anlamlı: görüntüleyicide
+                // yapıştıracak bir klasör yok.
+                if (!inViewer)
+                  act(AppIcons.clipCopy, ctx.t('fm.clip_copy'),
+                      _EntryAction.copy,
+                      hint: ctx.t('ea.clip_hint')),
+                if (!inViewer)
+                  act(AppIcons.cut, ctx.t('fm.clip_cut'), _EntryAction.cut,
+                      hint: ctx.t('ea.clip_hint')),
+                // "Paylaşılan"a KOPYALA (2026-08-31): dosya kullanıcının
+                // bildiği yerde kalmalı.
+                act(AppIcons.shareFolder, ctx.t('fm.copy_to_shared'),
+                    _EntryAction.sharedFolder,
+                    hint: ctx.t('ea.shared_hint')),
+                // **Harici belleğe kopyala** (2026-09-01): yalnız takılı ve
+                // YAZILABİLİR bir birim varken.
+                if (hasExternal)
+                  act(AppIcons.external, ctx.t('fm.copy_to_external'),
+                      _EntryAction.externalDrive,
+                      hint: externalHint),
+              ]),
+              MenuKitSection(title: ctx.t('ea.sec_file'), actions: [
+                act(AppIcons.compress, ctx.t('ea.compress'), _EntryAction.zip,
+                    hint: ctx.t('ea.compress_hint')),
+                if (!entry.isDir)
+                  act(AppIcons.tag, ctx.t('ea.tag'), _EntryAction.tag,
+                      hint: ctx.t('ea.tag_hint')),
+                // 2026-11-04: seçimdeki "AI ile etiketle" burada da var —
+                // iki menü tek kaynaktan.
+                if (!entry.isDir)
+                  act(AppIcons.ai, ctx.t('tagai.action'), _EntryAction.aiTag,
+                      hint: ctx.t('tagai.action_hint')),
+                // **Böl / birleştir**: FAT32 USB/SD 4 GB'tan büyük tek dosya
+                // kabul etmiyor.
+                if (canSplit)
+                  act(AppIcons.split, ctx.t('ea.split'), _EntryAction.split,
+                      hint: ctx.t('ea.split_hint')),
+                if (isPart)
+                  act(AppIcons.join, ctx.t('ea.join'), _EntryAction.join,
+                      hint: ctx.t('ea.join_hint')),
+                // Gizle = şifreli kasaya taşı (2026-10-21, tek Kasa).
+                act(AppIcons.vault, ctx.t('ea.hide'), _EntryAction.hide,
+                    hint: ctx.t('vault.move_hint')),
+                act(AppIcons.info, ctx.t('fm.properties'),
+                    _EntryAction.properties),
+              ]),
+              // AI/tanıma: belgede özet, takma ad.
+              MenuKitSection(title: ctx.t('ea.sec_ai'), actions: [
+                if (!entry.isDir)
+                  act(AppIcons.rename, ctx.t('alias.manual'),
+                      _EntryAction.alias),
+                if (!entry.isDir)
+                  act(AppIcons.ai, ctx.t('alias.action'), _EntryAction.aiAlias),
+                // Akıllı düzen öğrenir (2026-11-18): "bu yanlış → ne olmalıydı?"
+                if (!entry.isDir && SmartSort.of(entry.path) != null)
+                  act(AppIcons.rule, ctx.t('smf.action'), _EntryAction.smartFix,
+                      hint: ctx.t('smf.action_hint', {
+                        'cat': SmartCatStyle.label(
+                            ctx, SmartSort.of(entry.path)!.cat),
+                      })),
+                if (!entry.isDir &&
+                    entry.category != FmCategory.image &&
+                    entry.category != FmCategory.video &&
+                    entry.category != FmCategory.audio)
+                  act(AppIcons.ai, ctx.t('fm.ai_summary'),
+                      _EntryAction.aiSummary),
+                // Decisions API (2026-11-18): dosyanın kendisine evet/hayır.
+                if (!entry.isDir)
+                  act(AppIcons.ai, ctx.t('qc.action'), _EntryAction.aiCheck,
+                      hint: ctx.t('qc.action_hint')),
+              ]),
+            ],
+          ),
         ),
-      ),
-    ),
+      );
+    },
   );
 
   if (chosenExtra != null) {
@@ -409,13 +487,13 @@ Future<bool> showEntryActions(
       return moveOrCopyEntries(context, [entry.path], move: false);
 
     case _EntryAction.copy:
-      appState.setClipboard([entry.path], cut: false);
+      appState?.setClipboard([entry.path], cut: false);
       _snack(context,
           context.t('fm.entry_clip_copied', {'name': entry.name}));
       return false;
 
     case _EntryAction.cut:
-      appState.setClipboard([entry.path], cut: true);
+      appState?.setClipboard([entry.path], cut: true);
       _snack(context,
           context.t('fm.entry_clip_cut', {'name': entry.name}));
       return false;
@@ -442,7 +520,7 @@ Future<bool> showEntryActions(
       return true;
 
     case _EntryAction.bookmark:
-      await appState.toggleBookmark(entry.path);
+      await appState?.toggleBookmark(entry.path);
       return false;
 
     case _EntryAction.important:
@@ -455,12 +533,21 @@ Future<bool> showEntryActions(
       await showAiSummary(context, entry);
       return false;
 
+    case _EntryAction.aiCheck:
+      await showAiQuickCheck(context, entry);
+      return false;
+
     case _EntryAction.aiAlias:
       await giveAiAlias(context, entry);
       return false;
 
     case _EntryAction.alias:
       await editAlias(context, entry);
+      return false;
+
+    case _EntryAction.smartFix:
+      // Liste ikinci adı ve akıllı klasörü kendisi dinliyor (revision).
+      await showSmartFix(context, entry.path);
       return false;
 
     case _EntryAction.resize:
@@ -472,6 +559,14 @@ Future<bool> showEntryActions(
       // Oynatıcıdan açıldıysa önizlemeyle aynı anda çalmasın.
       unawaited(VideoPlayback.instance.controller?.pause());
       await VideoTrimScreen.open(context, entry.path);
+      return false;
+
+    case _EntryAction.trimAudio:
+      // Oynatıcıdan açıldıysa kesme ekranının önizlemesiyle üst üste çalmasın.
+      if (AudioPlayback.instance.playing) {
+        unawaited(AudioPlayback.instance.toggle());
+      }
+      await AudioTrimScreen.open(context, entry.path);
       return false;
 
     case _EntryAction.tag:
@@ -488,6 +583,11 @@ Future<bool> showEntryActions(
 
     case _EntryAction.shortcut:
       await addHomeShortcut(context, entry);
+      return false;
+
+    case _EntryAction.folderShortcut:
+      await showFolderShortcutSheet(context, entry.path,
+          fileCategory: entry.isDir ? null : entry.category);
       return false;
 
     case _EntryAction.library:
@@ -690,9 +790,7 @@ Future<bool> joinEntry(BuildContext context, FsEntry entry) async {
 }
 
 /// Sayfanın başlığı: dosyanın kendisi (simge, ad, boyut/tarih).
-Widget _sheetHeader(BuildContext ctx, FsEntry entry) => Padding(
-      padding: const EdgeInsets.only(bottom: Gap.sm),
-      child: Row(
+Widget _sheetHeader(BuildContext ctx, FsEntry entry) => Row(
         children: [
           FmEntryIcon(entry: entry, size: 40),
           const SizedBox(width: Gap.md),
@@ -718,83 +816,113 @@ Widget _sheetHeader(BuildContext ctx, FsEntry entry) => Padding(
             ),
           ),
         ],
-      ),
-    );
+      );
 
-/// Bir bölüm: grup başlığı + kart içinde iki sütunlu satırlar. Hiç işlemi
-/// kalmayan bölüm (koşullar elediyse) HİÇ çizilmez.
+/// **Kısayol oluştur** (2026-11-15, kullanıcı: *"depodaki tüm klasörleri
+/// kısayol olarak kendi panomuza ekleme seçeneği olsun; iki seçenekli kart:
+/// biri Kartlarım, diğeri klasör olarak alttaki Hızlı klasörlere"*).
 ///
-/// Ortak menü dili (2026-10-29, `menu_kit.dart`): dosya içindeki "Daha
-/// fazla" ve seçimdeki eylem levhasıyla aynı başlık, aynı kart, aynı simge
-/// kutusu. Eskiden BÜYÜK HARF başlık + her hücre ayrı çerçeveli kutuydu.
-Widget _section(BuildContext ctx, String title, List<Widget> actions) {
-  final items = actions;
-  if (items.isEmpty) return const SizedBox.shrink();
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      MenuGroupTitle(title,
-          padding: const EdgeInsetsDirectional.fromSTEB(8, Gap.md, 8, 6)),
-      MenuGroupCard(
-        child: Column(
-          children: [
-            // Izgara ELLE satırlanıyor (GridView değil): hücre yüksekliği
-            // metne bağlı — büyük yazı ölçeğinde sabit oran taşma demek.
-            for (var i = 0; i < items.length; i += 2)
-              IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(child: items[i]),
-                    // Tek kalan son işlem TAM genişlik.
-                    if (i + 1 < items.length) Expanded(child: items[i + 1]),
-                  ],
-                ),
-              ),
-          ],
+/// İki seçenek de AÇ/KAPA: klasör zaten oradaysa seçenek "çıkar" olur.
+/// Diskteki klasöre dokunulmaz — kart da hızlı klasör de yalnız ayar.
+///
+/// [fileCategory] verilirse yol bir DOSYADIR (2026-11-15): kart ve hızlı
+/// erişim öğesi dosyayı doğrudan açar.
+Future<void> showFolderShortcutSheet(BuildContext context, String path,
+    {FmCategory? fileCategory}) async {
+  final cards = CustomCards.instance;
+  final quick = QuickFolders.instance;
+  await Future.wait([cards.ensureLoaded(), quick.ensureLoaded()]);
+  if (!context.mounted) return;
+  final roots = [
+    FmEnv.primaryRoot,
+    for (final v in FmEnv.volumes) v.path,
+  ];
+  final standard = QuickFolders.isStandardPath(path, roots);
+  final card = cards.byPath(path);
+  final inCards = card != null && card.onHome;
+  final inQuick = quick.contains(path, standard: standard);
+  final name = p.basename(path);
+  final choice = await showAppActionSheet<String>(
+    context,
+    title: context.t('qf.make_shortcut'),
+    subtitle: name,
+    groups: [
+      AppActionGroup(actions: [
+        AppAction(
+          value: 'card',
+          icon: AppIcons.dashboardCustomize,
+          label: context.t(inCards ? 'qf.card_remove' : 'qf.card_add'),
+          hint: context.t('qf.card_hint'),
+          destructive: inCards,
         ),
-      ),
+        AppAction(
+          value: 'quick',
+          icon: fileCategory == null
+              ? AppIcons.folder
+              : FmColors.iconFor(fileCategory),
+          label: context.t(inQuick ? 'qf.quick_remove' : 'qf.quick_add'),
+          hint: context.t('qf.quick_hint'),
+          destructive: inQuick,
+        ),
+      ]),
     ],
   );
+  if (choice == null || !context.mounted) return;
+  final messenger = ScaffoldMessenger.of(context);
+  final strings = AppStrings.of(context);
+  if (choice == 'card') {
+    if (inCards) {
+      // Kısayol kartı kaydıyla silinir; elle kurulmuş kart yalnız ana
+      // ekrandan kalkar (Önemli Dosyalar'daki kart yerinde kalsın).
+      card.shortcut
+          ? await cards.remove(card.id)
+          : await cards.upsert(card.copyWith(onHome: false));
+      showSnackOn(messenger, strings.t('qf.card_removed', {'name': name}));
+    } else {
+      await cards.upsert(card != null
+          ? card.copyWith(onHome: true)
+          : CustomCard(
+              id: CustomCards.newId(),
+              name: name,
+              path: path,
+              icon: shortcutCardIcon(fileCategory, path),
+              color: fileCategory == null
+                  ? 0xFFE8A33D
+                  : FmColors.forCategory(fileCategory).toARGB32(),
+              view: CardView.folder,
+              onHome: true,
+              shortcut: true,
+            ));
+      showSnackOn(messenger, strings.t('qf.card_added', {'name': name}));
+    }
+  } else {
+    if (inQuick) {
+      await quick.remove(path, standard: standard);
+      showSnackOn(messenger, strings.t('qf.quick_removed', {'name': name}));
+    } else {
+      await quick.add(path, standard: standard);
+      showSnackOn(messenger, strings.t('qf.quick_added', {'name': name}));
+    }
+  }
 }
 
-/// Hızlı sıra: eşit genişlikte simge kutuları (vurgu tonunda).
-Widget _quickRow(BuildContext ctx, List<Widget> items) => Padding(
-      padding: const EdgeInsets.only(top: Gap.xs),
-      child: MenuGroupCard(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [for (final item in items) Expanded(child: item)],
-        ),
-      ),
-    );
+/// Kısayol kartının simge anahtarı (`cardIcons`): klasör ya da dosya türü.
+String shortcutCardIcon(FmCategory? fileCategory, String path) =>
+    switch (fileCategory) {
+      null => 'folder',
+      FmCategory.image => 'image',
+      FmCategory.video => 'video',
+      FmCategory.audio => 'music',
+      _ when path.toLowerCase().endsWith('.pdf') => 'pdf',
+      FmCategory.document => 'receipt',
+      _ => 'bookmark',
+    };
 
-/// Hızlı sıranın bir düğmesi — ortak [MenuTile], vurgu tonunda.
-Widget _quick(
-  BuildContext ctx,
-  IconData icon,
-  String label,
-  _EntryAction action, {
-  MenuTone tone = MenuTone.accent,
-}) =>
-    MenuTile(
-      icon: icon,
-      label: label,
-      tone: tone,
-      onTap: () => Navigator.pop(ctx, action),
-    );
-
-/// Kart içindeki satır — ortak [MenuRow] (simge kutusu + etiket + ipucu).
-Widget _act(
-  BuildContext ctx,
-  IconData icon,
-  String label,
-  _EntryAction action, {
-  String? hint,
-}) =>
-    MenuRow(
-      icon: icon,
-      label: label,
-      hint: hint,
-      onTap: () => Navigator.pop(ctx, action),
-    );
+/// Kısayol yolu bir DOSYA mı (uzantıdan; diske bakmaz). Klasör adındaki
+/// nokta ("com.whatsapp") tanınan bir uzantı olmadıkça klasör sayılır.
+FmCategory? shortcutFileCategory(String path) {
+  final ext = p.extension(path).replaceFirst('.', '').toLowerCase();
+  if (ext.isEmpty) return null;
+  final category = FsEntry.categoryForExtension(ext);
+  return category == FmCategory.other ? null : category;
+}

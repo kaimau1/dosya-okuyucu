@@ -210,6 +210,11 @@ const Map<String, (String, String, String)> _t7 = {
   'ved.title': ('Videoyu düzenle', 'Edit video', 'تحرير الفيديو'),
   'ved.undo': ('Geri al', 'Undo', 'تراجع'),
   'ved.remove': ('Kaldır', 'Remove', 'إزالة'),
+  // 2026-11-15: ince ayar (adım + kenarı oynatma yerine çek).
+  'ved.step_back': ('Biraz geri', 'Step back', 'خطوة للخلف'),
+  'ved.step_fwd': ('Biraz ileri', 'Step forward', 'خطوة للأمام'),
+  'ved.set_start': ('Başlangıç burası', 'Start here', 'البداية هنا'),
+  'ved.set_end': ('Bitiş burası', 'End here', 'النهاية هنا'),
   'ved.result': ('Sonuç {t}', 'Result {t}', 'النتيجة {t}'),
   'ved.tool_cut': ('Bölüm sil', 'Cut part', 'حذف جزء'),
   'ved.tool_mute': ('Sesi kapat', 'Mute part', 'كتم جزء'),

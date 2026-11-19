@@ -295,7 +295,9 @@ Future<void> showFmTypeSheet(
               ),
               LayoutBuilder(builder: (ctx, c) {
                 // 3 sütun (dar ekranda/büyük yazıda 2): kutular eşit genişlikte.
-                final cols = c.maxWidth < 300 ? 2 : 3;
+                final scale = MediaQuery.textScalerOf(ctx).scale(1);
+                final effective = scale > 1.0 ? c.maxWidth / scale : c.maxWidth;
+                final cols = effective < 310 ? 2 : 3;
                 final w = (c.maxWidth - Gap.sm * (cols - 1)) / cols;
                 return Wrap(
                   spacing: Gap.sm,

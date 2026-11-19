@@ -65,7 +65,7 @@ const Map<String, (String, String, String)> _t10 = {
   'pdfm.pen': ('Kalem', 'Pen', 'القلم'),
   'pdfm.sign': ('İmza', 'Signature', 'التوقيع'),
   'pdfm.form': ('Form', 'Form', 'النموذج'),
-  'pdfm.pages': ('Sayfalar', 'Pages', 'الصفحات'),
+  'pdfm.pages': ('Sayfaları düzenle', 'Edit pages', 'تحرير الصفحات'),
   'pdfm.ai': ('AI ile', 'With AI', 'بالذكاء الاصطناعي'),
   'pdfm.resume': ('Kaldığım yerden aç', 'Reopen where I left off', 'الفتح من حيث توقفت'),
   'pe.add_text': ('Yazı ekle', 'Add text', 'إضافة نص'),

@@ -32,10 +32,13 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
   /// Taslaktan geri yükleme: belge taslağın baytlarıyla yeniden kurulur ve
   /// kirli sayılır (kaydedilene kadar dosya değişmez).
   Future<void> _restoreDraft(Uint8List bytes) async {
+    // Ayrıştırma + görünüm kopyası açılıştaki gibi arka izlekte (B12 m.2).
+    final opened = await DocxEditor.openForView(bytes);
+    if (!mounted) return;
     _undo.clear();
     _partSetState(() {
-      _editor = DocxEditor.parse(bytes);
-      _viewBytes = _editor!.viewBytes();
+      _editor = opened.editor;
+      _viewBytes = opened.view;
       _editing = false;
     });
     _session.changed();
@@ -414,7 +417,7 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
       if (mounted) showUserError(context, e);
       return;
     }
-    _rerender();
+    await _rerender();
   }
 
   /// İmlecin bulunduğu paragraftaki resimleri siler.
@@ -434,22 +437,25 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
       return;
     }
     editor.removeImages(at);
-    _rerender();
+    await _rerender();
   }
 
   /// Model → bayt → yeniden çizim; düzenleme açıksa çizim bitince yeniden
-  /// açılır (`onStatus`).
-  void _rerender() {
+  /// açılır (`onStatus`). Paketleme + ayrıştırma açılıştaki gibi arka izlekte
+  /// (B12 m.3: büyük belgede ana izlekte > 16 ms — open_parse_isolate_test).
+  Future<void> _rerender() async {
     final editor = _editor;
     if (editor == null) return;
-    final bytes = editor.save();
     // Geri alma adımları ESKİ modelin paragraflarına bağlı; yeni modelde
     // anlamsızlar (yanlış paragrafa dokunurlardı).
     _undo.clear();
     _session.changed();
+    final bytes = await editor.saveAsync();
+    final opened = await DocxEditor.openForView(bytes);
+    if (!mounted || !identical(_editor, editor)) return;
     _partSetState(() {
-      _editor = DocxEditor.parse(bytes);
-      _viewBytes = _editor!.viewBytes();
+      _editor = opened.editor;
+      _viewBytes = opened.view;
       _resumeEditing = _editing;
       _editing = false;
     });

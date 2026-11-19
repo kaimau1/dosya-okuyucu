@@ -70,6 +70,17 @@ object MediaTranscodeBridge {
                         }.start()
                     }
                 }
+                // HDR (HDR10/HDR10+/HLG/Dolby Vision) mi? Oynatıcı bunu doku
+                // yerine yüzey görünümünde açar (dokuda görüntü donuyordu).
+                "hdr" -> {
+                    val path = call.argument<String>("path")
+                    if (path == null) result.success(false) else {
+                        Thread {
+                            val v = isHdr(path)
+                            main.post { result.success(v) }
+                        }.start()
+                    }
+                }
                 "start" -> result.success(start(app, call.arguments as Map<*, *>))
                 // Video kesme (Ferrari H8, 2026-11-14): aralık dışı atılır,
                 // özgün korunur; mümkünse yeniden kodlamasız (trim optimizasyonu).
@@ -120,6 +131,33 @@ object MediaTranscodeBridge {
             null
         } finally {
             try { r.release() } catch (e: Exception) {}
+        }
+    }
+
+    private fun isHdr(path: String): Boolean {
+        val ex = MediaExtractor()
+        return try {
+            ex.setDataSource(path)
+            val f = (0 until ex.trackCount).map { ex.getTrackFormat(it) }
+                .firstOrNull { it.getString(MediaFormat.KEY_MIME)?.startsWith("video/") == true }
+                ?: return false
+            val mime = f.getString(MediaFormat.KEY_MIME) ?: ""
+            if (mime.contains("dolby-vision")) return true
+            if (f.containsKey(MediaFormat.KEY_COLOR_TRANSFER)) {
+                val t = f.getInteger(MediaFormat.KEY_COLOR_TRANSFER)
+                if (t == MediaFormat.COLOR_TRANSFER_ST2084 || t == MediaFormat.COLOR_TRANSFER_HLG) return true
+            }
+            if (f.containsKey(MediaFormat.KEY_PROFILE)) {
+                val pr = f.getInteger(MediaFormat.KEY_PROFILE)
+                // HEVC Main10 HDR10 (0x1000) / HDR10+ (0x2000); VP9 Profile2/3 HDR (0x1000..0x8000).
+                if (mime == MediaFormat.MIMETYPE_VIDEO_HEVC && (pr == 0x1000 || pr == 0x2000)) return true
+                if (mime == MediaFormat.MIMETYPE_VIDEO_VP9 && pr >= 0x1000) return true
+            }
+            false
+        } catch (e: Exception) {
+            false
+        } finally {
+            try { ex.release() } catch (e: Exception) {}
         }
     }
 
@@ -290,6 +328,9 @@ object MediaTranscodeBridge {
         val endMs = (a["endMs"] as? Number)?.toLong() ?: return false
         if (startMs < 0 || endMs <= startMs) return false
         val removeAudio = a["removeAudio"] == true
+        // Ses dosyası kesimi (2026-11-14): video yok → hızlı (yeniden
+        // kodlamasız) kesim yolu kapalı; ses AAC/M4A'ya kodlanır.
+        val audioOnly = a["audioOnly"] == true
         transformer?.cancel()
         val clip = MediaItem.ClippingConfiguration.Builder()
             .setStartPositionMs(startMs)
@@ -303,7 +344,7 @@ object MediaTranscodeBridge {
             .setRemoveAudio(removeAudio)
             .build()
         val t = Transformer.Builder(context)
-            .experimentalSetTrimOptimizationEnabled(!removeAudio)
+            .experimentalSetTrimOptimizationEnabled(!removeAudio && !audioOnly)
             .addListener(exportListener(target))
             .build()
         transformer = t
@@ -425,23 +466,63 @@ object MediaTranscodeBridge {
     private fun frames(a: Map<*, *>): List<String> {
         val path = a["path"] as? String ?: return emptyList()
         val dir = a["dir"] as? String ?: return emptyList()
-        val count = ((a["count"] as? Number)?.toInt() ?: 10).coerceIn(1, 60)
-        val width = ((a["width"] as? Number)?.toInt() ?: 160).coerceIn(32, 480)
+        // 3000'e dek: ince ızgara (parmağın altındaki kare) yalnız `indices` ile istenir.
+        val count = ((a["count"] as? Number)?.toInt() ?: 10).coerceIn(1, 3000)
+        // `exact` (2026-11-15): anahtar kare değil TAM o anın karesi (yavaş;
+        // yalnız tek tek istenen ince kareler için).
+        val option = if (a["exact"] == true) MediaMetadataRetriever.OPTION_CLOSEST
+            else MediaMetadataRetriever.OPTION_CLOSEST_SYNC
+        // `atMs` (2026-11-15): tek, tam o anın karesi — duraklatılmış
+        // önizlemede gösterilir; o yüzden 1280'e dek genişlik.
+        val atMs = (a["atMs"] as? Number)?.toLong()
+        val width = ((a["width"] as? Number)?.toInt() ?: 160)
+            .coerceIn(32, if (atMs != null) 1280 else 480)
         val out = mutableListOf<String>()
         val r = MediaMetadataRetriever()
         try {
+            if (atMs != null) {
+                File(dir).mkdirs()
+                val f = File(dir, "an_${atMs}_$width.jpg")
+                if (f.length() > 0L) return listOf(f.path)
+                r.setDataSource(path)
+                val us = atMs.coerceAtLeast(0L) * 1000L
+                val bmp = (if (android.os.Build.VERSION.SDK_INT >= 27) {
+                    r.getScaledFrameAtTime(us, option, width, width * 2)
+                } else {
+                    r.getFrameAtTime(us, option)
+                }) ?: return out
+                try {
+                    val scaled = if (bmp.width > width) {
+                        android.graphics.Bitmap.createScaledBitmap(
+                            bmp, width, (bmp.height.toLong() * width / bmp.width).toInt().coerceAtLeast(1), true)
+                    } else bmp
+                    val tmp = File(dir, f.name + ".tmp")
+                    tmp.outputStream().use { scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, it) }
+                    if (scaled !== bmp) scaled.recycle()
+                    if (tmp.renameTo(f)) out.add(f.path)
+                } finally {
+                    bmp.recycle()
+                }
+                return out
+            }
             r.setDataSource(path)
             val ms = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
             if (ms <= 0L) return out
             File(dir).mkdirs()
-            for (i in 0 until count) {
+            // `indices` (2026-11-14): yalnız bu dilimler — Dart tarama
+            // karelerini parça parça, kabadan inceye ister (ilk sürüklemede
+            // de kare olsun).
+            val only = (a["indices"] as? List<*>)
+                ?.mapNotNull { (it as? Number)?.toInt() }
+                ?.filter { it in 0 until count }
+            for (i in (only ?: (0 until count).toList())) {
                 // Her dilimin ortası (ilk kare çoğu videoda siyah).
                 val us = (ms * 1000L * (2 * i + 1)) / (2L * count)
                 val bmp = try {
                     if (android.os.Build.VERSION.SDK_INT >= 27) {
-                        r.getScaledFrameAtTime(us, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, width, width * 2)
+                        r.getScaledFrameAtTime(us, option, width, width * 2)
                     } else {
-                        r.getFrameAtTime(us, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                        r.getFrameAtTime(us, option)
                     }
                 } catch (e: Exception) { null } ?: continue
                 try {

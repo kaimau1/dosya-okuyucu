@@ -279,7 +279,8 @@ class DocxPackage {
 
   /// Editör modelinin paragraf sırası (gövde `w:p`, üst düzey tablo
   /// hücrelerindeki `w:p`, boş hücre için hücrenin kendisi, metinli diğer
-  /// gövde öğeleri) — `DocxDocument._readBody` ile aynı. Paragraf dizini
+  /// gövde öğeleri; blok içerik denetimi `w:sdt` içindekiler kendi sırasıyla)
+  /// — `DocxDocument._readBody` / `_readSdt` ile aynı. Paragraf dizini
   /// (imleç) → XML öğesi eşlemesi buradan.
   List<XmlElement> modelParagraphs() {
     final out = <XmlElement>[];
@@ -288,28 +289,67 @@ class DocxPackage {
         case 'p':
           out.add(e);
         case 'tbl':
-          for (final tr in kids(e, 'tr')) {
-            for (final tc in kids(tr, 'tc')) {
-              var any = false;
-              for (final x in tc.childElements) {
-                if (x.name.local == 'p') {
-                  out.add(x);
-                  any = true;
-                } else if (x.name.local != 'tcPr' && x.innerText.trim().isNotEmpty) {
-                  out.add(x);
-                  any = true;
-                }
-              }
-              if (!any) out.add(tc);
-            }
-          }
+          _tableParas(e, out);
         case 'sectPr':
           break;
+        case 'sdt':
+          _sdtParas(e, out, inCell: false);
         default:
           if (e.innerText.trim().isNotEmpty) out.add(e);
       }
     }
     return out;
+  }
+
+  static void _tableParas(XmlElement tbl, List<XmlElement> out) {
+    for (final tr in kids(tbl, 'tr')) {
+      for (final tc in kids(tr, 'tc')) {
+        var any = false;
+        for (final x in tc.childElements) {
+          if (x.name.local == 'p') {
+            out.add(x);
+            any = true;
+          } else if (x.name.local == 'sdt') {
+            final n = out.length;
+            _sdtParas(x, out, inCell: true);
+            if (out.length > n) any = true;
+          } else if (x.name.local != 'tcPr' && x.innerText.trim().isNotEmpty) {
+            out.add(x);
+            any = true;
+          }
+        }
+        if (!any) out.add(tc);
+      }
+    }
+  }
+
+  /// Blok `w:sdt`: içindeki paragraf/tablo/iç içe denetim sırasıyla; kilitli
+  /// ya da veri bağlı denetimdeki tablo tek öğe (`_readSdt` gibi).
+  static void _sdtParas(XmlElement sdt, List<XmlElement> out,
+      {required bool inCell, bool locked = false}) {
+    final content = kid(sdt, 'sdtContent');
+    if (content == null) {
+      if (sdt.innerText.trim().isNotEmpty) out.add(sdt);
+      return;
+    }
+    final pr = kid(sdt, 'sdtPr');
+    final lock = attrOf(kid(pr, 'lock'));
+    final ro = locked ||
+        kid(pr, 'dataBinding') != null ||
+        lock == 'contentLocked' ||
+        lock == 'sdtContentLocked';
+    for (final e in content.childElements) {
+      switch (e.name.local) {
+        case 'p':
+          out.add(e);
+        case 'tbl' when !inCell && !ro:
+          _tableParas(e, out);
+        case 'sdt':
+          _sdtParas(e, out, inCell: inCell, locked: ro);
+        default:
+          if (e.innerText.trim().isNotEmpty) out.add(e);
+      }
+    }
   }
 
   /// İmleç paragrafının gövde düzeyindeki öğesi (tablodaysa tablo).

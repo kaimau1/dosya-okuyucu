@@ -575,15 +575,33 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
   /// Girilen metni yazar: formül Türkçe gösterimden dosya biçimine, sayı /
   /// para / yüzde / tarih akıllı girişle (Faz 25 / madde 7, 11).
   void _applyCell(String value) {
-    final sheet = _sheet;
     final m = _toModel(value);
-    // Faz 27: veri doğrulama ("Durdur" — geçersiz giriş yazılmaz).
-    if (!_passesValidation(m.raw)) {
-      _syncField();
-      return;
-    }
     final at = CellRef(_selRow, _selCol);
-    final code = sheet?.numFmtCode(_selRow, _selCol).trim() ?? 'General';
+    // Veri doğrulama (Faz 27, B10 m.3): Durdur = yazılmaz, Uyarı = sorulur,
+    // Bilgi = yazılır ve bildirilir.
+    switch (_validationResult(at.row, at.col, m.raw)) {
+      case XlsxValidationResult.ok:
+        break;
+      case XlsxValidationResult.stop:
+        _syncField();
+        _showValidationAlert(at.row, at.col);
+        return;
+      case XlsxValidationResult.warning:
+        _syncField();
+        unawaited(_confirmInvalidEntry(at, m));
+        return;
+      case XlsxValidationResult.information:
+        _writeEntry(at, m);
+        _showValidationAlert(at.row, at.col);
+        return;
+    }
+    _writeEntry(at, m);
+  }
+
+  /// Model metnini [at] hücresine yazar (sayı biçimi + not + döngü uyarısı).
+  void _writeEntry(CellRef at, SmartInput m) {
+    final sheet = _sheet;
+    final code = sheet?.numFmtCode(at.row, at.col).trim() ?? 'General';
     final fmt = m.numberFormat != null && (code.isEmpty || code == 'General')
         ? {at: m.numberFormat!}
         : null;

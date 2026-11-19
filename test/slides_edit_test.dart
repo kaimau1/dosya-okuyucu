@@ -3,10 +3,12 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:dosya_okuyucu/core/app_state.dart';
 import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/screens/editors/slides_editor_screen.dart';
 import 'package:dosya_okuyucu/services/pptx_editor.dart';
 import 'package:dosya_okuyucu/services/pptx_writer.dart';
+import 'package:dosya_okuyucu/widgets/editor_top_bar.dart';
 import 'package:dosya_okuyucu/widgets/slide_box_editor.dart';
 import 'package:dosya_okuyucu/widgets/slide_canvas.dart';
 import 'package:dosya_okuyucu/widgets/slide_frame_editor.dart';
@@ -14,6 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 import 'package:xml/xml.dart';
 
 import 'support/temp_dir.dart';
@@ -89,12 +92,17 @@ void main() {
     tester.view.physicalSize = const Size(1080, 2340);
     tester.view.devicePixelRatio = 2.75;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(MaterialApp(
-      localizationsDelegates: _delegates,
-      locale: const Locale('tr'),
-      supportedLocales: const [Locale('tr'), Locale('en'), Locale('ar')],
-      home: SlidesEditorScreen(
-          path: path, name: 'deste.pptx', plainText: 'Proje Özeti'),
+    // ⋮ ortak dosya levhasını açar (2026-11-15); levha kökteki AppState'i
+    // okur — gerçek uygulamadaki gibi sağlanır.
+    await tester.pumpWidget(ChangeNotifierProvider<AppState>.value(
+      value: AppState(),
+      child: MaterialApp(
+        localizationsDelegates: _delegates,
+        locale: const Locale('tr'),
+        supportedLocales: const [Locale('tr'), Locale('en'), Locale('ar')],
+        home: SlidesEditorScreen(
+            path: path, name: 'deste.pptx', plainText: 'Proje Özeti'),
+      ),
     ));
     await tester.pump();
     for (var i = 0; i < 4; i++) {
@@ -339,7 +347,10 @@ void main() {
     final canvas = tester.widget<SlideCanvas>(find.byType(SlideCanvas).first);
     expect(canvas.slide.shapes.where((x) => x.cellBorder != null).length, 6);
     expect(find.byType(SlideCanvas).evaluate().length, cellsBefore);
-    // Sıralayıcı açılır, iki slayt listelenir.
+    // Sıralayıcı ⋮ levhasının Sunum grubunda (2026-11-15 ortak düzen: alt
+    // çubuk en çok 5 düğme); açılır, iki slayt listelenir.
+    await tester.tap(find.byKey(EditorTopBar.moreKey));
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Slayt sıralayıcı'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Slayt sıralayıcı'));

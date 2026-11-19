@@ -91,6 +91,26 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
     });
   }
 
+  /// Klasörü İSKELETSİZ tazeler (uygulamaya arkadan dönüşte — Claude,
+  /// Notlar ya da tarayıcı buraya dosya indirmiş olabilir; kullanıcı
+  /// 2026-11-17). İçerik aynıysa hiçbir şey çizilmez; okunamazsa eski liste
+  /// kalır (hata ekranı yalnız açık [_load]'da gösterilir).
+  Future<void> _reloadQuiet() async {
+    if (!mounted || _loading || _locked || _error != null) return;
+    final showHidden = context.read<AppState>().fmShowHidden;
+    final List<FsEntry> list;
+    try {
+      list = await FsScan.list(widget.path, showHidden: showHidden);
+    } catch (_) {
+      return; // Bilinçli: sessiz tazeleme; eski liste ekranda kalır.
+    }
+    if (!mounted || FsScan.sameListing(_entries, list)) return;
+    _partSetState(() {
+      _entries = list;
+      _selected.removeWhere((s) => !list.any((e) => e.path == s));
+    });
+  }
+
   Future<void> _load() async {
     _partSetState(() {
       _loading = true;
@@ -310,27 +330,18 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
   Future<void> _exportListing() async {
     final strings = AppStrings.of(context);
     final messenger = ScaffoldMessenger.of(context);
-    final csv = await showModalBottomSheet<bool>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(AppIcons.newText),
-              title: Text(ctx.t('fm.export_text')),
-              onTap: () => Navigator.pop(ctx, false),
-            ),
-            ListTile(
-              leading: const Icon(AppIcons.newSheet),
-              title: Text(ctx.t('fm.export_csv')),
-              onTap: () => Navigator.pop(ctx, true),
-            ),
-          ],
-        ),
-      ),
-    );
+    final csv = await showAppActionSheet<bool>(context, groups: [
+      AppActionGroup(actions: [
+        AppAction(
+            value: false,
+            icon: AppIcons.newText,
+            label: context.t('fm.export_text')),
+        AppAction(
+            value: true,
+            icon: AppIcons.newSheet,
+            label: context.t('fm.export_csv')),
+      ]),
+    ]);
     if (csv == null || !mounted) return;
     try {
       final out = await FolderReport.save(widget.path, _entries, csv: csv);

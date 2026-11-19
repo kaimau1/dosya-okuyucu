@@ -74,10 +74,13 @@ OcrPageText assembleOcrPageText(int pageNumber, String fullText, List<OcrFrag> f
 ///   görünsün; aralık negatifse sınırda sıfır genişlik),
 /// * '\n' → satır sonunda sıfır genişlik kutu.
 ///
-/// Satır sırası ML Kit'in blok/satır sırasıdır (kabaca okuma sırası).
-/// BİLİNÇLİ olarak yeniden SIRALANMAZ: çok sütunlu sayfada salt y-koordinat
-/// sıralaması sütunları birbirine karıştırır, ML Kit'in blok gruplaması ise
-/// sütunu bütün tutar.
+/// Satır sırası ML Kit'in blok/satır sırasıdır (kabaca okuma sırası) —
+/// çok sütunlu YAZIDA salt y-sıralaması sütunları karıştırırdı. İSTİSNA
+/// **tablo** ([orderOcrRows], 2026-11-15): ML Kit tabloyu sütun sütun okur
+/// (önce tüm adlar, sonra tüm sayılar); seçim metin sırasında ilerlediği için
+/// iki satır arasına sürüklemek öbür sütuna atlıyordu ("1 1 1 … 44"). Tablo
+/// sayfasında aynı yükseklikteki hücreler TEK görsel satırda, soldan sağa,
+/// sekmeyle ayrılarak birleşir (kopyalanınca tabloya da yapışır).
 OcrPageText? buildOcrPageText({
   required int pageNumber,
   required double pageHeight,
@@ -96,11 +99,14 @@ OcrPageText? buildOcrPageText({
   final buffer = StringBuffer();
   final fragments = <OcrFrag>[];
 
-  for (final line in lines) {
-    final words = [
-      for (final w in line)
-        if (w.text.isNotEmpty && !w.box.isEmpty) w,
-    ];
+  for (final row in orderOcrRows(lines)) {
+    // Hücre (segment) sınırı: bu sözcükten önce sekme yazılır.
+    final cellStart = <int>{};
+    final words = <OcrWordBox>[];
+    for (final seg in row) {
+      if (words.isNotEmpty) cellStart.add(words.length);
+      words.addAll(seg);
+    }
     if (words.isEmpty) continue;
 
     final lineStart = buffer.length;
@@ -114,7 +120,7 @@ OcrPageText? buildOcrPageText({
         final prev = words[wi - 1].box;
         final left = prev.right;
         final right = w.box.left > left ? w.box.left : left;
-        lineText.write(' ');
+        lineText.write(cellStart.contains(wi) ? '\t' : ' ');
         charRects.add(toPdf(Rect.fromLTRB(
           left,
           prev.top < w.box.top ? prev.top : w.box.top,
@@ -149,11 +155,91 @@ OcrPageText? buildOcrPageText({
   return assembleOcrPageText(pageNumber, buffer.toString(), fragments);
 }
 
+/// Satırları görsel satırlara dizer: satır → hücreler → sözcükler.
+///
+/// Varsayılan: her ML Kit satırı tek hücreli bir satır, sıra korunur.
+/// Sayfa **tablo** görünüyorsa (aynı yükseklikte yan yana duran satırların
+/// çoğunda dar bir hücre — sayı/kod sütunu — var) yan yana duranlar tek
+/// satırda birleşir ve satırlar yukarıdan aşağı sıralanır. İki sütunlu düz
+/// yazıda yan yana satırların ikisi de geniştir → dokunulmaz.
+List<List<List<OcrWordBox>>> orderOcrRows(List<List<OcrWordBox>> lines) {
+  final clean = <List<OcrWordBox>>[
+    for (final line in lines)
+      [
+        for (final w in line)
+          if (w.text.isNotEmpty && !w.box.isEmpty) w,
+      ],
+  ]..removeWhere((l) => l.isEmpty);
+  final plain = [
+    for (final l in clean) [l],
+  ];
+  if (clean.length < 4) return plain;
+
+  Rect boxOf(List<OcrWordBox> l) =>
+      l.skip(1).fold(l.first.box, (r, w) => r.expandToInclude(w.box));
+  final boxes = [for (final l in clean) boxOf(l)];
+  var minL = boxes.first.left, maxR = boxes.first.right;
+  for (final b in boxes) {
+    if (b.left < minL) minL = b.left;
+    if (b.right > maxR) maxR = b.right;
+  }
+  final pageW = maxR - minL;
+  if (pageW <= 0) return plain;
+
+  // Yukarıdan aşağı; aynı satıra düşenler (dikey örtüşme ≥ küçük boyun
+  // yarısı, yatayda örtüşmeyen) bir araya.
+  final order = List.generate(clean.length, (i) => i)
+    ..sort((a, b) => boxes[a].center.dy.compareTo(boxes[b].center.dy));
+  final rows = <List<int>>[];
+  final rowBox = <Rect>[];
+  for (final i in order) {
+    final b = boxes[i];
+    var placed = false;
+    for (var r = rows.length - 1; r >= 0 && r >= rows.length - 3; r--) {
+      final rb = rowBox[r];
+      final overlap = (b.bottom < rb.bottom ? b.bottom : rb.bottom) -
+          (b.top > rb.top ? b.top : rb.top);
+      final minH = b.height < rb.height ? b.height : rb.height;
+      if (overlap < minH * 0.5) continue;
+      final clash = rows[r].any((j) =>
+          boxes[j].left < b.right && b.left < boxes[j].right);
+      if (clash) continue;
+      rows[r].add(i);
+      rowBox[r] = rb.expandToInclude(b);
+      placed = true;
+      break;
+    }
+    if (!placed) {
+      rows.add([i]);
+      rowBox.add(b);
+    }
+  }
+
+  final multi = rows.where((r) => r.length > 1).toList();
+  if (multi.length < 3) return plain;
+  final narrow = multi
+      .where((r) => r.any((j) => boxes[j].width < pageW * 0.15))
+      .length;
+  // Tablo: yan yana satırların en az %60'ında dar hücre var ve sayfanın
+  // önemli bir kısmı böyle satırlar.
+  if (narrow < multi.length * 0.6 || multi.length < rows.length * 0.3) {
+    return plain;
+  }
+  return [
+    for (final r in rows)
+      [
+        for (final j in (r..sort((a, b) => boxes[a].left.compareTo(boxes[b].left))))
+          clean[j],
+      ],
+  ];
+}
+
 /// [OcrPageText]'i JSON'a çevirir — **disk önbelleği** için (2026-08-05,
 /// 4. tur: uygulama kapanıp açılınca taranmış sayfa yeniden OCR'lanmasın;
 /// pil + "anında seçilebilir sayfa"). Saf fonksiyon, birim testli.
 String encodeOcrPageText(OcrPageText text) => jsonEncode({
-      'v': 1,
+      // v2 (2026-11-15): tablo satır sırası — eski önbellek yeniden OCR'lanır.
+      'v': 2,
       'page': text.pageNumber,
       'text': text.fullText,
       'frags': [
@@ -175,7 +261,7 @@ String encodeOcrPageText(OcrPageText text) => jsonEncode({
 OcrPageText? decodeOcrPageText(String json) {
   try {
     final map = jsonDecode(json);
-    if (map is! Map || map['v'] != 1) return null;
+    if (map is! Map || map['v'] != 2) return null;
     final fullText = map['text'] as String;
     final fragments = <OcrFrag>[];
     for (final f in map['frags'] as List) {

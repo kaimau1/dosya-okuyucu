@@ -152,6 +152,34 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
     }
   }
 
+  /// Favori / son hedef klasörün var olup olmadığı (B12 m.1): eskiden
+  /// `build` her karede her kısayol için eşzamanlı `existsSync` çağırıyordu;
+  /// artık yol başına bir kez eşzamansız bakılır, sonuç gelene dek kısayol
+  /// gösterilmez (ölü kısayol hiç görünmez).
+  final Map<String, bool> _dirExists = {};
+  final Set<String> _dirChecking = {};
+
+  bool _liveDir(String path) {
+    final known = _dirExists[path];
+    if (known != null) return known;
+    if (_dirChecking.add(path)) _checkDir(path);
+    return false;
+  }
+
+  Future<void> _checkDir(String path) async {
+    var exists = false;
+    try {
+      exists = await Directory(path).exists();
+    } catch (_) {
+      // Bilinçli: okunamayan yol ölü kısayol sayılır.
+    }
+    if (!mounted) return;
+    setState(() {
+      _dirExists[path] = exists;
+      _dirChecking.remove(path);
+    });
+  }
+
   /// Kısayollar: sabit klasörler + favoriler + son kullanılan hedefler.
   /// Var olmayan yollar gösterilmez (ölü kısayol kullanıcıyı yanıltır);
   /// Önemli Dosyalar istisna — yoksa **oluşturulur**, zaten amacı bu.
@@ -176,7 +204,7 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
     }
     for (final path in appState.fmRecentDestinations) {
       if (out.any((s) => s.path == path)) continue;
-      if (!Directory(path).existsSync()) continue;
+      if (!_liveDir(path)) continue;
       out.add((
         icon: AppIcons.history,
         label: p.basename(path),
@@ -186,7 +214,7 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
     }
     for (final path in appState.bookmarks) {
       if (out.any((s) => s.path == path)) continue;
-      if (!Directory(path).existsSync()) continue;
+      if (!_liveDir(path)) continue;
       out.add((
         icon: AppIcons.star,
         label: p.basename(path),

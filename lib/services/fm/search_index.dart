@@ -10,6 +10,7 @@ import 'package:path/path.dart' as p;
 import '../../core/text_search.dart';
 import '../../models/fs_entry.dart';
 import 'ai_index.dart';
+import 'smart_sort.dart';
 import 'fm_env.dart';
 import 'fs_events.dart';
 import 'fs_scan.dart';
@@ -351,6 +352,21 @@ abstract final class SearchIndex {
           name: p.basename(r.path),
           isDir: false,
           sizeBytes: r.sizeBytes,
+          modifiedMs: r.modifiedMs);
+      if (category != null && e.category != category) continue;
+      if (e.exists) out.add(e);
+    }
+    // **Akıllı düzen** (2026-11-18): AI kategorisi/ikinci adı, üç dilde.
+    await SmartSort.ensureLoaded();
+    for (final r in SmartSort.matches(q, limit: limit - out.length)) {
+      if (!seen.add(r.path)) continue;
+      if (root != null && !p.isWithin(root, r.path)) continue;
+      if (r.hidden) continue;
+      final e = FsEntry(
+          path: r.path,
+          name: p.basename(r.path),
+          isDir: false,
+          sizeBytes: r.size,
           modifiedMs: r.modifiedMs);
       if (category != null && e.category != category) continue;
       if (e.exists) out.add(e);

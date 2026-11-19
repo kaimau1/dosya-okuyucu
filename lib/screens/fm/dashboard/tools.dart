@@ -119,15 +119,46 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
         onTap: () => showNewDocumentSheet(context),
       ),
       // Anılar 2026-10-29'da kaldırıldı (kullanıcı isteği: "anıları kaldır").
-      // Sesli kitaplar (2026-10-22): belgeden üretilmiş, kayıtlı ses dosyaları.
+      // (Sesli kitaplarım 2026-11-18'de Kitaplık'ın içine taşındı — kullanıcı:
+      // "sesli kitaplarım özelliği buradan çıkıp kitaplık içerisine girsin".)
+      // **Üretilenler** (2026-11-18, kullanıcı: "Geçmiş kartını kaldıralım,
+      // üretilenleri aşağıdaki araçlara koyalım"): küçültülen video,
+      // düzenlenen PDF, taranan belge… — eskiden Geçmiş kutusunun 2. bölümü.
       FmTileData(
-        icon: AppIcons.audiobook,
-        color: AppHues.sea,
-        id: 'audiobooks',
-        feature: Feature.audiobook,
-        label: context.t('ab.library'),
+        icon: AppIcons.historyEdu,
+        color: AppHues.indigo,
+        id: 'produced',
+        label: context.t('hist.produced'),
         subtitle: '',
-        onTap: () => _push(const AudiobookLibraryScreen()),
+        onTap: () => _push(const ActivityScreen()),
+      ),
+      // İkinci araç satırı (2026-11-18, "araçlar 2 satır olsun"): telefonun
+      // başka yerlerinde iki-üç dokunuş derindeki sık işler.
+      FmTileData(
+        icon: AppIcons.filterNone,
+        color: AppHues.teal,
+        id: 'duplicates',
+        label: context.t('tools.dupes'),
+        subtitle: '',
+        onTap: () => _push(DuplicatesScreen(roots: FmEnv.volumeRoots)),
+      ),
+      FmTileData(
+        icon: FtpService.instance.running ? AppIcons.hotspot : AppIcons.computer,
+        color: AppHues.blue,
+        id: 'ftp',
+        feature: Feature.transfer,
+        label: context.t('ftpd.title'),
+        subtitle:
+            FtpService.instance.running ? context.t('ftpd.running') : '',
+        onTap: () => _push(const FtpServerScreen()),
+      ),
+      FmTileData(
+        icon: AppIcons.downloadForOffline,
+        color: AppHues.tangerine,
+        id: 'link_download',
+        label: context.t('dl.from_link'),
+        subtitle: '',
+        onTap: () => _push(const DownloadManagerScreen()),
       ),
       // Şifreli kasa (2026-10-18): PIN/parmak iziyle açılan, içeriği
       // şifreli klasör — kimlik, tapu, sözleşme taramaları için.
@@ -166,11 +197,15 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
     // 2026-11-04 (kullanıcı): Aktar alt panelde; Yer aç · Sohbet medyası ·
     // Düzenle İşlemler ekranının sekmeleri oldu. Araçlar TEK satır: İşlemler
     // başta, gerisi "Tümü"nde.
+    // 2026-11-18: iki satır — Harici bellek (sabit, başta) + yedi araç.
     const order = [
       'jobs',
+      'produced',
       'vault',
       'new_document',
-      'audiobooks',
+      'duplicates',
+      'ftp',
+      'link_download',
     ];
     int rank(FmTileData t) {
       final i = order.indexOf(t.id);
@@ -203,6 +238,15 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
   ///
   /// Birden çok birim (USB + SD kart aynı anda) desteklenir: alt yazı hepsini
   /// sayar, dokununca listeleyip seçtirir.
+  /// Yan menünün kartları: pano kutuları + takılı harici bellek (2026-11-15,
+  /// kullanıcı: "menüde harici bellek takıldığında görülmeli"). Bellek
+  /// takılı değilken menüde yer kaplamaz.
+  List<FmTileData> _sideMenuTiles() => [
+        ..._categoryTilesRaw(),
+        if (_safRoots.isNotEmpty || FmEnv.volumes.any((v) => v.isRemovable))
+          _externalTile(),
+      ];
+
   FmTileData _externalTile() {
     final externals = [
       for (final v in FmEnv.volumes)

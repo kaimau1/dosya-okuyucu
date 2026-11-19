@@ -151,7 +151,7 @@ void main() {
       expect(tester.getSize(column).width, HomeNavColumn.expandedWidth);
 
       await tester.tap(find.descendant(
-          of: column, matching: find.text('Son açılanlar')));
+          of: column, matching: find.text('Geçmiş')));
       await tester.pump();
       expect(find.byType(OpenHistoryScreen), findsOneWidget);
       expect(column, findsOneWidget, reason: 'sütun yerinde kalır');

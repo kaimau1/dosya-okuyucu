@@ -7,7 +7,7 @@ description: Liste/ızgaraya, görüntüleyici kabuğuna (PDF/Office/görsel/vid
 
 "not" projesindeki `kasma-kontrol` skill'inin (2026-11-09) dosya okuyucuya uyarlanmış hâli
 (2026-11-14). Maddeler bu deponun kendi kuralları ve HAFIZA'daki gerçek kök nedenlerinden:
-PERFORMANS KORUMA ANAYASASI (`docs/GELISTIRME_PLANI.md`), `docs/FERRARI_PLANI.md` §0.6 bekçileri,
+Hız anayasası (`PLAN.md` §0), `docs/arsiv/planlar/FERRARI_PLANI.md` §0.6 bekçileri,
 HAFIZA 2026-11-13/14 tuzakları.
 
 Görünür yeni alan, kip ya da sarmalayıcı eklerken, push'tan ÖNCE:

@@ -54,13 +54,28 @@ extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
   /// Taslaktan geri yükleme (Faz 20): model taslağın baytlarından kurulur.
   Future<void> _restoreDraft(Uint8List bytes) async {
     _endEdit();
-    _undoBySheet.clear();
     final csv = _editor?.csv;
+    final job = (
+      bytes: bytes,
+      csvSheet: csv == null ? null : _editor!.sheets.first.name,
+      tsv: csv?.delimiter == '\t',
+    );
+    // Açılıştaki gibi arka izlekte (B12 m.2): büyük kitapta ana izlek donmasın.
+    XlsxEditor next;
+    if (SpreadsheetEditorScreen.parseInIsolate) {
+      try {
+        next = await compute(_SpreadsheetEditorScreenState._parseDraft, job);
+      } catch (_) {
+        // İzolat üretilemezse/sonuç taşınamazsa ana izlekte çöz.
+        next = _SpreadsheetEditorScreenState._parseDraft(job);
+      }
+    } else {
+      next = _SpreadsheetEditorScreenState._parseDraft(job);
+    }
+    if (!mounted) return;
+    _undoBySheet.clear();
     _partSetState(() {
-      _editor = csv == null
-          ? XlsxEditor.parse(bytes)
-          : (XlsxEditor.fromCsv(bytes, sheetName: _editor!.sheets.first.name,
-              tsv: csv.delimiter == '\t'));
+      _editor = next;
       _gridVersion++;
     });
     _syncField();
